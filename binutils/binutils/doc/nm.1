@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "NM 1"
-.TH NM 1 "2014-12-23" "binutils-2.25" "GNU Development Tools"
+.TH NM 1 "2017-03-02" "binutils-2.28" "GNU Development Tools"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -153,7 +153,7 @@ nm [\fB\-A\fR|\fB\-o\fR|\fB\-\-print\-file\-name\fR] [\fB\-a\fR|\fB\-\-debug\-sy
    [\fB\-u\fR|\fB\-\-undefined\-only\fR] [\fB\-V\fR|\fB\-\-version\fR]
    [\fB\-X 32_64\fR] [\fB\-\-defined\-only\fR] [\fB\-\-no\-demangle\fR]
    [\fB\-\-plugin\fR \fIname\fR] [\fB\-\-size\-sort\fR] [\fB\-\-special\-syms\fR]
-   [\fB\-\-synthetic\fR] [\fB\-\-target=\fR\fIbfdname\fR]
+   [\fB\-\-synthetic\fR] [\fB\-\-with\-symbol\-versions\fR] [\fB\-\-target=\fR\fIbfdname\fR]
    [\fIobjfile\fR...]
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -491,11 +491,12 @@ types.  This option is only available if the toolchain has been built
 with plugin support enabled.
 .IP "\fB\-\-size\-sort\fR" 4
 .IX Item "--size-sort"
-Sort symbols by size.  The size is computed as the difference between
-the value of the symbol and the value of the symbol with the next higher
-value.  If the \f(CW\*(C`bsd\*(C'\fR output format is used the size of the symbol
-is printed, rather than the value, and \fB\-S\fR must be used in order
-both size and value to be printed.
+Sort symbols by size.  For \s-1ELF\s0 objects symbol sizes are read from the
+\&\s-1ELF,\s0 for other object types the symbol sizes are computed as the
+difference between the value of the symbol and the value of the symbol
+with the next higher value.  If the \f(CW\*(C`bsd\*(C'\fR output format is used
+the size of the symbol is printed, rather than the value, and
+\&\fB\-S\fR must be used in order both size and value to be printed.
 .IP "\fB\-\-special\-syms\fR" 4
 .IX Item "--special-syms"
 Display symbols which have a target-specific special meaning.  These
@@ -508,6 +509,14 @@ used to mark transitions between \s-1ARM\s0 code, \s-1THUMB\s0 code and data.
 Include synthetic symbols in the output.  These are special symbols
 created by the linker for various purposes.  They are not shown by
 default since they are not part of the binary's original source code.
+.IP "\fB\-\-with\-symbol\-versions\fR" 4
+.IX Item "--with-symbol-versions"
+Enables the display of symbol version information if any exists.  The
+version string is displayed as a suffix to the symbol name, preceeded by
+an @ character.  For example \fBfoo@VER_1\fR.  If the version is
+the default version to be used when resolving unversioned references
+to the symbol then it is displayed as a suffix preceeded by two @
+characters.  For example \fBfoo@@VER_2\fR.
 .IP "\fB\-\-target=\fR\fIbfdname\fR" 4
 .IX Item "--target=bfdname"
 Specify an object code format other than your system's default format.
@@ -529,7 +538,7 @@ with a backslash.  The \fIfile\fR may itself contain additional
 \&\fIar\fR\|(1), \fIobjdump\fR\|(1), \fIranlib\fR\|(1), and the Info entries for \fIbinutils\fR.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright (c) 1991\-2014 Free Software Foundation, Inc.
+Copyright (c) 1991\-2017 Free Software Foundation, Inc.
 .PP
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the \s-1GNU\s0 Free Documentation License, Version 1.3

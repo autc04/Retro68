@@ -1,5 +1,5 @@
 /* BFD back-end for MIPS PE COFF files.
-   Copyright (C) 1990-2014 Free Software Foundation, Inc.
+   Copyright (C) 1990-2017 Free Software Foundation, Inc.
    Modified from coff-i386.c by DJ Delorie, dj@cygnus.com
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -95,44 +95,44 @@ coff_mips_reloc (bfd *abfd,
 #define DOIT(x) \
   x = ((x & ~howto->dst_mask) | (((x & howto->src_mask) + (diff >> howto->rightshift)) & howto->dst_mask))
 
-    if (diff != 0)
-      {
-	reloc_howto_type *howto = reloc_entry->howto;
-	unsigned char *addr = (unsigned char *) data + reloc_entry->address;
+  if (diff != 0)
+    {
+      reloc_howto_type *howto = reloc_entry->howto;
+      unsigned char *addr = (unsigned char *) data + reloc_entry->address;
 
-	switch (howto->size)
+      switch (howto->size)
+	{
+	case 0:
 	  {
-	  case 0:
-	    {
-	      char x = bfd_get_8 (abfd, addr);
+	    char x = bfd_get_8 (abfd, addr);
 
-	      DOIT (x);
-	      bfd_put_8 (abfd, x, addr);
-	    }
-	    break;
-
-	  case 1:
-	    {
-	      short x = bfd_get_16 (abfd, addr);
-
-	      DOIT (x);
-	      bfd_put_16 (abfd, (bfd_vma) x, addr);
-	    }
-	    break;
-
-	  case 2:
-	    {
-	      long x = bfd_get_32 (abfd, addr);
-
-	      DOIT (x);
-	      bfd_put_32 (abfd, (bfd_vma) x, addr);
-	    }
-	    break;
-
-	  default:
-	    abort ();
+	    DOIT (x);
+	    bfd_put_8 (abfd, x, addr);
 	  }
-      }
+	  break;
+
+	case 1:
+	  {
+	    short x = bfd_get_16 (abfd, addr);
+
+	    DOIT (x);
+	    bfd_put_16 (abfd, (bfd_vma) x, addr);
+	  }
+	  break;
+
+	case 2:
+	  {
+	    long x = bfd_get_32 (abfd, addr);
+
+	    DOIT (x);
+	    bfd_put_32 (abfd, (bfd_vma) x, addr);
+	  }
+	  break;
+
+	default:
+	  abort ();
+	}
+    }
 
   /* Now let bfd_perform_relocation finish everything up.  */
   return bfd_reloc_continue;
@@ -375,7 +375,7 @@ static reloc_howto_type howto_table[] =
       coffsym = (obj_symbols (abfd)				\
 	         + (cache_ptr->sym_ptr_ptr - symbols));		\
     else if (ptr)						\
-      coffsym = coff_symbol_from (abfd, ptr);			\
+      coffsym = coff_symbol_from (ptr);				\
     if (coffsym != NULL						\
 	&& coffsym->native->u.syment.n_scnum == 0)		\
       cache_ptr->addend = - coffsym->native->u.syment.n_value;	\
@@ -603,9 +603,9 @@ coff_pe_mips_relocate_section (bfd *output_bfd,
   struct internal_reloc *rel_end;
   unsigned int i;
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
 	(_("%B: `ld -r' not supported with PE MIPS objects\n"), input_bfd);
       bfd_set_error (bfd_error_bad_value);
       return FALSE;
@@ -661,7 +661,7 @@ coff_pe_mips_relocate_section (bfd *output_bfd,
          then we should ignore the symbol value.  */
       if (howto->pc_relative && howto->pcrel_offset)
 	{
-	  if (info->relocatable)
+	  if (bfd_link_relocatable (info))
 	    continue;
 	  if (sym != NULL && sym->n_scnum != 0)
 	    addend += sym->n_value;
@@ -701,13 +701,10 @@ coff_pe_mips_relocate_section (bfd *output_bfd,
 		     + sec->output_offset);
 	      }
 
-	  else if (! info->relocatable)
-	    {
-	      if (! ((*info->callbacks->undefined_symbol)
-		     (info, h->root.root.string, input_bfd, input_section,
-		      rel->r_vaddr - input_section->vma, TRUE)))
-		return FALSE;
-	    }
+	  else if (! bfd_link_relocatable (info))
+	    (*info->callbacks->undefined_symbol)
+	      (info, h->root.root.string, input_bfd, input_section,
+	       rel->r_vaddr - input_section->vma, TRUE);
 	}
 
       src = rel->r_vaddr + input_section->output_section->vma
@@ -718,9 +715,11 @@ coff_pe_mips_relocate_section (bfd *output_bfd,
 	   mem = pointer to memory we're fixing up
 	   val = VMA of what we need to refer to.  */
 
-#define UI(x) (*_bfd_error_handler) (_("%B: unimplemented %s\n"), \
-				     input_bfd, x); \
-	      bfd_set_error (bfd_error_bad_value);
+#define UI(x)						       \
+      /* xgettext:c-format */				       \
+	_bfd_error_handler (_("%B: unimplemented %s\n"),       \
+			    input_bfd, x);		       \
+	bfd_set_error (bfd_error_bad_value);
 
       switch (rel->r_type)
 	{
@@ -744,7 +743,7 @@ coff_pe_mips_relocate_section (bfd *output_bfd,
 	  targ = val + (tmp & 0x03ffffff) * 4;
 	  if ((src & 0xf0000000) != (targ & 0xf0000000))
 	    {
-	      (*_bfd_error_handler) (_("%B: jump too far away\n"), input_bfd);
+	      _bfd_error_handler (_("%B: jump too far away\n"), input_bfd);
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
 	    }
@@ -770,8 +769,8 @@ coff_pe_mips_relocate_section (bfd *output_bfd,
 	      targ = val + low + ((tmp & 0xffff) << 16);
 	      break;
 	    default:
-	      (*_bfd_error_handler) (_("%B: bad pair/reflo after refhi\n"),
-				     input_bfd);
+	      _bfd_error_handler (_("%B: bad pair/reflo after refhi\n"),
+				  input_bfd);
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
 	    }

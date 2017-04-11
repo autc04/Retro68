@@ -1,4 +1,4 @@
-/* { dg-options "-O2 -floop-block -fno-loop-strip-mine -fno-loop-interchange -ffast-math -fdump-tree-graphite-all" } */
+/* { dg-options "-O2 -floop-block -ffast-math" } */
 
 typedef unsigned char   UChar;
 typedef int             Int32;
@@ -30,5 +30,3 @@ void fallbackSort ( UInt32* fmap,
    }
    AssertH ( j < 256, 1005 );
 }
-/* { dg-final { scan-tree-dump-times "Loop blocked" 1 "graphite" { xfail *-*-* }} } */
-/* { dg-final { cleanup-tree-dump "graphite" } } */

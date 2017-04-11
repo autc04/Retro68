@@ -1,7 +1,7 @@
 // { dg-do compile }
 // { dg-options "-std=gnu++11" }
 
-// Copyright (C) 2011-2015 Free Software Foundation, Inc.
+// Copyright (C) 2011-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -41,14 +41,18 @@ template<typename T>
 template<typename T, bool copy, bool move, bool swap>
   struct test_allocator : minimal_allocator<T>
   {
+    template<typename U>
+      struct rebind
+      { using other = test_allocator<U, copy, move, swap>; };
+
     struct propagate_on_container_copy_assignment
-    { static const bool value = copy; };
+    : std::integral_constant<bool, copy> { };
 
     struct propagate_on_container_move_assignment
-    { static const bool value = move; };
+    : std::integral_constant<bool, move> { };
 
     struct propagate_on_container_swap
-    { static const bool value = swap; };
+    : std::integral_constant<bool, swap> { };
   };
 
 template<typename A>

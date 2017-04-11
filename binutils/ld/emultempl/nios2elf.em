@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2013-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2013-2017 Free Software Foundation, Inc.
 #
 # This file is part of GNU Binutils.
 #
@@ -50,7 +50,7 @@ nios2elf_create_output_section_statements (void)
   /* If --no-relax was not explicitly specified by the user, enable
      relaxation.  If it's not enabled (either explicitly or by default),
      we're done, as we won't need to create any stubs.  */
-  if (!link_info.relocatable && RELAXATION_DISABLED_BY_DEFAULT)
+  if (!bfd_link_relocatable (&link_info) && RELAXATION_DISABLED_BY_DEFAULT)
     ENABLE_RELAXATION;
   if (!RELAXATION_ENABLED)
     return;
@@ -253,7 +253,9 @@ gld${EMULATION_NAME}_after_allocation (void)
 
   /* If generating a relocatable output file, then we don't
      have to examine the relocs.  */
-  if (stub_file != NULL && !link_info.relocatable && RELAXATION_ENABLED)
+  if (stub_file != NULL
+      && !bfd_link_relocatable (&link_info)
+      && RELAXATION_ENABLED)
     {
       ret = nios2_elf32_setup_section_lists (link_info.output_bfd, &link_info);
       if (ret != 0)
@@ -282,7 +284,7 @@ gld${EMULATION_NAME}_after_allocation (void)
   if (need_laying_out != -1)
     gld${EMULATION_NAME}_map_segments (need_laying_out);
 
-  if (!link_info.relocatable && RELAXATION_ENABLED)
+  if (!bfd_link_relocatable (&link_info) && RELAXATION_ENABLED)
     {
       /* Now build the linker stubs.  */
       if (stub_file != NULL && stub_file->the_bfd->sections != NULL)

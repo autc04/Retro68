@@ -1,6 +1,6 @@
 /* SPU specific support for 32-bit ELF
 
-   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+   Copyright (C) 2006-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -156,8 +156,9 @@ spu_elf_info_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
   /* PR 17512: file: 90c2a92e.  */
   if (r_type >= R_SPU_max)
     {
-      (*_bfd_error_handler) (_("%B: unrecognised SPU reloc number: %d"),
-			     abfd, r_type);
+      /* xgettext:c-format */
+      _bfd_error_handler (_("%B: unrecognised SPU reloc number: %d"),
+			  abfd, r_type);
       bfd_set_error (bfd_error_bad_value);
       r_type = R_SPU_NONE;
     }
@@ -790,6 +791,7 @@ spu_elf_find_overlays (struct bfd_link_info *info)
 		  spu_elf_section_data (s)->u.o.ovl_buf = num_buf;
 		  if (s0->vma != s->vma)
 		    {
+		      /* xgettext:c-format */
 		      info->callbacks->einfo (_("%X%P: overlay sections %A "
 						"and %A do not start at the "
 						"same address.\n"),
@@ -1014,9 +1016,10 @@ needs_ovl_stub (struct elf_link_hash_entry *h,
 					       sym,
 					       sym_sec);
 		}
-	      (*_bfd_error_handler) (_("warning: call to non-function"
-				       " symbol %s defined in %B"),
-				     sym_sec->owner, sym_name);
+	      _bfd_error_handler
+		/* xgettext:c-format */
+		(_("warning: call to non-function symbol %s defined in %B"),
+		 sym_sec->owner, sym_name);
 
 	    }
 	}
@@ -1364,6 +1367,7 @@ build_stub (struct bfd_link_info *info,
 
 	  if (stub_type != br000_ovl_stub
 	      && lrlive != stub_type - br000_ovl_stub)
+	    /* xgettext:c-format */
 	    info->callbacks->einfo (_("%A:0x%v lrlive .brinfo (%u) differs "
 				      "from analysis (%u)\n"),
 				    isec, irela->r_offset, lrlive,
@@ -1837,6 +1841,18 @@ ovl_mgr_pread (struct bfd *abfd ATTRIBUTE_UNUSED,
   return count;
 }
 
+static int
+ovl_mgr_stat (struct bfd *abfd ATTRIBUTE_UNUSED,
+	      void *stream,
+	      struct stat *sb)
+{
+  struct _ovl_stream *os = (struct _ovl_stream *) stream;
+
+  memset (sb, 0, sizeof (*sb));
+  sb->st_size = (const char *) os->end - (const char *) os->start;
+  return 0;
+}
+
 bfd_boolean
 spu_elf_open_builtin_lib (bfd **ovl_bfd, const struct _ovl_stream *stream)
 {
@@ -1846,7 +1862,7 @@ spu_elf_open_builtin_lib (bfd **ovl_bfd, const struct _ovl_stream *stream)
 			      (void *) stream,
 			      ovl_mgr_pread,
 			      NULL,
-			      NULL);
+			      ovl_mgr_stat);
   return *ovl_bfd != NULL;
 }
 
@@ -1883,16 +1899,17 @@ define_ovtab_symbol (struct spu_link_hash_table *htab, const char *name)
     }
   else if (h->root.u.def.section->owner != NULL)
     {
-      (*_bfd_error_handler) (_("%B is not allowed to define %s"),
-			     h->root.u.def.section->owner,
-			     h->root.root.string);
+      /* xgettext:c-format */
+      _bfd_error_handler (_("%B is not allowed to define %s"),
+			  h->root.u.def.section->owner,
+			  h->root.root.string);
       bfd_set_error (bfd_error_bad_value);
       return NULL;
     }
   else
     {
-      (*_bfd_error_handler) (_("you are not allowed to define %s in a script"),
-			     h->root.root.string);
+      _bfd_error_handler (_("you are not allowed to define %s in a script"),
+			  h->root.root.string);
       bfd_set_error (bfd_error_bad_value);
       return NULL;
     }
@@ -1925,8 +1942,8 @@ spu_elf_build_stubs (struct bfd_link_info *info)
 	      s = h->root.u.def.section->output_section;
 	      if (spu_elf_section_data (s)->u.o.ovl_index)
 		{
-		  (*_bfd_error_handler) (_("%s in overlay section"),
-					 h->root.root.string);
+		  _bfd_error_handler (_("%s in overlay section"),
+				      h->root.root.string);
 		  bfd_set_error (bfd_error_bad_value);
 		  return FALSE;
 		}
@@ -1954,7 +1971,7 @@ spu_elf_build_stubs (struct bfd_link_info *info)
 
       if (htab->stub_err)
 	{
-	  (*_bfd_error_handler) (_("overlay stub relocation overflow"));
+	  _bfd_error_handler (_("overlay stub relocation overflow"));
 	  bfd_set_error (bfd_error_bad_value);
 	  return FALSE;
 	}
@@ -1963,7 +1980,7 @@ spu_elf_build_stubs (struct bfd_link_info *info)
 	{
 	  if (htab->stub_sec[i]->size != htab->stub_sec[i]->rawsize)
 	    {
-	      (*_bfd_error_handler)  (_("stubs don't match calculated size"));
+	      _bfd_error_handler  (_("stubs don't match calculated size"));
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
 	    }
@@ -2545,6 +2562,7 @@ check_function_ranges (asection *sec, struct bfd_link_info *info)
 	const char *f1 = func_name (&sinfo->fun[i - 1]);
 	const char *f2 = func_name (&sinfo->fun[i]);
 
+	/* xgettext:c-format */
 	info->callbacks->einfo (_("warning: %s overlaps %s\n"), f1, f2);
 	sinfo->fun[i - 1].hi = sinfo->fun[i].lo;
       }
@@ -2592,6 +2610,7 @@ find_function (asection *sec, bfd_vma offset, struct bfd_link_info *info)
       else
 	return &sinfo->fun[mid];
     }
+  /* xgettext:c-format */
   info->callbacks->einfo (_("%A:0x%v not found in function table\n"),
 			  sec, offset);
   bfd_set_error (bfd_error_bad_value);
@@ -2732,6 +2751,7 @@ mark_functions_via_relocs (asection *sec,
 		{
 		  if (!warned)
 		    info->callbacks->einfo
+		      /* xgettext:c-format */
 		      (_("%B(%A+0x%v): call to non-code section"
 			 " %B(%A), analysis incomplete\n"),
 		       sec->owner, sec, irela->r_offset,
@@ -3300,6 +3320,7 @@ remove_cycles (struct function_info *fun,
 	      const char *f1 = func_name (fun);
 	      const char *f2 = func_name (call->fun);
 
+	      /* xgettext:c-format */
 	      info->callbacks->info (_("Stack analysis will ignore the call "
 				       "from %s to %s\n"),
 				     f1, f2);
@@ -3991,8 +4012,8 @@ sum_stack (struct function_info *fun,
   if (htab->params->stack_analysis)
     {
       if (!fun->non_root)
-	info->callbacks->info (_("  %s: 0x%v\n"), f1, (bfd_vma) cum_stack);
-      info->callbacks->minfo (_("%s: 0x%v 0x%v\n"),
+	info->callbacks->info ("  %s: 0x%v\n", f1, (bfd_vma) cum_stack);
+      info->callbacks->minfo ("%s: 0x%v 0x%v\n",
 			      f1, (bfd_vma) stack, (bfd_vma) cum_stack);
 
       if (has_call)
@@ -4005,7 +4026,7 @@ sum_stack (struct function_info *fun,
 		const char *ann1 = call->fun == max ? "*" : " ";
 		const char *ann2 = call->is_tail ? "t" : " ";
 
-		info->callbacks->minfo (_("   %s%s %s\n"), ann1, ann2, f2);
+		info->callbacks->minfo ("   %s%s %s\n", ann1, ann2, f2);
 	      }
 	}
     }
@@ -4310,6 +4331,7 @@ spu_elf_auto_overlay (struct bfd_link_info *info)
 	    if (bfd_arr[i - 1]->my_archive == bfd_arr[i]->my_archive)
 	      {
 		if (bfd_arr[i - 1]->my_archive && bfd_arr[i]->my_archive)
+		  /* xgettext:c-format */
 		  info->callbacks->einfo (_("%s duplicated in %s\n"),
 					  bfd_arr[i]->filename,
 					  bfd_arr[i]->my_archive->filename);
@@ -4362,6 +4384,7 @@ spu_elf_auto_overlay (struct bfd_link_info *info)
     }
 
   if (fixed_size + mos_param.max_overlay_size > htab->local_store)
+    /* xgettext:c-format */
     info->callbacks->einfo (_("non-overlay size of 0x%v plus maximum overlay "
 			      "size of 0x%v exceeds local store\n"),
 			    (bfd_vma) fixed_size,
@@ -4517,6 +4540,7 @@ spu_elf_auto_overlay (struct bfd_link_info *info)
 
       if (i == base)
 	{
+	  /* xgettext:c-format */
 	  info->callbacks->einfo (_("%B:%A%s exceeds overlay size\n"),
 				  ovly_sections[2 * i]->owner,
 				  ovly_sections[2 * i],
@@ -4658,7 +4682,7 @@ spu_elf_auto_overlay (struct bfd_link_info *info)
  file_err:
   bfd_set_error (bfd_error_system_call);
  err_exit:
-  info->callbacks->einfo ("%F%P: auto overlay error: %E\n");
+  info->callbacks->einfo (_("%F%P: auto overlay error: %E\n"));
   xexit (1);
 }
 
@@ -4709,15 +4733,15 @@ spu_elf_final_link (bfd *output_bfd, struct bfd_link_info *info)
        || (htab->params->ovly_flavour == ovly_soft_icache
 	   && htab->params->lrlive_analysis))
       && !spu_elf_stack_analysis (info))
-    info->callbacks->einfo ("%X%P: stack/lrlive analysis error: %E\n");
+    info->callbacks->einfo (_("%X%P: stack/lrlive analysis error: %E\n"));
 
   if (!spu_elf_build_stubs (info))
-    info->callbacks->einfo ("%F%P: can not build overlay stubs: %E\n");
+    info->callbacks->einfo (_("%F%P: can not build overlay stubs: %E\n"));
 
   return bfd_elf_final_link (output_bfd, info);
 }
 
-/* Called when not normally emitting relocs, ie. !info->relocatable
+/* Called when not normally emitting relocs, ie. !bfd_link_relocatable (info)
    and !info->emitrelocations.  Returns a count of special relocs
    that need to be emitted.  */
 
@@ -4781,7 +4805,7 @@ spu_elf_emit_fixup (bfd * output_bfd, struct bfd_link_info *info,
       if (qaddr != (base & ~(bfd_vma) 15))
 	{
 	  if ((sfixup->reloc_count + 1) * FIXUP_RECORD_SIZE > sfixup->size)
-	    (*_bfd_error_handler) (_("fatal error while creating .fixup"));
+	    _bfd_error_handler (_("fatal error while creating .fixup"));
 	  FIXUP_PUT (output_bfd, htab, sfixup->reloc_count, qaddr | bit);
 	  sfixup->reloc_count++;
 	}
@@ -4890,18 +4914,17 @@ spu_elf_relocate_section (bfd *output_bfd,
 	  else if (info->unresolved_syms_in_objects == RM_IGNORE
 		   && ELF_ST_VISIBILITY (h->other) == STV_DEFAULT)
 	    ;
-	  else if (!info->relocatable
+	  else if (!bfd_link_relocatable (info)
 		   && !(r_type == R_SPU_PPU32 || r_type == R_SPU_PPU64))
 	    {
 	      bfd_boolean err;
 	      err = (info->unresolved_syms_in_objects == RM_GENERATE_ERROR
 		     || ELF_ST_VISIBILITY (h->other) != STV_DEFAULT);
-	      if (!info->callbacks->undefined_symbol (info,
-						      h->root.root.string,
-						      input_bfd,
-						      input_section,
-						      rel->r_offset, err))
-		return FALSE;
+	      (*info->callbacks->undefined_symbol) (info,
+						    h->root.root.string,
+						    input_bfd,
+						    input_section,
+						    rel->r_offset, err);
 	    }
 	  sym_name = h->root.root.string;
 	}
@@ -4910,7 +4933,7 @@ spu_elf_relocate_section (bfd *output_bfd,
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, 1, relend, howto, 0, contents);
 
-      if (info->relocatable)
+      if (bfd_link_relocatable (info))
 	continue;
 
       /* Change "a rt,ra,rb" to "ai rt,ra,0". */
@@ -4978,7 +5001,7 @@ spu_elf_relocate_section (bfd *output_bfd,
 	    }
 	}
 
-      if (htab->params->emit_fixups && !info->relocatable
+      if (htab->params->emit_fixups && !bfd_link_relocatable (info)
 	  && (input_section->flags & SEC_ALLOC) != 0
 	  && r_type == R_SPU_ADDR32)
 	{
@@ -5015,7 +5038,8 @@ spu_elf_relocate_section (bfd *output_bfd,
 	  && _bfd_elf_section_offset (output_bfd, info, input_section,
 				      rel->r_offset) != (bfd_vma) -1)
 	{
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
+	    /* xgettext:c-format */
 	    (_("%B(%s+0x%lx): unresolvable %s relocation against symbol `%s'"),
 	     input_bfd,
 	     bfd_get_section_name (input_bfd, input_section),
@@ -5038,17 +5062,14 @@ spu_elf_relocate_section (bfd *output_bfd,
 	  switch (r)
 	    {
 	    case bfd_reloc_overflow:
-	      if (!((*info->callbacks->reloc_overflow)
-		    (info, (h ? &h->root : NULL), sym_name, howto->name,
-		     (bfd_vma) 0, input_bfd, input_section, rel->r_offset)))
-		return FALSE;
+	      (*info->callbacks->reloc_overflow)
+		(info, (h ? &h->root : NULL), sym_name, howto->name,
+		 (bfd_vma) 0, input_bfd, input_section, rel->r_offset);
 	      break;
 
 	    case bfd_reloc_undefined:
-	      if (!((*info->callbacks->undefined_symbol)
-		    (info, sym_name, input_bfd, input_section,
-		     rel->r_offset, TRUE)))
-		return FALSE;
+	      (*info->callbacks->undefined_symbol)
+		(info, sym_name, input_bfd, input_section, rel->r_offset, TRUE);
 	      break;
 
 	    case bfd_reloc_outofrange:
@@ -5069,10 +5090,8 @@ spu_elf_relocate_section (bfd *output_bfd,
 
 	    common_error:
 	      ret = FALSE;
-	      if (!((*info->callbacks->warning)
-		    (info, msg, sym_name, input_bfd, input_section,
-		     rel->r_offset)))
-		return FALSE;
+	      (*info->callbacks->warning) (info, msg, sym_name, input_bfd,
+					   input_section, rel->r_offset);
 	      break;
 	    }
 	}
@@ -5123,7 +5142,7 @@ spu_elf_output_symbol_hook (struct bfd_link_info *info,
 {
   struct spu_link_hash_table *htab = spu_hash_table (info);
 
-  if (!info->relocatable
+  if (!bfd_link_relocatable (info)
       && htab->stub_sec != NULL
       && h != NULL
       && (h->root.type == bfd_link_hash_defined

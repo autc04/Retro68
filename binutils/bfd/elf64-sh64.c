@@ -1,5 +1,5 @@
 /* SuperH SH64-specific support for 64-bit ELF
-   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+   Copyright (C) 2000-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -53,7 +53,7 @@
 #define elf_sh64_plt_symbol_offset(info) 0
 
 /* Return offset of the relocation in PLT entry.  */
-#define elf_sh64_plt_reloc_offset(info) (info->shared ? 52 : 44)
+#define elf_sh64_plt_reloc_offset(info) (bfd_link_pic (info) ? 52 : 44)
 
 #define ELF_DYNAMIC_INTERPRETER "/usr/lib/libc.so.1"
 
@@ -1432,7 +1432,6 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
   Elf_Internal_Shdr *symtab_hdr;
   struct elf_link_hash_entry **sym_hashes;
   Elf_Internal_Rela *rel, *relend;
-  bfd *dynobj;
   bfd_vma *local_got_offsets;
   asection *sgot;
   asection *sgotplt;
@@ -1442,12 +1441,8 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 
   symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
-  dynobj = elf_hash_table (info)->dynobj;
   local_got_offsets = elf_local_got_offsets (input_bfd);
 
-  sgot = NULL;
-  sgotplt = NULL;
-  splt = NULL;
   sreloc = NULL;
 
   rel = relocs;
@@ -1508,15 +1503,15 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	     datalabel processing here.  Make sure this does not change
 	     without notice.  */
 	  if ((sym->st_other & STO_SH5_ISA32) != 0)
-	    ((*info->callbacks->reloc_dangerous)
-	     (info,
-	      _("Unexpected STO_SH5_ISA32 on local symbol is not handled"),
-	      input_bfd, input_section, rel->r_offset));
+	    (*info->callbacks->reloc_dangerous)
+	      (info,
+	       _("Unexpected STO_SH5_ISA32 on local symbol is not handled"),
+	       input_bfd, input_section, rel->r_offset);
 
 	  if (sec != NULL && discarded_section (sec))
 	    /* Handled below.  */
 	    ;
-	  else if (info->relocatable)
+	  else if (bfd_link_relocatable (info))
 	    {
 	      /* This is a relocatable link.  We don't have to change
 		 anything, unless the reloc is against a section symbol,
@@ -1539,7 +1534,8 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 
 	      if (howto->rightshift || howto->src_mask != 0xffffffff)
 		{
-		  (*_bfd_error_handler)
+		  _bfd_error_handler
+		    /* xgettext:c-format */
 		    (_("%B(%A+0x%lx): %s relocation against SEC_MERGE section"),
 		     input_bfd, input_section,
 		     (long) rel->r_offset, howto->name);
@@ -1592,7 +1588,7 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		       || r_type == R_SH_GOT_MEDHI16
 		       || r_type == R_SH_GOT_HI16)
 		      && elf_hash_table (info)->dynamic_sections_created
-		      && (! info->shared
+		      && (! bfd_link_pic (info)
 			  || (! info->symbolic && h->dynindx != -1)
 			  || !h->def_regular))
 		  /* The cases above are those in which relocation is
@@ -1600,7 +1596,7 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		     below are those in which we must defer relocation
 		     to run-time, because we can't resolve absolute
 		     addresses when creating a shared library.  */
-		  || (info->shared
+		  || (bfd_link_pic (info)
 		      && ((! info->symbolic && h->dynindx != -1)
 			  || !h->def_regular)
 		      && ((r_type == R_SH_64
@@ -1629,13 +1625,14 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 				 STT_DATALABEL on the way to it.  */
 			      | ((h->other & STO_SH5_ISA32) != 0
 				 && ! seen_stt_datalabel));
-	      else if (!info->relocatable
+	      else if (!bfd_link_relocatable (info)
 		       && (_bfd_elf_section_offset (output_bfd, info,
 						    input_section,
 						    rel->r_offset)
 			   != (bfd_vma) -1))
 		{
-		  (*_bfd_error_handler)
+		  _bfd_error_handler
+		    /* xgettext:c-format */
 		    (_("%B(%A+0x%lx): unresolvable %s relocation against symbol `%s'"),
 		     input_bfd,
 		     input_section,
@@ -1649,22 +1646,19 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  else if (info->unresolved_syms_in_objects == RM_IGNORE
 		   && ELF_ST_VISIBILITY (h->other) == STV_DEFAULT)
 	    ;
-	  else if (!info->relocatable)
-	    {
-	      if (! ((*info->callbacks->undefined_symbol)
-		     (info, h->root.root.string, input_bfd,
-		      input_section, rel->r_offset,
-		      (info->unresolved_syms_in_objects == RM_GENERATE_ERROR
-		       || ELF_ST_VISIBILITY (h->other)))))
-		return FALSE;
-	    }
+	  else if (!bfd_link_relocatable (info))
+	    (*info->callbacks->undefined_symbol)
+	      (info, h->root.root.string, input_bfd,
+	       input_section, rel->r_offset,
+	       (info->unresolved_syms_in_objects == RM_GENERATE_ERROR
+		|| ELF_ST_VISIBILITY (h->other)));
 	}
 
       if (sec != NULL && discarded_section (sec))
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, 1, relend, howto, 0, contents);
 
-      if (info->relocatable)
+      if (bfd_link_relocatable (info))
 	continue;
 
       disp = (relocation
@@ -1681,7 +1675,8 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	}
       if (dropped != 0)
 	{
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
+	    /* xgettext:c-format */
 	    (_("%s: error: unaligned relocation type %d at %08x reloc %08x\n"),
 	     bfd_get_filename (input_bfd), (int)r_type, (unsigned)rel->r_offset, (unsigned)relocation);
 	  bfd_set_error (bfd_error_bad_value);
@@ -1691,7 +1686,7 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	{
 	case R_SH_64:
 	case R_SH_64_PCREL:
-	  if (info->shared
+	  if (bfd_link_pic (info)
 	      && (input_section->flags & SEC_ALLOC) != 0
 	      && (r_type != R_SH_64_PCREL
 		  || (h != NULL
@@ -1785,7 +1780,7 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  if (h == NULL
 	      || ELF_ST_VISIBILITY (h->other) == STV_INTERNAL
 	      || ELF_ST_VISIBILITY (h->other) == STV_HIDDEN
-	      || ! info->shared
+	      || ! bfd_link_pic (info)
 	      || info->symbolic
 	      || h->dynindx == -1
 	      || h->plt.offset == (bfd_vma) -1
@@ -1794,11 +1789,8 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 
 	  /* Relocation is to the entry for this symbol in the global
 	     offset table extension for the procedure linkage table.  */
-	  if (sgotplt == NULL)
-	    {
-	      sgotplt = bfd_get_linker_section (dynobj, ".got.plt");
-	      BFD_ASSERT (sgotplt != NULL);
-	    }
+	  sgotplt = elf_hash_table (info)->sgotplt;
+	  BFD_ASSERT (sgotplt != NULL);
 
 	  relocation = (sgotplt->output_offset
 			+ ((h->plt.offset / elf_sh64_sizeof_plt (info)
@@ -1817,11 +1809,8 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	case R_SH_GOT10BY8:
 	  /* Relocation is to the entry for this symbol in the global
 	     offset table.  */
-	  if (sgot == NULL)
-	    {
-	      sgot = bfd_get_linker_section (dynobj, ".got");
-	      BFD_ASSERT (sgot != NULL);
-	    }
+	  sgot = elf_hash_table (info)->sgot;
+	  BFD_ASSERT (sgot != NULL);
 
 	  if (h != NULL)
 	    {
@@ -1838,7 +1827,7 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	      BFD_ASSERT (off != (bfd_vma) -1);
 
 	      if (! elf_hash_table (info)->dynamic_sections_created
-		  || (info->shared
+		  || (bfd_link_pic (info)
 		      && (info->symbolic || h->dynindx == -1
 			  || ELF_ST_VISIBILITY (h->other) == STV_INTERNAL
 			  || ELF_ST_VISIBILITY (h->other) == STV_HIDDEN)
@@ -1907,13 +1896,13 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		{
 		  bfd_put_64 (output_bfd, relocation, sgot->contents + off);
 
-		  if (info->shared)
+		  if (bfd_link_pic (info))
 		    {
 		      asection *s;
 		      Elf_Internal_Rela outrel;
 		      bfd_byte *loc;
 
-		      s = bfd_get_linker_section (dynobj, ".rela.got");
+		      s = elf_hash_table (info)->srelgot;
 		      BFD_ASSERT (s != NULL);
 
 		      outrel.r_offset = (sgot->output_section->vma
@@ -1946,11 +1935,8 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  /* Relocation is relative to the start of the global offset
 	     table.  */
 
-	  if (sgot == NULL)
-	    {
-	      sgot = bfd_get_linker_section (dynobj, ".got");
-	      BFD_ASSERT (sgot != NULL);
-	    }
+	  sgot = elf_hash_table (info)->sgot;
+	  BFD_ASSERT (sgot != NULL);
 
 	  /* Note that sgot->output_offset is not involved in this
 	     calculation.  We always want the start of .got.  If we
@@ -1971,11 +1957,8 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	case R_SH_GOTPC_HI16:
 	  /* Use global offset table as symbol value.  */
 
-	  if (sgot == NULL)
-	    {
-	      sgot = bfd_get_linker_section (dynobj, ".got");
-	      BFD_ASSERT (sgot != NULL);
-	    }
+	  sgot = elf_hash_table (info)->sgot;
+	  BFD_ASSERT (sgot != NULL);
 
 	  relocation = sgot->output_section->vma;
 
@@ -2009,11 +1992,8 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	      goto final_link_relocate;
 	    }
 
-	  if (splt == NULL)
-	    {
-	      splt = bfd_get_linker_section (dynobj, ".plt");
-	      BFD_ASSERT (splt != NULL);
-	    }
+	  splt = elf_hash_table (info)->splt;
+	  BFD_ASSERT (splt != NULL);
 
 	  relocation = (splt->output_section->vma
 			+ splt->output_offset
@@ -2081,11 +2061,9 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		    if (*name == '\0')
 		      name = bfd_section_name (input_bfd, sec);
 		  }
-		if (! ((*info->callbacks->reloc_overflow)
-		       (info, (h ? &h->root : NULL), name, howto->name,
-			(bfd_vma) 0, input_bfd, input_section,
-			rel->r_offset)))
-		  return FALSE;
+		(*info->callbacks->reloc_overflow)
+		  (info, (h ? &h->root : NULL), name, howto->name,
+		   (bfd_vma) 0, input_bfd, input_section, rel->r_offset);
 	      }
 	      break;
 	    }
@@ -2265,7 +2243,7 @@ sh_elf64_copy_private_data_internal (bfd *ibfd, bfd *obfd)
 
   /* Copy object attributes.  */
   _bfd_elf_copy_private_bfd_data (ibfd, obfd);
-  
+
   return sh_elf64_set_private_flags (obfd, elf_elfheader (ibfd)->e_flags);
 }
 
@@ -2276,11 +2254,12 @@ sh_elf64_copy_private_data (bfd *ibfd, bfd *obfd)
 }
 
 static bfd_boolean
-sh_elf64_merge_private_data (bfd *ibfd, bfd *obfd)
+sh_elf64_merge_private_data (bfd *ibfd, struct bfd_link_info *info)
 {
+  bfd *obfd = info->output_bfd;
   flagword old_flags, new_flags;
 
-  if (! _bfd_generic_verify_endian_match (ibfd, obfd))
+  if (! _bfd_generic_verify_endian_match (ibfd, info))
     return FALSE;
 
   if (   bfd_get_flavour (ibfd) != bfd_target_elf_flavour
@@ -2293,15 +2272,18 @@ sh_elf64_merge_private_data (bfd *ibfd, bfd *obfd)
 
       if (bfd_get_arch_size (ibfd) == 32
 	  && bfd_get_arch_size (obfd) == 64)
+	/* xgettext:c-format */
 	msg = _("%s: compiled as 32-bit object and %s is 64-bit");
       else if (bfd_get_arch_size (ibfd) == 64
 	       && bfd_get_arch_size (obfd) == 32)
+	/* xgettext:c-format */
 	msg = _("%s: compiled as 64-bit object and %s is 32-bit");
       else
+	/* xgettext:c-format */
 	msg = _("%s: object size does not match that of target %s");
 
-      (*_bfd_error_handler) (msg, bfd_get_filename (ibfd),
-			     bfd_get_filename (obfd));
+      _bfd_error_handler (msg, bfd_get_filename (ibfd),
+			  bfd_get_filename (obfd));
       bfd_set_error (bfd_error_wrong_format);
       return FALSE;
     }
@@ -2319,7 +2301,7 @@ sh_elf64_merge_private_data (bfd *ibfd, bfd *obfd)
      here as things change.  */
   else if ((new_flags & EF_SH_MACH_MASK) != EF_SH5)
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
 	("%s: does not use the SH64 64-bit ABI as previous modules do",
 	 bfd_get_filename (ibfd));
       bfd_set_error (bfd_error_bad_value);
@@ -2374,11 +2356,9 @@ sh_elf64_check_relocs (bfd *abfd, struct bfd_link_info *info,
   asection *srelgot;
   asection *sreloc;
 
-  sgot = NULL;
-  srelgot = NULL;
   sreloc = NULL;
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
@@ -2470,29 +2450,9 @@ sh_elf64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	case R_SH_GOT10BY8:
 	  /* This symbol requires a global offset table entry.  */
 
-	  if (sgot == NULL)
-	    {
-	      sgot = bfd_get_linker_section (dynobj, ".got");
-	      BFD_ASSERT (sgot != NULL);
-	    }
-
-	  if (srelgot == NULL
-	      && (h != NULL || info->shared))
-	    {
-	      srelgot = bfd_get_linker_section (dynobj, ".rela.got");
-	      if (srelgot == NULL)
-		{
-		  flagword flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
-				    | SEC_IN_MEMORY | SEC_LINKER_CREATED
-				    | SEC_READONLY);
-		  srelgot = bfd_make_section_anyway_with_flags (dynobj,
-								".rela.got",
-								flags);
-		  if (srelgot == NULL
-		      || ! bfd_set_section_alignment (dynobj, srelgot, 2))
-		    return FALSE;
-		}
-	    }
+	  sgot = elf_hash_table (info)->sgot;
+	  srelgot = elf_hash_table (info)->srelgot;
+	  BFD_ASSERT (sgot != NULL && srelgot != NULL);
 
 	  if (h != NULL)
 	    {
@@ -2569,7 +2529,7 @@ sh_elf64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 		  local_got_offsets[r_symndx] = sgot->size;
 		}
 
-	      if (info->shared)
+	      if (bfd_link_pic (info))
 		{
 		  /* If we are generating a shared object, we need to
 		     output a R_SH_RELATIVE reloc so that the dynamic
@@ -2594,7 +2554,7 @@ sh_elf64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  if (h == NULL
 	      || ELF_ST_VISIBILITY (h->other) == STV_INTERNAL
 	      || ELF_ST_VISIBILITY (h->other) == STV_HIDDEN
-	      || ! info->shared
+	      || ! bfd_link_pic (info)
 	      || info->symbolic
 	      || h->dynindx == -1
 	      || h->got.offset != (bfd_vma) -1)
@@ -2652,7 +2612,7 @@ sh_elf64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	     later (it is never cleared).  We account for that
 	     possibility below by storing information in the
 	     pcrel_relocs_copied field of the hash table entry.  */
-	  if (info->shared
+	  if (bfd_link_pic (info)
 	      && (sec->flags & SEC_ALLOC) != 0
 	      && (ELF32_R_TYPE (rel->r_info) != R_SH_64_PCREL
 		  || (h != NULL
@@ -2763,7 +2723,7 @@ sh64_elf64_add_symbol_hook (bfd *abfd, struct bfd_link_info *info,
 	 right, and tweak the name when it's output.  Otherwise, we make
 	 an indirect symbol of it.  */
       flagword flags
-	= info->relocatable || info->emitrelocations
+	= bfd_link_relocatable (info) || info->emitrelocations
 	? BSF_GLOBAL : BSF_GLOBAL | BSF_INDIRECT;
 
       char *dl_name
@@ -2807,13 +2767,13 @@ sh64_elf64_add_symbol_hook (bfd *abfd, struct bfd_link_info *info,
 	free (dl_name);
 
       if (h->type != STT_DATALABEL
-	  || ((info->relocatable || info->emitrelocations)
+	  || ((bfd_link_relocatable (info) || info->emitrelocations)
 	      && h->root.type != bfd_link_hash_undefined)
-	  || (! info->relocatable && !info->emitrelocations
+	  || (! bfd_link_relocatable (info) && !info->emitrelocations
 	      && h->root.type != bfd_link_hash_indirect))
 	{
 	  /* Make sure we don't get confused on invalid input.  */
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
 	    (_("%s: encountered datalabel symbol in input"),
 	     bfd_get_filename (abfd));
 	  bfd_set_error (bfd_error_bad_value);
@@ -2853,7 +2813,7 @@ sh64_elf64_link_output_symbol_hook (struct bfd_link_info *info,
 {
   char *name = (char *) cname;
 
-  if (info->relocatable || info->emitrelocations)
+  if (bfd_link_relocatable (info) || info->emitrelocations)
     {
       if (ELF_ST_TYPE (sym->st_info) == STT_DATALABEL)
 	name[strlen (name) - strlen (DATALABEL_SUFFIX)] = 0;
@@ -3161,7 +3121,7 @@ sh64_elf64_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
       h->type = STT_OBJECT;
       elf_hash_table (info)->hplt = h;
 
-      if (info->shared
+      if (bfd_link_pic (info)
 	  && ! bfd_elf_link_record_dynamic_symbol (info, h))
 	return FALSE;
     }
@@ -3201,7 +3161,7 @@ sh64_elf64_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
 	 be needed, we can discard it later.  We will never need this
 	 section when generating a shared object, since they do not use
 	 copy relocs.  */
-      if (! info->shared)
+      if (! bfd_link_pic (info))
 	{
 	  s = bfd_make_section_anyway_with_flags (abfd,
 						  (bed->default_use_rela_p
@@ -3245,7 +3205,7 @@ sh64_elf64_adjust_dynamic_symbol (struct bfd_link_info *info,
   if (h->type == STT_FUNC
       || h->needs_plt)
     {
-      if (! info->shared
+      if (! bfd_link_pic (info)
 	  && !h->def_dynamic
 	  && !h->ref_dynamic)
 	{
@@ -3265,7 +3225,7 @@ sh64_elf64_adjust_dynamic_symbol (struct bfd_link_info *info,
 	    return FALSE;
 	}
 
-      s = bfd_get_linker_section (dynobj, ".plt");
+      s = elf_hash_table (info)->splt;
       BFD_ASSERT (s != NULL);
 
       /* If this is the first .plt entry, make room for the special
@@ -3278,7 +3238,7 @@ sh64_elf64_adjust_dynamic_symbol (struct bfd_link_info *info,
 	 location in the .plt.  This is required to make function
 	 pointers compare as equal between the normal executable and
 	 the shared library.  */
-      if (! info->shared
+      if (! bfd_link_pic (info)
 	  && !h->def_regular)
 	{
 	  h->root.u.def.section = s;
@@ -3293,13 +3253,13 @@ sh64_elf64_adjust_dynamic_symbol (struct bfd_link_info *info,
       /* We also need to make an entry in the .got.plt section, which
 	 will be placed in the .got section by the linker script.  */
 
-      s = bfd_get_linker_section (dynobj, ".got.plt");
+      s = elf_hash_table (info)->sgotplt;
       BFD_ASSERT (s != NULL);
       s->size += 8;
 
       /* We also need to make an entry in the .rela.plt section.  */
 
-      s = bfd_get_linker_section (dynobj, ".rela.plt");
+      s = elf_hash_table (info)->srelplt;
       BFD_ASSERT (s != NULL);
       s->size += sizeof (Elf64_External_Rela);
 
@@ -3325,7 +3285,7 @@ sh64_elf64_adjust_dynamic_symbol (struct bfd_link_info *info,
      only references to the symbol are via the global offset table.
      For such cases we need not do anything here; the relocations will
      be handled correctly by relocate_section.  */
-  if (info->shared)
+  if (bfd_link_pic (info))
     return TRUE;
 
   /* If there are no references to this symbol that do not use the
@@ -3404,7 +3364,7 @@ sh64_elf64_size_dynamic_sections (bfd *output_bfd,
   if (elf_hash_table (info)->dynamic_sections_created)
     {
       /* Set the contents of the .interp section to the interpreter.  */
-      if (info->executable)
+      if (bfd_link_executable (info) && !info->nointerp)
 	{
 	  s = bfd_get_linker_section (dynobj, ".interp");
 	  BFD_ASSERT (s != NULL);
@@ -3419,7 +3379,7 @@ sh64_elf64_size_dynamic_sections (bfd *output_bfd,
 	 not actually use these entries.  Reset the size of .rela.got,
 	 which will cause it to get stripped from the output file
 	 below.  */
-      s = bfd_get_linker_section (dynobj, ".rela.got");
+      s = elf_hash_table (info)->srelgot;
       if (s != NULL)
 	s->size = 0;
     }
@@ -3428,7 +3388,7 @@ sh64_elf64_size_dynamic_sections (bfd *output_bfd,
      PC relative relocs against symbols defined in a regular object.
      We allocated space for them in the check_relocs routine, but we
      will not fill them in in the relocate_section routine.  */
-  if (info->shared && info->symbolic)
+  if (bfd_link_pic (info) && info->symbolic)
     sh64_elf64_link_hash_traverse (elf_hash_table (info),
 				   sh64_elf64_discard_copies, NULL);
 
@@ -3525,7 +3485,7 @@ sh64_elf64_size_dynamic_sections (bfd *output_bfd,
 	 must add the entries now so that we get the correct size for
 	 the .dynamic section.  The DT_DEBUG entry is filled in by the
 	 dynamic linker and used by the debugger.  */
-      if (info->executable)
+      if (bfd_link_executable (info))
 	{
 	  if (!_bfd_elf_add_dynamic_entry (info, DT_DEBUG, 0))
 	    return FALSE;
@@ -3588,9 +3548,9 @@ sh64_elf64_finish_dynamic_symbol (bfd *output_bfd,
 
       BFD_ASSERT (h->dynindx != -1);
 
-      splt = bfd_get_linker_section (dynobj, ".plt");
-      sgot = bfd_get_linker_section (dynobj, ".got.plt");
-      srel = bfd_get_linker_section (dynobj, ".rela.plt");
+      splt = elf_hash_table (info)->splt;
+      sgot = elf_hash_table (info)->sgotplt;
+      srel = elf_hash_table (info)->srelplt;
       BFD_ASSERT (splt != NULL && sgot != NULL && srel != NULL);
 
       /* Get the index in the procedure linkage table which
@@ -3604,11 +3564,11 @@ sh64_elf64_finish_dynamic_symbol (bfd *output_bfd,
 	 The first three are reserved.  */
       got_offset = (plt_index + 3) * 8;
 
-      if (info->shared)
+      if (bfd_link_pic (info))
 	got_offset -= GOT_BIAS;
 
       /* Fill in the entry in the procedure linkage table.  */
-      if (! info->shared)
+      if (! bfd_link_pic (info))
 	{
 	  if (elf_sh64_plt_entry == NULL)
 	    {
@@ -3647,7 +3607,7 @@ sh64_elf64_finish_dynamic_symbol (bfd *output_bfd,
 			      + elf_sh64_plt_symbol_offset (info)));
 	}
 
-      if (info->shared)
+      if (bfd_link_pic (info))
 	got_offset += GOT_BIAS;
 
       movi_shori_putval (output_bfd,
@@ -3691,8 +3651,8 @@ sh64_elf64_finish_dynamic_symbol (bfd *output_bfd,
       /* This symbol has an entry in the global offset table.  Set it
 	 up.  */
 
-      sgot = bfd_get_linker_section (dynobj, ".got");
-      srel = bfd_get_linker_section (dynobj, ".rela.got");
+      sgot = elf_hash_table (info)->sgot;
+      srel = elf_hash_table (info)->srelgot;
       BFD_ASSERT (sgot != NULL && srel != NULL);
 
       rel.r_offset = (sgot->output_section->vma
@@ -3704,7 +3664,7 @@ sh64_elf64_finish_dynamic_symbol (bfd *output_bfd,
 	 the symbol was forced to be local because of a version file.
 	 The entry in the global offset table will already have been
 	 initialized in the relocate_section function.  */
-      if (info->shared
+      if (bfd_link_pic (info)
 	  && (info->symbolic || h->dynindx == -1)
 	  && h->def_regular)
 	{
@@ -3770,7 +3730,7 @@ sh64_elf64_finish_dynamic_sections (bfd *output_bfd,
 
   dynobj = elf_hash_table (info)->dynobj;
 
-  sgot = bfd_get_linker_section (dynobj, ".got.plt");
+  sgot = elf_hash_table (info)->sgotplt;
   BFD_ASSERT (sgot != NULL);
   sdyn = bfd_get_linker_section (dynobj, ".dynamic");
 
@@ -3817,48 +3777,29 @@ sh64_elf64_finish_dynamic_sections (bfd *output_bfd,
 	      break;
 
 	    case DT_PLTGOT:
-	      name = ".got";
+	      s = elf_hash_table (info)->sgotplt;
 	      goto get_vma;
 
 	    case DT_JMPREL:
-	      name = ".rela.plt";
+	      s = elf_hash_table (info)->srelplt;
 	    get_vma:
-	      s = bfd_get_section_by_name (output_bfd, name);
-	      BFD_ASSERT (s != NULL);
-	      dyn.d_un.d_ptr = s->vma;
+	      dyn.d_un.d_ptr = s->output_section->vma + s->output_offset;
 	      bfd_elf64_swap_dyn_out (output_bfd, &dyn, dyncon);
 	      break;
 
 	    case DT_PLTRELSZ:
-	      s = bfd_get_section_by_name (output_bfd, ".rela.plt");
-	      BFD_ASSERT (s != NULL);
+	      s = elf_hash_table (info)->srelplt;
 	      dyn.d_un.d_val = s->size;
-	      bfd_elf64_swap_dyn_out (output_bfd, &dyn, dyncon);
-	      break;
-
-	    case DT_RELASZ:
-	      /* My reading of the SVR4 ABI indicates that the
-		 procedure linkage table relocs (DT_JMPREL) should be
-		 included in the overall relocs (DT_RELA).  This is
-		 what Solaris does.  However, UnixWare can not handle
-		 that case.  Therefore, we override the DT_RELASZ entry
-		 here to make it not include the JMPREL relocs.  Since
-		 the linker script arranges for .rela.plt to follow all
-		 other relocation sections, we don't have to worry
-		 about changing the DT_RELA entry.  */
-	      s = bfd_get_section_by_name (output_bfd, ".rela.plt");
-	      if (s != NULL)
-		dyn.d_un.d_val -= s->size;
 	      bfd_elf64_swap_dyn_out (output_bfd, &dyn, dyncon);
 	      break;
 	    }
 	}
 
       /* Fill in the first entry in the procedure linkage table.  */
-      splt = bfd_get_linker_section (dynobj, ".plt");
+      splt = elf_hash_table (info)->splt;
       if (splt && splt->size > 0)
 	{
-	  if (info->shared)
+	  if (bfd_link_pic (info))
 	    {
 	      if (elf_sh64_pic_plt_entry == NULL)
 		{
@@ -4003,6 +3944,7 @@ static const struct bfd_elf_special_section sh64_elf64_special_sections[]=
 #define elf_backend_plt_readonly	1
 #define elf_backend_want_plt_sym	0
 #define elf_backend_got_header_size	24
+#define elf_backend_dtrel_excludes_plt	1
 
 #include "elf64-target.h"
 

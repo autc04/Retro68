@@ -1,5 +1,5 @@
 /* write.c - emit .o file
-   Copyright (C) 1986-2014 Free Software Foundation, Inc.
+   Copyright (C) 1986-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -25,7 +25,6 @@
 #include "obstack.h"
 #include "output-file.h"
 #include "dwarf2dbg.h"
-#include "libbfd.h"
 #include "compress-debug.h"
 
 #ifndef TC_FORCE_RELOCATION
@@ -192,7 +191,7 @@ fix_new_internal (fragS *frag,		/* Which frag?  */
   TC_INIT_FIX_DATA (fixP);
 #endif
 
-  as_where (&fixP->fx_file, &fixP->fx_line);
+  fixP->fx_file = as_where (&fixP->fx_line);
 
   {
 
@@ -355,12 +354,12 @@ record_alignment (/* Segment to which alignment pertains.  */
 		  segT seg,
 		  /* Alignment, as a power of 2 (e.g., 1 => 2-byte
 		     boundary, 2 => 4-byte boundary, etc.)  */
-		  int align)
+		  unsigned int align)
 {
   if (seg == absolute_section)
     return;
 
-  if ((unsigned int) align > bfd_get_section_alignment (stdoutput, seg))
+  if (align > bfd_get_section_alignment (stdoutput, seg))
     bfd_set_section_alignment (stdoutput, seg, align);
 }
 
@@ -579,7 +578,12 @@ size_seg (bfd *abfd, asection *sec, void *xxx ATTRIBUTE_UNUSED)
   x = bfd_set_section_flags (abfd, sec, flags);
   gas_assert (x);
 
-  newsize = md_section_align (sec, size);
+  /* If permitted, allow the backend to pad out the section
+     to some alignment boundary.  */
+  if (do_not_pad_sections_to_alignment)
+    newsize = size;
+  else
+    newsize = md_section_align (sec, size);
   x = bfd_set_section_size (abfd, sec, newsize);
   gas_assert (x);
 
@@ -1134,7 +1138,7 @@ fix_segment (bfd *abfd ATTRIBUTE_UNUSED,
 
 static void
 install_reloc (asection *sec, arelent *reloc, fragS *fragp,
-	       char *file, unsigned int line)
+	       const char *file, unsigned int line)
 {
   char *err;
   bfd_reloc_status_type s;
@@ -1184,6 +1188,11 @@ get_frag_for_reloc (fragS *last_frag,
 	&& r->u.b.r.address < f->fr_address + f->fr_fix)
       return f;
 
+  for (f = seginfo->frchainP->frch_root; f != NULL; f = f->fr_next)
+    if (f->fr_address <= r->u.b.r.address
+	&& r->u.b.r.address <= f->fr_address + f->fr_fix)
+      return f;
+
   as_bad_where (r->file, r->line,
 		_("reloc not within (fixed part of) section"));
   return NULL;
@@ -1229,7 +1238,7 @@ write_relocs (bfd *abfd, asection *sec, void *xxx ATTRIBUTE_UNUSED)
 	rp = &r->next;
     }
 
-  relocs = (arelent **) xcalloc (n, sizeof (arelent *));
+  relocs = XCNEWVEC (arelent *, n);
 
   n = 0;
   r = my_reloc_list;
@@ -1408,6 +1417,7 @@ compress_debug (bfd *abfd, asection *sec, void *xxx ATTRIBUTE_UNUSED)
   struct z_stream_s *strm;
   int x;
   flagword flags = bfd_get_section_flags (abfd, sec);
+  unsigned int header_size, compression_header_size;
 
   if (seginfo == NULL
       || sec->size < 32
@@ -1422,30 +1432,33 @@ compress_debug (bfd *abfd, asection *sec, void *xxx ATTRIBUTE_UNUSED)
   if (strm == NULL)
     return;
 
-  /* Create a new frag to contain the "ZLIB" header.  */
+  if (flag_compress_debug == COMPRESS_DEBUG_GABI_ZLIB)
+    {
+      compression_header_size
+	= bfd_get_compression_header_size (stdoutput, NULL);
+      header_size = compression_header_size;
+    }
+  else
+    {
+      compression_header_size = 0;
+      header_size = 12;
+    }
+
+  /* Create a new frag to contain the compression header.  */
   first_newf = frag_alloc (ob);
-  if (obstack_room (ob) < 12)
+  if (obstack_room (ob) < header_size)
     first_newf = frag_alloc (ob);
-  if (obstack_room (ob) < 12)
-    as_fatal (_("can't extend frag %u chars"), 12);
+  if (obstack_room (ob) < header_size)
+    as_fatal (_("can't extend frag %u chars"), header_size);
   last_newf = first_newf;
-  obstack_blank_fast (ob, 12);
+  obstack_blank_fast (ob, header_size);
   last_newf->fr_type = rs_fill;
-  last_newf->fr_fix = 12;
+  last_newf->fr_fix = header_size;
   header = last_newf->fr_literal;
-  memcpy (header, "ZLIB", 4);
-  header[11] = uncompressed_size; uncompressed_size >>= 8;
-  header[10] = uncompressed_size; uncompressed_size >>= 8;
-  header[9] = uncompressed_size; uncompressed_size >>= 8;
-  header[8] = uncompressed_size; uncompressed_size >>= 8;
-  header[7] = uncompressed_size; uncompressed_size >>= 8;
-  header[6] = uncompressed_size; uncompressed_size >>= 8;
-  header[5] = uncompressed_size; uncompressed_size >>= 8;
-  header[4] = uncompressed_size;
-  compressed_size = 12;
+  compressed_size = header_size;
 
   /* Stream the frags through the compression engine, adding new frags
-     as necessary to accomodate the compressed output.  */
+     as necessary to accommodate the compressed output.  */
   for (f = seginfo->frchainP->frch_root;
        f;
        f = f->fr_next)
@@ -1521,18 +1534,24 @@ compress_debug (bfd *abfd, asection *sec, void *xxx ATTRIBUTE_UNUSED)
 	break;
     }
 
+  /* PR binutils/18087: If compression didn't make the section smaller,
+     just keep it uncompressed.  */
+  if (compressed_size >= uncompressed_size)
+    return;
+
   /* Replace the uncompressed frag list with the compressed frag list.  */
   seginfo->frchainP->frch_root = first_newf;
   seginfo->frchainP->frch_last = last_newf;
 
   /* Update the section size and its name.  */
+  bfd_update_compression_header (abfd, (bfd_byte *) header, sec);
   x = bfd_set_section_size (abfd, sec, compressed_size);
   gas_assert (x);
-  compressed_name = (char *) xmalloc (strlen (section_name) + 2);
-  compressed_name[0] = '.';
-  compressed_name[1] = 'z';
-  strcpy (compressed_name + 2, section_name + 1);
-  bfd_section_name (stdoutput, sec) = compressed_name;
+  if (!compression_header_size)
+    {
+      compressed_name = concat (".z", section_name + 1, (char *) NULL);
+      bfd_section_name (stdoutput, sec) = compressed_name;
+    }
 }
 
 static void
@@ -1565,7 +1584,9 @@ write_contents (bfd *abfd ATTRIBUTE_UNUSED,
 					f->fr_literal, (file_ptr) offset,
 					(bfd_size_type) f->fr_fix);
 	  if (!x)
-	    as_fatal (_("can't write %s: %s"), stdoutput->filename,
+	    as_fatal (_("can't write %ld bytes to section %s of %s because: '%s'"),
+		      (long) f->fr_fix, sec->name,
+		      stdoutput->filename,
 		      bfd_errmsg (bfd_get_error ()));
 	  offset += f->fr_fix;
 	}
@@ -1586,7 +1607,9 @@ write_contents (bfd *abfd ATTRIBUTE_UNUSED,
 						(file_ptr) offset,
 						(bfd_size_type) fill_size);
 		  if (!x)
-		    as_fatal (_("can't write %s: %s"), stdoutput->filename,
+		    as_fatal (_("can't fill %ld bytes in section %s of %s because '%s'"),
+			      (long) fill_size, sec->name,
+			      stdoutput->filename,
 			      bfd_errmsg (bfd_get_error ()));
 		  offset += fill_size;
 		}
@@ -1616,7 +1639,8 @@ write_contents (bfd *abfd ATTRIBUTE_UNUSED,
 		    (stdoutput, sec, buf, (file_ptr) offset,
 		     (bfd_size_type) n_per_buf * fill_size);
 		  if (!x)
-		    as_fatal (_("cannot write to output file '%s': %s"),
+		    as_fatal (_("cannot fill %ld bytes in section %s of %s because: '%s'"),
+			      (long)(n_per_buf * fill_size), sec->name,
 			      stdoutput->filename,
 			      bfd_errmsg (bfd_get_error ()));
 		  offset += n_per_buf * fill_size;
@@ -1676,7 +1700,7 @@ set_symtab (void)
 }
 
 /* Finish the subsegments.  After every sub-segment, we fake an
-   ".align ...".  This conforms to BSD4.2 brane-damage.  We then fake
+   ".align ...".  This conforms to BSD4.2 brain-damage.  We then fake
    ".fill 0" because that is the kind of frag that requires least
    thought.  ".align" frags like to have a following frag since that
    makes calculating their intended length trivial.  */
@@ -1687,7 +1711,10 @@ set_symtab (void)
    of the section.  This allows proper nop-filling at the end of
    code-bearing sections.  */
 #define SUB_SEGMENT_ALIGN(SEG, FRCHAIN)					\
-  (!(FRCHAIN)->frch_next ? get_recorded_alignment (SEG) : 0)
+  (!(FRCHAIN)->frch_next && subseg_text_p (SEG)				\
+   && !do_not_pad_sections_to_alignment					\
+   ? get_recorded_alignment (SEG)					\
+   : 0)
 #else
 #define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 0
 #endif
@@ -1705,31 +1732,31 @@ subsegs_finish_section (asection *s)
        frchainP != NULL;
        frchainP = frchainP->frch_next)
     {
-      int alignment = 0;
+      int alignment;
 
       subseg_set (s, frchainP->frch_subseg);
 
       /* This now gets called even if we had errors.  In that case,
 	 any alignment is meaningless, and, moreover, will look weird
 	 if we are generating a listing.  */
-      if (!had_errors ())
+      if (had_errors ())
+	do_not_pad_sections_to_alignment = 1;
+
+      alignment = SUB_SEGMENT_ALIGN (now_seg, frchainP);
+      if ((bfd_get_section_flags (now_seg->owner, now_seg) & SEC_MERGE)
+	  && now_seg->entsize)
 	{
-	  alignment = SUB_SEGMENT_ALIGN (now_seg, frchainP);
-	  if ((bfd_get_section_flags (now_seg->owner, now_seg) & SEC_MERGE)
-	      && now_seg->entsize)
+	  unsigned int entsize = now_seg->entsize;
+	  int entalign = 0;
+
+	  while ((entsize & 1) == 0)
 	    {
-	      unsigned int entsize = now_seg->entsize;
-	      int entalign = 0;
-
-	      while ((entsize & 1) == 0)
-		{
-		  ++entalign;
-		  entsize >>= 1;
-		}
-
-	      if (entalign > alignment)
-		alignment = entalign;
+	      ++entalign;
+	      entsize >>= 1;
 	    }
+
+	  if (entalign > alignment)
+	    alignment = entalign;
 	}
 
       if (subseg_text_p (now_seg))
@@ -1808,7 +1835,7 @@ write_object_file (void)
 #endif
 
   /* From now on, we don't care about sub-segments.  Build one frag chain
-     for each segment. Linked thru fr_next.  */
+     for each segment. Linked through fr_next.  */
 
   /* Remove the sections created by gas for its own purposes.  */
   {
@@ -2181,12 +2208,23 @@ write_object_file (void)
   obj_frob_file_after_relocs ();
 #endif
 
+#if defined OBJ_ELF || defined OBJ_MAYBE_ELF
+  if (IS_ELF && flag_use_elf_stt_common)
+    stdoutput->flags |= BFD_CONVERT_ELF_COMMON | BFD_USE_ELF_STT_COMMON;
+#endif
+
   /* Once all relocations have been written, we can compress the
      contents of the debug sections.  This needs to be done before
      we start writing any sections, because it will affect the file
      layout, which is fixed once we start writing contents.  */
   if (flag_compress_debug)
-    bfd_map_over_sections (stdoutput, compress_debug, (char *) 0);
+    {
+      if (flag_compress_debug == COMPRESS_DEBUG_GABI_ZLIB)
+	stdoutput->flags |= BFD_COMPRESS | BFD_COMPRESS_GABI;
+      else
+	stdoutput->flags |= BFD_COMPRESS;
+      bfd_map_over_sections (stdoutput, compress_debug, (char *) 0);
+    }
 
   bfd_map_over_sections (stdoutput, write_contents, (char *) 0);
 }
@@ -2304,8 +2342,8 @@ relax_frag (segT segment, fragS *fragP, long stretch)
 /* Relax_align. Advance location counter to next address that has 'alignment'
    lowest order bits all 0s, return size of adjustment made.  */
 static relax_addressT
-relax_align (register relax_addressT address,	/* Address now.  */
-	     register int alignment	/* Alignment (binary).  */)
+relax_align (relax_addressT address,	/* Address now.  */
+	     int alignment	/* Alignment (binary).  */)
 {
   relax_addressT mask;
   relax_addressT new_address;

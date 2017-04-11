@@ -1,7 +1,7 @@
 Relocation section .*
 # Ensure there is a dynamic relocation against x
 #...
-[0-9a-f]+ +[0-9a-f]+ R_.* +_?x(| \+ 0)
+[0-9a-f]+ +[0-9a-f]+ R_.* +_?x@VERS.0(| \+ 0)
 #...
 Symbol table '.dynsym' contains [0-9]+ entries:
 # And ensure the dynamic symbol table contains at least x@VERS.0

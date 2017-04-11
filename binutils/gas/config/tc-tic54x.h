@@ -1,5 +1,5 @@
 /* tc-tic54x.h -- Header file for tc-tic54x.c
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2017 Free Software Foundation, Inc.
    Contributed by Timothy Wall (twall@alum.mit.edu)
 
    This file is part of GAS, the GNU Assembler.
@@ -65,8 +65,9 @@ struct bit_info
 #define TC_FRAG_INIT(FRAGP) do {(FRAGP)->tc_frag_data = 0;}while (0)
 
 /* tell GAS whether the given token is indeed a code label */
-#define TC_START_LABEL_WITHOUT_COLON(c,ptr) tic54x_start_label(c,ptr)
-extern int tic54x_start_label (int, char *);
+#define TC_START_LABEL_WITHOUT_COLON(NUL_CHAR, NEXT_CHAR) \
+  tic54x_start_label(NUL_CHAR, NEXT_CHAR)
+extern int tic54x_start_label (int, int);
 
 /* custom handling for relocations in cons expressions */
 #define TC_CONS_FIX_NEW(FRAG, OFF, LEN, EXP, RELOC)	\

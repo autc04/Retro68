@@ -1,5 +1,5 @@
 /* tc-mips.h -- header file for tc-mips.c.
-   Copyright (C) 1993-2014 Free Software Foundation, Inc.
+   Copyright (C) 1993-2017 Free Software Foundation, Inc.
    Contributed by the OSF and Ralph Campbell.
    Written by Keith Knowles and Ralph Campbell, working independently.
    Modified for ECOFF support by Ian Lance Taylor of Cygnus Support.
@@ -142,6 +142,9 @@ extern int mips_force_relocation (struct fix *);
 #define TC_FORCE_RELOCATION_SUB_SAME(FIX, SEG) \
   (! SEG_NORMAL (SEG) || mips_force_relocation (FIX))
 
+#define TC_FORCE_RELOCATION_ABS(FIX) mips_force_relocation_abs (FIX)
+extern bfd_boolean mips_force_relocation_abs (struct fix *);
+
 /* Register mask variables.  These are set by the MIPS assembly code
    and used by ECOFF and possibly other object file formats.  */
 extern unsigned long mips_gprmask;
@@ -176,7 +179,9 @@ extern enum dwarf2_format mips_dwarf2_format (asection *);
 
 extern int mips_dwarf2_addr_size (void);
 #define DWARF2_ADDR_SIZE(bfd) mips_dwarf2_addr_size ()
-#define DWARF2_FDE_RELOC_SIZE mips_dwarf2_addr_size ()
+#define DWARF2_FDE_RELOC_SIZE (compact_eh ? 4 : mips_dwarf2_addr_size ())
+#define DWARF2_FDE_RELOC_ENCODING(enc) \
+  (enc | (compact_eh ? DW_EH_PE_pcrel : 0))
 
 #define TARGET_USE_CFIPOP 1
 
@@ -189,6 +194,15 @@ extern int tc_mips_regname_to_dw2regnum (char *regname);
 #define DWARF2_DEFAULT_RETURN_COLUMN 31
 #define DWARF2_CIE_DATA_ALIGNMENT (-4)
 
+#if defined(OBJ_ELF)
+
+#define tc_cfi_reloc_for_encoding mips_cfi_reloc_for_encoding
+extern bfd_reloc_code_real_type mips_cfi_reloc_for_encoding (int encoding);
+
+#define tc_compact_eh_opcode_stop 0x5c
+#define tc_compact_eh_opcode_pad 0x5f
+
+#endif
 #define DIFF_EXPR_OK
 /* We define DIFF_EXPR_OK because of R_MIPS_PC32, but we have no
    64-bit form for n64 CFIs.  */

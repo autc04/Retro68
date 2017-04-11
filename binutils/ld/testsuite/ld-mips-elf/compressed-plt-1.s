@@ -13,10 +13,12 @@ __call_stub_\name:
 	# Flags to specify how a particular function is referenced
 
 	.equ	DC, 1		# Direct call from "compressed" code
-	.equ	IC, 2		# Indirect call from "compressed" code
-	.equ	DU, 4		# Direct call from "uncompressed" code
-	.equ	IU, 8		# Indirect call from "uncompressed" code
-	.equ	LO, 16		# Direct address reference (%lo)
+	.equ	BC, 2		# Branch from "compressed" code
+	.equ	IC, 4		# Indirect call from "compressed" code
+	.equ	DU, 8		# Direct call from "uncompressed" code
+	.equ	BU, 16		# Branch from "uncompressed" code
+	.equ	IU, 32		# Indirect call from "uncompressed" code
+	.equ	LO, 64		# Direct address reference (%lo)
 
 	# A wrapper around a macro called test_one, which is defined by
 	# the file that includes this one.  NAME is the name of a function
@@ -35,9 +37,14 @@ __call_stub_\name:
 	test_filter \name\()_dc, (\flags | DC)
 	.endm
 
-	.macro	test_all_ic, name, flags
+	.macro	test_all_bc, name, flags
 	test_all_dc \name, \flags
-	test_all_dc \name\()_ic, (\flags | IC)
+	test_all_dc \name\()_bc, (\flags | BC)
+	.endm
+
+	.macro	test_all_ic, name, flags
+	test_all_bc \name, \flags
+	test_all_bc \name\()_ic, (\flags | IC)
 	.endm
 
 	.macro	test_all_du, name, flags
@@ -45,9 +52,14 @@ __call_stub_\name:
 	test_all_ic \name\()_du, (\flags | DU)
 	.endm
 
-	.macro	test_all_iu, name, flags
+	.macro	test_all_bu, name, flags
 	test_all_du \name, \flags
-	test_all_du \name\()_iu, (\flags | IU)
+	test_all_du \name\()_bu, (\flags | BU)
+	.endm
+
+	.macro	test_all_iu, name, flags
+	test_all_bu \name, \flags
+	test_all_bu \name\()_iu, (\flags | IU)
 	.endm
 
 	.macro	test_all_lo, name, flags

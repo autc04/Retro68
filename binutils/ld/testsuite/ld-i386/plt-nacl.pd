@@ -8,7 +8,7 @@
 
 Disassembly of section .plt:
 
-[0-9a-f]+ <fn1@plt-0x40>:
+[0-9a-f]+ <.plt>:
  +[0-9a-f]+:	ff 35 ([0-9a-f]{2} ){4} *	pushl  0x[0-9a-f]+
  +[0-9a-f]+:	8b 0d ([0-9a-f]{2} ){4} *	mov    0x[0-9a-f]+,%ecx
  +[0-9a-f]+:	83 e1 e0             	and    \$0xffffffe0,%ecx
@@ -87,7 +87,7 @@ Disassembly of section .plt:
  +[0-9a-f]+:	90                   	nop
  +[0-9a-f]+:	90                   	nop
  +[0-9a-f]+:	68 00 00 00 00       	push   \$0x0
- +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <fn1@plt-0x40>
+ +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <.plt>
  +[0-9a-f]+:	90                   	nop
  +[0-9a-f]+:	90                   	nop
  +[0-9a-f]+:	90                   	nop
@@ -137,7 +137,7 @@ Disassembly of section .plt:
  +[0-9a-f]+:	90                   	nop
  +[0-9a-f]+:	90                   	nop
  +[0-9a-f]+:	68 08 00 00 00       	push   \$0x8
- +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <fn1@plt-0x40>
+ +[0-9a-f]+:	e9 ([0-9a-f]{2} ){4} *	jmp    [0-9a-f]+ <.plt>
  +[0-9a-f]+:	90                   	nop
  +[0-9a-f]+:	90                   	nop
  +[0-9a-f]+:	90                   	nop

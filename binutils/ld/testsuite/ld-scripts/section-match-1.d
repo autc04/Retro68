@@ -2,7 +2,7 @@
 #ld: -T section-match-1.t
 #objdump: -s
 #notarget: *-*-osf* *-*-aix* *-*-pe *-*-*aout *-*-*oldld *-*-ecoff *-*-netbsd *-*-vms h8300-*-* tic30-*-*
-# This test uses arbitary section names, which are not support by some
+# This test uses arbitrary section names, which are not support by some
 # file formts.  Also these section names must be present in the
 # output, not translated into some other name, eg .text
 

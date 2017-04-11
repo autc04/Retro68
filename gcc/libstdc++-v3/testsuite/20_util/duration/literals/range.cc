@@ -1,7 +1,7 @@
 // { dg-do compile }
 // { dg-options "-std=gnu++14" }
 
-// Copyright (C) 2014-2015 Free Software Foundation, Inc.
+// Copyright (C) 2014-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,5 +27,5 @@ test01()
 
   // std::numeric_limits<int64_t>::max() == 9223372036854775807;
   auto h = 9223372036854775808h;
-  // { dg-error "cannot be represented" "" { target *-*-* } 796 }
+  // { dg-error "cannot be represented" "" { target *-*-* } 797 }
 }

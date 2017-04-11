@@ -1,5 +1,5 @@
 /* BFD back-end for binary objects.
-   Copyright (C) 1994-2014 Free Software Foundation, Inc.
+   Copyright (C) 1994-2017 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support, <ian@cygnus.com>
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -190,6 +190,8 @@ binary_canonicalize_symtab (bfd *abfd, asymbol **alocation)
 
 #define binary_make_empty_symbol  _bfd_generic_make_empty_symbol
 #define binary_print_symbol       _bfd_nosymbols_print_symbol
+#define binary_get_symbol_version_string \
+  _bfd_nosymbols_get_symbol_version_string
 
 /* Get information about a symbol.  */
 
@@ -267,8 +269,10 @@ binary_set_section_contents (bfd *abfd,
 	     have.  */
 
 	  if (s->filepos < 0)
-	    (*_bfd_error_handler)
-	      (_("Warning: Writing section `%s' to huge (ie negative) file offset 0x%lx."),
+	    _bfd_error_handler
+	      /* xgettext:c-format */
+	      (_("Warning: Writing section `%s' at huge (ie negative) "
+		 "file offset 0x%lx."),
 	       bfd_get_section_name (abfd, s),
 	       (unsigned long) s->filepos);
 	}
@@ -307,12 +311,12 @@ binary_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
 #define binary_bfd_define_common_symbol            bfd_generic_define_common_symbol
 #define binary_bfd_link_hash_table_create         _bfd_generic_link_hash_table_create
 #define binary_bfd_link_just_syms                 _bfd_generic_link_just_syms
-#define binary_bfd_copy_link_hash_symbol_type \
-  _bfd_generic_copy_link_hash_symbol_type
+#define binary_bfd_copy_link_hash_symbol_type     _bfd_generic_copy_link_hash_symbol_type
 #define binary_bfd_link_add_symbols               _bfd_generic_link_add_symbols
 #define binary_bfd_final_link                     _bfd_generic_final_link
 #define binary_bfd_link_split_section             _bfd_generic_link_split_section
 #define binary_get_section_contents_in_window     _bfd_generic_get_section_contents_in_window
+#define binary_bfd_link_check_relocs              _bfd_generic_link_check_relocs
 
 const bfd_target binary_vec =
 {

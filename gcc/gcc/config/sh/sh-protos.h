@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler for Renesas / SuperH SH.
-   Copyright (C) 1993-2015 Free Software Foundation, Inc.
+   Copyright (C) 1993-2016 Free Software Foundation, Inc.
    Contributed by Steve Chamberlain (sac@cygnus.com).
    Improved by Jim Wilson (wilson@cygnus.com).
 
@@ -93,6 +93,7 @@ extern rtx sh_fsca_sf2int (void);
 extern rtx sh_fsca_int2sf (void);
 
 /* Declare functions defined in sh.c and used in templates.  */
+extern bool sh_lra_p (void);
 
 extern const char *output_branch (int, rtx_insn *, rtx *);
 extern const char *output_ieee_ccmpeq (rtx_insn *, rtx *);
@@ -159,6 +160,7 @@ extern int sh_eval_treg_value (rtx op);
 extern HOST_WIDE_INT sh_disp_addr_displacement (rtx mem_op);
 extern int sh_max_mov_insn_displacement (machine_mode mode, bool consider_sh2a);
 extern bool sh_movsf_ie_ra_split_p (rtx, rtx, rtx);
+extern void sh_expand_sym_label2reg (rtx, rtx, rtx, bool);
 
 /* Result value of sh_find_set_of_reg.  */
 struct set_of_reg
@@ -191,18 +193,19 @@ sh_find_set_of_reg (rtx reg, rtx_insn* insn, F stepfunc,
   if (!REG_P (reg) || insn == NULL_RTX)
     return result;
 
-  rtx_insn* previnsn = insn;
-
-  for (result.insn = stepfunc (insn); result.insn != NULL_RTX;
-       previnsn = result.insn, result.insn = stepfunc (result.insn))
+  for (rtx_insn* i = stepfunc (insn); i != NULL_RTX; i = stepfunc (i))
     {
-      if (BARRIER_P (result.insn))
+      if (BARRIER_P (i))
 	break;
-      if (!NONJUMP_INSN_P (result.insn))
-	continue;
-      if (reg_set_p (reg, result.insn))
+      if (!INSN_P (i) || DEBUG_INSN_P (i))
+	  continue;
+      if (reg_set_p (reg, i))
 	{
-	  result.set_rtx = set_of (reg, result.insn);
+	  if (CALL_P (i))
+	    break;
+
+	  result.insn = i;
+	  result.set_rtx = set_of (reg, i);
 
 	  if (result.set_rtx == NULL_RTX || GET_CODE (result.set_rtx) != SET)
 	    break;
@@ -224,12 +227,6 @@ sh_find_set_of_reg (rtx reg, rtx_insn* insn, F stepfunc,
 	  break;
 	}
     }
-
-  /* If the loop above stopped at the first insn in the list,
-     result.insn will be null.  Use the insn from the previous iteration
-     in this case.  */
-  if (result.insn == NULL)
-    result.insn = previnsn;
 
   if (result.set_src != NULL)
     gcc_assert (result.insn != NULL && result.set_rtx != NULL);
@@ -310,6 +307,8 @@ extern bool sh_insn_operands_modified_between_p (rtx_insn* operands_insn,
 extern bool sh_reg_dead_or_unused_after_insn (const rtx_insn* i, int regno);
 extern void sh_remove_reg_dead_or_unused_notes (rtx_insn* i, int regno);
 extern rtx_insn* sh_check_add_incdec_notes (rtx_insn* i);
+extern rtx sh_remove_overlapping_post_inc (rtx dst, rtx src);
+extern rtx_insn* sh_peephole_emit_move_insn (rtx dst, rtx src);
 
 extern bool sh_in_recog_treg_set_expr (void);
 extern bool sh_recog_treg_set_expr (rtx op, machine_mode mode);
@@ -378,7 +377,19 @@ extern void fpscr_set_from_mem (int, HARD_REG_SET);
 extern void sh_pr_interrupt (struct cpp_reader *);
 extern void sh_pr_trapa (struct cpp_reader *);
 extern void sh_pr_nosave_low_regs (struct cpp_reader *);
-extern rtx function_symbol (rtx, const char *, enum sh_function_kind);
+
+struct function_symbol_result
+{
+  function_symbol_result (void) : sym (NULL), lab (NULL) { }
+  function_symbol_result (rtx s, rtx l) : sym (s), lab (l) { }
+
+  rtx sym;
+  rtx lab;
+};
+
+extern function_symbol_result function_symbol (rtx, const char *,
+					       sh_function_kind);
+extern rtx sh_get_fdpic_reg_initial_val (void);
 extern rtx sh_get_pr_initial_val (void);
 
 extern void sh_init_cumulative_args (CUMULATIVE_ARGS *, tree, rtx, tree,
@@ -397,4 +408,5 @@ extern bool sh_hard_regno_mode_ok (unsigned int, machine_mode);
 extern machine_mode sh_hard_regno_caller_save_mode (unsigned int, unsigned int,
 						    machine_mode);
 extern bool sh_can_use_simple_return_p (void);
+extern rtx sh_load_function_descriptor (rtx);
 #endif /* ! GCC_SH_PROTOS_H */

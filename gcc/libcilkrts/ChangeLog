@@ -1,10 +1,35 @@
-2015-07-16  Release Manager
+2016-12-21  Release Manager
 
-	* GCC 5.2.0 released.
+	* GCC 6.3.0 released.
 
-2015-04-22  Release Manager
+2016-08-22  Release Manager
 
-	* GCC 5.1.0 released.
+	* GCC 6.2.0 released.
+
+2016-05-08  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	Backport from mainline
+	2016-04-26  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	PR target/60290
+	* Makefile.am (GENERAL_FLAGS): Add -funwind-tables.
+	* Makefile.in: Regenerate.
+
+2016-04-27  Release Manager
+
+	* GCC 6.1.0 released.
+
+2015-11-09  Igor Zamyatin  <igor.zamyatin@intel.com>
+
+	PR target/66326
+	* runtime/config/x86/os-unix-sysdep.c (sysdep_save_fp_ctrl_state):
+	Use fnstcw instead fnstsw.
+
+2015-05-13  Michael Haubenwallner  <michael.haubenwallner@ssi-schaefer.com>
+
+	* Makefile.in: Regenerated with automake-1.11.6.
+	* aclocal.m4: Likewise.
+	* configure: Likewise.
 
 2015-01-26  Matthias Klose  <doko@ubuntu.com>
 

@@ -1,8 +1,6 @@
-/* { dg-do compile } */
-/* { dg-require-effective-target mpx } */
+/* { dg-do compile { target { ! x32 } } } */
 /* { dg-options "-fcheck-pointer-bounds -mmpx -O2 -fdump-tree-chkp" } */
 /* { dg-final { scan-tree-dump-not "bndret" "chkp" } } */
-/* { dg-final { cleanup-tree-dump "chkp" } } */
 
 #include "string.h"
 

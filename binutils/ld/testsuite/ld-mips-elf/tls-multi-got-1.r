@@ -6,7 +6,7 @@ Dynamic section at offset .* contains 18 entries:
  0x00000006 \(SYMTAB\).*
  0x0000000a \(STRSZ\)                      220065 \(bytes\)
  0x0000000b \(SYMENT\)                     16 \(bytes\)
- 0x00000003 \(PLTGOT\)                     0x122320
+ 0x00000003 \(PLTGOT\)                     0x122330
  0x00000011 \(REL\)                        0xa7938
  0x00000012 \(RELSZ\)                      160072 \(bytes\)
  0x00000013 \(RELENT\)                     8 \(bytes\)
@@ -15,7 +15,7 @@ Dynamic section at offset .* contains 18 entries:
  0x70000006 \(MIPS_BASE_ADDRESS\)          0x0
  0x7000000a \(MIPS_LOCAL_GOTNO\)           2
  0x70000011 \(MIPS_SYMTABNO\)              20011
- 0x70000012 \(MIPS_UNREFEXTNO\)            11
+ 0x70000012 \(MIPS_UNREFEXTNO\)            12
  0x70000013 \(MIPS_GOTSYM\)                0xb
  0x0000001e \(FLAGS\)                      STATIC_TLS
  0x00000000 \(NULL\)                       0x0
@@ -25,12 +25,12 @@ Relocation section '\.rel\.dyn' at offset 0x[0-9a-f]+ contains 20009 entries:
 [0-9a-f ]+R_MIPS_NONE      
 [0-9a-f ]+R_MIPS_TLS_DTPMOD
 [0-9a-f ]+R_MIPS_TLS_DTPMOD
-[0-9a-f ]+R_MIPS_TLS_DTPMOD 00000000   tlsvar_gd
-[0-9a-f ]+R_MIPS_TLS_DTPREL 00000000   tlsvar_gd
-[0-9a-f ]+R_MIPS_TLS_DTPMOD 00000000   tlsvar_gd
-[0-9a-f ]+R_MIPS_TLS_DTPREL 00000000   tlsvar_gd
-[0-9a-f ]+R_MIPS_TLS_TPREL3 00000004   tlsvar_ie
-[0-9a-f ]+R_MIPS_TLS_TPREL3 00000004   tlsvar_ie
+[0-9a-f ]+R_MIPS_TLS_DTPMOD 00000004   tlsvar_gd
+[0-9a-f ]+R_MIPS_TLS_DTPREL 00000004   tlsvar_gd
+[0-9a-f ]+R_MIPS_TLS_DTPMOD 00000004   tlsvar_gd
+[0-9a-f ]+R_MIPS_TLS_DTPREL 00000004   tlsvar_gd
+[0-9a-f ]+R_MIPS_TLS_TPREL3 00000008   tlsvar_ie
+[0-9a-f ]+R_MIPS_TLS_TPREL3 00000008   tlsvar_ie
 [0-9a-f ]+R_MIPS_REL32      000d7f58   sym_1_9526
 [0-9a-f ]+R_MIPS_REL32      000d65b4   sym_1_7885
 #...

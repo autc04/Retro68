@@ -22,13 +22,11 @@ Section Headers:
  +\[[ 0-9]+\] .tbss +NOBITS .* 0+40 00 WAT +0 +0 +1
  +\[[ 0-9]+\] .dynamic +DYNAMIC .*
  +\[[ 0-9]+\] .got +PROGBITS .*
- +\[[ 0-9]+\] .shstrtab .*
  +\[[ 0-9]+\] .symtab .*
  +\[[ 0-9]+\] .strtab .*
+ +\[[ 0-9]+\] .shstrtab .*
 Key to Flags:
-.*
-.*
-.*
+#...
 
 Elf file type is EXEC \(Executable file\)
 Entry point 0x[0-9a-f]+
@@ -36,8 +34,8 @@ There are [0-9]+ program headers, starting at offset [0-9]+
 
 Program Headers:
  +Type +Offset +VirtAddr +PhysAddr +FileSiz +MemSiz +Flg Align
- +PHDR +0x0+40 0x0+80000040 0x0+80000040 0x0+150 0x0+150 R E 0x8
- +INTERP +0x0+190 0x0+80000190 0x0+80000190 0x0+f 0x0+f R +0x1
+ +PHDR +0x0+40 0x0+1000040 0x0+1000040 0x0+150 0x0+150 R E 0x8
+ +INTERP +0x0+190 0x0+1000190 0x0+1000190 0x0+f 0x0+f R +0x1
 .*Requesting program interpreter.*
  +LOAD .* R E 0x1000
  +LOAD .* RW +0x1000

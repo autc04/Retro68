@@ -1,5 +1,5 @@
 \input texinfo
-@c  Copyright (C) 1991-2014 Free Software Foundation, Inc.
+@c  Copyright (C) 1991-2017 Free Software Foundation, Inc.
 @setfilename internals.info
 @node Top
 @top Assembler Internals
@@ -150,10 +150,6 @@ Set the name of the symbol.
 @item S_IS_EXTERNAL
 @cindex S_IS_EXTERNAL
 Return non-zero if the symbol is externally visible.
-
-@item S_IS_EXTERN
-@cindex S_IS_EXTERN
-A synonym for @code{S_IS_EXTERNAL}.  Don't use it.
 
 @item S_IS_WEAK
 @cindex S_IS_WEAK
@@ -1472,6 +1468,12 @@ completed, but before the relocations have been generated.
 @item tc_frob_file_after_relocs
 If you define this macro, GAS will call it after the relocs have been
 generated.
+
+@item tc_cfi_reloc_for_encoding
+@cindex tc_cfi_reloc_for_encoding
+This macro is used to indicate whether a cfi encoding requires a relocation.
+It should return the required relocation type.  Defining this macro implies
+that Compact EH is supported.
 
 @item md_post_relax_hook
 If you define this macro, GAS will call it after relaxing and sizing the

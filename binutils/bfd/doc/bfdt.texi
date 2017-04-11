@@ -19,6 +19,19 @@ enum bfd_direction
     both_direction = 3
   @};
 
+enum bfd_plugin_format
+  @{
+    bfd_plugin_unknown = 0,
+    bfd_plugin_yes = 1,
+    bfd_plugin_no = 2
+  @};
+
+struct bfd_build_id
+  @{
+    bfd_size_type size;
+    bfd_byte data[1];
+  @};
+
 struct bfd
 @{
   /* The filename the application opened the BFD with.  */
@@ -53,7 +66,7 @@ struct bfd
   ENUM_BITFIELD (bfd_direction) direction : 2;
 
   /* Format_specific flags.  */
-  flagword flags : 17;
+  flagword flags : 20;
 
   /* Values that may appear in the flags field of a BFD.  These also
      appear in the object_flags field of the bfd_target structure, where
@@ -130,14 +143,26 @@ struct bfd
   /* BFD is a dummy, for plugins.  */
 #define BFD_PLUGIN 0x10000
 
+  /* Compress sections in this BFD with SHF_COMPRESSED from gABI.  */
+#define BFD_COMPRESS_GABI 0x20000
+
+  /* Convert ELF common symbol type to STT_COMMON or STT_OBJECT in this
+     BFD.  */
+#define BFD_CONVERT_ELF_COMMON 0x40000
+
+  /* Use the ELF STT_COMMON type in this BFD.  */
+#define BFD_USE_ELF_STT_COMMON 0x80000
+
   /* Flags bits to be saved in bfd_preserve_save.  */
 #define BFD_FLAGS_SAVED \
-  (BFD_IN_MEMORY | BFD_COMPRESS | BFD_DECOMPRESS | BFD_PLUGIN)
+  (BFD_IN_MEMORY | BFD_COMPRESS | BFD_DECOMPRESS | BFD_PLUGIN \
+   | BFD_COMPRESS_GABI | BFD_CONVERT_ELF_COMMON | BFD_USE_ELF_STT_COMMON)
 
   /* Flags bits which are for BFD use only.  */
 #define BFD_FLAGS_FOR_BFD_USE_MASK \
   (BFD_IN_MEMORY | BFD_COMPRESS | BFD_DECOMPRESS | BFD_LINKER_CREATED \
-   | BFD_PLUGIN | BFD_TRADITIONAL_FORMAT | BFD_DETERMINISTIC_OUTPUT)
+   | BFD_PLUGIN | BFD_TRADITIONAL_FORMAT | BFD_DETERMINISTIC_OUTPUT \
+   | BFD_COMPRESS_GABI | BFD_CONVERT_ELF_COMMON | BFD_USE_ELF_STT_COMMON)
 
   /* Is the file descriptor being cached?  That is, can it be closed as
      needed, and re-opened when accessed later?  */
@@ -174,6 +199,19 @@ struct bfd
 
   /* Set if this is the linker output BFD.  */
   unsigned int is_linker_output : 1;
+
+  /* Set if this is the linker input BFD.  */
+  unsigned int is_linker_input : 1;
+
+  /* If this is an input for a compiler plug-in library.  */
+  ENUM_BITFIELD (bfd_plugin_format) plugin_format : 2;
+
+  /* Set if this is a plugin output file.  */
+  unsigned int lto_output : 1;
+
+  /* Set to dummy BFD created when claimed by a compiler plug-in
+     library.  */
+  bfd *plugin_dummy_bfd;
 
   /* Currently my_archive is tested before adding origin to
      anything. I believe that this can become always an add of
@@ -285,6 +323,9 @@ struct bfd
      struct objalloc *, but we use void * to avoid requiring the inclusion
      of objalloc.h.  */
   void *memory;
+
+  /* For input BFDs, the build ID, if the object has one. */
+  const struct bfd_build_id *build_id;
 @};
 
 /* See note beside bfd_set_section_userdata.  */
@@ -392,12 +433,12 @@ Some BFD functions want to print messages describing the
 problem.  They call a BFD error handler function.  This
 function may be overridden by the program.
 
-The BFD error handler acts like printf.
+The BFD error handler acts like vprintf.
 
 
 @example
 
-typedef void (*bfd_error_handler_type) (const char *, ...);
+typedef void (*bfd_error_handler_type) (const char *, va_list);
 
 @end example
 @findex bfd_set_error_handler
@@ -421,15 +462,6 @@ Set the program name to use when printing a BFD error.  This
 is printed before the error message followed by a colon and
 space.  The string must not be changed after it is passed to
 this function.
-
-@findex bfd_get_error_handler
-@subsubsection @code{bfd_get_error_handler}
-@strong{Synopsis}
-@example
-bfd_error_handler_type bfd_get_error_handler (void);
-@end example
-@strong{Description}@*
-Return the BFD error handler function.
 
 @subsection BFD assert handler
 If BFD finds an internal inconsistency, the bfd assert
@@ -458,15 +490,6 @@ bfd_assert_handler_type bfd_set_assert_handler (bfd_assert_handler_type);
 @strong{Description}@*
 Set the BFD assert handler function.  Returns the previous
 function.
-
-@findex bfd_get_assert_handler
-@subsubsection @code{bfd_get_assert_handler}
-@strong{Synopsis}
-@example
-bfd_assert_handler_type bfd_get_assert_handler (void);
-@end example
-@strong{Description}@*
-Return the BFD assert handler function.
 
 @node Miscellaneous, Memory Usage, Error reporting, BFD front end
 @section Miscellaneous
@@ -676,29 +699,6 @@ Not enough memory exists to create private data for @var{obfd}.
                (ibfd, obfd))
 @end example
 
-@findex bfd_merge_private_bfd_data
-@subsubsection @code{bfd_merge_private_bfd_data}
-@strong{Synopsis}
-@example
-bfd_boolean bfd_merge_private_bfd_data (bfd *ibfd, bfd *obfd);
-@end example
-@strong{Description}@*
-Merge private BFD information from the BFD @var{ibfd} to the
-the output file BFD @var{obfd} when linking.  Return @code{TRUE}
-on success, @code{FALSE} on error.  Possible error returns are:
-
-@itemize @bullet
-
-@item
-@code{bfd_error_no_memory} -
-Not enough memory exists to create private data for @var{obfd}.
-@end itemize
-@example
-#define bfd_merge_private_bfd_data(ibfd, obfd) \
-     BFD_SEND (obfd, _bfd_merge_private_bfd_data, \
-               (ibfd, obfd))
-@end example
-
 @findex bfd_set_private_flags
 @subsubsection @code{bfd_set_private_flags}
 @strong{Synopsis}
@@ -893,4 +893,69 @@ other such chars that would otherwise confuse the demangler.
 If passed a g++ v3 ABI mangled name, returns a buffer allocated
 with malloc holding the demangled name.  Returns NULL otherwise
 and on memory alloc failure.
+
+@findex bfd_update_compression_header
+@subsubsection @code{bfd_update_compression_header}
+@strong{Synopsis}
+@example
+void bfd_update_compression_header
+   (bfd *abfd, bfd_byte *contents, asection *sec);
+@end example
+@strong{Description}@*
+Set the compression header at CONTENTS of SEC in ABFD and update
+elf_section_flags for compression.
+
+@findex bfd_check_compression_header
+@subsubsection @code{bfd_check_compression_header}
+@strong{Synopsis}
+@example
+bfd_boolean bfd_check_compression_header
+   (bfd *abfd, bfd_byte *contents, asection *sec,
+    bfd_size_type *uncompressed_size);
+@end example
+@strong{Description}@*
+Check the compression header at CONTENTS of SEC in ABFD and
+store the uncompressed size in UNCOMPRESSED_SIZE if the
+compression header is valid.
+
+@strong{Returns}@*
+Return TRUE if the compression header is valid.
+
+@findex bfd_get_compression_header_size
+@subsubsection @code{bfd_get_compression_header_size}
+@strong{Synopsis}
+@example
+int bfd_get_compression_header_size (bfd *abfd, asection *sec);
+@end example
+@strong{Description}@*
+Return the size of the compression header of SEC in ABFD.
+
+@strong{Returns}@*
+Return the size of the compression header in bytes.
+
+@findex bfd_convert_section_size
+@subsubsection @code{bfd_convert_section_size}
+@strong{Synopsis}
+@example
+bfd_size_type bfd_convert_section_size
+   (bfd *ibfd, asection *isec, bfd *obfd, bfd_size_type size);
+@end example
+@strong{Description}@*
+Convert the size @var{size} of the section @var{isec} in input
+BFD @var{ibfd} to the section size in output BFD @var{obfd}.
+
+@findex bfd_convert_section_contents
+@subsubsection @code{bfd_convert_section_contents}
+@strong{Synopsis}
+@example
+bfd_boolean bfd_convert_section_contents
+   (bfd *ibfd, asection *isec, bfd *obfd,
+    bfd_byte **ptr, bfd_size_type *ptr_size);
+@end example
+@strong{Description}@*
+Convert the contents, stored in @var{*ptr}, of the section
+@var{isec} in input BFD @var{ibfd} to output BFD @var{obfd}
+if needed.  The original buffer pointed to by @var{*ptr} may
+be freed and @var{*ptr} is returned with memory malloc'd by this
+function, and the new size written to @var{ptr_size}.
 

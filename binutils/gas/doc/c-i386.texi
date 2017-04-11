@@ -1,4 +1,4 @@
-@c Copyright (C) 1991-2014 Free Software Foundation, Inc.
+@c Copyright (C) 1991-2017 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @c man end
@@ -110,6 +110,7 @@ processor names are recognized:
 @code{corei7},
 @code{l1om},
 @code{k1om},
+@code{iamcu},
 @code{k6},
 @code{k6_2},
 @code{athlon},
@@ -120,6 +121,7 @@ processor names are recognized:
 @code{bdver2},
 @code{bdver3},
 @code{bdver4},
+@code{znver1},
 @code{btver1},
 @code{btver2},
 @code{generic32} and
@@ -132,7 +134,11 @@ accept various extension mnemonics.  For example,
 @code{8087},
 @code{287},
 @code{387},
+@code{687},
 @code{no87},
+@code{no287},
+@code{no387},
+@code{no687},
 @code{mmx},
 @code{nommx},
 @code{sse},
@@ -143,19 +149,28 @@ accept various extension mnemonics.  For example,
 @code{sse4.2},
 @code{sse4},
 @code{nosse},
+@code{nosse2},
+@code{nosse3},
+@code{nossse3},
+@code{nosse4.1},
+@code{nosse4.2},
+@code{nosse4},
 @code{avx},
 @code{avx2},
+@code{noavx},
+@code{noavx2},
 @code{adx},
 @code{rdseed},
 @code{prfchw},
 @code{smap},
 @code{mpx},
 @code{sha},
+@code{rdpid},
+@code{ptwrite},
 @code{prefetchwt1},
 @code{clflushopt},
 @code{se1},
 @code{clwb},
-@code{pcommit},
 @code{avx512f},
 @code{avx512cd},
 @code{avx512er},
@@ -165,7 +180,21 @@ accept various extension mnemonics.  For example,
 @code{avx512dq},
 @code{avx512ifma},
 @code{avx512vbmi},
-@code{noavx},
+@code{avx512_4fmaps},
+@code{avx512_4vnniw},
+@code{avx512_vpopcntdq},
+@code{noavx512f},
+@code{noavx512cd},
+@code{noavx512er},
+@code{noavx512pf},
+@code{noavx512vl},
+@code{noavx512bw},
+@code{noavx512dq},
+@code{noavx512ifma},
+@code{noavx512vbmi},
+@code{noavx512_4fmaps},
+@code{noavx512_4vnniw},
+@code{noavx512_vpopcntdq},
 @code{vmx},
 @code{vmfunc},
 @code{smx},
@@ -187,6 +216,8 @@ accept various extension mnemonics.  For example,
 @code{rtm},
 @code{invpcid},
 @code{clflush},
+@code{mwaitx},
+@code{clzero},
 @code{lwp},
 @code{fma4},
 @code{xop},
@@ -295,6 +326,17 @@ The @code{.att_syntax} and @code{.intel_syntax} directives will take precedent.
 This option forces the assembler to add BND prefix to all branches, even
 if such prefix was not explicitly specified in the source code.
 
+@cindex @samp{-mshared} option, i386
+@cindex @samp{-mshared} option, x86-64
+@item -mno-shared
+On ELF target, the assembler normally optimizes out non-PLT relocations
+against defined non-weak global branch targets with default visibility.
+The @samp{-mshared} option tells the assembler to generate code which
+may go into a shared library where all non-weak global branch targets
+with default visibility can be preempted.  The resulting code is
+slightly bigger.  This option only affects the handling of branch
+instructions.
+
 @cindex @samp{-mbig-obj} option, x86-64
 @item -mbig-obj
 On x86-64 PE/COFF target this option forces the use of big object file
@@ -312,6 +354,30 @@ single-thread computers
 @option{-momit-lock-prefix=@var{no}} will encode lock prefix as usual,
 which is the default.
 
+@cindex @samp{-mfence-as-lock-add=} option, i386
+@cindex @samp{-mfence-as-lock-add=} option, x86-64
+@item -mfence-as-lock-add=@var{no}
+@itemx -mfence-as-lock-add=@var{yes}
+These options control how the assembler should encode lfence, mfence and
+sfence.
+@option{-mfence-as-lock-add=@var{yes}} will encode lfence, mfence and
+sfence as @samp{lock addl $0x0, (%rsp)} in 64-bit mode and
+@samp{lock addl $0x0, (%esp)} in 32-bit mode.
+@option{-mfence-as-lock-add=@var{no}} will encode lfence, mfence and
+sfence as usual, which is the default.
+
+@cindex @samp{-mrelax-relocations=} option, i386
+@cindex @samp{-mrelax-relocations=} option, x86-64
+@item -mrelax-relocations=@var{no}
+@itemx -mrelax-relocations=@var{yes}
+These options control whether the assembler should generate relax
+relocations, R_386_GOT32X, in 32-bit mode, or R_X86_64_GOTPCRELX and
+R_X86_64_REX_GOTPCRELX, in 64-bit mode.
+@option{-mrelax-relocations=@var{yes}} will generate relax relocations.
+@option{-mrelax-relocations=@var{no}} will not generate relax
+relocations.  The default can be controlled by a configure option
+@option{--enable-x86-relax-relocations}.
+
 @cindex @samp{-mevexrcig=} option, i386
 @cindex @samp{-mevexrcig=} option, x86-64
 @item -mevexrcig=@var{rne}
@@ -324,6 +390,13 @@ of EVEX instruction with 00, which is the default.
 @option{-mevexrcig=@var{rd}}, @option{-mevexrcig=@var{ru}}
 and @option{-mevexrcig=@var{rz}} will encode SAE-only EVEX instructions
 with 01, 10 and 11 RC bits, respectively.
+
+@cindex @samp{-mamd64} option, x86-64
+@cindex @samp{-mintel64} option, x86-64
+@item -mamd64
+@itemx -mintel64
+This option specifies that the assembler should accept only AMD64 or
+Intel64 ISA in 64-bit mode.  The default is to accept both.
 
 @end table
 @c man end
@@ -485,7 +558,8 @@ The @samp{;} character can be used to separate statements on the same
 line.
 
 @node i386-Mnemonics
-@section Instruction Naming
+@section i386-Mnemonics
+@subsection Instruction Naming
 
 @cindex i386 instruction naming
 @cindex instruction naming, i386
@@ -569,7 +643,7 @@ Far call/jump instructions are @samp{lcall} and @samp{ljmp} in
 AT&T syntax, but are @samp{call far} and @samp{jump far} in Intel
 convention.
 
-@section AT&T Mnemonic versus Intel Mnemonic
+@subsection AT&T Mnemonic versus Intel Mnemonic
 
 @cindex i386 mnemonic compatibility
 @cindex mnemonic compatibility, i386
@@ -616,8 +690,8 @@ the 6 section registers @samp{%cs} (code section), @samp{%ds}
 and @samp{%gs}.
 
 @item
-the 3 processor control registers @samp{%cr0}, @samp{%cr2}, and
-@samp{%cr3}.
+the 5 processor control registers @samp{%cr0}, @samp{%cr2},
+@samp{%cr3}, @samp{%cr4}, and @samp{%cr8}.
 
 @item
 the 6 debug registers @samp{%db0}, @samp{%db1}, @samp{%db2},
@@ -635,7 +709,7 @@ These registers are overloaded by 8 MMX registers @samp{%mm0},
 @samp{%mm6} and @samp{%mm7}.
 
 @item
-the 8 SSE registers registers @samp{%xmm0}, @samp{%xmm1}, @samp{%xmm2},
+the 8 128-bit SSE registers registers @samp{%xmm0}, @samp{%xmm1}, @samp{%xmm2},
 @samp{%xmm3}, @samp{%xmm4}, @samp{%xmm5}, @samp{%xmm6} and @samp{%xmm7}.
 @end itemize
 
@@ -652,13 +726,13 @@ pointer)
 the 8 extended registers @samp{%r8}--@samp{%r15}.
 
 @item
-the 8 32-bit low ends of the extended registers: @samp{%r8d}--@samp{%r15d}
+the 8 32-bit low ends of the extended registers: @samp{%r8d}--@samp{%r15d}.
 
 @item
-the 8 16-bit low ends of the extended registers: @samp{%r8w}--@samp{%r15w}
+the 8 16-bit low ends of the extended registers: @samp{%r8w}--@samp{%r15w}.
 
 @item
-the 8 8-bit low ends of the extended registers: @samp{%r8b}--@samp{%r15b}
+the 8 8-bit low ends of the extended registers: @samp{%r8b}--@samp{%r15b}.
 
 @item
 the 4 8-bit registers: @samp{%sil}, @samp{%dil}, @samp{%bpl}, @samp{%spl}.
@@ -667,7 +741,43 @@ the 4 8-bit registers: @samp{%sil}, @samp{%dil}, @samp{%bpl}, @samp{%spl}.
 the 8 debug registers: @samp{%db8}--@samp{%db15}.
 
 @item
-the 8 SSE registers: @samp{%xmm8}--@samp{%xmm15}.
+the 8 128-bit SSE registers: @samp{%xmm8}--@samp{%xmm15}.
+@end itemize
+
+With the AVX extensions more registers were made available:
+
+@itemize @bullet
+
+@item
+the 16 256-bit SSE @samp{%ymm0}--@samp{%ymm15} (only the first 8
+available in 32-bit mode).  The bottom 128 bits are overlaid with the
+@samp{xmm0}--@samp{xmm15} registers.
+
+@end itemize
+
+The AVX2 extensions made in 64-bit mode more registers available:
+
+@itemize @bullet
+
+@item
+the 16 128-bit registers @samp{%xmm16}--@samp{%xmm31} and the 16 256-bit
+registers @samp{%ymm16}--@samp{%ymm31}.
+
+@end itemize
+
+The AVX512 extensions added the following registers:
+
+@itemize @bullet
+
+@item
+the 32 512-bit registers @samp{%zmm0}--@samp{%zmm31} (only the first 8
+available in 32-bit mode).  The bottom 128 bits are overlaid with the
+@samp{%xmm0}--@samp{%xmm31} registers and the first 256 bits are
+overlaid with the @samp{%ymm0}--@samp{%ymm31} registers.
+
+@item
+the 8 mask registers @samp{%k0}--@samp{%k7}.
+
 @end itemize
 
 @node i386-Prefixes
@@ -1051,27 +1161,6 @@ opcode bytes @samp{6a 04} (i.e., without the operand size prefix), which
 is correct since the processor default operand size is assumed to be 16
 bits in a 16-bit code section.
 
-@node i386-Bugs
-@section AT&T Syntax bugs
-
-The UnixWare assembler, and probably other AT&T derived ix86 Unix
-assemblers, generate floating point instructions with reversed source
-and destination registers in certain cases.  Unfortunately, gcc and
-possibly many other programs use this reversed syntax, so we're stuck
-with it.
-
-For example
-
-@smallexample
-        fsub %st,%st(3)
-@end smallexample
-@noindent
-results in @samp{%st(3)} being updated to @samp{%st - %st(3)} rather
-than the expected @samp{%st(3) - %st}.  This happens with all the
-non-commutative arithmetic floating point operations with two register
-operands where the source register is @samp{%st} and the destination
-register is @samp{%st(i)}.
-
 @node i386-Arch
 @section Specifying CPU Architecture
 
@@ -1090,10 +1179,10 @@ supported on the CPU specified.  The choices for @var{cpu_type} are:
 @item @samp{i486} @tab @samp{i586} @tab @samp{i686} @tab @samp{pentium}
 @item @samp{pentiumpro} @tab @samp{pentiumii} @tab @samp{pentiumiii} @tab @samp{pentium4}
 @item @samp{prescott} @tab @samp{nocona} @tab @samp{core} @tab @samp{core2}
-@item @samp{corei7} @tab @samp{l1om} @tab @samp{k1om}
+@item @samp{corei7} @tab @samp{l1om} @tab @samp{k1om} @samp{iamcu}
 @item @samp{k6} @tab @samp{k6_2} @tab @samp{athlon} @tab @samp{k8}
 @item @samp{amdfam10} @tab @samp{bdver1} @tab @samp{bdver2} @tab @samp{bdver3}
-@item @samp{bdver4} @tab @samp{btver1} @tab @samp{btver2}
+@item @samp{bdver4} @tab @samp{znver1} @tab @samp{btver1} @tab @samp{btver2}
 @item @samp{generic32} @tab @samp{generic64}
 @item @samp{.mmx} @tab @samp{.sse} @tab @samp{.sse2} @tab @samp{.sse3}
 @item @samp{.ssse3} @tab @samp{.sse4.1} @tab @samp{.sse4.2} @tab @samp{.sse4}
@@ -1107,11 +1196,12 @@ supported on the CPU specified.  The choices for @var{cpu_type} are:
 @item @samp{.clflushopt} @tab @samp{.xsavec} @tab @samp{.xsaves} @tab @samp{.se1}
 @item @samp{.avx512f} @tab @samp{.avx512cd} @tab @samp{.avx512er} @tab @samp{.avx512pf}
 @item @samp{.avx512vl} @tab @samp{.avx512bw} @tab @samp{.avx512dq} @tab @samp{.avx512ifma}
-@item @samp{.avx512vbmi} @tab @samp{.clwb} @tab @samp{.pcommit}
+@item @samp{.avx512vbmi} @tab @samp{.avx512_4fmaps} @tab @samp{.avx512_4vnniw}
+@item @samp{.avx512_vpopcntdq} @tab @samp{.clwb} @tab @samp{.rdpid} @tab @samp{.ptwrite}
 @item @samp{.3dnow} @tab @samp{.3dnowa} @tab @samp{.sse4a} @tab @samp{.sse5}
 @item @samp{.syscall} @tab @samp{.rdtscp} @tab @samp{.svme} @tab @samp{.abm}
 @item @samp{.lwp} @tab @samp{.fma4} @tab @samp{.xop} @tab @samp{.cx16}
-@item @samp{.padlock}
+@item @samp{.padlock} @tab @samp{.clzero} @tab @samp{.mwaitx}
 @end multitable
 
 Apart from the warning, there are only two other effects on
@@ -1142,6 +1232,27 @@ For example
 @smallexample
  .arch i8086,nojumps
 @end smallexample
+
+@node i386-Bugs
+@section AT&T Syntax bugs
+
+The UnixWare assembler, and probably other AT&T derived ix86 Unix
+assemblers, generate floating point instructions with reversed source
+and destination registers in certain cases.  Unfortunately, gcc and
+possibly many other programs use this reversed syntax, so we're stuck
+with it.
+
+For example
+
+@smallexample
+        fsub %st,%st(3)
+@end smallexample
+@noindent
+results in @samp{%st(3)} being updated to @samp{%st - %st(3)} rather
+than the expected @samp{%st(3) - %st}.  This happens with all the
+non-commutative arithmetic floating point operations with two register
+operands where the source register is @samp{%st} and the destination
+register is @samp{%st(i)}.
 
 @node i386-Notes
 @section Notes

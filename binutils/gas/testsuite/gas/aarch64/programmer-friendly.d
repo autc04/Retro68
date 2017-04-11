@@ -1,3 +1,4 @@
+#as: -mabi=lp64
 #objdump: -dr
 
 .*:     file format .*
@@ -9,7 +10,7 @@ Disassembly of section \.text:
    4:	98000241 	ldrsw	x1, 4c <\.text\+0x4c>
    8:	98000007 	ldrsw	x7, 0 <\.text>
 			8: R_AARCH64_LD_PREL_LO19	\.data\+0x4
-   c:	fa42a02a 	ccmp	x1, x2, #0xa, ge
+   c:	fa42a02a 	ccmp	x1, x2, #0xa, ge  // ge = tcont
   10:	53001eaf 	uxtb	w15, w21
   14:	53003f67 	uxth	w7, w27
   18:	2a1f03e8 	mov	w8, wzr

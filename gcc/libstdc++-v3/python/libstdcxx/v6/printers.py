@@ -1,6 +1,6 @@
 # Pretty-printers for libstdc++.
 
-# Copyright (C) 2008-2015 Free Software Foundation, Inc.
+# Copyright (C) 2008-2016 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -85,7 +85,9 @@ except ImportError:
 def find_type(orig, name):
     typ = orig.strip_typedefs()
     while True:
-        search = str(typ) + '::' + name
+        # Use typ.name here instead of str(typ) to discard any const,etc.
+        # qualifiers.  PR 67440.
+        search = typ.name + '::' + name
         try:
             return gdb.lookup_type(search)
         except RuntimeError:
@@ -128,6 +130,22 @@ class UniquePointerPrinter:
         return ('std::unique_ptr<%s> containing %s' % (str(v.type.target()),
                                                        str(v)))
 
+def get_value_from_list_node(node):
+    """Returns the value held in an _List_node<_Val>"""
+    try:
+        member = node.type.fields()[1].name
+        if member == '_M_data':
+            # C++03 implementation, node contains the value as a member
+            return node['_M_data']
+        elif member == '_M_storage':
+            # C++11 implementation, node stores value in __aligned_membuf
+            p = node['_M_storage']['_M_storage'].address
+            p = p.cast(node.type.template_argument(0).pointer())
+            return p.dereference()
+    except:
+        pass
+    raise ValueError("Unsupported implementation for %s" % str(node.type))
+
 class StdListPrinter:
     "Print a std::list"
 
@@ -148,7 +166,8 @@ class StdListPrinter:
             self.base = elt['_M_next']
             count = self.count
             self.count = self.count + 1
-            return ('[%d]' % count, elt['_M_data'])
+            val = get_value_from_list_node(elt)
+            return ('[%d]' % count, val)
 
     def __init__(self, typename, val):
         self.typename = typename
@@ -174,7 +193,8 @@ class StdListIteratorPrinter:
     def to_string(self):
         nodetype = find_type(self.val.type, '_Node')
         nodetype = nodetype.strip_typedefs().pointer()
-        return self.val['_M_node'].cast(nodetype).dereference()['_M_data']
+        node = self.val['_M_node'].cast(nodetype).dereference()
+        return get_value_from_list_node(node)
 
 class StdSlistPrinter:
     "Print a __gnu_cxx::slist"
@@ -440,7 +460,7 @@ def get_value_from_Rb_tree_node(node):
             # C++03 implementation, node contains the value as a member
             return node['_M_value_field']
         elif member == '_M_storage':
-            # C++11 implementation, node stores value in __aligned_buffer
+            # C++11 implementation, node stores value in __aligned_membuf
             p = node['_M_storage']['_M_storage'].address
             p = p.cast(node.type.template_argument(0).pointer())
             return p.dereference()
@@ -927,10 +947,6 @@ class StdExpAnyPrinter(SingleObjContainerPrinter):
                 valptr = self.val['_M_storage']['_M_buffer'].address
             elif '::_Manager_external' in mgrname:
                 valptr = self.val['_M_storage']['_M_ptr']
-            elif '::_Manager_alloc' in mgrname:
-                datatype = gdb.lookup_type(mgrname + '::_Data')
-                valptr = self.val['_M_storage']['_M_ptr'].cast(datatype.pointer())
-                valptr = valptr.dereference()['_M_data'].address
             else:
                 raise ValueError("Unknown manager function in std::experimental::any")
             contained_value = valptr.cast(self.contained_type.pointer()).dereference()
@@ -979,6 +995,57 @@ class StdExpStringViewPrinter:
 
     def display_hint (self):
         return 'string'
+
+class StdExpPathPrinter:
+    "Print a std::experimental::filesystem::path"
+
+    def __init__ (self, typename, val):
+        self.val = val
+        start = self.val['_M_cmpts']['_M_impl']['_M_start']
+        finish = self.val['_M_cmpts']['_M_impl']['_M_finish']
+        self.num_cmpts = int (finish - start)
+
+    def _path_type(self):
+        t = str(self.val['_M_type'])
+        if t[-9:] == '_Root_dir':
+            return "root-directory"
+        if t[-10:] == '_Root_name':
+            return "root-name"
+        return None
+
+    def to_string (self):
+        path = "%s" % self.val ['_M_pathname']
+        if self.num_cmpts == 0:
+            t = self._path_type()
+            if t:
+                path = '%s [%s]' % (path, t)
+        return "filesystem::path %s" % path
+
+    class _iterator(Iterator):
+        def __init__(self, cmpts):
+            self.item = cmpts['_M_impl']['_M_start']
+            self.finish = cmpts['_M_impl']['_M_finish']
+            self.count = 0
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            if self.item == self.finish:
+                raise StopIteration
+            item = self.item.dereference()
+            count = self.count
+            self.count = self.count + 1
+            self.item = self.item + 1
+            path = item['_M_pathname']
+            t = StdExpPathPrinter(item.type.name, item)._path_type()
+            if not t:
+                t = count
+            return ('[%s]' % t, path)
+
+    def children(self):
+        return self._iterator(self.val['_M_cmpts'])
+
 
 # A "regular expression" printer which conforms to the
 # "SubPrettyPrinter" protocol from gdb.printing.
@@ -1290,6 +1357,7 @@ def build_libstdcxx_dictionary ():
     libstdcxx_printer.add_container('std::', 'bitset', StdBitsetPrinter)
     libstdcxx_printer.add_container('std::', 'deque', StdDequePrinter)
     libstdcxx_printer.add_container('std::', 'list', StdListPrinter)
+    libstdcxx_printer.add_container('std::__cxx11::', 'list', StdListPrinter)
     libstdcxx_printer.add_container('std::', 'map', StdMapPrinter)
     libstdcxx_printer.add_container('std::', 'multimap', StdMapPrinter)
     libstdcxx_printer.add_container('std::', 'multiset', StdSetPrinter)
@@ -1365,6 +1433,11 @@ def build_libstdcxx_dictionary ():
                                   'optional', StdExpOptionalPrinter)
     libstdcxx_printer.add_version('std::experimental::fundamentals_v1::',
                                   'basic_string_view', StdExpStringViewPrinter)
+    # Filesystem TS components
+    libstdcxx_printer.add_version('std::experimental::filesystem::v1::',
+                                  'path', StdExpPathPrinter)
+    libstdcxx_printer.add_version('std::experimental::filesystem::v1::__cxx11::',
+                                  'path', StdExpPathPrinter)
 
     # Extensions.
     libstdcxx_printer.add_version('__gnu_cxx::', 'slist', StdSlistPrinter)

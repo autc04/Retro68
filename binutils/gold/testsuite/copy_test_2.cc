@@ -1,6 +1,6 @@
 // copy_test_2.cc -- test copy relocs variables for gold
 
-// Copyright (C) 2008-2014 Free Software Foundation, Inc.
+// Copyright (C) 2008-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -21,3 +21,5 @@
 // MA 02110-1301, USA.
 
 long long l = 2;
+
+int ip __attribute__((visibility("protected"))) = 3;

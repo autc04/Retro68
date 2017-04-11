@@ -1,7 +1,7 @@
 
 .*dw2-1-compressed.o:     file format .*
 
-Contents of the .debug_info section:
+Contents of the .z?debug_info section:
 
   Compilation Unit @ offset 0x0:
    Length:        0x4e \(32-bit\)
@@ -30,7 +30,7 @@ Contents of the .debug_info section:
     <50>   DW_AT_encoding    : 5	\(signed\)
  <1><51>: Abbrev Number: 0
 
-Raw dump of debug contents of section .debug_line:
+Raw dump of debug contents of section .z?debug_line:
 
   Offset:                      0x0
   Length:                      62

@@ -20,8 +20,8 @@ text_label:
 	.endif
 
 # Branch to an external label.
-#	b	external_label
-#	bal	external_label
+	b	external_label
+	bal	external_label
 
 # Force at least 8 (non-delay-slot) zero bytes, to make 'objdump' print ...
 	.align	2

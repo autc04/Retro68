@@ -1,5 +1,5 @@
 /* resrc.c -- read and write Windows rc files.
-   Copyright (C) 1997-2014 Free Software Foundation, Inc.
+   Copyright (C) 1997-2017 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
    Rewritten by Kai Tietz, Onevision.
 
@@ -215,7 +215,7 @@ run_cmd (char *cmd, const char *redir)
       i++;
 
   i++;
-  argv = alloca (sizeof (char *) * (i + 3));
+  argv = xmalloc (sizeof (char *) * (i + 3));
   i = 0;
   s = cmd;
 
@@ -266,6 +266,7 @@ run_cmd (char *cmd, const char *redir)
 
   pid = pexecute (argv[0], (char * const *) argv, program_name, temp_base,
 		  &errmsg_fmt, &errmsg_arg, PEXECUTE_ONE | PEXECUTE_SEARCH);
+  free (argv);
 
   /* Restore stdout to its previous setting.  */
   dup2 (stdout_save, STDOUT_FILENO);
@@ -2275,7 +2276,7 @@ write_rc_resource (FILE *e, const rc_res_id *type,
 	    default:
     res_id_print (e, *type, 0);
 	      break;
-	
+
 	    PRINT_RT_NAME(RT_MANIFEST);
 	    PRINT_RT_NAME(RT_ANICURSOR);
 	    PRINT_RT_NAME(RT_ANIICON);
@@ -2777,7 +2778,7 @@ write_rc_toolbar (FILE *e, const rc_toolbar *tb)
     indent (e, 2);
     if (it->id.u.id == 0)
       fprintf (e, "SEPARATOR\n");
-    else 
+    else
       fprintf (e, "BUTTON %d\n", (int) it->id.u.id);
     it = it->next;
   }
@@ -2892,7 +2893,7 @@ test_rc_datablock_text (rc_uint_type length, const bfd_byte *data)
   int has_nl;
   rc_uint_type c;
   rc_uint_type i;
-  
+
   if (length <= 1)
     return 0;
 
@@ -3029,7 +3030,7 @@ write_rc_datablock (FILE *e, rc_uint_type length, const bfd_byte *data, int has_
 	      if (i < length)
 		fprintf (e, "\n");
 	    }
-          
+
 	  if (i == 0)
 	      {
 	      indent (e, 2);
@@ -3052,7 +3053,7 @@ write_rc_datablock (FILE *e, rc_uint_type length, const bfd_byte *data, int has_
 	      u = (const unichar *) &data[i];
 	      indent (e, 2);
 	  fprintf (e, "L\"");
-    	  
+
 	      for (c = 0; i < length && c < 160 && u[c] != '\n'; c++, i += 2)
 		;
 	      if (i < length && u[c] == '\n')
@@ -3090,9 +3091,9 @@ write_rc_datablock (FILE *e, rc_uint_type length, const bfd_byte *data, int has_
 		  {
 	  rc_uint_type k;
 	  rc_uint_type comment_start;
-	  
+
 	  comment_start = i;
-	  
+
 	  if (! first)
 	    indent (e, 2);
 

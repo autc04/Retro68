@@ -17,6 +17,7 @@ character(25) :: astring
     )
 700 format('This format now works.'''& !comment
     )
+! See PR65903 for the following cases.
 800 format('This is actually ok.'& !comment
    ' end'  )
 900 format('This is actually ok.' & !comment

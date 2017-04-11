@@ -19,7 +19,7 @@ stuff:
 	.loc	1 5 0
 	lw	$2, 1f
 	.loc	1 6 0
-	b	0f
+	b	2f
 	nop
 	.loc	1 7 0
 	b	1f
@@ -27,6 +27,8 @@ stuff:
 	.loc	1 8 0
 
 	.p2align 8
+2:
+	.insn
 0:
 	.space	2048
 1:

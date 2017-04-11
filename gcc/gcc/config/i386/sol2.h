@@ -1,5 +1,5 @@
 /* Target definitions for GCC for Intel 80386 running Solaris 2
-   Copyright (C) 1993-2015 Free Software Foundation, Inc.
+   Copyright (C) 1993-2016 Free Software Foundation, Inc.
    Contributed by Fred Fish (fnf@cygnus.com).
 
 This file is part of GCC.
@@ -20,6 +20,11 @@ along with GCC; see the file COPYING3.  If not see
 
 #define SUBTARGET_OPTIMIZATION_OPTIONS				\
   { OPT_LEVELS_1_PLUS, OPT_momit_leaf_frame_pointer, NULL, 1 }
+
+/* 32-bit Solaris/x86 only guarantees 4-byte stack alignment as required by
+   the i386 psABI, so realign it as necessary for SSE instructions.  */
+#undef STACK_REALIGN_DEFAULT
+#define STACK_REALIGN_DEFAULT (TARGET_64BIT ? 0 : 1)
 
 /* Old versions of the Solaris assembler can not handle the difference of
    labels in different sections, so force DW_EH_PE_datarel if so.  */
@@ -86,13 +91,10 @@ along with GCC; see the file COPYING3.  If not see
 #endif
 #endif
 
-#undef  ENDFILE_SPEC
-#define ENDFILE_SPEC \
-  "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
-   %{mpc32:crtprec32.o%s} \
+#define ENDFILE_ARCH_SPEC \
+  "%{mpc32:crtprec32.o%s} \
    %{mpc64:crtprec64.o%s} \
-   %{mpc80:crtprec80.o%s} \
-   crtend.o%s crtn.o%s"
+   %{mpc80:crtprec80.o%s}"
 
 #define SUBTARGET_CPU_EXTRA_SPECS \
   { "cpp_subtarget",	 CPP_SUBTARGET_SPEC },		\
@@ -135,8 +137,9 @@ along with GCC; see the file COPYING3.  If not see
 /* The Solaris assembler wants a .local for non-exported aliases.  */
 #define ASM_OUTPUT_DEF_FROM_DECLS(FILE, DECL, TARGET)	\
   do {							\
-    const char *declname =				\
-      IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (DECL));	\
+    tree id = DECL_ASSEMBLER_NAME (DECL);		\
+    ultimate_transparent_alias_target (&id);		\
+    const char *declname = IDENTIFIER_POINTER (id);	\
     ASM_OUTPUT_DEF ((FILE), declname,			\
 		    IDENTIFIER_POINTER (TARGET));	\
     if (! TREE_PUBLIC (DECL))				\

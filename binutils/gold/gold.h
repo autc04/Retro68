@@ -1,6 +1,6 @@
 // gold.h -- general definitions for gold   -*- C++ -*-
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -255,8 +255,8 @@ inline bool
 is_cident(const char* name)
 {
   return (name[strspn(name,
-	 	      ("0123456789"
-		       "ABCDEFGHIJKLMNOPWRSTUVWXYZ"
+		      ("0123456789"
+		       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		       "abcdefghijklmnopqrstuvwxyz"
 		       "_"))]
 	  == '\0');

@@ -1,4 +1,4 @@
-@c Copyright (C) 2002-2014 Free Software Foundation, Inc.
+@c Copyright (C) 2002-2017 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @c
@@ -43,9 +43,30 @@ placed in a data RAM/ROM.  With @samp{--text-@-section-@-literals}, the
 literals are interspersed in the text section in order to keep them as
 close as possible to their references.  This may be necessary for large
 assembly files, where the literals would otherwise be out of range of the
-@code{L32R} instructions in the text section.  These options only affect
+@code{L32R} instructions in the text section.  Literals are grouped into
+pools following @code{.literal_position} directives or preceding
+@code{ENTRY} instructions.  These options only affect literals referenced
+via PC-relative @code{L32R} instructions; literals for absolute mode
+@code{L32R} instructions are handled separately.
+@xref{Literal Directive, ,literal}.
+
+@item --auto-litpools | --no-auto-litpools
+@kindex --auto-litpools
+@kindex --no-auto-litpools
+Control the treatment of literal pools.  The default is
+@samp{--no-@-auto-@-litpools}, which in the absence of
+@samp{--text-@-section-@-literals} places literals in separate sections
+in the output file.  This allows the literal pool to be placed in a data
+RAM/ROM.  With @samp{--auto-@-litpools}, the literals are interspersed
+in the text section in order to keep them as close as possible to their
+references, explicit @code{.literal_position} directives are not
+required.  This may be necessary for very large functions, where single
+literal pool at the beginning of the function may not be reachable by
+@code{L32R} instructions at the end.  These options only affect
 literals referenced via PC-relative @code{L32R} instructions; literals
 for absolute mode @code{L32R} instructions are handled separately.
+When used together with @samp{--text-@-section-@-literals},
+@samp{--auto-@-litpools} takes precedence.
 @xref{Literal Directive, ,literal}.
 
 @item --absolute-literals | --no-absolute-literals

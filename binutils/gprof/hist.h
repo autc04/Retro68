@@ -1,6 +1,6 @@
 /* hist.h
 
-   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+   Copyright (C) 2000-2017 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -46,10 +46,10 @@ extern void hist_print           (void);
    we have histogram data.  Returns 1 if so and 0 otherwise.  */
 extern int hist_check_address (unsigned address);
 
-/* Given a range of addresses for a symbol, find a histogram record 
+/* Given a range of addresses for a symbol, find a histogram record
    that intersects with this range, and clips the range to that
    histogram record, modifying *P_LOWPC and *P_HIGHPC.
-   
+
    If no intersection is found, *P_LOWPC and *P_HIGHPC will be set to
    one unspecified value.  If more that one intersection is found,
    an error is emitted.  */

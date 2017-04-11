@@ -1,5 +1,5 @@
 /* Target definitions for 32/64-bit NLM (NetWare Loadable Module)
-   Copyright (C) 1993-2014 Free Software Foundation, Inc.
+   Copyright (C) 1993-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -25,6 +25,7 @@
 #define nlm_make_empty_symbol                   nlmNAME (make_empty_symbol)
 #define nlm_print_symbol                        nlmNAME (print_symbol)
 #define nlm_get_symbol_info                     nlmNAME (get_symbol_info)
+#define nlm_get_symbol_version_string		_bfd_nosymbols_get_symbol_version_string
 #define nlm_bfd_is_local_label_name             bfd_generic_is_local_label_name
 #define nlm_bfd_is_target_special_symbol ((bfd_boolean (*) (bfd *, asymbol *)) bfd_false)
 #define nlm_get_lineno                          _bfd_nosymbols_get_lineno
@@ -58,6 +59,7 @@
   _bfd_generic_copy_link_hash_symbol_type
 #define nlm_bfd_final_link                      _bfd_generic_final_link
 #define nlm_bfd_link_split_section              _bfd_generic_link_split_section
+#define nlm_bfd_link_check_relocs               _bfd_generic_link_check_relocs
 
 /* This structure contains everything that BFD knows about a target.
    It includes things like its byte order, name, what routines to call

@@ -1,5 +1,5 @@
-/* { dg-do compile } */
-/* { dg-require-effective-target mpx } */
+/* { dg-do compile { target { ! x32 } } } */
+/* { dg-require-alias "" } */
 /* { dg-options "-fcheck-pointer-bounds -mmpx -O2" } */
 /* { dg-final { scan-assembler-not "test.chkp" } } */
 

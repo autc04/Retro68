@@ -13,5 +13,6 @@ foo:
 	ldr	x3, [x4,#:got_lo12:ptrs]
 	mov	w0, w4
 	ret
+	ldr	x3, [x4,#:gotpage_lo14:ptrs]
 	.size	foo, .-foo
 	.comm	ptrs,12,8

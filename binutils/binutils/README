@@ -57,7 +57,7 @@ By default, the binutils will be configured to support the system on
 which they are built.  When doing cross development, use the --target
 configure option to specify a different target, eg:
 
-	./configure --target=foo-elf        
+	./configure --target=foo-elf
 
 The --enable-targets option adds support for more binary file formats
 besides the default.  List them as the argument to --enable-targets,
@@ -292,7 +292,7 @@ unneeded objects and libraries:
 If you have any problems or questions about the binutils on VMS, feel
 free to mail me at kkaempf@rmi.de.
 
-Copyright (C) 2012-2014 Free Software Foundation, Inc.
+Copyright (C) 2012-2017 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

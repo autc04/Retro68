@@ -1,5 +1,6 @@
 /* { dg-do compile } */
 /* { dg-options "-Wstack-usage=512" } */
+/* { dg-require-effective-target untyped_assembly } */
 
 int foo1 (void)  /* { dg-bogus "stack usage" } */
 {

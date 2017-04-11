@@ -1,5 +1,5 @@
 /* ns32k.c  -- Assemble on the National Semiconductor 32k series
-   Copyright (C) 1987-2014 Free Software Foundation, Inc.
+   Copyright (C) 1987-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -102,7 +102,7 @@ const char FLT_CHARS[] = "fd";	/* We don't want to support lowercase,
 /* Internal structs.  */
 struct ns32k_option
 {
-  char *pattern;
+  const char *pattern;
   unsigned long or;
   unsigned long and;
 };
@@ -132,7 +132,6 @@ struct int_ins_form
 
 struct int_ins_form iif;
 expressionS exprP;
-char *input_line_pointer;
 
 /* Description of the PARTs in IIF
   object[n]:
@@ -334,7 +333,7 @@ const pseudo_typeS md_pseudo_table[] =
    displacement base-adjust as there are other routines that must
    consider this. Also, as we have two various offset-adjusts in the
    ns32k (acb versus br/brs/jsr/bcond), two set of limits would have
-   had to be used.  Now we dont have to think about that.  */
+   had to be used.  Now we don't have to think about that.  */
 
 const relax_typeS md_relax_table[] =
 {
@@ -433,6 +432,7 @@ addr_mode (char *operand,
 		  addrmodeP->disp[0] = str + 2;
 		  return -1;
 		}
+	      /* Fall through.  */
 	    default:
 	      as_bad (_("Invalid syntax in PC-relative addressing mode"));
 	      return 0;
@@ -482,7 +482,7 @@ addr_mode (char *operand,
 	{
 	case 'f':
 	  addrmodeP->float_flag = 1;
-	  /* Drop through.  */
+	  /* Fall through.  */
 	case 'r':
 	  if (str[1] >= '0' && str[1] < '8')
 	    {
@@ -565,7 +565,7 @@ addr_mode (char *operand,
 		  str[strl - 4] = 0;
 		  return -1;		/* reg rel */
 		}
-	      /* Drop through.  */
+	      /* Fall through.  */
 
 	    default:
 	      if (!strncmp (&str[strl - 4], "(fp", 3))
@@ -710,7 +710,7 @@ get_addr_mode (char *ptr, addr_modeS *addrmodeP)
       addrmodeP->am_size += 1;
     }
 
-  gas_assert (addrmodeP->mode >= 0); 
+  gas_assert (addrmodeP->mode >= 0);
   if (disp_test[(unsigned int) addrmodeP->mode])
     {
       char c;
@@ -803,7 +803,7 @@ optlist (char *str,			/* The string to extract options from.  */
 	 unsigned long *default_map)	/* Default pattern and output.  */
 {
   int i, j, k, strlen1, strlen2;
-  char *patternP, *strP;
+  const char *patternP, *strP;
 
   strlen1 = strlen (str);
 
@@ -878,7 +878,7 @@ bit_fix_new (int size,		/* Length of bitfield.  */
 {
   bit_fixS *bit_fixP;
 
-  bit_fixP = obstack_alloc (&notes, sizeof (bit_fixS));
+  bit_fixP = XOBNEW (&notes, bit_fixS);
 
   bit_fixP->fx_bit_size = size;
   bit_fixP->fx_bit_offset = offset;
@@ -926,6 +926,7 @@ encode_operand (int argc,
 	case 'f':		/* Operand of sfsr turns out to be a nasty
 				   specialcase.  */
 	  opcode_bit_ptr -= 5;
+	  /* Fall through.  */
 	case 'Z':		/* Float not immediate.  */
 	case 'F':		/* 32 bit float	general form.  */
 	case 'L':		/* 64 bit float.  */
@@ -984,10 +985,10 @@ encode_operand (int argc,
 	  argv[i] = freeptr;
 	  pcrel -= 1;		/* Make pcrel 0 in spite of what case 'p':
 				   wants.  */
-	  /* fall thru */
+	  /* fallthru */
 	case 'p':		/* Displacement - pc relative addressing.  */
 	  pcrel += 1;
-	  /* fall thru */
+	  /* fallthru */
 	case 'd':		/* Displacement.  */
 	  iif.instr_size += suffixP[i] ? suffixP[i] : 4;
 	  IIF (12, 2, suffixP[i], (unsigned long) argv[i], 0,
@@ -1817,7 +1818,7 @@ convert_iif (void)
 		  {
 		    /* Frag it.  */
 		    if (exprP.X_op_symbol)
-		      /* We cant relax this case.  */
+		      /* We can't relax this case.  */
 		      as_fatal (_("Can't relax difference"));
 		    else
 		      {
@@ -1908,7 +1909,7 @@ md_begin (void)
     }
 
   /* Some private space please!  */
-  freeptr_static = (char *) malloc (PRIVATE_SIZE);
+  freeptr_static = XNEWVEC (char, PRIVATE_SIZE);
 }
 
 /* Turn the string pointed to by litP into a floating point constant
@@ -1916,7 +1917,7 @@ md_begin (void)
    LITTLENUMS emitted is stored in *SIZEP.  An error message is
    returned, or NULL on OK.  */
 
-char *
+const char *
 md_atof (int type, char *litP, int *sizeP)
 {
   return ieee_md_atof (type, litP, sizeP, FALSE);
@@ -2123,7 +2124,7 @@ struct option md_longopts[] =
 size_t md_longopts_size = sizeof (md_longopts);
 
 int
-md_parse_option (int c, char *arg)
+md_parse_option (int c, const char *arg)
 {
   switch (c)
     {
@@ -2228,8 +2229,8 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 
   code = reloc (fixp->fx_size, fixp->fx_pcrel, fix_im_disp (fixp));
 
-  rel = xmalloc (sizeof (arelent));
-  rel->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+  rel = XNEW (arelent);
+  rel->sym_ptr_ptr = XNEW (asymbol *);
   *rel->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
   rel->address = fixp->fx_frag->fr_address + fixp->fx_where;
   if (fixp->fx_pcrel)

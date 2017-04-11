@@ -1,5 +1,5 @@
 /* sysdep.h -- handle host dependencies for binutils
-   Copyright (C) 1991-2014 Free Software Foundation, Inc.
+   Copyright (C) 1991-2017 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -185,6 +185,14 @@ size_t strnlen (const char *, size_t);
 #   define PATH_MAX 1024
 #  endif
 # endif
+#endif
+
+#if defined HAVE_LONG_LONG && SIZEOF_LONG_LONG > SIZEOF_LONG
+/* We can't use any bfd types here since readelf may define BFD64 and
+   objdump may not.  */
+#define HOST_WIDEST_INT	long long
+#else
+#define HOST_WIDEST_INT long
 #endif
 
 #endif /* _BIN_SYSDEP_H */

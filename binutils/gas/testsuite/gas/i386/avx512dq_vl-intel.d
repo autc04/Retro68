@@ -87,54 +87,54 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 8f 7b f5[ 	]*vcvtps2qq xmm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7b 31[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7b b4 f4 c0 1d fe ff[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b 30[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[eax\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b 30[ 	]*vcvtps2qq xmm6\{k7\},DWORD PTR \[eax\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7b 72 7f[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx\+0x3f8\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7b b2 00 04 00 00[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx\+0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7b 72 80[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx-0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7b b2 f8 fb ff ff[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx-0x408\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b 72 7f[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx\+0x1fc\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b b2 00 02 00 00[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx\+0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b 72 80[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx-0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b b2 fc fd ff ff[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx-0x204\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b 72 7f[ 	]*vcvtps2qq xmm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b b2 00 02 00 00[ 	]*vcvtps2qq xmm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b 72 80[ 	]*vcvtps2qq xmm6\{k7\},DWORD PTR \[edx-0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b b2 fc fd ff ff[ 	]*vcvtps2qq xmm6\{k7\},DWORD PTR \[edx-0x204\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b f5[ 	]*vcvtps2qq ymm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d af 7b f5[ 	]*vcvtps2qq ymm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b 31[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b b4 f4 c0 1d fe ff[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b 30[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[eax\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b 30[ 	]*vcvtps2qq ymm6\{k7\},DWORD PTR \[eax\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b 72 7f[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x7f0\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b b2 00 08 00 00[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b 72 80[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b b2 f0 f7 ff ff[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x810\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b 72 7f[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x1fc\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b b2 00 02 00 00[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b 72 80[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b b2 fc fd ff ff[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x204\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b 72 7f[ 	]*vcvtps2qq ymm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b b2 00 02 00 00[ 	]*vcvtps2qq ymm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b 72 80[ 	]*vcvtps2qq ymm6\{k7\},DWORD PTR \[edx-0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b b2 fc fd ff ff[ 	]*vcvtps2qq ymm6\{k7\},DWORD PTR \[edx-0x204\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 f5[ 	]*vcvtps2uqq xmm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 8f 79 f5[ 	]*vcvtps2uqq xmm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 31[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 b4 f4 c0 1d fe ff[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 30[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[eax\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 30[ 	]*vcvtps2uqq xmm6\{k7\},DWORD PTR \[eax\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 72 7f[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x3f8\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 b2 00 04 00 00[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 72 80[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx-0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 b2 f8 fb ff ff[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx-0x408\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 72 7f[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x1fc\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 b2 00 02 00 00[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 72 80[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx-0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 b2 fc fd ff ff[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx-0x204\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 72 7f[ 	]*vcvtps2uqq xmm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 b2 00 02 00 00[ 	]*vcvtps2uqq xmm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 72 80[ 	]*vcvtps2uqq xmm6\{k7\},DWORD PTR \[edx-0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 b2 fc fd ff ff[ 	]*vcvtps2uqq xmm6\{k7\},DWORD PTR \[edx-0x204\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 f5[ 	]*vcvtps2uqq ymm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d af 79 f5[ 	]*vcvtps2uqq ymm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 31[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 b4 f4 c0 1d fe ff[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 30[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[eax\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 30[ 	]*vcvtps2uqq ymm6\{k7\},DWORD PTR \[eax\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 72 7f[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x7f0\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 b2 00 08 00 00[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 72 80[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 b2 f0 f7 ff ff[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x810\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 72 7f[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x1fc\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 b2 00 02 00 00[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 72 80[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 b2 fc fd ff ff[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x204\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 72 7f[ 	]*vcvtps2uqq ymm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 b2 00 02 00 00[ 	]*vcvtps2uqq ymm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 72 80[ 	]*vcvtps2uqq ymm6\{k7\},DWORD PTR \[edx-0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 b2 fc fd ff ff[ 	]*vcvtps2uqq ymm6\{k7\},DWORD PTR \[edx-0x204\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 fe 0f e6 f5[ 	]*vcvtqq2pd xmm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 fe 8f e6 f5[ 	]*vcvtqq2pd xmm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 fe 0f e6 31[ 	]*vcvtqq2pd xmm6\{k7\},XMMWORD PTR \[ecx\]
@@ -747,54 +747,54 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 8f 7a f5[ 	]*vcvttps2qq xmm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7a 31[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7a b4 f4 c0 1d fe ff[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a 30[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[eax\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a 30[ 	]*vcvttps2qq xmm6\{k7\},DWORD PTR \[eax\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7a 72 7f[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx\+0x3f8\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7a b2 00 04 00 00[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx\+0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7a 72 80[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx-0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7a b2 f8 fb ff ff[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx-0x408\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a 72 7f[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx\+0x1fc\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a b2 00 02 00 00[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx\+0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a 72 80[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx-0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a b2 fc fd ff ff[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx-0x204\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a 72 7f[ 	]*vcvttps2qq xmm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a b2 00 02 00 00[ 	]*vcvttps2qq xmm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a 72 80[ 	]*vcvttps2qq xmm6\{k7\},DWORD PTR \[edx-0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a b2 fc fd ff ff[ 	]*vcvttps2qq xmm6\{k7\},DWORD PTR \[edx-0x204\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a f5[ 	]*vcvttps2qq ymm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d af 7a f5[ 	]*vcvttps2qq ymm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a 31[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a b4 f4 c0 1d fe ff[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a 30[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[eax\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a 30[ 	]*vcvttps2qq ymm6\{k7\},DWORD PTR \[eax\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a 72 7f[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x7f0\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a b2 00 08 00 00[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a 72 80[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a b2 f0 f7 ff ff[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x810\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a 72 7f[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x1fc\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a b2 00 02 00 00[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a 72 80[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a b2 fc fd ff ff[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x204\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a 72 7f[ 	]*vcvttps2qq ymm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a b2 00 02 00 00[ 	]*vcvttps2qq ymm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a 72 80[ 	]*vcvttps2qq ymm6\{k7\},DWORD PTR \[edx-0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a b2 fc fd ff ff[ 	]*vcvttps2qq ymm6\{k7\},DWORD PTR \[edx-0x204\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 f5[ 	]*vcvttps2uqq xmm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 8f 78 f5[ 	]*vcvttps2uqq xmm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 31[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 b4 f4 c0 1d fe ff[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 30[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[eax\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 30[ 	]*vcvttps2uqq xmm6\{k7\},DWORD PTR \[eax\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 72 7f[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x3f8\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 b2 00 04 00 00[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 72 80[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx-0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 b2 f8 fb ff ff[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx-0x408\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 72 7f[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x1fc\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 b2 00 02 00 00[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 72 80[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx-0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 b2 fc fd ff ff[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx-0x204\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 72 7f[ 	]*vcvttps2uqq xmm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 b2 00 02 00 00[ 	]*vcvttps2uqq xmm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 72 80[ 	]*vcvttps2uqq xmm6\{k7\},DWORD PTR \[edx-0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 b2 fc fd ff ff[ 	]*vcvttps2uqq xmm6\{k7\},DWORD PTR \[edx-0x204\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 f5[ 	]*vcvttps2uqq ymm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d af 78 f5[ 	]*vcvttps2uqq ymm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 31[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 b4 f4 c0 1d fe ff[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 30[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[eax\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 30[ 	]*vcvttps2uqq ymm6\{k7\},DWORD PTR \[eax\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 72 7f[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x7f0\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 b2 00 08 00 00[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 72 80[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 b2 f0 f7 ff ff[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x810\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 72 7f[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x1fc\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 b2 00 02 00 00[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 72 80[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 b2 fc fd ff ff[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x204\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 72 7f[ 	]*vcvttps2uqq ymm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 b2 00 02 00 00[ 	]*vcvttps2uqq ymm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 72 80[ 	]*vcvttps2uqq ymm6\{k7\},DWORD PTR \[edx-0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 b2 fc fd ff ff[ 	]*vcvttps2uqq ymm6\{k7\},DWORD PTR \[edx-0x204\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7e 08 39 ee[ 	]*vpmovd2m k5,xmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7e 28 39 ee[ 	]*vpmovd2m k5,ymm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fe 08 39 ee[ 	]*vpmovq2m k5,xmm6
@@ -881,54 +881,58 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 8f 7b f5[ 	]*vcvtps2qq xmm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7b 31[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7b b4 f4 c0 1d fe ff[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b 30[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[eax\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b 30[ 	]*vcvtps2qq xmm6\{k7\},DWORD PTR \[eax\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7b 72 7f[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx\+0x3f8\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7b b2 00 04 00 00[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx\+0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7b 72 80[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx-0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7b b2 f8 fb ff ff[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx-0x408\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b 72 7f[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx\+0x1fc\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b b2 00 02 00 00[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx\+0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b 72 80[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx-0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b b2 fc fd ff ff[ 	]*vcvtps2qq xmm6\{k7\},QWORD PTR \[edx-0x204\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b 72 7f[ 	]*vcvtps2qq xmm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b b2 00 02 00 00[ 	]*vcvtps2qq xmm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b 72 80[ 	]*vcvtps2qq xmm6\{k7\},DWORD PTR \[edx-0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b b2 fc fd ff ff[ 	]*vcvtps2qq xmm6\{k7\},DWORD PTR \[edx-0x204\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7b 72 7f[ 	]*vcvtps2qq xmm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b f5[ 	]*vcvtps2qq ymm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d af 7b f5[ 	]*vcvtps2qq ymm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b 31[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b b4 f4 c0 1d fe ff[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b 30[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[eax\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b 30[ 	]*vcvtps2qq ymm6\{k7\},DWORD PTR \[eax\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b 72 7f[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x7f0\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b b2 00 08 00 00[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b 72 80[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7b b2 f0 f7 ff ff[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x810\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b 72 7f[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x1fc\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b b2 00 02 00 00[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b 72 80[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b b2 fc fd ff ff[ 	]*vcvtps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x204\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b 72 7f[ 	]*vcvtps2qq ymm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b b2 00 02 00 00[ 	]*vcvtps2qq ymm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b 72 80[ 	]*vcvtps2qq ymm6\{k7\},DWORD PTR \[edx-0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b b2 fc fd ff ff[ 	]*vcvtps2qq ymm6\{k7\},DWORD PTR \[edx-0x204\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7b 72 7f[ 	]*vcvtps2qq ymm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 f5[ 	]*vcvtps2uqq xmm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 8f 79 f5[ 	]*vcvtps2uqq xmm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 31[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 b4 f4 c0 1d fe ff[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 30[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[eax\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 30[ 	]*vcvtps2uqq xmm6\{k7\},DWORD PTR \[eax\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 72 7f[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x3f8\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 b2 00 04 00 00[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 72 80[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx-0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 79 b2 f8 fb ff ff[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx-0x408\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 72 7f[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x1fc\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 b2 00 02 00 00[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 72 80[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx-0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 b2 fc fd ff ff[ 	]*vcvtps2uqq xmm6\{k7\},QWORD PTR \[edx-0x204\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 72 7f[ 	]*vcvtps2uqq xmm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 b2 00 02 00 00[ 	]*vcvtps2uqq xmm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 72 80[ 	]*vcvtps2uqq xmm6\{k7\},DWORD PTR \[edx-0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 b2 fc fd ff ff[ 	]*vcvtps2uqq xmm6\{k7\},DWORD PTR \[edx-0x204\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 79 72 7f[ 	]*vcvtps2uqq xmm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 f5[ 	]*vcvtps2uqq ymm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d af 79 f5[ 	]*vcvtps2uqq ymm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 31[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 b4 f4 c0 1d fe ff[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 30[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[eax\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 30[ 	]*vcvtps2uqq ymm6\{k7\},DWORD PTR \[eax\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 72 7f[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x7f0\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 b2 00 08 00 00[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 72 80[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 79 b2 f0 f7 ff ff[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x810\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 72 7f[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x1fc\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 b2 00 02 00 00[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 72 80[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 b2 fc fd ff ff[ 	]*vcvtps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x204\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 72 7f[ 	]*vcvtps2uqq ymm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 b2 00 02 00 00[ 	]*vcvtps2uqq ymm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 72 80[ 	]*vcvtps2uqq ymm6\{k7\},DWORD PTR \[edx-0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 b2 fc fd ff ff[ 	]*vcvtps2uqq ymm6\{k7\},DWORD PTR \[edx-0x204\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 79 72 7f[ 	]*vcvtps2uqq ymm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 fe 0f e6 f5[ 	]*vcvtqq2pd xmm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 fe 8f e6 f5[ 	]*vcvtqq2pd xmm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 fe 0f e6 31[ 	]*vcvtqq2pd xmm6\{k7\},XMMWORD PTR \[ecx\]
@@ -1541,54 +1545,58 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 8f 7a f5[ 	]*vcvttps2qq xmm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7a 31[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7a b4 f4 c0 1d fe ff[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a 30[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[eax\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a 30[ 	]*vcvttps2qq xmm6\{k7\},DWORD PTR \[eax\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7a 72 7f[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx\+0x3f8\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7a b2 00 04 00 00[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx\+0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7a 72 80[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx-0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 7a b2 f8 fb ff ff[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx-0x408\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a 72 7f[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx\+0x1fc\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a b2 00 02 00 00[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx\+0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a 72 80[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx-0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a b2 fc fd ff ff[ 	]*vcvttps2qq xmm6\{k7\},QWORD PTR \[edx-0x204\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a 72 7f[ 	]*vcvttps2qq xmm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a b2 00 02 00 00[ 	]*vcvttps2qq xmm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a 72 80[ 	]*vcvttps2qq xmm6\{k7\},DWORD PTR \[edx-0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a b2 fc fd ff ff[ 	]*vcvttps2qq xmm6\{k7\},DWORD PTR \[edx-0x204\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 7a 72 7f[ 	]*vcvttps2qq xmm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a f5[ 	]*vcvttps2qq ymm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d af 7a f5[ 	]*vcvttps2qq ymm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a 31[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a b4 f4 c0 1d fe ff[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a 30[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[eax\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a 30[ 	]*vcvttps2qq ymm6\{k7\},DWORD PTR \[eax\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a 72 7f[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x7f0\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a b2 00 08 00 00[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a 72 80[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 7a b2 f0 f7 ff ff[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x810\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a 72 7f[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x1fc\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a b2 00 02 00 00[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx\+0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a 72 80[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a b2 fc fd ff ff[ 	]*vcvttps2qq ymm6\{k7\},XMMWORD PTR \[edx-0x204\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a 72 7f[ 	]*vcvttps2qq ymm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a b2 00 02 00 00[ 	]*vcvttps2qq ymm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a 72 80[ 	]*vcvttps2qq ymm6\{k7\},DWORD PTR \[edx-0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a b2 fc fd ff ff[ 	]*vcvttps2qq ymm6\{k7\},DWORD PTR \[edx-0x204\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 7a 72 7f[ 	]*vcvttps2qq ymm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 f5[ 	]*vcvttps2uqq xmm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 8f 78 f5[ 	]*vcvttps2uqq xmm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 31[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 b4 f4 c0 1d fe ff[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 30[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[eax\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 30[ 	]*vcvttps2uqq xmm6\{k7\},DWORD PTR \[eax\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 72 7f[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x3f8\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 b2 00 04 00 00[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 72 80[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx-0x400\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 0f 78 b2 f8 fb ff ff[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx-0x408\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 72 7f[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x1fc\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 b2 00 02 00 00[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx\+0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 72 80[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx-0x200\]\{1to2\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 b2 fc fd ff ff[ 	]*vcvttps2uqq xmm6\{k7\},QWORD PTR \[edx-0x204\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 72 7f[ 	]*vcvttps2uqq xmm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 b2 00 02 00 00[ 	]*vcvttps2uqq xmm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 72 80[ 	]*vcvttps2uqq xmm6\{k7\},DWORD PTR \[edx-0x200\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 b2 fc fd ff ff[ 	]*vcvttps2uqq xmm6\{k7\},DWORD PTR \[edx-0x204\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 1f 78 72 7f[ 	]*vcvttps2uqq xmm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to2\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 f5[ 	]*vcvttps2uqq ymm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d af 78 f5[ 	]*vcvttps2uqq ymm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 31[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 b4 f4 c0 1d fe ff[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[esp\+esi\*8-0x1e240\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 30[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[eax\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 30[ 	]*vcvttps2uqq ymm6\{k7\},DWORD PTR \[eax\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 72 7f[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x7f0\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 b2 00 08 00 00[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 72 80[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x800\]
 [ 	]*[a-f0-9]+:[ 	]*62 f1 7d 2f 78 b2 f0 f7 ff ff[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x810\]
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 72 7f[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x1fc\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 b2 00 02 00 00[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx\+0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 72 80[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x200\]\{1to4\}
-[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 b2 fc fd ff ff[ 	]*vcvttps2uqq ymm6\{k7\},XMMWORD PTR \[edx-0x204\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 72 7f[ 	]*vcvttps2uqq ymm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 b2 00 02 00 00[ 	]*vcvttps2uqq ymm6\{k7\},DWORD PTR \[edx\+0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 72 80[ 	]*vcvttps2uqq ymm6\{k7\},DWORD PTR \[edx-0x200\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 b2 fc fd ff ff[ 	]*vcvttps2uqq ymm6\{k7\},DWORD PTR \[edx-0x204\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 f1 7d 3f 78 72 7f[ 	]*vcvttps2uqq ymm6\{k7\},DWORD PTR \[edx\+0x1fc\]\{1to4\}
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7e 08 39 ee[ 	]*vpmovd2m k5,xmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7e 28 39 ee[ 	]*vpmovd2m k5,ymm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fe 08 39 ee[ 	]*vpmovq2m k5,xmm6

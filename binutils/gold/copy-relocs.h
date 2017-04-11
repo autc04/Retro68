@@ -1,6 +1,6 @@
 // copy-relocs.h -- handle COPY relocations for gold   -*- C++ -*-
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -54,7 +54,8 @@ class Copy_relocs
 
  public:
   Copy_relocs(unsigned int copy_reloc_type)
-    : entries_(), copy_reloc_type_(copy_reloc_type), dynbss_(NULL)
+    : entries_(), copy_reloc_type_(copy_reloc_type), dynbss_(NULL),
+      dynrelro_(NULL)
   { }
 
   // This is called while scanning relocs if we see a relocation
@@ -65,10 +66,15 @@ class Copy_relocs
   // will wind up.  REL is the reloc itself.  The Output_data_reloc
   // section is where the dynamic relocs are put.
   void
-  copy_reloc(Symbol_table*, Layout*, Sized_symbol<size>* sym,
+  copy_reloc(Symbol_table*,
+	     Layout*,
+	     Sized_symbol<size>* sym,
              Sized_relobj_file<size, big_endian>* object,
-	     unsigned int shndx, Output_section* output_section,
-	     const Reloc& rel,
+	     unsigned int shndx,
+	     Output_section* output_section,
+	     unsigned int r_type,
+	     typename elfcpp::Elf_types<size>::Elf_Addr r_offset,
+	     typename elfcpp::Elf_types<size>::Elf_Swxword r_addend,
 	     Output_data_reloc<sh_type, true, size, big_endian>*);
 
   // Return whether there are any saved relocations.
@@ -118,6 +124,7 @@ class Copy_relocs
   // Make a new COPY reloc and emit it.
   void
   make_copy_reloc(Symbol_table*, Layout*, Sized_symbol<size>*,
+		  Sized_relobj_file<size, big_endian>* object,
 		  Output_data_reloc<sh_type, true, size, big_endian>*);
 
   // A list of relocs to be saved.
@@ -135,14 +142,22 @@ class Copy_relocs
 
   // Save a reloc against SYM for possible emission later.
   void
-  save(Symbol*, Sized_relobj_file<size, big_endian>*, unsigned int shndx,
-       Output_section*, const Reloc& rel);
+  save(Symbol*,
+       Sized_relobj_file<size, big_endian>*,
+       unsigned int shndx,
+       Output_section*,
+       unsigned int r_type,
+       typename elfcpp::Elf_types<size>::Elf_Addr r_offset,
+       typename elfcpp::Elf_types<size>::Elf_Swxword r_addend);
 
   // The target specific relocation type of the COPY relocation.
   const unsigned int copy_reloc_type_;
   // The dynamic BSS data which goes into the .bss section.  This is
-  // where variables which require COPY relocations are placed.
+  // where writable variables which require COPY relocations are placed.
   Output_data_space* dynbss_;
+  // The dynamic read-only data, which goes into the .dynbss section.  This
+  // is where read-only variables which require COPY relocations are placed.
+  Output_data_space* dynrelro_;
 };
 
 } // End namespace gold.

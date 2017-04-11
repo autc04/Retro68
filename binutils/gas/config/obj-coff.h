@@ -1,5 +1,5 @@
 /* coff object file format
-   Copyright (C) 1989-2014 Free Software Foundation, Inc.
+   Copyright (C) 1989-2017 Free Software Foundation, Inc.
 
    This file is part of GAS.
 
@@ -235,16 +235,16 @@
 #define SF_IS_SYSPROC	0x00000040	/* bit 6 marks symbols that are sysprocs.  */
 #define SF_BALNAME	0x00000080	/* bit 7 marks BALNAME symbols.  */
 #define SF_CALLNAME	0x00000100	/* bit 8 marks CALLNAME symbols.  */
-				  
+
 #define SF_NORMAL_MASK	0x0000ffff	/* bits 12-15 are general purpose.  */
-				  
+
 #define SF_STATICS	0x00001000	/* Mark the .text & all symbols.  */
 #define SF_DEFINED	0x00002000	/* Symbol is defined in this file.  */
 #define SF_STRING	0x00004000	/* Symbol name length > 8.  */
 #define SF_LOCAL	0x00008000	/* Symbol must not be emitted.  */
-				  
+
 #define SF_DEBUG_MASK	0xffff0000	/* bits 16-31 are debug info.  */
-				  
+
 #define SF_FUNCTION	0x00010000	/* The symbol is a function.  */
 #define SF_PROCESS	0x00020000	/* Process symbol before write.  */
 #define SF_TAGGED	0x00040000	/* Is associated with a tag.  */

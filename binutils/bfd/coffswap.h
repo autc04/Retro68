@@ -1,5 +1,5 @@
 /* Generic COFF swapping routines, for BFD.
-   Copyright (C) 1990-2014 Free Software Foundation, Inc.
+   Copyright (C) 1990-2017 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -322,7 +322,7 @@ coff_swap_sym_in (bfd * abfd, void * ext1, void * in1)
     }
 
   in->n_value = H_GET_32 (abfd, ext->e_value);
-  in->n_scnum = H_GET_16 (abfd, ext->e_scnum);
+  in->n_scnum = (short) H_GET_16 (abfd, ext->e_scnum);
   if (sizeof (ext->e_type) == 2)
     in->n_type = H_GET_16 (abfd, ext->e_type);
   else
@@ -806,7 +806,8 @@ coff_swap_scnhdr_out (bfd * abfd, void * in, void * out)
 
       memcpy (buf, scnhdr_int->s_name, sizeof (scnhdr_int->s_name));
       buf[sizeof (scnhdr_int->s_name)] = '\0';
-      (*_bfd_error_handler)
+      _bfd_error_handler
+	/* xgettext:c-format */
 	(_("%s: warning: %s: line number overflow: 0x%lx > 0xffff"),
 	 bfd_get_filename (abfd),
 	 buf, scnhdr_int->s_nlnno);
@@ -821,9 +822,10 @@ coff_swap_scnhdr_out (bfd * abfd, void * in, void * out)
 
       memcpy (buf, scnhdr_int->s_name, sizeof (scnhdr_int->s_name));
       buf[sizeof (scnhdr_int->s_name)] = '\0';
-      (*_bfd_error_handler) (_("%s: %s: reloc overflow: 0x%lx > 0xffff"),
-			     bfd_get_filename (abfd),
-			     buf, scnhdr_int->s_nreloc);
+      /* xgettext:c-format */
+      _bfd_error_handler (_("%s: %s: reloc overflow: 0x%lx > 0xffff"),
+			  bfd_get_filename (abfd),
+			  buf, scnhdr_int->s_nreloc);
       bfd_set_error (bfd_error_file_truncated);
       PUT_SCNHDR_NRELOC (abfd, 0xffff, scnhdr_ext->s_nreloc);
       ret = 0;

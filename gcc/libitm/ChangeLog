@@ -1,15 +1,249 @@
-2015-07-16  Release Manager
+2016-12-21  Release Manager
 
-	* GCC 5.2.0 released.
+	* GCC 6.3.0 released.
+
+2016-08-22  Release Manager
+
+	* GCC 6.2.0 released.
+
+2016-04-27  Release Manager
+
+	* GCC 6.1.0 released.
+
+2016-03-03  Dominik Vogt  <vogt@linux.vnet.ibm.com>
+
+	* config/s390/target.h (TARGET_BEGIN_TRANSACTION_ATTRIBUTE): Define
+	function attribute to disable floating point in begin_transaction() on
+	S/390.
+	* beginend.cc (begin_transaction): Use
+	TARGET_BEGIN_TRANSACTION_ATTRIBUTE.
+
+2016-01-22  Torvald Riegel  <triegel@redhat.com>
+
+	* beginend.cc (GTM::gtm_thread::serial_lock): Put on cacheline
+	boundary.
+	(htm_fastpath): Remove.
+	(gtm_thread::begin_transaction): Fix HTM fastpath.
+	(_ITM_commitTransaction): Adapt.
+	(_ITM_commitTransactionEH): Adapt.
+	* libitm/config/linux/rwlock.h (gtm_rwlock): Add htm_fastpath member
+	and accessors.
+	* libitm/config/posix/rwlock.h (gtm_rwlock): Likewise.
+	* libitm/config/posix/rwlock.cc (gtm_rwlock::gtm_rwlock): Adapt.
+	* libitm/config/x86/sjlj.S (_ITM_beginTransaction): Fix HTM fastpath.
+	* libitm/libitm_i.h (htm_fastpath): Remove declaration.
+	* libitm/method-serial.cc (htm_mg): Adapt.
+	(gtm_thread::serialirr_mode): Adapt.
+	* libitm/query.cc (_ITM_inTransaction, _ITM_getTransactionId): Adapt.
+
+2016-01-21  Torvald Riegel  <triegel@redhat.com>
+
+	* testsuite/libitm.c++/libstdc++-safeexc.C: Not supported on darwin
+	or AIX.
+
+2016-01-19  Richard Henderson  <rth@redhat.com>
+
+	PR bootstrap/69343
+	PR bootstrap/69339
+	Revert:
+	2016-01-13  Richard Henderson  <rth@redhat.com>
+
+	* Makefile.am (libitm_la_SOURCES) [ARCH_AARCH64]: Add vect128.cc
+	(libitm_la_SOURCES) [ARCH_ARM]: Add neon.cc
+	(libitm_la_SOURCES) [ARCH_PPC]: Add vect128.cc
+	(libitm_la_SOURCES) [ARCH_S390]: Add vect128.cc
+	* configure.ac (ARCH_AARCH64): New conditional.
+	(ARCH_PPC, ARCH_S390): Likewise.
+	* Makefile.in, configure: Rebuild.
+
+	* libitm.h (_ITM_TYPE_M128): Always define.
+	* vect64.cc: Split ...
+	* vect128.cc: ... out of...
+	* config/x86/x86_sse.cc: ... here.
+	* config/arm/neon.cc: New file.
+
+2016-01-19  Torvald Riegel  <triegel@redhat.com>
+
+	* local_type_traits: Remove file.
+	* libitm_i.h: Don't include it anymore.
+	(sized_integral): Remove.
+
+2016-01-16  Torvald Riegel  <triegel@redhat.com>
+
+	* method-gl.cc (gl_wt_dispatch::trycommit): Ensure proxy privatization
+	safety.
+	* method-ml.cc (ml_wt_dispatch::trycommit): Likewise.
+	* libitm/testsuite/libitm.c/priv-1.c: New.
+
+2015-01-15  Torvald Riegel  <triegel@redhat.com>
+
+	testsuite/libitm.c++/libstdc++-safeexc.C: New.
+
+2016-01-13  Torvald Riegel  <triegel@redhat.com>
+
+	* beginend.cc (gtm_thread::trycommit): Fix seq_cst fences.
+	* config/linux/rwlock.cc (gtm_rwlock::write_lock_generic): Likewise.
+	(gtm_rwlock::write_unlock): Likewise.
+
+2016-01-13  Richard Henderson  <rth@redhat.com>
+
+	* Makefile.am (libitm_la_SOURCES) [ARCH_AARCH64]: Add vect128.cc
+	(libitm_la_SOURCES) [ARCH_ARM]: Add neon.cc
+	(libitm_la_SOURCES) [ARCH_PPC]: Add vect128.cc
+	(libitm_la_SOURCES) [ARCH_S390]: Add vect128.cc
+	* configure.ac (ARCH_AARCH64): New conditional.
+	(ARCH_PPC, ARCH_S390): Likewise.
+	* Makefile.in, configure: Rebuild.
+
+	* libitm.h (_ITM_TYPE_M128): Always define.
+	* vect64.cc: Split ...
+	* vect128.cc: ... out of...
+	* config/x86/x86_sse.cc: ... here.
+	* config/arm/neon.cc: New file.
+
+2016-01-13  Torvald Riegel  <triegel@redhat.com>
+
+	* beginend.cc (gtm_thread::trycommit): Fix privatization safety.
+	* config/linux/rwlock.cc (gtm_rwlock::write_lock_generic): Likewise.
+	* config/posix/rwlock.cc (gtm_rwlock::write_lock_generic): Likewise.
+	* dispatch.h (abi_dispatch::snapshot_most_recent): New.
+	* method-gl.cc (gl_wt_dispatch::snapshot_most_recent): New.
+	* method-ml.cc (ml_wt_dispatch::snapshot_most_recent): New.
+	* method-serial.cc (serial_dispatch::snapshot_most_recent): New.
+	(serialirr_dispatch::snapshot_most_recent): New.
+	(serialirr_onwrite_dispatch::snapshot_most_recent): New.
+
+2016-01-12  Torvald Riegel  <triegel@redhat.com>
+
+	* libitm_i.h (gtm_mask_stack): Remove.
+	* beginend.cc (gtm_stmlock_array, gtm_clock): Likewise.
+	* stmlock.h: Remove file.
+	* config/alpha/cacheline.h: Likewise.
+	* config/generic/cacheline.h: Likewise.
+	* config/powerpc/cacheline.h: Likewise.
+	* config/sparc/cacheline.h: Likewise.
+	* config/x86/cacheline.h: Likewise.
+
+2016-01-04  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+	* libitm.texi: Bump @copying's copyright year.
+
+2015-11-26  Torvald Riegel  <triegel@redhat.com>
+
+	* method-ml.cc (ml_mg): Use multiplicative instead of simple hashing.
+	(ml_wt_dispatch::pre_write): Adapt.
+	(ml_wt_dispatch::pre_load): Likewise.
+
+2015-11-22  Torvald Riegel  <triegel@redhat.com>
+
+	* libitm_i.h (gtm_alloc_action): Remove union.
+	* testsuite/libitm.c/alloc-1.c: New.
+
+2015-11-19  Torvald Riegel  <triegel@redhat.com>
+
+	* testsuite/libitm.c++/eh-5.C: New.
+	* libitm.h (_ITM_cxa_free_exception): New.
+	* libitm.map (_ITM_cxa_free_exception): Add it.
+	* libitm.texi: Update ABI docs.
+	* libitm_i.h (gtm_transaction_cp::cxa_unthrown): Remove.
+	(gtm_transaction_cp::cxa_uncaught_count): Add.
+	(gtm_thread::cxa_unthrown): Remove.
+	(gtm_thread::cxa_uncaught_count_ptr): Add.
+	(gtm_thread::cxa_uncaught_count): Add.
+	(gtm_thread::drop_references_allocations): Rename to...
+	(gtm_thread::discard_allocation): ... this and adapt.
+	(gtm_thread::init_cpp_exceptions): New.
+	* beginend.cc (gtm_thread::gtm_thread): Adapt EH handling.
+	(gtm_thread::begin_transaction): Likewise.
+	(gtm_transaction_cp::save): Likewise.
+	(gtm_thread::trycommit): Likewise.
+	* eh_cpp.cc: Add overview comments.
+	(__cxa_eh_globals, __cxa_get_globals, __cxa_free_exception): Declare.
+	(free_any_exception, _ITM_cxa_free_exception): New.
+	(gtm_thread::init_cpp_exceptions): Define.
+	(_ITM_cxa_allocate_exception, _ITM_cxa_throw): Adapt.
+	(_ITM_cxa_begin_catch, _ITM_cxa_end_catch): Likewise.
+	(gtm_thread::revert_cpp_exceptions): Likewise.
+
+2015-11-09  Torvald Riegel  <triegel@redhat.com>
+
+	* alloc_cpp.cc (_ZdlPvX, _ZdlPvXRKSt9nothrow_t, _ZGTtdlPvX,
+	_ZGTtdlPvXRKSt9nothrow_t, delsz_opnt): New.
+	* libitm.map: Add _ZGTtdlPvX and _ZGTtdlPvXRKSt9nothrow_t.
+	* libitm_i.h (gtm_alloc_action): Add free_fn_sz and sz.  Add comments.
+	(gtm_thread::forget_allocations): New overload with size_t argument.
+	* alloc.c (gtm_thread::forget_allocation): Define new overload and
+	adapt existing one.
+	(gtm_thread::record_allocation): Adapt.
+	(gtm_thread::commit_allocations_1): Adapt.
+	(gtm_thread::commit_allocations_2): Adapt.
+	* testsuite/libitm.c++/newdelete.C: New.
+
+2015-10-27  Daniel Jacobowitz  <dan@codesourcery.com>
+	    Joseph Myers  <joseph@codesourcery.com>
+	    Mark Shinwell  <shinwell@codesourcery.com>
+	    Andrew Stubbs  <ams@codesourcery.com>
+	    Rich Felker <dalias@libc.org>
+
+	* config/sh/sjlj.S (_ITM_beginTransaction): Bypass PLT calling
+	GTM_begin_transaction for compatibility with FDPIC.
+
+2015-10-09  David Malcolm  <dmalcolm@redhat.com>
+
+	* testsuite/lib/libitm.exp: Load multiline.exp before prune.exp,
+	using load_gcc_lib.
+
+2015-08-20  Gleb Fotengauer-Malinovskiy  <glebfm@altlinux.org>  (tiny change)
+
+	PR libitm/61164
+	* local_atomic (__always_inline): Rename to...
+	(__libitm_always_inline): ... this.
 
 2015-07-03  Carlos Sánchez de La Lama  <csanchezdll@gmail.com>
 
 	PR target/52482
 	* config/powerpc/sjlj.S: Port to Xcode 2.5.
 
-2015-04-22  Release Manager
+2015-05-27  Uros Bizjak  <ubizjak@gmail.com>
 
-	* GCC 5.1.0 released.
+	* config/linux/x86/futex_bits.h (sys_futex0) [__x86_64__]: Change
+	operands "op" and "val" to int.
+
+2015-05-27  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/linux/sh/futex_bits.h (sys_futex0) Change operands
+	"op" and "val" to int.
+
+2015-05-27  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/linux/alpha/futex_bits.h (sys_futex0) Change operands
+	"op" and "val" to int.
+
+2015-05-27  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/linux/futex.cc (gtm_futex_wait, gtm_futex_wake):
+	Declare as static int.
+	(FUTEX_PRIVATE_FLAG): Remove L suffix.
+	* config/linux/futex_bits.h (sys_futex0) Change operand "op" to int.
+
+2015-05-27  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/linux/x86/futex_bits.h (sys_futex0) [__PIC__]: Remove
+	sys_futex0 function.
+
+2015-05-13  Michael Haubenwallner  <michael.haubenwallner@ssi-schaefer.com>
+
+	* Makefile.in: Regenerated with automake-1.11.6.
+	* aclocal.m4: Likewise.
+	* configure: Likewise.
+	* testsuite/Makefile.in: Likewise.
+
+2015-04-22  Gregor Richards  <gregor.richards@uwaterloo.ca>
+
+	* config/arm/hwcap.cc: Use fcntl.h instead of sys/fcntl.h.
+	* config/linux/x86/tls.h: Only use __GLIBC_PREREQ if defined.
 
 2015-01-15  H.J. Lu  <hongjiu.lu@intel.com>
 
@@ -1754,3 +1988,9 @@
 2008-11-21  Richard Henderson  <rth@redhat.com>
 
 	* Initial commit.
+
+Copyright (C) 2008-2016 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.

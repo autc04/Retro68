@@ -1,6 +1,7 @@
 /* { dg-do compile } */
 /* { dg-require-effective-target vect_int } */
-#include <stdlib.h>
+
+extern void abort (void);
 
 #define N 128
 
@@ -35,4 +36,3 @@ int foo ()
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { xfail { ! vect_strided2 } } } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */

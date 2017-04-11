@@ -1,6 +1,6 @@
 /* Build up a list of intrinsic subroutines and functions for the
    name-resolution stage.
-   Copyright (C) 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 2000-2016 Free Software Foundation, Inc.
    Contributed by Andy Vaught & Katherine Holcomb
 
 This file is part of GCC.
@@ -22,7 +22,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "flags.h"
+#include "options.h"
 #include "gfortran.h"
 #include "intrinsic.h"
 
@@ -512,6 +512,29 @@ add_sym_1s (const char *name, gfc_isym_id id, enum klass cl, bt type, int kind,
   gfc_resolve_f rf;
 
   cf.f1 = check;
+  sf.f1 = simplify;
+  rf.s1 = resolve;
+
+  add_sym (name, id, cl, ACTUAL_NO, type, kind, standard, cf, sf, rf,
+	   a1, type1, kind1, optional1, intent1,
+	   (void *) 0);
+}
+
+/* Add a symbol to the subroutine ilst where the subroutine takes one
+   printf-style character argument and a variable number of arguments
+   to follow.  */
+
+static void
+add_sym_1p (const char *name, gfc_isym_id id, enum klass cl, bt type, int kind,
+	    int standard, bool (*check) (gfc_actual_arglist *),
+	    gfc_expr *(*simplify) (gfc_expr*), void (*resolve) (gfc_code *),
+	    const char *a1, bt type1, int kind1, int optional1, sym_intent intent1)
+{
+  gfc_check_f cf;
+  gfc_simplify_f sf;
+  gfc_resolve_f rf;
+
+  cf.f1m = check;
   sf.f1 = simplify;
   rf.s1 = resolve;
 
@@ -1159,6 +1182,17 @@ make_from_module (void)
     next_sym[-1].from_module = 1;
 }
 
+
+/* Mark the current subroutine as having a variable number of
+   arguments.  */
+
+static void
+make_vararg (void)
+{
+  if (sizing == SZ_NOTHING)
+    next_sym[-1].vararg = 1;
+}
+
 /* Set the attr.value of the current procedure.  */
 
 static void
@@ -1205,7 +1239,8 @@ add_functions (void)
     *z = "z", *ln = "len", *ut = "unit", *han = "handler",
     *num = "number", *tm = "time", *nm = "name", *md = "mode",
     *vl = "values", *p1 = "path1", *p2 = "path2", *com = "command",
-    *ca = "coarray", *sub = "sub", *dist = "distance", *failed="failed";
+    *ca = "coarray", *sub = "sub", *dist = "distance", *failed="failed",
+    *c_ptr_1 = "c_ptr_1", *c_ptr_2 = "c_ptr_2";
 
   int di, dr, dd, dl, dc, dz, ii;
 
@@ -1625,9 +1660,11 @@ add_functions (void)
 
   make_generic ("count", GFC_ISYM_COUNT, GFC_STD_F95);
 
-  add_sym_3 ("cshift", GFC_ISYM_CSHIFT, CLASS_TRANSFORMATIONAL, ACTUAL_NO, BT_REAL, dr, GFC_STD_F95,
-	     gfc_check_cshift, NULL, gfc_resolve_cshift,
-	     ar, BT_REAL, dr, REQUIRED, sh, BT_INTEGER, di, REQUIRED,
+  add_sym_3 ("cshift", GFC_ISYM_CSHIFT, CLASS_TRANSFORMATIONAL, ACTUAL_NO,
+	     BT_REAL, dr, GFC_STD_F95,
+	     gfc_check_cshift, gfc_simplify_cshift, gfc_resolve_cshift,
+	     ar, BT_REAL, dr, REQUIRED,
+	     sh, BT_INTEGER, di, REQUIRED,
 	     dm, BT_INTEGER, ii, OPTIONAL);
 
   make_generic ("cshift", GFC_ISYM_CSHIFT, GFC_STD_F95);
@@ -2264,7 +2301,7 @@ add_functions (void)
   make_generic ("lstat", GFC_ISYM_LSTAT, GFC_STD_GNU);
 
   add_sym_1 ("malloc", GFC_ISYM_MALLOC, CLASS_IMPURE, ACTUAL_NO, BT_INTEGER, ii,
-	     GFC_STD_GNU, gfc_check_malloc, NULL, gfc_resolve_malloc,
+	     GFC_STD_GNU, gfc_check_malloc, NULL, NULL,
 	     sz, BT_INTEGER, di, REQUIRED);
 
   make_generic ("malloc", GFC_ISYM_MALLOC, GFC_STD_GNU);
@@ -2775,8 +2812,8 @@ add_functions (void)
   /* The following functions are part of ISO_C_BINDING.  */
   add_sym_2 ("c_associated", GFC_ISYM_C_ASSOCIATED, CLASS_INQUIRY, ACTUAL_NO,
 	     BT_LOGICAL, dl, GFC_STD_F2003, gfc_check_c_associated, NULL, NULL,
-	     "C_PTR_1", BT_VOID, 0, REQUIRED,
-	     "C_PTR_2", BT_VOID, 0, OPTIONAL);
+	     c_ptr_1, BT_VOID, 0, REQUIRED,
+	     c_ptr_2, BT_VOID, 0, OPTIONAL);
   make_from_module();
 
   add_sym_1 ("c_loc", GFC_ISYM_C_LOC, CLASS_INQUIRY, ACTUAL_NO,
@@ -3128,6 +3165,13 @@ add_subroutines (void)
 	      GFC_STD_F95, gfc_check_cpu_time, NULL, gfc_resolve_cpu_time,
 	      tm, BT_REAL, dr, REQUIRED, INTENT_OUT);
 
+  add_sym_3s ("event_query", GFC_ISYM_EVENT_QUERY, CLASS_ATOMIC,
+	      BT_UNKNOWN, 0, GFC_STD_F2008_TS,
+	      gfc_check_event_query, NULL, gfc_resolve_event_query,
+	      "event", BT_INTEGER, di, REQUIRED, INTENT_IN,
+	      c, BT_INTEGER, di, OPTIONAL, INTENT_IN,
+	      stat, BT_INTEGER, di, OPTIONAL, INTENT_OUT);
+
   /* More G77 compatibility garbage.  */
   add_sym_2s ("ctime", GFC_ISYM_CTIME, CLASS_IMPURE, BT_UNKNOWN, 0, GFC_STD_GNU,
 	      gfc_check_ctime_sub, NULL, gfc_resolve_ctime_sub,
@@ -3256,8 +3300,7 @@ add_subroutines (void)
 	      t, BT_UNKNOWN, 0, REQUIRED, INTENT_OUT);
 
   add_sym_5s ("mvbits", GFC_ISYM_MVBITS, CLASS_ELEMENTAL, BT_UNKNOWN, 0,
-	      GFC_STD_F95, gfc_check_mvbits, gfc_simplify_mvbits,
-	      gfc_resolve_mvbits,
+	      GFC_STD_F95, gfc_check_mvbits, NULL, gfc_resolve_mvbits,
 	      f, BT_INTEGER, di, REQUIRED, INTENT_IN,
 	      fp, BT_INTEGER, di, REQUIRED, INTENT_IN,
 	      ln, BT_INTEGER, di, REQUIRED, INTENT_IN,
@@ -3291,6 +3334,17 @@ add_subroutines (void)
 	      "cptr", BT_VOID, 0, REQUIRED, INTENT_IN,
 	      "fptr", BT_UNKNOWN, 0, REQUIRED, INTENT_OUT);
   make_from_module();
+
+  /* Internal subroutine for emitting a runtime error.  */
+
+  add_sym_1p ("fe_runtime_error", GFC_ISYM_FE_RUNTIME_ERROR, CLASS_IMPURE,
+	      BT_UNKNOWN, 0, GFC_STD_GNU,
+	      gfc_check_fe_runtime_error, NULL, gfc_resolve_fe_runtime_error,
+	      "msg", BT_CHARACTER, dc, REQUIRED, INTENT_IN);
+
+  make_noreturn ();
+  make_vararg ();
+  make_from_module ();
 
   /* Coarray collectives.  */
   add_sym_4s ("co_broadcast", GFC_ISYM_CO_BROADCAST, CLASS_IMPURE,
@@ -3388,7 +3442,7 @@ add_subroutines (void)
 	      st, BT_INTEGER, di, OPTIONAL, INTENT_OUT);
 
   add_sym_1s ("free", GFC_ISYM_FREE, CLASS_IMPURE, BT_UNKNOWN, 0, GFC_STD_GNU,
-	      gfc_check_free, NULL, gfc_resolve_free,
+	      gfc_check_free, NULL, NULL,
 	      ptr, BT_INTEGER, ii, REQUIRED, INTENT_INOUT);
 
   add_sym_4s ("fseek", GFC_ISYM_FSEEK, CLASS_IMPURE, BT_UNKNOWN, 0, GFC_STD_GNU,
@@ -4501,7 +4555,7 @@ gfc_intrinsic_sub_interface (gfc_code *c, int error_flag)
 
   init_arglist (isym);
 
-  if (!sort_actual (name, &c->ext.actual, isym->formal, &c->loc))
+  if (!isym->vararg && !sort_actual (name, &c->ext.actual, isym->formal, &c->loc))
     goto fail;
 
   if (!do_ts29113_check (isym, c->ext.actual))
@@ -4650,15 +4704,18 @@ gfc_convert_type_warn (gfc_expr *expr, gfc_typespec *ts, int eflag, int wflag)
 	  /* Larger kinds can hold values of smaller kinds without problems.
 	     Hence, only warn if target kind is smaller than the source
 	     kind - or if -Wconversion-extra is specified.  */
-	  if (warn_conversion && from_ts.kind > ts->kind)
-	    gfc_warning_now (OPT_Wconversion, "Possible change of value in "
-			     "conversion from %s to %s at %L",
-			     gfc_typename (&from_ts), gfc_typename (ts),
-			     &expr->where);
-	  else if (warn_conversion_extra)
-	    gfc_warning_now (OPT_Wconversion_extra, "Conversion from %s to %s "
-			     "at %L", gfc_typename (&from_ts),
-			     gfc_typename (ts), &expr->where);
+	  if (expr->expr_type != EXPR_CONSTANT)
+	    {
+	      if (warn_conversion && from_ts.kind > ts->kind)
+		gfc_warning_now (OPT_Wconversion, "Possible change of value in "
+				 "conversion from %s to %s at %L",
+				 gfc_typename (&from_ts), gfc_typename (ts),
+				 &expr->where);
+	      else if (warn_conversion_extra)
+		gfc_warning_now (OPT_Wconversion_extra, "Conversion from %s to %s "
+				 "at %L", gfc_typename (&from_ts),
+				 gfc_typename (ts), &expr->where);
+	    }
 	}
       else if ((from_ts.type == BT_REAL && ts->type == BT_INTEGER)
 	       || (from_ts.type == BT_COMPLEX && ts->type == BT_INTEGER)
@@ -4666,7 +4723,7 @@ gfc_convert_type_warn (gfc_expr *expr, gfc_typespec *ts, int eflag, int wflag)
 	{
 	  /* Conversion from REAL/COMPLEX to INTEGER or COMPLEX to REAL
 	     usually comes with a loss of information, regardless of kinds.  */
-	  if (warn_conversion)
+	  if (warn_conversion && expr->expr_type != EXPR_CONSTANT)
 	    gfc_warning_now (OPT_Wconversion, "Possible change of value in "
 			     "conversion from %s to %s at %L",
 			     gfc_typename (&from_ts), gfc_typename (ts),

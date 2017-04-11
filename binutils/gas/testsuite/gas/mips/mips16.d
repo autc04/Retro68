@@ -1,5 +1,5 @@
-#objdump: -dr -mmips:4000
-#as: -mips3 -mtune=r4000 -mabi=o64
+#objdump: -dr
+#as: -mabi=o64
 #name: mips16
 
 # Test the mips16 instruction set.
@@ -41,8 +41,8 @@ Disassembly of section .text:
   60:	f01f 3b40 	ld	v0,-2048\(v1\)
   64:	f7bf fc40 	ld	v0,0 <data1>
   68:	f6a0 fc54 	ld	v0,71c <data2>
-  6c:	f001 fc40 	ld	v0,868 <bar>
-  70:	f0c1 fc40 	ld	v0,930 <quux>
+  6c:	f7e0 fc48 	ld	v0,850 <bar>
+  70:	f0a1 fc48 	ld	v0,918 <iuux>
   74:	f840      	ld	v0,0\(sp\)
   76:	f000 f841 	ld	v0,1\(sp\)
   7a:	f000 f842 	ld	v0,2\(sp\)
@@ -126,8 +126,8 @@ Disassembly of section .text:
  190:	f01f 9b40 	lw	v0,-2048\(v1\)
  194:	f67f b20c 	lw	v0,0 <data1>
  198:	f580 b204 	lw	v0,71c <data2>
- 19c:	f6c0 b20c 	lw	v0,868 <bar>
- 1a0:	f780 b210 	lw	v0,930 <quux>
+ 19c:	f6a0 b214 	lw	v0,850 <bar>
+ 1a0:	f760 b218 	lw	v0,918 <iuux>
  1a4:	9200      	lw	v0,0\(sp\)
  1a6:	f000 9201 	lw	v0,1\(sp\)
  1aa:	f000 9202 	lw	v0,2\(sp\)
@@ -499,8 +499,8 @@ Disassembly of section .text:
  694:	f79f fd40 	daddiu	v0,-128
  698:	f17f fe48 	dla	v0,0 <data1>
  69c:	f080 fe40 	dla	v0,71c <data2>
- 6a0:	f1c0 fe48 	dla	v0,868 <bar>
- 6a4:	f280 fe4c 	dla	v0,930 <quux>
+ 6a0:	f1a0 fe50 	dla	v0,850 <bar>
+ 6a4:	f260 fe54 	dla	v0,918 <iuux>
  6a8:	fb00      	daddiu	sp,0
  6aa:	f000 fb01 	daddiu	sp,1
  6ae:	f7ff fb1f 	daddiu	sp,-1
@@ -528,8 +528,8 @@ Disassembly of section .text:
  6ec:	4a80      	addiu	v0,-128
  6ee:	f11f 0a14 	la	v0,0 <data1>
  6f2:	0a0b      	la	v0,71c <data2>
- 6f4:	0a5d      	la	v0,868 <bar>
- 6f6:	0a8f      	la	v0,930 <quux>
+ 6f4:	0a57      	la	v0,850 <bar>
+ 6f6:	0a89      	la	v0,918 <iuux>
  6f8:	6300      	addiu	sp,0
  6fa:	f000 6301 	addiu	sp,1
  6fe:	f7ff 631f 	addiu	sp,-1
@@ -615,69 +615,61 @@ Disassembly of section .text:
  7d0:	2b01      	bnez	v1,7d4 <insns2\+(0x|)b4>
  7d2:	e8e5      	break	7
  7d4:	ea12      	mflo	v0
- 7d6:	6500      	nop
- 7d8:	6500      	nop
- 7da:	ea7f      	ddivu	zero,v0,v1
- 7dc:	2b01      	bnez	v1,7e0 <insns2\+(0x|)c0>
- 7de:	e8e5      	break	7
- 7e0:	ea12      	mflo	v0
- 7e2:	6500      	nop
- 7e4:	6500      	nop
- 7e6:	ea78      	mult	v0,v1
- 7e8:	ea79      	multu	v0,v1
- 7ea:	ea7a      	div	zero,v0,v1
+ 7d6:	ea7f      	ddivu	zero,v0,v1
+ 7d8:	2b01      	bnez	v1,7dc <insns2\+(0x|)bc>
+ 7da:	e8e5      	break	7
+ 7dc:	ea12      	mflo	v0
+ 7de:	ea78      	mult	v0,v1
+ 7e0:	ea79      	multu	v0,v1
+ 7e2:	ea7a      	div	zero,v0,v1
+ 7e4:	2b01      	bnez	v1,7e8 <insns2\+(0x|)c8>
+ 7e6:	e8e5      	break	7
+ 7e8:	ea12      	mflo	v0
+ 7ea:	ea7b      	divu	zero,v0,v1
  7ec:	2b01      	bnez	v1,7f0 <insns2\+(0x|)d0>
  7ee:	e8e5      	break	7
  7f0:	ea12      	mflo	v0
- 7f2:	6500      	nop
- 7f4:	6500      	nop
- 7f6:	ea7b      	divu	zero,v0,v1
- 7f8:	2b01      	bnez	v1,7fc <insns2\+(0x|)dc>
- 7fa:	e8e5      	break	7
- 7fc:	ea12      	mflo	v0
- 7fe:	ea00      	jr	v0
- 800:	6500      	nop
- 802:	e820      	jr	ra
- 804:	6500      	nop
- 806:	ea40      	jalr	v0
- 808:	6500      	nop
- 80a:	f3ff 221b 	beqz	v0,4 <insns1>
- 80e:	2288      	beqz	v0,720 <insns2>
- 810:	222b      	beqz	v0,868 <bar>
- 812:	f080 220d 	beqz	v0,930 <quux>
- 816:	f3ff 2a15 	bnez	v0,4 <insns1>
- 81a:	2a82      	bnez	v0,720 <insns2>
- 81c:	2a25      	bnez	v0,868 <bar>
- 81e:	f080 2a07 	bnez	v0,930 <quux>
- 822:	f3ff 600f 	bteqz	4 <insns1>
- 826:	f77f 601b 	bteqz	720 <insns2>
- 82a:	601e      	bteqz	868 <bar>
- 82c:	f080 6000 	bteqz	930 <quux>
- 830:	f3ff 6108 	btnez	4 <insns1>
- 834:	f77f 6114 	btnez	720 <insns2>
- 838:	6117      	btnez	868 <bar>
- 83a:	617a      	btnez	930 <quux>
- 83c:	f3ff 1002 	b	4 <insns1>
- 840:	176f      	b	720 <insns2>
- 842:	1012      	b	868 <bar>
- 844:	1075      	b	930 <quux>
- 846:	e805      	break	0
- 848:	e825      	break	1
- 84a:	efe5      	break	63
- 84c:	1800 0000 	jal	0 <data1>
-			84c: R_MIPS16_26	extern
- 850:	6500      	nop
- 852:	e809      	entry
- 854:	e909      	entry	a0
- 856:	eb49      	entry	a0-a2,s0
- 858:	e8a9      	entry	s0-s1,ra
- 85a:	e829      	entry	ra
- 85c:	ef09      	exit
- 85e:	ef49      	exit	s0
- 860:	efa9      	exit	s0-s1,ra
- 862:	ef29      	exit	ra
- 864:	6500      	nop
- 866:	6500      	nop
+ 7f2:	ea80      	jrc	v0
+ 7f4:	e8a0      	jrc	ra
+ 7f6:	eac0      	jalrc	v0
+ 7f8:	f41f 2204 	beqz	v0,4 <insns1>
+ 7fc:	2291      	beqz	v0,720 <insns2>
+ 7fe:	2228      	beqz	v0,850 <bar>
+ 800:	f080 220a 	beqz	v0,918 <iuux>
+ 804:	f3ff 2a1e 	bnez	v0,4 <insns1>
+ 808:	2a8b      	bnez	v0,720 <insns2>
+ 80a:	2a22      	bnez	v0,850 <bar>
+ 80c:	f080 2a04 	bnez	v0,918 <iuux>
+ 810:	f3ff 6018 	bteqz	4 <insns1>
+ 814:	6085      	bteqz	720 <insns2>
+ 816:	601c      	bteqz	850 <bar>
+ 818:	607f      	bteqz	918 <iuux>
+ 81a:	f3ff 6113 	btnez	4 <insns1>
+ 81e:	6180      	btnez	720 <insns2>
+ 820:	6117      	btnez	850 <bar>
+ 822:	617a      	btnez	918 <iuux>
+ 824:	f3ff 100e 	b	4 <insns1>
+ 828:	177b      	b	720 <insns2>
+ 82a:	1012      	b	850 <bar>
+ 82c:	1075      	b	918 <iuux>
+ 82e:	e805      	break	0
+ 830:	e825      	break	1
+ 832:	efe5      	break	63
+ 834:	1800 0000 	jal	0 <data1>
+			834: R_MIPS16_26	extern
+ 838:	6500      	nop
+ 83a:	e809      	entry
+ 83c:	e909      	entry	a0
+ 83e:	eb49      	entry	a0-a2,s0
+ 840:	e8a9      	entry	s0-s1,ra
+ 842:	e829      	entry	ra
+ 844:	ef09      	exit
+ 846:	ef49      	exit	s0
+ 848:	efa9      	exit	s0-s1,ra
+ 84a:	ef29      	exit	ra
+ 84c:	6500      	nop
+ 84e:	6500      	nop
 
-0+000868 <bar>:
-	...
+0+000850 <bar>:
+	\.\.\.
+#pass

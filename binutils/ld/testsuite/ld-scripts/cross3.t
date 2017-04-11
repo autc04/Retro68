@@ -2,9 +2,9 @@ NOCROSSREFS(.nocrossrefs .text)
 
 SECTIONS
 {
-  .text : { *(.text) }
+  .text : { *(.text) *(.text.*) }
   .nocrossrefs : { *(.nocrossrefs) }
-  .data : { *(.data) *(.opd) }
+  .data : { *(.data) *(.data.*) *(.sdata) *(.opd) *(.toc) }
   .bss : { *(.bss) *(COMMON) }
   /DISCARD/ : { *(*) }
 }

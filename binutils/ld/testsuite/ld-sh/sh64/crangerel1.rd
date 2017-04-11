@@ -9,10 +9,10 @@ Section Headers:
  +\[ 4\] \.bss +NOBITS +00000000 00004c 000000 00 +WA +0 +0 +1
  +\[ 5\] \.stack +PROGBITS +00000000 00004c 000004 00 +WA +0 +0 +1
  +\[ 6\] \.cranges +PROGBITS +00000000 000050 00001e 00 +W +0 +0 +1
- +\[ 7\] \.rela\.cranges +RELA +00000000 [0-9a-f]+ 000024 0c +9 +6 +4
- +\[ 8\] \.shstrtab +STRTAB +00000000 00006e 00004d 00 +0 +0 +1
- +\[ 9\] \.symtab +SYMTAB .*
- +\[10\] \.strtab +STRTAB .*
+ +\[ 7\] \.rela\.cranges +RELA +00000000 [0-9a-f]+ 000024 0c +I +9 +6 +4
+ +\[ 8\] \.symtab +SYMTAB .*
+ +\[ 9\] \.strtab +STRTAB .*
+ +\[10\] \.shstrtab +STRTAB +00000000 [0-9a-f]+ 00004d 00 +0 +0 +1
 Key to Flags:
 #...
 

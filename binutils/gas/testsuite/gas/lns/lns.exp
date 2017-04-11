@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2014 Free Software Foundation, Inc.
+# Copyright (C) 2012-2017 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,18 +27,18 @@ run_dump_test "lns-duplicate"
 if {
         ![istarget i370-*-*]
      && ![istarget i960-*-*]
-     && ![istarget mcore-*-*]
-     && ![istarget rx-*-*]
      && ![istarget s390*-*-*]
 } {
     # Use alternate file for targets using DW_LNS_fixed_advance_pc opcodes.
-    if {    [istarget xtensa*-*-*]
-	 || [istarget am3*-*-*]
+    if {    [istarget am3*-*-*]
+	 || [istarget avr*-*-*]
 	 || [istarget cr16-*-*]
 	 || [istarget crx-*-*]
+	 || [istarget mn10*-*-*]
 	 || [istarget msp430-*-*]
 	 || [istarget nds32*-*-*]
-	 || [istarget mn10*-*-*] } {
+	 || [istarget rl78-*-*]
+	 || [istarget xtensa*-*-*] } {
       run_dump_test "lns-common-1-alt"
       run_dump_test "lns-big-delta"
     } elseif { [istarget ia64*-*-*] } {

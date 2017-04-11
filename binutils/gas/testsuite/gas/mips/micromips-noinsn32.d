@@ -100,10 +100,10 @@ Disassembly of section \.text:
 [ 0-9a-f]+:	0c1e      	move	zero,s8
 [ 0-9a-f]+:	0c1f      	move	zero,ra
 [ 0-9a-f]+:	0ec2      	move	s6,v0
-[ 0-9a-f]+:	0016 1150 	move	v0,s6
+[ 0-9a-f]+:	0016 1290 	move	v0,s6
 [ 0-9a-f]+:	cfff      	b	[0-9a-f]+ <test\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC10_S1	test
-[ 0-9a-f]+:	0002 b150 	move	s6,v0
+[ 0-9a-f]+:	0002 b290 	move	s6,v0
 [ 0-9a-f]+:	9400 fffe 	b	[0-9a-f]+ <test\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	test
 [ 0-9a-f]+:	0c00      	nop
@@ -683,6 +683,7 @@ Disassembly of section \.text:
 [ 0-9a-f]+:	9411 fffe 	beqz	s1,[0-9a-f]+ <.*\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	test2
 [ 0-9a-f]+:	0c00      	nop
+[ 0-9a-f]+:	0c00      	nop
 [ 0-9a-f]+:	ad7f      	bnez	v0,[0-9a-f]+ <.*\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC7_S1	test3
 [ 0-9a-f]+:	0c00      	nop
@@ -1181,7 +1182,7 @@ Disassembly of section \.text:
 [ 	]*[0-9a-f]+: R_MICROMIPS_26_S1	test
 [ 0-9a-f]+:	0000 0000 	nop
 [ 0-9a-f]+:	f000 0000 	jalx	[0-9a-f]+ <test>
-[ 	]*[0-9a-f]+: R_MICROMIPS_26_S1	test2
+[ 	]*[0-9a-f]+: R_MICROMIPS_26_S1	test4
 [ 0-9a-f]+:	0000 0000 	nop
 [ 0-9a-f]+:	41a2 0000 	lui	v0,0x0
 [ 	]*[0-9a-f]+: R_MICROMIPS_HI16	test
@@ -5045,7 +5046,6 @@ Disassembly of section \.text:
 [ 0-9a-f]+:	03ff 937c 	wait	0x3ff
 [ 0-9a-f]+:	03ff 8b7c 	syscall	0x3ff
 [ 0-9a-f]+:	03ff fffa 	cop2	0x7fffff
-[ 0-9a-f]+:	0c00      	nop
 [ 0-9a-f]+:	0000 0000 	nop
 
 [0-9a-f]+ <fp_test>:
@@ -7595,7 +7595,7 @@ Disassembly of section \.text:
 [ 	]*[0-9a-f]+: R_MICROMIPS_26_S1	test_delay_slot
 [ 0-9a-f]+:	0000 0000 	nop
 [ 0-9a-f]+:	f000 0000 	jalx	[0-9a-f]+ <test>
-[ 	]*[0-9a-f]+: R_MICROMIPS_26_S1	test_delay_slot
+[ 	]*[0-9a-f]+: R_MICROMIPS_26_S1	test_delay_slot_ext
 [ 0-9a-f]+:	0000 0000 	nop
 [ 0-9a-f]+:	03e2 0f3c 	jalr	v0
 [ 0-9a-f]+:	0000 0000 	nop

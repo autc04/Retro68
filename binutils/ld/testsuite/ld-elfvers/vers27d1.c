@@ -5,4 +5,4 @@ foo ()
 {
 }
 
-SYMVER(foo, foo@VERS.0);
+FUNC_SYMVER(foo, foo@VERS.0);

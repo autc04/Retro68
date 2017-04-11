@@ -1,6 +1,6 @@
 # gas target specific configuration file.  This is a -*- sh -*- file.
 #
-#   Copyright (C) 2012-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2012-2017 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,6 +50,7 @@ case ${cpu} in
   aarch64_be)		cpu_type=aarch64 endian=big ;;
   alpha*)		cpu_type=alpha ;;
   am33_2.0)		cpu_type=mn10300 endian=little ;;
+  arc*eb)		cpu_type=arc endian=big ;;
   arm*be|arm*b)		cpu_type=arm endian=big ;;
   arm*)			cpu_type=arm endian=little ;;
   bfin*)		cpu_type=bfin endian=little ;;
@@ -86,6 +87,8 @@ case ${cpu} in
   pj*)			cpu_type=pj endian=big ;;
   powerpc*le*)		cpu_type=ppc endian=little ;;
   powerpc*)		cpu_type=ppc endian=big ;;
+  riscv32*)		cpu_type=riscv endian=little arch=riscv32 ;;
+  riscv64*)		cpu_type=riscv endian=little arch=riscv64 ;;
   rs6000*)		cpu_type=ppc ;;
   rl78*)		cpu_type=rl78 ;;
   rx)			cpu_type=rx ;;
@@ -107,6 +110,7 @@ case ${cpu} in
   tilegx*be)		cpu_type=tilegx endian=big ;;
   tilegx*)		cpu_type=tilegx endian=little ;;
   v850*)		cpu_type=v850 ;;
+  visium)		cpu_type=visium endian=big ;;
   x86_64*)		cpu_type=i386 arch=x86_64;;
   xgate)		cpu_type=xgate ;;
   xtensa*)		cpu_type=xtensa arch=xtensa ;;
@@ -118,20 +122,22 @@ esac
 generic_target=${cpu_type}-$vendor-$os
 # Note: This table is alpha-sorted, please try to keep it that way.
 case ${generic_target} in
-  aarch64*-*-elf)			fmt=elf;;
+  aarch64*-*-elf | aarch64*-*-rtems*)	fmt=elf;;
+  aarch64*-*-fuchsia*)			fmt=elf;;
   aarch64*-*-linux*)			fmt=elf em=linux ;;
 
   alpha-*-*vms*)			fmt=evax ;;
   alpha-*-osf*)				fmt=ecoff ;;
   alpha-*-linux*ecoff*)			fmt=ecoff ;;
   alpha-*-linux-*)			fmt=elf em=linux ;;
-  alpha-*-netbsd*)			fmt=elf em=nbsd ;;
-  alpha-*-openbsd*)			fmt=elf em=obsd ;;
+  alpha-*-netbsd* | alpha-*-openbsd*)	fmt=elf em=nbsd ;;
 
   arc-*-elf*)				fmt=elf ;;
+  arc*-*-linux*)			fmt=elf bfd_gas=yes ;;
 
   arm-*-aout)				fmt=aout ;;
   arm-*-coff)				fmt=coff ;;
+  arm-*-phoenix*)			fmt=elf ;;
   arm-*-rtems*)				fmt=elf ;;
   arm-*-elf)				fmt=elf ;;
   arm-*-eabi*)				fmt=elf em=armeabi ;;
@@ -156,6 +162,7 @@ case ${generic_target} in
 					fmt=coff em=wince-pe ;;
   arm-*-pe)				fmt=coff em=pe ;;
   arm-*-riscix*)			fmt=aout em=riscix ;;
+  arm-*-fuchsia*)			fmt=elf ;;
 
   avr-*-*)				fmt=elf bfd_gas=yes ;;
 
@@ -182,6 +189,8 @@ case ${generic_target} in
   frv-*-*linux*)			fmt=elf em=linux;;
   frv-*-*)				fmt=elf ;;
 
+  ft32-*-*)				fmt=elf ;;
+
   hppa-*-linux*)
     case ${cpu} in
       hppa*64*)				fmt=elf em=hppalinux64 ;;
@@ -203,6 +212,7 @@ case ${generic_target} in
   hppa-*-hiux*)				fmt=som em=hppa ;;
 
   h8300-*-elf | h8300-*-rtems*)		fmt=elf ;;
+  h8300-*-linux*)			fmt=elf em=linux ;;
 
   i370-*-elf* | i370-*-linux*)		fmt=elf ;;
 
@@ -211,7 +221,9 @@ case ${generic_target} in
   i386-*-beospe*)			fmt=coff em=pe ;;
   i386-*-beos*)				fmt=elf ;;
   i386-*-coff)				fmt=coff ;;
-  i386-*-elf)				fmt=elf ;;
+  i386-*-elfiamcu)			fmt=elf arch=iamcu ;;
+  i386-*-elf*)				fmt=elf ;;
+  i386-*-fuchsia*)			fmt=elf ;;
   i386-*-kaos*)				fmt=elf ;;
   i386-*-bsd*)				fmt=aout em=386bsd ;;
   i386-*-nacl*)				fmt=elf em=nacl
@@ -386,6 +398,8 @@ case ${generic_target} in
   ppc-*-kaos*)				fmt=elf ;;
   ppc-*-lynxos*)			fmt=elf em=lynx ;;
 
+  riscv*-*-*)				fmt=elf endian=little ;;
+
   s390-*-linux-*)			fmt=elf em=linux ;;
   s390-*-tpf*)				fmt=elf ;;
 
@@ -455,6 +469,8 @@ case ${generic_target} in
   vax-*-netbsdelf*)			fmt=elf em=nbsd ;;
   vax-*-linux-*)			fmt=elf em=linux ;;
 
+  visium-*-elf)				fmt=elf ;;
+
   xstormy16-*-*)			fmt=elf ;;
   
   xgate-*-*)    			fmt=elf ;;
@@ -466,6 +482,7 @@ case ${generic_target} in
   z8k-*-coff | z8k-*-sim)		fmt=coff ;;
 
   *-*-aout | *-*-scout)			fmt=aout ;;
+  *-*-cloudabi*)			fmt=elf ;;
   *-*-dragonfly*)			fmt=elf em=dragonfly ;;
   *-*-freebsd* | *-*-kfreebsd*-gnu)	fmt=elf em=freebsd ;;
   *-*-bsd*)				fmt=aout em=sun3 ;;
@@ -480,7 +497,7 @@ case ${generic_target} in
 esac
 
 case ${cpu_type} in
-  aarch64 | alpha | arm | i386 | ia64 | microblaze | mips | ns32k | or1k | or1knd | pdp11 | ppc | sparc | z80 | z8k)
+  aarch64 | alpha | arm | i386 | ia64 | microblaze | mips | ns32k | or1k | or1knd | pdp11 | ppc | riscv | sparc | z80 | z8k)
     bfd_gas=yes
     ;;
 esac
@@ -494,3 +511,12 @@ if test $bfd_gas != yes; then
   echo This target is no longer supported in gas
   exit 1
 fi
+
+case ${cpu_type}-${fmt}-${os} in
+i386-elf-linux*)
+  # Default to compress DWARF debug sections for Linux/x86.
+  if test ${ac_default_compressed_debug_sections} = unset; then
+    ac_default_compressed_debug_sections=yes
+  fi
+  ;;
+esac

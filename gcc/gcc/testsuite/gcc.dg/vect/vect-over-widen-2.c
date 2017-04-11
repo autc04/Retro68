@@ -1,7 +1,6 @@
 /* { dg-require-effective-target vect_int } */
 /* { dg-require-effective-target vect_shift } */
 
-#include <stdlib.h>
 #include <stdarg.h>
 #include "tree-vect.h"
 
@@ -61,5 +60,4 @@ int main (void)
 /* Final value stays in int, so no over-widening is detected at the moment.  */
 /* { dg-final { scan-tree-dump-times "vect_recog_over_widening_pattern: detected" 0 "vect" } } */
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */
 

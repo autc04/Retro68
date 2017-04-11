@@ -1,5 +1,5 @@
 /* SPARC ELF support for BFD.
-   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   Copyright (C) 1996-2017 Free Software Foundation, Inc.
    By Doug Evans, Cygnus Support, <dje@cygnus.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -237,7 +237,7 @@ enum
 #define ELF_SPARC_HWCAP_CRC32C	0x20000000 /* CRC32C insn */
 
 #define ELF_SPARC_HWCAP2_FJATHPLUS 0x00000001 /* Fujitsu Athena+ */
-#define ELF_SPARC_HWCAP2_VIS3B     0x00000002 /* VIS3 present on multiple chips */
+#define ELF_SPARC_HWCAP2_VIS3B     0x00000002 /* Subset of VIS3 present on sparc64 X+ */
 #define ELF_SPARC_HWCAP2_ADP       0x00000004 /* Application Data Protection */
 #define ELF_SPARC_HWCAP2_SPARC5    0x00000008 /* The 29 new fp and sub instructions */
 #define ELF_SPARC_HWCAP2_MWAIT     0x00000010 /* mwait instruction and load/monitor ASIs */

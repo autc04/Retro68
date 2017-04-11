@@ -1,6 +1,6 @@
 /* rclex.c -- lexer for Windows rc files parser  */
 
-/* Copyright (C) 1997-2014 Free Software Foundation, Inc.
+/* Copyright (C) 1997-2017 Free Software Foundation, Inc.
 
    Written by Kai Tietz, Onevision.
 
@@ -40,7 +40,7 @@
 
 static int rcdata_mode;
 
-/* Whether we are supressing lines from cpp (including windows.h or
+/* Whether we are suppressing lines from cpp (including windows.h or
    headers from your C sources may bring in externs and typedefs).
    When active, we return IGNORED_TOKEN, which lets us ignore these
    outside of resource constructs.  Thus, it isn't required to protect
@@ -147,7 +147,7 @@ cpp_line (void)
   ++s;
   while (ISSPACE (*s))
     ++s;
-  
+
   /* Check for #pragma code_page ( DEFAULT | <nr>).  */
   len = strlen (s);
   mlen = strlen ("pragma");
@@ -703,7 +703,7 @@ rclex_string (void)
 		c = -1;
 	    }
 	  while (c != -1);
-		
+
 	  if (rclex_peekch () == '"')
 	    rclex_readch ();
 	  else
@@ -781,7 +781,7 @@ yylex (void)
 	  /* Clear token.  */
 	  rclex_tok_pos = 0;
 	  rclex_tok[0] = 0;
-	  
+
 	  if ((ch = rclex_readch ()) == -1)
 	    return -1;
 	  if (ch == '\n')
@@ -797,15 +797,15 @@ yylex (void)
 	  cpp_line ();
 	  ch = IGNORED_TOKEN;
 	  break;
-	
+
 	case '{':
 	  ch = IGNORE_CPP (BEG);
 	  break;
-	
+
 	case '}':
 	  ch = IGNORE_CPP (END);
 	  break;
-	
+
 	case '0': case '1': case '2': case '3': case '4':
 	case '5': case '6': case '7': case '8': case '9':
 	  yylval.i.val = read_digit (ch);

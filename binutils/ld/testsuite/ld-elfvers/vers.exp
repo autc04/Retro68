@@ -1,5 +1,5 @@
 # Expect script for ld-version tests
-#   Copyright (C) 1997-2014 Free Software Foundation, Inc.
+#   Copyright (C) 1997-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -122,9 +122,9 @@ proc test_ar { test lib object expect } {
 	return
     }
 
-    verbose -log "$nm --print-armap $tmpdir/$lib | grep \" in \" | egrep \"VERS\\|bar\\|foo\" | sort > $tmpdir/nm.out"
-
-    catch "exec $nm --print-armap $tmpdir/$lib | grep \\\ in\\\  | egrep VERS\\\|bar\\\|foo | sort > $tmpdir/nm.out" exec_output
+    set cmd "$nm --print-armap $tmpdir/$lib | grep \\\ in\\\  | egrep VERS\\\|bar\\\|foo | grep -v ^\\\\. | sort > $tmpdir/nm.out"
+    verbose -log $cmd
+    catch "exec $cmd" exec_output
     if [string match "" $exec_output] then {
 	catch "exec sort $srcdir/$subdir/$expect | $diff $tmpdir/nm.out -" exec_output
 	set exec_output [prune_warnings $exec_output]
@@ -245,9 +245,9 @@ proc objdump_symstuff { objdump object expectfile } {
 
     if ![info exists SOBJDUMP_FLAGS] { set SOBJDUMP_FLAGS "" }
 
-    verbose -log "$objdump $SOBJDUMP_FLAGS $object | grep \@ | sort -k 6  > $tmpdir/objdump.out"
-
-    catch "exec $objdump $SOBJDUMP_FLAGS $object | grep \@ | sort -k 6 > $tmpdir/objdump.out" exec_output
+    set cmd "$objdump $SOBJDUMP_FLAGS $object | sed -n {s/^\\(\[0-9a-f\]* *\\)\\(\[gw\]\\)\\( *\\)\\(\[FO\]\\)/\\1\\2\\4\\3/;/\@/p} | sort -k 5 > $tmpdir/objdump.out"
+    verbose -log $cmd
+    catch "exec $cmd" exec_output
     set exec_output [prune_warnings $exec_output]
     if [string match "" $exec_output] then {
 
@@ -286,7 +286,8 @@ proc objdump_symstuff { objdump object expectfile } {
 	close $file_a
 
 	while { [gets $file_b line] != $eof } {
-	    if [regexp "^#.*$" $line] then {
+	    if [regexp {\.text.* \.[^ ]*$} $line] then {
+		# Discard defined powerpc64 dot-symbols
 		continue
 	    } else {
 		lappend list_b $line
@@ -340,9 +341,9 @@ proc objdump_dynsymstuff { objdump object expectfile } {
 
     if ![info exists DOBJDUMP_FLAGS] { set DOBJDUMP_FLAGS "" }
 
-    verbose -log "$objdump $DOBJDUMP_FLAGS $object | sed -n /VERS/p\\\;/show/p | sort | uniq  > $tmpdir/objdump.out"
-
-    catch "exec $objdump $DOBJDUMP_FLAGS $object | sed -n /VERS/p\\\;/show/p | sort | uniq  > $tmpdir/objdump.out" exec_output
+    set cmd "$objdump $DOBJDUMP_FLAGS $object | sed -n /VERS/p\\\;/show/p | sort | uniq > $tmpdir/objdump.out"
+    verbose -log $cmd
+    catch "exec $cmd" exec_output
     set exec_output [prune_warnings $exec_output]
     if [string match "" $exec_output] then {
 
@@ -381,7 +382,8 @@ proc objdump_dynsymstuff { objdump object expectfile } {
 	close $file_a
 
 	while { [gets $file_b line] != $eof } {
-	    if [regexp "^#.*$" $line] then {
+	    if [regexp {\.text.* \.[^ ]*$} $line] then {
+		# Discard defined powerpc64 dot-symbols
 		continue
 	    } else {
 		lappend list_b $line
@@ -390,8 +392,12 @@ proc objdump_dynsymstuff { objdump object expectfile } {
 	close $file_b
 
 	# Support empty files.
-	if { ![info exists list_a] && ![info exists list_b] } then {
-	    return 1
+	if { ![info exists list_a] } then {
+	    if { ![info exists list_b] } then {
+		return 1
+	    }
+	    verbose -log "\t$tmpdir/objdump.out: $list_b"
+	    return 0
 	}
 
 	for { set i 0 } { $i < [llength $list_b] } { incr i } {
@@ -575,7 +581,9 @@ proc build_executable { test source libname other mapfile verexp versymexp symex
 
 proc build_vers_lib_no_pic { test source libname other mapfile verexp versymexp symexp } {
   global shared
-  build_binary $shared "" $test $source $libname $other $mapfile $verexp $versymexp $symexp ""
+  # Make sure that PLT is used since PLT is expected.
+  global PLT_CFLAGS
+  build_binary $shared $PLT_CFLAGS $test $source $libname $other $mapfile $verexp $versymexp $symexp ""
 }
 
 proc build_vers_lib_pic { test source libname other mapfile verexp versymexp symexp } {

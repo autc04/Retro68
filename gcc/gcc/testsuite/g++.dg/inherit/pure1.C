@@ -3,13 +3,13 @@
 // { dg-do compile }
 
 void foo0() = 0;                   // { dg-error "like a variable" }
-virtual void foo1() = 0;           // { dg-error "outside class|variable" }
-
+virtual void foo1() = 0;           // { dg-error "1:'virtual' outside class" }
+// { dg-error "like a variable" "" { target *-*-* } 6 }
 struct A
 {
   void foo2() = 0;                 // { dg-error "non-virtual" }
   static void foo3() = 0;          // { dg-error "static member" }
-  virtual static void foo4() = 0;  // { dg-error "both virtual and static" }
+  virtual static void foo4() = 0;  // { dg-error "both 'virtual' and 'static'" }
   virtual void foo5() = 0;         // { dg-error "base class" }
 };
 

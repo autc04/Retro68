@@ -1,5 +1,5 @@
 /* Meta support for 32-bit ELF
-   Copyright (C) 2013-2014 Free Software Foundation, Inc.
+   Copyright (C) 2013-2017 Free Software Foundation, Inc.
    Contributed by Imagination Technologies Ltd.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -838,18 +838,9 @@ struct elf_metag_link_hash_table
 
   /* Assorted information used by elf_metag_size_stubs.  */
   unsigned int bfd_count;
-  int top_index;
+  unsigned int top_index;
   asection **input_list;
   Elf_Internal_Sym **all_local_syms;
-
-  /* Short-cuts to get to dynamic linker sections.  */
-  asection *sgot;
-  asection *sgotplt;
-  asection *srelgot;
-  asection *splt;
-  asection *srelplt;
-  asection *sdynbss;
-  asection *srelbss;
 
   /* Small local sym cache.  */
   struct sym_cache sym_cache;
@@ -898,6 +889,7 @@ metag_info_to_howto_rela (bfd *abfd ATTRIBUTE_UNUSED,
   r_type = ELF32_R_TYPE (dst->r_info);
   if (r_type >= (unsigned int) R_METAG_MAX)
     {
+      /* xgettext:c-format */
       _bfd_error_handler (_("%B: invalid METAG reloc number: %d"), abfd, r_type);
       r_type = 0;
     }
@@ -1202,9 +1194,9 @@ metag_add_stub (const char *stub_name,
 				TRUE, FALSE);
   if (hsh == NULL)
     {
-      (*_bfd_error_handler) (_("%B: cannot create stub entry %s"),
-			     section->owner,
-			     stub_name);
+      /* xgettext:c-format */
+      _bfd_error_handler (_("%B: cannot create stub entry %s"),
+			  section->owner, stub_name);
       return NULL;
     }
 
@@ -1418,7 +1410,7 @@ metag_final_link_relocate (reloc_howto_type *howto,
     _bfd_clear_contents (howto, input_bfd, input_section,		\
 			 contents + rel->r_offset);			\
 									\
-    if (info->relocatable						\
+    if (bfd_link_relocatable (info)					\
 	&& (input_section->flags & SEC_DEBUGGING))			\
       {									\
 	/* Only remove relocations in debug sections since other	\
@@ -1559,7 +1551,7 @@ elf_metag_relocate_section (bfd *output_bfd,
 	  METAG_RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 						 rel, relend, howto, contents);
 
-      if (info->relocatable)
+      if (bfd_link_relocatable (info))
 	continue;
 
       switch (r_type)
@@ -1569,12 +1561,12 @@ elf_metag_relocate_section (bfd *output_bfd,
 	  if ((input_section->flags & SEC_ALLOC) == 0)
 	    break;
 
-	  if ((info->shared
+	  if ((bfd_link_pic (info)
 	       && r_symndx != STN_UNDEF
 	       && (input_section->flags & SEC_ALLOC) != 0
 	       && (r_type != R_METAG_RELBRANCH
 		   || !SYMBOL_CALLS_LOCAL (info, &hh->eh)))
-	      || (!info->shared
+	      || (!bfd_link_pic (info)
 		  && hh != NULL
 		  && hh->eh.dynindx != -1
 		  && !hh->eh.non_got_ref
@@ -1663,8 +1655,7 @@ elf_metag_relocate_section (bfd *output_bfd,
 	  if (hh->eh.forced_local)
 	    break;
 
-	  if (hh->eh.plt.offset == (bfd_vma) -1 ||
-	      htab->splt == NULL)
+	  if (hh->eh.plt.offset == (bfd_vma) -1 || htab->etab.splt == NULL)
 	    {
 	      /* We didn't make a PLT entry for this symbol.  This
 		 happens when statically linking PIC code, or when
@@ -1672,16 +1663,16 @@ elf_metag_relocate_section (bfd *output_bfd,
 	      break;
 	    }
 
-	  relocation = (htab->splt->output_section->vma
-			+ htab->splt->output_offset
+	  relocation = (htab->etab.splt->output_section->vma
+			+ htab->etab.splt->output_offset
 			+ hh->eh.plt.offset);
 	  break;
 	case R_METAG_HI16_GOTPC:
 	case R_METAG_LO16_GOTPC:
-	  BFD_ASSERT (htab->sgot != NULL);
+	  BFD_ASSERT (htab->etab.sgot != NULL);
 
-	  relocation = (htab->sgot->output_section->vma +
-			htab->sgot->output_offset);
+	  relocation = (htab->etab.sgot->output_section->vma +
+			htab->etab.sgot->output_offset);
 	  relocation += GOT_REG_OFFSET;
 	  relocation -= (input_section->output_section->vma
 			 + input_section->output_offset
@@ -1690,10 +1681,10 @@ elf_metag_relocate_section (bfd *output_bfd,
 	case R_METAG_HI16_GOTOFF:
 	case R_METAG_LO16_GOTOFF:
 	case R_METAG_GETSET_GOTOFF:
-	  BFD_ASSERT (htab->sgot != NULL);
+	  BFD_ASSERT (htab->etab.sgot != NULL);
 
-	  relocation -= (htab->sgot->output_section->vma +
-			 htab->sgot->output_offset);
+	  relocation -= (htab->etab.sgot->output_section->vma +
+			 htab->etab.sgot->output_offset);
 	  relocation -= GOT_REG_OFFSET;
 	  break;
 	case R_METAG_GETSET_GOT:
@@ -1709,7 +1700,8 @@ elf_metag_relocate_section (bfd *output_bfd,
 
 		off = hh->eh.got.offset;
 		dyn = htab->etab.dynamic_sections_created;
-		if (! WILL_CALL_FINISH_DYNAMIC_SYMBOL (dyn, info->shared,
+		if (! WILL_CALL_FINISH_DYNAMIC_SYMBOL (dyn,
+						       bfd_link_pic (info),
 						       &hh->eh))
 		  {
 		    /* If we aren't going to call finish_dynamic_symbol,
@@ -1749,18 +1741,18 @@ elf_metag_relocate_section (bfd *output_bfd,
 
 	    if (do_got)
 	      {
-		if (info->shared)
+		if (bfd_link_pic (info))
 		  {
 		    /* Output a dynamic relocation for this GOT entry.
 		       In this case it is relative to the base of the
 		       object because the symbol index is zero.  */
 		    Elf_Internal_Rela outrel;
 		    bfd_byte *loc;
-		    asection *s = htab->srelgot;
+		    asection *s = htab->etab.srelgot;
 
 		    outrel.r_offset = (off
-				       + htab->sgot->output_offset
-				       + htab->sgot->output_section->vma);
+				       + htab->etab.sgot->output_offset
+				       + htab->etab.sgot->output_section->vma);
 		    outrel.r_info = ELF32_R_INFO (0, R_METAG_RELATIVE);
 		    outrel.r_addend = relocation;
 		    loc = s->contents;
@@ -1769,7 +1761,7 @@ elf_metag_relocate_section (bfd *output_bfd,
 		  }
 		else
 		  bfd_put_32 (output_bfd, relocation,
-			      htab->sgot->contents + off);
+			      htab->etab.sgot->contents + off);
 	      }
 
 	    if (off >= (bfd_vma) -2)
@@ -1787,7 +1779,7 @@ elf_metag_relocate_section (bfd *output_bfd,
 	    int indx;
 	    char tls_type;
 
-	    if (htab->sgot == NULL)
+	    if (htab->etab.sgot == NULL)
 	      abort();
 
 	    indx = 0;
@@ -1796,8 +1788,10 @@ elf_metag_relocate_section (bfd *output_bfd,
 		bfd_boolean dyn;
 		dyn = htab->etab.dynamic_sections_created;
 
-		if (WILL_CALL_FINISH_DYNAMIC_SYMBOL (dyn, info->shared, &hh->eh)
-		    && (!info->shared
+		if (WILL_CALL_FINISH_DYNAMIC_SYMBOL (dyn,
+						     bfd_link_pic (info),
+						     &hh->eh)
+		    && (!bfd_link_pic (info)
 			|| !SYMBOL_REFERENCES_LOCAL (info, &hh->eh)))
 		  {
 		    indx = hh->eh.dynindx;
@@ -1816,7 +1810,7 @@ elf_metag_relocate_section (bfd *output_bfd,
 	      }
 
 	    if (tls_type == GOT_UNKNOWN)
-	      abort();
+	      abort ();
 
 	    if ((off & 1) != 0)
 	      off &= ~1;
@@ -1831,15 +1825,15 @@ elf_metag_relocate_section (bfd *output_bfd,
 		   now, and emit any relocations.  If both an IE GOT and a
 		   GD GOT are necessary, we emit the GD first.  */
 
-		if ((info->shared || indx != 0)
+		if ((bfd_link_pic (info) || indx != 0)
 		    && (hh == NULL
 			|| ELF_ST_VISIBILITY (hh->eh.other) == STV_DEFAULT
 			|| hh->eh.root.type != bfd_link_hash_undefweak))
 		  {
 		    need_relocs = TRUE;
-		    loc = htab->srelgot->contents;
+		    loc = htab->etab.srelgot->contents;
 		    /* FIXME (CAO): Should this be reloc_count++ ? */
-		    loc += htab->srelgot->reloc_count * sizeof (Elf32_External_Rela);
+		    loc += htab->etab.srelgot->reloc_count * sizeof (Elf32_External_Rela);
 		  }
 
 		if (tls_type & GOT_TLS_GD)
@@ -1847,36 +1841,43 @@ elf_metag_relocate_section (bfd *output_bfd,
 		    if (need_relocs)
 		      {
 			outrel.r_offset = (cur_off
-					   + htab->sgot->output_section->vma
-					   + htab->sgot->output_offset);
+					   + htab->etab.sgot->output_section->vma
+					   + htab->etab.sgot->output_offset);
 			outrel.r_info = ELF32_R_INFO (indx, R_METAG_TLS_DTPMOD);
 			outrel.r_addend = 0;
-			bfd_put_32 (output_bfd, 0, htab->sgot->contents + cur_off);
+			bfd_put_32 (output_bfd, 0, htab->etab.sgot->contents + cur_off);
 
 			bfd_elf32_swap_reloca_out (output_bfd, &outrel, loc);
-			htab->srelgot->reloc_count++;
+			htab->etab.srelgot->reloc_count++;
 			loc += sizeof (Elf32_External_Rela);
 
 			if (indx == 0)
 			  bfd_put_32 (output_bfd, 0,
-				      htab->sgot->contents + cur_off + 4);
+				      htab->etab.sgot->contents + cur_off + 4);
 			else
 			  {
 			    bfd_put_32 (output_bfd, 0,
-					htab->sgot->contents + cur_off + 4);
+					htab->etab.sgot->contents + cur_off + 4);
 			    outrel.r_info = ELF32_R_INFO (indx,
 						      R_METAG_TLS_DTPOFF);
 			    outrel.r_offset += 4;
 			    bfd_elf32_swap_reloca_out (output_bfd,
 						       &outrel, loc);
-			    htab->srelgot->reloc_count++;
+			    htab->etab.srelgot->reloc_count++;
 			    loc += sizeof (Elf32_External_Rela);
 			  }
 		      }
 		    else
 		      {
 			/* We don't support changing the TLS model.  */
-			abort ();
+			/* PR 20675 */
+			if (bfd_link_pic (info))
+			  _bfd_error_handler (_("%B(%A): multiple TLS models are not supported"),
+					      input_bfd, input_section, name);
+			else
+			  _bfd_error_handler (_("%B(%A): shared library symbol %s encountered whilst performing a static link"),
+					      input_bfd, input_section, name);
+			return FALSE;
 		      }
 
 		    cur_off += 8;
@@ -1887,8 +1888,8 @@ elf_metag_relocate_section (bfd *output_bfd,
 		    if (need_relocs)
 		      {
 			outrel.r_offset = (cur_off
-					   + htab->sgot->output_section->vma
-					   + htab->sgot->output_offset);
+					   + htab->etab.sgot->output_section->vma
+					   + htab->etab.sgot->output_offset);
 			outrel.r_info = ELF32_R_INFO (indx, R_METAG_TLS_TPOFF);
 
 			if (indx == 0)
@@ -1897,12 +1898,12 @@ elf_metag_relocate_section (bfd *output_bfd,
 			  outrel.r_addend = 0;
 
 			bfd_elf32_swap_reloca_out (output_bfd, &outrel, loc);
-			htab->srelgot->reloc_count++;
+			htab->etab.srelgot->reloc_count++;
 			loc += sizeof (Elf32_External_Rela);
 		      }
 		    else
 		      bfd_put_32 (output_bfd, tpoff (info, relocation),
-				  htab->sgot->contents + cur_off);
+				  htab->etab.sgot->contents + cur_off);
 
 		    cur_off += 4;
 		  }
@@ -1923,9 +1924,10 @@ elf_metag_relocate_section (bfd *output_bfd,
 	case R_METAG_TLS_IENONPIC_LO16:
 	case R_METAG_TLS_LE_HI16:
 	case R_METAG_TLS_LE_LO16:
-	  if (info->shared)
+	  if (bfd_link_pic (info))
 	    {
-	      (*_bfd_error_handler)
+	      _bfd_error_handler
+		/* xgettext:c-format */
 		(_("%B(%A+0x%lx): R_METAG_TLS_LE/IENONPIC relocation not permitted in shared object"),
 		 input_bfd, input_section,
 		 (long) rel->r_offset, howto->name);
@@ -1936,7 +1938,7 @@ elf_metag_relocate_section (bfd *output_bfd,
 	  break;
 	case R_METAG_TLS_LDO_HI16:
 	case R_METAG_TLS_LDO_LO16:
-	  if (! info->shared)
+	  if (! bfd_link_pic (info))
 	    relocation = tpoff (info, relocation);
 	  else
 	    relocation -= dtpoff_base (info);
@@ -1945,7 +1947,7 @@ elf_metag_relocate_section (bfd *output_bfd,
 	  {
 	    bfd_vma off;
 
-	    if (htab->sgot == NULL)
+	    if (htab->etab.sgot == NULL)
 	      abort();
 	    off = htab->tls_ldm_got.offset;
 	    if (off & 1)
@@ -1956,13 +1958,13 @@ elf_metag_relocate_section (bfd *output_bfd,
 		bfd_byte *loc;
 
 		outrel.r_offset = (off
-				   + htab->sgot->output_section->vma
-				   + htab->sgot->output_offset);
+				   + htab->etab.sgot->output_section->vma
+				   + htab->etab.sgot->output_offset);
 
 		outrel.r_addend = 0;
 		outrel.r_info = ELF32_R_INFO (0, R_METAG_TLS_DTPMOD);
-		loc = htab->srelgot->contents;
-		loc += htab->srelgot->reloc_count++ * sizeof (Elf32_External_Rela);
+		loc = htab->etab.srelgot->contents;
+		loc += htab->etab.srelgot->reloc_count++ * sizeof (Elf32_External_Rela);
 		bfd_elf32_swap_reloca_out (output_bfd, &outrel, loc);
 		htab->tls_ldm_got.offset |= 1;
 	      }
@@ -1985,15 +1987,14 @@ elf_metag_relocate_section (bfd *output_bfd,
 	  switch (r)
 	    {
 	    case bfd_reloc_overflow:
-	      r = info->callbacks->reloc_overflow
+	      (*info->callbacks->reloc_overflow)
 		(info, (hh ? &hh->eh.root : NULL), name, howto->name,
 		 (bfd_vma) 0, input_bfd, input_section, rel->r_offset);
 	      break;
 
 	    case bfd_reloc_undefined:
-	      r = info->callbacks->undefined_symbol
-		(info, name, input_bfd, input_section, rel->r_offset,
-		 TRUE);
+	      (*info->callbacks->undefined_symbol)
+		(info, name, input_bfd, input_section, rel->r_offset, TRUE);
 	      break;
 
 	    case bfd_reloc_outofrange:
@@ -2014,11 +2015,8 @@ elf_metag_relocate_section (bfd *output_bfd,
 	    }
 
 	  if (msg)
-	    r = info->callbacks->warning
-	      (info, msg, name, input_bfd, input_section, rel->r_offset);
-
-	  if (! r)
-	    return FALSE;
+	    (*info->callbacks->warning) (info, msg, name, input_bfd,
+					 input_section, rel->r_offset);
 	}
     }
 
@@ -2038,32 +2036,22 @@ elf_metag_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
 
   /* Don't try to create the .plt and .got twice.  */
   htab = metag_link_hash_table (info);
-  if (htab->splt != NULL)
+  if (htab->etab.splt != NULL)
     return TRUE;
 
   /* Call the generic code to do most of the work.  */
   if (! _bfd_elf_create_dynamic_sections (abfd, info))
     return FALSE;
 
-  htab->sgot = bfd_get_linker_section (abfd, ".got");
-  if (! htab->sgot)
-    return FALSE;
+  /* The header goes at the start of the dynamic .got section, which
+     is placed after the dynamic .got.plt section.  ie. The header is
+     not necessarily at the start of the output .got section.  */
+  htab->etab.sgot->size += 12;
 
-  htab->sgotplt = bfd_make_section_with_flags (abfd, ".got.plt",
-					       (SEC_ALLOC | SEC_LOAD |
-						SEC_HAS_CONTENTS |
-						SEC_IN_MEMORY |
-						SEC_LINKER_CREATED));
-  if (htab->sgotplt == NULL
-      || !bfd_set_section_alignment (abfd, htab->sgotplt, 2))
-    return FALSE;
-
-  /* Define the symbol __GLOBAL_OFFSET_TABLE__ at the start of the .got
-     section.  We don't do this in the linker script because we don't want
-     to define the symbol if we are not creating a global offset table.  */
+  /* Define the symbol __GLOBAL_OFFSET_TABLE__ on the header.  */
   bh = NULL;
   if (!(_bfd_generic_link_add_one_symbol
-	(info, abfd, "__GLOBAL_OFFSET_TABLE__", BSF_GLOBAL, htab->sgot,
+	(info, abfd, "__GLOBAL_OFFSET_TABLE__", BSF_GLOBAL, htab->etab.sgot,
 	 (bfd_vma) 0, NULL, FALSE, bed->collect, &bh)))
     return FALSE;
   eh = (struct elf_link_hash_entry *) bh;
@@ -2071,19 +2059,11 @@ elf_metag_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
   eh->type = STT_OBJECT;
   eh->other = STV_HIDDEN;
 
-  if (! info->executable
+  if (! bfd_link_executable (info)
       && ! bfd_elf_link_record_dynamic_symbol (info, eh))
     return FALSE;
 
-  elf_hash_table (info)->hgot = eh;
-
-  htab->splt = bfd_get_linker_section (abfd, ".plt");
-  htab->srelplt = bfd_get_linker_section (abfd, ".rela.plt");
-
-  htab->srelgot = bfd_get_linker_section (abfd, ".rela.got");
-
-  htab->sdynbss = bfd_get_linker_section (abfd, ".dynbss");
-  htab->srelbss = bfd_get_linker_section (abfd, ".rela.bss");
+  htab->etab.hgot = eh;
 
   return TRUE;
 }
@@ -2108,7 +2088,7 @@ elf_metag_check_relocs (bfd *abfd,
   bfd *dynobj;
   int tls_type = GOT_UNKNOWN, old_tls_type = GOT_UNKNOWN;
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   htab = metag_link_hash_table (info);
@@ -2156,14 +2136,14 @@ elf_metag_check_relocs (bfd *abfd,
 	}
 
       /* Some relocs require a global offset table.  */
-      if (htab->sgot == NULL)
+      if (htab->etab.sgot == NULL)
 	{
 	  switch (r_type)
 	    {
 	    case R_METAG_TLS_GD:
 	    case R_METAG_TLS_LDM:
 	    case R_METAG_TLS_IE:
-	      if (info->shared)
+	      if (bfd_link_pic (info))
 		info->flags |= DF_STATIC_TLS;
 	      /* Fall through.  */
 
@@ -2277,7 +2257,7 @@ elf_metag_check_relocs (bfd *abfd,
 	     cannot be used in shared libs.  Don't error out for
 	     sections we don't care about, such as debug sections or
 	     non-constant sections.  */
-	  if (info->shared
+	  if (bfd_link_pic (info)
 	      && (sec->flags & SEC_ALLOC) != 0
 	      && (sec->flags & SEC_READONLY) != 0)
 	    {
@@ -2287,7 +2267,8 @@ elf_metag_check_relocs (bfd *abfd,
 		name = hh->eh.root.root.string;
 	      else
 		name = bfd_elf_sym_name (abfd, symtab_hdr, isym, NULL);
-	      (*_bfd_error_handler)
+	      _bfd_error_handler
+		/* xgettext:c-format */
 		(_("%B: relocation %s against `%s' can not be used when making a shared object; recompile with -fPIC"),
 		 abfd, elf_metag_howto_table[r_type].name, name);
 	      bfd_set_error (bfd_error_bad_value);
@@ -2298,7 +2279,7 @@ elf_metag_check_relocs (bfd *abfd,
 	case R_METAG_ADDR32:
 	case R_METAG_RELBRANCH:
 	case R_METAG_GETSETOFF:
-	  if (hh != NULL && !info->shared)
+	  if (hh != NULL && !bfd_link_pic (info))
 	    {
 	      hh->eh.non_got_ref = 1;
 	      hh->eh.plt.refcount += 1;
@@ -2323,14 +2304,14 @@ elf_metag_check_relocs (bfd *abfd,
 	     may need to keep relocations for symbols satisfied by a
 	     dynamic library if we manage to avoid copy relocs for the
 	     symbol.  */
-	  if ((info->shared
+	  if ((bfd_link_pic (info)
 	       && (sec->flags & SEC_ALLOC) != 0
 	       && (r_type != R_METAG_RELBRANCH
 		   || (hh != NULL
 		       && (! info->symbolic
 			   || hh->eh.root.type == bfd_link_hash_defweak
 			   || !hh->eh.def_regular))))
-	      || (!info->shared
+	      || (!bfd_link_pic (info)
 		  && (sec->flags & SEC_ALLOC) != 0
 		  && hh != NULL
 		  && (hh->eh.root.type == bfd_link_hash_defweak
@@ -2489,7 +2470,7 @@ elf_metag_adjust_dynamic_symbol (struct bfd_link_info *info,
   struct elf_metag_link_hash_table *htab;
   struct elf_metag_link_hash_entry *hh;
   struct elf_metag_dyn_reloc_entry *hdh_p;
-  asection *s;
+  asection *s, *srel;
 
   /* If this is a function, put it in the procedure linkage table.  We
      will fill in the contents of the procedure linkage table later,
@@ -2537,7 +2518,7 @@ elf_metag_adjust_dynamic_symbol (struct bfd_link_info *info,
      only references to the symbol are via the global offset table.
      For such cases we need not do anything here; the relocations will
      be handled correctly by relocate_section.  */
-  if (info->shared)
+  if (bfd_link_pic (info))
     return TRUE;
 
   /* If there are no references to this symbol that do not use the
@@ -2583,13 +2564,21 @@ elf_metag_adjust_dynamic_symbol (struct bfd_link_info *info,
   /* We must generate a COPY reloc to tell the dynamic linker to
      copy the initial value out of the dynamic object and into the
      runtime process image.  */
+  if ((eh->root.u.def.section->flags & SEC_READONLY) != 0)
+    {
+      s = htab->etab.sdynrelro;
+      srel = htab->etab.sreldynrelro;
+    }
+  else
+    {
+      s = htab->etab.sdynbss;
+      srel = htab->etab.srelbss;
+    }
   if ((eh->root.u.def.section->flags & SEC_ALLOC) != 0 && eh->size != 0)
     {
-      htab->srelbss->size += sizeof (Elf32_External_Rela);
+      srel->size += sizeof (Elf32_External_Rela);
       eh->needs_copy = 1;
     }
-
-  s = htab->sdynbss;
 
   return _bfd_elf_adjust_dynamic_copy (info, eh, s);
 }
@@ -2626,9 +2615,9 @@ allocate_dynrelocs (struct elf_link_hash_entry *eh, void *inf)
 	    return FALSE;
 	}
 
-      if (WILL_CALL_FINISH_DYNAMIC_SYMBOL (1, info->shared, eh))
+      if (WILL_CALL_FINISH_DYNAMIC_SYMBOL (1, bfd_link_pic (info), eh))
 	{
-	  asection *s = htab->splt;
+	  asection *s = htab->etab.splt;
 
 	  /* If this is the first .plt entry, make room for the special
 	     first entry.  */
@@ -2642,7 +2631,7 @@ allocate_dynrelocs (struct elf_link_hash_entry *eh, void *inf)
 	     location in the .plt.  This is required to make function
 	     pointers compare as equal between the normal executable and
 	     the shared library.  */
-	  if (! info->shared
+	  if (! bfd_link_pic (info)
 	      && !eh->def_regular)
 	    {
 	      eh->root.u.def.section = s;
@@ -2654,10 +2643,10 @@ allocate_dynrelocs (struct elf_link_hash_entry *eh, void *inf)
 
 	  /* We also need to make an entry in the .got.plt section, which
 	     will be placed in the .got section by the linker script.  */
-	  htab->sgotplt->size += 4;
+	  htab->etab.sgotplt->size += 4;
 
 	  /* We also need to make an entry in the .rel.plt section.  */
-	  htab->srelplt->size += sizeof (Elf32_External_Rela);
+	  htab->etab.srelplt->size += sizeof (Elf32_External_Rela);
 	}
       else
 	{
@@ -2686,7 +2675,7 @@ allocate_dynrelocs (struct elf_link_hash_entry *eh, void *inf)
 	    return FALSE;
 	}
 
-      s = htab->sgot;
+      s = htab->etab.sgot;
 
       eh->got.offset = s->size;
       s->size += 4;
@@ -2698,11 +2687,13 @@ allocate_dynrelocs (struct elf_link_hash_entry *eh, void *inf)
 	 R_METAG_TLS_GD needs one if local symbol and two if global.  */
       if ((tls_type == GOT_TLS_GD && eh->dynindx == -1)
 	  || (tls_type == GOT_TLS_IE && dyn))
-	htab->srelgot->size += sizeof (Elf32_External_Rela);
+	htab->etab.srelgot->size += sizeof (Elf32_External_Rela);
       else if (tls_type == GOT_TLS_GD)
-	  htab->srelgot->size += 2 * sizeof (Elf32_External_Rela);
-      else if (WILL_CALL_FINISH_DYNAMIC_SYMBOL (dyn, info->shared, eh))
-	  htab->srelgot->size += sizeof (Elf32_External_Rela);
+	  htab->etab.srelgot->size += 2 * sizeof (Elf32_External_Rela);
+      else if (WILL_CALL_FINISH_DYNAMIC_SYMBOL (dyn,
+						bfd_link_pic (info),
+						eh))
+	  htab->etab.srelgot->size += sizeof (Elf32_External_Rela);
     }
   else
     eh->got.offset = (bfd_vma) -1;
@@ -2716,7 +2707,7 @@ allocate_dynrelocs (struct elf_link_hash_entry *eh, void *inf)
      defined in a regular object.  For the normal shared case, discard
      space for relocs that have become local due to symbol visibility
      changes.  */
-  if (info->shared)
+  if (bfd_link_pic (info))
     {
       if (SYMBOL_CALLS_LOCAL (info, eh))
 	{
@@ -2843,7 +2834,7 @@ elf_metag_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
   if (htab->etab.dynamic_sections_created)
     {
       /* Set the contents of the .interp section to the interpreter.  */
-      if (info->executable)
+      if (bfd_link_executable (info) && !info->nointerp)
 	{
 	  s = bfd_get_linker_section (dynobj, ".interp");
 	  if (s == NULL)
@@ -2902,8 +2893,8 @@ elf_metag_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
       locsymcount = symtab_hdr->sh_info;
       end_local_got = local_got + locsymcount;
       local_tls_type = metag_elf_local_got_tls_type (ibfd);
-      s = htab->sgot;
-      srel = htab->srelgot;
+      s = htab->etab.sgot;
+      srel = htab->etab.srelgot;
       for (; local_got < end_local_got; ++local_got)
 	{
 	  if (*local_got > 0)
@@ -2913,7 +2904,7 @@ elf_metag_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 	      /* R_METAG_TLS_GD relocs need 2 consecutive GOT entries.  */
 	      if (*local_tls_type == GOT_TLS_GD)
 		s->size += 4;
-	      if (info->shared)
+	      if (bfd_link_pic (info))
 		srel->size += sizeof (Elf32_External_Rela);
 	    }
 	  else
@@ -2926,9 +2917,9 @@ elf_metag_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
     {
       /* Allocate 2 got entries and 1 dynamic reloc for R_METAG_TLS_LDM
 	 reloc.  */
-      htab->tls_ldm_got.offset = htab->sgot->size;
-      htab->sgot->size += 8;
-      htab->srelgot->size += sizeof (Elf32_External_Rela);
+      htab->tls_ldm_got.offset = htab->etab.sgot->size;
+      htab->etab.sgot->size += 8;
+      htab->etab.srelgot->size += sizeof (Elf32_External_Rela);
     }
   else
     htab->tls_ldm_got.offset = -1;
@@ -2947,17 +2938,18 @@ elf_metag_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
       if ((s->flags & SEC_LINKER_CREATED) == 0)
 	continue;
 
-      if (s == htab->splt
-	  || s == htab->sgot
-	  || s == htab->sgotplt
-	  || s == htab->sdynbss)
+      if (s == htab->etab.splt
+	  || s == htab->etab.sgot
+	  || s == htab->etab.sgotplt
+	  || s == htab->etab.sdynbss
+	  || s == htab->etab.sdynrelro)
 	{
 	  /* Strip this section if we don't need it; see the
 	     comment below.  */
 	}
       else if (CONST_STRNEQ (bfd_get_section_name (dynobj, s), ".rela"))
 	{
-	  if (s->size != 0 && s != htab->srelplt)
+	  if (s->size != 0 && s != htab->etab.srelplt)
 	    relocs = TRUE;
 
 	  /* We use the reloc_count field as a counter if we need
@@ -3022,13 +3014,13 @@ elf_metag_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
       if (!add_dynamic_entry (DT_PLTGOT, 0))
 	return FALSE;
 
-      if (info->executable)
+      if (bfd_link_executable (info))
 	{
 	  if (!add_dynamic_entry (DT_DEBUG, 0))
 	    return FALSE;
 	}
 
-      if (htab->srelplt->size != 0)
+      if (htab->etab.srelplt->size != 0)
 	{
 	  if (!add_dynamic_entry (DT_PLTRELSZ, 0)
 	      || !add_dynamic_entry (DT_PLTREL, DT_RELA)
@@ -3090,9 +3082,9 @@ elf_metag_finish_dynamic_symbol (bfd *output_bfd,
 
       BFD_ASSERT (eh->dynindx != -1);
 
-      splt = htab->splt;
-      sgot = htab->sgotplt;
-      srela = htab->srelplt;
+      splt = htab->etab.splt;
+      sgot = htab->etab.sgotplt;
+      srela = htab->etab.srelplt;
       BFD_ASSERT (splt != NULL && sgot != NULL && srela != NULL);
 
       /* Get the index in the procedure linkage table which
@@ -3114,7 +3106,7 @@ elf_metag_finish_dynamic_symbol (bfd *output_bfd,
       BFD_ASSERT (plt_index < (1 << 16));
 
       /* Fill in the entry in the procedure linkage table.  */
-      if (! info->shared)
+      if (! bfd_link_pic (info))
 	{
 	  bfd_put_32 (output_bfd,
 		      (plt_entry[0]
@@ -3170,7 +3162,7 @@ elf_metag_finish_dynamic_symbol (bfd *output_bfd,
 		      + got_offset);
       rel.r_info = ELF32_R_INFO (eh->dynindx, R_METAG_JMP_SLOT);
       rel.r_addend = 0;
-      loc = htab->srelplt->contents;
+      loc = htab->etab.srelplt->contents;
       loc += plt_index * sizeof(Elf32_External_Rela);
       bfd_elf32_swap_reloca_out (output_bfd, &rel, loc);
 
@@ -3190,15 +3182,15 @@ elf_metag_finish_dynamic_symbol (bfd *output_bfd,
 	 up.  */
 
       rel.r_offset = ((eh->got.offset &~ (bfd_vma) 1)
-		      + htab->sgot->output_offset
-		      + htab->sgot->output_section->vma);
+		      + htab->etab.sgot->output_offset
+		      + htab->etab.sgot->output_section->vma);
 
       /* If this is a -Bsymbolic link and the symbol is defined
 	 locally or was forced to be local because of a version file,
 	 we just want to emit a RELATIVE reloc.  The entry in the
 	 global offset table will already have been initialized in the
 	 relocate_section function.  */
-      if (info->shared
+      if (bfd_link_pic (info)
 	  && (info->symbolic || eh->dynindx == -1)
 	  && eh->def_regular)
 	{
@@ -3211,13 +3203,13 @@ elf_metag_finish_dynamic_symbol (bfd *output_bfd,
 	{
 	  if ((eh->got.offset & 1) != 0)
 	    abort ();
-	  bfd_put_32 (output_bfd, 0, htab->sgot->contents + eh->got.offset);
+	  bfd_put_32 (output_bfd, 0, htab->etab.sgot->contents + eh->got.offset);
 	  rel.r_info = ELF32_R_INFO (eh->dynindx, R_METAG_GLOB_DAT);
 	  rel.r_addend = 0;
 	}
 
-      loc = htab->srelgot->contents;
-      loc += htab->srelgot->reloc_count++ * sizeof (Elf32_External_Rela);
+      loc = htab->etab.srelgot->contents;
+      loc += htab->etab.srelgot->reloc_count++ * sizeof (Elf32_External_Rela);
       bfd_elf32_swap_reloca_out (output_bfd, &rel, loc);
     }
 
@@ -3232,13 +3224,15 @@ elf_metag_finish_dynamic_symbol (bfd *output_bfd,
 		 || eh->root.type == bfd_link_hash_defweak)))
 	abort ();
 
-      s = htab->srelbss;
-
       rel.r_offset = (eh->root.u.def.value
 		      + eh->root.u.def.section->output_offset
 		      + eh->root.u.def.section->output_section->vma);
       rel.r_addend = 0;
       rel.r_info = ELF32_R_INFO (eh->dynindx, R_METAG_COPY);
+      if (eh->root.u.def.section == htab->etab.sdynrelro)
+	s = htab->etab.sreldynrelro;
+      else
+	s = htab->etab.srelbss;
       loc = s->contents + s->reloc_count++ * sizeof (Elf32_External_Rela);
       bfd_elf32_swap_reloca_out (output_bfd, &rel, loc);
     }
@@ -3325,44 +3319,20 @@ elf_metag_finish_dynamic_sections (bfd *output_bfd,
 	      continue;
 
 	    case DT_PLTGOT:
-	      s = htab->sgot->output_section;
-	      BFD_ASSERT (s != NULL);
-	      dyn.d_un.d_ptr = s->vma + htab->sgot->output_offset;
+	      s = htab->etab.sgot;
+	      dyn.d_un.d_ptr = s->output_section->vma + s->output_offset;
 	      bfd_elf32_swap_dyn_out (output_bfd, &dyn, dyncon);
 	      break;
 
 	    case DT_JMPREL:
-	      s = htab->srelplt->output_section;
-	      BFD_ASSERT (s != NULL);
-	      dyn.d_un.d_ptr = s->vma;
+	      s = htab->etab.srelplt;
+	      dyn.d_un.d_ptr = s->output_section->vma + s->output_offset;
 	      bfd_elf32_swap_dyn_out (output_bfd, &dyn, dyncon);
 	      break;
 
 	    case DT_PLTRELSZ:
-	      s = htab->srelplt;
+	      s = htab->etab.srelplt;
 	      dyn.d_un.d_val = s->size;
-	      bfd_elf32_swap_dyn_out (output_bfd, &dyn, dyncon);
-	      break;
-
-	    case DT_RELASZ:
-	      /* Don't count procedure linkage table relocs in the
-		 overall reloc count.  */
-	      if (htab->srelplt) {
-		s = htab->srelplt;
-		dyn.d_un.d_val -= s->size;
-	      }
-	      bfd_elf32_swap_dyn_out (output_bfd, &dyn, dyncon);
-	      break;
-
-	    case DT_RELA:
-	      /* We may not be using the standard ELF linker script.
-		 If .rela.plt is the first .rela section, we adjust
-		 DT_RELA to not include it.  */
-	      if (htab->srelplt) {
-		s = htab->srelplt;
-		if (dyn.d_un.d_ptr == s->output_section->vma + s->output_offset)
-		  dyn.d_un.d_ptr += s->size;
-	      }
 	      bfd_elf32_swap_dyn_out (output_bfd, &dyn, dyncon);
 	      break;
 	    }
@@ -3370,14 +3340,14 @@ elf_metag_finish_dynamic_sections (bfd *output_bfd,
 	}
 
       /* Fill in the first entry in the procedure linkage table.  */
-      splt = htab->splt;
+      splt = htab->etab.splt;
       if (splt && splt->size > 0)
 	{
 	  unsigned long addr;
 	  /* addr = .got + 4 */
-	  addr = htab->sgot->output_section->vma +
-	    htab->sgot->output_offset + 4;
-	  if (info->shared)
+	  addr = (htab->etab.sgot->output_section->vma
+		  + htab->etab.sgot->output_offset + 4);
+	  if (bfd_link_pic (info))
 	    {
 	      addr -= splt->output_section->vma + splt->output_offset;
 	      bfd_put_32 (output_bfd,
@@ -3408,19 +3378,19 @@ elf_metag_finish_dynamic_sections (bfd *output_bfd,
 	}
     }
 
-  if (htab->sgot != NULL && htab->sgot->size != 0)
+  if (htab->etab.sgot != NULL && htab->etab.sgot->size != 0)
     {
       /* Fill in the first entry in the global offset table.
 	 We use it to point to our dynamic section, if we have one.  */
       bfd_put_32 (output_bfd,
 		  sdyn ? sdyn->output_section->vma + sdyn->output_offset : 0,
-		  htab->sgot->contents);
+		  htab->etab.sgot->contents);
 
       /* The second entry is reserved for use by the dynamic linker.  */
-      memset (htab->sgot->contents + GOT_ENTRY_SIZE, 0, GOT_ENTRY_SIZE);
+      memset (htab->etab.sgot->contents + GOT_ENTRY_SIZE, 0, GOT_ENTRY_SIZE);
 
       /* Set .got entry size.  */
-      elf_section_data (htab->sgot->output_section)
+      elf_section_data (htab->etab.sgot->output_section)
 	->this_hdr.sh_entsize = GOT_ENTRY_SIZE;
     }
 
@@ -3463,7 +3433,7 @@ elf_metag_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
   bfd_signed_vma *local_plt_refcounts;
   const Elf_Internal_Rela *rel, *relend;
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   elf_section_data (sec)->local_dynrel = NULL;
@@ -3546,7 +3516,7 @@ elf_metag_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
 	      struct elf_metag_dyn_reloc_entry **hdh_pp;
 	      struct elf_metag_dyn_reloc_entry *hdh_p;
 
-	      if (!info->shared && eh->plt.refcount > 0)
+	      if (!bfd_link_pic (info) && eh->plt.refcount > 0)
 		eh->plt.refcount -= 1;
 
 	      hh = (struct elf_metag_link_hash_entry *) eh;
@@ -3604,7 +3574,7 @@ metag_type_of_stub (asection *input_sec,
 
   if (branch_offset + max_branch_offset >= 2*max_branch_offset)
     {
-      if (info->shared)
+      if (bfd_link_pic (info))
 	return metag_stub_long_branch_shared;
       else
 	return metag_stub_long_branch;
@@ -3724,7 +3694,7 @@ elf_metag_setup_section_lists (bfd *output_bfd, struct bfd_link_info *info)
 {
   bfd *input_bfd;
   unsigned int bfd_count;
-  int top_id, top_index;
+  unsigned int top_id, top_index;
   asection *section;
   asection **input_list, **list;
   bfd_size_type amt;
@@ -4132,7 +4102,7 @@ elf_metag_size_stubs(bfd *output_bfd, bfd *stub_bfd,
 			      && hh->eh.dynindx != -1
 			      && r_type == (unsigned int) R_METAG_RELBRANCH_PLT)
 			    {
-			      sym_sec = htab->splt;
+			      sym_sec = htab->etab.splt;
 			      sym_value = hh->eh.plt.offset;
 			    }
 
@@ -4145,7 +4115,7 @@ elf_metag_size_stubs(bfd *output_bfd, bfd *stub_bfd,
 			}
 		      else if (hh->eh.root.type == bfd_link_hash_undefweak)
 			{
-			  if (! info->shared)
+			  if (! bfd_link_pic (info))
 			    continue;
 			}
 		      else if (hh->eh.root.type == bfd_link_hash_undefined)
@@ -4321,11 +4291,13 @@ elf_metag_plt_sym_val (bfd_vma i, const asection *plt,
 
 #define elf_backend_can_gc_sections		1
 #define elf_backend_can_refcount		1
-#define elf_backend_got_header_size		12
-#define elf_backend_rela_normal		1
+#define elf_backend_rela_normal			1
+#define elf_backend_want_got_plt		1
 #define elf_backend_want_got_sym		0
 #define elf_backend_want_plt_sym		0
 #define elf_backend_plt_readonly		1
+#define elf_backend_dtrel_excludes_plt		1
+#define elf_backend_want_dynrelro		1
 
 #define bfd_elf32_bfd_reloc_type_lookup	metag_reloc_type_lookup
 #define bfd_elf32_bfd_reloc_name_lookup	metag_reloc_name_lookup

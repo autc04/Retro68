@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	d51b9c67 	msr	pmovsclr_el0, x7
    4:	d53b9c60 	mrs	x0, pmovsclr_el0
    8:	d51b9e67 	msr	pmovsset_el0, x7

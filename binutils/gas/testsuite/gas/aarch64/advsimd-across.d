@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	0e303be7 	saddlv	h7, v31.8b
    4:	4e303be7 	saddlv	h7, v31.16b
    8:	0e703be7 	saddlv	s7, v31.4h

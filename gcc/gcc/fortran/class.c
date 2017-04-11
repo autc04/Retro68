@@ -1,5 +1,5 @@
 /* Implementation of Fortran 2003 Polymorphism.
-   Copyright (C) 2009-2015 Free Software Foundation, Inc.
+   Copyright (C) 2009-2016 Free Software Foundation, Inc.
    Contributed by Paul Richard Thomas <pault@gcc.gnu.org>
    and Janus Weil <janus@gcc.gnu.org>
 
@@ -78,12 +78,11 @@ insert_component_ref (gfc_typespec *ts, gfc_ref **ref, const char * const name)
   gcc_assert (ts->type == BT_DERIVED || ts->type == BT_CLASS);
   type_sym = ts->u.derived;
 
-  new_ref = gfc_get_ref ();
-  new_ref->type = REF_COMPONENT;
-  new_ref->next = *ref;
-  new_ref->u.c.sym = type_sym;
-  new_ref->u.c.component = gfc_find_component (type_sym, name, true, true);
+  gfc_find_component (type_sym, name, true, true, &new_ref);
   gcc_assert (new_ref->u.c.component);
+  while (new_ref->next)
+    new_ref = new_ref->next;
+  new_ref->next = *ref;
 
   if (new_ref->next)
     {
@@ -206,8 +205,9 @@ gfc_fix_class_refs (gfc_expr *e)
 void
 gfc_add_component_ref (gfc_expr *e, const char *name)
 {
+  gfc_component *c;
   gfc_ref **tail = &(e->ref);
-  gfc_ref *next = NULL;
+  gfc_ref *ref, *next = NULL;
   gfc_symbol *derived = e->symtree->n.sym->ts.u.derived;
   while (*tail != NULL)
     {
@@ -237,14 +237,15 @@ gfc_add_component_ref (gfc_expr *e, const char *name)
   else
     /* Avoid losing memory.  */
     gfc_free_ref_list (*tail);
-  (*tail) = gfc_get_ref();
-  (*tail)->next = next;
-  (*tail)->type = REF_COMPONENT;
-  (*tail)->u.c.sym = derived;
-  (*tail)->u.c.component = gfc_find_component (derived, name, true, true);
-  gcc_assert((*tail)->u.c.component);
-  if (!next)
-    e->ts = (*tail)->u.c.component->ts;
+  c = gfc_find_component (derived, name, true, true, tail);
+
+  if (c) {
+    for (ref = *tail; ref->next; ref = ref->next)
+      ;
+    ref->next = next;
+    if (!next)
+      e->ts = c->ts;
+  }
 }
 
 
@@ -477,8 +478,7 @@ get_unique_type_string (char *string, gfc_symbol *derived)
   if (derived->attr.unlimited_polymorphic)
     strcpy (dt_name, "STAR");
   else
-    strcpy (dt_name, derived->name);
-  dt_name[0] = TOUPPER (dt_name[0]);
+    strcpy (dt_name, gfc_dt_upper_string (derived->name));
   if (derived->attr.unlimited_polymorphic)
     sprintf (string, "_%s", dt_name);
   else if (derived->module)
@@ -748,10 +748,10 @@ add_proc_comp (gfc_symbol *vtype, const char *name, gfc_typebound_proc *tb)
 {
   gfc_component *c;
 
-  if (tb->non_overridable)
+  if (tb->non_overridable && !tb->overridden)
     return;
 
-  c = gfc_find_component (vtype, name, true, true);
+  c = gfc_find_component (vtype, name, true, true, NULL);
 
   if (c == NULL)
     {
@@ -820,7 +820,7 @@ copy_vtab_proc_comps (gfc_symbol *declared, gfc_symbol *vtype)
 
   for (cmp = vtab->ts.u.derived->components; cmp; cmp = cmp->next)
     {
-      if (gfc_find_component (vtype, cmp->name, true, true))
+      if (gfc_find_component (vtype, cmp->name, true, true, NULL))
 	continue;
 
       add_proc_comp (vtype, cmp->name, cmp->tb);
@@ -843,7 +843,11 @@ has_finalizer_component (gfc_symbol *derived)
 	  && c->ts.u.derived->f2k_derived->finalizers)
 	return true;
 
+      /* Stop infinite recursion through this function by inhibiting
+	 calls when the derived type and that of the component are
+	 the same.  */
       if (c->ts.type == BT_DERIVED
+	  && !gfc_compare_derived_types (derived, c->ts.u.derived)
 	  && !c->attr.pointer && !c->attr.allocatable
 	  && has_finalizer_component (c->ts.u.derived))
 	return true;
@@ -1599,6 +1603,7 @@ generate_finalization_wrapper (gfc_symbol *derived, gfc_namespace *ns,
   final->ts.type = BT_INTEGER;
   final->ts.kind = 4;
   final->attr.artificial = 1;
+  final->attr.always_explicit = 1;
   final->attr.if_source = expr_null_wrapper ? IFSRC_IFBODY : IFSRC_DECL;
   if (ns->proc_name->attr.flavor == FL_MODULE)
     final->module = ns->proc_name->name;
@@ -2511,10 +2516,8 @@ find_intrinsic_vtab (gfc_typespec *ts)
 
       sprintf (name, "__vtab_%s", tname);
 
-      /* Look for the vtab symbol in various namespaces.  */
-      gfc_find_symbol (name, gfc_current_ns, 0, &vtab);
-      if (vtab == NULL)
-	gfc_find_symbol (name, ns, 0, &vtab);
+      /* Look for the vtab symbol in the top-level namespace only.  */
+      gfc_find_symbol (name, ns, 0, &vtab);
 
       if (vtab == NULL)
 	{

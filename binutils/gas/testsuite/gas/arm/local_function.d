@@ -1,5 +1,5 @@
 #objdump: -r
-#name: Relocations agains local function symbols
+#name: Relocations against local function symbols
 # This test is only valid on ELF based ports.
 #not-target: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix* *-*-vxworks
 

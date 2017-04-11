@@ -6,9 +6,9 @@ start address 0x.*
 
 Disassembly of section .plt:
 
-.* <lib_func1@plt-0x14>:
+.* <.plt>:
  .*:	e52de004 	push	{lr}		; \(str lr, \[sp, #-4\]!\)
- .*:	e59fe004 	ldr	lr, \[pc, #4\]	; .* <lib_func1@plt-0x4>
+ .*:	e59fe004 	ldr	lr, \[pc, #4\]	; .* <.*>
  .*:	e08fe00e 	add	lr, pc, lr
  .*:	e5bef008 	ldr	pc, \[lr, #8\]!
  .*:	.*

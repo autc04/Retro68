@@ -1,5 +1,5 @@
 /* Simulate storage of variables into target memory.
-   Copyright (C) 2007-2015 Free Software Foundation, Inc.
+   Copyright (C) 2007-2016 Free Software Foundation, Inc.
    Contributed by Paul Thomas and Brooks Moses
 
 This file is part of GCC.
@@ -21,23 +21,13 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "flags.h"
-#include "hash-set.h"
-#include "machmode.h"
-#include "vec.h"
-#include "double-int.h"
-#include "input.h"
-#include "alias.h"
-#include "symtab.h"
-#include "wide-int.h"
-#include "inchash.h"
 #include "tree.h"
+#include "gfortran.h"
+#include "trans.h"
 #include "fold-const.h"
 #include "stor-layout.h"
-#include "gfortran.h"
 #include "arith.h"
 #include "constructor.h"
-#include "trans.h"
 #include "trans-const.h"
 #include "trans-types.h"
 #include "target-memory.h"
@@ -649,7 +639,8 @@ gfc_target_interpret_expr (unsigned char *buffer, size_t buffer_size,
    error.  */
 
 static size_t
-expr_to_char (gfc_expr *e, unsigned char *data, unsigned char *chk, size_t len)
+expr_to_char (gfc_expr *e, locus *loc,
+	      unsigned char *data, unsigned char *chk, size_t len)
 {
   int i;
   int ptr;
@@ -671,9 +662,9 @@ expr_to_char (gfc_expr *e, unsigned char *data, unsigned char *chk, size_t len)
 	  gcc_assert (cmp && cmp->backend_decl);
 	  if (!c->expr)
 	    continue;
-	    ptr = TREE_INT_CST_LOW(DECL_FIELD_OFFSET(cmp->backend_decl))
-			+ TREE_INT_CST_LOW(DECL_FIELD_BIT_OFFSET(cmp->backend_decl))/8;
-	  expr_to_char (c->expr, &data[ptr], &chk[ptr], len);
+	  ptr = TREE_INT_CST_LOW(DECL_FIELD_OFFSET(cmp->backend_decl))
+	    + TREE_INT_CST_LOW(DECL_FIELD_BIT_OFFSET(cmp->backend_decl))/8;
+	  expr_to_char (c->expr, loc, &data[ptr], &chk[ptr], len);
 	}
       return len;
     }
@@ -684,12 +675,16 @@ expr_to_char (gfc_expr *e, unsigned char *data, unsigned char *chk, size_t len)
   buffer = (unsigned char*)alloca (len);
   len = gfc_target_encode_expr (e, buffer, len);
 
-    for (i = 0; i < (int)len; i++)
+  for (i = 0; i < (int)len; i++)
     {
       if (chk[i] && (buffer[i] != data[i]))
 	{
-	  gfc_error ("Overlapping unequal initializers in EQUIVALENCE "
-		     "at %L", &e->where);
+	  if (loc)
+	    gfc_error ("Overlapping unequal initializers in EQUIVALENCE "
+			"at %L", loc);
+	  else
+	    gfc_error ("Overlapping unequal initializers in EQUIVALENCE "
+			"at %C");
 	  return 0;
 	}
       chk[i] = 0xFF;
@@ -705,7 +700,8 @@ expr_to_char (gfc_expr *e, unsigned char *data, unsigned char *chk, size_t len)
    the union declaration.  */
 
 size_t
-gfc_merge_initializers (gfc_typespec ts, gfc_expr *e, unsigned char *data,
+gfc_merge_initializers (gfc_typespec ts, gfc_expr *e, locus *loc,
+			unsigned char *data,
 			unsigned char *chk, size_t length)
 {
   size_t len = 0;
@@ -715,8 +711,7 @@ gfc_merge_initializers (gfc_typespec ts, gfc_expr *e, unsigned char *data,
     {
     case EXPR_CONSTANT:
     case EXPR_STRUCTURE:
-      len = expr_to_char (e, &data[0], &chk[0], length);
-
+      len = expr_to_char (e, loc, &data[0], &chk[0], length);
       break;
 
     case EXPR_ARRAY:
@@ -728,7 +723,7 @@ gfc_merge_initializers (gfc_typespec ts, gfc_expr *e, unsigned char *data,
 	  if (mpz_cmp_si (c->offset, 0) != 0)
 	    len = elt_size * (size_t)mpz_get_si (c->offset);
 
-	  len = len + gfc_merge_initializers (ts, c->expr, &data[len],
+	  len = len + gfc_merge_initializers (ts, c->expr, loc, &data[len],
 					      &chk[len], length - len);
 	}
       break;

@@ -1,5 +1,5 @@
 /* Support for the generic parts of COFF, for BFD.
-   Copyright (C) 1990-2014 Free Software Foundation, Inc.
+   Copyright (C) 1990-2017 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -173,27 +173,32 @@ make_a_section_from_file (bfd *abfd,
 	case compress:
 	  if (!bfd_init_section_compress_status (abfd, return_section))
 	    {
-	      (*_bfd_error_handler)
+	      _bfd_error_handler
+		/* xgettext: c-format */
 		(_("%B: unable to initialize compress status for section %s"),
 		 abfd, name);
 	      return FALSE;
 	    }
-	  if (name[1] != 'z')
+	  if (return_section->compress_status == COMPRESS_SECTION_DONE)
 	    {
-	      unsigned int len = strlen (name);
+	      if (name[1] != 'z')
+		{
+		  unsigned int len = strlen (name);
 
-	      new_name = bfd_alloc (abfd, len + 2);
-	      if (new_name == NULL)
-		return FALSE;
-	      new_name[0] = '.';
-	      new_name[1] = 'z';
-	      memcpy (new_name + 2, name + 1, len);
+		  new_name = bfd_alloc (abfd, len + 2);
+		  if (new_name == NULL)
+		    return FALSE;
+		  new_name[0] = '.';
+		  new_name[1] = 'z';
+		  memcpy (new_name + 2, name + 1, len);
+		}
 	    }
-	  break;
+         break;
 	case decompress:
 	  if (!bfd_init_section_decompress_status (abfd, return_section))
 	    {
-	      (*_bfd_error_handler)
+	      _bfd_error_handler
+		/* xgettext: c-format */
 		(_("%B: unable to initialize decompress status for section %s"),
 		 abfd, name);
 	      return FALSE;
@@ -636,22 +641,6 @@ coff_count_linenumbers (bfd *abfd)
   return total;
 }
 
-/* Takes a bfd and a symbol, returns a pointer to the coff specific
-   area of the symbol if there is one.  */
-
-coff_symbol_type *
-coff_symbol_from (bfd *ignore_abfd ATTRIBUTE_UNUSED,
-		  asymbol *symbol)
-{
-  if (!bfd_family_coff (bfd_asymbol_bfd (symbol)))
-    return (coff_symbol_type *) NULL;
-
-  if (bfd_asymbol_bfd (symbol)->tdata.coff_obj_data == (coff_data_type *) NULL)
-    return (coff_symbol_type *) NULL;
-
-  return (coff_symbol_type *) symbol;
-}
-
 static void
 fixup_symbol_value (bfd *abfd,
 		    coff_symbol_type *coff_symbol_ptr,
@@ -770,7 +759,7 @@ coff_renumber_symbols (bfd *bfd_ptr, int *first_undef)
     {
       coff_symbol_type *coff_symbol_ptr;
 
-      coff_symbol_ptr = coff_symbol_from (bfd_ptr, symbol_ptr_ptr[symbol_index]);
+      coff_symbol_ptr = coff_symbol_from (symbol_ptr_ptr[symbol_index]);
       symbol_ptr_ptr[symbol_index]->udata.i = symbol_index;
       if (coff_symbol_ptr && coff_symbol_ptr->native)
 	{
@@ -816,7 +805,7 @@ coff_mangle_symbols (bfd *bfd_ptr)
     {
       coff_symbol_type *coff_symbol_ptr;
 
-      coff_symbol_ptr = coff_symbol_from (bfd_ptr, symbol_ptr_ptr[symbol_index]);
+      coff_symbol_ptr = coff_symbol_from (symbol_ptr_ptr[symbol_index]);
       if (coff_symbol_ptr && coff_symbol_ptr->native)
 	{
 	  int i;
@@ -1079,6 +1068,7 @@ bfd_boolean
 coff_write_alien_symbol (bfd *abfd,
 			 asymbol *symbol,
 			 struct internal_syment *isym,
+			 union internal_auxent *iaux,
 			 bfd_vma *written,
 			 bfd_size_type *string_size_p,
 			 asection **debug_string_section_p,
@@ -1144,7 +1134,7 @@ coff_write_alien_symbol (bfd *abfd,
       /* Copy the any flags from the file header into the symbol.
          FIXME: Why?  */
       {
-	coff_symbol_type *c = coff_symbol_from (abfd, symbol);
+	coff_symbol_type *c = coff_symbol_from (symbol);
 	if (c != (coff_symbol_type *) NULL)
 	  native->u.syment.n_flags = bfd_asymbol_bfd (&c->symbol)->flags;
       }
@@ -1164,6 +1154,8 @@ coff_write_alien_symbol (bfd *abfd,
 			   debug_string_section_p, debug_string_size_p);
   if (isym != NULL)
     *isym = native->u.syment;
+  if (iaux != NULL && native->u.syment.n_numaux)
+    *iaux = native[1].u.auxent;
   return ret;
 }
 
@@ -1228,7 +1220,8 @@ coff_write_native_symbol (bfd *abfd,
 }
 
 static void
-null_error_handler (const char * fmt ATTRIBUTE_UNUSED, ...)
+null_error_handler (const char *fmt ATTRIBUTE_UNUSED,
+		    va_list ap ATTRIBUTE_UNUSED)
 {
 }
 
@@ -1276,12 +1269,12 @@ coff_write_symbols (bfd *abfd)
   for (p = abfd->outsymbols, i = 0; i < limit; i++, p++)
     {
       asymbol *symbol = *p;
-      coff_symbol_type *c_symbol = coff_symbol_from (abfd, symbol);
+      coff_symbol_type *c_symbol = coff_symbol_from (symbol);
 
       if (c_symbol == (coff_symbol_type *) NULL
 	  || c_symbol->native == (combined_entry_type *) NULL)
 	{
-	  if (!coff_write_alien_symbol (abfd, symbol, NULL, &written,
+	  if (!coff_write_alien_symbol (abfd, symbol, NULL, NULL, &written,
 					&string_size, &debug_string_section,
 					&debug_string_size))
 	    return FALSE;
@@ -1376,7 +1369,7 @@ coff_write_symbols (bfd *abfd)
 	{
 	  asymbol *q = *p;
 	  size_t name_length = strlen (q->name);
-	  coff_symbol_type *c_symbol = coff_symbol_from (abfd, q);
+	  coff_symbol_type *c_symbol = coff_symbol_from (q);
 	  size_t maxlen;
 
 	  /* Figure out whether the symbol name should go in the string
@@ -1394,7 +1387,7 @@ coff_write_symbols (bfd *abfd)
 
 	  else if (! c_symbol->native->is_sym)
 	    maxlen = bfd_coff_force_symnames_in_strings (abfd) ? 0 : SYMNMLEN;
-	    
+
 	  else if (bfd_coff_symname_in_debug (abfd,
 					      &c_symbol->native->u.syment))
 	    /* This symbol name is in the XCOFF .debug section.
@@ -1713,7 +1706,8 @@ _bfd_coff_read_string_table (bfd *abfd)
 
   if (strsize < STRING_SIZE_SIZE)
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
+	/* xgettext: c-format */
 	(_("%B: bad string table size %lu"), abfd, (unsigned long) strsize);
       bfd_set_error (bfd_error_bad_value);
       return NULL;
@@ -1795,7 +1789,7 @@ coff_get_normalized_symtab (bfd *abfd)
   if (internal == NULL && size != 0)
     return NULL;
   internal_end = internal + obj_raw_syment_count (abfd);
-  
+
   raw_src = (char *) obj_coff_external_syms (abfd);
 
   /* Mark the end of the symbols.  */
@@ -2048,79 +2042,6 @@ coff_get_symbol_info (bfd *abfd, asymbol *symbol, symbol_info *ret)
       (bfd_hostptr_t) obj_raw_syments (abfd);
 }
 
-/* Return the COFF syment for a symbol.  */
-
-bfd_boolean
-bfd_coff_get_syment (bfd *abfd,
-		     asymbol *symbol,
-		     struct internal_syment *psyment)
-{
-  coff_symbol_type *csym;
-
-  csym = coff_symbol_from (abfd, symbol);
-  if (csym == NULL || csym->native == NULL
-      || ! csym->native->is_sym)
-    {
-      bfd_set_error (bfd_error_invalid_operation);
-      return FALSE;
-    }
-
-  *psyment = csym->native->u.syment;
-
-  if (csym->native->fix_value)
-    psyment->n_value = psyment->n_value -
-      (bfd_hostptr_t) obj_raw_syments (abfd);
-
-  /* FIXME: We should handle fix_line here.  */
-
-  return TRUE;
-}
-
-/* Return the COFF auxent for a symbol.  */
-
-bfd_boolean
-bfd_coff_get_auxent (bfd *abfd,
-		     asymbol *symbol,
-		     int indx,
-		     union internal_auxent *pauxent)
-{
-  coff_symbol_type *csym;
-  combined_entry_type *ent;
-
-  csym = coff_symbol_from (abfd, symbol);
-
-  if (csym == NULL
-      || csym->native == NULL
-      || ! csym->native->is_sym
-      || indx >= csym->native->u.syment.n_numaux)
-    {
-      bfd_set_error (bfd_error_invalid_operation);
-      return FALSE;
-    }
-
-  ent = csym->native + indx + 1;
-
-  BFD_ASSERT (! ent->is_sym);
-  *pauxent = ent->u.auxent;
-
-  if (ent->fix_tag)
-    pauxent->x_sym.x_tagndx.l =
-      ((combined_entry_type *) pauxent->x_sym.x_tagndx.p
-       - obj_raw_syments (abfd));
-
-  if (ent->fix_end)
-    pauxent->x_sym.x_fcnary.x_fcn.x_endndx.l =
-      ((combined_entry_type *) pauxent->x_sym.x_fcnary.x_fcn.x_endndx.p
-       - obj_raw_syments (abfd));
-
-  if (ent->fix_scnlen)
-    pauxent->x_csect.x_scnlen.l =
-      ((combined_entry_type *) pauxent->x_csect.x_scnlen.p
-       - obj_raw_syments (abfd));
-
-  return TRUE;
-}
-
 /* Print out information about COFF symbol.  */
 
 void
@@ -2216,7 +2137,7 @@ coff_print_symbol (bfd *abfd,
 				 auxp->u.auxent.x_scn.x_comdat);
 		      break;
 		    }
-		    /* Otherwise fall through.  */
+		  /* Fall through.  */
 		case C_EXT:
 		case C_AIX_WEAKEXT:
 		  if (ISFCN (combined->u.syment.n_type))
@@ -2236,7 +2157,7 @@ coff_print_symbol (bfd *abfd,
 			       llnos, next);
 		      break;
 		    }
-		  /* Otherwise fall through.  */
+		  /* Fall through.  */
 		default:
 		  fprintf (file, "AUX lnno %d size 0x%x tagndx %ld",
 			   auxp->u.auxent.x_sym.x_misc.x_lnsz.x_lnno,
@@ -2332,6 +2253,26 @@ coff_find_nearest_line_with_names (bfd *abfd,
 				     line_ptr, NULL, debug_sections, 0,
 				     &coff_data(abfd)->dwarf2_find_line_info))
     return TRUE;
+
+  /* If the DWARF lookup failed, but there is DWARF information available
+     then the problem might be that the file has been rebased.  This tool
+     changes the VMAs of all the sections, but it does not update the DWARF
+     information.  So try again, using a bias against the address sought.  */
+  if (coff_data (abfd)->dwarf2_find_line_info != NULL)
+    {
+      bfd_signed_vma bias;
+
+      bias = _bfd_dwarf2_find_symbol_bias (symbols,
+					   & coff_data (abfd)->dwarf2_find_line_info);
+
+      if (bias
+	  && _bfd_dwarf2_find_nearest_line (abfd, symbols, NULL, section,
+					    offset + bias,
+					    filename_ptr, functionname_ptr,
+					    line_ptr, NULL, debug_sections, 0,
+					    &coff_data(abfd)->dwarf2_find_line_info))
+	return TRUE;
+    }
 
   *filename_ptr = 0;
   *functionname_ptr = 0;
@@ -2552,7 +2493,7 @@ coff_sizeof_headers (bfd *abfd, struct bfd_link_info *info)
 {
   size_t size;
 
-  if (!info->relocatable)
+  if (!bfd_link_relocatable (info))
     size = bfd_coff_filhsz (abfd) + bfd_coff_aoutsz (abfd);
   else
     size = bfd_coff_filhsz (abfd);
@@ -2570,7 +2511,7 @@ bfd_coff_set_symbol_class (bfd *         abfd,
 {
   coff_symbol_type * csym;
 
-  csym = coff_symbol_from (abfd, symbol);
+  csym = coff_symbol_from (symbol);
   if (csym == NULL)
     {
       bfd_set_error (bfd_error_invalid_operation);
@@ -2624,16 +2565,6 @@ bfd_coff_set_symbol_class (bfd *         abfd,
     csym->native->u.syment.n_sclass = symbol_class;
 
   return TRUE;
-}
-
-struct coff_comdat_info *
-bfd_coff_get_comdat_section (bfd *abfd, struct bfd_section *sec)
-{
-  if (bfd_get_flavour (abfd) == bfd_target_coff_flavour
-      && coff_section_data (abfd, sec) != NULL)
-    return coff_section_data (abfd, sec)->comdat;
-  else
-    return NULL;
 }
 
 bfd_boolean
@@ -2701,4 +2632,439 @@ _bfd_coff_section_already_linked (bfd *abfd,
   if (!bfd_section_already_linked_table_insert (already_linked_list, sec))
     info->callbacks->einfo (_("%F%P: already_linked_table: %E\n"));
   return FALSE;
+}
+
+/* Initialize COOKIE for input bfd ABFD. */
+
+static bfd_boolean
+init_reloc_cookie (struct coff_reloc_cookie *cookie,
+		   struct bfd_link_info *info ATTRIBUTE_UNUSED,
+		   bfd *abfd)
+{
+  /* Sometimes the symbol table does not yet have been loaded here.  */
+  bfd_coff_slurp_symbol_table (abfd);
+
+  cookie->abfd = abfd;
+  cookie->sym_hashes = obj_coff_sym_hashes (abfd);
+
+  cookie->symbols = obj_symbols (abfd);
+
+  return TRUE;
+}
+
+/* Free the memory allocated by init_reloc_cookie, if appropriate.  */
+
+static void
+fini_reloc_cookie (struct coff_reloc_cookie *cookie ATTRIBUTE_UNUSED,
+		   bfd *abfd ATTRIBUTE_UNUSED)
+{
+  /* Nothing to do.  */
+}
+
+/* Initialize the relocation information in COOKIE for input section SEC
+   of input bfd ABFD.  */
+
+static bfd_boolean
+init_reloc_cookie_rels (struct coff_reloc_cookie *cookie,
+			struct bfd_link_info *info ATTRIBUTE_UNUSED,
+			bfd *abfd,
+			asection *sec)
+{
+  if (sec->reloc_count == 0)
+    {
+      cookie->rels = NULL;
+      cookie->relend = NULL;
+      cookie->rel = NULL;
+      return TRUE;
+    }
+
+  cookie->rels = _bfd_coff_read_internal_relocs (abfd, sec, FALSE, NULL, 0, NULL);
+
+  if (cookie->rels == NULL)
+    return FALSE;
+
+  cookie->rel = cookie->rels;
+  cookie->relend = (cookie->rels + sec->reloc_count);
+  return TRUE;
+}
+
+/* Free the memory allocated by init_reloc_cookie_rels,
+   if appropriate.  */
+
+static void
+fini_reloc_cookie_rels (struct coff_reloc_cookie *cookie,
+			asection *sec)
+{
+  if (cookie->rels
+      /* PR 20401.  The relocs may not have been cached, so check first.
+	 If the relocs were loaded by init_reloc_cookie_rels() then this
+	 will be the case.  FIXME: Would performance be improved if the
+	 relocs *were* cached ?  */
+      && coff_section_data (NULL, sec)
+      && coff_section_data (NULL, sec)->relocs != cookie->rels)
+    free (cookie->rels);
+}
+
+/* Initialize the whole of COOKIE for input section SEC.  */
+
+static bfd_boolean
+init_reloc_cookie_for_section (struct coff_reloc_cookie *cookie,
+			       struct bfd_link_info *info,
+			       asection *sec)
+{
+  if (!init_reloc_cookie (cookie, info, sec->owner))
+    return FALSE;
+
+  if (!init_reloc_cookie_rels (cookie, info, sec->owner, sec))
+    {
+      fini_reloc_cookie (cookie, sec->owner);
+      return FALSE;
+    }
+  return TRUE;
+}
+
+/* Free the memory allocated by init_reloc_cookie_for_section,
+   if appropriate.  */
+
+static void
+fini_reloc_cookie_for_section (struct coff_reloc_cookie *cookie,
+			       asection *sec)
+{
+  fini_reloc_cookie_rels (cookie, sec);
+  fini_reloc_cookie (cookie, sec->owner);
+}
+
+static asection *
+_bfd_coff_gc_mark_hook (asection *sec,
+			struct bfd_link_info *info ATTRIBUTE_UNUSED,
+			struct internal_reloc *rel ATTRIBUTE_UNUSED,
+			struct coff_link_hash_entry *h,
+			struct internal_syment *sym)
+{
+  if (h != NULL)
+    {
+      switch (h->root.type)
+        {
+        case bfd_link_hash_defined:
+        case bfd_link_hash_defweak:
+          return h->root.u.def.section;
+
+        case bfd_link_hash_common:
+          return h->root.u.c.p->section;
+
+	case bfd_link_hash_undefined:
+	case bfd_link_hash_undefweak:
+        default:
+          break;
+        }
+      return NULL;
+    }
+
+  return coff_section_from_bfd_index (sec->owner, sym->n_scnum);
+}
+
+/* COOKIE->rel describes a relocation against section SEC, which is
+   a section we've decided to keep.  Return the section that contains
+   the relocation symbol, or NULL if no section contains it.  */
+
+static asection *
+_bfd_coff_gc_mark_rsec (struct bfd_link_info *info, asection *sec,
+			coff_gc_mark_hook_fn gc_mark_hook,
+			struct coff_reloc_cookie *cookie)
+{
+  struct coff_link_hash_entry *h;
+
+  h = cookie->sym_hashes[cookie->rel->r_symndx];
+  if (h != NULL)
+    {
+      while (h->root.type == bfd_link_hash_indirect
+	     || h->root.type == bfd_link_hash_warning)
+	h = (struct coff_link_hash_entry *) h->root.u.i.link;
+
+      return (*gc_mark_hook) (sec, info, cookie->rel, h, NULL);
+    }
+
+  return (*gc_mark_hook) (sec, info, cookie->rel, NULL,
+			  &(cookie->symbols
+			    + obj_convert (sec->owner)[cookie->rel->r_symndx])->native->u.syment);
+}
+
+static bfd_boolean _bfd_coff_gc_mark
+  (struct bfd_link_info *, asection *, coff_gc_mark_hook_fn);
+
+/* COOKIE->rel describes a relocation against section SEC, which is
+   a section we've decided to keep.  Mark the section that contains
+   the relocation symbol.  */
+
+static bfd_boolean
+_bfd_coff_gc_mark_reloc (struct bfd_link_info *info,
+			 asection *sec,
+			 coff_gc_mark_hook_fn gc_mark_hook,
+			 struct coff_reloc_cookie *cookie)
+{
+  asection *rsec;
+
+  rsec = _bfd_coff_gc_mark_rsec (info, sec, gc_mark_hook, cookie);
+  if (rsec && !rsec->gc_mark)
+    {
+      if (bfd_get_flavour (rsec->owner) != bfd_target_coff_flavour)
+	rsec->gc_mark = 1;
+      else if (!_bfd_coff_gc_mark (info, rsec, gc_mark_hook))
+	return FALSE;
+    }
+  return TRUE;
+}
+
+/* The mark phase of garbage collection.  For a given section, mark
+   it and any sections in this section's group, and all the sections
+   which define symbols to which it refers.  */
+
+static bfd_boolean
+_bfd_coff_gc_mark (struct bfd_link_info *info,
+		   asection *sec,
+		   coff_gc_mark_hook_fn gc_mark_hook)
+{
+  bfd_boolean ret = TRUE;
+
+  sec->gc_mark = 1;
+
+  /* Look through the section relocs.  */
+  if ((sec->flags & SEC_RELOC) != 0
+      && sec->reloc_count > 0)
+    {
+      struct coff_reloc_cookie cookie;
+
+      if (!init_reloc_cookie_for_section (&cookie, info, sec))
+        ret = FALSE;
+      else
+        {
+          for (; cookie.rel < cookie.relend; cookie.rel++)
+            {
+	      if (!_bfd_coff_gc_mark_reloc (info, sec, gc_mark_hook, &cookie))
+		{
+		  ret = FALSE;
+		  break;
+		}
+	    }
+          fini_reloc_cookie_for_section (&cookie, sec);
+        }
+    }
+
+  return ret;
+}
+
+static bfd_boolean
+_bfd_coff_gc_mark_extra_sections (struct bfd_link_info *info,
+				  coff_gc_mark_hook_fn mark_hook ATTRIBUTE_UNUSED)
+{
+  bfd *ibfd;
+
+  for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link.next)
+    {
+      asection *isec;
+      bfd_boolean some_kept;
+
+      if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour)
+	continue;
+
+      /* Ensure all linker created sections are kept, and see whether
+	 any other section is already marked.  */
+      some_kept = FALSE;
+      for (isec = ibfd->sections; isec != NULL; isec = isec->next)
+	{
+	  if ((isec->flags & SEC_LINKER_CREATED) != 0)
+	    isec->gc_mark = 1;
+	  else if (isec->gc_mark)
+	    some_kept = TRUE;
+	}
+
+      /* If no section in this file will be kept, then we can
+	 toss out debug sections.  */
+      if (!some_kept)
+	continue;
+
+      /* Keep debug and special sections like .comment when they are
+	 not part of a group, or when we have single-member groups.  */
+      for (isec = ibfd->sections; isec != NULL; isec = isec->next)
+	if ((isec->flags & SEC_DEBUGGING) != 0
+	    || (isec->flags & (SEC_ALLOC | SEC_LOAD | SEC_RELOC)) == 0)
+	  isec->gc_mark = 1;
+    }
+  return TRUE;
+}
+
+/* Sweep symbols in swept sections.  Called via coff_link_hash_traverse.  */
+
+static bfd_boolean
+coff_gc_sweep_symbol (struct coff_link_hash_entry *h,
+		      void *data ATTRIBUTE_UNUSED)
+{
+  if (h->root.type == bfd_link_hash_warning)
+    h = (struct coff_link_hash_entry *) h->root.u.i.link;
+
+  if ((h->root.type == bfd_link_hash_defined
+       || h->root.type == bfd_link_hash_defweak)
+      && !h->root.u.def.section->gc_mark
+      && !(h->root.u.def.section->owner->flags & DYNAMIC))
+    {
+      /* Do our best to hide the symbol.  */
+      h->root.u.def.section = bfd_und_section_ptr;
+      h->symbol_class = C_HIDDEN;
+    }
+
+  return TRUE;
+}
+
+/* The sweep phase of garbage collection.  Remove all garbage sections.  */
+
+typedef bfd_boolean (*gc_sweep_hook_fn)
+  (bfd *, struct bfd_link_info *, asection *, const struct internal_reloc *);
+
+static bfd_boolean
+coff_gc_sweep (bfd *abfd ATTRIBUTE_UNUSED, struct bfd_link_info *info)
+{
+  bfd *sub;
+
+  for (sub = info->input_bfds; sub != NULL; sub = sub->link.next)
+    {
+      asection *o;
+
+      if (bfd_get_flavour (sub) != bfd_target_coff_flavour)
+	continue;
+
+      for (o = sub->sections; o != NULL; o = o->next)
+	{
+	    /* Keep debug and special sections.  */
+          if ((o->flags & (SEC_DEBUGGING | SEC_LINKER_CREATED)) != 0
+	      || (o->flags & (SEC_ALLOC | SEC_LOAD | SEC_RELOC)) == 0)
+	    o->gc_mark = 1;
+          else if (CONST_STRNEQ (o->name, ".idata")
+		   || CONST_STRNEQ (o->name, ".pdata")
+		   || CONST_STRNEQ (o->name, ".xdata")
+		   || CONST_STRNEQ (o->name, ".rsrc"))
+	    o->gc_mark = 1;
+
+	  if (o->gc_mark)
+	    continue;
+
+	  /* Skip sweeping sections already excluded.  */
+	  if (o->flags & SEC_EXCLUDE)
+	    continue;
+
+	  /* Since this is early in the link process, it is simple
+	     to remove a section from the output.  */
+	  o->flags |= SEC_EXCLUDE;
+
+	  if (info->print_gc_sections && o->size != 0)
+	    /* xgettext: c-format */
+            _bfd_error_handler (_("Removing unused section '%s' in file '%B'"), sub, o->name);
+
+#if 0
+	  /* But we also have to update some of the relocation
+	     info we collected before.  */
+	  if (gc_sweep_hook
+	      && (o->flags & SEC_RELOC) != 0
+	      && o->reloc_count > 0
+	      && !bfd_is_abs_section (o->output_section))
+	    {
+	      struct internal_reloc *internal_relocs;
+	      bfd_boolean r;
+
+	      internal_relocs
+		= _bfd_coff_link_read_relocs (o->owner, o, NULL, NULL,
+					     info->keep_memory);
+	      if (internal_relocs == NULL)
+		return FALSE;
+
+	      r = (*gc_sweep_hook) (o->owner, info, o, internal_relocs);
+
+	      if (coff_section_data (o)->relocs != internal_relocs)
+		free (internal_relocs);
+
+	      if (!r)
+		return FALSE;
+	    }
+#endif
+	}
+    }
+
+  /* Remove the symbols that were in the swept sections from the dynamic
+     symbol table.  */
+  coff_link_hash_traverse (coff_hash_table (info), coff_gc_sweep_symbol,
+			   NULL);
+
+  return TRUE;
+}
+
+/* Keep all sections containing symbols undefined on the command-line,
+   and the section containing the entry symbol.  */
+
+static void
+_bfd_coff_gc_keep (struct bfd_link_info *info)
+{
+  struct bfd_sym_chain *sym;
+
+  for (sym = info->gc_sym_list; sym != NULL; sym = sym->next)
+    {
+      struct coff_link_hash_entry *h;
+
+      h = coff_link_hash_lookup (coff_hash_table (info), sym->name,
+				FALSE, FALSE, FALSE);
+
+      if (h != NULL
+	  && (h->root.type == bfd_link_hash_defined
+	      || h->root.type == bfd_link_hash_defweak)
+	  && !bfd_is_abs_section (h->root.u.def.section))
+	h->root.u.def.section->flags |= SEC_KEEP;
+    }
+}
+
+/* Do mark and sweep of unused sections.  */
+
+bfd_boolean
+bfd_coff_gc_sections (bfd *abfd ATTRIBUTE_UNUSED, struct bfd_link_info *info)
+{
+  bfd *sub;
+
+  /* FIXME: Should we implement this? */
+#if 0
+  const bfd_coff_backend_data *bed = coff_backend_info (abfd);
+
+  if (!bed->can_gc_sections
+      || !is_coff_hash_table (info->hash))
+    {
+      _bfd_error_handler(_("Warning: gc-sections option ignored"));
+      return TRUE;
+    }
+#endif
+
+  _bfd_coff_gc_keep (info);
+
+  /* Grovel through relocs to find out who stays ...  */
+  for (sub = info->input_bfds; sub != NULL; sub = sub->link.next)
+    {
+      asection *o;
+
+      if (bfd_get_flavour (sub) != bfd_target_coff_flavour)
+        continue;
+
+      for (o = sub->sections; o != NULL; o = o->next)
+        {
+	  if (((o->flags & (SEC_EXCLUDE | SEC_KEEP)) == SEC_KEEP
+	       || CONST_STRNEQ (o->name, ".vectors")
+	       || CONST_STRNEQ (o->name, ".ctors")
+	       || CONST_STRNEQ (o->name, ".dtors"))
+	      && !o->gc_mark)
+	    {
+	      if (!_bfd_coff_gc_mark (info, o, _bfd_coff_gc_mark_hook))
+		return FALSE;
+	    }
+        }
+    }
+
+  /* Allow the backend to mark additional target specific sections.  */
+  _bfd_coff_gc_mark_extra_sections (info, _bfd_coff_gc_mark_hook);
+
+  /* ... and mark SEC_EXCLUDE for those that go.  */
+  return coff_gc_sweep (abfd, info);
 }

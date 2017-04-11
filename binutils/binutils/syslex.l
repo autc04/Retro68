@@ -1,7 +1,7 @@
-%option noinput nounput
+%option noinput nounput noyywrap
 
 %{
-/* Copyright (C) 2001-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2001-2017 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -36,10 +36,6 @@
 #define YY_NO_UNPUT
 #endif
 
-#ifndef yywrap
-static int yywrap (void) { return 1; }
-#endif
-
 extern int yylex (void);
 %}
 %%
@@ -48,7 +44,7 @@ extern int yylex (void);
 "[" { return '[';}
 "]" { return ']';}
 " " { ; }
-";".* { ; } 
+";".* { ; }
 "\t" { ; }
 "\n" { ; }
 "\""[^\"]*"\"" {

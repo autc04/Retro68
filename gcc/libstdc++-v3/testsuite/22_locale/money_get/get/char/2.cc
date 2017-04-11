@@ -1,8 +1,8 @@
-// { dg-require-namedlocale "en_HK" }
+// { dg-require-namedlocale "en_HK.ISO8859-1" }
 
 // 2001-09-12 Benjamin Kosnik  <bkoz@redhat.com>
 
-// Copyright (C) 2001-2015 Free Software Foundation, Inc.
+// Copyright (C) 2001-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -35,7 +35,7 @@ void test02()
 
   // basic construction
   locale loc_c = locale::classic();
-  locale loc_hk = locale("en_HK");
+  locale loc_hk = locale(ISO_8859(1,en_HK));
   VERIFY( loc_c != loc_hk );
 
   // total EPA budget FY 2002
@@ -80,7 +80,7 @@ void test02()
   VERIFY( result11 == digits4 );
   VERIFY( err11 == ios_base::eofbit );
 
-  // for the "en_HK" locale the parsing of the very same input streams must
+  // for the "en_HK.ISO8859-1" locale the parsing of the very same input streams must
   // be successful without showbase too, since the symbol field appears in
   // the first positions in the format and the symbol, when present, must be
   // consumed.

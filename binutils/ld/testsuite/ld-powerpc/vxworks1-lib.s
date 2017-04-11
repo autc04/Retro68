@@ -10,7 +10,7 @@ foo:
 	lwz	r30,__GOTT_INDEX__(r30)
 	lwz	r1,x@got(r30)
 	lwz	r0,0(r1)
-	addi	r0,r0,1
+	addic	r0,r0,1
 	stw	r0,0(r1)
 	bl	slocal
 	bl	sglobal@plt

@@ -58,4 +58,7 @@ x:
 	@ to a label called "r2".
 	ldrex	r0, r2
 	strex	r1, r0, r2
-	
+
+	@ movs shouldn't be extened to accept UINT16 can't fit into ARM modified
+	@ immediate format.
+	movs	r0, #0x0999

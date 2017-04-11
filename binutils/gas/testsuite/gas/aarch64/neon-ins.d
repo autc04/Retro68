@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
        0:	4e011c21 	mov	v1.b\[0\], w1
        4:	4e011c21 	mov	v1.b\[0\], w1
        8:	4e011c42 	mov	v2.b\[0\], w2

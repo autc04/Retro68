@@ -1,5 +1,5 @@
 /* tc-bfin.h - header file for tc-bfin.c
-   Copyright (C) 2005-2014 Free Software Foundation, Inc.
+   Copyright (C) 2005-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -38,7 +38,7 @@
 
 #define WORKING_DOT_WORD
 
-extern bfd_boolean bfin_start_label (char *, char *);
+extern bfd_boolean bfin_start_label (char *);
 
 #define md_number_to_chars	number_to_chars_littleendian
 #define md_convert_frag(b,s,f)	as_fatal ("bfin convert_frag\n");
@@ -58,7 +58,8 @@ extern bfd_boolean bfin_eol_in_insn (char *);
 
 #define DOUBLESLASH_LINE_COMMENTS
 
-#define TC_START_LABEL(c, s, ptr) (c == ':' && bfin_start_label (s, ptr))
+#define TC_START_LABEL(STR, NUL_CHAR, NEXT_CHAR)	\
+  (NEXT_CHAR == ':' && bfin_start_label (STR))
 #define tc_fix_adjustable(FIX) bfin_fix_adjustable (FIX)
 extern bfd_boolean bfin_fix_adjustable (struct fix *);
 

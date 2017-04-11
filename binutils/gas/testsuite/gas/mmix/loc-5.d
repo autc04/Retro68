@@ -12,12 +12,12 @@ Section Headers:
  +0+24 +0+ +WA +0 +0 +4
  +\[ 3\] \.bss +NOBITS +0+ +0+6c
  +0+ +0+ +WA +0 +0 +1
- +\[ 4\] \.shstrtab +STRTAB +0+ +0+6c
+ +\[ 4\] \.symtab +SYMTAB +0+ .*
+ +0+c0 +0+18 +5 +6 +8
+ +\[ 5\] \.strtab +STRTAB +0+ .*
+ +0+27 +0+ +0 +0 +1
+ +\[ 6\] \.shstrtab +STRTAB +0+ +[0-9a-f]+
  +0+2c +0+ +0 +0 +1
- +\[ 5\] \.symtab +SYMTAB +0+ .*
- +0+c0 +0+18 +6 +6 +8
- +\[ 6\] \.strtab +STRTAB +0+ .*
- +0+29 +0+ +0 +0 +1
 Key to Flags:
 #...
 

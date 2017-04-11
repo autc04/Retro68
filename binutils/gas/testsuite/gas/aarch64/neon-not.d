@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	2e205821 	mvn	v1.8b, v1.8b
    4:	2e205821 	mvn	v1.8b, v1.8b
    8:	6e205821 	mvn	v1.16b, v1.16b

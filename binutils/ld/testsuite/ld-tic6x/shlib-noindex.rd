@@ -4,26 +4,24 @@ Section Headers:
   \[Nr\] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
   \[ 0\]                   NULL            00000000 000000 000000 00      0   0  0
   \[ 1\] \.hash             HASH            00008000 001000 000048 04   A  2   0  4
-  \[ 2\] \.dynsym           DYNSYM          00008048 001048 0000d0 10   A  3   6  4
+  \[ 2\] \.dynsym           DYNSYM          00008048 001048 0000d0 10   A  3   7  4
   \[ 3\] \.dynstr           STRTAB          00008118 001118 000025 00   A  0   0  1
   \[ 4\] \.rela\.text        RELA            00008140 001140 00000c 0c  AI  2  10  4
   \[ 5\] \.rela\.got         RELA            0000814c 00114c 000024 0c  AI  2  11  4
   \[ 6\] \.rela\.neardata    RELA            00008170 001170 000018 0c  AI  2  12  4
   \[ 7\] \.dynamic          DYNAMIC         00008188 001188 0000b0 08  WA  3   0  4
-  \[ 8\] \.rela\.plt         RELA            10000000 002000 000018 0c  AI  2   9  4
+  \[ 8\] \.rela\.plt         RELA            10000000 002000 000018 0c  AI  2  11  4
   \[ 9\] \.plt              PROGBITS        10000020 002020 000060 18  AX  0   0 32
   \[10\] \.text             PROGBITS        10000080 002080 000080 00  AX  0   0 32
   \[11\] \.got              PROGBITS        10000100 002100 000028 00  WA  0   0  4
   \[12\] \.neardata         PROGBITS        10000128 002128 000008 00  WA  0   0  4
   \[13\] \.bss              NOBITS          10000130 002130 000004 00  WA  0   0  4
   \[14\] \.c6xabi\.attributes C6000_ATTRIBUTES 00000000 002130 000019 00      0   0  1
-  \[15\] \.shstrtab         STRTAB          00000000 002149 000080 00      0   0  1
-  \[16\] \.symtab           SYMTAB          00000000 [0-9a-f]+ [0-9a-f]+ 10     17  [0-9]+  4
-  \[17\] \.strtab           STRTAB          00000000 [0-9a-f]+ [0-9a-f]+ 00      0   0  1
+  \[15\] \.symtab           SYMTAB          00000000 [0-9a-f]+ [0-9a-f]+ 10     16  [0-9]+  4
+  \[16\] \.strtab           STRTAB          00000000 [0-9a-f]+ [0-9a-f]+ 00      0   0  1
+  \[17\] \.shstrtab         STRTAB          00000000 [0-9a-f]+ 000080 00      0   0  1
 Key to Flags:
-  W \(write\), A \(alloc\), X \(execute\), M \(merge\), S \(strings\)
-  I \(info\), L \(link order\), G \(group\), T \(TLS\), E \(exclude\), x \(unknown\)
-  O \(extra OS processing required\) o \(OS specific\), p \(processor specific\)
+#...
 
 Elf file type is DYN \(Shared object file\)
 Entry point 0x10000080
@@ -118,9 +116,9 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* 00000000     0 SECTION LOCAL  DEFAULT   14 
 .* 00000000     0 FILE    LOCAL  DEFAULT  ABS .*
 .* 10000080     0 FUNC    LOCAL  HIDDEN    10 sub1
-.* 10000130     4 OBJECT  LOCAL  DEFAULT   13 c
-.* 00000000     0 FILE    LOCAL  DEFAULT  ABS .*
+.* 00000000     0 FILE    LOCAL  DEFAULT  ABS 
 .* 00008188     0 OBJECT  LOCAL  DEFAULT  ABS _DYNAMIC
+.* 10000130     4 OBJECT  LOCAL  DEFAULT   13 c
 .* 1000010c     0 OBJECT  LOCAL  DEFAULT  ABS _GLOBAL_OFFSET_TABLE_
 .* 10000100     0 NOTYPE  LOCAL  DEFAULT   11 __c6xabi_DSBT_BASE
 .* 00000000     0 NOTYPE  WEAK   DEFAULT  UND b

@@ -16,5 +16,5 @@ __b_internal (int e)
   return e + 42;
 }
 
-SYMVER(__a_internal, hide_a@@VERS_1);
-SYMVER(__b_internal, show_b@@VERS_1);
+FUNC_SYMVER(__a_internal, hide_a@@VERS_1);
+FUNC_SYMVER(__b_internal, show_b@@VERS_1);

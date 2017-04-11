@@ -1,5 +1,5 @@
 /* AArch64-specific backend routines.
-   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+   Copyright (C) 2009-2017 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -25,6 +25,19 @@
 /* Take the PAGE component of an address or offset.  */
 #define PG(x)        ((x) & ~ (bfd_vma) 0xfff)
 #define PG_OFFSET(x) ((x) &   (bfd_vma) 0xfff)
+
+#define AARCH64_ADR_OP		0x10000000
+#define AARCH64_ADRP_OP		0x90000000
+#define AARCH64_ADRP_OP_MASK	0x9F000000
+
+extern bfd_signed_vma
+_bfd_aarch64_sign_extend (bfd_vma, int);
+
+extern uint32_t
+_bfd_aarch64_decode_adrp_imm (uint32_t);
+
+extern uint32_t
+_bfd_aarch64_reencode_adr_imm (uint32_t, uint32_t);
 
 extern bfd_reloc_status_type
 _bfd_aarch64_elf_put_addend (bfd *, bfd_byte *, bfd_reloc_code_real_type,

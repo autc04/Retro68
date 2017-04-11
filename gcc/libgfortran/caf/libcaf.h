@@ -1,5 +1,5 @@
 /* Common declarations for all of GNU Fortran libcaf implementations.
-   Copyright (C) 2011-2015 Free Software Foundation, Inc.
+   Copyright (C) 2011-2016 Free Software Foundation, Inc.
    Contributed by Tobias Burnus <burnus@net-b.de>
 
 This file is part of the GNU Fortran Coarray Runtime Library (libcaf).
@@ -57,7 +57,9 @@ typedef enum caf_register_t {
   CAF_REGTYPE_COARRAY_ALLOC,
   CAF_REGTYPE_LOCK_STATIC,
   CAF_REGTYPE_LOCK_ALLOC,
-  CAF_REGTYPE_CRITICAL
+  CAF_REGTYPE_CRITICAL,
+  CAF_REGTYPE_EVENT_STATIC,
+  CAF_REGTYPE_EVENT_ALLOC
 }
 caf_register_t;
 
@@ -103,6 +105,10 @@ void _gfortran_caf_sync_all (int *, char *, int);
 void _gfortran_caf_sync_memory (int *, char *, int);
 void _gfortran_caf_sync_images (int, int[], int *, char *, int);
 
+void _gfortran_caf_stop_numeric (int32_t)
+     __attribute__ ((noreturn));
+void _gfortran_caf_stop_str (const char *, int32_t)
+     __attribute__ ((noreturn));
 void _gfortran_caf_error_stop_str (const char *, int32_t)
      __attribute__ ((noreturn));
 void _gfortran_caf_error_stop (int32_t) __attribute__ ((noreturn));
@@ -133,5 +139,8 @@ void _gfortran_caf_atomic_op (int, caf_token_t, size_t, int, void *, void *,
 
 void _gfortran_caf_lock (caf_token_t, size_t, int, int *, int *, char *, int);
 void _gfortran_caf_unlock (caf_token_t, size_t, int, int *, char *, int);
+void _gfortran_caf_event_post (caf_token_t, size_t, int, int *, char *, int);
+void _gfortran_caf_event_wait (caf_token_t, size_t, int, int *, char *, int);
+void _gfortran_caf_event_query (caf_token_t, size_t, int, int *, int *);
 
 #endif  /* LIBCAF_H  */

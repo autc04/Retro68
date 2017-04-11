@@ -1,5 +1,5 @@
 /* dwarf2dbg.c - DWARF2 debug support
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2017 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -253,7 +253,7 @@ get_line_subseg (segT seg, subsegT subseg, bfd_boolean create_p)
       if (!create_p)
 	return NULL;
 
-      s = (struct line_seg *) xmalloc (sizeof (*s));
+      s = XNEW (struct line_seg);
       s->next = NULL;
       s->seg = seg;
       s->head = NULL;
@@ -271,7 +271,7 @@ get_line_subseg (segT seg, subsegT subseg, bfd_boolean create_p)
 	break;
     }
 
-  lss = (struct line_subseg *) xmalloc (sizeof (*lss));
+  lss = XNEW (struct line_subseg);
   lss->next = *pss;
   lss->subseg = subseg;
   lss->head = NULL;
@@ -291,7 +291,7 @@ dwarf2_gen_line_info_1 (symbolS *label, struct dwarf2_line_info *loc)
   struct line_subseg *lss;
   struct line_entry *e;
 
-  e = (struct line_entry *) xmalloc (sizeof (*e));
+  e = XNEW (struct line_entry);
   e->next = NULL;
   e->label = label;
   e->loc = *loc;
@@ -350,8 +350,7 @@ dwarf2_where (struct dwarf2_line_info *line)
 {
   if (debug_type == DEBUG_DWARF2)
     {
-      char *filename;
-      as_where (&filename, &line->line);
+      const char *filename = as_where (&line->line);
       line->filenum = get_filenum (filename, 0);
       line->column = 0;
       line->flags = DWARF2_FLAG_IS_STMT;
@@ -513,13 +512,10 @@ get_filenum (const char *filename, unsigned int num)
 	  if (dir >= dirs_allocated)
 	    {
 	      dirs_allocated = dir + 32;
-	      dirs = (char **)
-		     xrealloc (dirs, (dir + 32) * sizeof (const char *));
+	      dirs = XRESIZEVEC (char *, dirs, dirs_allocated);
 	    }
 
-	  dirs[dir] = (char *) xmalloc (dir_len + 1);
-	  memcpy (dirs[dir], filename, dir_len);
-	  dirs[dir][dir_len] = '\0';
+	  dirs[dir] = xmemdup0 (filename, dir_len);
 	  dirs_in_use = dir + 1;
 	}
     }
@@ -544,8 +540,7 @@ get_filenum (const char *filename, unsigned int num)
       unsigned int old = files_allocated;
 
       files_allocated = i + 32;
-      files = (struct file_entry *)
-	xrealloc (files, (i + 32) * sizeof (struct file_entry));
+      files = XRESIZEVEC (struct file_entry, files, files_allocated);
 
       memset (files + old, 0, (i + 32 - old) * sizeof (struct file_entry));
     }
@@ -644,13 +639,14 @@ dwarf2_directive_loc (int dummy ATTRIBUTE_UNUSED)
 	{
 	  size_t dir_len = strlen (dirs[files[filenum].dir]);
 	  size_t file_len = strlen (files[filenum].filename);
-	  char *cp = (char *) alloca (dir_len + 1 + file_len + 1);
+	  char *cp = XNEWVEC (char, dir_len + 1 + file_len + 1);
 
 	  memcpy (cp, dirs[files[filenum].dir], dir_len);
 	  INSERT_DIR_SEPARATOR (cp, dir_len);
 	  memcpy (cp + dir_len + 1, files[filenum].filename, file_len);
 	  cp[dir_len + file_len + 1] = '\0';
 	  listing_source_file (cp);
+	  free (cp);
 	}
       else
 	listing_source_file (files[filenum].filename);
@@ -670,8 +666,7 @@ dwarf2_directive_loc (int dummy ATTRIBUTE_UNUSED)
       char *p, c;
       offsetT value;
 
-      p = input_line_pointer;
-      c = get_symbol_end ();
+      c = get_symbol_name (& p);
 
       if (strcmp (p, "basic_block") == 0)
 	{
@@ -690,7 +685,7 @@ dwarf2_directive_loc (int dummy ATTRIBUTE_UNUSED)
 	}
       else if (strcmp (p, "is_stmt") == 0)
 	{
-	  *input_line_pointer = c;
+	  (void) restore_line_pointer (c);
 	  value = get_absolute_expression ();
 	  if (value == 0)
 	    current.flags &= ~DWARF2_FLAG_IS_STMT;
@@ -704,7 +699,7 @@ dwarf2_directive_loc (int dummy ATTRIBUTE_UNUSED)
 	}
       else if (strcmp (p, "isa") == 0)
 	{
-	  *input_line_pointer = c;
+	  (void) restore_line_pointer (c);
 	  value = get_absolute_expression ();
 	  if (value >= 0)
 	    current.isa = value;
@@ -716,7 +711,7 @@ dwarf2_directive_loc (int dummy ATTRIBUTE_UNUSED)
 	}
       else if (strcmp (p, "discriminator") == 0)
 	{
-	  *input_line_pointer = c;
+	  (void) restore_line_pointer (c);
 	  value = get_absolute_expression ();
 	  if (value >= 0)
 	    current.discriminator = value;
@@ -729,11 +724,11 @@ dwarf2_directive_loc (int dummy ATTRIBUTE_UNUSED)
       else
 	{
 	  as_bad (_("unknown .loc sub-directive `%s'"), p);
-	  *input_line_pointer = c;
+	  (void) restore_line_pointer (c);
 	  return;
 	}
 
-      SKIP_WHITESPACE ();
+      SKIP_WHITESPACE_AFTER_NAME ();
     }
 
   demand_empty_rest_of_line ();
@@ -1228,7 +1223,7 @@ dwarf2dbg_convert_frag (fragS *frag)
 
   if (DWARF2_USE_FIXED_ADVANCE_PC)
     {
-      /* If linker relaxation is enabled then the distance bewteen the two
+      /* If linker relaxation is enabled then the distance between the two
 	 symbols in the frag->fr_symbol expression might change.  Hence we
 	 cannot rely upon the value computed by resolve_symbol_value.
 	 Instead we leave the expression unfinalized and allow
@@ -1285,7 +1280,7 @@ process_entries (segT seg, struct line_entry *e)
       char * name;
       const char * sec_name;
 
-      /* Switch to the relevent sub-section before we start to emit
+      /* Switch to the relevant sub-section before we start to emit
 	 the line number table.
 
 	 FIXME: These sub-sections do not have a normal Line Number
@@ -1296,15 +1291,11 @@ process_entries (segT seg, struct line_entry *e)
 	 section, as well as our sub-sections, and we have to ensure
 	 that all of the sub-sections are merged into a proper
 	 .debug_line section before a debugger sees them.  */
-	 
+
       sec_name = bfd_get_section_name (stdoutput, seg);
       if (strcmp (sec_name, ".text") != 0)
 	{
-	  unsigned int len;
-
-	  len = strlen (sec_name);
-	  name = xmalloc (len + 11 + 2);
-	  sprintf (name, ".debug_line%s", sec_name);
+	  name = concat (".debug_line", sec_name, (char *) NULL);
 	  subseg_set (subseg_get (name, FALSE), 0);
 	}
       else
@@ -1458,7 +1449,8 @@ out_file_list (void)
 
 /* Switch to SEC and output a header length field.  Return the size of
    offsets used in SEC.  The caller must set EXPR->X_add_symbol value
-   to the end of the section.  */
+   to the end of the section.  EXPR->X_add_number will be set to the
+   negative size of the header.  */
 
 static int
 out_header (asection *sec, expressionS *exp)
@@ -1467,8 +1459,21 @@ out_header (asection *sec, expressionS *exp)
   symbolS *end_sym;
 
   subseg_set (sec, 0);
-  start_sym = symbol_temp_new_now ();
-  end_sym = symbol_temp_make ();
+
+  if (flag_dwarf_sections)
+    {
+      /* If we are going to put the start and end symbols in different
+	 sections, then we need real symbols, not just fake, local ones.  */
+      frag_now_fix ();
+      start_sym = symbol_make (".Ldebug_line_start");
+      end_sym = symbol_make (".Ldebug_line_end");
+      symbol_set_value_now (start_sym);
+    }
+  else
+    {
+      start_sym = symbol_temp_new_now ();
+      end_sym = symbol_temp_make ();
+    }
 
   /* Total length of the information.  */
   exp->X_op = O_subtract;
@@ -1625,6 +1630,7 @@ static void
 out_debug_aranges (segT aranges_seg, segT info_seg)
 {
   unsigned int addr_size = sizeof_address;
+  offsetT size;
   struct line_seg *s;
   expressionS exp;
   symbolS *aranges_end;
@@ -1633,21 +1639,27 @@ out_debug_aranges (segT aranges_seg, segT info_seg)
 
   sizeof_offset = out_header (aranges_seg, &exp);
   aranges_end = exp.X_add_symbol;
+  size = -exp.X_add_number;
 
   /* Version.  */
   out_two (DWARF2_ARANGES_VERSION);
+  size += 2;
 
   /* Offset to .debug_info.  */
   TC_DWARF2_EMIT_OFFSET (section_symbol (info_seg), sizeof_offset);
+  size += sizeof_offset;
 
   /* Size of an address (offset portion).  */
   out_byte (addr_size);
+  size++;
 
   /* Size of a segment descriptor.  */
   out_byte (0);
+  size++;
 
   /* Align the header.  */
-  frag_align (ffs (2 * addr_size) - 1, 0, 0);
+  while ((size++ % (2 * addr_size)) > 0)
+    out_byte (0);
 
   for (s = all_segs; s; s = s->next)
     {

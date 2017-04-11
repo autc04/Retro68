@@ -42,7 +42,7 @@ Disassembly of section \.dat[0-9a-f ]+:
 [0-9a-f	 ]+: R_FRV_32	\.text
 Disassembly of section \.got:
 
-[0-9a-f ]+<_GLOBAL_OFFSET_TABLE_-0x8>:
+[0-9a-f ]+<.got>:
 [0-9a-f ]+:	00 00 00 08 	add\.p gr0,gr8,gr0
 [0-9a-f	 ]+: R_FRV_FUNCDESC_VALUE	\.text
 [0-9a-f ]+:	00 00 00 02 	add\.p gr0,fp,gr0

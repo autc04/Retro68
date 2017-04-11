@@ -26,3 +26,11 @@ Disassembly of section \.text:
   49:	fc 8a 0f ff 3f                	fadd	65532\[r0\]\.l, r15
   4e:	fc 8a f0 ff 3f                	fadd	65532\[r15\]\.l, r0
   53:	fc 8a ff ff 3f                	fadd	65532\[r15\]\.l, r15
+  58:	ff a0 00                      	fadd	r0, r0, r0
+  5b:	ff af 00                      	fadd	r0, r0, r15
+  5e:	ff a0 0f                      	fadd	r0, r15, r0
+  61:	ff af 0f                      	fadd	r0, r15, r15
+  64:	ff a0 f0                      	fadd	r15, r0, r0
+  67:	ff af f0                      	fadd	r15, r0, r15
+  6a:	ff a0 ff                      	fadd	r15, r15, r0
+  6d:	ff af ff                      	fadd	r15, r15, r15

@@ -1,5 +1,5 @@
 /* ieee.c -- Read and write IEEE-695 debugging information.
-   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   Copyright (C) 1996-2017 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -2954,7 +2954,7 @@ ieee_read_cxx_class (struct ieee_info *info, const bfd_byte **pp,
 	      {
 		debug_type return_type;
 		const debug_type *arg_types;
-		bfd_boolean varargs;
+		bfd_boolean varargs = FALSE;
 
 		if (debug_get_type_kind (dhandle, pv->type)
 		    != DEBUG_KIND_FUNCTION)

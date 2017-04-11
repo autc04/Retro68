@@ -52,7 +52,6 @@ with Sinfo;    use Sinfo;
 with Snames;   use Snames;
 with Stand;    use Stand;
 with Stringt;  use Stringt;
-with Targparm; use Targparm;
 with Tbuild;   use Tbuild;
 
 package body Sem_Eval is
@@ -177,7 +176,7 @@ package body Sem_Eval is
    function From_Bits (B : Bits; T : Entity_Id) return Uint;
    --  Converts a bit string of length B'Length to a Uint value to be used for
    --  a target of type T, which is a modular type. This procedure includes the
-   --  necessary reduction by the modulus in the case of a non-binary modulus
+   --  necessary reduction by the modulus in the case of a nonbinary modulus
    --  (for a binary modulus, the bit string is the right length any way so all
    --  is well).
 
@@ -815,7 +814,7 @@ package body Sem_Eval is
             V := UI_Negate (Intval (Right_Opnd (N)));
             return;
 
-         elsif Nkind (N) = N_Attribute_Reference  then
+         elsif Nkind (N) = N_Attribute_Reference then
             if Attribute_Name (N) = Name_Succ then
                R := First (Expressions (N));
                V := Uint_1;
@@ -1093,7 +1092,7 @@ package body Sem_Eval is
       elsif No (Ltyp) or else No (Rtyp) then
          return Unknown;
 
-      --  We do not attempt comparisons for packed arrays arrays represented as
+      --  We do not attempt comparisons for packed arrays represented as
       --  modular types, where the semantics of comparison is quite different.
 
       elsif Is_Packed_Array_Impl_Type (Ltyp)
@@ -2221,7 +2220,7 @@ package body Sem_Eval is
          --  case of a concatenation of a series of string literals.
 
          if Nkind (Left_Str) = N_String_Literal then
-            Left_Len :=  String_Length (Strval (Left_Str));
+            Left_Len := String_Length (Strval (Left_Str));
 
             --  If the left operand is the empty string, and the right operand
             --  is a string literal (the case of "" & "..."), the result is the
@@ -2910,7 +2909,7 @@ package body Sem_Eval is
    -- Eval_Op_Not --
    -----------------
 
-   --  The not operation is a  static functions, so the result is potentially
+   --  The not operation is a static functions, so the result is potentially
    --  static if the operand is potentially static (RM 4.9(7), 4.9(20)).
 
    procedure Eval_Op_Not (N : Node_Id) is
@@ -2936,7 +2935,7 @@ package body Sem_Eval is
       begin
          --  Negation is equivalent to subtracting from the modulus minus one.
          --  For a binary modulus this is equivalent to the ones-complement of
-         --  the original value. For non-binary modulus this is an arbitrary
+         --  the original value. For a nonbinary modulus this is an arbitrary
          --  but consistent definition.
 
          if Is_Modular_Integer_Type (Typ) then
@@ -3762,9 +3761,6 @@ package body Sem_Eval is
       Source_Type : constant Entity_Id := Etype (Operand);
       Target_Type : constant Entity_Id := Etype (N);
 
-      Stat   : Boolean;
-      Fold   : Boolean;
-
       function To_Be_Treated_As_Integer (T : Entity_Id) return Boolean;
       --  Returns true if type T is an integer type, or if it is a fixed-point
       --  type to be treated as an integer (i.e. the flag Conversion_OK is set
@@ -3796,6 +3792,11 @@ package body Sem_Eval is
            Is_Floating_Point_Type (T)
              or else (Is_Fixed_Point_Type (T) and then not Conversion_OK (N));
       end To_Be_Treated_As_Real;
+
+      --  Local variables
+
+      Fold : Boolean;
+      Stat : Boolean;
 
    --  Start of processing for Eval_Type_Conversion
 
@@ -5409,13 +5410,14 @@ package body Sem_Eval is
       --  First deal with special case of inherited predicate, where the
       --  predicate expression looks like:
 
-      --     Expr and then xxPredicate (typ (Ent))
+      --     xxPredicate (typ (Ent)) and then Expr
 
       --  where Expr is the predicate expression for this level, and the
-      --  right operand is the call to evaluate the inherited predicate.
+      --  left operand is the call to evaluate the inherited predicate.
 
       if Nkind (Expr) = N_And_Then
-        and then Nkind (Right_Opnd (Expr)) = N_Function_Call
+        and then Nkind (Left_Opnd (Expr)) = N_Function_Call
+        and then Is_Predicate_Function (Entity (Name (Left_Opnd (Expr))))
       then
          --  OK we have the inherited case, so make a call to evaluate the
          --  inherited predicate. If that fails, so do we!
@@ -5423,19 +5425,19 @@ package body Sem_Eval is
          if not
            Real_Or_String_Static_Predicate_Matches
              (Val => Val,
-              Typ => Etype (First_Formal (Entity (Name (Right_Opnd (Expr))))))
+              Typ => Etype (First_Formal (Entity (Name (Left_Opnd (Expr))))))
          then
             return False;
          end if;
 
-         --  Use the left operand for the continued processing
+         --  Use the right operand for the continued processing
 
-         Copy := Copy_Separate_Tree (Left_Opnd (Expr));
+         Copy := Copy_Separate_Tree (Right_Opnd (Expr));
 
       --  Case where call to predicate function appears on its own (this means
       --  that the predicate at this level is just inherited from the parent).
 
-      elsif Nkind (Expr) =  N_Function_Call then
+      elsif Nkind (Expr) = N_Function_Call then
          declare
             Typ : constant Entity_Id :=
                     Etype (First_Formal (Entity (Name (Expr))));
@@ -6238,12 +6240,6 @@ package body Sem_Eval is
         and then Is_Known_Valid (Typ)
         and then Esize (Etype (N)) <= Esize (Typ)
         and then not Has_Biased_Representation (Etype (N))
-
-        --  This check cannot be disabled under VM targets because in some
-        --  unusual cases the backend of the native compiler raises a run-time
-        --  exception but the virtual machines do not raise any exception.
-
-        and then VM_Target = No_VM
       then
          return In_Range;
 

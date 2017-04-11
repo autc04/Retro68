@@ -1,6 +1,6 @@
 // 2004-01-11  Petur Runolfsson  <peturr02@ru.is>
 
-// Copyright (C) 2004-2015 Free Software Foundation, Inc.
+// Copyright (C) 2004-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,13 +36,13 @@ void test01()
   if (wcin.get(c) && !isspace(c, wcin.getloc()))
     {
       str.push_back(c);
-      wcin.imbue(locale("en_US"));
+      wcin.imbue(locale(ISO_8859(1,en_US)));
     }
 
   if (wcin.get(c) && !isspace(c, wcin.getloc()))
     {
       str.push_back(c);
-      wcin.imbue(locale("fr_FR"));
+      wcin.imbue(locale(ISO_8859(15,fr_FR)));
     }
 
   while (wcin.get(c) && !isspace(c, wcin.getloc()))

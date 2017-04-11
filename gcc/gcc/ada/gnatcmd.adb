@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1996-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -57,6 +57,10 @@ with Ada.Text_IO;             use Ada.Text_IO;
 with GNAT.OS_Lib; use GNAT.OS_Lib;
 
 procedure GNATCmd is
+   Gprbuild : constant String := "gprbuild";
+   Gprclean : constant String := "gprclean";
+   Gprname  : constant String := "gprname";
+
    Normal_Exit : exception;
    --  Raise this exception for normal program termination
 
@@ -1161,12 +1165,12 @@ begin
    end loop;
 
    declare
-      Program   : String_Access;
-      Exec_Path : String_Access;
+      Program    : String_Access;
+      Exec_Path  : String_Access;
+      Get_Target : Boolean := False;
 
    begin
       if The_Command = Stack then
-
          --  Never call gnatstack with a prefix
 
          Program := new String'(Command_List (The_Command).Unixcmd.all);
@@ -1174,6 +1178,68 @@ begin
       else
          Program :=
            Program_Name (Command_List (The_Command).Unixcmd.all, "gnat");
+
+         --  If we want to invoke gnatmake/gnatclean with -P, then check if
+         --  gprbuild/gprclean is available; if it is, use gprbuild/gprclean
+         --  instead of gnatmake/gnatclean.
+         --  Ditto for gnatname -> gprname.
+
+         if The_Command = Make
+            or else The_Command = Compile
+            or else The_Command = Clean
+            or else The_Command = Name
+         then
+            declare
+               Project_File_Used : Boolean := False;
+               Switch            : String_Access;
+
+            begin
+               for J in 1 .. Last_Switches.Last loop
+                  Switch := Last_Switches.Table (J);
+                  if Switch'Length >= 2 and then
+                    Switch (Switch'First .. Switch'First + 1) = "-P"
+                  then
+                     Project_File_Used := True;
+                     exit;
+                  end if;
+               end loop;
+
+               if Project_File_Used then
+                  case The_Command is
+                     when Make | Compile =>
+                        if Locate_Exec_On_Path (Gprbuild) /= null  then
+                           Program := new String'(Gprbuild);
+                           Get_Target := True;
+                        end if;
+
+                     when Clean =>
+                        if Locate_Exec_On_Path (Gprclean) /= null then
+                           Program := new String'(Gprclean);
+                           Get_Target := True;
+                        end if;
+
+                     when Name =>
+                        if Locate_Exec_On_Path (Gprname) /= null then
+                           Program := new String'(Gprname);
+                           Get_Target := True;
+                        end if;
+
+                     when others =>
+                        null;
+                  end case;
+
+                  if Get_Target then
+                     Find_Program_Name;
+
+                     if Name_Len > 5 then
+                        First_Switches.Append
+                          (new String'
+                             ("--target=" & Name_Buffer (1 .. Name_Len - 5)));
+                     end if;
+                  end if;
+               end if;
+            end;
+         end if;
       end if;
 
       --  For the tools where the GNAT driver processes the project files,

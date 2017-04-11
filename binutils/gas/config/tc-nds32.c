@@ -1,5 +1,5 @@
 /* tc-nds32.c -- Assemble for the nds32
-   Copyright (C) 2012-2014 Free Software Foundation, Inc.
+   Copyright (C) 2012-2017 Free Software Foundation, Inc.
    Contributed by Andes Technology Corporation.
 
    This file is part of GAS, the GNU Assembler.
@@ -71,7 +71,7 @@ struct nds32_relocs_pattern
 /* Suffix name and relocation.  */
 struct suffix_name
 {
-  char *suffix;
+  const char *suffix;
   short unsigned int reloc;
   int pic;
 };
@@ -91,7 +91,7 @@ static int enable_relax_relocs = 1;
 static int enable_relax_ex9 = 0;
 /* The value will be used in RELAX_ENTRY.  */
 static int enable_relax_ifc = 0;
-/* Save option -O for perfomance.  */
+/* Save option -O for performance.  */
 static int optimize = 0;
 /* Save option -Os for code size.  */
 static int optimize_for_space = 0;
@@ -140,19 +140,19 @@ static relax_info_t relax_table[] =
     {4, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-        {0, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
@@ -221,25 +221,25 @@ static relax_info_t relax_table[] =
     {4, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGCALL5},
-        {4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGCALL6},
         {4, 4, 0, BFD_RELOC_NDS32_HI20},
 	{4, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_PTR},
@@ -306,25 +306,25 @@ static relax_info_t relax_table[] =
     {4, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGCALL5},
-        {4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGCALL6},
         {4, 4, 0, BFD_RELOC_NDS32_HI20},
 	{4, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_PTR},
@@ -371,19 +371,19 @@ static relax_info_t relax_table[] =
     {2, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-        {0, 2, 0, BFD_RELOC_NDS32_9_PCREL},
+        {0, 2, NDS32_PCREL, BFD_RELOC_NDS32_9_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
@@ -432,19 +432,19 @@ static relax_info_t relax_table[] =
     {2, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-        {0, 2, 0, BFD_RELOC_NDS32_9_PCREL},
+        {0, 2, NDS32_PCREL, BFD_RELOC_NDS32_9_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
@@ -513,28 +513,28 @@ static relax_info_t relax_table[] =
     {4, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-	{0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+	{0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
 	{0, 4, NDS32_INSN16 , BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
@@ -602,25 +602,25 @@ static relax_info_t relax_table[] =
     {4, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-        {4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
 	{4, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_PTR},
@@ -687,28 +687,28 @@ static relax_info_t relax_table[] =
     {4, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-	{0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+	{0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
 	{0, 4, NDS32_INSN16 , BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
@@ -776,25 +776,25 @@ static relax_info_t relax_table[] =
     {4, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-        {4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
 	{4, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_PTR},
@@ -861,25 +861,25 @@ static relax_info_t relax_table[] =
     {4, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-        {4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
 	{4, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_PTR},
@@ -946,25 +946,25 @@ static relax_info_t relax_table[] =
     {4, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-        {4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
 	{4, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_PTR},
@@ -1038,33 +1038,33 @@ static relax_info_t relax_table[] =
     {4, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-        {0, 4, 0, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
         {0, 4, NDS32_INSN16, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_ABS, BFD_RELOC_NDS32_EMPTY},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
@@ -1139,32 +1139,32 @@ static relax_info_t relax_table[] =
     {4, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-        {0, 4, 0, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
         {0, 4, NDS32_INSN16, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
@@ -1232,27 +1232,27 @@ static relax_info_t relax_table[] =
     {2, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-	{0, 2, 0, BFD_RELOC_NDS32_9_PCREL},
+	{0, 2, NDS32_PCREL, BFD_RELOC_NDS32_9_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
@@ -1320,27 +1320,27 @@ static relax_info_t relax_table[] =
     {2, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-	{0, 2, 0, BFD_RELOC_NDS32_9_PCREL},
+	{0, 2, NDS32_PCREL, BFD_RELOC_NDS32_9_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
@@ -1390,27 +1390,27 @@ static relax_info_t relax_table[] =
     {2, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-	{0, 2, 0, BFD_RELOC_NDS32_9_PCREL},
+	{0, 2, NDS32_PCREL, BFD_RELOC_NDS32_9_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
@@ -1460,27 +1460,27 @@ static relax_info_t relax_table[] =
     {2, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-	{0, 2, 0, BFD_RELOC_NDS32_9_PCREL},
+	{0, 2, NDS32_PCREL, BFD_RELOC_NDS32_9_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_17_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_17_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
@@ -1549,31 +1549,31 @@ static relax_info_t relax_table[] =
     {2, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-	{0, 2, 0, BFD_RELOC_NDS32_9_PCREL},
+	{0, 2, NDS32_PCREL, BFD_RELOC_NDS32_9_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
@@ -1642,31 +1642,31 @@ static relax_info_t relax_table[] =
     {2, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-	{0, 2, 0, BFD_RELOC_NDS32_9_PCREL},
+	{0, 2, NDS32_PCREL, BFD_RELOC_NDS32_9_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
-        {0, 4, 0, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-	{0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+	{0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP5},
-	{4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
 	{4, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_15_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP6},
 	{4, 4, 0, BFD_RELOC_NDS32_HI20},
@@ -1742,27 +1742,27 @@ static relax_info_t relax_table[] =
     {4, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-        {0, 4, 0, BFD_RELOC_NDS32_WORD_9_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_WORD_9_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP7},
-        {4, 4, 0, BFD_RELOC_NDS32_15_PCREL},
+        {4, 4, NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_WORD_9_PCREL},
-        {4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_WORD_9_PCREL},
+        {4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_WORD_9_PCREL},
-        {4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_WORD_9_PCREL},
+        {4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_WORD_9_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_WORD_9_PCREL},
         {4, 4, 0, BFD_RELOC_NDS32_HI20},
 	{8, 4, 0, BFD_RELOC_NDS32_LO12S0_ORI},
 	{12, 4, NDS32_INSN16, BFD_RELOC_NDS32_INSN16},
@@ -1832,44 +1832,34 @@ static relax_info_t relax_table[] =
     {4, 4, 4, 4, 4},				/* relax_branch_isize */
     {
       {
-        {0, 4, 0, BFD_RELOC_NDS32_WORD_9_PCREL},
+        {0, 4, NDS32_PCREL, BFD_RELOC_NDS32_WORD_9_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S256 */
       {
 	{0, 4, NDS32_INSN16 | NDS32_HINT, BFD_RELOC_NDS32_INSN16},
 	{0, 4, NDS32_PTR | NDS32_HINT, BFD_RELOC_NDS32_LONGJUMP7},
-	{4, 4, 0, BFD_RELOC_NDS32_15_PCREL},
+	{4, 4, NDS32_PCREL, BFD_RELOC_NDS32_15_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16K */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_WORD_9_PCREL},
-        {4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_WORD_9_PCREL},
+        {4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S64K */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_WORD_9_PCREL},
-        {4, 4, 0, BFD_RELOC_NDS32_25_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_WORD_9_PCREL},
+        {4, 4, NDS32_PCREL, BFD_RELOC_NDS32_25_PCREL},
         {0, 0, 0, 0}
       }, /* BR_RANGE_S16M */
       {
-        {0, 4, NDS32_CREATE_LABEL, BFD_RELOC_NDS32_WORD_9_PCREL},
+        {0, 4, NDS32_CREATE_LABEL | NDS32_PCREL, BFD_RELOC_NDS32_WORD_9_PCREL},
         {4, 4, 0, BFD_RELOC_NDS32_HI20},
         {8, 4, 0, BFD_RELOC_NDS32_LO12S0_ORI},
 	{12, 4, NDS32_INSN16, BFD_RELOC_NDS32_INSN16},
         {0, 0, 0, 0}
       } /* BR_RANGE_U4G */
     }						/* relax_fixup */
-  },
-  {
-    NULL, 					/* opcode */
-    0,						/* br_range */
-    {{0, 0, 0, FALSE}}, 			/* cond_field */
-    {{0}},					/* relax_code_seq */
-    {{{0, 0, 0, FALSE}}},			/* relax_code_condition */
-    {0}, 					/* relax_code_size */
-    {0}, 					/* relax_branch_isize */
-    {{{0, 0, 0, 0}}},				/* relax_fixup */
-  },
+  }
 };
 
 /* GAS definitions for command-line options.  */
@@ -1912,16 +1902,16 @@ size_t md_longopts_size = sizeof (md_longopts);
 struct nds32_parse_option_table
 {
   const char *name;		/* Option string.  */
-  char *help;			/* Help description.  */
-  int (*func) (char *arg);	/* How to parse it.  */
+  const char *help;			/* Help description.  */
+  int (*func) (const char *arg);	/* How to parse it.  */
 };
 
 
 /* The value `-1' represents this option has *NOT* been set.  */
 #ifdef NDS32_DEFAULT_ARCH_NAME
-static char* nds32_arch_name = NDS32_DEFAULT_ARCH_NAME;
+static const char* nds32_arch_name = NDS32_DEFAULT_ARCH_NAME;
 #else
-static char* nds32_arch_name = "v3";
+static const char* nds32_arch_name = "v3";
 #endif
 static int nds32_baseline = -1;
 static int nds32_gpr16 = -1;
@@ -1934,10 +1924,10 @@ static int nds32_abi = -1;
 static int nds32_elf_flags = 0;
 static int nds32_fpu_com = 0;
 
-static int nds32_parse_arch (char *str);
-static int nds32_parse_baseline (char *str);
-static int nds32_parse_freg (char *str);
-static int nds32_parse_abi (char *str);
+static int nds32_parse_arch (const char *str);
+static int nds32_parse_baseline (const char *str);
+static int nds32_parse_freg (const char *str);
+static int nds32_parse_abi (const char *str);
 
 static struct nds32_parse_option_table parse_opts [] =
 {
@@ -1975,7 +1965,7 @@ static int nds32_relax_all = 1;
 struct nds32_set_option_table
 {
   const char *name;		/* Option string.  */
-  char *help;			/* Help description.  */
+  const char *help;			/* Help description.  */
   int *var;			/* Variable to be set.  */
   int value;			/* Value to set.  */
 };
@@ -2100,13 +2090,13 @@ nds32_start_line_hook (void)
  * Pseudo opcodes
  */
 
-typedef void (*nds32_pseudo_opcode_func) (int argc, char *argv[], int pv);
+typedef void (*nds32_pseudo_opcode_func) (int argc, char *argv[], unsigned int pv);
 struct nds32_pseudo_opcode
 {
   const char *opcode;
   int argc;
   nds32_pseudo_opcode_func proc;
-  int pseudo_val;
+  unsigned int pseudo_val;
 
   /* Some instructions are not pseudo opcode, but they might still be
      expanded or changed with other instruction combination for some
@@ -2139,7 +2129,9 @@ static struct hash_control *nds32_pseudo_opcode_hash = NULL;
 static int
 builtin_isreg (const char *s, const char *x ATTRIBUTE_UNUSED)
 {
-  return s[0] == '$';
+  if (s [0] == '$' && hash_find (nds32_gprs_hash, (s + 1)))
+    return 1;
+  return 0;
 }
 
 static int
@@ -2172,7 +2164,7 @@ builtin_addend (const char *s, char *x ATTRIBUTE_UNUSED)
 }
 
 static void
-md_assemblef (char *format, ...)
+md_assemblef (const char *format, ...)
 {
   /* FIXME: hope this is long enough.  */
   char line[1024];
@@ -2187,11 +2179,12 @@ md_assemblef (char *format, ...)
 }
 
 /* Some prototypes here, since some op may use another op.  */
-static void do_pseudo_li_internal (char *rt, int imm32s);
+static void do_pseudo_li_internal (const char *rt, int imm32s);
 static void do_pseudo_move_reg_internal (char *dst, char *src);
 
 static void
-do_pseudo_b (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_b (int argc ATTRIBUTE_UNUSED, char *argv[], 
+	     unsigned int pv ATTRIBUTE_UNUSED)
 {
   char *arg_label = argv[0];
   relaxing = TRUE;
@@ -2200,8 +2193,8 @@ do_pseudo_b (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
     {
       md_assemblef ("sethi $ta,hi20(%s)", arg_label);
       md_assemblef ("ori $ta,$ta,lo12(%s)", arg_label);
-      md_assemble  ("add $ta,$ta,$gp");
-      md_assemble  ("jr $ta");
+      md_assemble  ((char *) "add $ta,$ta,$gp");
+      md_assemble  ((char *) "jr $ta");
     }
   else
     {
@@ -2211,7 +2204,8 @@ do_pseudo_b (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
 }
 
 static void
-do_pseudo_bal (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_bal (int argc ATTRIBUTE_UNUSED, char *argv[], 
+	       unsigned int pv ATTRIBUTE_UNUSED)
 {
   char *arg_label = argv[0];
   relaxing = TRUE;
@@ -2221,8 +2215,8 @@ do_pseudo_bal (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
     {
       md_assemblef ("sethi $ta,hi20(%s)", arg_label);
       md_assemblef ("ori $ta,$ta,lo12(%s)", arg_label);
-      md_assemble  ("add $ta,$ta,$gp");
-      md_assemble ("jral $ta");
+      md_assemble  ((char *) "add $ta,$ta,$gp");
+      md_assemble ((char *) "jral $ta");
     }
   else
     {
@@ -2232,7 +2226,8 @@ do_pseudo_bal (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
 }
 
 static void
-do_pseudo_bge (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_bge (int argc ATTRIBUTE_UNUSED, char *argv[], 
+	       unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* rt5, ra5, label */
   md_assemblef ("slt $ta,%s,%s", argv[0], argv[1]);
@@ -2240,7 +2235,8 @@ do_pseudo_bge (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
 }
 
 static void
-do_pseudo_bges (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_bges (int argc ATTRIBUTE_UNUSED, char *argv[], 
+		unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* rt5, ra5, label */
   md_assemblef ("slts $ta,%s,%s", argv[0], argv[1]);
@@ -2248,7 +2244,8 @@ do_pseudo_bges (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED
 }
 
 static void
-do_pseudo_bgt (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_bgt (int argc ATTRIBUTE_UNUSED, char *argv[], 
+	       unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* bgt rt5, ra5, label */
   md_assemblef ("slt $ta,%s,%s", argv[1], argv[0]);
@@ -2256,7 +2253,8 @@ do_pseudo_bgt (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
 }
 
 static void
-do_pseudo_bgts (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_bgts (int argc ATTRIBUTE_UNUSED, char *argv[], 
+		unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* bgt rt5, ra5, label */
   md_assemblef ("slts $ta,%s,%s", argv[1], argv[0]);
@@ -2264,7 +2262,8 @@ do_pseudo_bgts (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED
 }
 
 static void
-do_pseudo_ble (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_ble (int argc ATTRIBUTE_UNUSED, char *argv[], 
+	       unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* bgt rt5, ra5, label */
   md_assemblef ("slt $ta,%s,%s", argv[1], argv[0]);
@@ -2272,7 +2271,8 @@ do_pseudo_ble (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
 }
 
 static void
-do_pseudo_bles (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_bles (int argc ATTRIBUTE_UNUSED, char *argv[], 
+		unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* bgt rt5, ra5, label */
   md_assemblef ("slts $ta,%s,%s", argv[1], argv[0]);
@@ -2280,7 +2280,8 @@ do_pseudo_bles (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED
 }
 
 static void
-do_pseudo_blt (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_blt (int argc ATTRIBUTE_UNUSED, char *argv[], 
+	       unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* rt5, ra5, label */
   md_assemblef ("slt $ta,%s,%s", argv[0], argv[1]);
@@ -2288,7 +2289,8 @@ do_pseudo_blt (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
 }
 
 static void
-do_pseudo_blts (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_blts (int argc ATTRIBUTE_UNUSED, char *argv[], 
+		unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* rt5, ra5, label */
   md_assemblef ("slts $ta,%s,%s", argv[0], argv[1]);
@@ -2296,13 +2298,15 @@ do_pseudo_blts (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED
 }
 
 static void
-do_pseudo_br (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_br (int argc ATTRIBUTE_UNUSED, char *argv[], 
+	      unsigned int pv ATTRIBUTE_UNUSED)
 {
   md_assemblef ("jr %s", argv[0]);
 }
 
 static void
-do_pseudo_bral (int argc, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_bral (int argc, char *argv[], 
+		unsigned int pv ATTRIBUTE_UNUSED)
 {
   if (argc == 1)
     md_assemblef ("jral $lp,%s", argv[0]);
@@ -2311,9 +2315,18 @@ do_pseudo_bral (int argc, char *argv[], int pv ATTRIBUTE_UNUSED)
 }
 
 static void
-do_pseudo_la_internal (const char *arg_reg, const char *arg_label,
+do_pseudo_la_internal (const char *arg_reg, char *arg_label,
 		       const char *line)
 {
+  expressionS exp;
+
+  parse_expression (arg_label, &exp);
+  if (exp.X_op != O_symbol)
+    {
+      as_bad (_("la must use with symbol. '%s'"), line);
+      return;
+    }
+
   relaxing = TRUE;
   /* rt, label */
   if (!nds32_pic && !strstr(arg_label, "@"))
@@ -2368,13 +2381,14 @@ do_pseudo_la_internal (const char *arg_reg, const char *arg_label,
 }
 
 static void
-do_pseudo_la (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_la (int argc ATTRIBUTE_UNUSED, char *argv[], 
+	      unsigned int pv ATTRIBUTE_UNUSED)
 {
   do_pseudo_la_internal (argv[0], argv[1], argv[argc]);
 }
 
 static void
-do_pseudo_li_internal (char *rt, int imm32s)
+do_pseudo_li_internal (const char *rt, int imm32s)
 {
   if (enable_16bit && imm32s <= 0xf && imm32s >= -0x10)
     md_assemblef ("movi55 %s,%d", rt, imm32s);
@@ -2390,7 +2404,8 @@ do_pseudo_li_internal (char *rt, int imm32s)
 }
 
 static void
-do_pseudo_li (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_li (int argc ATTRIBUTE_UNUSED, char *argv[], 
+	      unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* Validate argv[1] for constant expression.  */
   expressionS exp;
@@ -2406,7 +2421,8 @@ do_pseudo_li (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
 }
 
 static void
-do_pseudo_ls_bhw (int argc ATTRIBUTE_UNUSED, char *argv[], int pv)
+do_pseudo_ls_bhw (int argc ATTRIBUTE_UNUSED, char *argv[], 
+		  unsigned int pv)
 {
   char ls = 'r';
   char size = 'x';
@@ -2472,7 +2488,7 @@ do_pseudo_ls_bhw (int argc ATTRIBUTE_UNUSED, char *argv[], int pv)
 	  /* lw */
 	  md_assemblef ("sethi $ta,hi20(%s)", argv[1]);
 	  md_assemblef ("ori $ta,$ta,lo12(%s)", argv[1]);
-	  md_assemble ("lw $ta,[$gp+$ta]");	/* Load address word.  */
+	  md_assemble ((char *) "lw $ta,[$gp+$ta]");	/* Load address word.  */
 	  if (addend < 0x10000 && addend >= -0x10000)
 	    {
 	      md_assemblef ("%c%c%si %s,[$ta+(%d)]", ls, size, sign, argv[0], addend);
@@ -2493,7 +2509,8 @@ do_pseudo_ls_bhw (int argc ATTRIBUTE_UNUSED, char *argv[], int pv)
 }
 
 static void
-do_pseudo_ls_bhwp (int argc ATTRIBUTE_UNUSED, char *argv[], int pv)
+do_pseudo_ls_bhwp (int argc ATTRIBUTE_UNUSED, char *argv[], 
+		   unsigned int pv)
 {
   char *arg_rt = argv[0];
   char *arg_label = argv[1];
@@ -2520,7 +2537,8 @@ do_pseudo_ls_bhwp (int argc ATTRIBUTE_UNUSED, char *argv[], int pv)
 }
 
 static void
-do_pseudo_ls_bhwpc (int argc ATTRIBUTE_UNUSED, char *argv[], int pv)
+do_pseudo_ls_bhwpc (int argc ATTRIBUTE_UNUSED, char *argv[],
+		    unsigned int pv)
 {
   char *arg_rt = argv[0];
   char *arg_inc = argv[1];
@@ -2545,7 +2563,8 @@ do_pseudo_ls_bhwpc (int argc ATTRIBUTE_UNUSED, char *argv[], int pv)
 }
 
 static void
-do_pseudo_ls_bhwi (int argc ATTRIBUTE_UNUSED, char *argv[], int pv)
+do_pseudo_ls_bhwi (int argc ATTRIBUTE_UNUSED, char *argv[], 
+		   unsigned int pv)
 {
   char ls = 'r';
   char size = 'x';
@@ -2578,43 +2597,49 @@ do_pseudo_move_reg_internal (char *dst, char *src)
 }
 
 static void
-do_pseudo_move (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_move (int argc ATTRIBUTE_UNUSED, char *argv[], 
+		unsigned int pv ATTRIBUTE_UNUSED)
 {
   expressionS exp;
 
-  parse_expression (argv[1], &exp);
-
   if (builtin_isreg (argv[1], NULL))
     do_pseudo_move_reg_internal (argv[0], argv[1]);
-  else if (exp.X_op == O_constant)
-    /* move $rt, imm  -> li $rt, imm  */
-    do_pseudo_li_internal (argv[0], exp.X_add_number);
   else
-    /* l.w $rt, var  -> l.w $rt, var  */
-    do_pseudo_ls_bhw (argc, argv, 2);
+    {
+      parse_expression (argv[1], &exp);
+      if (exp.X_op == O_constant)
+	/* move $rt, imm  -> li $rt, imm  */
+	do_pseudo_li_internal (argv[0], exp.X_add_number);
+      else
+	/* l.w $rt, var  -> l.w $rt, var  */
+	do_pseudo_ls_bhw (argc, argv, 2);
+    }
 }
 
 static void
-do_pseudo_neg (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_neg (int argc ATTRIBUTE_UNUSED, char *argv[], 
+	       unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* Instead of "subri".  */
   md_assemblef ("subri %s,%s,0", argv[0], argv[1]);
 }
 
 static void
-do_pseudo_not (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_not (int argc ATTRIBUTE_UNUSED, char *argv[],
+	       unsigned int pv ATTRIBUTE_UNUSED)
 {
   md_assemblef ("nor %s,%s,%s", argv[0], argv[1], argv[1]);
 }
 
 static void
-do_pseudo_pushpopm (int argc, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_pushpopm (int argc, char *argv[],
+		    unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* posh/pop $ra, $rb */
   /* SMW.{b | a}{i | d}{m?} Rb, [Ra], Re, Enable4 */
   int rb, re, ra, en4;
   int i;
-  char *opc = "pushpopm";
+  const char *opc = "pushpopm";
 
   if (argc == 3)
     as_bad ("'pushm/popm $ra5, $rb5, $label' is deprecated.  "
@@ -2670,7 +2695,8 @@ do_pseudo_pushpopm (int argc, char *argv[], int pv ATTRIBUTE_UNUSED)
 }
 
 static void
-do_pseudo_pushpop (int argc, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_pushpop (int argc, char *argv[],
+		   unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* push/pop $ra5, $label=$sp */
   char *argvm[3];
@@ -2686,13 +2712,15 @@ do_pseudo_pushpop (int argc, char *argv[], int pv ATTRIBUTE_UNUSED)
 }
 
 static void
-do_pseudo_v3push (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_v3push (int argc ATTRIBUTE_UNUSED, char *argv[],
+		  unsigned int pv ATTRIBUTE_UNUSED)
 {
   md_assemblef ("push25 %s,%s", argv[0], argv[1]);
 }
 
 static void
-do_pseudo_v3pop (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_v3pop (int argc ATTRIBUTE_UNUSED, char *argv[], 
+		 unsigned int pv ATTRIBUTE_UNUSED)
 {
   md_assemblef ("pop25 %s,%s", argv[0], argv[1]);
 }
@@ -2701,7 +2729,8 @@ do_pseudo_v3pop (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSE
    pv != 0, parsing "pop.s" pseudo instruction operands.  */
 
 static void
-do_pseudo_pushpop_stack (int argc, char *argv[], int pv)
+do_pseudo_pushpop_stack (int argc, char *argv[],
+			 unsigned int pv)
 {
   /* push.s Rb,Re,{$fp $gp $lp $sp}  ==>  smw.adm Rb,[$sp],Re,Eable4  */
   /* pop.s Rb,Re,{$fp $gp $lp $sp}   ==>  lmw.bim Rb,[$sp],Re,Eable4  */
@@ -2709,7 +2738,7 @@ do_pseudo_pushpop_stack (int argc, char *argv[], int pv)
   int rb, re;
   int en4;
   int last_arg_index;
-  char *opc = (pv == 0) ? "smw.adm" : "lmw.bim";
+  const char *opc = (pv == 0) ? "smw.adm" : "lmw.bim";
 
   rb = re = 0;
 
@@ -2765,7 +2794,8 @@ do_pseudo_pushpop_stack (int argc, char *argv[], int pv)
 }
 
 static void
-do_pseudo_push_bhwd (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_push_bhwd (int argc ATTRIBUTE_UNUSED, char *argv[],
+		     unsigned int pv ATTRIBUTE_UNUSED)
 {
   char size = 'x';
   /* If users omit push location, use $sp as default value.  */
@@ -2796,7 +2826,8 @@ do_pseudo_push_bhwd (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_U
 }
 
 static void
-do_pseudo_pop_bhwd (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_pop_bhwd (int argc ATTRIBUTE_UNUSED, char *argv[],
+		    unsigned int pv ATTRIBUTE_UNUSED)
 {
   char size = 'x';
   /* If users omit pop location, use $sp as default value.  */
@@ -2827,7 +2858,8 @@ do_pseudo_pop_bhwd (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UN
 }
 
 static void
-do_pseudo_pusha (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_pusha (int argc ATTRIBUTE_UNUSED, char *argv[],
+		 unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* If users omit push location, use $sp as default value.  */
   char location[8] = "$sp";  /* 8 is enough for register name.  */
@@ -2843,7 +2875,8 @@ do_pseudo_pusha (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSE
 }
 
 static void
-do_pseudo_pushi (int argc ATTRIBUTE_UNUSED, char *argv[], int pv ATTRIBUTE_UNUSED)
+do_pseudo_pushi (int argc ATTRIBUTE_UNUSED, char *argv[],
+		 unsigned int pv ATTRIBUTE_UNUSED)
 {
   /* If users omit push location, use $sp as default value.  */
   char location[8] = "$sp";  /* 8 is enough for register name.  */
@@ -2973,7 +3006,7 @@ nds32_init_nds32_pseudo_opcodes (void)
 }
 
 static struct nds32_pseudo_opcode *
-nds32_lookup_pseudo_opcode (char *str)
+nds32_lookup_pseudo_opcode (const char *str)
 {
   int i = 0;
   /* Assume pseudo-opcode are less than 16-char in length.  */
@@ -3034,7 +3067,7 @@ end:
    Thus, if the value of option has been set, keep the value the way it is.  */
 
 static int
-nds32_parse_arch (char *str)
+nds32_parse_arch (const char *str)
 {
   static const struct nds32_arch
   {
@@ -3084,7 +3117,7 @@ nds32_parse_arch (char *str)
 /* This function parses "baseline" specified.  */
 
 static int
-nds32_parse_baseline (char *str)
+nds32_parse_baseline (const char *str)
 {
   if (strcmp (str, "v3") == 0)
     nds32_baseline = ISA_V3;
@@ -3105,7 +3138,7 @@ nds32_parse_baseline (char *str)
 /* This function parses "fpu-freg" specified.  */
 
 static int
-nds32_parse_freg (char *str)
+nds32_parse_freg (const char *str)
 {
   if (strcmp (str, "2") == 0)
     nds32_freg = E_NDS32_FPU_REG_32SP_16DP;
@@ -3128,7 +3161,7 @@ nds32_parse_freg (char *str)
 /* This function parse "abi=" specified.  */
 
 static int
-nds32_parse_abi (char *str)
+nds32_parse_abi (const char *str)
 {
   if (strcmp (str, "v2") == 0)
     nds32_abi = E_NDS_ABI_AABI;
@@ -3176,11 +3209,11 @@ nds32_all_ext (void)
    recognized.  This will be handled by the generic code.  */
 
 int
-nds32_parse_option (int c, char *arg)
+nds32_parse_option (int c, const char *arg)
 {
   struct nds32_parse_option_table *coarse_tune;
   struct nds32_set_option_table *fine_tune;
-  char *ptr_arg = NULL;
+  const char *ptr_arg = NULL;
 
   switch (c)
     {
@@ -3544,7 +3577,7 @@ nds32_relax_relocs (int relax)
   char saved_char;
   char *name;
   int i;
-  char *subtype_relax[] =
+  const char *subtype_relax[] =
     {"", "", "ex9", "ifc"};
 
   name = input_line_pointer;
@@ -3696,14 +3729,14 @@ nds32_relax_hint (int mode ATTRIBUTE_UNUSED)
   relocs = hash_find (nds32_hint_hash, name);
   if (relocs == NULL)
     {
-      relocs = malloc (sizeof (struct nds32_relocs_pattern));
+      relocs = XNEW (struct nds32_relocs_pattern);
       hash_insert (nds32_hint_hash, name, relocs);
     }
   else
     {
       while (relocs->next)
 	relocs=relocs->next;
-      relocs->next = malloc (sizeof (struct nds32_relocs_pattern));
+      relocs->next = XNEW (struct nds32_relocs_pattern);
       relocs = relocs->next;
     }
 
@@ -3716,7 +3749,7 @@ nds32_relax_hint (int mode ATTRIBUTE_UNUSED)
   /* It has to build this list because there are maybe more than one
      instructions relative to the same instruction.  It to connect to
      next instruction after md_assemble.  */
-  new = malloc (sizeof (struct nds32_relocs_group));
+  new = XNEW (struct nds32_relocs_group);
   new->pattern = relocs;
   new->next = NULL;
   group = nds32_relax_hint_current;
@@ -3770,7 +3803,7 @@ nds32_flag (int ignore ATTRIBUTE_UNUSED)
   char *name;
   char saved_char;
   int i;
-  char *possible_flags[] = { "verbatim" };
+  const char *possible_flags[] = { "verbatim" };
 
   /* Skip whitespaces.  */
   name = input_line_pointer;
@@ -3882,6 +3915,7 @@ nds32_pre_do_align (int n, char *fill, int len, int max)
 	{
 	  if (subseg_text_p (now_seg))
 	    {
+	      dwarf2_emit_insn (0);
 	      fragP = frag_now;
 	      frag_align_code (n, max);
 
@@ -3969,7 +4003,7 @@ void
 md_begin (void)
 {
   struct nds32_keyword *k;
-  relax_info_t *relax_info;
+  unsigned int i;
 
   bfd_set_arch_mach (stdoutput, TARGET_ARCH, nds32_baseline);
 
@@ -3984,8 +4018,9 @@ md_begin (void)
 
   /* Initial branch hash table.  */
   nds32_relax_info_hash = hash_new ();
-  for (relax_info = relax_table; relax_info->opcode; relax_info++)
-    hash_insert (nds32_relax_info_hash, relax_info->opcode, relax_info);
+  for (i = 0; i < ARRAY_SIZE (relax_table); i++)
+    hash_insert (nds32_relax_info_hash, relax_table[i].opcode,
+		 &relax_table[i]);
 
   /* Initial relax hint hash table.  */
   nds32_hint_hash = hash_new ();
@@ -4109,7 +4144,7 @@ nds32_elf_save_pseudo_pattern (fixS* fixP, struct nds32_opcode *opcode,
 			       fragS *fragP)
 {
   if (!reloc_ptr)
-    reloc_ptr = malloc (sizeof (struct nds32_relocs_pattern));
+    reloc_ptr = XNEW (struct nds32_relocs_pattern);
   reloc_ptr->seg = now_seg;
   reloc_ptr->sym = sym;
   reloc_ptr->frag = fragP;
@@ -4124,7 +4159,7 @@ nds32_elf_save_pseudo_pattern (fixS* fixP, struct nds32_opcode *opcode,
 /* Check X_md to transform relocation.  */
 
 static fixS*
-nds32_elf_record_fixup_exp (fragS *fragP, char *str,
+nds32_elf_record_fixup_exp (fragS *fragP, const char *str,
 			    const struct nds32_field *fld,
 			    expressionS *pexp, char* out,
 			    struct nds32_asm_insn *insn)
@@ -4577,7 +4612,7 @@ enum nds32_insn_type
 struct nds32_hint_map
 {
   bfd_reloc_code_real_type hi_type;
-  char *opc;
+  const char *opc;
   enum nds32_relax_hint_type hint_type;
   enum nds32_br_range range;
   enum nds32_insn_type insn_list;
@@ -4674,7 +4709,7 @@ nds32_find_reloc_table (struct nds32_relocs_pattern *relocs_pattern,
   unsigned int opcode, seq_size;
   enum nds32_br_range range;
   struct nds32_relocs_pattern *pattern, *hi_pattern = NULL;
-  char *opc = NULL;
+  const char *opc = NULL;
   relax_info_t *relax_info = NULL;
   nds32_relax_fixup_info_t *fixup_info, *hint_fixup;
   enum nds32_relax_hint_type hint_type = NDS32_RELAX_HINT_NONE;
@@ -4683,7 +4718,7 @@ nds32_find_reloc_table (struct nds32_relocs_pattern *relocs_pattern,
   enum nds32_insn_type relax_type = 0;
   struct nds32_hint_map *map_ptr = hint_map;
   unsigned int i;
-  char *check_insn[] =
+  const char *check_insn[] =
     { "bnes38", "beqs38", "bnez38", "bnezs8", "beqz38", "beqzs8" };
 
   /* TODO: PLT GOT.  */
@@ -4845,7 +4880,7 @@ nds32_find_reloc_table (struct nds32_relocs_pattern *relocs_pattern,
 static bfd_boolean
 nds32_match_hint_insn (struct nds32_opcode *opcode, uint32_t seq)
 {
-  char *check_insn[] =
+  const char *check_insn[] =
     { "bnes38", "beqs38", "bnez38", "bnezs8", "beqz38", "beqzs8" };
   uint32_t insn = opcode->value;
   unsigned int i;
@@ -4913,6 +4948,7 @@ nds32_elf_append_relax_relocs (const char *key ATTRIBUTE_UNUSED, void *value)
   unsigned int ptr_offset, hint_count, relax_code_size, count = 0;
   uint32_t *code_seq, code_insn;
   char *where;
+  int pcrel;
 
   if (!relocs_pattern)
     return;
@@ -4993,6 +5029,7 @@ nds32_elf_append_relax_relocs (const char *key ATTRIBUTE_UNUSED, void *value)
 	{
 	  /* Set the real instruction size in element.  */
 	  fixup_size = pattern_now->opcode->isize;
+	  pcrel = ((fixup_now->ramp & NDS32_PCREL) != 0) ? 1 : 0;
 	  if (fixup_now->ramp & NDS32_FIX)
 	    {
 	      /* Convert original relocation.  */
@@ -5066,8 +5103,8 @@ nds32_elf_append_relax_relocs (const char *key ATTRIBUTE_UNUSED, void *value)
 
 	  if (fixup_size != 0)
 	    {
-	      fixP = fix_new_exp (fragP, where - fragP->fr_literal,
-				  fixup_size, &exp, 0, fixup_now->r_type);
+	      fixP = fix_new_exp (fragP, where - fragP->fr_literal, fixup_size,
+				  &exp, pcrel, fixup_now->r_type);
 	      fixP->fx_addnumber = fixP->fx_offset;
 	    }
 	  fixup_now++;
@@ -5086,7 +5123,7 @@ restore:
 /* Check instruction if it can be used for the baseline.  */
 
 static bfd_boolean
-nds32_check_insn_available (struct nds32_asm_insn insn, char *str)
+nds32_check_insn_available (struct nds32_asm_insn insn, const char *str)
 {
   int attr = insn.attr & ATTR_ALL;
   static int baseline_isa = 0;
@@ -5125,6 +5162,7 @@ void
 md_assemble (char *str)
 {
   struct nds32_asm_insn insn;
+  expressionS expr;
   char *out;
   struct nds32_pseudo_opcode *popcode;
   const struct nds32_field *fld = NULL;
@@ -5160,7 +5198,8 @@ md_assemble (char *str)
     }
 
   label_exist = 0;
-  insn.info = (expressionS *) alloca (sizeof (expressionS));
+  insn.info = & expr;
+  asm_desc.result = NASM_OK;
   nds32_assemble (&asm_desc, &insn, str);
 
   switch (asm_desc.result)
@@ -5172,7 +5211,7 @@ md_assemble (char *str)
       as_bad (_("Incorrect syntax, %s."), str);
       return;
     case NASM_ERR_OPERAND:
-      as_bad (_("Unrecognized operand, %s."), str);
+      as_bad (_("Unrecognized operand/register, %s."), str);
       return;
     case NASM_ERR_OUT_OF_RANGE:
       as_bad (_("Operand out of range, %s."), str);
@@ -5194,7 +5233,7 @@ md_assemble (char *str)
   if (!nds32_check_insn_available (insn, str))
     return;
 
-  /* Make sure the begining of text being 2-byte align.  */
+  /* Make sure the beginning of text being 2-byte align.  */
   nds32_adjust_label (1);
   fld = insn.field;
   /* Try to allocate the max size to guarantee relaxable same branch
@@ -5238,18 +5277,28 @@ md_assemble (char *str)
       return;
       /* md_convert_frag will insert relocations.  */
     }
-  else if (!fld && !relaxing && enable_16bit && (optimize || optimize_for_space)
-	   && ((!verbatim && insn.opcode->isize == 4
+  else if (!relaxing && enable_16bit && (optimize || optimize_for_space)
+	   && ((!fld && !verbatim && insn.opcode->isize == 4
 		&& nds32_convert_32_to_16 (stdoutput, insn.insn, &insn_16, NULL))
 	       || (insn.opcode->isize == 2
 		   && nds32_convert_16_to_32 (stdoutput, insn.insn, NULL))))
     {
       /* Record this one is relaxable.  */
+      pexp = insn.info;
       dwarf2_emit_insn (0);
-      out = frag_var (rs_machine_dependent,
-		      4, /* Max size is 32-bit instruction.  */
-		      0, /* VAR is un-used.  */
-		      0, NULL, 0, NULL);
+      if (fld)
+	{
+	  out = frag_var (rs_machine_dependent,
+			  4, /* Max size is 32-bit instruction.  */
+			  0, /* VAR is un-used.  */
+			  0, pexp->X_add_symbol, pexp->X_add_number, 0);
+	  fragP->tc_frag_data.flag |= NDS32_FRAG_RELAXABLE_BRANCH;
+	}
+      else
+	out = frag_var (rs_machine_dependent,
+			4, /* Max size is 32-bit instruction.  */
+			0, /* VAR is un-used.  */
+			0, NULL, 0, NULL);
       fragP->tc_frag_data.flag |= NDS32_FRAG_RELAXABLE;
       fragP->tc_frag_data.opcode = insn.opcode;
       fragP->tc_frag_data.insn = insn.insn;
@@ -5283,7 +5332,10 @@ md_assemble (char *str)
 	  exp.X_op = O_symbol;
 	  exp.X_add_symbol = abs_section_sym;
 	  exp.X_add_number = 0;
-	  fixP = fix_new_exp (fragP, 0, 0, &exp, 0, BFD_RELOC_NDS32_LABEL);
+	  fixP = fix_new_exp (fragP, fragP->fr_fix - 4, 0, &exp,
+			      0, BFD_RELOC_NDS32_LABEL);
+	  if (!verbatim)
+	    fragP->tc_frag_data.flag = NDS32_FRAG_ALIGN;
 	}
     }
   else
@@ -5350,7 +5402,7 @@ md_section_align (segT segment, valueT size)
 {
   int align = bfd_get_section_alignment (stdoutput, segment);
 
-  return ((size + (1 << align) - 1) & (-1 << align));
+  return ((size + (1 << align) - 1) & -(1 << align));
 }
 
 /* GAS will call this function when a symbol table lookup fails, before it
@@ -5579,7 +5631,7 @@ nds32_get_align (addressT address, int align)
 {
   addressT mask, new_address;
 
-  mask = ~((~0) << align);
+  mask = ~((~0U) << align);
   new_address = (address + mask) & (~mask);
   return (new_address - address);
 }
@@ -5628,6 +5680,22 @@ invalid_prev_frag (fragS * fragP, fragS **prev_frag)
 	  return;
 	}
       frag_t = frag_t->fr_next;
+    }
+
+  if (fragP->tc_frag_data.flag & NDS32_FRAG_ALIGN)
+    {
+      address = fragP->fr_address;
+      addressT offset = nds32_get_align (address, 2);
+      if (offset & 0x2)
+	{
+	  /* If there is label on the prev_frag, check if it is aligned.  */
+	  if (!((*prev_frag)->tc_frag_data.flag & NDS32_FRAG_LABEL)
+	      || (((*prev_frag)->fr_address + (*prev_frag)->fr_fix  - 2 )
+		  & 0x2) == 0)
+	    nds32_adjust_relaxable_frag (*prev_frag, fragP);
+	}
+      *prev_frag = NULL;
+      return;
     }
 }
 
@@ -5714,7 +5782,6 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, segT sec, fragS *fragP)
   enum nds32_br_range branch_range_type = fragP->fr_subtype;
   struct nds32_opcode *opcode = fragP->tc_frag_data.opcode;
   uint32_t origin_insn = fragP->tc_frag_data.insn;
-  int backup_endian;
   relax_info_t *relax_info;
   char *fr_buffer;
   int fr_where;
@@ -5725,7 +5792,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, segT sec, fragS *fragP)
   uint32_t *code_seq;
   uint32_t insn;
   int code_size, insn_size, offset, fixup_size;
-  int buf_offset;
+  int buf_offset, pcrel;
   int i, k;
   uint16_t insn_16;
   nds32_relax_fixup_info_t fixup_info[MAX_RELAX_FIX];
@@ -5741,10 +5808,48 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, segT sec, fragS *fragP)
   if (opcode == NULL)
     return;
 
-  /* Relax the insntruction.  */
-  if (fragP->tc_frag_data.flag & NDS32_FRAG_RELAXED)
+  if (fragP->tc_frag_data.flag & NDS32_FRAG_RELAXABLE_BRANCH)
     {
-      expressionS exp_t;
+      relax_info = hash_find (nds32_relax_info_hash, opcode->opcode);
+
+      if (relax_info == NULL)
+	return;
+
+      i = BR_RANGE_S256;
+      while (i < BR_RANGE_NUM
+	     && relax_info->relax_code_size[i]
+	     != (fragP->tc_frag_data.flag & NDS32_FRAG_RELAXED ? 4 : 2))
+	i++;
+
+      if (i >= BR_RANGE_NUM)
+	as_bad ("Internal error: Cannot find relocation of"
+		"relaxable branch.");
+
+      exp.X_op = O_symbol;
+      exp.X_add_symbol = branch_symbol;
+      exp.X_add_number = branch_offset;
+      pcrel = ((relax_info->relax_fixup[i][0].ramp & NDS32_PCREL) != 0) ? 1 : 0;
+      fr_where = fragP->fr_fix - 2;
+      fixP = fix_new_exp (fragP, fr_where, relax_info->relax_fixup[i][0].size,
+			  &exp, pcrel, relax_info->relax_fixup[i][0].r_type);
+      fixP->fx_addnumber = fixP->fx_offset;
+
+      if (fragP->tc_frag_data.flag & NDS32_FRAG_RELAXED)
+	{
+	  insn_16 = fragP->tc_frag_data.insn;
+	  nds32_convert_16_to_32 (stdoutput, insn_16, &insn);
+	  fr_buffer = fragP->fr_literal + fr_where;
+	  fragP->fr_fix += 2;
+	  exp.X_op = O_symbol;
+	  exp.X_add_symbol = abs_section_sym;
+	  exp.X_add_number = 0;
+	  fix_new_exp (fragP, fr_where, 4,
+		       &exp, 0, BFD_RELOC_NDS32_INSN16);
+	  number_to_chars_bigendian (fr_buffer, insn, 4);
+	}
+    }
+  else if (fragP->tc_frag_data.flag & NDS32_FRAG_RELAXED)
+    {
       if (fragP->tc_frag_data.opcode->isize == 2)
 	{
 	  insn_16 = fragP->tc_frag_data.insn;
@@ -5755,23 +5860,20 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, segT sec, fragS *fragP)
       fragP->fr_fix += 2;
       fr_where = fragP->fr_fix - 4;
       fr_buffer = fragP->fr_literal + fr_where;
-      exp_t.X_op = O_symbol;
-      exp_t.X_add_symbol = abs_section_sym;
-      exp_t.X_add_number = 0;
-      fix_new_exp (fragP, fr_where, 4, &exp_t, 0,
+      exp.X_op = O_symbol;
+      exp.X_add_symbol = abs_section_sym;
+      exp.X_add_number = 0;
+      fix_new_exp (fragP, fr_where, 4, &exp, 0,
 		   BFD_RELOC_NDS32_INSN16);
       number_to_chars_bigendian (fr_buffer, insn, 4);
     }
-  else
+  else if (fragP->tc_frag_data.flag & NDS32_FRAG_BRANCH)
     {
       /* Branch instruction adjust and append relocations.  */
       relax_info = hash_find (nds32_relax_info_hash, opcode->opcode);
 
       if (relax_info == NULL)
 	return;
-
-      backup_endian = target_big_endian;
-      target_big_endian = 1;
 
       fr_where = fragP->fr_fix - opcode->isize;
       fr_buffer = fragP->fr_literal + fr_where;
@@ -5826,7 +5928,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, segT sec, fragS *fragP)
 		 && relax_info->relax_fixup[branch_range_type][k].offset < offset)
 	    k++;
 
-	  md_number_to_chars (fr_buffer + buf_offset, insn, insn_size);
+	  number_to_chars_bigendian (fr_buffer + buf_offset, insn, insn_size);
 	  buf_offset += insn_size;
 
 	  offset += insn_size;
@@ -5839,6 +5941,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, segT sec, fragS *fragP)
       for (i = 0; fixup_info[i].size != 0; i++)
 	{
 	  fixup_size = fixup_info[i].size;
+	  pcrel = ((fixup_info[i].ramp & NDS32_PCREL) != 0) ? 1 : 0;
 
 	  if ((fixup_info[i].ramp & NDS32_CREATE_LABEL) != 0)
 	    {
@@ -5876,14 +5979,13 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, segT sec, fragS *fragP)
 	  if (fixup_info[i].r_type != 0)
 	    {
 	      fixP = fix_new_exp (fragP, fr_where + fixup_info[i].offset,
-				  fixup_size, &exp, 0, fixup_info[i].r_type);
+				  fixup_size, &exp, pcrel,
+				  fixup_info[i].r_type);
 	      fixP->fx_addnumber = fixP->fx_offset;
 	    }
 	}
 
       fragP->fr_fix = fr_where + buf_offset;
-
-      target_big_endian = backup_endian;
     }
 }
 
@@ -5983,7 +6085,7 @@ md_number_to_chars (char *buf, valueT val, int n)
 /* This function is called to convert an ASCII string into a floating point
    value in format used by the CPU.  */
 
-char *
+const char *
 md_atof (int type, char *litP, int *sizeP)
 {
   int i;
@@ -6148,9 +6250,42 @@ nds32_elf_analysis_relax_hint (void)
   hash_traverse (nds32_hint_hash, nds32_elf_append_relax_relocs);
 }
 
+static void
+nds32_elf_insert_final_frag (void)
+{
+  struct frchain *frchainP;
+  asection *s;
+  fragS *fragP;
+
+  if (!optimize)
+    return;
+
+  for (s = stdoutput->sections; s; s = s->next)
+    {
+      segment_info_type *seginfo = seg_info (s);
+      if (!seginfo)
+	continue;
+
+      for (frchainP = seginfo->frchainP; frchainP != NULL;
+	   frchainP = frchainP->frch_next)
+	{
+	  subseg_set (s, frchainP->frch_subseg);
+
+	  if (subseg_text_p (now_seg))
+	    {
+	      fragP = frag_now;
+	      frag_var (rs_machine_dependent, 2, /* Max size.  */
+			0, /* VAR is un-used.  */ 0, NULL, 0, NULL);
+	      fragP->tc_frag_data.flag |= NDS32_FRAG_FINAL;
+	    }
+	}
+    }
+}
+
 void
 md_end (void)
 {
+  nds32_elf_insert_final_frag ();
   nds32_elf_analysis_relax_hint ();
   bfd_map_over_sections (stdoutput, nds32_insert_leb128_fixes, NULL);
 }
@@ -6305,7 +6440,7 @@ elf_nds32_final_processing (void)
   elf_elfheader (stdoutput)->e_flags |= nds32_elf_flags;
 }
 
-/* Implement md_apply_fix.  Apply the fix-up or tranform the fix-up for
+/* Implement md_apply_fix.  Apply the fix-up or transform the fix-up for
    later relocation generation.  */
 
 void
@@ -6328,7 +6463,7 @@ nds32_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       fixP->fx_addnumber = value;
       fixP->tc_fix_data = NULL;
 
-      /* Tranform specific relocations here for later relocation generation.
+      /* Transform specific relocations here for later relocation generation.
 	 Tag data here for ex9 relaxtion and tag tls data for linker.  */
       switch (fixP->fx_r_type)
 	{
@@ -6470,6 +6605,7 @@ nds32_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  break;
 	case BFD_RELOC_64:
 	  md_number_to_chars (where, value, 8);
+	  break;
 	default:
 	  as_bad_where (fixP->fx_file, fixP->fx_line,
 			_("Internal error: Unknown fixup type %d (`%s')"),
@@ -6488,9 +6624,9 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixP)
   arelent *reloc;
   bfd_reloc_code_real_type code;
 
-  reloc = (arelent *) xmalloc (sizeof (arelent));
+  reloc = XNEW (arelent);
 
-  reloc->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
+  reloc->sym_ptr_ptr = XNEW (asymbol *);
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixP->fx_addsy);
   reloc->address = fixP->fx_frag->fr_address + fixP->fx_where;
 
@@ -6541,12 +6677,19 @@ nds32_parse_name (char const *name, expressionS *exprP,
 		  enum expr_mode mode ATTRIBUTE_UNUSED,
 		  char *nextcharP ATTRIBUTE_UNUSED)
 {
+  segT segment;
+
   exprP->X_op_symbol = NULL;
   exprP->X_md = BFD_RELOC_UNUSED;
 
   exprP->X_add_symbol = symbol_find_or_make (name);
   exprP->X_op = O_symbol;
   exprP->X_add_number = 0;
+
+  /* Check the specail name if a symbol.  */
+  segment = S_GET_SEGMENT (exprP->X_add_symbol);
+  if (segment != undefined_section)
+    return 0;
 
   if (strcmp (name, GOT_NAME) == 0 && *nextcharP != '@')
     {

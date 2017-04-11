@@ -1,5 +1,5 @@
 /* MIPS-specific support for 64-bit ELF
-   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   Copyright (C) 1996-2017 Free Software Foundation, Inc.
    Ian Lance Taylor, Cygnus Support
    Linker support added by Mark Mitchell, CodeSourcery, LLC.
    <mark@codesourcery.com>
@@ -1881,6 +1881,21 @@ static reloc_howto_type mips16_elf64_howto_table_rel[] =
 	 0x0000ffff,		/* src_mask */
 	 0x0000ffff,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
+
+  /* MIPS16 16-bit PC-relative branch offset.  */
+  HOWTO (R_MIPS16_PC16_S1,	/* type */
+	 1,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 16,			/* bitsize */
+	 TRUE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_signed, /* complain_on_overflow */
+	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 "R_MIPS16_PC16_S1",	/* name */
+	 TRUE,			/* partial_inplace */
+	 0x0000ffff,		/* src_mask */
+	 0x0000ffff,		/* dst_mask */
+	 TRUE),			/* pcrel_offset */
 };
 
 static reloc_howto_type mips16_elf64_howto_table_rela[] =
@@ -2082,6 +2097,21 @@ static reloc_howto_type mips16_elf64_howto_table_rela[] =
 	 0,			/* src_mask */
 	 0x0000ffff,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
+
+  /* MIPS16 16-bit PC-relative branch offset.  */
+  HOWTO (R_MIPS16_PC16_S1,	/* type */
+	 1,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 16,			/* bitsize */
+	 TRUE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_signed, /* complain_on_overflow */
+	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 "R_MIPS16_PC16_S1",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0x0000ffff,		/* dst_mask */
+	 TRUE),			/* pcrel_offset */
 };
 
 static reloc_howto_type micromips_elf64_howto_table_rel[] =
@@ -3415,7 +3445,8 @@ static const struct elf_reloc_map mips16_reloc_map[] =
     R_MIPS16_TLS_DTPREL_LO16 - R_MIPS16_min },
   { BFD_RELOC_MIPS16_TLS_GOTTPREL, R_MIPS16_TLS_GOTTPREL - R_MIPS16_min },
   { BFD_RELOC_MIPS16_TLS_TPREL_HI16, R_MIPS16_TLS_TPREL_HI16 - R_MIPS16_min },
-  { BFD_RELOC_MIPS16_TLS_TPREL_LO16, R_MIPS16_TLS_TPREL_LO16 - R_MIPS16_min }
+  { BFD_RELOC_MIPS16_TLS_TPREL_LO16, R_MIPS16_TLS_TPREL_LO16 - R_MIPS16_min },
+  { BFD_RELOC_MIPS16_16_PCREL_S1, R_MIPS16_PC16_S1 - R_MIPS16_min }
 };
 
 static const struct elf_reloc_map micromips_reloc_map[] =
@@ -3585,7 +3616,12 @@ mips_elf64_rtype_to_howto (unsigned int r_type, bfd_boolean rela_p)
 	  else
 	    return &mips16_elf64_howto_table_rel[r_type - R_MIPS16_min];
 	}
-      BFD_ASSERT (r_type < (unsigned int) R_MIPS_max);
+      if (r_type >= R_MIPS_max)
+	{
+	  _bfd_error_handler (_("unrecognised MIPS reloc number: %d"), r_type);
+	  bfd_set_error (bfd_error_bad_value);
+	  r_type = R_MIPS_NONE;
+	}
       if (rela_p)
 	return &mips_elf64_howto_table_rela[r_type];
       else
@@ -4431,6 +4467,7 @@ const struct elf_size_info mips_elf64_size_info =
 #define elf_backend_grok_psinfo		elf64_mips_grok_psinfo
 
 #define elf_backend_got_header_size	(8 * MIPS_RESERVED_GOTNO)
+#define elf_backend_want_dynrelro	1
 
 /* MIPS ELF64 can use a mixture of REL and RELA, but some Relocations
    work better/work only in RELA, so we default to this.  */
@@ -4472,29 +4509,6 @@ const struct elf_size_info mips_elf64_size_info =
 #define bfd_elf64_canonicalize_dynamic_reloc mips_elf64_canonicalize_dynamic_reloc
 #define bfd_elf64_bfd_relax_section     _bfd_mips_relax_section
 #define bfd_elf64_mkobject		_bfd_mips_elf_mkobject
-
-/* MIPS ELF64 archive functions.  */
-#define bfd_elf64_archive_functions
-extern bfd_boolean bfd_elf64_archive_slurp_armap
-  (bfd *);
-extern bfd_boolean bfd_elf64_archive_write_armap
-  (bfd *, unsigned int, struct orl *, unsigned int, int);
-#define bfd_elf64_archive_slurp_extended_name_table \
-			_bfd_archive_coff_slurp_extended_name_table
-#define bfd_elf64_archive_construct_extended_name_table \
-			_bfd_archive_coff_construct_extended_name_table
-#define bfd_elf64_archive_truncate_arname \
-			_bfd_archive_coff_truncate_arname
-#define bfd_elf64_archive_read_ar_hdr	_bfd_archive_coff_read_ar_hdr
-#define bfd_elf64_archive_write_ar_hdr	_bfd_archive_coff_write_ar_hdr
-#define bfd_elf64_archive_openr_next_archived_file \
-			_bfd_archive_coff_openr_next_archived_file
-#define bfd_elf64_archive_get_elt_at_index \
-			_bfd_archive_coff_get_elt_at_index
-#define bfd_elf64_archive_generic_stat_arch_elt \
-			_bfd_archive_coff_generic_stat_arch_elt
-#define bfd_elf64_archive_update_armap_timestamp \
-			_bfd_archive_coff_update_armap_timestamp
 
 /* The SGI style (n)64 NewABI.  */
 #define TARGET_LITTLE_SYM		mips_elf64_le_vec

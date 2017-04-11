@@ -1,5 +1,5 @@
 /* BFD back-end for ARM COFF files.
-   Copyright (C) 1990-2014 Free Software Foundation, Inc.
+   Copyright (C) 1990-2017 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -1222,7 +1222,7 @@ coff_arm_relocate_section (bfd *output_bfd,
          relocations to be reflected in section's data.  */
       if (rel->r_type == ARM_26
           && h != NULL
-          && info->relocatable
+          && bfd_link_relocatable (info)
           && (h->root.type == bfd_link_hash_defined
 	      || h->root.type == bfd_link_hash_defweak)
           && (h->root.u.def.section->output_section
@@ -1255,7 +1255,7 @@ coff_arm_relocate_section (bfd *output_bfd,
 #ifdef ARM_WINCE
       /* MS ARM-CE makes the reloc relative to the opcode's pc, not
 	 the next opcode's pc, so is off by one.  */
-      if (howto->pc_relative && !info->relocatable)
+      if (howto->pc_relative && !bfd_link_relocatable (info))
 	addend -= 8;
 #endif
 
@@ -1265,7 +1265,7 @@ coff_arm_relocate_section (bfd *output_bfd,
          then we should ignore the symbol value.  */
       if (howto->pc_relative && howto->pcrel_offset)
         {
-          if (info->relocatable)
+          if (bfd_link_relocatable (info))
             continue;
 	  /* FIXME - it is not clear which targets need this next test
 	     and which do not.  It is known that it is needed for the
@@ -1311,7 +1311,7 @@ coff_arm_relocate_section (bfd *output_bfd,
              stub generation to the final linker pass. If we fail to
 	     verify that the name is defined, we'll try to build stubs
 	     for an undefined name...  */
-          if (! info->relocatable
+          if (! bfd_link_relocatable (info)
 	      && (   h->root.type == bfd_link_hash_defined
 		  || h->root.type == bfd_link_hash_defweak))
             {
@@ -1561,13 +1561,10 @@ coff_arm_relocate_section (bfd *output_bfd,
 		     + sec->output_offset);
 	      }
 
-	  else if (! info->relocatable)
-	    {
-	      if (! ((*info->callbacks->undefined_symbol)
-		     (info, h->root.root.string, input_bfd, input_section,
-		      rel->r_vaddr - input_section->vma, TRUE)))
-		return FALSE;
-	    }
+	  else if (! bfd_link_relocatable (info))
+	    (*info->callbacks->undefined_symbol)
+	      (info, h->root.root.string, input_bfd, input_section,
+	       rel->r_vaddr - input_section->vma, TRUE);
 	}
 
       /* Emit a reloc if the backend thinks it needs it.  */
@@ -1582,7 +1579,7 @@ coff_arm_relocate_section (bfd *output_bfd,
 	rstat = bfd_reloc_ok;
 #ifndef ARM_WINCE
       /* Only perform this fix during the final link, not a relocatable link.  */
-      else if (! info->relocatable
+      else if (! bfd_link_relocatable (info)
 	       && howto->type == ARM_THUMB23)
         {
           /* This is pretty much a copy of what the default
@@ -1698,7 +1695,7 @@ coff_arm_relocate_section (bfd *output_bfd,
         }
 #endif
       else
-        if (info->relocatable && ! howto->partial_inplace)
+        if (bfd_link_relocatable (info) && ! howto->partial_inplace)
             rstat = bfd_reloc_ok;
         else
 	  rstat = _bfd_final_link_relocate (howto, input_bfd, input_section,
@@ -1706,7 +1703,7 @@ coff_arm_relocate_section (bfd *output_bfd,
 					    rel->r_vaddr - input_section->vma,
 					    val, addend);
       /* Only perform this fix during the final link, not a relocatable link.  */
-      if (! info->relocatable
+      if (! bfd_link_relocatable (info)
 	  && (rel->r_type == ARM_32 || rel->r_type == ARM_RVA32))
 	{
 	  /* Determine if we need to set the bottom bit of a relocated address
@@ -1744,7 +1741,8 @@ coff_arm_relocate_section (bfd *output_bfd,
 	case bfd_reloc_ok:
 	  break;
 	case bfd_reloc_outofrange:
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
+	    /* xgettext:c-format */
 	    (_("%B: bad reloc address 0x%lx in section `%A'"),
 	     input_bfd, input_section, (unsigned long) rel->r_vaddr);
 	  return FALSE;
@@ -1764,11 +1762,10 @@ coff_arm_relocate_section (bfd *output_bfd,
 		  return FALSE;
 	      }
 
-	    if (! ((*info->callbacks->reloc_overflow)
-		   (info, (h ? &h->root : NULL), name, howto->name,
-		    (bfd_vma) 0, input_bfd, input_section,
-		    rel->r_vaddr - input_section->vma)))
-	      return FALSE;
+	    (*info->callbacks->reloc_overflow)
+	      (info, (h ? &h->root : NULL), name, howto->name,
+	       (bfd_vma) 0, input_bfd, input_section,
+	       rel->r_vaddr - input_section->vma);
 	  }
 	}
     }
@@ -1968,7 +1965,7 @@ bfd_arm_get_bfd_for_interworking (bfd * 		 abfd,
 
   /* If we are only performing a partial link do not bother
      getting a bfd to hold the glue.  */
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   globals = coff_arm_hash_table (info);
@@ -2021,7 +2018,7 @@ bfd_arm_process_before_allocation (bfd *                   abfd,
 
   /* If we are only performing a partial link do not bother
      to construct any glue.  */
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   /* Here we have a bfd that is to be included on the link.  We have a hook
@@ -2070,6 +2067,7 @@ bfd_arm_process_before_allocation (bfd *                   abfd,
 	  /* If the index is outside of the range of our table, something has gone wrong.  */
 	  if (symndx >= obj_conv_table_size (abfd))
 	    {
+	      /* xgettext:c-format */
 	      _bfd_error_handler (_("%B: illegal symbol index in reloc: %d"),
 				  abfd, symndx);
 	      continue;
@@ -2172,8 +2170,9 @@ coff_arm_adjust_symndx (bfd *obfd ATTRIBUTE_UNUSED,
    targets, eg different CPUs or different APCS's.     */
 
 static bfd_boolean
-coff_arm_merge_private_bfd_data (bfd * ibfd, bfd * obfd)
+coff_arm_merge_private_bfd_data (bfd * ibfd, struct bfd_link_info *info)
 {
+  bfd *obfd = info->output_bfd;
   BFD_ASSERT (ibfd != NULL && obfd != NULL);
 
   if (ibfd == obfd)
@@ -2213,16 +2212,16 @@ coff_arm_merge_private_bfd_data (bfd * ibfd, bfd * obfd)
 
 	  if (APCS_FLOAT_FLAG (obfd) != APCS_FLOAT_FLAG (ibfd))
 	    {
-	      const char *msg;
-
 	      if (APCS_FLOAT_FLAG (ibfd))
 		/* xgettext: c-format */
-		msg = _("error: %B passes floats in float registers, whereas %B passes them in integer registers");
+		_bfd_error_handler (_("\
+error: %B passes floats in float registers, whereas %B passes them in integer registers"),
+				    ibfd, obfd);
 	      else
 		/* xgettext: c-format */
-		msg = _("error: %B passes floats in integer registers, whereas %B passes them in float registers");
-
-	      _bfd_error_handler (msg, ibfd, obfd);
+		_bfd_error_handler (_("\
+error: %B passes floats in integer registers, whereas %B passes them in float registers"),
+				    ibfd, obfd);
 
 	      bfd_set_error (bfd_error_wrong_format);
 	      return FALSE;
@@ -2230,15 +2229,16 @@ coff_arm_merge_private_bfd_data (bfd * ibfd, bfd * obfd)
 
 	  if (PIC_FLAG (obfd) != PIC_FLAG (ibfd))
 	    {
-	      const char * msg;
-
 	      if (PIC_FLAG (ibfd))
 		/* xgettext: c-format */
-		msg = _("error: %B is compiled as position independent code, whereas target %B is absolute position");
+		_bfd_error_handler (_("\
+error: %B is compiled as position independent code, whereas target %B is absolute position"),
+                                    ibfd, obfd);
 	      else
 		/* xgettext: c-format */
-		msg = _("error: %B is compiled as absolute position code, whereas target %B is position independent");
-	      _bfd_error_handler (msg, ibfd, obfd);
+		_bfd_error_handler (_("\
+error: %B is compiled as absolute position code, whereas target %B is position independent"),
+                                    ibfd, obfd);
 
 	      bfd_set_error (bfd_error_wrong_format);
 	      return FALSE;
@@ -2261,16 +2261,16 @@ coff_arm_merge_private_bfd_data (bfd * ibfd, bfd * obfd)
 	  /* If the src and dest differ in their interworking issue a warning.  */
 	  if (INTERWORK_FLAG (obfd) != INTERWORK_FLAG (ibfd))
 	    {
-	      const char * msg;
-
 	      if (INTERWORK_FLAG (ibfd))
 		/* xgettext: c-format */
-		msg = _("Warning: %B supports interworking, whereas %B does not");
+		_bfd_error_handler (_("\
+Warning: %B supports interworking, whereas %B does not"),
+				    ibfd, obfd);
 	      else
 		/* xgettext: c-format */
-		msg = _("Warning: %B does not support interworking, whereas %B does");
-
-	      _bfd_error_handler (msg, ibfd, obfd);
+		_bfd_error_handler (_("\
+Warning: %B does not support interworking, whereas %B does"),
+				    ibfd, obfd);
 	    }
 	}
       else
@@ -2291,7 +2291,6 @@ coff_arm_print_private_bfd_data (bfd * abfd, void * ptr)
 
   BFD_ASSERT (abfd != NULL && ptr != NULL);
 
-  /* xgettext:c-format */
   fprintf (file, _("private flags = %x:"), coff_data (abfd)->flags);
 
   if (APCS_SET (abfd))
@@ -2360,11 +2359,9 @@ _bfd_coff_arm_set_private_flags (bfd * abfd, flagword flags)
   if (INTERWORK_SET (abfd) && (INTERWORK_FLAG (abfd) != flag))
     {
       if (flag)
-	/* xgettext: c-format */
 	_bfd_error_handler (_("Warning: Not setting interworking flag of %B since it has already been specified as non-interworking"),
 			    abfd);
       else
-	/* xgettext: c-format */
 	_bfd_error_handler (_("Warning: Clearing the interworking flag of %B due to outside request"),
 			    abfd);
       flag = 0;
@@ -2422,7 +2419,7 @@ coff_arm_copy_private_bfd_data (bfd * src, bfd * dest)
 	      if (INTERWORK_FLAG (dest))
 		{
 		  /* xgettext:c-format */
-		  _bfd_error_handler (("\
+		  _bfd_error_handler (_("\
 Warning: Clearing the interworking flag of %B because non-interworking code in %B has been linked with it"),
 				      dest, src);
 		}

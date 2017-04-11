@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2000-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -29,7 +29,6 @@ LDEMUL_BEFORE_ALLOCATION=sh64_elf_${EMULATION_NAME}_before_allocation
 fragment <<EOF
 
 #include "libiberty.h"
-#include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/sh.h"
 #include "elf32-sh64.h"
@@ -332,7 +331,7 @@ sh64_elf_${EMULATION_NAME}_after_allocation (void)
 		      {
 			oflags_isa = SHF_SH5_ISA32_MIXED;
 
-			BFD_ASSERT (sh64_elf_section_data (osec)->sh64_info);
+			ASSERT (sh64_elf_section_data (osec)->sh64_info);
 
 			sh64_elf_section_data (osec)->sh64_info->contents_flags
 			  = SHF_SH5_ISA32_MIXED;
@@ -382,7 +381,7 @@ sh64_elf_${EMULATION_NAME}_after_allocation (void)
   if (cranges->contents != NULL)
     free (cranges->contents);
 
-  BFD_ASSERT (sh64_elf_section_data (cranges)->sh64_info != NULL);
+  ASSERT (sh64_elf_section_data (cranges)->sh64_info != NULL);
 
   /* Make sure we have .cranges in memory even if there were only
      assembler-generated .cranges.  */
@@ -485,7 +484,8 @@ sh64_elf_${EMULATION_NAME}_after_allocation (void)
 
 		    /* If we emit relocatable contents, we need a
 		       relocation for the start address.  */
-		    if (link_info.relocatable || link_info.emitrelocations)
+		    if (bfd_link_relocatable (&link_info)
+			|| link_info.emitrelocations)
 		      {
 			/* FIXME: We could perhaps use lang_add_reloc and
 			   friends here, but I'm not really sure that

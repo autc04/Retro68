@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	d50c8027 	tlbi	ipas2e1is, x7
    4:	d50c80a7 	tlbi	ipas2le1is, x7
    8:	d508831f 	tlbi	vmalle1is

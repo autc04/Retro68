@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2015 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2016 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -19,27 +19,12 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "tm.h"
-#include "hash-set.h"
-#include "machmode.h"
-#include "vec.h"
-#include "double-int.h"
-#include "input.h"
-#include "alias.h"
-#include "symtab.h"
-#include "wide-int.h"
-#include "inchash.h"
-#include "tree.h"
-#include "version.h"
-#include "flags.h"
-
-
-#include "options.h"
-#include "gfortran.h"
-#include "tm_p.h"		/* Target prototypes.  */
 #include "target.h"
-#include "toplev.h"
+#include "gfortran.h"
 #include "diagnostic.h"
+
+
+#include "toplev.h"
 
 #include "../../libcpp/internal.h"
 #include "cpp.h"
@@ -147,7 +132,7 @@ static void scan_translation_unit_trad (cpp_reader *);
 
 /* Callback routines for the parser. Most of these are active only
    in specific modes.  */
-static void cb_file_change (cpp_reader *, const struct line_map *);
+static void cb_file_change (cpp_reader *, const line_map_ordinary *);
 static void cb_line_change (cpp_reader *, const cpp_token *, int);
 static void cb_define (cpp_reader *, source_location, cpp_hashnode *);
 static void cb_undef (cpp_reader *, source_location, cpp_hashnode *);
@@ -157,9 +142,9 @@ static void cb_include (cpp_reader *, source_location, const unsigned char *,
 static void cb_ident (cpp_reader *, source_location, const cpp_string *);
 static void cb_used_define (cpp_reader *, source_location, cpp_hashnode *);
 static void cb_used_undef (cpp_reader *, source_location, cpp_hashnode *);
-static bool cb_cpp_error (cpp_reader *, int, int, location_t, unsigned int,
+static bool cb_cpp_error (cpp_reader *, int, int, rich_location *,
 			  const char *, va_list *)
-     ATTRIBUTE_GCC_DIAG(6,0);
+     ATTRIBUTE_GCC_DIAG(5,0);
 void pp_dir_change (cpp_reader *, const char *);
 
 static int dump_macro (cpp_reader *, cpp_hashnode *, void *);
@@ -807,7 +792,8 @@ scan_translation_unit_trad (cpp_reader *pfile)
 static void
 maybe_print_line (source_location src_loc)
 {
-  const struct line_map *map = linemap_lookup (line_table, src_loc);
+  const line_map_ordinary *map
+    = linemap_check_ordinary (linemap_lookup (line_table, src_loc));
   int src_line = SOURCE_LINE (map, src_loc);
 
   /* End the previous line of text.  */
@@ -874,7 +860,7 @@ print_line (source_location src_loc, const char *special_flags)
 }
 
 static void
-cb_file_change (cpp_reader * ARG_UNUSED (pfile), const struct line_map *map)
+cb_file_change (cpp_reader * ARG_UNUSED (pfile), const line_map_ordinary *map)
 {
   const char *flags = "";
 
@@ -896,7 +882,7 @@ cb_file_change (cpp_reader * ARG_UNUSED (pfile), const struct line_map *map)
 	  /* Bring current file to correct line when entering a new file.  */
 	  if (map->reason == LC_ENTER)
 	    {
-	      const struct line_map *from = INCLUDED_FROM (line_table, map);
+	      const line_map_ordinary *from = INCLUDED_FROM (line_table, map);
 	      maybe_print_line (LAST_SOURCE_LINE_LOCATION (from));
 	    }
 	  if (map->reason == LC_ENTER)
@@ -930,7 +916,8 @@ cb_line_change (cpp_reader *pfile, const cpp_token *token,
      ought to care.  Some things do care; the fault lies with them.  */
   if (!CPP_OPTION (pfile, traditional))
     {
-      const struct line_map *map = linemap_lookup (line_table, src_loc);
+      const line_map_ordinary *map
+	= linemap_check_ordinary (linemap_lookup (line_table, src_loc));
       int spaces = SOURCE_COLUMN (map, src_loc) - 2;
       print.printed = 1;
 
@@ -1032,13 +1019,12 @@ cb_used_define (cpp_reader *pfile, source_location line ATTRIBUTE_UNUSED,
 /* Callback from cpp_error for PFILE to print diagnostics from the
    preprocessor.  The diagnostic is of type LEVEL, with REASON set
    to the reason code if LEVEL is represents a warning, at location
-   LOCATION, with column number possibly overridden by COLUMN_OVERRIDE
-   if not zero; MSG is the translated message and AP the arguments.
+   RICHLOC; MSG is the translated message and AP the arguments.
    Returns true if a diagnostic was emitted, false otherwise.  */
 
 static bool
 cb_cpp_error (cpp_reader *pfile ATTRIBUTE_UNUSED, int level, int reason,
-	      location_t location, unsigned int column_override,
+	      rich_location *richloc,
 	      const char *msg, va_list *ap)
 {
   diagnostic_info diagnostic;
@@ -1073,9 +1059,7 @@ cb_cpp_error (cpp_reader *pfile ATTRIBUTE_UNUSED, int level, int reason,
       gcc_unreachable ();
     }
   diagnostic_set_info_translated (&diagnostic, msg, ap,
-				  location, dlevel);
-  if (column_override)
-    diagnostic_override_column (&diagnostic, column_override);
+				  richloc, dlevel);
   if (reason == CPP_W_WARNING_DIRECTIVE)
     diagnostic_override_option_index (&diagnostic, OPT_Wcpp);
   ret = report_diagnostic (&diagnostic);

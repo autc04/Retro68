@@ -1,5 +1,5 @@
 /* Linker file opening and searching.
-   Copyright (C) 1991-2014 Free Software Foundation, Inc.
+   Copyright (C) 1991-2017 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -38,19 +38,19 @@
 #include "plugin.h"
 #endif /* ENABLE_PLUGINS */
 
-bfd_boolean  ldfile_assumed_script = FALSE;
-const char * ldfile_output_machine_name = "";
+bfd_boolean ldfile_assumed_script = FALSE;
+const char *ldfile_output_machine_name = "";
 unsigned long ldfile_output_machine;
 enum bfd_architecture ldfile_output_architecture;
-search_dirs_type * search_head;
+search_dirs_type *search_head;
 
 #ifdef VMS
-static char * slash = "";
+static char *slash = "";
 #else
-#if defined (_WIN32) && ! defined (__CYGWIN32__)
-static char * slash = "\\";
+#if defined (_WIN32) && !defined (__CYGWIN32__)
+static char *slash = "\\";
 #else
-static char * slash = "/";
+static char *slash = "/";
 #endif
 #endif
 
@@ -142,6 +142,14 @@ ldfile_try_open_bfd (const char *attempt,
   /* Linker needs to decompress sections.  */
   entry->the_bfd->flags |= BFD_DECOMPRESS;
 
+  /* This is a linker input BFD.  */
+  entry->the_bfd->is_linker_input = 1;
+
+#ifdef ENABLE_PLUGINS
+  if (entry->flags.lto_output)
+    entry->the_bfd->lto_output = 1;
+#endif
+
   /* If we are searching for this file, see if the architecture is
      compatible with the output file.  If it isn't, keep searching.
      If we can't open the file as an object file, stop the search
@@ -164,12 +172,12 @@ ldfile_try_open_bfd (const char *attempt,
 
       if (check != NULL)
 	{
-	  if (! bfd_check_format (check, bfd_object))
+	  if (!bfd_check_format (check, bfd_object))
 	    {
 	      if (check == entry->the_bfd
 		  && entry->flags.search_dirs
 		  && bfd_get_error () == bfd_error_file_not_recognized
-		  && ! ldemul_unrecognized_file (entry))
+		  && !ldemul_unrecognized_file (entry))
 		{
 		  int token, skip = 0;
 		  char *arg, *arg1, *arg2, *arg3;
@@ -276,9 +284,10 @@ ldfile_try_open_bfd (const char *attempt,
 	      && !bfd_arch_get_compatible (check, link_info.output_bfd,
 					   command_line.accept_unknown_input_arch)
 	      /* XCOFF archives can have 32 and 64 bit objects.  */
-	      && ! (bfd_get_flavour (check) == bfd_target_xcoff_flavour
-		    && bfd_get_flavour (link_info.output_bfd) == bfd_target_xcoff_flavour
-		    && bfd_check_format (entry->the_bfd, bfd_archive)))
+	      && !(bfd_get_flavour (check) == bfd_target_xcoff_flavour
+		   && (bfd_get_flavour (link_info.output_bfd)
+		       == bfd_target_xcoff_flavour)
+		   && bfd_check_format (entry->the_bfd, bfd_archive)))
 	    {
 	      if (command_line.warn_search_mismatch)
 		einfo (_("%P: skipping incompatible %s "
@@ -301,22 +310,10 @@ success:
      bfd_object that it sets the bfd's arch and mach, which
      will be needed when and if we want to bfd_create a new
      one using this one as a template.  */
-  if (bfd_check_format (entry->the_bfd, bfd_object)
-      && plugin_active_plugins_p ()
-      && !no_more_claiming)
-    {
-      int fd = open (attempt, O_RDONLY | O_BINARY);
-      if (fd >= 0)
-	{
-	  struct ld_plugin_input_file file;
-
-	  file.name = attempt;
-	  file.offset = 0;
-	  file.filesize = lseek (fd, 0, SEEK_END);
-	  file.fd = fd;
-	  plugin_maybe_claim (&file, entry);
-	}
-    }
+  if (link_info.lto_plugin_active
+      && !no_more_claiming
+      && bfd_check_format (entry->the_bfd, bfd_object))
+    plugin_maybe_claim (entry);
 #endif /* ENABLE_PLUGINS */
 
   /* It opened OK, the format checked out, and the plugins have had
@@ -337,7 +334,7 @@ ldfile_open_file_search (const char *arch,
 
   /* If this is not an archive, try to open it in the current
      directory first.  */
-  if (! entry->flags.maybe_archive)
+  if (!entry->flags.maybe_archive)
     {
       if (entry->flags.sysrooted && IS_ABSOLUTE_PATH (entry->filename))
 	{
@@ -361,7 +358,7 @@ ldfile_open_file_search (const char *arch,
     {
       char *string;
 
-      if (entry->flags.dynamic && ! link_info.relocatable)
+      if (entry->flags.dynamic && !bfd_link_relocatable (&link_info))
 	{
 	  if (ldemul_open_dynamic_archive (arch, search, entry))
 	    return TRUE;
@@ -397,7 +394,7 @@ ldfile_open_file (lang_input_statement_type *entry)
   if (entry->the_bfd != NULL)
     return;
 
-  if (! entry->flags.search_dirs)
+  if (!entry->flags.search_dirs)
     {
       if (ldfile_try_open_bfd (entry->filename, entry))
 	return;
@@ -631,8 +628,8 @@ void
 ldfile_add_arch (const char *in_name)
 {
   char *name = xstrdup (in_name);
-  search_arch_type *new_arch = (search_arch_type *)
-      xmalloc (sizeof (search_arch_type));
+  search_arch_type *new_arch
+    = (search_arch_type *) xmalloc (sizeof (search_arch_type));
 
   ldfile_output_machine_name = in_name;
 

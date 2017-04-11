@@ -1,7 +1,7 @@
 // { dg-do run { xfail { ! { *-*-linux* *-*-gnu* } } } }
-// { dg-require-namedlocale "de_DE" }
+// { dg-require-namedlocale "de_DE.ISO8859-15" }
 
-// Copyright (C) 2000-2015 Free Software Foundation, Inc.
+// Copyright (C) 2000-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -59,8 +59,8 @@ void test02()
       v_c[i] = mask_is;
     }   
 
-  // "de_DE"
-  locale loc_de = locale("de_DE");
+  // "de_DE.ISO8859-15"
+  locale loc_de = locale(ISO_8859(15,de_DE));
   const ctype<char>& ctype_de = use_facet<ctype<char> >(loc_de); 
   for (int i = 0; i < max; ++i)
     {

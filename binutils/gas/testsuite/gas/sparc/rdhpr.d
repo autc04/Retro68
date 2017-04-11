@@ -1,4 +1,4 @@
-#as: -64 -Av9
+#as: -64 -Av9m
 #objdump: -dr
 #name: sparc64 rdhpr
 
@@ -15,3 +15,6 @@ Disassembly of section .text:
   14:	8d 4f 00 00 	rdhpr  %hstick_offset, %g6
   18:	8b 4f 40 00 	rdhpr  %hstick_enable, %g5
   1c:	89 4f c0 00 	rdhpr  %hstick_cmpr, %g4
+  20:	8d 4d c0 00 	rdhpr  %hmcdper, %g6
+  24:	8b 4e 00 00 	rdhpr  %hmcddfr, %g5
+  28:	89 4e c0 00 	rdhpr  %hva_mask_nz, %g4

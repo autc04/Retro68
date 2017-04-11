@@ -6,7 +6,7 @@
 	.global F
 F:
 	@ First we test the basic syntax and bit patterns of the opcodes.
-	@ Most of these tests deliberatly use s0/r0 to avoid setting
+	@ Most of these tests deliberately use s0/r0 to avoid setting
 	@ any more bits than necessary.
 
 	@ Comparison operations

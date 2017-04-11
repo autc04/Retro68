@@ -5,8 +5,8 @@
 
 Relocation section '.rela.got' at .*
 [ ]+Offset[ ]+Info[ ]+Type[ ]+.*
-[0-9a-f]+[ ]+[0-9a-f]+[ ]+R_AARCH64_GLOB_DAT[ ]+foo\(\)[ ]+foo \+ 0
+[0-9a-f]+[ ]+[0-9a-f]+[ ]+R_AARCH64_(P32_|)GLOB_DAT[ ]+foo\(\)[ ]+foo \+ 0
 #...
 Relocation section '.rela.plt' at .*
 [ ]+Offset[ ]+Info[ ]+Type[ ]+.*
-[0-9a-f]+[ ]+[0-9a-f]+[ ]+R_AARCH64_JUMP_SLOT[ ]+foo\(\)[ ]+foo \+ 0
+[0-9a-f]+[ ]+[0-9a-f]+[ ]+R_AARCH64_(P32_|)JUMP_SLO(T|)[ ]+foo\(\)[ ]+foo \+ 0

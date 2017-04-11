@@ -1,7 +1,7 @@
 #readelf: -S
 #name: x86-64 unwind
 
-There are 8 section headers, starting at offset 0x100:
+There are 8 section headers, starting at offset 0x[0-9a-f]+:
 
 Section Headers:
   \[Nr\] Name              Type             Address           Offset
@@ -16,11 +16,11 @@ Section Headers:
        0000000000000000  0000000000000000  WA       0     0     1
   \[ 4\] \.eh_frame         X86_64_UNWIND    0000000000000000  00000040
        0000000000000008  0000000000000000   A       0     0     1
-  \[ 5\] \.shstrtab         STRTAB           0000000000000000  00000048
-       0000000000000036  0000000000000000           0     0     1
-  \[ 6\] \.symtab           SYMTAB           0000000000000000  00000080
-       0000000000000078  0000000000000018           7     5     8
-  \[ 7\] \.strtab           STRTAB           0000000000000000  000000f8
-       0000000000000001  0000000000000000           0     0     1
+  \[ 5\] \.symtab           SYMTAB           0000000000000000  [0-9a-f]+
+       0000000000000078  0000000000000018           6     5     8
+  \[ 6\] \.strtab           STRTAB           0000000000000000  [0-9a-f]+
+       0000000000000001  0000000000000000   .       0     0     1
+  \[ 7\] \.shstrtab         STRTAB           0000000000000000  [0-9a-f]+
+       0000000000000036  0000000000000000   .       0     0     1
 Key to Flags:
 #...

@@ -1,5 +1,5 @@
 /* { dg-do run } */
-/* { dg-options "-O2 -ftree-vectorize -fdump-tree-vect-all" } */
+/* { dg-options "-O2 -ftree-vectorize -fdump-tree-vect-all -fno-vect-cost-model" } */
 /* Write a reduction loop to be reduced using whole vector right shift.  */
 
 extern void abort (void);
@@ -23,7 +23,7 @@ main (unsigned char argc, char **argv)
 
   if (sum != 13)
     {
-      __builtin_printf("Failed %d\n", sum);
+      __builtin_printf ("Failed %d\n", sum);
       abort ();
     }
 
@@ -31,4 +31,3 @@ main (unsigned char argc, char **argv)
 }
 
 /* { dg-final { scan-tree-dump "Reduce using vector shifts" "vect" } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */

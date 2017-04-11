@@ -1,4 +1,4 @@
-# Copyright (C) 1993-2014 Free Software Foundation, Inc.
+# Copyright (C) 1993-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -20,39 +20,49 @@
 # True if the object format is known to be ELF.
 #
 proc is_elf_format {} {
-    if { ![istarget *-*-sysv4*]
-	 && ![istarget *-*-unixware*]
+    # config.sub for these targets curiously transforms a target doublet
+    # ending in -elf to -none.  eg. m68hc12-elf to m68hc12-unknown-none
+    # They are always elf.
+    if { [istarget m68hc1*-*] || [istarget xgate-*] } {
+	return 1;
+    }
+
+    if {    ![istarget *-*-eabi*]
 	 && ![istarget *-*-elf*]
-	 && ![istarget *-*-eabi*]
-	 && ![istarget *-*-rtems*]
-	 && ![istarget hppa*64*-*-hpux*]
-	 && ![istarget ia64-*-hpux*]
-	 && ![istarget *-*-linux*]
+	 && ![istarget *-*-freebsd*]
 	 && ![istarget *-*-gnu*]
-	 && ![istarget *-*-nacl*]
-	 && ![istarget frv-*-uclinux*]
-	 && ![istarget bfin-*-uclinux]
-	 && ![istarget sh*-*-uclinux*]
-	 && ![istarget tic6x*-*-uclinux*]
 	 && ![istarget *-*-irix5*]
 	 && ![istarget *-*-irix6*]
+	 && ![istarget *-*-linux*]
+	 && ![istarget *-*-nacl*]
 	 && ![istarget *-*-netbsd*]
 	 && ![istarget *-*-openbsd*]
-	 && ![istarget *-*-solaris2*] } {
+	 && ![istarget *-*-rtems*]
+	 && ![istarget *-*-solaris2*]
+	 && ![istarget *-*-sysv4*]
+	 && ![istarget *-*-unixware*]
+	 && ![istarget avr-*-*]
+	 && ![istarget bfin-*-uclinux]
+	 && ![istarget frv-*-uclinux*]
+	 && ![istarget hppa*64*-*-hpux*]
+	 && ![istarget ia64-*-hpux*]
+	 && ![istarget sh*-*-uclinux*]
+	 && ![istarget tic6x*-*-uclinux*] } {
 	return 0
     }
 
-    if { [istarget *-*-linux*aout*]
+    if {    [istarget *-*-linux*aout*]
 	 || [istarget *-*-linux*ecoff*]
 	 || [istarget *-*-linux*oldld*]
+	 || [istarget *-*-rtemscoff*]
 	 || [istarget h8500-*-rtems*]
-	 || [istarget i960-*-rtems*]
-	 || [istarget *-*-rtemscoff*] } {
+	 || [istarget i?86-*-freebsd\[12\].*]
+	 || [istarget i960-*-rtems*] } {
 	return 0
     }
 
     if { ![istarget *-*-netbsdelf*]
-	 && ([istarget *-*-netbsd*aout*]
+	 && (   [istarget *-*-netbsd*aout*]
 	     || [istarget *-*-netbsdpe*]
 	     || [istarget arm*-*-netbsd*]
 	     || [istarget sparc-*-netbsd*]
@@ -63,7 +73,7 @@ proc is_elf_format {} {
     	return 0
     }
 
-    if { [istarget arm-*-openbsd*]
+    if {    [istarget arm-*-openbsd*]
 	 || [istarget i386-*-openbsd\[0-2\].*]
 	 || [istarget i386-*-openbsd3.\[0-2\]]
 	 || [istarget m68*-*-openbsd*]
@@ -92,7 +102,7 @@ proc is_aout_format {} {
 	 || [istarget arm-*-netbsd*]
 	 || [istarget arm-*-openbsd*]
 	 || [istarget arm-*-riscix*]
-	 || [istarget i?86-*-freebsd\[12\]*]
+	 || [istarget i?86-*-freebsd\[12\].*]
 	 || [istarget i?86-*-netbsd*]
 	 || [istarget i?86-*-openbsd\[0-2\]*]
 	 || [istarget i?86-*-openbsd3.\[0-2\]*]
@@ -152,29 +162,74 @@ proc is_elf64 { binary_file } {
     return 0
 }
 
-# True if the build supports zlib compression.
-proc is_zlib_supported {} {
-
-    # This replicates the AS selection logic of dejagnu's target_assemble.
-    global AS_FOR_TARGET
-    if [info exists AS_FOR_TARGET] {
-	set AS $AS_FOR_TARGET
-    } else {
-	if {![board_info target exists assembler]} {
-	    set AS [find_gas]
-	} else {
-	    set AS [board_info target assembler]
-	}
+# True if the ELF target supports STB_GNU_UNIQUE with the ELF header's
+# OSABI field set to ELFOSABI_GNU.
+#
+# This generally depends on the target OS only, however there are a
+# number of exceptions for bare metal targets as follows.  The MSP430
+# and Visium targets set OSABI to ELFOSABI_STANDALONE and cannot
+# support STB_GNU_UNIQUE.  Likewise non-EABI ARM targets set OSABI to
+# ELFOSABI_ARM, and TI C6X targets to ELFOSABI_C6000_*.  Finally
+# rather than `bfd_elf_final_link' AM33/2.0, D30V, DLX, i960, and
+# picoJava targets use `_bfd_generic_final_link', which does not
+# support STB_GNU_UNIQUE symbol binding causing assertion failures.
+#
+proc supports_gnu_unique {} {
+    if { [istarget *-*-gnu*]
+	 || [istarget *-*-linux*]
+	 || [istarget *-*-nacl*] } {
+	return 1
     }
-
-    set as_output [remote_exec host "$AS --help"]
-
-    set have_zlib 0
-    if {[string first "--compress-debug-sections" $as_output] >= 0} {
-	set have_zlib 1
+    if { [istarget "arm*-*-*eabi*"] } {
+	return 1
     }
+    if { ![istarget "*-*-elf*"] } {
+	return 0
+    }
+    if { [istarget "arm*-*-*"]
+	 || [istarget "msp430-*-*"]
+	 || [istarget "tic6x-*-*"]
+	 || [istarget "visium-*-*"] } {
+	return 0
+    }
+    if { [istarget "am33_2.0-*-*"]
+	 || [istarget "d30v-*-*"]
+	 || [istarget "dlx-*-*"]
+	 || [istarget "i960-*-*"]
+	 || [istarget "pj*-*-*"] } {
+	return 0
+    }
+    return 1
+}
 
-    return $have_zlib
+# True for targets that do not sort .symtab as per the ELF standard.
+# ie. any that have mips_elf32_be_vec, mips_elf32_le_vec,
+# mips_elf32_n_be_vec or mips_elf32_n_le_vec as the primary bfd target
+# vector in config.bfd.  When syncing with config.bfd, don't forget that
+# earlier case-matches trump later ones.
+proc is_bad_symtab {} {
+    if { ![istarget "mips*-*-*"] } {
+	return 0;
+    }
+    if { [istarget "*-*-chorus*"]
+	 || [istarget "*-*-irix5*"]
+	 || [istarget "*-*-irix6*"]
+	 || [istarget "*-*-none"]
+	 || [istarget "*-*-rtems*"]
+	 || [istarget "*-*-windiss"] } {
+	return 1;
+    }
+    if { [istarget "*-*-elf*"]
+	 && ![istarget "*-sde-*"]
+	 && ![istarget "*-mti-*"]
+	 && ![istarget "*-img-*"] } {
+	return 1;
+    }
+    if { [istarget "*-*-openbsd*"]
+	 && ![istarget "mips64*-*-*"] } {
+	return 1;
+    }
+    return 0;
 }
 
 # Compare two files line-by-line.  FILE_1 is the actual output and FILE_2

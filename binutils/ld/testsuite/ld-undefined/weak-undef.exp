@@ -1,5 +1,5 @@
 # Test handling of weak undefined symbols
-#   Copyright (C) 2001-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2001-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -18,67 +18,92 @@
 # Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
 # MA 02110-1301, USA.
 
-set testname "weak undefined symbols"
+# The linker should accept references to undefined weaks without error,
+# and resolve them to zero in a static executable.  Ought to work for
+# some a.out targets too.
+set testname "weak undefined data symbols"
 
-# This test only works for ELF targets.  It ought to work for some
-# a.out targets, but it doesn't.
-
-if { ![istarget *-*-sysv4*] \
-     && ![istarget *-*-unixware*] \
-     && ![istarget *-*-elf*] \
-     && ![istarget *-*-eabi*] \
-     && ![istarget hppa*64*-*-hpux*] \
-     && ![istarget *-*-linux*] \
-     && ![istarget *-*-gnu*] \
-     && ![istarget *-*-nacl*] \
-     && ![istarget *-*-irix5*] \
-     && ![istarget *-*-irix6*] \
-     && ![is_pecoff_format] \
-     && ![istarget *-*-solaris2*] } then {
+if { ![is_elf_format] && ![is_pecoff_format] } then {
     unsupported $testname
-    return
-}
-
-if { [istarget *-*-linux*aout*] \
-     || [istarget *-*-linux*oldld*] } {
-    unsupported $testname
-    return
-}
-
-# Weak symbols are broken for non-i386 PE targets.
-if {! [istarget i?86-*-*]} {
-    setup_xfail *-*-pe*
-}
-
-setup_xfail pj-*-*
-
-if {! [ld_assemble $as $srcdir/$subdir/weak-undef.s tmpdir/weak-undef.o]} then {
+} elseif {![ld_assemble $as $srcdir/$subdir/weak-undef.s \
+	    tmpdir/weak-undef.o]} then {
     # It's OK if .weak doesn't work on this target.
     unresolved $testname
-    return
-}
-
-# The linker should accept references to undefined weaks without error,
-# and resolve them to zero.
-
-set output_regexp \
-".*Contents of section .data:.*0000 00000000 11111111.*"
-
-if {! [ld_simple_link $ld tmpdir/weak-undef "$flags tmpdir/weak-undef.o -T $srcdir/$subdir/weak-undef.t"] } then {
-    fail $testname
-} else {
-    if {![is_remote host] && [which $objdump] == 0} then {
-	unresolved $testname
-	return
+} elseif {![ld_simple_link $ld tmpdir/weak-undef \
+		"tmpdir/weak-undef.o -T $srcdir/$subdir/weak-undef.t"]} then {
+    # Weak symbols are broken for non-i386 PE targets.
+    if {! [istarget i?86-*-*]} {
+	setup_xfail *-*-pe*
     }
-
+    setup_xfail pj-*-*
+    fail $testname
+} elseif {![is_remote host] && [which $objdump] == 0} then {
+    unresolved $testname
+} else {
     set exec_output [run_host_cmd "$objdump" "-s tmpdir/weak-undef"]
     set exec_output [prune_warnings $exec_output]
     verbose -log $exec_output
+
+    set output_regexp ".*Contents of section .data:.*0000 00000000 11111111.*"
 
     if {[regexp $output_regexp $exec_output]} then {
 	pass $testname
     } else {
 	fail $testname
+    }
+}
+
+# When linking a shared lib, weak undefined symbols should become dynamic.
+set testname "weak undefined function symbols in shared lib"
+
+set asflags ""
+switch -glob $target_triplet {
+    aarch64* -
+    arm* -
+    powerpc* { set asflags "--defsym BL=1" }
+    hppa* { set asflags "--defsym HPPA=1" }
+    i\[3-7\]86* -
+    x86_64* { set asflags "--defsym CALLPLT=1" }
+}
+
+if { $asflags == "" || ![is_elf_format] || ![check_shared_lib_support]} then {
+    unsupported $testname
+} elseif {![ld_assemble $as "$asflags $srcdir/$subdir/weak-fundef.s" \
+		tmpdir/weak-fundef.o]} then {
+    fail $testname
+} elseif {![ld_simple_link $ld tmpdir/weak-fundef.so \
+	    "--shared tmpdir/weak-fundef.o"]} then {
+    fail $testname
+} elseif {![is_remote host] && [which $nm] == 0} then {
+    unresolved $testname
+} else {
+    set exec_output [run_host_cmd "$nm" "-D tmpdir/weak-fundef.so"]
+    set exec_output [prune_warnings $exec_output]
+    verbose -log $exec_output
+
+    set output_regexp ".*w undef_weak_fun.*"
+
+    if {[regexp $output_regexp $exec_output]} then {
+	pass $testname
+    } else {
+	fail $testname
+    }
+
+    # When linking a dynamic executable, weak undefined symbols become dynamic.
+    set testname "weak undefined function symbols in dynamic exe"
+
+    if {![ld_simple_link $ld tmpdir/weak-fundef \
+	  "--no-as-needed tmpdir/weak-fundef.o tmpdir/weak-fundef.so"]} then {
+	fail $testname
+    } else {
+	set exec_output [run_host_cmd "$nm" "-D tmpdir/weak-fundef"]
+	set exec_output [prune_warnings $exec_output]
+	verbose -log $exec_output
+
+	if {[regexp $output_regexp $exec_output]} then {
+	    pass $testname
+	} else {
+	    fail $testname
+	}
     }
 }

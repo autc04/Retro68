@@ -49,7 +49,7 @@
 #endif
 
 #ifdef __ANDROID__
-#undef linux
+#undef __linux__
 #endif
 
 #ifdef IN_RTS
@@ -66,7 +66,7 @@
 #include <time.h>
 #include <errno.h>
 
-#if defined (sun) && defined (__SVR4) && !defined (__vxworks)
+#if defined (__sun__) && !defined (__vxworks)
 /* The declaration is present in <time.h> but conditionalized
    on a couple of macros we don't define.  */
 extern struct tm *localtime_r(const time_t *, struct tm *);
@@ -282,12 +282,12 @@ __gnat_ttyname (int filedes)
 }
 #endif
 
-#if defined (linux) || defined (sun) \
+#if defined (__linux__) || defined (__sun__) \
   || defined (WINNT) \
   || defined (__MACHTEN__) || defined (__hpux__) || defined (_AIX) \
-  || (defined (__svr4__) && defined (i386)) || defined (__Lynx__) \
+  || (defined (__svr4__) && defined (__i386__)) || defined (__Lynx__) \
   || defined (__CYGWIN__) || defined (__FreeBSD__) || defined (__OpenBSD__) \
-  || defined (__GLIBC__) || defined (__APPLE__)
+  || defined (__GLIBC__) || defined (__APPLE__) || defined (__DragonFly__)
 
 # ifdef __MINGW32__
 #  if OLD_MINGW
@@ -335,11 +335,11 @@ getc_immediate_common (FILE *stream,
                        int *avail,
                        int waiting ATTRIBUTE_UNUSED)
 {
-#if defined (linux) || defined (sun) \
+#if defined (__linux__) || defined (__sun__) \
     || defined (__CYGWIN32__) || defined (__MACHTEN__) || defined (__hpux__) \
-    || defined (_AIX) || (defined (__svr4__) && defined (i386)) \
+    || defined (_AIX) || (defined (__svr4__) && defined (__i386__)) \
     || defined (__Lynx__) || defined (__FreeBSD__) || defined (__OpenBSD__) \
-    || defined (__GLIBC__) || defined (__APPLE__)
+    || defined (__GLIBC__) || defined (__APPLE__) || defined (__DragonFly__)
   char c;
   int nread;
   int good_one = 0;
@@ -355,11 +355,11 @@ getc_immediate_common (FILE *stream,
       /* Set RAW mode, with no echo */
       termios_rec.c_lflag = termios_rec.c_lflag & ~ICANON & ~ECHO;
 
-#if defined(linux) || defined (sun) \
+#if defined (__linux__) || defined (__sun__) \
     || defined (__MACHTEN__) || defined (__hpux__) \
-    || defined (_AIX) || (defined (__svr4__) && defined (i386)) \
+    || defined (_AIX) || (defined (__svr4__) && defined (__i386__)) \
     || defined (__Lynx__) || defined (__FreeBSD__) || defined (__OpenBSD__) \
-    || defined (__GLIBC__) || defined (__APPLE__)
+    || defined (__GLIBC__) || defined (__APPLE__) || defined (__DragonFly__)
       eof_ch = termios_rec.c_cc[VEOF];
 
       /* If waiting (i.e. Get_Immediate (Char)), set MIN = 1 and wait for
@@ -605,27 +605,6 @@ long __gnat_invalid_tzoff = 259273;
 
 #if defined (__MINGW32__)
 
-#ifdef CERT
-
-/* For the Cert run times on native Windows we use dummy functions
-   for locking and unlocking tasks since we do not support multiple
-   threads on this configuration (Cert run time on native Windows). */
-
-void dummy (void) {}
-
-void (*Lock_Task) ()   = &dummy;
-void (*Unlock_Task) () = &dummy;
-
-#else
-
-#define Lock_Task system__soft_links__lock_task
-extern void (*Lock_Task) (void);
-
-#define Unlock_Task system__soft_links__unlock_task
-extern void (*Unlock_Task) (void);
-
-#endif
-
 /* Reentrant localtime for Windows. */
 
 extern void
@@ -638,8 +617,6 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
   TIME_ZONE_INFORMATION tzi;
 
   DWORD tzi_status;
-
-  (*Lock_Task) ();
 
   tzi_status = GetTimeZoneInformation (&tzi);
 
@@ -712,8 +689,6 @@ __gnat_localtime_tzoff (const time_t *timer, const int *is_historic, long *off)
       }
     }
   }
-
-  (*Unlock_Task) ();
 }
 
 #elif defined (__Lynx__)
@@ -756,7 +731,7 @@ __gnat_localtime_tzoff (const time_t *timer ATTRIBUTE_UNUSED,
   struct tm tp ATTRIBUTE_UNUSED;
 
 /* AIX, HPUX, Sun Solaris */
-#if defined (_AIX) || defined (__hpux__) || defined (sun)
+#if defined (_AIX) || defined (__hpux__) || defined (__sun__)
 {
   (*Lock_Task) ();
 
@@ -819,8 +794,8 @@ __gnat_localtime_tzoff (const time_t *timer ATTRIBUTE_UNUSED,
 /* Darwin, Free BSD, Linux, where component tm_gmtoff is present in
    struct tm */
 
-#elif defined (__APPLE__) || defined (__FreeBSD__) || defined (linux) \
-  || defined (__GLIBC__)
+#elif defined (__APPLE__) || defined (__FreeBSD__) || defined (__linux__) \
+  || defined (__GLIBC__) || defined (__DragonFly__) || defined (__OpenBSD__)
 {
   localtime_r (timer, &tp);
   *off = tp.tm_gmtoff;
@@ -865,10 +840,23 @@ __gnat_get_task_options (void)
 
   /* Mask those bits that are not under user control */
 #ifdef VX_USR_TASK_OPTIONS
-  return options & VX_USR_TASK_OPTIONS;
-#else
-  return options;
+  /* O810-007, TSR 00043679:
+     Workaround a bug in Vx-7 where VX_DEALLOC_TCB == VX_PRIVATE_UMASK and:
+     - VX_DEALLOC_TCB is an internal option not to be used by users
+     - VX_PRIVATE_UMASK as a user-definable option
+     This leads to VX_USR_TASK_OPTIONS allowing 0x8000 as VX_PRIVATE_UMASK but
+     taskCreate refusing this option (VX_DEALLOC_TCB is not allowed)
+
+     Note that the same error occurs in both RTP and Kernel mode, but
+     VX_DEALLOC_TCB is not defined in the RTP headers, so we need to
+     explicitely check if VX_PRIVATE_UMASK has value 0x8000
+  */
+# if defined (VX_PRIVATE_UMASK) && (0x8000 == VX_PRIVATE_UMASK)
+  options &= ~VX_PRIVATE_UMASK;
+# endif
+  options &= VX_USR_TASK_OPTIONS;
 #endif
+  return options;
 }
 
 #endif

@@ -1,5 +1,5 @@
 /* BFD backend for CRIS a.out binaries.
-   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+   Copyright (C) 2000-2017 Free Software Foundation, Inc.
    Contributed by Axis Communications AB.
    Written by Hans-Peter Nilsson.
 
@@ -37,7 +37,7 @@
    after text, but with those, we don't have any choice besides reading
    symbol info, and luckily there's no pressing need for correctness for
    those vma:s at this time.  */
-#define N_TXTADDR(x) ((x).a_entry & ~(bfd_vma) 0xffff)
+#define N_TXTADDR(x) ((x)->a_entry & ~(bfd_vma) 0xffff)
 
 /* If you change this to 4, you can not link to an address N*4+2.  */
 #define SEGMENT_SIZE 2
@@ -93,8 +93,8 @@ static bfd_boolean MY (set_sizes) (bfd *);
    not call set_sizes.  */
 
 #define MY_set_arch_mach NAME (aout, set_arch_mach)
-#define SET_ARCH_MACH(BFD, EXEC) \
- MY_set_arch_mach (BFD, DEFAULT_ARCH, N_MACHTYPE (EXEC))
+#define SET_ARCH_MACH(BFD, EXECP) \
+ MY_set_arch_mach (BFD, DEFAULT_ARCH, N_MACHTYPE (EXECP))
 
 /* These macros describe the binary layout of the reloc information we
    use in a file.  */
@@ -129,9 +129,9 @@ MY (write_object_contents) (bfd *abfd)
   /* Setting N_SET_MACHTYPE and using N_SET_FLAGS is not performed by
      the default definition.  */
   if (bfd_get_arch (abfd) == bfd_arch_cris)
-    N_SET_MACHTYPE (*execp, M_CRIS);
+    N_SET_MACHTYPE (execp, M_CRIS);
 
-  N_SET_FLAGS (*execp, aout_backend_info (abfd)->exec_hdr_flags);
+  N_SET_FLAGS (execp, aout_backend_info (abfd)->exec_hdr_flags);
 
   WRITE_HEADERS (abfd, execp);
 
@@ -196,8 +196,9 @@ MY (swap_ext_reloc_out) (bfd *abfd,
      We may change this later, but assert this for the moment.  */
   if (r_type > 2)
     {
-      (*_bfd_error_handler) (_("%s: Invalid relocation type exported: %d"),
-			     bfd_get_filename (abfd), r_type);
+      /* xgettext:c-format */
+      _bfd_error_handler (_("%s: Invalid relocation type exported: %d"),
+			  bfd_get_filename (abfd), r_type);
 
       bfd_set_error (bfd_error_wrong_format);
     }
@@ -239,8 +240,9 @@ MY (swap_ext_reloc_in) (bfd *abfd,
 
   if (r_type > 2)
     {
-      (*_bfd_error_handler) (_("%B: Invalid relocation type imported: %d"),
-			     abfd, r_type);
+      /* xgettext:c-format */
+      _bfd_error_handler (_("%B: Invalid relocation type imported: %d"),
+			  abfd, r_type);
 
       bfd_set_error (bfd_error_wrong_format);
     }
@@ -249,7 +251,8 @@ MY (swap_ext_reloc_in) (bfd *abfd,
 
   if (r_extern && r_index > symcount)
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
+	/* xgettext:c-format */
         (_("%B: Bad relocation record imported: %d"), abfd, r_index);
 
       bfd_set_error (bfd_error_wrong_format);

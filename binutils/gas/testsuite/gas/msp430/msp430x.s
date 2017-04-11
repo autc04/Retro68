@@ -274,4 +274,10 @@ foo:
 	sub.a	r1, r2
 	tst.a	fooz
 	
-	
+	;; Check that repeat counts can be used with shift instructions.
+	rpt r1 { rrux.w r1
+	rpt #2 { rrcx.w r2
+	rpt #3 { rrax.b r7
+	rpt r4 { rrax.a r4
+	rpt #5 { rlax.b r5
+	rpt #6 { rlcx.a r6

@@ -29,3 +29,30 @@ VST1.8 {D0}, R0
 VST1.8 {Q1}, R0
 VST1.8 {D0}, [PC]
 VST1.8 {D0}, [PC, #0]
+
+VSHL.I8		d0, d0, #7
+VSHL.I8		d0, d0, #8
+VSHL.I16	d0, d0, #15
+VSHL.I16	d0, d0, #16
+VSHL.I32	d0, d0, #31
+VSHL.I32	d0, d0, #32
+VSHL.I64	d0, d0, #63
+VSHL.I64	d0, d0, #64
+
+VQSHL.S8	d0, d0, #7
+VQSHL.S8	d0, d0, #8
+VQSHL.S16	d0, d0, #15
+VQSHL.S16	d0, d0, #16
+VQSHL.S32	d0, d0, #31
+VQSHL.S32	d0, d0, #32
+VQSHL.S64	d0, d0, #63
+VQSHL.S64	d0, d0, #64
+
+VQSHLU.S8	d0, d0, #7
+VQSHLU.S8	d0, d0, #8
+VQSHLU.S16	d0, d0, #15
+VQSHLU.S16	d0, d0, #16
+VQSHLU.S32	d0, d0, #31
+VQSHLU.S32	d0, d0, #32
+VQSHLU.S64	d0, d0, #63
+VQSHLU.S64	d0, d0, #64

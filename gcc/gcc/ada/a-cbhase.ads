@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -34,6 +34,7 @@
 with Ada.Iterator_Interfaces;
 
 private with Ada.Containers.Hash_Tables;
+with Ada.Containers.Helpers;
 private with Ada.Streams;
 private with Ada.Finalization; use Ada.Finalization;
 
@@ -48,6 +49,7 @@ generic
    with function "=" (Left, Right : Element_Type) return Boolean is <>;
 
 package Ada.Containers.Bounded_Hashed_Sets is
+   pragma Annotate (CodePeer, Skip_Analysis);
    pragma Pure;
    pragma Remote_Types;
 
@@ -447,17 +449,16 @@ package Ada.Containers.Bounded_Hashed_Sets is
       type Set_Access is access all Set;
       for Set_Access'Storage_Size use 0;
 
+      package Impl is new Helpers.Generic_Implementation;
+
       type Reference_Control_Type is
-         new Ada.Finalization.Controlled with
+         new Impl.Reference_Control_Type with
       record
          Container : Set_Access;
          Index     : Hash_Type;
          Old_Pos   : Cursor;
          Old_Hash  : Hash_Type;
       end record;
-
-      overriding procedure Adjust (Control : in out Reference_Control_Type);
-      pragma Inline (Adjust);
 
       overriding procedure Finalize (Control : in out Reference_Control_Type);
       pragma Inline (Finalize);
@@ -496,7 +497,7 @@ private
    type Set (Capacity : Count_Type; Modulus : Hash_Type) is
      new HT_Types.Hash_Table_Type (Capacity, Modulus) with null record;
 
-   use HT_Types;
+   use HT_Types, HT_Types.Implementation;
    use Ada.Streams;
 
    procedure Write
@@ -537,21 +538,18 @@ private
 
    for Cursor'Read use Read;
 
-   type Reference_Control_Type is new Controlled with record
-      Container : Set_Access;
-   end record;
-
-   overriding procedure Adjust (Control : in out Reference_Control_Type);
-   pragma Inline (Adjust);
-
-   overriding procedure Finalize (Control : in out Reference_Control_Type);
-   pragma Inline (Finalize);
+   subtype Reference_Control_Type is Implementation.Reference_Control_Type;
+   --  It is necessary to rename this here, so that the compiler can find it
 
    type Constant_Reference_Type
      (Element : not null access constant Element_Type) is
-   record
-      Control : Reference_Control_Type;
-   end record;
+      record
+         Control : Reference_Control_Type :=
+           raise Program_Error with "uninitialized reference";
+         --  The RM says, "The default initialization of an object of
+         --  type Constant_Reference_Type or Reference_Type propagates
+         --  Program_Error."
+      end record;
 
    procedure Read
      (Stream : not null access Root_Stream_Type'Class;
@@ -565,6 +563,25 @@ private
 
    for Constant_Reference_Type'Write use Write;
 
+   --  Three operations are used to optimize in the expansion of "for ... of"
+   --  loops: the Next(Cursor) procedure in the visible part, and the following
+   --  Pseudo_Reference and Get_Element_Access functions. See Sem_Ch5 for
+   --  details.
+
+   function Pseudo_Reference
+     (Container : aliased Set'Class) return Reference_Control_Type;
+   pragma Inline (Pseudo_Reference);
+   --  Creates an object of type Reference_Control_Type pointing to the
+   --  container, and increments the Lock. Finalization of this object will
+   --  decrement the Lock.
+
+   type Element_Access is access all Element_Type with
+     Storage_Size => 0;
+
+   function Get_Element_Access
+     (Position : Cursor) return not null Element_Access;
+   --  Returns a pointer to the element designated by Position.
+
    Empty_Set : constant Set :=
                  (Hash_Table_Type with Capacity => 0, Modulus => 0);
 
@@ -574,7 +591,8 @@ private
      Set_Iterator_Interfaces.Forward_Iterator with
    record
       Container : Set_Access;
-   end record;
+   end record
+     with Disable_Controlled => not T_Check;
 
    overriding procedure Finalize (Object : in out Iterator);
 

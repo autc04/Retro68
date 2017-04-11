@@ -216,24 +216,24 @@ insns2:
 
 	beqz	$2,insns1
 	beqz	$2,insns2
-	beqz	$2,bar
-	beqz	$2,quux
+	beqz	$2,ibar
+	beqz	$2,iuux
 	bnez	$2,insns1
 	bnez	$2,insns2
-	bnez	$2,bar
-	bnez	$2,quux
+	bnez	$2,ibar
+	bnez	$2,iuux
 	bteqz	insns1
 	bteqz	insns2
-	bteqz	bar
-	bteqz	quux
+	bteqz	ibar
+	bteqz	iuux
 	btnez	insns1
 	btnez	insns2
-	btnez	bar
-	btnez	quux
+	btnez	ibar
+	btnez	iuux
 	b	insns1
 	b	insns2
-	b	bar
-	b	quux
+	b	ibar
+	b	iuux
 
 	break	0
 	break	1
@@ -252,7 +252,11 @@ insns2:
 	exit	$31
 
 	.p2align 3
-bar:	
+ibar:
+	.insn
+bar:
 
 	.skip	200
+iuux:
+	.insn
 quux:	

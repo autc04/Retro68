@@ -23,9 +23,9 @@ Section Headers:
  +\[[ 0-9]+\] \.opd .*
  +\[[ 0-9]+\] \.got +PROGBITS .* 0+58 08 +WA +0 +0 +256
  +\[[ 0-9]+\] \.plt +.*
- +\[[ 0-9]+\] \.shstrtab +.*
  +\[[ 0-9]+\] \.symtab +.*
  +\[[ 0-9]+\] \.strtab +.*
+ +\[[ 0-9]+\] \.shstrtab +.*
 #...
 
 Elf file type is EXEC \(Executable file\)
@@ -68,7 +68,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* TLS +GLOBAL +DEFAULT +UND ld
 .* NOTYPE +GLOBAL +DEFAULT +13 __bss_start
 .* FUNC +GLOBAL +DEFAULT +UND __tls_get_addr_opt
-.* NOTYPE +GLOBAL +DEFAULT +12 _edata
+.* NOTYPE +GLOBAL +DEFAULT +13 _edata
 .* NOTYPE +GLOBAL +DEFAULT +13 _end
 
 Symbol table '\.symtab' contains [0-9]+ entries:
@@ -96,8 +96,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +LOCAL +DEFAULT +8 le4
 .* TLS +LOCAL +DEFAULT +8 le5
 .* NOTYPE +LOCAL +DEFAULT +12 \.Lie0
-.* (FUNC|NOTYPE) +LOCAL +DEFAULT +UND \.__tls_get_addr(|_opt)
-.* FILE +LOCAL +DEFAULT +ABS .*
+.* FILE +LOCAL +DEFAULT +ABS 
 .* OBJECT +LOCAL +DEFAULT +10 _DYNAMIC
 .* NOTYPE +LOCAL +DEFAULT +7 __glink_PLTresolve
 .* NOTYPE +LOCAL +DEFAULT +7 .*\.plt_call\.__tls_get_addr(|_opt)
@@ -111,7 +110,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +GLOBAL +DEFAULT +9 ld1
 .* NOTYPE +GLOBAL +DEFAULT +13 __bss_start
 .* FUNC +GLOBAL +DEFAULT +UND __tls_get_addr_opt
-.* NOTYPE +GLOBAL +DEFAULT +12 _edata
+.* NOTYPE +GLOBAL +DEFAULT +13 _edata
 .* NOTYPE +GLOBAL +DEFAULT +13 _end
 .* TLS +GLOBAL +DEFAULT +9 gd0
 .* TLS +GLOBAL +DEFAULT +9 ie0

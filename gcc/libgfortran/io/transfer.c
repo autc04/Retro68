@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2015 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2016 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    Namelist transfer functions contributed by Paul Thomas
    F2003 I/O support contributed by Jerry DeLisle
@@ -1434,7 +1434,8 @@ formatted_transfer_scalar_read (st_parameter_dt *dtp, bt type, void *p, int kind
               dtp->u.p.current_unit->bytes_left -= dtp->u.p.sf_seen_eor;
               dtp->u.p.skips -= dtp->u.p.sf_seen_eor;
 	      bytes_used = pos;
-	      dtp->u.p.sf_seen_eor = 0;
+	      if (dtp->u.p.pending_spaces == 0)
+	        dtp->u.p.sf_seen_eor = 0;
 	    }
 	  if (dtp->u.p.skips < 0)
 	    {
@@ -1641,6 +1642,7 @@ formatted_transfer_scalar_write (st_parameter_dt *dtp, bt type, void *p, int kin
 			  - dtp->u.p.current_unit->bytes_left);
 	      dtp->u.p.max_pos = 
 		dtp->u.p.max_pos > tmp ? dtp->u.p.max_pos : tmp;
+	      dtp->u.p.skips = 0;
 	    }
 	  if (dtp->u.p.skips < 0)
 	    {
@@ -3502,6 +3504,8 @@ next_record (st_parameter_dt *dtp, int done)
   else
     next_record_w (dtp, done);
 
+  fbuf_flush (dtp->u.p.current_unit, dtp->u.p.mode);
+
   if (!is_stream_io (dtp))
     {
       /* Since we have changed the position, set it to unspecified so
@@ -3515,8 +3519,8 @@ next_record (st_parameter_dt *dtp, int done)
 	  fp = stell (dtp->u.p.current_unit->s);
 	  /* Calculate next record, rounding up partial records.  */
 	  dtp->u.p.current_unit->last_record =
-	    (fp + dtp->u.p.current_unit->recl - 1) /
-	      dtp->u.p.current_unit->recl;
+	    (fp + dtp->u.p.current_unit->recl) /
+	      dtp->u.p.current_unit->recl - 1;
 	}
       else
 	dtp->u.p.current_unit->last_record++;
@@ -3525,7 +3529,6 @@ next_record (st_parameter_dt *dtp, int done)
   if (!done)
     pre_position (dtp);
 
-  fbuf_flush (dtp->u.p.current_unit, dtp->u.p.mode);
   smarkeor (dtp->u.p.current_unit->s);
 }
 
@@ -3600,6 +3603,16 @@ finalize_transfer (st_parameter_dt *dtp)
      next I/O operation if needed.  */
   if (dtp->u.p.advance_status == ADVANCE_NO)
     {
+      if (dtp->u.p.skips > 0)
+	{
+	  int tmp;
+	  write_x (dtp, dtp->u.p.skips, dtp->u.p.pending_spaces);
+	  tmp = (int)(dtp->u.p.current_unit->recl
+		      - dtp->u.p.current_unit->bytes_left);
+	  dtp->u.p.max_pos = 
+	    dtp->u.p.max_pos > tmp ? dtp->u.p.max_pos : tmp;
+	  dtp->u.p.skips = 0;
+	}
       int bytes_written = (int) (dtp->u.p.current_unit->recl
 	- dtp->u.p.current_unit->bytes_left);
       dtp->u.p.current_unit->saved_pos =
@@ -3711,9 +3724,15 @@ void
 st_read_done (st_parameter_dt *dtp)
 {
   finalize_transfer (dtp);
+  
   if (is_internal_unit (dtp) || dtp->u.p.format_not_saved)
-    free_format_data (dtp->u.p.fmt);
+    {
+      free_format_data (dtp->u.p.fmt);
+      free_format (dtp);
+    }
+
   free_ionml (dtp);
+
   if (dtp->u.p.current_unit != NULL)
     unlock_unit (dtp->u.p.current_unit);
 
@@ -3764,8 +3783,13 @@ st_write_done (st_parameter_dt *dtp)
       }
 
   if (is_internal_unit (dtp) || dtp->u.p.format_not_saved)
-    free_format_data (dtp->u.p.fmt);
+    {
+      free_format_data (dtp->u.p.fmt);
+      free_format (dtp);
+    }
+
   free_ionml (dtp);
+
   if (dtp->u.p.current_unit != NULL)
     unlock_unit (dtp->u.p.current_unit);
   

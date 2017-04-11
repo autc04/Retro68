@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	d6bf03e0 	drps
    4:	d503201f 	nop
    8:	d503203f 	yield
@@ -19,31 +19,31 @@ Disassembly of section \.text:
   2c:	d503209f 	sev
   30:	d50320bf 	sevl
   34:	d50320df 	hint	#0x6
-  38:	d50320ff 	hint	#0x7
-  3c:	d503211f 	hint	#0x8
+  38:	d50320ff 	(hint	#0x7|xpaclri)
+  3c:	d503211f 	(hint	#0x8|pacia1716)
   40:	d503213f 	hint	#0x9
-  44:	d503215f 	hint	#0xa
+  44:	d503215f 	(hint	#0xa|pacib1716)
   48:	d503217f 	hint	#0xb
-  4c:	d503219f 	hint	#0xc
+  4c:	d503219f 	(hint	#0xc|autia1716)
   50:	d50321bf 	hint	#0xd
-  54:	d50321df 	hint	#0xe
+  54:	d50321df 	(hint	#0xe|autib1716)
   58:	d50321ff 	hint	#0xf
-  5c:	d503221f 	hint	#0x10
-  60:	d503223f 	hint	#0x11
+  5c:	d503221f 	(hint	#0x10|esb)
+  60:	d503223f 	(hint	#0x11|psb	csync)
   64:	d503225f 	hint	#0x12
   68:	d503227f 	hint	#0x13
   6c:	d503229f 	hint	#0x14
   70:	d50322bf 	hint	#0x15
   74:	d50322df 	hint	#0x16
   78:	d50322ff 	hint	#0x17
-  7c:	d503231f 	hint	#0x18
-  80:	d503233f 	hint	#0x19
-  84:	d503235f 	hint	#0x1a
-  88:	d503237f 	hint	#0x1b
-  8c:	d503239f 	hint	#0x1c
-  90:	d50323bf 	hint	#0x1d
-  94:	d50323df 	hint	#0x1e
-  98:	d50323ff 	hint	#0x1f
+  7c:	d503231f 	(hint	#0x18|paciaz)
+  80:	d503233f 	(hint	#0x19|paciasp)
+  84:	d503235f 	(hint	#0x1a|pacibz)
+  88:	d503237f 	(hint	#0x1b|pacibsp)
+  8c:	d503239f 	(hint	#0x1c|autiaz)
+  90:	d50323bf 	(hint	#0x1d|autiasp)
+  94:	d50323df 	(hint	#0x1e|autibz)
+  98:	d50323ff 	(hint	#0x1f|autibsp)
   9c:	d503241f 	hint	#0x20
   a0:	d503243f 	hint	#0x21
   a4:	d503245f 	hint	#0x22
@@ -191,180 +191,180 @@ Disassembly of section \.text:
  2dc:	d5033fdf 	isb
  2e0:	d5033fdf 	isb
  2e4:	d8000000 	prfm	pldl1keep, 0 <LABEL1>
-			2e4: R_AARCH64_LD_PREL_LO19	LABEL1
- 2e8:	f8af6be0 	prfm	pldl1keep, \[sp,x15\]
- 2ec:	f8be58e0 	prfm	pldl1keep, \[x7,w30,uxtw #3\]
- 2f0:	f9800c60 	prfm	pldl1keep, \[x3,#24\]
+			2e4: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 2e8:	f8af6be0 	prfm	pldl1keep, \[sp, x15\]
+ 2ec:	f8be58e0 	prfm	pldl1keep, \[x7, w30, uxtw #3\]
+ 2f0:	f9800c60 	prfm	pldl1keep, \[x3, #24\]
  2f4:	d8000001 	prfm	pldl1strm, 0 <LABEL1>
-			2f4: R_AARCH64_LD_PREL_LO19	LABEL1
- 2f8:	f8af6be1 	prfm	pldl1strm, \[sp,x15\]
- 2fc:	f8be58e1 	prfm	pldl1strm, \[x7,w30,uxtw #3\]
- 300:	f9800c61 	prfm	pldl1strm, \[x3,#24\]
+			2f4: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 2f8:	f8af6be1 	prfm	pldl1strm, \[sp, x15\]
+ 2fc:	f8be58e1 	prfm	pldl1strm, \[x7, w30, uxtw #3\]
+ 300:	f9800c61 	prfm	pldl1strm, \[x3, #24\]
  304:	d8000002 	prfm	pldl2keep, 0 <LABEL1>
-			304: R_AARCH64_LD_PREL_LO19	LABEL1
- 308:	f8af6be2 	prfm	pldl2keep, \[sp,x15\]
- 30c:	f8be58e2 	prfm	pldl2keep, \[x7,w30,uxtw #3\]
- 310:	f9800c62 	prfm	pldl2keep, \[x3,#24\]
+			304: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 308:	f8af6be2 	prfm	pldl2keep, \[sp, x15\]
+ 30c:	f8be58e2 	prfm	pldl2keep, \[x7, w30, uxtw #3\]
+ 310:	f9800c62 	prfm	pldl2keep, \[x3, #24\]
  314:	d8000003 	prfm	pldl2strm, 0 <LABEL1>
-			314: R_AARCH64_LD_PREL_LO19	LABEL1
- 318:	f8af6be3 	prfm	pldl2strm, \[sp,x15\]
- 31c:	f8be58e3 	prfm	pldl2strm, \[x7,w30,uxtw #3\]
- 320:	f9800c63 	prfm	pldl2strm, \[x3,#24\]
+			314: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 318:	f8af6be3 	prfm	pldl2strm, \[sp, x15\]
+ 31c:	f8be58e3 	prfm	pldl2strm, \[x7, w30, uxtw #3\]
+ 320:	f9800c63 	prfm	pldl2strm, \[x3, #24\]
  324:	d8000004 	prfm	pldl3keep, 0 <LABEL1>
-			324: R_AARCH64_LD_PREL_LO19	LABEL1
- 328:	f8af6be4 	prfm	pldl3keep, \[sp,x15\]
- 32c:	f8be58e4 	prfm	pldl3keep, \[x7,w30,uxtw #3\]
- 330:	f9800c64 	prfm	pldl3keep, \[x3,#24\]
+			324: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 328:	f8af6be4 	prfm	pldl3keep, \[sp, x15\]
+ 32c:	f8be58e4 	prfm	pldl3keep, \[x7, w30, uxtw #3\]
+ 330:	f9800c64 	prfm	pldl3keep, \[x3, #24\]
  334:	d8000005 	prfm	pldl3strm, 0 <LABEL1>
-			334: R_AARCH64_LD_PREL_LO19	LABEL1
- 338:	f8af6be5 	prfm	pldl3strm, \[sp,x15\]
- 33c:	f8be58e5 	prfm	pldl3strm, \[x7,w30,uxtw #3\]
- 340:	f9800c65 	prfm	pldl3strm, \[x3,#24\]
+			334: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 338:	f8af6be5 	prfm	pldl3strm, \[sp, x15\]
+ 33c:	f8be58e5 	prfm	pldl3strm, \[x7, w30, uxtw #3\]
+ 340:	f9800c65 	prfm	pldl3strm, \[x3, #24\]
  344:	d8000006 	prfm	#0x06, 0 <LABEL1>
-			344: R_AARCH64_LD_PREL_LO19	LABEL1
- 348:	f8af6be6 	prfm	#0x06, \[sp,x15\]
- 34c:	f8be58e6 	prfm	#0x06, \[x7,w30,uxtw #3\]
- 350:	f9800c66 	prfm	#0x06, \[x3,#24\]
+			344: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 348:	f8af6be6 	prfm	#0x06, \[sp, x15\]
+ 34c:	f8be58e6 	prfm	#0x06, \[x7, w30, uxtw #3\]
+ 350:	f9800c66 	prfm	#0x06, \[x3, #24\]
  354:	d8000007 	prfm	#0x07, 0 <LABEL1>
-			354: R_AARCH64_LD_PREL_LO19	LABEL1
- 358:	f8af6be7 	prfm	#0x07, \[sp,x15\]
- 35c:	f8be58e7 	prfm	#0x07, \[x7,w30,uxtw #3\]
- 360:	f9800c67 	prfm	#0x07, \[x3,#24\]
+			354: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 358:	f8af6be7 	prfm	#0x07, \[sp, x15\]
+ 35c:	f8be58e7 	prfm	#0x07, \[x7, w30, uxtw #3\]
+ 360:	f9800c67 	prfm	#0x07, \[x3, #24\]
  364:	d8000008 	prfm	plil1keep, 0 <LABEL1>
-			364: R_AARCH64_LD_PREL_LO19	LABEL1
- 368:	f8af6be8 	prfm	plil1keep, \[sp,x15\]
- 36c:	f8be58e8 	prfm	plil1keep, \[x7,w30,uxtw #3\]
- 370:	f9800c68 	prfm	plil1keep, \[x3,#24\]
+			364: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 368:	f8af6be8 	prfm	plil1keep, \[sp, x15\]
+ 36c:	f8be58e8 	prfm	plil1keep, \[x7, w30, uxtw #3\]
+ 370:	f9800c68 	prfm	plil1keep, \[x3, #24\]
  374:	d8000009 	prfm	plil1strm, 0 <LABEL1>
-			374: R_AARCH64_LD_PREL_LO19	LABEL1
- 378:	f8af6be9 	prfm	plil1strm, \[sp,x15\]
- 37c:	f8be58e9 	prfm	plil1strm, \[x7,w30,uxtw #3\]
- 380:	f9800c69 	prfm	plil1strm, \[x3,#24\]
+			374: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 378:	f8af6be9 	prfm	plil1strm, \[sp, x15\]
+ 37c:	f8be58e9 	prfm	plil1strm, \[x7, w30, uxtw #3\]
+ 380:	f9800c69 	prfm	plil1strm, \[x3, #24\]
  384:	d800000a 	prfm	plil2keep, 0 <LABEL1>
-			384: R_AARCH64_LD_PREL_LO19	LABEL1
- 388:	f8af6bea 	prfm	plil2keep, \[sp,x15\]
- 38c:	f8be58ea 	prfm	plil2keep, \[x7,w30,uxtw #3\]
- 390:	f9800c6a 	prfm	plil2keep, \[x3,#24\]
+			384: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 388:	f8af6bea 	prfm	plil2keep, \[sp, x15\]
+ 38c:	f8be58ea 	prfm	plil2keep, \[x7, w30, uxtw #3\]
+ 390:	f9800c6a 	prfm	plil2keep, \[x3, #24\]
  394:	d800000b 	prfm	plil2strm, 0 <LABEL1>
-			394: R_AARCH64_LD_PREL_LO19	LABEL1
- 398:	f8af6beb 	prfm	plil2strm, \[sp,x15\]
- 39c:	f8be58eb 	prfm	plil2strm, \[x7,w30,uxtw #3\]
- 3a0:	f9800c6b 	prfm	plil2strm, \[x3,#24\]
+			394: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 398:	f8af6beb 	prfm	plil2strm, \[sp, x15\]
+ 39c:	f8be58eb 	prfm	plil2strm, \[x7, w30, uxtw #3\]
+ 3a0:	f9800c6b 	prfm	plil2strm, \[x3, #24\]
  3a4:	d800000c 	prfm	plil3keep, 0 <LABEL1>
-			3a4: R_AARCH64_LD_PREL_LO19	LABEL1
- 3a8:	f8af6bec 	prfm	plil3keep, \[sp,x15\]
- 3ac:	f8be58ec 	prfm	plil3keep, \[x7,w30,uxtw #3\]
- 3b0:	f9800c6c 	prfm	plil3keep, \[x3,#24\]
+			3a4: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 3a8:	f8af6bec 	prfm	plil3keep, \[sp, x15\]
+ 3ac:	f8be58ec 	prfm	plil3keep, \[x7, w30, uxtw #3\]
+ 3b0:	f9800c6c 	prfm	plil3keep, \[x3, #24\]
  3b4:	d800000d 	prfm	plil3strm, 0 <LABEL1>
-			3b4: R_AARCH64_LD_PREL_LO19	LABEL1
- 3b8:	f8af6bed 	prfm	plil3strm, \[sp,x15\]
- 3bc:	f8be58ed 	prfm	plil3strm, \[x7,w30,uxtw #3\]
- 3c0:	f9800c6d 	prfm	plil3strm, \[x3,#24\]
+			3b4: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 3b8:	f8af6bed 	prfm	plil3strm, \[sp, x15\]
+ 3bc:	f8be58ed 	prfm	plil3strm, \[x7, w30, uxtw #3\]
+ 3c0:	f9800c6d 	prfm	plil3strm, \[x3, #24\]
  3c4:	d800000e 	prfm	#0x0e, 0 <LABEL1>
-			3c4: R_AARCH64_LD_PREL_LO19	LABEL1
- 3c8:	f8af6bee 	prfm	#0x0e, \[sp,x15\]
- 3cc:	f8be58ee 	prfm	#0x0e, \[x7,w30,uxtw #3\]
- 3d0:	f9800c6e 	prfm	#0x0e, \[x3,#24\]
+			3c4: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 3c8:	f8af6bee 	prfm	#0x0e, \[sp, x15\]
+ 3cc:	f8be58ee 	prfm	#0x0e, \[x7, w30, uxtw #3\]
+ 3d0:	f9800c6e 	prfm	#0x0e, \[x3, #24\]
  3d4:	d800000f 	prfm	#0x0f, 0 <LABEL1>
-			3d4: R_AARCH64_LD_PREL_LO19	LABEL1
- 3d8:	f8af6bef 	prfm	#0x0f, \[sp,x15\]
- 3dc:	f8be58ef 	prfm	#0x0f, \[x7,w30,uxtw #3\]
- 3e0:	f9800c6f 	prfm	#0x0f, \[x3,#24\]
+			3d4: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 3d8:	f8af6bef 	prfm	#0x0f, \[sp, x15\]
+ 3dc:	f8be58ef 	prfm	#0x0f, \[x7, w30, uxtw #3\]
+ 3e0:	f9800c6f 	prfm	#0x0f, \[x3, #24\]
  3e4:	d8000010 	prfm	pstl1keep, 0 <LABEL1>
-			3e4: R_AARCH64_LD_PREL_LO19	LABEL1
- 3e8:	f8af6bf0 	prfm	pstl1keep, \[sp,x15\]
- 3ec:	f8be58f0 	prfm	pstl1keep, \[x7,w30,uxtw #3\]
- 3f0:	f9800c70 	prfm	pstl1keep, \[x3,#24\]
+			3e4: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 3e8:	f8af6bf0 	prfm	pstl1keep, \[sp, x15\]
+ 3ec:	f8be58f0 	prfm	pstl1keep, \[x7, w30, uxtw #3\]
+ 3f0:	f9800c70 	prfm	pstl1keep, \[x3, #24\]
  3f4:	d8000011 	prfm	pstl1strm, 0 <LABEL1>
-			3f4: R_AARCH64_LD_PREL_LO19	LABEL1
- 3f8:	f8af6bf1 	prfm	pstl1strm, \[sp,x15\]
- 3fc:	f8be58f1 	prfm	pstl1strm, \[x7,w30,uxtw #3\]
- 400:	f9800c71 	prfm	pstl1strm, \[x3,#24\]
+			3f4: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 3f8:	f8af6bf1 	prfm	pstl1strm, \[sp, x15\]
+ 3fc:	f8be58f1 	prfm	pstl1strm, \[x7, w30, uxtw #3\]
+ 400:	f9800c71 	prfm	pstl1strm, \[x3, #24\]
  404:	d8000012 	prfm	pstl2keep, 0 <LABEL1>
-			404: R_AARCH64_LD_PREL_LO19	LABEL1
- 408:	f8af6bf2 	prfm	pstl2keep, \[sp,x15\]
- 40c:	f8be58f2 	prfm	pstl2keep, \[x7,w30,uxtw #3\]
- 410:	f9800c72 	prfm	pstl2keep, \[x3,#24\]
+			404: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 408:	f8af6bf2 	prfm	pstl2keep, \[sp, x15\]
+ 40c:	f8be58f2 	prfm	pstl2keep, \[x7, w30, uxtw #3\]
+ 410:	f9800c72 	prfm	pstl2keep, \[x3, #24\]
  414:	d8000013 	prfm	pstl2strm, 0 <LABEL1>
-			414: R_AARCH64_LD_PREL_LO19	LABEL1
- 418:	f8af6bf3 	prfm	pstl2strm, \[sp,x15\]
- 41c:	f8be58f3 	prfm	pstl2strm, \[x7,w30,uxtw #3\]
- 420:	f9800c73 	prfm	pstl2strm, \[x3,#24\]
+			414: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 418:	f8af6bf3 	prfm	pstl2strm, \[sp, x15\]
+ 41c:	f8be58f3 	prfm	pstl2strm, \[x7, w30, uxtw #3\]
+ 420:	f9800c73 	prfm	pstl2strm, \[x3, #24\]
  424:	d8000014 	prfm	pstl3keep, 0 <LABEL1>
-			424: R_AARCH64_LD_PREL_LO19	LABEL1
- 428:	f8af6bf4 	prfm	pstl3keep, \[sp,x15\]
- 42c:	f8be58f4 	prfm	pstl3keep, \[x7,w30,uxtw #3\]
- 430:	f9800c74 	prfm	pstl3keep, \[x3,#24\]
+			424: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 428:	f8af6bf4 	prfm	pstl3keep, \[sp, x15\]
+ 42c:	f8be58f4 	prfm	pstl3keep, \[x7, w30, uxtw #3\]
+ 430:	f9800c74 	prfm	pstl3keep, \[x3, #24\]
  434:	d8000015 	prfm	pstl3strm, 0 <LABEL1>
-			434: R_AARCH64_LD_PREL_LO19	LABEL1
- 438:	f8af6bf5 	prfm	pstl3strm, \[sp,x15\]
- 43c:	f8be58f5 	prfm	pstl3strm, \[x7,w30,uxtw #3\]
- 440:	f9800c75 	prfm	pstl3strm, \[x3,#24\]
+			434: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 438:	f8af6bf5 	prfm	pstl3strm, \[sp, x15\]
+ 43c:	f8be58f5 	prfm	pstl3strm, \[x7, w30, uxtw #3\]
+ 440:	f9800c75 	prfm	pstl3strm, \[x3, #24\]
  444:	d8000016 	prfm	#0x16, 0 <LABEL1>
-			444: R_AARCH64_LD_PREL_LO19	LABEL1
- 448:	f8af6bf6 	prfm	#0x16, \[sp,x15\]
- 44c:	f8be58f6 	prfm	#0x16, \[x7,w30,uxtw #3\]
- 450:	f9800c76 	prfm	#0x16, \[x3,#24\]
+			444: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 448:	f8af6bf6 	prfm	#0x16, \[sp, x15\]
+ 44c:	f8be58f6 	prfm	#0x16, \[x7, w30, uxtw #3\]
+ 450:	f9800c76 	prfm	#0x16, \[x3, #24\]
  454:	d8000017 	prfm	#0x17, 0 <LABEL1>
-			454: R_AARCH64_LD_PREL_LO19	LABEL1
- 458:	f8af6bf7 	prfm	#0x17, \[sp,x15\]
- 45c:	f8be58f7 	prfm	#0x17, \[x7,w30,uxtw #3\]
- 460:	f9800c77 	prfm	#0x17, \[x3,#24\]
+			454: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 458:	f8af6bf7 	prfm	#0x17, \[sp, x15\]
+ 45c:	f8be58f7 	prfm	#0x17, \[x7, w30, uxtw #3\]
+ 460:	f9800c77 	prfm	#0x17, \[x3, #24\]
  464:	d8000018 	prfm	#0x18, 0 <LABEL1>
-			464: R_AARCH64_LD_PREL_LO19	LABEL1
- 468:	f8af6bf8 	prfm	#0x18, \[sp,x15\]
- 46c:	f8be58f8 	prfm	#0x18, \[x7,w30,uxtw #3\]
- 470:	f9800c78 	prfm	#0x18, \[x3,#24\]
+			464: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 468:	f8af6bf8 	prfm	#0x18, \[sp, x15\]
+ 46c:	f8be58f8 	prfm	#0x18, \[x7, w30, uxtw #3\]
+ 470:	f9800c78 	prfm	#0x18, \[x3, #24\]
  474:	d8000019 	prfm	#0x19, 0 <LABEL1>
-			474: R_AARCH64_LD_PREL_LO19	LABEL1
- 478:	f8af6bf9 	prfm	#0x19, \[sp,x15\]
- 47c:	f8be58f9 	prfm	#0x19, \[x7,w30,uxtw #3\]
- 480:	f9800c79 	prfm	#0x19, \[x3,#24\]
+			474: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 478:	f8af6bf9 	prfm	#0x19, \[sp, x15\]
+ 47c:	f8be58f9 	prfm	#0x19, \[x7, w30, uxtw #3\]
+ 480:	f9800c79 	prfm	#0x19, \[x3, #24\]
  484:	d800001a 	prfm	#0x1a, 0 <LABEL1>
-			484: R_AARCH64_LD_PREL_LO19	LABEL1
- 488:	f8af6bfa 	prfm	#0x1a, \[sp,x15\]
- 48c:	f8be58fa 	prfm	#0x1a, \[x7,w30,uxtw #3\]
- 490:	f9800c7a 	prfm	#0x1a, \[x3,#24\]
+			484: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 488:	f8af6bfa 	prfm	#0x1a, \[sp, x15\]
+ 48c:	f8be58fa 	prfm	#0x1a, \[x7, w30, uxtw #3\]
+ 490:	f9800c7a 	prfm	#0x1a, \[x3, #24\]
  494:	d800001b 	prfm	#0x1b, 0 <LABEL1>
-			494: R_AARCH64_LD_PREL_LO19	LABEL1
- 498:	f8af6bfb 	prfm	#0x1b, \[sp,x15\]
- 49c:	f8be58fb 	prfm	#0x1b, \[x7,w30,uxtw #3\]
- 4a0:	f9800c7b 	prfm	#0x1b, \[x3,#24\]
+			494: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 498:	f8af6bfb 	prfm	#0x1b, \[sp, x15\]
+ 49c:	f8be58fb 	prfm	#0x1b, \[x7, w30, uxtw #3\]
+ 4a0:	f9800c7b 	prfm	#0x1b, \[x3, #24\]
  4a4:	d800001c 	prfm	#0x1c, 0 <LABEL1>
-			4a4: R_AARCH64_LD_PREL_LO19	LABEL1
- 4a8:	f8af6bfc 	prfm	#0x1c, \[sp,x15\]
- 4ac:	f8be58fc 	prfm	#0x1c, \[x7,w30,uxtw #3\]
- 4b0:	f9800c7c 	prfm	#0x1c, \[x3,#24\]
+			4a4: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 4a8:	f8af6bfc 	prfm	#0x1c, \[sp, x15\]
+ 4ac:	f8be58fc 	prfm	#0x1c, \[x7, w30, uxtw #3\]
+ 4b0:	f9800c7c 	prfm	#0x1c, \[x3, #24\]
  4b4:	d800001d 	prfm	#0x1d, 0 <LABEL1>
-			4b4: R_AARCH64_LD_PREL_LO19	LABEL1
- 4b8:	f8af6bfd 	prfm	#0x1d, \[sp,x15\]
- 4bc:	f8be58fd 	prfm	#0x1d, \[x7,w30,uxtw #3\]
- 4c0:	f9800c7d 	prfm	#0x1d, \[x3,#24\]
+			4b4: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 4b8:	f8af6bfd 	prfm	#0x1d, \[sp, x15\]
+ 4bc:	f8be58fd 	prfm	#0x1d, \[x7, w30, uxtw #3\]
+ 4c0:	f9800c7d 	prfm	#0x1d, \[x3, #24\]
  4c4:	d800001e 	prfm	#0x1e, 0 <LABEL1>
-			4c4: R_AARCH64_LD_PREL_LO19	LABEL1
- 4c8:	f8af6bfe 	prfm	#0x1e, \[sp,x15\]
- 4cc:	f8be58fe 	prfm	#0x1e, \[x7,w30,uxtw #3\]
- 4d0:	f9800c7e 	prfm	#0x1e, \[x3,#24\]
+			4c4: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 4c8:	f8af6bfe 	prfm	#0x1e, \[sp, x15\]
+ 4cc:	f8be58fe 	prfm	#0x1e, \[x7, w30, uxtw #3\]
+ 4d0:	f9800c7e 	prfm	#0x1e, \[x3, #24\]
  4d4:	d800001f 	prfm	#0x1f, 0 <LABEL1>
-			4d4: R_AARCH64_LD_PREL_LO19	LABEL1
- 4d8:	f8af6bff 	prfm	#0x1f, \[sp,x15\]
- 4dc:	f8be58ff 	prfm	#0x1f, \[x7,w30,uxtw #3\]
- 4e0:	f9800c7f 	prfm	#0x1f, \[x3,#24\]
- 4e4:	f9800c60 	prfm	pldl1keep, \[x3,#24\]
- 4e8:	f9800c61 	prfm	pldl1strm, \[x3,#24\]
- 4ec:	f9800c62 	prfm	pldl2keep, \[x3,#24\]
- 4f0:	f9800c63 	prfm	pldl2strm, \[x3,#24\]
- 4f4:	f9800c64 	prfm	pldl3keep, \[x3,#24\]
- 4f8:	f9800c65 	prfm	pldl3strm, \[x3,#24\]
- 4fc:	f9800c68 	prfm	plil1keep, \[x3,#24\]
- 500:	f9800c69 	prfm	plil1strm, \[x3,#24\]
- 504:	f9800c6a 	prfm	plil2keep, \[x3,#24\]
- 508:	f9800c6b 	prfm	plil2strm, \[x3,#24\]
- 50c:	f9800c6c 	prfm	plil3keep, \[x3,#24\]
- 510:	f9800c6d 	prfm	plil3strm, \[x3,#24\]
- 514:	f9800c70 	prfm	pstl1keep, \[x3,#24\]
- 518:	f9800c71 	prfm	pstl1strm, \[x3,#24\]
- 51c:	f9800c72 	prfm	pstl2keep, \[x3,#24\]
- 520:	f9800c73 	prfm	pstl2strm, \[x3,#24\]
- 524:	f9800c74 	prfm	pstl3keep, \[x3,#24\]
- 528:	f9800c75 	prfm	pstl3strm, \[x3,#24\]
+			4d4: R_AARCH64_(P32_|)LD_PREL_LO19	LABEL1
+ 4d8:	f8af6bff 	prfm	#0x1f, \[sp, x15\]
+ 4dc:	f8be58ff 	prfm	#0x1f, \[x7, w30, uxtw #3\]
+ 4e0:	f9800c7f 	prfm	#0x1f, \[x3, #24\]
+ 4e4:	f9800c60 	prfm	pldl1keep, \[x3, #24\]
+ 4e8:	f9800c61 	prfm	pldl1strm, \[x3, #24\]
+ 4ec:	f9800c62 	prfm	pldl2keep, \[x3, #24\]
+ 4f0:	f9800c63 	prfm	pldl2strm, \[x3, #24\]
+ 4f4:	f9800c64 	prfm	pldl3keep, \[x3, #24\]
+ 4f8:	f9800c65 	prfm	pldl3strm, \[x3, #24\]
+ 4fc:	f9800c68 	prfm	plil1keep, \[x3, #24\]
+ 500:	f9800c69 	prfm	plil1strm, \[x3, #24\]
+ 504:	f9800c6a 	prfm	plil2keep, \[x3, #24\]
+ 508:	f9800c6b 	prfm	plil2strm, \[x3, #24\]
+ 50c:	f9800c6c 	prfm	plil3keep, \[x3, #24\]
+ 510:	f9800c6d 	prfm	plil3strm, \[x3, #24\]
+ 514:	f9800c70 	prfm	pstl1keep, \[x3, #24\]
+ 518:	f9800c71 	prfm	pstl1strm, \[x3, #24\]
+ 51c:	f9800c72 	prfm	pstl2keep, \[x3, #24\]
+ 520:	f9800c73 	prfm	pstl2strm, \[x3, #24\]
+ 524:	f9800c74 	prfm	pstl3keep, \[x3, #24\]
+ 528:	f9800c75 	prfm	pstl3strm, \[x3, #24\]

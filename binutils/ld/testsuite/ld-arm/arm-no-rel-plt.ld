@@ -14,7 +14,7 @@ SECTIONS
   .gnu.version    : { *(.gnu.version) }
   .gnu.version_d  : { *(.gnu.version_d) }
   .gnu.version_r  : { *(.gnu.version_r) }
-  .rel.dyn        :
+  .rel.dyn ALIGN (0x100) :
     {
       *(.rel.init)
       *(.rel.text .rel.text.* .rel.gnu.linkonce.t.*)
@@ -34,7 +34,7 @@ SECTIONS
       PROVIDE_HIDDEN (__rela_iplt_start = .);
       PROVIDE_HIDDEN (__rela_iplt_end = .);
     }
-  .rela.dyn       :
+  .rela.dyn ALIGN (0x100) :
     {
       *(.rela.init)
       *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)

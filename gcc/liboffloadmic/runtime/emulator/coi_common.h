@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2014 Intel Corporation.  All Rights Reserved.
+    Copyright (c) 2014-2015 Intel Corporation.  All Rights Reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -62,8 +62,8 @@
 /* Environment variable for target executable run command.  */
 #define OFFLOAD_EMUL_RUN_ENV      "OFFLOAD_EMUL_RUN"
 
-/* Environment variable for number ok KNC devices.  */
-#define OFFLOAD_EMUL_KNC_NUM_ENV  "OFFLOAD_EMUL_KNC_NUM"
+/* Environment variable for number of emulated devices.  */
+#define OFFLOAD_EMUL_NUM_ENV	  "OFFLOAD_EMUL_NUM"
 
 
 /* Path to engine directory.  */
@@ -72,11 +72,11 @@
 /* Relative path to directory with pipes.  */
 #define PIPES_PATH		  "/pipes"
 
-/* Relative path to target-to-host pipe.  */
-#define PIPE_HOST_PATH		  PIPES_PATH"/host"
+/* Non-numerical part of host-to-target pipe file name.  */
+#define PIPE_HOST2TGT_NAME	  PIPES_PATH "/host2tgt_"
 
-/* Relative path to host-to-target pipe.  */
-#define PIPE_TARGET_PATH	  PIPES_PATH"/target"
+/* Non-numerical part of target-to-host pipe file name.  */
+#define PIPE_TGT2HOST_NAME	  PIPES_PATH "/tgt2host_"
 
 /* Non-numerical part of shared memory file name.  */
 #define SHM_NAME		  "/offload_shm_"
@@ -99,6 +99,15 @@
   ptr = p;					\
 }
 
+/* Like MALLOC, but return NULL instead of COIRESULT.  */
+#define MALLOCN(type, ptr, size)		\
+{						\
+  type p = (type) malloc (size);		\
+  if (p == NULL)				\
+    COIERRORN ("Cannot allocate memory.");	\
+  ptr = p;					\
+}
+
 /* Wrapper for strdup.  */
 #define STRDUP(ptr, str)			\
 {						\
@@ -116,12 +125,28 @@
     COIERROR ("Cannot read from pipe.");	\
 }
 
+/* Like READ, but return NULL instead of COIRESULT.  */
+#define READN(pipe, ptr, size)			\
+{						\
+  int s = (int) size;				\
+  if (read (pipe, ptr, s) != s)			\
+    COIERRORN ("Cannot read from pipe.");	\
+}
+
 /* Wrapper for pipe writing.  */
 #define WRITE(pipe, ptr, size)			\
 {						\
   int s = (int) size;				\
   if (write (pipe, ptr, s) != s)		\
     COIERROR ("Cannot write in pipe.");		\
+}
+
+/* Like WRITE, but return NULL instead of COIRESULT.  */
+#define WRITEN(pipe, ptr, size)			\
+{						\
+  int s = (int) size;				\
+  if (write (pipe, ptr, s) != s)		\
+    COIERRORN ("Cannot write in pipe.");	\
 }
 
 
@@ -133,7 +158,10 @@ typedef enum
   CMD_BUFFER_UNMAP,
   CMD_GET_FUNCTION_HANDLE,
   CMD_OPEN_LIBRARY,
-  CMD_RUN_FUNCTION,
+  CMD_CLOSE_LIBRARY,
+  CMD_PIPELINE_CREATE,
+  CMD_PIPELINE_DESTROY,
+  CMD_PIPELINE_RUN_FUNCTION,
   CMD_SHUTDOWN
 } cmd_t;
 

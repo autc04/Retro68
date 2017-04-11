@@ -20,7 +20,7 @@ main()
   return 0;
 }
 
-SYMVER(foo_1, show_foo@);
-SYMVER(foo_2, show_foo@VERS_1.1);
-SYMVER(foo_3, show_foo@VERS_1.2);
-SYMVER(foo_4, show_foo@VERS_2.0);
+FUNC_SYMVER(foo_1, show_foo@);
+FUNC_SYMVER(foo_2, show_foo@VERS_1.1);
+FUNC_SYMVER(foo_3, show_foo@VERS_1.2);
+FUNC_SYMVER(foo_4, show_foo@VERS_2.0);

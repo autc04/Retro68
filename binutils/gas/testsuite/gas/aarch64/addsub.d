@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
        0:	0b0100f0 	add	w16, w7, w1
        4:	0b2100f0 	add	w16, w7, w1, uxtb
        8:	0b2100f0 	add	w16, w7, w1, uxtb

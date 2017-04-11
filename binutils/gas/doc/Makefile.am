@@ -1,6 +1,6 @@
 ## Process this file with automake to generate Makefile.in
 #
-#   Copyright (C) 2012-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2012-2017 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -81,6 +81,7 @@ CPU_DOCS = \
 	c-pj.texi \
 	c-ppc.texi \
 	c-rl78.texi \
+	c-riscv.texi \
 	c-rx.texi \
 	c-s390.texi \
 	c-score.texi \
@@ -91,8 +92,9 @@ CPU_DOCS = \
         c-tic6x.texi \
 	c-tilegx.texi \
 	c-tilepro.texi \
-	c-vax.texi \
 	c-v850.texi \
+	c-vax.texi \
+	c-visium.texi \
 	c-xgate.texi \
 	c-xstormy16.texi \
 	c-xtensa.texi \

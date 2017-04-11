@@ -1,6 +1,6 @@
 // { dg-do compile }
 
-// Copyright (C) 2002-2015 Free Software Foundation, Inc.
+// Copyright (C) 2002-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -18,6 +18,8 @@
 // <http://www.gnu.org/licenses/>.
 
 // 20.4.5 Template class auto_ptr negative tests [lib.auto.ptr]
+
+// { dg-options "-std=c++98" }
 
 #include <memory>
 #include <testsuite_hooks.h>

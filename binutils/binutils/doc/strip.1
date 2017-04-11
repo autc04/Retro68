@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "STRIP 1"
-.TH STRIP 1 "2014-12-23" "binutils-2.25" "GNU Development Tools"
+.TH STRIP 1 "2017-03-02" "binutils-2.28" "GNU Development Tools"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -153,6 +153,7 @@ strip [\fB\-F\fR \fIbfdname\fR |\fB\-\-target=\fR\fIbfdname\fR]
       [\fB\-w\fR|\fB\-\-wildcard\fR]
       [\fB\-x\fR|\fB\-\-discard\-all\fR] [\fB\-X\fR |\fB\-\-discard\-locals\fR]
       [\fB\-R\fR \fIsectionname\fR |\fB\-\-remove\-section=\fR\fIsectionname\fR]
+      [\fB\-\-remove\-relocations=\fR\fIsectionpattern\fR]
       [\fB\-o\fR \fIfile\fR] [\fB\-p\fR|\fB\-\-preserve\-dates\fR]
       [\fB\-D\fR|\fB\-\-enable\-deterministic\-archives\fR]
       [\fB\-U\fR|\fB\-\-disable\-deterministic\-archives\fR]
@@ -206,11 +207,52 @@ Replace \fIobjfile\fR with a file in the output format \fIbfdname\fR.
 .IP "\fB\-\-remove\-section=\fR\fIsectionname\fR" 4
 .IX Item "--remove-section=sectionname"
 .PD
-Remove any section named \fIsectionname\fR from the output file.  This
+Remove any section named \fIsectionname\fR from the output file, in
+addition to whatever sections would otherwise be removed.  This
 option may be given more than once.  Note that using this option
 inappropriately may make the output file unusable.  The wildcard
 character \fB*\fR may be given at the end of \fIsectionname\fR.  If
 so, then any section starting with \fIsectionname\fR will be removed.
+.Sp
+If the first character of \fIsectionpattern\fR is the exclamation
+point (!) then matching sections will not be removed even if an
+earlier use of \fB\-\-remove\-section\fR on the same command line
+would otherwise remove it.  For example:
+.Sp
+.Vb 1
+\&          \-\-remove\-section=.text.* \-\-remove\-section=!.text.foo
+.Ve
+.Sp
+will remove all sections matching the pattern '.text.*', but will not
+remove the section '.text.foo'.
+.IP "\fB\-\-remove\-relocations=\fR\fIsectionpattern\fR" 4
+.IX Item "--remove-relocations=sectionpattern"
+Remove relocations from the output file for any section matching
+\&\fIsectionpattern\fR.  This option may be given more than once.  Note
+that using this option inappropriately may make the output file
+unusable.  Wildcard characters are accepted in \fIsectionpattern\fR.
+For example:
+.Sp
+.Vb 1
+\&          \-\-remove\-relocations=.text.*
+.Ve
+.Sp
+will remove the relocations for all sections matching the patter
+\&'.text.*'.
+.Sp
+If the first character of \fIsectionpattern\fR is the exclamation
+point (!) then matching sections will not have their relocation
+removed even if an earlier use of \fB\-\-remove\-relocations\fR on the
+same command line would otherwise cause the relocations to be removed.
+For example:
+.Sp
+.Vb 1
+\&          \-\-remove\-relocations=.text.* \-\-remove\-relocations=!.text.foo
+.Ve
+.Sp
+will remove all relocations for sections matching the pattern
+\&'.text.*', but will not remove relocations for the section
+\&'.text.foo'.
 .IP "\fB\-s\fR" 4
 .IX Item "-s"
 .PD 0
@@ -334,9 +376,16 @@ When stripping a file, perhaps with \fB\-\-strip\-debug\fR or
 which would otherwise get stripped.
 .IP "\fB\-\-only\-keep\-debug\fR" 4
 .IX Item "--only-keep-debug"
-Strip a file, removing contents of any sections that would not be
+Strip a file, emptying the contents of any sections that would not be
 stripped by \fB\-\-strip\-debug\fR and leaving the debugging sections
-intact.  In \s-1ELF\s0 files, this preserves all note sections in the output.
+intact.  In \s-1ELF\s0 files, this preserves all the note sections in the
+output as well.
+.Sp
+Note \- the section headers of the stripped sections are preserved,
+including their sizes, but the contents of the section are discarded.
+The section headers are preserved so that other tools can match up the
+debuginfo file with the real executable, even if that executable has
+been relocated to a different address space.
 .Sp
 The intention is that this option will be used in conjunction with
 \&\fB\-\-add\-gnu\-debuglink\fR to create a two part executable.  One a
@@ -426,7 +475,7 @@ with a backslash.  The \fIfile\fR may itself contain additional
 the Info entries for \fIbinutils\fR.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright (c) 1991\-2014 Free Software Foundation, Inc.
+Copyright (c) 1991\-2017 Free Software Foundation, Inc.
 .PP
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the \s-1GNU\s0 Free Documentation License, Version 1.3

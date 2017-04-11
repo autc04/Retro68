@@ -1,5 +1,5 @@
 /* Altera Nios II assembler.
-   Copyright (C) 2012-2014 Free Software Foundation, Inc.
+   Copyright (C) 2012-2017 Free Software Foundation, Inc.
    Contributed by Nigel Gray (ngray@altera.com).
    Contributed by Mentor Graphics, Inc.
 
@@ -80,7 +80,9 @@ struct option md_longopts[] = {
 #define OPTION_EB (OPTION_MD_BASE + 3)
   {"EB", no_argument, NULL, OPTION_EB},
 #define OPTION_EL (OPTION_MD_BASE + 4)
-  {"EL", no_argument, NULL, OPTION_EL}
+  {"EL", no_argument, NULL, OPTION_EL},
+#define OPTION_MARCH (OPTION_MD_BASE + 5)
+  {"march", required_argument, NULL, OPTION_MARCH}
 };
 
 size_t md_longopts_size = sizeof (md_longopts);
@@ -95,7 +97,7 @@ typedef enum
 } relax_optionT;
 
 /* Struct contains all assembler options set with .set.  */
-struct
+static struct
 {
   /* .set noat -> noat = 1 allows assembly code to use at without warning
      and macro expansions generate a warning.
@@ -103,7 +105,7 @@ struct
      do not generate warnings.  */
   bfd_boolean noat;
 
-  /* .set nobreak -> nobreak = 1 allows assembly code to use ba,bt without 
+  /* .set nobreak -> nobreak = 1 allows assembly code to use ba,bt without
 				 warning.
      .set break -> nobreak = 0, assembly code using ba,bt warns.  */
   bfd_boolean nobreak;
@@ -139,6 +141,10 @@ typedef struct nios2_insn_info
 {
   /* Assembled instruction.  */
   unsigned long insn_code;
+
+  /* Constant bits masked into insn_code for self-check mode.  */
+  unsigned long constant_bits;
+
   /* Pointer to the relevant bit of the opcode table.  */
   const struct nios2_opcode *insn_nios2_opcode;
   /* After parsing ptrs to the tokens in the instruction fill this array
@@ -152,15 +158,6 @@ typedef struct nios2_insn_info
   nios2_insn_relocS *insn_reloc;
 } nios2_insn_infoS;
 
-/* This struct associates an argument assemble function with
-   an argument syntax string.  Used by the assembler to find out
-   how to parse and assemble a set of instruction operands and 
-   return the instruction field values.  */
-typedef struct nios2_arg_info
-{
-  const char *args;
-  void (*assemble_args_func) (nios2_insn_infoS *insn_info);
-} nios2_arg_infoS;
 
 /* This struct is used to convert Nios II pseudo-ops into the
    corresponding real op.  */
@@ -196,10 +193,6 @@ static struct hash_control *nios2_reg_hash = NULL;
 #define nios2_reg_lookup(NAME) \
   ((struct nios2_reg *) hash_find (nios2_reg_hash, (NAME)))
 
-/* Parse args hash table.  */
-static struct hash_control *nios2_arg_hash = NULL;
-#define nios2_arg_lookup(NAME) \
-  ((nios2_arg_infoS *) hash_find (nios2_arg_hash, (NAME)))
 
 /* Pseudo-op hash table.  */
 static struct hash_control *nios2_ps_hash = NULL;
@@ -213,13 +206,21 @@ static segT nios2_current_align_seg;
 static int nios2_auto_align_on = 1;
 
 /* The last seen label in the current section.  This is used to auto-align
-   labels preceeding instructions.  */
+   labels preceding instructions.  */
 static symbolS *nios2_last_label;
+
+/* If we saw a 16-bit CDX instruction, we can align on 2-byte boundaries
+   instead of 4-bytes.  Use this to keep track of the minimum power-of-2
+   alignment.  */
+static int nios2_min_align = 2;
 
 #ifdef OBJ_ELF
 /* Pre-defined "_GLOBAL_OFFSET_TABLE_"	*/
 symbolS *GOT_symbol;
 #endif
+
+/* The processor architecture value, EF_NIOS2_ARCH_R1 by default.  */
+static int nios2_architecture = EF_NIOS2_ARCH_R1;
 
 
 /** Utility routines.  */
@@ -262,7 +263,7 @@ md_number_to_chars (char *buf, valueT val, int n)
    of type TYPE, and store the appropriate bytes in *LITP.  The number
    of LITTLENUMS emitted is stored in *SIZEP.  An error message is
    returned, or NULL on OK.  */
-char *
+const char *
 md_atof (int type, char *litP, int *sizeP)
 {
   int prec;
@@ -303,27 +304,6 @@ md_atof (int type, char *litP, int *sizeP)
 #define strprefix(STR, PREFIX) \
   (strncmp ((STR), PREFIX, strlen (PREFIX)) == 0)
 
-/* Return true if STR is prefixed with a control register name.  */
-static int
-nios2_control_register_arg_p (const char *str)
-{
-  return (strprefix (str, "ctl")
-	  || strprefix (str, "cpuid")
-	  || strprefix (str, "status")
-	  || strprefix (str, "estatus")
-	  || strprefix (str, "bstatus")
-	  || strprefix (str, "ienable")
-	  || strprefix (str, "ipending")
-	  || strprefix (str, "exception")
-	  || strprefix (str, "pteaddr")
-	  || strprefix (str, "tlbacc")
-	  || strprefix (str, "tlbmisc")
-	  || strprefix (str, "eccinj")
-	  || strprefix (str, "config")
-	  || strprefix (str, "mpubase")
-	  || strprefix (str, "mpuacc")
-	  || strprefix (str, "badaddr"));
-}
 
 /* Return true if STR is prefixed with a special relocation operator.  */
 static int
@@ -345,27 +325,13 @@ nios2_special_relocation_p (const char *str)
 	  || strprefix (str, "%gotoff"));
 }
 
-/* Checks whether the register name is a coprocessor
-   register - returns TRUE if it is, FALSE otherwise.  */
-static bfd_boolean
-nios2_coproc_reg (const char *reg_name)
-{
-  gas_assert (reg_name != NULL);
 
-  /* Check that we do have a valid register name and that it is a
-     coprocessor register.
-     It must begin with c, not be a control register, and be a valid
-     register name.  */
-  if (strprefix (reg_name, "c")
-      && !strprefix (reg_name, "ctl")
-      && hash_find (nios2_reg_hash, reg_name) != NULL)
-    return TRUE;
-  else
-    return FALSE;
-}
-
-/* nop fill pattern for text section.  */
-static char const nop[4] = { 0x3a, 0x88, 0x01, 0x00 };
+/* nop fill patterns for text section.  */
+static char const nop_r1[4] = { 0x3a, 0x88, 0x01, 0x00 };
+static char const nop_r2[4] = { 0x20, 0x00, 0x00, 0xc4 };
+static char const nop_r2_cdx[2] = { 0x3b, 0x00 };
+static char const *nop32 = nop_r1;
+static char const *nop16 = NULL;
 
 /* Handles all machine-dependent alignment needs.  */
 static void
@@ -392,16 +358,26 @@ nios2_align (int log_size, const char *pfill, symbolS *label)
 
   if (align != 0)
     {
-      if (subseg_text_p (now_seg) && align >= 2)
+      if (subseg_text_p (now_seg) && align >= nios2_min_align)
 	{
-	  /* First, make sure we're on a four-byte boundary, in case
+	  /* First, make sure we're on the minimum boundary, in case
 	     someone has been putting .byte values the text section.  */
-	  if (nios2_current_align < 2 || switched_seg_p)
-	    frag_align (2, 0, 0);
+	  if (nios2_current_align < nios2_min_align || switched_seg_p)
+	    frag_align (nios2_min_align, 0, 0);
+
+	  /* If we might be on a 2-byte boundary, first align to a
+	     4-byte boundary using the 2-byte nop as fill.  */
+	  if (nios2_min_align == 1
+	      && align > nios2_min_align
+	      && pfill == nop32 )
+	    {
+	      gas_assert (nop16);
+	      frag_align_pattern (2, nop16, 2, 0);
+	    }
 
 	  /* Now fill in the alignment pattern.  */
 	  if (pfill != NULL)
-	    frag_align_pattern (align, pfill, sizeof nop, 0);
+	    frag_align_pattern (align, pfill, 4, 0);
 	  else
 	    frag_align (align, 0, 0);
 	}
@@ -512,7 +488,7 @@ s_nios2_align (int ignore ATTRIBUTE_UNUSED)
       pfill = (const char *) &fill;
     }
   else if (subseg_text_p (now_seg))
-    pfill = (const char *) &nop;
+    pfill = (const char *) nop32;
   else
     {
       pfill = NULL;
@@ -589,21 +565,23 @@ s_nios2_sdata (int ignore ATTRIBUTE_UNUSED)
 static void
 s_nios2_set (int equiv)
 {
-  char *directive = input_line_pointer;
-  char delim = get_symbol_end ();
+  char *save = input_line_pointer;
+  char *directive;
+  char delim = get_symbol_name (&directive);
   char *endline = input_line_pointer;
-  *endline = delim;
+
+  (void) restore_line_pointer (delim);
 
   /* We only want to handle ".set XXX" if the
      user has tried ".set XXX, YYY" they are not
      trying a directive.  This prevents
      us from polluting the name space.  */
   SKIP_WHITESPACE ();
-  if (is_end_of_line[(unsigned char) *input_line_pointer]) 
+  if (is_end_of_line[(unsigned char) *input_line_pointer])
     {
       bfd_boolean done = TRUE;
       *endline = 0;
-      
+
       if (!strcmp (directive, "noat"))
 	  nios2_as_options.noat = TRUE;
       else if (!strcmp (directive, "at"))
@@ -620,7 +598,7 @@ s_nios2_set (int equiv)
 	  nios2_as_options.relax = relax_all;
       else
 	done = FALSE;
-	
+
       if (done)
 	{
 	  *endline = delim;
@@ -630,10 +608,9 @@ s_nios2_set (int equiv)
     }
 
   /* If we fall through to here, either we have ".set XXX, YYY"
-     or we have ".set XXX" where XXX is unknown or we have 
+     or we have ".set XXX" where XXX is unknown or we have
      a syntax error.  */
-  input_line_pointer = directive;
-  *endline = delim;
+  input_line_pointer = save;
   s_set (equiv);
 }
 
@@ -675,7 +652,7 @@ const pseudo_typeS md_pseudo_table[] = {
    Nios II PC-relative branch instructions only support 16-bit offsets.
    And, there's no good way to add a 32-bit constant to the PC without
    using two registers.
-  
+
    To deal with this, for the pc-relative relaxation mode we convert
      br label
    into a series of 16-bit adds, like:
@@ -711,6 +688,11 @@ const pseudo_typeS md_pseudo_table[] = {
      jmp at
      skip:
    respectively.
+
+   16-bit CDX branch instructions are relaxed first into equivalent
+   32-bit branches and then the above transformations are applied
+   if necessary.
+
 */
 
 /* Arbitrarily limit the number of addis we can insert; we need to be able
@@ -727,7 +709,7 @@ const pseudo_typeS md_pseudo_table[] = {
 /* The fr_subtype field represents the target-specific relocation state.
    It has type relax_substateT (unsigned int).  We use it to track the
    number of addis necessary, plus a bit to track whether this is a
-   conditional branch.
+   conditional branch and a bit for 16-bit CDX instructions.
    Regardless of the smaller RELAX_MAX_ADDI limit, we reserve 16 bits
    in the fr_subtype to encode the number of addis so that the whole
    theoretically-valid range is representable.
@@ -735,10 +717,14 @@ const pseudo_typeS md_pseudo_table[] = {
    represents a branch that needs to be relaxed.  */
 #define UBRANCH (0 << 16)
 #define CBRANCH (1 << 16)
+#define CDXBRANCH (1 << 17)
 #define IS_CBRANCH(SUBTYPE) ((SUBTYPE) & CBRANCH)
 #define IS_UBRANCH(SUBTYPE) (!IS_CBRANCH (SUBTYPE))
+#define IS_CDXBRANCH(SUBTYPE) ((SUBTYPE) & CDXBRANCH)
 #define UBRANCH_SUBTYPE(N) (UBRANCH | (N))
 #define CBRANCH_SUBTYPE(N) (CBRANCH | (N))
+#define CDX_UBRANCH_SUBTYPE(N) (CDXBRANCH | UBRANCH | (N))
+#define CDX_CBRANCH_SUBTYPE(N) (CDXBRANCH | CBRANCH | (N))
 #define SUBTYPE_ADDIS(SUBTYPE) ((SUBTYPE) & 0xffff)
 
 /* For the -relax-section mode, unconditional branches require 2 extra i
@@ -772,7 +758,7 @@ nios2_relax_subtype_size (relax_substateT subtype)
   int n = SUBTYPE_ADDIS (subtype);
   if (n == 0)
     /* Regular conditional/unconditional branch instruction.  */
-    return 4;
+    return (IS_CDXBRANCH (subtype) ? 2 : 4);
   else if (nios2_as_options.relax == relax_all)
     return (IS_CBRANCH (subtype) ? CBRANCH_JUMP_SIZE : UBRANCH_JUMP_SIZE);
   else if (IS_CBRANCH (subtype))
@@ -803,6 +789,7 @@ nios2_relax_frag (segT segment, fragS *fragp, long stretch)
       fragS *sym_frag = symbol_get_frag (symbolp);
       offsetT offset;
       int n;
+      bfd_boolean is_cdx = FALSE;
 
       target += S_GET_VALUE (symbolp);
 
@@ -816,10 +803,18 @@ nios2_relax_frag (segT segment, fragS *fragp, long stretch)
 	    target = fragp->fr_next->fr_address + stretch;
 	}
 
-      /* We subtract 4 because all pc relative branches are
-	 from the next instruction.  */
-      offset = target - fragp->fr_address - fragp->fr_fix - 4;
-      if (offset >= -32768 && offset <= 32764)
+      /* We subtract fr_var (4 for 32-bit insns) because all pc relative
+	 branches are from the next instruction.  */
+      offset = target - fragp->fr_address - fragp->fr_fix - fragp->fr_var;
+      if (IS_CDXBRANCH (subtype) && IS_UBRANCH (subtype)
+	  && offset >= -1024 && offset < 1024)
+	/* PC-relative CDX branch with 11-bit offset.  */
+	is_cdx = TRUE;
+      else if (IS_CDXBRANCH (subtype) && IS_CBRANCH (subtype)
+	       && offset >= -128 && offset < 128)
+	/* PC-relative CDX branch with 8-bit offset.  */
+	is_cdx = TRUE;
+      else if (offset >= -32768 && offset < 32768)
 	/* Fits in PC-relative branch.  */
 	n = 0;
       else if (nios2_as_options.relax == relax_all)
@@ -858,7 +853,9 @@ nios2_relax_frag (segT segment, fragS *fragp, long stretch)
 	/* We cannot handle this case, diagnose overflow later.  */
 	return 0;
 
-      if (IS_CBRANCH (subtype))
+      if (is_cdx)
+	fragp->fr_subtype = subtype;
+      else if (IS_CBRANCH (subtype))
 	fragp->fr_subtype = CBRANCH_SUBTYPE (n);
       else
 	fragp->fr_subtype = UBRANCH_SUBTYPE (n);
@@ -883,16 +880,50 @@ md_convert_frag (bfd *headers ATTRIBUTE_UNUSED, segT segment ATTRIBUTE_UNUSED,
   addressT target = fragp->fr_offset;
   symbolS *symbolp = fragp->fr_symbol;
   offsetT offset;
-  unsigned int addend_mask, addi_mask;
+  unsigned int addend_mask, addi_mask, op;
   offsetT addend, remainder;
   int i;
+  bfd_boolean is_r2 = (bfd_get_mach (stdoutput) == bfd_mach_nios2r2);
+
+  /* If this is a CDX branch we're not relaxing, just generate the fixup.  */
+  if (IS_CDXBRANCH (subtype))
+    {
+      gas_assert (is_r2);
+      fix_new (fragp, fragp->fr_fix, 2, fragp->fr_symbol,
+	       fragp->fr_offset, 1,
+	       (IS_UBRANCH (subtype)
+		? BFD_RELOC_NIOS2_R2_I10_1_PCREL
+		: BFD_RELOC_NIOS2_R2_T1I7_1_PCREL));
+      fragp->fr_fix += 2;
+      return;
+    }
+
+  /* If this is a CDX branch we are relaxing, turn it into an equivalent
+     32-bit branch and then fall through to the normal non-CDX cases.  */
+  if (fragp->fr_var == 2)
+    {
+      unsigned int opcode = md_chars_to_number (buffer, 2);
+      gas_assert (is_r2);
+      if (IS_CBRANCH (subtype))
+	{
+	  unsigned int reg = nios2_r2_reg3_mappings[GET_IW_T1I7_A3 (opcode)];
+	  if (GET_IW_R2_OP (opcode) == R2_OP_BNEZ_N)
+	    opcode = MATCH_R2_BNE | SET_IW_F2I16_A (reg);
+	  else
+	    opcode = MATCH_R2_BEQ | SET_IW_F2I16_A (reg);
+	}
+      else
+	opcode = MATCH_R2_BR;
+      md_number_to_chars (buffer, opcode, 4);
+      fragp->fr_var = 4;
+    }
 
   /* If we didn't or can't relax, this is a regular branch instruction.
      We just need to generate the fixup for the symbol and offset.  */
   if (n == 0)
     {
-      fix_new (fragp, fragp->fr_fix, 4, fragp->fr_symbol, fragp->fr_offset, 1,
-	       BFD_RELOC_16_PCREL);
+      fix_new (fragp, fragp->fr_fix, 4, fragp->fr_symbol,
+	       fragp->fr_offset, 1, BFD_RELOC_16_PCREL);
       fragp->fr_fix += 4;
       return;
     }
@@ -902,6 +933,7 @@ md_convert_frag (bfd *headers ATTRIBUTE_UNUSED, segT segment ATTRIBUTE_UNUSED,
   if (IS_CBRANCH (subtype))
     {
       unsigned int br_opcode;
+      unsigned int old_op, new_op;
       int nbytes;
 
       /* Account for the nextpc and jmp in the pc-relative case, or the two
@@ -912,33 +944,66 @@ md_convert_frag (bfd *headers ATTRIBUTE_UNUSED, segT segment ATTRIBUTE_UNUSED,
 	nbytes = 12;
 
       br_opcode = md_chars_to_number (buffer, 4);
-      switch (br_opcode & OP_MASK_OP)
+      if (is_r2)
 	{
-	case OP_MATCH_BEQ:
-	  br_opcode = (br_opcode & ~OP_MASK_OP) | OP_MATCH_BNE;
-	  break;
-	case OP_MATCH_BNE:
-	  br_opcode = (br_opcode & ~OP_MASK_OP) | OP_MATCH_BEQ ;
-	  break;
-	case OP_MATCH_BGE:
-	  br_opcode = (br_opcode & ~OP_MASK_OP) | OP_MATCH_BLT ;
-	  break;
-	case OP_MATCH_BGEU:
-	  br_opcode = (br_opcode & ~OP_MASK_OP) | OP_MATCH_BLTU ;
-	  break;
-	case OP_MATCH_BLT:
-	  br_opcode = (br_opcode & ~OP_MASK_OP) | OP_MATCH_BGE ;
-	  break;
-	case OP_MATCH_BLTU:
-	  br_opcode = (br_opcode & ~OP_MASK_OP) | OP_MATCH_BGEU ;
-	  break;
-	default:
-	  as_bad_where (fragp->fr_file, fragp->fr_line,
-			_("expecting conditional branch for relaxation\n"));
-	  abort ();
+	  old_op = GET_IW_R2_OP (br_opcode);
+	  switch (old_op)
+	    {
+	    case R2_OP_BEQ:
+	      new_op = R2_OP_BNE;
+	      break;
+	    case R2_OP_BNE:
+	      new_op = R2_OP_BEQ;
+	      break;
+	    case R2_OP_BGE:
+	      new_op = R2_OP_BLT;
+	      break;
+	    case R2_OP_BGEU:
+	      new_op = R2_OP_BLTU;
+	      break;
+	    case R2_OP_BLT:
+	      new_op = R2_OP_BGE;
+	      break;
+	    case R2_OP_BLTU:
+	      new_op = R2_OP_BGEU;
+	      break;
+	    default:
+	      abort ();
+	    }
+	  br_opcode = ((br_opcode & ~IW_R2_OP_SHIFTED_MASK)
+		       | SET_IW_R2_OP (new_op));
+	  br_opcode = br_opcode | SET_IW_F2I16_IMM16 (nbytes);
 	}
-
-      br_opcode = br_opcode | (nbytes << OP_SH_IMM16);
+      else
+	{
+	  old_op = GET_IW_R1_OP (br_opcode);
+	  switch (old_op)
+	    {
+	    case R1_OP_BEQ:
+	      new_op = R1_OP_BNE;
+	      break;
+	    case R1_OP_BNE:
+	      new_op = R1_OP_BEQ;
+	      break;
+	    case R1_OP_BGE:
+	      new_op = R1_OP_BLT;
+	      break;
+	    case R1_OP_BGEU:
+	      new_op = R1_OP_BLTU;
+	      break;
+	    case R1_OP_BLT:
+	      new_op = R1_OP_BGE;
+	      break;
+	    case R1_OP_BLTU:
+	      new_op = R1_OP_BGEU;
+	      break;
+	    default:
+	      abort ();
+	    }
+	  br_opcode = ((br_opcode & ~IW_R1_OP_SHIFTED_MASK)
+		       | SET_IW_R1_OP (new_op));
+	  br_opcode = br_opcode | SET_IW_I_IMM16 (nbytes);
+	}
       md_number_to_chars (buffer, br_opcode, 4);
       fragp->fr_fix += 4;
       buffer += 4;
@@ -948,11 +1013,14 @@ md_convert_frag (bfd *headers ATTRIBUTE_UNUSED, segT segment ATTRIBUTE_UNUSED,
   if (nios2_as_options.relax == relax_section)
     {
       /* Insert the nextpc instruction.  */
-      md_number_to_chars (buffer,
-			  OP_MATCH_NEXTPC | (AT_REGNUM << OP_SH_RRD), 4);
+      if (is_r2)
+	op = MATCH_R2_NEXTPC | SET_IW_F3X6L5_C (AT_REGNUM);
+      else
+	op = MATCH_R1_NEXTPC | SET_IW_R_C (AT_REGNUM);
+      md_number_to_chars (buffer, op, 4);
       fragp->fr_fix += 4;
       buffer += 4;
-  
+
       /* We need to know whether the offset is positive or negative.  */
       target += S_GET_VALUE (symbolp);
       offset = target - fragp->fr_address - fragp->fr_fix;
@@ -960,12 +1028,20 @@ md_convert_frag (bfd *headers ATTRIBUTE_UNUSED, segT segment ATTRIBUTE_UNUSED,
 	addend = 32767;
       else
 	addend = -32768;
-      addend_mask = (((unsigned int)addend) & 0xffff) << OP_SH_IMM16;
+      if (is_r2)
+	addend_mask = SET_IW_F2I16_IMM16 ((unsigned int)addend);
+      else
+	addend_mask = SET_IW_I_IMM16 ((unsigned int)addend);
 
       /* Insert n-1 addi instructions.  */
-      addi_mask = (OP_MATCH_ADDI
-		   | (AT_REGNUM << OP_SH_IRD)
-		   | (AT_REGNUM << OP_SH_IRS));
+      if (is_r2)
+	addi_mask = (MATCH_R2_ADDI
+		     | SET_IW_F2I16_B (AT_REGNUM)
+		     | SET_IW_F2I16_A (AT_REGNUM));
+      else
+	addi_mask = (MATCH_R1_ADDI
+		     | SET_IW_I_B (AT_REGNUM)
+		     | SET_IW_I_A (AT_REGNUM));
       for (i = 0; i < n - 1; i ++)
 	{
 	  md_number_to_chars (buffer, addi_mask | addend_mask, 4);
@@ -976,7 +1052,10 @@ md_convert_frag (bfd *headers ATTRIBUTE_UNUSED, segT segment ATTRIBUTE_UNUSED,
       /* Insert the last addi instruction to hold the remainder.  */
       remainder = offset - addend * (n - 1);
       gas_assert (remainder >= -32768 && remainder <= 32767);
-      addend_mask = (((unsigned int)remainder) & 0xffff) << OP_SH_IMM16;
+      if (is_r2)
+	addend_mask = SET_IW_F2I16_IMM16 ((unsigned int)remainder);
+      else
+	addend_mask = SET_IW_I_IMM16 ((unsigned int)remainder);
       md_number_to_chars (buffer, addi_mask | addend_mask, 4);
       fragp->fr_fix += 4;
       buffer += 4;
@@ -985,12 +1064,22 @@ md_convert_frag (bfd *headers ATTRIBUTE_UNUSED, segT segment ATTRIBUTE_UNUSED,
   /* Load at for the absolute case.  */
   else
     {
-      md_number_to_chars (buffer, OP_MATCH_ORHI | 0x00400000, 4);
+      if (is_r2)
+	op = MATCH_R2_ORHI | SET_IW_F2I16_B (AT_REGNUM) | SET_IW_F2I16_A (0);
+      else
+	op = MATCH_R1_ORHI | SET_IW_I_B (AT_REGNUM) | SET_IW_I_A (0);
+      md_number_to_chars (buffer, op, 4);
       fix_new (fragp, fragp->fr_fix, 4, fragp->fr_symbol, fragp->fr_offset,
 	       0, BFD_RELOC_NIOS2_HI16);
       fragp->fr_fix += 4;
       buffer += 4;
-      md_number_to_chars (buffer, OP_MATCH_ORI | 0x08400000, 4);
+      if (is_r2)
+	op = (MATCH_R2_ORI | SET_IW_F2I16_B (AT_REGNUM)
+	      | SET_IW_F2I16_A (AT_REGNUM));
+      else
+	op = (MATCH_R1_ORI | SET_IW_I_B (AT_REGNUM)
+	      | SET_IW_I_A (AT_REGNUM));
+      md_number_to_chars (buffer, op, 4);
       fix_new (fragp, fragp->fr_fix, 4, fragp->fr_symbol, fragp->fr_offset,
 	       0, BFD_RELOC_NIOS2_LO16);
       fragp->fr_fix += 4;
@@ -998,7 +1087,11 @@ md_convert_frag (bfd *headers ATTRIBUTE_UNUSED, segT segment ATTRIBUTE_UNUSED,
     }
 
   /* Insert the jmp instruction.  */
-  md_number_to_chars (buffer, OP_MATCH_JMP | (AT_REGNUM << OP_SH_RRS), 4);
+  if (is_r2)
+    op = MATCH_R2_JMP | SET_IW_F3X6L5_A (AT_REGNUM);
+  else
+    op = MATCH_R1_JMP | SET_IW_R_A (AT_REGNUM);
+  md_number_to_chars (buffer, op, 4);
   fragp->fr_fix += 4;
   buffer += 4;
 }
@@ -1010,8 +1103,15 @@ md_convert_frag (bfd *headers ATTRIBUTE_UNUSED, segT segment ATTRIBUTE_UNUSED,
 static bfd_boolean
 nios2_check_overflow (valueT fixup, reloc_howto_type *howto)
 {
-  /* Apply the rightshift before checking for overflow.  */
-  fixup = ((signed)fixup) >> howto->rightshift;
+  /* If there is a rightshift, check that the low-order bits are
+     zero before applying it.  */
+  if (howto->rightshift)
+    {
+      if ((~(~((valueT) 0) << howto->rightshift) & fixup)
+	  && howto->complain_on_overflow != complain_overflow_dont)
+	return TRUE;
+      fixup = ((signed)fixup) >> howto->rightshift;
+    }
 
   /* Check for overflow - return TRUE if overflow, FALSE if not.  */
   switch (howto->complain_on_overflow)
@@ -1027,7 +1127,7 @@ nios2_check_overflow (valueT fixup, reloc_howto_type *howto)
       if ((fixup & 0x80000000) > 0)
 	{
 	  /* Check for negative overflow.  */
-	  if ((signed) fixup < ((signed) 0x80000000 >> howto->bitsize))
+	  if ((signed) fixup < (signed) (~0U << (howto->bitsize - 1)))
 	    return TRUE;
 	}
       else
@@ -1071,9 +1171,10 @@ nios2_diagnose_overflow (valueT fixup, reloc_howto_type *howto,
       unsigned int range_min;
       unsigned int range_max;
       unsigned int address;
-      gas_assert (fixP->fx_size == 4);
-      opcode = nios2_find_opcode_hash (value);
+
+      opcode = nios2_find_opcode_hash (value, bfd_get_mach (stdoutput));
       gas_assert (opcode);
+      gas_assert (fixP->fx_size == opcode->size);
       overflow_msg_type = opcode->overflow_msg;
       switch (overflow_msg_type)
 	{
@@ -1082,20 +1183,30 @@ nios2_diagnose_overflow (valueT fixup, reloc_howto_type *howto,
 	    = ((fixP->fx_frag->fr_address + fixP->fx_where) & 0xf0000000);
 	  range_max = range_min + 0x0fffffff;
 	  address = fixup | range_min;
-	  
+
 	  as_bad_where (fixP->fx_file, fixP->fx_line,
 			_("call target address 0x%08x out of range 0x%08x to 0x%08x"),
 			address, range_min, range_max);
 	  break;
 	case branch_target_overflow:
-	  as_bad_where (fixP->fx_file, fixP->fx_line,
-			_("branch offset %d out of range %d to %d"),
-			(int)fixup, -32768, 32767);
+	  if (opcode->format == iw_i_type || opcode->format == iw_F2I16_type)
+	    as_bad_where (fixP->fx_file, fixP->fx_line,
+			  _("branch offset %d out of range %d to %d"),
+			  (int)fixup, -32768, 32767);
+	  else
+	    as_bad_where (fixP->fx_file, fixP->fx_line,
+			  _("branch offset %d out of range"),
+			  (int)fixup);
 	  break;
 	case address_offset_overflow:
-	  as_bad_where (fixP->fx_file, fixP->fx_line,
-			_("%s offset %d out of range %d to %d"),
-			opcode->name, (int)fixup, -32768, 32767);
+	  if (opcode->format == iw_i_type || opcode->format == iw_F2I16_type)
+	    as_bad_where (fixP->fx_file, fixP->fx_line,
+			  _("%s offset %d out of range %d to %d"),
+			  opcode->name, (int)fixup, -32768, 32767);
+	  else
+	    as_bad_where (fixP->fx_file, fixP->fx_line,
+			  _("%s offset %d out of range"),
+			  opcode->name, (int)fixup);
 	  break;
 	case signed_immed16_overflow:
 	  as_bad_where (fixP->fx_file, fixP->fx_line,
@@ -1111,6 +1222,11 @@ nios2_diagnose_overflow (valueT fixup, reloc_howto_type *howto,
 	  as_bad_where (fixP->fx_file, fixP->fx_line,
 			_("immediate value %u out of range %u to %u"),
 			(unsigned int)fixup, 0, 31);
+	  break;
+	case signed_immed12_overflow:
+	  as_bad_where (fixP->fx_file, fixP->fx_line,
+			_("immediate value %d out of range %d to %d"),
+			(int)fixup, -2048, 2047);
 	  break;
 	case custom_opcode_overflow:
 	  as_bad_where (fixP->fx_file, fixP->fx_line,
@@ -1169,13 +1285,26 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 		  || fixP->fx_r_type == BFD_RELOC_NIOS2_GOT_HA
 		  || fixP->fx_r_type == BFD_RELOC_NIOS2_CALL_LO
 		  || fixP->fx_r_type == BFD_RELOC_NIOS2_CALL_HA
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_R2_S12
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_R2_I10_1_PCREL
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_R2_T1I7_1_PCREL
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_R2_T1I7_2
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_R2_T2I4
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_R2_T2I4_1
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_R2_T2I4_2
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_R2_X1I7_2
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_R2_X2L5
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_R2_F1I5_2
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_R2_L5I4X1
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_R2_T1X1I6
+		  || fixP->fx_r_type == BFD_RELOC_NIOS2_R2_T1X1I6_2
 		  /* Add other relocs here as we generate them.  */
 		  ));
 
   if (fixP->fx_r_type == BFD_RELOC_64)
     {
       /* We may reach here due to .8byte directives, but we never output
-	 BFD_RELOC_64; it must be resolved.  */	     
+	 BFD_RELOC_64; it must be resolved.  */
       if (fixP->fx_addsy != NULL)
 	as_bad_where (fixP->fx_file, fixP->fx_line,
 		      _("cannot create 64-bit relocation"));
@@ -1240,7 +1369,11 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	     FIXME : for some reason fixP->fx_pcrel isn't 1 when it should be
 	     so I'm using the howto structure instead to determine this.  */
 	  if (howto->pc_relative == 1)
-	    fixup = fixup - (fixP->fx_frag->fr_address + fixP->fx_where + 4);
+	    {
+	      fixup = (fixup - (fixP->fx_frag->fr_address + fixP->fx_where
+				+ fixP->fx_size));
+	      *valP = fixup;
+	    }
 
 	  /* Get the instruction or data to be fixed up.  */
 	  buf = fixP->fx_frag->fr_literal + fixP->fx_where;
@@ -1297,6 +1430,16 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 
 /** Instruction parsing support. */
 
+/* General internal error routine.  */
+
+static void
+bad_opcode (const struct nios2_opcode *op)
+{
+  fprintf (stderr, _("internal error: broken opcode descriptor for `%s %s'\n"),
+	   op->name, op->args);
+  as_fatal (_("Broken assembler.  No assembly attempted."));
+}
+
 /* Special relocation directive strings.  */
 
 struct nios2_special_relocS
@@ -1338,7 +1481,7 @@ static nios2_insn_relocS *
 nios2_insn_reloc_new (bfd_reloc_code_real_type reloc_type, unsigned int pcrel)
 {
   nios2_insn_relocS *retval;
-  retval = (nios2_insn_relocS *) malloc (sizeof (nios2_insn_relocS));
+  retval = XNEW (nios2_insn_relocS);
   if (retval == NULL)
     {
       as_bad (_("can't create relocation"));
@@ -1363,22 +1506,262 @@ nios2_insn_reloc_destroy (nios2_insn_relocS *reloc)
 }
 #endif
 
+/* Look up a register name and validate it for the given regtype.
+   Return the register mapping or NULL on failure.  */
+static struct nios2_reg *
+nios2_parse_reg (const char *token, unsigned long regtype)
+{
+  struct nios2_reg *reg = nios2_reg_lookup (token);
+
+  if (reg == NULL)
+    {
+      as_bad (_("unknown register %s"), token);
+      return NULL;
+    }
+
+  /* Matched a register, but is it the wrong type?  */
+  if (!(regtype & reg->regtype))
+    {
+      if (regtype & REG_CONTROL)
+	as_bad (_("expecting control register"));
+      else if (reg->regtype & REG_CONTROL)
+	as_bad (_("illegal use of control register"));
+      else if (reg->regtype & REG_COPROCESSOR)
+	as_bad (_("illegal use of coprocessor register"));
+      else
+	as_bad (_("invalid register %s"), token);
+      return NULL;
+    }
+
+  /* Warn for explicit use of special registers.  */
+  if (reg->regtype & REG_NORMAL)
+    {
+      if (!nios2_as_options.noat && reg->index == 1)
+	as_warn (_("Register at (r1) can sometimes be corrupted by "
+		   "assembler optimizations.\n"
+		   "Use .set noat to turn off those optimizations "
+		   "(and this warning)."));
+      if (!nios2_as_options.nobreak && reg->index == 25)
+	as_warn (_("The debugger will corrupt bt (r25).\n"
+		   "If you don't need to debug this "
+		   "code use .set nobreak to turn off this warning."));
+      if (!nios2_as_options.nobreak && reg->index == 30)
+	as_warn (_("The debugger will corrupt sstatus/ba (r30).\n"
+		   "If you don't need to debug this "
+		   "code use .set nobreak to turn off this warning."));
+    }
+
+  return reg;
+}
+
+/* This function parses a reglist for ldwm/stwm and push.n/pop.n
+   instructions, given as a brace-enclosed register list.  The tokenizer
+   has replaced commas in the token with spaces.
+   The return value is a bitmask of registers in the set.  It also
+   sets nios2_reglist_mask and nios2_reglist_dir to allow error checking
+   when parsing the base register.  */
+
+static unsigned long nios2_reglist_mask;
+static int nios2_reglist_dir;
+
+static unsigned long
+nios2_parse_reglist (char *token, const struct nios2_opcode *op)
+{
+  unsigned long mask = 0;
+  int dir = 0;
+  unsigned long regtype = 0;
+  int last = -1;
+  const char *regname;
+
+  nios2_reglist_mask = 0;
+  nios2_reglist_dir = 0;
+
+  if (op->match == MATCH_R2_LDWM || op->match == MATCH_R2_STWM)
+    {
+      regtype = REG_LDWM;
+      dir = 0;
+    }
+  else if (op->match == MATCH_R2_PUSH_N)
+    {
+      regtype = REG_POP;
+      dir = -1;
+    }
+  else if (op->match == MATCH_R2_POP_N)
+    {
+      regtype = REG_POP;
+      dir = 1;
+    }
+  else
+    bad_opcode (op);
+
+  for (regname = strtok (token, "{ }");
+       regname;
+       regname = strtok (NULL, "{ }"))
+    {
+      int regno;
+      struct nios2_reg *reg = nios2_parse_reg (regname, regtype);
+
+      if (!reg)
+	break;
+      regno = reg->index;
+
+      /* Make sure registers are listed in proper sequence.  */
+      if (last >= 0)
+	{
+	  if (regno == last)
+	    {
+	      as_bad ("duplicate register %s\n", reg->name);
+	      return 0;
+	    }
+	  else if (dir == 0)
+	    dir = (regno < last ? -1 : 1);
+	  else if ((dir > 0 && regno < last)
+		   || (dir < 0 && regno > last)
+		   || (op->match == MATCH_R2_PUSH_N
+		       && ! ((last == 31 && regno == 28)
+			     || (last == 31 && regno <= 23)
+			     || (last == 28 && regno <= 23)
+			     || (regno < 23 && regno == last - 1)))
+		   || (op->match == MATCH_R2_POP_N
+		       && ! ((regno == 31 && last == 28)
+			     || (regno == 31 && last <= 23)
+			     || (regno == 28 && last <= 23)
+			     || (last < 23 && last == regno - 1))))
+	    {
+	      as_bad ("invalid register order");
+	      return 0;
+	    }
+	}
+
+      mask |= 1 << regno;
+      last = regno;
+    }
+
+  /* Check that all ldwm/stwm regs belong to the same set.  */
+  if ((op->match == MATCH_R2_LDWM || op->match == MATCH_R2_STWM)
+      && (mask & 0x00003ffc) && (mask & 0x90ffc000))
+    {
+      as_bad ("invalid register set in reglist");
+      return 0;
+    }
+
+  /* Check that push.n/pop.n regs include RA.  */
+  if ((op->match == MATCH_R2_PUSH_N || op->match == MATCH_R2_POP_N)
+      && ((mask & 0x80000000) == 0))
+    {
+      as_bad ("reglist must include ra (r31)");
+      return 0;
+    }
+
+  /* Check that there is at least one register in the set.  */
+  if (!mask)
+    {
+      as_bad ("reglist must include at least one register");
+      return 0;
+    }
+
+  /* OK, reglist passed validation.  */
+  nios2_reglist_mask = mask;
+  nios2_reglist_dir = dir;
+  return mask;
+}
+
+/* This function parses the base register and options used by the ldwm/stwm
+   instructions.  Returns the base register and sets the option arguments
+   accordingly.  On failure, returns NULL.  */
+static struct nios2_reg *
+nios2_parse_base_register (char *str, int *direction, int *writeback, int *ret)
+{
+  char *regname;
+  struct nios2_reg *reg;
+
+  *direction = 0;
+  *writeback = 0;
+  *ret = 0;
+
+  /* Check for --.  */
+  if (strncmp (str, "--", 2) == 0)
+    {
+      str += 2;
+      *direction -= 1;
+    }
+
+  /* Extract the base register.  */
+  if (*str != '(')
+    {
+      as_bad ("expected '(' before base register");
+      return NULL;
+    }
+  str++;
+  regname = str;
+  str = strchr (str, ')');
+  if (!str)
+    {
+      as_bad ("expected ')' after base register");
+      return NULL;
+    }
+  *str = '\0';
+  str++;
+  reg = nios2_parse_reg (regname, REG_NORMAL);
+  if (reg == NULL)
+    return NULL;
+
+  /* Check for ++.  */
+  if (strncmp (str, "++", 2) == 0)
+    {
+      str += 2;
+      *direction += 1;
+    }
+
+  /* Ensure that either -- or ++ is specified, but not both.  */
+  if (*direction == 0)
+    {
+      as_bad ("invalid base register syntax");
+      return NULL;;
+    }
+
+  /* Check for options.  The tokenizer has replaced commas with spaces.  */
+  while (*str)
+    {
+      while (*str == ' ')
+	str++;
+      if (strncmp (str, "writeback", 9) == 0)
+	{
+	  *writeback = 1;
+	  str += 9;
+	}
+      else if (strncmp (str, "ret", 3) == 0)
+	{
+	  *ret = 1;
+	  str += 3;
+	}
+      else if (*str)
+	{
+	  as_bad ("invalid option syntax");
+	  return NULL;
+	}
+    }
+
+  return reg;
+}
+
+
 /* The various nios2_assemble_* functions call this
    function to generate an expression from a string representing an expression.
    It then tries to evaluate the expression, and if it can, returns its value.
-   If not, it creates a new nios2_insn_relocS and stores the expression and 
+   If not, it creates a new nios2_insn_relocS and stores the expression and
    reloc_type for future use.  */
 static unsigned long
 nios2_assemble_expression (const char *exprstr,
 			   nios2_insn_infoS *insn,
-			   nios2_insn_relocS *prev_reloc,
-			   bfd_reloc_code_real_type reloc_type,
+			   bfd_reloc_code_real_type orig_reloc_type,
 			   unsigned int pcrel)
 {
   nios2_insn_relocS *reloc;
   char *saved_line_ptr;
-  unsigned short value;
+  unsigned long value = 0;
   int i;
+  bfd_reloc_code_real_type reloc_type = orig_reloc_type;
 
   gas_assert (exprstr != NULL);
   gas_assert (insn != NULL);
@@ -1391,7 +1774,7 @@ nios2_assemble_expression (const char *exprstr,
       {
 	reloc_type = nios2_special_reloc[i].reloc_type;
 	exprstr += strlen (nios2_special_reloc[i].string) + 1;
-	
+
 	/* %lo and %hiadj have different meanings for PC-relative
 	   expressions.  */
 	if (pcrel)
@@ -1401,16 +1784,33 @@ nios2_assemble_expression (const char *exprstr,
 	    if (reloc_type == BFD_RELOC_NIOS2_HIADJ16)
 	      reloc_type = BFD_RELOC_NIOS2_PCREL_HA;
 	  }
-	
+
 	break;
       }
 
+  /* No relocation allowed; we must have a constant expression.  */
+  if (orig_reloc_type == BFD_RELOC_NONE)
+    {
+      expressionS exp;
+
+      /* Parse the expression string.  */
+      saved_line_ptr = input_line_pointer;
+      input_line_pointer = (char *) exprstr;
+      expression (&exp);
+      input_line_pointer = saved_line_ptr;
+
+      /* If we don't have a constant, give an error.  */
+      if (reloc_type != orig_reloc_type || exp.X_op != O_constant)
+	as_bad (_("expression must be constant"));
+      else
+	value = exp.X_add_number;
+      return (unsigned long) value;
+    }
+
   /* We potentially have a relocation.  */
   reloc = nios2_insn_reloc_new (reloc_type, pcrel);
-  if (prev_reloc != NULL)
-    prev_reloc->reloc_next = reloc;
-  else
-    insn->insn_reloc = reloc;
+  reloc->reloc_next = insn->insn_reloc;
+  insn->insn_reloc = reloc;
 
   /* Parse the expression string.  */
   saved_line_ptr = input_line_pointer;
@@ -1421,7 +1821,6 @@ nios2_assemble_expression (const char *exprstr,
   /* This is redundant as the fixup will put this into
      the instruction, but it is included here so that
      self-test mode (-r) works.  */
-  value = 0;
   if (nios2_mode == NIOS2_MODE_TEST
       && reloc->reloc_expression.X_op == O_constant)
     value = reloc->reloc_expression.X_add_number;
@@ -1429,480 +1828,1133 @@ nios2_assemble_expression (const char *exprstr,
   return (unsigned long) value;
 }
 
-/* Argument assemble functions.
-   All take an instruction argument string, and a pointer
-   to an instruction opcode. Upon return the insn_opcode
-   has the relevant fields filled in to represent the arg
-   string.  The return value is NULL if successful, or
-   an error message if an error was detected.
-
-   The naming conventions for these functions match the args template
-   in the nios2_opcode structure, as documented in include/opcode/nios2.h.
-   For example, nios2_assemble_args_dst is used for instructions with
-   "d,s,t" args.
-   See nios2_arg_info_structs below for the exact correspondence.  */
-
-static void
-nios2_assemble_args_dst (nios2_insn_infoS *insn_info)
+/* Encode a 3-bit register number, giving an error if this is not possible.  */
+static unsigned int
+nios2_assemble_reg3 (const char *token)
 {
-  if (insn_info->insn_tokens[1] != NULL
-      && insn_info->insn_tokens[2] != NULL
-      && insn_info->insn_tokens[3] != NULL)
+  struct nios2_reg *reg = nios2_parse_reg (token, REG_3BIT);
+  int j;
+
+  if (reg == NULL)
+    return 0;
+
+  for (j = 0; j < nios2_num_r2_reg3_mappings; j++)
+    if (nios2_r2_reg3_mappings[j] == reg->index)
+      return j;
+
+  /* Should never get here if we passed validation.  */
+  as_bad (_("invalid register %s"), token);
+  return 0;
+}
+
+/* Argument assemble functions.  */
+
+
+/* Control register index.  */
+static void
+nios2_assemble_arg_c (const char *token, nios2_insn_infoS *insn)
+{
+  struct nios2_reg *reg = nios2_parse_reg (token, REG_CONTROL);
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+
+  if (reg == NULL)
+    return;
+
+  switch (op->format)
     {
-      struct nios2_reg *dst = nios2_reg_lookup (insn_info->insn_tokens[1]);
-      struct nios2_reg *src1 = nios2_reg_lookup (insn_info->insn_tokens[2]);
-      struct nios2_reg *src2 = nios2_reg_lookup (insn_info->insn_tokens[3]);
+    case iw_r_type:
+      insn->insn_code |= SET_IW_R_IMM5 (reg->index);
+      break;
+    case iw_F3X6L5_type:
+      insn->insn_code |= SET_IW_F3X6L5_IMM5 (reg->index);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
 
-      if (dst == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[1]);
+/* Destination register.  */
+static void
+nios2_assemble_arg_d (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned long regtype = REG_NORMAL;
+  struct nios2_reg *reg;
+
+  if (op->format == iw_custom_type || op->format == iw_F3X8_type)
+    regtype |= REG_COPROCESSOR;
+  reg = nios2_parse_reg (token, regtype);
+  if (reg == NULL)
+    return;
+
+  switch (op->format)
+    {
+    case iw_r_type:
+      insn->insn_code |= SET_IW_R_C (reg->index);
+      break;
+    case iw_custom_type:
+      insn->insn_code |= SET_IW_CUSTOM_C (reg->index);
+      if (reg->regtype & REG_COPROCESSOR)
+	insn->insn_code |= SET_IW_CUSTOM_READC (0);
       else
-	SET_INSN_FIELD (RRD, insn_info->insn_code, dst->index);
-
-      if (src1 == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[2]);
+	insn->insn_code |= SET_IW_CUSTOM_READC (1);
+      break;
+    case iw_F3X6L5_type:
+    case iw_F3X6_type:
+      insn->insn_code |= SET_IW_F3X6L5_C (reg->index);
+      break;
+    case iw_F3X8_type:
+      insn->insn_code |= SET_IW_F3X8_C (reg->index);
+      if (reg->regtype & REG_COPROCESSOR)
+	insn->insn_code |= SET_IW_F3X8_READC (0);
       else
-	SET_INSN_FIELD (RRS, insn_info->insn_code, src1->index);
+	insn->insn_code |= SET_IW_F3X8_READC (1);
+      break;
+    case iw_F2_type:
+      insn->insn_code |= SET_IW_F2_B (reg->index);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
 
-      if (src2 == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[3]);
+/* Source register 1.  */
+static void
+nios2_assemble_arg_s (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned long regtype = REG_NORMAL;
+  struct nios2_reg *reg;
+
+  if (op->format == iw_custom_type || op->format == iw_F3X8_type)
+    regtype |= REG_COPROCESSOR;
+  reg = nios2_parse_reg (token, regtype);
+  if (reg == NULL)
+    return;
+
+  switch (op->format)
+    {
+    case iw_r_type:
+      if (op->match == MATCH_R1_JMP && reg->index == 31)
+	as_bad (_("r31 cannot be used with jmp; use ret instead"));
+      insn->insn_code |= SET_IW_R_A (reg->index);
+      break;
+    case iw_i_type:
+      insn->insn_code |= SET_IW_I_A (reg->index);
+      break;
+    case iw_custom_type:
+      insn->insn_code |= SET_IW_CUSTOM_A (reg->index);
+      if (reg->regtype & REG_COPROCESSOR)
+	insn->insn_code |= SET_IW_CUSTOM_READA (0);
       else
-	SET_INSN_FIELD (RRT, insn_info->insn_code, src2->index);
+	insn->insn_code |= SET_IW_CUSTOM_READA (1);
+      break;
+    case iw_F2I16_type:
+      insn->insn_code |= SET_IW_F2I16_A (reg->index);
+      break;
+    case iw_F2X4I12_type:
+      insn->insn_code |= SET_IW_F2X4I12_A (reg->index);
+      break;
+    case iw_F1X4I12_type:
+      insn->insn_code |= SET_IW_F1X4I12_A (reg->index);
+      break;
+    case iw_F1X4L17_type:
+      insn->insn_code |= SET_IW_F1X4L17_A (reg->index);
+      break;
+    case iw_F3X6L5_type:
+    case iw_F3X6_type:
+      if (op->match == MATCH_R2_JMP && reg->index == 31)
+	as_bad (_("r31 cannot be used with jmp; use ret instead"));
+      insn->insn_code |= SET_IW_F3X6L5_A (reg->index);
+      break;
+    case iw_F2X6L10_type:
+      insn->insn_code |= SET_IW_F2X6L10_A (reg->index);
+      break;
+    case iw_F3X8_type:
+      insn->insn_code |= SET_IW_F3X8_A (reg->index);
+      if (reg->regtype & REG_COPROCESSOR)
+	insn->insn_code |= SET_IW_F3X8_READA (0);
+      else
+	insn->insn_code |= SET_IW_F3X8_READA (1);
+      break;
+    case iw_F1X1_type:
+      if (op->match == MATCH_R2_JMPR_N && reg->index == 31)
+	as_bad (_("r31 cannot be used with jmpr.n; use ret.n instead"));
+      insn->insn_code |= SET_IW_F1X1_A (reg->index);
+      break;
+    case iw_F1I5_type:
+      /* Implicit stack pointer reference.  */
+      if (reg->index != 27)
+	as_bad (_("invalid register %s"), token);
+      break;
+    case iw_F2_type:
+      insn->insn_code |= SET_IW_F2_A (reg->index);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
 
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[4]);
+/* Source register 2.  */
+static void
+nios2_assemble_arg_t (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned long regtype = REG_NORMAL;
+  struct nios2_reg *reg;
+
+  if (op->format == iw_custom_type || op->format == iw_F3X8_type)
+    regtype |= REG_COPROCESSOR;
+  reg = nios2_parse_reg (token, regtype);
+  if (reg == NULL)
+    return;
+
+  switch (op->format)
+    {
+    case iw_r_type:
+      insn->insn_code |= SET_IW_R_B (reg->index);
+      break;
+    case iw_i_type:
+      insn->insn_code |= SET_IW_I_B (reg->index);
+      break;
+    case iw_custom_type:
+      insn->insn_code |= SET_IW_CUSTOM_B (reg->index);
+      if (reg->regtype & REG_COPROCESSOR)
+	insn->insn_code |= SET_IW_CUSTOM_READB (0);
+      else
+	insn->insn_code |= SET_IW_CUSTOM_READB (1);
+      break;
+    case iw_F2I16_type:
+      insn->insn_code |= SET_IW_F2I16_B (reg->index);
+      break;
+    case iw_F2X4I12_type:
+      insn->insn_code |= SET_IW_F2X4I12_B (reg->index);
+      break;
+    case iw_F3X6L5_type:
+    case iw_F3X6_type:
+      insn->insn_code |= SET_IW_F3X6L5_B (reg->index);
+      break;
+    case iw_F2X6L10_type:
+      insn->insn_code |= SET_IW_F2X6L10_B (reg->index);
+      break;
+    case iw_F3X8_type:
+      insn->insn_code |= SET_IW_F3X8_B (reg->index);
+      if (reg->regtype & REG_COPROCESSOR)
+	insn->insn_code |= SET_IW_F3X8_READB (0);
+      else
+	insn->insn_code |= SET_IW_F3X8_READB (1);
+      break;
+    case iw_F1I5_type:
+      insn->insn_code |= SET_IW_F1I5_B (reg->index);
+      break;
+    case iw_F2_type:
+      insn->insn_code |= SET_IW_F2_B (reg->index);
+      break;
+    case iw_T1X1I6_type:
+      /* Implicit zero register reference.  */
+      if (reg->index != 0)
+	as_bad (_("invalid register %s"), token);
+      break;
+
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* Destination register w/3-bit encoding.  */
+static void
+nios2_assemble_arg_D (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  int reg = nios2_assemble_reg3 (token);
+
+  switch (op->format)
+    {
+    case iw_T1I7_type:
+      insn->insn_code |= SET_IW_T1I7_A3 (reg);
+      break;
+    case iw_T2X1L3_type:
+      insn->insn_code |= SET_IW_T2X1L3_B3 (reg);
+      break;
+    case iw_T2X1I3_type:
+      insn->insn_code |= SET_IW_T2X1I3_B3 (reg);
+      break;
+    case iw_T3X1_type:
+      insn->insn_code |= SET_IW_T3X1_C3 (reg);
+      break;
+    case iw_T2X3_type:
+      /* Some instructions using this encoding take 3 register arguments,
+	 requiring the destination register to be the same as the first
+	 source register.  */
+      if (op->num_args == 3)
+	insn->insn_code |= SET_IW_T2X3_A3 (reg);
+      else
+	insn->insn_code |= SET_IW_T2X3_B3 (reg);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* Source register w/3-bit encoding.  */
+static void
+nios2_assemble_arg_S (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  int reg = nios2_assemble_reg3 (token);
+
+  switch (op->format)
+    {
+    case iw_T1I7_type:
+      insn->insn_code |= SET_IW_T1I7_A3 (reg);
+      break;
+    case iw_T2I4_type:
+      insn->insn_code |= SET_IW_T2I4_A3 (reg);
+      break;
+    case iw_T2X1L3_type:
+      insn->insn_code |= SET_IW_T2X1L3_A3 (reg);
+      break;
+    case iw_T2X1I3_type:
+      insn->insn_code |= SET_IW_T2X1I3_A3 (reg);
+      break;
+    case iw_T3X1_type:
+      insn->insn_code |= SET_IW_T3X1_A3 (reg);
+      break;
+    case iw_T2X3_type:
+      /* Some instructions using this encoding take 3 register arguments,
+	 requiring the destination register to be the same as the first
+	 source register.  */
+      if (op->num_args == 3)
+	{
+	  int dreg = GET_IW_T2X3_A3 (insn->insn_code);
+	  if (dreg != reg)
+	    as_bad ("source and destination registers must be the same");
+	}
+      else
+	insn->insn_code |= SET_IW_T2X3_A3 (reg);
+      break;
+    case iw_T1X1I6_type:
+      insn->insn_code |= SET_IW_T1X1I6_A3 (reg);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* Source register 2 w/3-bit encoding.  */
+static void
+nios2_assemble_arg_T (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  int reg = nios2_assemble_reg3 (token);
+
+  switch (op->format)
+    {
+    case iw_T2I4_type:
+      insn->insn_code |= SET_IW_T2I4_B3 (reg);
+      break;
+    case iw_T3X1_type:
+      insn->insn_code |= SET_IW_T3X1_B3 (reg);
+      break;
+    case iw_T2X3_type:
+      insn->insn_code |= SET_IW_T2X3_B3 (reg);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 16-bit signed immediate.  */
+static void
+nios2_assemble_arg_i (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_i_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_S16, 0);
+      insn->constant_bits |= SET_IW_I_IMM16 (val);
+      break;
+    case iw_F2I16_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_S16, 0);
+      insn->constant_bits |= SET_IW_F2I16_IMM16 (val);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 12-bit signed immediate.  */
+static void
+nios2_assemble_arg_I (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_F2X4I12_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_S12, 0);
+      insn->constant_bits |= SET_IW_F2X4I12_IMM12 (val);
+      break;
+    case iw_F1X4I12_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_S12, 0);
+      insn->constant_bits |= SET_IW_F2X4I12_IMM12 (val);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 16-bit unsigned immediate.  */
+static void
+nios2_assemble_arg_u (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_i_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_U16, 0);
+      insn->constant_bits |= SET_IW_I_IMM16 (val);
+      break;
+    case iw_F2I16_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_U16, 0);
+      insn->constant_bits |= SET_IW_F2I16_IMM16 (val);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 7-bit unsigned immediate with 2-bit shift.  */
+static void
+nios2_assemble_arg_U (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_T1I7_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_T1I7_2, 0);
+      insn->constant_bits |= SET_IW_T1I7_IMM7 (val >> 2);
+      break;
+    case iw_X1I7_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_X1I7_2, 0);
+      insn->constant_bits |= SET_IW_X1I7_IMM7 (val >> 2);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 5-bit unsigned immediate with 2-bit shift.  */
+static void
+nios2_assemble_arg_V (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_F1I5_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_F1I5_2, 0);
+      insn->constant_bits |= SET_IW_F1I5_IMM5 (val >> 2);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 4-bit unsigned immediate with 2-bit shift.  */
+static void
+nios2_assemble_arg_W (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_T2I4_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_T2I4_2, 0);
+      insn->constant_bits |= SET_IW_T2I4_IMM4 (val >> 2);
+      break;
+    case iw_L5I4X1_type:
+      /* This argument is optional for push.n/pop.n, and defaults to
+	 zero if unspecified.  */
+      if (token == NULL)
+	return;
+
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_L5I4X1, 0);
+      insn->constant_bits |= SET_IW_L5I4X1_IMM4 (val >> 2);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 4-bit unsigned immediate with 1-bit shift.  */
+static void
+nios2_assemble_arg_X (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_T2I4_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_T2I4_1, 0);
+      insn->constant_bits |= SET_IW_T2I4_IMM4 (val >> 1);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 4-bit unsigned immediate without shift.  */
+static void
+nios2_assemble_arg_Y (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_T2I4_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_T2I4, 0);
+      insn->constant_bits |= SET_IW_T2I4_IMM4 (val);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+
+/* 16-bit signed immediate address offset.  */
+static void
+nios2_assemble_arg_o (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_i_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_16_PCREL, 1);
+      insn->constant_bits |= SET_IW_I_IMM16 (val);
+      break;
+    case iw_F2I16_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_16_PCREL, 1);
+      insn->constant_bits |= SET_IW_F2I16_IMM16 (val);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 10-bit signed address offset with 1-bit shift.  */
+static void
+nios2_assemble_arg_O (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_I10_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_I10_1_PCREL, 1);
+      insn->constant_bits |= SET_IW_I10_IMM10 (val >> 1);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 7-bit signed address offset with 1-bit shift.  */
+static void
+nios2_assemble_arg_P (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_T1I7_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_T1I7_1_PCREL, 1);
+      insn->constant_bits |= SET_IW_T1I7_IMM7 (val >> 1);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 5-bit unsigned immediate.  */
+static void
+nios2_assemble_arg_j (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_r_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_IMM5, 0);
+      insn->constant_bits |= SET_IW_R_IMM5 (val);
+      break;
+    case iw_F3X6L5_type:
+      if (op->match == MATCH_R2_ENI)
+	/* Value must be constant 0 or 1.  */
+	{
+	  val = nios2_assemble_expression (token, insn, BFD_RELOC_NONE, 0);
+	  if (val != 0 && val != 1)
+	    as_bad ("invalid eni argument %u", val);
+	  insn->insn_code |= SET_IW_F3X6L5_IMM5 (val);
+	}
+      else
+	{
+	  val = nios2_assemble_expression (token, insn,
+					   BFD_RELOC_NIOS2_IMM5, 0);
+	  insn->constant_bits |= SET_IW_F3X6L5_IMM5 (val);
+	}
+      break;
+    case iw_F2X6L10_type:
+      /* Only constant expression without relocation permitted for
+	 bit position.  */
+      val = nios2_assemble_expression (token, insn, BFD_RELOC_NONE, 0);
+      if (val > 31)
+	as_bad ("invalid bit position %u", val);
+      insn->insn_code |= SET_IW_F2X6L10_MSB (val);
+      break;
+    case iw_X2L5_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_X2L5, 0);
+      insn->constant_bits |= SET_IW_X2L5_IMM5 (val);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* Second 5-bit unsigned immediate field.  */
+static void
+nios2_assemble_arg_k (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_F2X6L10_type:
+      /* Only constant expression without relocation permitted for
+	 bit position.  */
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NONE, 0);
+      if (val > 31)
+	as_bad ("invalid bit position %u", val);
+      else if (GET_IW_F2X6L10_MSB (insn->insn_code) < val)
+	as_bad ("MSB must be greater than or equal to LSB");
+      insn->insn_code |= SET_IW_F2X6L10_LSB (val);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 8-bit unsigned immediate.  */
+static void
+nios2_assemble_arg_l (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_custom_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_IMM8, 0);
+      insn->constant_bits |= SET_IW_CUSTOM_N (val);
+      break;
+    case iw_F3X8_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_IMM8, 0);
+      insn->constant_bits |= SET_IW_F3X8_N (val);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 26-bit unsigned immediate.  */
+static void
+nios2_assemble_arg_m (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_j_type:
+      val = nios2_assemble_expression (token, insn,
+				       (nios2_as_options.noat
+					? BFD_RELOC_NIOS2_CALL26_NOAT
+					: BFD_RELOC_NIOS2_CALL26),
+				       0);
+      insn->constant_bits |= SET_IW_J_IMM26 (val);
+      break;
+    case iw_L26_type:
+      val = nios2_assemble_expression (token, insn,
+				       (nios2_as_options.noat
+					? BFD_RELOC_NIOS2_CALL26_NOAT
+					: BFD_RELOC_NIOS2_CALL26),
+				       0);
+      insn->constant_bits |= SET_IW_L26_IMM26 (val);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 6-bit unsigned immediate with no shifting.  */
+static void
+nios2_assemble_arg_M (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_T1X1I6_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_T1X1I6, 0);
+      insn->constant_bits |= SET_IW_T1X1I6_IMM6 (val);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* 6-bit unsigned immediate with 2-bit shift.  */
+static void
+nios2_assemble_arg_N (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+
+  switch (op->format)
+    {
+    case iw_T1X1I6_type:
+      val = nios2_assemble_expression (token, insn,
+				       BFD_RELOC_NIOS2_R2_T1X1I6_2, 0);
+      insn->constant_bits |= SET_IW_T1X1I6_IMM6 (val >> 2);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+
+/* Encoded enumeration for addi.n/subi.n.  */
+static void
+nios2_assemble_arg_e (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+  int i;
+
+  switch (op->format)
+    {
+    case iw_T2X1I3_type:
+      val = nios2_assemble_expression (token, insn, BFD_RELOC_NONE, 0);
+      for (i = 0; i < nios2_num_r2_asi_n_mappings; i++)
+	if (val == nios2_r2_asi_n_mappings[i])
+	  break;
+      if (i == nios2_num_r2_asi_n_mappings)
+	{
+	  as_bad (_("Invalid constant operand %s"), token);
+	  return;
+	}
+      insn->insn_code |= SET_IW_T2X1I3_IMM3 ((unsigned)i);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* Encoded enumeration for slli.n/srli.n.  */
+static void
+nios2_assemble_arg_f (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+  int i;
+
+  switch (op->format)
+    {
+    case iw_T2X1L3_type:
+      val = nios2_assemble_expression (token, insn, BFD_RELOC_NONE, 0);
+      for (i = 0; i < nios2_num_r2_shi_n_mappings; i++)
+	if (val == nios2_r2_shi_n_mappings[i])
+	  break;
+      if (i == nios2_num_r2_shi_n_mappings)
+	{
+	  as_bad (_("Invalid constant operand %s"), token);
+	  return;
+	}
+      insn->insn_code |= SET_IW_T2X1L3_SHAMT ((unsigned)i);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* Encoded enumeration for andi.n.  */
+static void
+nios2_assemble_arg_g (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+  int i;
+
+  switch (op->format)
+    {
+    case iw_T2I4_type:
+      val = nios2_assemble_expression (token, insn, BFD_RELOC_NONE, 0);
+      for (i = 0; i < nios2_num_r2_andi_n_mappings; i++)
+	if (val == nios2_r2_andi_n_mappings[i])
+	  break;
+      if (i == nios2_num_r2_andi_n_mappings)
+	{
+	  as_bad (_("Invalid constant operand %s"), token);
+	  return;
+	}
+      insn->insn_code |= SET_IW_T2I4_IMM4 ((unsigned)i);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* Encoded enumeration for movi.n.  */
+static void
+nios2_assemble_arg_h (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned int val;
+  int i;
+
+  switch (op->format)
+    {
+    case iw_T1I7_type:
+      val = nios2_assemble_expression (token, insn, BFD_RELOC_NONE, 0);
+      i = (signed) val;
+      if ((signed) i == -1)
+	val = 127;
+      else if (i == -2)
+	val = 126;
+      else if (i == 0xff)
+	val = 125;
+      else if (i < 0 || i > 125)
+	{
+	  as_bad (_("Invalid constant operand %s"), token);
+	  return;
+	}
+      insn->insn_code |= SET_IW_T1I7_IMM7 (val);
+      break;
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* Encoded REGMASK for ldwm/stwm or push.n/pop.n.  */
+static void
+nios2_assemble_arg_R (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  unsigned long mask;
+  char *buf = strdup (token);
+  unsigned long reglist = nios2_parse_reglist (buf, op);
+  free (buf);
+
+  if (reglist == 0)
+    return;
+
+  switch (op->format)
+    {
+    case iw_F1X4L17_type:
+      /* Encoding for ldwm/stwm.  */
+      if (reglist & 0x00003ffc)
+	mask = reglist >> 2;
+      else
+	{
+	  insn->insn_code |= SET_IW_F1X4L17_RS (1);
+	  mask = (reglist & 0x00ffc000) >> 14;
+	  if (reglist & (1 << 28))
+	    mask |= 1 << 10;
+	  if (reglist & (1 << 31))
+	    mask |= 1 << 11;
+	}
+      insn->insn_code |= SET_IW_F1X4L17_REGMASK (mask);
+      break;
+
+    case iw_L5I4X1_type:
+      /* Encoding for push.n/pop.n.  */
+      if (reglist & (1 << 28))
+	insn->insn_code |= SET_IW_L5I4X1_FP (1);
+      mask = reglist & 0x00ff0000;
+      if (mask)
+	{
+	  int i;
+
+	  for (i = 0; i < nios2_num_r2_reg_range_mappings; i++)
+	    if (nios2_r2_reg_range_mappings[i] == mask)
+	      break;
+	  if (i == nios2_num_r2_reg_range_mappings)
+	    {
+	      as_bad ("invalid reglist");
+	      return;
+	    }
+	  insn->insn_code |= SET_IW_L5I4X1_REGRANGE (i);
+	  insn->insn_code |= SET_IW_L5I4X1_CS (1);
+	}
+      break;
+
+    default:
+      bad_opcode (op);
+    }
+}
+
+/* Base register for ldwm/stwm.  */
+static void
+nios2_assemble_arg_B (const char *token, nios2_insn_infoS *insn)
+{
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  int direction, writeback, ret;
+  char *str = strdup (token);
+  struct nios2_reg *reg
+    = nios2_parse_base_register (str, &direction, &writeback, &ret);
+
+  free (str);
+  if (!reg)
+    return;
+
+  switch (op->format)
+    {
+    case iw_F1X4L17_type:
+      /* For ldwm, check to see if the base register is already inside the
+	 register list.  */
+      if (op->match == MATCH_R2_LDWM
+	  && (nios2_reglist_mask & (1 << reg->index)))
+	{
+	  as_bad ("invalid base register; %s is inside the reglist", reg->name);
+	  return;
+	}
+
+      /* For stwm, ret option is not allowed.  */
+      if (op->match == MATCH_R2_STWM && ret)
+	{
+	  as_bad ("invalid option syntax");
+	  return;
+	}
+
+      /* Check that the direction matches the ordering of the reglist.  */
+      if (nios2_reglist_dir && direction != nios2_reglist_dir)
+	{
+	  as_bad ("reglist order does not match increment/decrement mode");
+	  return;
+	}
+
+      insn->insn_code |= SET_IW_F1X4L17_A (reg->index);
+      if (direction > 0)
+	insn->insn_code |= SET_IW_F1X4L17_ID (1);
+      if (writeback)
+	insn->insn_code |= SET_IW_F1X4L17_WB (1);
+      if (ret)
+	insn->insn_code |= SET_IW_F1X4L17_PC (1);
+      break;
+
+    default:
+      bad_opcode (op);
     }
 }
 
 static void
-nios2_assemble_args_tsi (nios2_insn_infoS *insn_info)
+nios2_assemble_args (nios2_insn_infoS *insn)
 {
-  if (insn_info->insn_tokens[1] != NULL &&
-      insn_info->insn_tokens[2] != NULL && insn_info->insn_tokens[3] != NULL)
-    {
-      struct nios2_reg *dst = nios2_reg_lookup (insn_info->insn_tokens[1]);
-      struct nios2_reg *src1 = nios2_reg_lookup (insn_info->insn_tokens[2]);
-      unsigned int src2
-	= nios2_assemble_expression (insn_info->insn_tokens[3], insn_info,
-				     insn_info->insn_reloc, BFD_RELOC_NIOS2_S16,
-				     0);
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
+  const char *argptr;
+  unsigned int tokidx, ntok;
 
-      if (dst == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[1]);
-      else
-	SET_INSN_FIELD (IRT, insn_info->insn_code, dst->index);
+  /* Make sure there are enough arguments.  */
+  ntok = (op->pinfo & NIOS2_INSN_OPTARG) ? op->num_args - 1 : op->num_args;
+  for (tokidx = 1; tokidx <= ntok; tokidx++)
+    if (insn->insn_tokens[tokidx] == NULL)
+      {
+	as_bad ("missing argument");
+	return;
+      }
 
-      if (src1 == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[2]);
-      else
-	SET_INSN_FIELD (IRS, insn_info->insn_code, src1->index);
+  for (argptr = op->args, tokidx = 1;
+       *argptr && insn->insn_tokens[tokidx];
+       argptr++)
+    switch (*argptr)
+      {
+      case ',':
+      case '(':
+      case ')':
+	break;
 
-      SET_INSN_FIELD (IMM16, insn_info->insn_code, src2);
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[4]);
-      SET_INSN_FIELD (IMM16, insn_info->insn_code, 0);
-    }
+      case 'c':
+	nios2_assemble_arg_c (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'd':
+	nios2_assemble_arg_d (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 's':
+	nios2_assemble_arg_s (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 't':
+	nios2_assemble_arg_t (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'D':
+	nios2_assemble_arg_D (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'S':
+	nios2_assemble_arg_S (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'T':
+	nios2_assemble_arg_T (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'i':
+	nios2_assemble_arg_i (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'I':
+	nios2_assemble_arg_I (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'u':
+	nios2_assemble_arg_u (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'U':
+	nios2_assemble_arg_U (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'V':
+	nios2_assemble_arg_V (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'W':
+	nios2_assemble_arg_W (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'X':
+	nios2_assemble_arg_X (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'Y':
+	nios2_assemble_arg_Y (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'o':
+	nios2_assemble_arg_o (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'O':
+	nios2_assemble_arg_O (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'P':
+	nios2_assemble_arg_P (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'j':
+	nios2_assemble_arg_j (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'k':
+	nios2_assemble_arg_k (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'l':
+	nios2_assemble_arg_l (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'm':
+	nios2_assemble_arg_m (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'M':
+	nios2_assemble_arg_M (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'N':
+	nios2_assemble_arg_N (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'e':
+	nios2_assemble_arg_e (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'f':
+	nios2_assemble_arg_f (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'g':
+	nios2_assemble_arg_g (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'h':
+	nios2_assemble_arg_h (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'R':
+	nios2_assemble_arg_R (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      case 'B':
+	nios2_assemble_arg_B (insn->insn_tokens[tokidx++], insn);
+	break;
+
+      default:
+	bad_opcode (op);
+	break;
+      }
+
+  /* Perform argument checking.  */
+  nios2_check_assembly (insn->insn_code | insn->constant_bits,
+			insn->insn_tokens[tokidx]);
 }
 
-static void
-nios2_assemble_args_tsu (nios2_insn_infoS *insn_info)
-{
-  if (insn_info->insn_tokens[1] != NULL
-      && insn_info->insn_tokens[2] != NULL
-      && insn_info->insn_tokens[3] != NULL)
-    {
-      struct nios2_reg *dst = nios2_reg_lookup (insn_info->insn_tokens[1]);
-      struct nios2_reg *src1 = nios2_reg_lookup (insn_info->insn_tokens[2]);
-      unsigned int src2
-	= nios2_assemble_expression (insn_info->insn_tokens[3], insn_info,
-				     insn_info->insn_reloc, BFD_RELOC_NIOS2_U16,
-				     0);
-
-      if (dst == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[1]);
-      else
-	SET_INSN_FIELD (IRT, insn_info->insn_code, dst->index);
-
-      if (src1 == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[2]);
-      else
-	SET_INSN_FIELD (IRS, insn_info->insn_code, src1->index);
-
-      SET_INSN_FIELD (IMM16, insn_info->insn_code, src2);
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[4]);
-      SET_INSN_FIELD (IMM16, insn_info->insn_code, 0);
-    }
-}
-
-static void
-nios2_assemble_args_sto (nios2_insn_infoS *insn_info)
-{
-  if (insn_info->insn_tokens[1] != NULL
-      && insn_info->insn_tokens[2] != NULL
-      && insn_info->insn_tokens[3] != NULL)
-    {
-      struct nios2_reg *dst = nios2_reg_lookup (insn_info->insn_tokens[1]);
-      struct nios2_reg *src1 = nios2_reg_lookup (insn_info->insn_tokens[2]);
-      unsigned int src2
-	= nios2_assemble_expression (insn_info->insn_tokens[3], insn_info,
-				     insn_info->insn_reloc, BFD_RELOC_16_PCREL,
-				     1);
-
-      if (dst == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[1]);
-      else
-	SET_INSN_FIELD (IRS, insn_info->insn_code, dst->index);
-
-      if (src1 == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[2]);
-      else
-	SET_INSN_FIELD (IRT, insn_info->insn_code, src1->index);
-
-      SET_INSN_FIELD (IMM16, insn_info->insn_code, src2);
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[4]);
-      SET_INSN_FIELD (IMM16, insn_info->insn_code, 0);
-    }
-}
-
-static void
-nios2_assemble_args_o (nios2_insn_infoS *insn_info)
-{
-  if (insn_info->insn_tokens[1] != NULL)
-    {
-      unsigned long immed
-	= nios2_assemble_expression (insn_info->insn_tokens[1], insn_info,
-				     insn_info->insn_reloc, BFD_RELOC_16_PCREL,
-				     1);
-      SET_INSN_FIELD (IMM16, insn_info->insn_code, immed);
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[2]);
-      SET_INSN_FIELD (IMM16, insn_info->insn_code, 0);
-    }
-}
-
-static void
-nios2_assemble_args_is (nios2_insn_infoS *insn_info)
-{
-  if (insn_info->insn_tokens[1] != NULL && insn_info->insn_tokens[2] != NULL)
-    {
-      struct nios2_reg *addr_src = nios2_reg_lookup (insn_info->insn_tokens[2]);
-      unsigned long immed
-	= nios2_assemble_expression (insn_info->insn_tokens[1], insn_info,
-				     insn_info->insn_reloc, BFD_RELOC_NIOS2_S16,
-				     0);
-
-      SET_INSN_FIELD (IMM16, insn_info->insn_code, immed);
-
-      if (addr_src == NULL)
-	as_bad (_("unknown base register %s"), insn_info->insn_tokens[2]);
-      else
-	SET_INSN_FIELD (RRS, insn_info->insn_code, addr_src->index);
-
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[3]);
-      SET_INSN_FIELD (IMM16, insn_info->insn_code, 0);
-    }
-}
-
-static void
-nios2_assemble_args_m (nios2_insn_infoS *insn_info)
-{
-  if (insn_info->insn_tokens[1] != NULL)
-    {
-      unsigned long immed
-	= nios2_assemble_expression (insn_info->insn_tokens[1], insn_info,
-				     insn_info->insn_reloc,
-				     (nios2_as_options.noat
-				      ? BFD_RELOC_NIOS2_CALL26_NOAT
-				      : BFD_RELOC_NIOS2_CALL26),
-				     0);
-
-      SET_INSN_FIELD (IMM26, insn_info->insn_code, immed);
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[2]);
-      SET_INSN_FIELD (IMM26, insn_info->insn_code, 0);
-    }
-}
-
-static void
-nios2_assemble_args_s (nios2_insn_infoS *insn_info)
-{
-  if (insn_info->insn_tokens[1] != NULL)
-    {
-      struct nios2_reg *src = nios2_reg_lookup (insn_info->insn_tokens[1]);
-      if (src == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[1]);
-      else
-	SET_INSN_FIELD (RRS, insn_info->insn_code, src->index);
-
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[2]);
-    }
-}
-
-static void
-nios2_assemble_args_tis (nios2_insn_infoS *insn_info)
-{
-  if (insn_info->insn_tokens[1] != NULL
-      && insn_info->insn_tokens[2] != NULL
-      && insn_info->insn_tokens[3] != NULL)
-    {
-      struct nios2_reg *dst = nios2_reg_lookup (insn_info->insn_tokens[1]);
-      struct nios2_reg *addr_src = nios2_reg_lookup (insn_info->insn_tokens[3]);
-      unsigned long immed
-	= nios2_assemble_expression (insn_info->insn_tokens[2], insn_info,
-				     insn_info->insn_reloc, BFD_RELOC_NIOS2_S16,
-				     0);
-
-      if (addr_src == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[3]);
-      else
-	SET_INSN_FIELD (RRS, insn_info->insn_code, addr_src->index);
-
-      if (dst == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[1]);
-      else
-	SET_INSN_FIELD (RRT, insn_info->insn_code, dst->index);
-
-      SET_INSN_FIELD (IMM16, insn_info->insn_code, immed);
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[4]);
-      SET_INSN_FIELD (IMM16, insn_info->insn_code, 0);
-    }
-}
-
-static void
-nios2_assemble_args_dc (nios2_insn_infoS *insn_info)
-{
-  if (insn_info->insn_tokens[1] != NULL && insn_info->insn_tokens[2] != NULL)
-    {
-      struct nios2_reg *ctl = nios2_reg_lookup (insn_info->insn_tokens[2]);
-      struct nios2_reg *dst = nios2_reg_lookup (insn_info->insn_tokens[1]);
-
-      if (ctl == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[1]);
-      else
-	SET_INSN_FIELD (RCTL, insn_info->insn_code, ctl->index);
-
-      if (dst == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[2]);
-      else
-	SET_INSN_FIELD (RRD, insn_info->insn_code, dst->index);
-
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[3]);
-    }
-}
-
-static void
-nios2_assemble_args_cs (nios2_insn_infoS *insn_info)
-{
-  if (insn_info->insn_tokens[1] != NULL && insn_info->insn_tokens[2] != NULL)
-    {
-      struct nios2_reg *ctl = nios2_reg_lookup (insn_info->insn_tokens[1]);
-      struct nios2_reg *src = nios2_reg_lookup (insn_info->insn_tokens[2]);
-
-      if (ctl == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[1]);
-      else if (ctl->index == 4)
-	as_bad (_("ipending control register (ctl4) is read-only\n"));
-      else
-	SET_INSN_FIELD (RCTL, insn_info->insn_code, ctl->index);
-
-      if (src == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[2]);
-      else
-	SET_INSN_FIELD (RRS, insn_info->insn_code, src->index);
-
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[3]);
-    }
-}
-
-static void
-nios2_assemble_args_ds (nios2_insn_infoS * insn_info)
-{
-  if (insn_info->insn_tokens[1] != NULL && insn_info->insn_tokens[2] != NULL)
-    {
-      struct nios2_reg *dst = nios2_reg_lookup (insn_info->insn_tokens[1]);
-      struct nios2_reg *src = nios2_reg_lookup (insn_info->insn_tokens[2]);
-
-      if (dst == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[1]);
-      else
-	SET_INSN_FIELD (RRD, insn_info->insn_code, dst->index);
-
-      if (src == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[2]);
-      else
-	SET_INSN_FIELD (RRS, insn_info->insn_code, src->index);
-
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[3]);
-    }
-}
-
-static void
-nios2_assemble_args_ldst (nios2_insn_infoS *insn_info)
-{
-  if (insn_info->insn_tokens[1] != NULL
-      && insn_info->insn_tokens[2] != NULL
-      && insn_info->insn_tokens[3] != NULL
-      && insn_info->insn_tokens[4] != NULL)
-    {
-      unsigned long custom_n
-	= nios2_assemble_expression (insn_info->insn_tokens[1], insn_info,
-				     insn_info->insn_reloc,
-				     BFD_RELOC_NIOS2_IMM8, 0);
-
-      struct nios2_reg *dst = nios2_reg_lookup (insn_info->insn_tokens[2]);
-      struct nios2_reg *src1 = nios2_reg_lookup (insn_info->insn_tokens[3]);
-      struct nios2_reg *src2 = nios2_reg_lookup (insn_info->insn_tokens[4]);
-
-      SET_INSN_FIELD (CUSTOM_N, insn_info->insn_code, custom_n);
-
-      if (dst == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[2]);
-      else
-	SET_INSN_FIELD (RRD, insn_info->insn_code, dst->index);
-
-      if (src1 == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[3]);
-      else
-	SET_INSN_FIELD (RRS, insn_info->insn_code, src1->index);
-
-      if (src2 == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[4]);
-      else
-	SET_INSN_FIELD (RRT, insn_info->insn_code, src2->index);
-
-      /* Set or clear the bits to indicate whether coprocessor registers are 
-	 used.  */
-      if (nios2_coproc_reg (insn_info->insn_tokens[2]))
-	SET_INSN_FIELD (CUSTOM_C, insn_info->insn_code, 0);
-      else
-	SET_INSN_FIELD (CUSTOM_C, insn_info->insn_code, 1);
-
-      if (nios2_coproc_reg (insn_info->insn_tokens[3]))
-	SET_INSN_FIELD (CUSTOM_A, insn_info->insn_code, 0);
-      else
-	SET_INSN_FIELD (CUSTOM_A, insn_info->insn_code, 1);
-
-      if (nios2_coproc_reg (insn_info->insn_tokens[4]))
-	SET_INSN_FIELD (CUSTOM_B, insn_info->insn_code, 0);
-      else
-	SET_INSN_FIELD (CUSTOM_B, insn_info->insn_code, 1);
-
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[5]);
-    }
-}
-
-static void
-nios2_assemble_args_none (nios2_insn_infoS *insn_info ATTRIBUTE_UNUSED)
-{
-  /* Nothing to do.  */
-}
-
-static void
-nios2_assemble_args_dsj (nios2_insn_infoS *insn_info)
-{
-  if (insn_info->insn_tokens[1] != NULL
-      && insn_info->insn_tokens[2] != NULL
-      && insn_info->insn_tokens[3] != NULL)
-    {
-      struct nios2_reg *dst = nios2_reg_lookup (insn_info->insn_tokens[1]);
-      struct nios2_reg *src1 = nios2_reg_lookup (insn_info->insn_tokens[2]);
-
-      /* A 5-bit constant expression.  */
-      unsigned int src2 =
-	nios2_assemble_expression (insn_info->insn_tokens[3], insn_info,
-				   insn_info->insn_reloc,
-				   BFD_RELOC_NIOS2_IMM5, 0);
-
-      if (dst == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[1]);
-      else
-	SET_INSN_FIELD (RRD, insn_info->insn_code, dst->index);
-
-      if (src1 == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[2]);
-      else
-	SET_INSN_FIELD (RRS, insn_info->insn_code, src1->index);
-
-      SET_INSN_FIELD (IMM5, insn_info->insn_code, src2);
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[4]);
-      SET_INSN_FIELD (IMM5, insn_info->insn_code, 0);
-    }
-}
-
-static void
-nios2_assemble_args_d (nios2_insn_infoS *insn_info)
-{
-  if (insn_info->insn_tokens[1] != NULL)
-    {
-      struct nios2_reg *dst = nios2_reg_lookup (insn_info->insn_tokens[1]);
-
-      if (dst == NULL)
-	as_bad (_("unknown register %s"), insn_info->insn_tokens[1]);
-      else
-	SET_INSN_FIELD (RRD, insn_info->insn_code, dst->index);
-
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[2]);
-    }
-}
-
-static void
-nios2_assemble_args_b (nios2_insn_infoS *insn_info)
-{
-  unsigned int imm5 = 0;
-
-  if (insn_info->insn_tokens[1] != NULL)
-    {
-      /* A 5-bit constant expression.  */
-      imm5 = nios2_assemble_expression (insn_info->insn_tokens[1],
-					insn_info, insn_info->insn_reloc,
-					BFD_RELOC_NIOS2_IMM5, 0);
-      SET_INSN_FIELD (TRAP_IMM5, insn_info->insn_code, imm5);
-      nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[2]);
-    }
-
-  SET_INSN_FIELD (TRAP_IMM5, insn_info->insn_code, imm5);
-
-  nios2_check_assembly (insn_info->insn_code, insn_info->insn_tokens[2]);
-}
-
-/* This table associates pointers to functions that parse the arguments to an
-   instruction and fill in the relevant fields of the instruction.  */
-const nios2_arg_infoS nios2_arg_info_structs[] = {
-  /* args, assemble_args_func */
-  {"d,s,t", nios2_assemble_args_dst},
-  {"d,s,t,E", nios2_assemble_args_dst},
-  {"t,s,i", nios2_assemble_args_tsi},
-  {"t,s,i,E", nios2_assemble_args_tsi},
-  {"t,s,u", nios2_assemble_args_tsu},
-  {"t,s,u,E", nios2_assemble_args_tsu},
-  {"s,t,o", nios2_assemble_args_sto},
-  {"s,t,o,E", nios2_assemble_args_sto},
-  {"o", nios2_assemble_args_o},
-  {"o,E", nios2_assemble_args_o},
-  {"s", nios2_assemble_args_s},
-  {"s,E", nios2_assemble_args_s},
-  {"", nios2_assemble_args_none},
-  {"E", nios2_assemble_args_none},
-  {"i(s)", nios2_assemble_args_is},
-  {"i(s)E", nios2_assemble_args_is},
-  {"m", nios2_assemble_args_m},
-  {"m,E", nios2_assemble_args_m},
-  {"t,i(s)", nios2_assemble_args_tis},
-  {"t,i(s)E", nios2_assemble_args_tis},
-  {"d,c", nios2_assemble_args_dc},
-  {"d,c,E", nios2_assemble_args_dc},
-  {"c,s", nios2_assemble_args_cs},
-  {"c,s,E", nios2_assemble_args_cs},
-  {"d,s", nios2_assemble_args_ds},
-  {"d,s,E", nios2_assemble_args_ds},
-  {"l,d,s,t", nios2_assemble_args_ldst},
-  {"l,d,s,t,E", nios2_assemble_args_ldst},
-  {"d,s,j", nios2_assemble_args_dsj},
-  {"d,s,j,E", nios2_assemble_args_dsj},
-  {"d", nios2_assemble_args_d},
-  {"d,E", nios2_assemble_args_d},
-  {"b", nios2_assemble_args_b},
-  {"b,E", nios2_assemble_args_b}
-};
-
-#define NIOS2_NUM_ARGS \
-	((sizeof(nios2_arg_info_structs)/sizeof(nios2_arg_info_structs[0])))
-const int nios2_num_arg_info_structs = NIOS2_NUM_ARGS;
 
 /* The function consume_arg takes a pointer into a string
    of instruction tokens (args) and a pointer into a string
@@ -1911,73 +2963,21 @@ const int nios2_num_arg_info_structs = NIOS2_NUM_ARGS;
    expected type, throwing an error if it is not, and returns
    the pointer argstr.  */
 static char *
-nios2_consume_arg (nios2_insn_infoS *insn, char *argstr, const char *parsestr)
+nios2_consume_arg (char *argstr, const char *parsestr)
 {
   char *temp;
-  int regno = -1;
-  
+
   switch (*parsestr)
     {
     case 'c':
-      if (!nios2_control_register_arg_p (argstr))
-	as_bad (_("expecting control register"));
-      break;
     case 'd':
     case 's':
     case 't':
-
-      /* We check to make sure we don't have a control register.  */
-      if (nios2_control_register_arg_p (argstr))
-	as_bad (_("illegal use of control register"));
-
-      /* And whether coprocessor registers are valid here.  */
-      if (nios2_coproc_reg (argstr)
-	  && insn->insn_nios2_opcode->match != OP_MATCH_CUSTOM)
-	as_bad (_("illegal use of coprocessor register\n"));
-
-      /* Extract a register number if the register is of the 
-	 form r[0-9]+, if it is a normal register, set
-	 regno to its number (0-31), else set regno to -1.  */
-      if (argstr[0] == 'r' && ISDIGIT (argstr[1]))
-	{
-	  char *p = argstr;
-	  
-	  ++p;
-	  regno = 0;
-	  do
-	    {
-	      regno *= 10;
-	      regno += *p - '0';
-	      ++p;
-	    }
-	  while (ISDIGIT (*p));
-	}
-      else
-	regno = -1;
-
-      /* And whether we are using at.  */
-      if (!nios2_as_options.noat
-	  && (regno == 1 || strprefix (argstr, "at")))
-	as_warn (_("Register at (r1) can sometimes be corrupted by assembler "
-		   "optimizations.\n"
-		   "Use .set noat to turn off those optimizations (and this "
-		   "warning)."));
-	
-      /* And whether we are using oci registers.  */
-      if (!nios2_as_options.nobreak
-	  && (regno == 25 || strprefix (argstr, "bt")))
-	as_warn (_("The debugger will corrupt bt (r25).\n"
-		   "If you don't need to debug this "
-		   "code use .set nobreak to turn off this warning."));
-	
-      if (!nios2_as_options.nobreak
-	  && (regno == 30
-	      || strprefix (argstr, "ba")
-	      || strprefix (argstr, "sstatus")))
-	as_warn (_("The debugger will corrupt sstatus/ba (r30).\n"
-		   "If you don't need to debug this "
-		   "code use .set nobreak to turn off this warning."));
+    case 'D':
+    case 'S':
+    case 'T':
       break;
+
     case 'i':
     case 'u':
       if (*argstr == '%')
@@ -1999,12 +2999,60 @@ nios2_consume_arg (nios2_insn_infoS *insn, char *argstr, const char *parsestr)
       break;
     case 'm':
     case 'j':
+    case 'k':
     case 'l':
-    case 'b':
+    case 'I':
+    case 'U':
+    case 'V':
+    case 'W':
+    case 'X':
+    case 'Y':
+    case 'O':
+    case 'P':
+    case 'e':
+    case 'f':
+    case 'g':
+    case 'h':
+    case 'M':
+    case 'N':
+
       /* We can't have %hi, %lo or %hiadj here.  */
       if (*argstr == '%')
 	as_bad (_("badly formed expression near %s"), argstr);
       break;
+
+    case 'R':
+      /* Register list for ldwm/stwm or push.n/pop.n.  Replace the commas
+	 in the list with spaces so we don't confuse them with separators.  */
+      if (*argstr != '{')
+	{
+	  as_bad ("missing '{' in register list");
+	  break;
+	}
+      for (temp = argstr + 1; *temp; temp++)
+	{
+	  if (*temp == '}')
+	    break;
+	  else if (*temp == ',')
+	    *temp = ' ';
+	}
+      if (!*temp)
+	{
+	  as_bad ("missing '}' in register list");
+	  break;
+	}
+      break;
+
+    case 'B':
+      /* Base register and options for ldwm/stwm.  This is the final argument
+	 and consumes the rest of the argument string; replace commas
+	 with spaces so that the token splitter doesn't think they are
+	 separate arguments.  */
+      for (temp = argstr; *temp; temp++)
+	if (*temp == ',')
+	  *temp = ' ';
+      break;
+
     case 'o':
     case 'E':
       break;
@@ -2038,11 +3086,8 @@ nios2_consume_separator (char *argstr, const char *separator)
 
   if (p != NULL)
     *p++ = 0;
-  else
-    as_bad (_("expecting %c near %s"), *separator, argstr);
   return p;
 }
-
 
 /* The principal argument parsing function which takes a string argstr
    representing the instruction arguments for insn, and extracts the argument
@@ -2057,7 +3102,7 @@ nios2_parse_args (nios2_insn_infoS *insn, char *argstr,
   p = argstr;
   i = 0;
   bfd_boolean terminate = FALSE;
-  
+
   /* This rest of this function is it too fragile and it mostly works,
      therefore special case this one.  */
   if (*parsestr == 0 && argstr != 0)
@@ -2066,26 +3111,28 @@ nios2_parse_args (nios2_insn_infoS *insn, char *argstr,
       parsed_args[0] = NULL;
       return;
     }
-  
+
   while (p != NULL && !terminate && i < NIOS2_MAX_INSN_TOKENS)
     {
-      parsed_args[i] = nios2_consume_arg (insn, p, parsestr);
+      parsed_args[i] = nios2_consume_arg (p, parsestr);
       ++parsestr;
-      if (*parsestr != '\0')
+      while (*parsestr == '(' || *parsestr == ')' || *parsestr == ',')
 	{
+	  char *context = p;
 	  p = nios2_consume_separator (p, parsestr);
+	  /* Check for missing separators.  */
+	  if (!p && !(insn->insn_nios2_opcode->pinfo & NIOS2_INSN_OPTARG))
+	    {
+	      as_bad (_("expecting %c near %s"), *parsestr, context);
+	      break;
+	    }
 	  ++parsestr;
 	}
-      else
+
+      if (*parsestr == '\0')
 	{
 	  /* Check that the argument string has no trailing arguments.  */
-	  /* If we've got a %lo etc relocation, we've zapped the parens with 
-	     spaces.  */
-	  if (nios2_special_relocation_p (p))
-	    end = strpbrk (p, ",");
-	  else
-	    end = strpbrk (p, " ,");
-
+	  end = strpbrk (p, ",");
 	  if (end != NULL)
 	    as_bad (_("too many arguments"));
 	}
@@ -2096,13 +3143,6 @@ nios2_parse_args (nios2_insn_infoS *insn, char *argstr,
     }
 
   parsed_args[i] = NULL;
-
-  /* The argument to break and trap instructions is optional; complain
-     for other cases of missing arguments.  */
-  if (*parsestr != '\0'
-      && insn->insn_nios2_opcode->match != OP_MATCH_BREAK
-      && insn->insn_nios2_opcode->match != OP_MATCH_TRAP)
-    as_bad (_("missing argument"));
 }
 
 
@@ -2118,10 +3158,7 @@ nios2_modify_arg (char **parsed_args, const char *modifier,
 {
   char *tmp = parsed_args[ndx];
 
-  parsed_args[ndx]
-    = (char *) malloc (strlen (parsed_args[ndx]) + strlen (modifier) + 1);
-  strcpy (parsed_args[ndx], tmp);
-  strcat (parsed_args[ndx], modifier);
+  parsed_args[ndx] = concat (tmp, modifier, (char *) NULL);
 }
 
 /* Modify parsed_args[ndx] by negating that argument.  */
@@ -2131,13 +3168,7 @@ nios2_negate_arg (char **parsed_args, const char *modifier ATTRIBUTE_UNUSED,
 {
   char *tmp = parsed_args[ndx];
 
-  parsed_args[ndx]
-    = (char *) malloc (strlen ("~(") + strlen (parsed_args[ndx]) +
-		       strlen (")+1") + 1);
-
-  strcpy (parsed_args[ndx], "~(");
-  strcat (parsed_args[ndx], tmp);
-  strcat (parsed_args[ndx], ")+1");
+  parsed_args[ndx] = concat ("~(", tmp, ")+1", (char *) NULL);
 }
 
 /* The function nios2_swap_args swaps the pointers at indices index_1 and
@@ -2179,7 +3210,7 @@ nios2_append_arg (char **parsed_args, const char *appnd, int num,
   parsed_args[i + 1] = NULL;
 }
 
-/* This function inserts the string insert num times in the array 
+/* This function inserts the string insert num times in the array
    parsed_args, starting at the index start.  */
 static void
 nios2_insert_arg (char **parsed_args, const char *insert, int num,
@@ -2231,7 +3262,7 @@ nios2_translate_pseudo_insn (nios2_insn_infoS *insn)
   else
     /* we cannot recover from this.  */
     as_fatal (_("unrecognized pseudo-instruction %s"),
-	      ps_insn->pseudo_insn);
+	      insn->insn_nios2_opcode->name);
   return ps_insn;
 }
 
@@ -2265,7 +3296,8 @@ const nios2_ps_insn_infoS nios2_ps_insn_info_structs[] = {
   {"cmpgtui", "cmpgeui", nios2_modify_arg, "+1", 0, 3, nios2_free_arg},
   {"cmplei", "cmplti", nios2_modify_arg, "+1", 0, 3, nios2_free_arg},
   {"cmpleui", "cmpltui", nios2_modify_arg, "+1", 0, 3, nios2_free_arg},
-  {"subi", "addi", nios2_negate_arg, "", 0, 3, nios2_free_arg}
+  {"subi", "addi", nios2_negate_arg, "", 0, 3, nios2_free_arg},
+  {"nop.n", "mov.n", nios2_append_arg, "zero", 2, 1, NULL}
   /* Add further pseudo-ops here.  */
 };
 
@@ -2277,50 +3309,23 @@ const int nios2_num_ps_insn_info_structs = NIOS2_NUM_PSEUDO_INSNS;
 
 /** Assembler output support.  */
 
-static int
-can_evaluate_expr (nios2_insn_infoS *insn)
-{
-  /* Remove this check for null and the invalid insn "ori r9, 1234" seg faults. */
-  if (!insn->insn_reloc) 
-    /* ??? Ideally we should do something other than as_fatal here as we can
-       continue to assemble.
-       However this function (actually the output_* functions) should not 
-       have been called in the first place once an illegal instruction had 
-       been encountered.  */
-    as_fatal (_("Invalid instruction encountered, cannot recover. No assembly attempted."));
-
-  if (insn->insn_reloc->reloc_expression.X_op == O_constant)
-    return 1;
-
-  return 0;
-}
-
-static int
-get_expr_value (nios2_insn_infoS *insn)
-{
-  int value = 0;
-
-  if (insn->insn_reloc->reloc_expression.X_op == O_constant)
-    value = insn->insn_reloc->reloc_expression.X_add_number;
-  return value;
-}
-
 /* Output a normal instruction.  */
 static void
 output_insn (nios2_insn_infoS *insn)
 {
   char *f;
   nios2_insn_relocS *reloc;
-
-  f = frag_more (4);
+  f = frag_more (insn->insn_nios2_opcode->size);
   /* This allocates enough space for the instruction
      and puts it in the current frag.  */
-  md_number_to_chars (f, insn->insn_code, 4);
+  md_number_to_chars (f, insn->insn_code, insn->insn_nios2_opcode->size);
   /* Emit debug info.  */
-  dwarf2_emit_insn (4);
+  dwarf2_emit_insn (insn->insn_nios2_opcode->size);
   /* Create any fixups to be acted on later.  */
+
   for (reloc = insn->insn_reloc; reloc != NULL; reloc = reloc->reloc_next)
-    fix_new_exp (frag_now, f - frag_now->fr_literal, 4,
+    fix_new_exp (frag_now, f - frag_now->fr_literal,
+		 insn->insn_nios2_opcode->size,
 		 &reloc->reloc_expression, reloc->reloc_pcrel,
 		 reloc->reloc_type);
 }
@@ -2337,6 +3342,7 @@ output_ubranch (nios2_insn_infoS *insn)
       symbolS *symp = reloc->reloc_expression.X_add_symbol;
       offsetT offset = reloc->reloc_expression.X_add_number;
       char *f;
+      bfd_boolean is_cdx = (insn->insn_nios2_opcode->size == 2);
 
       /* Tag dwarf2 debug info to the address at the start of the insn.
 	 We must do it before frag_var() below closes off the frag.  */
@@ -2346,10 +3352,11 @@ output_ubranch (nios2_insn_infoS *insn)
 	 to accommodate the largest possible instruction sequence
 	 this may generate.  */
       f = frag_var (rs_machine_dependent,
-		    UBRANCH_MAX_SIZE, 4, UBRANCH_SUBTYPE (0),
+		    UBRANCH_MAX_SIZE, insn->insn_nios2_opcode->size,
+		    (is_cdx ? CDX_UBRANCH_SUBTYPE (0) : UBRANCH_SUBTYPE (0)),
 		    symp, offset, NULL);
 
-      md_number_to_chars (f, insn->insn_code, 4);
+      md_number_to_chars (f, insn->insn_code, insn->insn_nios2_opcode->size);
 
       /* We leave fixup generation to md_convert_frag.  */
     }
@@ -2367,6 +3374,7 @@ output_cbranch (nios2_insn_infoS *insn)
       symbolS *symp = reloc->reloc_expression.X_add_symbol;
       offsetT offset = reloc->reloc_expression.X_add_number;
       char *f;
+      bfd_boolean is_cdx = (insn->insn_nios2_opcode->size == 2);
 
       /* Tag dwarf2 debug info to the address at the start of the insn.
 	 We must do it before frag_var() below closes off the frag.  */
@@ -2376,10 +3384,11 @@ output_cbranch (nios2_insn_infoS *insn)
 	 to accommodate the largest possible instruction sequence
 	 this may generate.  */
       f = frag_var (rs_machine_dependent,
-		    CBRANCH_MAX_SIZE, 4, CBRANCH_SUBTYPE (0),
+		    CBRANCH_MAX_SIZE, insn->insn_nios2_opcode->size,
+		    (is_cdx ? CDX_CBRANCH_SUBTYPE (0) : CBRANCH_SUBTYPE (0)),
 		    symp, offset, NULL);
 
-      md_number_to_chars (f, insn->insn_code, 4);
+      md_number_to_chars (f, insn->insn_code, insn->insn_nios2_opcode->size);
 
       /* We leave fixup generation to md_convert_frag.  */
     }
@@ -2398,103 +3407,51 @@ output_call (nios2_insn_infoS *insn)
      and puts it in the current frag.  */
   char *f = frag_more (12);
   nios2_insn_relocS *reloc = insn->insn_reloc;
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
 
-  md_number_to_chars (f, OP_MATCH_ORHI | 0x00400000, 4);
-  dwarf2_emit_insn (4);
-  fix_new_exp (frag_now, f - frag_now->fr_literal, 4,
-	       &reloc->reloc_expression, 0, BFD_RELOC_NIOS2_HI16);
-  md_number_to_chars (f + 4, OP_MATCH_ORI | 0x08400000, 4);
-  dwarf2_emit_insn (4);
-  fix_new_exp (frag_now, f - frag_now->fr_literal + 4, 4,
-	       &reloc->reloc_expression, 0, BFD_RELOC_NIOS2_LO16);
-  md_number_to_chars (f + 8, OP_MATCH_CALLR | 0x08000000, 4);
-  dwarf2_emit_insn (4);
-}
-
-/* Output an addi - will silently convert to
-   orhi if rA = r0 and (expr & 0xffff0000) == 0.  */
-static void
-output_addi (nios2_insn_infoS *insn)
-{
-  if (can_evaluate_expr (insn))
+  switch (op->format)
     {
-      int expr_val = get_expr_value (insn);
-      if (GET_INSN_FIELD (RRS, insn->insn_code) == 0
-	  && (expr_val & 0xffff) == 0
-	  && expr_val != 0)
-	{
-	  /* We really want a movhi (orhi) here.  */
-	  insn->insn_code = (insn->insn_code & ~OP_MATCH_ADDI) | OP_MATCH_ORHI;
-	  insn->insn_reloc->reloc_expression.X_add_number =
-	    (insn->insn_reloc->reloc_expression.X_add_number >> 16) & 0xffff;
-	  insn->insn_reloc->reloc_type = BFD_RELOC_NIOS2_U16;
-	}
+    case iw_j_type:
+      md_number_to_chars (f,
+			  (MATCH_R1_ORHI | SET_IW_I_B (AT_REGNUM)
+			   | SET_IW_I_A (0)),
+			  4);
+      dwarf2_emit_insn (4);
+      fix_new_exp (frag_now, f - frag_now->fr_literal, 4,
+		   &reloc->reloc_expression, 0, BFD_RELOC_NIOS2_HI16);
+      md_number_to_chars (f + 4,
+			  (MATCH_R1_ORI | SET_IW_I_B (AT_REGNUM)
+			   | SET_IW_I_A (AT_REGNUM)),
+			  4);
+      dwarf2_emit_insn (4);
+      fix_new_exp (frag_now, f - frag_now->fr_literal + 4, 4,
+		   &reloc->reloc_expression, 0, BFD_RELOC_NIOS2_LO16);
+      md_number_to_chars (f + 8, MATCH_R1_CALLR | SET_IW_R_A (AT_REGNUM), 4);
+      dwarf2_emit_insn (4);
+      break;
+    case iw_L26_type:
+      md_number_to_chars (f,
+			  (MATCH_R2_ORHI | SET_IW_F2I16_B (AT_REGNUM)
+			   | SET_IW_F2I16_A (0)),
+			  4);
+      dwarf2_emit_insn (4);
+      fix_new_exp (frag_now, f - frag_now->fr_literal, 4,
+		   &reloc->reloc_expression, 0, BFD_RELOC_NIOS2_HI16);
+      md_number_to_chars (f + 4,
+			  (MATCH_R2_ORI | SET_IW_F2I16_B (AT_REGNUM)
+			   | SET_IW_F2I16_A (AT_REGNUM)),
+			  4);
+      dwarf2_emit_insn (4);
+      fix_new_exp (frag_now, f - frag_now->fr_literal + 4, 4,
+		   &reloc->reloc_expression, 0, BFD_RELOC_NIOS2_LO16);
+      md_number_to_chars (f + 8, MATCH_R2_CALLR | SET_IW_F3X6L5_A (AT_REGNUM),
+			  4);
+      dwarf2_emit_insn (4);
+      break;
+    default:
+      bad_opcode (op);
     }
-
-  /* Output an instruction.  */
-  output_insn (insn);
 }
-
-static void
-output_andi (nios2_insn_infoS *insn)
-{
-  if (can_evaluate_expr (insn))
-    {
-      int expr_val = get_expr_value (insn);
-      if (expr_val != 0 && (expr_val & 0xffff) == 0)
-	{
-	  /* We really want a movhi (orhi) here.  */
-	  insn->insn_code = (insn->insn_code & ~OP_MATCH_ANDI) | OP_MATCH_ANDHI;
-	  insn->insn_reloc->reloc_expression.X_add_number =
-	    (insn->insn_reloc->reloc_expression.X_add_number >> 16) & 0xffff;
-	  insn->insn_reloc->reloc_type = BFD_RELOC_NIOS2_U16;
-	}
-    }
-
-  /* Output an instruction.  */
-  output_insn (insn);
-}
-
-static void
-output_ori (nios2_insn_infoS *insn)
-{
-  if (can_evaluate_expr (insn))
-    {
-      int expr_val = get_expr_value (insn);
-      if (expr_val != 0 && (expr_val & 0xffff) == 0)
-	{
-	  /* We really want a movhi (orhi) here.  */
-	  insn->insn_code = (insn->insn_code & ~OP_MATCH_ORI) | OP_MATCH_ORHI;
-	  insn->insn_reloc->reloc_expression.X_add_number =
-	    (insn->insn_reloc->reloc_expression.X_add_number >> 16) & 0xffff;
-	  insn->insn_reloc->reloc_type = BFD_RELOC_NIOS2_U16;
-	}
-    }
-
-  /* Output an instruction.  */
-  output_insn (insn);
-}
-
-static void
-output_xori (nios2_insn_infoS *insn)
-{
-  if (can_evaluate_expr (insn))
-    {
-      int expr_val = get_expr_value (insn);
-      if (expr_val != 0 && (expr_val & 0xffff) == 0)
-	{
-	  /* We really want a movhi (orhi) here.  */
-	  insn->insn_code = (insn->insn_code & ~OP_MATCH_XORI) | OP_MATCH_XORHI;
-	  insn->insn_reloc->reloc_expression.X_add_number =
-	    (insn->insn_reloc->reloc_expression.X_add_number >> 16) & 0xffff;
-	  insn->insn_reloc->reloc_type = BFD_RELOC_NIOS2_U16;
-	}
-    }
-
-  /* Output an instruction.  */
-  output_insn (insn);
-}
-
 
 /* Output a movhi/addi pair for the movia pseudo-op.  */
 static void
@@ -2504,22 +3461,34 @@ output_movia (nios2_insn_infoS *insn)
      and puts it in the current frag.  */
   char *f = frag_more (8);
   nios2_insn_relocS *reloc = insn->insn_reloc;
-  unsigned long reg_index = GET_INSN_FIELD (IRT, insn->insn_code);
+  unsigned long reg, code = 0;
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
 
   /* If the reloc is NULL, there was an error assembling the movia.  */
   if (reloc != NULL)
     {
+      switch (op->format)
+	{
+	case iw_i_type:
+	  reg = GET_IW_I_B (insn->insn_code);
+	  code = MATCH_R1_ADDI | SET_IW_I_A (reg) | SET_IW_I_B (reg);
+	  break;
+	case iw_F2I16_type:
+	  reg = GET_IW_F2I16_B (insn->insn_code);
+	  code = MATCH_R2_ADDI | SET_IW_F2I16_A (reg) | SET_IW_F2I16_B (reg);
+	  break;
+	default:
+	  bad_opcode (op);
+	}
+
       md_number_to_chars (f, insn->insn_code, 4);
-      dwarf2_emit_insn (4);
-      md_number_to_chars (f + 4,
-			  (OP_MATCH_ADDI | (reg_index << OP_SH_IRT)
-			   | (reg_index << OP_SH_IRS)),
-			  4);
       dwarf2_emit_insn (4);
       fix_new (frag_now, f - frag_now->fr_literal, 4,
 	       reloc->reloc_expression.X_add_symbol,
 	       reloc->reloc_expression.X_add_number, 0,
 	       BFD_RELOC_NIOS2_HIADJ16);
+      md_number_to_chars (f + 4, code, 4);
+      dwarf2_emit_insn (4);
       fix_new (frag_now, f + 4 - frag_now->fr_literal, 4,
 	       reloc->reloc_expression.X_add_symbol,
 	       reloc->reloc_expression.X_add_number, 0, BFD_RELOC_NIOS2_LO16);
@@ -2530,10 +3499,38 @@ output_movia (nios2_insn_infoS *insn)
 
 /** External interfaces.  */
 
+/* Update the selected architecture based on ARCH, giving an error if
+   ARCH is an invalid value.  */
+
+static void
+nios2_use_arch (const char *arch)
+{
+  if (strcmp (arch, "nios2") == 0 || strcmp (arch, "r1") == 0)
+    {
+      nios2_architecture |= EF_NIOS2_ARCH_R1;
+      nios2_opcodes = (struct nios2_opcode *) nios2_r1_opcodes;
+      nios2_num_opcodes = nios2_num_r1_opcodes;
+      nop32 = nop_r1;
+      nop16 = NULL;
+      return;
+    }
+  else if (strcmp (arch, "r2") == 0)
+    {
+      nios2_architecture |= EF_NIOS2_ARCH_R2;
+      nios2_opcodes = (struct nios2_opcode *) nios2_r2_opcodes;
+      nios2_num_opcodes = nios2_num_r2_opcodes;
+      nop32 = nop_r2;
+      nop16 = nop_r2_cdx;
+      return;
+    }
+
+  as_bad (_("unknown architecture '%s'"), arch);
+}
+
 /* The following functions are called by machine-independent parts of
    the assembler. */
 int
-md_parse_option (int c, char *arg ATTRIBUTE_UNUSED)
+md_parse_option (int c, const char *arg ATTRIBUTE_UNUSED)
 {
   switch (c)
     {
@@ -2555,6 +3552,9 @@ md_parse_option (int c, char *arg ATTRIBUTE_UNUSED)
       break;
     case OPTION_EL:
       target_big_endian = 0;
+      break;
+    case OPTION_MARCH:
+      nios2_use_arch (arg);
       break;
     default:
       return 0;
@@ -2583,8 +3583,10 @@ md_show_usage (FILE *stream)
 	   "branches with jmp sequences (default)\n"
 	   "  -no-relax		    do not replace any branches or calls\n"
 	   "  -EB		    force big-endian byte ordering\n"
-	   "  -EL		    force little-endian byte ordering\n");
+	   "  -EL		    force little-endian byte ordering\n"
+	   "  -march=ARCH	    enable instructions from architecture ARCH\n");
 }
+
 
 /* This function is called once, at assembler startup time.
    It should set up all the tables, etc. that the MD part of the
@@ -2595,14 +3597,26 @@ md_begin (void)
   int i;
   const char *inserted;
 
-  /* Create and fill a hashtable for the Nios II opcodes, registers and 
+  switch (nios2_architecture)
+    {
+    default:
+    case EF_NIOS2_ARCH_R1:
+      bfd_default_set_arch_mach (stdoutput, bfd_arch_nios2, bfd_mach_nios2r1);
+      break;
+    case EF_NIOS2_ARCH_R2:
+      if (target_big_endian)
+	as_fatal (_("Big-endian R2 is not supported."));
+      bfd_default_set_arch_mach (stdoutput, bfd_arch_nios2, bfd_mach_nios2r2);
+      break;
+    }
+
+  /* Create and fill a hashtable for the Nios II opcodes, registers and
      arguments.  */
   nios2_opcode_hash = hash_new ();
   nios2_reg_hash = hash_new ();
-  nios2_arg_hash = hash_new ();
   nios2_ps_hash = hash_new ();
 
-  for (i = 0; i < NUMOPCODES; ++i)
+  for (i = 0; i < nios2_num_opcodes; ++i)
     {
       inserted
 	= hash_insert (nios2_opcode_hash, nios2_opcodes[i].name,
@@ -2631,20 +3645,6 @@ md_begin (void)
 
     }
 
-  for (i = 0; i < nios2_num_arg_info_structs; ++i)
-    {
-      inserted
-	= hash_insert (nios2_arg_hash, nios2_arg_info_structs[i].args,
-		       (PTR) & nios2_arg_info_structs[i]);
-      if (inserted != NULL)
-	{
-	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
-		   nios2_arg_info_structs[i].args, inserted);
-	  /* Probably a memory allocation problem?  Give up now.  */
-	  as_fatal (_("Broken assembler.  No assembly attempted."));
-	}
-    }
-
   for (i = 0; i < nios2_num_ps_insn_info_structs; ++i)
     {
       inserted
@@ -2671,6 +3671,7 @@ md_begin (void)
   nios2_current_align_seg = now_seg;
   nios2_last_label = NULL;
   nios2_current_align = 0;
+  nios2_min_align = 2;
 }
 
 
@@ -2678,18 +3679,17 @@ md_begin (void)
 void
 md_assemble (char *op_str)
 {
-  char *argstr; 
+  char *argstr;
   char *op_strdup = NULL;
-  nios2_arg_infoS *arg_info;
   unsigned long saved_pinfo = 0;
   nios2_insn_infoS thisinsn;
   nios2_insn_infoS *insn = &thisinsn;
 
-  /* Make sure we are aligned on a 4-byte boundary.  */
-  if (nios2_current_align < 2)
-    nios2_align (2, NULL, nios2_last_label);
-  else if (nios2_current_align > 2)
-    nios2_current_align = 2;
+  /* Make sure we are aligned on an appropriate boundary.  */
+  if (nios2_current_align < nios2_min_align)
+    nios2_align (nios2_min_align, NULL, nios2_last_label);
+  else if (nios2_current_align > nios2_min_align)
+    nios2_current_align = nios2_min_align;
   nios2_last_label = NULL;
 
   /* We don't want to clobber to op_str
@@ -2705,8 +3705,14 @@ md_assemble (char *op_str)
   if (insn->insn_nios2_opcode != NULL)
     {
       nios2_ps_insn_infoS *ps_insn = NULL;
+
+      /* Note if we've seen a 16-bit instruction.  */
+      if (insn->insn_nios2_opcode->size == 2)
+	nios2_min_align = 1;
+
       /* Set the opcode for the instruction.  */
       insn->insn_code = insn->insn_nios2_opcode->match;
+      insn->constant_bits = 0;
 
       /* Parse the arguments pointed to by argstr.  */
       if (nios2_mode == NIOS2_MODE_ASSEMBLE)
@@ -2716,63 +3722,43 @@ md_assemble (char *op_str)
 	nios2_parse_args (insn, argstr, insn->insn_nios2_opcode->args_test,
 			  (char **) &insn->insn_tokens[1]);
 
-      /* We need to preserve the MOVIA macro as this is clobbered by 
+      /* We need to preserve the MOVIA macro as this is clobbered by
 	 translate_pseudo_insn.  */
       if (insn->insn_nios2_opcode->pinfo == NIOS2_INSN_MACRO_MOVIA)
 	saved_pinfo = NIOS2_INSN_MACRO_MOVIA;
-      /* If the instruction is an pseudo-instruction, we want to replace it 
+      /* If the instruction is an pseudo-instruction, we want to replace it
 	 with its real equivalent, and then continue.  */
       if ((insn->insn_nios2_opcode->pinfo & NIOS2_INSN_MACRO)
 	  == NIOS2_INSN_MACRO)
 	ps_insn = nios2_translate_pseudo_insn (insn);
 
-      /* Find the assemble function, and call it.  */
-      arg_info = nios2_arg_lookup (insn->insn_nios2_opcode->args);
-      if (arg_info != NULL)
-	{
-	  arg_info->assemble_args_func (insn);
+      /* Assemble the parsed arguments into the instruction word.  */
+      nios2_assemble_args (insn);
 
-	  if (nios2_as_options.relax != relax_none
-	      && !nios2_as_options.noat
-	      && insn->insn_nios2_opcode->pinfo & NIOS2_INSN_UBRANCH)
-	    output_ubranch (insn);
-	  else if (nios2_as_options.relax != relax_none
-		   && !nios2_as_options.noat
-		   && insn->insn_nios2_opcode->pinfo & NIOS2_INSN_CBRANCH)
-	    output_cbranch (insn);
-	  else if (nios2_as_options.relax == relax_all
-		   && !nios2_as_options.noat
-		   && insn->insn_nios2_opcode->pinfo & NIOS2_INSN_CALL
-		   && insn->insn_reloc
-		   && ((insn->insn_reloc->reloc_type
-			== BFD_RELOC_NIOS2_CALL26)
-		       || (insn->insn_reloc->reloc_type
-			   == BFD_RELOC_NIOS2_CALL26_NOAT)))
-	    output_call (insn);
-	  else if (insn->insn_nios2_opcode->pinfo & NIOS2_INSN_ANDI)
-	    output_andi (insn);
-	  else if (insn->insn_nios2_opcode->pinfo & NIOS2_INSN_ORI)
-	    output_ori (insn);
-	  else if (insn->insn_nios2_opcode->pinfo & NIOS2_INSN_XORI)
-	    output_xori (insn);
-	  else if (insn->insn_nios2_opcode->pinfo & NIOS2_INSN_ADDI)
-	    output_addi (insn);
-	  else if (saved_pinfo == NIOS2_INSN_MACRO_MOVIA)
-	    output_movia (insn);
-	  else
-	    output_insn (insn);
-	  if (ps_insn)
-	    nios2_cleanup_pseudo_insn (insn, ps_insn);
-	}
+      /* Handle relaxation and other transformations.  */
+      if (nios2_as_options.relax != relax_none
+	  && !nios2_as_options.noat
+	  && insn->insn_nios2_opcode->pinfo & NIOS2_INSN_UBRANCH)
+	output_ubranch (insn);
+      else if (nios2_as_options.relax != relax_none
+	       && !nios2_as_options.noat
+	       && insn->insn_nios2_opcode->pinfo & NIOS2_INSN_CBRANCH)
+	output_cbranch (insn);
+      else if (nios2_as_options.relax == relax_all
+	       && !nios2_as_options.noat
+	       && insn->insn_nios2_opcode->pinfo & NIOS2_INSN_CALL
+	       && insn->insn_reloc
+	       && ((insn->insn_reloc->reloc_type
+		    == BFD_RELOC_NIOS2_CALL26)
+		   || (insn->insn_reloc->reloc_type
+		       == BFD_RELOC_NIOS2_CALL26_NOAT)))
+	output_call (insn);
+      else if (saved_pinfo == NIOS2_INSN_MACRO_MOVIA)
+	output_movia (insn);
       else
-	{
-	  /* The assembler is broken.  */
-	  fprintf (stderr,
-		   _("internal error: %s is not a valid argument syntax\n"),
-		   insn->insn_nios2_opcode->args);
-	  /* Probably a memory allocation problem.  Give up now.  */
-	  as_fatal (_("Broken assembler.  No assembly attempted."));
-	}
+	output_insn (insn);
+      if (ps_insn)
+	nios2_cleanup_pseudo_insn (insn, ps_insn);
     }
   else
     /* Unrecognised instruction - error.  */
@@ -2867,8 +3853,8 @@ nios2_frob_symbol (symbolS *symp)
 arelent *
 tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 {
-  arelent *reloc = (arelent *) xmalloc (sizeof (arelent));
-  reloc->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
+  arelent *reloc = XNEW (arelent);
+  reloc->sym_ptr_ptr = XNEW (asymbol *);
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
 
   reloc->address = fixp->fx_frag->fr_address + fixp->fx_where;
@@ -2914,7 +3900,7 @@ md_pcrel_from (fixS *fixP ATTRIBUTE_UNUSED)
 
 /* Called just before the assembler exits.  */
 void
-md_end ()
+md_end (void)
 {
   /* FIXME - not yet implemented */
 }
@@ -2971,7 +3957,7 @@ nios2_cons_align (int size)
     ++log_size;
 
   if (subseg_text_p (now_seg))
-    pfill = (const char *) &nop;
+    pfill = (const char *) nop32;
   else
     pfill = NULL;
 
@@ -2984,7 +3970,7 @@ nios2_cons_align (int size)
 /* Map 's' to SHF_NIOS2_GPREL.  */
 /* This is from the Alpha code tc-alpha.c.  */
 int
-nios2_elf_section_letter (int letter, char **ptr_msg)
+nios2_elf_section_letter (int letter, const char **ptr_msg)
 {
   if (letter == 's')
     return SHF_NIOS2_GPREL;
@@ -3103,3 +4089,13 @@ nios2_frame_initial_instructions (void)
 {
   cfi_add_CFA_def_cfa (27, 0);
 }
+
+#ifdef OBJ_ELF
+/* Some special processing for a Nios II ELF file.  */
+
+void
+nios2_elf_final_processing (void)
+{
+  elf_elfheader (stdoutput)->e_flags = nios2_architecture;
+}
+#endif

@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-# Copyright (C) 2012-2014 Free Software Foundation, Inc.
+# Copyright (C) 2012-2017 Free Software Foundation, Inc.
 # Contributed by Andes Technology Corporation.
 #
 # This file is part of the GNU Binutils.
@@ -22,7 +22,6 @@
 
 fragment <<EOF
 
-#include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/nds32.h"
 #include "bfd_stdint.h"
@@ -70,7 +69,7 @@ nds32_elf_create_output_section_statements (void)
 static void
 nds32_elf_after_parse (void)
 {
-  if (link_info.relocatable)
+  if (bfd_link_relocatable (&link_info))
     DISABLE_RELAXATION;
 
   if (!RELAXATION_ENABLED)
@@ -88,13 +87,13 @@ nds32_elf_after_parse (void)
   else
     update_ex9_table = 0;
 
-  if (link_info.shared)
+  if (bfd_link_pic (&link_info))
     {
       target_optimize = target_optimize & (!NDS32_RELAX_JUMP_IFC_ON);
       target_optimize = target_optimize & (!NDS32_RELAX_EX9_ON);
     }
 
-  after_parse_default ();
+  gld${EMULATION_NAME}_after_parse ();
 }
 
 static void
@@ -157,14 +156,14 @@ nds32_elf_after_open (void)
   /* Check object files if the target is dynamic linked executable
      or shared object.  */
   if (elf_hash_table (&link_info)->dynamic_sections_created
-      || link_info.shared || link_info.pie)
+      || bfd_link_pic (&link_info))
     {
       for (abfd = link_info.input_bfds; abfd != NULL; abfd = abfd->link.next)
 	{
 	  if (!(elf_elfheader (abfd)->e_flags & E_NDS32_HAS_PIC))
 	    {
 	      /* Non-PIC object file is used.  */
-	      if (link_info.shared || link_info.pie)
+	      if (bfd_link_pic (&link_info))
 		{
 		  /* For PIE or shared object, all input must be PIC.  */
 		  einfo (_("%B: must use -fpic to compile this file "

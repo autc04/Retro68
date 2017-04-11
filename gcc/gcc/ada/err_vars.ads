@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -54,10 +54,10 @@ package Err_Vars is
    --  variables are not reset by calls to the error message routines, so the
    --  caller is responsible for resetting the default behavior after use.
 
-   Error_Msg_Qual_Level : Int := 0;
+   Error_Msg_Qual_Level : Nat := 0;
    --  Number of levels of qualification required for type name (see the
    --  description of the } insertion character. Note that this value does
-   --  note get reset by any Error_Msg call, so the caller is responsible
+   --  not get reset by any Error_Msg call, so the caller is responsible
    --  for resetting it.
 
    Warn_On_Instance : Boolean := False;

@@ -177,7 +177,7 @@
 
 2009-02-12  Ken Werner  <ken.werner@de.ibm.com>
 
-        * corefile.c (core_create_function_syms): Remove "<locore>" and 
+        * corefile.c (core_create_function_syms): Remove "<locore>" and
         "<hicore>" sentinels.
         * gprof.c: Likewise.
         * cg_print.c (cg_print_function_ordering): Likewise.

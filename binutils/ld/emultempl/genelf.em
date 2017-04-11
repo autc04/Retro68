@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -37,7 +37,7 @@ gld${EMULATION_NAME}_after_open (void)
 
   after_open_default ();
 
-  if (link_info.relocatable)
+  if (bfd_link_relocatable (&link_info))
     for (ibfd = link_info.input_bfds; ibfd != NULL; ibfd = ibfd->link.next)
       if ((syms = bfd_get_outsymbols (ibfd)) != NULL
 	  && bfd_get_flavour (ibfd) == bfd_target_elf_flavour)
@@ -52,7 +52,7 @@ gld${EMULATION_NAME}_after_open (void)
 static void
 gld${EMULATION_NAME}_before_allocation (void)
 {
-  if (link_info.relocatable
+  if (bfd_link_relocatable (&link_info)
       && !_bfd_elf_size_group_sections (&link_info))
     einfo ("%X%P: can not size group sections: %E\n");
   before_allocation_default ();

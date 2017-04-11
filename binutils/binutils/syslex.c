@@ -330,6 +330,9 @@ void yyfree (void *  );
 
 #define YY_AT_BOL() (YY_CURRENT_BUFFER_LVALUE->yy_at_bol)
 
+#define yywrap(n) 1
+#define YY_SKIP_YYWRAP
+
 typedef unsigned char YY_CHAR;
 
 FILE *yyin = (FILE *) 0, *yyout = (FILE *) 0;
@@ -500,7 +503,7 @@ char *yytext;
 #line 1 "syslex.l"
 #define YY_NO_INPUT 1
 #line 4 "syslex.l"
-/* Copyright (C) 2001-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2001-2017 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -535,12 +538,8 @@ char *yytext;
 #define YY_NO_UNPUT
 #endif
 
-#ifndef yywrap
-static int yywrap (void) { return 1; }
-#endif
-
 extern int yylex (void);
-#line 544 "syslex.c"
+#line 543 "syslex.c"
 
 #define INITIAL 0
 
@@ -720,9 +719,9 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 45 "syslex.l"
+#line 41 "syslex.l"
 
-#line 726 "syslex.c"
+#line 725 "syslex.c"
 
 	if ( !(yy_init) )
 		{
@@ -807,49 +806,49 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 46 "syslex.l"
+#line 42 "syslex.l"
 { return '(';}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 47 "syslex.l"
+#line 43 "syslex.l"
 { return ')';}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 48 "syslex.l"
+#line 44 "syslex.l"
 { return '[';}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 49 "syslex.l"
+#line 45 "syslex.l"
 { return ']';}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 50 "syslex.l"
+#line 46 "syslex.l"
 { ; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 51 "syslex.l"
-{ ; } 
+#line 47 "syslex.l"
+{ ; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 52 "syslex.l"
+#line 48 "syslex.l"
 { ; }
 	YY_BREAK
 case 8:
 /* rule 8 can match eol */
 YY_RULE_SETUP
-#line 53 "syslex.l"
+#line 49 "syslex.l"
 { ; }
 	YY_BREAK
 case 9:
 /* rule 9 can match eol */
 YY_RULE_SETUP
-#line 54 "syslex.l"
+#line 50 "syslex.l"
 {
 	yylval.s = malloc (yyleng - 1);
 	memcpy (yylval.s, yytext + 1, yyleng - 2);
@@ -859,7 +858,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 61 "syslex.l"
+#line 57 "syslex.l"
 {
         yylval.i = strtol(yytext,0,16);
 	return  NUMBER;
@@ -867,7 +866,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 66 "syslex.l"
+#line 62 "syslex.l"
 {
         yylval.i = atoi(yytext);
 	return  NUMBER;
@@ -875,75 +874,75 @@ YY_RULE_SETUP
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 72 "syslex.l"
+#line 68 "syslex.l"
 { yylval.i =1 ;return UNIT;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 73 "syslex.l"
+#line 69 "syslex.l"
 { yylval.i = 1; return UNIT;}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 74 "syslex.l"
+#line 70 "syslex.l"
 { yylval.i= 8; return UNIT;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 75 "syslex.l"
+#line 71 "syslex.l"
 { yylval.i = 8; return UNIT;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 77 "syslex.l"
+#line 73 "syslex.l"
 { yylval.s = "INT"; return TYPE;}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 78 "syslex.l"
+#line 74 "syslex.l"
 { yylval.s = "BARRAY"; return TYPE;}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 79 "syslex.l"
+#line 75 "syslex.l"
 { yylval.s = "CHARS"; return TYPE;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 80 "syslex.l"
+#line 76 "syslex.l"
 { yylval.i = 0; return NUMBER;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 81 "syslex.l"
+#line 77 "syslex.l"
 { yylval.i = -4; return NUMBER;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 82 "syslex.l"
+#line 78 "syslex.l"
 { yylval.i = -2; return NUMBER; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 83 "syslex.l"
+#line 79 "syslex.l"
 { yylval.i = -1; return NUMBER; }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 84 "syslex.l"
+#line 80 "syslex.l"
 { return COND;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 85 "syslex.l"
+#line 81 "syslex.l"
 { return REPEAT;}
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 86 "syslex.l"
+#line 82 "syslex.l"
 ECHO;
 	YY_BREAK
-#line 947 "syslex.c"
+#line 946 "syslex.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1903,4 +1902,4 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 86 "syslex.l"
+#line 82 "syslex.l"

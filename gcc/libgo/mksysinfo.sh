@@ -183,6 +183,12 @@ enum {
 #ifdef TIOCSCTTY
   TIOCSCTTY_val = TIOCSCTTY,
 #endif
+#ifdef TIOCGPGRP
+  TIOCGPGRP_val = TIOCGPGRP,
+#endif
+#ifdef TIOCSPGRP
+  TIOCSPGRP_val = TIOCSPGRP,
+#endif
 #ifdef TIOCGPTN
   TIOCGPTN_val = TIOCGPTN,
 #endif
@@ -201,6 +207,70 @@ enum {
 #ifdef TCSETS
   TCSETS_val = TCSETS,
 #endif
+#ifdef TUNSETIFF
+  TUNSETIFF_val = TUNSETIFF,
+#endif
+#ifdef TUNSETNOCSUM
+  TUNSETNOCSUM_val = TUNSETNOCSUM,
+#endif
+#ifdef TUNSETDEBUG
+  TUNSETDEBUG_val = TUNSETDEBUG,
+#endif
+#ifdef TUNSETPERSIST
+  TUNSETPERSIST_val = TUNSETPERSIST,
+#endif
+#ifdef TUNSETOWNER
+  TUNSETOWNER_val = TUNSETOWNER,
+#endif
+#ifdef TUNSETLINK
+  TUNSETLINK_val = TUNSETLINK,
+#endif
+#ifdef TUNSETGROUP
+  TUNSETGROUP_val = TUNSETGROUP,
+#endif
+#ifdef TUNGETFEATURES
+  TUNGETFEATURES_val = TUNGETFEATURES,
+#endif
+#ifdef TUNSETOFFLOAD
+  TUNSETOFFLOAD_val = TUNSETOFFLOAD,
+#endif
+#ifdef TUNSETTXFILTER
+  TUNSETTXFILTER_val = TUNSETTXFILTER,
+#endif
+#ifdef TUNGETIFF
+  TUNGETIFF_val = TUNGETIFF,
+#endif
+#ifdef TUNGETSNDBUF
+  TUNGETSNDBUF_val = TUNGETSNDBUF,
+#endif
+#ifdef TUNSETSNDBUF
+  TUNSETSNDBUF_val = TUNSETSNDBUF,
+#endif
+#ifdef TUNATTACHFILTER
+  TUNATTACHFILTER_val = TUNATTACHFILTER,
+#endif
+#ifdef TUNDETACHFILTER
+  TUNDETACHFILTER_val = TUNDETACHFILTER,
+#endif
+#ifdef TUNGETVNETHDRSZ
+  TUNGETVNETHDRSZ_val = TUNGETVNETHDRSZ,
+#endif
+#ifdef TUNSETVNETHDRSZ
+  TUNSETVNETHDRSZ_val = TUNSETVNETHDRSZ,
+#endif
+#ifdef TUNSETQUEUE
+  TUNSETQUEUE_val = TUNSETQUEUE,
+#endif
+#ifdef TUNSETIFINDEX
+  TUNSETIFINDEX_val = TUNSETIFINDEX,
+#endif
+#ifdef TUNGETFILTER
+  TUNGETFILTER_val = TUNGETFILTER,
+#endif
+#ifdef NLA_HDRLEN
+  NLA_HDRLEN_val = NLA_HDRLEN,
+#endif
+
 };
 EOF
 
@@ -470,7 +540,7 @@ upcase_fields () {
 # GNU/Linux specific; it should do no harm if there is no
 # _user_regs_struct.
 regs=`grep '^type _user_regs_struct struct' gen-sysinfo.go || true`
-if test "$regs" == ""; then
+if test "$regs" = ""; then
   # s390
   regs=`grep '^type __user_regs_struct struct' gen-sysinfo.go || true`
   if test "$regs" != ""; then
@@ -800,6 +870,14 @@ if ! grep 'type ICMPv6Filter ' ${OUT} > /dev/null 2>&1; then
   echo 'type ICMPv6Filter struct { Data [8]uint32 }' >> ${OUT}
 fi
 
+# The ip6_mtuinfo struct.
+grep '^type _ip6_mtuinfo ' gen-sysinfo.go | \
+    sed -e 's/_ip6_mtuinfo/IPv6MTUInfo/' \
+      -e 's/ip6m_addr/Addr/' \
+      -e 's/_sockaddr_in6/RawSockaddrInet6/' \
+      -e 's/ip6m_mtu/Mtu/' \
+    >> ${OUT}
+
 # Try to guess the type to use for fd_set.
 fd_set=`grep '^type _fd_set ' gen-sysinfo.go || true`
 fds_bits_type="_C_long"
@@ -814,11 +892,13 @@ grep '^type _addrinfo ' gen-sysinfo.go | \
       -e 's/ ai_/ Ai_/g' \
     >> ${OUT}
 
-# The addrinfo flags and errors.
+# The addrinfo and nameinfo flags and errors.
 grep '^const _AI_' gen-sysinfo.go | \
   sed -e 's/^\(const \)_\(AI_[^= ]*\)\(.*\)$/\1\2 = _\2/' >> ${OUT}
 grep '^const _EAI_' gen-sysinfo.go | \
   sed -e 's/^\(const \)_\(EAI_[^= ]*\)\(.*\)$/\1\2 = _\2/' >> ${OUT}
+grep '^const _NI_' gen-sysinfo.go | \
+  sed -e 's/^\(const \)_\(NI_[^= ]*\)\(.*\)$/\1\2 = _\2/' >> ${OUT}
 
 # The passwd struct.
 grep '^type _passwd ' gen-sysinfo.go | \
@@ -830,6 +910,9 @@ grep '^type _passwd ' gen-sysinfo.go | \
 grep '^const _TIOC' gen-sysinfo.go | \
     grep -v '_val =' | \
     sed -e 's/^\(const \)_\(TIOC[^= ]*\)\(.*\)$/\1\2 = _\2/' >> ${OUT}
+grep '^const _TUNSET' gen-sysinfo.go | \
+    grep -v '_val =' | \
+    sed -e 's/^\(const \)_\(TUNSET[^= ]*\)\(.*\)$/\1\2 = _\2/' >> ${OUT}
 # We need TIOCGWINSZ.
 if ! grep '^const TIOCGWINSZ' ${OUT} >/dev/null 2>&1; then
   if grep '^const _TIOCGWINSZ_val' ${OUT} >/dev/null 2>&1; then
@@ -851,6 +934,16 @@ if ! grep '^const TIOCSCTTY' ${OUT} >/dev/null 2>&1; then
     echo 'const TIOCSCTTY = _TIOCSCTTY_val' >> ${OUT}
   fi
 fi
+if ! grep '^const TIOCGPGRP' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TIOCGPGRP_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TIOCGPGRP = _TIOCGPGRP_val' >> ${OUT}
+  fi
+fi
+if ! grep '^const TIOCSPGRP' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TIOCSPGRP_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TIOCSPGRP = _TIOCSPGRP_val' >> ${OUT}
+  fi
+fi
 if ! grep '^const TIOCGPTN' ${OUT} >/dev/null 2>&1; then
   if grep '^const _TIOCGPTN_val' ${OUT} >/dev/null 2>&1; then
     echo 'const TIOCGPTN = _TIOCGPTN_val' >> ${OUT}
@@ -869,6 +962,127 @@ fi
 if ! grep '^const TIOCSIG' ${OUT} >/dev/null 2>&1; then
   if grep '^const _TIOCSIG_val' ${OUT} >/dev/null 2>&1; then
     echo 'const TIOCSIG = _TIOCSIG_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNSETNOCSUM' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNSETNOCSUM_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNSETNOCSUM = _TUNSETNOCSUM_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNSETDEBUG' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNSETDEBUG_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNSETDEBUG = _TUNSETDEBUG_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNSETIFF' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNSETIFF_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNSETIFF = _TUNSETIFF_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNSETPERSIST' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNSETPERSIST_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNSETPERSIST = _TUNSETPERSIST_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNSETOWNER' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNSETOWNER_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNSETOWNER = _TUNSETOWNER_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNSETLINK' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNSETLINK_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNSETLINK = _TUNSETLINK_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNSETGROUP' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNSETGROUP_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNSETGROUP = _TUNSETGROUP_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNGETFEATURES' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNGETFEATURES_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNGETFEATURES = _TUNGETFEATURES_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNSETOFFLOAD' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNSETOFFLOAD_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNSETOFFLOAD = _TUNSETOFFLOAD_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNSETTXFILTER' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNSETTXFILTER_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNSETTXFILTER = _TUNSETTXFILTER_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNGETIFF' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNGETIFF_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNGETIFF = _TUNGETIFF_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNGETSNDBUF' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNGETSNDBUF_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNGETSNDBUF = _TUNGETSNDBUF_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNSETSNDBUF' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNSETSNDBUF_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNSETSNDBUF = _TUNSETSNDBUF_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNATTACHFILTER' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNATTACHFILTER_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNATTACHFILTER = _TUNATTACHFILTER_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNDETACHFILTER' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNDETACHFILTER_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNDETACHFILTER = _TUNDETACHFILTER_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNGETVNETHDRSZ' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNGETVNETHDRSZ_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNGETVNETHDRSZ = _TUNGETVNETHDRSZ_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNSETVNETHDRSZ' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNSETVNETHDRSZ_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNSETVNETHDRSZ = _TUNSETVNETHDRSZ_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNSETQUEUE' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNSETQUEUE_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNSETQUEUE = _TUNSETQUEUE_val' >> ${OUT}
+  fi
+fi
+
+
+if ! grep '^const TUNSETIFINDEX' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNSETIFINDEX_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNSETIFINDEX = _TUNSETIFINDEX_val' >> ${OUT}
+  fi
+fi
+
+if ! grep '^const TUNGETFILTER' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _TUNGETFILTER_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const TUNGETFILTER = _TUNGETFILTER_val' >> ${OUT}
   fi
 fi
 
@@ -1217,8 +1431,14 @@ grep '^type _rtnexthop ' gen-sysinfo.go | \
 # The GNU/Linux netlink flags.
 grep '^const _NETLINK_' gen-sysinfo.go | \
   sed -e 's/^\(const \)_\(NETLINK_[^= ]*\)\(.*\)$/\1\2 = _\2/' >> ${OUT}
-grep '^const _NLA_' gen-sysinfo.go | \
+grep '^const _NLA_' gen-sysinfo.go | grep -v '_val =' | \
   sed -e 's/^\(const \)_\(NLA_[^= ]*\)\(.*\)$/\1\2 = _\2/' >> ${OUT}
+
+if ! grep '^const NLA_HDRLEN' ${OUT} >/dev/null 2>&1; then
+  if grep '^const _NLA_HDRLEN_val' ${OUT} >/dev/null 2>&1; then
+    echo 'const NLA_HDRLEN = _NLA_HDRLEN_val' >> ${OUT}
+  fi
+fi
 
 # The GNU/Linux packet socket flags.
 grep '^const _PACKET_' gen-sysinfo.go | \
@@ -1239,6 +1459,11 @@ grep '^type _inotify_event ' gen-sysinfo.go | \
 # The GNU/Linux CLONE flags.
 grep '^const _CLONE_' gen-sysinfo.go | \
   sed -e 's/^\(const \)_\(CLONE_[^= ]*\)\(.*\)$/\1\2 = _\2/' >> ${OUT}
+# We need some CLONE constants that are not defined in older versions
+# of glibc.
+if ! grep '^const CLONE_NEWUSER ' ${OUT} > /dev/null 2>&1; then
+  echo "const CLONE_NEWUSER = 0x10000000" >> ${OUT}
+fi
 
 # Struct sizes.
 set cmsghdr Cmsghdr ip_mreq IPMreq ip_mreqn IPMreqn ipv6_mreq IPv6Mreq \
@@ -1247,7 +1472,7 @@ set cmsghdr Cmsghdr ip_mreq IPMreq ip_mreqn IPMreqn ipv6_mreq IPv6Mreq \
     msghdr Msghdr nlattr NlAttr nlmsgerr NlMsgerr nlmsghdr NlMsghdr \
     rtattr RtAttr rtgenmsg RtGenmsg rtmsg RtMsg rtnexthop RtNexthop \
     sock_filter SockFilter sock_fprog SockFprog ucred Ucred \
-    icmp6_filter ICMPv6Filter
+    icmp6_filter ICMPv6Filter ip6_mtuinfo IPv6MTUInfo
 while test $# != 0; do
     nc=$1
     ngo=$2
@@ -1276,6 +1501,26 @@ fi
 # The Solaris 11 Update 1 _zone_net_addr_t struct.
 grep '^type _zone_net_addr_t ' gen-sysinfo.go | \
     sed -e 's/_in6_addr/[16]byte/' \
+    >> ${OUT}
+
+# The Solaris 12 _flow_arp_desc_t struct.
+grep '^type _flow_arp_desc_t ' gen-sysinfo.go | \
+    sed -e 's/_in6_addr_t/[16]byte/g' \
+    >> ${OUT}
+
+# The Solaris 12 _flow_l3_desc_t struct.
+grep '^type _flow_l3_desc_t ' gen-sysinfo.go | \
+    sed -e 's/_in6_addr_t/[16]byte/g' \
+    >> ${OUT}
+
+# The Solaris 12 _mac_ipaddr_t struct.
+grep '^type _mac_ipaddr_t ' gen-sysinfo.go | \
+    sed -e 's/_in6_addr_t/[16]byte/g' \
+    >> ${OUT}
+
+# The Solaris 12 _mactun_info_t struct.
+grep '^type _mactun_info_t ' gen-sysinfo.go | \
+    sed -e 's/_in6_addr_t/[16]byte/g' \
     >> ${OUT}
 
 exit $?

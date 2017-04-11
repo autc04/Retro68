@@ -1,6 +1,6 @@
 // ehframe.h -- handle exception frame sections for gold  -*- C++ -*-
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -192,10 +192,11 @@ class Fde
   // Add a mapping for this FDE to MERGE_MAP, so that relocations
   // against the FDE are applied to right part of the output file.
   void
-  add_mapping(section_offset_type output_offset, Merge_map* merge_map) const
+  add_mapping(section_offset_type output_offset,
+              Output_section_data* output_data) const
   {
     if (this->object_ != NULL)
-      merge_map->add_mapping(this->object_, this->u_.from_object.shndx,
+      this->object_->add_merge_mapping(output_data, this->u_.from_object.shndx,
 			     this->u_.from_object.input_offset, this->length(),
 			     output_offset);
   }
@@ -308,7 +309,7 @@ class Cie
   // mapping.  It returns the new output offset.
   section_offset_type
   set_output_offset(section_offset_type output_offset, unsigned int addralign,
-		    Merge_map*);
+		    Output_section_data*);
 
   // Write the CIE to OVIEW starting at OFFSET.  Round up the bytes to
   // ADDRALIGN.  ADDRESS is the virtual address of OVIEW.
@@ -321,6 +322,11 @@ class Cie
 	section_offset_type offset, uint64_t address,
 	unsigned int addralign, Eh_frame_hdr* eh_frame_hdr,
 	Post_fdes* post_fdes);
+
+  // Return the FDE encoding.
+  unsigned char
+  fde_encoding() const
+  { return this->fde_encoding_; }
 
   friend bool operator<(const Cie&, const Cie&);
   friend bool operator==(const Cie&, const Cie&);
@@ -358,6 +364,14 @@ extern bool operator==(const Cie&, const Cie&);
 class Eh_frame : public Output_section_data
 {
  public:
+  enum Eh_frame_section_disposition
+  {
+    EH_EMPTY_SECTION,
+    EH_UNRECOGNIZED_SECTION,
+    EH_OPTIMIZABLE_SECTION,
+    EH_END_MARKER_SECTION
+  };
+
   Eh_frame();
 
   // Record the associated Eh_frame_hdr, if any.
@@ -373,7 +387,7 @@ class Eh_frame : public Output_section_data
   // returns whether the section was incorporated into the .eh_frame
   // data.
   template<int size, bool big_endian>
-  bool
+  Eh_frame_section_disposition
   add_ehframe_input_section(Sized_relobj_file<size, big_endian>* object,
 			    const unsigned char* symbols,
 			    section_size_type symbols_size,
@@ -405,10 +419,6 @@ class Eh_frame : public Output_section_data
   do_output_offset(const Relobj*, unsigned int shndx,
 		   section_offset_type offset,
 		   section_offset_type* poutput) const;
-
-  // Return whether this is the merge section for an input section.
-  bool
-  do_is_merge_section_for(const Relobj*, unsigned int shndx) const;
 
   // Write the data to the file.
   void
@@ -504,8 +514,6 @@ class Eh_frame : public Output_section_data
   // A mapping from unmergeable CIEs to their offset in the output
   // file.
   Unmergeable_cie_offsets unmergeable_cie_offsets_;
-  // A mapping from input sections to the output section.
-  Merge_map merge_map_;
   // Whether we have created the mappings to the output section.
   bool mappings_are_done_;
   // The final data size.  This is only set if mappings_are_done_ is

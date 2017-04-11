@@ -1,6 +1,6 @@
 // testfile.cc -- Dummy ELF objects for testing purposes.
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -72,10 +72,18 @@ class Target_test : public Sized_target<size, big_endian>
   { ERROR("call to Target_test::scan_relocatable_relocs"); }
 
   void
+  emit_relocs_scan(Symbol_table*, Layout*,
+		   Sized_relobj_file<size, big_endian>*, unsigned int,
+		   unsigned int, const unsigned char*,
+		   size_t, Output_section*, bool, size_t,
+		   const unsigned char*, Relocatable_relocs*)
+  { ERROR("call to Target_test::emit_relocs_scan"); }
+
+  void
   relocate_relocs(const Relocate_info<size, big_endian>*,
 		  unsigned int, const unsigned char*, size_t,
 		  Output_section*, typename elfcpp::Elf_types<size>::Elf_Off,
-                  const Relocatable_relocs*, unsigned char*,
+		  unsigned char*,
 		  typename elfcpp::Elf_types<size>::Elf_Addr,
 		  section_size_type, unsigned char*,
 		  section_size_type)
@@ -108,7 +116,8 @@ const Target::Target_info Target_test<size, big_endian>::test_target_info =
   0,					// large_common_section_flags
   NULL,					// attributes_section
   NULL,					// attributes_vendor
-  "_start"		// entry_symbol_name
+  "_start",				// entry_symbol_name
+  32,					// hash_entry_size
 };
 
 // The test targets.

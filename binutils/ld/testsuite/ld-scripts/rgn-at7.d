@@ -1,7 +1,6 @@
 #source: rgn-at6.s
 #ld: -T rgn-at7.t
 #objdump: -h --wide
-#xfail: rx-*-*
 # Test that lma is only aligned by script when lma_region!=region.
 
 #...

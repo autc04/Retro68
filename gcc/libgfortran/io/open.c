@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2015 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2016 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
@@ -664,7 +664,7 @@ already_open (st_parameter_open *opp, gfc_unit * u, unit_flags * flags)
  
 #if !HAVE_UNLINK_OPEN_FILE
       if (u->filename && u->flags.status == STATUS_SCRATCH)
-	unlink (u->filename);
+	remove (u->filename);
 #endif
      free (u->filename);
      u->filename = NULL;

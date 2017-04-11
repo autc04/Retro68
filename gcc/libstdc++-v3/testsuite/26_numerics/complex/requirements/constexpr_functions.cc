@@ -1,7 +1,7 @@
 // { dg-do compile }
 // { dg-options "-std=gnu++11" }
 
-// Copyright (C) 2010-2015 Free Software Foundation, Inc.
+// Copyright (C) 2010-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,7 @@ namespace __gnu_test
 	  void __constraint()
 	  { 
 	    typedef typename _Ttesttype::_ComplexT _ComplexT;
-	    const _ComplexT cc = { 1.1 };
+	    constexpr _ComplexT cc = { 1.1 };
 	    constexpr _Ttesttype a(cc);
 	    constexpr auto v1 __attribute__((unused)) = a.real();
 	    constexpr auto v2 __attribute__((unused)) = a.imag();

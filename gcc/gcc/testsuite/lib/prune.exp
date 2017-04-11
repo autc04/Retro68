@@ -1,4 +1,4 @@
-#   Copyright (C) 1997-2015 Free Software Foundation, Inc.
+#   Copyright (C) 1997-2016 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 # <http://www.gnu.org/licenses/>.
 
 # Prune messages from gcc that aren't useful.
+
+load_lib multiline.exp
 
 if ![info exists TEST_ALWAYS_FLAGS] {
     set TEST_ALWAYS_FLAGS ""
@@ -68,17 +70,41 @@ proc prune_gcc_output { text } {
     # Ignore harmless warnings from Xcode 4.0.
     regsub -all "(^|\n)\[^\n\]*ld: warning: could not create compact unwind for\[^\n\]*" $text "" text
 
+    # Call into multiline.exp to handle any multiline output directives.
+    set text [handle-multiline-outputs $text]
+
     #send_user "After:$text\n"
 
     return $text
 }
 
+# escape metacharacters in literal string, so it can be used in regex
+
+proc escape_regex_chars { line } {
+    return [string map {"^" "\\^"
+			"$" "\\$"
+			"(" "\\("
+			")" "\\)"
+			"[" "\\["
+			"]" "\\]"
+			"{" "\\{"
+			"}" "\\}"
+			"." "\\."
+			"\\" "\\\\"
+			"?" "\\?"
+			"+" "\\+"
+			"*" "\\*"
+			"|" "\\|"} $line]
+}
+
 proc prune_file_path { text } {
     global srcdir
 
+    set safedir [escape_regex_chars $srcdir]
+    regsub -all "$safedir\/" $text "" text
+
     # Truncate absolute file path into relative path.
-    set topdir "[file dirname [file dirname [file dirname $srcdir]]]"
-    regsub -all "$srcdir\/" $text "" text
+    set topdir "[file dirname [file dirname [file dirname $safedir]]]"
     regsub -all "$topdir\/" $text "" text
 
     return $text

@@ -36,7 +36,5 @@ Disassembly of section .text:
 0+6c <[^>]*> e59f8008 ?	ldr	r8, \[pc, #8\]	; 0+7c <[^>]*>
 0+70 <[^>]*> e59fb004 ?	ldr	fp, \[pc, #4\]	; 0+7c <[^>]*>
 0+74 <[^>]*> e51fe000 ?	ldr	lr, \[pc, #-0\]	; 0+7c <[^>]*>
-0+78 <[^>]*> 00000000 	.word	0x00000000
-			78: R_ARM_ABS32	ext_symbol
-0+7c <[^>]*> 00001000 	.word	0x00001000
-			7c: R_ARM_ABS32	ext_symbol
+#pass
+

@@ -2,7 +2,7 @@
 
 // 2006-02-05  Paolo Carlini  <pcarlini@suse.de>
 //
-// Copyright (C) 2006-2015 Free Software Foundation, Inc.
+// Copyright (C) 2006-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,7 +30,7 @@ void test01(int dummy, ...)
   std::va_list ap;
   va_start(ap, dummy);
 
-#if _GLIBCXX_USE_C99
+#if _GLIBCXX_USE_C99_STDIO
 
   char* s = 0;
   const char* cs = 0;

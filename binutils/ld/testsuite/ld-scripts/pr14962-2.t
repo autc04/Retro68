@@ -6,6 +6,6 @@ SECTIONS
   .text TOTO :
   {
     x = ABSOLUTE(TOTO);
-    *(*.text)
+    *(.text)
   }
 }

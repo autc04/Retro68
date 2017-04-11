@@ -1,6 +1,6 @@
 # Test NOCROSSREFS in a linker script.
 # By Ian Lance Taylor, Cygnus Support.
-#   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2000-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -22,28 +22,34 @@
 set test1 "NOCROSSREFS 1"
 set test2 "NOCROSSREFS 2"
 set test3 "NOCROSSREFS 3"
+set test4 "NOCROSSREFS_TO 1"
+set test5 "NOCROSSREFS_TO 2"
+set test6 "NOCROSSREFS_TO 3"
+set test7 "NOCROSSREFS_TO 4"
 
 if { ![is_remote host] && [which $CC] == 0 } {
     untested $test1
     untested $test2
     untested $test3
+    untested $test4
+    untested $test5
+    untested $test6
+    untested $test7
     return
 }
 
 global CFLAGS
 set old_CFLAGS "$CFLAGS"
 
+# Pass -fplt to CC since -fno-plt doesn't work with NOCROSSREFS tests.
+global PLT_CFLAGS
+set old_CC "$CC"
+set CC "$CC $PLT_CFLAGS"
+
 # Xtensa targets currently default to putting literal values in a separate
 # section and that requires linker script support, so put literals in text.
 if [istarget xtensa*-*-*] {
     set CFLAGS "$CFLAGS -mtext-section-literals"
-}
-
-# If we have a compiler that doesn't use/reference dot-symbols, then
-# calls to functions reference the .opd section function descriptor.
-# This makes NOCROSSREFS rather useless on powerpc64.
-if [istarget powerpc64-*-*] {
-    set CFLAGS "$CFLAGS -mcall-aixdesc"
 }
 
 # Prevent the use of the MeP's small data area which references a symbol
@@ -63,6 +69,7 @@ if { ![ld_compile $CC "$srcdir/$subdir/cross1.c" tmpdir/cross1.o] \
     unresolved $test1
     unresolved $test2
     set CFLAGS "$old_CFLAGS"
+    set CC "$old_CC"
     return
 }
 
@@ -71,6 +78,11 @@ set flags [big_or_little_endian]
 if [istarget sh64*-*-elf] {
     # This is what gcc passes to ld by default.
     set flags "-mshelf32"
+}
+
+# arc-elf32 requires the symbol __SDATA_BEGIN__ to always be present.
+if [istarget arc*-*-elf32] {
+    set flags "$flags --defsym=__SDATA_BEGIN__=0"
 }
 
 # IA64 has both ordered and unordered sections in an input file.
@@ -98,6 +110,7 @@ if [string match "" $exec_output] then {
 if { ![ld_compile $CC "$srcdir/$subdir/cross3.c" tmpdir/cross3.o] } {
     unresolved $test2
     set CFLAGS "$old_CFLAGS"
+    set CC "$old_CC"
     return
 }
 
@@ -122,12 +135,14 @@ if [string match "" $exec_output] then {
 if { ![ld_compile $CC "$srcdir/$subdir/cross4.c" tmpdir/cross4.o] } {
     unresolved $test3
     set CFLAGS "$old_CFLAGS"
+    set CC "$old_CC"
     return
 }
 
 if ![ld_relocate $ld tmpdir/cross3-partial.o "tmpdir/cross1.o tmpdir/cross4.o"] {
     unresolved $test3
     set CFLAGS "$old_CFLAGS"
+    set CC "$old_CC"
     return
 }
 
@@ -144,4 +159,61 @@ if [string match "" $exec_output] then {
     fail $test3
 }
 
+set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross4 -T $srcdir/$subdir/cross4.t tmpdir/cross4.o"]
+set exec_output [prune_warnings $exec_output]
+
+regsub -all "(^|\n)($ld: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
+
+if [string match "" $exec_output] then {
+    pass $test4
+} else {
+    verbose -log "$exec_output"
+    fail $test4
+}
+
+set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross5 -T $srcdir/$subdir/cross5.t tmpdir/cross4.o"]
+set exec_output [prune_warnings $exec_output]
+
+regsub -all "(^|\n)($ld: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
+
+if [string match "" $exec_output] then {
+    fail $test5
+} else {
+    verbose -log "$exec_output"
+    if [regexp "prohibited cross reference from .* to `.*' in" $exec_output] {
+	pass $test5
+    } else {
+	fail $test5
+    }
+}
+
+set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross6 -T $srcdir/$subdir/cross6.t tmpdir/cross3.o"]
+set exec_output [prune_warnings $exec_output]
+
+regsub -all "(^|\n)($ld: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
+
+if [string match "" $exec_output] then {
+    pass $test6
+} else {
+    verbose -log "$exec_output"
+    fail $test6
+}
+
+set exec_output [run_host_cmd "$ld" "$flags -o tmpdir/cross7 -T $srcdir/$subdir/cross7.t tmpdir/cross3.o"]
+set exec_output [prune_warnings $exec_output]
+
+regsub -all "(^|\n)($ld: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
+
+if [string match "" $exec_output] then {
+    fail $test7
+} else {
+    verbose -log "$exec_output"
+    if [regexp "prohibited cross reference from .* to `.*' in" $exec_output] {
+	pass $test7
+    } else {
+	fail $test7
+    }
+}
+
 set CFLAGS "$old_CFLAGS"
+set CC "$old_CC"

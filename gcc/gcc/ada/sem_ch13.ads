@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -41,6 +41,12 @@ package Sem_Ch13 is
    --  This procedure is called to analyze aspect specifications for node N. E
    --  is the corresponding entity declared by the declaration node N. Callers
    --  should check that Has_Aspects (N) is True before calling this routine.
+
+   procedure Analyze_Aspect_Specifications_On_Body_Or_Stub (N : Node_Id);
+   --  Analyze the aspect specifications of [generic] subprogram body or stub
+   --  N. Callers should check that Has_Aspects (N) is True before calling the
+   --  routine. This routine diagnoses misplaced aspects that should appear on
+   --  the initial declaration of N and offers suggestions for replacements.
 
    procedure Adjust_Record_For_Reverse_Bit_Order (R : Entity_Id);
    --  Called from Freeze where R is a record entity for which reverse bit
@@ -340,6 +346,13 @@ package Sem_Ch13 is
    procedure Inherit_Aspects_At_Freeze_Point (Typ : Entity_Id);
    --  Given an entity Typ that denotes a derived type or a subtype, this
    --  routine performs the inheritance of aspects at the freeze point.
+
+   procedure Resolve_Aspect_Expressions (E : Entity_Id);
+   --  Name resolution of an aspect expression happens at the end of the
+   --  current declarative part or at the freeze point for the entity,
+   --  whichever comes first. For declarations in the visible part of a
+   --  package, name resolution takes place before analysis of the private
+   --  part even though the freeze point of the entity may appear later.
 
    procedure Validate_Iterable_Aspect (Typ : Entity_Id; ASN : Node_Id);
    --  For SPARK 2014 formal containers. The expression has the form of an

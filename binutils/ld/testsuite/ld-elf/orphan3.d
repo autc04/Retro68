@@ -6,7 +6,7 @@
 #source: orphan3f.s
 #ld:
 #readelf: -S --wide
-#xfail: "arc-*-*" "d30v-*-*" "dlx-*-*" "fr30-*-*" "frv-*-elf"
+#xfail: "d30v-*-*" "dlx-*-*" "fr30-*-*" "frv-*-elf" "ft32-*-*"
 #xfail: "i860-*-*" "i960-*-*" "iq2000-*-*" "mn10200-*-*" "msp430-*-*" "mt-*-*"
 #xfail: "pj-*-*"
 #xfail: "xstormy16-*-*"

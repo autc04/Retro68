@@ -9,9 +9,9 @@ Contents of the .eh_frame section:
   Code alignment factor: .*
   Data alignment factor: .*
   Return address column: .*
-  Augmentation data:     [01]b
+  Augmentation data:     [01][abc]
 #...
-00000014 0+00[12][c0] 0+0018 FDE cie=0+0000 pc=.*
+00000014 0+00[12][c08] 0+0018 FDE cie=0+0000 pc=.*
   DW_CFA_advance_loc: 4 to .*
   DW_CFA_def_cfa: r0( \([er]ax\)|) ofs 16
   DW_CFA_advance_loc: 4 to .*

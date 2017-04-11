@@ -1,5 +1,5 @@
-#as: -Av9b
-#objdump: -dr -m sparc:v9b
+#as: -Av9d
+#objdump: -dr -m sparc:v9d
 #name: sparc LDXEFSR
 
 .*: +file format .*sparc.*

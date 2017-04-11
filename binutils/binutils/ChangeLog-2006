@@ -153,7 +153,7 @@
 	of each copied archive element, otherwise force them to be one
 	specific file format.
 	(copy_file): Compute force_output_target parameter to pass to
-	copy_archive. 
+	copy_archive.
 
 2006-09-05  Nick Clifton  <nickc@redhat.com>
 
@@ -219,7 +219,7 @@
             Nigel Stephens  <nigel@mips.com>
 
 	* readelf.c (dump_relocations): Handle MIPS-specific
-	SHN_MIPS_SCOMMON and SHN_MIPS_SUNDEFINED. 
+	SHN_MIPS_SCOMMON and SHN_MIPS_SUNDEFINED.
 	(get_symbol_index_type): Similarly.
 
 2006-07-24  Ralk Wildenhues  <Ralf.Wildenhues@gmx.de>

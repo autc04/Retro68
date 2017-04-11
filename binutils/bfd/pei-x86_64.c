@@ -1,5 +1,5 @@
 /* BFD back-end for Intel 386 PE IMAGE COFF files.
-   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+   Copyright (C) 2006-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -115,6 +115,7 @@ pex64_get_unwind_info (bfd *abfd, struct pex64_unwind_info *ui, void *data)
   ui->sizeofUnwindCodes = PEX64_UWI_SIZEOF_UWCODE_ARRAY (ui->CountOfCodes);
   ui->SizeOfBlock = ui->sizeofUnwindCodes + 4;
   ui->rawUnwindCodes = &ex_dta[4];
+
   ex_dta += ui->SizeOfBlock;
   switch (ui->Flags)
     {
@@ -486,6 +487,7 @@ pex64_bfd_print_pdata_section (bfd *abfd, void *vfile, asection *pdata_section)
   stop = pei_section_data (abfd, pdata_section)->virt_size;
   if ((stop % onaline) != 0)
     fprintf (file,
+	     /* xgettext:c-format */
 	     _("Warning: %s section size (%ld) is not a multiple of %d\n"),
 	     pdata_section->name, (long) stop, onaline);
 
@@ -507,6 +509,7 @@ pex64_bfd_print_pdata_section (bfd *abfd, void *vfile, asection *pdata_section)
   else if (datasize < stop)
       {
 	fprintf (file,
+		 /* xgettext:c-format */
 		 _("Warning: %s section size (%ld) is smaller than virtual size (%ld)\n"),
 		 pdata_section->name, (unsigned long) datasize,
 		 (unsigned long) stop);
@@ -601,7 +604,7 @@ pex64_bfd_print_pdata_section (bfd *abfd, void *vfile, asection *pdata_section)
   if (strcmp (pdata_section->name, ".pdata") != 0)
     {
       size_t len = strlen (pdata_section->name);
-      char *xdata_name = alloca (len + 1);
+      char *xdata_name = xmalloc (len + 1);
 
       xdata_name = memcpy (xdata_name, pdata_section->name, len + 1);
       /* Transform .pdata prefix into .xdata prefix.  */
@@ -609,6 +612,7 @@ pex64_bfd_print_pdata_section (bfd *abfd, void *vfile, asection *pdata_section)
 	xdata_name [1] = 'x';
       xdata_section = pex64_get_section_by_rva (abfd, xdata_base,
 						xdata_name);
+      free (xdata_name);
     }
   /* Second, try the .xdata section itself.  */
   if (!xdata_section)

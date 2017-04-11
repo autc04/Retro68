@@ -5,7 +5,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	13823c20 	extr	w0, w1, w2, #15
    4:	93c23c20 	extr	x0, x1, x2, #15
    8:	13831c60 	extr	w0, w3, w3, #7
@@ -30,19 +30,19 @@ Disassembly of section \.text:
   54:	9ba28c20 	umsubl	x0, w1, w2, x3
   58:	9ba2fc20 	umsubl	x0, w1, w2, xzr
   5c:	9ba2fc20 	umsubl	x0, w1, w2, xzr
-  60:	1a9f0420 	csinc	w0, w1, wzr, eq
-  64:	1a810420 	csinc	w0, w1, w1, eq
-  68:	1a810420 	csinc	w0, w1, w1, eq
-  6c:	1a9f37e0 	csinc	w0, wzr, wzr, cc
-  70:	1a9f37e0 	csinc	w0, wzr, wzr, cc
-  74:	da9f2020 	csinv	x0, x1, xzr, cs
-  78:	da812020 	csinv	x0, x1, x1, cs
-  7c:	da812020 	csinv	x0, x1, x1, cs
-  80:	da9f43e0 	csinv	x0, xzr, xzr, mi
-  84:	da9f43e0 	csinv	x0, xzr, xzr, mi
-  88:	da9eb7e0 	csneg	x0, xzr, x30, lt
-  8c:	da9eb7c0 	csneg	x0, x30, x30, lt
-  90:	da9eb7c0 	csneg	x0, x30, x30, lt
+  60:	1a9f0420 	csinc	w0, w1, wzr, eq  // eq = none
+  64:	1a810420 	csinc	w0, w1, w1, eq  // eq = none
+  68:	1a810420 	csinc	w0, w1, w1, eq  // eq = none
+  6c:	1a9f37e0 	csinc	w0, wzr, wzr, cc  // cc = lo, ul, last
+  70:	1a9f37e0 	csinc	w0, wzr, wzr, cc  // cc = lo, ul, last
+  74:	da9f2020 	csinv	x0, x1, xzr, cs  // cs = hs, nlast
+  78:	da812020 	csinv	x0, x1, x1, cs  // cs = hs, nlast
+  7c:	da812020 	csinv	x0, x1, x1, cs  // cs = hs, nlast
+  80:	da9f43e0 	csinv	x0, xzr, xzr, mi  // mi = first
+  84:	da9f43e0 	csinv	x0, xzr, xzr, mi  // mi = first
+  88:	da9eb7e0 	csneg	x0, xzr, x30, lt  // lt = tstop
+  8c:	da9eb7c0 	csneg	x0, x30, x30, lt  // lt = tstop
+  90:	da9eb7c0 	csneg	x0, x30, x30, lt  // lt = tstop
   94:	ea020020 	ands	x0, x1, x2
   98:	ea02003f 	ands	xzr, x1, x2
   9c:	ea02003f 	ands	xzr, x1, x2

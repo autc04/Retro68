@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	110003ef 	mov	w15, wsp
    4:	910003ef 	mov	x15, sp
    8:	110000ff 	mov	wsp, w7

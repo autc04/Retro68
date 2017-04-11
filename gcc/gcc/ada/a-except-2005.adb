@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,14 +29,6 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  This version of Ada.Exceptions fully supports both Ada 95 and Ada 2005.
---  It is used in all situations except for the build of the compiler and
---  other basic tools. For these latter builds, we use an Ada 95-only version.
-
---  The reason for this splitting off of a separate version is that bootstrap
---  compilers often will be used that do not support Ada 2005 features, and
---  Ada.Exceptions is part of the compiler sources.
-
 pragma Style_Checks (All_Checks);
 --  No subprogram ordering check, due to logical grouping
 
@@ -51,6 +43,16 @@ with System.Standard_Library; use System.Standard_Library;
 with System.Soft_Links;       use System.Soft_Links;
 with System.WCh_Con;          use System.WCh_Con;
 with System.WCh_StW;          use System.WCh_StW;
+
+pragma Warnings (Off);
+--  Suppress complaints about Symbolic not being referenced, and about it not
+--  having pragma Preelaborate.
+with System.Traceback.Symbolic;
+--  Bring Symbolic into the closure. If it is the s-trasym-dwarf.adb version,
+--  it will install symbolic tracebacks as the default decorator. Otherwise,
+--  symbolic tracebacks are not supported, and we fall back to hexadecimal
+--  addresses.
+pragma Warnings (On);
 
 package body Ada.Exceptions is
 
@@ -150,9 +152,9 @@ package body Ada.Exceptions is
       --
       --  The format of the string is as follows:
       --
-      --    Exception_Name: <exception name> (as in Exception_Name)
-      --    Message: <message> (only if Exception_Message is empty)
-      --    PID=nnnn (only if != 0)
+      --    raised <exception name> : <message>
+      --    (" : <message>" is present only if Exception_Message is not empty)
+      --    PID=nnnn (only if nonzero)
       --    Call stack traceback locations:  (only if at least one location)
       --    <0xyyyyyyyy 0xyyyyyyyy ...>      (is recorded)
       --
@@ -224,7 +226,7 @@ package body Ada.Exceptions is
       ---------------------------------------
 
       function Allocate_Occurrence return EOA;
-      --  Allocate an exception occurence (as well as the machine occurence)
+      --  Allocate an exception occurrence (as well as the machine occurrence)
 
       procedure Propagate_Exception (Excep : EOA);
       pragma No_Return (Propagate_Exception);
@@ -702,15 +704,6 @@ package body Ada.Exceptions is
    --  The actual Call_Chain routine is separate, so that it can easily
    --  be dummied out when no exception traceback information is needed.
 
-   ------------------------------
-   -- Current_Target_Exception --
-   ------------------------------
-
-   function Current_Target_Exception return Exception_Occurrence is
-   begin
-      return Null_Occurrence;
-   end Current_Target_Exception;
-
    -------------------
    -- EId_To_String --
    -------------------
@@ -929,7 +922,9 @@ package body Ada.Exceptions is
       Call_Chain (X);
 
       --  Notify the debugger
-      Debug_Raise_Exception (E => SSL.Exception_Data_Ptr (X.Id));
+      Debug_Raise_Exception
+        (E       => SSL.Exception_Data_Ptr (X.Id),
+         Message => X.Msg (1 .. X.Msg_Length));
    end Complete_Occurrence;
 
    ---------------------------------------
@@ -1638,11 +1633,10 @@ package body Ada.Exceptions is
    ---------------
 
    procedure To_Stderr (C : Character) is
-      type int is new Integer;
-      procedure put_char_stderr (C : int);
-      pragma Import (C, put_char_stderr, "put_char_stderr");
+      procedure Put_Char_Stderr (C : Character);
+      pragma Import (C, Put_Char_Stderr, "put_char_stderr");
    begin
-      put_char_stderr (Character'Pos (C));
+      Put_Char_Stderr (C);
    end To_Stderr;
 
    procedure To_Stderr (S : String) is

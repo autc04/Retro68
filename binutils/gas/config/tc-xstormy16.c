@@ -1,5 +1,5 @@
 /* tc-xstormy16.c -- Assembler for the Sanyo XSTORMY16.
-   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+   Copyright (C) 2000-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -66,7 +66,7 @@ size_t md_longopts_size = sizeof (md_longopts);
 
 int
 md_parse_option (int    c ATTRIBUTE_UNUSED,
-		 char * arg ATTRIBUTE_UNUSED)
+		 const char * arg ATTRIBUTE_UNUSED)
 {
   return 0;
 }
@@ -204,9 +204,9 @@ xstormy16_cons_fix_new (fragS *f,
  	  /* This can happen when gcc is generating debug output.
  	     For example it can create a stab with the address of
  	     a function:
- 	     
+
  	     	.stabs	"foo:F(0,21)",36,0,0,@fptr(foo)
- 
+
  	     Since this does not involve switching code pages, we
  	     just allow the reloc to be generated without any
  	     @fptr behaviour.  */
@@ -279,7 +279,7 @@ md_section_align (segT segment, valueT size)
 {
   int align = bfd_get_section_alignment (stdoutput, segment);
 
-  return ((size + (1 << align) - 1) & (-1 << align));
+  return ((size + (1 << align) - 1) & -(1 << align));
 }
 
 symbolS *
@@ -337,7 +337,7 @@ md_pcrel_from_section (fixS * fixP, segT sec)
       || xstormy16_force_relocation (fixP))
     /* The symbol is undefined,
        or it is defined but not in this section,
-       or the relocation will be relative to this symbol not the section symbol.	 
+       or the relocation will be relative to this symbol not the section symbol.
        Let the linker figure it out.  */
     return 0;
 
@@ -382,6 +382,7 @@ md_cgen_lookup_reloc (const CGEN_INSN *    insn ATTRIBUTE_UNUSED,
 
     case XSTORMY16_OPERAND_REL8_4:
       fixP->fx_addnumber -= 2;
+      /* Fall through.  */
     case XSTORMY16_OPERAND_REL8_2:
       fixP->fx_addnumber -= 2;
       fixP->fx_pcrel = 1;
@@ -389,7 +390,7 @@ md_cgen_lookup_reloc (const CGEN_INSN *    insn ATTRIBUTE_UNUSED,
 
     case XSTORMY16_OPERAND_REL12:
       fixP->fx_where += 2;
-      /* Fall through...  */
+      /* Fall through.  */
     case XSTORMY16_OPERAND_REL12A:
       fixP->fx_addnumber -= 2;
       fixP->fx_pcrel = 1;
@@ -486,13 +487,14 @@ xstormy16_md_apply_fix (fixS *   fixP,
       const CGEN_OPERAND *operand = cgen_operand_lookup_by_num (cd, opindex);
       const char *errmsg;
       bfd_reloc_code_real_type reloc_type;
-      CGEN_FIELDS *fields = alloca (CGEN_CPU_SIZEOF_FIELDS (cd));
       const CGEN_INSN *insn = fixP->fx_cgen.insn;
 
       /* If the reloc has been fully resolved finish the operand here.  */
       /* FIXME: This duplicates the capabilities of code in BFD.  */
       if (fixP->fx_done)
 	{
+	  CGEN_FIELDS *fields = xmalloc (CGEN_CPU_SIZEOF_FIELDS (cd));
+
 	  CGEN_CPU_SET_FIELDS_BITSIZE (cd) (fields, CGEN_INSN_BITSIZE (insn));
 	  CGEN_CPU_SET_VMA_OPERAND (cd) (cd, opindex, fields, (bfd_vma) value);
 
@@ -516,6 +518,8 @@ xstormy16_md_apply_fix (fixS *   fixP,
 #endif
 	  if (errmsg)
 	    as_bad_where (fixP->fx_file, fixP->fx_line, "%s", errmsg);
+
+	  free (fields);
 	}
 
       if (fixP->fx_done)
@@ -593,7 +597,7 @@ md_number_to_chars (char * buf, valueT val, int n)
   number_to_chars_littleendian (buf, val, n);
 }
 
-char *
+const char *
 md_atof (int type, char * litP, int * sizeP)
 {
   return ieee_md_atof (type, litP, sizeP, FALSE);

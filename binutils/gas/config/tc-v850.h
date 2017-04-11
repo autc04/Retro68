@@ -1,5 +1,5 @@
 /* tc-v850.h -- Header file for tc-v850.c.
-   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   Copyright (C) 1996-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -26,7 +26,7 @@
 
 /* The target BFD architecture.  */
 #define TARGET_ARCH 		v850_target_arch
-extern int v850_target_arch;
+extern enum bfd_architecture v850_target_arch;
 
 /* The target BFD format.  */
 #define TARGET_FORMAT 		v850_target_format
@@ -84,3 +84,6 @@ extern long v850_pcrel_from_section (struct fix *, asection *);
    processed so that the resulting value can be inserted correctly.  */
 #define TC_FIX_TYPE             void *
 #define TC_INIT_FIX_DATA(fixP)  (fixP)->tc_fix_data = NULL
+
+#define md_end v850_md_end
+extern void    v850_md_end (void);

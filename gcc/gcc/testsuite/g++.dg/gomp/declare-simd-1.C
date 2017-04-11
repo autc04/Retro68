@@ -1,5 +1,6 @@
 // Test parsing of #pragma omp declare simd
 // { dg-do compile }
+// { dg-options "-fopenmp -ffat-lto-objects" }
 
 #pragma omp declare simd uniform (a) aligned (b : 8 * sizeof (int)) \
 	    linear (c : 4) simdlen (8) notinbranch
@@ -12,6 +13,15 @@ int f2 (int a, int *b, int c)
 {
   return a + *b + c;
 }
+
+// { dg-final { scan-assembler-times "_ZGVbM8uva32l4__Z2f2iPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVbN8uva32l4__Z2f2iPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVcM8uva32l4__Z2f2iPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVcN8uva32l4__Z2f2iPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVdM8uva32l4__Z2f2iPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVdN8uva32l4__Z2f2iPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVeM8uva32l4__Z2f2iPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVeN8uva32l4__Z2f2iPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
 
 #pragma omp declare simd uniform (c) aligned (b : 4 * sizeof (int)) linear (a : 4) simdlen (4)
 template <typename T>
@@ -70,6 +80,15 @@ namespace N1
     }
   }
 }
+
+// { dg-final { scan-assembler-times "_ZGVbM2va16__ZN2N12N23f10EPx:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVbN2va16__ZN2N12N23f10EPx:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVcM2va16__ZN2N12N23f10EPx:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVcN2va16__ZN2N12N23f10EPx:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVdM2va16__ZN2N12N23f10EPx:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVdN2va16__ZN2N12N23f10EPx:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVeM2va16__ZN2N12N23f10EPx:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVeN2va16__ZN2N12N23f10EPx:" 1 { target { i?86-*-* x86_64-*-* } } } }
 
 struct A
 {
@@ -172,6 +191,15 @@ int B<int>::f25<7> (int a, int *b, int c)
   return a + *b + c;
 }
 
+// { dg-final { scan-assembler-times "_ZGVbM8vuva32u__ZN1BIiE3f25ILi7EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVbN8vuva32u__ZN1BIiE3f25ILi7EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVcM8vuva32u__ZN1BIiE3f25ILi7EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVcN8vuva32u__ZN1BIiE3f25ILi7EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVdM8vuva32u__ZN1BIiE3f25ILi7EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVdN8vuva32u__ZN1BIiE3f25ILi7EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVeM8vuva32u__ZN1BIiE3f25ILi7EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVeN8vuva32u__ZN1BIiE3f25ILi7EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+
 #pragma omp declare simd simdlen (4) aligned (b : 8 * sizeof (int)) linear (a, c : 2)
 template <>
 template <>
@@ -179,6 +207,15 @@ int B<int>::f26<-1> (int a, int *b, int c)
 {
   return a + *b + c;
 }
+
+// { dg-final { scan-assembler-times "_ZGVbM4vl2va32__ZN1BIiE3f26ILin1EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVbN4vl2va32__ZN1BIiE3f26ILin1EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVcM4vl2va32__ZN1BIiE3f26ILin1EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVcN4vl2va32__ZN1BIiE3f26ILin1EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVdM4vl2va32__ZN1BIiE3f26ILin1EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVdN4vl2va32__ZN1BIiE3f26ILin1EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVeM4vl2va32__ZN1BIiE3f26ILin1EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVeN4vl2va32__ZN1BIiE3f26ILin1EEEiiPii:" 1 { target { i?86-*-* x86_64-*-* } } } }
 
 int
 f27 (int x)
@@ -201,6 +238,15 @@ f30 (int x)
   extern int f31 (int a, int *b, int c);
   return x;
 }
+
+// { dg-final { scan-assembler-times "_ZGVbM16v__Z3f30i:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVbN16v__Z3f30i:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVcM16v__Z3f30i:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVcN16v__Z3f30i:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVdM16v__Z3f30i:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVdN16v__Z3f30i:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVeM16v__Z3f30i:" 1 { target { i?86-*-* x86_64-*-* } } } }
+// { dg-final { scan-assembler-times "_ZGVeN16v__Z3f30i:" 1 { target { i?86-*-* x86_64-*-* } } } }
 
 template <int N>
 struct C

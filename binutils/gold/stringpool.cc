@@ -1,6 +1,6 @@
 // stringpool.cc -- a string pool for gold
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -39,7 +39,9 @@ Stringpool_template<Stringpool_char>::Stringpool_template(uint64_t addralign)
     zero_null_(true), optimize_(false), offset_(sizeof(Stringpool_char)),
     addralign_(addralign)
 {
-  if (parameters->options_valid() && parameters->options().optimize() >= 2)
+  if (parameters->options_valid()
+      && parameters->options().optimize() >= 2
+      && addralign <= sizeof(Stringpool_char))
     this->optimize_ = true;
 }
 
@@ -226,9 +228,8 @@ Stringpool_template<Stringpool_char>::new_key_offset(size_t length)
   else
     {
       offset = this->offset_;
-      // Align non-zero length strings.
-      if (length != 0)
-	offset = align_address(offset, this->addralign_);
+      // Align strings.
+      offset = align_address(offset, this->addralign_);
       this->offset_ = offset + (length + 1) * sizeof(Stringpool_char);
     }
   this->key_to_offset_.push_back(offset);
@@ -419,6 +420,8 @@ Stringpool_template<Stringpool_char>::set_string_offsets()
           if (this->zero_null_ && (*curr)->first.string[0] == 0)
             this_offset = 0;
           else if (last != v.end()
+                   && ((((*curr)->first.length - (*last)->first.length)
+			% this->addralign_) == 0)
                    && is_suffix((*curr)->first.string,
 				(*curr)->first.length,
                                 (*last)->first.string,

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -44,6 +44,7 @@ generic
    with function "=" (Left, Right : Element_Type) return Boolean is <>;
 
 package Ada.Containers.Indefinite_Ordered_Multisets is
+   pragma Annotate (CodePeer, Skip_Analysis);
    pragma Preelaborate;
    pragma Remote_Types;
 
@@ -52,8 +53,9 @@ package Ada.Containers.Indefinite_Ordered_Multisets is
    --  otherwise, it returns True.
 
    type Set is tagged private
-   with Default_Iterator => Iterate,
-        Iterator_Element => Element_Type;
+   with Constant_Indexing => Constant_Reference,
+        Default_Iterator  => Iterate,
+        Iterator_Element  => Element_Type;
 
    pragma Preelaborable_Initialization (Set);
 
@@ -127,6 +129,15 @@ package Ada.Containers.Indefinite_Ordered_Multisets is
    --  Position as the parameter. This call locks the container, so attempts to
    --  change the value of the element while Process is executing (to "tamper
    --  with elements") will raise Program_Error.
+
+   type Constant_Reference_Type
+     (Element : not null access constant Element_Type) is private
+        with Implicit_Dereference => Element;
+
+   function Constant_Reference
+     (Container : aliased Set;
+      Position  : Cursor) return Constant_Reference_Type;
+   pragma Inline (Constant_Reference);
 
    procedure Assign (Target : in out Set; Source : Set);
 
@@ -462,12 +473,29 @@ private
    overriding procedure Finalize (Container : in out Set) renames Clear;
 
    use Red_Black_Trees;
-   use Tree_Types;
+   use Tree_Types, Tree_Types.Implementation;
    use Ada.Finalization;
    use Ada.Streams;
 
    type Set_Access is access all Set;
    for Set_Access'Storage_Size use 0;
+
+   --  In all predefined libraries the following type is controlled, for proper
+   --  management of tampering checks. For performance reason we omit this
+   --  machinery for multisets, which are used in a number of our tools.
+
+   type Reference_Control_Type is record
+      Container : Set_Access;
+   end record;
+
+   type Constant_Reference_Type
+     (Element : not null access constant Element_Type) is record
+      Control : Reference_Control_Type :=
+        raise Program_Error with "uninitialized reference";
+      --  The RM says, "The default initialization of an object of
+      --  type Constant_Reference_Type or Reference_Type propagates
+      --  Program_Error."
+   end record;
 
    type Cursor is record
       Container : Set_Access;
@@ -500,20 +528,27 @@ private
 
    for Set'Read use Read;
 
-   Empty_Set : constant Set :=
-                 (Controlled with Tree => (First  => null,
-                                           Last   => null,
-                                           Root   => null,
-                                           Length => 0,
-                                           Busy   => 0,
-                                           Lock   => 0));
+   procedure Read
+     (Stream : not null access Root_Stream_Type'Class;
+      Item   : out Constant_Reference_Type);
+
+   for Constant_Reference_Type'Read use Read;
+
+   procedure Write
+     (Stream : not null access Root_Stream_Type'Class;
+      Item   : Constant_Reference_Type);
+
+   for Constant_Reference_Type'Write use Write;
+
+   Empty_Set : constant Set := (Controlled with others => <>);
 
    type Iterator is new Limited_Controlled and
      Set_Iterator_Interfaces.Reversible_Iterator with
    record
       Container : Set_Access;
       Node      : Node_Access;
-   end record;
+   end record
+     with Disable_Controlled => not T_Check;
 
    overriding procedure Finalize (Object : in out Iterator);
 

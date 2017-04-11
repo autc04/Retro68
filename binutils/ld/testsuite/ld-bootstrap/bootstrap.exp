@@ -1,5 +1,5 @@
 # Expect script for LD Bootstrap Tests
-#   Copyright (C) 1993-2014 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -118,6 +118,13 @@ foreach flags $test_flags {
 	if {"$flags" == "--static"} {
 	    set extralibs "-liconv"
 	}
+    }
+
+    # Check if the system's zlib library is used.
+    if {[file exists ../zlib/Makefile ]} then {
+	set extralibs "$extralibs -L../zlib -lz"
+    } else {
+	set extralibs "$extralibs -lz"
     }
 
     # Plugin support requires linking with libdl.

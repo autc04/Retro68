@@ -7,14 +7,14 @@ MEMORY
 
 PHDRS
 {
-  default_phdr PT_LOAD;
-  text_phdr PT_LOAD;
+  headers PT_PHDR PHDRS;
+  text_phdr PT_LOAD PHDRS;
   data_phdr PT_LOAD;
 }
 
 SECTIONS
 {
-   .text : { *(.text) } > text_mem : text_phdr
+   .text : { *(.text) } > text_mem : text_phdr :headers
    .data : { *(.data) } > data_mem : data_phdr
    .bss : { *(.bss) } > data_mem : data_phdr
    /DISCARD/ : { *(.reginfo) *(.glue*) }

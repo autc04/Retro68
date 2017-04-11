@@ -1,6 +1,6 @@
 /* yyscript.y -- linker script grammar for gold.  */
 
-/* Copyright (C) 2006-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2006-2017 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <iant@google.com>.
 
    This file is part of gold.
@@ -137,6 +137,7 @@
 %token FORCE_COMMON_ALLOCATION
 %token GLOBAL		/* global */
 %token GROUP
+%token HIDDEN
 %token HLL
 %token INCLUDE
 %token INHIBIT_COMMON_ALLOCATION
@@ -175,6 +176,7 @@
 %token SIZEOF
 %token SIZEOF_HEADERS	/* SIZEOF_HEADERS, sizeof_headers */
 %token SORT_BY_ALIGNMENT
+%token SORT_BY_INIT_PRIORITY
 %token SORT_BY_NAME
 %token SPECIAL
 %token SQUAD
@@ -201,6 +203,9 @@
 %token PARSING_VERSION_SCRIPT
 %token PARSING_DEFSYM
 %token PARSING_DYNAMIC_LIST
+%token PARSING_SECTIONS_BLOCK
+%token PARSING_SECTION_COMMANDS
+%token PARSING_MEMORY_DEF
 
 /* Non-terminal types, where needed.  */
 
@@ -232,6 +237,9 @@ top:
 	| PARSING_VERSION_SCRIPT version_script
 	| PARSING_DEFSYM defsym_expr
         | PARSING_DYNAMIC_LIST dynamic_list_expr
+        | PARSING_SECTIONS_BLOCK sections_block
+        | PARSING_SECTION_COMMANDS section_cmds
+        | PARSING_MEMORY_DEF memory_defs
 	;
 
 /* A file contains a list of commands.  */
@@ -281,7 +289,14 @@ file_cmd:
             { script_push_lex_into_version_mode(closure); }
           version_script '}'
             { script_pop_lex_mode(closure); }
-	| file_or_sections_cmd
+	| ENTRY '(' string ')'
+	    { script_set_entry(closure, $3.value, $3.length); }
+	| assignment end
+	| ASSERT_K '(' parse_exp ',' string ')'
+	    { script_add_assertion(closure, $3, $5.value, $5.length); }
+	| INCLUDE string
+	    { script_include_directive(PARSING_LINKER_SCRIPT, closure,
+				       $2.value, $2.length); }
 	| ignore_cmd
 	| ';'
 	;
@@ -339,7 +354,14 @@ sections_block:
 
 /* A command which may appear within a SECTIONS block.  */
 section_block_cmd:
-	  file_or_sections_cmd
+	  ENTRY '(' string ')'
+	    { script_set_entry(closure, $3.value, $3.length); }
+	| assignment end
+	| ASSERT_K '(' parse_exp ',' string ')'
+	    { script_add_assertion(closure, $3, $5.value, $5.length); }
+	| INCLUDE string
+	    { script_include_directive(PARSING_SECTIONS_BLOCK, closure,
+				       $2.value, $2.length); }
 	| string section_header
 	    { script_start_output_section(closure, $1.value, $1.length, &$2); }
 	  '{' section_cmds '}' section_trailer
@@ -529,7 +551,8 @@ section_cmd:
 	    }
 	| SORT_BY_NAME '(' CONSTRUCTORS ')'
 	| INCLUDE string
-	    { script_include_directive(closure, $2.value, $2.length); }
+	    { script_include_directive(PARSING_SECTION_COMMANDS, closure,
+				       $2.value, $2.length); }
 	| ';'
 	;
 
@@ -656,6 +679,11 @@ wildcard_section:
 		  abort();
 		}
 	    }
+	| SORT_BY_INIT_PRIORITY '(' wildcard_name ')'
+	    {
+	      $$.name = $3;
+	      $$.sort = SORT_WILDCARD_BY_INIT_PRIORITY;
+	    }
 	;
 
 /* A list of file names to exclude.  */
@@ -683,18 +711,6 @@ wildcard_name:
 	    }
 	;
 
-/* A command which may appear at the top level of a linker script, or
-   within a SECTIONS block.  */
-file_or_sections_cmd:
-	  ENTRY '(' string ')'
-	    { script_set_entry(closure, $3.value, $3.length); }
-	| assignment end
-	| ASSERT_K '(' parse_exp ',' string ')'
-	    { script_add_assertion(closure, $3, $5.value, $5.length); }
-	| INCLUDE string
-	    { script_include_directive(closure, $2.value, $2.length); }
-	;
-
 /* A list of MEMORY definitions.  */
 memory_defs:
 	  memory_defs opt_comma memory_def
@@ -706,9 +722,9 @@ memory_def:
 	  string memory_attr ':' memory_origin '=' parse_exp opt_comma memory_length '=' parse_exp
 	  { script_add_memory(closure, $1.value, $1.length, $2, $6, $10); }
 	|
-	  /* LD supports an INCLUDE directive here, currently GOLD does not.  */
 	  INCLUDE string
-	  { script_include_directive(closure, $2.value, $2.length); }
+	  { script_include_directive(PARSING_MEMORY_DEF, closure,
+				     $2.value, $2.length); }
 	|
 	;
 
@@ -849,6 +865,8 @@ assignment:
 	      Expression_ptr e = script_exp_binary_bitwise_or(s, $3);
 	      script_set_symbol(closure, $1.value, $1.length, e, 0, 0);
 	    }
+	| HIDDEN '(' string '=' parse_exp ')'
+	    { script_set_symbol(closure, $3.value, $3.length, $5, 0, 1); }
 	| PROVIDE '(' string '=' parse_exp ')'
 	    { script_set_symbol(closure, $3.value, $3.length, $5, 1, 0); }
 	| PROVIDE_HIDDEN '(' string '=' parse_exp ')'

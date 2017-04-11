@@ -1,5 +1,5 @@
 # Expect script for common symbol tests
-#   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2003-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -144,7 +144,7 @@ proc stt_common_test { options testname } {
     global READELF
     global ld
 
-    set options "$options tmpdir/common1a.o"
+    set options "$options tmpdir/common1c.o"
 
     if { ! [ld_simple_link $ld tmpdir/common.exe $options] } {
       unresolved $testname
@@ -154,29 +154,12 @@ proc stt_common_test { options testname } {
     send_log "$READELF --syms tmpdir/common.exe | grep foo\n"
     set exec_output [run_host_cmd "$READELF" "--syms tmpdir/common.exe | grep foo"]
 
-    if {![regexp "(\[ 	\]*)(\[0-9\]+):(\[ 	\]*)(\[0-9\]+)(\[ 	\]+)(\[0-9\]+)(\[ 	\]+)COMMON(\[ 	\]+)GLOBAL(\[ 	\]+)DEFAULT(\[ 	\]+)(\[0-9\]+)(\[ 	\]+)_?foo2" $exec_output] } {
+    if {![regexp { +[0-9a-f]+. +[0-9a-f]+ OBJECT + GLOBAL +DEFAULT +[0-9]+ _?foo2} $exec_output] } {
 	fail $testname
 	return 0
     }
 
     pass $testname
-    return 1
-}
-
-# Check to see if the assembler is generating symbols with the STT_COMMON type.
-proc assembler_generates_commons {} {
-    global exec_output
-    global READELF
-
-    verbose "Check to see if STT_COMMON symbols are being generated:"
-    set exec_output [run_host_cmd "$READELF" "--syms tmpdir/common1a.o | grep foo"]
-
-    if { ![regexp "(\[ 	\]*)(\[0-9\]+):(\[ 	\]*)(\[0\]*)80(\[ 	\]+).(\[ 	\]+)COMMON(\[ 	\]+)GLOBAL(\[ 	\]+)DEFAULT(\[ 	\]+)(PRC\\\[0xff03\\\]|COM|SCOM)(\[ 	\]+)_?foo2" $exec_output] } {
-	verbose "STT_COMMON not generated"
-	return 0
-    }
-
-    verbose "STT_COMMON's are generated"
     return 1
 }
 
@@ -187,7 +170,9 @@ if [istarget nios2*-*-*] {
 # Explicitly use "-fcommon" so that even if $CFLAGS includes
 # "-fno-common", these tests are compiled as expected.
 if {   ![ld_compile "$CC $CFLAGS -fcommon" $srcdir/$subdir/common1a.c tmpdir/common1a.o]
-    || ![ld_compile "$CC $CFLAGS -fcommon" $srcdir/$subdir/common1b.c tmpdir/common1b.o] } {
+    || ![ld_compile "$CC $CFLAGS -fcommon" $srcdir/$subdir/common1b.c tmpdir/common1b.o]
+    || ![ld_compile "$CC $CFLAGS -Wa,--elf-stt-common=yes -fcommon" $srcdir/$subdir/common1b.c tmpdir/common1c.o] } {
+    unresolved $test1
     unresolved $test1
     return
 }
@@ -261,8 +246,11 @@ if { [dump_common1 $test1c2] } {
 #
 # The following tests are for when we are generating STT_COMMON symbols only.
 #
+# Handling of -z common and -z nocommon flags is enabled only if
+# $GENERATE_SHLIB_SCRIPT is turned on in emulparams i.e. shared
+# libraries are supported.
 
-if { ![assembler_generates_commons] } {
+if ![check_shared_lib_support]  {
     return
 }
 
@@ -270,3 +258,52 @@ stt_common_test "-static -e 0" "static link of common symbols"
 stt_common_test "-shared"      "shared link of common symbols"
 stt_common_test "-pie"         "position independent link of common symbols"
 
+run_ld_link_tests [list \
+  [list \
+    "Build common-3x.o" \
+     "-r" "" "--elf-stt-common=no" \
+     {common-1.s} {} "common-3x.o" \
+  ] \
+  [list \
+    "Build common-3y.o" \
+     "-r" "" "--elf-stt-common=yes" \
+     {common-1.s} {} "common-3y.o" \
+  ] \
+  [list \
+    "Build common-3a.o" \
+    "-r tmpdir/common-3x.o tmpdir/common-3y.o" "" "" \
+    {dummy.s} {{readelf {-s -W} common-3a.rd}} "common-3a.o" \
+  ] \
+  [list \
+    "Build common-3b.o" \
+    "-r tmpdir/common-3y.o tmpdir/common-3x.o" "" "" \
+    {dummy.s} {{readelf {-s -W} common-3b.rd}} "common-3b.o" \
+  ] \
+  [list \
+    "Build common-3c.o" \
+    "-r -z nocommon tmpdir/common-3x.o tmpdir/common-3y.o" "" "" \
+    {dummy.s} {{readelf {-s -W} common-3a.rd}} "common-3c.o" \
+  ] \
+  [list \
+    "Build common-3d.o" \
+    "-r -z common tmpdir/common-3x.o tmpdir/common-3y.o" "" "" \
+    {dummy.s} {{readelf {-s -W} common-3b.rd}} "common-3b.o" \
+  ] \
+  [list \
+    "Build common-3e.o" \
+    "-r -z common tmpdir/common-3y.o tmpdir/common-3x.o" "" "" \
+    {dummy.s} {{readelf {-s -W} common-3b.rd}} "common-3e.o" \
+  ] \
+  [list \
+    "Build common-3f.o" \
+    "-r -z nocommon tmpdir/common-3y.o tmpdir/common-3x.o" "" "" \
+    {dummy.s} {{readelf {-s -W} common-3a.rd}} "common-3f.o" \
+  ] \
+]
+
+set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+foreach t $test_list {
+    # We need to strip the ".d", but can leave the dirname.
+    verbose [file rootname $t]
+    run_dump_test [file rootname $t]
+}

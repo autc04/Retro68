@@ -38,7 +38,7 @@ hide_new_foo ()
   return 1000 + bar ();
 }
 
-SYMVER(hide_original_foo, show_foo@);
-SYMVER(hide_old_foo, show_foo@VERS_1.1);
-SYMVER(hide_old_foo1, show_foo@VERS_1.2);
-SYMVER(hide_new_foo, show_foo@@VERS_2.0);
+FUNC_SYMVER(hide_original_foo, show_foo@);
+FUNC_SYMVER(hide_old_foo, show_foo@VERS_1.1);
+FUNC_SYMVER(hide_old_foo1, show_foo@VERS_1.2);
+FUNC_SYMVER(hide_new_foo, show_foo@@VERS_2.0);

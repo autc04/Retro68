@@ -1,5 +1,5 @@
 /* tc-iq2000.c -- Assembler for the Sitera IQ2000.
-   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+   Copyright (C) 2003-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -27,7 +27,6 @@
 #include "cgen.h"
 #include "elf/common.h"
 #include "elf/iq2000.h"
-#include "libbfd.h"
 #include "sb.h"
 #include "macro.h"
 
@@ -118,7 +117,7 @@ size_t md_longopts_size = sizeof (md_longopts);
 
 int
 md_parse_option (int c ATTRIBUTE_UNUSED,
-		 char * arg ATTRIBUTE_UNUSED)
+		 const char * arg ATTRIBUTE_UNUSED)
 {
   return 0;
 }
@@ -233,7 +232,7 @@ iq2000_add_macro (const char *  name,
   sb macro_name;
   const char *namestr;
 
-  macro = xmalloc (sizeof (macro_entry));
+  macro = XNEW (macro_entry);
   sb_new (& macro->sub);
   sb_new (& macro_name);
 
@@ -253,7 +252,7 @@ iq2000_add_macro (const char *  name,
 	{
 	  formal_entry *formal;
 
-	  formal = xmalloc (sizeof (formal_entry));
+	  formal = XNEW (formal_entry);
 
 	  sb_new (& formal->name);
 	  sb_new (& formal->def);
@@ -432,7 +431,7 @@ valueT
 md_section_align (segT segment, valueT size)
 {
   int align = bfd_get_section_alignment (stdoutput, segment);
-  return ((size + (1 << align) - 1) & (-1 << align));
+  return ((size + (1 << align) - 1) & -(1 << align));
 }
 
 symbolS *
@@ -535,7 +534,7 @@ iq2000_record_hi16 (int    reloc_type,
 
   gas_assert (reloc_type == BFD_RELOC_HI16);
 
-  hi_fixup = xmalloc (sizeof * hi_fixup);
+  hi_fixup = XNEW (struct iq2000_hi_fixup);
   hi_fixup->fixp = fixP;
   hi_fixup->seg  = now_seg;
   hi_fixup->next = iq2000_hi_fixup_list;
@@ -724,7 +723,7 @@ md_operand (expressionS * exp)
     gas_cgen_md_operand (exp);
 }
 
-char *
+const char *
 md_atof (int type, char * litP, int * sizeP)
 {
   return ieee_md_atof (type, litP, sizeP, TRUE);
@@ -796,10 +795,9 @@ get_symbol (void)
   char *name;
   symbolS *p;
 
-  name = input_line_pointer;
-  c = get_symbol_end ();
+  c = get_symbol_name (&name);
   p = (symbolS *) symbol_find_or_make (name);
-  *input_line_pointer = c;
+  (void) restore_line_pointer (c);
   return p;
 }
 

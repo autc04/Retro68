@@ -42,8 +42,8 @@ SYMBOL TABLE:
 0+820c0 l    d  \.tdata	0+ \.tdata
 0+820d0 l    d  \.tbss	0+ \.tbss
 0+820d0 l    d  \.got	0+ \.got
+0+ l       \.tdata	0+4 x
 0+820d0 l     O \.got	0+ _GLOBAL_OFFSET_TABLE_
-0+ g       \.tdata	0+4 \.hidden x
 0+800a0 g     F \.text	0+6 tlsdsofn2
 0+800a8 g     F \.text	0+6 tlsfn12
 0+c g       \.tdata	0+4 \.hidden x2

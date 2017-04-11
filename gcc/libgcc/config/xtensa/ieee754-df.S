@@ -1,5 +1,5 @@
 /* IEEE-754 double-precision functions for Xtensa
-   Copyright (C) 2006-2015 Free Software Foundation, Inc.
+   Copyright (C) 2006-2016 Free Software Foundation, Inc.
    Contributed by Bob Wilson (bwilson@tensilica.com) at Tensilica.
 
    This file is part of GCC.
@@ -606,6 +606,7 @@ __subdf3:
 #define XCHAL_NO_MUL 1
 #endif
 
+	.literal_position
 __muldf3_aux:
 
 	/* Handle unusual cases (zeros, subnormals, NaNs and Infinities).
@@ -1216,6 +1217,7 @@ __muldf3:
 
 #ifdef L_divdf3
 
+	.literal_position
 	/* Division */
 __divdf3_aux:
 

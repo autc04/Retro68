@@ -1,8 +1,8 @@
-// { dg-require-namedlocale "en_GB" }
+// { dg-require-namedlocale "en_GB.ISO8859-1" }
 
 // 2010-01-06  Paolo Carlini  <paolo.carlini@oracle.com>
 
-// Copyright (C) 2010-2015 Free Software Foundation, Inc.
+// Copyright (C) 2010-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,7 +33,7 @@ void test01()
 
   typedef istreambuf_iterator<wchar_t> iterator_type;
 
-  locale loc_en = locale("en_GB");
+  locale loc_en = locale(ISO_8859(1,en_GB));
   
   tm tm0 = __gnu_test::test_tm(0, 0, 0, 0, 0, 0, 0, 0, 0);
 

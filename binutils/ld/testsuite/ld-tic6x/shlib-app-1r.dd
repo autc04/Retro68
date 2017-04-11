@@ -4,7 +4,7 @@ tmpdir/shlib-dynapp-1r:     file format elf32-tic6x-le
 
 Disassembly of section \.plt:
 
-10000020 <sub0@plt-0x18>:
+10000020 <.plt>:
 10000020:[ \t]*0100036e[ \t]*ldw \.D2T2 \*\+b14\(12\),b2
 10000024:[ \t]*0080046e[ \t]*ldw \.D2T2 \*\+b14\(16\),b1
 10000028:[ \t]*00004000[ \t]*nop 3

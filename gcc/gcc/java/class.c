@@ -1,5 +1,5 @@
 /* Functions related to building classes and their related objects.
-   Copyright (C) 1996-2015 Free Software Foundation, Inc.
+   Copyright (C) 1996-2016 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -26,41 +26,20 @@ The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "hash-set.h"
-#include "machmode.h"
-#include "vec.h"
-#include "double-int.h"
-#include "input.h"
-#include "alias.h"
-#include "symtab.h"
-#include "options.h"
-#include "wide-int.h"
-#include "inchash.h"
+#include "target.h"
+#include "function.h"
 #include "tree.h"
-#include "fold-const.h"
 #include "stringpool.h"
+#include "diagnostic-core.h"
+#include "fold-const.h"
 #include "stor-layout.h"
 #include "varasm.h"
-#include "flags.h"
 #include "java-tree.h"
 #include "jcf.h"
-#include "obstack.h"
-#include "diagnostic-core.h"
 #include "toplev.h"
 #include "output.h" /* for switch_to_section and get_section */
 #include "parse.h"
-#include "tm.h"
-#include "hard-reg-set.h"
-#include "input.h"
-#include "function.h"
-#include "ggc.h"
-#include "hash-map.h"
-#include "is-a.h"
-#include "plugin-api.h"
-#include "ipa-ref.h"
-#include "cgraph.h"
 #include "tree-iterator.h"
-#include "target.h"
 
 static tree make_method_value (tree);
 static tree build_java_method_type (tree, tree, int);
@@ -122,10 +101,6 @@ static GTY(()) vec<tree, va_gc> *registered_class;
 /* A tree that returns the address of the class$ of the class
    currently being compiled.  */
 static GTY(()) tree this_classdollar;
-
-/* A list of static class fields.  This is to emit proper debug
-   info for them.  */
-vec<tree, va_gc> *pending_static_fields;
 
 /* Return the node that most closely represents the class whose name
    is IDENT.  Start the search from NODE (followed by its siblings).
@@ -797,13 +772,8 @@ add_method_1 (tree this_class, int access_flags, tree name, tree function_type)
   DECL_CHAIN (fndecl) = TYPE_METHODS (this_class);
   TYPE_METHODS (this_class) = fndecl;
 
-  /* If pointers to member functions use the least significant bit to
-     indicate whether a function is virtual, ensure a pointer
-     to this function will have that bit clear.  */
-  if (TARGET_PTRMEMFUNC_VBIT_LOCATION == ptrmemfunc_vbit_in_pfn
-      && !(access_flags & ACC_STATIC)
-      && DECL_ALIGN (fndecl) < 2 * BITS_PER_UNIT)
-    DECL_ALIGN (fndecl) = 2 * BITS_PER_UNIT;
+  if (!(access_flags & ACC_STATIC))
+    DECL_ALIGN (fndecl) = MINIMUM_METHOD_BOUNDARY;
 
   /* Notice that this is a finalizer and update the class type
      accordingly. This is used to optimize instance allocation. */
@@ -895,8 +865,6 @@ add_field (tree klass, tree name, tree field_type, int flags)
       /* Considered external unless we are compiling it into this
 	 object file.  */
       DECL_EXTERNAL (field) = (is_compiled_class (klass) != 2);
-      if (!DECL_EXTERNAL (field))
-	vec_safe_push (pending_static_fields, field);
     }
 
   return field;
@@ -1065,7 +1033,7 @@ build_static_class_ref (tree type)
       DECL_CONTEXT (decl) = type;
 
       /* ??? We want to preserve the DECL_CONTEXT we set just above,
-	 that that means not calling pushdecl_top_level.  */
+	 that means not calling pushdecl_top_level.  */
       IDENTIFIER_GLOBAL_VALUE (decl_name) = decl;
     }
 
@@ -2397,6 +2365,7 @@ push_super_field (tree this_class, tree super_class)
   base_decl = build_decl (input_location,
 			  FIELD_DECL, NULL_TREE, super_class);
   DECL_IGNORED_P (base_decl) = 1;
+  DECL_CONTEXT (base_decl) = this_class;
   DECL_CHAIN (base_decl) = TYPE_FIELDS (this_class);
   TYPE_FIELDS (this_class) = base_decl;
   DECL_SIZE (base_decl) = TYPE_SIZE (super_class);
@@ -3271,19 +3240,6 @@ in_same_package (tree name1, tree name2)
   split_qualified_name (&pkg2, &tmp, name2);
 
   return (pkg1 == pkg2);
-}
-
-/* lang_hooks.decls.final_write_globals: perform final processing on
-   global variables.  */
-
-void
-java_write_globals (void)
-{
-  tree *vec = vec_safe_address (pending_static_fields);
-  int len = vec_safe_length (pending_static_fields);
-  write_global_declarations ();
-  emit_debug_global_declarations (vec, len);
-  vec_free (pending_static_fields);
 }
 
 #include "gt-java-class.h"

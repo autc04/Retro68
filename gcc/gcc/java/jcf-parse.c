@@ -1,5 +1,5 @@
 /* Parser for Java(TM) .class files.
-   Copyright (C) 1996-2015 Free Software Foundation, Inc.
+   Copyright (C) 1996-2016 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -26,40 +26,17 @@ The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "hash-set.h"
-#include "machmode.h"
-#include "vec.h"
-#include "double-int.h"
-#include "input.h"
-#include "alias.h"
-#include "symtab.h"
-#include "options.h"
-#include "real.h"
-#include "wide-int.h"
-#include "inchash.h"
+#include "target.h"
+#include "function.h"
+#include "bitmap.h"
 #include "tree.h"
 #include "stringpool.h"
-#include "obstack.h"
-#include "flags.h"
-#include "java-except.h"
-#include "input.h"
+#include "cgraph.h"
+#include "diagnostic-core.h"
 #include "javaop.h"
 #include "java-tree.h"
-#include "diagnostic-core.h"
-#include "parse.h"
-#include "ggc.h"
 #include "debug.h"
-#include "hash-map.h"
-#include "is-a.h"
-#include "plugin-api.h"
-#include "tm.h"
-#include "hard-reg-set.h"
-#include "function.h"
-#include "ipa-ref.h"
-#include "cgraph.h"
-#include "bitmap.h"
-#include "target.h"
-#include "wide-int.h"
+#include "toplev.h"
 
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
@@ -374,7 +351,7 @@ set_source_filename (JCF *jcf, int index)
     }
       
   sfname = find_sourcefile (sfname);
-  ORDINARY_MAP_FILE_NAME (LINEMAPS_LAST_ORDINARY_MAP (line_table)) = sfname;
+  LINEMAPS_LAST_ORDINARY_MAP (line_table)->to_file = sfname;
   if (current_class == main_class) main_input_filename = sfname;
 }
 
@@ -1076,7 +1053,7 @@ get_constant (JCF *jcf, int index)
 	long buf = num;
 	REAL_VALUE_TYPE d;
 
-	real_from_target_fmt (&d, &buf, &ieee_single_format);
+	real_from_target (&d, &buf, &ieee_single_format);
 	value = build_real (float_type_node, d);
 	break;
       }
@@ -1094,7 +1071,7 @@ get_constant (JCF *jcf, int index)
 	else
 	  buf[0] = lo, buf[1] = hi;
 
-	real_from_target_fmt (&d, buf, &ieee_double_format);
+	real_from_target (&d, buf, &ieee_double_format);
 	value = build_real (double_type_node, d);
 	break;
       }
@@ -2001,6 +1978,9 @@ java_parse_file (void)
   /* Arrange for any necessary initialization to happen.  */
   java_emit_static_constructor ();
   gcc_assert (global_bindings_p ());
+
+  /* Do final processing on globals.  */
+  global_decl_processing ();
 }
 
 

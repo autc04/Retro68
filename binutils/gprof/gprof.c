@@ -259,11 +259,13 @@ main (int argc, char **argv)
 	  break;
 	case 'E':
 	  sym_id_add (optarg, EXCL_TIME);
+	  /* Fall through.  */
 	case 'e':
 	  sym_id_add (optarg, EXCL_GRAPH);
 	  break;
 	case 'F':
 	  sym_id_add (optarg, INCL_TIME);
+	  /* Fall through.  */
 	case 'f':
 	  sym_id_add (optarg, INCL_GRAPH);
 	  break;
@@ -612,7 +614,7 @@ This program is free software.  This program has absolutely no warranty.\n"));
   if (output_style & STYLE_FLAT_PROFILE)
     {
       /* Print the flat profile.  */
-      hist_print ();		
+      hist_print ();
     }
 
   if (cg && (output_style & STYLE_CALL_GRAPH))
@@ -620,20 +622,20 @@ This program is free software.  This program has absolutely no warranty.\n"));
       if (!bsd_style_output)
 	{
 	  /* Print the dynamic profile.  */
-	  cg_print (cg);	
+	  cg_print (cg);
 	}
       cg_print_index ();
     }
 
   if (output_style & STYLE_EXEC_COUNTS)
     print_exec_counts ();
-  
+
   if (output_style & STYLE_ANNOTATED_SOURCE)
     print_annotated_source ();
-  
+
   if (output_style & STYLE_FUNCTION_ORDER)
     cg_print_function_ordering ();
-  
+
   if (output_style & STYLE_FILE_ORDER)
     cg_print_file_ordering ();
 

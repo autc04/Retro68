@@ -1,4 +1,4 @@
-@c Copyright (C) 1992-2014 Free Software Foundation, Inc.
+@c Copyright (C) 1992-2017 Free Software Foundation, Inc.
 @c This file is part of the documentation for the GAS manual
 
 @c Configuration settings for all-inclusive version of manual
@@ -63,6 +63,7 @@
 @set PJ
 @set PPC
 @set RL78
+@set RISCV
 @set RX
 @set S390
 @set SCORE
@@ -74,6 +75,7 @@
 @set TILEPRO
 @set V850
 @set VAX
+@set VISIUM
 @set XGATE
 @set XSTORMY16
 @set XTENSA

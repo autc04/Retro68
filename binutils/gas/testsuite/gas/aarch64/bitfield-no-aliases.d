@@ -5,7 +5,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	13001cff 	sbfm	wzr, w7, #0, #7
    4:	93401cff 	sbfm	xzr, x7, #0, #7
    8:	13003cff 	sbfm	wzr, w7, #0, #15

@@ -4,9 +4,9 @@ There are 9 section headers, starting at offset .*:
  +\[ 4\] \.MMIX\.spec_data\.2 +PROGBITS +0+ +0+44
  +0+4 +0+ +0 +0 +4
  +\[ 5\] \.rela\.MMIX\.spec_d +RELA +0+ +.*
- +0+18 +0+18 +I +7 +4 +8
+ +0+18 +0+18 +I +6 +4 +8
 #...
-Relocation section '\.rela\.MMIX\.spec_data\.2' at offset 0x... contains 1 entries:
+Relocation section '\.rela\.MMIX\.spec_data\.2' at offset 0x[0-9a-f]+ contains 1 entries:
 .*
 0+ +0+500000004 R_MMIX_32 +0+ +forw +\+ 0
 

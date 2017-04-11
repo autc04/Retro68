@@ -1,5 +1,5 @@
 /* BFD back-end for linux flavored m68k a.out binaries.
-   Copyright (C) 1992-2014 Free Software Foundation, Inc.
+   Copyright (C) 1992-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -69,11 +69,11 @@ m68klinux_write_object_contents (bfd *abfd)
   struct external_exec exec_bytes;
   struct internal_exec *execp = exec_hdr (abfd);
 
-  N_SET_MACHTYPE (*execp, M_68020);
+  N_SET_MACHTYPE (execp, M_68020);
 
   obj_reloc_entry_size (abfd) = RELOC_STD_SIZE;
 
-  WRITE_HEADERS(abfd, execp);
+  WRITE_HEADERS (abfd, execp);
 
   return TRUE;
 }
@@ -320,7 +320,7 @@ linux_add_one_symbol (struct bfd_link_info *info,
 
   insert = FALSE;
 
-  if (! info->relocatable
+  if (! bfd_link_relocatable (info)
       && linux_hash_table (info)->dynobj == NULL
       && strcmp (name, SHARABLE_CONFLICTS) == 0
       && (flags & BSF_CONSTRUCTOR) != 0
@@ -416,14 +416,15 @@ linux_tally_symbols (struct linux_link_hash_entry *h,
 	alloc = (char *) bfd_malloc ((bfd_size_type) strlen (name) + 1);
 
       if (p == NULL || alloc == NULL)
-	(*_bfd_error_handler) (_("Output file requires shared library `%s'\n"),
-			       name);
+	_bfd_error_handler (_("Output file requires shared library `%s'\n"),
+			    name);
       else
 	{
 	  strcpy (alloc, name);
 	  p = strrchr (alloc, '_');
 	  *p++ = '\0';
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
+	    /* xgettext:c-format */
 	    (_("Output file requires shared library `%s.so.%s'\n"),
 	     alloc, p);
 	  free (alloc);
@@ -612,7 +613,7 @@ linux_finish_dynamic_link (bfd *output_bfd, struct bfd_link_info *info)
       if (f->h->root.root.type != bfd_link_hash_defined
 	  && f->h->root.root.type != bfd_link_hash_defweak)
 	{
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
 	    (_("Symbol %s not defined for fixups\n"),
 	     f->h->root.root.root.string);
 	  continue;
@@ -660,7 +661,7 @@ linux_finish_dynamic_link (bfd *output_bfd, struct bfd_link_info *info)
 	  if (f->h->root.root.type != bfd_link_hash_defined
 	      && f->h->root.root.type != bfd_link_hash_defweak)
 	    {
-	      (*_bfd_error_handler)
+	      _bfd_error_handler
 		(_("Symbol %s not defined for fixups\n"),
 		 f->h->root.root.root.string);
 	      continue;
@@ -685,7 +686,7 @@ linux_finish_dynamic_link (bfd *output_bfd, struct bfd_link_info *info)
 
   if (linux_hash_table (info)->fixup_count != fixups_written)
     {
-      (*_bfd_error_handler) (_("Warning: fixup count mismatch\n"));
+      _bfd_error_handler (_("Warning: fixup count mismatch\n"));
       while (linux_hash_table (info)->fixup_count > fixups_written)
 	{
 	  bfd_put_32 (output_bfd, (bfd_vma) 0, fixup_table);

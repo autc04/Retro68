@@ -1,4 +1,4 @@
-# Copyright (C) 2002-2015 Free Software Foundation, Inc.
+# Copyright (C) 2002-2016 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -170,7 +170,8 @@ proc compat-get-options-main { src } {
 	if { ![string compare "dg-options" $cmd] \
 	     || [string match "dg-prune-output" $cmd] \
 	     || [string match "dg-skip-if" $cmd] \
-	     || [string match "dg-require-*" $cmd]  } {
+	     || [string match "dg-require-*" $cmd] \
+	     || [string match "dg-timeout-factor" $cmd]  } {
 	    set status [catch "$op" errmsg]
 	    if { $status != 0 } {
 		perror "src: $errmsg for \"$op\"\n"
@@ -215,7 +216,8 @@ proc compat-get-options { src } {
 	set cmd [lindex $op 0]
 	if { ![string compare "dg-options" $cmd] \
 	     || ![string compare "dg-prune-output" $cmd] \
-	     || ![string compare "dg-xfail-if" $cmd] } {
+	     || ![string compare "dg-xfail-if" $cmd] \
+	     || ![string compare "dg-timeout-factor" $cmd] } {
 	    set status [catch "$op" errmsg]
 	    if { $status != 0 } {
 		perror "src: $errmsg for \"$op\"\n"

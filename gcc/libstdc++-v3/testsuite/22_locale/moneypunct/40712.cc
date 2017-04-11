@@ -1,8 +1,8 @@
-// { dg-require-namedlocale "en_US" }
+// { dg-require-namedlocale "en_US.ISO8859-1" }
 
 // 2009-07-18  Paolo Carlini  <paolo.carlini@oracle.com>
 
-// Copyright (C) 2009-2015 Free Software Foundation, Inc.
+// Copyright (C) 2009-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -22,6 +22,7 @@
 // 22.2.6.3  Template class moneypunct
 
 #include <locale>
+#include <testsuite_hooks.h>
 
 // libstdc++/40712
 void test01()
@@ -29,7 +30,7 @@ void test01()
   bool test __attribute__((unused)) = true;
   using namespace std;
 
-  locale loc(locale("C"), "en_US", locale::monetary);
+  locale loc(locale("C"), ISO_8859(1,en_US), locale::monetary);
   
   use_facet<moneypunct<char> >(loc).grouping();
 }

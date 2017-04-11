@@ -1,5 +1,5 @@
 /* Process expressions for the GNU compiler for the Java(TM) language.
-   Copyright (C) 1996-2015 Free Software Foundation, Inc.
+   Copyright (C) 1996-2016 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -26,37 +26,17 @@ The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "tm.h"			/* For INT_TYPE_SIZE,
-				   TARGET_VTABLE_USES_DESCRIPTORS,
-				   BITS_PER_UNIT,
-				   MODIFY_JNI_METHOD_CALL and
-				   PARM_BOUNDARY.  */
-				   
-#include "hash-set.h"
-#include "machmode.h"
-#include "vec.h"
-#include "double-int.h"
-#include "input.h"
-#include "alias.h"
-#include "symtab.h"
-#include "wide-int.h"
-#include "inchash.h"
-#include "real.h"
+#include "target.h"
 #include "tree.h"
-#include "fold-const.h"
 #include "stringpool.h"
+#include "diagnostic-core.h"
+#include "fold-const.h"
 #include "stor-layout.h"
-#include "flags.h"
 #include "java-tree.h"
-#include "javaop.h"
 #include "java-opcodes.h"
 #include "jcf.h"
-#include "java-except.h"
 #include "parse.h"
-#include "diagnostic-core.h"
-#include "ggc.h"
 #include "tree-iterator.h"
-#include "target.h"
 
 static void flush_quick_stack (void);
 static void push_value (tree);
