@@ -30,6 +30,7 @@
 #include <Sound.h>
 #include <Memory.h>
 #include <OSUtils.h>
+#include <Traps.h>
 
 #include "Retro68Runtime.h"
 
@@ -98,16 +99,42 @@ static Retro68RelocState relocState __attribute__ ((nocommon)) = {
 
 void Retro68Relocate()
 {
+	// memory address to retrieve the ROM type (64K or a later ROM)
+	// see for details http://www.mac.linux-m68k.org/devel/macalmanac.php
+	short* ROM85      = (short*) 0x028E;
+	
+	// figure out which trap is supported
+	Boolean is128KROM = ((*ROM85) > 0);
+	Boolean hasSysEnvirons = false;
+	Boolean hasStripAddr = false;
+	if (is128KROM)
+	{
+		UniversalProcPtr trapSysEnv = GetOSTrapAddress(_SysEnvirons);
+		UniversalProcPtr trapStripAddr = GetOSTrapAddress(_StripAddress);
+		UniversalProcPtr trapUnimpl = GetOSTrapAddress(_Unimplemented);
+
+		hasSysEnvirons = (trapSysEnv != trapUnimpl);
+		hasStripAddr = (trapStripAddr != trapUnimpl);
+	}
+					
 	// Figure out the displacement
 	// what is the difference between the addresses in our program code
 	// and an address calculated by PC-relative access?
 	long displacement;
-	RETRO68_GET_DISPLACEMENT_STRIP(displacement);
+	
+	if (hasStripAddr)
+	{
+		RETRO68_GET_DISPLACEMENT_STRIP(displacement); 
+	}
+	else
+	{
+		RETRO68_GET_DISPLACEMENT_STRIP24(displacement);
+	}
 
 	struct Retro68RelocState *rState = (Retro68RelocState*)
 			((char*)&relocState + displacement);
+			
 	// rState now points to the global relocState variable
-
 	if(displacement == 0)
 	{
 		if(rState->bssPtr)
@@ -126,28 +153,25 @@ void Retro68Relocate()
 	long headerOldVirtualAddress = rState->headerVirtualAddress;
 	struct flat_hdr *header = (struct flat_hdr*) (headerOldVirtualAddress + displacement);
 	uint8_t *base = (uint8_t*) (header+1);
-
-
+	
 	// Recover the handle to the code resource by looking at the
 	// longword before the FLT header. The resource templates in Retro68.r store the offset
 	// from the beginning of the code resource there.
 	uint32_t headerOffsetInResource = ((uint32_t*)header)[-1];
-
+	
 	if(headerOffsetInResource < 4096)
 		// Arbitrary magic number. We expect the offset to be small, just a few header bytes before it.
 		// if it's out of range, assume the longword before the header is not the offset we're looking for.
-	{
-		Handle h = RecoverHandle((Ptr) header - headerOffsetInResource);
+	{   
+		Handle h = RecoverHandle((Ptr) header - headerOffsetInResource);        
 		if(MemError() == noErr && h)
-		{
+		{                    
 			// Make sure the code is locked. Only relevant for some code resources.
 			HLock(h);
-			rState->codeHandle = h;
-		}
+			rState->codeHandle = h;  
+		}             
 	}
-
-
-
+	
 	long bss_size = header->bss_end - header->data_end;
 
 	long n = header->reloc_count;
@@ -156,7 +180,7 @@ void Retro68Relocate()
 	long data_end = header->data_end + headerOldVirtualAddress;
 	uint32_t flt_size = (uint32_t) header->data_end;
 	long bss_displacement = 0;
-
+		
 	// Allocate BSS section (uninitialized/zero-initialized global data)
 	if(!rState->bssPtr)
 	{
@@ -195,19 +219,25 @@ void Retro68Relocate()
 		addrPtr[0] = (addr >>= 8);
 		//*(uint32_t*)addrPtr = addr;
 	}
-
+	
 	// We're basically done.
 	// Now check whether we're on 68040 or later and need to flush the cache.
-	SysEnvRec env;
-
-	env.processor = 0;
-	SysEnvirons(0, &env);
-	if(env.processor >= env68040)
+	// only do this if SysEnvirons is available.
+	// if SysEnvirons is not available, that means we're on an old System or ROM
+	// and likely not using a 68040, so we won't do this
+	if (hasSysEnvirons)
 	{
-		FlushCodeCache();
-	}
-	// accessing globals and calling functions is OK below here.
+		SysEnvRec env;
 
+		env.processor = 0;
+		SysEnvirons(0, &env);
+		if(env.processor >= env68040)
+		{
+			FlushCodeCache();
+		}
+	}
+	
+	// accessing globals and calling functions is OK below here.
 	rState->headerVirtualAddress += displacement;
 }
 

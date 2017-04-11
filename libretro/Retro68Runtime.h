@@ -36,9 +36,22 @@
 #define RETRO68_GET_DISPLACEMENT(DISPLACEMENT) \
 	_RETRO68_GET_DISPLACEMENT(DISPLACEMENT, )
 
+// Calls to the StripAddress() trap are supposed to make sure addresses are 32-bit clean. 
+// But this trap doesn’t exist on old ROMs and old system versions,
+// so programs built with StripAddress will mysteriously crash. 
+// Those systems always run in 24-bit mode, so we can just take the lower 24
+// bits of the 32 bit address.
+// StripAddress24 must not be used on 32-bit systems, or the resulting crashes
+// will be even more mysterious.
+
+#define StripAddress24(x) ((char*) ((unsigned long)(x) & 0x00FFFFFF))
+#define RETRO68_GET_DISPLACEMENT_STRIP24(DISPLACEMENT) \
+	_RETRO68_GET_DISPLACEMENT(DISPLACEMENT, StripAddress24)
+
+// original StripAddress
 #define RETRO68_GET_DISPLACEMENT_STRIP(DISPLACEMENT) \
 	_RETRO68_GET_DISPLACEMENT(DISPLACEMENT, StripAddress)
-
+    
 #define RETRO68_CALL_UNRELOCATED(FUN,ARGS) \
 	do {	\
 		long displacement;	\
