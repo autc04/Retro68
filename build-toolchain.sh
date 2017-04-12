@@ -54,7 +54,8 @@ cd ..
 mkdir -p gcc-build
 cd gcc-build
 $SRC/gcc/configure --target=m68k-apple-macos --prefix=$PREFIX --enable-languages=c,c++ --with-arch=m68k --with-cpu=m68000 --disable-libssp MAKEINFO=missing
-make -j8
+# There seems to be a build failure in parallel builds; ignore any errors and try again without -j8.
+make -j8 || make
 make install
 cd ..
 
