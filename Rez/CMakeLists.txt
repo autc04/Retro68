@@ -71,11 +71,13 @@ add_library(RezLib
 		Diagnostic.h Diagnostic.cc
 	)
 target_link_libraries(RezLib ResourceFiles ${Boost_LIBRARIES})
+target_include_directories(RezLib PRIVATE ${Boost_INCLUDE_DIR})
 
 add_executable(Rez
 		Rez.cc
 	)
 target_link_libraries(Rez RezLib ResourceFiles ${Boost_LIBRARIES})
+target_include_directories(Rez PRIVATE ${Boost_INCLUDE_DIR})
 
 install(TARGETS Rez RUNTIME DESTINATION bin)
 

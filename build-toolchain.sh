@@ -64,10 +64,13 @@ if [ $CMAKEONLY != true ]; then
 rm -rf toolchain
 mkdir -p toolchain
 
+export CPPFLAGS="-I/usr/local/include"
+export LDFLAGS="-L/usr/local/lib"
 
 if [ $BUILD_68K != false ]; then
 	
 export "CFLAGS=-Wno-error"
+
 # Build binutils for 68K
 mkdir -p binutils-build
 cd binutils-build
@@ -140,7 +143,7 @@ rm -rf hfsutils
 cp -r $SRC/hfsutils .
 cd hfsutils
 ./configure --prefix=$PREFIX --enable-devlibs
-make 
+make
 make install
 cd ..
 
