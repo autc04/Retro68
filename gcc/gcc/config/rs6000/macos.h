@@ -196,6 +196,15 @@
    collect has a chance to see them, so scan the object files directly.  */
 #define COLLECT_EXPORT_LIST
 
+/* Select a format to encode pointers in exception handling data.  CODE
+   is 0 for data, 1 for code labels, 2 for function pointers.  GLOBAL is
+   true if the symbol may be affected by dynamic relocations.  */
+#undef	ASM_PREFERRED_EH_DATA_FORMAT
+#define	ASM_PREFERRED_EH_DATA_FORMAT(CODE, GLOBAL) \
+  (DW_EH_PE_absptr)
+#undef EH_TABLES_CAN_BE_READ_ONLY
+#define EH_TABLES_CAN_BE_READ_ONLY 0
+
 #if 0
 /* On AIX, initialisers specified with -binitfini are called in breadth-first
    order.
