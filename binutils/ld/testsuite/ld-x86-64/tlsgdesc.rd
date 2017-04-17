@@ -19,13 +19,11 @@ Section Headers:
  +\[[ 0-9]+\] \.dynamic +.*
  +\[[ 0-9]+\] \.got +.*
  +\[[ 0-9]+\] \.got.plt +.*
- +\[[ 0-9]+\] \.shstrtab +.*
  +\[[ 0-9]+\] \.symtab +.*
  +\[[ 0-9]+\] \.strtab +.*
+ +\[[ 0-9]+\] \.shstrtab +.*
 Key to Flags:
-.*
-.*
-.*
+#...
 
 Elf file type is DYN \(Shared object file\)
 Entry point 0x[0-9a-f]+
@@ -45,25 +43,24 @@ Program Headers:
 
 Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 8 entries:
  +Offset +Info +Type +Symbol's Value +Symbol's Name \+ Addend
-[0-9a-f]+ +0+200000012 R_X86_64_TPOFF64 +0+ sG3 \+ 0
-[0-9a-f]+ +0+300000012 R_X86_64_TPOFF64 +0+ sG5 \+ 0
-[0-9a-f]+ +0+400000010 R_X86_64_DTPMOD64 +0+ sG2 \+ 0
-[0-9a-f]+ +0+400000011 R_X86_64_DTPOFF64 +0+ sG2 \+ 0
-[0-9a-f]+ +0+500000012 R_X86_64_TPOFF64 +0+ sG4 \+ 0
-[0-9a-f]+ +0+800000012 R_X86_64_TPOFF64 +0+ sG6 \+ 0
-[0-9a-f]+ +0+a00000010 R_X86_64_DTPMOD64 +0+ sG1 \+ 0
-[0-9a-f]+ +0+a00000011 R_X86_64_DTPOFF64 +0+ sG1 \+ 0
+[0-9a-f]+ +0+100000012 R_X86_64_TPOFF64 +0+ sG3 \+ 0
+[0-9a-f]+ +0+200000012 R_X86_64_TPOFF64 +0+ sG5 \+ 0
+[0-9a-f]+ +0+300000010 R_X86_64_DTPMOD64 +0+ sG2 \+ 0
+[0-9a-f]+ +0+300000011 R_X86_64_DTPOFF64 +0+ sG2 \+ 0
+[0-9a-f]+ +0+400000012 R_X86_64_TPOFF64 +0+ sG4 \+ 0
+[0-9a-f]+ +0+700000012 R_X86_64_TPOFF64 +0+ sG6 \+ 0
+[0-9a-f]+ +0+900000010 R_X86_64_DTPMOD64 +0+ sG1 \+ 0
+[0-9a-f]+ +0+900000011 R_X86_64_DTPOFF64 +0+ sG1 \+ 0
 
 Relocation section '.rela.plt' at offset 0x[0-9a-f]+ contains 3 entries:
  +Offset +Info +Type +Symbol's Value +Symbol's Name \+ Addend
-[0-9a-f]+ +0+600000007 R_X86_64_JUMP_SLOT +0+ __tls_get_addr \+ 0
-[0-9a-f]+ +0+a00000024 R_X86_64_TLSDESC +0+ sG1 \+ 0
-[0-9a-f]+ +0+400000024 R_X86_64_TLSDESC +0+ sG2 \+ 0
+[0-9a-f]+ +0+500000007 R_X86_64_JUMP_SLOT +0+ __tls_get_addr \+ 0
+[0-9a-f]+ +0+900000024 R_X86_64_TLSDESC +0+ sG1 \+ 0
+[0-9a-f]+ +0+300000024 R_X86_64_TLSDESC +0+ sG2 \+ 0
 
 Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG3
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG5
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG2

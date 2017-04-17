@@ -1,10 +1,30 @@
-2015-07-16  Release Manager
+2016-12-21  Release Manager
 
-	* GCC 5.2.0 released.
+	* GCC 6.3.0 released.
 
-2015-04-22  Release Manager
+2016-08-22  Release Manager
 
-	* GCC 5.1.0 released.
+	* GCC 6.2.0 released.
+
+2016-04-27  Release Manager
+
+	* GCC 6.1.0 released.
+
+2016-04-04  Segher Boessenkool  <segher@kernel.crashing.org>
+
+	PR bootstrap/70173
+	* Makefile.in (distclean): Also delete config.cache .
+
+2015-12-06  Eric Botcazou  <ebotcazou@adacore.com>
+
+	PR ada/50048
+	* Makefile.in (ftop_srcdir): New variable.
+	(INCLUDES_FOR_SUBDIR): Use -iquote and $(ftop_srcdir).
+
+2015-06-08  John Marino  <gnugcc@marino.st>
+
+	* configure.ac (*-*-dragonfly*): New configuration.
+	* configure: Regenerate.
 
 2014-02-23  Eric Botcazou  <ebotcazou@adacore.com>
 

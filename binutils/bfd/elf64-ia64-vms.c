@@ -1,5 +1,5 @@
 /* IA-64 support for OpenVMS
-   Copyright (C) 1998-2014 Free Software Foundation, Inc.
+   Copyright (C) 1998-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -348,7 +348,7 @@ elf64_ia64_relax_section (bfd *abfd, asection *sec,
      one pass.  */
   *again = FALSE;
 
-  if (link_info->relocatable)
+  if (bfd_link_relocatable (link_info))
     (*link_info->callbacks->einfo)
       (_("%P%F: --relax and -r may not be used together\n"));
 
@@ -582,7 +582,8 @@ elf64_ia64_relax_section (bfd *abfd, asection *sec,
 	  if (strcmp (sec->output_section->name, ".init") == 0
 	      || strcmp (sec->output_section->name, ".fini") == 0)
 	    {
-	      (*_bfd_error_handler)
+	      _bfd_error_handler
+		/* xgettext:c-format */
 		(_("%B: Can't relax br at 0x%lx in section `%A'. Please use brl or indirect branch."),
 		 sec->owner, sec, (unsigned long) roff);
 	      bfd_set_error (bfd_error_bad_value);
@@ -858,7 +859,7 @@ elf64_ia64_add_symbol_hook (bfd *abfd,
 			    bfd_vma *valp)
 {
   if (sym->st_shndx == SHN_COMMON
-      && !info->relocatable
+      && !bfd_link_relocatable (info)
       && sym->st_size <= elf_gp_size (abfd))
     {
       /* Common symbols less than or equal to -G nn bytes are
@@ -1757,7 +1758,7 @@ get_fptr (bfd *abfd, struct bfd_link_info *info,
 						  | SEC_LOAD
 						  | SEC_HAS_CONTENTS
 						  | SEC_IN_MEMORY
-						  | (info->pie ? 0
+						  | (bfd_link_pie (info) ? 0
 						     : SEC_READONLY)
 						  | SEC_LINKER_CREATED));
       if (!fptr
@@ -1769,7 +1770,7 @@ get_fptr (bfd *abfd, struct bfd_link_info *info,
 
       ia64_info->fptr_sec = fptr;
 
-      if (info->pie)
+      if (bfd_link_pie (info))
 	{
 	  asection *fptr_rel;
 	  fptr_rel = bfd_make_section_anyway_with_flags (dynobj, ".rela.opd",
@@ -1922,7 +1923,7 @@ elf64_ia64_check_relocs (bfd *abfd, struct bfd_link_info *info,
   unsigned long r_symndx;
   bfd_boolean maybe_dynamic;
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
@@ -1955,7 +1956,7 @@ elf64_ia64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	 locally or externally defined, as not all of the input files
 	 have yet been processed.  Do something with what we know, as
 	 this may help reduce memory usage and processing time later.  */
-      maybe_dynamic = (h && ((!info->executable
+      maybe_dynamic = (h && ((!bfd_link_executable (info)
 			      && (!SYMBOLIC_BIND (info, h)
 				  || info->unresolved_syms_in_shared_libs == RM_IGNORE))
 			     || !h->def_regular
@@ -1996,7 +1997,7 @@ elf64_ia64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	case R_IA64_FPTR32LSB:
 	case R_IA64_FPTR64MSB:
 	case R_IA64_FPTR64LSB:
-	  if (info->shared || h)
+	  if (bfd_link_pic (info) || h)
 	    need_entry = NEED_FPTR | NEED_DYNREL;
 	  else
 	    need_entry = NEED_FPTR;
@@ -2047,7 +2048,7 @@ elf64_ia64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	case R_IA64_DIR64MSB:
 	case R_IA64_DIR64LSB:
 	  /* Shared objects will always need at least a REL relocation.  */
-	  if (info->shared || maybe_dynamic)
+	  if (bfd_link_pic (info) || maybe_dynamic)
 	    need_entry = NEED_DYNREL;
 	  break;
 
@@ -2107,7 +2108,7 @@ elf64_ia64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	 locally or externally defined, as not all of the input files
 	 have yet been processed.  Do something with what we know, as
 	 this may help reduce memory usage and processing time later.  */
-      maybe_dynamic = (h && ((!info->executable
+      maybe_dynamic = (h && ((!bfd_link_executable (info)
 			      && (!SYMBOLIC_BIND (info, h)
 				  || info->unresolved_syms_in_shared_libs == RM_IGNORE))
 			     || !h->def_regular
@@ -2144,7 +2145,7 @@ elf64_ia64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	case R_IA64_FPTR32LSB:
 	case R_IA64_FPTR64MSB:
 	case R_IA64_FPTR64LSB:
-	  if (info->shared || h)
+	  if (bfd_link_pic (info) || h)
 	    need_entry = NEED_FPTR | NEED_DYNREL;
 	  else
 	    need_entry = NEED_FPTR;
@@ -2190,7 +2191,7 @@ elf64_ia64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	case R_IA64_DIR64MSB:
 	case R_IA64_DIR64LSB:
 	  /* Shared objects will always need at least a REL relocation.  */
-	  if (info->shared || maybe_dynamic)
+	  if (bfd_link_pic (info) || maybe_dynamic)
 	    need_entry = NEED_DYNREL;
 	  dynrel_type = R_IA64_DIR64LSB;
 	  break;
@@ -2460,7 +2461,7 @@ allocate_dynrel_entries (struct elf64_ia64_dyn_sym_info *dyn_i,
   /* Note that this can't be used in relation to FPTR relocs below.  */
   dynamic_symbol = elf64_ia64_dynamic_symbol_p (dyn_i->h);
 
-  shared = x->info->shared;
+  shared = bfd_link_pic (x->info);
   resolved_zero = (dyn_i->h
 		   && ELF_ST_VISIBILITY (dyn_i->h->other)
 		   && dyn_i->h->root.type == bfd_link_hash_undefweak);
@@ -2519,7 +2520,7 @@ allocate_dynrel_entries (struct elf64_ia64_dyn_sym_info *dyn_i,
 	     will be true only if we're actually allocating one statically
 	     in the main executable.  Position independent executables
 	     need a relative reloc.  */
-	  if (dyn_i->want_fptr && !x->info->pie)
+	  if (dyn_i->want_fptr && !bfd_link_pie (x->info))
 	    continue;
 	  break;
 	case R_IA64_PCREL32LSB:
@@ -2999,13 +3000,13 @@ set_got_entry (bfd *abfd, struct bfd_link_info *info,
       bfd_put_64 (abfd, value, got_sec->contents + got_offset);
 
       /* Install a dynamic relocation if needed.  */
-      if (((info->shared
+      if (((bfd_link_pic (info)
 	    && (!dyn_i->h
 		|| ELF_ST_VISIBILITY (dyn_i->h->other) == STV_DEFAULT
 		|| dyn_i->h->root.type != bfd_link_hash_undefweak))
            || elf64_ia64_dynamic_symbol_p (dyn_i->h))
 	  && (!dyn_i->want_ltoff_fptr
-	      || !info->pie
+	      || !bfd_link_pie (info)
 	      || !dyn_i->h
 	      || dyn_i->h->root.type != bfd_link_hash_undefweak))
 	{
@@ -3109,7 +3110,7 @@ set_pltoff_entry (bfd *abfd, struct bfd_link_info *info,
 
       /* Install dynamic relocations if needed.  */
       if (!is_plt
-	  && info->shared
+	  && bfd_link_pic (info)
 	  && (!dyn_i->h
 	      || ELF_ST_VISIBILITY (dyn_i->h->other) == STV_DEFAULT
 	      || dyn_i->h->root.type != bfd_link_hash_undefweak))
@@ -3275,7 +3276,8 @@ elf64_ia64_choose_gp (bfd *abfd, struct bfd_link_info *info, bfd_boolean final)
       if (max_short_vma - min_short_vma >= 0x400000)
 	{
 overflow:
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
+	    /* xgettext:c-format */
 	    (_("%s: short data segment overflowed (0x%lx >= 0x400000)"),
 	     bfd_get_filename (abfd),
 	     (unsigned long) (max_short_vma - min_short_vma));
@@ -3286,7 +3288,7 @@ overflow:
 	       || (gp_val < max_short_vma
 		   && max_short_vma - gp_val >= 0x200000))
 	{
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
 	    (_("%s: __gp does not cover short data segment"),
 	     bfd_get_filename (abfd));
 	  return FALSE;
@@ -3309,7 +3311,7 @@ elf64_ia64_final_link (bfd *abfd, struct bfd_link_info *info)
     return FALSE;
 
   /* Make sure we've got ourselves a nice fat __gp value.  */
-  if (!info->relocatable)
+  if (!bfd_link_relocatable (info))
     {
       bfd_vma gp_val;
       struct elf_link_hash_entry *gp;
@@ -3335,7 +3337,7 @@ elf64_ia64_final_link (bfd *abfd, struct bfd_link_info *info)
      of the .IA_64.unwind section.  Force this section to be relocated
      into memory rather than written immediately to the output file.  */
   unwind_output_sec = NULL;
-  if (!info->relocatable)
+  if (!bfd_link_relocatable (info))
     {
       asection *s = bfd_get_section_by_name (abfd, ELF_STRING_ia64_unwind);
       if (s)
@@ -3392,7 +3394,7 @@ elf64_ia64_relocate_section (bfd *output_bfd,
     return FALSE;
 
   /* Infect various flags from the input section to the output section.  */
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     {
       bfd_vma flags;
 
@@ -3425,7 +3427,8 @@ elf64_ia64_relocate_section (bfd *output_bfd,
       r_type = ELF64_R_TYPE (rel->r_info);
       if (r_type > R_IA64_MAX_RELOC_CODE)
 	{
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
+	    /* xgettext:c-format */
 	    (_("%B: unknown relocation type %d"),
 	     input_bfd, (int) r_type);
 	  bfd_set_error (bfd_error_bad_value);
@@ -3448,7 +3451,7 @@ elf64_ia64_relocate_section (bfd *output_bfd,
 	  sym_sec = local_sections[r_symndx];
 	  msec = sym_sec;
 	  value = _bfd_elf_rela_local_sym (output_bfd, sym, &msec, rel);
-	  if (!info->relocatable
+	  if (!bfd_link_relocatable (info)
 	      && (sym_sec->flags & SEC_MERGE) != 0
 	      && ELF_ST_TYPE (sym->st_info) == STT_SECTION
 	      && sym_sec->sec_info_type == SEC_INFO_TYPE_MERGE)
@@ -3516,7 +3519,7 @@ elf64_ia64_relocate_section (bfd *output_bfd,
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, 1, relend, howto, 0, contents);
 
-      if (info->relocatable)
+      if (bfd_link_relocatable (info))
 	continue;
 
       hit_addr = contents + rel->r_offset;
@@ -3537,7 +3540,7 @@ elf64_ia64_relocate_section (bfd *output_bfd,
 	case R_IA64_DIR64MSB:
 	case R_IA64_DIR64LSB:
 	  /* Install a dynamic relocation for this reloc.  */
-	  if ((dynamic_symbol_p || info->shared)
+	  if ((dynamic_symbol_p || bfd_link_pic (info))
 	      && r_symndx != 0
 	      && (input_section->flags & SEC_ALLOC) != 0)
 	    {
@@ -3551,7 +3554,8 @@ elf64_ia64_relocate_section (bfd *output_bfd,
 		case R_IA64_IMM64:
 		  /* ??? People shouldn't be doing non-pic code in
 		     shared libraries nor dynamic executables.  */
-		  (*_bfd_error_handler)
+		  _bfd_error_handler
+		    /* xgettext:c-format */
 		    (_("%B: non-pic code with imm relocation against dynamic symbol `%s'"),
 		     input_bfd,
 		     h ? h->root.root.string
@@ -3613,7 +3617,8 @@ elf64_ia64_relocate_section (bfd *output_bfd,
 	case R_IA64_GPREL64LSB:
 	  if (dynamic_symbol_p)
 	    {
-	      (*_bfd_error_handler)
+	      _bfd_error_handler
+		/* xgettext:c-format */
 		(_("%B: @gprel relocation against dynamic symbol %s"),
 		 input_bfd,
 		 h ? h->root.root.string
@@ -3657,7 +3662,7 @@ elf64_ia64_relocate_section (bfd *output_bfd,
 	      if (!undef_weak_ref)
 		value = set_fptr_entry (output_bfd, info, dyn_i, value);
 	    }
-	  if (!dyn_i->want_fptr || info->pie)
+	  if (!dyn_i->want_fptr || bfd_link_pie (info))
 	    {
 	      /* Otherwise, we expect the dynamic linker to create
 		 the entry.  */
@@ -3672,7 +3677,7 @@ elf64_ia64_relocate_section (bfd *output_bfd,
 			 dynamic symbol table.  */
 		      /* ??? People shouldn't be doing non-pic code in
 			 shared libraries.  Hork.  */
-		      (*_bfd_error_handler)
+		      _bfd_error_handler
 			(_("%B: linking non-pic code in a position independent executable"),
 			 input_bfd);
 		      ret_val = FALSE;
@@ -3774,17 +3779,20 @@ elf64_ia64_relocate_section (bfd *output_bfd,
 	      const char *msg;
 
 	      if (r_type == R_IA64_PCREL21BI)
+		/* xgettext:c-format */
 		msg = _("%B: @internal branch to dynamic symbol %s");
 	      else if (r_type == R_IA64_PCREL21F || r_type == R_IA64_PCREL21M)
+		/* xgettext:c-format */
 		msg = _("%B: speculation fixup to dynamic symbol %s");
 	      else
+		/* xgettext:c-format */
 		msg = _("%B: @pcrel relocation against dynamic symbol %s");
-	      (*_bfd_error_handler) (msg, input_bfd,
-				     h ? h->root.root.string
-				       : bfd_elf_sym_name (input_bfd,
-							   symtab_hdr,
-							   sym,
-							   sym_sec));
+	      _bfd_error_handler (msg, input_bfd,
+				  h ? h->root.root.string
+				  : bfd_elf_sym_name (input_bfd,
+						      symtab_hdr,
+						      sym,
+						      sym_sec));
 	      ret_val = FALSE;
 	      continue;
 	    }
@@ -3838,7 +3846,7 @@ elf64_ia64_relocate_section (bfd *output_bfd,
 	case R_IA64_IPLTMSB:
 	case R_IA64_IPLTLSB:
 	  /* Install a dynamic relocation for this reloc.  */
-	  if ((dynamic_symbol_p || info->shared)
+	  if ((dynamic_symbol_p || bfd_link_pic (info))
 	      && (input_section->flags & SEC_ALLOC) != 0)
 	    {
               /* VMS: FIXFD ??  */
@@ -3902,10 +3910,9 @@ elf64_ia64_relocate_section (bfd *output_bfd,
 	    else
 	      name = bfd_elf_sym_name (input_bfd, symtab_hdr, sym,
 				       sym_sec);
-	    if (!(*info->callbacks->warning) (info, _("unsupported reloc"),
-					      name, input_bfd,
-					      input_section, rel->r_offset))
-	      return FALSE;
+	    (*info->callbacks->warning) (info, _("unsupported reloc"),
+					 name, input_bfd,
+					 input_section, rel->r_offset);
 	    ret_val = FALSE;
 	  }
 	  break;
@@ -3938,7 +3945,8 @@ elf64_ia64_relocate_section (bfd *output_bfd,
 	      case R_IA64_LTOFF_TPREL22:
 	      case R_IA64_LTOFF_DTPMOD22:
 	      case R_IA64_LTOFF_DTPREL22:
-		(*_bfd_error_handler)
+		_bfd_error_handler
+		  /* xgettext:c-format */
 		  (_("%B: missing TLS section for relocation %s against `%s' at 0x%lx in section `%A'."),
 		   input_bfd, input_section, howto->name, name,
 		   rel->r_offset);
@@ -3953,22 +3961,23 @@ elf64_ia64_relocate_section (bfd *output_bfd,
 		    /* Relaxtion is always performed for ELF output.
 		       Overflow failures for those relocations mean
 		       that the section is too big to relax.  */
-		    (*_bfd_error_handler)
+		    _bfd_error_handler
+		      /* xgettext:c-format */
 		      (_("%B: Can't relax br (%s) to `%s' at 0x%lx in section `%A' with size 0x%lx (> 0x1000000)."),
 		       input_bfd, input_section, howto->name, name,
 		       rel->r_offset, input_section->size);
 		    break;
 		  }
+		/* Fall through.  */
 	      default:
-		if (!(*info->callbacks->reloc_overflow) (info,
-							 &h->root,
-							 name,
-							 howto->name,
-							 (bfd_vma) 0,
-							 input_bfd,
-							 input_section,
-							 rel->r_offset))
-		  return FALSE;
+		(*info->callbacks->reloc_overflow) (info,
+						    &h->root,
+						    name,
+						    howto->name,
+						    (bfd_vma) 0,
+						    input_bfd,
+						    input_section,
+						    rel->r_offset);
 		break;
 	      }
 
@@ -4203,8 +4212,9 @@ elf64_ia64_set_private_flags (bfd *abfd, flagword flags)
 /* Merge backend specific data from an object file to the output
    object file when linking.  */
 static bfd_boolean
-elf64_ia64_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
+elf64_ia64_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 {
+  bfd *obfd = info->output_bfd;
   flagword out_flags;
   flagword in_flags;
   bfd_boolean ok = TRUE;
@@ -4242,7 +4252,7 @@ elf64_ia64_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
 
   if ((in_flags & EF_IA_64_TRAPNIL) != (out_flags & EF_IA_64_TRAPNIL))
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
 	(_("%B: linking trap-on-NULL-dereference with non-trapping files"),
 	 ibfd);
 
@@ -4251,7 +4261,7 @@ elf64_ia64_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
     }
   if ((in_flags & EF_IA_64_BE) != (out_flags & EF_IA_64_BE))
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
 	(_("%B: linking big-endian files with little-endian files"),
 	 ibfd);
 
@@ -4260,7 +4270,7 @@ elf64_ia64_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
     }
   if ((in_flags & EF_IA_64_ABI64) != (out_flags & EF_IA_64_ABI64))
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
 	(_("%B: linking 64-bit files with 32-bit files"),
 	 ibfd);
 
@@ -4269,7 +4279,7 @@ elf64_ia64_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
     }
   if ((in_flags & EF_IA_64_CONS_GP) != (out_flags & EF_IA_64_CONS_GP))
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
 	(_("%B: linking constant-gp files with non-constant-gp files"),
 	 ibfd);
 
@@ -4279,7 +4289,7 @@ elf64_ia64_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
   if ((in_flags & EF_IA_64_NOFUNCDESC_CONS_GP)
       != (out_flags & EF_IA_64_NOFUNCDESC_CONS_GP))
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
 	(_("%B: linking auto-pic files with non-auto-pic files"),
 	 ibfd);
 
@@ -4740,11 +4750,11 @@ elf64_vms_link_add_object_symbols (bfd *abfd, struct bfd_link_info *info)
       /* You can't use -r against a dynamic object.  Also, there's no
 	 hope of using a dynamic object which does not exactly match
 	 the format of the output file.  */
-      if (info->relocatable
+      if (bfd_link_relocatable (info)
 	  || !is_elf_hash_table (htab)
 	  || info->output_bfd->xvec != abfd->xvec)
 	{
-	  if (info->relocatable)
+	  if (bfd_link_relocatable (info))
 	    bfd_set_error (bfd_error_invalid_operation);
 	  else
 	    bfd_set_error (bfd_error_wrong_format);
@@ -4759,7 +4769,7 @@ elf64_vms_link_add_object_symbols (bfd *abfd, struct bfd_link_info *info)
 	 so we attach them to this BFD, provided it is the right
 	 format.  FIXME: If there are no input BFD's of the same
 	 format as the output, we can't make a shared library.  */
-      if (info->shared
+      if (bfd_link_pic (info)
 	  && is_elf_hash_table (htab)
 	  && info->output_bfd->xvec == abfd->xvec
 	  && !htab->dynamic_sections_created)
@@ -5121,13 +5131,15 @@ error_free_dyn:
 		{
 		  /* PR binutils/2735 */
 		  if (normal_bfd == NULL)
-		    (*_bfd_error_handler)
+		    _bfd_error_handler
+		      /* xgettext:c-format */
 		      (_("Warning: alignment %u of common symbol `%s' in %B"
 			 " is greater than the alignment (%u) of its section %A"),
 		       common_bfd, h->root.u.def.section,
 		       1 << common_align, name, 1 << normal_align);
 		  else
-		    (*_bfd_error_handler)
+		    _bfd_error_handler
+		      /* xgettext:c-format */
 		      (_("Warning: alignment %u of symbol `%s' in %B"
 			 " is smaller than %u in %B"),
 		       normal_bfd, common_bfd,
@@ -5142,7 +5154,8 @@ error_free_dyn:
 	      if (h->size != 0
 		  && h->size != isym->st_size
 		  && ! size_change_ok)
-		(*_bfd_error_handler)
+		_bfd_error_handler
+		  /* xgettext:c-format */
 		  (_("Warning: size of symbol `%s' changed"
 		     " from %lu in %B to %lu in %B"),
 		   old_bfd, abfd,
@@ -5169,7 +5182,8 @@ error_free_dyn:
 	      if (h->type != type)
 		{
 		  if (h->type != STT_NOTYPE && ! type_change_ok)
-		    (*_bfd_error_handler)
+		    _bfd_error_handler
+		      /* xgettext:c-format */
 		      (_("Warning: type of symbol `%s' changed"
 			 " from %d to %d in %B"),
 		       abfd, name, h->type, type);
@@ -5361,7 +5375,7 @@ elf64_vms_link_add_archive_symbols (bfd *abfd, struct bfd_link_info *info)
 	 to include it.  We don't need to check anything.  */
       if (! (*info->callbacks->add_archive_element) (info, element,
                                                      h->root.string, &element))
-	return FALSE;
+	continue;
       if (! elf64_vms_link_add_object_symbols (element, info))
 	return FALSE;
 

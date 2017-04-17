@@ -1,15 +1,15 @@
 # translation of binutils to French
 # Messages français pour GNU concernant binutils.
-# Copyright (C) 2014 Free Software Foundation, Inc.
+# Copyright (C) 2015 Free Software Foundation, Inc.
 # This file is distributed under the same license as the binutils package.
 # Michel Robitaille <robitail@IRO.UMontreal.CA>, traducteur depuis/since 1996.
-# Frédéric Marchal <fmarchal@perso.be>, 2014.
+# Frédéric Marchal <fmarchal@perso.be>, 2015.
 msgid ""
 msgstr ""
 "Project-Id-Version: binutils-2.24.90\n"
 "Report-Msgid-Bugs-To: bug-binutils@gnu.org\n"
 "POT-Creation-Date: 2014-02-10 09:42+1030\n"
-"PO-Revision-Date: 2014-11-10 22:13+0200\n"
+"PO-Revision-Date: 2015-09-20 21:13+0200\n"
 "Last-Translator: Frédéric Marchal <fmarchal@perso.be>\n"
 "Language-Team: French <traduc@traduc.org>\n"
 "Language: fr\n"
@@ -393,12 +393,12 @@ msgstr "création de %s"
 #: ar.c:945
 #, c-format
 msgid "Cannot convert existing library %s to thin format"
-msgstr "Impossible de convertir la librairie existante %s au format léger"
+msgstr "Impossible de convertir la bibliothèque existante %s au format léger"
 
 #: ar.c:951
 #, c-format
 msgid "Cannot convert existing thin library %s to normal format"
-msgstr "Impossible de convertir la librairie légère existante %s au format normal"
+msgstr "Impossible de convertir la bibliothèque légère existante %s au format normal"
 
 #: ar.c:983 ar.c:1037 ar.c:1366 objcopy.c:2294
 #, c-format
@@ -513,7 +513,7 @@ msgstr "Cibles supportés :"
 #: bucomm.c:193
 #, c-format
 msgid "%s: supported targets:"
-msgstr "%s: cibles supportés :"
+msgstr "%s: cibles supportées :"
 
 #: bucomm.c:211
 #, c-format
@@ -2986,7 +2986,7 @@ msgstr "Mémoire épuisée lors de la conversion de l'index des symboles de l'ar
 #: elfcomm.c:535
 #, c-format
 msgid "%s: the archive has an index but no symbols\n"
-msgstr "%s: l'archive a un index mais pas de symbole\n"
+msgstr "%s: l'archive a un index mais pas de symboles\n"
 
 #: elfcomm.c:543
 msgid "Out of memory whilst trying to read archive index symbol table\n"

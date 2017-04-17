@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2015 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2016 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
@@ -507,7 +507,7 @@ get_internal_unit (st_parameter_dt *dtp)
   iunit->flags.form = FORM_FORMATTED;
   iunit->flags.pad = PAD_YES;
   iunit->flags.status = STATUS_UNSPECIFIED;
-  iunit->flags.sign = SIGN_SUPPRESS;
+  iunit->flags.sign = SIGN_UNSPECIFIED;
   iunit->flags.decimal = DECIMAL_POINT;
   iunit->flags.delim = DELIM_UNSPECIFIED;
   iunit->flags.encoding = ENCODING_DEFAULT;
@@ -606,7 +606,7 @@ init_units (void)
       u->flags.blank = BLANK_NULL;
       u->flags.pad = PAD_YES;
       u->flags.position = POSITION_ASIS;
-      u->flags.sign = SIGN_SUPPRESS;
+      u->flags.sign = SIGN_UNSPECIFIED;
       u->flags.decimal = DECIMAL_POINT;
       u->flags.delim = DELIM_UNSPECIFIED;
       u->flags.encoding = ENCODING_DEFAULT;
@@ -635,7 +635,7 @@ init_units (void)
       u->flags.status = STATUS_OLD;
       u->flags.blank = BLANK_NULL;
       u->flags.position = POSITION_ASIS;
-      u->flags.sign = SIGN_SUPPRESS;
+      u->flags.sign = SIGN_UNSPECIFIED;
       u->flags.decimal = DECIMAL_POINT;
       u->flags.delim = DELIM_UNSPECIFIED;
       u->flags.encoding = ENCODING_DEFAULT;
@@ -664,7 +664,7 @@ init_units (void)
       u->flags.status = STATUS_OLD;
       u->flags.blank = BLANK_NULL;
       u->flags.position = POSITION_ASIS;
-      u->flags.sign = SIGN_SUPPRESS;
+      u->flags.sign = SIGN_UNSPECIFIED;
       u->flags.decimal = DECIMAL_POINT;
       u->flags.encoding = ENCODING_DEFAULT;
       u->flags.async = ASYNC_NO;

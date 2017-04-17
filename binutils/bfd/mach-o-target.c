@@ -1,5 +1,5 @@
 /* Mach-O support for BFD.
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -31,6 +31,7 @@
 #define bfd_mach_o_bfd_is_local_label_name            bfd_generic_is_local_label_name
 #define bfd_mach_o_get_lineno                         _bfd_nosymbols_get_lineno
 #define bfd_mach_o_find_inliner_info                  _bfd_nosymbols_find_inliner_info
+#define bfd_mach_o_get_symbol_version_string	      _bfd_nosymbols_get_symbol_version_string
 #define bfd_mach_o_bfd_make_debug_symbol              _bfd_nosymbols_bfd_make_debug_symbol
 #define bfd_mach_o_read_minisymbols                   _bfd_generic_read_minisymbols
 #define bfd_mach_o_minisymbol_to_symbol               _bfd_generic_minisymbol_to_symbol
@@ -43,6 +44,7 @@
   _bfd_generic_copy_link_hash_symbol_type
 #define bfd_mach_o_bfd_final_link                     _bfd_generic_final_link
 #define bfd_mach_o_bfd_link_split_section             _bfd_generic_link_split_section
+#define bfd_mach_o_bfd_link_check_relocs              _bfd_generic_link_check_relocs
 #define bfd_mach_o_bfd_merge_private_bfd_data         _bfd_generic_bfd_merge_private_bfd_data
 #define bfd_mach_o_bfd_set_private_flags              bfd_mach_o_bfd_set_private_flags
 #define bfd_mach_o_get_section_contents               _bfd_generic_get_section_contents
@@ -59,6 +61,17 @@
 
 #define bfd_mach_o_get_dynamic_symtab_upper_bound     bfd_mach_o_get_symtab_upper_bound
 #define bfd_mach_o_canonicalize_dynamic_symtab	      bfd_mach_o_canonicalize_symtab
+
+/* For Mach-O special archives.  */
+#define bfd_mach_o_read_ar_hdr                    _bfd_noarchive_read_ar_hdr
+#define bfd_mach_o_write_ar_hdr                   _bfd_noarchive_write_ar_hdr
+#define bfd_mach_o_slurp_armap                    _bfd_noarchive_slurp_armap
+#define bfd_mach_o_slurp_extended_name_table      _bfd_noarchive_slurp_extended_name_table
+#define bfd_mach_o_construct_extended_name_table  _bfd_noarchive_construct_extended_name_table
+#define bfd_mach_o_truncate_arname                _bfd_noarchive_truncate_arname
+#define bfd_mach_o_write_armap                    _bfd_noarchive_write_armap
+#define bfd_mach_o_get_elt_at_index               _bfd_noarchive_get_elt_at_index
+#define bfd_mach_o_update_armap_timestamp         _bfd_noarchive_update_armap_timestamp
 
 #define TARGET_NAME_BACKEND XCONCAT2(TARGET_NAME,_backend)
 
@@ -88,15 +101,11 @@
 #error TARGET_PAGESIZE must be defined
 #endif
 
-#if ((TARGET_ARCHIVE) && (! TARGET_BIG_ENDIAN))
-#error Mach-O fat files must always be big-endian.
-#endif /* ((TARGET_ARCHIVE) && (! TARGET_BIG_ENDIAN)) */
-
 static const bfd_mach_o_backend_data TARGET_NAME_BACKEND =
 {
   TARGET_ARCHITECTURE,
   TARGET_PAGESIZE,
-  bfd_mach_o_swap_reloc_in,
+  bfd_mach_o_canonicalize_one_reloc,
   bfd_mach_o_swap_reloc_out,
   bfd_mach_o_print_thread,
   bfd_mach_o_tgt_seg_table,

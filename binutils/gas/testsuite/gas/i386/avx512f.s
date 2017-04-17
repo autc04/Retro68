@@ -9904,14 +9904,14 @@ _start:
 	vcvtsd2ss	xmm6{k7}, xmm5, QWORD PTR [edx-1032]	 # AVX512F
 
 
-	vcvtsi2ss	xmm6, xmm5, {rn-sae}, eax	 # AVX512F
-	vcvtsi2ss	xmm6, xmm5, {ru-sae}, eax	 # AVX512F
-	vcvtsi2ss	xmm6, xmm5, {rd-sae}, eax	 # AVX512F
-	vcvtsi2ss	xmm6, xmm5, {rz-sae}, eax	 # AVX512F
-	vcvtsi2ss	xmm6, xmm5, {rn-sae}, ebp	 # AVX512F
-	vcvtsi2ss	xmm6, xmm5, {ru-sae}, ebp	 # AVX512F
-	vcvtsi2ss	xmm6, xmm5, {rd-sae}, ebp	 # AVX512F
-	vcvtsi2ss	xmm6, xmm5, {rz-sae}, ebp	 # AVX512F
+	vcvtsi2ss	xmm6, xmm5, eax, {rn-sae}	 # AVX512F
+	vcvtsi2ss	xmm6, xmm5, eax, {ru-sae}	 # AVX512F
+	vcvtsi2ss	xmm6, xmm5, eax, {rd-sae}	 # AVX512F
+	vcvtsi2ss	xmm6, xmm5, eax, {rz-sae}	 # AVX512F
+	vcvtsi2ss	xmm6, xmm5, ebp, {rn-sae}	 # AVX512F
+	vcvtsi2ss	xmm6, xmm5, ebp, {ru-sae}	 # AVX512F
+	vcvtsi2ss	xmm6, xmm5, ebp, {rd-sae}	 # AVX512F
+	vcvtsi2ss	xmm6, xmm5, ebp, {rz-sae}	 # AVX512F
 
 	vcvtss2sd	xmm6{k7}, xmm5, xmm4	 # AVX512F
 	vcvtss2sd	xmm6{k7}{z}, xmm5, xmm4	 # AVX512F
@@ -13704,15 +13704,15 @@ _start:
 	vcvtusi2sd	xmm6, xmm5, DWORD PTR [edx-516]	 # AVX512F
 
 	vcvtusi2ss	xmm6, xmm5, eax	 # AVX512F
-	vcvtusi2ss	xmm6, xmm5, {rn-sae}, eax	 # AVX512F
-	vcvtusi2ss	xmm6, xmm5, {ru-sae}, eax	 # AVX512F
-	vcvtusi2ss	xmm6, xmm5, {rd-sae}, eax	 # AVX512F
-	vcvtusi2ss	xmm6, xmm5, {rz-sae}, eax	 # AVX512F
+	vcvtusi2ss	xmm6, xmm5, eax, {rn-sae}	 # AVX512F
+	vcvtusi2ss	xmm6, xmm5, eax, {ru-sae}	 # AVX512F
+	vcvtusi2ss	xmm6, xmm5, eax, {rd-sae}	 # AVX512F
+	vcvtusi2ss	xmm6, xmm5, eax, {rz-sae}	 # AVX512F
 	vcvtusi2ss	xmm6, xmm5, ebp	 # AVX512F
-	vcvtusi2ss	xmm6, xmm5, {rn-sae}, ebp	 # AVX512F
-	vcvtusi2ss	xmm6, xmm5, {ru-sae}, ebp	 # AVX512F
-	vcvtusi2ss	xmm6, xmm5, {rd-sae}, ebp	 # AVX512F
-	vcvtusi2ss	xmm6, xmm5, {rz-sae}, ebp	 # AVX512F
+	vcvtusi2ss	xmm6, xmm5, ebp, {rn-sae}	 # AVX512F
+	vcvtusi2ss	xmm6, xmm5, ebp, {ru-sae}	 # AVX512F
+	vcvtusi2ss	xmm6, xmm5, ebp, {rd-sae}	 # AVX512F
+	vcvtusi2ss	xmm6, xmm5, ebp, {rz-sae}	 # AVX512F
 	vcvtusi2ss	xmm6, xmm5, DWORD PTR [ecx]	 # AVX512F
 	vcvtusi2ss	xmm6, xmm5, DWORD PTR [esp+esi*8-123456]	 # AVX512F
 	vcvtusi2ss	xmm6, xmm5, DWORD PTR [edx+508]	 # AVX512F Disp8

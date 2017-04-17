@@ -1,6 +1,6 @@
 // random number generation -*- C++ -*-
 
-// Copyright (C) 2009-2015 Free Software Foundation, Inc.
+// Copyright (C) 2009-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -32,6 +32,7 @@
 #define _RANDOM_H 1
 
 #include <vector>
+#include <bits/uniform_int_dist.h>
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -148,14 +149,6 @@ _GLIBCXX_END_NAMESPACE_VERSION
       inline _Tp
       __mod(_Tp __x)
       { return _Mod<_Tp, __m, __a, __c>::__calc(__x); }
-
-    /* Determine whether number is a power of 2.  */
-    template<typename _Tp>
-      inline bool
-      _Power_of_2(_Tp __x)
-      {
-	return ((__x - 1) & __x) == 0;
-      };
 
     /*
      * An adaptor class for converting the output of any Generator into
@@ -1656,164 +1649,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    * @{
    */
 
-  /**
-   * @brief Uniform discrete distribution for random numbers.
-   * A discrete random distribution on the range @f$[min, max]@f$ with equal
-   * probability throughout the range.
-   */
-  template<typename _IntType = int>
-    class uniform_int_distribution
-    {
-      static_assert(std::is_integral<_IntType>::value,
-		    "template argument not an integral type");
-
-    public:
-      /** The type of the range of the distribution. */
-      typedef _IntType result_type;
-      /** Parameter type. */
-      struct param_type
-      {
-	typedef uniform_int_distribution<_IntType> distribution_type;
-
-	explicit
-	param_type(_IntType __a = 0,
-		   _IntType __b = std::numeric_limits<_IntType>::max())
-	: _M_a(__a), _M_b(__b)
-	{
-	  _GLIBCXX_DEBUG_ASSERT(_M_a <= _M_b);
-	}
-
-	result_type
-	a() const
-	{ return _M_a; }
-
-	result_type
-	b() const
-	{ return _M_b; }
-
-	friend bool
-	operator==(const param_type& __p1, const param_type& __p2)
-	{ return __p1._M_a == __p2._M_a && __p1._M_b == __p2._M_b; }
-
-      private:
-	_IntType _M_a;
-	_IntType _M_b;
-      };
-
-    public:
-      /**
-       * @brief Constructs a uniform distribution object.
-       */
-      explicit
-      uniform_int_distribution(_IntType __a = 0,
-			   _IntType __b = std::numeric_limits<_IntType>::max())
-      : _M_param(__a, __b)
-      { }
-
-      explicit
-      uniform_int_distribution(const param_type& __p)
-      : _M_param(__p)
-      { }
-
-      /**
-       * @brief Resets the distribution state.
-       *
-       * Does nothing for the uniform integer distribution.
-       */
-      void
-      reset() { }
-
-      result_type
-      a() const
-      { return _M_param.a(); }
-
-      result_type
-      b() const
-      { return _M_param.b(); }
-
-      /**
-       * @brief Returns the parameter set of the distribution.
-       */
-      param_type
-      param() const
-      { return _M_param; }
-
-      /**
-       * @brief Sets the parameter set of the distribution.
-       * @param __param The new parameter set of the distribution.
-       */
-      void
-      param(const param_type& __param)
-      { _M_param = __param; }
-
-      /**
-       * @brief Returns the inclusive lower bound of the distribution range.
-       */
-      result_type
-      min() const
-      { return this->a(); }
-
-      /**
-       * @brief Returns the inclusive upper bound of the distribution range.
-       */
-      result_type
-      max() const
-      { return this->b(); }
-
-      /**
-       * @brief Generating functions.
-       */
-      template<typename _UniformRandomNumberGenerator>
-	result_type
-	operator()(_UniformRandomNumberGenerator& __urng)
-        { return this->operator()(__urng, _M_param); }
-
-      template<typename _UniformRandomNumberGenerator>
-	result_type
-	operator()(_UniformRandomNumberGenerator& __urng,
-		   const param_type& __p);
-
-      template<typename _ForwardIterator,
-	       typename _UniformRandomNumberGenerator>
-	void
-	__generate(_ForwardIterator __f, _ForwardIterator __t,
-		   _UniformRandomNumberGenerator& __urng)
-	{ this->__generate(__f, __t, __urng, _M_param); }
-
-      template<typename _ForwardIterator,
-	       typename _UniformRandomNumberGenerator>
-	void
-	__generate(_ForwardIterator __f, _ForwardIterator __t,
-		   _UniformRandomNumberGenerator& __urng,
-		   const param_type& __p)
-	{ this->__generate_impl(__f, __t, __urng, __p); }
-
-      template<typename _UniformRandomNumberGenerator>
-	void
-	__generate(result_type* __f, result_type* __t,
-		   _UniformRandomNumberGenerator& __urng,
-		   const param_type& __p)
-	{ this->__generate_impl(__f, __t, __urng, __p); }
-
-      /**
-       * @brief Return true if two uniform integer distributions have
-       *        the same parameters.
-       */
-      friend bool
-      operator==(const uniform_int_distribution& __d1,
-		 const uniform_int_distribution& __d2)
-      { return __d1._M_param == __d2._M_param; }
-
-    private:
-      template<typename _ForwardIterator,
-	       typename _UniformRandomNumberGenerator>
-	void
-	__generate_impl(_ForwardIterator __f, _ForwardIterator __t,
-			_UniformRandomNumberGenerator& __urng,
-			const param_type& __p);
-
-      param_type _M_param;
-    };
+  // std::uniform_int_distribution is defined in <bits/uniform_int_dist.h>
 
   /**
    * @brief Return true if two uniform integer distributions have
@@ -1881,7 +1717,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 		   _RealType __b = _RealType(1))
 	: _M_a(__a), _M_b(__b)
 	{
-	  _GLIBCXX_DEBUG_ASSERT(_M_a <= _M_b);
+	  __glibcxx_assert(_M_a <= _M_b);
 	}
 
 	result_type
@@ -2099,7 +1935,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 		   _RealType __stddev = _RealType(1))
 	: _M_mean(__mean), _M_stddev(__stddev)
 	{
-	  _GLIBCXX_DEBUG_ASSERT(_M_stddev > _RealType(0));
+	  __glibcxx_assert(_M_stddev > _RealType(0));
 	}
 
 	_RealType
@@ -2517,7 +2353,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 		   _RealType __beta_val = _RealType(1))
 	: _M_alpha(__alpha_val), _M_beta(__beta_val)
 	{
-	  _GLIBCXX_DEBUG_ASSERT(_M_alpha > _RealType(0));
+	  __glibcxx_assert(_M_alpha > _RealType(0));
 	  _M_initialize();
 	}
 
@@ -3582,7 +3418,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       param_type(double __p = 0.5)
       : _M_p(__p)
       {
-	_GLIBCXX_DEBUG_ASSERT((_M_p >= 0.0) && (_M_p <= 1.0));
+	__glibcxx_assert((_M_p >= 0.0) && (_M_p <= 1.0));
       }
 
       double
@@ -3791,7 +3627,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	param_type(_IntType __t = _IntType(1), double __p = 0.5)
 	: _M_t(__t), _M_p(__p)
 	{
-	  _GLIBCXX_DEBUG_ASSERT((_M_t >= _IntType(0))
+	  __glibcxx_assert((_M_t >= _IntType(0))
 				&& (_M_p >= 0.0)
 				&& (_M_p <= 1.0));
 	  _M_initialize();
@@ -4022,7 +3858,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	param_type(double __p = 0.5)
 	: _M_p(__p)
 	{
-	  _GLIBCXX_DEBUG_ASSERT((_M_p > 0.0) && (_M_p < 1.0));
+	  __glibcxx_assert((_M_p > 0.0) && (_M_p < 1.0));
 	  _M_initialize();
 	}
 
@@ -4221,7 +4057,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	param_type(_IntType __k = 1, double __p = 0.5)
 	: _M_k(__k), _M_p(__p)
 	{
-	  _GLIBCXX_DEBUG_ASSERT((_M_k > 0) && (_M_p > 0.0) && (_M_p <= 1.0));
+	  __glibcxx_assert((_M_k > 0) && (_M_p > 0.0) && (_M_p <= 1.0));
 	}
 
 	_IntType
@@ -4444,7 +4280,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	param_type(double __mean = 1.0)
 	: _M_mean(__mean)
 	{
-	  _GLIBCXX_DEBUG_ASSERT(_M_mean > 0.0);
+	  __glibcxx_assert(_M_mean > 0.0);
 	  _M_initialize();
 	}
 
@@ -4659,7 +4495,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	param_type(_RealType __lambda = _RealType(1))
 	: _M_lambda(__lambda)
 	{
-	  _GLIBCXX_DEBUG_ASSERT(_M_lambda > _RealType(0));
+	  __glibcxx_assert(_M_lambda > _RealType(0));
 	}
 
 	_RealType
@@ -6023,13 +5859,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    */
   class seed_seq
   {
-
   public:
     /** The type of the seed vales. */
     typedef uint_least32_t result_type;
 
     /** Default constructor. */
-    seed_seq()
+    seed_seq() noexcept
     : _M_v()
     { }
 
@@ -6045,7 +5880,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       generate(_RandomAccessIterator __begin, _RandomAccessIterator __end);
 
     // property functions
-    size_t size() const
+    size_t size() const noexcept
     { return _M_v.size(); }
 
     template<typename OutputIterator>
@@ -6053,8 +5888,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       param(OutputIterator __dest) const
       { std::copy(_M_v.begin(), _M_v.end(), __dest); }
 
+    // no copy functions
+    seed_seq(const seed_seq&) = delete;
+    seed_seq& operator=(const seed_seq&) = delete;
+
   private:
-    ///
     std::vector<result_type> _M_v;
   };
 

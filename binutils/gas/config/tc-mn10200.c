@@ -1,5 +1,5 @@
 /* tc-mn10200.c -- Assembler code for the Matsushita 10200
-   Copyright (C) 1996-2014 Free Software Foundation, Inc.
+   Copyright (C) 1996-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -181,13 +181,12 @@ data_register_name (expressionS *expressionP)
   char c;
 
   /* Find the spelling of the operand.  */
-  start = name = input_line_pointer;
-
-  c = get_symbol_end ();
+  start = input_line_pointer;
+  c = get_symbol_name (&name);
   reg_number = reg_name_search (data_registers, DATA_REG_NAME_CNT, name);
 
   /* Put back the delimiting char.  */
-  *input_line_pointer = c;
+  (void) restore_line_pointer (c);
 
   /* Look to see if it's in the register table.  */
   if (reg_number >= 0)
@@ -226,13 +225,12 @@ address_register_name (expressionS *expressionP)
   char c;
 
   /* Find the spelling of the operand.  */
-  start = name = input_line_pointer;
-
-  c = get_symbol_end ();
+  start = input_line_pointer;
+  c = get_symbol_name (&name);
   reg_number = reg_name_search (address_registers, ADDRESS_REG_NAME_CNT, name);
 
   /* Put back the delimiting char.  */
-  *input_line_pointer = c;
+  (void) restore_line_pointer (c);
 
   /* Look to see if it's in the register table.  */
   if (reg_number >= 0)
@@ -271,13 +269,12 @@ other_register_name (expressionS *expressionP)
   char c;
 
   /* Find the spelling of the operand.  */
-  start = name = input_line_pointer;
-
-  c = get_symbol_end ();
+  start = input_line_pointer;
+  c = get_symbol_name (&name);
   reg_number = reg_name_search (other_registers, OTHER_REG_NAME_CNT, name);
 
   /* Put back the delimiting char.  */
-  *input_line_pointer = c;
+  (void) restore_line_pointer (c);
 
   /* Look to see if it's in the register table.  */
   if (reg_number >= 0)
@@ -306,7 +303,7 @@ none yet\n"));
 
 int
 md_parse_option (int c ATTRIBUTE_UNUSED,
-		 char *arg ATTRIBUTE_UNUSED)
+		 const char *arg ATTRIBUTE_UNUSED)
 {
   return 0;
 }
@@ -317,7 +314,7 @@ md_undefined_symbol (char *name ATTRIBUTE_UNUSED)
   return 0;
 }
 
-char *
+const char *
 md_atof (int type, char *litp, int *sizep)
 {
   return ieee_md_atof (type, litp, sizep, FALSE);
@@ -679,14 +676,14 @@ valueT
 md_section_align (asection *seg, valueT addr)
 {
   int align = bfd_get_section_alignment (stdoutput, seg);
-  return ((addr + (1 << align) - 1) & (-1 << align));
+  return ((addr + (1 << align) - 1) & -(1 << align));
 }
 
 void
 md_begin (void)
 {
-  char *prev_name = "";
-  register const struct mn10200_opcode *op;
+  const char *prev_name = "";
+  const struct mn10200_opcode *op;
 
   mn10200_hash = hash_new ();
 
@@ -751,7 +748,7 @@ arelent *
 tc_gen_reloc (asection *seg ATTRIBUTE_UNUSED, fixS *fixp)
 {
   arelent *reloc;
-  reloc = xmalloc (sizeof (arelent));
+  reloc = XNEW (arelent);
 
   if (fixp->fx_subsy != NULL)
     {
@@ -784,7 +781,7 @@ tc_gen_reloc (asection *seg ATTRIBUTE_UNUSED, fixS *fixp)
       return NULL;
     }
   reloc->address = fixp->fx_frag->fr_address + fixp->fx_where;
-  reloc->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+  reloc->sym_ptr_ptr = XNEW (asymbol *);
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
   reloc->addend = fixp->fx_offset;
   return reloc;
@@ -980,32 +977,32 @@ md_assemble (char *str)
 	    }
 	  else if (operand->flags & MN10200_OPERAND_PSW)
 	    {
-	      char *start = input_line_pointer;
-	      char c = get_symbol_end ();
+	      char *start;
+	      char c = get_symbol_name (&start);
 
 	      if (strcmp (start, "psw") != 0)
 		{
-		  *input_line_pointer = c;
+		  (void) restore_line_pointer (c);
 		  input_line_pointer = hold;
 		  str = hold;
 		  goto error;
 		}
-	      *input_line_pointer = c;
+	      (void) restore_line_pointer (c);
 	      goto keep_going;
 	    }
 	  else if (operand->flags & MN10200_OPERAND_MDR)
 	    {
-	      char *start = input_line_pointer;
-	      char c = get_symbol_end ();
+	      char *start;
+	      char c = get_symbol_name (&start);
 
 	      if (strcmp (start, "mdr") != 0)
 		{
-		  *input_line_pointer = c;
+		  (void) restore_line_pointer (c);
 		  input_line_pointer = hold;
 		  str = hold;
 		  goto error;
 		}
-	      *input_line_pointer = c;
+	      (void) restore_line_pointer (c);
 	      goto keep_going;
 	    }
 	  else if (data_register_name (&ex))
@@ -1157,14 +1154,14 @@ keep_going:
     abort ();
 
   /* Write out the instruction.  */
-  dwarf2_emit_insn (0);
+  dwarf2_emit_insn (size);
   if (relaxable && fc > 0)
     {
       /* On a 64-bit host the size of an 'int' is not the same
 	 as the size of a pointer, so we need a union to convert
 	 the opindex field of the fr_cgen structure into a char *
 	 so that it can be stored in the frag.  We do not have
-	 to worry about loosing accuracy as we are not going to
+	 to worry about losing accuracy as we are not going to
 	 be even close to the 32bit limit of the int.  */
       union
       {
@@ -1337,4 +1334,3 @@ keep_going:
 	}
     }
 }
-

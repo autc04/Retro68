@@ -1,7 +1,6 @@
 #source: rgn-at6.s
 #ld: -T rgn-at6.t
 #objdump: -h --wide
-#xfail: rx-*-*
 # Test that lma is aligned as for vma when lma_region==region.
 
 #...

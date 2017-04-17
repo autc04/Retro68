@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	13823c20 	extr	w0, w1, w2, #15
    4:	93c23c20 	extr	x0, x1, x2, #15
    8:	13831c60 	ror	w0, w3, #7
@@ -29,19 +29,19 @@ Disassembly of section \.text:
   54:	9ba28c20 	umsubl	x0, w1, w2, x3
   58:	9ba2fc20 	umnegl	x0, w1, w2
   5c:	9ba2fc20 	umnegl	x0, w1, w2
-  60:	1a9f0420 	csinc	w0, w1, wzr, eq
-  64:	1a810420 	cinc	w0, w1, ne
-  68:	1a810420 	cinc	w0, w1, ne
-  6c:	1a9f37e0 	cset	w0, cs
-  70:	1a9f37e0 	cset	w0, cs
-  74:	da9f2020 	csinv	x0, x1, xzr, cs
-  78:	da812020 	cinv	x0, x1, cc
-  7c:	da812020 	cinv	x0, x1, cc
-  80:	da9f43e0 	csetm	x0, pl
-  84:	da9f43e0 	csetm	x0, pl
-  88:	da9eb7e0 	csneg	x0, xzr, x30, lt
-  8c:	da9eb7c0 	cneg	x0, x30, ge
-  90:	da9eb7c0 	cneg	x0, x30, ge
+  60:	1a9f0420 	csinc	w0, w1, wzr, eq  // eq = none
+  64:	1a810420 	cinc	w0, w1, ne  // ne = any
+  68:	1a810420 	cinc	w0, w1, ne  // ne = any
+  6c:	1a9f37e0 	cset	w0, cs  // cs = hs, nlast
+  70:	1a9f37e0 	cset	w0, cs  // cs = hs, nlast
+  74:	da9f2020 	csinv	x0, x1, xzr, cs  // cs = hs, nlast
+  78:	da812020 	cinv	x0, x1, cc  // cc = lo, ul, last
+  7c:	da812020 	cinv	x0, x1, cc  // cc = lo, ul, last
+  80:	da9f43e0 	csetm	x0, pl  // pl = nfrst
+  84:	da9f43e0 	csetm	x0, pl  // pl = nfrst
+  88:	da9eb7e0 	csneg	x0, xzr, x30, lt  // lt = tstop
+  8c:	da9eb7c0 	cneg	x0, x30, ge  // ge = tcont
+  90:	da9eb7c0 	cneg	x0, x30, ge  // ge = tcont
   94:	ea020020 	ands	x0, x1, x2
   98:	ea02003f 	tst	x1, x2
   9c:	ea02003f 	tst	x1, x2

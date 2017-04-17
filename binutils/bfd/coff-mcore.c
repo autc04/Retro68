@@ -1,5 +1,5 @@
 /* BFD back-end for Motorola MCore COFF/PE
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -241,6 +241,7 @@ mcore_coff_unsupported_reloc (bfd * abfd,
 {
   BFD_ASSERT (reloc_entry->howto != (reloc_howto_type *)0);
 
+  /* xgettext: c-format */
   _bfd_error_handler (_("%B: Relocation %s (%d) is not currently supported.\n"),
 		      abfd,
 		      reloc_entry->howto->name,
@@ -358,14 +359,15 @@ coff_mcore_relocate_section (bfd * output_bfd,
   /* If we are performing a relocatable link, we don't need to do a
      thing.  The caller will take care of adjusting the reloc
      addresses and symbol indices.  */
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   /* Check if we have the same endianness */
   if (   input_bfd->xvec->byteorder != output_bfd->xvec->byteorder
       && output_bfd->xvec->byteorder != BFD_ENDIAN_UNKNOWN)
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
+	/* xgettext: c-format */
 	(_("%B: compiled for a %s system and target is %s.\n"),
 	 input_bfd,
          bfd_big_endian (input_bfd) ? _("big endian") : _("little endian"),
@@ -454,12 +456,9 @@ coff_mcore_relocate_section (bfd * output_bfd,
 		     + sec->output_offset);
 	    }
 	  else
-	    {
-	      if (! ((*info->callbacks->undefined_symbol)
-		     (info, h->root.root.string, input_bfd, input_section,
-		      rel->r_vaddr - input_section->vma, TRUE)))
-		return FALSE;
-	    }
+	    (*info->callbacks->undefined_symbol)
+	      (info, h->root.root.string, input_bfd, input_section,
+	       rel->r_vaddr - input_section->vma, TRUE);
 
 	  my_name = h->root.root.string;
 	}
@@ -470,6 +469,7 @@ coff_mcore_relocate_section (bfd * output_bfd,
       switch (r_type)
 	{
 	default:
+	  /* xgettext: c-format */
 	  _bfd_error_handler (_("%B: unsupported relocation type 0x%02x"),
 			      input_bfd, r_type);
 	  bfd_set_error (bfd_error_bad_value);
@@ -477,6 +477,7 @@ coff_mcore_relocate_section (bfd * output_bfd,
 
 	case IMAGE_REL_MCORE_ABSOLUTE:
 	  _bfd_error_handler
+	    /* xgettext: c-format */
 	    (_("Warning: unsupported reloc %s <file %B, section %A>\n"
 	       "sym %ld (%s), r_vaddr %ld (%lx)"),
 	     input_bfd, input_section, howto->name,
@@ -519,11 +520,10 @@ coff_mcore_relocate_section (bfd * output_bfd,
 	  break;
 
 	case bfd_reloc_overflow:
-	  if (! ((*info->callbacks->reloc_overflow)
-		 (info, (h ? &h->root : NULL), my_name, howto->name,
-		  (bfd_vma) 0, input_bfd,
-		  input_section, rel->r_vaddr - input_section->vma)))
-	    return FALSE;
+	  (*info->callbacks->reloc_overflow)
+	    (info, (h ? &h->root : NULL), my_name, howto->name,
+	     (bfd_vma) 0, input_bfd,
+	     input_section, rel->r_vaddr - input_section->vma);
 	}
     }
 

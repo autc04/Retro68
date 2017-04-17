@@ -1,6 +1,6 @@
 /* gmon_io.h
 
-   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+   Copyright (C) 2000-2017 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 

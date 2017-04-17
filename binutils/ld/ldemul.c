@@ -1,5 +1,5 @@
 /* ldemul.c -- clearing house for ld emulation states
-   Copyright (C) 1991-2014 Free Software Foundation, Inc.
+   Copyright (C) 1991-2017 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -205,7 +205,7 @@ void
 after_parse_default (void)
 {
   if (entry_symbol.name != NULL
-      && (link_info.executable || entry_from_cmdline))
+      && (bfd_link_executable (&link_info) || entry_from_cmdline))
     {
       bfd_boolean is_vma = FALSE;
 
@@ -235,14 +235,14 @@ after_allocation_default (void)
 void
 before_allocation_default (void)
 {
-  if (!link_info.relocatable)
+  if (!bfd_link_relocatable (&link_info))
     strip_excluded_output_sections ();
 }
 
 void
 finish_default (void)
 {
-  if (!link_info.relocatable)
+  if (!bfd_link_relocatable (&link_info))
     _bfd_fix_excluded_sec_syms (link_info.output_bfd, &link_info);
 }
 
@@ -328,7 +328,7 @@ ldemul_list_emulation_options (FILE *f)
 	}
     }
 
-  if (! options_found)
+  if (!options_found)
     fprintf (f, _("  no emulation specific options.\n"));
 }
 

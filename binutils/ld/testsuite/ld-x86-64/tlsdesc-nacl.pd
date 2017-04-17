@@ -25,7 +25,7 @@ Disassembly of section .plt:
  +[0-9a-f]+:	00 *
  +[0-9a-f]+:	66 90                	xchg   %ax,%ax
  +[0-9a-f]+:	ff 35 .. .. .. ..    	pushq  0x[0-9a-f]+\(%rip\) +# [0-9a-f]+ <_GLOBAL_OFFSET_TABLE_\+0x8>
- +[0-9a-f]+:	4c 8b 1d .. .. .. .. 	mov    0x[0-9a-f]+\(%rip\),%r11 +# [0-9a-f]+ <_DYNAMIC\+0x190>
+ +[0-9a-f]+:	4c 8b 1d .. .. .. .. 	mov    0x[0-9a-f]+\(%rip\),%r11 +# [0-9a-f]+ <.*>
  +[0-9a-f]+:	41 83 e3 e0          	and    \$0xffffffe0,%r11d
  +[0-9a-f]+:	4d 01 fb             	add    %r15,%r11
  +[0-9a-f]+:	41 ff e3             	jmpq   \*%r11

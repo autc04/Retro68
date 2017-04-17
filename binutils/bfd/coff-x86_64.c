@@ -1,5 +1,5 @@
 /* BFD back-end for AMD 64 COFF files.
-   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+   Copyright (C) 2006-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -138,59 +138,61 @@ coff_amd64_reloc (bfd *abfd,
 #define DOIT(x) \
   x = ((x & ~howto->dst_mask) | (((x & howto->src_mask) + diff) & howto->dst_mask))
 
-    if (diff != 0)
-      {
-	reloc_howto_type *howto = reloc_entry->howto;
-	unsigned char *addr = (unsigned char *) data + reloc_entry->address;
+  if (diff != 0)
+    {
+      reloc_howto_type *howto = reloc_entry->howto;
+      unsigned char *addr = (unsigned char *) data + reloc_entry->address;
 
-	/* FIXME: We do not have an end address for data, so we cannot
-	   accurately range check any addresses computed against it.
-	   cf: PR binutils/17512: file: 1085-1761-0.004.
-	   For now we do the best that we can.  */
-	if (addr < (unsigned char *) data || addr > ((unsigned char *) data) + input_section->size)
+      /* FIXME: We do not have an end address for data, so we cannot
+	 accurately range check any addresses computed against it.
+	 cf: PR binutils/17512: file: 1085-1761-0.004.
+	 For now we do the best that we can.  */
+      if (addr < (unsigned char *) data
+	  || addr > ((unsigned char *) data) + input_section->size)
+	{
+	  bfd_set_error (bfd_error_bad_value);
+	  return bfd_reloc_notsupported;
+	}
+
+      switch (howto->size)
+	{
+	case 0:
 	  {
-	    bfd_set_error (bfd_error_bad_value);
-	    return bfd_reloc_notsupported;
+	    char x = bfd_get_8 (abfd, addr);
+	    DOIT (x);
+	    bfd_put_8 (abfd, x, addr);
 	  }
+	  break;
 
-	switch (howto->size)
+	case 1:
 	  {
-	  case 0:
-	    {
-	      char x = bfd_get_8 (abfd, addr);
-	      DOIT (x);
-	      bfd_put_8 (abfd, x, addr);
-	    }
-	    break;
-
-	  case 1:
-	    {
-	      short x = bfd_get_16 (abfd, addr);
-	      DOIT (x);
-	      bfd_put_16 (abfd, (bfd_vma) x, addr);
-	    }
-	    break;
-
-	  case 2:
-	    {
-	      long x = bfd_get_32 (abfd, addr);
-	      DOIT (x);
-	      bfd_put_32 (abfd, (bfd_vma) x, addr);
-	    }
-	    break;
-	  case 4:
-	    {
-	      long long x = bfd_get_64 (abfd, addr);
-	      DOIT (x);
-	      bfd_put_64 (abfd, (bfd_vma) x, addr);
-	    }
-	    break;
-
-	  default:
-	    bfd_set_error (bfd_error_bad_value);
-	    return bfd_reloc_notsupported;
+	    short x = bfd_get_16 (abfd, addr);
+	    DOIT (x);
+	    bfd_put_16 (abfd, (bfd_vma) x, addr);
 	  }
-      }
+	  break;
+
+	case 2:
+	  {
+	    long x = bfd_get_32 (abfd, addr);
+	    DOIT (x);
+	    bfd_put_32 (abfd, (bfd_vma) x, addr);
+	  }
+	  break;
+
+	case 4:
+	  {
+	    long long x = bfd_get_64 (abfd, addr);
+	    DOIT (x);
+	    bfd_put_64 (abfd, (bfd_vma) x, addr);
+	  }
+	  break;
+
+	default:
+	  bfd_set_error (bfd_error_bad_value);
+	  return bfd_reloc_notsupported;
+	}
+    }
 
   /* Now let bfd_perform_relocation finish everything up.  */
   return bfd_reloc_continue;
@@ -499,7 +501,7 @@ static reloc_howto_type howto_table[] =
       coffsym = (obj_symbols (abfd)				\
 	         + (cache_ptr->sym_ptr_ptr - symbols));		\
     else if (ptr)						\
-      coffsym = coff_symbol_from (abfd, ptr);			\
+      coffsym = coff_symbol_from (ptr);				\
     								\
     if (coffsym != NULL						\
 	&& coffsym->native->u.syment.n_scnum == 0)		\
@@ -538,7 +540,7 @@ coff_pe_amd64_relocate_section (bfd *output_bfd,
 				struct internal_syment *syms,
 				asection **sections)
 {
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   return _bfd_coff_generic_relocate_section (output_bfd, info, input_bfd,input_section, contents,relocs, syms, sections);
@@ -612,7 +614,12 @@ coff_amd64_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
 #if defined(COFF_WITH_PE)
   if (howto->pc_relative)
     {
-      *addendp -= 4;
+#ifndef DONT_EXTEND_AMD64
+      if (rel->r_type == R_AMD64_PCRQUAD)
+	*addendp -= 8;
+      else
+#endif
+	*addendp -= 4;
 
       /* If the symbol is defined, then the generic code is going to
          add back the symbol value in order to cancel out an

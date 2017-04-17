@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *            Copyright (C) 2000-2014, Free Software Foundation, Inc.       *
+ *            Copyright (C) 2000-2015, Free Software Foundation, Inc.       *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -274,9 +274,25 @@ __gnat_backtrace (void **array,
 #define PC_ADJUST -4
 #elif defined (__arm__)
 #define PC_ADJUST -2
+#elif defined (__arm64__)
+#define PC_ADJUST -4
 #else
 #error Unhandled darwin architecture.
 #endif
+
+/*---------------------------- x86 *BSD --------------------------------*/
+
+#elif defined (__i386__) &&   \
+    ( defined (__NetBSD__) || defined (__FreeBSD__) || defined (__OpenBSD__) )
+
+#define USE_GCC_UNWINDER
+/* The generic unwinder is not used for this target because the default
+   implementation doesn't unwind on the BSD platforms.  AMD64 targets use the
+   gcc unwinder for all platforms, so let's keep i386 consistent with that.
+*/
+
+#define PC_ADJUST -2
+/* The minimum size of call instructions on this architecture is 2 bytes */
 
 /*---------------------- PPC AIX/PPC Lynx 178/Older Darwin ------------------*/
 #elif ((defined (_POWER) && defined (_AIX)) || \
@@ -335,7 +351,7 @@ extern void __runnit(); /* thread entry point.  */
 /*-------------------- PPC ELF (GNU/Linux & VxWorks) ---------------------*/
 
 #elif (defined (_ARCH_PPC) && defined (__vxworks)) ||  \
-  (defined (linux) && defined (__powerpc__))
+  (defined (__linux__) && defined (__powerpc__))
 
 #define USE_GENERIC_UNWINDER
 
@@ -363,7 +379,7 @@ struct layout
 
 /*-------------------------- SPARC Solaris -----------------------------*/
 
-#elif defined (sun) && defined (sparc)
+#elif defined (__sun__) && defined (__sparc__)
 
 #define USE_GENERIC_UNWINDER
 
@@ -399,23 +415,25 @@ struct layout
    window of frame N-1 (positive offset from fp), in which we retrieve the
    saved return address. We then end up with our caller's return address.  */
 
-/*------------------------------- x86 ----------------------------------*/
+/*---------------------------- x86 & x86_64 ---------------------------------*/
 
-#elif defined (i386)
+#elif defined (__i386__) || defined (__x86_64__)
 
 #if defined (__WIN32)
 #include <windows.h>
 #define IS_BAD_PTR(ptr) (IsBadCodePtr((FARPROC)ptr))
-#elif defined (sun)
+#elif defined (__sun__)
 #define IS_BAD_PTR(ptr) ((unsigned long)ptr == -1UL)
 #else
 #define IS_BAD_PTR(ptr) 0
 #endif
 
-/* Starting with GCC 4.6, -fomit-frame-pointer is turned on by default for
-   32-bit x86/Linux as well and DWARF 2 unwind tables are emitted instead.
-   See the x86-64 case below for the drawbacks with this approach.  */
-#if defined (linux) && (__GNUC__ * 10 + __GNUC_MINOR__ > 45)
+/* Use the dwarf2 unwinder when we expect to have dwarf2 tables at
+   hand. Backtraces will reliably stop on frames missing such tables,
+   but our only alternative is the generic unwinder which requires
+   compilation forcing a frame pointer to be reliable.  */
+
+#if (defined (__x86_64__) || defined (__linux__)) && !defined (__USING_SJLJ_EXCEPTIONS__)
 #define USE_GCC_UNWINDER
 #else
 #define USE_GENERIC_UNWINDER
@@ -428,9 +446,9 @@ struct layout
 };
 
 #define FRAME_LEVEL 1
-/* builtin_frame_address (1) is expected to work on this target, and (0) might
-   return the soft stack pointer, which does not designate a location where a
-   backchain and a return address might be found.  */
+/* builtin_frame_address (1) is expected to work on this family of targets,
+   and (0) might return the soft stack pointer, which does not designate a
+   location where a backchain and a return address might be found.  */
 
 #define FRAME_OFFSET(FP) 0
 #define PC_ADJUST -2
@@ -462,26 +480,9 @@ struct layout
         || ((*((ptr) - 1) & 0xff) == 0xff) \
         || (((*(ptr) & 0xd0ff) == 0xd0ff))))
 
-/*----------------------------- x86_64 ---------------------------------*/
-
-#elif defined (__x86_64__)
-
-#define USE_GCC_UNWINDER
-/* The generic unwinder is not used for this target because it is based
-   on frame layout assumptions that are not reliable on this target (the
-   rbp register is very likely used for something else than storing the
-   frame pointer in optimized code). Hence, we use the GCC unwinder
-   based on DWARF 2 call frame information, although it has the drawback
-   of not being able to unwind through frames compiled without DWARF 2
-   information.
-*/
-
-#define PC_ADJUST -2
-/* The minimum size of call instructions on this architecture is 2 bytes */
-
 /*----------------------------- ia64 ---------------------------------*/
 
-#elif defined (__ia64__) && (defined (linux) || defined (__hpux__))
+#elif defined (__ia64__) && (defined (__linux__) || defined (__hpux__))
 
 #define USE_GCC_UNWINDER
 /* Use _Unwind_Backtrace driven exceptions on ia64 HP-UX and ia64

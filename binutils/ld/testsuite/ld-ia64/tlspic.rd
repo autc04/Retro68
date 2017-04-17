@@ -24,9 +24,9 @@ Section Headers:
  +\[[ 0-9]+\] .dynamic +DYNAMIC +0+11[0-9a-f]+ 0+1[0-9a-f]+ 0+140 10 +WA +3 +0 +8
  +\[[ 0-9]+\] .got +PROGBITS +0+112d8 0+12d8 0+50 00 WAp +0 +0 +8
  +\[[ 0-9]+\] .IA_64.pltoff +.*
- +\[[ 0-9]+\] .shstrtab +.*
  +\[[ 0-9]+\] .symtab +.*
  +\[[ 0-9]+\] .strtab +.*
+ +\[[ 0-9]+\] .shstrtab +.*
 Key to Flags:
 #...
 
@@ -99,7 +99,9 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +LOCAL +DEFAULT +10 sl6
 .* TLS +LOCAL +DEFAULT +10 sl7
 .* TLS +LOCAL +DEFAULT +10 sl8
+.* FILE +LOCAL +DEFAULT +ABS 
 .* TLS +LOCAL +DEFAULT +11 sH1
+.* OBJECT +LOCAL +DEFAULT +ABS _DYNAMIC
 .* TLS +LOCAL +DEFAULT +10 sh3
 .* TLS +LOCAL +DEFAULT +11 sH2
 .* TLS +LOCAL +DEFAULT +11 sH7
@@ -113,11 +115,9 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +LOCAL +DEFAULT +11 sH6
 .* TLS +LOCAL +DEFAULT +11 sH8
 .* TLS +LOCAL +DEFAULT +10 sh1
+.* OBJECT +LOCAL +DEFAULT +ABS _GLOBAL_OFFSET_TABLE_
 .* TLS +LOCAL +DEFAULT +10 sh2
 .* TLS +LOCAL +DEFAULT +10 sh6
-.* FILE +LOCAL +DEFAULT +ABS .*
-.* OBJECT +LOCAL +DEFAULT +ABS _DYNAMIC
-.* OBJECT +LOCAL +DEFAULT +ABS _GLOBAL_OFFSET_TABLE_
 .* TLS +GLOBAL +DEFAULT +10 sg8
 .* TLS +GLOBAL +DEFAULT +10 sg3
 .* TLS +GLOBAL +DEFAULT +10 sg4

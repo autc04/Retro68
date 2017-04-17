@@ -137,7 +137,7 @@ package body Sem_Type is
    --  entities. We do not introduce explicit versions of primitive operators
    --  for each type definition. As a result, there is only one entity
    --  corresponding to predefined addition on all numeric types, etc. The
-   --  back-end resolves predefined operators according to their type. The
+   --  back end resolves predefined operators according to their type. The
    --  visibility of primitive operations then reduces to the visibility of the
    --  resulting type: (a + b) is a legal interpretation of some primitive
    --  operator + if the type of the result (which must also be the type of a
@@ -1223,19 +1223,12 @@ package body Sem_Type is
 
       elsif From_Limited_With (T1) then
 
-         --  If the expected type is the non-limited view of a type, the
+         --  If the expected type is the nonlimited view of a type, the
          --  expression may have the limited view. If that one in turn is
          --  incomplete, get full view if available.
 
-         if Is_Incomplete_Type (T1) then
-            return Covers (Get_Full_View (Non_Limited_View (T1)), T2);
-
-         elsif Ekind (T1) = E_Class_Wide_Type then
-            return
-              Covers (Class_Wide_Type (Non_Limited_View (Etype (T1))), T2);
-         else
-            return False;
-         end if;
+         return Has_Non_Limited_View (T1)
+           and then Covers (Get_Full_View (Non_Limited_View (T1)), T2);
 
       elsif From_Limited_With (T2) then
 
@@ -1243,17 +1236,8 @@ package body Sem_Type is
          --  either type might have a limited view. Checks performed elsewhere
          --  verify that the context type is the nonlimited view.
 
-         if Is_Incomplete_Type (T2) then
-            return Covers (T1, Get_Full_View (Non_Limited_View (T2)));
-
-         elsif Ekind (T2) = E_Class_Wide_Type then
-            return
-              Present (Non_Limited_View (Etype (T2)))
-                and then
-                  Covers (T1, Class_Wide_Type (Non_Limited_View (Etype (T2))));
-         else
-            return False;
-         end if;
+         return Has_Non_Limited_View (T2)
+           and then Covers (T1, Get_Full_View (Non_Limited_View (T2)));
 
       --  Ada 2005 (AI-412): Coverage for regular incomplete subtypes
 
@@ -1744,18 +1728,6 @@ package body Sem_Type is
          end if;
       end if;
 
-      --  Check for overloaded CIL convention stuff because the CIL libraries
-      --  do sick things like Console.Write_Line where it matches two different
-      --  overloads, so just pick the first ???
-
-      if Convention (Nam1) = Convention_CIL
-        and then Convention (Nam2) = Convention_CIL
-        and then Ekind (Nam1) = Ekind (Nam2)
-        and then Ekind_In (Nam1, E_Procedure, E_Function)
-      then
-         return It2;
-      end if;
-
       --  If the context is universal, the predefined operator is preferred.
       --  This includes bounds in numeric type declarations, and expressions
       --  in type conversions. If no interpretation yields a universal type,
@@ -2005,7 +1977,7 @@ package body Sem_Type is
                   return It2;
                end if;
 
-            elsif Nkind (N) in  N_Unary_Op then
+            elsif Nkind (N) in N_Unary_Op then
                if Etype (Right_Opnd (N)) = Etype (First_Formal (Nam1)) then
                   return It1;
                else
@@ -2647,10 +2619,18 @@ package body Sem_Type is
       end if;
 
       if Ekind (Target_Typ) = E_Incomplete_Type then
-         pragma Assert (Present (Non_Limited_View (Target_Typ)));
-         Target_Typ := Non_Limited_View (Target_Typ);
 
-         --  Protect the frontend against previously detected errors
+         --  We must have either a full view or a nonlimited view of the type
+         --  to locate the list of ancestors.
+
+         if Present (Full_View (Target_Typ)) then
+            Target_Typ := Full_View (Target_Typ);
+         else
+            pragma Assert (Present (Non_Limited_View (Target_Typ)));
+            Target_Typ := Non_Limited_View (Target_Typ);
+         end if;
+
+         --  Protect the front end against previously detected errors
 
          if Ekind (Target_Typ) = E_Incomplete_Type then
             return False;
@@ -2739,6 +2719,17 @@ package body Sem_Type is
          then
             Error_Msg_NE ("(Ada 2005) does not implement interface }",
                           L, Etype (Class_Wide_Type (Etype (R))));
+
+         --  Specialize message if one operand is a limited view, a priori
+         --  unrelated to all other types.
+
+         elsif From_Limited_With (Etype (R)) then
+            Error_Msg_NE ("limited view of& not compatible with context",
+                           R, Etype (R));
+
+         elsif From_Limited_With (Etype (L)) then
+            Error_Msg_NE ("limited view of& not compatible with context",
+                           L, Etype (L));
          else
             Error_Msg_N ("incompatible types", Parent (L));
          end if;

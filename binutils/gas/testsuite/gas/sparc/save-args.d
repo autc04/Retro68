@@ -1,6 +1,6 @@
 #as: -Av8
 #objdump: -dr
-#name: software traps
+#name: save args
 
 .*: +file format .*
 

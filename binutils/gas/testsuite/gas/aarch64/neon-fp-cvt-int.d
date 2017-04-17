@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	0e21a8e7 	fcvtns	v7.2s, v7.2s
    4:	2e21a8e7 	fcvtnu	v7.2s, v7.2s
    8:	0ea1a8e7 	fcvtps	v7.2s, v7.2s

@@ -63,4 +63,14 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f3 f0 66 3e 36 90    	lock data16 ds ss pause 
 [ 	]*[a-f0-9]+:	f3 f2 67 3e 36 90    	repz repnz addr16 ds ss nop
 [ 	]*[a-f0-9]+:	f3 67 f2 66 3e 36 90 	repz addr16 repnz ds ss xchg %ax,%ax
+[ 	]*[a-f0-9]+:	f3 0f c7 f8          	rdpid  %eax
+[ 	]*[a-f0-9]+:	90                   	nop
+[ 	]*[a-f0-9]+:	f3 0f c7             	\(bad\)  
+[ 	]*[a-f0-9]+:	f0 90                	lock nop
+[ 	]*[a-f0-9]+:	f2 0f c7             	\(bad\)  
+[ 	]*[a-f0-9]+:	f8                   	clc    
+[ 	]*[a-f0-9]+:	90                   	nop
+[ 	]*[a-f0-9]+:	f2 0f c7             	\(bad\)  
+[ 	]*[a-f0-9]+:	f0 90                	lock nop
+	...
 #pass

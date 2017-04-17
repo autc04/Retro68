@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2014 Free Software Foundation, Inc.
+# Copyright (C) 2012-2017 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,18 +50,21 @@ if { ![istarget cris-*-*] && ![istarget crisv32-*-*]
 
 # This test is meaningless for the PA; the difference of two undefined
 # symbols is something that is (and must be) supported on the PA.
-# The same is true for alpha-vms
+# The same is true for ALPHA-VMS.
 #
-# The MN10300 port supports link time relaxation which in turn allows
-# for link time resolution of the differneces of two symbols which are
-# undefined at assembly time.  Hence this test will not pass for the
-# MN10300.  The same thing is true for the RX port as well.
-if { ![istarget hppa*-*-*]
-     && ![istarget alpha*-*-*vms*]
-     && ![istarget rx-*-*]
+# The AVR, MICROBLAZE, MN10300, RL78 and RX ports all support link time
+# relaxation, which in turn allows for link time resolution of the
+# differences of two previously undefined symbols.  Hence this test will
+# not pass for these targets.
+if {    ![istarget alpha*-*-*vms*]
+     && ![istarget am3*-*-*]
+     && ![istarget avr-*-*]
+     && ![istarget hppa*-*-*]
+     && ![istarget microblaze-*-*]
      && ![istarget mn10300-*-*]
      && ![istarget msp430*-*-*]
-     && ![istarget am3*-*-*] } then {
+     && ![istarget rl78-*-*]
+     && ![istarget rx-*-*] } then {
     gas_test_error "diff1.s" "" "difference of two undefined symbols"
 }
 
@@ -95,6 +98,7 @@ case $target_triplet in {
     { h8300*-*-* } { }
     { hppa*-*-* } { }
     { mep-*-* } { }
+    { microblaze-*-* } { }
     { mn10\[23\]00*-*-* } { }
     default {
 	# Some targets don't manage to resolve BFD_RELOC_8 for constants.
@@ -114,6 +118,8 @@ if { ![is_aout_format] } {
 	{ hppa*64*-*-* } {
 	    run_dump_test fwdexp
 	}
+	{ alpha-*-*linux*ecoff } { }
+	{ alpha-*-osf* } { }
 	{ hppa*-*-hpux* } { }
 	{ mep-*-* } { }
 	{ mmix-*-* } { }
@@ -149,13 +155,14 @@ case $target_triplet in {
     { z80-*-* } { }
     default {
 	run_dump_test redef
+	setup_xfail "arm-epoc-pe*"
 	# These targets fail redef2 because they disallow redefined
 	# symbols on relocs.
-	setup_xfail "m68hc1*-*-*" "m6811-*-*" "m6812-*-*"
-	setup_xfail "rx-*-*" "vax*-*-*" "xgate*-*-*" "z8k-*-*"
+	setup_xfail "m68hc1*-*-*" "m6811-*-*" "m6812-*-*" "rl78-*-*"
+	setup_xfail "riscv*-*-*" "rx-*-*" "vax*-*-*" "xgate*-*-*" "z8k-*-*"
 	run_dump_test redef2
-	setup_xfail "m68hc1*-*-*" "m6811-*-*" "m6812-*-*"
-	setup_xfail "rx-*-*" "vax*-*-*" "xgate*-*-*" "z8k-*-*"
+	setup_xfail "m68hc1*-*-*" "m6811-*-*" "m6812-*-*" "rl78-*-*"
+	setup_xfail "riscv*-*-*" "rx-*-*" "vax*-*-*" "xgate*-*-*" "z8k-*-*"
 	# rs6000-aix disallows redefinition via .comm.
 	setup_xfail "*-*-aix*"
 	# SOM uses a different syntax for .comm
@@ -166,7 +173,8 @@ case $target_triplet in {
 	# failures.
 	setup_xfail "bfin-*-*" "i\[3-7\]86-*-*coff" \
 	    "i\[3-7\]86-*-*pe" "i\[3-7\]86-*-go32*" \
-	    "i\[3-7\]86-*-cygwin*" "i\[3-7\]86-*-mingw*" "x86_64-*-mingw*"
+	    "i\[3-7\]86-*-cygwin*" "i\[3-7\]86-*-mingw*" \
+	    "x86_64-*-cygwin*" "x86_64-*-mingw*"
 	run_dump_test redef3
 	gas_test_error "redef4.s" "" ".set for symbol already used as label"
 	gas_test_error "redef5.s" "" ".set for symbol already defined through .comm"
@@ -239,7 +247,7 @@ proc do_930509a {} {
     set x 0
     gas_start "x930509.s" "-al"
     while 1 {
-# We need to accomodate both byte orders here.
+# We need to accommodate both byte orders here.
 # If ".long" means an 8-byte value on some target someday, this test will have
 # to be fixed.
 	expect {
@@ -260,16 +268,17 @@ proc do_930509a {} {
 # C54x assembler (for compatibility) does not allow differences between
 # forward references.
 # C30 counts a four byte offset as a difference of one.
-if { ![istarget hppa*-*-*] &&
-     ![istarget cr16*-*-*] &&
-     ![istarget  crx*-*-*] &&
-     ![istarget *c30*-*-*] &&
-     ![istarget *c4x*-*-*] &&
-     ![istarget *c54x*-*-*] } then {
-    # the vax fails because VMS can apparently actually handle this
+if {    ![istarget *c30*-*-*]
+     && ![istarget *c4x*-*-*]
+     && ![istarget *c54x*-*-*]
+     && ![istarget cr16*-*-*]
+     && ![istarget crx*-*-*]
+     && ![istarget h8300*-*-*]
+     && ![istarget hppa*-*-*] } then {
+    # The vax fails because VMS can apparently actually handle this
     # case in relocs, so gas doesn't handle it itself.
-    # msp430 and mn10300 emit two relocs to handle the difference of two symbols.
-    setup_xfail "mn10300*-*-*" "msp430*-*-*" "vax*-*-vms*"
+    # msp430, mn10[23]00 and riscv emit two relocs to handle the difference of two symbols.
+    setup_xfail "mn10200-*-*" "mn10300*-*-*" "msp430*-*-*" "riscv*-*-*" "vax*-*-vms*"
     do_930509a
 }
 
@@ -282,6 +291,7 @@ case $target_triplet in {
     default {
 	run_dump_test struct
 	run_dump_test align
+	setup_xfail "ns32k-*-*"
 	run_dump_test align2
     }
 }
@@ -301,7 +311,7 @@ case $target_triplet in {
 	# character (it is allowed to be a line comment character).
 	if [string match "" [lindex [gas_run excl.s "-o /dev/null" ""] 0]] {
 	    run_dump_test altmac2
-	    # Similarly this test does not work when ! is a line seperator.
+	    # Similarly this test does not work when ! is a line separator.
 	    run_dump_test eval
 	}
     }
@@ -348,11 +358,14 @@ proc test_cond {} {
 # This test is not suitable for the PA for various reasons
 # not limited to the fact that it depends on specific section
 # names appearing in the output file.
-# again, p2align doesn't work on c54x target
+# Again, p2align doesn't work on c54x and related targets.
 case $target_triplet in {
+    { alpha-*-linux*ecoff} { }
+    { alpha-*-osf*} { }
     { hppa*-*-* } { }
     { *c4x*-*-* } { }
     { *c54x*-*-* } { }
+    { rl78-*-* } { }
     { rx-*-* } { }
     default {
         test_cond
@@ -429,6 +442,13 @@ gas_test_error "weakref3.s" "" "a: would close weakref loop: a => b => c => d =>
 gas_test_error "weakref4.s" "" "is already defined"
 
 run_dump_test string
+if [is_elf_format] {
+    run_dump_test none
+}
+
+run_dump_test quoted-sym-names
+
+run_list_test pr20312
 
 load_lib gas-dg.exp
 dg-init

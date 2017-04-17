@@ -1,5 +1,5 @@
 /* as.c - GAS main program.
-   Copyright (C) 1987-2014 Free Software Foundation, Inc.
+   Copyright (C) 1987-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -96,6 +96,10 @@ int debug_memory = 0;
 /* Enable verbose mode.  */
 int verbose = 0;
 
+#if defined OBJ_ELF || defined OBJ_MAYBE_ELF
+int flag_use_elf_stt_common = DEFAULT_GENERATE_ELF_STT_COMMON;
+#endif
+
 /* Keep the output file.  */
 static int keep_it = 0;
 
@@ -142,7 +146,8 @@ static void
 select_emulation_mode (int argc, char **argv)
 {
   int i;
-  char *p, *em = 0;
+  char *p;
+  const char *em = NULL;
 
   for (i = 1; i < argc; i++)
     if (!strncmp ("--em", argv[i], 4))
@@ -224,6 +229,11 @@ print_version_id (void)
 	   VERSION, TARGET_ALIAS, BFD_VERSION_STRING);
 }
 
+#ifdef DEFAULT_FLAG_COMPRESS_DEBUG
+enum compressed_debug_section_type flag_compress_debug
+  = COMPRESS_DEBUG_GABI_ZLIB;
+#endif
+
 static void
 show_usage (FILE * stream)
 {
@@ -245,14 +255,21 @@ Options:\n\
 
   fprintf (stream, _("\
   --alternate             initially turn on alternate macro syntax\n"));
-#ifdef HAVE_ZLIB_H
+#ifdef DEFAULT_FLAG_COMPRESS_DEBUG
   fprintf (stream, _("\
-  --compress-debug-sections\n\
-                          compress DWARF debug sections using zlib\n"));
+  --compress-debug-sections[={none|zlib|zlib-gnu|zlib-gabi}]\n\
+                          compress DWARF debug sections using zlib [default]\n"));
   fprintf (stream, _("\
   --nocompress-debug-sections\n\
                           don't compress DWARF debug sections\n"));
-#endif /* HAVE_ZLIB_H */
+#else
+  fprintf (stream, _("\
+  --compress-debug-sections[={none|zlib|zlib-gnu|zlib-gabi}]\n\
+                          compress DWARF debug sections using zlib\n"));
+  fprintf (stream, _("\
+  --nocompress-debug-sections\n\
+                          don't compress DWARF debug sections [default]\n"));
+#endif
   fprintf (stream, _("\
   -D                      produce assembler debugging messages\n"));
   fprintf (stream, _("\
@@ -263,7 +280,7 @@ Options:\n\
 #ifdef USE_EMULATIONS
   {
     int i;
-    char *def_em;
+    const char *def_em;
 
     fprintf (stream, "\
   --em=[");
@@ -286,6 +303,11 @@ Options:\n\
   fprintf (stream, _("\
   --size-check=[error|warning]\n\
 			  ELF .size directive check (default --size-check=error)\n"));
+  fprintf (stream, _("\
+  --elf-stt-common=[no|yes]\n\
+                          generate ELF common symbols with STT_COMMON type\n"));
+  fprintf (stream, _("\
+  --sectname-subst        enable section name substitution sequences\n"));
 #endif
   fprintf (stream, _("\
   -f                      skip whitespace and comment preprocessing\n"));
@@ -319,6 +341,8 @@ Options:\n\
   --MD FILE               write dependency information in FILE (default none)\n"));
   fprintf (stream, _("\
   -nocpp                  ignored\n"));
+  fprintf (stream, _("\
+  -no-pad-sections        do not pad the end of sections to alignment boundaries\n"));
   fprintf (stream, _("\
   -o OBJFILE              name the object-file output OBJFILE (default a.out)\n"));
   fprintf (stream, _("\
@@ -449,13 +473,16 @@ parse_args (int * pargc, char *** pargv)
       OPTION_EXECSTACK,
       OPTION_NOEXECSTACK,
       OPTION_SIZE_CHECK,
+      OPTION_ELF_STT_COMMON,
+      OPTION_SECTNAME_SUBST,
       OPTION_ALTERNATE,
       OPTION_AL,
       OPTION_HASH_TABLE_SIZE,
       OPTION_REDUCE_MEMORY_OVERHEADS,
       OPTION_WARN_FATAL,
       OPTION_COMPRESS_DEBUG,
-      OPTION_NOCOMPRESS_DEBUG
+      OPTION_NOCOMPRESS_DEBUG,
+      OPTION_NO_PAD_SECTIONS /* = STD_BASE + 40 */
     /* When you add options here, check that they do
        not collide with OPTION_MD_BASE.  See as.h.  */
     };
@@ -473,7 +500,7 @@ parse_args (int * pargc, char *** pargv)
     ,{"a", optional_argument, NULL, 'a'}
     /* Handle -al=<FILE>.  */
     ,{"al", optional_argument, NULL, OPTION_AL}
-    ,{"compress-debug-sections", no_argument, NULL, OPTION_COMPRESS_DEBUG}
+    ,{"compress-debug-sections", optional_argument, NULL, OPTION_COMPRESS_DEBUG}
     ,{"nocompress-debug-sections", no_argument, NULL, OPTION_NOCOMPRESS_DEBUG}
     ,{"debug-prefix-map", required_argument, NULL, OPTION_DEBUG_PREFIX_MAP}
     ,{"defsym", required_argument, NULL, OPTION_DEFSYM}
@@ -483,6 +510,8 @@ parse_args (int * pargc, char *** pargv)
     ,{"execstack", no_argument, NULL, OPTION_EXECSTACK}
     ,{"noexecstack", no_argument, NULL, OPTION_NOEXECSTACK}
     ,{"size-check", required_argument, NULL, OPTION_SIZE_CHECK}
+    ,{"elf-stt-common", required_argument, NULL, OPTION_ELF_STT_COMMON}
+    ,{"sectname-subst", no_argument, NULL, OPTION_SECTNAME_SUBST}
 #endif
     ,{"fatal-warnings", no_argument, NULL, OPTION_WARN_FATAL}
     ,{"gdwarf-2", no_argument, NULL, OPTION_GDWARF2}
@@ -516,6 +545,7 @@ parse_args (int * pargc, char *** pargv)
     ,{"MD", required_argument, NULL, OPTION_DEPFILE}
     ,{"mri", no_argument, NULL, 'M'}
     ,{"nocpp", no_argument, NULL, OPTION_NOCPP}
+    ,{"no-pad-sections", no_argument, NULL, OPTION_NO_PAD_SECTIONS}
     ,{"no-warn", no_argument, NULL, 'W'}
     ,{"reduce-memory-overheads", no_argument, NULL, OPTION_REDUCE_MEMORY_OVERHEADS}
     ,{"statistics", no_argument, NULL, OPTION_STATISTICS}
@@ -543,7 +573,7 @@ parse_args (int * pargc, char *** pargv)
   old_argv = *pargv;
 
   /* Initialize a new argv that contains no options.  */
-  new_argv = (char **) xmalloc (sizeof (char *) * (old_argc + 1));
+  new_argv = XNEWVEC (char *, old_argc + 1);
   new_argv[0] = old_argv[0];
   new_argc = 1;
   new_argv[new_argc] = NULL;
@@ -595,7 +625,7 @@ parse_args (int * pargc, char *** pargv)
 
 	case 1:			/* File name.  */
 	  if (!strcmp (optarg, "-"))
-	    optarg = "";
+	    optarg = (char *) "";
 	  new_argv[new_argc++] = optarg;
 	  new_argv[new_argc] = NULL;
 	  break;
@@ -609,6 +639,10 @@ parse_args (int * pargc, char *** pargv)
 	  exit (EXIT_SUCCESS);
 
 	case OPTION_NOCPP:
+	  break;
+
+	case OPTION_NO_PAD_SECTIONS:
+	  do_not_pad_sections_to_alignment = 1;
 	  break;
 
 	case OPTION_STATISTICS:
@@ -626,13 +660,19 @@ parse_args (int * pargc, char *** pargv)
 	case OPTION_VERSION:
 	  /* This output is intended to follow the GNU standards document.  */
 	  printf (_("GNU assembler %s\n"), BFD_VERSION_STRING);
-	  printf (_("Copyright (C) 2014 Free Software Foundation, Inc.\n"));
+	  printf (_("Copyright (C) 2017 Free Software Foundation, Inc.\n"));
 	  printf (_("\
 This program is free software; you may redistribute it under the terms of\n\
 the GNU General Public License version 3 or later.\n\
 This program has absolutely no warranty.\n"));
+#ifdef TARGET_WITH_CPU
+	  printf (_("This assembler was configured for a target of `%s' "
+		    "and default,\ncpu type `%s'.\n"),
+		  TARGET_ALIAS, TARGET_WITH_CPU);
+#else
 	  printf (_("This assembler was configured for a target of `%s'.\n"),
 		  TARGET_ALIAS);
+#endif
 	  exit (EXIT_SUCCESS);
 
 	case OPTION_EMULATION:
@@ -657,15 +697,31 @@ This program has absolutely no warranty.\n"));
 	  exit (EXIT_SUCCESS);
 
 	case OPTION_COMPRESS_DEBUG:
-#ifdef HAVE_ZLIB_H
-	  flag_compress_debug = 1;
+	  if (optarg)
+	    {
+#if defined OBJ_ELF || defined OBJ_MAYBE_ELF
+	      if (strcasecmp (optarg, "none") == 0)
+		flag_compress_debug = COMPRESS_DEBUG_NONE;
+	      else if (strcasecmp (optarg, "zlib") == 0)
+		flag_compress_debug = COMPRESS_DEBUG_GABI_ZLIB;
+	      else if (strcasecmp (optarg, "zlib-gnu") == 0)
+		flag_compress_debug = COMPRESS_DEBUG_GNU_ZLIB;
+	      else if (strcasecmp (optarg, "zlib-gabi") == 0)
+		flag_compress_debug = COMPRESS_DEBUG_GABI_ZLIB;
+	      else
+		as_fatal (_("Invalid --compress-debug-sections option: `%s'"),
+			  optarg);
 #else
-	  as_warn (_("cannot compress debug sections (zlib not installed)"));
-#endif /* HAVE_ZLIB_H */
+	      as_fatal (_("--compress-debug-sections=%s is unsupported"),
+			optarg);
+#endif
+	    }
+	  else
+	    flag_compress_debug = COMPRESS_DEBUG_GABI_ZLIB;
 	  break;
 
 	case OPTION_NOCOMPRESS_DEBUG:
-	  flag_compress_debug = 0;
+	  flag_compress_debug = COMPRESS_DEBUG_NONE;
 	  break;
 
 	case OPTION_DEBUG_PREFIX_MAP:
@@ -684,7 +740,7 @@ This program has absolutely no warranty.\n"));
 	      as_fatal (_("bad defsym; format is --defsym name=value"));
 	    *s++ = '\0';
 	    i = bfd_scan_vma (s, (const char **) NULL, 0);
-	    n = (struct defsym_list *) xmalloc (sizeof *n);
+	    n = XNEW (struct defsym_list);
 	    n->next = defsyms;
 	    n->name = optarg;
 	    n->value = i;
@@ -705,7 +761,7 @@ This program has absolutely no warranty.\n"));
 		break;
 	      }
 
-	    n = xmalloc (sizeof * n);
+	    n = XNEW (struct itbl_file_list);
 	    n->next = itbl_files;
 	    n->name = optarg;
 	    itbl_files = n;
@@ -828,11 +884,25 @@ This program has absolutely no warranty.\n"));
 
 	case OPTION_SIZE_CHECK:
 	  if (strcasecmp (optarg, "error") == 0)
-	    flag_size_check = size_check_error;
+	    flag_allow_nonconst_size = FALSE;
 	  else if (strcasecmp (optarg, "warning") == 0)
-	    flag_size_check = size_check_warning;
+	    flag_allow_nonconst_size = TRUE;
 	  else
 	    as_fatal (_("Invalid --size-check= option: `%s'"), optarg);
+	  break;
+
+	case OPTION_ELF_STT_COMMON:
+	  if (strcasecmp (optarg, "no") == 0)
+	    flag_use_elf_stt_common = 0;
+	  else if (strcasecmp (optarg, "yes") == 0)
+	    flag_use_elf_stt_common = 1;
+	  else
+	    as_fatal (_("Invalid --elf-stt-common= option: `%s'"),
+		      optarg);
+	  break;
+
+	case OPTION_SECTNAME_SUBST:
+	  flag_sectname_subst = 1;
 	  break;
 #endif
 	case 'Z':

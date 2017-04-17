@@ -55,4 +55,7 @@ foo:
 
 	bprp	10,bar,bar
 	bprp	10,bar@PLT,bar@PLT
+
+	bpp	10,bar@PLT,0
+	bpp	10,baz,0
 bar:

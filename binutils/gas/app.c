@@ -1,5 +1,5 @@
 /* This is the Assembler Pre-Processor
-   Copyright (C) 1987-2014 Free Software Foundation, Inc.
+   Copyright (C) 1987-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -211,7 +211,7 @@ do_scrub_begin (int m68k_mri ATTRIBUTE_UNUSED)
 /* Saved state of the scrubber.  */
 static int state;
 static int old_state;
-static char *out_string;
+static const char *out_string;
 static char out_buf[20];
 static int add_newlines;
 static char *saved_input;
@@ -229,7 +229,7 @@ struct app_save
 {
   int          state;
   int          old_state;
-  char *       out_string;
+  const char * out_string;
   char         out_buf[sizeof (out_buf)];
   int          add_newlines;
   char *       saved_input;
@@ -247,9 +247,9 @@ struct app_save
 char *
 app_push (void)
 {
-  register struct app_save *saved;
+  struct app_save *saved;
 
-  saved = (struct app_save *) xmalloc (sizeof (*saved));
+  saved = XNEW (struct app_save);
   saved->state = state;
   saved->old_state = old_state;
   saved->out_string = out_string;
@@ -259,7 +259,7 @@ app_push (void)
     saved->saved_input = NULL;
   else
     {
-      saved->saved_input = (char *) xmalloc (saved_input_len);
+      saved->saved_input = XNEWVEC (char, saved_input_len);
       memcpy (saved->saved_input, saved_input, saved_input_len);
       saved->saved_input_len = saved_input_len;
     }
@@ -284,7 +284,7 @@ app_push (void)
 void
 app_pop (char *arg)
 {
-  register struct app_save *saved = (struct app_save *) arg;
+  struct app_save *saved = (struct app_save *) arg;
 
   /* There is no do_scrub_end ().  */
   state = saved->state;
@@ -360,7 +360,7 @@ do_scrub_chars (size_t (*get) (char *, size_t), char *tostart, size_t tolen)
   char *from;
   char *fromend;
   size_t fromlen;
-  register int ch, ch2 = 0;
+  int ch, ch2 = 0;
   /* Character that started the string we're working on.  */
   static char quotechar;
 
@@ -695,6 +695,7 @@ do_scrub_chars (size_t (*get) (char *, size_t), char *tostart, size_t tolen)
 	      state = 9;
 	      break;
 	    }
+	  /* Fall through.  */
 	case 17:
 	  /* We have seen "af" at the start of a symbol,
 	     a ' here is a part of that symbol.  */
@@ -1187,7 +1188,7 @@ do_scrub_chars (size_t (*get) (char *, size_t), char *tostart, size_t tolen)
 		  state = -2;
 		  break;
 		}
-	      else
+	      else if (ch2 != EOF)
 		{
 		  UNGET (ch2);
 		}
@@ -1291,7 +1292,7 @@ do_scrub_chars (size_t (*get) (char *, size_t), char *tostart, size_t tolen)
 
 #ifdef WARN_COMMENTS
 	  if (!found_comment)
-	    as_where (&found_comment_file, &found_comment);
+	    found_comment_file = as_where (&found_comment);
 #endif
 	  do
 	    {
@@ -1321,8 +1322,8 @@ do_scrub_chars (size_t (*get) (char *, size_t), char *tostart, size_t tolen)
 	      else
 		UNGET (quot);
 	    }
-	  /* FALL THROUGH */
 #endif
+	  /* Fall through.  */
 
 	case LEX_IS_SYMBOL_COMPONENT:
 	  if (state == 10)

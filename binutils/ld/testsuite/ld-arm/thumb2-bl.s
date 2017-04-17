@@ -1,7 +1,6 @@
 @ Test to ensure that a Thumb-2 BL works with an offset that is
-@ not permissable for Thumb-1.
+@ not permissible for Thumb-1.
 
-	.arch armv7
 	.global _start
 	.syntax unified
 

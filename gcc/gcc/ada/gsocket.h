@@ -209,12 +209,13 @@
 #endif
 
 #if defined (_AIX) || defined (__FreeBSD__) || defined (__hpux__) || \
-    defined (_WIN32) || defined (__APPLE__) || defined (__ANDROID__)
+    defined (_WIN32) || defined (__APPLE__) || defined (__ANDROID__) || \
+    defined (__DragonFly__) || defined (__NetBSD__) || defined (__OpenBSD__)
 # define HAVE_THREAD_SAFE_GETxxxBYyyy 1
 
-#elif defined (linux) || defined (__GLIBC__) || \
-     (defined (sun) && defined (__SVR4) && !defined (__vxworks)) || \
-      defined(__rtems__)
+#elif defined (__linux__) || defined (__GLIBC__) || \
+     (defined (__sun__) && !defined (__vxworks)) || \
+      defined (__rtems__)
 # define HAVE_GETxxxBYyyy_R 1
 #endif
 
@@ -241,7 +242,8 @@
 # endif
 #endif
 
-#if defined (__FreeBSD__) || defined (__vxworks) || defined(__rtems__)
+#if defined (__FreeBSD__) || defined (__vxworks) || defined(__rtems__) \
+ || defined (__DragonFly__) || defined (__NetBSD__) || defined (__OpenBSD__)
 # define Has_Sockaddr_Len 1
 #else
 # define Has_Sockaddr_Len 0

@@ -1,5 +1,5 @@
 /* Implementation of the SYSTEM_CLOCK intrinsic.
-   Copyright (C) 2004-2015 Free Software Foundation, Inc.
+   Copyright (C) 2004-2016 Free Software Foundation, Inc.
 
 This file is part of the GNU Fortran runtime library (libgfortran).
 
@@ -45,16 +45,8 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 /* Weakref trickery for clock_gettime().  On Glibc <= 2.16,
    clock_gettime() requires us to link in librt, which also pulls in
    libpthread.  In order to avoid this by default, only call
-   clock_gettime() through a weak reference.
-
-   Some targets don't support weak undefined references; on these
-   GTHREAD_USE_WEAK is 0. So we need to define it to 1 on other
-   targets.  */
-#ifndef GTHREAD_USE_WEAK
-#define GTHREAD_USE_WEAK 1
-#endif
-
-#if SUPPORTS_WEAK && GTHREAD_USE_WEAK && defined(HAVE_CLOCK_GETTIME_LIBRT)
+   clock_gettime() through a weak reference.  */
+#if SUPPORTS_WEAKREF && defined(HAVE_CLOCK_GETTIME_LIBRT)
 static int weak_gettime (clockid_t, struct timespec *) 
   __attribute__((__weakref__("clock_gettime")));
 #endif
@@ -90,7 +82,7 @@ gf_gettime_mono (time_t * secs, long * fracsecs, long * tck)
   *fracsecs = ts.tv_nsec;
   return err;
 #else
-#if defined(HAVE_CLOCK_GETTIME_LIBRT) && SUPPORTS_WEAK && GTHREAD_USE_WEAK
+#if SUPPORTS_WEAKREF && defined(HAVE_CLOCK_GETTIME_LIBRT)
   if (weak_gettime)
     {
       struct timespec ts;

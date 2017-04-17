@@ -1,5 +1,5 @@
 # Expect script for ELF MPX tests.
-#   Copyright (C) 2013-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2013-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -36,28 +36,59 @@ if { [which $CC] == 0 } {
     return
 }
 
-set build_tests {
-  {"Build libmpx1a.a"
-   "" "-Wa,-madd-bnd-prefix -fPIC"
-   {mpx1a.c}  {{readelf {-r --wide} mpx1a.rd}} "libmpx1a.a"}
-  {"Build libmpx1b.a"
-   "" ""
-   {mpx1b.c} {} "libmpx1b.a"}
-  {"Build libmpx1c.a"
-   "" "-Wa,-madd-bnd-prefix"
-   {mpx1c.c} {{readelf {-r --wide} mpx1c.rd}} "libmpx1c.a"}
-  {"Build libmpx2a.a"
-   "" "-Wa,-madd-bnd-prefix -fPIE"
-   {mpx2a.c}  {{readelf {-r --wide} mpx2a.rd}} "libmpx2a.a"}
-  {"Build libmpx2b.a"
-   "" "-fPIE"
-   {mpx2b.c} {} "libmpx2b.a"}
-  {"Build libmpx2c.a"
-   "" "-Wa,-madd-bnd-prefix -fPIE"
-   {mpx2c.c} {{readelf {-r --wide} mpx2c.rd}} "libmpx2c.a"}
-}
+# Add $PLT_CFLAGS if PLT is expected.
+global PLT_CFLAGS
 
-run_cc_link_tests $build_tests
+run_cc_link_tests [list \
+    [list \
+	"Build libmpx1a.a" \
+	"" \
+	"-Wa,-madd-bnd-prefix -fPIC $PLT_CFLAGS" \
+	{mpx1a.c} \
+	{{readelf {-r --wide} mpx1a.rd}} \
+	"libmpx1a.a" \
+    ] \
+    [list \
+	"Build libmpx1b.a" \
+	"" \
+	"" \
+	{mpx1b.c} \
+	{} \
+	"libmpx1b.a" \
+    ] \
+    [list \
+	"Build libmpx1c.a" \
+	"" \
+	"-Wa,-madd-bnd-prefix" \
+	{mpx1c.c} \
+	{{readelf {-r --wide} mpx1c.rd}} \
+	"libmpx1c.a" \
+    ] \
+    [list \
+	"Build libmpx2a.a" \
+	"" \
+	"-Wa,-madd-bnd-prefix -fPIE $PLT_CFLAGS" \
+	{mpx2a.c} \
+	{{readelf {-r --wide} mpx2a.rd}} \
+	"libmpx2a.a" \
+	] \
+    [list \
+	"Build libmpx2b.a" \
+	"" \
+	"-fPIE" \
+	{mpx2b.c} \
+	{} \
+	"libmpx2b.a" \
+    ] \
+    [list \
+	"Build libmpx2c.a" \
+	"" \
+	"-Wa,-madd-bnd-prefix -fPIE $PLT_CFLAGS" \
+	{mpx2c.c} \
+	{{readelf {-r --wide} mpx2c.rd}} \
+	"libmpx2c.a" \
+    ] \
+]
 
 set run_tests {
     {"Run mpx1"
@@ -89,7 +120,7 @@ run_ld_link_tests {
      {mpx4a.s} {{objdump -dw mpx4.dd}} "mpx4"}
 }
 
-run_ld_link_exec_tests [] $run_tests
+run_ld_link_exec_tests $run_tests
 
 run_dump_test "bnd-branch-1"
 run_dump_test "bnd-ifunc-1"

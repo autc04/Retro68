@@ -3,7 +3,7 @@
 
 // 2007-05-03  Benjamin Kosnik  <bkoz@redhat.com>
 //
-// Copyright (C) 2007-2015 Free Software Foundation, Inc.
+// Copyright (C) 2007-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -48,5 +48,5 @@ void test01()
 // { dg-error "required from here" "" { target *-*-* } 40 }
 // { dg-error "required from here" "" { target *-*-* } 42 }
 
-// { dg-error "invalid use of incomplete type" "" { target *-*-* } 1757 }
-// { dg-error "declaration of" "" { target *-*-* } 1721 }
+// { dg-error "invalid use of incomplete type" "" { target *-*-* } 1831 }
+// { dg-error "declaration of" "" { target *-*-* } 1788 }

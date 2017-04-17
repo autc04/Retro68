@@ -1,6 +1,6 @@
 // icf.h --  Identical Code Folding
 
-// Copyright (C) 2009-2014 Free Software Foundation, Inc.
+// Copyright (C) 2009-2017 Free Software Foundation, Inc.
 // Written by Sriraman Tallam <tmsriram@google.com>.
 
 // This file is part of gold.
@@ -74,7 +74,7 @@ class Icf
   // Returns the kept folded identical section corresponding to
   // dup_obj and dup_shndx.
   Section_id
-  get_folded_section(Object* dup_obj, unsigned int dup_shndx);
+  get_folded_section(Relobj* dup_obj, unsigned int dup_shndx);
 
   // Forms groups of identical sections where the first member
   // of each group is the kept section during folding.
@@ -95,17 +95,17 @@ class Icf
 
   // Unfolds the section denoted by OBJ and SHNDX if folded.
   void
-  unfold_section(Object* obj, unsigned int shndx);
+  unfold_section(Relobj* obj, unsigned int shndx);
 
   // Returns the kept section corresponding to the
   // given section.
   bool
-  is_section_folded(Object* obj, unsigned int shndx);
+  is_section_folded(Relobj* obj, unsigned int shndx);
 
   // Given an object and a section index, this returns true if the
   // pointer of the function defined in this section is taken.
   bool
-  section_has_function_pointers(Object* obj, unsigned int shndx)
+  section_has_function_pointers(Relobj* obj, unsigned int shndx)
   {
     return (this->fptr_section_id_.find(Section_id(obj, shndx))
             != this->fptr_section_id_.end());
@@ -114,7 +114,7 @@ class Icf
   // Records that a pointer of the function defined in this section
   // is taken.
   void
-  set_section_has_function_pointers(Object* obj, unsigned int shndx)
+  set_section_has_function_pointers(Relobj* obj, unsigned int shndx)
   {
     this->fptr_section_id_.insert(Section_id(obj, shndx));
   }

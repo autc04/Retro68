@@ -1,6 +1,6 @@
-// { dg-require-namedlocale "fr_FR" }
+// { dg-require-namedlocale "fr_FR.ISO8859-15" }
 
-// Copyright (C) 2003-2015 Free Software Foundation, Inc.
+// Copyright (C) 2003-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -46,7 +46,7 @@ void test01()
   bool test __attribute__((unused)) = true;
 
   Buf buf;
-  std::locale loc(std::locale("fr_FR"));
+  std::locale loc(std::locale(ISO_8859(15,fr_FR)));
 
   buf.pubimbue(loc);
 

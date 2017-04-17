@@ -1,17 +1,17 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl
-dnl   Copyright (C) 2012-2014 Free Software Foundation, Inc.
+dnl   Copyright (C) 2012-2017 Free Software Foundation, Inc.
 dnl
 dnl This file is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
 dnl the Free Software Foundation; either version 3 of the License, or
 dnl (at your option) any later version.
-dnl 
+dnl
 dnl This program is distributed in the hope that it will be useful,
 dnl but WITHOUT ANY WARRANTY; without even the implied warranty of
 dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 dnl GNU General Public License for more details.
-dnl 
+dnl
 dnl You should have received a copy of the GNU General Public License
 dnl along with this program; see the file COPYING3.  If not see
 dnl <http://www.gnu.org/licenses/>.
@@ -234,7 +234,7 @@ do
 	. $srcdir/../bfd/config.bfd
 	selarchs="$selarchs $targ_archs"
     fi
-done	
+done
 
 # Utility var, documents generic cgen support files.
 
@@ -266,12 +266,13 @@ if test x${all_targets} = xfalse ; then
 	bfd_dlx_arch)		ta="$ta dlx-dis.lo" ;;
 	bfd_fr30_arch)		ta="$ta fr30-asm.lo fr30-desc.lo fr30-dis.lo fr30-ibld.lo fr30-opc.lo" using_cgen=yes ;;
 	bfd_frv_arch)		ta="$ta frv-asm.lo frv-desc.lo frv-dis.lo frv-ibld.lo frv-opc.lo" using_cgen=yes ;;
+	bfd_ft32_arch)		ta="$ta ft32-opc.lo ft32-dis.lo" ;;
 	bfd_moxie_arch)		ta="$ta moxie-dis.lo moxie-opc.lo" ;;
 	bfd_h8300_arch)		ta="$ta h8300-dis.lo" ;;
 	bfd_h8500_arch)		ta="$ta h8500-dis.lo" ;;
 	bfd_hppa_arch)		ta="$ta hppa-dis.lo" ;;
 	bfd_i370_arch)		ta="$ta i370-dis.lo i370-opc.lo" ;;
-	bfd_i386_arch|bfd_l1om_arch|bfd_k1om_arch)
+	bfd_i386_arch|bfd_iamcu_arch|bfd_l1om_arch|bfd_k1om_arch)
 				ta="$ta i386-dis.lo i386-opc.lo" ;;
 	bfd_i860_arch)		ta="$ta i860-dis.lo" ;;
 	bfd_i960_arch)		ta="$ta i960-dis.lo" ;;
@@ -308,6 +309,7 @@ if test x${all_targets} = xfalse ; then
 	bfd_powerpc_64_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
 	bfd_pyramid_arch)	;;
 	bfd_romp_arch)		;;
+	bfd_riscv_arch)         ta="$ta riscv-dis.lo riscv-opc.lo" ;;
 	bfd_rs6000_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
 	bfd_rl78_arch)		ta="$ta rl78-dis.lo rl78-decode.lo";;
 	bfd_rx_arch)		ta="$ta rx-dis.lo rx-decode.lo";;
@@ -343,6 +345,7 @@ if test x${all_targets} = xfalse ; then
 	bfd_v850ea_arch)	ta="$ta v850-opc.lo v850-dis.lo" ;;
 	bfd_v850_rh850_arch)	ta="$ta v850-opc.lo v850-dis.lo" ;;
 	bfd_vax_arch)		ta="$ta vax-dis.lo" ;;
+	bfd_visium_arch)	ta="$ta visium-dis.lo visium-opc.lo" ;;
 	bfd_w65_arch)		ta="$ta w65-dis.lo" ;;
 	bfd_we32k_arch)		;;
 	bfd_xc16x_arch)		ta="$ta xc16x-asm.lo xc16x-desc.lo xc16x-dis.lo xc16x-ibld.lo xc16x-opc.lo" using_cgen=yes ;;

@@ -22,3 +22,7 @@ Disassembly of section \.text:
   45:	fd 70 ff 00 00 00 80          	stnz	#0x80000000, r15
   4c:	fd 70 f0 ff ff ff 7f          	stnz	#0x7fffffff, r0
   53:	fd 70 ff ff ff ff 7f          	stnz	#0x7fffffff, r15
+  5a:	fc 4f 00                      	stnz	r0, r0
+  5d:	fc 4f 0f                      	stnz	r0, r15
+  60:	fc 4f f0                      	stnz	r15, r0
+  63:	fc 4f ff                      	stnz	r15, r15

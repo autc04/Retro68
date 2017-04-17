@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	aa030041 	orr	x1, x2, x3
    4:	aa030441 	orr	x1, x2, x3, lsl #1
    8:	aa030c41 	orr	x1, x2, x3, lsl #3

@@ -1,7 +1,6 @@
 /* Defs for interface to demanglers.
-   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2001, 2002,
-   2003, 2004, 2005, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
-   
+   Copyright (C) 1992-2017 Free Software Foundation, Inc.
+
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public License
    as published by the Free Software Foundation; either version 2, or
@@ -64,9 +63,10 @@ extern "C" {
 #define DMGL_GNU_V3	 (1 << 14)
 #define DMGL_GNAT	 (1 << 15)
 #define DMGL_DLANG	 (1 << 16)
+#define DMGL_RUST	 (1 << 17)	/* Rust wraps GNU_V3 style mangling.  */
 
 /* If none of these are set, use 'current_demangling_style' as the default. */
-#define DMGL_STYLE_MASK (DMGL_AUTO|DMGL_GNU|DMGL_LUCID|DMGL_ARM|DMGL_HP|DMGL_EDG|DMGL_GNU_V3|DMGL_JAVA|DMGL_GNAT|DMGL_DLANG)
+#define DMGL_STYLE_MASK (DMGL_AUTO|DMGL_GNU|DMGL_LUCID|DMGL_ARM|DMGL_HP|DMGL_EDG|DMGL_GNU_V3|DMGL_JAVA|DMGL_GNAT|DMGL_DLANG|DMGL_RUST)
 
 /* Enumeration of possible demangling styles.
 
@@ -89,7 +89,8 @@ extern enum demangling_styles
   gnu_v3_demangling = DMGL_GNU_V3,
   java_demangling = DMGL_JAVA,
   gnat_demangling = DMGL_GNAT,
-  dlang_demangling = DMGL_DLANG
+  dlang_demangling = DMGL_DLANG,
+  rust_demangling = DMGL_RUST
 } current_demangling_style;
 
 /* Define string names for the various demangling styles. */
@@ -105,6 +106,7 @@ extern enum demangling_styles
 #define JAVA_DEMANGLING_STYLE_STRING          "java"
 #define GNAT_DEMANGLING_STYLE_STRING          "gnat"
 #define DLANG_DEMANGLING_STYLE_STRING         "dlang"
+#define RUST_DEMANGLING_STYLE_STRING          "rust"
 
 /* Some macros to test what demangling style is active. */
 
@@ -119,6 +121,7 @@ extern enum demangling_styles
 #define JAVA_DEMANGLING (((int) CURRENT_DEMANGLING_STYLE) & DMGL_JAVA)
 #define GNAT_DEMANGLING (((int) CURRENT_DEMANGLING_STYLE) & DMGL_GNAT)
 #define DLANG_DEMANGLING (((int) CURRENT_DEMANGLING_STYLE) & DMGL_DLANG)
+#define RUST_DEMANGLING (((int) CURRENT_DEMANGLING_STYLE) & DMGL_RUST)
 
 /* Provide information about the available demangle styles. This code is
    pulled from gdb into libiberty because it is useful to binutils also.  */
@@ -144,10 +147,10 @@ cplus_mangle_opname (const char *opname, int options);
 extern void
 set_cplus_marker_for_demangling (int ch);
 
-extern enum demangling_styles 
+extern enum demangling_styles
 cplus_demangle_set_style (enum demangling_styles style);
 
-extern enum demangling_styles 
+extern enum demangling_styles
 cplus_demangle_name_to_style (const char *name);
 
 /* Callback typedef for allocation-less demangler interfaces. */
@@ -175,6 +178,27 @@ ada_demangle (const char *mangled, int options);
 
 extern char *
 dlang_demangle (const char *mangled, int options);
+
+/* Returns non-zero iff MANGLED is a rust mangled symbol.  MANGLED must
+   already have been demangled through cplus_demangle_v3.  If this function
+   returns non-zero then MANGLED can be demangled (in-place) using
+   RUST_DEMANGLE_SYM.  */
+extern int
+rust_is_mangled (const char *mangled);
+
+/* Demangles SYM (in-place) if RUST_IS_MANGLED returned non-zero for SYM.
+   If RUST_IS_MANGLED returned zero for SYM then RUST_DEMANGLE_SYM might
+   replace characters that cannot be demangled with '?' and might truncate
+   SYM.  After calling RUST_DEMANGLE_SYM SYM might be shorter, but never
+   larger.  */
+extern void
+rust_demangle_sym (char *sym);
+
+/* Demangles MANGLED if it was GNU_V3 and then RUST mangled, otherwise
+   returns NULL. Uses CPLUS_DEMANGLE_V3, RUST_IS_MANGLED and
+   RUST_DEMANGLE_SYM.  Returns a new string that is owned by the caller.  */
+extern char *
+rust_demangle (const char *mangled, int options);
 
 enum gnu_v3_ctor_kinds {
   gnu_v3_complete_object_ctor = 1,
@@ -380,6 +404,10 @@ enum demangle_component_type
   /* A typecast, represented as a unary operator.  The one subtree is
      the type to which the argument should be cast.  */
   DEMANGLE_COMPONENT_CAST,
+  /* A conversion operator, represented as a unary operator.  The one
+     subtree is the type to which the argument should be converted
+     to.  */
+  DEMANGLE_COMPONENT_CONVERSION,
   /* A nullary expression.  The left subtree is the operator.  */
   DEMANGLE_COMPONENT_NULLARY,
   /* A unary expression.  The left subtree is the operator, and the
@@ -443,8 +471,12 @@ enum demangle_component_type
   DEMANGLE_COMPONENT_PACK_EXPANSION,
   /* A name with an ABI tag.  */
   DEMANGLE_COMPONENT_TAGGED_NAME,
+  /* A transaction-safe function type.  */
+  DEMANGLE_COMPONENT_TRANSACTION_SAFE,
   /* A cloned function.  */
-  DEMANGLE_COMPONENT_CLONE
+  DEMANGLE_COMPONENT_CLONE,
+  DEMANGLE_COMPONENT_NOEXCEPT,
+  DEMANGLE_COMPONENT_THROW_SPEC
 };
 
 /* Types which are only used internally.  */

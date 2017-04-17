@@ -1,6 +1,6 @@
 // copy-relocs.cc -- handle COPY relocations for gold.
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -42,16 +42,19 @@ Copy_relocs<sh_type, size, big_endian>::copy_reloc(
     Sized_relobj_file<size, big_endian>* object,
     unsigned int shndx,
     Output_section* output_section,
-    const Reloc& rel,
+    unsigned int r_type,
+    typename elfcpp::Elf_types<size>::Elf_Addr r_offset,
+    typename elfcpp::Elf_types<size>::Elf_Swxword r_addend,
     Output_data_reloc<sh_type, true, size, big_endian>* reloc_section)
 {
   if (this->need_copy_reloc(sym, object, shndx))
-    this->make_copy_reloc(symtab, layout, sym, reloc_section);
+    this->make_copy_reloc(symtab, layout, sym, object, reloc_section);
   else
     {
       // We may not need a COPY relocation.  Save this relocation to
       // possibly be emitted later.
-      this->save(sym, object, shndx, output_section, rel);
+      this->save(sym, object, shndx, output_section,
+		 r_type, r_offset, r_addend);
     }
 }
 
@@ -108,10 +111,23 @@ Copy_relocs<sh_type, size, big_endian>::make_copy_reloc(
     Symbol_table* symtab,
     Layout* layout,
     Sized_symbol<size>* sym,
+    Sized_relobj_file<size, big_endian>* object,
     Output_data_reloc<sh_type, true, size, big_endian>* reloc_section)
 {
   // We should not be here if -z nocopyreloc is given.
   gold_assert(parameters->options().copyreloc());
+
+  gold_assert(sym->is_from_dynobj());
+
+  // The symbol must not have protected visibility.
+  if (sym->is_protected())
+    {
+      gold_error(_("%s: cannot make copy relocation for "
+		   "protected symbol '%s', defined in %s"),
+		 object->name().c_str(),
+		 sym->name(),
+		 sym->object()->name().c_str());
+    }
 
   typename elfcpp::Elf_types<size>::Elf_WXword symsize = sym->symsize();
 
@@ -121,11 +137,11 @@ Copy_relocs<sh_type, size, big_endian>::make_copy_reloc(
   // is defined; presumably we do not require an alignment larger than
   // that.  Then we reduce that alignment if the symbol is not aligned
   // within the section.
-  gold_assert(sym->is_from_dynobj());
   bool is_ordinary;
   unsigned int shndx = sym->shndx(&is_ordinary);
   gold_assert(is_ordinary);
   typename elfcpp::Elf_types<size>::Elf_WXword addralign;
+  bool is_readonly = false;
 
   {
     // Lock the object so we can read from it.  This is only called
@@ -135,6 +151,17 @@ Copy_relocs<sh_type, size, big_endian>::make_copy_reloc(
     Object* obj = sym->object();
     Task_lock_obj<Object> tl(dummy_task, obj);
     addralign = obj->section_addralign(shndx);
+    if (parameters->options().relro())
+      {
+	if ((obj->section_flags(shndx) & elfcpp::SHF_WRITE) == 0)
+	  is_readonly = true;
+	else
+	  {
+	    // Symbols in .data.rel.ro should also be treated as read-only.
+	    if (obj->section_name(shndx) == ".data.rel.ro")
+	      is_readonly = true;
+	  }
+      }
   }
 
   typename Sized_symbol<size>::Value_type value = sym->value();
@@ -144,16 +171,32 @@ Copy_relocs<sh_type, size, big_endian>::make_copy_reloc(
   // Mark the dynamic object as needed for the --as-needed option.
   sym->object()->set_is_needed();
 
-  if (this->dynbss_ == NULL)
-    {
-      this->dynbss_ = new Output_data_space(addralign, "** dynbss");
-      layout->add_output_section_data(".bss",
-				      elfcpp::SHT_NOBITS,
-				      elfcpp::SHF_ALLOC | elfcpp::SHF_WRITE,
-				      this->dynbss_, ORDER_BSS, false);
-    }
+  Output_data_space* dynbss;
 
-  Output_data_space* dynbss = this->dynbss_;
+  if (is_readonly)
+    {
+      if (this->dynrelro_ == NULL)
+	{
+	  this->dynrelro_ = new Output_data_space(addralign, "** dynrelro");
+	  layout->add_output_section_data(".data.rel.ro",
+					  elfcpp::SHT_PROGBITS,
+					  elfcpp::SHF_ALLOC | elfcpp::SHF_WRITE,
+					  this->dynrelro_, ORDER_RELRO, false);
+	}
+      dynbss = this->dynrelro_;
+    }
+  else
+    {
+      if (this->dynbss_ == NULL)
+	{
+	  this->dynbss_ = new Output_data_space(addralign, "** dynbss");
+	  layout->add_output_section_data(".bss",
+					  elfcpp::SHT_NOBITS,
+					  elfcpp::SHF_ALLOC | elfcpp::SHF_WRITE,
+					  this->dynbss_, ORDER_BSS, false);
+	}
+      dynbss = this->dynbss_;
+    }
 
   if (addralign > dynbss->addralign())
     dynbss->set_space_alignment(addralign);
@@ -176,14 +219,13 @@ Copy_relocs<sh_type, size, big_endian>::save(
     Sized_relobj_file<size, big_endian>* object,
     unsigned int shndx,
     Output_section* output_section,
-    const Reloc& rel)
+    unsigned int r_type,
+    typename elfcpp::Elf_types<size>::Elf_Addr r_offset,
+    typename elfcpp::Elf_types<size>::Elf_Swxword r_addend)
 {
-  unsigned int reloc_type = elfcpp::elf_r_type<size>(rel.get_r_info());
-  typename elfcpp::Elf_types<size>::Elf_Addr addend =
-    Reloc_types<sh_type, size, big_endian>::get_reloc_addend_noerror(&rel);
-  this->entries_.push_back(Copy_reloc_entry(sym, reloc_type, object, shndx,
-					    output_section, rel.get_r_offset(),
-					    addend));
+  this->entries_.push_back(Copy_reloc_entry(sym, r_type, object, shndx,
+					    output_section, r_offset,
+					    r_addend));
 }
 
 // Emit any saved relocs.

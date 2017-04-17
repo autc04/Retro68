@@ -17,8 +17,8 @@ Final Draft International Standard, Standard for Programming Language C++
 </para>
 
 <para>
-In this implementation <literal>-std=gnu++11</literal> or
-<literal>-std=c++11</literal> flags must be used to enable language
+In this implementation the <literal>-std=gnu++11</literal> or
+<literal>-std=c++11</literal> flag must be used to enable language
 and library
 features. See <link linkend="manual.intro.using.flags">dialect</link>
 options. The pre-defined symbol
@@ -27,8 +27,7 @@ presence of the required flag.
 </para>
 
 <para>
-This page describes the C++11 support in mainline GCC SVN, not in any
-particular release.
+This page describes the C++11 support in the GCC 6 series.
 </para>
 
 <!-- Status is Yes or No, Broken/Partial-->
@@ -529,10 +528,9 @@ particular release.
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>20.6.4</entry>
       <entry>Pointer safety</entry>
-      <entry>Partial</entry>
+      <entry>Y</entry>
       <entry/>
     </row>
     <row>
@@ -642,10 +640,8 @@ particular release.
       <entry>Class template <code>shared_ptr</code></entry>
       <entry>Y</entry>
       <entry>
-	<para>
 	  Uses code from
 	  <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.boost.org/libs/smart_ptr/shared_ptr.htm">boost::shared_ptr</link>.
-	</para>
       </entry>
     </row>
     <row>
@@ -1010,11 +1006,10 @@ particular release.
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>20.12.4</entry>
       <entry>Scoped allocator adaptor members</entry>
-      <entry>Partial</entry>
-      <entry>OUTERMOST is not recursive.</entry>
+      <entry>Y</entry>
+      <entry/>
     </row>
     <row>
       <entry>20.12.5</entry>
@@ -1344,12 +1339,10 @@ particular release.
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>23.2.1</entry>
       <entry>General container requirements</entry>
-      <entry>Partial</entry>
-      <entry><code>list</code> does not meet the requirements
-             relating to allocator use and propagation.</entry>
+      <entry>Y</entry>
+      <entry/>
     </row>
     <row>
       <entry>23.2.2</entry>
@@ -1400,11 +1393,10 @@ particular release.
       <entry/>
     </row>
     <row>
-      <?dbhtml bgcolor="#B0B0B0" ?>
       <entry>23.3.5</entry>
       <entry>Class template <code>list</code></entry>
-      <entry>Partial</entry>
-      <entry>Incomplete allocator support.</entry>
+      <entry>Y</entry>
+      <entry/>
     </row>
     <row>
       <entry>23.3.6</entry>
@@ -2353,8 +2345,7 @@ particular release.
       <entry>30.4.1.3</entry>
       <entry>Timed mutex types</entry>
       <entry/>
-      <entry>On POSIX sytems these types are only defined if the OS
-         supports the POSIX Timeouts option. </entry>
+      <entry/>
     </row>
     <row>
       <entry>30.4.1.3.1</entry>
@@ -2673,7 +2664,10 @@ particular release.
       <emphasis>30.2.3 [thread.req.native]/1</emphasis>
       <classname>native_handle_type</classname> and
       <methodname>native_handle</methodname> are provided. The handle types
-      are defined in terms of the Gthreads abstraction layer.
+      are defined in terms of the Gthreads abstraction layer, although this
+      is subject to change at any time. Any use of
+      <classname>native_handle</classname> is inherently non-portable and
+      not guaranteed to work between major releases of GCC.
       <itemizedlist>
          <listitem><para><classname>thread</classname>: The native handle type is
             a typedef for <code>__gthread_t</code> i.e. <code>pthread_t</code>

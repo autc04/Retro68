@@ -1,5 +1,6 @@
 SECTIONS
 {
+  . = SIZEOF_HEADERS;
   . = 0x12300000;
   .data : { *(.data) }
   .got : { *(.got) }

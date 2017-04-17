@@ -1,4 +1,4 @@
-#as: -64 -Av9
+#as: -64 -Av9m
 #objdump: -dr
 #name: sparc64 rdpr
 
@@ -25,3 +25,4 @@ Disassembly of section .text:
   3c:	a1 53 c0 00 	rdpr  %fq, %l0
   40:	a3 54 00 00 	rdpr  %gl, %l1
   44:	a5 57 c0 00 	rdpr  %ver, %l2
+  48:	a7 55 c0 00 	rdpr  %pmcdper, %l3

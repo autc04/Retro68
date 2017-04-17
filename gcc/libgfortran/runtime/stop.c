@@ -1,5 +1,5 @@
 /* Implementation of the STOP statement.
-   Copyright (C) 2002-2015 Free Software Foundation, Inc.
+   Copyright (C) 2002-2016 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -145,7 +145,7 @@ error_stop_string (const char *string, GFC_INTEGER_4 len)
   (void) write (STDERR_FILENO, string, len);
   estr_write ("\n");
 
-  exit (1);
+  exit_error (1);
 }
 
 
@@ -159,5 +159,5 @@ error_stop_numeric (GFC_INTEGER_4 code)
 {
   report_exception ();
   st_printf ("ERROR STOP %d\n", (int) code);
-  exit (code);
+  exit_error (code);
 }

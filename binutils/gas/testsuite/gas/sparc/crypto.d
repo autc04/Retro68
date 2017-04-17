@@ -31,7 +31,7 @@ Disassembly of section .text:
   54:	9f b2 e7 0d 	kasumi_fi_fi  %f42, %f44, %f46
   58:	a6 cb 63 4f 	kasumi_fl_xor  %f44, %f46, %f48, %f50
   5c:	aa cb e7 71 	kasumi_fi_xor  %f46, %f48, %f50, %f52
-  60:	af b4 e7 95 	camellia_fi  %f50, %f52, %f54
+  60:	af b4 e7 95 	camellia_fl  %f50, %f52, %f54
   64:	b3 b5 67 b7 	camellia_fli  %f52, %f54, %f56
   68:	ba cd f7 99 	camellia_f  %f54, %f56, %f58, %f60
   6c:	81 b0 29 00 	mpmul  0

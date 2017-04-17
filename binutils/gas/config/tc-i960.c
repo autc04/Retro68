@@ -1,5 +1,5 @@
 /* tc-i960.c - All the i80960-specific stuff
-   Copyright (C) 1989-2014 Free Software Foundation, Inc.
+   Copyright (C) 1989-2017 Free Software Foundation, Inc.
 
    This file is part of GAS.
 
@@ -240,7 +240,7 @@ struct regop
    operands.  */
 static const struct
   {
-    char *reg_name;
+    const char *reg_name;
     int reg_num;
   }
 regnames[] =
@@ -335,7 +335,7 @@ regnames[] =
    'abase' (indirect addressing) registers.  */
 static const struct
 {
-  char *areg_name;
+  const char *areg_name;
   int areg_num;
 }
 aregs[] =
@@ -450,7 +450,7 @@ static int br_cnt;
 /* Name of the table of pointers to branches.  A local (i.e.,
    non-external) symbol.  */
 
-static void ctrl_fmt (char *, long, int);
+static void ctrl_fmt (const char *, long, int);
 
 
 void
@@ -495,7 +495,7 @@ md_begin (void)
    string is not consumed in the evaluation -- tolerate no dangling junk!  */
 
 static void
-parse_expr (char *textP,		/* Text of expression to be parsed.  */
+parse_expr (const char *textP,		/* Text of expression to be parsed.  */
 	    expressionS *expP)		/* Where to put the results of parsing.  */
 {
   char *save_in;		/* Save global here.  */
@@ -513,7 +513,7 @@ parse_expr (char *textP,		/* Text of expression to be parsed.  */
   else
     {
       save_in = input_line_pointer;	/* Save global.  */
-      input_line_pointer = textP;	/* Make parser work for us.  */
+      input_line_pointer = (char *) textP;	/* Make parser work for us.  */
 
       (void) expression (expP);
       if ((size_t) (input_line_pointer - textP) != strlen (textP))
@@ -558,13 +558,13 @@ emit (long instr)		/* Word to be output, host byte order.  */
   		address displacement is greater than 13 bits.  */
 
 static void
-get_cdisp (char *dispP, /* Displacement as specified in source instruction.  */
-	   char *ifmtP, /* "COBR" or "CTRL" (for use in error message).  */
+get_cdisp (const char *dispP, /* Displacement as specified in source instruction.  */
+	   const char *ifmtP, /* "COBR" or "CTRL" (for use in error message).  */
 	   long instr,  /* Instruction needing the displacement.  */
 	   int numbits, /* # bits of displacement (13 for COBR, 24 for CTRL).  */
 	   int var_frag,/* 1 if varying length code fragment should be emitted;
 			   0 if an address fix should be emitted.  */
-	   int callj)	/* 1 if callj relocation should be done; else 0.  */	   
+	   int callj)	/* 1 if callj relocation should be done; else 0.  */
 {
   expressionS e;		/* Parsed expression.  */
   fixS *fixP;			/* Structure describing needed address fix.  */
@@ -577,6 +577,7 @@ get_cdisp (char *dispP, /* Displacement as specified in source instruction.  */
     {
     case O_illegal:
       as_bad (_("expression syntax error"));
+      break;
 
     case O_symbol:
       if (S_GET_SEGMENT (e.X_add_symbol) == now_seg
@@ -802,7 +803,7 @@ parse_regop (struct regop *regopP,	/* Where to put description of register opera
 }
 
 /* get_ispec:	parse a memory operand for an index specification
-   
+
    Here, an "index specification" is taken to be anything surrounded
    by square brackets and NOT followed by anything else.
 
@@ -811,7 +812,7 @@ parse_regop (struct regop *regopP,	/* Where to put description of register opera
 
 static char *
 get_ispec (char *textP)  /* Pointer to memory operand from source instruction, no white space.  */
-	   
+
 {
   /* Points to start of index specification.  */
   char *start;
@@ -1040,7 +1041,7 @@ parse_memop (memS *memP,	/* Where to put the results.  */
     case I_BIT:
       /* Treat missing displacement as displacement of 0.  */
       mode |= D_BIT;
-      /* Fall into next case.  */
+      /* Fall through.  */
     case D_BIT | A_BIT | I_BIT:
     case D_BIT | I_BIT:
       /* Set MEMB bit in mode, and OR in mode bits.  */
@@ -1246,7 +1247,7 @@ parse_ldconst (char *arg[])	/* See above.  */
     {
     default:
       /* We're dependent on one or more symbols -- use "lda".  */
-      arg[0] = "lda";
+      arg[0] = (char *) "lda";
       break;
 
     case O_constant:
@@ -1258,31 +1259,31 @@ parse_ldconst (char *arg[])	/* See above.  */
               ldconst  64,<reg>  -> shlo 8,3,<reg>
               ldconst  -1,<reg>  -> subo 1,0,<reg>
               ldconst -31,<reg>  -> subo 31,0,<reg>
-        
+
          Anything else becomes:
                 lda xxx,<reg>.  */
       n = offs (e);
       if ((0 <= n) && (n <= 31))
-	arg[0] = "mov";
+	arg[0] = (char *) "mov";
       else if ((-31 <= n) && (n <= -1))
 	{
-	  arg[0] = "subo";
+	  arg[0] = (char *) "subo";
 	  arg[3] = arg[2];
 	  sprintf (buf, "%d", -n);
 	  arg[1] = buf;
-	  arg[2] = "0";
+	  arg[2] = (char *) "0";
 	}
       else if ((32 <= n) && (n <= 62))
 	{
-	  arg[0] = "addo";
+	  arg[0] = (char *) "addo";
 	  arg[3] = arg[2];
-	  arg[1] = "31";
+	  arg[1] = (char *) "31";
 	  sprintf (buf, "%d", n - 31);
 	  arg[2] = buf;
 	}
       else if ((shift = shift_ok (n)) != 0)
 	{
-	  arg[0] = "shlo";
+	  arg[0] = (char *) "shlo";
 	  arg[3] = arg[2];
 	  sprintf (buf, "%d", shift);
 	  arg[1] = buf;
@@ -1290,7 +1291,7 @@ parse_ldconst (char *arg[])	/* See above.  */
 	  arg[2] = buf2;
 	}
       else
-	arg[0] = "lda";
+	arg[0] = (char *) "lda";
       break;
 
     case O_illegal:
@@ -1494,7 +1495,7 @@ brlab_next (void)
 }
 
 static void
-ctrl_fmt (char *targP,		/* Pointer to text of lone operand (if any).  */
+ctrl_fmt (const char *targP,		/* Pointer to text of lone operand (if any).  */
 	  long opcode,		/* Template of instruction.  */
 	  int num_ops)		/* Number of operands.  */
 {
@@ -1675,6 +1676,7 @@ md_assemble (char *textP)
 	      mem_fmt (args, oP, 1);
 	      break;
 	    }
+	  /* Fall through.  */
 	case MEM2:
 	case MEM4:
 	case MEM8:
@@ -1707,7 +1709,7 @@ md_number_to_chars (char *buf,
   number_to_chars_littleendian (buf, value, n);
 }
 
-char *
+const char *
 md_atof (int type, char *litP, int *sizeP)
 {
   return ieee_md_atof (type, litP, sizeP, FALSE);
@@ -1751,7 +1753,7 @@ md_number_to_field (char *instrP,		/* Pointer to instruction to be fixed.  */
     {
       /* Put bit field into instruction and write back in target
          * byte order.  */
-      val &= ~(-1 << (int) numbits);	/* Clear unused sign bits.  */
+      val &= ~(-(1 << (int) numbits));	/* Clear unused sign bits.  */
       instr |= val;
       md_number_to_chars (instrP, instr, 4);
     }
@@ -1809,7 +1811,7 @@ size_t md_longopts_size = sizeof (md_longopts);
 
 struct tabentry
 {
-  char *flag;
+  const char *flag;
   int arch;
 };
 static const struct tabentry arch_tab[] =
@@ -1827,7 +1829,7 @@ static const struct tabentry arch_tab[] =
 };
 
 int
-md_parse_option (int c, char *arg)
+md_parse_option (int c, const char *arg)
 {
   switch (c)
     {
@@ -1847,7 +1849,7 @@ md_parse_option (int c, char *arg)
     case 'A':
       {
 	const struct tabentry *tp;
-	char *p = arg;
+	const char *p = arg;
 
 	for (tp = arch_tab; tp->flag != NULL; tp++)
 	  if (!strcmp (p, tp->flag))
@@ -2287,7 +2289,7 @@ parse_po (int po_num)	/* Pseudo-op number:  currently S_LEAFPROC or S_SYSPROC.  
   	passed fixup structure.  */
 
 int
-reloc_callj (fixS *fixP)  /* Relocation that can be done at assembly time.  */    
+reloc_callj (fixS *fixP)  /* Relocation that can be done at assembly time.  */
 {
   /* Points to the binary for the instruction being relocated.  */
   char *where;
@@ -2335,8 +2337,7 @@ s_endian (int ignore ATTRIBUTE_UNUSED)
   char *name;
   char c;
 
-  name = input_line_pointer;
-  c = get_symbol_end ();
+  c = get_symbol_name (&name);
   if (strcasecmp (name, "little") == 0)
     ;
   else if (strcasecmp (name, "big") == 0)
@@ -2344,7 +2345,7 @@ s_endian (int ignore ATTRIBUTE_UNUSED)
   else
     as_warn (_("ignoring unrecognized .endian type `%s'"), name);
 
-  *input_line_pointer = c;
+  (void) restore_line_pointer (c);
 
   demand_empty_rest_of_line ();
 }
@@ -2467,7 +2468,7 @@ md_section_align (segT seg,
   int align;
 
   align = bfd_get_section_alignment (stdoutput, seg);
-  return (addr + (1 << align) - 1) & (-1 << align);
+  return (addr + (1 << align) - 1) & -(1 << align);
 }
 
 extern int coff_flags;
@@ -2624,7 +2625,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixP)
 {
   arelent * reloc;
 
-  reloc = xmalloc (sizeof (arelent));
+  reloc = XNEW (arelent);
 
   /* HACK: Is this right?  */
   fixP->fx_r_type = tc_bfd_fix2rtype (fixP);
@@ -2641,7 +2642,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixP)
 
   gas_assert (!fixP->fx_pcrel == !reloc->howto->pc_relative);
 
-  reloc->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+  reloc->sym_ptr_ptr = XNEW (asymbol *);
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixP->fx_addsy);
   reloc->address = fixP->fx_frag->fr_address + fixP->fx_where;
   reloc->addend = fixP->fx_addnumber;

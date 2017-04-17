@@ -1,7 +1,7 @@
 // { dg-do run }
 // { dg-options "-g -O0 -std=gnu++11" }
 
-// Copyright (C) 2011-2015 Free Software Foundation, Inc.
+// Copyright (C) 2011-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,6 +33,7 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
+#include <random>
 
 template<class T>
 void
@@ -286,6 +287,7 @@ main()
   placeholder(&unord2_ptr);
   placeholder(&unord2_holder);
 
+  std::cout << "\n";
   return 0;
 }
 

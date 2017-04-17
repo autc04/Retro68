@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	0cdf7000 	ld1	{v0.8b}, \[x0\], #8
    4:	0cdfa000 	ld1	{v0.8b, v1.8b}, \[x0\], #16
    8:	0cdf6000 	ld1	{v0.8b-v2.8b}, \[x0\], #24

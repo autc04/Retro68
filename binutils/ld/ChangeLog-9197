@@ -4712,7 +4712,7 @@ Fri May 27 12:25:33 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
 
 	* emultempl/generic.em: Find emultempl/stringify.sed in ${srcdir}.
 
-	* testsuite/ld-cdtest/cdtest-bar.cc: Renamed from cdtest-func.cc. 
+	* testsuite/ld-cdtest/cdtest-bar.cc: Renamed from cdtest-func.cc.
 	* Makefile.in: Noted change.
 
 	* scripttempl/a29k.sc: Don't include /lab3/u3/..../segments.o; I

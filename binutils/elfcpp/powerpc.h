@@ -1,6 +1,6 @@
 // powerpc.h -- ELF definitions specific to EM_PPC and EM_PPC64  -*- C++ -*-
 
-// Copyright (C) 2008-2014 Free Software Foundation, Inc.
+// Copyright (C) 2008-2017 Free Software Foundation, Inc.
 // Written by David S. Miller <davem@davemloft.net>.
 
 // This file is part of elfcpp.
@@ -178,6 +178,7 @@ enum
   R_PPC_EMB_RELSDA = 116,
   R_PPC64_REL24_NOTOC = 116,
   R_PPC64_ADDR64_LOCAL = 117,
+  R_PPC64_ENTRY = 118,
 
   R_PPC_VLE_REL8 = 216,
   R_PPC_VLE_REL15 = 217,
@@ -197,6 +198,7 @@ enum
   R_PPC_VLE_SDAREL_HA16A = 231,
   R_PPC_VLE_SDAREL_HA16D = 232,
 
+  R_POWERPC_REL16DX_HA = 246,
   R_PPC64_JMP_IREL = 247,
   R_POWERPC_IRELATIVE = 248,
   R_POWERPC_REL16 = 249,

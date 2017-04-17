@@ -2,7 +2,7 @@
    of basic-block info to/from gmon.out; computing and formatting of
    basic-block related statistics.
 
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2017 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -248,7 +248,7 @@ bb_write_blocks (FILE *ofp, const char *filename)
 	<filename>:<line-number>: (<function-name>:<bb-addr): <ncalls>  */
 
 void
-print_exec_counts ()
+print_exec_counts (void)
 {
   Sym **sorted_bbs, *sym;
   unsigned int i, j, len;
@@ -282,7 +282,7 @@ print_exec_counts ()
   for (i = 0; i < len; ++i)
     {
       sym = sorted_bbs [i];
-      
+
       if (sym->ncalls > 0 || ! ignore_zeros)
 	{
 	  /* FIXME: This only works if bfd_vma is unsigned long.  */
@@ -311,7 +311,7 @@ print_exec_counts ()
    line of a file in sequential order.
 
    Global variable bb_annotate_all_lines enables execution count
-   compression (counts are supressed if identical to the last one)
+   compression (counts are suppressed if identical to the last one)
    and prints counts on all executed lines.  Otherwise, print
    all basic-block execution counts exactly once on the line
    that starts the basic-block.  */
@@ -459,7 +459,7 @@ annotate_with_count (char *buf, unsigned int width, int line_num, PTR arg)
    regarding that source file are printed.  */
 
 void
-print_annotated_source ()
+print_annotated_source (void)
 {
   Sym *sym, *line_stats, *new_line;
   Source_File *sf;

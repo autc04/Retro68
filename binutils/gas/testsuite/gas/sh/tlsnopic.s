@@ -1,4 +1,4 @@
-	.section	.tbss,"awT",@nobits
+	.section	.tdata,"awT",@progbits
 	.align 2
 	.long	foo
 	.text

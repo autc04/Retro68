@@ -1,5 +1,5 @@
 /* dllwrap.c -- wrapper for DLLTOOL and GCC to generate PE style DLLs
-   Copyright (C) 1998-2014 Free Software Foundation, Inc.
+   Copyright (C) 1998-2017 Free Software Foundation, Inc.
    Contributed by Mumit Khan (khan@xraylith.wisc.edu).
 
    This file is part of GNU Binutils.
@@ -364,7 +364,7 @@ run (const char *what, char *args)
     if (*s == ' ')
       i++;
   i++;
-  argv = alloca (sizeof (char *) * (i + 3));
+  argv = xmalloc (sizeof (char *) * (i + 3));
   i = 0;
   argv[i++] = what;
   s = args;
@@ -392,6 +392,7 @@ run (const char *what, char *args)
 
   pid = pexecute (argv[0], (char * const *) argv, prog_name, temp_base,
 		  &errmsg_fmt, &errmsg_arg, PEXECUTE_ONE | PEXECUTE_SEARCH);
+  free (argv);
 
   if (pid == -1)
     {
@@ -475,7 +476,7 @@ usage (FILE *file, int status)
 {
   fprintf (file, _("Usage %s <option(s)> <object-file(s)>\n"), prog_name);
   fprintf (file, _("  Generic options:\n"));
-  fprintf (file, _("   @<file>                Read options from <file>\n"));    
+  fprintf (file, _("   @<file>                Read options from <file>\n"));
   fprintf (file, _("   --quiet, -q            Work quietly\n"));
   fprintf (file, _("   --verbose, -v          Verbose\n"));
   fprintf (file, _("   --version              Print dllwrap version\n"));
@@ -1021,9 +1022,9 @@ Creating one, but that may not be what you want"));
 
   /* Step 1. Call GCC/LD to create base relocation file. If using GCC, the
      driver command line will look like the following:
-    
+
         % gcc -Wl,--dll --Wl,--base-file,foo.base [rest of command line]
-    
+
      If the user does not specify a base name, create temporary one that
      is deleted at exit.  */
 
@@ -1065,9 +1066,9 @@ Creating one, but that may not be what you want"));
 
   /* Step 2. generate the exp file by running dlltool.
      dlltool command line will look like the following:
-    
+
         % dlltool -Wl,--dll --Wl,--base-file,foo.base [rest of command line]
-    
+
      If the user does not specify a base name, create temporary one that
      is deleted at exit.  */
 

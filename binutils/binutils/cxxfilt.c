@@ -1,5 +1,5 @@
 /* Demangler for GNU C++ - main program
-   Copyright (C) 1989-2014 Free Software Foundation, Inc.
+   Copyright (C) 1989-2017 Free Software Foundation, Inc.
    Written by James Clark (jjc@jclark.uucp)
    Rewritten by Fred Fish (fnf@cygnus.com) for ARM and Lucid demangling
    Modified by Satish Pai (pai@apollo.hp.com) for HP demangling
@@ -87,7 +87,7 @@ print_demangler_list (FILE *stream)
   fprintf (stream, "}");
 }
 
-static void
+ATTRIBUTE_NORETURN static void
 usage (FILE *stream, int status)
 {
   fprintf (stream, "\
@@ -240,6 +240,8 @@ main (int argc, char **argv)
     case edg_demangling:
     case gnat_demangling:
     case gnu_v3_demangling:
+    case dlang_demangling:
+    case rust_demangling:
     case auto_demangling:
       valid_symbols = standard_symbol_characters ();
       break;

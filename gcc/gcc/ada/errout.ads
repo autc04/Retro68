@@ -111,9 +111,6 @@ package Errout is
    --  This normal suppression action may be overridden in cases 2-5 (but not
    --  in case 1 or 7 by setting All_Errors mode, or by setting the special
    --  unconditional message insertion character (!) as described below.
-   --  This normal suppression action may be overridden in cases 2-5 (but
-   --  not in case 1) by setting All_Errors mode, or by setting the special
-   --  unconditional message insertion character (!) as described below.
 
    ---------------------------------------------------------
    -- Error Message Text and Message Insertion Characters --
@@ -157,8 +154,8 @@ package Errout is
    --      obtained from the Unit_Name_Type value in Error_Msg_Unit_1 and
    --      Error_Msg_Unit_2, as provided by Get_Unit_Name_String in package
    --      Uname. Note that this name includes the postfix (spec) or (body)
-   --      strings. If this postfix is not required, use the normal %
-   --      insertion for the unit name.
+   --      strings. If this postfix is not required, use the normal % insertion
+   --      for the unit name.
 
    --    Insertion character { (Left brace: insert file name from names table)
    --      The character { is treated similarly to %, except that the input
@@ -168,7 +165,7 @@ package Errout is
    --      insertion is the exact string stored in the names table without
    --      adjusting the casing.
 
-   --    Insertion character * (Asterisk, insert reserved word name)
+   --    Insertion character * (Asterisk: insert reserved word name)
    --      The insertion character * is treated exactly like % except that the
    --      resulting name is cased according to the default conventions for
    --      reserved words (see package Scans).
@@ -221,7 +218,7 @@ package Errout is
    --      where appropriate the location of its declaration. Special cases
    --      like "some integer type" are handled appropriately. Only one } is
    --      allowed in a message, since there is not enough room for two (the
-   --      insertion can be quite long, including a file name) In addition, if
+   --      insertion can be quite long, including a file name). In addition, if
    --      the special global variable Error_Msg_Qual_Level is non-zero, then
    --      the reference will include up to the given number of levels of
    --      qualification, using the scope chain.
@@ -240,7 +237,7 @@ package Errout is
    --      A second ^ may occur in the message, in which case it is replaced
    --      by the decimal conversion of the Uint value in Error_Msg_Uint_2.
 
-   --    Insertion character > (Greater Than, run time name)
+   --    Insertion character > (Greater Than: run time name)
    --      The character > is replaced by a string of the form (name) if
    --      Targparm scanned out a Run_Time_Name (see package Targparm for
    --      details). The name is enclosed in parentheses and output in mixed
@@ -372,7 +369,7 @@ package Errout is
    --      messages are treated as a unit. The \ character must be the first
    --      character of the message text.
 
-   --    Insertion character \\ (Two backslashes, continuation with new line)
+   --    Insertion character \\ (Two backslashes: continuation with new line)
    --      This differs from \ only in -gnatjnn mode (Error_Message_Line_Length
    --      set non-zero). This sequence forces a new line to start even when
    --      continuations are being gathered into a single message.
@@ -477,10 +474,10 @@ package Errout is
    Error_Msg_Node_2 : Node_Id renames Err_Vars.Error_Msg_Node_2;
    --  Node_Id values for & insertion characters in message
 
-   Error_Msg_Qual_Level : Int renames Err_Vars.Error_Msg_Qual_Level;
+   Error_Msg_Qual_Level : Nat renames Err_Vars.Error_Msg_Qual_Level;
    --  Number of levels of qualification required for type name (see the
    --  description of the } insertion character). Note that this value does
-   --  note get reset by any Error_Msg call, so the caller is responsible
+   --  not get reset by any Error_Msg call, so the caller is responsible
    --  for resetting it.
 
    Error_Msg_Warn : Boolean renames Err_Vars.Error_Msg_Warn;
@@ -837,7 +834,7 @@ package Errout is
    --  pragma, or the null string if no reason is given. Config is True for the
    --  configuration pragma case (where there is no requirement for a matching
    --  OFF pragma). Used is set True to disable the check that the warning
-   --  actually has has the effect of suppressing a warning.
+   --  actually has the effect of suppressing a warning.
 
    procedure Set_Specific_Warning_On
      (Loc : Source_Ptr;

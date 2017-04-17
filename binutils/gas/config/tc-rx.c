@@ -1,5 +1,5 @@
 /* tc-rx.c -- Assembler for the Renesas RX
-   Copyright (C) 2008-2014 Free Software Foundation, Inc.
+   Copyright (C) 2008-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -22,7 +22,6 @@
 #include "struc-symbol.h"
 #include "safe-ctype.h"
 #include "dwarf2dbg.h"
-#include "libbfd.h"
 #include "elf/common.h"
 #include "elf/rx.h"
 #include "rx-defs.h"
@@ -73,6 +72,7 @@ enum options
   OPTION_USES_GCC_ABI,
   OPTION_USES_RX_ABI,
   OPTION_CPU,
+  OPTION_DISALLOW_STRING_INSNS,
 };
 
 #define RX_SHORTOPTS ""
@@ -99,13 +99,29 @@ struct option md_longopts[] =
   {"mint-register", required_argument, NULL, OPTION_INT_REGS},
   {"mgcc-abi", no_argument, NULL, OPTION_USES_GCC_ABI},
   {"mrx-abi", no_argument, NULL, OPTION_USES_RX_ABI},
-  {"mcpu",required_argument,NULL,OPTION_CPU},
+  {"mcpu", required_argument, NULL, OPTION_CPU},
+  {"mno-allow-string-insns", no_argument, NULL, OPTION_DISALLOW_STRING_INSNS},
   {NULL, no_argument, NULL, 0}
 };
 size_t md_longopts_size = sizeof (md_longopts);
 
+struct cpu_type
+{
+  const char *cpu_name;
+  enum rx_cpu_types type;
+};
+
+struct cpu_type  cpu_type_list[] =
+{
+  {"rx100",RX100},
+  {"rx200",RX200},
+  {"rx600",RX600},
+  {"rx610",RX610},
+  {"rxv2",RXV2}
+};
+
 int
-md_parse_option (int c ATTRIBUTE_UNUSED, char * arg ATTRIBUTE_UNUSED)
+md_parse_option (int c ATTRIBUTE_UNUSED, const char * arg ATTRIBUTE_UNUSED)
 {
   switch (c)
     {
@@ -159,21 +175,27 @@ md_parse_option (int c ATTRIBUTE_UNUSED, char * arg ATTRIBUTE_UNUSED)
       return 1;
 
     case OPTION_CPU:
-      if (strcasecmp (arg, "rx100") == 0)
-        rx_cpu = RX100;
-      else if (strcasecmp (arg, "rx200") == 0)
-	rx_cpu = RX200;
-      else if (strcasecmp (arg, "rx600") == 0)
-	rx_cpu = RX600;
-      else if (strcasecmp (arg, "rx610") == 0)
-	rx_cpu = RX610;
-      else
-	{
-	  as_warn (_("unrecognised RX CPU type %s"), arg);
-	  break;
-	}
+      {
+	unsigned int i;
+	for (i = 0; i < ARRAY_SIZE (cpu_type_list); i++)
+	  {
+	    if (strcasecmp (arg, cpu_type_list[i].cpu_name) == 0)
+	      {
+		rx_cpu = cpu_type_list[i].type;
+		if (rx_cpu == RXV2)
+		  elf_flags |= E_FLAG_RX_V2;
+		return 1;
+	      }
+	  }
+	as_warn (_("unrecognised RX CPU type %s"), arg);
+	break;
+      }
+
+    case OPTION_DISALLOW_STRING_INSNS:
+      elf_flags |= E_FLAG_RX_SINSNS_SET | E_FLAG_RX_SINSNS_NO;
       return 1;
     }
+
   return 0;
 }
 
@@ -191,7 +213,8 @@ md_show_usage (FILE * stream)
   fprintf (stream, _("  --mrelax\n"));
   fprintf (stream, _("  --mpid\n"));
   fprintf (stream, _("  --mint-register=<value>\n"));
-  fprintf (stream, _("  --mcpu=<rx100|rx200|rx600|rx610>\n"));
+  fprintf (stream, _("  --mcpu=<rx100|rx200|rx600|rx610|rxv2>\n"));
+  fprintf (stream, _("  --mno-allow-string-insns"));
 }
 
 static void
@@ -242,10 +265,10 @@ rx_include (int ignore)
   FILE * try;
   char * path;
   char * filename;
-  char * current_filename;
+  const char * current_filename;
   char * last_char;
-  char * p;
-  char * d;
+  const char * p;
+  const char * d;
   char * f;
   char   end_char;
   size_t len;
@@ -276,15 +299,15 @@ rx_include (int ignore)
       return;
     }
 
-  as_where (& current_filename, NULL);
-  f = (char *) xmalloc (strlen (current_filename) + strlen (filename) + 1);
+   current_filename = as_where (NULL);
+  f = XNEWVEC (char, strlen (current_filename) + strlen (filename) + 1);
 
   /* Check the filename.  If [@]..FILE[@] is found then replace
      this with the current assembler source filename, stripped
      of any directory prefixes or extensions.  */
   if ((p = rx_strcasestr (filename, "..file")) != NULL)
     {
-      char * c;
+      const char * c;
 
       len = 6; /* strlen ("..file"); */
 
@@ -335,7 +358,7 @@ rx_include (int ignore)
       if (env && strlen (env) > len)
 	len = strlen (env);
 
-      path = (char *) xmalloc (strlen (f) + len + 5);
+      path = XNEWVEC (char, strlen (f) + len + 5);
 
       if (current_filename != NULL)
 	{
@@ -393,7 +416,7 @@ parse_rx_section (char * name)
   asection * sec;
   int   type;
   int   attr = SHF_ALLOC | SHF_EXECINSTR;
-  int   align = 2;
+  int   align = 1;
   char  end_char;
 
   do
@@ -421,9 +444,9 @@ parse_rx_section (char * name)
 		p++;
 	      switch (*p)
 		{
-		case '2': align = 2; break;
-		case '4': align = 4; break;
-		case '8': align = 8; break;
+		case '2': align = 1; break;
+		case '4': align = 2; break;
+		case '8': align = 3; break;
 		default:
 		  as_bad (_("unrecognised alignment value in .SECTION directive: %s"), p);
 		  ignore_rest_of_line ();
@@ -507,10 +530,7 @@ rx_section (int ignore)
 
       if (*p != '"' && *p != '#')
 	{
-	  char * name = (char *) xmalloc (len + 1);
-
-	  strncpy (name, input_line_pointer, len);
-	  name[len] = 0;
+	  char *name = xmemdup0 (input_line_pointer, len);
 
 	  input_line_pointer = p;
 	  parse_rx_section (name);
@@ -935,43 +955,50 @@ rx_field5s2 (expressionS exp)
 void
 rx_op (expressionS exp, int nbytes, int type)
 {
-  int v = 0;
+  offsetT v = 0;
 
   if ((exp.X_op == O_constant || exp.X_op == O_big)
       && type != RXREL_PCREL)
     {
-      if (exp.X_op == O_big && exp.X_add_number <= 0)
+      if (exp.X_op == O_big)
 	{
-	  LITTLENUM_TYPE w[2];
-	  char * ip = rx_bytes.ops + rx_bytes.n_ops;
+	  if (exp.X_add_number == -1)
+	    {
+	      LITTLENUM_TYPE w[2];
+	      char * ip = rx_bytes.ops + rx_bytes.n_ops;
 
-	  gen_to_words (w, F_PRECISION, 8);
+	      gen_to_words (w, F_PRECISION, 8);
 #if RX_OPCODE_BIG_ENDIAN
-	  ip[0] = w[0] >> 8;
-	  ip[1] = w[0];
-	  ip[2] = w[1] >> 8;
-	  ip[3] = w[1];
+	      ip[0] = w[0] >> 8;
+	      ip[1] = w[0];
+	      ip[2] = w[1] >> 8;
+	      ip[3] = w[1];
 #else
-	  ip[3] = w[0] >> 8;
-	  ip[2] = w[0];
-	  ip[1] = w[1] >> 8;
-	  ip[0] = w[1];
+	      ip[3] = w[0] >> 8;
+	      ip[2] = w[0];
+	      ip[1] = w[1] >> 8;
+	      ip[0] = w[1];
 #endif
-	  rx_bytes.n_ops += 4;
+	      rx_bytes.n_ops += 4;
+	      return;
+	    }
+
+	  v = ((generic_bignum[1] & LITTLENUM_MASK) << LITTLENUM_NUMBER_OF_BITS)
+	    |  (generic_bignum[0] & LITTLENUM_MASK);
+
 	}
       else
+	v = exp.X_add_number;
+
+      while (nbytes)
 	{
-	  v = exp.X_add_number;
-	  while (nbytes)
-	    {
 #if RX_OPCODE_BIG_ENDIAN
-	      OP ((v >> (8 * (nbytes - 1))) & 0xff);
+	  OP ((v >> (8 * (nbytes - 1))) & 0xff);
 #else
-	      OP (v & 0xff);
-	      v >>= 8;
+	  OP (v & 0xff);
+	  v >>= 8;
 #endif
-	      nbytes --;
-	    }
+	  nbytes --;
 	}
     }
   else
@@ -1000,7 +1027,7 @@ rx_frag_init (fragS * fragP)
 {
   if (rx_bytes.n_relax || rx_bytes.link_relax || rx_bytes.n_base < 0)
     {
-      fragP->tc_frag_data = malloc (sizeof (rx_bytesT));
+      fragP->tc_frag_data = XNEW (rx_bytesT);
       memcpy (fragP->tc_frag_data, & rx_bytes, sizeof (rx_bytesT));
     }
   else
@@ -1050,7 +1077,7 @@ scan_for_infix_rx_pseudo_ops (char * str)
   if (dot == NULL || dot == str)
     return FALSE;
 
-  /* A real pseudo-op must be preceeded by whitespace.  */
+  /* A real pseudo-op must be preceded by whitespace.  */
   if (dot[-1] != ' ' && dot[-1] != '\t')
     return FALSE;
 
@@ -1192,7 +1219,7 @@ md_number_to_chars (char * buf, valueT val, int n)
 
 static struct
 {
-  char * fname;
+  const char * fname;
   int    reloc;
 }
 reloc_functions[] =
@@ -1234,7 +1261,7 @@ valueT
 md_section_align (segT segment, valueT size)
 {
   int align = bfd_get_section_alignment (stdoutput, segment);
-  return ((size + (1 << align) - 1) & (-1 << align));
+  return ((size + (1 << align) - 1) & -(1 << align));
 }
 
 				/* NOP - 1 cycle */
@@ -1249,8 +1276,8 @@ static unsigned char nop_4[] = { 0x76, 0x10, 0x01, 0x00 };
 static unsigned char nop_5[] = { 0x77, 0x10, 0x01, 0x00, 0x00 };
 				/* MUL #1,R0 - 1 cycle */
 static unsigned char nop_6[] = { 0x74, 0x10, 0x01, 0x00, 0x00, 0x00 };
-				/* BRA.S .+7 - 1 cycle */
-static unsigned char nop_7[] = { 0x0F, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03 };
+				/* MAX 0x80000000,R0 - 1 cycle */
+static unsigned char nop_7[] = { 0xFD, 0x70, 0x40, 0x00, 0x00, 0x00, 0x80 };
 
 static unsigned char *nops[] = { NULL, nop_1, nop_2, nop_3, nop_4, nop_5, nop_6, nop_7 };
 #define BIGGEST_NOP 7
@@ -1307,7 +1334,7 @@ rx_handle_align (fragS * frag)
     }
 }
 
-char *
+const char *
 md_atof (int type, char * litP, int * sizeP)
 {
   return ieee_md_atof (type, litP, sizeP, target_big_endian);
@@ -1538,7 +1565,7 @@ rx_relax_frag (segT segment ATTRIBUTE_UNUSED, fragS * fragP, long stretch)
       if (fragP->fr_subtype >= next_size)
 	fragP->fr_subtype = 0;
       tprintf ("\033[34m -> mypc %lu next_size %u new %d old %d delta %d (fetchalign)\033[0m\n",
-	       mypc & 7,
+	       (unsigned long) (mypc & 7),
 	       next_size, fragP->fr_subtype, oldsize, fragP->fr_subtype-oldsize);
 
       newsize = fragP->fr_subtype;
@@ -1734,7 +1761,8 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
   rx_bytesT * rxb = fragP->tc_frag_data;
   addressT addr0, mypc;
   int disp;
-  int reloc_type, reloc_adjust;
+  int reloc_adjust;
+  bfd_reloc_code_real_type reloc_type;
   char * op = fragP->fr_opcode;
   int keep_reloc = 0;
   int ri;
@@ -2110,6 +2138,8 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
 	case BFD_RELOC_RX_32_OP:
 	  fix->fx_size = 4;
 	  break;
+	default:
+	  break;
 	}
     }
 
@@ -2371,8 +2401,10 @@ md_apply_fix (struct fix * f ATTRIBUTE_UNUSED,
 
     case BFD_RELOC_RX_GPRELL:
       val >>= 1;
+      /* Fall through.  */
     case BFD_RELOC_RX_GPRELW:
       val >>= 1;
+      /* Fall through.  */
     case BFD_RELOC_RX_GPRELB:
 #if RX_OPCODE_BIG_ENDIAN
       op[1] = val & 0xff;
@@ -2412,8 +2444,8 @@ tc_gen_reloc (asection * sec ATTRIBUTE_UNUSED, fixS * fixp)
       fixp->fx_subsy = NULL;
     }
 
-  reloc[0]		  = (arelent *) xmalloc (sizeof (arelent));
-  reloc[0]->sym_ptr_ptr   = (asymbol **) xmalloc (sizeof (asymbol *));
+  reloc[0]		  = XNEW (arelent);
+  reloc[0]->sym_ptr_ptr   = XNEW (asymbol *);
   * reloc[0]->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
   reloc[0]->address       = fixp->fx_frag->fr_address + fixp->fx_where;
   reloc[0]->addend        = fixp->fx_offset;
@@ -2426,7 +2458,7 @@ tc_gen_reloc (asection * sec ATTRIBUTE_UNUSED, fixS * fixp)
     }
   else if (sec)
     is_opcode = sec->flags & SEC_CODE;
-      
+
   /* Certain BFD relocations cannot be translated directly into
      a single (non-Red Hat) RX relocation, but instead need
      multiple RX relocations - handle them here.  */
@@ -2435,20 +2467,20 @@ tc_gen_reloc (asection * sec ATTRIBUTE_UNUSED, fixS * fixp)
     case BFD_RELOC_RX_DIFF:
       reloc[0]->howto         = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_SYM);
 
-      reloc[1]		      = (arelent *) xmalloc (sizeof (arelent));
-      reloc[1]->sym_ptr_ptr   = (asymbol **) xmalloc (sizeof (asymbol *));
+      reloc[1]		      = XNEW (arelent);
+      reloc[1]->sym_ptr_ptr   = XNEW (asymbol *);
       * reloc[1]->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_subsy);
       reloc[1]->address       = fixp->fx_frag->fr_address + fixp->fx_where;
       reloc[1]->addend        = 0;
       reloc[1]->howto         = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_SYM);
 
-      reloc[2]		      = (arelent *) xmalloc (sizeof (arelent));
+      reloc[2]		      = XNEW (arelent);
       reloc[2]->howto         = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_OP_SUBTRACT);
       reloc[2]->addend        = 0;
       reloc[2]->sym_ptr_ptr   = reloc[1]->sym_ptr_ptr;
       reloc[2]->address       = fixp->fx_frag->fr_address + fixp->fx_where;
 
-      reloc[3]		      = (arelent *) xmalloc (sizeof (arelent));
+      reloc[3]		      = XNEW (arelent);
       switch (fixp->fx_size)
 	{
 	case 1:
@@ -2479,8 +2511,8 @@ tc_gen_reloc (asection * sec ATTRIBUTE_UNUSED, fixS * fixp)
     case BFD_RELOC_RX_GPRELL:
       reloc[0]->howto         = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_SYM);
 
-      reloc[1]		      = (arelent *) xmalloc (sizeof (arelent));
-      reloc[1]->sym_ptr_ptr   = (asymbol **) xmalloc (sizeof (asymbol *));
+      reloc[1]		      = XNEW (arelent);
+      reloc[1]->sym_ptr_ptr   = XNEW (asymbol *);
       if (gp_symbol == NULL)
 	{
 	  if (symbol_table_frozen)
@@ -2501,13 +2533,13 @@ tc_gen_reloc (asection * sec ATTRIBUTE_UNUSED, fixS * fixp)
       reloc[1]->addend        = 0;
       reloc[1]->howto         = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_SYM);
 
-      reloc[2]		    = (arelent *) xmalloc (sizeof (arelent));
+      reloc[2]		    = XNEW (arelent);
       reloc[2]->howto       = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_OP_SUBTRACT);
       reloc[2]->addend      = 0;
       reloc[2]->sym_ptr_ptr = reloc[1]->sym_ptr_ptr;
       reloc[2]->address     = fixp->fx_frag->fr_address + fixp->fx_where;
 
-      reloc[3]		    = (arelent *) xmalloc (sizeof (arelent));
+      reloc[3]		    = XNEW (arelent);
       reloc[3]->howto       = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_ABS16UL);
       reloc[3]->addend      = 0;
       reloc[3]->sym_ptr_ptr = reloc[1]->sym_ptr_ptr;
@@ -2519,8 +2551,8 @@ tc_gen_reloc (asection * sec ATTRIBUTE_UNUSED, fixS * fixp)
     case BFD_RELOC_RX_GPRELW:
       reloc[0]->howto         = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_SYM);
 
-      reloc[1]		      = (arelent *) xmalloc (sizeof (arelent));
-      reloc[1]->sym_ptr_ptr   = (asymbol **) xmalloc (sizeof (asymbol *));
+      reloc[1]		      = XNEW (arelent);
+      reloc[1]->sym_ptr_ptr   = XNEW (asymbol *);
       if (gp_symbol == NULL)
 	{
 	  if (symbol_table_frozen)
@@ -2541,13 +2573,13 @@ tc_gen_reloc (asection * sec ATTRIBUTE_UNUSED, fixS * fixp)
       reloc[1]->addend        = 0;
       reloc[1]->howto         = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_SYM);
 
-      reloc[2]		    = (arelent *) xmalloc (sizeof (arelent));
+      reloc[2]		    = XNEW (arelent);
       reloc[2]->howto       = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_OP_SUBTRACT);
       reloc[2]->addend      = 0;
       reloc[2]->sym_ptr_ptr = reloc[1]->sym_ptr_ptr;
       reloc[2]->address     = fixp->fx_frag->fr_address + fixp->fx_where;
 
-      reloc[3]		    = (arelent *) xmalloc (sizeof (arelent));
+      reloc[3]		    = XNEW (arelent);
       reloc[3]->howto       = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_ABS16UW);
       reloc[3]->addend      = 0;
       reloc[3]->sym_ptr_ptr = reloc[1]->sym_ptr_ptr;
@@ -2559,8 +2591,8 @@ tc_gen_reloc (asection * sec ATTRIBUTE_UNUSED, fixS * fixp)
     case BFD_RELOC_RX_GPRELB:
       reloc[0]->howto         = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_SYM);
 
-      reloc[1]		      = (arelent *) xmalloc (sizeof (arelent));
-      reloc[1]->sym_ptr_ptr   = (asymbol **) xmalloc (sizeof (asymbol *));
+      reloc[1]		      = XNEW (arelent);
+      reloc[1]->sym_ptr_ptr   = XNEW (asymbol *);
       if (gp_symbol == NULL)
 	{
 	  if (symbol_table_frozen)
@@ -2581,13 +2613,13 @@ tc_gen_reloc (asection * sec ATTRIBUTE_UNUSED, fixS * fixp)
       reloc[1]->addend        = 0;
       reloc[1]->howto         = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_SYM);
 
-      reloc[2]		    = (arelent *) xmalloc (sizeof (arelent));
+      reloc[2]		    = XNEW (arelent);
       reloc[2]->howto       = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_OP_SUBTRACT);
       reloc[2]->addend      = 0;
       reloc[2]->sym_ptr_ptr = reloc[1]->sym_ptr_ptr;
       reloc[2]->address     = fixp->fx_frag->fr_address + fixp->fx_where;
 
-      reloc[3]		    = (arelent *) xmalloc (sizeof (arelent));
+      reloc[3]		    = XNEW (arelent);
       reloc[3]->howto       = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_ABS16U);
       reloc[3]->addend      = 0;
       reloc[3]->sym_ptr_ptr = reloc[1]->sym_ptr_ptr;
@@ -2599,13 +2631,13 @@ tc_gen_reloc (asection * sec ATTRIBUTE_UNUSED, fixS * fixp)
     case BFD_RELOC_RX_NEG32:
       reloc[0]->howto         = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_SYM);
 
-      reloc[1]		    = (arelent *) xmalloc (sizeof (arelent));
+      reloc[1]		    = XNEW (arelent);
       reloc[1]->howto       = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_OP_NEG);
       reloc[1]->addend      = 0;
       reloc[1]->sym_ptr_ptr = reloc[0]->sym_ptr_ptr;
       reloc[1]->address     = fixp->fx_frag->fr_address + fixp->fx_where;
 
-      reloc[2]		    = (arelent *) xmalloc (sizeof (arelent));
+      reloc[2]		    = XNEW (arelent);
       reloc[2]->howto       = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_RX_ABS32);
       reloc[2]->addend      = 0;
       reloc[2]->sym_ptr_ptr = reloc[0]->sym_ptr_ptr;
@@ -2623,6 +2655,14 @@ tc_gen_reloc (asection * sec ATTRIBUTE_UNUSED, fixS * fixp)
   return reloc;
 }
 
+void
+rx_note_string_insn_use (void)
+{
+  if ((elf_flags & E_FLAG_RX_SINSNS_MASK) == (E_FLAG_RX_SINSNS_SET | E_FLAG_RX_SINSNS_NO))
+    as_bad (_("Use of an RX string instruction detected in a file being assembled without string instruction support"));
+  elf_flags |= E_FLAG_RX_SINSNS_SET | E_FLAG_RX_SINSNS_YES;
+}
+
 /* Set the ELF specific flags.  */
 
 void
@@ -2631,7 +2671,7 @@ rx_elf_final_processing (void)
   elf_elfheader (stdoutput)->e_flags |= elf_flags;
 }
 
-/* Scan the current input line for occurances of Renesas
+/* Scan the current input line for occurrences of Renesas
    local labels and replace them with the GAS version.  */
 
 void

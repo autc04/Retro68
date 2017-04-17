@@ -1,6 +1,6 @@
 ## Makefile for the C++11 sources of the GNU C++ Standard library.
 ##
-## Copyright (C) 1997-2015 Free Software Foundation, Inc.
+## Copyright (C) 1997-2016 Free Software Foundation, Inc.
 ##
 ## This file is part of the libstdc++ version 3 distribution.
 ## Process this file with automake to produce Makefile.in.
@@ -22,7 +22,13 @@
 
 include $(top_srcdir)/fragment.am
 
-SUBDIRS = c++98 c++11
+if ENABLE_FILESYSTEM_TS
+filesystem_dir = filesystem
+else
+filesystem_dir =
+endif
+
+SUBDIRS = c++98 c++11 $(filesystem_dir)
 
 # Cross compiler support.
 if VTV_CYGMIN
@@ -52,6 +58,9 @@ endif
 
 vpath % $(top_srcdir)/src/c++98
 vpath % $(top_srcdir)/src/c++11
+if ENABLE_FILESYSTEM_TS
+vpath % $(top_srcdir)/src/filesystem
+endif
 
 if GLIBCXX_LDBL_COMPAT
 ldbl_compat_sources = compatibility-ldbl.cc
@@ -159,6 +168,7 @@ compatibility-condvar.o: compatibility-condvar.cc
 # OPTIMIZE_CXXFLAGS on the compile line so that -O2 can be overridden
 # as the occasion calls for it.
 AM_CXXFLAGS = \
+	-std=gnu++98 \
 	$(glibcxx_compiler_pic_flag) \
 	$(XTEMPLATE_FLAGS) $(VTV_CXXFLAGS) \
 	$(WARN_CXXFLAGS) $(OPTIMIZE_CXXFLAGS) $(CONFIG_CXXFLAGS)
@@ -218,7 +228,7 @@ libstdc++-symbols.ver:  ${glibcxx_srcdir}/$(SYMVER_FILE) \
 	chmod +w $@.tmp
 	if test "x$(port_specific_symbol_files)" != x; then \
 	  if grep '^# Appended to version file.' \
-	       $(port_specific_symbol_files) /dev/null > /dev/null 2>&1; then \
+	       $(port_specific_symbol_files) > /dev/null 2>&1; then \
 	    cat $(port_specific_symbol_files) >> $@.tmp; \
 	  else \
 	    sed -n '1,/DO NOT DELETE/p' $@.tmp > tmp.top; \

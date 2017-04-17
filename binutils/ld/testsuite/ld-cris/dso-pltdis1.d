@@ -20,7 +20,7 @@
 
 Disassembly of section \.plt:
 
-0+1b4 <(dsofn4@plt-0x1a|dsofn@plt-0x34)>:
+0+1b4 <.*>:
  1b4:	84e2                	subq 4,\$sp
  1b6:	0401                	addoq 4,\$r0,\$acr
  1b8:	7e7a                	move \$mof,\[\$sp\]
@@ -45,7 +45,7 @@ Disassembly of section \.plt:
  1f0:	bf09                	jump \$acr
  1f2:	b005                	nop 
  1f4:	3f7e .... ....      	move .*,\$mof
- 1fa:	bf0e baff ffff      	ba 1b4 <(dsofn4@plt-0x1a|dsofn@plt-0x34)>
+ 1fa:	bf0e baff ffff      	ba 1b4 <.*>
  200:	b005                	nop 
 
 Disassembly of section \.text:
@@ -57,5 +57,5 @@ Disassembly of section \.text:
 0+20a <dsofn4>:
  20a:	7f0d ae20 0000      	lapc 22b8 <_GLOBAL_OFFSET_TABLE_>,\$r0
  210:	5f0d 1400           	addo\.w 0x14,\$r0,\$acr
- 214:	bfbe baff ffff      	bsr 1ce <(dsofn4@plt|dsofn@plt-0x1a)>
+ 214:	bfbe baff ffff      	bsr 1ce <.*>
 #pass

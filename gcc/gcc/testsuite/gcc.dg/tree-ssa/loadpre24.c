@@ -5,20 +5,17 @@ int a;
 
 int foo(int argc)
 {
-  int b;
-  int c;
   int i;
-  int d, e;
+  int e;
 
   for (i = 0; i < argc; i++)
     {
       e = a;
       a = 9;
     }
-  return d + e;
+  return e;
 }
 
 /* We will move the load of a out of the loop.  */
 
 /* { dg-final { scan-tree-dump-times "Eliminated: 1" 1 "pre" } } */
-/* { dg-final { cleanup-tree-dump "pre" } } */

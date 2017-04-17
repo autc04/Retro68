@@ -1,5 +1,4 @@
 /* { dg-do compile } */
-/* { dg-require-effective-target avx2 } */
 /* { dg-options "-mavx2 -O3 -fopenmp-simd -fdump-tree-vect-details" } */
 
 #define N 256
@@ -30,4 +29,3 @@ void foo()
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */

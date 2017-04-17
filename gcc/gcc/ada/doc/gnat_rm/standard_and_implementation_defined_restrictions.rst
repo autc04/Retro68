@@ -137,12 +137,19 @@ No_Anonymous_Allocators
 [RM H.4] This restriction ensures at compile time that there are no
 occurrences of an allocator of anonymous access type.
 
+No_Asynchronous_Control
+-----------------------
+.. index:: No_Asynchronous_Control
+
+[RM J.13] This restriction ensures at compile time that there are no semantic
+dependences on the predefined package Asynchronous_Task_Control.
+
 No_Calendar
 -----------
 .. index:: No_Calendar
 
-[GNAT] This restriction ensures at compile time that there is no implicit or
-explicit dependence on the package `Ada.Calendar`.
+[GNAT] This restriction ensures at compile time that there are no semantic
+dependences on package Calendar.
 
 No_Coextensions
 ---------------
@@ -170,14 +177,14 @@ No_Delay
 .. index:: No_Delay
 
 [RM H.4] This restriction ensures at compile time that there are no
-delay statements and no dependences on package Calendar.
+delay statements and no semantic dependences on package Calendar.
 
 No_Dependence
 -------------
 .. index:: No_Dependence
 
-[RM 13.12.1] This restriction checks at compile time that there are no
-dependence on a library unit.
+[RM 13.12.1] This restriction ensures at compile time that there are no
+dependences on a library unit.
 
 No_Direct_Boolean_Operators
 ---------------------------
@@ -254,7 +261,7 @@ The following example indicates constructs that violate this restriction.
        null;
     end if;
   end Example;
-  
+
 
 No_Dynamic_Attachment
 ---------------------
@@ -312,7 +319,7 @@ must define with the following profile:
     (Source_Location : System.Address; Line : Integer);
   pragma Export (C, Last_Chance_Handler,
                  "__gnat_last_chance_handler");
-  
+
 
 The parameter is a C null-terminated string representing a message to be
 associated with the exception (typically the source location of the raise
@@ -360,19 +367,19 @@ chapter 7.6 of the Ada 2005 RM as well as all form of code generation
 performed by the compiler to support these features. The following types
 are no longer considered controlled when this restriction is in effect:
 
-* 
+*
   `Ada.Finalization.Controlled`
-* 
+*
   `Ada.Finalization.Limited_Controlled`
-* 
+*
   Derivations from `Controlled` or `Limited_Controlled`
-* 
+*
   Class-wide types
-* 
+*
   Protected types
-* 
+*
   Task types
-* 
+*
   Array and record types with controlled components
 
 The compiler no longer generates code to initialize, finalize or adjust an
@@ -451,6 +458,19 @@ large array aggregates with all static components without generating an
 intermediate temporary, and without generating a loop to initialize individual
 components. Otherwise, a loop is created for arrays larger than about 5000
 scalar components.
+
+No_Implicit_Protected_Object_Allocations
+----------------------------------------
+.. index:: No_Implicit_Protected_Object_Allocations
+
+[GNAT] No constructs are allowed to cause implicit heap allocation of a
+protected object.
+
+No_Implicit_Task_Allocations
+----------------------------
+.. index:: No_Implicit_Task_Allocations
+
+[GNAT] No constructs are allowed to cause implicit heap allocation of a task.
 
 No_Initialize_Scalars
 ---------------------
@@ -659,6 +679,15 @@ No_Task_Allocators
 [RM D.7] There are no allocators for task types
 or types containing task subcomponents.
 
+No_Task_At_Interrupt_Priority
+-----------------------------
+.. index:: No_Task_At_Interrupt_Priority
+
+[GNAT] This restriction ensures at compile time that there is no
+Interrupt_Priority aspect or pragma for a task or a task type. As
+a consequence, the tasks are always created with a priority below
+that an interrupt priority.
+
 No_Task_Attributes_Package
 --------------------------
 .. index:: No_Task_Attributes_Package
@@ -709,6 +738,20 @@ No_Unchecked_Access
 [RM H.4] This restriction ensures at compile time that there are no
 occurrences of the Unchecked_Access attribute.
 
+No_Unchecked_Conversion
+-----------------------
+.. index:: No_Unchecked_Conversion
+
+[RM J.13] This restriction ensures at compile time that there are no semantic
+dependences on the predefined generic function Unchecked_Conversion.
+
+No_Unchecked_Deallocation
+-------------------------
+.. index:: No_Unchecked_Deallocation
+
+[RM J.13] This restriction ensures at compile time that there are no semantic
+dependences on the predefined generic procedure Unchecked_Deallocation.
+
 No_Use_Of_Entity
 ----------------
 .. index:: No_Use_Of_Entity
@@ -721,6 +764,29 @@ to the entity given in the form ::
 where ``Name`` is the fully qualified entity, for example ::
 
    No_Use_Of_Entity => Ada.Text_IO.Put_Line
+
+Pure_Barriers
+-------------
+.. index:: Pure_Barriers
+
+[GNAT] This restriction ensures at compile time that protected entry
+barriers are restricted to:
+
+* simple variables defined in the private part of the
+  protected type/object,
+* constant declarations,
+* named numbers,
+* enumeration literals,
+* integer literals,
+* real literals,
+* character literals,
+* implicitly defined comparison operators,
+* uses of the Standard."not" operator,
+* short-circuit operator
+
+This restriction is a relaxation of the Simple_Barriers restriction,
+but still ensures absence of side effects, exceptions, and recursion
+during the evaluation of the barriers.
 
 Simple_Barriers
 ---------------
@@ -801,7 +867,7 @@ example, if the source contains a declaration:
 .. code-block:: ada
 
      Val : constant Integer := X;
-  
+
 
 where X is not a static constant, it may be possible, depending
 on complex optimization circuitry, for the compiler to figure
@@ -813,6 +879,21 @@ optimizer can figure this out.
 Note that this the implementation of this restriction requires full
 code generation. If it is used in conjunction with "semantics only"
 checking, then some cases of violations may be missed.
+
+No_Dynamic_Sized_Objects
+------------------------
+.. index:: No_Dynamic_Sized_Objects
+
+[GNAT] This restriction disallows certain constructs that might lead to the
+creation of dynamic-sized composite objects (or array or discriminated type).
+An array subtype indication is illegal if the bounds are not static
+or references to discriminants of an enclosing type.
+A discriminated subtype indication is illegal if the type has
+discriminant-dependent array components or a variant part, and the
+discriminants are not static. In addition, array and record aggregates are
+illegal in corresponding cases. Note that this restriction does not forbid
+access discriminants. It is often a good idea to combine this restriction
+with No_Secondary_Stack.
 
 No_Entry_Queue
 --------------
@@ -917,7 +998,7 @@ SPARK restriction have the form:
 
   violation of restriction "SPARK_05" at <source-location>
    <error message>
-  
+
 
 .. index:: SPARK
 
@@ -982,7 +1063,7 @@ restriction is in force:
 * No object renaming
 * No use clause
 * Aggregates must be qualified
-* Non-static choice in array aggregates not allowed
+* Nonstatic choice in array aggregates not allowed
 * The only view conversions which are allowed as in-out parameters are conversions of a tagged type to an ancestor type
 * No mixing of positional and named association in aggregate, no multi choice
 * AND, OR and XOR for arrays only allowed when operands have same static bounds
@@ -1003,7 +1084,7 @@ restriction is in force:
 * Untagged record cannot be null
 * No class-wide operations
 * Initialization expressions must respect SPARK restrictions
-* Non-static ranges not allowed except in iteration schemes
+* Nonstatic ranges not allowed except in iteration schemes
 * String subtypes must have lower bound of 1
 * Subtype of Boolean cannot have constraint
 * At most one tagged type or extension per package
@@ -1054,4 +1135,3 @@ currently checked by the SPARK_05 restriction:
 Note that if a unit is compiled in Ada 95 mode with the SPARK restriction,
 violations will be reported for constructs forbidden in SPARK 95,
 instead of SPARK 2005.
-

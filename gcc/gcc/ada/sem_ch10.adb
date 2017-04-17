@@ -23,49 +23,50 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Aspects;  use Aspects;
-with Atree;    use Atree;
-with Debug;    use Debug;
-with Einfo;    use Einfo;
-with Errout;   use Errout;
-with Exp_Util; use Exp_Util;
-with Elists;   use Elists;
-with Fname;    use Fname;
-with Fname.UF; use Fname.UF;
-with Freeze;   use Freeze;
-with Impunit;  use Impunit;
-with Inline;   use Inline;
-with Lib;      use Lib;
-with Lib.Load; use Lib.Load;
-with Lib.Xref; use Lib.Xref;
-with Namet;    use Namet;
-with Nlists;   use Nlists;
-with Nmake;    use Nmake;
-with Opt;      use Opt;
-with Output;   use Output;
-with Par_SCO;  use Par_SCO;
-with Restrict; use Restrict;
-with Rident;   use Rident;
-with Rtsfind;  use Rtsfind;
-with Sem;      use Sem;
-with Sem_Aux;  use Sem_Aux;
-with Sem_Ch3;  use Sem_Ch3;
-with Sem_Ch6;  use Sem_Ch6;
-with Sem_Ch7;  use Sem_Ch7;
-with Sem_Ch8;  use Sem_Ch8;
-with Sem_Dist; use Sem_Dist;
-with Sem_Prag; use Sem_Prag;
-with Sem_Util; use Sem_Util;
-with Sem_Warn; use Sem_Warn;
-with Stand;    use Stand;
-with Sinfo;    use Sinfo;
-with Sinfo.CN; use Sinfo.CN;
-with Sinput;   use Sinput;
-with Snames;   use Snames;
-with Style;    use Style;
-with Stylesw;  use Stylesw;
-with Tbuild;   use Tbuild;
-with Uname;    use Uname;
+with Aspects;   use Aspects;
+with Atree;     use Atree;
+with Contracts; use Contracts;
+with Debug;     use Debug;
+with Einfo;     use Einfo;
+with Errout;    use Errout;
+with Exp_Util;  use Exp_Util;
+with Elists;    use Elists;
+with Fname;     use Fname;
+with Fname.UF;  use Fname.UF;
+with Freeze;    use Freeze;
+with Impunit;   use Impunit;
+with Inline;    use Inline;
+with Lib;       use Lib;
+with Lib.Load;  use Lib.Load;
+with Lib.Xref;  use Lib.Xref;
+with Namet;     use Namet;
+with Nlists;    use Nlists;
+with Nmake;     use Nmake;
+with Opt;       use Opt;
+with Output;    use Output;
+with Par_SCO;   use Par_SCO;
+with Restrict;  use Restrict;
+with Rident;    use Rident;
+with Rtsfind;   use Rtsfind;
+with Sem;       use Sem;
+with Sem_Aux;   use Sem_Aux;
+with Sem_Ch3;   use Sem_Ch3;
+with Sem_Ch6;   use Sem_Ch6;
+with Sem_Ch7;   use Sem_Ch7;
+with Sem_Ch8;   use Sem_Ch8;
+with Sem_Dist;  use Sem_Dist;
+with Sem_Prag;  use Sem_Prag;
+with Sem_Util;  use Sem_Util;
+with Sem_Warn;  use Sem_Warn;
+with Stand;     use Stand;
+with Sinfo;     use Sinfo;
+with Sinfo.CN;  use Sinfo.CN;
+with Sinput;    use Sinput;
+with Snames;    use Snames;
+with Style;     use Style;
+with Stylesw;   use Stylesw;
+with Tbuild;    use Tbuild;
+with Uname;     use Uname;
 
 package body Sem_Ch10 is
 
@@ -938,7 +939,7 @@ package body Sem_Ch10 is
       if Nkind_In (Unit_Node, N_Generic_Subprogram_Declaration,
                               N_Subprogram_Declaration)
       then
-         Analyze_Subprogram_Contract (Defining_Entity (Unit_Node));
+         Analyze_Entry_Or_Subprogram_Contract (Defining_Entity (Unit_Node));
       end if;
 
       --  Generate distribution stubs if requested and no error
@@ -1020,16 +1021,18 @@ package body Sem_Ch10 is
 
       Remove_Context (N);
 
-      --  If this is the main unit and we are generating code, we must check
-      --  that all generic units in the context have a body if they need it,
-      --  even if they have not been instantiated. In the absence of .ali files
-      --  for generic units, we must force the load of the body, just to
-      --  produce the proper error if the body is absent. We skip this
-      --  verification if the main unit itself is generic.
+      --  When generating code for a non-generic main unit, check that withed
+      --  generic units have a body if they need it, even if the units have not
+      --  been instantiated. Force the load of the bodies to produce the proper
+      --  error if the body is absent. The same applies to GNATprove mode, with
+      --  the added benefit of capturing global references within the generic.
+      --  This in turn allows for proper inlining of subprogram bodies without
+      --  a previous declaration.
 
       if Get_Cunit_Unit_Number (N) = Main_Unit
-        and then Operating_Mode = Generate_Code
-        and then Expander_Active
+        and then ((Operating_Mode = Generate_Code and then Expander_Active)
+                     or else
+                  (Operating_Mode = Check_Semantics and then GNATprove_Mode))
       then
          --  Check whether the source for the body of the unit must be included
          --  in a standalone library.
@@ -1066,7 +1069,7 @@ package body Sem_Ch10 is
                then
                   Nam := Entity (Name (Item));
 
-                  --  Compile generic subprogram, unless it is intrinsic or
+                  --  Compile the generic subprogram, unless it is intrinsic or
                   --  imported so no body is required, or generic package body
                   --  if the package spec requires a body.
 
@@ -1080,20 +1083,21 @@ package body Sem_Ch10 is
 
                      if Present (Renamed_Object (Nam)) then
                         Un :=
-                           Load_Unit
-                             (Load_Name  => Get_Body_Name
-                                              (Get_Unit_Name
-                                                (Unit_Declaration_Node
-                                                  (Renamed_Object (Nam)))),
-                              Required   => False,
-                              Subunit    => False,
-                              Error_Node => N,
-                              Renamings  => True);
+                          Load_Unit
+                            (Load_Name  =>
+                               Get_Body_Name
+                                 (Get_Unit_Name
+                                   (Unit_Declaration_Node
+                                     (Renamed_Object (Nam)))),
+                             Required   => False,
+                             Subunit    => False,
+                             Error_Node => N,
+                             Renamings  => True);
                      else
                         Un :=
                           Load_Unit
-                            (Load_Name  => Get_Body_Name
-                                             (Get_Unit_Name (Item)),
+                            (Load_Name  =>
+                               Get_Body_Name (Get_Unit_Name (Item)),
                              Required   => False,
                              Subunit    => False,
                              Error_Node => N,
@@ -1700,6 +1704,16 @@ package body Sem_Ch10 is
                return;
             end if;
 
+            --  Collect SCO information for loaded subunit if we are in the
+            --  extended main unit.
+
+            if Generate_SCO
+              and then In_Extended_Main_Source_Unit
+                         (Cunit_Entity (Current_Sem_Unit))
+            then
+               SCO_Record_Raw (Get_Cunit_Unit_Number (Library_Unit (N)));
+            end if;
+
             Analyze_Subunit (Library_Unit (N));
 
          --  Otherwise we must load the subunit and link to it
@@ -1860,12 +1874,11 @@ package body Sem_Ch10 is
                   Version_Update (Cunit (Main_Unit), Comp_Unit);
 
                   --  Collect SCO information for loaded subunit if we are in
-                  --  the main unit.
+                  --  the extended main unit.
 
                   if Generate_SCO
-                    and then
-                      In_Extended_Main_Source_Unit
-                        (Cunit_Entity (Current_Sem_Unit))
+                    and then In_Extended_Main_Source_Unit
+                               (Cunit_Entity (Current_Sem_Unit))
                   then
                      SCO_Record_Raw (Unum);
                   end if;
@@ -1912,17 +1925,6 @@ package body Sem_Ch10 is
          Error_Msg_N ("missing specification for Protected body", N);
 
       else
-         --  Currently there are no language-defined aspects that can apply to
-         --  a protected body stub. Issue an error and remove the aspects to
-         --  prevent cascaded errors.
-
-         if Has_Aspects (N) then
-            Error_Msg_N
-              ("aspects on protected bodies are not allowed",
-               First (Aspect_Specifications (N)));
-            Remove_Aspects (N);
-         end if;
-
          Set_Scope (Defining_Entity (N), Current_Scope);
          Set_Has_Completion (Etype (Nam));
          Set_Corresponding_Spec_Of_Stub (N, Nam);
@@ -1982,39 +1984,6 @@ package body Sem_Ch10 is
 
       Restore_Opt_Config_Switches (Opts);
    end Analyze_Subprogram_Body_Stub;
-
-   -------------------------------------------
-   -- Analyze_Subprogram_Body_Stub_Contract --
-   -------------------------------------------
-
-   procedure Analyze_Subprogram_Body_Stub_Contract (Stub_Id : Entity_Id) is
-      Stub_Decl : constant Node_Id   := Parent (Parent (Stub_Id));
-      Spec_Id   : constant Entity_Id := Corresponding_Spec_Of_Stub (Stub_Decl);
-
-   begin
-      --  A subprogram body stub may act as its own spec or as the completion
-      --  of a previous declaration. Depending on the context, the contract of
-      --  the stub may contain two sets of pragmas.
-
-      --  The stub is a completion, the applicable pragmas are:
-      --    Refined_Depends
-      --    Refined_Global
-
-      if Present (Spec_Id) then
-         Analyze_Subprogram_Body_Contract (Stub_Id);
-
-      --  The stub acts as its own spec, the applicable pragmas are:
-      --    Contract_Cases
-      --    Depends
-      --    Global
-      --    Postcondition
-      --    Precondition
-      --    Test_Case
-
-      else
-         Analyze_Subprogram_Contract (Stub_Id);
-      end if;
-   end Analyze_Subprogram_Body_Stub_Contract;
 
    ---------------------
    -- Analyze_Subunit --
@@ -2409,17 +2378,6 @@ package body Sem_Ch10 is
          Error_Msg_N ("missing specification for task body", N);
 
       else
-         --  Currently there are no language-defined aspects that can apply to
-         --  a task body stub. Issue an error and remove the aspects to prevent
-         --  cascaded errors.
-
-         if Has_Aspects (N) then
-            Error_Msg_N
-              ("aspects on task bodies are not allowed",
-               First (Aspect_Specifications (N)));
-            Remove_Aspects (N);
-         end if;
-
          Set_Scope (Defining_Entity (N), Current_Scope);
          Generate_Reference (Nam, Defining_Identifier (N), 'b');
          Set_Corresponding_Spec_Of_Stub (N, Nam);
@@ -2444,7 +2402,7 @@ package body Sem_Ch10 is
          if Expander_Active then
             Insert_After (N,
               Make_Assignment_Statement (Loc,
-                Name =>
+                Name        =>
                   Make_Identifier (Loc,
                     Chars => New_External_Name (Chars (Etype (Nam)), 'E')),
                  Expression => New_Occurrence_Of (Standard_True, Loc)));
@@ -2528,8 +2486,27 @@ package body Sem_Ch10 is
          --  Ada 2005 (AI-50217): Build visibility structures but do not
          --  analyze the unit.
 
+         --  If the designated unit is a predefined unit, which might be used
+         --  implicitly through the rtsfind machinery, a limited with clause
+         --  on such a unit is usually pointless, because run-time units are
+         --  unlikely to appear in mutually dependent units, and because this
+         --  disables the rtsfind mechanism. We transform such limited with
+         --  clauses into regular with clauses.
+
          if Sloc (U) /= No_Location then
-            Build_Limited_Views (N);
+            if Is_Predefined_File_Name (Unit_File_Name (Get_Source_Unit (U)))
+
+              --  In ASIS mode the rtsfind mechanism plays no role, and
+              --  we need to maintain the original tree structure, so
+              --  this transformation is not performed in this case.
+
+              and then not ASIS_Mode
+            then
+               Set_Limited_Present (N, False);
+               Analyze_With_Clause (N);
+            else
+               Build_Limited_Views (N);
+            end if;
          end if;
 
          return;
@@ -3085,7 +3062,7 @@ package body Sem_Ch10 is
                --  visible, so analyze the declaration for B now, in case it
                --  has not been done yet.
 
-               Ent :=  Entity (Selector_Name (Nam));
+               Ent := Entity (Selector_Name (Nam));
                Analyze
                  (Parent
                    (Unit_Declaration_Node (Entity (Selector_Name (Nam)))));
@@ -4452,7 +4429,7 @@ package body Sem_Ch10 is
                   while Present (Subp_Id) loop
                      if Chars (Node (Subp_Id)) = Chars (E) then
                         if Nkind (Parent (Parent (Node (Subp_Id))))
-                          /=  N_Subprogram_Renaming_Declaration
+                          /= N_Subprogram_Renaming_Declaration
                         then
                            Prev_Id := Subp_Id;
                            Next_Elmt (Subp_Id);
@@ -5604,6 +5581,11 @@ package body Sem_Ch10 is
             Decorate_Type        (Shadow, Scop, Is_Tagged);
             Set_Non_Limited_View (Shadow, Ent);
 
+            if Is_Tagged then
+               Set_Non_Limited_View
+                 (Class_Wide_Type (Shadow), Class_Wide_Type (Ent));
+            end if;
+
             if Is_Incomplete_Or_Private_Type (Ent) then
                Set_Private_Dependents (Shadow, New_Elmt_List);
             end if;
@@ -5671,35 +5653,33 @@ package body Sem_Ch10 is
             Set_Is_Tagged_Type (Ent);
             Set_Direct_Primitive_Operations (Ent, New_Elmt_List);
 
-            if No (Class_Wide_Type (Ent)) then
-               CW_Typ :=
-                 New_External_Entity
-                   (E_Void, Scope (Ent), Sloc (Ent), Ent, 'C', 0, 'T');
+            CW_Typ :=
+              New_External_Entity
+                (E_Void, Scope (Ent), Sloc (Ent), Ent, 'C', 0, 'T');
 
-               Set_Class_Wide_Type (Ent, CW_Typ);
+            Set_Class_Wide_Type (Ent, CW_Typ);
 
-               --  Set parent to be the same as the parent of the tagged type.
-               --  We need a parent field set, and it is supposed to point to
-               --  the declaration of the type. The tagged type declaration
-               --  essentially declares two separate types, the tagged type
-               --  itself and the corresponding class-wide type, so it is
-               --  reasonable for the parent fields to point to the declaration
-               --  in both cases.
+            --  Set parent to be the same as the parent of the tagged type.
+            --  We need a parent field set, and it is supposed to point to
+            --  the declaration of the type. The tagged type declaration
+            --  essentially declares two separate types, the tagged type
+            --  itself and the corresponding class-wide type, so it is
+            --  reasonable for the parent fields to point to the declaration
+            --  in both cases.
 
-               Set_Parent (CW_Typ, Parent (Ent));
+            Set_Parent (CW_Typ, Parent (Ent));
 
-               Set_Ekind                     (CW_Typ, E_Class_Wide_Type);
-               Set_Etype                     (CW_Typ, Ent);
-               Set_Scope                     (CW_Typ, Scop);
-               Set_Is_Tagged_Type            (CW_Typ);
-               Set_Is_First_Subtype          (CW_Typ);
-               Init_Size_Align               (CW_Typ);
-               Set_Has_Unknown_Discriminants (CW_Typ);
-               Set_Class_Wide_Type           (CW_Typ, CW_Typ);
-               Set_Equivalent_Type           (CW_Typ, Empty);
-               Set_From_Limited_With         (CW_Typ, From_Limited_With (Ent));
-               Set_Materialize_Entity        (CW_Typ, Materialize);
-            end if;
+            Set_Ekind                     (CW_Typ, E_Class_Wide_Type);
+            Set_Etype                     (CW_Typ, Ent);
+            Set_Scope                     (CW_Typ, Scop);
+            Set_Is_Tagged_Type            (CW_Typ);
+            Set_Is_First_Subtype          (CW_Typ);
+            Init_Size_Align               (CW_Typ);
+            Set_Has_Unknown_Discriminants (CW_Typ);
+            Set_Class_Wide_Type           (CW_Typ, CW_Typ);
+            Set_Equivalent_Type           (CW_Typ, Empty);
+            Set_From_Limited_With         (CW_Typ, From_Limited_With (Ent));
+            Set_Materialize_Entity        (CW_Typ, Materialize);
          end if;
       end Decorate_Type;
 

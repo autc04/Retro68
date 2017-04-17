@@ -48,10 +48,10 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> nop
 [0-9a-f]+ <[^>]*> slt	at,a0,a1
 [0-9a-f]+ <[^>]*> beqz	at,0+00a0 <.*\+0xa0>
-[ 	]*a0: .*16	external_label
+[ 	]*a0: R_MIPS_PC16	external_label
 [0-9a-f]+ <[^>]*> nop
 [0-9a-f]+ <[^>]*> slt	at,a1,a0
 [0-9a-f]+ <[^>]*> bnez	at,0+00ac <.*\+0xac>
-[ 	]*ac: .*16	external_label
+[ 	]*ac: R_MIPS_PC16	external_label
 [0-9a-f]+ <[^>]*> nop
 	\.\.\.

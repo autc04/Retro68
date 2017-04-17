@@ -1,5 +1,5 @@
 /* Subroutines for insn-output.c for Motorola 68000 family.
-   Copyright (C) 1987-2015 Free Software Foundation, Inc.
+   Copyright (C) 1987-2016 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -24,24 +24,16 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "tm.h"
-#include "hash-set.h"
-#include "machmode.h"
-#include "vec.h"
-#include "double-int.h"
-#include "input.h"
-#include "alias.h"
-#include "symtab.h"
-#include "wide-int.h"
-#include "inchash.h"
+#include "backend.h"
+#include "cfghooks.h"
 #include "tree.h"
+#include "rtl.h"
+#include "df.h"
+#include "alias.h"
 #include "fold-const.h"
 #include "calls.h"
 #include "stor-layout.h"
 #include "varasm.h"
-#include "rtl.h"
-#include "hard-reg-set.h"
-#include "function.h"
 #include "regs.h"
 #include "insn-config.h"
 #include "conditions.h"
@@ -49,10 +41,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "insn-attr.h"
 #include "recog.h"
 #include "hashtab.h"
+#include "diagnostic-core.h"
 #include "flags.h"
-#include "statistics.h"
-#include "real.h"
-#include "fixed-value.h"
 #include "expmed.h"
 #include "dojump.h"
 #include "explow.h"
@@ -62,28 +52,23 @@ along with GCC; see the file COPYING3.  If not see
 #include "reload.h"
 #include "tm_p.h"
 #include "target.h"
-#include "target-def.h"
 #include "debug.h"
-#include "dominance.h"
-#include "cfg.h"
 #include "cfgrtl.h"
 #include "cfganal.h"
 #include "lcm.h"
 #include "cfgbuild.h"
 #include "cfgcleanup.h"
-#include "predict.h"
-#include "basic-block.h"
-#include "df.h"
 /* ??? Need to add a dependency between m68k.o and sched-int.h.  */
 #include "sched-int.h"
 #include "insn-codes.h"
-#include "ggc.h"
 #include "opts.h"
 #include "optabs.h"
 #include "builtins.h"
 #include "rtl-iter.h"
 
-#include "diagnostic-core.h"
+/* This file should be included last.  */
+#include "target-def.h"
+
 
 std::map< std::string, std::vector<int> > pragma_parameter_directives;
 
@@ -190,7 +175,7 @@ static bool m68k_save_reg (unsigned int regno, bool interrupt_handler);
 static bool m68k_ok_for_sibcall_p (tree, tree);
 static bool m68k_tls_symbol_p (rtx);
 static rtx m68k_legitimize_address (rtx, rtx, machine_mode);
-static bool m68k_rtx_costs (rtx, int, int, int, int *, bool);
+static bool m68k_rtx_costs (rtx, machine_mode, int, int, int *, bool);
 #if M68K_HONOR_TARGET_STRICT_ALIGNMENT
 static bool m68k_return_in_memory (const_tree, const_tree);
 #endif
@@ -991,7 +976,7 @@ m68k_emit_movem (rtx base, HOST_WIDE_INT offset,
 			   (count
 			    * GET_MODE_SIZE (mode)
 			    * (HOST_WIDE_INT) (store_p ? -1 : 1)));
-      XVECEXP (body, 0, i++) = gen_rtx_SET (VOIDmode, base, src);
+      XVECEXP (body, 0, i++) = gen_rtx_SET (base, src);
     }
 
   for (; mask != 0; mask >>= 1, regno++)
@@ -1001,7 +986,7 @@ m68k_emit_movem (rtx base, HOST_WIDE_INT offset,
 	operands[!store_p] = gen_frame_mem (mode, addr);
 	operands[store_p] = gen_rtx_REG (mode, regno);
 	XVECEXP (body, 0, i++)
-	  = gen_rtx_SET (VOIDmode, operands[0], operands[1]);
+	  = gen_rtx_SET (operands[0], operands[1]);
 	offset += GET_MODE_SIZE (mode);
       }
   gcc_assert (i == XVECLEN (body, 0));
@@ -2937,9 +2922,12 @@ const_int_cost (HOST_WIDE_INT i)
 }
 
 static bool
-m68k_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
+m68k_rtx_costs (rtx x, machine_mode mode, int outer_code,
+		int opno ATTRIBUTE_UNUSED,
 		int *total, bool speed ATTRIBUTE_UNUSED)
 {
+  int code = GET_CODE (x);
+
   switch (code)
     {
     case CONST_INT:
@@ -2996,7 +2984,7 @@ m68k_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
 
     case PLUS:
       /* An lea costs about three times as much as a simple add.  */
-      if (GET_MODE (x) == SImode
+      if (mode == SImode
 	  && GET_CODE (XEXP (x, 1)) == REG
 	  && GET_CODE (XEXP (x, 0)) == MULT
 	  && GET_CODE (XEXP (XEXP (x, 0), 0)) == REG
@@ -3052,9 +3040,9 @@ m68k_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
     case MULT:
       if ((GET_CODE (XEXP (x, 0)) == ZERO_EXTEND
 	   || GET_CODE (XEXP (x, 0)) == SIGN_EXTEND)
-	  && GET_MODE (x) == SImode)
+	  && mode == SImode)
         *total = COSTS_N_INSNS (MULW_COST);
-      else if (GET_MODE (x) == QImode || GET_MODE (x) == HImode)
+      else if (mode == QImode || mode == HImode)
         *total = COSTS_N_INSNS (MULW_COST);
       else
         *total = COSTS_N_INSNS (MULL_COST);
@@ -3064,7 +3052,7 @@ m68k_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
     case UDIV:
     case MOD:
     case UMOD:
-      if (GET_MODE (x) == QImode || GET_MODE (x) == HImode)
+      if (mode == QImode || mode == HImode)
         *total = COSTS_N_INSNS (DIVW_COST);	/* div.w */
       else if (TARGET_CF_HWDIV)
         *total = COSTS_N_INSNS (18);
@@ -3441,11 +3429,10 @@ handle_move_double (rtx operands[2],
 	{
 	  if (GET_CODE (operands[1]) == CONST_DOUBLE)
 	    {
-	      REAL_VALUE_TYPE r;
 	      long l[3];
 
-	      REAL_VALUE_FROM_CONST_DOUBLE (r, operands[1]);
-	      REAL_VALUE_TO_TARGET_LONG_DOUBLE (r, l);
+	      REAL_VALUE_TO_TARGET_LONG_DOUBLE
+		(*CONST_DOUBLE_REAL_VALUE (operands[1]), l);
 	      operands[1] = GEN_INT (l[0]);
 	      middlehalf[1] = GEN_INT (l[1]);
 	      latehalf[1] = GEN_INT (l[2]);
@@ -3873,8 +3860,7 @@ emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
 	}
       else
 	emit_move_insn (scratch_reg, XEXP (operand1, 0));
-      emit_insn (gen_rtx_SET (VOIDmode, operand0,
-			      gen_rtx_MEM (mode, scratch_reg)));
+      emit_insn (gen_rtx_SET (operand0, gen_rtx_MEM (mode, scratch_reg)));
       return 1;
     }
   else if (fp_reg_operand (operand1, mode)
@@ -3907,8 +3893,7 @@ emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
 	}
       else
 	emit_move_insn (scratch_reg, XEXP (operand0, 0));
-      emit_insn (gen_rtx_SET (VOIDmode, gen_rtx_MEM (mode, scratch_reg),
-			      operand1));
+      emit_insn (gen_rtx_SET (gen_rtx_MEM (mode, scratch_reg), operand1));
       return 1;
     }
   /* Handle secondary reloads for loads of FP registers from constant
@@ -3935,11 +3920,10 @@ emit_move_sequence (rtx *operands, machine_mode mode, rtx scratch_reg)
 	 memory location into scratch_reg.  */
       xoperands[0] = scratch_reg;
       xoperands[1] = XEXP (force_const_mem (mode, operand1), 0);
-      emit_insn (gen_rtx_SET (mode, scratch_reg, xoperands[1]));
+      emit_insn (gen_rtx_SET (scratch_reg, xoperands[1]));
 
       /* Now load the destination register.  */
-      emit_insn (gen_rtx_SET (mode, operand0,
-			      gen_rtx_MEM (mode, scratch_reg)));
+      emit_insn (gen_rtx_SET (operand0, gen_rtx_MEM (mode, scratch_reg)));
       return 1;
     }
 
@@ -4472,7 +4456,7 @@ init_68881_table (void)
 int
 standard_68881_constant_p (rtx x)
 {
-  REAL_VALUE_TYPE r;
+  const REAL_VALUE_TYPE *r;
   int i;
 
   /* fmovecr must be emulated on the 68040 and 68060, so it shouldn't be
@@ -4483,20 +4467,19 @@ standard_68881_constant_p (rtx x)
   if (! inited_68881_table)
     init_68881_table ();
 
-  REAL_VALUE_FROM_CONST_DOUBLE (r, x);
+  r = CONST_DOUBLE_REAL_VALUE (x);
 
-  /* Use REAL_VALUES_IDENTICAL instead of REAL_VALUES_EQUAL so that -0.0
-     is rejected.  */
+  /* Use real_identical instead of real_equal so that -0.0 is rejected.  */
   for (i = 0; i < 6; i++)
     {
-      if (REAL_VALUES_IDENTICAL (r, values_68881[i]))
+      if (real_identical (r, &values_68881[i]))
         return (codes_68881[i]);
     }
   
   if (GET_MODE (x) == SFmode)
     return 0;
 
-  if (REAL_VALUES_EQUAL (r, values_68881[6]))
+  if (real_equal (r, &values_68881[6]))
     return (codes_68881[6]);
 
   /* larger powers of ten in the constants ram are not used
@@ -4510,17 +4493,18 @@ standard_68881_constant_p (rtx x)
 int
 floating_exact_log2 (rtx x)
 {
-  REAL_VALUE_TYPE r, r1;
+  const REAL_VALUE_TYPE *r;
+  REAL_VALUE_TYPE r1;
   int exp;
 
-  REAL_VALUE_FROM_CONST_DOUBLE (r, x);
+  r = CONST_DOUBLE_REAL_VALUE (x);
 
-  if (REAL_VALUES_LESS (r, dconst1))
+  if (real_less (r, &dconst1))
     return 0;
 
-  exp = real_exponent (&r);
+  exp = real_exponent (r);
   real_2expN (&r1, exp, DFmode);
-  if (REAL_VALUES_EQUAL (r1, r))
+  if (real_equal (&r1, r))
     return exp;
 
   return 0;
@@ -4620,7 +4604,7 @@ print_operand (FILE *file, rtx op, int letter)
     }
   else if (GET_CODE (op) == MEM)
     {
-      output_address (XEXP (op, 0));
+      output_address (GET_MODE (op), XEXP (op, 0));
       if (letter == 'd' && ! TARGET_68020
 	  && CONSTANT_ADDRESS_P (XEXP (op, 0))
 	  && !(GET_CODE (XEXP (op, 0)) == CONST_INT
@@ -4630,27 +4614,21 @@ print_operand (FILE *file, rtx op, int letter)
     }
   else if (GET_CODE (op) == CONST_DOUBLE && GET_MODE (op) == SFmode)
     {
-      REAL_VALUE_TYPE r;
       long l;
-      REAL_VALUE_FROM_CONST_DOUBLE (r, op);
-      REAL_VALUE_TO_TARGET_SINGLE (r, l);
+      REAL_VALUE_TO_TARGET_SINGLE (*CONST_DOUBLE_REAL_VALUE (op), l);
       asm_fprintf (file, "%I0x%lx", l & 0xFFFFFFFF);
     }
   else if (GET_CODE (op) == CONST_DOUBLE && GET_MODE (op) == XFmode)
     {
-      REAL_VALUE_TYPE r;
       long l[3];
-      REAL_VALUE_FROM_CONST_DOUBLE (r, op);
-      REAL_VALUE_TO_TARGET_LONG_DOUBLE (r, l);
+      REAL_VALUE_TO_TARGET_LONG_DOUBLE (*CONST_DOUBLE_REAL_VALUE (op), l);
       asm_fprintf (file, "%I0x%lx%08lx%08lx", l[0] & 0xFFFFFFFF,
 		   l[1] & 0xFFFFFFFF, l[2] & 0xFFFFFFFF);
     }
   else if (GET_CODE (op) == CONST_DOUBLE && GET_MODE (op) == DFmode)
     {
-      REAL_VALUE_TYPE r;
       long l[2];
-      REAL_VALUE_FROM_CONST_DOUBLE (r, op);
-      REAL_VALUE_TO_TARGET_DOUBLE (r, l);
+      REAL_VALUE_TO_TARGET_DOUBLE (*CONST_DOUBLE_REAL_VALUE (op), l);
       asm_fprintf (file, "%I0x%lx%08lx", l[0] & 0xFFFFFFFF, l[1] & 0xFFFFFFFF);
     }
   else
@@ -5269,7 +5247,7 @@ m68k_output_mi_thunk (FILE *file, tree thunk ATTRIBUTE_UNUSED,
       addr = plus_constant (Pmode, tmp, vcall_offset);
       if (!m68k_legitimate_address_p (Pmode, addr, true))
 	{
-	  emit_insn (gen_rtx_SET (VOIDmode, tmp, addr));
+	  emit_insn (gen_rtx_SET (tmp, addr));
 	  addr = tmp;
 	}
 
@@ -5463,7 +5441,7 @@ m68k_libcall_value (enum machine_mode mode)
 rtx
 m68k_function_value (const_tree valtype, const_tree func_decl_or_type, bool outgoing)
 {
-  enum machine_mode mode;
+  machine_mode mode;
 
   mode = TYPE_MODE (valtype);
 
@@ -5522,7 +5500,7 @@ m68k_function_value (const_tree valtype, const_tree func_decl_or_type, bool outg
 static bool
 m68k_return_in_memory (const_tree type, const_tree fntype ATTRIBUTE_UNUSED)
 {
-  enum machine_mode mode = TYPE_MODE (type);
+  machine_mode mode = TYPE_MODE (type);
 
   if (mode == BLKmode)
     return true;
@@ -6325,28 +6303,27 @@ m68k_sched_md_init_global (FILE *sched_dump ATTRIBUTE_UNUSED,
 			   int sched_verbose ATTRIBUTE_UNUSED,
 			   int n_insns ATTRIBUTE_UNUSED)
 {
-#ifdef ENABLE_CHECKING
   /* Check that all instructions have DFA reservations and
      that all instructions can be issued from a clean state.  */
-  {
-    rtx_insn *insn;
-    state_t state;
+  if (flag_checking)
+    {
+      rtx_insn *insn;
+      state_t state;
 
-    state = alloca (state_size ());
+      state = alloca (state_size ());
 
-    for (insn = get_insns (); insn != NULL; insn = NEXT_INSN (insn))
-      {
- 	if (INSN_P (insn) && recog_memoized (insn) >= 0)
-	  {
- 	    gcc_assert (insn_has_dfa_reservation_p (insn));
+      for (insn = get_insns (); insn != NULL; insn = NEXT_INSN (insn))
+	{
+	  if (INSN_P (insn) && recog_memoized (insn) >= 0)
+	    {
+	      gcc_assert (insn_has_dfa_reservation_p (insn));
 
- 	    state_reset (state);
- 	    if (state_transition (state, insn) >= 0)
- 	      gcc_unreachable ();
- 	  }
-      }
-  }
-#endif
+	      state_reset (state);
+	      if (state_transition (state, insn) >= 0)
+		gcc_unreachable ();
+	    }
+	}
+    }
 
   /* Setup target cpu.  */
 

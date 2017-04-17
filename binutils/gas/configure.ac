@@ -3,18 +3,18 @@ dnl
 dnl And be careful when changing it!  If you must add tests with square
 dnl brackets, be sure changequote invocations surround it.
 dnl
-dnl   Copyright (C) 2012-2014 Free Software Foundation, Inc.
+dnl   Copyright (C) 2012-2017 Free Software Foundation, Inc.
 dnl
 dnl This file is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
 dnl the Free Software Foundation; either version 3 of the License, or
 dnl (at your option) any later version.
-dnl 
+dnl
 dnl This program is distributed in the hope that it will be useful,
 dnl but WITHOUT ANY WARRANTY; without even the implied warranty of
 dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 dnl GNU General Public License for more details.
-dnl 
+dnl
 dnl You should have received a copy of the GNU General Public License
 dnl along with this program; see the file COPYING3.  If not see
 dnl <http://www.gnu.org/licenses/>.
@@ -40,6 +40,7 @@ AC_USE_SYSTEM_EXTENSIONS
 
 LT_INIT
 ACX_LARGEFILE
+ACX_PROG_CMP_IGNORE_INITIAL
 
 AC_ARG_ENABLE(targets,
 [  --enable-targets        alternative target configurations besides the primary],
@@ -64,12 +65,58 @@ if test x$ac_checking != x ; then
   AC_DEFINE(ENABLE_CHECKING, 1, [Define if you want run-time sanity checks.])
 fi
 
+# PR gas/19109
+# Decide the default method for compressing debug sections.
+ac_default_compressed_debug_sections=unset
+# Provide a configure time option to override our default.
+AC_ARG_ENABLE(compressed_debug_sections,
+	      AS_HELP_STRING([--enable-compressed-debug-sections={all,gas,none}],
+	      [compress debug sections by default]),
+[case ,"${enableval}", in
+  ,yes, | ,all, | *,gas,*) ac_default_compressed_debug_sections=yes ;;
+  ,no, | ,none,)  ac_default_compressed_debug_sections=no ;;
+  *)   ac_default_compressed_debug_sections=unset ;;
+esac])dnl
+
+# PR gas/19520
+# Decide if x86 assembler should generate relax relocations.
+ac_default_x86_relax_relocations=unset
+# Provide a configure time option to override our default.
+AC_ARG_ENABLE(x86_relax_relocations,
+	      AS_HELP_STRING([--enable-x86-relax-relocations],
+	      [generate x86 relax relocations by default]),
+[case "${enableval}" in
+  no)  ac_default_x86_relax_relocations=0 ;;
+esac])dnl
+
+# Decide if ELF assembler should generate common symbols with the
+# STT_COMMON type.
+ac_default_elf_stt_common=unset
+# Provide a configure time option to override our default.
+AC_ARG_ENABLE(elf_stt_common,
+	      AS_HELP_STRING([--enable-elf-stt-common],
+	      [generate ELF common symbols with STT_COMMON type by default]),
+[case "${enableval}" in
+  yes)  ac_default_elf_stt_common=1 ;;
+esac])dnl
+
 using_cgen=no
 
 AM_BINUTILS_WARNINGS
 
 # Generate a header file
 AC_CONFIG_HEADERS(config.h:config.in)
+
+dnl Option --with-cpu=TYPE allows configure type control of the default
+dnl cpu type within the assembler.  Currently only the ARC target
+dnl supports this feature, but others may be added in the future.
+AC_ARG_WITH(cpu,
+            AS_HELP_STRING([--with-cpu=CPU],
+            [default cpu variant is CPU (currently only supported on ARC)]),
+            [AC_DEFINE_UNQUOTED(TARGET_WITH_CPU,
+                                "${with_cpu}",
+                                [Target specific CPU.])],
+            [])
 
 # PR 14072
 AH_VERBATIM([00_CONFIG_H_CHECK],
@@ -153,6 +200,17 @@ for this_target in $target $canon_targets ; do
       | i386-*-go32* \
       | i386-go32-rtems*)
 	AC_DEFINE(STRICTCOFF, 1, [Using strict COFF?])
+	;;
+
+      i386-*-solaris2 \
+      | x86_64-*-solaris2 \
+      | i386-*-solaris2.[[0-9]] \
+      | i386-*-solaris2.1[[01]] \
+      | x86_64-*-solaris2.1[[01]])
+	if test ${this_target} = $target \
+	   && test ${ac_default_x86_relax_relocations} = unset; then
+	  ac_default_x86_relax_relocations=0
+	fi
 	;;
 
       i860-*-*)
@@ -404,7 +462,7 @@ changequote([,])dnl
 
         # Decide features one by one.
         AC_MSG_CHECKING(for default configuration of --enable-dx-regs)
-	if test "x${enable_dx_regs}" == xyes; then
+	if test "x${enable_dx_regs}" = xyes; then
 	  AC_DEFINE(NDS32_DEFAULT_DX_REGS, 1,
 		    [Define value for nds32_dx_regs])
 	else
@@ -414,7 +472,7 @@ changequote([,])dnl
 	AC_MSG_RESULT($enable_dx_regs)
 
         AC_MSG_CHECKING(for default configuration of --enable-perf-ext)
-	if test "x${enable_perf_ext}" == xno; then
+	if test "x${enable_perf_ext}" = xno; then
 	  AC_DEFINE(NDS32_DEFAULT_PERF_EXT, 0,
 		    [Define value for nds32_perf_ext])
 	else
@@ -424,7 +482,7 @@ changequote([,])dnl
 	AC_MSG_RESULT($enable_perf_ext)
 
         AC_MSG_CHECKING(for default configuration of --enable-perf-ext2)
-	if test "x${enable_perf_ext2}" == xno; then
+	if test "x${enable_perf_ext2}" = xno; then
 	  AC_DEFINE(NDS32_DEFAULT_PERF_EXT2, 0,
 		    [Define value for nds32_perf_ext2])
 	else
@@ -434,7 +492,7 @@ changequote([,])dnl
 	AC_MSG_RESULT($enable_perf_ext2)
 
         AC_MSG_CHECKING(for default configuration of --enable-string-ext)
-	if test "x${enable_string_ext}" == xno; then
+	if test "x${enable_string_ext}" = xno; then
 	  AC_DEFINE(NDS32_DEFAULT_STRING_EXT, 0,
 		    [Define value for nds32_string_ext])
 	else
@@ -444,7 +502,7 @@ changequote([,])dnl
 	AC_MSG_RESULT($enable_string_ext)
 
         AC_MSG_CHECKING(for default configuration of --enable-audio-ext)
-	if test "x${enable_audio_ext}" == xno; then
+	if test "x${enable_audio_ext}" = xno; then
 	  AC_DEFINE(NDS32_DEFAULT_AUDIO_EXT, 0,
 		    [Define value for nds32_audio_ext])
 	else
@@ -454,7 +512,7 @@ changequote([,])dnl
 	AC_MSG_RESULT($enable_audio_ext)
 	;;
 
-      i386 | s390 | sparc)
+      i386 | riscv | s390 | sparc)
 	if test $this_target = $target ; then
 	  AC_DEFINE_UNQUOTED(DEFAULT_ARCH, "${arch}", [Default architecture.])
 	fi
@@ -536,6 +594,25 @@ changequote([,])dnl
     emulations="$emulations $emulation"
 
 done
+
+if test ${ac_default_x86_relax_relocations} = unset; then
+  ac_default_x86_relax_relocations=1
+fi
+AC_DEFINE_UNQUOTED(DEFAULT_GENERATE_X86_RELAX_RELOCATIONS,
+  $ac_default_x86_relax_relocations,
+  [Define to 1 if you want to generate x86 relax relocations by default.])
+
+if test ${ac_default_elf_stt_common} = unset; then
+  ac_default_elf_stt_common=0
+fi
+AC_DEFINE_UNQUOTED(DEFAULT_GENERATE_ELF_STT_COMMON,
+  $ac_default_elf_stt_common,
+  [Define to 1 if you want to generate ELF common symbols with the
+   STT_COMMON type by default.])
+
+if test x$ac_default_compressed_debug_sections = xyes ; then
+  AC_DEFINE(DEFAULT_FLAG_COMPRESS_DEBUG, 1, [Define if you want compressed debug sections by default.])
+fi
 
 # Turn on all targets if possible
 if test ${all_targets} = "yes"; then
@@ -720,7 +797,7 @@ AC_DEFINE_UNQUOTED(TARGET_OS,		"${target_os}",    [Target OS.])
 AC_PROG_YACC
 AM_PROG_LEX
 
-ALL_LINGUAS="fr tr es rw id ru fi ja"
+ALL_LINGUAS="fr tr es rw id ru fi ja zh_CN"
 ZW_GNU_GETTEXT_SISTER_DIR
 AM_PO_SUBDIRS
 
@@ -813,7 +890,7 @@ GAS_CHECK_DECL_NEEDED(malloc, f, char *(*f)(), $gas_test_headers)
 GAS_CHECK_DECL_NEEDED(sbrk, f, char *(*f)(), $gas_test_headers)
 GAS_CHECK_DECL_NEEDED(strstr, f, char *(*f)(), $gas_test_headers)
 
-AC_CHECK_DECLS([free, getenv, malloc, mempcpy, realloc, stpcpy, strstr, vsnprintf])
+AC_CHECK_DECLS([free, getenv, malloc, mempcpy, realloc, stpcpy, strstr, vsnprintf, asprintf])
 
 BFD_BINARY_FOPEN
 

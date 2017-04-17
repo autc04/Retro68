@@ -377,6 +377,10 @@ class Backend
   call_expression(Bexpression* fn, const std::vector<Bexpression*>& args,
 		  Bexpression* static_chain, Location) = 0;
 
+  // Return an expression that allocates SIZE bytes on the stack.
+  virtual Bexpression*
+  stack_allocation_expression(int64_t size, Location) = 0;
+
   // Statements.
 
   // Create an error statement.  This is used for cases which should
@@ -654,7 +658,7 @@ class Backend
   
   // Create a new label.  NAME will be empty if this is a label
   // created by the frontend for a loop construct.  The location is
-  // where the the label is defined.
+  // where the label is defined.
   virtual Blabel*
   label(Bfunction*, const std::string& name, Location) = 0;
 

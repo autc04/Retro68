@@ -1,6 +1,6 @@
 // gold.cc -- main linker functions
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -492,6 +492,14 @@ queue_middle_tasks(const General_options& options,
   if (timer != NULL)
     timer->stamp(0);
 
+  // We have to support the case of not seeing any input objects, and
+  // generate an empty file.  Existing builds depend on being able to
+  // pass an empty archive to the linker and get an empty object file
+  // out.  In order to do this we need to use a default target.
+  if (input_objects->number_of_input_objects() == 0
+      && layout->incremental_base() == NULL)
+    parameters_force_valid_target();
+
   // Add any symbols named with -u options to the symbol table.
   symtab->add_undefined_symbols_from_command_line(layout);
 
@@ -552,6 +560,9 @@ queue_middle_tasks(const General_options& options,
       plugins->layout_deferred_objects();
     }
 
+  // Finalize the .eh_frame section.
+  layout->finalize_eh_frame_section();
+
   /* If plugins have specified a section order, re-arrange input sections
      according to a specified section order.  If --section-ordering-file is
      also specified, do not do anything here.  */
@@ -585,14 +596,6 @@ queue_middle_tasks(const General_options& options,
 	    }
 	}
     }
-
-  // We have to support the case of not seeing any input objects, and
-  // generate an empty file.  Existing builds depend on being able to
-  // pass an empty archive to the linker and get an empty object file
-  // out.  In order to do this we need to use a default target.
-  if (input_objects->number_of_input_objects() == 0
-      && layout->incremental_base() == NULL)
-    parameters_force_valid_target();
 
   int thread_count = options.thread_count_middle();
   if (thread_count == 0)
@@ -877,14 +880,27 @@ queue_final_tasks(const General_options& options,
     }
 
   // Create tasks for tree-style build ID computation, if necessary.
-  final_blocker = layout->queue_build_id_tasks(workqueue, final_blocker, of);
+  if (strcmp(options.build_id(), "tree") == 0)
+    {
+      // Queue a task to compute the build id.  This will be blocked by
+      // FINAL_BLOCKER, and will in turn schedule the task to close
+      // the output file.
+      workqueue->queue(new Task_function(new Build_id_task_runner(&options,
+								  layout,
+								  of),
+					 final_blocker,
+					 "Task_function Build_id_task_runner"));
+    }
+  else
+    {
+      // Queue a task to close the output file.  This will be blocked by
+      // FINAL_BLOCKER.
+      workqueue->queue(new Task_function(new Close_task_runner(&options, layout,
+							       of, NULL, 0),
+					 final_blocker,
+					 "Task_function Close_task_runner"));
+    }
 
-  // Queue a task to close the output file.  This will be blocked by
-  // FINAL_BLOCKER.
-  workqueue->queue(new Task_function(new Close_task_runner(&options, layout,
-							   of),
-				     final_blocker,
-				     "Task_function Close_task_runner"));
 }
 
 } // End namespace gold.

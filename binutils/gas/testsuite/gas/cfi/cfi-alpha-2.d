@@ -1,7 +1,7 @@
 #objdump: -r -j .eh_frame
 #name: CFI on alpha, 2
 
-.*:     file format elf64-alpha
+.*:     file format elf64-alpha.*
 
 RELOCATION RECORDS FOR \[\.eh_frame\]:
 OFFSET           TYPE              VALUE 

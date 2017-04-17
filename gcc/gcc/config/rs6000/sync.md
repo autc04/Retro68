@@ -1,5 +1,5 @@
 ;; Machine description for PowerPC synchronization instructions.
-;; Copyright (C) 2005-2015 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2016 Free Software Foundation, Inc.
 ;; Contributed by Geoffrey Keating.
 
 ;; This file is part of GCC.
@@ -41,7 +41,7 @@
   [(match_operand:SI 0 "const_int_operand" "")]		;; model
   ""
 {
-  enum memmodel model = (enum memmodel) INTVAL (operands[0]);
+  enum memmodel model = memmodel_base (INTVAL (operands[0]));
   switch (model)
     {
     case MEMMODEL_RELAXED:
@@ -144,9 +144,9 @@
   if (<MODE>mode == TImode && !TARGET_SYNC_TI)
     FAIL;
 
-  enum memmodel model = (enum memmodel) INTVAL (operands[2]);
+  enum memmodel model = memmodel_base (INTVAL (operands[2]));
 
-  if (model == MEMMODEL_SEQ_CST)
+  if (is_mm_seq_cst (model))
     emit_insn (gen_hwsync ());
 
   if (<MODE>mode != TImode)
@@ -209,7 +209,7 @@
   if (<MODE>mode == TImode && !TARGET_SYNC_TI)
     FAIL;
 
-  enum memmodel model = (enum memmodel) INTVAL (operands[2]);
+  enum memmodel model = memmodel_base (INTVAL (operands[2]));
   switch (model)
     {
     case MEMMODEL_RELAXED:

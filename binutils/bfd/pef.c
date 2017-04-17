@@ -1,5 +1,5 @@
 /* PEF support for BFD.
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -43,6 +43,7 @@
 #define bfd_pef_find_nearest_line                   _bfd_nosymbols_find_nearest_line
 #define bfd_pef_find_line                           _bfd_nosymbols_find_line
 #define bfd_pef_find_inliner_info                   _bfd_nosymbols_find_inliner_info
+#define bfd_pef_get_symbol_version_string	    _bfd_nosymbols_get_symbol_version_string
 #define bfd_pef_bfd_make_debug_symbol               _bfd_nosymbols_bfd_make_debug_symbol
 #define bfd_pef_read_minisymbols                    _bfd_generic_read_minisymbols
 #define bfd_pef_minisymbol_to_symbol                _bfd_generic_minisymbol_to_symbol
@@ -66,6 +67,7 @@
 #define bfd_pef_bfd_final_link                      _bfd_generic_final_link
 #define bfd_pef_bfd_link_split_section              _bfd_generic_link_split_section
 #define bfd_pef_get_section_contents_in_window      _bfd_generic_get_section_contents_in_window
+#define bfd_pef_bfd_link_check_relocs               _bfd_generic_link_check_relocs
 
 static int
 bfd_pef_parse_traceback_table (bfd *abfd,
@@ -216,7 +218,7 @@ bfd_pef_print_symbol (bfd *abfd,
       fprintf (file, " %-5s %s", symbol->section->name, symbol->name);
       if (CONST_STRNEQ (symbol->name, "__traceback_"))
 	{
-	  unsigned char *buf = alloca (symbol->udata.i);
+	  unsigned char *buf = xmalloc (symbol->udata.i);
 	  size_t offset = symbol->value + 4;
 	  size_t len = symbol->udata.i;
 	  int ret;
@@ -226,6 +228,7 @@ bfd_pef_print_symbol (bfd *abfd,
 					       len, 0, NULL, file);
 	  if (ret < 0)
 	    fprintf (file, " [ERROR]");
+	  free (buf);
 	}
     }
 }
@@ -486,7 +489,7 @@ bfd_pef_scan_start_address (bfd *abfd)
     goto end;
 
   for (section = abfd->sections; section != NULL; section = section->next)
-    if ((section->index + 1) == header.main_section)
+    if ((long) (section->index + 1) == header.main_section)
       break;
 
   if (section == NULL)
@@ -519,8 +522,8 @@ bfd_pef_scan (bfd *abfd,
   bfd_pef_convert_architecture (header->architecture, &cputype, &cpusubtype);
   if (cputype == bfd_arch_unknown)
     {
-      (*_bfd_error_handler) (_("bfd_pef_scan: unknown architecture 0x%lx"),
-			       header->architecture);
+      _bfd_error_handler (_("bfd_pef_scan: unknown architecture 0x%lx"),
+			  header->architecture);
       return -1;
     }
   bfd_set_arch_mach (abfd, cputype, cpusubtype);

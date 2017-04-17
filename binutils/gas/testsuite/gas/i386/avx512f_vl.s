@@ -316,7 +316,7 @@ _start:
 	vcvtpd2dq	%xmm5, %xmm6{%k7}{z}	 # AVX512{F,VL}
 	vcvtpd2dqx	(%ecx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2dqx	-123456(%esp,%esi,8), %xmm6{%k7}	 # AVX512{F,VL}
-	vcvtpd2dqx	(%eax){1to2}, %xmm6{%k7}	 # AVX512{F,VL}
+	vcvtpd2dq	(%eax){1to2}, %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2dqx	2032(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
 	vcvtpd2dqx	2048(%edx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2dqx	-2048(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
@@ -329,7 +329,7 @@ _start:
 	vcvtpd2dq	%ymm5, %xmm6{%k7}{z}	 # AVX512{F,VL}
 	vcvtpd2dqy	(%ecx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2dqy	-123456(%esp,%esi,8), %xmm6{%k7}	 # AVX512{F,VL}
-	vcvtpd2dqy	(%eax){1to4}, %xmm6{%k7}	 # AVX512{F,VL}
+	vcvtpd2dq	(%eax){1to4}, %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2dqy	4064(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
 	vcvtpd2dqy	4096(%edx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2dqy	-4096(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
@@ -342,7 +342,7 @@ _start:
 	vcvtpd2ps	%xmm5, %xmm6{%k7}{z}	 # AVX512{F,VL}
 	vcvtpd2psx	(%ecx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2psx	-123456(%esp,%esi,8), %xmm6{%k7}	 # AVX512{F,VL}
-	vcvtpd2psx	(%eax){1to2}, %xmm6{%k7}	 # AVX512{F,VL}
+	vcvtpd2ps	(%eax){1to2}, %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2psx	2032(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
 	vcvtpd2psx	2048(%edx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2psx	-2048(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
@@ -355,7 +355,7 @@ _start:
 	vcvtpd2ps	%ymm5, %xmm6{%k7}{z}	 # AVX512{F,VL}
 	vcvtpd2psy	(%ecx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2psy	-123456(%esp,%esi,8), %xmm6{%k7}	 # AVX512{F,VL}
-	vcvtpd2psy	(%eax){1to4}, %xmm6{%k7}	 # AVX512{F,VL}
+	vcvtpd2ps	(%eax){1to4}, %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2psy	4064(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
 	vcvtpd2psy	4096(%edx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2psy	-4096(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
@@ -368,7 +368,7 @@ _start:
 	vcvtpd2udq	%xmm5, %xmm6{%k7}{z}	 # AVX512{F,VL}
 	vcvtpd2udqx	(%ecx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2udqx	-123456(%esp,%esi,8), %xmm6{%k7}	 # AVX512{F,VL}
-	vcvtpd2udqx	(%eax){1to2}, %xmm6{%k7}	 # AVX512{F,VL}
+	vcvtpd2udq	(%eax){1to2}, %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2udqx	2032(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
 	vcvtpd2udqx	2048(%edx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2udqx	-2048(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
@@ -381,7 +381,7 @@ _start:
 	vcvtpd2udq	%ymm5, %xmm6{%k7}{z}	 # AVX512{F,VL}
 	vcvtpd2udqy	(%ecx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2udqy	-123456(%esp,%esi,8), %xmm6{%k7}	 # AVX512{F,VL}
-	vcvtpd2udqy	(%eax){1to4}, %xmm6{%k7}	 # AVX512{F,VL}
+	vcvtpd2udq	(%eax){1to4}, %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2udqy	4064(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
 	vcvtpd2udqy	4096(%edx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvtpd2udqy	-4096(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
@@ -494,7 +494,7 @@ _start:
 	vcvttpd2dq	%xmm5, %xmm6{%k7}{z}	 # AVX512{F,VL}
 	vcvttpd2dqx	(%ecx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvttpd2dqx	-123456(%esp,%esi,8), %xmm6{%k7}	 # AVX512{F,VL}
-	vcvttpd2dqx	(%eax){1to2}, %xmm6{%k7}	 # AVX512{F,VL}
+	vcvttpd2dq	(%eax){1to2}, %xmm6{%k7}	 # AVX512{F,VL}
 	vcvttpd2dqx	2032(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
 	vcvttpd2dqx	2048(%edx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvttpd2dqx	-2048(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
@@ -507,7 +507,7 @@ _start:
 	vcvttpd2dq	%ymm5, %xmm6{%k7}{z}	 # AVX512{F,VL}
 	vcvttpd2dqy	(%ecx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvttpd2dqy	-123456(%esp,%esi,8), %xmm6{%k7}	 # AVX512{F,VL}
-	vcvttpd2dqy	(%eax){1to4}, %xmm6{%k7}	 # AVX512{F,VL}
+	vcvttpd2dq	(%eax){1to4}, %xmm6{%k7}	 # AVX512{F,VL}
 	vcvttpd2dqy	4064(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
 	vcvttpd2dqy	4096(%edx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvttpd2dqy	-4096(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
@@ -5498,7 +5498,7 @@ _start:
 	vcvttpd2udq	%xmm5, %xmm6{%k7}{z}	 # AVX512{F,VL}
 	vcvttpd2udqx	(%ecx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvttpd2udqx	-123456(%esp,%esi,8), %xmm6{%k7}	 # AVX512{F,VL}
-	vcvttpd2udqx	(%eax){1to2}, %xmm6{%k7}	 # AVX512{F,VL}
+	vcvttpd2udq	(%eax){1to2}, %xmm6{%k7}	 # AVX512{F,VL}
 	vcvttpd2udqx	2032(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
 	vcvttpd2udqx	2048(%edx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvttpd2udqx	-2048(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
@@ -5511,7 +5511,7 @@ _start:
 	vcvttpd2udq	%ymm5, %xmm6{%k7}{z}	 # AVX512{F,VL}
 	vcvttpd2udqy	(%ecx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvttpd2udqy	-123456(%esp,%esi,8), %xmm6{%k7}	 # AVX512{F,VL}
-	vcvttpd2udqy	(%eax){1to4}, %xmm6{%k7}	 # AVX512{F,VL}
+	vcvttpd2udq	(%eax){1to4}, %xmm6{%k7}	 # AVX512{F,VL}
 	vcvttpd2udqy	4064(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
 	vcvttpd2udqy	4096(%edx), %xmm6{%k7}	 # AVX512{F,VL}
 	vcvttpd2udqy	-4096(%edx), %xmm6{%k7}	 # AVX512{F,VL} Disp8
@@ -6013,80 +6013,80 @@ _start:
 	vcvtpd2dq	xmm6{k7}{z}, xmm5	 # AVX512{F,VL}
 	vcvtpd2dq	xmm6{k7}, XMMWORD PTR [ecx]	 # AVX512{F,VL}
 	vcvtpd2dq	xmm6{k7}, XMMWORD PTR [esp+esi*8-123456]	 # AVX512{F,VL}
-	vcvtpd2dqx	xmm6{k7}, [eax]{1to2}	 # AVX512{F,VL}
+	vcvtpd2dq	xmm6{k7}, [eax]{1to2}	 # AVX512{F,VL}
 	vcvtpd2dq	xmm6{k7}, XMMWORD PTR [edx+2032]	 # AVX512{F,VL} Disp8
 	vcvtpd2dq	xmm6{k7}, XMMWORD PTR [edx+2048]	 # AVX512{F,VL}
 	vcvtpd2dq	xmm6{k7}, XMMWORD PTR [edx-2048]	 # AVX512{F,VL} Disp8
 	vcvtpd2dq	xmm6{k7}, XMMWORD PTR [edx-2064]	 # AVX512{F,VL}
-	vcvtpd2dqx	xmm6{k7}, [edx+1016]{1to2}	 # AVX512{F,VL} Disp8
-	vcvtpd2dqx	xmm6{k7}, [edx+1024]{1to2}	 # AVX512{F,VL}
-	vcvtpd2dqx	xmm6{k7}, [edx-1024]{1to2}	 # AVX512{F,VL} Disp8
-	vcvtpd2dqx	xmm6{k7}, [edx-1032]{1to2}	 # AVX512{F,VL}
+	vcvtpd2dq	xmm6{k7}, QWORD PTR [edx+1016]{1to2}	 # AVX512{F,VL} Disp8
+	vcvtpd2dq	xmm6{k7}, QWORD PTR [edx+1024]{1to2}	 # AVX512{F,VL}
+	vcvtpd2dq	xmm6{k7}, QWORD PTR [edx-1024]{1to2}	 # AVX512{F,VL} Disp8
+	vcvtpd2dq	xmm6{k7}, QWORD PTR [edx-1032]{1to2}	 # AVX512{F,VL}
 	vcvtpd2dq	xmm6{k7}, ymm5	 # AVX512{F,VL}
 	vcvtpd2dq	xmm6{k7}{z}, ymm5	 # AVX512{F,VL}
 	vcvtpd2dq	xmm6{k7}, YMMWORD PTR [ecx]	 # AVX512{F,VL}
 	vcvtpd2dq	xmm6{k7}, YMMWORD PTR [esp+esi*8-123456]	 # AVX512{F,VL}
-	vcvtpd2dqy	xmm6{k7}, [eax]{1to4}	 # AVX512{F,VL}
+	vcvtpd2dq	xmm6{k7}, [eax]{1to4}	 # AVX512{F,VL}
 	vcvtpd2dq	xmm6{k7}, YMMWORD PTR [edx+4064]	 # AVX512{F,VL} Disp8
 	vcvtpd2dq	xmm6{k7}, YMMWORD PTR [edx+4096]	 # AVX512{F,VL}
 	vcvtpd2dq	xmm6{k7}, YMMWORD PTR [edx-4096]	 # AVX512{F,VL} Disp8
 	vcvtpd2dq	xmm6{k7}, YMMWORD PTR [edx-4128]	 # AVX512{F,VL}
-	vcvtpd2dqy	xmm6{k7}, [edx+1016]{1to4}	 # AVX512{F,VL} Disp8
-	vcvtpd2dqy	xmm6{k7}, [edx+1024]{1to4}	 # AVX512{F,VL}
-	vcvtpd2dqy	xmm6{k7}, [edx-1024]{1to4}	 # AVX512{F,VL} Disp8
-	vcvtpd2dqy	xmm6{k7}, [edx-1032]{1to4}	 # AVX512{F,VL}
+	vcvtpd2dq	xmm6{k7}, QWORD PTR [edx+1016]{1to4}	 # AVX512{F,VL} Disp8
+	vcvtpd2dq	xmm6{k7}, QWORD PTR [edx+1024]{1to4}	 # AVX512{F,VL}
+	vcvtpd2dq	xmm6{k7}, QWORD PTR [edx-1024]{1to4}	 # AVX512{F,VL} Disp8
+	vcvtpd2dq	xmm6{k7}, QWORD PTR [edx-1032]{1to4}	 # AVX512{F,VL}
 	vcvtpd2ps	xmm6{k7}, xmm5	 # AVX512{F,VL}
 	vcvtpd2ps	xmm6{k7}{z}, xmm5	 # AVX512{F,VL}
 	vcvtpd2ps	xmm6{k7}, XMMWORD PTR [ecx]	 # AVX512{F,VL}
 	vcvtpd2ps	xmm6{k7}, XMMWORD PTR [esp+esi*8-123456]	 # AVX512{F,VL}
-	vcvtpd2psx	xmm6{k7}, [eax]{1to2}	 # AVX512{F,VL}
+	vcvtpd2ps	xmm6{k7}, [eax]{1to2}	 # AVX512{F,VL}
 	vcvtpd2ps	xmm6{k7}, XMMWORD PTR [edx+2032]	 # AVX512{F,VL} Disp8
 	vcvtpd2ps	xmm6{k7}, XMMWORD PTR [edx+2048]	 # AVX512{F,VL}
 	vcvtpd2ps	xmm6{k7}, XMMWORD PTR [edx-2048]	 # AVX512{F,VL} Disp8
 	vcvtpd2ps	xmm6{k7}, XMMWORD PTR [edx-2064]	 # AVX512{F,VL}
-	vcvtpd2psx	xmm6{k7}, [edx+1016]{1to2}	 # AVX512{F,VL} Disp8
-	vcvtpd2psx	xmm6{k7}, [edx+1024]{1to2}	 # AVX512{F,VL}
-	vcvtpd2psx	xmm6{k7}, [edx-1024]{1to2}	 # AVX512{F,VL} Disp8
-	vcvtpd2psx	xmm6{k7}, [edx-1032]{1to2}	 # AVX512{F,VL}
+	vcvtpd2ps	xmm6{k7}, QWORD PTR [edx+1016]{1to2}	 # AVX512{F,VL} Disp8
+	vcvtpd2ps	xmm6{k7}, QWORD PTR [edx+1024]{1to2}	 # AVX512{F,VL}
+	vcvtpd2ps	xmm6{k7}, QWORD PTR [edx-1024]{1to2}	 # AVX512{F,VL} Disp8
+	vcvtpd2ps	xmm6{k7}, QWORD PTR [edx-1032]{1to2}	 # AVX512{F,VL}
 	vcvtpd2ps	xmm6{k7}, ymm5	 # AVX512{F,VL}
 	vcvtpd2ps	xmm6{k7}{z}, ymm5	 # AVX512{F,VL}
 	vcvtpd2ps	xmm6{k7}, YMMWORD PTR [ecx]	 # AVX512{F,VL}
 	vcvtpd2ps	xmm6{k7}, YMMWORD PTR [esp+esi*8-123456]	 # AVX512{F,VL}
-	vcvtpd2psy	xmm6{k7}, [eax]{1to4}	 # AVX512{F,VL}
+	vcvtpd2ps	xmm6{k7}, [eax]{1to4}	 # AVX512{F,VL}
 	vcvtpd2ps	xmm6{k7}, YMMWORD PTR [edx+4064]	 # AVX512{F,VL} Disp8
 	vcvtpd2ps	xmm6{k7}, YMMWORD PTR [edx+4096]	 # AVX512{F,VL}
 	vcvtpd2ps	xmm6{k7}, YMMWORD PTR [edx-4096]	 # AVX512{F,VL} Disp8
 	vcvtpd2ps	xmm6{k7}, YMMWORD PTR [edx-4128]	 # AVX512{F,VL}
-	vcvtpd2psy	xmm6{k7}, [edx+1016]{1to4}	 # AVX512{F,VL} Disp8
-	vcvtpd2psy	xmm6{k7}, [edx+1024]{1to4}	 # AVX512{F,VL}
-	vcvtpd2psy	xmm6{k7}, [edx-1024]{1to4}	 # AVX512{F,VL} Disp8
-	vcvtpd2psy	xmm6{k7}, [edx-1032]{1to4}	 # AVX512{F,VL}
+	vcvtpd2ps	xmm6{k7}, QWORD PTR [edx+1016]{1to4}	 # AVX512{F,VL} Disp8
+	vcvtpd2ps	xmm6{k7}, QWORD PTR [edx+1024]{1to4}	 # AVX512{F,VL}
+	vcvtpd2ps	xmm6{k7}, QWORD PTR [edx-1024]{1to4}	 # AVX512{F,VL} Disp8
+	vcvtpd2ps	xmm6{k7}, QWORD PTR [edx-1032]{1to4}	 # AVX512{F,VL}
 	vcvtpd2udq	xmm6{k7}, xmm5	 # AVX512{F,VL}
 	vcvtpd2udq	xmm6{k7}{z}, xmm5	 # AVX512{F,VL}
 	vcvtpd2udq	xmm6{k7}, XMMWORD PTR [ecx]	 # AVX512{F,VL}
 	vcvtpd2udq	xmm6{k7}, XMMWORD PTR [esp+esi*8-123456]	 # AVX512{F,VL}
-	vcvtpd2udqx	xmm6{k7}, [eax]{1to2}	 # AVX512{F,VL}
+	vcvtpd2udq	xmm6{k7}, [eax]{1to2}	 # AVX512{F,VL}
 	vcvtpd2udq	xmm6{k7}, XMMWORD PTR [edx+2032]	 # AVX512{F,VL} Disp8
 	vcvtpd2udq	xmm6{k7}, XMMWORD PTR [edx+2048]	 # AVX512{F,VL}
 	vcvtpd2udq	xmm6{k7}, XMMWORD PTR [edx-2048]	 # AVX512{F,VL} Disp8
 	vcvtpd2udq	xmm6{k7}, XMMWORD PTR [edx-2064]	 # AVX512{F,VL}
-	vcvtpd2udqx	xmm6{k7}, [edx+1016]{1to2}	 # AVX512{F,VL} Disp8
-	vcvtpd2udqx	xmm6{k7}, [edx+1024]{1to2}	 # AVX512{F,VL}
-	vcvtpd2udqx	xmm6{k7}, [edx-1024]{1to2}	 # AVX512{F,VL} Disp8
-	vcvtpd2udqx	xmm6{k7}, [edx-1032]{1to2}	 # AVX512{F,VL}
+	vcvtpd2udq	xmm6{k7}, QWORD PTR [edx+1016]{1to2}	 # AVX512{F,VL} Disp8
+	vcvtpd2udq	xmm6{k7}, QWORD PTR [edx+1024]{1to2}	 # AVX512{F,VL}
+	vcvtpd2udq	xmm6{k7}, QWORD PTR [edx-1024]{1to2}	 # AVX512{F,VL} Disp8
+	vcvtpd2udq	xmm6{k7}, QWORD PTR [edx-1032]{1to2}	 # AVX512{F,VL}
 	vcvtpd2udq	xmm6{k7}, ymm5	 # AVX512{F,VL}
 	vcvtpd2udq	xmm6{k7}{z}, ymm5	 # AVX512{F,VL}
 	vcvtpd2udq	xmm6{k7}, YMMWORD PTR [ecx]	 # AVX512{F,VL}
 	vcvtpd2udq	xmm6{k7}, YMMWORD PTR [esp+esi*8-123456]	 # AVX512{F,VL}
-	vcvtpd2udqy	xmm6{k7}, [eax]{1to4}	 # AVX512{F,VL}
+	vcvtpd2udq	xmm6{k7}, [eax]{1to4}	 # AVX512{F,VL}
 	vcvtpd2udq	xmm6{k7}, YMMWORD PTR [edx+4064]	 # AVX512{F,VL} Disp8
 	vcvtpd2udq	xmm6{k7}, YMMWORD PTR [edx+4096]	 # AVX512{F,VL}
 	vcvtpd2udq	xmm6{k7}, YMMWORD PTR [edx-4096]	 # AVX512{F,VL} Disp8
 	vcvtpd2udq	xmm6{k7}, YMMWORD PTR [edx-4128]	 # AVX512{F,VL}
-	vcvtpd2udqy	xmm6{k7}, [edx+1016]{1to4}	 # AVX512{F,VL} Disp8
-	vcvtpd2udqy	xmm6{k7}, [edx+1024]{1to4}	 # AVX512{F,VL}
-	vcvtpd2udqy	xmm6{k7}, [edx-1024]{1to4}	 # AVX512{F,VL} Disp8
-	vcvtpd2udqy	xmm6{k7}, [edx-1032]{1to4}	 # AVX512{F,VL}
+	vcvtpd2udq	xmm6{k7}, QWORD PTR [edx+1016]{1to4}	 # AVX512{F,VL} Disp8
+	vcvtpd2udq	xmm6{k7}, QWORD PTR [edx+1024]{1to4}	 # AVX512{F,VL}
+	vcvtpd2udq	xmm6{k7}, QWORD PTR [edx-1024]{1to4}	 # AVX512{F,VL} Disp8
+	vcvtpd2udq	xmm6{k7}, QWORD PTR [edx-1032]{1to4}	 # AVX512{F,VL}
 	vcvtph2ps	xmm6{k7}, xmm5	 # AVX512{F,VL}
 	vcvtph2ps	xmm6{k7}{z}, xmm5	 # AVX512{F,VL}
 	vcvtph2ps	xmm6{k7}, QWORD PTR [ecx]	 # AVX512{F,VL}
@@ -6191,28 +6191,28 @@ _start:
 	vcvttpd2dq	xmm6{k7}{z}, xmm5	 # AVX512{F,VL}
 	vcvttpd2dq	xmm6{k7}, XMMWORD PTR [ecx]	 # AVX512{F,VL}
 	vcvttpd2dq	xmm6{k7}, XMMWORD PTR [esp+esi*8-123456]	 # AVX512{F,VL}
-	vcvttpd2dqx	xmm6{k7}, [eax]{1to2}	 # AVX512{F,VL}
+	vcvttpd2dq	xmm6{k7}, [eax]{1to2}	 # AVX512{F,VL}
 	vcvttpd2dq	xmm6{k7}, XMMWORD PTR [edx+2032]	 # AVX512{F,VL} Disp8
 	vcvttpd2dq	xmm6{k7}, XMMWORD PTR [edx+2048]	 # AVX512{F,VL}
 	vcvttpd2dq	xmm6{k7}, XMMWORD PTR [edx-2048]	 # AVX512{F,VL} Disp8
 	vcvttpd2dq	xmm6{k7}, XMMWORD PTR [edx-2064]	 # AVX512{F,VL}
-	vcvttpd2dqx	xmm6{k7}, [edx+1016]{1to2}	 # AVX512{F,VL} Disp8
-	vcvttpd2dqx	xmm6{k7}, [edx+1024]{1to2}	 # AVX512{F,VL}
-	vcvttpd2dqx	xmm6{k7}, [edx-1024]{1to2}	 # AVX512{F,VL} Disp8
-	vcvttpd2dqx	xmm6{k7}, [edx-1032]{1to2}	 # AVX512{F,VL}
+	vcvttpd2dq	xmm6{k7}, QWORD PTR [edx+1016]{1to2}	 # AVX512{F,VL} Disp8
+	vcvttpd2dq	xmm6{k7}, QWORD PTR [edx+1024]{1to2}	 # AVX512{F,VL}
+	vcvttpd2dq	xmm6{k7}, QWORD PTR [edx-1024]{1to2}	 # AVX512{F,VL} Disp8
+	vcvttpd2dq	xmm6{k7}, QWORD PTR [edx-1032]{1to2}	 # AVX512{F,VL}
 	vcvttpd2dq	xmm6{k7}, ymm5	 # AVX512{F,VL}
 	vcvttpd2dq	xmm6{k7}{z}, ymm5	 # AVX512{F,VL}
 	vcvttpd2dq	xmm6{k7}, YMMWORD PTR [ecx]	 # AVX512{F,VL}
 	vcvttpd2dq	xmm6{k7}, YMMWORD PTR [esp+esi*8-123456]	 # AVX512{F,VL}
-	vcvttpd2dqy	xmm6{k7}, [eax]{1to4}	 # AVX512{F,VL}
+	vcvttpd2dq	xmm6{k7}, [eax]{1to4}	 # AVX512{F,VL}
 	vcvttpd2dq	xmm6{k7}, YMMWORD PTR [edx+4064]	 # AVX512{F,VL} Disp8
 	vcvttpd2dq	xmm6{k7}, YMMWORD PTR [edx+4096]	 # AVX512{F,VL}
 	vcvttpd2dq	xmm6{k7}, YMMWORD PTR [edx-4096]	 # AVX512{F,VL} Disp8
 	vcvttpd2dq	xmm6{k7}, YMMWORD PTR [edx-4128]	 # AVX512{F,VL}
-	vcvttpd2dqy	xmm6{k7}, [edx+1016]{1to4}	 # AVX512{F,VL} Disp8
-	vcvttpd2dqy	xmm6{k7}, [edx+1024]{1to4}	 # AVX512{F,VL}
-	vcvttpd2dqy	xmm6{k7}, [edx-1024]{1to4}	 # AVX512{F,VL} Disp8
-	vcvttpd2dqy	xmm6{k7}, [edx-1032]{1to4}	 # AVX512{F,VL}
+	vcvttpd2dq	xmm6{k7}, QWORD PTR [edx+1016]{1to4}	 # AVX512{F,VL} Disp8
+	vcvttpd2dq	xmm6{k7}, QWORD PTR [edx+1024]{1to4}	 # AVX512{F,VL}
+	vcvttpd2dq	xmm6{k7}, QWORD PTR [edx-1024]{1to4}	 # AVX512{F,VL} Disp8
+	vcvttpd2dq	xmm6{k7}, QWORD PTR [edx-1032]{1to4}	 # AVX512{F,VL}
 	vcvttps2dq	xmm6{k7}, xmm5	 # AVX512{F,VL}
 	vcvttps2dq	xmm6{k7}{z}, xmm5	 # AVX512{F,VL}
 	vcvttps2dq	xmm6{k7}, XMMWORD PTR [ecx]	 # AVX512{F,VL}
@@ -11195,28 +11195,28 @@ _start:
 	vcvttpd2udq	xmm6{k7}{z}, xmm5	 # AVX512{F,VL}
 	vcvttpd2udq	xmm6{k7}, XMMWORD PTR [ecx]	 # AVX512{F,VL}
 	vcvttpd2udq	xmm6{k7}, XMMWORD PTR [esp+esi*8-123456]	 # AVX512{F,VL}
-	vcvttpd2udqx	xmm6{k7}, [eax]{1to2}	 # AVX512{F,VL}
+	vcvttpd2udq	xmm6{k7}, [eax]{1to2}	 # AVX512{F,VL}
 	vcvttpd2udq	xmm6{k7}, XMMWORD PTR [edx+2032]	 # AVX512{F,VL} Disp8
 	vcvttpd2udq	xmm6{k7}, XMMWORD PTR [edx+2048]	 # AVX512{F,VL}
 	vcvttpd2udq	xmm6{k7}, XMMWORD PTR [edx-2048]	 # AVX512{F,VL} Disp8
 	vcvttpd2udq	xmm6{k7}, XMMWORD PTR [edx-2064]	 # AVX512{F,VL}
-	vcvttpd2udqx	xmm6{k7}, [edx+1016]{1to2}	 # AVX512{F,VL} Disp8
-	vcvttpd2udqx	xmm6{k7}, [edx+1024]{1to2}	 # AVX512{F,VL}
-	vcvttpd2udqx	xmm6{k7}, [edx-1024]{1to2}	 # AVX512{F,VL} Disp8
-	vcvttpd2udqx	xmm6{k7}, [edx-1032]{1to2}	 # AVX512{F,VL}
+	vcvttpd2udq	xmm6{k7}, QWORD PTR [edx+1016]{1to2}	 # AVX512{F,VL} Disp8
+	vcvttpd2udq	xmm6{k7}, QWORD PTR [edx+1024]{1to2}	 # AVX512{F,VL}
+	vcvttpd2udq	xmm6{k7}, QWORD PTR [edx-1024]{1to2}	 # AVX512{F,VL} Disp8
+	vcvttpd2udq	xmm6{k7}, QWORD PTR [edx-1032]{1to2}	 # AVX512{F,VL}
 	vcvttpd2udq	xmm6{k7}, ymm5	 # AVX512{F,VL}
 	vcvttpd2udq	xmm6{k7}{z}, ymm5	 # AVX512{F,VL}
 	vcvttpd2udq	xmm6{k7}, YMMWORD PTR [ecx]	 # AVX512{F,VL}
 	vcvttpd2udq	xmm6{k7}, YMMWORD PTR [esp+esi*8-123456]	 # AVX512{F,VL}
-	vcvttpd2udqy	xmm6{k7}, [eax]{1to4}	 # AVX512{F,VL}
+	vcvttpd2udq	xmm6{k7}, [eax]{1to4}	 # AVX512{F,VL}
 	vcvttpd2udq	xmm6{k7}, YMMWORD PTR [edx+4064]	 # AVX512{F,VL} Disp8
 	vcvttpd2udq	xmm6{k7}, YMMWORD PTR [edx+4096]	 # AVX512{F,VL}
 	vcvttpd2udq	xmm6{k7}, YMMWORD PTR [edx-4096]	 # AVX512{F,VL} Disp8
 	vcvttpd2udq	xmm6{k7}, YMMWORD PTR [edx-4128]	 # AVX512{F,VL}
-	vcvttpd2udqy	xmm6{k7}, [edx+1016]{1to4}	 # AVX512{F,VL} Disp8
-	vcvttpd2udqy	xmm6{k7}, [edx+1024]{1to4}	 # AVX512{F,VL}
-	vcvttpd2udqy	xmm6{k7}, [edx-1024]{1to4}	 # AVX512{F,VL} Disp8
-	vcvttpd2udqy	xmm6{k7}, [edx-1032]{1to4}	 # AVX512{F,VL}
+	vcvttpd2udq	xmm6{k7}, QWORD PTR [edx+1016]{1to4}	 # AVX512{F,VL} Disp8
+	vcvttpd2udq	xmm6{k7}, QWORD PTR [edx+1024]{1to4}	 # AVX512{F,VL}
+	vcvttpd2udq	xmm6{k7}, QWORD PTR [edx-1024]{1to4}	 # AVX512{F,VL} Disp8
+	vcvttpd2udq	xmm6{k7}, QWORD PTR [edx-1032]{1to4}	 # AVX512{F,VL}
 	vcvttps2udq	xmm6{k7}, xmm5	 # AVX512{F,VL}
 	vcvttps2udq	xmm6{k7}{z}, xmm5	 # AVX512{F,VL}
 	vcvttps2udq	xmm6{k7}, XMMWORD PTR [ecx]	 # AVX512{F,VL}

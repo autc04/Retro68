@@ -1,5 +1,5 @@
 /* tc-aarch64.h -- Header file for tc-aarch64.c.
-   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+   Copyright (C) 2009-2017 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.
@@ -91,8 +91,8 @@ void aarch64_copy_symbol_attributes (symbolS *, symbolS *);
   (aarch64_copy_symbol_attributes (DEST, SRC))
 #endif
 
-#define TC_START_LABEL(C,S,STR)           ((C) == ':' \
-					   || ((C) == '/' && aarch64_data_in_code ()))
+#define TC_START_LABEL(STR, NUL_CHAR, NEXT_CHAR)			\
+  (NEXT_CHAR == ':' || (NEXT_CHAR == '/' && aarch64_data_in_code ()))
 #define tc_canonicalize_symbol_name(str) aarch64_canonicalize_symbol_name (str);
 #define obj_adjust_symtab() 		 aarch64_adjust_symtab ()
 
@@ -145,6 +145,8 @@ struct aarch64_frag_type
       frag_align_code (N, MAX);							\
       goto LABEL;								\
     }
+
+#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 0
 
 #define DWARF2_LINE_MIN_INSN_LENGTH 	4
 

@@ -1,5 +1,6 @@
 /* { dg-do compile } */
 /* { dg-options "-O1 -fdump-rtl-expand-details" } */
+/* { dg-skip-if "PR64886" { hppa*-*-hpux* } { "*" } { "" } } */
 
 #define N 256
 int a1[N], a2[N], a3[N], a4[N];
@@ -16,6 +17,5 @@ void foo ()
 }
 
 /* { dg-final { scan-rtl-dump-times "Swap operands" 1 "expand" } } */
-/* { dg-final { cleanup-rtl-dump "expand" } } */
 
 

@@ -1,10 +1,10 @@
-// { dg-require-namedlocale "en_US" }
+// { dg-require-namedlocale "en_US.ISO8859-1" }
 // { dg-require-fork "" }
 // { dg-require-mkfifo "" }
 
 // 2004-04-16  Petur Runolfsson  <peturr02@ru.is>
 
-// Copyright (C) 2004-2015 Free Software Foundation, Inc.
+// Copyright (C) 2004-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -42,7 +42,7 @@ bool test01()
   using namespace __gnu_test;
   bool test __attribute__((unused)) = true;
 
-  locale loc_us = locale("en_US");
+  locale loc_us = locale(ISO_8859(1,en_US));
 
   const char* name = "tmp_14975-2";
 

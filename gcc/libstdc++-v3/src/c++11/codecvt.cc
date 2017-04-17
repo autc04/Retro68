@@ -1,6 +1,6 @@
 // Locale support (codecvt) -*- C++ -*-
 
-// Copyright (C) 2015 Free Software Foundation, Inc.
+// Copyright (C) 2015-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -789,7 +789,11 @@ do_in(state_type&, const extern_type* __from, const extern_type* __from_end,
 {
   range<const char> from{ __from, __from_end };
   range<char16_t> to{ __to, __to_end };
-  auto res = ucs2_in(from, to, _M_maxcode, _M_mode);
+  codecvt_mode mode = codecvt_mode(_M_mode & (consume_header|generate_header));
+#if __BYTE_ORDER__ != __ORDER_BIG_ENDIAN__
+  mode = codecvt_mode(mode | little_endian);
+#endif
+  auto res = ucs2_in(from, to, _M_maxcode, mode);
   __from_next = from.next;
   __to_next = to.next;
   return res;
@@ -1264,7 +1268,11 @@ do_in(state_type&, const extern_type* __from, const extern_type* __from_end,
 {
   range<const char> from{ __from, __from_end };
   range<char16_t> to{ __to, __to_end };
-  auto res = utf16_in(from, to, _M_maxcode, _M_mode);
+  codecvt_mode mode = codecvt_mode(_M_mode & (consume_header|generate_header));
+#if __BYTE_ORDER__ != __ORDER_BIG_ENDIAN__
+  mode = codecvt_mode(mode | little_endian);
+#endif
+  auto res = utf16_in(from, to, _M_maxcode, mode);
   __from_next = from.next;
   __to_next = to.next;
   return res;

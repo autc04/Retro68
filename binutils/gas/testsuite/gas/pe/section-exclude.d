@@ -1,5 +1,6 @@
 #objdump: -h
 #name: section exclude
+#skip: sh-*
 
 # Test that 'e' works in .section directives.
 

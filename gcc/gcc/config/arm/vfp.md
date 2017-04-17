@@ -1,5 +1,5 @@
 ;; ARM VFP instruction patterns
-;; Copyright (C) 2003-2015 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2016 Free Software Foundation, Inc.
 ;; Written by CodeSourcery.
 ;;
 ;; This file is part of GCC.
@@ -238,12 +238,11 @@
       return \"vmov\\t%0, %1\";
     case 8:	/* ARM register from constant */
       {
-        REAL_VALUE_TYPE r;
 	long bits;
 	rtx ops[4];
 
-        REAL_VALUE_FROM_CONST_DOUBLE (r, operands[1]);
-	bits = real_to_target (NULL, &r, HFmode);
+	bits = real_to_target (NULL, CONST_DOUBLE_REAL_VALUE (operands[1]),
+			       HFmode);
 	ops[0] = operands[0];
 	ops[1] = GEN_INT (bits);
 	ops[2] = GEN_INT (bits & 0xff00);
@@ -289,12 +288,11 @@
       return \"vmov\\t%0, %1\";
     case 6:	/* ARM register from constant */
       {
-        REAL_VALUE_TYPE r;
 	long bits;
 	rtx ops[4];
 
-        REAL_VALUE_FROM_CONST_DOUBLE (r, operands[1]);
-	bits = real_to_target (NULL, &r, HFmode);
+	bits = real_to_target (NULL, CONST_DOUBLE_REAL_VALUE (operands[1]),
+			       HFmode);
 	ops[0] = operands[0];
 	ops[1] = GEN_INT (bits);
 	ops[2] = GEN_INT (bits & 0xff00);
@@ -645,13 +643,13 @@
 
       if (REGNO (in_lo) == REGNO (out_hi))
         {
-          emit_insn (gen_rtx_SET (SImode, out_lo, in_lo));
+          emit_insn (gen_rtx_SET (out_lo, in_lo));
 	  operands[0] = out_hi;
           operands[1] = in_hi;
         }
       else
         {
-          emit_insn (gen_rtx_SET (SImode, out_hi, in_hi));
+          emit_insn (gen_rtx_SET (out_hi, in_hi));
 	  operands[0] = out_lo;
           operands[1] = in_lo;
         }
@@ -770,6 +768,17 @@
   [(set (match_operand:SF		   0 "s_register_operand" "=t")
 	(mult:SF (neg:SF (match_operand:SF 1 "s_register_operand" "t"))
 		 (match_operand:SF	   2 "s_register_operand" "t")))]
+  "TARGET_32BIT && TARGET_HARD_FLOAT && TARGET_VFP && !flag_rounding_math"
+  "vnmul%?.f32\\t%0, %1, %2"
+  [(set_attr "predicable" "yes")
+   (set_attr "predicable_short_it" "no")
+   (set_attr "type" "fmuls")]
+)
+
+(define_insn "*negmulsf3_vfp"
+  [(set (match_operand:SF		   0 "s_register_operand" "=t")
+	(neg:SF (mult:SF (match_operand:SF 1 "s_register_operand" "t")
+		 (match_operand:SF	   2 "s_register_operand" "t"))))]
   "TARGET_32BIT && TARGET_HARD_FLOAT && TARGET_VFP"
   "vnmul%?.f32\\t%0, %1, %2"
   [(set_attr "predicable" "yes")
@@ -781,6 +790,18 @@
   [(set (match_operand:DF		   0 "s_register_operand" "=w")
 	(mult:DF (neg:DF (match_operand:DF 1 "s_register_operand" "w"))
 		 (match_operand:DF	   2 "s_register_operand" "w")))]
+  "TARGET_32BIT && TARGET_HARD_FLOAT && TARGET_VFP_DOUBLE
+  && !flag_rounding_math"
+  "vnmul%?.f64\\t%P0, %P1, %P2"
+  [(set_attr "predicable" "yes")
+   (set_attr "predicable_short_it" "no")
+   (set_attr "type" "fmuld")]
+)
+
+(define_insn "*negmuldf3_vfp"
+  [(set (match_operand:DF		   0 "s_register_operand" "=w")
+	(neg:DF (mult:DF (match_operand:DF 1 "s_register_operand" "w")
+		 (match_operand:DF	   2 "s_register_operand" "w"))))]
   "TARGET_32BIT && TARGET_HARD_FLOAT && TARGET_VFP_DOUBLE"
   "vnmul%?.f64\\t%P0, %P1, %P2"
   [(set_attr "predicable" "yes")
@@ -1313,8 +1334,9 @@
                         [(match_operand:SDF 1
                            "register_operand" "<F_constraint>")] VCVT)))]
   "TARGET_HARD_FLOAT && TARGET_FPU_ARMV8 <vfp_double_cond>"
-  "vcvt<vrint_variant>%?.<su>32.<V_if_elem>\\t%0, %<V_reg>1"
+  "vcvt<vrint_variant>.<su>32.<V_if_elem>\\t%0, %<V_reg>1"
   [(set_attr "predicable" "no")
+   (set_attr "conds" "unconditional")
    (set_attr "type" "f_cvtf2i")]
 )
 
@@ -1341,6 +1363,18 @@
 		  (match_operand:SDF 2 "register_operand" "<F_constraint>")))]
   "TARGET_HARD_FLOAT && TARGET_VFP5 <vfp_double_cond>"
   "vminnm.<V_if_elem>\\t%<V_reg>0, %<V_reg>1, %<V_reg>2"
+  [(set_attr "type" "f_minmax<vfp_type>")
+   (set_attr "conds" "unconditional")]
+)
+
+;; Scalar forms for the IEEE-754 fmax()/fmin() functions
+(define_insn "<fmaxmin><mode>3"
+  [(set (match_operand:SDF 0 "s_register_operand" "=<F_constraint>")
+	(unspec:SDF [(match_operand:SDF 1 "s_register_operand" "<F_constraint>")
+		     (match_operand:SDF 2 "s_register_operand" "<F_constraint>")]
+		     VMAXMINFNM))]
+  "TARGET_HARD_FLOAT && TARGET_VFP5 <vfp_double_cond>"
+  "<fmaxmin_op>.<V_if_elem>\\t%<V_reg>0, %<V_reg>1, %<V_reg>2"
   [(set_attr "type" "f_minmax<vfp_type>")
    (set_attr "conds" "unconditional")]
 )

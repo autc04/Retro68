@@ -1,5 +1,5 @@
 /* Motorola MCore specific support for 32-bit ELF
-   Copyright (C) 1994-2014 Free Software Foundation, Inc.
+   Copyright (C) 1994-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -49,13 +49,14 @@ mcore_elf_set_private_flags (bfd * abfd, flagword flags)
    object file when linking.  */
 
 static bfd_boolean
-mcore_elf_merge_private_bfd_data (bfd * ibfd, bfd * obfd)
+mcore_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 {
+  bfd *obfd = info->output_bfd;
   flagword old_flags;
   flagword new_flags;
 
   /* Check if we have the same endianness.  */
-  if (! _bfd_generic_verify_endian_match (ibfd, obfd))
+  if (! _bfd_generic_verify_endian_match (ibfd, info))
     return FALSE;
 
   if (   bfd_get_flavour (ibfd) != bfd_target_elf_flavour
@@ -95,6 +96,7 @@ mcore_elf_unsupported_reloc (bfd * abfd,
 {
   BFD_ASSERT (reloc_entry->howto != (reloc_howto_type *)0);
 
+  /* xgettext:c-format */
   _bfd_error_handler (_("%B: Relocation %s (%d) is not currently supported.\n"),
 		      abfd,
 		      reloc_entry->howto->name,
@@ -114,7 +116,7 @@ static reloc_howto_type mcore_elf_howto_raw[] =
 	 0,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_dont,/* complain_on_overflow */
+	 complain_overflow_dont,  /* complain_on_overflow */
 	 NULL,                  /* special_function */
 	 "R_MCORE_NONE",	/* name */
 	 FALSE,			/* partial_inplace */
@@ -349,8 +351,9 @@ mcore_elf_info_to_howto (bfd * abfd ATTRIBUTE_UNUSED,
   r_type = ELF32_R_TYPE (dst->r_info);
   if (r_type >= R_MCORE_max)
     {
-      (*_bfd_error_handler) (_("%B: unrecognised MCore reloc number: %d"),
-			     abfd, r_type);
+      /* xgettext:c-format */
+      _bfd_error_handler (_("%B: unrecognised MCore reloc number: %d"),
+			  abfd, r_type);
       bfd_set_error (bfd_error_bad_value);
       r_type = R_MCORE_NONE;
     }
@@ -409,7 +412,7 @@ mcore_elf_relocate_section (bfd * output_bfd,
      input_bfd,
      input_section,
      (long) input_section->reloc_count,
-     (info->relocatable) ? " (relocatable)" : "");
+     (bfd_link_relocatable (info)) ? " (relocatable)" : "");
 #endif
 
   if (! mcore_elf_howto_table [R_MCORE_PCRELIMM8BY4])	/* Initialize howto table if needed */
@@ -433,6 +436,7 @@ mcore_elf_relocate_section (bfd * output_bfd,
       if ((unsigned) r_type >= (unsigned) R_MCORE_max
 	  || ! mcore_elf_howto_table [(int)r_type])
 	{
+	  /* xgettext:c-format */
 	  _bfd_error_handler (_("%B: Unknown relocation type %d\n"),
 			      input_bfd, (int) r_type);
 
@@ -447,6 +451,7 @@ mcore_elf_relocate_section (bfd * output_bfd,
       /* Complain about known relocation that are not yet supported.  */
       if (howto->special_function == mcore_elf_unsupported_reloc)
 	{
+	  /* xgettext:c-format */
 	  _bfd_error_handler (_("%B: Relocation %s (%d) is not currently supported.\n"),
 			      input_bfd,
 			      howto->name,
@@ -478,7 +483,7 @@ mcore_elf_relocate_section (bfd * output_bfd,
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, 1, relend, howto, 0, contents);
 
-      if (info->relocatable)
+      if (bfd_link_relocatable (info))
 	continue;
 
       switch (r_type)
@@ -598,7 +603,7 @@ mcore_elf_check_relocs (bfd * abfd,
   const Elf_Internal_Rela * rel;
   const Elf_Internal_Rela * rel_end;
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   symtab_hdr = & elf_tdata (abfd)->symtab_hdr;

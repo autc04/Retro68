@@ -332,6 +332,9 @@ void yyfree (void *  );
 
 /* Begin user sect3 */
 
+#define yywrap(n) 1
+#define YY_SKIP_YYWRAP
+
 typedef unsigned char YY_CHAR;
 
 FILE *yyin = (FILE *) 0, *yyout = (FILE *) 0;
@@ -575,20 +578,20 @@ char *yytext;
 #define YY_NO_INPUT 1
 #line 4 "deflex.l"
 
-/* Copyright (C) 1995-2014 Free Software Foundation, Inc.
-   
+/* Copyright (C) 1995-2017 Free Software Foundation, Inc.
+
    This file is part of GNU Binutils.
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 3 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
@@ -604,7 +607,7 @@ char *yytext;
 
 int linenumber;
 
-#line 608 "deflex.c"
+#line 611 "deflex.c"
 
 #define INITIAL 0
 
@@ -786,7 +789,7 @@ YY_DECL
     
 #line 35 "deflex.l"
 
-#line 790 "deflex.c"
+#line 793 "deflex.c"
 
 	if ( !(yy_init) )
 		{
@@ -1002,13 +1005,13 @@ YY_RULE_SETUP
 case 27:
 YY_RULE_SETUP
 #line 63 "deflex.l"
-{ yylval.number = strtol (yytext,0,0); 
+{ yylval.number = strtol (yytext,0,0);
 		return NUMBER; }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
 #line 66 "deflex.l"
-{ 	
+{
 		yylval.id =  xstrdup (yytext);
 		return ID;
 		}
@@ -1094,7 +1097,7 @@ YY_RULE_SETUP
 #line 93 "deflex.l"
 ECHO;
 	YY_BREAK
-#line 1098 "deflex.c"
+#line 1101 "deflex.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -2057,8 +2060,4 @@ void yyfree (void * ptr )
 #line 93 "deflex.l"
 
 
-#ifndef yywrap
-/* Needed for lex, though not flex. */
-int yywrap(void) { return 1; }
-#endif
 

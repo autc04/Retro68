@@ -1,5 +1,5 @@
 /* Deal with interfaces.
-   Copyright (C) 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 2000-2016 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -66,7 +66,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "flags.h"
+#include "options.h"
 #include "gfortran.h"
 #include "match.h"
 #include "arith.h"
@@ -387,18 +387,147 @@ gfc_match_end_interface (void)
 }
 
 
+/* Compare components according to 4.4.2 of the Fortran standard.  */
+
+static int
+compare_components (gfc_component *cmp1, gfc_component *cmp2,
+    gfc_symbol *derived1, gfc_symbol *derived2)
+{
+  gfc_symbol *d1, *d2;
+  bool anonymous = false;
+
+  /* Unions, maps, and anonymous structures all have names like "[xX]X$\d+"
+     which should not be compared.  */
+  d1 = cmp1->ts.u.derived;
+  d2 = cmp2->ts.u.derived;
+  if (   (d1 && (d1->attr.flavor == FL_STRUCT || d1->attr.flavor == FL_UNION)
+          && ISUPPER (cmp1->name[1]))
+      || (d2 && (d2->attr.flavor == FL_STRUCT || d2->attr.flavor == FL_UNION)
+          && ISUPPER (cmp1->name[1])))
+    anonymous = true;
+
+  if (!anonymous && strcmp (cmp1->name, cmp2->name) != 0)
+    return 0;
+
+  if (cmp1->attr.access != cmp2->attr.access)
+    return 0;
+
+  if (cmp1->attr.pointer != cmp2->attr.pointer)
+    return 0;
+
+  if (cmp1->attr.dimension != cmp2->attr.dimension)
+    return 0;
+
+  if (cmp1->attr.allocatable != cmp2->attr.allocatable)
+    return 0;
+
+  if (cmp1->attr.dimension && gfc_compare_array_spec (cmp1->as, cmp2->as) == 0)
+    return 0;
+
+  /* Make sure that link lists do not put this function into an
+     endless recursive loop!  */
+  if (!(cmp1->ts.type == BT_DERIVED && derived1 == cmp1->ts.u.derived)
+      && !(cmp2->ts.type == BT_DERIVED && derived2 == cmp2->ts.u.derived)
+      && gfc_compare_types (&cmp1->ts, &cmp2->ts) == 0)
+    return 0;
+
+  else if ( (cmp1->ts.type == BT_DERIVED && derived1 == cmp1->ts.u.derived)
+        && !(cmp2->ts.type == BT_DERIVED && derived2 == cmp2->ts.u.derived))
+    return 0;
+
+  else if (!(cmp1->ts.type == BT_DERIVED && derived1 == cmp1->ts.u.derived)
+        &&  (cmp2->ts.type == BT_DERIVED && derived2 == cmp2->ts.u.derived))
+    return 0;
+
+  return 1;
+}
+
+
+/* Compare two union types by comparing the components of their maps.
+   Because unions and maps are anonymous their types get special internal
+   names; therefore the usual derived type comparison will fail on them.
+
+   Returns nonzero if equal, as with gfc_compare_derived_types. Also as with
+   gfc_compare_derived_types, 'equal' is closer to meaning 'duplicate
+   definitions' than 'equivalent structure'. */
+
+int
+gfc_compare_union_types (gfc_symbol *un1, gfc_symbol *un2)
+{
+  gfc_component *map1, *map2, *cmp1, *cmp2;
+
+  if (un1->attr.flavor != FL_UNION || un2->attr.flavor != FL_UNION)
+    return 0;
+
+  map1 = un1->components;
+  map2 = un2->components;
+
+  /* In terms of 'equality' here we are worried about types which are
+     declared the same in two places, not types that represent equivalent
+     structures. (This is common because of FORTRAN's weird scoping rules.)
+     Though two unions with their maps in different orders could be equivalent,
+     we will say they are not equal for the purposes of this test; therefore
+     we compare the maps sequentially. */
+  for (;;)
+  {
+    cmp1 = map1->ts.u.derived->components;
+    cmp2 = map2->ts.u.derived->components;
+    for (;;)
+    {
+      /* No two fields will ever point to the same map type unless they are
+         the same component, because one map field is created with its type
+         declaration. Therefore don't worry about recursion here. */
+      /* TODO: worry about recursion into parent types of the unions? */
+      if (compare_components (cmp1, cmp2,
+            map1->ts.u.derived, map2->ts.u.derived) == 0)
+        return 0;
+
+      cmp1 = cmp1->next;
+      cmp2 = cmp2->next;
+
+      if (cmp1 == NULL && cmp2 == NULL)
+        break;
+      if (cmp1 == NULL || cmp2 == NULL)
+        return 0;
+    }
+
+    map1 = map1->next;
+    map2 = map2->next;
+
+    if (map1 == NULL && map2 == NULL)
+      break;
+    if (map1 == NULL || map2 == NULL)
+      return 0;
+  }
+
+  return 1;
+}
+
+
+
 /* Compare two derived types using the criteria in 4.4.2 of the standard,
    recursing through gfc_compare_types for the components.  */
 
 int
 gfc_compare_derived_types (gfc_symbol *derived1, gfc_symbol *derived2)
 {
-  gfc_component *dt1, *dt2;
+  gfc_component *cmp1, *cmp2;
+  bool anonymous = false;
 
   if (derived1 == derived2)
     return 1;
 
-  gcc_assert (derived1 && derived2);
+  if (!derived1 || !derived2)
+    gfc_internal_error ("gfc_compare_derived_types: invalid derived type");
+
+  /* MAP and anonymous STRUCTURE types have internal names of the form
+     mM* and sS* (we can get away this this because source names are converted
+     to lowerase). Compare anonymous type names specially because each
+     gets a unique name when it is declared. */
+  anonymous = (derived1->name[0] == derived2->name[0]
+      && derived1->name[1] && derived2->name[1] && derived2->name[2]
+      && derived1->name[1] == (char) TOUPPER (derived1->name[0])
+      && derived2->name[2] == (char) TOUPPER (derived2->name[0]));
 
   /* Special case for comparing derived types across namespaces.  If the
      true names and module names are the same and the module name is
@@ -409,9 +538,11 @@ gfc_compare_derived_types (gfc_symbol *derived1, gfc_symbol *derived2)
     return 1;
 
   /* Compare type via the rules of the standard.  Both types must have
-     the SEQUENCE or BIND(C) attribute to be equal.  */
+     the SEQUENCE or BIND(C) attribute to be equal. STRUCTUREs are special
+     because they can be anonymous; therefore two structures with different
+     names may be equal.  */
 
-  if (strcmp (derived1->name, derived2->name))
+  if (strcmp (derived1->name, derived2->name) != 0 && !anonymous)
     return 0;
 
   if (derived1->component_access == ACCESS_PRIVATE
@@ -422,53 +553,30 @@ gfc_compare_derived_types (gfc_symbol *derived1, gfc_symbol *derived2)
       && !(derived1->attr.is_bind_c && derived2->attr.is_bind_c))
     return 0;
 
-  dt1 = derived1->components;
-  dt2 = derived2->components;
+  /* Protect against null components.  */
+  if (derived1->attr.zero_comp != derived2->attr.zero_comp)
+    return 0;
+
+  if (derived1->attr.zero_comp)
+    return 1;
+
+  cmp1 = derived1->components;
+  cmp2 = derived2->components;
 
   /* Since subtypes of SEQUENCE types must be SEQUENCE types as well, a
      simple test can speed things up.  Otherwise, lots of things have to
      match.  */
   for (;;)
     {
-      if (strcmp (dt1->name, dt2->name) != 0)
-	return 0;
+      if (!compare_components (cmp1, cmp2, derived1, derived2))
+        return 0;
 
-      if (dt1->attr.access != dt2->attr.access)
-	return 0;
+      cmp1 = cmp1->next;
+      cmp2 = cmp2->next;
 
-      if (dt1->attr.pointer != dt2->attr.pointer)
-	return 0;
-
-      if (dt1->attr.dimension != dt2->attr.dimension)
-	return 0;
-
-     if (dt1->attr.allocatable != dt2->attr.allocatable)
-	return 0;
-
-      if (dt1->attr.dimension && gfc_compare_array_spec (dt1->as, dt2->as) == 0)
-	return 0;
-
-      /* Make sure that link lists do not put this function into an
-	 endless recursive loop!  */
-      if (!(dt1->ts.type == BT_DERIVED && derived1 == dt1->ts.u.derived)
-	    && !(dt2->ts.type == BT_DERIVED && derived2 == dt2->ts.u.derived)
-	    && gfc_compare_types (&dt1->ts, &dt2->ts) == 0)
-	return 0;
-
-      else if ((dt1->ts.type == BT_DERIVED && derived1 == dt1->ts.u.derived)
-		&& !(dt1->ts.type == BT_DERIVED && derived1 == dt1->ts.u.derived))
-	return 0;
-
-      else if (!(dt1->ts.type == BT_DERIVED && derived1 == dt1->ts.u.derived)
-		&& (dt1->ts.type == BT_DERIVED && derived1 == dt1->ts.u.derived))
-	return 0;
-
-      dt1 = dt1->next;
-      dt2 = dt2->next;
-
-      if (dt1 == NULL && dt2 == NULL)
+      if (cmp1 == NULL && cmp2 == NULL)
 	break;
-      if (dt1 == NULL || dt2 == NULL)
+      if (cmp1 == NULL || cmp2 == NULL)
 	return 0;
     }
 
@@ -488,28 +596,39 @@ gfc_compare_types (gfc_typespec *ts1, gfc_typespec *ts2)
   if (ts1->type == BT_VOID || ts2->type == BT_VOID)
     return 1;
 
-  if (ts1->type == BT_CLASS
-      && ts1->u.derived->components->ts.u.derived->attr.unlimited_polymorphic)
+  /* The _data component is not always present, therefore check for its
+     presence before assuming, that its derived->attr is available.
+     When the _data component is not present, then nevertheless the
+     unlimited_polymorphic flag may be set in the derived type's attr.  */
+  if (ts1->type == BT_CLASS && ts1->u.derived->components
+      && ((ts1->u.derived->attr.is_class
+	   && ts1->u.derived->components->ts.u.derived->attr
+						  .unlimited_polymorphic)
+	  || ts1->u.derived->attr.unlimited_polymorphic))
     return 1;
 
   /* F2003: C717  */
   if (ts2->type == BT_CLASS && ts1->type == BT_DERIVED
-      && ts2->u.derived->components->ts.u.derived->attr.unlimited_polymorphic
+      && ts2->u.derived->components
+      && ((ts2->u.derived->attr.is_class
+	   && ts2->u.derived->components->ts.u.derived->attr
+						  .unlimited_polymorphic)
+	  || ts2->u.derived->attr.unlimited_polymorphic)
       && (ts1->u.derived->attr.sequence || ts1->u.derived->attr.is_bind_c))
     return 1;
 
+  if (ts1->type == BT_UNION && ts2->type == BT_UNION)
+    return gfc_compare_union_types (ts1->u.derived, ts2->u.derived);
+
   if (ts1->type != ts2->type
-      && ((ts1->type != BT_DERIVED && ts1->type != BT_CLASS)
-	  || (ts2->type != BT_DERIVED && ts2->type != BT_CLASS)))
+      && ((!gfc_bt_struct (ts1->type) && ts1->type != BT_CLASS)
+	  || (!gfc_bt_struct (ts2->type) && ts2->type != BT_CLASS)))
     return 0;
   if (ts1->type != BT_DERIVED && ts1->type != BT_CLASS)
     return (ts1->kind == ts2->kind);
 
   /* Compare derived types.  */
-  if (gfc_type_compatible (ts1, ts2))
-    return 1;
-
-  return gfc_compare_derived_types (ts1->u.derived ,ts2->u.derived);
+  return gfc_type_compatible (ts1, ts2);
 }
 
 
@@ -1055,9 +1174,10 @@ symbol_rank (gfc_symbol *sym)
 /* Check if the characteristics of two dummy arguments match,
    cf. F08:12.3.2.  */
 
-static bool
-check_dummy_characteristics (gfc_symbol *s1, gfc_symbol *s2,
-			     bool type_must_agree, char *errmsg, int err_len)
+bool
+gfc_check_dummy_characteristics (gfc_symbol *s1, gfc_symbol *s2,
+				 bool type_must_agree, char *errmsg,
+				 int err_len)
 {
   if (s1 == NULL || s2 == NULL)
     return s1 == s2 ? true : false;
@@ -1264,8 +1384,8 @@ check_dummy_characteristics (gfc_symbol *s1, gfc_symbol *s2,
 /* Check if the characteristics of two function results match,
    cf. F08:12.3.3.  */
 
-static bool
-check_result_characteristics (gfc_symbol *s1, gfc_symbol *s2,
+bool
+gfc_check_result_characteristics (gfc_symbol *s1, gfc_symbol *s2,
 			      char *errmsg, int err_len)
 {
   gfc_symbol *r1, *r2;
@@ -1461,8 +1581,8 @@ gfc_compare_interfaces (gfc_symbol *s1, gfc_symbol *s2, const char *name2,
       if (s1->attr.function && s2->attr.function)
 	{
 	  /* If both are functions, check result characteristics.  */
-	  if (!check_result_characteristics (s1, s2, errmsg, err_len)
-	      || !check_result_characteristics (s2, s1, errmsg, err_len))
+	  if (!gfc_check_result_characteristics (s1, s2, errmsg, err_len)
+	      || !gfc_check_result_characteristics (s2, s1, errmsg, err_len))
 	    return 0;
 	}
 
@@ -1485,14 +1605,23 @@ gfc_compare_interfaces (gfc_symbol *s1, gfc_symbol *s2, const char *name2,
   f1 = gfc_sym_get_dummy_args (s1);
   f2 = gfc_sym_get_dummy_args (s2);
 
+  /* Special case: No arguments.  */
   if (f1 == NULL && f2 == NULL)
-    return 1;			/* Special case: No arguments.  */
+    return 1;
 
   if (generic_flag)
     {
       if (count_types_test (f1, f2, p1, p2)
 	  || count_types_test (f2, f1, p2, p1))
 	return 0;
+
+      /* Special case: alternate returns.  If both f1->sym and f2->sym are
+	 NULL, then the leading formal arguments are alternate returns.  
+	 The previous conditional should catch argument lists with 
+	 different number of argument.  */
+      if (f1 && f1->sym == NULL && f2 && f2->sym == NULL)
+	return 1;
+
       if (generic_correspondence (f1, f2, p1, p2)
 	  || generic_correspondence (f2, f1, p2, p1))
 	return 0;
@@ -1522,7 +1651,7 @@ gfc_compare_interfaces (gfc_symbol *s1, gfc_symbol *s2, const char *name2,
 	if (strict_flag)
 	  {
 	    /* Check all characteristics.  */
-	    if (!check_dummy_characteristics (f1->sym, f2->sym, true, 
+	    if (!gfc_check_dummy_characteristics (f1->sym, f2->sym, true,
 					      errmsg, err_len))
 	      return 0;
 	  }
@@ -1573,7 +1702,7 @@ check_interface0 (gfc_interface *p, const char *interface_name)
 	 functions or subroutines.  */
       if (((!p->sym->attr.function && !p->sym->attr.subroutine)
 	   || !p->sym->attr.if_source)
-	  && p->sym->attr.flavor != FL_DERIVED)
+	  && !gfc_fl_struct (p->sym->attr.flavor))
 	{
 	  if (p->sym->attr.external)
 	    gfc_error ("Procedure %qs in %s at %L has no explicit interface",
@@ -1587,14 +1716,14 @@ check_interface0 (gfc_interface *p, const char *interface_name)
 
       /* Verify that procedures are either all SUBROUTINEs or all FUNCTIONs.  */
       if ((psave->sym->attr.function && !p->sym->attr.function
-	   && p->sym->attr.flavor != FL_DERIVED)
+	   && !gfc_fl_struct (p->sym->attr.flavor))
 	  || (psave->sym->attr.subroutine && !p->sym->attr.subroutine))
 	{
-	  if (p->sym->attr.flavor != FL_DERIVED)
+	  if (!gfc_fl_struct (p->sym->attr.flavor))
 	    gfc_error ("In %s at %L procedures must be either all SUBROUTINEs"
 		       " or all FUNCTIONs", interface_name,
 		       &p->sym->declared_at);
-	  else
+	  else if (p->sym->attr.flavor == FL_DERIVED)
 	    gfc_error ("In %s at %L procedures must be all FUNCTIONs as the "
 		       "generic name is also the name of a derived type",
 		       interface_name, &p->sym->declared_at);
@@ -1654,19 +1783,21 @@ check_interface1 (gfc_interface *p, gfc_interface *q0,
 	if (p->sym->name == q->sym->name && p->sym->module == q->sym->module)
 	  continue;
 
-	if (p->sym->attr.flavor != FL_DERIVED
-	    && q->sym->attr.flavor != FL_DERIVED
+	if (!gfc_fl_struct (p->sym->attr.flavor)
+	    && !gfc_fl_struct (q->sym->attr.flavor)
 	    && gfc_compare_interfaces (p->sym, q->sym, q->sym->name,
 				       generic_flag, 0, NULL, 0, NULL, NULL))
 	  {
 	    if (referenced)
-	      gfc_error ("Ambiguous interfaces %qs and %qs in %s at %L",
-			 p->sym->name, q->sym->name, interface_name,
-			 &p->where);
+	      gfc_error ("Ambiguous interfaces in %s for %qs at %L "
+			 "and %qs at %L", interface_name,
+			 q->sym->name, &q->sym->declared_at,
+			 p->sym->name, &p->sym->declared_at);
 	    else if (!p->sym->attr.use_assoc && q->sym->attr.use_assoc)
-	      gfc_warning (0, "Ambiguous interfaces %qs and %qs in %s at %L",
-			   p->sym->name, q->sym->name, interface_name,
-			   &p->where);
+	      gfc_warning (0, "Ambiguous interfaces in %s for %qs at %L "
+			 "and %qs at %L", interface_name,
+			 q->sym->name, &q->sym->declared_at,
+			 p->sym->name, &p->sym->declared_at);
 	    else
 	      gfc_warning (0, "Although not referenced, %qs has ambiguous "
 			   "interfaces at %L", interface_name, &p->where);
@@ -1699,6 +1830,7 @@ check_sym_interfaces (gfc_symbol *sym)
       for (p = sym->generic; p; p = p->next)
 	{
 	  if (p->sym->attr.mod_proc
+	      && !p->sym->attr.module_procedure
 	      && (p->sym->attr.if_source != IFSRC_DECL
 		  || p->sym->attr.procedure))
 	    {
@@ -1993,7 +2125,7 @@ compare_parameter (gfc_symbol *formal, gfc_expr *actual,
     }
 
   ppc = gfc_get_proc_ptr_comp (actual);
-  if (ppc)
+  if (ppc && ppc->ts.interface)
     {
       if (!gfc_compare_interfaces (formal, ppc->ts.interface, ppc->name, 0, 1,
 				   err, sizeof(err), NULL, NULL))
@@ -2007,7 +2139,7 @@ compare_parameter (gfc_symbol *formal, gfc_expr *actual,
 
   /* F2008, C1241.  */
   if (formal->attr.pointer && formal->attr.contiguous
-      && !gfc_is_simply_contiguous (actual, true))
+      && !gfc_is_simply_contiguous (actual, true, false))
     {
       if (where)
 	gfc_error ("Actual argument to contiguous pointer dummy %qs at %L "
@@ -2026,7 +2158,7 @@ compare_parameter (gfc_symbol *formal, gfc_expr *actual,
     {
       if (where)
 	gfc_error ("Type mismatch in argument %qs at %L; passed %s to %s",
-		   formal->name, &actual->where, gfc_typename (&actual->ts),
+		   formal->name, where, gfc_typename (&actual->ts),
 		   gfc_typename (&formal->ts));
       return 0;
     }
@@ -2118,15 +2250,17 @@ compare_parameter (gfc_symbol *formal, gfc_expr *actual,
 
   if (formal->attr.codimension)
     {
-      /* F2008, 12.5.2.8.  */
+      /* F2008, 12.5.2.8 + Corrig 2 (IR F08/0048).  */
+      /* F2015, 12.5.2.8.  */
       if (formal->attr.dimension
 	  && (formal->attr.contiguous || formal->as->type != AS_ASSUMED_SHAPE)
 	  && gfc_expr_attr (actual).dimension
-	  && !gfc_is_simply_contiguous (actual, true))
+	  && !gfc_is_simply_contiguous (actual, true, true))
 	{
 	  if (where)
 	    gfc_error ("Actual argument to %qs at %L must be simply "
-		       "contiguous", formal->name, &actual->where);
+		       "contiguous or an element of such an array",
+		       formal->name, &actual->where);
 	  return 0;
 	}
 
@@ -2144,6 +2278,21 @@ compare_parameter (gfc_symbol *formal, gfc_expr *actual,
 		       formal->name, &actual->where);
 	  return 0;
 	}
+
+      /* TS18508, C702/C703.  */
+      if (formal->attr.intent != INTENT_INOUT
+	  && (((formal->ts.type == BT_DERIVED || formal->ts.type == BT_CLASS)
+	       && formal->ts.u.derived->from_intmod == INTMOD_ISO_FORTRAN_ENV
+	       && formal->ts.u.derived->intmod_sym_id == ISOFORTRAN_EVENT_TYPE)
+	      || formal->attr.event_comp))
+
+    	{
+	  if (where)
+	    gfc_error ("Actual argument to non-INTENT(INOUT) dummy %qs at %L, "
+		       "which is EVENT_TYPE or has a EVENT_TYPE component",
+		       formal->name, &actual->where);
+	  return 0;
+	}
     }
 
   /* F2008, C1239/C1240.  */
@@ -2151,7 +2300,8 @@ compare_parameter (gfc_symbol *formal, gfc_expr *actual,
       && (actual->symtree->n.sym->attr.asynchronous
          || actual->symtree->n.sym->attr.volatile_)
       &&  (formal->attr.asynchronous || formal->attr.volatile_)
-      && actual->rank && formal->as && !gfc_is_simply_contiguous (actual, true)
+      && actual->rank && formal->as
+      && !gfc_is_simply_contiguous (actual, true, false)
       && ((formal->as->type != AS_ASSUMED_SHAPE
 	   && formal->as->type != AS_ASSUMED_RANK && !formal->attr.pointer)
 	  || formal->attr.contiguous))
@@ -2173,7 +2323,7 @@ compare_parameter (gfc_symbol *formal, gfc_expr *actual,
 	    gfc_error ("Passing coarray at %L to allocatable, noncoarray, "
 		       "INTENT(OUT) dummy argument %qs", &actual->where,
 		       formal->name);
-	    return 0;
+	  return 0;
 	}
       else if (warn_surprising && where && formal->attr.intent != INTENT_IN)
 	gfc_warning (OPT_Wsurprising,
@@ -2442,7 +2592,9 @@ get_expr_storage_size (gfc_expr *e)
 	  {
 	    if (ref->u.ar.as->lower[i] && ref->u.ar.as->upper[i]
 		&& ref->u.ar.as->lower[i]->expr_type == EXPR_CONSTANT
-		&& ref->u.ar.as->upper[i]->expr_type == EXPR_CONSTANT)
+		&& ref->u.ar.as->lower[i]->ts.type == BT_INTEGER
+		&& ref->u.ar.as->upper[i]->expr_type == EXPR_CONSTANT
+		&& ref->u.ar.as->upper[i]->ts.type == BT_INTEGER)
 	      elements *= mpz_get_si (ref->u.ar.as->upper[i]->value.integer)
 			  - mpz_get_si (ref->u.ar.as->lower[i]->value.integer)
 			  + 1L;
@@ -2555,7 +2707,7 @@ static int
 compare_actual_formal (gfc_actual_arglist **ap, gfc_formal_arglist *formal,
 	 	       int ranks_must_agree, int is_elemental, locus *where)
 {
-  gfc_actual_arglist **new_arg, *a, *actual, temp;
+  gfc_actual_arglist **new_arg, *a, *actual;
   gfc_formal_arglist *f;
   int i, n, na;
   unsigned long actual_size, formal_size;
@@ -3018,13 +3170,8 @@ compare_actual_formal (gfc_actual_arglist **ap, gfc_formal_arglist *formal,
 
   if (na != 0)
     {
-      temp = *new_arg[0];
-      *new_arg[0] = *actual;
-      *actual = temp;
-
-      a = new_arg[0];
-      new_arg[0] = new_arg[na];
-      new_arg[na] = a;
+      std::swap (*new_arg[0], *actual);
+      std::swap (new_arg[0], new_arg[na]);
     }
 
   for (i = 0; i < n - 1; i++)
@@ -3375,6 +3522,19 @@ gfc_procedure_use (gfc_symbol *sym, gfc_actual_arglist **ap, locus *where)
 	      break;
 	    }
 
+	  if (a->expr
+	      && (a->expr->ts.type == BT_DERIVED || a->expr->ts.type == BT_CLASS)
+	      && ((a->expr->ts.u.derived->from_intmod == INTMOD_ISO_FORTRAN_ENV
+		   && a->expr->ts.u.derived->intmod_sym_id
+		      == ISOFORTRAN_EVENT_TYPE)
+		  || gfc_expr_attr (a->expr).event_comp))
+	    {
+	      gfc_error ("Actual argument of EVENT_TYPE or with EVENT_TYPE "
+			 "component at %L requires an explicit interface for "
+			 "procedure %qs", &a->expr->where, sym->name);
+	      break;
+	    }
+
 	  if (a->expr && a->expr->expr_type == EXPR_NULL
 	      && a->expr->ts.type == BT_UNKNOWN)
 	    {
@@ -3465,7 +3625,8 @@ gfc_arglist_matches_symbol (gfc_actual_arglist** args, gfc_symbol* sym)
   gfc_formal_arglist *dummy_args;
   bool r;
 
-  gcc_assert (sym->attr.flavor == FL_PROCEDURE);
+  if (sym->attr.flavor != FL_PROCEDURE)
+    return false;
 
   dummy_args = gfc_sym_get_dummy_args (sym);
 
@@ -3508,7 +3669,7 @@ gfc_search_interface (gfc_interface *intr, int sub_flag,
 
   for (; intr; intr = intr->next)
     {
-      if (intr->sym->attr.flavor == FL_DERIVED)
+      if (gfc_fl_struct (intr->sym->attr.flavor))
 	continue;
       if (sub_flag && intr->sym->attr.function)
 	continue;
@@ -3621,7 +3782,7 @@ matching_typebound_op (gfc_expr** tb_base,
 
 	if (base->expr->ts.type == BT_CLASS)
 	  {
-	    if (CLASS_DATA (base->expr) == NULL
+	    if (!base->expr->ts.u.derived || CLASS_DATA (base->expr) == NULL
 		|| !gfc_expr_attr (base->expr).class_ok)
 	      continue;
 	    derived = CLASS_DATA (base->expr)->ts.u.derived;
@@ -4235,8 +4396,8 @@ gfc_check_typebound_override (gfc_symtree* proc, gfc_symtree* old)
 	  return false;
 	}
 
-      if (!check_result_characteristics (proc_target, old_target, err, 
-					 sizeof(err)))
+      if (!gfc_check_result_characteristics (proc_target, old_target,
+					     err, sizeof(err)))
 	{
 	  gfc_error ("Result mismatch for the overriding procedure "
 		     "%qs at %L: %s", proc->name, &where, err);
@@ -4287,7 +4448,7 @@ gfc_check_typebound_override (gfc_symtree* proc, gfc_symtree* old)
 	}
 
       check_type = proc_pass_arg != argpos && old_pass_arg != argpos;
-      if (!check_dummy_characteristics (proc_formal->sym, old_formal->sym, 
+      if (!gfc_check_dummy_characteristics (proc_formal->sym, old_formal->sym,
 					check_type, err, sizeof(err)))
 	{
 	  gfc_error ("Argument mismatch for the overriding procedure "

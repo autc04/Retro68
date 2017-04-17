@@ -1,5 +1,5 @@
 # Expect script for various ELF tests.
-#   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -70,15 +70,26 @@ if { ![istarget hppa64*-hpux*] } {
 	run_ld_link_tests {
 	    {"Build shared library for pr14170"
 		"-shared" "" "" "pr14170b.s" {} "pr14170.so" }
+	}
+	# bfin does not currently support copy relocs.
+	setup_xfail "bfin-*-*"
+	run_ld_link_tests {
 	    {"PR ld/14170"
-		"tmpdir/pr14170a.o tmpdir/pr14170.so" "" "" "pr14170c.s"
+		"--no-dynamic-linker tmpdir/pr14170a.o tmpdir/pr14170.so" "" "" "pr14170c.s"
 		{ } "pr14170" }
 	}
     }
 }
 
-# Only run these tests on targets thats support creating shared libraries.
+# Only run these tests on targets that support creating shared libraries.
 if { [check_shared_lib_support] } then {
+    # This target requires extra GAS options when building non-PIC code
+    # for linking with shared libraries.
+    set AFLAGS_NONPIC ""
+    if [istarget "mips*-*-*"] {
+	append AFLAGS_NONPIC " -call_nonpic"
+    }
+
     # Run a test to check linking a shared library with a broken linker
     # script that accidentally marks dynamic sections as notes.  The
     # resulting executable is not expected to work, but the linker
@@ -103,10 +114,52 @@ if { [check_shared_lib_support] } then {
 	{"Build pr17068b.a"
 	    "" "" ""
 	    {pr17068b.s pr17068e.s} {} "pr17068b.a"}
+    }
+    # bfin does not currently support copy relocs.
+    setup_xfail "bfin-*-*"
+    run_ld_link_tests {
 	{"pr17068 link --as-needed lib in group"
-	    "--as-needed" "--start-group tmpdir/pr17068a.a tmpdir/pr17068.so tmpdir/pr17068b.a --end-group" ""
+	    "--as-needed --no-dynamic-linker" "--start-group tmpdir/pr17068a.a tmpdir/pr17068.so tmpdir/pr17068b.a --end-group" ""
 	    {start.s pr17068.s} {} "pr17068"}
     }
+    # xfail on tic6x due to non-PIC/non-PID warnings
+    setup_xfail "tic6x-*-*"
+    # Fails on MIPS because ABI trickery means that a NULL reloc is also emitted.
+    setup_xfail "mips*-*-*"
+    # Fails on bfin because relocations are not created.
+    setup_xfail "bfin-*-*"
+    run_ld_link_tests {
+	{"-Bsymbolic-functions"
+	    "-shared -Bsymbolic-functions" "" ""
+	    {symbolic-func.s} {{readelf {-r --wide} symbolic-func.r}}
+	    "symbolic-func.so"}
+    }
+    # xfail on tic6x due to non-PIC/non-PID warnings
+    setup_xfail "tic6x-*-*"
+    run_ld_link_tests {
+	{"Build pr20995.so"
+	    "-shared" "" ""
+	    {pr20995b.s} {} "pr20995.so"}
+    }
+    setup_xfail "tic6x-*-*"
+    run_ld_link_tests {
+	{"Build pr20995-2.so"
+	    "-shared -z relro" "" ""
+	    {pr20995c.s} {{readelf {-l --wide} pr20995-2so.r}} "pr20995-2.so"}
+    }
+    # These targets don't copy dynamic variables into .bss.
+    setup_xfail "alpha-*-*" "bfin-*-*" "ia64-*-*" "xtensa-*-*"
+    run_ld_link_tests [list \
+	[list \
+	    "pr20995" \
+	    "" "tmpdir/pr20995.so" "$AFLAGS_NONPIC" \
+	    {pr20995a.s} {{readelf {-S --wide} pr20995.r}} "pr20995"]]
+    setup_xfail "alpha-*-*" "bfin-*-*" "ia64-*-*" "xtensa-*-*"
+    run_ld_link_tests [list \
+	[list \
+	    "pr20995-2" \
+	    "" "tmpdir/pr20995-2.so" "$AFLAGS_NONPIC" \
+	    {pr20995a.s} {{readelf {-S --wide} pr20995.r}} "pr20995-2"]]
 }
 
 set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
@@ -115,6 +168,29 @@ foreach t $test_list {
     verbose [file rootname $t]
     run_dump_test [file rootname $t]
 }
+
+# Targets using the generic linker backend don't support generating
+# an import library.
+set xfail_implib ""
+if [is_generic_elf] {
+    set xfail_implib "*-*-*"
+}
+
+# Check that the --out-implib option work correctly.
+run_ld_link_tests {
+    {"Generate empty import library"
+	"--out-implib=tmpdir/implib.lib" ""
+	"--defsym NO_GLOBAL=1"
+	{implib.s}
+	{{ld empty-implib.out}}
+	"implib"}
+    {"Generate import library"
+	"--out-implib=tmpdir/implib.lib" ""
+	""
+	{implib.s}
+	{{readelf {-s tmpdir/implib.lib} implib.rd}}
+	"implib"}
+} $xfail_implib
 
 if { [istarget *-*-linux*]
      || [istarget *-*-nacl*]
@@ -185,22 +261,22 @@ set array_tests_static {
 }
 
 # NetBSD ELF systems do not currently support the .*_array sections.
-set xfails [list "*-*-netbsdelf*"]
-run_ld_link_exec_tests $xfails $array_tests
+set xfails "*-*-netbsdelf*"
+run_ld_link_exec_tests $array_tests $xfails
 
 if { [istarget *-*-linux*]
      || [istarget *-*-nacl*]
      || [istarget *-*-gnu*] } {
-    run_ld_link_exec_tests $xfails $array_tests_pie
+    run_ld_link_exec_tests $array_tests_pie $xfails
 }
 
+# <http://www.gnu.org/software/hurd/open_issues/binutils.html#static>
 # Be cautious to not XFAIL for *-*-linux-gnu*, *-*-kfreebsd-gnu*, etc.
 switch -regexp $target_triplet {
     ^\[^-\]*-\[^-\]*-gnu.*$ {
-	# <http://www.gnu.org/software/hurd/open_issues/binutils.html#static>
-	lappend xfails "*-*-*"
+	set xfails "*-*-*"
     }
 }
-run_ld_link_exec_tests $xfails $array_tests_static
+run_ld_link_exec_tests $array_tests_static $xfails
 
 catch "exec rm -f tmpdir/preinit tmpdir/init tmpdir/fini tmpdir/init-mixed" status

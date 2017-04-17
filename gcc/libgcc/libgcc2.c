@@ -1,6 +1,6 @@
 /* More subroutines needed by GCC output code on some machines.  */
 /* Compile this one with gcc.  */
-/* Copyright (C) 1989-2015 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2016 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -160,7 +160,7 @@ __mulvSI3 (Wtype a, Wtype b)
 }
 #ifdef COMPAT_SIMODE_TRAPPING_ARITHMETIC
 #undef WORD_SIZE
-#define WORD_SIZE (sizeof (SItype) * BITS_PER_UNIT)
+#define WORD_SIZE (sizeof (SItype) * __CHAR_BIT__)
 SItype
 __mulvsi3 (SItype a, SItype b)
 {
@@ -820,16 +820,16 @@ const UQItype __popcount_tab[256] =
 #endif
 
 #if defined(L_popcountsi2) || defined(L_popcountdi2)
-#define POPCOUNTCST2(x) (((UWtype) x << BITS_PER_UNIT) | x)
-#define POPCOUNTCST4(x) (((UWtype) x << (2 * BITS_PER_UNIT)) | x)
-#define POPCOUNTCST8(x) (((UWtype) x << (4 * BITS_PER_UNIT)) | x)
-#if W_TYPE_SIZE == BITS_PER_UNIT
+#define POPCOUNTCST2(x) (((UWtype) x << __CHAR_BIT__) | x)
+#define POPCOUNTCST4(x) (((UWtype) x << (2 * __CHAR_BIT__)) | x)
+#define POPCOUNTCST8(x) (((UWtype) x << (4 * __CHAR_BIT__)) | x)
+#if W_TYPE_SIZE == __CHAR_BIT__
 #define POPCOUNTCST(x) x
-#elif W_TYPE_SIZE == 2 * BITS_PER_UNIT
+#elif W_TYPE_SIZE == 2 * __CHAR_BIT__
 #define POPCOUNTCST(x) POPCOUNTCST2 (x)
-#elif W_TYPE_SIZE == 4 * BITS_PER_UNIT
+#elif W_TYPE_SIZE == 4 * __CHAR_BIT__
 #define POPCOUNTCST(x) POPCOUNTCST4 (POPCOUNTCST2 (x))
-#elif W_TYPE_SIZE == 8 * BITS_PER_UNIT
+#elif W_TYPE_SIZE == 8 * __CHAR_BIT__
 #define POPCOUNTCST(x) POPCOUNTCST8 (POPCOUNTCST4 (POPCOUNTCST2 (x)))
 #endif
 #endif
@@ -842,11 +842,11 @@ __popcountSI2 (UWtype x)
   /* Force table lookup on targets like AVR and RL78 which only
      pretend they have LIBGCC2_UNITS_PER_WORD 4, but actually
      have 1, and other small word targets.  */
-#if __SIZEOF_INT__ > 2 && defined (POPCOUNTCST) && BITS_PER_UNIT == 8
+#if __SIZEOF_INT__ > 2 && defined (POPCOUNTCST) && __CHAR_BIT__ == 8
   x = x - ((x >> 1) & POPCOUNTCST (0x55));
   x = (x & POPCOUNTCST (0x33)) + ((x >> 2) & POPCOUNTCST (0x33));
   x = (x + (x >> 4)) & POPCOUNTCST (0x0F);
-  return (x * POPCOUNTCST (0x01)) >> (W_TYPE_SIZE - BITS_PER_UNIT);
+  return (x * POPCOUNTCST (0x01)) >> (W_TYPE_SIZE - __CHAR_BIT__);
 #else
   int i, ret = 0;
 
@@ -866,7 +866,7 @@ __popcountDI2 (UDWtype x)
   /* Force table lookup on targets like AVR and RL78 which only
      pretend they have LIBGCC2_UNITS_PER_WORD 4, but actually
      have 1, and other small word targets.  */
-#if __SIZEOF_INT__ > 2 && defined (POPCOUNTCST) && BITS_PER_UNIT == 8
+#if __SIZEOF_INT__ > 2 && defined (POPCOUNTCST) && __CHAR_BIT__ == 8
   const DWunion uu = {.ll = x};
   UWtype x1 = uu.s.low, x2 = uu.s.high;
   x1 = x1 - ((x1 >> 1) & POPCOUNTCST (0x55));
@@ -876,7 +876,7 @@ __popcountDI2 (UDWtype x)
   x1 = (x1 + (x1 >> 4)) & POPCOUNTCST (0x0F);
   x2 = (x2 + (x2 >> 4)) & POPCOUNTCST (0x0F);
   x1 += x2;
-  return (x1 * POPCOUNTCST (0x01)) >> (W_TYPE_SIZE - BITS_PER_UNIT);
+  return (x1 * POPCOUNTCST (0x01)) >> (W_TYPE_SIZE - __CHAR_BIT__);
 #else
   int i, ret = 0;
 
@@ -1866,25 +1866,25 @@ NAME (TYPE x, int m)
 # define CTYPE	SCtype
 # define MODE	sc
 # define CEXT	__LIBGCC_SF_FUNC_EXT__
-# define NOTRUNC __LIBGCC_SF_EXCESS_PRECISION__
+# define NOTRUNC (!__LIBGCC_SF_EXCESS_PRECISION__)
 #elif defined(L_muldc3) || defined(L_divdc3)
 # define MTYPE	DFtype
 # define CTYPE	DCtype
 # define MODE	dc
 # define CEXT	__LIBGCC_DF_FUNC_EXT__
-# define NOTRUNC __LIBGCC_DF_EXCESS_PRECISION__
+# define NOTRUNC (!__LIBGCC_DF_EXCESS_PRECISION__)
 #elif defined(L_mulxc3) || defined(L_divxc3)
 # define MTYPE	XFtype
 # define CTYPE	XCtype
 # define MODE	xc
 # define CEXT	__LIBGCC_XF_FUNC_EXT__
-# define NOTRUNC __LIBGCC_XF_EXCESS_PRECISION__
+# define NOTRUNC (!__LIBGCC_XF_EXCESS_PRECISION__)
 #elif defined(L_multc3) || defined(L_divtc3)
 # define MTYPE	TFtype
 # define CTYPE	TCtype
 # define MODE	tc
 # define CEXT	__LIBGCC_TF_FUNC_EXT__
-# define NOTRUNC __LIBGCC_TF_EXCESS_PRECISION__
+# define NOTRUNC (!__LIBGCC_TF_EXCESS_PRECISION__)
 #else
 # error
 #endif
@@ -2209,7 +2209,12 @@ TRANSFER_FROM_TRAMPOLINE
 #if !defined (HAS_INIT_SECTION) || !defined (OBJECT_FORMAT_ELF)
 
 /* Some ELF crosses use crtstuff.c to provide __CTOR_LIST__, but use this
-   code to run constructors.  In that case, we need to handle EH here, too.  */
+   code to run constructors.  In that case, we need to handle EH here, too.
+   But MINGW32 is special because it handles CRTSTUFF and EH on its own.  */
+
+#ifdef __MINGW32__
+#undef __LIBGCC_EH_FRAME_SECTION_NAME__
+#endif
 
 #ifdef __LIBGCC_EH_FRAME_SECTION_NAME__
 #include "unwind-dw2-fde.h"

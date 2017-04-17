@@ -892,10 +892,74 @@ fix = {
 };
 
 /*
+ * stdio.h on AIX defines ferror, clearerr and feof as C++ inline, which
+   produces wrong code with G++.
+ */
+fix = {
+    hackname  = aix_stdio_inline;
+    mach      = "*-*-aix*";
+    files     = stdio.h;
+    select    = "#ifdef __cplusplus\\\n"
+                "}\\\n\\\n"
+                "#ifdef ferror\\\n";
+    c_fix     = format;
+    c_fix_arg = "#ifdef __cplusplus\n"
+                "}\n"
+                "#endif\n\n"
+                "#if (defined(__cplusplus) && defined(__IBMCPP__))\n"
+                "#ifdef ferror\n";
+    test_text = "#ifdef __cplusplus\n}\n\n#ifdef ferror";
+};
+
+/*
+ * stdlib.h on AIX uses #define on malloc and friends.
+ */
+fix = {
+    hackname  = aix_stdlib_malloc;
+    mach      = "*-*-aix*";
+    files     = stdlib.h;
+    select    = "#define[ \t]+malloc[ \t]+__linux_malloc";
+    c_fix     = format;
+    c_fix_arg = "extern void *malloc(size_t) __asm__(\"__linux_malloc\");";
+    test_text = "#define malloc __linux_malloc";
+};
+
+fix = {
+    hackname  = aix_stdlib_realloc;
+    mach      = "*-*-aix*";
+    files     = stdlib.h;
+    select    = "#define[ \t]+realloc[ \t]+__linux_realloc";
+    c_fix     = format;
+    c_fix_arg = "extern void *realloc(void *, size_t) __asm__(\"__linux_realloc\");";
+    test_text = "#define realloc __linux_realloc";
+};
+
+fix = {
+    hackname  = aix_stdlib_calloc;
+    mach      = "*-*-aix*";
+    files     = stdlib.h;
+    select    = "#define[ \t]+calloc[ \t]+__linux_calloc";
+    c_fix     = format;
+    c_fix_arg = "extern void *calloc(size_t, size_t) __asm__(\"__linux_calloc\");";
+    test_text = "#define calloc __linux_calloc";
+};
+
+fix = {
+    hackname  = aix_stdlib_valloc;
+    mach      = "*-*-aix*";
+    files     = stdlib.h;
+    select    = "#define[ \t]+valloc[ \t]+__linux_valloc";
+    c_fix     = format;
+    c_fix_arg = "extern void *valloc(size_t) __asm__(\"__linux_valloc\");";
+    test_text = "#define valloc __linux_valloc";
+};
+
+/*
  * stdlib.h on AIX 4.3 declares strtof() with a non-const first argument.
  */
 fix = {
     hackname  = aix_strtof_const;
+    mach      = "*-*-aix*";
     files     = stdlib.h;
     select    = "((extern[ \t]+)?float[ \t]+strtof)\\(char \\*, char \\*\\*\\);";
     c_fix     = format;
@@ -909,6 +973,7 @@ fix = {
  */
 fix = {
     hackname  = aix_sysmachine;
+    mach      = "*-*-aix*";
     files     = sys/machine.h;
     select    = "\\\\ +\n";
     c_fix     = format;
@@ -923,6 +988,7 @@ fix = {
  */
 fix = {
     hackname  = aix_syswait_2;
+    mach      = "*-*-aix*";
     files     = sys/wait.h;
     select    = '\? (\(\(\(\(unsigned[^)]*\)[^)]*\) >> [^)]*\) \& 0xff\) : -1)';
     c_fix     = format;
@@ -939,6 +1005,7 @@ fix = {
  */
 fix = {
     hackname  = aix_volatile;
+    mach      = "*-*-aix*";
     files     = sys/signal.h;
     select    = "typedef volatile int sig_atomic_t";
     c_fix     = format;
@@ -2170,9 +2237,9 @@ fix = {
  */
 fix = {
     hackname  = hpux11_fabsf;
+    mach      = "*-hp-hpux11*";
     files     = math.h;
     select    = "^[ \t]*#[ \t]*define[ \t]+fabsf\\(.*";
-    bypass    = "__cplusplus";
 
     c_fix     = format;
     c_fix_arg = "#ifndef __cplusplus\n%0\n#endif";
@@ -2245,6 +2312,20 @@ fix = {
 
     test_text = 'extern int vsnprintf(char *, _hpux_size_t, const char *,'
                                      ' __va__list);';
+};
+
+/*
+ *  Fix missing const in hpux vsscanf declaration
+ */
+fix = {
+    hackname = hpux_vsscanf;
+    mach    = "*-*-hpux*";
+    files   = stdio.h;
+    select  = '(extern int vsscanf\()char';
+    c_fix   = format;
+    c_fix_arg = "%1const char";
+
+    test_text = 'extern int vsscanf(char *, const char *, __va_list);';
 };
 
 /*
@@ -3671,6 +3752,23 @@ _EOArg_;
 			sizeof (__x_s) == sizeof (double) ? \\
 			(int) (((unsigned *) &__x_s)[1] >> 31) : \\
 			(int) (((unsigned short *) &__x_s)[4] >> 15)); })
+#endif
+_EOText_;
+};
+
+/*
+ * Some versions of Solaris 10+ <math.h> #undef libstdc++-internal macros.
+ */
+fix = {
+    hackname  = solaris_math_12;
+    files     = math.h;
+    mach      = '*-*-solaris2*';
+    select    = '#undef.*_GLIBCXX_USE_C99_MATH';
+    sed       = "/#undef[ \t]*_GLIBCXX_USE_C99_MATH/d";
+    test_text = << _EOText_
+#if __cplusplus >= 201103L
+#undef  _GLIBCXX_USE_C99_MATH
+#undef  _GLIBCXX_USE_C99_MATH_TR1
 #endif
 _EOText_;
 };

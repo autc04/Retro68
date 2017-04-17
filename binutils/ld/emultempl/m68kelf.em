@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2000-2017 Free Software Foundation, Inc.
 #   Written by Michael Sokolov <msokolov@ivan.Harhan.ORG>, based on armelf.em
 #
 # This file is part of the GNU Binutils.
@@ -67,7 +67,7 @@ m68k_elf_after_open (void)
 
 #ifdef SUPPORT_EMBEDDED_RELOCS
   if (command_line.embedded_relocs
-      && (! link_info.relocatable))
+      && (!bfd_link_relocatable (&link_info)))
     {
       bfd *abfd;
 
@@ -147,7 +147,7 @@ m68k_elf_after_allocation (void)
 
 #ifdef SUPPORT_EMBEDDED_RELOCS
   if (command_line.embedded_relocs
-      && (! link_info.relocatable))
+      && (!bfd_link_relocatable (&link_info)))
     {
       bfd *abfd;
 

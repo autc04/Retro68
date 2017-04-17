@@ -1,5 +1,5 @@
 /* tc-i386.c -- Assemble Intel syntax code for ix86/x86-64
-   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+   Copyright (C) 2009-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -168,13 +168,18 @@ operatorT i386_operator (const char *name, unsigned int operands, char *pc)
   for (j = 0; i386_types[j].name; ++j)
     if (strcasecmp (i386_types[j].name, name) == 0)
       break;
+
   if (i386_types[j].name && *pc == ' ')
     {
-      char *pname = ++input_line_pointer;
-      char c = get_symbol_end ();
+      char *pname;
+      char c;
+
+      ++input_line_pointer;
+      c = get_symbol_name (&pname);
 
       if (strcasecmp (pname, "ptr") == 0)
 	{
+	  /* FIXME: What if c == '"' ?  */
 	  pname[-1] = *pc;
 	  *pc = c;
 	  if (intel_syntax > 0 || operands != 1)
@@ -182,7 +187,7 @@ operatorT i386_operator (const char *name, unsigned int operands, char *pc)
 	  return i386_types[j].op;
 	}
 
-      *input_line_pointer = c;
+      (void) restore_line_pointer (c);
       input_line_pointer = pname - 1;
     }
 
@@ -816,6 +821,8 @@ i386_intel_operand (char *operand_string, int got_a_float)
 	   || intel_state.is_mem)
     {
       /* Memory operand.  */
+      if (i.mem_operands == 1 && !maybe_adjust_templates ())
+	return 0;
       if ((int) i.mem_operands
 	  >= 2 - !current_templates->start->opcode_modifier.isstring)
 	{
@@ -978,6 +985,8 @@ i386_intel_operand (char *operand_string, int got_a_float)
 	return 0;
 
       i.types[this_operand].bitfield.mem = 1;
+      if (i.mem_operands == 0)
+	i.memop1_string = xstrdup (operand_string);
       ++i.mem_operands;
     }
   else

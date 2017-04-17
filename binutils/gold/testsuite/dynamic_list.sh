@@ -2,7 +2,7 @@
 
 # dynamic_list.sh -- test --dynamic-list and --dynamic-list-*
 
-# Copyright (C) 2008-2014 Free Software Foundation, Inc.
+# Copyright (C) 2008-2017 Free Software Foundation, Inc.
 # Written by Ian Lance Taylor <iant@google.com>.
 
 # This file is part of gold.
@@ -38,9 +38,7 @@ check()
 }
 
 check dynamic_list.stdout "main"            # comes via --dynamic-list
-check dynamic_list.stdout "_ZdlPv"          # "operator delete(void*)"
 check dynamic_list.stdout "_Z4t1_6v"        # t1_6()
-check dynamic_list.stdout "_ZN4t16aC2Ev"    # t16a:t16a()
 check dynamic_list.stdout "_ZN4t16aD1Ev"    # t16a:~t16a()
 check dynamic_list.stdout "_ZN4t16a1tEv"    # t16a:t()
 check dynamic_list.stdout "_ZTI4t16a"       # typeinfo for t16a

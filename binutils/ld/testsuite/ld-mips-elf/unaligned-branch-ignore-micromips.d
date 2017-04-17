@@ -1,0 +1,84 @@
+#name: microMIPS link branch to unaligned symbol (ignore branch ISA)
+#as: -EB -n32 -march=from-abi
+#ld: -EB -Ttext 0x1c000000 -e 0x1c000000 --ignore-branch-isa
+#source: ../../../gas/testsuite/gas/mips/unaligned-branch-micromips-2.s
+#error: \A[^\n]*: In function `foo':\n
+#error:   \(\.text\+0x100a\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1012\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x101a\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x102a\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1032\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x103a\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1062\): Branch to a non-instruction-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1072\): Branch to a non-instruction-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1088\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x108e\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1094\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x10a0\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x10a6\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x10ac\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x10ca\): Branch to a non-instruction-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x10d6\): Branch to a non-instruction-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x10e8\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x10ee\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x10f4\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1100\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1106\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x110c\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x112a\): Branch to a non-instruction-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1136\): Branch to a non-instruction-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1146\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x114a\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x114e\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1156\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x115a\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x115e\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1172\): Branch to a non-instruction-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x117a\): Branch to a non-instruction-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1186\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x118a\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x118e\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x1196\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x119a\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x119e\): Cannot convert a branch to JALX for a non-word-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x11b2\): Branch to a non-instruction-aligned address\n
+#error:   [^\n]*: In function `foo':\n
+#error:   \(\.text\+0x11ba\): Branch to a non-instruction-aligned address\Z

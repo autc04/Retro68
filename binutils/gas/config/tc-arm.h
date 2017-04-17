@@ -1,5 +1,5 @@
 /* This file is tc-arm.h
-   Copyright (C) 1994-2014 Free Software Foundation, Inc.
+   Copyright (C) 1994-2017 Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
 	Modified by David Taylor (dtaylor@armltd.co.uk)
 
@@ -104,8 +104,9 @@ extern int arm_optimize_expr (expressionS *, operatorT, expressionS *);
 
 #define md_start_line_hook() arm_start_line_hook ()
 
-#define TC_START_LABEL_WITHOUT_COLON(c, l)  tc_start_label_without_colon (c, l)
-extern bfd_boolean tc_start_label_without_colon (char, const char *);
+#define TC_START_LABEL_WITHOUT_COLON(NUL_CHAR, NEXT_CHAR) \
+  tc_start_label_without_colon ()
+extern bfd_boolean tc_start_label_without_colon (void);
 
 #define tc_frob_label(S) arm_frob_label (S)
 
@@ -116,6 +117,9 @@ extern bfd_boolean tc_start_label_without_colon (char, const char *);
 #define md_end arm_md_end
 extern void arm_md_end (void);
 bfd_boolean arm_is_eabi (void);
+
+#define md_post_relax_hook		aeabi_set_public_attributes ()
+extern void aeabi_set_public_attributes (void);
 #endif
 
 /* NOTE: The fake label creation in stabs.c:s_stab_generic() has
@@ -176,7 +180,8 @@ void arm_copy_symbol_attributes (symbolS *, symbolS *);
   (arm_copy_symbol_attributes (DEST, SRC))
 #endif
 
-#define TC_START_LABEL(C,S,STR)            (C == ':' || (C == '/' && arm_data_in_code ()))
+#define TC_START_LABEL(STR, NUL_CHAR, NEXT_CHAR)			\
+  (NEXT_CHAR == ':' || (NEXT_CHAR == '/' && arm_data_in_code ()))
 #define tc_canonicalize_symbol_name(str) arm_canonicalize_symbol_name (str);
 #define obj_adjust_symtab() 		 arm_adjust_symtab ()
 
@@ -233,10 +238,23 @@ struct arm_frag_type
 #endif
 };
 
+static inline int
+arm_min (int am_p1, int am_p2)
+{
+  return am_p1 < am_p2 ? am_p1 : am_p2;
+}
+
 #define TC_FRAG_TYPE		struct arm_frag_type
 /* NOTE: max_chars is a local variable from frag_var / frag_variant.  */
 #define TC_FRAG_INIT(fragp)	arm_init_frag (fragp, max_chars)
+#define TC_ALIGN_ZERO_IS_DEFAULT 1
 #define HANDLE_ALIGN(fragp)	arm_handle_align (fragp)
+/* PR gas/19276: COFF/PE segment alignment is already handled in coff_frob_section().  */
+#ifndef TE_PE
+#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN)				\
+  ((!(FRCHAIN)->frch_next && subseg_text_p (SEG))		\
+   ? arm_min (2, get_recorded_alignment (SEG)) : 0)
+#endif
 
 #define md_do_align(N, FILL, LEN, MAX, LABEL)					\
   if (FILL == NULL && (N) != 0 && ! need_pass_2 && subseg_text_p (now_seg))	\
@@ -324,7 +342,7 @@ struct arm_segment_info_type
 
 #ifdef OBJ_ELF
 /* Values passed to md_apply_fix don't include the symbol value.  */
-# define MD_APPLY_SYM_VALUE(FIX) 		arm_apply_sym_value (FIX)
+# define MD_APPLY_SYM_VALUE(FIX) 		arm_apply_sym_value (FIX, this_segment)
 #endif
 
 #ifdef OBJ_COFF
@@ -369,7 +387,7 @@ void tc_pe_dwarf2_emit_offset (symbolS *, unsigned int);
 #ifdef OBJ_ELF
 #define CONVERT_SYMBOLIC_ATTRIBUTE(name) arm_convert_symbolic_attribute (name)
 extern int arm_convert_symbolic_attribute (const char *);
-extern int arm_apply_sym_value (struct fix *);
+extern int arm_apply_sym_value (struct fix *, segT);
 #endif
 
 #define tc_comment_chars arm_comment_chars
@@ -377,3 +395,6 @@ extern char arm_comment_chars[];
 
 #define tc_line_separator_chars arm_line_separator_chars
 extern char arm_line_separator_chars[];
+
+#define TC_EQUAL_IN_INSN(c, s) arm_tc_equal_in_insn ((c), (s))
+extern bfd_boolean arm_tc_equal_in_insn (int, char *);

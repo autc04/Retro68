@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1425,8 +1425,8 @@ package body CStand is
             Dhi := Intval (Type_High_Bound (Standard_Integer_32));
             Delta_Val := UR_From_Components (UI_From_Int (20), Uint_3, 10);
 
-         --  In standard 64-bit mode, the size is 64-bits and the delta and
-         --  small values are set to nanoseconds (1.0*(10.0**(-9))
+         --  In 64-bit mode, the size is 64-bits and the delta and
+         --  small values are set to nanoseconds (1.0*(10.0**(-9)).
 
          else
             Dlo := Intval (Type_Low_Bound (Standard_Integer_64));
@@ -2033,13 +2033,13 @@ package body CStand is
 
       if Duration_32_Bits_On_Target then
          P ("   type Duration is delta 0.020");
-         P ("     range -((2 ** 31 - 1) * 0.020) ..");
+         P ("     range -((2 ** 31)     * 0.020) ..");
          P ("           +((2 ** 31 - 1) * 0.020);");
          P ("   for Duration'Small use 0.020;");
 
       else
          P ("   type Duration is delta 0.000000001");
-         P ("     range -((2 ** 63 - 1) * 0.000000001) ..");
+         P ("     range -((2 ** 63)     * 0.000000001) ..");
          P ("           +((2 ** 63 - 1) * 0.000000001);");
          P ("   for Duration'Small use 0.000000001;");
       end if;

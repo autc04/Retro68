@@ -8,3 +8,6 @@
 	rdhpr %hstick_offset,%g6
 	rdhpr %hstick_enable,%g5
 	rdhpr %hstick_cmpr,%g4
+	rdhpr %hmcdper,%g6
+	rdhpr %hmcddfr,%g5
+	rdhpr %hva_mask_nz,%g4

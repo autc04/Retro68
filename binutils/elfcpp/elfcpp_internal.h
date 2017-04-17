@@ -1,6 +1,6 @@
 // elfcpp_internal.h -- internals for elfcpp   -*- C++ -*-
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of elfcpp.
@@ -77,6 +77,28 @@ struct Shdr_data
   Elf_Word sh_info;
   typename Elf_types<size>::Elf_WXword sh_addralign;
   typename Elf_types<size>::Elf_WXword sh_entsize;
+};
+
+// An ELF compression header.
+
+template<int size>
+struct Chdr_data;
+
+template<>
+struct Chdr_data<32>
+{
+  Elf_Word ch_type;
+  Elf_Word ch_size;
+  Elf_Word ch_addralign;
+};
+
+template<>
+struct Chdr_data<64>
+{
+  Elf_Word ch_type;
+  Elf_Word ch_reserved;
+  Elf_Xword ch_size;
+  Elf_Xword ch_addralign;
 };
 
 // An ELF segment header.  We use template specialization for the
@@ -156,6 +178,29 @@ struct Rela_data
   typename Elf_types<size>::Elf_Addr r_offset;
   typename Elf_types<size>::Elf_WXword r_info;
   typename Elf_types<size>::Elf_Swxword r_addend;
+};
+
+// MIPS-64 has a non-standard layout for relocations.
+
+struct Mips64_rel_data
+{
+  Elf_types<64>::Elf_Addr r_offset;
+  Elf_Word r_sym;
+  unsigned char r_ssym;
+  unsigned char r_type3;
+  unsigned char r_type2;
+  unsigned char r_type;
+};
+
+struct Mips64_rela_data
+{
+  Elf_types<64>::Elf_Addr r_offset;
+  Elf_Word r_sym;
+  unsigned char r_ssym;
+  unsigned char r_type3;
+  unsigned char r_type2;
+  unsigned char r_type;
+  Elf_types<64>::Elf_Swxword r_addend;
 };
 
 // An entry in the ELF SHT_DYNAMIC section aka PT_DYNAMIC segment.

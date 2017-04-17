@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2014 Free Software Foundation, Inc.
+# Copyright (C) 2012-2017 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ proc do_930509a_tic4x {} {
     set x 0
     gas_start "../all/x930509.s" "-al"
     while 1 {
-# We need to accomodate both byte orders here.
+# We need to accommodate both byte orders here.
 # If ".long" means an 8-byte value on some target someday, this test will have
 # to be fixed.
 	expect {
@@ -53,7 +53,7 @@ if [istarget *c4x*-*-*] then {
     run_dump_test "registers_c3x"
     run_dump_test "registers_c4x"
 
-    # Make sure the c4x registers dont work on c3x
+    # Make sure the c4x registers don't work on c3x
     gas_test_error "registers.s" "-m30 --defsym TEST_C4X=1" "c4x register usage in c3x"
 
     # Test data storage
@@ -66,7 +66,7 @@ if [istarget *c4x*-*-*] then {
     run_dump_test "addressing_c3x"
     run_dump_test "addressing_c4x"
 
-    # Make sure the c4x addressing dont work on c3x
+    # Make sure the c4x addressing don't work on c3x
     gas_test_error "addressing.s" "-m30 --defsym TEST_C4X=1" "c4x addressing usage in c3x"
 
     # Test float instructions
@@ -74,7 +74,7 @@ if [istarget *c4x*-*-*] then {
     run_dump_test "opcodes_c4x"
     run_dump_test "opcodes_new"
 
-    # Make sure the c4x ops dont work on c3x
+    # Make sure the c4x ops don't work on c3x
     #gas_test_error "opcodes.s" "-m30 --defsym TEST_C4X=1" "c4x instruction usage in c3x"
     #  -- for some reason this test crashes dejagnu, hence disabled!
 }

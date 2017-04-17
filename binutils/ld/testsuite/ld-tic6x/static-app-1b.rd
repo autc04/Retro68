@@ -4,7 +4,7 @@ Section Headers:
   \[Nr\] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
   \[ 0\]                   NULL            00000000 000000 000000 00      0   0  0
   \[ 1\] \.hash             HASH            00008000 001000 00003c 04   A  2   0  4
-  \[ 2\] \.dynsym           DYNSYM          0000803c 00103c 0000a0 10   A  3   5  4
+  \[ 2\] \.dynsym           DYNSYM          0000803c 00103c 0000a0 10   A  3   7  4
   \[ 3\] \.dynstr           STRTAB          000080dc 0010dc 00001d 00   A  0   0  1
   \[ 4\] \.rela\.got         RELA            000080fc 0010fc 000024 0c  AI  2   8  4
   \[ 5\] \.rela\.neardata    RELA            00008120 001120 000030 0c  AI  2   9  4
@@ -14,13 +14,11 @@ Section Headers:
   \[ 9\] \.neardata         PROGBITS        100000e0 0020e0 000014 00  WA  0   0  4
   \[10\] \.bss              NOBITS          100000f4 0020f4 000004 00  WA  0   0  4
   \[11\] \.c6xabi\.attributes C6000_ATTRIBUTES 00000000 0020f4 000019 00      0   0  1
-  \[12\] \.shstrtab         STRTAB          00000000 00210d 000071 00      0   0  1
-  \[13\] \.symtab           SYMTAB          00000000 [0-9a-f]+ [0-9a-f]+ 10     14  [0-9]+  4
-  \[14\] \.strtab           STRTAB          00000000 [0-9a-f]+ [0-9a-f]+ 00      0   0  1
+  \[12\] \.symtab           SYMTAB          00000000 [0-9a-f]+ [0-9a-f]+ 10     13  [0-9]+  4
+  \[13\] \.strtab           STRTAB          00000000 [0-9a-f]+ [0-9a-f]+ 00      0   0  1
+  \[14\] \.shstrtab         STRTAB          00000000 [0-9a-f]+ 000071 00      0   0  1
 Key to Flags:
-  W \(write\), A \(alloc\), X \(execute\), M \(merge\), S \(strings\)
-  I \(info\), L \(link order\), G \(group\), T \(TLS\), E \(exclude\), x \(unknown\)
-  O \(extra OS processing required\) o \(OS specific\), p \(processor specific\)
+#...
 
 Elf file type is EXEC \(Executable file\)
 Entry point 0x10000000

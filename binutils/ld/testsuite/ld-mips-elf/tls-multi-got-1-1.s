@@ -31,6 +31,9 @@ tlsvar_gd:
         .size   tlsvar_ie,4
 tlsvar_ie:
         .space  4
+
+        .section                .tdata,"awT"
+        .align  2
         .global tlsvar_ld
         .hidden tlsvar_ld
         .type   tlsvar_ld,@object

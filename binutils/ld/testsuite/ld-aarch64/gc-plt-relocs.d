@@ -20,7 +20,7 @@ DYNAMIC SYMBOL TABLE:
 Disassembly of section .text:
 
 0+8000 \<_start\>:
-    8000:	9400000c 	bl	8030 \<foo\+0x24\>
+    8000:	9400000c 	bl	8030 \<.*>
 
 0+8004 \<hidfn\>:
     8004:	8a000000 	and	x0, x0, x0
@@ -34,15 +34,15 @@ Disassembly of section .text:
 Disassembly of section .plt:
 
 0+8010 \<\.plt\>:
-    8010:	a9bf7bf0 	stp	x16, x30, \[sp,#-16\]!
+    8010:	a9bf7bf0 	stp	x16, x30, \[sp, #-16\]!
     8014:	b0000010 	adrp	x16, 9000 .*
-    8018:	f9400e11 	ldr	x17, \[x16,#24\]
+    8018:	f9400e11 	ldr	x17, \[x16, #24\]
     801c:	91006210 	add	x16, x16, #0x18
     8020:	d61f0220 	br	x17
     8024:	d503201f 	nop
     8028:	d503201f 	nop
     802c:	d503201f 	nop
     8030:	b0000010 	adrp	x16, 9000 .*
-    8034:	f9401211 	ldr	x17, \[x16,#32\]
+    8034:	f9401211 	ldr	x17, \[x16, #32\]
     8038:	91008210 	add	x16, x16, #0x20
     803c:	d61f0220 	br	x17

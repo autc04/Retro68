@@ -1,4 +1,4 @@
-// Copyright (C) 2015 Free Software Foundation, Inc.
+// Copyright (C) 2015-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -54,6 +54,11 @@ test01()
   VERIFY( cit == cx.end() );
 
   VERIFY( Cmp::count == 0);
+
+  static_assert(std::is_same<decltype(it), test_type::iterator>::value,
+      "find returns iterator");
+  static_assert(std::is_same<decltype(cit), test_type::const_iterator>::value,
+      "const find returns const_iterator");
 }
 
 void

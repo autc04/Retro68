@@ -1,5 +1,5 @@
 /* Configuration common to all targets running RTEMS. 
-   Copyright (C) 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 2000-2016 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -45,6 +45,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define LIB_SPEC "%{!qrtems: " STD_LIB_SPEC "} " \
 "%{!nostdlib: %{qrtems: --start-group \
  -lrtemsbsp -lrtemscpu \
- -lc -lgcc --end-group %{!qnolinkcmds: -T linkcmds%s}}}"
+ -latomic -lc -lgcc --end-group %{!qnolinkcmds: -T linkcmds%s}}}"
 
 #define TARGET_POSIX_IO

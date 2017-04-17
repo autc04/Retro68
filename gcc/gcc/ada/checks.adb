@@ -169,7 +169,7 @@ package body Checks is
    end record;
 
    --  The following table keeps track of saved checks. Rather than use an
-   --  extensible table. We just use a table of fixed size, and we discard
+   --  extensible table, we just use a table of fixed size, and we discard
    --  any saved checks that do not fit. That's very unlikely to happen and
    --  this is only an optimization in any case.
 
@@ -749,14 +749,15 @@ package body Checks is
             end if;
          end;
 
-      --  If the expression has the form X'Address, then we can find out if
-      --  the object X has an alignment that is compatible with the object E.
-      --  If it hasn't or we don't know, we defer issuing the warning until
-      --  the end of the compilation to take into account back end annotations.
+      --  If the expression has the form X'Address, then we can find out if the
+      --  object X has an alignment that is compatible with the object E. If it
+      --  hasn't or we don't know, we defer issuing the warning until the end
+      --  of the compilation to take into account back end annotations.
 
       elsif Nkind (Expr) = N_Attribute_Reference
         and then Attribute_Name (Expr) = Name_Address
-        and then Has_Compatible_Alignment (E, Prefix (Expr)) = Known_Compatible
+        and then
+          Has_Compatible_Alignment (E, Prefix (Expr), False) = Known_Compatible
       then
          return;
       end if;
@@ -921,7 +922,7 @@ package body Checks is
       --    range of x op y is included in the range of type1
       --    size of type1 is at least twice the result size of op
 
-      --  then we don't do an overflow check in any case, instead we transform
+      --  then we don't do an overflow check in any case. Instead, we transform
       --  the operation so that we end up with:
 
       --    type1 (type1 (x) op type1 (y))
@@ -1037,17 +1038,12 @@ package body Checks is
          --  operation on signed integers on which the expander can promote
          --  later the operands to type Integer (see Expand_N_Type_Conversion).
 
-         --  Special case CLI target, where arithmetic overflow checks can be
-         --  performed for integer and long_integer
-
          if Backend_Overflow_Checks_On_Target
            or else not Do_Overflow_Check (N)
            or else not Expander_Active
            or else (Present (Parent (N))
                      and then Nkind (Parent (N)) = N_Type_Conversion
                      and then Integer_Promotion_Possible (Parent (N)))
-           or else
-             (VM_Target = CLI_Target and then Siz >= Standard_Integer_Size)
          then
             return;
          end if;
@@ -1213,7 +1209,18 @@ package body Checks is
         or else (Nkind (P) = N_Range
                   and then Nkind (Parent (P)) in N_Membership_Test)
       then
-         return;
+         --  If_Expressions and Case_Expressions are treated as arithmetic
+         --  ops, but if they appear in an assignment or similar contexts
+         --  there is no overflow check that starts from that parent node,
+         --  so apply check now.
+
+         if Nkind_In (P, N_If_Expression, N_Case_Expression)
+           and then not Is_Signed_Integer_Arithmetic_Op (Parent (P))
+         then
+            null;
+         else
+            return;
+         end if;
       end if;
 
       --  Otherwise, we have a top level arithmetic operation node, and this
@@ -1255,10 +1262,10 @@ package body Checks is
          --  This block is inserted (using Insert_Actions), and then the node
          --  is replaced with a reference to Rnn.
 
-         --  A special case arises if our parent is a conversion node. In this
-         --  case no point in generating a conversion to Result_Type, we will
-         --  let the parent handle this. Note that this special case is not
-         --  just about optimization. Consider
+         --  If our parent is a conversion node then there is no point in
+         --  generating a conversion to Result_Type. Instead, we let the parent
+         --  handle this. Note that this special case is not just about
+         --  optimization. Consider
 
          --      A,B,C : Integer;
          --      ...
@@ -1307,7 +1314,7 @@ package body Checks is
             Analyze_And_Resolve (Op);
          end;
 
-      --  Here we know the result is Long_Long_Integer'Base, of that it has
+      --  Here we know the result is Long_Long_Integer'Base, or that it has
       --  been rewritten because the parent operation is a conversion. See
       --  Apply_Arithmetic_Overflow_Strict.Conversion_Optimization.
 
@@ -2364,9 +2371,19 @@ package body Checks is
 
          --  Ensure that the actual is an object that is not passed by value.
          --  Elementary types are always passed by value, therefore actuals of
-         --  such types cannot lead to aliasing.
+         --  such types cannot lead to aliasing. An aggregate is an object in
+         --  Ada 2012, but an actual that is an aggregate cannot overlap with
+         --  another actual.
 
-         if Is_Object_Reference (Original_Actual (Actual_1))
+         if Nkind (Original_Actual (Actual_1)) = N_Aggregate
+           or else
+             (Nkind (Original_Actual (Actual_1)) = N_Qualified_Expression
+                and then Nkind (Expression (Original_Actual (Actual_1))) =
+                           N_Aggregate)
+         then
+            null;
+
+         elsif Is_Object_Reference (Original_Actual (Actual_1))
            and then not Is_Elementary_Type (Etype (Original_Actual (Actual_1)))
          then
             Actual_2 := Next_Actual (Actual_1);
@@ -2883,11 +2900,35 @@ package body Checks is
          --  Always do a range check if the source type includes infinities and
          --  the target type does not include infinities. We do not do this if
          --  range checks are killed.
+         --  If the expression is a literal and the bounds of the type are
+         --  static constants it may be possible to optimize the check.
 
          if Has_Infinities (S_Typ)
            and then not Has_Infinities (Target_Typ)
          then
-            Enable_Range_Check (Expr);
+            --  If the expression is a literal and the bounds of the type are
+            --  static constants it may be possible to optimize the check.
+
+            if Nkind (Expr) = N_Real_Literal then
+               declare
+                  Tlo : constant Node_Id := Type_Low_Bound  (Target_Typ);
+                  Thi : constant Node_Id := Type_High_Bound (Target_Typ);
+
+               begin
+                  if Compile_Time_Known_Value (Tlo)
+                    and then Compile_Time_Known_Value (Thi)
+                    and then Expr_Value_R (Expr) >= Expr_Value_R (Tlo)
+                    and then Expr_Value_R (Expr) <= Expr_Value_R (Thi)
+                  then
+                     return;
+                  else
+                     Enable_Range_Check (Expr);
+                  end if;
+               end;
+
+            else
+               Enable_Range_Check (Expr);
+            end if;
          end if;
       end if;
 
@@ -3236,7 +3277,7 @@ package body Checks is
                Rewrite (R_Cno, Make_Null_Statement (Loc));
             end if;
 
-         --  The range check raises Constrant_Error explicitly
+         --  The range check raises Constraint_Error explicitly
 
          else
             Install_Static_Check (R_Cno, Loc);
@@ -5903,11 +5944,6 @@ package body Checks is
       elsif Nkind_In (Expr, N_Integer_Literal, N_Character_Literal) then
          return True;
 
-      --  Real literals are assumed to be valid in VM targets
-
-      elsif VM_Target /= No_VM and then Nkind (Expr) = N_Real_Literal then
-         return True;
-
       --  If we have a type conversion or a qualification of a known valid
       --  value, then the result will always be valid.
 
@@ -7789,9 +7825,9 @@ package body Checks is
 
          Analyze_And_Resolve (N, Typ);
 
-         Scope_Suppress.Suppress (Overflow_Check)  := Svo;
-         Scope_Suppress.Overflow_Mode_General    := Svg;
-         Scope_Suppress.Overflow_Mode_Assertions := Sva;
+         Scope_Suppress.Suppress (Overflow_Check) := Svo;
+         Scope_Suppress.Overflow_Mode_General     := Svg;
+         Scope_Suppress.Overflow_Mode_Assertions  := Sva;
       end Reanalyze;
 
       --------------
@@ -7817,9 +7853,9 @@ package body Checks is
 
          Expand (N);
 
-         Scope_Suppress.Suppress (Overflow_Check)  := Svo;
-         Scope_Suppress.Overflow_Mode_General    := Svg;
-         Scope_Suppress.Overflow_Mode_Assertions := Sva;
+         Scope_Suppress.Suppress (Overflow_Check) := Svo;
+         Scope_Suppress.Overflow_Mode_General     := Svg;
+         Scope_Suppress.Overflow_Mode_Assertions  := Sva;
       end Reexpand;
 
    --  Start of processing for Minimize_Eliminate_Overflows
@@ -9182,7 +9218,7 @@ package body Checks is
                                 (Compile_Time_Constraint_Error
                                   (Wnode, "too few elements for}??", T_Typ));
 
-                           elsif  L_Length < R_Length then
+                           elsif L_Length < R_Length then
                               Add_Check
                                 (Compile_Time_Constraint_Error
                                   (Wnode, "too many elements for}??", T_Typ));

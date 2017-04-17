@@ -245,7 +245,7 @@ propagate_time (Sym *parent)
  * its members.
  */
 static void
-cycle_time ()
+cycle_time (void)
 {
   Sym *member, *cyc;
 
@@ -269,7 +269,7 @@ cycle_time ()
 
 
 static void
-cycle_link ()
+cycle_link (void)
 {
   Sym *sym, *cyc, *member;
   Arc *arc;
@@ -660,7 +660,7 @@ cg_assemble (void)
      fractions.  */
   propagate_flags (top_sorted_syms);
 
-  /* Starting from the topological bottom, propogate children times
+  /* Starting from the topological bottom, propagate children times
      up to parents.  */
   cycle_time ();
   for (sym_index = 0; sym_index < symtab.len; ++sym_index)

@@ -1,5 +1,5 @@
 /* GCC core type declarations.
-   Copyright (C) 2002-2015 Free Software Foundation, Inc.
+   Copyright (C) 2002-2016 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -82,9 +82,8 @@ typedef const struct hwivec_def *const_hwivec;
 union tree_node;
 typedef union tree_node *tree;
 typedef const union tree_node *const_tree;
-typedef struct gimple_statement_base *gimple;
-typedef const struct gimple_statement_base *const_gimple;
-typedef gimple gimple_seq;
+struct gimple;
+typedef gimple *gimple_seq;
 struct gimple_stmt_iterator;
 
 /* Forward decls for leaf gimple subclasses (for individual gimple codes).
@@ -113,6 +112,7 @@ struct gomp_atomic_load;
 struct gomp_atomic_store;
 struct gomp_continue;
 struct gomp_critical;
+struct gomp_ordered;
 struct gomp_for;
 struct gomp_parallel;
 struct gomp_task;
@@ -200,6 +200,18 @@ enum node_frequency {
   NODE_FREQUENCY_HOT
 };
 
+/* Ways of optimizing code.  */
+enum optimization_type {
+  /* Prioritize speed over size.  */
+  OPTIMIZE_FOR_SPEED,
+
+  /* Only do things that are good for both size and speed.  */
+  OPTIMIZE_FOR_BOTH,
+
+  /* Prioritize size over speed.  */
+  OPTIMIZE_FOR_SIZE
+};
+
 /* Possible initialization status of a variable.   When requested
    by the user, this information is tracked and recorded in the DWARF
    debug information, along with the variable's location.  */
@@ -210,6 +222,13 @@ enum var_init_status
   VAR_INIT_STATUS_INITIALIZED
 };
 
+/* The type of an alias set.  Code currently assumes that variables of
+   this type can take the values 0 (the alias set which aliases
+   everything) and -1 (sometimes indicating that the alias set is
+   unknown, sometimes indicating a memory barrier) and -2 (indicating
+   that the alias set should be set to a unique value but has not been
+   set yet).  */
+typedef int alias_set_type;
 
 struct edge_def;
 typedef struct edge_def *edge;
@@ -218,9 +237,16 @@ struct basic_block_def;
 typedef struct basic_block_def *basic_block;
 typedef const struct basic_block_def *const_basic_block;
 
-#define obstack_chunk_alloc	xmalloc
-#define obstack_chunk_free	free
-#define OBSTACK_CHUNK_SIZE	0
+#if !defined (GENERATOR_FILE)
+# define OBSTACK_CHUNK_SIZE     memory_block_pool::block_size
+# define obstack_chunk_alloc    mempool_obstack_chunk_alloc
+# define obstack_chunk_free     mempool_obstack_chunk_free
+#else
+# define OBSTACK_CHUNK_SIZE     0
+# define obstack_chunk_alloc    xmalloc
+# define obstack_chunk_free     free
+#endif
+
 #define gcc_obstack_init(OBSTACK)				\
   obstack_specify_allocation ((OBSTACK), OBSTACK_CHUNK_SIZE, 0,	\
 			      obstack_chunk_alloc,		\
@@ -236,6 +262,8 @@ class rtl_opt_pass;
 namespace gcc {
   class context;
 }
+
+typedef std::pair <tree, tree> tree_pair;
 
 #else
 
@@ -263,6 +291,28 @@ enum function_class {
   function_c11_misc
 };
 
+/* Enumerate visibility settings.  This is deliberately ordered from most
+   to least visibility.  */
+enum symbol_visibility
+{
+  VISIBILITY_DEFAULT,
+  VISIBILITY_PROTECTED,
+  VISIBILITY_HIDDEN,
+  VISIBILITY_INTERNAL
+};
+
+/* Suppose that higher bits are target dependent. */
+#define MEMMODEL_MASK ((1<<16)-1)
+
+/* Legacy sync operations set this upper flag in the memory model.  This allows
+   targets that need to do something stronger for sync operations to
+   differentiate with their target patterns and issue a more appropriate insn
+   sequence.  See bugzilla 65697 for background.  */
+#define MEMMODEL_SYNC (1<<15)
+
+/* Memory model without SYNC bit for targets/operations that do not care.  */
+#define MEMMODEL_BASE_MASK (MEMMODEL_SYNC-1)
+
 /* Memory model types for the __atomic* builtins. 
    This must match the order in libstdc++-v3/include/bits/atomic_base.h.  */
 enum memmodel
@@ -273,11 +323,11 @@ enum memmodel
   MEMMODEL_RELEASE = 3,
   MEMMODEL_ACQ_REL = 4,
   MEMMODEL_SEQ_CST = 5,
-  MEMMODEL_LAST = 6
+  MEMMODEL_LAST = 6,
+  MEMMODEL_SYNC_ACQUIRE = MEMMODEL_ACQUIRE | MEMMODEL_SYNC,
+  MEMMODEL_SYNC_RELEASE = MEMMODEL_RELEASE | MEMMODEL_SYNC,
+  MEMMODEL_SYNC_SEQ_CST = MEMMODEL_SEQ_CST | MEMMODEL_SYNC
 };
-
-/* Suppose that higher bits are target dependent. */
-#define MEMMODEL_MASK ((1<<16)-1)
 
 /* Support for user-provided GGC and PCH markers.  The first parameter
    is a pointer to a pointer, the second a cookie.  */
@@ -286,5 +336,20 @@ typedef void (*gt_pointer_operator) (void *, void *);
 #if !defined (HAVE_UCHAR)
 typedef unsigned char uchar;
 #endif
+
+/* Most host source files will require the following headers.  */
+#if !defined (GENERATOR_FILE) && !defined (USED_FOR_TARGET)
+#include "machmode.h"
+#include "signop.h"
+#include "wide-int.h" 
+#include "double-int.h"
+#include "real.h"
+#include "fixed-value.h"
+#include "hash-table.h"
+#include "hash-set.h"
+#include "input.h"
+#include "is-a.h"
+#include "memory-block.h"
+#endif /* GENERATOR_FILE && !USED_FOR_TARGET */
 
 #endif /* coretypes.h */

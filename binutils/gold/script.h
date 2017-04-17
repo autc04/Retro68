@@ -1,6 +1,6 @@
 // script.h -- handle linker scripts for gold   -*- C++ -*-
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -113,7 +113,7 @@ class Expression
 		 Output_section* dot_section,
 		 Output_section** result_section, uint64_t* result_alignment,
 		 elfcpp::STT* type, elfcpp::STV* vis, unsigned char* nonvis,
-		 bool is_section_dot_assignment);
+		 bool is_section_dot_assignment, bool* is_valid_pointer);
 
   // Print the expression to the FILE.  This is for debugging.
   virtual void
@@ -538,7 +538,7 @@ class Script_options
   // SECTIONS clause.
   typedef std::vector<Symbol_assignment*> Symbol_assignments;
 
-  // We keep a list of all assertions whcih occur outside of a
+  // We keep a list of all assertions which occur outside of a
   // SECTIONS clause.
   typedef std::vector<Script_assertion*> Assertions;
 

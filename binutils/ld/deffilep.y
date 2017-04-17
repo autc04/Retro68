@@ -1,6 +1,6 @@
 %{ /* deffilep.y - parser for .def files */
 
-/*   Copyright (C) 1995-2014 Free Software Foundation, Inc.
+/*   Copyright (C) 1995-2017 Free Software Foundation, Inc.
 
      This file is part of GNU Binutils.
 
@@ -904,8 +904,8 @@ def_file_add_directive (def_file *my_def, const char *param, int len)
       /* Scan forward until we encounter any of:
           - the end of the buffer
 	  - the start of a new option
-	  - a newline seperating options
-          - a NUL seperating options.  */
+	  - a newline separating options
+          - a NUL separating options.  */
       for (tend = (char *) (param + 1);
 	   (tend < pend
 	    && !(ISSPACE (tend[-1]) && *tend == '-')

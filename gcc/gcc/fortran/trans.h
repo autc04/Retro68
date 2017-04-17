@@ -1,5 +1,5 @@
 /* Header for code translation functions
-   Copyright (C) 2002-2015 Free Software Foundation, Inc.
+   Copyright (C) 2002-2016 Free Software Foundation, Inc.
    Contributed by Paul Brook
 
 This file is part of GCC.
@@ -48,6 +48,10 @@ typedef struct gfc_se
 
   /* The length of a character string value.  */
   tree string_length;
+
+  /* When expr is a reference to a class object, store its vptr access
+     here.  */
+  tree class_vptr;
 
   /* If set gfc_conv_variable will return an expression for the array
      descriptor. When set, want_pointer should also be set.
@@ -103,15 +107,16 @@ gfc_se;
 
 /* Denotes different types of coarray.
    Please keep in sync with libgfortran/caf/libcaf.h.  */
-typedef enum
+enum gfc_coarray_type
 {
   GFC_CAF_COARRAY_STATIC,
   GFC_CAF_COARRAY_ALLOC,
   GFC_CAF_LOCK_STATIC,
   GFC_CAF_LOCK_ALLOC,
-  GFC_CAF_CRITICAL
-}
-gfc_coarray_type;
+  GFC_CAF_CRITICAL,
+  GFC_CAF_EVENT_STATIC,
+  GFC_CAF_EVENT_ALLOC
+};
 
 
 /* The array-specific scalarization information.  The array members of
@@ -144,7 +149,7 @@ typedef struct gfc_array_info
 }
 gfc_array_info;
 
-typedef enum
+enum gfc_ss_type
 {
   /* A scalar value.  This will be evaluated before entering the
      scalarization loop.  */
@@ -186,8 +191,7 @@ typedef enum
 
   /* A component of a derived type.  */
   GFC_SS_COMPONENT
-}
-gfc_ss_type;
+};
 
 
 typedef struct gfc_ss_info
@@ -202,7 +206,14 @@ typedef struct gfc_ss_info
     /* If type is GFC_SS_SCALAR or GFC_SS_REFERENCE.  */
     struct
     {
+      /* If the scalar is passed as actual argument to an (elemental) procedure,
+	 this is the symbol of the corresponding dummy argument.  */
+      gfc_symbol *dummy_arg;
       tree value;
+      /* Tells that the scalar is a reference to a variable that might
+	 be present on the lhs, so that we should evaluate the value
+	 itself before the loop, not just the reference.  */
+      unsigned needs_temporary:1;
     }
     scalar;
 
@@ -354,6 +365,7 @@ tree gfc_class_set_static_fields (tree, tree, tree);
 tree gfc_class_data_get (tree);
 tree gfc_class_vptr_get (tree);
 tree gfc_class_len_get (tree);
+tree gfc_class_len_or_zero_get (tree);
 gfc_expr * gfc_find_and_cut_at_last_class_ref (gfc_expr *);
 /* Get an accessor to the class' vtab's * field, when a class handle is
    available.  */
@@ -373,7 +385,7 @@ tree gfc_vptr_final_get (tree);
 void gfc_reset_vptr (stmtblock_t *, gfc_expr *);
 void gfc_reset_len (stmtblock_t *, gfc_expr *);
 tree gfc_get_vptr_from_expr (tree);
-tree gfc_get_class_array_ref (tree, tree);
+tree gfc_get_class_array_ref (tree, tree, tree);
 tree gfc_copy_class_to_class (tree, tree, tree, bool);
 bool gfc_add_finalizer_call (stmtblock_t *, gfc_expr *);
 bool gfc_add_comp_finalizer_call (stmtblock_t *, tree, gfc_component *, bool);
@@ -457,6 +469,7 @@ bool gfc_conv_ieee_arithmetic_function (gfc_se *, gfc_expr *);
 tree gfc_save_fp_state (stmtblock_t *);
 void gfc_restore_fp_state (stmtblock_t *, tree);
 
+bool gfc_expr_is_variable (gfc_expr *);
 
 /* Does an intrinsic map directly to an external library call
    This is true for array-returning intrinsics, unless
@@ -471,8 +484,7 @@ int gfc_conv_procedure_call (gfc_se *, gfc_symbol *, gfc_actual_arglist *,
 void gfc_conv_subref_array_arg (gfc_se *, gfc_expr *, int, sym_intent, bool);
 
 /* Generate code for a scalar assignment.  */
-tree gfc_trans_scalar_assign (gfc_se *, gfc_se *, gfc_typespec, bool, bool,
-			      bool);
+tree gfc_trans_scalar_assign (gfc_se *, gfc_se *, gfc_typespec, bool, bool);
 
 /* Translate COMMON blocks.  */
 void gfc_trans_common (gfc_namespace *);
@@ -528,7 +540,7 @@ tree gfc_get_function_decl (gfc_symbol *);
 tree gfc_build_addr_expr (tree, tree);
 
 /* Build an ARRAY_REF.  */
-tree gfc_build_array_ref (tree, tree, tree);
+tree gfc_build_array_ref (tree, tree, tree, tree vptr = NULL_TREE);
 
 /* Creates a label.  Decl is artificial if label_id == NULL_TREE.  */
 tree gfc_build_label_decl (tree);
@@ -591,7 +603,7 @@ void gfc_generate_module_vars (gfc_namespace *);
 /* Get the appropriate return statement for a procedure.  */
 tree gfc_generate_return (void);
 
-struct module_decl_hasher : ggc_hasher<tree_node *>
+struct module_decl_hasher : ggc_ptr_hash<tree_node>
 {
   typedef const char *compare_type;
 
@@ -638,7 +650,7 @@ void gfc_trans_runtime_check (bool, bool, tree, stmtblock_t *, locus *,
 void gfc_trans_same_strlen_check (const char*, locus*, tree, tree,
 				  stmtblock_t*);
 
-/* Generate a call to free() after checking that its arg is non-NULL.  */
+/* Generate a call to free().  */
 tree gfc_call_free (tree);
 
 /* Allocate memory after performing a few checks.  */
@@ -661,6 +673,9 @@ tree gfc_deallocate_scalar_with_status (tree, tree, bool, gfc_expr*, gfc_typespe
 
 /* Generate code to call realloc().  */
 tree gfc_call_realloc (stmtblock_t *, tree, tree);
+
+/* Assign a derived type constructor to a variable.  */
+tree gfc_trans_structure_assign (tree, gfc_expr *, bool);
 
 /* Generate code for an assignment, includes scalarization.  */
 tree gfc_trans_assignment (gfc_expr *, gfc_expr *, bool, bool);
@@ -748,6 +763,8 @@ extern GTY(()) tree gfor_fndecl_caf_sendget;
 extern GTY(()) tree gfor_fndecl_caf_sync_all;
 extern GTY(()) tree gfor_fndecl_caf_sync_memory;
 extern GTY(()) tree gfor_fndecl_caf_sync_images;
+extern GTY(()) tree gfor_fndecl_caf_stop_numeric;
+extern GTY(()) tree gfor_fndecl_caf_stop_str;
 extern GTY(()) tree gfor_fndecl_caf_error_stop;
 extern GTY(()) tree gfor_fndecl_caf_error_stop_str;
 extern GTY(()) tree gfor_fndecl_caf_atomic_def;
@@ -756,6 +773,9 @@ extern GTY(()) tree gfor_fndecl_caf_atomic_cas;
 extern GTY(()) tree gfor_fndecl_caf_atomic_op;
 extern GTY(()) tree gfor_fndecl_caf_lock;
 extern GTY(()) tree gfor_fndecl_caf_unlock;
+extern GTY(()) tree gfor_fndecl_caf_event_post;
+extern GTY(()) tree gfor_fndecl_caf_event_wait;
+extern GTY(()) tree gfor_fndecl_caf_event_query;
 extern GTY(()) tree gfor_fndecl_co_broadcast;
 extern GTY(()) tree gfor_fndecl_co_max;
 extern GTY(()) tree gfor_fndecl_co_min;
@@ -1027,7 +1047,9 @@ extern const char gfc_msg_wrong_return[];
 					   construct is not workshared.  */
 #define OMPWS_SCALARIZER_WS	4	/* Set if scalarizer should attempt
 					   to create parallel loops.  */
-#define OMPWS_NOWAIT		8	/* Use NOWAIT on OMP_FOR.  */
+#define OMPWS_SCALARIZER_BODY	8	/* Set if handling body of potential
+					   parallel loop.  */
+#define OMPWS_NOWAIT		16	/* Use NOWAIT on OMP_FOR.  */
 extern int ompws_flags;
 
 #endif /* GFC_TRANS_H */

@@ -1,5 +1,5 @@
 /* Plugin support for BFD.
-   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+   Copyright (C) 2009-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -85,6 +85,7 @@ dlerror (void)
 #define bfd_plugin_find_nearest_line                  _bfd_nosymbols_find_nearest_line
 #define bfd_plugin_find_line                          _bfd_nosymbols_find_line
 #define bfd_plugin_find_inliner_info                  _bfd_nosymbols_find_inliner_info
+#define bfd_plugin_get_symbol_version_string	      _bfd_nosymbols_get_symbol_version_string
 #define bfd_plugin_bfd_make_debug_symbol              _bfd_nosymbols_bfd_make_debug_symbol
 #define bfd_plugin_read_minisymbols                   _bfd_generic_read_minisymbols
 #define bfd_plugin_minisymbol_to_symbol               _bfd_generic_minisymbol_to_symbol
@@ -105,6 +106,7 @@ dlerror (void)
 #define bfd_plugin_section_already_linked             _bfd_generic_section_already_linked
 #define bfd_plugin_bfd_define_common_symbol           bfd_generic_define_common_symbol
 #define bfd_plugin_bfd_copy_link_hash_symbol_type     _bfd_generic_copy_link_hash_symbol_type
+#define bfd_plugin_bfd_link_check_relocs              _bfd_generic_link_check_relocs
 
 static enum ld_plugin_status
 message (int level ATTRIBUTE_UNUSED,
@@ -156,65 +158,67 @@ bfd_plugin_set_program_name (const char *program_name)
   plugin_program_name = program_name;
 }
 
+int
+bfd_plugin_open_input (bfd *ibfd, struct ld_plugin_input_file *file)
+{
+  bfd *iobfd;
+
+  iobfd = ibfd;
+  if (ibfd->my_archive && !bfd_is_thin_archive (ibfd->my_archive))
+    iobfd = ibfd->my_archive;
+  file->name = iobfd->filename;
+
+  if (!iobfd->iostream && !bfd_open_file (iobfd))
+    return 0;
+
+  file->fd = fileno ((FILE *) iobfd->iostream);
+
+  if (iobfd == ibfd)
+    {
+      struct stat stat_buf;
+      if (fstat (file->fd, &stat_buf))
+        return 0;
+      file->offset = 0;
+      file->filesize = stat_buf.st_size;
+    }
+  else
+    {
+      file->offset = ibfd->origin;
+      file->filesize = arelt_size (ibfd);
+    }
+  return 1;
+}
+
 static int
 try_claim (bfd *abfd)
 {
   int claimed = 0;
   struct ld_plugin_input_file file;
-  bfd *iobfd;
 
-  file.name = abfd->filename;
-
-  if (abfd->my_archive)
-    {
-      iobfd = abfd->my_archive;
-      file.offset = abfd->origin;
-      file.filesize = arelt_size (abfd);
-    }
-  else
-    {
-      iobfd = abfd;
-      file.offset = 0;
-      file.filesize = 0;
-    }
-
-  if (!iobfd->iostream && !bfd_open_file (iobfd))
+  if (!bfd_plugin_open_input (abfd, &file))
     return 0;
-
-  file.fd = fileno ((FILE *) iobfd->iostream);
-
-  if (!abfd->my_archive)
-    {
-      struct stat stat_buf;
-      if (fstat (file.fd, &stat_buf))
-        return 0;
-      file.filesize = stat_buf.st_size;
-    }
-
   file.handle = abfd;
-  off_t cur_offset = lseek(file.fd, 0, SEEK_CUR);
+  off_t cur_offset = lseek (file.fd, 0, SEEK_CUR);
   claim_file (&file, &claimed);
-  lseek(file.fd, cur_offset, SEEK_SET);
-  if (!claimed)
-    return 0;
-
-  return 1;
+  lseek (file.fd, cur_offset, SEEK_SET);
+  return claimed;
 }
 
 static int
-try_load_plugin (const char *pname, bfd *abfd)
+try_load_plugin (const char *pname, bfd *abfd, int *has_plugin_p)
 {
   void *plugin_handle;
-  int tv_size = 4;
-  struct ld_plugin_tv tv[tv_size];
+  struct ld_plugin_tv tv[4];
   int i;
   ld_plugin_onload onload;
   enum ld_plugin_status status;
 
+  *has_plugin_p = 0;
+
   plugin_handle = dlopen (pname, RTLD_NOW);
   if (!plugin_handle)
     {
-      (*_bfd_error_handler)("%s\n", dlerror ());
+      _bfd_error_handler ("%s\n", dlerror ());
       return 0;
     }
 
@@ -243,18 +247,29 @@ try_load_plugin (const char *pname, bfd *abfd)
   if (status != LDPS_OK)
     goto err;
 
+  *has_plugin_p = 1;
+
+  abfd->plugin_format = bfd_plugin_no;
+
   if (!claim_file)
     goto err;
 
   if (!try_claim (abfd))
     goto err;
 
+  abfd->plugin_format = bfd_plugin_yes;
+
   return 1;
 
  err:
-  plugin_handle = NULL;
   return 0;
 }
+
+/* There may be plugin libraries in lib/bfd-plugins.  */
+
+static int has_plugin = -1;
+
+static const bfd_target *(*ld_plugin_object_p) (bfd *);
 
 static const char *plugin_name;
 
@@ -262,6 +277,43 @@ void
 bfd_plugin_set_plugin (const char *p)
 {
   plugin_name = p;
+  has_plugin = p != NULL;
+}
+
+/* Return TRUE if a plugin library is used.  */
+
+bfd_boolean
+bfd_plugin_specified_p (void)
+{
+  return has_plugin > 0;
+}
+
+/* Return TRUE if ABFD can be claimed by linker LTO plugin.  */
+
+bfd_boolean
+bfd_link_plugin_object_p (bfd *abfd)
+{
+  if (ld_plugin_object_p)
+    return ld_plugin_object_p (abfd) != NULL;
+  return FALSE;
+}
+
+extern const bfd_target plugin_vec;
+
+/* Return TRUE if TARGET is a pointer to plugin_vec.  */
+
+bfd_boolean
+bfd_plugin_target_p (const bfd_target *target)
+{
+  return target == &plugin_vec;
+}
+
+/* Register OBJECT_P to be used by bfd_plugin_object_p.  */
+
+void
+register_ld_plugin_object_p (const bfd_target *(*object_p) (bfd *))
+{
+  ld_plugin_object_p = object_p;
 }
 
 static int
@@ -273,11 +325,14 @@ load_plugin (bfd *abfd)
   struct dirent *ent;
   int found = 0;
 
+  if (!has_plugin)
+    return found;
+
   if (plugin_name)
-    return try_load_plugin (plugin_name, abfd);
+    return try_load_plugin (plugin_name, abfd, &has_plugin);
 
   if (plugin_program_name == NULL)
-    return 0;
+    return found;
 
   plugin_dir = concat (BINDIR, "/../lib/bfd-plugins", NULL);
   p = make_relative_prefix (plugin_program_name,
@@ -294,10 +349,13 @@ load_plugin (bfd *abfd)
     {
       char *full_name;
       struct stat s;
+      int valid_plugin;
 
       full_name = concat (p, "/", ent->d_name, NULL);
       if (stat(full_name, &s) == 0 && S_ISREG (s.st_mode))
-	found = try_load_plugin (full_name, abfd);
+	found = try_load_plugin (full_name, abfd, &valid_plugin);
+      if (has_plugin <= 0)
+	has_plugin = valid_plugin;
       free (full_name);
       if (found)
 	break;
@@ -315,10 +373,13 @@ load_plugin (bfd *abfd)
 static const bfd_target *
 bfd_plugin_object_p (bfd *abfd)
 {
-  if (!load_plugin (abfd))
+  if (ld_plugin_object_p)
+    return ld_plugin_object_p (abfd);
+
+  if (abfd->plugin_format == bfd_plugin_unknown && !load_plugin (abfd))
     return NULL;
 
-  return abfd->xvec;
+  return abfd->plugin_format == bfd_plugin_yes ? abfd->xvec : NULL;
 }
 
 /* Copy any private info we understand from the input bfd
@@ -516,7 +577,7 @@ const bfd_target plugin_vec =
   0,				/* symbol_leading_char.  */
   '/',				/* ar_pad_char.  */
   15,				/* ar_max_namelen.  */
-  0,				/* match priority.  */
+  255,				/* match priority.  */
 
   bfd_getl64, bfd_getl_signed_64, bfd_putl64,
   bfd_getl32, bfd_getl_signed_32, bfd_putl32,
@@ -547,7 +608,11 @@ const bfd_target plugin_vec =
   BFD_JUMP_TABLE_GENERIC (bfd_plugin),
   BFD_JUMP_TABLE_COPY (bfd_plugin),
   BFD_JUMP_TABLE_CORE (bfd_plugin),
+#ifdef USE_64_BIT_ARCHIVE
+  BFD_JUMP_TABLE_ARCHIVE (_bfd_archive_64_bit),
+#else
   BFD_JUMP_TABLE_ARCHIVE (_bfd_archive_coff),
+#endif
   BFD_JUMP_TABLE_SYMBOLS (bfd_plugin),
   BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),
   BFD_JUMP_TABLE_WRITE (bfd_plugin),

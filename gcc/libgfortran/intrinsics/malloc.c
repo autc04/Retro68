@@ -1,5 +1,5 @@
 /* Implementation of the MALLOC and FREE intrinsics
-   Copyright (C) 2005-2015 Free Software Foundation, Inc.
+   Copyright (C) 2005-2016 Free Software Foundation, Inc.
    Contributed by François-Xavier Coudert <coudert@clipper.ens.fr>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -26,6 +26,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #include "libgfortran.h"
 #include <stdlib.h>
 
+
+/* The runtime MALLOC and FREE are kept here until the libgfortran ABI
+   is broken.  The front-end now emits direct calls to the GCC's malloc()
+   and free() built-ins.  */
 
 extern void PREFIX(free) (void **);
 export_proto_np(PREFIX(free));

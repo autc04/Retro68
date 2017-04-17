@@ -43,8 +43,8 @@ SYMBOL TABLE:
 0+ l    df \*ABS\*	0+ .*
 0+ l       \.tdata	0+80 tls128
 0+ l    df \*ABS\*	0+ .*
+0+80 l       \.tdata	0+4 x
 0+82168 l     O \.got	0+ _GLOBAL_OFFSET_TABLE_
-0+80 g       \.tdata	0+4 \.hidden x
 0+800c4 g     F \.text	0+6 tlsdsofn2
 0+821b4 g     O \.data	0+4 got7var5
 0+88 g       \.tdata	0+4 \.hidden x2

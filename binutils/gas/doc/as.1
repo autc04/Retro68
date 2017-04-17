@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "AS 1"
-.TH AS 1 "2015-07-21" "binutils-2.25.1" "GNU Development Tools"
+.TH AS 1 "2017-03-02" "binutils-2.28" "GNU Development Tools"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -150,14 +150,20 @@ as [\fB\-a\fR[\fBcdghlns\fR][=\fIfile\fR]] [\fB\-\-alternate\fR] [\fB\-D\fR]
  [\fB\-\-help\fR] [\fB\-I\fR \fIdir\fR] [\fB\-J\fR]
  [\fB\-K\fR] [\fB\-L\fR] [\fB\-\-listing\-lhs\-width\fR=\fI\s-1NUM\s0\fR]
  [\fB\-\-listing\-lhs\-width2\fR=\fI\s-1NUM\s0\fR] [\fB\-\-listing\-rhs\-width\fR=\fI\s-1NUM\s0\fR]
- [\fB\-\-listing\-cont\-lines\fR=\fI\s-1NUM\s0\fR] [\fB\-\-keep\-locals\fR] [\fB\-o\fR
- \fIobjfile\fR] [\fB\-R\fR] [\fB\-\-reduce\-memory\-overheads\fR] [\fB\-\-statistics\fR]
- [\fB\-v\fR] [\fB\-version\fR] [\fB\-\-version\fR] [\fB\-W\fR] [\fB\-\-warn\fR]
- [\fB\-\-fatal\-warnings\fR] [\fB\-w\fR] [\fB\-x\fR] [\fB\-Z\fR] [\fB@\fR\fI\s-1FILE\s0\fR]
- [\fB\-\-size\-check=[error|warning]\fR]
+ [\fB\-\-listing\-cont\-lines\fR=\fI\s-1NUM\s0\fR] [\fB\-\-keep\-locals\fR]
+ [\fB\-\-no\-pad\-sections\fR]
+ [\fB\-o\fR \fIobjfile\fR] [\fB\-R\fR]
+ [\fB\-\-hash\-size\fR=\fI\s-1NUM\s0\fR] [\fB\-\-reduce\-memory\-overheads\fR]
+ [\fB\-\-statistics\fR]
+ [\fB\-v\fR] [\fB\-version\fR] [\fB\-\-version\fR]
+ [\fB\-W\fR] [\fB\-\-warn\fR] [\fB\-\-fatal\-warnings\fR] [\fB\-w\fR] [\fB\-x\fR]
+ [\fB\-Z\fR] [\fB@\fR\fI\s-1FILE\s0\fR]
+ [\fB\-\-sectname\-subst\fR] [\fB\-\-size\-check=[error|warning]\fR]
+ [\fB\-\-elf\-stt\-common=[no|yes]\fR]
  [\fB\-\-target\-help\fR] [\fItarget-options\fR]
  [\fB\-\-\fR|\fIfiles\fR ...]
-.PP
+.SH "TARGET"
+.IX Header "TARGET"
 \&\fITarget AArch64 options:\fR
    [\fB\-EB\fR|\fB\-EL\fR]
    [\fB\-mabi\fR=\fI\s-1ABI\s0\fR]
@@ -170,7 +176,10 @@ as [\fB\-a\fR[\fBcdghlns\fR][=\fIfile\fR]] [\fB\-\-alternate\fR] [\fB\-D\fR]
    [\fB\-F\fR] [\fB\-32addr\fR]
 .PP
 \&\fITarget \s-1ARC\s0 options:\fR
-   [\fB\-marc[5|6|7|8]\fR]
+   [\fB\-mcpu=\fR\fIcpu\fR]
+   [\fB\-mA6\fR|\fB\-mARC600\fR|\fB\-mARC601\fR|\fB\-mA7\fR|\fB\-mARC700\fR|\fB\-mEM\fR|\fB\-mHS\fR]
+   [\fB\-mcode\-density\fR]
+   [\fB\-mrelax\fR]
    [\fB\-EB\fR|\fB\-EL\fR]
 .PP
 \&\fITarget \s-1ARM\s0 options:\fR
@@ -268,6 +277,7 @@ as [\fB\-a\fR[\fBcdghlns\fR][=\fIfile\fR]] [\fB\-\-alternate\fR] [\fB\-D\fR]
    [\fB\-mips32r3\fR] [\fB\-mips32r5\fR] [\fB\-mips32r6\fR] [\fB\-mips64\fR] [\fB\-mips64r2\fR]
    [\fB\-mips64r3\fR] [\fB\-mips64r5\fR] [\fB\-mips64r6\fR]
    [\fB\-construct\-floats\fR] [\fB\-no\-construct\-floats\fR]
+   [\fB\-mignore\-branch\-isa\fR] [\fB\-mno\-ignore\-branch\-isa\fR]
    [\fB\-mnan=\fR\fIencoding\fR]
    [\fB\-trap\fR] [\fB\-no\-break\fR] [\fB\-break\fR] [\fB\-no\-trap\fR]
    [\fB\-mips16\fR] [\fB\-no\-mips16\fR]
@@ -277,6 +287,7 @@ as [\fB\-a\fR[\fBcdghlns\fR][=\fIfile\fR]] [\fB\-\-alternate\fR] [\fB\-D\fR]
    [\fB\-mdmx\fR] [\fB\-no\-mdmx\fR]
    [\fB\-mdsp\fR] [\fB\-mno\-dsp\fR]
    [\fB\-mdspr2\fR] [\fB\-mno\-dspr2\fR]
+   [\fB\-mdspr3\fR] [\fB\-mno\-dspr3\fR]
    [\fB\-mmsa\fR] [\fB\-mno\-msa\fR]
    [\fB\-mxpa\fR] [\fB\-mno\-xpa\fR]
    [\fB\-mmt\fR] [\fB\-mno\-mt\fR]
@@ -323,7 +334,8 @@ as [\fB\-a\fR[\fBcdghlns\fR][=\fIfile\fR]] [\fB\-\-alternate\fR] [\fB\-D\fR]
     \fB\-m440\fR|\fB\-m464\fR|\fB\-m476\fR|\fB\-m7400\fR|\fB\-m7410\fR|\fB\-m7450\fR|\fB\-m7455\fR|\fB\-m750cl\fR|\fB\-mppc64\fR|
     \fB\-m620\fR|\fB\-me500\fR|\fB\-e500x2\fR|\fB\-me500mc\fR|\fB\-me500mc64\fR|\fB\-me5500\fR|\fB\-me6500\fR|\fB\-mppc64bridge\fR|
     \fB\-mbooke\fR|\fB\-mpower4\fR|\fB\-mpwr4\fR|\fB\-mpower5\fR|\fB\-mpwr5\fR|\fB\-mpwr5x\fR|\fB\-mpower6\fR|\fB\-mpwr6\fR|
-    \fB\-mpower7\fR|\fB\-mpwr7\fR|\fB\-mpower8\fR|\fB\-mpwr8\fR|\fB\-ma2\fR|\fB\-mcell\fR|\fB\-mspe\fR|\fB\-mtitan\fR|\fB\-me300\fR|\fB\-mcom\fR]
+    \fB\-mpower7\fR|\fB\-mpwr7\fR|\fB\-mpower8\fR|\fB\-mpwr8\fR|\fB\-mpower9\fR|\fB\-mpwr9\fR\fB\-ma2\fR|
+    \fB\-mcell\fR|\fB\-mspe\fR|\fB\-mtitan\fR|\fB\-me300\fR|\fB\-mcom\fR]
    [\fB\-many\fR] [\fB\-maltivec\fR|\fB\-mvsx\fR|\fB\-mhtm\fR|\fB\-mvle\fR]
    [\fB\-mregnames\fR|\fB\-mno\-regnames\fR]
    [\fB\-mrelocatable\fR|\fB\-mrelocatable\-lib\fR|\fB\-K \s-1PIC\s0\fR] [\fB\-memb\fR]
@@ -345,6 +357,10 @@ as [\fB\-a\fR[\fBcdghlns\fR][=\fIfile\fR]] [\fB\-\-alternate\fR] [\fB\-D\fR]
    [\fB\-mint\-register=\fR\fInumber\fR]
    [\fB\-mgcc\-abi\fR|\fB\-mrx\-abi\fR]
 .PP
+\&\fITarget RISC-V options:\fR
+   [\fB\-march\fR=\fI\s-1ISA\s0\fR]
+   [\fB\-mabi\fR=\fI\s-1ABI\s0\fR]
+.PP
 \&\fITarget s390 options:\fR
    [\fB\-m31\fR|\fB\-m64\fR] [\fB\-mesa\fR|\fB\-mzarch\fR] [\fB\-march\fR=\fI\s-1CPU\s0\fR]
    [\fB\-mregnames\fR|\fB\-mno\-regnames\fR]
@@ -357,10 +373,21 @@ as [\fB\-a\fR[\fBcdghlns\fR][=\fIfile\fR]] [\fB\-\-alternate\fR] [\fB\-D\fR]
    [\fB\-USE_R1\fR][\fB\-KPIC\fR][\fB\-O0\fR][\fB\-G\fR \fInum\fR][\fB\-V\fR]
 .PP
 \&\fITarget \s-1SPARC\s0 options:\fR
-   [\fB\-Av6\fR|\fB\-Av7\fR|\fB\-Av8\fR|\fB\-Asparclet\fR|\fB\-Asparclite\fR
-    \fB\-Av8plus\fR|\fB\-Av8plusa\fR|\fB\-Av9\fR|\fB\-Av9a\fR]
-   [\fB\-xarch=v8plus\fR|\fB\-xarch=v8plusa\fR] [\fB\-bump\fR]
+   [\fB\-Av6\fR|\fB\-Av7\fR|\fB\-Av8\fR|\fB\-Aleon\fR|\fB\-Asparclet\fR|\fB\-Asparclite\fR
+    \fB\-Av8plus\fR|\fB\-Av8plusa\fR|\fB\-Av8plusb\fR|\fB\-Av8plusc\fR|\fB\-Av8plusd\fR
+    \fB\-Av8plusv\fR|\fB\-Av8plusm\fR|\fB\-Av9\fR|\fB\-Av9a\fR|\fB\-Av9b\fR|\fB\-Av9c\fR
+    \fB\-Av9d\fR|\fB\-Av9e\fR|\fB\-Av9v\fR|\fB\-Av9m\fR|\fB\-Asparc\fR|\fB\-Asparcvis\fR
+    \fB\-Asparcvis2\fR|\fB\-Asparcfmaf\fR|\fB\-Asparcima\fR|\fB\-Asparcvis3\fR
+    \fB\-Asparcvisr\fR|\fB\-Asparc5\fR]
+   [\fB\-xarch=v8plus\fR|\fB\-xarch=v8plusa\fR]|\fB\-xarch=v8plusb\fR|\fB\-xarch=v8plusc\fR
+    \fB\-xarch=v8plusd\fR|\fB\-xarch=v8plusv\fR|\fB\-xarch=v8plusm\fR|\fB\-xarch=v9\fR
+    \fB\-xarch=v9a\fR|\fB\-xarch=v9b\fR|\fB\-xarch=v9c\fR|\fB\-xarch=v9d\fR|\fB\-xarch=v9e\fR
+    \fB\-xarch=v9v\fR|\fB\-xarch=v9m\fR|\fB\-xarch=sparc\fR|\fB\-xarch=sparcvis\fR
+    \fB\-xarch=sparcvis2\fR|\fB\-xarch=sparcfmaf\fR|\fB\-xarch=sparcima\fR
+    \fB\-xarch=sparcvis3\fR|\fB\-xarch=sparcvisr\fR|\fB\-xarch=sparc5\fR
+    \fB\-bump\fR]
    [\fB\-32\fR|\fB\-64\fR]
+   [\fB\-\-enforce\-aligned\-data\fR][\fB\-\-dcti\-couples\-detect\fR]
 .PP
 \&\fITarget \s-1TIC54X\s0 options:\fR
  [\fB\-mcpu=54[123589]\fR|\fB\-mcpu=54[56]lp\fR] [\fB\-mfar\-mode\fR|\fB\-mf\fR]
@@ -374,8 +401,12 @@ as [\fB\-a\fR[\fBcdghlns\fR][=\fIfile\fR]] [\fB\-\-alternate\fR] [\fB\-D\fR]
 \&\fITarget TILE-Gx options:\fR
    [\fB\-m32\fR|\fB\-m64\fR][\fB\-EB\fR][\fB\-EL\fR]
 .PP
+\&\fITarget Visium options:\fR
+   [\fB\-mtune=\fR\fIarch\fR]
+.PP
 \&\fITarget Xtensa options:\fR
- [\fB\-\-[no\-]text\-section\-literals\fR] [\fB\-\-[no\-]absolute\-literals\fR]
+ [\fB\-\-[no\-]text\-section\-literals\fR] [\fB\-\-[no\-]auto\-litpools\fR]
+ [\fB\-\-[no\-]absolute\-literals\fR]
  [\fB\-\-[no\-]target\-align\fR] [\fB\-\-[no\-]longcalls\fR]
  [\fB\-\-[no\-]transform\fR]
  [\fB\-\-rename\-section\fR \fIoldname\fR=\fInewname\fR]
@@ -510,12 +541,35 @@ the last one.  By itself, \fB\-a\fR defaults to \fB\-ahls\fR.
 Begin in alternate macro mode.
 .IP "\fB\-\-compress\-debug\-sections\fR" 4
 .IX Item "--compress-debug-sections"
-Compress \s-1DWARF\s0 debug sections using zlib.  The debug sections are renamed
-to begin with \fB.zdebug\fR, and the resulting object file may not be
-compatible with older linkers and object file utilities.
+Compress \s-1DWARF\s0 debug sections using zlib with \s-1SHF_COMPRESSED\s0 from the
+\&\s-1ELF ABI. \s0 The resulting object file may not be compatible with older
+linkers and object file utilities.  Note if compression would make a
+given section \fIlarger\fR then it is not compressed.
+.IP "\fB\-\-compress\-debug\-sections=none\fR" 4
+.IX Item "--compress-debug-sections=none"
+.PD 0
+.IP "\fB\-\-compress\-debug\-sections=zlib\fR" 4
+.IX Item "--compress-debug-sections=zlib"
+.IP "\fB\-\-compress\-debug\-sections=zlib\-gnu\fR" 4
+.IX Item "--compress-debug-sections=zlib-gnu"
+.IP "\fB\-\-compress\-debug\-sections=zlib\-gabi\fR" 4
+.IX Item "--compress-debug-sections=zlib-gabi"
+.PD
+These options control how \s-1DWARF\s0 debug sections are compressed.
+\&\fB\-\-compress\-debug\-sections=none\fR is equivalent to
+\&\fB\-\-nocompress\-debug\-sections\fR.
+\&\fB\-\-compress\-debug\-sections=zlib\fR and
+\&\fB\-\-compress\-debug\-sections=zlib\-gabi\fR are equivalent to
+\&\fB\-\-compress\-debug\-sections\fR.
+\&\fB\-\-compress\-debug\-sections=zlib\-gnu\fR compresses \s-1DWARF\s0 debug
+sections using zlib.  The debug sections are renamed to begin with
+\&\fB.zdebug\fR.  Note if compression would make a given section
+\&\fIlarger\fR then it is not compressed nor renamed.
 .IP "\fB\-\-nocompress\-debug\-sections\fR" 4
 .IX Item "--nocompress-debug-sections"
-Do not compress \s-1DWARF\s0 debug sections.  This is the default.
+Do not compress \s-1DWARF\s0 debug sections.  This is usually the default for all
+targets except the x86/x86_64, but a configure time option can be used to
+override this.
 .IP "\fB\-D\fR" 4
 .IX Item "-D"
 Ignored.  This option is accepted for script compatibility with calls to
@@ -576,6 +630,15 @@ suffix.
 .IX Item "--size-check=warning"
 .PD
 Issue an error or warning for invalid \s-1ELF \s0.size directive.
+.IP "\fB\-\-elf\-stt\-common=no\fR" 4
+.IX Item "--elf-stt-common=no"
+.PD 0
+.IP "\fB\-\-elf\-stt\-common=yes\fR" 4
+.IX Item "--elf-stt-common=yes"
+.PD
+These options control whether the \s-1ELF\s0 assembler should generate common
+symbols with the \f(CW\*(C`STT_COMMON\*(C'\fR type.  The default can be controlled
+by a configure option \fB\-\-enable\-elf\-stt\-common\fR.
 .IP "\fB\-\-help\fR" 4
 .IX Item "--help"
 Print a summary of the command line options and exit.
@@ -616,13 +679,19 @@ Set the maximum width of an input source line, as displayed in a listing, to
 .IX Item "--listing-cont-lines=number"
 Set the maximum number of lines printed in a listing for a single line of input
 to \fInumber\fR + 1.
+.IP "\fB\-\-no\-pad\-sections\fR" 4
+.IX Item "--no-pad-sections"
+Stop the assembler for padding the ends of output sections to the alignment
+of that section.  The default is to pad the sections, but this can waste space
+which might be needed on targets which have tight memory constraints.
 .IP "\fB\-o\fR \fIobjfile\fR" 4
 .IX Item "-o objfile"
 Name the object-file output from \fBas\fR \fIobjfile\fR.
 .IP "\fB\-R\fR" 4
 .IX Item "-R"
 Fold the data section into the text section.
-.Sp
+.IP "\fB\-\-hash\-size=\fR\fInumber\fR" 4
+.IX Item "--hash-size=number"
 Set the default size of \s-1GAS\s0's hash tables to a prime number close to
 \&\fInumber\fR.  Increasing this value can reduce the length of time it takes the
 assembler to perform its tasks, at the expense of increasing the assembler's
@@ -633,6 +702,9 @@ requirements at the expense of speed.
 This option reduces \s-1GAS\s0's memory requirements, at the expense of making the
 assembly processes slower.  Currently this switch is a synonym for
 \&\fB\-\-hash\-size=4051\fR, but in the future it may have other effects as well.
+.IP "\fB\-\-sectname\-subst\fR" 4
+.IX Item "--sectname-subst"
+Honor substitution sequences in section names.
 .IP "\fB\-\-statistics\fR" 4
 .IX Item "--statistics"
 Print the maximum space (in bytes) and total time (in seconds) used by
@@ -696,11 +768,17 @@ file in \s-1ELF32\s0 and \s-1ELF64\s0 format respectively.  The default is \f(CW
 This option specifies the target processor.  The assembler will issue an error
 message if an attempt is made to assemble an instruction which will not execute
 on the target processor.  The following processor names are recognized:
+\&\f(CW\*(C`cortex\-a35\*(C'\fR,
 \&\f(CW\*(C`cortex\-a53\*(C'\fR,
 \&\f(CW\*(C`cortex\-a57\*(C'\fR,
 \&\f(CW\*(C`cortex\-a72\*(C'\fR,
+\&\f(CW\*(C`cortex\-a73\*(C'\fR,
 \&\f(CW\*(C`exynos\-m1\*(C'\fR,
-\&\f(CW\*(C`xgene1\*(C'\fR,
+\&\f(CW\*(C`falkor\*(C'\fR,
+\&\f(CW\*(C`qdf24xx\*(C'\fR,
+\&\f(CW\*(C`thunderx\*(C'\fR,
+\&\f(CW\*(C`vulcan\*(C'\fR,
+\&\f(CW\*(C`xgene1\*(C'\fR
 and
 \&\f(CW\*(C`xgene2\*(C'\fR.
 The special name \f(CW\*(C`all\*(C'\fR may be used to allow the assembler to accept
@@ -720,7 +798,8 @@ extensions.
 This option specifies the target architecture.  The assembler will
 issue an error message if an attempt is made to assemble an
 instruction which will not execute on the target architecture.  The
-only value for \fIarchitecture\fR is \f(CW\*(C`armv8\-a\*(C'\fR.
+following architecture names are recognized: \f(CW\*(C`armv8\-a\*(C'\fR,
+\&\f(CW\*(C`armv8.1\-a\*(C'\fR, \f(CW\*(C`armv8.2\-a\*(C'\fR and \f(CW\*(C`armv8.3\-a\*(C'\fR.
 .Sp
 If both \fB\-mcpu\fR and \fB\-march\fR are specified, the
 assembler will use the setting for \fB\-mcpu\fR.  If neither are
@@ -817,14 +896,17 @@ while smaller symbols are placed in \f(CW\*(C`.sbss\*(C'\fR.
 .PD
 These options are ignored for backward compatibility.
 .PP
-The following options are available when as is configured for
-an \s-1ARC\s0 processor.
-.IP "\fB\-marc[5|6|7|8]\fR" 4
-.IX Item "-marc[5|6|7|8]"
+The following options are available when as is configured for an \s-1ARC\s0
+processor.
+.IP "\fB\-mcpu=\fR\fIcpu\fR" 4
+.IX Item "-mcpu=cpu"
 This option selects the core processor variant.
 .IP "\fB\-EB | \-EL\fR" 4
 .IX Item "-EB | -EL"
 Select either big-endian (\-EB) or little-endian (\-EL) output.
+.IP "\fB\-mcode\-density\fR" 4
+.IX Item "-mcode-density"
+Enable Code Density extenssion instructions.
 .PP
 The following options are available when as is configured for the \s-1ARM\s0
 processor family.
@@ -955,6 +1037,16 @@ machine-dependent option:
 .IP "\fB\-h\-tick\-hex\fR" 4
 .IX Item "-h-tick-hex"
 Support H'00 style hex constants in addition to 0x00 style.
+.IP "\fB\-mach=\fR\fIname\fR" 4
+.IX Item "-mach=name"
+Sets the H8300 machine variant.  The following machine names
+are recognised:
+\&\f(CW\*(C`h8300h\*(C'\fR,
+\&\f(CW\*(C`h8300hn\*(C'\fR,
+\&\f(CW\*(C`h8300s\*(C'\fR,
+\&\f(CW\*(C`h8300sn\*(C'\fR,
+\&\f(CW\*(C`h8300sx\*(C'\fR and 
+\&\f(CW\*(C`h8300sxn\*(C'\fR.
 .PP
 The following options are available when as is configured for
 an i386 processor.
@@ -1006,6 +1098,7 @@ processor names are recognized:
 \&\f(CW\*(C`corei7\*(C'\fR,
 \&\f(CW\*(C`l1om\*(C'\fR,
 \&\f(CW\*(C`k1om\*(C'\fR,
+\&\f(CW\*(C`iamcu\*(C'\fR,
 \&\f(CW\*(C`k6\*(C'\fR,
 \&\f(CW\*(C`k6_2\*(C'\fR,
 \&\f(CW\*(C`athlon\*(C'\fR,
@@ -1016,6 +1109,7 @@ processor names are recognized:
 \&\f(CW\*(C`bdver2\*(C'\fR,
 \&\f(CW\*(C`bdver3\*(C'\fR,
 \&\f(CW\*(C`bdver4\*(C'\fR,
+\&\f(CW\*(C`znver1\*(C'\fR,
 \&\f(CW\*(C`btver1\*(C'\fR,
 \&\f(CW\*(C`btver2\*(C'\fR,
 \&\f(CW\*(C`generic32\*(C'\fR and
@@ -1028,7 +1122,11 @@ accept various extension mnemonics.  For example,
 \&\f(CW8087\fR,
 \&\f(CW287\fR,
 \&\f(CW387\fR,
+\&\f(CW687\fR,
 \&\f(CW\*(C`no87\*(C'\fR,
+\&\f(CW\*(C`no287\*(C'\fR,
+\&\f(CW\*(C`no387\*(C'\fR,
+\&\f(CW\*(C`no687\*(C'\fR,
 \&\f(CW\*(C`mmx\*(C'\fR,
 \&\f(CW\*(C`nommx\*(C'\fR,
 \&\f(CW\*(C`sse\*(C'\fR,
@@ -1039,19 +1137,28 @@ accept various extension mnemonics.  For example,
 \&\f(CW\*(C`sse4.2\*(C'\fR,
 \&\f(CW\*(C`sse4\*(C'\fR,
 \&\f(CW\*(C`nosse\*(C'\fR,
+\&\f(CW\*(C`nosse2\*(C'\fR,
+\&\f(CW\*(C`nosse3\*(C'\fR,
+\&\f(CW\*(C`nossse3\*(C'\fR,
+\&\f(CW\*(C`nosse4.1\*(C'\fR,
+\&\f(CW\*(C`nosse4.2\*(C'\fR,
+\&\f(CW\*(C`nosse4\*(C'\fR,
 \&\f(CW\*(C`avx\*(C'\fR,
 \&\f(CW\*(C`avx2\*(C'\fR,
+\&\f(CW\*(C`noavx\*(C'\fR,
+\&\f(CW\*(C`noavx2\*(C'\fR,
 \&\f(CW\*(C`adx\*(C'\fR,
 \&\f(CW\*(C`rdseed\*(C'\fR,
 \&\f(CW\*(C`prfchw\*(C'\fR,
 \&\f(CW\*(C`smap\*(C'\fR,
 \&\f(CW\*(C`mpx\*(C'\fR,
 \&\f(CW\*(C`sha\*(C'\fR,
+\&\f(CW\*(C`rdpid\*(C'\fR,
+\&\f(CW\*(C`ptwrite\*(C'\fR,
 \&\f(CW\*(C`prefetchwt1\*(C'\fR,
 \&\f(CW\*(C`clflushopt\*(C'\fR,
 \&\f(CW\*(C`se1\*(C'\fR,
 \&\f(CW\*(C`clwb\*(C'\fR,
-\&\f(CW\*(C`pcommit\*(C'\fR,
 \&\f(CW\*(C`avx512f\*(C'\fR,
 \&\f(CW\*(C`avx512cd\*(C'\fR,
 \&\f(CW\*(C`avx512er\*(C'\fR,
@@ -1061,7 +1168,21 @@ accept various extension mnemonics.  For example,
 \&\f(CW\*(C`avx512dq\*(C'\fR,
 \&\f(CW\*(C`avx512ifma\*(C'\fR,
 \&\f(CW\*(C`avx512vbmi\*(C'\fR,
-\&\f(CW\*(C`noavx\*(C'\fR,
+\&\f(CW\*(C`avx512_4fmaps\*(C'\fR,
+\&\f(CW\*(C`avx512_4vnniw\*(C'\fR,
+\&\f(CW\*(C`avx512_vpopcntdq\*(C'\fR,
+\&\f(CW\*(C`noavx512f\*(C'\fR,
+\&\f(CW\*(C`noavx512cd\*(C'\fR,
+\&\f(CW\*(C`noavx512er\*(C'\fR,
+\&\f(CW\*(C`noavx512pf\*(C'\fR,
+\&\f(CW\*(C`noavx512vl\*(C'\fR,
+\&\f(CW\*(C`noavx512bw\*(C'\fR,
+\&\f(CW\*(C`noavx512dq\*(C'\fR,
+\&\f(CW\*(C`noavx512ifma\*(C'\fR,
+\&\f(CW\*(C`noavx512vbmi\*(C'\fR,
+\&\f(CW\*(C`noavx512_4fmaps\*(C'\fR,
+\&\f(CW\*(C`noavx512_4vnniw\*(C'\fR,
+\&\f(CW\*(C`noavx512_vpopcntdq\*(C'\fR,
 \&\f(CW\*(C`vmx\*(C'\fR,
 \&\f(CW\*(C`vmfunc\*(C'\fR,
 \&\f(CW\*(C`smx\*(C'\fR,
@@ -1083,6 +1204,8 @@ accept various extension mnemonics.  For example,
 \&\f(CW\*(C`rtm\*(C'\fR,
 \&\f(CW\*(C`invpcid\*(C'\fR,
 \&\f(CW\*(C`clflush\*(C'\fR,
+\&\f(CW\*(C`mwaitx\*(C'\fR,
+\&\f(CW\*(C`clzero\*(C'\fR,
 \&\f(CW\*(C`lwp\*(C'\fR,
 \&\f(CW\*(C`fma4\*(C'\fR,
 \&\f(CW\*(C`xop\*(C'\fR,
@@ -1190,6 +1313,15 @@ The \f(CW\*(C`.att_syntax\*(C'\fR and \f(CW\*(C`.intel_syntax\*(C'\fR directives
 .IX Item "-madd-bnd-prefix"
 This option forces the assembler to add \s-1BND\s0 prefix to all branches, even
 if such prefix was not explicitly specified in the source code.
+.IP "\fB\-mno\-shared\fR" 4
+.IX Item "-mno-shared"
+On \s-1ELF\s0 target, the assembler normally optimizes out non-PLT relocations
+against defined non-weak global branch targets with default visibility.
+The \fB\-mshared\fR option tells the assembler to generate code which
+may go into a shared library where all non-weak global branch targets
+with default visibility can be preempted.  The resulting code is
+slightly bigger.  This option only affects the handling of branch
+instructions.
 .IP "\fB\-mbig\-obj\fR" 4
 .IX Item "-mbig-obj"
 On x86\-64 \s-1PE/COFF\s0 target this option forces the use of big object file
@@ -1207,6 +1339,32 @@ single-thread computers
 \&\fB\-momit\-lock\-prefix=\fR\fIyes\fR will omit all lock prefixes.
 \&\fB\-momit\-lock\-prefix=\fR\fIno\fR will encode lock prefix as usual,
 which is the default.
+.IP "\fB\-mfence\-as\-lock\-add=\fR\fIno\fR" 4
+.IX Item "-mfence-as-lock-add=no"
+.PD 0
+.IP "\fB\-mfence\-as\-lock\-add=\fR\fIyes\fR" 4
+.IX Item "-mfence-as-lock-add=yes"
+.PD
+These options control how the assembler should encode lfence, mfence and
+sfence.
+\&\fB\-mfence\-as\-lock\-add=\fR\fIyes\fR will encode lfence, mfence and
+sfence as \fBlock addl \f(CB$0x0\fB, (%rsp)\fR in 64\-bit mode and
+\&\fBlock addl \f(CB$0x0\fB, (%esp)\fR in 32\-bit mode.
+\&\fB\-mfence\-as\-lock\-add=\fR\fIno\fR will encode lfence, mfence and
+sfence as usual, which is the default.
+.IP "\fB\-mrelax\-relocations=\fR\fIno\fR" 4
+.IX Item "-mrelax-relocations=no"
+.PD 0
+.IP "\fB\-mrelax\-relocations=\fR\fIyes\fR" 4
+.IX Item "-mrelax-relocations=yes"
+.PD
+These options control whether the assembler should generate relax
+relocations, R_386_GOT32X, in 32\-bit mode, or R_X86_64_GOTPCRELX and
+R_X86_64_REX_GOTPCRELX, in 64\-bit mode.
+\&\fB\-mrelax\-relocations=\fR\fIyes\fR will generate relax relocations.
+\&\fB\-mrelax\-relocations=\fR\fIno\fR will not generate relax
+relocations.  The default can be controlled by a configure option
+\&\fB\-\-enable\-x86\-relax\-relocations\fR.
 .IP "\fB\-mevexrcig=\fR\fIrne\fR" 4
 .IX Item "-mevexrcig=rne"
 .PD 0
@@ -1223,6 +1381,14 @@ of \s-1EVEX\s0 instruction with 00, which is the default.
 \&\fB\-mevexrcig=\fR\fIrd\fR, \fB\-mevexrcig=\fR\fIru\fR
 and \fB\-mevexrcig=\fR\fIrz\fR will encode SAE-only \s-1EVEX\s0 instructions
 with 01, 10 and 11 \s-1RC\s0 bits, respectively.
+.IP "\fB\-mamd64\fR" 4
+.IX Item "-mamd64"
+.PD 0
+.IP "\fB\-mintel64\fR" 4
+.IX Item "-mintel64"
+.PD
+This option specifies that the assembler should accept only \s-1AMD64\s0 or
+Intel64 \s-1ISA\s0 in 64\-bit mode.  The default is to accept both.
 .PP
 The following options are available when as is configured for the
 Intel 80960 processor.
@@ -1328,6 +1494,15 @@ Generate big-endian output.
 .IP "\fB\-EL\fR" 4
 .IX Item "-EL"
 Generate little-endian output.  This is the default.
+.IP "\fB\-march=\fR\fIarchitecture\fR" 4
+.IX Item "-march=architecture"
+This option specifies the target architecture.  The assembler issues
+an error message if an attempt is made to assemble an instruction which
+will not execute on the target architecture.  The following architecture
+names are recognized:
+\&\f(CW\*(C`r1\*(C'\fR,
+\&\f(CW\*(C`r2\*(C'\fR.  
+The default is \f(CW\*(C`r1\*(C'\fR.
 .PP
 The following options are available when as is configured for a
 Meta processor.
@@ -1579,6 +1754,9 @@ Generate code for Power7 architecture.
 .IP "\fB\-mpower8, \-mpwr8\fR" 4
 .IX Item "-mpower8, -mpwr8"
 Generate code for Power8 architecture.
+.IP "\fB\-mpower9, \-mpwr9\fR" 4
+.IX Item "-mpower9, -mpwr9"
+Generate code for Power9 architecture.
 .IP "\fB\-mcell\fR" 4
 .IX Item "-mcell"
 .PD 0
@@ -1624,6 +1802,18 @@ Do not generate code for Solaris.
 If an alignment directive inserts more than \fIcount\fR nops, put a
 branch at the beginning to skip execution of the nops.
 .PP
+The following options are available when as is configured for a
+RISC-V  processor.
+.IP "\fB\-march=ISA\fR" 4
+.IX Item "-march=ISA"
+Select the base isa, as specified by \s-1ISA. \s0 For example \-march=rv32ima.
+.IP "\fB\-mabi=ABI\fR" 4
+.IX Item "-mabi=ABI"
+Selects the \s-1ABI,\s0 which is either \*(L"ilp32\*(R" or \*(L"lp64\*(R", optionally followed
+by \*(L"f\*(R", \*(L"d\*(R", or \*(L"q\*(R" to indicate single-precision, double-precision, or
+quad-precision floating-point calling convention, or none to indicate
+the soft-float calling convention.
+.PP
 See the info pages for documentation of the RX-specific options.
 .PP
 The following options are available when as is configured for the s390
@@ -1645,9 +1835,11 @@ Select the architecture mode, either the Enterprise System
 Architecture (esa) or the z/Architecture mode (zarch).
 .IP "\fB\-march=\fR\fIprocessor\fR" 4
 .IX Item "-march=processor"
-Specify which s390 processor variant is the target, \fBg6\fR, \fBg6\fR,
-\&\fBz900\fR, \fBz990\fR, \fBz9\-109\fR, \fBz9\-ec\fR, \fBz10\fR,
-\&\fBz196\fR, or \fBzEC12\fR.
+Specify which s390 processor variant is the target, \fBg5\fR (or
+\&\fBarch3\fR), \fBg6\fR, \fBz900\fR (or \fBarch5\fR), \fBz990\fR (or
+\&\fBarch6\fR), \fBz9\-109\fR, \fBz9\-ec\fR (or \fBarch7\fR), \fBz10\fR (or
+\&\fBarch8\fR), \fBz196\fR (or \fBarch9\fR), \fBzEC12\fR (or \fBarch10\fR),
+\&\fBz13\fR (or \fBarch11\fR), or \fBarch12\fR.
 .IP "\fB\-mregnames\fR" 4
 .IX Item "-mregnames"
 .PD 0
@@ -1729,6 +1921,20 @@ Select the word size, either 32 bits or 64 bits.
 .IX Item "-EB | -EL"
 Select the endianness, either big-endian (\-EB) or little-endian (\-EL).
 .PP
+The following option is available when as is configured for a Visium
+processor.
+.IP "\fB\-mtune=\fR\fIarch\fR" 4
+.IX Item "-mtune=arch"
+This option specifies the target architecture.  If an attempt is made to
+assemble an instruction that will not execute on the target architecture,
+the assembler will issue an error message.
+.Sp
+The following names are recognized:
+\&\f(CW\*(C`mcm24\*(C'\fR
+\&\f(CW\*(C`mcm\*(C'\fR
+\&\f(CW\*(C`gr5\*(C'\fR
+\&\f(CW\*(C`gr6\*(C'\fR
+.PP
 The following options are available when as is configured for an
 Xtensa processor.
 .IP "\fB\-\-text\-section\-literals | \-\-no\-text\-section\-literals\fR" 4
@@ -1740,9 +1946,27 @@ placed in a data \s-1RAM/ROM. \s0 With \fB\-\-text\-section\-literals\fR, the
 literals are interspersed in the text section in order to keep them as
 close as possible to their references.  This may be necessary for large
 assembly files, where the literals would otherwise be out of range of the
-\&\f(CW\*(C`L32R\*(C'\fR instructions in the text section.  These options only affect
+\&\f(CW\*(C`L32R\*(C'\fR instructions in the text section.  Literals are grouped into
+pools following \f(CW\*(C`.literal_position\*(C'\fR directives or preceding
+\&\f(CW\*(C`ENTRY\*(C'\fR instructions.  These options only affect literals referenced
+via PC-relative \f(CW\*(C`L32R\*(C'\fR instructions; literals for absolute mode
+\&\f(CW\*(C`L32R\*(C'\fR instructions are handled separately.
+.IP "\fB\-\-auto\-litpools | \-\-no\-auto\-litpools\fR" 4
+.IX Item "--auto-litpools | --no-auto-litpools"
+Control the treatment of literal pools.  The default is
+\&\fB\-\-no\-auto\-litpools\fR, which in the absence of
+\&\fB\-\-text\-section\-literals\fR places literals in separate sections
+in the output file.  This allows the literal pool to be placed in a data
+\&\s-1RAM/ROM. \s0 With \fB\-\-auto\-litpools\fR, the literals are interspersed
+in the text section in order to keep them as close as possible to their
+references, explicit \f(CW\*(C`.literal_position\*(C'\fR directives are not
+required.  This may be necessary for very large functions, where single
+literal pool at the beginning of the function may not be reachable by
+\&\f(CW\*(C`L32R\*(C'\fR instructions at the end.  These options only affect
 literals referenced via PC-relative \f(CW\*(C`L32R\*(C'\fR instructions; literals
 for absolute mode \f(CW\*(C`L32R\*(C'\fR instructions are handled separately.
+When used together with \fB\-\-text\-section\-literals\fR,
+\&\fB\-\-auto\-litpools\fR takes precedence.
 .IP "\fB\-\-absolute\-literals | \-\-no\-absolute\-literals\fR" 4
 .IX Item "--absolute-literals | --no-absolute-literals"
 Indicate to the assembler whether \f(CW\*(C`L32R\*(C'\fR instructions use absolute
@@ -1839,7 +2063,7 @@ Treat undocumented Z80 instructions that do not work on R800 as errors.
 \&\fIgcc\fR\|(1), \fIld\fR\|(1), and the Info entries for \fIbinutils\fR and \fIld\fR.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright (c) 1991\-2014 Free Software Foundation, Inc.
+Copyright (c) 1991\-2017 Free Software Foundation, Inc.
 .PP
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the \s-1GNU\s0 Free Documentation License, Version 1.3

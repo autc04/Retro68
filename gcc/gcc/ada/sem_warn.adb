@@ -1697,6 +1697,18 @@ package body Sem_Warn is
       begin
          if Is_Access_Type (Typ) and then Is_Dereferenced (N) then
             return False;
+
+         --  If a type has Default_Initial_Condition set, or it inherits it,
+         --  DIC might be specified with a boolean value, meaning that the type
+         --  is considered to be fully default initialized (SPARK RM 3.1 and
+         --  SPARK RM 7.3.3). To avoid generating spurious warnings in this
+         --  case, consider all types with DIC as fully initialized.
+
+         elsif Has_Default_Init_Cond (Typ)
+           or else Has_Inherited_Default_Init_Cond (Typ)
+         then
+            return True;
+
          else
             return Is_Fully_Initialized_Type (Typ);
          end if;
@@ -4205,8 +4217,12 @@ package body Sem_Warn is
          end case;
 
          --  Kill warnings on the entity on which the message has been posted
+         --  (nothing is posted on out parameters because back end might be
+         --  able to uncover an uninitialized path, and warn accordingly).
 
-         Set_Warnings_Off (E);
+         if Ekind (E) /= E_Out_Parameter then
+            Set_Warnings_Off (E);
+         end if;
       end if;
    end Warn_On_Unreferenced_Entity;
 
@@ -4366,7 +4382,7 @@ package body Sem_Warn is
                      --  Otherwise we are at the outer level. An exception
                      --  handler is significant only if it references the
                      --  variable in question, or if the entity in question
-                     --  is an OUT or IN OUT parameter, which which case
+                     --  is an OUT or IN OUT parameter, in which case
                      --  the caller can reference it after the exception
                      --  handler completes.
 

@@ -2,7 +2,7 @@
 
 # retain_symbols_file_test.sh -- a test case for -retain-symbols-file
 
-# Copyright (C) 2009-2014 Free Software Foundation, Inc.
+# Copyright (C) 2009-2017 Free Software Foundation, Inc.
 # Written by Craig Silverstein <csilvers@google.com>.
 
 # This file is part of gold.
@@ -44,7 +44,6 @@ check_absent()
 }
 
 check_present 't1'
-check_present 't16b::t16b()'
 check_present 't20a::get()'
 check_present 't18()'
 check_absent 't10'

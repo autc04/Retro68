@@ -2,7 +2,7 @@
 
 # split_x86_64.sh -- test -fstack-split for x86_64
 
-# Copyright (C) 2009-2014 Free Software Foundation, Inc.
+# Copyright (C) 2009-2017 Free Software Foundation, Inc.
 # Written by Ian Lance Taylor <iant@google.com>.
 
 # This file is part of gold.

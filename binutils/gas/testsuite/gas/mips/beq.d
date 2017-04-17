@@ -31,15 +31,15 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> nop
 	\.\.\.
 [0-9a-f]+ <[^>]*> j	0+0000 <.*>
-[ 	]*20058: (MIPS_JMP|JMPADDR|R_MIPS_26)	\.text
+[ 	]*20058: R_MIPS_26	\.text
 [0-9a-f]+ <[^>]*> nop
 [0-9a-f]+ <[^>]*> jal	0+0000 <.*>
-[ 	]*20060: (MIPS_JMP|JMPADDR|R_MIPS_26)	\.text
+[ 	]*20060: R_MIPS_26	\.text
 [0-9a-f]+ <[^>]*> nop
-#[0-9a-f]+ <[^>]*> b	0+20068 <.*\+0x20068>
-#[ 	]*20068: .*16	external_label
-#[0-9a-f]+ <[^>]*> nop
-#[0-9a-f]+ <[^>]*> bal	0+20070 <.*\+0x20070>
-#[ 	]*20070: .*16	external_label
-#[0-9a-f]+ <[^>]*> nop
+[0-9a-f]+ <[^>]*> b	0+20068 <.*\+0x20068>
+[ 	]*20068: R_MIPS_PC16	external_label
+[0-9a-f]+ <[^>]*> nop
+[0-9a-f]+ <[^>]*> bal	0+20070 <.*\+0x20070>
+[ 	]*20070: R_MIPS_PC16	external_label
+[0-9a-f]+ <[^>]*> nop
 	\.\.\.

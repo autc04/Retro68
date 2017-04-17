@@ -1,4 +1,4 @@
-#   Copyright (C) 2012-2015 Free Software Foundation, Inc.
+#   Copyright (C) 2012-2016 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,11 +17,26 @@
 # helper to deal with fortran modules
 
 # Remove files for specified Fortran modules.
+# This includes both .mod and .smod files.
 proc cleanup-modules { modlist } {
     global clean
     foreach mod [concat $modlist $clean] {
 	set m [string tolower $mod].mod
 	verbose "cleanup-module `$m'" 2
+	if [is_remote host] {
+	    remote_file host delete $m
+	}
+	remote_file build delete $m
+    }
+    cleanup-submodules $modlist
+}
+
+# Remove files for specified Fortran submodules.
+proc cleanup-submodules { modlist } {
+    global clean
+    foreach mod [concat $modlist $clean] {
+	set m [string tolower $mod].smod
+	verbose "cleanup-submodule `$m'" 2
 	if [is_remote host] {
 	    remote_file host delete $m
 	}

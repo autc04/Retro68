@@ -1,5 +1,5 @@
 # Expect script for ld-weak tests
-#   Copyright (C) 2001-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2001-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -82,9 +82,9 @@ proc objdump_symstuff { objdump object expectfile } {
 
     if ![info exists SOBJDUMP_FLAGS] { set SOBJDUMP_FLAGS "" }
 
-    verbose -log "$objdump $SOBJDUMP_FLAGS $object | grep foo$  > $tmpdir/objdump.out"
-
-    catch "exec $objdump $SOBJDUMP_FLAGS $object | grep foo$  > $tmpdir/objdump.out" exec_output
+    set cmd "$objdump $SOBJDUMP_FLAGS $object | sed -n {s/^\\(\[0-9a-f\]* *\\)\\(\[gw\]\\)\\( *\\)\\(\[FO\]\\)/\\1\\2\\4\\3/;/foo$/p} > $tmpdir/objdump.out"
+    verbose -log $cmd
+    catch "exec $cmd" exec_output
     set exec_output [prune_warnings $exec_output]
     if [string match "" $exec_output] then {
 
@@ -123,7 +123,8 @@ proc objdump_symstuff { objdump object expectfile } {
 	close $file_a
 
 	while { [gets $file_b line] != $eof } {
-	    if [regexp "^#.*$" $line] then {
+	    if [regexp {\.text.* \.[^ ]*$} $line] then {
+		# Discard defined powerpc64 dot-symbols
 		continue
 	    } else {
 		lappend list_b $line
@@ -177,9 +178,9 @@ proc objdump_dynsymstuff { objdump object expectfile } {
 
     if ![info exists DOBJDUMP_FLAGS] { set DOBJDUMP_FLAGS "" }
 
-    verbose -log "$objdump $DOBJDUMP_FLAGS $object | grep foo$ > $tmpdir/objdump.out"
-
-    catch "exec $objdump $DOBJDUMP_FLAGS $object | grep foo$ > $tmpdir/objdump.out" exec_output
+    set cmd "$objdump $DOBJDUMP_FLAGS $object | grep foo$ > $tmpdir/objdump.out"
+    verbose -log $cmd
+    catch "exec $cmd" exec_output
     set exec_output [prune_warnings $exec_output]
     if [string match "" $exec_output] then {
 
@@ -218,7 +219,8 @@ proc objdump_dynsymstuff { objdump object expectfile } {
 	close $file_a
 
 	while { [gets $file_b line] != $eof } {
-	    if [regexp "^#.*$" $line] then {
+	    if [regexp {\.text.* \.[^ ]*$} $line] then {
+		# Discard defined powerpc64 dot-symbols
 		continue
 	    } else {
 		lappend list_b $line

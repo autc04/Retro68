@@ -1,9 +1,9 @@
-// { dg-require-namedlocale "fr_FR" }
-// { dg-require-namedlocale "en_US" }
+// { dg-require-namedlocale "fr_FR.ISO8859-15" }
+// { dg-require-namedlocale "en_US.ISO8859-1" }
 // { dg-require-fork "" }
 // { dg-require-mkfifo "" }
 
-// Copyright (C) 2003-2015 Free Software Foundation, Inc.
+// Copyright (C) 2003-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -41,8 +41,8 @@ bool test01()
   using namespace std;
   using namespace __gnu_test;
 
-  locale loc_fr(locale("fr_FR"));
-  locale loc_en(locale("en_US"));
+  locale loc_fr(locale(ISO_8859(15,fr_FR)));
+  locale loc_en(locale(ISO_8859(1,en_US)));
 
   const char* name = "tmp_fifo_13171-2";
   unlink(name);

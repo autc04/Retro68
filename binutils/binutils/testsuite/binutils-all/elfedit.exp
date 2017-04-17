@@ -1,4 +1,4 @@
-#   Copyright (C) 2010-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2010-2017 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,3 +32,4 @@ run_dump_test "elfedit-1"
 run_dump_test "elfedit-2"
 run_dump_test "elfedit-3"
 run_dump_test "elfedit-4"
+run_dump_test "elfedit-5"

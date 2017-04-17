@@ -1,5 +1,5 @@
 /* Renesas RX specific support for 32-bit ELF.
-   Copyright (C) 2008-2014 Free Software Foundation, Inc.
+   Copyright (C) 2008-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -309,6 +309,7 @@ rx_info_to_howto_rela (bfd *               abfd ATTRIBUTE_UNUSED,
   r_type = ELF32_R_TYPE (dst->r_info);
   if (r_type >= (unsigned int) R_RX_max)
     {
+      /* xgettext:c-format */
       _bfd_error_handler (_("%B: invalid RX reloc number: %d"), abfd, r_type);
       r_type = 0;
     }
@@ -317,7 +318,6 @@ rx_info_to_howto_rela (bfd *               abfd ATTRIBUTE_UNUSED,
 
 static bfd_vma
 get_symbol_value (const char *            name,
-		  bfd_reloc_status_type * status,
 		  struct bfd_link_info *  info,
 		  bfd *                   input_bfd,
 		  asection *              input_section,
@@ -331,7 +331,7 @@ get_symbol_value (const char *            name,
   if (h == NULL
       || (h->type != bfd_link_hash_defined
 	  && h->type != bfd_link_hash_defweak))
-    * status = info->callbacks->undefined_symbol
+    (*info->callbacks->undefined_symbol)
       (info, name, input_bfd, input_section, offset, TRUE);
   else
     value = (h->u.def.value
@@ -340,6 +340,7 @@ get_symbol_value (const char *            name,
 
   return value;
 }
+
 static bfd_vma
 get_symbol_value_maybe (const char *            name,
 			struct bfd_link_info *  info)
@@ -362,8 +363,7 @@ get_symbol_value_maybe (const char *            name,
 }
 
 static bfd_vma
-get_gp (bfd_reloc_status_type * status,
-	struct bfd_link_info *  info,
+get_gp (struct bfd_link_info *  info,
 	bfd *                   abfd,
 	asection *              sec,
 	int			offset)
@@ -373,15 +373,14 @@ get_gp (bfd_reloc_status_type * status,
 
   if (!cached)
     {
-      cached_value = get_symbol_value ("__gp", status, info, abfd, sec, offset);
+      cached_value = get_symbol_value ("__gp", info, abfd, sec, offset);
       cached = TRUE;
     }
   return cached_value;
 }
 
 static bfd_vma
-get_romstart (bfd_reloc_status_type * status,
-	      struct bfd_link_info *  info,
+get_romstart (struct bfd_link_info *  info,
 	      bfd *                   abfd,
 	      asection *              sec,
 	      int		      offset)
@@ -391,15 +390,14 @@ get_romstart (bfd_reloc_status_type * status,
 
   if (!cached)
     {
-      cached_value = get_symbol_value ("_start", status, info, abfd, sec, offset);
+      cached_value = get_symbol_value ("_start", info, abfd, sec, offset);
       cached = TRUE;
     }
   return cached_value;
 }
 
 static bfd_vma
-get_ramstart (bfd_reloc_status_type * status,
-	      struct bfd_link_info *  info,
+get_ramstart (struct bfd_link_info *  info,
 	      bfd *                   abfd,
 	      asection *              sec,
 	      int		      offset)
@@ -409,7 +407,7 @@ get_ramstart (bfd_reloc_status_type * status,
 
   if (!cached)
     {
-      cached_value = get_symbol_value ("__datastart", status, info, abfd, sec, offset);
+      cached_value = get_symbol_value ("__datastart", info, abfd, sec, offset);
       cached = TRUE;
     }
   return cached_value;
@@ -553,7 +551,6 @@ rx_elf_relocate_section
 	  bfd_vma entry_vma;
 	  int idx;
 	  char *buf;
-	  bfd_reloc_status_type tstat = 0;
 
 	  if (table_default_cache != name)
 	    {
@@ -571,18 +568,14 @@ rx_elf_relocate_section
 	      buf = (char *) malloc (13 + strlen (name + 20));
 
 	      sprintf (buf, "$tablestart$%s", name + 20);
-	      tstat = 0;
 	      table_start_cache = get_symbol_value (buf,
-						    &tstat,
 						    info,
 						    input_bfd,
 						    input_section,
 						    rel->r_offset);
 
 	      sprintf (buf, "$tableend$%s", name + 20);
-	      tstat = 0;
 	      table_end_cache = get_symbol_value (buf,
-						  &tstat,
 						  info,
 						  input_bfd,
 						  input_section,
@@ -597,12 +590,14 @@ rx_elf_relocate_section
 
 	  if (table_end_cache <= entry_vma || entry_vma < table_start_cache)
 	    {
+	      /* xgettext:c-format */
 	      _bfd_error_handler (_("%B:%A: table entry %s outside table"),
 				  input_bfd, input_section,
 				  name);
 	    }
 	  else if ((int) (entry_vma - table_start_cache) % 4)
 	    {
+	      /* xgettext:c-format */
 	      _bfd_error_handler (_("%B:%A: table entry %s not word-aligned within table"),
 				  input_bfd, input_section,
 				  name);
@@ -632,7 +627,7 @@ rx_elf_relocate_section
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, 1, relend, howto, 0, contents);
 
-      if (info->relocatable)
+      if (bfd_link_relocatable (info))
 	{
 	  /* This is a relocatable link.  We don't have to change
              anything, unless the reloc is against a section symbol,
@@ -668,6 +663,7 @@ rx_elf_relocate_section
 #define ALIGN(m)   if (relocation & m) r = bfd_reloc_other;
 #define OP(i)      (contents[rel->r_offset + (i)])
 #define WARN_REDHAT(type) \
+      /* xgettext:c-format */ \
       _bfd_error_handler (_("%B:%A: Warning: deprecated Red Hat reloc " type " detected against: %s."), \
       input_bfd, input_section, name)
 
@@ -686,6 +682,7 @@ rx_elf_relocate_section
 	  && strcmp (name, "__gp") != 0					\
 	  && strcmp (name, "__romdatastart") != 0			\
 	  && !saw_subtract)						\
+	/* xgettext:c-format */						\
 	_bfd_error_handler (_("%B(%A): unsafe PID relocation %s at 0x%08lx (against %s in %s)"), \
 			    input_bfd, input_section, howto->name,	\
 			    input_section->output_section->vma + input_section->output_offset + rel->r_offset, \
@@ -712,6 +709,7 @@ rx_elf_relocate_section
 	case R_RX_RH_8_NEG:
 	  WARN_REDHAT ("RX_RH_8_NEG");
 	  relocation = - relocation;
+	  /* Fall through.  */
 	case R_RX_DIR8S_PCREL:
 	  UNSAFE_FOR_PID;
 	  RANGE (-128, 127);
@@ -733,6 +731,7 @@ rx_elf_relocate_section
 	case R_RX_RH_16_NEG:
 	  WARN_REDHAT ("RX_RH_16_NEG");
 	  relocation = - relocation;
+	  /* Fall through.  */
 	case R_RX_DIR16S_PCREL:
 	  UNSAFE_FOR_PID;
 	  RANGE (-32768, 32767);
@@ -817,6 +816,7 @@ rx_elf_relocate_section
 	  UNSAFE_FOR_PID;
 	  WARN_REDHAT ("RX_RH_24_NEG");
 	  relocation = - relocation;
+	  /* Fall through.  */
 	case R_RX_DIR24S_PCREL:
 	  RANGE (-0x800000, 0x7fffff);
 #if RX_OPCODE_BIG_ENDIAN
@@ -956,7 +956,7 @@ rx_elf_relocate_section
 
 	case R_RX_RH_GPRELB:
 	  WARN_REDHAT ("RX_RH_GPRELB");
-	  relocation -= get_gp (&r, info, input_bfd, input_section, rel->r_offset);
+	  relocation -= get_gp (info, input_bfd, input_section, rel->r_offset);
 	  RANGE (0, 65535);
 #if RX_OPCODE_BIG_ENDIAN
 	  OP (1) = relocation;
@@ -969,7 +969,7 @@ rx_elf_relocate_section
 
 	case R_RX_RH_GPRELW:
 	  WARN_REDHAT ("RX_RH_GPRELW");
-	  relocation -= get_gp (&r, info, input_bfd, input_section, rel->r_offset);
+	  relocation -= get_gp (info, input_bfd, input_section, rel->r_offset);
 	  ALIGN (1);
 	  relocation >>= 1;
 	  RANGE (0, 65535);
@@ -984,7 +984,7 @@ rx_elf_relocate_section
 
 	case R_RX_RH_GPRELL:
 	  WARN_REDHAT ("RX_RH_GPRELL");
-	  relocation -= get_gp (&r, info, input_bfd, input_section, rel->r_offset);
+	  relocation -= get_gp (info, input_bfd, input_section, rel->r_offset);
 	  ALIGN (3);
 	  relocation >>= 2;
 	  RANGE (0, 65535);
@@ -1240,6 +1240,7 @@ rx_elf_relocate_section
 
 	case R_RX_ABS8S:
 	  UNSAFE_FOR_PID;
+	  /* Fall through.  */
 	case R_RX_ABS8S_PCREL:
 	  RX_STACK_POP (relocation);
 	  RANGE (-128, 127);
@@ -1407,11 +1408,11 @@ rx_elf_relocate_section
 	  break;
 
 	case R_RX_OPromtop:
-	  RX_STACK_PUSH (get_romstart (&r, info, input_bfd, input_section, rel->r_offset));
+	  RX_STACK_PUSH (get_romstart (info, input_bfd, input_section, rel->r_offset));
 	  break;
 
 	case R_RX_OPramtop:
-	  RX_STACK_PUSH (get_ramstart (&r, info, input_bfd, input_section, rel->r_offset));
+	  RX_STACK_PUSH (get_ramstart (info, input_bfd, input_section, rel->r_offset));
 	  break;
 
 	default:
@@ -1429,45 +1430,47 @@ rx_elf_relocate_section
 	      /* Catch the case of a missing function declaration
 		 and emit a more helpful error message.  */
 	      if (r_type == R_RX_DIR24S_PCREL)
+		/* xgettext:c-format */
 		msg = _("%B(%A): error: call to undefined function '%s'");
 	      else
-		r = info->callbacks->reloc_overflow
+		(*info->callbacks->reloc_overflow)
 		  (info, (h ? &h->root : NULL), name, howto->name, (bfd_vma) 0,
 		   input_bfd, input_section, rel->r_offset);
 	      break;
 
 	    case bfd_reloc_undefined:
-	      r = info->callbacks->undefined_symbol
-		(info, name, input_bfd, input_section, rel->r_offset,
-		 TRUE);
+	      (*info->callbacks->undefined_symbol)
+		(info, name, input_bfd, input_section, rel->r_offset, TRUE);
 	      break;
 
 	    case bfd_reloc_other:
+	      /* xgettext:c-format */
 	      msg = _("%B(%A): warning: unaligned access to symbol '%s' in the small data area");
 	      break;
 
 	    case bfd_reloc_outofrange:
+	      /* xgettext:c-format */
 	      msg = _("%B(%A): internal error: out of range error");
 	      break;
 
 	    case bfd_reloc_notsupported:
+	      /* xgettext:c-format */
 	      msg = _("%B(%A): internal error: unsupported relocation error");
 	      break;
 
 	    case bfd_reloc_dangerous:
+	      /* xgettext:c-format */
 	      msg = _("%B(%A): internal error: dangerous relocation");
 	      break;
 
 	    default:
+	      /* xgettext:c-format */
 	      msg = _("%B(%A): internal error: unknown error");
 	      break;
 	    }
 
 	  if (msg)
 	    _bfd_error_handler (msg, input_bfd, input_section, name);
-
-	  if (! r)
-	    return FALSE;
 	}
     }
 
@@ -1531,7 +1534,8 @@ next_smaller_reloc (int r)
 
 static bfd_boolean
 elf32_rx_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count,
-			     Elf_Internal_Rela *alignment_rel, int force_snip)
+			     Elf_Internal_Rela *alignment_rel, int force_snip,
+			     Elf_Internal_Rela *irelstart)
 {
   Elf_Internal_Shdr * symtab_hdr;
   unsigned int        sec_shndx;
@@ -1558,8 +1562,7 @@ elf32_rx_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count,
   if (alignment_rel)
     toaddr = alignment_rel->r_offset;
 
-  irel = elf_section_data (sec)->relocs;
-  irelend = irel + sec->reloc_count;
+  BFD_ASSERT (toaddr > addr);  
 
   /* Actually delete the bytes.  */
   memmove (contents + addr, contents + addr + count,
@@ -1573,8 +1576,12 @@ elf32_rx_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count,
   else
     memset (contents + toaddr - count, 0x03, count);
 
+  irel = irelstart;
+  BFD_ASSERT (irel != NULL || sec->reloc_count == 0);
+  irelend = irel + sec->reloc_count;
+
   /* Adjust all the relocs.  */
-  for (irel = elf_section_data (sec)->relocs; irel < irelend; irel++)
+  for (; irel < irelend; irel++)
     {
       /* Get the new reloc address.  */
       if (irel->r_offset > addr
@@ -1898,11 +1905,11 @@ rx_offset_for_reloc (bfd *                    abfd,
 	  break;
 
 	case R_RX_OPromtop:
-	  RX_STACK_PUSH (get_romstart (&r, info, input_bfd, input_section, rel->r_offset));
+	  RX_STACK_PUSH (get_romstart (info, input_bfd, input_section, rel->r_offset));
 	  break;
 
 	case R_RX_OPramtop:
-	  RX_STACK_PUSH (get_ramstart (&r, info, input_bfd, input_section, rel->r_offset));
+	  RX_STACK_PUSH (get_ramstart (info, input_bfd, input_section, rel->r_offset));
 	  break;
 
 	case R_RX_DIR16UL:
@@ -1937,6 +1944,8 @@ rx_offset_for_reloc (bfd *                    abfd,
 
       rel ++;
     }
+  /* FIXME.  */
+  (void) r;
 }
 
 static void
@@ -1965,7 +1974,6 @@ elf32_rx_relax_section (bfd *                  abfd,
   Elf_Internal_Shdr * symtab_hdr;
   Elf_Internal_Shdr * shndx_hdr;
   Elf_Internal_Rela * internal_relocs;
-  Elf_Internal_Rela * free_relocs = NULL;
   Elf_Internal_Rela * irel;
   Elf_Internal_Rela * srel;
   Elf_Internal_Rela * irelend;
@@ -1991,14 +1999,17 @@ elf32_rx_relax_section (bfd *                  abfd,
   /* We don't have to do anything for a relocatable link, if
      this section does not have relocs, or if this is not a
      code section.  */
-  if (link_info->relocatable
+  if (bfd_link_relocatable (link_info)
       || (sec->flags & SEC_RELOC) == 0
       || sec->reloc_count == 0
       || (sec->flags & SEC_CODE) == 0)
     return TRUE;
 
-  symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
-  shndx_hdr = &elf_tdata (abfd)->symtab_shndx_hdr;
+  symtab_hdr = & elf_symtab_hdr (abfd);
+  if (elf_symtab_shndx_list (abfd))
+    shndx_hdr = & elf_symtab_shndx_list (abfd)->hdr;
+  else
+    shndx_hdr = NULL;
 
   sec_start = sec->output_section->vma + sec->output_offset;
 
@@ -2023,7 +2034,7 @@ elf32_rx_relax_section (bfd *                  abfd,
       symtab_hdr->contents = (bfd_byte *) intsyms;
     }
 
-  if (shndx_hdr->sh_size != 0)
+  if (shndx_hdr && shndx_hdr->sh_size != 0)
     {
       bfd_size_type amt;
 
@@ -2039,13 +2050,15 @@ elf32_rx_relax_section (bfd *                  abfd,
     }
 
   /* Get a copy of the native relocations.  */
-  internal_relocs = (_bfd_elf_link_read_relocs
-		     (abfd, sec, NULL, (Elf_Internal_Rela *) NULL,
-		      link_info->keep_memory));
+  /* Note - we ignore the setting of link_info->keep_memory when reading
+     in these relocs.  We have to maintain a permanent copy of the relocs
+     because we are going to walk over them multiple times, adjusting them
+     as bytes are deleted from the section, and with this relaxation
+     function itself being called multiple times on the same section...  */
+  internal_relocs = _bfd_elf_link_read_relocs
+    (abfd, sec, NULL, (Elf_Internal_Rela *) NULL, TRUE);
   if (internal_relocs == NULL)
     goto error_return;
-  if (! link_info->keep_memory)
-    free_relocs = internal_relocs;
 
   /* The RL_ relocs must be just before the operand relocs they go
      with, so we must sort them to guarantee this.  We use bubblesort
@@ -2135,7 +2148,7 @@ elf32_rx_relax_section (bfd *                  abfd,
 	  nbytes *= alignment;
 
 	  elf32_rx_relax_delete_bytes (abfd, sec, erel->r_offset-nbytes, nbytes, next_alignment,
-				       erel->r_offset == sec->size);
+				       erel->r_offset == sec->size, internal_relocs);
 	  *again = TRUE;
 
 	  continue;
@@ -2174,7 +2187,7 @@ elf32_rx_relax_section (bfd *                  abfd,
       nrelocs --;
 
 #define SNIPNR(offset, nbytes) \
-	elf32_rx_relax_delete_bytes (abfd, sec, (insn - contents) + offset, nbytes, next_alignment, 0);
+      elf32_rx_relax_delete_bytes (abfd, sec, (insn - contents) + offset, nbytes, next_alignment, 0, internal_relocs);
 #define SNIP(offset, nbytes, newtype) \
         SNIPNR (offset, nbytes);						\
 	srel->r_info = ELF32_R_INFO (ELF32_R_SYM (srel->r_info), newtype)
@@ -2994,9 +3007,6 @@ elf32_rx_relax_section (bfd *                  abfd,
   return TRUE;
 
  error_return:
-  if (free_relocs != NULL)
-    free (free_relocs);
-
   if (free_contents != NULL)
     free (free_contents);
 
@@ -3074,6 +3084,9 @@ describe_flags (flagword flags)
   else
     strcat (buf, ", GCC ABI");
 
+  if (flags & E_FLAG_RX_SINSNS_SET)
+    strcat (buf, flags & E_FLAG_RX_SINSNS_YES ? ", uses String instructions" : ", bans String instructions");
+
   return buf;
 }
 
@@ -3081,8 +3094,9 @@ describe_flags (flagword flags)
    object file when linking.  */
 
 static bfd_boolean
-rx_elf_merge_private_bfd_data (bfd * ibfd, bfd * obfd)
+rx_elf_merge_private_bfd_data (bfd * ibfd, struct bfd_link_info *info)
 {
+  bfd *obfd = info->output_bfd;
   flagword old_flags;
   flagword new_flags;
   bfd_boolean error = FALSE;
@@ -3100,8 +3114,22 @@ rx_elf_merge_private_bfd_data (bfd * ibfd, bfd * obfd)
     {
       flagword known_flags;
 
+      if (old_flags & E_FLAG_RX_SINSNS_SET)
+	{
+	  if ((new_flags & E_FLAG_RX_SINSNS_SET) == 0)
+	    {
+	      new_flags &= ~ E_FLAG_RX_SINSNS_MASK;
+	      new_flags |= (old_flags & E_FLAG_RX_SINSNS_MASK);
+	    }
+	}
+      else if (new_flags & E_FLAG_RX_SINSNS_SET)
+	{
+	  old_flags &= ~ E_FLAG_RX_SINSNS_MASK;
+	  old_flags |= (new_flags & E_FLAG_RX_SINSNS_MASK);
+	}
+
       known_flags = E_FLAG_RX_ABI | E_FLAG_RX_64BIT_DOUBLES
-	| E_FLAG_RX_DSP | E_FLAG_RX_PID;
+	| E_FLAG_RX_DSP | E_FLAG_RX_PID | E_FLAG_RX_SINSNS_MASK;
 
       if ((old_flags ^ new_flags) & known_flags)
 	{
@@ -3114,11 +3142,11 @@ rx_elf_merge_private_bfd_data (bfd * ibfd, bfd * obfd)
 	    }
 	  else
 	    {
-	      _bfd_error_handler ("There is a conflict merging the ELF header flags from %s",
+	      _bfd_error_handler (_("There is a conflict merging the ELF header flags from %s"),
 				  bfd_get_filename (ibfd));
-	      _bfd_error_handler ("  the input  file's flags: %s",
+	      _bfd_error_handler (_("  the input  file's flags: %s"),
 				  describe_flags (new_flags));
-	      _bfd_error_handler ("  the output file's flags: %s",
+	      _bfd_error_handler (_("  the output file's flags: %s"),
 				  describe_flags (old_flags));
 	      error = TRUE;
 	    }
@@ -3172,9 +3200,11 @@ rx_elf_object_p (bfd * abfd)
   int i;
   unsigned int u;
   Elf_Internal_Phdr *phdr = elf_tdata (abfd)->phdr;
-  int nphdrs = elf_elfheader (abfd)->e_phnum;
+  Elf_Internal_Ehdr *ehdr = elf_elfheader (abfd);
+  int nphdrs = ehdr->e_phnum;
   sec_ptr bsec;
   static int saw_be = FALSE;
+  bfd_vma end_phdroff;
 
   /* We never want to automatically choose the non-swapping big-endian
      target.  The user can only get that explicitly, such as with -I
@@ -3199,6 +3229,17 @@ rx_elf_object_p (bfd * abfd)
      corresponds (based on matching file offsets) and use its VMA
      information to reconstruct the p_vaddr field we clobbered when we
      wrote it out.  */
+  /* If PT_LOAD headers include the ELF file header or program headers
+     then the PT_LOAD header does not start with some section contents.
+     Making adjustments based on the difference between sh_offset and
+     p_offset is nonsense in such cases.  Exclude them.  Note that
+     since standard linker scripts for RX do not use SIZEOF_HEADERS,
+     the linker won't normally create PT_LOAD segments covering the
+     headers so this is mainly for passing the ld testsuite.
+     FIXME.  Why are we looking at non-PT_LOAD headers here?  */
+  end_phdroff = ehdr->e_ehsize;
+  if (ehdr->e_phoff != 0)
+    end_phdroff = ehdr->e_phoff + nphdrs * ehdr->e_phentsize;
   for (i=0; i<nphdrs; i++)
     {
       for (u=0; u<elf_tdata(abfd)->num_elf_sections; u++)
@@ -3206,7 +3247,10 @@ rx_elf_object_p (bfd * abfd)
 	  Elf_Internal_Shdr *sec = elf_tdata(abfd)->elf_sect_ptr[u];
 
 	  if (phdr[i].p_filesz
+	      && phdr[i].p_offset >= end_phdroff
 	      && phdr[i].p_offset <= (bfd_vma) sec->sh_offset
+	      && sec->sh_size > 0
+	      && sec->sh_type != SHT_NOBITS
 	      && (bfd_vma)sec->sh_offset <= phdr[i].p_offset + (phdr[i].p_filesz - 1))
 	    {
 	      /* Found one!  The difference between the two addresses,
@@ -3524,7 +3568,7 @@ rx_set_section_contents (bfd *         abfd,
       if (! rv)
 	return rv;
 
-      location ++;
+      location = (bfd_byte *) location + 1;
       offset ++;
       count --;
       caddr ++;
@@ -3550,7 +3594,7 @@ rx_set_section_contents (bfd *         abfd,
     }
 
   count -= scount;
-  location += scount;
+  location = (bfd_byte *) location + scount;
   offset += scount;
 
   if (count > 0)
@@ -3569,7 +3613,7 @@ rx_set_section_contents (bfd *         abfd,
 	  if (! rv)
 	    return rv;
 
-	  location ++;
+	  location = (bfd_byte *) location + 1;
 	  offset ++;
 	  count --;
 	  caddr ++;
@@ -3708,6 +3752,7 @@ rx_table_find (struct bfd_hash_entry *vent, void *vinfo)
   if (!h || (h->type != bfd_link_hash_defined
 	     && h->type != bfd_link_hash_defweak))
     {
+      /* xgettext:c-format */
       _bfd_error_handler (_("%B:%A: table %s missing corresponding %s"),
 			  abfd, sec, name, buf);
       return TRUE;
@@ -3715,6 +3760,7 @@ rx_table_find (struct bfd_hash_entry *vent, void *vinfo)
 
   if (h->u.def.section != ent->u.def.section)
     {
+      /* xgettext:c-format */
       _bfd_error_handler (_("%B:%A: %s and %s must be in the same input section"),
 			  h->u.def.section->owner, h->u.def.section,
 			  name, buf);

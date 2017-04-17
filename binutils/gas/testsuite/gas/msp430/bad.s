@@ -11,6 +11,12 @@
 	bis.a	#8, r2
 
 ;;; FIXME: Add more tests of assembler error detection here.
+
+	;;  A NOP is needed *before* an EINT instruction.
+	eint
+	nop
+	;; And *after* a DINT instruction.
+	dint
 	
 	;;  Changing interrupt states in two successive instructions
 	;;  might cause an interrupt to be missed.  The assembler

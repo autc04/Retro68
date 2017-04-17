@@ -1,5 +1,5 @@
 /* frags.c - manage frags -
-   Copyright (C) 1987-2014 Free Software Foundation, Inc.
+   Copyright (C) 1987-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -176,7 +176,7 @@ frag_new (size_t old_frags_var_max_size
   gas_assert (former_last_fragP == frag_now);
   frag_now = frag_alloc (&frchP->frch_obstack);
 
-  as_where (&frag_now->fr_file, &frag_now->fr_line);
+  frag_now->fr_file = as_where (&frag_now->fr_line);
 
   /* Generally, frag_now->points to an address rounded up to next
      alignment.  However, characters will add to obstack frags
@@ -206,13 +206,13 @@ frag_new (size_t old_frags_var_max_size
 char *
 frag_more (size_t nchars)
 {
-  register char *retval;
+  char *retval;
 
   frag_alloc_check (&frchain_now->frch_obstack);
   frag_grow (nchars);
   retval = obstack_next_free (&frchain_now->frch_obstack);
   obstack_blank_fast (&frchain_now->frch_obstack, nchars);
-  return (retval);
+  return retval;
 }
 
 /* Close the current frag, setting its fields for a relaxable frag.  Start a
@@ -237,7 +237,7 @@ frag_var_init (relax_stateT type, size_t max_chars, size_t var,
 #ifdef TC_FRAG_INIT
   TC_FRAG_INIT (frag_now);
 #endif
-  as_where (&frag_now->fr_file, &frag_now->fr_line);
+  frag_now->fr_file = as_where (&frag_now->fr_line);
 
   frag_new (max_chars);
 }
@@ -254,7 +254,7 @@ frag_var (relax_stateT type, size_t max_chars, size_t var,
 	  relax_substateT subtype, symbolS *symbol, offsetT offset,
 	  char *opcode)
 {
-  register char *retval;
+  char *retval;
 
   frag_grow (max_chars);
   retval = obstack_next_free (&frchain_now->frch_obstack);
@@ -272,7 +272,7 @@ frag_variant (relax_stateT type, size_t max_chars, size_t var,
 	      relax_substateT subtype, symbolS *symbol, offsetT offset,
 	      char *opcode)
 {
-  register char *retval;
+  char *retval;
 
   retval = obstack_next_free (&frchain_now->frch_obstack);
   frag_var_init (type, max_chars, var, subtype, symbol, offset, opcode);
@@ -283,7 +283,7 @@ frag_variant (relax_stateT type, size_t max_chars, size_t var,
 /* Reduce the variable end of a frag to a harmless state.  */
 
 void
-frag_wane (register fragS *fragP)
+frag_wane (fragS *fragP)
 {
   fragP->fr_type = rs_fill;
   fragP->fr_offset = 0;

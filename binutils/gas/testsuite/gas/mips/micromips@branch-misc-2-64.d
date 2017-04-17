@@ -3,7 +3,7 @@
 #source: branch-misc-2.s
 #as: -64 -non_shared
 
-# Test the backward branches to global symbols in current file (microMIPS).
+# Test branches to global symbols in current file (microMIPS).
 
 .*: +file format .*mips.*
 
@@ -44,20 +44,4 @@ Disassembly of section \.text:
 	\.\.\.
 	\.\.\.
 	\.\.\.
-[0-9a-f]+ <[^>]*> 9400 0000 	b	0+00ac <g6\+0x4>
-			a8: R_MICROMIPS_PC16_S1	x1\-0x4
-			a8: R_MIPS_NONE	\*ABS\*\-0x4
-			a8: R_MIPS_NONE	\*ABS\*\-0x4
-[0-9a-f]+ <[^>]*> 0c00      	nop
-[0-9a-f]+ <[^>]*> 9400 0000 	b	0+00b2 <g6\+0xa>
-			ae: R_MICROMIPS_PC16_S1	x2\-0x4
-			ae: R_MIPS_NONE	\*ABS\*\-0x4
-			ae: R_MIPS_NONE	\*ABS\*\-0x4
-[0-9a-f]+ <[^>]*> 0c00      	nop
-[0-9a-f]+ <[^>]*> 9400 0000 	b	0+00b8 <g6\+0x10>
-			b4: R_MICROMIPS_PC16_S1	\.data\-0x4
-			b4: R_MIPS_NONE	\*ABS\*\-0x4
-			b4: R_MIPS_NONE	\*ABS\*\-0x4
-[0-9a-f]+ <[^>]*> 0c00      	nop
-[0-9a-f]+ <[^>]*> 0c00      	nop
 	\.\.\.

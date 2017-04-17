@@ -1,6 +1,6 @@
 /* TILE-Gx opcode information.
  *
- *    Copyright (C) 2011-2014 Free Software Foundation, Inc.
+ *    Copyright (C) 2011-2017 Free Software Foundation, Inc.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,10 @@
 
 #ifndef opcode_tile_h
 #define opcode_tile_h
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef unsigned long long tilegx_bundle_bits;
 
@@ -1126,6 +1130,7 @@ typedef enum
   TILEGX_PIPELINE_Y0,
   TILEGX_PIPELINE_Y1,
   TILEGX_PIPELINE_Y2,
+  TILEGX_NUM_PIPELINE_ENCODINGS = 5,
 } tilegx_pipeline;
 
 #define tilegx_is_x_pipeline(p) ((int)(p) <= (int)TILEGX_PIPELINE_X1)
@@ -1145,9 +1150,6 @@ enum
 {
   /* Maximum number of instructions in a bundle (2 for X, 3 for Y). */
   TILEGX_MAX_INSTRUCTIONS_PER_BUNDLE = 3,
-
-  /* How many different pipeline encodings are there? X0, X1, Y0, Y1, Y2. */
-  TILEGX_NUM_PIPELINE_ENCODINGS = 5,
 
   /* Log base 2 of TILEGX_BUNDLE_SIZE_IN_BYTES. */
   TILEGX_LOG2_BUNDLE_SIZE_IN_BYTES = 3,
@@ -1300,5 +1302,9 @@ typedef tilegx_bundle_bits tile_bundle_bits;
 #define TILE_BUNDLE_ALIGNMENT_IN_BYTES TILEGX_BUNDLE_ALIGNMENT_IN_BYTES
 #define TILE_LOG2_BUNDLE_ALIGNMENT_IN_BYTES \
   TILEGX_LOG2_BUNDLE_ALIGNMENT_IN_BYTES
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* opcode_tilegx_h */

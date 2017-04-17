@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2015 Free Software Foundation, Inc.
+// Copyright (C) 2014-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,6 +20,8 @@
 #include <experimental/functional>
 #include <testsuite_hooks.h>
 
+using std::experimental::not_fn;
+
 int func(int, char) { return 0; }
 
 struct F
@@ -33,8 +35,6 @@ struct F
 void
 test01()
 {
-  using std::experimental::not_fn;
-
   auto f1 = not_fn(func);
   VERIFY( f1(1, '2') == true );
 
@@ -50,8 +50,56 @@ test01()
   VERIFY( f5(1) == false );
 }
 
+template<typename F, typename Arg>
+auto foo(F f, Arg arg) -> decltype(not_fn(f)(arg)) { return not_fn(f)(arg); }
+
+template<typename F, typename Arg>
+auto foo(F f, Arg arg) -> decltype(not_fn(f)()) { return not_fn(f)(); }
+
+struct negator
+{
+    bool operator()(int) const { return false; }
+    void operator()() const {}
+};
+
+void 
+test02()
+{
+  foo(negator{}, 1); // PR libstdc++/66998
+}
+
+void
+test03()
+{
+  struct X { bool b; };
+  X x{ false };
+  VERIFY( not_fn(&X::b)(x) );
+}
+
+void
+test04()
+{
+  struct abstract { virtual void f() = 0; };
+  struct derived : abstract { void f() { } };
+  struct F { bool operator()(abstract&) { return false; } };
+  F f;
+  derived d;
+  VERIFY( not_fn(f)(d) );
+}
+
+void
+test05()
+{
+  auto nf = std::experimental::not_fn([] { return false; });
+  auto copy(nf); // PR libstdc++/70564
+}
+
 int
 main()
 {
   test01();
+  test02();
+  test03();
+  test04();
+  test05();
 }

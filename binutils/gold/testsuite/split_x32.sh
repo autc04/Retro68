@@ -2,7 +2,7 @@
 
 # split_x32.sh -- test -fstack-split for x32
 
-# Copyright (C) 2014 Free Software Foundation, Inc.
+# Copyright (C) 2014-2017 Free Software Foundation, Inc.
 # Written by Ian Lance Taylor <iant@google.com>.
 # Modified by H.J. Lu <hongjiu.lu@intel.com>.
 

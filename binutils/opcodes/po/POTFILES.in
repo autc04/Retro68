@@ -56,6 +56,8 @@ frv-dis.c
 frv-ibld.c
 frv-opc.c
 frv-opc.h
+ft32-dis.c
+ft32-opc.c
 h8300-dis.c
 h8500-dis.c
 h8500-opc.h
@@ -173,6 +175,8 @@ pj-dis.c
 pj-opc.c
 ppc-dis.c
 ppc-opc.c
+riscv-dis.c
+riscv-opc.c
 rl78-decode.c
 rl78-dis.c
 rx-decode.c
@@ -207,6 +211,8 @@ tilepro-opc.c
 v850-dis.c
 v850-opc.c
 vax-dis.c
+visium-dis.c
+visium-opc.c
 w65-dis.c
 w65-opc.h
 xc16x-asm.c

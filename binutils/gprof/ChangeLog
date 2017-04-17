@@ -1,77 +1,14 @@
-2015-07-21  Tristan Gingold  <gingold@adacore.com>
+2017-03-02  Tristan Gingold  <gingold@adacore.com>
 
 	* configure: Regenerate.
 
-2014-12-23  Tristan Gingold  <gingold@adacore.com>
+2017-01-02  Alan Modra  <amodra@gmail.com>
 
-	* configure: Regenerate.
+	Update year range in copyright notice of all files.
 
-2014-12-23  Tristan Gingold  <gingold@adacore.com>
-
-	* configure: Regenerate.
-
-2014-11-03  Nick Clifton  <nickc@redhat.com>
-
-	* po/fi.po: Updated Finnish translation.
-	* po/hu.po: New Hungarian translation.
-	* configure.ac (ALL_LINGUAS): Add hu.
-	* configure: Regenerate.
-
-2014-10-29  Nick Clifton  <nickc@redhat.com>
-
-	* po/bg.po: Updated Bulgarian translation.
-	* po/sr.po: Updated Serbian translation.
-
-2014-10-14  Andreas Schwab  <schwab@linux-m68k.org>
-
-	* configure: Regenerate.
-
-2014-08-19  Alan Modra  <amodra@gmail.com>
-
-	* configure: Regenerate.
-
-2014-08-14  Alan Modra  <amodra@gmail.com>
-
-	* configure.ac: Move ACX_LARGEFILE after LT_INIT.
-	* configure: Regenerate.
-	* gconfig.in: Regenerate.
-
-2014-07-04  Alan Modra  <amodra@gmail.com>
-
-	* configure.ac: Rename from configure.in.
-	* Makefile.in: Regenerate.
-	* gconfig.in: Regenerate.
-
-2014-07-04  Alan Modra  <amodra@gmail.com>
-
-	* configure.in: Include bfd/version.m4.
-	(AC_INIT, AM_INIT_AUTOMAKE): Use modern form.
-	(BFD_VERSION): Delete.
-	* Makefile.am (CONFIG_STATUS_DEPENDENCIES): Remove bfd/configure.in.
-	* configure: Regenerate.
-	* Makefile.in: Regenerate.
-
-2014-06-05  Joel Brobecker  <brobecker@adacore.com>
-
-	* Makefile.am (CONFIG_STATUS_DEPENDENCIES): Add dependency on
-	bfd's development.sh.
-	* Makefile.in, configure: Regenerate.
-
-2014-03-12  Alan Modra  <amodra@gmail.com>
-
-	* Makefile.in: Regenerate.
-
-2014-03-05  Alan Modra  <amodra@gmail.com>
-
-	Update copyright years.
-
-2014-02-10  Alan Modra  <amodra@gmail.com>
-
-	* po/gprof.pot: Regenerate.
-
-For older changes see ChangeLog-2013
+For older changes see ChangeLog-2016
 
-Copyright (C) 2014 Free Software Foundation, Inc.
+Copyright (C) 2017 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

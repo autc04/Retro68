@@ -7,6 +7,7 @@
 #ifndef GO_GOGO_H
 #define GO_GOGO_H
 
+#include "escape.h"
 #include "go-linemap.h"
 
 class Traverse;
@@ -124,6 +125,21 @@ class Gogo
   Linemap*
   linemap()
   { return this->linemap_; }
+
+  // Get the Call Graph.
+  const std::set<Node*>&
+  call_graph() const
+  { return this->call_graph_; }
+
+  // Get the roots of each connection graph.
+  const std::set<Node*>&
+  connection_roots() const
+  { return this->connection_roots_; }
+
+  // Get the nodes that escape globally.
+  const std::set<Node*>&
+  global_connections() const
+  { return this->global_connections_; }
 
   // Get the package name.
   const std::string&
@@ -345,6 +361,22 @@ class Gogo
   add_label_reference(const std::string&, Location,
 		      bool issue_goto_errors);
 
+  // Add a FUNCTION to the call graph.
+  Node*
+  add_call_node(Named_object* function);
+
+  // Lookup the call node for FUNCTION.
+  Node*
+  lookup_call_node(Named_object* function) const;
+
+  // Add a connection node for OBJECT.
+  Node*
+  add_connection_node(Named_object* object);
+
+  // Lookup the connection node for OBJECT.
+  Node*
+  lookup_connection_node(Named_object* object) const;
+
   // Return a snapshot of the current binding state.
   Bindings_snapshot*
   bindings_snapshot(Location);
@@ -544,6 +576,26 @@ class Gogo
   void
   check_return_statements();
 
+  // Build call graph.
+  void
+  build_call_graph();
+
+  // Build connection graphs.
+  void
+  build_connection_graphs();
+
+  // Analyze reachability in the connection graphs.
+  void
+  analyze_reachability();
+
+  // Record escape information in function signatures for export data.
+  void
+  mark_escaping_signatures();
+
+  // Optimize variable allocation.
+  void
+  optimize_allocations(const char** filenames);
+
   // Do all exports.
   void
   do_exports();
@@ -579,6 +631,14 @@ class Gogo
   void
   dump_ast(const char* basename);
 
+  // Dump Call Graph if -fgo-dump-calls is set.
+  void
+  dump_call_graph(const char* basename);
+
+  // Dump Connection Graphs if -fgo-dump-connections is set.
+  void
+  dump_connection_graphs(const char* basename);
+
   // Convert named types to the backend representation.
   void
   convert_named_types();
@@ -592,20 +652,6 @@ class Gogo
   bool
   named_types_are_converted() const
   { return this->named_types_are_converted_; }
-
-  // Return the variable to use for the zero value of TYPE.  All types
-  // shared the same zero value, and we make sure that it is large
-  // enough.
-  Named_object*
-  zero_value(Type *type);
-
-  // Return whether a variable is the zero value variable.
-  bool
-  is_zero_value(Variable* v) const;
-
-  // Create the zero value variable.
-  Bvariable*
-  backend_zero_value();
 
   // Write out the global values.
   void
@@ -684,6 +730,10 @@ class Gogo
   // where they were defined.
   typedef Unordered_map(std::string, Location) File_block_names;
 
+  // Type used to map named objects that refer to objects to the
+  // node that represent them in the escape analysis graphs.
+  typedef Unordered_map(Named_object*, Node*)  Named_escape_nodes;
+
   // Type used to queue writing a type specific function.
   struct Specific_type_function
   {
@@ -716,6 +766,20 @@ class Gogo
   // The global binding contour.  This includes the builtin functions
   // and the package we are compiling.
   Bindings* globals_;
+  // The call graph for a program execution which represents the functions
+  // encountered and the caller-callee relationship between the functions.
+  std::set<Node*> call_graph_;
+  // The nodes that form the roots of the connection graphs for each called
+  // function and represent the connectivity relationship between all objects
+  // in the function.
+  std::set<Node*> connection_roots_;
+  // All connection nodes that have an escape state of ESCAPE_GLOBAL are a part
+  // of a special connection graph of only global variables.
+  std::set<Node*> global_connections_;
+  // Mapping from named objects to nodes in the call graph.
+  Named_escape_nodes named_call_nodes_;
+  // Mapping from named objects to nodes in a connection graph.
+  Named_escape_nodes named_connection_nodes_;
   // The list of names we have seen in the file block.
   File_block_names file_block_names_;
   // Mapping from import file names to packages.
@@ -743,12 +807,6 @@ class Gogo
   std::string pkgpath_symbol_;
   // The prefix to use for symbols, from the -fgo-prefix option.
   std::string prefix_;
-  // The special zero value variable.
-  Named_object* zero_value_;
-  // The size of the zero value variable.
-  int64_t zero_value_size_;
-  // The alignment of the zero value variable, in bytes.
-  int64_t zero_value_align_;
   // Whether pkgpath_ has been set.
   bool pkgpath_set_;
   // Whether an explicit package path was set by -fgo-pkgpath.
@@ -886,7 +944,7 @@ class Block
 class Function
 {
  public:
-  Function(Function_type* type, Function*, Block*, Location);
+  Function(Function_type* type, Named_object*, Block*, Location);
 
   // Return the function's type.
   Function_type*
@@ -894,14 +952,14 @@ class Function
   { return this->type_; }
 
   // Return the enclosing function if there is one.
-  Function*
-  enclosing()
+  Named_object*
+  enclosing() const
   { return this->enclosing_; }
 
   // Set the enclosing function.  This is used when building thunks
   // for functions which call recover.
   void
-  set_enclosing(Function* enclosing)
+  set_enclosing(Named_object* enclosing)
   {
     go_assert(this->enclosing_ == NULL);
     this->enclosing_ = enclosing;
@@ -963,6 +1021,11 @@ class Function
     go_assert(this->is_method());
     this->is_unnamed_type_stub_method_ = true;
   }
+
+  // Return the amount of enclosed variables in this closure.
+  size_t
+  closure_field_count() const
+  { return this->closure_fields_.size(); }
 
   // Add a new field to the closure variable.
   void
@@ -1152,8 +1215,11 @@ class Function
   // Import a function.
   static void
   import_func(Import*, std::string* pname, Typed_identifier** receiver,
+	      Node::Escapement_lattice* rcvr_escape,
 	      Typed_identifier_list** pparameters,
-	      Typed_identifier_list** presults, bool* is_varargs);
+	      Node::Escape_states** pparam_escapes,
+	      Typed_identifier_list** presults, bool* is_varargs,
+	      bool* has_escape_info);
 
  private:
   // Type for mapping from label names to Label objects.
@@ -1169,7 +1235,7 @@ class Function
   Function_type* type_;
   // The enclosing function.  This is NULL when there isn't one, which
   // is the normal case.
-  Function* enclosing_;
+  Named_object* enclosing_;
   // The result variables, if any.
   Results* results_;
   // If there is a closure, this is the list of variables which appear
@@ -1308,6 +1374,10 @@ class Function_declaration
   export_func(Export* exp, const std::string& name) const
   { Function::export_func_with_type(exp, name, this->fntype_); }
 
+  // Check that the types used in this declaration's signature are defined.
+  void
+  check_types() const;
+
  private:
   // The type of the function.
   Function_type* fntype_;
@@ -1414,7 +1484,11 @@ class Variable
   // Whether this variable should live in the heap.
   bool
   is_in_heap() const
-  { return this->is_address_taken_ && !this->is_global_; }
+  {
+    return this->is_address_taken_ 
+      && this->escapes_
+      && !this->is_global_;
+  }
 
   // Note that something takes the address of this variable.
   void
@@ -1431,6 +1505,16 @@ class Variable
   void
   set_non_escaping_address_taken()
   { this->is_non_escaping_address_taken_ = true; }
+
+  // Return whether this variable escapes the function it is declared in.
+  bool
+  escapes()
+  { return this->escapes_; }
+
+  // Note that this variable does not escape the function it is declared in.
+  void
+  set_does_not_escape()
+  { this->escapes_ = false; }
 
   // Get the source location of the variable's declaration.
   Location
@@ -1525,6 +1609,11 @@ class Variable
     this->type_from_chan_element_ = false;
   }
 
+  // TRUE if this variable was created for a type switch clause.
+  bool
+  is_type_switch_var() const
+  { return this->is_type_switch_var_; }
+
   // Note that this variable was created for a type switch clause.
   void
   set_is_type_switch_var()
@@ -1609,7 +1698,7 @@ class Variable
   bool is_used_ : 1;
   // Whether something takes the address of this variable.  For a
   // local variable this implies that the variable has to be on the
-  // heap.
+  // heap if it escapes from its function.
   bool is_address_taken_ : 1;
   // Whether something takes the address of this variable such that
   // the address does not escape the function.
@@ -1635,6 +1724,9 @@ class Variable
   // True if this variable should be put in a unique section.  This is
   // used for field tracking.
   bool in_unique_section_ : 1;
+  // Whether this variable escapes the function it is created in.  This is
+  // true until shown otherwise.
+  bool escapes_ : 1;
 };
 
 // A variable which is really the name for a function return value, or
@@ -1647,7 +1739,7 @@ class Result_variable
 		  Location location)
     : type_(type), function_(function), index_(index), location_(location),
       backend_(NULL), is_address_taken_(false),
-      is_non_escaping_address_taken_(false)
+      is_non_escaping_address_taken_(false), escapes_(true)
   { }
 
   // Get the type of the result variable.
@@ -1690,11 +1782,24 @@ class Result_variable
   void
   set_non_escaping_address_taken()
   { this->is_non_escaping_address_taken_ = true; }
+  
+  // Return whether this variable escapes the function it is declared in.
+  bool
+  escapes()
+  { return this->escapes_; }
+
+  // Note that this variable does not escape the function it is declared in.
+  void
+  set_does_not_escape()
+  { this->escapes_ = false; }
 
   // Whether this variable should live in the heap.
   bool
   is_in_heap() const
-  { return this->is_address_taken_; }
+  {
+    return this->is_address_taken_
+      && this->escapes_;
+  }
 
   // Set the function.  This is used when cloning functions which call
   // recover.
@@ -1722,6 +1827,9 @@ class Result_variable
   // Whether something takes the address of this variable such that
   // the address does not escape the function.
   bool is_non_escaping_address_taken_;
+  // Whether this variable escapes the function it is created in.  This is
+  // true until shown otherwise.
+  bool escapes_;
 };
 
 // The value we keep for a named constant.  This lets us hold a type
@@ -2261,6 +2369,17 @@ class Named_object
   void
   export_named_object(Export*) const;
 
+  // Mark this named object as an invalid redefinition of another object.
+  void
+  set_is_redefinition()
+  { this->is_redefinition_ = true; }
+
+  // Return whether or not this object is a invalid redefinition of another
+  // object.
+  bool
+  is_redefinition() const
+  { return this->is_redefinition_; }
+
  private:
   Named_object(const std::string&, const Package*, Classification);
 
@@ -2284,6 +2403,8 @@ class Named_object
     Function_declaration* func_declaration_value;
     Package* package_value;
   } u_;
+  // True if this object is an invalid redefinition of another object.
+  bool is_redefinition_;
 };
 
 // A binding contour.  This binds names to objects.
@@ -2548,6 +2669,8 @@ class Label
   void
   define(Location location, Bindings_snapshot* snapshot)
   {
+    if (this->is_dummy_label())
+      return;
     go_assert(Linemap::is_unknown_location(this->location_)
               && this->snapshot_ == NULL);
     this->location_ = location;
@@ -2563,6 +2686,15 @@ class Label
   // the function may call recover.
   Bexpression*
   get_addr(Translate_context*, Location location);
+
+  // Return a dummy label, representing any instance of the blank label.
+  static Label*
+  create_dummy_label();
+
+  // Return TRUE if this is a dummy label.
+  bool
+  is_dummy_label() const
+  { return this->name_ == "_"; }
 
  private:
   // The name of the label.
@@ -2619,6 +2751,37 @@ class Unnamed_label
   Blabel* blabel_;
 };
 
+// An alias for an imported package.
+
+class Package_alias
+{
+ public:
+  Package_alias(Location location)
+      : location_(location), used_(0)
+  { }
+
+  // The location of the import statement.
+  Location
+  location()
+  { return this->location_; }
+
+  // How many symbols from the package were used under this alias.
+  size_t
+  used() const
+  { return this->used_; }
+
+  // Note that some symbol was used under this alias.
+  void
+  note_usage()
+  { this->used_++; }
+
+ private:
+  // The location of the import statement.
+  Location location_;
+  // The amount of times some name from this package was used under this alias.
+  size_t used_;
+};
+
 // An imported package.
 
 class Package
@@ -2641,7 +2804,7 @@ class Package
   void
   set_pkgpath_symbol(const std::string&);
 
-  // Return the location of the import statement.
+  // Return the location of the most recent import statement.
   Location
   location() const
   { return this->location_; }
@@ -2677,15 +2840,18 @@ class Package
   bindings()
   { return this->bindings_; }
 
-  // Whether some symbol from the package was used.
-  bool
-  used() const
-  { return this->used_ > 0; }
+  // Type used to map import names to package aliases.
+  typedef std::map<std::string, Package_alias*> Aliases;
 
-  // Note that some symbol from this package was used.
+  // Return the set of package aliases.
+  const Aliases&
+  aliases() const
+  { return this->aliases_; }
+
+  // Note that some symbol from this package was used and qualified by ALIAS.
+  // For dot imports, the ALIAS should be ".PACKAGE_NAME".
   void
-  note_usage() const
-  { this->used_++; }
+  note_usage(const std::string& alias) const;
 
   // Note that USAGE might be a fake usage of this package.
   void
@@ -2699,36 +2865,6 @@ class Package
   // Clear the used field for the next file.
   void
   clear_used();
-
-  // Whether this package was imported in the current file.
-  bool
-  is_imported() const
-  { return this->is_imported_; }
-
-  // Note that this package was imported in the current file.
-  void
-  set_is_imported()
-  { this->is_imported_ = true; }
-
-  // Clear the imported field for the next file.
-  void
-  clear_is_imported()
-  { this->is_imported_ = false; }
-
-  // Whether this package was imported with a name of "_".
-  bool
-  uses_sink_alias() const
-  { return this->uses_sink_alias_; }
-
-  // Note that this package was imported with a name of "_".
-  void
-  set_uses_sink_alias()
-  { this->uses_sink_alias_ = true; }
-
-  // Clear the sink alias field for the next file.
-  void
-  clear_uses_sink_alias()
-  { this->uses_sink_alias_ = false; }
 
   // Look up a name in the package.  Returns NULL if the name is not
   // found.
@@ -2745,6 +2881,10 @@ class Package
   void
   set_location(Location location)
   { this->location_ = location; }
+
+  // Add a package name as an ALIAS for this package.
+  Package_alias*
+  add_alias(const std::string& alias, Location);
 
   // Add a constant to the package.
   Named_object*
@@ -2790,18 +2930,13 @@ class Package
   // than the priority of all of the packages that it imports.  This
   // is used to run init functions in the right order.
   int priority_;
-  // The location of the import statement.
+  // The location of the most recent import statement.
   Location location_;
-  // The amount of times some name from this package was used.  This is mutable
-  // because we can use a package even if we have a const pointer to it.
-  mutable size_t used_;
-  // A set of possibly fake uses of this package.  This is mutable because we
+  // The set of aliases associated with this package.
+  Aliases aliases_;
+  // A set of possibly fake uses of this package. This is mutable because we
   // can track fake uses of a package even if we have a const pointer to it.
   mutable std::set<Expression*> fake_uses_;
-  // True if this package was imported in the current file.
-  bool is_imported_;
-  // True if this package was imported with a name of "_".
-  bool uses_sink_alias_;
 };
 
 // Return codes for the traversal functions.  This is not an enum

@@ -66,7 +66,7 @@ program test
     !$acc loop seq worker ! { dg-error "conflicts with" }
     DO i = 1,10
     ENDDO
-    !$acc loop gang worker ! { dg-error "conflicts with" }
+    !$acc loop gang worker
     DO i = 1,10
     ENDDO
 
@@ -94,10 +94,10 @@ program test
     !$acc loop seq vector ! { dg-error "conflicts with" }
     DO i = 1,10
     ENDDO
-    !$acc loop gang vector ! { dg-error "conflicts with" }
+    !$acc loop gang vector
     DO i = 1,10
     ENDDO
-    !$acc loop worker vector ! { dg-error "conflicts with" }
+    !$acc loop worker vector
     DO i = 1,10
     ENDDO
 
@@ -187,10 +187,10 @@ program test
     !$acc loop gang
     DO i = 1,10
     ENDDO
-    !$acc loop gang(5) ! { dg-error "non-static" }
+    !$acc loop gang(5) ! { dg-error "num arguments" }
     DO i = 1,10
     ENDDO
-    !$acc loop gang(num:5) ! { dg-error "non-static" }
+    !$acc loop gang(num:5) ! { dg-error "num arguments" }
     DO i = 1,10
     ENDDO
     !$acc loop gang(static:5)
@@ -218,10 +218,10 @@ program test
     !$acc loop worker
     DO i = 1,10
     ENDDO
-    !$acc loop worker(5) ! { dg-error "non-static" }
+    !$acc loop worker(5) ! { dg-error "num arguments" }
     DO i = 1,10
     ENDDO
-    !$acc loop worker(num:5) ! { dg-error "non-static" }
+    !$acc loop worker(num:5) ! { dg-error "num arguments" }
     DO i = 1,10
     ENDDO
     !$acc loop worker
@@ -239,17 +239,17 @@ program test
     !$acc loop seq worker ! { dg-error "conflicts with" }
     DO i = 1,10
     ENDDO
-    !$acc loop gang worker ! { dg-error "conflicts with" }
+    !$acc loop gang worker
     DO i = 1,10
     ENDDO
 
     !$acc loop vector
     DO i = 1,10
     ENDDO
-    !$acc loop vector(5)
+    !$acc loop vector(5) ! { dg-error "length arguments" }
     DO i = 1,10
     ENDDO
-    !$acc loop vector(length:5)
+    !$acc loop vector(length:5) ! { dg-error "length arguments" }
     DO i = 1,10
     ENDDO
     !$acc loop vector
@@ -267,10 +267,10 @@ program test
     !$acc loop seq vector ! { dg-error "conflicts with" }
     DO i = 1,10
     ENDDO
-    !$acc loop gang vector ! { dg-error "conflicts with" }
+    !$acc loop gang vector
     DO i = 1,10
     ENDDO
-    !$acc loop worker vector ! { dg-error "conflicts with" }
+    !$acc loop worker vector
     DO i = 1,10
     ENDDO
 
@@ -392,7 +392,7 @@ program test
   !$acc kernels loop seq worker ! { dg-error "conflicts with" }
   DO i = 1,10
   ENDDO
-  !$acc kernels loop gang worker ! { dg-error "conflicts with" }
+  !$acc kernels loop gang worker
   DO i = 1,10
   ENDDO
 
@@ -420,10 +420,10 @@ program test
   !$acc kernels loop seq vector ! { dg-error "conflicts with" }
   DO i = 1,10
   ENDDO
-  !$acc kernels loop gang vector ! { dg-error "conflicts with" }
+  !$acc kernels loop gang vector
   DO i = 1,10
   ENDDO
-  !$acc kernels loop worker vector ! { dg-error "conflicts with" }
+  !$acc kernels loop worker vector
   DO i = 1,10
   ENDDO
 
@@ -501,10 +501,10 @@ program test
   !$acc parallel loop gang
   DO i = 1,10
   ENDDO
-  !$acc parallel loop gang(5) ! { dg-error "non-static" }
+  !$acc parallel loop gang(5) ! { dg-error "num arguments" }
   DO i = 1,10
   ENDDO
-  !$acc parallel loop gang(num:5) ! { dg-error "non-static" }
+  !$acc parallel loop gang(num:5) ! { dg-error "num arguments" }
   DO i = 1,10
   ENDDO
   !$acc parallel loop gang(static:5)
@@ -526,10 +526,10 @@ program test
   !$acc parallel loop worker
   DO i = 1,10
   ENDDO
-  !$acc parallel loop worker(5) ! { dg-error "non-static" }
+  !$acc parallel loop worker(5) ! { dg-error "num arguments" }
   DO i = 1,10
   ENDDO
-  !$acc parallel loop worker(num:5) ! { dg-error "non-static" }
+  !$acc parallel loop worker(num:5) ! { dg-error "num arguments" }
   DO i = 1,10
   ENDDO
   !$acc parallel loop worker
@@ -544,17 +544,17 @@ program test
   !$acc parallel loop seq worker ! { dg-error "conflicts with" }
   DO i = 1,10
   ENDDO
-  !$acc parallel loop gang worker ! { dg-error "conflicts with" }
+  !$acc parallel loop gang worker
   DO i = 1,10
   ENDDO
 
   !$acc parallel loop vector
   DO i = 1,10
   ENDDO
-  !$acc parallel loop vector(5)
+  !$acc parallel loop vector(5) ! { dg-error "length arguments" }
   DO i = 1,10
   ENDDO
-  !$acc parallel loop vector(length:5)
+  !$acc parallel loop vector(length:5) ! { dg-error "length arguments" }
   DO i = 1,10
   ENDDO
   !$acc parallel loop vector
@@ -572,10 +572,10 @@ program test
   !$acc parallel loop seq vector ! { dg-error "conflicts with" }
   DO i = 1,10
   ENDDO
-  !$acc parallel loop gang vector ! { dg-error "conflicts with" }
+  !$acc parallel loop gang vector
   DO i = 1,10
   ENDDO
-  !$acc parallel loop worker vector ! { dg-error "conflicts with" }
+  !$acc parallel loop worker vector
   DO i = 1,10
   ENDDO
 

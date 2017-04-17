@@ -8,17 +8,17 @@ MEMORY
 
 SECTIONS
 {
-  .sec0 : { *(*.sec0) }
+  .sec0 : { *(.sec0) }
   
-  .sec1 ORIGIN (region1) : { *(*.sec1) } AT> region2
+  .sec1 ORIGIN (region1) : { *(.sec1) } AT> region2
 
   fred = ORIGIN (region1) + LENGTH (region1);
   
-  .sec2 : { *(*.sec2) } > region3 AT> region4
+  .sec2 : { *(.sec2) } > region3 AT> region4
 
-  .sec3 0x5000 : { *(*.sec3) }
+  .sec3 0x5000 : { *(.sec3) }
 
-  .sec4 : { *(*.sec4) } AT> region2
+  .sec4 : { *(.sec4) } AT> region2
 
   .sec5 : { LONG(0x5555) } > region2
 

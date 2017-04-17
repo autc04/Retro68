@@ -1,13 +1,13 @@
 
 Relocation section '\.rela\.plt' at offset .* contains 2 entries:
  Offset     Info    Type            Sym\.Value  Sym\. Name \+ Addend
-0008140c  .*16 R_ARM_JUMP_SLOT   00080810   sglobal \+ 0
-00081410  .*16 R_ARM_JUMP_SLOT   00080828   foo \+ 0
+0008140c  .*16 R_ARM_JUMP_SLOT   000.....   sglobal \+ 0
+00081410  .*16 R_ARM_JUMP_SLOT   000.....   foo \+ 0
 
 Relocation section '\.rela\.text' at offset .* contains 3 entries:
  Offset     Info    Type            Sym.Value  Sym. Name \+ Addend
 00080c00  .*01 R_ARM_PC24        00080800   \.plt \+ 20
-00080c04  .*01 R_ARM_PC24        00080c0c   sexternal \+ fffffff8
+00080c04  .*01 R_ARM_PC24        000.....   sexternal - 8
 00080c08  .*01 R_ARM_PC24        00080800   \.plt \+ 8
 
 Relocation section '\.rela\.plt\.unloaded' at offset .* contains 5 entries:

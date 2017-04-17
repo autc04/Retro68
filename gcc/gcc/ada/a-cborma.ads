@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -45,6 +45,7 @@ generic
    with function "=" (Left, Right : Element_Type) return Boolean is <>;
 
 package Ada.Containers.Bounded_Ordered_Maps is
+   pragma Annotate (CodePeer, Skip_Analysis);
    pragma Pure;
    pragma Remote_Types;
 
@@ -248,7 +249,7 @@ private
      new Tree_Types.Tree_Type (Capacity) with null record;
 
    use Red_Black_Trees;
-   use Tree_Types;
+   use Tree_Types, Tree_Types.Implementation;
    use Ada.Streams;
 
    procedure Write
@@ -283,21 +284,18 @@ private
 
    for Cursor'Read use Read;
 
-   type Reference_Control_Type is new Controlled with record
-      Container : Map_Access;
-   end record;
-
-   overriding procedure Adjust (Control : in out Reference_Control_Type);
-   pragma Inline (Adjust);
-
-   overriding procedure Finalize (Control : in out Reference_Control_Type);
-   pragma Inline (Finalize);
+   subtype Reference_Control_Type is Implementation.Reference_Control_Type;
+   --  It is necessary to rename this here, so that the compiler can find it
 
    type Constant_Reference_Type
      (Element : not null access constant Element_Type) is
-   record
-      Control : Reference_Control_Type;
-   end record;
+      record
+         Control : Reference_Control_Type :=
+           raise Program_Error with "uninitialized reference";
+         --  The RM says, "The default initialization of an object of
+         --  type Constant_Reference_Type or Reference_Type propagates
+         --  Program_Error."
+      end record;
 
    procedure Read
      (Stream : not null access Root_Stream_Type'Class;
@@ -312,7 +310,11 @@ private
    for Constant_Reference_Type'Write use Write;
 
    type Reference_Type (Element : not null access Element_Type) is record
-      Control : Reference_Control_Type;
+      Control : Reference_Control_Type :=
+        raise Program_Error with "uninitialized reference";
+      --  The RM says, "The default initialization of an object of
+      --  type Constant_Reference_Type or Reference_Type propagates
+      --  Program_Error."
    end record;
 
    procedure Read
@@ -327,6 +329,25 @@ private
 
    for Reference_Type'Write use Write;
 
+   --  Three operations are used to optimize in the expansion of "for ... of"
+   --  loops: the Next(Cursor) procedure in the visible part, and the following
+   --  Pseudo_Reference and Get_Element_Access functions.  See Sem_Ch5 for
+   --  details.
+
+   function Pseudo_Reference
+     (Container : aliased Map'Class) return Reference_Control_Type;
+   pragma Inline (Pseudo_Reference);
+   --  Creates an object of type Reference_Control_Type pointing to the
+   --  container, and increments the Lock. Finalization of this object will
+   --  decrement the Lock.
+
+   type Element_Access is access all Element_Type with
+     Storage_Size => 0;
+
+   function Get_Element_Access
+     (Position : Cursor) return not null Element_Access;
+   --  Returns a pointer to the element designated by Position.
+
    Empty_Map : constant Map := Map'(Tree_Type with Capacity => 0);
 
    No_Element : constant Cursor := Cursor'(null, 0);
@@ -336,7 +357,8 @@ private
    record
       Container : Map_Access;
       Node      : Count_Type;
-   end record;
+   end record
+     with Disable_Controlled => not T_Check;
 
    overriding procedure Finalize (Object : in out Iterator);
 

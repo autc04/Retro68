@@ -4,9 +4,9 @@
 
 Disassembly of section \.plt:
 
-00008e00 <targetfn@plt-0x14>:
+00008e00 <.plt>:
     8e00:	e52de004 	push	{lr}		; \(str lr, \[sp, #-4\]!\)
-    8e04:	e59fe004 	ldr	lr, \[pc, #4\]	; 8e10 <targetfn@plt-0x4>
+    8e04:	e59fe004 	ldr	lr, \[pc, #4\]	; 8e10 <.*>
     8e08:	e08fe00e 	add	lr, pc, lr
     8e0c:	e5bef008 	ldr	pc, \[lr, #8\]!
     8e10:	0001027c 	\.word	0x0001027c
@@ -20,7 +20,7 @@ Disassembly of section \.text:
 00008f00 <targetfn>:
     8f00:	4770      	bx	lr
     8f02:	bf00      	nop
-    8f04:	f3af 8000 	nop\.w
+#...
 
 00008f08 <_start>:
     8f08:	bf00      	nop
@@ -89,5 +89,5 @@ Disassembly of section \.text:
     9002:	eb01 0002 	add\.w	r0, r1, r2
     9006:	f7ff ef06 	blx	8e14 <targetfn@plt>
     900a:	4770      	bx	lr
-    900c:	f3af 8000 	nop\.w
+#...
     9010:	eaffff7f 	b	8e14 <targetfn@plt>

@@ -1,6 +1,6 @@
 /* tc-i370.c -- Assembler for the IBM 360/370/390 instruction set.
    Loosely based on the ppc files by Linas Vepstas <linas@linas.org> 1998, 99
-   Copyright (C) 1994-2014 Free Software Foundation, Inc.
+   Copyright (C) 1994-2017 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GAS, the GNU Assembler.
@@ -102,7 +102,7 @@ static bfd_boolean reg_names_p = TARGET_REG_NAMES_P;
 /* Structure to hold information about predefined registers.  */
 struct pd_reg
   {
-    char *name;
+    const char *name;
     int value;
   };
 
@@ -269,11 +269,11 @@ register_name (expressionS *expressionP)
     reg_number = get_single_number ();
   else
     {
-      c = get_symbol_end ();
+      c = get_symbol_name (&name);
       reg_number = reg_name_search (pre_defined_registers, REG_NAME_CNT, name);
 
       /* Put back the delimiting char.  */
-      *input_line_pointer = c;
+      (void) restore_line_pointer (c);
     }
 
   /* If numeric, make sure its not out of bounds.  */
@@ -358,7 +358,7 @@ struct option md_longopts[] =
 size_t md_longopts_size = sizeof (md_longopts);
 
 int
-md_parse_option (int c, char *arg)
+md_parse_option (int c, const char *arg)
 {
   switch (c)
     {
@@ -582,7 +582,7 @@ i370_elf_suffix (char **str_p, expressionS *exp_p)
 {
   struct map_bfd
   {
-    char *string;
+    const char *string;
     int length;
     bfd_reloc_code_real_type reloc;
   };
@@ -956,6 +956,7 @@ i370_dc (int unused ATTRIBUTE_UNUSED)
       break;
     case 'E':  /* 32-bit */
       type = 'f';
+      /* Fall through.  */
     case 'D':  /* 64-bit */
       md_atof (type, tmp, &nbytes);
       p = frag_more (nbytes);
@@ -1033,12 +1034,11 @@ i370_elf_lcomm (int unused ATTRIBUTE_UNUSED)
   char *pfrag;
   int align2;
 
-  name = input_line_pointer;
-  c = get_symbol_end ();
+  c = get_symbol_name (&name);
 
   /* Just after name is now '\0'.  */
   p = input_line_pointer;
-  *p = c;
+  (void) restore_line_pointer (c);
   SKIP_WHITESPACE ();
   if (*input_line_pointer != ',')
     {
@@ -1185,7 +1185,7 @@ i370_elf_validate_fix (fixS *fixp, segT seg)
    waste space padding out to alignments.  The four pointers
    longlong_poolP, word_poolP, etc. point to a symbol labeling the
    start of each pool part.
- 
+
    lit_pool_num increments from zero to infinity and uniquely id's
      -- its used to generate the *_poolP symbol name.  */
 
@@ -1376,7 +1376,7 @@ symbol_locate (symbolS *symbolP,
 }
 
 /* i370_addr_offset() will convert operand expressions
-   that appear to be absolute into thier base-register
+   that appear to be absolute into their base-register
    relative form.  These expressions come in two types:
 
    (1) of the form "* + const" * where "*" means
@@ -1482,7 +1482,7 @@ i370_addr_cons (expressionS *exp)
       expression (exp);
 
       /* We use a simple string name to collapse together
-         multiple refrences to the same address literal.  */
+         multiple references to the same address literal.  */
       name_len = strcspn (sym_name, ", ");
       delim = *(sym_name + name_len);
       *(sym_name + name_len) = 0x0;
@@ -1868,7 +1868,7 @@ i370_macro (char *str, const struct i370_macro *macro)
     }
 
   /* Put the string together.  */
-  complete = s = alloca (len + 1);
+  complete = s = XNEWVEC (char, len + 1);
   format = macro->format;
   while (*format != '\0')
     {
@@ -1886,6 +1886,7 @@ i370_macro (char *str, const struct i370_macro *macro)
 
   /* Assemble the constructed instruction.  */
   md_assemble (complete);
+  free (complete);
 }
 
 /* This routine is called for each instruction to be assembled.  */
@@ -2352,7 +2353,7 @@ i370_tc (int ignore ATTRIBUTE_UNUSED)
     }
 }
 
-char *
+const char *
 md_atof (int type, char *litp, int *sizep)
 {
   /* 360/370/390 have two float formats: an old, funky 360 single-precision
@@ -2376,7 +2377,7 @@ md_section_align (asection *seg, valueT addr)
 {
   int align = bfd_get_section_alignment (stdoutput, seg);
 
-  return (addr + (1 << align) - 1) & (-1 << align);
+  return (addr + (1 << align) - 1) & -(1 << align);
 }
 
 /* We don't have any form of relaxing.  */
@@ -2499,7 +2500,7 @@ md_apply_fix (fixS *fixP, valueT * valP, segT seg)
 	 any operands that need relocation.  Due to the 12-bit naturew of
 	 i370 addressing, this would be unusual.  */
         {
-          char *sfile;
+          const char *sfile;
           unsigned int sline;
 
           /* Use expr_symbol_where to see if this is an expression
@@ -2603,9 +2604,9 @@ tc_gen_reloc (asection *seg ATTRIBUTE_UNUSED, fixS *fixp)
 {
   arelent *reloc;
 
-  reloc = xmalloc (sizeof (arelent));
+  reloc = XNEW (arelent);
 
-  reloc->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+  reloc->sym_ptr_ptr = XNEW (asymbol *);
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
   reloc->address = fixp->fx_frag->fr_address + fixp->fx_where;
   reloc->howto = bfd_reloc_type_lookup (stdoutput, fixp->fx_r_type);

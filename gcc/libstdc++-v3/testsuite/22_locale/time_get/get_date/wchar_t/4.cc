@@ -1,8 +1,8 @@
-// { dg-require-namedlocale "zh_TW" }
+// { dg-require-namedlocale "zh_TW.UTF-8" }
 
 // 2003-12-17  Paolo Carlini  <pcarlini@suse.de>
 
-// Copyright (C) 2003-2015 Free Software Foundation, Inc.
+// Copyright (C) 2003-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -32,7 +32,7 @@ void test01()
 
   typedef istreambuf_iterator<wchar_t> iterator_type;
 
-  locale loc_tw = locale("zh_TW");
+  locale loc_tw = locale("zh_TW.UTF-8");
 
   iterator_type end;
 

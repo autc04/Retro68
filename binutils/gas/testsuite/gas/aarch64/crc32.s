@@ -1,6 +1,6 @@
 /* crc32.s Test file for AArch64 CRC-32 and CRC-32C checksum instructions.
 
-   Copyright (C) 2013-2014 Free Software Foundation, Inc.
+   Copyright (C) 2013-2017 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.
@@ -21,6 +21,10 @@
 
 
 	.text
+	.ifdef DIRECTIVE
+	.arch_extension crc
+	.endif
+
 	crc32b	w3, w7, w15
 	crc32h	w7, w15, w3
 	crc32w	w15, w3, w7
@@ -29,3 +33,5 @@
 	crc32ch	w7, w15, w3
 	crc32cw	w15, w3, w7
 	crc32cx	w3, w7, x15
+
+	.arch_extension nocrc

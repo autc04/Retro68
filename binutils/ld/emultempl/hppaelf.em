@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 1991-2014 Free Software Foundation, Inc.
+#   Copyright (C) 1991-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -50,7 +50,7 @@ static bfd_signed_vma group_size = 1;
 static void
 hppaelf_after_parse (void)
 {
-  if (link_info.relocatable)
+  if (bfd_link_relocatable (&link_info))
     lang_add_unique (".text");
 
   /* Enable this once we split millicode stuff from libgcc:
@@ -59,7 +59,7 @@ hppaelf_after_parse (void)
 			  NULL);
   */
 
-  after_parse_default ();
+  gld${EMULATION_NAME}_after_parse ();
 }
 
 /* This is called before the input files are opened.  We create a new
@@ -88,6 +88,7 @@ hppaelf_create_output_section_statements (void)
 
   stub_file->the_bfd->flags |= BFD_LINKER_CREATED;
   ldlang_add_file (stub_file);
+  elf32_hppa_init_stub_bfd (stub_file->the_bfd, &link_info);
 }
 
 
@@ -259,7 +260,7 @@ gld${EMULATION_NAME}_after_allocation (void)
 
   /* If generating a relocatable output file, then we don't
      have to examine the relocs.  */
-  if (stub_file != NULL && !link_info.relocatable)
+  if (stub_file != NULL && !bfd_link_relocatable (&link_info))
     {
       ret = elf32_hppa_setup_section_lists (link_info.output_bfd, &link_info);
       if (ret != 0)
@@ -290,7 +291,7 @@ gld${EMULATION_NAME}_after_allocation (void)
   if (need_laying_out != -1)
     gld${EMULATION_NAME}_map_segments (need_laying_out);
 
-  if (! link_info.relocatable)
+  if (!bfd_link_relocatable (&link_info))
     {
       /* Set the global data pointer.  */
       if (! elf32_hppa_set_gp (link_info.output_bfd, &link_info))

@@ -10,7 +10,7 @@ foo:
 
 	.section .data.rel.ro, "a", @progbits
 indirect_ptr:
-	.long my_personality_v0
+	.dc.a my_personality_v0
 
 	.globl my_personality_v0
 my_personality_v0:

@@ -37,3 +37,5 @@ void __start()
 	}
 	exit(result);
 }
+
+void *__dso_handle = &__dso_handle;

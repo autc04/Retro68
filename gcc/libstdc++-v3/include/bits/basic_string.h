@@ -1,6 +1,6 @@
 // Components for manipulating sequences of characters -*- C++ -*-
 
-// Copyright (C) 1997-2015 Free Software Foundation, Inc.
+// Copyright (C) 1997-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -39,6 +39,7 @@
 #include <ext/atomicity.h>
 #include <ext/alloc_traits.h>
 #include <debug/debug.h>
+
 #if __cplusplus >= 201103L
 #include <initializer_list>
 #endif
@@ -322,9 +323,8 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       template<class _Iterator>
         static void
         _S_copy_chars(_CharT* __p, _Iterator __k1, _Iterator __k2)
-	_GLIBCXX_NOEXCEPT
         {
-	  for (; __k1 != __k2; ++__k1, ++__p)
+	  for (; __k1 != __k2; ++__k1, (void)++__p)
 	    traits_type::assign(*__p, *__k1); // These types are off.
 	}
 
@@ -378,9 +378,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *  @brief  Default constructor creates an empty string.
        */
       basic_string()
-#if __cplusplus >= 201103L
-      noexcept(is_nothrow_default_constructible<_Alloc>::value)
-#endif
+      _GLIBCXX_NOEXCEPT_IF(is_nothrow_default_constructible<_Alloc>::value)
       : _M_dataplus(_M_local_data())
       { _M_set_length(0); }
 
@@ -388,7 +386,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *  @brief  Construct an empty string using allocator @a a.
        */
       explicit
-      basic_string(const _Alloc& __a)
+      basic_string(const _Alloc& __a) _GLIBCXX_NOEXCEPT
       : _M_dataplus(_M_local_data(), __a)
       { _M_set_length(0); }
 
@@ -397,7 +395,8 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *  @param  __str  Source string.
        */
       basic_string(const basic_string& __str)
-      : _M_dataplus(_M_local_data(), __str._M_get_allocator()) // TODO A traits
+      : _M_dataplus(_M_local_data(),
+		    _Alloc_traits::_S_select_on_copy(__str._M_get_allocator()))
       { _M_construct(__str._M_data(), __str._M_data() + __str.length()); }
 
       /**
@@ -510,10 +509,25 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       { _M_construct(__str.begin(), __str.end()); }
 
       basic_string(basic_string&& __str, const _Alloc& __a)
+      noexcept(_Alloc_traits::_S_always_equal())
       : _M_dataplus(_M_local_data(), __a)
       {
-	if (__str.get_allocator() == __a)
-	  *this = std::move(__str);
+	if (__str._M_is_local())
+	  {
+	    traits_type::copy(_M_local_buf, __str._M_local_buf,
+			      _S_local_capacity + 1);
+	    _M_length(__str.length());
+	    __str._M_set_length(0);
+	  }
+	else if (_Alloc_traits::_S_always_equal()
+	    || __str.get_allocator() == __a)
+	  {
+	    _M_data(__str._M_data());
+	    _M_length(__str.length());
+	    _M_capacity(__str._M_allocated_capacity);
+	    __str._M_data(__str._M_local_buf);
+	    __str._M_set_length(0);
+	  }
 	else
 	  _M_construct(__str.begin(), __str.end());
       }
@@ -549,7 +563,23 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        */
       basic_string&
       operator=(const basic_string& __str)
-      { return this->assign(__str); }
+      {
+#if __cplusplus >= 201103L
+	if (_Alloc_traits::_S_propagate_on_copy_assign())
+	  {
+	    if (!_Alloc_traits::_S_always_equal() && !_M_is_local()
+		&& _M_get_allocator() != __str._M_get_allocator())
+	      {
+		// replacement allocator cannot free existing storage
+		_M_destroy(_M_allocated_capacity);
+		_M_data(_M_local_data());
+		_M_set_length(0);
+	      }
+	    std::__alloc_on_copy(_M_get_allocator(), __str._M_get_allocator());
+	  }
+#endif
+	return this->assign(__str);
+      }
 
       /**
        *  @brief  Copy contents of @a s into this string.
@@ -586,8 +616,51 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       // 2063. Contradictory requirements for string move assignment
       basic_string&
       operator=(basic_string&& __str)
+      noexcept(_Alloc_traits::_S_nothrow_move())
       {
-	this->swap(__str);
+	if (!_M_is_local() && _Alloc_traits::_S_propagate_on_move_assign()
+	    && !_Alloc_traits::_S_always_equal()
+	    && _M_get_allocator() != __str._M_get_allocator())
+	  {
+	    // Destroy existing storage before replacing allocator.
+	    _M_destroy(_M_allocated_capacity);
+	    _M_data(_M_local_data());
+	    _M_set_length(0);
+	  }
+	// Replace allocator if POCMA is true.
+	std::__alloc_on_move(_M_get_allocator(), __str._M_get_allocator());
+
+	if (!__str._M_is_local()
+	    && (_Alloc_traits::_S_propagate_on_move_assign()
+	      || _Alloc_traits::_S_always_equal()))
+	  {
+	    pointer __data = nullptr;
+	    size_type __capacity;
+	    if (!_M_is_local())
+	      {
+		if (_Alloc_traits::_S_always_equal())
+		  {
+		    __data = _M_data();
+		    __capacity = _M_allocated_capacity;
+		  }
+		else
+		  _M_destroy(_M_allocated_capacity);
+	      }
+
+	    _M_data(__str._M_data());
+	    _M_length(__str.length());
+	    _M_capacity(__str._M_allocated_capacity);
+	    if (__data)
+	      {
+		__str._M_data(__data);
+		__str._M_capacity(__capacity);
+	      }
+	    else
+	      __str._M_data(__str._M_local_buf);
+	  }
+	else
+	    assign(__str);
+	__str.clear();
 	return *this;
       }
 
@@ -759,13 +832,15 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       void
       shrink_to_fit() noexcept
       {
+#if __cpp_exceptions
 	if (capacity() > size())
 	  {
-	    __try
+	    try
 	      { reserve(0); }
-	    __catch(...)
+	    catch(...)
 	      { }
 	  }
+#endif
       }
 #endif
 
@@ -829,7 +904,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       const_reference
       operator[] (size_type __pos) const _GLIBCXX_NOEXCEPT
       {
-	_GLIBCXX_DEBUG_ASSERT(__pos <= size());
+	__glibcxx_assert(__pos <= size());
 	return _M_data()[__pos];
       }
 
@@ -848,7 +923,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       {
         // Allow pos == size() both in C++98 mode, as v3 extension,
 	// and in C++11 mode.
-	_GLIBCXX_DEBUG_ASSERT(__pos <= size());
+	__glibcxx_assert(__pos <= size());
         // In pedantic mode be strict in C++98 mode.
 	_GLIBCXX_DEBUG_PEDASSERT(__cplusplus >= 201103L || __pos < size());
 	return _M_data()[__pos];
@@ -903,7 +978,10 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        */
       reference
       front() noexcept
-      { return operator[](0); }
+      {
+	__glibcxx_assert(!empty());
+	return operator[](0);
+      }
 
       /**
        *  Returns a read-only (constant) reference to the data at the first
@@ -911,7 +989,10 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        */
       const_reference
       front() const noexcept
-      { return operator[](0); }
+      {
+	__glibcxx_assert(!empty());
+	return operator[](0);
+      }
 
       /**
        *  Returns a read/write reference to the data at the last
@@ -919,7 +1000,10 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        */
       reference
       back() noexcept
-      { return operator[](this->size() - 1); }
+      {
+	__glibcxx_assert(!empty());
+	return operator[](this->size() - 1);
+      }
 
       /**
        *  Returns a read-only (constant) reference to the data at the
@@ -927,7 +1011,10 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        */
       const_reference
       back() const noexcept
-      { return operator[](this->size() - 1); }
+      {
+	__glibcxx_assert(!empty());
+	return operator[](this->size() - 1);
+      }
 #endif
 
       // Modifiers:
@@ -1106,6 +1193,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        */
       basic_string&
       assign(basic_string&& __str)
+      noexcept(_Alloc_traits::_S_nothrow_move())
       {
 	// _GLIBCXX_RESOLVE_LIB_DEFECTS
 	// 2063. Contradictory requirements for string move assignment
@@ -1506,7 +1594,10 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        */
       void
       pop_back() noexcept
-      { _M_erase(size()-1, 1); }
+      {
+	__glibcxx_assert(!empty());
+	_M_erase(size() - 1, 1);
+      }
 #endif // C++11
 
       /**
@@ -2585,11 +2676,32 @@ _GLIBCXX_END_NAMESPACE_CXX11
 
         bool
 	_M_is_leaked() const _GLIBCXX_NOEXCEPT
-        { return this->_M_refcount < 0; }
+        {
+#if defined(__GTHREADS)
+          // _M_refcount is mutated concurrently by _M_refcopy/_M_dispose,
+          // so we need to use an atomic load. However, _M_is_leaked
+          // predicate does not change concurrently (i.e. the string is either
+          // leaked or not), so a relaxed load is enough.
+          return __atomic_load_n(&this->_M_refcount, __ATOMIC_RELAXED) < 0;
+#else
+          return this->_M_refcount < 0;
+#endif
+        }
 
         bool
 	_M_is_shared() const _GLIBCXX_NOEXCEPT
-        { return this->_M_refcount > 0; }
+	{
+#if defined(__GTHREADS)
+          // _M_refcount is mutated concurrently by _M_refcopy/_M_dispose,
+          // so we need to use an atomic load. Another thread can drop last
+          // but one reference concurrently with this check, so we need this
+          // load to be acquire to synchronize with release fetch_and_add in
+          // _M_dispose.
+          return __atomic_load_n(&this->_M_refcount, __ATOMIC_ACQUIRE) > 0;
+#else
+          return this->_M_refcount > 0;
+#endif
+        }
 
         void
 	_M_set_leaked() _GLIBCXX_NOEXCEPT
@@ -2638,6 +2750,14 @@ _GLIBCXX_END_NAMESPACE_CXX11
 	    {
 	      // Be race-detector-friendly.  For more info see bits/c++config.
 	      _GLIBCXX_SYNCHRONIZATION_HAPPENS_BEFORE(&this->_M_refcount);
+              // Decrement of _M_refcount is acq_rel, because:
+              // - all but last decrements need to release to synchronize with
+              //   the last decrement that will delete the object.
+              // - the last decrement needs to acquire to synchronize with
+              //   all the previous decrements.
+              // - last but one decrement needs to release to synchronize with
+              //   the acquire load in _M_is_shared that will conclude that
+              //   the object is not shared anymore.
 	      if (__gnu_cxx::__exchange_and_add_dispatch(&this->_M_refcount,
 							 -1) <= 0)
 		{
@@ -2780,9 +2900,8 @@ _GLIBCXX_END_NAMESPACE_CXX11
       template<class _Iterator>
         static void
         _S_copy_chars(_CharT* __p, _Iterator __k1, _Iterator __k2)
-	_GLIBCXX_NOEXCEPT
         {
-	  for (; __k1 != __k2; ++__k1, ++__p)
+	  for (; __k1 != __k2; ++__k1, (void)++__p)
 	    traits_type::assign(*__p, *__k1); // These types are off.
 	}
 
@@ -3163,13 +3282,15 @@ _GLIBCXX_END_NAMESPACE_CXX11
       void
       shrink_to_fit() _GLIBCXX_NOEXCEPT
       {
+#if __cpp_exceptions
 	if (capacity() > size())
 	  {
-	    __try
+	    try
 	      { reserve(0); }
-	    __catch(...)
+	    catch(...)
 	      { }
 	  }
+#endif
       }
 #endif
 
@@ -3231,7 +3352,7 @@ _GLIBCXX_END_NAMESPACE_CXX11
       const_reference
       operator[] (size_type __pos) const _GLIBCXX_NOEXCEPT
       {
-	_GLIBCXX_DEBUG_ASSERT(__pos <= size());
+	__glibcxx_assert(__pos <= size());
 	return _M_data()[__pos];
       }
 
@@ -3250,7 +3371,7 @@ _GLIBCXX_END_NAMESPACE_CXX11
       {
         // Allow pos == size() both in C++98 mode, as v3 extension,
 	// and in C++11 mode.
-	_GLIBCXX_DEBUG_ASSERT(__pos <= size());
+	__glibcxx_assert(__pos <= size());
         // In pedantic mode be strict in C++98 mode.
 	_GLIBCXX_DEBUG_PEDASSERT(__cplusplus >= 201103L || __pos < size());
 	_M_leak();
@@ -3308,15 +3429,21 @@ _GLIBCXX_END_NAMESPACE_CXX11
        */
       reference
       front()
-      { return operator[](0); }
+      {
+	__glibcxx_assert(!empty());
+	return operator[](0);
+      }
 
       /**
        *  Returns a read-only (constant) reference to the data at the first
        *  element of the %string.
        */
       const_reference
-      front() const _GLIBCXX_NOEXCEPT
-      { return operator[](0); }
+      front() const noexcept
+      {
+	__glibcxx_assert(!empty());
+	return operator[](0);
+      }
 
       /**
        *  Returns a read/write reference to the data at the last
@@ -3324,15 +3451,21 @@ _GLIBCXX_END_NAMESPACE_CXX11
        */
       reference
       back()
-      { return operator[](this->size() - 1); }
+      {
+	__glibcxx_assert(!empty());
+	return operator[](this->size() - 1);
+      }
 
       /**
        *  Returns a read-only (constant) reference to the data at the
        *  last element of the %string.
        */
       const_reference
-      back() const _GLIBCXX_NOEXCEPT
-      { return operator[](this->size() - 1); }
+      back() const noexcept
+      {
+	__glibcxx_assert(!empty());
+	return operator[](this->size() - 1);
+      }
 #endif
 
       // Modifiers:
@@ -3819,7 +3952,10 @@ _GLIBCXX_END_NAMESPACE_CXX11
        */
       void
       pop_back() // FIXME C++11: should be noexcept.
-      { erase(size()-1, 1); }
+      {
+	__glibcxx_assert(!empty());
+	erase(size() - 1, 1);
+      }
 #endif // C++11
 
       /**
@@ -4766,6 +4902,18 @@ _GLIBCXX_END_NAMESPACE_CXX11
       int
       compare(size_type __pos, size_type __n1, const _CharT* __s,
 	      size_type __n2) const;
+
+# ifdef _GLIBCXX_TM_TS_INTERNAL
+      friend void
+      ::_txnal_cow_string_C1_for_exceptions(void* that, const char* s,
+					    void* exc);
+      friend const char*
+      ::_txnal_cow_string_c_str(const void *that);
+      friend void
+      ::_txnal_cow_string_D1(void *that);
+      friend void
+      ::_txnal_cow_string_D1_commit(void *that);
+# endif
   };
 #endif  // !_GLIBCXX_USE_CXX11_ABI
 
@@ -4901,13 +5049,14 @@ _GLIBCXX_END_NAMESPACE_CXX11
     inline bool
     operator==(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
 	       const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+    _GLIBCXX_NOEXCEPT
     { return __lhs.compare(__rhs) == 0; }
 
   template<typename _CharT>
     inline
     typename __gnu_cxx::__enable_if<__is_char<_CharT>::__value, bool>::__type
     operator==(const basic_string<_CharT>& __lhs,
-	       const basic_string<_CharT>& __rhs)
+	       const basic_string<_CharT>& __rhs) _GLIBCXX_NOEXCEPT
     { return (__lhs.size() == __rhs.size()
 	      && !std::char_traits<_CharT>::compare(__lhs.data(), __rhs.data(),
 						    __lhs.size())); }
@@ -4947,6 +5096,7 @@ _GLIBCXX_END_NAMESPACE_CXX11
     inline bool
     operator!=(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
 	       const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+    _GLIBCXX_NOEXCEPT
     { return !(__lhs == __rhs); }
 
   /**
@@ -4984,6 +5134,7 @@ _GLIBCXX_END_NAMESPACE_CXX11
     inline bool
     operator<(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
 	      const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+    _GLIBCXX_NOEXCEPT
     { return __lhs.compare(__rhs) < 0; }
 
   /**
@@ -5021,6 +5172,7 @@ _GLIBCXX_END_NAMESPACE_CXX11
     inline bool
     operator>(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
 	      const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+    _GLIBCXX_NOEXCEPT
     { return __lhs.compare(__rhs) > 0; }
 
   /**
@@ -5058,6 +5210,7 @@ _GLIBCXX_END_NAMESPACE_CXX11
     inline bool
     operator<=(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
 	       const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+    _GLIBCXX_NOEXCEPT
     { return __lhs.compare(__rhs) <= 0; }
 
   /**
@@ -5095,6 +5248,7 @@ _GLIBCXX_END_NAMESPACE_CXX11
     inline bool
     operator>=(const basic_string<_CharT, _Traits, _Alloc>& __lhs,
 	       const basic_string<_CharT, _Traits, _Alloc>& __rhs)
+    _GLIBCXX_NOEXCEPT
     { return __lhs.compare(__rhs) >= 0; }
 
   /**
@@ -5132,6 +5286,7 @@ _GLIBCXX_END_NAMESPACE_CXX11
     inline void
     swap(basic_string<_CharT, _Traits, _Alloc>& __lhs,
 	 basic_string<_CharT, _Traits, _Alloc>& __rhs)
+    _GLIBCXX_NOEXCEPT_IF(noexcept(__lhs.swap(__rhs)))
     { __lhs.swap(__rhs); }
 
 
@@ -5242,7 +5397,7 @@ _GLIBCXX_END_NAMESPACE_CXX11
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
 
-#if __cplusplus >= 201103L && defined(_GLIBCXX_USE_C99)
+#if __cplusplus >= 201103L
 
 #include <ext/string_conversions.h>
 
@@ -5251,6 +5406,7 @@ namespace std _GLIBCXX_VISIBILITY(default)
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
 _GLIBCXX_BEGIN_NAMESPACE_CXX11
 
+#if _GLIBCXX_USE_C99_STDLIB
   // 21.4 Numeric Conversions [string.conversions].
   inline int
   stoi(const string& __str, size_t* __idx = 0, int __base = 10)
@@ -5289,7 +5445,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
   inline long double
   stold(const string& __str, size_t* __idx = 0)
   { return __gnu_cxx::__stoa(&std::strtold, "stold", __str.c_str(), __idx); }
+#endif // _GLIBCXX_USE_C99_STDLIB
 
+#if _GLIBCXX_USE_C99_STDIO
   // NB: (v)snprintf vs sprintf.
 
   // DR 1261.
@@ -5353,8 +5511,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
     return __gnu_cxx::__to_xstring<string>(&std::vsnprintf, __n,
 					   "%Lf", __val);
   }
+#endif // _GLIBCXX_USE_C99_STDIO
 
-#ifdef _GLIBCXX_USE_WCHAR_T
+#if defined(_GLIBCXX_USE_WCHAR_T) && _GLIBCXX_USE_C99_WCHAR
   inline int 
   stoi(const wstring& __str, size_t* __idx = 0, int __base = 10)
   { return __gnu_cxx::__stoa<long, int>(&std::wcstol, "stoi", __str.c_str(),
@@ -5456,13 +5615,13 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
 					    L"%Lf", __val);
   }
 #endif // _GLIBCXX_HAVE_BROKEN_VSWPRINTF
-#endif
+#endif // _GLIBCXX_USE_WCHAR_T && _GLIBCXX_USE_C99_WCHAR
 
 _GLIBCXX_END_NAMESPACE_CXX11
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
 
-#endif /* C++11 && _GLIBCXX_USE_C99 ... */
+#endif /* C++11 */
 
 #if __cplusplus >= 201103L
 
@@ -5539,6 +5698,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     { };
 #endif
 
+_GLIBCXX_END_NAMESPACE_VERSION
+
 #if __cplusplus > 201103L
 
 #define __cpp_lib_string_udls 201304
@@ -5547,6 +5708,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   {
   inline namespace string_literals
   {
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
 
     _GLIBCXX_DEFAULT_ABI_TAG
     inline basic_string<char>
@@ -5572,12 +5734,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     { return basic_string<char32_t>{__str, __len}; }
 #endif
 
+_GLIBCXX_END_NAMESPACE_VERSION
   } // inline namespace string_literals
   } // inline namespace literals
 
 #endif // __cplusplus > 201103L
 
-_GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
 
 #endif // C++11

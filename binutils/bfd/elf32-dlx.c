@@ -1,5 +1,5 @@
 /* DLX specific support for 32-bit ELF
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -23,6 +23,7 @@
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/dlx.h"
+#include "elf32-dlx.h"
 
 #define USE_REL 1
 
@@ -39,8 +40,6 @@
    value that was placed there by gas.  */
 
 static int skip_dlx_elf_hi16_reloc = 0;
-
-extern int set_dlx_skip_hi16_flag (int);
 
 int
 set_dlx_skip_hi16_flag (int flag)
@@ -138,8 +137,9 @@ elf32_dlx_relocate16 (bfd *abfd,
   /* Can not support a long jump to sections other then .text.  */
   if (strcmp (input_section->name, symbol->section->output_section->name) != 0)
     {
-      (*_bfd_error_handler) (_("BFD Link Error: branch (PC rel16) to section (%s) not supported"),
-			     symbol->section->output_section->name);
+      _bfd_error_handler
+	(_("BFD Link Error: branch (PC rel16) to section (%s) not supported"),
+	 symbol->section->output_section->name);
       return bfd_reloc_undefined;
     }
 
@@ -200,8 +200,9 @@ elf32_dlx_relocate26 (bfd *abfd,
   /* Can not support a long jump to sections other then .text   */
   if (strcmp (input_section->name, symbol->section->output_section->name) != 0)
     {
-      (*_bfd_error_handler) (_("BFD Link Error: jump (PC rel26) to section (%s) not supported"),
-			     symbol->section->output_section->name);
+      _bfd_error_handler
+	(_("BFD Link Error: jump (PC rel26) to section (%s) not supported"),
+	 symbol->section->output_section->name);
       return bfd_reloc_undefined;
     }
 
@@ -429,7 +430,7 @@ elf32_dlx_check_relocs (bfd *abfd,
   const Elf_Internal_Rela *rel;
   const Elf_Internal_Rela *rel_end;
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;

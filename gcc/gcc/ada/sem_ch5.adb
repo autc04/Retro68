@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,6 +30,7 @@ with Einfo;    use Einfo;
 with Errout;   use Errout;
 with Expander; use Expander;
 with Exp_Ch6;  use Exp_Ch6;
+with Exp_Ch7;  use Exp_Ch7;
 with Exp_Util; use Exp_Util;
 with Freeze;   use Freeze;
 with Ghost;    use Ghost;
@@ -269,6 +270,10 @@ package body Sem_Ch5 is
          end if;
       end Set_Assignment_Type;
 
+      --  Local variables
+
+      Save_Ghost_Mode : constant Ghost_Mode_Type := Ghost_Mode;
+
    --  Start of processing for Analyze_Assignment
 
    begin
@@ -280,10 +285,9 @@ package body Sem_Ch5 is
 
       Analyze (Lhs);
 
-      --  The left hand side of an assignment may reference an entity subject
-      --  to pragma Ghost with policy Ignore. Set the mode now to ensure that
-      --  any nodes generated during analysis and expansion are properly
-      --  flagged as ignored Ghost.
+      --  An assignment statement is Ghost when the left hand side denotes a
+      --  Ghost entity. Set the mode now to ensure that any nodes generated
+      --  during analysis and expansion are properly marked as Ghost.
 
       Set_Ghost_Mode (N);
       Analyze (Rhs);
@@ -312,7 +316,19 @@ package body Sem_Ch5 is
             Get_First_Interp (Lhs, I, It);
 
             while Present (It.Typ) loop
-               if Has_Compatible_Type (Rhs, It.Typ) then
+
+               --  An indexed component with generalized indexing is always
+               --  overloaded with the corresponding dereference. Discard the
+               --  interpretation that yields a reference type, which is not
+               --  assignable.
+
+               if Nkind (Lhs) = N_Indexed_Component
+                 and then Present (Generalized_Indexing (Lhs))
+                 and then Has_Implicit_Dereference (It.Typ)
+               then
+                  null;
+
+               elsif Has_Compatible_Type (Rhs, It.Typ) then
                   if T1 /= Any_Type then
 
                      --  An explicit dereference is overloaded if the prefix
@@ -378,6 +394,7 @@ package body Sem_Ch5 is
             Error_Msg_N
               ("no valid types for left-hand side for assignment", Lhs);
             Kill_Lhs;
+            Ghost_Mode := Save_Ghost_Mode;
             return;
          end if;
       end if;
@@ -389,7 +406,13 @@ package body Sem_Ch5 is
 
       --  Cases where Lhs is not a variable
 
-      if not Is_Variable (Lhs) then
+      --  Cases where Lhs is not a variable. In an instance or an inlined body
+      --  no need for further check because assignment was legal in template.
+
+      if In_Inlined_Body then
+         null;
+
+      elsif not Is_Variable (Lhs) then
 
          --  Ada 2005 (AI-327): Check assignment to the attribute Priority of a
          --  protected object.
@@ -453,12 +476,14 @@ package body Sem_Ch5 is
                                   "specified??", Lhs);
                   end if;
 
+                  Ghost_Mode := Save_Ghost_Mode;
                   return;
                end if;
             end if;
          end;
 
          Diagnose_Non_Variable_Lhs (Lhs);
+         Ghost_Mode := Save_Ghost_Mode;
          return;
 
       --  Error of assigning to limited type. We do however allow this in
@@ -467,7 +492,6 @@ package body Sem_Ch5 is
       elsif Is_Limited_Type (T1)
         and then not Assignment_OK (Lhs)
         and then not Assignment_OK (Original_Node (Lhs))
-        and then not Is_Value_Type (T1)
       then
          --  CPP constructors can only be called in declarations
 
@@ -478,6 +502,17 @@ package body Sem_Ch5 is
               ("left hand of assignment must not be limited type", Lhs);
             Explain_Limited_Type (T1, Lhs);
          end if;
+
+         Ghost_Mode := Save_Ghost_Mode;
+         return;
+
+      --  A class-wide type may be a limited view. This illegal case is not
+      --  caught by previous checks.
+
+      elsif Ekind (T1) = E_Class_Wide_Type
+        and then From_Limited_With (T1)
+      then
+         Error_Msg_NE ("invalid use of limited view of&", Lhs, T1);
          return;
 
       --  Enforce RM 3.9.3 (8): the target of an assignment operation cannot be
@@ -516,6 +551,7 @@ package body Sem_Ch5 is
       then
          Error_Msg_N ("invalid use of incomplete type", Lhs);
          Kill_Lhs;
+         Ghost_Mode := Save_Ghost_Mode;
          return;
       end if;
 
@@ -533,6 +569,7 @@ package body Sem_Ch5 is
 
       if Rhs = Error then
          Kill_Lhs;
+         Ghost_Mode := Save_Ghost_Mode;
          return;
       end if;
 
@@ -541,6 +578,7 @@ package body Sem_Ch5 is
       if not Covers (T1, T2) then
          Wrong_Type (Rhs, Etype (Lhs));
          Kill_Lhs;
+         Ghost_Mode := Save_Ghost_Mode;
          return;
       end if;
 
@@ -548,9 +586,8 @@ package body Sem_Ch5 is
       --  types, use the non-limited view if available
 
       if Nkind (Rhs) = N_Explicit_Dereference
-        and then Ekind (T2) = E_Incomplete_Type
         and then Is_Tagged_Type (T2)
-        and then Present (Non_Limited_View (T2))
+        and then Has_Non_Limited_View (T2)
       then
          T2 := Non_Limited_View (T2);
       end if;
@@ -569,6 +606,7 @@ package body Sem_Ch5 is
 
       if T1 = Any_Type or else T2 = Any_Type then
          Kill_Lhs;
+         Ghost_Mode := Save_Ghost_Mode;
          return;
       end if;
 
@@ -661,6 +699,7 @@ package body Sem_Ch5 is
             --  to reset Is_True_Constant, and desirable for xref purposes.
 
             Note_Possible_Modification (Lhs, Sure => True);
+            Ghost_Mode := Save_Ghost_Mode;
             return;
 
          --  If we know the right hand side is non-null, then we convert to the
@@ -867,6 +906,7 @@ package body Sem_Ch5 is
       end;
 
       Analyze_Dimension (N);
+      Ghost_Mode := Save_Ghost_Mode;
    end Analyze_Assignment;
 
    -----------------------------
@@ -1558,7 +1598,7 @@ package body Sem_Ch5 is
          end if;
       end Analyze_Cond_Then;
 
-   --  Start of Analyze_If_Statement
+   --  Start of processing for Analyze_If_Statement
 
    begin
       --  Initialize exit count for else statements. If there is no else part,
@@ -1727,6 +1767,11 @@ package body Sem_Ch5 is
       --  indicator, verify that the container type has an Iterate aspect that
       --  implements the reversible iterator interface.
 
+      function Get_Cursor_Type (Typ : Entity_Id) return Entity_Id;
+      --  For containers with Iterator and related aspects, the cursor is
+      --  obtained by locating an entity with the proper name in the scope
+      --  of the type.
+
       -----------------------------
       -- Check_Reverse_Iteration --
       -----------------------------
@@ -1742,21 +1787,65 @@ package body Sem_Ch5 is
          end if;
       end Check_Reverse_Iteration;
 
-   --   Start of processing for  Analyze_iterator_Specification
+      ---------------------
+      -- Get_Cursor_Type --
+      ---------------------
+
+      function Get_Cursor_Type (Typ : Entity_Id) return Entity_Id is
+         Ent : Entity_Id;
+
+      begin
+         Ent := First_Entity (Scope (Typ));
+         while Present (Ent) loop
+            exit when Chars (Ent) = Name_Cursor;
+            Next_Entity (Ent);
+         end loop;
+
+         if No (Ent) then
+            return Any_Type;
+         end if;
+
+         --  The cursor is the target of generated assignments in the
+         --  loop, and cannot have a limited type.
+
+         if Is_Limited_Type (Etype (Ent)) then
+            Error_Msg_N ("cursor type cannot be limited", N);
+         end if;
+
+         return Etype (Ent);
+      end Get_Cursor_Type;
+
+   --   Start of processing for Analyze_iterator_Specification
 
    begin
       Enter_Name (Def_Id);
 
+      --  AI12-0151 specifies that when the subtype indication is present, it
+      --  must statically match the type of the array or container element.
+      --  To simplify this check, we introduce a subtype declaration with the
+      --  given subtype indication when it carries a constraint, and rewrite
+      --  the original as a reference to the created subtype entity.
+
       if Present (Subt) then
-         Analyze (Subt);
-
-         --  Save type of subtype indication for subsequent check
-
          if Nkind (Subt) = N_Subtype_Indication then
-            Bas := Entity (Subtype_Mark (Subt));
+            declare
+               S    : constant Entity_Id := Make_Temporary (Sloc (Subt), 'S');
+               Decl : constant Node_Id :=
+                        Make_Subtype_Declaration (Loc,
+                          Defining_Identifier => S,
+                          Subtype_Indication  => New_Copy_Tree (Subt));
+            begin
+               Insert_Before (Parent (Parent (N)), Decl);
+               Analyze (Decl);
+               Rewrite (Subt, New_Occurrence_Of (S, Sloc (Subt)));
+            end;
          else
-            Bas := Entity (Subt);
+            Analyze (Subt);
          end if;
+
+         --  Save entity of subtype indication for subsequent check
+
+         Bas := Entity (Subt);
       end if;
 
       Preanalyze_Range (Iter_Name);
@@ -1772,7 +1861,7 @@ package body Sem_Ch5 is
       if Of_Present (N) then
          Set_Related_Expression (Def_Id, Iter_Name);
 
-         --  For a container, the iterator is specified through the aspect.
+         --  For a container, the iterator is specified through the aspect
 
          if not Is_Array_Type (Etype (Iter_Name)) then
             declare
@@ -1898,6 +1987,16 @@ package body Sem_Ch5 is
                 Name                =>
                   New_Copy_Tree (Iter_Name, New_Sloc => Loc));
 
+            --  Create a transient scope to ensure that all the temporaries
+            --  generated by Remove_Side_Effects as part of processing this
+            --  renaming declaration (if any) are attached by Insert_Actions
+            --  to it. It has no effect on the generated code if no actions
+            --  are added to it (see Wrap_Transient_Declaration).
+
+            if Expander_Active then
+               Establish_Transient_Scope (Name (Decl), Sec_Stack => True);
+            end if;
+
             Insert_Actions (Parent (Parent (N)), New_List (Decl));
             Rewrite (Name (N), New_Occurrence_Of (Id, Loc));
             Set_Etype (Id, Typ);
@@ -1962,8 +2061,33 @@ package body Sem_Ch5 is
          if Of_Present (N) then
             Set_Etype (Def_Id, Component_Type (Typ));
 
+            --  The loop variable is aliased if the array components are
+            --  aliased.
+
+            Set_Is_Aliased (Def_Id, Has_Aliased_Components (Typ));
+
+            --  AI12-0047 stipulates that the domain (array or container)
+            --  cannot be a component that depends on a discriminant if the
+            --  enclosing object is mutable, to prevent a modification of the
+            --  dowmain of iteration in the course of an iteration.
+
+            --  If the object is an expression it has been captured in a
+            --  temporary, so examine original node.
+
+            if Nkind (Original_Node (Iter_Name)) = N_Selected_Component
+              and then Is_Dependent_Component_Of_Mutable_Object
+                         (Original_Node (Iter_Name))
+            then
+               Error_Msg_N
+                 ("iterable name cannot be a discriminant-dependent "
+                  & "component of a mutable object", N);
+            end if;
+
             if Present (Subt)
-              and then Base_Type (Bas) /= Base_Type (Component_Type (Typ))
+              and then
+                (Base_Type (Bas) /= Base_Type (Component_Type (Typ))
+                  or else
+                    not Subtypes_Statically_Match (Bas, Component_Type (Typ)))
             then
                Error_Msg_N
                  ("subtype indication does not match component type", Subt);
@@ -1980,7 +2104,7 @@ package body Sem_Ch5 is
             if Ada_Version >= Ada_2012 then
                Error_Msg_NE
                  ("\if& is meant to designate an element of the array, use OF",
-                    N, Def_Id);
+                  N, Def_Id);
             end if;
 
             --  Prevent cascaded errors
@@ -2021,8 +2145,11 @@ package body Sem_Ch5 is
 
             else
                declare
-                  Element : constant Entity_Id :=
+                  Element     : constant Entity_Id :=
                     Find_Value_Of_Aspect (Typ, Aspect_Iterator_Element);
+                  Iterator    : constant Entity_Id :=
+                    Find_Value_Of_Aspect (Typ, Aspect_Default_Iterator);
+                  Cursor_Type : Entity_Id;
 
                begin
                   if No (Element) then
@@ -2031,12 +2158,16 @@ package body Sem_Ch5 is
 
                   else
                      Set_Etype (Def_Id, Entity (Element));
+                     Cursor_Type := Get_Cursor_Type (Typ);
+                     pragma Assert (Present (Cursor_Type));
 
                      --  If subtype indication was given, verify that it covers
                      --  the element type of the container.
 
                      if Present (Subt)
-                       and then not Covers (Bas, Etype (Def_Id))
+                       and then (not Covers (Bas, Etype (Def_Id))
+                                  or else not Subtypes_Statically_Match
+                                                (Bas, Etype (Def_Id)))
                      then
                         Error_Msg_N
                           ("subtype indication does not match element type",
@@ -2049,11 +2180,44 @@ package body Sem_Ch5 is
                      if Has_Aspect (Typ, Aspect_Variable_Indexing) then
                         Set_Ekind (Def_Id, E_Variable);
                      end if;
+
+                     --  If the container is a constant, iterating over it
+                     --  requires a Constant_Indexing operation.
+
+                     if not Is_Variable (Iter_Name)
+                       and then not Has_Aspect (Typ, Aspect_Constant_Indexing)
+                     then
+                        Error_Msg_N ("iteration over constant container "
+                          & "require constant_indexing aspect", N);
+
+                     --  The Iterate function may have an in_out parameter,
+                     --  and a constant container is thus illegal.
+
+                     elsif Present (Iterator)
+                       and then Ekind (Entity (Iterator)) = E_Function
+                       and then Ekind (First_Formal (Entity (Iterator))) /=
+                                  E_In_Parameter
+                       and then not Is_Variable (Iter_Name)
+                     then
+                        Error_Msg_N
+                          ("variable container expected", N);
+                     end if;
+
+                     if Nkind (Original_Node (Iter_Name))
+                        = N_Selected_Component
+                       and then
+                         Is_Dependent_Component_Of_Mutable_Object
+                           (Original_Node (Iter_Name))
+                     then
+                        Error_Msg_N
+                          ("container cannot be a discriminant-dependent "
+                           & "component of a mutable object", N);
+                     end if;
                   end if;
                end;
             end if;
 
-         --  OF not present
+         --  IN iterator, domain is a range, or a call to Iterate function
 
          else
             --  For an iteration of the form IN, the name must denote an
@@ -2090,6 +2254,40 @@ package body Sem_Ch5 is
                end if;
             end if;
 
+            --  If the name is a call (typically prefixed) to some Iterate
+            --  function, it has been rewritten as an object declaration.
+            --  If that object is a selected component, verify that it is not
+            --  a component of an unconstrained mutable object.
+
+            if Nkind (Iter_Name) = N_Identifier then
+               declare
+                  Orig_Node : constant Node_Id := Original_Node (Iter_Name);
+                  Iter_Kind : constant Node_Kind := Nkind (Orig_Node);
+                  Obj       : Node_Id;
+
+               begin
+                  if Iter_Kind = N_Selected_Component then
+                     Obj  := Prefix (Orig_Node);
+
+                  elsif Iter_Kind = N_Function_Call then
+                     Obj  := First_Actual (Orig_Node);
+
+                  --  If neither, the name comes from source
+
+                  else
+                     Obj := Iter_Name;
+                  end if;
+
+                  if Nkind (Obj) = N_Selected_Component
+                    and then Is_Dependent_Component_Of_Mutable_Object (Obj)
+                  then
+                     Error_Msg_N
+                       ("container cannot be a discriminant-dependent "
+                        & "component of a mutable object", N);
+                  end if;
+               end;
+            end if;
+
             --  The result type of Iterate function is the classwide type of
             --  the interface parent. We need the specific Cursor type defined
             --  in the container package. We obtain it by name for a predefined
@@ -2103,22 +2301,15 @@ package body Sem_Ch5 is
                Ent := Etype (Def_Id);
 
             else
-               Ent := First_Entity (Scope (Typ));
-               while Present (Ent) loop
-                  if Chars (Ent) = Name_Cursor then
-                     Set_Etype (Def_Id, Etype (Ent));
-                     exit;
-                  end if;
-
-                  Next_Entity (Ent);
-               end loop;
+               Set_Etype (Def_Id, Get_Cursor_Type (Typ));
             end if;
+
          end if;
       end if;
 
-      --  A loop parameter cannot be effectively volatile. This check is
-      --  peformed only when SPARK_Mode is on as it is not a standard Ada
-      --  legality check (SPARK RM 7.1.3(6)).
+      --  A loop parameter cannot be effectively volatile (SPARK RM 7.1.3(4)).
+      --  This check is relevant only when SPARK_Mode is on as it is not a
+      --  standard Ada legality check.
 
       --  Not clear whether this applies to element iterators, where the
       --  cursor is not an explicit entity ???
@@ -2874,9 +3065,9 @@ package body Sem_Ch5 is
          end;
       end if;
 
-      --  A loop parameter cannot be effectively volatile. This check is
-      --  peformed only when SPARK_Mode is on as it is not a standard Ada
-      --  legality check (SPARK RM 7.1.3(6)).
+      --  A loop parameter cannot be effectively volatile (SPARK RM 7.1.3(4)).
+      --  This check is relevant only when SPARK_Mode is on as it is not a
+      --  standard Ada legality check.
 
       if SPARK_Mode = On and then Is_Effectively_Volatile (Id) then
          Error_Msg_N ("loop parameter cannot be volatile", Id);
@@ -3052,12 +3243,18 @@ package body Sem_Ch5 is
             end if;
          end if;
 
-      --  Case of no identifier present
+      --  Case of no identifier present. Create one and attach it to the
+      --  loop statement for use as a scope and as a reference for later
+      --  expansions. Indicate that the label does not come from source,
+      --  and attach it to the loop statement so it is part of the tree,
+      --  even without a full declaration.
 
       else
          Ent := New_Internal_Entity (E_Loop, Current_Scope, Loc, 'L');
          Set_Etype  (Ent, Standard_Void_Type);
+         Set_Identifier (N, New_Occurrence_Of (Ent, Loc));
          Set_Parent (Ent, N);
+         Set_Has_Created_Identifier (N);
       end if;
 
       --  Iteration over a container in Ada 2012 involves the creation of a
@@ -3173,16 +3370,33 @@ package body Sem_Ch5 is
       --  types the actual subtype of the components will only be determined
       --  when the cursor declaration is analyzed.
 
-      --  If the expander is not active, or in SPARK mode, then we want to
-      --  analyze the loop body now even in the Ada 2012 iterator case, since
-      --  the rewriting will not be done. Insert the loop variable in the
-      --  current scope, if not done when analysing the iteration scheme.
-      --  Set its kind properly to detect improper uses in the loop body.
+      --  If the expander is not active then we want to analyze the loop body
+      --  now even in the Ada 2012 iterator case, since the rewriting will not
+      --  be done. Insert the loop variable in the current scope, if not done
+      --  when analysing the iteration scheme.  Set its kind properly to detect
+      --  improper uses in the loop body.
+
+      --  In GNATprove mode, we do one of the above depending on the kind of
+      --  loop. If it is an iterator over an array, then we do not analyze the
+      --  loop now. We will analyze it after it has been rewritten by the
+      --  special SPARK expansion which is activated in GNATprove mode. We need
+      --  to do this so that other expansions that should occur in GNATprove
+      --  mode take into account the specificities of the rewritten loop, in
+      --  particular the introduction of a renaming (which needs to be
+      --  expanded).
+
+      --  In other cases in GNATprove mode then we want to analyze the loop
+      --  body now, since no rewriting will occur.
 
       if Present (Iter)
         and then Present (Iterator_Specification (Iter))
       then
-         if not Expander_Active then
+         if GNATprove_Mode
+           and then Is_Iterator_Over_Array (Iterator_Specification (Iter))
+         then
+            null;
+
+         elsif not Expander_Active then
             declare
                I_Spec : constant Node_Id   := Iterator_Specification (Iter);
                Id     : constant Entity_Id := Defining_Identifier (I_Spec);

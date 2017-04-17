@@ -1,5 +1,5 @@
 /* Dependency analysis
-   Copyright (C) 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 2000-2016 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of GCC.
@@ -36,7 +36,7 @@ along with GCC; see the file COPYING3.  If not see
 enum range {LHS, RHS, MID};
 
 /* Dependency types.  These must be in reverse order of priority.  */
-typedef enum
+enum gfc_dependency
 {
   GFC_DEP_ERROR,
   GFC_DEP_EQUAL,	/* Identical Ranges.  */
@@ -44,8 +44,7 @@ typedef enum
   GFC_DEP_BACKWARD,	/* e.g. a(2:4) = a(1:3).  */
   GFC_DEP_OVERLAP,	/* May overlap in some other way.  */
   GFC_DEP_NODEP		/* Distinct ranges.  */
-}
-gfc_dependency;
+};
 
 /* Macros */
 #define IS_ARRAY_EXPLICIT(as) ((as->type == AS_EXPLICIT ? 1 : 0))
@@ -102,7 +101,9 @@ identical_array_ref (gfc_array_ref *a1, gfc_array_ref *a2)
 
   if (a1->type == AR_ELEMENT && a2->type == AR_ELEMENT)
     {
-      gcc_assert (a1->dimen == a2->dimen);
+      if (a1->dimen != a2->dimen)
+	gfc_internal_error ("identical_array_ref(): inconsistent dimensions");
+
       for (i = 0; i < a1->dimen; i++)
 	{
 	  if (gfc_dep_compare_expr (a1->start[i], a2->start[i]) != 0)
@@ -227,9 +228,26 @@ gfc_dep_compare_functions (gfc_expr *e1, gfc_expr *e2, bool impure_ok)
 	  if ((args1->expr == NULL) ^ (args2->expr == NULL))
 	    return -2;
 
-	  if (args1->expr != NULL && args2->expr != NULL
-	      && gfc_dep_compare_expr (args1->expr, args2->expr) != 0)
-	    return -2;
+	  if (args1->expr != NULL && args2->expr != NULL)
+	    {
+	      gfc_expr *e1, *e2;
+	      e1 = args1->expr;
+	      e2 = args2->expr;
+
+	      if (gfc_dep_compare_expr (e1, e2) != 0)
+		return -2;
+
+	      /* Special case: String arguments which compare equal can have
+		 different lengths, which makes them different in calls to
+		 procedures.  */
+	      
+	      if (e1->expr_type == EXPR_CONSTANT
+		  && e1->ts.type == BT_CHARACTER
+		  && e2->expr_type == EXPR_CONSTANT
+		  && e2->ts.type == BT_CHARACTER
+		  && e1->value.character.length != e2->value.character.length)
+		return -2;
+	    }
 
 	  args1 = args1->next;
 	  args2 = args2->next;
@@ -956,7 +974,7 @@ gfc_check_argument_var_dependency (gfc_expr *var, sym_intent intent,
 		     If a dependency is found in the case
 		     elemental == ELEM_CHECK_VARIABLE, we will generate
 		     a temporary, so we don't need to bother the user.  */
-		  gfc_warning_1 ("INTENT(%s) actual argument at %L might "
+		  gfc_warning (0, "INTENT(%s) actual argument at %L might "
 			       "interfere with actual argument at %L.",
 		   	       intent == INTENT_OUT ? "OUT" : "INOUT",
 		   	       &var->where, &expr->where);
@@ -1253,7 +1271,14 @@ gfc_check_dependency (gfc_expr *expr1, gfc_expr *expr2, bool identical)
   gfc_constructor *c;
   int n;
 
-  gcc_assert (expr1->expr_type == EXPR_VARIABLE);
+  /* -fcoarray=lib can end up here with expr1->expr_type set to EXPR_FUNCTION
+     and a reference to _F.caf_get, so skip the assert.  */
+  if (expr1->expr_type == EXPR_FUNCTION
+      && strcmp (expr1->value.function.name, "_F.caf_get") == 0)
+    return 0;
+
+  if (expr1->expr_type != EXPR_VARIABLE)
+    gfc_internal_error ("gfc_check_dependency: expecting an EXPR_VARIABLE");
 
   switch (expr2->expr_type)
     {

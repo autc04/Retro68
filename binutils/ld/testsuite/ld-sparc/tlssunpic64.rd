@@ -21,9 +21,9 @@ Section Headers:
  +\[[ 0-9]+\] .dynamic +DYNAMIC +0+102060 0+2060 0+130 10 +WA +3 +0 +8
  +\[[ 0-9]+\] .got +PROGBITS +0+102190 0+2190 0+98 08 +WA +0 +0 +8
  +\[[ 0-9]+\] .plt +.*
- +\[[ 0-9]+\] .shstrtab +.*
  +\[[ 0-9]+\] .symtab +.*
  +\[[ 0-9]+\] .strtab +.*
+ +\[[ 0-9]+\] .shstrtab +.*
 #...
 
 Elf file type is DYN \(Shared object file\)
@@ -102,10 +102,13 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +LOCAL +DEFAULT +7 sl6
 .* TLS +LOCAL +DEFAULT +7 sl7
 .* TLS +LOCAL +DEFAULT +7 sl8
+.* FILE +LOCAL +DEFAULT +ABS 
 .* TLS +LOCAL +DEFAULT +8 sH1
+.* OBJECT +LOCAL +DEFAULT +ABS _DYNAMIC
 .* TLS +LOCAL +DEFAULT +7 sh3
 .* TLS +LOCAL +DEFAULT +8 sH2
 .* TLS +LOCAL +DEFAULT +8 sH7
+.* OBJECT +LOCAL +DEFAULT +ABS _PROCEDURE_LINKAGE_TABLE_
 .* TLS +LOCAL +DEFAULT +7 sh7
 .* TLS +LOCAL +DEFAULT +7 sh8
 .* TLS +LOCAL +DEFAULT +8 sH4
@@ -116,12 +119,9 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +LOCAL +DEFAULT +8 sH6
 .* TLS +LOCAL +DEFAULT +8 sH8
 .* TLS +LOCAL +DEFAULT +7 sh1
+.* OBJECT +LOCAL +DEFAULT +ABS _GLOBAL_OFFSET_TABLE_
 .* TLS +LOCAL +DEFAULT +7 sh2
 .* TLS +LOCAL +DEFAULT +7 sh6
-.* FILE +LOCAL +DEFAULT +ABS .*
-.* OBJECT +LOCAL +DEFAULT +ABS _DYNAMIC
-.* OBJECT +LOCAL +DEFAULT +ABS _PROCEDURE_LINKAGE_TABLE_
-.* OBJECT +LOCAL +DEFAULT +ABS _GLOBAL_OFFSET_TABLE_
 .* TLS +GLOBAL +DEFAULT +7 sg8
 .* TLS +GLOBAL +DEFAULT +7 sg3
 .* TLS +GLOBAL +DEFAULT +7 sg4

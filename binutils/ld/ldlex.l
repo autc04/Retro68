@@ -1,8 +1,8 @@
-%option nounput
+%option nounput noyywrap
 
 %{
 
-/* Copyright (C) 1991-2014 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support.
 
    This file is part of the GNU Binutils.
@@ -39,9 +39,8 @@
    yylex and yyparse (indirectly) both check this.  */
 input_type parser_input;
 
-/* Line number in the current input file.
-   (FIXME Actually, it doesn't appear to get reset for each file?)  */
-unsigned int lineno = 1;
+/* Line number in the current input file.  */
+unsigned int lineno;
 
 /* The string we are currently lexing, or NULL if we are reading a
    file.  */
@@ -87,10 +86,6 @@ static void lex_warn_invalid (char *where, char *what);
 */
 #define RTOKEN(x)  {  yylval.token = x; return x; }
 
-/* Some versions of flex want this.  */
-#ifndef yywrap
-int yywrap (void) { return 1; }
-#endif
 %}
 
 %a 4000
@@ -298,6 +293,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <BOTH,SCRIPT>"BYTE"			{ RTOKEN( BYTE);}
 <BOTH,SCRIPT>"NOFLOAT"			{ RTOKEN(NOFLOAT);}
 <EXPRESSION,BOTH,SCRIPT>"NOCROSSREFS"	{ RTOKEN(NOCROSSREFS);}
+<EXPRESSION,BOTH,SCRIPT>"NOCROSSREFS_TO" { RTOKEN(NOCROSSREFS_TO);}
 <BOTH,SCRIPT>"OVERLAY"			{ RTOKEN(OVERLAY); }
 <BOTH,SCRIPT>"SORT_BY_NAME"		{ RTOKEN(SORT_BY_NAME); }
 <BOTH,SCRIPT>"SORT_BY_ALIGNMENT"	{ RTOKEN(SORT_BY_ALIGNMENT); }
@@ -415,9 +411,15 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 
 <EXPRESSION,BOTH,SCRIPT,VERS_NODE,INPUTLIST>"\""[^\"]*"\"" {
 					/* No matter the state, quotes
-					   give what's inside */
+					   give what's inside.  */
+					bfd_size_type len;
 					yylval.name = xstrdup (yytext + 1);
-					yylval.name[yyleng - 2] = 0;
+					/* PR ld/20906.  A corrupt input file
+					   can contain bogus strings.  */
+					len = strlen (yylval.name);
+					if (len > yyleng - 2)
+					  len = yyleng - 2;
+					yylval.name[len] = 0;
 					return NAME;
 				}
 <BOTH,SCRIPT,EXPRESSION>"\n"		{ lineno++;}
@@ -450,7 +452,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 				  return *yytext;
 				}
 
-<VERS_START,VERS_NODE,VERS_SCRIPT>[\n]		{ lineno++; }
+<VERS_START,VERS_NODE,VERS_SCRIPT,INPUTLIST>[\n]	{ lineno++; }
 
 <VERS_START,VERS_NODE,VERS_SCRIPT>#.*		{ /* Eat up comments */ }
 
@@ -459,7 +461,10 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <<EOF>> {
   include_stack_ptr--;
   if (include_stack_ptr == 0)
-    yyterminate ();
+    {
+      lineno = 0;
+      yyterminate ();
+    }
   else
     yy_switch_to_buffer (include_stack[include_stack_ptr]);
 

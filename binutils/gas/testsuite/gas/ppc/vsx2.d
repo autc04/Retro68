@@ -1,5 +1,5 @@
-#as: -mvsx
-#objdump: -dr -Mvsx
+#as: -mpower8
+#objdump: -dr -Mpower8
 #name: VSX ISA 2.07 instructions
 
 .*

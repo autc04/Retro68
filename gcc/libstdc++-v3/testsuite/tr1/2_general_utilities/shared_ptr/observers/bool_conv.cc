@@ -1,4 +1,4 @@
-// Copyright (C) 2005-2015 Free Software Foundation, Inc.
+// Copyright (C) 2005-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -31,9 +31,9 @@ test01()
   bool test __attribute__((unused)) = true;
 
   const std::tr1::shared_ptr<A> p1;
-  VERIFY( p1 == false );
+  VERIFY( bool(p1) == false );
   const std::tr1::shared_ptr<A> p2(p1);
-  VERIFY( p2 == false );
+  VERIFY( bool(p2) == false );
 
   return 0;
 }

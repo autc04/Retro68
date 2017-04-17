@@ -35,8 +35,8 @@ SYMBOL TABLE:
 0+80094 l    d  \.text	0+ \.text
 0+820b0 l    d  \.tdata	0+ \.tdata
 0+820bc l    d  \.got	0+ \.got
+0+ l       \.tdata	0+4 x
 0+820bc l     O \.got	0+ _GLOBAL_OFFSET_TABLE_
-0+ g       \.tdata	0+4 \.hidden x
 0+80098 g     F \.text	0+6 tlsdsofn2
 0+8 g       \.tdata	0+4 \.hidden x2
 0+80094 g       \.text	0+ _start

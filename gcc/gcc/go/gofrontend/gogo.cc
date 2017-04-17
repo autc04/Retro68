@@ -10,14 +10,15 @@
 
 #include "go-c.h"
 #include "go-dump.h"
+#include "go-optimize.h"
 #include "lex.h"
 #include "types.h"
 #include "statements.h"
 #include "expressions.h"
-#include "dataflow.h"
 #include "runtime.h"
 #include "import.h"
 #include "export.h"
+#include "escape.h"
 #include "backend.h"
 #include "gogo.h"
 
@@ -41,9 +42,6 @@ Gogo::Gogo(Backend* backend, Linemap* linemap, int, int pointer_size)
     pkgpath_(),
     pkgpath_symbol_(),
     prefix_(),
-    zero_value_(NULL),
-    zero_value_size_(0),
-    zero_value_align_(0),
     pkgpath_set_(false),
     pkgpath_from_option_(false),
     prefix_from_option_(false),
@@ -158,11 +156,19 @@ Gogo::Gogo(Backend* backend, Linemap* linemap, int, int pointer_size)
   Function_type* new_type = Type::make_function_type(NULL, NULL, NULL, loc);
   new_type->set_is_varargs();
   new_type->set_is_builtin();
+  Node::Escape_states* new_escapes =
+    new Node::Escape_states(1, Node::ESCAPE_NONE);
+  new_type->set_parameter_escape_states(new_escapes);
+  new_type->set_has_escape_info();
   this->globals_->add_function_declaration("new", NULL, new_type, loc);
 
   Function_type* make_type = Type::make_function_type(NULL, NULL, NULL, loc);
   make_type->set_is_varargs();
   make_type->set_is_builtin();
+  Node::Escape_states* make_escapes =
+    new Node::Escape_states(2, Node::ESCAPE_NONE);
+  make_type->set_parameter_escape_states(make_escapes);
+  make_type->set_has_escape_info();
   this->globals_->add_function_declaration("make", NULL, make_type, loc);
 
   Typed_identifier_list* len_result = new Typed_identifier_list();
@@ -170,6 +176,10 @@ Gogo::Gogo(Backend* backend, Linemap* linemap, int, int pointer_size)
   Function_type* len_type = Type::make_function_type(NULL, NULL, len_result,
 						     loc);
   len_type->set_is_builtin();
+  Node::Escape_states* len_escapes =
+    new Node::Escape_states(1, Node::ESCAPE_NONE);
+  len_type->set_parameter_escape_states(len_escapes);
+  len_type->set_has_escape_info();
   this->globals_->add_function_declaration("len", NULL, len_type, loc);
 
   Typed_identifier_list* cap_result = new Typed_identifier_list();
@@ -177,16 +187,26 @@ Gogo::Gogo(Backend* backend, Linemap* linemap, int, int pointer_size)
   Function_type* cap_type = Type::make_function_type(NULL, NULL, len_result,
 						     loc);
   cap_type->set_is_builtin();
+  Node::Escape_states* cap_escapes =
+    new Node::Escape_states(1, Node::ESCAPE_NONE);
+  cap_type->set_parameter_escape_states(cap_escapes);
+  cap_type->set_has_escape_info();
   this->globals_->add_function_declaration("cap", NULL, cap_type, loc);
 
   Function_type* print_type = Type::make_function_type(NULL, NULL, NULL, loc);
   print_type->set_is_varargs();
   print_type->set_is_builtin();
+  Node::Escape_states* print_escapes =
+    new Node::Escape_states(1, Node::ESCAPE_NONE);
+  print_type->set_parameter_escape_states(print_escapes);
+  print_type->set_has_escape_info();
   this->globals_->add_function_declaration("print", NULL, print_type, loc);
 
   print_type = Type::make_function_type(NULL, NULL, NULL, loc);
   print_type->set_is_varargs();
   print_type->set_is_builtin();
+  print_type->set_parameter_escape_states(print_escapes);
+  print_type->set_has_escape_info();
   this->globals_->add_function_declaration("println", NULL, print_type, loc);
 
   Type *empty = Type::make_empty_interface_type(loc);
@@ -195,6 +215,10 @@ Gogo::Gogo(Backend* backend, Linemap* linemap, int, int pointer_size)
   Function_type *panic_type = Type::make_function_type(NULL, panic_parms,
 						       NULL, loc);
   panic_type->set_is_builtin();
+  Node::Escape_states* panic_escapes =
+    new Node::Escape_states(1, Node::ESCAPE_ARG);
+  panic_type->set_parameter_escape_states(panic_escapes);
+  panic_type->set_has_escape_info();
   this->globals_->add_function_declaration("panic", NULL, panic_type, loc);
 
   Typed_identifier_list* recover_result = new Typed_identifier_list();
@@ -208,6 +232,10 @@ Gogo::Gogo(Backend* backend, Linemap* linemap, int, int pointer_size)
   Function_type* close_type = Type::make_function_type(NULL, NULL, NULL, loc);
   close_type->set_is_varargs();
   close_type->set_is_builtin();
+  Node::Escape_states* close_escapes =
+    new Node::Escape_states(1, Node::ESCAPE_NONE);
+  close_type->set_parameter_escape_states(close_escapes);
+  close_type->set_has_escape_info();
   this->globals_->add_function_declaration("close", NULL, close_type, loc);
 
   Typed_identifier_list* copy_result = new Typed_identifier_list();
@@ -216,31 +244,56 @@ Gogo::Gogo(Backend* backend, Linemap* linemap, int, int pointer_size)
 						      copy_result, loc);
   copy_type->set_is_varargs();
   copy_type->set_is_builtin();
+  Node::Escape_states* copy_escapes =
+    new Node::Escape_states(2, Node::ESCAPE_NONE);
+  copy_type->set_parameter_escape_states(copy_escapes);
+  copy_type->set_has_escape_info();
   this->globals_->add_function_declaration("copy", NULL, copy_type, loc);
 
   Function_type* append_type = Type::make_function_type(NULL, NULL, NULL, loc);
   append_type->set_is_varargs();
   append_type->set_is_builtin();
+  Node::Escape_states* append_escapes = new Node::Escape_states;
+  append_escapes->push_back(Node::ESCAPE_ARG);
+  append_escapes->push_back(Node::ESCAPE_NONE);
+  append_type->set_parameter_escape_states(append_escapes);
+  append_type->set_has_escape_info();
   this->globals_->add_function_declaration("append", NULL, append_type, loc);
 
   Function_type* complex_type = Type::make_function_type(NULL, NULL, NULL, loc);
   complex_type->set_is_varargs();
   complex_type->set_is_builtin();
+  Node::Escape_states* complex_escapes =
+    new Node::Escape_states(2, Node::ESCAPE_NONE);
+  complex_type->set_parameter_escape_states(complex_escapes);
+  complex_type->set_has_escape_info();
   this->globals_->add_function_declaration("complex", NULL, complex_type, loc);
 
   Function_type* real_type = Type::make_function_type(NULL, NULL, NULL, loc);
   real_type->set_is_varargs();
   real_type->set_is_builtin();
+  Node::Escape_states* real_escapes =
+    new Node::Escape_states(1, Node::ESCAPE_NONE);
+  real_type->set_parameter_escape_states(real_escapes);
+  real_type->set_has_escape_info();
   this->globals_->add_function_declaration("real", NULL, real_type, loc);
 
   Function_type* imag_type = Type::make_function_type(NULL, NULL, NULL, loc);
   imag_type->set_is_varargs();
   imag_type->set_is_builtin();
+  Node::Escape_states* imag_escapes =
+    new Node::Escape_states(1, Node::ESCAPE_NONE);
+  imag_type->set_parameter_escape_states(imag_escapes);
+  imag_type->set_has_escape_info();
   this->globals_->add_function_declaration("imag", NULL, imag_type, loc);
 
   Function_type* delete_type = Type::make_function_type(NULL, NULL, NULL, loc);
   delete_type->set_is_varargs();
   delete_type->set_is_builtin();
+  Node::Escape_states* delete_escapes =
+    new Node::Escape_states(2, Node::ESCAPE_NONE);
+  delete_type->set_parameter_escape_states(delete_escapes);
+  delete_type->set_has_escape_info();
   this->globals_->add_function_declaration("delete", NULL, delete_type, loc);
 }
 
@@ -460,7 +513,6 @@ Gogo::import_package(const std::string& filename,
     {
       Package* package = p->second;
       package->set_location(location);
-      package->set_is_imported();
       std::string ln = local_name;
       bool is_ln_exported = is_local_name_exported;
       if (ln.empty())
@@ -469,7 +521,9 @@ Gogo::import_package(const std::string& filename,
 	  go_assert(!ln.empty());
 	  is_ln_exported = Lex::is_exported_name(ln);
 	}
-      if (ln == ".")
+      if (ln == "_")
+        ;
+      else if (ln == ".")
 	{
 	  Bindings* bindings = package->bindings();
 	  for (Bindings::const_declarations_iterator p =
@@ -477,11 +531,12 @@ Gogo::import_package(const std::string& filename,
 	       p != bindings->end_declarations();
 	       ++p)
 	    this->add_dot_import_object(p->second);
+          std::string dot_alias = "." + package->package_name();
+          package->add_alias(dot_alias, location);
 	}
-      else if (ln == "_")
-	package->set_uses_sink_alias();
       else
 	{
+          package->add_alias(ln, location);
 	  ln = this->pack_hidden_name(ln, is_ln_exported);
 	  this->package_->bindings()->add_package(ln, package);
 	}
@@ -507,7 +562,6 @@ Gogo::import_package(const std::string& filename,
 		  "being compiled (see -fgo-pkgpath option)"));
 
       this->imports_.insert(std::make_pair(filename, package));
-      package->set_is_imported();
     }
 
   delete stream;
@@ -579,87 +633,6 @@ Gogo::current_bindings() const
     return this->package_->bindings();
   else
     return this->globals_;
-}
-
-// Return the special variable used as the zero value of types.
-
-Named_object*
-Gogo::zero_value(Type *type)
-{
-  if (this->zero_value_ == NULL)
-    {
-      Location bloc = Linemap::predeclared_location();
-
-      // We will change the type later, when we know the size.
-      Type* byte_type = this->lookup_global("byte")->type_value();
-
-      Expression* zero = Expression::make_integer_ul(0, NULL, bloc);
-      Type* array_type = Type::make_array_type(byte_type, zero);
-
-      Variable* var = new Variable(array_type, NULL, true, false, false, bloc);
-      this->zero_value_ = Named_object::make_variable("go$zerovalue", NULL,
-						      var);
-    }
-
-  // The zero value will be the maximum required size.
-  int64_t size;
-  bool ok = type->backend_type_size(this, &size);
-  if (!ok) {
-    go_assert(saw_errors());
-    size = 4;
-  }
-  if (size > this->zero_value_size_)
-    this->zero_value_size_ = size;
-
-  int64_t align;
-  ok = type->backend_type_align(this, &align);
-  if (!ok) {
-    go_assert(saw_errors());
-    align = 4;
-  }
-  if (align > this->zero_value_align_)
-    this->zero_value_align_ = align;
-
-  return this->zero_value_;
-}
-
-// Return whether V is the zero value variable.
-
-bool
-Gogo::is_zero_value(Variable* v) const
-{
-  return this->zero_value_ != NULL && this->zero_value_->var_value() == v;
-}
-
-// Return the backend variable for the special zero value, or NULL if
-// it is not needed.
-
-Bvariable*
-Gogo::backend_zero_value()
-{
-  if (this->zero_value_ == NULL)
-    return NULL;
-
-  Type* byte_type = this->lookup_global("byte")->type_value();
-  Btype* bbtype_type = byte_type->get_backend(this);
-
-  Type* int_type = this->lookup_global("int")->type_value();
-
-  Expression* e = Expression::make_integer_int64(this->zero_value_size_,
-						 int_type,
-						 Linemap::unknown_location());
-  Translate_context context(this, NULL, NULL, NULL);
-  Bexpression* blength = e->get_backend(&context);
-
-  Btype* barray_type = this->backend()->array_type(bbtype_type, blength);
-
-  std::string zname = this->zero_value_->name();
-  Bvariable* zvar =
-    this->backend()->implicit_variable(zname, barray_type, false,
-				       true, true, this->zero_value_align_);
-  this->backend()->implicit_variable_set_init(zvar, zname, barray_type,
-					      false, true, true, NULL);
-  return zvar;
 }
 
 // Add statements to INIT_STMTS which run the initialization
@@ -1488,7 +1461,10 @@ Gogo::lookup(const std::string& name, Named_object** pfunction) const
       if (ret != NULL)
 	{
 	  if (ret->package() != NULL)
-	    ret->package()->note_usage();
+            {
+              std::string dot_alias = "." + ret->package()->package_name();
+              ret->package()->note_usage(dot_alias);
+            }
 	  return ret;
 	}
     }
@@ -1538,10 +1514,14 @@ Gogo::add_imported_package(const std::string& real_name,
 
   *padd_to_globals = false;
 
-  if (alias_arg == ".")
-    *padd_to_globals = true;
-  else if (alias_arg == "_")
-    ret->set_uses_sink_alias();
+  if (alias_arg == "_")
+    ;
+  else if (alias_arg == ".")
+    {
+      *padd_to_globals = true;
+      std::string dot_alias = "." + real_name;
+      ret->add_alias(dot_alias, location);
+    }
   else
     {
       std::string alias = alias_arg;
@@ -1550,6 +1530,7 @@ Gogo::add_imported_package(const std::string& real_name,
 	  alias = real_name;
 	  is_alias_exported = Lex::is_exported_name(alias);
 	}
+      ret->add_alias(alias, location);
       alias = this->pack_hidden_name(alias, is_alias_exported);
       Named_object* no = this->package_->bindings()->add_package(alias, ret);
       if (!no->is_package())
@@ -1604,9 +1585,9 @@ Gogo::start_function(const std::string& name, Function_type* type,
 
   Block* block = new Block(NULL, location);
 
-  Function* enclosing = (at_top_level
+  Named_object* enclosing = (at_top_level
 			 ? NULL
-			 : this->functions_.back().function->func_value());
+			 : this->functions_.back().function);
 
   Function* function = new Function(type, enclosing, block, location);
 
@@ -1638,7 +1619,7 @@ Gogo::start_function(const std::string& name, Function_type* type,
 	   ++p)
 	{
 	  Variable* param = new Variable(p->type(), NULL, false, true, false,
-					 location);
+					 p->location());
 	  if (is_varargs && p + 1 == parameters->end())
 	    param->set_is_varargs_parameter();
 
@@ -1762,7 +1743,11 @@ Gogo::start_function(const std::string& name, Function_type* type,
 								  function);
 	    }
 	  else
-	    go_unreachable();
+            {
+              error_at(type->receiver()->location(),
+                       "invalid receiver type (receiver must be a named type)");
+              ret = Named_object::make_function(name, NULL, function);
+            }
 	}
       this->package_->bindings()->add_method(ret);
     }
@@ -1871,7 +1856,11 @@ Gogo::declare_function(const std::string& name, Function_type* type,
 	  return ftype->add_method_declaration(name, NULL, type, location);
 	}
       else
-	go_unreachable();
+        {
+          error_at(type->receiver()->location(),
+                   "invalid receiver type (receiver must be a named type)");
+          return Named_object::make_erroneous_name(name);
+        }
     }
 }
 
@@ -1881,10 +1870,6 @@ Label*
 Gogo::add_label_definition(const std::string& label_name,
 			   Location location)
 {
-  // A label with a blank identifier is never declared or defined.
-  if (label_name == "_")
-    return NULL;
-
   go_assert(!this->functions_.empty());
   Function* func = this->functions_.back().function->func_value();
   Label* label = func->add_label_definition(this, label_name, location);
@@ -1902,6 +1887,74 @@ Gogo::add_label_reference(const std::string& label_name,
   Function* func = this->functions_.back().function->func_value();
   return func->add_label_reference(this, label_name, location,
 				   issue_goto_errors);
+}
+
+// Add a function to the call graph.
+
+Node*
+Gogo::add_call_node(Named_object* function)
+{
+  Node* call = this->lookup_call_node(function);
+  if (call == NULL)
+    {
+      call = Node::make_call(function);
+      this->call_graph_.insert(call);
+      this->named_call_nodes_[function] = call;
+    }
+  return call;
+}
+
+// Find the call node that represents FUNCTION.  Return NULL if it does not
+// exist.
+
+Node*
+Gogo::lookup_call_node(Named_object* function) const
+{
+  Named_escape_nodes::const_iterator p = this->named_call_nodes_.find(function);
+  if (p == this->named_call_nodes_.end())
+    return NULL;
+  return p->second;
+}
+
+// Add a connection node for OBJECT.
+
+Node*
+Gogo::add_connection_node(Named_object* object)
+{
+  Node* connection = this->lookup_connection_node(object);
+  if (connection == NULL)
+    {
+      connection = Node::make_connection(object, Node::ESCAPE_NONE);
+
+      // Each global variable is a part of the global connection graph.
+      if (object->is_variable()
+	  && object->var_value()->is_global())
+	{
+	  connection->connection_node()->set_escape_state(Node::ESCAPE_GLOBAL);
+	  this->global_connections_.insert(connection);
+	}
+
+      // Each function declaration or definition is the root of its own
+      // connection graph.  This means closures will have their own
+      // connection graph that objects in the enclosing function might
+      // refer to.
+      if (object->is_function() || object->is_function_declaration())
+	this->connection_roots_.insert(connection);
+      this->named_connection_nodes_[object] = connection;
+    }
+  return connection;
+}
+
+// Find the connection node for OBJECT.  Return NULL if it does not exist.
+
+Node*
+Gogo::lookup_connection_node(Named_object* object) const
+{
+  Named_escape_nodes::const_iterator p =
+    this->named_connection_nodes_.find(object);
+  if (p == this->named_connection_nodes_.end())
+    return NULL;
+  return p->second;
 }
 
 // Return the current binding state.
@@ -2228,15 +2281,30 @@ Gogo::clear_file_scope()
        ++p)
     {
       Package* package = p->second;
-      if (package != this->package_
-	  && package->is_imported()
-	  && !package->used()
-	  && !package->uses_sink_alias()
-	  && !quiet)
-	error_at(package->location(), "imported and not used: %s",
-		 Gogo::message_name(package->package_name()).c_str());
-      package->clear_is_imported();
-      package->clear_uses_sink_alias();
+      if (package != this->package_ && !quiet)
+        {
+          for (Package::Aliases::const_iterator p1 = package->aliases().begin();
+               p1 != package->aliases().end();
+               ++p1)
+            {
+              if (!p1->second->used())
+                {
+                  // Give a more refined error message if the alias name is known.
+                  std::string pkg_name = package->package_name();
+                  if (p1->first != pkg_name && p1->first[0] != '.')
+                    {
+                      error_at(p1->second->location(),
+                               "imported and not used: %s as %s",
+                               Gogo::message_name(pkg_name).c_str(),
+                               Gogo::message_name(p1->first).c_str());
+                    }
+                  else
+                    error_at(p1->second->location(),
+                             "imported and not used: %s",
+                             Gogo::message_name(pkg_name).c_str());
+                }
+            }
+        }
       package->clear_used();
     }
 }
@@ -2631,6 +2699,15 @@ Gogo::lower_parse_tree()
 {
   Lower_parse_tree lower_parse_tree(this, NULL);
   this->traverse(&lower_parse_tree);
+
+  // There might be type definitions that involve expressions such as the
+  // array length.  Make sure to lower these expressions as well.  Otherwise,
+  // errors hidden within a type can introduce unexpected errors into later
+  // passes.
+  for (std::vector<Type*>::iterator p = this->verify_types_.begin();
+       p != this->verify_types_.end();
+       ++p)
+    Type::traverse(*p, &lower_parse_tree);
 }
 
 // Lower a block.
@@ -3032,15 +3109,38 @@ Check_types_traverse::variable(Named_object* named_object)
 	    error_at(var->location(),
 		     "incompatible type in initialization (%s)",
 		     reason.c_str());
+          init = Expression::make_error(named_object->location());
 	  var->clear_init();
 	}
-      else if (!var->is_used()
-	       && !var->is_global()
-	       && !var->is_parameter()
-	       && !var->is_receiver()
-	       && !var->type()->is_error()
-	       && (init == NULL || !init->is_error_expression())
-	       && !Lex::is_invalid_identifier(named_object->name()))
+      else if (init != NULL
+               && init->func_expression() != NULL)
+        {
+          Named_object* no = init->func_expression()->named_object();
+          Function_type* fntype;
+          if (no->is_function())
+            fntype = no->func_value()->type();
+          else if (no->is_function_declaration())
+            fntype = no->func_declaration_value()->type();
+          else
+            go_unreachable();
+
+          // Builtin functions cannot be used as function values for variable
+          // initialization.
+          if (fntype->is_builtin())
+            {
+              error_at(init->location(),
+                       "invalid use of special builtin function %qs; "
+                       "must be called",
+                       no->message_name().c_str());
+            }
+        }
+      if (!var->is_used()
+          && !var->is_global()
+          && !var->is_parameter()
+          && !var->is_receiver()
+          && !var->type()->is_error()
+          && (init == NULL || !init->is_error_expression())
+          && !Lex::is_invalid_identifier(named_object->name()))
 	error_at(var->location(), "%qs declared and not used",
 		 named_object->message_name().c_str());
     }
@@ -3116,6 +3216,17 @@ Gogo::check_types()
 {
   Check_types_traverse traverse(this);
   this->traverse(&traverse);
+
+  Bindings* bindings = this->current_bindings();
+  for (Bindings::const_declarations_iterator p = bindings->begin_declarations();
+       p != bindings->end_declarations();
+       ++p)
+    {
+      // Also check the types in a function declaration's signature.
+      Named_object* no = p->second;
+      if (no->is_function_declaration())
+        no->func_declaration_value()->check_types();
+    }
 }
 
 // Check the types in a single block.
@@ -4267,15 +4378,7 @@ Gogo::allocate_memory(Type* type, Location location)
   Expression* td = Expression::make_type_descriptor(type, location);
   Expression* size =
     Expression::make_type_info(type, Expression::TYPE_INFO_SIZE);
-
-  // If this package imports unsafe, then it may play games with
-  // pointers that look like integers.  We should be able to determine
-  // whether or not to use new pointers in libgo/go-new.c.  FIXME.
-  bool use_new_pointers = this->imported_unsafe_ || type->has_pointer();
-  return Runtime::make_call((use_new_pointers
-			     ? Runtime::NEW
-			     : Runtime::NEW_NOPOINTERS),
-			    location, 2, td, size);
+  return Runtime::make_call(Runtime::NEW, location, 2, td, size);
 }
 
 // Traversal class used to check for return statements.
@@ -4455,7 +4558,7 @@ Gogo::convert_named_types_in_bindings(Bindings* bindings)
 
 // Class Function.
 
-Function::Function(Function_type* type, Function* enclosing, Block* block,
+Function::Function(Function_type* type, Named_object* enclosing, Block* block,
 		   Location location)
   : type_(type), enclosing_(enclosing), results_(NULL),
     closure_var_(NULL), block_(block), location_(location), labels_(),
@@ -4608,7 +4711,13 @@ Function::add_label_definition(Gogo* gogo, const std::string& label_name,
   std::pair<Labels::iterator, bool> ins =
     this->labels_.insert(std::make_pair(label_name, lnull));
   Label* label;
-  if (ins.second)
+  if (label_name == "_")
+    {
+      label = Label::create_dummy_label();
+      if (ins.second)
+	ins.first->second = label;
+    }
+  else if (ins.second)
     {
       // This is a new label.
       label = new Label(label_name);
@@ -4809,6 +4918,13 @@ Function::export_func_with_type(Export* exp, const std::string& name,
       exp->write_c_string("(");
       const Typed_identifier* receiver = fntype->receiver();
       exp->write_name(receiver->name());
+
+      if (fntype->has_escape_info())
+        {
+          exp->write_c_string(" ");
+          exp->write_escape(fntype->receiver_escape_state());
+        }
+
       exp->write_c_string(" ");
       exp->write_type(receiver->type());
       exp->write_c_string(") ");
@@ -4820,17 +4936,25 @@ Function::export_func_with_type(Export* exp, const std::string& name,
   const Typed_identifier_list* parameters = fntype->parameters();
   if (parameters != NULL)
     {
+      size_t i = 0;
       bool is_varargs = fntype->is_varargs();
       bool first = true;
       for (Typed_identifier_list::const_iterator p = parameters->begin();
 	   p != parameters->end();
-	   ++p)
+	   ++p, ++i)
 	{
 	  if (first)
 	    first = false;
 	  else
 	    exp->write_c_string(", ");
 	  exp->write_name(p->name());
+
+	  if (fntype->has_escape_info())
+	    {
+	      exp->write_c_string(" ");
+	      exp->write_escape(fntype->parameter_escape_states()->at(i));
+	    }
+
 	  exp->write_c_string(" ");
 	  if (!is_varargs || p + 1 != parameters->end())
 	    exp->write_type(p->type());
@@ -4878,17 +5002,29 @@ Function::export_func_with_type(Export* exp, const std::string& name,
 void
 Function::import_func(Import* imp, std::string* pname,
 		      Typed_identifier** preceiver,
+		      Node::Escapement_lattice* rcvr_escape,
 		      Typed_identifier_list** pparameters,
+		      Node::Escape_states** pparam_escapes,
 		      Typed_identifier_list** presults,
-		      bool* is_varargs)
+		      bool* is_varargs, bool* has_escape_info)
 {
+  *has_escape_info = false;
+
   imp->require_c_string("func ");
 
   *preceiver = NULL;
+  *rcvr_escape = Node::ESCAPE_NONE;
   if (imp->peek_char() == '(')
     {
       imp->require_c_string("(");
       std::string name = imp->read_name();
+
+      if (imp->match_c_string(" <escape")){
+	*has_escape_info = true;
+	imp->require_c_string(" ");
+	*rcvr_escape = imp->read_escape_info();
+      }
+
       imp->require_c_string(" ");
       Type* rtype = imp->read_type();
       *preceiver = new Typed_identifier(name, rtype, imp->location());
@@ -4898,16 +5034,27 @@ Function::import_func(Import* imp, std::string* pname,
   *pname = imp->read_identifier();
 
   Typed_identifier_list* parameters;
+  Node::Escape_states* param_escapes;
   *is_varargs = false;
   imp->require_c_string(" (");
   if (imp->peek_char() == ')')
-    parameters = NULL;
+    {
+      parameters = NULL;
+      param_escapes = NULL;
+    }
   else
     {
       parameters = new Typed_identifier_list();
+      param_escapes = new Node::Escape_states();
       while (true)
 	{
 	  std::string name = imp->read_name();
+	  if (imp->match_c_string(" <escape")){
+	    *has_escape_info = true;
+	    imp->require_c_string(" ");
+	    param_escapes->push_back(imp->read_escape_info());
+	  }
+
 	  imp->require_c_string(" ");
 
 	  if (imp->match_c_string("..."))
@@ -4929,6 +5076,7 @@ Function::import_func(Import* imp, std::string* pname,
     }
   imp->require_c_string(")");
   *pparameters = parameters;
+  *pparam_escapes = param_escapes;
 
   Typed_identifier_list* results;
   if (imp->peek_char() != ' ')
@@ -5115,6 +5263,26 @@ Function_declaration::build_backend_descriptor(Gogo* gogo)
     {
       Translate_context context(gogo, NULL, NULL, NULL);
       this->descriptor_->get_backend(&context);
+    }
+}
+
+// Check that the types used in this declaration's signature are defined.
+// Reports errors for any undefined type.
+
+void
+Function_declaration::check_types() const
+{
+  // Calling Type::base will give errors for any undefined types.
+  Function_type* fntype = this->type();
+  if (fntype->receiver() != NULL)
+    fntype->receiver()->type()->base();
+  if (fntype->parameters() != NULL)
+    {
+      const Typed_identifier_list* params = fntype->parameters();
+      for (Typed_identifier_list::const_iterator p = params->begin();
+           p != params->end();
+           ++p)
+        p->type()->base();
     }
 }
 
@@ -5765,7 +5933,7 @@ Variable::Variable(Type* type, Expression* init, bool is_global,
     type_from_init_tuple_(false), type_from_range_index_(false),
     type_from_range_value_(false), type_from_chan_element_(false),
     is_type_switch_var_(false), determined_type_(false),
-    in_unique_section_(false)
+    in_unique_section_(false), escapes_(true)
 {
   go_assert(type != NULL || init != NULL);
   go_assert(!is_parameter || init == NULL);
@@ -6291,9 +6459,7 @@ Variable::get_backend_variable(Gogo* gogo, Named_object* function,
 	  Btype* btype = type->get_backend(gogo);
 
 	  Bvariable* bvar;
-	  if (gogo->is_zero_value(this))
-	    bvar = gogo->backend_zero_value();
-	  else if (this->is_global_)
+	  if (this->is_global_)
 	    bvar = backend->global_variable((package == NULL
 					     ? gogo->package_name()
 					     : package->package_name()),
@@ -6539,7 +6705,8 @@ Unknown_name::set_real_named_object(Named_object* no)
 Named_object::Named_object(const std::string& name,
 			   const Package* package,
 			   Classification classification)
-  : name_(name), package_(package), classification_(classification)
+  : name_(name), package_(package), classification_(classification),
+    is_redefinition_(false)
 {
   if (Gogo::is_sink_name(name))
     go_assert(classification == NAMED_OBJECT_SINK);
@@ -6941,7 +7108,7 @@ Named_object::get_backend(Gogo* gogo, std::vector<Bexpression*>& const_decls,
         // still be returned by some function.  Simply calling the
         // type_descriptor method is enough to create the type
         // descriptor, even though we don't do anything with it.
-        if (this->package_ == NULL)
+        if (this->package_ == NULL && !saw_errors())
           {
             named_type->
                 type_descriptor_pointer(gogo, Linemap::predeclared_location());
@@ -7198,16 +7365,10 @@ Bindings::new_definition(Named_object* old_object, Named_object* new_object)
 
     case Named_object::NAMED_OBJECT_FUNC_DECLARATION:
       {
-	Function_type* old_type = old_object->func_declaration_value()->type();
-	if (new_object->is_function_declaration())
-	  {
-	    Function_type* new_type =
-	      new_object->func_declaration_value()->type();
-	    if (old_type->is_valid_redeclaration(new_type, &reason))
-	      return old_object;
-	  }
 	if (new_object->is_function())
 	  {
+            Function_type* old_type =
+                old_object->func_declaration_value()->type();
 	    Function_type* new_type = new_object->func_value()->type();
 	    if (old_type->is_valid_redeclaration(new_type, &reason))
 	      {
@@ -7231,6 +7392,8 @@ Bindings::new_definition(Named_object* old_object, Named_object* new_object)
   else
     error_at(new_object->location(), "redefinition of %qs: %s", n.c_str(),
 	     reason.c_str());
+  old_object->set_is_redefinition();
+  new_object->set_is_redefinition();
 
   inform(old_object->location(), "previous definition of %qs was here",
 	 n.c_str());
@@ -7470,6 +7633,20 @@ Label::get_addr(Translate_context* context, Location location)
   return context->backend()->label_address(label, location);
 }
 
+// Return the dummy label that represents any instance of the blank label.
+
+Label*
+Label::create_dummy_label()
+{
+  static Label* dummy_label;
+  if (dummy_label == NULL)
+    {
+      dummy_label = new Label("_");
+      dummy_label->set_is_used();
+    }
+  return dummy_label;
+}
+
 // Class Unnamed_label.
 
 // Get the backend representation for an unnamed label.
@@ -7511,8 +7688,7 @@ Package::Package(const std::string& pkgpath,
 		 const std::string& pkgpath_symbol, Location location)
   : pkgpath_(pkgpath), pkgpath_symbol_(pkgpath_symbol),
     package_name_(), bindings_(new Bindings(NULL)), priority_(0),
-    location_(location), used_(false), is_imported_(false),
-    uses_sink_alias_(false)
+    location_(location)
 {
   go_assert(!pkgpath.empty());
   
@@ -7566,6 +7742,16 @@ Package::set_priority(int priority)
     this->priority_ = priority;
 }
 
+// Note that symbol from this package was and qualified by ALIAS.
+
+void
+Package::note_usage(const std::string& alias) const
+{
+  Aliases::const_iterator p = this->aliases_.find(alias);
+  go_assert(p != this->aliases_.end());
+  p->second->note_usage();
+}
+
 // Forget a given usage.  If forgetting this usage means this package becomes
 // unused, report that error.
 
@@ -7581,7 +7767,7 @@ Package::forget_usage(Expression* usage) const
 
   if (this->fake_uses_.empty())
     error_at(this->location(), "imported and not used: %s",
-	     Gogo::message_name(this->package_name()).c_str());
+             Gogo::message_name(this->package_name()).c_str());
 }
 
 // Clear the used field for the next file.  If the only usages of this package
@@ -7590,10 +7776,26 @@ Package::forget_usage(Expression* usage) const
 void
 Package::clear_used()
 {
-  if (this->used_ > this->fake_uses_.size())
+  std::string dot_alias = "." + this->package_name();
+  Aliases::const_iterator p = this->aliases_.find(dot_alias);
+  if (p != this->aliases_.end() && p->second->used() > this->fake_uses_.size())
     this->fake_uses_.clear();
 
-  this->used_ = 0;
+  this->aliases_.clear();
+}
+
+Package_alias*
+Package::add_alias(const std::string& alias, Location location)
+{
+  Aliases::const_iterator p = this->aliases_.find(alias);
+  if (p == this->aliases_.end())
+    {
+      std::pair<Aliases::iterator, bool> ret;
+      ret = this->aliases_.insert(std::make_pair(alias,
+                                                 new Package_alias(location)));
+      p = ret.first;
+    }
+  return p->second;
 }
 
 // Determine types of constants.  Everything else in a package

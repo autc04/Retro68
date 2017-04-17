@@ -24,7 +24,7 @@
 	kasumi_fi_fi	%f42, %f44, %f46
 	kasumi_fl_xor	%f44, %f46, %f48, %f50
 	kasumi_fi_xor	%f46, %f48, %f50, %f52
-	camellia_fi	%f50, %f52, %f54
+	camellia_fl	%f50, %f52, %f54
 	camellia_fli	%f52, %f54, %f56
 	camellia_f	%f54, %f56, %f58, %f60
 	mpmul	0

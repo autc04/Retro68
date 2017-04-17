@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 1991-2014 Free Software Foundation, Inc.
+#   Copyright (C) 1991-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -68,7 +68,7 @@ m68hc11_elf_${EMULATION_NAME}_before_allocation (void)
 
   /* If generating a relocatable output file, then we don't
      have to generate the trampolines.  */
-  if (link_info.relocatable)
+  if (bfd_link_relocatable (&link_info))
     return;
 
   ret = elf32_m68hc11_setup_section_lists (link_info.output_bfd, &link_info);

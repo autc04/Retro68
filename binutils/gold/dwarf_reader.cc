@@ -1,6 +1,6 @@
 // dwarf_reader.cc -- parse dwarf2/3 debug information
 
-// Copyright (C) 2007-2014 Free Software Foundation, Inc.
+// Copyright (C) 2007-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -2205,13 +2205,33 @@ Sized_dwarf_line_info<size, big_endian>::do_addr2line(
     return "";
 
   std::string result = this->format_file_lineno(*it);
+  gold_debug(DEBUG_LOCATION, "do_addr2line: canonical result: %s",
+	     result.c_str());
   if (other_lines != NULL)
-    for (++it; it != offsets->end() && it->offset == offset; ++it)
-      {
-        if (it->line_num == -1)
-          continue;  // The end of a previous function.
-        other_lines->push_back(this->format_file_lineno(*it));
-      }
+    {
+      unsigned int last_file_num = it->file_num;
+      int last_line_num = it->line_num;
+      // Return up to 4 more locations from the beginning of the function
+      // for fuzzy matching.
+      for (++it; it != offsets->end(); ++it)
+	{
+	  if (it->offset == offset && it->line_num == -1)
+	    continue;  // The end of a previous function.
+	  if (it->line_num == -1)
+	    break;  // The end of the current function.
+	  if (it->file_num != last_file_num || it->line_num != last_line_num)
+	    {
+	      other_lines->push_back(this->format_file_lineno(*it));
+	      gold_debug(DEBUG_LOCATION, "do_addr2line: other: %s",
+			 other_lines->back().c_str());
+	      last_file_num = it->file_num;
+	      last_line_num = it->line_num;
+	    }
+	  if (it->offset > offset && other_lines->size() >= 4)
+	    break;
+	}
+    }
+
   return result;
 }
 

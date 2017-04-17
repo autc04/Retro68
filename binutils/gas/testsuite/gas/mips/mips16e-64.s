@@ -2,7 +2,7 @@
 
 	.text
 	.set	mips16
-
+foo:
 	sew	$4
 	zew	$4
 

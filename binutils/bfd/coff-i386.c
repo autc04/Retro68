@@ -1,5 +1,5 @@
 /* BFD back-end for Intel 386 COFF files.
-   Copyright (C) 1990-2014 Free Software Foundation, Inc.
+   Copyright (C) 1990-2017 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -139,41 +139,41 @@ coff_i386_reloc (bfd *abfd,
 #define DOIT(x) \
   x = ((x & ~howto->dst_mask) | (((x & howto->src_mask) + diff) & howto->dst_mask))
 
-    if (diff != 0)
-      {
-	reloc_howto_type *howto = reloc_entry->howto;
-	unsigned char *addr = (unsigned char *) data + reloc_entry->address;
+  if (diff != 0)
+    {
+      reloc_howto_type *howto = reloc_entry->howto;
+      unsigned char *addr = (unsigned char *) data + reloc_entry->address;
 
-	switch (howto->size)
+      switch (howto->size)
+	{
+	case 0:
 	  {
-	  case 0:
-	    {
-	      char x = bfd_get_8 (abfd, addr);
-	      DOIT (x);
-	      bfd_put_8 (abfd, x, addr);
-	    }
-	    break;
-
-	  case 1:
-	    {
-	      short x = bfd_get_16 (abfd, addr);
-	      DOIT (x);
-	      bfd_put_16 (abfd, (bfd_vma) x, addr);
-	    }
-	    break;
-
-	  case 2:
-	    {
-	      long x = bfd_get_32 (abfd, addr);
-	      DOIT (x);
-	      bfd_put_32 (abfd, (bfd_vma) x, addr);
-	    }
-	    break;
-
-	  default:
-	    abort ();
+	    char x = bfd_get_8 (abfd, addr);
+	    DOIT (x);
+	    bfd_put_8 (abfd, x, addr);
 	  }
-      }
+	  break;
+
+	case 1:
+	  {
+	    short x = bfd_get_16 (abfd, addr);
+	    DOIT (x);
+	    bfd_put_16 (abfd, (bfd_vma) x, addr);
+	  }
+	  break;
+
+	case 2:
+	  {
+	    long x = bfd_get_32 (abfd, addr);
+	    DOIT (x);
+	    bfd_put_32 (abfd, (bfd_vma) x, addr);
+	  }
+	  break;
+
+	default:
+	  abort ();
+	}
+    }
 
   /* Now let bfd_perform_relocation finish everything up.  */
   return bfd_reloc_continue;
@@ -379,7 +379,7 @@ static reloc_howto_type howto_table[] =
       coffsym = (obj_symbols (abfd)				\
 	         + (cache_ptr->sym_ptr_ptr - symbols));		\
     else if (ptr)						\
-      coffsym = coff_symbol_from (abfd, ptr);			\
+      coffsym = coff_symbol_from (ptr);				\
     if (coffsym != (coff_symbol_type *) NULL			\
 	&& coffsym->native->u.syment.n_scnum == 0)		\
       cache_ptr->addend = - coffsym->native->u.syment.n_value;	\
@@ -417,7 +417,7 @@ coff_pe_i386_relocate_section (bfd *output_bfd,
 			       struct internal_syment *syms,
 			       asection **sections)
 {
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   return _bfd_coff_generic_relocate_section (output_bfd, info, input_bfd,
@@ -509,7 +509,12 @@ coff_i386_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
       *addendp -= pe_data(sec->output_section->owner)->pe_opthdr.ImageBase;
     }
 
-  BFD_ASSERT (sym != NULL);
+  /* PR 17099 - Absolute R_PCRLONG relocations do not need a symbol.  */
+  if (rel->r_type == R_PCRLONG && sym == NULL)
+    *addendp -= rel->r_vaddr;
+  else
+    BFD_ASSERT (sym != NULL);
+
   if (rel->r_type == R_SECREL32 && sym != NULL)
     {
       bfd_vma osect_vma;

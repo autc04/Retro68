@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2004-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -42,7 +42,7 @@ crxelf_after_parse (void)
      is true the link sometimes fails.  */
   config.magic_demand_paged = FALSE;
 
-  after_parse_default ();
+  gld${EMULATION_NAME}_after_parse ();
 }
 
 /* This is called after the sections have been attached to output

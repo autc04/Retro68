@@ -37,4 +37,4 @@ Disassembly of section .text:
 
 00000060 <_t\.rw_>:
   60:	25 64 0a 00 	dozi    r11,r4,2560
-	...
+#pass

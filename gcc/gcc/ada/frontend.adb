@@ -30,6 +30,7 @@ with Checks;
 with CStand;
 with Debug;    use Debug;
 with Elists;
+with Exp_Ch6;
 with Exp_Dbug;
 with Fmap;
 with Fname.UF;
@@ -63,7 +64,6 @@ with Sinfo;    use Sinfo;
 with Sinput;   use Sinput;
 with Sinput.L; use Sinput.L;
 with SCIL_LL;  use SCIL_LL;
-with Targparm; use Targparm;
 with Tbuild;   use Tbuild;
 with Types;    use Types;
 
@@ -90,6 +90,7 @@ begin
    Checks.Initialize;
    Sem_Warn.Initialize;
    Prep.Initialize;
+   Exp_Ch6.Initialize;
 
    if Generate_SCIL then
       SCIL_LL.Initialize;
@@ -408,13 +409,6 @@ begin
 
          --  Cleanup processing after completing main analysis
 
-         --  Turn off unnesting of subprograms mode. This is not right
-         --  with respect to instantiations. What needs to happen is that
-         --  we do the unnesting AFTER the call to Instantiate_Bodies. We
-         --  will take care of that later ???
-
-         Opt.Unnest_Subprogram_Mode := False;
-
          --  Comment needed for ASIS mode test and GNATprove mode test???
 
          if Operating_Mode = Generate_Code
@@ -444,6 +438,10 @@ begin
             Remove_Ignored_Ghost_Code;
          end if;
 
+         --  At this stage we can unnest subprogram bodies if required
+
+         Exp_Ch6.Unnest_Subprograms;
+
          --  List library units if requested
 
          if List_Units then
@@ -460,14 +458,9 @@ begin
       end if;
    end if;
 
-   --  Qualify all entity names in inner packages, package bodies, etc.,
-   --  except when compiling for the VM back-ends, which depend on having
-   --  unqualified names in certain cases and handles the generation of
-   --  qualified names when needed.
+   --  Qualify all entity names in inner packages, package bodies, etc.
 
-   if VM_Target = No_VM then
-      Exp_Dbug.Qualify_All_Entity_Names;
-   end if;
+   Exp_Dbug.Qualify_All_Entity_Names;
 
    --  SCIL backend requirement. Check that SCIL nodes associated with
    --  dispatching calls reference subprogram calls.
@@ -483,8 +476,8 @@ begin
 
    Sprint.Source_Dump;
 
-   --  Check again for configuration pragmas that appear in the context of
-   --  the main unit. These pragmas only affect the main unit, and the
+   --  Check again for configuration pragmas that appear in the context
+   --  of the main unit. These pragmas only affect the main unit, and the
    --  corresponding flag is reset after each call to Semantics, but they
    --  may affect the generated ali for the unit, and therefore the flag
    --  must be set properly after compilation. Currently we only check for

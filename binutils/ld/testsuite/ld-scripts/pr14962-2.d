@@ -1,7 +1,7 @@
 #ld: -T pr14962-2.t
 #source: pr14962a.s
 #nm: -n
-#notarget: rx-*-* frv-*-*linux*
+#notarget: frv-*-*linux*
 
 #...
 0+2000 [AT] _start

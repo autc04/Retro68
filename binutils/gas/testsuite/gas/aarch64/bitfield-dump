@@ -2,7 +2,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	13001cff 	sxtb	wzr, w7
    4:	93401cff 	sxtb	xzr, w7
    8:	13003cff 	sxth	wzr, w7

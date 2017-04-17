@@ -1,4 +1,4 @@
-# Copyright (C) 2013-2014 Free Software Foundation, Inc.
+# Copyright (C) 2013-2017 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,6 +20,14 @@ if ![istarget mips*-*-*] {
 }
 
 if [is_elf_format] {
+    run_dump_test "mips-ase-1"
+    run_dump_test "mips-ase-2"
+    run_dump_test "mips-ase-3"
     run_dump_test "mixed-mips16"
     run_dump_test "mixed-micromips"
+    run_dump_test "mixed-mips16-micromips"
+    run_dump_test "mips16-undecoded"
+    run_dump_test "mips16-pcrel"
+    run_dump_test "mips16-extend-noinsn"
+    run_dump_test "mips16-extend-insn"
 }

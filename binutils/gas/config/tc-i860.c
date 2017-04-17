@@ -1,5 +1,5 @@
 /* tc-i860.c -- Assembler for the Intel i860 architecture.
-   Copyright (C) 1989-2014 Free Software Foundation, Inc.
+   Copyright (C) 1989-2017 Free Software Foundation, Inc.
 
    Brought back from the dead and completely reworked
    by Jason Eckhardt <jle@cygnus.com>.
@@ -53,7 +53,7 @@ static char reg_prefix;
 
 struct i860_it
 {
-  char *error;
+  const char *error;
   unsigned long opcode;
   enum expand_type expand;
   struct i860_fi
@@ -90,7 +90,7 @@ static void s_enddual (int);
 static void s_atmp (int);
 static void s_align_wrapper (int);
 static int i860_get_expression (char *);
-static bfd_reloc_code_real_type obtain_reloc_for_imm16 (fixS *, long *); 
+static bfd_reloc_code_real_type obtain_reloc_for_imm16 (fixS *, long *);
 #ifdef DEBUG_I860
 static void print_insn (struct i860_it *);
 #endif
@@ -173,7 +173,7 @@ s_atmp (int ignore ATTRIBUTE_UNUSED)
 }
 
 /* Handle ".align" directive depending on syntax mode.
-   AT&T/SVR4 syntax uses the standard align directive.  However, 
+   AT&T/SVR4 syntax uses the standard align directive.  However,
    the Intel syntax additionally allows keywords for the alignment
    parameter: ".align type", where type is one of {.short, .long,
    .quad, .single, .double} representing alignments of 2, 4,
@@ -197,7 +197,7 @@ s_align_wrapper (int arg)
         strncpy (parm, "      4", 7);
       else if (strncmp (parm, ".double", 7) == 0)
         strncpy (parm, "      8", 7);
-     
+
       while (*input_line_pointer == ' ')
         ++input_line_pointer;
     }
@@ -895,7 +895,7 @@ i860_process_insn (char *str)
 
 	          the_insn.expand = insn->expand;
                   fc++;
-              
+
 	          continue;
 		}
 	      else
@@ -1010,7 +1010,7 @@ i860_get_expression (char *str)
   return 0;
 }
 
-char *
+const char *
 md_atof (int type, char *litP, int *sizeP)
 {
   return ieee_md_atof (type, litP, sizeP, TRUE);
@@ -1028,7 +1028,7 @@ md_number_to_chars (char *buf, valueT val, int n)
 
 /* This should never be called for i860.  */
 int
-md_estimate_size_before_relax (register fragS *fragP ATTRIBUTE_UNUSED,
+md_estimate_size_before_relax (fragS *fragP ATTRIBUTE_UNUSED,
 			       segT segtype ATTRIBUTE_UNUSED)
 {
   as_fatal (_("relaxation not supported\n"));
@@ -1084,7 +1084,7 @@ struct option md_longopts[] = {
 size_t md_longopts_size = sizeof (md_longopts);
 
 int
-md_parse_option (int c, char *arg ATTRIBUTE_UNUSED)
+md_parse_option (int c, const char *arg ATTRIBUTE_UNUSED)
 {
   switch (c)
     {
@@ -1426,8 +1426,8 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED,
 {
   arelent *reloc;
 
-  reloc = xmalloc (sizeof (*reloc));
-  reloc->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
+  reloc = XNEW (arelent);
+  reloc->sym_ptr_ptr = XNEW (asymbol *);
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
   reloc->address = fixp->fx_frag->fr_address + fixp->fx_where;
   reloc->addend = fixp->fx_offset;
@@ -1482,7 +1482,7 @@ void
 i860_check_label (symbolS *labelsym)
 {
   /* At this point, the current line pointer is sitting on the character
-     just after the first colon on the label.  */ 
+     just after the first colon on the label.  */
   if (target_intel_syntax && *input_line_pointer == ':')
     {
       S_SET_EXTERNAL (labelsym);

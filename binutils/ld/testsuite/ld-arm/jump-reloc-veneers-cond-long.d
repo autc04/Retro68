@@ -15,10 +15,5 @@ Disassembly of section .text:
 	...
 
 000080.. <[^>]*>:
-    80..:	b401      	push	{r0}
-    80..:	4802      	ldr	r0, \[pc, #8\]	; \(80.. <__dest_veneer\+0xc>\)
-    80..:	4684      	mov	ip, r0
-    80..:	bc01      	pop	{r0}
-    80..:	4760      	bx	ip
-    80..:	bf00      	nop
+    80..:	f85f f000 	ldr.w	pc, \[pc\]	; 800c <__dest_veneer\+0x4>
     80..:	00108005 	.word	0x00108005

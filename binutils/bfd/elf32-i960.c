@@ -1,5 +1,5 @@
 /* Intel 960 specific support for 32-bit ELF
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2017 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -132,9 +132,11 @@ elf32_i960_info_to_howto_rel (bfd *abfd ATTRIBUTE_UNUSED,
   enum elf_i960_reloc_type type;
 
   type = (enum elf_i960_reloc_type) ELF32_R_TYPE (dst->r_info);
+
   /* PR 17521: file: 9609b8d6.  */
   if (type >= R_960_max)
     {
+      /* xgettext:c-format */
       _bfd_error_handler (_("%B: invalid i960 reloc number: %d"), abfd, type);
       type = 0;
     }

@@ -600,14 +600,16 @@ HAVE_NO_USE_LINKER_PLUGIN_FALSE
 HAVE_NO_USE_LINKER_PLUGIN_TRUE
 HAVE_PUBNAMES_FALSE
 HAVE_PUBNAMES_TRUE
-HAVE_ZLIB_FALSE
-HAVE_ZLIB_TRUE
+zlibinc
+zlibdir
 LIBOBJS
 LFS_CFLAGS
 GOLD_LDADD
 GOLD_LDFLAGS
 WARN_CXXFLAGS
+WARN_WRITE_STRINGS
 NO_WERROR
+WARN_CFLAGS_FOR_BUILD
 WARN_CFLAGS
 IFUNC_STATIC_FALSE
 IFUNC_STATIC_TRUE
@@ -668,6 +670,7 @@ CXX
 am__fastdepCC_FALSE
 am__fastdepCC_TRUE
 CCDEPMODE
+am__nodep
 AMDEPBACKSLASH
 AMDEP_FALSE
 AMDEP_TRUE
@@ -688,10 +691,14 @@ DEFAULT_TARGET_MIPS_FALSE
 DEFAULT_TARGET_MIPS_TRUE
 DEFAULT_TARGET_TILEGX_FALSE
 DEFAULT_TARGET_TILEGX_TRUE
+DEFAULT_TARGET_X86_64_OR_X32_FALSE
+DEFAULT_TARGET_X86_64_OR_X32_TRUE
 DEFAULT_TARGET_X32_FALSE
 DEFAULT_TARGET_X32_TRUE
 DEFAULT_TARGET_X86_64_FALSE
 DEFAULT_TARGET_X86_64_TRUE
+DEFAULT_TARGET_S390_FALSE
+DEFAULT_TARGET_S390_TRUE
 DEFAULT_TARGET_SPARC_FALSE
 DEFAULT_TARGET_SPARC_TRUE
 DEFAULT_TARGET_POWERPC_FALSE
@@ -788,6 +795,7 @@ with_sysroot
 enable_gold
 enable_threads
 enable_plugins
+enable_relro
 enable_targets
 with_lib_path
 enable_dependency_tracking
@@ -796,7 +804,7 @@ enable_werror
 enable_build_warnings
 with_gold_ldflags
 with_gold_ldadd
-with_zlib
+with_system_zlib
 enable_maintainer_mode
 '
       ac_precious_vars='build_alias
@@ -1437,6 +1445,7 @@ Optional Features:
   --enable-gold[=ARG]     build gold [ARG={default,yes,no}]
   --enable-threads        multi-threaded linking
   --enable-plugins        linker plugins
+  --enable-relro          enable -z relro in ELF linker by default
   --enable-targets        alternative target configurations
   --disable-dependency-tracking  speeds up one-time build
   --enable-dependency-tracking   do not reject slow dependency extractors
@@ -1453,7 +1462,7 @@ Optional Packages:
   --with-lib-path=dir1:dir2...  set default LIB_PATH
   --with-gold-ldflags=FLAGS  additional link flags for gold
   --with-gold-ldadd=LIBS     additional libraries for gold
-  --with-zlib             include zlib support (auto/yes/no) default=auto
+  --with-system-zlib      use installed libz
 
 Some influential environment variables:
   CC          C compiler command
@@ -3223,11 +3232,11 @@ MAKEINFO=${MAKEINFO-"${am_missing_run}makeinfo"}
 
 # We need awk for the "check" target.  The system "awk" is bad on
 # some platforms.
-# Always define AMTAR for backward compatibility.
+# Always define AMTAR for backward compatibility.  Yes, it's still used
+# in the wild :-(  We should find a proper way to deprecate it ...
+AMTAR='$${TAR-tar}'
 
-AMTAR=${AMTAR-"${am_missing_run}tar"}
-
-am__tar='${AMTAR} chof - "$$tardir"'; am__untar='${AMTAR} xf -'
+am__tar='$${TAR-tar} chof - "$$tardir"' am__untar='$${TAR-tar} xf -'
 
 
 
@@ -3257,7 +3266,7 @@ fi
 
 sysroot_relocatable=0
 if test -n "$sysroot"; then
-  case "sysroot" in
+  case "$sysroot" in
     "${prefix}" | "${prefix}/"* | \
     "${exec_prefix}" | "${exec_prefix}/"* | \
     '${prefix}' | '${prefix}/'*| \
@@ -3347,6 +3356,25 @@ else
   PLUGINS_TRUE='#'
   PLUGINS_FALSE=
 fi
+
+
+# Decide if -z relro should be enabled in ELF linker by default.
+ac_default_ld_z_relro=unset
+# Provide a configure time option to override our default.
+# Check whether --enable-relro was given.
+if test "${enable_relro+set}" = set; then :
+  enableval=$enable_relro; case "${enableval}" in
+  yes)  ac_default_ld_z_relro=1 ;;
+  no)  ac_default_ld_z_relro=0 ;;
+esac
+fi
+if test "${ac_default_ld_z_relro}" = unset; then
+  ac_default_ld_z_relro=1
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define DEFAULT_LD_Z_RELRO $ac_default_ld_z_relro
+_ACEOF
 
 
 # Check whether --enable-targets was given.
@@ -3477,6 +3505,14 @@ else
   DEFAULT_TARGET_SPARC_FALSE=
 fi
 
+	 if test "$targ_obj" = "s390"; then
+  DEFAULT_TARGET_S390_TRUE=
+  DEFAULT_TARGET_S390_FALSE='#'
+else
+  DEFAULT_TARGET_S390_TRUE='#'
+  DEFAULT_TARGET_S390_FALSE=
+fi
+
 	target_x86_64=no
 	target_x32=no
 	if test "$targ_obj" = "x86_64"; then
@@ -3504,6 +3540,14 @@ fi
 else
   DEFAULT_TARGET_X32_TRUE='#'
   DEFAULT_TARGET_X32_FALSE=
+fi
+
+	 if test "$target_x86_64" = "yes" -o "$target_x32" = "yes"; then
+  DEFAULT_TARGET_X86_64_OR_X32_TRUE=
+  DEFAULT_TARGET_X86_64_OR_X32_FALSE='#'
+else
+  DEFAULT_TARGET_X86_64_OR_X32_TRUE='#'
+  DEFAULT_TARGET_X86_64_OR_X32_FALSE=
 fi
 
 	 if test "$targ_obj" = "tilegx"; then
@@ -4520,6 +4564,7 @@ fi
 if test "x$enable_dependency_tracking" != xno; then
   am_depcomp="$ac_aux_dir/depcomp"
   AMDEPBACKSLASH='\'
+  am__nodep='_no'
 fi
  if test "x$enable_dependency_tracking" != xno; then
   AMDEP_TRUE=
@@ -4544,6 +4589,7 @@ else
   # instance it was reported that on HP-UX the gcc test will end up
   # making a dummy file named `D' -- because `-MD' means `put the output
   # in D'.
+  rm -rf conftest.dir
   mkdir conftest.dir
   # Copy depcomp to subdir because otherwise we won't find it if we're
   # using a relative directory.
@@ -4603,7 +4649,7 @@ else
 	break
       fi
       ;;
-    msvisualcpp | msvcmsys)
+    msvc7 | msvc7msys | msvisualcpp | msvcmsys)
       # This compiler won't grok `-c -o', but also, the minuso test has
       # not run yet.  These depmodes are late enough in the game, and
       # so weak that their functioning should not be impacted.
@@ -4928,6 +4974,7 @@ else
   # instance it was reported that on HP-UX the gcc test will end up
   # making a dummy file named `D' -- because `-MD' means `put the output
   # in D'.
+  rm -rf conftest.dir
   mkdir conftest.dir
   # Copy depcomp to subdir because otherwise we won't find it if we're
   # using a relative directory.
@@ -4987,7 +5034,7 @@ else
 	break
       fi
       ;;
-    msvisualcpp | msvcmsys)
+    msvc7 | msvc7msys | msvisualcpp | msvcmsys)
       # This compiler won't grok `-c -o', but also, the minuso test has
       # not run yet.  These depmodes are late enough in the game, and
       # so weak that their functioning should not be impacted.
@@ -6328,6 +6375,7 @@ fi
     powerpc*) false;;
     x86_64) false;;
     sparc64) false;;
+    s390x) false;;
     *) true;;
   esac; then
   FN_PTRS_IN_SO_WITHOUT_PIC_TRUE=
@@ -6676,7 +6724,14 @@ fi
 # Set the 'development' global.
 . $srcdir/../bfd/development.sh
 
+# Set acp_cpp_for_build variable
+ac_cpp_for_build="$CC_FOR_BUILD -E $CPPFLAGS_FOR_BUILD"
+
+# Default set of GCC warnings to enable.
 GCC_WARN_CFLAGS="-W -Wall -Wstrict-prototypes -Wmissing-prototypes"
+GCC_WARN_CFLAGS_FOR_BUILD="-W -Wall -Wstrict-prototypes -Wmissing-prototypes"
+
+# Add -Wshadow if the compiler is a sufficiently recent version of GCC.
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 __GNUC__
@@ -6686,6 +6741,65 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
 
 else
   GCC_WARN_CFLAGS="$GCC_WARN_CFLAGS -Wshadow"
+fi
+rm -f conftest*
+
+
+# Add -Wstack-usage if the compiler is a sufficiently recent version of GCC.
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+__GNUC__
+_ACEOF
+if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+  $EGREP "^[0-4]$" >/dev/null 2>&1; then :
+
+else
+  GCC_WARN_CFLAGS="$GCC_WARN_CFLAGS -Wstack-usage=262144"
+fi
+rm -f conftest*
+
+
+# Set WARN_WRITE_STRINGS if the compiler supports -Wwrite-strings.
+WARN_WRITE_STRINGS=""
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+__GNUC__
+_ACEOF
+if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+  $EGREP "^[0-3]$" >/dev/null 2>&1; then :
+
+else
+  WARN_WRITE_STRINGS="-Wwrite-strings"
+fi
+rm -f conftest*
+
+
+# Verify CC_FOR_BUILD to be compatible with warning flags
+
+# Add -Wshadow if the compiler is a sufficiently recent version of GCC.
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+__GNUC__
+_ACEOF
+if (eval "$ac_cpp_for_build conftest.$ac_ext") 2>&5 |
+  $EGREP "^[0-3]$" >/dev/null 2>&1; then :
+
+else
+  GCC_WARN_CFLAGS_FOR_BUILD="$GCC_WARN_CFLAGS_FOR_BUILD -Wshadow"
+fi
+rm -f conftest*
+
+
+# Add -Wstack-usage if the compiler is a sufficiently recent version of GCC.
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+__GNUC__
+_ACEOF
+if (eval "$ac_cpp_for_build conftest.$ac_ext") 2>&5 |
+  $EGREP "^[0-4]$" >/dev/null 2>&1; then :
+
+else
+  GCC_WARN_CFLAGS_FOR_BUILD="$GCC_WARN_CFLAGS_FOR_BUILD -Wstack-usage=262144"
 fi
 rm -f conftest*
 
@@ -6705,6 +6819,7 @@ case "${host}" in
   *-*-mingw32*)
     if test "${GCC}" = yes -a -z "${ERROR_ON_WARNING}" ; then
       GCC_WARN_CFLAGS="$GCC_WARN_CFLAGS -Wno-format"
+      GCC_WARN_CFLAGS_FOR_BUILD="$GCC_WARN_CFLAGS_FOR_BUILD -Wno-format"
     fi
     ;;
   *) ;;
@@ -6718,25 +6833,32 @@ fi
 NO_WERROR=
 if test "${ERROR_ON_WARNING}" = yes ; then
     GCC_WARN_CFLAGS="$GCC_WARN_CFLAGS -Werror"
+    GCC_WARN_CFLAGS_FOR_BUILD="$GCC_WARN_CFLAGS_FOR_BUILD -Werror"
     NO_WERROR="-Wno-error"
 fi
 
 if test "${GCC}" = yes ; then
   WARN_CFLAGS="${GCC_WARN_CFLAGS}"
+  WARN_CFLAGS_FOR_BUILD="${GCC_WARN_CFLAGS_FOR_BUILD}"
 fi
 
 # Check whether --enable-build-warnings was given.
 if test "${enable_build_warnings+set}" = set; then :
   enableval=$enable_build_warnings; case "${enableval}" in
-  yes)	WARN_CFLAGS="${GCC_WARN_CFLAGS}";;
+  yes)	WARN_CFLAGS="${GCC_WARN_CFLAGS}"
+        WARN_CFLAGS_FOR_BUILD="${GCC_WARN_CFLAGS_FOR_BUILD}";;
   no)	if test "${GCC}" = yes ; then
 	  WARN_CFLAGS="-w"
+      WARN_CFLAGS_FOR_BUILD="-w"
 	fi;;
   ,*)   t=`echo "${enableval}" | sed -e "s/,/ /g"`
-        WARN_CFLAGS="${GCC_WARN_CFLAGS} ${t}";;
+        WARN_CFLAGS="${GCC_WARN_CFLAGS} ${t}"
+        WARN_CFLAGS_FOR_BUILD="${GCC_WARN_CFLAGS_FOR_BUILD} ${t}";;
   *,)   t=`echo "${enableval}" | sed -e "s/,/ /g"`
-        WARN_CFLAGS="${t} ${GCC_WARN_CFLAGS}";;
-  *)    WARN_CFLAGS=`echo "${enableval}" | sed -e "s/,/ /g"`;;
+        WARN_CFLAGS="${t} ${GCC_WARN_CFLAGS}"
+        WARN_CFLAGS_FOR_BUILD="${t} ${GCC_WARN_CFLAGS_FOR_BUILD}";;
+  *)    WARN_CFLAGS=`echo "${enableval}" | sed -e "s/,/ /g"`
+        WARN_CFLAGS_FOR_BUILD=`echo "${enableval}" | sed -e "s/,/ /g"`;;
 esac
 fi
 
@@ -6744,6 +6866,8 @@ fi
 if test x"$silent" != x"yes" && test x"$WARN_CFLAGS" != x""; then
   echo "Setting warning flags = $WARN_CFLAGS" 6>&1
 fi
+
+
 
 
 
@@ -6875,96 +6999,21 @@ fi
 
 # Link in zlib if we can.  This allows us to write compressed sections.
 
-  # See if the user specified whether he wants zlib support or not.
+  # Use the system's zlib library.
+  zlibdir="-L\$(top_builddir)/../zlib"
+  zlibinc="-I\$(top_srcdir)/../zlib"
 
-# Check whether --with-zlib was given.
-if test "${with_zlib+set}" = set; then :
-  withval=$with_zlib;
-else
-  with_zlib=auto
-fi
-
-
-  if test "$with_zlib" != "no"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing zlibVersion" >&5
-$as_echo_n "checking for library containing zlibVersion... " >&6; }
-if test "${ac_cv_search_zlibVersion+set}" = set; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_func_search_save_LIBS=$LIBS
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char zlibVersion ();
-int
-main ()
-{
-return zlibVersion ();
-  ;
-  return 0;
-}
-_ACEOF
-for ac_lib in '' z; do
-  if test -z "$ac_lib"; then
-    ac_res="none required"
-  else
-    ac_res=-l$ac_lib
-    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
-  fi
-  if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_search_zlibVersion=$ac_res
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext
-  if test "${ac_cv_search_zlibVersion+set}" = set; then :
-  break
-fi
-done
-if test "${ac_cv_search_zlibVersion+set}" = set; then :
-
-else
-  ac_cv_search_zlibVersion=no
-fi
-rm conftest.$ac_ext
-LIBS=$ac_func_search_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_zlibVersion" >&5
-$as_echo "$ac_cv_search_zlibVersion" >&6; }
-ac_res=$ac_cv_search_zlibVersion
-if test "$ac_res" != no; then :
-  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-  for ac_header in zlib.h
-do :
-  ac_fn_c_check_header_mongrel "$LINENO" "zlib.h" "ac_cv_header_zlib_h" "$ac_includes_default"
-if test "x$ac_cv_header_zlib_h" = x""yes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_ZLIB_H 1
-_ACEOF
-
-fi
-
-done
-
-fi
-
-    if test "$with_zlib" = "yes" -a "$ac_cv_header_zlib_h" != "yes"; then
-      as_fn_error "zlib (libz) library was explicitly requested but not found" "$LINENO" 5
-    fi
+# Check whether --with-system-zlib was given.
+if test "${with_system_zlib+set}" = set; then :
+  withval=$with_system_zlib; if test x$with_system_zlib = xyes ; then
+    zlibdir=
+    zlibinc=
   fi
 
- if test "$ac_cv_header_zlib_h" = "yes"; then
-  HAVE_ZLIB_TRUE=
-  HAVE_ZLIB_FALSE='#'
-else
-  HAVE_ZLIB_TRUE='#'
-  HAVE_ZLIB_FALSE=
 fi
+
+
+
 
 
 ac_fn_c_check_decl "$LINENO" "basename" "ac_cv_have_decl_basename" "$ac_includes_default"
@@ -7830,12 +7879,20 @@ if test -z "${DEFAULT_TARGET_SPARC_TRUE}" && test -z "${DEFAULT_TARGET_SPARC_FAL
   as_fn_error "conditional \"DEFAULT_TARGET_SPARC\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
+if test -z "${DEFAULT_TARGET_S390_TRUE}" && test -z "${DEFAULT_TARGET_S390_FALSE}"; then
+  as_fn_error "conditional \"DEFAULT_TARGET_S390\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
 if test -z "${DEFAULT_TARGET_X86_64_TRUE}" && test -z "${DEFAULT_TARGET_X86_64_FALSE}"; then
   as_fn_error "conditional \"DEFAULT_TARGET_X86_64\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${DEFAULT_TARGET_X32_TRUE}" && test -z "${DEFAULT_TARGET_X32_FALSE}"; then
   as_fn_error "conditional \"DEFAULT_TARGET_X32\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${DEFAULT_TARGET_X86_64_OR_X32_TRUE}" && test -z "${DEFAULT_TARGET_X86_64_OR_X32_FALSE}"; then
+  as_fn_error "conditional \"DEFAULT_TARGET_X86_64_OR_X32\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${DEFAULT_TARGET_TILEGX_TRUE}" && test -z "${DEFAULT_TARGET_TILEGX_FALSE}"; then
@@ -7909,10 +7966,6 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${IFUNC_STATIC_TRUE}" && test -z "${IFUNC_STATIC_FALSE}"; then
   as_fn_error "conditional \"IFUNC_STATIC\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${HAVE_ZLIB_TRUE}" && test -z "${HAVE_ZLIB_FALSE}"; then
-  as_fn_error "conditional \"HAVE_ZLIB\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_PUBNAMES_TRUE}" && test -z "${HAVE_PUBNAMES_FALSE}"; then
@@ -9243,14 +9296,14 @@ $as_echo X"$file" |
           if test -f "$ac_given_srcdir/$ac_dir/LINGUAS"; then
             # The LINGUAS file contains the set of available languages.
             if test -n "$OBSOLETE_ALL_LINGUAS"; then
-              test -n "$as_me" && echo "$as_me: setting ALL_LINGUAS in configure.in is obsolete" || echo "setting ALL_LINGUAS in configure.in is obsolete"
+              test -n "$as_me" && echo "$as_me: setting ALL_LINGUAS in configure.ac is obsolete" || echo "setting ALL_LINGUAS in configure.ac is obsolete"
             fi
             ALL_LINGUAS_=`sed -e "/^#/d" "$ac_given_srcdir/$ac_dir/LINGUAS"`
             # Hide the ALL_LINGUAS assigment from automake.
             eval 'ALL_LINGUAS''=$ALL_LINGUAS_'
             POMAKEFILEDEPS="$POMAKEFILEDEPS LINGUAS"
           else
-            # The set of available languages was given in configure.in.
+            # The set of available languages was given in configure.ac.
             eval 'ALL_LINGUAS''=$OBSOLETE_ALL_LINGUAS'
           fi
           case "$ac_given_srcdir" in

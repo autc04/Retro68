@@ -1,5 +1,5 @@
 /* AVR-specific support for 32-bit ELF
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2017 Free Software Foundation, Inc.
    Contributed by Denis Chertykov <denisc@overta.ru>
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -25,6 +25,7 @@
 #include "elf-bfd.h"
 #include "elf/avr.h"
 #include "elf32-avr.h"
+#include "bfd_stdint.h"
 
 /* Enable debugging printout at stdout with this variable.  */
 static bfd_boolean debug_relax = FALSE;
@@ -88,7 +89,7 @@ struct elf32_avr_link_hash_table
 
   /* Assorted information used by elf32_avr_size_stubs.  */
   unsigned int        bfd_count;
-  int                 top_index;
+  unsigned int        top_index;
   asection **         input_list;
   Elf_Internal_Sym ** all_local_syms;
 
@@ -125,7 +126,7 @@ static reloc_howto_type elf_avr_howto_table[] =
 	 0,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_dont,/* complain_on_overflow */
+	 complain_overflow_dont, /* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_AVR_NONE",		/* name */
 	 FALSE,			/* partial_inplace */
@@ -640,7 +641,22 @@ static reloc_howto_type elf_avr_howto_table[] =
 	 FALSE,			/* partial_inplace */
 	 0xffffff,		/* src_mask */
 	 0xffffff,		/* dst_mask */
-	 FALSE) 		/* pcrel_offset */
+	 FALSE), 		/* pcrel_offset */
+
+  /* A 32 bit PC relative relocation.  */
+  HOWTO (R_AVR_32_PCREL,	/* type */
+	 0,				/* rightshift */
+	 2,				/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 TRUE,			/* pc_relative */
+	 0,				/* bitpos */
+	 complain_overflow_bitfield, /* complain_on_overflow */
+	 bfd_elf_generic_reloc, /* special_function */
+	 "R_AVR_32_PCREL",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0xffffffff,	/* src_mask */
+	 0xffffffff,	/* dst_mask */
+	 TRUE),			/* pcrel_offset */
 };
 
 /* Map BFD reloc types to AVR ELF reloc types.  */
@@ -688,7 +704,8 @@ static const struct avr_reloc_map avr_reloc_map[] =
   { BFD_RELOC_AVR_DIFF32,           R_AVR_DIFF32 },
   { BFD_RELOC_AVR_LDS_STS_16,       R_AVR_LDS_STS_16},
   { BFD_RELOC_AVR_PORT6,            R_AVR_PORT6},
-  { BFD_RELOC_AVR_PORT5,            R_AVR_PORT5}
+  { BFD_RELOC_AVR_PORT5,            R_AVR_PORT5},
+  { BFD_RELOC_32_PCREL,             R_AVR_32_PCREL}
 };
 
 /* Meant to be filled one day with the wrap around address for the
@@ -706,6 +723,83 @@ static bfd_vma avr_pc_wrap_around = 0x10000000;
    instruction. This option could be switched off by a linker switch.  */
 static int avr_replace_call_ret_sequences = 1;
 
+
+/* Per-section relaxation related information for avr.  */
+
+struct avr_relax_info
+{
+  /* Track the avr property records that apply to this section.  */
+
+  struct
+  {
+    /* Number of records in the list.  */
+    unsigned count;
+
+    /* How many records worth of space have we allocated.  */
+    unsigned allocated;
+
+    /* The records, only COUNT records are initialised.  */
+    struct avr_property_record *items;
+  } records;
+};
+
+/* Per section data, specialised for avr.  */
+
+struct elf_avr_section_data
+{
+  /* The standard data must appear first.  */
+  struct bfd_elf_section_data elf;
+
+  /* Relaxation related information.  */
+  struct avr_relax_info relax_info;
+};
+
+/* Possibly initialise avr specific data for new section SEC from ABFD.  */
+
+static bfd_boolean
+elf_avr_new_section_hook (bfd *abfd, asection *sec)
+{
+  if (!sec->used_by_bfd)
+    {
+      struct elf_avr_section_data *sdata;
+      bfd_size_type amt = sizeof (*sdata);
+
+      sdata = bfd_zalloc (abfd, amt);
+      if (sdata == NULL)
+	return FALSE;
+      sec->used_by_bfd = sdata;
+    }
+
+  return _bfd_elf_new_section_hook (abfd, sec);
+}
+
+/* Return a pointer to the relaxation information for SEC.  */
+
+static struct avr_relax_info *
+get_avr_relax_info (asection *sec)
+{
+  struct elf_avr_section_data *section_data;
+
+  /* No info available if no section or if it is an output section.  */
+  if (!sec || sec == sec->output_section)
+    return NULL;
+
+  section_data = (struct elf_avr_section_data *) elf_section_data (sec);
+  return &section_data->relax_info;
+}
+
+/* Initialise the per section relaxation information for SEC.  */
+
+static void
+init_avr_relax_info (asection *sec)
+{
+  struct avr_relax_info *relax_info = get_avr_relax_info (sec);
+
+  relax_info->records.count = 0;
+  relax_info->records.allocated = 0;
+  relax_info->records.items = NULL;
+}
+
 /* Initialize an entry in the stub hash table.  */
 
 static struct bfd_hash_entry *
@@ -861,6 +955,7 @@ avr_info_to_howto_rela (bfd *abfd ATTRIBUTE_UNUSED,
   r_type = ELF32_R_TYPE (dst->r_info);
   if (r_type >= (unsigned int) R_AVR_max)
     {
+      /* xgettext:c-format */
       _bfd_error_handler (_("%B: invalid AVR reloc number: %d"), abfd, r_type);
       r_type = 0;
     }
@@ -1380,7 +1475,7 @@ elf32_avr_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, 1, relend, howto, 0, contents);
 
-      if (info->relocatable)
+      if (bfd_link_relocatable (info))
 	continue;
 
       r = avr_final_link_relocate (howto, input_bfd, input_section,
@@ -1393,14 +1488,13 @@ elf32_avr_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  switch (r)
 	    {
 	    case bfd_reloc_overflow:
-	      r = info->callbacks->reloc_overflow
-		(info, (h ? &h->root : NULL),
-		 name, howto->name, (bfd_vma) 0,
-		 input_bfd, input_section, rel->r_offset);
+	      (*info->callbacks->reloc_overflow)
+		(info, (h ? &h->root : NULL), name, howto->name,
+		 (bfd_vma) 0, input_bfd, input_section, rel->r_offset);
 	      break;
 
 	    case bfd_reloc_undefined:
-	      r = info->callbacks->undefined_symbol
+	      (*info->callbacks->undefined_symbol)
 		(info, name, input_bfd, input_section, rel->r_offset, TRUE);
 	      break;
 
@@ -1422,11 +1516,8 @@ elf32_avr_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	    }
 
 	  if (msg)
-	    r = info->callbacks->warning
-	      (info, msg, name, input_bfd, input_section, rel->r_offset);
-
-	  if (! r)
-	    return FALSE;
+	    (*info->callbacks->warning) (info, msg, name, input_bfd,
+					 input_section, rel->r_offset);
 	}
     }
 
@@ -1522,7 +1613,6 @@ bfd_elf_avr_final_write_processing (bfd *abfd,
   elf_elfheader (abfd)->e_machine = EM_AVR;
   elf_elfheader (abfd)->e_flags &= ~ EF_AVR_MACH;
   elf_elfheader (abfd)->e_flags |= val;
-  elf_elfheader (abfd)->e_flags |= EF_AVR_LINKRELAX_PREPARED;
 }
 
 /* Set the right machine number.  */
@@ -1652,22 +1742,22 @@ elf32_avr_adjust_diff_reloc_value (bfd *abfd,
   reloc_contents = isec_contents + irel->r_offset;
 
   /* Read value written in object file. */
- bfd_vma x = 0;
+  bfd_signed_vma x = 0;
   switch (ELF32_R_TYPE (irel->r_info))
   {
   case R_AVR_DIFF8:
     {
-      x = *reloc_contents;
+      x = bfd_get_signed_8 (abfd, reloc_contents);
       break;
     }
   case R_AVR_DIFF16:
     {
-      x = bfd_get_16 (abfd, reloc_contents);
+      x = bfd_get_signed_16 (abfd, reloc_contents);
       break;
     }
   case R_AVR_DIFF32:
     {
-      x = bfd_get_32 (abfd, reloc_contents);
+      x = bfd_get_signed_32 (abfd, reloc_contents);
       break;
     }
   default:
@@ -1681,30 +1771,41 @@ elf32_avr_adjust_diff_reloc_value (bfd *abfd,
      symval (<start_of_section>) + reloc addend. Compute the start and end
      addresses and check if the shrinked insn falls between sym1 and sym2. */
 
-  bfd_vma end_address = symval + irel->r_addend;
-  bfd_vma start_address = end_address - x;
+  bfd_vma sym2_address = symval + irel->r_addend;
+  bfd_vma sym1_address = sym2_address - x;
 
-  /* Reduce the diff value by count bytes and write it back into section
-    contents. */
+  /* Don't assume sym2 is bigger than sym1 - the difference
+     could be negative. Compute start and end addresses, and
+     use those to see if they span shrinked_insn_address. */
+
+  bfd_vma start_address = sym1_address < sym2_address
+    ? sym1_address : sym2_address;
+  bfd_vma end_address = sym1_address > sym2_address
+    ? sym1_address : sym2_address;
+
 
   if (shrinked_insn_address >= start_address
       && shrinked_insn_address <= end_address)
   {
+    /* Reduce the diff value by count bytes and write it back into section
+       contents. */
+    bfd_signed_vma new_diff = x < 0 ? x + count : x - count;
+
     switch (ELF32_R_TYPE (irel->r_info))
     {
     case R_AVR_DIFF8:
       {
-        *reloc_contents = (x - count);
+        bfd_put_signed_8 (abfd, new_diff, reloc_contents);
         break;
       }
     case R_AVR_DIFF16:
       {
-        bfd_put_16 (abfd, (x - count) & 0xFFFF, reloc_contents);
+        bfd_put_signed_16 (abfd, new_diff & 0xFFFF, reloc_contents);
         break;
       }
     case R_AVR_DIFF32:
       {
-        bfd_put_32 (abfd, (x - count) & 0xFFFFFFFF, reloc_contents);
+        bfd_put_signed_32 (abfd, new_diff & 0xFFFFFFFF, reloc_contents);
         break;
       }
     default:
@@ -1716,16 +1817,57 @@ elf32_avr_adjust_diff_reloc_value (bfd *abfd,
   }
 }
 
+static void
+elf32_avr_adjust_reloc_if_spans_insn (bfd *abfd,
+                                      asection *isec,
+                                      Elf_Internal_Rela *irel,  bfd_vma symval,
+                                      bfd_vma shrinked_insn_address,
+                                      bfd_vma shrink_boundary,
+                                      int count)
+{
+
+  if (elf32_avr_is_diff_reloc (irel))
+    {
+      elf32_avr_adjust_diff_reloc_value (abfd, isec, irel,
+                                         symval,
+                                         shrinked_insn_address,
+                                         count);
+    }
+  else
+    {
+      bfd_vma reloc_value = symval + irel->r_addend;
+      bfd_boolean addend_within_shrink_boundary =
+        (reloc_value <= shrink_boundary);
+
+      bfd_boolean reloc_spans_insn =
+        (symval <= shrinked_insn_address
+         && reloc_value > shrinked_insn_address
+         && addend_within_shrink_boundary);
+
+      if (! reloc_spans_insn)
+        return;
+
+      irel->r_addend -= count;
+
+      if (debug_relax)
+        printf ("Relocation's addend needed to be fixed \n");
+    }
+}
+
 /* Delete some bytes from a section while changing the size of an instruction.
    The parameter "addr" denotes the section-relative offset pointing just
    behind the shrinked instruction. "addr+count" point at the first
-   byte just behind the original unshrinked instruction.  */
+   byte just behind the original unshrinked instruction. If delete_shrinks_insn
+   is FALSE, we are deleting redundant padding bytes from relax_info prop
+   record handling. In that case, addr is section-relative offset of start
+   of padding, and count is the number of padding bytes to delete. */
 
 static bfd_boolean
 elf32_avr_relax_delete_bytes (bfd *abfd,
                               asection *sec,
                               bfd_vma addr,
-                              int count)
+                              int count,
+                              bfd_boolean delete_shrinks_insn)
 {
   Elf_Internal_Shdr *symtab_hdr;
   unsigned int sec_shndx;
@@ -1733,25 +1875,101 @@ elf32_avr_relax_delete_bytes (bfd *abfd,
   Elf_Internal_Rela *irel, *irelend;
   Elf_Internal_Sym *isym;
   Elf_Internal_Sym *isymbuf = NULL;
-  bfd_vma toaddr;
+  bfd_vma toaddr, reloc_toaddr;
   struct elf_link_hash_entry **sym_hashes;
   struct elf_link_hash_entry **end_hashes;
   unsigned int symcount;
+  struct avr_relax_info *relax_info;
+  struct avr_property_record *prop_record = NULL;
+  bfd_boolean did_shrink = FALSE;
 
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
   sec_shndx = _bfd_elf_section_from_bfd_section (abfd, sec);
   contents = elf_section_data (sec)->this_hdr.contents;
+  relax_info = get_avr_relax_info (sec);
 
   toaddr = sec->size;
+
+  if (relax_info->records.count > 0)
+    {
+      /* There should be no property record within the range of deleted
+         bytes, however, there might be a property record for ADDR, this is
+         how we handle alignment directives.
+         Find the next (if any) property record after the deleted bytes.  */
+      unsigned int i;
+
+      for (i = 0; i < relax_info->records.count; ++i)
+        {
+          bfd_vma offset = relax_info->records.items [i].offset;
+
+          BFD_ASSERT (offset <= addr || offset >= (addr + count));
+          if (offset >= (addr + count))
+            {
+              prop_record = &relax_info->records.items [i];
+              toaddr = offset;
+              break;
+            }
+        }
+    }
+
+  /* We need to look at all relocs with offsets less than toaddr. prop
+     records handling adjusts toaddr downwards to avoid moving syms at the
+     address of the property record, but all relocs with offsets between addr
+     and the current value of toaddr need to have their offsets adjusted.
+     Assume addr = 0, toaddr = 4 and count = 2. After prop records handling,
+     toaddr becomes 2, but relocs with offsets 2 and 3 still need to be
+     adjusted (to 0 and 1 respectively), as the first 2 bytes are now gone.
+     So record the current value of toaddr here, and use it when adjusting
+     reloc offsets. */
+  reloc_toaddr = toaddr;
 
   irel = elf_section_data (sec)->relocs;
   irelend = irel + sec->reloc_count;
 
   /* Actually delete the bytes.  */
   if (toaddr - addr - count > 0)
-    memmove (contents + addr, contents + addr + count,
-             (size_t) (toaddr - addr - count));
-  sec->size -= count;
+    {
+      memmove (contents + addr, contents + addr + count,
+               (size_t) (toaddr - addr - count));
+      did_shrink = TRUE;
+    }
+  if (prop_record == NULL)
+    {
+      sec->size -= count;
+      did_shrink = TRUE;
+    }
+  else
+    {
+      /* Use the property record to fill in the bytes we've opened up.  */
+      int fill = 0;
+      switch (prop_record->type)
+        {
+        case RECORD_ORG_AND_FILL:
+          fill = prop_record->data.org.fill;
+          /* Fall through.  */
+        case RECORD_ORG:
+          break;
+        case RECORD_ALIGN_AND_FILL:
+          fill = prop_record->data.align.fill;
+          /* Fall through.  */
+        case RECORD_ALIGN:
+          prop_record->data.align.preceding_deleted += count;
+          break;
+        };
+      /* If toaddr == (addr + count), then we didn't delete anything, yet
+         we fill count bytes backwards from toaddr. This is still ok - we
+         end up overwriting the bytes we would have deleted. We just need
+         to remember we didn't delete anything i.e. don't set did_shrink,
+         so that we don't corrupt reloc offsets or symbol values.*/
+      memset (contents + toaddr - count, fill, count);
+
+      /* Adjust the TOADDR to avoid moving symbols located at the address
+         of the property record, which has not moved.  */
+      toaddr -= count;
+    }
+
+  if (!did_shrink)
+    return TRUE;
 
   /* Adjust all the reloc addresses.  */
   for (irel = elf_section_data (sec)->relocs; irel < irelend; irel++)
@@ -1763,7 +1981,7 @@ elf32_avr_relax_delete_bytes (bfd *abfd,
 
       /* Get the new reloc address.  */
       if ((irel->r_offset > addr
-           && irel->r_offset < toaddr))
+           && irel->r_offset < reloc_toaddr))
         {
           if (debug_relax)
             printf ("Relocation at address 0x%x needs to be moved.\n"
@@ -1800,7 +2018,9 @@ elf32_avr_relax_delete_bytes (bfd *abfd,
 	 continue;
 
        shrinked_insn_address = (sec->output_section->vma
-                                + sec->output_offset + addr - count);
+                                + sec->output_offset + addr);
+       if (delete_shrinks_insn)
+         shrinked_insn_address -= count;
 
        irel = elf_section_data (isec)->relocs;
        /* PR 12161: Read in the relocs for this section if necessary.  */
@@ -1837,6 +2057,12 @@ elf32_avr_relax_delete_bytes (bfd *abfd,
                   a symbol or section associated with it.  */
                if (sym_sec == sec)
                  {
+                   /* If there is an alignment boundary, we only need to
+                      adjust addends that end up below the boundary. */
+                   bfd_vma shrink_boundary = (reloc_toaddr
+                                              + sec->output_section->vma
+                                              + sec->output_offset);
+
                    symval += sym_sec->output_section->vma
                              + sym_sec->output_offset;
 
@@ -1850,22 +2076,11 @@ elf32_avr_relax_delete_bytes (bfd *abfd,
                              (unsigned int) (symval + irel->r_addend),
                              (unsigned int) shrinked_insn_address);
 
-                   if (symval <= shrinked_insn_address
-                       && (symval + irel->r_addend) > shrinked_insn_address)
-                     {
-                       if (elf32_avr_is_diff_reloc (irel))
-                         {
-                           elf32_avr_adjust_diff_reloc_value (abfd, isec, irel,
+                   elf32_avr_adjust_reloc_if_spans_insn (abfd, isec, irel,
                                                          symval,
                                                          shrinked_insn_address,
-                                                        count);
-                         }
-
-                       irel->r_addend -= count;
-
-                       if (debug_relax)
-                         printf ("Relocation's addend needed to be fixed \n");
-                     }
+                                                         shrink_boundary,
+                                                         count);
                  }
 	       /* else...Reference symbol is absolute.  No adjustment needed.  */
 	     }
@@ -1885,10 +2100,22 @@ elf32_avr_relax_delete_bytes (bfd *abfd,
       isymend = isym + symtab_hdr->sh_info;
       for (; isym < isymend; isym++)
 	{
-	  if (isym->st_shndx == sec_shndx
-	      && isym->st_value > addr
-	      && isym->st_value < toaddr)
-	    isym->st_value -= count;
+	  if (isym->st_shndx == sec_shndx)
+            {
+	      if (isym->st_value > addr
+                  && isym->st_value <= toaddr)
+                isym->st_value -= count;
+
+              if (isym->st_value <= addr
+                  && isym->st_value + isym->st_size > addr)
+                {
+                  /* If this assert fires then we have a symbol that ends
+                     part way through an instruction.  Does that make
+                     sense?  */
+                  BFD_ASSERT (isym->st_value + isym->st_size >= addr + count);
+                  isym->st_size -= count;
+                }
+            }
 	}
     }
 
@@ -1902,15 +2129,259 @@ elf32_avr_relax_delete_bytes (bfd *abfd,
       struct elf_link_hash_entry *sym_hash = *sym_hashes;
       if ((sym_hash->root.type == bfd_link_hash_defined
            || sym_hash->root.type == bfd_link_hash_defweak)
-          && sym_hash->root.u.def.section == sec
-          && sym_hash->root.u.def.value > addr
-          && sym_hash->root.u.def.value < toaddr)
+          && sym_hash->root.u.def.section == sec)
         {
-          sym_hash->root.u.def.value -= count;
+          if (sym_hash->root.u.def.value > addr
+              && sym_hash->root.u.def.value <= toaddr)
+            sym_hash->root.u.def.value -= count;
+
+          if (sym_hash->root.u.def.value <= addr
+              && (sym_hash->root.u.def.value + sym_hash->size > addr))
+            {
+              /* If this assert fires then we have a symbol that ends
+                 part way through an instruction.  Does that make
+                 sense?  */
+              BFD_ASSERT (sym_hash->root.u.def.value + sym_hash->size
+                          >= addr + count);
+              sym_hash->size -= count;
+            }
         }
     }
 
   return TRUE;
+}
+
+static Elf_Internal_Sym *
+retrieve_local_syms (bfd *input_bfd)
+{
+  Elf_Internal_Shdr *symtab_hdr;
+  Elf_Internal_Sym *isymbuf;
+  size_t locsymcount;
+
+  symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
+  locsymcount = symtab_hdr->sh_info;
+
+  isymbuf = (Elf_Internal_Sym *) symtab_hdr->contents;
+  if (isymbuf == NULL && locsymcount != 0)
+    isymbuf = bfd_elf_get_elf_syms (input_bfd, symtab_hdr, locsymcount, 0,
+				    NULL, NULL, NULL);
+
+  /* Save the symbols for this input file so they won't be read again.  */
+  if (isymbuf && isymbuf != (Elf_Internal_Sym *) symtab_hdr->contents)
+    symtab_hdr->contents = (unsigned char *) isymbuf;
+
+  return isymbuf;
+}
+
+/* Get the input section for a given symbol index.
+   If the symbol is:
+   . a section symbol, return the section;
+   . a common symbol, return the common section;
+   . an undefined symbol, return the undefined section;
+   . an indirect symbol, follow the links;
+   . an absolute value, return the absolute section.  */
+
+static asection *
+get_elf_r_symndx_section (bfd *abfd, unsigned long r_symndx)
+{
+  Elf_Internal_Shdr *symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
+  asection *target_sec = NULL;
+  if (r_symndx < symtab_hdr->sh_info)
+    {
+      Elf_Internal_Sym *isymbuf;
+      unsigned int section_index;
+
+      isymbuf = retrieve_local_syms (abfd);
+      section_index = isymbuf[r_symndx].st_shndx;
+
+      if (section_index == SHN_UNDEF)
+	target_sec = bfd_und_section_ptr;
+      else if (section_index == SHN_ABS)
+	target_sec = bfd_abs_section_ptr;
+      else if (section_index == SHN_COMMON)
+	target_sec = bfd_com_section_ptr;
+      else
+	target_sec = bfd_section_from_elf_index (abfd, section_index);
+    }
+  else
+    {
+      unsigned long indx = r_symndx - symtab_hdr->sh_info;
+      struct elf_link_hash_entry *h = elf_sym_hashes (abfd)[indx];
+
+      while (h->root.type == bfd_link_hash_indirect
+             || h->root.type == bfd_link_hash_warning)
+        h = (struct elf_link_hash_entry *) h->root.u.i.link;
+
+      switch (h->root.type)
+	{
+	case bfd_link_hash_defined:
+	case  bfd_link_hash_defweak:
+	  target_sec = h->root.u.def.section;
+	  break;
+	case bfd_link_hash_common:
+	  target_sec = bfd_com_section_ptr;
+	  break;
+	case bfd_link_hash_undefined:
+	case bfd_link_hash_undefweak:
+	  target_sec = bfd_und_section_ptr;
+	  break;
+	default: /* New indirect warning.  */
+	  target_sec = bfd_und_section_ptr;
+	  break;
+	}
+    }
+  return target_sec;
+}
+
+/* Get the section-relative offset for a symbol number.  */
+
+static bfd_vma
+get_elf_r_symndx_offset (bfd *abfd, unsigned long r_symndx)
+{
+  Elf_Internal_Shdr *symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
+  bfd_vma offset = 0;
+
+  if (r_symndx < symtab_hdr->sh_info)
+    {
+      Elf_Internal_Sym *isymbuf;
+      isymbuf = retrieve_local_syms (abfd);
+      offset = isymbuf[r_symndx].st_value;
+    }
+  else
+    {
+      unsigned long indx = r_symndx - symtab_hdr->sh_info;
+      struct elf_link_hash_entry *h =
+	elf_sym_hashes (abfd)[indx];
+
+      while (h->root.type == bfd_link_hash_indirect
+             || h->root.type == bfd_link_hash_warning)
+	h = (struct elf_link_hash_entry *) h->root.u.i.link;
+      if (h->root.type == bfd_link_hash_defined
+          || h->root.type == bfd_link_hash_defweak)
+	offset = h->root.u.def.value;
+    }
+  return offset;
+}
+
+/* Iterate over the property records in R_LIST, and copy each record into
+   the list of records within the relaxation information for the section to
+   which the record applies.  */
+
+static void
+avr_elf32_assign_records_to_sections (struct avr_property_record_list *r_list)
+{
+  unsigned int i;
+
+  for (i = 0; i < r_list->record_count; ++i)
+    {
+      struct avr_relax_info *relax_info;
+
+      relax_info = get_avr_relax_info (r_list->records [i].section);
+      BFD_ASSERT (relax_info != NULL);
+
+      if (relax_info->records.count
+          == relax_info->records.allocated)
+        {
+          /* Allocate more space.  */
+          bfd_size_type size;
+
+          relax_info->records.allocated += 10;
+          size = (sizeof (struct avr_property_record)
+                  * relax_info->records.allocated);
+          relax_info->records.items
+            = bfd_realloc (relax_info->records.items, size);
+        }
+
+      memcpy (&relax_info->records.items [relax_info->records.count],
+              &r_list->records [i],
+              sizeof (struct avr_property_record));
+      relax_info->records.count++;
+    }
+}
+
+/* Compare two STRUCT AVR_PROPERTY_RECORD in AP and BP, used as the
+   ordering callback from QSORT.  */
+
+static int
+avr_property_record_compare (const void *ap, const void *bp)
+{
+  const struct avr_property_record *a
+    = (struct avr_property_record *) ap;
+  const struct avr_property_record *b
+    = (struct avr_property_record *) bp;
+
+  if (a->offset != b->offset)
+    return (a->offset - b->offset);
+
+  if (a->section != b->section)
+    return (bfd_get_section_vma (a->section->owner, a->section)
+            - bfd_get_section_vma (b->section->owner, b->section));
+
+  return (a->type - b->type);
+}
+
+/* Load all of the avr property sections from all of the bfd objects
+   referenced from LINK_INFO.  All of the records within each property
+   section are assigned to the STRUCT AVR_RELAX_INFO within the section
+   specific data of the appropriate section.  */
+
+static void
+avr_load_all_property_sections (struct bfd_link_info *link_info)
+{
+  bfd *abfd;
+  asection *sec;
+
+  /* Initialize the per-section relaxation info.  */
+  for (abfd = link_info->input_bfds; abfd != NULL; abfd = abfd->link.next)
+    for (sec = abfd->sections; sec != NULL; sec = sec->next)
+      {
+	init_avr_relax_info (sec);
+      }
+
+  /* Load the descriptor tables from .avr.prop sections.  */
+  for (abfd = link_info->input_bfds; abfd != NULL; abfd = abfd->link.next)
+    {
+      struct avr_property_record_list *r_list;
+
+      r_list = avr_elf32_load_property_records (abfd);
+      if (r_list != NULL)
+        avr_elf32_assign_records_to_sections (r_list);
+
+      free (r_list);
+    }
+
+  /* Now, for every section, ensure that the descriptor list in the
+     relaxation data is sorted by ascending offset within the section.  */
+  for (abfd = link_info->input_bfds; abfd != NULL; abfd = abfd->link.next)
+    for (sec = abfd->sections; sec != NULL; sec = sec->next)
+      {
+        struct avr_relax_info *relax_info = get_avr_relax_info (sec);
+        if (relax_info && relax_info->records.count > 0)
+          {
+            unsigned int i;
+
+            qsort (relax_info->records.items,
+                   relax_info->records.count,
+                   sizeof (struct avr_property_record),
+                   avr_property_record_compare);
+
+            /* For debug purposes, list all the descriptors.  */
+            for (i = 0; i < relax_info->records.count; ++i)
+              {
+                switch (relax_info->records.items [i].type)
+                  {
+                  case RECORD_ORG:
+                    break;
+                  case RECORD_ORG_AND_FILL:
+                    break;
+                  case RECORD_ALIGN:
+                    break;
+                  case RECORD_ALIGN_AND_FILL:
+                    break;
+                  };
+              }
+          }
+      }
 }
 
 /* This function handles relaxing for the avr.
@@ -1956,6 +2427,15 @@ elf32_avr_relax_section (bfd *abfd,
   bfd_byte *contents = NULL;
   Elf_Internal_Sym *isymbuf = NULL;
   struct elf32_avr_link_hash_table *htab;
+  static bfd_boolean relaxation_initialised = FALSE;
+
+  if (!relaxation_initialised)
+    {
+      relaxation_initialised = TRUE;
+
+      /* Load entries from the .avr.prop sections.  */
+      avr_load_all_property_sections (link_info);
+    }
 
   /* If 'shrinkable' is FALSE, do not shrink by deleting bytes while
      relaxing. Such shrinking can cause issues for the sections such
@@ -1967,7 +2447,7 @@ elf32_avr_relax_section (bfd *abfd,
       || !strcmp (sec->name,".jumptables"))
     shrinkable = FALSE;
 
-  if (link_info->relocatable)
+  if (bfd_link_relocatable (link_info))
     (*link_info->callbacks->einfo)
       (_("%P%F: --relax and -r may not be used together\n"));
 
@@ -2005,7 +2485,7 @@ elf32_avr_relax_section (bfd *abfd,
   /* We don't have to do anything for a relocatable link, if
      this section does not have relocs, or if this is not a
      code section.  */
-  if (link_info->relocatable
+  if (bfd_link_relocatable (link_info)
       || (sec->flags & SEC_RELOC) == 0
       || sec->reloc_count == 0
       || (sec->flags & SEC_CODE) == 0)
@@ -2218,7 +2698,8 @@ elf32_avr_relax_section (bfd *abfd,
                   {
                     /* Delete two bytes of data.  */
                     if (!elf32_avr_relax_delete_bytes (abfd, sec,
-                                                       irel->r_offset + 2, 2))
+                                                       irel->r_offset + 2, 2,
+                                                       TRUE))
                       goto error_return;
 
                     /* That will change things, so, we should relax again.
@@ -2227,6 +2708,7 @@ elf32_avr_relax_section (bfd *abfd,
                   }
               }
           }
+	  /* Fall through.  */
 
         default:
           {
@@ -2542,7 +3024,8 @@ elf32_avr_relax_section (bfd *abfd,
 
 			    /* Delete two bytes of data.  */
 			    if (!elf32_avr_relax_delete_bytes (abfd, sec,
-							       irel->r_offset + insn_size, 2))
+							       irel->r_offset + insn_size, 2,
+							       TRUE))
 			      goto error_return;
 
 			    /* That will change things, so, we should relax
@@ -2556,6 +3039,67 @@ elf32_avr_relax_section (bfd *abfd,
               }
             break;
           }
+        }
+    }
+
+  if (!*again)
+    {
+      /* Look through all the property records in this section to see if
+         there's any alignment records that can be moved.  */
+      struct avr_relax_info *relax_info;
+
+      relax_info = get_avr_relax_info (sec);
+      if (relax_info->records.count > 0)
+        {
+          unsigned int i;
+
+          for (i = 0; i < relax_info->records.count; ++i)
+            {
+              switch (relax_info->records.items [i].type)
+                {
+                case RECORD_ORG:
+                case RECORD_ORG_AND_FILL:
+                  break;
+                case RECORD_ALIGN:
+                case RECORD_ALIGN_AND_FILL:
+                  {
+                    struct avr_property_record *record;
+                    unsigned long bytes_to_align;
+                    int count = 0;
+
+                    /* Look for alignment directives that have had enough
+                       bytes deleted before them, such that the directive
+                       can be moved backwards and still maintain the
+                       required alignment.  */
+                    record = &relax_info->records.items [i];
+                    bytes_to_align
+                      = (unsigned long) (1 << record->data.align.bytes);
+                    while (record->data.align.preceding_deleted >=
+                           bytes_to_align)
+                      {
+                        record->data.align.preceding_deleted
+                          -= bytes_to_align;
+                        count += bytes_to_align;
+                      }
+
+                    if (count > 0)
+                      {
+                        bfd_vma addr = record->offset;
+
+                        /* We can delete COUNT bytes and this alignment
+                           directive will still be correctly aligned.
+                           First move the alignment directive, then delete
+                           the bytes.  */
+                        record->offset -= count;
+                        elf32_avr_relax_delete_bytes (abfd, sec,
+                                                      addr - count,
+                                                      count, FALSE);
+                        *again = TRUE;
+                      }
+                  }
+                  break;
+                }
+            }
         }
     }
 
@@ -2739,8 +3283,9 @@ avr_add_stub (const char *stub_name,
 
   if (hsh == NULL)
     {
-      (*_bfd_error_handler) (_("%B: cannot create stub entry %s"),
-                             NULL, stub_name);
+      /* xgettext:c-format */
+      _bfd_error_handler (_("%B: cannot create stub entry %s"),
+			  NULL, stub_name);
       return NULL;
     }
 
@@ -2896,7 +3441,7 @@ elf32_avr_setup_section_lists (bfd *output_bfd,
 {
   bfd *input_bfd;
   unsigned int bfd_count;
-  int top_id, top_index;
+  unsigned int top_id, top_index;
   asection *section;
   asection **input_list, **list;
   bfd_size_type amt;
@@ -3172,7 +3717,7 @@ elf32_avr_size_stubs (bfd *output_bfd,
                         }
                       else if (hh->root.type == bfd_link_hash_undefweak)
                         {
-                          if (! info->shared)
+                          if (! bfd_link_pic (info))
                             continue;
                         }
                       else if (hh->root.type == bfd_link_hash_undefined)
@@ -3325,6 +3870,334 @@ elf32_avr_build_stubs (struct bfd_link_info *info)
   return TRUE;
 }
 
+/* Callback used by QSORT to order relocations AP and BP.  */
+
+static int
+internal_reloc_compare (const void *ap, const void *bp)
+{
+  const Elf_Internal_Rela *a = (const Elf_Internal_Rela *) ap;
+  const Elf_Internal_Rela *b = (const Elf_Internal_Rela *) bp;
+
+  if (a->r_offset != b->r_offset)
+    return (a->r_offset - b->r_offset);
+
+  /* We don't need to sort on these criteria for correctness,
+     but enforcing a more strict ordering prevents unstable qsort
+     from behaving differently with different implementations.
+     Without the code below we get correct but different results
+     on Solaris 2.7 and 2.8.  We would like to always produce the
+     same results no matter the host.  */
+
+  if (a->r_info != b->r_info)
+    return (a->r_info - b->r_info);
+
+  return (a->r_addend - b->r_addend);
+}
+
+/* Return true if ADDRESS is within the vma range of SECTION from ABFD.  */
+
+static bfd_boolean
+avr_is_section_for_address (bfd *abfd, asection *section, bfd_vma address)
+{
+  bfd_vma vma;
+  bfd_size_type size;
+
+  vma = bfd_get_section_vma (abfd, section);
+  if (address < vma)
+    return FALSE;
+
+  size = section->size;
+  if (address >= vma + size)
+    return FALSE;
+
+  return TRUE;
+}
+
+/* Data structure used by AVR_FIND_SECTION_FOR_ADDRESS.  */
+
+struct avr_find_section_data
+{
+  /* The address we're looking for.  */
+  bfd_vma address;
+
+  /* The section we've found.  */
+  asection *section;
+};
+
+/* Helper function to locate the section holding a certain virtual memory
+   address.  This is called via bfd_map_over_sections.  The DATA is an
+   instance of STRUCT AVR_FIND_SECTION_DATA, the address field of which
+   has been set to the address to search for, and the section field has
+   been set to NULL.  If SECTION from ABFD contains ADDRESS then the
+   section field in DATA will be set to SECTION.  As an optimisation, if
+   the section field is already non-null then this function does not
+   perform any checks, and just returns.  */
+
+static void
+avr_find_section_for_address (bfd *abfd,
+                              asection *section, void *data)
+{
+  struct avr_find_section_data *fs_data
+    = (struct avr_find_section_data *) data;
+
+  /* Return if already found.  */
+  if (fs_data->section != NULL)
+    return;
+
+  /* If this section isn't part of the addressable code content, skip it.  */
+  if ((bfd_get_section_flags (abfd, section) & SEC_ALLOC) == 0
+      && (bfd_get_section_flags (abfd, section) & SEC_CODE) == 0)
+    return;
+
+  if (avr_is_section_for_address (abfd, section, fs_data->address))
+    fs_data->section = section;
+}
+
+/* Load all of the property records from SEC, a section from ABFD.  Return
+   a STRUCT AVR_PROPERTY_RECORD_LIST containing all the records.  The
+   memory for the returned structure, and all of the records pointed too by
+   the structure are allocated with a single call to malloc, so, only the
+   pointer returned needs to be free'd.  */
+
+static struct avr_property_record_list *
+avr_elf32_load_records_from_section (bfd *abfd, asection *sec)
+{
+  char *contents = NULL, *ptr;
+  bfd_size_type size, mem_size;
+  bfd_byte version, flags;
+  uint16_t record_count, i;
+  struct avr_property_record_list *r_list = NULL;
+  Elf_Internal_Rela *internal_relocs = NULL, *rel, *rel_end;
+  struct avr_find_section_data fs_data;
+
+  fs_data.section = NULL;
+
+  size = bfd_get_section_size (sec);
+  contents = bfd_malloc (size);
+  bfd_get_section_contents (abfd, sec, contents, 0, size);
+  ptr = contents;
+
+  /* Load the relocations for the '.avr.prop' section if there are any, and
+     sort them.  */
+  internal_relocs = (_bfd_elf_link_read_relocs
+                     (abfd, sec, NULL, NULL, FALSE));
+  if (internal_relocs)
+    qsort (internal_relocs, sec->reloc_count,
+           sizeof (Elf_Internal_Rela), internal_reloc_compare);
+
+  /* There is a header at the start of the property record section SEC, the
+     format of this header is:
+       uint8_t  : version number
+       uint8_t  : flags
+       uint16_t : record counter
+  */
+
+  /* Check we have at least got a headers worth of bytes.  */
+  if (size < AVR_PROPERTY_SECTION_HEADER_SIZE)
+    goto load_failed;
+
+  version = *((bfd_byte *) ptr);
+  ptr++;
+  flags = *((bfd_byte *) ptr);
+  ptr++;
+  record_count = *((uint16_t *) ptr);
+  ptr+=2;
+  BFD_ASSERT (ptr - contents == AVR_PROPERTY_SECTION_HEADER_SIZE);
+
+  /* Now allocate space for the list structure, and all of the list
+     elements in a single block.  */
+  mem_size = sizeof (struct avr_property_record_list)
+    + sizeof (struct avr_property_record) * record_count;
+  r_list = bfd_malloc (mem_size);
+  if (r_list == NULL)
+    goto load_failed;
+
+  r_list->version = version;
+  r_list->flags = flags;
+  r_list->section = sec;
+  r_list->record_count = record_count;
+  r_list->records = (struct avr_property_record *) (&r_list [1]);
+  size -= AVR_PROPERTY_SECTION_HEADER_SIZE;
+
+  /* Check that we understand the version number.  There is only one
+     version number right now, anything else is an error.  */
+  if (r_list->version != AVR_PROPERTY_RECORDS_VERSION)
+    goto load_failed;
+
+  rel = internal_relocs;
+  rel_end = rel + sec->reloc_count;
+  for (i = 0; i < record_count; ++i)
+    {
+      bfd_vma address;
+
+      /* Each entry is a 32-bit address, followed by a single byte type.
+         After that is the type specific data.  We must take care to
+         ensure that we don't read beyond the end of the section data.  */
+      if (size < 5)
+        goto load_failed;
+
+      r_list->records [i].section = NULL;
+      r_list->records [i].offset = 0;
+
+      if (rel)
+        {
+          /* The offset of the address within the .avr.prop section.  */
+          size_t offset = ptr - contents;
+
+          while (rel < rel_end && rel->r_offset < offset)
+            ++rel;
+
+          if (rel == rel_end)
+            rel = NULL;
+          else if (rel->r_offset == offset)
+            {
+              /* Find section and section offset.  */
+              unsigned long r_symndx;
+
+              asection * rel_sec;
+              bfd_vma sec_offset;
+
+              r_symndx = ELF32_R_SYM (rel->r_info);
+              rel_sec = get_elf_r_symndx_section (abfd, r_symndx);
+              sec_offset = get_elf_r_symndx_offset (abfd, r_symndx)
+                + rel->r_addend;
+
+              r_list->records [i].section = rel_sec;
+              r_list->records [i].offset = sec_offset;
+            }
+        }
+
+      address = *((uint32_t *) ptr);
+      ptr += 4;
+      size -= 4;
+
+      if (r_list->records [i].section == NULL)
+        {
+          /* Try to find section and offset from address.  */
+          if (fs_data.section != NULL
+              && !avr_is_section_for_address (abfd, fs_data.section,
+                                              address))
+            fs_data.section = NULL;
+
+          if (fs_data.section == NULL)
+            {
+              fs_data.address = address;
+              bfd_map_over_sections (abfd, avr_find_section_for_address,
+                                     &fs_data);
+            }
+
+          if (fs_data.section == NULL)
+            {
+              fprintf (stderr, "Failed to find matching section.\n");
+              goto load_failed;
+            }
+
+          r_list->records [i].section = fs_data.section;
+          r_list->records [i].offset
+            = address - bfd_get_section_vma (abfd, fs_data.section);
+        }
+
+      r_list->records [i].type = *((bfd_byte *) ptr);
+      ptr += 1;
+      size -= 1;
+
+      switch (r_list->records [i].type)
+        {
+        case RECORD_ORG:
+          /* Nothing else to load.  */
+          break;
+        case RECORD_ORG_AND_FILL:
+          /* Just a 4-byte fill to load.  */
+          if (size < 4)
+            goto load_failed;
+          r_list->records [i].data.org.fill = *((uint32_t *) ptr);
+          ptr += 4;
+          size -= 4;
+          break;
+        case RECORD_ALIGN:
+          /* Just a 4-byte alignment to load.  */
+          if (size < 4)
+            goto load_failed;
+          r_list->records [i].data.align.bytes = *((uint32_t *) ptr);
+          ptr += 4;
+          size -= 4;
+          /* Just initialise PRECEDING_DELETED field, this field is
+             used during linker relaxation.  */
+          r_list->records [i].data.align.preceding_deleted = 0;
+          break;
+        case RECORD_ALIGN_AND_FILL:
+          /* A 4-byte alignment, and a 4-byte fill to load.  */
+          if (size < 8)
+            goto load_failed;
+          r_list->records [i].data.align.bytes = *((uint32_t *) ptr);
+          ptr += 4;
+          r_list->records [i].data.align.fill = *((uint32_t *) ptr);
+          ptr += 4;
+          size -= 8;
+          /* Just initialise PRECEDING_DELETED field, this field is
+             used during linker relaxation.  */
+          r_list->records [i].data.align.preceding_deleted = 0;
+          break;
+        default:
+          goto load_failed;
+        }
+    }
+
+  free (contents);
+  if (elf_section_data (sec)->relocs != internal_relocs)
+    free (internal_relocs);
+  return r_list;
+
+ load_failed:
+  if (elf_section_data (sec)->relocs != internal_relocs)
+    free (internal_relocs);
+  free (contents);
+  free (r_list);
+  return NULL;
+}
+
+/* Load all of the property records from ABFD.  See
+   AVR_ELF32_LOAD_RECORDS_FROM_SECTION for details of the return value.  */
+
+struct avr_property_record_list *
+avr_elf32_load_property_records (bfd *abfd)
+{
+  asection *sec;
+
+  /* Find the '.avr.prop' section and load the contents into memory.  */
+  sec = bfd_get_section_by_name (abfd, AVR_PROPERTY_RECORD_SECTION_NAME);
+  if (sec == NULL)
+    return NULL;
+  return avr_elf32_load_records_from_section (abfd, sec);
+}
+
+const char *
+avr_elf32_property_record_name (struct avr_property_record *rec)
+{
+  const char *str;
+
+  switch (rec->type)
+    {
+    case RECORD_ORG:
+      str = "ORG";
+      break;
+    case RECORD_ORG_AND_FILL:
+      str = "ORG+FILL";
+      break;
+    case RECORD_ALIGN:
+      str = "ALIGN";
+      break;
+    case RECORD_ALIGN_AND_FILL:
+      str = "ALIGN+FILL";
+      break;
+    default:
+      str = "unknown";
+    }
+
+  return str;
+}
+
+
 #define ELF_ARCH		bfd_arch_avr
 #define ELF_TARGET_ID		AVR_ELF_DATA
 #define ELF_MACHINE_CODE	EM_AVR
@@ -3348,5 +4221,6 @@ elf32_avr_build_stubs (struct bfd_link_info *info)
 #define bfd_elf32_bfd_relax_section elf32_avr_relax_section
 #define bfd_elf32_bfd_get_relocated_section_contents \
                                         elf32_avr_get_relocated_section_contents
+#define bfd_elf32_new_section_hook	elf_avr_new_section_hook
 
 #include "elf32-target.h"

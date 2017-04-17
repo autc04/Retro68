@@ -198,7 +198,7 @@ Parse::qualified_ident(std::string* pname, Named_object** ppackage)
       return false;
     }
 
-  package->package_value()->note_usage();
+  package->package_value()->note_usage(Gogo::unpack_hidden_name(name));
 
   token = this->advance_token();
   if (!token->is_identifier())
@@ -419,6 +419,8 @@ Parse::array_type(bool may_use_ellipsis)
     }
 
   Type* element_type = this->type();
+  if (element_type->is_error_type())
+    return Type::make_error_type();
 
   return Type::make_array_type(element_type, length);
 }
@@ -787,9 +789,11 @@ Parse::parameters(Typed_identifier_list** pparams, bool* is_varargs)
   // The optional trailing comma is picked up in parameter_list.
 
   if (!token->is_op(OPERATOR_RPAREN))
-    error_at(this->location(), "expected %<)%>");
-  else
-    this->advance_token();
+    {
+      error_at(this->location(), "expected %<)%>");
+      return false;
+    }
+  this->advance_token();
 
   if (saw_error)
     return false;
@@ -1043,7 +1047,8 @@ Parse::parameter_decl(bool parameters_have_names,
 	    {
 	      *mix_error = true;
 	      while (!this->peek_token()->is_op(OPERATOR_COMMA)
-		     && !this->peek_token()->is_op(OPERATOR_RPAREN))
+		     && !this->peek_token()->is_op(OPERATOR_RPAREN)
+                     && !this->peek_token()->is_eof())
 		this->advance_token();
 	    }
 	}
@@ -1225,7 +1230,11 @@ Parse::interface_type(bool record)
       methods = NULL;
     }
 
-  Interface_type* ret = Type::make_interface_type(methods, location);
+  Interface_type* ret;
+  if (methods == NULL)
+    ret = Type::make_empty_interface_type(location);
+  else
+    ret = Type::make_interface_type(methods, location);
   if (record)
     this->gogo_->record_interface_type(ret);
   return ret;
@@ -1734,6 +1743,14 @@ Parse::init_vars_from_call(const Typed_identifier_list* vars, Type* type,
 	    first_var = no;
 	  else
 	    {
+              // If the current object is a redefinition of another object, we
+              // might have already recorded the dependency relationship between
+              // it and the first variable.  Either way, an error will be
+              // reported for the redefinition and we don't need to properly
+              // record dependency information for an invalid program.
+              if (no->is_redefinition())
+                continue;
+
 	      // The subsequent vars have an implicit dependency on
 	      // the first one, so that everything gets initialized in
 	      // the right order and so that we detect cycles
@@ -2225,9 +2242,11 @@ Parse::function_decl(bool saw_nointerface)
   std::string extern_name = this->lex_->extern_name();
   const Token* token = this->advance_token();
 
+  bool expected_receiver = false;
   Typed_identifier* rec = NULL;
   if (token->is_op(OPERATOR_LPAREN))
     {
+      expected_receiver = true;
       rec = this->receiver();
       token = this->peek_token();
     }
@@ -2296,9 +2315,22 @@ Parse::function_decl(bool saw_nointerface)
 
   if (!this->peek_token()->is_op(OPERATOR_LCURLY))
     {
-      if (named_object == NULL && !Gogo::is_sink_name(name))
+      if (named_object == NULL)
 	{
-	  if (fntype == NULL)
+          // Function declarations with the blank identifier as a name are
+          // mostly ignored since they cannot be called.  We make an object
+          // for this declaration for type-checking purposes.
+          if (Gogo::is_sink_name(name))
+            {
+              static int count;
+              char buf[30];
+              snprintf(buf, sizeof buf, ".$sinkfndecl%d", count);
+              ++count;
+              name = std::string(buf);
+            }
+
+	  if (fntype == NULL
+              || (expected_receiver && rec == NULL))
 	    this->gogo_->add_erroneous_name(name);
 	  else
 	    {
@@ -2400,7 +2432,7 @@ Parse::operand(bool may_be_sink, bool* is_parenthesized)
 		return Expression::make_error(location);
 	      }
 	    package = named_object->package_value();
-	    package->note_usage();
+	    package->note_usage(id);
 	    id = this->peek_token()->identifier();
 	    is_exported = this->peek_token()->is_identifier_exported();
 	    packed = this->gogo_->pack_hidden_name(id, is_exported);
@@ -2707,7 +2739,7 @@ Parse::composite_lit(Type* type, int depth, Location location)
 	  // This must be a composite literal inside another composite
 	  // literal, with the type omitted for the inner one.
 	  val = this->composite_lit(type, depth + 1, token->location());
-	  is_type_omitted = true;
+          is_type_omitted = true;
 	}
 
       token = this->peek_token();
@@ -2719,11 +2751,14 @@ Parse::composite_lit(Type* type, int depth, Location location)
 	}
       else
 	{
-	  if (is_type_omitted && !val->is_error_expression())
-	    {
-	      error_at(this->location(), "unexpected %<:%>");
-	      val = Expression::make_error(this->location());
-	    }
+          if (is_type_omitted)
+            {
+              // VAL is a nested composite literal with an omitted type being
+              // used a key.  Record this information in VAL so that the correct
+              // type is associated with the literal value if VAL is a
+              // map literal.
+              val->complit()->update_key_path(depth);
+            }
 
 	  this->advance_token();
 

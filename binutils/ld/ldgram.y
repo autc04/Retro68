@@ -1,5 +1,5 @@
 /* A YACC grammar to parse a superset of the AT&T linker scripting language.
-   Copyright (C) 1991-2014 Free Software Foundation, Inc.
+   Copyright (C) 1991-2017 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
    This file is part of the GNU Binutils.
@@ -92,7 +92,7 @@ static int error_index;
 %type <etree> opt_exp_without_type opt_subalign opt_align
 %type <fill> fill_opt fill_exp
 %type <name_list> exclude_name_list
-%type <wildcard_list> file_NAME_list
+%type <wildcard_list> section_NAME_list
 %type <flag_info_list> sect_flag_list
 %type <flag_info> sect_flags
 %type <name> memspec_opt casesymlist
@@ -141,7 +141,7 @@ static int error_index;
 %token DEFINED TARGET_K SEARCH_DIR MAP ENTRY
 %token <integer> NEXT
 %token SIZEOF ALIGNOF ADDR LOADADDR MAX_K MIN_K
-%token STARTUP HLL SYSLIB FLOAT NOFLOAT NOCROSSREFS
+%token STARTUP HLL SYSLIB FLOAT NOFLOAT NOCROSSREFS NOCROSSREFS_TO
 %token ORIGIN FILL
 %token LENGTH CREATE_OBJECT_SYMBOLS INPUT GROUP OUTPUT CONSTRUCTORS
 %token ALIGNMOD AT SUBALIGN HIDDEN PROVIDE PROVIDE_HIDDEN AS_NEEDED
@@ -352,6 +352,10 @@ ifile_p1:
 	|	NOCROSSREFS '(' nocrossref_list ')'
 		{
 		  lang_add_nocrossref ($3);
+		}
+	|	NOCROSSREFS_TO '(' nocrossref_list ')'
+		{
+		  lang_add_nocrossref_to ($3);
 		}
 	|	EXTERN '(' extern_name_list ')'
 	|	INSERT_K AFTER NAME
@@ -592,8 +596,8 @@ exclude_name_list:
 			}
 	;
 
-file_NAME_list:
-		file_NAME_list opt_comma wildcard_spec
+section_NAME_list:
+		section_NAME_list opt_comma wildcard_spec
 			{
 			  struct wildcard_list *tmp;
 			  tmp = (struct wildcard_list *) xmalloc (sizeof *tmp);
@@ -631,11 +635,11 @@ input_section_spec_no_keep:
 			  tmp.section_flag_list = $1;
 			  lang_add_wild (&tmp, NULL, ldgram_had_keep);
 			}
-        |	'[' file_NAME_list ']'
+        |	'[' section_NAME_list ']'
 			{
 			  lang_add_wild (NULL, $2, ldgram_had_keep);
 			}
-        |	sect_flags '[' file_NAME_list ']'
+        |	sect_flags '[' section_NAME_list ']'
 			{
 			  struct wildcard_spec tmp;
 			  tmp.name = NULL;
@@ -644,11 +648,11 @@ input_section_spec_no_keep:
 			  tmp.section_flag_list = $1;
 			  lang_add_wild (&tmp, $3, ldgram_had_keep);
 			}
-	|	wildcard_spec '(' file_NAME_list ')'
+	|	wildcard_spec '(' section_NAME_list ')'
 			{
 			  lang_add_wild (&$1, $3, ldgram_had_keep);
 			}
-	|	sect_flags wildcard_spec '(' file_NAME_list ')'
+	|	sect_flags wildcard_spec '(' section_NAME_list ')'
 			{
 			  $2.section_flag_list = $1;
 			  lang_add_wild (&$2, $4, ldgram_had_keep);
@@ -817,7 +821,7 @@ memory_spec: 	NAME
 origin_spec:
 	ORIGIN '=' mustbe_exp
 		{
-		  region->origin = exp_get_vma ($3, 0, "origin");
+		  region->origin_exp = $3;
 		  region->current = region->origin;
 		}
 	;
@@ -825,7 +829,7 @@ origin_spec:
 length_spec:
              LENGTH '=' mustbe_exp
 		{
-		  region->length = exp_get_vma ($3, -1, "length");
+		  region->length_exp = $3;
 		}
 	;
 

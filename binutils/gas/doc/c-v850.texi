@@ -1,4 +1,4 @@
-@c Copyright (C) 1997-2014 Free Software Foundation, Inc.
+@c Copyright (C) 1997-2017 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 
@@ -100,23 +100,38 @@ attempt to relax them.
 
 @cindex @code{-mgcc-abi} command line option, V850
 @item -mgcc-abi
-Marks the generated objecy file as supporting the old GCC ABI.
+Marks the generated object file as supporting the old GCC ABI.
 
 @cindex @code{-mrh850-abi} command line option, V850
 @item -mrh850-abi
-Marks the generated objecy file as supporting the RH850 ABI.  This is
+Marks the generated object file as supporting the RH850 ABI.  This is
 the default.
 
 @cindex @code{-m8byte-align} command line option, V850
 @item -m8byte-align
-Marks the generated objecy file as supporting a maximum 64-bits of
+Marks the generated object file as supporting a maximum 64-bits of
 alignment for variables defined in the source code.
 
 @cindex @code{-m4byte-align} command line option, V850
 @item -m4byte-align
-Marks the generated objecy file as supporting a maximum 32-bits of
+Marks the generated object file as supporting a maximum 32-bits of
 alignment for variables defined in the source code.  This is the
 default.
+
+@cindex @code{-msoft-float} command line option, V850
+@item -msoft-float
+Marks the generated object file as not using any floating point
+instructions - and hence can be linked with other V850 binaries
+that do or do not use floating point.  This is the default for
+binaries for architectures earlier than the @code{e2v3}.
+
+@cindex @code{-mhard-float} command line option, V850
+@item -mhard-float
+Marks the generated object file as one that uses floating point
+instructions - and hence can only be linked with other V850 binaries
+that use the same kind of floating point instructions, or with
+binaries that do not use floating point at all.  This is the default
+for binaries the @code{e2v3} and later architectures.
 
 @end table
 

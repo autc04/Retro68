@@ -1,5 +1,5 @@
 /* ldbuildid.c - Build Id support routines
-   Copyright 2013, 2014 Free Software Foundation, Inc.
+   Copyright (C) 2013-2017 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -24,6 +24,10 @@
 #include "md5.h"
 #include "sha1.h"
 #include "ldbuildid.h"
+#ifdef __MINGW32__
+#include <windows.h>
+#include <rpcdce.h>
+#endif
 
 #define streq(a,b)     strcmp ((a), (b)) == 0
 #define strneq(a,b,n)  strncmp ((a), (b), (n)) == 0
@@ -31,24 +35,21 @@
 bfd_boolean
 validate_build_id_style (const char *style)
 {
- if ((streq (style, "md5")) || (streq (style, "sha1"))
-#ifndef __MINGW32__
-     || (streq (style, "uuid"))
-#endif
-     || (strneq (style, "0x", 2)))
-   return TRUE;
+  if ((streq (style, "md5")) || (streq (style, "sha1"))
+      || (streq (style, "uuid")) || (strneq (style, "0x", 2)))
+    return TRUE;
 
- return FALSE;
+  return FALSE;
 }
 
 bfd_size_type
 compute_build_id_size (const char *style)
 {
   if (streq (style, "md5") || streq (style, "uuid"))
-    return  128 / 8;
+    return 128 / 8;
 
   if (streq (style, "sha1"))
-    return  160 / 8;
+    return 160 / 8;
 
   if (strneq (style, "0x", 2))
     {
@@ -118,9 +119,9 @@ generate_build_id (bfd *abfd,
 	return FALSE;
       sha1_finish_ctx (&ctx, id_bits);
     }
-#ifndef __MINGW32__
   else if (streq (style, "uuid"))
     {
+#ifndef __MINGW32__
       int n;
       int fd = open ("/dev/urandom", O_RDONLY);
 
@@ -130,8 +131,31 @@ generate_build_id (bfd *abfd,
       close (fd);
       if (n < size)
 	return FALSE;
+#else /* __MINGW32__ */
+      typedef RPC_STATUS (RPC_ENTRY * UuidCreateFn) (UUID *);
+      UUID          uuid;
+      UuidCreateFn  uuid_create = 0;
+      HMODULE       rpc_library = LoadLibrary ("rpcrt4.dll");
+
+      if (!rpc_library)
+	return FALSE;
+      uuid_create = (UuidCreateFn) GetProcAddress (rpc_library, "UuidCreate");
+      if (!uuid_create)
+	{
+	  FreeLibrary (rpc_library);
+	  return FALSE;
+	}
+
+      if (uuid_create (&uuid) != RPC_S_OK)
+	{
+	  FreeLibrary (rpc_library);
+	  return FALSE;
+	}
+      FreeLibrary (rpc_library);
+      memcpy (id_bits, &uuid,
+	      (size_t) size < sizeof (UUID) ? (size_t) size : sizeof (UUID));
+#endif /* __MINGW32__ */
     }
-#endif
   else if (strneq (style, "0x", 2))
     {
       /* ID is in string form (hex).  Convert to bits.  */
@@ -149,7 +173,8 @@ generate_build_id (bfd *abfd,
 	    ++id;
 	  else
 	    abort ();		/* Should have been validated earlier.  */
-	} while (*id != '\0');
+	}
+      while (*id != '\0');
     }
   else
     abort ();			/* Should have been validated earlier.  */

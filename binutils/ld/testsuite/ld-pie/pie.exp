@@ -1,5 +1,5 @@
 # Expect script for various PIE tests.
-#   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -41,7 +41,7 @@ set array_tests {
     {"weak undefined data" "-pie" "" {weakundef-data.c} "weakundef-data" "weakundef.out" "-fPIC"}
 }
 
-run_ld_link_exec_tests [] $array_tests
+run_ld_link_exec_tests $array_tests
 
 set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
 foreach t $test_list {

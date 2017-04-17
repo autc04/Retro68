@@ -23,10 +23,24 @@ PREFIX=`pwd -P`/toolchain/
 BINUTILS=`pwd -P`/binutils-build
 
 CMAKEONLY=false
+BUILD_68K=true
+BUILD_PPC=true
+BUILD_CARBON=true
+
 for ARG in $*; do
 	case $ARG in
 		--cmakeonly)
 				CMAKEONLY=true
+			;;
+		--no-68k)
+				BUILD_68K=false
+			;;
+		--no-ppc)
+				BUILD_PPC=false
+				BUILD_CARBON=false
+			;;
+		--no-carbon)
+				BUILD_CARBON=false
 			;;
 		*)
 			echo "unknown option $ARG"
@@ -35,16 +49,31 @@ for ARG in $*; do
 	esac
 done
 
+ARCHS=""
+if [ $BUILD_68K != false ]; then
+	ARCHS="$ARCHS m68k"
+fi
+if [ $BUILD_PPC != false ]; then
+	ARCHS="$ARCHS powerpc"
+fi
+
+
 if [ $CMAKEONLY != true ]; then
 
 # Remove old install tree
 rm -rf toolchain
 mkdir -p toolchain
 
+export CPPFLAGS="-I/usr/local/include"
+export LDFLAGS="-L/usr/local/lib"
+
+if [ $BUILD_68K != false ]; then
+	
+export "CFLAGS=-Wno-error"
+
 # Build binutils for 68K
 mkdir -p binutils-build
 cd binutils-build
-export "CFLAGS=-Wno-error"
 $SRC/binutils/configure --target=m68k-apple-macos --prefix=$PREFIX --disable-doc
 make -j8
 make install
@@ -53,12 +82,20 @@ cd ..
 # Build gcc for 68K
 mkdir -p gcc-build
 cd gcc-build
+export target_configargs="--disable-nls --enable-libstdcxx-dual-abi=no"
 $SRC/gcc/configure --target=m68k-apple-macos --prefix=$PREFIX --enable-languages=c,c++ --with-arch=m68k --with-cpu=m68000 --disable-libssp MAKEINFO=missing
-make -j8
+# There seems to be a build failure in parallel builds; ignore any errors and try again without -j8.
+make -j8 || make
 make install
+unset target_configargs
 cd ..
 
 unset CFLAGS
+
+fi
+
+if [ $BUILD_PPC != false ]; then
+
 # Build binutils for PPC
 mkdir -p binutils-build-ppc
 cd binutils-build-ppc
@@ -70,10 +107,16 @@ cd ..
 # Build gcc for PPC
 mkdir -p gcc-build-ppc
 cd gcc-build-ppc
+export target_configargs="--disable-nls --enable-libstdcxx-dual-abi=no"
 $SRC/gcc/configure --target=powerpc-apple-macos --prefix=$PREFIX --enable-languages=c,c++ --disable-libssp --disable-lto MAKEINFO=missing
 make -j8
 make install
+unset target_configargs
 cd ..
+
+fi
+
+if [ $BUILD_68K != false ]; then
 
 # Install elf.h (for elf2flt)
 mkdir -p $PREFIX/include
@@ -88,26 +131,32 @@ $SRC/elf2flt/configure --target=m68k-apple-macos --prefix=$PREFIX --with-binutil
 make -j8 TOOLDIR=$PREFIX/bin
 make install
 unset CFLAGS
+unset CPPFLAGS
 cd ..
 
+fi
+
 # Build hfsutil
+mkdir -p $PREFIX/lib
 mkdir -p $PREFIX/man/man1
 rm -rf hfsutils
 cp -r $SRC/hfsutils .
 cd hfsutils
 ./configure --prefix=$PREFIX --enable-devlibs
-make 
+make
 make install
 cd ..
 
 # Install Universal Interfaces
-for arch in m68k powerpc; do
+for arch in $ARCHS; do
 	sh "$SRC/prepare-headers.sh" "$SRC/CIncludes" toolchain/${arch}-apple-macos/include
 	mkdir -p toolchain/${arch}-apple-macos/RIncludes
 	sh "$SRC/prepare-rincludes.sh" "$SRC/RIncludes" toolchain/${arch}-apple-macos/RIncludes
 done
 
-cp $SRC/ImportLibraries/*.a toolchain/powerpc-apple-macos/lib/
+if [ $BUILD_PPC != false ]; then
+	cp $SRC/ImportLibraries/*.a toolchain/powerpc-apple-macos/lib/
+fi
 
 fi # CMAKEONLY
 
@@ -119,11 +168,12 @@ cd ..
 make -C build-host install
 
 	# create an empty libretrocrt.a so that cmake's compiler test doesn't fail
-for arch in m68k powerpc; do
+for arch in $ARCHS; do
 	$PREFIX/bin/${arch}-apple-macos-ar cqs $PREFIX/${arch}-apple-macos/lib/libretrocrt.a
 done
 	# the real libretrocrt.a is built and installed by `make -C build-target install` later
 
+if [ $BUILD_68K != false ]; then
 # Build target-based components for 68K
 mkdir -p build-target
 cd build-target
@@ -131,7 +181,9 @@ cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intree.toolchain.cmake \
 			 -DCMAKE_BUILD_TYPE=Release
 cd ..
 make -C build-target install
+fi
 
+if [ $BUILD_PPC != false ]; then
 # Build target-based components for PPC
 mkdir -p build-target-ppc
 cd build-target-ppc
@@ -139,7 +191,9 @@ cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intreeppc.toolchain.cmak
 			 -DCMAKE_BUILD_TYPE=Release
 cd ..
 make -C build-target-ppc install
+fi
 
+if [ $BUILD_CARBON != false ]; then
 # Build target-based components for Carbon
 mkdir -p build-target-carbon
 cd build-target-carbon
@@ -147,3 +201,4 @@ cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intreecarbon.toolchain.c
 			 -DCMAKE_BUILD_TYPE=Release
 cd ..
 make -C build-target-carbon install
+fi

@@ -31,5 +31,4 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> 1800 0000 	jal	0+0000 <foo>
 [ 	]*[0-9a-f]+: R_MIPS16_26	bar
 [0-9a-f]+ <[^>]*> 6500      	nop
-[0-9a-f]+ <[^>]*> 6500      	nop
 	\.\.\.

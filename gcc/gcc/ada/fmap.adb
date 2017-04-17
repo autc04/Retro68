@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2012, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -50,7 +50,7 @@ package body Fmap is
 
    Max_Buffer : constant := 1_500;
    Buffer : String (1 .. Max_Buffer);
-   --  Used to bufferize output when writing to a new mapping file
+   --  Used to buffer output when writing to a new mapping file
 
    Buffer_Last : Natural := 0;
    --  Index of last valid character in Buffer
@@ -478,7 +478,7 @@ package body Fmap is
          Buffer (Buffer_Last) := ASCII.LF;
       end Put_Line;
 
-   --  Start of Update_Mapping_File
+   --  Start of processing for Update_Mapping_File
 
    begin
       --  If the mapping file could not be read, then it will not be possible

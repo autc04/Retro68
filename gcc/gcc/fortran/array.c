@@ -1,5 +1,5 @@
 /* Array things
-   Copyright (C) 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 2000-2016 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -21,7 +21,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "flags.h"
+#include "options.h"
 #include "gfortran.h"
 #include "match.h"
 #include "constructor.h"
@@ -146,9 +146,9 @@ matched:
 }
 
 
-/* Match an array reference, whether it is the whole array or a
-   particular elements or a section. If init is set, the reference has
-   to consist of init expressions.  */
+/* Match an array reference, whether it is the whole array or particular
+   elements or a section.  If init is set, the reference has to consist
+   of init expressions.  */
 
 match
 gfc_match_array_ref (gfc_array_ref *ar, gfc_array_spec *as, int init,
@@ -338,6 +338,9 @@ gfc_resolve_array_spec (gfc_array_spec *as, int check_constant)
   if (as == NULL)
     return true;
 
+  if (as->resolved)
+    return true;
+
   for (i = 0; i < as->rank + as->corank; i++)
     {
       e = as->lower[i];
@@ -363,6 +366,8 @@ gfc_resolve_array_spec (gfc_array_spec *as, int check_constant)
 		      as->upper[i]->value.integer, 1);
 	}
     }
+
+  as->resolved = true;
 
   return true;
 }
@@ -416,6 +421,18 @@ match_array_element_spec (gfc_array_spec *as)
   if (!gfc_expr_check_typed (*upper, gfc_current_ns, false))
     return AS_UNKNOWN;
 
+  if (((*upper)->expr_type == EXPR_CONSTANT
+	&& (*upper)->ts.type != BT_INTEGER) ||
+      ((*upper)->expr_type == EXPR_FUNCTION
+	&& (*upper)->ts.type == BT_UNKNOWN
+	&& (*upper)->symtree
+	&& strcmp ((*upper)->symtree->name, "null") == 0))
+    {
+      gfc_error ("Expecting a scalar INTEGER expression at %C, found %s",
+		 gfc_basic_typename ((*upper)->ts.type));
+      return AS_UNKNOWN;
+    }
+
   if (gfc_match_char (':') == MATCH_NO)
     {
       *lower = gfc_get_int_expr (gfc_default_integer_kind, NULL, 1);
@@ -436,13 +453,25 @@ match_array_element_spec (gfc_array_spec *as)
   if (!gfc_expr_check_typed (*upper, gfc_current_ns, false))
     return AS_UNKNOWN;
 
+  if (((*upper)->expr_type == EXPR_CONSTANT
+	&& (*upper)->ts.type != BT_INTEGER) ||
+      ((*upper)->expr_type == EXPR_FUNCTION
+	&& (*upper)->ts.type == BT_UNKNOWN
+	&& (*upper)->symtree
+	&& strcmp ((*upper)->symtree->name, "null") == 0))
+    {
+      gfc_error ("Expecting a scalar INTEGER expression at %C, found %s",
+		 gfc_basic_typename ((*upper)->ts.type));
+      return AS_UNKNOWN;
+    }
+
   return AS_EXPLICIT;
 }
 
 
 /* Matches an array specification, incidentally figuring out what sort
-   it is. Match either a normal array specification, or a coarray spec
-   or both. Optionally allow [:] for coarrays.  */
+   it is.  Match either a normal array specification, or a coarray spec
+   or both.  Optionally allow [:] for coarrays.  */
 
 match
 gfc_match_array_spec (gfc_array_spec **asp, bool match_dim, bool match_codim)
@@ -1043,6 +1072,7 @@ match_array_cons_element (gfc_constructor_base *result)
 match
 gfc_match_array_constructor (gfc_expr **result)
 {
+  gfc_constructor *c;
   gfc_constructor_base head, new_cons;
   gfc_undo_change_set changed_syms;
   gfc_expr *expr;
@@ -1074,7 +1104,8 @@ gfc_match_array_constructor (gfc_expr **result)
   /* Try to match an optional "type-spec ::"  */
   gfc_clear_ts (&ts);
   gfc_new_undo_checkpoint (changed_syms);
-  if (gfc_match_type_spec (&ts) == MATCH_YES)
+  m = gfc_match_type_spec (&ts);
+  if (m == MATCH_YES)
     {
       seen_ts = (gfc_match (" ::") == MATCH_YES);
 
@@ -1094,7 +1125,21 @@ gfc_match_array_constructor (gfc_expr **result)
 	      gfc_restore_last_undo_checkpoint ();
 	      goto cleanup;
 	    }
+
+	  if (ts.type == BT_CHARACTER
+	      && ts.u.cl && !ts.u.cl->length && !ts.u.cl->length_from_typespec)
+	    {
+	      gfc_error ("Type-spec at %L cannot contain an asterisk for a "
+			 "type parameter", &where);
+	      gfc_restore_last_undo_checkpoint ();
+	      goto cleanup;
+	    }
 	}
+    }
+  else if (m == MATCH_ERROR)
+    {
+      gfc_restore_last_undo_checkpoint ();
+      goto cleanup;
     }
 
   if (seen_ts)
@@ -1137,6 +1182,41 @@ done:
     {
       expr = gfc_get_array_expr (ts.type, ts.kind, &where);
       expr->ts = ts;
+
+      /* If the typespec is CHARACTER, check that array elements can
+	 be converted.  See PR fortran/67803.  */
+      if (ts.type == BT_CHARACTER)
+	{
+	  c = gfc_constructor_first (head);
+	  for (; c; c = gfc_constructor_next (c))
+	    {
+	      if (gfc_numeric_ts (&c->expr->ts)
+		  || c->expr->ts.type == BT_LOGICAL)
+		{
+		  gfc_error ("Incompatible typespec for array element at %L",
+			     &c->expr->where);
+		  return MATCH_ERROR;
+		}
+
+	      /* Special case null().  */
+	      if (c->expr->expr_type == EXPR_FUNCTION
+		  && c->expr->ts.type == BT_UNKNOWN
+		  && strcmp (c->expr->symtree->name, "null") == 0)
+		{
+		  gfc_error ("Incompatible typespec for array element at %L",
+			     &c->expr->where);
+		  return MATCH_ERROR;
+		}
+	    }
+	}
+
+      /* Walk the constructor and ensure type conversion for numeric types.  */
+      if (gfc_numeric_ts (&ts))
+	{
+	  c = gfc_constructor_first (head);
+	  for (; c; c = gfc_constructor_next (c))
+	    gfc_convert_type (c->expr, &ts, 1);
+	}
     }
   else
     expr = gfc_get_array_expr (BT_UNKNOWN, 0, &where);
@@ -1146,6 +1226,7 @@ done:
     expr->ts.u.cl->length_from_typespec = seen_ts;
 
   *result = expr;
+
   return MATCH_YES;
 
 syntax:
@@ -2196,7 +2277,8 @@ gfc_ref_dimen_size (gfc_array_ref *ar, int dimen, mpz_t *result, mpz_t *end)
       if (ar->start[dimen] == NULL)
 	{
 	  if (ar->as->lower[dimen] == NULL
-	      || ar->as->lower[dimen]->expr_type != EXPR_CONSTANT)
+	      || ar->as->lower[dimen]->expr_type != EXPR_CONSTANT
+	      || ar->as->lower[dimen]->ts.type != BT_INTEGER)
 	    goto cleanup;
 	  mpz_set (lower, ar->as->lower[dimen]->value.integer);
 	}
@@ -2210,7 +2292,8 @@ gfc_ref_dimen_size (gfc_array_ref *ar, int dimen, mpz_t *result, mpz_t *end)
       if (ar->end[dimen] == NULL)
 	{
 	  if (ar->as->upper[dimen] == NULL
-	      || ar->as->upper[dimen]->expr_type != EXPR_CONSTANT)
+	      || ar->as->upper[dimen]->expr_type != EXPR_CONSTANT
+	      || ar->as->upper[dimen]->ts.type != BT_INTEGER)
 	    goto cleanup;
 	  mpz_set (upper, ar->as->upper[dimen]->value.integer);
 	}

@@ -1,5 +1,5 @@
 /* dwarf.h - DWARF support header file
-   Copyright (C) 2005-2014 Free Software Foundation, Inc.
+   Copyright (C) 2005-2017 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -124,6 +124,11 @@ struct dwarf_section
   dwarf_vma address;
   dwarf_size_type size;
   enum dwarf_section_display_enum abbrev_sec;
+
+  /* Used by clients to help them implement the reloc_at callback.  */
+  void * reloc_info;
+  unsigned long num_relocs;
+
   /* A spare field for random use.  */
   void *user_data;
 };
@@ -135,7 +140,7 @@ struct dwarf_section_display
   struct dwarf_section section;
   int (*display) (struct dwarf_section *, void *);
   int *enabled;
-  unsigned int relocate : 1;
+  bfd_boolean relocate;
 };
 
 extern struct dwarf_section_display debug_displays [];
@@ -196,8 +201,10 @@ extern int dwarf_check;
 
 extern void init_dwarf_regnames (unsigned int);
 extern void init_dwarf_regnames_i386 (void);
+extern void init_dwarf_regnames_iamcu (void);
 extern void init_dwarf_regnames_x86_64 (void);
 extern void init_dwarf_regnames_aarch64 (void);
+extern void init_dwarf_regnames_s390 (void);
 
 extern int load_debug_section (enum dwarf_section_display_enum, void *);
 extern void free_debug_section (enum dwarf_section_display_enum);
@@ -216,3 +223,8 @@ extern void * xcmalloc (size_t, size_t);
 extern void * xcrealloc (void *, size_t, size_t);
 
 extern dwarf_vma read_leb128 (unsigned char *, unsigned int *, bfd_boolean, const unsigned char * const);
+
+/* A callback into the client.  Returns TRUE if there is a
+   relocation against the given debug section at the given
+   offset.  */
+extern bfd_boolean reloc_at (struct dwarf_section *, dwarf_vma);

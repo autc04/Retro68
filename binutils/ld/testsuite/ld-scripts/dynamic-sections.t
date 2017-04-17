@@ -1,5 +1,6 @@
 SECTIONS
 {
+  . = SIZEOF_HEADERS;
   .data : { *(.data) }
   .rodata : { *(.rodata) }
 

@@ -5,7 +5,7 @@
 # 
 # Gas should produce nop's after mtc1 and related 
 # insn's if the target fpr is used in the 
-# immediatly following insn.  See also nodelay.d.
+# immediately following insn.  See also nodelay.d.
 #
 
 .*: +file format .*mips.*

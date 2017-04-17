@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -33,12 +33,13 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  This version of Ada.Exceptions fully supports both Ada 95 and Ada 2005.
---  It is used in all situations except for the build of the compiler and
---  other basic tools. For these latter builds, we use an Ada 95-only version.
+--  This version of Ada.Exceptions fully supports Ada 95 and later language
+--  versions.  It is used in all situations except for the build of the
+--  compiler and other basic tools. For these latter builds, we use an
+--  Ada 95-only version.
 
---  The reason for this splitting off of a separate version is that bootstrap
---  compilers often will be used that do not support Ada 2005 features, and
+--  The reason for this splitting off of a separate version is to support
+--  older bootstrap compilers that do not support Ada 2005 features, and
 --  Ada.Exceptions is part of the compiler sources.
 
 pragma Polling (Off);
@@ -175,18 +176,6 @@ private
    -------------------------
    -- Private Subprograms --
    -------------------------
-
-   function Current_Target_Exception return Exception_Occurrence;
-   pragma Export
-     (Ada, Current_Target_Exception,
-      "__gnat_current_target_exception");
-   --  This routine should return the current raised exception on targets which
-   --  have built-in exception handling such as the Java Virtual Machine. For
-   --  other targets this routine is simply ignored. Currently, only JGNAT
-   --  uses this. See 4jexcept.ads for details. The pragma Export allows this
-   --  routine to be accessed elsewhere in the run-time, even though it is in
-   --  the private part of this package (it is not allowed to be in the visible
-   --  part, since this is set by the reference manual).
 
    function Exception_Name_Simple (X : Exception_Occurrence) return String;
    --  Like Exception_Name, but returns the simple non-qualified name of the

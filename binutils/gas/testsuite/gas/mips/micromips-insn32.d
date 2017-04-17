@@ -75,35 +75,35 @@ Disassembly of section \.text:
 [ 0-9a-f]+:	3040 ffff 	li	v0,-1
 [ 0-9a-f]+:	41a2 1234 	lui	v0,0x1234
 [ 0-9a-f]+:	5042 5678 	ori	v0,v0,0x5678
-[ 0-9a-f]+:	0016 0150 	move	zero,s6
-[ 0-9a-f]+:	0016 1150 	move	v0,s6
-[ 0-9a-f]+:	0016 1950 	move	v1,s6
-[ 0-9a-f]+:	0016 2150 	move	a0,s6
-[ 0-9a-f]+:	0016 2950 	move	a1,s6
-[ 0-9a-f]+:	0016 3150 	move	a2,s6
-[ 0-9a-f]+:	0016 3950 	move	a3,s6
-[ 0-9a-f]+:	0016 4150 	move	t0,s6
-[ 0-9a-f]+:	0016 4950 	move	t1,s6
-[ 0-9a-f]+:	0016 5150 	move	t2,s6
-[ 0-9a-f]+:	0016 f150 	move	s8,s6
-[ 0-9a-f]+:	0016 f950 	move	ra,s6
-[ 0-9a-f]+:	0000 0150 	move	zero,zero
-[ 0-9a-f]+:	0002 0150 	move	zero,v0
-[ 0-9a-f]+:	0003 0150 	move	zero,v1
-[ 0-9a-f]+:	0004 0150 	move	zero,a0
-[ 0-9a-f]+:	0005 0150 	move	zero,a1
-[ 0-9a-f]+:	0006 0150 	move	zero,a2
-[ 0-9a-f]+:	0007 0150 	move	zero,a3
-[ 0-9a-f]+:	0008 0150 	move	zero,t0
-[ 0-9a-f]+:	0009 0150 	move	zero,t1
-[ 0-9a-f]+:	000a 0150 	move	zero,t2
-[ 0-9a-f]+:	001e 0150 	move	zero,s8
-[ 0-9a-f]+:	001f 0150 	move	zero,ra
-[ 0-9a-f]+:	0002 b150 	move	s6,v0
-[ 0-9a-f]+:	0016 1150 	move	v0,s6
+[ 0-9a-f]+:	0016 0290 	move	zero,s6
+[ 0-9a-f]+:	0016 1290 	move	v0,s6
+[ 0-9a-f]+:	0016 1a90 	move	v1,s6
+[ 0-9a-f]+:	0016 2290 	move	a0,s6
+[ 0-9a-f]+:	0016 2a90 	move	a1,s6
+[ 0-9a-f]+:	0016 3290 	move	a2,s6
+[ 0-9a-f]+:	0016 3a90 	move	a3,s6
+[ 0-9a-f]+:	0016 4290 	move	t0,s6
+[ 0-9a-f]+:	0016 4a90 	move	t1,s6
+[ 0-9a-f]+:	0016 5290 	move	t2,s6
+[ 0-9a-f]+:	0016 f290 	move	s8,s6
+[ 0-9a-f]+:	0016 fa90 	move	ra,s6
+[ 0-9a-f]+:	0000 0290 	move	zero,zero
+[ 0-9a-f]+:	0002 0290 	move	zero,v0
+[ 0-9a-f]+:	0003 0290 	move	zero,v1
+[ 0-9a-f]+:	0004 0290 	move	zero,a0
+[ 0-9a-f]+:	0005 0290 	move	zero,a1
+[ 0-9a-f]+:	0006 0290 	move	zero,a2
+[ 0-9a-f]+:	0007 0290 	move	zero,a3
+[ 0-9a-f]+:	0008 0290 	move	zero,t0
+[ 0-9a-f]+:	0009 0290 	move	zero,t1
+[ 0-9a-f]+:	000a 0290 	move	zero,t2
+[ 0-9a-f]+:	001e 0290 	move	zero,s8
+[ 0-9a-f]+:	001f 0290 	move	zero,ra
+[ 0-9a-f]+:	0002 b290 	move	s6,v0
+[ 0-9a-f]+:	0016 1290 	move	v0,s6
 [ 0-9a-f]+:	9400 fffe 	b	[0-9a-f]+ <test\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	test
-[ 0-9a-f]+:	0002 b150 	move	s6,v0
+[ 0-9a-f]+:	0002 b290 	move	s6,v0
 [ 0-9a-f]+:	9400 fffe 	b	[0-9a-f]+ <test\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	test
 [ 0-9a-f]+:	0000 0000 	nop
@@ -123,13 +123,13 @@ Disassembly of section \.text:
 [ 0-9a-f]+:	0000 0000 	nop
 [ 0-9a-f]+:	4043 fffe 	bgez	v1,[0-9a-f]+ <.*\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	.*
-[ 0-9a-f]+:	0003 1150 	move	v0,v1
+[ 0-9a-f]+:	0003 1290 	move	v0,v1
 [ 0-9a-f]+:	0060 1190 	neg	v0,v1
 
 [0-9a-f]+ <.*>:
 [ 0-9a-f]+:	4044 fffe 	bgez	a0,[0-9a-f]+ <.*>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	.*
-[ 0-9a-f]+:	0004 1150 	move	v0,a0
+[ 0-9a-f]+:	0004 1290 	move	v0,a0
 [ 0-9a-f]+:	0080 1190 	neg	v0,a0
 
 [0-9a-f]+ <.*>:
@@ -683,6 +683,7 @@ Disassembly of section \.text:
 [ 0-9a-f]+:	9411 fffe 	beqz	s1,[0-9a-f]+ <.*\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	test2
 [ 0-9a-f]+:	0000 0000 	nop
+[ 0-9a-f]+:	0000 0000 	nop
 [ 0-9a-f]+:	b402 fffe 	bnez	v0,[0-9a-f]+ <.*\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	test3
 [ 0-9a-f]+:	0000 0000 	nop
@@ -894,7 +895,7 @@ Disassembly of section \.text:
 [0-9a-f]+ <.*>:
 [ 0-9a-f]+:	0002 1d7c 	mflo	v0
 [ 0-9a-f]+:	0007 0007 	break	0x7
-[ 0-9a-f]+:	0004 1950 	move	v1,a0
+[ 0-9a-f]+:	0004 1a90 	move	v1,a0
 [ 0-9a-f]+:	0080 1990 	neg	v1,a0
 [ 0-9a-f]+:	3020 0002 	li	at,2
 [ 0-9a-f]+:	0024 ab3c 	div	zero,a0,at
@@ -918,7 +919,7 @@ Disassembly of section \.text:
 [0-9a-f]+ <.*>:
 [ 0-9a-f]+:	0002 1d7c 	mflo	v0
 [ 0-9a-f]+:	0007 0007 	break	0x7
-[ 0-9a-f]+:	0004 1950 	move	v1,a0
+[ 0-9a-f]+:	0004 1a90 	move	v1,a0
 [ 0-9a-f]+:	3020 ffff 	li	at,-1
 [ 0-9a-f]+:	0024 bb3c 	divu	zero,a0,at
 [ 0-9a-f]+:	0003 1d7c 	mflo	v1
@@ -1191,7 +1192,7 @@ Disassembly of section \.text:
 [ 	]*[0-9a-f]+: R_MICROMIPS_26_S1	test
 [ 0-9a-f]+:	0000 0000 	nop
 [ 0-9a-f]+:	f000 0000 	jalx	[0-9a-f]+ <test>
-[ 	]*[0-9a-f]+: R_MICROMIPS_26_S1	test2
+[ 	]*[0-9a-f]+: R_MICROMIPS_26_S1	test4
 [ 0-9a-f]+:	0000 0000 	nop
 [ 0-9a-f]+:	41a2 0000 	lui	v0,0x0
 [ 	]*[0-9a-f]+: R_MICROMIPS_HI16	test
@@ -2270,8 +2271,8 @@ Disassembly of section \.text:
 [0-9a-f]+ <.*>:
 [ 0-9a-f]+:	0002 0d7c 	mfhi	v0
 [ 0-9a-f]+:	0007 0007 	break	0x7
-[ 0-9a-f]+:	0000 1950 	move	v1,zero
-[ 0-9a-f]+:	0000 1950 	move	v1,zero
+[ 0-9a-f]+:	0000 1a90 	move	v1,zero
+[ 0-9a-f]+:	0000 1a90 	move	v1,zero
 [ 0-9a-f]+:	3020 0002 	li	at,2
 [ 0-9a-f]+:	0024 ab3c 	div	zero,a0,at
 [ 0-9a-f]+:	0003 0d7c 	mfhi	v1
@@ -2306,7 +2307,7 @@ Disassembly of section \.text:
 [0-9a-f]+ <.*>:
 [ 0-9a-f]+:	0002 0d7c 	mfhi	v0
 [ 0-9a-f]+:	0007 0007 	break	0x7
-[ 0-9a-f]+:	0000 1950 	move	v1,zero
+[ 0-9a-f]+:	0000 1a90 	move	v1,zero
 [ 0-9a-f]+:	3020 ffff 	li	at,-1
 [ 0-9a-f]+:	0024 bb3c 	divu	zero,a0,at
 [ 0-9a-f]+:	0003 0d7c 	mfhi	v1
@@ -5068,6 +5069,7 @@ Disassembly of section \.text:
 [ 0-9a-f]+:	03ff 937c 	wait	0x3ff
 [ 0-9a-f]+:	03ff 8b7c 	syscall	0x3ff
 [ 0-9a-f]+:	03ff fffa 	cop2	0x7fffff
+[ 0-9a-f]+:	0000 0000 	nop
 
 [0-9a-f]+ <fp_test>:
 [ 0-9a-f]+:	5400 01a0 	prefx	0x0,zero\(zero\)
@@ -6456,7 +6458,7 @@ Disassembly of section \.text:
 [0-9a-f]+ <test_mips64>:
 [ 0-9a-f]+:	4043 fffe 	bgez	v1,[0-9a-f]+ <test_mips64>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	.*
-[ 0-9a-f]+:	5803 1150 	move	v0,v1
+[ 0-9a-f]+:	0003 1290 	move	v0,v1
 [ 0-9a-f]+:	5860 1190 	dneg	v0,v1
 
 [0-9a-f]+ <.*>:
@@ -6555,7 +6557,7 @@ Disassembly of section \.text:
 [0-9a-f]+ <.*>:
 [ 0-9a-f]+:	0002 1d7c 	mflo	v0
 [ 0-9a-f]+:	0007 0007 	break	0x7
-[ 0-9a-f]+:	5804 1950 	move	v1,a0
+[ 0-9a-f]+:	0004 1a90 	move	v1,a0
 [ 0-9a-f]+:	5880 1990 	dneg	v1,a0
 [ 0-9a-f]+:	3020 0002 	li	at,2
 [ 0-9a-f]+:	5824 ab3c 	ddiv	zero,a0,at
@@ -6579,7 +6581,7 @@ Disassembly of section \.text:
 [0-9a-f]+ <.*>:
 [ 0-9a-f]+:	0002 1d7c 	mflo	v0
 [ 0-9a-f]+:	0007 0007 	break	0x7
-[ 0-9a-f]+:	5804 1950 	move	v1,a0
+[ 0-9a-f]+:	0004 1a90 	move	v1,a0
 [ 0-9a-f]+:	3020 ffff 	li	at,-1
 [ 0-9a-f]+:	5824 bb3c 	ddivu	zero,a0,at
 [ 0-9a-f]+:	0003 1d7c 	mflo	v1
@@ -6966,8 +6968,8 @@ Disassembly of section \.text:
 
 [0-9a-f]+ <.*>:
 [ 0-9a-f]+:	0007 0007 	break	0x7
-[ 0-9a-f]+:	5800 1950 	move	v1,zero
-[ 0-9a-f]+:	5800 1950 	move	v1,zero
+[ 0-9a-f]+:	0000 1a90 	move	v1,zero
+[ 0-9a-f]+:	0000 1a90 	move	v1,zero
 [ 0-9a-f]+:	3020 0002 	li	at,2
 [ 0-9a-f]+:	5824 ab3c 	ddiv	zero,a0,at
 [ 0-9a-f]+:	0003 0d7c 	mfhi	v1
@@ -7010,8 +7012,8 @@ Disassembly of section \.text:
 [0-9a-f]+ <.*>:
 [ 0-9a-f]+:	0000 0d7c 	mfhi	zero
 [ 0-9a-f]+:	0007 0007 	break	0x7
-[ 0-9a-f]+:	5800 1950 	move	v1,zero
-[ 0-9a-f]+:	5800 1950 	move	v1,zero
+[ 0-9a-f]+:	0000 1a90 	move	v1,zero
+[ 0-9a-f]+:	0000 1a90 	move	v1,zero
 [ 0-9a-f]+:	3020 0002 	li	at,2
 [ 0-9a-f]+:	5824 ab3c 	ddiv	zero,a0,at
 [ 0-9a-f]+:	0003 0d7c 	mfhi	v1
@@ -7032,7 +7034,7 @@ Disassembly of section \.text:
 [0-9a-f]+ <.*>:
 [ 0-9a-f]+:	0000 0d7c 	mfhi	zero
 [ 0-9a-f]+:	0007 0007 	break	0x7
-[ 0-9a-f]+:	5800 1950 	move	v1,zero
+[ 0-9a-f]+:	0000 1a90 	move	v1,zero
 [ 0-9a-f]+:	3020 ffff 	li	at,-1
 [ 0-9a-f]+:	5824 bb3c 	ddivu	zero,a0,at
 [ 0-9a-f]+:	0003 0d7c 	mfhi	v1
@@ -7616,7 +7618,7 @@ Disassembly of section \.text:
 [ 	]*[0-9a-f]+: R_MICROMIPS_26_S1	test_delay_slot
 [ 0-9a-f]+:	0000 0000 	nop
 [ 0-9a-f]+:	f000 0000 	jalx	[0-9a-f]+ <test>
-[ 	]*[0-9a-f]+: R_MICROMIPS_26_S1	test_delay_slot
+[ 	]*[0-9a-f]+: R_MICROMIPS_26_S1	test_delay_slot_ext
 [ 0-9a-f]+:	0000 0000 	nop
 [ 0-9a-f]+:	03e2 0f3c 	jalr	v0
 [ 0-9a-f]+:	0000 0000 	nop
@@ -7673,50 +7675,50 @@ Disassembly of section \.text:
 [ 0-9a-f]+:	78c0 0000 	addiu	s1,\$pc,-16777216
 
 [0-9a-f]+ <test_spec107>:
-[ 0-9a-f]+:	5800 2950 	move	a1,zero
-[ 0-9a-f]+:	5800 3150 	move	a2,zero
-[ 0-9a-f]+:	5800 2950 	move	a1,zero
-[ 0-9a-f]+:	5800 3950 	move	a3,zero
-[ 0-9a-f]+:	5800 3150 	move	a2,zero
-[ 0-9a-f]+:	5800 3950 	move	a3,zero
-[ 0-9a-f]+:	5800 2150 	move	a0,zero
-[ 0-9a-f]+:	5800 a950 	move	s5,zero
-[ 0-9a-f]+:	5800 2150 	move	a0,zero
-[ 0-9a-f]+:	5800 b150 	move	s6,zero
-[ 0-9a-f]+:	5800 2150 	move	a0,zero
-[ 0-9a-f]+:	5800 2950 	move	a1,zero
-[ 0-9a-f]+:	5800 2150 	move	a0,zero
-[ 0-9a-f]+:	5800 3150 	move	a2,zero
-[ 0-9a-f]+:	5800 2150 	move	a0,zero
-[ 0-9a-f]+:	5800 3950 	move	a3,zero
-[ 0-9a-f]+:	5811 2150 	move	a0,s1
-[ 0-9a-f]+:	5800 3950 	move	a3,zero
-[ 0-9a-f]+:	5802 2150 	move	a0,v0
-[ 0-9a-f]+:	5800 3950 	move	a3,zero
-[ 0-9a-f]+:	5803 2150 	move	a0,v1
-[ 0-9a-f]+:	5800 3950 	move	a3,zero
-[ 0-9a-f]+:	5810 2150 	move	a0,s0
-[ 0-9a-f]+:	5800 3950 	move	a3,zero
-[ 0-9a-f]+:	5812 2150 	move	a0,s2
-[ 0-9a-f]+:	5800 3950 	move	a3,zero
-[ 0-9a-f]+:	5813 2150 	move	a0,s3
-[ 0-9a-f]+:	5800 3950 	move	a3,zero
-[ 0-9a-f]+:	5814 2150 	move	a0,s4
-[ 0-9a-f]+:	5800 3950 	move	a3,zero
-[ 0-9a-f]+:	5814 2150 	move	a0,s4
-[ 0-9a-f]+:	5811 3950 	move	a3,s1
-[ 0-9a-f]+:	5814 2150 	move	a0,s4
-[ 0-9a-f]+:	5802 3950 	move	a3,v0
-[ 0-9a-f]+:	5814 2150 	move	a0,s4
-[ 0-9a-f]+:	5803 3950 	move	a3,v1
-[ 0-9a-f]+:	5814 2150 	move	a0,s4
-[ 0-9a-f]+:	5810 3950 	move	a3,s0
-[ 0-9a-f]+:	5814 2150 	move	a0,s4
-[ 0-9a-f]+:	5812 3950 	move	a3,s2
-[ 0-9a-f]+:	5814 2150 	move	a0,s4
-[ 0-9a-f]+:	5813 3950 	move	a3,s3
-[ 0-9a-f]+:	5814 2150 	move	a0,s4
-[ 0-9a-f]+:	5814 3950 	move	a3,s4
+[ 0-9a-f]+:	0000 2a90 	move	a1,zero
+[ 0-9a-f]+:	0000 3290 	move	a2,zero
+[ 0-9a-f]+:	0000 2a90 	move	a1,zero
+[ 0-9a-f]+:	0000 3a90 	move	a3,zero
+[ 0-9a-f]+:	0000 3290 	move	a2,zero
+[ 0-9a-f]+:	0000 3a90 	move	a3,zero
+[ 0-9a-f]+:	0000 2290 	move	a0,zero
+[ 0-9a-f]+:	0000 aa90 	move	s5,zero
+[ 0-9a-f]+:	0000 2290 	move	a0,zero
+[ 0-9a-f]+:	0000 b290 	move	s6,zero
+[ 0-9a-f]+:	0000 2290 	move	a0,zero
+[ 0-9a-f]+:	0000 2a90 	move	a1,zero
+[ 0-9a-f]+:	0000 2290 	move	a0,zero
+[ 0-9a-f]+:	0000 3290 	move	a2,zero
+[ 0-9a-f]+:	0000 2290 	move	a0,zero
+[ 0-9a-f]+:	0000 3a90 	move	a3,zero
+[ 0-9a-f]+:	0011 2290 	move	a0,s1
+[ 0-9a-f]+:	0000 3a90 	move	a3,zero
+[ 0-9a-f]+:	0002 2290 	move	a0,v0
+[ 0-9a-f]+:	0000 3a90 	move	a3,zero
+[ 0-9a-f]+:	0003 2290 	move	a0,v1
+[ 0-9a-f]+:	0000 3a90 	move	a3,zero
+[ 0-9a-f]+:	0010 2290 	move	a0,s0
+[ 0-9a-f]+:	0000 3a90 	move	a3,zero
+[ 0-9a-f]+:	0012 2290 	move	a0,s2
+[ 0-9a-f]+:	0000 3a90 	move	a3,zero
+[ 0-9a-f]+:	0013 2290 	move	a0,s3
+[ 0-9a-f]+:	0000 3a90 	move	a3,zero
+[ 0-9a-f]+:	0014 2290 	move	a0,s4
+[ 0-9a-f]+:	0000 3a90 	move	a3,zero
+[ 0-9a-f]+:	0014 2290 	move	a0,s4
+[ 0-9a-f]+:	0011 3a90 	move	a3,s1
+[ 0-9a-f]+:	0014 2290 	move	a0,s4
+[ 0-9a-f]+:	0002 3a90 	move	a3,v0
+[ 0-9a-f]+:	0014 2290 	move	a0,s4
+[ 0-9a-f]+:	0003 3a90 	move	a3,v1
+[ 0-9a-f]+:	0014 2290 	move	a0,s4
+[ 0-9a-f]+:	0010 3a90 	move	a3,s0
+[ 0-9a-f]+:	0014 2290 	move	a0,s4
+[ 0-9a-f]+:	0012 3a90 	move	a3,s2
+[ 0-9a-f]+:	0014 2290 	move	a0,s4
+[ 0-9a-f]+:	0013 3a90 	move	a3,s3
+[ 0-9a-f]+:	0014 2290 	move	a0,s4
+[ 0-9a-f]+:	0014 3a90 	move	a3,s4
 [ 0-9a-f]+:	4060 fffe 	bal	[0-9a-f]+ <.*\+0x[0-9a-f]+>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	test_spec107
 [ 0-9a-f]+:	0000 0000 	nop

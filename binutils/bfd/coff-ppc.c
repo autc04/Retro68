@@ -1,5 +1,5 @@
 /* BFD back-end for PowerPC Microsoft Portable Executable files.
-   Copyright (C) 1990-2014 Free Software Foundation, Inc.
+   Copyright (C) 1990-2017 Free Software Foundation, Inc.
 
    Original version pieced together by Kim Knuttila (krk@cygnus.com)
 
@@ -79,9 +79,10 @@ extern void dump_toc (void *);
 #define HASH_CHECK_DCL char eye_catcher[8];
 #define HASH_CHECK_INIT(ret)      strcpy(ret->eye_catcher, EYE)
 #define HASH_CHECK(addr) \
- if (strcmp(addr->eye_catcher, EYE) != 0) \
+ if (strcmp (addr->eye_catcher, EYE) != 0) \
   { \
     fprintf (stderr,\
+    /* xgettext: c-format */ \
     _("File %s, line %d, Hash check failure, bad eye %8s\n"), \
     __FILE__, __LINE__, addr->eye_catcher); \
     abort (); \
@@ -844,7 +845,7 @@ ppc_record_toc_entry (bfd *abfd,
 	  /* The size must fit in a 16-bit displacement.  */
 	  if (global_toc_size > 65535)
 	    {
-	      (*_bfd_error_handler) (_("TOC overflow"));
+	      _bfd_error_handler (_("TOC overflow"));
 	      bfd_set_error (bfd_error_file_too_big);
 	      return FALSE;
 	    }
@@ -862,7 +863,7 @@ ppc_record_toc_entry (bfd *abfd,
 	  /* The size must fit in a 16-bit displacement.  */
 	  if (global_toc_size >= 65535)
 	    {
-	      (*_bfd_error_handler) (_("TOC overflow"));
+	      _bfd_error_handler (_("TOC overflow"));
 	      bfd_set_error (bfd_error_file_too_big);
 	      return FALSE;
 	    }
@@ -947,7 +948,7 @@ coff_ppc_relocate_section (bfd *output_bfd,
   /* If we are performing a relocatable link, we don't need to do a
      thing.  The caller will take care of adjusting the reloc
      addresses and symbol indices.  */
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   rel = relocs;
@@ -1026,12 +1027,9 @@ coff_ppc_relocate_section (bfd *output_bfd,
 		     + sec->output_offset);
 	    }
 	  else
-	    {
-	      if (! ((*info->callbacks->undefined_symbol)
-		     (info, h->root.root.root.string, input_bfd, input_section,
-		      rel->r_vaddr - input_section->vma, TRUE)))
-		return FALSE;
-	    }
+	    (*info->callbacks->undefined_symbol)
+	      (info, h->root.root.root.string, input_bfd, input_section,
+	       rel->r_vaddr - input_section->vma, TRUE);
 	}
 
       rstat = bfd_reloc_ok;
@@ -1040,7 +1038,8 @@ coff_ppc_relocate_section (bfd *output_bfd,
       switch (r_type)
 	{
 	default:
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
+	    /* xgettext: c-format */
 	    (_("%B: unsupported relocation type 0x%02x"), input_bfd, r_type);
 	  bfd_set_error (bfd_error_bad_value);
 	  return FALSE;
@@ -1130,8 +1129,10 @@ coff_ppc_relocate_section (bfd *output_bfd,
 		    /* The size must still fit in a 16-bit displacement.  */
 		    if ((bfd_vma) our_toc_offset >= 65535)
 		      {
-			(*_bfd_error_handler)
-			  (_("%B: Relocation for %s of %lx exceeds Toc size limit"),
+			_bfd_error_handler
+			  /* xgettext: c-format */
+			  (_("%B: Relocation for %s of %lx exceeds "
+			     "Toc size limit"),
 			   input_bfd, name,
 			   (unsigned long) our_toc_offset);
 			bfd_set_error (bfd_error_bad_value);
@@ -1183,7 +1184,8 @@ coff_ppc_relocate_section (bfd *output_bfd,
 	    if ((r_flags & IMAGE_REL_PPC_TOCDEFN) != IMAGE_REL_PPC_TOCDEFN
 		&& (bfd_vma) our_toc_offset > toc_section->size)
 	      {
-		(*_bfd_error_handler)
+		_bfd_error_handler
+		  /* xgettext: c-format */
 		  (_("%B: Relocation exceeds allocated TOC (%lx)"),
 		   input_bfd, (unsigned long) toc_section->size);
 		bfd_set_error (bfd_error_bad_value);
@@ -1237,7 +1239,8 @@ coff_ppc_relocate_section (bfd *output_bfd,
 	    else
 	      my_name = h->root.root.root.string;
 
-	    (*_bfd_error_handler)
+	    _bfd_error_handler
+	      /* xgettext: c-format */
 	      (_("Warning: unsupported reloc %s <file %B, section %A>\n"
 		 "sym %ld (%s), r_vaddr %ld (%lx)"),
 	       input_bfd, input_section, howto->name,
@@ -1255,7 +1258,8 @@ coff_ppc_relocate_section (bfd *output_bfd,
 	      break;
 	    my_name = h->root.root.root.string;
 
-	    (*_bfd_error_handler)
+	    _bfd_error_handler
+	      /* xgettext: c-format */
 	      (_("%B: Out of order IMGLUE reloc for %s"), input_bfd, my_name);
 	    bfd_set_error (bfd_error_bad_value);
 	    return FALSE;
@@ -1423,11 +1427,10 @@ coff_ppc_relocate_section (bfd *output_bfd,
 		name = buf;
 	      }
 
-	    if (! ((*info->callbacks->reloc_overflow)
-		   (info, (h ? &h->root.root : NULL), name, howto->name,
-		    (bfd_vma) 0, input_bfd,
-		    input_section, rel->r_vaddr - input_section->vma)))
-	      return FALSE;
+	    (*info->callbacks->reloc_overflow)
+	      (info, (h ? &h->root.root : NULL), name, howto->name,
+	       (bfd_vma) 0, input_bfd, input_section,
+	       rel->r_vaddr - input_section->vma);
 	  }
 	}
     }
@@ -1487,6 +1490,7 @@ dump_toc (void * vfile)
 	  else
 	    {
 	      fprintf (file,
+		       /* xgettext: c-format */
 		      _("**** global_toc_size %ld(%lx), thunk_size %ld(%lx)\n"),
 		       global_toc_size, (unsigned long) global_toc_size,
 		       thunk_size, (unsigned long) thunk_size);
@@ -1763,9 +1767,10 @@ ppc_coff_rtype2howto (arelent *relent, struct internal_reloc *internal)
 	howto = ppc_coff_howto_table + IMAGE_REL_PPC_TOCREL16;
       break;
     default:
-      (*_bfd_error_handler) (_("warning: unsupported reloc %s [%d] used -- it may not work"),
-			     ppc_coff_howto_table[r_type].name,
-			     r_type);
+      _bfd_error_handler
+	/* xgettext: c-format */
+	(_("warning: unsupported reloc %s [%d] used -- it may not work"),
+	 ppc_coff_howto_table[r_type].name, r_type);
       howto = ppc_coff_howto_table + r_type;
       break;
     }
@@ -1834,9 +1839,10 @@ coff_ppc_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
       howto = ppc_coff_howto_table + r_type;
       break;
     default:
-      (*_bfd_error_handler) (_("warning: unsupported reloc %s [%d] used -- it may not work"),
-			     ppc_coff_howto_table[r_type].name,
-			     r_type);
+      _bfd_error_handler
+	/* xgettext: c-format */
+	(_("warning: unsupported reloc %s [%d] used -- it may not work"),
+	 ppc_coff_howto_table[r_type].name, r_type);
       howto = ppc_coff_howto_table + r_type;
       break;
     }
@@ -2043,7 +2049,7 @@ ppc_bfd_coff_final_link (bfd *abfd, struct bfd_link_info *info)
 		  || info->strip == strip_some)
 		o->lineno_count += sec->lineno_count;
 
-	      if (info->relocatable)
+	      if (bfd_link_relocatable (info))
 		o->reloc_count += sec->reloc_count;
 
 	      if (sec->rawsize > max_contents_size)
@@ -2055,7 +2061,7 @@ ppc_bfd_coff_final_link (bfd *abfd, struct bfd_link_info *info)
 	      if (sec->reloc_count > max_reloc_count)
 		max_reloc_count = sec->reloc_count;
 	    }
-	  else if (info->relocatable
+	  else if (bfd_link_relocatable (info)
 		   && (p->type == bfd_section_reloc_link_order
 		       || p->type == bfd_symbol_reloc_link_order))
 	    ++o->reloc_count;
@@ -2072,7 +2078,7 @@ ppc_bfd_coff_final_link (bfd *abfd, struct bfd_link_info *info)
 
   /* If doing a relocatable link, allocate space for the pointers we
      need to keep.  */
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     {
       unsigned int i;
 
@@ -2123,7 +2129,7 @@ ppc_bfd_coff_final_link (bfd *abfd, struct bfd_link_info *info)
 	     memory until the end of the link.  This wastes memory,
 	     but only when doing a relocatable link, which is not the
 	     common case.  */
-	  BFD_ASSERT (info->relocatable);
+	  BFD_ASSERT (bfd_link_relocatable (info));
 	  amt = o->reloc_count;
 	  amt *= sizeof (struct internal_reloc);
 	  flaginfo.section_info[o->target_index].relocs =
@@ -2175,7 +2181,7 @@ ppc_bfd_coff_final_link (bfd *abfd, struct bfd_link_info *info)
   flaginfo.linenos = (bfd_byte *) bfd_malloc (amt);
   flaginfo.contents = (bfd_byte *) bfd_malloc (max_contents_size);
   flaginfo.external_relocs = (bfd_byte *) bfd_malloc (max_reloc_count * relsz);
-  if (! info->relocatable)
+  if (! bfd_link_relocatable (info))
     {
       amt = max_reloc_count * sizeof (struct internal_reloc);
       flaginfo.internal_relocs = (struct internal_reloc *) bfd_malloc (amt);
@@ -2187,7 +2193,7 @@ ppc_bfd_coff_final_link (bfd *abfd, struct bfd_link_info *info)
       || (flaginfo.linenos == NULL && max_lineno_count > 0)
       || (flaginfo.contents == NULL && max_contents_size > 0)
       || (flaginfo.external_relocs == NULL && max_reloc_count > 0)
-      || (! info->relocatable
+      || (! bfd_link_relocatable (info)
 	  && flaginfo.internal_relocs == NULL
 	  && max_reloc_count > 0))
     goto error_return;
@@ -2321,7 +2327,7 @@ ppc_bfd_coff_final_link (bfd *abfd, struct bfd_link_info *info)
       flaginfo.outsyms = NULL;
     }
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     {
       /* Now that we have written out all the global symbols, we know
 	 the symbol indices to use for relocs against them, and we can

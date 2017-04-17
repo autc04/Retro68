@@ -1,6 +1,6 @@
-// { dg-require-namedlocale "ru_RU.ISO-8859-5" }
+// { dg-require-namedlocale "ru_RU.ISO8859-5" }
 
-// Copyright (C) 2010-2015 Free Software Foundation, Inc.
+// Copyright (C) 2010-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,7 +33,7 @@ void test01()
   typedef istreambuf_iterator<char> iterator_type;
 
   // basic construction
-  locale loc("ru_RU.ISO-8859-5");
+  locale loc(ISO_8859(5,ru_RU));
 
   // create an ostream-derived object, cache the time_get facet
   iterator_type end;

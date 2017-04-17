@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -fdump-tree-vrp1" } */
+/* { dg-options "-O2 -fdump-tree-vrp1 --param fsm-scale-path-blocks=1" } */
 
 int func_81 (int);
 int func_98 (int);
@@ -12,6 +12,8 @@ func_18 ( int t )
   for (0; 1; ++l_889)
     {
       int t1 = 0;
+      func_98 (0);
+      func_98 (0);
       if (func_81 (1))
 	{
 	  int rhs = l_895;
@@ -28,4 +30,3 @@ func_18 ( int t )
 /* There should be a single if left.  */
 
 /* { dg-final { scan-tree-dump-times "if" 1 "vrp1" } } */
-/* { dg-final { cleanup-tree-dump "vrp1" } } */

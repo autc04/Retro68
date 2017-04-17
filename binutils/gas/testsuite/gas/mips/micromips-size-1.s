@@ -33,13 +33,21 @@ foo:
 	jalr32	$31,$25
 	jalr	$30,$26
 	jalr32	$30,$26
+	nop
 	b	bar
+	nop
 	b16	bar
+	nop
 	b32	bar
+	nop
 	beqz	$7, bar
+	nop
 	beqz16	$7, bar
+	nop
 	beqz32	$7, bar
+	nop
 	beqz	$27, bar
+	nop
 	beqz32	$27, bar
 
 # Test branch delay slots.

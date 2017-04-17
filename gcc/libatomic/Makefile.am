@@ -1,4 +1,4 @@
-##  Copyright (C) 2012-2015 Free Software Foundation, Inc.
+##  Copyright (C) 2012-2016 Free Software Foundation, Inc.
 ##  Contributed by Richard Henderson <rth@redhat.com>.
 ##
 ##  This file is part of the GNU Atomic Library (libatomic).
@@ -68,7 +68,7 @@ libatomic_version_info = -version-info $(libtool_VERSION)
 
 libatomic_la_LDFLAGS = $(libatomic_version_info) $(libatomic_version_script) $(lt_host_flags)
 libatomic_la_SOURCES = gload.c gstore.c gcas.c gexch.c glfree.c lock.c init.c \
-	fenv.c
+	fenv.c fence.c flag.c
 
 SIZEOBJS = load store cas exch fadd fsub fand fior fxor fnand tas
 SIZES = @SIZES@
@@ -139,3 +139,10 @@ endif
 
 libatomic_convenience_la_SOURCES = $(libatomic_la_SOURCES)
 libatomic_convenience_la_LIBADD = $(libatomic_la_LIBADD)
+
+# Override the automake generated all-multi rule to guarantee that all-multi
+# is not run in parallel with the %_.lo rules which generate $(DEPDIR)/*.Ppo
+# makefile fragments to avoid broken *.Ppo getting included into the Makefile
+# when it is reloaded during the build of all-multi.
+all-multi: $(libatomic_la_LIBADD)
+	$(MULTIDO) $(AM_MAKEFLAGS) DO=all multi-do # $(MAKE)

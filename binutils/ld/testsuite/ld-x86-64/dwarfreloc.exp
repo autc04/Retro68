@@ -1,5 +1,5 @@
 # Expect script for DWARF relocation test.
-#   Copyright (C) 2008-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2008-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -41,18 +41,31 @@ if { !([istarget "x86_64-*-elf*"]
 }
 
 set build_tests_ld {
-  {"Build dwarfreloc1x.o"
-   "-r" "" ""
-   {dwarfreloc1.s} {} "dwarfreloc1x.o"}
-  {"Build dwarfreloc2.o"
-   "-r" "" ""
-   {dwarfreloc2.s} {} "dwarfreloc2x.o"}
+  {"Build dwarfreloc1xa.o"
+   "-r" "" "--elf-stt-common=no"
+   {dwarfreloc1.s} {} "dwarfreloc1xa.o"}
+  {"Build dwarfreloc1xb.o"
+   "-r" "" "--elf-stt-common=yes"
+   {dwarfreloc1.s} {} "dwarfreloc1xb.o"}
+  {"Build dwarfreloc2a.o"
+   "-r" "" "--elf-stt-common=no"
+   {dwarfreloc2.s} {} "dwarfreloc2xa.o"}
+  {"Build dwarfreloc2b.o"
+   "-r" "" "--elf-stt-common=yes"
+   {dwarfreloc2.s} {} "dwarfreloc2xb.o"}
 }
 
 run_ld_link_tests $build_tests_ld
 
-set testname "Link dwarfreloc1x.o and dwarfreloc2x.o to dwarfreloc.o"
-if [ld_simple_link $ld "tmpdir/dwarfreloc.o" "-r tmpdir/dwarfreloc1x.o tmpdir/dwarfreloc2x.o"] {
+set testname "Link dwarfreloc1xa.o and dwarfreloc2xa.o to dwarfreloca.o"
+if [ld_simple_link $ld "tmpdir/dwarfreloca.o" "-r tmpdir/dwarfreloc1xa.o tmpdir/dwarfreloc2xa.o"] {
+    pass $testname
+} else {
+    fail $testname
+}
+
+set testname "Link dwarfreloc1xb.o and dwarfreloc2xb.o to dwarfrelocb.o"
+if [ld_simple_link $ld "tmpdir/dwarfrelocb.o" "-r tmpdir/dwarfreloc1xb.o tmpdir/dwarfreloc2xb.o"] {
     pass $testname
 } else {
     fail $testname
@@ -61,9 +74,34 @@ if [ld_simple_link $ld "tmpdir/dwarfreloc.o" "-r tmpdir/dwarfreloc1x.o tmpdir/dw
 # The code is copied from `ld-lib.exp'.  We cannot use the functions there as
 # they expect source (.s or .c) files while we to check a `ld -r' output (.o).
 
-set testname "Check dwarfreloc.o readelf"
+set testname "Check dwarfreloca.o readelf"
 set dumpfile "dwarfreloc.rd"
-set cmd "$READELF --debug-dump=info tmpdir/dwarfreloc.o"
+set cmd "$READELF --debug-dump=info tmpdir/dwarfreloca.o"
+set status [remote_exec host [concat sh -c [list "$cmd >dump.out 2>ld.stderr"]] "" "/dev/null"]
+send_log "$cmd\n"
+remote_upload host "ld.stderr"
+set comp_output [prune_warnings [file_contents "ld.stderr"]]
+remote_file host delete "ld.stderr"
+remote_file build delete "ld.stderr"
+
+if ![string match "" $comp_output] then {
+    send_log "$comp_output\n"
+    fail $testname
+} else {
+    remote_upload host "dump.out"
+    if { [regexp_diff "dump.out" "$srcdir/$subdir/$dumpfile"] } then {
+	verbose "output is [file_contents "dump.out"]" 2
+	fail $testname
+    } else {
+	pass $testname
+    }
+    remote_file build delete "dump.out"
+    remote_file host delete "dump.out"
+}
+
+set testname "Check dwarfrelocb.o readelf"
+set dumpfile "dwarfreloc.rd"
+set cmd "$READELF --debug-dump=info tmpdir/dwarfrelocb.o"
 set status [remote_exec host [concat sh -c [list "$cmd >dump.out 2>ld.stderr"]] "" "/dev/null"]
 send_log "$cmd\n"
 remote_upload host "ld.stderr"

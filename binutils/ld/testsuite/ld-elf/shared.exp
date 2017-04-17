@@ -1,5 +1,5 @@
 # Expect script for various ELF tests.
-#   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2017 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -30,6 +30,55 @@ if ![isnative] {
 
 if ![is_elf_format] {
     return
+}
+
+# This target requires extra GAS options when building code for shared
+# libraries.
+set AFLAGS_PIC ""
+if [istarget "tic6x-*-*"] {
+    append AFLAGS_PIC " -mpic -mpid=near"
+}
+# This target requires a non-default emulation for successful shared
+# library/executable builds.
+set LFLAGS ""
+if [istarget "tic6x-*-*"] {
+    append LFLAGS " -melf32_tic6x_le"
+}
+
+# PR ld/20828 check for correct dynamic symbol table entries where:
+# - symbols have been defined with a linker script,
+# - the same symbols have been seen in shared library used in the link,
+# - the shared library symbols have been swept in section garbage collection.
+# Verify that the symbols are global rather than local and that a version
+# script adjusts them accordingly.
+if { [check_gc_sections_available] } {
+    run_ld_link_tests [list \
+	[list \
+	    "PR ld/20828 dynamic symbols with section GC\
+	      (auxiliary shared library)" \
+	     "$LFLAGS -shared --gc-sections -T pr20828.ld" "" "$AFLAGS_PIC" \
+	     {pr20828.s} \
+	     {{readelf --dyn-syms pr20828-a.sd} \
+	      {readelf --dyn-syms pr20828-b.sd}} \
+	     "libpr20828.so"] \
+	[list \
+	    "PR ld/20828 dynamic symbols with section GC (plain)" \
+	     "$LFLAGS -shared --gc-sections -T pr20828.ld" \
+	     "tmpdir/libpr20828.so" "$AFLAGS_PIC" \
+	     {pr20828.s} \
+	     {{readelf --dyn-syms pr20828-a.sd} \
+	      {readelf --dyn-syms pr20828-b.sd}} \
+	     "pr20828-1.so"] \
+	[list \
+	    "PR ld/20828 dynamic symbols with section GC (version script)" \
+	     "$LFLAGS -shared --gc-sections -T pr20828.ld\
+	      --version-script=pr20828.ver" \
+	     "tmpdir/libpr20828.so" \
+	     "$AFLAGS_PIC" \
+	     {pr20828.s} \
+	     {{readelf --dyn-syms pr20828-b.sd} \
+	      {readelf --dyn-syms pr20828-c.sd}} \
+	     "pr20828-2.so"]]
 }
 
 # Check to see if the C compiler works
@@ -246,6 +295,15 @@ set build_tests {
   {"Build dynamic-1"
    "-Wl,--dynamic-list,dynamic-1.syms -Wl,--gc-sections" "-ffunction-sections"
    {dynamic-1.c} {{readelf {-s} dynamic-1.rd}} "dynamic-1"}
+  {"Build libpr16496a.so"
+   "-shared -Wl,--version-script=pr16496a.map" "-fPIC"
+   {pr16496a.c} {} "libpr16496a.so"}
+  {"Build libpr16496b.a"
+   "" "-fPIC"
+   {pr16496b.c} {} "libpr16496b.a"}
+  {"Build libpr16496b.so"
+   "-shared tmpdir/pr16496b.o tmpdir/libpr16496a.so" ""
+   {dummy.c} {{objdump {-R} pr16496b.od}} "libpr16496b.so"}
   {"Build libpr16452a.so"
    "-shared -Wl,-soname,libpr16452a.so,--version-script=pr16452.map" "-fPIC"
    {pr16452a.c} {} "libpr16452a.so"}
@@ -258,6 +316,18 @@ set build_tests {
   {"Build pr16457"
    "tmpdir/libpr16452b.so -Wl,-rpath=tmpdir" ""
    {pr16452b.c} {{objdump {-p} pr16457.od}} "pr16457"}
+  {"Build libpr18458a.so"
+   "-shared -Wl,-z,now" "-fPIC"
+   {pr18458a.c} {} "libpr18458a.so"}
+  {"Build libpr18458b.so"
+   "-shared -Wl,-z,now tmpdir/libpr18458a.so" "-fPIC"
+   {pr18458b.c} {} "libpr18458b.so"}
+  {"Build pr19073a.o"
+   "-r -nostdlib" ""
+   {pr19073.s} {} "pr19073a.o"}
+  {"Build libpr19073.so"
+   "-shared -Wl,--version-script=pr19073.map tmpdir/pr19073a.o" "-fPIC"
+   {dummy.c} {{readelf {--dyn-syms --wide} pr19073.rd}} "libpr19073.so"}
 }
 
 run_cc_link_tests $build_tests
@@ -408,10 +478,13 @@ set run_tests {
     {"Run pr2404"
      "tmpdir/pr2404b.o tmpdir/libpr2404a.so" ""
      {dummy.c} "pr2404" "pr2404.out"}
+    {"Run pr18458"
+     "tmpdir/libpr18458a.so tmpdir/libpr18458b.so -z now" ""
+     {pr18458c.c} "pr18458" "pass.out"}
 }
 
 # NetBSD ELF systems do not currently support the .*_array sections.
-run_ld_link_exec_tests [list "*-*-netbsdelf*"] $run_tests
+run_ld_link_exec_tests $run_tests "*-*-netbsdelf*"
 
 # Check --no-add-needed and --no-copy-dt-needed-entries
 set testname "--no-add-needed"
@@ -430,14 +503,14 @@ if { [ regexp "tmpdir/libneeded1b.so: .*: DSO missing" $exec_output ] } {
 }
 set testname "--no-add-needed -shared"
 set exec_output [run_host_cmd "$CC" "-shared tmpdir/libneeded1pic.o -Wl,--no-add-needed,-z,defs -Ltmpdir -lneeded1a"]
-if { [ regexp "undefined reference to `bar'" $exec_output ] } {
+if { [ regexp "undefined reference to `\.?bar'" $exec_output ] } {
     pass $testname
 } {
     fail $testname
 }
 set testname "--no-copy-dt-needed-entries -shared"
 set exec_output [run_host_cmd "$CC" "-shared tmpdir/libneeded1pic.o -Wl,--no-copy-dt-needed-entries,-z,defs -Ltmpdir -lneeded1a"]
-if { [ regexp "undefined reference to `bar'" $exec_output ] } {
+if { [ regexp "undefined reference to `\.?bar'" $exec_output ] } {
     pass $testname
 } {
     fail $testname
@@ -486,7 +559,7 @@ set run_cxx_tests {
 }
 
 run_cc_link_tests $build_cxx_tests
-run_ld_link_exec_tests [] $run_cxx_tests
+run_ld_link_exec_tests $run_cxx_tests
 
 if { [istarget *-*-linux*]
      || [istarget *-*-nacl*]
@@ -500,8 +573,23 @@ if { [istarget *-*-linux*]
 	    {} \
 	    "libpr2404b.a" \
 	] \
+	[list \
+	    "Build pr19579a.o" \
+	    "" "-fPIE" \
+	    {pr19579a.c} \
+	    {} \
+	    "libpr19579a.a" \
+	] \
+	[list \
+	    "Build libpr19579.so" \
+	    "-shared" \
+	    "-fPIC" \
+	    {pr19579b.c} \
+	    {} \
+	    "libpr19579.so" \
+	] \
     ]
-    run_ld_link_exec_tests [] [list \
+    run_ld_link_exec_tests [list \
 	[list \
 	    "Run pr2404 with PIE" \
 	    "-pie tmpdir/pr2404b.o tmpdir/libpr2404a.so" \
@@ -511,5 +599,120 @@ if { [istarget *-*-linux*]
 	    "pr2404.out" \
 	    "-fPIE" \
 	] \
+	[list \
+	    "Run pr18718" \
+	    "" \
+	    "" \
+	    { pr18718.c check-ptr-eq.c } \
+	    "pr18718" \
+	    "pass.out" \
+	    "-O2 -I../bfd" \
+	] \
+	[list \
+	    "Run pr18718 with PIE (1)" \
+	    "-pie" \
+	    "" \
+	    { pr18718.c check-ptr-eq.c } \
+	    "pr18718pie1" \
+	    "pass.out" \
+	    "-O2 -fPIE -I../bfd" \
+	] \
+	[list \
+	    "Run pr18718 with PIE (2)" \
+	    "" \
+	    "" \
+	    { pr18718.c check-ptr-eq.c } \
+	    "pr18718pie2" \
+	    "pass.out" \
+	    "-O2 -fPIE -I../bfd" \
+	] \
+	[list \
+	    "Run pr18718 with PIC (1)" \
+	    "" \
+	    "" \
+	    { pr18718.c check-ptr-eq.c } \
+	    "pr18718pic1" \
+	    "pass.out" \
+	    "-O2 -fPIC -I../bfd" \
+	] \
+	[list \
+	    "Run pr18718 with PIC (2)" \
+	    "-pie" \
+	    "" \
+	    { pr18718.c check-ptr-eq.c } \
+	    "pr18718pic2" \
+	    "pass.out" \
+	    "-O2 -fPIC -I../bfd" \
+	] \
+	[list \
+	    "Run pr19579" \
+	    "-pie -z text tmpdir/pr19579a.o tmpdir/libpr19579.so" \
+	    "" \
+	    {dummy.c} \
+	    "pr19579" \
+	    "pass.out" \
+	    "-fPIE" \
+	] \
     ]
 }
+
+proc mix_pic_and_non_pic {xfails cflags ldflags exe} {
+    run_cc_link_tests [list \
+	[list \
+	    "Build libpr19719a.so" \
+	    "-shared -Wl,-soname,libpr19719.so" \
+	    "-fPIC" \
+	    { pr19719d.c } \
+	    {} \
+	    "libpr19719a.so" \
+	] \
+	[list \
+	    "Build libpr19719b.so" \
+	    "-shared -Wl,-soname,libpr19719.so" \
+	    "-fPIC" \
+	    { dummy.c } \
+	    {} \
+	    "libpr19719b.so" \
+	] \
+	[list \
+	    "Build libpr19719b.o" \
+	    "-r -nostdlib" \
+	    "-fPIC" \
+	    { pr19719b.c } \
+	    {} \
+	    "libpr19719b.o" \
+	] \
+    ]
+
+    send_log "cp tmpdir/libpr19719b.so tmpdir/libpr19719.so\n"
+    exec cp tmpdir/libpr19719b.so tmpdir/libpr19719.so
+
+    run_ld_link_exec_tests [list \
+	[list \
+	    "Run $exe fun defined" \
+	    "$ldflags tmpdir/libpr19719b.o tmpdir/libpr19719.so -rpath tmpdir" \
+	    "" \
+	    { pr19719a.c pr19719c.c } \
+	    $exe \
+	    "pass.out" \
+	    "$cflags" \
+	] \
+    ]
+
+    send_log "cp tmpdir/libpr19719a.so tmpdir/libpr19719.so\n"
+    exec cp tmpdir/libpr19719a.so tmpdir/libpr19719.so
+
+    foreach targ $xfails {
+	setup_xfail $targ
+    }
+
+    set exec_output [run_host_cmd "tmpdir/$exe" ""]
+    if {![string match "PASS" $exec_output]} {
+	fail "Run $exe fun undefined"
+    } else {
+	pass "Run $exe fun undefined"
+    }
+}
+
+mix_pic_and_non_pic [list "arm*-*-*" "aarch64*-*-*"] "" "" "pr19719"
+mix_pic_and_non_pic [] "-fPIE" "-pie" "pr19719pie"

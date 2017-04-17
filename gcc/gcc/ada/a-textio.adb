@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -668,7 +668,7 @@ package body Ada.Text_IO is
             Available := True;
 
             Item :=
-              (if Is_Start_Of_Encoding (Character'Val (ch), File.WC_Method)
+              (if not Is_Start_Of_Encoding (Character'Val (ch), File.WC_Method)
                then Character'Val (ch)
                else Get_Upper_Half_Char_Immed (Character'Val (ch), File));
          end if;
@@ -693,9 +693,7 @@ package body Ada.Text_IO is
       Item : out String;
       Last : out Natural) is separate;
    --  The implementation of Ada.Text_IO.Get_Line is split into a subunit so
-   --  that different implementations can be used on different systems. In
-   --  particular the standard implementation uses low level stuff that is
-   --  not appropriate for the JVM and .NET implementations.
+   --  that different implementations can be used on different systems.
 
    procedure Get_Line
      (Item : out String;

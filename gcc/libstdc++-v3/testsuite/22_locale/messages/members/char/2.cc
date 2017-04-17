@@ -1,8 +1,8 @@
-// { dg-require-namedlocale "fr_FR" }
+// { dg-require-namedlocale "fr_FR.ISO8859-15" }
 
 // 2001-07-17 Benjamin Kosnik  <bkoz@redhat.com>
 
-// Copyright (C) 2001-2015 Free Software Foundation, Inc.
+// Copyright (C) 2001-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -35,7 +35,7 @@ void test02()
   const char* dir = LOCALEDIR;
 
   // basic construction
-  locale loc_fr = locale("fr_FR");
+  locale loc_fr = locale(ISO_8859(15,fr_FR));
   VERIFY( locale::classic() != loc_fr );
 
   // cache the messages facets

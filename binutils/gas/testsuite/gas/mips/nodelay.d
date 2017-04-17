@@ -5,7 +5,7 @@
 
 # For -mips4 
 # Gas should *not* produce nop's after mtc1 and related 
-# insn's if the target fpr is used in the immediatly 
+# insn's if the target fpr is used in the immediately
 # following insn.  See also delay.d.
 #
 

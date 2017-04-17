@@ -20,4 +20,4 @@
  .endif
  .endif
 
-;# { dg-warning "Warning: dwarf line number information for .* ignored" "" { xfail i370-*-* mcore-*-* mn10200-*-* moxie-*-* v850*-*-* } 0 }
+;# { dg-warning "Warning: dwarf line number information for .* ignored" "" { xfail i370-*-* v850*-*-* } 0 }

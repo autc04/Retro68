@@ -1,5 +1,5 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
-#name: MIPS MIPSR6 64 instructions
+#name: MIPS64r6 n64 instructions
 #as: -64
 #source: r6-64.s
 

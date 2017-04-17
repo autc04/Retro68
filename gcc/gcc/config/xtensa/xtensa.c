@@ -1,5 +1,5 @@
 /* Subroutines for insn-output.c for Tensilica's Xtensa architecture.
-   Copyright (C) 2001-2015 Free Software Foundation, Inc.
+   Copyright (C) 2001-2016 Free Software Foundation, Inc.
    Contributed by Bob Wilson (bwilson@tensilica.com) at Tensilica.
 
 This file is part of GCC.
@@ -21,77 +21,39 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "tm.h"
+#include "backend.h"
+#include "target.h"
 #include "rtl.h"
-#include "regs.h"
-#include "hard-reg-set.h"
-#include "predict.h"
-#include "vec.h"
-#include "hashtab.h"
-#include "hash-set.h"
-#include "machmode.h"
-#include "input.h"
-#include "function.h"
-#include "dominance.h"
-#include "cfg.h"
-#include "cfgrtl.h"
-#include "cfganal.h"
-#include "lcm.h"
-#include "cfgbuild.h"
-#include "cfgcleanup.h"
-#include "basic-block.h"
-#include "insn-config.h"
-#include "conditions.h"
-#include "insn-flags.h"
-#include "insn-attr.h"
-#include "insn-codes.h"
-#include "recog.h"
-#include "output.h"
-#include "symtab.h"
-#include "wide-int.h"
-#include "inchash.h"
 #include "tree.h"
-#include "fold-const.h"
+#include "gimple.h"
+#include "cfghooks.h"
+#include "df.h"
+#include "tm_p.h"
 #include "stringpool.h"
+#include "optabs.h"
+#include "regs.h"
+#include "emit-rtl.h"
+#include "recog.h"
+#include "diagnostic-core.h"
+#include "cfgrtl.h"
+#include "output.h"
+#include "fold-const.h"
 #include "stor-layout.h"
 #include "calls.h"
 #include "varasm.h"
-#include "flags.h"
-#include "statistics.h"
-#include "double-int.h"
-#include "real.h"
-#include "fixed-value.h"
 #include "alias.h"
-#include "expmed.h"
-#include "dojump.h"
 #include "explow.h"
-#include "emit-rtl.h"
-#include "stmt.h"
 #include "expr.h"
 #include "reload.h"
-#include "tm_p.h"
-#include "diagnostic-core.h"
-#include "optabs.h"
-#include "libfuncs.h"
-#include "ggc.h"
-#include "target.h"
-#include "target-def.h"
 #include "langhooks.h"
-#include "hash-table.h"
-#include "tree-ssa-alias.h"
-#include "internal-fn.h"
-#include "gimple-fold.h"
-#include "tree-eh.h"
-#include "gimple-expr.h"
-#include "is-a.h"
-#include "gimple.h"
 #include "gimplify.h"
-#include "df.h"
 #include "builtins.h"
 #include "dumpfile.h"
 #include "hw-doloop.h"
 #include "rtl-iter.h"
 
+/* This file should be included last.  */
+#include "target-def.h"
 
 /* Enumeration for all of the relational tests, so that we can build
    arrays indexed by the test type, and not worry about the order
@@ -164,7 +126,7 @@ static unsigned int xtensa_multibss_section_type_flags (tree, const char *,
 							int) ATTRIBUTE_UNUSED;
 static section *xtensa_select_rtx_section (machine_mode, rtx,
 					   unsigned HOST_WIDE_INT);
-static bool xtensa_rtx_costs (rtx, int, int, int, int *, bool);
+static bool xtensa_rtx_costs (rtx, machine_mode, int, int, int *, bool);
 static int xtensa_register_move_cost (machine_mode, reg_class_t,
 				      reg_class_t);
 static int xtensa_memory_move_cost (machine_mode, reg_class_t, bool);
@@ -500,6 +462,9 @@ xtensa_valid_move (machine_mode mode, rtx *operands)
   if (register_operand (operands[0], mode))
     {
       int dst_regnum = xt_true_regnum (operands[0]);
+
+      if (xtensa_tls_referenced_p (operands[1]))
+	return FALSE;
 
       /* The stack pointer can only be assigned with a MOVSP opcode.  */
       if (dst_regnum == STACK_POINTER_REGNUM)
@@ -859,7 +824,7 @@ xtensa_expand_conditional_branch (rtx *operands, machine_mode mode)
       label1 = pc_rtx;
     }
 
-  emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx,
+  emit_jump_insn (gen_rtx_SET (pc_rtx,
 			       gen_rtx_IF_THEN_ELSE (VOIDmode, cmp,
 						     label1,
 						     label2)));
@@ -1069,7 +1034,7 @@ xtensa_emit_move_sequence (rtx *operands, machine_mode mode)
 	  return 1;
 	}
 
-      if (! TARGET_CONST16)
+      if (! TARGET_AUTO_LITPOOLS && ! TARGET_CONST16)
 	{
 	  src = force_const_mem (SImode, src);
 	  operands[1] = src;
@@ -1335,7 +1300,7 @@ xtensa_expand_block_move (rtx *operands)
 	  temp[next] = gen_reg_rtx (mode[next]);
 
 	  x = adjust_address (src_mem, mode[next], offset_ld);
-	  emit_insn (gen_rtx_SET (VOIDmode, temp[next], x));
+	  emit_insn (gen_rtx_SET (temp[next], x));
 
 	  offset_ld += next_amount;
 	  bytes -= next_amount;
@@ -1347,7 +1312,7 @@ xtensa_expand_block_move (rtx *operands)
 	  active[phase] = false;
 	  
 	  x = adjust_address (dst_mem, mode[phase], offset_st);
-	  emit_insn (gen_rtx_SET (VOIDmode, x, temp[phase]));
+	  emit_insn (gen_rtx_SET (x, temp[phase]));
 
 	  offset_st += amount[phase];
 	}
@@ -1461,8 +1426,9 @@ init_alignment_context (struct alignment_context *ac, rtx mem)
   if (ac->shift != NULL_RTX)
     {
       /* Shift is the byte count, but we need the bitcount.  */
-      ac->shift = expand_simple_binop (SImode, MULT, ac->shift,
-				       GEN_INT (BITS_PER_UNIT),
+      gcc_assert (exact_log2 (BITS_PER_UNIT) >= 0);
+      ac->shift = expand_simple_binop (SImode, ASHIFT, ac->shift,
+				       GEN_INT (exact_log2 (BITS_PER_UNIT)),
 				       NULL_RTX, 1, OPTAB_DIRECT);
       ac->modemask = expand_simple_binop (SImode, ASHIFT,
 					  GEN_INT (GET_MODE_MASK (mode)),
@@ -1891,23 +1857,23 @@ xtensa_tls_module_base (void)
 static rtx_insn *
 xtensa_call_tls_desc (rtx sym, rtx *retp)
 {
-  rtx fn, arg, a10;
+  rtx fn, arg, a_io;
   rtx_insn *call_insn, *insns;
 
   start_sequence ();
   fn = gen_reg_rtx (Pmode);
   arg = gen_reg_rtx (Pmode);
-  a10 = gen_rtx_REG (Pmode, 10);
+  a_io = gen_rtx_REG (Pmode, WINDOW_SIZE + 2);
 
   emit_insn (gen_tls_func (fn, sym));
   emit_insn (gen_tls_arg (arg, sym));
-  emit_move_insn (a10, arg);
-  call_insn = emit_call_insn (gen_tls_call (a10, fn, sym, const1_rtx));
-  use_reg (&CALL_INSN_FUNCTION_USAGE (call_insn), a10);
+  emit_move_insn (a_io, arg);
+  call_insn = emit_call_insn (gen_tls_call (a_io, fn, sym, const1_rtx));
+  use_reg (&CALL_INSN_FUNCTION_USAGE (call_insn), a_io);
   insns = get_insns ();
   end_sequence ();
 
-  *retp = a10;
+  *retp = a_io;
   return insns;
 }
 
@@ -1981,8 +1947,8 @@ xtensa_legitimize_address (rtx x,
 	{
 	  rtx temp = gen_reg_rtx (Pmode);
 	  rtx addmi_offset = GEN_INT (INTVAL (plus1) & ~0xff);
-	  emit_insn (gen_rtx_SET (Pmode, temp,
-				  gen_rtx_PLUS (Pmode, plus0, addmi_offset)));
+	  emit_insn (gen_rtx_SET (temp, gen_rtx_PLUS (Pmode, plus0,
+						      addmi_offset)));
 	  return gen_rtx_PLUS (Pmode, temp, GEN_INT (INTVAL (plus1) & 0xff));
 	}
     }
@@ -2352,7 +2318,7 @@ print_operand (FILE *file, rtx x, int letter)
 	  && (GET_MODE (x) == DFmode || GET_MODE (x) == DImode))
 	{
 	  x = adjust_address (x, GET_MODE (x) == DFmode ? SFmode : SImode, 4);
-	  output_address (XEXP (x, 0));
+	  output_address (GET_MODE (x), XEXP (x, 0));
 	}
       else
 	output_operand_lossage ("invalid %%N value");
@@ -2414,12 +2380,10 @@ print_operand (FILE *file, rtx x, int letter)
 	}
       else if (GET_CODE (x) == CONST_DOUBLE)
 	{
-	  REAL_VALUE_TYPE r;
-	  REAL_VALUE_FROM_CONST_DOUBLE (r, x);
 	  if (GET_MODE (x) == SFmode)
 	    {
 	      long l;
-	      REAL_VALUE_TO_TARGET_SINGLE (r, l);
+	      REAL_VALUE_TO_TARGET_SINGLE (*CONST_DOUBLE_REAL_VALUE (x), l);
 	      fprintf (file, "0x%08lx@%c", l, letter == 't' ? 'h' : 'l');
 	    }
 	  else
@@ -2449,11 +2413,23 @@ print_operand (FILE *file, rtx x, int letter)
 	}
       break;
 
+    case 'y':
+      if (GET_CODE (x) == CONST_DOUBLE &&
+	  GET_MODE (x) == SFmode)
+	{
+	  long l;
+	  REAL_VALUE_TO_TARGET_SINGLE (*CONST_DOUBLE_REAL_VALUE (x), l);
+	  fprintf (file, "0x%08lx", l);
+	  break;
+	}
+
+      /* fall through */
+
     default:
       if (GET_CODE (x) == REG || GET_CODE (x) == SUBREG)
 	fprintf (file, "%s", reg_names[xt_true_regnum (x)]);
       else if (GET_CODE (x) == MEM)
-	output_address (XEXP (x, 0));
+	output_address (GET_MODE (x), XEXP (x, 0));
       else if (GET_CODE (x) == CONST_INT)
 	fprintf (file, "%ld", INTVAL (x));
       else
@@ -2558,7 +2534,6 @@ void
 xtensa_output_literal (FILE *file, rtx x, machine_mode mode, int labelno)
 {
   long value_long[2];
-  REAL_VALUE_TYPE r;
   int size;
   rtx first, second;
 
@@ -2569,18 +2544,19 @@ xtensa_output_literal (FILE *file, rtx x, machine_mode mode, int labelno)
     case MODE_FLOAT:
       gcc_assert (GET_CODE (x) == CONST_DOUBLE);
 
-      REAL_VALUE_FROM_CONST_DOUBLE (r, x);
       switch (mode)
 	{
 	case SFmode:
-	  REAL_VALUE_TO_TARGET_SINGLE (r, value_long[0]);
+	  REAL_VALUE_TO_TARGET_SINGLE (*CONST_DOUBLE_REAL_VALUE (x),
+				       value_long[0]);
 	  if (HOST_BITS_PER_LONG > 32)
 	    value_long[0] &= 0xffffffff;
 	  fprintf (file, "0x%08lx\n", value_long[0]);
 	  break;
 
 	case DFmode:
-	  REAL_VALUE_TO_TARGET_DOUBLE (r, value_long);
+	  REAL_VALUE_TO_TARGET_DOUBLE (*CONST_DOUBLE_REAL_VALUE (x),
+				       value_long);
 	  if (HOST_BITS_PER_LONG > 32)
 	    {
 	      value_long[0] &= 0xffffffff;
@@ -2727,7 +2703,7 @@ xtensa_expand_prologue (void)
 	  insn = emit_insn (gen_addsi3 (stack_pointer_rtx, stack_pointer_rtx,
 					GEN_INT (-total_size)));
 	  RTX_FRAME_RELATED_P (insn) = 1;
-	  note_rtx = gen_rtx_SET (VOIDmode, stack_pointer_rtx,
+	  note_rtx = gen_rtx_SET (stack_pointer_rtx,
 				  plus_constant (Pmode, stack_pointer_rtx,
 						 -total_size));
 	  add_reg_note (insn, REG_FRAME_RELATED_EXPR, note_rtx);
@@ -2743,7 +2719,7 @@ xtensa_expand_prologue (void)
 	      insn = emit_insn (gen_addsi3 (stack_pointer_rtx, stack_pointer_rtx,
 					    GEN_INT (-xtensa_callee_save_size)));
 	      RTX_FRAME_RELATED_P (insn) = 1;
-	      note_rtx = gen_rtx_SET (VOIDmode, stack_pointer_rtx,
+	      note_rtx = gen_rtx_SET (stack_pointer_rtx,
 				      plus_constant (Pmode, stack_pointer_rtx,
 						     -xtensa_callee_save_size));
 	      add_reg_note (insn, REG_FRAME_RELATED_EXPR, note_rtx);
@@ -2756,7 +2732,7 @@ xtensa_expand_prologue (void)
 	      insn = emit_insn (gen_subsi3 (stack_pointer_rtx,
 					    stack_pointer_rtx, tmp_reg));
 	      RTX_FRAME_RELATED_P (insn) = 1;
-	      note_rtx = gen_rtx_SET (VOIDmode, stack_pointer_rtx,
+	      note_rtx = gen_rtx_SET (stack_pointer_rtx,
 				      plus_constant (Pmode, stack_pointer_rtx,
 						     -total_size));
 	      add_reg_note (insn, REG_FRAME_RELATED_EXPR, note_rtx);
@@ -2776,7 +2752,7 @@ xtensa_expand_prologue (void)
 	      insn = emit_move_insn (mem, reg);
 	      RTX_FRAME_RELATED_P (insn) = 1;
 	      add_reg_note (insn, REG_FRAME_RELATED_EXPR,
-			    gen_rtx_SET (VOIDmode, mem, reg));
+			    gen_rtx_SET (mem, reg));
 	    }
 	}
       if (total_size > 1024)
@@ -2787,7 +2763,7 @@ xtensa_expand_prologue (void)
 	  insn = emit_insn (gen_subsi3 (stack_pointer_rtx,
 					stack_pointer_rtx, tmp_reg));
 	  RTX_FRAME_RELATED_P (insn) = 1;
-	  note_rtx = gen_rtx_SET (VOIDmode, stack_pointer_rtx,
+	  note_rtx = gen_rtx_SET (stack_pointer_rtx,
 				  plus_constant (Pmode, stack_pointer_rtx,
 						 xtensa_callee_save_size -
 						 total_size));
@@ -2826,7 +2802,7 @@ xtensa_expand_prologue (void)
 				       stack_pointer_rtx));
 	  if (!TARGET_WINDOWED_ABI)
 	    {
-	      note_rtx = gen_rtx_SET (VOIDmode, hard_frame_pointer_rtx,
+	      note_rtx = gen_rtx_SET (hard_frame_pointer_rtx,
 				      stack_pointer_rtx);
 	      RTX_FRAME_RELATED_P (insn) = 1;
 	      add_reg_note (insn, REG_FRAME_RELATED_EXPR, note_rtx);
@@ -2839,9 +2815,9 @@ xtensa_expand_prologue (void)
       /* Create a note to describe the CFA.  Because this is only used to set
 	 DW_AT_frame_base for debug info, don't bother tracking changes through
 	 each instruction in the prologue.  It just takes up space.  */
-      note_rtx = gen_rtx_SET (VOIDmode, (frame_pointer_needed
-					 ? hard_frame_pointer_rtx
-					 : stack_pointer_rtx),
+      note_rtx = gen_rtx_SET ((frame_pointer_needed
+			       ? hard_frame_pointer_rtx
+			       : stack_pointer_rtx),
 			      plus_constant (Pmode, stack_pointer_rtx,
 					     -total_size));
       RTX_FRAME_RELATED_P (insn) = 1;
@@ -2933,8 +2909,7 @@ xtensa_set_return_address (rtx address, rtx scratch)
     hard_frame_pointer_rtx : stack_pointer_rtx;
   rtx a0_addr = plus_constant (Pmode, frame,
 			       total_size - UNITS_PER_WORD);
-  rtx note = gen_rtx_SET (VOIDmode,
-			  gen_frame_mem (SImode, a0_addr),
+  rtx note = gen_rtx_SET (gen_frame_mem (SImode, a0_addr),
 			  gen_rtx_REG (SImode, A0_REG));
   rtx insn;
 
@@ -3588,9 +3563,12 @@ xtensa_memory_move_cost (machine_mode mode ATTRIBUTE_UNUSED,
    scanned.  In either case, *TOTAL contains the cost result.  */
 
 static bool
-xtensa_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
+xtensa_rtx_costs (rtx x, machine_mode mode, int outer_code,
+		  int opno ATTRIBUTE_UNUSED,
 		  int *total, bool speed ATTRIBUTE_UNUSED)
 {
+  int code = GET_CODE (x);
+
   switch (code)
     {
     case CONST_INT:
@@ -3660,9 +3638,9 @@ xtensa_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
     case MEM:
       {
 	int num_words =
-	  (GET_MODE_SIZE (GET_MODE (x)) > UNITS_PER_WORD) ?  2 : 1;
+	  (GET_MODE_SIZE (mode) > UNITS_PER_WORD) ?  2 : 1;
 
-	if (memory_address_p (GET_MODE (x), XEXP ((x), 0)))
+	if (memory_address_p (mode, XEXP ((x), 0)))
 	  *total = COSTS_N_INSNS (num_words);
 	else
 	  *total = COSTS_N_INSNS (2*num_words);
@@ -3679,13 +3657,13 @@ xtensa_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
       return true;
 
     case NOT:
-      *total = COSTS_N_INSNS ((GET_MODE (x) == DImode) ? 3 : 2);
+      *total = COSTS_N_INSNS (mode == DImode ? 3 : 2);
       return true;
 
     case AND:
     case IOR:
     case XOR:
-      if (GET_MODE (x) == DImode)
+      if (mode == DImode)
 	*total = COSTS_N_INSNS (2);
       else
 	*total = COSTS_N_INSNS (1);
@@ -3694,7 +3672,7 @@ xtensa_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
     case ASHIFT:
     case ASHIFTRT:
     case LSHIFTRT:
-      if (GET_MODE (x) == DImode)
+      if (mode == DImode)
 	*total = COSTS_N_INSNS (50);
       else
 	*total = COSTS_N_INSNS (1);
@@ -3702,10 +3680,9 @@ xtensa_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
 
     case ABS:
       {
-	machine_mode xmode = GET_MODE (x);
-	if (xmode == SFmode)
+	if (mode == SFmode)
 	  *total = COSTS_N_INSNS (TARGET_HARD_FLOAT ? 1 : 50);
-	else if (xmode == DFmode)
+	else if (mode == DFmode)
 	  *total = COSTS_N_INSNS (50);
 	else
 	  *total = COSTS_N_INSNS (4);
@@ -3715,10 +3692,9 @@ xtensa_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
     case PLUS:
     case MINUS:
       {
-	machine_mode xmode = GET_MODE (x);
-	if (xmode == SFmode)
+	if (mode == SFmode)
 	  *total = COSTS_N_INSNS (TARGET_HARD_FLOAT ? 1 : 50);
-	else if (xmode == DFmode || xmode == DImode)
+	else if (mode == DFmode || mode == DImode)
 	  *total = COSTS_N_INSNS (50);
 	else
 	  *total = COSTS_N_INSNS (1);
@@ -3726,17 +3702,16 @@ xtensa_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
       }
 
     case NEG:
-      *total = COSTS_N_INSNS ((GET_MODE (x) == DImode) ? 4 : 2);
+      *total = COSTS_N_INSNS (mode == DImode ? 4 : 2);
       return true;
 
     case MULT:
       {
-	machine_mode xmode = GET_MODE (x);
-	if (xmode == SFmode)
+	if (mode == SFmode)
 	  *total = COSTS_N_INSNS (TARGET_HARD_FLOAT ? 4 : 50);
-	else if (xmode == DFmode)
+	else if (mode == DFmode)
 	  *total = COSTS_N_INSNS (50);
-	else if (xmode == DImode)
+	else if (mode == DImode)
 	  *total = COSTS_N_INSNS (TARGET_MUL32_HIGH ? 10 : 50);
 	else if (TARGET_MUL32)
 	  *total = COSTS_N_INSNS (4);
@@ -3752,13 +3727,12 @@ xtensa_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
     case DIV:
     case MOD:
       {
-	machine_mode xmode = GET_MODE (x);
-	if (xmode == SFmode)
+	if (mode == SFmode)
 	  {
 	    *total = COSTS_N_INSNS (TARGET_HARD_FLOAT_DIV ? 8 : 50);
 	    return true;
 	  }
-	else if (xmode == DFmode)
+	else if (mode == DFmode)
 	  {
 	    *total = COSTS_N_INSNS (50);
 	    return true;
@@ -3769,8 +3743,7 @@ xtensa_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
     case UDIV:
     case UMOD:
       {
-	machine_mode xmode = GET_MODE (x);
-	if (xmode == DImode)
+	if (mode == DImode)
 	  *total = COSTS_N_INSNS (50);
 	else if (TARGET_DIV32)
 	  *total = COSTS_N_INSNS (32);
@@ -3780,7 +3753,7 @@ xtensa_rtx_costs (rtx x, int code, int outer_code, int opno ATTRIBUTE_UNUSED,
       }
 
     case SQRT:
-      if (GET_MODE (x) == SFmode)
+      if (mode == SFmode)
 	*total = COSTS_N_INSNS (TARGET_HARD_FLOAT_SQRT ? 8 : 50);
       else
 	*total = COSTS_N_INSNS (50);

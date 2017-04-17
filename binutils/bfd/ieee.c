@@ -1,5 +1,5 @@
 /* BFD back-end for ieee-695 objects.
-   Copyright (C) 1990-2014 Free Software Foundation, Inc.
+   Copyright (C) 1990-2017 Free Software Foundation, Inc.
 
    Written by Steve Chamberlain of Cygnus Support.
 
@@ -154,7 +154,8 @@ ieee_write_id (bfd *abfd, const char *id)
     }
   else
     {
-      (*_bfd_error_handler)
+      _bfd_error_handler
+	/* xgettext:c-format */
 	(_("%s: string too long (%d chars, max 65535)"),
 	 bfd_get_filename (abfd), length);
       bfd_set_error (bfd_error_invalid_operation);
@@ -288,7 +289,8 @@ ieee_write_expression (bfd *abfd,
 	    }
 	  else
 	    {
-	      (*_bfd_error_handler)
+	      _bfd_error_handler
+		/* xgettext:c-format */
 		(_("%s: unrecognized symbol `%s' flags 0x%x"),
 		 bfd_get_filename (abfd), bfd_asymbol_name (symbol),
 		 symbol->flags);
@@ -823,7 +825,8 @@ ieee_slurp_external_symbols (bfd *abfd)
 		    parse_int (&ieee->h, &value);
 		    break;
 		  default:
-		    (*_bfd_error_handler)
+		    _bfd_error_handler
+		      /* xgettext:c-format */
 		      (_("%B: unimplemented ATI record %u for symbol %u"),
 		       abfd, symbol_attribute_def, symbol_name_index);
 		    bfd_set_error (bfd_error_bad_value);
@@ -847,7 +850,8 @@ ieee_slurp_external_symbols (bfd *abfd)
 		parse_int (&ieee->h, &value);
 		if (value != 0x3f)
 		  {
-		    (*_bfd_error_handler)
+		    _bfd_error_handler
+		      /* xgettext:c-format */
 		      (_("%B: unexpected ATN type %d in external part"),
 			 abfd, (int) value);
 		    bfd_set_error (bfd_error_bad_value);
@@ -869,7 +873,7 @@ ieee_slurp_external_symbols (bfd *abfd)
 			break;
 
 		      default:
-			(*_bfd_error_handler)
+			_bfd_error_handler
 			  (_("%B: unexpected type after ATN"), abfd);
 			bfd_set_error (bfd_error_bad_value);
 			return FALSE;
@@ -2597,10 +2601,13 @@ write_int (int value)
 	{
 	case 4:
 	  OUT (value >> 24);
+	  /* Fall through.  */
 	case 3:
 	  OUT (value >> 16);
+	  /* Fall through.  */
 	case 2:
 	  OUT (value >> 8);
+	  /* Fall through.  */
 	case 1:
 	  OUT (value);
 	}
@@ -2753,15 +2760,19 @@ drop_int (struct output_buffer_struct *buf)
 	case 0x84:
 	  ch = THIS ();
 	  NEXT ();
+	  /* Fall through.  */
 	case 0x83:
 	  ch = THIS ();
 	  NEXT ();
+	  /* Fall through.  */
 	case 0x82:
 	  ch = THIS ();
 	  NEXT ();
+	  /* Fall through.  */
 	case 0x81:
 	  ch = THIS ();
 	  NEXT ();
+	  /* Fall through.  */
 	case 0x80:
 	  break;
 	}
@@ -2791,18 +2802,22 @@ copy_int (void)
 	  ch = THIS ();
 	  NEXT ();
 	  OUT (ch);
+	  /* Fall through.  */
 	case 0x83:
 	  ch = THIS ();
 	  NEXT ();
 	  OUT (ch);
+	  /* Fall through.  */
 	case 0x82:
 	  ch = THIS ();
 	  NEXT ();
 	  OUT (ch);
+	  /* Fall through.  */
 	case 0x81:
 	  ch = THIS ();
 	  NEXT ();
 	  OUT (ch);
+	  /* Fall through.  */
 	case 0x80:
 	  break;
 	}
@@ -2833,12 +2848,15 @@ copy_till_end (void)
 	case 0x84:
 	  OUT (THIS ());
 	  NEXT ();
+	  /* Fall through.  */
 	case 0x83:
 	  OUT (THIS ());
 	  NEXT ();
+	  /* Fall through.  */
 	case 0x82:
 	  OUT (THIS ());
 	  NEXT ();
+	  /* Fall through.  */
 	case 0x81:
 	  OUT (THIS ());
 	  NEXT ();
@@ -3863,6 +3881,7 @@ ieee_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
   _bfd_generic_copy_link_hash_symbol_type
 #define ieee_bfd_final_link _bfd_generic_final_link
 #define ieee_bfd_link_split_section  _bfd_generic_link_split_section
+#define ieee_bfd_link_check_relocs   _bfd_generic_link_check_relocs
 
 const bfd_target ieee_vec =
 {

@@ -11,6 +11,9 @@ MACHINE=
 TEMPLATE_NAME=elf32
 GENERATE_SHLIB_SCRIPT=yes
 EMBEDDED=yes
+# PR 17739.  Delay checking relocs until after all files have
+# been opened and linker garbage collection has taken place.
+CHECK_RELOCS_AFTER_OPEN_INPUT=yes
 
 # These are for compatibility with the COFF toolchain.
 ENTRY=start
@@ -18,13 +21,13 @@ CTOR_START='___ctors = .;'
 CTOR_END='___ctors_end = .;'
 DTOR_START='___dtors = .;'
 DTOR_END='___dtors_end = .;'
-# This is like setting STACK_ADDR to 0x300000, except that the setting can
+# This is like setting STACK_ADDR to 0x3FFFFF00, except that the setting can
 # be overridden, e.g. --defsym _stack=0x0f00, and that we put an extra
 # sentinal value at the bottom.
 # N.B. We can't use PROVIDE to set the default value in a symbol because
 # the address is needed to place the .stack section, which in turn is needed
 # to hold the sentinel value(s).
-test -z "$CREATE_SHLIB" && OTHER_SECTIONS="  .stack        ${RELOCATING-0}${RELOCATING+(DEFINED(_stack) ? _stack : 0x300000)} :
+test -z "$CREATE_SHLIB" && OTHER_SECTIONS="  .stack        ${RELOCATING-0}${RELOCATING+(DEFINED(_stack) ? _stack : 0x3FFFFF00)} :
   {
     ${RELOCATING+_stack = .;}
     *(.stack)

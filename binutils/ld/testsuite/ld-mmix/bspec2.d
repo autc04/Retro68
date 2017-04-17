@@ -19,12 +19,12 @@ Section Headers:
  +0+8 +0+ +0 +0 +4
  +\[ 3\] \.MMIX\.spec_data\.3 PROGBITS +0+ +0+84
  +0+4 +0+ +0 +0 +4
- +\[ 4\] \.shstrtab +STRTAB +0+ +0+88
+ +\[ 4\] \.symtab +SYMTAB +0+ .*
+ +0+108 +0+18 +5 +4 +8
+ +\[ 5\] \.strtab +STRTAB +0+ .*
+ +0+2b +0+ +0 +0 +1
+ +\[ 6\] \.shstrtab +STRTAB +0+ +[0-9a-f]+
  +0+45 +0+ +0 +0 +1
- +\[ 5\] \.symtab +SYMTAB +0+ .*
- +0+108 +0+18 +6 +4 +8
- +\[ 6\] \.strtab +STRTAB +0+ .*
- +0+32 +0+ +0 +0 +1
 Key to Flags:
 #...
 

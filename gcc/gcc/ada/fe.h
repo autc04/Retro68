@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1992-2014, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2015, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -38,6 +38,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* atree: */
+
+#define Serious_Errors_Detected atree__serious_errors_detected
 
 /* comperr: */
 
@@ -76,10 +80,6 @@ extern Boolean Is_Entity_Name		(Node_Id);
 
 #define Get_Attribute_Definition_Clause einfo__get_attribute_definition_clause
 extern Node_Id Get_Attribute_Definition_Clause (Entity_Id, char);
-
-/* atree: */
-
-#define Serious_Errors_Detected atree__serious_errors_detected
 
 /* errout: */
 
@@ -178,7 +178,9 @@ extern Boolean In_Same_Source_Unit              (Node_Id, Node_Id);
 #define List_Representation_Info       opt__list_representation_info
 #define No_Strict_Aliasing_CP          opt__no_strict_aliasing
 
-typedef enum {Setjmp_Longjmp, Back_End_Exceptions} Exception_Mechanism_Type;
+typedef enum {
+  Front_End_SJLJ, Back_End_ZCX, Back_End_SJLJ
+} Exception_Mechanism_Type;
 
 extern Boolean Back_End_Inlining;
 extern Boolean Exception_Extra_Info;
@@ -190,15 +192,29 @@ extern Boolean GNAT_Mode;
 extern Int List_Representation_Info;
 extern Boolean No_Strict_Aliasing_CP;
 
+#define ZCX_Exceptions            opt__zcx_exceptions
+#define SJLJ_Exceptions           opt__sjlj_exceptions
+#define Front_End_Exceptions      opt__front_end_exceptions
+#define Back_End_Exceptions       opt__back_end_exceptions
+
+extern Boolean ZCX_Exceptions       (void);
+extern Boolean SJLJ_Exceptions      (void);
+extern Boolean Front_End_Exceptions (void);
+extern Boolean Back_End_Exceptions  (void);
+
 /* restrict: */
 
 #define No_Exception_Handlers_Set      restrict__no_exception_handlers_set
 #define Check_No_Implicit_Heap_Alloc   restrict__check_no_implicit_heap_alloc
+#define Check_No_Implicit_Task_Alloc   restrict__check_no_implicit_task_alloc
+#define Check_No_Implicit_Protected_Alloc restrict__check_no_implicit_protected_alloc
 #define Check_Elaboration_Code_Allowed restrict__check_elaboration_code_allowed
 #define Check_Implicit_Dynamic_Code_Allowed restrict__check_implicit_dynamic_code_allowed
 
 extern Boolean No_Exception_Handlers_Set   (void);
 extern void Check_No_Implicit_Heap_Alloc   (Node_Id);
+extern void Check_No_Implicit_Task_Alloc   (Node_Id);
+extern void Check_No_Implicit_Protected_Alloc (Node_Id);
 extern void Check_Elaboration_Code_Allowed (Node_Id);
 extern void Check_Implicit_Dynamic_Code_Allowed (Node_Id);
 

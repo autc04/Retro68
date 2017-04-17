@@ -42,6 +42,7 @@ with Nmake;    use Nmake;
 with Nlists;   use Nlists;
 with Opt;      use Opt;
 with Restrict; use Restrict;
+with Rident;   use Rident;
 with Sem;      use Sem;
 with Sem_Aux;  use Sem_Aux;
 with Sem_Cat;  use Sem_Cat;
@@ -401,7 +402,7 @@ package body Sem_Aggr is
    --  is set in Resolve_Array_Aggregate but the aggregate is not
    --  immediately replaced with a raise CE. In fact, Array_Aggr_Subtype must
    --  first construct the proper itype for the aggregate (Gigi needs
-   --  this). After constructing the proper itype we will eventually  replace
+   --  this). After constructing the proper itype we will eventually replace
    --  the top-level aggregate with a raise CE (done in Resolve_Aggregate).
    --  Of course in cases such as:
    --
@@ -412,7 +413,7 @@ package body Sem_Aggr is
    --  (in this particular case the bounds will be 1 .. 2).
 
    procedure Make_String_Into_Aggregate (N : Node_Id);
-   --  A string literal can appear in  a context in  which a one dimensional
+   --  A string literal can appear in a context in which a one dimensional
    --  array of characters is expected. This procedure simply rewrites the
    --  string as an aggregate, prior to resolution.
 
@@ -1967,6 +1968,14 @@ package body Sem_Aggr is
                      return Failure;
                   end if;
 
+                  if not (All_Composite_Constraints_Static (Low)
+                            and then All_Composite_Constraints_Static (High)
+                            and then All_Composite_Constraints_Static (S_Low)
+                            and then All_Composite_Constraints_Static (S_High))
+                  then
+                     Check_Restriction (No_Dynamic_Sized_Objects, Choice);
+                  end if;
+
                   Nb_Discrete_Choices := Nb_Discrete_Choices + 1;
                   Table (Nb_Discrete_Choices).Lo := Low;
                   Table (Nb_Discrete_Choices).Hi := High;
@@ -2304,6 +2313,16 @@ package body Sem_Aggr is
             if Others_Present then
                Get_Index_Bounds (Index_Constr, Aggr_Low, Aggr_High);
 
+               --  Abandon processing if either bound is already signalled as
+               --  an error (prevents junk cascaded messages and blow ups).
+
+               if Nkind (Aggr_Low) = N_Error
+                    or else
+                  Nkind (Aggr_High) = N_Error
+               then
+                  return False;
+               end if;
+
             --  No others clause present
 
             else
@@ -2313,6 +2332,16 @@ package body Sem_Aggr is
 
                if Others_Allowed then
                   Get_Index_Bounds (Index_Constr, Aggr_Low, Aggr_High);
+
+                  --  Abandon processing if either bound is already signalled
+                  --  as an error (stop junk cascaded messages and blow ups).
+
+                  if Nkind (Aggr_Low) = N_Error
+                       or else
+                     Nkind (Aggr_High) = N_Error
+                  then
+                     return False;
+                  end if;
 
                   --  If others allowed, and no others present, then the array
                   --  should cover all index values. If it does not, we will
@@ -2698,7 +2727,7 @@ package body Sem_Aggr is
             if Etype (Imm_Type) = Base_Type (A_Type) then
                return True;
 
-            --  The base type of the parent type may appear as  a private
+            --  The base type of the parent type may appear as a private
             --  extension if it is declared as such in a parent unit of the
             --  current one. For consistency of the subsequent analysis use
             --  the partial view for the ancestor part.
@@ -4396,7 +4425,7 @@ package body Sem_Aggr is
                            --  have already been inserted into the component
                            --  list of the current aggregate.
 
-                           if Nkind (Def_Node) =  N_Record_Definition
+                           if Nkind (Def_Node) = N_Record_Definition
                              and then Present (Component_List (Def_Node))
                              and then
                                Present
@@ -4677,6 +4706,7 @@ package body Sem_Aggr is
          Set_Expressions            (New_Aggregate, No_List);
          Set_Etype                  (New_Aggregate, Etype (N));
          Set_Component_Associations (New_Aggregate, New_Assoc_List);
+         Set_Check_Actuals          (New_Aggregate, Check_Actuals (N));
 
          Rewrite (N, New_Aggregate);
       end Step_8;

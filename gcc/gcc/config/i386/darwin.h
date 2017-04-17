@@ -1,5 +1,5 @@
 /* Target definitions for x86 running Darwin.
-   Copyright (C) 2001-2015 Free Software Foundation, Inc.
+   Copyright (C) 2001-2016 Free Software Foundation, Inc.
    Contributed by Apple Computer Inc.
 
 This file is part of GCC.
@@ -108,25 +108,16 @@ extern int darwin_emit_branch_islands;
 #undef CC1_SPEC
 #define CC1_SPEC "%(cc1_cpu) \
   %{!mkernel:%{!static:%{!mdynamic-no-pic:-fPIC}}} \
-  %{!mmacosx-version-min=*:-mmacosx-version-min=%(darwin_minversion)} \
   %{g: %{!fno-eliminate-unused-debug-symbols: -feliminate-unused-debug-symbols }} " \
   DARWIN_CC1_SPEC
 
 #undef ASM_SPEC
-#define ASM_SPEC "-arch %(darwin_arch) -force_cpusubtype_ALL \
-  %{static}"
+#define ASM_SPEC "-arch %(darwin_arch) \
+  " ASM_OPTIONS " -force_cpusubtype_ALL \
+  %{static}" ASM_MMACOSX_VERSION_MIN_SPEC
 
 #define DARWIN_ARCH_SPEC "%{m64:x86_64;:i386}"
 #define DARWIN_SUBARCH_SPEC DARWIN_ARCH_SPEC
-
-/* Determine a minimum version based on compiler options.  */
-#define DARWIN_MINVERSION_SPEC				\
- "%{!m64|fgnu-runtime:10.4;				\
-    ,objective-c|,objc-cpp-output:10.5;			\
-    ,objective-c-header:10.5;				\
-    ,objective-c++|,objective-c++-cpp-output:10.5;	\
-    ,objective-c++-header|,objc++-cpp-output:10.5;	\
-    :10.4}"
 
 #undef ENDFILE_SPEC
 #define ENDFILE_SPEC \
@@ -236,7 +227,11 @@ do {									\
    compiles default to stabs+.  darwin9+ defaults to dwarf-2.  */
 #ifndef DARWIN_PREFER_DWARF
 #undef PREFERRED_DEBUGGING_TYPE
+#ifdef HAVE_AS_STABS_DIRECTIVE
 #define PREFERRED_DEBUGGING_TYPE (TARGET_64BIT ? DWARF2_DEBUG : DBX_DEBUG)
+#else
+#define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
+#endif
 #endif
 
 /* Darwin uses the standard DWARF register numbers but the default

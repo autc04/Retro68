@@ -1,5 +1,6 @@
 /* { dg-do run } */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <openacc.h>
 
@@ -14,6 +15,7 @@ main (int argc, char **argv)
 
   d = acc_malloc (N);
 
+  fprintf (stderr, "CheCKpOInT\n");
   acc_map_data (h, d, 0);
 
   acc_unmap_data (h);
@@ -25,4 +27,7 @@ main (int argc, char **argv)
   return 0;
 }
 
-/* { dg-shouldfail "libgomp: \[\h+,\+0\]->\[\h+,\+0\] is a bad map" } */
+/* { dg-output "CheCKpOInT(\n|\r\n|\r).*" } */
+/* { dg-output "\\\[\[0-9a-fA-FxX\]+,\\\+0\\\]->\\\[\[0-9a-fA-FxX\]+,\\\+0\\\] is a bad map" { target openacc_nvidia_accel_selected } } */
+/* { dg-output "cannot map data on shared-memory system" { target openacc_host_selected } } */
+/* { dg-shouldfail "" } */

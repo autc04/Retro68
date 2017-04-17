@@ -1,7 +1,7 @@
 /* This file read a Java(TM) .class file.
    It is not stand-alone:  It depends on tons of macros, and the
    intent is you #include this file after you've defined the macros.
-   Copyright (C) 1996-2015 Free Software Foundation, Inc.
+   Copyright (C) 1996-2016 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -23,7 +23,6 @@ Java and all Java-based marks are trademarks or registered trademarks
 of Sun Microsystems, Inc. in the United States and other countries.
 The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 
-#include "ggc.h"
 #include "jcf.h"
 #include "zipfile.h"
 
@@ -353,7 +352,7 @@ jcf_parse_constant_pool (JCF* jcf)
        
       /* Make sure at least 9 bytes are available.  This is enough
 	 for all fixed-sized constant pool entries (so we don't need many
-	 more JCF_FILL calls below), but is is small enough that
+	 more JCF_FILL calls below), but is small enough that
 	 we are guaranteed to not hit EOF (in a valid .class file). */
       JCF_FILL (jcf, 9);
       constant_kind = JCF_readu (jcf);

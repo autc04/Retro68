@@ -1,8 +1,8 @@
 SECTIONS
 {
   .text : {*(.text)}
-  .data ALIGN(0x40) : AT (ALIGN (LOADADDR (.text) + SIZEOF (.text), 0x80))
+  .data ALIGN(0x1000) : AT (ALIGN (LOADADDR (.text) + SIZEOF (.text), 0x80))
     {}
   ASSERT (LOADADDR(.data) == 0x80, "dyadic ALIGN broken")
-  ASSERT (ADDR(.data) == 0x40, "monadic ALIGN broken")
+  ASSERT (ADDR(.data) == 0x1000, "monadic ALIGN broken")
 }

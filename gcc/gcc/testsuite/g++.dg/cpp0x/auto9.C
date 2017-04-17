@@ -21,8 +21,8 @@ struct A
 
 struct A2
 {
-  operator auto () -> int;			// { dg-error "invalid use of" "" { target { ! c++14 } } }
-  operator auto *() -> int;			// { dg-error "auto" }
+  operator auto () -> int;			// { dg-error "invalid use of|trailing return type" }
+  operator auto*() -> int;			// { dg-error "invalid use of|trailing return type" }
 };
 
 template <typename> struct B
@@ -114,10 +114,10 @@ badthrow2 () throw (auto &)			// { dg-error "invalid use of|expected" }
 template <auto V = 4> struct G {};		// { dg-error "auto" }
 
 template <typename T> struct H { H (); ~H (); };
-H<auto> h;					// { dg-error "invalid" }
+H<auto> h;					// { dg-error "invalid|initializer" }
 
-void qq (auto);			// { dg-error "auto" }
-void qr (auto*);		// { dg-error "auto" }
+void qq (auto);		       // { dg-error "auto" "" { target { ! concepts } } }
+void qr (auto*);	       // { dg-error "auto" "" { target { ! concepts } } }
 
 // PR c++/46145
 typedef auto autot;		// { dg-error "auto" }

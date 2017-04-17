@@ -261,6 +261,14 @@ new:	maddf.s	$f0,$f1,$f2
 	jalrc	$4
 	nal
 
+	evp
+	dvp
+	evp	$2
+	dvp	$2
+
+	sigrie	0
+	sigrie	0xffff
+
 # Force at least 8 (non-delay-slot) zero bytes, to make 'objdump' print ...
 	.align  2
 	.space  8

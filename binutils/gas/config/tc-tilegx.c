@@ -1,5 +1,5 @@
 /* tc-tilegx.c -- Assemble for a Tile-Gx chip.
-   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Copyright (C) 2011-2017 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -99,7 +99,7 @@ struct option md_longopts[] =
 size_t md_longopts_size = sizeof (md_longopts);
 
 int
-md_parse_option (int c, char *arg ATTRIBUTE_UNUSED)
+md_parse_option (int c, const char *arg ATTRIBUTE_UNUSED)
 {
   switch (c)
     {
@@ -396,7 +396,7 @@ static tilegx_bundle_bits
 insert_operand (tilegx_bundle_bits bits,
                 const struct tilegx_operand *operand,
                 int operand_value,
-                char *file,
+                const char *file,
                 unsigned lineno)
 {
   /* Range-check the immediate.  */
@@ -434,7 +434,8 @@ insert_operand (tilegx_bundle_bits bits,
 
 
 static int
-apply_special_operator (operatorT op, offsetT num, char *file, unsigned lineno)
+apply_special_operator (operatorT op, offsetT num, const char *file,
+		       	unsigned lineno)
 {
   int ret;
   int check_shift = -1;
@@ -1085,33 +1086,32 @@ tilegx_parse_name (char *name, expressionS *e, char *nextcharP)
 static void
 parse_reg_expression (expressionS* expression)
 {
+  char *regname;
+  char terminating_char;
+  void *pval;
+  int regno_and_flags;
+  int regno;
+
   /* Zero everything to make sure we don't miss any flags.  */
   memset (expression, 0, sizeof *expression);
 
-  char* regname = input_line_pointer;
-  char terminating_char = get_symbol_end ();
+  terminating_char = get_symbol_name (&regname);
 
-  void* pval = hash_find (main_reg_hash, regname);
-
+  pval = hash_find (main_reg_hash, regname);
   if (pval == NULL)
-    {
-      as_bad (_("Expected register, got '%s'."), regname);
-    }
+    as_bad (_("Expected register, got '%s'."), regname);
 
-  int regno_and_flags = (int)(size_t)pval;
-  int regno = EXTRACT_REGNO(regno_and_flags);
+  regno_and_flags = (int)(size_t)pval;
+  regno = EXTRACT_REGNO(regno_and_flags);
 
   if ((regno_and_flags & NONCANONICAL_REG_NAME_FLAG)
       && require_canonical_reg_names)
-    {
-      as_warn (_("Found use of non-canonical register name %s; "
-		 "use %s instead."),
-	       regname,
-	       tilegx_register_names[regno]);
-    }
+    as_warn (_("Found use of non-canonical register name %s; "
+	       "use %s instead."),
+	     regname, tilegx_register_names[regno]);
 
   /* Restore the old character following the register name.  */
-  *input_line_pointer = terminating_char;
+  (void) restore_line_pointer (terminating_char);
 
   /* Fill in the expression fields to indicate it's a register.  */
   expression->X_op = O_register;
@@ -1330,7 +1330,7 @@ md_number_to_chars (char * buf, valueT val, int n)
    LITTLENUMS emitted is stored in *SIZEP.  An error message is
    returned, or NULL on OK.  */
 
-char *
+const char *
 md_atof (int type, char *litP, int *sizeP)
 {
   int prec;
@@ -1735,8 +1735,8 @@ tc_gen_reloc (asection *sec ATTRIBUTE_UNUSED, fixS *fixp)
 {
   arelent *reloc;
 
-  reloc = (arelent *) xmalloc (sizeof (arelent));
-  reloc->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
+  reloc = XNEW (arelent);
+  reloc->sym_ptr_ptr = XNEW (asymbol *);
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
   reloc->address = fixp->fx_frag->fr_address + fixp->fx_where;
 

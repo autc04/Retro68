@@ -1,10 +1,38 @@
-2015-07-16  Release Manager
+2016-12-21  Release Manager
 
-	* GCC 5.2.0 released.
+	* GCC 6.3.0 released.
 
-2015-04-22  Release Manager
+2016-08-22  Release Manager
 
-	* GCC 5.1.0 released.
+	* GCC 6.2.0 released.
+
+2016-04-27  Release Manager
+
+	* GCC 6.1.0 released.
+
+2016-02-03  Ian Lance Taylor  <iant@google.com>
+
+	* Makefile.am (go_cmd_gofmt_files): Update to Go 1.6rc1 by adding
+	internal.go.
+	* Makefile.in: Rebuild.
+
+2015-12-02  Ian Lance Taylor  <iant@google.com>
+
+	PR go/66147
+	* Makefile.am (GOCOMPILER): In NATIVE case, add
+	$(XGCC_FLAGS_FOR_TARGET).
+
+2015-10-31  Ian Lance Taylor  <iant@google.com>
+
+	* Makefile.am (go_cmd_go_files): Update to Go 1.5.1 library by
+	adding alldocs.go, doc.go, note.go.
+	* Makefile.in: Rebuild.
+
+2015-05-13  Michael Haubenwallner  <michael.haubenwallner@ssi-schaefer.com>
+
+	* Makefile.in: Regenerated with automake-1.11.6.
+	* aclocal.m4: Likewise.
+	* configure: Likewise.
 
 2015-03-24  Ian Lance Taylor  <iant@google.com>
 

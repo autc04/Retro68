@@ -1,5 +1,5 @@
 /* coffgrok.c
-   Copyright (C) 1994-2014 Free Software Foundation, Inc.
+   Copyright (C) 1994-2017 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -33,28 +33,24 @@
 #include "bucomm.h"
 #include "coffgrok.h"
 
-static int lofile = 1;
-static struct coff_scope *top_scope;
-static struct coff_scope *file_scope;
-static struct coff_ofile *ofile;
+static int                      lofile = 1;
 
-static struct coff_symbol *last_function_symbol;
-static struct coff_type *last_function_type;
-static struct coff_type *last_struct;
-static struct coff_type *last_enum;
-static struct coff_sfile *cur_sfile;
-
-static struct coff_symbol **tindex;
-
-
-static asymbol **syms;
-static long symcount;
+static struct coff_scope *      top_scope;
+static struct coff_scope *      file_scope;
+static struct coff_ofile *      ofile;
+static struct coff_symbol *     last_function_symbol;
+static struct coff_type *       last_function_type;
+static struct coff_type *       last_struct;
+static struct coff_type *       last_enum;
+static struct coff_sfile *      cur_sfile;
+static struct coff_symbol **    tindex;
+static asymbol **               syms;
+static long                     symcount;
+static struct coff_ptr_struct * rawsyms;
+static unsigned int             rawcount;
+static bfd *                    abfd;
 
 #define N(x) ((x)->_n._n_nptr[1])
-
-static struct coff_ptr_struct *rawsyms;
-static unsigned int rawcount;
-static bfd *abfd;
 
 #define PTR_SIZE	4
 #define SHORT_SIZE	2
@@ -65,12 +61,11 @@ static bfd *abfd;
 
 #define INDEXOF(p)  ((struct coff_ptr_struct *)(p)-(rawsyms))
 
+
 static struct coff_scope *
 empty_scope (void)
 {
-  struct coff_scope *l;
-  l = (struct coff_scope *) (xcalloc (sizeof (struct coff_scope), 1));
-  return l;
+  return (struct coff_scope *) (xcalloc (sizeof (struct coff_scope), 1));
 }
 
 static struct coff_symbol *
@@ -79,7 +74,6 @@ empty_symbol (void)
   return (struct coff_symbol *) (xcalloc (sizeof (struct coff_symbol), 1));
 }
 
-/*int l;*/
 static void
 push_scope (int slink)
 {
@@ -171,6 +165,7 @@ static void
 do_sections_p2 (struct coff_ofile *head)
 {
   asection *section;
+
   for (section = abfd->sections; section; section = section->next)
     {
       unsigned int j;
@@ -891,7 +886,7 @@ coff_grok (bfd *inabfd)
       non_fatal (_("%s: is not a COFF format file"), bfd_get_filename (abfd));
       return NULL;
     }
-  
+
   storage = bfd_get_symtab_upper_bound (abfd);
 
   if (storage < 0)

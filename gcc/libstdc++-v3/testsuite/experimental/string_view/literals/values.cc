@@ -1,7 +1,7 @@
 // { dg-do run }
 // { dg-options "-std=gnu++14" }
 
-// Copyright (C) 2013-2015 Free Software Foundation, Inc.
+// Copyright (C) 2013-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,15 +27,19 @@ test01()
   using namespace std::experimental::literals::string_view_literals;
 
   std::experimental::string_view planet = "Mercury"sv;
+#ifdef _GLIBCXX_USE_WCHAR_T
   std::experimental::wstring_view wplanet = L"Venus"sv;
+#endif
   std::experimental::string_view u8planet = u8"Mars"sv;
-  std::experimental::u16string_view u16planet = u"Juiter"sv;
+  std::experimental::u16string_view u16planet = u"Jupiter"sv;
   std::experimental::u32string_view u32planet = U"Saturn"sv;
 
   VERIFY( planet == std::experimental::string_view("Mercury") );
+#ifdef _GLIBCXX_USE_WCHAR_T
   VERIFY( wplanet == std::experimental::wstring_view(L"Venus") );
+#endif
   VERIFY( u8planet == std::experimental::string_view(u8"Mars") );
-  VERIFY( u16planet == std::experimental::u16string_view(u"Juiter") );
+  VERIFY( u16planet == std::experimental::u16string_view(u"Jupiter") );
   VERIFY( u32planet == std::experimental::u32string_view(U"Saturn") );
 }
 

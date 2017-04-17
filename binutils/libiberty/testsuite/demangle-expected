@@ -31,6 +31,11 @@ ArrowLine::ArrowheadIntersects(Arrowhead *, BoxObj &, Graphic *)
 ArrowLine::ArrowheadIntersects
 #
 --format=gnu --no-params
+ArrowheadIntersects__9ArrowLineP9ArrowheadO6BoxObjP7Graphic
+ArrowLine::ArrowheadIntersects(Arrowhead *, BoxObj &&, Graphic *)
+ArrowLine::ArrowheadIntersects
+#
+--format=gnu --no-params
 AtEnd__13ivRubberGroup
 ivRubberGroup::AtEnd(void)
 ivRubberGroup::AtEnd
@@ -51,6 +56,11 @@ TextCode::CoreConstDecls(ostream &)
 TextCode::CoreConstDecls
 #
 --format=gnu --no-params
+CoreConstDecls__8TextCodeO7ostream
+TextCode::CoreConstDecls(ostream &&)
+TextCode::CoreConstDecls
+#
+--format=gnu --no-params
 Detach__8StateVarP12StateVarView
 StateVar::Detach(StateVarView *)
 StateVar::Detach
@@ -66,8 +76,18 @@ RelateManip::Effect(ivEvent &)
 RelateManip::Effect
 #
 --format=gnu --no-params
+Effect__11RelateManipO7ivEvent
+RelateManip::Effect(ivEvent &&)
+RelateManip::Effect
+#
+--format=gnu --no-params
 FindFixed__FRP4CNetP4CNet
 FindFixed(CNet *&, CNet *)
+FindFixed
+#
+--format=gnu --no-params
+FindFixed__FOP4CNetP4CNet
+FindFixed(CNet *&&, CNet *)
 FindFixed
 #
 --format=gnu --no-params
@@ -76,8 +96,18 @@ Fix48_abort(twolongs &)
 Fix48_abort
 #
 --format=gnu --no-params
+Fix48_abort__FO8twolongs
+Fix48_abort(twolongs &&)
+Fix48_abort
+#
+--format=gnu --no-params
 GetBarInfo__15iv2_6_VScrollerP13ivPerspectiveRiT2
 iv2_6_VScroller::GetBarInfo(ivPerspective *, int &, int &)
+iv2_6_VScroller::GetBarInfo
+#
+--format=gnu --no-params
+GetBarInfo__15iv2_6_VScrollerP13ivPerspectiveOiT2
+iv2_6_VScroller::GetBarInfo(ivPerspective *, int &&, int &&)
 iv2_6_VScroller::GetBarInfo
 #
 --format=gnu --no-params
@@ -986,8 +1016,18 @@ List<VHDLEntity>::Pix::Pix(List<VHDLEntity>::Pix const &)
 List<VHDLEntity>::Pix::Pix
 #
 --format=gnu --no-params
+__Q2t4List1Z10VHDLEntity3PixOCQ2t4List1Z10VHDLEntity3Pix
+List<VHDLEntity>::Pix::Pix(List<VHDLEntity>::Pix const &&)
+List<VHDLEntity>::Pix::Pix
+#
+--format=gnu --no-params
 __Q2t4List1Z10VHDLEntity7elementRC10VHDLEntityPT0
 List<VHDLEntity>::element::element(VHDLEntity const &, List<VHDLEntity>::element *)
+List<VHDLEntity>::element::element
+#
+--format=gnu --no-params
+__Q2t4List1Z10VHDLEntity7elementOC10VHDLEntityPT0
+List<VHDLEntity>::element::element(VHDLEntity const &&, List<VHDLEntity>::element *)
 List<VHDLEntity>::element::element
 #
 --format=gnu --no-params
@@ -1033,6 +1073,11 @@ PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX
 --format=gnu --no-params
 __t4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntityRCt4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntity
 PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX(PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> > const &)
+PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX
+#
+--format=gnu --no-params
+__t4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntityOCt4PixX3Z11VHDLLibraryZ14VHDLLibraryRepZt4List1Z10VHDLEntity
+PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX(PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> > const &&)
 PixX<VHDLLibrary, VHDLLibraryRep, List<VHDLEntity> >::PixX
 #
 --format=gnu --no-params
@@ -1261,6 +1306,11 @@ smanip_int::smanip_int(ios &(*)(ios &, int), int)
 smanip_int::smanip_int
 #
 --format=lucid --no-params
+__ct__10smanip_intFPFO3iosi_O3iosi
+smanip_int::smanip_int(ios &&(*)(ios &&, int), int)
+smanip_int::smanip_int
+#
+--format=lucid --no-params
 __ct__11fstreambaseFi
 fstreambase::fstreambase(int)
 fstreambase::fstreambase
@@ -1278,6 +1328,11 @@ fstreambase::fstreambase
 --format=lucid --no-params
 __ct__11smanip_longFPFR3iosl_R3iosl
 smanip_long::smanip_long(ios &(*)(ios &, long), long)
+smanip_long::smanip_long
+#
+--format=lucid --no-params
+__ct__11smanip_longFPFO3iosl_O3iosl
+smanip_long::smanip_long(ios &&(*)(ios &&, long), long)
 smanip_long::smanip_long
 #
 --format=lucid --no-params
@@ -1321,6 +1376,11 @@ foo::foo(foo &)
 foo::foo
 #
 --format=lucid --no-params
+__ct__3fooFO3foo
+foo::foo(foo &&)
+foo::foo
+#
+--format=lucid --no-params
 __ct__3fooFi
 foo::foo(int)
 foo::foo
@@ -1333,6 +1393,11 @@ foo::foo
 --format=lucid --no-params
 __ct__3fooFiR3fooT1T2T1T2
 foo::foo(int, foo &, int, foo &, int, foo &)
+foo::foo
+#
+--format=lucid --no-params
+__ct__3fooFiO3fooT1T2T1T2
+foo::foo(int, foo &&, int, foo &&, int, foo &&)
 foo::foo
 #
 --format=lucid --no-params
@@ -1808,6 +1873,11 @@ foo
 --format=lucid --no-params
 foo__FiR3fooT1T2T1T2
 foo(int, foo &, int, foo &, int, foo &)
+foo
+#
+--format=lucid --no-params
+foo__FiO3fooT1T2T1T2
+foo(int, foo &&, int, foo &&, int, foo &&)
 foo
 #
 --format=lucid --no-params
@@ -2561,6 +2631,11 @@ DListNode<RLabel &>::DListNode(RLabel &, DListNode<RLabel &> *, DListNode<RLabel
 DListNode<RLabel &>::DListNode
 #
 --format=arm --no-params
+__ct__25DListNode__pt__9_O6RLabelFO6RLabelP25DListNode__pt__9_O6RLabelT2
+DListNode<RLabel &&>::DListNode(RLabel &&, DListNode<RLabel &&> *, DListNode<RLabel &&> *)
+DListNode<RLabel &&>::DListNode
+#
+--format=arm --no-params
 bar__3fooFiT16FooBar
 foo::bar(int, int, FooBar)
 foo::bar
@@ -2991,6 +3066,11 @@ DListNode<RLabel &>::DListNode(RLabel &, DListNode<RLabel &> *, DListNode<RLabel
 DListNode<RLabel &>::DListNode
 #
 --format=hp --no-params
+__ct__9DListNodeXTO6RLabel__FO6RLabelP9DListNodeXTO6RLabel_T2
+DListNode<RLabel &&>::DListNode(RLabel &&, DListNode<RLabel &&> *, DListNode<RLabel &&> *)
+DListNode<RLabel &&>::DListNode
+#
+--format=hp --no-params
 elem__6vectorXTiUP34__Fi
 vector<int,34U>::elem(int)
 vector<int,34U>::elem
@@ -3021,14 +3101,29 @@ vector<int,-67,4000U,short &>::elem(int)
 vector<int,-67,4000U,short &>::elem
 #
 --format=hp --no-params
+elem__6vectorXTiSN67UP4000TOs__Fi
+vector<int,-67,4000U,short &&>::elem(int)
+vector<int,-67,4000U,short &&>::elem
+#
+--format=hp --no-params
 elem__6vectorXTiSN67TRdTFPv_i__Fi
 vector<int,-67,double &,int (void *)>::elem(int)
 vector<int,-67,double &,int (void *)>::elem
 #
 --format=hp --no-params
+elem__6vectorXTiSN67TOdTFPv_i__Fi
+vector<int,-67,double &&,int (void *)>::elem(int)
+vector<int,-67,double &&,int (void *)>::elem
+#
+--format=hp --no-params
 X__6vectorXTiSN67TdTPvUP5TRs
 vector<int,-67,double,void *,5U,short &>::X
 vector<int,-67,double,void *,5U,short &>::X
+#
+--format=hp --no-params
+X__6vectorXTiSN67TdTPvUP5TOs
+vector<int,-67,double,void *,5U,short &&>::X
+vector<int,-67,double,void *,5U,short &&>::X
 #
 --format=hp --no-params
 elem__6vectorXTiA3foo__Fi
@@ -3071,6 +3166,11 @@ Spec<int,int &,int>::spec(int *)
 Spec<int,int &,int>::spec
 #
 --format=hp --no-params
+spec__17Spec<#1,#1.&&,#1>XTiTOiTi_FPi
+Spec<int,int &&,int>::spec(int *)
+Spec<int,int &&,int>::spec
+#
+--format=hp --no-params
 add__XTc_FcT1
 add<char>(char, char)
 add<char>
@@ -3101,6 +3201,11 @@ C<Test, Test::output> call<Test>(Test &)
 C<Test, Test::output> call<Test>
 #
 --format=gnu --no-params
+call__H1Z4Test_OX01_t1C2ZX01PMX01FPX01i_vQ2X016output
+C<Test, Test::output> call<Test>(Test &&)
+C<Test, Test::output> call<Test>
+#
+--format=gnu --no-params
 fn__FPQ21n1cPMQ21n1cFPQ21n1c_i
 fn(n::c *, int (n::c::*)(n::c *))
 fn
@@ -3124,6 +3229,11 @@ f
 foo__H1Zt2TA2ZRCiZt2NA1Ui9_X01_i
 int foo<TA<int const &, NA<9> > >(TA<int const &, NA<9> >)
 int foo<TA<int const &, NA<9> > >
+#
+--format=gnu --no-params
+foo__H1Zt2TA2ZOCiZt2NA1Ui9_X01_i
+int foo<TA<int const &&, NA<9> > >(TA<int const &&, NA<9> >)
+int foo<TA<int const &&, NA<9> > >
 #
 --format=gnu --no-params
 foo__H1Zt2TA2ZcZt2NA1Ui20_X01_i
@@ -3401,6 +3511,11 @@ int* const volatile restrict _far
 --format=gnu-v3 --no-params
 _Z3fooILi2EEvRAplT_Li1E_i
 void foo<2>(int (&) [(2)+(1)])
+foo<2>
+#
+--format=gnu-v3 --no-params
+_Z3fooILi2EEvOAplT_Li1E_i
+void foo<2>(int (&&) [(2)+(1)])
 foo<2>
 # 
 --format=gnu-v3 --no-params
@@ -4091,6 +4206,36 @@ void g<1>(A<1>&, B<static_cast<bool>(1)>&)
 _ZNKSt7complexIiE4realB5cxx11Ev
 std::complex<int>::real[abi:cxx11]() const
 #
+# Some more crashes revealed by fuzz-testing:
+# Check for NULL pointer when demangling trinary operators
+--format=gnu-v3
+_Z1fAv32_f
+_Z1fAv32_f
+# Do not overflow when decoding identifier length
+--format=gnu-v3
+_Z11111111111
+_Z11111111111
+# Check out-of-bounds access when decoding braced initializer list
+--format=gnu-v3
+_ZDTtl
+_ZDTtl
+# Check for NULL pointer when demangling DEMANGLE_COMPONENT_LOCAL_NAME
+--format=gnu-v3
+_ZZN1fEEd_lEv
+_ZZN1fEEd_lEv
+# Handle DEMANGLE_COMPONENT_FIXED_TYPE in d_find_pack
+--format=gnu-v3
+_Z1fDpDFT_
+_Z1fDpDFT_
+# Likewise, DEMANGLE_COMPONENT_DEFAULT_ARG
+--format=gnu-v3
+_Z1fIDpZ1fEd_E
+_Z1fIDpZ1fEd_E
+# Likewise, DEMANGLE_COMPONENT_NUMBER
+--format=gnu-v3
+_Z1fDpDv1_c
+f((char __vector(1))...)
+#
 # Ada (GNAT) tests.
 #
 # Simple test.
@@ -4356,3 +4501,188 @@ _QueueNotification_QueueController__$4PPPPPPPM_A_INotice___Z
 --format=gnu-v3
 _Z1fSsB3fooS_
 f(std::string[abi:foo], std::string[abi:foo])
+--format=gnu-v3
+_Z18IndirectExternCallIPU7stdcallU7regparmILi3EEFviiEiEvT_T0_S3_
+void IndirectExternCall<void ( regparm<3> stdcall*)(int, int), int>(void ( regparm<3> stdcall*)(int, int), int, void ( regparm<3> stdcall*)(int, int))
+# 
+# ABI tags used to confuse the constructor name calculation.
+--format=gnu-v3 --no-params
+_ZNSt8ios_base7failureB5cxx11C1EPKcRKSt10error_code
+std::ios_base::failure[abi:cxx11]::failure(char const*, std::error_code const&)
+std::ios_base::failure[abi:cxx11]::failure
+--format=gnu-v3
+_Z1fPDxFvvES0_
+f(void (*)() transaction_safe, void (*)() transaction_safe)
+#
+# These two are from gcc PR61321, and gcc PR61233 / gdb PR16957
+#
+--format=gnu-v3
+_Z13function_tempIiEv1AIXszcvT_Li999EEE
+void function_temp<int>(A<sizeof ((int)(999))>)
+#
+--format=gnu-v3
+_Z7ZipWithI7QStringS0_5QListZN4oral6detail16AdaptCreateTableI7AccountEES0_RKNS3_16CachedFieldsDataEEUlRKS0_SA_E_ET1_IDTclfp1_cvT__EcvT0__EEEERKT1_ISC_ERKT1_ISD_ET2_
+QList<decltype ({parm#3}((QString)(), (QString)()))> ZipWith<QString, QString, QList, QString oral::detail::AdaptCreateTable<Account>(oral::detail::CachedFieldsData const&)::{lambda(QString const&, QString const&)#1}>(QList<QString oral::detail::AdaptCreateTable<Account>(oral::detail::CachedFieldsData const&)::{lambda(QString const&, QString const&)#1}> const&, QList<QList> const&, QString oral::detail::AdaptCreateTable<Account>(oral::detail::CachedFieldsData const&)::{lambda(QString const&, QString const&)#1})
+#
+# These three are symbols generated by g++'s testsuite, which triggered the same bug as above.
+--format=gnu-v3
+_Z14int_if_addableI1YERiP1AIXszpldecvPT_Li0EdecvS4_Li0EEE
+int& int_if_addable<Y>(A<sizeof ((*((Y*)(0)))+(*((Y*)(0))))>*)
+#
+--format=gnu-v3
+_Z3bazIiEvP1AIXszcl3foocvT__ELCf00000000_00000000EEEE
+void baz<int>(A<sizeof (foo((int)(), (floatcomplex )00000000_00000000))>*)
+#
+--format=gnu-v3
+_Z3fooI1FEN1XIXszdtcl1PclcvT__EEE5arrayEE4TypeEv
+X<sizeof ((P(((F)())())).array)>::Type foo<F>()
+
+_Z1fIJidEEv1AIXsZT_EE
+void f<int, double>(A<2>)
+
+_ZN1A1fIJiiEiJiiiEEEvRAsPDpT_T0_DpT1_E_iS3_S5_
+void A::f<int, int, int, int, int, int>(int (&) [6], int, int, int, int)
+
+_Z10unary_leftIJLi1ELi2ELi3EEEv1AIXflplT_EE
+void unary_left<1, 2, 3>(A<(...+(1, 2, 3))>)
+
+_Z11unary_rightIJLi1ELi2ELi3EEEv1AIXfrplT_EE
+void unary_right<1, 2, 3>(A<((1, 2, 3)+...)>)
+
+_Z11binary_leftIJLi1ELi2ELi3EEEv1AIXfLplLi42ET_EE
+void binary_left<1, 2, 3>(A<((42)+...+(1, 2, 3))>)
+
+_Z12binary_rightIJLi1ELi2ELi3EEEv1AIXfRplT_Li42EEE
+void binary_right<1, 2, 3>(A<((1, 2, 3)+...+(42))>)
+#
+# Tests a use-after-free problem PR70481
+
+_Q.__0
+::Q.(void)
+#
+# Tests a use-after-free problem PR70481
+
+_Q10-__9cafebabe.
+cafebabe.::-(void)
+#
+# Tests integer overflow problem PR70492
+
+__vt_90000000000cafebabe
+__vt_90000000000cafebabe
+#
+# Tests write access violation PR70498
+
+_Z80800000000000000000000
+_Z80800000000000000000000
+#
+# Tests write access violation PR70926
+
+0__Ot2m02R5T0000500000
+0__Ot2m02R5T0000500000
+#
+
+0__GT50000000000_
+0__GT50000000000_
+#
+
+__t2m05B500000000000000000_
+__t2m05B500000000000000000_
+#
+# Tests stack overflow PR71696
+
+__10%0__S4_0T0T0
+%0<>::%0(%0<>)
+
+# Inheriting constructor
+_ZN1DCI11BEi
+D::B(int)
+
+# exception-specification (C++17)
+_Z1fIvJiELb0EEvPDOT1_EFT_DpT0_E
+void f<void, int, false>(void (*)(int) noexcept(false))
+
+_Z1fIvJiELb0EEvPDoFT_DpT0_E
+void f<void, int, false>(void (*)(int) noexcept)
+
+_Z1fIvJiELb0EEvPDwiEFT_DpT0_E
+void f<void, int, false>(void (*)(int) throw(int))
+
+# Could crash
+_
+_
+
+# Could crash
+_vt
+_vt
+
+# Could crash
+_$_1Acitz
+_$_1Acitz
+
+# Could crash
+_$_H1R
+_$_H1R
+
+# Could crash
+_Q8ccQ4M2e.
+_Q8ccQ4M2e.
+
+# fold-expression with missing third component could crash.
+_Z12binary_rightIJLi1ELi2ELi3EEEv1AIXfRplT_LiEEE
+_Z12binary_rightIJLi1ELi2ELi3EEEv1AIXfRplT_LiEEE
+
+# ?: expression with missing third component could crash.
+AquT_quT_4mxautouT_4mxxx
+AquT_quT_4mxautouT_4mxxx
+
+# pr c++/78252 generic lambda mangling uses template parms, and leads
+# to unbounded recursion if not dealt with properly
+_Z7forwardIRZ3FoovEUlRT_E_EOS0_S1_
+Foo()::{lambda(auto:1&)#1}& forward<Foo()::{lambda(auto:1&)#1}&>(Foo()::{lambda(auto:1&)#1}&)
+
+_Z7forwardIZ3FoovEUlRiRT_E_EOS1_S2_
+Foo()::{lambda(int&, auto:1&)#1}&& forward<Foo()::{lambda(int&, auto:1&)#1}>(Foo()::{lambda(int&, auto:1&)#1}&)
+
+_Z7forwardIZ3FoovEUlRT_R1XIiEE0_EOS0_S1_
+Foo()::{lambda(auto:1&, X<int>&)#2}&& forward<Foo()::{lambda(auto:1&, X<int>&)#2}>(Foo()::{lambda(auto:1&, X<int>&)#2}&)
+
+_Z7forwardIZ3FoovEUlPA5_T_E1_EOS0_RS0_
+Foo()::{lambda(auto:1 (*&&forward<Foo()::{lambda(auto:1 (*) [5])#3}>(auto:1&)) [5])#3}
+
+_Z3eatIZ3FoovEUlRiRT_E_EvS2_
+void eat<Foo()::{lambda(int&, auto:1&)#1}>(Foo()::{lambda(int&, auto:1&)#1}&)
+
+_Z3eatIZ3FoovEUlRT_R1XIiEE0_EvS1_
+void eat<Foo()::{lambda(auto:1&, X<int>&)#2}>(Foo()::{lambda(auto:1&, X<int>&)#2}&)
+
+_Z3eatIZ3FoovEUlPA5_T_E1_EvRS0_
+void eat<Foo()::{lambda(auto:1 (*) [5])#3}>(Foo()::{lambda(auto:1 (*&) [5])#3})
+
+_Z3eatIPiZ3FoovEUlPT_PT0_E4_EvRS1_RS3_
+void eat<int*, Foo()::{lambda(auto:1*, auto:2*)#6}>(int*&, Foo()::{lambda(auto:1*, auto:2*)#6}&)
+
+_Z3eatIPiZ3BarIsEvvEUlPsPT_PT0_E0_EvRS3_RS5_
+void eat<int*, void Bar<short>()::{lambda(short*, auto:1*, auto:2*)#2}>(int*&, void Bar<short>()::{lambda(short*, auto:1*, auto:2*)#2}&)
+
+# PR 77489
+_ZZ3foovE8localVar_9
+foo()::localVar
+
+_ZZ3foovE8localVar_10
+foo()::localVar
+
+_ZZ3foovE8localVar__10_
+foo()::localVar
+
+_ZZ3foovE8localVar__9_
+_ZZ3foovE8localVar__9_
+
+_ZZ3foovE8localVar__12
+_ZZ3foovE8localVar__12
+
+# PR 70182
+_Z1gI1AEv1SIXadsrT_onplEE
+void g<A>(S<&A::operator+>)
+
+_Z1gI1AEv1SIXadsrT_plEE
+void g<A>(S<&A::operator+>)

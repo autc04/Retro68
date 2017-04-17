@@ -1,12 +1,12 @@
 /* This program is used to test objcopy, readelf and strip.  */
 
-extern int strcmp (char *, const char *);
+extern int strcmp (const char *, const char *);
 extern int printf (const char *, ...);
 
 int common;
 int global = 1;
 static int local = 2;
-static char string[] = "string";
+static const char string[] = "string";
 
 int
 fn (void)

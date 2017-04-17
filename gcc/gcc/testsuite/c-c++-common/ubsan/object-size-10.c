@@ -2,8 +2,8 @@
 /* { dg-skip-if "" { *-*-* } { "*" } { "-O2" } } */
 /* { dg-options "-fsanitize=undefined" } */
 
-static char a[128];
-static int b[128];
+static char a[128] __attribute__ ((aligned(4096)));
+static int b[128] __attribute__ ((aligned(4096)));
 
 __attribute__ ((noinline, noclone)) int
 fn1 (int i)
@@ -56,7 +56,7 @@ fn5 (int i, int j)
 /* { dg-output "\[^\n\r]*load of address \[^\n\r]* with insufficient space for an object of type 'int'\[^\n\r]*(\n|\r\n|\r)" } */
 /* { dg-output "\[^\n\r]*note: pointer points here\[^\n\r]*(\n|\r\n|\r)" } */
 /* { dg-output "\[^\n\r]*\[^\n\r]*(\n|\r\n|\r)" } */
-/* { dg-output "\[^\n\r]*\\^\[^\n\r]*(\n|\r\n|\r)" } */
+/* { dg-output "\[^\n\r]*\\^" } */
 
 __attribute__ ((noinline, noclone)) int
 fn6 (int i)

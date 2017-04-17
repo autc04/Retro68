@@ -29,5 +29,5 @@ add_library(ResourceFiles
 
 target_link_libraries(ResourceFiles ${Boost_LIBRARIES} ${CMAKE_INSTALL_PREFIX}/lib/libhfs.a)
 target_include_directories(ResourceFiles PUBLIC .
-										 PRIVATE ${CMAKE_INSTALL_PREFIX}/include)
-
+										 PRIVATE ${CMAKE_INSTALL_PREFIX}/include
+										 		${Boost_INCLUDE_DIR})

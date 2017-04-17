@@ -1,5 +1,5 @@
 %{ /* rcparse.y -- parser for Windows rc files
-   Copyright (C) 1997-2014 Free Software Foundation, Inc.
+   Copyright (C) 1997-2017 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
    Extended by Kai Tietz, Onevision.
 
@@ -562,7 +562,7 @@ control:
 	      base_style = BS_AUTO3STATE;
 	      class.named = 0;
 	      class.u.id = CTL_BUTTON;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -574,7 +574,7 @@ control:
 	      base_style = BS_AUTOCHECKBOX;
 	      class.named = 0;
 	      class.u.id = CTL_BUTTON;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -586,7 +586,7 @@ control:
 	      base_style = BS_AUTORADIOBUTTON;
 	      class.named = 0;
 	      class.u.id = CTL_BUTTON;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -598,7 +598,7 @@ control:
 	      base_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      class.named = 0;
 	      class.u.id = CTL_EDIT;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -613,7 +613,7 @@ control:
 	      base_style = BS_CHECKBOX | WS_TABSTOP;
 	      class.named = 0;
 	      class.u.id = CTL_BUTTON;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -627,7 +627,7 @@ control:
 	      base_style = 0;
 	      class.named = 0;
 	      class.u.id = CTL_COMBOBOX;
-	      res_text_field = res_null_text;	
+	      res_text_field = res_null_text;
 	    }
 	    control_params
 	  {
@@ -659,7 +659,7 @@ control:
 	      base_style = SS_CENTER;
 	      class.named = 0;
 	      class.u.id = CTL_STATIC;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -671,7 +671,7 @@ control:
 	      base_style = BS_DEFPUSHBUTTON | WS_TABSTOP;
 	      class.named = 0;
 	      class.u.id = CTL_BUTTON;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -683,7 +683,7 @@ control:
 	      base_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      class.named = 0;
 	      class.u.id = CTL_EDIT;
-	      res_text_field = res_null_text;	
+	      res_text_field = res_null_text;
 	    }
 	    control_params
 	  {
@@ -695,7 +695,7 @@ control:
 	      base_style = BS_GROUPBOX;
 	      class.named = 0;
 	      class.u.id = CTL_BUTTON;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -707,7 +707,7 @@ control:
 	      base_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      class.named = 0;
 	      class.u.id = CTL_EDIT;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -745,7 +745,7 @@ control:
 	      base_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      class.named = 0;
 	      class.u.id = CTL_EDIT;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -760,7 +760,7 @@ control:
 	      base_style = LBS_NOTIFY | WS_BORDER;
 	      class.named = 0;
 	      class.u.id = CTL_LISTBOX;
-	      res_text_field = res_null_text;	
+	      res_text_field = res_null_text;
 	    }
 	    control_params
 	  {
@@ -772,7 +772,7 @@ control:
 	      base_style = SS_LEFT;
 	      class.named = 0;
 	      class.u.id = CTL_STATIC;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -795,7 +795,7 @@ control:
 	      base_style = BS_PUSHBUTTON | WS_TABSTOP;
 	      class.named = 0;
 	      class.u.id = CTL_BUTTON;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -807,7 +807,7 @@ control:
 	      base_style = BS_RADIOBUTTON;
 	      class.named = 0;
 	      class.u.id = CTL_BUTTON;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -819,7 +819,7 @@ control:
 	      base_style = SS_RIGHT;
 	      class.named = 0;
 	      class.u.id = CTL_STATIC;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
@@ -831,7 +831,7 @@ control:
 	      base_style = 0;
 	      class.named = 0;
 	      class.u.id = CTL_SCROLLBAR;
-	      res_text_field = res_null_text;	
+	      res_text_field = res_null_text;
 	    }
 	    control_params
 	  {
@@ -843,14 +843,14 @@ control:
 	      base_style = BS_3STATE;
 	      class.named = 0;
 	      class.u.id = CTL_BUTTON;
-	      res_text_field = $2;	
+	      res_text_field = $2;
 	    }
 	    control_params
 	  {
 	    $$ = $4;
 	  }
 	| USERBUTTON resref numexpr ',' numexpr ',' numexpr ','
-	    numexpr ',' numexpr ',' 
+	    numexpr ',' numexpr ','
 	    { style = WS_CHILD | WS_VISIBLE; }
 	    styleexpr optcnumexpr
 	  {
@@ -1258,7 +1258,7 @@ rcdata_data:
 /* Stringtable resources.  */
 
 stringtable:
-	  STRINGTABLE suboptions BEG 
+	  STRINGTABLE suboptions BEG
 	    { sub_res_info = $2; rcparse_rcdata (); }
 	    string_data END { rcparse_normal (); }
 	;

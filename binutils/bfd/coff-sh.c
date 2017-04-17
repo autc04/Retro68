@@ -1,5 +1,5 @@
 /* BFD back-end for Renesas Super-H COFF binaries.
-   Copyright (C) 1993-2014 Free Software Foundation, Inc.
+   Copyright (C) 1993-2017 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    Written by Steve Chamberlain, <sac@cygnus.com>.
    Relaxing code written by Ian Lance Taylor, <ian@cygnus.com>.
@@ -501,7 +501,7 @@ sh_coff_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
     if (sh_reloc_map[i].bfd_reloc_val == code)
       return &sh_coff_howtos[(int) sh_reloc_map[i].shcoff_reloc_val];
 
-  (*_bfd_error_handler) (_("SH Error: unknown reloc type %d"), code);
+  _bfd_error_handler (_("SH Error: unknown reloc type %d"), code);
   return NULL;
 }
 
@@ -530,22 +530,22 @@ sh_coff_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 
 /* This is the same as the macro in coffcode.h, except that it copies
    r_offset into reloc_entry->addend for some relocs.  */
-#define CALC_ADDEND(abfd, ptr, reloc, cache_ptr)                \
-  {                                                             \
-    coff_symbol_type *coffsym = (coff_symbol_type *) NULL;      \
-    if (ptr && bfd_asymbol_bfd (ptr) != abfd)                   \
-      coffsym = (obj_symbols (abfd)                             \
-                 + (cache_ptr->sym_ptr_ptr - symbols));         \
-    else if (ptr)                                               \
-      coffsym = coff_symbol_from (abfd, ptr);                   \
-    if (coffsym != (coff_symbol_type *) NULL                    \
-        && coffsym->native->u.syment.n_scnum == 0)              \
-      cache_ptr->addend = 0;                                    \
-    else if (ptr && bfd_asymbol_bfd (ptr) == abfd               \
-             && ptr->section != (asection *) NULL)              \
-      cache_ptr->addend = - (ptr->section->vma + ptr->value);   \
-    else                                                        \
-      cache_ptr->addend = 0;                                    \
+#define CALC_ADDEND(abfd, ptr, reloc, cache_ptr)		\
+  {								\
+    coff_symbol_type *coffsym = (coff_symbol_type *) NULL;	\
+    if (ptr && bfd_asymbol_bfd (ptr) != abfd)			\
+      coffsym = (obj_symbols (abfd)				\
+		 + (cache_ptr->sym_ptr_ptr - symbols));		\
+    else if (ptr)						\
+      coffsym = coff_symbol_from (ptr);				\
+    if (coffsym != (coff_symbol_type *) NULL			\
+	&& coffsym->native->u.syment.n_scnum == 0)		\
+      cache_ptr->addend = 0;					\
+    else if (ptr && bfd_asymbol_bfd (ptr) == abfd		\
+	     && ptr->section != (asection *) NULL)		\
+      cache_ptr->addend = - (ptr->section->vma + ptr->value);	\
+    else							\
+      cache_ptr->addend = 0;					\
     if ((reloc).r_type == R_SH_SWITCH8				\
 	|| (reloc).r_type == R_SH_SWITCH16			\
 	|| (reloc).r_type == R_SH_SWITCH32			\
@@ -713,7 +713,7 @@ sh_relax_section (bfd *abfd,
 
   *again = FALSE;
 
-  if (link_info->relocatable
+  if (bfd_link_relocatable (link_info)
       || (sec->flags & SEC_RELOC) == 0
       || sec->reloc_count == 0)
     return TRUE;
@@ -771,8 +771,9 @@ sh_relax_section (bfd *abfd,
       laddr += ((irel->r_offset & 0xffffffff) ^ 0x80000000) - 0x80000000;
       if (laddr >= sec->size)
 	{
-	  (*_bfd_error_handler) ("%B: 0x%lx: warning: bad R_SH_USES offset",
-				 abfd, (unsigned long) irel->r_vaddr);
+	  /* xgettext: c-format */
+	  _bfd_error_handler (_("%B: 0x%lx: warning: bad R_SH_USES offset"),
+			      abfd, (unsigned long) irel->r_vaddr);
 	  continue;
 	}
       insn = bfd_get_16 (abfd, contents + laddr);
@@ -780,9 +781,10 @@ sh_relax_section (bfd *abfd,
       /* If the instruction is not mov.l NN,rN, we don't know what to do.  */
       if ((insn & 0xf000) != 0xd000)
 	{
-	  ((*_bfd_error_handler)
-	   ("%B: 0x%lx: warning: R_SH_USES points to unrecognized insn 0x%x",
-	    abfd, (unsigned long) irel->r_vaddr, insn));
+	  _bfd_error_handler
+	    /* xgettext: c-format */
+	    (_("%B: 0x%lx: warning: R_SH_USES points to unrecognized insn 0x%x"),
+	     abfd, (unsigned long) irel->r_vaddr, insn);
 	  continue;
 	}
 
@@ -797,9 +799,10 @@ sh_relax_section (bfd *abfd,
       paddr += (laddr + 4) &~ (bfd_vma) 3;
       if (paddr >= sec->size)
 	{
-	  ((*_bfd_error_handler)
-	   ("%B: 0x%lx: warning: bad R_SH_USES load offset",
-	    abfd, (unsigned long) irel->r_vaddr));
+	  _bfd_error_handler
+	    /* xgettext: c-format */
+	    (_("%B: 0x%lx: warning: bad R_SH_USES load offset"),
+	     abfd, (unsigned long) irel->r_vaddr);
 	  continue;
 	}
 
@@ -821,9 +824,10 @@ sh_relax_section (bfd *abfd,
 	  break;
       if (irelfn >= irelend)
 	{
-	  ((*_bfd_error_handler)
-	   ("%B: 0x%lx: warning: could not find expected reloc",
-	    abfd, (unsigned long) paddr));
+	  _bfd_error_handler
+	    /* xgettext: c-format */
+	    (_("%B: 0x%lx: warning: could not find expected reloc"),
+	     abfd, (unsigned long) paddr);
 	  continue;
 	}
 
@@ -837,9 +841,10 @@ sh_relax_section (bfd *abfd,
 			    &sym);
       if (sym.n_scnum != 0 && sym.n_scnum != sec->target_index)
 	{
-	  ((*_bfd_error_handler)
-	   ("%B: 0x%lx: warning: symbol in unexpected section",
-	    abfd, (unsigned long) paddr));
+	  _bfd_error_handler
+	    /* xgettext: c-format */
+	    (_("%B: 0x%lx: warning: symbol in unexpected section"),
+	     abfd, (unsigned long) paddr);
 	  continue;
 	}
 
@@ -962,9 +967,10 @@ sh_relax_section (bfd *abfd,
       /* Now check whether we got a COUNT reloc.  */
       if (irelcount >= irelend)
 	{
-	  ((*_bfd_error_handler)
-	   ("%B: 0x%lx: warning: could not find expected COUNT reloc",
-	    abfd, (unsigned long) paddr));
+	  _bfd_error_handler
+	    /* xgettext: c-format */
+	    (_("%B: 0x%lx: warning: could not find expected COUNT reloc"),
+	     abfd, (unsigned long) paddr);
 	  continue;
 	}
 
@@ -972,8 +978,9 @@ sh_relax_section (bfd *abfd,
          just deleted one.  */
       if (irelcount->r_offset == 0)
 	{
-	  ((*_bfd_error_handler) ("%B: 0x%lx: warning: bad count",
-				  abfd, (unsigned long) paddr));
+	  /* xgettext: c-format */
+	  _bfd_error_handler (_("%B: 0x%lx: warning: bad count"),
+			      abfd, (unsigned long) paddr);
 	  continue;
 	}
 
@@ -1342,9 +1349,10 @@ sh_relax_delete_bytes (bfd *abfd,
 
 	  if (overflow)
 	    {
-	      ((*_bfd_error_handler)
-	       ("%B: 0x%lx: fatal: reloc overflow while relaxing",
-		abfd, (unsigned long) irel->r_vaddr));
+	      _bfd_error_handler
+		/* xgettext: c-format */
+		(_("%B: 0x%lx: fatal: reloc overflow while relaxing"),
+		 abfd, (unsigned long) irel->r_vaddr);
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
 	    }
@@ -1437,8 +1445,8 @@ sh_relax_delete_bytes (bfd *abfd,
   if (obj_symbols (abfd) != NULL
       || obj_raw_syments (abfd) != NULL)
     {
-      ((*_bfd_error_handler)
-       ("%B: fatal: generic symbols retrieved before relaxing", abfd));
+      _bfd_error_handler
+	(_("%B: fatal: generic symbols retrieved before relaxing"), abfd);
       bfd_set_error (bfd_error_invalid_operation);
       return FALSE;
     }
@@ -2327,7 +2335,7 @@ _bfd_sh_align_load_span (bfd *abfd,
   if (dsp)
     {
       sh_opcodes[0xf].minor_opcodes = sh_dsp_opcodef;
-      sh_opcodes[0xf].count = sizeof sh_dsp_opcodef / sizeof sh_dsp_opcodef;
+      sh_opcodes[0xf].count = sizeof sh_dsp_opcodef / sizeof sh_dsp_opcodef [0];
     }
 
   /* Instructions should be aligned on 2 byte boundaries.  */
@@ -2629,9 +2637,10 @@ sh_swap_insns (bfd *      abfd,
 
 	  if (overflow)
 	    {
-	      ((*_bfd_error_handler)
-	       ("%B: 0x%lx: fatal: reloc overflow while relaxing",
-		abfd, (unsigned long) irel->r_vaddr));
+	      _bfd_error_handler
+		/* xgettext: c-format */
+		(_("%B: 0x%lx: fatal: reloc overflow while relaxing"),
+		 abfd, (unsigned long) irel->r_vaddr);
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
 	    }
@@ -2766,8 +2775,9 @@ sh_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  if (symndx < 0
 	      || (unsigned long) symndx >= obj_raw_syment_count (input_bfd))
 	    {
-	      (*_bfd_error_handler)
-		("%B: illegal symbol index %ld in relocs",
+	      _bfd_error_handler
+		/* xgettext: c-format */
+		(_("%B: illegal symbol index %ld in relocs"),
 		 input_bfd, symndx);
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
@@ -2836,13 +2846,10 @@ sh_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		     + sec->output_section->vma
 		     + sec->output_offset);
 	    }
-	  else if (! info->relocatable)
-	    {
-	      if (! ((*info->callbacks->undefined_symbol)
-		     (info, h->root.root.string, input_bfd, input_section,
-		      rel->r_vaddr - input_section->vma, TRUE)))
-		return FALSE;
-	    }
+	  else if (! bfd_link_relocatable (info))
+	    (*info->callbacks->undefined_symbol)
+	      (info, h->root.root.string, input_bfd, input_section,
+	       rel->r_vaddr - input_section->vma, TRUE);
 	}
 
       rstat = _bfd_final_link_relocate (howto, input_bfd, input_section,
@@ -2875,11 +2882,10 @@ sh_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		name = buf;
 	      }
 
-	    if (! ((*info->callbacks->reloc_overflow)
-		   (info, (h ? &h->root : NULL), name, howto->name,
-		    (bfd_vma) 0, input_bfd, input_section,
-		    rel->r_vaddr - input_section->vma)))
-	      return FALSE;
+	    (*info->callbacks->reloc_overflow)
+	      (info, (h ? &h->root : NULL), name, howto->name,
+	       (bfd_vma) 0, input_bfd, input_section,
+	       rel->r_vaddr - input_section->vma);
 	  }
 	}
     }

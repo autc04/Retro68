@@ -1,5 +1,5 @@
 /* IO Code translation/library interface
-   Copyright (C) 2002-2015 Free Software Foundation, Inc.
+   Copyright (C) 2002-2016 Free Software Foundation, Inc.
    Contributed by Paul Brook
 
 This file is part of GCC.
@@ -22,24 +22,12 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "hash-set.h"
-#include "machmode.h"
-#include "vec.h"
-#include "double-int.h"
-#include "input.h"
-#include "alias.h"
-#include "symtab.h"
-#include "options.h"
-#include "wide-int.h"
-#include "inchash.h"
 #include "tree.h"
-#include "fold-const.h"
-#include "stringpool.h"
-#include "stor-layout.h"
-#include "ggc.h"
 #include "gfortran.h"
-#include "diagnostic-core.h"	/* For internal_error.  */
 #include "trans.h"
+#include "stringpool.h"
+#include "fold-const.h"
+#include "stor-layout.h"
 #include "trans-stmt.h"
 #include "trans-array.h"
 #include "trans-types.h"
@@ -1697,7 +1685,7 @@ transfer_namelist_element (stmtblock_t * block, const char * var_name,
       gfc_add_expr_to_block (block, tmp);
     }
 
-  if (ts->type == BT_DERIVED && ts->u.derived->components)
+  if (gfc_bt_struct (ts->type) && ts->u.derived->components)
     {
       gfc_component *cmp;
 
@@ -2223,7 +2211,7 @@ transfer_expr (gfc_se * se, gfc_typespec * ts, tree addr_expr, gfc_code * code)
 
       break;
 
-    case BT_DERIVED:
+    case_bt_struct:
       if (ts->u.derived->components == NULL)
 	return;
 
@@ -2342,7 +2330,7 @@ gfc_trans_transfer (gfc_code * code)
 	  gcc_assert (ref && ref->type == REF_ARRAY);
 	}
 
-      if (expr->ts.type != BT_DERIVED
+      if (!gfc_bt_struct (expr->ts.type)
 	    && ref && ref->next == NULL
 	    && !is_subref_array (expr))
 	{

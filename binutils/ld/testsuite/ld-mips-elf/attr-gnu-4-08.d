@@ -5,7 +5,7 @@
 
 Attribute Section: gnu
 File Attributes
-  Tag_GNU_MIPS_ABI_FP: \?\?\? \(8\)
+  Tag_GNU_MIPS_ABI_FP: NaN 2008 compatibility
 
 MIPS ABI Flags Version: 0
 
@@ -13,7 +13,7 @@ ISA: MIPS.*
 GPR size: .*
 CPR1 size: .*
 CPR2 size: 0
-FP ABI: \?\?\? \(8\)
+FP ABI: NaN 2008 compatibility
 ISA Extension: .*
 ASEs:
 	None

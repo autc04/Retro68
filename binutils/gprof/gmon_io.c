@@ -1,6 +1,6 @@
 /* gmon_io.c - Input and output from/to gmon.out files.
 
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2017 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -61,7 +61,7 @@ int gmon_input = 0;
 int gmon_file_version = 0;	/* 0 == old (non-versioned) file format.  */
 
 static enum gmon_ptr_size
-gmon_get_ptr_size ()
+gmon_get_ptr_size (void)
 {
   int size;
 
@@ -87,7 +87,7 @@ gmon_get_ptr_size ()
 }
 
 static enum gmon_ptr_signedness
-gmon_get_ptr_signedness ()
+gmon_get_ptr_signedness (void)
 {
   int sext;
 
@@ -499,7 +499,7 @@ gmon_out_read (const char *filename)
 	  hist_scale = (double)((tmp.high_pc - tmp.low_pc) / sizeof (UNIT))
 	    / hist_num_bins;
 	  histograms->sample = (int *) xmalloc (hist_num_bins * sizeof (int));
-	  memset (histograms->sample, 0, 
+	  memset (histograms->sample, 0,
 		  hist_num_bins * sizeof (int));
 	}
 
@@ -532,7 +532,7 @@ gmon_out_read (const char *filename)
 	      done (1);
 	    }
 
-	  histograms->sample[i] 
+	  histograms->sample[i]
 	    += bfd_get_16 (core_bfd, (bfd_byte *) raw_bin_count);
 	}
 
@@ -671,7 +671,7 @@ gmon_out_write (const char *filename)
 	    case ptr_64bit:
 	      hdrsize = GMON_HDRSIZE_OLDBSD_64;
 	      /* FIXME: Checking host compiler defines here means that we can't
-		 use a cross gprof alpha OSF.  */ 
+		 use a cross gprof alpha OSF.  */
 #if defined(__alpha__) && defined (__osf__)
 	      padsize = 4;
 #endif
@@ -683,7 +683,7 @@ gmon_out_write (const char *filename)
 	 old BSD and 4.4BSD formats.  */
       if (gmon_io_write_vma (ofp, histograms->lowpc)
           || gmon_io_write_vma (ofp, histograms->highpc)
-          || gmon_io_write_32 (ofp, histograms->num_bins 
+          || gmon_io_write_32 (ofp, histograms->num_bins
 			       * sizeof (UNIT) + hdrsize))
 	{
 	  perror (filename);

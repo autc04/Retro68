@@ -1,6 +1,6 @@
 // parameters.cc -- general parameters for a link using gold
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2017 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -125,6 +125,7 @@ Parameters::set_target_once(Target* target)
 {
   gold_assert(this->target_ == NULL);
   this->target_ = target;
+  target->select_as_default_target();
   if (this->options_valid())
     {
       this->check_target_endianness();
@@ -236,7 +237,7 @@ const char*
 Parameters::entry() const
 {
   const char* ret = this->options().entry();
-  if (ret == NULL)
+  if (ret == NULL && parameters->target_valid())
     ret = parameters->target().entry_symbol_name();
   return ret;
 }
@@ -297,7 +298,6 @@ void
 set_parameters_target(Target* target)
 {
   static_parameters.set_target(target);
-  target->select_as_default_target();
 }
 
 void

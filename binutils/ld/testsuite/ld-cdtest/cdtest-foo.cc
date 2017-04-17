@@ -5,7 +5,7 @@
 // We don't use header files, since we only want to see, whether the
 // compiler is installed properly.
 //
-#if (__GNUG__ == 2)
+#if __GNUG__ >= 2
 typedef __SIZE_TYPE__ size_t;
 #else
 typedef unsigned int size_t;

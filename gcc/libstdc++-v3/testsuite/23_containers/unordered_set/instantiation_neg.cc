@@ -2,7 +2,7 @@
 // { dg-options "-std=gnu++11" }
 // { dg-require-normal-mode "" }
 
-// Copyright (C) 2011-2015 Free Software Foundation, Inc.
+// Copyright (C) 2011-2016 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,7 +19,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-error "with noexcept" "" { target *-*-* } 266 }
+// { dg-error "with noexcept" "" { target *-*-* } 265 }
 
 #include <unordered_set>
 

@@ -22,9 +22,9 @@ Section Headers:
  +\[[ 0-9]+\] \.dynamic +DYNAMIC +[0-9a-f]+ [0-9a-f]+ [0-9a-f]+ 08 +WA +4 +0 +4
  +\[[ 0-9]+\] \.got +PROGBITS +[0-9a-f]+ [0-9a-f]+ 000018 04 +WA +0 +0 +4
  +\[[ 0-9]+\] \.plt +PROGBITS +[0-9a-f]+ [0-9a-f]+ 000004 00 +WA +0 +0 +4
- +\[[ 0-9]+\] \.shstrtab +STRTAB +.*
  +\[[ 0-9]+\] \.symtab +SYMTAB +.*
  +\[[ 0-9]+\] \.strtab +STRTAB +.*
+ +\[[ 0-9]+\] \.shstrtab +STRTAB +.*
 #...
 
 Elf file type is EXEC \(Executable file\)

@@ -61,3 +61,4 @@ Disassembly of section .text:
 0+d4 <[^>]+> e06100b2 	strht	r0, \[r1\], #-2
 0+d8 <[^>]+> 10e100b2 	strhtne	r0, \[r1\], #2
 0+dc <[^>]+> 106100b2 	strhtne	r0, \[r1\], #-2
+0+e0 <[^>]+> e3009999 	movw	r9, #2457	; 0x999
