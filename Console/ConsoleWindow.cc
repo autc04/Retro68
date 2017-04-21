@@ -112,7 +112,7 @@ char ConsoleWindow::WaitNextChar()
 					case inGrow:
 						{
 							long growResult = GrowWindow(eventWin, event.where, boundsPtr);
-							SizeWindow(eventWin, growResult & 0xFFFF, growResult >> 16, true);
+							SizeWindow(eventWin, growResult & 0xFFFF, growResult >> 16, false);
 							Reshape(Rect {0, 0, (short) (growResult >> 16), (short) (growResult & 0xFFFF) });
 						}
 						break;

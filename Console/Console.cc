@@ -221,14 +221,14 @@ void Console::Update()
 			DrawCells(start, dirtyRect.right, row, needclear);
 	}
 	dirtyRect = Rect();
-#if TARGET_API_MAC_CARBON
-	QDFlushPortBuffer(consolePort,NULL);
-#endif
 	
 	if(cursorVisible != cursorDrawn)
 	{
 		Rect r = CellRect(cursorX, cursorY);
-		InvertRect(&r);
+		if(cursorDrawn)
+			DrawCell(cursorX, cursorY, true);
+		else
+			InvertRect(&r);
 		cursorDrawn = !cursorDrawn;
 	}
 
@@ -292,8 +292,7 @@ void Console::InvalidateCursor()
 	{
 		PortSetter setport(consolePort);
 
-		Rect r = CellRect(cursorX, cursorY);
-		InvertRect(&r);
+		DrawCell(cursorX, cursorY, true);
 		cursorDrawn = false;
 	}
 }
