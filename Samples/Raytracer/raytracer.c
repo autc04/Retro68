@@ -38,10 +38,7 @@
 
 
 #include <math.h>
-#include <stdlib.h>
-#include <string.h>
 #include <stdbool.h>
-#include <stdio.h>
 
 pascal /* <- pascal calling convention, for no reason in particular except to test the comppiler */
 bool hitSphere(float x0, float y0, float z0, float dx, float dy, float dz, float *t)
@@ -195,7 +192,7 @@ int main()
 	lxn = lx*lenl, lyn = ly*lenl, lzn = lz*lenl;
 
 	long startTime = TickCount();
-	float *accumV = calloc(sizeof(float), r.right);
+	float *accumV = (float*)NewPtrClear(sizeof(float) * r.right);
 	for(y = 0; y < r.bottom; y++)
 	{
 		for(x = 0; x < r.right; x++)
@@ -263,17 +260,17 @@ int main()
 	}
 	long endTime = TickCount();
 	
-	char buf[256];
-	unsigned char* pstr = (unsigned char*)buf;
-	sprintf(buf+1, "pps = %d", (int)( (float)r.right * r.bottom / (endTime - startTime) * 60.0f ));
-	buf[0] = strlen(buf+1);
+	Str255 pstr;
+	NumToString( (long)( (float)r.right * r.bottom / (endTime - startTime) * 60.0f ),
+				 pstr );
 	
-	SetRect(&r, 10, 10, 10 + StringWidth(pstr) + 10, 30);
+	SetRect(&r, 10, 10, 10 + StringWidth("\ppps = ") + StringWidth(pstr) + 10, 30);
 	PaintRect(&r);
 	PenMode(patXor);
 	FrameRect(&r);
 	MoveTo(15,25);
 	TextMode(srcBic);
+	DrawString("\ppps = ");
 	DrawString(pstr);
 #if TARGET_API_MAC_CARBON
 	QDFlushPortBuffer(GetWindowPort(win),NULL);
