@@ -8,10 +8,14 @@
 #include <assert.h>
 #include <ctype.h>
 #include <sstream>
+#include <memory>
 
 using std::string;
 using std::vector;
 using std::unordered_map;
+
+unordered_map<string,string>	sectionMap;
+bool verbose = false;
 
 enum RecordType {
 	kPad = 0,
@@ -59,7 +63,7 @@ struct Module
 	string name;
 	string segment;
 	vector<uint8_t> bytes;
-	unordered_map<uint32_t, string> labels;
+	unordered_map<uint32_t, vector<string>> labels;
 	unordered_map<uint32_t, Reloc> relocs;
 
 	void write(std::ostream& out);
@@ -102,19 +106,21 @@ string encodeIdentifier(const string& s)
 
 void Module::write(std::ostream& out)
 {
-	int offset = 0;
+	uint32_t offset = 0;
 
-	out << "\t.section	.text." << encodeIdentifier(name) << ",\"ax\",@progbits\n";
+	out << "\t.section	.text." << encodeIdentifier(sectionMap[name]) << ",\"ax\",@progbits\n";
 
 	while(offset < bytes.size())
 	{
 		auto labelP = labels.find(offset);
 		if(labelP != labels.end())
 		{
-			string label = encodeIdentifier(labelP->second);
-			out << "\t.globl " << label << "\n";
-			out << label << ":\n";
-
+			for(string rawLabel : labelP->second)
+			{
+				string label = encodeIdentifier(rawLabel);
+				out << "\t.globl " << label << "\n";
+				out << label << ":\n";
+			}
 		}
 
 		auto relocP = relocs.find(offset);
@@ -141,7 +147,8 @@ int main(int argc, char* argv[])
 	std::cout << "\t.text\n\t.align 2\n";
 
 	for(bool endOfObject = false; !endOfObject;) {
-		std::cerr << std::hex << in.tellg() << ": ";
+		if(verbose)
+			std::cerr << std::hex << in.tellg() << ": ";
 		int recordType = byte(in);
 		if(!in)
 		{
@@ -149,25 +156,32 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 
-		std::cerr << "Record: " << recordType << std::endl;
+		if(verbose)
+			std::cerr << "Record: " << recordType << std::endl;
 
 
 		switch(recordType)
 		{
 			case kPad:
-				std::cerr << "Pad\n";
+				if(verbose)
+					std::cerr << "Pad\n";
 				break;
 			case kFirst:
 				{
-					int flags = byte(in);
-					std::cerr << "First\n";
-					std::cerr << "Version: " << word(in) << std::endl;
+					/*int flags =*/ byte(in);
+					int version = word(in);
+					if(verbose)
+					{
+						std::cerr << "First\n";
+						std::cerr << "Version: " << version << std::endl;
+					}
 				}
 				break;
 			case kDictionary:
 				{
-					int flags = byte(in);
-					std::cerr << "Dictionary\n";
+					/*int flags =*/ byte(in);
+					if(verbose)
+						std::cerr << "Dictionary\n";
 					int sz = word(in);
 					int stringId = word(in);
 					int end = (int)(in.tellg()) - 6 + sz;
@@ -177,7 +191,8 @@ int main(int argc, char* argv[])
 						string s;
 						for(int i = 0; i < n; i++)
 							s += (char) byte(in);
-						std::cerr << s << std::endl;
+						if(verbose)
+							std::cerr << s << std::endl;
 						stringDictionary[stringId++] = s;
 					}
 				}
@@ -186,36 +201,43 @@ int main(int argc, char* argv[])
 				{
 					int flags = byte(in);
 					string name = stringDictionary[word(in)];
+					sectionMap[name] = name;
 					string segment = stringDictionary[word(in)];
-					std::cerr << "Module " << name << "(" << segment << "), flags = " << flags << "\n";
+					if(verbose)
+						std::cerr << "Module " << name << "(" << segment << "), flags = " << flags << "\n";
 
 					if(module)
 						module->write(std::cout);
 
 					module.reset(new Module());
 					module->name = name;
-					module->labels[0] = name;
+					module->labels[0].push_back(name);
 				}
 				break;
 			case kContent:
 				{
 					int flags = byte(in);
-					int sz = word(in);
-					int end = (int)(in.tellg()) - 4 + sz;
-					long offset = longword(in);
+					int sz = word(in) - 4;
+					uint32_t offset = 0;
+					if(flags & 0x08)
+					{
+					 	offset = longword(in);
+						sz -= 4;
+					}
 					assert(module.get());
 					if(module->bytes.size() < offset + sz)
 						module->bytes.resize(offset + sz);
-					in.read((char*) &module->bytes[offset], sz-8);
-					//in.seekg(end);
-					std::cerr << "Content\n";
+					in.read((char*) &module->bytes[offset], sz);
+					if(verbose)
+						std::cerr << "Content (offset = " << offset << ", size = " << sz << ")\n";
 				}
 				break;
 			case kSize:
 				{
-					int flags = byte(in);
+					/*int flags =*/ byte(in);
 					long size = longword(in);
-					std::cerr << "Size\n";
+					if(verbose)
+						std::cerr << "Size " << size << "\n";
 					assert(module.get());
 					module->bytes.resize(size);
 				}
@@ -227,7 +249,8 @@ int main(int argc, char* argv[])
 					int end = (int)(in.tellg()) - 4 + sz;
 					string name = stringDictionary[word(in)];
 
-					std::cerr << "Reference to " << name << " at\n";
+					if(verbose)
+						std::cerr << "Reference to " << name << " at\n";
 					Reloc reloc;
 					reloc.name1 = name;
 					reloc.size = 2;
@@ -238,19 +261,21 @@ int main(int argc, char* argv[])
 					while(in.tellg() < end)
 					{
 						int offset = word(in);
-						std::cerr << "  " << offset << std::endl;
+						if(verbose)
+							std::cerr << "  " << offset << std::endl;
 						module->relocs[offset] = reloc;
 					}
 				}
 				break;
 			case kEntryPoint:
 				{
-					int flags = byte(in);
+					/*int flags =*/ byte(in);
 					string name = stringDictionary[word(in)];
 					long offset = longword(in);
-					std::cerr << "EntryPoint " << name << " at offset " << offset << "\n";
+					if(verbose)
+						std::cerr << "EntryPoint " << name << " at offset " << offset << "\n";
 					assert(module);
-					module->labels[offset] = name;
+					module->labels[offset].push_back(name);
 				}
 				break;
 			case kComputedRef:
@@ -269,11 +294,16 @@ int main(int argc, char* argv[])
 					assert(flags == 0x90);
 					assert(module);
 
-					std::cerr << "ComputedReference to " << name1 << " - " << name2 << " at\n";
+					string secName = sectionMap[name1];
+					if(secName != "")
+						sectionMap[module->name] = secName;
+					if(verbose)
+						std::cerr << "ComputedReference to " << name1 << " - " << name2 << " at\n";
 					while(in.tellg() < end)
 					{
 						int offset = word(in);
-						std::cerr << "  " << offset << std::endl;
+						if(verbose)
+							std::cerr << "  " << offset << std::endl;
 						module->relocs[offset] = reloc;
 					}
 				}
@@ -285,7 +315,7 @@ int main(int argc, char* argv[])
 					module->write(std::cout);
 				break;
 			default:
-				std::cerr << "Unknown record at " << std::hex << in.tellg() << std::endl;
+				std::cerr << "Unknown record (type " << recordType << ") at " << std::hex << in.tellg() << std::endl;
 				return 1;
 		}
 	}
