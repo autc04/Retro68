@@ -201,6 +201,20 @@ void MakeImportLibraryMulti(fs::path path, fs::path libname)
 	std::vector<char> data(resFile.data.begin(), resFile.data.end());
 
 	char *dataPtr = data.data();
+	
+	if(resFile.resources.resources.find(ResRef("cfrg",0)) == resFile.resources.resources.end())
+	{
+		if(data.size() > 8 && std::string(data.begin(), data.begin()+8) == "Joy!peff")
+		{
+			std::cerr << "No cfrg resource found.\n";
+			exit(1);
+		}
+		else
+		{
+			std::cerr << "Not a PEF shared library. Ignoring.\n";
+			exit(0);
+		}
+	}
 	Resource& cfrgRes = resFile.resources.resources[ResRef("cfrg",0)];
 
 	fs::path tmpdir = libname.parent_path() / fs::unique_path("makeimport-tmp-%%%%-%%%%-%%%%-%%%%");
