@@ -65,13 +65,6 @@ found at:
 You will need a Mac or a Mac emulator (with DiscCopy) to read that file.
 
 
-If all else fails, the package is somewhere in this huge (4.7GB) snapshot of
-Apple's FTP site at Internet Archive:
-    
-    https://archive.org/details/ftpsites_developer.apple.com
-
-
-
 ### Compiling Retro68
 
 Once you have all the prerequisites, execute these commands from the top level
@@ -80,10 +73,27 @@ of the Retro68 directory:
     cd ..
     mkdir Retro68-build
     cd Retro68-build
-    sh ../Retro68/build-toolchain.sh 
+    ../Retro68/build-toolchain.bash
 
 The toolchain will be installed in the "toolchain" directory inside
 the build directory.
+
+### Build options and recompiling
+
+Building all of Retro68 involves building binutils and gcc... twice, so it
+takes quite a while. 
+
+You can pass the `--no-68k`, `--no-ppc` or `--no-carbon`
+flags to `build-toolchain` to limit yourself to the old Macs you're really
+interested in (note that `--no-ppc` implies `--no-carbon`).
+
+After the initial build, you can use the `--skip-thirdparty` option in order to
+skip gcc and binutils and just compile the Retro68-specific tools, libraries and
+sample programs.
+The `build-host`, `build-target`, `build-target-ppc` and `build-target-carbon`
+directories are CMake build directories generated from the top-level `CMakeLists.txt`,
+so you can also `cd` to one of these and run `make` separately if you've made changes.
+
 
 Sample programs
 ---------------
@@ -106,8 +116,8 @@ projects with a few components added.
 
 
 Third Party Components:
-- binutils 2.25.1
-- gcc 5.2.0
+- binutils 2.28
+- gcc 6.3.0
 - newlib 2.10.1 (inside the gcc directory)
 - elf2flt (from the ucLinux project's CVS)
 - hfsutils 3.2.6
@@ -161,11 +171,6 @@ Minor patch: provide symbols around .init and .fini sections
 
 No changes.
 
-### MakeAPPL
-
-Reads a FLAT executable as output by elf2flt and converts it to
-a MacBinary file containing a classic Macintosh application.
-
 ### ResourceFiles
 
 A C++ Library for manipulating resource forks.
@@ -176,14 +181,31 @@ A reimplementation of Apple's Rez resource compiler. Reads `.r` files
 containing textual resource descriptions and compiles them to binary
 resource files.
 
+### ConvertObj
+
+Reads a MPW 68K Object file (`*.o`) and converts it to input for the 
+GNU assembler (`powerpc-apple-macos-as`). Well, as long as the .o file does not
+use global variables or non-local function calls. Used to import glue code from
+MPW's `Interface.o` library.
+
+### MakeAPPL
+
+Reads a FLAT executable as output by elf2flt and converts it to
+a MacBinary file containing a classic Macintosh application.
+The CMake setup for the sample programs no longer uses this, but rather uses
+Rez to generate the appropriate resources.
+
 ### PEFTools
 
-- `MakePEF`, a tool to convert xcoff files to Apple's PEF format.
+Tools supporting the Apple's PEF format, the Preferred Executable Format
+for PowerPC Macs.
+
+- `MakePEF`, a tool to convert xcoff files to PEF.
 - `MakeImport`, a tool to create an xcoff import stub library from a PEF-format library.
 
 ### prepare-headers.sh:
 
-Apply any necessary patches to Apple's headers; currently, this only modifies `ConditionalMacros.h`.
+Apply any necessary patches to Apple's headers.
 
 ### ImportLibraries
 
