@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <utility>
 #include <vector>
 #include <string>
@@ -33,6 +34,23 @@ using std::vector;
 using std::string;
 using std::ofstream;
 using std::ios_base;
+
+bool verboseFlag = false;
+
+struct CFragMember
+{
+	string   name;
+	uint32_t architecture;
+	uint8_t  usage;
+	char *data;
+	uint32_t length;
+	
+	CFragMember() : architecture(0), usage(0), data(0), length(0) {}
+	CFragMember(string n, uint32_t a, uint8_t u, char *d, uint32_t l)
+		: name(n), architecture(a), usage(u), data(d), length(l)
+	{
+	}
+};
 
 void RunCommand(const char *command, std::vector<std::string> args)
 {
@@ -202,61 +220,154 @@ void MakeImportLibraryMulti(fs::path path, fs::path libname)
 
 	char *dataPtr = data.data();
 	
-	if(resFile.resources.resources.find(ResRef("cfrg",0)) == resFile.resources.resources.end())
-	{
-		if(data.size() > 8 && std::string(data.begin(), data.begin()+8) == "Joy!peff")
-		{
-			std::cerr << "No cfrg resource found.\n";
-			exit(1);
-		}
-		else
-		{
-			std::cerr << "Not a PEF shared library. Ignoring.\n";
-			exit(0);
-		}
-	}
-	Resource& cfrgRes = resFile.resources.resources[ResRef("cfrg",0)];
+	std::vector<CFragMember> members;
 
-	fs::path tmpdir = libname.parent_path() / fs::unique_path("makeimport-tmp-%%%%-%%%%-%%%%-%%%%");
-	fs::create_directory(tmpdir);
-	try
+	if(data.size() < 8 || std::string(data.begin(), data.begin()+8) != "Joy!peff")
 	{
+		std::cerr << "Not a PEF shared library. Ignoring.\n";
+		return;
+	}
+	
+	if(resFile.resources.resources.find(ResRef("cfrg",0)) != resFile.resources.resources.end())
+	{
+		// Plan A: cfrg resource found, use it.
+
+		Resource& cfrgRes = resFile.resources.resources[ResRef("cfrg",0)];
+
 		CFragResource *cfrg = (CFragResource *)cfrgRes.getData().data();
 		eswap(cfrg);
 
 		CFragResourceMember *member = &(cfrg -> firstMember);
-
-		fs::path archiveTmp(tmpdir / "__archive.a");
-		std::vector<string> arArguments { "cq", archiveTmp.string() };
 
 		for(UInt16 i = 0; i < cfrg->memberCount; i++)
 		{
 			eswap(member);
 			string membername =
 				string(member->name+1, member->name+1+member->name[0]);
+			members.emplace_back(
+					membername,
+					member->architecture,
+					member->usage,
+					dataPtr + member->offset,
+					member->length);
 
-			if(member->architecture == 'pwpc'
-				|| member->architecture == '\?\?\?\?')
+			member = (CFragResourceMember*)  (((char*)member) + member->memberSize);
+		}
+
+	}
+	else
+	{
+		// Plan B: resource fork may have been lost or misplaced.
+		//         Assume that the data fork contains consecutive PEF containers.
+		//         Hard-code weak linking flags (usage field in cfrg resource)
+		//         for CarbonFrameworkLib and parts of CarbonLib
+		
+		if(verboseFlag)
+			std::cerr << "No 'cfrg' resource found, making educated guesses.\n";
+		
+		bool allWeak = false;
+		bool restWeak = false;
+		
+		if(path.filename() == "CarbonLib")
+			restWeak = true;
+		else if(path.filename() == "CarbonFrameworkLib")
+			allWeak = true;
+		
+		char *pefptr = dataPtr, *nextpef = pefptr;
+		char *end = dataPtr + data.size();
+		int memberIndex = 0;
+		while(pefptr < end)
+		{
+			while(pefptr < end && *pefptr != 'J')
+				++pefptr;
+			if(pefptr >= end)
+				break;
+				
+			std::cout << std::hex << pefptr - dataPtr << " (end = " << end-dataPtr << ")\n" << std::dec;
+			PEFContainerHeader *containerHeader = (PEFContainerHeader*) pefptr;
+			eswap(containerHeader);
+
+			assert(containerHeader->tag1 == 'Joy!');
+			assert(containerHeader->tag2 == 'peff');
+			PEFSectionHeader *sectionHeaders
+				= (PEFSectionHeader*) (pefptr + kPEFFirstSectionHeaderOffset);
+
+			UInt16 n = containerHeader->sectionCount;
+			for(UInt16 i=0; i < n; i++)
 			{
-				if(member->usage == 0	/* import library */
-					|| member->usage == 3 /* stub library */)
-					;
-				else if(member->usage == 4 /* weak stub library */)
-					membername += "__weak";
-				else
-				{
-					std::cerr << "Inappropriate usage flag: "
-							  << (int)member->usage << endl;
-					continue;
-				}
+				eswap(&sectionHeaders[i]);
+				char * p = pefptr + sectionHeaders[i].containerOffset + sectionHeaders[i].containerLength;
+				if(p > nextpef)
+					nextpef = p;
+				eswap(&sectionHeaders[i]); // restore endianness
+			}
+			
+			std::ostringstream memberNameStream;
+			memberNameStream << "stub" << memberIndex;
+			
+			bool weak = allWeak || (memberIndex != 0 && restWeak);
+			
+			members.emplace_back(
+					memberNameStream.str(),
+					containerHeader->architecture,
+					weak ? 4 : 3, /* wek stub library or stub library */
+					pefptr,
+					nextpef - pefptr);
 
-				fs::path shlib_file(tmpdir / (membername + ".o"));
-				MakeImportLibrary(dataPtr + member->offset, member->length,
+
+			eswap(containerHeader);	// restore endianness
+			
+			memberIndex++;
+			pefptr = nextpef;
+		}
+	}
+
+	fs::path tmpdir = libname.parent_path() / fs::unique_path("makeimport-tmp-%%%%-%%%%-%%%%-%%%%");
+	fs::create_directory(tmpdir);
+	try
+	{
+		fs::path archiveTmp(tmpdir / "__archive.a");
+		std::vector<string> arArguments { "cq", archiveTmp.string() };
+
+		int memberIndex = 0;
+		
+		for(auto &member : members)
+		{
+			std::ostringstream memberNameStream;
+			for(char c : member.name)
+			{
+				if(isalnum(c))
+					memberNameStream << c;
+			}
+			memberNameStream << "_" << memberIndex++;
+			string memberName = memberNameStream.str();
+			
+			if(member.usage == 0	/* import library */
+				|| member.usage == 3 /* stub library */)
+				;
+			else if(member.usage == 4 /* weak stub library */)
+				memberName += "__weak";
+			
+			if(verboseFlag)
+			{
+				char archStr[5];
+				archStr[0] = member.architecture >> 24;
+				archStr[1] = member.architecture >> 16;
+				archStr[2] = member.architecture >> 8;
+				archStr[3] = member.architecture;
+				archStr[4] = 0;
+				std::cerr << memberName << " (" << archStr << ")\n";
+			}
+			
+			if(member.architecture == 'pwpc'
+				|| member.architecture == '\?\?\?\?')
+			{
+
+				fs::path shlib_file(tmpdir / (memberName + ".o"));
+				MakeImportLibrary(member.data, member.length,
 									shlib_file, tmpdir);
 				arArguments.push_back(shlib_file.string());
 			}
-
-			member = (CFragResourceMember*)  (((char*)member) + member->memberSize);
 		}
 
 		RunCommand("powerpc-apple-macos-ar", arArguments);
