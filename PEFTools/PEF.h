@@ -40,7 +40,7 @@ typedef void *LogicalAddress;
 typedef struct {} FSSpec, *FSSpecPtr;
 
 /* Definitions for PEF, from Apple's Universal Interfaces */
-#include "../CIncludes/PEFBinaryFormat.h"
+#include "PEFBinaryFormat.h"
 
 /* Deal with differences between versions of PEFBinaryFormat.h */
 #ifndef PEFRelocComposeSetPosition_1st

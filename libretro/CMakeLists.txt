@@ -24,11 +24,19 @@
 cmake_minimum_required(VERSION 2.8)
 
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
+	find_program(CONVERT_OBJ ConvertObj PATH "${CMAKE_INSTALL_PREFIX}/../bin/")
+	add_custom_command(
+		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/Interface.s
+		COMMAND ${CONVERT_OBJ} ${INTERFACE_O} > ${CMAKE_CURRENT_BINARY_DIR}/Interface.s
+	)
+	enable_language(ASM)
+
 	set(ARCH_FILES
 		Retro68Runtime.h
 		start.c
 		relocate.c
-		glue.c
+		# glue.c
+		${CMAKE_CURRENT_BINARY_DIR}/Interface.s
 		qdglobals.c
 		Retro68.r
 		Retro68APPL.r
