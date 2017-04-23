@@ -78,6 +78,11 @@ of the Retro68 directory:
 The toolchain will be installed in the "toolchain" directory inside
 the build directory.
 
+If you're building this on a PowerMac running Mac OS X 10.4, tell the build script
+to use the gcc you've installed via tigerbrew:
+
+    ../Retro68/build-toolchain.bash --host-cxx-compiler=g++-5
+
 ### Build options and recompiling
 
 Building all of Retro68 involves building binutils and gcc... twice, so it
