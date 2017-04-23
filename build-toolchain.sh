@@ -360,6 +360,8 @@ fi # SKIP_THIRDPARTY
 
 ##################### Build host-based components: MakePEF, MakeImport, ConvertObj, Rez, ...
 
+echo "Building host-based tools..."
+
 # Copy PEFBinaryFormat.h from Universal Interfaces, needed by MakePEF & MakeImport
 (export LANG=en; sed 's/\r$//' < "$CINCLUDES/PEFBinaryFormat.h" | tr '\r' '\n' > "toolchain/include/PEFBinaryFormat.h")
 

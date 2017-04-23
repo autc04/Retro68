@@ -19,7 +19,7 @@ Installing/Building
 - CMake 2.8
 - GCC dependencies: GMP 4.2+, MPFR 2.3.1+ and MPC 0.8.0+
 - bison version 3.0.2 or later
-- Apple Universal Interfaces (tested with versions 3.1 and 3.4 - see below)
+- Apple Universal Interfaces (version 3.x; version 3.4 is tested)
 - An ancient Mac and/or an emulator.
 
 For Ubuntu Linux, the following should help a bit:
@@ -37,26 +37,40 @@ In that case, get the tigerbrew package manager and
 
 ### Apple Universal Interfaces
 
+Before you can build Retro68, you need to find a copy of Apple's Universal Interfaces
+and put it inside the InterfacesAndLibraries directory in the source tree.
+Version 3.4 has received the most testing, but any 3.x version could theoretically
+work.
+The exact directory layout inside the InterfacesAndLibraries directory does
+not matter. The resource forks of the files are not required.
+
 The Universal Interfaces used to be a free download from Apple. However,
-they have taken the site offline and the license agreement prohibits
-redistribution, so this might be a bit hard to find nowadays.
+they have taken the site off-line and the license agreement does not allow
+redistribution, which is why it's not included in this repository.
+The concept of fair use might cover keeping it available for reasons of historical
+interest, or it might not. I am not a lawyer.
 
-You do need a version that still supports 68K Mac development.
+The Universal Interfaces were also included with Apple's free-to-download
+Macintosh Programmer's Workshop (MPW; redistribution is not officially allowed, either)
+and with Metrowerks CodeWarrior.
 
-The package might be somewhere in this huge snapshot of Apple's FTP site made
-by the Internet Archive:
-https://archive.org/details/ftpsites_developer.apple.com
+One of the most easily found downloads is the MPW 3.5 Golden Master release,
+usually in a file named mpg-gm.img_.bin. At the time of this writing, this can be
+found at:
 
-If you have a Mac or some other way to read DiskCopy images, grab the MPW 3.5
-image from:
+    http://macintoshgarden.org/apps/macintosh-programmers-workshop
+    https://www.macintoshrepository.org/1360-macintosh-programmer-s-workshop-mpw-3-0-to-3-5
 
-http://macintoshgarden.org/apps/macintosh-programmer%E2%80%99s-workshop
+    
+You will need a Mac or a Mac emulator (with DiscCopy) to read that file.
 
-and use the CIncludes and RIncludes directories from there.
 
-Put the C header files into a directory called "CIncludes" at the top
-level of the Retro68 directory; likewise, the Rez includes should go into
-a directory called "RIncludes".
+If all else fails, the package is somewhere in this huge (4.7GB) snapshot of
+Apple's FTP site at Internet Archive:
+    
+    https://archive.org/details/ftpsites_developer.apple.com
+
+
 
 ### Compiling Retro68
 
