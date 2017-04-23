@@ -388,8 +388,11 @@ sh "$SRC/prepare-rincludes.sh" "$RINCLUDES" "toolchain/RIncludes"
 # and link files from toolchain/CIncludes
 function linkheaders()
 {
-    find "$1" -lname "../../CIncludes/*" -delete
-    (cd "$1" && find "../../CIncludes/" -exec ln -s {} . \;)
+	# the following command doesn't work on older Mac OS X versions.
+	# allow it to fail quietly, at worst we leave some dangling symlinks around
+	# in the rare situation that headers are removed from the input directory
+	find "$1" -lname "../../CIncludes/*" -delete || true
+    (cd "$1" && find "../../CIncludes/" -name '*.h' -exec ln -s {} . \;)
 }
 
 echo "Creating Symlinks for CIncludes and RIncludes..."
