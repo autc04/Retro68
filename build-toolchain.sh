@@ -255,8 +255,6 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		export CPPFLAGS="-I/usr/local/include"
 		export LDFLAGS="-L/usr/local/lib"
 		
-		export "CFLAGS=-Wno-error"
-
 		# Build binutils for 68K
 		mkdir -p binutils-build
 		cd binutils-build
@@ -280,7 +278,6 @@ if [ $SKIP_THIRDPARTY != true ]; then
 
 		unset CPPFLAGS
 		unset LDFLAGS
-		unset CFLAGS
 
 		# Install elf.h (for elf2flt)
 		mkdir -p $PREFIX/include
@@ -316,8 +313,6 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		export CPPFLAGS="-I/usr/local/include"
 		export LDFLAGS="-L/usr/local/lib"
 
-		export "CFLAGS=-Wno-error"
-
 		# Build binutils for PPC
 		mkdir -p binutils-build-ppc
 		cd binutils-build-ppc
@@ -339,7 +334,6 @@ if [ $SKIP_THIRDPARTY != true ]; then
 
 		unset CPPFLAGS
 		unset LDFLAGS
-		unset CFLAGS
 
 		if [ $CLEAN_AFTER_BUILD != false ]; then
 			rm -rf binutils-build-ppc
