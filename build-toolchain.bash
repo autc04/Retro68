@@ -409,21 +409,31 @@ if [ $BUILD_PPC != false ]; then
     linkheaders toolchain/powerpc-apple-macos/include
 fi
 
+if [ $BUILD_PPC != false ]; then
+	case `ResInfo -n "$INTERFACELIB" || echo 0` in
+		0)
+			echo "WARNING: Couldn't read resource fork for \"$INTERFACELIB\"."
+			echo "         Falling back to included import libraries."
+			echo "Copying readymade PowerPC import libraries..."
+			cp $SRC/ImportLibraries/*.a toolchain/powerpc-apple-macos/lib/
+			;;
+		*)
+			echo "Building PowerPC import libraries..."
+			for shlib in "${SHAREDLIBRARIES}/"*; do
+				libname=`basename "$shlib"`
+				implib=lib${libname}.a
+				printf "    %30s => %-30s\n" ${libname} ${implib}
+				MakeImport "$shlib" "toolchain/powerpc-apple-macos/lib/$implib"
+			done
+			;;
+	esac
+fi
 
 # if [ $BUILD_PPC != false ]; then
 #	echo "Copying PowerPC import libraries..."
 #	cp $SRC/ImportLibraries/*.a toolchain/powerpc-apple-macos/lib/
 #fi
 
-if [ $BUILD_PPC != false ]; then
-	echo "Building PowerPC import libraries..."
-	for shlib in "${SHAREDLIBRARIES}/"*; do
-		libname=`basename "$shlib"`
-		implib=lib${libname}.a
-		printf "    %30s => %-30s\n" ${libname} ${implib}
-		MakeImport "$shlib" "toolchain/powerpc-apple-macos/lib/$implib"
-	done
-fi
 
 
 
