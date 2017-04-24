@@ -9,7 +9,7 @@
 
 #include <assert.h>
 #include <stdint.h>
-
+#include <ctype.h>
 
 #include "PEF.h"
 
@@ -303,6 +303,36 @@ void mkpef(const std::string& inFn, const std::string& outFn)
 			{
 				name = name.substr(0,name.length()-6);
 				imp.weak = true;
+			}
+		}
+		
+		if(name.length() > 5)
+		{
+				// the shared library name has been encoded as hex by MakeImport
+				// in order to avoid potential file name issues
+				// classic MacOS shared library names are in MacRoman and
+				// may contain wierd characters; the shared library name is used
+				// as the file name for the archive member, so there can be problems.
+			if(name.substr(0,5) == "imp__")
+			{
+				std::string realName;
+				
+				int i;
+				int n = name.size();
+				for(i = 5; i < n && name[i] != '_'; i++)
+					;
+				++i;
+				for(; i + 1 < n && name[i] != '_'; i+=2)
+				{
+					char c1 = tolower(name[i]);
+					char c2 = tolower(name[i+1]);
+					assert(isdigit(c1) || (c1 >= 'a' && c1 <= 'f'));
+					assert(isdigit(c2) || (c2 >= 'a' && c2 <= 'f'));
+					int c = (c1 >= 'a' ? c1 - 'a' + 10 : c1 - '0') * 16
+					      + (c2 >= 'a' ? c2 - 'a' + 10 : c2 - '0');
+					realName += (char)c;
+				}
+				name = realName;
 			}
 		}
 		

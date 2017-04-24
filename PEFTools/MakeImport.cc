@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 #include <utility>
 #include <vector>
 #include <string>
@@ -268,10 +269,27 @@ void MakeImportLibraryMulti(fs::path path, fs::path libname)
 		for(auto &member : members)
 		{
 			std::ostringstream memberNameStream;
+			
+			// classic MacOS shared library names are in MacRoman and
+			// may contain wierd characters; the shared library name is used
+			// as the file name for the archive member, so there can be problems.
+			// 
+			// We encode the file name to hex (and add a human readable name).
+			// MakePEF contains corresponding decoder logic.
+			
+			memberNameStream << "imp__";
+			
 			for(char c : member.name)
 			{
 				if(isalnum(c))
 					memberNameStream << c;
+			}
+			memberNameStream << "_";
+			for(char c : member.name)
+			{
+				int cc = (unsigned char) c;
+				memberNameStream << std::setw(2) << std::setfill('0') << std::hex
+					<< cc;
 			}
 			memberNameStream << "_" << memberIndex++;
 			string memberName = memberNameStream.str();
