@@ -142,18 +142,34 @@ bool ResourceFile::assign(std::string pathstring, ResourceFile::Format f)
 			format = Format::diskimage;
 		//else if(fs::exists(rsrcPath))
 		//	format = Format::basilisk;
-		else
+	}
+	if(format == Format::autodetect)
+	{
+		fs::path adPath = path.parent_path() / ("._"  + path.filename().string());
+		fs::ifstream in(adPath);
+		if(in)
 		{
-			fs::ifstream in(path);
-			if(in)
+			int magic1 = longword(in);
+			
+			if(in && magic1 == 0x00051607)
 			{
-				int magic1 = longword(in);
-				if(in && magic1 == 0x00051600)
-				{
-					int magic2 = longword(in);
-					if(in && magic2 == 0x00020000)
-						format = Format::applesingle;
-				}
+				int magic2 = longword(in);
+				if(in && magic2 == 0x00020000)
+					format = Format::underscore_appledouble;
+			}
+		}
+	}
+	if(format == Format::autodetect)
+	{
+		fs::ifstream in(path);
+		if(in)
+		{
+			int magic1 = longword(in);
+			if(in && magic1 == 0x00051600)
+			{
+				int magic2 = longword(in);
+				if(in && magic2 == 0x00020000)
+					format = Format::applesingle;
 			}
 		}
 	}
@@ -186,8 +202,11 @@ bool ResourceFile::read()
 				fs::ifstream rsrcIn(path.parent_path() / ".rsrc" / path.filename());
 				resources = Resources(rsrcIn);
 				fs::ifstream finfIn(path.parent_path() / ".finf" / path.filename());
-				type = ostype(finfIn);
-				creator = ostype(finfIn);
+				if(finfIn)
+				{
+					type = ostype(finfIn);
+					creator = ostype(finfIn);
+				}
 			}
 			break;
 #ifdef __APPLE__
@@ -231,7 +250,42 @@ bool ResourceFile::read()
 					{
 						case 1:
 							// ###
+							// FIXME: read data fork
 							break;
+						case 2:
+							resources = Resources(in);
+							break;
+						case 9:
+							type = ostype(in);
+							creator = ostype(in);
+							break;
+					}
+				}
+			}
+			break;
+		case Format::underscore_appledouble:
+			{
+				fs::ifstream dataIn(path);
+				data = std::string(std::istreambuf_iterator<char>(dataIn),
+								   std::istreambuf_iterator<char>());
+
+				fs::path adPath = path.parent_path() / ("._"  + path.filename().string());
+				fs::ifstream in(adPath);
+				if(longword(in) != 0x00051607)
+					return false;
+				if(longword(in) != 0x00020000)
+					return false;
+				in.seekg(24);
+				int n = word(in);
+				for(int i = 0; i < n; i++)
+				{
+					in.seekg(26 + i * 12);
+					int what = longword(in);
+					int off = longword(in);
+					//int len = longword(in);
+					in.seekg(off);
+					switch(what)
+					{
 						case 2:
 							resources = Resources(in);
 							break;
@@ -263,6 +317,7 @@ bool ResourceFile::read()
 				unsigned short crc = CalculateCRC(0,header,124);
 				if(word(in) != crc)
 					return false;
+				// FIXME: read data fork
 				in.seekg(128 + datasize);
 				resources = Resources(in);
 			}
@@ -354,6 +409,9 @@ bool ResourceFile::write()
 				longword(out, 32);
 			}
 			break;
+		
+		// TODO: case Format::underscore_appledouble
+		
 		case Format::diskimage:
 			{
 				std::ostringstream rsrcOut;

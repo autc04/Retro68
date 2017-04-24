@@ -18,7 +18,7 @@ public:
 		diskimage,
 		basilisk,
 		applesingle,
-		//underscore_ad,
+		underscore_appledouble,
 		//appledouble
 	};
 
