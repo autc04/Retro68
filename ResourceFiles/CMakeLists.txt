@@ -31,3 +31,11 @@ target_link_libraries(ResourceFiles ${Boost_LIBRARIES} ${CMAKE_INSTALL_PREFIX}/l
 target_include_directories(ResourceFiles PUBLIC .
 										 PRIVATE ${CMAKE_INSTALL_PREFIX}/include
 										 		${Boost_INCLUDE_DIR})
+
+find_package(Boost COMPONENTS program_options REQUIRED)
+
+add_executable(ResInfo ResInfo.cc)
+target_link_libraries(ResInfo ResourceFiles ${Boost_LIBRARIES})
+target_include_directories(ResInfo PRIVATE ${Boost_INCLUDE_DIR})
+
+install(TARGETS ResInfo RUNTIME DESTINATION bin)
