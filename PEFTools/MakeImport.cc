@@ -228,98 +228,32 @@ void MakeImportLibraryMulti(fs::path path, fs::path libname)
 		return;
 	}
 	
-	if(resFile.resources.resources.find(ResRef("cfrg",0)) != resFile.resources.resources.end())
+	if(resFile.resources.resources.find(ResRef("cfrg",0)) == resFile.resources.resources.end())
 	{
-		// Plan A: cfrg resource found, use it.
-
-		Resource& cfrgRes = resFile.resources.resources[ResRef("cfrg",0)];
-
-		CFragResource *cfrg = (CFragResource *)cfrgRes.getData().data();
-		eswap(cfrg);
-
-		CFragResourceMember *member = &(cfrg -> firstMember);
-
-		for(UInt16 i = 0; i < cfrg->memberCount; i++)
-		{
-			eswap(member);
-			string membername =
-				string(member->name+1, member->name+1+member->name[0]);
-			members.emplace_back(
-					membername,
-					member->architecture,
-					member->usage,
-					dataPtr + member->offset,
-					member->length);
-
-			member = (CFragResourceMember*)  (((char*)member) + member->memberSize);
-		}
-
+		std::cerr << "No 'cfrg' resource found.\n";
+		exit(1);
 	}
-	else
+
+	Resource& cfrgRes = resFile.resources.resources[ResRef("cfrg",0)];
+
+	CFragResource *cfrg = (CFragResource *)cfrgRes.getData().data();
+	eswap(cfrg);
+
+	CFragResourceMember *member = &(cfrg -> firstMember);
+
+	for(UInt16 i = 0; i < cfrg->memberCount; i++)
 	{
-		// Plan B: resource fork may have been lost or misplaced.
-		//         Assume that the data fork contains consecutive PEF containers.
-		//         Hard-code weak linking flags (usage field in cfrg resource)
-		//         for CarbonFrameworkLib and parts of CarbonLib
-		
-		if(verboseFlag)
-			std::cerr << "No 'cfrg' resource found, making educated guesses.\n";
-		
-		bool allWeak = false;
-		bool restWeak = false;
-		
-		if(path.filename() == "CarbonLib")
-			restWeak = true;
-		else if(path.filename() == "CarbonFrameworkLib")
-			allWeak = true;
-		
-		char *pefptr = dataPtr, *nextpef = pefptr;
-		char *end = dataPtr + data.size();
-		int memberIndex = 0;
-		while(pefptr < end)
-		{
-			while(pefptr < end && *pefptr != 'J')
-				++pefptr;
-			if(pefptr >= end)
-				break;
-				
-			std::cout << std::hex << pefptr - dataPtr << " (end = " << end-dataPtr << ")\n" << std::dec;
-			PEFContainerHeader *containerHeader = (PEFContainerHeader*) pefptr;
-			eswap(containerHeader);
+		eswap(member);
+		string membername =
+			string(member->name+1, member->name+1+member->name[0]);
+		members.emplace_back(
+				membername,
+				member->architecture,
+				member->usage,
+				dataPtr + member->offset,
+				member->length);
 
-			assert(containerHeader->tag1 == 'Joy!');
-			assert(containerHeader->tag2 == 'peff');
-			PEFSectionHeader *sectionHeaders
-				= (PEFSectionHeader*) (pefptr + kPEFFirstSectionHeaderOffset);
-
-			UInt16 n = containerHeader->sectionCount;
-			for(UInt16 i=0; i < n; i++)
-			{
-				eswap(&sectionHeaders[i]);
-				char * p = pefptr + sectionHeaders[i].containerOffset + sectionHeaders[i].containerLength;
-				if(p > nextpef)
-					nextpef = p;
-				eswap(&sectionHeaders[i]); // restore endianness
-			}
-			
-			std::ostringstream memberNameStream;
-			memberNameStream << "stub" << memberIndex;
-			
-			bool weak = allWeak || (memberIndex != 0 && restWeak);
-			
-			members.emplace_back(
-					memberNameStream.str(),
-					containerHeader->architecture,
-					weak ? 4 : 3, /* wek stub library or stub library */
-					pefptr,
-					nextpef - pefptr);
-
-
-			eswap(containerHeader);	// restore endianness
-			
-			memberIndex++;
-			pefptr = nextpef;
-		}
+		member = (CFragResourceMember*)  (((char*)member) + member->memberSize);
 	}
 
 	fs::path tmpdir = libname.parent_path() / fs::unique_path("makeimport-tmp-%%%%-%%%%-%%%%-%%%%");
