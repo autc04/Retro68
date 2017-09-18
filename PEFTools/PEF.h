@@ -16,10 +16,11 @@
 #define FOUR_CHAR_CODE(x) (x)
 #define PRAGMA_STRUCT_PACKPUSH 1
 
-/* Can't use MacTypes.h either,
+/* Can't use MacTypes.h (or Types.h) either,
  * as older versions are hardcoded to 32 bit platforms.
  */
 #define __MACTYPES__
+#define __TYPES__
 typedef uint8_t 					UInt8;
 typedef int8_t 					SInt8;
 typedef uint16_t				UInt16;
