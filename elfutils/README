@@ -1,0 +1,22 @@
+The elfutils project provides libraries and tools for ELF files and DWARF data.
+
+The project home is http://elfutils.org/
+
+Releases are published at ftp://sourceware.org/pub/elfutils/
+Which can also be found at https://sourceware.org/elfutils/ftp/
+
+Please reports bugs at https://sourceware.org/bugzilla/
+
+The current elfutils source code can be checked out with
+git clone git://sourceware.org/git/elfutils.git
+
+The developer mailinglist to send patches to is
+elfutils-devel@sourceware.org.
+https://sourceware.org/ml/elfutils-devel/
+
+To subscribe send an email to elfutils-devel-subscribe@sourceware.org
+Or use the form at https://sourceware.org/lists.html#ml-requestor
+
+See the CONTRIBUTING file for how to propose patches to the code.
+
+See the NOTES files for some design decisions and notes.
