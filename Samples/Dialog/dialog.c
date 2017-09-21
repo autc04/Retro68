@@ -21,6 +21,15 @@
 #include <Dialogs.h>
 #include <Fonts.h>
 
+#ifndef TARGET_API_MAC_CARBON
+	/* NOTE: this is checking whether the Dialogs.h we use *knows* about Carbon,
+	         not whether we are actually compiling for Cabon.
+	         If Dialogs.h is older, we add a define to be able to use the new name
+	         for NewUserItemUPP, which used to be NewUserItemProc. */
+
+#define NewUserItemUPP NewUserItemProc
+#endif
+
 pascal void ButtonFrameProc(DialogRef dlg, DialogItemIndex itemNo)
 {
     DialogItemType type;

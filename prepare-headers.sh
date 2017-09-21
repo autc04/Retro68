@@ -156,7 +156,7 @@ for f in Types.h Memory.h Windows.h Errors.h; do
 	if [ ! -r $IN/$f ]; then
 		echo "#include \"Mac$f\"" > $OUT/$f
 	elif [ ! -r $IN/Mac$f ]; then
-		echo "#include \"$f\"" > $OUT/$f
+		echo "#include \"$f\"" > $OUT/Mac$f
 	fi
 done
 
