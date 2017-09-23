@@ -40,9 +40,16 @@ typedef void (*voidFunction)(void);
 /*
    Linker-defined addresses in the binary;
  */
+
+// section boundaries
 extern uint8_t _stext, _etext, _sdata, _edata, _sbss, _ebss;
+// constructor list:
 extern uint8_t __init_section, __init_section_end;
+// destructor list:
 extern uint8_t __fini_section, __fini_section_end;
+// address of start of code reource.
+// usually equal to _stext, but can be overridden.
+extern uint8_t _rsrc_start;
 
 typedef struct Retro68RelocState
 {
@@ -50,7 +57,7 @@ typedef struct Retro68RelocState
 	Handle codeHandle;
 } Retro68RelocState;
 
-static Retro68RelocState relocState __attribute__ ((nocommon, section(".text"))) = {
+static Retro68RelocState relocState __attribute__ ((section(".relocvars"))) = {
 	NULL, NULL
 };
 
@@ -149,18 +156,15 @@ void Retro68Relocate()
 	log(orig_ebss);
 	
 	uint8_t *base = orig_stext + displacement;
-	// Recover the handle to the code resource by looking at the
-	// longword before the FLT header. The resource templates in Retro68.r store the offset
-	// from the beginning of the code resource there.
-	uint32_t offsetInResource = *(uint32_t*)(base - 0x44) + 0x40;
 	
-	if(offsetInResource < 4096)
-		// Arbitrary magic number. We expect the offset to be small, just a few header bytes before it.
-		// if it's out of range, assume the longword before the header is not the offset we're looking for.
-	{   
-		Handle h = RecoverHandle((Ptr) base - offsetInResource);        
+	{
+		uint8_t *orig_rsrc_start;
+		GET_VIRTUAL_ADDRESS(orig_rsrc_start, _rsrc_start);
+		uint8_t *rsrc_start = orig_rsrc_start + displacement;
+		
+		Handle h = RecoverHandle((Ptr) rsrc_start);        
 		if(MemError() == noErr && h)
-		{                    
+		{
 			// Make sure the code is locked. Only relevant for some code resources.
 			HLock(h);
 			rState->codeHandle = h;  
@@ -185,9 +189,7 @@ void Retro68Relocate()
 		bss_displacement = (uint8_t*)rState->bssPtr - orig_sbss;
 	}
 
-	long i;
 	// Process relocation records
-	
 	for(long *reloc = (long*)( base + text_and_data_size );
 		*reloc != -1;
 		++reloc)
@@ -215,7 +217,7 @@ void Retro68Relocate()
 
 		WRITE_UNALIGNED_LONGWORD(addrPtr, (uint32_t) addr);
 	}
-	
+
 	// We're basically done.
 	// Now check whether we're on 68040 or later and need to flush the cache.
 	// only do this if SysEnvirons is available.

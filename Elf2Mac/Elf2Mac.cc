@@ -141,39 +141,23 @@ void ElfToFlt(string input, string output)
 
 	std::sort(relocs.begin(), relocs.end());
 
-	ofstream out(output);
-
-	byte(out, 'b');
-	byte(out, 'F');
-	byte(out, 'L');
-	byte(out, 'T');
-	longword(out, 4);
-	longword(out, 0x40 + ehdr.e_entry);	// entry point
 
 	GElf_Shdr text_shdr, data_shdr, bss_shdr;
 	gelf_getshdr(codeSections[".text"], &text_shdr);
 	gelf_getshdr(codeSections[".data"], &data_shdr);
 	gelf_getshdr(bssSection, &bss_shdr);
 
-	longword(out, 0x40 + data_shdr.sh_addr); // data start
-	longword(out, 0x40 + bss_shdr.sh_addr);	// data end
-	longword(out, 0x40 + bss_shdr.sh_addr + bss_shdr.sh_size);	// bss end
-	longword(out, 4096); // stack size, ignored
-	longword(out, 0x40 + bss_shdr.sh_addr); // relocStart);
-	longword(out, relocs.size());
-	longword(out, 0); // flags
-	for(int i = 0; i < 6; i++)
-		longword(out, 0); // filler
+	ofstream out(output);
 
 	Elf_Data *data = elf_getdata(codeSections[".text"], NULL);
 	out << string((char*)data->d_buf, (char*)data->d_buf + data->d_size);
 
-	while(out.tellp() < 0x40 + data_shdr.sh_addr)
+	while(out.tellp() < /*0x40 + */data_shdr.sh_addr)
 		byte(out, 0x00);
 	data = elf_getdata(codeSections[".data"], NULL);
 	out << string((char*)data->d_buf, (char*)data->d_buf + data->d_size);
 
-	while(out.tellp() < 0x40 + bss_shdr.sh_addr)
+	while(out.tellp() < /*0x40 +*/ bss_shdr.sh_addr)
 		byte(out, 0x00);
 	for(int reloc : relocs)
 		longword(out, reloc);
