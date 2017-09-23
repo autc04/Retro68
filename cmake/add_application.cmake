@@ -73,12 +73,13 @@ function(add_application name)
 		set_target_properties(${name} PROPERTIES OUTPUT_NAME ${name}.flt)
 
 		add_custom_command(
-			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
+			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk ${name}.ad "%${name}.ad"
 			COMMAND ${REZ} ${REZ_FLAGS}
 					${REZ_TEMPLATES_PATH}/Retro68APPL.r
 					-I${REZ_INCLUDE_PATH}
 					-DFLT_FILE_NAME="\\"${name}.flt\\""
 					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
+					--cc "%${name}.ad"
 					-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
 					${ARGS_MAKEAPPL_ARGS}
 			DEPENDS ${name} ${rsrc_files})
@@ -100,13 +101,14 @@ function(add_application name)
 			DEPENDS ${name})
 
 		add_custom_command(
-			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
+			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk ${name}.ad "%${name}.ad"
 			COMMAND ${REZ} 
 					${REZ_FLAGS}
 					${REZ_TEMPLATE}
 					-I${REZ_INCLUDE_PATH}
 					-DCFRAG_NAME="\\"${name}\\""
 					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
+					--cc "%${name}.ad"
 					-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
 					--data ${name}.pef
 					${ARGS_MAKEAPPL_ARGS}

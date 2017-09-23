@@ -125,6 +125,24 @@ ResourceFile::~ResourceFile()
 
 }
 
+static bool CheckAppleDouble(fs::path path, std::string prefix)
+{
+	fs::path adPath = path.parent_path() / (prefix  + path.filename().string());
+	fs::ifstream in(adPath);
+	if(in)
+	{
+		int magic1 = longword(in);
+
+		if(in && magic1 == 0x00051607)
+		{
+			int magic2 = longword(in);
+			if(in && magic2 == 0x00020000)
+				return true;
+		}
+	}
+	return false;
+}
+
 bool ResourceFile::assign(std::string pathstring, ResourceFile::Format f)
 {
 	this->pathstring = pathstring;
@@ -140,24 +158,27 @@ bool ResourceFile::assign(std::string pathstring, ResourceFile::Format f)
 			format = Format::macbin;
 		else if(path.extension() == ".dsk" || path.extension() == ".img")
 			format = Format::diskimage;
+		else if(path.filename().string().substr(0,2) == "._")
+		{
+			path = path.parent_path() / path.filename().string().substr(2);
+			format = Format::underscore_appledouble;
+			this->pathstring = path.string();
+		}
+		else if(path.filename().string()[0] == '%')
+		{
+			path = path.parent_path() / path.filename().string().substr(1);
+			format = Format::percent_appledouble;
+			this->pathstring = path.string();
+		}
 		//else if(fs::exists(rsrcPath))
 		//	format = Format::basilisk;
 	}
 	if(format == Format::autodetect)
 	{
-		fs::path adPath = path.parent_path() / ("._"  + path.filename().string());
-		fs::ifstream in(adPath);
-		if(in)
-		{
-			int magic1 = longword(in);
-			
-			if(in && magic1 == 0x00051607)
-			{
-				int magic2 = longword(in);
-				if(in && magic2 == 0x00020000)
-					format = Format::underscore_appledouble;
-			}
-		}
+		if(CheckAppleDouble(path, "._"))
+			format = Format::underscore_appledouble;
+		if(CheckAppleDouble(path, "%"))
+			format = Format::percent_appledouble;
 	}
 	if(format == Format::autodetect)
 	{
@@ -264,12 +285,16 @@ bool ResourceFile::read()
 			}
 			break;
 		case Format::underscore_appledouble:
+		case Format::percent_appledouble:
 			{
 				fs::ifstream dataIn(path);
 				data = std::string(std::istreambuf_iterator<char>(dataIn),
 								   std::istreambuf_iterator<char>());
 
-				fs::path adPath = path.parent_path() / ("._"  + path.filename().string());
+				std::string prefix = format == Format::underscore_appledouble ?
+				                        "._" : "%";
+
+				fs::path adPath = path.parent_path() / (prefix  + path.filename().string());
 				fs::ifstream in(adPath);
 				if(longword(in) != 0x00051607)
 					return false;
@@ -404,14 +429,53 @@ bool ResourceFile::write()
 				longword(out, 2);
 				longword(out, rsrcStart);
 				longword(out, finfStart - rsrcStart);
-				longword(out, 3);
+				longword(out, 9);
 				longword(out, finfStart);
 				longword(out, 32);
 			}
 			break;
 		
 		// TODO: case Format::underscore_appledouble
-		
+		case Format::underscore_appledouble:
+		case Format::percent_appledouble:
+			{
+				fs::ofstream dataOut(path);
+
+				dataOut << data;
+
+				std::string prefix = format == Format::underscore_appledouble ?
+				                        "._" : "%";
+
+				fs::path adPath = path.parent_path() / (prefix  + path.filename().string());
+
+				fs::ofstream out(adPath);
+
+				longword(out, 0x00051607);
+				longword(out, 0x00020000);
+
+				for(int i = 0; i < 16; i++)
+					byte(out, 0);
+				word(out, 2);
+				std::streampos entries = out.tellp();
+				for(int i = 0; i < 2*3; i++)
+					longword(out, 0);
+				std::streampos rsrcStart = out.tellp();
+				resources.writeFork(out);
+				std::streampos finfStart = out.tellp();
+				ostype(out, type);
+				ostype(out, creator);
+				for(int i = 8; i < 32; i++)
+					byte(out, 0);
+				out.seekp(entries);
+				longword(out, 2);
+				longword(out, rsrcStart);
+				longword(out, finfStart - rsrcStart);
+				longword(out, 9);
+				longword(out, finfStart);
+				longword(out, 32);
+			}
+			break;
+
 		case Format::diskimage:
 			{
 				std::ostringstream rsrcOut;

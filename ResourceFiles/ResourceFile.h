@@ -19,7 +19,7 @@ public:
 		basilisk,
 		applesingle,
 		underscore_appledouble,
-		//appledouble
+		percent_appledouble
 	};
 
 	ResourceFile();
