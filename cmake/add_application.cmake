@@ -43,7 +43,7 @@ function(add_application name)
 	add_executable(${name} ${files} ${rez_files})
 
 	if(${ARGS_DEBUGBREAK})
-		list(APPEND ARGS_MAKEAPPL_ARGS -b)
+		list(APPEND ARGS_MAKEAPPL_ARGS -DBREAK_ON_ENTRY)
 	endif()
 	if(${ARGS_CONSOLE})
 		target_link_libraries(${name} RetroConsole)

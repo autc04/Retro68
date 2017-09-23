@@ -4,7 +4,12 @@
 resource 'CODE' (0) RETRO68_JUMP_TABLE;
 
 resource 'CODE' (1) {
-	dontBreakAtEntry, $$read(FLT_FILE_NAME);
+#ifdef BREAK_ON_ENTRY
+	breakAtEntry,
+#else
+	dontBreakAtEntry,
+#endif
+	$$read(FLT_FILE_NAME);
 };
 
 resource 'SIZE' (-1) {
