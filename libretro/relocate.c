@@ -66,16 +66,18 @@ extern void __fini_section_end(void);
 
 typedef struct Retro68RelocState
 {
-	long	headerVirtualAddress;
-	Ptr		bssPtr;
-	Handle	codeHandle;
+	Ptr bssPtr;
+	Handle codeHandle;
 } Retro68RelocState;
+extern uint8_t _stext, _etext, _sdata, _edata, _sbss, _ebss;
 
-static Retro68RelocState relocState __attribute__ ((nocommon)) = {
-	-sizeof(struct flat_hdr), NULL, NULL
+static Retro68RelocState relocState __attribute__ ((nocommon, section(".text"))) = {
+	NULL, NULL
 };
 
-#if 1
+	/* a simple version of assert - on failure, the line number is output
+	 * using DebugStr. */
+#if 0
 #define assert(x) do { } while(0)
 #else
 #define assert(x) do { \
@@ -96,6 +98,43 @@ static Retro68RelocState relocState __attribute__ ((nocommon)) = {
 		}	\
 	} while(0)
 #endif
+
+#if 0
+#define log(x) do { } while(0)
+#else
+#define log(x) do { \
+		{\
+			unsigned char str[10];	\
+			int ___i;	\
+			unsigned l = (x); \
+			for(___i = 2; ___i < 10; ___i++)	\
+				str[___i] = ' ';	\
+			str[0] = 9;	\
+			str[1] = 'L';	\
+			str[9] = '0';	\
+			for(___i = 8; l && ___i > 1; ___i--)	\
+			{	\
+				str[___i] = '0' + (l & 0xF);	\
+				if((l & 0xF) >= 0xA) \
+					str[___i] = 'A' - 10 + (l&0xF); \
+				l >>= 4;	\
+			}	\
+			DebugStr(str);	\
+		}	\
+	} while(0)
+
+#endif
+
+#define GET_VIRTUAL_ADDRESS(NAME, SYM) \
+	do {	\
+		__asm__( "\tlea " #SYM ", %0\n"	\
+				 : "=a"(NAME) );	\
+		if(hasStripAddr) \
+			NAME = StripAddress(NAME);	\
+		else					\
+			NAME = StripAddress24(NAME);	\
+	} while(0)
+
 
 void Retro68Relocate()
 {
@@ -144,16 +183,31 @@ void Retro68Relocate()
 			// that are invoked more than once.
 
 			// Lock the code to be sure.
-			HLock(rState->codeHandle);
+			if(rState->codeHandle)
+				HLock(rState->codeHandle);
 			return;
 		}
 	}
 
 	// Locate the start of the FLT file header inside the code resource
-	long headerOldVirtualAddress = rState->headerVirtualAddress;
-	struct flat_hdr *header = (struct flat_hdr*) (headerOldVirtualAddress + displacement);
-	uint8_t *base = (uint8_t*) (header+1);
+	uint8_t *orig_stext, *orig_etext, *orig_sdata, *orig_edata, *orig_sbss, *orig_ebss;
 	
+	GET_VIRTUAL_ADDRESS(orig_stext, _stext);
+	GET_VIRTUAL_ADDRESS(orig_etext, _etext);
+	GET_VIRTUAL_ADDRESS(orig_sdata, _sdata);
+	GET_VIRTUAL_ADDRESS(orig_edata, _edata);
+	GET_VIRTUAL_ADDRESS(orig_sbss, _sbss);
+	GET_VIRTUAL_ADDRESS(orig_ebss, _ebss);
+	
+	log(orig_stext);
+	log(orig_etext);
+	log(orig_sdata);
+	log(orig_edata);
+	log(orig_sbss);
+	log(orig_ebss);
+	
+	uint8_t *base = (uint8_t*) (orig_stext + displacement);
+	struct flat_hdr *header = ((struct flat_hdr*) (orig_stext + displacement)) - 1;
 	// Recover the handle to the code resource by looking at the
 	// longword before the FLT header. The resource templates in Retro68.r store the offset
 	// from the beginning of the code resource there.
@@ -169,49 +223,64 @@ void Retro68Relocate()
 			// Make sure the code is locked. Only relevant for some code resources.
 			HLock(h);
 			rState->codeHandle = h;  
-		}             
+		}
 	}
 	
-	long bss_size = header->bss_end - header->data_end;
+	long bss_size = &_ebss - &_sbss;
+	
 
 	long n = header->reloc_count;
 	long *relocs = (long*)( (char*)header + header->reloc_start );
+
 	long i;
-	long data_end = header->data_end + headerOldVirtualAddress;
-	uint32_t flt_size = (uint32_t) header->data_end;
+	uint32_t text_and_data_size = orig_edata - orig_stext;
+	uint32_t total_size = orig_ebss - orig_stext; // FIXME: not true for repeated reloc
 	long bss_displacement = 0;
 		
+	assert(text_and_data_size == header->data_end - sizeof(*header));
+	assert((uint8_t*)relocs == base + text_and_data_size);
+	assert(total_size == header->bss_end - sizeof(*header));
+	
 	// Allocate BSS section (uninitialized/zero-initialized global data)
 	if(!rState->bssPtr)
 	{
 		THz zone = ApplicationZone();
-		if(!zone || (char*)header < (char*)zone)
+		if(!zone || (uint8_t*)header < (uint8_t*)zone)
 			rState->bssPtr = NewPtrSysClear(bss_size);
 		else
 			rState->bssPtr = NewPtrClear(bss_size);
-		bss_displacement = (long)(rState->bssPtr) - data_end;
+		bss_displacement = (uint8_t*)rState->bssPtr - &_sbss;
 	}
 
 	// Process relocation records
 	for(i = 0; i < n; i++)
 	{
+		//Debugger();
 		uint8_t *addrPtr = base + relocs[i];
 		uint32_t addr;
 
-		assert((Ptr)addrPtr >= (Ptr)header);
-		assert((Ptr)addrPtr < (Ptr)header + flt_size);
+		/*log(relocs + i);
+		log(relocs[i]);*/
+		assert((Ptr)addrPtr >= (Ptr)base);
+		assert((Ptr)addrPtr < (Ptr)base + text_and_data_size);
 
 		//addr = *(uint32_t*)addrPtr;
 		addr = (((((addrPtr[0] << 8) | addrPtr[1]) << 8) | addrPtr[2]) << 8) | addrPtr[3];
 
-		assert(addr + 0x40 >= headerOldVirtualAddress + 0x40);
-		assert(addr + 0x40 < headerOldVirtualAddress + header->bss_end + 0x40);
+		//log(addr);
 
-		addr += (uint32_t)(addr - headerOldVirtualAddress) >= flt_size ?
+		/* Check whether addresses are in range.
+		 * This doesn't seem to work because exception handling tables
+		 * seem to contain strange things.
+		 */
+		/*assert((uint8_t*)addr >= orig_stext); // TODO: not right for repeated reloc
+		assert((uint8_t*)addr <= orig_stext + total_size);*/
+
+		addr += (addr - (uint32_t)orig_stext) >= text_and_data_size ?
 					bss_displacement : displacement;
 
-		assert((Ptr)addr >= (Ptr)header && (Ptr)addr < (Ptr)header + flt_size
-			   || (Ptr)addr >= rState->bssPtr && (Ptr)addr < rState->bssPtr + bss_size);
+		/*assert((Ptr)addr >= (Ptr)base && (Ptr)addr <= (Ptr)base + text_and_data_size
+			   || (Ptr)addr >= rState->bssPtr && (Ptr)addr <= rState->bssPtr + bss_size);*/
 
 		addrPtr[3] = addr;
 		addrPtr[2] = (addr >>= 8);
@@ -238,7 +307,6 @@ void Retro68Relocate()
 	}
 	
 	// accessing globals and calling functions is OK below here.
-	rState->headerVirtualAddress += displacement;
 }
 
 void Retro68CallConstructors()

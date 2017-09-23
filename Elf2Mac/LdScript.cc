@@ -26,10 +26,9 @@ ENTRY( _start )
 SECTIONS
 {
    .text :	{
+    _stext = . ;
         */libretrocrt.a:*(.text*)
-       */foo.o(.text*)
        *(.text*)
-       _stext = . ;
 
        *(.stub)
        *(.gnu.linkonce.t*)
@@ -43,15 +42,15 @@ SECTIONS
        __fini_section = . ;
        KEEP (*(.fini))
        __fini_section_end = . ;
-       _etext = . ;
 
        *(.eh_frame_hdr)
        KEEP(*(.eh_frame))
        KEEP(*(.gcc_except_table))
        KEEP(*(.gcc_except_table.*))
+       . = ALIGN(0x4) ;
+       _etext = . ;
    }
    .data : {
-       . = ALIGN(0x4) ;
        _sdata = . ;
                *(.got.plt)
                *(.got)
@@ -92,10 +91,11 @@ SECTIONS
        KEEP (*(.dtors))
 
        *(.tm_clone_table)
+        . = ALIGN(0x4);
+       _edata = . ;
    }
-   .bss : {
-               _sbss = ALIGN(0x4) ;
-               __bss_start = . ;
+   .bss ALIGN(0x4) : {
+               _sbss = .;
                *(.dynsbss)
                *(.sbss)
                *(.sbss.*)
