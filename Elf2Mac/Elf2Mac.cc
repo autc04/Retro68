@@ -101,6 +101,13 @@ void ElfToFlt(string input, string output)
 				GElf_Rela rela;
 				gelf_getrela(data, i, &rela);
 
+				GElf_Sym sym;
+				if(gelf_getsym(symtabData, GELF_R_SYM(rela.r_info),&sym) != 0)
+				{
+					if(sym.st_shndx == SHN_UNDEF)
+						continue;
+				}
+
 				if(GELF_R_TYPE(rela.r_info) == R_68K_32)
 					relocs.push_back(rela.r_offset);
 				//printf("rel: %d %d %x %x\n", (int)GELF_R_TYPE(rela.r_info), (int)GELF_R_SYM(rela.r_info), (unsigned)rela.r_addend, (unsigned)rela.r_offset);
