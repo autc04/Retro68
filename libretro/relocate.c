@@ -1,5 +1,5 @@
 /*
-	Copyright 2015 Wolfgang Thaller.
+	Copyright 2017 Wolfgang Thaller.
 
 	This file is part of Retro68.
 
@@ -33,97 +33,27 @@
 #include <Traps.h>
 
 #include "Retro68Runtime.h"
-
-
-struct flat_hdr {
-	char magic[4];
-	unsigned long rev;          /* version */
-	unsigned long entry;        /* Offset of first executable instruction
-								   with text segment from beginning of file */
-	unsigned long data_start;   /* Offset of data segment from beginning of
-								   file */
-	unsigned long data_end;     /* Offset of end of data segment
-								   from beginning of file */
-	unsigned long bss_end;      /* Offset of end of bss segment from beginning
-								   of file */
-
-	/* (It is assumed that data_end through bss_end forms the bss segment.) */
-
-	unsigned long stack_size;   /* Size of stack, in bytes */
-	unsigned long reloc_start;  /* Offset of relocation records from
-								   beginning of file */
-	unsigned long reloc_count;  /* Number of relocation records */
-	unsigned long flags;       
-	unsigned long filler[6];    /* Reserved, set to zero */
-};
+#include "PoorMansDebugging.h"
 
 typedef void (*voidFunction)(void);
 
-extern void __init_section(void);
-extern void __init_section_end(void);
-extern void __fini_section(void);
-extern void __fini_section_end(void);
+/*
+   Linker-defined addresses in the binary;
+ */
+extern uint8_t _stext, _etext, _sdata, _edata, _sbss, _ebss;
+extern uint8_t __init_section, __init_section_end;
+extern uint8_t __fini_section, __fini_section_end;
 
 typedef struct Retro68RelocState
 {
 	Ptr bssPtr;
 	Handle codeHandle;
 } Retro68RelocState;
-extern uint8_t _stext, _etext, _sdata, _edata, _sbss, _ebss;
 
 static Retro68RelocState relocState __attribute__ ((nocommon, section(".text"))) = {
 	NULL, NULL
 };
 
-	/* a simple version of assert - on failure, the line number is output
-	 * using DebugStr. */
-#if 0
-#define assert(x) do { } while(0)
-#else
-#define assert(x) do { \
-		if(!(x)) {\
-			unsigned char str[6];	\
-			int i;	\
-			int l = __LINE__; \
-			for(i = 1; i < 6; i++)	\
-				str[i] = ' ';	\
-			str[0] = 5;	\
-			str[5] = '0';	\
-			for(i = 5; l && i > 0; i--)	\
-			{	\
-				str[i] = '0' + (l % 10);	\
-				l /= 10;	\
-			}	\
-			DebugStr(str);	\
-		}	\
-	} while(0)
-#endif
-
-#if 1
-#define log(x) do { } while(0)
-#else
-#define log(x) do { \
-		{\
-			unsigned char str[10];	\
-			int ___i;	\
-			unsigned l = (x); \
-			for(___i = 2; ___i < 10; ___i++)	\
-				str[___i] = ' ';	\
-			str[0] = 9;	\
-			str[1] = 'L';	\
-			str[9] = '0';	\
-			for(___i = 8; l && ___i > 1; ___i--)	\
-			{	\
-				str[___i] = '0' + (l & 0xF);	\
-				if((l & 0xF) >= 0xA) \
-					str[___i] = 'A' - 10 + (l&0xF); \
-				l >>= 4;	\
-			}	\
-			DebugStr(str);	\
-		}	\
-	} while(0)
-
-#endif
 
 #define GET_VIRTUAL_ADDRESS(NAME, SYM) \
 	do {	\
@@ -133,6 +63,18 @@ static Retro68RelocState relocState __attribute__ ((nocommon, section(".text")))
 			NAME = StripAddress(NAME);	\
 		else					\
 			NAME = StripAddress24(NAME);	\
+	} while(0)
+
+#define READ_UNALIGNED_LONGWORD(ptr)	\
+	(((((((ptr)[0] << 8) | (ptr)[1]) << 8) | (ptr)[2]) << 8) | (ptr)[3])
+#define WRITE_UNALIGNED_LONGWORD(ptr, val)	\
+	do {	\
+		uint32_t _a = (val);	\
+		uint8_t *_ptr = (ptr);	\
+		_ptr[3] = _a;	\
+		_ptr[2] = (_a >>= 8);	\
+		_ptr[1] = (_a >>= 8);	\
+		_ptr[0] = (_a >>= 8);	\
 	} while(0)
 
 
@@ -206,18 +148,17 @@ void Retro68Relocate()
 	log(orig_sbss);
 	log(orig_ebss);
 	
-	uint8_t *base = (uint8_t*) (orig_stext + displacement);
-	struct flat_hdr *header = ((struct flat_hdr*) (orig_stext + displacement)) - 1;
+	uint8_t *base = orig_stext + displacement;
 	// Recover the handle to the code resource by looking at the
 	// longword before the FLT header. The resource templates in Retro68.r store the offset
 	// from the beginning of the code resource there.
-	uint32_t headerOffsetInResource = ((uint32_t*)header)[-1];
+	uint32_t offsetInResource = *(uint32_t*)(base - 0x44) + 0x40;
 	
-	if(headerOffsetInResource < 4096)
+	if(offsetInResource < 4096)
 		// Arbitrary magic number. We expect the offset to be small, just a few header bytes before it.
 		// if it's out of range, assume the longword before the header is not the offset we're looking for.
 	{   
-		Handle h = RecoverHandle((Ptr) header - headerOffsetInResource);        
+		Handle h = RecoverHandle((Ptr) base - offsetInResource);        
 		if(MemError() == noErr && h)
 		{                    
 			// Make sure the code is locked. Only relevant for some code resources.
@@ -226,29 +167,22 @@ void Retro68Relocate()
 		}
 	}
 	
-	long bss_size = &_ebss - &_sbss;
-	
-
-	long n = header->reloc_count;
-
 	uint32_t text_and_data_size = orig_edata - orig_stext;
-	uint32_t total_size = orig_ebss - orig_stext; // FIXME: not true for repeated reloc
+	long bss_size = orig_ebss - orig_sbss;
 		
-
-		
-	assert(text_and_data_size == header->data_end - sizeof(*header));
-	assert(total_size == header->bss_end - sizeof(*header));
+	//uint32_t total_size = orig_ebss - orig_stext; // FIXME: not true for repeated reloc
+	//assert(total_size == header->bss_end - sizeof(*header));
 	
 	long bss_displacement = 0;
 	// Allocate BSS section (uninitialized/zero-initialized global data)
 	if(!rState->bssPtr)
 	{
 		THz zone = ApplicationZone();
-		if(!zone || (uint8_t*)header < (uint8_t*)zone)
+		if(!zone || base < (uint8_t*)zone)
 			rState->bssPtr = NewPtrSysClear(bss_size);
 		else
 			rState->bssPtr = NewPtrClear(bss_size);
-		bss_displacement = (uint8_t*)rState->bssPtr - &_sbss;
+		bss_displacement = (uint8_t*)rState->bssPtr - orig_sbss;
 	}
 
 	long i;
@@ -258,19 +192,13 @@ void Retro68Relocate()
 		*reloc != -1;
 		++reloc)
 	{
-		//Debugger();
 		uint8_t *addrPtr = base + *reloc;
-		uint32_t addr;
+		uint8_t *addr;
 
-		/*log(relocs + i);
-		log(relocs[i]);*/
-		assert((Ptr)addrPtr >= (Ptr)base);
-		assert((Ptr)addrPtr < (Ptr)base + text_and_data_size);
+		assert(addrPtr >= base);
+		assert(addrPtr < base + text_and_data_size);
 
-		//addr = *(uint32_t*)addrPtr;
-		addr = (((((addrPtr[0] << 8) | addrPtr[1]) << 8) | addrPtr[2]) << 8) | addrPtr[3];
-
-		//log(addr);
+		addr = (uint8_t*) READ_UNALIGNED_LONGWORD(addrPtr);
 
 		/* Check whether addresses are in range.
 		 * This doesn't seem to work because exception handling tables
@@ -279,17 +207,13 @@ void Retro68Relocate()
 		/*assert((uint8_t*)addr >= orig_stext); // TODO: not right for repeated reloc
 		assert((uint8_t*)addr <= orig_stext + total_size);*/
 
-		addr += (addr - (uint32_t)orig_stext) >= text_and_data_size ?
+		addr += (addr - orig_stext) >= text_and_data_size ?
 					bss_displacement : displacement;
 
 		/*assert((Ptr)addr >= (Ptr)base && (Ptr)addr <= (Ptr)base + text_and_data_size
 			   || (Ptr)addr >= rState->bssPtr && (Ptr)addr <= rState->bssPtr + bss_size);*/
 
-		addrPtr[3] = addr;
-		addrPtr[2] = (addr >>= 8);
-		addrPtr[1] = (addr >>= 8);
-		addrPtr[0] = (addr >>= 8);
-		//*(uint32_t*)addrPtr = addr;
+		WRITE_UNALIGNED_LONGWORD(addrPtr, (uint32_t) addr);
 	}
 	
 	// We're basically done.
@@ -314,8 +238,8 @@ void Retro68Relocate()
 
 void Retro68CallConstructors()
 {
-	char *p = (char*)&__init_section;
-	char *e = (char*)&__init_section_end;
+	uint8_t *p = &__init_section;
+	uint8_t *e = &__init_section_end;
 	p += 2;
 	while( p < e )
 	{
@@ -326,8 +250,8 @@ void Retro68CallConstructors()
 
 void Retro68CallDestructors()
 {
-	char *p = (char*)&__fini_section;
-	char *e = (char*)&__fini_section_end;
+	uint8_t *p = &__fini_section;
+	uint8_t *e = &__fini_section_end;
 	p += 2;
 	while( p < e )
 	{
