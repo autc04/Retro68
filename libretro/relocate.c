@@ -99,7 +99,7 @@ static Retro68RelocState relocState __attribute__ ((nocommon, section(".text")))
 	} while(0)
 #endif
 
-#if 0
+#if 1
 #define log(x) do { } while(0)
 #else
 #define log(x) do { \
@@ -230,17 +230,16 @@ void Retro68Relocate()
 	
 
 	long n = header->reloc_count;
-	long *relocs = (long*)( (char*)header + header->reloc_start );
 
-	long i;
 	uint32_t text_and_data_size = orig_edata - orig_stext;
 	uint32_t total_size = orig_ebss - orig_stext; // FIXME: not true for repeated reloc
-	long bss_displacement = 0;
+		
+
 		
 	assert(text_and_data_size == header->data_end - sizeof(*header));
-	assert((uint8_t*)relocs == base + text_and_data_size);
 	assert(total_size == header->bss_end - sizeof(*header));
 	
+	long bss_displacement = 0;
 	// Allocate BSS section (uninitialized/zero-initialized global data)
 	if(!rState->bssPtr)
 	{
@@ -252,11 +251,15 @@ void Retro68Relocate()
 		bss_displacement = (uint8_t*)rState->bssPtr - &_sbss;
 	}
 
+	long i;
 	// Process relocation records
-	for(i = 0; i < n; i++)
+	
+	for(long *reloc = (long*)( base + text_and_data_size );
+		*reloc != -1;
+		++reloc)
 	{
 		//Debugger();
-		uint8_t *addrPtr = base + relocs[i];
+		uint8_t *addrPtr = base + *reloc;
 		uint32_t addr;
 
 		/*log(relocs + i);

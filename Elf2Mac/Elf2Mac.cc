@@ -170,6 +170,7 @@ void ElfToFlt(string input, string output)
 		byte(out, 0x00);
 	for(int reloc : relocs)
 		longword(out, reloc);
+	longword(out, -1);	// not part of the FLT specification: terminate reloc list
 }
 
 string argvZero;
