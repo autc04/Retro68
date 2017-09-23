@@ -15,8 +15,9 @@
 #   You should have received a copy of the GNU General Public License
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.1)
 project(Retro)
+set(CMAKE_CXX_STANDARD 11)
 
 if(CMAKE_SYSTEM_NAME MATCHES Retro.*)
 
@@ -59,5 +60,5 @@ add_subdirectory(MakeAPPL)
 add_subdirectory(Rez)
 add_subdirectory(ConvertObj)
 add_subdirectory(PEFTools)
-
+add_subdirectory(Elf2Mac)
 endif()
