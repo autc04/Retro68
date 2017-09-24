@@ -32,6 +32,8 @@ void foobar()
 
 int main(int argc, char** argv)
 {
+	bool throwFail = false;
+	bool catchFail = true;
 	for(int i = 0; i < 5; i++)
 	{
 		int n = i == 0 ? 1 : 100;
@@ -39,12 +41,17 @@ int main(int argc, char** argv)
 		long start = TickCount();
 		for(int j = 0; j < n; j++)
 		{
-			try { foobar(); } catch(...) {}
+			try { foobar(); throwFail = true; } catch(...) { catchFail = false; }
 		}
 		long end = TickCount();
 
 		printf("%g ms per throw/catch\n",(end-start)*1000 / 60.0 / n);
 	}
+
+	if(throwFail)
+		printf("******** FAILURE: throw didn't really throw\n");
+	if(catchFail)
+		printf("******** FAILURE: catch block never entered\n");
 
 	const int n = 3;
 	printf("Click mouse %d times...\n", n);

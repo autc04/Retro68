@@ -19,18 +19,26 @@
 
 #include "Elf2Mac.h"
 
-#include <fstream>
+#include <iostream>
+#include <boost/algorithm/string/replace.hpp>
+#include <string>
 
-const char * defaultLdScript = R"ld(/* ld script for Elf2Mac */
+using std::string;
+
+const char * scriptStart = R"ld(/* ld script for Elf2Mac */
 ENTRY( _start )
 SECTIONS
 {
+)ld";
+
+const char * textSection = R"ld(/* ld script for Elf2Mac */
     .text :	{
         _stext = . ;
         PROVIDE(_rsrc_start = .);
         *(.rsrcheader)
         . = ALIGN (2);
         _entry_trampoline = .;
+
         SHORT(DEFINED(__break_on_entry) ? 0xA9FF : 0x4e71);
         LONG(0x61000002);	/* bsr *+2 */
         SHORT(0x0697); /* addi.l #_, (a7) */
@@ -57,8 +65,10 @@ SECTIONS
         KEEP (*(.fini))
         __fini_section_end = . ;
 
-        *(.eh_frame_hdr)
+        __EH_FRAME_BEGIN__ = .;
         KEEP(*(.eh_frame))
+        LONG(0);
+        
         KEEP(*(.gcc_except_table))
         KEEP(*(.gcc_except_table.*))
 
@@ -68,6 +78,67 @@ SECTIONS
         . = ALIGN(0x4) ;
         _etext = . ;
     }
+)ld";
+
+const char * code1Section = R"ld(/* ld script for Elf2Mac */
+    .code1 :	{
+        _stext = . ;
+        PROVIDE(_rsrc_start = .);
+        . = ALIGN (2);
+        _entry_trampoline = .;
+        SHORT(DEFINED(__break_on_entry) ? 0xA9FF : 0x4e71);
+        LONG(0x61000002);	/* bsr *+2 */
+        SHORT(0x0697); /* addi.l #_, (a7) */
+        LONG(_start - _entry_trampoline - 6);
+        PROVIDE(_start = .);  /* fallback entry point to a safe spot - needed for libretro bootstrap */
+        SHORT(0x4e75); /* rts */
+
+        *(.relocvars)
+        */libretrocrt.a:start.c.obj(.text*)
+        */libretrocrt.a:relocate.c.obj(.text*) 
+        
+        . = ALIGN (4) ;
+        __init_section = . ;
+        KEEP (*(.init))
+        __init_section_end = . ;
+        __fini_section = . ;
+        KEEP (*(.fini))
+        __fini_section_end = . ;
+
+        __EH_FRAME_BEGIN__ = .;
+        LONG(0);
+
+        . = ALIGN(0x4) ;
+        _etext = . ;
+    }
+)ld";
+const char * codeSectionTemplate = R"ld(/* ld script for Elf2Mac */
+    .code@N@ :	{
+        @FILTER@(.text*)
+
+        @EXTRA@
+
+        . = ALIGN (4) ;
+
+        KEEP(@FILTER@(.eh_frame))
+        LONG(0);
+        KEEP(@FILTER@(.gcc_except_table))
+        KEEP(@FILTER@(.gcc_except_table.*))
+
+        . = ALIGN(0x4) ;
+    }
+)ld";
+
+const char * lastCodeExtra = R"ld(
+        *(.stub)
+        *(.gnu.linkonce.t*)
+        *(.glue_7t)
+        *(.glue_7)
+        *(.jcr)
+)ld";
+
+
+const char * scriptEnd = R"ld(
     .data : {
         _sdata = . ;
         *(.got.plt)
@@ -86,29 +157,19 @@ SECTIONS
         *(.gnu.linkonce.d*)
 
         . = ALIGN(4) ;
-            /* gcc uses crtbegin.o to find the start of
-            the constructors, so we make sure it is
-            first.  Because this is a wildcard, it
-            doesn't matter if the user does not
-            actually link against crtbegin.o; the
-            linker won't look for a file to match a
-            wildcard.  The wildcard also means that it
-            doesn't matter which directory crtbegin.o
-            is in.  */
-        KEEP (*crtbegin*.o(.ctors))
-            /* We don't want to include the .ctor section from
-            from the crtend.o file until after the sorted ctors.
-            The .ctor section from the crtend file contains the
-            end of ctors marker and it must be last */
-        KEEP (*(EXCLUDE_FILE (*crtend*.o ) .ctors))
-        KEEP (*(SORT(.ctors.*)))
+        __CTOR_LIST__ = .;
         KEEP (*(.ctors))
-        KEEP (*crtbegin*.o(.dtors))
-        KEEP (*(EXCLUDE_FILE (*crtend*.o ) .dtors))
-        KEEP (*(SORT(.dtors.*)))
+        KEEP (*(SORT(.ctors.*)))
+        __CTOR_END__ = .;
+        LONG(0);
+        
+        . = ALIGN(0x4);
+        __DTOR_LIST__ = .;
         KEEP (*(.dtors))
-
-        *(.tm_clone_table)
+        KEEP (*(SORT(.dtors.*)))
+        __DTOR_END__ = .;
+        LONG(0);
+        
         . = ALIGN(0x4);
         _edata = . ;
     }
@@ -171,7 +232,17 @@ SECTIONS
 )ld";
 
 
-void CreateLdScript(std::ofstream& out)
+void CreateLdScript(std::ostream& out)
 {
-	out << defaultLdScript;
+#if 1
+	out << scriptStart << textSection << scriptEnd;
+#else
+	out << scriptStart << code1Section;
+    string code = codeSectionTemplate;
+    boost::replace_all(code, "@N@", "2");
+    boost::replace_all(code, "@FILTER@", "*");
+    boost::replace_all(code, "@EXTRA@", lastCodeExtra);
+    out << code;
+    out << scriptEnd;
+#endif
 }

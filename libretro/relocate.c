@@ -51,6 +51,22 @@ extern uint8_t __fini_section, __fini_section_end;
 // usually equal to _stext, but can be overridden.
 extern uint8_t _rsrc_start;
 
+extern voidFunction __CTOR_LIST__, __DTOR_LIST__;
+extern uint8_t __EH_FRAME_BEGIN__;
+
+/*
+   struct object is an internal data structure in libgcc.
+   Comments in unwind-dw2-fde.h imply that it will not
+   increase in size.
+ */
+struct object { long space[8]; };
+
+extern void __register_frame_info (const void *, struct object *)
+				  __attribute__ ((weak));
+extern void *__deregister_frame_info (const void *)
+				     __attribute__ ((weak));
+
+
 typedef struct Retro68RelocState
 {
 	Ptr bssPtr;
@@ -240,26 +256,45 @@ void Retro68Relocate()
 
 void Retro68CallConstructors()
 {
-	uint8_t *p = &__init_section;
-	uint8_t *e = &__init_section_end;
-	p += 2;
-	while( p < e )
+	static struct object object;
+	if (__register_frame_info)
+		__register_frame_info(&__EH_FRAME_BEGIN__, &object);
 	{
-		(*(voidFunction)(*(long*)p))();
-		p += 6;
+		uint8_t *p = &__init_section;
+		uint8_t *e = &__init_section_end;
+		p += 2;
+		while( p < e )
+		{
+			(*(voidFunction)(*(long*)p))();
+			p += 6;
+		}
+	}
+	{
+		voidFunction *p, f;
+		for(p = &__CTOR_LIST__; (f = *p); p++)
+			f();
 	}
 }
 
 void Retro68CallDestructors()
 {
-	uint8_t *p = &__fini_section;
-	uint8_t *e = &__fini_section_end;
-	p += 2;
-	while( p < e )
 	{
-		(*(voidFunction)(*(long*)p))();
-		p += 6;
+		voidFunction *p, f;
+		for(p = &__DTOR_LIST__; (f = *p); p++)
+			f();
 	}
+	{
+		uint8_t *p = &__fini_section;
+		uint8_t *e = &__fini_section_end;
+		p += 2;
+		while( p < e )
+		{
+			(*(voidFunction)(*(long*)p))();
+			p += 6;
+		}
+	}
+	if (__deregister_frame_info)
+		__deregister_frame_info(&__EH_FRAME_BEGIN__);
 }
 
 
