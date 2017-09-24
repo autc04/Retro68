@@ -25,7 +25,7 @@ using namespace Retro;
 
 namespace
 {
-	std::unordered_map<WindowPtr, ConsoleWindow*>	windows;
+	std::unordered_map<WindowPtr, ConsoleWindow*>	*windows = NULL;
 }
 
 ConsoleWindow::ConsoleWindow(Rect r, ConstStr255Param title)
@@ -46,14 +46,16 @@ ConsoleWindow::ConsoleWindow(Rect r, ConstStr255Param title)
 	SetPort(port);
 	EraseRect(&portRect);
 
-	windows[win] = this;
+	if(!windows)
+		windows = new std::unordered_map<WindowPtr, ConsoleWindow*>();
+	(*windows)[win] = this;
 
 	Init(port, portRect);
 }
 
 ConsoleWindow::~ConsoleWindow()
 {
-	windows.erase(win);
+	windows->erase(win);
 	DisposeWindow(win);
 }
 
@@ -85,7 +87,7 @@ char ConsoleWindow::WaitNextChar()
 		{
 			case updateEvt:
 				eventWin = (WindowPtr)event.message;
-				realConsole = windows[(WindowPtr)event.message];
+				realConsole = (*windows)[(WindowPtr)event.message];
 				if(realConsole)
 				{
 					Rect updateRect;
