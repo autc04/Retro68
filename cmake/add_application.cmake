@@ -70,16 +70,16 @@ function(add_application name)
 
 	if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 
-		set_target_properties(${name} PROPERTIES OUTPUT_NAME ${name}.flt)
+		set_target_properties(${name} PROPERTIES OUTPUT_NAME ${name}.code.bin)
 
 		add_custom_command(
 			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk ${name}.ad "%${name}.ad"
 			COMMAND ${REZ} ${REZ_FLAGS}
 					${REZ_TEMPLATES_PATH}/Retro68APPL.r
 					-I${REZ_INCLUDE_PATH}
-					-DFLT_FILE_NAME="\\"${name}.flt\\""
-					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
-					--cc "%${name}.ad"
+					--copy "${name}.code.bin"
+					-o "${name}.bin"
+					--cc "${name}.dsk" --cc "${name}.APPL" --cc "%${name}.ad"
 					-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
 					${ARGS_MAKEAPPL_ARGS}
 			DEPENDS ${name} ${rsrc_files})
