@@ -232,17 +232,18 @@ const char * scriptEnd = R"ld(
 )ld";
 
 
-void CreateLdScript(std::ostream& out)
+void CreateLdScript(std::ostream& out, bool segments)
 {
-#if 1
-	out << scriptStart << textSection << scriptEnd;
-#else
-	out << scriptStart << code1Section;
-    string code = codeSectionTemplate;
-    boost::replace_all(code, "@N@", "2");
-    boost::replace_all(code, "@FILTER@", "*");
-    boost::replace_all(code, "@EXTRA@", lastCodeExtra);
-    out << code;
-    out << scriptEnd;
-#endif
+	if(segments)
+	{
+		out << scriptStart << code1Section;
+		string code = codeSectionTemplate;
+		boost::replace_all(code, "@N@", "2");
+		boost::replace_all(code, "@FILTER@", "*");
+		boost::replace_all(code, "@EXTRA@", lastCodeExtra);
+		out << code;
+		out << scriptEnd;
+	}
+	else
+		out << scriptStart << textSection << scriptEnd;
 }

@@ -22,6 +22,6 @@
 
 #include <iosfwd>
 
-void CreateLdScript(std::ostream& out);
+void CreateLdScript(std::ostream& out, bool segments);
 
 #endif // ELF2MAC_H

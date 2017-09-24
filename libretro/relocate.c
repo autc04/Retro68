@@ -204,14 +204,30 @@ void Retro68Relocate()
 			rState->bssPtr = NewPtrClear(bss_size);
 		bss_displacement = (uint8_t*)rState->bssPtr - orig_sbss;
 	}
-
+	
+	/*
+ 		Relocation records consist of 4 bytes each.
+		The lower three bytes are the offset of the longword being relocated.
+		the first byte of each longword specifies which segment
+		the relocation leads to; the corresponding displacements are taken
+		from the following table:
+	 */
+	long displacements[4] = {
+			displacement,	// code
+			displacement,	// data (contiguous with code)
+			bss_displacement,	// bss (allocated separately)
+			SetCurrentA5()	// jump table (TODO)
+	};
+	
 	// Process relocation records
 	for(long *reloc = (long*)( base + text_and_data_size );
 		*reloc != -1;
 		++reloc)
 	{
-		uint8_t *addrPtr = base + *reloc;
+		uint32_t r = *reloc;
+		uint8_t *addrPtr = base + (r & 0xFFFFFF);
 		uint8_t *addr;
+		uint8_t kind = r >> 24;
 
 		assert(addrPtr >= base);
 		assert(addrPtr < base + text_and_data_size);
@@ -225,8 +241,7 @@ void Retro68Relocate()
 		/*assert((uint8_t*)addr >= orig_stext); // TODO: not right for repeated reloc
 		assert((uint8_t*)addr <= orig_stext + total_size);*/
 
-		addr += (addr - orig_stext) >= text_and_data_size ?
-					bss_displacement : displacement;
+		addr += displacements[kind];
 
 		/*assert((Ptr)addr >= (Ptr)base && (Ptr)addr <= (Ptr)base + text_and_data_size
 			   || (Ptr)addr >= rState->bssPtr && (Ptr)addr <= rState->bssPtr + bss_size);*/

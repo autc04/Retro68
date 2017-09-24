@@ -64,18 +64,55 @@ shared_ptr<Section> dataSection;
 
 enum class SectionKind
 {
-	code,
+	undefined = -1,
+	code = 0,
 	data,
-	bss
+	bss,
+	jumptable
 };
 
 class Symbol : public GElf_Sym
 {
 public:
 	bool valid;
+	bool referencedExternally;
+	SectionKind sectionKind;
 
 	Symbol();
 	Symbol(GElf_Sym sym);
+};
+
+class Symtab
+{
+public:
+	Elf_Scn *elfsec;
+	Elf_Data *data;
+	vector<Symbol> symbols;
+
+	Symtab(Elf_Scn *elfsec);
+
+	Symbol& GetSym(int idx);
+};
+
+class Section
+{
+public:
+	string name;
+	int idx;
+	SectionKind kind;
+	Elf_Scn *elfsec, *relasec;
+	Elf_Data *data;
+
+	std::vector<GElf_Rela> relocs;
+
+	Section(string name, int idx, SectionKind kind, Elf_Scn *elfsec);
+	void SetRela(Elf_Scn *scn);
+
+	uint32_t GetSize();
+	string GetData();
+	string GetAbsRelocations(bool suppressTerminatingEntry = false);
+
+	void ScanRelocs();
 };
 
 Symbol::Symbol()
@@ -84,21 +121,15 @@ Symbol::Symbol()
 }
 
 Symbol::Symbol(GElf_Sym sym)
-    : GElf_Sym(sym), valid(true)
+    : GElf_Sym(sym), valid(true),
+      referencedExternally(false),
+      sectionKind(SectionKind::undefined)
 {
+	if(st_shndx != SHN_UNDEF)
+	{
+		sectionKind = sectionsByElfIndex[st_shndx]->kind;
+	}
 }
-
-class Symtab
-{
-	vector<Symbol> symbols;
-public:
-	Elf_Scn *elfsec;
-	Elf_Data *data;
-
-	Symtab(Elf_Scn *elfsec);
-
-	Symbol& GetSym(int idx);
-};
 
 Symtab::Symtab(Elf_Scn *elfsec)
     : elfsec(elfsec)
@@ -126,25 +157,8 @@ Symbol &Symtab::GetSym(int idx)
 	}
 }
 
-
-class Section
-{
-public:
-	string name;
-	SectionKind kind;
-	Elf_Scn *elfsec, *relasec;
-	Elf_Data *data;
-
-	Section(string name, SectionKind kind, Elf_Scn *elfsec);
-	void SetRela(Elf_Scn *scn);
-
-	uint32_t GetSize();
-	string GetData();
-	string GetAbsRelocations();
-};
-
-Section::Section(string name, SectionKind kind, Elf_Scn *elfsec)
-    : name(name), kind(kind), elfsec(elfsec), relasec(NULL)
+Section::Section(string name, int idx, SectionKind kind, Elf_Scn *elfsec)
+    : name(name), idx(idx), kind(kind), elfsec(elfsec), relasec(NULL)
 {
 	data = elf_getdata(elfsec, NULL);
 }
@@ -152,6 +166,20 @@ Section::Section(string name, SectionKind kind, Elf_Scn *elfsec)
 void Section::SetRela(Elf_Scn *scn)
 {
 	relasec = scn;
+	GElf_Shdr shdr;
+	gelf_getshdr(relasec, &shdr);
+
+	int nRela = shdr.sh_size / shdr.sh_entsize;
+	Elf_Data *data = elf_getdata(relasec, NULL);
+	for(int i = 0; i < nRela; i++)
+	{
+		GElf_Rela rela;
+		gelf_getrela(data, i, &rela);
+		relocs.push_back(rela);
+	}
+
+	std::sort(relocs.begin(), relocs.end(),
+	          [](GElf_Rela& a, GElf_Rela& b) { return a.r_offset < b.r_offset; });
 }
 
 uint32_t Section::GetSize()
@@ -164,43 +192,53 @@ string Section::GetData()
 	return string((char*)data->d_buf, (char*)data->d_buf + data->d_size);
 }
 
-string Section::GetAbsRelocations()
+string Section::GetAbsRelocations(bool suppressTerminatingEntry)
 {
 	if(!relasec)
 		return "";
 	std::ostringstream out;
 
-
-	std::vector<int> relocs;
-
-	GElf_Shdr shdr;
-	gelf_getshdr(relasec, &shdr);
-
-	int nRela = shdr.sh_size / shdr.sh_entsize;
-	Elf_Data *data = elf_getdata(relasec, NULL);
-	for(int i = 0; i < nRela; i++)
+	for(auto& rela : relocs)
 	{
-		GElf_Rela rela;
-		gelf_getrela(data, i, &rela);
-
 		//printf("rel: %d %d %x %x\n", (int)GELF_R_TYPE(rela.r_info), (int)GELF_R_SYM(rela.r_info), (unsigned)rela.r_addend, (unsigned)rela.r_offset);
 
 		int symidx = GELF_R_SYM(rela.r_info);
 		if(symidx == 0)
 			continue;
 
-		GElf_Sym sym = symtab->GetSym(symidx);
+		Symbol& sym = symtab->GetSym(symidx);
 
 		if(sym.st_shndx == SHN_UNDEF)
 			continue;
 
 		if(GELF_R_TYPE(rela.r_info) == R_68K_32)
-			relocs.push_back(rela.r_offset);
+		{
+			assert(sym.sectionKind != SectionKind::undefined);
+
+			longword(out, rela.r_offset | ((int)sym.sectionKind << 24));
+		}
 	}
-	std::sort(relocs.begin(), relocs.end());
-	for(int reloc : relocs)
-		longword(out, reloc);
+	if(!suppressTerminatingEntry)
+		longword(out, -1);
 	return out.str();
+}
+
+void Section::ScanRelocs()
+{
+	for(auto& rela : relocs)
+	{
+		int symidx = GELF_R_SYM(rela.r_info);
+		if(symidx == 0)
+			continue;
+
+		Symbol& sym = symtab->GetSym(symidx);
+
+		if(sym.st_shndx == SHN_UNDEF)
+			continue;
+
+		if(sym.st_shndx != idx)
+			sym.referencedExternally = true;
+	}
 }
 
 
@@ -219,13 +257,13 @@ void GrokELF(string input)
 
 	Elf_Scn* bssSection = NULL;
 
-	int idx = 0;
-	for(Elf_Scn *scn = NULL; (scn = elf_nextscn(elf, scn)) != NULL;idx++)
+	int idx = 1;
+	for(Elf_Scn *scn = NULL; (scn = elf_nextscn(elf, scn)) != NULL; idx++)
 	{
 		GElf_Shdr shdr;
 		gelf_getshdr(scn, &shdr);
 		std::string name = elf_strptr(elf, sectionHeaderStringTableIdx, shdr.sh_name);
-		//printf("section: %s\n", name.c_str());
+		//std::cout << "section #" << idx << ": " << name << std::endl;
 
 		if(shdr.sh_type == SHT_SYMTAB
 		            && !symtab)
@@ -251,7 +289,7 @@ void GrokELF(string input)
 		        && !bssSection)	// ignore everything after bss, that's just debug info
 		{
 			SectionKind kind = name == ".data" ? SectionKind::data : SectionKind::code;
-			auto section = make_shared<Section>(name,kind, scn);
+			auto section = make_shared<Section>(name, idx, kind, scn);
 
 			sections[name] = sectionsByElfIndex[idx] = section;
 			if(kind == SectionKind::data)
@@ -267,7 +305,7 @@ void GrokELF(string input)
 			// (What's the official way to distinguish a debug info section from a "real" section?)
 
 			sections[name] = sectionsByElfIndex[idx] =
-			        make_shared<Section>(name,SectionKind::bss, scn);
+			        make_shared<Section>(name, idx, SectionKind::bss, scn);
 		}
 	}
 
@@ -283,9 +321,9 @@ void FlatCode(std::ostream& out)
 	out << dataSection->GetData();
 
 	for(auto sec : codeSections)
-		out << sec->GetAbsRelocations();
+		out << sec->GetAbsRelocations(true);
 	out << dataSection->GetAbsRelocations();
-	longword(out, -1);
+
 }
 
 void FlatCode(string fn)
@@ -356,6 +394,53 @@ void SingleSegmentApp(string output)
 	file.write();
 }
 
+
+
+void MultiSegmentApp(string output)
+{
+	ResourceFile file(output);
+	Resources& rsrc = file.resources;
+
+	for(auto sec : codeSections)
+	{
+		sec->ScanRelocs();
+	}
+
+	rsrc.addResource(Resource(ResType("CODE"), 0,
+	    fromhex(
+	        "00000028 00000000 00000008 00000020"
+	        "0000 3F3C 0001 A9F0"
+	    )
+	));
+
+
+	int id = 1;
+	for(auto sec : codeSections)
+	{
+		std::ostringstream code;
+		word(code, 0);				//FIXME: header
+		word(code, 1);
+		code << sec->GetData();
+
+		rsrc.addResource(Resource(ResType("CODE"), id,
+		                          code.str()));
+
+
+		rsrc.addResource(Resource(ResType("RELA"),id, sec->GetAbsRelocations()));
+		id++;
+	}
+
+	rsrc.addResource(Resource(ResType("DATA"),0, dataSection->GetData()));
+
+
+
+
+	file.creator = ResType("????");
+	file.type = ResType("APPL");
+
+	file.write();
+}
+
 string argvZero;
 
 void RealLD(vector<string> args)
@@ -412,6 +497,7 @@ int main(int argc, char *argv[])
 		string outputFile = "a.out";
 		bool elf2mac = false;
 		bool flatoutput = false;
+		bool segments = false;
 
 		vector<string> args2;
 		for(auto p = args.begin(), e = args.end(); p != e; ++p)
@@ -458,10 +544,12 @@ int main(int argc, char *argv[])
 			int fd = mkstemp(tmpfile);
 			if(fd < 0)
 				errx(EXIT_FAILURE, "can't create temp file");
+
 			{
 				ofstream out(tmpfile);
-				CreateLdScript(out);
+				CreateLdScript(out, segments);
 			}
+
 			args2.push_back("-o");
 			args2.push_back(outputFile + ".gdb");
 			args2.push_back("-T");
@@ -471,6 +559,8 @@ int main(int argc, char *argv[])
 			GrokELF(outputFile + ".gdb");
 			if(flatoutput)
 				FlatCode(outputFile);
+			else if(segments)
+				MultiSegmentApp(outputFile);
 			else
 				SingleSegmentApp(outputFile);
 		}
