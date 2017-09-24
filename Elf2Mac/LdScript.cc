@@ -29,13 +29,13 @@ SECTIONS
         _stext = . ;
         PROVIDE(_rsrc_start = .);
         *(.rsrcheader)
-        
         . = ALIGN (2);
         _entry_trampoline = .;
         SHORT(DEFINED(__break_on_entry) ? 0xA9FF : 0x4e71);
         LONG(0x61000002);	/* bsr *+2 */
         SHORT(0x0697); /* addi.l #_, (a7) */
         LONG(_start - _entry_trampoline - 6);
+        PROVIDE(_start = .);  /* fallback entry point to a safe spot - needed for libretro bootstrap */
         SHORT(0x4e75); /* rts */
 
         *(.relocvars)
