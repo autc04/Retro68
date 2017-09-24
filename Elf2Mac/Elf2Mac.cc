@@ -52,42 +52,90 @@ size_t sectionHeaderStringTableIdx;
 size_t mainStringTableIdx = (size_t)-1;
 
 class Symtab;
+class Section;
 
 std::vector<int> relocs;
 unique_ptr<Symtab> symtab;
+unordered_map<string, shared_ptr<Section>> sections;
+unordered_map<int, shared_ptr<Section>> sectionsByElfIndex;
+
+std::vector<shared_ptr<Section>> codeSections;
+shared_ptr<Section> dataSection;
+
+enum class SectionKind
+{
+	code,
+	data,
+	bss
+};
+
+class Symbol : public GElf_Sym
+{
+public:
+	bool valid;
+
+	Symbol();
+	Symbol(GElf_Sym sym);
+};
+
+Symbol::Symbol()
+    : valid(false)
+{
+}
+
+Symbol::Symbol(GElf_Sym sym)
+    : GElf_Sym(sym), valid(true)
+{
+}
 
 class Symtab
 {
+	vector<Symbol> symbols;
 public:
 	Elf_Scn *elfsec;
 	Elf_Data *data;
 
 	Symtab(Elf_Scn *elfsec);
 
-	GElf_Sym GetSym(int idx);
+	Symbol& GetSym(int idx);
 };
 
 Symtab::Symtab(Elf_Scn *elfsec)
     : elfsec(elfsec)
 {
 	data = elf_getdata(elfsec, NULL);
+
+	GElf_Shdr shdr;
+	gelf_getshdr(elfsec, &shdr);
+
+	int count = shdr.sh_size / shdr.sh_entsize;
+	symbols.resize(count);
 }
 
-GElf_Sym Symtab::GetSym(int idx)
+Symbol &Symtab::GetSym(int idx)
 {
-	GElf_Sym sym;
-	auto res = gelf_getsym(data, idx, &sym);
-	assert(res != 0);
-	return sym;
+	if(symbols[idx].valid)
+		return symbols[idx];
+	else
+	{
+		GElf_Sym sym;
+		auto res = gelf_getsym(data, idx, &sym);
+		assert(res != 0);
+
+		return (symbols[idx] = Symbol(sym));
+	}
 }
+
 
 class Section
 {
 public:
+	string name;
+	SectionKind kind;
 	Elf_Scn *elfsec, *relasec;
 	Elf_Data *data;
 
-	Section(int idx, Elf_Scn *elfsec);
+	Section(string name, SectionKind kind, Elf_Scn *elfsec);
 	void SetRela(Elf_Scn *scn);
 
 	uint32_t GetSize();
@@ -95,8 +143,8 @@ public:
 	string GetAbsRelocations();
 };
 
-Section::Section(int idx, Elf_Scn *elfsec)
-    : elfsec(elfsec), relasec(NULL)
+Section::Section(string name, SectionKind kind, Elf_Scn *elfsec)
+    : name(name), kind(kind), elfsec(elfsec), relasec(NULL)
 {
 	data = elf_getdata(elfsec, NULL);
 }
@@ -155,7 +203,6 @@ string Section::GetAbsRelocations()
 	return out.str();
 }
 
-unordered_map<string, shared_ptr<Section>> sections;
 
 void GrokELF(string input)
 {
@@ -203,29 +250,41 @@ void GrokELF(string input)
 		if(shdr.sh_type == SHT_PROGBITS
 		        && !bssSection)	// ignore everything after bss, that's just debug info
 		{
-			sections.emplace(name, make_shared<Section>(idx, scn));
+			SectionKind kind = name == ".data" ? SectionKind::data : SectionKind::code;
+			auto section = make_shared<Section>(name,kind, scn);
+
+			sections[name] = sectionsByElfIndex[idx] = section;
+			if(kind == SectionKind::data)
+				dataSection = section;
+			else if(kind == SectionKind::code)
+				codeSections.push_back(section);
 		}
 		if(shdr.sh_type == SHT_NOBITS)
 		{
 			bssSection = scn;
-			// Currently, the bss section is only used here
+			// Currently, the bss section is used
 			// to know when to start skipping debug info sections.
 			// (What's the official way to distinguish a debug info section from a "real" section?)
 
-			// We don't even need to remember the size of address of the bss segment,
-			// the initialization code in libretro/relocate.c knows this from
-			// the _sbss and _ebss symbols defined in the linker script.
+			sections[name] = sectionsByElfIndex[idx] =
+			        make_shared<Section>(name,SectionKind::bss, scn);
 		}
 	}
+
+	std::sort(codeSections.begin(), codeSections.end(),
+	          [](shared_ptr<Section> a, shared_ptr<Section> b) { return a->name < b->name; });
 }
 
 void FlatCode(std::ostream& out)
 {
-	out << sections[".text"]->GetData();
-	out << sections[".data"]->GetData();
+	for(auto sec : codeSections)
+		out << sec->GetData();
 
-	out << sections[".text"]->GetAbsRelocations();
-	out << sections[".data"]->GetAbsRelocations();
+	out << dataSection->GetData();
+
+	for(auto sec : codeSections)
+		out << sec->GetAbsRelocations();
+	out << dataSection->GetAbsRelocations();
 	longword(out, -1);
 }
 
@@ -376,6 +435,16 @@ int main(int argc, char *argv[])
 			{
 				elf2mac = true;
 				flatoutput = true;
+			}
+			else if(*p == "--mac-segments")
+			{
+				elf2mac = true;
+				if(flatoutput)
+					errx(EXIT_FAILURE, "--mac-segments can't be used with --mac-flat");
+				++p;
+				if(p == e)
+					errx(EXIT_FAILURE, "--mac-segments missing argument");
+				//segmentMapFile = *p;
 			}
 			else
 			{
