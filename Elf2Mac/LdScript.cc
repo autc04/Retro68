@@ -61,6 +61,10 @@ SECTIONS
         KEEP(*(.eh_frame))
         KEEP(*(.gcc_except_table))
         KEEP(*(.gcc_except_table.*))
+
+        /* NOTE: Elf2Mac expects the sections to be contiguous,
+                 so include the alignment before the end of this section.
+        */
         . = ALIGN(0x4) ;
         _etext = . ;
     }

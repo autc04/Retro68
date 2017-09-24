@@ -35,6 +35,8 @@
 #include <vector>
 #include <fstream>
 #include <iostream>
+#include <sstream>
+#include <memory>
 
 #include <boost/algorithm/string/predicate.hpp>
 
@@ -42,105 +44,184 @@ using std::string;
 using std::unordered_map;
 using std::vector;
 using std::ofstream;
+using std::shared_ptr;
+using std::make_shared;
+using std::unique_ptr;
 
 unordered_map<string, Elf_Scn*> codeSections;
 unordered_map<string, Elf_Scn*> relaSections;
 Elf_Scn* dataSection;
 Elf_Scn* bssSection;
 Elf_Scn *symtabSection;
+size_t sectionHeaderStringTableIdx;
+size_t mainStringTableIdx;
 
-void ElfToFlt(string input, string output)
+class Symtab;
+
+std::vector<int> relocs;
+unique_ptr<Symtab> symtab;
+
+class Symtab
 {
-	std::cout << "************ ELF2FLT\n";
+public:
+	Elf_Scn *elfsec;
+	Elf_Data *data;
+
+	Symtab(Elf_Scn *elfsec);
+
+	GElf_Sym GetSym(int idx);
+};
+
+Symtab::Symtab(Elf_Scn *elfsec)
+    : elfsec(elfsec)
+{
+	data = elf_getdata(elfsec, NULL);
+}
+
+GElf_Sym Symtab::GetSym(int idx)
+{
+	GElf_Sym sym;
+	auto res = gelf_getsym(data, idx, &sym);
+	assert(res != 0);
+	return sym;
+}
+
+class Section
+{
+public:
+	Elf_Scn *elfsec, *relasec;
+	Elf_Data *data;
+
+	Section(int idx, Elf_Scn *elfsec);
+	void SetRela(Elf_Scn *scn);
+
+	uint32_t GetSize();
+	string GetData();
+	string GetAbsRelocations();
+};
+
+Section::Section(int idx, Elf_Scn *elfsec)
+    : elfsec(elfsec), relasec(NULL)
+{
+	data = elf_getdata(elfsec, NULL);
+}
+
+void Section::SetRela(Elf_Scn *scn)
+{
+	relasec = scn;
+}
+
+uint32_t Section::GetSize()
+{
+	return data->d_size;
+}
+
+string Section::GetData()
+{
+	return string((char*)data->d_buf, (char*)data->d_buf + data->d_size);
+}
+
+string Section::GetAbsRelocations()
+{
+	if(!relasec)
+		return "";
+	std::ostringstream out;
+
+
+	std::vector<int> relocs;
+
+	GElf_Shdr shdr;
+	gelf_getshdr(relasec, &shdr);
+
+	int nRela = shdr.sh_size / shdr.sh_entsize;
+	Elf_Data *data = elf_getdata(relasec, NULL);
+	for(int i = 0; i < nRela; i++)
+	{
+		GElf_Rela rela;
+		gelf_getrela(data, i, &rela);
+
+		//printf("rel: %d %d %x %x\n", (int)GELF_R_TYPE(rela.r_info), (int)GELF_R_SYM(rela.r_info), (unsigned)rela.r_addend, (unsigned)rela.r_offset);
+
+		int symidx = GELF_R_SYM(rela.r_info);
+		if(symidx == 0)
+			continue;
+
+		GElf_Sym sym = symtab->GetSym(symidx);
+
+		if(sym.st_shndx == SHN_UNDEF)
+			continue;
+
+		if(GELF_R_TYPE(rela.r_info) == R_68K_32)
+			relocs.push_back(rela.r_offset);
+	}
+	std::sort(relocs.begin(), relocs.end());
+	for(int reloc : relocs)
+		longword(out, reloc);
+	return out.str();
+}
+
+unordered_map<string, shared_ptr<Section>> sections;
+
+void GrokELF(string input)
+{
 	if(elf_version ( EV_CURRENT ) == EV_NONE)
 		errx(EXIT_FAILURE , "ELF library initialization failed: %s", elf_errmsg( -1));
 
 	int fd = open(input.c_str(), O_RDONLY, 0);
-	Elf *e = elf_begin(fd, ELF_C_READ, NULL);
+	Elf *elf = elf_begin(fd, ELF_C_READ, NULL);
 
-	size_t shstrndx;
-	elf_getshdrstrndx(e, &shstrndx);
+	elf_getshdrstrndx(elf, &sectionHeaderStringTableIdx);
 
 	GElf_Ehdr ehdr;
-	gelf_getehdr(e, &ehdr);
+	gelf_getehdr(elf, &ehdr);
 
-	Elf_Scn *symtab = NULL;
-	int nSyms;
+	unordered_map<string, Elf_Scn*> progbits;
 
-	for(Elf_Scn *scn = NULL; (scn = elf_nextscn(e, scn)) != NULL;)
+	int idx = 0;
+	for(Elf_Scn *scn = NULL; (scn = elf_nextscn(elf, scn)) != NULL;idx++)
 	{
 		GElf_Shdr shdr;
 		gelf_getshdr(scn, &shdr);
-		if(shdr.sh_type == SHT_SYMTAB)
+		std::string name = elf_strptr(elf, sectionHeaderStringTableIdx, shdr.sh_name);
+		//printf("section: %s\n", name.c_str());
+
+		if(shdr.sh_type == SHT_SYMTAB
+		            && !symtab)
 		{
-			symtab = scn;
-			nSyms = shdr.sh_size / shdr.sh_entsize;
-			break;
+			symtab.reset(new Symtab(scn));
 		}
-	}
-	Elf_Data *symtabData = elf_getdata(symtab, NULL);
-
-	std::vector<int> relocs;
-
-	for(Elf_Scn *scn = NULL; (scn = elf_nextscn(e, scn)) != NULL;)
-	{
-		GElf_Shdr shdr;
-		gelf_getshdr(scn, &shdr);
-		std::string name = elf_strptr(e, shstrndx, shdr.sh_name);
-		printf("section: %s\n", name.c_str());
-
+		if(shdr.sh_type == SHT_STRTAB)
+		{
+			if(name == ".strtab")
+				mainStringTableIdx = idx;
+		}
 		if(shdr.sh_type == SHT_RELA
 		        && !bssSection)	// ignore everything after bss, that's just debug info
 		{
-			printf("(rela)\n");
-
-			int nRela = shdr.sh_size / shdr.sh_entsize;
-			Elf_Data *data = elf_getdata(scn, NULL);
-			for(int i = 0; i < nRela; i++)
-			{
-				GElf_Rela rela;
-				gelf_getrela(data, i, &rela);
-
-				GElf_Sym sym;
-				if(gelf_getsym(symtabData, GELF_R_SYM(rela.r_info),&sym) != 0)
-				{
-					if(sym.st_shndx == SHN_UNDEF)
-						continue;
-				}
-
-				if(GELF_R_TYPE(rela.r_info) == R_68K_32)
-					relocs.push_back(rela.r_offset);
-				//printf("rel: %d %d %x %x\n", (int)GELF_R_TYPE(rela.r_info), (int)GELF_R_SYM(rela.r_info), (unsigned)rela.r_addend, (unsigned)rela.r_offset);
-			}
-
 			if(boost::algorithm::starts_with(name,".rela."))
 			{
-				relaSections[name.substr(5)] = scn;
+				string progbitsName = name.substr(5);
+				relaSections[progbitsName] = scn;
+				assert(sections.find(progbitsName) != sections.end());
+				sections[progbitsName]->SetRela(scn);
 			}
 		}
 		if(shdr.sh_type == SHT_PROGBITS
 		        && !bssSection)	// ignore everything after bss, that's just debug info
 		{
 			codeSections[name] = scn;
-			printf("(progbits)\n");
+			sections.emplace(name, make_shared<Section>(idx, scn));
 		}
 		if(shdr.sh_type == SHT_NOBITS)
 		{
 			bssSection = scn;
-			printf("(nobits)\n");
 		}
 	}
+}
 
-	/*for(int i = 0; i < nSyms; i++)
-	{
-		GElf_Sym sym;
-		if(gelf_getsym(symtabData, i, &sym) == 0)
-			printf("computer says no.\n");
-		printf("%s at %x\n", elf_strptr(e, shstrndx-1, sym.st_name), (unsigned) sym.st_value);
-	}*/
-
-	std::sort(relocs.begin(), relocs.end());
-
+void ElfToFlt(string input, string output)
+{
+	GrokELF(input);
 
 	GElf_Shdr text_shdr, data_shdr, bss_shdr;
 	gelf_getshdr(codeSections[".text"], &text_shdr);
@@ -149,19 +230,12 @@ void ElfToFlt(string input, string output)
 
 	ofstream out(output);
 
-	Elf_Data *data = elf_getdata(codeSections[".text"], NULL);
-	out << string((char*)data->d_buf, (char*)data->d_buf + data->d_size);
+	out << sections[".text"]->GetData();
+	out << sections[".data"]->GetData();
 
-	while(out.tellp() < /*0x40 + */data_shdr.sh_addr)
-		byte(out, 0x00);
-	data = elf_getdata(codeSections[".data"], NULL);
-	out << string((char*)data->d_buf, (char*)data->d_buf + data->d_size);
-
-	while(out.tellp() < /*0x40 +*/ bss_shdr.sh_addr)
-		byte(out, 0x00);
-	for(int reloc : relocs)
-		longword(out, reloc);
-	longword(out, -1);	// not part of the FLT specification: terminate reloc list
+	out << sections[".text"]->GetAbsRelocations();
+	out << sections[".data"]->GetAbsRelocations();
+	longword(out, -1);
 }
 
 string argvZero;
@@ -276,3 +350,5 @@ int main(int argc, char *argv[])
 	}
 	return 0;
 }
+
+
