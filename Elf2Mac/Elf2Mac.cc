@@ -218,7 +218,6 @@ int main(int argc, char *argv[])
 	if(boost::algorithm::ends_with(argv[0], "ld"))
 	{
 		string outputFile = "a.out";
-		bool elf2flt = false;
 		bool elf2mac = false;
 
 		vector<string> args2;
@@ -235,10 +234,6 @@ int main(int argc, char *argv[])
 			{
 				outputFile = (*p).substr(2);
 			}
-			else if(*p == "-elf2flt")
-			{
-				elf2flt = true;
-			}
 			else if(*p == "-elf2mac")
 			{
 				elf2mac = true;
@@ -250,10 +245,6 @@ int main(int argc, char *argv[])
 		}
 
 		if(elf2mac)
-		{
-			errx(EXIT_FAILURE, "-elf2mac: not yet implemented");
-		}
-		else if(elf2flt)
 		{
 			char tmpfile[] = "/tmp/ldscriptXXXXXX";
 			int fd = mkstemp(tmpfile);

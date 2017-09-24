@@ -55,7 +55,7 @@ along with GCC; see the file COPYING3.  If not see
 #define SUBTARGET_EXTRA_SPECS
 
 #define LIBGCC_SPEC "-lretrocrt -lgcc"
-#define LINK_SPEC "-elf2flt -q -undefined=_consolewrite"
+#define LINK_SPEC "-elf2mac -q -undefined=_consolewrite"
 
 /* Note that some other tm.h files include this one and then override
    many of the definitions that relate to assembler syntax.  */
