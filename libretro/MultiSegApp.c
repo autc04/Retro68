@@ -120,7 +120,7 @@ pascal void* Retro68LoadSegment(uint8_t *p)
     if (__register_frame_info)
     {
         int32_t offset =  ((int32_t*) (base + codeSize))[-1];
-        void *eh_frame_info = *(void**) (base + codeSize + offset);
+        void *eh_frame_info = base + codeSize - 4 + offset;
         struct object *object = (struct object*) (base + codeSize - 36);
         __register_frame_info(eh_frame_info, object);
     }

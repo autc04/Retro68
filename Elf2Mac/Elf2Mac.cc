@@ -40,6 +40,7 @@
 #include <memory>
 
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/lexical_cast.hpp>
 
 using std::string;
 using std::unordered_map;
@@ -107,11 +108,13 @@ public:
 	Elf_Data *data;
 	vector<Symbol> symbols;
 	map<pair<int,uint32_t>, int> symbolsByAddress;
+	unordered_map<string, int> symbolsByName;
 
 	Symtab(Elf_Scn *elfsec);
 
 	Symbol& GetSym(int idx);
 	int FindSym(int secidx, uint32_t addr);
+	int FindSym(string name);
 };
 
 class Reloc : public GElf_Rela
@@ -133,6 +136,7 @@ public:
 	Elf_Data *data;
 	GElf_Shdr shdr;
 	uint32_t outputBase;
+	uint32_t exceptionInfoStart;
 
 	int codeID;
 
@@ -212,18 +216,36 @@ int Symtab::FindSym(int secidx, uint32_t addr)
 		return -1;
 }
 
+int Symtab::FindSym(string name)
+{
+	if(symbolsByName.empty())
+	{
+		for(auto& sym : symbols)
+			if(sym.st_name)
+			{
+				symbolsByName[sym.GetName()] = &sym - symbols.data();
+			}
+	}
+	auto p = symbolsByName.find(name);
+	if(p != symbolsByName.end())
+		return p->second;
+	else
+		return -1;
+}
+
 
 Reloc::Reloc()
 {
 }
 
 Reloc::Reloc(const GElf_Rela &rela)
-    : GElf_Rela(rela)
+    : GElf_Rela(rela), relocBase(RelocBase::code)
 {
 }
 
 Section::Section(string name, int idx, SectionKind kind, Elf_Scn *elfsec)
     : name(name), idx(idx), kind(kind), elfsec(elfsec), relasec(NULL),
+      exceptionInfoStart(0),
       codeID(-1), firstJTEntryIndex(0)
 {
 	data = elf_getdata(elfsec, NULL);
@@ -288,7 +310,7 @@ string Section::GetAbsRelocations(bool useOffsets, bool suppressTerminatingEntry
 			if(useOffsets)
 				offset -= shdr.sh_addr;
 
-			std::cout << "RELA: " << std::hex << offset << " " << (int)rela.relocBase << std::dec << std::endl;
+			//std::cout << "RELA: " << std::hex << offset << " " << (int)rela.relocBase << std::dec << std::endl;
 			longword(out, offset | ((int)rela.relocBase << 24));
 		}
 	}
@@ -348,7 +370,7 @@ void Section::FixRelocs()
 		{
 			case SectionKind::code:
 				relocBase = RelocBase::code;
-				if(sym.needsJT)
+				if(sym.needsJT && (exceptionInfoStart == 0 || rela.r_offset < exceptionInfoStart))
 				{
 					if(rela.r_addend == 0)
 					{
@@ -644,6 +666,24 @@ void MultiSegmentApp(string output)
 			sec->outputBase = 4;	// standard 'CODE' header
 		else
 			sec->outputBase = 40;	// far-model 'CODE' header
+
+		string exceptionInfoMarker = "__EH_FRAME_BEGIN__";
+		if(id != 1)
+			exceptionInfoMarker += boost::lexical_cast<string>(id);
+		int exceptionInfoSym = symtab->FindSym(exceptionInfoMarker);
+		if(exceptionInfoSym != -1)
+		{
+			Symbol& s = symtab->GetSym(exceptionInfoSym);
+			sec->exceptionInfoStart = s.st_value;
+
+			int codeSize = sec->shdr.sh_size;
+			int exceptionSize = sec->shdr.sh_addr + codeSize - sec->exceptionInfoStart;
+			double percent = 100.0 * exceptionSize / codeSize;
+
+			std::cout << "CODE " << id << " has " << exceptionSize << " bytes of exception info (" << percent << "%)\n";
+		}
+		else
+			std::cout << "exception info marker not found: " << exceptionInfoMarker << std::endl;
 	}
 	dataSection->outputBase = -data_and_bss_size;
 	bssSection->outputBase = -bssSection->shdr.sh_size;

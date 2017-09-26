@@ -146,7 +146,6 @@ const char * codeSectionTemplate = R"ld(/* ld script for Elf2Mac */
         KEEP(@FILTER@(.gcc_except_table.*))
 
         . = ALIGN(0x4);
-        LONG(0xDEADBEEF);
         . += 32;
         LONG(__EH_FRAME_BEGIN__@N@ - .);
     }
