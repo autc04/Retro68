@@ -54,21 +54,30 @@ size_t mainStringTableIdx = (size_t)-1;
 class Symtab;
 class Section;
 
+Elf *elf;
 std::vector<int> relocs;
 unique_ptr<Symtab> symtab;
 unordered_map<string, shared_ptr<Section>> sections;
 unordered_map<int, shared_ptr<Section>> sectionsByElfIndex;
 
 std::vector<shared_ptr<Section>> codeSections;
-shared_ptr<Section> dataSection;
+shared_ptr<Section> dataSection, bssSection;
 
 enum class SectionKind
 {
 	undefined = -1,
 	code = 0,
 	data,
+	bss
+};
+
+enum class RelocBase
+{
+	code = 0,
+	data,
 	bss,
-	jumptable
+	jumptable,
+	code1
 };
 
 class Symbol : public GElf_Sym
@@ -77,9 +86,14 @@ public:
 	bool valid;
 	bool referencedExternally;
 	SectionKind sectionKind;
+	bool needsJT;
+	int jtIndex;
+	shared_ptr<Section> section;
 
 	Symbol();
-	Symbol(GElf_Sym sym);
+	Symbol(const GElf_Sym& sym);
+
+	string GetName();
 };
 
 class Symtab
@@ -94,6 +108,15 @@ public:
 	Symbol& GetSym(int idx);
 };
 
+class Reloc : public GElf_Rela
+{
+public:
+	RelocBase relocBase;
+
+	Reloc();
+	Reloc(const GElf_Rela& rela);
+};
+
 class Section
 {
 public:
@@ -102,17 +125,24 @@ public:
 	SectionKind kind;
 	Elf_Scn *elfsec, *relasec;
 	Elf_Data *data;
+	GElf_Shdr shdr;
+	uint32_t outputBase;
 
-	std::vector<GElf_Rela> relocs;
+	int codeID;
+
+	std::vector<Reloc> relocs;
+	std::vector<Symbol*> jtEntries;
+	int firstJTEntryIndex;
 
 	Section(string name, int idx, SectionKind kind, Elf_Scn *elfsec);
 	void SetRela(Elf_Scn *scn);
 
 	uint32_t GetSize();
 	string GetData();
-	string GetAbsRelocations(bool suppressTerminatingEntry = false);
+	string GetAbsRelocations(bool useOffsets, bool suppressTerminatingEntry = false);
 
 	void ScanRelocs();
+	void FixRelocs();
 };
 
 Symbol::Symbol()
@@ -120,15 +150,22 @@ Symbol::Symbol()
 {
 }
 
-Symbol::Symbol(GElf_Sym sym)
+Symbol::Symbol(const GElf_Sym &sym)
     : GElf_Sym(sym), valid(true),
       referencedExternally(false),
-      sectionKind(SectionKind::undefined)
+      sectionKind(SectionKind::undefined),
+      needsJT(false)
 {
-	if(st_shndx != SHN_UNDEF)
+	if(st_shndx != SHN_UNDEF && st_shndx < SHN_LORESERVE)
 	{
-		sectionKind = sectionsByElfIndex[st_shndx]->kind;
+		section = sectionsByElfIndex[st_shndx];
+		sectionKind = section->kind;
 	}
+}
+
+string Symbol::GetName()
+{
+	return elf_strptr(elf, mainStringTableIdx, st_name);
 }
 
 Symtab::Symtab(Elf_Scn *elfsec)
@@ -157,10 +194,23 @@ Symbol &Symtab::GetSym(int idx)
 	}
 }
 
+
+Reloc::Reloc()
+{
+}
+
+Reloc::Reloc(const GElf_Rela &rela)
+    : GElf_Rela(rela)
+{
+}
+
 Section::Section(string name, int idx, SectionKind kind, Elf_Scn *elfsec)
-    : name(name), idx(idx), kind(kind), elfsec(elfsec), relasec(NULL)
+    : name(name), idx(idx), kind(kind), elfsec(elfsec), relasec(NULL),
+      codeID(-1), firstJTEntryIndex(0)
 {
 	data = elf_getdata(elfsec, NULL);
+	gelf_getshdr(elfsec, &shdr);
+	outputBase = shdr.sh_addr;
 }
 
 void Section::SetRela(Elf_Scn *scn)
@@ -192,10 +242,8 @@ string Section::GetData()
 	return string((char*)data->d_buf, (char*)data->d_buf + data->d_size);
 }
 
-string Section::GetAbsRelocations(bool suppressTerminatingEntry)
+string Section::GetAbsRelocations(bool useOffsets, bool suppressTerminatingEntry)
 {
-	if(!relasec)
-		return "";
 	std::ostringstream out;
 
 	for(auto& rela : relocs)
@@ -208,14 +256,21 @@ string Section::GetAbsRelocations(bool suppressTerminatingEntry)
 
 		Symbol& sym = symtab->GetSym(symidx);
 
-		if(sym.st_shndx == SHN_UNDEF)
+		if(sym.st_shndx == SHN_UNDEF || sym.st_shndx >= SHN_LORESERVE)
+			continue;
+		if(sym.sectionKind == SectionKind::undefined)
 			continue;
 
 		if(GELF_R_TYPE(rela.r_info) == R_68K_32)
 		{
 			assert(sym.sectionKind != SectionKind::undefined);
 
-			longword(out, rela.r_offset | ((int)sym.sectionKind << 24));
+			uint32_t offset = rela.r_offset;
+			if(useOffsets)
+				offset -= shdr.sh_addr;
+
+
+			longword(out, offset | ((int)rela.relocBase << 24));
 		}
 	}
 	if(!suppressTerminatingEntry)
@@ -241,6 +296,84 @@ void Section::ScanRelocs()
 	}
 }
 
+void Section::FixRelocs()
+{
+	//bool first_reloc = true;
+	for(Reloc& rela : relocs)
+	{
+		if(GELF_R_TYPE(rela.r_info) != R_68K_32)
+			continue;
+
+		int symidx = GELF_R_SYM(rela.r_info);
+		if(symidx == 0)
+			continue;
+		Symbol& sym = symtab->GetSym(symidx);
+
+		if(sym.sectionKind == SectionKind::undefined)
+			continue;
+
+		RelocBase relocBase;
+		switch(sym.sectionKind)
+		{
+			case SectionKind::code:
+				relocBase = RelocBase::code;
+				if(sym.needsJT)
+				{
+					if(rela.r_addend == 0)
+					{
+						relocBase = RelocBase::jumptable;
+					}
+					else
+					{
+						if(sym.section.get() != this)
+						{
+							std::cerr << "Invalid ref from "
+							          << name << ":" << std::hex << rela.r_offset-shdr.sh_addr << std::dec
+							          << " to " << sym.section->name
+							          << "(" << sym.GetName() << ")"
+							          << "+" << rela.r_offset << std::endl;
+						}
+						assert(sym.section.get() == this);
+					}
+				}
+				break;
+			case SectionKind::data:
+				relocBase = RelocBase::data;
+				break;
+			case SectionKind::bss:
+				relocBase = RelocBase::bss;
+				break;
+		}
+		rela.relocBase = relocBase;
+
+		uint8_t *relocand = ((uint8_t*) data->d_buf + rela.r_offset - shdr.sh_addr);
+		/*if(first_reloc)
+		{
+			std::cout << "sec kind: " << (int)sym.sectionKind << std::endl;
+			std::cout << "reloc addr:" << rela.r_offset << std::endl;
+		}*/
+
+
+		if(relocBase == RelocBase::jumptable)
+		{
+			uint32_t dst = 0x20 + sym.jtIndex * 8 + 2;
+			relocand[0] = dst >> 24;
+			relocand[1] = dst >> 16;
+			relocand[2] = dst >> 8;
+			relocand[3] = dst;
+		}
+		else
+		{
+			uint32_t orig = (relocand[0] << 24) | (relocand[1] << 16) | (relocand[2] << 8) | relocand[3];
+			uint32_t dst = orig + sym.section->outputBase - sym.section->shdr.sh_addr;
+			relocand[0] = dst >> 24;
+			relocand[1] = dst >> 16;
+			relocand[2] = dst >> 8;
+			relocand[3] = dst;
+		}
+	}
+}
+
 
 void GrokELF(string input)
 {
@@ -248,14 +381,12 @@ void GrokELF(string input)
 		errx(EXIT_FAILURE , "ELF library initialization failed: %s", elf_errmsg( -1));
 
 	int fd = open(input.c_str(), O_RDONLY, 0);
-	Elf *elf = elf_begin(fd, ELF_C_READ, NULL);
+	elf = elf_begin(fd, ELF_C_READ, NULL);
 
 	elf_getshdrstrndx(elf, &sectionHeaderStringTableIdx);
 
 	GElf_Ehdr ehdr;
 	gelf_getehdr(elf, &ehdr);
-
-	Elf_Scn* bssSection = NULL;
 
 	int idx = 1;
 	for(Elf_Scn *scn = NULL; (scn = elf_nextscn(elf, scn)) != NULL; idx++)
@@ -299,12 +430,11 @@ void GrokELF(string input)
 		}
 		if(shdr.sh_type == SHT_NOBITS)
 		{
-			bssSection = scn;
 			// Currently, the bss section is used
 			// to know when to start skipping debug info sections.
 			// (What's the official way to distinguish a debug info section from a "real" section?)
 
-			sections[name] = sectionsByElfIndex[idx] =
+			bssSection = sections[name] = sectionsByElfIndex[idx] =
 			        make_shared<Section>(name, idx, SectionKind::bss, scn);
 		}
 	}
@@ -321,8 +451,8 @@ void FlatCode(std::ostream& out)
 	out << dataSection->GetData();
 
 	for(auto sec : codeSections)
-		out << sec->GetAbsRelocations(true);
-	out << dataSection->GetAbsRelocations();
+		out << sec->GetAbsRelocations(false, true);
+	out << dataSection->GetAbsRelocations(false);
 
 }
 
@@ -401,39 +531,134 @@ void MultiSegmentApp(string output)
 	ResourceFile file(output);
 	Resources& rsrc = file.resources;
 
-	for(auto sec : codeSections)
+	for(auto namedSec : sections)
 	{
-		sec->ScanRelocs();
+		namedSec.second->ScanRelocs();
 	}
 
-	rsrc.addResource(Resource(ResType("CODE"), 0,
-	    fromhex(
-	        "00000028 00000000 00000008 00000020"
-	        "0000 3F3C 0001 A9F0"
-	    )
-	));
+	int jtEntryCount = 0;
+	unordered_map<int, vector<Symbol*>> jtEntries;
+	for(Symbol& sym : symtab->symbols)
+	{
+		if(sym.valid)
+		{
+			if(sym.referencedExternally && sym.sectionKind == SectionKind::code)
+			{
+				sym.needsJT = true;
+				sym.jtIndex = -1;
+				sym.section->jtEntries.push_back(&sym);
+				++jtEntryCount;
+			}
+		}
+	}
 
+	uint32_t data_and_bss_size = dataSection->shdr.sh_size + bssSection->shdr.sh_size;
 
-	int id = 1;
+	{
+		std::ostringstream code0;
+		longword(code0, 0x20 + 8 * (jtEntryCount+2));
+		longword(code0, data_and_bss_size);
+		longword(code0, 8 * (jtEntryCount+2));
+		longword(code0, 0x20);
+
+		code0 << fromhex("0000 3F3C 0001 A9F0");	// jt entry for entrypoint
+		code0 << fromhex("0000 FFFF 0000 0000");	// 32-bit entries start from here
+
+		int jtIndex = 2;
+		int id = 1;
+		for(auto sec : codeSections)
+		{
+			sec->codeID = id;
+
+			sec->firstJTEntryIndex = jtIndex;
+
+			GElf_Shdr &shdr = sec->shdr;
+
+			for(Symbol* jtEntry : sec->jtEntries)
+			{
+				word(code0, id);
+				word(code0, 0xA9F0);
+				uint32_t offset = jtEntry->st_value - shdr.sh_addr;
+				if(id == 1)
+					offset += 4;
+				else
+					offset += 40;
+				longword(code0, offset);
+
+				jtEntry->jtIndex = jtIndex++;
+
+				//std::cout << "JT Entry " << jtEntry->jtIndex << ": " << jtEntry->GetName() << std::endl;
+			}
+
+			id++;
+		}
+
+		std::cout << "CODE 0: " << code0.str().size() << " bytes\n";
+		std::cout << "above A5: " << 0x20 + 8 * (jtEntryCount+2) << " bytes\n";
+		std::cout << "below A5: " << data_and_bss_size << " bytes\n";
+		std::cout << ".data: " << dataSection->shdr.sh_size << " bytes at A5-"
+		            << std::hex << data_and_bss_size << std::dec << "\n";
+		std::cout << ".bss: " << bssSection->shdr.sh_size << " bytes at A5-"
+		            << std::hex << bssSection->shdr.sh_size << std::dec << "\n";
+
+		rsrc.addResource(Resource(ResType("CODE"), 0, code0.str()));
+	}
+
 	for(auto sec : codeSections)
 	{
+		int id = sec->codeID;
+		if(id == 1)
+			sec->outputBase = 4;	// standard 'CODE' header
+		else
+			sec->outputBase = 40;	// far-model 'CODE' header
+	}
+	dataSection->outputBase = -data_and_bss_size;
+	bssSection->outputBase = -bssSection->shdr.sh_size;
+
+
+	for(auto namedSec : sections)
+	{
+		namedSec.second->FixRelocs();
+	}
+
+	for(auto sec : codeSections)
+	{
+		int id = sec->codeID;
 		std::ostringstream code;
-		word(code, 0);				//FIXME: header
-		word(code, 1);
+		if(id == 1)
+		{
+			word(code, 0);
+			word(code, 1);
+		}
+		else
+		{
+			word(code, 0xFFFF);
+			word(code, 0);
+			longword(code, 0);
+			longword(code, 0);
+			longword(code, 0x20 + 8 * sec->firstJTEntryIndex );
+			longword(code, sec->jtEntries.size());
+			longword(code, 0);	// reloc info for A5
+			longword(code, 0);	// assumed address for A5
+			longword(code, 0);	// reloc info for code
+			longword(code, 0);	// assumed address for start of code resource
+			longword(code, 0);
+		}
 		code << sec->GetData();
+
+		std::cout << "CODE " << id << ": " << code.str().size() << " bytes\n";
 
 		rsrc.addResource(Resource(ResType("CODE"), id,
 		                          code.str()));
 
 
-		rsrc.addResource(Resource(ResType("RELA"),id, sec->GetAbsRelocations()));
-		id++;
+		rsrc.addResource(Resource(ResType("RELA"),id, sec->GetAbsRelocations(true)));
 	}
 
 	rsrc.addResource(Resource(ResType("DATA"),0, dataSection->GetData()));
+	rsrc.addResource(Resource(ResType("RELA"),0, dataSection->GetAbsRelocations(true)));
 
-
-
+	std::cout << "DATA 0: " << dataSection->shdr.sh_size << " bytes\n";
 
 	file.creator = ResType("????");
 	file.type = ResType("APPL");
@@ -497,7 +722,7 @@ int main(int argc, char *argv[])
 		string outputFile = "a.out";
 		bool elf2mac = false;
 		bool flatoutput = false;
-		bool segments = false;
+		bool segments = true;
 
 		vector<string> args2;
 		for(auto p = args.begin(), e = args.end(); p != e; ++p)
@@ -575,9 +800,10 @@ int main(int argc, char *argv[])
 		if(argc != 2)
 			errx(EXIT_FAILURE, "usage : %s file-name ", argv[0]);
 		GrokELF(argv[1]);
-		FlatCode("out.flt");
+		MultiSegmentApp("out.bin");
 	}
 	return 0;
 }
+
 
 

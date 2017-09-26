@@ -31,6 +31,7 @@
 #include <Memory.h>
 #include <OSUtils.h>
 #include <Traps.h>
+#include <Resources.h>
 
 #include "Retro68Runtime.h"
 #include "PoorMansDebugging.h"
@@ -40,6 +41,10 @@ typedef void (*voidFunction)(void);
 /*
    Linker-defined addresses in the binary;
  */
+
+	// absolute address 0x1 for multiseg applications,
+	// absolute address NULL (or undefined) for code resources
+extern uint8_t _MULTISEG_APP __attribute__ ((weak));
 
 // section boundaries
 extern uint8_t _stext, _etext, _sdata, _edata, _sbss, _ebss;
@@ -101,6 +106,26 @@ static Retro68RelocState relocState __attribute__ ((section(".relocvars"))) = {
 	} while(0)
 
 
+void Retro68ApplyRelocations(uint8_t *base, uint32_t size, void *relocations, uint32_t displacements[])
+{
+	uint32_t *reloc = (uint32_t*) relocations;
+	// Process relocation records
+	for(;*reloc != -1;++reloc)
+	{
+		uint32_t r = *reloc;
+		uint8_t *addrPtr = base + (r & 0xFFFFFF);
+		uint8_t *addr;
+		uint8_t kind = r >> 24;
+
+		assert(addrPtr >= base);
+		assert(addrPtr < base + size);
+
+		addr = (uint8_t*) READ_UNALIGNED_LONGWORD(addrPtr);
+		addr += displacements[kind];
+		WRITE_UNALIGNED_LONGWORD(addrPtr, (uint32_t) addr);
+	}
+}
+
 void Retro68Relocate()
 {
 	// memory address to retrieve the ROM type (64K or a later ROM)
@@ -128,7 +153,7 @@ void Retro68Relocate()
 	
 	if (hasStripAddr)
 	{
-		RETRO68_GET_DISPLACEMENT_STRIP(displacement); 
+		RETRO68_GET_DISPLACEMENT_STRIP(displacement);
 	}
 	else
 	{
@@ -172,38 +197,47 @@ void Retro68Relocate()
 	log(orig_ebss);
 	
 	uint8_t *base = orig_stext + displacement;
-	
-	{
-		uint8_t *orig_rsrc_start;
-		GET_VIRTUAL_ADDRESS(orig_rsrc_start, _rsrc_start);
-		uint8_t *rsrc_start = orig_rsrc_start + displacement;
-		
-		Handle h = RecoverHandle((Ptr) rsrc_start);        
-		if(MemError() == noErr && h)
-		{
-			// Make sure the code is locked. Only relevant for some code resources.
-			HLock(h);
-			rState->codeHandle = h;  
-		}
-	}
-	
-	uint32_t text_and_data_size = orig_edata - orig_stext;
-	long bss_size = orig_ebss - orig_sbss;
-		
-	//uint32_t total_size = orig_ebss - orig_stext; // FIXME: not true for repeated reloc
-	//assert(total_size == header->bss_end - sizeof(*header));
-	
+
 	long bss_displacement = 0;
-	// Allocate BSS section (uninitialized/zero-initialized global data)
-	if(!rState->bssPtr)
+	long data_displacement = 0;
+	long jt_displacement = 0;
+	
+	if(&_MULTISEG_APP)
 	{
-		THz zone = ApplicationZone();
-		if(!zone || base < (uint8_t*)zone)
-			rState->bssPtr = NewPtrSysClear(bss_size);
-		else
-			rState->bssPtr = NewPtrClear(bss_size);
-		bss_displacement = (uint8_t*)rState->bssPtr - orig_sbss;
+		uint8_t * a5 = (uint8_t*) SetCurrentA5();
+		bss_displacement = a5 - orig_ebss;
+		data_displacement = a5 - orig_ebss;
+		jt_displacement = a5 - (uint8_t*)NULL;
 	}
+	else
+	{
+		data_displacement = displacement;
+		{
+			uint8_t *orig_rsrc_start;
+			GET_VIRTUAL_ADDRESS(orig_rsrc_start, _rsrc_start);
+			uint8_t *rsrc_start = orig_rsrc_start + displacement;
+			
+			Handle h = RecoverHandle((Ptr) rsrc_start);        
+			if(MemError() == noErr && h)
+			{
+				// Make sure the code is locked. Only relevant for some code resources.
+				HLock(h);
+				rState->codeHandle = h;  
+			}
+		}
+		
+		// Allocate BSS section (uninitialized/zero-initialized global data)
+		if(!rState->bssPtr)
+		{
+			uint32_t bss_size = orig_ebss - orig_sbss;
+			THz zone = ApplicationZone();
+			if(!zone || base < (uint8_t*)zone)
+				rState->bssPtr = NewPtrSysClear(bss_size);
+			else
+				rState->bssPtr = NewPtrClear(bss_size);
+			bss_displacement = (uint8_t*)rState->bssPtr - orig_sbss;
+		}
+	}	
 	
 	/*
  		Relocation records consist of 4 bytes each.
@@ -214,40 +248,33 @@ void Retro68Relocate()
 	 */
 	long displacements[4] = {
 			displacement,	// code
-			displacement,	// data (contiguous with code)
-			bss_displacement,	// bss (allocated separately)
-			SetCurrentA5()	// jump table (TODO)
+			data_displacement,
+			bss_displacement,
+			jt_displacement
 	};
 	
-	// Process relocation records
-	for(long *reloc = (long*)( base + text_and_data_size );
-		*reloc != -1;
-		++reloc)
+	void *reloc;
+	Handle RELA = NULL;
+	uint32_t relocatableSize;
+	if(&_MULTISEG_APP)
 	{
-		uint32_t r = *reloc;
-		uint8_t *addrPtr = base + (r & 0xFFFFFF);
-		uint8_t *addr;
-		uint8_t kind = r >> 24;
-
-		assert(addrPtr >= base);
-		assert(addrPtr < base + text_and_data_size);
-
-		addr = (uint8_t*) READ_UNALIGNED_LONGWORD(addrPtr);
-
-		/* Check whether addresses are in range.
-		 * This doesn't seem to work because exception handling tables
-		 * seem to contain strange things.
-		 */
-		/*assert((uint8_t*)addr >= orig_stext); // TODO: not right for repeated reloc
-		assert((uint8_t*)addr <= orig_stext + total_size);*/
-
-		addr += displacements[kind];
-
-		/*assert((Ptr)addr >= (Ptr)base && (Ptr)addr <= (Ptr)base + text_and_data_size
-			   || (Ptr)addr >= rState->bssPtr && (Ptr)addr <= rState->bssPtr + bss_size);*/
-
-		WRITE_UNALIGNED_LONGWORD(addrPtr, (uint32_t) addr);
+		RELA = Get1Resource('RELA', 1);
+		assert(RELA);
+		reloc = *RELA;
+		uint32_t text_size = orig_etext - orig_stext;
+		relocatableSize = text_size;
 	}
+	else
+	{
+		uint32_t text_and_data_size = orig_edata - orig_stext;
+		reloc = base + text_and_data_size;
+		relocatableSize = text_and_data_size;
+	}
+	
+	typedef typeof(&Retro68ApplyRelocations) ApplyRelocationsPtr;
+	ApplyRelocationsPtr RealApplyRelocations;
+	RealApplyRelocations = (ApplyRelocationsPtr) ((uint8_t*)&Retro68ApplyRelocations + displacement);
+	RealApplyRelocations(base, relocatableSize, reloc, displacements);
 
 	// We're basically done.
 	// Now check whether we're on 68040 or later and need to flush the cache.
@@ -265,15 +292,22 @@ void Retro68Relocate()
 			FlushCodeCache();
 		}
 	}
-	
+
 	// accessing globals and calling functions is OK below here.
+	// ... as long as it is in the current segment.
+
+	Retro68InitMultisegApp();
+	
+	// Now we're set.
+	// Someone still needs to invoke Retro68CallConstructors
+	// ... but that's the job of _start(). 
 }
 
 void Retro68CallConstructors()
 {
-	static struct object object;
+	/*static struct object object;
 	if (__register_frame_info)
-		__register_frame_info(&__EH_FRAME_BEGIN__, &object);
+		__register_frame_info(&__EH_FRAME_BEGIN__, &object);*/
 	{
 		uint8_t *p = &__init_section;
 		uint8_t *e = &__init_section_end;
@@ -308,8 +342,8 @@ void Retro68CallDestructors()
 			p += 6;
 		}
 	}
-	if (__deregister_frame_info)
-		__deregister_frame_info(&__EH_FRAME_BEGIN__);
+/*	if (__deregister_frame_info)
+		__deregister_frame_info(&__EH_FRAME_BEGIN__);*/
 }
 
 

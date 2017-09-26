@@ -23,6 +23,8 @@
 	<http://www.gnu.org/licenses/>.
 */
 
+#include <stdint.h>
+
 #define _RETRO68_GET_DISPLACEMENT(DISPLACEMENT, STRIP) \
 	do {	\
 		char *virtualstart, *realstart;	\
@@ -63,5 +65,7 @@ void Retro68Relocate();
 void Retro68CallConstructors();
 void Retro68CallDestructors();
 void Retro68FreeGlobals();
+void Retro68InitMultisegApp();
+void Retro68ApplyRelocations(uint8_t *base, uint32_t size, void *relocations, uint32_t displacements[]);
 
 #define RETRO68_RELOCATE() RETRO68_CALL_UNRELOCATED(Retro68Relocate,())

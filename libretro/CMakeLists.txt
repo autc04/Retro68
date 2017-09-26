@@ -36,6 +36,8 @@ if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 		start.c
 		relocate.c
 		PoorMansDebugging.h
+		MultiSegApp.c
+		LoadSeg.s
 		# glue.c
 		${CMAKE_CURRENT_BINARY_DIR}/Interface.s
 		qdglobals.c
@@ -45,6 +47,7 @@ if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 
 	install(FILES Retro68Runtime.h DESTINATION include)
 	install(FILES Retro68.r Retro68APPL.r DESTINATION RIncludes)
+	
 elseif(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
 	enable_language(ASM)
 	set(ARCH_FILES

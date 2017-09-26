@@ -37,13 +37,16 @@ const char * textSection = R"ld(/* ld script for Elf2Mac */
         PROVIDE(_rsrc_start = .);
         *(.rsrcheader)
         . = ALIGN (2);
+        
+        /* The entry point. */
         _entry_trampoline = .;
-
         SHORT(DEFINED(__break_on_entry) ? 0xA9FF : 0x4e71);
         LONG(0x61000002);	/* bsr *+2 */
         SHORT(0x0697); /* addi.l #_, (a7) */
         LONG(_start - _entry_trampoline - 6);
+        
         PROVIDE(_start = .);  /* fallback entry point to a safe spot - needed for libretro bootstrap */
+        Retro68InitMultisegApp = .;    /* override this for the single-segment case */
         SHORT(0x4e75); /* rts */
 
         *(.relocvars)
@@ -83,9 +86,11 @@ const char * textSection = R"ld(/* ld script for Elf2Mac */
 const char * code1Section = R"ld(/* ld script for Elf2Mac */
     .code1 :	{
         _stext = . ;
+        FILL(0x4E71);
         PROVIDE(_rsrc_start = .);
         . = ALIGN (2);
         _entry_trampoline = .;
+        __break_on_entry = 1;
         SHORT(DEFINED(__break_on_entry) ? 0xA9FF : 0x4e71);
         LONG(0x61000002);	/* bsr *+2 */
         SHORT(0x0697); /* addi.l #_, (a7) */
@@ -96,7 +101,10 @@ const char * code1Section = R"ld(/* ld script for Elf2Mac */
         *(.relocvars)
         */libretrocrt.a:start.c.obj(.text*)
         */libretrocrt.a:relocate.c.obj(.text*) 
-        
+        */libretrocrt.a:*(.text*) 
+        */libgcc.a:*(.text*) 
+        */libc.a:*(.text*) 
+       
         . = ALIGN (4) ;
         __init_section = . ;
         KEEP (*(.init))
@@ -114,16 +122,17 @@ const char * code1Section = R"ld(/* ld script for Elf2Mac */
 )ld";
 const char * codeSectionTemplate = R"ld(/* ld script for Elf2Mac */
     .code@N@ :	{
+        FILL(0x4E71);
         @FILTER@(.text*)
 
         @EXTRA@
 
         . = ALIGN (4) ;
 
-        KEEP(@FILTER@(.eh_frame))
+    /*    KEEP(@FILTER@(.eh_frame))
         LONG(0);
         KEEP(@FILTER@(.gcc_except_table))
-        KEEP(@FILTER@(.gcc_except_table.*))
+        KEEP(@FILTER@(.gcc_except_table.*)) */
 
         . = ALIGN(0x4) ;
     }
@@ -227,6 +236,8 @@ const char * scriptEnd = R"ld(
     .debug_funcnames 0 : { *(.debug_funcnames) }
     .debug_typenames 0 : { *(.debug_typenames) }
     .debug_varnames  0 : { *(.debug_varnames) }
+    
+    /DISCARD/ : { *(*) }
 }
 
 )ld";
@@ -236,6 +247,7 @@ void CreateLdScript(std::ostream& out, bool segments)
 {
 	if(segments)
 	{
+        out << "_MULTISEG_APP = 1;\n";
 		out << scriptStart << code1Section;
 		string code = codeSectionTemplate;
 		boost::replace_all(code, "@N@", "2");
@@ -245,5 +257,8 @@ void CreateLdScript(std::ostream& out, bool segments)
 		out << scriptEnd;
 	}
 	else
+    {
+        out << "_MULTISEG_APP = 0;\n";
 		out << scriptStart << textSection << scriptEnd;
+    }
 }
