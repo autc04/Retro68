@@ -18,9 +18,11 @@
 */
 
 #include "Elf2Mac.h"
+#include "SegmentMap.h"
 
 #include <iostream>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/lexical_cast.hpp>
 #include <string>
 
 using std::string;
@@ -37,21 +39,21 @@ const char * textSection = R"ld(/* ld script for Elf2Mac */
         PROVIDE(_rsrc_start = .);
         *(.rsrcheader)
         . = ALIGN (2);
-        
+
         /* The entry point. */
         _entry_trampoline = .;
         SHORT(DEFINED(__break_on_entry) ? 0xA9FF : 0x4e71);
-        LONG(0x61000002);	/* bsr *+2 */
+        LONG(0x61000002); /* bsr *+2 */
         SHORT(0x0697); /* addi.l #_, (a7) */
         LONG(_start - _entry_trampoline - 6);
-        
-        PROVIDE(_start = .);  /* fallback entry point to a safe spot - needed for libretro bootstrap */
-        Retro68InitMultisegApp = .;    /* override this for the single-segment case */
+
+        PROVIDE(_start = .); /* fallback entry point to a safe spot - needed for libretro bootstrap */
+        Retro68InitMultisegApp = .; /* override this for the single-segment case */
         SHORT(0x4e75); /* rts */
 
         *(.relocvars)
         */libretrocrt.a:start.c.obj(.text*)
-        */libretrocrt.a:relocate.c.obj(.text*) 
+        */libretrocrt.a:relocate.c.obj(.text*)
         */libretrocrt.a:*(.text*)
         *(.text*)
 
@@ -71,7 +73,7 @@ const char * textSection = R"ld(/* ld script for Elf2Mac */
         __EH_FRAME_BEGIN__ = .;
         KEEP(*(.eh_frame))
         LONG(0);
-        
+
         KEEP(*(.gcc_except_table))
         KEEP(*(.gcc_except_table.*))
 
@@ -82,79 +84,6 @@ const char * textSection = R"ld(/* ld script for Elf2Mac */
         _etext = . ;
     }
 )ld";
-
-const char * code1Section = R"ld(/* ld script for Elf2Mac */
-    .code1 :	{
-        _stext = . ;
-        FILL(0x4E71);
-        PROVIDE(_rsrc_start = .);
-        . = ALIGN (2);
-        _entry_trampoline = .;
-        SHORT(DEFINED(__break_on_entry) ? 0xA9FF : 0x4e71);
-        LONG(0x61000002);	/* bsr *+2 */
-        SHORT(0x0697); /* addi.l #_, (a7) */
-        LONG(_start - _entry_trampoline - 6);
-        PROVIDE(_start = .);  /* fallback entry point to a safe spot - needed for libretro bootstrap */
-        SHORT(0x4e75); /* rts */
-
-        *(.relocvars)
-        */libretrocrt.a:start.c.obj(.text*)
-        */libretrocrt.a:relocate.c.obj(.text*) 
-        */libretrocrt.a:MultiSegApp.c.obj(.text*) 
-        */libretrocrt.a:LoadSeg.s.obj(.text*) 
-        */libretrocrt.a:*(.text*) 
-        */libgcc.a:*(.text*) 
-        */libc.a:*(.text*)
-       
-        . = ALIGN (4) ;
-        __init_section = . ;
-        KEEP (*(.init))
-        __init_section_end = . ;
-        __fini_section = . ;
-        KEEP (*(.fini))
-        __fini_section_end = . ;
-
-        __EH_FRAME_BEGIN__ = .;
-        KEEP(*/libretrocrt.a:*(.eh_frame))
-        KEEP(*/libgcc.a:*(.eh_frame))
-        KEEP(*/libc.a:*(.eh_frame))
-        LONG(0);
-        KEEP(*/libretrocrt.a:*(.gcc_except_table))
-        KEEP(*/libretrocrt.a:*(.gcc_except_table.*))
-        KEEP(*/libgcc.a:*(.gcc_except_table))
-        KEEP(*/libgcc.a:*(.gcc_except_table.*))
-        KEEP(*/libc.a:*(.gcc_except_table))
-        KEEP(*/libc.a:*(.gcc_except_table.*))
-
-        . = ALIGN(0x4) ;
-        _etext = . ;
-    }
-)ld";
-const char * codeSectionTemplate = R"ld(/* ld script for Elf2Mac */
-    .code@N@ :	{
-        FILL(0x4E71);
-        @FILTER@(.text*)
-
-        @EXTRA@
-
-        . = ALIGN (4) ;
-
-        __EH_FRAME_BEGIN__@N@ = .;
-        KEEP(@FILTER@(.eh_frame))
-        LONG(0);
-        KEEP(@FILTER@(.gcc_except_table))
-        KEEP(@FILTER@(.gcc_except_table.*))
-
-        . = ALIGN(0x4);
-        . += 32;
-        LONG(__EH_FRAME_BEGIN__@N@ - .);
-    }
-)ld";
-
-const char * lastCodeExtra = R"ld(
-        *(.gnu.linkonce.t*)
-)ld";
-
 
 const char * scriptEnd = R"ld(
     .data : {
@@ -180,14 +109,14 @@ const char * scriptEnd = R"ld(
         KEEP (*(SORT(.ctors.*)))
         __CTOR_END__ = .;
         LONG(0);
-        
+
         . = ALIGN(0x4);
         __DTOR_LIST__ = .;
         KEEP (*(.dtors))
         KEEP (*(SORT(.dtors.*)))
         __DTOR_END__ = .;
         LONG(0);
-        
+
         . = ALIGN(0x4);
         _edata = . ;
     }
@@ -212,7 +141,7 @@ const char * scriptEnd = R"ld(
      * Keep them for now, they are discarded by Elf2Mac. */
 
     /DISCARD/ : { *(.note.GNU-stack) }
-    /* Stabs debugging sections.    */
+    /* Stabs debugging sections.	*/
     .stab 0 : { *(.stab) }
     .stabstr 0 : { *(.stabstr) }
     .stab.excl 0 : { *(.stab.excl) }
@@ -224,50 +153,140 @@ const char * scriptEnd = R"ld(
       Symbols in the DWARF debugging sections are relative to the beginning
       of the section so we begin them at 0.  */
     /* DWARF 1 */
-    .debug          0 : { *(.debug) }
-    .line           0 : { *(.line) }
+    .debug 0 : { *(.debug) }
+    .line 0 : { *(.line) }
     /* GNU DWARF 1 extensions */
-    .debug_srcinfo  0 : { *(.debug_srcinfo) }
-    .debug_sfnames  0 : { *(.debug_sfnames) }
+    .debug_srcinfo 0 : { *(.debug_srcinfo) }
+    .debug_sfnames 0 : { *(.debug_sfnames) }
     /* DWARF 1.1 and DWARF 2 */
-    .debug_aranges  0 : { *(.debug_aranges) }
+    .debug_aranges 0 : { *(.debug_aranges) }
     .debug_pubnames 0 : { *(.debug_pubnames) }
     /* DWARF 2 */
-    .debug_info     0 : { *(.debug_info .gnu.linkonce.wi.*) }
-    .debug_abbrev   0 : { *(.debug_abbrev) }
-    .debug_line     0 : { *(.debug_line) }
-    .debug_frame    0 : { *(.debug_frame) }
-    .debug_str      0 : { *(.debug_str) }
-    .debug_loc      0 : { *(.debug_loc) }
-    .debug_macinfo  0 : { *(.debug_macinfo) }
+    .debug_info 0 : { *(.debug_info .gnu.linkonce.wi.*) }
+    .debug_abbrev 0 : { *(.debug_abbrev) }
+    .debug_line 0 : { *(.debug_line) }
+    .debug_frame 0 : { *(.debug_frame) }
+    .debug_str 0 : { *(.debug_str) }
+    .debug_loc 0 : { *(.debug_loc) }
+    .debug_macinfo 0 : { *(.debug_macinfo) }
     /* SGI/MIPS DWARF 2 extensions */
     .debug_weaknames 0 : { *(.debug_weaknames) }
     .debug_funcnames 0 : { *(.debug_funcnames) }
     .debug_typenames 0 : { *(.debug_typenames) }
-    .debug_varnames  0 : { *(.debug_varnames) }
-    
+    .debug_varnames 0 : { *(.debug_varnames) }
+
     /DISCARD/ : { *(*) }
 }
 
 )ld";
 
 
-void CreateLdScript(std::ostream& out, bool segments)
+void CreateFlatLdScript(std::ostream& out)
 {
-	if(segments)
+	out << "_MULTISEG_APP = 0;\n";
+	out << scriptStart << textSection << scriptEnd;
+}
+
+
+void SegmentInfo::WriteFilters(std::ostream &out, string section)
+{
+	for(string filter : filters)
 	{
-        out << "_MULTISEG_APP = 1;\n";
-		out << scriptStart << code1Section;
-		string code = codeSectionTemplate;
-		boost::replace_all(code, "@N@", "2");
-		boost::replace_all(code, "@FILTER@", "*");
-		boost::replace_all(code, "@EXTRA@", lastCodeExtra);
-		out << code;
-		out << scriptEnd;
+		out << "        " << filter << "(" << section << ")\n";
+		out << "        " << filter << "(" << section << ".*)\n";
+	}
+}
+void SegmentInfo::WriteFiltersKeep(std::ostream &out, string section)
+{
+	for(string filter : filters)
+	{
+		out << "\t\tKEEP(" << filter << "(" << section << "))\n";
+		out << "\t\tKEEP(" << filter << "(" << section << ".*))\n";
+	}
+}
+
+void SegmentInfo::CreateLdScript(std::ostream &out)
+{
+	out << "\t.code" << id << " : {\n";
+	out << "\t\tFILL(0x4E71);\n";
+	if(id == 1)
+	{
+		out << R"ld(
+		_stext = .;
+		FILL(0x4E71);
+		PROVIDE(_rsrc_start = .);
+		. = ALIGN (2);
+		_entry_trampoline = .;
+		SHORT(DEFINED(__break_on_entry) ? 0xA9FF : 0x4e71);
+		LONG(0x61000002);	/* bsr *+2 */
+		SHORT(0x0697); /* addi.l #_, (a7) */
+		LONG(_start - _entry_trampoline - 6);
+		PROVIDE(_start = .);  /* fallback entry point to a safe spot - needed for libretro bootstrap */
+		SHORT(0x4e75); /* rts */
+
+		FILL(0);
+		*(.relocvars)
+		FILL(0x4E71);
+)ld";
+	}
+	WriteFilters(out, ".text");
+
+	if(id == 2)
+	{
+		out << "\t\t*(.gnu.linkonce.t*)\n";
+	}
+	if(id == 1)
+	{
+		out << R"ld(
+		. = ALIGN (4) ;
+		__init_section = .;
+		KEEP (*(.init))
+		__init_section_end = .;
+		__fini_section = .;
+		KEEP (*(.fini))
+		__fini_section_end = .;
+)ld";
+	}
+
+	out << "\t\t. = ALIGN (4);\n";	// this is important, for some reason.
+	if(id == 1)
+		out << "\t\t__EH_FRAME_BEGIN__" << " = .;\n";
+	else
+		out << "\t\t__EH_FRAME_BEGIN__" << id << " = .;\n";
+	WriteFiltersKeep(out, ".eh_frame");
+	out << "\t\tLONG(0);\n";
+	WriteFiltersKeep(out, ".gcc_except_table");
+
+	if(id == 1)
+	{
+		out << R"ld(
+		. = ALIGN(0x4) ;
+		_etext = . ;
+)ld";
 	}
 	else
-    {
-        out << "_MULTISEG_APP = 0;\n";
-		out << scriptStart << textSection << scriptEnd;
-    }
+	{
+		out << boost::replace_all_copy<string>(R"ld(
+		. = ALIGN(0x4);
+		FILL(0);
+		. += 32;
+		LONG(__EH_FRAME_BEGIN__@N@ - .);
+)ld", "@N@", boost::lexical_cast<string>(id));
+	}
+
+	out << "\t}\n";
+
+}
+
+void SegmentMap::CreateLdScript(std::ostream &out)
+{
+	out << "_MULTISEG_APP = 1;\n";
+	out << scriptStart;
+
+	for(SegmentInfo& seg: segments)
+	{
+		seg.CreateLdScript(out);
+	}
+
+	out << scriptEnd;
 }

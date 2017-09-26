@@ -18,6 +18,7 @@
 */
 
 #include "Elf2Mac.h"
+#include "SegmentMap.h"
 
 #include "ResourceFork.h"
 #include "BinaryIO.h"
@@ -257,15 +258,22 @@ Section::Section(string name, int idx, SectionKind kind, Elf_Scn *elfsec)
 void Section::SetRela(Elf_Scn *scn)
 {
 	relasec = scn;
-	GElf_Shdr shdr;
-	gelf_getshdr(relasec, &shdr);
+	GElf_Shdr rshdr;
+	gelf_getshdr(relasec, &rshdr);
 
-	int nRela = shdr.sh_size / shdr.sh_entsize;
+	int nRela = rshdr.sh_size / rshdr.sh_entsize;
 	Elf_Data *data = elf_getdata(relasec, NULL);
 	for(int i = 0; i < nRela; i++)
 	{
 		GElf_Rela rela;
 		gelf_getrela(data, i, &rela);
+
+		if(rela.r_offset < shdr.sh_addr || rela.r_offset >= shdr.sh_addr + shdr.sh_size)
+		{
+			// For some reason, there sometimes are relocations beyond the end of the sections
+			// in LD output. That's bad. Let's ignore it.
+			continue;
+		}
 		relocs.push_back(rela);
 	}
 
@@ -370,7 +378,7 @@ void Section::FixRelocs()
 		{
 			case SectionKind::code:
 				relocBase = RelocBase::code;
-				if(sym.needsJT && (exceptionInfoStart == 0 || rela.r_offset < exceptionInfoStart))
+				if(sym.needsJT && (exceptionInfoStart == 0 || rela.r_offset < exceptionInfoStart || sym.GetName() == "__gxx_personality_v0"))
 				{
 					if(rela.r_addend == 0)
 					{
@@ -390,7 +398,20 @@ void Section::FixRelocs()
 					}
 				}
 				else
+				{
+					if(sym.section.get() != this)
+					{
+						std::cerr << "Invalid ref from "
+						          << name << ":" << std::hex << rela.r_offset-shdr.sh_addr << std::dec
+						          << " to " << sym.section->name
+						          << "(" << sym.GetName() << ")"
+						          << "+" << rela.r_offset << std::endl;
+						std::cerr << "needsJT: " << (sym.needsJT ? "true" : "false") << std::endl;
+						std::cerr << "from addr: " << rela.r_offset << ", exceptionInfoStart: " << exceptionInfoStart << std::endl;
+
+					}
 					assert(sym.section.get() == this);
+				}
 				break;
 			case SectionKind::data:
 				relocBase = RelocBase::data;
@@ -721,6 +742,11 @@ void MultiSegmentApp(string output)
 
 		std::cout << "CODE " << id << ": " << code.str().size() << " bytes\n";
 
+		if(code.str().size() == 80)
+		{
+			std::cout << "... empty. Skipping.\n";
+			continue;
+		}
 		rsrc.addResource(Resource(ResType("CODE"), id,
 		                          code.str()));
 
@@ -819,6 +845,7 @@ int main(int argc, char *argv[])
 			{
 				elf2mac = true;
 				flatoutput = true;
+				segments = false;
 			}
 			else if(*p == "--mac-segments")
 			{
@@ -845,8 +872,20 @@ int main(int argc, char *argv[])
 
 			{
 				ofstream out(tmpfile);
-				CreateLdScript(out, segments);
-				CreateLdScript(std::cout, segments);
+				if(segments)
+				{
+					SegmentMap map;
+					map.CreateLdScript(out);
+					map.CreateLdScript(std::cout);
+
+					ofstream f("/tmp/foo.ld");
+					map.CreateLdScript(f);
+				}
+				else
+				{
+					CreateFlatLdScript(out);
+					CreateFlatLdScript(std::cout);
+				}
 			}
 
 			args2.push_back("-o");

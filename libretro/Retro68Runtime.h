@@ -1,5 +1,5 @@
 /*
-	Copyright 2015 Wolfgang Thaller.
+	Copyright 2017 Wolfgang Thaller.
 
 	This file is part of Retro68.
 
@@ -24,6 +24,7 @@
 */
 
 #include <stdint.h>
+#include <Types.h>
 
 #define _RETRO68_GET_DISPLACEMENT(DISPLACEMENT, STRIP) \
 	do {	\
@@ -69,3 +70,27 @@ void Retro68InitMultisegApp();
 void Retro68ApplyRelocations(uint8_t *base, uint32_t size, void *relocations, uint32_t displacements[]);
 
 #define RETRO68_RELOCATE() RETRO68_CALL_UNRELOCATED(Retro68Relocate,())
+
+
+
+/*
+   struct object is an internal data structure in libgcc.
+   Comments in unwind-dw2-fde.h imply that it will not
+   increase in size.
+ */
+struct object { long space[8]; };
+
+extern void __register_frame_info (const void *, struct object *)
+				  __attribute__ ((weak));
+extern void *__deregister_frame_info (const void *)
+				     __attribute__ ((weak));
+
+typedef struct Retro68RelocState
+{
+	Ptr bssPtr;
+	Handle codeHandle;
+        char hasStripAddr;
+        char needFlushCache;
+} Retro68RelocState;
+
+extern Retro68RelocState relocState;

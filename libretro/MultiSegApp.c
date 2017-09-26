@@ -49,18 +49,7 @@ typedef struct CODEHeader
     uint32_t reserved;
 } CODEHeader;
 
-/*
-   struct object is an internal data structure in libgcc.
-   Comments in unwind-dw2-fde.h imply that it will not
-   increase in size.
- */
-struct object { long space[8]; };
-
-extern void __register_frame_info (const void *, struct object *)
-				  __attribute__ ((weak));
-extern void *__deregister_frame_info (const void *)
-				     __attribute__ ((weak));
-
+#define StripAddressCompat(p) (relocState.hasStripAddr ? StripAddress(p) : StripAddress24(p))
 
 pascal void* Retro68LoadSegment(uint8_t *p)
 {
@@ -73,12 +62,12 @@ pascal void* Retro68LoadSegment(uint8_t *p)
     Handle CODE = GetResource('CODE', id);
     HLock(CODE);
     
-    uint8_t *base = StripAddress((uint8_t *)*CODE);
+    uint8_t *base = StripAddressCompat((uint8_t *)*CODE);
     CODEHeader *header = (CODEHeader*) base;
     uint32_t codeSize = GetHandleSize(CODE);
     
         // TODO: StripAddress24
-    uint8_t * a5 = (uint8_t*) StripAddress((void*)SetCurrentA5());
+    uint8_t * a5 = (uint8_t*) StripAddressCompat((void*)SetCurrentA5());
     
     if(header->loadAddress != base || header->currentA5 != a5)
     {
@@ -114,7 +103,8 @@ pascal void* Retro68LoadSegment(uint8_t *p)
         ++jtEntry;
     }
     
-    // TODO: Flush cache
+    if(relocState.needFlushCache)
+        FlushCodeCache();
     
     /* Load Exception Information */
     if (__register_frame_info)
@@ -144,7 +134,7 @@ extern uint8_t _stext, _etext, _sdata, _edata, _sbss, _ebss;
 
 void Retro68InitMultisegApp()
 {
-    uint8_t * a5 = (uint8_t*) StripAddress((void*)SetCurrentA5());
+    uint8_t * a5 = (uint8_t*) StripAddressCompat((void*)SetCurrentA5());
 
     // CODE Segment 1 is already loaded - we are in it.
     // Update the jump table addresses.

@@ -59,27 +59,9 @@ extern uint8_t _rsrc_start;
 extern voidFunction __CTOR_LIST__, __DTOR_LIST__;
 extern uint8_t __EH_FRAME_BEGIN__;
 
-/*
-   struct object is an internal data structure in libgcc.
-   Comments in unwind-dw2-fde.h imply that it will not
-   increase in size.
- */
-struct object { long space[8]; };
 
-extern void __register_frame_info (const void *, struct object *)
-				  __attribute__ ((weak));
-extern void *__deregister_frame_info (const void *)
-				     __attribute__ ((weak));
-
-
-typedef struct Retro68RelocState
-{
-	Ptr bssPtr;
-	Handle codeHandle;
-} Retro68RelocState;
-
-static Retro68RelocState relocState __attribute__ ((section(".relocvars"))) = {
-	NULL, NULL
+Retro68RelocState relocState __attribute__ ((section(".relocvars"))) = {
+	NULL, NULL, false, false
 };
 
 
@@ -162,8 +144,8 @@ void Retro68Relocate()
 
 	struct Retro68RelocState *rState = (Retro68RelocState*)
 			((char*)&relocState + displacement);
-			
 	// rState now points to the global relocState variable
+	// 
 	if(displacement == 0)
 	{
 		if(rState->bssPtr)
@@ -178,6 +160,8 @@ void Retro68Relocate()
 			return;
 		}
 	}
+        
+        rState->hasStripAddr = hasStripAddr;
 
 	// Locate the start of the FLT file header inside the code resource
 	uint8_t *orig_stext, *orig_etext, *orig_sdata, *orig_edata, *orig_sbss, *orig_ebss;
@@ -256,7 +240,7 @@ void Retro68Relocate()
 	void *reloc;
 	Handle RELA = NULL;
 	uint32_t relocatableSize;
-	if(&_MULTISEG_APP)
+	if(&_MULTISEG_APP == (uint8_t*)1)
 	{
 		RELA = Get1Resource('RELA', 1);
 		assert(RELA);
@@ -289,6 +273,7 @@ void Retro68Relocate()
 		SysEnvirons(0, &env);
 		if(env.processor >= env68040)
 		{
+                        rState->needFlushCache = true;
 			FlushCodeCache();
 		}
 	}
@@ -355,4 +340,3 @@ void Retro68FreeGlobals()
 		relocState.bssPtr = (Ptr) -1;
 	}
 }
-
