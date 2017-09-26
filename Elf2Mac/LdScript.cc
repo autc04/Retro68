@@ -90,7 +90,6 @@ const char * code1Section = R"ld(/* ld script for Elf2Mac */
         PROVIDE(_rsrc_start = .);
         . = ALIGN (2);
         _entry_trampoline = .;
-        __break_on_entry = 1;
         SHORT(DEFINED(__break_on_entry) ? 0xA9FF : 0x4e71);
         LONG(0x61000002);	/* bsr *+2 */
         SHORT(0x0697); /* addi.l #_, (a7) */
@@ -101,9 +100,11 @@ const char * code1Section = R"ld(/* ld script for Elf2Mac */
         *(.relocvars)
         */libretrocrt.a:start.c.obj(.text*)
         */libretrocrt.a:relocate.c.obj(.text*) 
+        */libretrocrt.a:MultiSegApp.c.obj(.text*) 
+        */libretrocrt.a:LoadSeg.s.obj(.text*) 
         */libretrocrt.a:*(.text*) 
         */libgcc.a:*(.text*) 
-        */libc.a:*(.text*) 
+        */libc.a:*(.text*)
        
         . = ALIGN (4) ;
         __init_section = . ;
@@ -114,7 +115,16 @@ const char * code1Section = R"ld(/* ld script for Elf2Mac */
         __fini_section_end = . ;
 
         __EH_FRAME_BEGIN__ = .;
+        KEEP(*/libretrocrt.a:*(.eh_frame))
+        KEEP(*/libgcc.a:*(.eh_frame))
+        KEEP(*/libc.a:*(.eh_frame))
         LONG(0);
+        KEEP(*/libretrocrt.a:*(.gcc_except_table))
+        KEEP(*/libretrocrt.a:*(.gcc_except_table.*))
+        KEEP(*/libgcc.a:*(.gcc_except_table))
+        KEEP(*/libgcc.a:*(.gcc_except_table.*))
+        KEEP(*/libc.a:*(.gcc_except_table))
+        KEEP(*/libc.a:*(.gcc_except_table.*))
 
         . = ALIGN(0x4) ;
         _etext = . ;
@@ -129,21 +139,21 @@ const char * codeSectionTemplate = R"ld(/* ld script for Elf2Mac */
 
         . = ALIGN (4) ;
 
-    /*    KEEP(@FILTER@(.eh_frame))
+        __EH_FRAME_BEGIN__@N@ = .;
+        KEEP(@FILTER@(.eh_frame))
         LONG(0);
         KEEP(@FILTER@(.gcc_except_table))
-        KEEP(@FILTER@(.gcc_except_table.*)) */
+        KEEP(@FILTER@(.gcc_except_table.*))
 
-        . = ALIGN(0x4) ;
+        . = ALIGN(0x4);
+        LONG(0xDEADBEEF);
+        . += 32;
+        LONG(__EH_FRAME_BEGIN__@N@ - .);
     }
 )ld";
 
 const char * lastCodeExtra = R"ld(
-        *(.stub)
         *(.gnu.linkonce.t*)
-        *(.glue_7t)
-        *(.glue_7)
-        *(.jcr)
 )ld";
 
 

@@ -32,6 +32,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <map>
 #include <vector>
 #include <fstream>
 #include <iostream>
@@ -42,11 +43,14 @@
 
 using std::string;
 using std::unordered_map;
+using std::map;
 using std::vector;
 using std::ofstream;
 using std::shared_ptr;
 using std::make_shared;
 using std::unique_ptr;
+using std::pair;
+using std::make_pair;
 
 size_t sectionHeaderStringTableIdx;
 size_t mainStringTableIdx = (size_t)-1;
@@ -102,10 +106,12 @@ public:
 	Elf_Scn *elfsec;
 	Elf_Data *data;
 	vector<Symbol> symbols;
+	map<pair<int,uint32_t>, int> symbolsByAddress;
 
 	Symtab(Elf_Scn *elfsec);
 
 	Symbol& GetSym(int idx);
+	int FindSym(int secidx, uint32_t addr);
 };
 
 class Reloc : public GElf_Rela
@@ -143,6 +149,7 @@ public:
 
 	void ScanRelocs();
 	void FixRelocs();
+
 };
 
 Symbol::Symbol()
@@ -177,21 +184,32 @@ Symtab::Symtab(Elf_Scn *elfsec)
 	gelf_getshdr(elfsec, &shdr);
 
 	int count = shdr.sh_size / shdr.sh_entsize;
-	symbols.resize(count);
+	symbols.reserve(count);
+
+	for(int i = 0; i < count; i++)
+	{
+		GElf_Sym sym;
+		auto res = gelf_getsym(data, i, &sym);
+		assert(res != 0);
+		symbols.emplace_back(sym);
+
+		if(sym.st_shndx != SHN_UNDEF && sym.st_shndx < SHN_LORESERVE)
+			symbolsByAddress[make_pair((int)sym.st_shndx,sym.st_value)] = i;
+	}
 }
 
 Symbol &Symtab::GetSym(int idx)
 {
-	if(symbols[idx].valid)
-		return symbols[idx];
-	else
-	{
-		GElf_Sym sym;
-		auto res = gelf_getsym(data, idx, &sym);
-		assert(res != 0);
+	return symbols[idx];
+}
 
-		return (symbols[idx] = Symbol(sym));
-	}
+int Symtab::FindSym(int secidx, uint32_t addr)
+{
+	auto p = symbolsByAddress.find(make_pair(secidx, addr));
+	if(p != symbolsByAddress.end())
+		return p->second;
+	else
+		return -1;
 }
 
 
@@ -212,6 +230,7 @@ Section::Section(string name, int idx, SectionKind kind, Elf_Scn *elfsec)
 	gelf_getshdr(elfsec, &shdr);
 	outputBase = shdr.sh_addr;
 }
+
 
 void Section::SetRela(Elf_Scn *scn)
 {
@@ -269,7 +288,7 @@ string Section::GetAbsRelocations(bool useOffsets, bool suppressTerminatingEntry
 			if(useOffsets)
 				offset -= shdr.sh_addr;
 
-
+			std::cout << "RELA: " << std::hex << offset << " " << (int)rela.relocBase << std::dec << std::endl;
 			longword(out, offset | ((int)rela.relocBase << 24));
 		}
 	}
@@ -280,19 +299,31 @@ string Section::GetAbsRelocations(bool useOffsets, bool suppressTerminatingEntry
 
 void Section::ScanRelocs()
 {
-	for(auto& rela : relocs)
+	for(Reloc& rela : relocs)
 	{
 		int symidx = GELF_R_SYM(rela.r_info);
 		if(symidx == 0)
 			continue;
 
-		Symbol& sym = symtab->GetSym(symidx);
+		Symbol *sym = &symtab->GetSym(symidx);
 
-		if(sym.st_shndx == SHN_UNDEF)
+		if(sym->st_shndx == SHN_UNDEF)
 			continue;
 
-		if(sym.st_shndx != idx)
-			sym.referencedExternally = true;
+		if(rela.r_addend != 0)
+		{
+			int symidx2 = symtab->FindSym(sym->st_shndx, sym->st_value + rela.r_addend);
+			if(symidx2 != -1)
+			{
+				sym = &symtab->GetSym(symidx2);
+				rela.r_addend = 0;
+				rela.r_info = GELF_R_INFO(symidx2, GELF_R_TYPE(rela.r_info));
+
+			}
+		}
+
+		if(sym->st_shndx != idx)
+			sym->referencedExternally = true;
 	}
 }
 
@@ -336,6 +367,8 @@ void Section::FixRelocs()
 						assert(sym.section.get() == this);
 					}
 				}
+				else
+					assert(sym.section.get() == this);
 				break;
 			case SectionKind::data:
 				relocBase = RelocBase::data;
@@ -636,7 +669,7 @@ void MultiSegmentApp(string output)
 			word(code, 0);
 			longword(code, 0);
 			longword(code, 0);
-			longword(code, 0x20 + 8 * sec->firstJTEntryIndex );
+			longword(code, 8 * sec->firstJTEntryIndex );
 			longword(code, sec->jtEntries.size());
 			longword(code, 0);	// reloc info for A5
 			longword(code, 0);	// assumed address for A5
@@ -773,6 +806,7 @@ int main(int argc, char *argv[])
 			{
 				ofstream out(tmpfile);
 				CreateLdScript(out, segments);
+				CreateLdScript(std::cout, segments);
 			}
 
 			args2.push_back("-o");

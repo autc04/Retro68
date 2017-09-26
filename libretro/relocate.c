@@ -305,9 +305,9 @@ void Retro68Relocate()
 
 void Retro68CallConstructors()
 {
-	/*static struct object object;
+	static struct object object;
 	if (__register_frame_info)
-		__register_frame_info(&__EH_FRAME_BEGIN__, &object);*/
+		__register_frame_info(&__EH_FRAME_BEGIN__, &object);
 	{
 		uint8_t *p = &__init_section;
 		uint8_t *e = &__init_section_end;
@@ -342,8 +342,8 @@ void Retro68CallDestructors()
 			p += 6;
 		}
 	}
-/*	if (__deregister_frame_info)
-		__deregister_frame_info(&__EH_FRAME_BEGIN__);*/
+	if (__deregister_frame_info)
+		__deregister_frame_info(&__EH_FRAME_BEGIN__);
 }
 
 

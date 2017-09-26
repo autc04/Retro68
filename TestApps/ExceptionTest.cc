@@ -18,6 +18,8 @@
 */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <exception>
 
 #include <Events.h>
 
@@ -30,8 +32,26 @@ void foobar()
 	throw Foo();
 }
 
+void UnexpectedExceptionOccurred()
+{
+	printf("std::unexpected called.\n");
+	printf("Press Enter...\n");
+	getchar();
+	exit(1);
+}
+
+void UncaughtExceptionOccurred()
+{
+	printf("std::terminate called.\n");
+	printf("Press Enter...\n");
+	getchar();
+	exit(1);
+}
+
 int main(int argc, char** argv)
 {
+	std::set_unexpected(&UnexpectedExceptionOccurred);
+	std::set_terminate(&UncaughtExceptionOccurred);
 	bool throwFail = false;
 	bool catchFail = true;
 	for(int i = 0; i < 5; i++)
@@ -53,16 +73,7 @@ int main(int argc, char** argv)
 	if(catchFail)
 		printf("******** FAILURE: catch block never entered\n");
 
-	const int n = 3;
-	printf("Click mouse %d times...\n", n);
-	for(int i = 0; i < n; i++)
-	{
-		while(!Button())
-			;
-		while(Button())
-			;
-		printf("Click #%d\n", i+1);
-	}
-	FlushEvents(everyEvent, 0);
+	printf("Press Enter...\n");
+	getchar();
 	return 0;
 }
