@@ -104,7 +104,6 @@ if [ $SKIP_THIRDPARTY != false ]; then
 	if [ $BUILD_68K != false ]; then
 		if [ ! -d binutils-build ]; then MISSING=true; fi
 		if [ ! -d gcc-build ]; then MISSING=true; fi
-		if [ ! -d elf2flt-build ]; then MISSING=true; fi
 	fi
 	if [ $BUILD_PPC != false ]; then
 		if [ ! -d binutils-build-ppc ]; then MISSING=true; fi
@@ -239,7 +238,7 @@ if [ $BUILD_CARBON != false ]; then
 	fi
 fi
 
-##################### Third-Party components: binutils, gcc, elfutils, hfsutils
+##################### Third-Party components: binutils, gcc, hfsutils
 
 if [ $SKIP_THIRDPARTY != true ]; then
 
@@ -247,7 +246,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 	rm -rf toolchain
 	mkdir -p toolchain
 
-	# Components needed for targeting 68K: binutils, gcc, elfutils, elf2flt
+	# Components needed for targeting 68K: binutils, gcc
 	if [ $BUILD_68K != false ]; then
 
 			# present-day Mac users are likely to install dependencies
@@ -279,13 +278,6 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		unset CPPFLAGS
 		unset LDFLAGS
 
-		mkdir -p elfutils-build
-		cd elfutils-build
-		$SRC/elfutils/configure --prefix=$PREFIX
-		make -j8
-		make install
-		cd ..
-
 		# Move the real linker aside and install symlinks to Elf2Mac
 		# (Elf2Mac is built by cmake below)
 		mv $PREFIX/bin/m68k-apple-macos-ld $PREFIX/bin/m68k-apple-macos-ld.real
@@ -293,13 +285,9 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		ln -s $PREFIX/bin/Elf2Mac $PREFIX/bin/m68k-apple-macos-ld
 		ln -s $PREFIX/bin/Elf2Mac $PREFIX/m68k-apple-macos/bin/ld
 
-		unset CFLAGS
-		unset CPPFLAGS
-
 		if [ $CLEAN_AFTER_BUILD != false ]; then
 			rm -rf binutils-build
 			rm -rf gcc-build
-			rm -rf elf2flt-build
 		fi
 
 	fi

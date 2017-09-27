@@ -41,7 +41,7 @@
 
 
 /* The error number.  */
-static __thread int global_error;
+static /* __thread */ int global_error;
 
 
 int

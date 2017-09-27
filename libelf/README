@@ -1,3 +1,5 @@
+This directory contains a subset of elfutils, ripped out from the rest for use in Retro68.
+
 The elfutils project provides libraries and tools for ELF files and DWARF data.
 
 The project home is http://elfutils.org/

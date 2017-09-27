@@ -1,3 +1,8 @@
+2017-09-27  Wolfgang Thaller <wolfgang.thaller@gmx.net>
+
+	Gut the whole thing and keep just libelf, with a very simple
+	CMakeLists.txt for building. That's all I need :-).	
+
 2017-07-19  Gustavo Romero <gromero@linux.vnet.ibm.com>
 
 	* elf.h: Add known type in notes segment descriptor for HTM SPRs.
