@@ -8,13 +8,13 @@ class SegmentInfo
 {
 public:
 	int id;
-	//std::string name;
+	std::string name;
 	std::vector<std::string> filters;
 	SegmentInfo();
 
 	template<typename... Args>
 	SegmentInfo(int id, std::string name, Args... args)
-	    : id(id), filters { args... }
+	    : id(id), name(name), filters { args... }
 	{
 	}
 
@@ -30,6 +30,7 @@ public:
 	SegmentMap();
 
 	void CreateLdScript(std::ostream& out);
+	std::string GetSegmentName(int id);
 };
 
 #endif // SEGMENTMAP_H

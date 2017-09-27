@@ -60,6 +60,8 @@ size_t mainStringTableIdx = (size_t)-1;
 class Symtab;
 class Section;
 
+SegmentMap segmentMap;
+
 Elf *elf;
 std::vector<int> relocs;
 unique_ptr<Symtab> symtab;
@@ -747,8 +749,12 @@ void MultiSegmentApp(string output)
 			std::cout << "... empty. Skipping.\n";
 			continue;
 		}
+
+		string segmentName = segmentMap.GetSegmentName(id);
+
 		rsrc.addResource(Resource(ResType("CODE"), id,
-		                          code.str()));
+		                          code.str(),
+		                          segmentName));
 
 
 		rsrc.addResource(Resource(ResType("RELA"),id, sec->GetAbsRelocations(true)));
@@ -874,12 +880,11 @@ int main(int argc, char *argv[])
 				ofstream out(tmpfile);
 				if(segments)
 				{
-					SegmentMap map;
-					map.CreateLdScript(out);
-					map.CreateLdScript(std::cout);
+					segmentMap.CreateLdScript(out);
+					segmentMap.CreateLdScript(std::cout);
 
 					ofstream f("/tmp/foo.ld");
-					map.CreateLdScript(f);
+					segmentMap.CreateLdScript(f);
 				}
 				else
 				{
