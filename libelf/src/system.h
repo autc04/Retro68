@@ -33,23 +33,13 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/param.h>
-#include <endian.h>
-#include <byteswap.h>
+#include "portable_endian.h"
 #include <unistd.h>
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-# define LE32(n)	(n)
-# define LE64(n)	(n)
-# define BE32(n)	bswap_32 (n)
-# define BE64(n)	bswap_64 (n)
-#elif __BYTE_ORDER == __BIG_ENDIAN
-# define BE32(n)	(n)
-# define BE64(n)	(n)
-# define LE32(n)	bswap_32 (n)
-# define LE64(n)	bswap_64 (n)
-#else
-# error "Unknown byte order"
-#endif
+# define LE32(n)	le32toh (n)
+# define LE64(n)	le64toh (n)
+# define BE32(n)	be32toh (n)
+# define BE64(n)	be64toh (n)
 
 #ifndef MAX
 #define MAX(m, n) ((m) < (n) ? (n) : (m))
