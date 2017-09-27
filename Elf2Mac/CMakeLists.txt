@@ -20,7 +20,7 @@ cmake_minimum_required(VERSION 3.1)
 find_package(Boost COMPONENTS REQUIRED)
 
 add_executable(Elf2Mac Elf2Mac.h Elf2Mac.cc SegmentMap.cc LdScript.cc)
-target_link_libraries(Elf2Mac ResourceFiles ${CMAKE_INSTALL_PREFIX}/lib/libelf.a -lz)
+target_link_libraries(Elf2Mac ResourceFiles ELF)
 
 target_include_directories(Elf2Mac PRIVATE ${CMAKE_INSTALL_PREFIX}/include)
 target_include_directories(Elf2Mac PRIVATE ${Boost_INCLUDE_DIR})

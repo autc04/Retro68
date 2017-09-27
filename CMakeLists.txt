@@ -55,6 +55,13 @@ configure_file(cmake/intree.toolchain.cmake.in cmake/intree.toolchain.cmake @ONL
 configure_file(cmake/intreeppc.toolchain.cmake.in cmake/intreeppc.toolchain.cmake @ONLY)
 configure_file(cmake/intreecarbon.toolchain.cmake.in cmake/intreecarbon.toolchain.cmake @ONLY)
 
+file(GLOB ELF_FILES elfutils/libelf/*.c elfutils/libelf/*.h)
+add_library(ELF ${ELF_FILES}
+	)
+target_include_directories(ELF PRIVATE elfutils/libelf)
+target_link_libraries(ELF -lz)
+target_compile_definitions(ELF PRIVATE HAVE_CONFIG_H)
+
 add_subdirectory(ResourceFiles)
 add_subdirectory(MakeAPPL)
 add_subdirectory(Rez)
