@@ -89,8 +89,8 @@ typedef struct Retro68RelocState
 {
 	Ptr bssPtr;
 	Handle codeHandle;
-        char hasStripAddr;
-        char needFlushCache;
+	char hasStripAddr;
+	char hasFlushCodeCache;
 } Retro68RelocState;
 
 extern Retro68RelocState relocState;

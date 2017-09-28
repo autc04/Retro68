@@ -103,7 +103,7 @@ pascal void* Retro68LoadSegment(uint8_t *p)
         ++jtEntry;
     }
     
-    if(relocState.needFlushCache)
+    if(relocState.hasFlushCodeCache)
         FlushCodeCache();
     
     /* Load Exception Information */

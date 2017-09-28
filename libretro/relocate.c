@@ -118,14 +118,17 @@ void Retro68Relocate()
 	Boolean is128KROM = ((*ROM85) > 0);
 	Boolean hasSysEnvirons = false;
 	Boolean hasStripAddr = false;
+	Boolean hasFlushCodeCache = false;
 	if (is128KROM)
 	{
 		UniversalProcPtr trapSysEnv = GetOSTrapAddress(_SysEnvirons);
 		UniversalProcPtr trapStripAddr = GetOSTrapAddress(_StripAddress);
+		UniversalProcPtr trapFlushCodeCache = GetOSTrapAddress(0xA0BD);
 		UniversalProcPtr trapUnimpl = GetOSTrapAddress(_Unimplemented);
 
 		hasSysEnvirons = (trapSysEnv != trapUnimpl);
 		hasStripAddr = (trapStripAddr != trapUnimpl);
+		hasFlushCodeCache = (trapFlushCodeCache != trapUnimpl);
 	}
 					
 	// Figure out the displacement
@@ -161,7 +164,8 @@ void Retro68Relocate()
 		}
 	}
         
-        rState->hasStripAddr = hasStripAddr;
+	rState->hasStripAddr = hasStripAddr;
+	rState->hasFlushCodeCache = hasFlushCodeCache;
 
 	// Locate the start of the FLT file header inside the code resource
 	uint8_t *orig_stext, *orig_etext, *orig_sdata, *orig_edata, *orig_sbss, *orig_ebss;
@@ -261,7 +265,7 @@ void Retro68Relocate()
 	RealApplyRelocations(base, relocatableSize, reloc, displacements);
 
 	// We're basically done.
-	// Now check whether we're on 68040 or later and need to flush the cache.
+	/*// Now check whether we're on 68040 or later and need to flush the cache.
 	// only do this if SysEnvirons is available.
 	// if SysEnvirons is not available, that means we're on an old System or ROM
 	// and likely not using a 68040, so we won't do this
@@ -276,7 +280,9 @@ void Retro68Relocate()
                         rState->needFlushCache = true;
 			FlushCodeCache();
 		}
-	}
+	}*/
+	if(hasFlushCodeCache)
+		FlushCodeCache();
 
 	// accessing globals and calling functions is OK below here.
 	// ... as long as it is in the current segment.
