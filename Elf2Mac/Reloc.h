@@ -17,39 +17,27 @@
 	 along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef SEGMENTMAP_H
-#define SEGMENTMAP_H
+#ifndef RELOC_H
+#define RELOC_H
 
-#include <vector>
-#include <string>
+#include <gelf.h>
 
-class SegmentInfo
+enum class RelocBase
 {
-public:
-	int id;
-	std::string name;
-	std::vector<std::string> filters;
-	SegmentInfo();
-
-	template<typename... Args>
-	SegmentInfo(int id, std::string name, Args... args)
-	    : id(id), name(name), filters { args... }
-	{
-	}
-
-	void WriteFilters(std::ostream& out, std::string section);
-	void WriteFiltersKeep(std::ostream& out, std::string section);
-	void CreateLdScript(std::ostream& out);
+	code = 0,
+	data,
+	bss,
+	jumptable,
+	code1
 };
 
-class SegmentMap
+class Reloc : public GElf_Rela
 {
-	std::vector<SegmentInfo> segments;
 public:
-	SegmentMap();
+	RelocBase relocBase;
 
-	void CreateLdScript(std::ostream& out);
-	std::string GetSegmentName(int id);
+	Reloc();
+	Reloc(const GElf_Rela& rela);
 };
 
-#endif // SEGMENTMAP_H
+#endif // RELOC_H

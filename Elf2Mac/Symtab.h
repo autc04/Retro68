@@ -17,39 +17,34 @@
 	 along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef SEGMENTMAP_H
-#define SEGMENTMAP_H
+#ifndef SYMTAB_H
+#define SYMTAB_H
+
+#include <gelf.h>
 
 #include <vector>
-#include <string>
+#include <map>
+#include <unordered_map>
 
-class SegmentInfo
+class Object;
+class Symbol;
+
+class Symtab
 {
 public:
-	int id;
-	std::string name;
-	std::vector<std::string> filters;
-	SegmentInfo();
+	Elf_Scn *elfsec;
+	Elf_Data *data;
+	std::vector<Symbol> symbols;
+	std::map<std::pair<int,uint32_t>, int> symbolsByAddress;
+	std::unordered_map<std::string, int> symbolsByName;
 
-	template<typename... Args>
-	SegmentInfo(int id, std::string name, Args... args)
-	    : id(id), name(name), filters { args... }
-	{
-	}
+	Symtab(Object &theObject, Elf_Scn *elfsec);
+	~Symtab();
 
-	void WriteFilters(std::ostream& out, std::string section);
-	void WriteFiltersKeep(std::ostream& out, std::string section);
-	void CreateLdScript(std::ostream& out);
+	Symbol& GetSym(int idx);
+	int FindSym(int secidx, uint32_t addr);
+	int FindSym(std::string name);
 };
 
-class SegmentMap
-{
-	std::vector<SegmentInfo> segments;
-public:
-	SegmentMap();
 
-	void CreateLdScript(std::ostream& out);
-	std::string GetSegmentName(int id);
-};
-
-#endif // SEGMENTMAP_H
+#endif // SYMTAB_H

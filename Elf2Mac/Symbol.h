@@ -17,39 +17,32 @@
 	 along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef SEGMENTMAP_H
-#define SEGMENTMAP_H
+#ifndef SYMBOL_H
+#define SYMBOL_H
 
-#include <vector>
+#include <gelf.h>
+
+#include <memory>
 #include <string>
 
-class SegmentInfo
+enum class SectionKind;
+class Section;
+class Object;
+
+class Symbol : public GElf_Sym
 {
 public:
-	int id;
+	bool valid;
+	bool referencedExternally;
+	SectionKind sectionKind;
+	bool needsJT;
+	int jtIndex;
+	std::shared_ptr<Section> section;
 	std::string name;
-	std::vector<std::string> filters;
-	SegmentInfo();
 
-	template<typename... Args>
-	SegmentInfo(int id, std::string name, Args... args)
-	    : id(id), name(name), filters { args... }
-	{
-	}
-
-	void WriteFilters(std::ostream& out, std::string section);
-	void WriteFiltersKeep(std::ostream& out, std::string section);
-	void CreateLdScript(std::ostream& out);
+	Symbol();
+	Symbol(Object &theObject, const GElf_Sym& sym);
 };
 
-class SegmentMap
-{
-	std::vector<SegmentInfo> segments;
-public:
-	SegmentMap();
 
-	void CreateLdScript(std::ostream& out);
-	std::string GetSegmentName(int id);
-};
-
-#endif // SEGMENTMAP_H
+#endif // SYMBOL_H

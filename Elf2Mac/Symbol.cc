@@ -17,39 +17,29 @@
 	 along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef SEGMENTMAP_H
-#define SEGMENTMAP_H
+#include "Symbol.h"
 
-#include <vector>
-#include <string>
+#include "Section.h"
+#include "Object.h"
 
-class SegmentInfo
+Symbol::Symbol()
+    : valid(false)
 {
-public:
-	int id;
-	std::string name;
-	std::vector<std::string> filters;
-	SegmentInfo();
+}
 
-	template<typename... Args>
-	SegmentInfo(int id, std::string name, Args... args)
-	    : id(id), name(name), filters { args... }
+Symbol::Symbol(Object& theObject, const GElf_Sym &sym)
+    : GElf_Sym(sym), valid(true),
+      referencedExternally(false),
+      sectionKind(SectionKind::undefined),
+      needsJT(false)
+{
+	if(st_shndx != SHN_UNDEF && st_shndx < SHN_LORESERVE)
 	{
+		section = theObject.sectionsByElfIndex[st_shndx];
+		sectionKind = section->kind;
 	}
-
-	void WriteFilters(std::ostream& out, std::string section);
-	void WriteFiltersKeep(std::ostream& out, std::string section);
-	void CreateLdScript(std::ostream& out);
-};
-
-class SegmentMap
-{
-	std::vector<SegmentInfo> segments;
-public:
-	SegmentMap();
-
-	void CreateLdScript(std::ostream& out);
-	std::string GetSegmentName(int id);
-};
-
-#endif // SEGMENTMAP_H
+	if(st_name)
+	{
+		name = elf_strptr(theObject.elf, theObject.mainStringTableIdx, st_name);
+	}
+}
