@@ -56,8 +56,10 @@
 #define N_(Str) Str
 
 /* Compiler-specific definitions.  */
-#define strong_alias(name, aliasname) \
-  extern __typeof (name) aliasname __attribute__ ((alias (#name)));
+//#define strong_alias(name, aliasname) \
+ // extern __typeof (name) aliasname __attribute__ ((alias (#name)));
+
+#define strong_alias(name, aliasname)
 
 #ifdef __i386__
 # define internal_function __attribute__ ((regparm (3), stdcall))
@@ -186,5 +188,8 @@ asm (".section predict_data, \"aw\"; .previous\n"
 # define COMPAT_VERSION(name, version, prefix) error "should use #ifdef SYMBOL_VERSIONING"
 #endif
 
+#define bswap_16(x) __builtin_bswap16(x)
+#define bswap_32(x) __builtin_bswap32(x)
+#define bswap_64(x) __builtin_bswap64(x)
 
 #endif	/* eu-config.h */

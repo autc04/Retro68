@@ -32,10 +32,10 @@
 #endif
 
 #include <assert.h>
-#include <endian.h>
 #include <string.h>
 
 #include "libelfP.h"
+#include "portable_endian.h"
 
 #ifndef LIBELFBITS
 # define LIBELFBITS	32

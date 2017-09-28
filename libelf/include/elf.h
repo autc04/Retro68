@@ -19,10 +19,6 @@
 #ifndef _ELF_H
 #define	_ELF_H 1
 
-#include <features.h>
-
-__BEGIN_DECLS
-
 /* Standard ELF types.  */
 
 #include <stdint.h>
@@ -3682,7 +3678,5 @@ enum
 
 #define R_BPF_NONE		0	/* No reloc */
 #define R_BPF_MAP_FD		1	/* Map fd to pointer */
-
-__END_DECLS
 
 #endif	/* elf.h */

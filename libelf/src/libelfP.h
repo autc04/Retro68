@@ -40,8 +40,8 @@
 #include <string.h>
 
 /* gettext helper macros.  */
-#define _(Str) dgettext ("elfutils", Str)
-
+//#define _(Str) dgettext ("elfutils", Str)
+#define _(Str) Str
 
 /* Helper Macros to write 32 bit and 64 bit functions.  */
 #define __elfw2_(Bits, Name) __elf##Bits##_##Name

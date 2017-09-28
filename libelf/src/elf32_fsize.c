@@ -64,5 +64,6 @@ elfw2(LIBELFBITS, fsize) (Elf_Type type, size_t count, unsigned int version)
 	  * __libelf_type_sizes[0][ELFW(ELFCLASS,LIBELFBITS) - 1][type]);
 #endif
 }
-#define local_strong_alias(n1, n2) strong_alias (n1, n2)
-local_strong_alias (elfw2(LIBELFBITS, fsize), __elfw2(LIBELFBITS, msize))
+
+//#define local_strong_alias(n1, n2) strong_alias (n1, n2)
+//local_strong_alias (elfw2(LIBELFBITS, fsize), __elfw2(LIBELFBITS, msize))

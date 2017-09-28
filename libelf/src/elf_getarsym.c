@@ -32,8 +32,6 @@
 #endif
 
 #include <assert.h>
-#include <byteswap.h>
-#include <endian.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -44,7 +42,7 @@
 #include <system.h>
 #include <dl-hash.h>
 #include "libelfP.h"
-
+#include "portable_endian.h"
 
 static int
 read_number_entries (uint64_t *nump, Elf *elf, size_t *offp, bool index64_p)

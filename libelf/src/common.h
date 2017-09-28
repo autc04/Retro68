@@ -31,10 +31,9 @@
 #define _COMMON_H       1
 
 #include <ar.h>
-#include <byteswap.h>
-#include <endian.h>
 #include <stdlib.h>
 #include <string.h>
+#include "portable_endian.h"
 
 #include "libelfP.h"
 
