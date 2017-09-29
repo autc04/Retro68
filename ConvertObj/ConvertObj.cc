@@ -110,8 +110,9 @@ string encodeIdentifier(const string& s)
 void Module::write(std::ostream& out)
 {
 	uint32_t offset = 0;
+	string encodedName = encodeIdentifier(sectionMap[name]);
 
-	out << "\t.section	.text." << encodeIdentifier(sectionMap[name]) << ",\"ax\",@progbits\n";
+	out << "\t.section	.text." << encodedName << ",\"ax\",@progbits\n";
 
 	while(offset < bytes.size())
 	{
@@ -137,6 +138,15 @@ void Module::write(std::ostream& out)
 			offset++;
 		}
 	}
+	out << "\t.section	.text." << encodedName << ".macsbug,\"ax\",@progbits\n";
+	if(encodedName.size() < 32)
+		out << "\t.byte " << (encodedName.size() | 0x80) << "\n";
+	else
+		out << "\t.byte 0x80\n"
+			<< "\t.byte " << encodedName.size() << "\n";
+	out << "\t.ascii \"" << encodedName << "\"\n";
+	out << "\t.align 2,0\n\t.short 0\n";
+
 	out << "# ######\n\n";
 }
 
