@@ -124,6 +124,12 @@ int main(int argc, char *argv[])
 				flatoutput = true;
 				segments = false;
 			}
+			else if(*p == "--mac-single")
+			{
+				elf2mac = true;
+				flatoutput = false;
+				segments = false;
+			}
 			else if(*p == "--mac-segments")
 			{
 				elf2mac = true;
