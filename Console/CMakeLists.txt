@@ -26,6 +26,9 @@ add_library(RetroConsole
 	MacUtils.h
 	InitConsole.cc
 	)
+set_target_properties(retrocrt
+	PROPERTIES
+	    COMPILE_OPTIONS -ffunction-sections)
 
 install(TARGETS RetroConsole  DESTINATION lib)
 

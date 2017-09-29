@@ -71,5 +71,8 @@ add_library(retrocrt
 	consolehooks.c
 	${ARCH_FILES}
 )
+set_target_properties(retrocrt
+	PROPERTIES
+	    COMPILE_OPTIONS -ffunction-sections)
 
 install(TARGETS retrocrt  DESTINATION lib)
