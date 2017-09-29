@@ -48,7 +48,7 @@ class SegmentMap
 public:
 	SegmentMap();
 
-	void CreateLdScript(std::ostream& out);
+	void CreateLdScript(std::ostream& out, bool stripMacsbug);
 	std::string GetSegmentName(int id);
 };
 

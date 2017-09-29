@@ -22,6 +22,6 @@
 
 #include <iosfwd>
 
-void CreateFlatLdScript(std::ostream& out);
+void CreateFlatLdScript(std::ostream& out, bool stripMacsbug);
 
 #endif // ELF2MAC_H

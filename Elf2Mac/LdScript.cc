@@ -181,10 +181,16 @@ const char * scriptEnd = R"ld(
 )ld";
 
 
-void CreateFlatLdScript(std::ostream& out)
+void CreateFlatLdScript(std::ostream& out, bool stripMacsbug)
 {
 	out << "_MULTISEG_APP = 0;\n";
-	out << scriptStart << textSection << scriptEnd;
+	out << scriptStart;
+	if(stripMacsbug)
+	{
+		out << "\t.strippedmacsbugnames 0 (NOLOAD) : { *(.text.*.macsbug) }\n";
+		out << "\t. = 0;\n";
+	}
+	out << textSection << scriptEnd;
 }
 
 
@@ -278,11 +284,15 @@ void SegmentInfo::CreateLdScript(std::ostream &out)
 
 }
 
-void SegmentMap::CreateLdScript(std::ostream &out)
+void SegmentMap::CreateLdScript(std::ostream &out, bool stripMacsbug)
 {
 	out << "_MULTISEG_APP = 1;\n";
 	out << scriptStart;
-
+	if(stripMacsbug)
+	{
+		out << "\t.strippedmacsbugnames 0 (NOLOAD) : { *(.text.*.macsbug) }\n";
+		out << "\t. = 0;\n";
+	}
 	for(SegmentInfo& seg: segments)
 	{
 		seg.CreateLdScript(out);

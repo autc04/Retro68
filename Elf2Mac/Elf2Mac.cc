@@ -98,6 +98,7 @@ int main(int argc, char *argv[])
 		bool elf2mac = false;
 		bool flatoutput = false;
 		bool segments = true;
+		bool stripMacsbug = false;
 
 		vector<string> args2;
 		for(auto p = args.begin(), e = args.end(); p != e; ++p)
@@ -133,6 +134,10 @@ int main(int argc, char *argv[])
 					errx(EXIT_FAILURE, "--mac-segments missing argument");
 				//segmentMapFile = *p;
 			}
+			else if(*p == "--mac-strip-macsbug")
+			{
+				stripMacsbug = true;
+			}
 			else
 			{
 				args2.push_back(*p);
@@ -151,16 +156,11 @@ int main(int argc, char *argv[])
 				ofstream out(tmpfile);
 				if(segments)
 				{
-					segmentMap.CreateLdScript(out);
-					segmentMap.CreateLdScript(std::cout);
-
-					ofstream f("/tmp/foo.ld");
-					segmentMap.CreateLdScript(f);
+					segmentMap.CreateLdScript(out, stripMacsbug);
 				}
 				else
 				{
-					CreateFlatLdScript(out);
-					CreateFlatLdScript(std::cout);
+					CreateFlatLdScript(out, stripMacsbug);
 				}
 			}
 
@@ -194,5 +194,3 @@ int main(int argc, char *argv[])
 	}
 	return 0;
 }
-
-

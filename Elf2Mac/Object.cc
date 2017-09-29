@@ -49,8 +49,6 @@ Object::~Object()
 {
 }
 
-
-
 Object::Object(string input)
 {
 	if(elf_version ( EV_CURRENT ) == EV_NONE)
@@ -86,15 +84,14 @@ Object::Object(string input)
 		gelf_getshdr(scn, &shdr);
 		std::string name = elf_strptr(elf, sectionHeaderStringTableIdx, shdr.sh_name);
 		//std::cout << "section #" << idx << ": " << name << std::endl;
+		//std::cout << "        =" << shdr.sh_addr << " + " << shdr.sh_size << std::endl;
 
 		if(shdr.sh_type == SHT_SYMTAB
 		            && !symtab)
 		{
 			symtab.reset(new Symtab(*this, scn));
 		}
-
-		if(shdr.sh_type == SHT_RELA
-		        && !bssSection)	// ignore everything after bss, that's just debug info
+		if(shdr.sh_type == SHT_RELA)
 		{
 			if(boost::algorithm::starts_with(name,".rela."))
 			{
@@ -103,10 +100,15 @@ Object::Object(string input)
 				sections[progbitsName]->SetRela(scn);
 			}
 		}
-		if(shdr.sh_type == SHT_PROGBITS
-		        && !bssSection)	// ignore everything after bss, that's just debug info
+		if(shdr.sh_type == SHT_PROGBITS && (shdr.sh_flags & SHF_ALLOC))
 		{
-			SectionKind kind = name == ".data" ? SectionKind::data : SectionKind::code;
+			SectionKind kind = SectionKind::code;
+
+			if(name == ".data")
+				kind = SectionKind::data;
+			if(name == ".strippedmacsbugnames")
+				kind = SectionKind::undefined;
+
 			auto section = make_shared<Section>(*this, name, idx, kind, scn);
 
 			sections[name] = sectionsByElfIndex[idx] = section;
@@ -117,10 +119,6 @@ Object::Object(string input)
 		}
 		if(shdr.sh_type == SHT_NOBITS)
 		{
-			// Currently, the bss section is used
-			// to know when to start skipping debug info sections.
-			// (What's the official way to distinguish a debug info section from a "real" section?)
-
 			bssSection = sections[name] = sectionsByElfIndex[idx] =
 			        make_shared<Section>(*this, name, idx, SectionKind::bss, scn);
 		}
