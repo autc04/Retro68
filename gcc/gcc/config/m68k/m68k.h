@@ -994,9 +994,9 @@ extern int m68k_sched_indexed_address_bypass_p (rtx_insn *, rtx_insn *);
 #define ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)		\
   do								\
     {								\
-	m68k_write_macsbug_name(FILE, FNAME);			\
       if (!flag_inhibit_size_directive)				\
 	ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);			\
+      m68k_write_macsbug_name(FILE, FNAME);			\
     }								\
   while (0)
 

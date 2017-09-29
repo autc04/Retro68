@@ -6724,7 +6724,8 @@ m68k_write_macsbug_name(FILE *file, const char *name)
   int len = strlen(name);
   if(len > 255)
     len = 255;
-
+  if(flag_function_sections)
+    fprintf(file, "\t.section .text.%s.macsbug,\"ax\",@progbits\n",name);
   fprintf(file, "# macsbug symbol\n");
   if(!retro68_hack_asm_rts_counter)
     fprintf(file, "\trts\n");
@@ -6735,6 +6736,8 @@ m68k_write_macsbug_name(FILE *file, const char *name)
 
   ASM_OUTPUT_ASCII(file, name, len);
   fprintf(file, "\t.align 2,0\n\t.short 0\n");
+  if(flag_function_sections)
+    fprintf(file, "\t.section .text.%s,\"ax\",@progbits\n",name);
 }
 
 static tree
