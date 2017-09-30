@@ -27,3 +27,11 @@ add_application(Dialog
 	dialog.c
 	dialog.r
 	)
+
+# Enable -ffunction-sections and -gc-sections to make the app as small as possible
+# also enable --mac-single to build it as a single-segment app (so that this code path doesn't rot)
+set_target_properties(Dialog
+	PROPERTIES
+	    COMPILE_OPTIONS -ffunction-sections
+		LINK_FLAGS "-Wl,-gc-sections -Wl,--mac-single"
+	)

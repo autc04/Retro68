@@ -35,14 +35,19 @@ if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 		Retro68Runtime.h
 		start.c
 		relocate.c
+		PoorMansDebugging.h
+		MultiSegApp.c
+		LoadSeg.s
 		# glue.c
 		${CMAKE_CURRENT_BINARY_DIR}/Interface.s
 		qdglobals.c
 		Retro68.r
 		Retro68APPL.r
 	)
+
 	install(FILES Retro68Runtime.h DESTINATION include)
 	install(FILES Retro68.r Retro68APPL.r DESTINATION RIncludes)
+	
 elseif(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
 	enable_language(ASM)
 	set(ARCH_FILES
@@ -66,5 +71,8 @@ add_library(retrocrt
 	consolehooks.c
 	${ARCH_FILES}
 )
+set_target_properties(retrocrt
+	PROPERTIES
+	    COMPILE_OPTIONS -ffunction-sections)
 
 install(TARGETS retrocrt  DESTINATION lib)

@@ -233,6 +233,7 @@ LIBGCC2_DEBUG_CFLAGS = -g
 LIBGCC2_CFLAGS = -O2 $(LIBGCC2_INCLUDES) $(GCC_CFLAGS) $(HOST_LIBGCC2_CFLAGS) \
 		 $(LIBGCC2_DEBUG_CFLAGS) -DIN_LIBGCC2 \
 		 -fbuilding-libgcc -fno-stack-protector \
+		 -ffunction-sections \
 		 $(INHIBIT_LIBC_CFLAGS)
 
 # Additional options to use when compiling libgcc2.a.

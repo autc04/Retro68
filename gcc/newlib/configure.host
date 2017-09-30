@@ -654,6 +654,10 @@ case "${host}" in
 	newlib_cflags="${newlib_cflags} -DHAVE_RENAME -DHAVE_SYSTEM -DMISSING_SYSCALL_NAMES -DMALLOC_PROVIDED"
 	syscall_dir=
 	;;
+  m68k-apple-macos)
+	newlib_cflags="${newlib_cflags} -DMISSING_SYSCALL_NAMES -DMALLOC_PROVIDED"
+	newlib_cflags="${newlib_cflags} -ffunction-sections"
+	;;  
   mcore-*-*)
 	syscall_dir=syscalls
 	;;

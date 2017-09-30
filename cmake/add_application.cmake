@@ -43,7 +43,7 @@ function(add_application name)
 	add_executable(${name} ${files} ${rez_files})
 
 	if(${ARGS_DEBUGBREAK})
-		list(APPEND ARGS_MAKEAPPL_ARGS -b)
+		list(APPEND ARGS_MAKEAPPL_ARGS -DBREAK_ON_ENTRY)
 	endif()
 	if(${ARGS_CONSOLE})
 		target_link_libraries(${name} RetroConsole)
@@ -70,15 +70,16 @@ function(add_application name)
 
 	if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 
-		set_target_properties(${name} PROPERTIES OUTPUT_NAME ${name}.flt)
+		set_target_properties(${name} PROPERTIES OUTPUT_NAME ${name}.code.bin)
 
 		add_custom_command(
-			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
+			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk ${name}.ad "%${name}.ad"
 			COMMAND ${REZ} ${REZ_FLAGS}
 					${REZ_TEMPLATES_PATH}/Retro68APPL.r
 					-I${REZ_INCLUDE_PATH}
-					-DFLT_FILE_NAME="\\"${name}.flt\\""
-					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
+					--copy "${name}.code.bin"
+					-o "${name}.bin"
+					--cc "${name}.dsk" --cc "${name}.APPL" --cc "%${name}.ad"
 					-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
 					${ARGS_MAKEAPPL_ARGS}
 			DEPENDS ${name} ${rsrc_files})
@@ -100,13 +101,14 @@ function(add_application name)
 			DEPENDS ${name})
 
 		add_custom_command(
-			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk
+			OUTPUT ${name}.bin ${name}.APPL ${name}.dsk ${name}.ad "%${name}.ad"
 			COMMAND ${REZ} 
 					${REZ_FLAGS}
 					${REZ_TEMPLATE}
 					-I${REZ_INCLUDE_PATH}
 					-DCFRAG_NAME="\\"${name}\\""
 					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
+					--cc "%${name}.ad"
 					-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
 					--data ${name}.pef
 					${ARGS_MAKEAPPL_ARGS}

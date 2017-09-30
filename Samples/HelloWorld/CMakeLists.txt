@@ -10,3 +10,13 @@ add_application(HelloWorld
 	hello.c
 	CONSOLE
    )
+
+    # make the result as small as possible
+	# by removing unused code (gc-sections)
+	# and by removing macsbug function names
+	# (don't do this when debugging...)
+set_target_properties(HelloWorld
+	PROPERTIES
+	    COMPILE_OPTIONS -ffunction-sections
+		LINK_FLAGS "-Wl,-gc-sections -Wl,--mac-strip-macsbug"
+	)

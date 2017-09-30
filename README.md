@@ -109,6 +109,7 @@ Sample programs are built in several formats:
 - Elsewhere: `ApplicationName.APPL`, `.rsrc/ApplicationName.APPL`, `.finf/ApplicationName.APPL` (BasiliskII/Sheepshaver compatible)
 - MacBinary files (`ApplicationName.bin`)
 - Raw HFS disk image (`ApplicationName.dsk`, containing `ApplicationName`)
+- AppleDouble file pairs (`ApplicationName.ad`, `%ApplicationName.ad`, Executor compatible)
 
 Look under `Retro68-build/build-target/` (68K),
 `Retro68-build/build-target-ppc/` (PowerPC Classic) and

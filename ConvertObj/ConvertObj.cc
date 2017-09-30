@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include <unordered_map>
+#include <unordered_set>
 #include <string>
 #include "BinaryIO.h"
 #include <stdint.h>
@@ -66,6 +67,8 @@ struct Module
 	unordered_map<uint32_t, vector<string>> labels;
 	unordered_map<uint32_t, Reloc> relocs;
 
+	std::vector<std::weak_ptr<Module>> nearrefs;
+
 	void write(std::ostream& out);
 };
 
@@ -107,8 +110,9 @@ string encodeIdentifier(const string& s)
 void Module::write(std::ostream& out)
 {
 	uint32_t offset = 0;
+	string encodedName = encodeIdentifier(sectionMap[name]);
 
-	out << "\t.section	.text." << encodeIdentifier(sectionMap[name]) << ",\"ax\",@progbits\n";
+	out << "\t.section	.text." << encodedName << ",\"ax\",@progbits\n";
 
 	while(offset < bytes.size())
 	{
@@ -134,7 +138,83 @@ void Module::write(std::ostream& out)
 			offset++;
 		}
 	}
+	out << "\t.section	.text." << encodedName << ".macsbug,\"ax\",@progbits\n";
+	if(encodedName.size() < 32)
+		out << "\t.byte " << (encodedName.size() | 0x80) << "\n";
+	else
+		out << "\t.byte 0x80\n"
+			<< "\t.byte " << encodedName.size() << "\n";
+	out << "\t.ascii \"" << encodedName << "\"\n";
+	out << "\t.align 2,0\n\t.short 0\n";
+
 	out << "# ######\n\n";
+}
+
+void sortModules(std::vector<std::shared_ptr<Module>>& modules)
+{
+	std::unordered_set<std::shared_ptr<Module>> unemitted;
+	for(auto& m : modules)
+		unemitted.insert(m);
+	
+	std::unordered_map<std::string, std::shared_ptr<Module>> nameMap;
+	for(auto& m : modules)
+		for(auto& l : m->labels)
+			for(auto& str : l.second)
+				nameMap[str] = m;
+	
+	
+	for(auto& m : modules)
+		for(auto& r : m->relocs)
+		{
+			if(r.second.size != 2)
+				continue;
+			if(r.second.name2.empty())
+			{
+				std::shared_ptr<Module> m1;
+				m1 = nameMap.find(r.second.name1)->second;
+				m1->nearrefs.push_back(m);
+				m->nearrefs.push_back(m1);
+			}
+			else
+			{
+				std::shared_ptr<Module> m1;
+				m1 = nameMap.find(r.second.name1)->second;
+				std::shared_ptr<Module> m2;
+				m2 = nameMap.find(r.second.name2)->second;
+				m1->nearrefs.push_back(m2);
+				m2->nearrefs.push_back(m1);
+			}
+		}
+	
+
+	std::vector<std::shared_ptr<Module>> sorted;
+	sorted.reserve(modules.size());
+	
+	auto p = sorted.begin();
+	
+	while(!unemitted.empty())
+	{
+		while(p != sorted.end())
+		{
+			for(auto& m2weak : (*p)->nearrefs)
+			{
+				if(std::shared_ptr<Module> m2 = m2weak.lock())
+				{
+					auto unemittedP = unemitted.find(m2);
+					if(unemittedP != unemitted.end())
+					{
+						sorted.push_back(m2);
+						unemitted.erase(unemittedP);
+					}
+				}
+			}
+			++p;
+		}
+		sorted.push_back(*unemitted.begin());
+		unemitted.erase(unemitted.begin());
+	}
+	
+	sorted.swap(modules);
 }
 
 int main(int argc, char* argv[])
@@ -142,7 +222,11 @@ int main(int argc, char* argv[])
 	std::ifstream in(argv[1]);
 
 	unordered_map<int,string>	stringDictionary;
-	std::unique_ptr<Module> module;
+	
+	bool shouldSortModules = true;
+	
+	std::shared_ptr<Module> module;
+	std::vector<std::shared_ptr<Module>> modules;
 
 	std::cout << "\t.text\n\t.align 2\n";
 
@@ -206,12 +290,10 @@ int main(int argc, char* argv[])
 					if(verbose)
 						std::cerr << "Module " << name << "(" << segment << "), flags = " << flags << "\n";
 
-					if(module)
-						module->write(std::cout);
-
 					module.reset(new Module());
 					module->name = name;
 					module->labels[0].push_back(name);
+					modules.push_back(module);
 				}
 				break;
 			case kContent:
@@ -311,14 +393,15 @@ int main(int argc, char* argv[])
 			case kLast:
 				byte(in);
 				endOfObject = true;
-				if(module)
-					module->write(std::cout);
 				break;
 			default:
 				std::cerr << "Unknown record (type " << recordType << ") at " << std::hex << in.tellg() << std::endl;
 				return 1;
 		}
 	}
-
+	if(shouldSortModules)
+		sortModules(modules);
+	for(auto& m : modules)
+		m->write(std::cout);
 	return 0;
 }

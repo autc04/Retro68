@@ -18,6 +18,8 @@
 */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <exception>
 
 #include <Events.h>
 
@@ -30,8 +32,28 @@ void foobar()
 	throw Foo();
 }
 
+void UnexpectedExceptionOccurred()
+{
+	printf("std::unexpected called.\n");
+	printf("Press Enter...\n");
+	getchar();
+	exit(1);
+}
+
+void UncaughtExceptionOccurred()
+{
+	printf("std::terminate called.\n");
+	printf("Press Enter...\n");
+	getchar();
+	exit(1);
+}
+
 int main(int argc, char** argv)
 {
+	std::set_unexpected(&UnexpectedExceptionOccurred);
+	std::set_terminate(&UncaughtExceptionOccurred);
+	bool throwFail = false;
+	bool catchFail = true;
 	for(int i = 0; i < 5; i++)
 	{
 		int n = i == 0 ? 1 : 100;
@@ -39,23 +61,19 @@ int main(int argc, char** argv)
 		long start = TickCount();
 		for(int j = 0; j < n; j++)
 		{
-			try { foobar(); } catch(...) {}
+			try { foobar(); throwFail = true; } catch(...) { catchFail = false; }
 		}
 		long end = TickCount();
 
 		printf("%g ms per throw/catch\n",(end-start)*1000 / 60.0 / n);
 	}
 
-	const int n = 3;
-	printf("Click mouse %d times...\n", n);
-	for(int i = 0; i < n; i++)
-	{
-		while(!Button())
-			;
-		while(Button())
-			;
-		printf("Click #%d\n", i+1);
-	}
-	FlushEvents(everyEvent, 0);
+	if(throwFail)
+		printf("******** FAILURE: throw didn't really throw\n");
+	if(catchFail)
+		printf("******** FAILURE: catch block never entered\n");
+
+	printf("Press Enter...\n");
+	getchar();
 	return 0;
 }

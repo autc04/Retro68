@@ -23,9 +23,7 @@
 	<http://www.gnu.org/licenses/>.
 */
 
-#include <stdint.h>
 #include <stdlib.h>
-
 #include "Retro68Runtime.h"
 
 int main(int argc, char* argv[]);
