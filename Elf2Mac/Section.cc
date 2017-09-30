@@ -85,9 +85,9 @@ string Section::GetData()
 	return string((char*)data->d_buf, (char*)data->d_buf + data->d_size);
 }
 
-string Section::GetAbsRelocations(bool useOffsets, bool suppressTerminatingEntry)
+std::vector<RuntimeReloc> Section::GetRelocations(bool useOffsets)
 {
-	std::ostringstream out;
+	std::vector<RuntimeReloc> outRelocs;
 
 	for(auto& rela : relocs)
 	{
@@ -112,12 +112,12 @@ string Section::GetAbsRelocations(bool useOffsets, bool suppressTerminatingEntry
 			if(useOffsets)
 				offset -= shdr.sh_addr;
 
-			longword(out, offset | ((int)rela.relocBase << 24));
+			//longword(out, offset | ((int)rela.relocBase << 24));
+			outRelocs.emplace_back(rela.relocBase, offset);
 		}
 	}
-	if(!suppressTerminatingEntry)
-		longword(out, -1);
-	return out.str();
+
+	return outRelocs;
 }
 
 void Section::ScanRelocs()

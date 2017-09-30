@@ -29,6 +29,7 @@
 class Object;
 class Reloc;
 class Symbol;
+class RuntimeReloc;
 
 enum class SectionKind
 {
@@ -63,7 +64,7 @@ public:
 
 	uint32_t GetSize();
 	std::string GetData();
-	std::string GetAbsRelocations(bool useOffsets, bool suppressTerminatingEntry = false);
+	std::vector<RuntimeReloc> GetRelocations(bool useOffsets);
 
 	void ScanRelocs();
 	void FixRelocs();

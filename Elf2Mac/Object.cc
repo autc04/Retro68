@@ -22,6 +22,7 @@
 #include "Symtab.h"
 #include "Section.h"
 #include "SegmentMap.h"
+#include "Reloc.h"
 
 #include <err.h>
 #include <fcntl.h>
@@ -135,10 +136,17 @@ void Object::FlatCode(std::ostream& out)
 
 	out << dataSection->GetData();
 
+	std::vector<RuntimeReloc> relocs;
 	for(auto sec : codeSections)
-		out << sec->GetAbsRelocations(false, true);
-	out << dataSection->GetAbsRelocations(false);
-
+	{
+		auto tmp = sec->GetRelocations(false);
+		relocs.insert(relocs.end(), tmp.begin(), tmp.end());
+	}
+	{
+		auto tmp = dataSection->GetRelocations(false);
+		relocs.insert(relocs.end(), tmp.begin(), tmp.end());
+	}
+	out << SerializeRelocs(relocs);
 }
 
 void Object::FlatCode(string fn)
@@ -364,11 +372,11 @@ void Object::MultiSegmentApp(string output, SegmentMap& segmentMap)
 		                          segmentName));
 
 
-		rsrc.addResource(Resource(ResType("RELA"),id, sec->GetAbsRelocations(true)));
+		rsrc.addResource(Resource(ResType("RELA"),id, SerializeRelocs(sec->GetRelocations(true))));
 	}
 
 	rsrc.addResource(Resource(ResType("DATA"),0, dataSection->GetData()));
-	rsrc.addResource(Resource(ResType("RELA"),0, dataSection->GetAbsRelocations(true)));
+	rsrc.addResource(Resource(ResType("RELA"),0, SerializeRelocs(dataSection->GetRelocations(true))));
 
 	std::cout << "DATA 0: " << dataSection->shdr.sh_size << " bytes\n";
 

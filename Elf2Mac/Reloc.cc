@@ -18,6 +18,8 @@
 */
 
 #include "Reloc.h"
+#include <sstream>
+#include "BinaryIO.h"
 
 Reloc::Reloc()
 {
@@ -26,4 +28,42 @@ Reloc::Reloc()
 Reloc::Reloc(const GElf_Rela &rela)
     : GElf_Rela(rela), relocBase(RelocBase::code)
 {
+}
+
+std::string SerializeRelocsUncompressed(std::vector<RuntimeReloc> relocs)
+{
+	std::ostringstream out;
+	for(const auto& r : relocs)
+	{
+		longword(out, r.offset | ((int)r.base << 24));
+	}
+	longword(out, -1);
+	return out.str();
+}
+
+std::string SerializeRelocs(std::vector<RuntimeReloc> relocs)
+{
+	std::ostringstream out;
+	uint32_t offset = -1;
+
+	for(const auto& r : relocs)
+	{
+		uint32_t delta = r.offset - offset;
+		offset = r.offset;
+
+		uint32_t base = (uint32_t) r.base;
+
+		uint32_t encoded = (delta << 2) | base;
+
+		while(encoded >= 128)
+		{
+			byte(out, (encoded & 0x7F) | 0x80);
+			encoded >>= 7;
+		}
+		byte(out, encoded);
+	}
+
+	byte(out, 0);
+
+	return out.str();
 }

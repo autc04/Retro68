@@ -21,6 +21,10 @@
 #define RELOC_H
 
 #include <gelf.h>
+#include <stdint.h>
+
+#include <string>
+#include <vector>
 
 enum class RelocBase
 {
@@ -39,5 +43,18 @@ public:
 	Reloc();
 	Reloc(const GElf_Rela& rela);
 };
+
+class RuntimeReloc
+{
+public:
+	RelocBase base;
+	uint32_t offset;
+
+	RuntimeReloc() : base(RelocBase::code), offset(0) {}
+	RuntimeReloc(RelocBase b, uint32_t o) : base(b), offset(o) {}
+};
+
+std::string SerializeRelocsUncompressed(std::vector<RuntimeReloc> relocs);
+std::string SerializeRelocs(std::vector<RuntimeReloc> relocs);
 
 #endif // RELOC_H

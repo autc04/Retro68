@@ -87,7 +87,7 @@ Retro68RelocState relocState __attribute__ ((section(".relocvars"))) = {
 		_ptr[0] = (_a >>= 8);	\
 	} while(0)
 
-
+#if 0
 void Retro68ApplyRelocations(uint8_t *base, uint32_t size, void *relocations, uint32_t displacements[])
 {
 	uint32_t *reloc = (uint32_t*) relocations;
@@ -107,6 +107,38 @@ void Retro68ApplyRelocations(uint8_t *base, uint32_t size, void *relocations, ui
 		WRITE_UNALIGNED_LONGWORD(addrPtr, (uint32_t) addr);
 	}
 }
+#else
+void Retro68ApplyRelocations(uint8_t *base, uint32_t size, void *relocations, uint32_t displacements[])
+{
+	uint8_t *reloc = (uint8_t*) relocations;
+	uint8_t *addrPtr = base - 1;
+	while(*reloc)
+	{
+		    // read an uleb128 value
+		uint32_t val = 0;
+		uint8_t b;
+		int i = 0;
+		do
+		{
+			b = *reloc++;
+			val |= (b & 0x7F) << i;
+			i += 7;
+		} while(b & 0x80);
+
+		    // ... which consists of an offset and the displacement base index
+		    // the offset is relative to the previous relocation, or to base-1
+		addrPtr += val >> 2;
+		uint8_t kind = val & 0x3;
+
+		assert(addrPtr >= base);
+		assert(addrPtr < base + size);
+
+		uint8_t *addr = (uint8_t*) READ_UNALIGNED_LONGWORD(addrPtr);
+		addr += displacements[kind];
+		WRITE_UNALIGNED_LONGWORD(addrPtr, (uint32_t) addr);
+	}
+}
+#endif
 
 void Retro68Relocate()
 {
