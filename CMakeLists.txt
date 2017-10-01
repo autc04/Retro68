@@ -48,6 +48,9 @@ add_subdirectory(Samples/Launcher)
 add_subdirectory(Samples/SystemExtension)
 endif()
 
+enable_testing()
+add_subdirectory(AutomatedTests)
+
 else()
 
 set(RETRO68_ROOT ${CMAKE_INSTALL_PREFIX})
@@ -62,4 +65,5 @@ add_subdirectory(Rez)
 add_subdirectory(ConvertObj)
 add_subdirectory(PEFTools)
 add_subdirectory(Elf2Mac)
+add_subdirectory(LaunchAPPL)
 endif()
