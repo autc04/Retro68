@@ -13,6 +13,11 @@
 #include "ResourceFork.h"
 #include "ResourceFile.h"
 
+extern "C" {
+#include "hfs.h"
+}
+
+
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
@@ -119,12 +124,18 @@ int ChildProcess(string program, vector<string> args)
 int main(int argc, char *argv[])
 {
 	desc.add_options()
-	       ("help,h", "show this help message")
-	        ("executor-path", po::value<std::string>()->default_value("executor"),"path to executor")
+	        ("help,h", "show this help message")
 	        ("executor,e", "run using executor")
+	        ("minivmac,m", "run using executor")
+
+	        ("executor-path", po::value<std::string>()->default_value("executor"),"path to executor")
+	        ("minivmac-path", po::value<std::string>()->default_value("minivmac"),"path to minivmac")
+	        ("minivmac-dir", po::value<std::string>()->default_value("."),"directory containing vMac.ROM")
+	        ("system-image", po::value<std::string>(),"path to disk image with system")
+
 	        ("timeout,t", po::value<int>(),"abort after timeout")
+	        ("timeout-ok","timeout counts as success")
 	        ("logfile", po::value<std::string>(), "read log file")
-	        ("result,r", "TEST 128")
 	;
 	po::options_description hidden, alldesc;
 	hidden.add_options()
@@ -169,7 +180,6 @@ int main(int argc, char *argv[])
 	if(options.count("executor"))
 	{
 		fs::path tempDir = fs::unique_path();
-		std::cerr << "Unique path: " << tempDir.string() << std::endl;
 		fs::create_directories(tempDir);
 
 		fs::path appPath = tempDir / "Application";
@@ -194,21 +204,155 @@ int main(int argc, char *argv[])
 			std::cout << in.rdbuf();
 		}
 
-
-		if(result == 0 && options.count("result"))
-		{
-			app.read();
-			auto& resmap = app.resources.resources;
-			auto p = resmap.find(ResRef("TEST", 128));
-			if(p == resmap.end())
-				return 1;
-
-			std::cout << p->second.getData();
-		}
-
 		fs::remove_all(tempDir);
 
 		return result;
+	}
+	if(options.count("minivmac"))
+	{
+		assert(options.count("system-image"));
+		fs::path tempDir = fs::unique_path();
+		fs::path path = tempDir / "image.dsk";
+		fs::create_directories(tempDir);
+
+		hfsvol *sysvol = hfs_mount(options["system-image"].as<std::string>().c_str(),
+		                        0, HFS_MODE_RDONLY);
+
+		int size = 5000*1024;
+		fs::ofstream(path, std::ios::binary | std::ios::trunc).seekp(size-1).put(0);
+		hfs_format(path.string().c_str(), 0, 0, "SysAndApp", 0, NULL);
+		hfsvol *vol = hfs_mount(path.string().c_str(), 0, HFS_MODE_RDWR);
+
+		hfsvolent ent;
+		hfs_vstat(sysvol, &ent);
+
+		hfs_setcwd(sysvol, ent.blessed);
+
+
+
+
+		{
+			const char *fn = "System";
+			hfsdirent fileent;
+			hfs_stat(sysvol, fn, &fileent);
+			hfsfile *in = hfs_open(sysvol, fn);
+			hfsfile *out = hfs_create(vol, fn, fileent.u.file.type,fileent.u.file.creator);
+
+			std::vector<uint8_t> buffer(std::max(fileent.u.file.dsize, fileent.u.file.rsize));
+			hfs_setfork(in, 0);
+			hfs_setfork(out, 0);
+			hfs_read(in, buffer.data(), fileent.u.file.dsize);
+			hfs_write(out, buffer.data(), fileent.u.file.dsize);
+			hfs_setfork(in, 1);
+			hfs_setfork(out, 1);
+			hfs_read(in, buffer.data(), fileent.u.file.rsize);
+			hfs_write(out, buffer.data(), fileent.u.file.rsize);
+			hfs_close(in);
+			hfs_close(out);
+		}
+		{
+			const char *fn = "Finder";
+			hfsdirent fileent;
+			hfs_stat(sysvol, fn, &fileent);
+			hfsfile *in = hfs_open(sysvol, fn);
+			hfsfile *out = hfs_create(vol, fn, fileent.u.file.type,fileent.u.file.creator);
+
+			std::vector<uint8_t> buffer(std::max(fileent.u.file.dsize, fileent.u.file.rsize));
+			hfs_setfork(in, 0);
+			hfs_setfork(out, 0);
+			hfs_read(in, buffer.data(), fileent.u.file.dsize);
+			hfs_write(out, buffer.data(), fileent.u.file.dsize);
+			hfs_setfork(in, 1);
+			hfs_setfork(out, 1);
+			hfs_read(in, buffer.data(), fileent.u.file.rsize);
+			hfs_write(out, buffer.data(), fileent.u.file.rsize);
+			hfs_close(in);
+			hfs_close(out);
+		}
+		{
+			const char *fn = "MacsBug";
+			hfsdirent fileent;
+			hfs_stat(sysvol, fn, &fileent);
+			hfsfile *in = hfs_open(sysvol, fn);
+			hfsfile *out = hfs_create(vol, fn, fileent.u.file.type,fileent.u.file.creator);
+
+			std::vector<uint8_t> buffer(std::max(fileent.u.file.dsize, fileent.u.file.rsize));
+			hfs_setfork(in, 0);
+			hfs_setfork(out, 0);
+			hfs_read(in, buffer.data(), fileent.u.file.dsize);
+			hfs_write(out, buffer.data(), fileent.u.file.dsize);
+			hfs_setfork(in, 1);
+			hfs_setfork(out, 1);
+			hfs_read(in, buffer.data(), fileent.u.file.rsize);
+			hfs_write(out, buffer.data(), fileent.u.file.rsize);
+			hfs_close(in);
+			hfs_close(out);
+		}
+
+		{
+			std::ostringstream rsrcOut;
+			app.resources.writeFork(rsrcOut);
+			std::string rsrc = rsrcOut.str();
+			std::string& data = app.data;
+
+			hfsfile *file = hfs_create(vol, "App","APPL","????");
+			hfs_setfork(file, 0);
+			hfs_write(file, data.data(), data.size());
+			hfs_setfork(file, 1);
+			hfs_write(file, rsrc.data(), rsrc.size());
+			hfs_close(file);
+		}
+
+		{
+			hfsfile *out = hfs_create(vol, "out", "TEXT", "????");
+			hfs_close(out);
+		}
+
+		hfs_vstat(vol, &ent);
+		ent.blessed = hfs_getcwd(vol);
+		std::cout << "blessed: " << ent.blessed << std::endl;
+		hfs_vsetattr(vol, &ent);
+
+		hfs_umount(vol);
+		hfs_umount(sysvol);
+
+		extern unsigned char bootblock[1024];
+		std::vector<unsigned char> bootblock1(bootblock, bootblock+1024);
+		std::fstream out(path.string(), std::ios::in | std::ios::out | std::ios::binary);
+
+		bootblock1[0x5A] = 3;
+		bootblock1[0x5B] = 'A';
+		bootblock1[0x5C] = 'p';
+		bootblock1[0x5D] = 'p';
+
+		out.write((const char*) bootblock1.data(), 1024);
+
+		path = fs::absolute(path);
+
+		fs::path minivmacdir = fs::absolute( options["minivmac-dir"].as<std::string>() );
+		fs::path minivmacpath = fs::absolute( minivmacdir / options["minivmac-path"].as<std::string>() );
+
+		fs::current_path(minivmacdir);
+
+		int result = ChildProcess(minivmacpath.string(), { path.string() });
+
+		std::cerr << "volume at: " << path.string() << std::endl;
+		vol = hfs_mount(path.string().c_str(), 0, HFS_MODE_RDONLY);
+		{
+			hfsfile *out = hfs_open(vol, "out");
+			if(!out)
+				return 1;
+			hfsdirent fileent;
+			int statres = hfs_stat(vol, "out", &fileent);
+			std::cerr << "stat: " << statres << "\n";
+			std::cerr << "out: " << fileent.u.file.dsize << " bytes\n";
+			std::vector<char> buffer(fileent.u.file.dsize);
+			hfs_setfork(out, 0);
+			hfs_read(out, buffer.data(), fileent.u.file.dsize);
+			hfs_close(out);
+			std::cout << string(buffer.begin(), buffer.end());
+		}
+		hfs_umount(vol);
 	}
 
 	return 0;
