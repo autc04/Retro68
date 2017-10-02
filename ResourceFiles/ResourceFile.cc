@@ -265,13 +265,14 @@ bool ResourceFile::read()
 					in.seekg(26 + i * 12);
 					int what = longword(in);
 					int off = longword(in);
-					//int len = longword(in);
+					int len = longword(in);
 					in.seekg(off);
 					switch(what)
 					{
 						case 1:
-							// ###
-							// FIXME: read data fork
+							std::vector<char> buf(len);
+							in.read(buf, len);
+							data = std::string(buf.begin(), buf.end());
 							break;
 						case 2:
 							resources = Resources(in);
@@ -342,7 +343,9 @@ bool ResourceFile::read()
 				unsigned short crc = CalculateCRC(0,header,124);
 				if(word(in) != crc)
 					return false;
-				// FIXME: read data fork
+				std::vector<char> buf(datasize);
+				in.read(buf, datasize);
+				data = std::string(buf.begin(), buf.end());
 				in.seekg(128 + datasize);
 				resources = Resources(in);
 			}
