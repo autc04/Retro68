@@ -26,7 +26,7 @@
 	    _ref = _hpb.ioParam.ioRefNum; \
 	    \
 	    memset(&_hpb,0,sizeof(_hpb)); \
-	    _hpb.ioParam.ioBuffer = str; \
+	    _hpb.ioParam.ioBuffer = (Ptr)str; \
 	    _hpb.ioParam.ioReqCount = size; \
 	    _hpb.ioParam.ioPosMode = fsFromLEOF; \
 	    _hpb.ioParam.ioPosOffset = 0; \
@@ -46,6 +46,9 @@
 	    FlushVol(NULL,0); \
 	} while(0);
 
+#ifdef __cplusplus
+extern "C"
+#endif
 void TestLog(const char *str);
 
 #endif // TEST_H

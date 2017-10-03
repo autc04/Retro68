@@ -8,6 +8,10 @@
 #include "LaunchMethod.h"
 #include "Launcher.h"
 
+#ifdef __APPLE__
+#include "Classic.h"
+#include "Carbon.h"
+#endif
 #include "Executor.h"
 #include "MiniVMac.h"
 
@@ -31,6 +35,9 @@ static void usage()
 int main(int argc, char *argv[])
 {
 	std::vector<LaunchMethod*> methods = {
+#ifdef __APPLE__
+		new Classic(), new Carbon(),
+#endif
 	    new Executor(), new MiniVMac()
 	};
 	desc.add_options()

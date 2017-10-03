@@ -6,6 +6,8 @@ extern "C" {
 }
 
 #include <iostream>
+#include <fstream>
+#include <boost/filesystem/fstream.hpp>
 
 namespace fs = boost::filesystem;
 using std::string;
