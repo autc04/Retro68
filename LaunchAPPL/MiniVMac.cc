@@ -37,7 +37,7 @@ public:
 
 
 MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
-    : Launcher(options, ResourceFile::Format::percent_appledouble),
+    : Launcher(options),
       sysvol(NULL), vol(NULL)
 {
 	imagePath = tempDir / "image.dsk";
@@ -135,7 +135,10 @@ void MiniVMacLauncher::CopySystemFile(const std::string &fn, bool required)
 	hfsdirent fileent;
 	if(hfs_stat(sysvol, fn.c_str(), &fileent) < 0)
 	{
-		throw std::runtime_error(string("File ") + fn + " not found in disk image");
+		if(required)
+			throw std::runtime_error(string("File ") + fn + " not found in disk image");
+		else
+			return;
 	}
 	hfsfile *in = hfs_open(sysvol, fn.c_str());
 	hfsfile *out = hfs_create(vol, fn.c_str(), fileent.u.file.type,fileent.u.file.creator);
