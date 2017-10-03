@@ -174,19 +174,19 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
 			tempDir / romFile.filename() );
 	}
 
+	/*
+		Finally, we copy over the entire Mini vMac binary.
+		Mini vMac looks for ROM (vMac.ROM) and disk images (disk1.dsk)
+		in the directory next to its binary.
+		The Mac version also ignores command line arguments.
+		Having our own copy in our temp directory is just simpler.
+		It is five times smaller than System 6, so this really does not
+		matter.
+	*/
 #ifdef __APPLE__
 	/*
-		A special case for the Mac.
-		
-		The Mac build of Mini vMac does not look for files (vMac.ROM, disk1.dsk)
-		in the current directory, but rather in the parent directory
-		of the .app bundle.
-		
-		Also, it ignores command line arguments.
-		
-		So we just copy the entire application bundle over to our temporary
-		directory. It is five times smaller than System 6, so this really does not
-		matter.
+		A special case for the Mac:
+		We are probably dealing with an entire application bundle.
 	*/
 	if(vmacPath.extension().string() == ".app")
 	{
@@ -230,7 +230,12 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
 		CFRelease(executableURL);
 		CFRelease(executablePath);
 	}
+	else
 #endif
+	{
+		fs::copy(vmacPath, tempDir / "minivmac");
+		vmacPath = tempDir / "minivmac";
+	}
 }
 
 MiniVMacLauncher::~MiniVMacLauncher()
