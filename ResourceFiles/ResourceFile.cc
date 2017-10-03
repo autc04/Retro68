@@ -217,11 +217,14 @@ bool ResourceFile::read()
 		case Format::basilisk:
 			{
 				fs::ifstream dataIn(path);
+				if(!dataIn)
+					return false;
 				data = std::string(std::istreambuf_iterator<char>(dataIn),
 								   std::istreambuf_iterator<char>());
 
 				fs::ifstream rsrcIn(path.parent_path() / ".rsrc" / path.filename());
-				resources = Resources(rsrcIn);
+				if(rsrcIn)
+					resources = Resources(rsrcIn);
 				fs::ifstream finfIn(path.parent_path() / ".finf" / path.filename());
 				if(finfIn)
 				{
@@ -234,10 +237,13 @@ bool ResourceFile::read()
 		case Format::real:
 			{
 				fs::ifstream dataIn(path);
+				if(!dataIn)
+					return false;
 				data = std::string(std::istreambuf_iterator<char>(dataIn),
 								   std::istreambuf_iterator<char>());
 				fs::ifstream rsrcIn(path / "..namedfork" / "rsrc");
-				resources = Resources(rsrcIn);
+				if(rsrcIn)
+					resources = Resources(rsrcIn);
 
 				char finf[32];
 				int n = getxattr(path.c_str(), XATTR_FINDERINFO_NAME,
