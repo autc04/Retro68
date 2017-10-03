@@ -270,9 +270,11 @@ bool ResourceFile::read()
 					switch(what)
 					{
 						case 1:
-							std::vector<char> buf(len);
-							in.read(buf, len);
-							data = std::string(buf.begin(), buf.end());
+							{
+								std::vector<char> buf(len);
+								in.read(buf.data(), len);
+								data = std::string(buf.begin(), buf.end());
+							}
 							break;
 						case 2:
 							resources = Resources(in);
@@ -344,7 +346,7 @@ bool ResourceFile::read()
 				if(word(in) != crc)
 					return false;
 				std::vector<char> buf(datasize);
-				in.read(buf, datasize);
+				in.read(buf.data(), datasize);
 				data = std::string(buf.begin(), buf.end());
 				in.seekg(128 + datasize);
 				resources = Resources(in);
