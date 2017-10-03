@@ -42,12 +42,6 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
 	systemImage = fs::absolute(options["system-image"].as<std::string>());
 	fs::path autoquitImage = fs::absolute(options["autoquit-image"].as<std::string>());
 
-	sysvol = hfs_mount(systemImage.string().c_str(),0, HFS_MODE_RDONLY);
-	assert(sysvol);
-	hfsvolent ent;
-	hfs_vstat(sysvol, &ent);
-	hfs_setcwd(sysvol, ent.blessed);
-
 
 	int size = 5000*1024;
 
@@ -55,21 +49,29 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
 	hfs_format(imagePath.string().c_str(), 0, 0, "SysAndApp", 0, NULL);
 
 	{
-		extern unsigned char bootblock[1024];
-		std::vector<unsigned char> bootblock1(bootblock, bootblock+1024);
+		std::vector<unsigned char> bootblock1(1024);
+
+		fs::ifstream(systemImage).read((char*) bootblock1.data(), 1024);
 
 		bootblock1[0x1A] = 8;
 		memcpy(&bootblock1[0x1B],"AutoQuit", 8);
 		bootblock1[0x5A] = 3;
 		memcpy(&bootblock1[0x5B],"App", 3);
 
-		std::fstream(imagePath.string(), std::ios::in | std::ios::out | std::ios::binary)
+		fs::fstream(imagePath, std::ios::in | std::ios::out | std::ios::binary)
 		        .write((const char*) bootblock1.data(), 1024);
 	}
 
 
 	vol = hfs_mount(imagePath.string().c_str(), 0, HFS_MODE_RDWR);
 	assert(vol);
+
+	sysvol = hfs_mount(systemImage.string().c_str(),0, HFS_MODE_RDONLY);
+	assert(sysvol);
+	hfsvolent ent;
+	hfs_vstat(sysvol, &ent);
+	hfs_setcwd(sysvol, ent.blessed);
+
 
 	hfs_vstat(vol, &ent);
 	ent.blessed = hfs_getcwd(vol);
