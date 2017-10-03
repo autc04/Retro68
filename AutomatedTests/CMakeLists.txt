@@ -2,9 +2,7 @@ enable_testing()
 
 set(RETRO68_LAUNCH_METHOD classic CACHE String "How to launch Mac applications (for automated testing)")
 
-set(RETRO68_TEST_CONFIG "-t4" "--minivmac-dir=/home/wolfgang/Emulators"
-	            "--system-image=/home/wolfgang/Emulators/baresystem.dsk"
-				"--autoquit-image=/home/wolfgang/Emulators/vmac extras/autoquit-1.1.1.dsk")
+set(RETRO68_TEST_CONFIG "--timeout=4")
 
 find_program(LAUNCH_APPL LaunchAPPL PATH "${CMAKE_INSTALL_PREFIX}/../bin/")
 
