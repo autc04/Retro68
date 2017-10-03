@@ -18,7 +18,7 @@ if(APPLE)
 endif()
 
 add_executable(LaunchAPPL
-	LaunchAPPL.cc bootblock.c
+	LaunchAPPL.cc
 
 	LaunchMethod.h LaunchMethod.cc
 	Launcher.h Launcher.cc
