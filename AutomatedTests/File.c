@@ -2,5 +2,5 @@
 
 int main()
 {
-	TEST_LOG_SIZED("OK", 2);
+	TEST_LOG_OK();
 }

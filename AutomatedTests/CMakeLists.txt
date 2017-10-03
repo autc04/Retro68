@@ -24,10 +24,14 @@ test(File.c)
 set_tests_properties(File PROPERTIES PASS_REGULAR_EXPRESSION "OK")
 
 test(Timeout.c)
-set_tests_properties(Timeout PROPERTIES PASS_REGULAR_EXPRESSION "One\nTwo")
+set_tests_properties(Timeout PROPERTIES PASS_REGULAR_EXPRESSION "One")
 
 test(Log.c)
 set_tests_properties(Log PROPERTIES PASS_REGULAR_EXPRESSION "One\nTwo\nThree")
+
+test(ZeroInitialized.c)
+set_tests_properties(Log PROPERTIES PASS_REGULAR_EXPRESSION "One\nTwo\nThree")
+
 
 test(Init.cc)
 set_tests_properties(Init PROPERTIES PASS_REGULAR_EXPRESSION "constructor\nmain\ndestructor")
