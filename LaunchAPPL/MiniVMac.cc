@@ -9,6 +9,12 @@ extern "C" {
 #include <fstream>
 #include <boost/filesystem/fstream.hpp>
 
+
+#ifdef __APPLE__
+#define ResType MacResType
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
 namespace fs = boost::filesystem;
 using std::string;
 using std::vector;
@@ -36,11 +42,37 @@ public:
 };
 
 
+/*
+ * Recursive directory copy from https://stackoverflow.com/a/39146566
+ */ 
+static void copyDirectoryRecursively(const fs::path& sourceDir, const fs::path& destinationDir)
+{
+    if (!fs::exists(sourceDir) || !fs::is_directory(sourceDir))
+    {
+        throw std::runtime_error("Source directory " + sourceDir.string() + " does not exist or is not a directory");
+    }
+    if (fs::exists(destinationDir))
+    {
+        throw std::runtime_error("Destination directory " + destinationDir.string() + " already exists");
+    }
+    if (!fs::create_directory(destinationDir))
+    {
+        throw std::runtime_error("Cannot create destination directory " + destinationDir.string());
+    }
+
+    for (const auto& dirEnt : fs::recursive_directory_iterator{sourceDir})
+    {
+        const auto& path = dirEnt.path();
+        auto relativePathStr = path.lexically_relative(sourceDir);        
+        fs::copy(path, destinationDir / relativePathStr);
+    }
+}
+
 MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     : Launcher(options),
       sysvol(NULL), vol(NULL)
 {
-	imagePath = tempDir / "image.dsk";
+	imagePath = tempDir / "disk1.dsk";
 	vmacDir = fs::absolute( options["minivmac-dir"].as<std::string>() );
 	vmacPath = fs::absolute( options["minivmac-path"].as<std::string>(), vmacDir );
 
@@ -119,6 +151,86 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
 
 	hfs_umount(sysvol); sysvol = NULL;
 	hfs_umount(vol); vol = NULL;
+
+	fs::path romFile = fs::absolute( options["minivmac-rom"].as<std::string>(), vmacDir );
+	
+	fs::create_symlink(
+		romFile,
+		tempDir / romFile.filename() );
+
+	if(romFile.filename() != "vMac.ROM")
+	{
+		// If the ROM file is not named vMac.ROM, this might be for two different
+		// reasons.
+		// 1. The user didn't bother to rename it to the correct "vMac.ROM"
+		// 2. The user is using a MacII version of Mini vMac and has named the
+		//    ROM file MacII.ROM on purpose.
+	
+		// To be on the safe side, provide both the user-specified name and
+		// the standard vMac.ROM.
+	
+		fs::create_symlink(
+			romFile,
+			tempDir / romFile.filename() );
+	}
+
+#ifdef __APPLE__
+	/*
+		A special case for the Mac.
+		
+		The Mac build of Mini vMac does not look for files (vMac.ROM, disk1.dsk)
+		in the current directory, but rather in the parent directory
+		of the .app bundle.
+		
+		Also, it ignores command line arguments.
+		
+		So we just copy the entire application bundle over to our temporary
+		directory. It is five times smaller than System 6, so this really does not
+		matter.
+	*/
+	if(vmacPath.extension().string() == ".app")
+	{
+		fs::path appPath = tempDir / "minivmac.app";
+		
+		copyDirectoryRecursively( vmacPath, appPath );
+		
+		// The following 30 lines of code should rather be written as:
+		//   vmacPath = appPath / "Contents" / "MacOS" / Bundle(appPath).getExecutablePath();
+		// But this is CoreFoundation, so it's a tiny little bit more verbose:
+		
+		CFStringRef appPathCF
+			= CFStringCreateWithCString(
+				kCFAllocatorDefault, appPath.string().c_str(), kCFStringEncodingUTF8);
+		CFURLRef bundleURL = CFURLCreateWithFileSystemPath(
+			kCFAllocatorDefault, appPathCF, kCFURLPOSIXPathStyle, true);
+		
+		CFBundleRef bundle = CFBundleCreate( kCFAllocatorDefault, bundleURL );
+		
+		CFURLRef executableURL = CFBundleCopyExecutableURL(bundle);
+		
+		CFStringRef executablePath = CFURLCopyFileSystemPath(executableURL, kCFURLPOSIXPathStyle);
+		
+		if(const char *ptr = CFStringGetCStringPtr(executablePath, kCFURLPOSIXPathStyle))
+		{
+			vmacPath = string(ptr);
+		}
+		else
+		{
+			vector<char> buffer(
+				CFStringGetMaximumSizeForEncoding(
+					CFStringGetLength(executablePath), kCFStringEncodingUTF8) + 1);
+			CFStringGetCString(executablePath, buffer.data(), buffer.size(), kCFStringEncodingUTF8);
+			vmacPath = string(buffer.data());
+		}
+		vmacPath = appPath / "Contents" / "MacOS" / vmacPath;
+		
+		CFRelease(appPathCF);
+		CFRelease(bundleURL);
+		CFRelease(bundle);
+		CFRelease(executableURL);
+		CFRelease(executablePath);
+	}
+#endif
 }
 
 MiniVMacLauncher::~MiniVMacLauncher()
@@ -159,17 +271,12 @@ void MiniVMacLauncher::CopySystemFile(const std::string &fn, bool required)
 
 bool MiniVMacLauncher::Go(int timeout)
 {
-	fs::path minivmacdir = fs::absolute( options["minivmac-dir"].as<std::string>() );
-	std::string minivmacpath = options["minivmac-path"].as<std::string>();
-
-	fs::current_path(minivmacdir);
-
-	return ChildProcess(minivmacpath, { imagePath.string() }, timeout) == 0;
+	fs::current_path(tempDir);
+	return ChildProcess(vmacPath.string(), {}, timeout) == 0;
 }
 
 void MiniVMacLauncher::DumpOutput()
 {
-	sleep(1);
 	vol = hfs_mount(imagePath.string().c_str(), 0, HFS_MODE_RDONLY);
 	hfsdirent fileent;
 	int statres = hfs_stat(vol, "out", &fileent);
@@ -191,6 +298,7 @@ void MiniVMac::GetOptions(options_description &desc)
 	desc.add_options()
 	        ("minivmac-dir", po::value<std::string>(),"directory containing vMac.ROM")
 	        ("minivmac-path", po::value<std::string>()->default_value("./minivmac"),"relative path to minivmac")
+	        ("minivmac-rom", po::value<std::string>()->default_value("./vMac.ROM"),"minivmac ROM file")
 	        ("system-image", po::value<std::string>(),"path to disk image with system")
 	        ("autoquit-image", po::value<std::string>(),"path to autoquit disk image, available from the minivmac web site")
 	        ;
@@ -200,6 +308,7 @@ bool MiniVMac::CheckOptions(variables_map &options)
 {
 	return options.count("minivmac-path") != 0
 	    && options.count("minivmac-dir") != 0
+	    && options.count("minivmac-rom") != 0
 	    && options.count("system-image") != 0
 	    && options.count("autoquit-image") != 0;
 }

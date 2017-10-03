@@ -73,6 +73,10 @@ int Launcher::ChildProcess(string program, vector<string> args, int timeout)
 		{
 			execvp(argv[0], const_cast<char* const *> (argv.data()));
 			perror("exec failed");
+			std::cerr << "Tried to execute: " << program;
+			for(auto a : args)
+				std::cerr << " " << a;
+			std::cerr << std::endl;
 			_exit(1);
 		}
 

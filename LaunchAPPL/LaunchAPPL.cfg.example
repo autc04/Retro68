@@ -6,7 +6,7 @@
 # ########### Classic Environment
 
     # If you are on a PowerPC Mac running Tiger (10.4),
-	# uncomment the following to use the Classic Environment:
+    # uncomment the following to use the Classic Environment:
 
 # emulator = classic
 
@@ -14,7 +14,7 @@
 # ########### Carbon on Mac OS X (native PowerPC or Rosetta)
 
     # If you are on any Mac running Snow Leopard (10.6) or earlier
-	# and you are developing Carbon applications, use the following:
+    # and you are developing Carbon applications, use the following:
 
 # emulator = carbon
 
@@ -22,21 +22,25 @@
 # ########### Mini vMac (old 68K Macs)
 
     # To use Mini vMac with LaunchAPPL, you need to supply the ROM file,
-	# a system disk image, and a download of autoquit from the minivmac web
-	# site, currently at
-	#    http://www.gryphel.com/c/minivmac/extras/autoquit/index.html
-	# LaunchAPPL does not currently support MultiFinder or System 7.
+    # a system disk image, and a download of autoquit from the minivmac web
+    # site, currently at
+    #    http://www.gryphel.com/c/minivmac/extras/autoquit/index.html
+    # LaunchAPPL does not currently support MultiFinder or System 7.
 
 # Fill in the information below and uncomment the lines:
 
 # emulator = minivmac
 
-    # The directory containing vMac.ROM
-	# All other paths relevant to Mini vMac are relative to this directory.
+    # All minivmac related paths are specified relative to minivmac-dir:
 # minivmac-dir = /path/to/directory/with/vMac.ROM/
 
     # First, we need Mini vMac itself:
 # minivmac-path = ./Mini vMac
+    # On Macs, specify the path of the application bundle, not the executable inside it:
+# minivmac-path = ./Mini vMac.app
+
+    # A ROM file:
+# minivmac-rom = ./vMac.ROM
 
     # Next, a system disk image (System 6 or earlier)
 # system-image = ./System.dsk
@@ -51,7 +55,7 @@
 # emulator = executor
 
     # If Executor is in your PATH and the SystemFolder environment variable
-	# is already set up, nothing else is required.
+    # is already set up, nothing else is required.
 
     # in case it's somewhere else:
 # executor-path = /usr/local/bin/executor
@@ -60,8 +64,8 @@
 # executor-system-folder = /path/to/ExecutorVolume/System Folder
 
     # Pass more options to Executor.
-	# Note that each "word" needs to be specified separately:
-# executor-option = -size		# emulated screen size
+    # Note that each "word" needs to be specified separately:
+# executor-option = -size       # emulated screen size
 # executor-option = 1600x1200
 
 # executor-option = -appearance # uncommenting these two lines
