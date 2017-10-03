@@ -1,3 +1,4 @@
+#if defined(__APPLE__) && defined(__powerpc)
 #include "Classic.h"
 #include "Launcher.h"
 
@@ -66,3 +67,4 @@ std::unique_ptr<Launcher> Classic::MakeLauncher(variables_map &options)
 {
 	return std::unique_ptr<Launcher>(new ClassicLauncher(options));
 }
+#endif

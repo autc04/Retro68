@@ -8,9 +8,11 @@
 #include "LaunchMethod.h"
 #include "Launcher.h"
 
-#ifdef __APPLE__
-#include "Classic.h"
-#include "Carbon.h"
+#if defined(__APPLE__) && defined(__powerpc)
+#	include "Classic.h"
+#endif
+#ifdef HAS_LAUNCHCFMAPP
+#	include "Carbon.h"
 #endif
 #include "Executor.h"
 #include "MiniVMac.h"
@@ -35,8 +37,11 @@ static void usage()
 int main(int argc, char *argv[])
 {
 	std::vector<LaunchMethod*> methods = {
-#ifdef __APPLE__
-		new Classic(), new Carbon(),
+#if defined(__APPLE__) && defined(__powerpc)
+	    new Classic(),
+#endif
+#ifdef HAS_LAUNCHCFMAPP
+	    new Carbon(),
 #endif
 	    new Executor(), new MiniVMac()
 	};
