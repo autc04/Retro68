@@ -23,6 +23,9 @@ public:
 	virtual bool CheckOptions(variables_map& options);
 
 	virtual std::unique_ptr<Launcher> MakeLauncher(variables_map& options) = 0;
+
+protected:
+	bool CheckExecutable(std::string program);
 };
 
 #endif // LAUNCHMETHOD_H

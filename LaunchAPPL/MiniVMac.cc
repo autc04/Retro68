@@ -20,11 +20,13 @@ class MiniVMacLauncher : public Launcher
 {
 	fs::path imagePath;
 	fs::path systemImage;
+	fs::path vmacDir;
+	fs::path vmacPath;
 
 	hfsvol *sysvol;
 	hfsvol *vol;
 
-	void CopySystemFile(const char* fn, const char *dstfn = NULL);
+	void CopySystemFile(const std::string& fn, bool required);
 public:
 	MiniVMacLauncher(po::variables_map& options);
 	virtual ~MiniVMacLauncher();
@@ -38,9 +40,20 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     : Launcher(options, ResourceFile::Format::percent_appledouble),
       sysvol(NULL), vol(NULL)
 {
-	imagePath = fs::absolute(tempDir / "image.dsk");
-	systemImage = fs::absolute(options["system-image"].as<std::string>());
-	fs::path autoquitImage = fs::absolute(options["autoquit-image"].as<std::string>());
+	imagePath = tempDir / "image.dsk";
+	vmacDir = fs::absolute( options["minivmac-dir"].as<std::string>() );
+	vmacPath = fs::absolute( options["minivmac-path"].as<std::string>(), vmacDir );
+
+	systemImage = fs::absolute(options["system-image"].as<std::string>(), vmacDir);
+	fs::path autoquitImage = fs::absolute(options["autoquit-image"].as<std::string>(), vmacDir);
+
+	std::vector<unsigned char> bootblock1(1024);
+	fs::ifstream(systemImage).read((char*) bootblock1.data(), 1024);
+
+	if(bootblock1[0] != 'L' || bootblock1[1] != 'K' || bootblock1[0xA] > 15)
+		throw std::runtime_error("Not a bootable Mac disk image: " + systemImage.string());
+
+	string systemFileName(bootblock1.begin() + 0xB, bootblock1.begin() + 0xB + bootblock1[0xA]);
 
 
 	int size = 5000*1024;
@@ -49,10 +62,6 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
 	hfs_format(imagePath.string().c_str(), 0, 0, "SysAndApp", 0, NULL);
 
 	{
-		std::vector<unsigned char> bootblock1(1024);
-
-		fs::ifstream(systemImage).read((char*) bootblock1.data(), 1024);
-
 		bootblock1[0x1A] = 8;
 		memcpy(&bootblock1[0x1B],"AutoQuit", 8);
 		bootblock1[0x5A] = 3;
@@ -79,9 +88,8 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
 
 
 
-	CopySystemFile("System");
-	CopySystemFile("Finder");
-	CopySystemFile("MacsBug");
+	CopySystemFile(systemFileName, true);
+	CopySystemFile("MacsBug", false);
 
 	{
 		std::ostringstream rsrcOut;
@@ -99,8 +107,10 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
 
 	hfs_umount(sysvol);
 	sysvol = hfs_mount(autoquitImage.string().c_str(),0, HFS_MODE_RDONLY);
+	if(!sysvol)
+		throw std::runtime_error("Cannot open disk image: " + autoquitImage.string());
 	assert(sysvol);
-	CopySystemFile("AutoQuit");
+	CopySystemFile("AutoQuit", true);
 
 	{
 		hfsfile *file = hfs_create(vol, "out", "TEXT", "MPS ");
@@ -120,15 +130,15 @@ MiniVMacLauncher::~MiniVMacLauncher()
 
 }
 
-void MiniVMacLauncher::CopySystemFile(const char *fn, const char *dstfn)
+void MiniVMacLauncher::CopySystemFile(const std::string &fn, bool required)
 {
-	if(!dstfn)
-		dstfn = fn;
 	hfsdirent fileent;
-	if(hfs_stat(sysvol, fn, &fileent) < 0)
-		return;
-	hfsfile *in = hfs_open(sysvol, fn);
-	hfsfile *out = hfs_create(vol, dstfn, fileent.u.file.type,fileent.u.file.creator);
+	if(hfs_stat(sysvol, fn.c_str(), &fileent) < 0)
+	{
+		throw std::runtime_error(string("File ") + fn + " not found in disk image");
+	}
+	hfsfile *in = hfs_open(sysvol, fn.c_str());
+	hfsfile *out = hfs_create(vol, fn.c_str(), fileent.u.file.type,fileent.u.file.creator);
 
 	std::vector<uint8_t> buffer(std::max(fileent.u.file.dsize, fileent.u.file.rsize));
 	hfs_setfork(in, 0);
@@ -160,8 +170,6 @@ void MiniVMacLauncher::DumpOutput()
 	vol = hfs_mount(imagePath.string().c_str(), 0, HFS_MODE_RDONLY);
 	hfsdirent fileent;
 	int statres = hfs_stat(vol, "out", &fileent);
-	std::cerr << "stat: " << statres << "\n";
-	std::cerr << "out: " << fileent.u.file.dsize << " bytes\n";
 
 	hfsfile *out = hfs_open(vol, "out");
 	if(!out)

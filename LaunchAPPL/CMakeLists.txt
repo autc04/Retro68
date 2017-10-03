@@ -16,6 +16,7 @@ if(APPLE)
 			Carbon.h Carbon.cc)
 	endif()
 endif()
+add_definitions(-DRETRO68_PREFIX="${CMAKE_INSTALL_PREFIX}")
 
 add_executable(LaunchAPPL
 	LaunchAPPL.cc
