@@ -126,7 +126,7 @@ Third Party Components:
 - binutils 2.28
 - gcc 6.3.0
 - newlib 2.10.1 (inside the gcc directory)
-- elf2flt (from the ucLinux project's CVS)
+- libelf from elfutils-0.170
 - hfsutils 3.2.6
 
 Retro68-Specific Components:
@@ -134,6 +134,7 @@ Retro68-Specific Components:
 - Rez
 - PEFTools (MakePEF and MakeImport)
 - MakeAPPL
+- LaunchAPPL
 - libretro
 - TestApps - a few tiny test programs
 - Sample Programs: Raytracer, HelloWorld, Launcher, Dialog
@@ -145,6 +146,7 @@ Two new target platforms:
 - `powerpc-apple-macos`, based on the `powerpc-ibm-aix` target
 
 The powerpc target has a few hacks to make weak symbols work as expected.
+The elf target has a hack to protect MacsBug symbols from -gc-sections.
 
 ### gcc
 
@@ -169,10 +171,12 @@ PowerPC specific:
 Standard C library. Currently unmodified. The missing platform-dependent
 bits haven't been added, instead they are found in 'libretro'.
 
-### elf2flt
+### libelf
 
-Converts from ELF to a much simpler binary format.
-Minor patch: provide symbols around .init and .fini sections
+A library for convenient access to ELF files, taken from the elfutils-0.170
+package. Or rather, brutally ripped out of it, hacked to compile on non-linux
+platforms (<endian.h> is not a standard header file), and made to build with
+cmake instead of autotools. Much simpler now.
 
 ### hfsutils:
 
@@ -187,6 +191,26 @@ A C++ Library for manipulating resource forks.
 A reimplementation of Apple's Rez resource compiler. Reads `.r` files
 containing textual resource descriptions and compiles them to binary
 resource files.
+
+### Elf2Mac
+
+A wrapper around the linker for 68K programs; it supplies a linker script,
+invokes the linker, and converts the resulting ELF binary to a Mac APPL with
+one or more segments, or to a flat file which can be converted to a code resource
+using Rez.
+
+### LaunchAPPL
+
+A tool for lauching compiled Mac applications via various emulators.
+Currently, there are the following backends:
+
+* classic - launch in the Classic environment on PowerPC Macs up to Tiger (10.4)
+* carbon - launch as a Carbon app on PowerPC Macs and via Rosetta on Intel Macs up to Snow Leopard (10.6)
+* minivmac - launch using the Mini vMac emulator
+* executor - launch using Executor
+
+**CONTRIBUTION OPPORTUNITY** - This tool can easily be extended with further backends,
+so make it work with your favourtite emulator.
 
 ### ConvertObj
 
@@ -227,6 +251,10 @@ for some standard library functions.
 ### Console
 
 Contains a library that implements basic text console functionality.
+
+### AutomatedTests
+
+An automated test suite that can be run using `ctest` and `LaunchAPPL`.
 
 ### Sample Program: Hello World
 
