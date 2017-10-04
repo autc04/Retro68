@@ -102,6 +102,7 @@ int main(int argc, char *argv[])
 
 	desc.add_options()
 	        ("help,h", "show this help message")
+	        ("list-emulators,l", "get the list of available, fully configured emulators/environments")
 	        ("make-executable,x", po::value<std::string>(), "make a MacBinary file executable")
 	;
 	po::options_description configdesc;
@@ -159,19 +160,44 @@ int main(int argc, char *argv[])
 
 	po::notify(options);
 
-	if(options.count("help") || (!options.count("application") && !options.count("make-executable")))
+	vector<string> commandModes = {"application", "help", "make-executable", "list-emulators"};
+	int nModes = 0;
+	string mode;
+
+	for(string aMode : commandModes)
+	{
+		if(options.count(aMode))
+		{
+			nModes++;
+			mode = aMode;
+		}
+	}
+	if(nModes > 1)
+	{
+		std::cerr << "Need to specify either an application file or exactly one of ";
+		for(int i = 1, n = commandModes.size(); i < n-1; i++)
+			std::cerr << "--" << commandModes[i] << ", ";
+		std::cerr << "or " << commandModes.back() << "." << std::endl << std::endl;
+		usage();
+		return 1;
+	}
+	if(mode == "" || mode == "help")
 	{
 		usage();
 		return 0;
 	}
-
-	if(options.count("make-executable"))
+	else if(mode == "make-executable")
 	{
 		string fn = options["make-executable"].as<std::string>();
 		MakeExecutable(fn);
-
-		if(!options.count("application"))
-			return 0;
+		return 0;
+	}
+	else if(mode == "list-emulators")
+	{
+		for(LaunchMethod *method : launchMethods)
+			if(method->CheckOptions(options))
+				std::cout << method->GetName() << std::endl;
+		return 0;
 	}
 
 	if(!options.count("emulator"))

@@ -113,7 +113,8 @@ Sample programs are built in several formats:
 
 Look under `Retro68-build/build-target/` (68K),
 `Retro68-build/build-target-ppc/` (PowerPC Classic) and
-`Retro68-build/build-target-carbon/` (PowerPC Carbon) for the compiled examples.
+`Retro68-build/build-target-carbon/` (PowerPC Carbon) for the compiled examples,
+especially under the `Samples` subdirectory.
 
 Components
 ----------

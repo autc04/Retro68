@@ -15,7 +15,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.3)
 project(Retro)
 set(CMAKE_CXX_STANDARD 11)
 
