@@ -31,6 +31,9 @@ public:
 	bool read();
 	bool write();
 
+	static bool hasPlainDataFork(Format f);
+	bool hasPlainDataFork();
+
 	std::string pathstring;
 	Format format;
 	ResType type;

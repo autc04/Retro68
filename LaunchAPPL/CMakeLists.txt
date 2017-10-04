@@ -20,6 +20,7 @@ add_definitions(-DRETRO68_PREFIX="${CMAKE_INSTALL_PREFIX}")
 
 add_executable(LaunchAPPL
 	LaunchAPPL.cc
+	MakeExecutable.cc
 
 	LaunchMethod.h LaunchMethod.cc
 	Launcher.h Launcher.cc

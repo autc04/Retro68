@@ -523,3 +523,24 @@ bool ResourceFile::write()
 	return true;
 }
 
+bool ResourceFile::hasPlainDataFork(ResourceFile::Format f)
+{
+	switch(f)
+	{
+#ifdef __APPLE__
+		case Format::real:
+#endif
+		case Format::basilisk:
+		case Format::underscore_appledouble:
+		case Format::percent_appledouble:
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool ResourceFile::hasPlainDataFork()
+{
+	return hasPlainDataFork(format);
+}
+

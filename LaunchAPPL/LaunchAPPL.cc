@@ -93,7 +93,7 @@ static void usage()
 	}
 }
 
-
+void MakeExecutable(string filepath);
 
 int main(int argc, char *argv[])
 {
@@ -102,6 +102,7 @@ int main(int argc, char *argv[])
 
 	desc.add_options()
 	        ("help,h", "show this help message")
+	        ("make-executable,x", po::value<std::string>(), "make a MacBinary file executable")
 	;
 	po::options_description configdesc;
 	configdesc.add_options()
@@ -158,10 +159,26 @@ int main(int argc, char *argv[])
 
 	po::notify(options);
 
-	if(options.count("help") || !options.count("application") || !options.count("emulator"))
+	if(options.count("help") || (!options.count("application") && !options.count("make-executable")))
 	{
 		usage();
 		return 0;
+	}
+
+	if(options.count("make-executable"))
+	{
+		string fn = options["make-executable"].as<std::string>();
+		MakeExecutable(fn);
+
+		if(!options.count("application"))
+			return 0;
+	}
+
+	if(!options.count("emulator"))
+	{
+		std::cerr << "ERROR: emulator/environment not specified.\n";
+		usage();
+		return 1;
 	}
 
 	LaunchMethod *method = NULL;
@@ -181,7 +198,7 @@ int main(int argc, char *argv[])
 
 	if(!method->CheckOptions(options))
 	{
-		std::cerr << "Missing configuration.\n";
+		std::cerr << "Need more configuration.\n";
 		usage();
 		return 1;
 	}
