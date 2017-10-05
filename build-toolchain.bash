@@ -64,7 +64,11 @@ for ARG in $*; do
 			CLEAN_AFTER_BUILD=true
 			;;
 		--host-cxx-compiler=*)
-			HOST_CMAKE_FLAGS[${#HOST_CMAKE_FLAGS}]="-DCMAKE_CXX_COMPILER=${ARG#*=}"
+			HOST_CMAKE_FLAGS[${#HOST_CMAKE_FLAGS[@]}]="-DCMAKE_CXX_COMPILER=${ARG#*=}"
+			;;
+		--host-c-compiler=*)
+			HOST_CMAKE_FLAGS[${#HOST_CMAKE_FLAGS[@]}]="-DCMAKE_C_COMPILER=${ARG#*=}"
+			HOST_C_COMPILER="${ARG#*=}"
 			;;
 		--help)
 			usage

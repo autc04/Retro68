@@ -63,7 +63,7 @@ static void copyDirectoryRecursively(const fs::path& sourceDir, const fs::path& 
     for (const auto& dirEnt : fs::recursive_directory_iterator{sourceDir})
     {
         const auto& path = dirEnt.path();
-        auto relativePathStr = path.lexically_relative(sourceDir);        
+		auto relativePathStr = path.string().substr(sourceDir.string().size());
         fs::copy(path, destinationDir / relativePathStr);
     }
 }

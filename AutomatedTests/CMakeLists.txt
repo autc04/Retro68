@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.3)
 find_program(LAUNCH_APPL LaunchAPPL PATH "${CMAKE_INSTALL_PREFIX}/../bin/")
 execute_process(COMMAND ${LAUNCH_APPL} --list-emulators
 	OUTPUT_VARIABLE EMULATOR_LIST)
-separate_arguments(EMULATOR_LIST)
+string(REPLACE "\n" ";" EMULATOR_LIST ${EMULATOR_LIST})
 
 if(CMAKE_SYSTEM_NAME MATCHES "RetroCarbon")
 	if("carbon" IN_LIST EMULATOR_LIST)
@@ -19,6 +19,7 @@ else()
 		set(RETRO68_LAUNCH_METHOD NONE CACHE String "How to launch Mac applications (for automated testing)")
 	endif()
 endif()
+
 set(RETRO68_TEST_CONFIG "--timeout=10" CACHE String "Options to pass to LaunchAPPL when running tests")
 
 if(RETRO68_LAUNCH_METHOD MATCHES "NONE")

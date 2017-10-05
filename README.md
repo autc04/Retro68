@@ -82,7 +82,7 @@ the build directory.
 If you're building this on a PowerMac running Mac OS X 10.4, tell the build script
 to use the gcc you've installed via tigerbrew:
 
-    ../Retro68/build-toolchain.bash --host-cxx-compiler=g++-5
+    ../Retro68/build-toolchain.bash --host-cxx-compiler=g++-5 --host-c-compiler=gcc-5
 
 ### Build options and recompiling
 

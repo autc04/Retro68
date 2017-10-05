@@ -1,5 +1,6 @@
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <boost/filesystem.hpp>
 #include <stdlib.h>
 
