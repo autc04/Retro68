@@ -1,9 +1,11 @@
-#if defined(__APPLE__) && defined(__powerpc)
+#define ResType MacResType
+#include <ApplicationServices/ApplicationServices.h>
+#undef ResType
+
+#if TARGET_CPU_PPC
 #include "Classic.h"
 #include "Launcher.h"
 
-#define ResType MacResType
-#include <ApplicationServices/ApplicationServices.h>
 
 namespace po = boost::program_options;
 
@@ -61,6 +63,16 @@ bool ClassicLauncher::Go(int timeout)
 	KillProcess(&psn);
 
 	return false;
+}
+
+bool Classic::CheckPlatform()
+{
+	long sysver = 0;
+	Gestalt(gestaltSystemVersion, &sysver);
+	if(sysver >= 0x1050)
+		return false;
+	else
+		return true;
 }
 
 std::unique_ptr<Launcher> Classic::MakeLauncher(variables_map &options)

@@ -20,6 +20,8 @@ public:
 
 	virtual std::string GetName() = 0;
 	virtual void GetOptions(options_description& desc);
+
+	virtual bool CheckPlatform();
 	virtual bool CheckOptions(variables_map& options);
 
 	virtual std::unique_ptr<Launcher> MakeLauncher(variables_map& options) = 0;

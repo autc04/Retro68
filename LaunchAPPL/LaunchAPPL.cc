@@ -8,10 +8,13 @@
 #include "LaunchMethod.h"
 #include "Launcher.h"
 
-#if defined(__APPLE__) && defined(__powerpc)
-#	include "Classic.h"
-#endif
-#ifdef HAS_LAUNCHCFMAPP
+#if defined(__APPLE__)
+#	define ResType MacResType
+#	include <ApplicationServices/ApplicationServices.h>
+#	undef ResType
+#	if TARGET_CPU_PPC
+#		include "Classic.h"
+#	endif
 #	include "Carbon.h"
 #endif
 #include "Executor.h"
@@ -30,16 +33,22 @@ static vector<LaunchMethod*> launchMethods;
 
 static void RegisterLaunchMethods()
 {
-	launchMethods = {
-#if defined(__APPLE__) && defined(__powerpc)
-	   new Classic(),
+	vector<LaunchMethod*> methods = {
+#if defined(__APPLE__)
+#	if TARGET_CPU_PPC
+		new Classic(),
+#	endif
+		new Carbon(),
 #endif
-#ifdef HAS_LAUNCHCFMAPP
-	   new Carbon(),
-#endif
-	   new Executor(), new MiniVMac()
-	    // #### Add new `LaunchMethod`s here.
-   };
+		new Executor(), new MiniVMac()
+		// #### Add new `LaunchMethod`s here.
+	};
+	
+	for(LaunchMethod *m : methods)
+	{
+		if(m->CheckPlatform())
+			launchMethods.push_back(m);
+	}
 }
 
 static void usage()
@@ -59,7 +68,7 @@ static void usage()
 	vector<string> configuredMethods, unconfiguredMethods;
 	for(LaunchMethod *method : launchMethods)
 		(method->CheckOptions(options) ? configuredMethods : unconfiguredMethods)
-	            .push_back(method->GetName());
+				.push_back(method->GetName());
 
 	if(!configuredMethods.empty())
 	{
@@ -79,10 +88,10 @@ static void usage()
 		string e = options["emulator"].as<string>();
 		std::cerr << "\nChosen emulator/environment: " << e;
 		if(std::find(configuredMethods.begin(), configuredMethods.end(), e)
-		        != configuredMethods.end())
+				!= configuredMethods.end())
 			std::cerr << "\n";
 		else if(std::find(unconfiguredMethods.begin(), unconfiguredMethods.end(), e)
-		       != unconfiguredMethods.end())
+			   != unconfiguredMethods.end())
 			std::cerr << " (needs more configuration)\n";
 		else
 			std::cerr << " (UNKNOWN)\n";
@@ -101,33 +110,33 @@ int main(int argc, char *argv[])
 	configFiles = { string(getenv("HOME")) + "/.LaunchAPPL.cfg", RETRO68_PREFIX "/LaunchAPPL.cfg"};
 
 	desc.add_options()
-	        ("help,h", "show this help message")
-	        ("list-emulators,l", "get the list of available, fully configured emulators/environments")
-	        ("make-executable,x", po::value<std::string>(), "make a MacBinary file executable")
+			("help,h", "show this help message")
+			("list-emulators,l", "get the list of available, fully configured emulators/environments")
+			("make-executable,x", po::value<std::string>(), "make a MacBinary file executable")
 	;
 	po::options_description configdesc;
 	configdesc.add_options()
-	        ("emulator,e", po::value<std::string>(), "what emulator/environment to use")
+			("emulator,e", po::value<std::string>(), "what emulator/environment to use")
 	;
 	for(LaunchMethod *lm : launchMethods)
 		lm->GetOptions(configdesc);
 	desc.add(configdesc);
 
 	desc.add_options()
-	        ("timeout,t", po::value<int>(),"abort after timeout")
+			("timeout,t", po::value<int>(),"abort after timeout")
 	;
 	po::options_description hidden, alldesc;
 	hidden.add_options()
-	    ("application,a", po::value<std::string>(), "application" )
+		("application,a", po::value<std::string>(), "application" )
 	;
 	alldesc.add(desc).add(hidden);
 	try
 	{
 		auto parsed = po::command_line_parser(argc, argv)
-		        .options(alldesc)
-		        .positional(po::positional_options_description().add("application", -1))
-		        .style(po::command_line_style::default_style)
-		        .run();
+				.options(alldesc)
+				.positional(po::positional_options_description().add("application", -1))
+				.style(po::command_line_style::default_style)
+				.run();
 
 		po::store(parsed, options);
 	}

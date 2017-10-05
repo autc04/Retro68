@@ -9,9 +9,7 @@ if(APPLE)
 	LIST(APPEND LAUNCHMETHODS
 		Classic.h Classic.cc
 		)
-	find_program(LAUNCHCFMAPP LaunchCFMApp)
 	if(LAUNCHCFMAPP)
-		add_definitions(-DHAS_LAUNCHCFMAPP)
 		LIST(APPEND LAUNCHMETHODS
 			Carbon.h Carbon.cc)
 	endif()
