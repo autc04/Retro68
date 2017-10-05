@@ -70,7 +70,9 @@ static void writeMacBinary(std::ostream& out, std::string filename,
 	out.seekp(128);
 	out << data;
 	std::streampos dataend = out.tellp();
-	std::streampos rsrcstart = ((int)dataend + 0x7F) & ~0x7F;
+	while((int)out.tellp() % 128)
+		byte(out,0);
+	std::streampos rsrcstart = out.tellp(); //((int)dataend + 0x7F) & ~0x7F;
 	rsrc.writeFork(out);
 
 	std::streampos rsrcend = out.tellp();
@@ -351,9 +353,11 @@ bool ResourceFile::read()
 				unsigned short crc = CalculateCRC(0,header,124);
 				if(word(in) != crc)
 					return false;
+				in.seekg(128);
 				std::vector<char> buf(datasize);
 				in.read(buf.data(), datasize);
 				data = std::string(buf.begin(), buf.end());
+				datasize = ((int)datasize + 0x7F) & ~0x7F;
 				in.seekg(128 + datasize);
 				resources = Resources(in);
 			}
