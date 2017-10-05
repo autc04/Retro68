@@ -9,10 +9,8 @@ if(APPLE)
 	LIST(APPEND LAUNCHMETHODS
 		Classic.h Classic.cc
 		)
-	if(LAUNCHCFMAPP)
-		LIST(APPEND LAUNCHMETHODS
-			Carbon.h Carbon.cc)
-	endif()
+	LIST(APPEND LAUNCHMETHODS
+		Carbon.h Carbon.cc)
 endif()
 add_definitions(-DRETRO68_PREFIX="${CMAKE_INSTALL_PREFIX}")
 
