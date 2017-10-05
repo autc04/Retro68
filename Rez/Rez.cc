@@ -79,7 +79,9 @@ int main(int argc, const char *argv[])
 
 	po::notify(options);
 
-	if(options.count("help") || (!options.count("input") && !options.count("copy")))
+	if(options.count("help")
+		|| (!options.count("input") && !options.count("copy") 
+			&& !options.count("output")))
 	{
 		usage();
 		return 0;
