@@ -42,6 +42,8 @@ function usage()
 	echo "    --no-ppc                  disable classic PowerPC CFM support"
 	echo "    --no-carbon               disable Carbon CFM support"
 	echo "    --clean-after-build       remove intermediate build files right after building"
+	echo "    --host-cxx-compiler       specify C++ compiler (needed on Mac OS X 10.4)" 
+	echo "    --host-c-compiler         specify C compiler (needed on Mac OS X 10.4)"
 	echo "    --help                    show this help message"
 }
 
@@ -64,7 +66,11 @@ for ARG in $*; do
 			CLEAN_AFTER_BUILD=true
 			;;
 		--host-cxx-compiler=*)
-			HOST_CMAKE_FLAGS[${#HOST_CMAKE_FLAGS}]="-DCMAKE_CXX_COMPILER=${ARG#*=}"
+			HOST_CMAKE_FLAGS[${#HOST_CMAKE_FLAGS[@]}]="-DCMAKE_CXX_COMPILER=${ARG#*=}"
+			;;
+		--host-c-compiler=*)
+			HOST_CMAKE_FLAGS[${#HOST_CMAKE_FLAGS[@]}]="-DCMAKE_C_COMPILER=${ARG#*=}"
+			HOST_C_COMPILER="${ARG#*=}"
 			;;
 		--help)
 			usage

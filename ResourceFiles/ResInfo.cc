@@ -38,8 +38,9 @@ int main(int argc, char *argv[])
 		("creator,c", "print creator code")
 		("all,a", "print all info")
 		("format,f", "print format")
-		("count,n", "print number of resources")
-		("filename,l", "echo input file name")
+	    ("count,n", "print number of resources")
+	    ("size,s", "show data fork size")
+	    ("filename,l", "echo input file name")
 		("set-format,F", po::value<string>(), "resource fork format)")
 	;
 	po::options_description hidden, alldesc;
@@ -82,11 +83,12 @@ int main(int argc, char *argv[])
 	bool showCreator = options.count("creator") != 0;
 	bool showFormat = options.count("format") != 0;
 	bool showCount = options.count("count") != 0;
-	
+	bool showSize = options.count("size") != 0;
+
 	ResourceFile::Format format = ResourceFile::Format::autodetect;
 	
 	if(options.count("all"))
-		showType = showCreator = showFormat = showCount = true;
+		showType = showCreator = showFormat = showCount = showSize = true;
 	
 	if(options.count("set-format"))
 	{
@@ -121,7 +123,9 @@ int main(int argc, char *argv[])
 				out << " " << reverseFormats[rsrcFile.format];
 			if(showCount)
 				out << " " << rsrcFile.resources.resources.size();
-			
+			if(showSize)
+				out << " " << rsrcFile.data.size();
+
 			string str = out.str();
 			if(str.size())
 			{

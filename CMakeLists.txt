@@ -15,9 +15,12 @@
 #   You should have received a copy of the GNU General Public License
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.3)
 project(Retro)
 set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED TRUE)
 
 if(CMAKE_SYSTEM_NAME MATCHES Retro.*)
 
@@ -48,6 +51,9 @@ add_subdirectory(Samples/Launcher)
 add_subdirectory(Samples/SystemExtension)
 endif()
 
+enable_testing()
+add_subdirectory(AutomatedTests)
+
 else()
 
 set(RETRO68_ROOT ${CMAKE_INSTALL_PREFIX})
@@ -62,4 +68,5 @@ add_subdirectory(Rez)
 add_subdirectory(ConvertObj)
 add_subdirectory(PEFTools)
 add_subdirectory(Elf2Mac)
+add_subdirectory(LaunchAPPL)
 endif()

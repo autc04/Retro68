@@ -77,12 +77,13 @@ of the Retro68 directory:
     ../Retro68/build-toolchain.bash
 
 The toolchain will be installed in the "toolchain" directory inside
-the build directory.
+the build directory. All the commands are in `toolchain/bin`, so you might want
+to add that to your `PATH`.
 
 If you're building this on a PowerMac running Mac OS X 10.4, tell the build script
 to use the gcc you've installed via tigerbrew:
 
-    ../Retro68/build-toolchain.bash --host-cxx-compiler=g++-5
+    ../Retro68/build-toolchain.bash --host-cxx-compiler=g++-5 --host-c-compiler=gcc-5
 
 ### Build options and recompiling
 
@@ -100,7 +101,6 @@ The `build-host`, `build-target`, `build-target-ppc` and `build-target-carbon`
 directories are CMake build directories generated from the top-level `CMakeLists.txt`,
 so you can also `cd` to one of these and run `make` separately if you've made changes.
 
-
 Sample programs
 ---------------
 
@@ -113,7 +113,8 @@ Sample programs are built in several formats:
 
 Look under `Retro68-build/build-target/` (68K),
 `Retro68-build/build-target-ppc/` (PowerPC Classic) and
-`Retro68-build/build-target-carbon/` (PowerPC Carbon) for the compiled examples.
+`Retro68-build/build-target-carbon/` (PowerPC Carbon) for the compiled examples,
+especially under the `Samples` subdirectory.
 
 Components
 ----------
@@ -126,7 +127,7 @@ Third Party Components:
 - binutils 2.28
 - gcc 6.3.0
 - newlib 2.10.1 (inside the gcc directory)
-- elf2flt (from the ucLinux project's CVS)
+- libelf from elfutils-0.170
 - hfsutils 3.2.6
 
 Retro68-Specific Components:
@@ -134,6 +135,7 @@ Retro68-Specific Components:
 - Rez
 - PEFTools (MakePEF and MakeImport)
 - MakeAPPL
+- LaunchAPPL
 - libretro
 - TestApps - a few tiny test programs
 - Sample Programs: Raytracer, HelloWorld, Launcher, Dialog
@@ -145,6 +147,7 @@ Two new target platforms:
 - `powerpc-apple-macos`, based on the `powerpc-ibm-aix` target
 
 The powerpc target has a few hacks to make weak symbols work as expected.
+The elf target has a hack to protect MacsBug symbols from -gc-sections.
 
 ### gcc
 
@@ -169,10 +172,12 @@ PowerPC specific:
 Standard C library. Currently unmodified. The missing platform-dependent
 bits haven't been added, instead they are found in 'libretro'.
 
-### elf2flt
+### libelf
 
-Converts from ELF to a much simpler binary format.
-Minor patch: provide symbols around .init and .fini sections
+A library for convenient access to ELF files, taken from the elfutils-0.170
+package. Or rather, brutally ripped out of it, hacked to compile on non-linux
+platforms (<endian.h> is not a standard header file), and made to build with
+cmake instead of autotools. Much simpler now.
 
 ### hfsutils:
 
@@ -187,6 +192,17 @@ A C++ Library for manipulating resource forks.
 A reimplementation of Apple's Rez resource compiler. Reads `.r` files
 containing textual resource descriptions and compiles them to binary
 resource files.
+
+### Elf2Mac
+
+A wrapper around the linker for 68K programs; it supplies a linker script,
+invokes the linker, and converts the resulting ELF binary to a Mac APPL with
+one or more segments, or to a flat file which can be converted to a code resource
+using Rez.
+
+### LaunchAPPL
+
+A tool for lauching compiled Mac applications via various emulators.
 
 ### ConvertObj
 
@@ -228,6 +244,10 @@ for some standard library functions.
 
 Contains a library that implements basic text console functionality.
 
+### AutomatedTests
+
+An automated test suite that can be run using `ctest` and `LaunchAPPL`.
+
 ### Sample Program: Hello World
 
 The binary is in Retro68-build/build-target/Samples/HelloWorld/.
@@ -266,3 +286,51 @@ The original parts of Retro68 are licensed under GPL3+, as are
 most other parts. Some parts are licensed GPL2+ or with more
 liberal licenses. Check the copyright notices in the individual
 files.
+
+
+
+
+LaunchAPPL and the Test Suite
+-----------------------------
+
+`LaunchAPPL` is a tool included with Retro68 intended to make launching the
+compiled Mac applications easier. It's use is optional, so you may skip reading
+this section.
+
+Currently, LaunchAPPL supports the following methods for launching Mac applications:
+
+* classic - launch in the Classic environment on PowerPC Macs up to Tiger (10.4)
+* carbon - launch as a Carbon app on PowerPC Macs and via Rosetta on Intel Macs up to Snow Leopard (10.6)
+* minivmac - launch using the Mini vMac emulator
+* executor - launch using Executor
+
+If you're running on a Mac that's old enough to use the `classic` or `carbon` backends,
+they will work out of the box, just launch an application as follows
+(assuming you've added `Retro68-build/toolchain/bin` to your `PATH`):
+
+    LaunchAPPL -e classic Retro68-build/build-target/Samples/Raytracer/Raytracer2.bin
+    LaunchAPPL -e carbon Retro68-build/build-target-carbon/Samples/Raytracer/Raytracer2.bin
+
+To specify either environment as a default, or to configure one of the other emulators,
+copy the file `Retro68/LaunchAPPL/LaunchAPPL.cfg.example` to `~/.LaunchAPPL.cfg`
+and edit to taste (documentation is provided in comments).
+
+**CONTRIBUTION OPPORTUNITY** - This tool can easily be extended with further backends,
+so make it work with your favourtite emulator. Just add new subclasses for the
+`LaunchMethod` and `Launcher` classes, they're documented.
+
+### The Test Suite
+
+The directory `AutomatedTests` contains an autonated test suite that runs via
+`LaunchAPPL`. It's currently only relevant if you want to hack on the low-level
+parts of Retro68.
+
+The test suite will be configured automatically on sufficiently old Macs.
+Everywhere else, first configure `LaunchAPPL` (see above) and then:
+
+    cs Retro68-build/build-target
+    cmake . -DRETRO68_LAUNCH_METHOD=minivmac    # or executor, ...
+    make
+    
+To run the tests, invoke `ctest` in the `build-target` directory.
+    ctest

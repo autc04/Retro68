@@ -70,7 +70,9 @@ static void writeMacBinary(std::ostream& out, std::string filename,
 	out.seekp(128);
 	out << data;
 	std::streampos dataend = out.tellp();
-	std::streampos rsrcstart = ((int)dataend + 0x7F) & ~0x7F;
+	while((int)out.tellp() % 128)
+		byte(out,0);
+	std::streampos rsrcstart = out.tellp(); //((int)dataend + 0x7F) & ~0x7F;
 	rsrc.writeFork(out);
 
 	std::streampos rsrcend = out.tellp();
@@ -217,11 +219,14 @@ bool ResourceFile::read()
 		case Format::basilisk:
 			{
 				fs::ifstream dataIn(path);
+				if(!dataIn)
+					return false;
 				data = std::string(std::istreambuf_iterator<char>(dataIn),
 								   std::istreambuf_iterator<char>());
 
 				fs::ifstream rsrcIn(path.parent_path() / ".rsrc" / path.filename());
-				resources = Resources(rsrcIn);
+				if(rsrcIn)
+					resources = Resources(rsrcIn);
 				fs::ifstream finfIn(path.parent_path() / ".finf" / path.filename());
 				if(finfIn)
 				{
@@ -234,10 +239,13 @@ bool ResourceFile::read()
 		case Format::real:
 			{
 				fs::ifstream dataIn(path);
+				if(!dataIn)
+					return false;
 				data = std::string(std::istreambuf_iterator<char>(dataIn),
 								   std::istreambuf_iterator<char>());
 				fs::ifstream rsrcIn(path / "..namedfork" / "rsrc");
-				resources = Resources(rsrcIn);
+				if(rsrcIn)
+					resources = Resources(rsrcIn);
 
 				char finf[32];
 				int n = getxattr(path.c_str(), XATTR_FINDERINFO_NAME,
@@ -265,13 +273,16 @@ bool ResourceFile::read()
 					in.seekg(26 + i * 12);
 					int what = longword(in);
 					int off = longword(in);
-					//int len = longword(in);
+					int len = longword(in);
 					in.seekg(off);
 					switch(what)
 					{
 						case 1:
-							// ###
-							// FIXME: read data fork
+							{
+								std::vector<char> buf(len);
+								in.read(buf.data(), len);
+								data = std::string(buf.begin(), buf.end());
+							}
 							break;
 						case 2:
 							resources = Resources(in);
@@ -342,7 +353,11 @@ bool ResourceFile::read()
 				unsigned short crc = CalculateCRC(0,header,124);
 				if(word(in) != crc)
 					return false;
-				// FIXME: read data fork
+				in.seekg(128);
+				std::vector<char> buf(datasize);
+				in.read(buf.data(), datasize);
+				data = std::string(buf.begin(), buf.end());
+				datasize = ((int)datasize + 0x7F) & ~0x7F;
 				in.seekg(128 + datasize);
 				resources = Resources(in);
 			}
@@ -490,6 +505,8 @@ bool ResourceFile::write()
 
 				hfs_format(pathstring.c_str(), 0, 0, path.stem().string().substr(0,27).c_str(), 0, NULL);
 				hfsvol *vol = hfs_mount(pathstring.c_str(), 0, HFS_MODE_RDWR);
+				if(!vol)
+					return false;
 				//hfs_setvol(vol, )
 				hfsfile *file = hfs_create(vol, (path.stem().string().substr(0,31)).c_str(),
 										   ((std::string)type).c_str(), ((std::string)creator).c_str());
@@ -508,5 +525,26 @@ bool ResourceFile::write()
 			return false;
 	}
 	return true;
+}
+
+bool ResourceFile::hasPlainDataFork(ResourceFile::Format f)
+{
+	switch(f)
+	{
+#ifdef __APPLE__
+		case Format::real:
+#endif
+		case Format::basilisk:
+		case Format::underscore_appledouble:
+		case Format::percent_appledouble:
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool ResourceFile::hasPlainDataFork()
+{
+	return hasPlainDataFork(format);
 }
 
