@@ -77,7 +77,8 @@ of the Retro68 directory:
     ../Retro68/build-toolchain.bash
 
 The toolchain will be installed in the "toolchain" directory inside
-the build directory.
+the build directory. All the commands are in `toolchain/bin`, so you might want
+to add that to your `PATH`.
 
 If you're building this on a PowerMac running Mac OS X 10.4, tell the build script
 to use the gcc you've installed via tigerbrew:
@@ -99,7 +100,6 @@ sample programs.
 The `build-host`, `build-target`, `build-target-ppc` and `build-target-carbon`
 directories are CMake build directories generated from the top-level `CMakeLists.txt`,
 so you can also `cd` to one of these and run `make` separately if you've made changes.
-
 
 Sample programs
 ---------------
@@ -203,15 +203,6 @@ using Rez.
 ### LaunchAPPL
 
 A tool for lauching compiled Mac applications via various emulators.
-Currently, there are the following backends:
-
-* classic - launch in the Classic environment on PowerPC Macs up to Tiger (10.4)
-* carbon - launch as a Carbon app on PowerPC Macs and via Rosetta on Intel Macs up to Snow Leopard (10.6)
-* minivmac - launch using the Mini vMac emulator
-* executor - launch using Executor
-
-**CONTRIBUTION OPPORTUNITY** - This tool can easily be extended with further backends,
-so make it work with your favourtite emulator.
 
 ### ConvertObj
 
@@ -295,3 +286,51 @@ The original parts of Retro68 are licensed under GPL3+, as are
 most other parts. Some parts are licensed GPL2+ or with more
 liberal licenses. Check the copyright notices in the individual
 files.
+
+
+
+
+LaunchAPPL and the Test Suite
+-----------------------------
+
+`LaunchAPPL` is a tool included with Retro68 intended to make launching the
+compiled Mac applications easier. It's use is optional, so you may skip reading
+this section.
+
+Currently, LaunchAPPL supports the following methods for launching Mac applications:
+
+* classic - launch in the Classic environment on PowerPC Macs up to Tiger (10.4)
+* carbon - launch as a Carbon app on PowerPC Macs and via Rosetta on Intel Macs up to Snow Leopard (10.6)
+* minivmac - launch using the Mini vMac emulator
+* executor - launch using Executor
+
+If you're running on a Mac that's old enough to use the `classic` or `carbon` backends,
+they will work out of the box, just launch an application as follows
+(assuming you've added `Retro68-build/toolchain/bin` to your `PATH`):
+
+    LaunchAPPL -e classic Retro68-build/build-target/Samples/Raytracer/Raytracer2.bin
+    LaunchAPPL -e carbon Retro68-build/build-target-carbon/Samples/Raytracer/Raytracer2.bin
+
+To specify either environment as a default, or to configure one of the other emulators,
+copy the file `Retro68/LaunchAPPL/LaunchAPPL.cfg.example` to `~/.LaunchAPPL.cfg`
+and edit to taste (documentation is provided in comments).
+
+**CONTRIBUTION OPPORTUNITY** - This tool can easily be extended with further backends,
+so make it work with your favourtite emulator. Just add new subclasses for the
+`LaunchMethod` and `Launcher` classes, they're documented.
+
+### The Test Suite
+
+The directory `AutomatedTests` contains an autonated test suite that runs via
+`LaunchAPPL`. It's currently only relevant if you want to hack on the low-level
+parts of Retro68.
+
+The test suite will be configured automatically on sufficiently old Macs.
+Everywhere else, first configure `LaunchAPPL` (see above) and then:
+
+    cs Retro68-build/build-target
+    cmake . -DRETRO68_LAUNCH_METHOD=minivmac    # or executor, ...
+    make
+    
+To run the tests, invoke `ctest` in the `build-target` directory.
+    ctest
