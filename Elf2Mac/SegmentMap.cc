@@ -18,6 +18,10 @@
 */
 
 #include "SegmentMap.h"
+#include <fstream>
+#include <cctype>
+#include <algorithm>
+#include <iostream>
 
 SegmentInfo::SegmentInfo()
 {
@@ -48,6 +52,62 @@ SegmentMap::SegmentMap()
 	                      "*/libstdc++.a:*");
 	segments.emplace_back(4, "RetroConsole",
 	                      "*/libRetroConsole.a:*");
+
+	segments.emplace_back(2, "Main",
+	                      "*");
+}
+
+SegmentMap::SegmentMap(std::string filename)
+{
+	segments.emplace_back(1, "Runtime",
+	                      "*/libretrocrt.a:start.c.obj",
+	                      "*/libretrocrt.a:relocate.c.obj",
+	                      "*/libretrocrt.a:MultiSegApp.c.obj",
+	                      "*/libretrocrt.a:LoadSeg.s.obj",
+	                      "*/libretrocrt.a:*",
+	                      "*/libgcc.a:*",
+	                      "*/libc.a:*"
+	                      );
+
+	std::ifstream in(filename);
+	int id = -1;
+	int nextID = 3;
+	while(in)
+	{
+		std::string s;
+		in >> std::ws;
+		std::getline(in, s);
+		std::cout << "segs: " << s << std::endl;
+		if(!in)
+			break;
+
+		std::string upper;
+		std::transform(s.begin(), s.end(), std::back_inserter(upper), [](char c) { return std::toupper(c); });
+
+		if(s[0] == '#')
+			continue;
+		else if(upper == "SEGMENT" || (upper.substr(0,7) == "SEGMENT" && std::isspace(upper[7])))
+		{
+			std::string name;
+
+			auto p = s.begin() + 7;
+			while(p != s.end() && std::isspace(*p))
+				++p;
+			name = std::string(p, s.end());
+			id = nextID++;
+
+			segments.emplace_back(id, name);
+		}
+		else
+		{
+			if(id < 0)
+			{
+				throw std::runtime_error("missing SEGMENT directive.\n");
+			}
+
+			segments.back().filters.push_back(s);
+		}
+	}
 
 	segments.emplace_back(2, "Main",
 	                      "*");

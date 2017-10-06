@@ -100,6 +100,8 @@ int main(int argc, char *argv[])
 		bool segments = true;
 		bool stripMacsbug = false;
 
+		SegmentMap segmentMap;
+
 		vector<string> args2;
 		for(auto p = args.begin(), e = args.end(); p != e; ++p)
 		{
@@ -138,7 +140,7 @@ int main(int argc, char *argv[])
 				++p;
 				if(p == e)
 					errx(EXIT_FAILURE, "--mac-segments missing argument");
-				//segmentMapFile = *p;
+				segmentMap = SegmentMap(*p);
 			}
 			else if(*p == "--mac-strip-macsbug")
 			{
@@ -157,12 +159,12 @@ int main(int argc, char *argv[])
 			if(fd < 0)
 				errx(EXIT_FAILURE, "can't create temp file");
 
-			SegmentMap segmentMap;
 			{
 				ofstream out(tmpfile);
 				if(segments)
 				{
 					segmentMap.CreateLdScript(out, stripMacsbug);
+					segmentMap.CreateLdScript(std::cout, stripMacsbug);
 				}
 				else
 				{

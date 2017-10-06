@@ -47,6 +47,7 @@ class SegmentMap
 	std::vector<SegmentInfo> segments;
 public:
 	SegmentMap();
+	SegmentMap(std::string filename);
 
 	void CreateLdScript(std::ostream& out, bool stripMacsbug);
 	std::string GetSegmentName(int id);
