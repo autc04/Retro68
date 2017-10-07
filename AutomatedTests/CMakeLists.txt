@@ -62,4 +62,13 @@ set_tests_properties(Init PROPERTIES PASS_REGULAR_EXPRESSION "constructor\nmain\
 test(StdIO.c)
 set_tests_properties(StdIO PROPERTIES PASS_REGULAR_EXPRESSION "OK")
 
+if(CMAKE_SYSTEM_NAME MATCHES Retro68)
+	add_application(Segments Segment1.c Segment2.c Segments.segmap Test.h Test.c)
+	set_target_properties(Segments PROPERTIES
+		LINK_FLAGS "-Wl,-gc-sections -Wl,--mac-segments -Wl,${CMAKE_CURRENT_SOURCE_DIR}/Segments.segmap")
+	add_test(NAME Segments COMMAND ${LAUNCH_APPL}
+		-e ${RETRO68_LAUNCH_METHOD} ${RETRO68_TEST_CONFIG} Segments.bin)
+endif()
+
+
 endif()	# RETRO68_LAUNCH_METHOD
