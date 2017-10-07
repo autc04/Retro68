@@ -383,6 +383,10 @@ sh "$SRC/prepare-rincludes.sh" "$RINCLUDES" "toolchain/RIncludes"
 # and link files from toolchain/CIncludes
 function linkheaders()
 {
+	# incompatible with Universal Interfaces on case-insensitive file systems
+	# (and does not currently work anyways)
+    rm -f "$1"/threads.h
+
 	# the following command doesn't work on older Mac OS X versions.
 	# allow it to fail quietly, at worst we leave some dangling symlinks around
 	# in the rare situation that headers are removed from the input directory
