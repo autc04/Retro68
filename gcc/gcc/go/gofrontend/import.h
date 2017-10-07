@@ -7,7 +7,6 @@
 #ifndef GO_IMPORT_H
 #define GO_IMPORT_H
 
-#include "escape.h"
 #include "export.h"
 #include "go-linemap.h"
 
@@ -198,9 +197,9 @@ class Import
   Type*
   read_type();
 
-  // Read escape information.
-  Node::Escapement_lattice
-  read_escape_info();
+  // Read an escape note.
+  std::string
+  read_escape();
 
  private:
   static Stream*
@@ -233,7 +232,7 @@ class Import
   void
   read_one_import();
 
-  // Read the import control functions.
+  // Read the import control functions and init graph.
   void
   read_import_init_fns(Gogo*);
 
@@ -261,6 +260,21 @@ class Import
   bool
   string_to_int(const std::string&, bool is_neg_ok, int* ret);
 
+  // Get an unsigned integer from a string.
+  bool
+  string_to_unsigned(const std::string& s, unsigned* ret)
+  {
+    int ivalue;
+    if (!this->string_to_int(s, false, &ivalue))
+      return false;
+    *ret = static_cast<unsigned>(ivalue);
+    return true;
+  }
+
+  // Return the version number of the export data we're reading.
+  Export_data_version
+  version() const { return this->version_; }
+
   // The general IR.
   Gogo* gogo_;
   // The stream from which to read import data.
@@ -276,6 +290,8 @@ class Import
   std::vector<Named_type*> builtin_types_;
   // Mapping from exported type codes to Type structures.
   std::vector<Type*> types_;
+  // Version of export data we're reading.
+  Export_data_version version_;
 };
 
 // Read import data from a string.

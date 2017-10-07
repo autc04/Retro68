@@ -1198,9 +1198,9 @@ rl78_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 
 		  _bfd_error_handler
 		    /* xgettext:c-format */
-		    (_("RL78 ABI conflict: G10 file %s cannot be linked with %s file %s"),
-		     bfd_get_filename (ibfd),
-		     rl78_cpu_name (out_cpu), bfd_get_filename (obfd));
+		    (_("RL78 ABI conflict: G10 file %B cannot be linked"
+		       " with %s file %B"),
+		     ibfd, rl78_cpu_name (out_cpu), obfd);
 		}
 	      else
 		{
@@ -1215,9 +1215,9 @@ rl78_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 
 	      _bfd_error_handler
 		/* xgettext:c-format */
-		(_("RL78 ABI conflict: cannot link %s file %s with %s file %s"),
-		 rl78_cpu_name (in_cpu),  bfd_get_filename (ibfd),
-		 rl78_cpu_name (out_cpu), bfd_get_filename (obfd));
+		(_("RL78 ABI conflict: cannot link %s file %B with %s file %B"),
+		 rl78_cpu_name (in_cpu),  ibfd,
+		 rl78_cpu_name (out_cpu), obfd);
 	    }
 	}
 
@@ -1228,12 +1228,12 @@ rl78_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 
 	  if (old_flags & E_FLAG_RL78_64BIT_DOUBLES)
 	    /* xgettext:c-format */
-	    _bfd_error_handler (_("- %s is 64-bit, %s is not"),
-				bfd_get_filename (obfd), bfd_get_filename (ibfd));
+	    _bfd_error_handler (_("- %B is 64-bit, %B is not"),
+				obfd, ibfd);
 	  else
 	    /* xgettext:c-format */
-	    _bfd_error_handler (_("- %s is 64-bit, %s is not"),
-				bfd_get_filename (ibfd), bfd_get_filename (obfd));
+	    _bfd_error_handler (_("- %B is 64-bit, %B is not"),
+				ibfd, obfd);
 	  error = TRUE;
 	}
     }
@@ -1328,7 +1328,7 @@ rl78_elf_check_relocs
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
 
       switch (ELF32_R_TYPE (rel->r_info))

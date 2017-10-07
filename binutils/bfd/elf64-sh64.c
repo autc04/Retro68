@@ -1677,8 +1677,9 @@ sh_elf64_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	{
 	  _bfd_error_handler
 	    /* xgettext:c-format */
-	    (_("%s: error: unaligned relocation type %d at %08x reloc %08x\n"),
-	     bfd_get_filename (input_bfd), (int)r_type, (unsigned)rel->r_offset, (unsigned)relocation);
+	    (_("%B: error: unaligned relocation type %d at %08x reloc %08x\n"),
+	     input_bfd, (int) r_type, (unsigned) rel->r_offset,
+	     (unsigned) relocation);
 	  bfd_set_error (bfd_error_bad_value);
 	  return FALSE;
 	}
@@ -2273,17 +2274,16 @@ sh_elf64_merge_private_data (bfd *ibfd, struct bfd_link_info *info)
       if (bfd_get_arch_size (ibfd) == 32
 	  && bfd_get_arch_size (obfd) == 64)
 	/* xgettext:c-format */
-	msg = _("%s: compiled as 32-bit object and %s is 64-bit");
+	msg = _("%B: compiled as 32-bit object and %B is 64-bit");
       else if (bfd_get_arch_size (ibfd) == 64
 	       && bfd_get_arch_size (obfd) == 32)
 	/* xgettext:c-format */
-	msg = _("%s: compiled as 64-bit object and %s is 32-bit");
+	msg = _("%B: compiled as 64-bit object and %B is 32-bit");
       else
 	/* xgettext:c-format */
-	msg = _("%s: object size does not match that of target %s");
+	msg = _("%B: object size does not match that of target %B");
 
-      _bfd_error_handler (msg, bfd_get_filename (ibfd),
-			  bfd_get_filename (obfd));
+      _bfd_error_handler (msg, ibfd, obfd);
       bfd_set_error (bfd_error_wrong_format);
       return FALSE;
     }
@@ -2302,8 +2302,7 @@ sh_elf64_merge_private_data (bfd *ibfd, struct bfd_link_info *info)
   else if ((new_flags & EF_SH_MACH_MASK) != EF_SH5)
     {
       _bfd_error_handler
-	("%s: does not use the SH64 64-bit ABI as previous modules do",
-	 bfd_get_filename (ibfd));
+	("%B: does not use the SH64 64-bit ABI as previous modules do", ibfd);
       bfd_set_error (bfd_error_bad_value);
       return FALSE;
     }
@@ -2385,7 +2384,7 @@ sh_elf64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
 
       /* Some relocs require a global offset table.  */
@@ -2774,8 +2773,7 @@ sh64_elf64_add_symbol_hook (bfd *abfd, struct bfd_link_info *info,
 	{
 	  /* Make sure we don't get confused on invalid input.  */
 	  _bfd_error_handler
-	    (_("%s: encountered datalabel symbol in input"),
-	     bfd_get_filename (abfd));
+	    (_("%B: encountered datalabel symbol in input"), abfd);
 	  bfd_set_error (bfd_error_bad_value);
 	  return FALSE;
 	}

@@ -25,6 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef XC16X_CPU_H
 #define XC16X_CPU_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CGEN_ARCH xc16x
 
 /* Given symbol S, return xc16x_cgen_<S>.  */
@@ -443,5 +447,9 @@ extern CGEN_KEYWORD xc16x_cgen_opval_memgr8_names;
 extern const CGEN_HW_ENTRY xc16x_cgen_hw_table[];
 
 
+
+   #ifdef __cplusplus
+   }
+   #endif
 
 #endif /* XC16X_CPU_H */

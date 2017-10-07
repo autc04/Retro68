@@ -1,4 +1,6 @@
 #name: Valid v8-a+fp
+#source: armv8-ar+fp.s
+#as: -march=armv8-a
 #objdump: -dr --prefix-addresses --show-raw-insn
 #skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
 
@@ -113,3 +115,7 @@ Disassembly of section .text:
 0[0-9a-f]+ <[^>]+> eef2 0b60 	vcvtb.f64.f16	d16, s1
 0[0-9a-f]+ <[^>]+> eeb2 fbcf 	vcvtt.f64.f16	d15, s30
 0[0-9a-f]+ <[^>]+> eef2 fb6f 	vcvtb.f64.f16	d31, s31
+0[0-9a-f]+ <[^>]+> eef5 9a10 	vmrs	r9, mvfr2
+0[0-9a-f]+ <[^>]+> eee5 7a10 	vmsr	mvfr2, r7
+0[0-9a-f]+ <[^>]+> eef5 4a10 	vmrs	r4, mvfr2
+0[0-9a-f]+ <[^>]+> eee5 5a10 	vmsr	mvfr2, r5

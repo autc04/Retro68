@@ -36,7 +36,7 @@ if ![ld_assemble $as "--text-section-literals $srcdir/$subdir/diff_overflow2.s" 
 
 set object "tmpdir/diff_overflow"
 
-if ![ld_simple_link $ld $object "tmpdir/diff_overflow1.o tmpdir/diff_overflow2.o"] {
+if ![ld_link $ld $object "tmpdir/diff_overflow1.o tmpdir/diff_overflow2.o"] {
     verbose -log "failure in ld"
     fail $testname
     return

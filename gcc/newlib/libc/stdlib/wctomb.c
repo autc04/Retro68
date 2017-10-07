@@ -57,10 +57,11 @@ _DEFUN (wctomb, (s, wchar),
         wchar_t wchar)
 {
 #ifdef _MB_CAPABLE
-        _REENT_CHECK_MISC(_REENT);
+	struct _reent *reent = _REENT;
 
-        return __wctomb (_REENT, s, wchar, __locale_charset (),
-			 &(_REENT_WCTOMB_STATE(_REENT)));
+        _REENT_CHECK_MISC(reent);
+
+        return __WCTOMB (reent, s, wchar, &(_REENT_WCTOMB_STATE(reent)));
 #else /* not _MB_CAPABLE */
         if (s == NULL)
                 return 0;

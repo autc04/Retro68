@@ -1,4 +1,4 @@
-// Copyright (C) 2013-2016 Free Software Foundation, Inc.
+// Copyright (C) 2013-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,9 +29,9 @@
 #define _CXX14_WARNING_H 1
 
 #if __cplusplus <= 201103L
-#error This file requires compiler and library support for the forthcoming \
-ISO C++ 2014 standard. This support is currently experimental, and must be \
-enabled with the -std=c++1y or -std=gnu++1y compiler options.
+#error This file requires compiler and library support \
+for the ISO C++ 2014 standard. This support must be enabled \
+with the -std=c++14 or -std=gnu++14 compiler options.
 #endif
 
 #endif

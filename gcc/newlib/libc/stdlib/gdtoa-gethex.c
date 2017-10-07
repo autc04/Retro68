@@ -32,32 +32,42 @@ THIS SOFTWARE.
 #include <_ansi.h>
 #include <reent.h>
 #include <string.h>
+#include <locale.h>
 #include "mprec.h"
 #include "gdtoa.h"
 #include "gd_qnan.h"
-#include "locale.h"
 
-unsigned char hexdig[256];
-
-static void
-_DEFUN (htinit, (h, s, inc),
-	unsigned char *h _AND
-	unsigned char *s _AND
-	int inc)
+#if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && !defined(_SMALL_HEXDIG)
+_CONST unsigned char __hexdig[256]=
 {
-	int i, j;
-	for(i = 0; (j = s[i]) !=0; i++)
-		h[j] = i + inc;
-}
-
-void
-_DEFUN_VOID (hexdig_init)
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	16,17,18,19,20,21,22,23,24,25,0,0,0,0,0,0,
+	0,26,27,28,29,30,31,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,26,27,28,29,30,31,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+};
+#else /* !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && !defined(_SMALL_HEXDIG) */
+unsigned char
+_DEFUN (__hexdig_fun, (c),
+		unsigned char c)
 {
-#define USC (unsigned char *)
-	htinit(hexdig, USC "0123456789", 0x10);
-	htinit(hexdig, USC "abcdef", 0x10 + 10);
-	htinit(hexdig, USC "ABCDEF", 0x10 + 10);
+	if(c>='0' && c<='9') return c-'0'+0x10;
+	else if(c>='a' && c<='f') return c-'a'+0x10+10;
+	else if(c>='A' && c<='F') return c-'A'+0x10+10;
+	else return 0;
 }
+#endif /* !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && !defined(_SMALL_HEXDIG) */
 
 static void
 _DEFUN(rshift, (b, k),
@@ -135,13 +145,8 @@ _DEFUN (increment, (ptr, b),
 
 
 int
-_DEFUN(gethex, (ptr, sp, fpi, exp, bp, sign),
-	struct _reent *ptr _AND
-	_CONST char **sp _AND
-	FPI *fpi _AND
-	Long *exp _AND
-	_Bigint **bp _AND
-	int sign)
+gethex (struct _reent *ptr, const char **sp, const FPI *fpi,
+	Long *exp, _Bigint **bp, int sign, locale_t loc)
 {
 	_Bigint *b;
 	_CONST unsigned char *decpt, *s0, *s, *s1;
@@ -149,12 +154,10 @@ _DEFUN(gethex, (ptr, sp, fpi, exp, bp, sign),
 	__ULong L, lostbits, *x;
 	Long e, e1;
 	unsigned char *decimalpoint = (unsigned char *)
-				      _localeconv_r (ptr)->decimal_point;
+				      __localeconv_l (loc)->decimal_point;
 	size_t decp_len = strlen ((const char *) decimalpoint);
 	unsigned char decp_end = decimalpoint[decp_len - 1];
 
-	if (!hexdig['0'])
-		hexdig_init();
 	havedig = 0;
 	s0 = *(_CONST unsigned char **)sp + 2;
 	while(s0[havedig] == '0')
@@ -164,28 +167,28 @@ _DEFUN(gethex, (ptr, sp, fpi, exp, bp, sign),
 	decpt = 0;
 	zret = 0;
 	e = 0;
-	if (!hexdig[*s]) {
+	if (!__get_hexdig(*s)) {
 		zret = 1;
 		if (strncmp ((const char *) s, (const char *) decimalpoint,
 			     decp_len) != 0)
 			goto pcheck;
 		decpt = (s += decp_len);
-		if (!hexdig[*s])
+		if (!__get_hexdig(*s))
 			goto pcheck;
 		while(*s == '0')
 			s++;
-		if (hexdig[*s])
+		if (__get_hexdig(*s))
 			zret = 0;
 		havedig = 1;
 		s0 = s;
 		}
-	while(hexdig[*s])
+	while(__get_hexdig(*s))
 		s++;
 	if (strncmp ((const char *) s, (const char *) decimalpoint,
 		     decp_len) == 0
 	    && !decpt) {
 		decpt = (s += decp_len);
-		while(hexdig[*s])
+		while(__get_hexdig(*s))
 			s++;
 		}
 	if (decpt)
@@ -203,12 +206,12 @@ _DEFUN(gethex, (ptr, sp, fpi, exp, bp, sign),
 		  case '+':
 			s++;
 		  }
-		if ((n = hexdig[*s]) == 0 || n > 0x19) {
+		if ((n = __get_hexdig(*s)) == 0 || n > 0x19) {
 			s = s1;
 			break;
 			}
 		e1 = n - 0x10;
-		while((n = hexdig[*++s]) !=0 && n <= 0x19)
+		while((n = __get_hexdig(*++s)) !=0 && n <= 0x19)
 			e1 = 10*e1 + n - 0x10;
 		if (esign)
 			e1 = -e1;
@@ -236,7 +239,7 @@ _DEFUN(gethex, (ptr, sp, fpi, exp, bp, sign),
 			L = 0;
 			n = 0;
 			}
-		L |= (hexdig[*s1] & 0x0f) << n;
+		L |= (__get_hexdig(*s1) & 0x0f) << n;
 		n += 4;
 		}
 	*x++ = L;

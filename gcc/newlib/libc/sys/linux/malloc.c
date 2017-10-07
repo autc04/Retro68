@@ -19,7 +19,7 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-/* $Id: malloc.c,v 1.2 2003/06/20 23:57:47 jjohnstn Exp $
+/* $Id$
 
   This work is mainly derived from malloc-2.6.4 by Doug Lea
   <dl@cs.oswego.edu>, which is available from:

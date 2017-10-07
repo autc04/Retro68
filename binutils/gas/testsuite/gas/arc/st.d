@@ -22,7 +22,7 @@ Disassembly of section .text:
   38:	1c04 1f80 0000 0000 	st	0,\[r12,4\]
 			3c: R_ARC_32_ME	.text\+0x40
   40:	212b 0080           	sr	r1,\[r2\]
-  44:	216b 0380           	sr	r1,\[0xe\]
+  44:	216b 0380           	sr	r1,\[aux_irq_ctrl\]
   48:	262b 7040 0000 03e8 	sr	0x3e8,\[r1\]
   50:	262b 7080 0000 0064 	sr	0x64,\[r2\]
   58:	212b 0f80 0000 2710 	sr	r1,\[0x2710\]

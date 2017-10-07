@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -476,8 +476,8 @@ function Par (Configuration_Pragmas : Boolean) return List_Id is
       --  subprogram specifications and bodies the field holds the correponding
       --  program unit name. For task declarations and bodies, protected types
       --  and bodies, and accept statements the field hold the name of the type
-      --  or operation. For if-statements, case-statements, and selects, the
-      --  field is initialized to Error.
+      --  or operation. For if-statements, case-statements, return statements,
+      --  and selects, the field is initialized to Error.
 
       --  Note: this is a bit of an odd (mis)use of Error, since there is no
       --  Error, but we use this value as a place holder to indicate that it
@@ -1481,10 +1481,12 @@ begin
 
                   --  Give error if bad pragma
 
-                  if not Is_Configuration_Pragma_Name (Pragma_Name (P_Node))
-                    and then Pragma_Name (P_Node) /= Name_Source_Reference
+                  if not Is_Configuration_Pragma_Name
+                           (Pragma_Name_Unmapped (P_Node))
+                    and then
+                      Pragma_Name_Unmapped (P_Node) /= Name_Source_Reference
                   then
-                     if Is_Pragma_Name (Pragma_Name (P_Node)) then
+                     if Is_Pragma_Name (Pragma_Name_Unmapped (P_Node)) then
                         Error_Msg_N
                           ("only configuration pragmas allowed " &
                            "in configuration file", P_Node);
@@ -1611,7 +1613,7 @@ begin
                          Name (Name'First .. Name'First + 3) = "ada."
                      then
                         Error_Msg
-                          ("user-defined descendents of package Ada " &
+                          ("user-defined descendants of package Ada " &
                              "are not allowed",
                            Sloc (Unit (Comp_Unit_Node)));
 
@@ -1620,7 +1622,7 @@ begin
                          Name (Name'First .. Name'First + 10) = "interfaces."
                      then
                         Error_Msg
-                          ("user-defined descendents of package Interfaces " &
+                          ("user-defined descendants of package Interfaces " &
                              "are not allowed",
                            Sloc (Unit (Comp_Unit_Node)));
 
@@ -1633,7 +1635,7 @@ begin
                                                                  "system.rpc.")
                      then
                         Error_Msg
-                          ("user-defined descendents of package System " &
+                          ("user-defined descendants of package System " &
                              "are not allowed",
                            Sloc (Unit (Comp_Unit_Node)));
                      end if;

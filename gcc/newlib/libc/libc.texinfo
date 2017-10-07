@@ -1,19 +1,19 @@
 \input texinfo.tex
 @setfilename libc.info
-@syncodeindex fn cp
 
 @ifinfo
 @format
-START-INFO-DIR-ENTRY
-* libc::                        The ANSI C library.
-END-INFO-DIR-ENTRY
+@dircategory Newlib
+@direntry
+* libc: (libc).                 The ANSI C library.
+@end direntry
 @end format
 @end ifinfo
 
 @ifinfo
 This file documents the ANSI C library.
 
-Copyright (C) 1992, 1993, 1994-2011 Red Hat, Inc.
+Copyright (C) 1992, 1993, 1994-2014 Red Hat, Inc.
 
 @file{libc} includes software developed by the
 University of California, Berkeley and its contributors.
@@ -69,8 +69,8 @@ into another language, under the above conditions for modified versions.
 @title The Red Hat newlib C Library
 @subtitle Full Configuration
 @sp 1
-@subtitle @code{libc} 1.20.0
-@subtitle December 2010
+@subtitle @code{libc} 2.2.0
+@subtitle December 2014
 @author {Steve Chamberlain}
 @author {Roland Pesch}
 @author {Red Hat Support}
@@ -172,7 +172,7 @@ into another language, under the above conditions for modified versions.
 * Iconv::
 @end ifset
 
-* Library Index::
+* Document Index::
 @end menu
 @end ifnottex
 
@@ -424,12 +424,12 @@ argument list @var{ap} any further.
 The @code{va_end} defined in @file{varargs.h} has the same syntax and
 usage as the ANSI C version from @file{stdarg.h}.
 
-@node Library Index
-@unnumbered Index
+@node Document Index
+@unnumbered Document Index
 @printindex cp
 
 @tex
-% I think something like @colophon should be in texinfo.  In the
+% I think something like @@colophon should be in texinfo.  In the
 % meantime:
 \long\def\colophon{\hbox to0pt{}\vfill
 \centerline{The body of this manual is set in}
@@ -440,7 +440,7 @@ usage as the ANSI C version from @file{stdarg.h}.
 \centerline{{\sl\fontname\tensl\/}}
 \centerline{are used for emphasis.}\vfill}
 \page\colophon
-% Blame: pesch@cygnus.com, 28mar91.
+% Blame: pesch@@cygnus.com, 28mar91.
 @end tex
 
 @contents

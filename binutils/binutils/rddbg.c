@@ -299,7 +299,10 @@ read_symbol_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
 	  *pfound = TRUE;
 
 	  s = i.name;
+	  if (s == NULL || strlen (s) < 1)
+	    return FALSE;
 	  f = NULL;
+
 	  while (s[strlen (s) - 1] == '\\'
 		 && ps + 1 < symend)
 	    {

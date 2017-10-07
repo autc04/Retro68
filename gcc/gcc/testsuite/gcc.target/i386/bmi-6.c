@@ -1,5 +1,4 @@
 /* { dg-do link } */
-/* { dg-xfail-if "PR 78057" { "*-*-*" } { "*" } { "" } } */
 /* { dg-options "-O2 -mbmi" } */
 
 #include <x86intrin.h>

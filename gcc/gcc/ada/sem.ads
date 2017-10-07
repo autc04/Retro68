@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -122,7 +122,7 @@
 --        xx : x := y * z;
 --      end record;
 
---      for x'small use 0.25
+--      for x'small use 0.25;
 
 --  The expander is in charge of dealing with fixed-point, and of course the
 --  small declaration, which is not too late, since the declaration of type q
@@ -252,6 +252,11 @@ package Sem is
    --  future (e.g. if let expressions are added to Ada) so we prepare for that
    --  future possibility by making it a counter. As with In_Spec_Expression,
    --  it must be recursively saved and restored for a Semantics call.
+
+   In_Compile_Time_Warning_Or_Error : Boolean := False;
+   --  Switch to indicate that we are validating a pragma Compile_Time_Warning
+   --  or Compile_Time_Error after the back end has been called (to check these
+   --  pragmas for size and alignment appropriateness).
 
    In_Default_Expr : Boolean := False;
    --  Switch to indicate that we are analyzing a default component expression.
@@ -461,6 +466,11 @@ package Sem is
    --  Transient blocks have three associated actions list, to be inserted
    --  before and after the block's statements, and as cleanup actions.
 
+   Configuration_Component_Alignment : Component_Alignment_Kind :=
+                                         Calign_Default;
+   --  Used for handling the pragma Component_Alignment in the context of a
+   --  configuration file.
+
    type Scope_Stack_Entry is record
       Entity : Entity_Id;
       --  Entity representing the scope
@@ -513,8 +523,8 @@ package Sem is
       --  See Sem_Ch10 (Install_Parents, Remove_Parents).
 
       Node_To_Be_Wrapped : Node_Id;
-      --  Only used in transient scopes. Records the node which will
-      --  be wrapped by the transient block.
+      --  Only used in transient scopes. Records the node which will be wrapped
+      --  by the transient block.
 
       Actions_To_Be_Wrapped : Scope_Actions;
       --  Actions that have to be inserted at the start, at the end, or as
@@ -569,6 +579,9 @@ package Sem is
 
    procedure Lock;
    --  Lock internal tables before calling back end
+
+   procedure Unlock;
+   --  Unlock internal tables
 
    procedure Semantics (Comp_Unit : Node_Id);
    --  This procedure is called to perform semantic analysis on the specified

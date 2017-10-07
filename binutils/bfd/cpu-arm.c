@@ -335,8 +335,8 @@ bfd_arm_update_notes (bfd *abfd, const char *note_section)
 	{
 	  _bfd_error_handler
 	    /* xgettext: c-format */
-	    (_("warning: unable to update contents of %s section in %s"),
-	     note_section, bfd_get_filename (abfd));
+	    (_("warning: unable to update contents of %s section in %B"),
+	     note_section, abfd);
 	  goto FAIL;
 	}
     }

@@ -22,7 +22,7 @@
 #include "sysdep.h"
 #include <assert.h>
 
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opcode/ia64.h"
 
 #define NELEMS(a)	((int) (sizeof (a) / sizeof (a[0])))

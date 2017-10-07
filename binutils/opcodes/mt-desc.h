@@ -25,6 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef MT_CPU_H
 #define MT_CPU_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CGEN_ARCH mt
 
 /* Given symbol S, return mt_cgen_<S>.  */
@@ -295,5 +299,9 @@ extern CGEN_KEYWORD mt_cgen_opval_h_spr;
 extern const CGEN_HW_ENTRY mt_cgen_hw_table[];
 
 
+
+   #ifdef __cplusplus
+   }
+   #endif
 
 #endif /* MT_CPU_H */

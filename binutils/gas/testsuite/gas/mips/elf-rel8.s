@@ -46,6 +46,12 @@ foo:
 	sw	$4,%gp_rel(gvar)($28)
 	addiu	$4,$28,%gp_rel(gvar)
 
+	# Check the alternative form.
+
+	lw	$4,%gprel(gvar)($28)
+	sw	$4,%gprel(gvar)($28)
+	addiu	$4,$28,%gprel(gvar)
+
 	.space	64
 	.end	foo
 

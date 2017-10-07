@@ -24,7 +24,7 @@
 #include "bfd.h"
 #include "elf/tilegx.h"
 #include "elf-bfd.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opcode/tilegx.h"
 
 

@@ -1,5 +1,5 @@
 /* Character scanner.
-   Copyright (C) 2000-2016 Free Software Foundation, Inc.
+   Copyright (C) 2000-2017 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -1406,15 +1406,16 @@ restart:
 	      if (i == 4)
 		old_loc = gfc_current_locus;
 	    }
-	  gfc_error (is_openmp ? "Wrong OpenACC continuation at %C: "
-		     "expected !$ACC, got !$OMP"
-		     : "Wrong OpenMP continuation at %C: "
-		     "expected !$OMP, got !$ACC");
+	  gfc_error (is_openmp
+		     ? G_("Wrong OpenACC continuation at %C: "
+			  "expected !$ACC, got !$OMP")
+		     : G_("Wrong OpenMP continuation at %C: "
+			  "expected !$OMP, got !$ACC"));
 	}
 
       if (c != '&')
 	{
-	  if (in_string)
+	  if (in_string && gfc_current_locus.nextc)
 	    {
 	      gfc_current_locus.nextc--;
 	      if (warn_ampersand && in_string == INSTRING_WARN)
@@ -1427,7 +1428,10 @@ restart:
 	  /* Both !$omp and !$ -fopenmp continuation lines have & on the
 	     continuation line only optionally.  */
 	  else if (openmp_flag || openacc_flag || openmp_cond_flag)
-	    gfc_current_locus.nextc--;
+	    {
+	      if (gfc_current_locus.nextc)
+		  gfc_current_locus.nextc--;
+	    }
 	  else
 	    {
 	      c = ' ';
@@ -1499,10 +1503,11 @@ restart:
 	      if (gfc_wide_tolower (c) != (unsigned char) "*$acc"[i])
 		is_openmp = 1;
 	    }
-	  gfc_error (is_openmp ? "Wrong OpenACC continuation at %C: "
-		     "expected !$ACC, got !$OMP"
-		     : "Wrong OpenMP continuation at %C: "
-		     "expected !$OMP, got !$ACC");
+	  gfc_error (is_openmp
+		     ? G_("Wrong OpenACC continuation at %C: "
+			  "expected !$ACC, got !$OMP")
+		     : G_("Wrong OpenMP continuation at %C: "
+			  "expected !$OMP, got !$ACC"));
 	}
       else if (!openmp_flag && !openacc_flag)
 	for (i = 0; i < 5; i++)

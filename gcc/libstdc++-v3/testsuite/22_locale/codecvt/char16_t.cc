@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2016 Free Software Foundation, Inc.
+// Copyright (C) 2015-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++11" }
+// { dg-do run { target c++11 } }
 // { dg-require-cstdint "" }
 
 // [locale.codecvt], C++11 22.4.1.4.  specialization.
@@ -34,7 +34,7 @@ test01()
   const codecvt_c16* const cvt = &use_facet<codecvt_c16>(loc_c);
 
   VERIFY(!cvt->always_noconv());
-  VERIFY(cvt->max_length() == 3);
+  VERIFY(cvt->max_length() == 4);
   VERIFY(cvt->encoding() == 0);
 
   const char u8dat[] = u8"H\U000000E4ll\U000000F6 \U0001F63F \U000056FD "

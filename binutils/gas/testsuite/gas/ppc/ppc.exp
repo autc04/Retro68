@@ -50,6 +50,7 @@ if { [istarget powerpc*-*-*] } then {
 	run_dump_test "common"
 	run_dump_test "476"
 	run_dump_test "a2"
+	run_dump_test "pr21303"
 	if { ![istarget powerpc*le-*-*] } then {
 	    run_dump_test "vle"
 	    run_dump_test "vle-reloc"

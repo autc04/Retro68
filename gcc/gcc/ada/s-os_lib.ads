@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1995-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 1995-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -375,7 +375,7 @@ package System.OS_Lib is
    function File_Time_Stamp (Name : String) return OS_Time;
    --  Given the name of a file or directory, Name, obtains and returns the
    --  time stamp. This function can be used for an unopened file. Returns
-   --  Invalid_Time is Name doesn't correspond to an existing file.
+   --  Invalid_Time if Name doesn't correspond to an existing file.
 
    function File_Time_Stamp (FD : File_Descriptor) return OS_Time;
    --  Get time stamp of file from file descriptor FD Returns Invalid_Time is
@@ -425,7 +425,7 @@ package System.OS_Lib is
    --  not actually be readable due to some other process having exclusive
    --  access.
 
-   function Is_Readable_File (Name : String) return Boolean;
+   function Is_Owner_Readable_File (Name : String) return Boolean;
    --  Determines if the given string, Name, is the name of an existing file
    --  that is readable. Returns True if so, False otherwise. Note that this
    --  function simply interrogates the file attributes (e.g. using the C
@@ -449,13 +449,29 @@ package System.OS_Lib is
    --  contains the name of the file to which it is linked. Symbolic links may
    --  span file systems and may refer to directories.
 
-   function Is_Writable_File (Name : String) return Boolean;
+   function Is_Owner_Writable_File (Name : String) return Boolean;
    --  Determines if the given string, Name, is the name of an existing file
    --  that is writable. Returns True if so, False otherwise. Note that this
    --  function simply interrogates the file attributes (e.g. using the C
    --  function stat), so it does not indicate a situation in which a file may
-   --  not actually be writeable due to some other process having exclusive
+   --  not actually be writable due to some other process having exclusive
    --  access.
+
+   function Is_Read_Accessible_File (Name : String) return Boolean;
+   --  Determines if the given string, Name, is the name of an existing file
+   --  that is readable. Returns True if so, False otherwise.
+
+   function Is_Write_Accessible_File (Name : String) return Boolean;
+   --  Determines if the given string, Name, is the name of an existing file
+   --  that is writable. Returns True if so, False otherwise.
+
+   function Is_Readable_File (Name : String) return Boolean
+     renames Is_Read_Accessible_File;
+   function Is_Writable_File (Name : String) return Boolean
+     renames Is_Write_Accessible_File;
+   --  These subprograms provided for backward compatibility and should not be
+   --  used. Use Is_Owner_Readable_File/Is_Owner_Writable_File or
+   --  Is_Read_Accessible_File/Is_Write_Accessible_File instead.
 
    function Locate_Exec_On_Path (Exec_Name : String) return String_Access;
    --  Try to locate an executable whose name is given by Exec_Name in the
@@ -646,8 +662,6 @@ package System.OS_Lib is
    --  This subtype is used to document that a parameter is the address of a
    --  null-terminated string containing the name of a file.
 
-   --  All the following functions need comments ???
-
    procedure Copy_File
      (Name     : C_File_Name;
       Pathname : C_File_Name;
@@ -671,14 +685,13 @@ package System.OS_Lib is
    procedure Delete_File (Name : C_File_Name; Success : out Boolean);
 
    function File_Time_Stamp (Name : C_File_Name) return OS_Time;
-   --  Returns Invalid_Time is Name doesn't correspond to an existing file
 
    function Is_Directory (Name : C_File_Name) return Boolean;
    function Is_Executable_File (Name : C_File_Name) return Boolean;
-   function Is_Readable_File (Name : C_File_Name) return Boolean;
+   function Is_Owner_Readable_File (Name : C_File_Name) return Boolean;
    function Is_Regular_File (Name : C_File_Name) return Boolean;
    function Is_Symbolic_Link (Name : C_File_Name) return Boolean;
-   function Is_Writable_File (Name : C_File_Name) return Boolean;
+   function Is_Owner_Writable_File (Name : C_File_Name) return Boolean;
 
    function Locate_Regular_File
      (File_Name : C_File_Name;
@@ -722,6 +735,10 @@ package System.OS_Lib is
 
    Invalid_Pid : constant Process_Id;
    --  A special value used to indicate errors, as described below
+
+   function Current_Process_Id return Process_Id;
+   --  Returns the current process id or Invalid_Pid if not supported by the
+   --  runtime.
 
    function Argument_String_To_List
      (Arg_String : String) return Argument_List_Access;
@@ -1060,6 +1077,7 @@ private
    pragma Import (C, Path_Separator, "__gnat_path_separator");
    pragma Import (C, Directory_Separator, "__gnat_dir_separator");
    pragma Import (C, Current_Time, "__gnat_current_time");
+   pragma Import (C, Current_Process_Id, "__gnat_current_process_id");
 
    type OS_Time is
      range -(2 ** (Standard'Address_Size - Integer'(1))) ..

@@ -69,7 +69,7 @@ if ![ld_assemble $as $srcdir/$subdir/lcall2.s tmpdir/lcall2.o] {
 set object "tmpdir/lcall"
 set outputfile "$object.txt"
 
-if ![ld_simple_link $ld $object "-T $srcdir/$subdir/lcall.t tmpdir/lcall1.o tmpdir/lcall2.o"] {
+if ![ld_link $ld $object "-T $srcdir/$subdir/lcall.t tmpdir/lcall1.o tmpdir/lcall2.o"] {
     verbose -log "failure in ld"
     fail $testname
     return

@@ -3,5 +3,5 @@
 #ld:
 #readelf: -S
 
-There are . section headers, starting at offset 0x[0-9a-f]+:
+There are \d+ section headers, starting at offset 0x[0-9a-f]+:
 #...

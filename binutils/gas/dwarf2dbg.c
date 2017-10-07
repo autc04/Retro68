@@ -121,7 +121,7 @@
 # define DWARF2_USE_FIXED_ADVANCE_PC	linkrelax
 #endif
 
-/* First special line opcde - leave room for the standard opcodes.
+/* First special line opcode - leave room for the standard opcodes.
    Note: If you want to change this, you'll have to update the
    "standard_opcode_lengths" table that is emitted below in
    out_debug_line().  */
@@ -1726,9 +1726,9 @@ out_debug_abbrev (segT abbrev_seg,
       else
 	out_abbrev (DW_AT_ranges, DW_FORM_data8);
     }
-  out_abbrev (DW_AT_name, DW_FORM_string);
-  out_abbrev (DW_AT_comp_dir, DW_FORM_string);
-  out_abbrev (DW_AT_producer, DW_FORM_string);
+  out_abbrev (DW_AT_name, DW_FORM_strp);
+  out_abbrev (DW_AT_comp_dir, DW_FORM_strp);
+  out_abbrev (DW_AT_producer, DW_FORM_strp);
   out_abbrev (DW_AT_language, DW_FORM_data2);
   out_abbrev (0, 0);
 
@@ -1739,15 +1739,11 @@ out_debug_abbrev (segT abbrev_seg,
 /* Emit a description of this compilation unit for .debug_info.  */
 
 static void
-out_debug_info (segT info_seg, segT abbrev_seg, segT line_seg, segT ranges_seg)
+out_debug_info (segT info_seg, segT abbrev_seg, segT line_seg, segT ranges_seg,
+		symbolS *name_sym, symbolS *comp_dir_sym, symbolS *producer_sym)
 {
-  char producer[128];
-  const char *comp_dir;
-  const char *dirname;
   expressionS exp;
   symbolS *info_end;
-  char *p;
-  int len;
   int sizeof_offset;
 
   sizeof_offset = out_header (info_seg, &exp);
@@ -1798,10 +1794,38 @@ out_debug_info (segT info_seg, segT abbrev_seg, segT line_seg, segT ranges_seg)
       TC_DWARF2_EMIT_OFFSET (section_symbol (ranges_seg), sizeof_offset);
     }
 
+  /* DW_AT_name, DW_AT_comp_dir and DW_AT_producer.  Symbols in .debug_str
+     setup in out_debug_str below.  */
+  TC_DWARF2_EMIT_OFFSET (name_sym, sizeof_offset);
+  TC_DWARF2_EMIT_OFFSET (comp_dir_sym, sizeof_offset);
+  TC_DWARF2_EMIT_OFFSET (producer_sym, sizeof_offset);
+
+  /* DW_AT_language.  Yes, this is probably not really MIPS, but the
+     dwarf2 draft has no standard code for assembler.  */
+  out_two (DW_LANG_Mips_Assembler);
+
+  symbol_set_value_now (info_end);
+}
+
+/* Emit the three debug strings needed in .debug_str and setup symbols
+   to them for use in out_debug_info.  */
+static void
+out_debug_str (segT str_seg, symbolS **name_sym, symbolS **comp_dir_sym,
+	       symbolS **producer_sym)
+{
+  char producer[128];
+  const char *comp_dir;
+  const char *dirname;
+  char *p;
+  int len;
+
+  subseg_set (str_seg, 0);
+
   /* DW_AT_name.  We don't have the actual file name that was present
      on the command line, so assume files[1] is the main input file.
      We're not supposed to get called unless at least one line number
      entry was emitted, so this should always be defined.  */
+  *name_sym = symbol_temp_new_now ();
   if (files_in_use == 0)
     abort ();
   if (files[1].dir)
@@ -1823,22 +1847,18 @@ out_debug_info (segT info_seg, segT abbrev_seg, segT line_seg, segT ranges_seg)
   memcpy (p, files[1].filename, len);
 
   /* DW_AT_comp_dir */
+  *comp_dir_sym = symbol_temp_new_now ();
   comp_dir = remap_debug_filename (getpwd ());
   len = strlen (comp_dir) + 1;
   p = frag_more (len);
   memcpy (p, comp_dir, len);
 
   /* DW_AT_producer */
+  *producer_sym = symbol_temp_new_now ();
   sprintf (producer, "GNU AS %s", VERSION);
   len = strlen (producer) + 1;
   p = frag_more (len);
   memcpy (p, producer, len);
-
-  /* DW_AT_language.  Yes, this is probably not really MIPS, but the
-     dwarf2 draft has no standard code for assembler.  */
-  out_two (DW_LANG_Mips_Assembler);
-
-  symbol_set_value_now (info_end);
 }
 
 void
@@ -1907,19 +1927,22 @@ dwarf2_finish (void)
   out_debug_line (line_seg);
 
   /* If this is assembler generated line info, and there is no
-     debug_info already, we need .debug_info and .debug_abbrev
-     sections as well.  */
+     debug_info already, we need .debug_info, .debug_abbrev and
+     .debug_str sections as well.  */
   if (emit_other_sections)
     {
       segT abbrev_seg;
       segT aranges_seg;
       segT ranges_seg;
+      segT str_seg;
+      symbolS *name_sym, *comp_dir_sym, *producer_sym;
 
       gas_assert (all_segs);
 
       info_seg = subseg_new (".debug_info", 0);
       abbrev_seg = subseg_new (".debug_abbrev", 0);
       aranges_seg = subseg_new (".debug_aranges", 0);
+      str_seg = subseg_new (".debug_str", 0);
 
       bfd_set_section_flags (stdoutput, info_seg,
 			     SEC_READONLY | SEC_DEBUGGING);
@@ -1927,6 +1950,10 @@ dwarf2_finish (void)
 			     SEC_READONLY | SEC_DEBUGGING);
       bfd_set_section_flags (stdoutput, aranges_seg,
 			     SEC_READONLY | SEC_DEBUGGING);
+      bfd_set_section_flags (stdoutput, str_seg,
+			     (SEC_READONLY | SEC_DEBUGGING
+			      | SEC_MERGE | SEC_STRINGS));
+      str_seg->entsize = 1;
 
       record_alignment (aranges_seg, ffs (2 * sizeof_address) - 1);
 
@@ -1943,6 +1970,8 @@ dwarf2_finish (void)
 
       out_debug_aranges (aranges_seg, info_seg);
       out_debug_abbrev (abbrev_seg, info_seg, line_seg);
-      out_debug_info (info_seg, abbrev_seg, line_seg, ranges_seg);
+      out_debug_str (str_seg, &name_sym, &comp_dir_sym, &producer_sym);
+      out_debug_info (info_seg, abbrev_seg, line_seg, ranges_seg,
+		      name_sym, comp_dir_sym, producer_sym);
     }
 }

@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *            Copyright (C) 2014-2015, Free Software Foundation, Inc.       *
+ *            Copyright (C) 2014-2016, Free Software Foundation, Inc.       *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -85,6 +85,9 @@ extern HANDLE ProcListEvt;
 #ifdef GNAT_UNICODE_SUPPORT
 
 #define EXPAND_ARGV_RATE 128
+
+int __gnat_do_argv_expansion = 1;
+#pragma weak __gnat_do_argv_expansion
 
 static void
 append_arg (int *index, LPWSTR dir, LPWSTR value,
@@ -166,14 +169,14 @@ __gnat_runtime_initialize(int install_handler)
      char *codepage = getenv ("GNAT_CODE_PAGE");
 
      /* Default code page is UTF-8.  */
-     CurrentCodePage = CP_UTF8;
+     __gnat_current_codepage = CP_UTF8;
 
      if (codepage != NULL)
        {
 	 if (strcmp (codepage, "CP_ACP") == 0)
-	   CurrentCodePage = CP_ACP;
+	   __gnat_current_codepage = CP_ACP;
 	 else if (strcmp (codepage, "CP_UTF8") == 0)
-	   CurrentCodePage = CP_UTF8;
+	   __gnat_current_codepage = CP_UTF8;
        }
    }
 
@@ -182,29 +185,29 @@ __gnat_runtime_initialize(int install_handler)
      char *ccsencoding = getenv ("GNAT_CCS_ENCODING");
 
      /* Default CCS Encoding.  */
-     CurrentCCSEncoding = _O_TEXT;
+     __gnat_current_ccs_encoding = _O_TEXT;
      __gnat_wide_text_translation_required = 0;
 
      if (ccsencoding != NULL)
        {
 	 if (strcmp (ccsencoding, "U16TEXT") == 0)
            {
-             CurrentCCSEncoding = _O_U16TEXT;
+             __gnat_current_ccs_encoding = _O_U16TEXT;
              __gnat_wide_text_translation_required = 1;
            }
 	 else if (strcmp (ccsencoding, "TEXT") == 0)
            {
-             CurrentCCSEncoding = _O_TEXT;
+             __gnat_current_ccs_encoding = _O_TEXT;
              __gnat_wide_text_translation_required = 0;
            }
 	 else if (strcmp (ccsencoding, "WTEXT") == 0)
            {
-             CurrentCCSEncoding = _O_WTEXT;
+             __gnat_current_ccs_encoding = _O_WTEXT;
              __gnat_wide_text_translation_required = 1;
            }
 	 else if (strcmp (ccsencoding, "U8TEXT") == 0)
            {
-             CurrentCCSEncoding = _O_U8TEXT;
+             __gnat_current_ccs_encoding = _O_U8TEXT;
              __gnat_wide_text_translation_required = 1;
            }
        }
@@ -238,7 +241,7 @@ __gnat_runtime_initialize(int install_handler)
 	     quoted = (wargv[k][0] == _T('\''));
 
 	     /* Check for wildcard expansion if the argument is not quoted. */
-	     if (!quoted
+	     if (!quoted && __gnat_do_argv_expansion
 		 && (_tcsstr (wargv[k], _T("?")) != 0 ||
 		     _tcsstr (wargv[k], _T("*")) != 0))
 	       {
@@ -289,7 +292,8 @@ __gnat_runtime_initialize(int install_handler)
 		 /*  No wildcard. Store parameter as-is. Remove quote if
 		     needed. */
 		 append_arg (&argc_expanded, NULL, wargv[k],
-			     &gnat_argv, &last, quoted);
+			     &gnat_argv, &last,
+                             quoted && __gnat_do_argv_expansion);
 	       }
 	   }
 

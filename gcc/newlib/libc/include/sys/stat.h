@@ -7,7 +7,9 @@ extern "C" {
 
 #include <_ansi.h>
 #include <time.h>
+#include <sys/cdefs.h>
 #include <sys/types.h>
+#include <sys/_timespec.h>
 
 /* dj's stat defines _STAT_H_ */
 #ifndef _STAT_H_
@@ -19,7 +21,7 @@ extern "C" {
 #ifdef __CYGWIN__
 #include <cygwin/stat.h>
 #ifdef _COMPILING_NEWLIB
-#define stat64 __stat64
+#define stat64 stat
 #endif
 #else
 struct	stat 
@@ -51,8 +53,8 @@ struct	stat
   long		st_spare2;
   time_t	st_ctime;
   long		st_spare3;
-  long		st_blksize;
-  long		st_blocks;
+  blksize_t	st_blksize;
+  blkcnt_t	st_blocks;
   long	st_spare4[2];
 #endif
 #endif
@@ -80,12 +82,12 @@ struct	stat
 #define	S_ISUID		0004000	/* set user id on execution */
 #define	S_ISGID		0002000	/* set group id on execution */
 #define	S_ISVTX		0001000	/* save swapped text even after use */
-#ifndef	_POSIX_SOURCE
+#if __BSD_VISIBLE
 #define	S_IREAD		0000400	/* read permission, owner */
 #define	S_IWRITE 	0000200	/* write permission, owner */
 #define	S_IEXEC		0000100	/* execute/search permission, owner */
 #define	S_ENFMT 	0002000	/* enforcement-mode locking */
-#endif	/* !_POSIX_SOURCE */
+#endif	/* !_BSD_VISIBLE */
 
 #define	S_IFMT		_IFMT
 #define	S_IFDIR		_IFDIR
@@ -122,7 +124,7 @@ struct	stat
 #define		S_IWOTH	0000002	/* write permission, other */
 #define		S_IXOTH 0000001/* execute/search permission, other */
 
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 #define ACCESSPERMS (S_IRWXU | S_IRWXG | S_IRWXO) /* 0777 */
 #define ALLPERMS (S_ISUID | S_ISGID | S_ISVTX | S_IRWXU | S_IRWXG | S_IRWXO) /* 07777 */
 #define DEFFILEMODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH) /* 0666 */
@@ -147,21 +149,23 @@ int     _EXFUN(fchmod,(int __fd, mode_t __mode));
 int	_EXFUN(fstat,( int __fd, struct stat *__sbuf ));
 int	_EXFUN(mkdir,( const char *_path, mode_t __mode ));
 int	_EXFUN(mkfifo,( const char *__path, mode_t __mode ));
-int	_EXFUN(stat,( const char *__path, struct stat *__sbuf ));
+int	_EXFUN(stat,( const char *__restrict __path, struct stat *__restrict __sbuf ));
 mode_t	_EXFUN(umask,( mode_t __mask ));
 
 #if defined (__SPU__) || defined(__rtems__) || defined(__CYGWIN__) && !defined(__INSIDE_CYGWIN__)
-int	_EXFUN(lstat,( const char *__path, struct stat *__buf ));
+int	_EXFUN(lstat,( const char *__restrict __path, struct stat *__restrict __buf ));
 int	_EXFUN(mknod,( const char *__path, mode_t __mode, dev_t __dev ));
 #endif
 
-#if defined (__CYGWIN__) && !defined(__INSIDE_CYGWIN__)
+#if __ATFILE_VISIBLE && !defined(__INSIDE_CYGWIN__)
 int	_EXFUN(fchmodat, (int, const char *, mode_t, int));
-int	_EXFUN(fstatat, (int, const char *, struct stat *, int));
+int	_EXFUN(fstatat, (int, const char *__restrict , struct stat *__restrict, int));
 int	_EXFUN(mkdirat, (int, const char *, mode_t));
 int	_EXFUN(mkfifoat, (int, const char *, mode_t));
 int	_EXFUN(mknodat, (int, const char *, mode_t, dev_t));
 int	_EXFUN(utimensat, (int, const char *, const struct timespec *, int));
+#endif
+#if __POSIX_VISIBLE >= 200809 && !defined(__INSIDE_CYGWIN__)
 int	_EXFUN(futimens, (int, const struct timespec *));
 #endif
 
@@ -169,9 +173,11 @@ int	_EXFUN(futimens, (int, const struct timespec *));
    provided in newlib for some compilers.  */
 #ifdef _COMPILING_NEWLIB
 int	_EXFUN(_fstat,( int __fd, struct stat *__sbuf ));
-int	_EXFUN(_stat,( const char *__path, struct stat *__sbuf ));
+int	_EXFUN(_stat,( const char *__restrict __path, struct stat *__restrict __sbuf ));
+int	_EXFUN(_mkdir,( const char *_path, mode_t __mode ));
 #ifdef __LARGE64_FILES
 struct stat64;
+int	_EXFUN(_stat64,( const char *__restrict __path, struct stat64 *__restrict __sbuf ));
 int	_EXFUN(_fstat64,( int __fd, struct stat64 *__sbuf ));
 #endif
 #endif

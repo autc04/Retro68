@@ -3300,6 +3300,11 @@ bool
 Layout::segment_precedes(const Output_segment* seg1,
 			 const Output_segment* seg2)
 {
+  // In order to produce a stable ordering if we're called with the same pointer
+  // return false.
+  if (seg1 == seg2)
+    return false;
+
   elfcpp::Elf_Word type1 = seg1->type();
   elfcpp::Elf_Word type2 = seg2->type();
 

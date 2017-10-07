@@ -81,7 +81,7 @@ struct cris_prefix
   expressionS expr;
 
   /* If there's an expression, we might need a relocation.  Here's the
-     type of what relocation to start relaxaton with.
+     type of what relocation to start relaxation with.
      The relocation is assumed to start immediately after the prefix insn,
      so we don't provide an offset.  */
   enum bfd_reloc_code_real reloc;

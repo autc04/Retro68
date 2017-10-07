@@ -54,7 +54,6 @@
 # 	combination of .init sections.
 #	FINI_START, FINI_END - statements just before and just after
 # 	combination of .fini sections.
-#	STACK_ADDR - start of a .stack section.
 #	OTHER_SYMBOLS - symbols to place right at the end of the script.
 #	ETEXT_NAME - name of a symbol for the end of the text section,
 #		normally etext.
@@ -242,11 +241,6 @@ DTOR=".dtors     ADDR(.ctors) + SIZEOF(.ctors)    ${CONSTRUCTING-0} :
     KEEP (*(.dtors))
     ${CONSTRUCTING+${DTOR_END}}
   }   /*> INTERNAL_RAM*/ "
-STACK="  .stack        ${RELOCATING-0}${RELOCATING+${STACK_ADDR}} :
-  {
-    ${RELOCATING+___stack = .;}
-    *(.stack)
-  }"
 
 # If this is for an embedded system, don't add SIZEOF_HEADERS.
 if [ -z "$EMBEDDED" ]; then
@@ -608,6 +602,12 @@ cat <<EOF
   ${RELOCATING+${OTHER_END_SYMBOLS}}
   ${RELOCATING+${END_SYMBOLS-${USER_LABEL_PREFIX}_end = .; PROVIDE (${USER_LABEL_PREFIX}end = .);}}
   ${RELOCATING+${DATA_SEGMENT_END}}
+
+  PROVIDE ( __stack_start_ = ORIGIN(EXTERNAL_DRAM_0) + __PROG_SIZE_FOR_CORE__ * __CORE_NUM_ + __PROG_SIZE_FOR_CORE__  - 0x10) ;
+  .stack ${RELOCATING+__stack_start_} :  {    ${RELOCATING+___stack = .;}    *(.stack)  }
+
+  PROVIDE (  ___heap_start = ORIGIN(EXTERNAL_DRAM_1)  + __HEAP_SIZE_FOR_CORE__ * __CORE_NUM_ );
+  PROVIDE (  ___heap_end =   ORIGIN(EXTERNAL_DRAM_1)  + __HEAP_SIZE_FOR_CORE__ * __CORE_NUM_  + __HEAP_SIZE_FOR_CORE__ - 4 );
 EOF
 
 if test -n "${NON_ALLOC_DYN}"; then
@@ -640,23 +640,6 @@ EOF
 . $srcdir/scripttempl/DWARF.sc
 
 cat <<EOF
-  ${TINY_DATA_SECTION}
-  ${TINY_BSS_SECTION}
-
-  /*${STACK_ADDR+${STACK}}*/
-  
-  PROVIDE ( __stack_start_ = ORIGIN(EXTERNAL_DRAM_0) + __PROG_SIZE_FOR_CORE__ * __CORE_NUM_ + __PROG_SIZE_FOR_CORE__  - 0x10) ;
-  .stack ${RELOCATING+__stack_start_} :  {    ___stack = .;    *(.stack)  }
-
-  PROVIDE (  ___heap_start = ORIGIN(EXTERNAL_DRAM_1)  + __HEAP_SIZE_FOR_CORE__ * __CORE_NUM_ );
-  /*.heap_start      __heap_start_    :  {    _heap_start_ = .;    *(.heap_start)  }*/
-
-  PROVIDE (  ___heap_end =   ORIGIN(EXTERNAL_DRAM_1)  + __HEAP_SIZE_FOR_CORE__ * __CORE_NUM_  + __HEAP_SIZE_FOR_CORE__ - 4 );
-  
-  
- /* .heap_end      __heap_end_    :  {    _heap_end_ = .;    *(.heap_end)  }*/
-
-
   ${ATTRS_SECTIONS}
   ${OTHER_SECTIONS}
   ${RELOCATING+${OTHER_SYMBOLS}}

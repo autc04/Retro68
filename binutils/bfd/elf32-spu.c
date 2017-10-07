@@ -1019,7 +1019,7 @@ needs_ovl_stub (struct elf_link_hash_entry *h,
 	      _bfd_error_handler
 		/* xgettext:c-format */
 		(_("warning: call to non-function symbol %s defined in %B"),
-		 sym_sec->owner, sym_name);
+		 sym_name, sym_sec->owner);
 
 	    }
 	}

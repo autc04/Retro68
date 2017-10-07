@@ -31,7 +31,7 @@ set testbsrweak "MeP bsr to undefined weak function"
 
 if ![ld_assemble $as "$srcdir/$subdir/mep1.s" tmpdir/mep1.o] {
     unresolved $testbsrweak
-} else { if ![ld_simple_link $ld tmpdir/mep1 "-T$srcdir/$subdir/mep1.ld tmpdir/mep1.o"] {
+} else { if ![ld_link $ld tmpdir/mep1 "-T$srcdir/$subdir/mep1.ld tmpdir/mep1.o"] {
     fail $testbsrweak
 } else {
     pass $testbsrweak

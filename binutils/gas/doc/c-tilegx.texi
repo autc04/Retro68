@@ -314,7 +314,7 @@ also checks that the value does not overflow.
 
 @item tls_gd_call
 
-This modifier is used to tag an instrution as the ``call'' part of a
+This modifier is used to tag an instruction as the ``call'' part of a
 calling sequence for a TLS GD reference of its operand.
 
 @item tls_gd_add

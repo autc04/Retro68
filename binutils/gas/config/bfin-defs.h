@@ -79,7 +79,7 @@ typedef enum
 #define T_REG_A       0x40
 
 /* All registers above this value don't
-   belong to a usuable register group.  */
+   belong to a usable register group.  */
 #define T_NOGROUP     0xa0
 
 /* Flags.  */

@@ -406,7 +406,7 @@ int iclasses_seen;		/* OR of instruction classes (I_* constants)
         of branches taken/not-taken for later input to a utility that will
         set the branch prediction bits of the instructions in accordance with
         the behavior observed.  (Note that the KX series does not have
-        brach-prediction.)
+        branch-prediction.)
 
         The instrumentation consists of:
 
@@ -980,7 +980,7 @@ parse_memop (memS *memP,	/* Where to put the results.  */
 	  regnum = *intP;
 	  *p = '\0';		/* Discard register spec.  */
 	  if (regnum == IPREL)
-	    /* We have to specialcase ip-rel mode.  */
+	    /* We have to special-case ip-rel mode.  */
 	    iprel_flag = 1;
 	  else
 	    {
@@ -1404,7 +1404,7 @@ get_args (char *p, 	/* Pointer to comma-separated operands; Mucked by us.  */
   n = 1;
   args[1] = p;
 
-  /* Squeze blanks out by moving non-blanks toward start of string.
+  /* Squeeze blanks out by moving non-blanks toward start of string.
      Isolate operands, whenever comma is found.  */
   to = p;
   while (*p != '\0')
@@ -1646,7 +1646,7 @@ md_assemble (char *textP)
   if (!oP || !targ_has_iclass (oP->iclass))
     as_bad (_("invalid opcode, \"%s\"."), args[0]);
   else if (n_ops != oP->num_ops)
-    as_bad (_("improper number of operands.  expecting %d, got %d"),
+    as_bad (_("improper number of operands.  Expecting %d, got %d"),
 	    oP->num_ops, n_ops);
   else
     {

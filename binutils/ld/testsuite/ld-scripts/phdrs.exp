@@ -48,7 +48,7 @@ if [is_elf64 tmpdir/phdrs.o] {
 }
 
 set ldopt "$ldopt -T $srcdir/$subdir/phdrs.t tmpdir/phdrs.o"
-if ![ld_simple_link $ld tmpdir/phdrs $ldopt] {
+if ![ld_link $ld tmpdir/phdrs $ldopt] {
     fail $testname
 } else {
     if {![is_remote host] && [which $objdump] == 0} {

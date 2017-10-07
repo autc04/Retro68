@@ -2132,7 +2132,7 @@ elf_metag_check_relocs (bfd *abfd,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  hh->eh.root.non_ir_ref = 1;
+	  hh->eh.root.non_ir_ref_regular = 1;
 	}
 
       /* Some relocs require a global offset table.  */

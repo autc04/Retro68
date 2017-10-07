@@ -181,7 +181,7 @@ obj_mach_o_make_or_get_sect (char * segname, char * sectname,
      attributes along with the canonical name.  */
   xlat = bfd_mach_o_section_data_for_mach_sect (stdoutput, segname, sectname);
 
-  /* TODO: more checking of whether overides are acually allowed.  */
+  /* TODO: more checking of whether overrides are actually allowed.  */
 
   if (xlat != NULL)
     {
@@ -192,7 +192,7 @@ obj_mach_o_make_or_get_sect (char * segname, char * sectname,
 	  if ((sectype == BFD_MACH_O_S_ZEROFILL
 	       || sectype == BFD_MACH_O_S_GB_ZEROFILL)
 	      && sectype != usectype)
-	    as_bad (_("cannot overide zerofill section type for `%s,%s'"),
+	    as_bad (_("cannot override zerofill section type for `%s,%s'"),
 		    segname, sectname);
 	  else
 	    sectype = usectype;
@@ -308,7 +308,7 @@ obj_mach_o_section (int ignore ATTRIBUTE_UNUSED)
   md_flush_pending_output ();
 #endif
 
-  /* Get the User's segment annd section names.  */
+  /* Get the User's segment and section names.  */
   if (! obj_mach_o_get_section_names (segname, sectname, 17, 17))
     return;
 
@@ -449,7 +449,7 @@ obj_mach_o_zerofill (int ignore ATTRIBUTE_UNUSED)
   md_flush_pending_output ();
 #endif
 
-  /* Get the User's segment annd section names.  */
+  /* Get the User's segment and section names.  */
   if (! obj_mach_o_get_section_names (segname, sectname, 17, 17))
     return;
 

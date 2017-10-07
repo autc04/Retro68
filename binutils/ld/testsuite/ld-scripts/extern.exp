@@ -26,7 +26,7 @@ if ![ld_assemble $as $srcdir/$subdir/extern.s tmpdir/extern.o] {
     return
 }
 
-if ![ld_simple_link $ld tmpdir/extern "-T $srcdir/$subdir/extern.t tmpdir/extern.o"] {
+if ![ld_link $ld tmpdir/extern "-T $srcdir/$subdir/extern.t tmpdir/extern.o"] {
     fail $testname
 }
 

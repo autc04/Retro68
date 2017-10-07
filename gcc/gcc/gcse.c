@@ -1,5 +1,5 @@
 /* Partial redundancy elimination / Hoisting for RTL.
-   Copyright (C) 1997-2016 Free Software Foundation, Inc.
+   Copyright (C) 1997-2017 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -141,8 +141,10 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree.h"
 #include "predict.h"
 #include "df.h"
+#include "memmodel.h"
 #include "tm_p.h"
 #include "insn-config.h"
+#include "print-rtl.h"
 #include "regs.h"
 #include "ira.h"
 #include "recog.h"
@@ -279,7 +281,7 @@ struct gcse_expr
      to keep register pressure under control.
      A value of "0" removes restrictions on how far the expression can
      travel.  */
-  int max_distance;
+  HOST_WIDE_INT max_distance;
 };
 
 /* Occurrence of an expression.
@@ -342,8 +344,7 @@ struct ls_expr
   struct gcse_expr * expr;	/* Gcse expression reference for LM.  */
   rtx pattern;			/* Pattern of this mem.  */
   rtx pattern_regs;		/* List of registers mentioned by the mem.  */
-  rtx_insn_list *loads;		/* INSN list of loads seen.  */
-  rtx_insn_list *stores;	/* INSN list of stores seen.  */
+  vec<rtx_insn *> stores;	/* INSN list of stores seen.  */
   struct ls_expr * next;	/* Next in the list.  */
   int invalid;			/* Invalid for some reason.  */
   int index;			/* If it maps to a bitmap index.  */
@@ -457,7 +458,7 @@ static int oprs_unchanged_p (const_rtx, const rtx_insn *, int);
 static int oprs_anticipatable_p (const_rtx, const rtx_insn *);
 static int oprs_available_p (const_rtx, const rtx_insn *);
 static void insert_expr_in_table (rtx, machine_mode, rtx_insn *, int, int,
-				  int, struct gcse_hash_table_d *);
+				  HOST_WIDE_INT, struct gcse_hash_table_d *);
 static unsigned int hash_expr (const_rtx, machine_mode, int *, int);
 static void record_last_reg_set_info (rtx_insn *, int);
 static void record_last_mem_set_info (rtx_insn *);
@@ -487,8 +488,10 @@ static void alloc_code_hoist_mem (int, int);
 static void free_code_hoist_mem (void);
 static void compute_code_hoist_vbeinout (void);
 static void compute_code_hoist_data (void);
-static int should_hoist_expr_to_dom (basic_block, struct gcse_expr *, basic_block,
-				     sbitmap, int, int *, enum reg_class,
+static int should_hoist_expr_to_dom (basic_block, struct gcse_expr *,
+				     basic_block,
+				     sbitmap, HOST_WIDE_INT, int *,
+				     enum reg_class,
 				     int *, bitmap, rtx_insn *);
 static int hoist_code (void);
 static enum reg_class get_regno_pressure_class (int regno, int *nregs);
@@ -742,7 +745,7 @@ static basic_block current_bb;
    GCSE.  */
 
 static int
-want_to_gcse_p (rtx x, machine_mode mode, int *max_distance_ptr)
+want_to_gcse_p (rtx x, machine_mode mode, HOST_WIDE_INT *max_distance_ptr)
 {
 #ifdef STACK_REGS
   /* On register stack architectures, don't GCSE constants from the
@@ -789,7 +792,7 @@ want_to_gcse_p (rtx x, machine_mode mode, int *max_distance_ptr)
 	/* PRE doesn't implement max_distance restriction.  */
 	{
 	  int cost;
-	  int max_distance;
+	  HOST_WIDE_INT max_distance;
 
 	  gcc_assert (!optimize_function_for_speed_p (cfun)
 		      && optimize_function_for_size_p (cfun));
@@ -797,7 +800,8 @@ want_to_gcse_p (rtx x, machine_mode mode, int *max_distance_ptr)
 
 	  if (cost < COSTS_N_INSNS (GCSE_UNRESTRICTED_COST))
 	    {
-	      max_distance = (GCSE_COST_DISTANCE_RATIO * cost) / 10;
+	      max_distance
+		= ((HOST_WIDE_INT)GCSE_COST_DISTANCE_RATIO * cost) / 10;
 	      if (max_distance == 0)
 		return 0;
 
@@ -1113,7 +1117,8 @@ expr_equiv_p (const_rtx x, const_rtx y)
 static void
 insert_expr_in_table (rtx x, machine_mode mode, rtx_insn *insn,
 		      int antic_p,
-		      int avail_p, int max_distance, struct gcse_hash_table_d *table)
+		      int avail_p, HOST_WIDE_INT max_distance,
+		      struct gcse_hash_table_d *table)
 {
   int found, do_not_record_p;
   unsigned int hash;
@@ -1229,7 +1234,7 @@ hash_scan_set (rtx set, rtx_insn *insn, struct gcse_hash_table_d *table)
   else if (REG_P (dest))
     {
       unsigned int regno = REGNO (dest);
-      int max_distance = 0;
+      HOST_WIDE_INT max_distance = 0;
 
       /* See if a REG_EQUAL note shows this equivalent to a simpler expression.
 
@@ -1298,7 +1303,7 @@ hash_scan_set (rtx set, rtx_insn *insn, struct gcse_hash_table_d *table)
   else if (flag_gcse_las && REG_P (src) && MEM_P (dest))
     {
       unsigned int regno = REGNO (src);
-      int max_distance = 0;
+      HOST_WIDE_INT max_distance = 0;
 
       /* Only record sets of pseudo-regs in the hash table.  */
       if (regno >= FIRST_PSEUDO_REGISTER
@@ -1410,7 +1415,8 @@ dump_hash_table (FILE *file, const char *name, struct gcse_hash_table_d *table)
     if (flat_table[i] != 0)
       {
 	expr = flat_table[i];
-	fprintf (file, "Index %d (hash value %d; max distance %d)\n  ",
+	fprintf (file, "Index %d (hash value %d; max distance "
+		 HOST_WIDE_INT_PRINT_DEC ")\n  ",
 		 expr->bitmap_index, hash_val[i], expr->max_distance);
 	print_rtl (file, expr->expr);
 	fprintf (file, "\n");
@@ -1691,12 +1697,11 @@ free_pre_mem (void)
 static void
 prune_expressions (bool pre_p)
 {
-  sbitmap prune_exprs;
   struct gcse_expr *expr;
   unsigned int ui;
   basic_block bb;
 
-  prune_exprs = sbitmap_alloc (expr_hash_table.n_elems);
+  auto_sbitmap prune_exprs (expr_hash_table.n_elems);
   bitmap_clear (prune_exprs);
   for (ui = 0; ui < expr_hash_table.size; ui++)
     {
@@ -1709,7 +1714,7 @@ prune_expressions (bool pre_p)
 	      continue;
 	    }
 
-	  if (!pre_p && MEM_P (expr->expr))
+	  if (!pre_p && contains_mem_rtx_p (expr->expr))
 	    /* Note memory references that can be clobbered by a call.
 	       We do not split abnormal edges in hoisting, so would
 	       a memory reference get hoisted along an abnormal edge,
@@ -1717,15 +1722,28 @@ prune_expressions (bool pre_p)
 	       constant memory references can be hoisted along abnormal
 	       edges.  */
 	    {
-	      if (GET_CODE (XEXP (expr->expr, 0)) == SYMBOL_REF
-		  && CONSTANT_POOL_ADDRESS_P (XEXP (expr->expr, 0)))
-		continue;
+	      rtx x = expr->expr;
 
-	      if (MEM_READONLY_P (expr->expr)
-		  && !MEM_VOLATILE_P (expr->expr)
-		  && MEM_NOTRAP_P (expr->expr))
-		/* Constant memory reference, e.g., a PIC address.  */
-		continue;
+	      /* Common cases where we might find the MEM which may allow us
+		 to avoid pruning the expression.  */
+	      while (GET_CODE (x) == ZERO_EXTEND || GET_CODE (x) == SIGN_EXTEND)
+		x = XEXP (x, 0);
+
+	      /* If we found the MEM, go ahead and look at it to see if it has
+		 properties that allow us to avoid pruning its expression out
+		 of the tables.  */
+	      if (MEM_P (x))
+		{
+		  if (GET_CODE (XEXP (x, 0)) == SYMBOL_REF
+		      && CONSTANT_POOL_ADDRESS_P (XEXP (x, 0)))
+		    continue;
+
+		  if (MEM_READONLY_P (x)
+		      && !MEM_VOLATILE_P (x)
+		      && MEM_NOTRAP_P (x))
+		    /* Constant memory reference, e.g., a PIC address.  */
+		    continue;
+		}
 
 	      /* ??? Optimally, we would use interprocedural alias
 		 analysis to determine if this mem is actually killed
@@ -1767,8 +1785,6 @@ prune_expressions (bool pre_p)
 	    break;
 	  }
     }
-
-  sbitmap_free (prune_exprs);
 }
 
 /* It may be necessary to insert a large number of insns on edges to
@@ -1783,7 +1799,6 @@ static void
 prune_insertions_deletions (int n_elems)
 {
   sbitmap_iterator sbi;
-  sbitmap prune_exprs;
 
   /* We always use I to iterate over blocks/edges and J to iterate over
      expressions.  */
@@ -1797,7 +1812,7 @@ prune_insertions_deletions (int n_elems)
   /* Set of expressions which require too many insertions relative to
      the number of deletions achieved.  We will prune these out of the
      insertion/deletion sets.  */
-  prune_exprs = sbitmap_alloc (n_elems);
+  auto_sbitmap prune_exprs (n_elems);
   bitmap_clear (prune_exprs);
 
   /* Iterate over the edges counting the number of times each expression
@@ -1835,7 +1850,6 @@ prune_insertions_deletions (int n_elems)
 	bitmap_clear_bit (pre_delete_map[i], j);
     }
 
-  sbitmap_free (prune_exprs);
   free (insertions);
   free (deletions);
 }
@@ -2647,10 +2661,10 @@ add_label_notes (rtx x, rtx_insn *insn)
 	 such a LABEL_REF, so we don't have to handle REG_LABEL_TARGET
 	 notes.  */
       gcc_assert (!JUMP_P (insn));
-      add_reg_note (insn, REG_LABEL_OPERAND, LABEL_REF_LABEL (x));
+      add_reg_note (insn, REG_LABEL_OPERAND, label_ref_label (x));
 
-      if (LABEL_P (LABEL_REF_LABEL (x)))
-	LABEL_NUSES (LABEL_REF_LABEL (x))++;
+      if (LABEL_P (label_ref_label (x)))
+	LABEL_NUSES (label_ref_label (x))++;
 
       return;
     }
@@ -2874,7 +2888,8 @@ update_bb_reg_pressure (basic_block bb, rtx_insn *from)
 
 static int
 should_hoist_expr_to_dom (basic_block expr_bb, struct gcse_expr *expr,
-			  basic_block bb, sbitmap visited, int distance,
+			  basic_block bb, sbitmap visited,
+			  HOST_WIDE_INT distance,
 			  int *bb_size, enum reg_class pressure_class,
 			  int *nregs, bitmap hoisted_bbs, rtx_insn *from)
 {
@@ -3151,7 +3166,7 @@ hoist_code (void)
 		 computes the expression.  */
 	      FOR_EACH_VEC_ELT (domby, j, dominated)
 		{
-		  int max_distance;
+		  HOST_WIDE_INT max_distance;
 
 		  /* Ignore self dominance.  */
 		  if (bb == dominated)
@@ -3605,8 +3620,7 @@ ldst_entry (rtx x)
   ptr->expr         = NULL;
   ptr->pattern      = x;
   ptr->pattern_regs = NULL_RTX;
-  ptr->loads        = NULL;
-  ptr->stores       = NULL;
+  ptr->stores.create (0);
   ptr->reaching_reg = NULL_RTX;
   ptr->invalid      = 0;
   ptr->index        = 0;
@@ -3622,8 +3636,7 @@ ldst_entry (rtx x)
 static void
 free_ldst_entry (struct ls_expr * ptr)
 {
-  free_INSN_LIST_list (& ptr->loads);
-  free_INSN_LIST_list (& ptr->stores);
+  ptr->stores.release ();
 
   free (ptr);
 }
@@ -3663,19 +3676,8 @@ print_ldst_list (FILE * file)
 
       print_rtl (file, ptr->pattern);
 
-      fprintf (file, "\n	 Loads : ");
-
-      if (ptr->loads)
-	print_rtl (file, ptr->loads);
-      else
-	fprintf (file, "(nil)");
-
       fprintf (file, "\n	Stores : ");
-
-      if (ptr->stores)
-	print_rtl (file, ptr->stores);
-      else
-	fprintf (file, "(nil)");
+      print_rtx_insn_vec (file, ptr->stores);
 
       fprintf (file, "\n\n");
     }
@@ -3801,9 +3803,7 @@ compute_ld_motion_mems (void)
 		  if (MEM_P (src) && simple_mem (src))
 		    {
 		      ptr = ldst_entry (src);
-		      if (REG_P (dest))
-			ptr->loads = alloc_INSN_LIST (insn, ptr->loads);
-		      else
+		      if (!REG_P (dest))
 			ptr->invalid = 1;
 		    }
 		  else
@@ -3834,7 +3834,7 @@ compute_ld_motion_mems (void)
 			     returns 0 for all REGs.  */
 			  && can_assign_to_reg_without_clobbers_p (src,
 								    src_mode))
-			ptr->stores = alloc_INSN_LIST (insn, ptr->stores);
+			ptr->stores.safe_push (insn);
 		      else
 			ptr->invalid = 1;
 		    }
@@ -3927,11 +3927,10 @@ update_ld_motion_stores (struct gcse_expr * expr)
 	 where reg is the reaching reg used in the load.  We checked in
 	 compute_ld_motion_mems that we can replace (set mem expr) with
 	 (set reg expr) in that insn.  */
-      rtx list = mem_ptr->stores;
-
-      for ( ; list != NULL_RTX; list = XEXP (list, 1))
+      rtx_insn *insn;
+      unsigned int i;
+      FOR_EACH_VEC_ELT_REVERSE (mem_ptr->stores, i, insn)
 	{
-	  rtx_insn *insn = as_a <rtx_insn *> (XEXP (list, 0));
 	  rtx pat = PATTERN (insn);
 	  rtx src = SET_SRC (pat);
 	  rtx reg = expr->reaching_reg;

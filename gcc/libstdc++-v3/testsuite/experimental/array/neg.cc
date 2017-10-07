@@ -1,7 +1,6 @@
-// { dg-options "-std=gnu++14" }
-// { dg-do compile }
+// { dg-do compile { target c++14 } }
 
-// Copyright (C) 2015-2016 Free Software Foundation, Inc.
+// Copyright (C) 2015-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,10 +18,11 @@
 // <http://www.gnu.org/licenses/>.
 
 #include <experimental/array>
+#include <functional>
 
 int main()
 {
   int dummy;
   auto bad = std::experimental::make_array(std::ref(dummy));
-  // { dg-error "make_array cannot be used without an explicit target type if any of the types given is a reference_wrapper" "" { target *-*-* } 77 }
+  // { dg-error "explicit target type" "" { target *-*-* } 78 }
 }

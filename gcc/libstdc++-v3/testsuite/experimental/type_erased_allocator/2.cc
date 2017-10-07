@@ -1,6 +1,7 @@
-// { dg-options "-std=gnu++14" }
+// { dg-do run { target c++14 } }
+// { dg-require-thread-fence "" }
 
-// Copyright (C) 2015-2016 Free Software Foundation, Inc.
+// Copyright (C) 2015-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -17,10 +18,9 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-#include <memory>
 #include <experimental/memory_resource>
 #include <experimental/utility>
-#include <bits/uses_allocator.h>
+#include <memory>
 #include <testsuite_hooks.h>
 #include <testsuite_allocator.h>
 
@@ -28,7 +28,6 @@ using std::experimental::pmr::polymorphic_allocator;
 using std::experimental::pmr::memory_resource;
 using std::experimental::pmr::new_delete_resource;
 using std::experimental::pmr::get_default_resource;
-using std::experimental::pmr::set_default_resource;
 using std::allocator_arg_t;
 
 enum CtorType { Default, Copy, Move, Other, Tuple, Piecewise_Default, Piecewise_Copy};

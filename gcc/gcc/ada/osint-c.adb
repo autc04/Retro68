@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -292,6 +292,28 @@ package body Osint.C is
       end if;
    end Debug_File_Eol_Length;
 
+   -------------------
+   -- Delete_C_File --
+   -------------------
+
+   procedure Delete_C_File is
+      Dummy : Boolean;
+   begin
+      Set_File_Name ("c");
+      Delete_File (Name_Buffer (1 .. Name_Len), Dummy);
+   end Delete_C_File;
+
+   -------------------
+   -- Delete_H_File --
+   -------------------
+
+   procedure Delete_H_File is
+      Dummy : Boolean;
+   begin
+      Set_File_Name ("h");
+      Delete_File (Name_Buffer (1 .. Name_Len), Dummy);
+   end Delete_H_File;
+
    ---------------------------------
    -- Get_Output_Object_File_Name --
    ---------------------------------
@@ -325,6 +347,14 @@ package body Osint.C is
    is
    begin
       Set_File_Name (ALI_Suffix.all);
+
+      --  Remove trailing NUL that comes from Set_File_Name above. This is
+      --  needed for consistency with names that come from Scan_ALI and thus
+      --  preventing repeated scanning of the same file.
+
+      pragma Assert (Name_Len > 1 and then Name_Buffer (Name_Len) = ASCII.NUL);
+      Name_Len := Name_Len - 1;
+
       Name := Name_Find;
       Text := Read_Library_Info (Name, Fatal_Err => False);
    end Read_Library_Info;

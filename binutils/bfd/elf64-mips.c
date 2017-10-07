@@ -86,14 +86,8 @@ static void mips_elf64_info_to_howto_rel
   (bfd *, arelent *, Elf_Internal_Rela *);
 static void mips_elf64_info_to_howto_rela
   (bfd *, arelent *, Elf_Internal_Rela *);
-static long mips_elf64_get_reloc_upper_bound
-  (bfd *, asection *);
-static long mips_elf64_canonicalize_reloc
-  (bfd *, asection *, arelent **, asymbol **);
 static long mips_elf64_get_dynamic_reloc_upper_bound
   (bfd *);
-static long mips_elf64_canonicalize_dynamic_reloc
-  (bfd *, arelent **, asymbol **);
 static bfd_boolean mips_elf64_slurp_one_reloc_table
   (bfd *, asection *, Elf_Internal_Shdr *, bfd_size_type, arelent *,
    asymbol **, bfd_boolean);
@@ -3652,87 +3646,19 @@ mips_elf64_info_to_howto_rela (bfd *abfd ATTRIBUTE_UNUSED,
    to three relocs, we must tell the user to allocate more space.  */
 
 static long
-mips_elf64_get_reloc_upper_bound (bfd *abfd ATTRIBUTE_UNUSED, asection *sec)
-{
-  return (sec->reloc_count * 3 + 1) * sizeof (arelent *);
-}
-
-static long
 mips_elf64_get_dynamic_reloc_upper_bound (bfd *abfd)
 {
   return _bfd_elf_get_dynamic_reloc_upper_bound (abfd) * 3;
 }
 
-/* We must also copy more relocations than the corresponding functions
-   in elf.c would, so the two following functions are slightly
-   modified from elf.c, that multiply the external relocation count by
-   3 to obtain the internal relocation count.  */
-
-static long
-mips_elf64_canonicalize_reloc (bfd *abfd, sec_ptr section,
-			       arelent **relptr, asymbol **symbols)
-{
-  arelent *tblptr;
-  unsigned int i;
-  const struct elf_backend_data *bed = get_elf_backend_data (abfd);
-
-  if (! bed->s->slurp_reloc_table (abfd, section, symbols, FALSE))
-    return -1;
-
-  tblptr = section->relocation;
-  for (i = 0; i < section->reloc_count * 3; i++)
-    *relptr++ = tblptr++;
-
-  *relptr = NULL;
-
-  return section->reloc_count * 3;
-}
-
-static long
-mips_elf64_canonicalize_dynamic_reloc (bfd *abfd, arelent **storage,
-				       asymbol **syms)
-{
-  bfd_boolean (*slurp_relocs) (bfd *, asection *, asymbol **, bfd_boolean);
-  asection *s;
-  long ret;
-
-  if (elf_dynsymtab (abfd) == 0)
-    {
-      bfd_set_error (bfd_error_invalid_operation);
-      return -1;
-    }
-
-  slurp_relocs = get_elf_backend_data (abfd)->s->slurp_reloc_table;
-  ret = 0;
-  for (s = abfd->sections; s != NULL; s = s->next)
-    {
-      if (elf_section_data (s)->this_hdr.sh_link == elf_dynsymtab (abfd)
-	  && (elf_section_data (s)->this_hdr.sh_type == SHT_REL
-	      || elf_section_data (s)->this_hdr.sh_type == SHT_RELA))
-	{
-	  arelent *p;
-	  long count, i;
-
-	  if (! (*slurp_relocs) (abfd, s, syms, TRUE))
-	    return -1;
-	  count = s->size / elf_section_data (s)->this_hdr.sh_entsize * 3;
-	  p = s->relocation;
-	  for (i = 0; i < count; i++)
-	    *storage++ = p++;
-	  ret += count;
-	}
-    }
-
-  *storage = NULL;
-
-  return ret;
-}
-
 /* Read the relocations from one reloc section.  This is mostly copied
    from elfcode.h, except for the changes to expand one external
-   relocation to 3 internal ones.  We must unfortunately set
-   reloc_count to the number of external relocations, because a lot of
-   generic code seems to depend on this.  */
+   relocation to 3 internal ones.  To reduce processing effort we
+   could discard those R_MIPS_NONE relocations that occupy the second
+   and the third entry of a triplet, as `mips_elf64_write_rel' and
+   `mips_elf64_write_rela' recreate them in output automagically,
+   however that would also remove them from `objdump -r' output,
+   breaking a long-established tradition and likely confusing people.  */
 
 static bfd_boolean
 mips_elf64_slurp_one_reloc_table (bfd *abfd, asection *asect,
@@ -3885,8 +3811,6 @@ mips_elf64_slurp_one_reloc_table (bfd *abfd, asection *asect,
 	}
     }
 
-  asect->reloc_count += (relent - relents) / 3;
-
   if (allocated != NULL)
     free (allocated);
 
@@ -3901,8 +3825,7 @@ mips_elf64_slurp_one_reloc_table (bfd *abfd, asection *asect,
 /* Read the relocations.  On Irix 6, there can be two reloc sections
    associated with a single data section.  This is copied from
    elfcode.h as well, with changes as small as accounting for 3
-   internal relocs per external reloc and resetting reloc_count to
-   zero before processing the relocs of a section.  */
+   internal relocs per external reloc.  */
 
 static bfd_boolean
 mips_elf64_slurp_reloc_table (bfd *abfd, asection *asect,
@@ -3930,7 +3853,7 @@ mips_elf64_slurp_reloc_table (bfd *abfd, asection *asect,
       rel_hdr2 = d->rela.hdr;
       reloc_count2 = (rel_hdr2 ? NUM_SHDR_ENTRIES (rel_hdr2) : 0);
 
-      BFD_ASSERT (asect->reloc_count == reloc_count + reloc_count2);
+      BFD_ASSERT (asect->reloc_count == 3 * (reloc_count + reloc_count2));
       BFD_ASSERT ((rel_hdr && asect->rel_filepos == rel_hdr->sh_offset)
 		  || (rel_hdr2 && asect->rel_filepos == rel_hdr2->sh_offset));
 
@@ -3955,9 +3878,6 @@ mips_elf64_slurp_reloc_table (bfd *abfd, asection *asect,
   relents = bfd_alloc (abfd, amt);
   if (relents == NULL)
     return FALSE;
-
-  /* The slurp_one_reloc_table routine increments reloc_count.  */
-  asect->reloc_count = 0;
 
   if (rel_hdr != NULL
       && ! mips_elf64_slurp_one_reloc_table (abfd, asect,
@@ -4503,11 +4423,7 @@ const struct elf_size_info mips_elf64_size_info =
 #define bfd_elf64_bfd_print_private_bfd_data \
 				_bfd_mips_elf_print_private_bfd_data
 
-#define bfd_elf64_get_reloc_upper_bound mips_elf64_get_reloc_upper_bound
-#define bfd_elf64_canonicalize_reloc mips_elf64_canonicalize_reloc
 #define bfd_elf64_get_dynamic_reloc_upper_bound mips_elf64_get_dynamic_reloc_upper_bound
-#define bfd_elf64_canonicalize_dynamic_reloc mips_elf64_canonicalize_dynamic_reloc
-#define bfd_elf64_bfd_relax_section     _bfd_mips_relax_section
 #define bfd_elf64_mkobject		_bfd_mips_elf_mkobject
 
 /* The SGI style (n)64 NewABI.  */

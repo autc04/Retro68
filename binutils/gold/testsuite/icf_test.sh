@@ -26,6 +26,8 @@
 # File icf_test.cc is in this test. This program checks if the 
 # identical sections are correctly folded.
 
+set -e
+
 check()
 {
     awk "

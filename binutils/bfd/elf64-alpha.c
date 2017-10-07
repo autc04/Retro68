@@ -1838,7 +1838,7 @@ elf64_alpha_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.root.non_ir_ref = 1;
+	  h->root.root.non_ir_ref_regular = 1;
 	  h->root.ref_regular = 1;
 	}
 
@@ -2879,7 +2879,7 @@ elf64_alpha_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 {
   bfd *dynobj;
   asection *s;
-  bfd_boolean relplt;
+  bfd_boolean relplt, relocs;
   struct alpha_elf_link_hash_table * htab;
 
   htab = alpha_elf_hash_table (info);
@@ -2916,6 +2916,7 @@ elf64_alpha_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
      determined the sizes of the various dynamic sections.  Allocate
      memory for them.  */
   relplt = FALSE;
+  relocs = FALSE;
   for (s = dynobj->sections; s != NULL; s = s->next)
     {
       const char *name;
@@ -2933,6 +2934,8 @@ elf64_alpha_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 	    {
 	      if (strcmp (name, ".rela.plt") == 0)
 		relplt = TRUE;
+	      else
+		relocs = TRUE;
 
 	      /* We use the reloc_count field as a counter if we need
 		 to copy relocs into the output file.  */
@@ -2997,15 +3000,18 @@ elf64_alpha_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 	    return FALSE;
 	}
 
-      if (!add_dynamic_entry (DT_RELA, 0)
-	  || !add_dynamic_entry (DT_RELASZ, 0)
-	  || !add_dynamic_entry (DT_RELAENT, sizeof (Elf64_External_Rela)))
-	return FALSE;
-
-      if (info->flags & DF_TEXTREL)
+      if (relocs)
 	{
-	  if (!add_dynamic_entry (DT_TEXTREL, 0))
+	  if (!add_dynamic_entry (DT_RELA, 0)
+	      || !add_dynamic_entry (DT_RELASZ, 0)
+	      || !add_dynamic_entry (DT_RELAENT, sizeof (Elf64_External_Rela)))
 	    return FALSE;
+
+	  if (info->flags & DF_TEXTREL)
+	    {
+	      if (!add_dynamic_entry (DT_TEXTREL, 0))
+		return FALSE;
+	    }
 	}
     }
 #undef add_dynamic_entry

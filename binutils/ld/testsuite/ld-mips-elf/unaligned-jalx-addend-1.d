@@ -5,25 +5,14 @@
 #ld: -EB -Ttext 0x1c000000 -e 0x1c000000
 #error: \A[^\n]*: In function `foo':\n
 #error:   \(\.text\+0x[0-9a-f]+\): Cannot convert a jump to JALX for a non-word-aligned address\n
-#error:   [^\n]*: In function `foo':\n
 #error:   \(\.text\+0x[0-9a-f]+\): Cannot convert a jump to JALX for a non-word-aligned address\n
-#error:   [^\n]*: In function `foo':\n
 #error:   \(\.text\+0x[0-9a-f]+\): Cannot convert a jump to JALX for a non-word-aligned address\n
-#error:   [^\n]*: In function `foo':\n
 #error:   \(\.text\+0x[0-9a-f]+\): Cannot convert a jump to JALX for a non-word-aligned address\n
-#error:   [^\n]*: In function `foo':\n
 #error:   \(\.text\+0x[0-9a-f]+\): Cannot convert a jump to JALX for a non-word-aligned address\n
-#error:   [^\n]*: In function `foo':\n
 #error:   \(\.text\+0x[0-9a-f]+\): Cannot convert a jump to JALX for a non-word-aligned address\n
-#error:   [^\n]*: In function `foo':\n
 #error:   \(\.text\+0x[0-9a-f]+\): Cannot convert a jump to JALX for a non-word-aligned address\n
-#error:   [^\n]*: In function `foo':\n
 #error:   \(\.text\+0x[0-9a-f]+\): Cannot convert a jump to JALX for a non-word-aligned address\n
-#error:   [^\n]*: In function `foo':\n
 #error:   \(\.text\+0x[0-9a-f]+\): Cannot convert a jump to JALX for a non-word-aligned address\n
-#error:   [^\n]*: In function `foo':\n
 #error:   \(\.text\+0x[0-9a-f]+\): Cannot convert a jump to JALX for a non-word-aligned address\n
-#error:   [^\n]*: In function `foo':\n
 #error:   \(\.text\+0x[0-9a-f]+\): Cannot convert a jump to JALX for a non-word-aligned address\n
-#error:   [^\n]*: In function `foo':\n
 #error:   \(\.text\+0x[0-9a-f]+\): Cannot convert a jump to JALX for a non-word-aligned address\Z

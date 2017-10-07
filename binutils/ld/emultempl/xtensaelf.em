@@ -1432,7 +1432,7 @@ xtensa_wild_group_interleave_callback (lang_statement_union_type *statement)
 	  struct wildcard_list *l;
 	  for (l = w->section_list; l != NULL; l = l->next)
 	    {
-	      if (l->spec.sorted == TRUE)
+	      if (l->spec.sorted != none)
 		{
 		  no_reorder = TRUE;
 		  break;

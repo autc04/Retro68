@@ -87,16 +87,12 @@ Contents of the \.eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+0128 0+001c 0+0044 FDE cie=0+00e8 pc=0+020130..0+020150
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
+0+0128 0+0018 0+0044 FDE cie=0+00e8 pc=0+020130..0+020150
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
 
-0+0148 0+001c 0+0000 CIE
+0+0144 0+0018 0+0000 CIE
   Version:               1
   Augmentation:          "zPR"
   Code alignment factor: 1
@@ -105,12 +101,8 @@ Contents of the \.eh_frame section:
   Augmentation data:     00 00 00 00 00 50 60 70 80 00
 
   DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
 
-0+0168 0+001c 0+0024 FDE cie=0+0148 pc=0+020150..0+020160
+0+0160 0+001c 0+0020 FDE cie=0+0144 pc=0+020150..0+020160
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
@@ -121,7 +113,7 @@ Contents of the \.eh_frame section:
 
 # FDE for .discard removed
 # zPR2 removed
-0+0188 0+001c 0+0044 FDE cie=0+0148 pc=0+020160..0+020190
+0+0180 0+001c 0+0040 FDE cie=0+0144 pc=0+020160..0+020190
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
@@ -130,7 +122,7 @@ Contents of the \.eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+01a8 0+001c 0+0064 FDE cie=0+0148 pc=0+020190..0+0201d0
+0+01a0 0+001c 0+0060 FDE cie=0+0144 pc=0+020190..0+0201d0
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
@@ -139,29 +131,20 @@ Contents of the \.eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+01c8 0+0014 0+01cc FDE cie=0+0000 pc=0+0201d0..0+0201e0
+0+01c0 0+0014 0+01c4 FDE cie=0+0000 pc=0+0201d0..0+0201e0
 
 # basic1 removed, followed by repeat of above
-0+01e0 0+0014 0+01e4 FDE cie=0+0000 pc=0+0201e0..0+0201f0
+0+01d8 0+0014 0+01dc FDE cie=0+0000 pc=0+0201e0..0+0201f0
 
-0+01f8 0+0014 0+01fc FDE cie=0+0000 pc=0+0201f0..0+020210
+0+01f0 0+0014 0+01f4 FDE cie=0+0000 pc=0+0201f0..0+020210
 
-0+0210 0+0014 0+0214 FDE cie=0+0000 pc=0+020210..0+020240
+0+0208 0+0014 0+020c FDE cie=0+0000 pc=0+020210..0+020240
 
-0+0228 0+0014 0+022c FDE cie=0+0000 pc=0+020240..0+020280
+0+0220 0+0014 0+0224 FDE cie=0+0000 pc=0+020240..0+020280
 
-0+0240 0+0014 0+0244 FDE cie=0+0000 pc=0+020280..0+0202d0
+0+0238 0+0014 0+023c FDE cie=0+0000 pc=0+020280..0+0202d0
 
-0+0258 0+001c 0+01d4 FDE cie=0+0088 pc=0+0202d0..0+0202e0
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
-
-0+0278 0+001c 0+01f4 FDE cie=0+0088 pc=0+0202e0..0+020300
+0+0250 0+001c 0+01cc FDE cie=0+0088 pc=0+0202d0..0+0202e0
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
@@ -170,7 +153,7 @@ Contents of the \.eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+0298 0+001c 0+01b4 FDE cie=0+00e8 pc=0+020300..0+020310
+0+0270 0+001c 0+01ec FDE cie=0+0088 pc=0+0202e0..0+020300
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
@@ -179,7 +162,7 @@ Contents of the \.eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+02b8 0+001c 0+01d4 FDE cie=0+00e8 pc=0+020310..0+020330
+0+0290 0+001c 0+01ac FDE cie=0+00e8 pc=0+020300..0+020310
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
@@ -188,7 +171,16 @@ Contents of the \.eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+02d8 0+001c 0+0194 FDE cie=0+0148 pc=0+020330..0+020340
+0+02b0 0+001c 0+01cc FDE cie=0+00e8 pc=0+020310..0+020330
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+
+0+02d0 0+001c 0+0190 FDE cie=0+0144 pc=0+020330..0+020340
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
@@ -199,7 +191,7 @@ Contents of the \.eh_frame section:
 
 # FDE for .discard removed
 # zPR2 removed
-0+02f8 0+001c 0+01b4 FDE cie=0+0148 pc=0+020340..0+020370
+0+02f0 0+001c 0+01b0 FDE cie=0+0144 pc=0+020340..0+020370
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
@@ -208,7 +200,7 @@ Contents of the \.eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+0318 0+001c 0+01d4 FDE cie=0+0148 pc=0+020370..0+0203b0
+0+0310 0+001c 0+01d0 FDE cie=0+0144 pc=0+020370..0+0203b0
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
@@ -217,4 +209,4 @@ Contents of the \.eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+0338 0+0014 0+033c FDE cie=0+0000 pc=0+0203b0..0+0203c0
+0+0330 0+0014 0+0334 FDE cie=0+0000 pc=0+0203b0..0+0203c0

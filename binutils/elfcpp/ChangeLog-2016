@@ -1,3 +1,7 @@
+2016-12-31  Dimitar Dimitrov  <dimitar@dinux.eu>
+
+	* elfcpp.h (enum EM): Add EM_TI_PRU.
+
 2016-06-20  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
 
         * elfcpp.h (DT_MIPS_RLD_MAP_REL): New enum constant.

@@ -13,6 +13,10 @@ MULTICLEAN = true
 
 LIBTOOL_VERSION_INFO = 0:0:0
 
+# The newlib hardware floating-point routines have been disabled due to
+# inaccuracy.  If you wish to work on them, you will need to edit the
+# configure.in file to re-enable the configuration option.  By default,
+# the NEWLIB_HW_FP variable will always be false.
 if NEWLIB_HW_FP
 MATHDIR = mathfp
 else
@@ -73,18 +77,24 @@ toollibdir = $(tooldir)/lib$(MULTISUBDIR)
 
 AR_FLAGS = rc
 
+noinst_DATA = stmp-targ-include
+
 if USE_LIBTOOL
 toollib_LTLIBRARIES = libm.la \
 	libc.la
 else
 toollib_LIBRARIES = libm.a \
 	libc.a
+if HAVE_MULTISUBDIR
+BUILD_MULTISUBDIR = $(builddir)$(MULTISUBDIR)
+if HAVE_CRT0
+noinst_DATA += $(BUILD_MULTISUBDIR)/$(CRT0)
+endif
+noinst_DATA += $(BUILD_MULTISUBDIR)/libc.a $(BUILD_MULTISUBDIR)/libm.a
+endif
 endif
 
-noinst_DATA = stmp-targ-include
-
 toollib_DATA = $(CRT0) $(CRT1)
-
 
 # The functions ldexp, frexp and modf are traditionally supplied in
 # both libc.a and libm.a.  We build them in libm.a and copy them over,
@@ -167,27 +177,56 @@ libc/libc.a: ; @true
 
 libm.a: libm/libm.a
 	rm -f $@
-	ln libm/libm.a $@ >/dev/null 2>/dev/null || cp libm/libm.a $@
+	ln $< $@ >/dev/null 2>/dev/null || cp $< $@
 
 libm/libm.a: ; @true
 
 endif # USE_LIBTOOL
 
+if HAVE_MULTISUBDIR
+$(BUILD_MULTISUBDIR):
+	$(MKDIR_P) $@
+
+$(BUILD_MULTISUBDIR)/crt0.o: $(CRT0_DIR)$(CRT0) $(BUILD_MULTISUBDIR)
+	rm -f $@
+	ln $< $@ >/dev/null 2>/dev/null || cp $< $@
+
+$(BUILD_MULTISUBDIR)/libc.a: libc.a $(BUILD_MULTISUBDIR)
+	rm -f $@ $(BUILD_MULTISUBDIR)/libg.a
+	ln $< $@ >/dev/null 2>/dev/null || cp $< $@
+	ln libg.a $(BUILD_MULTISUBDIR)/libg.a >/dev/null 2>/dev/null || \
+	cp libg.a $(BUILD_MULTISUBDIR)/libg.a
+
+$(BUILD_MULTISUBDIR)/libm.a: libm.a $(BUILD_MULTISUBDIR)
+	rm -f $@
+	ln $< $@ >/dev/null 2>/dev/null || cp $< $@
+endif
+
 crt0.o: $(CRT0_DIR)$(CRT0)
 	rm -f $@
-	ln $(CRT0_DIR)$(CRT0) $@ >/dev/null 2>/dev/null \
-	 || cp $(CRT0_DIR)$(CRT0) $@
+	ln $< $@ >/dev/null 2>/dev/null || cp $< $@
 
 $(CRT0_DIR)$(CRT0): ; @true
 
 crt1.o: $(CRT1_DIR)$(CRT1)
 	rm -f $@
-	ln $< $@ >/dev/null 2>/dev/null \
-	 || cp $< $@
+	ln $< $@ >/dev/null 2>/dev/null || cp $< $@
 
 $(CRT1_DIR)$(CRT1): ; @true
 
-$(srcdir)/newlib.hin:
+targ-include:
+	mkdir $@
+
+targ-include/newlib.h: targ-include/_newlib_version.h
+
+targ-include/sys targ-include/machine targ-include/bits: targ-include/_newlib_version.h targ-include/newlib.h
+	mkdir $@
+
+targ-include/newlib.h: newlib.h targ-include
+	cp newlib.h $@
+
+targ-include/_newlib_version.h: _newlib_version.h targ-include
+	cp _newlib_version.h $@
 
 all-recursive: stmp-targ-include
 
@@ -196,8 +235,9 @@ all-recursive: stmp-targ-include
 # used while building.
 stmp-targ-include: config.status
 	-rm -rf targ-include stmp-targ-include
-	mkdir targ-include targ-include/sys targ-include/machine targ-include/bits
-	cp newlib.h targ-include/newlib.h
+	$(MAKE) targ-include/sys \
+		targ-include/machine \
+		targ-include/bits
 	-for i in $(srcdir)/libc/machine/$(machine_dir)/machine/*.h; do \
 	    if [ -f $$i ]; then \
 	      cp $$i targ-include/machine/`basename $$i`; \
@@ -253,6 +293,7 @@ stmp-targ-include: config.status
 	      cp $$i targ-include/machine/`basename $$i`; \
 	    else true; fi ; \
 	  done
+	$(MAKE) targ-include/newlib.h
 	touch $@
 
 CLEANFILES = stmp-targ-include
@@ -270,6 +311,7 @@ endif
 	   $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/`basename $$i`; \
 	  done; \
 	  $(INSTALL_DATA) newlib.h $(DESTDIR)$(tooldir)/include/newlib.h; \
+	  $(INSTALL_DATA) _newlib_version.h $(DESTDIR)$(tooldir)/include/_newlib_version.h; \
 	  $(mkinstalldirs) $(DESTDIR)$(tooldir)/include/machine; \
 	  for i in $(srcdir)/libc/include/machine/*.h; do \
 	   $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/machine/`basename $$i`; \
@@ -342,6 +384,22 @@ info-recursive: doc/makedoc
 dvi-recursive: doc/makedoc
 doc/makedoc:
 	cd doc && $(MAKE) all
+
+# Recursive targets for man and install-man
+man:
+	(cd doc && $(MAKE) man-cache) || exit 1; \
+	for d in $(SUBDIRS); do \
+	  if test "$$d" != "."; then \
+	    (cd $$d && $(MAKE) man) || exit 1; \
+	  fi; \
+	done
+
+install-man:
+	for d in $(SUBDIRS); do \
+	  if test "$$d" != "."; then \
+	    (cd $$d && $(MAKE) install-man) || exit 1; \
+	  fi; \
+	done
 
 CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
 
@@ -437,4 +495,4 @@ check-DEJAGNU: site.exp
 	fi
 
 clean-local:
-	-rm -rf targ-include
+	-rm -rf targ-include newlib.h _newlib_version.h stamp-*

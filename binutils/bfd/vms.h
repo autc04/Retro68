@@ -118,8 +118,8 @@ extern void vms_time_t_to_vms_time (time_t ut, unsigned int *hi, unsigned int *l
 extern void vms_get_time (unsigned int *hi, unsigned int *lo);
 extern void vms_raw_get_time (unsigned char *buf);
 
-extern char * _bfd_vms_save_sized_string (unsigned char *, int);
-extern char * _bfd_vms_save_counted_string (unsigned char *);
+extern char * _bfd_vms_save_sized_string (unsigned char *, unsigned);
+extern char * _bfd_vms_save_counted_string (unsigned char *, unsigned);
 extern void   _bfd_vms_output_begin (struct vms_rec_wr *, int);
 extern void   _bfd_vms_output_alignment (struct vms_rec_wr *, int);
 extern void   _bfd_vms_output_begin_subrec (struct vms_rec_wr *, int);

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -150,7 +150,6 @@ package body Switch.M is
          --  Processing for a switch
 
          case Switch_Starts_With_Gnat is
-
             when False =>
 
                --  All switches that don't start with -gnat stay as is,
@@ -196,24 +195,6 @@ package body Switch.M is
                      Add_Switch_Component ("-mrtp");
                   end if;
 
-               --  Switch for universal addressing on AAMP target
-
-               elsif Switch_Chars'Length >= 5
-                 and then
-                   Switch_Chars
-                     (Switch_Chars'First .. Switch_Chars'First + 4) = "-univ"
-               then
-                  Add_Switch_Component (Switch_Chars);
-
-               --  Switch for specifying AAMP target library
-
-               elsif Switch_Chars'Length > 13
-                 and then
-                   Switch_Chars (Switch_Chars'First .. Switch_Chars'First + 12)
-                     = "-aamp_target="
-               then
-                  Add_Switch_Component (Switch_Chars);
-
                --  Special case for -fstack-check (alias for
                --  -fstack-check=specific)
 
@@ -236,15 +217,15 @@ package body Switch.M is
                return;
 
             when True =>
-
                case C is
 
                   --  One-letter switches
 
-                  when 'a' | 'A' | 'b' | 'B' | 'c' | 'C' | 'E' | 'f' |
-                       'F' | 'g' | 'h' | 'H' | 'I' | 'L' | 'N' | 'p' |
-                       'P' | 'q' | 'Q' | 'r' | 's' | 'S' | 't' | 'u' |
-                       'U' | 'v' | 'x' | 'X' | 'Z' =>
+                  when 'a' | 'A' | 'b' | 'B' | 'c' | 'C' | 'E' | 'f' | 'F'
+                     | 'g' | 'h' | 'H' | 'I' | 'L' | 'N' | 'p' | 'P' | 'q'
+                     | 'Q' | 'r' | 's' | 'S' | 't' | 'u' | 'U' | 'v' | 'x'
+                     | 'X' | 'Z'
+                  =>
                      Storing (First_Stored) := C;
                      Add_Switch_Component
                        (Storing (Storing'First .. First_Stored));
@@ -309,7 +290,6 @@ package body Switch.M is
 
                      else
                         case Switch_Chars (Ptr) is
-
                            when 'A' =>
                               Ptr := Ptr + 1;
                               Add_Switch_Component ("-gnateA");
@@ -705,9 +685,7 @@ package body Switch.M is
                   when others =>
                      Last := 0;
                      return;
-
                end case;
-
          end case;
       end loop;
    end Normalize_Compiler_Switches;
@@ -811,17 +789,10 @@ package body Switch.M is
             Verbose_Mode := True;
 
             case Switch_Chars (Ptr) is
-               when 'l' =>
-                  Verbosity_Level := Opt.Low;
-
-               when 'm' =>
-                  Verbosity_Level := Opt.Medium;
-
-               when 'h' =>
-                  Verbosity_Level := Opt.High;
-
-               when others =>
-                  Success := False;
+               when 'l'    => Verbosity_Level := Opt.Low;
+               when 'm'    => Verbosity_Level := Opt.Medium;
+               when 'h'    => Verbosity_Level := Opt.High;
+               when others => Success := False;
             end case;
 
          elsif C = 'd' then
@@ -934,9 +905,7 @@ package body Switch.M is
 
       else
          Check_Switch : begin
-
             case C is
-
                when 'a' =>
                   Check_Readonly_Files := True;
 
@@ -1076,7 +1045,6 @@ package body Switch.M is
                   else
                      Success := False;
                   end if;
-
             end case;
          end Check_Switch;
       end if;

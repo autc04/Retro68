@@ -2,7 +2,7 @@
    Copyright (C) 2013-2017 Free Software Foundation, Inc.
    Contributed by Mentor Graphics, Inc.
 
-   This file is part of GAS, the GNU Assembler, and GDB, the GNU disassembler.
+   This file is part of the GNU opcodes library.
 
    GAS/GDB is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

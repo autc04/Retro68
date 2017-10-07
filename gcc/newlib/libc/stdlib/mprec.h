@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <sys/config.h>
 #include <sys/types.h>
+#include "../locale/setlocale.h"
 
 #ifdef __IEEE_LITTLE_ENDIAN
 #define IEEE_8087
@@ -98,7 +99,7 @@ typedef union { double d; __ULong i[2]; } U;
 #define SI 0
 #endif
 
-#define Storeinc(a,b,c) (*(a)++ = (b) << 16 | (c) & 0xffff)
+#define Storeinc(a,b,c) (*(a)++ = ((b) << 16) | ((c) & 0xffff))
 
 /* #define P DBL_MANT_DIG */
 /* Ten_pmax = floor(P*log(2)/log(5)) */
@@ -360,6 +361,7 @@ typedef struct _Bigint _Bigint;
 #define mult	__multiply
 #define pow5mult	__pow5mult
 #define lshift	__lshift
+#define match   __match
 #define cmp	__mcmp
 #define diff	__mdiff
 #define ulp 	__ulp
@@ -370,9 +372,12 @@ typedef struct _Bigint _Bigint;
 #define gethex  __gethex
 #define copybits 	__copybits
 #define hexnan	__hexnan
-#define hexdig_init 	__hexdig_init
 
-#define hexdig  __hexdig
+#if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && !defined(_SMALL_HEXDIG)
+#define __get_hexdig(x) __hexdig[x] /* NOTE: must evaluate arg only once */
+#else /* !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && !defined(_SMALL_HEXDIG) */
+#define __get_hexdig(x) __hexdig_fun(x)
+#endif /* !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && !defined(_SMALL_HEXDIG) */
 
 #define tens __mprec_tens
 #define bigtens __mprec_bigtens
@@ -393,15 +398,28 @@ int 		_EXFUN(hi0bits,(__ULong));
 int 		_EXFUN(lo0bits,(__ULong *));
 _Bigint *	_EXFUN(d2b,(struct _reent *p, double d, int *e, int *bits));
 _Bigint *	_EXFUN(lshift,(struct _reent *p, _Bigint *b, int k));
+int		_EXFUN(match,(const char**, char*));
 _Bigint *	_EXFUN(diff,(struct _reent *p, _Bigint *a, _Bigint *b));
 int		_EXFUN(cmp,(_Bigint *a, _Bigint *b));
-int		_EXFUN(gethex,(struct _reent *p, _CONST char **sp, struct FPI *fpi, Long *exp, _Bigint **bp, int sign));     
+int		_EXFUN(gethex,(struct _reent *p, _CONST char **sp, _CONST struct FPI *fpi, Long *exp, _Bigint **bp, int sign, locale_t loc));
 double		_EXFUN(ratio,(_Bigint *a, _Bigint *b));
 __ULong		_EXFUN(any_on,(_Bigint *b, int k));
 void		_EXFUN(copybits,(__ULong *c, int n, _Bigint *b));
-void		_EXFUN(hexdig_init,(void));
+double		_strtod_l (struct _reent *ptr, const char *__restrict s00,
+			   char **__restrict se, locale_t loc);
+#if defined (_HAVE_LONG_DOUBLE) && !defined (_LDBL_EQ_DBL)
+int		_strtorx_l (struct _reent *, const char *, char **, int,
+			    void *, locale_t);
+int		_strtodg_l (struct _reent *p, const char *s00, char **se,
+			    struct FPI *fpi, Long *exp, __ULong *bits,
+			    locale_t);
+#endif /* _HAVE_LONG_DOUBLE && !_LDBL_EQ_DBL */
+
+#if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__) || defined(_SMALL_HEXDIG)
+unsigned char _EXFUN(__hexdig_fun,(unsigned char));
+#endif /* !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && !defined(_SMALL_HEXDIG) */
 #ifdef INFNAN_CHECK
-int		_EXFUN(hexnan,(_CONST char **sp, struct FPI *fpi, __ULong *x0));
+int		_EXFUN(hexnan,(_CONST char **sp, _CONST struct FPI *fpi, __ULong *x0));
 #endif
 
 #define Bcopy(x,y) memcpy((char *)&x->_sign, (char *)&y->_sign, y->_wds*sizeof(__Long) + 2*sizeof(int))
@@ -409,7 +427,9 @@ int		_EXFUN(hexnan,(_CONST char **sp, struct FPI *fpi, __ULong *x0));
 extern _CONST double tinytens[];
 extern _CONST double bigtens[];
 extern _CONST double tens[];
-extern unsigned char hexdig[];
+#if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && !defined(_SMALL_HEXDIG)
+extern _CONST unsigned char __hexdig[];
+#endif /* !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && !defined(_SMALL_HEXDIG) */
 
 
 double _EXFUN(_mprec_log10,(int));

@@ -39,6 +39,9 @@ if { [which $CC] == 0 } {
     return
 }
 
+# Add $NOPIE_CFLAGS and $NOPIE_LDFLAGS if non-PIE is required.
+global NOPIE_CFLAGS NOPIE_LDFLAGS
+
 run_cc_link_tests [list \
     [list \
 	"Build no-plt-func1.o no-plt-main1.o" \
@@ -71,7 +74,7 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"No PLT (dynamic 1a)" \
-	"tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
+	"$NOPIE_LDFLAGS tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1.o" \
 	"" \
 	{dummy.s} \
@@ -89,7 +92,7 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"No PLT (dynamic 1c)" \
-	"tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
+	"$NOPIE_LDFLAGS tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
 	"" \
 	{dummy.s} \
@@ -111,7 +114,7 @@ run_cc_link_tests [list \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1.o" \
 	"" \
 	{dummy.s} \
-	{{readelf -Wr no-plt-1e.rd} {objdump -dwrj.text no-plt-1e.dd}} \
+	{{readelf -Wr no-plt-1e.rd} {nm -gD no-plt-1e.nd} {objdump -dwrj.text no-plt-1e.dd}} \
 	"no-plt-1e" \
     ] \
     [list \
@@ -266,7 +269,7 @@ if { [check_ifunc_available] } {
 	] \
 	[list \
 	    "Run pr20253-2f" \
-	    "tmpdir/pr20253-2a.o" \
+	    "$NOPIE_LDFLAGS tmpdir/pr20253-2a.o" \
 	    "" \
 	    { pr20253-2b.S pr20253-2c.S pr20253-2d.S } \
 	    "pr20253-2f" \

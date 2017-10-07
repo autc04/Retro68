@@ -1,4 +1,4 @@
-#   Copyright (C) 2006-2016 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2017 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,6 +37,11 @@ set save-dg-do-what-default ${dg-do-what-default}
 # Initialize `dg'.
 dg-init
 
+# Set up a list of effective targets to run vector tests for all supported
+# targets.
+global EFFECTIVE_TARGETS
+set EFFECTIVE_TARGETS ""
+
 set wait_to_run_files [lsort [glob -nocomplain $srcdir/$subdir/*.c ] ]
 set scop_files        [lsort [glob -nocomplain $srcdir/$subdir/scop-*.c ] ]
 set id_files          [lsort [glob -nocomplain $srcdir/$subdir/id-*.c ] ]
@@ -44,10 +49,10 @@ set run_id_files      [lsort [glob -nocomplain $srcdir/$subdir/run-id-*.c ] ]
 set opt_files         [lsort [glob -nocomplain $srcdir/$subdir/interchange-*.c \
 					       $srcdir/$subdir/uns-interchange-*.c \
 					       $srcdir/$subdir/isl-ast-gen-*.c \
+					       $srcdir/$subdir/fuse-*.c \
 					       $srcdir/$subdir/block-*.c \
 					       $srcdir/$subdir/uns-block-*.c ] ]
 set vect_files        [lsort [glob -nocomplain $srcdir/$subdir/vect-*.c ] ]
-set fuse_files        [lsort [glob -nocomplain $srcdir/$subdir/fuse-*.c ] ]
 
 # Tests to be compiled.
 set dg-do-what-default compile
@@ -59,17 +64,12 @@ set dg-do-what-default run
 dg-runtest $run_id_files      "" "-O2 -fgraphite-identity"
 dg-runtest $opt_files         "" "-O2 -ffast-math -floop-nest-optimize -fdump-tree-graphite-all"
 
-global ISLVER
-if { $ISLVER == "0.15" } {
-    dg-runtest $fuse_files         "" "-O2 -ffast-math -floop-nest-optimize -fdump-tree-graphite-all"
-}
-
 # Vectorizer tests, to be run or compiled, depending on target capabilities.
 global DEFAULT_VECTCFLAGS
 set DEFAULT_VECTCFLAGS "-O2 -fgraphite-identity -ftree-vectorize -fno-vect-cost-model -fdump-tree-vect-details -ffast-math"
 
 if [check_vect_support_and_set_flags] {
-    dg-runtest $vect_files        "" $DEFAULT_VECTCFLAGS
+    et-dg-runtest dg-runtest $vect_files        "" $DEFAULT_VECTCFLAGS
 }
 
 # The default action for the rest of the files is 'compile'.
@@ -79,7 +79,6 @@ foreach f $id_files          {lremove wait_to_run_files $f}
 foreach f $run_id_files      {lremove wait_to_run_files $f}
 foreach f $opt_files         {lremove wait_to_run_files $f}
 foreach f $vect_files        {lremove wait_to_run_files $f}
-foreach f $fuse_files        {lremove wait_to_run_files $f}
 dg-runtest $wait_to_run_files "" "-ansi -pedantic-errors"
 
 # Clean up.

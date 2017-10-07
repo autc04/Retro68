@@ -19,12 +19,14 @@
 # MA 02110-1301, USA.
 #
 
-# This test can only be run if ld generates native executables.
-if ![isnative] then {return}
-
 if { ![istarget *-*-linux*]
      && ![istarget *-*-nacl*]
      && ![istarget *-*-gnu*] } {
+    return
+}
+
+# Check to see if the C compiler works
+if { [which $CC] == 0 } {
     return
 }
 
@@ -37,8 +39,10 @@ if { ![string match "" $exec_output] } {
 }
 
 set array_tests {
-    {"weak undefined" "-pie" "" {weakundef.c} "weakundef" "weakundef.out" "-fPIC"}
-    {"weak undefined data" "-pie" "" {weakundef-data.c} "weakundef-data" "weakundef.out" "-fPIC"}
+    {"weak undefined" "-pie" ""
+	{weakundef.c} "weakundef" "weakundef.out" "-fPIC"}
+    {"weak undefined data" "-pie" ""
+	{weakundef-data.c} "weakundef-data" "weakundef.out" "-fPIC"}
 }
 
 run_ld_link_exec_tests $array_tests

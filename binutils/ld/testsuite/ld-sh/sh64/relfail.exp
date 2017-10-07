@@ -180,7 +180,7 @@ proc run_sh64relfailtests {sh64relfailtests} {
 	
 	file delete $binfile
 	set objects "tmpdir/relfail-$testindex.o $baseobj"
-	set result [ld_simple_link $ld $binfile "--no-warn-mismatch $ld_options $objects"]
+	set result [ld_link $ld $binfile "--no-warn-mismatch $ld_options $objects"]
 	
 	set exists [file exists $binfile]
 	if {$exists && $expect_fail == ""} {

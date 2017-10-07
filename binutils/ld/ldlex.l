@@ -274,6 +274,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <BOTH,SCRIPT>"CREATE_OBJECT_SYMBOLS"	{ RTOKEN(CREATE_OBJECT_SYMBOLS);}
 <BOTH,SCRIPT>"CONSTRUCTORS"		{ RTOKEN( CONSTRUCTORS);}
 <BOTH,SCRIPT>"FORCE_COMMON_ALLOCATION"	{ RTOKEN(FORCE_COMMON_ALLOCATION);}
+<BOTH,SCRIPT>"FORCE_GROUP_ALLOCATION"	{ RTOKEN(FORCE_GROUP_ALLOCATION);}
 <BOTH,SCRIPT>"INHIBIT_COMMON_ALLOCATION" { RTOKEN(INHIBIT_COMMON_ALLOCATION);}
 <BOTH,SCRIPT>"SECTIONS"			{ RTOKEN(SECTIONS);}
 <BOTH,SCRIPT>"INSERT"			{ RTOKEN(INSERT_K);}
@@ -376,6 +377,11 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 				  return NAME;
 				}
 <INPUTLIST>"="{FILENAMECHAR1}{FILENAMECHAR}*	{
+/* Filename to be prefixed by --sysroot or when non-sysrooted, nothing.  */
+				 yylval.name = xstrdup (yytext);
+				  return NAME;
+				}
+<INPUTLIST>"$SYSROOT"{FILENAMECHAR1}{FILENAMECHAR}*	{
 /* Filename to be prefixed by --sysroot or when non-sysrooted, nothing.  */
 				 yylval.name = xstrdup (yytext);
 				  return NAME;

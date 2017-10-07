@@ -195,7 +195,7 @@ run_dump_test_lp64 "local-addend-r"
 
 # test error handling on pcrel relocation for shared libraries.
 run_dump_test_lp64 "pcrel_pic_undefined"
-run_dump_test_lp64 "pcrel_pic_defined_local"
+run_dump_test_lp64 "pcrel_pic_defined"
 
 run_dump_test "limit-b"
 run_dump_test "limit-bl"
@@ -213,10 +213,13 @@ run_dump_test "farcall-b-section"
 run_dump_test "farcall-bl-section"
 
 run_dump_test "tls-relax-all"
+run_dump_test "tls-relax-all-ilp32"
 run_dump_test "tls-relax-gd-le"
+run_dump_test "tls-relax-gd-le-ilp32"
 run_dump_test "tls-relax-gdesc-le"
-run_dump_test "tls-relax-gd-ie-ilp32"
+run_dump_test "tls-relax-gdesc-le-ilp32"
 run_dump_test "tls-relax-gd-ie"
+run_dump_test "tls-relax-gd-ie-ilp32"
 run_dump_test_lp64 "tls-relax-large-gd-ie"
 run_dump_test_lp64 "tls-relax-large-gd-ie-be"
 run_dump_test_lp64 "tls-relax-large-gd-le"
@@ -227,21 +230,30 @@ run_dump_test_lp64 "tls-relax-large-desc-le"
 run_dump_test_lp64 "tls-relax-large-desc-le-be"
 run_dump_test "tls-relax-gdesc-ie"
 run_dump_test "tls-relax-ie-le"
+run_dump_test "tls-relax-ie-le-ilp32"
 run_dump_test "tls-relax-ld-le-small"
 run_dump_test "tls-relax-ld-le-small-ilp32"
 run_dump_test "tls-relax-ld-le-tiny"
 run_dump_test "tls-relax-ld-le-tiny-ilp32"
 run_dump_test "tls-desc-ie"
+run_dump_test "tls-desc-ie-ilp32"
 run_dump_test "tls-relax-gdesc-ie-2"
 run_dump_test "tls-relax-gdesc-le-2"
+run_dump_test "tls-relax-gdesc-le-2-ilp32"
 run_dump_test "tls-relax-ie-le-2"
+run_dump_test "tls-relax-ie-le-2-ilp32"
 run_dump_test "tls-relax-ie-le-3"
+run_dump_test "tls-relax-ie-le-3-ilp32"
 run_dump_test "tls-tiny-gd"
 run_dump_test "tls-tiny-gd-ie"
+run_dump_test "tls-tiny-gd-ie-ilp32"
 run_dump_test "tls-tiny-gd-le"
+run_dump_test "tls-tiny-gd-le-ilp32"
 run_dump_test "tls-tiny-desc"
 run_dump_test "tls-tiny-desc-ie"
+run_dump_test "tls-tiny-desc-ie-ilp32"
 run_dump_test "tls-tiny-desc-le"
+run_dump_test "tls-tiny-desc-le-ilp32"
 run_dump_test "tls-tiny-ie"
 run_dump_test_lp64 "tls-large-ie"
 run_dump_test_lp64 "tls-large-ie-be"
@@ -323,6 +335,15 @@ set aarch64elflinktests {
     {} "copy-reloc-so.so"}
   {"ld-aarch64/exe with copy relocation" "-e0 tmpdir/copy-reloc-so.so" "" ""
     {copy-reloc-exe.s} {{objdump -R copy-reloc.d}} "copy-reloc"}
+  {"ld-aarch64/exe with copy relocation 2" "-e0 tmpdir/copy-reloc-so.so" "" ""
+    {copy-reloc-exe-2.s} {{objdump -R copy-reloc-2.d}} "copy-reloc-2"}
+  {"ld-aarch64/exe with copy relocation elimination" "-e0 tmpdir/copy-reloc-so.so" "" ""
+    {copy-reloc-exe-eliminate.s} {{objdump -R copy-reloc-eliminate.d}} "copy-reloc-elimination"}
+  {"ld-aarch64/so with global func" "-shared" "" "" {func-in-so.s}
+    {} "func-in-so.so"}
+  {"ld-aarch64/func sym hash opt for exe"
+   "-e0 --hash-style=gnu tmpdir/func-in-so.so" "" ""
+    {func-sym-hash-opt.s} {{readelf --dyn-sym func-sym-hash-opt.d}} "hash-opt"}
 }
 
 run_ld_link_tests $aarch64elflinktests

@@ -2588,6 +2588,7 @@ number for the SBIC, SBIS, SBI and CBI instructions
 @deffnx {} BFD_RELOC_RISCV_SET8
 @deffnx {} BFD_RELOC_RISCV_SET16
 @deffnx {} BFD_RELOC_RISCV_SET32
+@deffnx {} BFD_RELOC_RISCV_32_PCREL
 RISC-V relocations.
 @end deffn
 @deffn {} BFD_RELOC_RL78_NEG8
@@ -3404,6 +3405,41 @@ msp430 specific relocation codes
 @deffnx {} BFD_RELOC_NIOS2_R2_T1X1I6_2
 Relocations used by the Altera Nios II core.
 @end deffn
+@deffn {} BFD_RELOC_PRU_U16
+PRU LDI 16-bit unsigned data-memory relocation.
+@end deffn
+@deffn {} BFD_RELOC_PRU_U16_PMEMIMM
+PRU LDI 16-bit unsigned instruction-memory relocation.
+@end deffn
+@deffn {} BFD_RELOC_PRU_LDI32
+PRU relocation for two consecutive LDI load instructions that load a
+32 bit value into a register. If the higher bits are all zero, then
+the second instruction may be relaxed.
+@end deffn
+@deffn {} BFD_RELOC_PRU_S10_PCREL
+PRU QBBx 10-bit signed PC-relative relocation.
+@end deffn
+@deffn {} BFD_RELOC_PRU_U8_PCREL
+PRU 8-bit unsigned relocation used for the LOOP instruction.
+@end deffn
+@deffn {} BFD_RELOC_PRU_32_PMEM
+@deffnx {} BFD_RELOC_PRU_16_PMEM
+PRU Program Memory relocations.  Used to convert from byte addressing to
+32-bit word addressing.
+@end deffn
+@deffn {} BFD_RELOC_PRU_GNU_DIFF8
+@deffnx {} BFD_RELOC_PRU_GNU_DIFF16
+@deffnx {} BFD_RELOC_PRU_GNU_DIFF32
+@deffnx {} BFD_RELOC_PRU_GNU_DIFF16_PMEM
+@deffnx {} BFD_RELOC_PRU_GNU_DIFF32_PMEM
+PRU relocations to mark the difference of two local symbols.
+These are only needed to support linker relaxation and can be ignored
+when not relaxing.  The field is set to the value of the difference
+assuming no relaxation.  The relocation encodes the position of the
+second symbol so the linker can determine whether to adjust the field
+value. The PMEM variants encode the word difference, instead of byte
+difference between symbols.
+@end deffn
 @deffn {} BFD_RELOC_IQ2000_OFFSET_16
 @deffnx {} BFD_RELOC_IQ2000_OFFSET_21
 @deffnx {} BFD_RELOC_IQ2000_UHI16
@@ -3797,12 +3833,12 @@ conjunction with BFD_RELOC_AARCH64_LD64_GOT_LO12_NC.
 @deffn {} BFD_RELOC_AARCH64_LD64_GOT_LO12_NC
 Unsigned 12 bit byte offset for 64 bit load/store from the page of
 the GOT entry for this symbol.  Used in conjunction with
-BFD_RELOC_AARCH64_ADR_GOTPAGE.  Valid in LP64 ABI only.
+BFD_RELOC_AARCH64_ADR_GOT_PAGE.  Valid in LP64 ABI only.
 @end deffn
 @deffn {} BFD_RELOC_AARCH64_LD32_GOT_LO12_NC
 Unsigned 12 bit byte offset for 32 bit load/store from the page of
 the GOT entry for this symbol.  Used in conjunction with
-BFD_RELOC_AARCH64_ADR_GOTPAGE.  Valid in ILP32 ABI only.
+BFD_RELOC_AARCH64_ADR_GOT_PAGE.  Valid in ILP32 ABI only.
 @end deffn
 @deffn {} BFD_RELOC_AARCH64_MOVW_GOTOFF_G0_NC
 Unsigned 16 bit byte offset for 64 bit load/store from the GOT entry
@@ -3957,13 +3993,13 @@ AArch64 TLS DESC relocation.
 @deffn {} BFD_RELOC_AARCH64_TLSDESC_ADR_PAGE21
 AArch64 TLS DESC relocation.
 @end deffn
-@deffn {} BFD_RELOC_AARCH64_TLSDESC_LD64_LO12_NC
+@deffn {} BFD_RELOC_AARCH64_TLSDESC_LD64_LO12
 AArch64 TLS DESC relocation.
 @end deffn
 @deffn {} BFD_RELOC_AARCH64_TLSDESC_LD32_LO12_NC
 AArch64 TLS DESC relocation.
 @end deffn
-@deffn {} BFD_RELOC_AARCH64_TLSDESC_ADD_LO12_NC
+@deffn {} BFD_RELOC_AARCH64_TLSDESC_ADD_LO12
 AArch64 TLS DESC relocation.
 @end deffn
 @deffn {} BFD_RELOC_AARCH64_TLSDESC_OFF_G1
@@ -4265,6 +4301,18 @@ Adapteva EPIPHANY - 8 bit immediate for 16 bit mov instruction.
 @deffnx {} BFD_RELOC_VISIUM_IM16_PCREL
 Visium Relocations.
 @end deffn
+@deffn {} BFD_RELOC_WASM32_LEB128
+@deffnx {} BFD_RELOC_WASM32_LEB128_GOT
+@deffnx {} BFD_RELOC_WASM32_LEB128_GOT_CODE
+@deffnx {} BFD_RELOC_WASM32_LEB128_PLT
+@deffnx {} BFD_RELOC_WASM32_PLT_INDEX
+@deffnx {} BFD_RELOC_WASM32_ABS32_CODE
+@deffnx {} BFD_RELOC_WASM32_COPY
+@deffnx {} BFD_RELOC_WASM32_CODE_POINTER
+@deffnx {} BFD_RELOC_WASM32_INDEX
+@deffnx {} BFD_RELOC_WASM32_PLT_SIG
+WebAssembly relocations.
+@end deffn
 
 @example
 
@@ -4367,4 +4415,17 @@ bfd_byte *bfd_generic_get_relocated_section_contents
 @strong{Description}@*
 Provides default handling of relocation effort for back ends
 which can't be bothered to do it efficiently.
+
+@findex _bfd_generic_set_reloc
+@subsubsection @code{_bfd_generic_set_reloc}
+@strong{Synopsis}
+@example
+void _bfd_generic_set_reloc
+   (bfd *abfd,
+    sec_ptr section,
+    arelent **relptr,
+    unsigned int count);
+@end example
+@strong{Description}@*
+Installs a new set of internal relocations in SECTION.
 

@@ -109,10 +109,9 @@ void aarch64_copy_symbol_attributes (symbolS *, symbolS *);
    pcrel, but it is easier to be safe than sorry.  */
 
 #define TC_FORCE_RELOCATION_LOCAL(FIX)			\
-  (!(FIX)->fx_pcrel					\
+  (GENERIC_FORCE_RELOCATION_LOCAL (FIX)			\
    || (FIX)->fx_r_type == BFD_RELOC_64			\
-   || (FIX)->fx_r_type == BFD_RELOC_32			\
-   || TC_FORCE_RELOCATION (FIX))
+   || (FIX)->fx_r_type == BFD_RELOC_32)
 
 #define TC_CONS_FIX_NEW(f,w,s,e,r) cons_fix_new_aarch64 ((f), (w), (s), (e))
 
@@ -192,6 +191,9 @@ struct aarch64_segment_info_type
 /* CFI hooks.  */
 #define tc_regname_to_dw2regnum            tc_aarch64_regname_to_dw2regnum
 #define tc_cfi_frame_initial_instructions  tc_aarch64_frame_initial_instructions
+
+extern void aarch64_after_parse_args (void);
+#define md_after_parse_args() aarch64_after_parse_args ()
 
 #else /* Not OBJ_ELF.  */
 #define GLOBAL_OFFSET_TABLE_NAME "__GLOBAL_OFFSET_TABLE_"

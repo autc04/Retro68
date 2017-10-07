@@ -23,12 +23,20 @@ Contents of the .eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+0018 0+001c 0+001c FDE cie=0+0000 pc=0+400078\.\.0+400090
+0+0018 0+0024 0+001c FDE cie=0+0000 pc=0+400078\.\.0+400090
   DW_CFA_advance_loc: 8 to 0+400080
   DW_CFA_def_cfa_offset: 16
   DW_CFA_offset: r6 \(rbp\) at cfa-16
   DW_CFA_advance_loc: 8 to 0+400088
   DW_CFA_def_cfa_register: r6 \(rbp\)
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
 
-0+0038 ZERO terminator
+0+0040 ZERO terminator
 #pass

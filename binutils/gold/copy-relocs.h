@@ -155,8 +155,9 @@ class Copy_relocs
   // The dynamic BSS data which goes into the .bss section.  This is
   // where writable variables which require COPY relocations are placed.
   Output_data_space* dynbss_;
-  // The dynamic read-only data, which goes into the .dynbss section.  This
-  // is where read-only variables which require COPY relocations are placed.
+  // The dynamic read-only data, which goes into the .data.rel.ro section.
+  // This is where read-only variables which require COPY relocations are
+  // placed.
   Output_data_space* dynrelro_;
 };
 

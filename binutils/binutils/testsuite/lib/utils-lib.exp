@@ -214,6 +214,11 @@ proc exe_ext {} {
 #	Assemble the file SOURCE.s.  If omitted, this defaults to FILE.s.
 #       This is useful if several .d files want to share a .s file.
 #
+#   dump: DUMP
+#	Match against DUMP.d.  If omitted, this defaults to FILE.d.  This
+#	is useful if several .d files differ by options only.  Options are
+#	always read from FILE.d.
+#
 #   target: GLOBS...
 #       Run this test only on a specified list of targets.  More precisely,
 #       each glob in the space-separated list is passed to "istarget"; if
@@ -299,6 +304,7 @@ proc run_dump_test { name {extra_options {}} } {
     set opts(PROG) {}
     set opts(DUMPPROG) {}
     set opts(source) {}
+    set opts(dump) {}
     set opts(target) {}
     set opts(not-target) {}
     set opts(skip) {}
@@ -456,6 +462,12 @@ proc run_dump_test { name {extra_options {}} } {
 	set srcfile $srcdir/$subdir/$opts(source)
     }
 
+    if { $opts(dump) == "" } {
+	set dumpfile ${file}.d
+    } else {
+	set dumpfile $srcdir/$subdir/$opts(dump)
+    }
+
     if { $opts(as) == "binary" } {
 	while {[file type $srcfile] eq "link"} {
 	    set newfile [file readlink $srcfile]
@@ -535,7 +547,7 @@ proc run_dump_test { name {extra_options {}} } {
     }
 
     verbose_eval {[file_contents "tmpdir/dump.out"]} 3
-    if { [regexp_diff "tmpdir/dump.out" "${file}.d"] } then {
+    if { [regexp_diff "tmpdir/dump.out" "${dumpfile}"] } then {
 	fail $testname
 	verbose "output is [file_contents "tmpdir/dump.out"]" 2
 	return

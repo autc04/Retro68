@@ -17,7 +17,7 @@ CPR2 size: 0
 FP ABI: Hard float \(32-bit CPU, Any FPU\)
 ISA Extension: .*
 ASEs:
-	.*
+#...
 FLAGS 1: 0000000.
 FLAGS 2: 00000000
 

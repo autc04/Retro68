@@ -51,6 +51,7 @@
 #define bfd_sym_bfd_discard_group                   bfd_generic_discard_group
 #define bfd_sym_section_already_linked              _bfd_generic_section_already_linked
 #define bfd_sym_bfd_define_common_symbol            bfd_generic_define_common_symbol
+#define bfd_sym_bfd_define_start_stop               bfd_generic_define_start_stop
 #define bfd_sym_bfd_link_hash_table_create          _bfd_generic_link_hash_table_create
 #define bfd_sym_bfd_link_add_symbols                _bfd_generic_link_add_symbols
 #define bfd_sym_bfd_link_just_syms                  _bfd_generic_link_just_syms

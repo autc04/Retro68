@@ -3,7 +3,7 @@
 
 template < typename T > T && foo ();
 
-struct A
+struct A 
 {
   int i:5;
 };

@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2016 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2017 Free Software Foundation, Inc.
    Contributed by Andy Vaught and Janne Blomqvist
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -82,7 +82,7 @@ formatted_backspace (st_parameter_filepos *fpp, gfc_unit *u)
     goto io_error;
   u->last_record--;
   u->endfile = NO_ENDFILE;
-
+  u->last_char = EOF - 1;
   return;
 
  io_error:
@@ -322,6 +322,7 @@ st_endfile (st_parameter_filepos *fpp)
 
       unit_truncate (u, stell (u->s), &fpp->common);
       u->endfile = AFTER_ENDFILE;
+      u->last_char = EOF - 1;
       if (0 == stell (u->s))
         u->flags.position = POSITION_REWIND;
     }
@@ -362,6 +363,8 @@ st_endfile (st_parameter_filepos *fpp)
 	  u_flags.sign = SIGN_UNSPECIFIED;
 	  u_flags.status = STATUS_UNKNOWN;
 	  u_flags.convert = GFC_CONVERT_NATIVE;
+	  u_flags.share = SHARE_UNSPECIFIED;
+	  u_flags.cc = CC_UNSPECIFIED;
 
 	  opp.common = fpp->common;
 	  opp.common.flags &= IOPARM_COMMON_MASK;
@@ -369,6 +372,7 @@ st_endfile (st_parameter_filepos *fpp)
 	  if (u == NULL)
 	    return;
 	  u->endfile = AFTER_ENDFILE;
+	  u->last_char = EOF - 1;
 	}
     }
 
@@ -428,6 +432,7 @@ st_rewind (st_parameter_filepos *fpp)
 	  u->current_record = 0;
 	  u->strm_pos = 1;
 	  u->read_bad = 0;
+	  u->last_char = EOF - 1;
 	}
       /* Update position for INQUIRE.  */
       u->flags.position = POSITION_REWIND;
@@ -456,6 +461,7 @@ st_flush (st_parameter_filepos *fpp)
         fbuf_flush (u, u->mode);
 
       sflush (u->s);
+      u->last_char = EOF - 1;
       unlock_unit (u);
     }
   else

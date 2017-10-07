@@ -12,14 +12,14 @@ struct A {
   int A::m;           // { dg-error "extra qualification" } 
   struct e;
   struct A::e {int i;}; // { dg-error "extra qualification" "qual" } 
-  // { dg-error "anonymous struct" "anon" { target *-*-* } 14 }
+  // { dg-error "anonymous struct" "anon" { target *-*-* } .-1 }
   struct A::expand {  // { dg-error "qualified name" } 
   int m;
   };
   struct Z;
   expand me;          // { dg-error "'expand' does not name a type" }
   void foo(struct A::e);
-  void foo(struct A::z);  // { dg-error "does not name a type" }
+  void foo(struct A::z);  // { dg-error "incomplete" }
 };
 
 struct Q;

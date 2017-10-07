@@ -1,3 +1,26 @@
+2016-12-31  Alan Modra  <amodra@gmail.com>
+
+	* disassemble.c (disassembler): Add break accidentally removed
+	by PRU patch.
+
+2016-12-31  Dimitar Dimitrov  <dimitar@dinux.eu>
+
+	* Makefile.am: Add PRU source files.
+	* configure.ac: Add PRU target.
+	* disassemble.c (disassembler): Register PRU arch.
+	* pru-dis.c: New file.
+	* pru-opc.c: New file.
+	* Makefile.in: Regenerate.
+	* configure: Regenerate.
+
+2016-12-29  Yao Qi  <yao.qi@linaro.org>
+
+	* avr-dis.c: Include "bfd_stdint.h"
+	(avrdis_opcode): Change return type to int, add argument
+	insn.  Set *INSN on success.
+	(print_insn_avr): Check return value of avrdis_opcode, and
+	return -1 on error.
+
 2016-12-28  Alan Modra  <amodra@gmail.com>
 
 	* configure.ac: Revert 2016-12-23.

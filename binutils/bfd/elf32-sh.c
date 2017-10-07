@@ -5823,7 +5823,7 @@ sh_elf_check_relocs (bfd *abfd, struct bfd_link_info *info, asection *sec,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
 
       r_type = sh_elf_optimized_tls_reloc (info, r_type, h == NULL);
@@ -6344,7 +6344,7 @@ sh_elf_set_mach_from_flags (bfd *abfd)
 {
   flagword flags = elf_elfheader (abfd)->e_flags & EF_SH_MACH_MASK;
 
-  if (flags >= sizeof(sh_ef_bfd_table))
+  if (flags >= ARRAY_SIZE (sh_ef_bfd_table))
     return FALSE;
 
   if (sh_ef_bfd_table[flags] == 0)

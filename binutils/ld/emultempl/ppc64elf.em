@@ -38,7 +38,7 @@ static struct ppc64_elf_params params = { NULL,
 					  &ppc_layout_sections_again,
 					  1, -1, 0,
 					  ${DEFAULT_PLT_STATIC_CHAIN-0}, -1, 0,
-					  0, -1, -1, 0};
+					  -1, 0, -1, -1, 0};
 
 /* Fake input file for stubs.  */
 static lang_input_statement_type *stub_file;
@@ -683,27 +683,32 @@ fi
 # parse_args and list_options functions.
 #
 PARSE_AND_LIST_PROLOGUE=${PARSE_AND_LIST_PROLOGUE}'
-#define OPTION_STUBGROUP_SIZE		321
-#define OPTION_PLT_STATIC_CHAIN		(OPTION_STUBGROUP_SIZE + 1)
-#define OPTION_NO_PLT_STATIC_CHAIN	(OPTION_PLT_STATIC_CHAIN + 1)
-#define OPTION_PLT_THREAD_SAFE		(OPTION_NO_PLT_STATIC_CHAIN + 1)
-#define OPTION_NO_PLT_THREAD_SAFE	(OPTION_PLT_THREAD_SAFE + 1)
-#define OPTION_PLT_ALIGN		(OPTION_NO_PLT_THREAD_SAFE + 1)
-#define OPTION_NO_PLT_ALIGN		(OPTION_PLT_ALIGN + 1)
-#define OPTION_STUBSYMS			(OPTION_NO_PLT_ALIGN + 1)
-#define OPTION_NO_STUBSYMS		(OPTION_STUBSYMS + 1)
-#define OPTION_SAVRES			(OPTION_NO_STUBSYMS + 1)
-#define OPTION_NO_SAVRES		(OPTION_SAVRES + 1)
-#define OPTION_DOTSYMS			(OPTION_NO_SAVRES + 1)
-#define OPTION_NO_DOTSYMS		(OPTION_DOTSYMS + 1)
-#define OPTION_NO_TLS_OPT		(OPTION_NO_DOTSYMS + 1)
-#define OPTION_TLS_GET_ADDR_OPT		(OPTION_NO_TLS_OPT + 1)
-#define OPTION_NO_TLS_GET_ADDR_OPT	(OPTION_TLS_GET_ADDR_OPT + 1)
-#define OPTION_NO_OPD_OPT		(OPTION_NO_TLS_GET_ADDR_OPT + 1)
-#define OPTION_NO_TOC_OPT		(OPTION_NO_OPD_OPT + 1)
-#define OPTION_NO_MULTI_TOC		(OPTION_NO_TOC_OPT + 1)
-#define OPTION_NO_TOC_SORT		(OPTION_NO_MULTI_TOC + 1)
-#define OPTION_NON_OVERLAPPING_OPD	(OPTION_NO_TOC_SORT + 1)
+enum ppc64_opt
+{
+  OPTION_STUBGROUP_SIZE = 321,
+  OPTION_PLT_STATIC_CHAIN,
+  OPTION_NO_PLT_STATIC_CHAIN,
+  OPTION_PLT_THREAD_SAFE,
+  OPTION_NO_PLT_THREAD_SAFE,
+  OPTION_PLT_ALIGN,
+  OPTION_NO_PLT_ALIGN,
+  OPTION_PLT_LOCALENTRY,
+  OPTION_NO_PLT_LOCALENTRY,
+  OPTION_STUBSYMS,
+  OPTION_NO_STUBSYMS,
+  OPTION_SAVRES,
+  OPTION_NO_SAVRES,
+  OPTION_DOTSYMS,
+  OPTION_NO_DOTSYMS,
+  OPTION_NO_TLS_OPT,
+  OPTION_TLS_GET_ADDR_OPT,
+  OPTION_NO_TLS_GET_ADDR_OPT,
+  OPTION_NO_OPD_OPT,
+  OPTION_NO_TOC_OPT,
+  OPTION_NO_MULTI_TOC,
+  OPTION_NO_TOC_SORT,
+  OPTION_NON_OVERLAPPING_OPD
+};
 '
 
 PARSE_AND_LIST_LONGOPTS=${PARSE_AND_LIST_LONGOPTS}'
@@ -714,6 +719,8 @@ PARSE_AND_LIST_LONGOPTS=${PARSE_AND_LIST_LONGOPTS}'
   { "no-plt-thread-safe", no_argument, NULL, OPTION_NO_PLT_THREAD_SAFE },
   { "plt-align", optional_argument, NULL, OPTION_PLT_ALIGN },
   { "no-plt-align", no_argument, NULL, OPTION_NO_PLT_ALIGN },
+  { "plt-localentry", optional_argument, NULL, OPTION_PLT_LOCALENTRY },
+  { "no-plt-localentry", no_argument, NULL, OPTION_NO_PLT_LOCALENTRY },
   { "emit-stub-syms", no_argument, NULL, OPTION_STUBSYMS },
   { "no-emit-stub-syms", no_argument, NULL, OPTION_NO_STUBSYMS },
   { "dotsyms", no_argument, NULL, OPTION_DOTSYMS },
@@ -742,10 +749,10 @@ PARSE_AND_LIST_OPTIONS=${PARSE_AND_LIST_OPTIONS}'
                                 choose suitable defaults.\n"
 		   ));
   fprintf (file, _("\
-  --plt-static-chain          PLT call stubs should load r11.${DEFAULT_PLT_STATIC_CHAIN- (default)}\n"
+  --plt-static-chain          PLT call stubs should load r11.'${DEFAULT_PLT_STATIC_CHAIN- (default)}'\n"
 		   ));
   fprintf (file, _("\
-  --no-plt-static-chain       PLT call stubs should not load r11.${DEFAULT_PLT_STATIC_CHAIN+ (default)}\n"
+  --no-plt-static-chain       PLT call stubs should not load r11.'${DEFAULT_PLT_STATIC_CHAIN+ (default)}'\n"
 		   ));
   fprintf (file, _("\
   --plt-thread-safe           PLT call stubs with load-load barrier.\n"
@@ -758,6 +765,12 @@ PARSE_AND_LIST_OPTIONS=${PARSE_AND_LIST_OPTIONS}'
 		   ));
   fprintf (file, _("\
   --no-plt-align              Dont'\''t align individual PLT call stubs.\n"
+		   ));
+  fprintf (file, _("\
+  --plt-localentry            Optimize calls to ELFv2 localentry:0 functions.\n"
+		   ));
+  fprintf (file, _("\
+  --no-plt-localentry         Don'\''t optimize ELFv2 calls.\n"
 		   ));
   fprintf (file, _("\
   --emit-stub-syms            Label linker stubs with a symbol.\n"
@@ -850,6 +863,14 @@ PARSE_AND_LIST_ARGS_CASES=${PARSE_AND_LIST_ARGS_CASES}'
 
     case OPTION_NO_PLT_ALIGN:
       params.plt_stub_align = 0;
+      break;
+
+    case OPTION_PLT_LOCALENTRY:
+      params.plt_localentry0 = 1;
+      break;
+
+    case OPTION_NO_PLT_LOCALENTRY:
+      params.plt_localentry0 = 0;
       break;
 
     case OPTION_STUBSYMS:

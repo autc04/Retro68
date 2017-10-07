@@ -23,7 +23,7 @@
 #include "sysdep.h"
 #define h8_opcodes h8ops
 #include "opcode/h8300.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opintl.h"
 #include "libiberty.h"
 

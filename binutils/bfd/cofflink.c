@@ -447,8 +447,9 @@ coff_link_add_symbols (bfd *abfd,
   		                   || BTYPE (sym.n_type) == T_NULL)))
 			_bfd_error_handler
 			  /* xgettext: c-format */
-  			  (_("Warning: type of symbol `%s' changed from %d to %d in %B"),
-  			   abfd, name, (*sym_hash)->type, sym.n_type);
+			  (_("Warning: type of symbol `%s' changed"
+			     " from %d to %d in %B"),
+			   name, (*sym_hash)->type, sym.n_type, abfd);
 
   		      /* We don't want to change from a meaningful
   			 base type to a null one, but if we know
@@ -2726,20 +2727,16 @@ _bfd_coff_write_global_sym (struct bfd_hash_entry *bh, void *data)
 		      || bfd_link_relocatable (flaginfo->info)))
 		_bfd_error_handler
 		  /* xgettext: c-format */
-		  (_("%s: %s: reloc overflow: 0x%lx > 0xffff"),
-		   bfd_get_filename (output_bfd),
-		   bfd_get_section_name (output_bfd, sec),
-		   sec->reloc_count);
+		  (_("%B: %A: reloc overflow: 0x%lx > 0xffff"),
+		   output_bfd, sec, sec->reloc_count);
 
 	      if (sec->lineno_count > 0xffff
 		  && (! obj_pe (output_bfd)
 		      || bfd_link_relocatable (flaginfo->info)))
 		_bfd_error_handler
 		  /* xgettext: c-format */
-		  (_("%s: warning: %s: line number overflow: 0x%lx > 0xffff"),
-		   bfd_get_filename (output_bfd),
-		   bfd_get_section_name (output_bfd, sec),
-		   sec->lineno_count);
+		  (_("%B: warning: %A: line number overflow: 0x%lx > 0xffff"),
+		   output_bfd, sec, sec->lineno_count);
 
 	      auxp->x_scn.x_nreloc = sec->reloc_count;
 	      auxp->x_scn.x_nlinno = sec->lineno_count;
@@ -3124,7 +3121,7 @@ _bfd_coff_generic_relocate_section (bfd *output_bfd,
 	  _bfd_error_handler
 	    /* xgettext: c-format */
 	    (_("%B: bad reloc address 0x%lx in section `%A'"),
-	     input_bfd, input_section, (unsigned long) rel->r_vaddr);
+	     input_bfd, (unsigned long) rel->r_vaddr, input_section);
 	  return FALSE;
 	case bfd_reloc_overflow:
 	  {

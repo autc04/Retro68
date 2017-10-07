@@ -15,6 +15,9 @@
 #include <signal.h> /* sigset_t */
 #include <time.h> /* struct timespec */
 #include <unistd.h> /* isatty */
+#include <sys/lock.h> /* _Mutex_recursive_Control */
+#include <machine/_arc4random.h>
+#include <machine/_libatomic.h>
 
 void rtems_provides_crt0( void ) {}  /* dummy symbol so file always has one */
 
@@ -27,6 +30,46 @@ RTEMS_STUB(void *,malloc(size_t s), { return 0; })
 RTEMS_STUB(void *,realloc(void* p, size_t s), { return 0; })
 RTEMS_STUB(void, free(void* ptr), { })
 RTEMS_STUB(_PTR, calloc(size_t s1, size_t s2), { return 0; })
+RTEMS_STUB(int, posix_memalign(void **p, size_t si, size_t s2), { return -1; })
+
+/* Stubs for routines from RTEMS <sys/lock.h> */
+RTEMS_STUB(void, _Mutex_Acquire(struct _Mutex_Control *p), { })
+RTEMS_STUB(int,  _Mutex_Acquire_timed(struct _Mutex_Control *p1, const struct timespec *p2), { return -1; })
+RTEMS_STUB(int,  _Mutex_Try_Acquire(struct _Mutex_Control *p), { return -1; })
+RTEMS_STUB(void, _Mutex_Release(struct _Mutex_Control *p), { })
+
+RTEMS_STUB(void, _Mutex_recursive_Acquire(struct _Mutex_recursive_Control *p), { })
+RTEMS_STUB(int,  _Mutex_recursive_Acquire_timed(struct _Mutex_recursive_Control *p1, const struct timespec *p2), { return -1; })
+RTEMS_STUB(int,  _Mutex_recursive_Try_acquire(struct _Mutex_recursive_Control *p), { return -1; })
+RTEMS_STUB(void, _Mutex_recursive_Release(struct _Mutex_recursive_Control *p), { })
+
+RTEMS_STUB(void, _Condition_Wait(struct _Condition_Control *p1, struct _Mutex_Control *p2), { })
+RTEMS_STUB(int,  _Condition_Wait_timed(struct _Condition_Control *p1, struct _Mutex_Control *p2, const struct timespec *p3), { return -1; })
+RTEMS_STUB(void, _Condition_Wait_recursive(struct _Condition_Control *p1, struct _Mutex_recursive_Control *p2), { })
+RTEMS_STUB(int,  _Condition_Wait_recursive_timed(struct _Condition_Control *p1, struct _Mutex_recursive_Control *p2, const struct timespec *p3), { return -1; })
+RTEMS_STUB(void, _Condition_Signal(struct _Condition_Control *p), { })
+RTEMS_STUB(void, _Condition_Broadcast(struct _Condition_Control *p), { })
+
+RTEMS_STUB(void, _Semaphore_Wait(struct _Semaphore_Control *p), { })
+RTEMS_STUB(void, _Semaphore_Post(struct _Semaphore_Control *p), { })
+
+RTEMS_STUB(int, _Futex_Wait(struct _Futex_Control *p1, int *p2, int i), { return -1; })
+RTEMS_STUB(int, _Futex_Wake(struct _Futex_Control *p, int i), { return -1; })
+
+RTEMS_STUB(int, _Sched_Count(void), { return -1; })
+RTEMS_STUB(int, _Sched_Index(void), { return -1; })
+RTEMS_STUB(int, _Sched_Name_to_index(const char *p, size_t s), { return -1; })
+RTEMS_STUB(int, _Sched_Processor_count(int i), { return 1; })
+
+/* Stubs for routines from RTEMS <machine/_libatomic.h> */
+RTEMS_STUB(__uint32_t, _Libatomic_Protect_start(void *ptr), { return 0; });
+RTEMS_STUB(void, _Libatomic_Protect_end(void *ptr, __uint32_t isr_level), { });
+RTEMS_STUB(void, _Libatomic_Lock_n(void *ptr, __size_t n), { });
+RTEMS_STUB(void, _Libatomic_Unlock_n(void *ptr, __size_t n), { });
+
+/* Stubs for routines for arc4random (from <unistd.h> and <machine/_arc4random.h> */
+RTEMS_STUB(int,  getentropy(void *ptr, __size_t n), { });
+RTEMS_STUB(void, _arc4random_getentropy_fail(void), { });
 
 #if defined(__GNUC__)
 /*
@@ -50,6 +93,7 @@ int rtems_gxx_recursive_mutex_unlock() { return -1; }
 #endif
 
 /* stubs for functions RTEMS provides */
+RTEMS_STUB(int, access(const char *pathname, int mode), { return -1; })
 RTEMS_STUB(int, clock_gettime(clockid_t clk_id, struct timespec *tp), { return -1; })
 RTEMS_STUB(int, close (int fd), { return -1; })
 RTEMS_STUB(int, dup2(int oldfd, int newfd), { return -1; })
@@ -58,11 +102,12 @@ RTEMS_STUB(pid_t, fork(void), { return -1; })
 RTEMS_STUB(int, fstat(int fd, struct stat *buf), { return -1; })
 RTEMS_STUB(int, getdents(int fd, void *dp, int count), { return -1; })
 RTEMS_STUB(char *, getlogin(void), { return 0; })
-RTEMS_STUB(int, gettimeofday(struct timeval *tv, struct timezone *tz), { return -1; })
+RTEMS_STUB(int, gettimeofday(struct timeval *__restrict tv, struct timezone *__restrict tz), { return -1; })
 RTEMS_STUB(struct passwd *, getpwnam(const char *name), { return 0; })
 RTEMS_STUB(struct passwd *, getpwuid(uid_t uid), { return 0; })
 RTEMS_STUB(uid_t, getuid(void), { return 0; })
 RTEMS_STUB(int, nanosleep(const struct timespec *req, struct timespec *rem), { return -1; })
+RTEMS_STUB(int, ftruncate(int fd, off_t length), { return -1; })
 RTEMS_STUB(_off_t, lseek(int fd, _off_t offset, int whence), { return -1; })
 RTEMS_STUB(int, lstat(const char *path, struct stat *buf), { return -1; })
 RTEMS_STUB(int, open(const char *pathname, int flags, int mode), { return -1; })
@@ -93,7 +138,12 @@ RTEMS_STUB(int, _fork_r (struct _reent *r), { return -1; })
 #endif
 #endif
 RTEMS_STUB(int, _fstat_r (struct _reent *r, int fd, struct stat *buf), { return -1; })
-RTEMS_STUB(int, _getpid_r (struct _reent *r), { return -1; })
+RTEMS_STUB(uid_t, geteuid (), { return -1; })
+RTEMS_STUB(gid_t, getgid (), { return -1; })
+RTEMS_STUB(gid_t, _getgid_r (struct _reent *r), { return -1; })
+RTEMS_STUB(pid_t, getpid (), { return -1; })
+RTEMS_STUB(pid_t, getppid (), { return -1; })
+RTEMS_STUB(pid_t, _getpid_r (struct _reent *r), { return -1; })
 RTEMS_STUB(int, _gettimeofday_r(struct _reent *r, struct timeval *tp, void *tzp), { return 0; })
 RTEMS_STUB(int, _isatty_r (struct _reent *r, int fd), { return isatty( fd ); })
 RTEMS_STUB(int, _kill_r (struct _reent *r, int pid, int sig ), { return -1; })
@@ -137,6 +187,11 @@ RTEMS_STUB(_VOID, _free_r(struct _reent *r, _PTR *p), { })
 
 /* stubs for functions required by libc/stdlib */
 RTEMS_STUB(void, __assert_func(const char *file, int line, const char *failedexpr), { })
+
+#if defined(__arm__)
+RTEMS_STUB(void, __aeabi_read_tp(void), { })
+RTEMS_STUB(void *, __tls_get_addr(const void *ti), { })
+#endif
 
 /* The PowerPC expects certain symbols to be defined in the linker script. */
 

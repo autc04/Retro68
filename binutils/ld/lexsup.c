@@ -112,6 +112,9 @@ static const struct ld_option ld_options[] =
     'd', NULL, N_("Force common symbols to be defined"), ONE_DASH },
   { {"dp", no_argument, NULL, 'd'},
     '\0', NULL, NULL, ONE_DASH },
+  { {"force-group-allocation", no_argument, NULL,
+     OPTION_FORCE_GROUP_ALLOCATION},
+    '\0', NULL, N_("Force group members out of groups"), TWO_DASHES },
   { {"entry", required_argument, NULL, 'e'},
     'e', N_("ADDRESS"), N_("Set start address"), TWO_DASHES },
   { {"export-dynamic", no_argument, NULL, OPTION_EXPORT_DYNAMIC},
@@ -767,6 +770,9 @@ parse_args (unsigned argc, char **argv)
 	case 'd':
 	  command_line.force_common_definition = TRUE;
 	  break;
+        case OPTION_FORCE_GROUP_ALLOCATION:
+          command_line.force_group_allocation = TRUE;
+          break;
 	case OPTION_DEFSYM:
 	  lex_string = optarg;
 	  lex_redirect (optarg, "--defsym", ++defsym_count);
@@ -1786,7 +1792,7 @@ elf_shlib_list_options (FILE *file)
   fprintf (file, _("\
   -z nocommon                 Generate common symbols with STT_OBJECT type\n"));
   fprintf (file, _("\
-  -z stacksize=SIZE           Set size of stack segment\n"));
+  -z stack-size=SIZE          Set size of stack segment\n"));
   fprintf (file, _("\
   -z text                     Treat DT_TEXTREL in shared object as error\n"));
   fprintf (file, _("\

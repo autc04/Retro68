@@ -25,9 +25,9 @@ _DEFUN (_wcrtomb_r, (ptr, s, wc, ps),
 #endif
 
   if (s == NULL)
-    retval = __wctomb (ptr, buf, L'\0', __locale_charset (), ps);
+    retval = __WCTOMB (ptr, buf, L'\0', ps);
   else
-    retval = __wctomb (ptr, s, wc, __locale_charset (), ps);
+    retval = __WCTOMB (ptr, s, wc, ps);
 
   if (retval == -1)
     {
@@ -42,33 +42,34 @@ _DEFUN (_wcrtomb_r, (ptr, s, wc, ps),
 #ifndef _REENT_ONLY
 size_t
 _DEFUN (wcrtomb, (s, wc, ps),
-	char *s _AND
+	char *__restrict s _AND
 	wchar_t wc _AND
-	mbstate_t *ps)
+	mbstate_t *__restrict ps)
 {
 #if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
   return _wcrtomb_r (_REENT, s, wc, ps);
 #else
   int retval = 0;
+  struct _reent *reent = _REENT;
   char buf[10];
 
 #ifdef _MB_CAPABLE
   if (ps == NULL)
     {
-      _REENT_CHECK_MISC(_REENT);
-      ps = &(_REENT_WCRTOMB_STATE(_REENT));
+      _REENT_CHECK_MISC(reent);
+      ps = &(_REENT_WCRTOMB_STATE(reent));
     }
 #endif
 
   if (s == NULL)
-    retval = __wctomb (_REENT, buf, L'\0', __locale_charset (), ps);
+    retval = __WCTOMB (reent, buf, L'\0', ps);
   else
-    retval = __wctomb (_REENT, s, wc, __locale_charset (), ps);
+    retval = __WCTOMB (reent, s, wc, ps);
 
   if (retval == -1)
     {
       ps->__count = 0;
-      _REENT->_errno = EILSEQ;
+      reent->_errno = EILSEQ;
       return (size_t)(-1);
     }
   else

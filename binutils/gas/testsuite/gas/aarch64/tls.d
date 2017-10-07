@@ -8,9 +8,9 @@ Disassembly of section \.text:
    0:	90000000 	adrp	x0, 0 <var>
 			0: R_AARCH64_(P32_|)TLSDESC_ADR_PAGE21	var
    4:	f9400001 	ldr	x1, \[x0\]
-			4: R_AARCH64_(P32_|)TLSDESC_LD(64|32)_LO12_NC	var
+			4: R_AARCH64_(P32_|)TLSDESC_LD(64|32)_LO12(_NC|)	var
    8:	91000000 	add	x0, x0, #0x0
-			8: R_AARCH64_(P32_|)TLSDESC_ADD_LO12_NC	var
+			8: R_AARCH64_(P32_|)TLSDESC_ADD_LO12	var
    c:	d63f0020 	blr	x1
 			c: R_AARCH64_(P32_|)TLSDESC_CALL	var
   10:	90000000 	adrp	x0, 0 <var>

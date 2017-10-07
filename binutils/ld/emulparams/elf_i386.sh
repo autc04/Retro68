@@ -2,6 +2,7 @@
 . ${srcdir}/emulparams/extern_protected_data.sh
 . ${srcdir}/emulparams/dynamic_undefined_weak.sh
 . ${srcdir}/emulparams/call_nop.sh
+. ${srcdir}/emulparams/cet.sh
 SCRIPT_NAME=elf
 OUTPUT_FORMAT="elf32-i386"
 CHECK_RELOCS_AFTER_OPEN_INPUT=yes
@@ -20,6 +21,7 @@ IREL_IN_PLT=
 # Reuse TINY_READONLY_SECTION which is placed right after .plt section.
 TINY_READONLY_SECTION="
 .plt.got      ${RELOCATING-0} : { *(.plt.got) }
+.plt.sec      ${RELOCATING-0} : { *(.plt.sec) }
 "
 
 # Linux modify the default library search path to first include

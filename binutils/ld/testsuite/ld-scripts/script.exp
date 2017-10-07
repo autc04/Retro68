@@ -192,7 +192,7 @@ if {[istarget "*-*-pe*"] \
   set flags "--image-base 0"
 }
 
-if ![ld_simple_link $ld tmpdir/script "$flags -T $srcdir/$subdir/script.t tmpdir/script.o"] {
+if ![ld_link $ld tmpdir/script "$flags -T $srcdir/$subdir/script.t tmpdir/script.o"] {
     fail $testname
 } else {
     check_script
@@ -200,7 +200,7 @@ if ![ld_simple_link $ld tmpdir/script "$flags -T $srcdir/$subdir/script.t tmpdir
 
 set testname "MRI script"
 
-if ![ld_simple_link $ld tmpdir/script "$flags -c $srcdir/$subdir/scriptm.t"] {
+if ![ld_link $ld tmpdir/script "$flags -c $srcdir/$subdir/scriptm.t"] {
     fail $testname
 } else {
     check_script
@@ -208,14 +208,14 @@ if ![ld_simple_link $ld tmpdir/script "$flags -c $srcdir/$subdir/scriptm.t"] {
 
 set testname "MEMORY"
 
-if ![ld_simple_link $ld tmpdir/script "$flags -T $srcdir/$subdir/memory.t tmpdir/script.o"] {
+if ![ld_link $ld tmpdir/script "$flags -T $srcdir/$subdir/memory.t tmpdir/script.o"] {
     fail $testname
 } else {
     check_script
 }
 
 set testname "MEMORY with symbols"
-if ![ld_simple_link $ld tmpdir/script "$flags -defsym DATA_ORIGIN=0x1000 -defsym DATA_LENGTH=0x10000 -T $srcdir/$subdir/memory_sym.t tmpdir/script.o"] {
+if ![ld_link $ld tmpdir/script "$flags -defsym DATA_ORIGIN=0x1000 -defsym DATA_LENGTH=0x10000 -T $srcdir/$subdir/memory_sym.t tmpdir/script.o"] {
     fail $testname
     untested "extract symbols"
 } else {

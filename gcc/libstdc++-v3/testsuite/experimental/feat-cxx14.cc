@@ -1,5 +1,4 @@
-// { dg-options "-std=gnu++14" }
-// { dg-do compile }
+// { dg-do preprocess { target c++14 } }
 
 #include <utility>
 #include <tuple>
@@ -40,8 +39,8 @@
 
 #ifndef  __cpp_lib_transparent_operators
 #  error "__cpp_lib_transparent_operators"
-#elif  __cpp_lib_transparent_operators != 201210
-#  error "__cpp_lib_transparent_operators != 201210"
+#elif  __cpp_lib_transparent_operators < 201210
+#  error "__cpp_lib_transparent_operators < 201210"
 #endif
 
 #ifndef  __cpp_lib_result_of_sfinae

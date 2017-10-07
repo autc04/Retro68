@@ -13,6 +13,10 @@
 /* Define to 1 if you want to enable -z relro in ELF linker by default. */
 #undef DEFAULT_LD_Z_RELRO
 
+/* Define to 1 if you want to set DT_RUNPATH instead of DT_RPATH by default.
+   */
+#undef DEFAULT_NEW_DTAGS
+
 /* Define to 1 if translation of program messages to the user's native
    language is requested. */
 #undef ENABLE_NLS

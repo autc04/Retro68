@@ -617,7 +617,8 @@ mep_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
       else
 	{
 	  /* xgettext:c-format */
-	  _bfd_error_handler (_("%B and %B are for different cores"), last_ibfd, ibfd);
+	  _bfd_error_handler (_("%B and %B are for different cores"),
+			      last_ibfd, ibfd);
 	  bfd_set_error (bfd_error_invalid_target);
 	  return FALSE;
 	}
@@ -635,7 +636,8 @@ mep_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
       else
 	{
 	  /* xgettext:c-format */
-	  _bfd_error_handler (_("%B and %B are for different configurations"), last_ibfd, ibfd);
+	  _bfd_error_handler (_("%B and %B are for different configurations"),
+			      last_ibfd, ibfd);
 	  bfd_set_error (bfd_error_invalid_target);
 	  return FALSE;
 	}

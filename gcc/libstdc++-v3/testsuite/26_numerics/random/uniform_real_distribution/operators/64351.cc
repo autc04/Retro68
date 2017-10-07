@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2016 Free Software Foundation, Inc.
+// Copyright (C) 2015-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++11" }
-// { dg-do run { target { ! simulator } } }
+// { dg-do run { target { c++11 && { ! simulator } } } }
 
 #include <random>
 #include <testsuite_hooks.h>
@@ -43,10 +42,18 @@ test02()
   std::mt19937 rng(8890);
   std::seed_seq sequence{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
   rng.seed(sequence);
-  rng.discard(12 * 629143 + 6);
-  float n =
-    std::generate_canonical<float, std::numeric_limits<float>::digits>(rng);
-  VERIFY( n != 1.f );
+  rng.discard(12 * 629143);
+  std::mt19937 rng2{rng};
+  for (int i = 0; i < 20; ++i)
+  {
+    float n =
+      std::generate_canonical<float, std::numeric_limits<float>::digits>(rng);
+    VERIFY( n != 1.f );
+
+    // PR libstdc++/80137
+    rng2.discard(1);
+    VERIFY( rng == rng2 );
+  }
 }
 
 int

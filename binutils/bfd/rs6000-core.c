@@ -135,9 +135,9 @@ typedef union
 
 #ifdef AIX_CORE_DUMPX_CORE
 # ifndef BFD64
-#  define CORE_NEW(c)        (!(c).old.c_entries)
+#  define CORE_NEW(c)	(!(c).old.c_entries)
 # else
-#  define CORE_NEW(c)   (!(c).new_dump.c_entries)
+#  define CORE_NEW(c)	1
 # endif
 #else
 # define CORE_NEW(c)	0
@@ -468,8 +468,7 @@ rs6000coff_core_p (bfd *abfd)
 
   /* Issue warning if the core file was truncated during writing.  */
   if (c_flag & CORE_TRUNC)
-    _bfd_error_handler (_("%s: warning core file truncated"),
-			bfd_get_filename (abfd));
+    _bfd_error_handler (_("%B: warning core file truncated"), abfd);
 
   /* Allocate core file header.  */
 #ifndef BFD64

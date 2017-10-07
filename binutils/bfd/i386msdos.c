@@ -149,6 +149,7 @@ msdos_set_section_contents (bfd *abfd,
 #define msdos_section_already_linked \
   _bfd_generic_section_already_linked
 #define msdos_bfd_define_common_symbol bfd_generic_define_common_symbol
+#define msdos_bfd_define_start_stop bfd_generic_define_start_stop
 #define msdos_bfd_link_hash_table_create _bfd_generic_link_hash_table_create
 #define msdos_bfd_link_add_symbols _bfd_generic_link_add_symbols
 #define msdos_bfd_link_just_syms _bfd_generic_link_just_syms
@@ -176,6 +177,7 @@ msdos_set_section_contents (bfd *abfd,
 #define msdos_minisymbol_to_symbol _bfd_nosymbols_minisymbol_to_symbol
 
 #define msdos_canonicalize_reloc _bfd_norelocs_canonicalize_reloc
+#define msdos_set_reloc _bfd_norelocs_set_reloc
 #define msdos_get_reloc_upper_bound _bfd_norelocs_get_reloc_upper_bound
 #define msdos_32_bfd_link_split_section  _bfd_generic_link_split_section
 

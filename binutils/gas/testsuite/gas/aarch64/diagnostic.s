@@ -102,7 +102,7 @@
 	cset	w0, nv
 
 	# test diagnostic info on optional operand
-	ret	lr
+
 	ret	kk
 	clrex	x0
 	clrex	w0

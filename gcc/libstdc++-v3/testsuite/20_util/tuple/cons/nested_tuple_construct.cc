@@ -1,4 +1,6 @@
-// Copyright (C) 2015-2016 Free Software Foundation, Inc.
+// { dg-do run { target c++11 } }
+
+// Copyright (C) 2015-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -63,6 +65,32 @@ void f3()
   std::tuple<std::tuple<X>> t3{std::move(t2)};
 }
 
+void f4()
+{
+  std::allocator<X> a;
+  X v;
+  std::tuple<X> t1{std::allocator_arg, a, v};
+  std::tuple<std::tuple<X>&&> t2{std::allocator_arg, a, std::move(t1)};
+  std::tuple<std::tuple<X>> t3{std::allocator_arg, a, std::move(t2)};
+}
+
+void f5()
+{
+  std::allocator<X> a;
+  X v;
+  std::tuple<X> t1{std::allocator_arg, a, std::move(v)};
+  std::tuple<std::tuple<X>&&> t2{std::allocator_arg, a, std::move(t1)};
+  std::tuple<std::tuple<X>> t3{std::allocator_arg, a, std::move(t2)};
+}
+
+void f6()
+{
+  std::allocator<X> a;
+  std::tuple<X> t1{std::allocator_arg, a, X{}};
+  std::tuple<std::tuple<X>&&> t2{std::allocator_arg, a, std::move(t1)};
+  std::tuple<std::tuple<X>> t3{std::allocator_arg, a, std::move(t2)};
+}
+
 int main()
 {
   f();
@@ -72,6 +100,15 @@ int main()
   VERIFY(result == "DefMoveMoveDtorDtorDtor");
   result = "";
   f3();
+  VERIFY(result == "DefMoveDtorMoveDtorDtor");
+  result = "";
+  f4();
+  VERIFY(result == "DefCopyMoveDtorDtorDtor");
+  result = "";
+  f5();
+  VERIFY(result == "DefMoveMoveDtorDtorDtor");
+  result = "";
+  f6();
   VERIFY(result == "DefMoveDtorMoveDtorDtor");
   result = "";
 }

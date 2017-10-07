@@ -21,10 +21,18 @@
 @node RISC-V-Opts
 @section Options
 
-The following table lists all availiable RISC-V specific options
+The following table lists all available RISC-V specific options
 
 @c man begin OPTIONS
 @table @gcctabopt
+
+@cindex @samp{-fpic} option, RISC-V
+@item -fpic
+Generate position-independent code
+
+@cindex @samp{-fno-pic} option, RISC-V
+@item -fno-pic
+Don't generate position-independent code (default)
 
 @cindex @samp{-march=ISA} option, RISC-V
 @item -march=ISA

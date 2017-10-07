@@ -1,0 +1,8 @@
+#...
+Displaying notes found in: .note.gnu.property
+  Owner                 Data size	Description
+  GNU                  0x[0-9a-f]+	NT_GNU_PROPERTY_TYPE_0
+      Properties: stack size: 0x900000
+	x86 ISA used: i486, 586, SSE
+	x86 ISA needed: i486, 586, SSE
+#pass

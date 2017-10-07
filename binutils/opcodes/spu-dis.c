@@ -21,7 +21,7 @@
 
 #include "sysdep.h"
 #include <stdio.h>
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opcode/spu.h"
 
 /* This file provides a disassembler function which uses

@@ -161,9 +161,7 @@ keep:
       h->type = STT_FUNC;
     }
 
-  /* We need dynamic relocation for STT_GNU_IFUNC symbol only when
-     there is a non-GOT reference in a shared object.  */
-  if (!bfd_link_pic (info) || !h->non_got_ref)
+  if (!bfd_link_pic (info))
     *head = NULL;
 
   /* Finally, allocate space.  */
@@ -306,7 +304,7 @@ elf_s390_merge_obj_attributes (bfd *ibfd, struct bfd_link_info *info)
 	  _bfd_error_handler
 	    /* xgettext:c-format */
 	    (_("Warning: %B uses vector %s ABI, %B uses %s ABI"),
-	     ibfd, obfd, abi_str[in_attr->i], abi_str[out_attr->i]);
+	     ibfd, abi_str[in_attr->i], obfd, abi_str[out_attr->i]);
 	}
       if (in_attr->i > out_attr->i)
 	out_attr->i = in_attr->i;

@@ -162,7 +162,8 @@ extern void obj_elf_common (int);
 extern void obj_elf_data (int);
 extern void obj_elf_text (int);
 extern void obj_elf_change_section
-  (const char *, unsigned int, bfd_vma, int, const char *, int, int);
+  (const char *, unsigned int, unsigned int, bfd_vma, int, const char *,
+   int, int);
 extern struct fix *obj_elf_vtable_inherit (int);
 extern struct fix *obj_elf_vtable_entry (int);
 extern bfd_boolean obj_elf_seen_attribute

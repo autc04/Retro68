@@ -104,6 +104,7 @@ enum
   I_mipsocteon2,
   I_mipsocteon3,
   I_xlr,
+  I_interaptiv_mr2,
   I_micromips
 };
 
@@ -114,7 +115,7 @@ static const bfd_arch_info_type arch_info_struct[] =
   N (32, 32, bfd_mach_mips3000, "mips:3000",      FALSE, NN(I_mips3000)),
   N (32, 32, bfd_mach_mips3900, "mips:3900",      FALSE, NN(I_mips3900)),
   N (64, 64, bfd_mach_mips4000, "mips:4000",      FALSE, NN(I_mips4000)),
-  N (64, 64, bfd_mach_mips4010, "mips:4010",      FALSE, NN(I_mips4010)),
+  N (32, 32, bfd_mach_mips4010, "mips:4010",      FALSE, NN(I_mips4010)),
   N (64, 64, bfd_mach_mips4100, "mips:4100",      FALSE, NN(I_mips4100)),
   N (64, 64, bfd_mach_mips4111, "mips:4111",      FALSE, NN(I_mips4111)),
   N (64, 64, bfd_mach_mips4120, "mips:4120",      FALSE, NN(I_mips4120)),
@@ -155,6 +156,8 @@ static const bfd_arch_info_type arch_info_struct[] =
   N (64, 64, bfd_mach_mips_octeon2,"mips:octeon2",  FALSE, NN(I_mipsocteon2)),
   N (64, 64, bfd_mach_mips_octeon3, "mips:octeon3",  FALSE, NN(I_mipsocteon3)),
   N (64, 64, bfd_mach_mips_xlr, "mips:xlr",       FALSE, NN(I_xlr)),
+  N (32, 32, bfd_mach_mips_interaptiv_mr2, "mips:interaptiv-mr2", FALSE,
+     NN(I_interaptiv_mr2)),
   N (64, 64, bfd_mach_mips_micromips,"mips:micromips",FALSE,0)
 };
 

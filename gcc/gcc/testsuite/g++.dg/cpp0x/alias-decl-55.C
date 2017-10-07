@@ -13,7 +13,7 @@ template <typename T, int num = 1>
 const sp<T>
 rec() 			// { dg-error "depth" }
 {
-  return rec<T, num - 1>();
+  return rec<T, num - 1>();  
 }
 
 static void f(void) {

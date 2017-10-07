@@ -1,5 +1,5 @@
 /* Header file to the Fortran front-end and runtime library
-   Copyright (C) 2007-2016 Free Software Foundation, Inc.
+   Copyright (C) 2007-2017 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -68,10 +68,11 @@ along with GCC; see the file COPYING3.  If not see
 				| GFC_RTCHECK_RECURSION | GFC_RTCHECK_DO \
 				| GFC_RTCHECK_POINTER | GFC_RTCHECK_MEM)
 
-/* Special unit numbers used to convey certain conditions.  Numbers -3
+/* Special unit numbers used to convey certain conditions.  Numbers -4
    thru -9 available.  NEWUNIT values start at -10.  */
-#define GFC_INTERNAL_UNIT -1
-#define GFC_INVALID_UNIT  -2
+#define GFC_INTERNAL_UNIT  -1    /* KIND=1 Internal Unit.  */
+#define GFC_INTERNAL_UNIT4 -2    /* KIND=4 Internal Unit.  */
+#define GFC_INVALID_UNIT   -3
 
 /* Possible values for the CONVERT I/O specifier.  */
 /* Keep in sync with GFC_FLAG_CONVERT_* in gcc/flags.h.  */
@@ -116,14 +117,14 @@ typedef enum
 }
 libgfortran_error_codes;
 
-/* Must kept in sync with libgfortrancaf.h.  */
+/* Must kept in sync with libgfortran/caf/libcaf.h.  */
 typedef enum
 {
   GFC_STAT_UNLOCKED = 0,
   GFC_STAT_LOCKED,
   GFC_STAT_LOCKED_OTHER_IMAGE,
   GFC_STAT_STOPPED_IMAGE = 6000, /* See LIBERROR_INQUIRE_INTERNAL_UNIT above. */
-  GFC_STAT_FAILED_IMAGE
+  GFC_STAT_FAILED_IMAGE  = 6001
 }
 libgfortran_stat_codes;
 

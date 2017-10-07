@@ -23,7 +23,7 @@ Disassembly of section \.text:
 	\.\.\.
    3fff0:	(42 9f 00 05|05 00 9f 42) 	bcl     .*
    3fff4:	(7d 28 02 a6|a6 02 28 7d) 	mflr    r9
-   3fff8:	(3d 29 00 00|00 00 29 3d) 	addis   r9,r9,0
+   3fff8:	(3d 29 00 01|01 00 29 3d) 	addis   r9,r9,1
 			3fff[8a]: R_PPC_REL16_HA	\.bss\+0x[46]
    3fffc:	(48 00 00 34|34 00 00 48) 	b       40030 .*
    40000:	(3c 60 00 00|00 00 60 3c) 	lis     r3,0
@@ -41,7 +41,7 @@ Disassembly of section \.text:
    40024:	(4b fe ff dc|dc ff fe 4b) 	b       30000 .*
    40028:	(48 00 00 02|02 00 00 48) 	ba      0 .*
    4002c:	(48 00 00 02|02 00 00 48) 	ba      0 .*
-   40030:	(39 29 01 50|50 01 29 39) 	addi    r9,r9,336
+   40030:	(39 29 00 0c|0c 00 29 39) 	addi    r9,r9,12
 			4003[02]: R_PPC_REL16_LO	\.bss\+0x3[ce]
    40034:	(4b ff ff cc|cc ff ff 4b) 	b       40000 .*
    40038:	(48 00 00 02|02 00 00 48) 	ba      0 .*

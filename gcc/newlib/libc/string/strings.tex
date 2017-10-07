@@ -17,7 +17,9 @@ managing areas of memory.  The corresponding declarations are in
 * memmem::      Find memory segment
 * memmove::     Move possibly overlapping memory
 * mempcpy::	Copy memory regions and locate end
+* memrchr::     Reverse search for character in memory
 * memset::      Set an area of memory
+* rawmemchr::   Find character in memory
 * rindex::      Reverse search for character in string
 * stpcpy::      Copy string returning a pointer to its end
 * stpncpy::     Counted copy string returning a pointer to its end
@@ -25,11 +27,12 @@ managing areas of memory.  The corresponding declarations are in
 * strcasestr::	Find string segment ignoring case
 * strcat::      Concatenate strings
 * strchr::      Search for character in string
+* strchrnul::   Search for character in string
 * strcmp::      Character string compare
 * strcoll::     Locale-specific character string compare
 * strcpy::      Copy string
 * strcspn::     Count chars not in string
-* strerror::    Convert error number to string
+* strerror::    Convert error number to string (strerror, strerror_l)
 * strerror_r::  Convert error number to string
 * strlen::      Character string length
 * strlwr::	Convert string to lowercase
@@ -86,7 +89,13 @@ managing areas of memory.  The corresponding declarations are in
 @include string/mempcpy.def
 
 @page
+@include string/memrchr.def
+
+@page
 @include string/memset.def
+
+@page
+@include string/rawmemchr.def
 
 @page
 @include string/rindex.def
@@ -108,6 +117,9 @@ managing areas of memory.  The corresponding declarations are in
 
 @page
 @include string/strchr.def
+
+@page
+@include string/strchrnul.def
 
 @page
 @include string/strcmp.def

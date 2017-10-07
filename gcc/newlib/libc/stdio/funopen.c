@@ -85,8 +85,9 @@ Supporting OS subroutines required: <<sbrk>>.
 #include <sys/lock.h>
 #include "local.h"
 
-typedef int (*funread)(void *_cookie, char *_buf, int _n);
-typedef int (*funwrite)(void *_cookie, const char *_buf, int _n);
+typedef int (*funread)(void *_cookie, char *_buf, _READ_WRITE_BUFSIZE_TYPE _n);
+typedef int (*funwrite)(void *_cookie, const char *_buf,
+			_READ_WRITE_BUFSIZE_TYPE _n);
 #ifdef __LARGE64_FILES
 typedef _fpos64_t (*funseek)(void *_cookie, _fpos64_t _off, int _whence);
 #else
@@ -107,7 +108,7 @@ _DEFUN(funreader, (ptr, cookie, buf, n),
        struct _reent *ptr _AND
        void *cookie _AND
        char *buf _AND
-       int n)
+       _READ_WRITE_BUFSIZE_TYPE n)
 {
   int result;
   funcookie *c = (funcookie *) cookie;
@@ -122,7 +123,7 @@ _DEFUN(funwriter, (ptr, cookie, buf, n),
        struct _reent *ptr _AND
        void *cookie _AND
        const char *buf _AND
-       int n)
+       _READ_WRITE_BUFSIZE_TYPE n)
 {
   int result;
   funcookie *c = (funcookie *) cookie;
@@ -214,16 +215,16 @@ _DEFUN(_funopen_r, (ptr, cookie, readfn, writefn, seekfn, closefn),
     return NULL;
   if ((c = (funcookie *) _malloc_r (ptr, sizeof *c)) == NULL)
     {
-      __sfp_lock_acquire ();
+      _newlib_sfp_lock_start ();
       fp->_flags = 0;		/* release */
 #ifndef __SINGLE_THREAD__
       __lock_close_recursive (fp->_lock);
 #endif
-      __sfp_lock_release ();
+      _newlib_sfp_lock_end ();
       return NULL;
     }
 
-  _flockfile (fp);
+  _newlib_flockfile_start (fp);
   fp->_file = -1;
   c->cookie = (void *) cookie; /* cast away const */
   fp->_cookie = c;
@@ -260,7 +261,7 @@ _DEFUN(_funopen_r, (ptr, cookie, readfn, writefn, seekfn, closefn),
 #endif
   c->closefn = closefn;
   fp->_close = funcloser;
-  _funlockfile (fp);
+  _newlib_flockfile_end (fp);
   return fp;
 }
 

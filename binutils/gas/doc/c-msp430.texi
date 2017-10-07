@@ -93,7 +93,7 @@ default behaviour.
 
 @item -my
 tells the assembler to generate a warning message if a NOP does not
-immediately forllow an instruction that enables or disables
+immediately follow an instruction that enables or disables
 interrupts.  This is the default.
 
 Note that this option can be stacked with the @option{-mn} option so

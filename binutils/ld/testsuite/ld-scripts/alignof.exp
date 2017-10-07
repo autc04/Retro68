@@ -32,7 +32,7 @@ if ![ld_assemble $as $srcdir/$subdir/alignof.s tmpdir/alignof.o] {
     return
 }
 
-if ![ld_simple_link $ld tmpdir/alignof "-T $srcdir/$subdir/alignof.t tmpdir/alignof.o"] {
+if ![ld_link $ld tmpdir/alignof "-T $srcdir/$subdir/alignof.t tmpdir/alignof.o"] {
     fail $testname
     return
 }

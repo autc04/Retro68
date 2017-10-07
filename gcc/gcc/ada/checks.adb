@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -337,6 +337,10 @@ package body Checks is
    --  Like Apply_Selected_Length_Checks, except it doesn't modify
    --  anything, just returns a list of nodes as described in the spec of
    --  this package for the Range_Check function.
+   --  ??? In fact it does construct the test and insert it into the tree,
+   --  and insert actions in various ways (calling Insert_Action directly
+   --  in particular) so we do not call it in GNATprove mode, contrary to
+   --  Selected_Range_Checks.
 
    function Selected_Range_Checks
      (Ck_Node    : Node_Id;
@@ -635,40 +639,14 @@ package body Checks is
    procedure Apply_Address_Clause_Check (E : Entity_Id; N : Node_Id) is
       pragma Assert (Nkind (N) = N_Freeze_Entity);
 
-      AC   : constant Node_Id    := Address_Clause (E);
-      Loc  : constant Source_Ptr := Sloc (AC);
-      Typ  : constant Entity_Id  := Etype (E);
-      Aexp : constant Node_Id    := Expression (AC);
+      AC  : constant Node_Id    := Address_Clause (E);
+      Loc : constant Source_Ptr := Sloc (AC);
+      Typ : constant Entity_Id  := Etype (E);
 
       Expr : Node_Id;
       --  Address expression (not necessarily the same as Aexp, for example
       --  when Aexp is a reference to a constant, in which case Expr gets
       --  reset to reference the value expression of the constant).
-
-      procedure Compile_Time_Bad_Alignment;
-      --  Post error warnings when alignment is known to be incompatible. Note
-      --  that we do not go as far as inserting a raise of Program_Error since
-      --  this is an erroneous case, and it may happen that we are lucky and an
-      --  underaligned address turns out to be OK after all.
-
-      --------------------------------
-      -- Compile_Time_Bad_Alignment --
-      --------------------------------
-
-      procedure Compile_Time_Bad_Alignment is
-      begin
-         if Address_Clause_Overlay_Warnings then
-            Error_Msg_FE
-              ("?o?specified address for& may be inconsistent with alignment",
-               Aexp, E);
-            Error_Msg_FE
-              ("\?o?program execution may be erroneous (RM 13.3(27))",
-               Aexp, E);
-            Set_Address_Warning_Posted (AC);
-         end if;
-      end Compile_Time_Bad_Alignment;
-
-   --  Start of processing for Apply_Address_Clause_Check
 
    begin
       --  See if alignment check needed. Note that we never need a check if the
@@ -690,43 +668,11 @@ package body Checks is
 
       --  Obtain expression from address clause
 
-      Expr := Expression (AC);
+      Expr := Address_Value (Expression (AC));
 
-      --  The following loop digs for the real expression to use in the check
-
-      loop
-         --  For constant, get constant expression
-
-         if Is_Entity_Name (Expr)
-           and then Ekind (Entity (Expr)) = E_Constant
-         then
-            Expr := Constant_Value (Entity (Expr));
-
-         --  For unchecked conversion, get result to convert
-
-         elsif Nkind (Expr) = N_Unchecked_Type_Conversion then
-            Expr := Expression (Expr);
-
-         --  For (common case) of To_Address call, get argument
-
-         elsif Nkind (Expr) = N_Function_Call
-           and then Is_Entity_Name (Name (Expr))
-           and then Is_RTE (Entity (Name (Expr)), RE_To_Address)
-         then
-            Expr := First (Parameter_Associations (Expr));
-
-            if Nkind (Expr) = N_Parameter_Association then
-               Expr := Explicit_Actual_Parameter (Expr);
-            end if;
-
-         --  We finally have the real expression
-
-         else
-            exit;
-         end if;
-      end loop;
-
-      --  See if we know that Expr has a bad alignment at compile time
+      --  See if we know that Expr has an acceptable value at compile time. If
+      --  it hasn't or we don't know, we defer issuing the warning until the
+      --  end of the compilation to take into account back end annotations.
 
       if Compile_Time_Known_Value (Expr)
         and then (Known_Alignment (E) or else Known_Alignment (Typ))
@@ -735,16 +681,14 @@ package body Checks is
             AL : Uint := Alignment (Typ);
 
          begin
-            --  The object alignment might be more restrictive than the
-            --  type alignment.
+            --  The object alignment might be more restrictive than the type
+            --  alignment.
 
             if Known_Alignment (E) then
                AL := Alignment (E);
             end if;
 
-            if Expr_Value (Expr) mod AL /= 0 then
-               Compile_Time_Bad_Alignment;
-            else
+            if Expr_Value (Expr) mod AL = 0 then
                return;
             end if;
          end;
@@ -776,9 +720,9 @@ package body Checks is
       --  Generate a check to raise PE if alignment may be inappropriate
 
       else
-         --  If the original expression is a non-static constant, use the
-         --  name of the constant itself rather than duplicating its
-         --  defining expression, which was extracted above.
+         --  If the original expression is a non-static constant, use the name
+         --  of the constant itself rather than duplicating its initialization
+         --  expression, which was extracted above.
 
          --  Note: Expr is empty if the address-clause is applied to in-mode
          --  actuals (allowed by 13.1(22)).
@@ -787,8 +731,8 @@ package body Checks is
            or else
              (Is_Entity_Name (Expression (AC))
                and then Ekind (Entity (Expression (AC))) = E_Constant
-               and then Nkind (Parent (Entity (Expression (AC))))
-                                 = N_Object_Declaration)
+               and then Nkind (Parent (Entity (Expression (AC)))) =
+                          N_Object_Declaration)
          then
             Expr := New_Copy_Tree (Expression (AC));
          else
@@ -803,9 +747,9 @@ package body Checks is
            Make_Raise_Program_Error (Loc,
              Condition =>
                Make_Op_Ne (Loc,
-                 Left_Opnd =>
+                 Left_Opnd  =>
                    Make_Op_Mod (Loc,
-                     Left_Opnd =>
+                     Left_Opnd  =>
                        Unchecked_Convert_To
                          (RTE (RE_Integer_Address), Expr),
                      Right_Opnd =>
@@ -813,12 +757,12 @@ package body Checks is
                          Prefix         => New_Occurrence_Of (E, Loc),
                          Attribute_Name => Name_Alignment)),
                  Right_Opnd => Make_Integer_Literal (Loc, Uint_0)),
-                       Reason    => PE_Misaligned_Address_Value));
+             Reason    => PE_Misaligned_Address_Value));
 
          Warning_Msg := No_Error_Msg;
          Analyze (First (Actions (N)), Suppress => All_Checks);
 
-         --  If the address clause generated a warning message (for example,
+         --  If the above raise action generated a warning message (for example
          --  from Warn_On_Non_Local_Exception mode with the active restriction
          --  No_Exception_Propagation).
 
@@ -832,19 +776,21 @@ package body Checks is
             if Compile_Time_Known_Value (Expr) then
                Alignment_Warnings.Append
                  ((E => E, A => Expr_Value (Expr), W => Warning_Msg));
+
+            --  Add explanation of the warning generated by the check
+
+            else
+               Error_Msg_N
+                 ("\address value may be incompatible with alignment of "
+                  & "object?X?", AC);
             end if;
-
-            --  Add explanation of the warning that is generated by the check
-
-            Error_Msg_N
-              ("\address value may be incompatible with alignment "
-               & "of object?X?", AC);
          end if;
 
          return;
       end if;
 
    exception
+
       --  If we have some missing run time component in configurable run time
       --  mode then just skip the check (it is not required in any case).
 
@@ -880,10 +826,10 @@ package body Checks is
    -- Apply_Arithmetic_Overflow_Strict --
    --------------------------------------
 
-   --  This routine is called only if the type is an integer type, and a
-   --  software arithmetic overflow check may be needed for op (add, subtract,
-   --  or multiply). This check is performed only if Software_Overflow_Checking
-   --  is enabled and Do_Overflow_Check is set. In this case we expand the
+   --  This routine is called only if the type is an integer type and an
+   --  arithmetic overflow check may be needed for op (add, subtract, or
+   --  multiply). This check is performed if Backend_Overflow_Checks_On_Target
+   --  is not enabled and Do_Overflow_Check is set. In this case we expand the
    --  operation into a more complex sequence of tests that ensures that
    --  overflow is properly caught.
 
@@ -1505,13 +1451,17 @@ package body Checks is
          T_Typ := Typ;
       end if;
 
-      --  Nothing to do if discriminant checks are suppressed or else no code
-      --  is to be generated
+      --  Only apply checks when generating code and discriminant checks are
+      --  not suppressed. In GNATprove mode, we do not apply the checks, but we
+      --  still analyze the expression to possibly issue errors on SPARK code
+      --  when a run-time error can be detected at compile time.
 
-      if not Expander_Active
-        or else Discriminant_Checks_Suppressed (T_Typ)
-      then
-         return;
+      if not GNATprove_Mode then
+         if not Expander_Active
+           or else Discriminant_Checks_Suppressed (T_Typ)
+         then
+            return;
+         end if;
       end if;
 
       --  No discriminant checks necessary for an access when expression is
@@ -1746,6 +1696,12 @@ package body Checks is
                return;
             end if;
          end;
+      end if;
+
+      --  In GNATprove mode, we do not apply the checks
+
+      if GNATprove_Mode then
+         return;
       end if;
 
       --  Here we need a discriminant check. First build the expression
@@ -2354,11 +2310,13 @@ package body Checks is
 
       --  Local variables
 
-      Actual_1 : Node_Id;
-      Actual_2 : Node_Id;
-      Check    : Node_Id;
-      Formal_1 : Entity_Id;
-      Formal_2 : Entity_Id;
+      Actual_1   : Node_Id;
+      Actual_2   : Node_Id;
+      Check      : Node_Id;
+      Formal_1   : Entity_Id;
+      Formal_2   : Entity_Id;
+      Orig_Act_1 : Node_Id;
+      Orig_Act_2 : Node_Id;
 
    --  Start of processing for Apply_Parameter_Aliasing_Checks
 
@@ -2368,37 +2326,43 @@ package body Checks is
       Actual_1 := First_Actual (Call);
       Formal_1 := First_Formal (Subp);
       while Present (Actual_1) and then Present (Formal_1) loop
+         Orig_Act_1 := Original_Actual (Actual_1);
 
          --  Ensure that the actual is an object that is not passed by value.
          --  Elementary types are always passed by value, therefore actuals of
          --  such types cannot lead to aliasing. An aggregate is an object in
          --  Ada 2012, but an actual that is an aggregate cannot overlap with
-         --  another actual.
+         --  another actual. A type that is By_Reference (such as an array of
+         --  controlled types) is not subject to the check because any update
+         --  will be done in place and a subsequent read will always see the
+         --  correct value, see RM 6.2 (12/3).
 
-         if Nkind (Original_Actual (Actual_1)) = N_Aggregate
-           or else
-             (Nkind (Original_Actual (Actual_1)) = N_Qualified_Expression
-                and then Nkind (Expression (Original_Actual (Actual_1))) =
-                           N_Aggregate)
+         if Nkind (Orig_Act_1) = N_Aggregate
+           or else (Nkind (Orig_Act_1) = N_Qualified_Expression
+                     and then Nkind (Expression (Orig_Act_1)) = N_Aggregate)
          then
             null;
 
-         elsif Is_Object_Reference (Original_Actual (Actual_1))
-           and then not Is_Elementary_Type (Etype (Original_Actual (Actual_1)))
+         elsif Is_Object_Reference (Orig_Act_1)
+           and then not Is_Elementary_Type (Etype (Orig_Act_1))
+           and then not Is_By_Reference_Type (Etype (Orig_Act_1))
          then
             Actual_2 := Next_Actual (Actual_1);
             Formal_2 := Next_Formal (Formal_1);
             while Present (Actual_2) and then Present (Formal_2) loop
+               Orig_Act_2 := Original_Actual (Actual_2);
 
                --  The other actual we are testing against must also denote
                --  a non pass-by-value object. Generate the check only when
                --  the mode of the two formals may lead to aliasing.
 
-               if Is_Object_Reference (Original_Actual (Actual_2))
-                 and then not
-                   Is_Elementary_Type (Etype (Original_Actual (Actual_2)))
+               if Is_Object_Reference (Orig_Act_2)
+                 and then not Is_Elementary_Type (Etype (Orig_Act_2))
                  and then May_Cause_Aliasing (Formal_1, Formal_2)
                then
+                  Remove_Side_Effects (Actual_1);
+                  Remove_Side_Effects (Actual_2);
+
                   Overlap_Check
                     (Actual_1 => Actual_1,
                      Actual_2 => Actual_2,
@@ -2465,8 +2429,7 @@ package body Checks is
          begin
             Prag :=
               Make_Pragma (Loc,
-                Pragma_Identifier            =>
-                  Make_Identifier (Loc, Prag_Nam),
+                Chars                        => Prag_Nam,
                 Pragma_Argument_Associations => New_List (
                   Make_Pragma_Argument_Association (Loc,
                     Chars      => Name_Check,
@@ -2658,12 +2621,21 @@ package body Checks is
    -- Apply_Predicate_Check --
    ---------------------------
 
-   procedure Apply_Predicate_Check (N : Node_Id; Typ : Entity_Id) is
+   procedure Apply_Predicate_Check
+     (N   : Node_Id;
+      Typ : Entity_Id;
+      Fun : Entity_Id := Empty)
+   is
       S : Entity_Id;
 
    begin
-      if Present (Predicate_Function (Typ)) then
+      if Predicate_Checks_Suppressed (Empty) then
+         return;
 
+      elsif Predicates_Ignored (Typ) then
+         return;
+
+      elsif Present (Predicate_Function (Typ)) then
          S := Current_Scope;
          while Present (S) and then not Is_Subprogram (S) loop
             S := Scope (S);
@@ -2681,11 +2653,18 @@ package body Checks is
          --  is likely to be a common error, and thus deserves a warning.
 
          elsif Present (S) and then S = Predicate_Function (Typ) then
-            Error_Msg_N
-              ("predicate check includes a function call that "
-               & "requires a predicate check??", Parent (N));
+            Error_Msg_NE
+              ("predicate check includes a call to& that requires a "
+               & "predicate check??", Parent (N), Fun);
             Error_Msg_N
               ("\this will result in infinite recursion??", Parent (N));
+
+            if Is_First_Subtype (Typ) then
+               Error_Msg_NE
+                 ("\use an explicit subtype of& to carry the predicate",
+                  Parent (N), Typ);
+            end if;
+
             Insert_Action (N,
               Make_Raise_Storage_Error (Sloc (N),
                 Reason => SE_Infinite_Recursion));
@@ -2698,8 +2677,31 @@ package body Checks is
 
             Check_Expression_Against_Static_Predicate (N, Typ);
 
-            Insert_Action (N,
-              Make_Predicate_Check (Typ, Duplicate_Subexpr (N)));
+            if not Expander_Active then
+               return;
+            end if;
+
+            --  For an entity of the type, generate a call to the predicate
+            --  function, unless its type is an actual subtype, which is not
+            --  visible outside of the enclosing subprogram.
+
+            if Is_Entity_Name (N)
+              and then not Is_Actual_Subtype (Typ)
+            then
+               Insert_Action (N,
+                 Make_Predicate_Check
+                   (Typ, New_Occurrence_Of (Entity (N), Sloc (N))));
+
+            --  If the expression is not an entity it may have side effects,
+            --  and the following call will create an object declaration for
+            --  it. We disable checks during its analysis, to prevent an
+            --  infinite recursion.
+
+            else
+               Insert_Action (N,
+                 Make_Predicate_Check
+                   (Typ, Duplicate_Subexpr (N)), Suppress => All_Checks);
+            end if;
          end if;
       end if;
    end Apply_Predicate_Check;
@@ -2749,19 +2751,22 @@ package body Checks is
       --  Set to True if Expr should be regarded as a real value even though
       --  the type of Expr might be discrete.
 
-      procedure Bad_Value;
-      --  Procedure called if value is determined to be out of range
+      procedure Bad_Value (Warn : Boolean := False);
+      --  Procedure called if value is determined to be out of range. Warn is
+      --  True to force a warning instead of an error, even when SPARK_Mode is
+      --  On.
 
       ---------------
       -- Bad_Value --
       ---------------
 
-      procedure Bad_Value is
+      procedure Bad_Value (Warn : Boolean := False) is
       begin
          Apply_Compile_Time_Constraint_Error
            (Expr, "value not in range of}??", CE_Range_Check_Failed,
-            Ent => Target_Typ,
-            Typ => Target_Typ);
+            Ent  => Target_Typ,
+            Typ  => Target_Typ,
+            Warn => Warn);
       end Bad_Value;
 
    --  Start of processing for Apply_Scalar_Range_Check
@@ -2968,18 +2973,17 @@ package body Checks is
 
                   if Lov > Hiv then
 
-                     --  In GNATprove mode, do not issue a message in that case
-                     --  (which would be an error stopping analysis), as this
-                     --  likely corresponds to deactivated code based on a
-                     --  given configuration (say, dead code inside a loop over
-                     --  the empty range). Instead, we enable the range check
-                     --  so that GNATprove will issue a message if it cannot be
-                     --  proved.
+                     --  When SPARK_Mode is On, force a warning instead of
+                     --  an error in that case, as this likely corresponds
+                     --  to deactivated code.
+
+                     Bad_Value (Warn => SPARK_Mode = On);
+
+                     --  In GNATprove mode, we enable the range check so that
+                     --  GNATprove will issue a message if it cannot be proved.
 
                      if GNATprove_Mode then
                         Enable_Range_Check (Expr);
-                     else
-                        Bad_Value;
                      end if;
 
                      return;
@@ -3052,15 +3056,11 @@ package body Checks is
       --  Floating-point case
       --  In the floating-point case, we only do range checks if the type is
       --  constrained. We definitely do NOT want range checks for unconstrained
-      --  types, since we want to have infinities
+      --  types, since we want to have infinities, except when
+      --  Check_Float_Overflow is set.
 
       elsif Is_Floating_Point_Type (S_Typ) then
-
-      --  Normally, we only do range checks if the type is constrained. We do
-      --  NOT want range checks for unconstrained types, since we want to have
-      --  infinities.
-
-         if Is_Constrained (S_Typ) then
+         if Is_Constrained (S_Typ) or else Check_Float_Overflow then
             Enable_Range_Check (Expr);
          end if;
 
@@ -3092,8 +3092,10 @@ package body Checks is
           or else (not Length_Checks_Suppressed (Target_Typ));
 
    begin
+      --  Only apply checks when generating code
+
       --  Note: this means that we lose some useful warnings if the expander
-      --  is not active, and we also lose these warnings in SPARK mode ???
+      --  is not active.
 
       if not Expander_Active then
          return;
@@ -3203,12 +3205,23 @@ package body Checks is
       R_Result : Check_Result;
 
    begin
-      if not Expander_Active or not Checks_On then
-         return;
+      --  Only apply checks when generating code. In GNATprove mode, we do not
+      --  apply the checks, but we still call Selected_Range_Checks to possibly
+      --  issue errors on SPARK code when a run-time error can be detected at
+      --  compile time.
+
+      if not GNATprove_Mode then
+         if not Expander_Active or not Checks_On then
+            return;
+         end if;
       end if;
 
       R_Result :=
         Selected_Range_Checks (Ck_Node, Target_Typ, Source_Typ, Empty);
+
+      if GNATprove_Mode then
+         return;
+      end if;
 
       for J in 1 .. 2 loop
          R_Cno := R_Result (J);
@@ -3270,9 +3283,7 @@ package body Checks is
             --  on, then we want to delete the check, since it is not needed.
             --  We do this by replacing the if statement by a null statement
 
-            --  Why are we even generating checks if checks are turned off ???
-
-            elsif Do_Static or else not Checks_On then
+            elsif Do_Static then
                Remove_Warning_Messages (R_Cno);
                Rewrite (R_Cno, Make_Null_Statement (Loc));
             end if;
@@ -3382,7 +3393,57 @@ package body Checks is
                 In_Subrange_Of (Expr_Type, Target_Base, Fixed_Int => Conv_OK)
               and then not Float_To_Int
             then
-               Activate_Overflow_Check (N);
+               --  A small optimization: the attribute 'Pos applied to an
+               --  enumeration type has a known range, even though its type is
+               --  Universal_Integer. So in numeric conversions it is usually
+               --  within range of the target integer type. Use the static
+               --  bounds of the base types to check. Disable this optimization
+               --  in case of a generic formal discrete type, because we don't
+               --  necessarily know the upper bound yet.
+
+               if Nkind (Expr) = N_Attribute_Reference
+                 and then Attribute_Name (Expr) = Name_Pos
+                 and then Is_Enumeration_Type (Etype (Prefix (Expr)))
+                 and then not Is_Generic_Type (Etype (Prefix (Expr)))
+                 and then Is_Integer_Type (Target_Type)
+               then
+                  declare
+                     Enum_T : constant Entity_Id :=
+                                Root_Type (Etype (Prefix (Expr)));
+                     Int_T  : constant Entity_Id := Base_Type (Target_Type);
+                     Last_I : constant Uint      :=
+                                Intval (High_Bound (Scalar_Range (Int_T)));
+                     Last_E : Uint;
+
+                  begin
+                     --  Character types have no explicit literals, so we use
+                     --  the known number of characters in the type.
+
+                     if Root_Type (Enum_T) = Standard_Character then
+                        Last_E := UI_From_Int (255);
+
+                     elsif Enum_T = Standard_Wide_Character
+                       or else Enum_T = Standard_Wide_Wide_Character
+                     then
+                        Last_E := UI_From_Int (65535);
+
+                     else
+                        Last_E :=
+                          Enumeration_Pos
+                            (Entity (High_Bound (Scalar_Range (Enum_T))));
+                     end if;
+
+                     if Last_E <= Last_I then
+                        null;
+
+                     else
+                        Activate_Overflow_Check (N);
+                     end if;
+                  end;
+
+               else
+                  Activate_Overflow_Check (N);
+               end if;
             end if;
 
             if not Range_Checks_Suppressed (Target_Type)
@@ -4033,26 +4094,30 @@ package body Checks is
 
          if Present (Expr) and then Known_Null (Expr) then
             case K is
-               when N_Component_Declaration      |
-                    N_Discriminant_Specification =>
+               when N_Component_Declaration
+                  | N_Discriminant_Specification
+               =>
                   Apply_Compile_Time_Constraint_Error
                     (N      => Expr,
-                     Msg    => "(Ada 2005) null not allowed "
-                               & "in null-excluding components??",
+                     Msg    =>
+                       "(Ada 2005) null not allowed in null-excluding "
+                       & "components??",
                      Reason => CE_Null_Not_Allowed);
 
                when N_Object_Declaration =>
                   Apply_Compile_Time_Constraint_Error
                     (N      => Expr,
-                     Msg    => "(Ada 2005) null not allowed "
-                               & "in null-excluding objects??",
+                     Msg    =>
+                       "(Ada 2005) null not allowed in null-excluding "
+                       & "objects??",
                      Reason => CE_Null_Not_Allowed);
 
                when N_Parameter_Specification =>
                   Apply_Compile_Time_Constraint_Error
                     (N      => Expr,
-                     Msg    => "(Ada 2005) null not allowed "
-                               & "in null-excluding formals??",
+                     Msg    =>
+                       "(Ada 2005) null not allowed in null-excluding "
+                       & "formals??",
                      Reason => CE_Null_Not_Allowed);
 
                when others =>
@@ -4491,9 +4556,7 @@ package body Checks is
 
          when N_Op_Rem =>
             if OK_Operands then
-               if Lo_Right = Hi_Right
-                 and then Lo_Right /= 0
-               then
+               if Lo_Right = Hi_Right and then Lo_Right /= 0 then
                   declare
                      Dval : constant Uint := (abs Lo_Right) - 1;
 
@@ -4528,7 +4591,9 @@ package body Checks is
                --  For Pos/Val attributes, we can refine the range using the
                --  possible range of values of the attribute expression.
 
-               when Name_Pos | Name_Val =>
+               when Name_Pos
+                  | Name_Val
+               =>
                   Determine_Range
                     (First (Expressions (N)), OK1, Lor, Hir, Assume_Valid);
 
@@ -5727,6 +5792,14 @@ package body Checks is
       elsif Expr_Known_Valid (Expr) then
          return;
 
+      --  No check needed within a generated predicate function. Validity
+      --  of input value will have been checked earlier.
+
+      elsif Ekind (Current_Scope) = E_Function
+        and then Is_Predicate_Function (Current_Scope)
+      then
+         return;
+
       --  Ignore case of enumeration with holes where the flag is set not to
       --  worry about holes, since no special validity check is needed
 
@@ -6170,8 +6243,8 @@ package body Checks is
       --  twice (once for the check, once for the actual reference). Such a
       --  double evaluation is always a potential source of inefficiency, and
       --  is functionally incorrect in the volatile case, or when the prefix
-      --  may have side-effects. A non-volatile entity or a component of a
-      --  non-volatile entity requires no evaluation.
+      --  may have side effects. A nonvolatile entity or a component of a
+      --  nonvolatile entity requires no evaluation.
 
       if Is_Entity_Name (Pref) then
          if Treat_As_Volatile (Entity (Pref)) then
@@ -6393,7 +6466,7 @@ package body Checks is
                   Set_Do_Range_Check (Sub, False);
 
                   --  Force evaluation except for the case of a simple name of
-                  --  a non-volatile entity.
+                  --  a nonvolatile entity.
 
                   if not Is_Entity_Name (Sub)
                     or else Treat_As_Volatile (Entity (Sub))
@@ -7136,12 +7209,18 @@ package body Checks is
             Force_Evaluation (Exp, Name_Req => False);
          end if;
 
-         --  Build the prefix for the 'Valid call
+         --  Build the prefix for the 'Valid call. If the expression denotes
+         --  a name, use a renaming to alias it, otherwise use a constant to
+         --  capture the value of the expression.
+
+         --    Temp : ... renames Expr;      --  reference to a name
+         --    Temp : constant ... := Expr;  --  all other cases
 
          PV :=
            Duplicate_Subexpr_No_Checks
              (Exp           => Exp,
               Name_Req      => False,
+              Renaming_Req  => Is_Name_Reference (Exp),
               Related_Id    => Related_Id,
               Is_Low_Bound  => Is_Low_Bound,
               Is_High_Bound => Is_High_Bound);
@@ -7230,12 +7309,22 @@ package body Checks is
    function Is_Signed_Integer_Arithmetic_Op (N : Node_Id) return Boolean is
    begin
       case Nkind (N) is
-         when N_Op_Abs   | N_Op_Add      | N_Op_Divide   | N_Op_Expon |
-              N_Op_Minus | N_Op_Mod      | N_Op_Multiply | N_Op_Plus  |
-              N_Op_Rem   | N_Op_Subtract =>
+         when N_Op_Abs
+            | N_Op_Add
+            | N_Op_Divide
+            | N_Op_Expon
+            | N_Op_Minus
+            | N_Op_Mod
+            | N_Op_Multiply
+            | N_Op_Plus
+            | N_Op_Rem
+            | N_Op_Subtract
+         =>
             return Is_Signed_Integer_Type (Etype (N));
 
-         when N_If_Expression | N_Case_Expression =>
+         when N_Case_Expression
+            | N_If_Expression
+         =>
             return Is_Signed_Integer_Type (Etype (N));
 
          when others =>
@@ -8452,28 +8541,28 @@ package body Checks is
 
             begin
                case Nkind (N) is
-                  when N_Op_Abs      =>
+                  when N_Op_Abs =>
                      Fent := RTE (RE_Big_Abs);
 
-                  when N_Op_Add      =>
+                  when N_Op_Add =>
                      Fent := RTE (RE_Big_Add);
 
-                  when N_Op_Divide   =>
+                  when N_Op_Divide =>
                      Fent := RTE (RE_Big_Div);
 
-                  when N_Op_Expon    =>
+                  when N_Op_Expon =>
                      Fent := RTE (RE_Big_Exp);
 
-                  when N_Op_Minus    =>
+                  when N_Op_Minus =>
                      Fent := RTE (RE_Big_Neg);
 
-                  when N_Op_Mod      =>
+                  when N_Op_Mod =>
                      Fent := RTE (RE_Big_Mod);
 
                   when N_Op_Multiply =>
                      Fent := RTE (RE_Big_Mul);
 
-                  when N_Op_Rem      =>
+                  when N_Op_Rem =>
                      Fent := RTE (RE_Big_Rem);
 
                   when N_Op_Subtract =>
@@ -9063,6 +9152,8 @@ package body Checks is
    --  Start of processing for Selected_Length_Checks
 
    begin
+      --  Checks will be applied only when generating code
+
       if not Expander_Active then
          return Ret_Result;
       end if;
@@ -9613,7 +9704,12 @@ package body Checks is
    --  Start of processing for Selected_Range_Checks
 
    begin
-      if not Expander_Active then
+      --  Checks will be applied only when generating code. In GNATprove mode,
+      --  we do not apply the checks, but we still call Selected_Range_Checks
+      --  to possibly issue errors on SPARK code when a run-time error can be
+      --  detected at compile time.
+
+      if not Expander_Active and not GNATprove_Mode then
          return Ret_Result;
       end if;
 
@@ -9677,8 +9773,8 @@ package body Checks is
 
             LB         : Node_Id := Low_Bound (Ck_Node);
             HB         : Node_Id := High_Bound (Ck_Node);
-            Known_LB   : Boolean;
-            Known_HB   : Boolean;
+            Known_LB   : Boolean := False;
+            Known_HB   : Boolean := False;
 
             Null_Range     : Boolean;
             Out_Of_Range_L : Boolean;
@@ -9700,9 +9796,6 @@ package body Checks is
                then
                   LB := T_LB;
                   Known_LB := True;
-
-               else
-                  Known_LB := False;
                end if;
 
                --  Likewise for the high bound
@@ -9715,8 +9808,6 @@ package body Checks is
                then
                   HB := T_HB;
                   Known_HB := True;
-               else
-                  Known_HB := False;
                end if;
             end if;
 

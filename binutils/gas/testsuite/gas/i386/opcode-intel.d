@@ -601,4 +601,7 @@ Disassembly of section .text:
  +[a-f0-9]+:	82 f3 01             	xor    bl,0x1
  +[a-f0-9]+:	82 fb 01             	cmp    bl,0x1
  +[a-f0-9]+:	62 f3 7d 08 15 e8 ab 	vpextrw eax,xmm5,0xab
+ +[a-f0-9]+:	f6 c9 01             	test   cl,(0x)?0*1
+ +[a-f0-9]+:	66 f7 c9 02 00       	test   cx,(0x)?0*2
+ +[a-f0-9]+:	f7 c9 04 00 00 00    	test   ecx,(0x)?0*4
 #pass

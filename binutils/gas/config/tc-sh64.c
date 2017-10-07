@@ -3037,7 +3037,7 @@ valueT
 shmedia_md_pcrel_from_section (struct fix *fixP, segT sec ATTRIBUTE_UNUSED)
 {
   /* Use the ISA for the instruction to decide which offset to use.  We
-     can glean it from the fisup type.  */
+     can glean it from the fixup type.  */
   switch (fixP->fx_r_type)
     {
     case BFD_RELOC_SH_IMM_LOW16:

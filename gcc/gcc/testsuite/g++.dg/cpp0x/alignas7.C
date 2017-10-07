@@ -3,7 +3,7 @@
 
 template < int N, typename T >
 struct A
-{
+{ 
   enum alignas (N) E : T;
 };
 

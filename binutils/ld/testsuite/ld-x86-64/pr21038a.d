@@ -59,13 +59,13 @@ Disassembly of section .plt:
 
 Disassembly of section .plt.got:
 
-0+230 <.plt.got>:
+0+230 <func@plt>:
  +[a-f0-9]+:	f2 ff 25 c1 0d 20 00 	bnd jmpq \*0x200dc1\(%rip\)        # 200ff8 <func>
  +[a-f0-9]+:	90                   	nop
 
 Disassembly of section .text:
 
 0+238 <foo>:
- +[a-f0-9]+:	e8 f3 ff ff ff       	callq  230 <.plt.got>
+ +[a-f0-9]+:	e8 f3 ff ff ff       	callq  230 <func@plt>
  +[a-f0-9]+:	48 8b 05 b4 0d 20 00 	mov    0x200db4\(%rip\),%rax        # 200ff8 <func>
 #pass

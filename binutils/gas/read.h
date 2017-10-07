@@ -213,3 +213,5 @@ extern void s_xstab (int what);
 extern void s_rva (int);
 extern void s_incbin (int);
 extern void s_weakref (int);
+extern void temp_ilp (char *);
+extern void restore_ilp (void);

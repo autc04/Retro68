@@ -23,7 +23,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "opcode/vax.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 
 static char *reg_names[] =
 {
@@ -117,7 +117,7 @@ static bfd_vma *     entry_addr = NULL;
    there's no symbol table.  Returns TRUE upon success, FALSE otherwise.  */
 
 static bfd_boolean
-parse_disassembler_options (char * options)
+parse_disassembler_options (const char *options)
 {
   const char * entry_switch = "entry:";
 

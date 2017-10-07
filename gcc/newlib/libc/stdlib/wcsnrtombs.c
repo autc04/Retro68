@@ -13,8 +13,9 @@ INDEX
 
 ANSI_SYNOPSIS
 	#include <wchar.h>
-	size_t wcsrtombs(char *<[dst]>, const wchar_t **<[src]>, size_t <[len]>,
-			 mbstate_t *<[ps]>);
+	size_t wcsrtombs(char *__restrict <[dst]>,
+			 const wchar_t **__restrict <[src]>, size_t <[len]>,
+			 mbstate_t *__restrict <[ps]>);
 
 	#include <wchar.h>
 	size_t _wcsrtombs_r(struct _reent *<[ptr]>, char *<[dst]>,
@@ -22,8 +23,10 @@ ANSI_SYNOPSIS
 			    mbstate_t *<[ps]>);
 
 	#include <wchar.h>
-	size_t wcsnrtombs(char *<[dst]>, const wchar_t **<[src]>,
-			  size_t <[nwc]>, size_t <[len]>, mbstate_t *<[ps]>);
+	size_t wcsnrtombs(char *__restrict <[dst]>,
+			  const wchar_t **__restrict <[src]>,
+			  size_t <[nwc]>, size_t <[len]>,
+			  mbstate_t *__restrict <[ps]>);
 
 	#include <wchar.h>
 	size_t _wcsnrtombs_r(struct _reent *<[ptr]>, char *<[dst]>,
@@ -33,10 +36,10 @@ ANSI_SYNOPSIS
 TRAD_SYNOPSIS
 	#include <wchar.h>
 	size_t wcsrtombs(<[dst]>, <[src]>, <[len]>, <[ps]>)
-	char *<[dst]>;
-	const wchar_t **<[src]>;
+	char *__restrict <[dst]>;
+	const wchar_t **__restrict <[src]>;
 	size_t <[len]>;
-	mbstate_t *<[ps]>;
+	mbstate_t *__restrict <[ps]>;
 
 	#include <wchar.h>
 	size_t _wcsrtombs_r(<[ptr]>, <[dst]>, <[src]>, <[len]>, <[ps]>)
@@ -48,11 +51,11 @@ TRAD_SYNOPSIS
 
 	#include <wchar.h>
 	size_t wcsnrtombs(<[dst]>, <[src]>, <[nwc]>, <[len]>, <[ps]>)
-	char *<[dst]>;
-	const wchar_t **<[src]>;
+	char *__restrict <[dst]>;
+	const wchar_t **__restrict <[src]>;
 	size_t <[nwc]>;
 	size_t <[len]>;
-	mbstate_t *<[ps]>;
+	mbstate_t *__restrict <[ps]>;
 
 	#include <wchar.h>
 	size_t _wcsnrtombs_r(<[ptr]>, <[dst]>, <[src]>, <[nwc]>, <[len]>, <[ps]>)
@@ -66,12 +69,12 @@ TRAD_SYNOPSIS
 DESCRIPTION
 The <<wcsrtombs>> function converts a string of wide characters indirectly
 pointed to by <[src]> to a corresponding multibyte character string stored in
-the array pointed to by <[dst}>.  No more than <[len]> bytes are written to
-<[dst}>.
+the array pointed to by <[dst]>.  No more than <[len]> bytes are written to
+<[dst]>.
 
-If <[dst}> is NULL, no characters are stored.
+If <[dst]> is NULL, no characters are stored.
 
-If <[dst}> is not NULL, the pointer pointed to by <[src]> is updated to point
+If <[dst]> is not NULL, the pointer pointed to by <[src]> is updated to point
 to the character after the one that conversion stopped at.  If conversion
 stops because a null character is encountered, *<[src]> is set to NULL.
 
@@ -100,15 +103,11 @@ PORTABILITY
 #include <stdio.h>
 #include <errno.h>
 #include "local.h"
+#include "../locale/setlocale.h"
 
 size_t
-_DEFUN (_wcsnrtombs_r, (r, dst, src, nwc, len, ps),
-	struct _reent *r _AND
-	char *dst _AND
-	const wchar_t **src _AND
-	size_t nwc _AND
-	size_t len _AND
-	mbstate_t *ps)
+_wcsnrtombs_l (struct _reent *r, char *dst, const wchar_t **src, size_t nwc,
+	       size_t len, mbstate_t *ps, struct __locale_t *loc)
 {
   char *ptr = dst;
   char buff[10];
@@ -135,7 +134,7 @@ _DEFUN (_wcsnrtombs_r, (r, dst, src, nwc, len, ps),
     {
       int count = ps->__count;
       wint_t wch = ps->__value.__wch;
-      int bytes = __wctomb (r, buff, *pwcs, __locale_charset (), ps);
+      int bytes = loc->wctomb (r, buff, *pwcs, ps);
       if (bytes == -1)
 	{
 	  r->_errno = EILSEQ;
@@ -161,7 +160,7 @@ _DEFUN (_wcsnrtombs_r, (r, dst, src, nwc, len, ps),
 	}
       else
 	{
-	  /* not enough room, we must back up state to before __wctomb call */
+	  /* not enough room, we must back up state to before __WCTOMB call */
 	  ps->__count = count;
 	  ps->__value.__wch = wch;
           len = 0;
@@ -171,15 +170,29 @@ _DEFUN (_wcsnrtombs_r, (r, dst, src, nwc, len, ps),
   return n;
 } 
 
-#ifndef _REENT_ONLY
 size_t
-_DEFUN (wcsnrtombs, (dst, src, nwc, len, ps),
+_DEFUN (_wcsnrtombs_r, (r, dst, src, nwc, len, ps),
+	struct _reent *r _AND
 	char *dst _AND
 	const wchar_t **src _AND
 	size_t nwc _AND
 	size_t len _AND
 	mbstate_t *ps)
 {
-  return _wcsnrtombs_r (_REENT, dst, src, nwc, len, ps);
+  return _wcsnrtombs_l (_REENT, dst, src, nwc, len, ps,
+			__get_current_locale ());
+}
+
+#ifndef _REENT_ONLY
+size_t
+_DEFUN (wcsnrtombs, (dst, src, nwc, len, ps),
+	char *__restrict dst _AND
+	const wchar_t **__restrict src _AND
+	size_t nwc _AND
+	size_t len _AND
+	mbstate_t *__restrict ps)
+{
+  return _wcsnrtombs_l (_REENT, dst, src, nwc, len, ps,
+			__get_current_locale ());
 }
 #endif /* !_REENT_ONLY */

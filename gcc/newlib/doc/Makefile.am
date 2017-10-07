@@ -12,10 +12,17 @@ MKDOC = makedoc$(EXEEXT_FOR_BUILD)
 # -Os, which CC_FOR_BUILD may not recognize.
 
 $(MKDOC): makedoc.o
-	$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $(LDFLAGS) -o $(MKDOC) makedoc.o
+	$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $(LDFLAGS_FOR_BUILD) -o $(MKDOC) makedoc.o
 
 makedoc.o: makedoc.c
 	$(CC_FOR_BUILD) -g $(CFLAGS_FOR_BUILD) -c $(srcdir)/makedoc.c
 
 ACLOCAL_AMFLAGS = -I .. -I ../..
 CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
+
+man:
+
+man-cache:
+	${srcdir}/makedocbook.py --cache
+
+.PHONY: man-cache

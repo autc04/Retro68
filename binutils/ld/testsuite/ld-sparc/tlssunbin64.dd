@@ -165,7 +165,7 @@ Disassembly of section .text:
  +10125c:	01 00 00 00 	nop *
  +101260:	01 00 00 00 	nop *
  +101264:	01 00 00 00 	nop *
- +101268:	81 cf e0 08 	rett  %i7 \+ 8
+ +101268:	81 cf e0 08 	return  %i7 \+ 8
  +10126c:	01 00 00 00 	nop *
 #...
 

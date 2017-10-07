@@ -78,7 +78,7 @@ extern int sh64_target_mach (void);
 
 #undef TC_FORCE_RELOCATION_LOCAL
 #define TC_FORCE_RELOCATION_LOCAL(FIX)			\
-  (!(FIX)->fx_pcrel					\
+  (GENERIC_FORCE_RELOCATION_LOCAL (FIX)			\
    || (FIX)->fx_r_type == BFD_RELOC_32_PLT_PCREL	\
    || (FIX)->fx_r_type == BFD_RELOC_SH_PLT_LOW16	\
    || (FIX)->fx_r_type == BFD_RELOC_SH_PLT_MEDLOW16	\
@@ -102,12 +102,11 @@ extern int sh64_target_mach (void);
    || (FIX)->fx_r_type == BFD_RELOC_SH_GOTPC_LOW16	\
    || (FIX)->fx_r_type == BFD_RELOC_SH_GOTPC_MEDLOW16	\
    || (FIX)->fx_r_type == BFD_RELOC_SH_GOTPC_MEDHI16	\
-   || (FIX)->fx_r_type == BFD_RELOC_SH_GOTPC_HI16	\
-   || TC_FORCE_RELOCATION (FIX))
+   || (FIX)->fx_r_type == BFD_RELOC_SH_GOTPC_HI16)
 
 #undef TC_FORCE_RELOCATION_SUB_SAME
 #define TC_FORCE_RELOCATION_SUB_SAME(FIX, SEC)		\
-  (! SEG_NORMAL (SEC)					\
+  (GENERIC_FORCE_RELOCATION_SUB_SAME (FIX, SEC)		\
    || TC_FORCE_RELOCATION (FIX)				\
    || (sh_relax && SWITCH_TABLE (FIX))			\
    || *symbol_get_tc ((FIX)->fx_addsy) != NULL)

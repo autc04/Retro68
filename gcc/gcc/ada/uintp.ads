@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2014, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -252,12 +252,12 @@ package Uintp is
    --  Converts Char_Code value to universal integer form
 
    function UI_To_Int (Input : Uint) return Int;
-   --  Converts universal integer value to Int. Fatal error if value is not in
-   --  appropriate range.
+   --  Converts universal integer value to Int. Constraint_Error if value is
+   --  not in appropriate range.
 
    function UI_To_CC (Input : Uint) return Char_Code;
-   --  Converts universal integer value to Char_Code. Fatal error if value is
-   --  not in Char_Code range.
+   --  Converts universal integer value to Char_Code. Constraint_Error if value
+   --  is not in Char_Code range.
 
    function Num_Bits (Input : Uint) return Nat;
    --  Approximate number of binary bits in given universal integer. This
@@ -431,7 +431,7 @@ private
 
    --  Base is defined to allow efficient execution of the primitive operations
    --  (a0, b0, c0) defined in the section "The Classical Algorithms"
-   --  (sec. 4.3.1) of Donald Knuth's "The Art of Computer  Programming",
+   --  (sec. 4.3.1) of Donald Knuth's "The Art of Computer Programming",
    --  Vol. 2. These algorithms are used in this package. In particular,
    --  the product of two single digits in this base fits in a 32-bit integer.
 

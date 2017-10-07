@@ -273,6 +273,9 @@ getvalue (char **srcp, bfd_vma *valuep, char * endp)
   bfd_vma value = 0;
   unsigned int len;
 
+  if (src >= endp)
+    return FALSE;
+
   if (!ISHEX (*src))
     return FALSE;
 
@@ -514,6 +517,7 @@ pass_over (bfd *abfd, bfd_boolean (*func) (bfd *, int, char *, char *))
   /* To the front of the file.  */
   if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0)
     return FALSE;
+
   while (! is_eof)
     {
       char src[MAXCHUNK];
@@ -977,6 +981,7 @@ tekhex_print_symbol (bfd *abfd,
 #define tekhex_bfd_discard_group                    bfd_generic_discard_group
 #define tekhex_section_already_linked               _bfd_generic_section_already_linked
 #define tekhex_bfd_define_common_symbol             bfd_generic_define_common_symbol
+#define tekhex_bfd_define_start_stop                bfd_generic_define_start_stop
 #define tekhex_bfd_link_hash_table_create           _bfd_generic_link_hash_table_create
 #define tekhex_bfd_link_add_symbols                 _bfd_generic_link_add_symbols
 #define tekhex_bfd_link_just_syms                   _bfd_generic_link_just_syms

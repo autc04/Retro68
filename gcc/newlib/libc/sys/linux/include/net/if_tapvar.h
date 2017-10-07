@@ -35,7 +35,7 @@
 
 /*
  * $FreeBSD: src/sys/net/if_tapvar.h,v 1.4 2001/09/05 01:06:21 brooks Exp $
- * $Id: if_tapvar.h,v 1.1 2003/05/28 22:04:35 jjohnstn Exp $
+ * $Id$
  */
 
 #ifndef _NET_IF_TAPVAR_H_

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -287,9 +287,9 @@ package Restrict is
    --  for this aspect using Set_No_Specification_Of_Aspect.
 
    procedure Check_Restriction_No_Use_Of_Attribute (N : Node_Id);
-   --  N is the node of an attribute definition clause. An error message
-   --  (warning) will be issued if a restriction (warning) was previously set
-   --  for this attribute using Set_No_Use_Of_Attribute.
+   --  N denotes an attribute definition clause or an attribute reference. An
+   --  error message (warning) will be issued if a restriction (warning) was
+   --  previously set for this attribute using Set_No_Use_Of_Attribute.
 
    procedure Check_Restriction_No_Use_Of_Entity (N : Node_Id);
    --  N is the node id for an entity reference. An error message (warning)
@@ -316,7 +316,10 @@ package Restrict is
    --  the SPARK_05 restriction is set, then an error is issued on N. Msg
    --  is appended to the restriction failure message.
 
-   procedure Check_SPARK_05_Restriction (Msg1, Msg2 : String; N : Node_Id);
+   procedure Check_SPARK_05_Restriction
+     (Msg1 : String;
+      Msg2 : String;
+      N    : Node_Id);
    --  Same as Check_SPARK_05_Restriction except there is a continuation
    --  message Msg2 following the initial message Msg1.
 
@@ -421,10 +424,10 @@ package Restrict is
    --  executing this code only if needed.
 
    function Restricted_Profile return Boolean;
-   --  Tests if set of restrictions corresponding to Profile (Restricted) is
-   --  currently in effect (set by pragma Profile, or by an appropriate set of
-   --  individual Restrictions pragmas). Returns True only if all the required
-   --  restrictions are set.
+   --  Tests if set of restrictions corresponding to Restricted_Tasking profile
+   --  is currently in effect (set by pragma Profile, or by an appropriate set
+   --  of individual Restrictions pragmas). Returns True only if all the
+   --  required restrictions are set.
 
    procedure Set_Hidden_Part_In_SPARK (Loc1, Loc2 : Source_Ptr);
    --  Insert a new hidden region range in the SPARK hides table. The effect
@@ -490,7 +493,7 @@ package Restrict is
 
    procedure Set_Restriction_No_Use_Of_Entity
      (Entity  : Node_Id;
-      Warn    : Boolean;
+      Warning : Boolean;
       Profile : Profile_Name := No_Profile);
    --  Sets given No_Use_Of_Entity restriction in table if not there already.
    --  Warn is True if from Restriction_Warnings, or for Restrictions if the

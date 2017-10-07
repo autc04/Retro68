@@ -320,9 +320,8 @@ typedef struct unwind_record
 
 #define TC_FORCE_RELOCATION_LOCAL(FIX)			\
   ((FIX)->fx_r_type != BFD_RELOC_UNUSED			\
-   && (!(FIX)->fx_pcrel					\
-       || (FIX)->fx_r_type == BFD_RELOC_IA64_PLTOFF22	\
-       || TC_FORCE_RELOCATION (FIX)))
+   && (GENERIC_FORCE_RELOCATION_LOCAL (FIX)		\
+       || (FIX)->fx_r_type == BFD_RELOC_IA64_PLTOFF22))
 
 /* VMS backtraces expect dwarf version 3.  */
 #ifdef TE_VMS

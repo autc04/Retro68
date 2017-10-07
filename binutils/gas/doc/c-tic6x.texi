@@ -160,7 +160,7 @@ Output an exception type table reference to @var{symbol}.
 
 @cindex @code{.endp} directive, TIC6X
 @item .endp
-Marks the end of and exception table or function.  If preceeded by a
+Marks the end of and exception table or function.  If preceded by a
 @code{.handlerdata} directive then this also switched back to the previous
 text section.
 

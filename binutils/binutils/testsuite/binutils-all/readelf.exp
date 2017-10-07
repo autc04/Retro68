@@ -394,3 +394,32 @@ if {![binutils_assemble $srcdir/$subdir/z.s tmpdir/z.o]} then {
 
     readelf_test {--decompress --hex-dump .debug_loc} $tempfile readelf.z  {}
 }
+
+# Skip the next test for the RISCV architectures because they do not
+# support .ULEB128 pseudo-ops with non-constant values.
+if ![istarget "riscv*-*-*"] then {
+
+    set hpux ""
+    if [istarget "hppa*64*-*-hpux*"] {
+	set hpux "--defsym HPUX=1"
+    }
+    # Assemble the DWARF-5 test file.
+    if {![binutils_assemble_flags $srcdir/$subdir/dw5.S tmpdir/dw5.o $hpux]} then {
+	perror "could not assemble dw5 test file"
+	unresolved "readelf - failed to assemble dw5"
+	return
+    }
+
+    # Download it.
+    if ![is_remote host] {
+	set tempfile tmpdir/dw5.o
+    } else {
+	set tempfile [remote_download host tmpdir/dw5.o]
+    }
+
+    # First, determine the size, so specific output matchers can be used.
+    readelf_find_size $tempfile
+
+    # Make sure that readelf can decode the contents.
+    readelf_test -wiaoRlL $tempfile dw5.W {}
+}

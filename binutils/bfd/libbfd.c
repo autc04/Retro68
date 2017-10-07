@@ -119,6 +119,15 @@ _bfd_norelocs_canonicalize_reloc (bfd *abfd ATTRIBUTE_UNUSED,
   return 0;
 }
 
+void
+_bfd_norelocs_set_reloc (bfd *abfd ATTRIBUTE_UNUSED,
+                         asection *sec ATTRIBUTE_UNUSED,
+                         arelent **relptr ATTRIBUTE_UNUSED,
+                         unsigned int count ATTRIBUTE_UNUSED)
+{
+  /* Do nothing.  */
+}
+
 bfd_boolean
 _bfd_nocore_core_file_matches_executable_p
   (bfd *ignore_core_bfd ATTRIBUTE_UNUSED,
@@ -803,7 +812,11 @@ _bfd_generic_get_section_contents (bfd *abfd,
   else
     sz = section->size;
   if (offset + count < count
-      || offset + count > sz)
+      || offset + count > sz
+      || (abfd->my_archive != NULL
+	  && !bfd_is_thin_archive (abfd->my_archive)
+	  && ((ufile_ptr) section->filepos + offset + count
+	      > arelt_size (abfd))))
     {
       bfd_set_error (bfd_error_invalid_operation);
       return FALSE;
@@ -858,7 +871,12 @@ _bfd_generic_get_section_contents_in_window
     sz = section->rawsize;
   else
     sz = section->size;
-  if (offset + count > sz
+  if (offset + count < count
+      || offset + count > sz
+      || (abfd->my_archive != NULL
+	  && !bfd_is_thin_archive (abfd->my_archive)
+	  && ((ufile_ptr) section->filepos + offset + count
+	      > arelt_size (abfd)))
       || ! bfd_get_file_window (abfd, section->filepos + offset, count, w,
 				TRUE))
     return FALSE;
@@ -927,10 +945,10 @@ bfd_generic_is_local_label_name (bfd *abfd, const char *name)
    old routines.  */
 
 void
-warn_deprecated (const char *what,
-		 const char *file,
-		 int line,
-		 const char *func)
+_bfd_warn_deprecated (const char *what,
+		      const char *file,
+		      int line,
+		      const char *func)
 {
   /* Poor man's tracking of functions we've already warned about.  */
   static size_t mask = 0;
@@ -954,9 +972,9 @@ warn_deprecated (const char *what,
 /* Helper function for reading uleb128 encoded data.  */
 
 bfd_vma
-read_unsigned_leb128 (bfd *abfd ATTRIBUTE_UNUSED,
-		      bfd_byte *buf,
-		      unsigned int *bytes_read_ptr)
+_bfd_read_unsigned_leb128 (bfd *abfd ATTRIBUTE_UNUSED,
+			   bfd_byte *buf,
+			   unsigned int *bytes_read_ptr)
 {
   bfd_vma result;
   unsigned int num_read;
@@ -985,11 +1003,11 @@ read_unsigned_leb128 (bfd *abfd ATTRIBUTE_UNUSED,
    No bytes will be read at address END or beyond.  */
 
 bfd_vma
-safe_read_leb128 (bfd *abfd ATTRIBUTE_UNUSED,
-		  bfd_byte *data,
-		  unsigned int *length_return,
-		  bfd_boolean sign,
-		  const bfd_byte * const end)
+_bfd_safe_read_leb128 (bfd *abfd ATTRIBUTE_UNUSED,
+		       bfd_byte *data,
+		       unsigned int *length_return,
+		       bfd_boolean sign,
+		       const bfd_byte * const end)
 {
   bfd_vma result = 0;
   unsigned int num_read = 0;
@@ -1021,9 +1039,9 @@ safe_read_leb128 (bfd *abfd ATTRIBUTE_UNUSED,
 /* Helper function for reading sleb128 encoded data.  */
 
 bfd_signed_vma
-read_signed_leb128 (bfd *abfd ATTRIBUTE_UNUSED,
-		    bfd_byte *buf,
-		    unsigned int *bytes_read_ptr)
+_bfd_read_signed_leb128 (bfd *abfd ATTRIBUTE_UNUSED,
+			 bfd_byte *buf,
+			 unsigned int *bytes_read_ptr)
 {
   bfd_vma result;
   unsigned int shift;

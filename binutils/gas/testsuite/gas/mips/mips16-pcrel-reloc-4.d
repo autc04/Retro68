@@ -1,6 +1,6 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: MIPS16 PC-relative relocation 4
-#as: -32 -mips3
+#as: -32
 
 .*: +file format .*mips.*
 

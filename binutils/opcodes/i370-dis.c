@@ -22,7 +22,7 @@
 
 #include "sysdep.h"
 #include <stdio.h>
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opcode/i370.h"
 
 /* This file provides several disassembler functions, all of which use

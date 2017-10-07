@@ -1,13 +1,721 @@
-2017-03-02  Tristan Gingold  <gingold@adacore.com>
+2017-07-24  Tristan Gingold  <gingold@adacore.com>
 
 	* configure: Regenerate.
 
-2017-02-14  Andrew Waterman  <andrew@sifive.com>
+2017-07-20  Nick Clifton  <nickc@redhat.com>
 
-	* riscv-opc.c (riscv_opcodes): Add sfence.vma instruction and
-	pseudoinstructions.
+	* po/de.po: Updated German translation.
 
-2017-02-27  Richard Sandiford  <richard.sandiford@arm.com>
+2017-07-18  Nick Clifton  <nickc@redhat.com>
+
+	* po/da.po: Updated translation.
+	* po/de.po: Likewise.
+	* po/es.po: Likewise.
+	* po/fi.po: Likewise.
+	* po/fr.po: Likewise.
+	* po/id.po: Likewise.
+	* po/it.po: Likewise.
+	* po/nl.po: Likewise.
+	* po/pt_BR.po: Likewise.
+	* po/ro.po: Likewise.
+	* po/sv.po: Likewise.
+	* po/tr.po: Likewise.
+	* po/uk.po: Likewise.
+	* po/vi.po: Likewise.
+	* po/zh_CN.po: Likewise.
+
+2017-07-07  Alan Modra  <amodra@gmail.com>
+
+	* cgen-dis.in: Include disassemble.h, not dis-asm.h.
+	* m32c-dis.c: Regenerate.
+	* mep-dis.c: Regenerate.
+
+2017-07-04  Tristan Gingold  <gingold@adacore.com>
+
+	* configure: Regenerate.
+
+2017-07-03  Tristan Gingold  <gingold@adacore.com>
+
+	* po/opcodes.pot: Regenerate.
+
+2017-06-30  Maciej W. Rozycki  <macro@imgtec.com>
+
+	* mips-opc.c (mips_builtin_opcodes): Move "lsa" and "dlsa"
+	entries to the MSA ASE instruction block.
+
+2017-06-30  Andrew Bennett  <andrew.bennett@imgtec.com>
+	    Maciej W. Rozycki  <macro@imgtec.com>
+
+	* micromips-opc.c (XPA, XPAVZ): New macros.
+	(micromips_opcodes): Add "mfhc0", "mfhgc0", "mthc0" and
+	"mthgc0".
+
+2017-06-30  Andrew Bennett  <andrew.bennett@imgtec.com>
+	    Maciej W. Rozycki  <macro@imgtec.com>
+
+	* micromips-opc.c (I36): New macro.
+	(micromips_opcodes): Add "eretnc".
+
+2017-06-30  Maciej W. Rozycki  <macro@imgtec.com>
+	    Andrew Bennett  <andrew.bennett@imgtec.com>
+
+	* mips-dis.c (mips_calculate_combination_ases): Handle the
+	ASE_XPA_VIRT flag.
+	(parse_mips_ase_option): New function.
+	(parse_mips_dis_option): Factor out ASE option handling to the
+	new function.  Call `mips_calculate_combination_ases'.
+	* mips-opc.c (XPAVZ): New macro.
+	(mips_builtin_opcodes): Correct ISA and ASE flags for "mfhc0",
+	"mfhgc0", "mthc0" and "mthgc0".
+
+2017-06-29  Maciej W. Rozycki  <macro@imgtec.com>
+
+	* mips-dis.c (mips_calculate_combination_ases): New function.
+	(mips_convert_abiflags_ases): Factor out ASE_MIPS16E2_MT
+	calculation to the new function.
+	(set_default_mips_dis_options): Call the new function.
+
+2017-06-29  Anton Kolesov  <Anton.Kolesov@synopsys.com>
+
+	* arc-dis.c (parse_disassembler_options): Use
+	FOR_EACH_DISASSEMBLER_OPTION.
+
+2017-06-29  Anton Kolesov  <Anton.Kolesov@synopsys.com>
+
+	* arc-dis.c (parse_option): Use disassembler_options_cmp to compare
+	disassembler option strings.
+	(parse_cpu_option): Likewise.
+
+2017-06-28  Tamar Christina  <tamar.christina@arm.com>
+
+	* aarch64-asm.c (aarch64_ins_reglane): Added 4B dotprod.
+	* aarch64-dis.c (aarch64_ext_reglane): Likewise.
+	* aarch64-tbl.h (QL_V3DOT, QL_V2DOT): New.
+	(aarch64_feature_dotprod, DOT_INSN): New.
+	(udot, sdot): New.
+	* aarch64-dis-2.c: Regenerated.
+
+2017-06-28  Jiong Wang  <jiong.wang@arm.com>
+
+	* arm-dis.c (coprocessor_opcodes): New entries for vsdot and vudot.
+
+2017-06-28  Maciej W. Rozycki  <macro@imgtec.com>
+	    Matthew Fortune  <matthew.fortune@imgtec.com>
+	    Andrew Bennett  <andrew.bennett@imgtec.com>
+
+	* mips-formats.h (INT_BIAS): New macro.
+	(INT_ADJ): Redefine in INT_BIAS terms.
+	* mips-dis.c (mips_arch_choices): Add "interaptiv-mr2" entry.
+	(mips_print_save_restore): New function.
+	(print_insn_arg) <OP_SAVE_RESTORE_LIST>: Update comment.
+	(validate_insn_args) <OP_SAVE_RESTORE_LIST>: Remove `abort'
+	call.
+	(print_insn_args): Handle OP_SAVE_RESTORE_LIST.
+	(print_mips16_insn_arg): Call `mips_print_save_restore' for
+	OP_SAVE_RESTORE_LIST handling, factored out from here.
+	* mips-opc.c (decode_mips_operand) <'-'> <'m'>: New case.
+	(RD_31, RD_SP, WR_SP, MOD_SP, IAMR2): New macros.
+	(mips_builtin_opcodes): Add "restore" and "save" entries.
+	* mips16-opc.c (decode_mips16_operand) <'n', 'o'>: New cases.
+	(IAMR2): New macro.
+	(mips16_opcodes): Add "copyw" and "ucopyw" entries.
+
+2017-06-23  Andrew Waterman  <andrew@sifive.com>
+
+	* riscv-opc.c (riscv_opcodes): Mark I-type SLT instruction as an
+	alias; do not mark SLTI instruction as an alias.
+
+2017-06-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (RM_0FAE_REG_5): Removed.
+	(PREFIX_MOD_3_0F01_REG_5_RM_1): Likewise.
+	(PREFIX_MOD_3_0F01_REG_5_RM_0): New.
+	(PREFIX_MOD_3_0FAE_REG_5): Likewise.
+	(prefix_table): Remove PREFIX_MOD_3_0F01_REG_5_RM_1.  Add
+	PREFIX_MOD_3_0F01_REG_5_RM_0.
+	(prefix_table): Update PREFIX_MOD_0_0FAE_REG_5.  Add
+	PREFIX_MOD_3_0FAE_REG_5.
+	(mod_table): Update MOD_0FAE_REG_5.
+	(rm_table): Update RM_0F01_REG_5.  Remove RM_0FAE_REG_5.
+	* i386-opc.tbl: Update incsspd, incsspq and setssbsy.
+	* i386-tbl.h: Regenerated.
+
+2017-06-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (prefix_table): Replace savessp with saveprevssp.
+	* i386-opc.tbl: Likewise.
+	* i386-tbl.h: Regenerated.
+
+2017-06-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (reg_table): Swap indirEv with NOTRACK on "call{&|}"
+	and "jmp{&|}".
+	(NOTRACK_Fixup): Support memory indirect branch with NOTRACK
+	prefix.
+
+2017-06-19  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/21614
+	* score-dis.c (score_opcodes): Add sentinel.
+
+2017-06-16  Alan Modra  <amodra@gmail.com>
+
+	* rx-decode.c: Regenerate.
+
+2017-06-15  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/21594
+	* i386-dis.c (OP_E_register): Check valid bnd register.
+	(OP_G): Likewise.
+
+2017-06-15  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/21595
+	* aarch64-dis.c (aarch64_ext_ldst_reglist): Check for an out of
+	range value.
+
+2017-06-15  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/21588
+	* rl78-decode.opc (OP_BUF_LEN): Define.
+	(GETBYTE): Check for the index exceeding OP_BUF_LEN.
+	(rl78_decode_opcode): Use OP_BUF_LEN as the length of the op_buf
+	array.
+	* rl78-decode.c: Regenerate.
+
+2017-06-15  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/21586
+	* bfin-dis.c (gregs): Clip index to prevent overflow.
+	(regs): Likewise.
+	(regs_lo): Likewise.
+	(regs_hi): Likewise.
+
+2017-06-14  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/21576
+	* score7-dis.c (score_opcodes): Add sentinel.
+
+2017-06-14  Yao Qi  <yao.qi@linaro.org>
+
+	* aarch64-dis.c: Include disassemble.h instead of dis-asm.h.
+	* arm-dis.c: Likewise.
+	* ia64-dis.c: Likewise.
+	* mips-dis.c: Likewise.
+	* spu-dis.c: Likewise.
+	* disassemble.h (print_insn_aarch64): New declaration, moved from
+	include/dis-asm.h.
+	(print_insn_big_arm, print_insn_big_mips): Likewise.
+	(print_insn_i386, print_insn_ia64): Likewise.
+	(print_insn_little_arm, print_insn_little_mips): Likewise.
+
+2017-06-14  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/21587
+	* rx-decode.opc: Include libiberty.h
+	(GET_SCALE): New macro - validates access to SCALE array.
+	(GET_PSCALE): New macro - validates access to PSCALE array.
+	(DIs, SIs, S2Is, rx_disp): Use new macros.
+	* rx-decode.c: Regenerate.
+
+2017-07-14  Andre Vieira  <andre.simoesdiasvieira@arm.com>
+
+	* arm-dis.c (print_insn_arm): Remove bogus entry for bx.
+
+2017-05-30  Anton Kolesov  <anton.kolesov@synopsys.com>
+
+	* arc-dis.c (enforced_isa_mask): Declare.
+	(cpu_types): Likewise.
+	(parse_cpu_option): New function.
+	(parse_disassembler_options): Use it.
+	(print_insn_arc): Use enforced_isa_mask.
+	(print_arc_disassembler_options): Document new options.
+
+2017-05-24  Yao Qi  <yao.qi@linaro.org>
+
+	* alpha-dis.c: Include disassemble.h, don't include
+	dis-asm.h.
+	* avr-dis.c, bfin-dis.c, cr16-dis.c: Likewise.
+	* crx-dis.c, d10v-dis.c, d30v-dis.c: Likewise.
+	* disassemble.c, dlx-dis.c, epiphany-dis.c: Likewise.
+	* fr30-dis.c, ft32-dis.c, h8300-dis.c, h8500-dis.c: Likewise.
+	* hppa-dis.c, i370-dis.c, i386-dis.c: Likewise.
+	* i860-dis.c, i960-dis.c, ip2k-dis.c: Likewise.
+	* iq2000-dis.c, lm32-dis.c, m10200-dis.c: Likewise.
+	* m10300-dis.c, m32r-dis.c, m68hc11-dis.c: Likewise.
+	* m68k-dis.c, m88k-dis.c, mcore-dis.c: Likewise.
+	* metag-dis.c, microblaze-dis.c, mmix-dis.c: Likewise.
+	* moxie-dis.c, msp430-dis.c, mt-dis.c:
+	* nds32-dis.c, nios2-dis.c, ns32k-dis.c: Likewise.
+	* or1k-dis.c, pdp11-dis.c, pj-dis.c: Likewise.
+	* ppc-dis.c, pru-dis.c, riscv-dis.c: Likewise.
+	* rl78-dis.c, s390-dis.c, score-dis.c: Likewise.
+	* sh-dis.c, sh64-dis.c, tic30-dis.c: Likewise.
+	* tic4x-dis.c, tic54x-dis.c, tic6x-dis.c: Likewise.
+	* tic80-dis.c, tilegx-dis.c, tilepro-dis.c: Likewise.
+	* v850-dis.c, vax-dis.c, visium-dis.c: Likewise.
+	* w65-dis.c, wasm32-dis.c, xc16x-dis.c: Likewise.
+	* xgate-dis.c, xstormy16-dis.c, xtensa-dis.c: Likewise.
+	* z80-dis.c, z8k-dis.c: Likewise.
+	* disassemble.h: New file.
+
+2017-05-24  Yao Qi  <yao.qi@linaro.org>
+
+	* rl78-dis.c (rl78_get_disassembler): If parameter abfd
+	is NULL, set cpu to E_FLAG_RL78_ANY_CPU.
+
+2017-05-24  Yao Qi  <yao.qi@linaro.org>
+
+	* disassemble.c (disassembler): Add arguments a, big and mach.
+	Use them.
+
+2017-05-22  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (NOTRACK_Fixup): New.
+	(NOTRACK): Likewise.
+	(NOTRACK_PREFIX): Likewise.
+	(last_active_prefix): Likewise.
+	(reg_table): Use NOTRACK on indirect call and jmp.
+	(ckprefix): Set last_active_prefix.
+	(prefix_name): Return "notrack" for NOTRACK_PREFIX.
+	* i386-gen.c (opcode_modifiers): Add NoTrackPrefixOk.
+	* i386-opc.h (NoTrackPrefixOk): New.
+	(i386_opcode_modifier): Add notrackprefixok.
+	* i386-opc.tbl: Add NoTrackPrefixOk to indirect call and jmp.
+	Add notrack.
+	* i386-tbl.h: Regenerated.
+
+2017-05-19  Jose E. Marchesi  <jose.marchesi@oracle.com>
+
+	* sparc-dis.c (MASK_V9): Include SPARC_OPCODE_ARCH_M8.
+	(X_IMM2): Define.
+	(compute_arch_mask): Handle bfd_mach_sparc_v8plusm8 and
+	bfd_mach_sparc_v9m8.
+	(print_insn_sparc): Handle new operand types.
+	* sparc-opc.c (MASK_M8): Define.
+	(v6): Add MASK_M8.
+	(v6notlet): Likewise.
+	(v7): Likewise.
+	(v8): Likewise.
+	(v9): Likewise.
+	(v9a): Likewise.
+	(v9b): Likewise.
+	(v9c): Likewise.
+	(v9d): Likewise.
+	(v9e): Likewise.
+	(v9v): Likewise.
+	(v9m): Likewise.
+	(v9andleon): Likewise.
+	(m8): Define.
+	(HWS_VM8): Define.
+	(HWS2_VM8): Likewise.
+	(sparc_opcode_archs): Add entry for "m8".
+	(sparc_opcodes): Add OSA2017 and M8 instructions
+	dictunpack, fpcmp{ule,ugt,eq,ne,de,ur}{8,16,32}shl,
+	fpx{ll,ra,rl}64x,
+	ldm{sh,uh,sw,uw,x,ux}, ldm{sh,uh,sw,uw,x,ux}a, ldmf{s,d},
+	ldmf{s,d}a, on{add,sub,mul,div}, rdentropy, revbitsb,
+	revbytes{h,w,x}, rle_burst, rle_length, sha3, stm{h,w,x},
+	stm{h,w,x}a, stmf{s,d}, stmf{s,d}a.
+	(asi_table): New M8 ASIs ASI_CORE_COMMIT_COUNT,
+	ASI_CORE_SELECT_COUNT, ASI_ARF_ECC_REG, ASI_ITLB_PROBE, ASI_DSFAR,
+	ASI_DTLB_PROBE_PRIMARY, ASI_DTLB_PROBE_REAL,
+	ASI_CORE_SELECT_COMMIT_NHT.
+
+2017-05-18  Alan Modra  <amodra@gmail.com>
+
+	* aarch64-asm.c: Don't compare boolean values against TRUE or FALSE.
+	* aarch64-dis.c: Likewise.
+	* aarch64-gen.c: Likewise.
+	* aarch64-opc.c: Likewise.
+
+2017-05-15  Maciej W. Rozycki  <macro@imgtec.com>
+	    Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	* mips-dis.c (mips_arch_choices): Add ASE_MIPS16E2 and
+	ASE_MIPS16E2_MT flags to the unnamed MIPS16 entry.
+	(mips_convert_abiflags_ases): Handle the AFL_ASE_MIPS16E2 flag.
+	(print_insn_arg) <OP_REG28>: Add handler.
+	(validate_insn_args) <OP_REG28>: Handle.
+	(print_mips16_insn_arg): Handle MIPS16 instructions that require
+	32-bit encoding and 9-bit immediates.
+	(print_insn_mips16): Handle MIPS16 instructions that require
+	32-bit encoding and MFC0/MTC0 operand decoding.
+	* mips16-opc.c (decode_mips16_operand) <'>', '9', 'G', 'N', 'O'>
+	<'Q', 'T', 'b', 'c', 'd', 'r', 'u'>: Add handlers.
+	(RD_C0, WR_C0, E2, E2MT): New macros.
+	(mips16_opcodes): Add entries for MIPS16e2 instructions:
+	GP-relative "addiu" and its "addu" spelling, "andi", "cache",
+	"di", "ehb", "ei", "ext", "ins", GP-relative "lb", "lbu", "lh",
+	"lhu", and "lw" instructions, "ll", "lui", "lwl", "lwr", "mfc0",
+	"movn", "movtn", "movtz", "movz", "mtc0", "ori", "pause",
+	"pref", "rdhwr", "sc", GP-relative "sb", "sh" and "sw"
+	instructions, "swl", "swr", "sync" and its "sync_acquire",
+	"sync_mb", "sync_release", "sync_rmb" and "sync_wmb" aliases,
+	"xori", "dmt", "dvpe", "emt" and "evpe".  Add split
+	regular/extended entries for original MIPS16 ISA revision
+	instructions whose extended forms are subdecoded in the MIPS16e2
+	ISA revision: "li", "sll" and "srl".
+
+2017-05-15  Maciej W. Rozycki  <macro@imgtec.com>
+
+	* mips-dis.c (print_insn_args) <default>: Remove an MT ASE
+	reference in CP0 move operand decoding.
+
+2017-05-12  Maciej W. Rozycki  <macro@imgtec.com>
+
+	* mips16-opc.c (decode_mips16_operand) <'6'>: Switch the operand
+	type to hexadecimal.
+	(mips16_opcodes): Add operandless "break" and "sdbbp" entries.
+
+2017-05-11  Maciej W. Rozycki  <macro@imgtec.com>
+
+	* mips-opc.c (mips_builtin_opcodes): Mark "synciobdma", "syncs",
+	"syncw", "syncws", "sync_acquire", "sync_mb", "sync_release",
+	"sync_rmb" and "sync_wmb" as aliases.
+	* micromips-opc.c (micromips_opcodes): Mark "sync_acquire",
+	"sync_mb", "sync_release", "sync_rmb" and "sync_wmb" as aliases.
+
+2017-05-10  Claudiu Zissulescu  <claziss@synopsys.com>
+
+	* arc-dis.c (parse_option): Update quarkse_em option..
+	* arc-ext-tbl.h (dsp_fp_flt2i, dsp_fp_i2flt): Change subclass to
+	QUARKSE1.
+	(dsp_fp_div, dsp_fp_cmp): Change subclass to QUARKSE2.
+
+2017-05-03  Kito Cheng  <kito.cheng@gmail.com>
+
+	* riscv-dis.c (print_insn_args): Handle 'Co' operands.
+
+2017-05-01  Michael Clark  <michaeljclark@mac.com>
+
+	* riscv-opc.c (riscv_opcodes) <call>: Use RA not T1 as a temporary
+	register.
+
+2017-05-02  Maciej W. Rozycki  <macro@imgtec.com>
+
+	* mips-dis.c (print_insn_arg): Only clear the ISA bit for jumps
+	and branches and not synthetic data instructions.
+
+2017-05-02  Bernd Edlinger   <bernd.edlinger@hotmail.de>
+
+	* arm-dis.c (print_insn_thumb32): Fix value_in_comment.
+
+2017-04-25  Claudiu Zissulescu  <claziss@synopsys.com>
+
+	* arc-dis.c (print_insn_arc): Smartly print enter/leave mnemonics.
+	* arc-opc.c (insert_r13el): New function.
+	(R13_EL): Define.
+	* arc-tbl.h: Add new enter/leave variants.
+
+2017-04-25  Claudiu Zissulescu  <claziss@synopsys.com>
+
+	* arc-tbl.h: Reorder NOP entry to be before MOV instructions.
+
+2017-04-25  Maciej W. Rozycki  <macro@imgtec.com>
+
+	* mips-dis.c (print_mips_disassembler_options): Add
+	`no-aliases'.
+
+2017-04-25  Maciej W. Rozycki  <macro@imgtec.com>
+
+	* mips16-opc.c (AL): New macro.
+	(mips16_opcodes): Mark "nop", "la", "dla", and synthetic forms
+	of "ld" and "lw" as aliases.
+
+2017-04-24  Tamar Christina  <tamar.christina@arm.com>
+
+	* aarch64-opc.c (aarch64_logical_immediate_p): Update DEBUG_TRACE
+	arguments.
+
+2017-04-22  Alexander Fedotov  <alfedotov@gmail.com>
+	    Alan Modra  <amodra@gmail.com>
+
+	* ppc-opc.c (ELEV): Define.
+	(vle_opcodes): Add se_rfgi and e_sc.
+	(powerpc_opcodes): Enable lbdx, lhdx, lwdx, stbdx, sthdx, stwdx
+	for E200Z4.
+
+2017-04-21  Jose E. Marchesi  <jose.marchesi@oracle.com>
+
+	* sparc-opc.c (sparc_opcodes): Mark RETT instructions as v6notv9.
+
+2017-04-21  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/21380
+	* aarch64-tbl.h (aarch64_opcode_table): Fix masks for LD1R, LD2R,
+	LD3R and LD4R.
+
+2017-04-13  Alan Modra  <amodra@gmail.com>
+
+	* epiphany-desc.c: Regenerate.
+	* fr30-desc.c: Regenerate.
+	* frv-desc.c: Regenerate.
+	* ip2k-desc.c: Regenerate.
+	* iq2000-desc.c: Regenerate.
+	* lm32-desc.c: Regenerate.
+	* m32c-desc.c: Regenerate.
+	* m32r-desc.c: Regenerate.
+	* mep-desc.c: Regenerate.
+	* mt-desc.c: Regenerate.
+	* or1k-desc.c: Regenerate.
+	* xc16x-desc.c: Regenerate.
+	* xstormy16-desc.c: Regenerate.
+
+2017-04-11  Alan Modra  <amodra@gmail.com>
+
+	* ppc-dis.c (ppc_opts): Remove PPC_OPCODE_ALTIVEC2,
+	PPC_OPCODE_VSX3, PPC_OPCODE_HTM and "htm".  Formatting.  Set
+	PPC_OPCODE_TMR for e6500.
+	* ppc-opc.c (PPCVEC2): Define as PPC_OPCODE_POWER8|PPC_OPCODE_E6500.
+	(PPCVEC3): Define as PPC_OPCODE_POWER9.
+	(PPCVSX2): Define as PPC_OPCODE_POWER8.
+	(PPCVSX3): Define as PPC_OPCODE_POWER9.
+	(PPCHTM): Define as PPC_OPCODE_POWER8.
+	(powerpc_opcodes <mftmr, mttmr>): Remove now unnecessary E6500.
+
+2017-04-10  Alan Modra  <amodra@gmail.com>
+
+	* ppc-dis.c (ppc_opts <476>): Remove PPC_OPCODE_440.
+	* ppc-opc.c (MULHW): Add PPC_OPCODE_476.
+	(powerpc_opcodes): Adjust PPC440, PPC464 and PPC476 insns to suit
+	removal of PPC_OPCODE_440 from ppc476 cpu selection bits.
+
+2017-04-09  Pip Cet  <pipcet@gmail.com>
+
+	* wasm32-dis.c (print_insn_wasm32): Avoid DECIMAL_DIG, specify
+	appropriate floating-point precision directly.
+
+2017-04-07  Alan Modra  <amodra@gmail.com>
+
+	* ppc-opc.c (powerpc_opcodes <mviwsplt, mvidsplt, lvexbx, lvepxl,
+	lvexhx, lvepx, lvexwx, stvexbx, stvexhx, stvexwx, lvtrx, lvtlx,
+	lvswx, stvfrx, stvflx, stvswx, lvsm, stvepxl, lvtrxl, stvepx,
+	lvtlxl, lvswxl, stvfrxl, stvflxl, stvswxl>): Enable E6500 only
+	vector instructions with E6500 not PPCVEC2.
+
+2017-04-06  Pip Cet  <pipcet@gmail.com>
+
+	* Makefile.am: Add wasm32-dis.c.
+	* configure.ac: Add wasm32-dis.c to wasm32 target.
+	* disassemble.c: Add wasm32 disassembler code.
+	* wasm32-dis.c: New file.
+	* Makefile.in: Regenerate.
+	* configure: Regenerate.
+	* po/POTFILES.in: Regenerate.
+	* po/opcodes.pot: Regenerate.
+
+2017-04-05  Pedro Alves  <palves@redhat.com>
+
+	* arc-dis.c (parse_option, parse_disassembler_options): Constify.
+	* arm-dis.c (parse_arm_disassembler_options): Constify.
+	* ppc-dis.c (powerpc_init_dialect): Constify local.
+	* vax-dis.c (parse_disassembler_options): Constify.
+
+2017-04-03  Palmer Dabbelt  <palmer@dabbelt.com>
+
+	* riscv-dis.c (riscv_disassemble_insn): Change "_gp" to
+	RISCV_GP_SYMBOL.
+
+2017-03-30  Pip Cet  <pipcet@gmail.com>
+
+	* configure.ac: Add (empty) bfd_wasm32_arch target.
+	* configure: Regenerate
+	* po/opcodes.pot: Regenerate.
+
+2017-03-29  Sheldon Lobo  <sheldon.lobo@oracle.com>
+
+	Add support for missing SPARC ASIs from UA2005, UA2007, OSA2011, &
+	OSA2015.
+	* opcodes/sparc-opc.c (asi_table): New ASIs.
+
+2017-03-29  Alan Modra  <amodra@gmail.com>
+
+	* ppc-dis.c (ppc_opts): Set PPC_OPCODE_PPC for "any" flags.  Add
+	"raw" option.
+	(lookup_powerpc): Don't special case -1 dialect.  Handle
+	PPC_OPCODE_RAW.
+	(print_insn_powerpc): Mask out PPC_OPCODE_ANY on first
+	lookup_powerpc call, pass it on second.
+
+2017-03-27  Alan Modra  <amodra@gmail.com>
+
+	PR 21303
+	* ppc-dis.c (struct ppc_mopt): Comment.
+	(ppc_opts <e200z4>): Move PPC_OPCODE_VLE from .sticky to .cpu.
+
+2017-03-27  Rinat Zelig  <rinat@mellanox.com>
+
+	* arc-nps400-tbl.h: Add Ultra Ip and Miscellaneous instructions format.
+	* arc-opc.c: Add defines. e.g. F_NJ, F_NM , F_NO_T, F_NPS_SR,
+	F_NPS_M, F_NPS_CORE, F_NPS_ALL.
+	(insert_nps_misc_imm_offset): New function.
+	(extract_nps_misc imm_offset): New function.
+	(arc_num_flag_operands): Add F_NJ, F_NM, F_NO_T.
+	(arc_flag_special_cases): Add F_NJ, F_NM, F_NO_T.
+
+2017-03-21  Andreas Krebbel  <krebbel@linux.vnet.ibm.com>
+
+	* s390-mkopc.c (main): Remove vx2 check.
+	* s390-opc.txt: Remove vx2 instruction flags.
+
+2017-03-21  Rinat Zelig  <rinat@mellanox.com>
+
+	* arc-nps400-tbl.h: Add cp32/cp16 instructions format.
+	* arc-opc.c: Add F_NPS_NA, NPS_DMA_IMM_ENTRY, NPS_DMA_IMM_OFFSET.
+	(insert_nps_imm_offset): New function.
+	(extract_nps_imm_offset): New function.
+	(insert_nps_imm_entry): New function.
+	(extract_nps_imm_entry): New function.
+
+2017-03-17  Alan Modra  <amodra@gmail.com>
+
+	PR 21248
+	* ppc-opc.c (powerpc_opcodes): Enable mfivor32, mfivor33,
+	mtivor32, and mtivor33 for e6500.  Move mfibatl and mfibatu after
+	those spr mnemonics they alias.  Similarly for mtibatl, mtibatu.
+
+2017-03-14  Kito Cheng  <kito.cheng@gmail.com>
+
+	* riscv-opc.c (riscv_opcodes> <c.li>: Use the 'o' immediate encoding.
+	<c.andi>: Likewise.
+	<c.addiw> Likewise.
+
+2017-03-14  Kito Cheng  <kito.cheng@gmail.com>
+
+	* riscv-opc.c (riscv_opcodes) <c.addi>: Use match_opcode.
+
+2017-03-13  Andrew Waterman  <andrew@sifive.com>
+
+	* riscv-opc.c (riscv_opcodes) <srli/C>: Use match_opcode.
+	<srl> Likewise.
+	<srai> Likewise.
+	<sra> Likewise.
+
+2017-03-09  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-gen.c (opcode_modifiers): Replace S with Load.
+	* i386-opc.h (S): Removed.
+	(Load): New.
+	(i386_opcode_modifier): Replace s with load.
+	* i386-opc.tbl: Add {disp8}, {disp32}, {swap}, {vex2}, {vex3}
+	and {evex}.  Replace S with Load.
+	* i386-tbl.h: Regenerated.
+
+2017-03-09  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-opc.tbl: Use CpuCET on rdsspq.
+	* i386-tbl.h: Regenerated.
+
+2017-03-08  Peter Bergner  <bergner@vnet.ibm.com>
+
+	* ppc-dis.c (ppc_opts) <altivec>: Do not use PPC_OPCODE_ALTIVEC2;
+	<vsx>: Do not use PPC_OPCODE_VSX3;
+
+2017-03-08  Peter Bergner  <bergner@vnet.ibm.com>
+
+	* ppc-opc.c (powerpc_opcodes) <lnia>: New extended mnemonic.
+
+2017-03-06  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386-dis.c (REG_0F1E_MOD_3): New enum.
+	(MOD_0F1E_PREFIX_1): Likewise.
+	(MOD_0F38F5_PREFIX_2): Likewise.
+	(MOD_0F38F6_PREFIX_0): Likewise.
+	(RM_0F1E_MOD_3_REG_7): Likewise.
+	(PREFIX_MOD_0_0F01_REG_5): Likewise.
+	(PREFIX_MOD_3_0F01_REG_5_RM_1): Likewise.
+	(PREFIX_MOD_3_0F01_REG_5_RM_2): Likewise.
+	(PREFIX_0F1E): Likewise.
+	(PREFIX_MOD_0_0FAE_REG_5): Likewise.
+	(PREFIX_0F38F5): Likewise.
+	(dis386_twobyte): Use PREFIX_0F1E.
+	(reg_table): Add REG_0F1E_MOD_3.
+	(prefix_table): Add PREFIX_MOD_0_0F01_REG_5,
+	PREFIX_MOD_3_0F01_REG_5_RM_1, PREFIX_MOD_3_0F01_REG_5_RM_2,
+	PREFIX_0F1E, PREFIX_MOD_0_0FAE_REG_5 and PREFIX_0F38F5.  Update
+	PREFIX_0FAE_REG_6 and PREFIX_0F38F6.
+	(three_byte_table): Use PREFIX_0F38F5.
+	(mod_table): Use PREFIX_MOD_0_0F01_REG_5, PREFIX_MOD_0_0FAE_REG_5.
+	Add MOD_0F1E_PREFIX_1, MOD_0F38F5_PREFIX_2, MOD_0F38F6_PREFIX_0.
+	(rm_table): Add MOD_0F38F5_PREFIX_2, MOD_0F38F6_PREFIX_0,
+	RM_0F1E_MOD_3_REG_7.  Use PREFIX_MOD_3_0F01_REG_5_RM_1 and
+	PREFIX_MOD_3_0F01_REG_5_RM_2.
+	* i386-gen.c (cpu_flag_init): Add CPU_CET_FLAGS.
+	(cpu_flags): Add CpuCET.
+	* i386-opc.h (CpuCET): New enum.
+	(CpuUnused): Commented out.
+	(i386_cpu_flags): Add cpucet.
+	* i386-opc.tbl: Add Intel CET instructions.
+	* i386-init.h: Regenerated.
+	* i386-tbl.h: Likewise.
+
+2017-03-06  Alan Modra  <amodra@gmail.com>
+
+	PR 21124
+	* ppc-opc.c (extract_esync, extract_ls, extract_ral, extract_ram)
+	(extract_raq, extract_ras, extract_rbx): New functions.
+	(powerpc_operands): Use opposite corresponding insert function.
+	(Q_MASK): Define.
+	(powerpc_opcodes): Apply Q_MASK to all quad insns with even
+	register restriction.
+
+2017-02-28  Peter Bergner  <bergner@vnet.ibm.com>
+
+	* disassemble.c Include "safe-ctype.h".
+	(disassemble_init_for_target): Handle s390 init.
+	(remove_whitespace_and_extra_commas): New function.
+	(disassembler_options_cmp): Likewise.
+	* arm-dis.c: Include "libiberty.h".
+	(NUM_ELEM): Delete.
+	(regnames): Use long disassembler style names.
+	Add force-thumb and no-force-thumb options.
+	(NUM_ARM_REGNAMES): Rename from this...
+	(NUM_ARM_OPTIONS): ...to this.  Use ARRAY_SIZE.
+	(get_arm_regname_num_options): Delete.
+	(set_arm_regname_option): Likewise.
+	(get_arm_regnames): Likewise.
+	(parse_disassembler_options): Likewise.
+	(parse_arm_disassembler_option): Rename from this...
+	(parse_arm_disassembler_options): ...to this.  Make static.
+	Use new FOR_EACH_DISASSEMBLER_OPTION macro to scan over options.
+	(print_insn): Use parse_arm_disassembler_options.
+	(disassembler_options_arm): New function.
+	(print_arm_disassembler_options): Handle updated regnames.
+	* ppc-dis.c: Include "libiberty.h".
+	(ppc_opts): Add "32" and "64" entries.
+	(ppc_parse_cpu): Use ARRAY_SIZE and disassembler_options_cmp.
+	(powerpc_init_dialect): Add break to switch statement.
+	Use new FOR_EACH_DISASSEMBLER_OPTION macro.
+	(disassembler_options_powerpc): New function.
+	(print_ppc_disassembler_options): Use ARRAY_SIZE.
+	Remove printing of "32" and "64".
+	* s390-dis.c: Include "libiberty.h".
+	(init_flag): Remove unneeded variable.
+	(struct s390_options_t): New structure type.
+	(options): New structure.
+	(init_disasm): Rename from this...
+	(disassemble_init_s390): ...to this.  Add initializations for
+	current_arch_mask and option_use_insn_len_bits_p.  Remove init_flag.
+	(print_insn_s390): Delete call to init_disasm.
+	(disassembler_options_s390): New function.
+	(print_s390_disassembler_options): Print using information from
+	struct 'options'.
+	* po/opcodes.pot: Regenerate.
+
+2017-02-28  Jan Beulich  <jbeulich@suse.com>
+
+	* i386-dis.c (PCMPESTR_Fixup): New.
+	(VEX_W_0F3A60_P_2, VEX_W_0F3A61_P_2): Delete.
+	(prefix_table): Use PCMPESTR_Fixup.
+	(vex_len_table): Make VPCMPESTR{I,M} entries leaf ones and use
+	PCMPESTR_Fixup.
+	(vex_w_table): Delete VPCMPESTR{I,M} entries.
+	* i386-opc.tbl (pcmpestri, pcmpestrm, vpcmpestri, vpcmpestrm):
+	Split 64-bit and non-64-bit variants.
+	* opcodes/i386-tbl.h: Re-generate.
+
+2017-02-24  Richard Sandiford  <richard.sandiford@arm.com>
 
 	* aarch64-tbl.h (OP_SVE_HMH, OP_SVE_VMU_HSD, OP_SVE_VMVU_HSD)
 	(OP_SVE_VMVV_HSD, OP_SVE_VMVVU_HSD, OP_SVE_VM_HSD, OP_SVE_VUVV_HSD)
@@ -55,7 +763,7 @@
 	(aarch64_print_operand): Likewise.
 	* aarch64-opc-2.c: Regenerate.
 
-2017-02-27  Richard Sandiford  <richard.sandiford@arm.com>
+2017-02-24  Richard Sandiford  <richard.sandiford@arm.com>
 
 	* aarch64-tbl.h (aarch64_feature_simd_v8_3): Replace with...
 	(aarch64_feature_compnum): ...this.
@@ -64,15 +772,63 @@
 	(CNUM_INSN): New macro.
 	(aarch64_opcode_table): Use it for the complex number instructions.
 
-2017-02-27  Richard Sandiford  <richard.sandiford@arm.com>
+2017-02-24  Jan Beulich  <jbeulich@suse.com>
+
+	* i386-dis.c (reg_table): REG_F6/1 and REG_F7/1 decode as TEST.
+
+2017-02-23  Sheldon Lobo <sheldon.lobo@oracle.com>
+
+	Add support for associating SPARC ASIs with an architecture level.
+	* include/opcode/sparc.h (sparc_asi): New sparc_asi struct.
+	* opcodes/sparc-opc.c (asi_table): Updated asi_table and encoding/
+	decoding of SPARC ASIs.
+
+2017-02-23  Jan Beulich  <jbeulich@suse.com>
+
+	* i386-dis.c (get_valid_dis386): Don't special case VEX opcode
+	82. For 3-byte VEX only special case opcode 77 in VEX_0F space.
+
+2017-02-21  Jan Beulich  <jbeulich@suse.com>
+
+	* aarch64-asm.c (convert_bfc_to_bfm): Copy operand 0 to operand
+	1 (instead of to itself). Correct typo.
+
+2017-02-14  Andrew Waterman  <andrew@sifive.com>
+
+	* riscv-opc.c (riscv_opcodes): Add sfence.vma instruction and
+	pseudoinstructions.
+
+2017-02-15  Richard Sandiford  <richard.sandiford@arm.com>
 
 	* aarch64-opc.c (aarch64_sys_regs): Add SVE registers.
 	(aarch64_sys_reg_supported_p): Handle them.
 
-2017-02-27  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+2017-02-15  Claudiu Zissulescu  <claziss@synopsys.com>
 
-	* aarch64-tbl.h (RCPC, RCPC_INSN): Define.
-	(aarch64_opcode_table): Use RCPC_INSN.
+	* arc-opc.c (UIMM6_20R): Define.
+	(SIMM12_20): Use above.
+	(SIMM12_20R): Define.
+	(SIMM3_5_S): Use above.
+	(UIMM7_A32_11R_S): Define.
+	(UIMM7_9_S): Use above.
+	(UIMM3_13R_S): Define.
+	(SIMM11_A32_7_S): Use above.
+	(SIMM9_8R): Define.
+	(UIMM10_A32_8_S): Use above.
+	(UIMM8_8R_S): Define.
+	(W6): Use above.
+	(arc_relax_opcodes): Use all above defines.
+
+2017-02-15  Vineet Gupta <vgupta@synopsys.com>
+
+	* arc-regs.h: Distinguish some of the registers different on
+	ARC700 and HS38 cpus.
+
+2017-02-14  Alan Modra  <amodra@gmail.com>
+
+	PR 21118
+	* ppc-opc.c (powerpc_operands): Flag SPR, SPRG and TBR entries
+	with PPC_OPERAND_SPR.  Flag PSQ and PSQM with PPC_OPERAND_GQR.
 
 2017-02-11  Stafford Horne  <shorne@gmail.com>
 	    Alan Modra  <amodra@gmail.com>
@@ -84,6 +840,56 @@
 2017-02-10  Nicholas Piggin  <npiggin@gmail.com>
 
 	* ppc-opc.c (powerpc_opcodes) <scv, rfscv>: New mnemonics.
+
+2017-02-03  Nick Clifton  <nickc@redhat.com>
+
+	PR 21096
+	* aarch64-opc.c (print_register_list): Ensure that the register
+	list index will fir into the tb buffer.
+	(print_register_offset_address): Likewise.
+	* tic6x-dis.c (print_insn_tic6x): Increase size of func_unit_buf.
+
+2017-01-27  Alexis Deruell  <alexis.deruelle@gmail.com>
+
+	PR 21056
+	* tic6x-dis.c (print_insn_tic6x): Correct displaying of parallel
+	instructions when the previous fetch packet ends with a 32-bit
+	instruction.
+
+2017-01-24  Dimitar Dimitrov  <dimitar@dinux.eu>
+
+        * pru-opc.c: Remove vague reference to a future GDB port.
+
+2017-01-20  Nick Clifton  <nickc@redhat.com>
+
+	* po/ga.po: Updated Irish translation.
+
+2017-01-18  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+
+	* arm-dis.c (coprocessor_opcodes): Fix vcmla mask and disassembly.
+
+2017-01-13  Yao Qi  <yao.qi@linaro.org>
+
+	* m68k-dis.c (match_insn_m68k): Extend comments.  Return -1
+	if FETCH_DATA returns 0.
+	(m68k_scan_mask): Likewise.
+	(print_insn_m68k): Update code to handle -1 return value.
+
+2017-01-13  Yao Qi  <yao.qi@linaro.org>
+
+	* m68k-dis.c (enum print_insn_arg_error): New.
+	(NEXTBYTE): Replace -3 with
+	PRINT_INSN_ARG_MEMORY_ERROR.
+	(NEXTULONG): Likewise.
+	(NEXTSINGLE): Likewise.
+	(NEXTDOUBLE): Likewise.
+	(NEXTDOUBLE): Likewise.
+	(NEXTPACKED): Likewise.
+	(FETCH_ARG): Likewise.
+	(FETCH_DATA): Update comments.
+	(print_insn_arg): Update comments. Replace magic numbers with
+	enum.
+	(match_insn_m68k): Likewise.
 
 2017-01-12  Igor Tsimbalist  <igor.v.tsimbalist@intel.com>
 
@@ -97,6 +903,74 @@
 	* i386-opc.tbl: Add Intel AVX512_VPOPCNTDQ instructions.
 	* i386-init.h: Regenerate.
 	* i386-tbl.h: Ditto.
+
+2017-01-12  Yao Qi  <yao.qi@linaro.org>
+
+	* msp430-dis.c (msp430_singleoperand): Return -1 if
+	msp430dis_opcode_signed returns false.
+	(msp430_doubleoperand): Likewise.
+	(msp430_branchinstr): Return -1 if
+	msp430dis_opcode_unsigned returns false.
+	(msp430x_calla_instr): Likewise.
+	(print_insn_msp430): Likewise.
+
+2017-01-05  Nick Clifton  <nickc@redhat.com>
+
+	PR 20946
+	* frv-desc.c (lookup_mach_via_bfd_name): Return NULL if the name
+	could not be matched.
+	(frv_cgen_cpu_open): Allow for lookup_mach_via_bfd_name returning
+	NULL.
+
+2017-01-04  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+
+	* aarch64-tbl.h (RCPC, RCPC_INSN): Define.
+	(aarch64_opcode_table): Use RCPC_INSN.
+
+2017-01-03  Kito Cheng  <kito.cheng@gmail.com>
+
+	* riscv-opc.c (riscv-opcodes): Add support for the "q" ISA
+	extension.
+	* riscv-opcodes/all-opcodes: Likewise.
+
+2017-01-03  Dilyan Palauzov  <dilyan.palauzov@aegee.org>
+
+	* riscv-dis.c (print_insn_args): Add fall through comment.
+
+2017-01-03  Nick Clifton  <nickc@redhat.com>
+
+	* po/sr.po: New Serbian translation.
+	* configure.ac (ALL_LINGUAS): Add sr.
+	* configure: Regenerate.
+
+2017-01-02  Alan Modra  <amodra@gmail.com>
+
+	* epiphany-desc.h: Regenerate.
+	* epiphany-opc.h: Regenerate.
+	* fr30-desc.h: Regenerate.
+	* fr30-opc.h: Regenerate.
+	* frv-desc.h: Regenerate.
+	* frv-opc.h: Regenerate.
+	* ip2k-desc.h: Regenerate.
+	* ip2k-opc.h: Regenerate.
+	* iq2000-desc.h: Regenerate.
+	* iq2000-opc.h: Regenerate.
+	* lm32-desc.h: Regenerate.
+	* lm32-opc.h: Regenerate.
+	* m32c-desc.h: Regenerate.
+	* m32c-opc.h: Regenerate.
+	* m32r-desc.h: Regenerate.
+	* m32r-opc.h: Regenerate.
+	* mep-desc.h: Regenerate.
+	* mep-opc.h: Regenerate.
+	* mt-desc.h: Regenerate.
+	* mt-opc.h: Regenerate.
+	* or1k-desc.h: Regenerate.
+	* or1k-opc.h: Regenerate.
+	* xc16x-desc.h: Regenerate.
+	* xc16x-opc.h: Regenerate.
+	* xstormy16-desc.h: Regenerate.
+	* xstormy16-opc.h: Regenerate.
 
 2017-01-02  Alan Modra  <amodra@gmail.com>
 

@@ -1,6 +1,6 @@
 #source: pr19636-4.s
 #as: --32
-#ld: -E --defsym foobar=0x100 -m elf_i386
+#ld: -E --defsym foobar=0x100 -m elf_i386 --no-dynamic-linker
 #readelf : --dyn-syms --wide
 
 Symbol table '\.dynsym' contains [0-9]+ entries:

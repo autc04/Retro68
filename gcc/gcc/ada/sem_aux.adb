@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -438,42 +438,24 @@ package body Sem_Aux is
    function Get_Binary_Nkind (Op : Entity_Id) return Node_Kind is
    begin
       case Chars (Op) is
-         when Name_Op_Add =>
-            return N_Op_Add;
-         when Name_Op_Concat =>
-            return N_Op_Concat;
-         when Name_Op_Expon =>
-            return N_Op_Expon;
-         when Name_Op_Subtract =>
-            return N_Op_Subtract;
-         when Name_Op_Mod =>
-            return N_Op_Mod;
-         when Name_Op_Multiply =>
-            return N_Op_Multiply;
-         when Name_Op_Divide =>
-            return N_Op_Divide;
-         when Name_Op_Rem =>
-            return N_Op_Rem;
-         when Name_Op_And =>
-            return N_Op_And;
-         when Name_Op_Eq =>
-            return N_Op_Eq;
-         when Name_Op_Ge =>
-            return N_Op_Ge;
-         when Name_Op_Gt =>
-            return N_Op_Gt;
-         when Name_Op_Le =>
-            return N_Op_Le;
-         when Name_Op_Lt =>
-            return N_Op_Lt;
-         when Name_Op_Ne =>
-            return N_Op_Ne;
-         when Name_Op_Or =>
-            return N_Op_Or;
-         when Name_Op_Xor =>
-            return N_Op_Xor;
-         when others =>
-            raise Program_Error;
+         when Name_Op_Add      => return N_Op_Add;
+         when Name_Op_Concat   => return N_Op_Concat;
+         when Name_Op_Expon    => return N_Op_Expon;
+         when Name_Op_Subtract => return N_Op_Subtract;
+         when Name_Op_Mod      => return N_Op_Mod;
+         when Name_Op_Multiply => return N_Op_Multiply;
+         when Name_Op_Divide   => return N_Op_Divide;
+         when Name_Op_Rem      => return N_Op_Rem;
+         when Name_Op_And      => return N_Op_And;
+         when Name_Op_Eq       => return N_Op_Eq;
+         when Name_Op_Ge       => return N_Op_Ge;
+         when Name_Op_Gt       => return N_Op_Gt;
+         when Name_Op_Le       => return N_Op_Le;
+         when Name_Op_Lt       => return N_Op_Lt;
+         when Name_Op_Ne       => return N_Op_Ne;
+         when Name_Op_Or       => return N_Op_Or;
+         when Name_Op_Xor      => return N_Op_Xor;
+         when others           => raise Program_Error;
       end case;
    end Get_Binary_Nkind;
 
@@ -510,9 +492,10 @@ package body Sem_Aux is
 
          if Nkind (N) = N_Pragma
            and then
-             (Pragma_Name (N) = Nam
+             (Pragma_Name_Unmapped (N) = Nam
                or else (Nam = Name_Priority
-                         and then Pragma_Name (N) = Name_Interrupt_Priority)
+                         and then Pragma_Name (N) =
+                           Name_Interrupt_Priority)
                or else (Nam = Name_Interrupt_Priority
                          and then Pragma_Name (N) = Name_Priority))
          then
@@ -611,11 +594,9 @@ package body Sem_Aux is
       Nam           : Name_Id;
       Check_Parents : Boolean := True) return Node_Id
    is
-      N : Node_Id;
+      N : constant Node_Id := Get_Rep_Item (E, Nam, Check_Parents);
 
    begin
-      N := Get_Rep_Item (E, Nam, Check_Parents);
-
       if Present (N) and then Nkind (N) = N_Pragma then
          return N;
       end if;
@@ -664,16 +645,11 @@ package body Sem_Aux is
    function Get_Unary_Nkind (Op : Entity_Id) return Node_Kind is
    begin
       case Chars (Op) is
-         when Name_Op_Abs =>
-            return N_Op_Abs;
-         when Name_Op_Subtract =>
-            return N_Op_Minus;
-         when Name_Op_Not =>
-            return N_Op_Not;
-         when Name_Op_Add =>
-            return N_Op_Plus;
-         when others =>
-            raise Program_Error;
+         when Name_Op_Abs      => return N_Op_Abs;
+         when Name_Op_Subtract => return N_Op_Minus;
+         when Name_Op_Not      => return N_Op_Not;
+         when Name_Op_Add      => return N_Op_Plus;
+         when others           => raise Program_Error;
       end case;
    end Get_Unary_Nkind;
 
@@ -708,6 +684,29 @@ package body Sem_Aux is
    is
    begin
       return Present (Get_Rep_Item (E, Nam1, Nam2, Check_Parents));
+   end Has_Rep_Item;
+
+   function Has_Rep_Item (E : Entity_Id; N : Node_Id) return Boolean is
+      Item : Node_Id;
+
+   begin
+      pragma Assert
+        (Nkind_In (N, N_Aspect_Specification,
+                      N_Attribute_Definition_Clause,
+                      N_Enumeration_Representation_Clause,
+                      N_Pragma,
+                      N_Record_Representation_Clause));
+
+      Item := First_Rep_Item (E);
+      while Present (Item) loop
+         if Item = N then
+            return True;
+         end if;
+
+         Item := Next_Rep_Item (Item);
+      end loop;
+
+      return False;
    end Has_Rep_Item;
 
    --------------------
@@ -912,8 +911,12 @@ package body Sem_Aux is
          declare
             Ftyp : constant Entity_Id := Full_View (Btype);
          begin
+            --  Return true for a tagged incomplete type built as a shadow
+            --  entity in Build_Limited_Views. It can appear in the profile
+            --  of a thunk and the back end needs to know how it is passed.
+
             if No (Ftyp) then
-               return False;
+               return Is_Tagged_Type (Btype);
             else
                return Is_By_Reference_Type (Ftyp);
             end if;
@@ -1381,12 +1384,10 @@ package body Sem_Aux is
    -----------------------
 
    function Number_Components (Typ : Entity_Id) return Nat is
-      N    : Int;
+      N    : Nat := 0;
       Comp : Entity_Id;
 
    begin
-      N := 0;
-
       --  We do not call Einfo.First_Component_Or_Discriminant, as this
       --  function does not skip completely hidden discriminants, which we
       --  want to skip here.
@@ -1410,12 +1411,10 @@ package body Sem_Aux is
    --------------------------
 
    function Number_Discriminants (Typ : Entity_Id) return Pos is
-      N     : Int;
-      Discr : Entity_Id;
+      N     : Nat       := 0;
+      Discr : Entity_Id := First_Discriminant (Typ);
 
    begin
-      N := 0;
-      Discr := First_Discriminant (Typ);
       while Present (Discr) loop
          N := N + 1;
          Discr := Next_Discriminant (Discr);
@@ -1521,13 +1520,10 @@ package body Sem_Aux is
    ----------------------------
 
    function Subprogram_Body_Entity (E : Entity_Id) return Entity_Id is
-      N : Node_Id;
+      N : constant Node_Id := Parent (Subprogram_Specification (E));
+      --  Declaration for E
 
    begin
-      --  Retrieve the declaration for E
-
-      N := Parent (Subprogram_Specification (E));
-
       --  If this declaration is not a subprogram body, then it must be a
       --  subprogram declaration or body stub, from which we can retrieve the
       --  entity for the corresponding subprogram body if any, or an abstract
@@ -1537,7 +1533,9 @@ package body Sem_Aux is
          when N_Subprogram_Body =>
             return E;
 
-         when N_Subprogram_Declaration | N_Subprogram_Body_Stub =>
+         when N_Subprogram_Body_Stub
+            | N_Subprogram_Declaration
+         =>
             return Corresponding_Body (N);
 
          when others =>
@@ -1550,13 +1548,10 @@ package body Sem_Aux is
    ---------------------
 
    function Subprogram_Spec (E : Entity_Id) return Node_Id is
-      N : Node_Id;
+      N : constant Node_Id := Parent (Subprogram_Specification (E));
+      --  Declaration for E
 
    begin
-      --  Retrieve the declaration for E
-
-      N := Parent (Subprogram_Specification (E));
-
       --  This declaration is either subprogram declaration or a subprogram
       --  body, in which case return Empty.
 

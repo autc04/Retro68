@@ -3295,7 +3295,7 @@ nds32_elf_final_sda_base (bfd *output_bfd, struct bfd_link_info *info,
 	}
     }
 
-  if (add_symbol == TRUE)
+  if (add_symbol)
     {
       if (h)
 	{
@@ -4969,8 +4969,8 @@ nds32_elf_relocate_section (bfd *                  output_bfd ATTRIBUTE_UNUSED,
 	  if (bfd_link_pic (info))
 	    {
 	      _bfd_error_handler
-		(_("%s: warning: cannot deal R_NDS32_25_ABS_RELA in shared "
-		   "mode."), bfd_get_filename (input_bfd));
+		(_("%B: warning: cannot deal R_NDS32_25_ABS_RELA in shared "
+		   "mode."), input_bfd);
 	      return FALSE;
 	    }
 	  break;
@@ -8696,8 +8696,8 @@ nds32_elf_relax_delete_blanks (bfd *abfd, asection *sec,
 	      unsigned long before, between;
 	      bfd_byte *endp, *p;
 
-	      val = read_unsigned_leb128 (abfd, contents + irel->r_offset,
-					  &len);
+	      val = _bfd_read_unsigned_leb128 (abfd, contents + irel->r_offset,
+					       &len);
 
 	      before = get_nds32_elf_blank_total (&blank_t, irel->r_addend, 0);
 	      between = get_nds32_elf_blank_total (&blank_t,
@@ -12246,7 +12246,7 @@ nds32_elf_relax_section (bfd *abfd, asection *sec,
 				 irelend, isymbuf))
 	goto error_return;
 
-      if (*again == FALSE)
+      if (!*again)
 	{
 	  if (!nds32_fag_remove_unused_fpbase (abfd, sec, internal_relocs,
 					       irelend))
@@ -12256,7 +12256,7 @@ nds32_elf_relax_section (bfd *abfd, asection *sec,
 
   nds32_elf_pick_relax (FALSE, sec, again, table, link_info);
 
-  if (*again == FALSE)
+  if (!*again)
     {
       if (!nds32_relax_adjust_label (abfd, sec, internal_relocs, contents,
 				     &relax_blank_list, optimize, opt_size))
@@ -12273,7 +12273,7 @@ nds32_elf_relax_section (bfd *abfd, asection *sec,
       relax_blank_list = NULL;
     }
 
-  if (*again == FALSE)
+  if (!*again)
     {
       /* Closing the section, so we don't relax it anymore.  */
       bfd_vma sec_size_align;
@@ -14949,7 +14949,6 @@ nds32_elf_ex9_import_table (struct bfd_link_info *info)
 {
   int num = 0;
   bfd_byte *contents;
-  unsigned long insn;
   FILE *ex9_import_file;
   int update_ex9_table;
   struct elf_nds32_link_hash_table *table;
@@ -14963,6 +14962,7 @@ nds32_elf_ex9_import_table (struct bfd_link_info *info)
   /* Read instructions from the input file and build the list.  */
   while (!feof (ex9_import_file))
     {
+      unsigned long insn;
       char *code;
       struct elf_nds32_insn_times_entry *ptr;
       size_t nread;
@@ -14973,7 +14973,7 @@ nds32_elf_ex9_import_table (struct bfd_link_info *info)
 	break;
       insn = bfd_getb32 (contents);
       code = bfd_malloc (sizeof (char) * 9);
-      snprintf (code, 9, "%08lx", insn);
+      snprintf (code, 9, "%08lx", (insn & 0xffffffff));
       ptr = bfd_malloc (sizeof (struct elf_nds32_insn_times_entry));
       ptr->string = code;
       ptr->order = num;
@@ -15433,9 +15433,9 @@ nds32_elf_ex9_build_hash_table (bfd *abfd, asection *sec,
 			  /* Incorrect alignment.  */
 			  _bfd_error_handler
 			    /* xgettext:c-format */
-			    (_("%s: warning: unaligned small data access. "
+			    (_("%B: warning: unaligned small data access. "
 			       "For entry: {%d, %d, %d}, addr = 0x%x, align = 0x%x."),
-			     bfd_get_filename (abfd), irel->r_offset,
+			     abfd, irel->r_offset,
 			     irel->r_info, irel->r_addend, relocation, align);
 			  off += 4;
 			  continue;

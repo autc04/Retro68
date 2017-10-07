@@ -443,7 +443,7 @@ Disassembly of section .text:
 .*:	b3 4b 00 58 [	 ]*sxbr	%f5,%f8
 .*:	37 58 [	 ]*sxr	%f5,%f8
 .*:	b2 4c 00 69 [	 ]*tar	%a6,%r9
-.*:	b2 2c 00 06 [	 ]*tb	%r6
+.*:	b2 2c 00 69 [	 ]*tb	%r6,%r9
 .*:	b3 51 50 69 [	 ]*tbdr	%f6,5,%f9
 .*:	b3 50 50 69 [	 ]*tbedr	%f6,5,%f9
 .*:	ed 65 af ff 00 11 [	 ]*tcdb	%f6,4095\(%r5,%r10\)
@@ -481,4 +481,6 @@ Disassembly of section .text:
 .*:	17 69 [	 ]*xr	%r6,%r9
 .*:	b2 76 00 00 [	 ]*xsch
 .*:	f8 58 5f ff af ff [	 ]*zap	4095\(6,%r5\),4095\(9,%r10\)
+.*:	b2 21 b0 69 [	 ]*ipte	%r6,%r9,%r11
+.*:	b2 21 bd 69 [	 ]*ipte	%r6,%r9,%r11,13
 .*:	07 07 [ 	]*nopr	%r7

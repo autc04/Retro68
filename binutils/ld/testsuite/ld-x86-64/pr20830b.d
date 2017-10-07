@@ -48,13 +48,13 @@ Disassembly of section .plt:
 
 Disassembly of section .plt.got:
 
-0+180 <.plt.got>:
+0+180 <func@plt>:
  +[a-f0-9]+:	ff 25 72 0e 20 00    	jmpq   \*0x200e72\(%rip\)        # 200ff8 <func>
  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
 
 Disassembly of section .text:
 
 0+188 <foo>:
- +[a-f0-9]+:	e8 f3 ff ff ff       	callq  180 <.plt.got>
+ +[a-f0-9]+:	e8 f3 ff ff ff       	callq  180 <func@plt>
  +[a-f0-9]+:	48 8b 05 64 0e 20 00 	mov    0x200e64\(%rip\),%rax        # 200ff8 <func>
 #pass

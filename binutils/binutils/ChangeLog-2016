@@ -1,3 +1,12 @@
+2016-12-31  Dimitar Dimitrov  <dimitar@dinux.eu>
+
+	* readelf.c (guess_is_rela): Add EM_TI_PRU.
+	(dump_relocations): Invoke elf_pru_reloc_type.
+	(get_machine_name): Handle EM_TI_PRU.
+	(is_32bit_abs_reloc): Handle R_PRU_BFD_RELOC_32.
+	(is_16bit_abs_reloc): Handle R_PRU_BFD_RELOC_16.
+	(is_none_reloc): Handle PRU_NONE and PRU_DIFF variants.
+
 2016-12-23  Maciej W. Rozycki  <macro@imgtec.com>
 
 	* testsuite/binutils-all/mips/mips16-extend-insn.d: Update for

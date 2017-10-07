@@ -1,7 +1,8 @@
-// { dg-options "-std=gnu++11 -lstdc++fs" }
+// { dg-options "-lstdc++fs" }
+// { dg-do run { target c++11 } }
 // { dg-require-filesystem-ts "" }
 
-// Copyright (C) 2014-2016 Free Software Foundation, Inc.
+// Copyright (C) 2014-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,8 +31,6 @@ namespace fs = std::experimental::filesystem;
 void
 test01()
 {
-  bool test __attribute__((unused)) = false;
-
   auto p = __gnu_test::nonexistent_path();
   std::error_code ec;
 
@@ -68,8 +67,6 @@ test01()
 void
 test02()
 {
-  bool test __attribute__((unused)) = false;
-
   auto from = __gnu_test::nonexistent_path();
   auto to = __gnu_test::nonexistent_path();
   std::error_code ec, bad = std::make_error_code(std::errc::invalid_argument);
@@ -113,8 +110,6 @@ test02()
 void
 test03()
 {
-  bool test __attribute__((unused)) = false;
-
   auto from = __gnu_test::nonexistent_path();
   auto to = __gnu_test::nonexistent_path();
 
@@ -142,8 +137,6 @@ test03()
 void
 test04()
 {
-  bool test __attribute__((unused)) = false;
-
   auto from = __gnu_test::nonexistent_path();
   auto to = __gnu_test::nonexistent_path();
   std::error_code ec;
@@ -185,8 +178,6 @@ test04()
 void
 test05()
 {
-  bool test __attribute__((unused)) = false;
-
   auto to = __gnu_test::nonexistent_path();
   std::error_code ec = std::make_error_code(std::errc::invalid_argument);
 

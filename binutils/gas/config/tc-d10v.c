@@ -104,7 +104,7 @@ size_t md_longopts_size = sizeof (md_longopts);
 static struct hash_control *d10v_hash;
 
 /* Do a binary search of the d10v_predefined_registers array to see if
-   NAME is a valid regiter name.  Return the register number from the
+   NAME is a valid register name.  Return the register number from the
    array on success, or -1 on failure.  */
 
 static int

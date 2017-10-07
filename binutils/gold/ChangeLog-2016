@@ -1,3 +1,7 @@
+2016-12-28  Andreas Schwab  <schwab@linux-m68k.org>
+
+	* copy-relocs.h: Fix comment typo.
+
 2016-12-28  Cary Coutant  <ccoutant@gmail.com>
 
 	PR gold/20996
@@ -40,7 +44,7 @@
 	(bnd_ifunc_1): New test case.
 	(bnd_ifunc_2): New test case.
 	* testsuite/Makefile.in: Regenerate.
-	* testsuite/bnd_ifunc_1.s: New source file. 
+	* testsuite/bnd_ifunc_1.s: New source file.
 	* testsuite/bnd_ifunc_1.sh: New shell script.
 	* testsuite/bnd_ifunc_2.s: New source file.
 	* testsuite/bnd_ifunc_2.sh: New shell script.
@@ -356,7 +360,7 @@
 
 2016-11-22  Ambrogino Modigliani  <ambrogino.modigliani@gmail.com>
 
-        * configure: Regenerate.
+	* configure: Regenerate.
 
 2016-11-21  Cary Coutant  <ccoutant@gmail.com>
 
@@ -428,21 +432,21 @@
 
 2016-09-02  Doug Kwan  <dougkwan@google.com>
 
-        * arm.cc (Target_arm::Target_arm): Move method definition outside of
-        class definition.  Add code to handle --target1-rel, --target1-abs
-        and --target2= options.
-        (Target_arm::get_reloc_reloc_type): Change method to be non-static
-        and const.
-        (Target_arm::target1_is_rel_, Target_arm::target2_reloc_): New data
-        member declaration.
-        (Target_arm::Scan::local, Target_arm::Scan::global,
-        Target_arm::Relocate::relocate,
-        Target_arm::Relocatable_size_for_reloc::get_size_for_reloc): Adjust
-        call to Target_arm::get_real_reloc_type.
-        (Target_arm::get_real_reloc_type): Use command line options to
-        determine real types of R_ARM_TARGET1 and R_ARM_TARGET2.
-        * options.h (--target1-rel, --target1-abs, --target2): New ARM-only
-        options.
+	* arm.cc (Target_arm::Target_arm): Move method definition outside of
+	class definition.  Add code to handle --target1-rel, --target1-abs
+	and --target2= options.
+	(Target_arm::get_reloc_reloc_type): Change method to be non-static
+	and const.
+	(Target_arm::target1_is_rel_, Target_arm::target2_reloc_): New data
+	member declaration.
+	(Target_arm::Scan::local, Target_arm::Scan::global,
+	Target_arm::Relocate::relocate,
+	Target_arm::Relocatable_size_for_reloc::get_size_for_reloc): Adjust
+	call to Target_arm::get_real_reloc_type.
+	(Target_arm::get_real_reloc_type): Use command line options to
+	determine real types of R_ARM_TARGET1 and R_ARM_TARGET2.
+	* options.h (--target1-rel, --target1-abs, --target2): New ARM-only
+	options.
 
 2016-08-31  Alan Modra  <amodra@gmail.com>
 
@@ -775,21 +779,21 @@
 
 2016-06-20  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
 
-        * mips.cc (Target_mips::Target_mips): Initialize rld_map_.
-        (Target_mips::rld_map_): New data member.
-        (Target_mips::do_finalize_sections): Add support for
-        DT_MIPS_RLD_MAP and DT_MIPS_RLD_MAP_REL dynamic tags,
-        .rld_map section, and __RLD_MAP symbol.
-        (Target_mips::do_dynamic_tag_custom_value): Add support for
-        DT_MIPS_RLD_MAP_REL dynamic tag.
-        * output.cc (Output_data_dynamic::get_entry_offset): New method
-        definition.
-        * output.h (Output_data_dynamic::get_entry_offset): New method
-        declaration.
+	* mips.cc (Target_mips::Target_mips): Initialize rld_map_.
+	(Target_mips::rld_map_): New data member.
+	(Target_mips::do_finalize_sections): Add support for
+	DT_MIPS_RLD_MAP and DT_MIPS_RLD_MAP_REL dynamic tags,
+	.rld_map section, and __RLD_MAP symbol.
+	(Target_mips::do_dynamic_tag_custom_value): Add support for
+	DT_MIPS_RLD_MAP_REL dynamic tag.
+	* output.cc (Output_data_dynamic::get_entry_offset): New method
+	definition.
+	* output.h (Output_data_dynamic::get_entry_offset): New method
+	declaration.
 
 2016-06-20  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
 
-        * mips.cc (Mips_relocate_functions::relpc16): Add unaligned check.
+	* mips.cc (Mips_relocate_functions::relpc16): Add unaligned check.
 
 2016-06-20  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
 
@@ -1177,7 +1181,7 @@
 
 2016-03-08  Cary Coutant  <ccoutant@gmail.com>
 
-        PR 19751
+	PR 19751
 	* testsuite/Makefile.am (retain_symbols_file_test): Remove check
 	for constructor.
 	* testsuite/Makefile.in: Regenerate.
@@ -1186,12 +1190,12 @@
 
 2016-03-08  Cary Coutant  <ccoutant@gmail.com>
 
-        PR 19751
-        * arm.cc (Reloc_stub::Key::name): Add unused attribute.
-        * dirsearch.cc (Dir_caches::~Dir_caches): Likewise.
+	PR 19751
+	* arm.cc (Reloc_stub::Key::name): Add unused attribute.
+	* dirsearch.cc (Dir_caches::~Dir_caches): Likewise.
 
 2016-03-08  Cary Coutant  <ccoutant@gmail.com>
-            Vladimir Radosavljevic  <vladimir.radosavljevic@imgtec.com>
+	    Vladimir Radosavljevic  <vladimir.radosavljevic@imgtec.com>
 
 	* output.cc (Output_reloc_writer): New type.
 	(Output_data_reloc_base::do_write): Move implementation to template

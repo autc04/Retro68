@@ -25,7 +25,7 @@
 int
 _DEFUN(_printf_r, (ptr, fmt),
        struct _reent *ptr _AND
-       const char *fmt _DOTS)
+       const char *__restrict fmt _DOTS)
 {
   int ret;
   va_list ap;
@@ -37,11 +37,17 @@ _DEFUN(_printf_r, (ptr, fmt),
   return ret;
 }
 
+#ifdef _NANO_FORMATTED_IO
+int
+_EXFUN(_iprintf_r, (struct _reent *, const char *, ...)
+       _ATTRIBUTE ((__alias__("_printf_r"))));
+#endif
+
 #ifndef _REENT_ONLY
 
 int
 _DEFUN(printf, (fmt),
-       const char *fmt _DOTS)
+       const char *__restrict fmt _DOTS)
 {
   int ret;
   va_list ap;
@@ -54,4 +60,9 @@ _DEFUN(printf, (fmt),
   return ret;
 }
 
+#ifdef _NANO_FORMATTED_IO
+int
+_EXFUN(iprintf, (const char *, ...)
+       _ATTRIBUTE ((__alias__("printf"))));
+#endif
 #endif /* ! _REENT_ONLY */

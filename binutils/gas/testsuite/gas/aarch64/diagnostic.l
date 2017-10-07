@@ -98,7 +98,6 @@
 [^:]*:100: Error: operand 3 must be one of the standard conditions, excluding AL and NV. -- `cinc w0,w1,nv'
 [^:]*:101: Error: operand 2 must be one of the standard conditions, excluding AL and NV. -- `cset w0,al'
 [^:]*:102: Error: operand 2 must be one of the standard conditions, excluding AL and NV. -- `cset w0,nv'
-[^:]*:105: Error: operand 1 must be an integer register -- `ret lr'
 [^:]*:106: Error: operand 1 must be an integer register -- `ret kk'
 [^:]*:107: Error: immediate operand required at operand 1 -- `clrex x0'
 [^:]*:108: Error: immediate operand required at operand 1 -- `clrex w0'

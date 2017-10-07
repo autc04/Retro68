@@ -2353,7 +2353,7 @@ elf_m68k_partition_multi_got_1 (void **_entry, void *_arg)
   if (diff != NULL)
     elf_m68k_clear_got (diff);
 
-  return arg->error_p == FALSE ? 1 : 0;
+  return !arg->error_p;
 }
 
 /* Helper function to build symndx2h mapping.  */
@@ -2590,7 +2590,7 @@ elf_m68k_check_relocs (bfd *abfd,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
 
       switch (ELF32_R_TYPE (rel->r_info))

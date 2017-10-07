@@ -1,4 +1,4 @@
-#   Copyright (C) 2013-2016 Free Software Foundation, Inc.
+#   Copyright (C) 2013-2017 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ if [cilkplus_init] {
     dg-runtest [lsort [glob -nocomplain $srcdir/g++.dg/cilk-plus/AN/*.cc]] " -g -O3 -fcilkplus" " "
     dg-runtest [lsort [glob -nocomplain $srcdir/g++.dg/cilk-plus/AN/*.cc]] " -O3 -ftree-vectorize -fcilkplus -g" " "
 
-    if { [check_libcilkrts_available] } {
+    if { [check_effective_target_cilkplus_runtime] } {
         dg-runtest [lsort [glob -nocomplain $srcdir/g++.dg/cilk-plus/CK/*.cc]] " -O1 -fcilkplus" " "
         dg-runtest [lsort [glob -nocomplain $srcdir/g++.dg/cilk-plus/CK/*.cc]] " -O3 -fcilkplus" " "
         dg-runtest [lsort [glob -nocomplain $srcdir/g++.dg/cilk-plus/CK/*.cc]] " -g -fcilkplus" " "

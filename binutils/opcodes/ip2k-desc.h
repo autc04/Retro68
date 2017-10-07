@@ -25,6 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef IP2K_CPU_H
 #define IP2K_CPU_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CGEN_ARCH ip2k
 
 /* Given symbol S, return ip2k_cgen_<S>.  */
@@ -286,5 +290,9 @@ extern const CGEN_ATTR_TABLE ip2k_cgen_insn_attr_table[];
 extern const CGEN_HW_ENTRY ip2k_cgen_hw_table[];
 
 
+
+   #ifdef __cplusplus
+   }
+   #endif
 
 #endif /* IP2K_CPU_H */

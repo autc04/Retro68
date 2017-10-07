@@ -13,6 +13,7 @@ GENERAL_SOURCES = \
 	_Exit.c		\
 	abort.c  	\
 	abs.c 		\
+	aligned_alloc.c	\
 	assert.c  	\
 	atexit.c	\
 	atof.c 		\
@@ -31,6 +32,7 @@ GENERAL_SOURCES = \
 	gdtoa-hexnan.c	\
 	getenv.c  	\
 	getenv_r.c	\
+	itoa.c          \
 	labs.c 		\
 	ldiv.c  	\
 	ldtoa.c		\
@@ -44,14 +46,20 @@ GENERAL_SOURCES = \
 	mlock.c		\
 	mprec.c		\
 	mstats.c	\
+	on_exit_args.c	\
+	quick_exit.c	\
 	rand.c		\
 	rand_r.c	\
+	random.c	\
 	realloc.c	\
 	reallocf.c	\
 	sb_charsets.c	\
 	strtod.c	\
+	strtodg.c	\
 	strtol.c	\
+	strtorx.c	\
 	strtoul.c	\
+	utoa.c          \
 	wcstod.c	\
 	wcstol.c	\
 	wcstoul.c	\
@@ -66,12 +74,42 @@ GENERAL_SOURCES += \
 	wcstold.c
 endif # HAVE_LONG_DOUBLE
 
+if NEWLIB_NANO_MALLOC
+MALIGNR=nano-malignr
+MALLOPTR=nano-malloptr
+PVALLOCR=nano-pvallocr
+VALLOCR=nano-vallocr
+FREER=nano-freer
+REALLOCR=nano-reallocr
+CALLOCR=nano-callocr
+CFREER=nano-cfreer
+MALLINFOR=nano-mallinfor
+MALLSTATSR=nano-mallstatsr
+MSIZER=nano-msizer
+MALLOCR=nano-mallocr
+else
+MALIGNR=malignr
+MALLOPTR=malloptr
+PVALLOCR=pvallocr
+VALLOCR=vallocr
+FREER=freer
+REALLOCR=reallocr
+CALLOCR=callocr
+CFREER=cfreer
+MALLINFOR=mallinfor
+MALLSTATSR=mallstatsr
+MSIZER=msizer
+MALLOCR=mallocr
+endif
+
 EXTENDED_SOURCES = \
+	arc4random.c	\
+	arc4random_uniform.c \
 	cxa_atexit.c	\
 	cxa_finalize.c	\
 	drand48.c	\
-	ecvtbuf.c 	\
-	efgcvt.c 	\
+	ecvtbuf.c	\
+	efgcvt.c	\
 	erand48.c	\
 	jrand48.c	\
 	lcong48.c	\
@@ -115,10 +153,10 @@ ELIX_2_SOURCES = \
 	wctob.c
 
 ELIX_2_OBJS = \
-	$(lpfx)malignr.$(oext) 	\
-	$(lpfx)malloptr.$(oext) \
-	$(lpfx)pvallocr.$(oext)	\
-	$(lpfx)vallocr.$(oext)
+	$(lpfx)$(MALIGNR).$(oext)	\
+	$(lpfx)$(MALLOPTR).$(oext) \
+	$(lpfx)$(PVALLOCR).$(oext)	\
+	$(lpfx)$(VALLOCR).$(oext)
 
 ELIX_3_SOURCES = \
 	putenv.c	\
@@ -127,6 +165,7 @@ ELIX_3_SOURCES = \
 	setenv_r.c
 
 ELIX_4_SOURCES = \
+	rpmatch.c	\
 	system.c
 
 if ELIX_LEVEL_1
@@ -148,10 +187,10 @@ endif
 endif
 
 # Because of how libtool moves objects around, mallocr must be built last.
-LIBADD_OBJS = $(lpfx)freer.$(oext) $(lpfx)reallocr.$(oext) \
-	$(lpfx)callocr.$(oext) $(lpfx)cfreer.$(oext) \
-	$(lpfx)mallinfor.$(oext) $(lpfx)mallstatsr.$(oext) \
-	$(lpfx)msizer.$(oext) $(lpfx)mallocr.$(oext)
+LIBADD_OBJS = $(lpfx)$(FREER).$(oext) $(lpfx)$(REALLOCR).$(oext) \
+	$(lpfx)$(CALLOCR).$(oext) $(lpfx)$(CFREER).$(oext) \
+	$(lpfx)$(MALLINFOR).$(oext) $(lpfx)$(MALLSTATSR).$(oext) \
+	$(lpfx)$(MSIZER).$(oext) $(lpfx)$(MALLOCR).$(oext)
 
 libstdlib_la_LDFLAGS = -Xcompiler -nostdlib
 
@@ -176,41 +215,41 @@ include $(srcdir)/../../Makefile.shared
 
 MALLOC_COMPILE = $(LIB_COMPILE) -DINTERNAL_NEWLIB
 
-$(lpfx)mallocr.$(oext): mallocr.c
-	$(MALLOC_COMPILE) -DDEFINE_MALLOC -c $(srcdir)/mallocr.c -o $@
+$(lpfx)$(MALLOCR).$(oext): $(MALLOCR).c
+	$(MALLOC_COMPILE) -DDEFINE_MALLOC -c $(srcdir)/$(MALLOCR).c -o $@
 
-$(lpfx)freer.$(oext): mallocr.c
-	$(MALLOC_COMPILE) -DDEFINE_FREE -c $(srcdir)/mallocr.c -o $@
+$(lpfx)$(FREER).$(oext): $(MALLOCR).c
+	$(MALLOC_COMPILE) -DDEFINE_FREE -c $(srcdir)/$(MALLOCR).c -o $@
 
-$(lpfx)reallocr.$(oext): mallocr.c
-	$(MALLOC_COMPILE) -DDEFINE_REALLOC -c $(srcdir)/mallocr.c -o $@
+$(lpfx)$(REALLOCR).$(oext): $(MALLOCR).c
+	$(MALLOC_COMPILE) -DDEFINE_REALLOC -c $(srcdir)/$(MALLOCR).c -o $@
 
-$(lpfx)callocr.$(oext): mallocr.c
-	$(MALLOC_COMPILE) -DDEFINE_CALLOC -c $(srcdir)/mallocr.c -o $@
+$(lpfx)$(CALLOCR).$(oext): $(MALLOCR).c
+	$(MALLOC_COMPILE) -DDEFINE_CALLOC -c $(srcdir)/$(MALLOCR).c -o $@
 
-$(lpfx)cfreer.$(oext): mallocr.c
-	$(MALLOC_COMPILE) -DDEFINE_CFREE -c $(srcdir)/mallocr.c -o $@
+$(lpfx)$(CFREER).$(oext): $(MALLOCR).c
+	$(MALLOC_COMPILE) -DDEFINE_CFREE -c $(srcdir)/$(MALLOCR).c -o $@
 
-$(lpfx)malignr.$(oext): mallocr.c
-	$(MALLOC_COMPILE) -DDEFINE_MEMALIGN -c $(srcdir)/mallocr.c -o $@
+$(lpfx)$(MALIGNR).$(oext): $(MALLOCR).c
+	$(MALLOC_COMPILE) -DDEFINE_MEMALIGN -c $(srcdir)/$(MALLOCR).c -o $@
 
-$(lpfx)vallocr.$(oext): mallocr.c
-	$(MALLOC_COMPILE) -DDEFINE_VALLOC -c $(srcdir)/mallocr.c -o $@
+$(lpfx)$(VALLOCR).$(oext): $(MALLOCR).c
+	$(MALLOC_COMPILE) -DDEFINE_VALLOC -c $(srcdir)/$(MALLOCR).c -o $@
 
-$(lpfx)pvallocr.$(oext): mallocr.c
-	$(MALLOC_COMPILE) -DDEFINE_PVALLOC -c $(srcdir)/mallocr.c -o $@
+$(lpfx)$(PVALLOCR).$(oext): $(MALLOCR).c
+	$(MALLOC_COMPILE) -DDEFINE_PVALLOC -c $(srcdir)/$(MALLOCR).c -o $@
 
-$(lpfx)mallinfor.$(oext): mallocr.c
-	$(MALLOC_COMPILE) -DDEFINE_MALLINFO -c $(srcdir)/mallocr.c -o $@
+$(lpfx)$(MALLINFOR).$(oext): $(MALLOCR).c
+	$(MALLOC_COMPILE) -DDEFINE_MALLINFO -c $(srcdir)/$(MALLOCR).c -o $@
 
-$(lpfx)mallstatsr.$(oext): mallocr.c
-	$(MALLOC_COMPILE) -DDEFINE_MALLOC_STATS -c $(srcdir)/mallocr.c -o $@
+$(lpfx)$(MALLSTATSR).$(oext): $(MALLOCR).c
+	$(MALLOC_COMPILE) -DDEFINE_MALLOC_STATS -c $(srcdir)/$(MALLOCR).c -o $@
 
-$(lpfx)msizer.$(oext): mallocr.c
-	$(MALLOC_COMPILE) -DDEFINE_MALLOC_USABLE_SIZE -c $(srcdir)/mallocr.c -o $@
+$(lpfx)$(MSIZER).$(oext): $(MALLOCR).c
+	$(MALLOC_COMPILE) -DDEFINE_MALLOC_USABLE_SIZE -c $(srcdir)/$(MALLOCR).c -o $@
 
-$(lpfx)malloptr.$(oext): mallocr.c
-	$(MALLOC_COMPILE) -DDEFINE_MALLOPT -c $(srcdir)/mallocr.c -o $@
+$(lpfx)$(MALLOPTR).$(oext): $(MALLOCR).c
+	$(MALLOC_COMPILE) -DDEFINE_MALLOPT -c $(srcdir)/$(MALLOCR).c -o $@
 
 CHEWOUT_FILES= \
 	_Exit.def	\
@@ -229,12 +268,12 @@ CHEWOUT_FILES= \
 	envlock.def	\
 	exit.def	\
 	getenv.def	\
+	itoa.def	\
 	labs.def	\
 	ldiv.def	\
 	llabs.def	\
 	lldiv.def	\
 	malloc.def	\
-	mallocr.def	\
 	mblen.def	\
 	mbsnrtowcs.def	\
 	mbstowcs.def	\
@@ -244,11 +283,14 @@ CHEWOUT_FILES= \
 	on_exit.def	\
 	rand.def	\
 	rand48.def	\
+	random.def	\
+	rpmatch.def	\
 	strtod.def 	\
 	strtol.def 	\
 	strtoll.def 	\
 	strtoul.def 	\
 	strtoull.def 	\
+	utoa.def	\
 	wcsnrtombs.def	\
 	wcstod.def 	\
 	wcstol.def 	\
@@ -259,20 +301,7 @@ CHEWOUT_FILES= \
 	wcstombs.def	\
 	wctomb.def	
 
-SUFFIXES = .def
-
-CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
-
-.c.def:
-	$(CHEW) < $< > $*.def 2> $*.ref
-	touch stmp-def
-
-TARGETDOC = ../tmp.texi
-
-doc: $(CHEWOUT_FILES)
-	cat $(srcdir)/stdlib.tex >> $(TARGETDOC)
-
-CLEANFILES = $(CHEWOUT_FILES) *.ref
+CHAPTERS = stdlib.tex
 
 $(lpfx)dtoa.$(oext): dtoa.c mprec.h
 $(lpfx)ldtoa.$(oext): ldtoa.c mprec.h

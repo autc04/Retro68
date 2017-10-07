@@ -13,23 +13,25 @@ INDEX
 
 ANSI_SYNOPSIS
 	#include <string.h>
-      	char *strtok(char *<[source]>, const char *<[delimiters]>)
-      	char *strtok_r(char *<[source]>, const char *<[delimiters]>,
-			char **<[lasts]>)
-      	char *strsep(char **<[source_ptr]>, const char *<[delimiters]>)
+      	char *strtok(char *restrict <[source]>,
+                     const char *restrict <[delimiters]>);
+      	char *strtok_r(char *restrict <[source]>,
+                       const char *restrict <[delimiters]>,
+                       char **<[lasts]>);
+	char *strsep(char **<[source_ptr]>, const char *<[delimiters]>);
 
 TRAD_SYNOPSIS
 	#include <string.h>
-	char *strtok(<[source]>, <[delimiters]>)
+	char *strtok(<[source]>, <[delimiters]>);
 	char *<[source]>;
 	char *<[delimiters]>;
 
-	char *strtok_r(<[source]>, <[delimiters]>, <[lasts]>)
+	char *strtok_r(<[source]>, <[delimiters]>, <[lasts]>);
 	char *<[source]>;
 	char *<[delimiters]>;
 	char **<[lasts]>;
 
-	char *strsep(<[source_ptr]>, <[delimiters]>)
+	char *strsep(<[source_ptr]>, <[delimiters]>);
 	char **<[source_ptr]>;
 	char *<[delimiters]>;
 
@@ -92,10 +94,12 @@ extern char *__strtok_r (char *, const char *, char **, int);
 
 char *
 _DEFUN (strtok, (s, delim),
-	register char *s _AND
-	register const char *delim)
+	register char *__restrict s _AND
+	register const char *__restrict delim)
 {
-	_REENT_CHECK_MISC(_REENT);
-	return __strtok_r (s, delim, &(_REENT_STRTOK_LAST(_REENT)), 1);
+	struct _reent *reent = _REENT;
+
+	_REENT_CHECK_MISC(reent);
+	return __strtok_r (s, delim, &(_REENT_STRTOK_LAST(reent)), 1);
 }
 #endif

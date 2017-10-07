@@ -107,7 +107,7 @@
 	courierize
 	do_fancy_stuff
 	catstr
-	"@*\n" catstr
+	"@sp 1\n" catstr
 	;
 
 : asection
@@ -154,13 +154,13 @@
 	"@strong{See Also}@*\n" catstr subhead ;
 
 : INTERNAL_FUNCTION
-	func ;
+	;
 
-: INTERNAL_DEFINITION 
-	func ;
+: INTERNAL_DEFINITION
+	;
 
 : INTERNAL
-	func ;
+	;
 
 : TYPEDEF
 	FUNCTION ;

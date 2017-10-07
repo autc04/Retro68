@@ -72,6 +72,21 @@ if [istarget sparc*-*-*] {
         run_dump_test "v9branch1"
         run_dump_test "imm-plus-rreg"
         run_dump_test "dcti-couples-v9"
+        run_dump_test "call-relax"
+        run_dump_test "sparc6"
+        run_list_test "sparc6-diag" "-64"
+        run_dump_test "fpcmpshl"
+        run_list_test "fpcmpshl-diag" "-64"
+        run_dump_test "ldm-stm"
+        run_list_test "ldm-stm-diag" "-64"
+        run_dump_test "ldmf-stmf"
+        run_list_test "ldmf-stmf-diag" "-64"
+        run_dump_test "on"
+        run_list_test "on-diag" "-64"
+        run_dump_test "rle"
+    } else {
+        # The next tests are a.out only.
+        run_dump_test "call-relax-aout"
     }
 
     if [gas_64_check] {
@@ -92,6 +107,8 @@ if [istarget sparc*-*-*] {
 	run_dump_test "plt64"
 	run_dump_test "gotop64"
         run_list_test "hwcaps-bump" "-64 -bump"
+        run_list_test "asi-bump-warn" "-64 -bump"
+        run_list_test "asi-arch-error" "-Av9"
     }
 
     run_dump_test "synth"

@@ -1362,7 +1362,7 @@ coff_arm_relocate_section (bfd *output_bfd,
 			      /* xgettext:c-format */
 			      (_("%B(%s): warning: interworking not enabled.\n"
 				 "  first occurrence: %B: arm call to thumb"),
-			       h_sec->owner, input_bfd, name);
+			       h_sec->owner, name, input_bfd);
 
 			  --my_offset;
 			  myh->root.u.def.value = my_offset;
@@ -1453,7 +1453,7 @@ coff_arm_relocate_section (bfd *output_bfd,
 			      (_("%B(%s): warning: interworking not enabled.\n"
 				 "  first occurrence: %B: thumb call to arm\n"
 				 "  consider relinking with --support-old-code enabled"),
-			       h_sec->owner, input_bfd, name);
+			       h_sec->owner, name, input_bfd);
 
 			  -- my_offset;
 			  myh->root.u.def.value = my_offset;
@@ -1744,7 +1744,7 @@ coff_arm_relocate_section (bfd *output_bfd,
 	  _bfd_error_handler
 	    /* xgettext:c-format */
 	    (_("%B: bad reloc address 0x%lx in section `%A'"),
-	     input_bfd, input_section, (unsigned long) rel->r_vaddr);
+	     input_bfd, (unsigned long) rel->r_vaddr, input_section);
 	  return FALSE;
 	case bfd_reloc_overflow:
 	  {
@@ -2201,9 +2201,8 @@ coff_arm_merge_private_bfd_data (bfd * ibfd, struct bfd_link_info *info)
 	      _bfd_error_handler
 		/* xgettext: c-format */
 		(_("error: %B is compiled for APCS-%d, whereas %B is compiled for APCS-%d"),
-		 ibfd, obfd,
-		 APCS_26_FLAG (ibfd) ? 26 : 32,
-		 APCS_26_FLAG (obfd) ? 26 : 32
+		 ibfd, APCS_26_FLAG (ibfd) ? 26 : 32,
+		 obfd, APCS_26_FLAG (obfd) ? 26 : 32
 		 );
 
 	      bfd_set_error (bfd_error_wrong_format);

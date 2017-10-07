@@ -8,7 +8,7 @@
 #...
 Contents of the .eh_frame section:
 
-0+0000 0+001[4c] 0+0000 CIE
+0+0000 0+001[48] 0+0000 CIE
   Version:               1
   Augmentation:          "zPR"
   Code alignment factor: 1

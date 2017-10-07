@@ -1,5 +1,5 @@
 /* Common declarations for all of libgfortran.
-   Copyright (C) 2002-2016 Free Software Foundation, Inc.
+   Copyright (C) 2002-2017 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>, and
    Andy Vaught <andy@xena.eas.asu.edu>
 
@@ -40,6 +40,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #include "config.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stddef.h>
 #include <float.h>
 #include <stdarg.h>
@@ -110,6 +111,11 @@ typedef off_t gfc_offset;
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 
+/* This macro can be used to annotate conditions which we know to
+   be true, so that the compiler can optimize based on the condition.  */
+
+#define GFC_ASSERT(EXPR)                                                \
+  ((void)(__builtin_expect (!(EXPR), 0) ? __builtin_unreachable (), 0 : 0))
 
 /* Make sure we have ptrdiff_t. */
 #ifndef HAVE_PTRDIFF_T
@@ -609,6 +615,7 @@ st_parameter_common;
 
 #define IOPARM_COMMON_MASK              ((1 << 7) - 1)
 
+/* Make sure to keep in sync with io/io.h (st_parameter_open).  */
 #define IOPARM_OPEN_HAS_RECL_IN         (1 << 7)
 #define IOPARM_OPEN_HAS_FILE            (1 << 8)
 #define IOPARM_OPEN_HAS_STATUS          (1 << 9)
@@ -626,6 +633,9 @@ st_parameter_common;
 #define IOPARM_OPEN_HAS_SIGN		(1 << 21)
 #define IOPARM_OPEN_HAS_ASYNCHRONOUS	(1 << 22)
 #define IOPARM_OPEN_HAS_NEWUNIT		(1 << 23)
+#define IOPARM_OPEN_HAS_READONLY	(1 << 24)
+#define IOPARM_OPEN_HAS_CC              (1 << 25)
+#define IOPARM_OPEN_HAS_SHARE           (1 << 26)
 
 /* library start function and end macro.  These can be expanded if needed
    in the future.  cmp is st_parameter_common *cmp  */
@@ -645,9 +655,6 @@ iexport_proto(set_args);
 
 extern void get_args (int *, char ***);
 internal_proto(get_args);
-
-extern void store_exe_path (const char *);
-export_proto(store_exe_path);
 
 /* backtrace.c */
 
@@ -801,9 +808,7 @@ internal_proto(get_unformatted_convert);
 
 /* Secure getenv() which returns NULL if running as SUID/SGID.  */
 #ifndef HAVE_SECURE_GETENV
-#ifdef HAVE___SECURE_GETENV
-#define secure_getenv __secure_getenv
-#elif defined(HAVE_GETUID) && defined(HAVE_GETEUID) \
+#if defined(HAVE_GETUID) && defined(HAVE_GETEUID) \
   && defined(HAVE_GETGID) && defined(HAVE_GETEGID)
 #define FALLBACK_SECURE_GETENV
 extern char *secure_getenv (const char *);

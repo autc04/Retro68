@@ -1049,10 +1049,16 @@ if [is_elf_format] {
     objcopy_test_readelf "ELF group" group-2.s
     objcopy_test_readelf "ELF group" group-3.s
     objcopy_test_readelf "ELF group" group-4.s
+    objcopy_test_readelf "GNU_MBIND section" mbind1.s
     run_dump_test "group-5"
     run_dump_test "group-6"
     run_dump_test "copy-1"
     run_dump_test "note-1"
+    if [is_elf64 tmpdir/bintest.o] {
+	run_dump_test "note-2-64"
+    } else {
+	run_dump_test "note-2-32"
+    }
 }
 
 run_dump_test "copy-2"

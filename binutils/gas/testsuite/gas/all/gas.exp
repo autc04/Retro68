@@ -392,6 +392,7 @@ run_dump_test sleb128-5
 # .byte is not 8 bits on either tic4x or tic54x
 if { ![istarget "tic4x*-*-*"] && ![istarget "tic54x*-*-*"] } {
     run_dump_test sleb128-7
+    run_dump_test sleb128-8
 }
 
 # .byte is 32 bits on tic4x, and .p2align isn't supported on tic54x
@@ -454,3 +455,31 @@ load_lib gas-dg.exp
 dg-init
 dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/err-*.s $srcdir/$subdir/warn-*.s]] "" ""
 dg-finish
+
+# Set $nop_type appropriately to indicate the NOP instruction mnemonic.
+case $target_triplet in {
+    { "mmix-*-*" } {
+	set nop_type 5
+    }
+    { "i960-*-*" } {
+	set nop_type 4
+    }
+    { "i370-*-*" } {
+	set nop_type 3
+    }
+    { "or1k*-*-*" } {
+	set nop_type 2
+    }
+    { "ia64-*-*" } {
+	set nop_type 1
+    }
+    default {
+	set nop_type 0
+    }
+}
+run_dump_test "org-1" [list [list as "--defsym nop_type=$nop_type"]]
+run_dump_test "org-2"
+run_dump_test "org-3"
+run_dump_test "org-4"
+run_dump_test "org-5"
+run_dump_test "org-6"

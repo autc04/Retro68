@@ -150,7 +150,7 @@ static bfd_boolean
 bfd_mach_o_arm_canonicalize_one_reloc (bfd *abfd,
                                       struct mach_o_reloc_info_external *raw,
                                       arelent *res, asymbol **syms)
- {
+{
   bfd_mach_o_reloc_info reloc;
 
   if (!bfd_mach_o_pre_canonicalize_one_reloc (abfd, raw, &reloc, res, syms))
@@ -174,6 +174,7 @@ bfd_mach_o_arm_canonicalize_one_reloc (bfd *abfd,
 	      return TRUE;
 	    }
           return FALSE;
+
         case BFD_MACH_O_ARM_RELOC_SECTDIFF:
           if (reloc.r_length == 2)
             {
@@ -186,6 +187,7 @@ bfd_mach_o_arm_canonicalize_one_reloc (bfd *abfd,
 	      return TRUE;
             }
           return FALSE;
+
         case BFD_MACH_O_ARM_RELOC_LOCAL_SECTDIFF:
           if (reloc.r_length == 2)
             {
@@ -198,6 +200,7 @@ bfd_mach_o_arm_canonicalize_one_reloc (bfd *abfd,
 	      return TRUE;
             }
           return FALSE;
+
 	case BFD_MACH_O_ARM_RELOC_HALF_SECTDIFF:
 	  switch (reloc.r_length)
 	    {
@@ -209,8 +212,9 @@ bfd_mach_o_arm_canonicalize_one_reloc (bfd *abfd,
 	      return TRUE;
 	    }
 	  return FALSE;
+
         default:
-          return FALSE;
+          break;
         }
     }
   else
@@ -239,24 +243,23 @@ bfd_mach_o_arm_canonicalize_one_reloc (bfd *abfd,
               return FALSE;
             }
           break;
+
         case BFD_MACH_O_ARM_RELOC_BR24:
 	  if (reloc.r_length == 2 && reloc.r_pcrel == 1)
 	    {
               res->howto = &arm_howto_table[11];
               return TRUE;
 	    }
-	  else
-	    return FALSE;
 	  break;
+
         case BFD_MACH_O_THUMB_RELOC_BR22:
 	  if (reloc.r_length == 2 && reloc.r_pcrel == 1)
 	    {
               res->howto = &arm_howto_table[16];
               return TRUE;
 	    }
-	  else
-	    return FALSE;
 	  break;
+
         case BFD_MACH_O_ARM_RELOC_HALF:
 	  if (reloc.r_pcrel == 0)
 	    switch (reloc.r_length)
@@ -268,7 +271,8 @@ bfd_mach_o_arm_canonicalize_one_reloc (bfd *abfd,
 		res->howto = &arm_howto_table[14];
 		return TRUE;
 	      }
-	  return FALSE;
+	  break;
+
         case BFD_MACH_O_ARM_RELOC_PAIR:
 	  if (res[-1].howto == &arm_howto_table[12]
 	      && reloc.r_length == 0)
@@ -290,11 +294,14 @@ bfd_mach_o_arm_canonicalize_one_reloc (bfd *abfd,
 	      res->address = res[-1].address;
 	      return TRUE;
             }
-          return FALSE;
+	  break;
+
         default:
-          return FALSE;
+          break;
         }
     }
+
+  return FALSE;
 }
 
 static reloc_howto_type *

@@ -232,6 +232,10 @@ parse_number (const char **pp, bfd_boolean *poverflow)
 
   orig = *pp;
 
+  /* Stop early if we are passed an empty string.  */
+  if (*orig == 0)
+    return (bfd_vma) 0;
+
   errno = 0;
   ul = strtoul (*pp, (char **) pp, 0);
   if (ul + 1 != 0 || errno == 0)
@@ -1975,8 +1979,16 @@ parse_stab_enum_type (void *dhandle, const char **pp)
       bfd_signed_vma val;
 
       p = *pp;
-      while (*p != ':')
+      while (*p != ':' && *p != 0)
 	++p;
+
+      if (*p == 0)
+	{
+	  bad_stab (orig);
+	  free (names);
+	  free (values);
+	  return DEBUG_TYPE_NULL;
+	}
 
       name = savestring (*pp, p - *pp);
 
@@ -2702,7 +2714,7 @@ parse_stab_members (void *dhandle, struct stab_handle *info,
 	      ++*pp;
 	      voffset &= 0x7fffffff;
 
-	      if (**pp == ';' || *pp == '\0')
+	      if (**pp == ';' || **pp == '\0')
 		{
 		  /* Must be g++ version 1.  */
 		  context = DEBUG_TYPE_NULL;

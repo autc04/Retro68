@@ -729,10 +729,13 @@ class Target_x86_64 : public Sized_target<size, false>
   // and global_reloc_may_be_function_pointer)
   // if a function's pointer is taken.  ICF uses this in safe mode to only
   // fold those functions whose pointer is defintely not taken.  For x86_64
-  // pie binaries, safe ICF cannot be done by looking at relocation types.
+  // pie binaries, safe ICF cannot be done by looking at only relocation
+  // types, and for certain cases (e.g. R_X86_64_PC32), the instruction
+  // opcode is checked as well to distinguish a function call from taking
+  // a function's pointer.
   bool
   do_can_check_for_function_pointers() const
-  { return !parameters->options().pie(); }
+  { return true; }
 
   // Return the base for a DW_EH_PE_datarel encoding.
   uint64_t
@@ -924,7 +927,10 @@ class Target_x86_64 : public Sized_target<size, false>
     check_non_pic(Relobj*, unsigned int r_type, Symbol*);
 
     inline bool
-    possible_function_pointer_reloc(unsigned int r_type);
+    possible_function_pointer_reloc(Sized_relobj_file<size, false>* src_obj,
+                                    unsigned int src_indx,
+                                    unsigned int r_offset,
+                                    unsigned int r_type);
 
     bool
     reloc_needs_plt_for_ifunc(Sized_relobj_file<size, false>*,
@@ -1046,8 +1052,11 @@ class Target_x86_64 : public Sized_target<size, false>
       return false;
     // We cannot convert references to IFUNC symbols, or to symbols that
     // are not local to the current module.
+    // We can't do predefined symbols because they may become undefined
+    // (e.g., __ehdr_start when the headers aren't mapped to a segment).
     if (gsym->type() == elfcpp::STT_GNU_IFUNC
-        || gsym->is_undefined ()
+        || gsym->is_undefined()
+        || gsym->is_predefined()
         || gsym->is_from_dynobj()
         || gsym->is_preemptible())
       return false;
@@ -3274,7 +3283,11 @@ Target_x86_64<size>::Scan::unsupported_reloc_global(
 // Returns true if this relocation type could be that of a function pointer.
 template<int size>
 inline bool
-Target_x86_64<size>::Scan::possible_function_pointer_reloc(unsigned int r_type)
+Target_x86_64<size>::Scan::possible_function_pointer_reloc(
+    Sized_relobj_file<size, false>* src_obj,
+    unsigned int src_indx,
+    unsigned int r_offset,
+    unsigned int r_type)
 {
   switch (r_type)
     {
@@ -3293,6 +3306,41 @@ Target_x86_64<size>::Scan::possible_function_pointer_reloc(unsigned int r_type)
       {
 	return true;
       }
+    case elfcpp::R_X86_64_PC32:
+      {
+        // This relocation may be used both for function calls and
+        // for taking address of a function. We distinguish between
+        // them by checking the opcodes.
+        uint64_t sh_flags = src_obj->section_flags(src_indx);
+        bool is_executable = (sh_flags & elfcpp::SHF_EXECINSTR) != 0;
+        if (is_executable)
+          {
+            section_size_type stype;
+            const unsigned char* view = src_obj->section_contents(src_indx,
+                                                                  &stype,
+                                                                  true);
+
+            // call
+            if (r_offset >= 1
+                && view[r_offset - 1] == 0xe8)
+              return false;
+
+            // jmp
+            if (r_offset >= 1
+                && view[r_offset - 1] == 0xe9)
+              return false;
+
+            // jo/jno/jb/jnb/je/jne/jna/ja/js/jns/jp/jnp/jl/jge/jle/jg
+            if (r_offset >= 2
+                && view[r_offset - 2] == 0x0f
+                && view[r_offset - 1] >= 0x80
+                && view[r_offset - 1] <= 0x8f)
+              return false;
+          }
+
+        // Be conservative and treat all others as function pointers.
+        return true;
+      }
     }
   return false;
 }
@@ -3307,18 +3355,21 @@ Target_x86_64<size>::Scan::local_reloc_may_be_function_pointer(
   Symbol_table* ,
   Layout* ,
   Target_x86_64<size>* ,
-  Sized_relobj_file<size, false>* ,
-  unsigned int ,
+  Sized_relobj_file<size, false>* src_obj,
+  unsigned int src_indx,
   Output_section* ,
-  const elfcpp::Rela<size, false>& ,
+  const elfcpp::Rela<size, false>& reloc,
   unsigned int r_type,
   const elfcpp::Sym<size, false>&)
 {
   // When building a shared library, do not fold any local symbols as it is
   // not possible to distinguish pointer taken versus a call by looking at
   // the relocation types.
-  return (parameters->options().shared()
-	  || possible_function_pointer_reloc(r_type));
+  if (parameters->options().shared())
+    return true;
+
+  return possible_function_pointer_reloc(src_obj, src_indx,
+                                         reloc.get_r_offset(), r_type);
 }
 
 // For safe ICF, scan a relocation for a global symbol to check if it
@@ -3331,20 +3382,23 @@ Target_x86_64<size>::Scan::global_reloc_may_be_function_pointer(
   Symbol_table*,
   Layout* ,
   Target_x86_64<size>* ,
-  Sized_relobj_file<size, false>* ,
-  unsigned int ,
+  Sized_relobj_file<size, false>* src_obj,
+  unsigned int src_indx,
   Output_section* ,
-  const elfcpp::Rela<size, false>& ,
+  const elfcpp::Rela<size, false>& reloc,
   unsigned int r_type,
   Symbol* gsym)
 {
   // When building a shared library, do not fold symbols whose visibility
   // is hidden, internal or protected.
-  return ((parameters->options().shared()
-	   && (gsym->visibility() == elfcpp::STV_INTERNAL
-	       || gsym->visibility() == elfcpp::STV_PROTECTED
-	       || gsym->visibility() == elfcpp::STV_HIDDEN))
-	  || possible_function_pointer_reloc(r_type));
+  if (parameters->options().shared()
+      && (gsym->visibility() == elfcpp::STV_INTERNAL
+	  || gsym->visibility() == elfcpp::STV_PROTECTED
+	  || gsym->visibility() == elfcpp::STV_HIDDEN))
+    return true;
+
+  return possible_function_pointer_reloc(src_obj, src_indx,
+                                         reloc.get_r_offset(), r_type);
 }
 
 // Scan a relocation for a global symbol.
@@ -4244,12 +4298,14 @@ Target_x86_64<size>::Relocate::relocate(
 	  if (gsym != NULL)
 	    {
 	      gold_assert(gsym->has_got_offset(GOT_TYPE_STANDARD));
-	      got_offset = gsym->got_offset(GOT_TYPE_STANDARD) - target->got_size();
+	      got_offset = (gsym->got_offset(GOT_TYPE_STANDARD)
+			    - target->got_size());
 	    }
 	  else
 	    {
 	      unsigned int r_sym = elfcpp::elf_r_sym<size>(rela.get_r_info());
-	      gold_assert(object->local_has_got_offset(r_sym, GOT_TYPE_STANDARD));
+	      gold_assert(object->local_has_got_offset(r_sym,
+						       GOT_TYPE_STANDARD));
 	      got_offset = (object->local_got_offset(r_sym, GOT_TYPE_STANDARD)
 			    - target->got_size());
 	    }

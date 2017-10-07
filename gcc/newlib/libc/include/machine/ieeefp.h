@@ -69,8 +69,29 @@
 #endif
 #endif
 
+#if defined (__aarch64__)
+#if defined (__AARCH64EL__)
+#define __IEEE_LITTLE_ENDIAN
+#else
+#define __IEEE_BIG_ENDIAN
+#endif
+#endif
+
+#ifdef __epiphany__
+#define __IEEE_LITTLE_ENDIAN
+#define Sudden_Underflow 1
+#endif
+
 #ifdef __hppa__
 #define __IEEE_BIG_ENDIAN
+#endif
+
+#ifdef __nds32__
+#ifdef __big_endian__
+#define __IEEE_BIG_ENDIAN
+#else
+#define __IEEE_LITTLE_ENDIAN
+#endif
 #endif
 
 #ifdef __SPU__
@@ -262,6 +283,10 @@
 #define __IEEE_BIG_ENDIAN
 #endif
 
+#ifdef __FT32__
+#define __IEEE_LITTLE_ENDIAN
+#endif
+
 #ifdef __mcore__
 #define __IEEE_BIG_ENDIAN
 #endif
@@ -275,7 +300,11 @@
 #endif
 
 #ifdef __moxie__
+#ifdef __MOXIE_BIG_ENDIAN__
 #define __IEEE_BIG_ENDIAN
+#else
+#define __IEEE_LITTLE_ENDIAN
+#endif
 #endif
 
 #ifdef __ia64__
@@ -291,7 +320,7 @@
 #define _DOUBLE_IS_32BITS
 #endif
 
-#if defined(__or32__) || defined(__or1k__) || defined(__or16__)
+#if defined(__or1k__) || defined(__OR1K__) || defined(__OR1KND__)
 #define __IEEE_BIG_ENDIAN
 #endif
 
@@ -339,13 +368,24 @@
 #endif
 
 #ifdef __MICROBLAZE__
+#ifndef __MICROBLAZEEL__
 #define __IEEE_BIG_ENDIAN
+#else
+#define __IEEE_LITTLE_ENDIAN
+#endif
+#endif
+
+#ifdef __MSP430__
+#define __IEEE_LITTLE_ENDIAN
+#define __SMALL_BITFIELDS	/* 16 Bit INT */
 #endif
 
 #ifdef __RL78__
 #define __IEEE_LITTLE_ENDIAN
 #define __SMALL_BITFIELDS	/* 16 Bit INT */
+#ifndef __RL78_64BIT_DOUBLES__
 #define _DOUBLE_IS_32BITS
+#endif
 #endif
 
 #ifdef __RX__
@@ -369,6 +409,18 @@
 #if (defined(__CR16__) || defined(__CR16C__) ||defined(__CR16CP__))
 #define __IEEE_LITTLE_ENDIAN
 #define __SMALL_BITFIELDS	/* 16 Bit INT */
+#endif
+
+#ifdef __NIOS2__
+# ifdef __nios2_big_endian__
+#  define __IEEE_BIG_ENDIAN
+# else
+#  define __IEEE_LITTLE_ENDIAN
+# endif
+#endif
+
+#ifdef __VISIUM__
+#define __IEEE_BIG_ENDIAN
 #endif
 
 #ifndef __IEEE_BIG_ENDIAN

@@ -63,13 +63,13 @@ static int   alloc_segs(HTAB *, int);
 static int   flush_meta(HTAB *);
 static int   hash_access(HTAB *, ACTION, DBT *, DBT *);
 static int   hash_close(DB *);
-static int   hash_delete(const DB *, const DBT *, __uint32_t);
+static int   hash_delete(const DB *, const DBT *, u_int);
 static int   hash_fd(const DB *);
-static int   hash_get(const DB *, const DBT *, DBT *, __uint32_t);
-static int   hash_put(const DB *, DBT *, const DBT *, __uint32_t);
+static int   hash_get(const DB *, const DBT *, DBT *, u_int);
+static int   hash_put(const DB *, DBT *, const DBT *, u_int);
 static void *hash_realloc(SEGMENT **, int, int);
-static int   hash_seq(const DB *, DBT *, DBT *, __uint32_t);
-static int   hash_sync(const DB *, __uint32_t);
+static int   hash_seq(const DB *, DBT *, DBT *, u_int);
+static int   hash_sync(const DB *, u_int);
 static int   hdestroy(HTAB *);
 static HTAB *init_hash(HTAB *, const char *, const HASHINFO *);
 static int   init_htab(HTAB *, int);
@@ -141,7 +141,7 @@ _DEFUN(__hash_open, (file, flags, mode, info, dflags),
 	new_table = 0;
 	if (!file || (flags & O_TRUNC) ||
 #ifdef __USE_INTERNAL_STAT64
-	    (stat64(file, &statbuf) && (errno == ENOENT))) {
+	    (_stat64(file, &statbuf) && (errno == ENOENT))) {
 #else
 	    (stat(file, &statbuf) && (errno == ENOENT))) {
 #endif
@@ -157,7 +157,7 @@ _DEFUN(__hash_open, (file, flags, mode, info, dflags),
 		   a new .db file, then reinitialize the database */
 		if ((flags & O_CREAT) &&
 #ifdef __USE_INTERNAL_STAT64
-		     fstat64(hashp->fp, &statbuf) == 0 && statbuf.st_size == 0)
+		     _fstat64(hashp->fp, &statbuf) == 0 && statbuf.st_size == 0)
 #else
 		     fstat(hashp->fp, &statbuf) == 0 && statbuf.st_size == 0)
 #endif
@@ -316,7 +316,11 @@ init_hash(hashp, file, info)
 	const char *file;
 	const HASHINFO *info;
 {
+#ifdef __USE_INTERNAL_STAT64
+        struct stat64 statbuf;
+#else
 	struct stat statbuf;
+#endif
 	int nelem;
 
 	nelem = 1;
@@ -335,7 +339,7 @@ init_hash(hashp, file, info)
 	/* Fix bucket size to be optimal for file system */
 	if (file != NULL) {
 #ifdef __USE_INTERNAL_STAT64
-		if (stat64(file, &statbuf))
+		if (_stat64(file, &statbuf))
 #else
 		if (stat(file, &statbuf))
 #endif
@@ -490,7 +494,7 @@ hdestroy(hashp)
 static int
 hash_sync(dbp, flags)
 	const DB *dbp;
-	__uint32_t flags;
+	u_int flags;
 {
 	HTAB *hashp;
 
@@ -569,7 +573,7 @@ hash_get(dbp, key, data, flag)
 	const DB *dbp;
 	const DBT *key;
 	DBT *data;
-	__uint32_t flag;
+	u_int flag;
 {
 	HTAB *hashp;
 
@@ -586,7 +590,7 @@ hash_put(dbp, key, data, flag)
 	const DB *dbp;
 	DBT *key;
 	const DBT *data;
-	__uint32_t flag;
+	u_int flag;
 {
 	HTAB *hashp;
 
@@ -608,7 +612,7 @@ static int
 hash_delete(dbp, key, flag)
 	const DB *dbp;
 	const DBT *key;
-	__uint32_t flag;		/* Ignored */
+	u_int flag;		/* Ignored */
 {
 	HTAB *hashp;
 
@@ -760,7 +764,7 @@ static int
 hash_seq(dbp, key, data, flag)
 	const DB *dbp;
 	DBT *key, *data;
-	__uint32_t flag;
+	u_int flag;
 {
 	__uint32_t bucket;
 	BUFHEAD *bufp;

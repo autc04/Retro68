@@ -35,6 +35,32 @@
    an optimised path for large data sets; the worst case is finding the
    match early in a large data set. */
 
+/* Copyright (c) 2015 ARM Ltd.
+   All rights reserved.
+
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
+       * Redistributions of source code must retain the above copyright
+	 notice, this list of conditions and the following disclaimer.
+       * Redistributions in binary form must reproduce the above copyright
+	 notice, this list of conditions and the following disclaimer in the
+	 documentation and/or other materials provided with the distribution.
+       * Neither the name of the Linaro nor the
+	 names of its contributors may be used to endorse or promote products
+	 derived from this software without specific prior written permission.
+
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+   A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT
+   HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
+
 @ 2011-02-07 david.gilbert@linaro.org
 @    Extracted from local git a5b438d861
 @ 2011-07-14 david.gilbert@linaro.org
@@ -45,13 +71,21 @@
 @    Make conditional on CPU type
 @    tidy
 
-	.syntax unified
-	.arch armv7-a
+@ This code requires armv6t2 or later.  Uses Thumb2.
 
+	.syntax unified
+
+#include "acle-compat.h"
 #include "arm_asm.h"
 
 @ NOTE: This ifdef MUST match the one in memchr-stub.c
-#if defined(_ISA_ARM_7) || defined(__ARM_ARCH_6T2__)
+#if __ARM_ARCH_ISA_THUMB >= 2 && defined (__ARM_FEATURE_DSP)
+
+#if __ARM_ARCH_PROFILE == 'M'
+       .arch armv7e-m
+#else
+       .arch armv6t2
+#endif
 
 @ this lets us check a flag in a 00/ff byte easily in either endianness
 #ifdef __ARMEB__
@@ -162,5 +196,6 @@ memchr:
 	pop	{r4,r5,r6,r7}
 	subs	r0,r0,#1
 	bx	lr
-
+#else
+  /* Defined in memchr-stub.c.  */
 #endif

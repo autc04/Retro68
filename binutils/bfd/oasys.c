@@ -878,8 +878,7 @@ oasys_write_sections (bfd *abfd)
 	{
 	  _bfd_error_handler
 	    /* xgettext:c-format */
-	    (_("%s: can not represent section `%s' in oasys"),
-	     bfd_get_filename (abfd), s->name);
+	    (_("%B: can not represent section `%A' in oasys"), abfd, s);
 	  bfd_set_error (bfd_error_nonrepresentable_section);
 	  return FALSE;
 	}
@@ -1187,6 +1186,7 @@ oasys_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
 #define oasys_bfd_discard_group                    bfd_generic_discard_group
 #define oasys_section_already_linked               _bfd_generic_section_already_linked
 #define oasys_bfd_define_common_symbol             bfd_generic_define_common_symbol
+#define oasys_bfd_define_start_stop                bfd_generic_define_start_stop
 #define oasys_bfd_link_hash_table_create           _bfd_generic_link_hash_table_create
 #define oasys_bfd_link_add_symbols                 _bfd_generic_link_add_symbols
 #define oasys_bfd_link_just_syms                   _bfd_generic_link_just_syms
@@ -1195,6 +1195,7 @@ oasys_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
 #define oasys_bfd_final_link                       _bfd_generic_final_link
 #define oasys_bfd_link_split_section               _bfd_generic_link_split_section
 #define oasys_bfd_link_check_relocs                _bfd_generic_link_check_relocs
+#define oasys_set_reloc				   _bfd_generic_set_reloc
 
 const bfd_target oasys_vec =
 {

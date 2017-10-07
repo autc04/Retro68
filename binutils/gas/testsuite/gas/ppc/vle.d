@@ -148,3 +148,7 @@ Disassembly of section \.text:
  194:	e9 c2       	se_bl   118 <middle_label>
  196:	79 ff ff 82 	e_b     118 <middle_label>
  19a:	79 ff fe 67 	e_bl    0 <start_label>
+ 19e:	00 0c       	se_rfgi
+ 1a0:	7c 00 00 48 	e_sc    
+ 1a4:	7c 00 00 48 	e_sc    
+ 1a8:	7c 00 08 48 	e_sc    1

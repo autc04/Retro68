@@ -46,6 +46,9 @@ struct _bfd_sparc_elf_link_hash_table
 {
   struct elf_link_hash_table elf;
 
+  /* Short-cut to get to dynamic linker sections.  */
+  asection *interp;
+
   union
   {
     bfd_signed_vma refcount;
@@ -136,6 +139,8 @@ extern bfd_boolean _bfd_sparc_elf_finish_dynamic_symbol
    Elf_Internal_Sym *sym);
 extern bfd_boolean _bfd_sparc_elf_finish_dynamic_sections
   (bfd *, struct bfd_link_info *);
+extern bfd_boolean _bfd_sparc_elf_fixup_symbol
+  (struct bfd_link_info *, struct elf_link_hash_entry *);
 extern bfd_boolean _bfd_sparc_elf_object_p
   (bfd *);
 extern bfd_vma _bfd_sparc_elf_plt_sym_val

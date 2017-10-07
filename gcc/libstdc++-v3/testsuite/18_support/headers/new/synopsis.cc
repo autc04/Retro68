@@ -1,6 +1,6 @@
 // { dg-do compile { target c++11 } }
 
-// Copyright (C) 2007-2016 Free Software Foundation, Inc.
+// Copyright (C) 2007-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,6 +27,14 @@ namespace std {
   typedef void (*new_handler)();
   new_handler get_new_handler() noexcept;
   new_handler set_new_handler(new_handler new_p) noexcept;
+
+#if __cplusplus > 201402L
+  enum class align_val_t : size_t;
+  // _GLIBCXX17_INLINE constexpr size_t
+  //    hardware_destructive_interference_size;
+  // _GLIBCXX17_INLINE constexpr size_t
+  //    hardware_constructive_interference_size;
+#endif
 }
 
 void* operator new(std::size_t size);
@@ -50,5 +58,24 @@ void  operator delete(void* ptr, std::size_t size,
                       const std::nothrow_t&) noexcept;
 void  operator delete[](void* ptr, std::size_t size) noexcept;
 void  operator delete[](void* ptr, std::size_t size,
+                        const std::nothrow_t&) noexcept;
+#endif
+
+#if __cplusplus > 201402L
+// C++17 (de)allocation functions for types with new-extended alignment
+void* operator new(std::size_t, std::align_val_t);
+void* operator new(std::size_t, std::align_val_t,
+                   const std::nothrow_t&) noexcept;
+void  operator delete(void*, std::align_val_t) noexcept;
+void  operator delete(void*, std::size_t, std::align_val_t) noexcept;
+void  operator delete(void*, std::align_val_t,
+                      const std::nothrow_t&) noexcept;
+
+void* operator new[](std::size_t, std::align_val_t);
+void* operator new[](std::size_t, std::align_val_t,
+                     const std::nothrow_t&) noexcept;
+void  operator delete[](void*, std::align_val_t) noexcept;
+void  operator delete[](void*, std::size_t, std::align_val_t) noexcept;
+void  operator delete[](void*, std::align_val_t,
                         const std::nothrow_t&) noexcept;
 #endif

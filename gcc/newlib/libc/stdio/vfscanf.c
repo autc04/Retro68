@@ -148,10 +148,12 @@ Supporting OS subroutines required:
 #endif
 
 #ifdef STRING_ONLY
-#undef _flockfile
-#undef _funlockfile
-#define _flockfile(x) {}
-#define _funlockfile(x) {}
+#undef _newlib_flockfile_start
+#undef _newlib_flockfile_exit
+#undef _newlib_flockfile_end
+#define _newlib_flockfile_start(x) {}
+#define _newlib_flockfile_exit(x) {}
+#define _newlib_flockfile_end(x) {}
 #define _ungetc_r _sungetc_r
 #define __srefill_r __ssrefill_r
 #define _fread_r _sfread_r
@@ -160,6 +162,7 @@ Supporting OS subroutines required:
 #ifdef FLOATING_POINT
 #include <math.h>
 #include <float.h>
+#include <locale.h>
 
 /* Currently a test is made to see if long double processing is warranted.
    This could be changed in the future should the _ldtoa_r code be
@@ -167,16 +170,11 @@ Supporting OS subroutines required:
 #define _NO_LONGDBL
 #if defined _WANT_IO_LONG_DOUBLE && (LDBL_MANT_DIG > DBL_MANT_DIG)
 #undef _NO_LONGDBL
-extern _LONG_DOUBLE _strtold _PARAMS((char *s, char **sptr));
 #endif
 
 #include "floatio.h"
 
-#if ((MAXEXP+MAXFRACT+3) > MB_LEN_MAX)
-#  define BUF (MAXEXP+MAXFRACT+3)        /* 3 = sign + decimal point + NUL */
-#else
-#  define BUF MB_LEN_MAX
-#endif
+#define BUF (MAXEXP+MAXFRACT+MB_LEN_MAX+2) /* decimal point + sign + NUL */
 
 /* An upper bound for how long a long prints in decimal.  4 / 13 approximates
    log (2).  Add one char for roundoff compensation and one for the sign.  */
@@ -241,10 +239,7 @@ static void * get_arg (int, va_list *, int *, void **);
 #define	CT_INT		3	/* integer, i.e., strtol or strtoul */
 #define	CT_FLOAT	4	/* floating, i.e., strtod */
 
-#if 0
 #define u_char unsigned char
-#endif
-#define u_char char
 #define u_long unsigned long
 
 #ifndef _NO_LONGLONG
@@ -267,8 +262,10 @@ _DEFUN(VFSCANF, (fp, fmt, ap),
        _CONST char *fmt _AND
        va_list ap)
 {
-  CHECK_INIT(_REENT, fp);
-  return __SVFSCANF_R (_REENT, fp, fmt, ap);
+  struct _reent *reent = _REENT;
+
+  CHECK_INIT(reent, fp);
+  return __SVFSCANF_R (reent, fp, fmt, ap);
 }
 
 int
@@ -496,7 +493,7 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 # define GET_ARG(n, ap, type) (va_arg (ap, type))
 #endif
 
-  _flockfile (fp);
+  _newlib_flockfile_start (fp);
 
   ORIENT (fp, -1);
 
@@ -511,8 +508,7 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 #ifndef _MB_CAPABLE
       wc = *fmt;
 #else
-      nbytes = __mbtowc (rptr, &wc, fmt, MB_CUR_MAX, __locale_charset (),
-			 &state);
+      nbytes = __MBTOWC (rptr, &wc, (char *) fmt, MB_CUR_MAX, &state);
       if (nbytes < 0) {
 	wc = 0xFFFD; /* Unicode replacement character */
 	nbytes = 1;
@@ -795,7 +791,7 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	   * Disgusting backwards compatibility hacks.	XXX
 	   */
 	case '\0':		/* compat */
-	  _funlockfile (fp);
+	  _newlib_flockfile_exit (fp);
 	  return EOF;
 
 	default:		/* compat */
@@ -1287,6 +1283,10 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	  unsigned width_left = 0;
 	  char nancount = 0;
 	  char infcount = 0;
+	  const char *decpt = _localeconv_r (rptr)->decimal_point;
+#ifdef _MB_CAPABLE
+	  int decptpos = 0;
+#endif
 #ifdef hardway
 	  if (width == 0 || width > sizeof (buf) - 1)
 #else
@@ -1415,14 +1415,6 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 		      goto fok;
 		    }
 		  break;
-		case '.':
-		  if (flags & DPTOK)
-		    {
-		      flags &= ~(SIGNOK | DPTOK);
-		      leading_zeroes = zeroes;
-		      goto fok;
-		    }
-		  break;
 		case 'e':
 		case 'E':
 		  /* no exponent without some digits */
@@ -1441,6 +1433,53 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 		      goto fok;
 		    }
 		  break;
+		default:
+#ifndef _MB_CAPABLE
+		  if ((unsigned char) c == (unsigned char) decpt[0]
+		      && (flags & DPTOK))
+		    {
+		      flags &= ~(SIGNOK | DPTOK);
+		      leading_zeroes = zeroes;
+		      goto fok;
+		    }
+		  break;
+#else
+		  if (flags & DPTOK)
+		    {
+		      while ((unsigned char) c
+			     == (unsigned char) decpt[decptpos])
+			{
+			  if (decpt[++decptpos] == '\0')
+			    {
+			      /* We read the complete decpt seq. */
+			      flags &= ~(SIGNOK | DPTOK);
+			      leading_zeroes = zeroes;
+			      p = stpncpy (p, decpt, decptpos);
+			      decptpos = 0;
+			      goto fskip;
+			    }
+			  ++nread;
+			  if (--fp->_r > 0)
+			    fp->_p++;
+			  else if (__srefill_r (rptr, fp))
+			    break;		/* EOF */
+			  c = *fp->_p;
+			}
+		      if (decptpos > 0)
+			{
+			  /* We read part of a multibyte decimal point,
+			     but the rest is invalid or we're at EOF,
+			     so back off. */
+			  while (decptpos-- > 0)
+			    {
+			      _ungetc_r (rptr, (unsigned char) decpt[decptpos],
+					 fp);
+			      --nread;
+			    }
+			}
+		    }
+		  break;
+#endif
 		}
 	      break;
 	    fok:
@@ -1555,12 +1594,13 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
                  sprintf (exp_start, "e%ld", new_exp);
 		}
 
-	      /* Current _strtold routine is markedly slower than
+	      /* FIXME: Is that still true?
+	         Current _strtold routine is markedly slower than
 	         _strtod_r.  Only use it if we have a long double
 	         result.  */
 #ifndef _NO_LONGDBL /* !_NO_LONGDBL */
 	      if (flags & LONGDBL)
-		qres = _strtold (buf, NULL);
+		qres = _strtold_r (rptr, buf, NULL);
 	      else
 #endif
 	        res = _strtod_r (rptr, buf, NULL);
@@ -1595,12 +1635,12 @@ input_failure:
      should have been set prior to here.  On EOF failure (including
      invalid format string), return EOF if no matches yet, else number
      of matches made prior to failure.  */
-  _funlockfile (fp);
+  _newlib_flockfile_exit (fp);
   return nassigned && !(fp->_flags & __SERR) ? nassigned : EOF;
 match_failure:
 all_done:
   /* Return number of matches, which can be 0 on match failure.  */
-  _funlockfile (fp);
+  _newlib_flockfile_end (fp);
   return nassigned;
 }
 

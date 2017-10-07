@@ -27,7 +27,7 @@ if ![ld_assemble $as $srcdir/$subdir/sizeof.s tmpdir/sizeof.o] {
     return
 }
 
-if ![ld_simple_link $ld tmpdir/sizeof "-T $srcdir/$subdir/sizeof.t tmpdir/sizeof.o"] {
+if ![ld_link $ld tmpdir/sizeof "-T $srcdir/$subdir/sizeof.t tmpdir/sizeof.o"] {
     fail $testname
     return
 }

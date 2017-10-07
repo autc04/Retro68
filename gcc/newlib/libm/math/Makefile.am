@@ -50,22 +50,24 @@ fsrc =	kf_rem_pio2.c \
 	sf_tan.c sf_tanh.c \
 	wf_exp2.c wf_tgamma.c
 
+lsrc = el_hypot.c
+
 libmath_la_LDFLAGS = -Xcompiler -nostdlib
 
 if USE_LIBTOOL
 noinst_LTLIBRARIES = libmath.la
-libmath_la_SOURCES = $(src) $(fsrc)
+libmath_la_SOURCES = $(src) $(fsrc) $(lsrc)
 noinst_DATA = objectlist.awk.in
 else
 noinst_LIBRARIES = lib.a
-lib_a_SOURCES = $(src) $(fsrc)
+lib_a_SOURCES = $(src) $(fsrc) $(lsrc)
 lib_a_CFLAGS = $(AM_CFLAGS)
 noinst_DATA =
 endif # USE_LIBTOOL
 
 include $(srcdir)/../../Makefile.shared
 
-chobj =	w_acos.def w_acosh.def w_asin.def s_asinh.def \
+CHEWOUT_FILES = w_acos.def w_acosh.def w_asin.def s_asinh.def \
 	s_atan.def w_atan2.def w_atanh.def w_j0.def \
 	w_cosh.def s_erf.def w_exp.def w_exp2.def \
 	s_fabs.def s_floor.def w_fmod.def s_frexp.def \
@@ -74,20 +76,7 @@ chobj =	w_acos.def w_acosh.def w_asin.def s_asinh.def \
 	w_pow.def w_remainder.def s_sin.def w_sinh.def \
 	w_sqrt.def s_tan.def s_tanh.def
 
-SUFFIXES = .def
-
-CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
-
-.c.def:
-	$(CHEW) < $< > $*.def 2> $*.ref
-	touch stmp-def
-
-TARGETDOC = ../tmp.texi
-
-doc: $(chobj)
-	cat $(srcdir)/math.tex >> $(TARGETDOC)
-
-CLEANFILES = $(chobj) *.ref
+CHAPTERS = math.tex
 
 # A partial dependency list.
 

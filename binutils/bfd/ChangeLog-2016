@@ -2,6 +2,23 @@
 
 	* elfn32-mips.c (elf_backend_want_dynrelro): Define.
 
+2016-12-31  Dimitar Dimitrov  <dimitar@dinux.eu>
+
+	* archures.c: Add bfd_arch_pru.
+	* Makefile.am: Add PRU target.
+	* config.bfd: Ditto.
+	* configure.ac: Ditto.
+	* elf-bfd.h (enum elf_target_id): Add PRU_ELF_DATA.
+	* targets.c: Add pru_elf32_vec.
+	* reloc.c: Add PRU relocations.
+	* cpu-pru.c: New file.
+	* elf32-pru.c: New file.
+	* Makefile.in: Regenerate.
+	* configure: Regenerate.
+	* po/SRC-POTFILES.in: Regenerate.
+	* bfd-in2.h: Regenerate
+	* libbfd.h: Regenerate.
+
 2016-12-29  Alan Modra  <amodra@gmail.com>
 
 	* elflink.c (_bfd_elf_link_hash_copy_indirect): Only omit
@@ -205,7 +222,7 @@
 
 2016-12-23  Tristan Gingold  <gingold@adacore.com>
 
-	* version.m4: Bump version to 2.27.90
+	* version.m4: Bump version to 2.28.51
 	* configure: Regenerate.
 
 2016-12-23  Tristan Gingold  <gingold@adacore.com>

@@ -132,7 +132,7 @@ struct itbl_field {
 struct itbl_entry {
   e_processor processor;	/* processor number */
   e_type type;			/* dreg/creg/greg/insn */
-  char *name;			/* mnemionic name for insn/register */
+  char *name;			/* mnemonic name for insn/register */
   unsigned long value;		/* opcode/instruction mask/register number */
   unsigned long flags;		/* effects of the instruction */
   struct itbl_range range;	/* bit range within instruction for value */
@@ -320,7 +320,7 @@ append_insns_as_macros (void)
   ASSERT (size >= 0);
   DBG (("I get=%d\n", size / sizeof (ITBL_OPCODES[0])));
 
-  /* FIXME since ITBL_OPCODES culd be a static table,
+  /* FIXME since ITBL_OPCODES could be a static table,
 		we can't realloc or delete the old memory.  */
   new_opcodes = XNEWVEC (struct ITBL_OPCODE_STRUCT, new_num_opcodes);
   if (!new_opcodes)

@@ -224,7 +224,7 @@ of the instruction:
 @end display
 
 There are many exceptions to the scheme outlined in the above lists, in
-particular for the priviledged instructions. For non-priviledged
+particular for the privileged instructions. For non-privileged
 instruction it works quite well, for example the instruction @samp{clgfr}
 c: compare instruction, l: unsigned operands, g: 64-bit operands,
 f: 32- to 64-bit extension, r: register operands. The instruction compares
@@ -286,7 +286,7 @@ register Xn called the index register, general register Bn called the
 base register and the displacement field Dn.
 @item Dn(Ln,Bn)
 the address for operand number n is formed from the content of general
-regiser Bn called the base register and the displacement field Dn.
+register Bn called the base register and the displacement field Dn.
 The length of the operand n is specified by the field Ln.
 @end table
 
@@ -889,7 +889,7 @@ push} saves the currently selected cpu, which may be restored with
 into double quotes in case it contains characters not appropriate
 for identifiers.  So you have to write @code{"z9-109"} instead of
 just @code{z9-109}.  Extensions can be specified after the cpu
-name, separated by plus charaters.  Valid extensions are:
+name, separated by plus characters.  Valid extensions are:
 @code{htm},
 @code{nohtm},
 @code{vx},

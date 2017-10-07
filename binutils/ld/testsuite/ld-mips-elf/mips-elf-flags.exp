@@ -56,9 +56,14 @@ proc assemble_for_flags {arglist} {
 }
 
 # Assemble a file using each set of arguments in ARGLIST.  Check that
-# the objects can be linked together and that the readelf output
-# includes each flag named in FLAGS.
-proc good_combination {arglist flags} {
+# the objects can be linked together and that the `readelf -h' output
+# includes each flag named in FLAGS.  Additional one or more arguments
+# request the addition of the `-A' option to `readelf' invocation.  In
+# this case check MIPS ABI Flags reported for the ISA to match the
+# first of these arguments, the ISA Extension to match the second, and
+# the ASEs listed are exactly the same as those listed in the third,
+# passed as a TCL list.
+proc good_combination {arglist flags args} {
     global ld ldemul READELF
 
     set finalobj "tmpdir/mips-flags.o"
@@ -67,11 +72,17 @@ proc good_combination {arglist flags} {
 
     if {$objs == ""} {
 	unresolved $testname
-    } elseif {![ld_simple_link "$ld $ldemul" $finalobj "-r $objs"]} {
+    } elseif {![ld_link "$ld $ldemul" $finalobj "-r $objs"]} {
 	fail $testname
     } else {
-	catch "exec $READELF --headers $finalobj" output
-	if {![regexp "Flags: *(\[^\n\]*)" $output full gotflags]} {
+	set A [expr {[llength $args] > 0} ? {"A"} : {""}]
+	set cmd "$READELF -h$A $finalobj"
+	send_log "$cmd\n"
+	set cmdret [remote_exec host [concat sh -c [list "$cmd 2>&1"]]]
+	set output [lindex $cmdret 1]
+	set cmdret [lindex $cmdret 0]
+	if {$cmdret != 0 \
+	    || ![regexp "Flags: *(\[^\n\r\]*)" $output full gotflags]} {
 	    unresolved $testname
 	} else {
 	    set failed 0
@@ -86,6 +97,47 @@ proc good_combination {arglist flags} {
 		    set failed 1
 		}
 	    }
+
+	    set isa [string trim [lindex $args 0]]
+	    if {$isa != ""
+		&& (![regexp "ISA: *(\[^\n\r\]*)" $output full gotisa]
+		    || ![string match $isa $gotisa])} {
+		set failed 1
+	    }
+
+	    set ext [string trim [lindex $args 1]]
+	    if {$ext != ""
+		&& (![regexp "ISA Extension: *(\[^\n\r\]*)" \
+		      $output full gotext]
+		    || ![string match $ext $gotext])} {
+		set failed 1
+	    }
+
+	    set ases [string trim [lindex $args 2]]
+	    if {[llength $ases] > 0} {
+		if {![regexp "ASEs:\[\n\r\]+((?:\t\[^\n\r\]*\[\n\r\]+)*)" \
+		      $output full gotases]} {
+		    set failed 1
+		} else {
+		    # GOTASES is a list of strings separated by tab and
+		    # line separator characters.  Convert it to a TCL list.
+		    regsub -all "\[\n\r\t\]+" $gotases "\n" gotases
+		    set gotases [split [string trim $gotases] "\n"]
+
+		    foreach ase $ases {
+			set aseidx [lsearch -exact $gotases $ase]
+			if {$aseidx >= 0} {
+			    set gotases [lreplace $gotases $aseidx $aseidx]
+			} else {
+			    set failed 1
+			}
+		    }
+		    if {[llength $gotases] > 0} {
+			set failed 1
+		    }
+		}
+	    }
+
 	    if {$failed} {
 		fail $testname
 	    } else {
@@ -106,7 +158,7 @@ proc bad_combination {arglist message} {
 
     if {$objs == ""} {
 	unresolved $testname
-    } elseif {[ld_simple_link "$ld $ldemul" $finalobj "-r $objs"]
+    } elseif {[ld_link "$ld $ldemul" $finalobj "-r $objs"]
 	      || [string first $message $link_output] < 0} {
 	fail $testname
     } else {
@@ -147,6 +199,17 @@ isa_conflict { "-march=r5900 -32"      "-march=vr4111 -32" } 5900 4111
 isa_conflict { "-march=loongson2e -32" "-march=loongson2f -32" } loongson_2e loongson_2f
 isa_conflict { "-march=loongson3a -32" "-march=loongson2f -32" } loongson_3a loongson_2f
 
+isa_conflict { "-march=interaptiv-mr2 -32" \
+	       "-march=r4010 -32" } interaptiv-mr2 4010
+isa_conflict { "-march=interaptiv-mr2 -mnan=2008 -mfp64 -32" \
+	       "-mips32r6 -32" } interaptiv-mr2 isa32r6
+isa_conflict { "-march=interaptiv-mr2 -32" \
+	       "-mips3 -32" } interaptiv-mr2 4000
+isa_conflict { "-march=interaptiv-mr2 -32" \
+	       "-mips64r2 -32" } interaptiv-mr2 isa64r2
+isa_conflict { "-march=interaptiv-mr2 -32" \
+	       "-march=octeon -32" } interaptiv-mr2 octeon
+
 regsize_conflict { "-mips4 -mgp64 -mabi=o64"         "-mips2 -32" }
 regsize_conflict { "-mips4 -mabi=o64"                "-mips4 -mabi=32" }
 regsize_conflict { "-mips4 -mabi=eabi -mgp32"        "-mips4 -mabi=eabi -mgp64" }
@@ -173,3 +236,37 @@ good_combination { "-march=sb1 -mgp32 -32"   "-march=4000 -mgp32 -32" } { sb1 o3
 good_combination { "-mips32 -mabi=32"        "-march=sb1 -mabi=32" } { sb1 o32 }
 good_combination { "-mips64r2 -mabi=32"      "-mips32 -mabi=32" } { mips64r2 o32 }
 good_combination { "-mips5 -mabi=o64"        "-mips64r2 -mabi=o64" } { mips64r2 o64 }
+
+good_combination { "-march=interaptiv-mr2 -32" "-mips1 -32" } \
+		 { mips32r2 interaptiv-mr2 } \
+		 MIPS32r3 "Imagination interAptiv MR2" \
+		 { "DSP ASE" "Enhanced VA Scheme" "MT ASE" }
+good_combination { "-march=interaptiv-mr2 -32" "-mips32r2 -32" } \
+		 { mips32r2 interaptiv-mr2 } \
+		 MIPS32r3 "Imagination interAptiv MR2" \
+		 { "DSP ASE" "Enhanced VA Scheme" "MT ASE" }
+good_combination { "-march=interaptiv-mr2 -32" "-march=interaptiv -32" } \
+		 { mips32r2 interaptiv-mr2 } \
+		 MIPS32r3 "Imagination interAptiv MR2" \
+		 { "DSP ASE" "Enhanced VA Scheme" "MT ASE" }
+good_combination { "-march=interaptiv-mr2 -32" "-mips32r3 -32" } \
+		 { mips32r2 interaptiv-mr2 } \
+		 MIPS32r3 "Imagination interAptiv MR2" \
+		 { "DSP ASE" "Enhanced VA Scheme" "MT ASE" }
+good_combination { "-march=interaptiv-mr2 -32" "-mips32r3 -mips16 -32" } \
+		 { mips32r2 interaptiv-mr2 } \
+		 MIPS32r3 "Imagination interAptiv MR2" \
+		 { "DSP ASE" "Enhanced VA Scheme" "MT ASE" "MIPS16 ASE" }
+good_combination { "-march=interaptiv-mr2 -mips16 -32" "-mips32r3 -32" } \
+		 { mips32r2 interaptiv-mr2 } \
+		 MIPS32r3 "Imagination interAptiv MR2" \
+		 { "DSP ASE" "Enhanced VA Scheme" "MT ASE" \
+		   "MIPS16 ASE" "MIPS16e2 ASE" }
+good_combination { "-march=interaptiv-mr2 -32" "-mips32r5 -32" } \
+		 { mips32r2 interaptiv-mr2 } \
+		 MIPS32r5 "Imagination interAptiv MR2" \
+		 { "DSP ASE" "Enhanced VA Scheme" "MT ASE" }
+good_combination { "-march=interaptiv-mr2 -32" "-march=m5100 -32" } \
+		 { mips32r2 interaptiv-mr2 } \
+		 MIPS32r5 "Imagination interAptiv MR2" \
+		 { "DSP ASE" "Enhanced VA Scheme" "MT ASE" }

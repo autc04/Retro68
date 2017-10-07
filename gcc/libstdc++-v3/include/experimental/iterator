@@ -1,6 +1,6 @@
 // <experimental/iterator> -*- C++ -*-
 
-// Copyright (C) 2015-2016 Free Software Foundation, Inc.
+// Copyright (C) 2015-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -39,10 +39,9 @@
 # include <bits/c++14_warning.h>
 #else
 
-#include <experimental/type_traits>
+#include <iterator>
 #include <iosfwd>
-#include <bits/move.h>
-#include <bits/stl_iterator_base_types.h>
+#include <experimental/type_traits>
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {

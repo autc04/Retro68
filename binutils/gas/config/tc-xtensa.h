@@ -30,7 +30,7 @@ struct fix;
 #include "xtensa-isa.h"
 #include "xtensa-config.h"
 
-#define TARGET_BYTES_BIG_ENDIAN XCHAL_HAVE_BE
+#define TARGET_BYTES_BIG_ENDIAN 0
 
 
 /* Maximum number of opcode slots in a VLIW instruction.  */
@@ -335,6 +335,13 @@ extern bfd_boolean xtensa_check_inside_bundle (void);
 extern void xtensa_handle_align (fragS *);
 extern char *xtensa_section_rename (const char *);
 
+/* We need to set the target endianness in xtensa_init and not in md_begin.
+   This is because xtensa_target_format is called before md_begin, and we
+   want to have all non-statically initialized fields initialized.  */
+
+#define HOST_SPECIAL_INIT xtensa_init
+extern void xtensa_init (int, char **);
+
 #define TARGET_FORMAT			xtensa_target_format ()
 #define TARGET_ARCH			bfd_arch_xtensa
 #define TC_SEGMENT_INFO_TYPE		xtensa_segment_info
@@ -345,7 +352,8 @@ extern char *xtensa_section_rename (const char *);
 #define TC_FRAG_INIT(frag)		xtensa_frag_init (frag)
 #define TC_FORCE_RELOCATION(fix)	xtensa_force_relocation (fix)
 #define TC_FORCE_RELOCATION_SUB_SAME(fix, seg) \
-  (! SEG_NORMAL (seg) || xtensa_force_relocation (fix))
+  (GENERIC_FORCE_RELOCATION_SUB_SAME (fix, seg)	\
+   || xtensa_force_relocation (fix))
 #define	TC_VALIDATE_FIX_SUB(fix, seg)	xtensa_validate_fix_sub (fix)
 #define NO_PSEUDO_DOT			xtensa_check_inside_bundle ()
 #define tc_canonicalize_symbol_name(s)	xtensa_section_rename (s)

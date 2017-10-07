@@ -33,9 +33,9 @@ int
 #ifdef _HAVE_STDC
 _DEFUN(_snprintf_r, (ptr, str, size, fmt),
        struct _reent *ptr _AND
-       char *str          _AND
+       char *__restrict str          _AND
        size_t size        _AND
-       _CONST char *fmt _DOTS)
+       _CONST char *__restrict fmt _DOTS)
 #else
 _snprintf_r(ptr, str, size, fmt, va_alist)
             struct _reent *ptr;
@@ -72,14 +72,20 @@ _snprintf_r(ptr, str, size, fmt, va_alist)
   return (ret);
 }
 
+#ifdef _NANO_FORMATTED_IO
+int
+_EXFUN(_sniprintf_r, (struct _reent *, char *, size_t, const char *, ...)
+       _ATTRIBUTE ((__alias__("_snprintf_r"))));
+#endif
+
 #ifndef _REENT_ONLY
 
 int
 #ifdef _HAVE_STDC
 _DEFUN(snprintf, (str, size, fmt),
-       char *str   _AND
+       char *__restrict str _AND
        size_t size _AND
-       _CONST char *fmt _DOTS)
+       _CONST char *__restrict fmt _DOTS)
 #else
 snprintf(str, size, fmt, va_alist)
          char *str;
@@ -116,4 +122,9 @@ snprintf(str, size, fmt, va_alist)
   return (ret);
 }
 
+#ifdef _NANO_FORMATTED_IO
+int
+_EXFUN(sniprintf, (char *, size_t, const char *, ...)
+       _ATTRIBUTE ((__alias__("snprintf"))));
+#endif
 #endif

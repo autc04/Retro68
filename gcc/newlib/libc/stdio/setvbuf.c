@@ -103,21 +103,21 @@ _DEFUN(setvbuf, (fp, buf, mode, size),
        register size_t size)
 {
   int ret = 0;
+  struct _reent *reent = _REENT;
+  size_t iosize;
+  int ttyflag;
 
-  CHECK_INIT (_REENT, fp);
-
-  _flockfile (fp);
+  CHECK_INIT (reent, fp);
 
   /*
    * Verify arguments.  The `int' limit on `size' is due to this
-   * particular implementation.
+   * particular implementation.  Note, buf and size are ignored
+   * when setting _IONBF.
    */
-
-  if ((mode != _IOFBF && mode != _IOLBF && mode != _IONBF) || (int)(_POINTER_INT) size < 0)
-    {
-      _funlockfile (fp);
+  if (mode != _IONBF)
+    if ((mode != _IOFBF && mode != _IOLBF) || (int)(_POINTER_INT) size < 0)
       return (EOF);
-    }
+
 
   /*
    * Write current buffer, if any; drop read count, if any.
@@ -125,74 +125,107 @@ _DEFUN(setvbuf, (fp, buf, mode, size),
    * Free old buffer if it was from malloc().  Clear line and
    * non buffer flags, and clear malloc flag.
    */
-
-  _fflush_r (_REENT, fp);
-  fp->_r = 0;
-  fp->_lbfsize = 0;
+  _newlib_flockfile_start (fp);
+  _fflush_r (reent, fp);
+  if (HASUB(fp))
+    FREEUB(reent, fp);
+  fp->_r = fp->_lbfsize = 0;
   if (fp->_flags & __SMBF)
-    _free_r (_REENT, (_PTR) fp->_bf._base);
-  fp->_flags &= ~(__SLBF | __SNBF | __SMBF);
+    _free_r (reent, (_PTR) fp->_bf._base);
+  fp->_flags &= ~(__SLBF | __SNBF | __SMBF | __SOPT | __SNPT | __SEOF);
 
   if (mode == _IONBF)
     goto nbf;
 
   /*
-   * Allocate buffer if needed. */
+   * Find optimal I/O size for seek optimization.  This also returns
+   * a `tty flag' to suggest that we check isatty(fd), but we do not
+   * care since our caller told us how to buffer.
+   */
+  fp->_flags |= __swhatbuf_r (reent, fp, &iosize, &ttyflag);
+  if (size == 0)
+    {
+      buf = NULL;
+      size = iosize;
+    }
+
+  /* Allocate buffer if needed. */
   if (buf == NULL)
     {
-      /* we need this here because malloc() may return a pointer
-	 even if size == 0 */
-      if (!size) size = BUFSIZ;
       if ((buf = malloc (size)) == NULL)
 	{
+	  /*
+	   * Unable to honor user's request.  We will return
+	   * failure, but try again with file system size.
+	   */
 	  ret = EOF;
-	  /* Try another size... */
-	  buf = malloc (BUFSIZ);
-	  size = BUFSIZ;
+	  if (size != iosize)
+	    {
+	      size = iosize;
+	      buf = malloc (size);
+	    }
 	}
       if (buf == NULL)
         {
-          /* Can't allocate it, let's try another approach */
+          /* No luck; switch to unbuffered I/O. */
 nbf:
           fp->_flags |= __SNBF;
           fp->_w = 0;
           fp->_bf._base = fp->_p = fp->_nbuf;
           fp->_bf._size = 1;
-          _funlockfile (fp);
+          _newlib_flockfile_exit (fp);
           return (ret);
         }
       fp->_flags |= __SMBF;
     }
+
   /*
-   * Now put back whichever flag is needed, and fix _lbfsize
-   * if line buffered.  Ensure output flush on exit if the
-   * stream will be buffered at all.
-   * If buf is NULL then make _lbfsize 0 to force the buffer
-   * to be flushed and hence malloced on first use
+   * We're committed to buffering from here, so make sure we've
+   * registered to flush buffers on exit.
    */
+  if (!reent->__sdidinit)
+    __sinit(reent);
 
-  switch (mode)
+#ifdef _FSEEK_OPTIMIZATION
+  /*
+   * Kill any seek optimization if the buffer is not the
+   * right size.
+   *
+   * SHOULD WE ALLOW MULTIPLES HERE (i.e., ok iff (size % iosize) == 0)?
+   */
+  if (size != iosize)
+     fp->_flags |= __SNPT;
+#endif
+
+  /*
+   * Fix up the FILE fields, and set __cleanup for output flush on
+   * exit (since we are buffered in some way).
+   */
+  if (mode == _IOLBF)
+    fp->_flags |= __SLBF;
+  fp->_bf._base = fp->_p = (unsigned char *) buf;
+  fp->_bf._size = size;
+  /* fp->_lbfsize is still 0 */
+  if (fp->_flags & __SWR)
     {
-    case _IOLBF:
-      fp->_flags |= __SLBF;
-      fp->_lbfsize = buf ? -size : 0;
-      /* FALLTHROUGH */
-
-    case _IOFBF:
-      /* no flag */
-      _REENT->__cleanup = _cleanup_r;
-      fp->_bf._base = fp->_p = (unsigned char *) buf;
-      fp->_bf._size = size;
-      break;
+      /*
+       * Begin or continue writing: see __swsetup().  Note
+       * that __SNBF is impossible (it was handled earlier).
+       */
+      if (fp->_flags & __SLBF)
+	{
+	  fp->_w = 0;
+	  fp->_lbfsize = -fp->_bf._size;
+	}
+      else
+        fp->_w = size;
+    }
+  else
+    {
+      /* begin/continue reading, or stay in intermediate state */
+      fp->_w = 0;
     }
 
-  /*
-   * Patch up write count if necessary.
-   */
-
-  if (fp->_flags & __SWR)
-    fp->_w = fp->_flags & (__SLBF | __SNBF) ? 0 : size;
-
-  _funlockfile (fp);
+  _newlib_flockfile_end (fp);
   return 0;
 }

@@ -1,5 +1,5 @@
 /* Array things
-   Copyright (C) 2000-2016 Free Software Foundation, Inc.
+   Copyright (C) 2000-2017 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -156,6 +156,8 @@ gfc_match_array_ref (gfc_array_ref *ar, gfc_array_spec *as, int init,
 {
   match m;
   bool matched_bracket = false;
+  gfc_expr *tmp;
+  bool stat_just_seen = false;
 
   memset (ar, '\0', sizeof (*ar));
 
@@ -220,11 +222,26 @@ coarray:
 	return MATCH_ERROR;
     }
 
+  ar->stat = NULL;
+
   for (ar->codimen = 0; ar->codimen + ar->dimen < GFC_MAX_DIMENSIONS; ar->codimen++)
     {
       m = match_subscript (ar, init, true);
       if (m == MATCH_ERROR)
 	return MATCH_ERROR;
+
+      stat_just_seen = false;
+      if (gfc_match(" , stat = %e",&tmp) == MATCH_YES && ar->stat == NULL)
+	{
+	  ar->stat = tmp;
+	  stat_just_seen = true;
+	}
+
+      if (ar->stat && !stat_just_seen)
+	{
+	  gfc_error ("STAT= attribute in %C misplaced");
+	  return MATCH_ERROR;
+	}
 
       if (gfc_match_char (']') == MATCH_YES)
 	{
@@ -1073,14 +1090,16 @@ match
 gfc_match_array_constructor (gfc_expr **result)
 {
   gfc_constructor *c;
-  gfc_constructor_base head, new_cons;
-  gfc_undo_change_set changed_syms;
+  gfc_constructor_base head;
   gfc_expr *expr;
   gfc_typespec ts;
   locus where;
   match m;
   const char *end_delim;
   bool seen_ts;
+
+  head = NULL;
+  seen_ts = false;
 
   if (gfc_match (" (/") == MATCH_NO)
     {
@@ -1098,12 +1117,9 @@ gfc_match_array_constructor (gfc_expr **result)
     end_delim = " /)";
 
   where = gfc_current_locus;
-  head = new_cons = NULL;
-  seen_ts = false;
 
   /* Try to match an optional "type-spec ::"  */
   gfc_clear_ts (&ts);
-  gfc_new_undo_checkpoint (changed_syms);
   m = gfc_match_type_spec (&ts);
   if (m == MATCH_YES)
     {
@@ -1113,16 +1129,12 @@ gfc_match_array_constructor (gfc_expr **result)
 	{
 	  if (!gfc_notify_std (GFC_STD_F2003, "Array constructor "
 			       "including type specification at %C"))
-	    {
-	      gfc_restore_last_undo_checkpoint ();
-	      goto cleanup;
-	    }
+	    goto cleanup;
 
 	  if (ts.deferred)
 	    {
 	      gfc_error ("Type-spec at %L cannot contain a deferred "
 			 "type parameter", &where);
-	      gfc_restore_last_undo_checkpoint ();
 	      goto cleanup;
 	    }
 
@@ -1131,24 +1143,15 @@ gfc_match_array_constructor (gfc_expr **result)
 	    {
 	      gfc_error ("Type-spec at %L cannot contain an asterisk for a "
 			 "type parameter", &where);
-	      gfc_restore_last_undo_checkpoint ();
 	      goto cleanup;
 	    }
 	}
     }
   else if (m == MATCH_ERROR)
-    {
-      gfc_restore_last_undo_checkpoint ();
-      goto cleanup;
-    }
+    goto cleanup;
 
-  if (seen_ts)
-    gfc_drop_last_undo_checkpoint ();
-  else
-    {
-      gfc_restore_last_undo_checkpoint ();
-      gfc_current_locus = where;
-    }
+  if (!seen_ts)
+    gfc_current_locus = where;
 
   if (gfc_match (end_delim) == MATCH_YES)
     {
@@ -2560,7 +2563,7 @@ cleanup:
    characterizes the reference.  */
 
 gfc_array_ref *
-gfc_find_array_ref (gfc_expr *e)
+gfc_find_array_ref (gfc_expr *e, bool allow_null)
 {
   gfc_ref *ref;
 
@@ -2570,7 +2573,12 @@ gfc_find_array_ref (gfc_expr *e)
       break;
 
   if (ref == NULL)
-    gfc_internal_error ("gfc_find_array_ref(): No ref found");
+    {
+      if (allow_null)
+	return NULL;
+      else
+	gfc_internal_error ("gfc_find_array_ref(): No ref found");
+    }
 
   return &ref->u.ar;
 }
@@ -2578,18 +2586,16 @@ gfc_find_array_ref (gfc_expr *e)
 
 /* Find out if an array shape is known at compile time.  */
 
-int
+bool
 gfc_is_compile_time_shape (gfc_array_spec *as)
 {
-  int i;
-
   if (as->type != AS_EXPLICIT)
-    return 0;
+    return false;
 
-  for (i = 0; i < as->rank; i++)
+  for (int i = 0; i < as->rank; i++)
     if (!gfc_is_constant_expr (as->lower[i])
 	|| !gfc_is_constant_expr (as->upper[i]))
-      return 0;
+      return false;
 
-  return 1;
+  return true;
 }

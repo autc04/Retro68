@@ -930,7 +930,7 @@ obtaining information about exceptions provided by Ada 83 compilers.
 .. index:: Memory corruption debugging
 
 Provide a debugging storage pools that helps tracking memory corruption
-problems.  
+problems.
 See `The GNAT Debug_Pool Facility` section in the :title:`GNAT User's Guide`.
 
 .. _`GNAT.Debug_Utilities_(g-debuti.ads)`:
@@ -1735,6 +1735,18 @@ introduction to the binding contents and use.
 
 SSE vector types for use with SSE related intrinsics.
 
+.. _`GNAT.String_Hash(g-strhas.ads)`:
+
+`GNAT.String_Hash` (:file:`g-strhas.ads`)
+=========================================
+
+.. index:: GNAT.String_Hash (g-strhas.ads)
+
+.. index:: Hash functions
+
+Provides a generic hash function working on arrays of scalars. Both the scalar
+type and the hash result type are parameters.
+
 .. _`GNAT.Strings_(g-string.ads)`:
 
 `GNAT.Strings` (:file:`g-string.ads`)
@@ -1984,6 +1996,21 @@ This package provides a limited binding to the VxWorks API.
 In particular, it interfaces with the
 VxWorks hardware interrupt facilities.
 
+.. _`Interfaces.VxWorks.Int_Connection_(i-vxinco.ads)`:
+
+`Interfaces.VxWorks.Int_Connection` (:file:`i-vxinco.ads`)
+==========================================================
+
+.. index:: Interfaces.VxWorks.Int_Connection (i-vxinco.ads)
+
+.. index:: Interfacing to VxWorks
+
+.. index:: VxWorks, interfacing
+
+This package provides a way for users to replace the use of
+intConnect() with a custom routine for installing interrupt
+handlers.
+
 .. _`Interfaces.VxWorks.IO_(i-vxwoio.ads)`:
 
 `Interfaces.VxWorks.IO` (:file:`i-vxwoio.ads`)
@@ -2228,4 +2255,3 @@ This package provides definitions and descriptions of
 the various methods used for encoding wide characters
 in ordinary strings.  These definitions are used by
 the package `System.Wch_Cnv`.
-

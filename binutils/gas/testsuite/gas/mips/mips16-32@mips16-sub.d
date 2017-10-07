@@ -757,13 +757,13 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> ea7d      	0xea7d
 [0-9a-f]+ <[^>]*> ea7e      	0xea7e
 [0-9a-f]+ <[^>]*> 2b01      	bnez	v1,000007d4 <insns2\+0xb4>
-[0-9a-f]+ <[^>]*> e8e5      	break	7
+[0-9a-f]+ <[^>]*> e8e5      	break	0x7
 [0-9a-f]+ <[^>]*> ea12      	mflo	v0
 [0-9a-f]+ <[^>]*> 6500      	nop
 [0-9a-f]+ <[^>]*> 6500      	nop
 [0-9a-f]+ <[^>]*> ea7f      	0xea7f
 [0-9a-f]+ <[^>]*> 2b01      	bnez	v1,000007e0 <insns2\+0xc0>
-[0-9a-f]+ <[^>]*> e8e5      	break	7
+[0-9a-f]+ <[^>]*> e8e5      	break	0x7
 [0-9a-f]+ <[^>]*> ea12      	mflo	v0
 [0-9a-f]+ <[^>]*> 6500      	nop
 [0-9a-f]+ <[^>]*> 6500      	nop
@@ -771,13 +771,13 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> ea79      	multu	v0,v1
 [0-9a-f]+ <[^>]*> ea7a      	div	zero,v0,v1
 [0-9a-f]+ <[^>]*> 2b01      	bnez	v1,000007f0 <insns2\+0xd0>
-[0-9a-f]+ <[^>]*> e8e5      	break	7
+[0-9a-f]+ <[^>]*> e8e5      	break	0x7
 [0-9a-f]+ <[^>]*> ea12      	mflo	v0
 [0-9a-f]+ <[^>]*> 6500      	nop
 [0-9a-f]+ <[^>]*> 6500      	nop
 [0-9a-f]+ <[^>]*> ea7b      	divu	zero,v0,v1
 [0-9a-f]+ <[^>]*> 2b01      	bnez	v1,000007fc <insns2\+0xdc>
-[0-9a-f]+ <[^>]*> e8e5      	break	7
+[0-9a-f]+ <[^>]*> e8e5      	break	0x7
 [0-9a-f]+ <[^>]*> ea12      	mflo	v0
 [0-9a-f]+ <[^>]*> ea00      	jr	v0
 [0-9a-f]+ <[^>]*> 6500      	nop
@@ -805,9 +805,9 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> 176f      	b	00000720 <insns2>
 [0-9a-f]+ <[^>]*> 1012      	b	00000868 <bar>
 [0-9a-f]+ <[^>]*> 1075      	b	00000930 <iuux>
-[0-9a-f]+ <[^>]*> e805      	break	0
-[0-9a-f]+ <[^>]*> e825      	break	1
-[0-9a-f]+ <[^>]*> efe5      	break	63
+[0-9a-f]+ <[^>]*> e805      	break
+[0-9a-f]+ <[^>]*> e825      	break	0x1
+[0-9a-f]+ <[^>]*> efe5      	break	0x3f
 [0-9a-f]+ <[^>]*> 1800 0000 	jal	00000000 <data1>
 [ 	]*[0-9a-f]+: R_MIPS16_26	extern
 [0-9a-f]+ <[^>]*> 6500      	nop

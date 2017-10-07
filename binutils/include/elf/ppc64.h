@@ -251,5 +251,6 @@ ppc64_encode_local_entry(unsigned int val)
 #define DT_PPC64_OPT		(DT_LOPROC + 3)
 #define PPC64_OPT_TLS		1
 #define PPC64_OPT_MULTI_TOC	2
+#define PPC64_OPT_LOCALENTRY	4
 
 #endif /* _ELF_PPC64_H */

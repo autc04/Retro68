@@ -70,7 +70,7 @@ if {![string match "" $catch_output]} {
 
 # Test that the symbol is normally exported.
 
-if { [ld_simple_link $ld tmpdir/exclude.so "--shared tmpdir/exclude1.o -Ltmpdir -lexclude"] } {
+if { [ld_link $ld tmpdir/exclude.so "--shared tmpdir/exclude1.o -Ltmpdir -lexclude"] } {
     pass $test1
 } else {
     if [string match "*shared not supported*" $link_output] {
@@ -92,7 +92,7 @@ if ![ld_nm $nm "-D" tmpdir/exclude.so] {
 
 # Test --exclude-libs libexclude
 
-if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs libexclude --shared tmpdir/exclude1.o -Ltmpdir -lexclude"] } {
+if { [ld_link $ld tmpdir/exclude.so "--exclude-libs libexclude --shared tmpdir/exclude1.o -Ltmpdir -lexclude"] } {
     pass $test3
 } else {
     fail $test3
@@ -109,7 +109,7 @@ if ![ld_nm $nm "-D" tmpdir/exclude.so] {
 
 # Test alternate spellings of --exclude-libs
 
-if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs libexclude.a --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
+if { [ld_link $ld tmpdir/exclude.so "--exclude-libs libexclude.a --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
      && [ld_nm $nm "-D" tmpdir/exclude.so]
      && ! [info exists nm_output(exclude_common)]
      && ! [info exists nm_output(exclude_sym)] } {
@@ -118,7 +118,7 @@ if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs libexclude.a --shared
     fail $test5
 }
 
-if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs ALL --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
+if { [ld_link $ld tmpdir/exclude.so "--exclude-libs ALL --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
      && [ld_nm $nm "-D" tmpdir/exclude.so]
      && ! [info exists nm_output(exclude_common)]
      && ! [info exists nm_output(exclude_sym)] } {
@@ -127,7 +127,7 @@ if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs ALL --shared tmpdir/e
     fail $test6
 }
 
-if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs foo:libexclude.a --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
+if { [ld_link $ld tmpdir/exclude.so "--exclude-libs foo:libexclude.a --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
      && [ld_nm $nm "-D" tmpdir/exclude.so]
      && ! [info exists nm_output(exclude_common)]
      && ! [info exists nm_output(exclude_sym)] } {
@@ -136,7 +136,7 @@ if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs foo:libexclude.a --sh
     fail $test7
 }
 
-if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs foo,libexclude.a --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
+if { [ld_link $ld tmpdir/exclude.so "--exclude-libs foo,libexclude.a --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
      && [ld_nm $nm "-D" tmpdir/exclude.so]
      && ! [info exists nm_output(exclude_common)]
      && ! [info exists nm_output(exclude_sym)] } {
@@ -145,7 +145,7 @@ if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs foo,libexclude.a --sh
     fail $test8
 }
 
-if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs foo:bar --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
+if { [ld_link $ld tmpdir/exclude.so "--exclude-libs foo:bar --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
      && [ld_nm $nm "-D" tmpdir/exclude.so]
      && [info exists nm_output(exclude_common)]
      && [info exists nm_output(exclude_sym)] } {

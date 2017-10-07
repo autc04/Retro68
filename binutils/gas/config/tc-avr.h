@@ -123,7 +123,8 @@ extern void avr_cons_fix_new (fragS *,int, int, expressionS *,
    even when the value can be resolved locally. Do that if linkrelax is turned on */
 #define TC_FORCE_RELOCATION(fix)	avr_force_relocation (fix)
 #define TC_FORCE_RELOCATION_SUB_SAME(fix, seg) \
-  (! SEG_NORMAL (seg) || avr_force_relocation (fix))
+  (GENERIC_FORCE_RELOCATION_SUB_SAME (fix, seg)	\
+   || avr_force_relocation (fix))
 extern int avr_force_relocation (struct fix *);
 
 /* Values passed to md_apply_fix don't include the symbol value.  */
@@ -218,6 +219,12 @@ extern bfd_boolean avr_allow_local_subtract (expressionS *, expressionS *, segT)
 
 #define elf_tc_final_processing 	avr_elf_final_processing
 extern void avr_elf_final_processing (void);
+
+#define md_pre_output_hook avr_pre_output_hook ()
+extern void avr_pre_output_hook (void);
+
+#define md_undefined_symbol avr_undefined_symbol
+extern symbolS* avr_undefined_symbol (char*);
 
 #define md_post_relax_hook avr_post_relax_hook ()
 extern void avr_post_relax_hook (void);

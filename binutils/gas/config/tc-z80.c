@@ -156,7 +156,7 @@ CPU model/instruction set options:\n\
   -Fup\n\
 \ttreat undocumented z80-instructions that do not work on R800 as errors\n\
   -r800\t  assemble for R800\n\n\
-Default: -z80 -ignore-undocument-instructions -warn-unportable-instructions.\n");
+Default: -z80 -ignore-undocumented-instructions -warn-unportable-instructions.\n");
 }
 
 static symbolS * zero;
@@ -540,7 +540,7 @@ contains_register(symbolS *sym)
     return 0;
 }
 
-/* Parse general expression, not loooking for indexed addressing.  */
+/* Parse general expression, not looking for indexed addressing.  */
 static const char *
 parse_exp_not_indexed (const char *s, expressionS *op)
 {
@@ -1991,7 +1991,7 @@ md_apply_fix (fixS * fixP, valueT* valP, segT seg ATTRIBUTE_UNUSED)
 	  fixP->fx_no_overflow = (-128 <= val && val < 128);
 	  if (!fixP->fx_no_overflow)
             as_bad_where (fixP->fx_file, fixP->fx_line,
-			  _("index offset  out of range"));
+			  _("index offset out of range"));
 	  *p_lit++ = val;
           fixP->fx_done = 1;
         }

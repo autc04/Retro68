@@ -15,4 +15,4 @@ int main (int argc, char *argv[])
 {
   return 0;
 }
-/* { dg-final { scan-tree-dump-times " w = " 1 "gimple" } } */
+/* { dg-final { scan-tree-dump-times " w = {i.0_1}" 1 "gimple" } } */
