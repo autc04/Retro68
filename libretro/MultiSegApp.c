@@ -58,6 +58,13 @@ pascal void* Retro68LoadSegment(uint8_t *p)
     short id = jtEntry->far.id;
     uint32_t offset = jtEntry->far.offset;
     
+	/*{
+		char buf[256];
+		sprintf(buf+1, "Loading seg %d.;g", id);
+		buf[0] = strlen(buf+1);
+		DebugStr((unsigned char*) buf);
+	}*/
+
     // TODO: UseResFile?
     Handle CODE = GetResource('CODE', id);
     HLock(CODE);
@@ -65,8 +72,7 @@ pascal void* Retro68LoadSegment(uint8_t *p)
     uint8_t *base = StripAddressCompat((uint8_t *)*CODE);
     CODEHeader *header = (CODEHeader*) base;
     uint32_t codeSize = GetHandleSize(CODE);
-    
-        // TODO: StripAddress24
+
     uint8_t * a5 = (uint8_t*) StripAddressCompat((void*)SetCurrentA5());
     
     if(header->loadAddress != base || header->currentA5 != a5)
@@ -74,21 +80,19 @@ pascal void* Retro68LoadSegment(uint8_t *p)
         long displacements[4] = {
     			base - header->loadAddress,	// code
     			a5 - header->currentA5,	
-    			a5 - header->currentA5,
+		        a5 - header->currentA5,
     			a5 - header->currentA5
     	};
     	
         header->loadAddress = base;
         header->currentA5 = a5;
-        
+
     	Handle RELA = NULL;
     	RELA = GetResource('RELA', id);
     	assert(RELA);
-        Retro68ApplyRelocations(base + 40, codeSize, *RELA, displacements);
+		Retro68ApplyRelocations(base + 40, codeSize, *RELA, displacements);
+		HPurge(RELA);
     }
-    else   
-        DebugStr("\prelocation unnecessary???");
-
 
     /* Update JT Entries */
         // FIXME: hardcoded JT offset, there is a LM global for this somewhere:
@@ -117,9 +121,50 @@ pascal void* Retro68LoadSegment(uint8_t *p)
     return base + offset;
 }
 
-static pascal void PatchedUnloadSeg(void *ptr)
+static pascal void PatchedUnloadSeg(Ptr ptr)
 {
-    
+	union JTEntry *jtEntry = (JTEntry*) (ptr - 2);
+	if(jtEntry->jmp.jmp != 0x4EF9)
+		return; // not loaded or invalid pointer.
+
+	int id = jtEntry->jmp.id;
+	Handle CODE = GetResource('CODE', id);
+	uint8_t *base = StripAddressCompat((uint8_t *)*CODE);
+	CODEHeader *header = (CODEHeader*) base;
+	uint32_t codeSize = GetHandleSize(CODE);
+
+	// TODO: check header->magic, pass on to original UnloadSeg?
+
+
+	/* Load Exception Information */
+	if (__register_frame_info)
+	{
+		int32_t offset =  ((int32_t*) (base + codeSize))[-1];
+		void *eh_frame_info = base + codeSize - 4 + offset;
+		__deregister_frame_info(eh_frame_info);
+	}
+
+
+	uint8_t * a5 = (uint8_t*) StripAddressCompat((void*)SetCurrentA5());
+
+	// FIXME: hardcoded JT offset, there is a LM global for this somewhere:
+	jtEntry = (JTEntry*) (a5 + 32 + header->farEntryOffset);
+	int n = header->nFarEntries;
+	while(n--)
+	{
+		if(jtEntry->jmp.jmp == 0x4EF9 && jtEntry->jmp.id == id)
+		{
+			uint32_t offset = (uint8_t*) jtEntry->jmp.addr - base;
+			jtEntry->far.loadseg = _LoadSeg;
+			jtEntry->far.offset = offset;
+		}
+		++jtEntry;
+	}
+	if(relocState.hasFlushCodeCache)
+		FlushCodeCache();
+
+	HUnlock(CODE);
+	HPurge(CODE);
 }
 static pascal void PatchedExitToShell()
 {
@@ -179,5 +224,5 @@ void Retro68InitMultisegApp()
     RELA = GetResource('RELA', 0);
     assert(RELA);
     Retro68ApplyRelocations(&_sdata, &_edata - &_sdata, *RELA, displacements);
-
+	ReleaseResource(RELA);
 }
