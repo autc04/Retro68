@@ -37,6 +37,7 @@ if {
 	 || [istarget mn10*-*-*]
 	 || [istarget msp430-*-*]
 	 || [istarget nds32*-*-*]
+	 || [istarget pru-*-*]
 	 || [istarget rl78-*-*]
 	 || [istarget xtensa*-*-*] } {
       run_dump_test "lns-common-1-alt"

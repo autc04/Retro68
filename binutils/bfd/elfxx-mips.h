@@ -29,7 +29,7 @@ extern bfd_boolean _bfd_mips_elf_new_section_hook
 extern void _bfd_mips_elf_symbol_processing
   (bfd *, asymbol *);
 extern unsigned int _bfd_mips_elf_eh_frame_address_size
-  (bfd *, asection *);
+  (bfd *, const asection *);
 extern bfd_boolean _bfd_mips_elf_name_local_section_symbols
   (bfd *);
 extern bfd_boolean _bfd_mips_elf_section_processing
@@ -139,8 +139,6 @@ extern bfd_reloc_status_type _bfd_mips_elf_generic_reloc
   (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
 extern unsigned long _bfd_elf_mips_mach
   (flagword);
-extern bfd_boolean _bfd_mips_relax_section
-  (bfd *, asection *, struct bfd_link_info *, bfd_boolean *);
 extern bfd_vma _bfd_mips_elf_sign_extend
   (bfd_vma, int);
 extern void _bfd_mips_elf_merge_symbol_attribute
@@ -196,3 +194,4 @@ literal_reloc_p (int r_type)
 #define elf_backend_post_process_headers _bfd_mips_post_process_headers
 #define elf_backend_compact_eh_encoding _bfd_mips_elf_compact_eh_encoding
 #define elf_backend_cant_unwind_opcode _bfd_mips_elf_cant_unwind_opcode
+#define elf_backend_always_renumber_dynsyms TRUE

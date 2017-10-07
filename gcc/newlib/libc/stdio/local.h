@@ -32,7 +32,116 @@
 # include <io.h>
 #endif
 
+/* The following define determines if the per-reent stdin, stdout and stderr
+   streams are closed during _reclaim_reent().  The stdin, stdout and stderr
+   streams are initialized to use file descriptors 0, 1 and 2 respectively.  In
+   case _STDIO_CLOSE_PER_REENT_STD_STREAMS is defined these file descriptors
+   will be closed via close() provided the owner of the reent structure
+   triggerd the on demand reent initilization, see CHECK_INIT(). */
+#if !defined(__rtems__) && !defined(__tirtos__)
+#define _STDIO_CLOSE_PER_REENT_STD_STREAMS
+#endif
 
+/* The following macros are supposed to replace calls to _flockfile/_funlockfile
+   and __sfp_lock_acquire/__sfp_lock_release.  In case of multi-threaded
+   environments using pthreads, it's not sufficient to lock the stdio functions
+   against concurrent threads accessing the same data, the locking must also be
+   secured against thread cancellation.
+
+   The below macros have to be used in pairs.  The _newlib_XXX_start macro
+   starts with a opening curly brace, the _newlib_XXX_end macro ends with a
+   closing curly brace, so the start macro and the end macro mark the code
+   start and end of a critical section.  In case the code leaves the critical
+   section before reaching the end of the critical section's code end, use
+   the appropriate _newlib_XXX_exit macro. */
+
+#if !defined (__SINGLE_THREAD__) && defined (_POSIX_THREADS) \
+    && !defined (__rtems__)
+#define _STDIO_WITH_THREAD_CANCELLATION_SUPPORT
+#endif
+
+#if defined(__SINGLE_THREAD__) || defined(__IMPL_UNLOCKED__)
+
+# define _newlib_flockfile_start(_fp)
+# define _newlib_flockfile_exit(_fp)
+# define _newlib_flockfile_end(_fp)
+# define _newlib_sfp_lock_start()
+# define _newlib_sfp_lock_exit()
+# define _newlib_sfp_lock_end()
+
+#elif defined(_STDIO_WITH_THREAD_CANCELLATION_SUPPORT)
+#include <pthread.h>
+
+/* Start a stream oriented critical section: */
+# define _newlib_flockfile_start(_fp) \
+	{ \
+	  int __oldfpcancel; \
+	  pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, &__oldfpcancel); \
+	  if (!(_fp->_flags2 & __SNLK)) \
+	    _flockfile (_fp)
+
+/* Exit from a stream oriented critical section prematurely: */
+# define _newlib_flockfile_exit(_fp) \
+	  if (!(_fp->_flags2 & __SNLK)) \
+	    _funlockfile (_fp); \
+	  pthread_setcancelstate (__oldfpcancel, &__oldfpcancel);
+
+/* End a stream oriented critical section: */
+# define _newlib_flockfile_end(_fp) \
+	  if (!(_fp->_flags2 & __SNLK)) \
+	    _funlockfile (_fp); \
+	  pthread_setcancelstate (__oldfpcancel, &__oldfpcancel); \
+	}
+
+/* Start a stream list oriented critical section: */
+# define _newlib_sfp_lock_start() \
+	{ \
+	  int __oldsfpcancel; \
+	  pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, &__oldsfpcancel); \
+	  __sfp_lock_acquire ()
+
+/* Exit from a stream list oriented critical section prematurely: */
+# define _newlib_sfp_lock_exit() \
+	  __sfp_lock_release (); \
+	  pthread_setcancelstate (__oldsfpcancel, &__oldsfpcancel);
+
+/* End a stream list oriented critical section: */
+# define _newlib_sfp_lock_end() \
+	  __sfp_lock_release (); \
+	  pthread_setcancelstate (__oldsfpcancel, &__oldsfpcancel); \
+	}
+
+#else /* !__SINGLE_THREAD__ && !__IMPL_UNLOCKED__ && !_STDIO_WITH_THREAD_CANCELLATION_SUPPORT */
+
+# define _newlib_flockfile_start(_fp) \
+	{ \
+		if (!(_fp->_flags2 & __SNLK)) \
+		  _flockfile (_fp)
+
+# define _newlib_flockfile_exit(_fp) \
+		if (!(_fp->_flags2 & __SNLK)) \
+		  _funlockfile(_fp); \
+
+# define _newlib_flockfile_end(_fp) \
+		if (!(_fp->_flags2 & __SNLK)) \
+		  _funlockfile(_fp); \
+	}
+
+# define _newlib_sfp_lock_start() \
+	{ \
+		__sfp_lock_acquire ()
+
+# define _newlib_sfp_lock_exit() \
+		__sfp_lock_release ();
+
+# define _newlib_sfp_lock_end() \
+		__sfp_lock_release (); \
+	}
+
+#endif /* __SINGLE_THREAD__ || __IMPL_UNLOCKED__ */
+
+extern wint_t _EXFUN(__fgetwc, (struct _reent *, FILE *));
+extern wint_t _EXFUN(__fputwc, (struct _reent *, wchar_t, FILE *));
 extern u_char *_EXFUN(__sccl, (char *, u_char *fmt));
 extern int    _EXFUN(__svfscanf_r,(struct _reent *,FILE *, _CONST char *,va_list));
 extern int    _EXFUN(__ssvfscanf_r,(struct _reent *,FILE *, _CONST char *,va_list));
@@ -55,19 +164,25 @@ int	      _EXFUN(_svfiwprintf_r,(struct _reent *, FILE *, const wchar_t *,
 extern FILE  *_EXFUN(__sfp,(struct _reent *));
 extern int    _EXFUN(__sflags,(struct _reent *,_CONST char*, int*));
 extern int    _EXFUN(__sflush_r,(struct _reent *,FILE *));
+#ifdef _STDIO_BSD_SEMANTICS
+extern int    _EXFUN(__sflushw_r,(struct _reent *,FILE *));
+#endif
 extern int    _EXFUN(__srefill_r,(struct _reent *,FILE *));
 extern _READ_WRITE_RETURN_TYPE _EXFUN(__sread,(struct _reent *, void *, char *,
-					       int));
+					       _READ_WRITE_BUFSIZE_TYPE));
 extern _READ_WRITE_RETURN_TYPE _EXFUN(__seofread,(struct _reent *, void *,
-						  char *, int));
+						  char *,
+						  _READ_WRITE_BUFSIZE_TYPE));
 extern _READ_WRITE_RETURN_TYPE _EXFUN(__swrite,(struct _reent *, void *,
-						const char *, int));
+						const char *,
+						_READ_WRITE_BUFSIZE_TYPE));
 extern _fpos_t _EXFUN(__sseek,(struct _reent *, void *, _fpos_t, int));
 extern int    _EXFUN(__sclose,(struct _reent *, void *));
 extern int    _EXFUN(__stextmode,(int));
 extern _VOID   _EXFUN(__sinit,(struct _reent *));
 extern _VOID   _EXFUN(_cleanup_r,(struct _reent *));
 extern _VOID   _EXFUN(__smakebuf_r,(struct _reent *, FILE *));
+extern int    _EXFUN(__swhatbuf_r,(struct _reent *, FILE *, size_t *, int *));
 extern int    _EXFUN(_fwalk,(struct _reent *, int (*)(FILE *)));
 extern int    _EXFUN(_fwalk_reent,(struct _reent *, int (*)(struct _reent *, FILE *)));
 struct _glue * _EXFUN(__sfmoreglue,(struct _reent *,int n));
@@ -76,41 +191,45 @@ extern int _EXFUN(__submore, (struct _reent *, FILE *));
 #ifdef __LARGE64_FILES
 extern _fpos64_t _EXFUN(__sseek64,(struct _reent *, void *, _fpos64_t, int));
 extern _READ_WRITE_RETURN_TYPE _EXFUN(__swrite64,(struct _reent *, void *,
-						  const char *, int));
+						  const char *,
+						  _READ_WRITE_BUFSIZE_TYPE));
 #endif
 
 /* Called by the main entry point fns to ensure stdio has been initialized.  */
 
 #ifdef _REENT_SMALL
 #define CHECK_INIT(ptr, fp) \
-  do						\
-    {						\
-      if ((ptr) && !(ptr)->__sdidinit)		\
-	__sinit (ptr);				\
-      if ((fp) == (FILE *)&__sf_fake_stdin)	\
-	(fp) = _stdin_r(ptr);			\
-      else if ((fp) == (FILE *)&__sf_fake_stdout) \
-	(fp) = _stdout_r(ptr);			\
-      else if ((fp) == (FILE *)&__sf_fake_stderr) \
-	(fp) = _stderr_r(ptr);			\
-    }						\
+  do								\
+    {								\
+      struct _reent *_check_init_ptr = (ptr);			\
+      if ((_check_init_ptr) && !(_check_init_ptr)->__sdidinit)	\
+	__sinit (_check_init_ptr);				\
+      if ((fp) == (FILE *)&__sf_fake_stdin)			\
+	(fp) = _stdin_r(_check_init_ptr);			\
+      else if ((fp) == (FILE *)&__sf_fake_stdout)		\
+	(fp) = _stdout_r(_check_init_ptr);			\
+      else if ((fp) == (FILE *)&__sf_fake_stderr)		\
+	(fp) = _stderr_r(_check_init_ptr);			\
+    }								\
   while (0)
 #else /* !_REENT_SMALL   */
 #define CHECK_INIT(ptr, fp) \
-  do						\
-    {						\
-      if ((ptr) && !(ptr)->__sdidinit)		\
-	__sinit (ptr);				\
-    }						\
+  do								\
+    {								\
+      struct _reent *_check_init_ptr = (ptr);			\
+      if ((_check_init_ptr) && !(_check_init_ptr)->__sdidinit)	\
+	__sinit (_check_init_ptr);				\
+    }								\
   while (0)
 #endif /* !_REENT_SMALL  */
 
 #define CHECK_STD_INIT(ptr) \
-  do						\
-    {						\
-      if ((ptr) && !(ptr)->__sdidinit)		\
-	__sinit (ptr);				\
-    }						\
+  do								\
+    {								\
+      struct _reent *_check_init_ptr = (ptr);			\
+      if ((_check_init_ptr) && !(_check_init_ptr)->__sdidinit)	\
+	__sinit (_check_init_ptr);				\
+    }								\
   while (0)
 
 /* Return true and set errno and stream error flag iff the given FILE
@@ -136,6 +255,7 @@ extern _READ_WRITE_RETURN_TYPE _EXFUN(__swrite64,(struct _reent *, void *,
 #define	FREELB(ptr, fp) { _free_r(ptr,(char *)(fp)->_lb._base); \
       (fp)->_lb._base = NULL; }
 
+#ifdef _WIDE_ORIENT
 /*
  * Set the orientation for a stream. If o > 0, the stream has wide-
  * orientation. If o < 0, the stream has byte-orientation.
@@ -153,6 +273,9 @@ extern _READ_WRITE_RETURN_TYPE _EXFUN(__swrite64,(struct _reent *, void *,
 	}							\
     }								\
   while (0)
+#else
+#define ORIENT(fp,ori)
+#endif
 
 /* WARNING: _dcvt is defined in the stdlib directory, not here!  */
 

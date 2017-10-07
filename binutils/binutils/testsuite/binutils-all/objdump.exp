@@ -64,96 +64,168 @@ if [regexp $want $got] then {
 if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
     return
 }
+if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest2.o]} then {
+    return
+}
 if [is_remote host] {
     set testfile [remote_download host tmpdir/bintest.o]
+    set testfile2 [remote_download host tmpdir/bintest2.o]
 } else {
     set testfile tmpdir/bintest.o
+    set testfile2 tmpdir/bintest2.o
+}
+
+if { ![istarget "alpha-*-*"] || [is_elf_format] } then {
+    remote_file host file delete tmpdir/bintest.a
+    set got [binutils_run $AR "rc tmpdir/bintest.a $testfile2"]
+    if ![string match "" $got] then {
+	fail "bintest.a"
+	remote_file host delete tmpdir/bintest.a
+    } else {
+	if [is_remote host] {
+	    set testarchive [remote_download host tmpdir/bintest.a]
+	} else {
+	    set testarchive tmpdir/bintest.a
+	}
+    }
+    remote_file host delete tmpdir/bintest2.o
 }
 
 # Test objdump -f
 
-set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -f $testfile"]
+proc test_objdump_f { testfile dumpfile } {
+    global OBJDUMP
+    global OBJDUMPFLAGS
+    global cpus_regex
 
-set want "$testfile:\[ 	\]*file format.*architecture:\[ 	\]*${cpus_regex}.*HAS_RELOC.*HAS_SYMS"
+    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -f $testfile"]
 
-if ![regexp $want $got] then {
-    fail "objdump -f"
-} else {
-    pass "objdump -f"
+    set want "$dumpfile:\[ 	\]*file format.*architecture:\[ 	\]*${cpus_regex}.*HAS_RELOC.*HAS_SYMS"
+
+    if ![regexp $want $got] then {
+	fail "objdump -f ($testfile, $dumpfile)"
+    } else {
+	pass "objdump -f ($testfile, $dumpfile)"
+    }
+}
+
+test_objdump_f $testfile $testfile
+if { [ remote_file host exists $testarchive ] } then {
+    test_objdump_f $testarchive bintest2.o
 }
 
 # Test objdump -h
 
-set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -h $testfile"]
+proc test_objdump_h { testfile dumpfile } {
+    global OBJDUMP
+    global OBJDUMPFLAGS
 
-set want "$testfile:\[ 	\]*file format.*Sections.*\[0-9\]+\[ 	\]+\[^ 	\]*(text|TEXT|P|\\\$CODE\\\$)\[^ 	\]*\[ 	\]*(\[0-9a-fA-F\]+).*\[0-9\]+\[ 	\]+\[^ 	\]*(\\.data|DATA|D_1)\[^ 	\]*\[ 	\]*(\[0-9a-fA-F\]+)"
+    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -h $testfile"]
 
-if ![regexp $want $got all text_name text_size data_name data_size] then {
-    fail "objdump -h"
-} else {
-    verbose "text name is $text_name size is $text_size"
-    verbose "data name is $data_name size is $data_size"
-    set ets 8
-    set eds 4
-    # The [ti]c4x target has the property sizeof(char)=sizeof(long)=1
-    if [istarget *c4x*-*-*] then {
-        set ets 2
-        set eds 1
-    }
-    # c54x section sizes are in bytes, not octets; adjust accordingly
-    if [istarget *c54x*-*-*] then {
-	set ets 4
-	set eds 2
-    }
-    if {[expr "0x$text_size"] < $ets || [expr "0x$data_size"] < $eds} then {
-	send_log "sizes too small\n"
-	fail "objdump -h"
+    set want "$dumpfile:\[ 	\]*file format.*Sections.*\[0-9\]+\[ 	\]+\[^ 	\]*(text|TEXT|P|\\\$CODE\\\$)\[^ 	\]*\[ 	\]*(\[0-9a-fA-F\]+).*\[0-9\]+\[ 	\]+\[^ 	\]*(\\.data|DATA|D_1)\[^ 	\]*\[ 	\]*(\[0-9a-fA-F\]+)"
+
+    if ![regexp $want $got all text_name text_size data_name data_size] then {
+	fail "objdump -h ($testfile, $dumpfile)"
     } else {
-	pass "objdump -h"
+	verbose "text name is $text_name size is $text_size"
+	verbose "data name is $data_name size is $data_size"
+	set ets 8
+	set eds 4
+	# The [ti]c4x target has the property sizeof(char)=sizeof(long)=1
+	if [istarget *c4x*-*-*] then {
+            set ets 2
+            set eds 1
+	}
+	# c54x section sizes are in bytes, not octets; adjust accordingly
+	if [istarget *c54x*-*-*] then {
+	    set ets 4
+	    set eds 2
+        }
+	if {[expr "0x$text_size"] < $ets || [expr "0x$data_size"] < $eds} then {
+	    send_log "sizes too small\n"
+	    fail "objdump -h ($testfile, $dumpfile)"
+	} else {
+	    pass "objdump -h ($testfile, $dumpfile)"
+	}
     }
+}
+
+test_objdump_h $testfile $testfile
+if { [ remote_file host exists $testarchive ] } then {
+    test_objdump_h $testarchive bintest2.o
 }
 
 # Test objdump -t
 
-set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -t $testfile"]
+proc test_objdump_t { testfile} {
+    global OBJDUMP
+    global OBJDUMPFLAGS
 
-if [info exists vars] then { unset vars }
-while {[regexp "(\[a-z\]*_symbol)(.*)" $got all symbol rest]} {
-    set vars($symbol) 1
-    set got $rest
+    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -t $testfile"]
+
+    if [info exists vars] then { unset vars }
+    while {[regexp "(\[a-z\]*_symbol)(.*)" $got all symbol rest]} {
+	set vars($symbol) 1
+	set got $rest
+    }
+
+    if {![info exists vars(text_symbol)] \
+	 || ![info exists vars(data_symbol)] \
+	 || ![info exists vars(common_symbol)] \
+	 || ![info exists vars(external_symbol)]} then {
+	fail "objdump -t ($testfile)"
+    } else {
+	pass "objdump -t ($testfile)"
+    }
 }
 
-if {![info exists vars(text_symbol)] \
-     || ![info exists vars(data_symbol)] \
-     || ![info exists vars(common_symbol)] \
-     || ![info exists vars(external_symbol)]} then {
-    fail "objdump -t"
-} else {
-    pass "objdump -t"
+test_objdump_t $testfile
+if { [ remote_file host exists $testarchive ] } then {
+    test_objdump_t $testarchive
 }
 
 # Test objdump -r
 
-set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -r $testfile"]
+proc test_objdump_r { testfile dumpfile } {
+    global OBJDUMP
+    global OBJDUMPFLAGS
 
-set want "$testfile:\[ 	\]*file format.*RELOCATION RECORDS FOR \\\[\[^\]\]*(text|TEXT|P|\\\$CODE\\\$)\[^\]\]*\\\].*external_symbol"
+    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -r $testfile"]
 
-if [regexp $want $got] then {
-    pass "objdump -r"
-} else {
-    fail "objdump -r"
+    set want "$dumpfile:\[ 	\]*file format.*RELOCATION RECORDS FOR \\\[\[^\]\]*(text|TEXT|P|\\\$CODE\\\$)\[^\]\]*\\\].*external_symbol"
+
+    if [regexp $want $got] then {
+	pass "objdump -r ($testfile, $dumpfile)"
+    } else {
+	fail "objdump -r ($testfile, $dumpfile)"
+    }
+}
+
+test_objdump_r $testfile $testfile
+if { [ remote_file host exists $testarchive ] } then {
+    test_objdump_r $testarchive bintest2.o
 }
 
 # Test objdump -s
 
-set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -s $testfile"]
+proc test_objdump_s { testfile dumpfile } {
+    global OBJDUMP
+    global OBJDUMPFLAGS
 
-set want "$testfile:\[ 	\]*file format.*Contents.*(text|TEXT|P|\\\$CODE\\\$)\[^0-9\]*\[ 	\]*\[0-9a-fA-F\]*\[ 	\]*(00000001|01000000|00000100).*Contents.*(data|DATA|D_1)\[^0-9\]*\[ 	\]*\[0-9a-fA-F\]*\[ 	\]*(00000002|02000000|00000200)"
+    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -s $testfile"]
 
-if [regexp $want $got] then {
-    pass "objdump -s"
-} else {
-    fail "objdump -s"
+    set want "$dumpfile:\[ 	\]*file format.*Contents.*(text|TEXT|P|\\\$CODE\\\$)\[^0-9\]*\[ 	\]*\[0-9a-fA-F\]*\[ 	\]*(00000001|01000000|00000100).*Contents.*(data|DATA|D_1)\[^0-9\]*\[ 	\]*\[0-9a-fA-F\]*\[ 	\]*(00000002|02000000|00000200)"
+
+    if [regexp $want $got] then {
+	pass "objdump -s ($testfile, $dumpfile)"
+    } else {
+	fail "objdump -s ($testfile, $dumpfile)"
+    }
+}
+
+test_objdump_s $testfile $testfile
+if { [ remote_file host exists $testarchive ] } then {
+    test_objdump_s $testarchive bintest2.o
 }
 
 # Test objdump -s on a file that contains a compressed .debug section

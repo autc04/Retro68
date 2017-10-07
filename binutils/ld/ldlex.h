@@ -146,6 +146,7 @@ enum option_values
   OPTION_PRINT_MEMORY_USAGE,
   OPTION_REQUIRE_DEFINED_SYMBOL,
   OPTION_ORPHAN_HANDLING,
+  OPTION_FORCE_GROUP_ALLOCATION,
 };
 
 /* The initial parser states.  */
@@ -182,9 +183,6 @@ extern const char* ldlex_filename (void);
 /* In lexsup.c.  */
 extern int lex_input (void);
 extern void lex_unput (int);
-#ifndef yywrap
-extern int yywrap (void);
-#endif
 extern void parse_args (unsigned, char **);
 
 #endif

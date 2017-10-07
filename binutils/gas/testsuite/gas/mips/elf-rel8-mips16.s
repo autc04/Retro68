@@ -32,6 +32,13 @@ foo:
 	lw	$4,%gprel(gvar)($2)
 	sw	$4,%gprel(gvar)($2)
 	addiu	$4,%gprel(gvar)
+
+	# Check the alternative form.
+
+	lw	$4,%gp_rel(gvar)($2)
+	sw	$4,%gp_rel(gvar)($2)
+	addiu	$4,%gp_rel(gvar)
+
 	.align	6
 	.end	foo
 

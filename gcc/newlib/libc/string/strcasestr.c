@@ -84,6 +84,10 @@ QUICKREF
   (!memchr ((h) + (h_l), '\0', (j) + (n_l) - (h_l))	\
    && ((h_l) = (j) + (n_l)))
 # define CANON_ELEMENT(c) tolower (c)
+#if __GNUC_PREREQ (4, 2)
+/* strncasecmp uses signed char, CMP_FUNC is expected to use unsigned char. */
+#pragma GCC diagnostic ignored "-Wpointer-sign"
+#endif
 # define CMP_FUNC strncasecmp
 # include "str-two-way.h"
 #endif
@@ -92,8 +96,9 @@ QUICKREF
  * Find the first occurrence of find in s, ignore case.
  */
 char *
-strcasestr(s, find)
-	const char *s, *find;
+_DEFUN (strcasestr, (s, find),
+	_CONST char *s _AND
+	_CONST char *find)
 {
 #if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
 

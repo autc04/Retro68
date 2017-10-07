@@ -55,7 +55,7 @@ set phdrs_regexp \
     ".*Program Header:.*LOAD *off *0x00\[0-9a-f\]* *vaddr *0x00*800000 *paddr *0x00*800000.*filesz *0x0\[0-9a-f\]* *memsz *0x0\[0-9a-f\]*.*LOAD *off *0x00\[0-9a-f\]* *vaddr *0x00*800004 *paddr *0x00*800004.*filesz *0x00*\[0-9a-f\]* *memsz *0x0\[0-9a-f\]* *flags rw.*"
 
 set ldopt "$ldopt -T $srcdir/$subdir/phdrs2.t tmpdir/phdrs2.o"
-if ![ld_simple_link $ld tmpdir/phdrs2 $ldopt] {
+if ![ld_link $ld tmpdir/phdrs2 $ldopt] {
     fail $testname
 } else {
     if {![is_remote host] && [which $objdump] == 0} {

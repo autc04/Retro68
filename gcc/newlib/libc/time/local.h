@@ -19,8 +19,12 @@
 
 #define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
 
-struct tm * _EXFUN (_mktm_r, (_CONST time_t *, struct tm *, int __is_gmtime));
 int         _EXFUN (__tzcalc_limits, (int __year));
+
+extern _CONST int __month_lengths[2][MONSPERYEAR];
+
+_VOID _EXFUN(_tzset_unlocked_r, (struct _reent *));
+_VOID _EXFUN(_tzset_unlocked, (_VOID));
 
 /* locks for multi-threading */
 #ifdef __SINGLE_THREAD__

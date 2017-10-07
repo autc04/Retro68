@@ -1,6 +1,6 @@
-// { dg-options "-std=gnu++14" }
+// { dg-do run { target c++14 } }
 
-// Copyright (C) 2015-2016 Free Software Foundation, Inc.
+// Copyright (C) 2015-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,8 +36,6 @@ long D::delete_count = 0;
 int
 test01()
 {
-  bool test __attribute__((unused)) = true;
-
   A * const a = new A[5];
   std::experimental::shared_ptr<A[5]> p1(a);
   std::experimental::shared_ptr<A[5]> p2(p1);
@@ -51,8 +49,6 @@ test01()
 int
 test02()
 {
-  bool test __attribute__((unused)) = true;
-
   A * const a = new A[5];
   A * const b = new A[5];
   std::experimental::shared_ptr<A[5]> p1(a);
@@ -67,8 +63,6 @@ test02()
 int
 test03()
 {
-  bool test __attribute__((unused)) = true;
-
   {
     std::experimental::shared_ptr<A[5]> p1;
     p1.reset(new A[5], D());

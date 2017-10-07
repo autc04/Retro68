@@ -192,11 +192,11 @@ bfd_mach_o_i386_canonicalize_one_reloc (bfd *abfd,
             default:
               return FALSE;
             }
-          break;
         default:
-          return FALSE;
+          break;
         }
     }
+  return FALSE;
 }
 
 static bfd_boolean

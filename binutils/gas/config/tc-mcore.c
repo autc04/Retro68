@@ -241,7 +241,7 @@ check_literals (int kind, int offset)
      kind == 2 means we just left a function
 
      The dump_literals (1) call inserts a branch around the table, so
-     we first look to see if its a situation where we won't have to
+     we first look to see if it's a situation where we won't have to
      insert a branch (e.g., the previous instruction was an unconditional
      branch).
 
@@ -1993,7 +1993,7 @@ md_apply_fix (fixS *   fixP,
 
     case BFD_RELOC_MCORE_PCREL_JSR_IMM11BY2:
       /* Conditional linker map jsri to bsr.  */
-      /* If its a local target and close enough, fix it.
+      /* If it's a local target and close enough, fix it.
 	 NB: >= -2k for backwards bsr; < 2k for forwards...  */
       if (fixP->fx_addsy == 0 && val >= -2048  && val < 2048)
 	{
@@ -2042,7 +2042,7 @@ md_apply_fix (fixS *   fixP,
 void
 md_operand (expressionS * expressionP)
 {
-  /* Ignore leading hash symbol, if poresent.  */
+  /* Ignore leading hash symbol, if present.  */
   if (* input_line_pointer == '#')
     {
       input_line_pointer ++;
@@ -2080,7 +2080,7 @@ md_estimate_size_before_relax (fragS * fragP, segT segment_type)
 	   sized - maybe it will fix up */
 	fragP->fr_subtype = C (COND_JUMP, DISP12);
       else if (fragP->fr_symbol)
-	/* Its got a segment, but its not ours, so it will always be long.  */
+	/* It's got a segment, but it's not ours, so it will always be long.  */
 	fragP->fr_subtype = C (COND_JUMP, UNDEF_WORD_DISP);
       else
 	/* We know the abs value.  */
@@ -2181,7 +2181,7 @@ tc_gen_reloc (asection * section ATTRIBUTE_UNUSED, fixS * fixp)
 	  code = fixp->fx_r_type;
 	  as_bad (_("Can not do %d byte %srelocation"),
 		  fixp->fx_size,
-		  fixp->fx_pcrel ? _("pc-relative") : "");
+		  fixp->fx_pcrel ? _("pc-relative ") : "");
 	}
       break;
   }

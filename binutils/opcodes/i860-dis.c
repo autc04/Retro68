@@ -21,7 +21,7 @@
    MA 02110-1301, USA.  */
 
 #include "sysdep.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opcode/i860.h"
 
 /* Later we should probably choose the prefix based on which OS flavor.  */

@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.0.  */
+/* A Bison parser, made by GNU Bison 3.0.4.  */
 
 /* Bison implementation for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "3.0"
+#define YYBISON_VERSION "3.0.4"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -131,11 +131,11 @@ static struct m68k_op *op;
 
 #line 133 "m68k-parse.c" /* yacc.c:339  */
 
-# ifndef YY_NULL
+# ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
-#   define YY_NULL nullptr
+#   define YY_NULLPTR nullptr
 #  else
-#   define YY_NULL 0
+#   define YY_NULLPTR 0
 #  endif
 # endif
 
@@ -189,7 +189,7 @@ extern int yydebug;
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE YYSTYPE;
+
 union YYSTYPE
 {
 #line 95 "m68k-parse.y" /* yacc.c:355  */
@@ -203,6 +203,8 @@ union YYSTYPE
 
 #line 205 "m68k-parse.c" /* yacc.c:355  */
 };
+
+typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif
@@ -216,7 +218,7 @@ int yyparse (void);
 
 /* Copy the second part of user declarations.  */
 
-#line 220 "m68k-parse.c" /* yacc.c:358  */
+#line 222 "m68k-parse.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -273,11 +275,30 @@ typedef short int yytype_int16;
 # endif
 #endif
 
-#ifndef __attribute__
-/* This feature is available in gcc versions 2.5 and later.  */
-# if (! defined __GNUC__ || __GNUC__ < 2 \
-      || (__GNUC__ == 2 && __GNUC_MINOR__ < 5))
-#  define __attribute__(Spec) /* empty */
+#ifndef YY_ATTRIBUTE
+# if (defined __GNUC__                                               \
+      && (2 < __GNUC__ || (__GNUC__ == 2 && 96 <= __GNUC_MINOR__)))  \
+     || defined __SUNPRO_C && 0x5110 <= __SUNPRO_C
+#  define YY_ATTRIBUTE(Spec) __attribute__(Spec)
+# else
+#  define YY_ATTRIBUTE(Spec) /* empty */
+# endif
+#endif
+
+#ifndef YY_ATTRIBUTE_PURE
+# define YY_ATTRIBUTE_PURE   YY_ATTRIBUTE ((__pure__))
+#endif
+
+#ifndef YY_ATTRIBUTE_UNUSED
+# define YY_ATTRIBUTE_UNUSED YY_ATTRIBUTE ((__unused__))
+#endif
+
+#if !defined _Noreturn \
+     && (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112)
+# if defined _MSC_VER && 1200 <= _MSC_VER
+#  define _Noreturn __declspec (noreturn)
+# else
+#  define _Noreturn YY_ATTRIBUTE ((__noreturn__))
 # endif
 #endif
 
@@ -518,7 +539,7 @@ static const char *const yytname[] =
   "operand", "optional_ampersand", "generic_operand", "motorola_operand",
   "mit_operand", "zireg", "zdireg", "zadr", "zdr", "apc", "zapc",
   "optzapc", "zpc", "optczapc", "optcexpr", "optexprc", "reglist",
-  "ireglist", "reglistpair", "reglistreg", YY_NULL
+  "ireglist", "reglistpair", "reglistreg", YY_NULLPTR
 };
 #endif
 
@@ -996,11 +1017,11 @@ static int
 yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                 yytype_int16 *yyssp, int yytoken)
 {
-  YYSIZE_T yysize0 = yytnamerr (YY_NULL, yytname[yytoken]);
+  YYSIZE_T yysize0 = yytnamerr (YY_NULLPTR, yytname[yytoken]);
   YYSIZE_T yysize = yysize0;
   enum { YYERROR_VERBOSE_ARGS_MAXIMUM = 5 };
   /* Internationalized format string. */
-  const char *yyformat = YY_NULL;
+  const char *yyformat = YY_NULLPTR;
   /* Arguments of yyformat. */
   char const *yyarg[YYERROR_VERBOSE_ARGS_MAXIMUM];
   /* Number of reported tokens (one for the "unexpected", one per
@@ -1057,7 +1078,7 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                   }
                 yyarg[yycount++] = yytname[yyx];
                 {
-                  YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULL, yytname[yyx]);
+                  YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULLPTR, yytname[yyx]);
                   if (! (yysize <= yysize1
                          && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
                     return 2;
@@ -1389,159 +1410,159 @@ yyreduce:
   switch (yyn)
     {
         case 3:
-#line 122 "m68k-parse.y" /* yacc.c:1661  */
+#line 122 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->trailing_ampersand = (yyvsp[0].trailing_ampersand);
 		}
-#line 1397 "m68k-parse.c" /* yacc.c:1661  */
+#line 1418 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 4:
-#line 126 "m68k-parse.y" /* yacc.c:1661  */
+#line 126 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->trailing_ampersand = (yyvsp[0].trailing_ampersand);
 		}
-#line 1405 "m68k-parse.c" /* yacc.c:1661  */
+#line 1426 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 5:
-#line 134 "m68k-parse.y" /* yacc.c:1661  */
+#line 134 "m68k-parse.y" /* yacc.c:1646  */
     { (yyval.trailing_ampersand) = 0; }
-#line 1411 "m68k-parse.c" /* yacc.c:1661  */
+#line 1432 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 6:
-#line 136 "m68k-parse.y" /* yacc.c:1661  */
+#line 136 "m68k-parse.y" /* yacc.c:1646  */
     { (yyval.trailing_ampersand) = 1; }
-#line 1417 "m68k-parse.c" /* yacc.c:1661  */
+#line 1438 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 7:
-#line 143 "m68k-parse.y" /* yacc.c:1661  */
+#line 143 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = LSH;
 		}
-#line 1425 "m68k-parse.c" /* yacc.c:1661  */
+#line 1446 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 8:
-#line 148 "m68k-parse.y" /* yacc.c:1661  */
+#line 148 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = RSH;
 		}
-#line 1433 "m68k-parse.c" /* yacc.c:1661  */
+#line 1454 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 9:
-#line 153 "m68k-parse.y" /* yacc.c:1661  */
+#line 153 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = DREG;
 		  op->reg = (yyvsp[0].reg);
 		}
-#line 1442 "m68k-parse.c" /* yacc.c:1661  */
+#line 1463 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 158 "m68k-parse.y" /* yacc.c:1661  */
+#line 158 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = AREG;
 		  op->reg = (yyvsp[0].reg);
 		}
-#line 1451 "m68k-parse.c" /* yacc.c:1661  */
+#line 1472 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 11:
-#line 163 "m68k-parse.y" /* yacc.c:1661  */
+#line 163 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = FPREG;
 		  op->reg = (yyvsp[0].reg);
 		}
-#line 1460 "m68k-parse.c" /* yacc.c:1661  */
+#line 1481 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 12:
-#line 168 "m68k-parse.y" /* yacc.c:1661  */
+#line 168 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = CONTROL;
 		  op->reg = (yyvsp[0].reg);
 		}
-#line 1469 "m68k-parse.c" /* yacc.c:1661  */
+#line 1490 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 13:
-#line 173 "m68k-parse.y" /* yacc.c:1661  */
+#line 173 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = CONTROL;
 		  op->reg = (yyvsp[0].reg);
 		}
-#line 1478 "m68k-parse.c" /* yacc.c:1661  */
+#line 1499 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 14:
-#line 178 "m68k-parse.y" /* yacc.c:1661  */
+#line 178 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = ABSL;
 		  op->disp = (yyvsp[0].exp);
 		}
-#line 1487 "m68k-parse.c" /* yacc.c:1661  */
+#line 1508 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 15:
-#line 183 "m68k-parse.y" /* yacc.c:1661  */
+#line 183 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = IMMED;
 		  op->disp = (yyvsp[0].exp);
 		}
-#line 1496 "m68k-parse.c" /* yacc.c:1661  */
+#line 1517 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 16:
-#line 188 "m68k-parse.y" /* yacc.c:1661  */
+#line 188 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = IMMED;
 		  op->disp = (yyvsp[0].exp);
 		}
-#line 1505 "m68k-parse.c" /* yacc.c:1661  */
+#line 1526 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 17:
-#line 193 "m68k-parse.y" /* yacc.c:1661  */
+#line 193 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = REGLST;
 		  op->mask = (yyvsp[0].mask);
 		}
-#line 1514 "m68k-parse.c" /* yacc.c:1661  */
+#line 1535 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 18:
-#line 206 "m68k-parse.y" /* yacc.c:1661  */
+#line 206 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = AINDR;
 		  op->reg = (yyvsp[-1].reg);
 		}
-#line 1523 "m68k-parse.c" /* yacc.c:1661  */
+#line 1544 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 19:
-#line 211 "m68k-parse.y" /* yacc.c:1661  */
+#line 211 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = AINC;
 		  op->reg = (yyvsp[-2].reg);
 		}
-#line 1532 "m68k-parse.c" /* yacc.c:1661  */
+#line 1553 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 20:
-#line 216 "m68k-parse.y" /* yacc.c:1661  */
+#line 216 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = ADEC;
 		  op->reg = (yyvsp[-1].reg);
 		}
-#line 1541 "m68k-parse.c" /* yacc.c:1661  */
+#line 1562 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 21:
-#line 221 "m68k-parse.y" /* yacc.c:1661  */
+#line 221 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->reg = (yyvsp[-1].reg);
 		  op->disp = (yyvsp[-3].exp);
@@ -1551,11 +1572,11 @@ yyreduce:
 		  else
 		    op->mode = DISP;
 		}
-#line 1555 "m68k-parse.c" /* yacc.c:1661  */
+#line 1576 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 22:
-#line 231 "m68k-parse.y" /* yacc.c:1661  */
+#line 231 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->reg = (yyvsp[-3].reg);
 		  op->disp = (yyvsp[-1].exp);
@@ -1565,11 +1586,11 @@ yyreduce:
 		  else
 		    op->mode = DISP;
 		}
-#line 1569 "m68k-parse.c" /* yacc.c:1661  */
+#line 1590 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 23:
-#line 241 "m68k-parse.y" /* yacc.c:1661  */
+#line 241 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->reg = (yyvsp[-1].reg);
 		  op->disp = (yyvsp[-3].exp);
@@ -1579,49 +1600,49 @@ yyreduce:
 		  else
 		    op->mode = DISP;
 		}
-#line 1583 "m68k-parse.c" /* yacc.c:1661  */
+#line 1604 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 24:
-#line 251 "m68k-parse.y" /* yacc.c:1661  */
+#line 251 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = DISP;
 		  op->reg = (yyvsp[-1].reg);
 		}
-#line 1592 "m68k-parse.c" /* yacc.c:1661  */
+#line 1613 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 25:
-#line 256 "m68k-parse.y" /* yacc.c:1661  */
+#line 256 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-1].reg);
 		}
-#line 1601 "m68k-parse.c" /* yacc.c:1661  */
+#line 1622 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 26:
-#line 261 "m68k-parse.y" /* yacc.c:1661  */
+#line 261 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-1].reg);
 		}
-#line 1610 "m68k-parse.c" /* yacc.c:1661  */
+#line 1631 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 27:
-#line 266 "m68k-parse.y" /* yacc.c:1661  */
+#line 266 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-3].reg);
 		  op->disp = (yyvsp[-5].exp);
 		  op->index = (yyvsp[-1].indexreg);
 		}
-#line 1621 "m68k-parse.c" /* yacc.c:1661  */
+#line 1642 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 28:
-#line 273 "m68k-parse.y" /* yacc.c:1661  */
+#line 273 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  if ((yyvsp[-3].reg) == PC || (yyvsp[-3].reg) == ZPC)
 		    yyerror (_("syntax error"));
@@ -1632,53 +1653,53 @@ yyreduce:
 		  op->index.size = SIZE_UNSPEC;
 		  op->index.scale = 1;
 		}
-#line 1636 "m68k-parse.c" /* yacc.c:1661  */
+#line 1657 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 29:
-#line 284 "m68k-parse.y" /* yacc.c:1661  */
+#line 284 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-1].reg);
 		  op->disp = (yyvsp[-4].exp);
 		  op->index = (yyvsp[-2].indexreg);
 		}
-#line 1647 "m68k-parse.c" /* yacc.c:1661  */
+#line 1668 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 30:
-#line 291 "m68k-parse.y" /* yacc.c:1661  */
+#line 291 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = BASE;
 		  op->disp = (yyvsp[-1].exp);
 		  op->index = (yyvsp[-3].indexreg);
 		}
-#line 1657 "m68k-parse.c" /* yacc.c:1661  */
+#line 1678 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 31:
-#line 297 "m68k-parse.y" /* yacc.c:1661  */
+#line 297 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-3].reg);
 		  op->disp = (yyvsp[-5].exp);
 		  op->index = (yyvsp[-1].indexreg);
 		}
-#line 1668 "m68k-parse.c" /* yacc.c:1661  */
+#line 1689 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 32:
-#line 304 "m68k-parse.y" /* yacc.c:1661  */
+#line 304 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-3].reg);
 		  op->index = (yyvsp[-1].indexreg);
 		}
-#line 1678 "m68k-parse.c" /* yacc.c:1661  */
+#line 1699 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 33:
-#line 310 "m68k-parse.y" /* yacc.c:1661  */
+#line 310 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  if ((yyvsp[-3].reg) == PC || (yyvsp[-3].reg) == ZPC)
 		    yyerror (_("syntax error"));
@@ -1689,11 +1710,11 @@ yyreduce:
 		  op->index.size = SIZE_UNSPEC;
 		  op->index.scale = 1;
 		}
-#line 1693 "m68k-parse.c" /* yacc.c:1661  */
+#line 1714 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 34:
-#line 321 "m68k-parse.y" /* yacc.c:1661  */
+#line 321 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  if ((yyvsp[-3].reg) == PC || (yyvsp[-3].reg) == ZPC)
 		    yyerror (_("syntax error"));
@@ -1703,32 +1724,32 @@ yyreduce:
 		  op->index.size = SIZE_UNSPEC;
 		  op->index.scale = 1;
 		}
-#line 1707 "m68k-parse.c" /* yacc.c:1661  */
+#line 1728 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 35:
-#line 331 "m68k-parse.y" /* yacc.c:1661  */
+#line 331 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-1].reg);
 		  op->disp = (yyvsp[-4].exp);
 		  op->index = (yyvsp[-2].indexreg);
 		}
-#line 1718 "m68k-parse.c" /* yacc.c:1661  */
+#line 1739 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 36:
-#line 338 "m68k-parse.y" /* yacc.c:1661  */
+#line 338 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-1].reg);
 		  op->index = (yyvsp[-2].indexreg);
 		}
-#line 1728 "m68k-parse.c" /* yacc.c:1661  */
+#line 1749 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 37:
-#line 344 "m68k-parse.y" /* yacc.c:1661  */
+#line 344 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = POST;
 		  op->reg = (yyvsp[-5].reg);
@@ -1736,43 +1757,43 @@ yyreduce:
 		  op->index = (yyvsp[-2].indexreg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1740 "m68k-parse.c" /* yacc.c:1661  */
+#line 1761 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 38:
-#line 352 "m68k-parse.y" /* yacc.c:1661  */
+#line 352 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = POST;
 		  op->reg = (yyvsp[-3].reg);
 		  op->disp = (yyvsp[-4].exp);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1751 "m68k-parse.c" /* yacc.c:1661  */
+#line 1772 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 39:
-#line 359 "m68k-parse.y" /* yacc.c:1661  */
+#line 359 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = POST;
 		  op->reg = (yyvsp[-5].reg);
 		  op->index = (yyvsp[-2].indexreg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1762 "m68k-parse.c" /* yacc.c:1661  */
+#line 1783 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 40:
-#line 366 "m68k-parse.y" /* yacc.c:1661  */
+#line 366 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = POST;
 		  op->reg = (yyvsp[-3].reg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1772 "m68k-parse.c" /* yacc.c:1661  */
+#line 1793 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 41:
-#line 372 "m68k-parse.y" /* yacc.c:1661  */
+#line 372 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = PRE;
 		  op->reg = (yyvsp[-5].reg);
@@ -1780,22 +1801,22 @@ yyreduce:
 		  op->index = (yyvsp[-3].indexreg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1784 "m68k-parse.c" /* yacc.c:1661  */
+#line 1805 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 42:
-#line 380 "m68k-parse.y" /* yacc.c:1661  */
+#line 380 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = PRE;
 		  op->reg = (yyvsp[-5].reg);
 		  op->index = (yyvsp[-3].indexreg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1795 "m68k-parse.c" /* yacc.c:1661  */
+#line 1816 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 43:
-#line 387 "m68k-parse.y" /* yacc.c:1661  */
+#line 387 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  if ((yyvsp[-5].reg) == PC || (yyvsp[-5].reg) == ZPC)
 		    yyerror (_("syntax error"));
@@ -1807,11 +1828,11 @@ yyreduce:
 		  op->index.scale = 1;
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1811 "m68k-parse.c" /* yacc.c:1661  */
+#line 1832 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 44:
-#line 399 "m68k-parse.y" /* yacc.c:1661  */
+#line 399 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  if ((yyvsp[-5].reg) == PC || (yyvsp[-5].reg) == ZPC)
 		    yyerror (_("syntax error"));
@@ -1822,11 +1843,11 @@ yyreduce:
 		  op->index.scale = 1;
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1826 "m68k-parse.c" /* yacc.c:1661  */
+#line 1847 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 45:
-#line 410 "m68k-parse.y" /* yacc.c:1661  */
+#line 410 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = PRE;
 		  op->reg = (yyvsp[-3].reg);
@@ -1834,11 +1855,11 @@ yyreduce:
 		  op->index = (yyvsp[-4].indexreg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1838 "m68k-parse.c" /* yacc.c:1661  */
+#line 1859 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 46:
-#line 423 "m68k-parse.y" /* yacc.c:1661  */
+#line 423 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  /* We use optzapc to avoid a shift/reduce conflict.  */
 		  if ((yyvsp[-1].reg) < ADDR0 || (yyvsp[-1].reg) > ADDR7)
@@ -1846,11 +1867,11 @@ yyreduce:
 		  op->mode = AINDR;
 		  op->reg = (yyvsp[-1].reg);
 		}
-#line 1850 "m68k-parse.c" /* yacc.c:1661  */
+#line 1871 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 47:
-#line 431 "m68k-parse.y" /* yacc.c:1661  */
+#line 431 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  /* We use optzapc to avoid a shift/reduce conflict.  */
 		  if ((yyvsp[-2].reg) < ADDR0 || (yyvsp[-2].reg) > ADDR7)
@@ -1858,11 +1879,11 @@ yyreduce:
 		  op->mode = AINC;
 		  op->reg = (yyvsp[-2].reg);
 		}
-#line 1862 "m68k-parse.c" /* yacc.c:1661  */
+#line 1883 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 48:
-#line 439 "m68k-parse.y" /* yacc.c:1661  */
+#line 439 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  /* We use optzapc to avoid a shift/reduce conflict.  */
 		  if ((yyvsp[-2].reg) < ADDR0 || (yyvsp[-2].reg) > ADDR7)
@@ -1870,11 +1891,11 @@ yyreduce:
 		  op->mode = ADEC;
 		  op->reg = (yyvsp[-2].reg);
 		}
-#line 1874 "m68k-parse.c" /* yacc.c:1661  */
+#line 1895 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 49:
-#line 447 "m68k-parse.y" /* yacc.c:1661  */
+#line 447 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->reg = (yyvsp[-4].reg);
 		  op->disp = (yyvsp[-1].exp);
@@ -1884,22 +1905,22 @@ yyreduce:
 		  else
 		    op->mode = DISP;
 		}
-#line 1888 "m68k-parse.c" /* yacc.c:1661  */
+#line 1909 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 50:
-#line 457 "m68k-parse.y" /* yacc.c:1661  */
+#line 457 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = BASE;
 		  op->reg = (yyvsp[-5].reg);
 		  op->disp = (yyvsp[-2].exp);
 		  op->index = (yyvsp[-1].indexreg);
 		}
-#line 1899 "m68k-parse.c" /* yacc.c:1661  */
+#line 1920 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 51:
-#line 464 "m68k-parse.y" /* yacc.c:1661  */
+#line 464 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = POST;
 		  op->reg = (yyvsp[-9].reg);
@@ -1907,22 +1928,22 @@ yyreduce:
 		  op->index = (yyvsp[-1].indexreg);
 		  op->odisp = (yyvsp[-2].exp);
 		}
-#line 1911 "m68k-parse.c" /* yacc.c:1661  */
+#line 1932 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 52:
-#line 472 "m68k-parse.y" /* yacc.c:1661  */
+#line 472 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = POST;
 		  op->reg = (yyvsp[-8].reg);
 		  op->disp = (yyvsp[-5].exp);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1922 "m68k-parse.c" /* yacc.c:1661  */
+#line 1943 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 53:
-#line 479 "m68k-parse.y" /* yacc.c:1661  */
+#line 479 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  op->mode = PRE;
 		  op->reg = (yyvsp[-9].reg);
@@ -1930,164 +1951,164 @@ yyreduce:
 		  op->index = (yyvsp[-5].indexreg);
 		  op->odisp = (yyvsp[-1].exp);
 		}
-#line 1934 "m68k-parse.c" /* yacc.c:1661  */
+#line 1955 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 55:
-#line 494 "m68k-parse.y" /* yacc.c:1661  */
+#line 494 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.indexreg).reg = (yyvsp[0].reg);
 		  (yyval.indexreg).size = SIZE_UNSPEC;
 		  (yyval.indexreg).scale = 1;
 		}
-#line 1944 "m68k-parse.c" /* yacc.c:1661  */
+#line 1965 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 57:
-#line 508 "m68k-parse.y" /* yacc.c:1661  */
+#line 508 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.indexreg).reg = (yyvsp[0].reg);
 		  (yyval.indexreg).size = SIZE_UNSPEC;
 		  (yyval.indexreg).scale = 1;
 		}
-#line 1954 "m68k-parse.c" /* yacc.c:1661  */
+#line 1975 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 68:
-#line 551 "m68k-parse.y" /* yacc.c:1661  */
+#line 551 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.reg) = ZADDR0;
 		}
-#line 1962 "m68k-parse.c" /* yacc.c:1661  */
+#line 1983 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 72:
-#line 568 "m68k-parse.y" /* yacc.c:1661  */
+#line 568 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.reg) = ZADDR0;
 		}
-#line 1970 "m68k-parse.c" /* yacc.c:1661  */
+#line 1991 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 73:
-#line 572 "m68k-parse.y" /* yacc.c:1661  */
+#line 572 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.reg) = (yyvsp[0].reg);
 		}
-#line 1978 "m68k-parse.c" /* yacc.c:1661  */
+#line 1999 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 74:
-#line 581 "m68k-parse.y" /* yacc.c:1661  */
+#line 581 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.exp).exp.X_op = O_absent;
 		  (yyval.exp).size = SIZE_UNSPEC;
 		}
-#line 1987 "m68k-parse.c" /* yacc.c:1661  */
+#line 2008 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 75:
-#line 586 "m68k-parse.y" /* yacc.c:1661  */
+#line 586 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.exp) = (yyvsp[0].exp);
 		}
-#line 1995 "m68k-parse.c" /* yacc.c:1661  */
+#line 2016 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 76:
-#line 595 "m68k-parse.y" /* yacc.c:1661  */
+#line 595 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.exp).exp.X_op = O_absent;
 		  (yyval.exp).size = SIZE_UNSPEC;
 		}
-#line 2004 "m68k-parse.c" /* yacc.c:1661  */
+#line 2025 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 77:
-#line 600 "m68k-parse.y" /* yacc.c:1661  */
+#line 600 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.exp) = (yyvsp[-1].exp);
 		}
-#line 2012 "m68k-parse.c" /* yacc.c:1661  */
+#line 2033 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 79:
-#line 610 "m68k-parse.y" /* yacc.c:1661  */
+#line 610 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.mask) = (yyvsp[-2].mask) | (yyvsp[0].mask);
 		}
-#line 2020 "m68k-parse.c" /* yacc.c:1661  */
+#line 2041 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 80:
-#line 614 "m68k-parse.y" /* yacc.c:1661  */
+#line 614 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.mask) = (1 << (yyvsp[-2].onereg)) | (yyvsp[0].mask);
 		}
-#line 2028 "m68k-parse.c" /* yacc.c:1661  */
+#line 2049 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 81:
-#line 626 "m68k-parse.y" /* yacc.c:1661  */
+#line 626 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.mask) = 1 << (yyvsp[0].onereg);
 		}
-#line 2036 "m68k-parse.c" /* yacc.c:1661  */
+#line 2057 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 83:
-#line 631 "m68k-parse.y" /* yacc.c:1661  */
+#line 631 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.mask) = (yyvsp[-2].mask) | (yyvsp[0].mask);
 		}
-#line 2044 "m68k-parse.c" /* yacc.c:1661  */
+#line 2065 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 84:
-#line 635 "m68k-parse.y" /* yacc.c:1661  */
+#line 635 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.mask) = (1 << (yyvsp[-2].onereg)) | (yyvsp[0].mask);
 		}
-#line 2052 "m68k-parse.c" /* yacc.c:1661  */
+#line 2073 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 85:
-#line 642 "m68k-parse.y" /* yacc.c:1661  */
+#line 642 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  if ((yyvsp[-2].onereg) <= (yyvsp[0].onereg))
 		    (yyval.mask) = (1 << ((yyvsp[0].onereg) + 1)) - 1 - ((1 << (yyvsp[-2].onereg)) - 1);
 		  else
 		    (yyval.mask) = (1 << ((yyvsp[-2].onereg) + 1)) - 1 - ((1 << (yyvsp[0].onereg)) - 1);
 		}
-#line 2063 "m68k-parse.c" /* yacc.c:1661  */
+#line 2084 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 86:
-#line 652 "m68k-parse.y" /* yacc.c:1661  */
+#line 652 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.onereg) = (yyvsp[0].reg) - DATA0;
 		}
-#line 2071 "m68k-parse.c" /* yacc.c:1661  */
+#line 2092 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 87:
-#line 656 "m68k-parse.y" /* yacc.c:1661  */
+#line 656 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.onereg) = (yyvsp[0].reg) - ADDR0 + 8;
 		}
-#line 2079 "m68k-parse.c" /* yacc.c:1661  */
+#line 2100 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 88:
-#line 660 "m68k-parse.y" /* yacc.c:1661  */
+#line 660 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  (yyval.onereg) = (yyvsp[0].reg) - FP0 + 16;
 		}
-#line 2087 "m68k-parse.c" /* yacc.c:1661  */
+#line 2108 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
   case 89:
-#line 664 "m68k-parse.y" /* yacc.c:1661  */
+#line 664 "m68k-parse.y" /* yacc.c:1646  */
     {
 		  if ((yyvsp[0].reg) == FPI)
 		    (yyval.onereg) = 24;
@@ -2096,11 +2117,11 @@ yyreduce:
 		  else
 		    (yyval.onereg) = 26;
 		}
-#line 2100 "m68k-parse.c" /* yacc.c:1661  */
+#line 2121 "m68k-parse.c" /* yacc.c:1646  */
     break;
 
 
-#line 2104 "m68k-parse.c" /* yacc.c:1661  */
+#line 2125 "m68k-parse.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires

@@ -473,6 +473,7 @@ TARGET_CPU_CFILES = \
 	config/tc-pdp11.c \
 	config/tc-pj.c \
 	config/tc-ppc.c \
+	config/tc-pru.c \
 	config/tc-riscv.c \
 	config/tc-rl78.c \
 	config/tc-rx.c \
@@ -491,6 +492,7 @@ TARGET_CPU_CFILES = \
 	config/tc-v850.c \
 	config/tc-vax.c \
 	config/tc-visium.c \
+	config/tc-wasm32.c \
 	config/tc-xstormy16.c \
 	config/tc-xc16x.c \
 	config/tc-xgate.c \
@@ -547,6 +549,7 @@ TARGET_CPU_HFILES = \
 	config/tc-pdp11.h \
 	config/tc-pj.h \
 	config/tc-ppc.h \
+	config/tc-pru.h \
 	config/tc-riscv.h \
 	config/tc-rl78.h \
 	config/tc-rx.h \
@@ -565,6 +568,7 @@ TARGET_CPU_HFILES = \
 	config/tc-v850.h \
 	config/tc-vax.h \
 	config/tc-visium.h \
+	config/tc-wasm32.h \
 	config/tc-xstormy16.h \
 	config/tc-xc16x.h \
 	config/tc-xgate.h \
@@ -906,6 +910,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-pdp11.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-pj.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-ppc.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-pru.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-riscv.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-rl78.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-rx.Po@am__quote@
@@ -924,6 +929,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-v850.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-vax.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-visium.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-wasm32.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-xc16x.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-xgate.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-xstormy16.Po@am__quote@
@@ -1627,6 +1633,20 @@ tc-ppc.obj: config/tc-ppc.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-ppc.obj `if test -f 'config/tc-ppc.c'; then $(CYGPATH_W) 'config/tc-ppc.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-ppc.c'; fi`
 
+tc-pru.o: config/tc-pru.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-pru.o -MD -MP -MF $(DEPDIR)/tc-pru.Tpo -c -o tc-pru.o `test -f 'config/tc-pru.c' || echo '$(srcdir)/'`config/tc-pru.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tc-pru.Tpo $(DEPDIR)/tc-pru.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='config/tc-pru.c' object='tc-pru.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-pru.o `test -f 'config/tc-pru.c' || echo '$(srcdir)/'`config/tc-pru.c
+
+tc-pru.obj: config/tc-pru.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-pru.obj -MD -MP -MF $(DEPDIR)/tc-pru.Tpo -c -o tc-pru.obj `if test -f 'config/tc-pru.c'; then $(CYGPATH_W) 'config/tc-pru.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-pru.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tc-pru.Tpo $(DEPDIR)/tc-pru.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='config/tc-pru.c' object='tc-pru.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-pru.obj `if test -f 'config/tc-pru.c'; then $(CYGPATH_W) 'config/tc-pru.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-pru.c'; fi`
+
 tc-riscv.o: config/tc-riscv.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-riscv.o -MD -MP -MF $(DEPDIR)/tc-riscv.Tpo -c -o tc-riscv.o `test -f 'config/tc-riscv.c' || echo '$(srcdir)/'`config/tc-riscv.c
 @am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tc-riscv.Tpo $(DEPDIR)/tc-riscv.Po
@@ -1878,6 +1898,20 @@ tc-visium.obj: config/tc-visium.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='config/tc-visium.c' object='tc-visium.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-visium.obj `if test -f 'config/tc-visium.c'; then $(CYGPATH_W) 'config/tc-visium.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-visium.c'; fi`
+
+tc-wasm32.o: config/tc-wasm32.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-wasm32.o -MD -MP -MF $(DEPDIR)/tc-wasm32.Tpo -c -o tc-wasm32.o `test -f 'config/tc-wasm32.c' || echo '$(srcdir)/'`config/tc-wasm32.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tc-wasm32.Tpo $(DEPDIR)/tc-wasm32.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='config/tc-wasm32.c' object='tc-wasm32.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-wasm32.o `test -f 'config/tc-wasm32.c' || echo '$(srcdir)/'`config/tc-wasm32.c
+
+tc-wasm32.obj: config/tc-wasm32.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-wasm32.obj -MD -MP -MF $(DEPDIR)/tc-wasm32.Tpo -c -o tc-wasm32.obj `if test -f 'config/tc-wasm32.c'; then $(CYGPATH_W) 'config/tc-wasm32.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-wasm32.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tc-wasm32.Tpo $(DEPDIR)/tc-wasm32.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='config/tc-wasm32.c' object='tc-wasm32.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-wasm32.obj `if test -f 'config/tc-wasm32.c'; then $(CYGPATH_W) 'config/tc-wasm32.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-wasm32.c'; fi`
 
 tc-xstormy16.o: config/tc-xstormy16.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-xstormy16.o -MD -MP -MF $(DEPDIR)/tc-xstormy16.Tpo -c -o tc-xstormy16.o `test -f 'config/tc-xstormy16.c' || echo '$(srcdir)/'`config/tc-xstormy16.c

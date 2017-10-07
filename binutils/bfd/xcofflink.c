@@ -829,8 +829,8 @@ xcoff_link_add_dynamic_symbols (bfd *abfd, struct bfd_link_info *info)
    if (info->output_bfd->xvec != abfd->xvec)
     {
       _bfd_error_handler
-	(_("%s: XCOFF shared object when not producing XCOFF output"),
-	 bfd_get_filename (abfd));
+	(_("%B: XCOFF shared object when not producing XCOFF output"),
+	 abfd);
       bfd_set_error (bfd_error_invalid_operation);
       return FALSE;
     }
@@ -850,8 +850,8 @@ xcoff_link_add_dynamic_symbols (bfd *abfd, struct bfd_link_info *info)
   if (lsec == NULL)
     {
       _bfd_error_handler
-	(_("%s: dynamic object with no .loader section"),
-	 bfd_get_filename (abfd));
+	(_("%B: dynamic object with no .loader section"),
+	 abfd);
       bfd_set_error (bfd_error_no_symbols);
       return FALSE;
     }

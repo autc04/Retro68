@@ -6,13 +6,15 @@
 #include <errno.h>
 
 size_t
-mbrlen(const char *s, size_t n, mbstate_t *ps)
+mbrlen(const char *__restrict s, size_t n, mbstate_t *__restrict ps)
 {
 #ifdef _MB_CAPABLE
   if (ps == NULL)
     {
-      _REENT_CHECK_MISC(_REENT);
-      ps = &(_REENT_MBRLEN_STATE(_REENT));
+      struct _reent *reent = _REENT;
+
+      _REENT_CHECK_MISC(reent);
+      ps = &(_REENT_MBRLEN_STATE(reent));
     }
 #endif
 

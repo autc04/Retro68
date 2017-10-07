@@ -793,8 +793,12 @@ _start:
 	vaeskeygenassist $7,(%rcx),%xmm6
 	vpcmpestri $7,%xmm4,%xmm6
 	vpcmpestri $7,(%rcx),%xmm6
+	vpcmpestriq $7,%xmm4,%xmm6
+	vpcmpestril $7,(%rcx),%xmm6
 	vpcmpestrm $7,%xmm4,%xmm6
 	vpcmpestrm $7,(%rcx),%xmm6
+	vpcmpestrmq $7,%xmm4,%xmm6
+	vpcmpestrml $7,(%rcx),%xmm6
 	vpcmpistri $7,%xmm4,%xmm6
 	vpcmpistri $7,(%rcx),%xmm6
 	vpcmpistrm $7,%xmm4,%xmm6

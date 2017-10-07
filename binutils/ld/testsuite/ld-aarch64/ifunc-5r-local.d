@@ -6,5 +6,5 @@
 Relocation section '.rela.text' at .*
 [ ]+Offset[ ]+Info[ ]+Type[ ]+.*
 [0-9a-f]+[ ]+[0-9a-f]+[ ]+R_AARCH64_(P32_|)CALL26[ ]+foo\(\)[ ]+foo \+ 0
-[0-9a-f]+[ ]+[0-9a-f]+[ ]+R_AARCH64_(P32_|)ADR_GOT_(PAGE|)[ ]+foo\(\)[ ]+foo \+ 0
-[0-9a-f]+[ ]+[0-9a-f]+[ ]+R_AARCH64_(P32_|)LD(64|32)_GOT(_LO1|)[ ]+foo\(\)[ ]+foo \+ 0
+[0-9a-f]+[ ]+[0-9a-f]+[ ]+.*ADR_GOT.*foo\(\)[ 	]+foo \+ 0
+[0-9a-f]+[ ]+[0-9a-f]+[ ]+.*LD(32|64)_GOT.*foo\(\)[ ]+foo \+ 0

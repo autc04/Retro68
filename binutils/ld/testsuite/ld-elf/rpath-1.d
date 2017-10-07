@@ -1,6 +1,6 @@
 #source: start.s
 #readelf: -d -W
-#ld: -shared -rpath .
+#ld: -shared -rpath=. --disable-new-dtags
 #target: *-*-linux* *-*-gnu*
 
 #failif

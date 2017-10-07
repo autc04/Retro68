@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,51 +23,52 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Aspects;  use Aspects;
-with Atree;    use Atree;
-with Checks;   use Checks;
-with Debug;    use Debug;
-with Einfo;    use Einfo;
-with Elists;   use Elists;
-with Errout;   use Errout;
-with Exp_Ch3;  use Exp_Ch3;
-with Exp_Ch7;  use Exp_Ch7;
-with Exp_Disp; use Exp_Disp;
-with Exp_Pakd; use Exp_Pakd;
-with Exp_Util; use Exp_Util;
-with Exp_Tss;  use Exp_Tss;
-with Fname;    use Fname;
-with Ghost;    use Ghost;
-with Layout;   use Layout;
-with Lib;      use Lib;
-with Namet;    use Namet;
-with Nlists;   use Nlists;
-with Nmake;    use Nmake;
-with Opt;      use Opt;
-with Restrict; use Restrict;
-with Rident;   use Rident;
-with Rtsfind;  use Rtsfind;
-with Sem;      use Sem;
-with Sem_Aux;  use Sem_Aux;
-with Sem_Cat;  use Sem_Cat;
-with Sem_Ch6;  use Sem_Ch6;
-with Sem_Ch7;  use Sem_Ch7;
-with Sem_Ch8;  use Sem_Ch8;
-with Sem_Ch13; use Sem_Ch13;
-with Sem_Eval; use Sem_Eval;
-with Sem_Mech; use Sem_Mech;
-with Sem_Prag; use Sem_Prag;
-with Sem_Res;  use Sem_Res;
-with Sem_Util; use Sem_Util;
-with Sinfo;    use Sinfo;
-with Snames;   use Snames;
-with Stand;    use Stand;
-with Targparm; use Targparm;
-with Tbuild;   use Tbuild;
-with Ttypes;   use Ttypes;
-with Uintp;    use Uintp;
-with Urealp;   use Urealp;
-with Warnsw;   use Warnsw;
+with Aspects;   use Aspects;
+with Atree;     use Atree;
+with Checks;    use Checks;
+with Contracts; use Contracts;
+with Debug;     use Debug;
+with Einfo;     use Einfo;
+with Elists;    use Elists;
+with Errout;    use Errout;
+with Exp_Ch3;   use Exp_Ch3;
+with Exp_Ch7;   use Exp_Ch7;
+with Exp_Disp;  use Exp_Disp;
+with Exp_Pakd;  use Exp_Pakd;
+with Exp_Util;  use Exp_Util;
+with Exp_Tss;   use Exp_Tss;
+with Fname;     use Fname;
+with Ghost;     use Ghost;
+with Layout;    use Layout;
+with Lib;       use Lib;
+with Namet;     use Namet;
+with Nlists;    use Nlists;
+with Nmake;     use Nmake;
+with Opt;       use Opt;
+with Restrict;  use Restrict;
+with Rident;    use Rident;
+with Rtsfind;   use Rtsfind;
+with Sem;       use Sem;
+with Sem_Aux;   use Sem_Aux;
+with Sem_Cat;   use Sem_Cat;
+with Sem_Ch6;   use Sem_Ch6;
+with Sem_Ch7;   use Sem_Ch7;
+with Sem_Ch8;   use Sem_Ch8;
+with Sem_Ch13;  use Sem_Ch13;
+with Sem_Eval;  use Sem_Eval;
+with Sem_Mech;  use Sem_Mech;
+with Sem_Prag;  use Sem_Prag;
+with Sem_Res;   use Sem_Res;
+with Sem_Util;  use Sem_Util;
+with Sinfo;     use Sinfo;
+with Snames;    use Snames;
+with Stand;     use Stand;
+with Targparm;  use Targparm;
+with Tbuild;    use Tbuild;
+with Ttypes;    use Ttypes;
+with Uintp;     use Uintp;
+with Urealp;    use Urealp;
+with Warnsw;    use Warnsw;
 
 package body Freeze is
 
@@ -108,6 +109,14 @@ package body Freeze is
    --  Comp_ADC_Present is set True if the component has a Scalar_Storage_Order
    --  attribute definition clause.
 
+   procedure Check_Debug_Info_Needed (T : Entity_Id);
+   --  As each entity is frozen, this routine is called to deal with the
+   --  setting of Debug_Info_Needed for the entity. This flag is set if
+   --  the entity comes from source, or if we are in Debug_Generated_Code
+   --  mode or if the -gnatdV debug flag is set. However, it never sets
+   --  the flag if Debug_Info_Off is set. This procedure also ensures that
+   --  subsidiary entities have the flag set as required.
+
    procedure Check_Expression_Function (N : Node_Id; Nam : Entity_Id);
    --  When an expression function is frozen by a use of it, the expression
    --  itself is frozen. Check that the expression does not include references
@@ -118,6 +127,11 @@ package body Freeze is
    --  itself is frozen, because the formals will be frozen by then. However,
    --  Attribute references to outer types are freeze points for those types;
    --  this routine generates the required freeze nodes for them.
+
+   procedure Check_Inherited_Conditions (R : Entity_Id);
+   --  For a tagged derived type, create wrappers for inherited operations
+   --  that have a class-wide condition, so it can be properly rewritten if
+   --  it involves calls to other overriding primitives.
 
    procedure Check_Strict_Alignment (E : Entity_Id);
    --  E is a base type. If E is tagged or has a component that is aliased
@@ -185,14 +199,6 @@ package body Freeze is
    --  Typ is a record or array type that is being frozen. This routine sets
    --  the default component alignment from the scope stack values if the
    --  alignment is otherwise not specified.
-
-   procedure Check_Debug_Info_Needed (T : Entity_Id);
-   --  As each entity is frozen, this routine is called to deal with the
-   --  setting of Debug_Info_Needed for the entity. This flag is set if
-   --  the entity comes from source, or if we are in Debug_Generated_Code
-   --  mode or if the -gnatdV debug flag is set. However, it never sets
-   --  the flag if Debug_Info_Off is set. This procedure also ensures that
-   --  subsidiary entities have the flag set as required.
 
    procedure Set_SSO_From_Default (T : Entity_Id);
    --  T is a record or array type that is being frozen. If it is a base type,
@@ -745,9 +751,9 @@ package body Freeze is
    procedure Check_Compile_Time_Size (T : Entity_Id) is
 
       procedure Set_Small_Size (T : Entity_Id; S : Uint);
-      --  Sets the compile time known size (32 bits or less) in the Esize
-      --  field, of T checking for a size clause that was given which attempts
-      --  to give a smaller size, and also checking for an alignment clause.
+      --  Sets the compile time known size (64 bits or less) in the RM_Size
+      --  field of T, checking for a size clause that was given which attempts
+      --  to give a smaller size.
 
       function Size_Known (T : Entity_Id) return Boolean;
       --  Recursive function that does all the work
@@ -765,7 +771,7 @@ package body Freeze is
 
       procedure Set_Small_Size (T : Entity_Id; S : Uint) is
       begin
-         if S > 32 then
+         if S > 64 then
             return;
 
          --  Check for bad size clause given
@@ -800,14 +806,12 @@ package body Freeze is
          if Size_Known_At_Compile_Time (T) then
             return True;
 
-         --  Always True for scalar types. This is true even for generic formal
-         --  scalar types. We used to return False in the latter case, but the
-         --  size is known at compile time, even in the template, we just do
-         --  not know the exact size but that's not the point of this routine.
+         --  Always True for elementary types, even generic formal elementary
+         --  types. We used to return False in the latter case, but the size
+         --  is known at compile time, even in the template, we just do not
+         --  know the exact size but that's not the point of this routine.
 
-         elsif Is_Scalar_Type (T)
-           or else Is_Task_Type (T)
-         then
+         elsif Is_Elementary_Type (T) or else Is_Task_Type (T) then
             return True;
 
          --  Array types
@@ -817,8 +821,8 @@ package body Freeze is
             --  String literals always have known size, and we can set it
 
             if Ekind (T) = E_String_Literal_Subtype then
-               Set_Small_Size (T, Component_Size (T)
-                               * String_Literal_Length (T));
+               Set_Small_Size
+                 (T, Component_Size (T) * String_Literal_Length (T));
                return True;
 
             --  Unconstrained types never have known at compile time size
@@ -839,10 +843,10 @@ package body Freeze is
             end if;
 
             --  Check for all indexes static, and also compute possible size
-            --  (in case it is less than 32 and may be packable).
+            --  (in case it is not greater than 64 and may be packable).
 
             declare
-               Esiz : Uint := Component_Size (T);
+               Size : Uint := Component_Size (T);
                Dim  : Uint;
 
             begin
@@ -869,23 +873,18 @@ package body Freeze is
                      Dim := Expr_Value (High) - Expr_Value (Low) + 1;
 
                      if Dim >= 0 then
-                        Esiz := Esiz * Dim;
+                        Size := Size * Dim;
                      else
-                        Esiz := Uint_0;
+                        Size := Uint_0;
                      end if;
                   end if;
 
                   Next_Index (Index);
                end loop;
 
-               Set_Small_Size (T, Esiz);
+               Set_Small_Size (T, Size);
                return True;
             end;
-
-         --  Access types always have known at compile time sizes
-
-         elsif Is_Access_Type (T) then
-            return True;
 
          --  For non-generic private types, go to underlying type if present
 
@@ -1074,11 +1073,10 @@ package body Freeze is
 
                   if Packed_Size_Known then
 
-                     --  We can only deal with elementary types, since for
-                     --  non-elementary components, alignment enters into the
-                     --  picture, and we don't know enough to handle proper
-                     --  alignment in this context. Packed arrays count as
-                     --  elementary if the representation is a modular type.
+                     --  We can deal with elementary types, small packed arrays
+                     --  if the representation is a modular type and also small
+                     --  record types (if the size is not greater than 64, but
+                     --  the condition is checked by Set_Small_Size).
 
                      if Is_Elementary_Type (Ctyp)
                        or else (Is_Array_Type (Ctyp)
@@ -1086,33 +1084,14 @@ package body Freeze is
                                             (Packed_Array_Impl_Type (Ctyp))
                                  and then Is_Modular_Integer_Type
                                             (Packed_Array_Impl_Type (Ctyp)))
+                       or else Is_Record_Type (Ctyp)
                      then
-                        --  Packed size unknown if we have an atomic/VFA type
-                        --  or a by-reference type, since the back end knows
-                        --  how these are layed out.
-
-                        if Is_Atomic_Or_VFA (Ctyp)
-                          or else Is_By_Reference_Type (Ctyp)
-                        then
-                           Packed_Size_Known := False;
-
                         --  If RM_Size is known and static, then we can keep
-                        --  accumulating the packed size
+                        --  accumulating the packed size.
 
-                        elsif Known_Static_RM_Size (Ctyp) then
+                        if Known_Static_RM_Size (Ctyp) then
 
-                           --  A little glitch, to be removed sometime ???
-                           --  gigi does not understand zero sizes yet.
-
-                           if RM_Size (Ctyp) = Uint_0 then
-                              Packed_Size_Known := False;
-
-                           --  Normal case where we can keep accumulating the
-                           --  packed array size.
-
-                           else
-                              Packed_Size := Packed_Size + RM_Size (Ctyp);
-                           end if;
+                           Packed_Size := Packed_Size + RM_Size (Ctyp);
 
                         --  If we have a field whose RM_Size is not known then
                         --  we can't figure out the packed size here.
@@ -1121,8 +1100,7 @@ package body Freeze is
                            Packed_Size_Known := False;
                         end if;
 
-                     --  If we have a non-elementary type we can't figure out
-                     --  the packed array size (alignment issues).
+                     --  For other types we can't figure out the packed size
 
                      else
                         Packed_Size_Known := False;
@@ -1189,9 +1167,12 @@ package body Freeze is
       ADC              : Node_Id;
       Comp_ADC_Present : out Boolean)
    is
-      Comp_Type : Entity_Id;
+      Comp_Base : Entity_Id;
       Comp_ADC  : Node_Id;
+      Encl_Base : Entity_Id;
       Err_Node  : Node_Id;
+
+      Component_Aliased : Boolean;
 
       Comp_Byte_Aligned : Boolean;
       --  Set for the record case, True if Comp starts on a byte boundary
@@ -1201,14 +1182,12 @@ package body Freeze is
       --  Set True when the component is a nested composite, and it does not
       --  have the same scalar storage order as Encl_Type.
 
-      Component_Aliased : Boolean;
-
    begin
       --  Record case
 
       if Present (Comp) then
          Err_Node  := Comp;
-         Comp_Type := Etype (Comp);
+         Comp_Base := Etype (Comp);
 
          if Is_Tag (Comp) then
             Comp_Byte_Aligned := True;
@@ -1233,32 +1212,42 @@ package body Freeze is
 
       else
          Err_Node  := Encl_Type;
-         Comp_Type := Component_Type (Encl_Type);
+         Comp_Base := Component_Type (Encl_Type);
 
          Component_Aliased := Has_Aliased_Components (Encl_Type);
       end if;
 
       --  Note: the Reverse_Storage_Order flag is set on the base type, but
       --  the attribute definition clause is attached to the first subtype.
+      --  Also, if the base type is incomplete or private, go to full view
+      --  if known
 
-      Comp_Type := Base_Type (Comp_Type);
-      Comp_ADC := Get_Attribute_Definition_Clause
-                    (First_Subtype (Comp_Type),
-                     Attribute_Scalar_Storage_Order);
+      Encl_Base := Base_Type (Encl_Type);
+      if Present (Underlying_Type (Encl_Base)) then
+         Encl_Base := Underlying_Type (Encl_Base);
+      end if;
+
+      Comp_Base := Base_Type (Comp_Base);
+      if Present (Underlying_Type (Comp_Base)) then
+         Comp_Base := Underlying_Type (Comp_Base);
+      end if;
+
+      Comp_ADC :=
+        Get_Attribute_Definition_Clause
+          (First_Subtype (Comp_Base), Attribute_Scalar_Storage_Order);
       Comp_ADC_Present := Present (Comp_ADC);
 
       --  Case of record or array component: check storage order compatibility.
       --  But, if the record has Complex_Representation, then it is treated as
       --  a scalar in the back end so the storage order is irrelevant.
 
-      if (Is_Record_Type (Comp_Type)
-            and then not Has_Complex_Representation (Comp_Type))
-        or else Is_Array_Type (Comp_Type)
+      if (Is_Record_Type (Comp_Base)
+            and then not Has_Complex_Representation (Comp_Base))
+        or else Is_Array_Type (Comp_Base)
       then
          Comp_SSO_Differs :=
-           Reverse_Storage_Order (Encl_Type)
-             /=
-           Reverse_Storage_Order (Comp_Type);
+           Reverse_Storage_Order (Encl_Base) /=
+             Reverse_Storage_Order (Comp_Base);
 
          --  Parent and extension must have same storage order
 
@@ -1269,43 +1258,44 @@ package body Freeze is
                   & "parent", Err_Node);
             end if;
 
-         --  If enclosing composite has explicit SSO then nested composite must
-         --  have explicit SSO as well.
-
-         elsif Present (ADC) and then No (Comp_ADC) then
-            Error_Msg_N ("nested composite must have explicit scalar "
-                         & "storage order", Err_Node);
-
          --  If component and composite SSO differs, check that component
-         --  falls on byte boundaries and isn't packed.
+         --  falls on byte boundaries and isn't bit packed.
 
          elsif Comp_SSO_Differs then
 
             --  Component SSO differs from enclosing composite:
 
-            --  Reject if component is a packed array, as it may be represented
+            --  Reject if component is a bit-packed array, as it is represented
             --  as a scalar internally.
 
-            if Is_Packed_Array (Comp_Type) then
+            if Is_Bit_Packed_Array (Comp_Base) then
                Error_Msg_N
-                 ("type of packed component must have same scalar "
-                  & "storage order as enclosing composite", Err_Node);
+                 ("type of packed component must have same scalar storage "
+                  & "order as enclosing composite", Err_Node);
 
-            --  Reject if composite is a packed array, as it may be rewritten
+            --  Reject if composite is a bit-packed array, as it is rewritten
             --  into an array of scalars.
 
-            elsif Is_Packed_Array (Encl_Type) then
-               Error_Msg_N ("type of packed array must have same scalar "
-                  & "storage order as component", Err_Node);
+            elsif Is_Bit_Packed_Array (Encl_Base) then
+               Error_Msg_N
+                 ("type of packed array must have same scalar storage order "
+                  & "as component", Err_Node);
 
             --  Reject if not byte aligned
 
-            elsif Is_Record_Type (Encl_Type)
-                    and then not Comp_Byte_Aligned
+            elsif Is_Record_Type (Encl_Base)
+              and then not Comp_Byte_Aligned
             then
                Error_Msg_N
                  ("type of non-byte-aligned component must have same scalar "
                   & "storage order as enclosing composite", Err_Node);
+
+            --  Warn if specified only for the outer composite
+
+            elsif Present (ADC) and then No (Comp_ADC) then
+               Error_Msg_NE
+                 ("scalar storage order specified for & does not apply to "
+                  & "component?", Err_Node, Encl_Base);
             end if;
          end if;
 
@@ -1314,8 +1304,8 @@ package body Freeze is
 
       elsif Present (ADC) and then Component_Aliased then
          Error_Msg_N
-           ("aliased component not permitted for type with "
-            & "explicit Scalar_Storage_Order", Err_Node);
+           ("aliased component not permitted for type with explicit "
+            & "Scalar_Storage_Order", Err_Node);
       end if;
    end Check_Component_Storage_Order;
 
@@ -1342,8 +1332,6 @@ package body Freeze is
    -------------------------------
 
    procedure Check_Expression_Function (N : Node_Id; Nam : Entity_Id) is
-      Decl : Node_Id;
-
       function Find_Constant (Nod : Node_Id) return Traverse_Result;
       --  Function to search for deferred constant
 
@@ -1366,6 +1354,7 @@ package body Freeze is
                                                          N_Object_Declaration
            and then not Is_Imported (Entity (Nod))
            and then not Has_Completion (Entity (Nod))
+           and then not Is_Frozen (Entity (Nod))
          then
             Error_Msg_NE
               ("premature use of& in call or instance", N, Entity (Nod));
@@ -1385,6 +1374,10 @@ package body Freeze is
 
       procedure Check_Deferred is new Traverse_Proc (Find_Constant);
 
+      --  Local variables
+
+      Decl : Node_Id;
+
    --  Start of processing for Check_Expression_Function
 
    begin
@@ -1396,6 +1389,96 @@ package body Freeze is
          Check_Deferred (Expression (Decl));
       end if;
    end Check_Expression_Function;
+
+   --------------------------------
+   -- Check_Inherited_Conditions --
+   --------------------------------
+
+   procedure Check_Inherited_Conditions (R : Entity_Id) is
+      Prim_Ops : constant Elist_Id := Primitive_Operations (R);
+      A_Post   : Node_Id;
+      A_Pre    : Node_Id;
+      Op_Node  : Elmt_Id;
+      Par_Prim : Entity_Id;
+      Prim     : Entity_Id;
+
+   begin
+      Op_Node := First_Elmt (Prim_Ops);
+      while Present (Op_Node) loop
+         Prim := Node (Op_Node);
+
+         --  Map the overridden primitive to the overriding one. This takes
+         --  care of all overridings and is done only once.
+
+         if Present (Overridden_Operation (Prim))
+           and then Comes_From_Source (Prim)
+         then
+            Update_Primitives_Mapping (Overridden_Operation (Prim), Prim);
+
+            --  In SPARK mode this is where we can collect the inherited
+            --  conditions, because we do not create the Check pragmas that
+            --  normally convey the the modified class-wide conditions on
+            --  overriding operations.
+
+            if SPARK_Mode = On then
+
+               --  Analyze the contract items of the parent operation, before
+               --  they are rewritten when inherited.
+
+               Analyze_Entry_Or_Subprogram_Contract
+                 (Overridden_Operation (Prim));
+
+               --  Now verify the legality of inherited contracts for LSP
+               --  conformance.
+
+               Collect_Inherited_Class_Wide_Conditions (Prim);
+            end if;
+         end if;
+
+         Next_Elmt (Op_Node);
+      end loop;
+
+      --  In all cases, we examine inherited operations to check whether they
+      --  require a wrapper to handle inherited conditions that call other
+      --  primitives, so that LSP can be verified/enforced.
+
+      --  Wrapper construction TBD.
+
+      Op_Node := First_Elmt (Prim_Ops);
+      while Present (Op_Node) loop
+         Prim := Node (Op_Node);
+         if not Comes_From_Source (Prim) and then Present (Alias (Prim)) then
+            Par_Prim := Alias (Prim);
+
+            --  Analyze the contract items of the parent operation, before
+            --  they are rewritten when inherited.
+
+            Analyze_Entry_Or_Subprogram_Contract (Par_Prim);
+
+            A_Pre := Get_Pragma (Par_Prim, Pragma_Precondition);
+
+            if Present (A_Pre) and then Class_Present (A_Pre) then
+               Build_Class_Wide_Expression
+                 (Prag        => New_Copy_Tree (A_Pre),
+                  Subp        => Prim,
+                  Par_Subp    => Par_Prim,
+                  Adjust_Sloc => False);
+            end if;
+
+            A_Post := Get_Pragma (Par_Prim, Pragma_Postcondition);
+
+            if Present (A_Post) and then Class_Present (A_Post) then
+               Build_Class_Wide_Expression
+                 (Prag        => New_Copy_Tree (A_Post),
+                  Subp        => Prim,
+                  Par_Subp    => Par_Prim,
+                  Adjust_Sloc => False);
+            end if;
+         end if;
+
+         Next_Elmt (Op_Node);
+      end loop;
+   end Check_Inherited_Conditions;
 
    ----------------------------
    -- Check_Strict_Alignment --
@@ -1608,9 +1691,6 @@ package body Freeze is
    --  as they are generated.
 
    procedure Freeze_All (From : Entity_Id; After : in out Node_Id) is
-      E     : Entity_Id;
-      Decl  : Node_Id;
-
       procedure Freeze_All_Ent (From : Entity_Id; After : in out Node_Id);
       --  This is the internal recursive routine that does freezing of entities
       --  (but NOT the analysis of default expressions, which should not be
@@ -1668,9 +1748,9 @@ package body Freeze is
               and then not Is_Frozen (E)
             then
                Push_Scope (E);
+
                Install_Visible_Declarations (E);
                Install_Private_Declarations (E);
-
                Freeze_All (First_Entity (E), After);
 
                End_Package_Scope (E);
@@ -1683,8 +1763,8 @@ package body Freeze is
                end if;
 
             elsif Ekind (E) in Task_Kind
-              and then Nkind_In (Parent (E), N_Task_Type_Declaration,
-                                             N_Single_Task_Declaration)
+              and then Nkind_In (Parent (E), N_Single_Task_Declaration,
+                                             N_Task_Type_Declaration)
             then
                Push_Scope (E);
                Freeze_All (First_Entity (E), After);
@@ -1783,10 +1863,10 @@ package body Freeze is
                   --  current package, but this body does not freeze incomplete
                   --  types that may be declared in this private part.
 
-                  if (Nkind_In (Bod, N_Subprogram_Body,
-                                     N_Entry_Body,
+                  if (Nkind_In (Bod, N_Entry_Body,
                                      N_Package_Body,
                                      N_Protected_Body,
+                                     N_Subprogram_Body,
                                      N_Task_Body)
                         or else Nkind (Bod) in N_Body_Stub)
                     and then
@@ -1804,6 +1884,12 @@ package body Freeze is
             Next_Entity (E);
          end loop;
       end Freeze_All_Ent;
+
+      --  Local variables
+
+      Decl : Node_Id;
+      E    : Entity_Id;
+      Item : Entity_Id;
 
    --  Start of processing for Freeze_All
 
@@ -1845,33 +1931,28 @@ package body Freeze is
                elsif Nkind (Decl) = N_Subprogram_Declaration
                  and then Present (Corresponding_Body (Decl))
                  and then
-                   Nkind (Unit_Declaration_Node (Corresponding_Body (Decl)))
-                                          = N_Subprogram_Renaming_Declaration
+                   Nkind (Unit_Declaration_Node (Corresponding_Body (Decl))) =
+                     N_Subprogram_Renaming_Declaration
                then
                   Build_And_Analyze_Renamed_Body
                     (Decl, Corresponding_Body (Decl), After);
                end if;
             end if;
 
-         elsif Ekind (E) in Task_Kind
-           and then Nkind_In (Parent (E), N_Task_Type_Declaration,
-                                          N_Single_Task_Declaration)
-         then
-            declare
-               Ent : Entity_Id;
+         --  Freeze the default expressions of entries, entry families, and
+         --  protected subprograms.
 
-            begin
-               Ent := First_Entity (E);
-               while Present (Ent) loop
-                  if Is_Entry (Ent)
-                    and then not Default_Expressions_Processed (Ent)
-                  then
-                     Process_Default_Expressions (Ent, After);
-                  end if;
+         elsif Is_Concurrent_Type (E) then
+            Item := First_Entity (E);
+            while Present (Item) loop
+               if (Is_Entry (Item) or else Is_Subprogram (Item))
+                 and then not Default_Expressions_Processed (Item)
+               then
+                  Process_Default_Expressions (Item, After);
+               end if;
 
-                  Next_Entity (Ent);
-               end loop;
-            end;
+               Next_Entity (Item);
+            end loop;
          end if;
 
          --  Historical note: We used to create a finalization master for an
@@ -1908,8 +1989,17 @@ package body Freeze is
    -- Freeze_Before --
    -------------------
 
-   procedure Freeze_Before (N : Node_Id; T : Entity_Id) is
-      Freeze_Nodes : constant List_Id := Freeze_Entity (T, N);
+   procedure Freeze_Before
+     (N                 : Node_Id;
+      T                 : Entity_Id;
+      Do_Freeze_Profile : Boolean := True)
+   is
+      --  Freeze T, then insert the generated Freeze nodes before the node N.
+      --  Flag Freeze_Profile is used when T is an overloadable entity, and
+      --  indicates whether its profile should be frozen at the same time.
+
+      Freeze_Nodes : constant List_Id :=
+                       Freeze_Entity (T, N, Do_Freeze_Profile);
 
    begin
       if Ekind (T) = E_Function then
@@ -1925,7 +2015,15 @@ package body Freeze is
    -- Freeze_Entity --
    -------------------
 
-   function Freeze_Entity (E : Entity_Id; N : Node_Id) return List_Id is
+   --  WARNING: This routine manages Ghost regions. Return statements must be
+   --  replaced by gotos which jump to the end of the routine and restore the
+   --  Ghost mode.
+
+   function Freeze_Entity
+     (E                 : Entity_Id;
+      N                 : Node_Id;
+      Do_Freeze_Profile : Boolean := True) return List_Id
+   is
       Loc    : constant Source_Ptr := Sloc (N);
       Atype  : Entity_Id;
       Comp   : Entity_Id;
@@ -1935,9 +2033,6 @@ package body Freeze is
 
       Has_Default_Initialization : Boolean := False;
       --  This flag gets set to true for a variable with default initialization
-
-      Late_Freezing : Boolean := False;
-      --  Used to detect attempt to freeze function declared in another unit
 
       Result : List_Id := No_List;
       --  List of freezing actions, left at No_List if none
@@ -1957,6 +2052,13 @@ package body Freeze is
       --  which is the current instance type can only be applied when the type
       --  is limited.
 
+      procedure Check_Suspicious_Convention (Rec_Type : Entity_Id);
+      --  Give a warning for pragma Convention with language C or C++ applied
+      --  to a discriminated record type. This is suppressed for the unchecked
+      --  union case, since the whole point in this case is interface C. We
+      --  also do not generate this within instantiations, since we will have
+      --  generated a message on the template.
+
       procedure Check_Suspicious_Modulus (Utype : Entity_Id);
       --  Give warning for modulus of 8, 16, 32, or 64 given as an explicit
       --  integer literal without an explicit corresponding size clause. The
@@ -1975,9 +2077,8 @@ package body Freeze is
 
       function Freeze_Profile (E : Entity_Id) return Boolean;
       --  Freeze formals and return type of subprogram. If some type in the
-      --  profile is a limited view, freezing of the entity will take place
-      --  elsewhere, and the function returns False. This routine will be
-      --  modified if and when we can implement AI05-019 efficiently ???
+      --  profile is incomplete and we are in an instance, freezing of the
+      --  entity will take place elsewhere, and the function returns False.
 
       procedure Freeze_Record_Type (Rec : Entity_Id);
       --  Freeze record type, including freezing component types, and freezing
@@ -1987,15 +2088,11 @@ package body Freeze is
       --  Determine whether an arbitrary entity is subject to Boolean aspect
       --  Import and its value is specified as True.
 
-      procedure Late_Freeze_Subprogram (E : Entity_Id);
-      --  Following AI05-151, a function can return a limited view of a type
-      --  declared elsewhere. In that case the function cannot be frozen at
-      --  the end of its enclosing package. If its first use is in a different
-      --  unit, it cannot be frozen there, but if the call is legal the full
-      --  view of the return type is available and the subprogram can now be
-      --  frozen. However the freeze node cannot be inserted at the point of
-      --  call, but rather must go in the package holding the function, so that
-      --  the backend can process it in the proper context.
+      procedure Inherit_Freeze_Node
+        (Fnod : Node_Id;
+         Typ  : Entity_Id);
+      --  Set type Typ's freeze node to refer to Fnode. This routine ensures
+      --  that any attributes attached to Typ's original node are preserved.
 
       procedure Wrap_Imported_Subprogram (E : Entity_Id);
       --  If E is an entity for an imported subprogram with pre/post-conditions
@@ -2160,7 +2257,8 @@ package body Freeze is
                      return OK;
                   end if;
 
-               when others => return OK;
+               when others =>
+                  return OK;
             end case;
          end Process;
 
@@ -2178,6 +2276,49 @@ package body Freeze is
             Traverse (Comp_Decl);
          end if;
       end Check_Current_Instance;
+
+      ---------------------------------
+      -- Check_Suspicious_Convention --
+      ---------------------------------
+
+      procedure Check_Suspicious_Convention (Rec_Type : Entity_Id) is
+      begin
+         if Has_Discriminants (Rec_Type)
+           and then Is_Base_Type (Rec_Type)
+           and then not Is_Unchecked_Union (Rec_Type)
+           and then (Convention (Rec_Type) = Convention_C
+                       or else
+                     Convention (Rec_Type) = Convention_CPP)
+           and then Comes_From_Source (Rec_Type)
+           and then not In_Instance
+           and then not Has_Warnings_Off (Rec_Type)
+         then
+            declare
+               Cprag : constant Node_Id :=
+                         Get_Rep_Pragma (Rec_Type, Name_Convention);
+               A2    : Node_Id;
+
+            begin
+               if Present (Cprag) then
+                  A2 := Next (First (Pragma_Argument_Associations (Cprag)));
+
+                  if Convention (Rec_Type) = Convention_C then
+                     Error_Msg_N
+                       ("?x?discriminated record has no direct equivalent in "
+                        & "C", A2);
+                  else
+                     Error_Msg_N
+                       ("?x?discriminated record has no direct equivalent in "
+                        & "C++", A2);
+                  end if;
+
+                  Error_Msg_NE
+                    ("\?x?use of convention for type& is dubious",
+                     A2, Rec_Type);
+               end if;
+            end;
+         end if;
+      end Check_Suspicious_Convention;
 
       ------------------------------
       -- Check_Suspicious_Modulus --
@@ -2304,6 +2445,26 @@ package body Freeze is
                Set_Has_Unchecked_Union (Arr);
             end if;
 
+            --  The array type requires its own invariant procedure in order to
+            --  verify the component invariant over all elements. In GNATprove
+            --  mode, the component invariants are checked by other means. They
+            --  should not be added to the array type invariant procedure, so
+            --  that the procedure can be used to check the array type
+            --  invariants if any.
+
+            if Has_Invariants (Component_Type (Arr))
+              and then not GNATprove_Mode
+            then
+               Set_Has_Own_Invariants (Arr);
+
+               --  The array type is an implementation base type. Propagate the
+               --  same property to the first subtype.
+
+               if Is_Itype (Arr) then
+                  Set_Has_Own_Invariants (First_Subtype (Arr));
+               end if;
+            end if;
+
             --  Warn for pragma Pack overriding foreign convention
 
             if Has_Foreign_Convention (Ctyp)
@@ -2385,7 +2546,7 @@ package body Freeze is
                   end if;
                end if;
 
-               --  Case of component size that may result in packing
+               --  Case of component size that may result in bit packing
 
                if 1 <= Csiz and then Csiz <= 64 then
                   declare
@@ -2450,42 +2611,55 @@ package body Freeze is
                         end if;
                      end if;
 
-                     --  Actual packing is not needed for 8, 16, 32, 64. Also
-                     --  not needed for 24 if alignment is 1.
+                     --  Bit packing is never needed for 8, 16, 32, 64
 
-                     if        Csiz = 8
-                       or else Csiz = 16
-                       or else Csiz = 32
-                       or else Csiz = 64
-                       or else (Csiz = 24 and then Alignment (Ctyp) = 1)
-                     then
-                        --  Here the array was requested to be packed, but
-                        --  the packing request had no effect, so Is_Packed
-                        --  is reset.
+                     if Addressable (Csiz) then
 
-                        --  Note: semantically this means that we lose track
-                        --  of the fact that a derived type inherited a pragma
-                        --  Pack that was non- effective, but that seems fine.
-
-                        --  We regard a Pack pragma as a request to set a
-                        --  representation characteristic, and this request
-                        --  may be ignored.
-
-                        Set_Is_Packed           (Base_Type (Arr), False);
-                        Set_Is_Bit_Packed_Array (Base_Type (Arr), False);
+                        --  If the Esize of the component is known and equal to
+                        --  the component size then even packing is not needed.
 
                         if Known_Static_Esize (Component_Type (Arr))
                           and then Esize (Component_Type (Arr)) = Csiz
                         then
+                           --  Here the array was requested to be packed, but
+                           --  the packing request had no effect whatsoever,
+                           --  so flag Is_Packed is reset.
+
+                           --  Note: semantically this means that we lose track
+                           --  of the fact that a derived type inherited pragma
+                           --  Pack that was non-effective, but that is fine.
+
+                           --  We regard a Pack pragma as a request to set a
+                           --  representation characteristic, and this request
+                           --  may be ignored.
+
+                           Set_Is_Packed            (Base_Type (Arr), False);
                            Set_Has_Non_Standard_Rep (Base_Type (Arr), False);
+                        else
+                           Set_Is_Packed            (Base_Type (Arr), True);
+                           Set_Has_Non_Standard_Rep (Base_Type (Arr), True);
                         end if;
 
-                        --  In all other cases, packing is indeed needed
+                        Set_Is_Bit_Packed_Array (Base_Type (Arr), False);
+
+                     --  Bit packing is not needed for multiples of the storage
+                     --  unit if the type is composite because the back end can
+                     --  byte pack composite types.
+
+                     elsif Csiz mod System_Storage_Unit = 0
+                       and then Is_Composite_Type (Ctyp)
+                     then
+
+                        Set_Is_Packed            (Base_Type (Arr), True);
+                        Set_Has_Non_Standard_Rep (Base_Type (Arr), True);
+                        Set_Is_Bit_Packed_Array  (Base_Type (Arr), False);
+
+                     --  In all other cases, bit packing is needed
 
                      else
+                        Set_Is_Packed            (Base_Type (Arr), True);
                         Set_Has_Non_Standard_Rep (Base_Type (Arr), True);
                         Set_Is_Bit_Packed_Array  (Base_Type (Arr), True);
-                        Set_Is_Packed            (Base_Type (Arr), True);
                      end if;
                   end;
                end if;
@@ -2686,7 +2860,7 @@ package body Freeze is
 
          if Is_Bit_Packed_Array (Arr) then
 
-            --  Check number of elements for bit packed arrays that come from
+            --  Check number of elements for bit-packed arrays that come from
             --  source and have compile time known ranges. The bit-packed
             --  arrays circuitry does not support arrays with more than
             --  Integer'Last + 1 elements, and when this restriction is
@@ -2768,7 +2942,7 @@ package body Freeze is
 
          --  If any of the index types was an enumeration type with a non-
          --  standard rep clause, then we indicate that the array type is
-         --  always packed (even if it is not bit packed).
+         --  always packed (even if it is not bit-packed).
 
          if Non_Standard_Enum then
             Set_Has_Non_Standard_Rep (Base_Type (Arr));
@@ -2777,12 +2951,14 @@ package body Freeze is
 
          Set_Component_Alignment_If_Not_Set (Arr);
 
-         --  If the array is packed, we must create the packed array type to be
-         --  used to actually implement the type. This is only needed for real
-         --  array types (not for string literal types, since they are present
-         --  only for the front end).
+         --  If the array is packed and bit-packed or packed to eliminate holes
+         --  in the non-contiguous enumeration index types, we must create the
+         --  packed array type to be used to actually implement the type. This
+         --  is only needed for real array types (not for string literal types,
+         --  since they are present only for the front end).
 
          if Is_Packed (Arr)
+           and then (Is_Bit_Packed_Array (Arr) or else Non_Standard_Enum)
            and then Ekind (Arr) /= E_String_Literal_Subtype
          then
             Create_Packed_Array_Impl_Type (Arr);
@@ -3285,23 +3461,15 @@ package body Freeze is
 
          if Ekind (E) = E_Function then
 
-            --  Check whether function is declared elsewhere.
-
-            Late_Freezing :=
-              Get_Source_Unit (E) /= Get_Source_Unit (N)
-                and then Returns_Limited_View (E)
-                and then not In_Open_Scopes (Scope (E));
-
             --  Freeze return type
 
             R_Type := Etype (E);
 
-            --  AI05-0151: the return type may have been incomplete
-            --  at the point of declaration. Replace it with the full
-            --  view, unless the current type is a limited view. In
-            --  that case the full view is in a different unit, and
-            --  gigi finds the non-limited view after the other unit
-            --  is elaborated.
+            --  AI05-0151: the return type may have been incomplete at the
+            --  point of declaration. Replace it with the full view, unless the
+            --  current type is a limited view. In that case the full view is
+            --  in a different unit, and gigi finds the non-limited view after
+            --  the other unit is elaborated.
 
             if Ekind (R_Type) = E_Incomplete_Type
               and then Present (Full_View (R_Type))
@@ -3309,24 +3477,6 @@ package body Freeze is
             then
                R_Type := Full_View (R_Type);
                Set_Etype (E, R_Type);
-
-            --  If the return type is a limited view and the non-limited
-            --  view is still incomplete, the function has to be frozen at a
-            --  later time. If the function is abstract there is no place at
-            --  which the full view will become available, and no code to be
-            --  generated for it, so mark type as frozen.
-
-            elsif Ekind (R_Type) = E_Incomplete_Type
-              and then From_Limited_With (R_Type)
-              and then Ekind (Non_Limited_View (R_Type)) = E_Incomplete_Type
-            then
-               if Is_Abstract_Subprogram (E) then
-                  null;
-               else
-                  Set_Is_Frozen (E, False);
-                  Set_Returns_Limited_View (E);
-                  return False;
-               end if;
             end if;
 
             Freeze_And_Append (R_Type, N, Result);
@@ -3346,8 +3496,9 @@ package body Freeze is
                  and then not Has_Warnings_Off (E)
                  and then not Has_Warnings_Off (R_Type)
                then
-                  Error_Msg_N ("?x?return type of& does not "
-                     & "correspond to C pointer!", E);
+                  Error_Msg_N
+                    ("?x?return type of& does not correspond to C pointer!",
+                     E);
 
                --  Check suspicious return of boolean
 
@@ -3463,8 +3614,8 @@ package body Freeze is
 
            and then Convention (E) /= Convention_Intrinsic
 
-            --  Assume that ASM interface knows what it is doing. This deals
-            --  with unsigned.ads in the AAMP back end.
+           --  Assume that ASM interface knows what it is doing. This deals
+           --  with e.g. unsigned.ads in the AAMP back end.
 
            and then Convention (E) /= Convention_Assembler
          then
@@ -3491,39 +3642,49 @@ package body Freeze is
          Junk : Boolean;
          pragma Warnings (Off, Junk);
 
-         Rec_Pushed : Boolean := False;
-         --  Set True if the record type scope Rec has been pushed on the scope
-         --  stack. Needed for the analysis of delayed aspects specified to the
-         --  components of Rec.
+         Aliased_Component : Boolean := False;
+         --  Set True if we find at least one component which is aliased. This
+         --  is used to prevent Implicit_Packing of the record, since packing
+         --  cannot modify the size of alignment of an aliased component.
 
-         SSO_ADC : Node_Id;
-         --  Scalar_Storage_Order attribute definition clause for the record
+         All_Elem_Components : Boolean := True;
+         --  Set False if we encounter a component of a composite type
 
-         Unplaced_Component : Boolean := False;
-         --  Set True if we find at least one component with no component
-         --  clause (used to warn about useless Pack pragmas).
+         All_Sized_Components : Boolean := True;
+         --  Set False if we encounter a component with unknown RM_Size
+
+         All_Storage_Unit_Components : Boolean := True;
+         --  Set False if we encounter a component of a composite type whose
+         --  RM_Size is not a multiple of the storage unit.
+
+         Elem_Component_Total_Esize : Uint := Uint_0;
+         --  Accumulates total Esize values of all elementary components. Used
+         --  for processing of Implicit_Packing.
 
          Placed_Component : Boolean := False;
          --  Set True if we find at least one component with a component
          --  clause (used to warn about useless Bit_Order pragmas, and also
          --  to detect cases where Implicit_Packing may have an effect).
 
-         Aliased_Component : Boolean := False;
-         --  Set True if we find at least one component which is aliased. This
-         --  is used to prevent Implicit_Packing of the record, since packing
-         --  cannot modify the size of alignment of an aliased component.
+         Rec_Pushed : Boolean := False;
+         --  Set True if the record type scope Rec has been pushed on the scope
+         --  stack. Needed for the analysis of delayed aspects specified to the
+         --  components of Rec.
+
+         Sized_Component_Total_RM_Size : Uint := Uint_0;
+         --  Accumulates total RM_Size values of all sized components. Used
+         --  for processing of Implicit_Packing.
+
+         SSO_ADC : Node_Id;
+         --  Scalar_Storage_Order attribute definition clause for the record
 
          SSO_ADC_Component : Boolean := False;
          --  Set True if we find at least one component whose type has a
          --  Scalar_Storage_Order attribute definition clause.
 
-         All_Scalar_Components : Boolean := True;
-         --  Set False if we encounter a component of a non-scalar type
-
-         Scalar_Component_Total_RM_Size : Uint := Uint_0;
-         Scalar_Component_Total_Esize   : Uint := Uint_0;
-         --  Accumulates total RM_Size values and total Esize values of all
-         --  scalar components. Used for processing of Implicit_Packing.
+         Unplaced_Component : Boolean := False;
+         --  Set True if we find at least one component with no component
+         --  clause (used to warn about useless Pack pragmas).
 
          function Check_Allocator (N : Node_Id) return Node_Id;
          --  If N is an allocator, possibly wrapped in one or more level of
@@ -3818,13 +3979,22 @@ package body Freeze is
             --  this stage we might be dealing with a real component, or with
             --  an implicit subtype declaration.
 
-            if not Is_Scalar_Type (Etype (Comp)) then
-               All_Scalar_Components := False;
+            if Known_Static_RM_Size (Etype (Comp)) then
+               Sized_Component_Total_RM_Size :=
+                 Sized_Component_Total_RM_Size + RM_Size (Etype (Comp));
+
+               if Is_Elementary_Type (Etype (Comp)) then
+                  Elem_Component_Total_Esize :=
+                    Elem_Component_Total_Esize + Esize (Etype (Comp));
+               else
+                  All_Elem_Components := False;
+
+                  if RM_Size (Etype (Comp)) mod System_Storage_Unit /= 0 then
+                     All_Storage_Unit_Components := False;
+                  end if;
+               end if;
             else
-               Scalar_Component_Total_RM_Size :=
-                 Scalar_Component_Total_RM_Size + RM_Size (Etype (Comp));
-               Scalar_Component_Total_Esize :=
-                 Scalar_Component_Total_Esize + Esize (Etype (Comp));
+               All_Sized_Components := False;
             end if;
 
             --  If the component is an Itype with Delayed_Freeze and is either
@@ -4094,10 +4264,14 @@ package body Freeze is
                  ("\??since no component clauses were specified", ADC);
 
             --  Here is where we do the processing to adjust component clauses
-            --  for reversed bit order, when not using reverse SSO.
+            --  for reversed bit order, when not using reverse SSO. If an error
+            --  has been reported on Rec already (such as SSO incompatible with
+            --  bit order), don't bother adjusting as this may generate extra
+            --  noise.
 
             elsif Reverse_Bit_Order (Rec)
               and then not Reverse_Storage_Order (Rec)
+              and then not Error_Posted (Rec)
             then
                Adjust_Record_For_Reverse_Bit_Order (Rec);
 
@@ -4171,7 +4345,8 @@ package body Freeze is
                Freeze_And_Append (Corresponding_Remote_Type (Rec), N, Result);
             end if;
 
-            --  Check for controlled components and unchecked unions.
+            --  Check for controlled components, unchecked unions, and type
+            --  invariants.
 
             Comp := First_Component (Rec);
             while Present (Comp) loop
@@ -4200,6 +4375,22 @@ package body Freeze is
                   Set_Has_Unchecked_Union (Rec);
                end if;
 
+               --  The record type requires its own invariant procedure in
+               --  order to verify the invariant of each individual component.
+               --  Do not consider internal components such as _parent because
+               --  parent class-wide invariants are always inherited.
+               --  In GNATprove mode, the component invariants are checked by
+               --  other means. They should not be added to the record type
+               --  invariant procedure, so that the procedure can be used to
+               --  check the recordy type invariants if any.
+
+               if Comes_From_Source (Comp)
+                 and then Has_Invariants (Etype (Comp))
+                   and then not GNATprove_Mode
+               then
+                  Set_Has_Own_Invariants (Rec);
+               end if;
+
                --  Scan component declaration for likely misuses of current
                --  instance, either in a constraint or a default expression.
 
@@ -4223,7 +4414,7 @@ package body Freeze is
          --  component clauses, where we must check the size. This is not done
          --  till the freeze point since for fixed-point types, we do not know
          --  the size until the type is frozen. Similar processing applies to
-         --  bit packed arrays.
+         --  bit-packed arrays.
 
          if Is_First_Subtype (Rec) then
             Comp := First_Component (Rec);
@@ -4243,46 +4434,6 @@ package body Freeze is
             end loop;
          end if;
 
-         --  Generate warning for applying C or C++ convention to a record
-         --  with discriminants. This is suppressed for the unchecked union
-         --  case, since the whole point in this case is interface C. We also
-         --  do not generate this within instantiations, since we will have
-         --  generated a message on the template.
-
-         if Has_Discriminants (E)
-           and then not Is_Unchecked_Union (E)
-           and then (Convention (E) = Convention_C
-                       or else
-                     Convention (E) = Convention_CPP)
-           and then Comes_From_Source (E)
-           and then not In_Instance
-           and then not Has_Warnings_Off (E)
-           and then not Has_Warnings_Off (Base_Type (E))
-         then
-            declare
-               Cprag : constant Node_Id := Get_Rep_Pragma (E, Name_Convention);
-               A2    : Node_Id;
-
-            begin
-               if Present (Cprag) then
-                  A2 := Next (First (Pragma_Argument_Associations (Cprag)));
-
-                  if Convention (E) = Convention_C then
-                     Error_Msg_N
-                       ("?x?variant record has no direct equivalent in C",
-                        A2);
-                  else
-                     Error_Msg_N
-                       ("?x?variant record has no direct equivalent in C++",
-                        A2);
-                  end if;
-
-                  Error_Msg_NE
-                    ("\?x?use of convention for type& is dubious", A2, E);
-               end if;
-            end;
-         end if;
-
          --  See if Size is too small as is (and implicit packing might help)
 
          if not Is_Packed (Rec)
@@ -4295,26 +4446,35 @@ package body Freeze is
 
            and then not Aliased_Component
 
-           --  Must have size clause and all scalar components
+           --  Must have size clause and all sized components
 
            and then Has_Size_Clause (Rec)
-           and then All_Scalar_Components
+           and then All_Sized_Components
 
            --  Do not try implicit packing on records with discriminants, too
            --  complicated, especially in the variant record case.
 
            and then not Has_Discriminants (Rec)
 
-           --  We can implicitly pack if the specified size of the record is
-           --  less than the sum of the object sizes (no point in packing if
-           --  this is not the case).
+           --  We want to implicitly pack if the specified size of the record
+           --  is less than the sum of the object sizes (no point in packing
+           --  if this is not the case), if we can compute it, i.e. if we have
+           --  only elementary components. Otherwise, we have at least one
+           --  composite component and we want to implicitly pack only if bit
+           --  packing is required for it, as we are sure in this case that
+           --  the back end cannot do the expected layout without packing.
 
-           and then RM_Size (Rec) < Scalar_Component_Total_Esize
+           and then
+              ((All_Elem_Components
+                 and then RM_Size (Rec) < Elem_Component_Total_Esize)
+             or else
+               (not All_Elem_Components
+                 and then not All_Storage_Unit_Components))
 
            --  And the total RM size cannot be greater than the specified size
            --  since otherwise packing will not get us where we have to be.
 
-           and then RM_Size (Rec) >= Scalar_Component_Total_RM_Size
+           and then RM_Size (Rec) >= Sized_Component_Total_RM_Size
 
            --  Never do implicit packing in CodePeer or SPARK modes since
            --  we don't do any packing in these modes, since this generates
@@ -4535,6 +4695,13 @@ package body Freeze is
                end loop;
             end;
          end if;
+
+         --  For a derived tagged type, check whether inherited primitives
+         --  might require a wrapper to handle class-wide conditions.
+
+         if Is_Tagged_Type (Rec) and then Is_Derived_Type (Rec) then
+            Check_Inherited_Conditions (Rec);
+         end if;
       end Freeze_Record_Type;
 
       -------------------------------
@@ -4570,24 +4737,59 @@ package body Freeze is
          return False;
       end Has_Boolean_Aspect_Import;
 
-      ----------------------------
-      -- Late_Freeze_Subprogram --
-      ----------------------------
+      -------------------------
+      -- Inherit_Freeze_Node --
+      -------------------------
 
-      procedure Late_Freeze_Subprogram (E : Entity_Id) is
-         Spec  : constant Node_Id :=
-                   Specification (Unit_Declaration_Node (Scope (E)));
-         Decls : List_Id;
+      procedure Inherit_Freeze_Node
+        (Fnod : Node_Id;
+         Typ  : Entity_Id)
+      is
+         Typ_Fnod : constant Node_Id := Freeze_Node (Typ);
 
       begin
-         if Present (Private_Declarations (Spec)) then
-            Decls := Private_Declarations (Spec);
-         else
-            Decls := Visible_Declarations (Spec);
-         end if;
+         Set_Freeze_Node (Typ, Fnod);
+         Set_Entity (Fnod, Typ);
 
-         Append_List (Result, Decls);
-      end Late_Freeze_Subprogram;
+         --  The input type had an existing node. Propagate relevant attributes
+         --  from the old freeze node to the inherited freeze node.
+
+         --  ??? if both freeze nodes have attributes, would they differ?
+
+         if Present (Typ_Fnod) then
+
+            --  Attribute Access_Types_To_Process
+
+            if Present (Access_Types_To_Process (Typ_Fnod))
+              and then No (Access_Types_To_Process (Fnod))
+            then
+               Set_Access_Types_To_Process (Fnod,
+                 Access_Types_To_Process (Typ_Fnod));
+            end if;
+
+            --  Attribute Actions
+
+            if Present (Actions (Typ_Fnod)) and then No (Actions (Fnod)) then
+               Set_Actions (Fnod, Actions (Typ_Fnod));
+            end if;
+
+            --  Attribute First_Subtype_Link
+
+            if Present (First_Subtype_Link (Typ_Fnod))
+              and then No (First_Subtype_Link (Fnod))
+            then
+               Set_First_Subtype_Link (Fnod, First_Subtype_Link (Typ_Fnod));
+            end if;
+
+            --  Attribute TSS_Elist
+
+            if Present (TSS_Elist (Typ_Fnod))
+              and then No (TSS_Elist (Fnod))
+            then
+               Set_TSS_Elist (Fnod, TSS_Elist (Typ_Fnod));
+            end if;
+         end if;
+      end Inherit_Freeze_Node;
 
       ------------------------------
       -- Wrap_Imported_Subprogram --
@@ -4625,14 +4827,65 @@ package body Freeze is
       --  for the subprogram body that calls the inner procedure.
 
       procedure Wrap_Imported_Subprogram (E : Entity_Id) is
+         function Copy_Import_Pragma return Node_Id;
+         --  Obtain a copy of the Import_Pragma which belongs to subprogram E
+
+         ------------------------
+         -- Copy_Import_Pragma --
+         ------------------------
+
+         function Copy_Import_Pragma return Node_Id is
+
+            --  The subprogram should have an import pragma, otherwise it does
+            --  need a wrapper.
+
+            Prag : constant Node_Id := Import_Pragma (E);
+            pragma Assert (Present (Prag));
+
+            --  Save all semantic fields of the pragma
+
+            Save_Asp  : constant Node_Id := Corresponding_Aspect (Prag);
+            Save_From : constant Boolean := From_Aspect_Specification (Prag);
+            Save_Prag : constant Node_Id := Next_Pragma (Prag);
+            Save_Rep  : constant Node_Id := Next_Rep_Item (Prag);
+
+            Result : Node_Id;
+
+         begin
+            --  Reset all semantic fields. This avoids a potential infinite
+            --  loop when the pragma comes from an aspect as the duplication
+            --  will copy the aspect, then copy the corresponding pragma and
+            --  so on.
+
+            Set_Corresponding_Aspect      (Prag, Empty);
+            Set_From_Aspect_Specification (Prag, False);
+            Set_Next_Pragma               (Prag, Empty);
+            Set_Next_Rep_Item             (Prag, Empty);
+
+            Result := Copy_Separate_Tree (Prag);
+
+            --  Restore the original semantic fields
+
+            Set_Corresponding_Aspect      (Prag, Save_Asp);
+            Set_From_Aspect_Specification (Prag, Save_From);
+            Set_Next_Pragma               (Prag, Save_Prag);
+            Set_Next_Rep_Item             (Prag, Save_Rep);
+
+            return Result;
+         end Copy_Import_Pragma;
+
+         --  Local variables
+
          Loc   : constant Source_Ptr := Sloc (E);
          CE    : constant Name_Id    := Chars (E);
-         Spec  : Node_Id;
-         Parms : List_Id;
-         Stmt  : Node_Id;
-         Iprag : Node_Id;
          Bod   : Node_Id;
          Forml : Entity_Id;
+         Parms : List_Id;
+         Prag  : Node_Id;
+         Spec  : Node_Id;
+         Stmt  : Node_Id;
+
+      --  Start of processing for Wrap_Imported_Subprogram
 
       begin
          --  Nothing to do if not imported
@@ -4655,18 +4908,14 @@ package body Freeze is
             --  generates the right visibility, and that is exactly what the
             --  calls to Copy_Separate_Tree give us.
 
-            --  Acquire copy of Inline pragma, and indicate that it does not
-            --  come from an aspect, as it applies to an internal entity.
-
-            Iprag := Copy_Separate_Tree (Import_Pragma (E));
-            Set_From_Aspect_Specification (Iprag, False);
+            Prag := Copy_Import_Pragma;
 
             --  Fix up spec to be not imported any more
 
-            Set_Is_Imported    (E, False);
-            Set_Interface_Name (E, Empty);
             Set_Has_Completion (E, False);
             Set_Import_Pragma  (E, Empty);
+            Set_Interface_Name (E, Empty);
+            Set_Is_Imported    (E, False);
 
             --  Grab the subprogram declaration and specification
 
@@ -4706,13 +4955,12 @@ package body Freeze is
                   Copy_Separate_Tree (Spec),
                 Declarations               => New_List (
                   Make_Subprogram_Declaration (Loc,
-                    Specification =>
-                      Copy_Separate_Tree (Spec)),
-                    Iprag),
+                    Specification => Copy_Separate_Tree (Spec)),
+                  Prag),
                 Handled_Statement_Sequence =>
                   Make_Handled_Sequence_Of_Statements (Loc,
-                    Statements             => New_List (Stmt),
-                    End_Label              => Make_Identifier (Loc, CE)));
+                    Statements => New_List (Stmt),
+                    End_Label  => Make_Identifier (Loc, CE)));
 
             --  Append the body to freeze result
 
@@ -4734,7 +4982,7 @@ package body Freeze is
 
       --  Local variables
 
-      Save_Ghost_Mode : constant Ghost_Mode_Type := Ghost_Mode;
+      Mode : Ghost_Mode_Type;
 
    --  Start of processing for Freeze_Entity
 
@@ -4743,7 +4991,7 @@ package body Freeze is
       --  now to ensure that any nodes generated during freezing are properly
       --  flagged as Ghost.
 
-      Set_Ghost_Mode_From_Entity (E);
+      Set_Ghost_Mode (E, Mode);
 
       --  We are going to test for various reasons why this entity need not be
       --  frozen here, but in the case of an Itype that's defined within a
@@ -4760,8 +5008,12 @@ package body Freeze is
       --  Do not freeze if already frozen since we only need one freeze node
 
       if Is_Frozen (E) then
-         Ghost_Mode := Save_Ghost_Mode;
-         return No_List;
+         Result := No_List;
+         goto Leave;
+
+      elsif Ekind (E) = E_Generic_Package then
+         Result := Freeze_Generic_Entities (E);
+         goto Leave;
 
       --  It is improper to freeze an external entity within a generic because
       --  its freeze node will appear in a non-valid context. The entity will
@@ -4775,8 +5027,8 @@ package body Freeze is
             Analyze_Aspects_At_Freeze_Point (E);
          end if;
 
-         Ghost_Mode := Save_Ghost_Mode;
-         return No_List;
+         Result := No_List;
+         goto Leave;
 
       --  AI05-0213: A formal incomplete type does not freeze the actual. In
       --  the instance, the same applies to the subtype renaming the actual.
@@ -4786,20 +5038,20 @@ package body Freeze is
         and then No (Full_View (Base_Type (E)))
         and then Ada_Version >= Ada_2012
       then
-         Ghost_Mode := Save_Ghost_Mode;
-         return No_List;
+         Result := No_List;
+         goto Leave;
 
       --  Formal subprograms are never frozen
 
       elsif Is_Formal_Subprogram (E) then
-         Ghost_Mode := Save_Ghost_Mode;
-         return No_List;
+         Result := No_List;
+         goto Leave;
 
       --  Generic types are never frozen as they lack delayed semantic checks
 
       elsif Is_Generic_Type (E) then
-         Ghost_Mode := Save_Ghost_Mode;
-         return No_List;
+         Result := No_List;
+         goto Leave;
 
       --  Do not freeze a global entity within an inner scope created during
       --  expansion. A call to subprogram E within some internal procedure
@@ -4832,8 +5084,8 @@ package body Freeze is
                   then
                      exit;
                   else
-                     Ghost_Mode := Save_Ghost_Mode;
-                     return No_List;
+                     Result := No_List;
+                     goto Leave;
                   end if;
                end if;
 
@@ -4868,16 +5120,10 @@ package body Freeze is
             end loop;
 
             if No (S) then
-               Ghost_Mode := Save_Ghost_Mode;
-               return No_List;
+               Result := No_List;
+               goto Leave;
             end if;
          end;
-
-      elsif Ekind (E) = E_Generic_Package then
-         Result := Freeze_Generic_Entities (E);
-
-         Ghost_Mode := Save_Ghost_Mode;
-         return Result;
       end if;
 
       --  Add checks to detect proper initialization of scalars that may appear
@@ -4950,17 +5196,17 @@ package body Freeze is
             --  any extra formal parameters are created since we now know
             --  whether the subprogram will use a foreign convention.
 
-            --  In Ada 2012, freezing a subprogram does not always freeze
-            --  the corresponding profile (see AI05-019). An attribute
-            --  reference is not a freezing point of the profile.
+            --  In Ada 2012, freezing a subprogram does not always freeze the
+            --  corresponding profile (see AI05-019). An attribute reference
+            --  is not a freezing point of the profile. Flag Do_Freeze_Profile
+            --  indicates whether the profile should be frozen now.
             --  Other constructs that should not freeze ???
 
             --  This processing doesn't apply to internal entities (see below)
 
-            if not Is_Internal (E) then
+            if not Is_Internal (E) and then Do_Freeze_Profile then
                if not Freeze_Profile (E) then
-                  Ghost_Mode := Save_Ghost_Mode;
-                  return Result;
+                  goto Leave;
                end if;
             end if;
 
@@ -4982,12 +5228,6 @@ package body Freeze is
                Freeze_Subprogram (E);
             end if;
 
-            if Late_Freezing then
-               Late_Freeze_Subprogram (E);
-               Ghost_Mode := Save_Ghost_Mode;
-               return No_List;
-            end if;
-
             --  If warning on suspicious contracts then check for the case of
             --  a postcondition other than False for a No_Return subprogram.
 
@@ -5001,9 +5241,10 @@ package body Freeze is
 
                begin
                   while Present (Prag) loop
-                     if Nam_In (Pragma_Name (Prag), Name_Post,
-                                                    Name_Postcondition,
-                                                    Name_Refined_Post)
+                     if Nam_In (Pragma_Name_Unmapped (Prag),
+                                Name_Post,
+                                Name_Postcondition,
+                                Name_Refined_Post)
                      then
                         Exp :=
                           Expression
@@ -5140,6 +5381,9 @@ package body Freeze is
          --  trigger the analysis of aspect expressions, so in this case we
          --  want to continue the freezing process.
 
+         --  Is_Generic_Unit (Scope (E)) is dubious here, do we want instead
+         --  In_Generic_Scope (E)???
+
          if Present (Scope (E))
            and then Is_Generic_Unit (Scope (E))
            and then
@@ -5147,8 +5391,8 @@ package body Freeze is
                and then not Has_Delayed_Freeze (E))
          then
             Check_Compile_Time_Size (E);
-            Ghost_Mode := Save_Ghost_Mode;
-            return No_List;
+            Result := No_List;
+            goto Leave;
          end if;
 
          --  Check for error of Type_Invariant'Class applied to an untagged
@@ -5162,8 +5406,7 @@ package body Freeze is
               and then not Is_Tagged_Type (E)
             then
                Error_Msg_NE
-                 ("Type_Invariant''Class cannot be specified for &",
-                  Prag, E);
+                 ("Type_Invariant''Class cannot be specified for &", Prag, E);
                Error_Msg_N
                  ("\can only be specified for a tagged type", Prag);
             end if;
@@ -5177,7 +5420,7 @@ package body Freeze is
             if Is_Concurrent_Type (E) then
                Error_Msg_N ("ghost type & cannot be concurrent", E);
 
-            --  A Ghost type cannot be effectively volatile (SPARK RM 6.9(8))
+            --  A Ghost type cannot be effectively volatile (SPARK RM 6.9(7))
 
             elsif Is_Effectively_Volatile (E) then
                Error_Msg_N ("ghost type & cannot be volatile", E);
@@ -5188,20 +5431,20 @@ package body Freeze is
 
          if E /= Base_Type (E) then
 
-            --  Before we do anything else, a specialized test for the case of
-            --  a size given for an array where the array needs to be packed,
-            --  but was not so the size cannot be honored. This is the case
-            --  where implicit packing may apply. The reason we do this so
-            --  early is that if we have implicit packing, the layout of the
-            --  base type is affected, so we must do this before we freeze
-            --  the base type.
+            --  Before we do anything else, a specific test for the case of a
+            --  size given for an array where the array would need to be packed
+            --  in order for the size to be honored, but is not. This is the
+            --  case where implicit packing may apply. The reason we do this so
+            --  early is that, if we have implicit packing, the layout of the
+            --  base type is affected, so we must do this before we freeze the
+            --  base type.
 
             --  We could do this processing only if implicit packing is enabled
             --  since in all other cases, the error would be caught by the back
             --  end. However, we choose to do the check even if we do not have
             --  implicit packing enabled, since this allows us to give a more
-            --  useful error message (advising use of pragmas Implicit_Packing
-            --  or Pack).
+            --  useful error message (advising use of pragma Implicit_Packing
+            --  or pragma Pack).
 
             if Is_Array_Type (E) then
                declare
@@ -5214,7 +5457,8 @@ package body Freeze is
                   Hi   : Node_Id;
                   Indx : Node_Id;
 
-                  Num_Elmts : Uint;
+                  Dim       : Uint;
+                  Num_Elmts : Uint := Uint_1;
                   --  Number of elements in array
 
                begin
@@ -5230,13 +5474,21 @@ package body Freeze is
                   --  a chance to freeze the base type (and it is that freeze
                   --  action that causes stuff to be inherited).
 
+                  --  The conditions on the size are identical to those used in
+                  --  Freeze_Array_Type to set the Is_Packed flag.
+
                   if Has_Size_Clause (E)
                     and then Known_Static_RM_Size (E)
                     and then not Is_Packed (E)
                     and then not Has_Pragma_Pack (E)
                     and then not Has_Component_Size_Clause (E)
                     and then Known_Static_RM_Size (Ctyp)
-                    and then RM_Size (Ctyp) < 64
+                    and then Rsiz <= 64
+                    and then not (Addressable (Rsiz)
+                                   and then Known_Static_Esize (Ctyp)
+                                   and then Esize (Ctyp) = Rsiz)
+                    and then not (Rsiz mod System_Storage_Unit = 0
+                                   and then Is_Composite_Type (Ctyp))
                     and then not Is_Limited_Composite (E)
                     and then not Is_Packed (Root_Type (E))
                     and then not Has_Component_Size_Clause (Root_Type (E))
@@ -5244,7 +5496,6 @@ package body Freeze is
                   then
                      --  Compute number of elements in array
 
-                     Num_Elmts := Uint_1;
                      Indx := First_Index (E);
                      while Present (Indx) loop
                         Get_Index_Bounds (Indx, Lo, Hi);
@@ -5256,57 +5507,39 @@ package body Freeze is
                            goto No_Implicit_Packing;
                         end if;
 
-                        Num_Elmts :=
-                          Num_Elmts *
-                            UI_Max (Uint_0,
-                                    Expr_Value (Hi) - Expr_Value (Lo) + 1);
+                        Dim := Expr_Value (Hi) - Expr_Value (Lo) + 1;
+
+                        if Dim >= 0 then
+                           Num_Elmts := Num_Elmts * Dim;
+                        else
+                           Num_Elmts := Uint_0;
+                        end if;
+
                         Next_Index (Indx);
                      end loop;
 
                      --  What we are looking for here is the situation where
                      --  the RM_Size given would be exactly right if there was
-                     --  a pragma Pack (resulting in the component size being
-                     --  the same as the RM_Size). Furthermore, the component
-                     --  type size must be an odd size (not a multiple of
-                     --  storage unit). If the component RM size is an exact
-                     --  number of storage units that is a power of two, the
-                     --  array is not packed and has a standard representation.
+                     --  a pragma Pack, resulting in the component size being
+                     --  the RM_Size of the component type.
 
-                     if RM_Size (E) = Num_Elmts * Rsiz
-                       and then Rsiz mod System_Storage_Unit /= 0
-                     then
+                     if RM_Size (E) = Num_Elmts * Rsiz then
+
                         --  For implicit packing mode, just set the component
-                        --  size silently.
+                        --  size and Freeze_Array_Type will do the rest.
 
                         if Implicit_Packing then
-                           Set_Component_Size       (Btyp, Rsiz);
-                           Set_Is_Bit_Packed_Array  (Btyp);
-                           Set_Is_Packed            (Btyp);
-                           Set_Has_Non_Standard_Rep (Btyp);
+                           Set_Component_Size (Btyp, Rsiz);
 
-                           --  Otherwise give an error message
+                        --  Otherwise give an error message
 
                         else
                            Error_Msg_NE
                              ("size given for& too small", SZ, E);
                            Error_Msg_N -- CODEFIX
-                             ("\use explicit pragma Pack "
-                              & "or use pragma Implicit_Packing", SZ);
+                             ("\use explicit pragma Pack or use pragma "
+                              & "Implicit_Packing", SZ);
                         end if;
-
-                     elsif RM_Size (E) = Num_Elmts * Rsiz
-                       and then Implicit_Packing
-                       and then
-                         (Rsiz / System_Storage_Unit = 1
-                            or else
-                          Rsiz / System_Storage_Unit = 2
-                            or else
-                          Rsiz / System_Storage_Unit = 4)
-                     then
-                        --  Not a packed array, but indicate the desired
-                        --  component size, for the back-end.
-
-                        Set_Component_Size (Btyp, Rsiz);
                      end if;
                   end if;
                end;
@@ -5429,8 +5662,7 @@ package body Freeze is
 
             if not Is_Frozen (Root_Type (E)) then
                Set_Is_Frozen (E, False);
-               Ghost_Mode := Save_Ghost_Mode;
-               return Result;
+               goto Leave;
             end if;
 
             --  The equivalent type associated with a class-wide subtype needs
@@ -5477,11 +5709,17 @@ package body Freeze is
          --  for the case of a private type with record extension (we will do
          --  that later when the full type is frozen).
 
-         elsif Ekind_In (E, E_Record_Type, E_Record_Subtype)
-           and then not (Present (Scope (E))
-                          and then Is_Generic_Unit (Scope (E)))
-         then
-            Freeze_Record_Type (E);
+         elsif Ekind_In (E, E_Record_Type, E_Record_Subtype) then
+            if not In_Generic_Scope (E) then
+               Freeze_Record_Type (E);
+            end if;
+
+            --  Report a warning if a discriminated record base type has a
+            --  convention with language C or C++ applied to it. This check is
+            --  done even within generic scopes (but not in instantiations),
+            --  which is why we don't do it as part of Freeze_Record_Type.
+
+            Check_Suspicious_Convention (E);
 
          --  For a concurrent type, freeze corresponding record type. This does
          --  not correspond to any specific rule in the RM, but the record type
@@ -5565,8 +5803,7 @@ package body Freeze is
               and then not Present (Full_View (E))
             then
                Set_Is_Frozen (E, False);
-               Ghost_Mode := Save_Ghost_Mode;
-               return Result;
+               goto Leave;
 
             --  Case of full view present
 
@@ -5604,9 +5841,9 @@ package body Freeze is
                         F_Node := Freeze_Node (Full);
 
                         if Present (F_Node) then
-                           Set_Freeze_Node (Full_View (E), F_Node);
-                           Set_Entity (F_Node, Full_View (E));
-
+                           Inherit_Freeze_Node
+                             (Fnod => F_Node,
+                              Typ  => Full_View (E));
                         else
                            Set_Has_Delayed_Freeze (Full_View (E), False);
                            Set_Freeze_Node (Full_View (E), Empty);
@@ -5617,9 +5854,9 @@ package body Freeze is
                         F_Node := Freeze_Node (Full_View (E));
 
                         if Present (F_Node) then
-                           Set_Freeze_Node (E, F_Node);
-                           Set_Entity (F_Node, E);
-
+                           Inherit_Freeze_Node
+                             (Fnod => F_Node,
+                              Typ  => E);
                         else
                            --  {Incomplete,Private}_Subtypes with Full_Views
                            --  constrained by discriminants.
@@ -5657,8 +5894,7 @@ package body Freeze is
                   Set_RM_Size   (E, RM_Size (Full_View (E)));
                end if;
 
-               Ghost_Mode := Save_Ghost_Mode;
-               return Result;
+               goto Leave;
 
             --  Case of underlying full view present
 
@@ -5676,9 +5912,9 @@ package body Freeze is
                   F_Node := Freeze_Node (Underlying_Full_View (E));
 
                   if Present (F_Node) then
-                     Set_Freeze_Node (E, F_Node);
-                     Set_Entity (F_Node, E);
-
+                     Inherit_Freeze_Node
+                       (Fnod => F_Node,
+                        Typ  => E);
                   else
                      Set_Has_Delayed_Freeze (E, False);
                      Set_Freeze_Node (E, Empty);
@@ -5687,8 +5923,7 @@ package body Freeze is
 
                Check_Debug_Info_Needed (E);
 
-               Ghost_Mode := Save_Ghost_Mode;
-               return Result;
+               goto Leave;
 
             --  Case of no full view present. If entity is derived or subtype,
             --  it is safe to freeze, correctness depends on the frozen status
@@ -5701,8 +5936,8 @@ package body Freeze is
 
             else
                Set_Is_Frozen (E, False);
-               Ghost_Mode := Save_Ghost_Mode;
-               return No_List;
+               Result := No_List;
+               goto Leave;
             end if;
 
          --  For access subprogram, freeze types of all formals, the return
@@ -5749,8 +5984,7 @@ package body Freeze is
          --  generic processing), so we never need freeze nodes for them.
 
          if Is_Generic_Type (E) then
-            Ghost_Mode := Save_Ghost_Mode;
-            return Result;
+            goto Leave;
          end if;
 
          --  Some special processing for non-generic types to complete
@@ -6299,9 +6533,7 @@ package body Freeze is
          --  subtypes can only be elaborated after the type itself, and they
          --  need an itype reference.
 
-         if Ekind (E) = E_Record_Type
-           and then Has_Discriminants (E)
-         then
+         if Ekind (E) = E_Record_Type and then Has_Discriminants (E) then
             declare
                Comp : Entity_Id;
                IR   : Node_Id;
@@ -6365,7 +6597,8 @@ package body Freeze is
          end if;
       end if;
 
-      Ghost_Mode := Save_Ghost_Mode;
+   <<Leave>>
+      Restore_Ghost_Mode (Mode);
       return Result;
    end Freeze_Entity;
 
@@ -6634,10 +6867,10 @@ package body Freeze is
                Desig_Typ := Find_Aggregate_Component_Desig_Type;
             end if;
 
-         when N_Selected_Component |
-            N_Indexed_Component    |
-            N_Slice                =>
-
+         when N_Indexed_Component
+            | N_Selected_Component
+            | N_Slice
+         =>
             if Is_Access_Type (Etype (Prefix (N))) then
                Desig_Typ := Designated_Type (Etype (Prefix (N)));
             end if;
@@ -6849,35 +7082,37 @@ package body Freeze is
             --  is a statement or declaration and we can insert the freeze node
             --  before it.
 
-            when N_Block_Statement       |
-                 N_Entry_Body            |
-                 N_Package_Body          |
-                 N_Package_Specification |
-                 N_Protected_Body        |
-                 N_Subprogram_Body       |
-                 N_Task_Body             => exit;
+            when N_Block_Statement
+               | N_Entry_Body
+               | N_Package_Body
+               | N_Package_Specification
+               | N_Protected_Body
+               | N_Subprogram_Body
+               | N_Task_Body
+            =>
+               exit;
 
             --  The expander is allowed to define types in any statements list,
             --  so any of the following parent nodes also mark a freezing point
             --  if the actual node is in a list of statements or declarations.
 
-            when N_Abortable_Part             |
-                 N_Accept_Alternative         |
-                 N_And_Then                   |
-                 N_Case_Statement_Alternative |
-                 N_Compilation_Unit_Aux       |
-                 N_Conditional_Entry_Call     |
-                 N_Delay_Alternative          |
-                 N_Elsif_Part                 |
-                 N_Entry_Call_Alternative     |
-                 N_Exception_Handler          |
-                 N_Extended_Return_Statement  |
-                 N_Freeze_Entity              |
-                 N_If_Statement               |
-                 N_Or_Else                    |
-                 N_Selective_Accept           |
-                 N_Triggering_Alternative     =>
-
+            when N_Abortable_Part
+               | N_Accept_Alternative
+               | N_And_Then
+               | N_Case_Statement_Alternative
+               | N_Compilation_Unit_Aux
+               | N_Conditional_Entry_Call
+               | N_Delay_Alternative
+               | N_Elsif_Part
+               | N_Entry_Call_Alternative
+               | N_Exception_Handler
+               | N_Extended_Return_Statement
+               | N_Freeze_Entity
+               | N_If_Statement
+               | N_Or_Else
+               | N_Selective_Accept
+               | N_Triggering_Alternative
+            =>
                exit when Is_List_Member (P);
 
             --  Freeze nodes produced by an expression coming from the Actions
@@ -7488,18 +7723,37 @@ package body Freeze is
       --  Check for shaving
 
       if Comes_From_Source (Typ) then
-         if Orig_Lo < Expr_Value_R (Lo) then
-            Error_Msg_N
-              ("declared low bound of type & is outside type range??", Typ);
-            Error_Msg_N
-              ("\low bound adjusted up by delta (RM 3.5.9(13))??", Typ);
-         end if;
 
-         if Orig_Hi > Expr_Value_R (Hi) then
-            Error_Msg_N
-              ("declared high bound of type & is outside type range??", Typ);
-            Error_Msg_N
-              ("\high bound adjusted down by delta (RM 3.5.9(13))??", Typ);
+         --  In SPARK mode the given bounds must be strictly representable
+
+         if SPARK_Mode = On then
+            if Orig_Lo < Expr_Value_R (Lo) then
+               Error_Msg_NE
+                 ("declared low bound of type & is outside type range",
+                  Lo, Typ);
+            end if;
+
+            if Orig_Hi > Expr_Value_R (Hi) then
+               Error_Msg_NE
+                 ("declared high bound of type & is outside type range",
+                  Hi, Typ);
+            end if;
+
+         else
+            if Orig_Lo < Expr_Value_R (Lo) then
+               Error_Msg_N
+                 ("declared low bound of type & is outside type range??", Typ);
+               Error_Msg_N
+                 ("\low bound adjusted up by delta (RM 3.5.9(13))??", Typ);
+            end if;
+
+            if Orig_Hi > Expr_Value_R (Hi) then
+               Error_Msg_N
+                 ("declared high bound of type & is outside type range??",
+                  Typ);
+               Error_Msg_N
+                 ("\high bound adjusted down by delta (RM 3.5.9(13))??", Typ);
+            end if;
          end if;
       end if;
    end Freeze_Fixed_Point_Type;
@@ -7698,8 +7952,61 @@ package body Freeze is
    -----------------------
 
    procedure Freeze_Subprogram (E : Entity_Id) is
-      Retype : Entity_Id;
+      procedure Set_Profile_Convention (Subp_Id : Entity_Id);
+      --  Set the conventions of all anonymous access-to-subprogram formals and
+      --  result subtype of subprogram Subp_Id to the convention of Subp_Id.
+
+      ----------------------------
+      -- Set_Profile_Convention --
+      ----------------------------
+
+      procedure Set_Profile_Convention (Subp_Id : Entity_Id) is
+         Conv : constant Convention_Id := Convention (Subp_Id);
+
+         procedure Set_Type_Convention (Typ : Entity_Id);
+         --  Set the convention of anonymous access-to-subprogram type Typ and
+         --  its designated type to Conv.
+
+         -------------------------
+         -- Set_Type_Convention --
+         -------------------------
+
+         procedure Set_Type_Convention (Typ : Entity_Id) is
+         begin
+            --  Set the convention on both the anonymous access-to-subprogram
+            --  type and the subprogram type it points to because both types
+            --  participate in conformance-related checks.
+
+            if Ekind (Typ) = E_Anonymous_Access_Subprogram_Type then
+               Set_Convention (Typ, Conv);
+               Set_Convention (Designated_Type (Typ), Conv);
+            end if;
+         end Set_Type_Convention;
+
+         --  Local variables
+
+         Formal : Entity_Id;
+
+      --  Start of processing for Set_Profile_Convention
+
+      begin
+         Formal := First_Formal (Subp_Id);
+         while Present (Formal) loop
+            Set_Type_Convention (Etype (Formal));
+            Next_Formal (Formal);
+         end loop;
+
+         if Ekind (Subp_Id) = E_Function then
+            Set_Type_Convention (Etype (Subp_Id));
+         end if;
+      end Set_Profile_Convention;
+
+      --  Local variables
+
       F      : Entity_Id;
+      Retype : Entity_Id;
+
+   --  Start of processing for Freeze_Subprogram
 
    begin
       --  Subprogram may not have an address clause unless it is imported
@@ -7707,8 +8014,7 @@ package body Freeze is
       if Present (Address_Clause (E)) then
          if not Is_Imported (E) then
             Error_Msg_N
-              ("address clause can only be given " &
-               "for imported subprogram",
+              ("address clause can only be given for imported subprogram",
                Name (Address_Clause (E)));
          end if;
       end if;
@@ -7739,8 +8045,8 @@ package body Freeze is
       --  referenced data may change even if the address value does not.
 
       --  Note that if the programmer gave an explicit Pure_Function pragma,
-      --  then we believe the programmer, and leave the subprogram Pure.
-      --  We also suppress this check on run-time files.
+      --  then we believe the programmer, and leave the subprogram Pure. We
+      --  also suppress this check on run-time files.
 
       if Is_Pure (E)
         and then Is_Subprogram (E)
@@ -7748,6 +8054,20 @@ package body Freeze is
         and then not Is_Internal_File_Name (Unit_File_Name (Current_Sem_Unit))
       then
          Check_Function_With_Address_Parameter (E);
+      end if;
+
+      --  Ensure that all anonymous access-to-subprogram types inherit the
+      --  convention of their related subprogram (RM 6.3.1 13.1/3). This is
+      --  not done for a defaulted convention Ada because those types also
+      --  default to Ada. Convention Protected must not be propagated when
+      --  the subprogram is an entry because this would be illegal. The only
+      --  way to force convention Protected on these kinds of types is to
+      --  include keyword "protected" in the access definition.
+
+      if Convention (E) /= Convention_Ada
+        and then Convention (E) /= Convention_Protected
+      then
+         Set_Profile_Convention (E);
       end if;
 
       --  For non-foreign convention subprograms, this is where we create
@@ -7855,6 +8175,16 @@ package body Freeze is
         and then not Error_Posted (Parent (E))
       then
          Check_Overriding_Indicator (E, Empty, Is_Primitive (E));
+      end if;
+
+      if Modify_Tree_For_C
+        and then Nkind (Parent (E)) = N_Function_Specification
+        and then Is_Array_Type (Etype (E))
+        and then Is_Constrained (Etype (E))
+        and then not Is_Unchecked_Conversion_Instance (E)
+        and then not Rewritten_For_C (E)
+      then
+         Build_Procedure_Form (Unit_Declaration_Node (E));
       end if;
    end Freeze_Subprogram;
 
@@ -8013,7 +8343,7 @@ package body Freeze is
 
             --  Else construct and analyze the body of a wrapper procedure
             --  that contains an object declaration to hold the expression.
-            --  Given that this is done only to complete the analysis, it
+            --  Given that this is done only to complete the analysis, it is
             --  simpler to build a procedure than a function which might
             --  involve secondary stack expansion.
 
@@ -8284,7 +8614,7 @@ package body Freeze is
          --  Add friendly warning if initialization comes from a packed array
          --  component.
 
-         if Is_Record_Type (Typ)  then
+         if Is_Record_Type (Typ) then
             declare
                Comp : Entity_Id;
 

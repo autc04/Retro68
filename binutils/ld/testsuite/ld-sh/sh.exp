@@ -37,7 +37,7 @@ set testsimple "SH simple relaxing"
 
 if ![ld_assemble $as "-relax $srcdir/$subdir/sh1.s" tmpdir/sh1.o] {
     unresolved $testsimple
-} else { if ![ld_simple_link $ld tmpdir/sh1 "-relax tmpdir/sh1.o"] {
+} else { if ![ld_link $ld tmpdir/sh1 "-relax tmpdir/sh1.o"] {
     fail $testsimple
 } else {
     if ![ld_nm $nm "" tmpdir/sh1] {
@@ -73,7 +73,7 @@ if { [istarget sh*-linux-*] || [istarget sh-*-vxworks] } {
 } else {
     set srec_relax_arg "-relax --oformat srec tmpdir/sh1.o"
 }
-if ![ld_simple_link $ld tmpdir/sh1.s1 $srec_relax_arg ] {
+if ![ld_link $ld tmpdir/sh1.s1 $srec_relax_arg ] {
     fail $testsrec
 } else {
     # The file name is embedded in the S-records, so create both
@@ -114,7 +114,7 @@ set testadjsw8 "SH switch8 adjustment after relax"
 if ![ld_assemble $as "-relax $srcdir/$subdir/adjsw8.s" tmpdir/adjsw8.o] {
     unresolved $testadjsw8
 } else {
-    if ![ld_simple_link $ld tmpdir/adjsw8 "-relax tmpdir/adjsw8.o"] {
+    if ![ld_link $ld tmpdir/adjsw8 "-relax tmpdir/adjsw8.o"] {
 	fail $testadjsw8
     } else {
 	send_log "exec $objdump -s tmpdir/adjsw8\n"
@@ -156,7 +156,7 @@ if {![ld_assemble $as "-relax tmpdir/start.s" tmpdir/start.o] \
     return
 }
 
-if ![ld_simple_link $ld tmpdir/sh2 "-relax tmpdir/start.o tmpdir/sh2.o"] {
+if ![ld_link $ld tmpdir/sh2 "-relax tmpdir/start.o tmpdir/sh2.o"] {
     fail $testlink
     unresolved $testjsr
     unresolved $testrun

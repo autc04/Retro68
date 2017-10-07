@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.0.  */
+/* A Bison parser, made by GNU Bison 3.0.4.  */
 
 /* Bison implementation for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "3.0"
+#define YYBISON_VERSION "3.0.4"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -185,11 +185,11 @@ static int    sub_op2;
 
 #line 187 "rx-parse.c" /* yacc.c:339  */
 
-# ifndef YY_NULL
+# ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
-#   define YY_NULL nullptr
+#   define YY_NULLPTR nullptr
 #  else
-#   define YY_NULL 0
+#   define YY_NULLPTR 0
 #  endif
 # endif
 
@@ -486,7 +486,7 @@ extern int rx_debug;
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE YYSTYPE;
+
 union YYSTYPE
 {
 #line 135 "./config/rx-parse.y" /* yacc.c:355  */
@@ -496,6 +496,8 @@ union YYSTYPE
 
 #line 498 "rx-parse.c" /* yacc.c:355  */
 };
+
+typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif
@@ -509,7 +511,7 @@ int rx_parse (void);
 
 /* Copy the second part of user declarations.  */
 
-#line 513 "rx-parse.c" /* yacc.c:358  */
+#line 515 "rx-parse.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -566,11 +568,30 @@ typedef short int yytype_int16;
 # endif
 #endif
 
-#ifndef __attribute__
-/* This feature is available in gcc versions 2.5 and later.  */
-# if (! defined __GNUC__ || __GNUC__ < 2 \
-      || (__GNUC__ == 2 && __GNUC_MINOR__ < 5))
-#  define __attribute__(Spec) /* empty */
+#ifndef YY_ATTRIBUTE
+# if (defined __GNUC__                                               \
+      && (2 < __GNUC__ || (__GNUC__ == 2 && 96 <= __GNUC_MINOR__)))  \
+     || defined __SUNPRO_C && 0x5110 <= __SUNPRO_C
+#  define YY_ATTRIBUTE(Spec) __attribute__(Spec)
+# else
+#  define YY_ATTRIBUTE(Spec) /* empty */
+# endif
+#endif
+
+#ifndef YY_ATTRIBUTE_PURE
+# define YY_ATTRIBUTE_PURE   YY_ATTRIBUTE ((__pure__))
+#endif
+
+#ifndef YY_ATTRIBUTE_UNUSED
+# define YY_ATTRIBUTE_UNUSED YY_ATTRIBUTE ((__unused__))
+#endif
+
+#if !defined _Noreturn \
+     && (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112)
+# if defined _MSC_VER && 1200 <= _MSC_VER
+#  define _Noreturn __declspec (noreturn)
+# else
+#  define _Noreturn YY_ATTRIBUTE ((__noreturn__))
 # endif
 #endif
 
@@ -864,7 +885,7 @@ static const char *const yytname[] =
   "op_dp20_rim_l", "op_dp20_rr", "op_dp20_r", "op_dp20_ri", "$@46",
   "op_xchg", "op_shift_rot", "op_shift", "float3_op", "float2_op", "$@47",
   "float2_op_ni", "$@48", "$@49", "mvfa_op", "$@50", "disp", "flag",
-  "$@51", "memex", "bwl", "bw", "opt_l", "opt_b", YY_NULL
+  "$@51", "memex", "bwl", "bw", "opt_l", "opt_b", YY_NULLPTR
 };
 #endif
 
@@ -1693,11 +1714,11 @@ static int
 yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                 yytype_int16 *yyssp, int yytoken)
 {
-  YYSIZE_T yysize0 = yytnamerr (YY_NULL, yytname[yytoken]);
+  YYSIZE_T yysize0 = yytnamerr (YY_NULLPTR, yytname[yytoken]);
   YYSIZE_T yysize = yysize0;
   enum { YYERROR_VERBOSE_ARGS_MAXIMUM = 5 };
   /* Internationalized format string. */
-  const char *yyformat = YY_NULL;
+  const char *yyformat = YY_NULLPTR;
   /* Arguments of yyformat. */
   char const *yyarg[YYERROR_VERBOSE_ARGS_MAXIMUM];
   /* Number of reported tokens (one for the "unexpected", one per
@@ -1754,7 +1775,7 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                   }
                 yyarg[yycount++] = yytname[yyx];
                 {
-                  YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULL, yytname[yyx]);
+                  YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULLPTR, yytname[yyx]);
                   if (! (yysize <= yysize1
                          && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
                     return 2;
@@ -2086,37 +2107,37 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 179 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 179 "./config/rx-parse.y" /* yacc.c:1646  */
     { as_bad (_("Unknown opcode: %s"), rx_init_start); }
-#line 2092 "rx-parse.c" /* yacc.c:1661  */
+#line 2113 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 3:
-#line 184 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 184 "./config/rx-parse.y" /* yacc.c:1646  */
     { B1 (0x00); }
-#line 2098 "rx-parse.c" /* yacc.c:1661  */
+#line 2119 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 4:
-#line 187 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 187 "./config/rx-parse.y" /* yacc.c:1646  */
     { B1 (0x01); }
-#line 2104 "rx-parse.c" /* yacc.c:1661  */
+#line 2125 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 5:
-#line 190 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 190 "./config/rx-parse.y" /* yacc.c:1646  */
     { B1 (0x02); }
-#line 2110 "rx-parse.c" /* yacc.c:1661  */
+#line 2131 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 6:
-#line 193 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 193 "./config/rx-parse.y" /* yacc.c:1646  */
     { B1 (0x03); }
-#line 2116 "rx-parse.c" /* yacc.c:1661  */
+#line 2137 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 7:
-#line 198 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 198 "./config/rx-parse.y" /* yacc.c:1646  */
     { if (rx_disp3op ((yyvsp[0].exp)))
 	      { B1 (0x08); rx_disp3 ((yyvsp[0].exp), 5); }
 	    else if (rx_intop ((yyvsp[0].exp), 8, 8))
@@ -2130,23 +2151,23 @@ yyreduce:
 		rx_linkrelax_branch ();
 		/* We'll convert this to a longer one later if needed.  */
 		B1 (0x08); rx_disp3 ((yyvsp[0].exp), 5); } }
-#line 2134 "rx-parse.c" /* yacc.c:1661  */
+#line 2155 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 8:
-#line 213 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 213 "./config/rx-parse.y" /* yacc.c:1646  */
     { B1 (0x04); PC3 ((yyvsp[0].exp)); }
-#line 2140 "rx-parse.c" /* yacc.c:1661  */
+#line 2161 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 9:
-#line 216 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 216 "./config/rx-parse.y" /* yacc.c:1646  */
     { B1 (0x08); rx_disp3 ((yyvsp[0].exp), 5); }
-#line 2146 "rx-parse.c" /* yacc.c:1661  */
+#line 2167 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 221 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 221 "./config/rx-parse.y" /* yacc.c:1646  */
     { if (rx_intop ((yyvsp[0].exp), 16, 16))
 	      { B1 (0x39); PC2 ((yyvsp[0].exp)); }
 	    else if (rx_intop ((yyvsp[0].exp), 24, 24))
@@ -2155,59 +2176,59 @@ yyreduce:
 	      { rx_relax (RX_RELAX_BRANCH, 0);
 		rx_linkrelax_branch ();
 		B1 (0x39); PC2 ((yyvsp[0].exp)); } }
-#line 2159 "rx-parse.c" /* yacc.c:1661  */
+#line 2180 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 11:
-#line 230 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 230 "./config/rx-parse.y" /* yacc.c:1646  */
     { B1 (0x05), PC3 ((yyvsp[0].exp)); }
-#line 2165 "rx-parse.c" /* yacc.c:1661  */
+#line 2186 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 12:
-#line 235 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 235 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-2].regno) == COND_EQ || (yyvsp[-2].regno) == COND_NE)
 	      { B1 ((yyvsp[-2].regno) == COND_EQ ? 0x10 : 0x18); rx_disp3 ((yyvsp[0].exp), 5); }
 	    else
 	      as_bad (_("Only BEQ and BNE may have .S")); }
-#line 2174 "rx-parse.c" /* yacc.c:1661  */
+#line 2195 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 13:
-#line 243 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 243 "./config/rx-parse.y" /* yacc.c:1646  */
     { B1 (0x20); F ((yyvsp[-2].regno), 4, 4); PC1 ((yyvsp[0].exp)); }
-#line 2180 "rx-parse.c" /* yacc.c:1661  */
+#line 2201 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 14:
-#line 246 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 246 "./config/rx-parse.y" /* yacc.c:1646  */
     { B1 (0x2e), PC1 ((yyvsp[0].exp)); }
-#line 2186 "rx-parse.c" /* yacc.c:1661  */
+#line 2207 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 15:
-#line 251 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 251 "./config/rx-parse.y" /* yacc.c:1646  */
     { B1 (0x38), PC2 ((yyvsp[0].exp)); }
-#line 2192 "rx-parse.c" /* yacc.c:1661  */
+#line 2213 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 16:
-#line 253 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 253 "./config/rx-parse.y" /* yacc.c:1646  */
     { B1 (0x39), PC2 ((yyvsp[0].exp)); }
-#line 2198 "rx-parse.c" /* yacc.c:1661  */
+#line 2219 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 17:
-#line 255 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 255 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-2].regno) == COND_EQ || (yyvsp[-2].regno) == COND_NE)
 	      { B1 ((yyvsp[-2].regno) == COND_EQ ? 0x3a : 0x3b); PC2 ((yyvsp[0].exp)); }
 	    else
 	      as_bad (_("Only BEQ and BNE may have .W")); }
-#line 2207 "rx-parse.c" /* yacc.c:1661  */
+#line 2228 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 18:
-#line 260 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 260 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-1].regno) == COND_EQ || (yyvsp[-1].regno) == COND_NE)
 	      {
 		rx_relax (RX_RELAX_BRANCH, 0);
@@ -2222,209 +2243,209 @@ yyreduce:
 		rx_linkrelax_branch ();
 	        B1 (0x20); F ((yyvsp[-1].regno), 4, 4); PC1 ((yyvsp[0].exp));
 	      } }
-#line 2226 "rx-parse.c" /* yacc.c:1661  */
+#line 2247 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 19:
-#line 278 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 278 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0xf8, 0x04); F ((yyvsp[-1].regno), 8, 4); IMMB ((yyvsp[-4].exp), 12);}
-#line 2232 "rx-parse.c" /* yacc.c:1661  */
+#line 2253 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 20:
-#line 281 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 281 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0xf8, 0x01); F ((yyvsp[-1].regno), 8, 4); IMMW ((yyvsp[-4].exp), 12);}
-#line 2238 "rx-parse.c" /* yacc.c:1661  */
+#line 2259 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 21:
-#line 284 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 284 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0xf8, 0x02); F ((yyvsp[-1].regno), 8, 4); IMM ((yyvsp[-4].exp), 12);}
-#line 2244 "rx-parse.c" /* yacc.c:1661  */
+#line 2265 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 22:
-#line 288 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 288 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-1].regno) <= 7 && rx_uintop ((yyvsp[-5].exp), 8) && rx_disp5op0 (&(yyvsp[-3].exp), BSIZE))
 	      { B2 (0x3c, 0); rx_field5s2 ((yyvsp[-3].exp)); F ((yyvsp[-1].regno), 9, 3); O1 ((yyvsp[-5].exp)); }
 	    else
 	      { B2 (0xf8, 0x04); F ((yyvsp[-1].regno), 8, 4); DSP ((yyvsp[-3].exp), 6, BSIZE); O1 ((yyvsp[-5].exp));
 	      if ((yyvsp[-5].exp).X_op != O_constant && (yyvsp[-5].exp).X_op != O_big) rx_linkrelax_imm (12); } }
-#line 2254 "rx-parse.c" /* yacc.c:1661  */
+#line 2275 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 23:
-#line 295 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 295 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-1].regno) <= 7 && rx_uintop ((yyvsp[-5].exp), 8) && rx_disp5op0 (&(yyvsp[-3].exp), WSIZE))
 	      { B2 (0x3d, 0); rx_field5s2 ((yyvsp[-3].exp)); F ((yyvsp[-1].regno), 9, 3); O1 ((yyvsp[-5].exp)); }
 	    else
 	      { B2 (0xf8, 0x01); F ((yyvsp[-1].regno), 8, 4); DSP ((yyvsp[-3].exp), 6, WSIZE); IMMW ((yyvsp[-5].exp), 12); } }
-#line 2263 "rx-parse.c" /* yacc.c:1661  */
+#line 2284 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 24:
-#line 301 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 301 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-1].regno) <= 7 && rx_uintop ((yyvsp[-5].exp), 8) && rx_disp5op0 (&(yyvsp[-3].exp), LSIZE))
 	      { B2 (0x3e, 0); rx_field5s2 ((yyvsp[-3].exp)); F ((yyvsp[-1].regno), 9, 3); O1 ((yyvsp[-5].exp)); }
 	    else
 	      { B2 (0xf8, 0x02); F ((yyvsp[-1].regno), 8, 4); DSP ((yyvsp[-3].exp), 6, LSIZE); IMM ((yyvsp[-5].exp), 12); } }
-#line 2272 "rx-parse.c" /* yacc.c:1661  */
+#line 2293 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 25:
-#line 309 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 309 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x3f, 0); F ((yyvsp[-2].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); rtsd_immediate ((yyvsp[-4].exp));
 	    if ((yyvsp[-2].regno) == 0)
 	      rx_error (_("RTSD cannot pop R0"));
 	    if ((yyvsp[-2].regno) > (yyvsp[0].regno))
 	      rx_error (_("RTSD first reg must be <= second reg")); }
-#line 2282 "rx-parse.c" /* yacc.c:1661  */
+#line 2303 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 26:
-#line 318 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 318 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x47, 0); F ((yyvsp[-2].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); }
-#line 2288 "rx-parse.c" /* yacc.c:1661  */
+#line 2309 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 27:
-#line 323 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 323 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x44, 0); F ((yyvsp[-4].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); DSP ((yyvsp[-6].exp), 6, BSIZE); }
-#line 2294 "rx-parse.c" /* yacc.c:1661  */
+#line 2315 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 28:
-#line 326 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 326 "./config/rx-parse.y" /* yacc.c:1646  */
     { B3 (MEMEX, 0x04, 0); F ((yyvsp[-2].regno), 8, 2);  F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); DSP ((yyvsp[-6].exp), 14, sizemap[(yyvsp[-2].regno)]); }
-#line 2300 "rx-parse.c" /* yacc.c:1661  */
+#line 2321 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 29:
-#line 331 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 331 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x5b, 0x00); F ((yyvsp[-3].regno), 5, 1); F ((yyvsp[-2].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); }
-#line 2306 "rx-parse.c" /* yacc.c:1661  */
+#line 2327 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 30:
-#line 336 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 336 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x58, 0x00); F ((yyvsp[-5].regno), 5, 1); F ((yyvsp[-3].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); }
-#line 2312 "rx-parse.c" /* yacc.c:1661  */
+#line 2333 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 31:
-#line 339 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 339 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-3].regno) <= 7 && (yyvsp[0].regno) <= 7 && rx_disp5op (&(yyvsp[-5].exp), (yyvsp[-6].regno)))
 	      { B2 (0xb0, 0); F ((yyvsp[-6].regno), 4, 1); F ((yyvsp[-3].regno), 9, 3); F ((yyvsp[0].regno), 13, 3); rx_field5s ((yyvsp[-5].exp)); }
 	    else
 	      { B2 (0x58, 0x00); F ((yyvsp[-6].regno), 5, 1); F ((yyvsp[-3].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); DSP ((yyvsp[-5].exp), 6, (yyvsp[-6].regno)); } }
-#line 2321 "rx-parse.c" /* yacc.c:1661  */
+#line 2342 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 32:
-#line 347 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 347 "./config/rx-parse.y" /* yacc.c:1646  */
     { if (rx_uintop ((yyvsp[-2].exp), 4))
 	      { B2 (0x60, 0); FE ((yyvsp[-2].exp), 8, 4); F ((yyvsp[0].regno), 12, 4); }
 	    else
 	      /* This is really an add, but we negate the immediate.  */
 	      { B2 (0x70, 0); F ((yyvsp[0].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); NIMM ((yyvsp[-2].exp), 6); } }
-#line 2331 "rx-parse.c" /* yacc.c:1661  */
+#line 2352 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 33:
-#line 354 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 354 "./config/rx-parse.y" /* yacc.c:1646  */
     { if (rx_uintop ((yyvsp[-2].exp), 4))
 	      { B2 (0x61, 0); FE ((yyvsp[-2].exp), 8, 4); F ((yyvsp[0].regno), 12, 4); }
 	    else if (rx_uintop ((yyvsp[-2].exp), 8))
 	      { B2 (0x75, 0x50); F ((yyvsp[0].regno), 12, 4); UO1 ((yyvsp[-2].exp)); }
 	    else
 	      { B2 (0x74, 0x00); F ((yyvsp[0].regno), 12, 4); IMM ((yyvsp[-2].exp), 6); } }
-#line 2342 "rx-parse.c" /* yacc.c:1661  */
+#line 2363 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 34:
-#line 362 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 362 "./config/rx-parse.y" /* yacc.c:1646  */
     { if (rx_uintop ((yyvsp[-2].exp), 4))
 	      { B2 (0x62, 0); FE ((yyvsp[-2].exp), 8, 4); F ((yyvsp[0].regno), 12, 4); }
 	    else
 	      { B2 (0x70, 0); F ((yyvsp[0].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); IMM ((yyvsp[-2].exp), 6); } }
-#line 2351 "rx-parse.c" /* yacc.c:1661  */
+#line 2372 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 35:
-#line 368 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 368 "./config/rx-parse.y" /* yacc.c:1646  */
     { if (rx_uintop ((yyvsp[-2].exp), 4))
 	      { B2 (0x63, 0); FE ((yyvsp[-2].exp), 8, 4); F ((yyvsp[0].regno), 12, 4); }
 	    else
 	      { B2 (0x74, 0x10); F ((yyvsp[0].regno), 12, 4); IMM ((yyvsp[-2].exp), 6); } }
-#line 2360 "rx-parse.c" /* yacc.c:1661  */
+#line 2381 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 36:
-#line 374 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 374 "./config/rx-parse.y" /* yacc.c:1646  */
     { if (rx_uintop ((yyvsp[-2].exp), 4))
 	      { B2 (0x64, 0); FE ((yyvsp[-2].exp), 8, 4); F ((yyvsp[0].regno), 12, 4); }
 	    else
 	      { B2 (0x74, 0x20); F ((yyvsp[0].regno), 12, 4); IMM ((yyvsp[-2].exp), 6); } }
-#line 2369 "rx-parse.c" /* yacc.c:1661  */
+#line 2390 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 37:
-#line 380 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 380 "./config/rx-parse.y" /* yacc.c:1646  */
     { if (rx_uintop ((yyvsp[-2].exp), 4))
 	      { B2 (0x65, 0); FE ((yyvsp[-2].exp), 8, 4); F ((yyvsp[0].regno), 12, 4); }
 	    else
 	      { B2 (0x74, 0x30); F ((yyvsp[0].regno), 12, 4); IMM ((yyvsp[-2].exp), 6); } }
-#line 2378 "rx-parse.c" /* yacc.c:1661  */
+#line 2399 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 38:
-#line 386 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 386 "./config/rx-parse.y" /* yacc.c:1646  */
     { if (rx_uintop ((yyvsp[-2].exp), 4))
 	      { B2 (0x66, 0); FE ((yyvsp[-2].exp), 8, 4); F ((yyvsp[0].regno), 12, 4); }
 	    else if (rx_uintop ((yyvsp[-2].exp), 8))
 	      { B2 (0x75, 0x40); F ((yyvsp[0].regno), 12, 4); UO1 ((yyvsp[-2].exp)); }
 	    else
 	      { B2 (0xfb, 0x02); F ((yyvsp[0].regno), 8, 4); IMM ((yyvsp[-2].exp), 12); } }
-#line 2389 "rx-parse.c" /* yacc.c:1661  */
+#line 2410 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 39:
-#line 394 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 394 "./config/rx-parse.y" /* yacc.c:1646  */
     { if (rx_uintop ((yyvsp[-2].exp), 4))
 	      { B2 (0x66, 0); FE ((yyvsp[-2].exp), 8, 4); F ((yyvsp[0].regno), 12, 4); }
 	    else if (rx_uintop ((yyvsp[-2].exp), 8))
 	      { B2 (0x75, 0x40); F ((yyvsp[0].regno), 12, 4); UO1 ((yyvsp[-2].exp)); }
 	    else
 	      { B2 (0xfb, 0x02); F ((yyvsp[0].regno), 8, 4); IMM ((yyvsp[-2].exp), 12); } }
-#line 2400 "rx-parse.c" /* yacc.c:1661  */
+#line 2421 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 40:
-#line 404 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 404 "./config/rx-parse.y" /* yacc.c:1646  */
     { B1 (0x67); rtsd_immediate ((yyvsp[0].exp)); }
-#line 2406 "rx-parse.c" /* yacc.c:1661  */
+#line 2427 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 41:
-#line 408 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 408 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 0; }
-#line 2412 "rx-parse.c" /* yacc.c:1661  */
+#line 2433 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 43:
-#line 409 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 409 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 1; }
-#line 2418 "rx-parse.c" /* yacc.c:1661  */
+#line 2439 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 45:
-#line 410 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 410 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 2; }
-#line 2424 "rx-parse.c" /* yacc.c:1661  */
+#line 2445 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 47:
-#line 415 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 415 "./config/rx-parse.y" /* yacc.c:1646  */
     {
 	    if ((yyvsp[-2].regno) == (yyvsp[0].regno))
 	      { B2 (0x7e, 0x80); F (LSIZE, 10, 2); F ((yyvsp[-2].regno), 12, 4); }
@@ -2434,11 +2455,11 @@ yyreduce:
 	      rx_error (_("PUSHM cannot push R0"));
 	    if ((yyvsp[-2].regno) > (yyvsp[0].regno))
 	      rx_error (_("PUSHM first reg must be <= second reg")); }
-#line 2438 "rx-parse.c" /* yacc.c:1661  */
+#line 2459 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 48:
-#line 428 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 428 "./config/rx-parse.y" /* yacc.c:1646  */
     {
 	    if ((yyvsp[-2].regno) == (yyvsp[0].regno))
 	      { B2 (0x7e, 0xb0); F ((yyvsp[-2].regno), 12, 4); }
@@ -2448,635 +2469,635 @@ yyreduce:
 	      rx_error (_("POPM cannot pop R0"));
 	    if ((yyvsp[-2].regno) > (yyvsp[0].regno))
 	      rx_error (_("POPM first reg must be <= second reg")); }
-#line 2452 "rx-parse.c" /* yacc.c:1661  */
+#line 2473 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 49:
-#line 441 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 441 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x70, 0x00); F ((yyvsp[-2].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); IMM ((yyvsp[-4].exp), 6); }
-#line 2458 "rx-parse.c" /* yacc.c:1661  */
+#line 2479 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 50:
-#line 446 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 446 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2(0x75, 0x60), UO1 ((yyvsp[0].exp)); }
-#line 2464 "rx-parse.c" /* yacc.c:1661  */
+#line 2485 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 51:
-#line 451 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 451 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x78, 0); FE ((yyvsp[-2].exp), 7, 5); F ((yyvsp[0].regno), 12, 4); }
-#line 2470 "rx-parse.c" /* yacc.c:1661  */
+#line 2491 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 52:
-#line 453 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 453 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7a, 0); FE ((yyvsp[-2].exp), 7, 5); F ((yyvsp[0].regno), 12, 4); }
-#line 2476 "rx-parse.c" /* yacc.c:1661  */
+#line 2497 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 53:
-#line 458 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 458 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7c, 0x00); FE ((yyvsp[-2].exp), 7, 5); F ((yyvsp[0].regno), 12, 4); }
-#line 2482 "rx-parse.c" /* yacc.c:1661  */
+#line 2503 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 54:
-#line 463 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 463 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7e, 0x30); F ((yyvsp[0].regno), 12, 4); }
-#line 2488 "rx-parse.c" /* yacc.c:1661  */
+#line 2509 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 55:
-#line 465 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 465 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7e, 0x40); F ((yyvsp[0].regno), 12, 4); }
-#line 2494 "rx-parse.c" /* yacc.c:1661  */
+#line 2515 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 56:
-#line 467 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 467 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7e, 0x50); F ((yyvsp[0].regno), 12, 4); }
-#line 2500 "rx-parse.c" /* yacc.c:1661  */
+#line 2521 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 57:
-#line 472 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 472 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7e, 0x80); F ((yyvsp[-1].regno), 10, 2); F ((yyvsp[0].regno), 12, 4); }
-#line 2506 "rx-parse.c" /* yacc.c:1661  */
+#line 2527 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 58:
-#line 477 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 477 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7e, 0xb0); F ((yyvsp[0].regno), 12, 4); }
-#line 2512 "rx-parse.c" /* yacc.c:1661  */
+#line 2533 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 59:
-#line 482 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 482 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[0].regno) == 13)
 	      { rx_check_v2 (); }
 	    if ((yyvsp[0].regno) < 16)
 	      { B2 (0x7e, 0xc0); F ((yyvsp[0].regno), 12, 4); }
 	    else
 	      as_bad (_("PUSHC can only push the first 16 control registers")); }
-#line 2523 "rx-parse.c" /* yacc.c:1661  */
+#line 2544 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 60:
-#line 492 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 492 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[0].regno) == 13)
 	    { rx_check_v2 (); }
 	    if ((yyvsp[0].regno) < 16)
 	      { B2 (0x7e, 0xe0); F ((yyvsp[0].regno), 12, 4); }
 	    else
 	      as_bad (_("POPC can only pop the first 16 control registers")); }
-#line 2534 "rx-parse.c" /* yacc.c:1661  */
+#line 2555 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 61:
-#line 502 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 502 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0xa0); F ((yyvsp[0].regno), 12, 4); }
-#line 2540 "rx-parse.c" /* yacc.c:1661  */
+#line 2561 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 62:
-#line 504 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 504 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0xb0); F ((yyvsp[0].regno), 12, 4); }
-#line 2546 "rx-parse.c" /* yacc.c:1661  */
+#line 2567 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 63:
-#line 509 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 509 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x00); F ((yyvsp[0].regno), 12, 4); }
-#line 2552 "rx-parse.c" /* yacc.c:1661  */
+#line 2573 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 64:
-#line 511 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 511 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x10); F ((yyvsp[0].regno), 12, 4); }
-#line 2558 "rx-parse.c" /* yacc.c:1661  */
+#line 2579 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 65:
-#line 513 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 513 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x40); F ((yyvsp[0].regno), 12, 4); }
-#line 2564 "rx-parse.c" /* yacc.c:1661  */
+#line 2585 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 66:
-#line 515 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 515 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x50); F ((yyvsp[0].regno), 12, 4); }
-#line 2570 "rx-parse.c" /* yacc.c:1661  */
+#line 2591 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 67:
-#line 520 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 520 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x83); rx_note_string_insn_use (); }
-#line 2576 "rx-parse.c" /* yacc.c:1661  */
+#line 2597 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 68:
-#line 522 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 522 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x87); rx_note_string_insn_use (); }
-#line 2582 "rx-parse.c" /* yacc.c:1661  */
+#line 2603 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 69:
-#line 524 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 524 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x8b); rx_note_string_insn_use (); }
-#line 2588 "rx-parse.c" /* yacc.c:1661  */
+#line 2609 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 70:
-#line 526 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 526 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x8f); rx_note_string_insn_use (); }
-#line 2594 "rx-parse.c" /* yacc.c:1661  */
+#line 2615 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 71:
-#line 531 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 531 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x80); F ((yyvsp[0].regno), 14, 2); rx_note_string_insn_use (); }
-#line 2600 "rx-parse.c" /* yacc.c:1661  */
+#line 2621 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 72:
-#line 533 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 533 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x84); F ((yyvsp[0].regno), 14, 2); rx_note_string_insn_use (); }
-#line 2606 "rx-parse.c" /* yacc.c:1661  */
+#line 2627 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 73:
-#line 535 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 535 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x88); F ((yyvsp[0].regno), 14, 2); }
-#line 2612 "rx-parse.c" /* yacc.c:1661  */
+#line 2633 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 74:
-#line 540 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 540 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x8c); F ((yyvsp[0].regno), 14, 2); rx_note_string_insn_use (); }
-#line 2618 "rx-parse.c" /* yacc.c:1661  */
+#line 2639 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 75:
-#line 545 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 545 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x94); }
-#line 2624 "rx-parse.c" /* yacc.c:1661  */
+#line 2645 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 76:
-#line 547 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 547 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x95); }
-#line 2630 "rx-parse.c" /* yacc.c:1661  */
+#line 2651 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 77:
-#line 549 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 549 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x96); }
-#line 2636 "rx-parse.c" /* yacc.c:1661  */
+#line 2657 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 78:
-#line 551 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 551 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7f, 0x93); }
-#line 2642 "rx-parse.c" /* yacc.c:1661  */
+#line 2663 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 79:
-#line 556 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 556 "./config/rx-parse.y" /* yacc.c:1646  */
     { B3 (0x75, 0x70, 0x00); FE ((yyvsp[0].exp), 20, 4); }
-#line 2648 "rx-parse.c" /* yacc.c:1661  */
+#line 2669 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 80:
-#line 562 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 562 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-5].regno) <= 7 && (yyvsp[-1].regno) <= 7 && rx_disp5op (&(yyvsp[-3].exp), (yyvsp[-6].regno)))
 	      { B2 (0x80, 0); F ((yyvsp[-6].regno), 2, 2); F ((yyvsp[-1].regno), 9, 3); F ((yyvsp[-5].regno), 13, 3); rx_field5s ((yyvsp[-3].exp)); }
 	    else
 	      { B2 (0xc3, 0x00); F ((yyvsp[-6].regno), 2, 2); F ((yyvsp[-1].regno), 8, 4); F ((yyvsp[-5].regno), 12, 4); DSP ((yyvsp[-3].exp), 4, (yyvsp[-6].regno)); }}
-#line 2657 "rx-parse.c" /* yacc.c:1661  */
+#line 2678 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 81:
-#line 570 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 570 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-3].regno) <= 7 && (yyvsp[0].regno) <= 7 && rx_disp5op (&(yyvsp[-5].exp), (yyvsp[-6].regno)))
 	      { B2 (0x88, 0); F ((yyvsp[-6].regno), 2, 2); F ((yyvsp[-3].regno), 9, 3); F ((yyvsp[0].regno), 13, 3); rx_field5s ((yyvsp[-5].exp)); }
 	    else
 	      { B2 (0xcc, 0x00); F ((yyvsp[-6].regno), 2, 2); F ((yyvsp[-3].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); DSP ((yyvsp[-5].exp), 6, (yyvsp[-6].regno)); } }
-#line 2666 "rx-parse.c" /* yacc.c:1661  */
+#line 2687 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 82:
-#line 584 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 584 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0xc3, 0x00); F ((yyvsp[-5].regno), 2, 2); F ((yyvsp[-1].regno), 8, 4); F ((yyvsp[-4].regno), 12, 4); }
-#line 2672 "rx-parse.c" /* yacc.c:1661  */
+#line 2693 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 83:
-#line 589 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 589 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0xc0, 0); F ((yyvsp[-8].regno), 2, 2); F ((yyvsp[-6].regno), 8, 4); F ((yyvsp[-1].regno), 12, 4); DSP ((yyvsp[-3].exp), 4, (yyvsp[-8].regno)); }
-#line 2678 "rx-parse.c" /* yacc.c:1661  */
+#line 2699 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 84:
-#line 594 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 594 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0xc0, 0x00); F ((yyvsp[-9].regno), 2, 2); F ((yyvsp[-6].regno), 8, 4); F ((yyvsp[-1].regno), 12, 4); DSP ((yyvsp[-8].exp), 6, (yyvsp[-9].regno)); DSP ((yyvsp[-3].exp), 4, (yyvsp[-9].regno)); }
-#line 2684 "rx-parse.c" /* yacc.c:1661  */
+#line 2705 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 85:
-#line 599 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 599 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0xcf, 0x00); F ((yyvsp[-3].regno), 2, 2); F ((yyvsp[-2].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); }
-#line 2690 "rx-parse.c" /* yacc.c:1661  */
+#line 2711 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 86:
-#line 604 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 604 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0xcc, 0x00); F ((yyvsp[-5].regno), 2, 2); F ((yyvsp[-3].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); }
-#line 2696 "rx-parse.c" /* yacc.c:1661  */
+#line 2717 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 87:
-#line 609 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 609 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0xf0, 0x00); F ((yyvsp[-2].regno), 8, 4); FE ((yyvsp[-6].exp), 13, 3); DSP ((yyvsp[-4].exp), 6, BSIZE); }
-#line 2702 "rx-parse.c" /* yacc.c:1661  */
+#line 2723 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 88:
-#line 611 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 611 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0xf0, 0x08); F ((yyvsp[-2].regno), 8, 4); FE ((yyvsp[-6].exp), 13, 3); DSP ((yyvsp[-4].exp), 6, BSIZE); }
-#line 2708 "rx-parse.c" /* yacc.c:1661  */
+#line 2729 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 89:
-#line 613 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 613 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0xf4, 0x00); F ((yyvsp[-2].regno), 8, 4); FE ((yyvsp[-6].exp), 13, 3); DSP ((yyvsp[-4].exp), 6, BSIZE); }
-#line 2714 "rx-parse.c" /* yacc.c:1661  */
+#line 2735 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 90:
-#line 618 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 618 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0xf4, 0x08); F ((yyvsp[-4].regno), 14, 2); F ((yyvsp[-1].regno), 8, 4); DSP ((yyvsp[-3].exp), 6, (yyvsp[-4].regno)); }
-#line 2720 "rx-parse.c" /* yacc.c:1661  */
+#line 2741 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 91:
-#line 622 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 622 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 0; }
-#line 2726 "rx-parse.c" /* yacc.c:1661  */
+#line 2747 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 93:
-#line 623 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 623 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 1; sub_op2 = 1; }
-#line 2732 "rx-parse.c" /* yacc.c:1661  */
+#line 2753 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 95:
-#line 624 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 624 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 2; }
-#line 2738 "rx-parse.c" /* yacc.c:1661  */
+#line 2759 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 97:
-#line 625 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 625 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 3; sub_op2 = 2; }
-#line 2744 "rx-parse.c" /* yacc.c:1661  */
+#line 2765 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 99:
-#line 626 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 626 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 4; }
-#line 2750 "rx-parse.c" /* yacc.c:1661  */
+#line 2771 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 101:
-#line 627 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 627 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 5; }
-#line 2756 "rx-parse.c" /* yacc.c:1661  */
+#line 2777 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 103:
-#line 628 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 628 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 6; }
-#line 2762 "rx-parse.c" /* yacc.c:1661  */
+#line 2783 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 105:
-#line 629 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 629 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 7; }
-#line 2768 "rx-parse.c" /* yacc.c:1661  */
+#line 2789 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 107:
-#line 630 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 630 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 8; }
-#line 2774 "rx-parse.c" /* yacc.c:1661  */
+#line 2795 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 109:
-#line 631 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 631 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 9; }
-#line 2780 "rx-parse.c" /* yacc.c:1661  */
+#line 2801 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 111:
-#line 632 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 632 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 12; }
-#line 2786 "rx-parse.c" /* yacc.c:1661  */
+#line 2807 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 113:
-#line 633 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 633 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 13; }
-#line 2792 "rx-parse.c" /* yacc.c:1661  */
+#line 2813 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 115:
-#line 634 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 634 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 14; sub_op2 = 0; }
-#line 2798 "rx-parse.c" /* yacc.c:1661  */
+#line 2819 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 117:
-#line 635 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 635 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 14; sub_op2 = 0; }
-#line 2804 "rx-parse.c" /* yacc.c:1661  */
+#line 2825 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 119:
-#line 636 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 636 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 15; sub_op2 = 1; }
-#line 2810 "rx-parse.c" /* yacc.c:1661  */
+#line 2831 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 121:
-#line 640 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 640 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 6; }
-#line 2816 "rx-parse.c" /* yacc.c:1661  */
+#line 2837 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 123:
-#line 641 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 641 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 7; }
-#line 2822 "rx-parse.c" /* yacc.c:1661  */
+#line 2843 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 125:
-#line 642 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 642 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 16; }
-#line 2828 "rx-parse.c" /* yacc.c:1661  */
+#line 2849 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 127:
-#line 643 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 643 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 17; }
-#line 2834 "rx-parse.c" /* yacc.c:1661  */
+#line 2855 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 129:
-#line 644 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 644 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 21; }
-#line 2840 "rx-parse.c" /* yacc.c:1661  */
+#line 2861 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 131:
-#line 649 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 649 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x63, 0x00); F ((yyvsp[0].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); }
-#line 2846 "rx-parse.c" /* yacc.c:1661  */
+#line 2867 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 132:
-#line 651 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 651 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x67, 0x00); F ((yyvsp[0].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); }
-#line 2852 "rx-parse.c" /* yacc.c:1661  */
+#line 2873 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 133:
-#line 653 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 653 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x6b, 0x00); F ((yyvsp[0].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); }
-#line 2858 "rx-parse.c" /* yacc.c:1661  */
+#line 2879 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 134:
-#line 655 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 655 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x6f, 0x00); F ((yyvsp[0].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); }
-#line 2864 "rx-parse.c" /* yacc.c:1661  */
+#line 2885 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 135:
-#line 658 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 658 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x60, 0x00); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[-6].regno), 20, 4); DSP ((yyvsp[-4].exp), 14, BSIZE); }
-#line 2870 "rx-parse.c" /* yacc.c:1661  */
+#line 2891 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 136:
-#line 660 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 660 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x64, 0x00); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[-6].regno), 20, 4); DSP ((yyvsp[-4].exp), 14, BSIZE); }
-#line 2876 "rx-parse.c" /* yacc.c:1661  */
+#line 2897 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 137:
-#line 662 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 662 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x68, 0x00); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[-6].regno), 20, 4); DSP ((yyvsp[-4].exp), 14, BSIZE); }
-#line 2882 "rx-parse.c" /* yacc.c:1661  */
+#line 2903 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 138:
-#line 664 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 664 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x6c, 0x00); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[-6].regno), 20, 4); DSP ((yyvsp[-4].exp), 14, BSIZE); }
-#line 2888 "rx-parse.c" /* yacc.c:1661  */
+#line 2909 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 139:
-#line 668 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 668 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 0; }
-#line 2894 "rx-parse.c" /* yacc.c:1661  */
+#line 2915 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 141:
-#line 669 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 669 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 1; }
-#line 2900 "rx-parse.c" /* yacc.c:1661  */
+#line 2921 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 143:
-#line 670 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 670 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 2; }
-#line 2906 "rx-parse.c" /* yacc.c:1661  */
+#line 2927 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 145:
-#line 671 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 671 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 3; }
-#line 2912 "rx-parse.c" /* yacc.c:1661  */
+#line 2933 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 147:
-#line 672 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 672 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 4; }
-#line 2918 "rx-parse.c" /* yacc.c:1661  */
+#line 2939 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 149:
-#line 673 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 673 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 8; }
-#line 2924 "rx-parse.c" /* yacc.c:1661  */
+#line 2945 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 151:
-#line 674 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 674 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 5; }
-#line 2930 "rx-parse.c" /* yacc.c:1661  */
+#line 2951 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 153:
-#line 675 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 675 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 9; }
-#line 2936 "rx-parse.c" /* yacc.c:1661  */
+#line 2957 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 155:
-#line 676 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 676 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 6; }
-#line 2942 "rx-parse.c" /* yacc.c:1661  */
+#line 2963 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 157:
-#line 684 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 684 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0xdb, 0x00); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 16, 4); }
-#line 2948 "rx-parse.c" /* yacc.c:1661  */
+#line 2969 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 158:
-#line 686 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 686 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0xd0, 0x00); F ((yyvsp[-5].regno), 20, 4); F ((yyvsp[-4].regno), 12, 2); F ((yyvsp[-1].regno), 16, 4); DSP ((yyvsp[-3].exp), 14, (yyvsp[-4].regno)); }
-#line 2954 "rx-parse.c" /* yacc.c:1661  */
+#line 2975 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 159:
-#line 691 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 691 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0xe0, 0x00); F ((yyvsp[-8].regno), 20, 4); FE ((yyvsp[-6].exp), 11, 3);
 	      F ((yyvsp[-2].regno), 16, 4); DSP ((yyvsp[-4].exp), 14, BSIZE); }
-#line 2961 "rx-parse.c" /* yacc.c:1661  */
+#line 2982 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 160:
-#line 697 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 697 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0xe0, 0x0f); FE ((yyvsp[-6].exp), 11, 3); F ((yyvsp[-2].regno), 16, 4);
 	      DSP ((yyvsp[-4].exp), 14, BSIZE); }
-#line 2968 "rx-parse.c" /* yacc.c:1661  */
+#line 2989 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 161:
-#line 703 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 703 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x00, 0x00); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 2974 "rx-parse.c" /* yacc.c:1661  */
+#line 2995 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 162:
-#line 705 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 705 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x00, 0x00); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 12, 1); }
-#line 2980 "rx-parse.c" /* yacc.c:1661  */
+#line 3001 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 163:
-#line 707 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 707 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x01, 0x00); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 2986 "rx-parse.c" /* yacc.c:1661  */
+#line 3007 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 164:
-#line 709 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 709 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x01, 0x00); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 12, 1); }
-#line 2992 "rx-parse.c" /* yacc.c:1661  */
+#line 3013 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 165:
-#line 711 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 711 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x04, 0x00); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 2998 "rx-parse.c" /* yacc.c:1661  */
+#line 3019 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 166:
-#line 713 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 713 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x04, 0x00); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 12, 1); }
-#line 3004 "rx-parse.c" /* yacc.c:1661  */
+#line 3025 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 167:
-#line 715 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 715 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x05, 0x00); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3010 "rx-parse.c" /* yacc.c:1661  */
+#line 3031 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 168:
-#line 717 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 717 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x05, 0x00); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 12, 1); }
-#line 3016 "rx-parse.c" /* yacc.c:1661  */
+#line 3037 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 169:
-#line 723 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 723 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x17, 0x00); F ((yyvsp[0].regno), 20, 4); }
-#line 3022 "rx-parse.c" /* yacc.c:1661  */
+#line 3043 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 170:
-#line 725 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 725 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x17, 0x00); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 16, 1); }
-#line 3028 "rx-parse.c" /* yacc.c:1661  */
+#line 3049 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 171:
-#line 727 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 727 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x17, 0x10); F ((yyvsp[0].regno), 20, 4); }
-#line 3034 "rx-parse.c" /* yacc.c:1661  */
+#line 3055 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 172:
-#line 729 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 729 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x17, 0x10); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 16, 1); }
-#line 3040 "rx-parse.c" /* yacc.c:1661  */
+#line 3061 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 173:
-#line 731 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 731 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x1f, 0x00); F ((yyvsp[0].regno), 20, 4); }
-#line 3046 "rx-parse.c" /* yacc.c:1661  */
+#line 3067 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 174:
-#line 732 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 732 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 0; }
-#line 3052 "rx-parse.c" /* yacc.c:1661  */
+#line 3073 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 176:
-#line 734 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 734 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x1f, 0x20); F ((yyvsp[0].regno), 20, 4); }
-#line 3058 "rx-parse.c" /* yacc.c:1661  */
+#line 3079 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 177:
-#line 735 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 735 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 2; }
-#line 3064 "rx-parse.c" /* yacc.c:1661  */
+#line 3085 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 179:
-#line 737 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 737 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x1f, 0x10); F ((yyvsp[0].regno), 20, 4); }
-#line 3070 "rx-parse.c" /* yacc.c:1661  */
+#line 3091 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 180:
-#line 738 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 738 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 1; }
-#line 3076 "rx-parse.c" /* yacc.c:1661  */
+#line 3097 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 182:
-#line 740 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 740 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x18, 0x00);
 	    if (rx_uintop ((yyvsp[0].exp), 4) && (yyvsp[0].exp).X_add_number == 1)
 	      ;
@@ -3084,11 +3105,11 @@ yyreduce:
 	      F (1, 19, 1);
 	    else
 	      as_bad (_("RACW expects #1 or #2"));}
-#line 3088 "rx-parse.c" /* yacc.c:1661  */
+#line 3109 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 183:
-#line 748 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 748 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x18, 0x00); F ((yyvsp[0].regno), 16, 1);
 	    if (rx_uintop ((yyvsp[-2].exp), 4) && (yyvsp[-2].exp).X_add_number == 1)
 	      ;
@@ -3096,247 +3117,247 @@ yyreduce:
 	      F (1, 19, 1);
 	    else
 	      as_bad (_("RACW expects #1 or #2"));}
-#line 3100 "rx-parse.c" /* yacc.c:1661  */
+#line 3121 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 184:
-#line 759 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 759 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x20, 0); F ((yyvsp[-6].regno), 14, 2); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[-5].regno), 20, 4); }
-#line 3106 "rx-parse.c" /* yacc.c:1661  */
+#line 3127 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 185:
-#line 761 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 761 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x24, 0); F ((yyvsp[-6].regno), 14, 2); F ((yyvsp[-1].regno), 16, 4); F ((yyvsp[-5].regno), 20, 4); }
-#line 3112 "rx-parse.c" /* yacc.c:1661  */
+#line 3133 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 186:
-#line 766 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 766 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x28, 0); F ((yyvsp[-6].regno), 14, 2); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3118 "rx-parse.c" /* yacc.c:1661  */
+#line 3139 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 187:
-#line 768 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 768 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x2c, 0); F ((yyvsp[-6].regno), 14, 2); F ((yyvsp[-3].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3124 "rx-parse.c" /* yacc.c:1661  */
+#line 3145 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 188:
-#line 773 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 773 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x38, 0); F ((yyvsp[-6].regno), 15, 1); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3130 "rx-parse.c" /* yacc.c:1661  */
+#line 3151 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 189:
-#line 775 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 775 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x3c, 0); F ((yyvsp[-6].regno), 15, 1); F ((yyvsp[-3].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3136 "rx-parse.c" /* yacc.c:1661  */
+#line 3157 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 190:
-#line 779 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 779 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 6; }
-#line 3142 "rx-parse.c" /* yacc.c:1661  */
+#line 3163 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 192:
-#line 780 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 780 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 4; }
-#line 3148 "rx-parse.c" /* yacc.c:1661  */
+#line 3169 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 194:
-#line 781 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 781 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 5; }
-#line 3154 "rx-parse.c" /* yacc.c:1661  */
+#line 3175 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 196:
-#line 782 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 782 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 7; }
-#line 3160 "rx-parse.c" /* yacc.c:1661  */
+#line 3181 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 198:
-#line 787 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 787 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[0].regno) == 13)
 	      rx_check_v2 ();
 	  id24 (2, 0x68, 0x00); F ((yyvsp[0].regno) % 16, 20, 4); F ((yyvsp[0].regno) / 16, 15, 1);
 	    F ((yyvsp[-2].regno), 16, 4); }
-#line 3169 "rx-parse.c" /* yacc.c:1661  */
+#line 3190 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 199:
-#line 795 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 795 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-2].regno) == 13)
 	    rx_check_v2 ();
 	  id24 (2, 0x6a, 0); F ((yyvsp[-2].regno), 15, 5); F ((yyvsp[0].regno), 20, 4); }
-#line 3177 "rx-parse.c" /* yacc.c:1661  */
+#line 3198 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 200:
-#line 802 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 802 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x6e, 0); FE ((yyvsp[-2].exp), 15, 5); F ((yyvsp[0].regno), 20, 4); }
-#line 3183 "rx-parse.c" /* yacc.c:1661  */
+#line 3204 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 201:
-#line 804 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 804 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x6c, 0); FE ((yyvsp[-2].exp), 15, 5); F ((yyvsp[0].regno), 20, 4); }
-#line 3189 "rx-parse.c" /* yacc.c:1661  */
+#line 3210 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 202:
-#line 809 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 809 "./config/rx-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[0].regno) == 13)
 	      rx_check_v2 ();
 	    id24 (2, 0x73, 0x00); F ((yyvsp[0].regno), 19, 5); IMM ((yyvsp[-2].exp), 12); }
-#line 3197 "rx-parse.c" /* yacc.c:1661  */
+#line 3218 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 203:
-#line 816 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 816 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0xe0, 0x00); F ((yyvsp[-4].regno), 16, 4); FE ((yyvsp[-2].exp), 11, 5);
 	      F ((yyvsp[0].regno), 20, 4); }
-#line 3204 "rx-parse.c" /* yacc.c:1661  */
+#line 3225 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 204:
-#line 822 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 822 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0xe0, 0xf0); FE ((yyvsp[-2].exp), 11, 5); F ((yyvsp[0].regno), 20, 4); }
-#line 3210 "rx-parse.c" /* yacc.c:1661  */
+#line 3231 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 205:
-#line 827 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 827 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (3, 0x00, 0); F ((yyvsp[-7].regno), 10, 2); F ((yyvsp[-3].regno), 12, 4); F ((yyvsp[-1].regno), 16, 4); F ((yyvsp[-6].regno), 20, 4); }
-#line 3216 "rx-parse.c" /* yacc.c:1661  */
+#line 3237 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 206:
-#line 830 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 830 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (3, 0x40, 0); F ((yyvsp[-7].regno), 10, 2); F ((yyvsp[-5].regno), 12, 4); F ((yyvsp[-3].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3222 "rx-parse.c" /* yacc.c:1661  */
+#line 3243 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 207:
-#line 833 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 833 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (3, 0xc0, 0); F ((yyvsp[-7].regno), 10, 2); F ((yyvsp[-5].regno), 12, 4); F ((yyvsp[-3].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3228 "rx-parse.c" /* yacc.c:1661  */
+#line 3249 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 208:
-#line 837 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 837 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 0; }
-#line 3234 "rx-parse.c" /* yacc.c:1661  */
+#line 3255 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 210:
-#line 838 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 838 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 2; }
-#line 3240 "rx-parse.c" /* yacc.c:1661  */
+#line 3261 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 212:
-#line 839 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 839 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 3; }
-#line 3246 "rx-parse.c" /* yacc.c:1661  */
+#line 3267 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 214:
-#line 840 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 840 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 4; }
-#line 3252 "rx-parse.c" /* yacc.c:1661  */
+#line 3273 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 216:
-#line 841 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 841 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 5; }
-#line 3258 "rx-parse.c" /* yacc.c:1661  */
+#line 3279 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 218:
-#line 847 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 847 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x70, 0x20); F ((yyvsp[0].regno), 20, 4); NBIMM ((yyvsp[-2].exp), 12); }
-#line 3264 "rx-parse.c" /* yacc.c:1661  */
+#line 3285 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 219:
-#line 852 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 852 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); B3 (0xfd, 0x27, 0x00); F ((yyvsp[-1].regno), 16, 4); F ((yyvsp[-4].regno), 20, 4); }
-#line 3270 "rx-parse.c" /* yacc.c:1661  */
+#line 3291 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 220:
-#line 857 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 857 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); B3 (0xfd, 0x2f, 0x00); F ((yyvsp[-3].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3276 "rx-parse.c" /* yacc.c:1661  */
+#line 3297 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 221:
-#line 862 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 862 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x07, 0x00); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 12, 1); }
-#line 3282 "rx-parse.c" /* yacc.c:1661  */
+#line 3303 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 222:
-#line 864 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 864 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x47, 0x00); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 12, 1); }
-#line 3288 "rx-parse.c" /* yacc.c:1661  */
+#line 3309 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 223:
-#line 866 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 866 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x03, 0x00); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 12, 1); }
-#line 3294 "rx-parse.c" /* yacc.c:1661  */
+#line 3315 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 224:
-#line 868 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 868 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x06, 0x00); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 12, 1); }
-#line 3300 "rx-parse.c" /* yacc.c:1661  */
+#line 3321 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 225:
-#line 870 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 870 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x44, 0x00); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 12, 1); }
-#line 3306 "rx-parse.c" /* yacc.c:1661  */
+#line 3327 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 226:
-#line 872 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 872 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x46, 0x00); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 12, 1); }
-#line 3312 "rx-parse.c" /* yacc.c:1661  */
+#line 3333 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 227:
-#line 874 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 874 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x45, 0x00); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 12, 1); }
-#line 3318 "rx-parse.c" /* yacc.c:1661  */
+#line 3339 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 228:
-#line 876 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 876 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x02, 0x00); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 12, 1); }
-#line 3324 "rx-parse.c" /* yacc.c:1661  */
+#line 3345 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 229:
-#line 877 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 877 "./config/rx-parse.y" /* yacc.c:1646  */
     { sub_op = 3; }
-#line 3330 "rx-parse.c" /* yacc.c:1661  */
+#line 3351 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 231:
-#line 879 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 879 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x17, 0x30); F ((yyvsp[0].regno), 16, 1); F ((yyvsp[-2].regno), 20, 4); }
-#line 3336 "rx-parse.c" /* yacc.c:1661  */
+#line 3357 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 232:
-#line 881 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 881 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x19, 0x00); F ((yyvsp[0].regno), 16, 1);
 	    if (rx_uintop ((yyvsp[-2].exp), 4) && (yyvsp[-2].exp).X_add_number == 1)
 	      ;
@@ -3344,11 +3365,11 @@ yyreduce:
 	      F (1, 19, 1);
 	    else
 	      as_bad (_("RACL expects #1 or #2"));}
-#line 3348 "rx-parse.c" /* yacc.c:1661  */
+#line 3369 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 233:
-#line 889 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 889 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x19, 0x40); F ((yyvsp[0].regno), 16, 1);
 	    if (rx_uintop ((yyvsp[-2].exp), 4) && (yyvsp[-2].exp).X_add_number == 1)
 	      ;
@@ -3356,11 +3377,11 @@ yyreduce:
 	      F (1, 19, 1);
 	    else
 	      as_bad (_("RDACL expects #1 or #2"));}
-#line 3360 "rx-parse.c" /* yacc.c:1661  */
+#line 3381 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 234:
-#line 897 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 897 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (2, 0x18, 0x40); F ((yyvsp[0].regno), 16, 1);
 	    if (rx_uintop ((yyvsp[-2].exp), 4) && (yyvsp[-2].exp).X_add_number == 1)
 	      ;
@@ -3368,200 +3389,200 @@ yyreduce:
 	      F (1, 19, 1);
 	    else
 	      as_bad (_("RDACW expects #1 or #2"));}
-#line 3372 "rx-parse.c" /* yacc.c:1661  */
+#line 3393 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 235:
-#line 913 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 913 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x43 + (sub_op<<2), 0); F ((yyvsp[-2].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); }
-#line 3378 "rx-parse.c" /* yacc.c:1661  */
+#line 3399 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 236:
-#line 915 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 915 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x40 + (sub_op<<2), 0); F ((yyvsp[-4].regno), 8, 4); F ((yyvsp[0].regno), 12, 4); DSP ((yyvsp[-6].exp), 6, BSIZE); }
-#line 3384 "rx-parse.c" /* yacc.c:1661  */
+#line 3405 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 237:
-#line 917 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 917 "./config/rx-parse.y" /* yacc.c:1646  */
     { B3 (MEMEX, sub_op<<2, 0); F ((yyvsp[-2].regno), 8, 2); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); DSP ((yyvsp[-6].exp), 14, sizemap[(yyvsp[-2].regno)]); }
-#line 3390 "rx-parse.c" /* yacc.c:1661  */
+#line 3411 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 238:
-#line 919 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 919 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (4, sub_op<<4, 0), F ((yyvsp[0].regno), 12, 4), F ((yyvsp[-4].regno), 16, 4), F ((yyvsp[-2].regno), 20, 4); }
-#line 3396 "rx-parse.c" /* yacc.c:1661  */
+#line 3417 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 239:
-#line 926 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 926 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x03 + (sub_op<<2), 0x00); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3402 "rx-parse.c" /* yacc.c:1661  */
+#line 3423 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 240:
-#line 928 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 928 "./config/rx-parse.y" /* yacc.c:1646  */
     { B4 (MEMEX, 0xa0, 0x00 + sub_op, 0x00);
 	  F ((yyvsp[-4].regno), 24, 4); F ((yyvsp[0].regno), 28, 4); DSP ((yyvsp[-6].exp), 14, LSIZE); }
-#line 3409 "rx-parse.c" /* yacc.c:1661  */
+#line 3430 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 241:
-#line 936 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 936 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x03 + (sub_op<<2), 0x00); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3415 "rx-parse.c" /* yacc.c:1661  */
+#line 3436 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 242:
-#line 938 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 938 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x00 + (sub_op<<2), 0x00); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); DSP ((yyvsp[-6].exp), 14, BSIZE); }
-#line 3421 "rx-parse.c" /* yacc.c:1661  */
+#line 3442 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 243:
-#line 940 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 940 "./config/rx-parse.y" /* yacc.c:1646  */
     { B4 (MEMEX, 0x20 + ((yyvsp[-2].regno) << 6), 0x00 + sub_op, 0x00);
 	  F ((yyvsp[-4].regno), 24, 4); F ((yyvsp[0].regno), 28, 4); DSP ((yyvsp[-6].exp), 14, sizemap[(yyvsp[-2].regno)]); }
-#line 3428 "rx-parse.c" /* yacc.c:1661  */
+#line 3449 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 244:
-#line 946 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 946 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x70, sub_op<<4); F ((yyvsp[0].regno), 20, 4); IMM ((yyvsp[-2].exp), 12); }
-#line 3434 "rx-parse.c" /* yacc.c:1661  */
+#line 3455 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 249:
-#line 961 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 961 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x03 + (sub_op<<2), 0x00); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3440 "rx-parse.c" /* yacc.c:1661  */
+#line 3461 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 250:
-#line 963 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 963 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x7e, sub_op2 << 4); F ((yyvsp[0].regno), 12, 4); }
-#line 3446 "rx-parse.c" /* yacc.c:1661  */
+#line 3467 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 251:
-#line 968 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 968 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x4b + (sub_op2<<2), 0x00); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3452 "rx-parse.c" /* yacc.c:1661  */
+#line 3473 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 252:
-#line 972 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 972 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); }
-#line 3458 "rx-parse.c" /* yacc.c:1661  */
+#line 3479 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 255:
-#line 980 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 980 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x03 + (sub_op<<2), 0); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3464 "rx-parse.c" /* yacc.c:1661  */
+#line 3485 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 256:
-#line 982 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 982 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x00 + (sub_op<<2), 0); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); DSP ((yyvsp[-6].exp), 14, BSIZE); }
-#line 3470 "rx-parse.c" /* yacc.c:1661  */
+#line 3491 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 257:
-#line 984 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 984 "./config/rx-parse.y" /* yacc.c:1646  */
     { B4 (MEMEX, 0x20, 0x00 + sub_op, 0); F ((yyvsp[-2].regno), 8, 2); F ((yyvsp[-4].regno), 24, 4); F ((yyvsp[0].regno), 28, 4);
 	    DSP ((yyvsp[-6].exp), 14, sizemap[(yyvsp[-2].regno)]); }
-#line 3477 "rx-parse.c" /* yacc.c:1661  */
+#line 3498 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 258:
-#line 991 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 991 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x60 + sub_op, 0); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3483 "rx-parse.c" /* yacc.c:1661  */
+#line 3504 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 259:
-#line 995 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 995 "./config/rx-parse.y" /* yacc.c:1646  */
     { B2 (0x68 + (sub_op<<1), 0); FE ((yyvsp[-2].exp), 7, 5); F ((yyvsp[0].regno), 12, 4); }
-#line 3489 "rx-parse.c" /* yacc.c:1661  */
+#line 3510 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 260:
-#line 997 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 997 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x80 + (sub_op << 5), 0); FE ((yyvsp[-4].exp), 11, 5); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3495 "rx-parse.c" /* yacc.c:1661  */
+#line 3516 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 262:
-#line 1003 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1003 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_float_support (); id24 (2, 0x72, sub_op << 4); F ((yyvsp[0].regno), 20, 4); O4 ((yyvsp[-2].exp)); }
-#line 3501 "rx-parse.c" /* yacc.c:1661  */
+#line 3522 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 263:
-#line 1005 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1005 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_float_support (); id24 (1, 0x83 + (sub_op << 2), 0); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3507 "rx-parse.c" /* yacc.c:1661  */
+#line 3528 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 264:
-#line 1007 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1007 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_float_support (); id24 (1, 0x80 + (sub_op << 2), 0); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); DSP ((yyvsp[-6].exp), 14, LSIZE); }
-#line 3513 "rx-parse.c" /* yacc.c:1661  */
+#line 3534 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 265:
-#line 1009 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1009 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); id24 (4, 0x80 + (sub_op << 4), 0 ); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[-2].regno), 20, 4); F ((yyvsp[0].regno), 12, 4); }
-#line 3519 "rx-parse.c" /* yacc.c:1661  */
+#line 3540 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 266:
-#line 1013 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1013 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_float_support (); }
-#line 3525 "rx-parse.c" /* yacc.c:1661  */
+#line 3546 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 267:
-#line 1015 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1015 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x72, sub_op << 4); F ((yyvsp[0].regno), 20, 4); O4 ((yyvsp[-2].exp)); }
-#line 3531 "rx-parse.c" /* yacc.c:1661  */
+#line 3552 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 269:
-#line 1020 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1020 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_float_support (); }
-#line 3537 "rx-parse.c" /* yacc.c:1661  */
+#line 3558 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 270:
-#line 1022 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1022 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x83 + (sub_op << 2), 0); F ((yyvsp[-2].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); }
-#line 3543 "rx-parse.c" /* yacc.c:1661  */
+#line 3564 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 271:
-#line 1023 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1023 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_float_support (); }
-#line 3549 "rx-parse.c" /* yacc.c:1661  */
+#line 3570 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 272:
-#line 1025 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1025 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (1, 0x80 + (sub_op << 2), 0); F ((yyvsp[-4].regno), 16, 4); F ((yyvsp[0].regno), 20, 4); DSP ((yyvsp[-6].exp), 14, LSIZE); }
-#line 3555 "rx-parse.c" /* yacc.c:1661  */
+#line 3576 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 273:
-#line 1029 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1029 "./config/rx-parse.y" /* yacc.c:1646  */
     { rx_check_v2 (); }
-#line 3561 "rx-parse.c" /* yacc.c:1661  */
+#line 3582 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 274:
-#line 1031 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1031 "./config/rx-parse.y" /* yacc.c:1646  */
     { id24 (2, 0x1e, sub_op << 4); F ((yyvsp[0].regno), 20, 4); F ((yyvsp[-2].regno), 16, 1);
 	    if (rx_uintop ((yyvsp[-4].exp), 4))
 	      {
@@ -3580,131 +3601,131 @@ yyreduce:
 		    as_bad (_("IMM expects #0 to #2"));}
 	      } else
 	        as_bad (_("IMM expects #0 to #2"));}
-#line 3584 "rx-parse.c" /* yacc.c:1661  */
+#line 3605 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 275:
-#line 1053 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1053 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.exp) = zero_expr (); }
-#line 3590 "rx-parse.c" /* yacc.c:1661  */
+#line 3611 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 276:
-#line 1054 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1054 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.exp) = (yyvsp[0].exp); }
-#line 3596 "rx-parse.c" /* yacc.c:1661  */
+#line 3617 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 277:
-#line 1057 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1057 "./config/rx-parse.y" /* yacc.c:1646  */
     { need_flag = 1; }
-#line 3602 "rx-parse.c" /* yacc.c:1661  */
+#line 3623 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 278:
-#line 1057 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1057 "./config/rx-parse.y" /* yacc.c:1646  */
     { need_flag = 0; (yyval.regno) = (yyvsp[0].regno); }
-#line 3608 "rx-parse.c" /* yacc.c:1661  */
+#line 3629 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 279:
-#line 1062 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1062 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0; }
-#line 3614 "rx-parse.c" /* yacc.c:1661  */
+#line 3635 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 280:
-#line 1063 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1063 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 1; }
-#line 3620 "rx-parse.c" /* yacc.c:1661  */
+#line 3641 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 281:
-#line 1064 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1064 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 2; }
-#line 3626 "rx-parse.c" /* yacc.c:1661  */
+#line 3647 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 282:
-#line 1065 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1065 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 2; }
-#line 3632 "rx-parse.c" /* yacc.c:1661  */
+#line 3653 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 283:
-#line 1066 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1066 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 3; }
-#line 3638 "rx-parse.c" /* yacc.c:1661  */
+#line 3659 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 284:
-#line 1069 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1069 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = LSIZE; }
-#line 3644 "rx-parse.c" /* yacc.c:1661  */
+#line 3665 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 285:
-#line 1070 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1070 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = BSIZE; }
-#line 3650 "rx-parse.c" /* yacc.c:1661  */
+#line 3671 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 286:
-#line 1071 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1071 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = WSIZE; }
-#line 3656 "rx-parse.c" /* yacc.c:1661  */
+#line 3677 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 287:
-#line 1072 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1072 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = LSIZE; }
-#line 3662 "rx-parse.c" /* yacc.c:1661  */
+#line 3683 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 288:
-#line 1075 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1075 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 1; }
-#line 3668 "rx-parse.c" /* yacc.c:1661  */
+#line 3689 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 289:
-#line 1076 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1076 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0; }
-#line 3674 "rx-parse.c" /* yacc.c:1661  */
+#line 3695 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 290:
-#line 1077 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1077 "./config/rx-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 1; }
-#line 3680 "rx-parse.c" /* yacc.c:1661  */
+#line 3701 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 291:
-#line 1080 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1080 "./config/rx-parse.y" /* yacc.c:1646  */
     {}
-#line 3686 "rx-parse.c" /* yacc.c:1661  */
+#line 3707 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 292:
-#line 1081 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1081 "./config/rx-parse.y" /* yacc.c:1646  */
     {}
-#line 3692 "rx-parse.c" /* yacc.c:1661  */
+#line 3713 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 293:
-#line 1084 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1084 "./config/rx-parse.y" /* yacc.c:1646  */
     {}
-#line 3698 "rx-parse.c" /* yacc.c:1661  */
+#line 3719 "rx-parse.c" /* yacc.c:1646  */
     break;
 
   case 294:
-#line 1085 "./config/rx-parse.y" /* yacc.c:1661  */
+#line 1085 "./config/rx-parse.y" /* yacc.c:1646  */
     {}
-#line 3704 "rx-parse.c" /* yacc.c:1661  */
+#line 3725 "rx-parse.c" /* yacc.c:1646  */
     break;
 
 
-#line 3708 "rx-parse.c" /* yacc.c:1661  */
+#line 3729 "rx-parse.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -4491,7 +4512,7 @@ zero_expr (void)
 static int
 immediate (expressionS exp, int type, int pos, int bits)
 {
-  /* We will emit constants ourself here, so negate them.  */
+  /* We will emit constants ourselves here, so negate them.  */
   if (type == RXREL_NEGATIVE && exp.X_op == O_constant)
     exp.X_add_number = - exp.X_add_number;
   if (type == RXREL_NEGATIVE_BORROW)

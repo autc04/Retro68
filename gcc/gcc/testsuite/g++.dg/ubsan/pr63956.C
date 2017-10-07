@@ -10,9 +10,9 @@ fn1 (int a, int b)
 {
   if (b != 2)
     a <<= b;
-    // { dg-error "5 << -2.. is negative" "" { target *-*-* } 12 }
-    // { dg-error "is >= than the precision of the left operand" "" { target *-*-* } 12 }
-    // { dg-error "-2 << 4.. is negative" "" { target *-*-* } 12 }
+    // { dg-error "5 << -2.. is negative" "" { target *-*-* } .-1 }
+    // { dg-error "is >= than the precision of the left operand" "" { target *-*-* } .-2 }
+    // { dg-error "-2 << 4.. is negative" "" { target *-*-* } .-3 }
   return a;
 }
 
@@ -33,8 +33,8 @@ fn2 (int a, int b)
 {
   if (b != 2)
     a >>= b;
-    // { dg-error "4 >> -1.. is negative" "" { target *-*-* } 35 }
-    // { dg-error "is >= than the precision of the left operand" "" { target *-*-* } 35 }
+    // { dg-error "4 >> -1.. is negative" "" { target *-*-* } .-1 }
+    // { dg-error "is >= than the precision of the left operand" "" { target *-*-* } .-2 }
 
   return a;
 }
@@ -92,7 +92,7 @@ constexpr int
 fn6 (const int &a, int b)
 {
   if (b != 2)
-    b = a;  // { dg-error "is not a constant expression" }
+    b = a;
   return b;
 }
 
@@ -106,7 +106,7 @@ fn7 (const int *a, int b)
 
 constexpr int n1 = 7;
 constexpr int n2 = fn7 (&n1, 5);
-constexpr int n3 = fn7 ((const int *) 0, 8);
+constexpr int n3 = fn7 ((const int *) 0, 8);  // { dg-error "null pointer" }
 
 constexpr int
 fn8 (int i)

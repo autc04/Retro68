@@ -418,12 +418,15 @@ BFD_JUMP_TABLE macros.
 .#define BFD_JUMP_TABLE_RELOCS(NAME) \
 .  NAME##_get_reloc_upper_bound, \
 .  NAME##_canonicalize_reloc, \
+.  NAME##_set_reloc, \
 .  NAME##_bfd_reloc_type_lookup, \
 .  NAME##_bfd_reloc_name_lookup
 .
 .  long        (*_get_reloc_upper_bound) (bfd *, sec_ptr);
 .  long        (*_bfd_canonicalize_reloc)
 .    (bfd *, sec_ptr, arelent **, struct bfd_symbol **);
+.  void	       (*_bfd_set_reloc)
+.    (bfd *, sec_ptr, arelent **, unsigned int);
 .  {* See documentation on reloc types.  *}
 .  reloc_howto_type *
 .              (*reloc_type_lookup) (bfd *, bfd_reloc_code_real_type);
@@ -459,7 +462,8 @@ BFD_JUMP_TABLE macros.
 .  NAME##_bfd_is_group_section, \
 .  NAME##_bfd_discard_group, \
 .  NAME##_section_already_linked, \
-.  NAME##_bfd_define_common_symbol
+.  NAME##_bfd_define_common_symbol, \
+.  NAME##_bfd_define_start_stop
 .
 .  int         (*_bfd_sizeof_headers) (bfd *, struct bfd_link_info *);
 .  bfd_byte *  (*_bfd_get_relocated_section_contents)
@@ -522,6 +526,11 @@ BFD_JUMP_TABLE macros.
 .  {* Define a common symbol.  *}
 .  bfd_boolean (*_bfd_define_common_symbol) (bfd *, struct bfd_link_info *,
 .					     struct bfd_link_hash_entry *);
+.
+.  {* Define a __start, __stop, .startof. or .sizeof. symbol.  *}
+.  struct bfd_link_hash_entry *(*_bfd_define_start_stop) (struct bfd_link_info *,
+.							  const char *,
+.							  asection *);
 .
 .  {* Routines to handle dynamic symbols and relocs.  *}
 .#define BFD_JUMP_TABLE_DYNAMIC(NAME) \
@@ -799,6 +808,7 @@ extern const bfd_target powerpc_pe_le_vec;
 extern const bfd_target powerpc_pei_vec;
 extern const bfd_target powerpc_pei_le_vec;
 extern const bfd_target powerpc_xcoff_vec;
+extern const bfd_target pru_elf32_vec;
 extern const bfd_target riscv_elf32_vec;
 extern const bfd_target riscv_elf64_vec;
 extern const bfd_target rl78_elf32_vec;
@@ -892,6 +902,8 @@ extern const bfd_target vax_aout_nbsd_vec;
 extern const bfd_target vax_elf32_vec;
 extern const bfd_target visium_elf32_vec;
 extern const bfd_target w65_coff_vec;
+extern const bfd_target wasm_vec;
+extern const bfd_target wasm32_elf32_vec;
 extern const bfd_target we32k_coff_vec;
 extern const bfd_target x86_64_coff_vec;
 extern const bfd_target x86_64_elf32_vec;
@@ -1305,6 +1317,8 @@ static const bfd_target * const _bfd_target_vector[] =
 	&powerpc_xcoff_vec,
 #endif
 
+	&pru_elf32_vec,
+
 #ifdef BFD64
 	&riscv_elf32_vec,
 	&riscv_elf64_vec,
@@ -1417,6 +1431,9 @@ static const bfd_target * const _bfd_target_vector[] =
 	&visium_elf32_vec,
 
 	&w65_coff_vec,
+
+        &wasm_vec,
+        &wasm32_elf32_vec,
 
 	&we32k_coff_vec,
 

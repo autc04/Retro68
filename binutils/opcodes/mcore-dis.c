@@ -25,7 +25,7 @@
 #define DEFINE_TABLE
 
 #include "mcore-opc.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 
 /* Mask for each mcore_opclass: */
 static const unsigned short imsk[] = {

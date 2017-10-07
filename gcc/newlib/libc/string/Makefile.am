@@ -7,6 +7,7 @@ INCLUDES = $(NEWLIB_CFLAGS) $(CROSS_CFLAGS) $(TARGET_CFLAGS)
 GENERAL_SOURCES = \
 	bcopy.c \
 	bzero.c \
+	explicit_bzero.c \
 	index.c \
 	memchr.c \
 	memcmp.c \
@@ -45,6 +46,8 @@ GENERAL_SOURCES = \
 	strxfrm.c  \
 	strstr.c \
 	swab.c \
+	timingsafe_bcmp.c \
+	timingsafe_memcmp.c \
 	u_strerr.c \
 	wcscat.c \
 	wcschr.c \
@@ -102,9 +105,20 @@ if ELIX_LEVEL_3
 ELIX_4_SOURCES =
 else
 ELIX_4_SOURCES = \
+	gnu_basename.c \
 	memmem.c \
+	memrchr.c \
+	rawmemchr.c \
+	strcasecmp_l.c \
+	strcoll_l.c \
+	strncasecmp_l.c \
+	strxfrm_l.c \
 	wcscasecmp.c \
-	wcsncasecmp.c
+	wcscasecmp_l.c \
+	wcscoll_l.c \
+	wcsncasecmp.c \
+	wcsncasecmp_l.c \
+	wcsxfrm_l.c
 endif !ELIX_LEVEL_3
 endif !ELIX_LEVEL_2
 endif !ELIX_LEVEL_1
@@ -140,20 +154,8 @@ wcsncmp.def	wcsncpy.def	wcsnlen.def	wcspbrk.def \
 wcsrchr.def	wcsspn.def	wcsstr.def 	wcstok.def  \
 wcswidth.def	wcsxfrm.def	wcwidth.def	wmemchr.def \
 wmemcmp.def	wmemcpy.def	wmemmove.def	wmemset.def \
-memmem.def
+memmem.def	memrchr.def	rawmemchr.def	strchrnul.def \
+strcasecmp_l.def strcoll_l.def	strncasecmp_l.def strxfrm_l.def \
+wcscasecmp_l.def wcscoll_l.def	wcsncasecmp_l.def wcsxfrm_l.def
 
-SUFFIXES = .def
-
-CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
-
-.c.def:
-	$(CHEW) < $< > $*.def 2> $*.ref
-	touch stmp-def
-
-TARGETDOC = ../tmp.texi
-
-doc: $(CHEWOUT_FILES)
-	cat $(srcdir)/strings.tex >> $(TARGETDOC)
-	cat $(srcdir)/wcstrings.tex >> $(TARGETDOC)
-
-CLEANFILES = $(CHEWOUT_FILES) *.ref
+CHAPTERS = strings.tex wcstrings.tex

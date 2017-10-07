@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -183,8 +183,6 @@ const nonStrictInput = `
 <tag>&;</tag>
 <tag>&0a;</tag>
 `
-
-var nonStringEntity = map[string]string{"": "oops!", "0a": "oops!"}
 
 var nonStrictTokens = []Token{
 	CharData("\n"),
@@ -652,10 +650,6 @@ func TestDisallowedCharacters(t *testing.T) {
 	}
 }
 
-type procInstEncodingTest struct {
-	expect, got string
-}
-
 var procInstTests = []struct {
 	input  string
 	expect [2]string
@@ -800,6 +794,40 @@ func TestIssue12417(t *testing.T) {
 		}
 		if err == nil && !tc.ok {
 			t.Errorf("%q: Encoding charset: expected error, got nil", tc.s)
+		}
+	}
+}
+
+func TestIssue19333(t *testing.T) {
+	type X struct {
+		XMLName Name `xml:"X"`
+		A       int  `xml:",attr"`
+		C       int
+	}
+
+	var tests = []struct {
+		input string
+		ok    bool
+	}{
+		{`<X></X>`, true},
+		{`<X A=""></X>`, true},
+		{`<X A="bad"></X>`, true},
+		{`<X></X>`, true},
+		{`<X><C></C></X>`, false},
+		{`<X><C/></X>`, false},
+		{`<X><C>bad</C></X>`, false},
+	}
+
+	for _, tt := range tests {
+		err := Unmarshal([]byte(tt.input), new(X))
+		if tt.ok {
+			if err != nil {
+				t.Errorf("%s: unexpected error: %v", tt.input, err)
+			}
+		} else {
+			if err == nil {
+				t.Errorf("%s: unexpected success", tt.input)
+			}
 		}
 	}
 }

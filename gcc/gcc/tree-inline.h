@@ -1,5 +1,5 @@
 /* Tree inlining hooks and declarations.
-   Copyright (C) 2001-2016 Free Software Foundation, Inc.
+   Copyright (C) 2001-2017 Free Software Foundation, Inc.
    Contributed by Alexandre Oliva  <aoliva@redhat.com>
 
 This file is part of GCC.
@@ -81,7 +81,7 @@ struct copy_body_data
 
   /* GIMPLE_CALL if va arg parameter packs should be expanded or NULL
      is not.  */
-  gimple *call_stmt;
+  gcall *call_stmt;
 
   /* Exception landing pad the inlined call lies in.  */
   int eh_lp_nr;
@@ -144,6 +144,10 @@ struct copy_body_data
   /* A map from the inlined functions dependence info cliques to
      equivalents in the function into which it is being inlined.  */
   hash_map<dependence_hash, unsigned short> *dependence_map;
+
+  /* A list of addressable local variables remapped into the caller
+     when inlining a call within an OpenMP SIMD-on-SIMT loop.  */
+  vec<tree> *dst_simt_vars;
 
   /* Cilk keywords currently need to replace some variables that
      ordinary nested functions do not.  */
@@ -218,6 +222,7 @@ extern gimple_seq copy_gimple_seq_and_replace_locals (gimple_seq seq);
 extern bool debug_find_tree (tree, tree);
 extern tree copy_fn (tree, tree&, tree&);
 extern const char *copy_forbidden (struct function *fun);
+extern tree copy_decl_for_dup_finish (copy_body_data *id, tree decl, tree copy);
 
 /* This is in tree-inline.c since the routine uses
    data structures from the inliner.  */

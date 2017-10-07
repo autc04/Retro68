@@ -268,6 +268,7 @@ enum EM
   EM_UNICORE = 110,
   EM_ALTERA_NIOS2 = 113,
   EM_CRX = 114,
+  EM_TI_PRU = 144,
   EM_AARCH64 = 183,
   EM_TILEGX = 191,
   // The Morph MT.
@@ -514,7 +515,9 @@ enum PT
   // Platform architecture compatibility information
   PT_AARCH64_ARCHEXT = 0x70000000,
   // Exception unwind tables
-  PT_AARCH64_UNWIND = 0x70000001
+  PT_AARCH64_UNWIND = 0x70000001,
+  // 4k page table size
+  PT_S390_PGSTE = 0x70000000,
 };
 
 // The valid bit flags found in the Phdr p_flags field.
@@ -771,6 +774,9 @@ enum DT
   // Specify the start and size of the .opd section.
   DT_PPC64_OPD = 0x70000001,
   DT_PPC64_OPDSZ = 0x70000002,
+
+  // Specify whether various optimisations are possible.
+  DT_PPC64_OPT = 0x70000003,
 
   // The index of an STT_SPARC_REGISTER symbol within the DT_SYMTAB
   // symbol table.  One dynamic entry exists for every STT_SPARC_REGISTER

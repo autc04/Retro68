@@ -215,6 +215,6 @@ Disassembly of section .text:
  +1320:	01 00 00 00 	nop *
  +1324:	01 00 00 00 	nop *
  +1328:	01 00 00 00 	nop *
- +132c:	81 cf e0 08 	rett  %i7 \+ 8
+ +132c:	81 cf e0 08 	return  %i7 \+ 8
  +1330:	01 00 00 00 	nop *
 #pass

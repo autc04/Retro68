@@ -1,7 +1,6 @@
-// { dg-do compile }
-// { dg-options "-std=gnu++11" }
+// { dg-do compile { target c++11 } }
 
-// Copyright (C) 2011-2016 Free Software Foundation, Inc.
+// Copyright (C) 2011-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -24,9 +23,6 @@
 // changes this test may begin to fail.
 
 #include <tuple>
-
-bool test __attribute__((unused)) = true;
-
 
 // make_tuple
 void
@@ -122,6 +118,25 @@ test_tuple_cat()
   constexpr auto cat1 __attribute__((unused)) = std::tuple_cat(t1, t2);
 }
 
+namespace {
+
+template<class T>
+constexpr int zero_from_anything(T)
+{
+  return 0;
+}
+
+}
+
+// ignore, see LWG 2773
+void
+test_ignore()
+{
+  constexpr auto ign1 __attribute__((unused)) = std::ignore;
+  constexpr auto ign2 __attribute__((unused)) = std::make_tuple(std::ignore);
+  constexpr int ign3 __attribute__((unused)) = zero_from_anything(std::ignore);
+}
+
 int
 main()
 {
@@ -130,6 +145,7 @@ main()
   test_tie();
   test_get();
   test_tuple_cat();
+  test_ignore();
 
   return 0;
 }

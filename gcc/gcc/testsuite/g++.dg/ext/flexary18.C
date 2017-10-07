@@ -120,14 +120,14 @@ struct StructUnion1 {
 // The following are invalid and rejected.
 struct StructUnion2 {
   union {
-    struct { int n1, a1[]; } s1;        // { dg-warning "not at end" }
+    struct { int n1, a1[]; } s1;        // { dg-error "not at end" }
   } u;
   char n3;                              // { dg-message "next member" }
 };
 
 struct StructUnion3 {
   union {
-    struct { int n1, a1[]; } s1;        // { dg-warning "not at end" }
+    struct { int n1, a1[]; } s1;        // { dg-error "not at end" }
     struct { double n2, a2[]; } s2;
   } u;
   char n3;                              // { dg-message "next member" }
@@ -135,7 +135,7 @@ struct StructUnion3 {
 
 struct StructUnion4 {
   union {
-    struct { int n1, a1[]; } s1;        // { dg-warning "not at end" }
+    struct { int n1, a1[]; } s1;        // { dg-error "not at end" }
   } u1;
   union {
     struct { double n2, a2[]; } s2;
@@ -171,7 +171,7 @@ struct StructUnion8 {
   struct {
     union {
       union {
-	struct { int n1, a1[]; } s1;    // { dg-warning "not at end" }
+	struct { int n1, a1[]; } s1;    // { dg-error "not at end" }
       } u1;
       union {
 	struct { double n2, a2[]; } s2;
@@ -194,7 +194,7 @@ struct StructUnion9 {                       // { dg-message "in the definition" 
   struct A1 {
     union B1 {
       union C1 {
-	struct Sx1 { int n1, a1[]; } sx1;   // { dg-warning "not at end" }
+	struct Sx1 { int n1, a1[]; } sx1;   // { dg-error "not at end" }
       } c1;
       union D1 {
 	struct Sx2 { double n2, a2[]; } sx2;
@@ -211,3 +211,5 @@ struct StructUnion9 {                       // { dg-message "in the definition" 
     } b2;                                   // { dg-warning "invalid use" }
   } a2;                                     // { dg-message "next member" }
 };
+
+// { dg-prune-output "forbids flexible array member" }

@@ -26,28 +26,53 @@
 
 /*
 FUNCTION        
-<<fputws>>---write a wide character string in a file or stream
+<<fputws>>, <<fputws_unlocked>>---write a wide character string in a file or stream
 
 INDEX
 	fputws   
 INDEX
+	fputws_unlocked 
+INDEX
 	_fputws_r
+INDEX
+	_fputws_unlocked_r
 
 ANSI_SYNOPSIS
 	#include <wchar.h>
-	int fputws(const wchar_t *<[ws]>, FILE *<[fp]>);
+	int fputws(const wchar_t *__restrict <[ws]>, FILE *__restrict <[fp]>);
+
+	#define _GNU_SOURCE
+	#include <wchar.h>
+	int fputws_unlocked(const wchar_t *__restrict <[ws]>, FILE *__restrict <[fp]>);
 
 	#include <wchar.h>
-	int _fputws_r(struct _reent *<[ptr]>, const wchar_t *<[ws]>, FILE *<[fp]>);
+	int _fputws_r(struct _reent *<[ptr]>, const wchar_t *<[ws]>,
+                      FILE *<[fp]>);
+
+	#include <wchar.h>
+	int _fputws_unlocked_r(struct _reent *<[ptr]>, const wchar_t *<[ws]>,
+                               FILE *<[fp]>);
 
 TRAD_SYNOPSIS   
 	#include <wchar.h>
 	int fputws(<[ws]>, <[fp]>)
+	wchar_t *__restrict <[ws]>;
+	FILE *__restrict <[fp]>;
+
+	#define _GNU_SOURCE
+	#include <wchar.h>
+	int fputws_unlocked(<[ws]>, <[fp]>)
+	wchar_t *__restrict <[ws]>;
+	FILE *__restrict <[fp]>;
+
+	#include <wchar.h>
+	int _fputws_r(<[ptr]>, <[ws]>, <[fp]>)
+	struct _reent *<[ptr]>;
 	wchar_t *<[ws]>;
 	FILE *<[fp]>;
 
 	#include <wchar.h>
-	int _fputws_r(<[ptr]>, <[ws]>, <[fp]>)
+	int _fputws_unlocked_r(<[ptr]>, <[ws]>, <[fp]>)
 	struct _reent *<[ptr]>;
 	wchar_t *<[ws]>;
 	FILE *<[fp]>;
@@ -56,15 +81,26 @@ DESCRIPTION
 <<fputws>> writes the wide character string at <[ws]> (but without the
 trailing null) to the file or stream identified by <[fp]>.
 
-<<_fputws_r>> is simply the reentrant version of <<fputws>> that takes
-an additional reentrant struct pointer argument: <[ptr]>.
+<<fputws_unlocked>> is a non-thread-safe version of <<fputws>>.
+<<fputws_unlocked>> may only safely be used within a scope
+protected by flockfile() (or ftrylockfile()) and funlockfile().  This
+function may safely be used in a multi-threaded program if and only
+if they are called while the invoking thread owns the (FILE *)
+object, as is the case after a successful call to the flockfile() or
+ftrylockfile() functions.  If threads are disabled, then
+<<fputws_unlocked>> is equivalent to <<fputws>>.
+
+<<_fputws_r>> and <<_fputws_unlocked_r>> are simply reentrant versions of the
+above that take an additional reentrant struct pointer argument: <[ptr]>.
 
 RETURNS
 If successful, the result is a non-negative integer; otherwise, the result
 is <<-1>> to indicate an error.
 
 PORTABILITY
-C99, POSIX.1-2001
+<<fputws>> is required by C99 and POSIX.1-2001.
+
+<<fputws_unlocked>> is a GNU extension.
 */
 
 #include <_ansi.h>
@@ -76,6 +112,11 @@ C99, POSIX.1-2001
 #include "fvwrite.h"
 #include "local.h"
 
+#ifdef __IMPL_UNLOCKED__
+#define _fputws_r _fputws_unlocked_r
+#define fputws fputws_unlocked
+#endif
+
 int
 _DEFUN(_fputws_r, (ptr, ws, fp),
 	struct _reent *ptr _AND
@@ -84,10 +125,11 @@ _DEFUN(_fputws_r, (ptr, ws, fp),
 {
   size_t nbytes;
   char buf[BUFSIZ];
+#ifdef _FVWRITE_IN_STREAMIO
   struct __suio uio;
   struct __siov iov;
 
-  _flockfile (fp);
+  _newlib_flockfile_start (fp);
   ORIENT (fp, 1);
   if (cantwrite (ptr, fp) != 0)
     goto error;
@@ -104,19 +146,48 @@ _DEFUN(_fputws_r, (ptr, ws, fp),
 	goto error;
     }
   while (ws != NULL);
-  _funlockfile (fp);
+  _newlib_flockfile_exit (fp);
   return (0);
 
 error:
-  _funlockfile(fp);
+  _newlib_flockfile_end (fp);
   return (-1);
+#else
+  _newlib_flockfile_start (fp);
+  ORIENT (fp, 1);
+  if (cantwrite (ptr, fp) != 0)
+    goto error;
+
+  do
+    {
+      size_t i = 0;
+      nbytes = _wcsrtombs_r (ptr, buf, &ws, sizeof (buf), &fp->_mbstate);
+      if (nbytes == (size_t) -1)
+	goto error;
+      while (i < nbytes)
+        {
+	  if (__sputc_r (ptr, buf[i], fp) == EOF)
+	    goto error;
+	  i++;
+        }
+    }
+  while (ws != NULL);
+  _newlib_flockfile_exit (fp);
+  return (0);
+
+error:
+  _newlib_flockfile_end (fp);
+  return (-1);
+#endif
 }
 
 int
 _DEFUN(fputws, (ws, fp),
-	const wchar_t *ws _AND
-	FILE *fp)
+	const wchar_t *__restrict ws _AND
+	FILE *__restrict fp)
 {
-  CHECK_INIT (_REENT, fp);
-  return _fputws_r (_REENT, ws, fp);
+  struct _reent *reent = _REENT;
+
+  CHECK_INIT (reent, fp);
+  return _fputws_r (reent, ws, fp);
 }

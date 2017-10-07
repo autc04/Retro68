@@ -519,28 +519,42 @@ elf_xtensa_info_to_howto_rela (bfd *abfd ATTRIBUTE_UNUSED,
    invoked.  Note: the 32-byte frame size used here cannot be changed
    without a corresponding change in the runtime linker.  */
 
-static const bfd_byte elf_xtensa_be_plt_entry[PLT_ENTRY_SIZE] =
+static const bfd_byte elf_xtensa_be_plt_entry[][PLT_ENTRY_SIZE] =
 {
-#if XSHAL_ABI == XTHAL_ABI_WINDOWED
-  0x6c, 0x10, 0x04,	/* entry sp, 32 */
-#endif
-  0x18, 0x00, 0x00,	/* l32r  a8, [got entry for rtld's resolver] */
-  0x1a, 0x00, 0x00,	/* l32r  a10, [got entry for rtld's link map] */
-  0x1b, 0x00, 0x00,	/* l32r  a11, [literal for reloc index] */
-  0x0a, 0x80, 0x00,	/* jx    a8 */
-  0			/* unused */
+    {
+      0x6c, 0x10, 0x04,	/* entry sp, 32 */
+      0x18, 0x00, 0x00,	/* l32r  a8, [got entry for rtld's resolver] */
+      0x1a, 0x00, 0x00,	/* l32r  a10, [got entry for rtld's link map] */
+      0x1b, 0x00, 0x00,	/* l32r  a11, [literal for reloc index] */
+      0x0a, 0x80, 0x00,	/* jx    a8 */
+      0			/* unused */
+    },
+    {
+      0x18, 0x00, 0x00,	/* l32r  a8, [got entry for rtld's resolver] */
+      0x1a, 0x00, 0x00,	/* l32r  a10, [got entry for rtld's link map] */
+      0x1b, 0x00, 0x00,	/* l32r  a11, [literal for reloc index] */
+      0x0a, 0x80, 0x00,	/* jx    a8 */
+      0			/* unused */
+    }
 };
 
-static const bfd_byte elf_xtensa_le_plt_entry[PLT_ENTRY_SIZE] =
+static const bfd_byte elf_xtensa_le_plt_entry[][PLT_ENTRY_SIZE] =
 {
-#if XSHAL_ABI == XTHAL_ABI_WINDOWED
-  0x36, 0x41, 0x00,	/* entry sp, 32 */
-#endif
-  0x81, 0x00, 0x00,	/* l32r  a8, [got entry for rtld's resolver] */
-  0xa1, 0x00, 0x00,	/* l32r  a10, [got entry for rtld's link map] */
-  0xb1, 0x00, 0x00,	/* l32r  a11, [literal for reloc index] */
-  0xa0, 0x08, 0x00,	/* jx    a8 */
-  0			/* unused */
+    {
+      0x36, 0x41, 0x00,	/* entry sp, 32 */
+      0x81, 0x00, 0x00,	/* l32r  a8, [got entry for rtld's resolver] */
+      0xa1, 0x00, 0x00,	/* l32r  a10, [got entry for rtld's link map] */
+      0xb1, 0x00, 0x00,	/* l32r  a11, [literal for reloc index] */
+      0xa0, 0x08, 0x00,	/* jx    a8 */
+      0			/* unused */
+    },
+    {
+      0x81, 0x00, 0x00,	/* l32r  a8, [got entry for rtld's resolver] */
+      0xa1, 0x00, 0x00,	/* l32r  a10, [got entry for rtld's link map] */
+      0xb1, 0x00, 0x00,	/* l32r  a11, [literal for reloc index] */
+      0xa0, 0x08, 0x00,	/* jx    a8 */
+      0			/* unused */
+    }
 };
 
 /* The size of the thread control block.  */
@@ -1015,7 +1029,7 @@ elf_xtensa_check_relocs (bfd *abfd,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
       eh = elf_xtensa_hash_entry (h);
 
@@ -2336,8 +2350,8 @@ elf_xtensa_create_plt_entry (struct bfd_link_info *info,
   /* Fill in the entry in the procedure linkage table.  */
   memcpy (splt->contents + code_offset,
 	  (bfd_big_endian (output_bfd)
-	   ? elf_xtensa_be_plt_entry
-	   : elf_xtensa_le_plt_entry),
+	   ? elf_xtensa_be_plt_entry[XSHAL_ABI != XTHAL_ABI_WINDOWED]
+	   : elf_xtensa_le_plt_entry[XSHAL_ABI != XTHAL_ABI_WINDOWED]),
 	  PLT_ENTRY_SIZE);
   abi_offset = XSHAL_ABI == XTHAL_ABI_WINDOWED ? 3 : 0;
   bfd_put_16 (output_bfd, l32r_offset (got_base + 0,
@@ -10822,7 +10836,7 @@ static asection *
 elf_xtensa_get_plt_section (struct bfd_link_info *info, int chunk)
 {
   bfd *dynobj;
-  char plt_name[10];
+  char plt_name[17];
 
   if (chunk == 0)
     return elf_hash_table (info)->splt;
@@ -10837,7 +10851,7 @@ static asection *
 elf_xtensa_get_gotplt_section (struct bfd_link_info *info, int chunk)
 {
   bfd *dynobj;
-  char got_name[14];
+  char got_name[21];
 
   if (chunk == 0)
     return elf_hash_table (info)->sgotplt;
@@ -11317,11 +11331,7 @@ static const struct bfd_elf_special_section elf_xtensa_special_sections[] =
 #define ELF_MACHINE_CODE		EM_XTENSA
 #define ELF_MACHINE_ALT1		EM_XTENSA_OLD
 
-#if XCHAL_HAVE_MMU
-#define ELF_MAXPAGESIZE			(1 << XCHAL_MMU_MIN_PTE_PAGE_SIZE)
-#else /* !XCHAL_HAVE_MMU */
-#define ELF_MAXPAGESIZE			1
-#endif /* !XCHAL_HAVE_MMU */
+#define ELF_MAXPAGESIZE			0x1000
 #endif /* ELF_ARCH */
 
 #define elf_backend_can_gc_sections	1

@@ -210,7 +210,7 @@ set ppc64elftests {
       "tlsopt4"}
     {"TLS DLL" "-shared -melf64ppc --version-script tlsdll.ver" "" "-a64" {tlsdll.s}
      {} "tlsdll.so"}
-    {"TLS opt 5" "-melf64ppc --gc-sections tmpdir/tlsdll.so" "" "-a64"  {tlsopt5.s}
+    {"TLS opt 5" "-melf64ppc --gc-sections --no-plt-localentry tmpdir/tlsdll.so" "" "-a64"  {tlsopt5.s}
      {{objdump -dr tlsopt5.d}}
       "tlsopt5"}
     {"sym@tocbase" "-shared -melf64ppc" "" "-a64" {symtocbase-1.s symtocbase-2.s}
@@ -231,6 +231,16 @@ set ppc64elftests {
 	{{ld tocopt7.out} {objdump -s tocopt7.d}} "tocopt7"}
     {"TOC opt8" "-melf64ppc" "" "-a64 -mpower9"  {tocopt8.s}
 	{{objdump -s tocopt8.d}} "tocopt8"}
+    {"tocsave lib" "-shared -melf64ppc" "" "-a64" {tocsavelib.s}
+	{} "tocsavelib.so"}
+    {"tocsave1 shared" "-melf64ppc" "tmpdir/tocsavelib.so" "-a64" {tocsave1.s}
+	{{objdump -dr tocsave1s.d}} "tocsave1s"}
+    {"tocsave1 static" "-melf64ppc" "tmpdir/tocsavelib.o" "-a64" {tocsave1.s}
+	{{objdump -dr tocsave1a.d}} "tocsave1a"}
+    {"tocsave2 shared" "-melf64ppc" "tmpdir/tocsavelib.so" "-a64" {tocsave2.s}
+	{{objdump -dr tocsave2s.d}} "tocsave2s"}
+    {"tocsave2 static" "-melf64ppc" "tmpdir/tocsavelib.o" "-a64" {tocsave2.s}
+	{{objdump -dr tocsave2a.d}} "tocsave2a"}
     {"ambig shared v1" "-shared -melf64ppc" "" "-a64" {funv1.s} {} "funv1.so"}
     {"ambig shared v2" "-shared -melf64ppc" "" "-a64" {funv2.s} {} "funv2.so"}
 }

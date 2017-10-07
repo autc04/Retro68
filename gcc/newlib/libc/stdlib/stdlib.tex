@@ -20,9 +20,10 @@ The corresponding declarations are in the header file @file{stdlib.h}.
 * ecvtbuf::     Double or float to string of digits
 * ecvt::        Double or float to string of digits (malloc result)
 * __env_lock::		Lock environment list for getenv and setenv
-* gvcvt::       Format double or float as string
+* gcvt::        Format double or float as string
 * exit::        End program execution
 * getenv::      Look up environment variable
+* itoa::        Integer to string
 * labs::        Long integer absolute value (magnitude)
 * ldiv::        Divide two long integers
 * llabs::       Long long integer absolute value (magnitude)
@@ -37,7 +38,9 @@ The corresponding declarations are in the header file @file{stdlib.h}.
 * on_exit::     Request execution of functions at program exit
 * qsort::	Array sort
 * rand::        Pseudo-random numbers
+* random::      Pseudo-random numbers
 * rand48::      Uniformly distributed pseudo-random numbers
+* rpmatch::     Determine whether response is affirmative or negative
 * strtod::      String to double or float
 * strtol::      String to long
 * strtoll::     String to long long
@@ -50,6 +53,7 @@ The corresponding declarations are in the header file @file{stdlib.h}.
 * wcstoul::     Wide string to unsigned long
 * wcstoull::    Wide string to unsigned long long
 * system::      Execute command string
+* utoa::        Unsigned integer to string
 * wcstombs::	Minimal wide string to multibyte string converter
 * wctomb::      Minimal wide character to multibyte converter
 @end menu
@@ -106,6 +110,9 @@ The corresponding declarations are in the header file @file{stdlib.h}.
 @include stdlib/getenv.def
 
 @page
+@include stdlib/itoa.def
+
+@page
 @include stdlib/labs.def
 
 @page
@@ -148,7 +155,13 @@ The corresponding declarations are in the header file @file{stdlib.h}.
 @include stdlib/rand.def
 
 @page
+@include stdlib/random.def
+
+@page
 @include stdlib/rand48.def
+
+@page
+@include stdlib/rpmatch.def
 
 @page
 @include stdlib/strtod.def
@@ -185,6 +198,9 @@ The corresponding declarations are in the header file @file{stdlib.h}.
 
 @page
 @include stdlib/system.def
+
+@page
+@include stdlib/utoa.def
 
 @page
 @include stdlib/wcstombs.def

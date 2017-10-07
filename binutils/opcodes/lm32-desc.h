@@ -25,6 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef LM32_CPU_H
 #define LM32_CPU_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CGEN_ARCH lm32
 
 /* Given symbol S, return lm32_cgen_<S>.  */
@@ -236,5 +240,9 @@ extern CGEN_KEYWORD lm32_cgen_opval_h_csr;
 extern const CGEN_HW_ENTRY lm32_cgen_hw_table[];
 
 
+
+   #ifdef __cplusplus
+   }
+   #endif
 
 #endif /* LM32_CPU_H */

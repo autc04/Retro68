@@ -1,5 +1,43 @@
 -*- text -*-
 
+Changes in 2.29:
+
+* Support for -z shstk in the x86 ELF linker to generate
+  GNU_PROPERTY_X86_FEATURE_1_SHSTK in ELF GNU program properties.
+
+* Add support for GNU_PROPERTY_X86_FEATURE_1_SHSTK in ELF GNU program
+  properties in the x86 ELF linker.
+
+* Add support for GNU_PROPERTY_X86_FEATURE_1_IBT in ELF GNU program
+  properties in the x86 ELF linker.
+
+* Support for -z ibtplt in the x86 ELF linker to generate IBT-enabled
+  PLT.
+
+* Support for -z ibt in the x86 ELF linker to generate IBT-enabled
+  PLT as well as GNU_PROPERTY_X86_FEATURE_1_IBT in ELF GNU program
+  properties.
+
+* Add support for ELF SHF_GNU_MBIND and PT_GNU_MBIND_XXX.
+
+* Add support for ELF GNU program properties.
+
+* Add support for the Texas Instruments PRU processor.
+
+* When configuring for arc*-*-linux* targets the default linker emulation will
+  change if --with-cpu=nps400 is used at configure time.
+
+* Improve assignment of LMAs to orphan sections in some edge cases where a
+  mixture of both AT>LMA_REGION and AT(LMA) are used.
+
+* Orphan sections placed after an empty section that has an AT(LMA) will now
+  take an load memory address starting from LMA.
+
+* Section groups can now be resolved (the group deleted and the group members
+  placed like normal sections) at partial link time either using the new linker
+  option --force-group-allocation or by placing FORCE_GROUP_ALLOCATION into the
+  linker script.
+
 Changes in 2.28:
 
 * The EXCLUDE_FILE linker script construct can now be applied outside of the

@@ -85,6 +85,7 @@ onload(struct ld_plugin_tv *tv)
 	case LDPT_ALLOW_UNIQUE_SEGMENT_FOR_SECTIONS:
 	  allow_unique_segment_for_sections
 	      = *entry->tv_u.tv_allow_unique_segment_for_sections;
+	  break;
 	case LDPT_UNIQUE_SEGMENT_FOR_SECTIONS:
 	  unique_segment_for_sections
 	      = *entry->tv_u.tv_unique_segment_for_sections;

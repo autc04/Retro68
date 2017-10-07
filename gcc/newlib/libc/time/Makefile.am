@@ -17,10 +17,11 @@ LIB_SOURCES = \
 	lcltime.c	\
 	lcltime_r.c	\
 	mktime.c	\
-	mktm_r.c	\
+	month_lengths.c \
 	strftime.c  	\
 	strptime.c	\
 	time.c		\
+	tzcalc_limits.c \
 	tzlock.c	\
 	tzset.c		\
 	tzset_r.c	\
@@ -59,17 +60,4 @@ CHEWOUT_FILES = \
 	tzset.def	\
 	wcsftime.def
 
-SUFFIXES = .def
-
-CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
-
-.c.def:
-	$(CHEW) < $< > $*.def 2> $*.ref
-	touch stmp-def
-
-TARGETDOC = ../tmp.texi
-
-doc: $(CHEWOUT_FILES)
-	cat $(srcdir)/time.tex >> $(TARGETDOC)
-
-CLEANFILES = $(CHEWOUT_FILES) *.ref
+CHAPTERS = time.tex

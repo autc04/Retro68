@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1999-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -57,8 +57,6 @@ package body Repinfo is
    --  Value for Storage_Unit, we do not want to get this from TTypes, since
    --  this introduces problematic dependencies in ASIS, and in any case this
    --  value is assumed to be 8 for the implementation of the DDA.
-
-   --  This is wrong for AAMP???
 
    ---------------------------------------
    -- Representation of gcc Expressions --
@@ -137,10 +135,15 @@ package body Repinfo is
    --  Called before outputting anything for an entity. Ensures that
    --  a blank line precedes the output for a particular entity.
 
-   procedure List_Entities (Ent : Entity_Id; Bytes_Big_Endian : Boolean);
+   procedure List_Entities
+     (Ent              : Entity_Id;
+      Bytes_Big_Endian : Boolean;
+      In_Subprogram    : Boolean := False);
    --  This procedure lists the entities associated with the entity E, starting
    --  with the First_Entity and using the Next_Entity link. If a nested
    --  package is found, entities within the package are recursively processed.
+   --  When recursing within a subprogram body, Is_Subprogram suppresses
+   --  duplicate information about signature.
 
    procedure List_Name (Ent : Entity_Id);
    --  List name of entity Ent in appropriate case. The name is listed with
@@ -316,7 +319,11 @@ package body Repinfo is
    -- List_Entities --
    -------------------
 
-   procedure List_Entities (Ent : Entity_Id; Bytes_Big_Endian : Boolean) is
+   procedure List_Entities
+     (Ent              : Entity_Id;
+      Bytes_Big_Endian : Boolean;
+      In_Subprogram    : Boolean := False)
+   is
       Body_E : Entity_Id;
       E      : Entity_Id;
 
@@ -355,12 +362,15 @@ package body Repinfo is
         and then Nkind (Declaration_Node (Ent)) not in N_Renaming_Declaration
       then
          --  If entity is a subprogram and we are listing mechanisms,
-         --  then we need to list mechanisms for this entity.
+         --  then we need to list mechanisms for this entity. We skip this
+         --  if it is a nested subprogram, as the information has already
+         --  been produced when listing the enclosing scope.
 
          if List_Representation_Info_Mechanisms
            and then (Is_Subprogram (Ent)
                       or else Ekind (Ent) = E_Entry
                       or else Ekind (Ent) = E_Entry_Family)
+           and then not In_Subprogram
          then
             Need_Blank_Line := True;
             List_Mechanisms (Ent);
@@ -387,6 +397,13 @@ package body Repinfo is
                   if List_Representation_Info_Mechanisms then
                      List_Mechanisms (E);
                   end if;
+
+                  --  Recurse into entities local to subprogram
+
+                  List_Entities (E, Bytes_Big_Endian, True);
+
+               elsif Ekind (E) in Formal_Kind and then In_Subprogram then
+                  null;
 
                elsif Ekind_In (E, E_Entry,
                                   E_Entry_Family,
@@ -626,7 +643,6 @@ package body Repinfo is
                   when Discrim_Val =>
                      Write_Char ('#');
                      UI_Write (Node.Op1);
-
                end case;
             end;
          end if;
@@ -694,7 +710,9 @@ package body Repinfo is
          when E_Subprogram_Type =>
             Write_Str ("type ");
 
-         when E_Entry | E_Entry_Family =>
+         when E_Entry
+            | E_Entry_Family
+         =>
             Write_Str ("entry ");
 
          when others =>
@@ -710,31 +728,43 @@ package body Repinfo is
       Write_Str ("  convention : ");
 
       case Convention (Ent) is
-         when Convention_Ada                   =>
+         when Convention_Ada =>
             Write_Line ("Ada");
-         when Convention_Ada_Pass_By_Copy      =>
+
+         when Convention_Ada_Pass_By_Copy =>
             Write_Line ("Ada_Pass_By_Copy");
+
          when Convention_Ada_Pass_By_Reference =>
             Write_Line ("Ada_Pass_By_Reference");
-         when Convention_Intrinsic             =>
+
+         when Convention_Intrinsic =>
             Write_Line ("Intrinsic");
-         when Convention_Entry                 =>
+
+         when Convention_Entry =>
             Write_Line ("Entry");
-         when Convention_Protected             =>
+
+         when Convention_Protected =>
             Write_Line ("Protected");
-         when Convention_Assembler             =>
+
+         when Convention_Assembler =>
             Write_Line ("Assembler");
-         when Convention_C                     =>
+
+         when Convention_C =>
             Write_Line ("C");
-         when Convention_COBOL                 =>
+
+         when Convention_COBOL =>
             Write_Line ("COBOL");
-         when Convention_CPP                   =>
+
+         when Convention_CPP =>
             Write_Line ("C++");
-         when Convention_Fortran               =>
+
+         when Convention_Fortran =>
             Write_Line ("Fortran");
-         when Convention_Stdcall               =>
+
+         when Convention_Stdcall =>
             Write_Line ("Stdcall");
-         when Convention_Stubbed               =>
+
+         when Convention_Stubbed =>
             Write_Line ("Stubbed");
       end case;
 
@@ -1418,7 +1448,6 @@ package body Repinfo is
                         pragma Assert (Sub in D'Range);
                         return D (Sub);
                      end;
-
                end case;
             end;
          end if;

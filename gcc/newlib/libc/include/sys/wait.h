@@ -11,7 +11,7 @@ extern "C" {
 #define WUNTRACED 2
 
 /* A status looks like:
-      <2 bytes info> <2 bytes code>
+      <1 byte info> <1 byte code>
 
       <code> == 0, child has exited, info is the exit value
       <code> == 1..7e, child has exited, info is the signal number.
@@ -28,6 +28,10 @@ extern "C" {
 
 pid_t wait (int *);
 pid_t waitpid (pid_t, int *, int);
+
+#ifdef _COMPILING_NEWLIB
+pid_t _wait (int *);
+#endif
 
 /* Provide prototypes for most of the _<systemcall> names that are
    provided in newlib for some compilers.  */

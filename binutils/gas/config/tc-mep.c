@@ -442,7 +442,7 @@ mep_machine (void)
 /* The MeP version of the cgen parse_operand function.  The only difference
    from the standard version is that we want to avoid treating '$foo' and
    '($foo...)' as references to a symbol called '$foo'.  The chances are
-   that '$foo' is really a misspelt register.  */
+   that '$foo' is really a misspelled register.  */
 
 static const char *
 mep_parse_operand (CGEN_CPU_DESC cd, enum cgen_parse_operand_type want,
@@ -582,7 +582,7 @@ mep_check_parallel32_scheduling (void)
      an internally parallel core or an internally parallel coprocessor,
      neither of which are supported at this time.  */
   if ( num_insns_saved > 2 )
-    as_fatal("Internally paralled cores and coprocessors not supported.");
+    as_fatal("Internally paralleled cores and coprocessors not supported.");
 
   /* If there are no insns saved, that's ok.  Just return.  This will
      happen when mep_process_saved_insns is called when the end of the
@@ -621,7 +621,7 @@ mep_check_parallel32_scheduling (void)
 	 1.  The instruction is a 32 bit core or coprocessor insn and
              can be executed by itself.  Valid.
 
-         2.  The instrucion is a core instruction for which a cop nop
+         2.  The instruction is a core instruction for which a cop nop
              exists.  In this case, insert the cop nop into the saved
              insn array after the core insn and return.  Valid.
 
@@ -657,7 +657,7 @@ mep_check_parallel32_scheduling (void)
           mep_insn insn;
 
           /* Move the insn and it's fixups to the second element of the
-             saved insns arrary and insert a 16 bit core nope into the
+             saved insns array and insert a 16 bit core nope into the
              first element. */
              insn.insn = mep_cgen_assemble_insn (gas_cgen_cpu_desc, "nop",
                                                  &insn.fields, insn.buffer,
@@ -758,7 +758,7 @@ mep_check_parallel64_scheduling (void)
          1.  The instruction is a 64 bit coprocessor insn and can be
              executed by itself.  Valid.
 
-         2.  The instrucion is a core instruction for which a cop nop
+         2.  The instruction is a core instruction for which a cop nop
              exists.  In this case, insert the cop nop into the saved
              insn array after the core insn and return.  Valid.
 
@@ -773,7 +773,7 @@ mep_check_parallel64_scheduling (void)
 	     we have to abort.  */
 
       /* If the insn is 64 bits long, it can run alone.  The size check
-	 is done indepependantly of whether the insn is core or copro
+	 is done independently of whether the insn is core or copro
 	 in case 64 bit coprocessor insns are added later.  */
       if (insn0length == 64)
         return;
@@ -1145,7 +1145,7 @@ mep_check_ivc2_scheduling (void)
 #endif /* MEP_IVC2_SUPPORTED */
 
 /* The scheduling functions are just filters for invalid combinations.
-   If there is a violation, they terminate assembly.  Otherise they
+   If there is a violation, they terminate assembly.  Otherwise they
    just fall through.  Successful combinations cause no side effects
    other than valid nop insertion.  */
 
@@ -1800,7 +1800,7 @@ mep_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	break;
       }
 
-  /* Now call cgen's md_aply_fix.  */
+  /* Now call cgen's md_apply_fix.  */
   gas_cgen_md_apply_fix (fixP, valP, seg);
 }
 

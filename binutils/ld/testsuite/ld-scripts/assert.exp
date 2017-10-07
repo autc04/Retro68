@@ -26,7 +26,7 @@ if ![ld_assemble $as $srcdir/$subdir/assert.s tmpdir/assert.o] {
     return
 }
 
-if ![ld_simple_link $ld tmpdir/assert "-T $srcdir/$subdir/assert.t tmpdir/assert.o"] {
+if ![ld_link $ld tmpdir/assert "-T $srcdir/$subdir/assert.t tmpdir/assert.o"] {
     fail $testname
 } else {
     pass $testname

@@ -2083,8 +2083,8 @@ setup_sections (bfd *abfd,
 
   /* First, read in space names.  */
   amt = file_hdr->space_strings_size;
-  space_strings = bfd_malloc (amt);
-  if (!space_strings && amt != 0)
+  space_strings = bfd_malloc (amt + 1);
+  if (space_strings == NULL && amt != 0)
     goto error_return;
 
   if (bfd_seek (abfd, current_offset + file_hdr->space_strings_location,
@@ -2092,6 +2092,8 @@ setup_sections (bfd *abfd,
     goto error_return;
   if (bfd_bread (space_strings, amt, abfd) != amt)
     goto error_return;
+  /* Make sure that the string table is NUL terminated.  */
+  space_strings[amt] = 0;
 
   /* Loop over all of the space dictionaries, building up sections.  */
   for (space_index = 0; space_index < file_hdr->space_total; space_index++)
@@ -2119,6 +2121,9 @@ setup_sections (bfd *abfd,
       som_swap_space_dictionary_in (&ext_space, &space);
 
       /* Setup the space name string.  */
+      if (space.name >= file_hdr->space_strings_size)
+	goto error_return;
+
       space_name = space.name + space_strings;
 
       /* Make a section out of it.  */
@@ -6754,11 +6759,13 @@ som_bfd_link_split_section (bfd *abfd ATTRIBUTE_UNUSED, asection *sec)
 #define som_bfd_discard_group		        bfd_generic_discard_group
 #define som_section_already_linked              _bfd_generic_section_already_linked
 #define som_bfd_define_common_symbol            bfd_generic_define_common_symbol
+#define som_bfd_define_start_stop               bfd_generic_define_start_stop
 #define som_bfd_merge_private_bfd_data		_bfd_generic_bfd_merge_private_bfd_data
 #define som_bfd_copy_private_header_data	_bfd_generic_bfd_copy_private_header_data
 #define som_bfd_set_private_flags		_bfd_generic_bfd_set_private_flags
 #define som_find_inliner_info			_bfd_nosymbols_find_inliner_info
 #define som_bfd_link_check_relocs               _bfd_generic_link_check_relocs
+#define som_set_reloc				_bfd_generic_set_reloc
 
 const bfd_target hppa_som_vec =
 {

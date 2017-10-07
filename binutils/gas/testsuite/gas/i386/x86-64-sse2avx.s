@@ -359,8 +359,12 @@ _start:
 	aeskeygenassist $100,(%rcx),%xmm6
 	pcmpestri $100,%xmm4,%xmm6
 	pcmpestri $100,(%rcx),%xmm6
+	pcmpestriq $100,%xmm4,%xmm6
+	pcmpestril $100,(%rcx),%xmm6
 	pcmpestrm $100,%xmm4,%xmm6
 	pcmpestrm $100,(%rcx),%xmm6
+	pcmpestrmq $100,%xmm4,%xmm6
+	pcmpestrml $100,(%rcx),%xmm6
 	pcmpistri $100,%xmm4,%xmm6
 	pcmpistri $100,(%rcx),%xmm6
 	pcmpistrm $100,%xmm4,%xmm6

@@ -25,6 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef EPIPHANY_CPU_H
 #define EPIPHANY_CPU_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CGEN_ARCH epiphany
 
 /* Given symbol S, return epiphany_cgen_<S>.  */
@@ -398,5 +402,9 @@ extern CGEN_KEYWORD epiphany_cgen_opval_crmesh_names;
 extern const CGEN_HW_ENTRY epiphany_cgen_hw_table[];
 
 
+
+   #ifdef __cplusplus
+   }
+   #endif
 
 #endif /* EPIPHANY_CPU_H */

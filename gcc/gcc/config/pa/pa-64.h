@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler, for HPs using the
    64bit runtime model.
-   Copyright (C) 1999-2016 Free Software Foundation, Inc.
+   Copyright (C) 1999-2017 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -83,7 +83,10 @@ along with GCC; see the file COPYING3.  If not see
    arguments are padded down when BYTES_BIG_ENDIAN is true.  We don't
    want aggregates padded down.  */
 
-#define PAD_VARARGS_DOWN (!AGGREGATE_TYPE_P (type))
+#define PAD_VARARGS_DOWN \
+  (!AGGREGATE_TYPE_P (type) \
+   && TREE_CODE (type) != COMPLEX_TYPE \
+   && TREE_CODE (type) != VECTOR_TYPE)
 
 /* In the PA architecture, it is not possible to directly move data
    between GENERAL_REGS and FP_REGS.  On the 32-bit port, we use the

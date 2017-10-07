@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2016 Free Software Foundation, Inc.
+// Copyright (C) 2015-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,10 +34,4 @@ test01()
   const auto refc = std::ref(a);
   std::invoke(&A::foo, refc, 100);		// const lvalue
   std::invoke(&A::foo, std::move(refc), 100);	// const rvalue
-}
-
-int
-main()
-{
-  test01();
 }

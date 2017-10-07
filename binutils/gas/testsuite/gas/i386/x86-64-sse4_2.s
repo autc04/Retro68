@@ -20,8 +20,12 @@ foo:
 	pcmpgtq		%xmm1,%xmm0
 	pcmpestri	$0x0,(%rcx),%xmm0
 	pcmpestri	$0x0,%xmm1,%xmm0
+	pcmpestriq	$0x0,(%rcx),%xmm0
+	pcmpestril	$0x0,%xmm1,%xmm0
 	pcmpestrm	$0x1,(%rcx),%xmm0
 	pcmpestrm	$0x1,%xmm1,%xmm0
+	pcmpestrmq	$0x1,(%rcx),%xmm0
+	pcmpestrml	$0x1,%xmm1,%xmm0
 	pcmpistri	$0x2,(%rcx),%xmm0
 	pcmpistri	$0x2,%xmm1,%xmm0
 	pcmpistrm	$0x3,(%rcx),%xmm0

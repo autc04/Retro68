@@ -738,19 +738,19 @@ CODE_FRAGMENT
 .     { NULL }, { NULL }						\
 .    }
 .
+.{* We use a macro to initialize the static asymbol structures because
+.   traditional C does not permit us to initialize a union member while
+.   gcc warns if we don't initialize it.
+.   the_bfd, name, value, attr, section [, udata]  *}
+.#ifdef __STDC__
+.#define GLOBAL_SYM_INIT(NAME, SECTION) \
+.  { 0, NAME, 0, BSF_SECTION_SYM, SECTION, { 0 }}
+.#else
+.#define GLOBAL_SYM_INIT(NAME, SECTION) \
+.  { 0, NAME, 0, BSF_SECTION_SYM, SECTION }
+.#endif
+.
 */
-
-/* We use a macro to initialize the static asymbol structures because
-   traditional C does not permit us to initialize a union member while
-   gcc warns if we don't initialize it.  */
- /* the_bfd, name, value, attr, section [, udata] */
-#ifdef __STDC__
-#define GLOBAL_SYM_INIT(NAME, SECTION) \
-  { 0, NAME, 0, BSF_SECTION_SYM, SECTION, { 0 }}
-#else
-#define GLOBAL_SYM_INIT(NAME, SECTION) \
-  { 0, NAME, 0, BSF_SECTION_SYM, SECTION }
-#endif
 
 /* These symbols are global, not specific to any BFD.  Therefore, anything
    that tries to change them is broken, and should be repaired.  */

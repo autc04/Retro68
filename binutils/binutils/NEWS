@@ -1,10 +1,37 @@
 -*- text -*-
 
-Changes in 2.28:
+Changes in 2.29:
+
+* The MIPS port now supports microMIPS eXtended Physical Addressing (XPA)
+  instructions for assembly and disassembly.
+
+* The MIPS port now supports the microMIPS Release 5 ISA for assembly and
+  disassembly.
+
+* The MIPS port now supports the Imagination interAptiv MR2 processor,
+  which implements the MIPS32r3 ISA, the MIPS16e2 ASE as well as a couple
+  of implementation-specific regular MIPS and MIPS16e2 ASE instructions.
+
+* The SPARC port now supports the SPARC M8 processor, which implements the
+  Oracle SPARC Architecture 2017.
+
+* The MIPS port now supports the MIPS16e2 ASE for assembly and disassembly.
+
+* Add support for ELF SHF_GNU_MBIND and PT_GNU_MBIND_XXX.
+
+* Add support for the wasm32 ELF conversion of the WebAssembly file format.
+
+* Add --inlines option to objdump, which extends the --line-numbers option
+  so that inlined functions will display their nesting information.
+
+* Add --merge-notes options to objcopy to reduce the size of notes in
+  a binary file by merging and deleting redundant notes.
 
 * Add support for locating separate debug info files using the build-id
   method, where the separate file has a name based upon the build-id of
   the original file.
+
+Changes in 2.28:
 
 * This version of binutils fixes a problem with PowerPC VLE 16A and 16D
   relocations which were functionally swapped, for example,

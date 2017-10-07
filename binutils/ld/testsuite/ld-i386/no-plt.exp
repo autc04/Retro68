@@ -39,6 +39,9 @@ if { [which $CC] == 0 } {
     return
 }
 
+# Add $NOPIE_CFLAGS and $NOPIE_LDFLAGS if non-PIE is required.
+global NOPIE_CFLAGS NOPIE_LDFLAGS
+
 run_cc_link_tests [list \
     [list \
 	"Build no-plt-func1.o no-plt-main1.o" \
@@ -73,7 +76,7 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"No PLT (dynamic 1a)" \
-	"tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
+	"$NOPIE_LDFLAGS tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o" \
 	"" \
 	{dummy.s} \
@@ -91,7 +94,7 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"No PLT (dynamic 1c)" \
-	"tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
+	"$NOPIE_LDFLAGS tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
 	"" \
 	{dummy.s} \
@@ -136,7 +139,7 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"No PLT (dynamic 1h)" \
-	"tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
+	"$NOPIE_LDFLAGS tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1b.o" \
 	"" \
 	{dummy.s} \
@@ -145,7 +148,7 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"No PLT (dynamic 1i)" \
-	"tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
+	"$NOPIE_LDFLAGS tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-extern1b.o tmpdir/libno-plt-1a.so" \
 	"" \
 	{dummy.s} \
@@ -229,7 +232,7 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"No PLT (dynamic 1h)" \
-	"tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
+	"$NOPIE_LDFLAGS tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1b.o" \
 	"" \
 	{dummy.s} \
@@ -238,7 +241,7 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"No PLT (dynamic 1i)" \
-	"tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
+	"$NOPIE_LDFLAGS tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-extern1b.o tmpdir/libno-plt-1a.so" \
 	"" \
 	{dummy.s} \
@@ -291,7 +294,7 @@ if { [check_ifunc_available] } {
     run_ld_link_exec_tests [list \
 	[list \
 	    "Run pr20244-3a" \
-	    "tmpdir/pr20244-3a.o tmpdir/pr20244-3b.o \
+	    "$NOPIE_LDFLAGS tmpdir/pr20244-3a.o tmpdir/pr20244-3b.o \
 	     tmpdir/pr20244-3c.o tmpdir/pr20244-3d.o" \
 	    "" \
 	    { dummy.c } \
@@ -352,7 +355,7 @@ if { [check_ifunc_available] } {
 	] \
 	[list \
 	    "Run pr20253-1f" \
-	    "tmpdir/pr20253-1a.o" \
+	    "$NOPIE_LDFLAGS tmpdir/pr20253-1a.o" \
 	    "" \
 	    { pr20253-1b.S pr20253-1c.S pr20253-1d.S } \
 	    "pr20253-1f" \
@@ -370,7 +373,7 @@ if { [check_ifunc_available] } {
 	] \
 	[list \
 	    "Run pr20253-2a" \
-	    "tmpdir/pr20253-2a.o tmpdir/pr20253-2b.o \
+	    "$NOPIE_LDFLAGS tmpdir/pr20253-2a.o tmpdir/pr20253-2b.o \
 	     tmpdir/pr20253-2c.o tmpdir/pr20253-2d.o" \
 	    "" \
 	    { dummy.s } \
@@ -388,7 +391,7 @@ if { [check_ifunc_available] } {
 	] \
 	[list \
 	    "Run pr20253-2c" \
-	    "tmpdir/pr20253-2a.o" \
+	    "$NOPIE_LDFLAGS tmpdir/pr20253-2a.o" \
 	    "" \
 	    { pr20253-2b.S pr20253-2c.S pr20253-2d.S } \
 	    "pr20253-2c" \

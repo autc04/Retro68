@@ -429,7 +429,7 @@ epiphany_assemble (const char *str)
 #define DISPMOD _("destination register modified by displacement-post-modified address")
 #define LDSTODD _("ldrd/strd requires even:odd register pair")
 
-  /* Helper macros for spliting apart instruction fields.  */
+  /* Helper macros for splitting apart instruction fields.  */
 #define ADDR_POST_MODIFIED(i) (((i) >> 25) & 0x1)
 #define ADDR_SIZE(i)          (((i) >>  5) &   3)
 #define ADDR_LOADSTORE(i)     (((i) >>  4) & 0x1)
@@ -1055,7 +1055,7 @@ epiphany_fix_adjustable (fixS *fixP)
     return FALSE;
 
   /* Since we don't use partial_inplace, we must not reduce symbols in
-     mergable sections to their section symbol.  */
+     mergeable sections to their section symbol.  */
   if ((S_GET_SEGMENT (fixP->fx_addsy)->flags & SEC_MERGE) != 0)
     return FALSE;
 

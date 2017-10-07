@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -190,7 +190,7 @@ package body Prj is
       pragma Warnings (Off, Dont_Care);
 
    begin
-      if not Opt.Keep_Temporary_Files  then
+      if not Opt.Keep_Temporary_Files then
          if Current_Verbosity = High then
             Write_Line ("Removing temp file: " & Get_Name_String (Path));
          end if;
@@ -306,7 +306,9 @@ package body Prj is
          when Makefile =>
             return Extend_Name (Source_File_Name, Makefile_Dependency_Suffix);
 
-         when ALI_File | ALI_Closure =>
+         when ALI_Closure
+            | ALI_File
+         =>
             return Extend_Name (Source_File_Name, ALI_Dependency_Suffix);
       end case;
    end Dependency_Name;
@@ -1250,7 +1252,9 @@ package body Prj is
          Free_List (Project.Languages);
 
          case Project.Qualifier is
-            when Aggregate | Aggregate_Library =>
+            when Aggregate
+               | Aggregate_Library
+            =>
                Free (Project.Aggregated_Projects);
 
             when others =>
@@ -1899,12 +1903,9 @@ package body Prj is
    begin
       if Source.Unit /= No_Unit_Index then
          case Source.Kind is
-            when Impl =>
-               return Source.Unit.File_Names (Spec);
-            when Spec =>
-               return Source.Unit.File_Names (Impl);
-            when Sep =>
-               return No_Source;
+            when Impl => return Source.Unit.File_Names (Spec);
+            when Spec => return Source.Unit.File_Names (Impl);
+            when Sep  => return No_Source;
          end case;
       else
          return No_Source;

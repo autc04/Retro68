@@ -41,7 +41,7 @@
 #endif
 
 file_ptr
-real_ftell (FILE *file)
+_bfd_real_ftell (FILE *file)
 {
 #if defined (HAVE_FTELLO64)
   return ftello64 (file);
@@ -53,7 +53,7 @@ real_ftell (FILE *file)
 }
 
 int
-real_fseek (FILE *file, file_ptr offset, int whence)
+_bfd_real_fseek (FILE *file, file_ptr offset, int whence)
 {
 #if defined (HAVE_FSEEKO64)
   return fseeko64 (file, offset, whence);
@@ -82,7 +82,7 @@ close_on_exec (FILE *file)
 }
 
 FILE *
-real_fopen (const char *filename, const char *modes)
+_bfd_real_fopen (const char *filename, const char *modes)
 {
 #ifdef VMS
   char *vms_attr;
@@ -392,7 +392,7 @@ FUNCTION
 	bfd_get_size
 
 SYNOPSIS
-	file_ptr bfd_get_size (bfd *abfd);
+	ufile_ptr bfd_get_size (bfd *abfd);
 
 DESCRIPTION
 	Return the file size (as read from file system) for the file
@@ -420,7 +420,7 @@ DESCRIPTION
 	size reasonable?".
 */
 
-file_ptr
+ufile_ptr
 bfd_get_size (bfd *abfd)
 {
   struct stat buf;
@@ -434,6 +434,29 @@ bfd_get_size (bfd *abfd)
   return buf.st_size;
 }
 
+/*
+FUNCTION
+	bfd_get_file_size
+
+SYNOPSIS
+	ufile_ptr bfd_get_file_size (bfd *abfd);
+
+DESCRIPTION
+	Return the file size (as read from file system) for the file
+	associated with BFD @var{abfd}.  It supports both normal files
+	and archive elements.
+
+*/
+
+ufile_ptr
+bfd_get_file_size (bfd *abfd)
+{
+  if (abfd->my_archive != NULL
+      && !bfd_is_thin_archive (abfd->my_archive))
+    return arelt_size (abfd);
+
+  return bfd_get_size (abfd);
+}
 
 /*
 FUNCTION

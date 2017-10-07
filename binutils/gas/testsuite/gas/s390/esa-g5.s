@@ -437,7 +437,7 @@ foo:
 	sxbr	%f5,%f8
 	sxr	%f5,%f8
 	tar	%a6,%r9
-	tb	%r6
+	tb	%r6,%r9
 	tbdr	%r6,5,%r9
 	tbedr	%r6,5,%r9
 	tcdb	%f6,4095(%r5,%r10)
@@ -475,3 +475,5 @@ foo:
 	xr	%r6,%r9
 	xsch
 	zap	4095(6,%r5),4095(9,%r10)
+	ipte	%r6,%r9,%r11
+	ipte	%r6,%r9,%r11,13

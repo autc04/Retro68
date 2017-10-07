@@ -1,0 +1,20 @@
+# Verify correct version information output from `readelf' and that there
+# is no:
+#
+#   Version definition past end of section
+#
+# line at the end in particular (hence #pass must not be used here).
+
+# TI C6X special variant covering an extra `.got.plt' dynamic symbol
+# table entry and consequently its `.gnu.version' record made as a
+# result of unusual processing in `elf32_tic6x_link_omit_section_dynsym'.
+
+Version symbols section '\.gnu\.version' contains 5 entries:
+ Addr: [0-9a-f]+ +Offset: 0x[0-9a-f]+ +Link: 2 \(\.dynsym\)
+ +000: +0 \(\*local\*\) +0 \(\*local\*\) +2 \(ver_foo\) +1 \(\*global\*\) +
+ +004: +2 \(ver_foo\) +
+
+Version definition section '\.gnu\.version_d' contains 2 entries:
+ +Addr: 0x[0-9a-f]+ +Offset: 0x[0-9a-f]+ +Link: 3 \(\.dynstr\)
+ +000000: Rev: 1 +Flags: BASE +Index: 1 +Cnt: 1 +Name: ver_def
+ +0x001c: Rev: 1 +Flags: none +Index: 2 +Cnt: 1 +Name: ver_foo

@@ -82,6 +82,7 @@ It is not portable.  See also the <<funopen>> interface from BSD.
 Supporting OS subroutines required: <<sbrk>>.
 */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <errno.h>
 #include <sys/lock.h>
@@ -101,7 +102,7 @@ _DEFUN(fcreader, (ptr, cookie, buf, n),
        struct _reent *ptr _AND
        void *cookie _AND
        char *buf _AND
-       int n)
+       _READ_WRITE_BUFSIZE_TYPE n)
 {
   int result;
   fccookie *c = (fccookie *) cookie;
@@ -116,7 +117,7 @@ _DEFUN(fcwriter, (ptr, cookie, buf, n),
        struct _reent *ptr _AND
        void *cookie _AND
        const char *buf _AND
-       int n)
+       _READ_WRITE_BUFSIZE_TYPE n)
 {
   int result;
   fccookie *c = (fccookie *) cookie;
@@ -219,16 +220,16 @@ _DEFUN(_fopencookie_r, (ptr, cookie, mode, functions),
     return NULL;
   if ((c = (fccookie *) _malloc_r (ptr, sizeof *c)) == NULL)
     {
-      __sfp_lock_acquire ();
+      _newlib_sfp_lock_start ();
       fp->_flags = 0;		/* release */
 #ifndef __SINGLE_THREAD__
       __lock_close_recursive (fp->_lock);
 #endif
-      __sfp_lock_release ();
+      _newlib_sfp_lock_end ();
       return NULL;
     }
 
-  _flockfile (fp);
+  _newlib_flockfile_start (fp);
   fp->_file = -1;
   fp->_flags = flags;
   c->cookie = cookie;
@@ -246,7 +247,7 @@ _DEFUN(_fopencookie_r, (ptr, cookie, mode, functions),
 #endif
   c->closefn = functions.close;
   fp->_close = fccloser;
-  _funlockfile (fp);
+  _newlib_flockfile_end (fp);
   return fp;
 }
 

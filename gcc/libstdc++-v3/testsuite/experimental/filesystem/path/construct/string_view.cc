@@ -1,8 +1,8 @@
-// { dg-options "-lstdc++fs" }
-// { dg-do run { target c++14 } }
+// { dg-options "-lstdc++fs -std=gnu++1z" }
+// { dg-do run { target c++1z } }
 // { dg-require-filesystem-ts "" }
 
-// Copyright (C) 2016 Free Software Foundation, Inc.
+// Copyright (C) 2016-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -22,7 +22,7 @@
 // 8.4.1 path constructors [path.construct]
 
 #include <experimental/filesystem>
-#include <experimental/string_view>
+#include <string_view>
 #include <string>
 #include <testsuite_fs.h>
 
@@ -35,14 +35,14 @@ test01()
   for (std::string s : __gnu_test::test_paths)
   {
     path p1 = s;
-    std::experimental::string_view sv(s);
+    std::string_view sv(s);
     path p2 = sv;
     compare_paths(p1, p2);
 
 #if _GLIBCXX_USE_WCHAR_T
     std::wstring ws(s.begin(), s.end());
     path p3 = ws;
-    std::experimental::wstring_view wsv(ws);
+    std::wstring_view wsv(ws);
     path p4 = wsv;
     compare_paths(p1, p4);
 #endif

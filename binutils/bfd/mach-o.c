@@ -1898,7 +1898,7 @@ bfd_mach_o_write_symtab_content (bfd *abfd, bfd_mach_o_symtab_command *sym)
   if (bfd_seek (abfd, sym->stroff, SEEK_SET) != 0)
     goto err;
 
-  if (_bfd_stringtab_emit (abfd, strtab) != TRUE)
+  if (!_bfd_stringtab_emit (abfd, strtab))
     goto err;
 
   /* Pad string table.  */
@@ -5641,9 +5641,9 @@ bfd_mach_o_core_file_failing_signal (bfd *abfd ATTRIBUTE_UNUSED)
 static bfd_mach_o_uuid_command *
 bfd_mach_o_lookup_uuid_command (bfd *abfd)
 {
-  bfd_mach_o_load_command *uuid_cmd;
+  bfd_mach_o_load_command *uuid_cmd = NULL;
   int ncmd = bfd_mach_o_lookup_command (abfd, BFD_MACH_O_LC_UUID, &uuid_cmd);
-  if (ncmd != 1)
+  if (ncmd != 1 || uuid_cmd == NULL)
     return FALSE;
   return &uuid_cmd->command.uuid;
 }

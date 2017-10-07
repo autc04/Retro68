@@ -1,5 +1,5 @@
 /* Gcc offline profile processing tool support. */
-/* Copyright (C) 2014-2016 Free Software Foundation, Inc.
+/* Copyright (C) 2014-2017 Free Software Foundation, Inc.
    Contributed by Rong Xu <xur@google.com>.
 
 This file is part of GCC.
@@ -46,6 +46,7 @@ extern int gcov_profile_normalize (struct gcov_info*, gcov_type);
 extern int gcov_profile_scale (struct gcov_info*, float, int, int);
 extern struct gcov_info* gcov_read_profile_dir (const char*, int);
 extern void gcov_do_dump (struct gcov_info *, int);
+extern const char *gcov_get_filename (struct gcov_info *list);
 extern void gcov_set_verbose (void);
 
 /* Set to verbose output mode.  */
@@ -114,6 +115,14 @@ gcov_output_files (const char *out, struct gcov_info *profile)
   if (ret)
     fatal_error (input_location, "Cannot change directory to %s", out);
 
+  /* Verify that output file does not exist (either was removed by
+     unlink_profile_data or removed by user).  */
+  const char *filename = gcov_get_filename (profile);
+
+  if (access (filename, F_OK) != -1)
+    fatal_error (input_location, "output file %s already exists in folder %s",
+		 filename, out);
+
   gcov_do_dump (profile, 0);
 
   ret = chdir (pwd);
@@ -164,8 +173,8 @@ print_merge_usage_message (int error_p)
   FILE *file = error_p ? stderr : stdout;
 
   fnotice (file, "  merge [options] <dir1> <dir2>         Merge coverage file contents\n");
-  fnotice (file, "    -v, --verbose                       Verbose mode\n");
   fnotice (file, "    -o, --output <dir>                  Output directory\n");
+  fnotice (file, "    -v, --verbose                       Verbose mode\n");
   fnotice (file, "    -w, --weight <w1,w2>                Set weights (float point values)\n");
 }
 
@@ -232,7 +241,7 @@ do_merge (int argc, char **argv)
    Otherwise, multiply the all counters by SCALE.  */
 
 static int
-profile_rewrite (const char *d1, const char *out, long long n_val,
+profile_rewrite (const char *d1, const char *out, int64_t n_val,
                  float scale, int n, int d)
 {
   struct gcov_info * d1_profile;
@@ -258,10 +267,10 @@ print_rewrite_usage_message (int error_p)
   FILE *file = error_p ? stderr : stdout;
 
   fnotice (file, "  rewrite [options] <dir>               Rewrite coverage file contents\n");
-  fnotice (file, "    -v, --verbose                       Verbose mode\n");
+  fnotice (file, "    -n, --normalize <int64_t>           Normalize the profile\n");
   fnotice (file, "    -o, --output <dir>                  Output directory\n");
   fnotice (file, "    -s, --scale <float or simple-frac>  Scale the profile counters\n");
-  fnotice (file, "    -n, --normalize <long long>         Normalize the profile\n");
+  fnotice (file, "    -v, --verbose                       Verbose mode\n");
 }
 
 static const struct option rewrite_options[] =
@@ -291,11 +300,7 @@ do_rewrite (int argc, char **argv)
   int opt;
   int ret;
   const char *output_dir = 0;
-#ifdef HAVE_LONG_LONG
-  long long normalize_val = 0;
-#else
   int64_t normalize_val = 0;
-#endif
   float scale = 0.0;
   int numerator = 1;
   int denominator = 1;
@@ -315,12 +320,10 @@ do_rewrite (int argc, char **argv)
           break;
         case 'n':
           if (!do_scaling)
-#if defined(HAVE_LONG_LONG)
-	    normalize_val = strtoll (optarg, (char **)NULL, 10);
-#elif defined(INT64_T_IS_LONG)
+#if defined(INT64_T_IS_LONG)
 	    normalize_val = strtol (optarg, (char **)NULL, 10);
 #else
-	    sscanf (optarg, "%" SCNd64, &normalize_val);
+	    normalize_val = strtoll (optarg, (char **)NULL, 10);
 #endif
           else
             fnotice (stderr, "scaling cannot co-exist with normalization,"
@@ -414,12 +417,12 @@ print_overlap_usage_message (int error_p)
   FILE *file = error_p ? stderr : stdout;
 
   fnotice (file, "  overlap [options] <dir1> <dir2>       Compute the overlap of two profiles\n");
-  fnotice (file, "    -v, --verbose                       Verbose mode\n");
-  fnotice (file, "    -h, --hotonly                       Only print info for hot objects/functions\n");
   fnotice (file, "    -f, --function                      Print function level info\n");
   fnotice (file, "    -F, --fullname                      Print full filename\n");
+  fnotice (file, "    -h, --hotonly                       Only print info for hot objects/functions\n");
   fnotice (file, "    -o, --object                        Print object level info\n");
   fnotice (file, "    -t <float>, --hot_threshold <float> Set the threshold for hotness\n");
+  fnotice (file, "    -v, --verbose                       Verbose mode\n");
 
 }
 
@@ -523,7 +526,7 @@ static void
 print_version (void)
 {
   fnotice (stdout, "%s %s%s\n", progname, pkgversion_string, version_string);
-  fnotice (stdout, "Copyright %s 2014-2016 Free Software Foundation, Inc.\n",
+  fnotice (stdout, "Copyright %s 2014-2017 Free Software Foundation, Inc.\n",
            _("(C)"));
   fnotice (stdout,
            _("This is free software; see the source for copying conditions.\n"
@@ -553,9 +556,11 @@ process_args (int argc, char **argv)
         case 'h':
           print_usage (false);
           /* Print_usage will exit.  */
+	  /* FALLTHRU */
         case 'v':
           print_version ();
           /* Print_version will exit.  */
+	  /* FALLTHRU */
         default:
           print_usage (true);
           /* Print_usage will exit.  */

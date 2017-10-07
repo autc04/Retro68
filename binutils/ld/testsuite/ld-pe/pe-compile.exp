@@ -52,7 +52,7 @@ proc run_basefile_test { testname } {
     global subdir
     global verbose
 
-    if ![ld_simple_link "$LD -e start \
+    if ![ld_link "$LD -e start \
 	    --base-file=tmpdir/$testname.base \
 	    --export-all-symbols" tmpdir/$testname.dll \
 	    "tmpdir/basefile1.o"] {
@@ -92,7 +92,7 @@ proc run_ver_script_test { testname } {
     global subdir
     global verbose
 
-    if ![ld_simple_link "$CC -shared \
+    if ![ld_link "$CC -shared \
 	    -Wl,--version-script,$srcdir/$subdir/$testname.ver \
 	    -Wl,--output-def,tmpdir/$testname.def" tmpdir/$testname.dll \
 	    "tmpdir/vers-script-dll.o"] {

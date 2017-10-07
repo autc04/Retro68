@@ -23,10 +23,10 @@
 
 struct symbol_flags
 {
-  /* Wether the symbol is a local_symbol.  */
+  /* Whether the symbol is a local_symbol.  */
   unsigned int sy_local_symbol : 1;
 
-  /* Wether symbol has been written.  */
+  /* Weather symbol has been written.  */
   unsigned int sy_written : 1;
 
   /* Whether symbol value has been completely resolved (used during

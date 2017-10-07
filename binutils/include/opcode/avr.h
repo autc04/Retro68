@@ -110,6 +110,7 @@
    z - Z pointer register (for [e]lpm Rd,Z[+])
    M - immediate value from 0 to 255
    n - immediate value from 0 to 255 ( n = ~M ). Relocation impossible
+   N - immediate value from 0 to 255. Relocation impossible
    s - immediate value from 0 to 7
    P - Port address value from 0 to 63. (in, out)
    p - Port address value from 0 to 31. (cbi, sbi, sbic, sbis)
@@ -305,4 +306,8 @@ AVR_INSN (eijmp, "",   "1001010000011001", 1, AVR_ISA_EIND, 0x9419)
 
 /* DES instruction for encryption and decryption.  */
 AVR_INSN (des,  "E",   "10010100EEEE1011", 1, AVR_ISA_DES,  0x940B)
+
+/* Operands are evaluated by hand and won't pop new fux-ups.
+   The pseudo-insn is hidden behind NOP so that avr-dis.c don't see it. */
+AVR_INSN (__gcc_isr, "", "0000000000000000", 1, AVR_ISA_1200,  0x0)
 

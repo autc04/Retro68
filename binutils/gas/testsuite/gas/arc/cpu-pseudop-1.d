@@ -2,7 +2,7 @@
 #objdump: -dp -M dpfp
 
 .*: +file format .*arc.*
-private flags = 0x305: -mcpu=ARCv2EM .*
+private flags = 0x\d05: -mcpu=ARCv2EM .*
 
 
 Disassembly of section .text:

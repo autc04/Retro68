@@ -1,6 +1,6 @@
 #source: tlsopt5.s
 #as: -a64
-#ld: --gc-sections tlsdll.so
+#ld: --gc-sections --no-plt-localentry tlsdll.so
 #objdump: -dr
 #target: powerpc64*-*-*
 
@@ -38,6 +38,7 @@ Disassembly of section \.text:
 .*:	(a6 02 08 7c|7c 08 02 a6) 	mflr    r0
 .*:	(05 00 9f 42|42 9f 00 05) 	bcl     .*
 .*:	(a6 02 68 7d|7d 68 02 a6) 	mflr    r11
+.*:	(18 00 41 f8|f8 41 00 18) 	std     r2,24\(r1\)
 .*:	(f0 ff 4b e8|e8 4b ff f0) 	ld      r2,-16\(r11\)
 .*:	(a6 03 08 7c|7c 08 03 a6) 	mtlr    r0
 .*:	(50 60 8b 7d|7d 8b 60 50) 	subf    r12,r11,r12
@@ -48,7 +49,6 @@ Disassembly of section \.text:
 .*:	(a6 03 89 7d|7d 89 03 a6) 	mtctr   r12
 .*:	(08 00 6b e9|e9 6b 00 08) 	ld      r11,8\(r11\)
 .*:	(20 04 80 4e|4e 80 04 20) 	bctr
-.*:	(00 00 00 60|60 00 00 00) 	nop
 
 0000000010000390 <__tls_get_addr_opt@plt>:
 .*:	(c8 ff ff 4b|4b ff ff c8) 	b       .*

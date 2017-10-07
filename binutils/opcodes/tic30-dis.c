@@ -22,7 +22,7 @@
 #include "sysdep.h"
 #include <errno.h>
 #include <math.h>
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opcode/tic30.h"
 
 #define NORMAL_INSN   1

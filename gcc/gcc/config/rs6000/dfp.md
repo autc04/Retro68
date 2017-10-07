@@ -1,5 +1,5 @@
 ;; Decimal Floating Point (DFP) patterns.
-;; Copyright (C) 2007-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2007-2017 Free Software Foundation, Inc.
 ;; Contributed by Ben Elliston (bje@au.ibm.com) and Peter Bergner
 ;; (bergner@vnet.ibm.com).
 
@@ -173,7 +173,8 @@
    (clobber (match_scratch:TD 2 "=d"))]
   "TARGET_DFP"
   "drdpq %2,%1\;fmr %0,%2"
-  [(set_attr "type" "dfp")])
+  [(set_attr "type" "dfp")
+   (set_attr "length" "8")])
 
 (define_insn "adddd3"
   [(set (match_operand:DD 0 "gpc_reg_operand" "=d")
@@ -347,16 +348,16 @@
   [(set_attr "type" "dfp")])
 
 (define_insn "dfp_dxex_<mode>"
-  [(set (match_operand:D64_D128 0 "gpc_reg_operand" "=d")
-	(unspec:D64_D128 [(match_operand:D64_D128 1 "gpc_reg_operand" "d")]
-			 UNSPEC_DXEX))]
+  [(set (match_operand:DI 0 "gpc_reg_operand" "=d")
+	(unspec:DI [(match_operand:D64_D128 1 "gpc_reg_operand" "d")]
+		   UNSPEC_DXEX))]
   "TARGET_DFP"
   "dxex<dfp_suffix> %0,%1"
   [(set_attr "type" "dfp")])
 
 (define_insn "dfp_diex_<mode>"
   [(set (match_operand:D64_D128 0 "gpc_reg_operand" "=d")
-	(unspec:D64_D128 [(match_operand:D64_D128 1 "gpc_reg_operand" "d")
+	(unspec:D64_D128 [(match_operand:DI 1 "gpc_reg_operand" "d")
 			  (match_operand:D64_D128 2 "gpc_reg_operand" "d")]
 			 UNSPEC_DXEX))]
   "TARGET_DFP"

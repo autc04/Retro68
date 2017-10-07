@@ -214,13 +214,16 @@ mips_create_output_section_statements (void)
 static void
 mips_before_allocation (void)
 {
-  flagword flags;
+  if (is_mips_elf (link_info.output_bfd))
+    {
+      flagword flags;
 
-  flags = elf_elfheader (link_info.output_bfd)->e_flags;
-  if (!bfd_link_pic (&link_info)
-      && !link_info.nocopyreloc
-      && (flags & (EF_MIPS_PIC | EF_MIPS_CPIC)) == EF_MIPS_CPIC)
-    _bfd_mips_elf_use_plts_and_copy_relocs (&link_info);
+      flags = elf_elfheader (link_info.output_bfd)->e_flags;
+      if (!bfd_link_pic (&link_info)
+	  && !link_info.nocopyreloc
+	  && (flags & (EF_MIPS_PIC | EF_MIPS_CPIC)) == EF_MIPS_CPIC)
+	_bfd_mips_elf_use_plts_and_copy_relocs (&link_info);
+    }
 
   gld${EMULATION_NAME}_before_allocation ();
 }

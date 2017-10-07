@@ -1,6 +1,7 @@
 /* PR c/59963 */
 /* { dg-do compile } */
 /* { dg-options "-Woverflow -Wconversion" } */
+/* { dg-require-effective-target int32plus } */
 
 extern void bar (unsigned char);
 extern void bar8 (unsigned char, unsigned char, unsigned char, unsigned char,
@@ -32,5 +33,5 @@ foo (int i)
 	      -7, /* { dg-warning "8:negative integer implicitly converted to unsigned type" } */
 	       -8); /* { dg-warning "9:negative integer implicitly converted to unsigned type" } */
   bazu (i, i); /* { dg-warning "9:conversion" } */
-  bazi (0x8, 0x80000000); /* { dg-warning "14:conversion of unsigned constant value to negative integer" } */
+  bazi (0x8, 0x80000000); /* { dg-warning "14:conversion of unsigned constant value to negative integer" "" { xfail int16 } } */
 }

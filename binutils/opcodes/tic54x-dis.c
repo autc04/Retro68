@@ -23,7 +23,7 @@
 #include <errno.h>
 #include <math.h>
 #include <stdlib.h>
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opcode/tic54x.h"
 #include "coff/tic54x.h"
 

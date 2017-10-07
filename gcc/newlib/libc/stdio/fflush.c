@@ -17,18 +17,31 @@
 
 /*
 FUNCTION
-<<fflush>>---flush buffered file output
+<<fflush>>, <<fflush_unlocked>>---flush buffered file output
 
 INDEX
 	fflush
 INDEX
+	fflush_unlocked
+INDEX
 	_fflush_r
+INDEX
+	_fflush_unlocked_r
 
 ANSI_SYNOPSIS
 	#include <stdio.h>
 	int fflush(FILE *<[fp]>);
 
+	#define _BSD_SOURCE
+	#include <stdio.h>
+	int fflush_unlocked(FILE *<[fp]>);
+
+	#include <stdio.h>
 	int _fflush_r(struct _reent *<[reent]>, FILE *<[fp]>);
+
+	#define _BSD_SOURCE
+	#include <stdio.h>
+	int _fflush_unlocked_r(struct _reent *<[reent]>, FILE *<[fp]>);
 
 DESCRIPTION
 The <<stdio>> output functions can buffer output before delivering it
@@ -45,9 +58,18 @@ descriptor, set the position of the file descriptor to match next
 unread byte, useful for obeying POSIX semantics when ending a process
 without consuming all input from the stream.
 
-The alternate function <<_fflush_r>> is a reentrant version, where the
-extra argument <[reent]> is a pointer to a reentrancy structure, and
-<[fp]> must not be NULL.
+<<fflush_unlocked>> is a non-thread-safe version of <<fflush>>.
+<<fflush_unlocked>> may only safely be used within a scope
+protected by flockfile() (or ftrylockfile()) and funlockfile().  This
+function may safely be used in a multi-threaded program if and only
+if they are called while the invoking thread owns the (FILE *)
+object, as is the case after a successful call to the flockfile() or
+ftrylockfile() functions.  If threads are disabled, then
+<<fflush_unlocked>> is equivalent to <<fflush>>.
+
+The alternate functions <<_fflush_r>> and <<_fflush_unlocked_r>> are
+reentrant versions, where the extra argument <[reent]> is a pointer to
+a reentrancy structure, and <[fp]> must not be NULL.
 
 RETURNS
 <<fflush>> returns <<0>> unless it encounters a write error; in that
@@ -57,6 +79,8 @@ PORTABILITY
 ANSI C requires <<fflush>>.  The behavior on input streams is only
 specified by POSIX, and not all implementations follow POSIX rules.
 
+<<fflush_unlocked>> is a BSD extension also provided by GNU libc.
+
 No supporting OS subroutines are required.
 */
 
@@ -65,6 +89,12 @@ No supporting OS subroutines are required.
 #include <errno.h>
 #include "local.h"
 
+#ifdef __IMPL_UNLOCKED__
+#define _fflush_r _fflush_unlocked_r
+#define fflush fflush_unlocked
+#endif
+
+#ifndef __IMPL_UNLOCKED__
 /* Flush a single file, or (if fp is NULL) all files.  */
 
 /* Core function which does not lock file pointer.  This gets called
@@ -75,15 +105,19 @@ _DEFUN(__sflush_r, (ptr, fp),
        register FILE * fp)
 {
   register unsigned char *p;
-  register int n, t;
+  register _READ_WRITE_BUFSIZE_TYPE n;
+  register _READ_WRITE_RETURN_TYPE t;
+  short flags;
 
-  t = fp->_flags;
-  if ((t & __SWR) == 0)
+  flags = fp->_flags;
+  if ((flags & __SWR) == 0)
     {
+#ifdef _FSEEK_OPTIMIZATION
       /* For a read stream, an fflush causes the next seek to be
          unoptimized (i.e. forces a system-level seek).  This conforms
          to the POSIX and SUSv3 standards.  */
       fp->_flags |= __SNPT;
+#endif
 
       /* For a seekable stream with buffered read characters, we will attempt
          a seek to the current position now.  A subsequent read will then get
@@ -152,7 +186,9 @@ _DEFUN(__sflush_r, (ptr, fp),
 	    {
 	      /* Seek successful or ignorable error condition.
 		 We can clear read buffer now.  */
+#ifdef _FSEEK_OPTIMIZATION
 	      fp->_flags &= ~__SNPT;
+#endif
 	      fp->_r = 0;
 	      fp->_p = fp->_bf._base;
 	      if ((fp->_flags & __SOFF) && (curoff != -1 || ptr->_errno == 0))
@@ -182,7 +218,7 @@ _DEFUN(__sflush_r, (ptr, fp),
    * write function.
    */
   fp->_p = p;
-  fp->_w = t & (__SLBF | __SNBF) ? 0 : fp->_bf._size;
+  fp->_w = flags & (__SLBF | __SNBF) ? 0 : fp->_bf._size;
 
   while (n > 0)
     {
@@ -197,6 +233,21 @@ _DEFUN(__sflush_r, (ptr, fp),
     }
   return 0;
 }
+
+#ifdef _STDIO_BSD_SEMANTICS
+/* Called from _cleanup_r.  At exit time, we don't need file locking,
+   and we don't want to move the underlying file pointer unless we're
+   writing. */
+int
+_DEFUN(__sflushw_r, (ptr, fp),
+       struct _reent *ptr _AND
+       register FILE *fp)
+{
+  return (fp->_flags & __SWR) ?  __sflush_r (ptr, fp) : 0;
+}
+#endif
+
+#endif /* __IMPL_UNLOCKED__ */
 
 int
 _DEFUN(_fflush_r, (ptr, fp),
@@ -226,9 +277,9 @@ _DEFUN(_fflush_r, (ptr, fp),
   if (!fp->_flags)
     return 0;
 
-  _flockfile (fp);
+  _newlib_flockfile_start (fp);
   ret = __sflush_r (ptr, fp);
-  _funlockfile (fp);
+  _newlib_flockfile_end (fp);
   return ret;
 }
 

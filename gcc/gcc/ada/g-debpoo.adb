@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -100,6 +100,9 @@ package body GNAT.Debug_Pools is
    Allow_Unhandled_Memory : Boolean := False;
    --  If True, protects Deallocate against releasing memory allocated before
    --  System_Memory_Debug_Pool_Enabled was set.
+
+   Traceback_Count : Byte_Count := 0;
+   --  Total number of traceback elements
 
    ---------------------------
    -- Back Trace Hash Table --
@@ -332,6 +335,10 @@ package body GNAT.Debug_Pools is
       pragma Inline (Set_Valid);
       --  Mark the address Storage as being under control of the memory pool
       --  (if Value is True), or not (if Value is False).
+
+      Validity_Count : Byte_Count := 0;
+      --  Total number of validity elements
+
    end Validity;
 
    use Validity;
@@ -630,6 +637,7 @@ package body GNAT.Debug_Pools is
                      Frees       => 0,
                      Total_Frees => 0,
                      Next        => null);
+            Traceback_Count := Traceback_Count + 1;
             Backtrace_Htable.Set (Elem);
 
          else
@@ -845,6 +853,7 @@ package body GNAT.Debug_Pools is
 
             if Value then
                Ptr := new Validity_Bits;
+               Validity_Count := Validity_Count + 1;
                Ptr.Valid :=
                  To_Pointer (Alloc (size_t (Max_Validity_Byte_Index)));
                Validy_Htable.Set (Block_Number, Ptr);
@@ -1180,7 +1189,10 @@ package body GNAT.Debug_Pools is
 
       begin
          while Tmp /= System.Null_Address
-           and then Total_Freed < Pool.Minimum_To_Free
+           and then
+             not (Total_Freed > Pool.Minimum_To_Free
+                   and Pool.Logically_Deallocated <
+                         Byte_Count (Pool.Maximum_Logically_Freed_Memory))
          loop
             Header := Header_Of (Tmp);
 
@@ -1188,12 +1200,12 @@ package body GNAT.Debug_Pools is
             --  referenced anywhere, we can free it physically.
 
             if Ignore_Marks or else not Marked (Tmp) then
-
                declare
                   pragma Suppress (All_Checks);
                   --  Suppress the checks on this section. If they are overflow
                   --  errors, it isn't critical, and we'd rather avoid a
                   --  Constraint_Error in that case.
+
                begin
                   --  Note that block_size < zero for freed blocks
 
@@ -1238,7 +1250,7 @@ package body GNAT.Debug_Pools is
                   Header_Of (Previous).Next := Next;
                end if;
 
-               Tmp  := Next;
+               Tmp := Next;
 
             else
                Previous := Tmp;
@@ -1908,22 +1920,28 @@ package body GNAT.Debug_Pools is
          --  Sorted array for the biggest memory users
 
       begin
-         New_Line;
+         Put_Line ("");
+
          case Sort is
-            when Memory_Usage | All_Reports  =>
+            when All_Reports
+               | Memory_Usage
+            =>
                Put_Line (Size'Img & " biggest memory users at this time:");
                Put_Line ("Results include bytes and chunks still allocated");
                Grand_Total := Float (Pool.Current_Water_Mark);
+
             when Allocations_Count =>
                Put_Line (Size'Img & " biggest number of live allocations:");
                Put_Line ("Results include bytes and chunks still allocated");
                Grand_Total := Float (Pool.Current_Water_Mark);
+
             when Sort_Total_Allocs =>
                Put_Line (Size'Img & " biggest number of allocations:");
                Put_Line ("Results include total bytes and chunks allocated,");
                Put_Line ("even if no longer allocated - Deallocations are"
                          & " ignored");
                Grand_Total := Float (Pool.Allocated);
+
             when Marked_Blocks =>
                Put_Line ("Special blocks marked by Mark_Traceback");
                Grand_Total := 0.0;
@@ -1952,16 +1970,22 @@ package body GNAT.Debug_Pools is
                      Bigger := Max (M) = null;
                      if not Bigger then
                         case Sort is
-                        when Memory_Usage | All_Reports =>
-                           Bigger :=
-                             Max (M).Total - Max (M).Total_Frees <
-                             Elem.Total - Elem.Total_Frees;
-                        when Allocations_Count =>
-                           Bigger :=
-                             Max (M).Count - Max (M).Frees
-                             < Elem.Count - Elem.Frees;
-                        when Sort_Total_Allocs | Marked_Blocks =>
-                           Bigger := Max (M).Count < Elem.Count;
+                           when All_Reports
+                              | Memory_Usage
+                           =>
+                              Bigger :=
+                                Max (M).Total - Max (M).Total_Frees
+                                  < Elem.Total - Elem.Total_Frees;
+
+                           when Allocations_Count =>
+                              Bigger :=
+                                Max (M).Count - Max (M).Frees
+                                  < Elem.Count - Elem.Frees;
+
+                           when Marked_Blocks
+                              | Sort_Total_Allocs
+                           =>
+                              Bigger := Max (M).Count < Elem.Count;
                         end case;
                      end if;
 
@@ -1989,35 +2013,52 @@ package body GNAT.Debug_Pools is
                P : Percent;
             begin
                case Sort is
-                  when Memory_Usage | Allocations_Count | All_Reports =>
+                  when All_Reports
+                     | Allocations_Count
+                     | Memory_Usage
+                  =>
                      Total := Max (M).Total - Max (M).Total_Frees;
+
                   when Sort_Total_Allocs =>
                      Total := Max (M).Total;
+
                   when Marked_Blocks =>
                      Total := Byte_Count (Max (M).Count);
                end case;
 
                P := Percent (100.0 * Float (Total) / Grand_Total);
 
-               if Sort = Marked_Blocks then
-                  Put (P'Img & "%:"
-                       & Max (M).Count'Img & " chunks /"
-                       & Integer (Grand_Total)'Img & " at");
-               else
-                  Put (P'Img & "%:" & Total'Img & " bytes in"
-                       & Max (M).Count'Img & " chunks at");
-               end if;
+               case Sort is
+                  when Memory_Usage | Allocations_Count | All_Reports =>
+                     declare
+                        Count : constant Natural :=
+                          Max (M).Count - Max (M).Frees;
+                     begin
+                        Put (P'Img & "%:" & Total'Img & " bytes in"
+                             & Count'Img & " chunks at");
+                     end;
+                  when Sort_Total_Allocs =>
+                     Put (P'Img & "%:" & Total'Img & " bytes in"
+                          & Max (M).Count'Img & " chunks at");
+                  when Marked_Blocks =>
+                     Put (P'Img & "%:"
+                          & Max (M).Count'Img & " chunks /"
+                          & Integer (Grand_Total)'Img & " at");
+               end case;
             end;
 
             for J in Max (M).Traceback'Range loop
-               Put (Image_C (PC_For (Max (M).Traceback (J))));
+               Put (" " & Image_C (PC_For (Max (M).Traceback (J))));
             end loop;
 
-            New_Line;
+            Put_Line ("");
          end loop;
       end Do_Report;
 
    begin
+      Put_Line ("Traceback elements allocated: " & Traceback_Count'Img);
+      Put_Line ("Validity elements allocated: " & Validity_Count'Img);
+      Put_Line ("");
 
       Put_Line ("Ada Allocs:" & Pool.Allocated'Img
                 & " bytes in" & Pool.Alloc_Count'Img & " chunks");
@@ -2041,7 +2082,6 @@ package body GNAT.Debug_Pools is
          when others =>
             Do_Report (Report);
       end case;
-
    end Dump;
 
    -----------------
@@ -2053,7 +2093,6 @@ package body GNAT.Debug_Pools is
       Size   : Positive;
       Report : Report_Type := All_Reports)
    is
-
       procedure Internal is new Dump
         (Put_Line => Stdout_Put_Line,
          Put      => Stdout_Put);

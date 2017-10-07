@@ -996,7 +996,7 @@ elf_s390_check_relocs (bfd *abfd,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
 
       /* Create got section and local_got_refcounts array if they
@@ -2774,7 +2774,7 @@ elf_s390_relocate_section (bfd *output_bfd,
 	      && s390_is_ifunc_symbol_p (h)
 	      && h->def_regular)
 	    {
-	      if (!bfd_link_pic (info) || !h->non_got_ref)
+	      if (!bfd_link_pic (info))
 		{
 		  /* For a non-shared object STT_GNU_IFUNC symbol must
 		     go through PLT.  */
@@ -3231,7 +3231,6 @@ elf_s390_relocate_section (bfd *output_bfd,
 		  unsigned int insn, ry;
 
 		  insn = bfd_get_32 (input_bfd, contents + rel->r_offset);
-		  ry = 0;
 		  if ((insn & 0xff00f000) == 0x58000000)
 		    /* l %rx,0(%ry,0) -> lr %rx,%ry + bcr 0,0  */
 		    ry = (insn & 0x000f0000);
@@ -3245,7 +3244,10 @@ elf_s390_relocate_section (bfd *output_bfd,
 		    /* l %rx,0(%r12,%ry) -> lr %rx,%ry + bcr 0,0  */
 		    ry = (insn & 0x0000f000) << 4;
 		  else
-		    invalid_tls_insn (input_bfd, input_section, rel);
+		    {
+		      invalid_tls_insn (input_bfd, input_section, rel);
+		      return FALSE;
+		    }
 		  insn = 0x18000700 | (insn & 0x00f00000) | ry;
 		  bfd_put_32 (output_bfd, insn, contents + rel->r_offset);
 		}
@@ -3258,7 +3260,10 @@ elf_s390_relocate_section (bfd *output_bfd,
 	      if ((insn & 0xff000fff) != 0x4d000000 &&
 		  (insn & 0xffff0000) != 0xc0e50000 &&
 		  (insn & 0xff000000) != 0x0d000000)
-		invalid_tls_insn (input_bfd, input_section, rel);
+		{
+		  invalid_tls_insn (input_bfd, input_section, rel);
+		  return FALSE;
+		}
 	      if (!bfd_link_pic (info) && (h == NULL || h->dynindx == -1))
 		{
 		  if ((insn & 0xff000000) == 0x0d000000)
@@ -3287,7 +3292,10 @@ elf_s390_relocate_section (bfd *output_bfd,
 		  /* If basr is used in the pic case to invoke
 		     _tls_get_offset, something went wrong before.  */
 		  if ((insn & 0xff000000) == 0x0d000000)
-		    invalid_tls_insn (input_bfd, input_section, rel);
+		    {
+		      invalid_tls_insn (input_bfd, input_section, rel);
+		      return FALSE;
+		    }
 
 		  if ((insn & 0xff000000) == 0x4d000000)
 		    {
@@ -3317,7 +3325,10 @@ elf_s390_relocate_section (bfd *output_bfd,
 		  if ((insn & 0xff000fff) != 0x4d000000 &&
 		      (insn & 0xffff0000) != 0xc0e50000 &&
 		      (insn & 0xff000000) != 0x0d000000)
-		    invalid_tls_insn (input_bfd, input_section, rel);
+		    {
+		      invalid_tls_insn (input_bfd, input_section, rel);
+		      return FALSE;
+		    }
 
 		  if ((insn & 0xff000000) == 0x0d000000)
 		    {
@@ -3785,7 +3796,7 @@ elf_s390_finish_dynamic_symbol (bfd *output_bfd,
 	     RELATIVE reloc.  The entry in the global offset table
 	     will already have been initialized in the
 	     relocate_section function.  */
-	  if (!h->def_regular)
+	  if (!(h->def_regular || ELF_COMMON_DEF_P (h)))
 	    return FALSE;
 	  BFD_ASSERT((h->got.offset & 1) != 0);
 	  rela.r_info = ELF32_R_INFO (0, R_390_RELATIVE);

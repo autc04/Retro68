@@ -11,7 +11,7 @@ foo (int x)
   #pragma omp target
     {
       bad2: ;			// { dg-error "jump to label" }
-                                // { dg-message "enters OpenMP" "" { target *-*-* } 13 }
+                                // { dg-message "enters OpenMP" "" { target *-*-* } .-1 }
     }
 
   #pragma omp target
@@ -24,9 +24,9 @@ foo (int x)
 
   switch (x)
   {
-  #pragma omp target
+  #pragma omp target		// { dg-warning "statement will never be executed" }
     { case 0:; }		// { dg-error "jump" }
-                                // { dg-message "enters" "" { target *-*-* } 28 }
+                                // { dg-message "enters" "" { target *-*-* } .-1 }
   }
 }
 

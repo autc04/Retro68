@@ -379,4 +379,3 @@ foo:
 	scctr	%r6,%r7
 	spctr	%r6,%r7
 	lpp	3333(%r6)
-	pckmo

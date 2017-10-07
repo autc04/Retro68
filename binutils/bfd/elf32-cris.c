@@ -2714,8 +2714,9 @@ elf_cris_adjust_gotplt_to_got (struct elf_cris_link_hash_entry *h, void * p)
   struct bfd_link_info *info = (struct bfd_link_info *) p;
 
   /* A GOTPLT reloc, when activated, is supposed to be included into
-     the PLT refcount.  */
+     the PLT refcount, when the symbol isn't set-or-forced local.  */
   BFD_ASSERT (h->gotplt_refcount == 0
+	      || h->root.plt.refcount == -1
 	      || h->gotplt_refcount <= h->root.plt.refcount);
 
   /* If nobody wanted a GOTPLT with this symbol, we're done.  */
@@ -2741,6 +2742,7 @@ elf_cris_adjust_gotplt_to_got (struct elf_cris_link_hash_entry *h, void * p)
       srelgot = elf_hash_table (info)->srelgot;
 
       /* Put accurate refcounts there.  */
+      BFD_ASSERT (h->root.got.refcount >= 0);
       h->root.got.refcount += h->gotplt_refcount;
       h->reg_got_refcount = h->gotplt_refcount;
 
@@ -3176,7 +3178,7 @@ cris_elf_check_relocs (bfd *abfd,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
 
       r_type = ELF32_R_TYPE (rel->r_info);
@@ -3476,7 +3478,10 @@ cris_elf_check_relocs (bfd *abfd,
 	    continue;
 
 	  h->needs_plt = 1;
-	  h->plt.refcount++;
+
+	  /* If the symbol is forced local, the refcount is unavailable.  */
+	  if (h->plt.refcount != -1)
+	    h->plt.refcount++;
 	  break;
 
 	case R_CRIS_8:

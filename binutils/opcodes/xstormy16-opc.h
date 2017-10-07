@@ -25,6 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef XSTORMY16_OPC_H
 #define XSTORMY16_OPC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* -- opc.h */
 
 /* Allows reason codes to be output when assembler errors occur.  */
@@ -134,5 +138,9 @@ struct cgen_fields
 {\
 }
 
+
+   #ifdef __cplusplus
+   }
+   #endif
 
 #endif /* XSTORMY16_OPC_H */

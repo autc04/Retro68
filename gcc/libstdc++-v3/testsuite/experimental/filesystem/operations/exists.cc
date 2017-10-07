@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2016 Free Software Foundation, Inc.
+// Copyright (C) 2015-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,8 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++11 -lstdc++fs" }
+// { dg-options "-lstdc++fs" }
+// { dg-do run { target c++11 } }
 // { dg-require-filesystem-ts "" }
 
 #include <experimental/filesystem>
@@ -27,8 +28,6 @@ using std::experimental::filesystem::path;
 void
 test01()
 {
-  bool test __attribute__((unused)) = false;
-
   VERIFY( exists(path{"/"}) );
   VERIFY( exists(path{"/."}) );
   VERIFY( exists(path{"."}) );
@@ -51,8 +50,6 @@ test01()
 void
 test02()
 {
-  bool test __attribute__((unused)) = false;
-
   path rel = __gnu_test::nonexistent_path();
   VERIFY( !exists(rel) );
 
@@ -64,8 +61,6 @@ test02()
 void
 test03()
 {
-  bool test __attribute__((unused)) = false;
-
   path abs = absolute(__gnu_test::nonexistent_path());
   VERIFY( !exists(abs) );
 

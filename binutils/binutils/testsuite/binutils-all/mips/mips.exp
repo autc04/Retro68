@@ -15,19 +15,48 @@
 # Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
 # MA 02110-1301, USA.
 
-if ![istarget mips*-*-*] {
+if {![istarget mips*-*-*] || ![is_elf_format]} {
     return
 }
 
-if [is_elf_format] {
-    run_dump_test "mips-ase-1"
-    run_dump_test "mips-ase-2"
-    run_dump_test "mips-ase-3"
-    run_dump_test "mixed-mips16"
-    run_dump_test "mixed-micromips"
-    run_dump_test "mixed-mips16-micromips"
-    run_dump_test "mips16-undecoded"
-    run_dump_test "mips16-pcrel"
-    run_dump_test "mips16-extend-noinsn"
-    run_dump_test "mips16-extend-insn"
+if [is_remote host] {
+    set tempfile [remote_download host tmpdir/bintest.o]
+    set copyfile copy
+} else {
+    set tempfile tmpdir/bintest.o
+    set copyfile tmpdir/copy
+}
+
+set has_newabi [expr [istarget *-*-irix6*] \
+		     || [istarget mips*-*-linux*] \
+		     || [istarget mips*-sde-elf*] \
+		     || [istarget mips*-mti-elf*] \
+		     || [istarget mips*-img-elf*]]
+
+run_dump_test "mips-ase-1"
+run_dump_test "mips-ase-2"
+run_dump_test "mips-ase-3"
+run_dump_test "mips-xpa-virt-1"
+run_dump_test "mips-xpa-virt-2"
+run_dump_test "mips-xpa-virt-3"
+run_dump_test "mips-xpa-virt-4"
+run_dump_test "mixed-mips16"
+run_dump_test "mixed-micromips"
+run_dump_test "mixed-mips16-micromips"
+run_dump_test "mips16-undecoded"
+run_dump_test "mips16e2-undecoded"
+run_dump_test "mips16-pcrel"
+run_dump_test "mips16-extend-noinsn"
+run_dump_test "mips16-extend-insn"
+run_dump_test "mips16e2-extend-insn"
+run_dump_test "mips16-alias"
+run_dump_test "mips16-noalias"
+
+run_dump_test "mips-note-2"
+run_dump_test "mips-note-2r"
+if $has_newabi {
+    run_dump_test "mips-note-2-n32"
+    run_dump_test "mips-note-2-n64"
+    run_dump_test "mips-note-2r-n32"
+    run_dump_test "mips-note-2r-n64"
 }

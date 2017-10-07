@@ -5687,7 +5687,7 @@ pa_ip (char *str)
       /* If this instruction is specific to a particular architecture,
 	 then set a new architecture.  This automatic promotion crud is
 	 for compatibility with HP's old assemblers only.  */
-      if (match == TRUE
+      if (match
 	  && bfd_get_mach (stdoutput) < insn->arch
 	  && !bfd_set_arch_mach (stdoutput, bfd_arch_hppa, insn->arch))
 	{
@@ -7025,7 +7025,7 @@ pa_procend (int unused ATTRIBUTE_UNUSED)
 
 #ifdef OBJ_ELF
   /* ELF needs to mark the end of each function so that it can compute
-     the size of the function (apparently its needed in the symbol table).  */
+     the size of the function (apparently it's needed in the symbol table).  */
   hppa_elf_mark_end_of_function ();
 #endif
 

@@ -31,7 +31,7 @@ F<T>::bar (const G &)
 {
   auto s = I;
   typedef decltype (s) L;
-  auto u =[&](L) { auto t = foo (J::K (), 0); }; // { dg-error "" }
+  auto u =[&](L) { auto t = foo (J::K (), 0); }; // { dg-error "25:declared void" }
 }
 struct B {
   typedef int G;

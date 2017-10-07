@@ -49,12 +49,6 @@ foreach t $test_list {
     run_dump_test [file rootname $t]
 }
 
-# We need a native system.
-if ![isnative] {
-    verbose "Native size relocation tests not run - not a native toolchain"
-    return
-}
-
 # We need a working compiler.
 if { [which $CC] == 0 } {
     verbose "Native size relocation tests not run - no compiler available"
@@ -179,7 +173,7 @@ if { [regexp_diff "tmpdir/dump.out" "$srcdir/$subdir/size-7.out" ] } then {
 run_ld_link_exec_tests [list \
     [list \
 	"Run size-1" \
-	"tmpdir/libsize-1.so" \
+	"-Wl,--no-as-needed tmpdir/libsize-1.so" \
 	"" \
 	{size-1.c} \
 	"size-1" \
@@ -187,7 +181,7 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run size-2" \
-	"tmpdir/libsize-2.so" \
+	"-Wl,--no-as-needed tmpdir/libsize-2.so" \
 	"" \
 	{size-2.c} \
 	"size-2" \
@@ -203,7 +197,7 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run size-3b" \
-	"tmpdir/libsize-3a.so" \
+	"-Wl,--no-as-needed tmpdir/libsize-3a.so" \
 	"" \
 	{size-3.c} \
 	"size-3b" \
@@ -219,7 +213,7 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run size-3d (1)" \
-	"tmpdir/libsize-3b.so" \
+	"-Wl,--no-as-needed tmpdir/libsize-3b.so" \
 	"" \
 	{size-3.c} \
 	"size-3d1" \
@@ -235,12 +229,12 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
     {"Run size-3e"
-     "tmpdir/libsize-3c.so" ""
+     "-Wl,--no-as-needed tmpdir/libsize-3c.so" ""
      {size-3.c} "size-3e" "size-3.out"}
     ] \
     [list \
 	"Run size-4a" \
-	"" \
+	"$NOPIE_LDFLAGS" \
 	"" \
 	{size-4a.c size-4b.c} \
 	"size-4a" \
@@ -249,7 +243,7 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run size-4b" \
-	"" \
+	"$NOPIE_LDFLAGS" \
 	"" \
 	{size-4b.c size-4a.c} \
 	"size-4b" \
@@ -258,7 +252,7 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run size-5a" \
-	"" \
+	"$NOPIE_LDFLAGS" \
 	"" \
 	{size-5a.c size-5b.c} \
 	"size-5a" \
@@ -267,7 +261,7 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run size-5b" \
-	"" \
+	"$NOPIE_LDFLAGS" \
 	"" \
 	{size-5b.c size-5a.c} \
 	"size-5b" \
@@ -276,7 +270,7 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run size-6" \
-	"tmpdir/libsize-6b.so" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/libsize-6b.so" \
 	"" \
 	{size-6a.c} \
 	"size-6" \
@@ -285,7 +279,8 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run size-8" \
-	"tmpdir/libsize-8.so --hash-styl=gnu" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed,--hash-styl=gnu \
+	 tmpdir/libsize-8.so" \
 	"" \
 	{size-8a.c} \
 	"size-8" \
@@ -294,7 +289,7 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run size-9" \
-	"tmpdir/libsize-9.so" \
+	"-Wl,--no-as-needed tmpdir/libsize-9.so" \
 	"" \
 	{size-9a.c} \
 	"size-9" \
@@ -302,7 +297,7 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run size-10" \
-	"tmpdir/libsize-10.so" \
+	"-Wl,--no-as-needed tmpdir/libsize-10.so" \
 	"" \
 	{size-10a.c} \
 	"size-10" \

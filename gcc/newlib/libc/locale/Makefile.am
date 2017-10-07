@@ -4,21 +4,23 @@ AUTOMAKE_OPTIONS = cygnus
 
 INCLUDES = $(NEWLIB_CFLAGS) $(CROSS_CFLAGS) $(TARGET_CFLAGS)
 
-GENERAL_SOURCES = timelocal.h ldpart.h locale.c lnumeric.h lmonetary.h lmessages.h 
+GENERAL_SOURCES = setlocale.h locale.c localeconv.c
 
 ## The following interfaces are EL/IX level 2
 if ELIX_LEVEL_1
 ELIX_SOURCES =
 else
 ELIX_SOURCES = \
-	fix_grouping.c \
-	ldpart.c \
+	duplocale.c \
+	freelocale.c \
+	lctype.c \
 	lmessages.c \
 	lnumeric.c \
 	lmonetary.c \
+	newlocale.c \
 	nl_langinfo.c \
 	timelocal.c \
-	lctype.c
+	uselocale.c
 endif
 
 liblocale_la_LDFLAGS = -Xcompiler -nostdlib
@@ -36,20 +38,11 @@ endif # USE_LIBTOOL
 
 include $(srcdir)/../../Makefile.shared
 
-CHEWOUT_FILES = locale.def
+CHEWOUT_FILES = \
+	duplocale.def \
+	freelocale.def \
+	locale.def \
+	newlocale.def \
+	uselocale.def
 
-SUFFIXES = .def
-
-CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
-
-.c.def:
-	$(CHEW) < $< > $*.def 2> $*.ref
-	touch stmp-def
-
-TARGETDOC = ../tmp.texi
-
-doc: $(CHEWOUT_FILES)
-	cat $(srcdir)/locale.tex >> $(TARGETDOC)
-
-CLEANFILES = $(CHEWOUT_FILES) *.ref
-
+CHAPTERS = locale.tex

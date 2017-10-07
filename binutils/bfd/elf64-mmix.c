@@ -1192,9 +1192,9 @@ mmix_elf_perform_relocation (asection *isec, reloc_howto_type *howto,
 	  {
 	    _bfd_error_handler
 	      /* xgettext:c-format */
-	      (_("%s: Internal inconsistency error for value for\n\
+	      (_("%B: Internal inconsistency error for value for\n\
  linker-allocated global register: linked: 0x%lx%08lx != relaxed: 0x%lx%08lx\n"),
-	       bfd_get_filename (isec->owner),
+	       isec->owner,
 	       (unsigned long) (value >> 32), (unsigned long) value,
 	       (unsigned long) (gregdata->reloc_request[bpo_index].value
 				>> 32),
@@ -1615,15 +1615,15 @@ mmix_final_link_relocate (reloc_howto_type *howto, asection *input_section,
 	  if (symname == NULL || *symname == 0)
 	    _bfd_error_handler
 	      /* xgettext:c-format */
-	      (_("%s: base-plus-offset relocation against register symbol: (unknown) in %s"),
-	       bfd_get_filename (input_section->owner),
-	       bfd_get_section_name (symsec->owner, symsec));
+	      (_("%B: base-plus-offset relocation against register symbol:"
+		 " (unknown) in %A"),
+	       input_section->owner, symsec);
 	  else
 	    _bfd_error_handler
 	      /* xgettext:c-format */
-	      (_("%s: base-plus-offset relocation against register symbol: %s in %s"),
-	       bfd_get_filename (input_section->owner), symname,
-	       bfd_get_section_name (symsec->owner, symsec));
+	      (_("%B: base-plus-offset relocation against register symbol:"
+		 " %s in %A"),
+	       input_section->owner, symname, symsec);
 	  return bfd_reloc_overflow;
 	}
       goto do_mmix_reloc;
@@ -1666,15 +1666,15 @@ mmix_final_link_relocate (reloc_howto_type *howto, asection *input_section,
 	  if (symname == NULL || *symname == 0)
 	    _bfd_error_handler
 	      /* xgettext:c-format */
-	      (_("%s: register relocation against non-register symbol: (unknown) in %s"),
-	       bfd_get_filename (input_section->owner),
-	       bfd_get_section_name (symsec->owner, symsec));
+	      (_("%B: register relocation against non-register symbol:"
+		 " (unknown) in %A"),
+	       input_section->owner, symsec);
 	  else
 	    _bfd_error_handler
 	      /* xgettext:c-format */
-	      (_("%s: register relocation against non-register symbol: %s in %s"),
-	       bfd_get_filename (input_section->owner), symname,
-	       bfd_get_section_name (symsec->owner, symsec));
+	      (_("%B: register relocation against non-register symbol:"
+		 " %s in %A"),
+	       input_section->owner, symname, symsec);
 
 	  /* The bfd_reloc_outofrange return value, though intuitively a
 	     better value, will not get us an error.  */
@@ -1709,8 +1709,8 @@ mmix_final_link_relocate (reloc_howto_type *howto, asection *input_section,
 		       MMIX_REG_SECTION_NAME) != 0)
 	{
 	  _bfd_error_handler
-	    (_("%s: directive LOCAL valid only with a register or absolute value"),
-	     bfd_get_filename (input_section->owner));
+	    (_("%B: directive LOCAL valid only with a register or absolute value"),
+	     input_section->owner);
 
 	  return bfd_reloc_overflow;
 	}
@@ -1740,8 +1740,9 @@ mmix_final_link_relocate (reloc_howto_type *howto, asection *input_section,
 	    /* FIXME: Better error message.  */
 	    _bfd_error_handler
 	      /* xgettext:c-format */
-	      (_("%s: LOCAL directive: Register $%ld is not a local register.  First global register is $%ld."),
-	       bfd_get_filename (input_section->owner), (long) srel, (long) first_global);
+	      (_("%B: LOCAL directive: Register $%ld is not a local register."
+		 "  First global register is $%ld."),
+	       input_section->owner, (long) srel, (long) first_global);
 
 	    return bfd_reloc_overflow;
 	  }
@@ -2017,7 +2018,7 @@ mmix_elf_check_relocs (bfd *abfd,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
 
       switch (ELF64_R_TYPE (rel->r_info))
@@ -2198,9 +2199,9 @@ mmix_elf_add_symbol_hook (bfd *abfd,
 	     h->u.def.section->owner is NULL.  */
 	  _bfd_error_handler
 	    /* xgettext:c-format */
-	    (_("%s: Error: multiple definition of `%s'; start of %s "
+	    (_("%B: Error: multiple definition of `%s'; start of %s "
 	       "is set in a earlier linked file\n"),
-	     bfd_get_filename (abfd), *namep,
+	     abfd, *namep,
 	     *namep + strlen (MMIX_LOC_SECTION_START_SYMBOL_PREFIX));
 	   bfd_set_error (bfd_error_bad_value);
 	   return FALSE;

@@ -6041,7 +6041,7 @@ elf32_frv_check_relocs (bfd *abfd,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
 
       switch (ELF32_R_TYPE (rel->r_info))
@@ -6507,9 +6507,9 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 	      error = TRUE;
 	      _bfd_error_handler
 		/* xgettext:c-format */
-		(_("%s: compiled with %s and linked with modules that use non-pic relocations"),
-		 bfd_get_filename (ibfd),
-		 (new_flags & EF_FRV_BIGPIC) ? "-fPIC" : "-fpic");
+		(_("%B: compiled with %s and linked with modules"
+		   " that use non-pic relocations"),
+		 ibfd, (new_flags & EF_FRV_BIGPIC) ? "-fPIC" : "-fpic");
 #endif
 	    }
 	}
@@ -6561,8 +6561,8 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 	  error = TRUE;
 	  _bfd_error_handler
 	    /* xgettext:c-format */
-	    (_("%s: compiled with %s and linked with modules compiled with %s"),
-	     bfd_get_filename (ibfd), new_opt, old_opt);
+	    (_("%B: compiled with %s and linked with modules compiled with %s"),
+	     ibfd, new_opt, old_opt);
 	}
 
       /* Warn about any other mismatches */
@@ -6574,8 +6574,9 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 	  error = TRUE;
 	  _bfd_error_handler
 	    /* xgettext:c-format */
-	    (_("%s: uses different unknown e_flags (0x%lx) fields than previous modules (0x%lx)"),
-	     bfd_get_filename (ibfd), (long)new_partial, (long)old_partial);
+	    (_("%B: uses different unknown e_flags (0x%lx) fields"
+	       " than previous modules (0x%lx)"),
+	     ibfd, (long) new_partial, (long) old_partial);
 	}
     }
 
@@ -6595,12 +6596,12 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
       error = TRUE;
       if (IS_FDPIC (obfd))
 	_bfd_error_handler
-	  (_("%s: cannot link non-fdpic object file into fdpic executable"),
-	   bfd_get_filename (ibfd));
+	  (_("%B: cannot link non-fdpic object file into fdpic executable"),
+	   ibfd);
       else
 	_bfd_error_handler
-	  (_("%s: cannot link fdpic object file into non-fdpic executable"),
-	   bfd_get_filename (ibfd));
+	  (_("%B: cannot link fdpic object file into non-fdpic executable"),
+	   ibfd);
     }
 
   if (error)

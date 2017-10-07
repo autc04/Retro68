@@ -1,3 +1,41 @@
+2016-12-31  Dimitar Dimitrov  <dimitar@dinux.eu>
+
+	* NEWS: Mention new PRU target.
+	* Makefile.am: Add PRU target.
+	* config/obj-elf.c: Ditto.
+	* configure.tgt: Ditto.
+	* config/tc-pru.c: New file.
+	* config/tc-pru.h: New file.
+	* doc/Makefile.am: Add documentation for PRU GAS port.
+	* doc/all.texi, Ditto.
+	* doc/as.texinfo: Ditto.
+	* doc/c-pru.texi: Document PRU GAS options.
+	* Makefile.in: Regenerate.
+	* doc/Makefile.in: Regenerate.
+	* po/POTFILES.in: Regenerate.
+	* testsuite/gas/pru/alu.d: New file for PRU GAS testsuite.
+	* testsuite/gas/pru/alu.s: Ditto.
+	* testsuite/gas/pru/branch.d: Ditto.
+	* testsuite/gas/pru/branch.s: Ditto.
+	* testsuite/gas/pru/illegal.l: Ditto.
+	* testsuite/gas/pru/illegal.s: Ditto.
+	* testsuite/gas/pru/ldi.d: Ditto.
+	* testsuite/gas/pru/ldi.s: Ditto.
+	* testsuite/gas/pru/ldst.d: Ditto.
+	* testsuite/gas/pru/ldst.s: Ditto.
+	* testsuite/gas/pru/loop.d: Ditto.
+	* testsuite/gas/pru/loop.s: Ditto.
+	* testsuite/gas/pru/misc.d: Ditto.
+	* testsuite/gas/pru/misc.s: Ditto.
+	* testsuite/gas/pru/pru.exp: Ditto.
+	* testsuite/gas/pru/pseudo.d: Ditto.
+	* testsuite/gas/pru/pseudo.s: Ditto.
+	* testsuite/gas/pru/warn_reglabel.l: Ditto.
+	* testsuite/gas/pru/warn_reglabel.s: Ditto.
+	* testsuite/gas/pru/xfr.d: Ditto.
+	* testsuite/gas/pru/xfr.s: Ditto.
+	* testsuite/gas/lns/lns.exp: Mark lns-common-1-alt variant for PRU.
+
 2016-12-23  Maciej W. Rozycki  <macro@imgtec.com>
 
 	* testsuite/gas/mips/mips16-asmacro.d: New test.

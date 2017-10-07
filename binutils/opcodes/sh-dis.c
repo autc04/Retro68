@@ -25,7 +25,7 @@
 #define DEFINE_TABLE
 
 #include "sh-opc.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 
 #ifdef ARCH_all
 #define INCLUDE_SHMEDIA

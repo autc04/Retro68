@@ -1,7 +1,436 @@
+2017-07-02  Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* dwarf2.def (DW_IDX_compile_unit, DW_IDX_type_unit, DW_IDX_die_offset)
+	(DW_IDX_parent, DW_IDX_type_hash, DW_IDX_lo_user, DW_IDX_hi_user)
+	(DW_IDX_GNU_internal, DW_IDX_GNU_external): New.
+	* dwarf2.h (DW_IDX, DW_IDX_DUP, DW_FIRST_IDX, DW_END_IDX): New.
+	(enum dwarf_name_index_attribute): Remove.
+	(get_DW_IDX_name): New declaration.
+
+2017-06-30  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR gas/21683
+	* opcode/avr.h (AVR_INSN): Add one for __gcc_isr.
+
+2017-06-30  Maciej W. Rozycki  <macro@imgtec.com>
+	    Andrew Bennett  <andrew.bennett@imgtec.com>
+
+	* opcode/mips.h (ASE_XPA_VIRT): New macro.
+
+2017-06-29  Andreas Arnez  <arnez@linux.vnet.ibm.com>
+
+	* elf/common.h (NT_S390_GS_CB): New macro.
+	(NT_S390_GS_BC): Likewise.
+
+2017-06-28  Tamar Christina  <tamar.christina@arm.com>
+
+	* opcode/aarch64.h: (AARCH64_FEATURE_DOTPROD): New.
+	(aarch64_insn_class): Added dotprod.
+
+2017-06-28  Jiong Wang  <jiong.wang@arm.com>
+
+	* opcode/arm.h (FPU_NEON_EXT_DOTPROD): New macro.
+	(FPU_ARCH_DOTPROD_NEON_VFP_ARMV8): New macro.
+
+2017-06-28  Maciej W. Rozycki  <macro@imgtec.com>
+	    Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	* elf/mips.h (E_MIPS_MACH_IAMR2): New macro.
+	(AFL_EXT_INTERAPTIV_MR2): Likewise.
+	* opcode/mips.h: Document new operand codes defined.
+	(INSN_INTERAPTIV_MR2): New macro.
+	(INSN_CHIP_MASK): Adjust accordingly.
+	(CPU_INTERAPTIV_MR2): New macro.
+	(cpu_is_member) <CPU_INTERAPTIV_MR2>: New case.
+	(MIPS16_ALL_ARGS): Rename to...
+	(MIPS_SVRS_ALL_ARGS): ... this.
+	(MIPS16_ALL_STATICS): Rename to...
+	(MIPS_SVRS_ALL_STATICS): ... this.
+
+2017-06-26  Kuan-Lin Chen  <rufus@andestech.com>
+
+	* elf/riscv.h (R_RISCV_32_PCREL): New.
+
+2017-06-24  Thomas Preud'homme  <thomas.preudhomme@arm.com>
+
+	* elf/arm.h (TAG_CPU_ARCH_V8R): New macro.
+	* opcode/arm.h (ARM_EXT2_V8A): New macro.
+	(ARM_AEXT2_V8A): Rename into ...
+	(ARM_AEXT2_V8AR): This.
+	(ARM_AEXT2_V8A): New macro.
+	(ARM_AEXT_V8R): New macro.
+	(ARM_AEXT2_V8R): New macro.
+	(ARM_ARCH_V8R): New macro.
+
+2017-06-24  Thomas Preud'homme  <thomas.preudhomme@arm.com>
+
+	* opcode/arm.h (ARM_AEXT_V4TxM): Add ARM_EXT_OS bit to the set.
+	(ARM_AEXT_V4T): Likewise.
+	(ARM_AEXT_V5TxM): Likewise.
+	(ARM_AEXT_V5T): Likewise.
+	(ARM_AEXT_V6M): Mask off ARM_EXT_OS bit.
+
+2017-06-22  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* bfdlink.h (bfd_link_info): Add shstk.
+	* elf/common.h (GNU_PROPERTY_X86_FEATURE_1_SHSTK): New.
+
+2017-06-22  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* bfdlink.h (bfd_link_info): Add ibtplt and ibt.
+	* elf/common.h (GNU_PROPERTY_X86_FEATURE_1_AND): New.
+	(GNU_PROPERTY_X86_FEATURE_1_IBT): Likewise.
+
+2017-06-21  Thomas Preud'homme  <thomas.preudhomme@arm.com>
+
+	* opcode/arm.h (FPU_ANY): New macro.
+
+2017-06-20  Andreas Krebbel  <krebbel@linux.vnet.ibm.com>
+
+	* elf/s390.h (PT_S390_PGSTE): Define macro.
+
+2017-06-16  Alan Modra  <amodra@gmail.com>
+
+	PR ld/20022
+	PR ld/21557
+	PR ld/21562
+	PR ld/21571
+	* bfdlink.h (struct bfd_link_hash_entry): Delete undef.section.
+
+2017-06-14  Yao Qi  <yao.qi@linaro.org>
+
+	* dis-asm.h (print_insn_aarch64): Move it to opcodes/disassemble.h.
+	(print_insn_big_arm, print_insn_big_mips): Likewise.
+	(print_insn_i386, print_insn_ia64): Likewise.
+	(print_insn_little_arm, print_insn_little_mips): Likewise.
+	(print_insn_spu): Likewise.
+
+2017-06-06  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* bfdlink.h (struct bfd_link_info): Add new resolve_section_groups
+	flag.
+
+2017-06-01  Alan Modra  <amodra@gmail.com>
+
+	* elf/ppc64.h (PPC64_OPT_LOCALENTRY): Define.
+
+2017-05-31  Eli Zaretskii <eliz@gnu.org>
+
+	* environ.h: Add #ifndef guard.
+
+2017-05-30  Anton Kolesov  <anton.kolesov@synopsys.com>
+
+	* elf/arc-cpu.def: New file.
+
+2017-05-24  Yao Qi  <yao.qi@linaro.org>
+
+	* dis-asm.h: Move some function declarations to
+	opcodes/disassemble.h.
+
+2017-05-24  Yao Qi  <yao.qi@linaro.org>
+
+	* dis-asm.h (disassembler): Update declaration.
+
+2017-05-23  Claudiu Zissulescu <claziss@synopsys.com>
+
+	* opcode/arc.h (MAX_INSN_FLGS): Update to 4.
+
+2017-05-22  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* include/opcode/i386.h (NOTRACK_PREFIX_OPCODE): New.
+
+2017-05-19  Jose E. Marchesi  <jose.marchesi@oracle.com>
+
+	* elf/sparc.h (ELF_SPARC_HWCAP2_SPARC6): Define.
+	(ELF_SPARC_HWCAP2_ONADDSUB): Likewise.
+	(ELF_SPARC_HWCAP2_ONMUL): Likewise.
+	(ELF_SPARC_HWCAP2_ONDIV): Likewise.
+	(ELF_SPARC_HWCAP2_DICTUNP): Likewise.
+	(ELF_SPARC_HWCAP2_FPCMPSHL): Likewise.
+	(ELF_SPARC_HWCAP2_RLE): Likewise.
+	(ELF_SPARC_HWCAP2_SHA3): Likewise.
+	* opcode/sparc.h (sparc_opcode_arch_val): Add SPARC_OPCODE_ARCH_M8
+	and adjust SPARC_OPCODE_ARCH_MAX.
+	(HWCAP2_SPARC6): Define.
+	(HWCAP2_ONADDSUB): Likewise.
+	(HWCAP2_ONMUL): Likewise.
+	(HWCAP2_ONDIV): Likewise.
+	(HWCAP2_DICTUNP): Likewise.
+	(HWCAP2_FPCMPSHL): Likewise.
+	(HWCAP2_RLE): Likewise.
+	(HWCAP2_SHA3): Likewise.
+	(OPM): Likewise.
+	(OPMI): Likewise.
+	(ONFCN): Likewise.
+	(REVFCN): Likewise.
+	(SIMM10): Likewise.
+
+2017-05-16  Alan Modra  <amodra@gmail.com>
+
+	* bfdlink.h (struct bfd_link_hash_entry <non_ir_ref>): Rename to
+	non_ir_ref_regular.
+
+2017-05-16  Alan Modra  <amodra@gmail.com>
+
+	* bfdlink.h (struct bfd_link_hash_entry): Update non_ir_ref
+	comment.  Rename dynamic_ref_after_ir_def to non_ir_ref_dynamic.
+
+2017-05-15  Maciej W. Rozycki  <macro@imgtec.com>
+	    Matthew Fortune  <matthew.fortune@imgtec.com>
+
+	* elf/mips.h (AFL_ASE_MIPS16E2): New macro.
+	(AFL_ASE_MASK): Adjust accordingly.
+	* opcode/mips.h: Document new operand codes defined.
+	(mips_operand_type): Add OP_REG28 enum value.
+	(INSN2_SHORT_ONLY): Update description.
+	(ASE_MIPS16E2, ASE_MIPS16E2_MT): New macros.
+
+2017-05-14  John David Anglin  <danglin@gcc.gnu.org>
+
+	* opcode/hppa.h: Fix match and mask for 64-bit bb opcode.
+
+2017-05-10  Claudiu Zissulescu  <claziss@synopsys.com>
+
+	* elf/arc.h (SHT_ARC_ATTRIBUTES): Define.
+	(Tag_ARC_*): Define.
+	(E_ARC_OSABI_V4): Define.
+	(E_ARC_OSABI_CURRENT): Reassign it.
+	(TAG_CPU_*): Define.
+	* opcode/arc-attrs.h: New file.
+	* opcode/arc.h (insn_subclass_t): Assign enum values.
+	(insn_subclass_t): Update enum with QUARKSE1, QUARKSE2, and LL64.
+	(ARC_EA, ARC_CD, ARC_LLOCK, ARC_ATOMIC, ARC_MPY, ARC_MULT)
+	(ARC_NPS400, ARC_DPFP, ARC_SPFP, ARC_FPU, ARC_FPUDA, ARC_SWAP)
+	(ARC_NORM, ARC_BSCAN, ARC_UIX, ARC_TSTAMP, ARC_VBFDW)
+	(ARC_BARREL, ARC_DSPA, ARC_SHIFT, ARC_INTR, ARC_DIV, ARC_XMAC)
+	(ARC_CRC): Delete.
+
+2017-04-20  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/21382
+	* bfdlink.h (bfd_link_hash_entry): Add dynamic_ref_after_ir_def.
+
+2017-04-19  Alan Modra  <amodra@gmail.com>
+
+	* bfdlink.h (struct bfd_link_info <dynamic_undefined_weak>):
+	Revise comment.
+
+2017-04-11  Alan Modra  <amodra@gmail.com>
+
+	* opcode/ppc.h (PPC_OPCODE_ALTIVEC2): Delete.
+	(PPC_OPCODE_VSX3): Delete.
+	(PPC_OPCODE_HTM): Delete.
+	(PPC_OPCODE_*): Renumber and order chronologically.
+	(PPC_OPCODE_SPE): Comment on this and other bits used for APUinfo.
+
+2017-04-06  Pip Cet  <pipcet@gmail.com>
+
+	* dis-asm.h: Add prototypes for wasm32 disassembler.
+
+2017-04-05  Pedro Alves  <palves@redhat.com>
+
+	* dis-asm.h (disassemble_info) <disassembler_options>: Now a
+	"const char *".
+	(next_disassembler_option): Constify.
+
+2017-04-04  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf/common.h (PT_GNU_MBIND_NUM): New.
+	(PT_GNU_MBIND_LO): Likewise.
+	(PT_GNU_MBIND_HI): Likewise.
+	(SHF_GNU_MBIND): Likewise.
+
+2017-04-03  Palmer Dabbelt  <palmer@dabbelt.com>
+
+	* elf/riscv.h (RISCV_GP_SYMBOL): New define.
+
+2017-03-27  Andrew Waterman  <andrew@sifive.com>
+
+	* opcode/riscv-opc.h (CSR_PMPCFG0): New define.
+	(CSR_PMPCFG1): Likewise.
+	(CSR_PMPCFG2): Likewise.
+	(CSR_PMPCFG3): Likewise.
+	(CSR_PMPADDR0): Likewise.
+	(CSR_PMPADDR1): Likewise.
+	(CSR_PMPADDR2): Likewise.
+	(CSR_PMPADDR3): Likewise.
+	(CSR_PMPADDR4): Likewise.
+	(CSR_PMPADDR5): Likewise.
+	(CSR_PMPADDR6): Likewise.
+	(CSR_PMPADDR7): Likewise.
+	(CSR_PMPADDR8): Likewise.
+	(CSR_PMPADDR9): Likewise.
+	(CSR_PMPADDR10): Likewise.
+	(CSR_PMPADDR11): Likewise.
+	(CSR_PMPADDR12): Likewise.
+	(CSR_PMPADDR13): Likewise.
+	(CSR_PMPADDR14): Likewise.
+	(CSR_PMPADDR15): Likewise.
+	(pmpcfg0): Declare register.
+	(pmpcfg1): Likewise.
+	(pmpcfg2): Likewise.
+	(pmpcfg3): Likewise.
+	(pmpaddr0): Likewise.
+	(pmpaddr1): Likewise.
+	(pmpaddr2): Likewise.
+	(pmpaddr3): Likewise.
+	(pmpaddr4): Likewise.
+	(pmpaddr5): Likewise.
+	(pmpaddr6): Likewise.
+	(pmpaddr7): Likewise.
+	(pmpaddr8): Likewise.
+	(pmpaddr9): Likewise.
+	(pmpaddr10): Likewise.
+	(pmpaddr11): Likewise.
+	(pmpaddr12): Likewise.
+	(pmpaddr13): Likewise.
+	(pmpaddr14): Likewise.
+	(pmpaddr15): Likewise.
+
+2017-03-30  Pip Cet  <pipcet@gmail.com>
+
+	* opcode/wasm.h: New file to support wasm32 architecture.
+	* elf/wasm32.h: Add R_WASM32_32 relocation.
+
+2017-03-29  Alan Modra  <amodra@gmail.com>
+
+	* opcode/ppc.h (PPC_OPCODE_RAW): Define.
+	(PPC_OPCODE_*): Make them all unsigned long long constants.
+
+2017-03-27  Pip Cet  <pipcet@gmail.com>
+
+	* elf/wasm32.h: New file to support wasm32 architecture.
+
+2017-03-27  Rinat Zelig  <rinat@mellanox.com>
+
+	* opcode/arc.h (insn_class_t): Add ULTRAIP and MISC class.
+
+2017-03-21  Andreas Krebbel  <krebbel@linux.vnet.ibm.com>
+
+	* opcode/s390.h (S390_INSTR_FLAG_VX2): Remove.
+	(S390_INSTR_FLAG_FACILITY_MASK): Adjust value.
+
+2017-03-21  Rinat Zelig  <rinat@mellanox.com>
+
+	* opcode/arc.h (insn_class_t): Add DMA class.
+
+2017-03-16  Nick Clifton  <nickc@redhat.com>
+
+	* elf/common.h (GNU_BUILD_ATTRIBUTE_SHORT_ENUM): New GNU BUILD
+	note type.
+
+2017-03-14  Jakub Jelinek  <jakub@redhat.com>
+
+	PR debug/77589
+	* dwarf2.def (DW_OP_GNU_variable_value): New opcode.
+
+2017-03-13  Markus Trippelsdorf  <markus@trippelsdorf.de>
+
+	PR demangler/70909
+	PR demangler/67264
+	* demangle.h (struct demangle_component): Add d_printing field.
+	(cplus_demangle_print): Remove const qualifier from tree
+	parameter.
+	(cplus_demangle_print_callback): Likewise.
+
+2017-03-13  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/21202
+	* elf/aarch64.h (R_AARCH64_TLSDESC_LD64_LO12_NC): Rename to
+	R_AARCH64_TLSDESC_LD64_LO12.
+	(R_AARCH64_TLSDESC_ADD_LO12_NC): Rename to
+	R_AARCH64_TLSDESC_ADD_LO12_NC.
+
+2017-03-10  Nick Clifton  <nickc@redhat.com>
+
+	* elf/common.h (EM_LANAI): New machine number.
+	(EM_BPF): Likewise.
+	(EM_WEBASSEMBLY): Likewise.
+	Move low value, deprecated, numbers to their numerical
+	equivalents.
+
+2017-03-08  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/21231
+	* elf/common.h (GNU_PROPERTY_LOPROC): New.
+	(GNU_PROPERTY_HIPROC): Likewise.
+	(GNU_PROPERTY_LOUSER): Likewise.
+	(GNU_PROPERTY_HIUSER): Likewise.
+
+2017-03-01  Nick Clifton  <nickc@redhat.com>
+
+	* elf/common.h (SHF_GNU_BUILD_NOTE): Define.
+	(NT_GNU_PROPERTY_TYPE_0): Define.
+	(NT_GNU_BUILD_ATTRIBUTE_OPEN): Define.
+	(NT_GNU_BUILD_ATTRIBUTE_FUN): Define.
+	(GNU_BUILD_ATTRIBUTE_TYPE_NUMERIC): Define.
+	(GNU_BUILD_ATTRIBUTE_TYPE_STRING): Define.
+	(GNU_BUILD_ATTRIBUTE_TYPE_BOOL_TRUE): Define.
+	(GNU_BUILD_ATTRIBUTE_TYPE_BOOL_FALSE): Define.
+	(GNU_BUILD_ATTRIBUTE_VERSION): Define.
+	(GNU_BUILD_ATTRIBUTE_STACK_PROT): Define.
+	(GNU_BUILD_ATTRIBUTE_RELRO): Define.
+	(GNU_BUILD_ATTRIBUTE_STACK_SIZE): Define.
+	(GNU_BUILD_ATTRIBUTE_TOOL): Define.
+	(GNU_BUILD_ATTRIBUTE_ABI): Define.
+	(GNU_BUILD_ATTRIBUTE_PIC): Define.
+	(NOTE_GNU_PROPERTY_SECTION_NAME): Define.
+	(GNU_BUILD_ATTRS_SECTION_NAME): Define.
+	(GNU_PROPERTY_STACK_SIZE): Define.
+	(GNU_PROPERTY_NO_COPY_ON_PROTECTED): Define.
+	(GNU_PROPERTY_X86_ISA_1_USED): Define.
+	(GNU_PROPERTY_X86_ISA_1_NEEDED): Define.
+	(GNU_PROPERTY_X86_ISA_1_486): Define.
+	(GNU_PROPERTY_X86_ISA_1_586): Define.
+	(GNU_PROPERTY_X86_ISA_1_686): Define.
+	(GNU_PROPERTY_X86_ISA_1_SSE): Define.
+	(GNU_PROPERTY_X86_ISA_1_SSE2): Define.
+	(GNU_PROPERTY_X86_ISA_1_SSE3): Define.
+	(GNU_PROPERTY_X86_ISA_1_SSSE3): Define.
+	(GNU_PROPERTY_X86_ISA_1_SSE4_1): Define.
+	(GNU_PROPERTY_X86_ISA_1_SSE4_2): Define.
+	(GNU_PROPERTY_X86_ISA_1_AVX): Define.
+	(GNU_PROPERTY_X86_ISA_1_AVX2): Define.
+	(GNU_PROPERTY_X86_ISA_1_AVX512F): Define.
+	(GNU_PROPERTY_X86_ISA_1_AVX512CD): Define.
+	(GNU_PROPERTY_X86_ISA_1_AVX512ER): Define.
+	(GNU_PROPERTY_X86_ISA_1_AVX512PF): Define.
+	(GNU_PROPERTY_X86_ISA_1_AVX512VL): Define.
+	(GNU_PROPERTY_X86_ISA_1_AVX512DQ): Define.
+	(GNU_PROPERTY_X86_ISA_1_AVX512BW): Define.
+
+2017-02-28  Peter Bergner  <bergner@vnet.ibm.com>
+
+	* dis-asm.h (disasm_options_t): New typedef.
+	(parse_arm_disassembler_option): Remove prototype.
+	(set_arm_regname_option): Likewise.
+	(get_arm_regnames): Likewise.
+	(get_arm_regname_num_options): Likewise.
+	(disassemble_init_s390): New prototype.
+	(disassembler_options_powerpc): Likewise.
+	(disassembler_options_arm): Likewise.
+	(disassembler_options_s390): Likewise.
+	(remove_whitespace_and_extra_commas): Likewise.
+	(disassembler_options_cmp): Likewise.
+	(next_disassembler_option): New inline function.
+	(FOR_EACH_DISASSEMBLER_OPTION): New macro.
+
 2017-02-28  Alan Modra  <amodra@gmail.com>
 
 	* elf/ppc64.h (R_PPC64_16DX_HA): New.  Expand fake reloc comment.
 	* elf/ppc.h (R_PPC_16DX_HA): Likewise.
+
+2017-02-24  Richard Sandiford  <richard.sandiford@arm.com>
+
+	* opcode/aarch64.h (AARCH64_OPND_SVE_ADDR_RI_S4x16)
+	(AARCH64_OPND_SVE_IMM_ROT1, AARCH64_OPND_SVE_IMM_ROT2)
+	(AARCH64_OPND_SVE_Zm3_INDEX, AARCH64_OPND_SVE_Zm3_22_INDEX)
+	(AARCH64_OPND_SVE_Zm4_INDEX): New aarch64_opnds.
+
+2017-02-24  Richard Sandiford  <richard.sandiford@arm.com>
+
+	* opcode/aarch64.h (AARCH64_FEATURE_COMPNUM): New macro.
+	(AARCH64_ARCH_V8_3): Include AARCH64_FEATURE_COMPNUM.
 
 2017-02-22  Andrew Waterman  <andrew@sifive.com>
 
@@ -16,22 +445,80 @@
 	(MASK_SFENCE_VMA): Likewise.
 	(sfence_vma): Declare instruction.
 
-2017-02-27  Richard Sandiford  <richard.sandiford@arm.com>
+2017-02-14  Alan Modra  <amodra@gmail.com>
 
-	* opcode/aarch64.h (AARCH64_OPND_SVE_ADDR_RI_S4x16)
-	(AARCH64_OPND_SVE_IMM_ROT1, AARCH64_OPND_SVE_IMM_ROT2)
-	(AARCH64_OPND_SVE_Zm3_INDEX, AARCH64_OPND_SVE_Zm3_22_INDEX)
-	(AARCH64_OPND_SVE_Zm4_INDEX): New aarch64_opnds.
+	PR 21118
+	* opcode/ppc.h (PPC_OPERAND_*): Reassign values, regs first.
+	(PPC_OPERAND_SPR, PPC_OPERAND_GQR): Define.
 
-2017-02-27  Richard Sandiford  <richard.sandiford@arm.com>
+2017-01-24  Dimitar Dimitrov  <dimitar@dinux.eu>
 
-	* opcode/aarch64.h (AARCH64_FEATURE_COMPNUM): New macro.
-	(AARCH64_ARCH_V8_3): Include AARCH64_FEATURE_COMPNUM.
+        * opcode/hppa.h: Clarify that file is part of GNU opcodes.
+        * opcode/i860.h: Ditto.
+        * opcode/nios2.h: Ditto.
+        * opcode/nios2r1.h: Ditto.
+        * opcode/nios2r2.h: Ditto.
+        * opcode/pru.h: Ditto.
 
-2017-02-27  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+2017-01-24  Alan Hayward  <alan.hayward@arm.com>
+
+	* elf/common.h (NT_ARM_SVE): Define.
+
+2017-01-04  Jiong Wang  <jiong.wang@arm.com>
+
+	* dwarf2.def: Sync with mainline gcc sources.
+
+	2017-01-04  Richard Earnshaw  <rearnsha@arm.com>
+		    Jiong Wang  <jiong.wang@arm.com>
+
+	* dwarf2.def (DW_OP_AARCH64_operation): Reserve the number 0xea.
+	(DW_CFA_GNU_window_save): Comments the multiplexing on AArch64.
+
+2017-01-04  Szabolcs Nagy  <szabolcs.nagy@arm.com>
 
 	* opcode/aarch64.h (AARCH64_FEATURE_RCPC): Define.
 	(AARCH64_ARCH_V8_3): Update.
+
+2017-01-03  Kito Cheng  <kito.cheng@gmail.com>
+
+	* opcode/riscv-opc.h: Add support for the "q" ISA extension.
+
+2017-01-03  Nick Clifton  <nickc@redhat.com>
+
+	* dwarf2.def: Sync with mainline gcc sources
+	* dwarf2.h: Likewise.
+
+	2016-12-21  Jakub Jelinek  <jakub@redhat.com>
+
+	* dwarf2.def (DW_FORM_ref_sup): Renamed to ...
+	(DW_FORM_ref_sup4): ... this.  New form.
+	(DW_FORM_ref_sup8): New form.
+
+	2016-10-17  Jakub Jelinek  <jakub@redhat.com>
+
+	* dwarf2.h (enum dwarf_calling_convention): Add new DWARF5
+	calling convention codes.
+	(enum dwarf_line_number_content_type): New.
+	(enum dwarf_location_list_entry_type): Add DWARF5 DW_LLE_*
+	codes.
+	(enum dwarf_source_language): Add new DWARF5 DW_LANG_* codes.
+	(enum dwarf_macro_record_type): Add DWARF5 DW_MACRO_* codes.
+	(enum dwarf_name_index_attribute): New.
+	(enum dwarf_range_list_entry): New.
+	(enum dwarf_unit_type): New.
+	* dwarf2.def: Add new DWARF5 DW_TAG_*, DW_FORM_*, DW_AT_*,
+	DW_OP_* and DW_ATE_* entries.
+
+	2016-08-15  Jakub Jelinek  <jakub@redhat.com>
+
+	* dwarf2.def (DW_AT_string_length_bit_size,
+	DW_AT_string_length_byte_size): New attributes.
+
+	2016-08-12  Alexandre Oliva <aoliva@redhat.com>
+
+	PR debug/63240
+	* dwarf2.def (DW_AT_deleted, DW_AT_defaulted): New.
+	* dwarf2.h (enum dwarf_defaulted_attribute): New.
 
 2017-01-02  Alan Modra  <amodra@gmail.com>
 

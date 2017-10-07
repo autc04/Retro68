@@ -17,5 +17,4 @@ Disassembly of section \.text:
 [ 	]*[0-9a-f]+: R_MICROMIPS_LO16	bar
 [0-9a-f]+ <[^>]*> 40e3 fffe 	beqzc	v1,[0-9a-f]+ <[^>]*>
 [ 	]*[0-9a-f]+: R_MICROMIPS_PC16_S1	.*
-[0-9a-f]+ <[^>]*> 0c00      	nop
 	\.\.\.

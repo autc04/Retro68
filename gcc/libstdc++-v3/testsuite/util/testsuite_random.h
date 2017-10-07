@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2011-2016 Free Software Foundation, Inc.
+// Copyright (C) 2011-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -39,7 +39,6 @@ namespace __gnu_test
     void
     testDiscreteDist(Distribution& f, Pdf pdf)
     {
-      bool test __attribute__((unused)) = true;
       double count[BINS], p[BINS];
 
       for (unsigned long i = 0; i < BINS; i++)
@@ -149,7 +148,7 @@ namespace __gnu_test
 	double f = std::lgamma(k + (double)n);
 	double a = std::lgamma(n);
 	double b = std::lgamma(k + 1.0);
- 
+
 	return std::exp(f - a - b) * std::pow(p, n) * std::pow(1 - p, k);
       }
   }
@@ -161,7 +160,7 @@ namespace __gnu_test
       return 0.0;
     else
       {
-	double lf = std::lgamma(k + 1.0); 
+	double lf = std::lgamma(k + 1.0);
 	return std::exp(std::log(mu) * k - lf - mu);
       }
   }

@@ -25,7 +25,11 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	66 0f 38 37 c1       	pcmpgtq xmm0,xmm1
 [ 	]*[a-f0-9]+:	66 0f 3a 61 01 00    	pcmpestri xmm0,XMMWORD PTR \[rcx\],0x0
 [ 	]*[a-f0-9]+:	66 0f 3a 61 c1 00    	pcmpestri xmm0,xmm1,0x0
+[ 	]*[a-f0-9]+:	66 48 0f 3a 61 01 00 	rex\.W pcmpestri xmm0,XMMWORD PTR \[rcx\],0x0
+[ 	]*[a-f0-9]+:	66 0f 3a 61 c1 00    	pcmpestri xmm0,xmm1,0x0
 [ 	]*[a-f0-9]+:	66 0f 3a 60 01 01    	pcmpestrm xmm0,XMMWORD PTR \[rcx\],0x1
+[ 	]*[a-f0-9]+:	66 0f 3a 60 c1 01    	pcmpestrm xmm0,xmm1,0x1
+[ 	]*[a-f0-9]+:	66 48 0f 3a 60 01 01 	rex\.W pcmpestrm xmm0,XMMWORD PTR \[rcx\],0x1
 [ 	]*[a-f0-9]+:	66 0f 3a 60 c1 01    	pcmpestrm xmm0,xmm1,0x1
 [ 	]*[a-f0-9]+:	66 0f 3a 63 01 02    	pcmpistri xmm0,XMMWORD PTR \[rcx\],0x2
 [ 	]*[a-f0-9]+:	66 0f 3a 63 c1 02    	pcmpistri xmm0,xmm1,0x2

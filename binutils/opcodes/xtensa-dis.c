@@ -27,7 +27,7 @@
 #include "xtensa-isa.h"
 #include "ansidecl.h"
 #include "libiberty.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 
 #include <setjmp.h>
 

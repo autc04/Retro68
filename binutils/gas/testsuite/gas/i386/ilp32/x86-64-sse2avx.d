@@ -349,10 +349,14 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 c8 c2 31 07       	vcmpordps \(%rcx\),%xmm6,%xmm6
 [ 	]*[a-f0-9]+:	c4 e3 79 df f4 64    	vaeskeygenassist \$0x64,%xmm4,%xmm6
 [ 	]*[a-f0-9]+:	c4 e3 79 df 31 64    	vaeskeygenassist \$0x64,\(%rcx\),%xmm6
-[ 	]*[a-f0-9]+:	c4 e3 79 61 f4 64    	vpcmpestri \$0x64,%xmm4,%xmm6
-[ 	]*[a-f0-9]+:	c4 e3 79 61 31 64    	vpcmpestri \$0x64,\(%rcx\),%xmm6
-[ 	]*[a-f0-9]+:	c4 e3 79 60 f4 64    	vpcmpestrm \$0x64,%xmm4,%xmm6
-[ 	]*[a-f0-9]+:	c4 e3 79 60 31 64    	vpcmpestrm \$0x64,\(%rcx\),%xmm6
+[ 	]*[a-f0-9]+:	c4 e3 79 61 f4 64    	vpcmpestril? \$0x64,%xmm4,%xmm6
+[ 	]*[a-f0-9]+:	c4 e3 79 61 31 64    	vpcmpestril? \$0x64,\(%rcx\),%xmm6
+[ 	]*[a-f0-9]+:	c4 e3 f9 61 f4 64    	vpcmpestriq \$0x64,%xmm4,%xmm6
+[ 	]*[a-f0-9]+:	c4 e3 79 61 31 64    	vpcmpestril? \$0x64,\(%rcx\),%xmm6
+[ 	]*[a-f0-9]+:	c4 e3 79 60 f4 64    	vpcmpestrml? \$0x64,%xmm4,%xmm6
+[ 	]*[a-f0-9]+:	c4 e3 79 60 31 64    	vpcmpestrml? \$0x64,\(%rcx\),%xmm6
+[ 	]*[a-f0-9]+:	c4 e3 f9 60 f4 64    	vpcmpestrmq \$0x64,%xmm4,%xmm6
+[ 	]*[a-f0-9]+:	c4 e3 79 60 31 64    	vpcmpestrml? \$0x64,\(%rcx\),%xmm6
 [ 	]*[a-f0-9]+:	c4 e3 79 63 f4 64    	vpcmpistri \$0x64,%xmm4,%xmm6
 [ 	]*[a-f0-9]+:	c4 e3 79 63 31 64    	vpcmpistri \$0x64,\(%rcx\),%xmm6
 [ 	]*[a-f0-9]+:	c4 e3 79 62 f4 64    	vpcmpistrm \$0x64,%xmm4,%xmm6

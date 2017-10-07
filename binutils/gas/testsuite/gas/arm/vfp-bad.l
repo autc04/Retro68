@@ -7,3 +7,5 @@
 [^:]*:9: Error: instruction does not support writeback -- `fldd d0,\[r0,#-8\]!'
 [^:]*:10: Error: instruction does not support writeback -- `flds s0,\[r0\],#8'
 [^:]*:11: Error: instruction does not support writeback -- `flds s0,\[r0,#-8\]!'
+[^:]*:12: Error: selected FPU does not support instruction -- `vmrs r0,MVFR2'
+[^:]*:13: Error: selected FPU does not support instruction -- `vmsr MVFR2,r2'

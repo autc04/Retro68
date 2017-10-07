@@ -25,6 +25,12 @@ Disassembly of section .text:
  +[0-9a-f]+:	fe142863 	vcmla.f16	q1, q2, d3\[1\], #90
  +[0-9a-f]+:	fed658a7 	vcmla.f32	d21, d22, d23\[0\], #90
  +[0-9a-f]+:	fe942867 	vcmla.f32	q1, q2, d23\[0\], #90
+ +[0-9a-f]+:	fe042863 	vcmla.f16	q1, q2, d3\[1\], #0
+ +[0-9a-f]+:	fe242863 	vcmla.f16	q1, q2, d3\[1\], #180
+ +[0-9a-f]+:	fe342863 	vcmla.f16	q1, q2, d3\[1\], #270
+ +[0-9a-f]+:	fe842843 	vcmla.f32	q1, q2, d3\[0\], #0
+ +[0-9a-f]+:	fea42843 	vcmla.f32	q1, q2, d3\[0\], #180
+ +[0-9a-f]+:	feb42843 	vcmla.f32	q1, q2, d3\[0\], #270
 
 [0-9a-f]+ <.*>:
  +[0-9a-f]+:	fc94 2846 	vcadd.f32	q1, q2, q3, #90
@@ -45,3 +51,9 @@ Disassembly of section .text:
  +[0-9a-f]+:	fe14 2863 	vcmla.f16	q1, q2, d3\[1\], #90
  +[0-9a-f]+:	fed6 58a7 	vcmla.f32	d21, d22, d23\[0\], #90
  +[0-9a-f]+:	fe94 2867 	vcmla.f32	q1, q2, d23\[0\], #90
+ +[0-9a-f]+:	fe04 2863 	vcmla.f16	q1, q2, d3\[1\], #0
+ +[0-9a-f]+:	fe24 2863 	vcmla.f16	q1, q2, d3\[1\], #180
+ +[0-9a-f]+:	fe34 2863 	vcmla.f16	q1, q2, d3\[1\], #270
+ +[0-9a-f]+:	fe84 2843 	vcmla.f32	q1, q2, d3\[0\], #0
+ +[0-9a-f]+:	fea4 2843 	vcmla.f32	q1, q2, d3\[0\], #180
+ +[0-9a-f]+:	feb4 2843 	vcmla.f32	q1, q2, d3\[0\], #270

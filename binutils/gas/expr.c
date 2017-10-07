@@ -1154,6 +1154,10 @@ operand (expressionS *expressionP, enum expr_mode mode)
 		   || input_line_pointer[1] == 'T');
 	  input_line_pointer += start ? 8 : 7;
 	  SKIP_WHITESPACE ();
+
+	  /* Cover for the as_bad () invocations below.  */
+	  expressionP->X_op = O_absent;
+
 	  if (*input_line_pointer != '(')
 	    as_bad (_("syntax error in .startof. or .sizeof."));
 	  else
@@ -1163,6 +1167,16 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	      ++input_line_pointer;
 	      SKIP_WHITESPACE ();
 	      c = get_symbol_name (& name);
+	      if (! *name)
+		{
+		  as_bad (_("expected symbol name"));
+		  (void) restore_line_pointer (c);
+		  if (c != ')')
+		    ignore_rest_of_line ();
+		  else
+		    ++input_line_pointer;
+		  break;
+		}
 
 	      buf = concat (start ? ".startof." : ".sizeof.", name,
 			    (char *) NULL);
@@ -1306,6 +1320,14 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	      SKIP_WHITESPACE_AFTER_NAME ();
 
 	      c = get_symbol_name (& name);
+	      if (! *name)
+		{
+		  as_bad (_("expected symbol name"));
+		  expressionP->X_op = O_absent;
+		  (void) restore_line_pointer (c);
+		  ignore_rest_of_line ();
+		  break;
+		}
 
 	      buf = concat (start ? ".startof." : ".sizeof.", name,
 			    (char *) NULL);

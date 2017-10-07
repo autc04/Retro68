@@ -139,7 +139,7 @@ _bfd_hexdump (int level, unsigned char *ptr, int size, int offset)
    size is string size (size of record)  */
 
 char *
-_bfd_vms_save_sized_string (unsigned char *str, int size)
+_bfd_vms_save_sized_string (unsigned char *str, unsigned int size)
 {
   char *newstr = bfd_malloc ((bfd_size_type) size + 1);
 
@@ -155,10 +155,12 @@ _bfd_vms_save_sized_string (unsigned char *str, int size)
    ptr points to size byte on entry  */
 
 char *
-_bfd_vms_save_counted_string (unsigned char *ptr)
+_bfd_vms_save_counted_string (unsigned char *ptr, unsigned int maxlen)
 {
-  int len = *ptr++;
+  unsigned int len = *ptr++;
 
+  if (len > maxlen)
+    return NULL;
   return _bfd_vms_save_sized_string (ptr, len);
 }
 

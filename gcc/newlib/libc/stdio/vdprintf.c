@@ -16,7 +16,7 @@ int
 _DEFUN(_vdprintf_r, (ptr, fd, format, ap),
        struct _reent *ptr _AND
        int fd _AND
-       const char *format _AND
+       const char *__restrict format _AND
        va_list ap)
 {
   char *p;
@@ -33,15 +33,26 @@ _DEFUN(_vdprintf_r, (ptr, fd, format, ap),
   return n;
 }
 
+#ifdef _NANO_FORMATTED_IO
+int
+_EXFUN(_vdiprintf_r, (struct _reent *, int, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("_vdprintf_r"))));
+#endif
+
 #ifndef _REENT_ONLY
 
 int
 _DEFUN(vdprintf, (fd, format, ap),
        int fd _AND
-       const char *format _AND
+       const char *__restrict format _AND
        va_list ap)
 {
   return _vdprintf_r (_REENT, fd, format, ap);
 }
 
+#ifdef _NANO_FORMATTED_IO
+int
+_EXFUN(vdiprintf, (int, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("vdprintf"))));
+#endif
 #endif /* ! _REENT_ONLY */

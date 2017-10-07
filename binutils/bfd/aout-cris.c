@@ -197,8 +197,8 @@ MY (swap_ext_reloc_out) (bfd *abfd,
   if (r_type > 2)
     {
       /* xgettext:c-format */
-      _bfd_error_handler (_("%s: Invalid relocation type exported: %d"),
-			  bfd_get_filename (abfd), r_type);
+      _bfd_error_handler (_("%B: Invalid relocation type exported: %d"),
+			  abfd, r_type);
 
       bfd_set_error (bfd_error_wrong_format);
     }

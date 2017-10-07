@@ -1,3 +1,18 @@
+2017-07-03  Alan Modra  <amodra@gmail.com>
+
+	* dwarf.h (DW_FIRST_IDX, DW_IDX, DW_IDX_DUP, DW_END_IDX): Define,
+	and undefine after using.
+
+2017-06-21  Alan Modra  <amodra@gmail.com>
+
+	* elfcpp.h (DT_PPC64_OPT): Define.
+	* powerpc.h (PPC64_OPT_TLS, PPC64_OPT_MULTI_TOC,
+	PPC64_OPT_LOCALENTRY): Define.
+
+2017-06-20  Andreas Krebbel  <krebbel@linux.vnet.ibm.com>
+
+	* elfcpp.h (enum PT): Add PT_S390_PGSTE to enum.
+
 2017-01-02  Alan Modra  <amodra@gmail.com>
 
 	Update year range in copyright notice of all files.

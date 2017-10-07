@@ -25,7 +25,7 @@
 @cindex options, RX
 @cindex RX options
 
-The Renesas RX port of @code{@value{AS}} has a few target specfic
+The Renesas RX port of @code{@value{AS}} has a few target specific
 command line options:
 
 @table @code

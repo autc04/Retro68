@@ -1,6 +1,6 @@
 /* Setting LOGICAL_OP_NON_SHORT_CIRCUIT to 0 leads to two conditional jumps
    when evaluating an && condition.  VRP is not able to optimize this.  */
-/* { dg-do compile { target { ! { logical_op_short_circuit || { m68k*-*-* mmix*-*-* mep*-*-* bfin*-*-* v850*-*-* moxie*-*-* cris*-*-* m32c*-*-* fr30*-*-* mcore*-*-* powerpc*-*-* xtensa*-*-* hppa*-*-* } } } } } */
+/* { dg-do compile { target { ! { logical_op_short_circuit || { m68k*-*-* mmix*-*-* bfin*-*-* v850*-*-* moxie*-*-* cris*-*-* m32c*-*-* fr30*-*-* mcore*-*-* powerpc*-*-* xtensa*-*-* hppa*-*-* } } } } } */
 /* { dg-options "-O2 -fdump-tree-forwprop1-details" } */
 
 extern char *frob (void);
@@ -86,5 +86,5 @@ test_8 (int code)
 /* ???  As PR71762 notices this transform causes wrong-code issues in RTL
    with one uninitialized operand, thus it has been disabled.  */
 
-/* { dg-final { scan-tree-dump-times "simplified to if \\\(\[^ ]* <" 4 "forwprop1" { xfail *-*-* } } } */
+/* { dg-final { scan-tree-dump-times "simplified to if \\\(\[^ ]* \[<>\]" 4 "forwprop1" { xfail *-*-* } } } */
 

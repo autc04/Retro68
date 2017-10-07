@@ -499,7 +499,7 @@ or to:
 @end group
 @end smallexample
 
-The Xtensa assempler uses trampolines with jump around only when it cannot
+The Xtensa assembler uses trampolines with jump around only when it cannot
 find suitable unreachable trampoline.  There may be multiple trampolines
 between the jump instruction and its target.
 

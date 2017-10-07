@@ -1,0 +1,25 @@
+.*: +file format .*
+
+
+Disassembly of section .plt:
+
+0+400260 <.plt>:
+ +[a-f0-9]+:	ff 35 62 01 20 00    	pushq  0x200162\(%rip\)        # 6003c8 <_GLOBAL_OFFSET_TABLE_\+0x8>
+ +[a-f0-9]+:	f2 ff 25 63 01 20 00 	bnd jmpq \*0x200163\(%rip\)        # 6003d0 <_GLOBAL_OFFSET_TABLE_\+0x10>
+ +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
+ +[a-f0-9]+:	68 00 00 00 00       	pushq  \$0x0
+ +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmpq 400260 <.plt>
+ +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+
+Disassembly of section .plt.sec:
+
+0+400280 <call1@plt>:
+ +[a-f0-9]+:	f2 ff 25 51 01 20 00 	bnd jmpq \*0x200151\(%rip\)        # 6003d8 <call1>
+ +[a-f0-9]+:	90                   	nop
+
+Disassembly of section .text:
+
+0+400288 <_start>:
+ +[a-f0-9]+:	bf 80 02 40 00       	mov    \$0x400280,%edi
+ +[a-f0-9]+:	f2 ff d7             	bnd callq \*%rdi
+#pass

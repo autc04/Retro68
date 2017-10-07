@@ -97,7 +97,7 @@ _DEFUN(memwriter, (ptr, cookie, buf, n),
        struct _reent *ptr _AND
        void *cookie _AND
        const char *buf _AND
-       int n)
+       _READ_WRITE_BUFSIZE_TYPE n)
 {
   memstream *c = (memstream *) cookie;
   char *cbuf = *c->pbuf;
@@ -313,12 +313,12 @@ _DEFUN(internal_open_memstream_r, (ptr, buf, size, wide),
     return NULL;
   if ((c = (memstream *) _malloc_r (ptr, sizeof *c)) == NULL)
     {
-      __sfp_lock_acquire ();
+      _newlib_sfp_lock_start ();
       fp->_flags = 0;		/* release */
 #ifndef __SINGLE_THREAD__
       __lock_close_recursive (fp->_lock);
 #endif
-      __sfp_lock_release ();
+      _newlib_sfp_lock_end ();
       return NULL;
     }
   /* Use *size as a hint for initial sizing, but bound the initial
@@ -338,12 +338,12 @@ _DEFUN(internal_open_memstream_r, (ptr, buf, size, wide),
   *buf = _malloc_r (ptr, c->max);
   if (!*buf)
     {
-      __sfp_lock_acquire ();
+      _newlib_sfp_lock_start ();
       fp->_flags = 0;		/* release */
 #ifndef __SINGLE_THREAD__
       __lock_close_recursive (fp->_lock);
 #endif
-      __sfp_lock_release ();
+      _newlib_sfp_lock_end ();
       _free_r (ptr, c);
       return NULL;
     }
@@ -355,11 +355,12 @@ _DEFUN(internal_open_memstream_r, (ptr, buf, size, wide),
   c->storage = c;
   c->pbuf = buf;
   c->psize = size;
+  c->pos = 0;
   c->eof = 0;
   c->saved.w = L'\0';
   c->wide = (int8_t) wide;
 
-  _flockfile (fp);
+  _newlib_flockfile_start (fp);
   fp->_file = -1;
   fp->_flags = __SWR;
   fp->_cookie = c;
@@ -372,7 +373,7 @@ _DEFUN(internal_open_memstream_r, (ptr, buf, size, wide),
 #endif
   fp->_close = memcloser;
   ORIENT (fp, wide);
-  _funlockfile (fp);
+  _newlib_flockfile_end (fp);
   return fp;
 }
 

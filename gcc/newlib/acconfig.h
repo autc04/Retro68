@@ -52,8 +52,29 @@
 /* Define if the platform supports long double type.  */
 #undef  _HAVE_LONG_DOUBLE
 
+/* Define if compiler supports -fno-tree-loop-distribute-patterns. */
+#undef  _HAVE_CC_INHIBIT_LOOP_TO_LIBCALL
+
 /* Define if the platform long double type is equal to double.  */
 #undef  _LDBL_EQ_DBL
+ 
+/* Define if ivo supported in streamio.  */
+#undef _FVWRITE_IN_STREAMIO
+
+/* Define if fseek functions support seek optimization.  */
+#undef _FSEEK_OPTIMIZATION
+
+/* Define if wide char orientation is supported.  */
+#undef  _WIDE_ORIENT
+
+/* Define if unbuffered stream file optimization is supported.  */
+#undef _UNBUF_STREAM_OPT
+
+/* Define if enable lite version of exit.  */
+#undef _LITE_EXIT
+
+/* Define if nano version formatted IO is used.  */
+#undef _NANO_FORMATTED_IO
 
 @BOTTOM@
 /*

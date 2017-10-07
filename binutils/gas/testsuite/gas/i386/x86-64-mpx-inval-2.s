@@ -18,14 +18,20 @@
 	### bndcl
 	bndcl (%ecx), %bnd1
 	bndcl 0x3(%ecx,%eax,1), %bnd1
+	bndcl %ecx, %bnd1
+	bndcl %cx, %bnd1
 
 	### bndcu
 	bndcu (%ecx), %bnd1
 	bndcu 0x3(%ecx,%eax,1), %bnd1
+	bndcu %ecx, %bnd1
+	bndcu %cx, %bnd1
 
 	### bndcn
 	bndcn (%ecx), %bnd1
 	bndcn 0x3(%ecx,%eax,1), %bnd1
+	bndcn %ecx, %bnd1
+	bndcn %cx, %bnd1
 
 	### bndstx
 	bndstx %bnd0, 0x3(%eax,%ebx,1)
@@ -46,6 +52,7 @@
 	bndmk bnd1, [edx+1*eax+0x3]
 	bndmk bnd3, [rip]
 	bndmk bnd2, [eip]
+	bndmk bnd2, [rax+rsp]
 
 	### bndmov
 	bndmov bnd1, [eax]
@@ -57,14 +64,20 @@
 	### bndcl
 	bndcl bnd1, [eax]
 	bndcl bnd1, [edx+1*eax+0x3]
+	bndcl bnd1, eax
+	bndcl bnd1, dx
 
 	### bndcu
 	bndcu bnd1, [eax]
 	bndcu bnd1, [edx+1*eax+0x3]
+	bndcu bnd1, eax
+	bndcu bnd1, dx
 
 	### bndcn
 	bndcn bnd1, [eax]
 	bndcn bnd1, [edx+1*eax+0x3]
+	bndcn bnd1, eax
+	bndcn bnd1, dx
 
 	### bndstx
 	bndstx [eax+ebx*1+0x3], bnd0
@@ -72,6 +85,7 @@
 	bndstx [r8+rdi*4], bnd2
 	bndstx [rip+base], bnd1
 	bndstx [eip+base], bnd3
+	bndstx [rax+rsp], bnd3
 
 	### bndldx
 	bndldx bnd0, [eax+ebx*1+0x3]
@@ -79,3 +93,7 @@
 	bndldx bnd2, [rdi+r8*8]
 	bndldx bnd1, [rip+base]
 	bndldx bnd3, [eip+base]
+	bndldx bnd3, [rax+rsp]
+
+	# Force a good alignment.
+	.p2align	4,0

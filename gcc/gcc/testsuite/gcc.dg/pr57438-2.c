@@ -4,7 +4,7 @@
 
 /* This is testing that a trailing local label is followed by a
    nop where required.  */
-
+   
 int foo (int x)
 {
   switch (x)

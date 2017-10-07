@@ -1,6 +1,6 @@
 #name: Valid v8-A barrier (ARM)
 #as: -march=armv8-a
-#source: armv8-a-barrier.s
+#source: armv8-ar-barrier.s
 #objdump: -dr --prefix-addresses --show-raw-insn
 
 .*: +file format .*arm.*

@@ -635,7 +635,7 @@ parse_addr_op (const char *line, metag_addr *addr)
   return NULL;
 }
 
-/* Parse the immediate portion of an addrssing mode.  */
+/* Parse the immediate portion of an addressing mode.  */
 static const char *
 parse_imm_addr (const char *line, metag_addr *addr)
 {
@@ -4099,7 +4099,7 @@ __parse_dsp_reg (const char *line, const metag_reg **reg, htab_t dsp_regtab)
   /* We don't entirely strip the register name because we might
      actually want to match whole string in the register table,
      e.g. "D0AW.1++" not just "D0AW.1". The string length of the table
-     entry limits our comaprison to a reasonable bound anyway.  */
+     entry limits our comparison to a reasonable bound anyway.  */
   while (is_register_char (*l) || *l == PLUS)
     {
       name[len] = *l;
@@ -5506,7 +5506,7 @@ parse_dalu (const char *line, metag_insn *insn,
 	  insn->bits |= (1 << 2);
 	}
 
-      /* Check for template definitons.  */
+      /* Check for template definitions.  */
       if (IS_TEMPLATE_DEF (insn))
 	{
 	  l = interpret_template_regs(l, insn, regs, regs_shift, &load,

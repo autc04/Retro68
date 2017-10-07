@@ -21,7 +21,7 @@
 #include "sysdep.h"
 #include <stdio.h>
 #include "opcode/mn10300.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opintl.h"
 
 #define HAVE_AM33_2 (info->mach == AM33_2)

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2017, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -38,14 +38,14 @@ package Gnatvsn is
    --  Static string identifying this version, that can be used as an argument
    --  to e.g. pragma Ident.
 
-   Library_Version : constant String := "6";
+   Library_Version : constant String := "7";
    --  Library version. It needs to be updated whenever the major or
    --  minor version number is changed.
    --
    --  Note: Makefile.in uses the library version string to construct the
    --  soname value.
 
-   Current_Year : constant String := "2016";
+   Current_Year : constant String := "2017";
    --  Used in printing copyright messages
 
    Verbose_Library_Version : constant String := "GNAT Lib v" & Library_Version;

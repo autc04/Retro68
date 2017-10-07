@@ -234,7 +234,7 @@ static struct
     struct hash_control *const_hash;	/* constant hash table */
     struct hash_control *entry_hash;    /* code entry hint hash table */
 
-    /* If X_op is != O_absent, the registername for the instruction's
+    /* If X_op is != O_absent, the register name for the instruction's
        qualifying predicate.  If NULL, p0 is assumed for instructions
        that are predictable.  */
     expressionS qp;
@@ -1139,7 +1139,7 @@ obj_elf_vms_common (int ignore ATTRIBUTE_UNUSED)
   demand_empty_rest_of_line ();
 
   obj_elf_change_section
-    (sec_name, SHT_NOBITS,
+    (sec_name, SHT_NOBITS, 0,
      SHF_ALLOC | SHF_WRITE | SHF_IA_64_VMS_OVERLAID | SHF_IA_64_VMS_GLOBAL,
      0, NULL, 1, 0);
 
@@ -2801,7 +2801,7 @@ fixup_unw_records (unw_rec_list *list, int before_relax)
   for (ptr = list; ptr; ptr = ptr->next)
     {
       if (ptr->slot_number == SLOT_NUM_NOT_SET)
-	as_bad (_(" Insn slot not set in unwind record."));
+	as_bad (_("Insn slot not set in unwind record."));
       t = slot_index (ptr->slot_number, ptr->slot_frag,
 		      first_addr, first_frag, before_relax);
       switch (ptr->r.type)
@@ -3373,7 +3373,7 @@ dot_save (int dummy ATTRIBUTE_UNUSED)
     e2.X_op = O_absent;
 
   reg1 = e1.X_add_number;
-  /* Make sure its a valid ar.xxx reg, OR its br0, aka 'rp'.  */
+  /* Make sure it's a valid ar.xxx reg, OR its br0, aka 'rp'.  */
   if (e1.X_op != O_register)
     {
       as_bad (_("First operand to .save not a register"));
@@ -3765,7 +3765,7 @@ dot_savemem (int psprel)
   reg1 = e1.X_add_number;
   val = e2.X_add_number;
 
-  /* Make sure its a valid ar.xxx reg, OR its br0, aka 'rp'.  */
+  /* Make sure it's a valid ar.xxx reg, OR its br0, aka 'rp'.  */
   if (e1.X_op != O_register)
     {
       as_bad (_("First operand to .%s not a register"), po);

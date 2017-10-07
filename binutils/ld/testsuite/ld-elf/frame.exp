@@ -64,7 +64,7 @@ if { ![ld_assemble_flags $as $as_opt $srcdir/$subdir/tbss.s tmpdir/tbss.o ]
     return
 }
 
-if { [ld_simple_link $ld tmpdir/frame.so "--shared tmpdir/frame.o tmpdir/tbss.o"] } {
+if { [ld_link $ld tmpdir/frame.so "--shared tmpdir/frame.o tmpdir/tbss.o"] } {
     pass "$test1"
 } else {
     if [string match "*shared not supported*" $link_output] {
@@ -79,7 +79,7 @@ if ![ld_assemble_flags $as $as_opt $srcdir/$subdir/table.s tmpdir/table.o ] {
     return
 }
 
-if { [ld_simple_link $ld tmpdir/table.so "--shared tmpdir/table.o tmpdir/tbss.o"] } {
+if { [ld_link $ld tmpdir/table.so "--shared tmpdir/table.o tmpdir/tbss.o"] } {
     pass "$test2"
 } else {
     if [string match "*shared not supported*" $link_output] {

@@ -350,7 +350,7 @@ typedef struct
 
 #define GET_INIT_SYMBOL_NAME(IDX) \
   (init[(IDX)].symbol \
-  + ((init[(IDX)].is_c_symbol == FALSE || (is_underscoring () == 1)) ? 0 : 1))
+   + ((!init[(IDX)].is_c_symbol || is_underscoring () == 1) ? 0 : 1))
 
 /* Decorates the C visible symbol by underscore, if target requires.  */
 #define U(CSTR) \
@@ -1075,7 +1075,7 @@ pep_fixup_stdcalls (void)
 }
 
 static int
-make_import_fixup (arelent *rel, asection *s)
+make_import_fixup (arelent *rel, asection *s, char *name)
 {
   struct bfd_symbol *sym = *rel->sym_ptr_ptr;
   char addend[8];
@@ -1089,32 +1089,32 @@ make_import_fixup (arelent *rel, asection *s)
   memset (addend, 0, sizeof (addend));
   switch ((rel->howto->bitsize))
     {
-      case 8:
-        suc = bfd_get_section_contents (s->owner, s, addend, rel->address, 1);
-        if (suc && rel->howto->pc_relative)
-          _addend = (bfd_vma) ((bfd_signed_vma) ((char) bfd_get_8 (s->owner, addend)));
-        else if (suc)
-          _addend = ((bfd_vma) bfd_get_8 (s->owner, addend)) & 0xff;
-        break;
-      case 16:
-        suc = bfd_get_section_contents (s->owner, s, addend, rel->address, 2);
-        if (suc && rel->howto->pc_relative)
-          _addend = (bfd_vma) ((bfd_signed_vma) ((short) bfd_get_16 (s->owner, addend)));
-        else if (suc)
-          _addend = ((bfd_vma) bfd_get_16 (s->owner, addend)) & 0xffff;
-        break;
-      case 32:
-        suc = bfd_get_section_contents (s->owner, s, addend, rel->address, 4);
-        if (suc && rel->howto->pc_relative)
-          _addend = (bfd_vma) ((bfd_signed_vma) ((int) bfd_get_32 (s->owner, addend)));
-        else if (suc)
-          _addend = ((bfd_vma) bfd_get_32 (s->owner, addend)) & 0xffffffff;
-        break;
-      case 64:
-        suc = bfd_get_section_contents (s->owner, s, addend, rel->address, 8);
-        if (suc)
-          _addend = ((bfd_vma) bfd_get_64 (s->owner, addend));
-        break;
+    case 8:
+      suc = bfd_get_section_contents (s->owner, s, addend, rel->address, 1);
+      if (suc && rel->howto->pc_relative)
+	_addend = bfd_get_signed_8 (s->owner, addend);
+      else if (suc)
+	_addend = bfd_get_8 (s->owner, addend);
+      break;
+    case 16:
+      suc = bfd_get_section_contents (s->owner, s, addend, rel->address, 2);
+      if (suc && rel->howto->pc_relative)
+	_addend = bfd_get_signed_16 (s->owner, addend);
+      else if (suc)
+	_addend = bfd_get_16 (s->owner, addend);
+      break;
+    case 32:
+      suc = bfd_get_section_contents (s->owner, s, addend, rel->address, 4);
+      if (suc && rel->howto->pc_relative)
+	_addend = bfd_get_signed_32 (s->owner, addend);
+      else if (suc)
+	_addend = bfd_get_32 (s->owner, addend);
+      break;
+    case 64:
+      suc = bfd_get_section_contents (s->owner, s, addend, rel->address, 8);
+      if (suc)
+	_addend = bfd_get_64 (s->owner, addend);
+      break;
     }
   if (! suc)
     einfo (_("%C: Cannot get section contents - auto-import exception\n"),
@@ -1122,11 +1122,13 @@ make_import_fixup (arelent *rel, asection *s)
 
   if (pep_dll_extra_pe_debug)
     {
-      printf ("import of 0x%lx(0x%lx) sec_addr=0x%lx", (long) _addend, (long) rel->addend, (long) rel->address);
-      if (rel->howto->pc_relative) printf (" pcrel");
-      printf (" %d bit rel.\n",(int) rel->howto->bitsize);
-  }
-  pep_create_import_fixup (rel, s, _addend);
+      printf ("import of 0x%lx(0x%lx) sec_addr=0x%lx",
+	      (long) _addend, (long) rel->addend, (long) rel->address);
+      if (rel->howto->pc_relative)
+	printf (" pcrel");
+      printf (" %d bit rel.\n", (int) rel->howto->bitsize);
+    }
+  pep_create_import_fixup (rel, s, _addend, name);
 
   return 1;
 }
@@ -1135,32 +1137,46 @@ static void
 pep_find_data_imports (void)
 {
   struct bfd_link_hash_entry *undef, *sym;
+  size_t namelen;
+  char *buf, *name;
 
   if (link_info.pei386_auto_import == 0)
     return;
 
-  for (undef = link_info.hash->undefs; undef; undef=undef->u.undef.next)
+  namelen = 0;
+  for (undef = link_info.hash->undefs; undef; undef = undef->u.undef.next)
     {
       if (undef->type == bfd_link_hash_undefined)
 	{
-	  /* C++ symbols are *long*.  */
-#define BUF_SIZE 4096
-	  char buf[BUF_SIZE];
+	  size_t len = strlen (undef->root.string);
+	  if (namelen < len)
+	    namelen = len;
+	}
+    }
+  if (namelen == 0)
+    return;
+
+  /* We are being a bit cunning here.  The buffer will have space for
+     prefixes at the beginning.  The prefix is modified here and in a
+     number of functions called from this function.  */
+#define PREFIX_LEN 32
+  buf = xmalloc (PREFIX_LEN + namelen + 1);
+  name = buf + PREFIX_LEN;
+
+  for (undef = link_info.hash->undefs; undef; undef = undef->u.undef.next)
+    {
+      if (undef->type == bfd_link_hash_undefined)
+	{
+	  char *impname;
 
 	  if (pep_dll_extra_pe_debug)
 	    printf ("%s:%s\n", __FUNCTION__, undef->root.string);
 
-	  if (strlen (undef->root.string) > (BUF_SIZE - 6))
-	    {
-	      /* PR linker/18466.  */
-	      einfo (_("%P: internal error: symbol too long: %s\n"),
-		     undef->root.string);
-	      return;
-	    }
+	  strcpy (name, undef->root.string);
+	  impname = name - (sizeof "__imp_" - 1);
+	  memcpy (impname, "__imp_", sizeof "__imp_" - 1);
 
-	  sprintf (buf, "__imp_%s", undef->root.string);
-
-	  sym = bfd_link_hash_lookup (link_info.hash, buf, 0, 0, 1);
+	  sym = bfd_link_hash_lookup (link_info.hash, impname, 0, 0, 1);
 
 	  if (sym && sym->type == bfd_link_hash_defined)
 	    {
@@ -1185,13 +1201,12 @@ pep_find_data_imports (void)
 		  if (pep_dll_extra_pe_debug)
 		    printf ("->%s\n", symbols[i]->name);
 
-		  pep_data_import_dll = (char*) (symbols[i]->name +
-						 U_SIZE ("_head_") - 1);
+		  pep_data_import_dll = (char *) (symbols[i]->name
+						  + U_SIZE ("_head_") - 1);
 		  break;
 		}
 
-	      pep_walk_relocs_of_symbol (&link_info, undef->root.string,
-					 make_import_fixup);
+	      pep_walk_relocs_of_symbol (&link_info, name, make_import_fixup);
 
 	      /* Let's differentiate it somehow from defined.  */
 	      undef->type = bfd_link_hash_defweak;
@@ -1204,6 +1219,7 @@ pep_find_data_imports (void)
 	    }
 	}
     }
+  free (buf);
 }
 
 static bfd_boolean

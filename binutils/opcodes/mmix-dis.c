@@ -22,7 +22,7 @@
 #include "sysdep.h"
 #include <stdio.h>
 #include "opcode/mmix.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "libiberty.h"
 #include "bfd.h"
 #include "opintl.h"

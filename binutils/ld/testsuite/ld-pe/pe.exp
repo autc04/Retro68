@@ -76,6 +76,8 @@ run_dump_test "longsecn-5"
 run_dump_test "orphan"
 run_dump_test "orphan_nu"
 
+run_dump_test "weakdef-1"
+
 run_dump_test "pr19803"
 set pr19803_dll {
     {   "PR 19803: not exporting swept symbols"

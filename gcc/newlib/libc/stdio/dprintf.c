@@ -19,12 +19,13 @@ INDEX
 ANSI_SYNOPSIS
 	#include <stdio.h>
 	#include <stdarg.h>
-	int dprintf(int <[fd]>, const char *<[format]>, ...);
-	int vdprintf(int <[fd]>, const char *<[format]>, va_list <[ap]>);
+	int dprintf(int <[fd]>, const char *restrict <[format]>, ...);
+	int vdprintf(int <[fd]>, const char *restrict <[format]>,
+			va_list <[ap]>);
 	int _dprintf_r(struct _reent *<[ptr]>, int <[fd]>,
-			const char *<[format]>, ...);
+			const char *restrict <[format]>, ...);
 	int _vdprintf_r(struct _reent *<[ptr]>, int <[fd]>,
-			const char *<[format]>, va_list <[ap]>);
+			const char *restrict <[format]>, va_list <[ap]>);
 
 DESCRIPTION
 <<dprintf>> and <<vdprintf>> allow printing a format, similarly to
@@ -55,7 +56,7 @@ int
 _DEFUN(_dprintf_r, (ptr, fd, format),
        struct _reent *ptr _AND
        int fd _AND
-       const char *format _DOTS)
+       const char *__restrict format _DOTS)
 {
 	va_list ap;
 	int n;
@@ -66,12 +67,18 @@ _DEFUN(_dprintf_r, (ptr, fd, format),
 	return n;
 }
 
+#ifdef _NANO_FORMATTED_IO
+int
+_EXFUN(_diprintf_r, (struct _reent *, int, const char *, ...)
+       _ATTRIBUTE ((__alias__("_dprintf_r"))));
+#endif
+
 #ifndef _REENT_ONLY
 
 int
 _DEFUN(dprintf, (fd, format),
        int fd _AND
-       const char *format _DOTS)
+       const char *__restrict format _DOTS)
 {
   va_list ap;
   int n;
@@ -84,4 +91,9 @@ _DEFUN(dprintf, (fd, format),
   return n;
 }
 
+#ifdef _NANO_FORMATTED_IO
+int
+_EXFUN(diprintf, (int, const char *, ...)
+       _ATTRIBUTE ((__alias__("dprintf"))));
+#endif
 #endif /* ! _REENT_ONLY */

@@ -114,7 +114,7 @@ proc run_sh64relaxtest {sh64relaxtests} {
 	# disabled.  Hence the lax checking here.
 	
 	file delete $binfile
-	set result [ld_simple_link $ld $binfile " --no-warn-mismatch $ld_options $objfiles"]
+	set result [ld_link $ld $binfile " --no-warn-mismatch $ld_options $objfiles"]
 	if ![file exists $binfile] {
 	    
 	    if {$expect_relaxed == -1} {

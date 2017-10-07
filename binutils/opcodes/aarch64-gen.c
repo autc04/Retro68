@@ -143,9 +143,9 @@ read_table (const struct aarch64_opcode* table)
       /* F_PSEUDO needs to be used together with F_ALIAS to indicate an alias
 	 opcode is a programmer friendly pseudo instruction available only in
 	 the assembly code (thus will not show up in the disassembly).  */
-      assert (pseudo_opcode_p (ent) == FALSE || alias_opcode_p (ent) == TRUE);
+      assert (!pseudo_opcode_p (ent) || alias_opcode_p (ent));
       /* Skip alias (inc. pseudo) opcode.  */
-      if (alias_opcode_p (ent) == TRUE)
+      if (alias_opcode_p (ent))
 	{
 	  index++;
 	  continue;
@@ -704,7 +704,7 @@ find_alias_opcode (const aarch64_opcode *opcode)
       /* The mask of an alias opcode must be equal to or a super-set (i.e.
 	 more constrained) of that of the aliased opcode; so is the base
 	 opcode value.  */
-      if (alias_opcode_p (ent) == TRUE
+      if (alias_opcode_p (ent)
 	  && (ent->mask & opcode->mask) == opcode->mask
 	  && (opcode->mask & ent->opcode) == (opcode->mask & opcode->opcode))
 	{

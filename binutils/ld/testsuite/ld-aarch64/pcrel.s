@@ -1,3 +1,4 @@
+	.hidden global_b
 	.text
 	.align 2
 main:
@@ -18,3 +19,8 @@ main:
 	.word	global_a - .
 	.xword	global_a - .
 
+	# Defined global symbol may bind externally because of copy relocation,
+	# while defined hidden symbol binds locally.  LD should be able to
+	# differenciate this.
+	adrp	x0, :pg_hi21:global_b
+	.xword	global_b - .

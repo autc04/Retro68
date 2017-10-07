@@ -26,9 +26,9 @@ _DEFUN (_mbrtowc_r, (ptr, pwc, s, n, ps),
 #endif
 
   if (s == NULL)
-    retval = __mbtowc (ptr, NULL, "", 1, __locale_charset (), ps);
+    retval = __MBTOWC (ptr, NULL, "", 1, ps);
   else
-    retval = __mbtowc (ptr, pwc, s, n, __locale_charset (), ps);
+    retval = __MBTOWC (ptr, pwc, s, n, ps);
 
   if (retval == -1)
     {
@@ -43,33 +43,34 @@ _DEFUN (_mbrtowc_r, (ptr, pwc, s, n, ps),
 #ifndef _REENT_ONLY
 size_t
 _DEFUN (mbrtowc, (pwc, s, n, ps),
-	wchar_t *pwc _AND
-	const char *s _AND
+	wchar_t *__restrict pwc _AND
+	const char *__restrict s _AND
 	size_t n _AND
-	mbstate_t *ps)
+	mbstate_t *__restrict ps)
 {
 #if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
   return _mbrtowc_r (_REENT, pwc, s, n, ps);
 #else
   int retval = 0;
+  struct _reent *reent = _REENT;
 
 #ifdef _MB_CAPABLE
   if (ps == NULL)
     {
-      _REENT_CHECK_MISC(_REENT);
-      ps = &(_REENT_MBRTOWC_STATE(_REENT));
+      _REENT_CHECK_MISC(reent);
+      ps = &(_REENT_MBRTOWC_STATE(reent));
     }
 #endif
 
   if (s == NULL)
-    retval = __mbtowc (_REENT, NULL, "", 1, __locale_charset (), ps);
+    retval = __MBTOWC (reent, NULL, "", 1, ps);
   else
-    retval = __mbtowc (_REENT, pwc, s, n, __locale_charset (), ps);
+    retval = __MBTOWC (reent, pwc, s, n, ps);
 
   if (retval == -1)
     {
       ps->__count = 0;
-      _REENT->_errno = EILSEQ;
+      reent->_errno = EILSEQ;
       return (size_t)(-1);
     }
   else

@@ -41,7 +41,7 @@
   will affect the page they are on, as well as any subsequent page
 
  .eject
- 	Thow a page
+ 	Throw a page
  .list
  	Increment the enable listing counter
  .nolist

@@ -129,12 +129,12 @@ static const char digs[] = "0123456789ABCDEF";
 /* The number of data bytes we actually fit onto a line on output.
    This variable can be modified by objcopy's --srec-len parameter.
    For a 0x75 byte record you should set --srec-len=0x70.  */
-unsigned int Chunk = DEFAULT_CHUNK;
+unsigned int _bfd_srec_len = DEFAULT_CHUNK;
 
 /* The type of srec output (free or forced to S3).
    This variable can be modified by objcopy's --srec-forceS3
    parameter.  */
-bfd_boolean S3Forced = FALSE;
+bfd_boolean _bfd_srec_forceS3 = FALSE;
 
 /* When writing an S-record file, the S-records can not be output as
    they are seen.  This structure is used to hold them in memory.  */
@@ -904,9 +904,9 @@ srec_set_section_contents (bfd *abfd,
 	return FALSE;
       memcpy ((void *) data, location, (size_t) bytes_to_do);
 
-      /* Ff S3Forced is TRUE then always select S3 records,
-	 regardless of the siez of the addresses.  */
-      if (S3Forced)
+      /* If _bfd_srec_forceS3 is TRUE then always select S3 records,
+	 regardless of the size of the addresses.  */
+      if (_bfd_srec_forceS3)
 	tdata->type = 3;
       else if ((section->lma + (offset + bytes_to_do) / opb - 1) <= 0xffff)
 	;  /* The default, S1, is OK.  */
@@ -1040,18 +1040,18 @@ srec_write_section (bfd *abfd,
      have three, and S3 (tdata->type == 3) records have four.
      The total length can't exceed 255, and a zero data length will
      spin for a long time.  */
-  if (Chunk == 0)
-    Chunk = 1;
-  else if (Chunk > MAXCHUNK - tdata->type - 2)
-    Chunk = MAXCHUNK - tdata->type - 2;
+  if (_bfd_srec_len == 0)
+    _bfd_srec_len = 1;
+  else if (_bfd_srec_len > MAXCHUNK - tdata->type - 2)
+    _bfd_srec_len = MAXCHUNK - tdata->type - 2;
 
   while (octets_written < list->size)
     {
       bfd_vma address;
       unsigned int octets_this_chunk = list->size - octets_written;
 
-      if (octets_this_chunk > Chunk)
-	octets_this_chunk = Chunk;
+      if (octets_this_chunk > _bfd_srec_len)
+	octets_this_chunk = _bfd_srec_len;
 
       address = list->where + octets_written / bfd_octets_per_byte (abfd);
 
@@ -1278,6 +1278,7 @@ srec_print_symbol (bfd *abfd,
 #define srec_bfd_discard_group                    bfd_generic_discard_group
 #define srec_section_already_linked               _bfd_generic_section_already_linked
 #define srec_bfd_define_common_symbol             bfd_generic_define_common_symbol
+#define srec_bfd_define_start_stop                bfd_generic_define_start_stop
 #define srec_bfd_link_hash_table_create           _bfd_generic_link_hash_table_create
 #define srec_bfd_link_add_symbols                 _bfd_generic_link_add_symbols
 #define srec_bfd_link_just_syms                   _bfd_generic_link_just_syms

@@ -20,7 +20,7 @@
 #include "as.h"
 #include "te-vms.h"
 
-/* The purspose of the two alternate versions below is to have one that
+/* The purpose of the two alternate versions below is to have one that
    works for native VMS and one that works on an NFS mounted filesystem
    (Unix Server/VMS client).  The main issue being to generate the special
    VMS file timestamps for the debug info.  */

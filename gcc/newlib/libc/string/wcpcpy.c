@@ -4,12 +4,12 @@ FUNCTION
 
 ANSI_SYNOPSIS
 	#include <wchar.h>
-	wchar_t *wcpcpy(wchar_t *<[s1]>, const wchar_t *,<[s2]>);
+	wchar_t *wcpcpy(wchar_t *<[s1]>, const wchar_t *<[s2]>);
 
 TRAD_SYNOPSIS
 	wchar_t *wcpcpy(<[s1]>, <[s2]>
-	wchar_t *<[s1]>;
-	const wchar_t *<[s2]>;
+	wchar_t *__restrict <[s1]>;
+	const wchar_t *__restrict <[s2]>;
 
 DESCRIPTION
 	The <<wcpcpy>> function copies the wide-character string pointed to by
@@ -32,8 +32,8 @@ No supporting OS subroutines are required.
 
 wchar_t *
 _DEFUN (wcpcpy, (s1, s2),
-	wchar_t * s1 _AND
-	_CONST wchar_t * s2)
+	wchar_t *__restrict s1 _AND
+	_CONST wchar_t *__restrict s2)
 {
   while ((*s1++ = *s2++))
     ;

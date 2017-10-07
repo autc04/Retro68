@@ -148,12 +148,12 @@ if { ![ld_assemble_flags $as "-mpic -mpid=near" $srcdir/$subdir/shlib-1.s tmpdir
      || ![ld_assemble_flags $as "-mpic -mpid=near -mbig-endian" $srcdir/$subdir/shlib-1.s tmpdir/shlib-1b.o]
      || ![ld_assemble_flags $as "-mpic -mpid=near -mbig-endian" $srcdir/$subdir/shlib-2.s tmpdir/shlib-2b.o]
      || ![ld_assemble_flags $as -mbig-endian $srcdir/$subdir/shlib-app-1.s tmpdir/shlib-app-1b.o]
-     || ![ld_simple_link $ld tmpdir/libtest.so "-shared tmpdir/shlib-1.o tmpdir/shlib-2.o"]
-     || ![ld_simple_link $ld tmpdir/libtestb.so "-shared -EB tmpdir/shlib-1b.o tmpdir/shlib-2b.o"]
-     || ![ld_simple_link $ld tmpdir/shlib.o "-r tmpdir/shlib-1.o tmpdir/shlib-2.o"]
-     || ![ld_simple_link $ld tmpdir/shlibb.o "-r -EB tmpdir/shlib-1b.o tmpdir/shlib-2b.o"]
-     || ![ld_simple_link $ld tmpdir/dynapp-1 "tmpdir/libtest.so tmpdir/shlib-app-1.o"]
-     || ![ld_simple_link $ld tmpdir/dynapp-1b "-EB tmpdir/libtestb.so tmpdir/shlib-app-1b.o"] } {
+     || ![ld_link $ld tmpdir/libtest.so "-shared tmpdir/shlib-1.o tmpdir/shlib-2.o"]
+     || ![ld_link $ld tmpdir/libtestb.so "-shared -EB tmpdir/shlib-1b.o tmpdir/shlib-2b.o"]
+     || ![ld_link $ld tmpdir/shlib.o "-r tmpdir/shlib-1.o tmpdir/shlib-2.o"]
+     || ![ld_link $ld tmpdir/shlibb.o "-r -EB tmpdir/shlib-1b.o tmpdir/shlib-2b.o"]
+     || ![ld_link $ld tmpdir/dynapp-1 "tmpdir/libtest.so tmpdir/shlib-app-1.o"]
+     || ![ld_link $ld tmpdir/dynapp-1b "-EB tmpdir/libtestb.so tmpdir/shlib-app-1b.o"] } {
     unresolved "TIC6X OSABI tests"
     return
 }

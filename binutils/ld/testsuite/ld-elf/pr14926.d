@@ -1,6 +1,6 @@
 #ld: -Ttext=0x60
 #readelf: -S --wide
-#notarget: d10v-* m68hc1*-* msp*-* visium-* xgate-* xstormy*-*
+#notarget: d10v-* m68hc1*-* msp*-* visium-* xgate-* xstormy*-* pru-*-*
 # the above targets use memory regions that don't allow 0x60 for .text
 
 #...

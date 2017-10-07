@@ -11,49 +11,49 @@ Disassembly of section \.text:
 [ 0-9a-f]+ <foo>:
 [ 0-9a-f]+:	eb9a      	div	\$0,\$3,\$4
 [ 0-9a-f]+:	2c01      	bnez	\$4,[0-9a-f]+ <[^>]*>
-[ 0-9a-f]+:	e8e5      	break	7
+[ 0-9a-f]+:	e8e5      	break	0x7
 [ 0-9a-f]+:	ea12      	mflo	\$2
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	ecbb      	divu	\$0,\$4,\$5
 [ 0-9a-f]+:	2d01      	bnez	\$5,[0-9a-f]+ <[^>]*>
-[ 0-9a-f]+:	e8e5      	break	7
+[ 0-9a-f]+:	e8e5      	break	0x7
 [ 0-9a-f]+:	eb12      	mflo	\$3
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	edde      	ddiv	\$0,\$5,\$6
 [ 0-9a-f]+:	2e01      	bnez	\$6,[0-9a-f]+ <[^>]*>
-[ 0-9a-f]+:	e8e5      	break	7
+[ 0-9a-f]+:	e8e5      	break	0x7
 [ 0-9a-f]+:	ec12      	mflo	\$4
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	eeff      	ddivu	\$0,\$6,\$7
 [ 0-9a-f]+:	2f01      	bnez	\$7,[0-9a-f]+ <[^>]*>
-[ 0-9a-f]+:	e8e5      	break	7
+[ 0-9a-f]+:	e8e5      	break	0x7
 [ 0-9a-f]+:	ed12      	mflo	\$5
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	ef1a      	div	\$0,\$7,\$16
 [ 0-9a-f]+:	2801      	bnez	\$16,[0-9a-f]+ <[^>]*>
-[ 0-9a-f]+:	e8e5      	break	7
+[ 0-9a-f]+:	e8e5      	break	0x7
 [ 0-9a-f]+:	ee10      	mfhi	\$6
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	ef3b      	divu	\$0,\$7,\$17
 [ 0-9a-f]+:	2901      	bnez	\$17,[0-9a-f]+ <[^>]*>
-[ 0-9a-f]+:	e8e5      	break	7
+[ 0-9a-f]+:	e8e5      	break	0x7
 [ 0-9a-f]+:	ee10      	mfhi	\$6
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	eb9e      	ddiv	\$0,\$3,\$4
 [ 0-9a-f]+:	2c01      	bnez	\$4,[0-9a-f]+ <[^>]*>
-[ 0-9a-f]+:	e8e5      	break	7
+[ 0-9a-f]+:	e8e5      	break	0x7
 [ 0-9a-f]+:	ea10      	mfhi	\$2
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	ecbf      	ddivu	\$0,\$4,\$5
 [ 0-9a-f]+:	2d01      	bnez	\$5,[0-9a-f]+ <[^>]*>
-[ 0-9a-f]+:	e8e5      	break	7
+[ 0-9a-f]+:	e8e5      	break	0x7
 [ 0-9a-f]+:	eb10      	mfhi	\$3
 [ 0-9a-f]+:	6500      	nop
 [ 0-9a-f]+:	6500      	nop

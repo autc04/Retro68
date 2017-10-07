@@ -6,5 +6,5 @@
 #xfail: mips64vr-*-* msp430-*-* powerpc*-*-eabivle rl78-*-* rx-*-* sh*-*-*
 
 #...
-0*[1-9a-f]+[0-9a-f]*[ 	](D)[ 	]_*__start_my_section
+0*[1-9a-f]+[0-9a-f]*[ 	](d|D)[ 	]_*__start_my_section
 #...

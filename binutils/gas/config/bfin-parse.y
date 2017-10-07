@@ -666,7 +666,7 @@ asm: asm_1 SEMICOLON
 	      else if (is_group2 ($3) && is_group1 ($5))
 		$$ = gen_multi_instr_1 ($1, $5, $3);
 	      else
-		return yyerror ("Wrong 16 bit instructions groups, slot 2 and slot 3 must be 16-bit instrution group");
+		return yyerror ("Wrong 16 bit instructions groups, slot 2 and slot 3 must be 16-bit instruction group");
 	    }
 	  else if (($3->value & 0xf800) == 0xc000)
 	    {
@@ -675,7 +675,7 @@ asm: asm_1 SEMICOLON
 	      else if (is_group2 ($1) && is_group1 ($5))
 		$$ = gen_multi_instr_1 ($3, $5, $1);
 	      else
-		return yyerror ("Wrong 16 bit instructions groups, slot 1 and slot 3 must be 16-bit instrution group");
+		return yyerror ("Wrong 16 bit instructions groups, slot 1 and slot 3 must be 16-bit instruction group");
 	    }
 	  else if (($5->value & 0xf800) == 0xc000)
 	    {
@@ -684,7 +684,7 @@ asm: asm_1 SEMICOLON
 	      else if (is_group2 ($1) && is_group1 ($3))
 		$$ = gen_multi_instr_1 ($5, $3, $1);
 	      else
-		return yyerror ("Wrong 16 bit instructions groups, slot 1 and slot 2 must be 16-bit instrution group");
+		return yyerror ("Wrong 16 bit instructions groups, slot 1 and slot 2 must be 16-bit instruction group");
 	    }
 	  else
 	    error ("\nIllegal Multi Issue Construct, at least any one of the slot must be DSP32 instruction group\n");

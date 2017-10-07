@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.0.  */
+/* A Bison parser, made by GNU Bison 3.0.4.  */
 
 /* Bison implementation for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "3.0"
+#define YYBISON_VERSION "3.0.4"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -174,11 +174,11 @@ static char *xstrdup (const char *);
 
 #line 176 "nlmheader.c" /* yacc.c:339  */
 
-# ifndef YY_NULL
+# ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
-#   define YY_NULL nullptr
+#   define YY_NULLPTR nullptr
 #  else
-#   define YY_NULL 0
+#   define YY_NULLPTR 0
 #  endif
 # endif
 
@@ -283,7 +283,7 @@ extern int yydebug;
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE YYSTYPE;
+
 union YYSTYPE
 {
 #line 112 "nlmheader.y" /* yacc.c:355  */
@@ -293,6 +293,8 @@ union YYSTYPE
 
 #line 295 "nlmheader.c" /* yacc.c:355  */
 };
+
+typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif
@@ -306,7 +308,7 @@ int yyparse (void);
 
 /* Copy the second part of user declarations.  */
 
-#line 310 "nlmheader.c" /* yacc.c:358  */
+#line 312 "nlmheader.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -363,11 +365,30 @@ typedef short int yytype_int16;
 # endif
 #endif
 
-#ifndef __attribute__
-/* This feature is available in gcc versions 2.5 and later.  */
-# if (! defined __GNUC__ || __GNUC__ < 2 \
-      || (__GNUC__ == 2 && __GNUC_MINOR__ < 5))
-#  define __attribute__(Spec) /* empty */
+#ifndef YY_ATTRIBUTE
+# if (defined __GNUC__                                               \
+      && (2 < __GNUC__ || (__GNUC__ == 2 && 96 <= __GNUC_MINOR__)))  \
+     || defined __SUNPRO_C && 0x5110 <= __SUNPRO_C
+#  define YY_ATTRIBUTE(Spec) __attribute__(Spec)
+# else
+#  define YY_ATTRIBUTE(Spec) /* empty */
+# endif
+#endif
+
+#ifndef YY_ATTRIBUTE_PURE
+# define YY_ATTRIBUTE_PURE   YY_ATTRIBUTE ((__pure__))
+#endif
+
+#ifndef YY_ATTRIBUTE_UNUSED
+# define YY_ATTRIBUTE_UNUSED YY_ATTRIBUTE ((__unused__))
+#endif
+
+#if !defined _Noreturn \
+     && (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112)
+# if defined _MSC_VER && 1200 <= _MSC_VER
+#  define _Noreturn __declspec (noreturn)
+# else
+#  define _Noreturn YY_ATTRIBUTE ((__noreturn__))
 # endif
 #endif
 
@@ -610,7 +631,7 @@ static const char *const yytname[] =
   "THREADNAME", "TYPE", "VERBOSE", "VERSIONK", "XDCDATA", "STRING",
   "QUOTED_STRING", "'('", "')'", "$accept", "file", "commands", "command",
   "$@1", "$@2", "symbol_list_opt", "symbol_list", "symbol_prefix",
-  "symbol", "string_list", YY_NULL
+  "symbol", "string_list", YY_NULLPTR
 };
 #endif
 
@@ -1026,11 +1047,11 @@ static int
 yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                 yytype_int16 *yyssp, int yytoken)
 {
-  YYSIZE_T yysize0 = yytnamerr (YY_NULL, yytname[yytoken]);
+  YYSIZE_T yysize0 = yytnamerr (YY_NULLPTR, yytname[yytoken]);
   YYSIZE_T yysize = yysize0;
   enum { YYERROR_VERBOSE_ARGS_MAXIMUM = 5 };
   /* Internationalized format string. */
-  const char *yyformat = YY_NULL;
+  const char *yyformat = YY_NULLPTR;
   /* Arguments of yyformat. */
   char const *yyarg[YYERROR_VERBOSE_ARGS_MAXIMUM];
   /* Number of reported tokens (one for the "unexpected", one per
@@ -1087,7 +1108,7 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                   }
                 yyarg[yycount++] = yytname[yyx];
                 {
-                  YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULL, yytname[yyx]);
+                  YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULLPTR, yytname[yyx]);
                   if (! (yysize <= yysize1
                          && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
                     return 2;
@@ -1419,24 +1440,24 @@ yyreduce:
   switch (yyn)
     {
         case 5:
-#line 157 "nlmheader.y" /* yacc.c:1661  */
+#line 157 "nlmheader.y" /* yacc.c:1646  */
     {
 	    check_procedure = (yyvsp[0].string);
 	  }
-#line 1427 "nlmheader.c" /* yacc.c:1661  */
+#line 1448 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 6:
-#line 161 "nlmheader.y" /* yacc.c:1661  */
+#line 161 "nlmheader.y" /* yacc.c:1646  */
     {
 	    nlmheader_warn (_("CODESTART is not implemented; sorry"), -1);
 	    free ((yyvsp[0].string));
 	  }
-#line 1436 "nlmheader.c" /* yacc.c:1661  */
+#line 1457 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 7:
-#line 166 "nlmheader.y" /* yacc.c:1661  */
+#line 166 "nlmheader.y" /* yacc.c:1646  */
     {
 	    int len;
 
@@ -1453,19 +1474,19 @@ yyreduce:
 	    copyright_hdr->copyrightMessage[len] = '\0';
 	    free ((yyvsp[0].string));
 	  }
-#line 1457 "nlmheader.c" /* yacc.c:1661  */
+#line 1478 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 8:
-#line 183 "nlmheader.y" /* yacc.c:1661  */
+#line 183 "nlmheader.y" /* yacc.c:1646  */
     {
 	    custom_file = (yyvsp[0].string);
 	  }
-#line 1465 "nlmheader.c" /* yacc.c:1661  */
+#line 1486 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 9:
-#line 187 "nlmheader.y" /* yacc.c:1661  */
+#line 187 "nlmheader.y" /* yacc.c:1646  */
     {
 	    /* We don't set the version stamp here, because we use the
 	       version stamp to detect whether the required VERSION
@@ -1483,19 +1504,19 @@ yyreduce:
 	    if (version_hdr->year < 1900 || version_hdr->year > 3000)
 	      nlmheader_warn (_("illegal year"), -1);
 	  }
-#line 1487 "nlmheader.c" /* yacc.c:1661  */
+#line 1508 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 205 "nlmheader.y" /* yacc.c:1661  */
+#line 205 "nlmheader.y" /* yacc.c:1646  */
     {
 	    debug_info = TRUE;
 	  }
-#line 1495 "nlmheader.c" /* yacc.c:1661  */
+#line 1516 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 11:
-#line 209 "nlmheader.y" /* yacc.c:1661  */
+#line 209 "nlmheader.y" /* yacc.c:1646  */
     {
 	    int len;
 
@@ -1511,178 +1532,178 @@ yyreduce:
 	    var_hdr->descriptionText[len] = '\0';
 	    free ((yyvsp[0].string));
 	  }
-#line 1515 "nlmheader.c" /* yacc.c:1661  */
+#line 1536 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 12:
-#line 225 "nlmheader.y" /* yacc.c:1661  */
+#line 225 "nlmheader.y" /* yacc.c:1646  */
     {
 	    exit_procedure = (yyvsp[0].string);
 	  }
-#line 1523 "nlmheader.c" /* yacc.c:1661  */
+#line 1544 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 13:
-#line 229 "nlmheader.y" /* yacc.c:1661  */
+#line 229 "nlmheader.y" /* yacc.c:1646  */
     {
 	    symbol_prefix = NULL;
 	  }
-#line 1531 "nlmheader.c" /* yacc.c:1661  */
+#line 1552 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 14:
-#line 233 "nlmheader.y" /* yacc.c:1661  */
+#line 233 "nlmheader.y" /* yacc.c:1646  */
     {
 	    export_symbols = string_list_append (export_symbols, (yyvsp[0].list));
 	  }
-#line 1539 "nlmheader.c" /* yacc.c:1661  */
+#line 1560 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 15:
-#line 237 "nlmheader.y" /* yacc.c:1661  */
+#line 237 "nlmheader.y" /* yacc.c:1646  */
     {
 	    fixed_hdr->flags |= nlmlex_get_number ((yyvsp[0].string));
 	    free ((yyvsp[0].string));
 	  }
-#line 1548 "nlmheader.c" /* yacc.c:1661  */
+#line 1569 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 16:
-#line 242 "nlmheader.y" /* yacc.c:1661  */
+#line 242 "nlmheader.y" /* yacc.c:1646  */
     {
 	    fixed_hdr->flags &=~ nlmlex_get_number ((yyvsp[0].string));
 	    free ((yyvsp[0].string));
 	  }
-#line 1557 "nlmheader.c" /* yacc.c:1661  */
+#line 1578 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 17:
-#line 247 "nlmheader.y" /* yacc.c:1661  */
+#line 247 "nlmheader.y" /* yacc.c:1646  */
     {
 	    map_file = "";
 	    full_map = TRUE;
 	  }
-#line 1566 "nlmheader.c" /* yacc.c:1661  */
+#line 1587 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 18:
-#line 252 "nlmheader.y" /* yacc.c:1661  */
+#line 252 "nlmheader.y" /* yacc.c:1646  */
     {
 	    map_file = (yyvsp[0].string);
 	    full_map = TRUE;
 	  }
-#line 1575 "nlmheader.c" /* yacc.c:1661  */
+#line 1596 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 19:
-#line 257 "nlmheader.y" /* yacc.c:1661  */
+#line 257 "nlmheader.y" /* yacc.c:1646  */
     {
 	    help_file = (yyvsp[0].string);
 	  }
-#line 1583 "nlmheader.c" /* yacc.c:1661  */
+#line 1604 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 20:
-#line 261 "nlmheader.y" /* yacc.c:1661  */
+#line 261 "nlmheader.y" /* yacc.c:1646  */
     {
 	    symbol_prefix = NULL;
 	  }
-#line 1591 "nlmheader.c" /* yacc.c:1661  */
+#line 1612 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 21:
-#line 265 "nlmheader.y" /* yacc.c:1661  */
+#line 265 "nlmheader.y" /* yacc.c:1646  */
     {
 	    import_symbols = string_list_append (import_symbols, (yyvsp[0].list));
 	  }
-#line 1599 "nlmheader.c" /* yacc.c:1661  */
+#line 1620 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 22:
-#line 269 "nlmheader.y" /* yacc.c:1661  */
+#line 269 "nlmheader.y" /* yacc.c:1646  */
     {
 	    input_files = string_list_append (input_files, (yyvsp[0].list));
 	  }
-#line 1607 "nlmheader.c" /* yacc.c:1661  */
+#line 1628 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 23:
-#line 273 "nlmheader.y" /* yacc.c:1661  */
+#line 273 "nlmheader.y" /* yacc.c:1646  */
     {
 	    map_file = "";
 	  }
-#line 1615 "nlmheader.c" /* yacc.c:1661  */
+#line 1636 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 24:
-#line 277 "nlmheader.y" /* yacc.c:1661  */
+#line 277 "nlmheader.y" /* yacc.c:1646  */
     {
 	    map_file = (yyvsp[0].string);
 	  }
-#line 1623 "nlmheader.c" /* yacc.c:1661  */
+#line 1644 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 25:
-#line 281 "nlmheader.y" /* yacc.c:1661  */
+#line 281 "nlmheader.y" /* yacc.c:1646  */
     {
 	    message_file = (yyvsp[0].string);
 	  }
-#line 1631 "nlmheader.c" /* yacc.c:1661  */
+#line 1652 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 26:
-#line 285 "nlmheader.y" /* yacc.c:1661  */
+#line 285 "nlmheader.y" /* yacc.c:1646  */
     {
 	    modules = string_list_append (modules, (yyvsp[0].list));
 	  }
-#line 1639 "nlmheader.c" /* yacc.c:1661  */
+#line 1660 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 27:
-#line 289 "nlmheader.y" /* yacc.c:1661  */
+#line 289 "nlmheader.y" /* yacc.c:1646  */
     {
 	    fixed_hdr->flags |= 0x2;
 	  }
-#line 1647 "nlmheader.c" /* yacc.c:1661  */
+#line 1668 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 28:
-#line 293 "nlmheader.y" /* yacc.c:1661  */
+#line 293 "nlmheader.y" /* yacc.c:1646  */
     {
 	    fixed_hdr->flags |= 0x10;
 	  }
-#line 1655 "nlmheader.c" /* yacc.c:1661  */
+#line 1676 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 29:
-#line 297 "nlmheader.y" /* yacc.c:1661  */
+#line 297 "nlmheader.y" /* yacc.c:1646  */
     {
 	    if (output_file == NULL)
 	      output_file = (yyvsp[0].string);
 	    else
 	      nlmheader_warn (_("ignoring duplicate OUTPUT statement"), -1);
 	  }
-#line 1666 "nlmheader.c" /* yacc.c:1661  */
+#line 1687 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 30:
-#line 304 "nlmheader.y" /* yacc.c:1661  */
+#line 304 "nlmheader.y" /* yacc.c:1646  */
     {
 	    fixed_hdr->flags |= 0x8;
 	  }
-#line 1674 "nlmheader.c" /* yacc.c:1661  */
+#line 1695 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 31:
-#line 308 "nlmheader.y" /* yacc.c:1661  */
+#line 308 "nlmheader.y" /* yacc.c:1646  */
     {
 	    fixed_hdr->flags |= 0x1;
 	  }
-#line 1682 "nlmheader.c" /* yacc.c:1661  */
+#line 1703 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 32:
-#line 312 "nlmheader.y" /* yacc.c:1661  */
+#line 312 "nlmheader.y" /* yacc.c:1646  */
     {
 	    int len;
 
@@ -1698,44 +1719,44 @@ yyreduce:
 	    var_hdr->screenName[NLM_MAX_SCREEN_NAME_LENGTH] = '\0';
 	    free ((yyvsp[0].string));
 	  }
-#line 1702 "nlmheader.c" /* yacc.c:1661  */
+#line 1723 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 33:
-#line 328 "nlmheader.y" /* yacc.c:1661  */
+#line 328 "nlmheader.y" /* yacc.c:1646  */
     {
 	    sharelib_file = (yyvsp[0].string);
 	  }
-#line 1710 "nlmheader.c" /* yacc.c:1661  */
+#line 1731 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 34:
-#line 332 "nlmheader.y" /* yacc.c:1661  */
+#line 332 "nlmheader.y" /* yacc.c:1646  */
     {
 	    var_hdr->stackSize = nlmlex_get_number ((yyvsp[0].string));
 	    free ((yyvsp[0].string));
 	  }
-#line 1719 "nlmheader.c" /* yacc.c:1661  */
+#line 1740 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 35:
-#line 337 "nlmheader.y" /* yacc.c:1661  */
+#line 337 "nlmheader.y" /* yacc.c:1646  */
     {
 	    start_procedure = (yyvsp[0].string);
 	  }
-#line 1727 "nlmheader.c" /* yacc.c:1661  */
+#line 1748 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 36:
-#line 341 "nlmheader.y" /* yacc.c:1661  */
+#line 341 "nlmheader.y" /* yacc.c:1646  */
     {
 	    fixed_hdr->flags |= 0x4;
 	  }
-#line 1735 "nlmheader.c" /* yacc.c:1661  */
+#line 1756 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 37:
-#line 345 "nlmheader.y" /* yacc.c:1661  */
+#line 345 "nlmheader.y" /* yacc.c:1646  */
     {
 	    int len;
 
@@ -1751,28 +1772,28 @@ yyreduce:
 	    var_hdr->threadName[len] = '\0';
 	    free ((yyvsp[0].string));
 	  }
-#line 1755 "nlmheader.c" /* yacc.c:1661  */
+#line 1776 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 38:
-#line 361 "nlmheader.y" /* yacc.c:1661  */
+#line 361 "nlmheader.y" /* yacc.c:1646  */
     {
 	    fixed_hdr->moduleType = nlmlex_get_number ((yyvsp[0].string));
 	    free ((yyvsp[0].string));
 	  }
-#line 1764 "nlmheader.c" /* yacc.c:1661  */
+#line 1785 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 39:
-#line 366 "nlmheader.y" /* yacc.c:1661  */
+#line 366 "nlmheader.y" /* yacc.c:1646  */
     {
 	    verbose = TRUE;
 	  }
-#line 1772 "nlmheader.c" /* yacc.c:1661  */
+#line 1793 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 40:
-#line 370 "nlmheader.y" /* yacc.c:1661  */
+#line 370 "nlmheader.y" /* yacc.c:1646  */
     {
 	    long val;
 
@@ -1796,11 +1817,11 @@ yyreduce:
 	    free ((yyvsp[-1].string));
 	    free ((yyvsp[0].string));
 	  }
-#line 1800 "nlmheader.c" /* yacc.c:1661  */
+#line 1821 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 41:
-#line 394 "nlmheader.y" /* yacc.c:1661  */
+#line 394 "nlmheader.y" /* yacc.c:1646  */
     {
 	    long val;
 
@@ -1816,77 +1837,77 @@ yyreduce:
 	    free ((yyvsp[-1].string));
 	    free ((yyvsp[0].string));
 	  }
-#line 1820 "nlmheader.c" /* yacc.c:1661  */
+#line 1841 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 42:
-#line 410 "nlmheader.y" /* yacc.c:1661  */
+#line 410 "nlmheader.y" /* yacc.c:1646  */
     {
 	    rpc_file = (yyvsp[0].string);
 	  }
-#line 1828 "nlmheader.c" /* yacc.c:1661  */
+#line 1849 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 43:
-#line 419 "nlmheader.y" /* yacc.c:1661  */
+#line 419 "nlmheader.y" /* yacc.c:1646  */
     {
 	    (yyval.list) = NULL;
 	  }
-#line 1836 "nlmheader.c" /* yacc.c:1661  */
+#line 1857 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 44:
-#line 423 "nlmheader.y" /* yacc.c:1661  */
+#line 423 "nlmheader.y" /* yacc.c:1646  */
     {
 	    (yyval.list) = (yyvsp[0].list);
 	  }
-#line 1844 "nlmheader.c" /* yacc.c:1661  */
+#line 1865 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 45:
-#line 434 "nlmheader.y" /* yacc.c:1661  */
+#line 434 "nlmheader.y" /* yacc.c:1646  */
     {
 	    (yyval.list) = string_list_cons ((yyvsp[0].string), NULL);
 	  }
-#line 1852 "nlmheader.c" /* yacc.c:1661  */
+#line 1873 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 46:
-#line 438 "nlmheader.y" /* yacc.c:1661  */
+#line 438 "nlmheader.y" /* yacc.c:1646  */
     {
 	    (yyval.list) = NULL;
 	  }
-#line 1860 "nlmheader.c" /* yacc.c:1661  */
+#line 1881 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 47:
-#line 442 "nlmheader.y" /* yacc.c:1661  */
+#line 442 "nlmheader.y" /* yacc.c:1646  */
     {
 	    (yyval.list) = string_list_append1 ((yyvsp[-1].list), (yyvsp[0].string));
 	  }
-#line 1868 "nlmheader.c" /* yacc.c:1661  */
+#line 1889 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 48:
-#line 446 "nlmheader.y" /* yacc.c:1661  */
+#line 446 "nlmheader.y" /* yacc.c:1646  */
     {
 	    (yyval.list) = (yyvsp[-1].list);
 	  }
-#line 1876 "nlmheader.c" /* yacc.c:1661  */
+#line 1897 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 49:
-#line 455 "nlmheader.y" /* yacc.c:1661  */
+#line 455 "nlmheader.y" /* yacc.c:1646  */
     {
 	    if (symbol_prefix != NULL)
 	      free (symbol_prefix);
 	    symbol_prefix = (yyvsp[-1].string);
 	  }
-#line 1886 "nlmheader.c" /* yacc.c:1661  */
+#line 1907 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 50:
-#line 466 "nlmheader.y" /* yacc.c:1661  */
+#line 466 "nlmheader.y" /* yacc.c:1646  */
     {
 	    if (symbol_prefix == NULL)
 	      (yyval.string) = (yyvsp[0].string);
@@ -1897,27 +1918,27 @@ yyreduce:
 		free ((yyvsp[0].string));
 	      }
 	  }
-#line 1901 "nlmheader.c" /* yacc.c:1661  */
+#line 1922 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 51:
-#line 482 "nlmheader.y" /* yacc.c:1661  */
+#line 482 "nlmheader.y" /* yacc.c:1646  */
     {
 	    (yyval.list) = NULL;
 	  }
-#line 1909 "nlmheader.c" /* yacc.c:1661  */
+#line 1930 "nlmheader.c" /* yacc.c:1646  */
     break;
 
   case 52:
-#line 486 "nlmheader.y" /* yacc.c:1661  */
+#line 486 "nlmheader.y" /* yacc.c:1646  */
     {
 	    (yyval.list) = string_list_cons ((yyvsp[-1].string), (yyvsp[0].list));
 	  }
-#line 1917 "nlmheader.c" /* yacc.c:1661  */
+#line 1938 "nlmheader.c" /* yacc.c:1646  */
     break;
 
 
-#line 1921 "nlmheader.c" /* yacc.c:1661  */
+#line 1942 "nlmheader.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires

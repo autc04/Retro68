@@ -230,7 +230,7 @@ proc run_srec_test { test objs } {
     # Tell the ELF linker to not do anything clever with .eh_frame,
     # not to put anything in small data, and define various symbols.
     set flags "--traditional-format -G 0 "
-    append flags [ld_simple_link_defsyms]
+    append flags [ld_link_defsyms]
 
     # If the linker script uses SIZEOF_HEADERS, use a -Ttext argument
     # to force both the normal link and the S-record link to be put in
@@ -300,8 +300,13 @@ proc run_srec_test { test objs } {
 	set flags "$flags -no-relax"
     }
 
-    if { ![ld_simple_link $ld tmpdir/sr1 "$flags $objs"] \
-	 || ![ld_simple_link $ld tmpdir/sr2.sr "$flags --oformat srec $objs"] } {
+    # PRU ELF target relaxes by default; S-Record linker does not
+    if [istarget pru*-*-*] {
+	set flags "$flags -no-relax"
+    }
+
+    if { ![ld_link $ld tmpdir/sr1 "$flags $objs"] \
+	 || ![ld_link $ld tmpdir/sr2.sr "$flags --oformat srec $objs"] } {
 	fail $test
 	return
     }
@@ -346,12 +351,13 @@ if { ![is_remote host] && [which $CC] == 0 } {
 }
 
 # Pass -fplt to CC and CXX since -fno-plt doesn't work with S-records
-# tests.
-global PLT_CFLAGS
+# tests. Also add $NOPIE_CFLAGS and $NOPIE_LDFLAGS if PIE doesn't work
+# with S-records.
+global PLT_CFLAGS NOPIE_CFLAGS NOPIE_LDFLAGS
 set old_CC "$CC"
-set CC "$CC $PLT_CFLAGS"
+set CC "$CC $PLT_CFLAGS $NOPIE_CFLAGS $NOPIE_LDFLAGS"
 set old_CXX "$CXX"
-set CXX "$CXX $PLT_CFLAGS"
+set CXX "$CXX $PLT_CFLAGS $NOPIE_CFLAGS $NOPIE_LDFLAGS"
 
 if { ![ld_compile $CC $srcdir/$subdir/sr1.c tmpdir/sr1.o] \
      || ![ld_compile $CC $srcdir/$subdir/sr2.c tmpdir/sr2.o] } {

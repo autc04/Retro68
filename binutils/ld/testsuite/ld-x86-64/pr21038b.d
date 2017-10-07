@@ -1,4 +1,4 @@
-#name: PR ld/21038 (.plt.bnd)
+#name: PR ld/21038 (.plt.sec)
 #as: --64
 #ld: -z bndplt -melf_x86_64 -shared -z relro --ld-generated-unwind-info
 #objdump: -dw -Wf
@@ -40,11 +40,7 @@ Contents of the .eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+58 0000000000000014 0000005c FDE cie=00000000 pc=0000000000000240..0000000000000248
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
-  DW_CFA_nop
+0+58 0000000000000010 0000005c FDE cie=00000000 pc=0000000000000240..0000000000000248
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
@@ -60,7 +56,7 @@ Disassembly of section .plt:
  +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmpq 220 <.plt>
  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
 
-Disassembly of section .plt.bnd:
+Disassembly of section .plt.sec:
 
 0+240 <func@plt>:
  +[a-f0-9]+:	f2 ff 25 d1 0d 20 00 	bnd jmpq \*0x200dd1\(%rip\)        # 201018 <func>

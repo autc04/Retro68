@@ -19,7 +19,7 @@
    02110-1301, USA.  */
 
 /* If your chars aren't 8 bits, you will change this a bit (eg. to 0xFF).
-   But then, GNU isn't spozed to run on your machine anyway.
+   But then, GNU isn't supposed to run on your machine anyway.
    (RMS is so shortsighted sometimes.)  */
 #define MASK_CHAR ((int)(unsigned char) -1)
 
@@ -3141,7 +3141,7 @@ do_repeat (int count, const char *start, const char *end)
 }
 
 /* Like do_repeat except that any text matching EXPANDER in the
-   block is replaced by the itteration count.  */
+   block is replaced by the iteration count.  */
 
 void
 do_repeat_with_expander (int count,
@@ -5344,13 +5344,21 @@ emit_leb128_expr (expressionS *exp, int sign)
   else if (op == O_big)
     {
       /* O_big is a different sort of constant.  */
-
+      int nbr_digits = exp->X_add_number;
       unsigned int size;
       char *p;
 
-      size = output_big_leb128 (NULL, generic_bignum, exp->X_add_number, sign);
+      /* If the leading littenum is 0xffff, prepend a 0 to avoid confusion with
+	 a signed number.  Unary operators like - or ~ always extend the
+	 bignum to its largest size.  */
+      if (exp->X_unsigned
+	  && nbr_digits < SIZE_OF_LARGE_NUMBER
+	  && generic_bignum[nbr_digits - 1] == LITTLENUM_MASK)
+	generic_bignum[nbr_digits++] = 0;
+
+      size = output_big_leb128 (NULL, generic_bignum, nbr_digits, sign);
       p = frag_more (size);
-      if (output_big_leb128 (p, generic_bignum, exp->X_add_number, sign) > size)
+      if (output_big_leb128 (p, generic_bignum, nbr_digits, sign) > size)
 	abort ();
     }
   else
@@ -6324,4 +6332,48 @@ char *
 find_end_of_line (char *s, int mri_string)
 {
   return _find_end_of_line (s, mri_string, 0, 0);
+}
+
+static char *saved_ilp = NULL;
+static char *saved_limit;
+
+/* Use BUF as a temporary input pointer for calling other functions in this
+   file.  BUF must be a C string, so that its end can be found by strlen.
+   Also sets the buffer_limit variable (local to this file) so that buffer
+   overruns should not occur.  Saves the current input line pointer so that
+   it can be restored by calling restore_ilp().
+
+   Does not support recursion.
+
+   FIXME: This function is currently only used by stabs.c but that
+   should be extended to other files in the gas source directory.  */
+
+void
+temp_ilp (char *buf)
+{
+  gas_assert (saved_ilp == NULL);
+  gas_assert (buf != NULL);
+
+  saved_ilp = input_line_pointer;
+  saved_limit = buffer_limit;
+  /* Prevent the assert in restore_ilp from triggering if
+     the input_line_pointer has not yet been initialised.  */
+  if (saved_ilp == NULL)
+    saved_limit = saved_ilp = (char *) "";
+
+  input_line_pointer = buf;
+  buffer_limit = buf + strlen (buf);
+}
+
+/* Restore a saved input line pointer.  */
+
+void
+restore_ilp (void)
+{
+  gas_assert (saved_ilp != NULL);
+
+  input_line_pointer = saved_ilp;
+  buffer_limit = saved_limit;
+
+  saved_ilp = NULL;
 }

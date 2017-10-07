@@ -27,6 +27,8 @@
 # to verify if identical code folding in safe mode correctly folds
 # functions in a shared object.
 
+set -e
+
 error_if_symbol_absent()
 {
     if ! is_symbol_present $1 $2;
@@ -84,8 +86,7 @@ END {
 
 arch_specific_safe_fold()
 {
-    grep -e "Intel 80386" -e "ARM" -e "PowerPC" $1 > /dev/null 2>&1
-    if [ $? -eq 0 ];
+    if grep -q -e "Intel 80386" -e "ARM" -e "PowerPC" $1;
     then
       check_fold $2 $4 $5 $3
     else

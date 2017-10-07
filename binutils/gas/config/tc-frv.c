@@ -469,7 +469,7 @@ md_show_usage (FILE * stream)
   fprintf (stream, _("-mno-pack       Do not allow instructions to be packed\n"));
   fprintf (stream, _("-mpic           Mark generated file as using small position independent code\n"));
   fprintf (stream, _("-mPIC           Mark generated file as using large position independent code\n"));
-  fprintf (stream, _("-mlibrary-pic   Mark generated file as using position indepedent code for libraries\n"));
+  fprintf (stream, _("-mlibrary-pic   Mark generated file as using position independent code for libraries\n"));
   fprintf (stream, _("-mfdpic         Assemble for the FDPIC ABI\n"));
   fprintf (stream, _("-mnopic         Disable -mpic, -mPIC, -mlibrary-pic and -mfdpic\n"));
   fprintf (stream, _("-mcpu={fr500|fr550|fr400|fr405|fr450|fr300|frv|simple|tomcat}\n"));

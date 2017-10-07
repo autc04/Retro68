@@ -1,0 +1,33 @@
+#source: plt2.s
+#as: --64
+#ld: -z now -melf_x86_64
+#objdump: -dwr
+#target: i?86-*-*
+
+.*: +file format .*
+
+
+Disassembly of section .plt:
+
+0+400290 <.plt>:
+ +[a-f0-9]+:	ff 35 7a 01 20 00    	pushq  0x20017a\(%rip\)        # 600410 <_GLOBAL_OFFSET_TABLE_\+0x8>
+ +[a-f0-9]+:	ff 25 7c 01 20 00    	jmpq   \*0x20017c\(%rip\)        # 600418 <_GLOBAL_OFFSET_TABLE_\+0x10>
+ +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
+
+0+4002a0 <fn1@plt>:
+ +[a-f0-9]+:	ff 25 7a 01 20 00    	jmpq   \*0x20017a\(%rip\)        # 600420 <fn1>
+ +[a-f0-9]+:	68 00 00 00 00       	pushq  \$0x0
+ +[a-f0-9]+:	e9 e0 ff ff ff       	jmpq   400290 <.plt>
+
+0+4002b0 <fn2@plt>:
+ +[a-f0-9]+:	ff 25 72 01 20 00    	jmpq   \*0x200172\(%rip\)        # 600428 <fn2>
+ +[a-f0-9]+:	68 01 00 00 00       	pushq  \$0x1
+ +[a-f0-9]+:	e9 d0 ff ff ff       	jmpq   400290 <.plt>
+
+Disassembly of section .text:
+
+0+4002c0 <_start>:
+ +[a-f0-9]+:	e8 db ff ff ff       	callq  4002a0 <fn1@plt>
+ +[a-f0-9]+:	e8 e6 ff ff ff       	callq  4002b0 <fn2@plt>
+ +[a-f0-9]+:	81 7c 24 08 a0 02 40 00 	cmpl   \$0x4002a0,0x8\(%rsp\)
+#pass

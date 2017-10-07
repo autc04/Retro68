@@ -39,6 +39,24 @@ if {$ld_sysroot == "/"} {
     set with_sysroot 3
 }
 
+# The linker on Windows expects Windows style paths.
+# MSYS2 runtime converts paths in the command line automatically.
+# However, for our test linker scripts, we have to prepare
+# the correct paths manually.
+proc get_base_dir_for_scripts {} {
+    global base_dir
+    global get_base_dir_for_scripts_saved
+
+    if { ![info exists get_base_dir_for_scripts_saved] } {
+	set get_base_dir_for_scripts_saved $base_dir
+	if { ([ishost *-*-cygwin] || [ishost *-*-mingw*] )
+	     && ![catch "exec cygpath -m $base_dir" base_dir_converted] } {
+	    set get_base_dir_for_scripts_saved $base_dir_converted
+	}
+    }
+    return $get_base_dir_for_scripts_saved
+}
+
 # Entries in the array-tables:
 # 0: Testtype; an inclusive bitmask indicating that the test should run on a
 # build configured for: 1: non-sysroot, 2: sysroot != "/", 4: sysroot == "/".
@@ -58,16 +76,23 @@ set sysroot_prefix_tests {
     {7 "root-anchored but -Lpath" "/sysroot/" {} "cannot find"}
     {7 "full-path" "@cwd@/sysroot/" {} ""}
     {7 "root-anchored =-prefixed -Lpath" "=/sysroot/" {} "cannot find"}
-    {7 "full-path =-prefixed with empty" "=@cwd@/sysroot/" "--sysroot=" ""}
+    {7 "root-anchored $SYSROOT-prefixed -Lpath" "$SYSROOT/sysroot/" {} "cannot find"}
     {7 "plain =-prefixed with empty" "=sysroot/" "--sysroot=" ""}
+    {7 "plain $SYSROOT-prefixed with empty" "$SYSROOTsysroot/" "--sysroot=" ""}
     {6 "root-anchored but script outside sysroot" "/" "--sysroot=@cwd@/sysroot" "cannot find"}
     {6 "root-anchored and script inside sysroot" "/sysroot/" "--sysroot=@cwd@" ""}
     {6 "root-anchored =-prefixed script outside" "=/" "--sysroot=@cwd@/sysroot" ""}
+    {6 "root-anchored $SYSROOT-prefixed script outside" "$SYSROOT/" "--sysroot=@cwd@/sysroot" ""}
     {6 "root-anchored =-prefixed script inside" "=/sysroot/" "--sysroot=@cwd@" ""}
+    {6 "root-anchored $SYSROOT-prefixed script inside" "$SYSROOT/sysroot/" "--sysroot=@cwd@" ""}
     {2 "plain =-prefixed without but -Lpath" "=sysroot/" {} "cannot find"}
+    {2 "plain $SYSROOT-prefixed without but -Lpath" "$SYSROOTsysroot/" {} "cannot find"}
     {2 "full-path =-prefixed without" "=@cwd@/sysroot/" {} "cannot find"}
+    {2 "full-path $SYSROOT-prefixed without" "$SYSROOT@cwd@/sysroot/" {} "cannot find"}
     {1 "plain =-prefixed -Lpath" "=sysroot/" {} ""}
+    {1 "plain $SYSROOT-prefixed -Lpath" "$SYSROOTsysroot/" {} ""}
     {1 "full-path =-prefixed without" "=@cwd@/sysroot/" {} ""}
+    {1 "full-path $SYSROOT-prefixed without" "$SYSROOT@cwd@/sysroot/" {} ""}
 }
 
 # May have to provide a target-specific assembler option for some targets.
@@ -141,7 +166,7 @@ proc single_sysroot_prefix_test { type xtestname finalscript ldopt errstr } {
     close $ofd
     verbose -log "script: $finalscript"
 
-    set res [ld_simple_link $ld tmpdir/output "$ldopt tmpdir/main.o -Ltmpdir -lsysroottest"]
+    set res [ld_link $ld tmpdir/output "$ldopt tmpdir/main.o -Ltmpdir -lsysroottest"]
     set ld_output "$exec_output"
     set expect_success [expr [string length $errstr] == 0]
 
@@ -160,7 +185,7 @@ proc run_sysroot_prefix_test { type name templ p ldopt errstr } {
     set qlist { { "quoted" "\"" } { "unquoted" {} } }
 
     regsub -all "@p@" $templ $p templ
-    regsub -all "@cwd@" $templ "$base_dir/tmpdir" templ
+    regsub -all "@cwd@" $templ "[get_base_dir_for_scripts]/tmpdir" templ
     regsub -all "@cwd@" $ldopt "$base_dir/tmpdir" ldopt
     regsub -all "@cwd@" $name "<CWD>" name
 

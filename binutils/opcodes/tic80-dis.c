@@ -21,7 +21,7 @@
 #include "sysdep.h"
 #include <stdio.h>
 #include "opcode/tic80.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 
 static int length;
 

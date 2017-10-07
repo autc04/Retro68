@@ -26,6 +26,9 @@ if ![check_gc_sections_available] {
 set cflags "-ffunction-sections -fdata-sections"
 set objfile "tmpdir/gc.o"
 
+# Add $NOPIE_CFLAGS and $NOPIE_LDFLAGS if non-PIE is required.
+global NOPIE_CFLAGS NOPIE_LDFLAGS
+
 if [istarget powerpc64*-*-*] {
     # otherwise with -mcmodel=medium gcc we get XPASSes.
     set cflags "$cflags -mminimal-toc"
@@ -54,7 +57,7 @@ proc test_gc { testname filename linker ldflags} {
 
     set outfile "tmpdir/$filename"
     set options "-L$srcdir/$subdir"
-    append options " " $ldflags " " [ld_simple_link_defsyms] " " $objfile
+    append options " " $ldflags " " [ld_link_defsyms] " " $objfile
 
     # SH64 targets needs an extra ld option for this test.
     if [istarget sh64*-*-*] {
@@ -65,7 +68,7 @@ proc test_gc { testname filename linker ldflags} {
 	}
     }
 
-    if ![ld_simple_link $linker $outfile $options] {
+    if ![ld_link $linker $outfile $options] {
 	fail $testname
 	return
     }
@@ -104,6 +107,7 @@ run_dump_test "start"
 run_dump_test "pr19167"
 if { [is_elf_format] } then {
     run_dump_test "all-debug-sections"
+    run_dump_test "pr20882"
 }
 
 if { [is_elf_format] && [check_shared_lib_support] } then {
@@ -112,12 +116,18 @@ if { [is_elf_format] && [check_shared_lib_support] } then {
 	set gasopt "-mpic -mpid=near"
     }
     if {![ld_assemble_flags $as $gasopt $srcdir/$subdir/libpersonality.s tmpdir/libpersonality.o]
-	|| ![ld_simple_link $ld tmpdir/libpersonality.so "-shared tmpdir/libpersonality.o"] } then {
+	|| ![ld_link $ld tmpdir/libpersonality.so "-shared tmpdir/libpersonality.o"] } then {
 	fail libpersonality
     } else {
 	run_dump_test "personality"
     }
     run_dump_test "pr18223"
+    if {![ld_assemble_flags $as $gasopt $srcdir/$subdir/pr20022a.s tmpdir/pr20022a.o]
+	|| ![ld_link $ld tmpdir/pr20022.so "-shared --gc-sections tmpdir/pr20022a.o"] } then {
+	fail pr20022
+    } else {
+	run_dump_test "pr20022"
+    }
 }
 
 if { [is_remote host] || [which $CC] != 0 } {
@@ -125,7 +135,7 @@ if { [is_remote host] || [which $CC] != 0 } {
 	 || [istarget "*-*-nacl*"]
 	 || [istarget "*-*-gnu*"] } {
 	ld_compile "$CC -fPIC $CFLAGS $cflags" $srcdir/$subdir/pr11218-1.c tmpdir/pr11218-1.o
-	ld_simple_link $ld tmpdir/pr11218-1.so "-shared tmpdir/pr11218-1.o"
+	ld_link $ld tmpdir/pr11218-1.so "-shared tmpdir/pr11218-1.o"
  	ld_compile "$CC -c $CFLAGS $cflags" $srcdir/$subdir/pr11218-2.c tmpdir/pr11218-2.o
 	run_dump_test "pr11218"
     }
@@ -137,7 +147,7 @@ if { [is_remote host] || [which $CC] != 0 } {
 }
 
 if { [is_remote host] || [which $CC] != 0 } {
-    ld_compile "$CC $CFLAGS $cflags" $srcdir/$subdir/pr14265.c tmpdir/pr14265.o
+    ld_compile "$CC $CFLAGS $cflags $NOPIE_CFLAGS" $srcdir/$subdir/pr14265.c tmpdir/pr14265.o
     run_dump_test "pr14265"
 }
 

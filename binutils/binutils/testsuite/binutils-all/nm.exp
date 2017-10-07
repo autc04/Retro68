@@ -175,7 +175,8 @@ if {   [is_elf_format]
     || [istarget *-*-tpf*]
     || [istarget *-*-uclinux*]
     || [istarget ia64-*-*vms*]
-    || [istarget *-*-vxworks*] } {
+    || [istarget *-*-vxworks*]
+    || [istarget wasm32-*-*] } {
     set nm_1_src "nm-elf-1.s"
 } else {
     set nm_1_src "nm-1.s"

@@ -42,9 +42,10 @@ global CFLAGS
 set old_CFLAGS "$CFLAGS"
 
 # Pass -fplt to CC since -fno-plt doesn't work with NOCROSSREFS tests.
-global PLT_CFLAGS
+# Also add $NOPIE_CFLAGS since PIE doesn't work NOCROSSREFS tests.
+global PLT_CFLAGS NOPIE_CFLAGS
 set old_CC "$CC"
-set CC "$CC $PLT_CFLAGS"
+set CC "$CC $PLT_CFLAGS $NOPIE_CFLAGS"
 
 # Xtensa targets currently default to putting literal values in a separate
 # section and that requires linker script support, so put literals in text.

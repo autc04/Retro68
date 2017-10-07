@@ -393,6 +393,23 @@ Return TRUE on success and FALSE on failure.
 
 @end example
 
+@findex bfd_generic_define_start_stop
+@subsubsection @code{bfd_generic_define_start_stop}
+@strong{Synopsis}
+@example
+struct bfd_link_hash_entry *bfd_generic_define_start_stop
+   (struct bfd_link_info *info,
+    const char *symbol, asection *sec);
+@end example
+@strong{Description}@*
+Define a __start, __stop, .startof. or .sizeof. symbol.
+Return the symbol or NULL if no such undefined symbol exists.
+@example
+#define bfd_define_start_stop(output_bfd, info, symbol, sec) \
+       BFD_SEND (output_bfd, _bfd_define_start_stop, (info, symbol, sec))
+
+@end example
+
 @findex bfd_find_version_for_sym
 @subsubsection @code{bfd_find_version_for_sym}
 @strong{Synopsis}

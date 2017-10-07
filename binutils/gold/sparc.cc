@@ -3730,7 +3730,7 @@ Target_sparc<size, big_endian>::Relocate::relocate_tls(
 
   const bool is_final =
     (gsym == NULL
-     ? !parameters->options().output_is_position_independent()
+     ? !parameters->options().shared()
      : gsym->final_value_is_known());
   const tls::Tls_optimization optimized_type
       = optimize_tls_reloc(is_final, r_type);

@@ -94,10 +94,9 @@ extern void sparc_handle_align (struct frag *);
    the .o file.  */
 
 #define TC_FORCE_RELOCATION_LOCAL(FIX)		\
-  (!(FIX)->fx_pcrel				\
+  (GENERIC_FORCE_RELOCATION_LOCAL (FIX)		\
    || (sparc_pic_code				\
-       && S_IS_EXTERNAL ((FIX)->fx_addsy))	\
-   || TC_FORCE_RELOCATION (FIX))
+       && S_IS_EXTERNAL ((FIX)->fx_addsy)))
 #endif
 
 #ifdef OBJ_ELF

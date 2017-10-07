@@ -1066,10 +1066,10 @@ md_assemble (char *str0)
 
   /* Look up mnemonic in opcode table, and get the code,
      the instruction format, and the flags that indicate
-     which family members support this mnenonic.  */
+     which family members support this mnemonic.  */
   if (get_opcode (&opcode, &amode, &arch_flags, mnem) < 0)
     {
-      as_bad ("Unknown instruction mnenonic `%s'", mnem);
+      as_bad ("Unknown instruction mnemonic `%s'", mnem);
       return;
     }
 
@@ -1373,7 +1373,7 @@ md_assemble (char *str0)
       break;
 
     case mode_das:
-      /* register := register * 5-bit imediate/register shift count
+      /* register := register * 5-bit immediate/register shift count
          Example:
          asl.l  r1,r2,4  */
       ans = parse_gen_reg (&str, &r1);

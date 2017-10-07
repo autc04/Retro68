@@ -58,14 +58,14 @@ set build_tests_ld {
 run_ld_link_tests $build_tests_ld
 
 set testname "Link dwarfreloc1xa.o and dwarfreloc2xa.o to dwarfreloca.o"
-if [ld_simple_link $ld "tmpdir/dwarfreloca.o" "-r tmpdir/dwarfreloc1xa.o tmpdir/dwarfreloc2xa.o"] {
+if [ld_link $ld "tmpdir/dwarfreloca.o" "-r tmpdir/dwarfreloc1xa.o tmpdir/dwarfreloc2xa.o"] {
     pass $testname
 } else {
     fail $testname
 }
 
 set testname "Link dwarfreloc1xb.o and dwarfreloc2xb.o to dwarfrelocb.o"
-if [ld_simple_link $ld "tmpdir/dwarfrelocb.o" "-r tmpdir/dwarfreloc1xb.o tmpdir/dwarfreloc2xb.o"] {
+if [ld_link $ld "tmpdir/dwarfrelocb.o" "-r tmpdir/dwarfreloc1xb.o tmpdir/dwarfreloc2xb.o"] {
     pass $testname
 } else {
     fail $testname

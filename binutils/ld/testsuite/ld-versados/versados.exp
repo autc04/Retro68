@@ -75,7 +75,7 @@ proc inspect { whichone } {
     return 1
 }
 
-if ![ld_simple_link $ld tmpdir/t1.out \
+if ![ld_link $ld tmpdir/t1.out \
 	" -T $srcdir/$subdir/t1.ld $srcdir/$subdir/t1-1.ro  $srcdir/$subdir/t1-2.ro"] {
     fail $testname
     return
@@ -87,7 +87,7 @@ if ![ld_simple_link $ld tmpdir/t1.out \
 }
 
 
-if ![ld_simple_link $ld  tmpdir/t2.out \
+if ![ld_link $ld  tmpdir/t2.out \
 	" -T $srcdir/$subdir/t2.ld $srcdir/$subdir/t2-2.ro \
 	$srcdir/$subdir/t2-1.ro  $srcdir/$subdir/t2-3.ro"] {
     fail $testname

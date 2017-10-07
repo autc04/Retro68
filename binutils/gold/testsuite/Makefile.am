@@ -274,6 +274,20 @@ icf_safe_test_1.stdout: icf_safe_test
 icf_safe_test_2.stdout: icf_safe_test
 	$(TEST_READELF) -h $< > $@
 
+check_SCRIPTS += icf_safe_pie_test.sh
+check_DATA += icf_safe_pie_test_1.stdout icf_safe_pie_test_2.stdout icf_safe_pie_test.map
+MOSTLYCLEANFILES += icf_safe_pie_test icf_safe_pie_test.map
+icf_safe_pie_test.o: icf_safe_test.cc
+	$(CXXCOMPILE) -O0 -c -ffunction-sections -fPIE -g -o $@ $<
+icf_safe_pie_test: icf_safe_pie_test.o gcctestdir/ld
+	$(CXXLINK) -o icf_safe_pie_test -Bgcctestdir/ -Wl,--icf=safe,-Map,icf_safe_pie_test.map icf_safe_pie_test.o -pie
+icf_safe_pie_test.map: icf_safe_pie_test
+	@touch icf_safe_pie_test.map
+icf_safe_pie_test_1.stdout: icf_safe_pie_test
+	$(TEST_NM) $< > $@
+icf_safe_pie_test_2.stdout: icf_safe_pie_test
+	$(TEST_READELF) -h $< > $@
+
 check_SCRIPTS += icf_safe_so_test.sh
 check_DATA += icf_safe_so_test_1.stdout icf_safe_so_test_2.stdout icf_safe_so_test.map
 MOSTLYCLEANFILES += icf_safe_so_test icf_safe_so_test.map
@@ -3803,6 +3817,17 @@ aarch64_relocs.stdout: aarch64_relocs
 	$(TEST_OBJDUMP) -dr $< > $@
 
 MOSTLYCLEANFILES += aarch64_relocs
+
+check_SCRIPTS += pr21430.sh
+check_DATA += pr21430.stdout
+pr21430.o: pr21430.s
+	$(TEST_AS) -o $@ $<
+pr21430: pr21430.o ../ld-new
+	../ld-new -o $@ $<
+pr21430.stdout: pr21430
+	$(TEST_NM) -S $< > $@
+
+MOSTLYCLEANFILES += pr21430
 
 endif DEFAULT_TARGET_AARCH64
 

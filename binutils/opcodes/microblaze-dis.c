@@ -24,7 +24,7 @@
 #define STATIC_TABLE
 #define DEFINE_TABLE
 
-#include "dis-asm.h"
+#include "disassemble.h"
 #include <strings.h>
 #include "microblaze-opc.h"
 #include "microblaze-dis.h"

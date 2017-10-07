@@ -57,6 +57,7 @@ Disassembly of section \.text:
 .*:	(7c 08 02 a6|a6 02 08 7c) 	mflr    r0
 .*:	(42 9f 00 05|05 00 9f 42) 	bcl     .*
 .*:	(7d 68 02 a6|a6 02 68 7d) 	mflr    r11
+.*:	(18 00 41 f8|f8 41 00 18) 	std     r2,24\(r1\)
 .*:	(e8 4b ff f0|f0 ff 4b e8) 	ld      r2,-16\(r11\)
 .*:	(7c 08 03 a6|a6 03 08 7c) 	mtlr    r0
 .*:	(7d 8b 60 50|50 60 8b 7d) 	subf    r12,r11,r12
@@ -67,7 +68,6 @@ Disassembly of section \.text:
 .*:	(7d 89 03 a6|a6 03 89 7d) 	mtctr   r12
 .*:	(e9 6b 00 08|08 00 6b e9) 	ld      r11,8\(r11\)
 .*:	(4e 80 04 20|20 04 80 4e) 	bctr
-.*:	(60 00 00 00|00 00 00 60) 	nop
 
 .* <f3@plt>:
 .*:	(4b ff ff c8|c8 ff ff 4b) 	b       .* <__glink_PLTresolve>

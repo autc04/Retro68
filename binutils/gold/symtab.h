@@ -1273,6 +1273,16 @@ struct Symbol_location
   }
 };
 
+// A map from symbol name (as a pointer into the namepool) to all
+// the locations the symbols is (weakly) defined (and certain other
+// conditions are met).  This map will be used later to detect
+// possible One Definition Rule (ODR) violations.
+struct Symbol_location_hash
+{
+  size_t operator()(const Symbol_location& loc) const
+  { return reinterpret_cast<uintptr_t>(loc.object) ^ loc.offset ^ loc.shndx; }
+};
+
 // This class manages warnings.  Warnings are a GNU extension.  When
 // we see a section named .gnu.warning.SYM in an object file, and if
 // we wind using the definition of SYM from that object file, then we
@@ -1694,16 +1704,6 @@ class Symbol_table
 
   typedef Unordered_map<Symbol_table_key, Symbol*, Symbol_table_hash,
 			Symbol_table_eq> Symbol_table_type;
-
-  // A map from symbol name (as a pointer into the namepool) to all
-  // the locations the symbols is (weakly) defined (and certain other
-  // conditions are met).  This map will be used later to detect
-  // possible One Definition Rule (ODR) violations.
-  struct Symbol_location_hash
-  {
-    size_t operator()(const Symbol_location& loc) const
-    { return reinterpret_cast<uintptr_t>(loc.object) ^ loc.offset ^ loc.shndx; }
-  };
 
   typedef Unordered_map<const char*,
                         Unordered_set<Symbol_location, Symbol_location_hash> >

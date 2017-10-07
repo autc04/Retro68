@@ -76,7 +76,7 @@ AC_EXEEXT
 
 # host-specific stuff:
 
-ALL_LINGUAS="fr sv tr es da de id pt_BR ro nl fi vi ga zh_CN it uk"
+ALL_LINGUAS="fr sv tr es da de id pt_BR ro nl fi vi ga zh_CN it uk sr"
 ZW_GNU_GETTEXT_SISTER_DIR
 AM_PO_SUBDIRS
 
@@ -307,6 +307,7 @@ if test x${all_targets} = xfalse ; then
 	bfd_pj_arch)		ta="$ta pj-dis.lo pj-opc.lo" ;;
 	bfd_powerpc_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
 	bfd_powerpc_64_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
+	bfd_pru_arch)		ta="$ta pru-dis.lo pru-opc.lo" ;;
 	bfd_pyramid_arch)	;;
 	bfd_romp_arch)		;;
 	bfd_riscv_arch)         ta="$ta riscv-dis.lo riscv-opc.lo" ;;
@@ -347,6 +348,7 @@ if test x${all_targets} = xfalse ; then
 	bfd_vax_arch)		ta="$ta vax-dis.lo" ;;
 	bfd_visium_arch)	ta="$ta visium-dis.lo visium-opc.lo" ;;
 	bfd_w65_arch)		ta="$ta w65-dis.lo" ;;
+        bfd_wasm32_arch)        ta="$ta wasm32-dis.lo" ;;
 	bfd_we32k_arch)		;;
 	bfd_xc16x_arch)		ta="$ta xc16x-asm.lo xc16x-desc.lo xc16x-dis.lo xc16x-ibld.lo xc16x-opc.lo" using_cgen=yes ;;
 	bfd_xgate_arch)		ta="$ta xgate-dis.lo xgate-opc.lo" ;;

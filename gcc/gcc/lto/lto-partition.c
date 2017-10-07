@@ -1,5 +1,5 @@
 /* LTO partitioning logic routines.
-   Copyright (C) 2009-2016 Free Software Foundation, Inc.
+   Copyright (C) 2009-2017 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -31,6 +31,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "lto-streamer.h"
 #include "params.h"
 #include "symbol-summary.h"
+#include "tree-vrp.h"
 #include "ipa-prop.h"
 #include "ipa-inline.h"
 #include "lto-partition.h"
@@ -163,7 +164,7 @@ add_symbol_to_partition_1 (ltrans_partition part, symtab_node *node)
 
       /* Add all thunks associated with the function.  */
       for (e = cnode->callers; e; e = e->next_caller)
-	if (e->caller->thunk.thunk_p)
+	if (e->caller->thunk.thunk_p && !e->caller->global.inlined_to)
 	  add_symbol_to_partition_1 (part, e->caller);
 
       /* Instrumented version is actually the same function.
@@ -447,7 +448,7 @@ add_sorted_nodes (vec<symtab_node *> &next_nodes, ltrans_partition partition)
    and in-partition calls was reached.  */
 
 void
-lto_balanced_map (int n_lto_partitions)
+lto_balanced_map (int n_lto_partitions, int max_partition_size)
 {
   int n_nodes = 0;
   int n_varpool_nodes = 0, varpool_pos = 0, best_varpool_pos = 0;
@@ -511,6 +512,9 @@ lto_balanced_map (int n_lto_partitions)
   varpool_order.qsort (varpool_node_cmp);
 
   /* Compute partition size and create the first partition.  */
+  if (PARAM_VALUE (MIN_PARTITION_SIZE) > max_partition_size)
+    fatal_error (input_location, "min partition size cannot be greater than max partition size");
+
   partition_size = total_size / n_lto_partitions;
   if (partition_size < PARAM_VALUE (MIN_PARTITION_SIZE))
     partition_size = PARAM_VALUE (MIN_PARTITION_SIZE);
@@ -664,8 +668,9 @@ lto_balanced_map (int n_lto_partitions)
 
 		vnode = dyn_cast <varpool_node *> (ref->referring);
 		gcc_assert (vnode->definition);
-		/* It is better to couple variables with their users, because it allows them
-		   to be removed.  Coupling with objects they refer to only helps to reduce
+		/* It is better to couple variables with their users,
+		   because it allows them to be removed.  Coupling
+		   with objects they refer to only helps to reduce
 		   number of symbols promoted to hidden.  */
 		if (!symbol_partitioned_p (vnode) && flag_toplevel_reorder
 		    && !vnode->no_reorder
@@ -719,7 +724,8 @@ lto_balanced_map (int n_lto_partitions)
 		 best_cost, best_internal, best_i);
       /* Partition is too large, unwind into step when best cost was reached and
 	 start new partition.  */
-      if (partition->insns > 2 * partition_size)
+      if (partition->insns > 2 * partition_size
+	  || partition->insns > max_partition_size)
 	{
 	  if (best_i != i)
 	    {
@@ -981,11 +987,15 @@ promote_symbol (symtab_node *node)
   TREE_PUBLIC (node->decl) = 1;
   DECL_VISIBILITY (node->decl) = VISIBILITY_HIDDEN;
   DECL_VISIBILITY_SPECIFIED (node->decl) = true;
-  ipa_ref *ref;
+  if (symtab->dump_file)
+    fprintf (symtab->dump_file,
+	     "Promoting as hidden: %s (%s)\n", node->name (),
+	     IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (node->decl)));
 
-  /* Promoting a symbol also promotes all trasparent aliases with exception
+  /* Promoting a symbol also promotes all transparent aliases with exception
      of weakref where the visibility flags are always wrong and set to 
      !PUBLIC.  */
+  ipa_ref *ref;
   for (unsigned i = 0; node->iterate_direct_aliases (i, ref); i++)
     {
       struct symtab_node *alias = ref->referring;
@@ -994,19 +1004,20 @@ promote_symbol (symtab_node *node)
 	  TREE_PUBLIC (alias->decl) = 1;
 	  DECL_VISIBILITY (alias->decl) = VISIBILITY_HIDDEN;
 	  DECL_VISIBILITY_SPECIFIED (alias->decl) = true;
+	  if (symtab->dump_file)
+	    fprintf (symtab->dump_file,
+		     "Promoting alias as hidden: %s\n",
+		     IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (node->decl)));
 	}
       gcc_assert (!alias->weakref || TREE_PUBLIC (alias->decl));
     }
-
-  if (symtab->dump_file)
-    fprintf (symtab->dump_file,
-	    "Promoting as hidden: %s\n", node->name ());
 }
 
-/* Return true if NODE needs named section even if it won't land in the partition
-   symbol table.
-   FIXME: we should really not use named sections for inline clones and master
-   clones.  */
+/* Return true if NODE needs named section even if it won't land in
+   the partition symbol table.
+
+   FIXME: we should really not use named sections for inline clones
+   and master clones.  */
 
 static bool
 may_need_named_section_p (lto_symtab_encoder_t encoder, symtab_node *node)
@@ -1084,7 +1095,8 @@ rename_statics (lto_symtab_encoder_t encoder, symtab_node *node)
 	    || lto_symtab_encoder_lookup (encoder, s) != LCC_NOT_FOUND))
       {
         if (privatize_symbol_name (s))
-	  /* Re-start from beginning since we do not know how many symbols changed a name.  */
+	  /* Re-start from beginning since we do not know how many
+	     symbols changed a name.  */
 	  s = symtab_node::get_for_asmname (name);
         else s = s->next_sharing_asm_name;
       }
@@ -1125,8 +1137,8 @@ lto_promote_cross_file_statics (void)
         {
           symtab_node *node = lsei_node (lsei);
 
-	  /* If symbol is static, rename it if its assembler name clash with
-	     anything else in this unit.  */
+	  /* If symbol is static, rename it if its assembler name
+	     clashes with anything else in this unit.  */
 	  rename_statics (encoder, node);
 
 	  /* No need to promote if symbol already is externally visible ... */
@@ -1134,7 +1146,7 @@ lto_promote_cross_file_statics (void)
  	      /* ... or if it is part of current partition ... */
 	      || lto_symtab_encoder_in_partition_p (encoder, node)
 	      /* ... or if we do not partition it. This mean that it will
-		 appear in every partition refernecing it.  */
+		 appear in every partition referencing it.  */
 	      || node->get_partitioning_class () != SYMBOL_PARTITION)
 	    {
 	      validize_symbol_for_target (node);

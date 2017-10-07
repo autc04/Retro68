@@ -355,7 +355,7 @@ const struct s390_operand s390_operands[] =
 #define INSTR_RRF_FEUFEFE  4, { FE_24,FE_16,FE_28,U4_20,0,0 }    /* e.g. qaxtr */
 #define INSTR_RRF_FUFF2    4, { F_24,F_28,F_16,U4_20,0,0 }       /* e.g. adtra */
 #define INSTR_RRF_FEUFEFE2 4, { FE_24,FE_28,FE_16,U4_20,0,0 }    /* e.g. axtra */
-#define INSTR_RRF_RURR     4, { R_24,R_28,R_16,U4_20,0,0 }       /* e.g. .insn */
+#define INSTR_RRF_RURR     4, { R_24,R_28,R_16,U4_20,0,0 }       /* e.g. ipte  */
 #define INSTR_RRF_RURR2    4, { R_24,R_16,R_28,U4_20,0,0 }       /* e.g. lptea */
 #define INSTR_RRF_R0RR     4, { R_24,R_16,R_28,0,0,0 }           /* e.g. idte  */
 #define INSTR_RRF_R0RR2    4, { R_24,R_28,R_16,0,0,0 }           /* e.g. ark   */
@@ -374,6 +374,8 @@ const struct s390_operand s390_operands[] =
 #define INSTR_RRF_U0RER    4, { RE_24,R_28,U4_16,0,0,0 }         /* e.g. trte  */
 #define INSTR_RRF_U0RERE   4, { RE_24,RE_28,U4_16,0,0,0 }        /* e.g. cu24  */
 #define INSTR_RRF_00RR     4, { R_24,R_28,0,0,0,0 }              /* e.g. clrtne */
+#define INSTR_RRF_0URF     4, { R_24,F_28,U4_20,0,0,0 }          /* e.g. csdtr  */
+#define INSTR_RRF_0UREFE   4, { RE_24,FE_28,U4_20,0,0,0 }        /* e.g. csxtr  */
 #define INSTR_RRF_UUFR     4, { F_24,U4_16,R_28,U4_20,0,0 }      /* e.g. cdgtra */
 #define INSTR_RRF_UUFER    4, { FE_24,U4_16,R_28,U4_20,0,0 }     /* e.g. cxfbra */
 #define INSTR_RRF_UURF     4, { R_24,U4_16,F_28,U4_20,0,0 }      /* e.g. cgdtra */
@@ -590,6 +592,8 @@ const struct s390_operand s390_operands[] =
 #define MASK_RRF_U0RER    { 0xff, 0xff, 0x0f, 0x00, 0x00, 0x00 }
 #define MASK_RRF_U0RERE   { 0xff, 0xff, 0x0f, 0x00, 0x00, 0x00 }
 #define MASK_RRF_00RR     { 0xff, 0xff, 0xff, 0x00, 0x00, 0x00 }
+#define MASK_RRF_0URF     { 0xff, 0xff, 0xf0, 0x00, 0x00, 0x00 }
+#define MASK_RRF_0UREFE   { 0xff, 0xff, 0xf0, 0x00, 0x00, 0x00 }
 #define MASK_RRF_UUFR     { 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 }
 #define MASK_RRF_UUFER    { 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 }
 #define MASK_RRF_UURF     { 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 }

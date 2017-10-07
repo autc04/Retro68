@@ -10,6 +10,6 @@ foo:
 0:
 	.insn
 
-# Force at least 8 (non-delay-slot) zero bytes, to make 'objdump' print ...
-	.align	2
-	.space	8
+# Force some (non-delay-slot) zero bytes, to make 'objdump' print ...
+	.space	16
+	.align	4, 0

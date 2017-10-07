@@ -33,7 +33,7 @@ if [istarget "x86_64-*-mingw*"] then {
   set LDFLAGS "$LDFLAGS --image-base 0"
 }
 
-if ![ld_simple_link $ld tmpdir/def "$LDFLAGS -T $srcdir/$subdir/defined.t tmpdir/def.o"] {
+if ![ld_link $ld tmpdir/def "$LDFLAGS -T $srcdir/$subdir/defined.t tmpdir/def.o"] {
     fail $testname
 } else {
     if ![ld_nm $nm "" tmpdir/def] {

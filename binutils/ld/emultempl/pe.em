@@ -379,7 +379,7 @@ typedef struct
    underscore.  */
 #define GET_INIT_SYMBOL_NAME(IDX) \
   (init[(IDX)].symbol \
-  + ((init[(IDX)].is_c_symbol == FALSE || (is_underscoring () != 0)) ? 0 : 1))
+   + ((!init[(IDX)].is_c_symbol || is_underscoring () != 0) ? 0 : 1))
 
 /* Decorates the C visible symbol by underscore, if target requires.  */
 #define U(CSTR) \
@@ -1130,7 +1130,7 @@ pe_fixup_stdcalls (void)
 }
 
 static int
-make_import_fixup (arelent *rel, asection *s)
+make_import_fixup (arelent *rel, asection *s, char *name)
 {
   struct bfd_symbol *sym = *rel->sym_ptr_ptr;
   char addend[4];
@@ -1143,7 +1143,7 @@ make_import_fixup (arelent *rel, asection *s)
     einfo (_("%C: Cannot get section contents - auto-import exception\n"),
 	   s->owner, s, rel->address);
 
-  pe_create_import_fixup (rel, s, bfd_get_32 (s->owner, addend));
+  pe_create_import_fixup (rel, s, bfd_get_32 (s->owner, addend), name);
 
   return 1;
 }
@@ -1152,32 +1152,46 @@ static void
 pe_find_data_imports (void)
 {
   struct bfd_link_hash_entry *undef, *sym;
+  size_t namelen;
+  char *buf, *name;
 
   if (link_info.pei386_auto_import == 0)
     return;
 
-  for (undef = link_info.hash->undefs; undef; undef=undef->u.undef.next)
+  namelen = 0;
+  for (undef = link_info.hash->undefs; undef; undef = undef->u.undef.next)
     {
       if (undef->type == bfd_link_hash_undefined)
 	{
-	  /* C++ symbols are *long*.  */
-#define BUF_SIZE 4096
-	  char buf[BUF_SIZE];
+	  size_t len = strlen (undef->root.string);
+	  if (namelen < len)
+	    namelen = len;
+	}
+    }
+  if (namelen == 0)
+    return;
+
+  /* We are being a bit cunning here.  The buffer will have space for
+     prefixes at the beginning.  The prefix is modified here and in a
+     number of functions called from this function.  */
+#define PREFIX_LEN 32
+  buf = xmalloc (PREFIX_LEN + namelen + 1);
+  name = buf + PREFIX_LEN;
+
+  for (undef = link_info.hash->undefs; undef; undef = undef->u.undef.next)
+    {
+      if (undef->type == bfd_link_hash_undefined)
+	{
+	  char *impname;
 
 	  if (pe_dll_extra_pe_debug)
 	    printf ("%s:%s\n", __FUNCTION__, undef->root.string);
 
-	  if (strlen (undef->root.string) > (BUF_SIZE - 6))
-	    {
-	      /* PR linker/18466.  */
-	      einfo (_("%P: internal error: symbol too long: %s\n"),
-		     undef->root.string);
-	      return;
-	    }
+	  strcpy (name, undef->root.string);
+	  impname = name - (sizeof "__imp_" - 1);
+	  memcpy (impname, "__imp_", sizeof "__imp_" - 1);
 
-	  sprintf (buf, "__imp_%s", undef->root.string);
-
-	  sym = bfd_link_hash_lookup (link_info.hash, buf, 0, 0, 1);
+	  sym = bfd_link_hash_lookup (link_info.hash, impname, 0, 0, 1);
 
 	  if (sym && sym->type == bfd_link_hash_defined)
 	    {
@@ -1189,15 +1203,18 @@ pe_find_data_imports (void)
 		{
 		  static bfd_boolean warned = FALSE;
 
-		  info_msg (_("Info: resolving %s by linking to %s (auto-import)\n"),
-			    undef->root.string, buf);
+		  info_msg (_("Info: resolving %s by linking to %s "
+			      "(auto-import)\n"), name, impname);
 
 		  /* PR linker/4844.  */
 		  if (! warned)
 		    {
 		      warned = TRUE;
-		      einfo (_("%P: warning: auto-importing has been activated without --enable-auto-import specified on the command line.\n\
-This should work unless it involves constant data structures referencing symbols from auto-imported DLLs.\n"));
+		      einfo (_("%P: warning: auto-importing has been activated "
+			       "without --enable-auto-import specified on the "
+			       "command line.\nThis should work unless it "
+			       "involves constant data structures referencing "
+			       "symbols from auto-imported DLLs.\n"));
 		    }
 		}
 
@@ -1212,8 +1229,7 @@ This should work unless it involves constant data structures referencing symbols
 
 	      for (i = 0; i < nsyms; i++)
 		{
-		  if (! CONST_STRNEQ (symbols[i]->name,
-				      U ("_head_")))
+		  if (! CONST_STRNEQ (symbols[i]->name, U ("_head_")))
 		    continue;
 
 		  if (pe_dll_extra_pe_debug)
@@ -1224,8 +1240,7 @@ This should work unless it involves constant data structures referencing symbols
 		  break;
 		}
 
-	      pe_walk_relocs_of_symbol (&link_info, undef->root.string,
-					make_import_fixup);
+	      pe_walk_relocs_of_symbol (&link_info, name, make_import_fixup);
 
 	      /* Let's differentiate it somehow from defined.  */
 	      undef->type = bfd_link_hash_defweak;
@@ -1238,6 +1253,7 @@ This should work unless it involves constant data structures referencing symbols
 	    }
 	}
     }
+  free (buf);
 }
 
 static bfd_boolean

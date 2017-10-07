@@ -392,14 +392,6 @@ If you do not specify a @var{member}, all files in the archive
 are extracted.
 
 Files cannot be extracted from a thin archive.
-
-@item --help
-Displays the list of command line options supported by @command{ar}
-and then exits.
-
-@item --version
-Displays the version information of @command{ar} and then exits.
-
 @end table
 
 A number of modifiers (@var{mod}) may immediately follow the @var{p}
@@ -527,22 +519,55 @@ when the modifier @samp{v} is appended.
 This modifier shows the version number of @command{ar}.
 @end table
 
+The @command{ar} program also supports some command line options which
+are neither modifiers nor actions, but which do change its behaviour
+in specific ways:
+
+@table @samp
+@item --help
+Displays the list of command line options supported by @command{ar}
+and then exits.
+
+@item --version
+Displays the version information of @command{ar} and then exits.
+
+@item -X32_64
 @command{ar} ignores an initial option spelt @samp{-X32_64}, for
 compatibility with AIX.  The behaviour produced by this option is the
-default for @sc{gnu} @command{ar}.  @command{ar} does not support any of the other
-@samp{-X} options; in particular, it does not support @option{-X32}
-which is the default for AIX @command{ar}.
+default for @sc{gnu} @command{ar}.  @command{ar} does not support any
+of the other @samp{-X} options; in particular, it does not support
+@option{-X32} which is the default for AIX @command{ar}.
 
-The optional command line switch @option{--plugin} @var{name} causes
+@item --plugin @var{name}
+@cindex plugins
+The optional command line switch @option{--plugin @var{name}} causes 
 @command{ar} to load the plugin called @var{name} which adds support
-for more file formats.  This option is only available if the toolchain
-has been built with plugin support enabled.
+for more file formats, including object files with link-time
+optimization information.
 
-The optional command line switch @option{--target} @var{bfdname}
+This option is only available if the toolchain has been built with
+plugin support enabled.
+
+If @option{--plugin} is not provided, but plugin support has been
+enabled then @command{ar} iterates over the files in
+@file{$@{libdir@}/bfd-plugins} in alphabetic order and the first
+plugin that claims the object in question is used.
+
+Please note that this plugin search directory is @emph{not} the one
+used by @command{ld}'s @option{-plugin} option.  In order to make
+@command{ar} use the  linker plugin it must be copied into the
+@file{$@{libdir@}/bfd-plugins} directory.  For GCC based compilations
+the linker plugin is called @file{liblto_plugin.so.0.0.0}.  For Clang
+based compilations it is called @file{LLVMgold.so}.  The GCC plugin
+is always backwards compatible with earlier versions, so it is
+sufficient to just copy the newest one.
+
+@item --target @var{target}
+The optional command line switch @option{--target @var{bfdname}}
 specifies that the archive members are in an object code format
 different from your system's default format.  See
 @xref{Target Selection}, for more information.
-
+@end table
 @c man end
 
 @ignore
@@ -736,7 +761,8 @@ nm [@option{-A}|@option{-o}|@option{--print-file-name}] [@option{-a}|@option{--d
    [@option{-B}|@option{--format=bsd}] [@option{-C}|@option{--demangle}[=@var{style}]]
    [@option{-D}|@option{--dynamic}] [@option{-f}@var{format}|@option{--format=}@var{format}]
    [@option{-g}|@option{--extern-only}] [@option{-h}|@option{--help}]
-   [@option{-l}|@option{--line-numbers}] [@option{-n}|@option{-v}|@option{--numeric-sort}]
+   [@option{-l}|@option{--line-numbers}] [@option{--inlines}]
+   [@option{-n}|@option{-v}|@option{--numeric-sort}]
    [@option{-P}|@option{--portability}] [@option{-p}|@option{--no-sort}]
    [@option{-r}|@option{--reverse-sort}] [@option{-S}|@option{--print-size}]
    [@option{-s}|@option{--print-armap}] [@option{-t} @var{radix}|@option{--radix=}@var{radix}]
@@ -943,6 +969,16 @@ address of the symbol.  For an undefined symbol, look for the line
 number of a relocation entry which refers to the symbol.  If line number
 information can be found, print it after the other symbol information.
 
+@item --inlines
+@cindex objdump inlines
+When option @option{-l} is active, if the address belongs to a
+function that was inlined, then this option causes the source 
+information for all enclosing scopes back to the first non-inlined
+function to be printed as well.  For example, if @code{main} inlines
+@code{callee1} which inlines @code{callee2}, and address is from
+@code{callee2}, the source information for @code{callee1} and @code{main}
+will also be printed.
+
 @item -n
 @itemx -v
 @itemx --numeric-sort
@@ -1006,10 +1042,24 @@ to @option{-X 32}, which is not supported by @sc{gnu} @command{nm}.
 Display only defined symbols for each object file.
 
 @item --plugin @var{name}
-@cindex load plugin
+@cindex plugins
 Load the plugin called @var{name} to add support for extra target
 types.  This option is only available if the toolchain has been built
 with plugin support enabled.
+
+If @option{--plugin} is not provided, but plugin support has been
+enabled then @command{nm} iterates over the files in
+@file{$@{libdir@}/bfd-plugins} in alphabetic order and the first
+plugin that claims the object in question is used.
+
+Please note that this plugin search directory is @emph{not} the one
+used by @command{ld}'s @option{-plugin} option.  In order to make
+@command{nm} use the  linker plugin it must be copied into the
+@file{$@{libdir@}/bfd-plugins} directory.  For GCC based compilations
+the linker plugin is called @file{liblto_plugin.so.0.0.0}.  For Clang
+based compilations it is called @file{LLVMgold.so}.  The GCC plugin
+is always backwards compatible with earlier versions, so it is
+sufficient to just copy the newest one.
 
 @item --size-sort
 Sort symbols by size.  For ELF objects symbol sizes are read from the
@@ -1140,6 +1190,8 @@ objcopy [@option{-F} @var{bfdname}|@option{--target=}@var{bfdname}]
         [@option{--compress-debug-sections}]
         [@option{--decompress-debug-sections}]
         [@option{--elf-stt-common=@var{val}}]
+        [@option{--merge-notes}]
+        [@option{--no-merge-notes}]
         [@option{-v}|@option{--verbose}]
         [@option{-V}|@option{--version}]
         [@option{--help}] [@option{--info}]
@@ -1956,6 +2008,11 @@ converted to the @code{STT_COMMON} or @code{STT_OBJECT} type.
 @code{STT_COMMON}. @option{--elf-stt-common=no} converts common symbol
 type to @code{STT_OBJECT}.
 
+@item --merge-notes
+@itemx --no-merge-notes
+For ELF files, attempt (or do not attempt) to reduce the size of any
+SHT_NOTE type sections by removing duplicate notes.
+
 @item -V
 @itemx --version
 Show the version number of @command{objcopy}.
@@ -2257,6 +2314,14 @@ of double precision assist instructions, @option{fpus} selects the
 printing of FPU single precision FP instructions, while @option{fpud}
 selects the printing of FPU souble precision FP instructions.
 
+@option{cpu=...} allows to enforce a particular ISA when disassembling
+instructions, overriding the @option{-m} value or whatever is in the ELF file.
+This might be useful to select ARC EM or HS ISA, because architecture is same
+for those and disassembler relies on private ELF header data to decide if code
+is for EM or HS.  This option might be specified multiple times - only the
+latest value will be used.  Valid values are same as for the assembler
+@option{-mcpu=...} option.
+
 If the target is an ARM architecture then this switch can be used to
 select which register name set is used during disassembler.  Specifying
 @option{-M reg-names-std} (the default) will select the register names as
@@ -2314,12 +2379,34 @@ When in AT&T mode, instructs the disassembler to print a mnemonic
 suffix even when the suffix could be inferred by the operands.
 @end table
 
-For PowerPC, @option{booke} controls the disassembly of BookE
-instructions.  @option{32} and @option{64} select PowerPC and
-PowerPC64 disassembly, respectively.  @option{e300} selects
-disassembly for the e300 family.  @option{440} selects disassembly for
-the PowerPC 440.  @option{ppcps} selects disassembly for the paired
-single instructions of the PPC750CL.
+For PowerPC, the @option{-M} argument @option{raw} selects
+disasssembly of hardware insns rather than aliases.  For example, you
+will see @code{rlwinm} rather than @code{clrlwi}, and @code{addi}
+rather than @code{li}.  All of the @option{-m} arguments for
+@command{gas} that select a CPU are supported.  These are:
+@option{403}, @option{405}, @option{440}, @option{464}, @option{476},
+@option{601}, @option{603}, @option{604}, @option{620}, @option{7400},
+@option{7410}, @option{7450}, @option{7455}, @option{750cl},
+@option{821}, @option{850}, @option{860}, @option{a2}, @option{booke},
+@option{booke32}, @option{cell}, @option{com}, @option{e200z4},
+@option{e300}, @option{e500}, @option{e500mc}, @option{e500mc64},
+@option{e500x2}, @option{e5500}, @option{e6500}, @option{efs},
+@option{power4}, @option{power5}, @option{power6}, @option{power7},
+@option{power8}, @option{power9}, @option{ppc}, @option{ppc32},
+@option{ppc64}, @option{ppc64bridge}, @option{ppcps}, @option{pwr},
+@option{pwr2}, @option{pwr4}, @option{pwr5}, @option{pwr5x},
+@option{pwr6}, @option{pwr7}, @option{pwr8}, @option{pwr9},
+@option{pwrx}, @option{titan}, and @option{vle}.
+@option{32} and @option{64} modify the default or a prior CPU
+selection, disabling and enabling 64-bit insns respectively.  In
+addition, @option{altivec}, @option{any}, @option{htm}, @option{vsx},
+and @option{spe} add capabilities to a previous @emph{or later} CPU
+selection.  @option{any} will disassemble any opcode known to
+binutils, but in cases where an opcode has two different meanings or
+different arguments, you may not see the disassembly you expect.
+If you disassemble without giving a CPU selection, a default will be
+chosen from information gleaned by BFD from the object files headers,
+but the result again may not be as you expect.
 
 For MIPS, this option controls the printing of instruction mnemonic
 names and register names in disassembled instructions.  Multiple
@@ -3037,7 +3124,8 @@ strip [@option{-F} @var{bfdname} |@option{--target=}@var{bfdname}]
       [@option{-s}|@option{--strip-all}]
       [@option{-S}|@option{-g}|@option{-d}|@option{--strip-debug}]
       [@option{--strip-dwo}]
-      [@option{-K} @var{symbolname} |@option{--keep-symbol=}@var{symbolname}]
+      [@option{-K} @var{symbolname}|@option{--keep-symbol=}@var{symbolname}]
+      [@option{-M}|@option{--merge-notes}][@option{--no-merge-notes}]
       [@option{-N} @var{symbolname} |@option{--strip-symbol=}@var{symbolname}]
       [@option{-w}|@option{--wildcard}]
       [@option{-x}|@option{--discard-all}] [@option{-X} |@option{--discard-locals}]
@@ -3163,6 +3251,13 @@ Remove all symbols that are not needed for relocation processing.
 @itemx --keep-symbol=@var{symbolname}
 When stripping symbols, keep symbol @var{symbolname} even if it would
 normally be stripped.  This option may be given more than once.
+
+@item -M
+@itemx --merge-notes
+@itemx --no-merge-notes
+For ELF files, attempt (or do not attempt) to reduce the size of any
+SHT_NOTE type sections by removing duplicate notes.  The default is to
+attempt this reduction.
 
 @item -N @var{symbolname}
 @itemx --strip-symbol=@var{symbolname}

@@ -35,14 +35,16 @@ INDEX
 ANSI_SYNOPSIS
 	#include <stdio.h>
 	#include <stdarg.h>
-	int vwscanf(const wchar_t *<[fmt]>, va_list <[list]>);
-	int vfwscanf(FILE *<[fp]>, const wchar_t *<[fmt]>, va_list <[list]>);
-	int vswscanf(const wchar_t *<[str]>, const wchar_t *<[fmt]>, va_list <[list]>);
+	int vwscanf(const wchar_t *__restrict <[fmt]>, va_list <[list]>);
+	int vfwscanf(FILE *__restrict <[fp]>,
+                     const wchar_t *__restrict <[fmt]>, va_list <[list]>);
+	int vswscanf(const wchar_t *__restrict <[str]>,
+                     const wchar_t *__restrict <[fmt]>, va_list <[list]>);
 
 	int _vwscanf(struct _reent *<[reent]>, const wchar_t *<[fmt]>,
                        va_list <[list]>);
-	int _vfwscanf(struct _reent *<[reent]>, FILE *<[fp]>, const wchar_t *<[fmt]>,
-                       va_list <[list]>);
+	int _vfwscanf(struct _reent *<[reent]>, FILE *<[fp]>,
+                      const wchar_t *<[fmt]>, va_list <[list]>);
 	int _vswscanf(struct _reent *<[reent]>, const wchar_t *<[str]>,
                        const wchar_t *<[fmt]>, va_list <[list]>);
 
@@ -50,17 +52,17 @@ TRAD_SYNOPSIS
 	#include <stdio.h>
 	#include <varargs.h>
 	int vwscanf( <[fmt]>, <[ist]>)
-	wchar_t *<[fmt]>;
+	wchar_t *__restrict <[fmt]>;
 	va_list <[list]>;
 
 	int vfwscanf( <[fp]>, <[fmt]>, <[list]>)
-	FILE *<[fp]>;
-	wchar_t *<[fmt]>;
+	FILE *__restrict <[fp]>;
+	wchar_t *__restrict <[fmt]>;
 	va_list <[list]>;
 
 	int vswscanf( <[str]>, <[fmt]>, <[list]>)
-	wchar_t *<[str]>;
-	wchar_t *<[fmt]>;
+	wchar_t *__restrict <[str]>;
+	wchar_t *__restrict <[fmt]>;
 	va_list <[list]>;
 
 	int _vwscanf( <[reent]>, <[fmt]>, <[ist]>)
@@ -145,10 +147,12 @@ C99, POSIX-1.2008
 #endif
 
 #ifdef STRING_ONLY
-#undef _flockfile
-#undef _funlockfile
-#define _flockfile(x) {}
-#define _funlockfile(x) {}
+#undef _newlib_flockfile_start
+#undef _newlib_flockfile_exit
+#undef _newlib_flockfile_end
+#define _newlib_flockfile_start(x) {}
+#define _newlib_flockfile_exit(x) {}
+#define _newlib_flockfile_end(x) {}
 #define _ungetwc_r _sungetwc_r
 #define __srefill_r __ssrefill_r
 #define _fgetwc_r _sfgetwc_r
@@ -157,6 +161,10 @@ C99, POSIX-1.2008
 #ifdef FLOATING_POINT
 #include <math.h>
 #include <float.h>
+#include <locale.h>
+#ifdef __HAVE_LOCALE_INFO_EXTENDED__
+#include "../locale/setlocale.h"
+#endif
 
 /* Currently a test is made to see if long double processing is warranted.
    This could be changed in the future should the _ldtoa_r code be
@@ -252,12 +260,14 @@ static void * get_arg (int, va_list *, int *, void **);
 
 int
 _DEFUN(VFWSCANF, (fp, fmt, ap),
-       register FILE *fp _AND
-       _CONST wchar_t *fmt _AND
+       register FILE *__restrict fp _AND
+       _CONST wchar_t *__restrict fmt _AND
        va_list ap)
 {
-  CHECK_INIT(_REENT, fp);
-  return __SVFWSCANF_R (_REENT, fp, fmt, ap);
+  struct _reent *reent = _REENT;
+
+  CHECK_INIT(reent, fp);
+  return __SVFWSCANF_R (reent, fp, fmt, ap);
 }
 
 int
@@ -408,6 +418,7 @@ _DEFUN(__SVFWSCANF_R, (rptr, fp, fmt0, ap),
   float *flp;
   _LONG_DOUBLE *ldp;
   double *dp;
+  wchar_t decpt;
 #endif
   long *lp;
 #ifndef _NO_LONGLONG
@@ -434,7 +445,28 @@ _DEFUN(__SVFWSCANF_R, (rptr, fp, fmt0, ap),
 # define GET_ARG(n, ap, type) (va_arg (ap, type))
 #endif
 
-  _flockfile (fp);
+#ifdef FLOATING_POINT
+#ifdef _MB_CAPABLE
+#ifdef __HAVE_LOCALE_INFO_EXTENDED__
+	  decpt = *__get_current_numeric_locale ()->wdecimal_point;
+#else
+	  {
+	    size_t nconv;
+
+	    memset (&mbs, '\0', sizeof (mbs));
+	    nconv = _mbrtowc_r (rptr, &decpt,
+				_localeconv_r (rptr)->decimal_point,
+				MB_CUR_MAX, &mbs);
+	    if (nconv == (size_t) -1 || nconv == (size_t) -2)
+	      decpt = L'.';
+	  }
+#endif /* !__HAVE_LOCALE_INFO_EXTENDED__ */
+#else
+	  decpt = (wchar_t) *_localeconv_r (rptr)->decimal_point;
+#endif /* !_MB_CAPABLE */
+#endif /* FLOATING_POINT */
+
+  _newlib_flockfile_start (fp);
 
   ORIENT (fp, 1);
 
@@ -712,7 +744,7 @@ _DEFUN(__SVFWSCANF_R, (rptr, fp, fmt0, ap),
 	   * Disgusting backwards compatibility hacks.	XXX
 	   */
 	case L'\0':		/* compat */
-	  _funlockfile (fp);
+	  _newlib_flockfile_exit (fp);
 	  return EOF;
 
 	default:		/* compat */
@@ -745,7 +777,7 @@ _DEFUN(__SVFWSCANF_R, (rptr, fp, fmt0, ap),
           if (flags & LONG)
 	    {
 	      if (!(flags & SUPPRESS))
-		p = va_arg(ap, wchar_t *);
+		p = GET_ARG(N, ap, wchar_t *);
 	      n = 0;
 	      while (width-- != 0 && (wi = _fgetwc_r (rptr, fp)) != WEOF)
 		{
@@ -762,7 +794,7 @@ _DEFUN(__SVFWSCANF_R, (rptr, fp, fmt0, ap),
 	  else
 	    {
 	      if (!(flags & SUPPRESS))
-		mbp = va_arg(ap, char *);
+		mbp = GET_ARG(N, ap, char *);
 	      n = 0;
 	      memset ((_PTR)&mbs, '\0', sizeof (mbstate_t));
 	      while (width != 0 && (wi = _fgetwc_r (rptr, fp)) != WEOF)
@@ -817,7 +849,7 @@ _DEFUN(__SVFWSCANF_R, (rptr, fp, fmt0, ap),
 	    }
 	  else if (flags & LONG)
 	    {
-	      p0 = p = va_arg(ap, wchar_t *);
+	      p0 = p = GET_ARG(N, ap, wchar_t *);
 	      while ((wi = _fgetwc_r (rptr, fp)) != WEOF
 		     && width-- != 0 && INCCL (wi))
 		*p++ = (wchar_t) wi;
@@ -826,11 +858,13 @@ _DEFUN(__SVFWSCANF_R, (rptr, fp, fmt0, ap),
 	      n = p - p0;
 	      if (n == 0)
 		goto match_failure;
+	      *p = L'\0';
+	      nassigned++;
 	    }
 	  else
 	    {
 	      if (!(flags & SUPPRESS))
-		mbp = va_arg(ap, char *);
+		mbp = GET_ARG(N, ap, char *);
 	      n = 0;
 	      memset ((_PTR) &mbs, '\0', sizeof (mbstate_t));
 	      while ((wi = _fgetwc_r (rptr, fp)) != WEOF
@@ -882,7 +916,7 @@ _DEFUN(__SVFWSCANF_R, (rptr, fp, fmt0, ap),
 	    }
 	  else if (flags & LONG)
 	    {
-	      p0 = p = va_arg(ap, wchar_t *);
+	      p0 = p = GET_ARG(N, ap, wchar_t *);
 	      while ((wi = _fgetwc_r (rptr, fp)) != WEOF
 		     && width-- != 0 && !iswspace (wi))
 		{
@@ -891,13 +925,13 @@ _DEFUN(__SVFWSCANF_R, (rptr, fp, fmt0, ap),
 		}
 	      if (wi != WEOF)
 		_ungetwc_r (rptr, wi, fp);
-	      *p = '\0';
+	      *p = L'\0';
 	      nassigned++;
 	    }
 	  else
 	    {
 	      if (!(flags & SUPPRESS))
-		mbp = va_arg(ap, char *);
+		mbp = GET_ARG(N, ap, char *);
 	      memset ((_PTR) &mbs, '\0', sizeof (mbstate_t));
 	      while ((wi = _fgetwc_r (rptr, fp)) != WEOF
 		     && width != 0 && !iswspace (wi))
@@ -1139,14 +1173,14 @@ _DEFUN(__SVFWSCANF_R, (rptr, fp, fmt0, ap),
 	  char nancount = 0;
 	  char infcount = 0;
 #ifdef hardway
-	  if (width == 0 || width > sizeof (buf) - 1)
+	  if (width == 0 || width > sizeof (buf) / sizeof (*buf) - 1)
 #else
 	  /* size_t is unsigned, hence this optimisation */
-	  if (width - 1 > sizeof (buf) - 2)
+	  if (width - 1 > sizeof (buf) / sizeof (*buf) - 2)
 #endif
 	    {
-	      width_left = width - (sizeof (buf) - 1);
-	      width = sizeof (buf) - 1;
+	      width_left = width - (sizeof (buf) / sizeof (*buf) - 1);
+	      width = sizeof (buf) / sizeof (*buf) - 1;
 	    }
 	  flags |= SIGNOK | NDIGITS | DPTOK | EXPOK;
 	  zeroes = 0;
@@ -1265,14 +1299,6 @@ _DEFUN(__SVFWSCANF_R, (rptr, fp, fmt0, ap),
 		      goto fok;
 		    }
 		  break;
-		case L'.':
-		  if (flags & DPTOK)
-		    {
-		      flags &= ~(SIGNOK | DPTOK);
-		      leading_zeroes = zeroes;
-		      goto fok;
-		    }
-		  break;
 		case L'e':
 		case L'E':
 		  /* no exponent without some digits */
@@ -1288,6 +1314,14 @@ _DEFUN(__SVFWSCANF_R, (rptr, fp, fmt0, ap),
 			(flags & ~(EXPOK | DPTOK)) |
 			SIGNOK | NDIGITS;
 		      zeroes = 0;
+		      goto fok;
+		    }
+		  break;
+		default:
+		  if ((wchar_t) c == decpt && (flags & DPTOK))
+		    {
+		      flags &= ~(SIGNOK | DPTOK);
+		      leading_zeroes = zeroes;
 		      goto fok;
 		    }
 		  break;
@@ -1397,8 +1431,10 @@ _DEFUN(__SVFWSCANF_R, (rptr, fp, fmt0, ap),
 
 		  /* If there might not be enough space for the new exponent,
 		     truncate some trailing digits to make room.  */
-		  if (exp_start >= buf + sizeof (buf) - MAX_LONG_LEN)
-		    exp_start = buf + sizeof (buf) - MAX_LONG_LEN - 1;
+		  if (exp_start >= buf + sizeof (buf) / sizeof (*buf)
+				   - MAX_LONG_LEN)
+		    exp_start = buf + sizeof (buf) / sizeof (*buf)
+				- MAX_LONG_LEN - 1;
                  swprintf (exp_start, MAX_LONG_LEN, L"e%ld", new_exp);
 		}
 
@@ -1440,12 +1476,12 @@ input_failure:
      should have been set prior to here.  On EOF failure (including
      invalid format string), return EOF if no matches yet, else number
      of matches made prior to failure.  */
-  _funlockfile (fp);
+  _newlib_flockfile_exit (fp);
   return nassigned && !(fp->_flags & __SERR) ? nassigned : EOF;
 match_failure:
 all_done:
   /* Return number of matches, which can be 0 on match failure.  */
-  _funlockfile (fp);
+  _newlib_flockfile_end (fp);
   return nassigned;
 }
 

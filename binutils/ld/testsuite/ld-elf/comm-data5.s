@@ -1,4 +1,8 @@
- .comm i,4,4
+ .ifdef HPUX
+i .comm 4
+ .else
+  .comm i,4,4
+ .endif
 
  .section .rodata,"a",%progbits
  .dc.a i

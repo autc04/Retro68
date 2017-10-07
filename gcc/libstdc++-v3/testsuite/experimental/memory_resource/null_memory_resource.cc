@@ -1,6 +1,6 @@
-// { dg-options "-std=gnu++14" }
+// { dg-do run { target c++14 } }
 
-// Copyright (C) 2016 Free Software Foundation, Inc.
+// Copyright (C) 2016-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -18,7 +18,6 @@
 // <http://www.gnu.org/licenses/>.
 
 #include <experimental/memory_resource>
-#include <bits/uses_allocator.h>
 #include <testsuite_hooks.h>
 
 using std::experimental::pmr::memory_resource;
@@ -29,8 +28,6 @@ using std::experimental::pmr::new_delete_resource;
 void
 test06()
 {
-  bool test __attribute((unused)) = false;
-
   memory_resource* r = null_memory_resource();
   bool caught = false;
 

@@ -1186,6 +1186,7 @@ main (int argc, char ** argv)
   int macro_strip_at;
 
   start_time = get_run_time ();
+  signal_init ();
 #ifdef HAVE_SBRK
   start_sbrk = (char *) sbrk (0);
 #endif

@@ -334,7 +334,7 @@ get_register_pair (char *reg_name)
   const reg_entry *rreg;
   char tmp_rp[16]="\0";
 
-  /* Add '(' and ')' to the reg pair, if its not present.  */
+  /* Add '(' and ')' to the reg pair, if it's not present.  */
   if (reg_name[0] != '(')
     {
       tmp_rp[0] = '(';
@@ -1153,8 +1153,8 @@ getreg_image (reg r)
 static void
 set_operand (char *operand, ins * cr16_ins)
 {
-  char *operandS; /* Pointer to start of sub-opearand.  */
-  char *operandE; /* Pointer to end of sub-opearand.  */
+  char *operandS; /* Pointer to start of sub-operand.  */
+  char *operandE; /* Pointer to end of sub-operand.  */
 
   argument *cur_arg = &cr16_ins->arg[cur_arg_num]; /* Current argument.  */
 
@@ -1654,7 +1654,7 @@ getidxregp_image (reg r)
   return 0;
 }
 
-/* Retrieve the opcode image of a given processort register.
+/* Retrieve the opcode image of a given processor register.
    If the register is illegal for the current instruction,
    issue an error.  */
 static int
@@ -1692,7 +1692,7 @@ getprocreg_image (int r)
   return 0;
 }
 
-/* Retrieve the opcode image of a given processort register.
+/* Retrieve the opcode image of a given processor register.
    If the register is illegal for the current instruction,
    issue an error.  */
 static int
@@ -1846,7 +1846,7 @@ print_constant (int nbits, int shift, argument *arg)
       /* When instruction size is 3 and 'shift' is 16, a 16-bit constant is
          always filling the upper part of output_opcode[1]. If we mistakenly
          write it to output_opcode[0], the constant prefix (that is, 'match')
-         will be overriden.
+         will be overridden.
          0        1         2         3
          +---------+---------+---------+---------+
          | 'match' |         | X X X X |         |
@@ -2002,7 +2002,7 @@ check_range (long *num, int bits, int unsigned flags, int update)
 
   if (bits == 0 && value > 0) return OP_OUT_OF_RANGE;
 
-  /* For hosts witah longs bigger than 32-bits make sure that the top
+  /* For hosts with longs bigger than 32-bits make sure that the top
      bits of a 32-bit negative value read in by the parser are set,
      so that the correct comparisons are made.  */
   if (value & 0x80000000)
@@ -2085,7 +2085,7 @@ check_range (long *num, int bits, int unsigned flags, int update)
    return retval;
 }
 
-/* Bunch of error checkings.
+/* Bunch of error checking.
    The checks are made after a matching instruction was found.  */
 
 static void
@@ -2108,7 +2108,7 @@ warn_if_needed (ins *insn)
     {
       unsigned int count = insn->arg[0].constant, reg_val;
 
-      /* Check if count operand caused to save/retrive the RA twice
+      /* Check if count operand caused to save/retrieve the RA twice
          to generate warning message.  */
      if (insn->nargs > 2)
        {
@@ -2289,7 +2289,7 @@ assemble_insn (const char *mnemonic, ins *insn)
             goto next_insn;
 
           /* If 'storb' instruction with 'sp' reg and 16-bit disp of
-           * reg-pair, leads to undifined trap, so this should use
+           * reg-pair, leads to undefined trap, so this should use
            * 20-bit disp of reg-pair.  */
           if (IS_INSN_MNEMONIC ("storb") && (instruction->size == 2)
               && (insn->arg[i].r == 15) && (insn->arg[i + 1].type == arg_crp))
@@ -2356,7 +2356,7 @@ next_insn:
   else
     /* Full match - print the encoding to output file.  */
     {
-      /* Make further checkings (such that couldn't be made earlier).
+      /* Make further checking (such that couldn't be made earlier).
          Warn the user if necessary.  */
       warn_if_needed (insn);
 
@@ -2538,7 +2538,7 @@ md_assemble (char *op)
     ;
   *param++ = '\0';
 
-  /* bCC instuctions and adjust the mnemonic by adding extra white spaces.  */
+  /* bCC instructions and adjust the mnemonic by adding extra white spaces.  */
   if (is_bcc_insn (op))
     {
       strcpy (param1, get_b_cc (op));
@@ -2560,7 +2560,7 @@ md_assemble (char *op)
 
   /* MAPPING - SHIFT INSN, if imm4/imm16 positive values
      lsh[b/w] imm4/imm6, reg ==> ashu[b/w] imm4/imm16, reg
-     as CR16 core doesn't support lsh[b/w] right shift operaions.  */
+     as CR16 core doesn't support lsh[b/w] right shift operations.  */
   if ((streq ("lshb", op) || streq ("lshw", op) || streq ("lshd", op))
       && (param [0] == '$'))
     {

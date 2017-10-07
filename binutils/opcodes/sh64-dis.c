@@ -20,7 +20,7 @@
 
 #include "sysdep.h"
 #include <stdio.h>
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "sh64-opc.h"
 #include "libiberty.h"
 /* We need to refer to the ELF header structure.  */

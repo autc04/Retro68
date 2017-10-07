@@ -1,5 +1,9 @@
-.ifndef NO_GLOBAL
+ .ifndef NO_GLOBAL
+  .ifdef HPUX
+exported1 .comm	1
+  .else
 	.comm	exported1,1
+  .endif
 
 	.data
 	.global	exported2
@@ -7,7 +11,7 @@
 	.size	exported2, 1
 exported2:
 	.byte	21
-.endif
+ .endif
 
 	.section ".bss", "aw", %nobits
 not_exported1:

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -42,32 +42,28 @@ package ALI is
    -- Id Types --
    --------------
 
-   --  The various entries are stored in tables with distinct subscript ranges.
-   --  The following type definitions show the ranges used for the subscripts
-   --  (Id values) for the various tables.
-
-   type ALI_Id is range 0 .. 999_999;
+   type ALI_Id is range 0 .. 99_999_999;
    --  Id values used for ALIs table entries
 
-   type Unit_Id is range 1_000_000 .. 1_999_999;
+   type Unit_Id is range 0 .. 99_999_999;
    --  Id values used for Unit table entries
 
-   type With_Id is range 2_000_000 .. 2_999_999;
+   type With_Id is range 0 .. 99_999_999;
    --  Id values used for Withs table entries
 
-   type Arg_Id is range 3_000_000 .. 3_999_999;
+   type Arg_Id is range 0 .. 99_999_999;
    --  Id values used for argument table entries
 
-   type Sdep_Id is range 4_000_000 .. 4_999_999;
+   type Sdep_Id is range 0 .. 99_999_999;
    --  Id values used for Sdep table entries
 
-   type Source_Id is range 5_000_000 .. 5_999_999;
+   type Source_Id is range 0 .. 99_999_999;
    --  Id values used for Source table entries
 
-   type Interrupt_State_Id is range 6_000_000 .. 6_999_999;
+   type Interrupt_State_Id is range 0 .. 99_999_999;
    --  Id values used for Interrupt_State table entries
 
-   type Priority_Specific_Dispatching_Id is range 7_000_000 .. 7_999_999;
+   type Priority_Specific_Dispatching_Id is range 0 .. 99_999_999;
    --  Id values used for Priority_Specific_Dispatching table entries
 
    --------------------
@@ -526,11 +522,6 @@ package ALI is
    Stack_Check_Switch_Set : Boolean := False;
    --  Set to True if at least one ALI file contains '-fstack-check' in its
    --  argument list.
-
-   Static_Elaboration_Model_Used : Boolean := False;
-   --  Set to False by Initialize_ALI. Set to True if any ALI file for a
-   --  non-internal unit compiled with the static elaboration model is
-   --  encountered.
 
    Task_Dispatching_Policy_Specified : Character := ' ';
    --  Set to blank by Initialize_ALI. Set to the appropriate task dispatching

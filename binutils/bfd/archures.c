@@ -147,9 +147,11 @@ DESCRIPTION
 .#define bfd_mach_sparc_v9v		18 {* with OSA2011 and T4 and IMA and FJMAU add'ns.  *}
 .#define bfd_mach_sparc_v8plusm		19 {* with OSA2015 and M7 add'ns.  *}
 .#define bfd_mach_sparc_v9m		20 {* with OSA2015 and M7 add'ns.  *}
+.#define bfd_mach_sparc_v8plusm8	21 {* with OSA2017 and M8 add'ns.  *}
+.#define bfd_mach_sparc_v9m8		22 {* with OSA2017 and M8 add'ns.  *}
 .{* Nonzero if MACH has the v9 instruction set.  *}
 .#define bfd_mach_sparc_v9_p(mach) \
-.  ((mach) >= bfd_mach_sparc_v8plus && (mach) <= bfd_mach_sparc_v9m \
+.  ((mach) >= bfd_mach_sparc_v8plus && (mach) <= bfd_mach_sparc_v9m8 \
 .   && (mach) != bfd_mach_sparc_sparclite_le)
 .{* Nonzero if MACH is a 64 bit sparc architecture.  *}
 .#define bfd_mach_sparc_64bit_p(mach) \
@@ -159,7 +161,8 @@ DESCRIPTION
 .   && (mach) != bfd_mach_sparc_v8plusd \
 .   && (mach) != bfd_mach_sparc_v8pluse \
 .   && (mach) != bfd_mach_sparc_v8plusv \
-.   && (mach) != bfd_mach_sparc_v8plusm)
+.   && (mach) != bfd_mach_sparc_v8plusm \
+.   && (mach) != bfd_mach_sparc_v8plusm8)
 .  bfd_arch_spu,       {* PowerPC SPU *}
 .#define bfd_mach_spu		256
 .  bfd_arch_mips,      {* MIPS Rxxxx *}
@@ -197,6 +200,7 @@ DESCRIPTION
 .#define bfd_mach_mips_octeon2		6502
 .#define bfd_mach_mips_octeon3          6503
 .#define bfd_mach_mips_xlr              887682   {* decimal 'XLR'  *}
+.#define bfd_mach_mips_interaptiv_mr2   736550   {* decimal 'IA2'  *}
 .#define bfd_mach_mipsisa32             32
 .#define bfd_mach_mipsisa32r2           33
 .#define bfd_mach_mipsisa32r3           34
@@ -528,6 +532,10 @@ DESCRIPTION
 .#define bfd_mach_nios2r2	2
 .  bfd_arch_visium,	{* Visium *}
 .#define bfd_mach_visium	1
+.  bfd_arch_wasm32,     {* WebAssembly *}
+.#define bfd_mach_wasm32        1
+.  bfd_arch_pru,	{* PRU *}
+.#define bfd_mach_pru	0
 .  bfd_arch_last
 .  };
 */
@@ -631,6 +639,7 @@ extern const bfd_arch_info_type bfd_pj_arch;
 extern const bfd_arch_info_type bfd_plugin_arch;
 extern const bfd_arch_info_type bfd_powerpc_archs[];
 #define bfd_powerpc_arch bfd_powerpc_archs[0]
+extern const bfd_arch_info_type bfd_pru_arch;
 extern const bfd_arch_info_type bfd_riscv_arch;
 extern const bfd_arch_info_type bfd_rs6000_arch;
 extern const bfd_arch_info_type bfd_rl78_arch;
@@ -651,6 +660,7 @@ extern const bfd_arch_info_type bfd_v850_arch;
 extern const bfd_arch_info_type bfd_v850_rh850_arch;
 extern const bfd_arch_info_type bfd_vax_arch;
 extern const bfd_arch_info_type bfd_visium_arch;
+extern const bfd_arch_info_type bfd_wasm32_arch;
 extern const bfd_arch_info_type bfd_w65_arch;
 extern const bfd_arch_info_type bfd_we32k_arch;
 extern const bfd_arch_info_type bfd_xstormy16_arch;
@@ -721,6 +731,7 @@ static const bfd_arch_info_type * const bfd_archures_list[] =
     &bfd_or1k_arch,
     &bfd_pdp11_arch,
     &bfd_powerpc_arch,
+    &bfd_pru_arch,
     &bfd_riscv_arch,
     &bfd_rl78_arch,
     &bfd_rs6000_arch,
@@ -742,6 +753,7 @@ static const bfd_arch_info_type * const bfd_archures_list[] =
     &bfd_vax_arch,
     &bfd_visium_arch,
     &bfd_w65_arch,
+    &bfd_wasm32_arch,
     &bfd_we32k_arch,
     &bfd_xstormy16_arch,
     &bfd_xtensa_arch,

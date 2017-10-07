@@ -53,9 +53,6 @@ _DEFUN(readdir, (dirp),
 #ifdef HAVE_DD_LOCK
   __lock_acquire_recursive(dirp->dd_lock);
 #endif
-
-  if (dirp->dd_fd == -1)
-    return NULL;
  
   for (;;) {
     if (dirp->dd_loc == 0) {
@@ -75,12 +72,6 @@ _DEFUN(readdir, (dirp),
       continue;
     }
     dp = (struct dirent *)(dirp->dd_buf + dirp->dd_loc);
-    if ((int)dp & 03) {	/* bogus pointer check */
-#ifdef HAVE_DD_LOCK
-      __lock_release_recursive(dirp->dd_lock);
-#endif
-      return NULL;
-    }
     if (dp->d_reclen <= 0 ||
 	dp->d_reclen > dirp->dd_len + 1 - dirp->dd_loc) {
 #ifdef HAVE_DD_LOCK

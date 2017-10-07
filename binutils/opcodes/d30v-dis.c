@@ -21,7 +21,7 @@
 #include "sysdep.h"
 #include <stdio.h>
 #include "opcode/d30v.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opintl.h"
 
 #define PC_MASK 0xFFFFFFFF

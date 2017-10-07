@@ -1,6 +1,6 @@
 /* Routines required for instrumenting a program.  */
 /* Compile this one with gcc.  */
-/* Copyright (C) 1989-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2017 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -43,8 +43,12 @@ void __gcov_init (struct gcov_info *p __attribute__ ((unused))) {}
 
 #ifdef L_gcov
 
-/* A utility function for outputing errors.  */
+/* A utility function for outputting errors.  */
 static int gcov_error (const char *, ...);
+
+#if !IN_GCOV_TOOL
+static void gcov_error_exit (void);
+#endif
 
 #include "gcov-io.c"
 
@@ -848,6 +852,15 @@ gcov_do_dump (struct gcov_info *list, int run_counted)
   free (gf.filename);
 }
 
+#if IN_GCOV_TOOL
+const char *
+__attribute__ ((unused))
+gcov_get_filename (struct gcov_info *list)
+{
+  return list->filename;
+}
+#endif
+
 #if !IN_GCOV_TOOL
 void
 __gcov_dump_one (struct gcov_root *root)
@@ -868,8 +881,8 @@ struct gcov_root __gcov_root;
 struct gcov_master __gcov_master = 
   {GCOV_VERSION, 0};
 
-static void
-gcov_exit (void)
+void
+__gcov_exit (void)
 {
   __gcov_dump_one (&__gcov_root);
   if (__gcov_root.next)
@@ -878,6 +891,8 @@ gcov_exit (void)
     __gcov_root.prev->next = __gcov_root.next;
   else
     __gcov_master.root = __gcov_root.next;
+
+  gcov_error_exit ();
 }
 
 /* Add a new object file onto the bb chain.  Invoked automatically
@@ -900,7 +915,6 @@ __gcov_init (struct gcov_info *info)
 		__gcov_master.root->prev = &__gcov_root;
 	      __gcov_master.root = &__gcov_root;
 	    }
-	  atexit (gcov_exit);
 	}
 
       info->next = __gcov_root.list;

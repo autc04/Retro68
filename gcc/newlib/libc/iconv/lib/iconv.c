@@ -45,9 +45,10 @@ ANSI_SYNOPSIS
 	#include <iconv.h>
 	iconv_t iconv_open (const char *<[to]>, const char *<[from]>);
 	int iconv_close (iconv_t <[cd]>);
-        size_t iconv (iconv_t <[cd]>, char **<[inbuf]>, 
-	              size_t *<[inbytesleft]>, 
-		      char **<[outbuf]>, size_t *<[outbytesleft]>),
+        size_t iconv (iconv_t <[cd]>, char **restrict <[inbuf]>, 
+	              size_t *restrict <[inbytesleft]>, 
+		      char **restrict <[outbuf]>, 
+                      size_t *restrict <[outbytesleft]>);
 
 	iconv_t _iconv_open_r (struct _reent *<[rptr]>, 
 			       const char *<[to]>, const char *<[from]>);
@@ -55,11 +56,11 @@ ANSI_SYNOPSIS
         size_t _iconv_r (struct _reent *<[rptr]>,
 			 iconv_t <[cd]>, const char **<[inbuf]>, 
 	                 size_t *<[inbytesleft]>, 
-		         char **<[outbuf]>, size_t *<[outbytesleft]>),
+		         char **<[outbuf]>, size_t *<[outbytesleft]>);
 
 TRAD_SYNOPSIS
 	#include <iconv.h>
-        size_t iconv (<[cd]>, <[in]>, <[inleft]>, <[out]>, <[outleft]>)
+        size_t iconv (<[cd]>, <[in]>, <[inleft]>, <[out]>, <[outleft]>);
 	iconv_t <[cd]>;
 	char **<[in]>;
 	size_t *<[inleft]>; 
@@ -76,7 +77,7 @@ TRAD_SYNOPSIS
 	iconv_t <[cd]>;
 
 	#include <iconv.h>
-        size_t _iconv_r (<[rptr]>, <[cd]>, <[in]>, <[inleft]>, <[out]>, <[outleft]>)
+        size_t _iconv_r (<[rptr]>, <[cd]>, <[in]>, <[inleft]>, <[out]>, <[outleft]>);
 	struct _reent *<[rptr]>;
 	iconv_t <[cd]>;
 	const char **<[in]>;
@@ -168,10 +169,10 @@ _DEFUN(iconv_open, (to, from),
 size_t
 _DEFUN(iconv, (cd, inbuf, inbytesleft, outbuf, outbytesleft),
               iconv_t cd          _AND
-              char **inbuf _AND
-              size_t *inbytesleft _AND
-              char **outbuf       _AND
-              size_t *outbytesleft)
+              char **__restrict inbuf _AND
+              size_t *__restrict inbytesleft _AND
+              char **__restrict outbuf       _AND
+              size_t *__restrict outbytesleft)
 {
     return _iconv_r (_REENT, cd, (_CONST char **) inbuf, inbytesleft,
 		     outbuf, outbytesleft);

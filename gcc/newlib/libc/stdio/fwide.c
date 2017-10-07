@@ -9,17 +9,17 @@ INDEX
 
 ANSI_SYNOPSIS
 	#include <wchar.h>
-	int fwide(FILE *<[fp]>, int <[mode]>)
+	int fwide(FILE *<[fp]>, int <[mode]>);
 
-	int _fwide_r(struct _reent *<[ptr]>, FILE *<[fp]>, int <[mode]>)
+	int _fwide_r(struct _reent *<[ptr]>, FILE *<[fp]>, int <[mode]>);
 
 TRAD_SYNOPSIS
 	#include <wchar.h>
-	int fwide(<[fp]>, <[mode]>)
+	int fwide(<[fp]>, <[mode]>);
 	FILE *<[fp]>;
 	int <[mode]>;
 
-	int _fwide_r(<[ptr]>, <[fp]>, <[mode]>)
+	int _fwide_r(<[ptr]>, <[fp]>, <[mode]>);
 	struct _reent *<[ptr]>;
 	FILE *<[fp]>;
 	int <[mode]>;
@@ -68,7 +68,7 @@ _DEFUN(_fwide_r, (ptr, fp, mode),
 
   CHECK_INIT(ptr, fp);
 
-  _flockfile (fp);
+  _newlib_flockfile_start (fp);
   if (mode != 0) {
     ORIENT (fp, mode);
   }
@@ -76,7 +76,7 @@ _DEFUN(_fwide_r, (ptr, fp, mode),
     ret = 0;
   else
     ret = (fp->_flags2 & __SWID) ? 1 : -1;
-  _funlockfile (fp);
+  _newlib_flockfile_end (fp);
   return ret;
 }
 

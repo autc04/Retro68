@@ -1,6 +1,6 @@
 // random number generation (out of line) -*- C++ -*-
 
-// Copyright (C) 2009-2016 Free Software Foundation, Inc.
+// Copyright (C) 2009-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -3312,7 +3312,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     generate_canonical(_UniformRandomNumberGenerator& __urng)
     {
       static_assert(std::is_floating_point<_RealType>::value,
-		    "template argument not a floating point type");
+		    "template argument must be a floating point type");
 
       const size_t __b
 	= std::min(static_cast<size_t>(std::numeric_limits<_RealType>::digits),
@@ -3323,18 +3323,23 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       const size_t __m = std::max<size_t>(1UL,
 					  (__b + __log2r - 1UL) / __log2r);
       _RealType __ret;
-      do
+      _RealType __sum = _RealType(0);
+      _RealType __tmp = _RealType(1);
+      for (size_t __k = __m; __k != 0; --__k)
 	{
-	  _RealType __sum = _RealType(0);
-	  _RealType __tmp = _RealType(1);
-	  for (size_t __k = __m; __k != 0; --__k)
-	    {
-	      __sum += _RealType(__urng() - __urng.min()) * __tmp;
-	      __tmp *= __r;
-	    }
-	  __ret = __sum / __tmp;
+	  __sum += _RealType(__urng() - __urng.min()) * __tmp;
+	  __tmp *= __r;
 	}
-      while (__builtin_expect(__ret >= _RealType(1), 0));
+      __ret = __sum / __tmp;
+      if (__builtin_expect(__ret >= _RealType(1), 0))
+	{
+#if _GLIBCXX_USE_C99_MATH_TR1
+	  __ret = std::nextafter(_RealType(1), _RealType(0));
+#else
+	  __ret = _RealType(1)
+	    - std::numeric_limits<_RealType>::epsilon() / _RealType(2);
+#endif
+	}
       return __ret;
     }
 

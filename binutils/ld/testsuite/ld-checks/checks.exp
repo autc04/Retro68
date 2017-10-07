@@ -43,7 +43,7 @@ proc section_check {} {
 	return
     }
 
-    if ![ld_simple_link $ld tmpdir/asm.x "$ldflags tmpdir/asm.o"] {
+    if ![ld_link $ld tmpdir/asm.x "$ldflags tmpdir/asm.o"] {
 	fail $test
     } else {
 	pass $test
@@ -55,7 +55,7 @@ proc section_check {} {
     # script is used.
     set ldflags "--check-sections -T $srcdir/$subdir/script -e foo"
 
-    # Perform the equivalent of invoking ld_simple_link
+    # Perform the equivalent of invoking ld_link
     # except that we need to massage the output further.
 
     set exec_output [run_host_cmd "$ld" "-o tmpdir/asm.x $ldflags tmpdir/asm.o"]
@@ -78,4 +78,20 @@ proc section_check {} {
     }
 }
 
+proc overflow_check {} {
+    # Test only on some 32-bit targets that are often tested
+    if { ![istarget i?86-*-*]
+	 && ![istarget powerpc-*-*]
+	 && ![istarget arm*-*-*] } {
+	return
+    }
+    if ![is_elf_format] {
+	return
+    }
+
+    run_dump_test "over"
+    run_dump_test "over2"
+}
+
 section_check
+overflow_check

@@ -155,8 +155,9 @@ struct bfd
 
   /* Flags bits to be saved in bfd_preserve_save.  */
 #define BFD_FLAGS_SAVED \
-  (BFD_IN_MEMORY | BFD_COMPRESS | BFD_DECOMPRESS | BFD_PLUGIN \
-   | BFD_COMPRESS_GABI | BFD_CONVERT_ELF_COMMON | BFD_USE_ELF_STT_COMMON)
+  (BFD_IN_MEMORY | BFD_COMPRESS | BFD_DECOMPRESS | BFD_LINKER_CREATED \
+   | BFD_PLUGIN | BFD_COMPRESS_GABI | BFD_CONVERT_ELF_COMMON \
+   | BFD_USE_ELF_STT_COMMON)
 
   /* Flags bits which are for BFD use only.  */
 #define BFD_FLAGS_FOR_BFD_USE_MASK \
@@ -539,6 +540,10 @@ void bfd_set_reloc
 Set the relocation pointer and count within
 section @var{sec} to the values @var{rel} and @var{count}.
 The argument @var{abfd} is ignored.
+@example
+#define bfd_set_reloc(abfd, asect, location, count) \
+     BFD_SEND (abfd, _bfd_set_reloc, (abfd, asect, location, count))
+@end example
 
 @findex bfd_set_file_flags
 @subsubsection @code{bfd_set_file_flags}

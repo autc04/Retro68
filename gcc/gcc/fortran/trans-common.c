@@ -1,5 +1,5 @@
 /* Common block and equivalence list handling
-   Copyright (C) 2000-2016 Free Software Foundation, Inc.
+   Copyright (C) 2000-2017 Free Software Foundation, Inc.
    Contributed by Canqun Yang <canqun@nudt.edu.cn>
 
 This file is part of GCC.
@@ -342,7 +342,7 @@ static tree
 build_equiv_decl (tree union_type, bool is_init, bool is_saved)
 {
   tree decl;
-  char name[15];
+  char name[18];
   static int serial = 0;
 
   if (is_init)
@@ -408,7 +408,7 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
 	{
 	  DECL_SIZE (decl) = TYPE_SIZE (union_type);
 	  DECL_SIZE_UNIT (decl) = size;
-	  DECL_MODE (decl) = TYPE_MODE (union_type);
+	  SET_DECL_MODE (decl, TYPE_MODE (union_type));
 	  TREE_TYPE (decl) = union_type;
 	  layout_decl (decl, 0);
 	}
@@ -436,7 +436,7 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
       TREE_STATIC (decl) = 1;
       DECL_IGNORED_P (decl) = 1;
       if (!com->is_bind_c)
-	DECL_ALIGN (decl) = BIGGEST_ALIGNMENT;
+	SET_DECL_ALIGN (decl, BIGGEST_ALIGNMENT);
       else
         {
 	  /* Do not set the alignment for bind(c) common blocks to
@@ -447,7 +447,7 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
 	  tree field = NULL_TREE;
 	  field = TYPE_FIELDS (TREE_TYPE (decl));
 	  if (DECL_CHAIN (field) == NULL_TREE)
-	    DECL_ALIGN (decl) = TYPE_ALIGN (TREE_TYPE (field));
+	    SET_DECL_ALIGN (decl, TYPE_ALIGN (TREE_TYPE (field)));
 	}
       DECL_USER_ALIGN (decl) = 0;
       GFC_DECL_COMMON_OR_EQUIV (decl) = 1;
@@ -457,7 +457,11 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
       if (com->threadprivate)
 	set_decl_tls_model (decl, decl_default_tls_model (decl));
 
-      if (com->omp_declare_target)
+      if (com->omp_declare_target_link)
+	DECL_ATTRIBUTES (decl)
+	  = tree_cons (get_identifier ("omp declare target link"),
+		       NULL_TREE, DECL_ATTRIBUTES (decl));
+      else if (com->omp_declare_target)
 	DECL_ATTRIBUTES (decl)
 	  = tree_cons (get_identifier ("omp declare target"),
 		       NULL_TREE, DECL_ATTRIBUTES (decl));
@@ -1149,13 +1153,13 @@ translate_common (gfc_common_head *common, gfc_symbol *var_list)
 	      if (warn_align_commons)
 		{
 		  if (strcmp (common->name, BLANK_COMMON_NAME))
-		    gfc_warning (0,
+		    gfc_warning (OPT_Walign_commons,
 				 "Padding of %d bytes required before %qs in "
 				 "COMMON %qs at %L; reorder elements or use "
 				 "-fno-align-commons", (int)offset,
 				 s->sym->name, common->name, &common->where);
 		  else
-		    gfc_warning (0,
+		    gfc_warning (OPT_Walign_commons,
 				 "Padding of %d bytes required before %qs in "
 				 "COMMON at %L; reorder elements or use "
 				 "-fno-align-commons", (int)offset,

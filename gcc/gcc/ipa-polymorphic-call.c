@@ -1,5 +1,5 @@
 /* Analysis of polymorphic call context.
-   Copyright (C) 2013-2016 Free Software Foundation, Inc.
+   Copyright (C) 2013-2017 Free Software Foundation, Inc.
    Contributed by Jan Hubicka
 
 This file is part of GCC.
@@ -117,7 +117,7 @@ possible_placement_new (tree type, tree expected_type,
    Return true when lookup was sucesful.
 
    When CONSIDER_PLACEMENT_NEW is false, reject contexts that may be made
-   valid only via alocation of new polymorphic type inside by means
+   valid only via allocation of new polymorphic type inside by means
    of placement new.
 
    When CONSIDER_BASES is false, only look for actual fields, not base types
@@ -267,7 +267,8 @@ ipa_polymorphic_call_context::restrict_to_inner_class (tree otr_type,
 	{
 	  for (fld = TYPE_FIELDS (type); fld; fld = DECL_CHAIN (fld))
 	    {
-	      if (TREE_CODE (fld) != FIELD_DECL)
+	      if (TREE_CODE (fld) != FIELD_DECL
+		  || TREE_TYPE (fld) == error_mark_node)
 		continue;
 
 	      pos = int_bit_position (fld);
@@ -463,12 +464,12 @@ contains_type_p (tree outer_type, HOST_WIDE_INT offset,
   /* Check that type is within range.  */
   if (offset < 0)
     return false;
-  if (TYPE_SIZE (outer_type) && TYPE_SIZE (otr_type)
-      && TREE_CODE (TYPE_SIZE (outer_type)) == INTEGER_CST
-      && TREE_CODE (TYPE_SIZE (otr_type)) == INTEGER_CST
-      && wi::ltu_p (wi::to_offset (TYPE_SIZE (outer_type)),
-		    (wi::to_offset (TYPE_SIZE (otr_type)) + offset)))
-    return false;
+
+  /* PR ipa/71207
+     As OUTER_TYPE can be a type which has a diamond virtual inheritance,
+     it's not necessary that INNER_TYPE will fit within OUTER_TYPE with
+     a given offset.  It can happen that INNER_TYPE also contains a base object,
+     however it would point to the same instance in the OUTER_TYPE.  */
 
   context.offset = offset;
   context.outer_type = TYPE_MAIN_VARIANT (outer_type);
@@ -575,7 +576,7 @@ decl_maybe_in_construction_p (tree base, tree outer_type,
 	  return true;
       }
 
-  if (!base || (TREE_CODE (base) == VAR_DECL && is_global_var (base)))
+  if (!base || (VAR_P (base) && is_global_var (base)))
     {
       if (TREE_CODE (TREE_TYPE (function)) != METHOD_TYPE
 	  || (!DECL_CXX_CONSTRUCTOR_P (function)
