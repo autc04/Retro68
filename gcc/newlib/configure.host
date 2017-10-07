@@ -745,7 +745,8 @@ case "${host}" in
   m68k-apple-macos)
 	newlib_cflags="${newlib_cflags} -DMISSING_SYSCALL_NAMES -DMALLOC_PROVIDED"
 	newlib_cflags="${newlib_cflags} -ffunction-sections"
-	;;  
+	syscall_dir=
+	;; 
   mcore-*-*)
 	syscall_dir=syscalls
 	;;
@@ -809,6 +810,10 @@ case "${host}" in
   powerpcle-*-pe)
 	newlib_cflags="${newlib_cflags} -DHAVE_OPENDIR -DHAVE_RENAME -DHAVE_FCNTL -D_NO_POSIX_SPAWN"
 	syscall_dir=syscalls
+	;;
+  powerpc-*-macos)
+    newlib_cflags="${newlib_cflags} -DHAVE_RENAME -DHAVE_SYSTEM -DMISSING_SYSCALL_NAMES -DMALLOC_PROVIDED"
+	syscall_dir=
 	;;
   sh*-*-*)
 	default_newlib_io_long_long="yes"
