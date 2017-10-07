@@ -215,6 +215,10 @@
 #define _READ_WRITE_RETURN_TYPE _ssize_t
 #endif
 
+
+#define _READ_WRITE_BUFSIZE_TYPE unsigned long
+#define _READ_WRITE_RETURN_TYPE _ssize_t
+
 #ifndef __EXPORT
 #define __EXPORT
 #endif
