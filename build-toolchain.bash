@@ -67,6 +67,7 @@ for ARG in $*; do
 			;;
 		--host-cxx-compiler=*)
 			HOST_CMAKE_FLAGS[${#HOST_CMAKE_FLAGS[@]}]="-DCMAKE_CXX_COMPILER=${ARG#*=}"
+			HOST_CXX_COMPILER="${ARG#*=}"
 			;;
 		--host-c-compiler=*)
 			HOST_CMAKE_FLAGS[${#HOST_CMAKE_FLAGS[@]}]="-DCMAKE_C_COMPILER=${ARG#*=}"
@@ -260,6 +261,9 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		export CPPFLAGS="-I/usr/local/include"
 		export LDFLAGS="-L/usr/local/lib"
 		
+		export CC=$HOST_C_COMPILER
+		export CXX=$HOST_CXX_COMPILER
+		
 		# Build binutils for 68K
 		mkdir -p binutils-build
 		cd binutils-build
@@ -283,6 +287,8 @@ if [ $SKIP_THIRDPARTY != true ]; then
 
 		unset CPPFLAGS
 		unset LDFLAGS
+		unset CC
+		unset CXX
 
 		# Move the real linker aside and install symlinks to Elf2Mac
 		# (Elf2Mac is built by cmake below)
@@ -306,6 +312,9 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		export CPPFLAGS="-I/usr/local/include"
 		export LDFLAGS="-L/usr/local/lib"
 
+		export CC=$HOST_C_COMPILER
+		export CXX=$HOST_CXX_COMPILER
+		
 		# Build binutils for PPC
 		mkdir -p binutils-build-ppc
 		cd binutils-build-ppc
@@ -327,6 +336,8 @@ if [ $SKIP_THIRDPARTY != true ]; then
 
 		unset CPPFLAGS
 		unset LDFLAGS
+		unset CC
+		unset CXX
 
 		if [ $CLEAN_AFTER_BUILD != false ]; then
 			rm -rf binutils-build-ppc
