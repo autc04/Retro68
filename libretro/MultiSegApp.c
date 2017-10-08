@@ -175,7 +175,7 @@ static pascal void PatchedExitToShell()
 }
 
 // section boundaries
-extern uint8_t _stext, _etext, _sdata, _edata, _sbss, _ebss;
+extern uint8_t _stext, _etext, _sdata, _edata, _sbss[], _ebss;
 
 void Retro68InitMultisegApp()
 {
@@ -196,11 +196,11 @@ void Retro68InitMultisegApp()
     // Zero-initialize bss
     for(uint32_t *p = (uint32_t*) &_sbss;
         p < (uint32_t*) &_ebss; ++p)
-        *p = 0;
+		*p = 0;
     
     // Set up patched LoadSeg
-    
-    // NOTE: OriginalLoadSeg is the first global variable we can use
+
+	// NOTE: OriginalLoadSeg is the first global variable we can use
     OriginalLoadSeg = (void(*)(short)) GetToolTrapAddress(_LoadSeg);
     OriginalUnloadSeg = (void(*)(void*)) GetToolTrapAddress(_UnLoadSeg);
     OriginalExitToShell = (void(*)()) GetToolTrapAddress(_ExitToShell);
