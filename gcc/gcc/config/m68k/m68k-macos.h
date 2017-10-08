@@ -13,3 +13,6 @@
 #undef ENDFILE_SPEC
 #define ENDFILE_SPEC ""
 
+#undef CPP_SPEC
+#define CPP_SPEC "-Wno-trigraphs"
+

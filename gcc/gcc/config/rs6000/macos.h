@@ -175,6 +175,9 @@
 #undef STARTFILE_SPEC
 #define STARTFILE_SPEC ""
 
+#undef CPP_SPEC
+#define CPP_SPEC "-Wno-trigraphs"
+
 #undef TARGET_DEFAULT
 #define TARGET_DEFAULT 0
 // (MASK_POWERPC | MASK_MULTIPLE | MASK_NEW_MNEMONICS)
