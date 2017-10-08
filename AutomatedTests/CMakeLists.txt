@@ -59,4 +59,7 @@ set_tests_properties(Log PROPERTIES PASS_REGULAR_EXPRESSION "One\nTwo\nThree")
 test(Init.cc)
 set_tests_properties(Init PROPERTIES PASS_REGULAR_EXPRESSION "constructor\nmain\ndestructor")
 
+test(StdIO.c)
+set_tests_properties(StdIO PROPERTIES PASS_REGULAR_EXPRESSION "OK")
+
 endif()	# RETRO68_LAUNCH_METHOD

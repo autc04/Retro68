@@ -66,10 +66,6 @@
 #undef ASM_DEFAULT_SPEC
 #define ASM_DEFAULT_SPEC ""
 
-/* Profiled library versions are used by linking with special directories.  */
-#define LIB_SPEC "-lc"
-
-#define LIBGCC_SPEC "-lgcc -lretrocrt -lgcc %{carbon: -lCarbonLib} %{!carbon: -lInterfaceLib}"
 
 /* Static linking with shared libstdc++ requires libsupc++ as well.  */
 #define LIBSTDCXX_STATIC "supc++"
@@ -171,6 +167,10 @@
 --no-check-sections -undefined=_consolewrite \
 %{shared:-bM:SRE}"
 
+#define LIB_SPEC "-lc"
+#define LIBGCC_SPEC "-lgcc -lretrocrt -lgcc %{carbon: -lCarbonLib} %{!carbon: -lInterfaceLib}"
+
+#define LINK_GCC_C_SEQUENCE_SPEC "--start-group -lgcc -lc -lretrocrt %{carbon: -lCarbonLib} %{!carbon: -lInterfaceLib} --end-group"
 
 #undef STARTFILE_SPEC
 #define STARTFILE_SPEC ""

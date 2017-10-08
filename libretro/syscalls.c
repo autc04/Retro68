@@ -27,12 +27,16 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <reent.h>
+#include <errno.h>
+#include <fcntl.h>
 
 #include <MacMemory.h>
 #include <Processes.h>
+#include <Files.h>
+#include <TextUtils.h>
 
-int isatty(int fd) { return fd >= 0 && fd <= 2; }
-void *sbrk(long increment)
+void *_sbrk_r(struct _reent *reent, ptrdiff_t increment)
 {
 	Debugger();
 	return NewPtrClear(increment);
@@ -50,37 +54,115 @@ void _exit(int status)
 ssize_t _consolewrite(int fd, const void *buf, size_t count);
 ssize_t _consoleread(int fd, void *buf, size_t count);
 
-ssize_t write(int fd, const void *buf, size_t count)
+const int kMacRefNumOffset = 10;
+
+ssize_t _write_r(struct _reent *reent, int fd, const void *buf, size_t count)
 {
-	return _consolewrite(fd,buf,count);
+	long cnt = count;
+	if(fd >= kMacRefNumOffset)
+	{
+		FSWrite(fd - kMacRefNumOffset, &cnt, buf);
+		return cnt;
+	}
+	else
+		return _consolewrite(fd,buf,count);
 }
 
-ssize_t read(int fd, void *buf, size_t count)
+ssize_t _read_r(struct _reent *reent, int fd, void *buf, size_t count)
 {
-	return _consoleread(fd,buf,count);
+	long cnt = count;
+	if(fd >= kMacRefNumOffset)
+	{
+		FSRead(fd - kMacRefNumOffset, &cnt, buf);
+		return cnt;
+	}
+	else
+		return _consoleread(fd,buf,count);
 }
 
-int open(const char* name, int flags, mode_t mode)
+int _open_r(struct _reent *reent, const char* name, int flags, int mode)
+{
+	Str255 pname;
+	c2pstrcpy(pname,name);
+	short ref;
+
+	SInt8 permission;
+	switch(flags & O_ACCMODE)
+	{
+		case O_RDONLY:
+			permission = fsRdPerm;
+			break;
+		case O_WRONLY:
+			permission = fsWrPerm;
+			break;
+		case O_RDWR:
+			permission = fsRdWrPerm;
+			break;
+	}
+
+	if(flags & O_CREAT)
+	{
+		HCreate(0,0,pname,'????','TEXT');
+	}
+
+	OSErr err = HOpenDF(0,0,pname,fsRdWrPerm,&ref);
+
+	if(err)
+		return -1;	// TODO: errno
+
+	if(flags & O_TRUNC)
+	{
+		SetEOF(ref, 0);
+	}
+
+	return ref + kMacRefNumOffset;
+}
+
+int _close_r(struct _reent *reent, int fd)
+{
+	if(fd >= kMacRefNumOffset)
+		FSClose(fd - kMacRefNumOffset);
+	return 0;
+}
+
+int _fstat_r(struct _reent *reent, int fd, struct stat *buf)
 {
 	return -1;
 }
 
-int close(int fd)
+extern int _stat_r(struct _reent * reent, const char *fn, struct stat *buf)
 {
 	return -1;
 }
 
-int fstat(int fd, struct stat *buf)
+off_t _lseek_r(struct _reent *reent, int fd, off_t offset, int whence)
 {
-	return -1;
-}
+	if(fd >= kMacRefNumOffset)
+	{
+		short posMode;
+		switch(whence)
+		{
+			case SEEK_SET:
+				posMode = fsFromStart;
+				break;
+			case SEEK_CUR:
+				posMode = fsFromMark;
+				break;
+			case SEEK_END:
+				posMode = fsFromLEOF;
+				break;
+		}
 
-off_t lseek(int fd, off_t offset, int whence)
-{
+		short ref = fd - kMacRefNumOffset;
+		SetFPos(ref, posMode, offset);
+		long finalPos;
+		GetFPos(ref, &finalPos);
+		return finalPos;
+	}
 	return (off_t) -1;
 }
 
-int kill(pid_t pid, int sig)
+int _kill_r(struct _reent *reent, pid_t pid, int sig)
 {
 	if(pid == 42)
 		_exit(42);
@@ -88,12 +170,67 @@ int kill(pid_t pid, int sig)
 		return -1;
 }
 
-pid_t getpid(void)
+pid_t _getpid_r(struct _reent *reent)
 {
 	return 42;
 }
 
-int gettimeofday(struct timeval *tp, void *__tz)
+int _fork_r(struct _reent *reent)
+{
+	return -1;
+}
+
+int _execve_r(struct _reent *reent, const char *fn, char *const * argv, char *const *envp)
+{
+	return -1;
+}
+
+int _fcntl_r(struct _reent *reent, int fd, int cmd, int arg)
+{
+	return -1;
+}
+
+int _isatty_r(struct _reent *reent, int fd)
+{
+	return fd < kMacRefNumOffset;
+}
+
+int _link_r(struct _reent *reent, const char *from, const char *to)
+{
+	reent->_errno = EPERM;
+	return -1;
+}
+
+int _mkdir_r(struct _reent *reent, const char *fn, int mode)
+{
+	return -1;
+}
+
+int _rename_r(struct _reent *reent, const char *from, const char *to)
+{
+	return -1;
+}
+
+int _unlink_r(struct _reent *reent, const char *fn)
+{
+	return -1;
+}
+
+_CLOCK_T_ _times_r(struct _reent *reent, struct tms *buf)
+{
+	reent->_errno = EACCES;
+	return  -1;
+}
+
+int _wait_r(struct _reent *reent, int *wstatus)
+{
+	reent->_errno = ECHILD;
+	return -1;                    /* Always fails */
+}
+
+
+
+int _gettimeofday_r(struct _reent *reent, struct timeval *tp, void *__tz)
 {
 	/* Classic MacOS's GetDateTime function returns an integer.
 	 * TickCount() has a slightly higher resolution, but is independend of the real-time clock.
@@ -127,4 +264,6 @@ int gettimeofday(struct timeval *tp, void *__tz)
 		tp->tv_sec = secs - 86400 * (365 * 66 + 66/4);
 		tp->tv_usec = (ticks - savedTicks) * 20000000 / 2003;
 	}
+
+	return 0;
 }

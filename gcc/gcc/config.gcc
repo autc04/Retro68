@@ -1922,7 +1922,7 @@ m68k-*-elf* | fido-*-elf*)
 		;;
 	esac
 	;;
-m68k-*-macos* | fido-*-elf*)
+m68k-*-macos*)
 	default_m68k_cpu=68020
 	default_cf_cpu=5206
 	tm_file="${tm_file} m68k/m68k-none.h m68k/m68kelf.h dbxelf.h elfos.h newlib-stdint.h m68k/m68kemb.h m68k/m68k-macos.h"
