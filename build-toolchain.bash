@@ -93,6 +93,7 @@ if [ $BUILD_PPC != false ]; then
 	ARCHS="$ARCHS powerpc"
 fi
 
+
 ##################### Sanity checks
 
 if [ `pwd -P` == "$SRC" ]; then
@@ -122,6 +123,26 @@ if [ $SKIP_THIRDPARTY != false ]; then
 		echo "Not all third-party components have been built yet, ignoring --skip-thirdparty."
 		SKIP_THIRDPARTY=false
 	fi
+fi
+
+### Running on a Power Mac (tested with 10.4 Tiger)
+
+if [ "`uname -m`" = "Power Macintosh" ]; then
+		# The default compiler won't work, 
+		# check whether the compiler has been explictly specified
+		# on the command line
+	if [ $SKIP_THIRDPARTY = false ]; then
+		if [ -z "$HOST_CXX_COMPILER" -o -z "$HOST_C_COMPILER" ]; then
+			echo "**** Apple's version of GCC on Power Macs is too old."
+			echo "**** Please explicitly specify the C and C++ compilers"
+			echo "**** using the --host-c-compiler and --host-cxx-compiler options."
+			echo "**** You can install a usable compiler using tigerbrew."
+			exit 1
+		fi
+	fi
+
+		# work around a problem with building gcc-7 with homebrew's gcc-5
+	export gcc_cv_c_no_fpie=no
 fi
 
 ##################### Locate and check Interfaces & Libraries
