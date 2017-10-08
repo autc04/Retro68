@@ -1,6 +1,7 @@
 #include "Launcher.h"
 #include <boost/filesystem/fstream.hpp>
 #include <iostream>
+#include <sstream>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -14,10 +15,22 @@ using std::vector;
 Launcher::Launcher(boost::program_options::variables_map &options)
     : options(options)
 {
-	app.assign(options["application"].as<std::string>());
-	if(!app.read())
-		throw std::runtime_error("Could not load application file.");
-
+	string fn = options["application"].as<std::string>();
+	
+	if(fn == "-")
+	{
+		std::stringstream tmp;
+		tmp << std::cin.rdbuf();
+		if(!app.read(tmp, ResourceFile::Format::macbin))
+			throw std::runtime_error("Could not load application from stdin.");
+	}
+	else
+	{
+		app.assign(fn);
+		if(!app.read())
+			throw std::runtime_error("Could not load application file.");
+	}
+	
 	tempDir = fs::absolute(fs::unique_path());
 	fs::create_directories(tempDir);
 

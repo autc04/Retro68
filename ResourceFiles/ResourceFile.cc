@@ -150,6 +150,7 @@ bool ResourceFile::assign(std::string pathstring, ResourceFile::Format f)
 	this->pathstring = pathstring;
 	fs::path path(pathstring);
 
+	this->filename = path.stem().string();
 	fs::path rsrcPath = path.parent_path() / ".rsrc" / path.filename();
 	fs::path finfPath = path.parent_path() / ".finf" / path.filename();
 
@@ -208,11 +209,90 @@ bool ResourceFile::assign(std::string pathstring, ResourceFile::Format f)
 	return true;
 }
 
+bool ResourceFile::read(std::istream& in, Format f)
+{
+	switch(f)
+	{
+		case Format::applesingle:
+			{
+				if(longword(in) != 0x00051600)
+					return false;
+				if(longword(in) != 0x00020000)
+					return false;
+				in.seekg(24);
+				int n = word(in);
+				for(int i = 0; i < n; i++)
+				{
+					in.seekg(26 + i * 12);
+					int what = longword(in);
+					int off = longword(in);
+					int len = longword(in);
+					in.seekg(off);
+					switch(what)
+					{
+						case 1:
+							{
+								std::vector<char> buf(len);
+								in.read(buf.data(), len);
+								data = std::string(buf.begin(), buf.end());
+							}
+							break;
+						case 2:
+							resources = Resources(in);
+							break;
+						case 9:
+							type = ostype(in);
+							creator = ostype(in);
+							break;
+					}
+				}
+			}
+			break;
+		case Format::macbin:
+			{
+				if(byte(in) != 0)
+					return false;
+				if(byte(in) > 63)
+					return false;
+				in.seekg(65);
+				type = ostype(in);
+				creator = ostype(in);
+				in.seekg(83);
+				int datasize = longword(in);
+				//int rsrcsize = longword(in);
+
+				in.seekg(0);
+				char header[124];
+				in.read(header, 124);
+				unsigned short crc = CalculateCRC(0,header,124);
+				if(word(in) != crc)
+					return false;
+				in.seekg(128);
+				std::vector<char> buf(datasize);
+				in.read(buf.data(), datasize);
+				data = std::string(buf.begin(), buf.end());
+				datasize = ((int)datasize + 0x7F) & ~0x7F;
+				in.seekg(128 + datasize);
+				resources = Resources(in);
+			}
+			break;
+		default:
+			return false;
+	}
+	return true;
+}
+
 bool ResourceFile::read()
 {
 	fs::path path(pathstring);
 
 	type = creator = 0x3F3F3F3F;
+
+	if(isSingleFork(format))
+	{
+		fs::ifstream in(path);
+		return read(in, format);
+	}
 
 	switch(format)
 	{
@@ -259,42 +339,7 @@ bool ResourceFile::read()
 			}
 			break;
 #endif
-		case Format::applesingle:
-			{
-				fs::ifstream in(path);
-				if(longword(in) != 0x00051600)
-					return false;
-				if(longword(in) != 0x00020000)
-					return false;
-				in.seekg(24);
-				int n = word(in);
-				for(int i = 0; i < n; i++)
-				{
-					in.seekg(26 + i * 12);
-					int what = longword(in);
-					int off = longword(in);
-					int len = longword(in);
-					in.seekg(off);
-					switch(what)
-					{
-						case 1:
-							{
-								std::vector<char> buf(len);
-								in.read(buf.data(), len);
-								data = std::string(buf.begin(), buf.end());
-							}
-							break;
-						case 2:
-							resources = Resources(in);
-							break;
-						case 9:
-							type = ostype(in);
-							creator = ostype(in);
-							break;
-					}
-				}
-			}
-			break;
+
 		case Format::underscore_appledouble:
 		case Format::percent_appledouble:
 			{
@@ -333,33 +378,50 @@ bool ResourceFile::read()
 				}
 			}
 			break;
+		default:
+			return false;
+	}
+	return true;
+}
+
+bool ResourceFile::write(std::ostream& out, Format f)
+{
+	switch(f)
+	{
 		case Format::macbin:
 			{
-				fs::ifstream in(path);
-				if(byte(in) != 0)
-					return false;
-				if(byte(in) > 63)
-					return false;
-				in.seekg(65);
-				type = ostype(in);
-				creator = ostype(in);
-				in.seekg(83);
-				int datasize = longword(in);
-				//int rsrcsize = longword(in);
-
-				in.seekg(0);
-				char header[124];
-				in.read(header, 124);
-				unsigned short crc = CalculateCRC(0,header,124);
-				if(word(in) != crc)
-					return false;
-				in.seekg(128);
-				std::vector<char> buf(datasize);
-				in.read(buf.data(), datasize);
-				data = std::string(buf.begin(), buf.end());
-				datasize = ((int)datasize + 0x7F) & ~0x7F;
-				in.seekg(128 + datasize);
-				resources = Resources(in);
+				writeMacBinary(out, filename, type, creator, resources, data);
+			}
+			break;
+		case Format::applesingle:
+			{
+				longword(out, 0x00051600);
+				longword(out, 0x00020000);
+				for(int i = 0; i < 16; i++)
+					byte(out, 0);
+				word(out, 3);
+				std::streampos entries = out.tellp();
+				for(int i = 0; i < 3*3; i++)
+					longword(out, 0);
+				std::streampos dataStart = out.tellp();
+				out << data;
+				std::streampos rsrcStart = out.tellp();
+				resources.writeFork(out);
+				std::streampos finfStart = out.tellp();
+				ostype(out, type);
+				ostype(out, creator);
+				for(int i = 8; i < 32; i++)
+					byte(out, 0);
+				out.seekp(entries);
+				longword(out, 1);
+				longword(out, dataStart);
+				longword(out, rsrcStart - dataStart);
+				longword(out, 2);
+				longword(out, rsrcStart);
+				longword(out, finfStart - rsrcStart);
+				longword(out, 9);
+				longword(out, finfStart);
+				longword(out, 32);
 			}
 			break;
 		default:
@@ -371,6 +433,12 @@ bool ResourceFile::read()
 bool ResourceFile::write()
 {
 	fs::path path(pathstring);
+
+	if(isSingleFork(format))
+	{
+		fs::ofstream out(path);
+		return write(out, format);
+	}
 
 	switch(format)
 	{
@@ -411,46 +479,7 @@ bool ResourceFile::write()
 			}
 			break;
 #endif
-		case Format::macbin:
-			{
-				fs::ofstream out(path);
-				writeMacBinary(out, path.stem().string(), type, creator, resources, data);
-			}
-			break;
-		case Format::applesingle:
-			{
-				fs::ofstream out(path);
-				longword(out, 0x00051600);
-				longword(out, 0x00020000);
-				for(int i = 0; i < 16; i++)
-					byte(out, 0);
-				word(out, 3);
-				std::streampos entries = out.tellp();
-				for(int i = 0; i < 3*3; i++)
-					longword(out, 0);
-				std::streampos dataStart = out.tellp();
-				out << data;
-				std::streampos rsrcStart = out.tellp();
-				resources.writeFork(out);
-				std::streampos finfStart = out.tellp();
-				ostype(out, type);
-				ostype(out, creator);
-				for(int i = 8; i < 32; i++)
-					byte(out, 0);
-				out.seekp(entries);
-				longword(out, 1);
-				longword(out, dataStart);
-				longword(out, rsrcStart - dataStart);
-				longword(out, 2);
-				longword(out, rsrcStart);
-				longword(out, finfStart - rsrcStart);
-				longword(out, 9);
-				longword(out, finfStart);
-				longword(out, 32);
-			}
-			break;
-		
-		// TODO: case Format::underscore_appledouble
+
 		case Format::underscore_appledouble:
 		case Format::percent_appledouble:
 			{
@@ -548,3 +577,14 @@ bool ResourceFile::hasPlainDataFork()
 	return hasPlainDataFork(format);
 }
 
+bool ResourceFile::isSingleFork(Format f)
+{
+	switch(f)
+	{
+		case Format::macbin:
+		case Format::applesingle:
+			return true;
+		default:
+			return false;
+	}
+}
