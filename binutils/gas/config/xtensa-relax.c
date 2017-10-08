@@ -1683,7 +1683,7 @@ build_transition (insn_pattern *initial_insn,
 	  op2 = get_opmatch (&initial_insn->t.operand_map, precond->opname2);
 	  if (op2 == NULL)
 	    as_fatal (_("opcode '%s': no bound opname '%s' "
-			"for precondition in %s"),
+			"for precondition in '%s'"),
 		      xtensa_opcode_name (isa, opcode),
 		      precond->opname2, from_string);
 	}
@@ -1794,7 +1794,7 @@ build_transition (insn_pattern *initial_insn,
 	      orig_op = get_opmatch (&initial_insn->t.operand_map,
 				     op->operand_name);
 	      if (orig_op == NULL)
-		as_fatal (_("opcode %s: unidentified operand '%s' in '%s'"),
+		as_fatal (_("opcode '%s': unidentified operand '%s' in '%s'"),
 			  opcode_name, op->operand_name, to_string);
 	      append_field_op (bi, op->operand_num, orig_op->operand_num);
 	    }
@@ -1824,13 +1824,13 @@ build_transition (insn_pattern *initial_insn,
 	      orig_op = get_opmatch (&initial_insn->t.operand_map,
 				     operand_arg_name);
 	      if (orig_op == NULL)
-		as_fatal (_("opcode %s: unidentified operand '%s' in '%s'"),
+		as_fatal (_("opcode '%s': unidentified operand '%s' in '%s'"),
 			  opcode_name, op->operand_name, to_string);
 	      append_user_fn_field_op (bi, op->operand_num,
 				       typ, orig_op->operand_num);
 	    }
 	  else
-	    as_fatal (_("opcode %s: could not parse operand '%s' in '%s'"),
+	    as_fatal (_("opcode '%s': could not parse operand '%s' in '%s'"),
 		      opcode_name, op->operand_name, to_string);
 	}
     }

@@ -241,7 +241,7 @@ static void s_m68hc11_mark_symbol (int);
     dbcc -> db!cc +3
             jmp L
 
-  Setting the flag forbidds this.  */
+  Setting the flag forbids this.  */
 static short flag_fixed_branches = 0;
 
 /* Force to use long jumps (absolute) instead of relative branches.  */
@@ -329,11 +329,11 @@ struct option md_longopts[] =
 {
 #define OPTION_FORCE_LONG_BRANCH (OPTION_MD_BASE)
   {"force-long-branches", no_argument, NULL, OPTION_FORCE_LONG_BRANCH},
-  {"force-long-branchs", no_argument, NULL, OPTION_FORCE_LONG_BRANCH}, /* Misspelt version kept for backwards compatibility.  */
+  {"force-long-branchs", no_argument, NULL, OPTION_FORCE_LONG_BRANCH}, /* Misspelled version kept for backwards compatibility.  */
 
 #define OPTION_SHORT_BRANCHES     (OPTION_MD_BASE + 1)
   {"short-branches", no_argument, NULL, OPTION_SHORT_BRANCHES},
-  {"short-branchs", no_argument, NULL, OPTION_SHORT_BRANCHES}, /* Misspelt version kept for backwards compatibility.  */
+  {"short-branchs", no_argument, NULL, OPTION_SHORT_BRANCHES}, /* Misspelled version kept for backwards compatibility.  */
 
 #define OPTION_STRICT_DIRECT_MODE  (OPTION_MD_BASE + 2)
   {"strict-direct-mode", no_argument, NULL, OPTION_STRICT_DIRECT_MODE},
@@ -1710,7 +1710,7 @@ fixup24 (expressionS *oper, int mode, int opmode ATTRIBUTE_UNUSED)
 }
 
 /* XGATE Put a 1 byte expression described by 'oper'.  If this expression
-   containts unresolved symbols, generate an 8-bit fixup.  */
+   contains unresolved symbols, generate an 8-bit fixup.  */
 static void
 fixup8_xg (expressionS *oper, int mode, int opmode)
 {
@@ -3875,7 +3875,7 @@ m68hc11_relax_frag (segT seg ATTRIBUTE_UNUSED, fragS *fragP,
   const relax_typeS *table = TC_GENERIC_RELAX_TABLE;
 
   /* We only have to cope with frags as prepared by
-     md_estimate_size_before_relax.  The STATE_BITS16 case may geet here
+     md_estimate_size_before_relax.  The STATE_BITS16 case may get here
      because of the different reasons that it's not relaxable.  */
   switch (fragP->fr_subtype)
     {

@@ -9,7 +9,7 @@ extern int *bar_p (void);
 int
 main ()
 {
-  if (foo[0] == 0 && foo == foo_p () && bar[0] == 0 && bar == bar_p ())
+  if (foo[0] == 0 && foo == foo_p () && bar[0] == -1 && bar == bar_p ())
     printf ("PASS\n");
   return 0;
 }

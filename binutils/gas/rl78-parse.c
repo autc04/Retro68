@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.0.  */
+/* A Bison parser, made by GNU Bison 3.0.4.  */
 
 /* Bison implementation for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "3.0"
+#define YYBISON_VERSION "3.0.4"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -194,11 +194,11 @@ reg_xbc (int reg)
 
 #line 196 "rl78-parse.c" /* yacc.c:339  */
 
-# ifndef YY_NULL
+# ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
-#   define YY_NULL nullptr
+#   define YY_NULLPTR nullptr
 #  else
-#   define YY_NULL 0
+#   define YY_NULLPTR 0
 #  endif
 # endif
 
@@ -467,7 +467,7 @@ extern int rl78_debug;
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE YYSTYPE;
+
 union YYSTYPE
 {
 #line 144 "./config/rl78-parse.y" /* yacc.c:355  */
@@ -477,6 +477,8 @@ union YYSTYPE
 
 #line 479 "rl78-parse.c" /* yacc.c:355  */
 };
+
+typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif
@@ -490,7 +492,7 @@ int rl78_parse (void);
 
 /* Copy the second part of user declarations.  */
 
-#line 494 "rl78-parse.c" /* yacc.c:358  */
+#line 496 "rl78-parse.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -547,11 +549,30 @@ typedef short int yytype_int16;
 # endif
 #endif
 
-#ifndef __attribute__
-/* This feature is available in gcc versions 2.5 and later.  */
-# if (! defined __GNUC__ || __GNUC__ < 2 \
-      || (__GNUC__ == 2 && __GNUC_MINOR__ < 5))
-#  define __attribute__(Spec) /* empty */
+#ifndef YY_ATTRIBUTE
+# if (defined __GNUC__                                               \
+      && (2 < __GNUC__ || (__GNUC__ == 2 && 96 <= __GNUC_MINOR__)))  \
+     || defined __SUNPRO_C && 0x5110 <= __SUNPRO_C
+#  define YY_ATTRIBUTE(Spec) __attribute__(Spec)
+# else
+#  define YY_ATTRIBUTE(Spec) /* empty */
+# endif
+#endif
+
+#ifndef YY_ATTRIBUTE_PURE
+# define YY_ATTRIBUTE_PURE   YY_ATTRIBUTE ((__pure__))
+#endif
+
+#ifndef YY_ATTRIBUTE_UNUSED
+# define YY_ATTRIBUTE_UNUSED YY_ATTRIBUTE ((__unused__))
+#endif
+
+#if !defined _Noreturn \
+     && (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112)
+# if defined _MSC_VER && 1200 <= _MSC_VER
+#  define _Noreturn __declspec (noreturn)
+# else
+#  define _Noreturn YY_ATTRIBUTE ((__noreturn__))
 # endif
 #endif
 
@@ -841,7 +862,7 @@ static const char *const yytname[] =
   "$@27", "$@28", "$@29", "$@30", "$@31", "$@32", "$@33", "$@34", "$@35",
   "$@36", "$@37", "$@38", "opt_es", "regb", "regb_na", "regw", "regw_na",
   "sfr", "addsub", "addsubw", "andor1", "bt_bf", "setclr1", "oneclrb",
-  "oneclrw", "incdec", "incdecw", "mov1", YY_NULL
+  "oneclrw", "incdec", "incdecw", "mov1", YY_NULLPTR
 };
 #endif
 
@@ -1680,11 +1701,11 @@ static int
 yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                 yytype_int16 *yyssp, int yytoken)
 {
-  YYSIZE_T yysize0 = yytnamerr (YY_NULL, yytname[yytoken]);
+  YYSIZE_T yysize0 = yytnamerr (YY_NULLPTR, yytname[yytoken]);
   YYSIZE_T yysize = yysize0;
   enum { YYERROR_VERBOSE_ARGS_MAXIMUM = 5 };
   /* Internationalized format string. */
-  const char *yyformat = YY_NULL;
+  const char *yyformat = YY_NULLPTR;
   /* Arguments of yyformat. */
   char const *yyarg[YYERROR_VERBOSE_ARGS_MAXIMUM];
   /* Number of reported tokens (one for the "unexpected", one per
@@ -1741,7 +1762,7 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                   }
                 yyarg[yycount++] = yytname[yyx];
                 {
-                  YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULL, yytname[yyx]);
+                  YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULLPTR, yytname[yyx]);
                   if (! (yysize <= yysize1
                          && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
                     return 2;
@@ -2073,170 +2094,170 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 188 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 188 "./config/rl78-parse.y" /* yacc.c:1646  */
     { as_bad (_("Unknown opcode: %s"), rl78_init_start); }
-#line 2079 "rl78-parse.c" /* yacc.c:1661  */
+#line 2100 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 3:
-#line 209 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 209 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x0c|(yyvsp[-4].regno)); O1 ((yyvsp[0].exp)); }
-#line 2085 "rl78-parse.c" /* yacc.c:1661  */
+#line 2106 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 4:
-#line 211 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 211 "./config/rl78-parse.y" /* yacc.c:1646  */
     {SA((yyvsp[0].exp))}
-#line 2091 "rl78-parse.c" /* yacc.c:1661  */
+#line 2112 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 5:
-#line 212 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 212 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x0a|(yyvsp[-5].regno)); SET_SA ((yyvsp[-4].exp)); O1 ((yyvsp[-4].exp)); O1 ((yyvsp[0].exp)); }
-#line 2097 "rl78-parse.c" /* yacc.c:1661  */
+#line 2118 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 6:
-#line 215 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 215 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0x01|(yyvsp[-3].regno)); }
-#line 2103 "rl78-parse.c" /* yacc.c:1661  */
+#line 2124 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 7:
-#line 218 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 218 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0x08|(yyvsp[-3].regno)); F ((yyvsp[0].regno), 13, 3); }
-#line 2109 "rl78-parse.c" /* yacc.c:1661  */
+#line 2130 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 8:
-#line 221 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 221 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0x00|(yyvsp[-3].regno)); F ((yyvsp[-2].regno), 13, 3); }
-#line 2115 "rl78-parse.c" /* yacc.c:1661  */
+#line 2136 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 9:
-#line 223 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 223 "./config/rl78-parse.y" /* yacc.c:1646  */
     {SA((yyvsp[0].exp))}
-#line 2121 "rl78-parse.c" /* yacc.c:1661  */
+#line 2142 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 224 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 224 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x0b|(yyvsp[-4].regno)); SET_SA ((yyvsp[-1].exp)); O1 ((yyvsp[-1].exp)); }
-#line 2127 "rl78-parse.c" /* yacc.c:1661  */
+#line 2148 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 11:
-#line 227 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 227 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x0f|(yyvsp[-5].regno)); O2 ((yyvsp[0].exp)); rl78_linkrelax_addr16 (); }
-#line 2133 "rl78-parse.c" /* yacc.c:1661  */
+#line 2154 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 12:
-#line 230 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 230 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x0d|(yyvsp[-6].regno)); }
-#line 2139 "rl78-parse.c" /* yacc.c:1661  */
+#line 2160 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 13:
-#line 233 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 233 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x0e|(yyvsp[-8].regno)); O1 ((yyvsp[-1].exp)); }
-#line 2145 "rl78-parse.c" /* yacc.c:1661  */
+#line 2166 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 14:
-#line 236 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 236 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0x80|(yyvsp[-8].regno)); }
-#line 2151 "rl78-parse.c" /* yacc.c:1661  */
+#line 2172 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 15:
-#line 239 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 239 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0x82|(yyvsp[-8].regno)); }
-#line 2157 "rl78-parse.c" /* yacc.c:1661  */
+#line 2178 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 16:
-#line 242 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 242 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-6].regno) != 0x40)
 	      { rl78_error ("Only CMP takes these operands"); }
 	    else
 	      { B1 (0x00|(yyvsp[-6].regno)); O2 ((yyvsp[-3].exp)); O1 ((yyvsp[0].exp)); rl78_linkrelax_addr16 (); }
 	  }
-#line 2167 "rl78-parse.c" /* yacc.c:1661  */
+#line 2188 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 17:
-#line 251 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 251 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x04|(yyvsp[-4].regno)); O2 ((yyvsp[0].exp)); }
-#line 2173 "rl78-parse.c" /* yacc.c:1661  */
+#line 2194 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 18:
-#line 254 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 254 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x01|(yyvsp[-3].regno)); F ((yyvsp[0].regno), 5, 2); }
-#line 2179 "rl78-parse.c" /* yacc.c:1661  */
+#line 2200 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 19:
-#line 256 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 256 "./config/rl78-parse.y" /* yacc.c:1646  */
     {SA((yyvsp[0].exp))}
-#line 2185 "rl78-parse.c" /* yacc.c:1661  */
+#line 2206 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 20:
-#line 257 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 257 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x06|(yyvsp[-4].regno)); SET_SA ((yyvsp[-1].exp)); O1 ((yyvsp[-1].exp)); }
-#line 2191 "rl78-parse.c" /* yacc.c:1661  */
+#line 2212 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 21:
-#line 260 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 260 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x02|(yyvsp[-5].regno)); O2 ((yyvsp[0].exp)); rl78_linkrelax_addr16 (); }
-#line 2197 "rl78-parse.c" /* yacc.c:1661  */
+#line 2218 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 22:
-#line 263 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 263 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0x09|(yyvsp[-8].regno)); O1 ((yyvsp[-1].exp)); }
-#line 2203 "rl78-parse.c" /* yacc.c:1661  */
+#line 2224 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 23:
-#line 266 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 266 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x61, 0x09|(yyvsp[-6].regno), 0); }
-#line 2209 "rl78-parse.c" /* yacc.c:1661  */
+#line 2230 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 24:
-#line 269 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 269 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 ((yyvsp[-4].regno) ? 0x20 : 0x10); O1 ((yyvsp[0].exp));
 	    if ((yyvsp[-4].regno) == 0x40)
 	      rl78_error ("CMPW SP,#imm not allowed");
 	  }
-#line 2218 "rl78-parse.c" /* yacc.c:1661  */
+#line 2239 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 25:
-#line 276 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 276 "./config/rl78-parse.y" /* yacc.c:1646  */
     {Bit((yyvsp[0].exp))}
-#line 2224 "rl78-parse.c" /* yacc.c:1661  */
+#line 2245 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 26:
-#line 277 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 277 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x71, 0x08|(yyvsp[-6].regno), (yyvsp[-3].regno)); FE ((yyvsp[-1].exp), 9, 3); }
-#line 2230 "rl78-parse.c" /* yacc.c:1661  */
+#line 2251 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 27:
-#line 279 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 279 "./config/rl78-parse.y" /* yacc.c:1646  */
     {Bit((yyvsp[0].exp))}
-#line 2236 "rl78-parse.c" /* yacc.c:1661  */
+#line 2257 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 28:
-#line 280 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 280 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (expr_is_sfr ((yyvsp[-3].exp)))
 	      { B2 (0x71, 0x08|(yyvsp[-6].regno)); FE ((yyvsp[-1].exp), 9, 3); O1 ((yyvsp[-3].exp)); }
 	    else if (expr_is_saddr ((yyvsp[-3].exp)))
@@ -2244,77 +2265,77 @@ yyreduce:
 	    else
 	      NOT_SFR_OR_SADDR;
 	  }
-#line 2248 "rl78-parse.c" /* yacc.c:1661  */
+#line 2269 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 29:
-#line 288 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 288 "./config/rl78-parse.y" /* yacc.c:1646  */
     {Bit((yyvsp[0].exp))}
-#line 2254 "rl78-parse.c" /* yacc.c:1661  */
+#line 2275 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 30:
-#line 289 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 289 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x71, 0x88|(yyvsp[-6].regno));  FE ((yyvsp[-1].exp), 9, 3); }
-#line 2260 "rl78-parse.c" /* yacc.c:1661  */
+#line 2281 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 31:
-#line 291 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 291 "./config/rl78-parse.y" /* yacc.c:1646  */
     {Bit((yyvsp[0].exp))}
-#line 2266 "rl78-parse.c" /* yacc.c:1661  */
+#line 2287 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 32:
-#line 292 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 292 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x71, 0x80|(yyvsp[-9].regno));  FE ((yyvsp[-1].exp), 9, 3); }
-#line 2272 "rl78-parse.c" /* yacc.c:1661  */
+#line 2293 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 33:
-#line 297 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 297 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xdc); PC1 ((yyvsp[0].exp)); rl78_linkrelax_branch (); }
-#line 2278 "rl78-parse.c" /* yacc.c:1661  */
+#line 2299 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 34:
-#line 300 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 300 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xde); PC1 ((yyvsp[0].exp)); rl78_linkrelax_branch (); }
-#line 2284 "rl78-parse.c" /* yacc.c:1661  */
+#line 2305 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 35:
-#line 303 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 303 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xdd); PC1 ((yyvsp[0].exp)); rl78_linkrelax_branch (); }
-#line 2290 "rl78-parse.c" /* yacc.c:1661  */
+#line 2311 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 36:
-#line 306 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 306 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xdf); PC1 ((yyvsp[0].exp)); rl78_linkrelax_branch (); }
-#line 2296 "rl78-parse.c" /* yacc.c:1661  */
+#line 2317 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 37:
-#line 309 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 309 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xc3); PC1 ((yyvsp[0].exp)); rl78_linkrelax_branch (); }
-#line 2302 "rl78-parse.c" /* yacc.c:1661  */
+#line 2323 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 38:
-#line 312 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 312 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xd3); PC1 ((yyvsp[0].exp)); rl78_linkrelax_branch (); }
-#line 2308 "rl78-parse.c" /* yacc.c:1661  */
+#line 2329 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 39:
-#line 317 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 317 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x31, 0x80|(yyvsp[-6].regno), (yyvsp[-5].regno)); FE ((yyvsp[-3].exp), 9, 3); PC1 ((yyvsp[0].exp)); }
-#line 2314 "rl78-parse.c" /* yacc.c:1661  */
+#line 2335 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 40:
-#line 320 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 320 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (expr_is_sfr ((yyvsp[-5].exp)))
 	      { B2 (0x31, 0x80|(yyvsp[-6].regno)); FE ((yyvsp[-3].exp), 9, 3); O1 ((yyvsp[-5].exp)); PC1 ((yyvsp[0].exp)); }
 	    else if (expr_is_saddr ((yyvsp[-5].exp)))
@@ -2322,89 +2343,89 @@ yyreduce:
 	    else
 	      NOT_SFR_OR_SADDR;
 	  }
-#line 2326 "rl78-parse.c" /* yacc.c:1661  */
+#line 2347 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 41:
-#line 329 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 329 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x31, 0x01|(yyvsp[-6].regno)); FE ((yyvsp[-3].exp), 9, 3); PC1 ((yyvsp[0].exp)); }
-#line 2332 "rl78-parse.c" /* yacc.c:1661  */
+#line 2353 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 42:
-#line 332 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 332 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x31, 0x81|(yyvsp[-9].regno)); FE ((yyvsp[-3].exp), 9, 3); PC1 ((yyvsp[0].exp)); }
-#line 2338 "rl78-parse.c" /* yacc.c:1661  */
+#line 2359 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 43:
-#line 337 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 337 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xcb); }
-#line 2344 "rl78-parse.c" /* yacc.c:1661  */
+#line 2365 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 44:
-#line 340 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 340 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xef); PC1 ((yyvsp[0].exp)); rl78_linkrelax_branch (); }
-#line 2350 "rl78-parse.c" /* yacc.c:1661  */
+#line 2371 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 45:
-#line 343 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 343 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xee); PC2 ((yyvsp[0].exp)); rl78_linkrelax_branch (); }
-#line 2356 "rl78-parse.c" /* yacc.c:1661  */
+#line 2377 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 46:
-#line 346 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 346 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xed); O2 ((yyvsp[0].exp)); rl78_linkrelax_branch (); }
-#line 2362 "rl78-parse.c" /* yacc.c:1661  */
+#line 2383 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 47:
-#line 349 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 349 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xec); O3 ((yyvsp[0].exp)); rl78_linkrelax_branch (); }
-#line 2368 "rl78-parse.c" /* yacc.c:1661  */
+#line 2389 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 48:
-#line 354 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 354 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xcc); }
-#line 2374 "rl78-parse.c" /* yacc.c:1661  */
+#line 2395 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 49:
-#line 357 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 357 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xff); }
-#line 2380 "rl78-parse.c" /* yacc.c:1661  */
+#line 2401 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 50:
-#line 362 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 362 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xca); F ((yyvsp[0].regno), 10, 2); }
-#line 2386 "rl78-parse.c" /* yacc.c:1661  */
+#line 2407 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 51:
-#line 365 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 365 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xfe); PC2 ((yyvsp[0].exp)); }
-#line 2392 "rl78-parse.c" /* yacc.c:1661  */
+#line 2413 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 52:
-#line 368 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 368 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xfd); O2 ((yyvsp[0].exp)); }
-#line 2398 "rl78-parse.c" /* yacc.c:1661  */
+#line 2419 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 53:
-#line 371 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 371 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xfc); O3 ((yyvsp[0].exp)); rl78_linkrelax_branch (); }
-#line 2404 "rl78-parse.c" /* yacc.c:1661  */
+#line 2425 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 54:
-#line 374 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 374 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-1].exp).X_op != O_constant)
 	      rl78_error ("CALLT requires a numeric address");
 	    else
@@ -2422,23 +2443,23 @@ yyreduce:
 		  }
 	      }
 	  }
-#line 2426 "rl78-parse.c" /* yacc.c:1661  */
+#line 2447 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 55:
-#line 395 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 395 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x71, (yyvsp[-1].regno) ? 0x88 : 0x80); }
-#line 2432 "rl78-parse.c" /* yacc.c:1661  */
+#line 2453 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 56:
-#line 398 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 398 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x71, 0x0a|(yyvsp[-3].regno), (yyvsp[-2].regno)); FE ((yyvsp[0].exp), 9, 3); }
-#line 2438 "rl78-parse.c" /* yacc.c:1661  */
+#line 2459 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 57:
-#line 401 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 401 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (expr_is_sfr ((yyvsp[-2].exp)))
 	      { B2 (0x71, 0x0a|(yyvsp[-3].regno)); FE ((yyvsp[0].exp), 9, 3); O1 ((yyvsp[-2].exp)); }
 	    else if (expr_is_saddr ((yyvsp[-2].exp)))
@@ -2446,327 +2467,327 @@ yyreduce:
 	    else
 	      NOT_SFR_OR_SADDR;
 	  }
-#line 2450 "rl78-parse.c" /* yacc.c:1661  */
+#line 2471 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 58:
-#line 410 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 410 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x71, 0x8a|(yyvsp[-3].regno));  FE ((yyvsp[0].exp), 9, 3); }
-#line 2456 "rl78-parse.c" /* yacc.c:1661  */
+#line 2477 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 59:
-#line 413 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 413 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x71, 0x00+(yyvsp[-5].regno)*0x08); FE ((yyvsp[0].exp), 9, 3); O2 ((yyvsp[-2].exp)); rl78_linkrelax_addr16 (); }
-#line 2462 "rl78-parse.c" /* yacc.c:1661  */
+#line 2483 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 60:
-#line 416 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 416 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x71, 0x82|(yyvsp[-6].regno)); FE ((yyvsp[0].exp), 9, 3); }
-#line 2468 "rl78-parse.c" /* yacc.c:1661  */
+#line 2489 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 61:
-#line 421 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 421 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xe1|(yyvsp[-1].regno)); }
-#line 2474 "rl78-parse.c" /* yacc.c:1661  */
+#line 2495 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 62:
-#line 423 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 423 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xe0|(yyvsp[-1].regno)); }
-#line 2480 "rl78-parse.c" /* yacc.c:1661  */
+#line 2501 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 63:
-#line 425 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 425 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xe3|(yyvsp[-1].regno)); }
-#line 2486 "rl78-parse.c" /* yacc.c:1661  */
+#line 2507 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 64:
-#line 427 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 427 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xe2|(yyvsp[-1].regno)); }
-#line 2492 "rl78-parse.c" /* yacc.c:1661  */
+#line 2513 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 65:
-#line 429 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 429 "./config/rl78-parse.y" /* yacc.c:1646  */
     {SA((yyvsp[0].exp))}
-#line 2498 "rl78-parse.c" /* yacc.c:1661  */
+#line 2519 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 66:
-#line 430 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 430 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xe4|(yyvsp[-2].regno)); SET_SA ((yyvsp[-1].exp)); O1 ((yyvsp[-1].exp)); }
-#line 2504 "rl78-parse.c" /* yacc.c:1661  */
+#line 2525 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 67:
-#line 433 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 433 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xe5|(yyvsp[-3].regno)); O2 ((yyvsp[0].exp)); rl78_linkrelax_addr16 (); }
-#line 2510 "rl78-parse.c" /* yacc.c:1661  */
+#line 2531 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 68:
-#line 438 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 438 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xe6|(yyvsp[-1].regno)); }
-#line 2516 "rl78-parse.c" /* yacc.c:1661  */
+#line 2537 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 69:
-#line 440 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 440 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xe7|(yyvsp[-1].regno)); }
-#line 2522 "rl78-parse.c" /* yacc.c:1661  */
+#line 2543 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 70:
-#line 445 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 445 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xd1); }
-#line 2528 "rl78-parse.c" /* yacc.c:1661  */
+#line 2549 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 71:
-#line 448 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 448 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xd0); }
-#line 2534 "rl78-parse.c" /* yacc.c:1661  */
+#line 2555 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 72:
-#line 451 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 451 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xd3); }
-#line 2540 "rl78-parse.c" /* yacc.c:1661  */
+#line 2561 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 73:
-#line 454 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 454 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xd2); }
-#line 2546 "rl78-parse.c" /* yacc.c:1661  */
+#line 2567 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 74:
-#line 456 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 456 "./config/rl78-parse.y" /* yacc.c:1646  */
     {SA((yyvsp[0].exp))}
-#line 2552 "rl78-parse.c" /* yacc.c:1661  */
+#line 2573 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 75:
-#line 457 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 457 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xd4); SET_SA ((yyvsp[-1].exp)); O1 ((yyvsp[-1].exp)); }
-#line 2558 "rl78-parse.c" /* yacc.c:1661  */
+#line 2579 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 76:
-#line 460 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 460 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xd5); O2 ((yyvsp[0].exp)); rl78_linkrelax_addr16 (); }
-#line 2564 "rl78-parse.c" /* yacc.c:1661  */
+#line 2585 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 77:
-#line 465 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 465 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xde); O1 ((yyvsp[-1].exp)); }
-#line 2570 "rl78-parse.c" /* yacc.c:1661  */
+#line 2591 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 78:
-#line 470 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 470 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x80|(yyvsp[-1].regno)); F ((yyvsp[0].regno), 5, 3); }
-#line 2576 "rl78-parse.c" /* yacc.c:1661  */
+#line 2597 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 79:
-#line 472 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 472 "./config/rl78-parse.y" /* yacc.c:1646  */
     {SA((yyvsp[0].exp))}
-#line 2582 "rl78-parse.c" /* yacc.c:1661  */
+#line 2603 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 80:
-#line 473 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 473 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xa4|(yyvsp[-2].regno)); SET_SA ((yyvsp[-1].exp)); O1 ((yyvsp[-1].exp)); }
-#line 2588 "rl78-parse.c" /* yacc.c:1661  */
+#line 2609 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 81:
-#line 475 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 475 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xa0|(yyvsp[-2].regno)); O2 ((yyvsp[0].exp)); rl78_linkrelax_addr16 (); }
-#line 2594 "rl78-parse.c" /* yacc.c:1661  */
+#line 2615 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 82:
-#line 477 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 477 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x11, 0xa0|(yyvsp[-4].regno)); O2 ((yyvsp[0].exp)); }
-#line 2600 "rl78-parse.c" /* yacc.c:1661  */
+#line 2621 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 83:
-#line 479 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 479 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0x59+(yyvsp[-5].regno)); O1 ((yyvsp[-1].exp)); }
-#line 2606 "rl78-parse.c" /* yacc.c:1661  */
+#line 2627 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 84:
-#line 481 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 481 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x11, 0x61, 0x59+(yyvsp[-7].regno)); O1 ((yyvsp[-1].exp)); }
-#line 2612 "rl78-parse.c" /* yacc.c:1661  */
+#line 2633 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 85:
-#line 486 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 486 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xa1|(yyvsp[-1].regno)); F ((yyvsp[0].regno), 5, 2); }
-#line 2618 "rl78-parse.c" /* yacc.c:1661  */
+#line 2639 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 86:
-#line 488 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 488 "./config/rl78-parse.y" /* yacc.c:1646  */
     {SA((yyvsp[0].exp))}
-#line 2624 "rl78-parse.c" /* yacc.c:1661  */
+#line 2645 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 87:
-#line 489 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 489 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xa6|(yyvsp[-2].regno)); SET_SA ((yyvsp[-1].exp)); O1 ((yyvsp[-1].exp)); }
-#line 2630 "rl78-parse.c" /* yacc.c:1661  */
+#line 2651 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 88:
-#line 492 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 492 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xa2|(yyvsp[-3].regno)); O2 ((yyvsp[0].exp)); rl78_linkrelax_addr16 (); }
-#line 2636 "rl78-parse.c" /* yacc.c:1661  */
+#line 2657 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 89:
-#line 495 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 495 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0x79+(yyvsp[-6].regno)); O1 ((yyvsp[-1].exp)); }
-#line 2642 "rl78-parse.c" /* yacc.c:1661  */
+#line 2663 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 90:
-#line 500 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 500 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x71, 0x7b, 0xfa); }
-#line 2648 "rl78-parse.c" /* yacc.c:1661  */
+#line 2669 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 91:
-#line 503 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 503 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x71, 0x7a, 0xfa); }
-#line 2654 "rl78-parse.c" /* yacc.c:1661  */
+#line 2675 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 92:
-#line 507 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 507 "./config/rl78-parse.y" /* yacc.c:1646  */
     { ISA_G14 ("MULHU"); }
-#line 2660 "rl78-parse.c" /* yacc.c:1661  */
+#line 2681 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 93:
-#line 508 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 508 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0xce, 0xfb, 0x01); }
-#line 2666 "rl78-parse.c" /* yacc.c:1661  */
+#line 2687 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 94:
-#line 510 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 510 "./config/rl78-parse.y" /* yacc.c:1646  */
     { ISA_G14 ("MULH"); }
-#line 2672 "rl78-parse.c" /* yacc.c:1661  */
+#line 2693 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 95:
-#line 511 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 511 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0xce, 0xfb, 0x02); }
-#line 2678 "rl78-parse.c" /* yacc.c:1661  */
+#line 2699 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 96:
-#line 514 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 514 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xd6); }
-#line 2684 "rl78-parse.c" /* yacc.c:1661  */
+#line 2705 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 97:
-#line 516 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 516 "./config/rl78-parse.y" /* yacc.c:1646  */
     { ISA_G14 ("DIVHU"); }
-#line 2690 "rl78-parse.c" /* yacc.c:1661  */
+#line 2711 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 98:
-#line 517 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 517 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0xce, 0xfb, 0x03); }
-#line 2696 "rl78-parse.c" /* yacc.c:1661  */
+#line 2717 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 99:
-#line 524 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 524 "./config/rl78-parse.y" /* yacc.c:1646  */
     { ISA_G14 ("DIVWU"); }
-#line 2702 "rl78-parse.c" /* yacc.c:1661  */
+#line 2723 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 100:
-#line 525 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 525 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0xce, 0xfb, 0x0b); }
-#line 2708 "rl78-parse.c" /* yacc.c:1661  */
+#line 2729 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 101:
-#line 527 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 527 "./config/rl78-parse.y" /* yacc.c:1646  */
     { ISA_G14 ("MACHU"); }
-#line 2714 "rl78-parse.c" /* yacc.c:1661  */
+#line 2735 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 102:
-#line 528 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 528 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0xce, 0xfb, 0x05); }
-#line 2720 "rl78-parse.c" /* yacc.c:1661  */
+#line 2741 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 103:
-#line 530 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 530 "./config/rl78-parse.y" /* yacc.c:1646  */
     { ISA_G14 ("MACH"); }
-#line 2726 "rl78-parse.c" /* yacc.c:1661  */
+#line 2747 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 104:
-#line 531 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 531 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0xce, 0xfb, 0x06); }
-#line 2732 "rl78-parse.c" /* yacc.c:1661  */
+#line 2753 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 105:
-#line 536 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 536 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xed); }
-#line 2738 "rl78-parse.c" /* yacc.c:1661  */
+#line 2759 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 106:
-#line 544 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 544 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x51); O1 ((yyvsp[0].exp)); }
-#line 2744 "rl78-parse.c" /* yacc.c:1661  */
+#line 2765 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 107:
-#line 546 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 546 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x50); F((yyvsp[-3].regno), 5, 3); O1 ((yyvsp[0].exp)); }
-#line 2750 "rl78-parse.c" /* yacc.c:1661  */
+#line 2771 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 108:
-#line 549 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 549 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-3].regno) != 0xfd)
 	      { B2 (0xce, (yyvsp[-3].regno)); O1 ((yyvsp[0].exp)); }
 	    else
 	      { B1 (0x41); O1 ((yyvsp[0].exp)); }
 	  }
-#line 2760 "rl78-parse.c" /* yacc.c:1661  */
+#line 2781 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 109:
-#line 555 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 555 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 2766 "rl78-parse.c" /* yacc.c:1661  */
+#line 2787 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 110:
-#line 556 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 556 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (expr_is_sfr ((yyvsp[-4].exp)))
 	      { B1 (0xce); O1 ((yyvsp[-4].exp)); O1 ((yyvsp[-1].exp)); }
 	    else if (expr_is_saddr ((yyvsp[-4].exp)))
@@ -2774,41 +2795,41 @@ yyreduce:
 	    else
 	      NOT_SFR_OR_SADDR;
 	  }
-#line 2778 "rl78-parse.c" /* yacc.c:1661  */
+#line 2799 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 111:
-#line 565 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 565 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xcf); O2 ((yyvsp[-3].exp)); O1 ((yyvsp[0].exp)); rl78_linkrelax_addr16 (); }
-#line 2784 "rl78-parse.c" /* yacc.c:1661  */
+#line 2805 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 112:
-#line 568 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 568 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x11, 0xcf); O2 ((yyvsp[-3].exp)); O1 ((yyvsp[0].exp)); }
-#line 2790 "rl78-parse.c" /* yacc.c:1661  */
+#line 2811 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 113:
-#line 571 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 571 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x70); F ((yyvsp[-2].regno), 5, 3); }
-#line 2796 "rl78-parse.c" /* yacc.c:1661  */
+#line 2817 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 114:
-#line 574 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 574 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x60); F ((yyvsp[0].regno), 5, 3); }
-#line 2802 "rl78-parse.c" /* yacc.c:1661  */
+#line 2823 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 115:
-#line 576 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 576 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 2808 "rl78-parse.c" /* yacc.c:1661  */
+#line 2829 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 116:
-#line 577 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 577 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (expr_is_sfr ((yyvsp[-3].exp)))
 	      { B1 (0x9e); O1 ((yyvsp[-3].exp)); }
 	    else if (expr_is_saddr ((yyvsp[-3].exp)))
@@ -2816,41 +2837,41 @@ yyreduce:
 	    else
 	      NOT_SFR_OR_SADDR;
 	  }
-#line 2820 "rl78-parse.c" /* yacc.c:1661  */
+#line 2841 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 117:
-#line 586 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 586 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x8f); O2 ((yyvsp[0].exp)); rl78_linkrelax_addr16 (); }
-#line 2826 "rl78-parse.c" /* yacc.c:1661  */
+#line 2847 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 118:
-#line 589 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 589 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x9f); O2 ((yyvsp[-2].exp)); rl78_linkrelax_addr16 (); }
-#line 2832 "rl78-parse.c" /* yacc.c:1661  */
+#line 2853 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 119:
-#line 592 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 592 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x11, 0x9f); O2 ((yyvsp[-2].exp)); }
-#line 2838 "rl78-parse.c" /* yacc.c:1661  */
+#line 2859 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 120:
-#line 595 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 595 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xc9|reg_xbc((yyvsp[-4].regno))); O2 ((yyvsp[0].exp)); rl78_linkrelax_addr16 (); }
-#line 2844 "rl78-parse.c" /* yacc.c:1661  */
+#line 2865 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 121:
-#line 597 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 597 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 2850 "rl78-parse.c" /* yacc.c:1661  */
+#line 2871 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 122:
-#line 598 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 598 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (expr_is_saddr ((yyvsp[-1].exp)))
 	      { B1 (0x8d); SET_SA ((yyvsp[-1].exp)); O1 ((yyvsp[-1].exp)); }
 	    else if (expr_is_sfr ((yyvsp[-1].exp)))
@@ -2858,295 +2879,295 @@ yyreduce:
 	    else
 	      NOT_SFR_OR_SADDR;
 	  }
-#line 2862 "rl78-parse.c" /* yacc.c:1661  */
+#line 2883 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 123:
-#line 606 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 606 "./config/rl78-parse.y" /* yacc.c:1646  */
     {SA((yyvsp[0].exp))}
-#line 2868 "rl78-parse.c" /* yacc.c:1661  */
+#line 2889 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 124:
-#line 606 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 606 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 2874 "rl78-parse.c" /* yacc.c:1661  */
+#line 2895 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 125:
-#line 607 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 607 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xc8|reg_xbc((yyvsp[-5].regno))); SET_SA ((yyvsp[-2].exp)); O1 ((yyvsp[-2].exp)); }
-#line 2880 "rl78-parse.c" /* yacc.c:1661  */
+#line 2901 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 126:
-#line 610 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 610 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x8e, (yyvsp[0].regno)); }
-#line 2886 "rl78-parse.c" /* yacc.c:1661  */
+#line 2907 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 127:
-#line 613 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 613 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[0].regno) != 1)
 	      rl78_error ("Only A allowed here");
 	    else
 	      { B2 (0x9e, (yyvsp[-2].regno)); }
 	  }
-#line 2896 "rl78-parse.c" /* yacc.c:1661  */
+#line 2917 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 128:
-#line 619 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 619 "./config/rl78-parse.y" /* yacc.c:1646  */
     {SA((yyvsp[0].exp))}
-#line 2902 "rl78-parse.c" /* yacc.c:1661  */
+#line 2923 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 129:
-#line 619 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 619 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 2908 "rl78-parse.c" /* yacc.c:1661  */
+#line 2929 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 130:
-#line 620 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 620 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[-5].regno) != 0xfd)
 	      rl78_error ("Only ES allowed here");
 	    else
 	      { B2 (0x61, 0xb8); SET_SA ((yyvsp[-2].exp)); O1 ((yyvsp[-2].exp)); }
 	  }
-#line 2918 "rl78-parse.c" /* yacc.c:1661  */
+#line 2939 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 131:
-#line 627 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 627 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x89); }
-#line 2924 "rl78-parse.c" /* yacc.c:1661  */
+#line 2945 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 132:
-#line 630 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 630 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x99); }
-#line 2930 "rl78-parse.c" /* yacc.c:1661  */
+#line 2951 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 133:
-#line 633 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 633 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xca); O1 ((yyvsp[-4].exp)); O1 ((yyvsp[0].exp)); }
-#line 2936 "rl78-parse.c" /* yacc.c:1661  */
+#line 2957 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 134:
-#line 636 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 636 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x8a); O1 ((yyvsp[-1].exp)); }
-#line 2942 "rl78-parse.c" /* yacc.c:1661  */
+#line 2963 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 135:
-#line 639 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 639 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x9a); O1 ((yyvsp[-3].exp)); }
-#line 2948 "rl78-parse.c" /* yacc.c:1661  */
+#line 2969 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 136:
-#line 642 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 642 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x8b); }
-#line 2954 "rl78-parse.c" /* yacc.c:1661  */
+#line 2975 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 137:
-#line 645 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 645 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x9b); }
-#line 2960 "rl78-parse.c" /* yacc.c:1661  */
+#line 2981 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 138:
-#line 648 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 648 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xcc); O1 ((yyvsp[-4].exp)); O1 ((yyvsp[0].exp)); }
-#line 2966 "rl78-parse.c" /* yacc.c:1661  */
+#line 2987 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 139:
-#line 651 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 651 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x8c); O1 ((yyvsp[-1].exp)); }
-#line 2972 "rl78-parse.c" /* yacc.c:1661  */
+#line 2993 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 140:
-#line 654 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 654 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x9c); O1 ((yyvsp[-3].exp)); }
-#line 2978 "rl78-parse.c" /* yacc.c:1661  */
+#line 2999 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 141:
-#line 657 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 657 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xc9); }
-#line 2984 "rl78-parse.c" /* yacc.c:1661  */
+#line 3005 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 142:
-#line 660 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 660 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xd9); }
-#line 2990 "rl78-parse.c" /* yacc.c:1661  */
+#line 3011 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 143:
-#line 663 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 663 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xe9); }
-#line 2996 "rl78-parse.c" /* yacc.c:1661  */
+#line 3017 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 144:
-#line 666 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 666 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xf9); }
-#line 3002 "rl78-parse.c" /* yacc.c:1661  */
+#line 3023 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 145:
-#line 669 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 669 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x19); O2 ((yyvsp[-6].exp)); O1 ((yyvsp[0].exp)); }
-#line 3008 "rl78-parse.c" /* yacc.c:1661  */
+#line 3029 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 146:
-#line 672 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 672 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x09); O2 ((yyvsp[-3].exp)); }
-#line 3014 "rl78-parse.c" /* yacc.c:1661  */
+#line 3035 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 147:
-#line 675 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 675 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x18); O2 ((yyvsp[-5].exp)); }
-#line 3020 "rl78-parse.c" /* yacc.c:1661  */
+#line 3041 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 148:
-#line 678 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 678 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x38); O2 ((yyvsp[-6].exp)); O1 ((yyvsp[0].exp)); }
-#line 3026 "rl78-parse.c" /* yacc.c:1661  */
+#line 3047 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 149:
-#line 681 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 681 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x29); O2 ((yyvsp[-3].exp)); }
-#line 3032 "rl78-parse.c" /* yacc.c:1661  */
+#line 3053 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 150:
-#line 684 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 684 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x28); O2 ((yyvsp[-5].exp)); }
-#line 3038 "rl78-parse.c" /* yacc.c:1661  */
+#line 3059 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 151:
-#line 687 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 687 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x39); O2 ((yyvsp[-6].exp)); O1 ((yyvsp[0].exp)); }
-#line 3044 "rl78-parse.c" /* yacc.c:1661  */
+#line 3065 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 152:
-#line 690 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 690 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x39, 0, 0); O1 ((yyvsp[0].exp)); }
-#line 3050 "rl78-parse.c" /* yacc.c:1661  */
+#line 3071 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 153:
-#line 693 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 693 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x49); O2 ((yyvsp[-3].exp)); }
-#line 3056 "rl78-parse.c" /* yacc.c:1661  */
+#line 3077 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 154:
-#line 696 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 696 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x49, 0, 0); }
-#line 3062 "rl78-parse.c" /* yacc.c:1661  */
+#line 3083 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 155:
-#line 699 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 699 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x48); O2 ((yyvsp[-5].exp)); }
-#line 3068 "rl78-parse.c" /* yacc.c:1661  */
+#line 3089 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 156:
-#line 702 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 702 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x48, 0, 0); }
-#line 3074 "rl78-parse.c" /* yacc.c:1661  */
+#line 3095 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 157:
-#line 704 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 704 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 3080 "rl78-parse.c" /* yacc.c:1661  */
+#line 3101 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 158:
-#line 705 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 705 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xc8); O1 ((yyvsp[-5].exp)); O1 ((yyvsp[-1].exp)); }
-#line 3086 "rl78-parse.c" /* yacc.c:1661  */
+#line 3107 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 159:
-#line 707 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 707 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 3092 "rl78-parse.c" /* yacc.c:1661  */
+#line 3113 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 160:
-#line 708 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 708 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0xc8, 0); O1 ((yyvsp[-1].exp)); }
-#line 3098 "rl78-parse.c" /* yacc.c:1661  */
+#line 3119 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 161:
-#line 710 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 710 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 3104 "rl78-parse.c" /* yacc.c:1661  */
+#line 3125 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 162:
-#line 711 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 711 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x88); O1 ((yyvsp[-2].exp)); }
-#line 3110 "rl78-parse.c" /* yacc.c:1661  */
+#line 3131 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 163:
-#line 713 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 713 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 3116 "rl78-parse.c" /* yacc.c:1661  */
+#line 3137 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 164:
-#line 714 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 714 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x88, 0); }
-#line 3122 "rl78-parse.c" /* yacc.c:1661  */
+#line 3143 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 165:
-#line 716 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 716 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 3128 "rl78-parse.c" /* yacc.c:1661  */
+#line 3149 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 166:
-#line 717 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 717 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x98); O1 ((yyvsp[-4].exp)); }
-#line 3134 "rl78-parse.c" /* yacc.c:1661  */
+#line 3155 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 167:
-#line 719 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 719 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 3140 "rl78-parse.c" /* yacc.c:1661  */
+#line 3161 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 168:
-#line 720 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 720 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x98, 0); }
-#line 3146 "rl78-parse.c" /* yacc.c:1661  */
+#line 3167 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 169:
-#line 725 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 725 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (expr_is_saddr ((yyvsp[-2].exp)))
 	      { B2 (0x71, 0x04); FE ((yyvsp[0].exp), 9, 3); SET_SA ((yyvsp[-2].exp)); O1 ((yyvsp[-2].exp)); }
 	    else if (expr_is_sfr ((yyvsp[-2].exp)))
@@ -3154,29 +3175,29 @@ yyreduce:
 	    else
 	      NOT_SFR_OR_SADDR;
 	  }
-#line 3158 "rl78-parse.c" /* yacc.c:1661  */
+#line 3179 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 170:
-#line 734 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 734 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x71, 0x8c); FE ((yyvsp[0].exp), 9, 3); }
-#line 3164 "rl78-parse.c" /* yacc.c:1661  */
+#line 3185 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 171:
-#line 737 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 737 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x71, 0x0c, (yyvsp[-2].regno)); FE ((yyvsp[0].exp), 9, 3); }
-#line 3170 "rl78-parse.c" /* yacc.c:1661  */
+#line 3191 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 172:
-#line 740 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 740 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x71, 0x84); FE ((yyvsp[0].exp), 9, 3); }
-#line 3176 "rl78-parse.c" /* yacc.c:1661  */
+#line 3197 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 173:
-#line 743 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 743 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (expr_is_saddr ((yyvsp[-4].exp)))
 	      { B2 (0x71, 0x01); FE ((yyvsp[-2].exp), 9, 3); SET_SA ((yyvsp[-4].exp)); O1 ((yyvsp[-4].exp)); }
 	    else if (expr_is_sfr ((yyvsp[-4].exp)))
@@ -3184,53 +3205,53 @@ yyreduce:
 	    else
 	      NOT_SFR_OR_SADDR;
 	  }
-#line 3188 "rl78-parse.c" /* yacc.c:1661  */
+#line 3209 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 174:
-#line 752 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 752 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x71, 0x89); FE ((yyvsp[-2].exp), 9, 3); }
-#line 3194 "rl78-parse.c" /* yacc.c:1661  */
+#line 3215 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 175:
-#line 755 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 755 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x71, 0x09, (yyvsp[-4].regno)); FE ((yyvsp[-2].exp), 9, 3); }
-#line 3200 "rl78-parse.c" /* yacc.c:1661  */
+#line 3221 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 176:
-#line 758 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 758 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x71, 0x81); FE ((yyvsp[-2].exp), 9, 3); }
-#line 3206 "rl78-parse.c" /* yacc.c:1661  */
+#line 3227 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 177:
-#line 763 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 763 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xce); O1 ((yyvsp[-3].exp)); }
-#line 3212 "rl78-parse.c" /* yacc.c:1661  */
+#line 3233 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 178:
-#line 768 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 768 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x30); O2 ((yyvsp[0].exp)); }
-#line 3218 "rl78-parse.c" /* yacc.c:1661  */
+#line 3239 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 179:
-#line 771 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 771 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x30); F ((yyvsp[-3].regno), 5, 2); O2 ((yyvsp[0].exp)); }
-#line 3224 "rl78-parse.c" /* yacc.c:1661  */
+#line 3245 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 180:
-#line 773 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 773 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 3230 "rl78-parse.c" /* yacc.c:1661  */
+#line 3251 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 181:
-#line 774 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 774 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (expr_is_saddr ((yyvsp[-4].exp)))
 	      { B1 (0xc9); SET_SA ((yyvsp[-4].exp)); O1 ((yyvsp[-4].exp)); O2 ((yyvsp[-1].exp)); }
 	    else if (expr_is_sfr ((yyvsp[-4].exp)))
@@ -3238,17 +3259,17 @@ yyreduce:
 	    else
 	      NOT_SFR_OR_SADDR;
 	  }
-#line 3242 "rl78-parse.c" /* yacc.c:1661  */
+#line 3263 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 182:
-#line 782 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 782 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 3248 "rl78-parse.c" /* yacc.c:1661  */
+#line 3269 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 183:
-#line 783 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 783 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (expr_is_saddr ((yyvsp[-1].exp)))
 	      { B1 (0xad); SET_SA ((yyvsp[-1].exp)); O1 ((yyvsp[-1].exp)); WA((yyvsp[-1].exp)); }
 	    else if (expr_is_sfr ((yyvsp[-1].exp)))
@@ -3256,17 +3277,17 @@ yyreduce:
 	    else
 	      NOT_SFR_OR_SADDR;
 	  }
-#line 3260 "rl78-parse.c" /* yacc.c:1661  */
+#line 3281 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 184:
-#line 791 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 791 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 3266 "rl78-parse.c" /* yacc.c:1661  */
+#line 3287 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 185:
-#line 792 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 792 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (expr_is_saddr ((yyvsp[-3].exp)))
 	      { B1 (0xbd); SET_SA ((yyvsp[-3].exp)); O1 ((yyvsp[-3].exp)); WA((yyvsp[-3].exp)); }
 	    else if (expr_is_sfr ((yyvsp[-3].exp)))
@@ -3274,513 +3295,513 @@ yyreduce:
 	    else
 	      NOT_SFR_OR_SADDR;
 	  }
-#line 3278 "rl78-parse.c" /* yacc.c:1661  */
+#line 3299 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 186:
-#line 801 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 801 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x11); F ((yyvsp[0].regno), 5, 2); }
-#line 3284 "rl78-parse.c" /* yacc.c:1661  */
+#line 3305 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 187:
-#line 804 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 804 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x10); F ((yyvsp[-2].regno), 5, 2); }
-#line 3290 "rl78-parse.c" /* yacc.c:1661  */
+#line 3311 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 188:
-#line 807 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 807 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xaf); O2 ((yyvsp[0].exp)); WA((yyvsp[0].exp)); rl78_linkrelax_addr16 (); }
-#line 3296 "rl78-parse.c" /* yacc.c:1661  */
+#line 3317 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 189:
-#line 810 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 810 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xbf); O2 ((yyvsp[-2].exp)); WA((yyvsp[-2].exp)); rl78_linkrelax_addr16 (); }
-#line 3302 "rl78-parse.c" /* yacc.c:1661  */
+#line 3323 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 190:
-#line 813 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 813 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xa9); }
-#line 3308 "rl78-parse.c" /* yacc.c:1661  */
+#line 3329 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 191:
-#line 816 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 816 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xb9); }
-#line 3314 "rl78-parse.c" /* yacc.c:1661  */
+#line 3335 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 192:
-#line 819 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 819 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xaa); O1 ((yyvsp[-1].exp)); }
-#line 3320 "rl78-parse.c" /* yacc.c:1661  */
+#line 3341 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 193:
-#line 822 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 822 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xba); O1 ((yyvsp[-3].exp)); }
-#line 3326 "rl78-parse.c" /* yacc.c:1661  */
+#line 3347 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 194:
-#line 825 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 825 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xab); }
-#line 3332 "rl78-parse.c" /* yacc.c:1661  */
+#line 3353 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 195:
-#line 828 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 828 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xbb); }
-#line 3338 "rl78-parse.c" /* yacc.c:1661  */
+#line 3359 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 196:
-#line 831 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 831 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xac); O1 ((yyvsp[-1].exp)); }
-#line 3344 "rl78-parse.c" /* yacc.c:1661  */
+#line 3365 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 197:
-#line 834 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 834 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xbc); O1 ((yyvsp[-3].exp)); }
-#line 3350 "rl78-parse.c" /* yacc.c:1661  */
+#line 3371 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 198:
-#line 837 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 837 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x59); O2 ((yyvsp[-3].exp)); }
-#line 3356 "rl78-parse.c" /* yacc.c:1661  */
+#line 3377 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 199:
-#line 840 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 840 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x58); O2 ((yyvsp[-5].exp)); }
-#line 3362 "rl78-parse.c" /* yacc.c:1661  */
+#line 3383 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 200:
-#line 843 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 843 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x69); O2 ((yyvsp[-3].exp)); }
-#line 3368 "rl78-parse.c" /* yacc.c:1661  */
+#line 3389 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 201:
-#line 846 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 846 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x68); O2 ((yyvsp[-5].exp)); }
-#line 3374 "rl78-parse.c" /* yacc.c:1661  */
+#line 3395 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 202:
-#line 849 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 849 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x79); O2 ((yyvsp[-3].exp)); }
-#line 3380 "rl78-parse.c" /* yacc.c:1661  */
+#line 3401 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 203:
-#line 852 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 852 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x79, 0, 0); }
-#line 3386 "rl78-parse.c" /* yacc.c:1661  */
+#line 3407 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 204:
-#line 855 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 855 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x78); O2 ((yyvsp[-5].exp)); }
-#line 3392 "rl78-parse.c" /* yacc.c:1661  */
+#line 3413 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 205:
-#line 858 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 858 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0x78, 0, 0); }
-#line 3398 "rl78-parse.c" /* yacc.c:1661  */
+#line 3419 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 206:
-#line 860 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 860 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 3404 "rl78-parse.c" /* yacc.c:1661  */
+#line 3425 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 207:
-#line 861 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 861 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xa8); O1 ((yyvsp[-2].exp));  WA((yyvsp[-2].exp));}
-#line 3410 "rl78-parse.c" /* yacc.c:1661  */
+#line 3431 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 208:
-#line 863 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 863 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 3416 "rl78-parse.c" /* yacc.c:1661  */
+#line 3437 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 209:
-#line 864 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 864 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0xa8, 0); }
-#line 3422 "rl78-parse.c" /* yacc.c:1661  */
+#line 3443 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 210:
-#line 866 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 866 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 3428 "rl78-parse.c" /* yacc.c:1661  */
+#line 3449 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 211:
-#line 867 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 867 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xb8); O1 ((yyvsp[-4].exp)); WA((yyvsp[-4].exp)); }
-#line 3434 "rl78-parse.c" /* yacc.c:1661  */
+#line 3455 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 212:
-#line 869 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 869 "./config/rl78-parse.y" /* yacc.c:1646  */
     {NOT_ES}
-#line 3440 "rl78-parse.c" /* yacc.c:1661  */
+#line 3461 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 213:
-#line 870 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 870 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0xb8, 0); }
-#line 3446 "rl78-parse.c" /* yacc.c:1661  */
+#line 3467 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 214:
-#line 872 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 872 "./config/rl78-parse.y" /* yacc.c:1646  */
     {SA((yyvsp[0].exp))}
-#line 3452 "rl78-parse.c" /* yacc.c:1661  */
+#line 3473 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 215:
-#line 873 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 873 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xca); F ((yyvsp[-3].regno), 2, 2); SET_SA ((yyvsp[-1].exp)); O1 ((yyvsp[-1].exp)); WA((yyvsp[-1].exp)); }
-#line 3458 "rl78-parse.c" /* yacc.c:1661  */
+#line 3479 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 216:
-#line 876 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 876 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xcb); F ((yyvsp[-4].regno), 2, 2); O2 ((yyvsp[0].exp)); WA((yyvsp[0].exp)); rl78_linkrelax_addr16 (); }
-#line 3464 "rl78-parse.c" /* yacc.c:1661  */
+#line 3485 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 217:
-#line 879 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 879 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0xcb, 0xf8); O2 ((yyvsp[0].exp)); }
-#line 3470 "rl78-parse.c" /* yacc.c:1661  */
+#line 3491 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 218:
-#line 882 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 882 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0xbe, 0xf8); }
-#line 3476 "rl78-parse.c" /* yacc.c:1661  */
+#line 3497 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 219:
-#line 885 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 885 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0xae, 0xf8); }
-#line 3482 "rl78-parse.c" /* yacc.c:1661  */
+#line 3503 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 220:
-#line 888 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 888 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B3 (0xcb, 0xf8, 0xff); F ((yyvsp[-2].regno), 2, 2); }
-#line 3488 "rl78-parse.c" /* yacc.c:1661  */
+#line 3509 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 221:
-#line 893 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 893 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x00); }
-#line 3494 "rl78-parse.c" /* yacc.c:1661  */
+#line 3515 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 222:
-#line 898 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 898 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x71, 0xc0); }
-#line 3500 "rl78-parse.c" /* yacc.c:1661  */
+#line 3521 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 223:
-#line 903 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 903 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xc0); F ((yyvsp[0].regno), 5, 2); }
-#line 3506 "rl78-parse.c" /* yacc.c:1661  */
+#line 3527 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 224:
-#line 906 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 906 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xcd); }
-#line 3512 "rl78-parse.c" /* yacc.c:1661  */
+#line 3533 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 225:
-#line 909 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 909 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xc1); F ((yyvsp[0].regno), 5, 2); }
-#line 3518 "rl78-parse.c" /* yacc.c:1661  */
+#line 3539 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 226:
-#line 912 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 912 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xdd); }
-#line 3524 "rl78-parse.c" /* yacc.c:1661  */
+#line 3545 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 227:
-#line 917 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 917 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0xd7); }
-#line 3530 "rl78-parse.c" /* yacc.c:1661  */
+#line 3551 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 228:
-#line 920 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 920 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xfc); }
-#line 3536 "rl78-parse.c" /* yacc.c:1661  */
+#line 3557 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 229:
-#line 923 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 923 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xec); }
-#line 3542 "rl78-parse.c" /* yacc.c:1661  */
+#line 3563 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 230:
-#line 928 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 928 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 1))
 	      { B2 (0x61, 0xeb); }
 	  }
-#line 3550 "rl78-parse.c" /* yacc.c:1661  */
+#line 3571 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 231:
-#line 933 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 933 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 1))
 	      { B2 (0x61, 0xdc); }
 	  }
-#line 3558 "rl78-parse.c" /* yacc.c:1661  */
+#line 3579 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 232:
-#line 938 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 938 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 1))
 	      { B2 (0x61, 0xee); }
 	  }
-#line 3566 "rl78-parse.c" /* yacc.c:1661  */
+#line 3587 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 233:
-#line 943 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 943 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 1))
 	      { B2 (0x61, 0xfe); }
 	  }
-#line 3574 "rl78-parse.c" /* yacc.c:1661  */
+#line 3595 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 234:
-#line 948 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 948 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 1))
 	      { B2 (0x61, 0xdb); }
 	  }
-#line 3582 "rl78-parse.c" /* yacc.c:1661  */
+#line 3603 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 235:
-#line 953 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 953 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 1))
 	      { B2 (0x61, 0xfb);}
 	  }
-#line 3590 "rl78-parse.c" /* yacc.c:1661  */
+#line 3611 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 236:
-#line 960 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 960 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 7))
 	      { B2 (0x31, 0x0b); FE ((yyvsp[0].exp), 9, 3); }
 	  }
-#line 3598 "rl78-parse.c" /* yacc.c:1661  */
+#line 3619 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 237:
-#line 965 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 965 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 15))
 	      { B2 (0x31, 0x0f); FE ((yyvsp[0].exp), 8, 4); }
 	  }
-#line 3606 "rl78-parse.c" /* yacc.c:1661  */
+#line 3627 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 238:
-#line 972 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 972 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xcf); }
-#line 3612 "rl78-parse.c" /* yacc.c:1661  */
+#line 3633 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 239:
-#line 975 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 975 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xdf); }
-#line 3618 "rl78-parse.c" /* yacc.c:1661  */
+#line 3639 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 240:
-#line 978 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 978 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xef); }
-#line 3624 "rl78-parse.c" /* yacc.c:1661  */
+#line 3645 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 241:
-#line 981 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 981 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xff); }
-#line 3630 "rl78-parse.c" /* yacc.c:1661  */
+#line 3651 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 242:
-#line 986 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 986 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 7))
 	      { B2 (0x31, 0x09); FE ((yyvsp[0].exp), 9, 3); }
 	  }
-#line 3638 "rl78-parse.c" /* yacc.c:1661  */
+#line 3659 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 243:
-#line 991 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 991 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 7))
 	      { B2 (0x31, 0x08); FE ((yyvsp[0].exp), 9, 3); }
 	  }
-#line 3646 "rl78-parse.c" /* yacc.c:1661  */
+#line 3667 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 244:
-#line 996 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 996 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 7))
 	      { B2 (0x31, 0x07); FE ((yyvsp[0].exp), 9, 3); }
 	  }
-#line 3654 "rl78-parse.c" /* yacc.c:1661  */
+#line 3675 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 245:
-#line 1001 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1001 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 15))
 	      { B2 (0x31, 0x0d); FE ((yyvsp[0].exp), 8, 4); }
 	  }
-#line 3662 "rl78-parse.c" /* yacc.c:1661  */
+#line 3683 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 246:
-#line 1006 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1006 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 15))
 	      { B2 (0x31, 0x0c); FE ((yyvsp[0].exp), 8, 4); }
 	  }
-#line 3670 "rl78-parse.c" /* yacc.c:1661  */
+#line 3691 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 247:
-#line 1013 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1013 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 7))
 	      { B2 (0x31, 0x0a); FE ((yyvsp[0].exp), 9, 3); }
 	  }
-#line 3678 "rl78-parse.c" /* yacc.c:1661  */
+#line 3699 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 248:
-#line 1018 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1018 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (check_expr_is_const ((yyvsp[0].exp), 1, 15))
 	      { B2 (0x31, 0x0e); FE ((yyvsp[0].exp), 8, 4); }
 	  }
-#line 3686 "rl78-parse.c" /* yacc.c:1661  */
+#line 3707 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 249:
-#line 1025 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1025 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xc8); rl78_relax (RL78_RELAX_BRANCH, 0); }
-#line 3692 "rl78-parse.c" /* yacc.c:1661  */
+#line 3713 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 250:
-#line 1028 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1028 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xe3); rl78_relax (RL78_RELAX_BRANCH, 0); }
-#line 3698 "rl78-parse.c" /* yacc.c:1661  */
+#line 3719 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 251:
-#line 1031 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1031 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xd8); rl78_relax (RL78_RELAX_BRANCH, 0); }
-#line 3704 "rl78-parse.c" /* yacc.c:1661  */
+#line 3725 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 252:
-#line 1034 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1034 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xf3); rl78_relax (RL78_RELAX_BRANCH, 0); }
-#line 3710 "rl78-parse.c" /* yacc.c:1661  */
+#line 3731 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 253:
-#line 1037 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1037 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xf8); rl78_relax (RL78_RELAX_BRANCH, 0); }
-#line 3716 "rl78-parse.c" /* yacc.c:1661  */
+#line 3737 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 254:
-#line 1040 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1040 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xe8); rl78_relax (RL78_RELAX_BRANCH, 0); }
-#line 3722 "rl78-parse.c" /* yacc.c:1661  */
+#line 3743 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 255:
-#line 1045 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1045 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xfd); }
-#line 3728 "rl78-parse.c" /* yacc.c:1661  */
+#line 3749 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 256:
-#line 1050 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1050 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if ((yyvsp[0].regno) == 0) /* X */
 	      { B1 (0x08); }
 	    else
 	      { B2 (0x61, 0x88); F ((yyvsp[0].regno), 13, 3); }
 	  }
-#line 3738 "rl78-parse.c" /* yacc.c:1661  */
+#line 3759 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 257:
-#line 1057 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1057 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xaa); O2 ((yyvsp[0].exp)); rl78_linkrelax_addr16 (); }
-#line 3744 "rl78-parse.c" /* yacc.c:1661  */
+#line 3765 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 258:
-#line 1060 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1060 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xae); }
-#line 3750 "rl78-parse.c" /* yacc.c:1661  */
+#line 3771 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 259:
-#line 1063 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1063 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xaf); O1 ((yyvsp[-1].exp)); }
-#line 3756 "rl78-parse.c" /* yacc.c:1661  */
+#line 3777 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 260:
-#line 1066 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1066 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xac); }
-#line 3762 "rl78-parse.c" /* yacc.c:1661  */
+#line 3783 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 261:
-#line 1069 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1069 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xad); O1 ((yyvsp[-1].exp)); }
-#line 3768 "rl78-parse.c" /* yacc.c:1661  */
+#line 3789 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 262:
-#line 1072 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1072 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xb9); }
-#line 3774 "rl78-parse.c" /* yacc.c:1661  */
+#line 3795 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 263:
-#line 1075 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1075 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B2 (0x61, 0xa9); }
-#line 3780 "rl78-parse.c" /* yacc.c:1661  */
+#line 3801 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 264:
-#line 1078 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1078 "./config/rl78-parse.y" /* yacc.c:1646  */
     { if (expr_is_sfr ((yyvsp[0].exp)))
 	      { B2 (0x61, 0xab); O1 ((yyvsp[0].exp)); }
 	    else if (expr_is_saddr ((yyvsp[0].exp)))
@@ -3788,365 +3809,365 @@ yyreduce:
 	    else
 	      NOT_SFR_OR_SADDR;
 	  }
-#line 3792 "rl78-parse.c" /* yacc.c:1661  */
+#line 3813 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 265:
-#line 1089 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1089 "./config/rl78-parse.y" /* yacc.c:1646  */
     { B1 (0x31); F ((yyvsp[0].regno), 5, 2); }
-#line 3798 "rl78-parse.c" /* yacc.c:1661  */
+#line 3819 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 267:
-#line 1099 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1099 "./config/rl78-parse.y" /* yacc.c:1646  */
     { rl78_prefix (0x11); }
-#line 3804 "rl78-parse.c" /* yacc.c:1661  */
+#line 3825 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 268:
-#line 1102 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1102 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0; }
-#line 3810 "rl78-parse.c" /* yacc.c:1661  */
+#line 3831 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 269:
-#line 1103 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1103 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 1; }
-#line 3816 "rl78-parse.c" /* yacc.c:1661  */
+#line 3837 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 270:
-#line 1104 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1104 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 2; }
-#line 3822 "rl78-parse.c" /* yacc.c:1661  */
+#line 3843 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 271:
-#line 1105 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1105 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 3; }
-#line 3828 "rl78-parse.c" /* yacc.c:1661  */
+#line 3849 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 272:
-#line 1106 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1106 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 4; }
-#line 3834 "rl78-parse.c" /* yacc.c:1661  */
+#line 3855 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 273:
-#line 1107 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1107 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 5; }
-#line 3840 "rl78-parse.c" /* yacc.c:1661  */
+#line 3861 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 274:
-#line 1108 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1108 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 6; }
-#line 3846 "rl78-parse.c" /* yacc.c:1661  */
+#line 3867 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 275:
-#line 1109 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1109 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 7; }
-#line 3852 "rl78-parse.c" /* yacc.c:1661  */
+#line 3873 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 276:
-#line 1112 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1112 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0; }
-#line 3858 "rl78-parse.c" /* yacc.c:1661  */
+#line 3879 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 277:
-#line 1113 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1113 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 2; }
-#line 3864 "rl78-parse.c" /* yacc.c:1661  */
+#line 3885 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 278:
-#line 1114 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1114 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 3; }
-#line 3870 "rl78-parse.c" /* yacc.c:1661  */
+#line 3891 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 279:
-#line 1115 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1115 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 4; }
-#line 3876 "rl78-parse.c" /* yacc.c:1661  */
+#line 3897 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 280:
-#line 1116 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1116 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 5; }
-#line 3882 "rl78-parse.c" /* yacc.c:1661  */
+#line 3903 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 281:
-#line 1117 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1117 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 6; }
-#line 3888 "rl78-parse.c" /* yacc.c:1661  */
+#line 3909 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 282:
-#line 1118 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1118 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 7; }
-#line 3894 "rl78-parse.c" /* yacc.c:1661  */
+#line 3915 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 283:
-#line 1121 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1121 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0; }
-#line 3900 "rl78-parse.c" /* yacc.c:1661  */
+#line 3921 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 284:
-#line 1122 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1122 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 1; }
-#line 3906 "rl78-parse.c" /* yacc.c:1661  */
+#line 3927 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 285:
-#line 1123 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1123 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 2; }
-#line 3912 "rl78-parse.c" /* yacc.c:1661  */
+#line 3933 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 286:
-#line 1124 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1124 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 3; }
-#line 3918 "rl78-parse.c" /* yacc.c:1661  */
+#line 3939 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 287:
-#line 1127 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1127 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 1; }
-#line 3924 "rl78-parse.c" /* yacc.c:1661  */
+#line 3945 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 288:
-#line 1128 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1128 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 2; }
-#line 3930 "rl78-parse.c" /* yacc.c:1661  */
+#line 3951 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 289:
-#line 1129 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1129 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 3; }
-#line 3936 "rl78-parse.c" /* yacc.c:1661  */
+#line 3957 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 290:
-#line 1132 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1132 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0xf8; }
-#line 3942 "rl78-parse.c" /* yacc.c:1661  */
+#line 3963 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 291:
-#line 1133 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1133 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0xf9; }
-#line 3948 "rl78-parse.c" /* yacc.c:1661  */
+#line 3969 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 292:
-#line 1134 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1134 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0xfa; }
-#line 3954 "rl78-parse.c" /* yacc.c:1661  */
+#line 3975 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 293:
-#line 1135 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1135 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0xfc; }
-#line 3960 "rl78-parse.c" /* yacc.c:1661  */
+#line 3981 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 294:
-#line 1136 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1136 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0xfd; }
-#line 3966 "rl78-parse.c" /* yacc.c:1661  */
+#line 3987 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 295:
-#line 1137 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1137 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0xfe; }
-#line 3972 "rl78-parse.c" /* yacc.c:1661  */
+#line 3993 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 296:
-#line 1138 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1138 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0xff; }
-#line 3978 "rl78-parse.c" /* yacc.c:1661  */
+#line 3999 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 297:
-#line 1144 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1144 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x00; }
-#line 3984 "rl78-parse.c" /* yacc.c:1661  */
+#line 4005 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 298:
-#line 1145 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1145 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x10; }
-#line 3990 "rl78-parse.c" /* yacc.c:1661  */
+#line 4011 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 299:
-#line 1146 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1146 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x20; }
-#line 3996 "rl78-parse.c" /* yacc.c:1661  */
+#line 4017 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 300:
-#line 1147 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1147 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x30; }
-#line 4002 "rl78-parse.c" /* yacc.c:1661  */
+#line 4023 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 301:
-#line 1148 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1148 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x40; }
-#line 4008 "rl78-parse.c" /* yacc.c:1661  */
+#line 4029 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 302:
-#line 1149 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1149 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x50; }
-#line 4014 "rl78-parse.c" /* yacc.c:1661  */
+#line 4035 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 303:
-#line 1150 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1150 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x60; }
-#line 4020 "rl78-parse.c" /* yacc.c:1661  */
+#line 4041 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 304:
-#line 1151 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1151 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x70; }
-#line 4026 "rl78-parse.c" /* yacc.c:1661  */
+#line 4047 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 305:
-#line 1154 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1154 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x00; }
-#line 4032 "rl78-parse.c" /* yacc.c:1661  */
+#line 4053 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 306:
-#line 1155 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1155 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x20; }
-#line 4038 "rl78-parse.c" /* yacc.c:1661  */
+#line 4059 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 307:
-#line 1156 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1156 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x40; }
-#line 4044 "rl78-parse.c" /* yacc.c:1661  */
+#line 4065 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 308:
-#line 1159 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1159 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x05; rl78_bit_insn = 1; }
-#line 4050 "rl78-parse.c" /* yacc.c:1661  */
+#line 4071 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 309:
-#line 1160 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1160 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x06; rl78_bit_insn = 1; }
-#line 4056 "rl78-parse.c" /* yacc.c:1661  */
+#line 4077 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 310:
-#line 1161 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1161 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x07; rl78_bit_insn = 1; }
-#line 4062 "rl78-parse.c" /* yacc.c:1661  */
+#line 4083 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 311:
-#line 1164 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1164 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x02;    rl78_bit_insn = 1; rl78_linkrelax_branch (); }
-#line 4068 "rl78-parse.c" /* yacc.c:1661  */
+#line 4089 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 312:
-#line 1165 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1165 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x04;    rl78_bit_insn = 1; rl78_linkrelax_branch (); }
-#line 4074 "rl78-parse.c" /* yacc.c:1661  */
+#line 4095 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 313:
-#line 1166 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1166 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x00; rl78_bit_insn = 1; }
-#line 4080 "rl78-parse.c" /* yacc.c:1661  */
+#line 4101 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 314:
-#line 1169 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1169 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0; rl78_bit_insn = 1; }
-#line 4086 "rl78-parse.c" /* yacc.c:1661  */
+#line 4107 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 315:
-#line 1170 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1170 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 1; rl78_bit_insn = 1; }
-#line 4092 "rl78-parse.c" /* yacc.c:1661  */
+#line 4113 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 316:
-#line 1173 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1173 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x00; }
-#line 4098 "rl78-parse.c" /* yacc.c:1661  */
+#line 4119 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 317:
-#line 1174 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1174 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x10; }
-#line 4104 "rl78-parse.c" /* yacc.c:1661  */
+#line 4125 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 318:
-#line 1177 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1177 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x00; }
-#line 4110 "rl78-parse.c" /* yacc.c:1661  */
+#line 4131 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 319:
-#line 1178 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1178 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x10; }
-#line 4116 "rl78-parse.c" /* yacc.c:1661  */
+#line 4137 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 320:
-#line 1181 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1181 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x00; }
-#line 4122 "rl78-parse.c" /* yacc.c:1661  */
+#line 4143 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 321:
-#line 1182 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1182 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x10; }
-#line 4128 "rl78-parse.c" /* yacc.c:1661  */
+#line 4149 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 322:
-#line 1185 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1185 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x00; }
-#line 4134 "rl78-parse.c" /* yacc.c:1661  */
+#line 4155 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 323:
-#line 1186 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1186 "./config/rl78-parse.y" /* yacc.c:1646  */
     { (yyval.regno) = 0x10; }
-#line 4140 "rl78-parse.c" /* yacc.c:1661  */
+#line 4161 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
   case 324:
-#line 1189 "./config/rl78-parse.y" /* yacc.c:1661  */
+#line 1189 "./config/rl78-parse.y" /* yacc.c:1646  */
     { rl78_bit_insn = 1; }
-#line 4146 "rl78-parse.c" /* yacc.c:1661  */
+#line 4167 "rl78-parse.c" /* yacc.c:1646  */
     break;
 
 
-#line 4150 "rl78-parse.c" /* yacc.c:1661  */
+#line 4171 "rl78-parse.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires

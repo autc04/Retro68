@@ -359,7 +359,7 @@ moxie_elf_check_relocs (bfd *abfd,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
     }
 

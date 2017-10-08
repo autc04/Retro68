@@ -830,8 +830,8 @@ ihex_write_object_contents (bfd *abfd)
 		      sprintf_vma (buf, where);
 		      _bfd_error_handler
 			/* xgettext:c-format */
-			(_("%s: address 0x%s out of range for Intel Hex file"),
-			 bfd_get_filename (abfd), buf);
+			(_("%B: address 0x%s out of range for Intel Hex file"),
+			 abfd, buf);
 		      bfd_set_error (bfd_error_bad_value);
 		      return FALSE;
 		    }
@@ -945,6 +945,7 @@ ihex_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
 #define ihex_bfd_discard_group                    bfd_generic_discard_group
 #define ihex_section_already_linked               _bfd_generic_section_already_linked
 #define ihex_bfd_define_common_symbol             bfd_generic_define_common_symbol
+#define ihex_bfd_define_start_stop                bfd_generic_define_start_stop
 #define ihex_bfd_link_hash_table_create           _bfd_generic_link_hash_table_create
 #define ihex_bfd_link_add_symbols                 _bfd_generic_link_add_symbols
 #define ihex_bfd_link_just_syms                   _bfd_generic_link_just_syms

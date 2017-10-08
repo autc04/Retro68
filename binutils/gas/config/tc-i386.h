@@ -171,12 +171,11 @@ extern int tc_i386_fix_adjustable (struct fix *);
    they are not pcrel.  .*/
 
 #define TC_FORCE_RELOCATION_LOCAL(FIX)				\
-  (!(FIX)->fx_pcrel						\
+  (GENERIC_FORCE_RELOCATION_LOCAL (FIX)				\
    || (FIX)->fx_r_type == BFD_RELOC_386_PLT32			\
    || (FIX)->fx_r_type == BFD_RELOC_386_GOTPC			\
    || (FIX)->fx_r_type == BFD_RELOC_X86_64_GOTPCRELX		\
-   || (FIX)->fx_r_type == BFD_RELOC_X86_64_REX_GOTPCRELX	\
-   || TC_FORCE_RELOCATION (FIX))
+   || (FIX)->fx_r_type == BFD_RELOC_X86_64_REX_GOTPCRELX)
 
 extern int i386_parse_name (char *, expressionS *, char *);
 #define md_parse_name(s, e, m, c) i386_parse_name (s, e, c)

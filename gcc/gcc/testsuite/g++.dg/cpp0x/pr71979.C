@@ -6,7 +6,7 @@ struct A
   A & operator= (A &);
 };
 
-struct B : A {};   // { dg-error "invalid initialization" }
+struct B : A {};   // { dg-error "cannot bind" }
 
 void foo ()
 { 

@@ -9,3 +9,4 @@
 	rd %sys_tick,%g5
 	rd %sys_tick_cmpr,%g4
 	rd %cfr,%g6
+	rd %entropy,%g2

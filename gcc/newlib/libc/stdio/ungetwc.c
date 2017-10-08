@@ -82,7 +82,7 @@ _DEFUN(_ungetwc_r, (ptr, wc, fp),
   char buf[MB_LEN_MAX];
   size_t len;
 
-  _flockfile (fp);
+  _newlib_flockfile_start (fp);
   ORIENT (fp, 1);
   if (wc == WEOF)
     wc = WEOF;
@@ -98,7 +98,7 @@ _DEFUN(_ungetwc_r, (ptr, wc, fp),
 	  wc = WEOF;
 	  break;
 	}
-  _funlockfile (fp);
+  _newlib_flockfile_end (fp);
   return wc;
 }
 
@@ -110,6 +110,8 @@ _DEFUN(ungetwc, (wint_t wc, FILE *fp),
 	wint_t wc _AND
 	FILE *fp)
 {
-  CHECK_INIT (_REENT, fp);
-  return _ungetwc_r (_REENT, wc, fp);
+  struct _reent *reent = _REENT;
+
+  CHECK_INIT (reent, fp);
+  return _ungetwc_r (reent, wc, fp);
 }

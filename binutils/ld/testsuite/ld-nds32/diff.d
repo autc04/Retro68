@@ -7,9 +7,9 @@
 
 Disassembly of section .data:
 00008000 <WORD> (7e 00 00 00|00 00 00 7e).*
-00008004 <HALF> (7e 00 7e fe|00 7e 7e fe).*
-00008006 <BYTE> 7e fe 00 fe.*
-00008007 <ULEB128> fe 00.*
+00008004 <HALF> (7e 00|00 7e).*
+00008006 <BYTE> 7e.*
+00008007 <ULEB128> fe.*
 	...
 00008009 <ULEB128_2> fe 00.*
 .*

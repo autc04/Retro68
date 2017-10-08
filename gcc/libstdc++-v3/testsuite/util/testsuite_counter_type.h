@@ -1,6 +1,6 @@
 // -*- C++ -*-
 //
-// Copyright (C) 2012-2016 Free Software Foundation, Inc.
+// Copyright (C) 2012-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -39,7 +39,7 @@ namespace __gnu_test
     static int destructor_count;
 
     int val;
-    
+
     counter_type() : val(0)
     { ++default_count; }
 

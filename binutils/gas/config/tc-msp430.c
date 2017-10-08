@@ -294,7 +294,7 @@ target_is_430xv2 (void)
       ? BFD_RELOC_MSP430_16_BYTE : BFD_RELOC_MSP430_16))
 
 /* Generate a 16-bit pc-relative relocation.
-   For the 430X we generate a relocation without linkwer range checking.
+   For the 430X we generate a relocation without linker range checking.
    For the 430 we generate a relocation without assembler range checking
    if we are handling an immediate value or a byte-width instruction.  */
 #undef  CHECK_RELOC_MSP430_PCREL
@@ -612,7 +612,7 @@ msp430_profiler (int dummy ATTRIBUTE_UNUSED)
   subseg = now_subseg;
 
   /* Now go to .profiler section.  */
-  obj_elf_change_section (".profiler", SHT_PROGBITS, 0, 0, 0, 0, 0);
+  obj_elf_change_section (".profiler", SHT_PROGBITS, 0, 0, 0, 0, 0, 0);
 
   /* Save flags.  */
   emit_expr (& exp, 2);
@@ -706,8 +706,8 @@ msp430_set_arch (int option)
 
 /* This is a copy of the same data structure found in gcc/config/msp430/msp430.c
    Keep these two structures in sync.
-   The data in this structure has been extracted from the devices.csv file
-   released by TI, updated as of March 2016.  */
+   The data in this structure has been extracted from version 1.194 of the
+   devices.csv file released by TI in September 2016.  */
 
 struct msp430_mcu_data
 {
@@ -1133,6 +1133,8 @@ msp430_mcu_data [] =
   { "msp430fg6626",2,8 },
   { "msp430fr2032",2,0 },
   { "msp430fr2033",2,0 },
+  { "msp430fr2110",2,0 },
+  { "msp430fr2111",2,0 },
   { "msp430fr2310",2,0 },
   { "msp430fr2311",2,0 },
   { "msp430fr2433",2,8 },
@@ -1173,8 +1175,6 @@ msp430_mcu_data [] =
   { "msp430fr5858",2,8 },
   { "msp430fr5859",2,8 },
   { "msp430fr5867",2,8 },
-  { "msp430fr5862",2,8 },
-  { "msp430fr5864",2,8 },
   { "msp430fr58671",2,8 },
   { "msp430fr5868",2,8 },
   { "msp430fr5869",2,8 },
@@ -1185,8 +1185,6 @@ msp430_mcu_data [] =
   { "msp430fr5888",2,8 },
   { "msp430fr5889",2,8 },
   { "msp430fr58891",2,8 },
-  { "msp430fr5892",2,8 },
-  { "msp430fr5894",2,8 },
   { "msp430fr5922",2,8 },
   { "msp430fr59221",2,8 },
   { "msp430fr5947",2,8 },
@@ -1212,6 +1210,7 @@ msp430_mcu_data [] =
   { "msp430fr59891",2,8 },
   { "msp430fr5992",2,8 },
   { "msp430fr5994",2,8 },
+  { "msp430fr59941",2,8 },
   { "msp430fr5xx_6xxgeneric",2,8 },
   { "msp430fr6820",2,8 },
   { "msp430fr6822",2,8 },
@@ -1879,7 +1878,7 @@ msp430_srcoperand (struct msp430_operand_s * op,
 	  else
 	    {
 	      as_bad (_
-		      ("unknown expression in operand %s. use #llo() #lhi() #hlo() #hhi() "),
+		      ("unknown expression in operand %s.  Use #llo(), #lhi(), #hlo() or #hhi()"),
 		      l);
 	      return 1;
 	    }
@@ -2539,7 +2538,7 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
      instruction that does not support it.  Look for an alternative extended
      instruction that has the same name without the period.  Eg: "add.a"
      becomes "adda".  Although this not an officially supported way of
-     specifing instruction aliases other MSP430 assemblers allow it.  So we
+     specifying instruction aliases other MSP430 assemblers allow it.  So we
      support it for compatibility purposes.  */
   if (addr_op && opcode->fmt >= 0)
     {
@@ -3093,7 +3092,7 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 	    parse_exp (l1 + 1, &(op1.exp));
 	    if (op1.exp.X_op != O_constant)
 	      {
-		as_bad (_("expected constant expression for first argument of %s"),
+		as_bad (_("expected constant expression as first argument of %s"),
 			opcode->name);
 		break;
 	      }
@@ -3164,7 +3163,7 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 	    parse_exp (l1 + 1, &(op1.exp));
 	    if (op1.exp.X_op != O_constant)
 	      {
-		as_bad (_("expected constant expression for first argument of %s"),
+		as_bad (_("expected constant expression as first argument of %s"),
 			opcode->name);
 		break;
 	      }
@@ -3373,7 +3372,7 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 	  break;
 
 	default:
-	  as_bad (_("Illegal emulated instruction "));
+	  as_bad (_("Illegal emulated instruction"));
 	  break;
 	}
       break;
@@ -3744,7 +3743,7 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 
 	      if (x > 512 || x < -511)
 		{
-		  as_bad (_("Wrong displacement  %d"), x << 1);
+		  as_bad (_("Wrong displacement %d"), x << 1);
 		  break;
 		}
 
@@ -3903,7 +3902,7 @@ md_assemble (char * str)
 
   if (!cmd[0])
     {
-      as_bad (_("can't find opcode "));
+      as_bad (_("can't find opcode"));
       return;
     }
 
@@ -3951,7 +3950,7 @@ md_pcrel_from_section (fixS * fixp, segT sec)
   return fixp->fx_frag->fr_address + fixp->fx_where;
 }
 
-/* Replaces standard TC_FORCE_RELOCATION_LOCAL.
+/* Addition to the standard TC_FORCE_RELOCATION_LOCAL.
    Now it handles the situation when relocations
    have to be passed to linker.  */
 int
@@ -3965,8 +3964,7 @@ msp430_force_relocation_local (fixS *fixp)
         && !msp430_enable_relax)
     return 1;
 
-  return (!fixp->fx_pcrel
-	  || generic_force_reloc (fixp));
+  return 0;
 }
 
 
@@ -4226,7 +4224,7 @@ tc_gen_reloc (asection * seg ATTRIBUTE_UNUSED, fixS * fixp)
 	 because there can be multiple incarnations of the same label, with
 	 exactly the same name, in any given section and the linker will have
 	 no way to identify the correct one.  Instead we just have to hope
-	 that no relaxtion will occur between the local label and the other
+	 that no relaxation will occur between the local label and the other
 	 symbol in the expression.
 
 	 Similarly we have to compute differences between symbols in the .eh_frame
@@ -4346,7 +4344,7 @@ md_estimate_size_before_relax (fragS * fragP ATTRIBUTE_UNUSED,
     }
   else if (fragP->fr_symbol)
     {
-      /* Its got a segment, but its not ours.   Even if fr_symbol is in
+      /* It's got a segment, but it's not ours.   Even if fr_symbol is in
 	 an absolute segment, we don't know a displacement until we link
 	 object files. So it will always be long. This also applies to
 	 labels in a subsegment of current. Liker may relax it to short
@@ -4507,7 +4505,7 @@ md_convert_frag (bfd * abfd ATTRIBUTE_UNUSED,
       break;
 
     default:
-      as_fatal (_("internal inconsistency problem in %s:  %lx"),
+      as_fatal (_("internal inconsistency problem in %s: %lx"),
 		__FUNCTION__, (long) fragP->fr_subtype);
       break;
     }

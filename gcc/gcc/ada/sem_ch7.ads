@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -46,24 +46,21 @@ package Sem_Ch7 is
    --  On entrance to a package body, make declarations in package spec
    --  immediately visible.
    --
-   --  When compiling the body of a package,  both routines are called in
+   --  When compiling the body of a package, both routines are called in
    --  succession. When compiling the body of a child package, the call
    --  to Install_Private_Declaration is immediate for private children,
-   --  but is deferred until the compilation of the  private part of the
+   --  but is deferred until the compilation of the private part of the
    --  child for public child packages.
 
    function Unit_Requires_Body
-     (Pack_Id               : Entity_Id;
-      Ignore_Abstract_State : Boolean := False) return Boolean;
+     (Pack_Id            : Entity_Id;
+      Do_Abstract_States : Boolean := False) return Boolean;
    --  Determine whether package Pack_Id requires a body. A specification needs
    --  a body if it contains declarations that require completion in the body.
    --  A non-Ghost [generic] package does not require a body when it declares
-   --  Ghost entities exclusively. If flag Ignore_Abstract_State is True, then
-   --  the test for a non-null abstract state (which normally requires a body)
-   --  is not carried out. The flag is not currently used, but may be useful
-   --  in the future if we implement a compatibility mode which warns about
-   --  possible incompatibilities if a SPARK 2014 program is compiled with a
-   --  SPARK-unaware compiler.
+   --  Ghost entities exclusively. When flag Do_Abstract_States is set to True,
+   --  non-null abstract states are considered in determining the need for a
+   --  body.
 
    procedure May_Need_Implicit_Body (E : Entity_Id);
    --  If a package declaration contains tasks or RACWs and does not require

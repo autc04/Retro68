@@ -25,6 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef FRV_CPU_H
 #define FRV_CPU_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CGEN_ARCH frv
 
 /* Given symbol S, return frv_cgen_<S>.  */
@@ -840,5 +844,9 @@ extern CGEN_KEYWORD frv_cgen_opval_h_hint_not_taken;
 extern const CGEN_HW_ENTRY frv_cgen_hw_table[];
 
 
+
+   #ifdef __cplusplus
+   }
+   #endif
 
 #endif /* FRV_CPU_H */

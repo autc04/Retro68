@@ -968,13 +968,13 @@ INSTR_T Expr_Node_Gen_Reloc (Expr_Node *head, int parent_reloc);
 INSTR_T
 Expr_Node_Gen_Reloc (Expr_Node * head, int parent_reloc)
 {
-  /* Top level reloction expression generator VDSP style.
+  /* Top level relocation expression generator VDSP style.
    If the relocation is just by itself, generate one item
    else generate this convoluted expression.  */
 
   INSTR_T note = NULL_CODE;
   INSTR_T note1 = NULL_CODE;
-  int pcrel = 1;  /* Is the parent reloc pcrelative?
+  int pcrel = 1;  /* Is the parent reloc pc-relative?
 		  This calculation here and HOWTO should match.  */
 
   if (parent_reloc)

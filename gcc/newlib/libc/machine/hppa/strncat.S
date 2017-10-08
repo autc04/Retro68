@@ -13,7 +13,7 @@
  *  suitability of this software for any purpose.
  */
 
-/*HPUX_ID:	@(#) $Revision: 1.1 $	*/
+/*HPUX_ID:	@(#) $Revision$	*/
 /* strncat(s1,s2,n) : concatonate at most n characters from s2 onto s1 */
 
 #include "DEFS.h"

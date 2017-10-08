@@ -130,4 +130,8 @@ Disassembly of section .text:
 
 [a-f0-9]+ <foo>:
 [ 	]*[a-f0-9]+:	f2 c3                	bnd ret 
+
+[a-f0-9]+ <bad>:
+[ 	]*[a-f0-9]+:	0f 1a 30             	bndldx \(%eax\),\(bad\)
+[ 	]*[a-f0-9]+:	66 0f 1a c4          	bndmov \(bad\),%bnd0
 #pass

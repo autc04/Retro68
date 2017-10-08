@@ -25,6 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef XSTORMY16_CPU_H
 #define XSTORMY16_CPU_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CGEN_ARCH xstormy16
 
 /* Given symbol S, return xstormy16_cgen_<S>.  */
@@ -325,5 +329,9 @@ extern CGEN_KEYWORD xstormy16_cgen_opval_h_wordsize;
 extern const CGEN_HW_ENTRY xstormy16_cgen_hw_table[];
 
 
+
+   #ifdef __cplusplus
+   }
+   #endif
 
 #endif /* XSTORMY16_CPU_H */

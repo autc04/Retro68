@@ -1,4 +1,4 @@
-#   Copyright (C) 1997-2016 Free Software Foundation, Inc.
+#   Copyright (C) 1997-2017 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -87,13 +87,13 @@ if [info exists TORTURE_OPTIONS] {
 	      { -O2 -flto -fno-use-linker-plugin -flto-partition=none } \
 	      { -O2 -flto -fuse-linker-plugin -fno-fat-lto-objects }
            ]
-           set gcc_force_conventional_output "-ffat-lto-objects"
         } else {
            set LTO_TORTURE_OPTIONS [list \
 	      { -O2 -flto -flto-partition=none } \
 	      { -O2 -flto }
            ]
         }
+        set gcc_force_conventional_output "-ffat-lto-objects"
     }
 }
 
@@ -403,6 +403,7 @@ if { [info procs ${tool}_load] != [list] \
 	    switch [lindex $result 0] {
 		"pass" { set status "fail" }
 		"fail" { set status "pass" }
+		default { set status [lindex $result 0] }
 	    }
 	    set result [list $status [lindex $result 1]]
 	}
@@ -441,6 +442,38 @@ proc restore-target-env-var { } {
     for { set env_vari [llength $saved_target_env_var] } {
           [incr env_vari -1] >= 0 } {} {
 	set env_var [lindex $saved_target_env_var $env_vari]
+	set var [lindex $env_var 0]
+	if [lindex $env_var 1] {
+	    setenv $var [lindex $env_var 2]
+	} else {
+	    unsetenv $var
+	}
+    }
+}
+
+proc dg-set-compiler-env-var { args } {
+    global set_compiler_env_var
+    global saved_compiler_env_var
+    if { [llength $args] != 3 } {
+	error "dg-set-compiler-env-var: need two arguments"
+	return
+    }
+    set var [lindex $args 1]
+    set value [lindex $args 2]
+    if [info exists ::env($var)] {
+      lappend saved_compiler_env_var [list $var 1 $::env($var)]
+    } else {
+      lappend saved_compiler_env_var [list $var 0]
+    }
+    setenv $var $value
+    lappend set_compiler_env_var [list $var $value]
+}
+
+proc restore-compiler-env-var { } {
+    global saved_compiler_env_var
+    for { set env_vari [llength $saved_compiler_env_var] } {
+          [incr env_vari -1] >= 0 } {} {
+	set env_var [lindex $saved_compiler_env_var $env_vari]
 	set var [lindex $env_var 0]
 	if [lindex $env_var 1] {
 	    setenv $var [lindex $env_var 2]
@@ -500,6 +533,8 @@ proc gcc-dg-runtest { testcases flags default-extra-flags } {
 	set nshort [file tail [file dirname $test]]/[file tail $test]
 
 	foreach flags_t $option_list {
+	    global torture_current_flags
+	    set torture_current_flags "$flags_t"
 	    verbose "Testing $nshort, $flags $flags_t" 1
 	    dg-test $test "$flags $flags_t" ${default-extra-flags}
 	}
@@ -862,8 +897,11 @@ if { [info procs saved-dg-test] == [list] } {
 	global shouldfail
 	global testname_with_flags
 	global set_target_env_var
+	global set_compiler_env_var
+	global saved_compiler_env_var
 	global keep_saved_temps_suffixes
 	global multiline_expected_outputs
+	global freeform_regexps
 
 	set additional_files ""
 	set additional_sources ""
@@ -872,6 +910,11 @@ if { [info procs saved-dg-test] == [list] } {
 	set shouldfail 0
 	if [info exists set_target_env_var] {
 	    unset set_target_env_var
+	}
+	if [info exists set_compiler_env_var] {
+	    restore-compiler-env-var
+	    unset set_compiler_env_var
+	    unset saved_compiler_env_var
 	}
 	if [info exists keep_saved_temps_suffixes] {
 	    unset keep_saved_temps_suffixes
@@ -884,6 +927,7 @@ if { [info procs saved-dg-test] == [list] } {
 	    unset testname_with_flags
 	}
 	set multiline_expected_outputs []
+	set freeform_regexps []
     }
 
     proc dg-test { args } {
@@ -946,7 +990,7 @@ proc process-message { msgproc msgprefix dgargs } {
 
     # Handle relative line specification, .+1 or .-1 etc.
     if { [llength $dgargs] == 5
-	 && [regsub "^\.\[+-\](\[0-9\])$" [lindex $dgargs 4] "\\1" num] } {
+	 && [regsub "^\.\[+-\](\[0-9\]+)$" [lindex $dgargs 4] "\\1" num] } {
 	set num [expr [lindex $dgargs 0] [string index [lindex $dgargs 4] 1] $num]
 	set dgargs [lreplace $dgargs 4 4 $num]
     }

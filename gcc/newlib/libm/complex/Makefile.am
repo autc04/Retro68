@@ -6,13 +6,14 @@ INCLUDES = -I$(srcdir)/../common -I$(srcdir)/ $(NEWLIB_CFLAGS) $(CROSS_CFLAGS) $
 
 src = cabs.c cacos.c cacosh.c carg.c casin.c casinh.c \
       catan.c catanh.c ccos.c ccosh.c cephes_subr.c \
-      cexp.c cimag.c  clog.c conj.c  \
+      cexp.c cimag.c  clog.c clog10.c conj.c  \
       cpow.c cproj.c  creal.c  \
       csin.c csinh.c csqrt.c ctan.c ctanh.c
-	
+
+lsrc = cabsl.c creall.c cimagl.c
 
 fsrc =	cabsf.c casinf.c ccosf.c cimagf.c cprojf.c  \
-        csqrtf.c cacosf.c casinhf.c ccoshf.c clogf.c \
+        csqrtf.c cacosf.c casinhf.c ccoshf.c clogf.c clog10f.c \
         crealf.c ctanf.c cacoshf.c catanf.c   \
         cephes_subrf.c conjf.c csinf.c ctanhf.c \
         cargf.c catanhf.c cexpf.c cpowf.c csinhf.c
@@ -21,38 +22,24 @@ libcomplex_la_LDFLAGS = -Xcompiler -nostdlib
 
 if USE_LIBTOOL
 noinst_LTLIBRARIES = libcomplex.la
-libcomplex_la_SOURCES = $(src) $(fsrc)
+libcomplex_la_SOURCES = $(src) $(fsrc) $(lsrc)
 noinst_DATA = objectlist.awk.in
 else
 noinst_LIBRARIES = lib.a
-lib_a_SOURCES = $(src) $(fsrc)
+lib_a_SOURCES = $(src) $(fsrc) $(lsrc)
 lib_a_CFLAGS = $(AM_CFLAGS)
 noinst_DATA =
 endif # USE_LIBTOOL
 
 include $(srcdir)/../../Makefile.shared
 
-chobj =	cabs.def cacos.def cacosh.def carg.def \
+CHEWOUT_FILES =	cabs.def cacos.def cacosh.def carg.def \
         casin.def casinh.def catan.def catanh.def \
         ccos.def ccosh.def cexp.def cimag.def clog.def \
-        conj.def cpow.def cproj.def creal.def \
+        clog10.def conj.def cpow.def cproj.def creal.def \
         csin.def csinh.def csqrt.def ctan.def ctanh.def
 
-
-SUFFIXES = .def
-
-CHEW = ../../doc/makedoc -f $(srcdir)/../../doc/doc.str
-
-.c.def:
-	$(CHEW) < $< > $*.def 2> $*.ref
-	touch stmp-def
-
-TARGETDOC = ../tmp.texi
-
-doc: $(chobj)
-	cat $(srcdir)/complex.tex >> $(TARGETDOC)
-
-CLEANFILES = $(chobj) *.ref
+CHAPTERS = complex.tex
 
 # A partial dependency list.
 

@@ -32,20 +32,26 @@ static char sccsid[] = "%W% (Berkeley) %G%";
 
 int
 _DEFUN(vsprintf, (str, fmt, ap),
-       char *str        _AND
-       const char *fmt _AND
+       char *__restrict str        _AND
+       const char *__restrict fmt _AND
        va_list ap)
 {
   return _vsprintf_r (_REENT, str, fmt, ap);
 }
+
+#ifdef _NANO_FORMATTED_IO
+int
+_EXFUN(vsiprintf, (char *, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("vsprintf"))));
+#endif
 
 #endif /* !_REENT_ONLY */
 
 int
 _DEFUN(_vsprintf_r, (ptr, str, fmt, ap),
        struct _reent *ptr _AND
-       char *str          _AND
-       const char *fmt   _AND
+       char *__restrict str          _AND
+       const char *__restrict fmt   _AND
        va_list ap)
 {
   int ret;
@@ -59,3 +65,9 @@ _DEFUN(_vsprintf_r, (ptr, str, fmt, ap),
   *f._p = 0;
   return ret;
 }
+
+#ifdef _NANO_FORMATTED_IO
+int
+_EXFUN(_vsiprintf_r, (struct _reent *, char *, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("_vsprintf_r"))));
+#endif

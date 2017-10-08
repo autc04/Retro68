@@ -230,6 +230,7 @@ binary_set_section_contents (bfd *abfd,
 
   if (! abfd->output_has_begun)
     {
+      unsigned int opb;
       bfd_boolean found_low;
       bfd_vma low;
       asection *s;
@@ -250,9 +251,10 @@ binary_set_section_contents (bfd *abfd,
 	    found_low = TRUE;
 	  }
 
+      opb = bfd_octets_per_byte (abfd);
       for (s = abfd->sections; s != NULL; s = s->next)
 	{
-	  s->filepos = s->lma - low;
+	  s->filepos = (s->lma - low) * opb;
 
 	  /* Skip following warning check for sections that will not
 	     occupy file space.  */
@@ -271,10 +273,9 @@ binary_set_section_contents (bfd *abfd,
 	  if (s->filepos < 0)
 	    _bfd_error_handler
 	      /* xgettext:c-format */
-	      (_("Warning: Writing section `%s' at huge (ie negative) "
+	      (_("warning: writing section `%A' at huge (ie negative) "
 		 "file offset 0x%lx."),
-	       bfd_get_section_name (abfd, s),
-	       (unsigned long) s->filepos);
+	       s, (unsigned long) s->filepos);
 	}
 
       abfd->output_has_begun = TRUE;
@@ -309,6 +310,7 @@ binary_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
 #define binary_bfd_discard_group                   bfd_generic_discard_group
 #define binary_section_already_linked             _bfd_generic_section_already_linked
 #define binary_bfd_define_common_symbol            bfd_generic_define_common_symbol
+#define binary_bfd_define_start_stop               bfd_generic_define_start_stop
 #define binary_bfd_link_hash_table_create         _bfd_generic_link_hash_table_create
 #define binary_bfd_link_just_syms                 _bfd_generic_link_just_syms
 #define binary_bfd_copy_link_hash_symbol_type     _bfd_generic_copy_link_hash_symbol_type

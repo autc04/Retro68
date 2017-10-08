@@ -115,3 +115,22 @@ void *calloc(size_t sz1, size_t sz2)
 {
 	return _calloc_r(_REENT, sz1, sz2);
 }
+
+void *memalign(size_t alignment, size_t sz)
+{
+	Ptr p = NewPtr(sz);
+
+	if(!p)
+		errno = ENOMEM;
+
+	// FIXME:
+	// NewPtr aligns to 4 bytes on 68020 and 68030,
+	// and to 16 bytes on 68040 and PowerPC.
+
+	// Do something else when more alignment is required.
+	// This might be hard, as adding extra overhead to all normal allocations
+	// just so that we can distinguish things in free() doesn't sound like it's worth it.
+
+	return p;
+}
+

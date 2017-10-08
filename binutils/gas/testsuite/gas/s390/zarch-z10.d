@@ -385,5 +385,4 @@ Disassembly of section .text:
 .*:	b2 e0 00 67 [	 ]*scctr	%r6,%r7
 .*:	b2 e1 00 67 [	 ]*spctr	%r6,%r7
 .*:	b2 80 6d 05 [	 ]*lpp	3333\(%r6\)
-.*:	b9 28 00 00 [	 ]*pckmo
 .*:	07 07 [	 ]*nopr	%r7

@@ -215,7 +215,7 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> f123      	extend	0x123
 [0-9a-f]+ <[^>]*> e8c0      	jalrc	s0
 [0-9a-f]+ <[^>]*> f123      	extend	0x123
-[0-9a-f]+ <[^>]*> e801      	sdbbp	0
+[0-9a-f]+ <[^>]*> e801      	sdbbp
 [0-9a-f]+ <[^>]*> f123      	extend	0x123
 [0-9a-f]+ <[^>]*> e802      	slt	s0,s0
 [0-9a-f]+ <[^>]*> f123      	extend	0x123
@@ -223,7 +223,7 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> f123      	extend	0x123
 [0-9a-f]+ <[^>]*> e804      	sllv	s0,s0
 [0-9a-f]+ <[^>]*> f123      	extend	0x123
-[0-9a-f]+ <[^>]*> e805      	break	0
+[0-9a-f]+ <[^>]*> e805      	break
 [0-9a-f]+ <[^>]*> f123      	extend	0x123
 [0-9a-f]+ <[^>]*> e806      	srlv	s0,s0
 [0-9a-f]+ <[^>]*> f123      	extend	0x123

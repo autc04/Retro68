@@ -24,7 +24,7 @@
 #include "bfd.h"
 #include "elf/tilepro.h"
 #include "elf-bfd.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opcode/tilepro.h"
 
 

@@ -55,6 +55,7 @@ typedef uint32_t aarch64_insn;
 #define AARCH64_FEATURE_SVE	0x10000000	/* SVE instructions.  */
 #define AARCH64_FEATURE_RCPC	0x20000000	/* RCPC instructions.  */
 #define AARCH64_FEATURE_COMPNUM	0x40000000	/* Complex # instructions.  */
+#define AARCH64_FEATURE_DOTPROD 0x080000000     /* Dot Product instructions.  */
 
 /* Architectures are the sum of the base and extensions.  */
 #define AARCH64_ARCH_V8		AARCH64_FEATURE (AARCH64_FEATURE_V8, \
@@ -508,6 +509,7 @@ enum aarch64_insn_class
   sve_size_hsd,
   sve_size_sd,
   testbranch,
+  dotproduct,
 };
 
 /* Opcode enumerators.  */

@@ -17,21 +17,34 @@
 
 /*
 FUNCTION
-<<fwrite>>---write array elements
+<<fwrite>>, <<fwrite_unlocked>>---write array elements
 
 INDEX
 	fwrite
 INDEX
+	fwrite_unlocked
+INDEX
 	_fwrite_r
+INDEX
+	_fwrite_unlocked_r
 
 ANSI_SYNOPSIS
 	#include <stdio.h>
-	size_t fwrite(const void *<[buf]>, size_t <[size]>,
-		      size_t <[count]>, FILE *<[fp]>);
+	size_t fwrite(const void *restrict <[buf]>, size_t <[size]>,
+		      size_t <[count]>, FILE *restrict <[fp]>);
+
+	#define _BSD_SOURCE
+	#include <stdio.h>
+	size_t fwrite_unlocked(const void *restrict <[buf]>, size_t <[size]>,
+		      size_t <[count]>, FILE *restrict <[fp]>);
 
 	#include <stdio.h>
-	size_t _fwrite_r(struct _reent *<[ptr]>, const void *<[buf]>, size_t <[size]>,
-		      size_t <[count]>, FILE *<[fp]>);
+	size_t _fwrite_r(struct _reent *<[ptr]>, const void *restrict <[buf]>, size_t <[size]>,
+		      size_t <[count]>, FILE *restrict <[fp]>);
+
+	#include <stdio.h>
+	size_t _fwrite_unlocked_r(struct _reent *<[ptr]>, const void *restrict <[buf]>, size_t <[size]>,
+		      size_t <[count]>, FILE *restrict <[fp]>);
 
 TRAD_SYNOPSIS
 	#include <stdio.h>
@@ -41,8 +54,24 @@ TRAD_SYNOPSIS
 	size_t <[count]>;
 	FILE *<[fp]>;
 
+	#define _BSD_SOURCE
+	#include <stdio.h>
+	size_t fwrite_unlocked(<[buf]>, <[size]>, <[count]>, <[fp]>)
+	char *<[buf]>;
+	size_t <[size]>;
+	size_t <[count]>;
+	FILE *<[fp]>;
+
 	#include <stdio.h>
 	size_t _fwrite_r(<[ptr]>, <[buf]>, <[size]>, <[count]>, <[fp]>)
+	struct _reent *<[ptr]>;
+	char *<[buf]>;
+	size_t <[size]>;
+	size_t <[count]>;
+	FILE *<[fp]>;
+
+	#include <stdio.h>
+	size_t _fwrite_unlocked_r(<[ptr]>, <[buf]>, <[size]>, <[count]>, <[fp]>)
 	struct _reent *<[ptr]>;
 	char *<[buf]>;
 	size_t <[size]>;
@@ -58,8 +87,17 @@ stream identified by <[fp]>.  <<fwrite>> may copy fewer elements than
 <<fwrite>> also advances the file position indicator (if any) for
 <[fp]> by the number of @emph{characters} actually written.
 
-<<_fwrite_r>> is simply the reentrant version of <<fwrite>> that
-takes an additional reentrant structure argument: <[ptr]>.
+<<fwrite_unlocked>> is a non-thread-safe version of <<fwrite>>.
+<<fwrite_unlocked>> may only safely be used within a scope
+protected by flockfile() (or ftrylockfile()) and funlockfile().  This
+function may safely be used in a multi-threaded program if and only
+if they are called while the invoking thread owns the (FILE *)
+object, as is the case after a successful call to the flockfile() or
+ftrylockfile() functions.  If threads are disabled, then
+<<fwrite_unlocked>> is equivalent to <<fwrite>>.
+
+<<_fwrite_r>> and <<_fwrite_unlocked_r>> are simply reentrant versions of the
+above that take an additional reentrant structure argument: <[ptr]>.
 
 RETURNS
 If <<fwrite>> succeeds in writing all the elements you specify, the
@@ -69,6 +107,8 @@ the file.
 
 PORTABILITY
 ANSI C requires <<fwrite>>.
+
+<<fwrite_unlocked>> is a BSD extension also provided by GNU libc.
 
 Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
 <<lseek>>, <<read>>, <<sbrk>>, <<write>>.
@@ -89,6 +129,11 @@ static char sccsid[] = "%W% (Berkeley) %G%";
 #include "fvwrite.h"
 #endif
 
+#ifdef __IMPL_UNLOCKED__
+#define _fwrite_r _fwrite_unlocked_r
+#define fwrite fwrite_unlocked
+#endif
+
 /*
  * Write `count' objects (each size `size') from memory to the given file.
  * Return the number of whole objects written.
@@ -97,12 +142,13 @@ static char sccsid[] = "%W% (Berkeley) %G%";
 size_t
 _DEFUN(_fwrite_r, (ptr, buf, size, count, fp),
        struct _reent * ptr _AND
-       _CONST _PTR buf _AND
+       _CONST _PTR __restrict buf _AND
        size_t size     _AND
        size_t count    _AND
-       FILE * fp)
+       FILE * __restrict fp)
 {
   size_t n;
+#ifdef _FVWRITE_IN_STREAMIO
   struct __suio uio;
   struct __siov iov;
 
@@ -119,21 +165,45 @@ _DEFUN(_fwrite_r, (ptr, buf, size, count, fp),
 
   CHECK_INIT(ptr, fp);
 
-  _flockfile (fp);
+  _newlib_flockfile_start (fp);
   ORIENT (fp, -1);
   if (__sfvwrite_r (ptr, fp, &uio) == 0)
     {
-      _funlockfile (fp);
+      _newlib_flockfile_exit (fp);
       return count;
     }
-  _funlockfile (fp);
+  _newlib_flockfile_end (fp);
   return (n - uio.uio_resid) / size;
+#else
+  size_t i = 0;
+  _CONST char *p = buf;
+  n = count * size;
+  CHECK_INIT (ptr, fp);
+
+  _newlib_flockfile_start (fp);
+  ORIENT (fp, -1);
+  /* Make sure we can write.  */
+  if (cantwrite (ptr, fp))
+    goto ret;
+
+  while (i < n)
+    {
+      if (__sputc_r (ptr, p[i], fp) == EOF)
+	break;
+
+      i++;
+    }
+
+ret:
+  _newlib_flockfile_end (fp);
+  return i / size;
+#endif
 }
 
 #ifndef _REENT_ONLY
 size_t
 _DEFUN(fwrite, (buf, size, count, fp),
-       _CONST _PTR buf _AND
+       _CONST _PTR __restrict buf _AND
        size_t size     _AND
        size_t count    _AND
        FILE * fp)

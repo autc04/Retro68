@@ -154,21 +154,58 @@ if $has_newabi {
 					[list [list ld $abi_ldflags(n64)]]
 }
 
+run_dump_test "mips16-pcrel-0" [list [list ld $abi_ldflags(o32)]]
+run_dump_test "mips16-pcrel-1" [list [list ld $abi_ldflags(o32)]]
+run_dump_test "mips16e2-pcrel-0" [list [list ld $abi_ldflags(o32)]]
+run_dump_test "mips16e2-pcrel-1" [list [list ld $abi_ldflags(o32)]]
+run_dump_test "mips16-pcrel-addend-2" [list [list ld $abi_ldflags(o32)]]
+run_dump_test "mips16-pcrel-addend-6" [list [list ld $abi_ldflags(o32)]]
+run_dump_test "mips16e2-pcrel-addend-2" [list [list ld $abi_ldflags(o32)]]
+run_dump_test "mips16e2-pcrel-addend-6" [list [list ld $abi_ldflags(o32)]]
+if $has_newabi {
+    run_dump_test "mips16-pcrel-n32-0" [list [list ld $abi_ldflags(n32)]]
+    run_dump_test "mips16-pcrel-n32-1" [list [list ld $abi_ldflags(n32)]]
+    run_dump_test "mips16-pcrel-n64-sym32-0" [list [list ld $abi_ldflags(n64)]]
+    run_dump_test "mips16-pcrel-n64-sym32-1" [list [list ld $abi_ldflags(n64)]]
+    run_dump_test "mips16e2-pcrel-n32-0" [list [list ld $abi_ldflags(n32)]]
+    run_dump_test "mips16e2-pcrel-n32-1" [list [list ld $abi_ldflags(n32)]]
+    run_dump_test "mips16e2-pcrel-n64-sym32-0" \
+					[list [list ld $abi_ldflags(n64)]]
+    run_dump_test "mips16e2-pcrel-n64-sym32-1" \
+					[list [list ld $abi_ldflags(n64)]]
+}
+
 run_dump_test "mips16-branch-2" [list [list ld $abi_ldflags(o32)]]
 run_dump_test "mips16-branch-3" [list [list ld $abi_ldflags(o32)]]
 run_dump_test "mips16-branch-addend-2" [list [list ld $abi_ldflags(o32)]]
 run_dump_test "mips16-branch-addend-3" [list [list ld $abi_ldflags(o32)]]
 run_dump_test "mips16-branch-absolute" [list [list ld $abi_ldflags(o32)]]
+run_dump_test "mips16-branch-absolute-1" [list [list ld $abi_ldflags(o32)]]
+run_dump_test "mips16-branch-absolute-2" [list [list ld $abi_ldflags(o32)]]
 run_dump_test "mips16-branch-absolute-addend" \
+					[list [list ld $abi_ldflags(o32)]]
+run_dump_test "mips16-branch-absolute-addend-1" \
 					[list [list ld $abi_ldflags(o32)]]
 if $has_newabi {
     run_dump_test "mips16-branch-absolute-n32" \
 					[list [list ld $abi_ldflags(n32)]]
+    run_dump_test "mips16-branch-absolute-n32-1" \
+					[list [list ld $abi_ldflags(n32)]]
+    run_dump_test "mips16-branch-absolute-n32-2" \
+					[list [list ld $abi_ldflags(n32)]]
     run_dump_test "mips16-branch-absolute-addend-n32" \
+					[list [list ld $abi_ldflags(n32)]]
+    run_dump_test "mips16-branch-absolute-addend-n32-1" \
 					[list [list ld $abi_ldflags(n32)]]
     run_dump_test "mips16-branch-absolute-n64" \
 					[list [list ld $abi_ldflags(n64)]]
+    run_dump_test "mips16-branch-absolute-n64-1" \
+					[list [list ld $abi_ldflags(n64)]]
+    run_dump_test "mips16-branch-absolute-n64-2" \
+					[list [list ld $abi_ldflags(n64)]]
     run_dump_test "mips16-branch-absolute-addend-n64" \
+					[list [list ld $abi_ldflags(n64)]]
+    run_dump_test "mips16-branch-absolute-addend-n64-1" \
 					[list [list ld $abi_ldflags(n64)]]
 }
 
@@ -978,8 +1015,7 @@ foreach { abi } $abis {
             "$abi_asflags($abi)" \
             [list ehdr_start-${suff}.s] \
             [list "readelf -s ehdr_start-1.nd"] \
-            "ehdr_start-1-${abi}"]]
-    run_ld_link_tests [list \
+            "ehdr_start-1-${abi}"] \
         [list \
             "MIPS magic __ehdr_start symbol test 2 ($abi)" \
             "$abi_ldflags($abi) -T ehdr_start-2.ld" "" \
@@ -999,7 +1035,25 @@ foreach { abi } $abis {
 	    "$abi_asflags($abi)" \
 	    [list ../../../gas/testsuite/gas/mips/jalr3.s] \
 	    [list "objdump -d jalr3.dd"] \
-	    "jalr3-${abi}"]]
+	    "jalr3-${abi}"] \
+	[list \
+	    "MIPS JALR reloc unaligned/cross-mode link test ($abi)" \
+	    "$abi_ldflags($abi) -T jalr3.ld" "" \
+	    "$abi_asflags($abi)" \
+	    [list ../../../gas/testsuite/gas/mips/jalr4.s] \
+	    [list "objdump {-d --prefix-addresses --show-raw-insn} jalr4.dd"] \
+	    "jalr4-${abi}"] \
+	[list \
+	    "MIPSr6 JALR reloc unaligned/cross-mode link test ($abi)" \
+	    "$abi_ldflags($abi) -T jalr3.ld" "" \
+	    [string map \
+		[list -32 "-mips32r6 -32" \
+		    -n32 "-mips64r6 -n32" \
+		    -64 "-mips64r6 -64"] \
+		[regsub -- -march=from-abi $abi_asflags($abi) ""]] \
+	    {../../../gas/testsuite/gas/mips/jalr4.s} \
+	    {{objdump {-d --prefix-addresses --show-raw-insn} jalr4-r6.dd}} \
+	    "jalr4-${abi}"]]
 }
 
 proc build_mips_plt_lib { abi } {
@@ -1112,3 +1166,53 @@ if { $linux_gnu } {
 		  "export-$class-ref"]]
     }
 }
+
+# PR ld/21334 GOT relocation in static binary test.
+run_ld_link_tests [list \
+    [list \
+	"PR ld/21233 MIPS GOT16 relocation in static binary" \
+	"$abi_ldflags(o32) -e foo -T pr21334.ld" "" "$abi_asflags(o32)" \
+	{pr21334.s} \
+	{{objdump {-d --prefix-addresses} pr21334.dd} \
+	 {readelf -A pr21334.gd}} \
+	"pr21334"]]
+
+# Check that the ISA level is consistently II for the LSI 4010.
+run_dump_test "lsi-4010-isa" [list [list ld $abi_ldflags(o32)]]
+
+# PIC branch relaxation with offset tests.  We need to use our version
+# of `prune_warnings' to get rid of GAS branch relaxation noise.
+rename prune_warnings mips_old_prune_warnings
+proc prune_warnings { msg } {
+    set msg1 "Assembler messages:"
+    set msg2 "Warning: relaxed out-of-range branch into a jump"
+    set msgx "(?:$msg1|$msg2)"
+    regsub -all "(^|\[\n\r\]*)\[^\n\r\]*: $msgx\[\n\r\]*" $msg "\\1" msg
+    return [mips_old_prune_warnings $msg]
+}
+run_ld_link_tests [list \
+    [list \
+	"MIPS link PIC branch relaxation with offset" \
+	"$abi_ldflags(o32) -shared -T relax-offset.ld" "" \
+	"$abi_asflags(o32) -relax-branch -mips2" \
+	{../../../gas/testsuite/gas/mips/relax-offset.s} \
+	{{objdump \
+	  {-d --prefix-addresses --show-raw-insn} \
+	  relax-offset.dd} \
+	 {readelf -A relax-offset.gd}} \
+	"relax-offset"] \
+    [list \
+	"microMIPS link PIC branch relaxation with offset" \
+	"$abi_ldflags(o32) -shared -T relax-offset.ld" "" \
+	"$abi_asflags(o32) -relax-branch -mmicromips" \
+	{../../../gas/testsuite/gas/mips/relax-offset.s} \
+	{{objdump \
+	  {-d --prefix-addresses --show-raw-insn} \
+	  relax-offset-umips.dd} \
+	 {readelf -A relax-offset-umips.gd}} \
+	"relax-offset-umips"]]
+rename prune_warnings ""
+rename mips_old_prune_warnings prune_warnings
+
+# Verify that we can link ELF input into the `binary' output format.
+run_dump_test "binary"

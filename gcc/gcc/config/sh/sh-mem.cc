@@ -1,5 +1,5 @@
 /* Helper routines for memory move and comparison insns.
-   Copyright (C) 2013-2016 Free Software Foundation, Inc.
+   Copyright (C) 2013-2017 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -25,6 +25,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "basic-block.h"
 #include "rtl.h"
 #include "tree.h"
+#include "memmodel.h"
 #include "tm_p.h"
 #include "emit-rtl.h"
 #include "explow.h"
@@ -203,7 +204,7 @@ sh_expand_cmpstr (rtx *operands)
   rtx tmp2 = gen_reg_rtx (SImode);
   rtx tmp3 = gen_reg_rtx (SImode);
 
-  rtx jump;
+  rtx_insn *jump;
   rtx_code_label *L_return = gen_label_rtx ();
   rtx_code_label *L_loop_byte = gen_label_rtx ();
   rtx_code_label *L_end_loop_byte = gen_label_rtx ();
@@ -341,7 +342,7 @@ sh_expand_cmpnstr (rtx *operands)
   rtx tmp1 = gen_reg_rtx (SImode);
   rtx tmp2 = gen_reg_rtx (SImode);
 
-  rtx jump;
+  rtx_insn *jump;
   rtx_code_label *L_return = gen_label_rtx ();
   rtx_code_label *L_loop_byte = gen_label_rtx ();
   rtx_code_label *L_end_loop_byte = gen_label_rtx ();
@@ -582,7 +583,7 @@ sh_expand_strlen (rtx *operands)
   rtx_code_label *L_return = gen_label_rtx ();
   rtx_code_label *L_loop_byte = gen_label_rtx ();
 
-  rtx jump;
+  rtx_insn *jump;
   rtx_code_label *L_loop_long = gen_label_rtx ();
   rtx_code_label *L_end_loop_long = gen_label_rtx ();
 
@@ -668,7 +669,7 @@ sh_expand_setmem (rtx *operands)
   rtx_code_label *L_loop_byte = gen_label_rtx ();
   rtx_code_label *L_loop_word = gen_label_rtx ();
   rtx_code_label *L_return = gen_label_rtx ();
-  rtx jump;
+  rtx_insn *jump;
   rtx dest = copy_rtx (operands[0]);
   rtx dest_addr = copy_addr_to_reg (XEXP (dest, 0));
   rtx val = copy_to_mode_reg (SImode, operands[2]);

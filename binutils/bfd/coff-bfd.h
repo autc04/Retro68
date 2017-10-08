@@ -50,6 +50,8 @@ struct coff_section_tdata
   /* If this is TRUE, the contents entry may not be freed.  */
   bfd_boolean keep_contents;
   /* Information cached by coff_find_nearest_line.  */
+  bfd_boolean saved_bias;
+  bfd_signed_vma bias;
   bfd_vma offset;
   unsigned int i;
   const char *function;

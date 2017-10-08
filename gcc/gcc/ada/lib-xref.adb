@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1998-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 1998-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -191,8 +191,7 @@ package body Lib.Xref is
 
          Set_Has_Xref_Entry (Key.Ent);
 
-      --  It was already in Xref_Set, so throw away the tentatively-added
-      --  entry.
+      --  It was already in Xref_Set, so throw away the tentatively-added entry
 
       else
          Xrefs.Decrement_Last;
@@ -373,16 +372,16 @@ package body Lib.Xref is
       Set_Ref : Boolean   := True;
       Force   : Boolean   := False)
    is
-      Actual_Typ     : Character := Typ;
-      Call           : Node_Id;
-      Def            : Source_Ptr;
-      Ent            : Entity_Id;
-      Ent_Scope      : Entity_Id;
-      Formal         : Entity_Id;
-      Kind           : Entity_Kind;
-      Nod            : Node_Id;
-      Ref            : Source_Ptr;
-      Ref_Scope      : Entity_Id;
+      Actual_Typ : Character := Typ;
+      Call       : Node_Id;
+      Def        : Source_Ptr;
+      Ent        : Entity_Id;
+      Ent_Scope  : Entity_Id;
+      Formal     : Entity_Id;
+      Kind       : Entity_Kind;
+      Nod        : Node_Id;
+      Ref        : Source_Ptr;
+      Ref_Scope  : Entity_Id;
 
       function Get_Through_Renamings (E : Entity_Id) return Entity_Id;
       --  Get the enclosing entity through renamings, which may come from
@@ -526,9 +525,10 @@ package body Lib.Xref is
                P := Parent (P);
 
                if Nkind (P) = N_Pragma then
-                  if Nam_In (Pragma_Name (P), Name_Warnings,
-                                              Name_Unmodified,
-                                              Name_Unreferenced)
+                  if Nam_In (Pragma_Name_Unmapped (P),
+                             Name_Warnings,
+                             Name_Unmodified,
+                             Name_Unreferenced)
                   then
                      return False;
                   end if;
@@ -842,6 +842,8 @@ package body Lib.Xref is
 
          --  Check for pragma Unreferenced given and reference is within
          --  this source unit (occasion for possible warning to be issued).
+         --  Note that the entity may be marked as unreferenced by pragma
+         --  Unused.
 
          if Has_Unreferenced (E)
            and then In_Same_Extended_Unit (E, N)
@@ -861,6 +863,14 @@ package body Lib.Xref is
             elsif Is_On_LHS (N) then
                null;
 
+            --  No warning if the reference is in a call that does not come
+            --  from source (e.g. a call to a controlled type primitive).
+
+            elsif not Comes_From_Source (Parent (N))
+              and then Nkind (Parent (N)) = N_Procedure_Call_Statement
+            then
+               null;
+
             --  For entry formals, we want to place the warning message on the
             --  corresponding entity in the accept statement. The current scope
             --  is the body of the accept, so we find the formal whose name
@@ -876,8 +886,13 @@ package body Lib.Xref is
                   BE := First_Entity (Current_Scope);
                   while Present (BE) loop
                      if Chars (BE) = Chars (E) then
-                        Error_Msg_NE -- CODEFIX
-                          ("??pragma Unreferenced given for&!", N, BE);
+                        if Has_Pragma_Unused (E) then
+                           Error_Msg_NE -- CODEFIX
+                             ("??pragma Unused given for&!", N, BE);
+                        else
+                           Error_Msg_NE -- CODEFIX
+                             ("??pragma Unreferenced given for&!", N, BE);
+                        end if;
                         exit;
                      end if;
 
@@ -887,6 +902,9 @@ package body Lib.Xref is
 
             --  Here we issue the warning, since this is a real reference
 
+            elsif Has_Pragma_Unused (E) then
+               Error_Msg_NE -- CODEFIX
+                 ("??pragma Unused given for&!", N, E);
             else
                Error_Msg_NE -- CODEFIX
                  ("??pragma Unreferenced given for&!", N, E);
@@ -1076,11 +1094,11 @@ package body Lib.Xref is
               ((Ent       => Ent,
                 Loc       => Ref,
                 Typ       => Actual_Typ,
-                Eun       => Get_Code_Unit (Def),
-                Lun       => Get_Code_Unit (Ref),
+                Eun       => Get_Top_Level_Code_Unit (Def),
+                Lun       => Get_Top_Level_Code_Unit (Ref),
                 Ref_Scope => Ref_Scope,
                 Ent_Scope => Ent_Scope),
-               Ent_Scope_File => Get_Code_Unit (Ent));
+               Ent_Scope_File => Get_Top_Level_Code_Unit (Ent));
 
          else
             Ref := Original_Location (Sloc (Nod));
@@ -1174,8 +1192,7 @@ package body Lib.Xref is
       while Present (Formal) loop
          if Ekind (Formal) = E_In_Parameter then
 
-            if Nkind (Parameter_Type (Parent (Formal)))
-              = N_Access_Definition
+            if Nkind (Parameter_Type (Parent (Formal))) = N_Access_Definition
             then
                Generate_Reference (E, Formal, '^', False);
             else
@@ -1219,6 +1236,21 @@ package body Lib.Xref is
    begin
       return E;
    end Get_Key;
+
+   ----------------------------
+   -- Has_Deferred_Reference --
+   ----------------------------
+
+   function Has_Deferred_Reference (Ent : Entity_Id) return Boolean is
+   begin
+      for J in Deferred_References.First .. Deferred_References.Last loop
+         if Deferred_References.Table (J).E = Ent then
+            return True;
+         end if;
+      end loop;
+
+      return False;
+   end Has_Deferred_Reference;
 
    ----------
    -- Hash --
@@ -1468,17 +1500,31 @@ package body Lib.Xref is
                --  initialized with a tag-indeterminate call gets a subtype
                --  of the classwide type during expansion. See if the original
                --  type in the declaration is named, and return it instead
-               --  of going to the root type.
+               --  of going to the root type. The expression may be a class-
+               --  wide function call whose result is on the secondary stack,
+               --  which forces the declaration to be rewritten as a renaming,
+               --  so examine the source declaration.
 
-               if Ekind (Tref) = E_Class_Wide_Subtype
-                 and then Nkind (Parent (Ent)) = N_Object_Declaration
-                 and then
-                   Nkind (Original_Node (Object_Definition (Parent (Ent))))
-                     = N_Identifier
+               if Ekind (Tref) = E_Class_Wide_Subtype then
+                  declare
+                     Decl : constant Node_Id := Original_Node (Parent (Ent));
+                  begin
+                     if Nkind (Decl) = N_Object_Declaration
+                       and then Is_Entity_Name
+                                  (Original_Node (Object_Definition (Decl)))
+                     then
+                        Tref :=
+                          Entity (Original_Node (Object_Definition (Decl)));
+                     end if;
+                  end;
+
+               --  For a function that returns a class-wide type, Tref is
+               --  already correct.
+
+               elsif Is_Overloadable (Ent)
+                 and then Is_Class_Wide_Type (Tref)
                then
-                  Tref :=
-                    Entity
-                      (Original_Node ((Object_Definition (Parent (Ent)))));
+                  return;
                end if;
 
             --  For anything else, exit

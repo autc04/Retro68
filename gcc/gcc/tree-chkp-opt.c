@@ -1,5 +1,5 @@
 /* Pointer Bounds Checker optimization pass.
-   Copyright (C) 2014-2016 Free Software Foundation, Inc.
+   Copyright (C) 2014-2017 Free Software Foundation, Inc.
    Contributed by Ilya Enkovich (ilya.enkovich@intel.com)
 
 This file is part of GCC.
@@ -84,7 +84,7 @@ static void chkp_collect_value (tree ssa_name, address_t &res);
 #define chkp_checku_fndecl \
   (targetm.builtin_chkp_function (BUILT_IN_CHKP_BNDCU))
 
-static vec<struct bb_checks, va_heap, vl_ptr> check_infos = vNULL;
+static vec<struct bb_checks, va_heap, vl_ptr> check_infos;
 
 /* Comparator for pol_item structures I1 and I2 to be used
    to find items with equal var.  Also used for polynomial
@@ -239,9 +239,11 @@ chkp_is_constant_addr (const address_t &addr, int *sign)
     return false;
   else if (addr.pol[0].var)
     return false;
+  else if (TREE_CODE (addr.pol[0].cst) != INTEGER_CST)
+    return false;
   else if (integer_zerop (addr.pol[0].cst))
     *sign = 0;
-  else if  (tree_int_cst_sign_bit (addr.pol[0].cst))
+  else if (tree_int_cst_sign_bit (addr.pol[0].cst))
     *sign = -1;
   else
     *sign = 1;
@@ -610,7 +612,7 @@ chkp_get_check_result (struct check_info *ci, tree bounds)
       chkp_collect_value (DECL_INITIAL (bnd_var), bound_val);
       if (ci->type == CHECK_UPPER_BOUND)
 	{
-	  if (TREE_CODE (var) == VAR_DECL)
+	  if (VAR_P (var))
 	    {
 	      if (DECL_SIZE (var)
 		  && !chkp_variable_size_type (TREE_TYPE (var)))
@@ -964,15 +966,12 @@ chkp_optimize_string_function_calls (void)
 	  gimple *stmt = gsi_stmt (i);
 	  tree fndecl;
 
-	  if (gimple_code (stmt) != GIMPLE_CALL
-	      || !gimple_call_with_bounds_p (stmt))
+	  if (!is_gimple_call (stmt)
+	      || !gimple_call_with_bounds_p (stmt)
+	      || !gimple_call_builtin_p (stmt, BUILT_IN_NORMAL))
 	    continue;
 
 	  fndecl = gimple_call_fndecl (stmt);
-
-	  if (!fndecl || DECL_BUILT_IN_CLASS (fndecl) != BUILT_IN_NORMAL)
-	    continue;
-
 	  if (DECL_FUNCTION_CODE (fndecl) == BUILT_IN_MEMCPY_CHKP
 	      || DECL_FUNCTION_CODE (fndecl) == BUILT_IN_MEMPCPY_CHKP
 	      || DECL_FUNCTION_CODE (fndecl) == BUILT_IN_MEMMOVE_CHKP
@@ -1236,6 +1235,8 @@ chkp_reduce_bounds_lifetime (void)
 		  gsi_move_before (&i, &gsi);
 		}
 
+	      gimple_set_vdef (stmt, NULL_TREE);
+	      gimple_set_vuse (stmt, NULL_TREE);
 	      update_stmt (stmt);
 	    }
 	}

@@ -2,7 +2,7 @@
 #source: relax-jalr.s
 #as: -march=from-abi -KPIC -64 -EB
 #objdump: --prefix-addresses -d --show-raw-insn
-#ld: --relax -melf64btsmip
+#ld: -melf64btsmip
 
 .*:     file format elf.*mips.*
 

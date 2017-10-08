@@ -64,6 +64,7 @@ typedef struct ieee_per_section
 
 typedef struct {
   unsigned char *input_p;
+  unsigned char *end_p;
   unsigned char *first_byte;
   unsigned char *last_byte;
   bfd_size_type total_amt;

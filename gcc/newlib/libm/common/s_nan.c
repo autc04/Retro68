@@ -14,8 +14,8 @@ INDEX
 
 ANSI_SYNOPSIS
 	#include <math.h>
-	double nan(const char *);
-	float nanf(const char *);
+	double nan(const char *<[unused]>);
+	float nanf(const char *<[unused]>);
 
 TRAD_SYNOPSIS
 	#include <math.h>
@@ -41,7 +41,11 @@ QUICKREF
 {
 	double x;
 
+#if __GNUC_PREREQ (3, 3)
+	x = __builtin_nan("");
+#else
 	INSERT_WORDS(x,0x7ff80000,0);
+#endif
 	return x;
 }
 

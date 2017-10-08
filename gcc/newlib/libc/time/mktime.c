@@ -199,6 +199,8 @@ _DEFUN(mktime, (tim_p),
 
   TZ_LOCK;
 
+  _tzset_unlocked ();
+
   if (_daylight)
     {
       int tm_isdst;

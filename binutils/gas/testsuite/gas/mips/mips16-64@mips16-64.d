@@ -614,13 +614,13 @@ Disassembly of section .text:
  7cc:	ea7d      	dmultu	v0,v1
  7ce:	ea7e      	ddiv	zero,v0,v1
  7d0:	2b01      	bnez	v1,7d4 <insns2\+(0x|)b4>
- 7d2:	e8e5      	break	7
+ 7d2:	e8e5      	break	0x7
  7d4:	ea12      	mflo	v0
  7d6:	6500      	nop
  7d8:	6500      	nop
  7da:	ea7f      	ddivu	zero,v0,v1
  7dc:	2b01      	bnez	v1,7e0 <insns2\+(0x|)c0>
- 7de:	e8e5      	break	7
+ 7de:	e8e5      	break	0x7
  7e0:	ea12      	mflo	v0
  7e2:	6500      	nop
  7e4:	6500      	nop
@@ -628,13 +628,13 @@ Disassembly of section .text:
  7e8:	ea79      	multu	v0,v1
  7ea:	ea7a      	div	zero,v0,v1
  7ec:	2b01      	bnez	v1,7f0 <insns2\+(0x|)d0>
- 7ee:	e8e5      	break	7
+ 7ee:	e8e5      	break	0x7
  7f0:	ea12      	mflo	v0
  7f2:	6500      	nop
  7f4:	6500      	nop
  7f6:	ea7b      	divu	zero,v0,v1
  7f8:	2b01      	bnez	v1,7fc <insns2\+(0x|)dc>
- 7fa:	e8e5      	break	7
+ 7fa:	e8e5      	break	0x7
  7fc:	ea12      	mflo	v0
  7fe:	ea00      	jr	v0
  800:	6500      	nop
@@ -662,9 +662,9 @@ Disassembly of section .text:
  840:	176f      	b	720 <insns2>
  842:	1012      	b	868 <bar>
  844:	1075      	b	930 <iuux>
- 846:	e805      	break	0
- 848:	e825      	break	1
- 84a:	efe5      	break	63
+ 846:	e805      	break
+ 848:	e825      	break	0x1
+ 84a:	efe5      	break	0x3f
  84c:	1800 0000 	jal	0 <data1>
 			84c: R_MIPS16_26	extern
 			84c: R_MIPS_NONE	\*ABS\*

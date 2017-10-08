@@ -31,10 +31,11 @@ On a Mac, get the homebrew package manager and:
     brew install boost --c++11
     brew install cmake gmp mpfr libmpc bison
 
-In theory, you can also run Retro68 on a PowerMac G4 or G5 running Mac OS 10.4 (Tiger).
+You can also run Retro68 on a PowerMac G4 or G5 running Mac OS 10.4 (Tiger).
 In that case, get the tigerbrew package manager and
 
-    brew install gcc cmake
+    brew install gcc cmake gmp mpfr libmpc bison
+    brew install boost --c++11
 
 ### Apple Universal Interfaces
 

@@ -874,13 +874,14 @@ static void
 walk_tree_type (struct coff_sfile *sfile, struct coff_symbol *symbol,
 		struct coff_type *type, int nest)
 {
+  struct IT_dty dty;
+
+  dty.spare = 0;
+  dty.end = 0;
+  dty.neg = 0x1001;
+
   if (symbol->type->type == coff_function_type)
     {
-      struct IT_dty dty;
-
-      dty.end = 0;
-      dty.neg = 0x1001;
-
       sysroff_swap_dty_out (file, &dty);
       walk_tree_type_1 (sfile, symbol, type, nest);
       dty.end = 1;
@@ -906,10 +907,6 @@ walk_tree_type (struct coff_sfile *sfile, struct coff_symbol *symbol,
     }
   else
     {
-      struct IT_dty dty;
-
-      dty.end = 0;
-      dty.neg = 0x1001;
       sysroff_swap_dty_out (file, &dty);
       walk_tree_type_1 (sfile, symbol, type, nest);
       dty.end = 1;

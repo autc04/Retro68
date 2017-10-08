@@ -48,7 +48,7 @@ if {   ![ld_compile "$CXX $CXXFLAGS -fno-exceptions" $srcdir/$subdir/cdtest-foo.
 
 set expected_output "$srcdir/$subdir/cdtest.dat"
 
-if ![ld_link $ld tmpdir/cdtest {tmpdir/cdtest-foo.o tmpdir/cdtest-bar.o tmpdir/cdtest-main.o}] {
+if ![ld_link $CC tmpdir/cdtest {tmpdir/cdtest-foo.o tmpdir/cdtest-bar.o tmpdir/cdtest-main.o}] {
     fail $test1
 } else {
     send_log   "tmpdir/cdtest >tmpdir/cdtest.out\n"
@@ -95,7 +95,7 @@ if ![ld_link $ld tmpdir/cdtest {tmpdir/cdtest-foo.o tmpdir/cdtest-bar.o tmpdir/c
 if ![ld_relocate $ld tmpdir/cdtest.o {-Ur tmpdir/cdtest-foo.o tmpdir/cdtest-bar.o tmpdir/cdtest-main.o}] {
     fail $test2
 } else {
-    if ![ld_link $ld tmpdir/cdtest tmpdir/cdtest.o] {
+    if ![ld_link $CC tmpdir/cdtest tmpdir/cdtest.o] {
 	fail $test2
     } else {
 	send_log   "tmpdir/cdtest >tmpdir/cdtest.out\n"

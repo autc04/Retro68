@@ -454,7 +454,7 @@ the same architecture and extension set.
 
 @cindex @code{cpu} directive, M680x0
 @item .cpu @var{name}
-Select the target cpu.  Valid valuse
+Select the target cpu.  Valid values
 for @var{name} are the same as for the @option{-mcpu} command line
 option.  This directive cannot be specified after
 any instructions have been assembled.  If it is given multiple times,

@@ -22,7 +22,7 @@ if ![ld_assemble $as "-march=r2 $srcdir/$subdir/${test}b.s" tmpdir/${test}b.o] {
     return
 }
 
-if { ![ld_simple_link $ld tmpdir/$test "tmpdir/${test}a.o tmpdir/${test}b.o"] } {
+if { ![ld_link $ld tmpdir/$test "tmpdir/${test}a.o tmpdir/${test}b.o"] } {
     if [string match "*architecture * is incompatible*" $link_output] {
 	pass "$test_name"
     } {

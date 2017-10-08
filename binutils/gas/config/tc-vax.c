@@ -127,7 +127,7 @@ int flag_want_pic;		/* -k */
  bbsc		e4
  bbcc		e5
  Always, you complement 0th bit to reverse condition.
- Always, 1-byte opcde, longword-address, byte-address, 1-byte-displacement
+ Always, 1-byte opcode, longword-address, byte-address, 1-byte-displacement
 
  2c.	J<cond> where cond tests low-order memory bit
  length of byte,word,long.
@@ -2113,7 +2113,7 @@ main (void)
 
 	default:
 	  my_operand_length = 2;
-	  printf ("I dn't understand access width %c\n", mywidth);
+	  printf ("I don't understand access width %c\n", mywidth);
 	  break;
 	}
       printf ("VAX assembler instruction operand: ");
@@ -3129,9 +3129,9 @@ md_assemble (char *instruction_string)
 			  || operandP->vop_access == 'a')
 			{
 			  if (operandP->vop_access == 'v')
-			    as_warn (_("Invalid operand:  immediate value used as base address."));
+			    as_warn (_("Invalid operand: immediate value used as base address."));
 			  else
-			    as_warn (_("Invalid operand:  immediate value used as address."));
+			    as_warn (_("Invalid operand: immediate value used as address."));
 			  /* gcc 2.6.3 is known to generate these in at least
 			     one case.  */
 			}

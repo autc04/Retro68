@@ -18,7 +18,7 @@
    Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-/* This thing should be set up to do byteordering correctly.  But...  */
+/* This thing should be set up to do byte ordering correctly.  But...  */
 
 #include "as.h"
 #include "subsegs.h"
@@ -37,15 +37,17 @@
   (TC_FORCE_RELOCATION (FIX))
 #endif
 
-#ifndef TC_FORCE_RELOCATION_LOCAL
-#define TC_FORCE_RELOCATION_LOCAL(FIX)		\
+#define GENERIC_FORCE_RELOCATION_LOCAL(FIX)	\
   (!(FIX)->fx_pcrel				\
    || TC_FORCE_RELOCATION (FIX))
+#ifndef TC_FORCE_RELOCATION_LOCAL
+#define TC_FORCE_RELOCATION_LOCAL GENERIC_FORCE_RELOCATION_LOCAL
 #endif
 
+#define GENERIC_FORCE_RELOCATION_SUB_SAME(FIX, SEG)	\
+  (!SEG_NORMAL (SEG))
 #ifndef TC_FORCE_RELOCATION_SUB_SAME
-#define TC_FORCE_RELOCATION_SUB_SAME(FIX, SEG)	\
-  (! SEG_NORMAL (SEG))
+#define TC_FORCE_RELOCATION_SUB_SAME GENERIC_FORCE_RELOCATION_SUB_SAME
 #endif
 
 #ifndef md_register_arithmetic
@@ -2692,7 +2694,11 @@ relax_segment (struct frag *segment_frag_root, segT segment, int pass)
 		  know (fragP->fr_next);
 		  after = fragP->fr_next->fr_address + stretch;
 		  growth = target - after;
-		  if (growth < 0)
+
+		  /* Growth may be negative, but variable part of frag
+		     cannot have fewer than 0 chars.  That is, we can't
+		     .org backwards.  */
+		  if (address + fragP->fr_fix > target)
 		    {
 		      growth = 0;
 
@@ -2714,9 +2720,6 @@ relax_segment (struct frag *segment_frag_root, segT segment, int pass)
 			  break;
 			}
 
-		      /* Growth may be negative, but variable part of frag
-			 cannot have fewer than 0 chars.  That is, we can't
-			 .org backwards.  */
 		      as_bad_where (fragP->fr_file, fragP->fr_line,
 				    _("attempt to move .org backwards"));
 

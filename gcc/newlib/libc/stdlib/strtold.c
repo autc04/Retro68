@@ -30,13 +30,76 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
 #include "local.h"
+#include "mprec.h"
+#undef FLT_ROUNDS
 
-/* On platforms where long double is as wide as double.  */
-#ifdef _LDBL_EQ_DBL
-long double
-strtold (const char *s00, char **se)
+#ifdef _HAVE_LONG_DOUBLE
+
+/* Intel MCU has no x87 floating point unit */
+#if (defined (__x86_64__) || defined (__i386__)) && !defined (__iamcu__)
+static const int map[] = {
+        1,      /* round to nearest */
+        3,      /* round to zero */
+        2,      /* round to negative infinity */
+        0       /* round to positive infinity */
+};
+
+int
+__flt_rounds(void)
 {
-  return strtod(s00, se);
+        int x;
+
+        /* Assume that the x87 and the SSE unit agree on the rounding mode. */
+        __asm("fnstcw %0" : "=m" (x));
+        return (map[(x >> 10) & 0x03]);
 }
-#endif /* _LDBL_EQ_DBL */
+#define FLT_ROUNDS __flt_rounds()
+#else
+#define FLT_ROUNDS 0
+#endif
+
+long double
+_strtold_r (struct _reent *ptr, const char *__restrict s00,
+	    char **__restrict se)
+{
+#ifdef _LDBL_EQ_DBL
+  /* On platforms where long double is as wide as double.  */
+  return _strtod_l (ptr, s00, se, __get_current_locale ());
+#else
+  long double result;
+
+  _strtorx_l (ptr, s00, se, FLT_ROUNDS, &result, __get_current_locale ());
+  return result;
+#endif
+}
+
+long double
+strtold_l (const char *__restrict s00, char **__restrict se, locale_t loc)
+{
+#ifdef _LDBL_EQ_DBL
+  /* On platforms where long double is as wide as double.  */
+  return _strtod_l (_REENT, s00, se, loc);
+#else
+  long double result;
+
+  _strtorx_l (_REENT, s00, se, FLT_ROUNDS, &result, loc);
+  return result;
+#endif
+}
+
+long double
+strtold (const char *__restrict s00, char **__restrict se)
+{
+#ifdef _LDBL_EQ_DBL
+  /* On platforms where long double is as wide as double.  */
+  return _strtod_l (_REENT, s00, se, __get_current_locale ());
+#else
+  long double result;
+
+  _strtorx_l (_REENT, s00, se, FLT_ROUNDS, &result, __get_current_locale ());
+  return result;
+#endif
+}
+
+#endif /* _HAVE_LONG_DOUBLE */
 

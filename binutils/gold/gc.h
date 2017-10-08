@@ -295,6 +295,7 @@ gc_process_relocs(
 	  // When doing safe folding, check to see if this relocation is that
 	  // of a function pointer being taken.
 	  if (gsym->source() == Symbol::FROM_OBJECT
+              && gsym->type() == elfcpp::STT_FUNC
               && check_section_for_function_pointers
               && dst_obj != NULL
               && (!is_ordinary

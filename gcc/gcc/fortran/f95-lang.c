@@ -1,5 +1,5 @@
 /* gfortran backend interface
-   Copyright (C) 2000-2016 Free Software Foundation, Inc.
+   Copyright (C) 2000-2017 Free Software Foundation, Inc.
    Contributed by Paul Brook.
 
 This file is part of GCC.
@@ -30,6 +30,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree.h"
 #include "gfortran.h"
 #include "trans.h"
+#include "stringpool.h"
 #include "diagnostic.h" /* For errorcount/warningcount */
 #include "langhooks.h"
 #include "langhooks-def.h"
@@ -74,7 +75,6 @@ static bool global_bindings_p (void);
 static bool gfc_init (void);
 static void gfc_finish (void);
 static void gfc_be_parse_file (void);
-static alias_set_type gfc_get_alias_set (tree);
 static void gfc_init_ts (void);
 static tree gfc_builtin_function (tree);
 
@@ -93,6 +93,8 @@ static const struct attribute_spec gfc_attribute_table[] =
        affects_type_identity } */
   { "omp declare target", 0, 0, true,  false, false,
     gfc_handle_omp_declare_target_attribute, false },
+  { "omp declare target link", 0, 0, true,  false, false,
+    gfc_handle_omp_declare_target_attribute, false },
   { "oacc function", 0, -1, true,  false, false,
     gfc_handle_omp_declare_target_attribute, false },
   { NULL,		  0, 0, false, false, false, NULL, false }
@@ -110,7 +112,6 @@ static const struct attribute_spec gfc_attribute_table[] =
 #undef LANG_HOOKS_MARK_ADDRESSABLE
 #undef LANG_HOOKS_TYPE_FOR_MODE
 #undef LANG_HOOKS_TYPE_FOR_SIZE
-#undef LANG_HOOKS_GET_ALIAS_SET
 #undef LANG_HOOKS_INIT_TS
 #undef LANG_HOOKS_OMP_PRIVATIZE_BY_REFERENCE
 #undef LANG_HOOKS_OMP_PREDETERMINED_SHARING
@@ -121,6 +122,7 @@ static const struct attribute_spec gfc_attribute_table[] =
 #undef LANG_HOOKS_OMP_CLAUSE_LINEAR_CTOR
 #undef LANG_HOOKS_OMP_CLAUSE_DTOR
 #undef LANG_HOOKS_OMP_FINISH_CLAUSE
+#undef LANG_HOOKS_OMP_SCALAR_P
 #undef LANG_HOOKS_OMP_DISREGARD_VALUE_EXPR
 #undef LANG_HOOKS_OMP_PRIVATE_DEBUG_CLAUSE
 #undef LANG_HOOKS_OMP_PRIVATE_OUTER_REF
@@ -142,7 +144,6 @@ static const struct attribute_spec gfc_attribute_table[] =
 #define LANG_HOOKS_PARSE_FILE           gfc_be_parse_file
 #define LANG_HOOKS_TYPE_FOR_MODE	gfc_type_for_mode
 #define LANG_HOOKS_TYPE_FOR_SIZE	gfc_type_for_size
-#define LANG_HOOKS_GET_ALIAS_SET	gfc_get_alias_set
 #define LANG_HOOKS_INIT_TS		gfc_init_ts
 #define LANG_HOOKS_OMP_PRIVATIZE_BY_REFERENCE	gfc_omp_privatize_by_reference
 #define LANG_HOOKS_OMP_PREDETERMINED_SHARING	gfc_omp_predetermined_sharing
@@ -153,6 +154,7 @@ static const struct attribute_spec gfc_attribute_table[] =
 #define LANG_HOOKS_OMP_CLAUSE_LINEAR_CTOR	gfc_omp_clause_linear_ctor
 #define LANG_HOOKS_OMP_CLAUSE_DTOR		gfc_omp_clause_dtor
 #define LANG_HOOKS_OMP_FINISH_CLAUSE		gfc_omp_finish_clause
+#define LANG_HOOKS_OMP_SCALAR_P			gfc_omp_scalar_p
 #define LANG_HOOKS_OMP_DISREGARD_VALUE_EXPR	gfc_omp_disregard_value_expr
 #define LANG_HOOKS_OMP_PRIVATE_DEBUG_CLAUSE	gfc_omp_private_debug_clause
 #define LANG_HOOKS_OMP_PRIVATE_OUTER_REF	gfc_omp_private_outer_ref
@@ -189,7 +191,8 @@ gfc_create_decls (void)
   gfc_init_constants ();
 
   /* Build our translation-unit decl.  */
-  current_translation_unit = build_translation_unit_decl (NULL_TREE);
+  current_translation_unit
+    = build_translation_unit_decl (get_identifier (main_input_filename));
   debug_hooks->register_main_translation_unit (current_translation_unit);
 }
 
@@ -510,24 +513,6 @@ gfc_init_decl_processing (void)
   gfc_init_c_interop_kinds ();
 }
 
-
-/* Return the typed-based alias set for T, which may be an expression
-   or a type.  Return -1 if we don't do anything special.  */
-
-static alias_set_type
-gfc_get_alias_set (tree t)
-{
-  tree u;
-
-  /* Permit type-punning when accessing an EQUIVALENCEd variable or
-     mixed type entry master's return value.  */
-  for (u = t; handled_component_p (u); u = TREE_OPERAND (u, 0))
-    if (TREE_CODE (u) == COMPONENT_REF
-	&& TREE_CODE (TREE_TYPE (TREE_OPERAND (u, 0))) == UNION_TYPE)
-      return 0;
-
-  return -1;
-}
 
 /* Builtin function initialization.  */
 
@@ -1240,6 +1225,17 @@ gfc_init_builtin_functions (void)
 #undef DEF_GOACC_BUILTIN_COMPILER
 #undef DEF_GOMP_BUILTIN
     }
+
+#ifdef ENABLE_HSA
+  if (!flag_disable_hsa)
+    {
+#undef DEF_HSA_BUILTIN
+#define DEF_HSA_BUILTIN(code, name, type, attr) \
+      gfc_define_builtin ("__builtin_" name, builtin_types[type], \
+			  code, name, attr);
+#include "../hsa-builtins.def"
+    }
+#endif
 
   gfc_define_builtin ("__builtin_trap", builtin_types[BT_FN_VOID],
 		      BUILT_IN_TRAP, NULL, ATTR_NOTHROW_LEAF_LIST);

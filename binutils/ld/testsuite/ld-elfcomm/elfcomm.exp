@@ -58,7 +58,7 @@ proc test_sort_common {} {
 	return 0
     }
 
-    if { ![ld_simple_link $ld tmpdir/sort-common.dx "--sort-common=descending tmpdir/sort-common.o"] } {
+    if { ![ld_link $ld tmpdir/sort-common.dx "--sort-common=descending tmpdir/sort-common.o"] } {
 	fail "$test"
 	return 0
     }
@@ -82,7 +82,7 @@ proc test_sort_common {} {
   
     verbose "Check to see that --sort-common=ascending sorts in ascending alignment"
 
-    if { ![ld_simple_link $ld tmpdir/sort-common.ax "--sort-common=ascending tmpdir/sort-common.o"] } {
+    if { ![ld_link $ld tmpdir/sort-common.ax "--sort-common=ascending tmpdir/sort-common.o"] } {
 	fail "$test"
 	return 0
     }
@@ -146,7 +146,7 @@ proc stt_common_test { options testname } {
 
     set options "$options tmpdir/common1c.o"
 
-    if { ! [ld_simple_link $ld tmpdir/common.exe $options] } {
+    if { ! [ld_link $ld tmpdir/common.exe $options] } {
       unresolved $testname
       return 0
     }
@@ -191,7 +191,7 @@ if [istarget sh64*-*-*] {
     }
 }
 
-if { [ld_simple_link $ld tmpdir/common1.o $options] } {
+if { [ld_link $ld tmpdir/common1.o $options] } {
     unresolved $test1w1
     return
 }
@@ -228,7 +228,7 @@ if [istarget sh64*-*-*] {
     }
 }
 
-if { [ld_simple_link $ld tmpdir/common1.o $options] } {
+if { [ld_link $ld tmpdir/common1.o $options] } {
     unresolved $test1w2
     return
 }

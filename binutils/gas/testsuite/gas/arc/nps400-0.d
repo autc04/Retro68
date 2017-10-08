@@ -11,5 +11,5 @@
   Machine:                           ARCompact
   Version:                           0x1
 #...
-  Flags:                             0x303, ARC700, v3 no-legacy-syscalls ABI
+  Flags:                             0x\d03, ARC700, .*
 #...

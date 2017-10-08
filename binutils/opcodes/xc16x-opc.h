@@ -25,6 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef XC16X_OPC_H
 #define XC16X_OPC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* -- opc.h */
 
 #define CGEN_DIS_HASH_SIZE 8
@@ -221,5 +225,9 @@ struct cgen_fields
 {\
 }
 
+
+   #ifdef __cplusplus
+   }
+   #endif
 
 #endif /* XC16X_OPC_H */

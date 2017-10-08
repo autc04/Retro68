@@ -22,6 +22,12 @@
 #include "avx512ifma-check.h"
 #elif defined (AVX512VBMI) && !defined (AVX512VL)
 #include "avx512vbmi-check.h"
+#elif defined (AVX5124FMAPS) && !defined (AVX512VL)
+#include "avx5124fmaps-check.h"
+#elif defined (AVX5124VNNIW) && !defined (AVX512VL)
+#include "avx5124vnniw-check.h"
+#elif defined (AVX512VPOPCNTDQ) && !defined (AVX512VL)
+#include "avx512vpopcntdq-check.h"
 #elif defined (AVX512VL)
 #include "avx512vl-check.h"
 #endif
@@ -33,7 +39,9 @@
 /* Value to be written into destination.
    We have one value for all types so it must be small enough
    to fit into signed char.  */
+#ifndef DEFAULT_VALUE
 #define DEFAULT_VALUE 117
+#endif
 
 #define MAKE_MASK_MERGE(NAME, TYPE)				      \
 static void							      \
@@ -132,6 +140,15 @@ avx512ifma_test (void) { test_512 (); }
 #elif defined (AVX512VBMI) && !defined (AVX512VL)
 void
 avx512vbmi_test (void) { test_512 (); }
+#elif defined (AVX5124FMAPS) && !defined (AVX512VL)
+void
+avx5124fmaps_test (void) { test_512 (); }
+#elif defined (AVX5124VNNIW) && !defined (AVX512VL)
+void
+avx5124vnniw_test (void) { test_512 (); }
+#elif defined (AVX512VPOPCNTDQ) && !defined (AVX512VL)
+void
+avx512vpopcntdq_test (void) { test_512 (); }
 #elif defined (AVX512VL)
 void
 avx512vl_test (void) { test_256 (); test_128 (); }

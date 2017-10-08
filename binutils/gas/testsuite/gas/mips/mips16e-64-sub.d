@@ -1,6 +1,6 @@
 #objdump: -dr --prefix-address --show-raw-insn
 #as: -32 -I$srcdir/$subdir
-#name: MIPS16e ISA subset disassembly
+#name: MIPS16e 64-bit ISA subset disassembly
 
 .*: +file format .*mips.*
 

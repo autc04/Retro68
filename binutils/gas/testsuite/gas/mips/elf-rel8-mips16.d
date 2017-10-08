@@ -34,5 +34,11 @@ Disassembly of section \.text:
 			32: R_MIPS16_GPREL	gvar
   36:	f000 4c00 	addiu	\$4,0
 			36: R_MIPS16_GPREL	gvar
-  3a:	6500      	nop
+  3a:	f000 9a80 	lw	\$4,0\(\$2\)
+			3a: R_MIPS16_GPREL	gvar
+  3e:	f000 da80 	sw	\$4,0\(\$2\)
+			3e: R_MIPS16_GPREL	gvar
+  42:	f000 4c00 	addiu	\$4,0
+			42: R_MIPS16_GPREL	gvar
+  46:	6500      	nop
 #pass

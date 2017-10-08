@@ -1,5 +1,5 @@
 /* Exception handling semantics and decomposition for trees.
-   Copyright (C) 2003-2016 Free Software Foundation, Inc.
+   Copyright (C) 2003-2017 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -43,6 +43,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "langhooks.h"
 #include "cfgloop.h"
 #include "gimple-low.h"
+#include "asan.h"
 
 /* In some instances a tree and a gimple need to be stored in a same table,
    i.e. in hash tables. This is a structure to do this. */
@@ -2513,7 +2514,8 @@ operation_could_trap_p (enum tree_code op, bool fp_operation, bool honor_trapv,
 
   if (TREE_CODE_CLASS (op) != tcc_comparison
       && TREE_CODE_CLASS (op) != tcc_unary
-      && TREE_CODE_CLASS (op) != tcc_binary)
+      && TREE_CODE_CLASS (op) != tcc_binary
+      && op != FMA_EXPR)
     return false;
 
   return operation_could_trap_helper_p (op, fp_operation, honor_trapv,
@@ -2725,9 +2727,9 @@ tree_could_trap_p (tree expr)
    an assignment or a conditional) may throw.  */
 
 static bool
-stmt_could_throw_1_p (gimple *stmt)
+stmt_could_throw_1_p (gassign *stmt)
 {
-  enum tree_code code = gimple_expr_code (stmt);
+  enum tree_code code = gimple_assign_rhs_code (stmt);
   bool honor_nans = false;
   bool honor_snans = false;
   bool fp_operation = false;
@@ -2738,13 +2740,11 @@ stmt_could_throw_1_p (gimple *stmt)
 
   if (TREE_CODE_CLASS (code) == tcc_comparison
       || TREE_CODE_CLASS (code) == tcc_unary
-      || TREE_CODE_CLASS (code) == tcc_binary)
+      || TREE_CODE_CLASS (code) == tcc_binary
+      || code == FMA_EXPR)
     {
-      if (is_gimple_assign (stmt)
-	  && TREE_CODE_CLASS (code) == tcc_comparison)
+      if (TREE_CODE_CLASS (code) == tcc_comparison)
 	t = TREE_TYPE (gimple_assign_rhs1 (stmt));
-      else if (gimple_code (stmt) == GIMPLE_COND)
-	t = TREE_TYPE (gimple_cond_lhs (stmt));
       else
 	t = gimple_expr_type (stmt);
       fp_operation = FLOAT_TYPE_P (t);
@@ -2757,17 +2757,21 @@ stmt_could_throw_1_p (gimple *stmt)
 	honor_trapv = true;
     }
 
+  /* First check the LHS.  */
+  if (tree_could_trap_p (gimple_assign_lhs (stmt)))
+    return true;
+
   /* Check if the main expression may trap.  */
-  t = is_gimple_assign (stmt) ? gimple_assign_rhs2 (stmt) : NULL;
   ret = operation_could_trap_helper_p (code, fp_operation, honor_trapv,
-				       honor_nans, honor_snans, t,
+				       honor_nans, honor_snans,
+				       gimple_assign_rhs2 (stmt),
 				       &handled);
   if (handled)
     return ret;
 
   /* If the expression does not trap, see if any of the individual operands may
      trap.  */
-  for (i = 0; i < gimple_num_ops (stmt); i++)
+  for (i = 1; i < gimple_num_ops (stmt); i++)
     if (tree_could_trap_p (gimple_op (stmt, i)))
       return true;
 
@@ -2793,11 +2797,22 @@ stmt_could_throw_p (gimple *stmt)
     case GIMPLE_CALL:
       return !gimple_call_nothrow_p (as_a <gcall *> (stmt));
 
-    case GIMPLE_ASSIGN:
     case GIMPLE_COND:
-      if (!cfun->can_throw_non_call_exceptions)
+      {
+	if (!cfun->can_throw_non_call_exceptions)
+	  return false;
+	gcond *cond = as_a <gcond *> (stmt);
+	tree lhs = gimple_cond_lhs (cond);
+	return operation_could_trap_p (gimple_cond_code (cond),
+				       FLOAT_TYPE_P (TREE_TYPE (lhs)),
+				       false, NULL_TREE);
+      }
+
+    case GIMPLE_ASSIGN:
+      if (!cfun->can_throw_non_call_exceptions
+	  || gimple_clobber_p (stmt))
         return false;
-      return stmt_could_throw_1_p (stmt);
+      return stmt_could_throw_1_p (as_a <gassign *> (stmt));
 
     case GIMPLE_ASM:
       if (!cfun->can_throw_non_call_exceptions)
@@ -3248,6 +3263,8 @@ lower_resx (basic_block bb, gresx *stmt,
 	  e = single_succ_edge (bb);
 	  gcc_assert (e->flags & EDGE_EH);
 	  e->flags = (e->flags & ~EDGE_EH) | EDGE_FALLTHRU;
+	  e->probability = REG_BR_PROB_BASE;
+	  e->count = bb->count;
 
 	  /* If there are no more EH users of the landing pad, delete it.  */
 	  FOR_EACH_EDGE (e, ei, e->dest->preds)
@@ -3287,6 +3304,20 @@ lower_resx (basic_block bb, gresx *stmt,
 	  var = make_ssa_name (var, x);
 	  gimple_call_set_lhs (x, var);
 	  gsi_insert_before (&gsi, x, GSI_SAME_STMT);
+
+	  /* When exception handling is delegated to a caller function, we
+	     have to guarantee that shadow memory variables living on stack
+	     will be cleaner before control is given to a parent function.  */
+	  if ((flag_sanitize & SANITIZE_ADDRESS) != 0
+	      && !lookup_attribute ("no_sanitize_address",
+				    DECL_ATTRIBUTES (current_function_decl)))
+	    {
+	      tree decl
+		= builtin_decl_implicit (BUILT_IN_ASAN_HANDLE_NO_RETURN);
+	      gimple *g = gimple_build_call (decl, 0);
+	      gimple_set_location (g, gimple_location (stmt));
+	      gsi_insert_before (&gsi, g, GSI_SAME_STMT);
+	    }
 
 	  fn = builtin_decl_implicit (BUILT_IN_UNWIND_RESUME);
 	  x = gimple_build_call (fn, 1, var);
@@ -4268,6 +4299,7 @@ cleanup_empty_eh_move_lp (basic_block bb, edge e_out,
   /* Clean up E_OUT for the fallthru.  */
   e_out->flags = (e_out->flags & ~EDGE_EH) | EDGE_FALLTHRU;
   e_out->probability = REG_BR_PROB_BASE;
+  e_out->count = e_out->src->count;
 }
 
 /* A subroutine of cleanup_empty_eh.  Handle more complex cases of
@@ -4382,7 +4414,8 @@ cleanup_empty_eh (eh_landing_pad lp)
       return false;
     }
 
-  resx = last_stmt (bb);
+  gsi = gsi_last_nondebug_bb (bb);
+  resx = gsi_stmt (gsi);
   if (resx && is_gimple_resx (resx))
     {
       if (stmt_can_throw_external (resx))
@@ -4416,12 +4449,12 @@ cleanup_empty_eh (eh_landing_pad lp)
   resx = gsi_stmt (gsi);
   if (!e_out && gimple_call_builtin_p (resx, BUILT_IN_STACK_RESTORE))
     {
-      gsi_next (&gsi);
+      gsi_next_nondebug (&gsi);
       resx = gsi_stmt (gsi);
     }
   if (!is_gimple_resx (resx))
     return ret;
-  gcc_assert (gsi_one_before_end_p (gsi));
+  gcc_assert (gsi_one_nondebug_before_end_p (gsi));
 
   /* Determine if there are non-EH edges, or resx edges into the handler.  */
   has_non_eh_pred = false;

@@ -212,7 +212,7 @@ md_parse_option (int c, const char *arg)
       else if (strcasecmp (arg, "v3") == 0)
 	current_architecture = XGATE_V3;
       else
-	as_bad (_(" architecture variant invalid"));
+	as_bad (_("architecture variant invalid"));
       break;
 
     case OPTION_PRINT_INSN_SYNTAX:
@@ -373,7 +373,7 @@ Freescale XGATE co-processor options:\n\
   -mlong                  use 32-bit int ABI\n\
   -mshort-double          use 32-bit double ABI\n\
   -mlong-double           use 64-bit double ABI (default)\n\
-  --mxgate                specify the processor variant[default %s]\n\
+  --mxgate                specify the processor variant [default %s]\n\
   --print-insn-syntax     print the syntax of instruction in case of error\n\
   --print-opcodes         print the list of instructions with syntax\n\
   --generate-example      generate an example of each instruction"),
@@ -508,7 +508,7 @@ md_assemble (char *input_line)
 
       if (!opcode)
 	{
-	  as_bad (_("matching operands to opcode "));
+	  as_bad (_("matching operands to opcode"));
 	  xgate_print_syntax (opcode_handle->opc0[0]->name);
 	}
       else if (opcode->size == 2)

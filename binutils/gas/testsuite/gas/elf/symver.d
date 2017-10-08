@@ -1,5 +1,6 @@
 #objdump: --syms
 #name: ELF symbol versioning
+#not-target: hppa64*-*-hpux*
 #
 # The #... and #pass are there to match extra symbols inserted by
 # some toolchains, eg the mips-elf port will add .reginfo and .ptrd

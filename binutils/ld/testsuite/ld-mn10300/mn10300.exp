@@ -147,12 +147,12 @@ proc i126256-test { } {
     	return
     }
     
-    if { ![ld_simple_link $ld $tmpdir/i126256-1.so "-shared $tmpdir/i126256-1.o -e 0"]} {
+    if { ![ld_link $ld $tmpdir/i126256-1.so "-shared $tmpdir/i126256-1.o -e 0"]} {
         unresolved $testname
     	return
     }
 
-    if { ![ld_simple_link $ld $tmpdir/i126256-2.so "--relax -shared $tmpdir/i126256-2.o $tmpdir/i126256-1.so -e 0"]} {
+    if { ![ld_link $ld $tmpdir/i126256-2.so "--relax -shared $tmpdir/i126256-2.o $tmpdir/i126256-1.so -e 0"]} {
         fail $testname
     	return
     }

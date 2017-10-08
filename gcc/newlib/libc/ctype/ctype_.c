@@ -35,7 +35,8 @@
 static char sccsid[] = "@(#)ctype_.c	5.6 (Berkeley) 6/1/90";
 #endif /* LIBC_SCCS and not lint */
 
-#include <ctype.h>
+#include "ctype_.h"
+#include "../locale/setlocale.h"
 
 #define _CTYPE_DATA_0_127 \
 	_C,	_C,	_C,	_C,	_C,	_C,	_C,	_C, \
@@ -73,10 +74,6 @@ static char sccsid[] = "@(#)ctype_.c	5.6 (Berkeley) 6/1/90";
 	0,	0,	0,	0,	0,	0,	0,	0, \
 	0,	0,	0,	0,	0,	0,	0,	0
 
-#if (defined(__GNUC__) && !defined(__CHAR_UNSIGNED__) && !defined(COMPACT_CTYPE)) || defined (__CYGWIN__)
-#define ALLOW_NEGATIVE_CTYPE_INDEX
-#endif
-
 #if defined(_MB_CAPABLE)
 #if defined(_MB_EXTENDED_CHARSETS_ISO)
 #include "ctype_iso.h"
@@ -90,7 +87,7 @@ static char sccsid[] = "@(#)ctype_.c	5.6 (Berkeley) 6/1/90";
 /* No static const on Cygwin since it's referenced and potentially overwritten
    for compatibility with older applications. */
 #ifndef __CYGWIN__
-static _CONST
+_CONST
 #endif
 char _ctype_b[128 + 256] = {
 	_CTYPE_DATA_128_255,
@@ -98,27 +95,25 @@ char _ctype_b[128 + 256] = {
 	_CTYPE_DATA_128_255
 };
 
-#ifdef _NEED_OLD_CTYPE_PTR_DEFINITION
-#ifndef _MB_CAPABLE
-_CONST
-#endif
-char __EXPORT *__ctype_ptr = (char *) _ctype_b + 128;
-#endif
-
-#ifndef _MB_CAPABLE
-_CONST
-#endif
-char __EXPORT *__ctype_ptr__ = (char *) _ctype_b + 127;
-
 #  ifdef __CYGWIN__
+/* For backward compatibility */
+char __EXPORT *__ctype_ptr__ = DEFAULT_CTYPE_PTR;
 
+#    ifdef __x86_64__
+__asm__ ("					\n\
+        .data					\n\
+	.globl  _ctype_				\n\
+	.set    _ctype_,_ctype_b+127		\n\
+	.text                                   \n\
+");
+#    else
 __asm__ ("					\n\
         .data					\n\
 	.globl  __ctype_			\n\
 	.set    __ctype_,__ctype_b+127		\n\
 	.text                                   \n\
 ");
-
+#    endif
 #  else /* !__CYGWIN__ */
 
 _CONST char _ctype_[1 + 256] = {
@@ -128,7 +123,7 @@ _CONST char _ctype_[1 + 256] = {
 };
 #  endif /* !__CYGWIN__ */
 
-#else	/* !defined(ALLOW_NEGATIVE_CTYPE_INDEX) */
+#else	/* !ALLOW_NEGATIVE_CTYPE_INDEX */
 
 _CONST char _ctype_[1 + 256] = {
 	0,
@@ -136,30 +131,19 @@ _CONST char _ctype_[1 + 256] = {
 	_CTYPE_DATA_128_255
 };
 
-#ifdef _NEED_OLD_CTYPE_PTR_DEFINITION
-#ifndef _MB_CAPABLE
-_CONST
-#endif
-char *__ctype_ptr = (char *) _ctype_ + 1;
-#endif
-
-#ifndef _MB_CAPABLE
-_CONST
-#endif
-char *__ctype_ptr__ = (char *) _ctype_;
-
-#endif
+#endif	/* !ALLOW_NEGATIVE_CTYPE_INDEX */
 
 #if defined(_MB_CAPABLE)
 /* Cygwin has its own implementation which additionally maintains backward
    compatibility with applications built under older Cygwin releases. */
 #ifndef __CYGWIN__
 void
-__set_ctype (const char *charset)
+__set_ctype (struct __locale_t *loc, const char *charset)
 {
 #if defined(_MB_EXTENDED_CHARSETS_ISO) || defined(_MB_EXTENDED_CHARSETS_WINDOWS)
   int idx;
 #endif
+  char *ctype_ptr = NULL;
 
   switch (*charset)
     {
@@ -173,50 +157,32 @@ __set_ctype (const char *charset)
         idx = 0;
       else
         ++idx;
-#  if defined(ALLOW_NEGATIVE_CTYPE_INDEX)
-#ifdef _NEED_OLD_CTYPE_PTR_DEFINITION
-      __ctype_ptr = (char *) (__ctype_iso[idx] + 128);
-#endif
-      __ctype_ptr__ = (char *) (__ctype_iso[idx] + 127);
-#  else
-#ifdef _NEED_OLD_CTYPE_PTR_DEFINITION
-      __ctype_ptr = (char *) __ctype_iso[idx] + 1;
-#endif
-      __ctype_ptr__ = (char *) __ctype_iso[idx];
-#  endif
-      return;
+      ctype_ptr = __ctype_iso[idx];
+      break;
 #endif
 #if defined(_MB_EXTENDED_CHARSETS_WINDOWS)
     case 'C':
       idx = __cp_index (charset + 2);
       if (idx < 0)
         break;
-#  if defined(ALLOW_NEGATIVE_CTYPE_INDEX)
-#ifdef _NEED_OLD_CTYPE_PTR_DEFINITION
-      __ctype_ptr = (char *) (__ctype_cp[idx] + 128);
-#endif
-      __ctype_ptr__ = (char *) (__ctype_cp[idx] + 127);
-#  else
-#ifdef _NEED_OLD_CTYPE_PTR_DEFINITION
-      __ctype_ptr = (char *) __ctype_cp[idx] + 1;
-#endif
-      __ctype_ptr__ = (char *) __ctype_cp[idx];
-#  endif
-      return;
+      ctype_ptr = __ctype_cp[idx];
+      break;
 #endif
     default:
       break;
     }
+  if (!ctype_ptr)
+    {
 #  if defined(ALLOW_NEGATIVE_CTYPE_INDEX)
-#ifdef _NEED_OLD_CTYPE_PTR_DEFINITION
-  __ctype_ptr = (char *) _ctype_b + 128;
-#endif
-  __ctype_ptr__ = (char *) _ctype_b + 127;
+     ctype_ptr = _ctype_b;
 #  else
-#ifdef _NEED_OLD_CTYPE_PTR_DEFINITION
-  __ctype_ptr = (char *) _ctype_ + 1;
-#endif
-  __ctype_ptr__ = (char *) _ctype_;
+     ctype_ptr = _ctype_;
+#  endif
+    }
+#  if defined(ALLOW_NEGATIVE_CTYPE_INDEX)
+  loc->ctype_ptr = ctype_ptr + 127;
+#  else
+  loc->ctype_ptr = ctype_ptr;
 #  endif
 }
 #endif /* !__CYGWIN__ */

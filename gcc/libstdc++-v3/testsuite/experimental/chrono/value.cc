@@ -1,7 +1,6 @@
-// { dg-options "-std=gnu++14" }
-// { dg-do compile }
+// { dg-do compile { target c++14 } }
 
-// Copyright (C) 2014-2016 Free Software Foundation, Inc.
+// Copyright (C) 2014-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,8 +19,8 @@
 
 #include <experimental/chrono>
 
-using namespace std::chrono;
-using namespace std::chrono::experimental;
+using std::chrono::treat_as_floating_point;
+using std::chrono::experimental::treat_as_floating_point_v;
 
 // These tests are rather simple, the front-end tests already test
 // variable templates, and the library tests for the underlying

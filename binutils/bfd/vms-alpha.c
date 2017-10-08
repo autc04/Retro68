@@ -514,15 +514,17 @@ _bfd_vms_slurp_eisd (bfd *abfd, unsigned int offset)
       struct vms_eisd *eisd;
       unsigned int rec_size;
       unsigned int size;
-      unsigned long long vaddr;
+      bfd_uint64_t vaddr;
       unsigned int flags;
       unsigned int vbn;
       char *name = NULL;
       asection *section;
       flagword bfd_flags;
 
-      /* PR 17512: file: 3d9e9fe9.  */
-      if (offset >= PRIV (recrd.rec_size))
+      /* PR 17512: file: 3d9e9fe9.
+	 12 is the offset of the eisdsize field from the start of the record (8)
+	 plus the size of the eisdsize field (4).  */
+      if (offset >= PRIV (recrd.rec_size) - 12)
 	return FALSE;
       eisd = (struct vms_eisd *)(PRIV (recrd.rec) + offset);
       rec_size = bfd_getl32 (eisd->eisdsize);
@@ -535,8 +537,16 @@ _bfd_vms_slurp_eisd (bfd *abfd, unsigned int offset)
           offset = (offset + VMS_BLOCK_SIZE) & ~(VMS_BLOCK_SIZE - 1);
           continue;
         }
-      else
-        offset += rec_size;
+
+      /* Make sure that there is enough data present in the record.  */
+      /* FIXME: Should we use sizeof (struct vms_eisd) rather than just 32 here ?  */
+      if (rec_size < 32)
+	return FALSE;
+      /* Make sure that the record is not too big either.  */
+      if (offset + rec_size >= PRIV (recrd.rec_size))
+	return FALSE;
+
+      offset += rec_size;
 
       size = bfd_getl32 (eisd->secsize);
       vaddr = bfd_getl64 (eisd->virt_addr);
@@ -574,7 +584,13 @@ _bfd_vms_slurp_eisd (bfd *abfd, unsigned int offset)
 
       if (flags & EISD__M_GBL)
 	{
-	  name = _bfd_vms_save_counted_string (eisd->gblnam);
+	  if (rec_size < offsetof (struct vms_eisd, gblnam))
+	    return FALSE;
+	  else if (rec_size < sizeof (struct vms_eisd))
+	    name = _bfd_vms_save_counted_string (eisd->gblnam,
+						 rec_size - offsetof (struct vms_eisd, gblnam));
+	  else
+	    name = _bfd_vms_save_counted_string (eisd->gblnam, EISD__K_GBLNAMLEN);
 	  bfd_flags |= SEC_COFF_SHARED_LIBRARY;
 	  bfd_flags &= ~(SEC_ALLOC | SEC_LOAD);
 	}
@@ -622,13 +638,28 @@ static bfd_boolean
 _bfd_vms_slurp_eihs (bfd *abfd, unsigned int offset)
 {
   unsigned char *p = PRIV (recrd.rec) + offset;
-  unsigned int gstvbn = bfd_getl32 (p + EIHS__L_GSTVBN);
-  unsigned int gstsize ATTRIBUTE_UNUSED = bfd_getl32 (p + EIHS__L_GSTSIZE);
-  unsigned int dstvbn = bfd_getl32 (p + EIHS__L_DSTVBN);
-  unsigned int dstsize = bfd_getl32 (p + EIHS__L_DSTSIZE);
-  unsigned int dmtvbn = bfd_getl32 (p + EIHS__L_DMTVBN);
-  unsigned int dmtbytes = bfd_getl32 (p + EIHS__L_DMTBYTES);
+  unsigned int gstvbn;
+  unsigned int gstsize ATTRIBUTE_UNUSED;
+  unsigned int dstvbn;
+  unsigned int dstsize;
+  unsigned int dmtvbn;
+  unsigned int dmtbytes;
   asection *section;
+
+  /* PR 21611: Check that offset is valid.  */
+  if (offset > PRIV (recrd.rec_size) - (EIHS__L_DMTBYTES + 4))
+    {
+      _bfd_error_handler (_("Unable to read EIHS record at offset %#x"), offset); 
+      bfd_set_error (bfd_error_file_truncated);
+      return FALSE;
+    }
+
+  gstvbn   = bfd_getl32 (p + EIHS__L_GSTVBN);
+  gstsize  = bfd_getl32 (p + EIHS__L_GSTSIZE);
+  dstvbn   = bfd_getl32 (p + EIHS__L_DSTVBN);
+  dstsize  = bfd_getl32 (p + EIHS__L_DSTSIZE);
+  dmtvbn   = bfd_getl32 (p + EIHS__L_DMTVBN);
+  dmtbytes = bfd_getl32 (p + EIHS__L_DMTBYTES);
 
 #if VMS_DEBUG
   vms_debug (8, "_bfd_vms_slurp_ihs\n");
@@ -677,7 +708,7 @@ _bfd_vms_slurp_eihs (bfd *abfd, unsigned int offset)
 	  return FALSE;
 	}
 
-      if (_bfd_vms_slurp_object_records (abfd) != TRUE)
+      if (!_bfd_vms_slurp_object_records (abfd))
 	return FALSE;
 
       abfd->flags |= HAS_SYMS;
@@ -864,7 +895,7 @@ _bfd_vms_slurp_ehdr (bfd *abfd)
 
   vms_rec = PRIV (recrd.rec);
   /* PR 17512: file: 62736583.  */
-  end = PRIV (recrd.buf) + PRIV (recrd.buf_size);
+  end = vms_rec + PRIV (recrd.buf_size);
 
   vms_debug2 ((2, "HDR/EMH\n"));
 
@@ -884,11 +915,11 @@ _bfd_vms_slurp_ehdr (bfd *abfd)
       PRIV (hdr_data).hdr_l_recsiz = bfd_getl32 (vms_rec + 16);
       if ((vms_rec + 20 + vms_rec[20] + 1) >= end)
 	goto fail;
-      PRIV (hdr_data).hdr_t_name   = _bfd_vms_save_counted_string (vms_rec + 20);
+      PRIV (hdr_data).hdr_t_name   = _bfd_vms_save_counted_string (vms_rec + 20, vms_rec[20]);
       ptr = vms_rec + 20 + vms_rec[20] + 1;
       if ((ptr + *ptr + 1) >= end)
 	goto fail;
-      PRIV (hdr_data).hdr_t_version =_bfd_vms_save_counted_string (ptr);
+      PRIV (hdr_data).hdr_t_version =_bfd_vms_save_counted_string (ptr, *ptr);
       ptr += *ptr + 1;
       if (ptr + 17 >= end)
 	goto fail;
@@ -1121,19 +1152,28 @@ add_symbol (bfd *abfd, const unsigned char *ascic)
 static bfd_boolean
 _bfd_vms_slurp_egsd (bfd *abfd)
 {
-  int gsd_type, gsd_size;
+  int gsd_type;
+  unsigned int gsd_size;
   unsigned char *vms_rec;
   unsigned long base_addr;
 
   vms_debug2 ((2, "EGSD\n"));
 
+  if (PRIV (recrd.rec_size) < 8)
+    {
+      _bfd_error_handler (_("Corrupt EGSD record: its size (%#x) is too small"),
+			  PRIV (recrd.rec_size));
+      bfd_set_error (bfd_error_bad_value);
+      return FALSE;
+    }
+ 
   PRIV (recrd.rec) += 8;	/* Skip type, size, align pad.  */
   PRIV (recrd.rec_size) -= 8;
 
   /* Calculate base address for each section.  */
   base_addr = 0L;
 
-  while (PRIV (recrd.rec_size) > 0)
+  while (PRIV (recrd.rec_size) > 4)
     {
       vms_rec = PRIV (recrd.rec);
 
@@ -1141,6 +1181,23 @@ _bfd_vms_slurp_egsd (bfd *abfd)
       gsd_size = bfd_getl16 (vms_rec + 2);
 
       vms_debug2 ((3, "egsd_type %d\n", gsd_type));
+
+      /* PR 21615: Check for size overflow.  */
+      if (PRIV (recrd.rec_size) < gsd_size)
+	{
+	  _bfd_error_handler (_("Corrupt EGSD record: size (%#x) is larger than remaining space (%#x)"),
+			      gsd_size, PRIV (recrd.rec_size));
+	  bfd_set_error (bfd_error_bad_value);
+	  return FALSE;
+	}
+
+      if (gsd_size < 4)
+	{
+	  _bfd_error_handler (_("Corrupt EGSD record: size (%#x) is too small"),
+			      gsd_size);
+	  bfd_set_error (bfd_error_bad_value);
+	  return FALSE;
+	}
 
       switch (gsd_type)
 	{
@@ -1164,7 +1221,7 @@ _bfd_vms_slurp_egsd (bfd *abfd)
                 char *name;
                 unsigned long align_addr;
 
-                name = _bfd_vms_save_counted_string (&egps->namlng);
+		name = _bfd_vms_save_counted_string (&egps->namlng, gsd_size - 4);
 
                 section = bfd_make_section (abfd, name);
                 if (!section)
@@ -1257,6 +1314,8 @@ _bfd_vms_slurp_egsd (bfd *abfd)
                 struct vms_esdf *esdf = (struct vms_esdf *)vms_rec;
 
 		entry->value = bfd_getl64 (esdf->value);
+		if (PRIV (sections) == NULL)
+		  return FALSE;
 		entry->section = PRIV (sections)[bfd_getl32 (esdf->psindx)];
 
                 if (old_flags & EGSY__V_NORM)
@@ -1291,7 +1350,11 @@ _bfd_vms_slurp_egsd (bfd *abfd)
             entry->symbol_vector = bfd_getl32 (egst->value);
 
             if (old_flags & EGSY__V_REL)
-              entry->section = PRIV (sections)[bfd_getl32 (egst->psindx)];
+	      {
+		if (PRIV (sections) == NULL)
+		  return FALSE;
+		entry->section = PRIV (sections)[bfd_getl32 (egst->psindx)];
+	      }
             else
               entry->section = bfd_abs_section_ptr;
 
@@ -1322,6 +1385,8 @@ _bfd_vms_slurp_egsd (bfd *abfd)
       PRIV (recrd.rec_size) -= gsd_size;
       PRIV (recrd.rec) += gsd_size;
     }
+
+  /* FIXME: Should we complain if PRIV (recrd.rec_size) is not zero ?  */
 
   if (PRIV (gsd_sym_count) > 0)
     abfd->flags |= HAS_SYMS;
@@ -1379,6 +1444,8 @@ image_set_ptr (bfd *abfd, bfd_vma vma, int sect, struct bfd_link_info *info)
 
   vms_debug2 ((4, "image_set_ptr (0x%08x, sect=%d)\n", (unsigned)vma, sect));
 
+  if (PRIV (sections) == NULL)
+    return;
   sec = PRIV (sections)[sect];
 
   if (info)
@@ -1456,7 +1523,7 @@ dst_retrieve_location (bfd *abfd, unsigned int loc)
 /* Write multiple bytes to section image.  */
 
 static bfd_boolean
-image_write (bfd *abfd, unsigned char *ptr, int size)
+image_write (bfd *abfd, unsigned char *ptr, unsigned int size)
 {
 #if VMS_DEBUG
   _bfd_vms_debug (8, "image_write from (%p, %d) to (%ld)\n", ptr, size,
@@ -1603,14 +1670,16 @@ _bfd_vms_etir_name (int cmd)
 #define HIGHBIT(op) ((op & 0x80000000L) == 0x80000000L)
 
 static void
-_bfd_vms_get_value (bfd *abfd, const unsigned char *ascic,
+_bfd_vms_get_value (bfd *abfd,
+		    const unsigned char *ascic,
+		    const unsigned char *max_ascic,
                     struct bfd_link_info *info,
                     bfd_vma *vma,
                     struct alpha_vms_link_hash_entry **hp)
 {
   char name[257];
-  int len;
-  int i;
+  unsigned int len;
+  unsigned int i;
   struct alpha_vms_link_hash_entry *h;
 
   /* Not linking.  Do not try to resolve the symbol.  */
@@ -1622,6 +1691,14 @@ _bfd_vms_get_value (bfd *abfd, const unsigned char *ascic,
     }
 
   len = *ascic;
+  if (ascic + len >= max_ascic)
+    {
+      _bfd_error_handler (_("Corrupt vms value"));
+      *vma = 0;
+      *hp = NULL;
+      return;
+    }
+
   for (i = 0; i < len; i++)
     name[i] = ascic[i + 1];
   name[i] = 0;
@@ -1691,7 +1768,12 @@ static bfd_vma
 alpha_vms_fix_sec_rel (bfd *abfd, struct bfd_link_info *info,
                        unsigned int rel, bfd_vma vma)
 {
-  asection *sec = PRIV (sections)[rel & RELC_MASK];
+  asection *sec;
+
+  if (PRIV (sections) == NULL)
+    return 0;
+
+  sec = PRIV (sections)[rel & RELC_MASK];
 
   if (info)
     {
@@ -1735,6 +1817,15 @@ _bfd_vms_slurp_etir (bfd *abfd, struct bfd_link_info *info)
 
       ptr += 4;
 
+      /* PR 21589 and 21579: Check for a corrupt ETIR record.  */
+      if (cmd_length < 4 || (ptr + cmd_length > maxptr + 4))
+	{
+	corrupt_etir:
+	  _bfd_error_handler (_("Corrupt ETIR record encountered"));
+	  bfd_set_error (bfd_error_bad_value);
+	  return FALSE;
+	}
+
 #if VMS_DEBUG
       _bfd_vms_debug (4, "etir: %s(%d)\n",
                       _bfd_vms_etir_name (cmd), cmd);
@@ -1748,7 +1839,7 @@ _bfd_vms_slurp_etir (bfd *abfd, struct bfd_link_info *info)
 
              stack 32 bit value of symbol (high bits set to 0).  */
         case ETIR__C_STA_GBL:
-          _bfd_vms_get_value (abfd, ptr, info, &op1, &h);
+          _bfd_vms_get_value (abfd, ptr, maxptr, info, &op1, &h);
           _bfd_vms_push (abfd, op1, alpha_vms_sym_to_ctxt (h));
           break;
 
@@ -1757,6 +1848,8 @@ _bfd_vms_slurp_etir (bfd *abfd, struct bfd_link_info *info)
 
              stack 32 bit value, sign extend to 64 bit.  */
         case ETIR__C_STA_LW:
+	  if (ptr + 4 >= maxptr)
+	    goto corrupt_etir;
           _bfd_vms_push (abfd, bfd_getl32 (ptr), RELC_NONE);
           break;
 
@@ -1765,6 +1858,8 @@ _bfd_vms_slurp_etir (bfd *abfd, struct bfd_link_info *info)
 
              stack 64 bit value of symbol.  */
         case ETIR__C_STA_QW:
+	  if (ptr + 8 >= maxptr)
+	    goto corrupt_etir;
           _bfd_vms_push (abfd, bfd_getl64 (ptr), RELC_NONE);
           break;
 
@@ -1778,6 +1873,8 @@ _bfd_vms_slurp_etir (bfd *abfd, struct bfd_link_info *info)
           {
             int psect;
 
+	    if (ptr + 12 >= maxptr)
+	      goto corrupt_etir;
             psect = bfd_getl32 (ptr);
             if ((unsigned int) psect >= PRIV (section_count))
               {
@@ -1867,6 +1964,8 @@ _bfd_vms_slurp_etir (bfd *abfd, struct bfd_link_info *info)
           {
             int size;
 
+	    if (ptr + 4 >= maxptr)
+	      goto corrupt_etir;
             size = bfd_getl32 (ptr);
             _bfd_vms_pop (abfd, &op1, &rel1);
             if (rel1 != RELC_NONE)
@@ -1879,7 +1978,7 @@ _bfd_vms_slurp_etir (bfd *abfd, struct bfd_link_info *info)
           /* Store global: write symbol value
              arg: cs	global symbol name.  */
         case ETIR__C_STO_GBL:
-          _bfd_vms_get_value (abfd, ptr, info, &op1, &h);
+          _bfd_vms_get_value (abfd, ptr, maxptr, info, &op1, &h);
           if (h && h->sym)
             {
               if (h->sym->typ == EGSD__C_SYMG)
@@ -1901,7 +2000,7 @@ _bfd_vms_slurp_etir (bfd *abfd, struct bfd_link_info *info)
           /* Store code address: write address of entry point
              arg: cs	global symbol name (procedure).  */
         case ETIR__C_STO_CA:
-          _bfd_vms_get_value (abfd, ptr, info, &op1, &h);
+          _bfd_vms_get_value (abfd, ptr, maxptr, info, &op1, &h);
           if (h && h->sym)
             {
               if (h->sym->flags & EGSY__V_NORM)
@@ -1946,8 +2045,10 @@ _bfd_vms_slurp_etir (bfd *abfd, struct bfd_link_info *info)
              da	data.  */
         case ETIR__C_STO_IMM:
           {
-            int size;
+            unsigned int size;
 
+	    if (ptr + 4 >= maxptr)
+	      goto corrupt_etir;
             size = bfd_getl32 (ptr);
             image_write (abfd, ptr + 4, size);
           }
@@ -1960,7 +2061,7 @@ _bfd_vms_slurp_etir (bfd *abfd, struct bfd_link_info *info)
              store global longword: store 32bit value of symbol
              arg: cs	symbol name.  */
         case ETIR__C_STO_GBL_LW:
-          _bfd_vms_get_value (abfd, ptr, info, &op1, &h);
+          _bfd_vms_get_value (abfd, ptr, maxptr, info, &op1, &h);
 #if 0
           abort ();
 #endif
@@ -2013,7 +2114,7 @@ _bfd_vms_slurp_etir (bfd *abfd, struct bfd_link_info *info)
              da	signature.  */
 
         case ETIR__C_STC_LP_PSB:
-          _bfd_vms_get_value (abfd, ptr + 4, info, &op1, &h);
+          _bfd_vms_get_value (abfd, ptr + 4, maxptr, info, &op1, &h);
           if (h && h->sym)
             {
               if (h->sym->typ == EGSD__C_SYMG)
@@ -2109,6 +2210,8 @@ _bfd_vms_slurp_etir (bfd *abfd, struct bfd_link_info *info)
           /* Augment relocation base: increment image location counter by offset
              arg: lw	offset value.  */
         case ETIR__C_CTL_AUGRB:
+	  if (ptr + 4 >= maxptr)
+	    goto corrupt_etir;
           op1 = bfd_getl32 (ptr);
           image_inc_ptr (abfd, op1);
           break;
@@ -2411,7 +2514,7 @@ _bfd_vms_slurp_object_records (bfd * abfd)
         default:
           err = FALSE;
 	}
-      if (err != TRUE)
+      if (!err)
 	{
 	  vms_debug2 ((2, "slurp type %d failed\n", type));
 	  return FALSE;
@@ -2551,14 +2654,14 @@ alpha_vms_object_p (bfd *abfd)
 	goto error_ret;
       vms_debug2 ((2, "file type is image\n"));
 
-      if (_bfd_vms_slurp_eihd (abfd, &eisd_offset, &eihs_offset) != TRUE)
+      if (!_bfd_vms_slurp_eihd (abfd, &eisd_offset, &eihs_offset))
         goto err_wrong_format;
 
-      if (_bfd_vms_slurp_eisd (abfd, eisd_offset) != TRUE)
+      if (!_bfd_vms_slurp_eisd (abfd, eisd_offset))
         goto err_wrong_format;
 
       /* EIHS is optional.  */
-      if (eihs_offset != 0 && _bfd_vms_slurp_eihs (abfd, eihs_offset) != TRUE)
+      if (eihs_offset != 0 && !_bfd_vms_slurp_eihs (abfd, eihs_offset))
         goto err_wrong_format;
     }
   else
@@ -2578,10 +2681,10 @@ alpha_vms_object_p (bfd *abfd)
           vms_debug2 ((2, "file type is module\n"));
 
           type = bfd_getl16 (PRIV (recrd.rec));
-          if (type != EOBJ__C_EMH || _bfd_vms_slurp_ehdr (abfd) != TRUE)
+          if (type != EOBJ__C_EMH || !_bfd_vms_slurp_ehdr (abfd))
             goto err_wrong_format;
 
-          if (_bfd_vms_slurp_object_records (abfd) != TRUE)
+          if (!_bfd_vms_slurp_object_records (abfd))
             goto err_wrong_format;
         }
       else
@@ -3672,7 +3775,7 @@ _bfd_vms_write_etir (bfd * abfd, int objtype ATTRIBUTE_UNUSED)
 
 	  if (section->reloc_count == 0)
 	    _bfd_error_handler
-	      (_("SEC_RELOC with no relocs in section %s"), section->name);
+	      (_("SEC_RELOC with no relocs in section %A"), section);
 
 #if VMS_DEBUG
 	  else
@@ -3724,8 +3827,8 @@ _bfd_vms_write_etir (bfd * abfd, int objtype ATTRIBUTE_UNUSED)
 
 		  /* Regular relocs are intertwined with binary data.  */
 	          if (curr_addr > addr)
-		    _bfd_error_handler (_("Size error in section %s"),
-					section->name);
+		    _bfd_error_handler (_("Size error in section %A"),
+					section);
 		  size = addr - curr_addr;
 		  sto_imm (abfd, section, size, curr_data, curr_addr);
 		  curr_data += size;
@@ -3937,8 +4040,7 @@ _bfd_vms_write_etir (bfd * abfd, int objtype ATTRIBUTE_UNUSED)
 	    {
 	      /* Output rest of section.  */
 	      if (curr_addr > section->size)
-		_bfd_error_handler (_("Size error in section %s"),
-				    section->name);
+		_bfd_error_handler (_("Size error in section %A"), section);
 	      size = section->size - curr_addr;
 	      sto_imm (abfd, section, size, curr_data, curr_addr);
 	      curr_data += size;
@@ -3977,13 +4079,13 @@ alpha_vms_write_object_contents (bfd *abfd)
     {
       if (abfd->section_count > 0)			/* we have sections */
         {
-          if (_bfd_vms_write_ehdr (abfd) != TRUE)
+          if (!_bfd_vms_write_ehdr (abfd))
             return FALSE;
-          if (_bfd_vms_write_egsd (abfd) != TRUE)
+          if (!_bfd_vms_write_egsd (abfd))
             return FALSE;
-          if (_bfd_vms_write_etir (abfd, EOBJ__C_ETIR) != TRUE)
+          if (!_bfd_vms_write_etir (abfd, EOBJ__C_ETIR))
             return FALSE;
-          if (_bfd_vms_write_eeom (abfd) != TRUE)
+          if (!_bfd_vms_write_eeom (abfd))
             return FALSE;
         }
     }
@@ -4045,7 +4147,8 @@ parse_module (bfd *abfd, struct module *module, unsigned char *ptr,
 	{
 	case DST__K_MODBEG:
 	  module->name
-	    = _bfd_vms_save_counted_string (ptr + DST_S_B_MODBEG_NAME);
+	    = _bfd_vms_save_counted_string (ptr + DST_S_B_MODBEG_NAME,
+					    maxptr - (ptr + DST_S_B_MODBEG_NAME));
 
 	  curr_pc = 0;
 	  prev_pc = 0;
@@ -4062,7 +4165,8 @@ parse_module (bfd *abfd, struct module *module, unsigned char *ptr,
 	  funcinfo = (struct funcinfo *)
 	    bfd_zalloc (abfd, sizeof (struct funcinfo));
           funcinfo->name
-	    = _bfd_vms_save_counted_string (ptr + DST_S_B_RTNBEG_NAME);
+	    = _bfd_vms_save_counted_string (ptr + DST_S_B_RTNBEG_NAME,
+					    maxptr - (ptr + DST_S_B_RTNBEG_NAME));
 	  funcinfo->low = bfd_getl32 (ptr + DST_S_L_RTNBEG_ADDRESS);
 	  funcinfo->next = module->func_table;
 	  module->func_table = funcinfo;
@@ -4113,8 +4217,10 @@ parse_module (bfd *abfd, struct module *module, unsigned char *ptr,
 		    unsigned int fileid
 		      = bfd_getl16 (src_ptr + DST_S_W_SRC_DF_FILEID);
 		    char *filename
-		      = _bfd_vms_save_counted_string (src_ptr
-			  + DST_S_B_SRC_DF_FILENAME);
+		      = _bfd_vms_save_counted_string (src_ptr + DST_S_B_SRC_DF_FILENAME,
+						      (ptr + rec_length) -
+						      (src_ptr + DST_S_B_SRC_DF_FILENAME)
+						      );
 
 		    while (fileid >= module->file_table_count)
 		      {
@@ -5006,6 +5112,8 @@ alpha_vms_slurp_relocs (bfd *abfd)
                 return FALSE;
               }
 
+	    if (PRIV (sections) == NULL)
+	      return FALSE;
             sec = PRIV (sections)[cur_psect];
             if (sec == bfd_abs_section_ptr)
               {
@@ -5064,8 +5172,12 @@ alpha_vms_slurp_relocs (bfd *abfd)
                   reloc->sym_ptr_ptr = sym;
               }
             else if (cur_psidx >= 0)
-              reloc->sym_ptr_ptr =
-                PRIV (sections)[cur_psidx]->symbol_ptr_ptr;
+	      {
+		if (PRIV (sections) == NULL)
+		  return FALSE;
+		reloc->sym_ptr_ptr =
+		  PRIV (sections)[cur_psidx]->symbol_ptr_ptr;
+	      }
             else
               reloc->sym_ptr_ptr = NULL;
 
@@ -5119,6 +5231,11 @@ alpha_vms_canonicalize_reloc (bfd *abfd, asection *section, arelent **relptr,
   *relptr = (arelent *) NULL;
   return section->reloc_count;
 }
+
+/* Install a new set of internal relocs.  */
+
+#define alpha_vms_set_reloc _bfd_generic_set_reloc
+
 
 /* This is just copied from ecoff-alpha, needs to be fixed probably.  */
 
@@ -5574,6 +5691,13 @@ evax_bfd_print_emh (FILE *file, unsigned char *rec, unsigned int rec_len)
   /* xgettext:c-format */
   fprintf (file, _("  EMH %u (len=%u): "), subtype, rec_len);
 
+  /* PR 21618: Check for invalid lengths.  */
+  if (rec_len < sizeof (* emh))
+    {
+      fprintf (file, _("   Error: The length is less than the length of an EMH record\n"));
+      return;
+    }
+  
   switch (subtype)
     {
     case EMH__C_MHD:
@@ -5637,6 +5761,14 @@ evax_bfd_print_eeom (FILE *file, unsigned char *rec, unsigned int rec_len)
   struct vms_eeom *eeom = (struct vms_eeom *)rec;
 
   fprintf (file, _("  EEOM (len=%u):\n"), rec_len);
+
+  /* PR 21618: Check for invalid lengths.  */
+  if (rec_len < sizeof (* eeom))
+    {
+      fprintf (file, _("   Error: The length is less than the length of an EEOM record\n"));
+      return;
+    }
+  
   fprintf (file, _("   number of cond linkage pairs: %u\n"),
            (unsigned)bfd_getl32 (eeom->total_lps));
   fprintf (file, _("   completion code: %u\n"),
@@ -5725,6 +5857,12 @@ evax_bfd_print_egsd (FILE *file, unsigned char *rec, unsigned int rec_len)
       fprintf (file, _("  EGSD entry %2u (type: %u, len: %u): "),
                n, type, len);
       n++;
+
+      if (off + len > rec_len || off + len < off)
+	{
+	  fprintf (file, _("   Error: length larger than remaining space in record\n"));
+	  return;
+	}
 
       switch (type)
         {
@@ -5970,6 +6108,12 @@ evax_bfd_print_etir (FILE *file, const char *name,
       type = bfd_getl16 (etir->rectyp);
       size = bfd_getl16 (etir->size);
       buf = rec + off + sizeof (struct vms_etir);
+
+      if (off + size > rec_len || off + size < off)
+	{
+	  fprintf (file, _("   Error: length larger than remaining space in record\n"));
+	  return;
+	}
 
       /* xgettext:c-format */
       fprintf (file, _("   (type: %3u, size: 4+%3u): "), type, size - 4);
@@ -8158,9 +8302,9 @@ alpha_vms_link_add_object_symbols (bfd *abfd, struct bfd_link_info *info)
         h = NULL;
 
       h_root = (struct bfd_link_hash_entry *) h;
-      if (_bfd_generic_link_add_one_symbol
-          (info, abfd, sym.name, sym.flags, sym.section, sym.value,
-           NULL, FALSE, FALSE, &h_root) == FALSE)
+      if (!_bfd_generic_link_add_one_symbol (info, abfd, sym.name, sym.flags,
+					     sym.section, sym.value, NULL,
+					     FALSE, FALSE, &h_root))
         return FALSE;
       h = (struct alpha_vms_link_hash_entry *) h_root;
 
@@ -9073,9 +9217,9 @@ vms_close_and_cleanup (bfd * abfd)
     {
       /* Last step on VMS is to convert the file to variable record length
 	 format.  */
-      if (bfd_cache_close (abfd) != TRUE)
+      if (!bfd_cache_close (abfd))
 	return FALSE;
-      if (_bfd_vms_convert_to_var_unix_filename (abfd->filename) != TRUE)
+      if (!_bfd_vms_convert_to_var_unix_filename (abfd->filename))
 	return FALSE;
     }
 #endif
@@ -9276,6 +9420,7 @@ bfd_vms_get_data (bfd *abfd)
 #define vms_bfd_discard_group             bfd_generic_discard_group
 #define vms_section_already_linked        _bfd_generic_section_already_linked
 #define vms_bfd_define_common_symbol      bfd_generic_define_common_symbol
+#define vms_bfd_define_start_stop      bfd_generic_define_start_stop
 #define vms_bfd_copy_private_header_data  _bfd_generic_bfd_copy_private_header_data
 
 #define vms_bfd_copy_private_bfd_data	  _bfd_generic_bfd_copy_private_bfd_data
@@ -9323,6 +9468,7 @@ bfd_vms_get_data (bfd *abfd)
   _bfd_generic_section_already_linked
 
 #define alpha_vms_bfd_define_common_symbol bfd_generic_define_common_symbol
+#define alpha_vms_bfd_define_start_stop bfd_generic_define_start_stop
 #define alpha_vms_bfd_link_just_syms _bfd_generic_link_just_syms
 #define alpha_vms_bfd_copy_link_hash_symbol_type \
   _bfd_generic_copy_link_hash_symbol_type

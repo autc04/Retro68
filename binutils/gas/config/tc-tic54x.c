@@ -161,7 +161,7 @@ size_t md_longopts_size = sizeof (md_longopts);
 static int assembly_begun = 0;
 /* Addressing mode is not entirely implemented; the latest rev of the Other
    assembler doesn't seem to make any distinction whatsoever; all relocations
-   are stored as extended relocatiosn.  Older versions used REL16 vs RELEXT16,
+   are stored as extended relocations.  Older versions used REL16 vs RELEXT16,
    but now it seems all relocations are RELEXT16.  We use all RELEXT16.
 
    The cpu version is kind of a waste of time as well.  There is one
@@ -230,14 +230,14 @@ static char *subsym_substitute (char *, int);
 void
 md_show_usage (FILE *stream)
 {
-  fprintf (stream, _("C54x-specific command line  options:\n"));
+  fprintf (stream, _("C54x-specific command line options:\n"));
   fprintf (stream, _("-mfar-mode | -mf          Use extended addressing\n"));
   fprintf (stream, _("-mcpu=<CPU version>       Specify the CPU version\n"));
   fprintf (stream, _("-merrors-to-file <filename>\n"));
   fprintf (stream, _("-me <filename>            Redirect errors to a file\n"));
 }
 
-/* Output a single character (upper octect is zero).  */
+/* Output a single character (upper octet is zero).  */
 
 static void
 tic54x_emit_char (char c)
@@ -1838,7 +1838,7 @@ tic54x_clink (int ignored ATTRIBUTE_UNUSED)
     {
       if (!tic54x_initialized_section (seg))
 	{
-	  as_bad (_("Current section is unitialized, "
+	  as_bad (_("Current section is uninitialized, "
 		    "section name required for .clink"));
 	  ignore_rest_of_line ();
 	  return;
@@ -4661,7 +4661,7 @@ subsym_substitute (char *line, int forced)
 			  len = get_absolute_expression ();
 			  if (beg + len > strlen (value))
 			    {
-			      as_bad (_("Invalid length (use 0 to %d"),
+			      as_bad (_("Invalid length (use 0 to %d)"),
 				      (int) strlen (value) - beg);
 			      break;
 			    }

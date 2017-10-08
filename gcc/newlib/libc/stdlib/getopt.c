@@ -71,6 +71,14 @@ The special argument `--' forces an end of option-scanning regardless of the
 value of ordering.  In the case of RETURN_IN_ORDER, only `--' can cause
 getopt() and friends to return EOF with optind != argc.
 
+2012-08-26: Tried to make the error handling more sus4-like. The functions
+return a colon if getopt() and friends detect a missing argument and the
+first character of shortopts/optstring starts with a colon (`:'). If getopt()
+and friends detect a missing argument and shortopts/optstring does not start
+with a colon, the function returns a question mark (`?'). If it was a missing
+argument to a short option, optopt is set to the character in question. The
+colon goes after the ordering character (`+' or `-').
+
 COPYRIGHT NOTICE AND DISCLAIMER:
 
 Copyright (C) 1997 Gregory Pietsch
@@ -169,7 +177,9 @@ write_globals (struct getopt_data *data)
   optwhere = data->optwhere;
 }
 
-/* getopt_internal:  the function that does all the dirty work */
+/* getopt_internal:  the function that does all the dirty work
+   NOTE: to reduce the code and RAM footprint this function uses
+   fputs()/fputc() to do output to stderr instead of fprintf(). */
 static int
 getopt_internal (int argc, char *const argv[], const char *shortopts,
 		 const struct option *longopts, int *longind, int only,
@@ -185,6 +195,7 @@ getopt_internal (int argc, char *const argv[], const char *shortopts,
   int has_arg = -1;
   char *cp = 0;
   int arg_next = 0;
+  int initial_colon = 0;
 
   /* first, deal with silly parameters and easy stuff */
   if (argc == 0 || argv == 0 || (shortopts == 0 && longopts == 0)
@@ -208,6 +219,13 @@ getopt_internal (int argc, char *const argv[], const char *shortopts,
     }
   else
     ordering = (getenv ("POSIXLY_CORRECT") != 0) ? REQUIRE_ORDER : PERMUTE;
+
+  /* check for initial colon in shortopts */
+  if (shortopts != 0 && *shortopts == ':')
+    {
+      ++shortopts;
+      initial_colon = 1;
+    }
 
   /*
    * based on ordering, find our next option, if we're at the beginning of
@@ -253,6 +271,10 @@ getopt_internal (int argc, char *const argv[], const char *shortopts,
 	  break;
 	}
     }
+  /* End of option list? */
+  if (argv[data->optind] == 0)
+    return EOF;
+
   /* we've got an option, so parse it */
 
   /* first, is it a long option? */
@@ -281,7 +303,7 @@ getopt_internal (int argc, char *const argv[], const char *shortopts,
 	       match_chars) == 0)
 	    {
 	      /* do we have an exact match? */
-	      if (match_chars == (int) (strlen (longopts[optindex].name)))
+	      if (match_chars == strlen (longopts[optindex].name))
 		{
 		  longopt_match = optindex;
 		  break;
@@ -295,12 +317,16 @@ getopt_internal (int argc, char *const argv[], const char *shortopts,
 		    {
 		      /* we have ambiguous options */
 		      if (data->opterr)
-			fprintf (stderr, "%s: option `%s' is ambiguous "
-				 "(could be `--%s' or `--%s')\n",
-				 argv[0],
-				 argv[data->optind],
-				 longopts[longopt_match].name,
-				 longopts[optindex].name);
+			{
+			  fputs (argv[0], stderr);
+			  fputs (": option `", stderr);
+			  fputs (argv[data->optind], stderr);
+			  fputs ("' is ambiguous (could be `--", stderr);
+			  fputs (longopts[longopt_match].name, stderr);
+			  fputs ("' or `--", stderr);
+			  fputs (longopts[optindex].name, stderr);
+			  fputs ("')\n", stderr);
+			}
 		      return (data->optopt = '?');
 		    }
 		}
@@ -318,9 +344,12 @@ getopt_internal (int argc, char *const argv[], const char *shortopts,
 	{
 	  /* couldn't find option in shortopts */
 	  if (data->opterr)
-	    fprintf (stderr,
-		     "%s: invalid option -- `-%c'\n",
-		     argv[0], argv[data->optind][data->optwhere]);
+	    {
+	      fputs (argv[0], stderr);
+	      fputs (": invalid option -- `-", stderr);
+	      fputc (argv[data->optind][data->optwhere], stderr);
+	      fputs ("'\n", stderr);
+	    }
 	  data->optwhere++;
 	  if (argv[data->optind][data->optwhere] == '\0')
 	    {
@@ -357,14 +386,23 @@ getopt_internal (int argc, char *const argv[], const char *shortopts,
 	{
 	  if (data->opterr)
 	    {
-	      fprintf (stderr, "%s: argument required for option `", argv[0]);
+	      fputs (argv[0], stderr);
+	      fputs (": argument required for option `-", stderr);
 	      if (longopt_match >= 0)
-		fprintf (stderr, "--%s'\n", longopts[longopt_match].name);
+		{
+		  fputc ('-', stderr);
+		  fputs (longopts[longopt_match].name, stderr);
+		  data->optopt = initial_colon ? ':' : '\?';
+		}
 	      else
-		fprintf (stderr, "-%c'\n", *cp);
+		{
+		  fputc (*cp, stderr);
+		  data->optopt = *cp;
+		}
+	      fputs ("'\n", stderr);
 	    }
 	  data->optind++;
-	  return (data->optopt = ':');
+	  return initial_colon ? ':' : '\?';
 	}
       else
 	{
@@ -460,8 +498,8 @@ __getopt_r (int argc, char *const argv[], const char *optstring,
 
 int
 __getopt_long_r (int argc, char *const argv[], const char *shortopts,
-	         const struct option *longopts, int *longind,
-	         struct getopt_data *data)
+		 const struct option *longopts, int *longind,
+		 struct getopt_data *data)
 {
   return getopt_internal (argc, argv, shortopts, longopts, longind, 0, data);
 }

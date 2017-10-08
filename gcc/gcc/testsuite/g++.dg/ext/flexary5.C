@@ -220,7 +220,7 @@ struct D32: D30, D31 { };
 
 // Verify the diagnostic when the flexible array is in an anonymous struct.
 struct A8x {
-  struct {                  // { dg-message "next member .A8x::<anonymous struct> A8x::<anonymous>. declared here" }
+  struct {                  // { dg-message "next member .A8x::<unnamed struct> A8x::<anonymous>. declared here" }
     size_t n;
     size_t a[];
   };

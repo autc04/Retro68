@@ -78,9 +78,12 @@ _DEFUN(_puts_r, (ptr, s),
        struct _reent *ptr _AND
        _CONST char * s)
 {
+#ifdef _FVWRITE_IN_STREAMIO
+  int result;
   size_t c = strlen (s);
   struct __suio uio;
   struct __siov iov[2];
+  FILE *fp;
 
   iov[0].iov_base = s;
   iov[0].iov_len = c;
@@ -89,9 +92,43 @@ _DEFUN(_puts_r, (ptr, s),
   uio.uio_resid = c + 1;
   uio.uio_iov = &iov[0];
   uio.uio_iovcnt = 2;
+
   _REENT_SMALL_CHECK_INIT (ptr);
-  ORIENT (stdout, -1);
-  return (__sfvwrite_r (ptr, _stdout_r (ptr), &uio) ? EOF : '\n');
+  fp = _stdout_r (ptr);
+  CHECK_INIT (ptr, fp);
+  _newlib_flockfile_start (fp);
+  ORIENT (fp, -1);
+  result = (__sfvwrite_r (ptr, fp, &uio) ? EOF : '\n');
+  _newlib_flockfile_end (fp);
+  return result;
+#else
+  int result = EOF;
+  const char *p = s;
+  FILE *fp;
+  _REENT_SMALL_CHECK_INIT (ptr);
+
+  fp = _stdout_r (ptr);
+  CHECK_INIT (ptr, fp);
+  _newlib_flockfile_start (fp);
+  ORIENT (fp, -1);
+  /* Make sure we can write.  */
+  if (cantwrite (ptr, fp))
+    goto err;
+
+  while (*p)
+    {
+      if (__sputc_r (ptr, *p++, fp) == EOF)
+	goto err;
+    }
+  if (__sputc_r (ptr, '\n', fp) == EOF)
+    goto err;
+
+  result = '\n';
+
+err:
+  _newlib_flockfile_end (fp);
+  return result;
+#endif
 }
 
 #ifndef _REENT_ONLY

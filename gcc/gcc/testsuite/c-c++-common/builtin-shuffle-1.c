@@ -1,7 +1,8 @@
 /* PR c++/78089 */
 /* { dg-do run } */
+/* { dg-additional-options "-fno-common" { target hppa*-*-hpux* } } */
 
-typedef int V __attribute__((vector_size (16)));
+typedef int V __attribute__((vector_size (4 * __SIZEOF_INT__)));
 V a, b, c;
 
 int

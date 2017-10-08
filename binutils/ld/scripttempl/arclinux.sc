@@ -303,10 +303,11 @@ DTOR=".dtors        ${CONSTRUCTING-0} :
     KEEP (*(.dtors))
     ${CONSTRUCTING+${DTOR_END}}
   }"
-STACK="  .stack        ${RELOCATING-0}${RELOCATING+${STACK_ADDR}} :
+STACK=".stack        ${RELOCATING-0}${RELOCATING+${STACK_ADDR}} :
   {
     ${RELOCATING+${USER_LABEL_PREFIX}_stack = .;}
     *(.stack)
+    ${RELOCATING+${STACK_SENTINEL}}
   }"
 
 TEXT_START_ADDR="SEGMENT_START(\"text-segment\", ${TEXT_START_ADDR})"
@@ -649,6 +650,9 @@ SHLIB_LARGE_DATA_ADDR=". = SEGMENT_START(\"ldata-segment\", ${SHLIB_LARGE_DATA_A
   ${RELOCATING+${OTHER_END_SYMBOLS}}
   ${RELOCATING+${END_SYMBOLS-${USER_LABEL_PREFIX}_end = .; PROVIDE (${USER_LABEL_PREFIX}end = .);}}
   ${RELOCATING+${DATA_SEGMENT_END}}
+  ${TINY_DATA_SECTION}
+  ${TINY_BSS_SECTION}
+  ${STACK_ADDR+${STACK}}
 EOF
 
 test -z "${NON_ALLOC_DYN}" || emit_dyn
@@ -669,11 +673,6 @@ EOF
 . $srcdir/scripttempl/DWARF.sc
 
 cat <<EOF
-
-  ${TINY_DATA_SECTION}
-  ${TINY_BSS_SECTION}
-
-  ${STACK_ADDR+${STACK}}
   ${ATTRS_SECTIONS}
   ${OTHER_SECTIONS}
   ${RELOCATING+${OTHER_SYMBOLS}}

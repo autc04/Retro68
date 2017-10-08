@@ -36,8 +36,10 @@ if { [istarget "d30v-*-*"]
     return
 }
 
-# ft32, m68hc11, m68hc12 and xgate run out of address space.
-if {   [istarget "ft32-*-*"]
+# ft32, h8300, ip2k, m68hc11, m68hc12 and xgate run out of address space.
+if {[istarget "ft32-*-*"]
+    || [istarget "h8300-*-*"]
+    || [istarget "ip2k-*-*"]
     || [istarget "m68hc1*-*"]
     || [istarget "xgate-*"] } {
     return
@@ -170,7 +172,8 @@ if { ![istarget "d10v-*-*"]
      && ![istarget "avr-*-*"]
      && ![istarget "msp*-*-*"]
      && ![istarget "fr30-*-*"] 
-     && ![istarget "iq2000-*-*"] } {
+     && ![istarget "iq2000-*-*"]
+     && ![istarget "pru-*-*"] } {
     foreach sfile $sfiles { puts $ofd "#source: $sfile" }
     if { [istarget spu*-*-*] } {
 	puts $ofd "#ld: --local-store 0:0"

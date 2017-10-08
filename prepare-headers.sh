@@ -132,18 +132,23 @@ cat > $OUT/CGBase.h <<END_MARKER
 #ifndef __CGBASE__WRAP__
 #define __CGBASE__WRAP__
 
-#include "math.h"
+#include <math.h>
+#include <sys/types.h>
 
 /* CGBase contains a hardcoded #ifdef that decides that stdint.h is available in MWERKS > 0x2300.
    ... otherwise, it contains an incompatible redefinition. */
 #pragma push_macro("__MWERKS__")
 #define __MWERKS__ 0x6666
 
+#define u_int32_t __cgbase_incompatible_u_int32_t
+
 END_MARKER
 
 sed 's/\r$//' < $IN/CGBase.h | tr '\r' '\n' >> $OUT/CGBase.h
 
 cat >> $OUT/CGBase.h <<END_MARKER
+
+#undef u_int32_t __cgbase_incompatible_u_int32_t
 
 #pragma pop_macro("__MWERKS__")
 

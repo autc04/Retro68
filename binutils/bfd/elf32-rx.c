@@ -3142,8 +3142,9 @@ rx_elf_merge_private_bfd_data (bfd * ibfd, struct bfd_link_info *info)
 	    }
 	  else
 	    {
-	      _bfd_error_handler (_("There is a conflict merging the ELF header flags from %s"),
-				  bfd_get_filename (ibfd));
+	      _bfd_error_handler (_("There is a conflict merging the"
+				    " ELF header flags from %B"),
+				  ibfd);
 	      _bfd_error_handler (_("  the input  file's flags: %s"),
 				  describe_flags (new_flags));
 	      _bfd_error_handler (_("  the output file's flags: %s"),

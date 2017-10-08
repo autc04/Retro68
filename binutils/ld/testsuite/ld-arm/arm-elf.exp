@@ -412,6 +412,12 @@ set armeabitests_common {
      {"EABI attribute merging 10" "-r" "" "" {attr-merge-10a.s attr-merge-10b.s}
       {{readelf -A attr-merge-10.attr}}
       "attr-merge-10"}
+     {"EABI attribute merging 11" "-r" "" "" {attr-merge-11a.s attr-merge-11b.s}
+      {{readelf -A attr-merge-11.attr}}
+      "attr-merge-11"}
+     {"EABI attribute merging 12" "-r" "" "" {attr-merge-12a.s attr-merge-12b.s}
+      {{readelf -A attr-merge-12.attr}}
+      "attr-merge-12"}
      {"EABI attribute merging 10 (DSP)" "-r" "" "" {attr-merge-10a.s attr-merge-10b-dsp.s}
       {{readelf -A attr-merge-10-dsp.attr}}
       "attr-merge-10-dsp"}
@@ -685,7 +691,8 @@ set armeabitests_nonacl {
      "--section-start .gnu.sgstubs=0x20000 --out-implib=tmpdir/cmse-implib.lib --cmse-implib" ""
      "-march=armv8-m.base -mthumb --defsym VER=1"
      {cmse-implib.s}
-     {{readelf {-s tmpdir/cmse-implib.lib} cmse-implib.rd}}
+     {{readelf {-s tmpdir/cmse-implib.lib} cmse-implib.rd}
+      {readelf {-h tmpdir/cmse-implib.lib} cmse-implib.type}}
      "cmse-implib"}
     {"Input secure gateway import library"
      "--section-start .gnu.sgstubs=0x20000 --out-implib=tmpdir/cmse-new-implib.lib --in-implib=tmpdir/cmse-implib.lib --cmse-implib" ""

@@ -25,6 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef IP2K_OPC_H
 #define IP2K_OPC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* -- opc.h */
 
 /* Check applicability of instructions against machines.  */
@@ -114,5 +118,9 @@ struct cgen_fields
 {\
 }
 
+
+   #ifdef __cplusplus
+   }
+   #endif
 
 #endif /* IP2K_OPC_H */

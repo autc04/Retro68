@@ -223,6 +223,8 @@ TARGET_LIBOPCODES_CFILES = \
 	pj-opc.c \
 	ppc-dis.c \
 	ppc-opc.c \
+	pru-dis.c \
+	pru-opc.c \
 	riscv-dis.c \
 	riscv-opc.c \
 	rl78-decode.c \
@@ -257,6 +259,7 @@ TARGET_LIBOPCODES_CFILES = \
 	visium-dis.c \
 	visium-opc.c \
 	w65-dis.c \
+	wasm32-dis.c \
 	xc16x-asm.c \
 	xc16x-desc.c \
 	xc16x-dis.c \

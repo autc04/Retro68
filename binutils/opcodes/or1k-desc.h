@@ -25,6 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef OR1K_CPU_H
 #define OR1K_CPU_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CGEN_ARCH or1k
 
 /* Given symbol S, return or1k_cgen_<S>.  */
@@ -678,5 +682,9 @@ extern CGEN_KEYWORD or1k_cgen_opval_h_gpr;
 extern const CGEN_HW_ENTRY or1k_cgen_hw_table[];
 
 
+
+   #ifdef __cplusplus
+   }
+   #endif
 
 #endif /* OR1K_CPU_H */

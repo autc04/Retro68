@@ -25,6 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef M32C_OPC_H
 #define M32C_OPC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* -- opc.h */
 
 /* Needed for RTL's 'ext' and 'trunc' operators.  */
@@ -3240,5 +3244,9 @@ struct cgen_fields
 {\
 }
 
+
+   #ifdef __cplusplus
+   }
+   #endif
 
 #endif /* M32C_OPC_H */

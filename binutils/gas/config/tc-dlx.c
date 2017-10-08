@@ -776,7 +776,7 @@ machine_ip (char *str)
 	  /* Macro move operand/reg.  */
 	  if (operand->X_op == O_register)
 	    {
-	      /* Its a register.  */
+	      /* It's a register.  */
 	      reg_shift = 21;
 	      goto general_reg;
 	    }

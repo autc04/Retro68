@@ -1,6 +1,6 @@
 /* Gimple decl, type, and expression support functions.
 
-   Copyright (C) 2007-2016 Free Software Foundation, Inc.
+   Copyright (C) 2007-2017 Free Software Foundation, Inc.
    Contributed by Aldy Hernandez <aldyh@redhat.com>
 
 This file is part of GCC.
@@ -34,6 +34,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "demangle.h"
 #include "hash-set.h"
 #include "rtl.h"
+#include "tree-pass.h"
 
 /* ----- Type related -----  */
 
@@ -123,7 +124,7 @@ useless_type_conversion_p (tree outer_type, tree inner_type)
   /* Fixed point types with the same mode are compatible.  */
   else if (FIXED_POINT_TYPE_P (inner_type)
 	   && FIXED_POINT_TYPE_P (outer_type))
-    return true;
+    return TYPE_SATURATING (inner_type) == TYPE_SATURATING (outer_type);
 
   /* We need to take special care recursing to pointed-to types.  */
   else if (POINTER_TYPE_P (inner_type)
@@ -323,7 +324,7 @@ bool
 gimple_has_body_p (tree fndecl)
 {
   struct function *fn = DECL_STRUCT_FUNCTION (fndecl);
-  return (gimple_body (fndecl) || (fn && fn->cfg));
+  return (gimple_body (fndecl) || (fn && fn->cfg && !(fn->curr_properties & PROP_rtl)));
 }
 
 /* Return a printable name for symbol DECL.  */
@@ -377,7 +378,7 @@ copy_var_decl (tree var, tree name, tree type)
   DECL_ATTRIBUTES (copy) = DECL_ATTRIBUTES (var);
   if (DECL_USER_ALIGN (var))
     {
-      DECL_ALIGN (copy) = DECL_ALIGN (var);
+      SET_DECL_ALIGN (copy, DECL_ALIGN (var));
       DECL_USER_ALIGN (copy) = 1;
     }
 
@@ -888,7 +889,7 @@ mark_addressable (tree x)
   if (TREE_CODE (x) == MEM_REF
       && TREE_CODE (TREE_OPERAND (x, 0)) == ADDR_EXPR)
     x = TREE_OPERAND (TREE_OPERAND (x, 0), 0);
-  if (TREE_CODE (x) != VAR_DECL
+  if (!VAR_P (x)
       && TREE_CODE (x) != PARM_DECL
       && TREE_CODE (x) != RESULT_DECL)
     return;

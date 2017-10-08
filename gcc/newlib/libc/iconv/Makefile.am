@@ -13,9 +13,13 @@ SUBDEFS = lib/stmp-def
 include $(srcdir)/../../Makefile.shared
 
 CHEWOUT_FILES = iconv.def
+CHAPTERS = iconv.tex
 
 iconv.def: lib/iconv.def
 	cp lib/iconv.def iconv.def
+
+iconv.xml: lib/iconv.xml
+	cp lib/iconv.xml iconv.xml
 
 stmp-def: force
 	(cd lib && $(MAKE) doc)
@@ -29,11 +33,3 @@ $(SUBDEFS): stmp-def
 lib/iconv.def: $(SUBDEFS); @true
 
 lib/stmp-def: ; @true
-
-TARGETDOC = ../tmp.texi
-
-doc: $(CHEWOUT_FILES)
-	cat $(srcdir)/iconv.tex >> $(TARGETDOC)
-
-CLEANFILES = $(CHEWOUT_FILES) *.ref
-

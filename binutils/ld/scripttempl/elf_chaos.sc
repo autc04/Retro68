@@ -317,6 +317,7 @@ cat <<EOF
   ${RELOCATING+${OTHER_END_SYMBOLS}}
   ${RELOCATING+_end = .;}
   ${RELOCATING+PROVIDE (end = .);}
+  ${STACK_ADDR+${STACK}}
 
   /* Stabs debugging sections.  */
   . = ALIGN(0x1000);
@@ -335,7 +336,6 @@ EOF
 . $srcdir/scripttempl/DWARF.sc
 
 cat <<EOF
-  ${STACK_ADDR+${STACK}}
   ${ATTRS_SECTIONS}
   ${OTHER_SECTIONS}
   ${RELOCATING+${OTHER_SYMBOLS}}

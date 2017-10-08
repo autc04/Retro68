@@ -1,5 +1,5 @@
 ;; Machine description of Andes NDS32 cpu for GNU compiler
-;; Copyright (C) 2012-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2017 Free Software Foundation, Inc.
 ;; Contributed by Andes Technology Corporation.
 ;;
 ;; This file is part of GCC.
@@ -2288,11 +2288,9 @@ create_template:
   emit_jump_insn (gen_cbranchsi4 (test, operands[0], operands[2],
 				  operands[4]));
 
-  operands[5] = gen_reg_rtx (SImode);
-  /* Step C, D, E, and F, using another temporary register operands[5].  */
-  emit_jump_insn (gen_casesi_internal (operands[0],
-				       operands[3],
-				       operands[5]));
+  /* Step C, D, E, and F, using another temporary register.  */
+  rtx tmp = gen_reg_rtx (SImode);
+  emit_jump_insn (gen_casesi_internal (operands[0], operands[3], tmp));
   DONE;
 })
 

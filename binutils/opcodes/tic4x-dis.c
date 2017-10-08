@@ -24,7 +24,7 @@
 #include "sysdep.h"
 #include <math.h>
 #include "libiberty.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opcode/tic4x.h"
 
 #define TIC4X_DEBUG 0

@@ -1,6 +1,6 @@
 #source: start.s
 #readelf: -d -W
-#ld: -shared -z now
+#ld: -shared -z now --disable-new-dtags
 #target: *-*-linux* *-*-gnu*
 
 #failif

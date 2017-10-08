@@ -738,6 +738,7 @@ NAME (aout, machine_type) (enum bfd_architecture arch,
           || machine == bfd_mach_sparc_v8pluse
           || machine == bfd_mach_sparc_v8plusv
           || machine == bfd_mach_sparc_v8plusm
+          || machine == bfd_mach_sparc_v8plusm8
 	  || machine == bfd_mach_sparc_v9
 	  || machine == bfd_mach_sparc_v9a
 	  || machine == bfd_mach_sparc_v9b
@@ -745,7 +746,8 @@ NAME (aout, machine_type) (enum bfd_architecture arch,
           || machine == bfd_mach_sparc_v9d
           || machine == bfd_mach_sparc_v9e
           || machine == bfd_mach_sparc_v9v
-	  || machine == bfd_mach_sparc_v9m)
+	  || machine == bfd_mach_sparc_v9m
+          || machine == bfd_mach_sparc_v9m8)
 	arch_flags = M_SPARC;
       else if (machine == bfd_mach_sparc_sparclet)
 	arch_flags = M_SPARCLET;
@@ -1279,8 +1281,8 @@ NAME (aout, set_section_contents) (bfd *abfd,
 	{
 	  _bfd_error_handler
 	    /* xgettext:c-format */
-	   (_("%s: can not represent section `%s' in a.out object file format"),
-	     bfd_get_filename (abfd), bfd_get_section_name (abfd, section));
+	   (_("%B: can not represent section `%A' in a.out object file format"),
+	     abfd, section);
           bfd_set_error (bfd_error_nonrepresentable_section);
           return FALSE;
 	}
@@ -1580,9 +1582,9 @@ translate_to_native_sym_flags (bfd *abfd,
 	 file.  */
       _bfd_error_handler
 	/* xgettext:c-format */
-	(_("%s: can not represent section for symbol `%s' in a.out "
+	(_("%B: can not represent section for symbol `%s' in a.out "
 	   "object file format"),
-	 bfd_get_filename (abfd),
+	 abfd,
 	 cache_ptr->name != NULL ? cache_ptr->name : _("*unknown*"));
       bfd_set_error (bfd_error_nonrepresentable_section);
       return FALSE;
@@ -1616,8 +1618,8 @@ translate_to_native_sym_flags (bfd *abfd,
 	{
 	  _bfd_error_handler
 	    /* xgettext:c-format */
-	   (_("%s: can not represent section `%s' in a.out object file format"),
-	     bfd_get_filename (abfd), bfd_get_section_name (abfd, sec));
+	   (_("%B: can not represent section `%A' in a.out object file format"),
+	     abfd, sec);
           bfd_set_error (bfd_error_nonrepresentable_section);
           return FALSE;
 	}
@@ -5419,9 +5421,8 @@ NAME (aout, final_link) (bfd *abfd,
 		 by the reloc size.  */
 	      _bfd_error_handler
 		/* xgettext:c-format */
-		(_("%s: relocatable link from %s to %s not supported"),
-		 bfd_get_filename (abfd),
-		 sub->xvec->name, abfd->xvec->name);
+		(_("%B: relocatable link from %s to %s not supported"),
+		 abfd, sub->xvec->name, abfd->xvec->name);
 	      bfd_set_error (bfd_error_invalid_operation);
 	      goto error_return;
 	    }

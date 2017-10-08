@@ -52,10 +52,6 @@
 #define ELF_MAXPAGESIZE			0x1000
 #define ELF_COMMONPAGESIZE		0x1000
 
-/* The global pointer's symbol name.  */
-
-#define GP_NAME "__global_pointer$"
-
 /* The RISC-V linker needs to keep track of the number of relocs that it
    decides to copy as dynamic relocs in check_relocs for each symbol.
    This is so that it can later discard them if they are found to be
@@ -543,7 +539,7 @@ riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
 
       switch (r_type)
@@ -969,7 +965,12 @@ riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
      to copy the initial value out of the dynamic object and into the
      runtime process image.  We need to remember the offset into the
      .rel.bss section we are going to use.  */
-  if ((h->root.u.def.section->flags & SEC_READONLY) != 0)
+  if (eh->tls_type & ~GOT_NORMAL)
+    {
+      s = htab->sdyntdata;
+      srel = htab->elf.srelbss;
+    }
+  else if ((h->root.u.def.section->flags & SEC_READONLY) != 0)
     {
       s = htab->elf.sdynrelro;
       srel = htab->elf.sreldynrelro;
@@ -984,9 +985,6 @@ riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
       srel->size += sizeof (ElfNN_External_Rela);
       h->needs_copy = 1;
     }
-
-  if (eh->tls_type & ~GOT_NORMAL)
-    return _bfd_elf_adjust_dynamic_copy (info, h, htab->sdyntdata);
 
   return _bfd_elf_adjust_dynamic_copy (info, h, s);
 }
@@ -1467,7 +1465,7 @@ riscv_global_pointer_value (struct bfd_link_info *info)
 {
   struct bfd_link_hash_entry *h;
 
-  h = bfd_link_hash_lookup (info->hash, GP_NAME, FALSE, FALSE, TRUE);
+  h = bfd_link_hash_lookup (info->hash, RISCV_GP_SYMBOL, FALSE, FALSE, TRUE);
   if (h == NULL || h->type != bfd_link_hash_defined)
     return 0;
 
@@ -1570,6 +1568,7 @@ perform_relocation (const reloc_howto_type *howto,
     case R_RISCV_SET8:
     case R_RISCV_SET16:
     case R_RISCV_SET32:
+    case R_RISCV_32_PCREL:
     case R_RISCV_TLS_DTPREL32:
     case R_RISCV_TLS_DTPREL64:
       break;
@@ -1853,6 +1852,7 @@ riscv_elf_relocate_section (bfd *output_bfd,
 	case R_RISCV_SET8:
 	case R_RISCV_SET16:
 	case R_RISCV_SET32:
+	case R_RISCV_32_PCREL:
 	  /* These require no special handling beyond perform_relocation.  */
 	  break;
 
@@ -2493,7 +2493,7 @@ riscv_elf_finish_dynamic_sections (bfd *output_bfd,
 
       ret = riscv_finish_dyn (output_bfd, info, dynobj, sdyn);
 
-      if (ret != TRUE)
+      if (!ret)
 	return ret;
 
       /* Fill in the head and tail entries in the procedure linkage table.  */
@@ -2506,10 +2506,10 @@ riscv_elf_finish_dynamic_sections (bfd *output_bfd,
 
 	  for (i = 0; i < PLT_HEADER_INSNS; i++)
 	    bfd_put_32 (output_bfd, plt_header[i], splt->contents + 4*i);
-	}
 
-      elf_section_data (splt->output_section)->this_hdr.sh_entsize
-	= PLT_ENTRY_SIZE;
+	  elf_section_data (splt->output_section)->this_hdr.sh_entsize
+	    = PLT_ENTRY_SIZE;
+	}
     }
 
   if (htab->elf.sgotplt)
@@ -2818,7 +2818,8 @@ _bfd_riscv_relax_lui (bfd *abfd,
       /* If gp and the symbol are in the same output section, then
 	 consider only that section's alignment.  */
       struct bfd_link_hash_entry *h =
-	bfd_link_hash_lookup (link_info->hash, GP_NAME, FALSE, FALSE, TRUE);
+	bfd_link_hash_lookup (link_info->hash, RISCV_GP_SYMBOL, FALSE, FALSE,
+			      TRUE);
       if (h->u.def.section->output_section == sym_sec->output_section)
 	max_alignment = (bfd_vma) 1 << sym_sec->output_section->alignment_power;
     }
@@ -3205,6 +3206,19 @@ riscv_elf_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
   return TRUE;
 }
 
+/* Set the right mach type.  */
+static bfd_boolean
+riscv_elf_object_p (bfd *abfd)
+{
+  /* There are only two mach types in RISCV currently.  */
+  if (strcmp (abfd->xvec->name, "elf32-littleriscv") == 0)
+    bfd_default_set_arch_mach (abfd, bfd_arch_riscv, bfd_mach_riscv32);
+  else
+    bfd_default_set_arch_mach (abfd, bfd_arch_riscv, bfd_mach_riscv64);
+
+  return TRUE;
+}
+
 
 #define TARGET_LITTLE_SYM		riscv_elfNN_vec
 #define TARGET_LITTLE_NAME		"elfNN-littleriscv"
@@ -3230,6 +3244,7 @@ riscv_elf_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define elf_backend_plt_sym_val		     riscv_elf_plt_sym_val
 #define elf_backend_grok_prstatus            riscv_elf_grok_prstatus
 #define elf_backend_grok_psinfo              riscv_elf_grok_psinfo
+#define elf_backend_object_p                 riscv_elf_object_p
 #define elf_info_to_howto_rel		     NULL
 #define elf_info_to_howto		     riscv_info_to_howto_rela
 #define bfd_elfNN_bfd_relax_section	     _bfd_riscv_relax_section

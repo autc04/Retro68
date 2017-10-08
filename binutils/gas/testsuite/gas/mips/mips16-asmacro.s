@@ -1,4 +1,3 @@
-	.set	mips32
 	.set	mips16
 foo:
 	asmacro	0, 0, 0, 0, 0, 0

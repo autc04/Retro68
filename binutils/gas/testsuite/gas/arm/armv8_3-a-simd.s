@@ -24,6 +24,13 @@ A1:
 	vcmla.f32 d21,d22,d23[0],#90
 	vcmla.f32 q1,q2,d23[0],#90
 
+	vcmla.f16 q1,q2,d3[1],#0
+	vcmla.f16 q1,q2,d3[1],#180
+	vcmla.f16 q1,q2,d3[1],#270
+	vcmla.f32 q1,q2,d3[0],#0
+	vcmla.f32 q1,q2,d3[0],#180
+	vcmla.f32 q1,q2,d3[0],#270
+
 T1:
 	.thumb
 
@@ -47,3 +54,10 @@ T1:
 	vcmla.f16 q1,q2,d3[1],#90
 	vcmla.f32 d21,d22,d23[0],#90
 	vcmla.f32 q1,q2,d23[0],#90
+
+	vcmla.f16 q1,q2,d3[1],#0
+	vcmla.f16 q1,q2,d3[1],#180
+	vcmla.f16 q1,q2,d3[1],#270
+	vcmla.f32 q1,q2,d3[0],#0
+	vcmla.f32 q1,q2,d3[0],#180
+	vcmla.f32 q1,q2,d3[0],#270

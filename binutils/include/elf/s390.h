@@ -37,6 +37,9 @@
 
 #define EF_S390_HIGH_GPRS        0x00000001
 
+/* Request 4k page table size.  */
+#define PT_S390_PGSTE (PT_LOPROC + 0)
+
 /* Relocation types.  */
 
 START_RELOC_NUMBERS (elf_s390_reloc_type)

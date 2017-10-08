@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -42,10 +42,8 @@ with Exp_Dist;  use Exp_Dist;
 with Exp_Intr;  use Exp_Intr;
 with Exp_Pakd;  use Exp_Pakd;
 with Exp_Tss;   use Exp_Tss;
-with Exp_Unst;  use Exp_Unst;
 with Exp_Util;  use Exp_Util;
 with Freeze;    use Freeze;
-with Ghost;     use Ghost;
 with Inline;    use Inline;
 with Lib;       use Lib;
 with Namet;     use Namet;
@@ -59,6 +57,7 @@ with Sem;       use Sem;
 with Sem_Aux;   use Sem_Aux;
 with Sem_Ch6;   use Sem_Ch6;
 with Sem_Ch8;   use Sem_Ch8;
+with Sem_Ch12;  use Sem_Ch12;
 with Sem_Ch13;  use Sem_Ch13;
 with Sem_Dim;   use Sem_Dim;
 with Sem_Disp;  use Sem_Disp;
@@ -71,40 +70,12 @@ with Sem_Util;  use Sem_Util;
 with Sinfo;     use Sinfo;
 with Snames;    use Snames;
 with Stand;     use Stand;
-with Table;
 with Targparm;  use Targparm;
 with Tbuild;    use Tbuild;
 with Uintp;     use Uintp;
 with Validsw;   use Validsw;
 
 package body Exp_Ch6 is
-
-   -------------------------------------
-   -- Table for Unnesting Subprograms --
-   -------------------------------------
-
-   --  When we expand a subprogram body, if it has nested subprograms and if
-   --  we are in Unnest_Subprogram_Mode, then we record the subprogram entity
-   --  and the body in this table, to later be passed to Unnest_Subprogram.
-
-   --  We need this delaying mechanism, because we have to wait until all
-   --  instantiated bodies have been inserted before doing the unnesting.
-
-   type Unest_Entry is record
-      Ent : Entity_Id;
-      --  Entity for subprogram to be unnested
-
-      Bod : Node_Id;
-      --  Subprogram body to be unnested
-   end record;
-
-   package Unest_Bodies is new Table.Table (
-     Table_Component_Type => Unest_Entry,
-     Table_Index_Type     => Nat,
-     Table_Low_Bound      => 1,
-     Table_Initial        => 100,
-     Table_Increment      => 200,
-     Table_Name           => "Unest_Bodies");
 
    -----------------------
    -- Local Subprograms --
@@ -248,14 +219,14 @@ package body Exp_Ch6 is
    --  reference to the object itself, and the call becomes a call to the
    --  corresponding protected subprogram.
 
-   function Has_Unconstrained_Access_Discriminants
-     (Subtyp : Entity_Id) return Boolean;
-   --  Returns True if the given subtype is unconstrained and has one
-   --  or more access discriminants.
-
    procedure Expand_Simple_Function_Return (N : Node_Id);
    --  Expand simple return from function. In the case where we are returning
    --  from a function body this is called by Expand_N_Simple_Return_Statement.
+
+   function Has_Unconstrained_Access_Discriminants
+     (Subtyp : Entity_Id) return Boolean;
+   --  Returns True if the given subtype is unconstrained and has one or more
+   --  access discriminants.
 
    procedure Rewrite_Function_Call_For_C (N : Node_Id);
    --  When generating C code, replace a call to a function that returns an
@@ -450,11 +421,7 @@ package body Exp_Ch6 is
                if Ekind (Ptr_Typ) = E_Anonymous_Access_Type
                  and then No (Finalization_Master (Ptr_Typ))
                then
-                  Build_Finalization_Master
-                    (Typ            => Ptr_Typ,
-                     For_Anonymous  => True,
-                     Context_Scope  => Scope (Ptr_Typ),
-                     Insertion_Node => Associated_Node_For_Itype (Ptr_Typ));
+                  Build_Anonymous_Master (Ptr_Typ);
                end if;
 
                --  Access-to-controlled types should always have a master
@@ -622,17 +589,22 @@ package body Exp_Ch6 is
    function BIP_Formal_Suffix (Kind : BIP_Formal_Kind) return String is
    begin
       case Kind is
-         when BIP_Alloc_Form          =>
+         when BIP_Alloc_Form =>
             return "BIPalloc";
-         when BIP_Storage_Pool        =>
+
+         when BIP_Storage_Pool =>
             return "BIPstoragepool";
+
          when BIP_Finalization_Master =>
             return "BIPfinalizationmaster";
-         when BIP_Task_Master         =>
+
+         when BIP_Task_Master =>
             return "BIPtaskmaster";
-         when BIP_Activation_Chain    =>
+
+         when BIP_Activation_Chain =>
             return "BIPactivationchain";
-         when BIP_Object_Access       =>
+
+         when BIP_Object_Access =>
             return "BIPaccess";
       end case;
    end BIP_Formal_Suffix;
@@ -720,6 +692,44 @@ package body Exp_Ch6 is
                   end loop;
                end;
 
+            elsif Nkind (Stmt) = N_Extended_Return_Statement then
+               declare
+                  Ret_Obj : constant Entity_Id :=
+                              Defining_Entity
+                                (First (Return_Object_Declarations (Stmt)));
+                  Assign  : constant Node_Id :=
+                              Make_Assignment_Statement (Sloc (Stmt),
+                                Name       =>
+                                  New_Occurrence_Of (Param_Id, Loc),
+                                Expression =>
+                                  New_Occurrence_Of (Ret_Obj, Sloc (Stmt)));
+                  Stmts   : List_Id;
+
+               begin
+                  --  The extended return may just contain the declaration
+
+                  if Present (Handled_Statement_Sequence (Stmt)) then
+                     Stmts := Statements (Handled_Statement_Sequence (Stmt));
+                  else
+                     Stmts := New_List;
+                  end if;
+
+                  Set_Assignment_OK (Name (Assign));
+
+                  Rewrite (Stmt,
+                    Make_Block_Statement (Sloc (Stmt),
+                      Declarations               =>
+                        Return_Object_Declarations (Stmt),
+                      Handled_Statement_Sequence =>
+                        Make_Handled_Sequence_Of_Statements (Loc,
+                          Statements => Stmts)));
+
+                  Replace_Returns (Param_Id, Stmts);
+
+                  Append_To (Stmts, Assign);
+                  Append_To (Stmts, Make_Simple_Return_Statement (Loc));
+               end;
+
             elsif Nkind (Stmt) = N_If_Statement then
                Replace_Returns (Param_Id, Then_Statements (Stmt));
                Replace_Returns (Param_Id, Else_Statements (Stmt));
@@ -729,7 +739,7 @@ package body Exp_Ch6 is
                begin
                   Part := First (Elsif_Parts (Stmt));
                   while Present (Part) loop
-                     Replace_Returns (Part, Then_Statements (Part));
+                     Replace_Returns (Param_Id, Then_Statements (Part));
                      Next (Part);
                   end loop;
                end;
@@ -796,6 +806,11 @@ package body Exp_Ch6 is
             Make_Handled_Sequence_Of_Statements (Loc,
               Statements => Stmts));
 
+      --  If the function is a generic instance, so is the new procedure.
+      --  Set flag accordingly so that the proper renaming declarations are
+      --  generated.
+
+      Set_Is_Generic_Instance (Proc_Id, Is_Generic_Instance (Func_Id));
       return New_Body;
    end Build_Procedure_Body_Form;
 
@@ -1183,14 +1198,14 @@ package body Exp_Ch6 is
       ---------------------------
 
       procedure Add_Call_By_Copy_Code is
+         Crep  : Boolean;
          Expr  : Node_Id;
+         F_Typ : Entity_Id := Etype (Formal);
+         Indic : Node_Id;
          Init  : Node_Id;
          Temp  : Entity_Id;
-         Indic : Node_Id;
-         Var   : Entity_Id;
-         F_Typ : constant Entity_Id := Etype (Formal);
          V_Typ : Entity_Id;
-         Crep  : Boolean;
+         Var   : Entity_Id;
 
       begin
          if not Is_Legal_Copy then
@@ -1199,6 +1214,14 @@ package body Exp_Ch6 is
 
          Temp := Make_Temporary (Loc, 'T', Actual);
 
+         --  Handle formals whose type comes from the limited view
+
+         if From_Limited_With (F_Typ)
+           and then Has_Non_Limited_View (F_Typ)
+         then
+            F_Typ := Non_Limited_View (F_Typ);
+         end if;
+
          --  Use formal type for temp, unless formal type is an unconstrained
          --  array, in which case we don't have to worry about bounds checks,
          --  and we use the actual type, since that has appropriate bounds.
@@ -1206,7 +1229,7 @@ package body Exp_Ch6 is
          if Is_Array_Type (F_Typ) and then not Is_Constrained (F_Typ) then
             Indic := New_Occurrence_Of (Etype (Actual), Loc);
          else
-            Indic := New_Occurrence_Of (Etype (Formal), Loc);
+            Indic := New_Occurrence_Of (F_Typ, Loc);
          end if;
 
          if Nkind (Actual) = N_Type_Conversion then
@@ -1458,18 +1481,26 @@ package body Exp_Ch6 is
       ----------------------------------
 
       procedure Add_Simple_Call_By_Copy_Code is
-         Temp   : Entity_Id;
          Decl   : Node_Id;
+         F_Typ  : Entity_Id := Etype (Formal);
          Incod  : Node_Id;
-         Outcod : Node_Id;
-         Lhs    : Node_Id;
-         Rhs    : Node_Id;
          Indic  : Node_Id;
-         F_Typ  : constant Entity_Id := Etype (Formal);
+         Lhs    : Node_Id;
+         Outcod : Node_Id;
+         Rhs    : Node_Id;
+         Temp   : Entity_Id;
 
       begin
          if not Is_Legal_Copy then
             return;
+         end if;
+
+         --  Handle formals whose type comes from the limited view
+
+         if From_Limited_With (F_Typ)
+           and then Has_Non_Limited_View (F_Typ)
+         then
+            F_Typ := Non_Limited_View (F_Typ);
          end if;
 
          --  Use formal type for temp, unless formal type is an unconstrained
@@ -1479,7 +1510,7 @@ package body Exp_Ch6 is
          if Is_Array_Type (F_Typ) and then not Is_Constrained (F_Typ) then
             Indic := New_Occurrence_Of (Etype (Actual), Loc);
          else
-            Indic := New_Occurrence_Of (Etype (Formal), Loc);
+            Indic := New_Occurrence_Of (F_Typ, Loc);
          end if;
 
          --  Prepare to generate code
@@ -1502,7 +1533,7 @@ package body Exp_Ch6 is
          if Ekind (Formal) = E_Out_Parameter then
             Incod := Empty;
 
-            if Has_Discriminants (Etype (Formal)) then
+            if Has_Discriminants (F_Typ) then
                Indic := New_Occurrence_Of (Etype (Actual), Loc);
             end if;
 
@@ -1704,6 +1735,14 @@ package body Exp_Ch6 is
          E_Formal := Etype (Formal);
          E_Actual := Etype (Actual);
 
+         --  Handle formals whose type comes from the limited view
+
+         if From_Limited_With (E_Formal)
+           and then Has_Non_Limited_View (E_Formal)
+         then
+            E_Formal := Non_Limited_View (E_Formal);
+         end if;
+
          if Is_Scalar_Type (E_Formal)
            or else Nkind (Actual) = N_Slice
          then
@@ -1799,7 +1838,7 @@ package body Exp_Ch6 is
             then
                Add_Call_By_Copy_Code;
 
-            --  References to components of bit packed arrays are expanded
+            --  References to components of bit-packed arrays are expanded
             --  at this point, rather than at the point of analysis of the
             --  actuals, to handle the expansion of the assignment to
             --  [in] out parameters.
@@ -1823,7 +1862,7 @@ package body Exp_Ch6 is
             then
                Add_Simple_Call_By_Copy_Code;
 
-            --  References to slices of bit packed arrays are expanded
+            --  References to slices of bit-packed arrays are expanded
 
             elsif Is_Ref_To_Bit_Packed_Slice (Actual) then
                Add_Call_By_Copy_Code;
@@ -2003,7 +2042,7 @@ package body Exp_Ch6 is
          --  Processing for IN parameters
 
          else
-            --  For IN parameters is in the packed array case, we expand an
+            --  For IN parameters in the bit-packed array case, we expand an
             --  indexed component (the circuit in Exp_Ch4 deliberately left
             --  indexed components appearing as actuals untouched, so that
             --  the special processing above for the OUT and IN OUT cases
@@ -2012,12 +2051,12 @@ package body Exp_Ch6 is
             --  easier simply to handle all cases here.)
 
             if Nkind (Actual) = N_Indexed_Component
-              and then Is_Packed (Etype (Prefix (Actual)))
+              and then Is_Bit_Packed_Array (Etype (Prefix (Actual)))
             then
                Reset_Packed_Prefix;
                Expand_Packed_Element_Reference (Actual);
 
-            --  If we have a reference to a bit packed array, we copy it, since
+            --  If we have a reference to a bit-packed array, we copy it, since
             --  the actual must be byte aligned.
 
             --  Is this really necessary in all cases???
@@ -2073,10 +2112,13 @@ package body Exp_Ch6 is
 
       if not Is_Empty_List (Post_Call) then
 
-         --  Cases where the call is not a member of a statement list
+         --  Cases where the call is not a member of a statement list.
+         --  This includes the case where the call is an actual in another
+         --  function call or indexing, i.e. an expression context as well.
 
-         if not Is_List_Member (N) then
-
+         if not Is_List_Member (N)
+           or else Nkind_In (Parent (N), N_Function_Call, N_Indexed_Component)
+         then
             --  In Ada 2012 the call may be a function call in an expression
             --  (since OUT and IN OUT parameters are now allowed for such
             --  calls). The write-back of (in)-out parameters is handled
@@ -2226,6 +2268,12 @@ package body Exp_Ch6 is
       --  expression for the value of the actual, EF is the entity for the
       --  extra formal.
 
+      procedure Add_View_Conversion_Invariants
+        (Formal : Entity_Id;
+         Actual : Node_Id);
+      --  Adds invariant checks for every intermediate type between the range
+      --  of a view converted argument to its ancestor (from parent to child).
+
       function Inherited_From_Formal (S : Entity_Id) return Entity_Id;
       --  Within an instance, a type derived from an untagged formal derived
       --  type inherits from the original parent, not from the actual. The
@@ -2311,6 +2359,64 @@ package body Exp_Ch6 is
             Set_Is_Accessibility_Actual (Parent (Expr));
          end if;
       end Add_Extra_Actual;
+
+      ------------------------------------
+      -- Add_View_Conversion_Invariants --
+      ------------------------------------
+
+      procedure Add_View_Conversion_Invariants
+        (Formal : Entity_Id;
+         Actual : Node_Id)
+      is
+         Arg        : Entity_Id;
+         Curr_Typ   : Entity_Id;
+         Inv_Checks : List_Id;
+         Par_Typ    : Entity_Id;
+
+      begin
+         Inv_Checks := No_List;
+
+         --  Extract the argument from a potentially nested set of view
+         --  conversions.
+
+         Arg := Actual;
+         while Nkind (Arg) = N_Type_Conversion loop
+            Arg := Expression (Arg);
+         end loop;
+
+         --  Move up the derivation chain starting with the type of the formal
+         --  parameter down to the type of the actual object.
+
+         Curr_Typ := Empty;
+         Par_Typ  := Etype (Arg);
+         while Par_Typ /= Etype (Formal) and Par_Typ /= Curr_Typ loop
+            Curr_Typ := Par_Typ;
+
+            if Has_Invariants (Curr_Typ)
+              and then Present (Invariant_Procedure (Curr_Typ))
+            then
+               --  Verify the invariate of the current type. Generate:
+
+               --    <Curr_Typ>Invariant (Curr_Typ (Arg));
+
+               Prepend_New_To (Inv_Checks,
+                 Make_Procedure_Call_Statement (Loc,
+                   Name                   =>
+                     New_Occurrence_Of
+                       (Invariant_Procedure (Curr_Typ), Loc),
+                   Parameter_Associations => New_List (
+                     Make_Type_Conversion (Loc,
+                       Subtype_Mark => New_Occurrence_Of (Curr_Typ, Loc),
+                       Expression   => New_Copy_Tree (Arg)))));
+            end if;
+
+            Par_Typ := Base_Type (Etype (Curr_Typ));
+         end loop;
+
+         if not Is_Empty_List (Inv_Checks) then
+            Insert_Actions_After (N, Inv_Checks);
+         end if;
+      end Add_View_Conversion_Invariants;
 
       ---------------------------
       -- Inherited_From_Formal --
@@ -2486,7 +2592,7 @@ package body Exp_Ch6 is
 
       --  Local variables
 
-      Remote        : constant Boolean   := Is_Remote_Call (Call_Node);
+      Remote        : constant Boolean := Is_Remote_Call (Call_Node);
       Actual        : Node_Id;
       Formal        : Entity_Id;
       Orig_Subp     : Entity_Id := Empty;
@@ -2637,8 +2743,24 @@ package body Exp_Ch6 is
       if Modify_Tree_For_C
         and then Nkind (Call_Node) = N_Function_Call
         and then Is_Entity_Name (Name (Call_Node))
-        and then Rewritten_For_C (Entity (Name (Call_Node)))
+        and then Rewritten_For_C (Ultimate_Alias (Entity (Name (Call_Node))))
       then
+         --  For internally generated calls ensure that they reference the
+         --  entity of the spec of the called function (needed since the
+         --  expander may generate calls using the entity of their body).
+         --  See for example Expand_Boolean_Operator().
+
+         if not (Comes_From_Source (Call_Node))
+           and then Nkind (Unit_Declaration_Node
+                            (Ultimate_Alias (Entity (Name (Call_Node))))) =
+                              N_Subprogram_Body
+         then
+            Set_Entity (Name (Call_Node),
+              Corresponding_Function
+                (Corresponding_Procedure
+                  (Ultimate_Alias (Entity (Name (Call_Node))))));
+         end if;
+
          Rewrite_Function_Call_For_C (Call_Node);
          return;
       end if;
@@ -2710,10 +2832,12 @@ package body Exp_Ch6 is
          CW_Interface_Formals_Present :=
            CW_Interface_Formals_Present
              or else
-               (Ekind (Etype (Formal)) = E_Class_Wide_Type
+               (Is_Class_Wide_Type (Etype (Formal))
                  and then Is_Interface (Etype (Etype (Formal))))
              or else
                (Ekind (Etype (Formal)) = E_Anonymous_Access_Type
+                 and then Is_Class_Wide_Type (Directly_Designated_Type
+                                               (Etype (Etype (Formal))))
                  and then Is_Interface (Directly_Designated_Type
                                          (Etype (Etype (Formal)))));
 
@@ -2919,7 +3043,6 @@ package body Exp_Ch6 is
 
             else
                case Nkind (Prev_Orig) is
-
                   when N_Attribute_Reference =>
                      case Get_Attribute_Id (Attribute_Name (Prev_Orig)) is
 
@@ -2963,8 +3086,9 @@ package body Exp_Ch6 is
 
                         --  Treat the unchecked attributes as library-level
 
-                        when Attribute_Unchecked_Access |
-                           Attribute_Unrestricted_Access =>
+                        when Attribute_Unchecked_Access
+                           | Attribute_Unrestricted_Access
+                        =>
                            Add_Extra_Actual
                              (Make_Integer_Literal (Loc,
                                 Intval => Scope_Depth (Standard_Standard)),
@@ -3179,6 +3303,31 @@ package body Exp_Ch6 is
                 Duplicate_Subexpr_Move_Checks (Actual)));
          end if;
 
+         --  Perform invariant checks for all intermediate types in a view
+         --  conversion after successful return from a call that passes the
+         --  view conversion as an IN OUT or OUT parameter (RM 7.3.2 (12/3,
+         --  13/3, 14/3)). Consider only source conversion in order to avoid
+         --  generating spurious checks on complex expansion such as object
+         --  initialization through an extension aggregate.
+
+         if Comes_From_Source (N)
+           and then Ekind (Formal) /= E_In_Parameter
+           and then Nkind (Actual) = N_Type_Conversion
+         then
+            Add_View_Conversion_Invariants (Formal, Actual);
+         end if;
+
+         --  Generating C the initialization of an allocator is performed by
+         --  means of individual statements, and hence it must be done before
+         --  the call.
+
+         if Modify_Tree_For_C
+           and then Nkind (Actual) = N_Allocator
+           and then Nkind (Expression (Actual)) = N_Qualified_Expression
+         then
+            Remove_Side_Effects (Actual);
+         end if;
+
          --  This label is required when skipping extra actual generation for
          --  Unchecked_Union parameters.
 
@@ -3236,7 +3385,9 @@ package body Exp_Ch6 is
 
                   Defer := True;
 
-               when N_Object_Declaration | N_Object_Renaming_Declaration =>
+               when N_Object_Declaration
+                  | N_Object_Renaming_Declaration
+               =>
                   declare
                      Def_Id : constant Entity_Id :=
                                 Defining_Identifier (Ancestor);
@@ -3273,8 +3424,8 @@ package body Exp_Ch6 is
                      Level :=
                        New_Occurrence_Of
                          (Extra_Accessibility_Of_Result
-                            (Return_Applies_To
-                               (Return_Statement_Entity (Ancestor))), Loc);
+                           (Return_Applies_To
+                             (Return_Statement_Entity (Ancestor))), Loc);
                   end if;
 
                when others =>
@@ -3291,8 +3442,9 @@ package body Exp_Ch6 is
                   --  calls to subps whose enclosing scope is unknown (e.g.,
                   --  Anon_Access_To_Subp_Param.all)?
 
-                  Level := Make_Integer_Literal (Loc,
-                             Scope_Depth (Current_Scope) + 1);
+                  Level :=
+                    Make_Integer_Literal (Loc,
+                      Intval => Scope_Depth (Current_Scope) + 1);
                end if;
 
                Add_Extra_Actual
@@ -3706,7 +3858,7 @@ package body Exp_Ch6 is
                  Make_Explicit_Dereference (Loc,
                    Prefix => Nam);
 
-               if Present (Parameter_Associations (Call_Node))  then
+               if Present (Parameter_Associations (Call_Node)) then
                   Parm := Parameter_Associations (Call_Node);
                else
                   Parm := New_List;
@@ -3770,16 +3922,13 @@ package body Exp_Ch6 is
 
       if Ekind_In (Subp, E_Function, E_Procedure) then
 
-         --  We perform two simple optimization on calls:
-
-         --  a) replace calls to null procedures unconditionally;
-
-         --  b) for To_Address, just do an unchecked conversion. Not only is
-         --  this efficient, but it also avoids order of elaboration problems
-         --  when address clauses are inlined (address expression elaborated
+         --  We perform a simple optimization on calls for To_Address by
+         --  replacing them with an unchecked conversion. Not only is this
+         --  efficient, but it also avoids order of elaboration problems when
+         --  address clauses are inlined (address expression elaborated at the
          --  at the wrong point).
 
-         --  We perform these optimization regardless of whether we are in the
+         --  We perform this optimization regardless of whether we are in the
          --  main unit or in a unit in the context of the main unit, to ensure
          --  that tree generated is the same in both cases, for CodePeer use.
 
@@ -3788,16 +3937,20 @@ package body Exp_Ch6 is
               Unchecked_Convert_To
                 (RTE (RE_Address), Relocate_Node (First_Actual (Call_Node))));
             return;
-
-         elsif Is_Null_Procedure (Subp)  then
-            Rewrite (Call_Node, Make_Null_Statement (Loc));
-            return;
          end if;
 
          --  Handle inlining. No action needed if the subprogram is not inlined
 
          if not Is_Inlined (Subp) then
             null;
+
+         --  Frontend inlining of expression functions (performed also when
+         --  backend inlining is enabled).
+
+         elsif Is_Inlinable_Expression_Function (Subp) then
+            Rewrite (N, New_Copy (Expression_Of_Expression_Function (Subp)));
+            Analyze (N);
+            return;
 
          --  Handle frontend inlining
 
@@ -3862,6 +4015,14 @@ package body Exp_Ch6 is
                     and then In_Package_Body
                   then
                      Must_Inline := not In_Extended_Main_Source_Unit (Subp);
+
+                  --  Inline calls to _postconditions when generating C code
+
+                  elsif Modify_Tree_For_C
+                    and then In_Same_Extended_Unit (Sloc (Bod), Loc)
+                    and then Chars (Name (N)) = Name_uPostconditions
+                  then
+                     Must_Inline := True;
                   end if;
                end if;
 
@@ -3897,6 +4058,66 @@ package body Exp_Ch6 is
                                                                       N_Entity
          then
             Add_Inlined_Body (Subp, Call_Node);
+
+            --  If the inlined call appears within an instantiation and some
+            --  level of optimization is required, ensure that the enclosing
+            --  instance body is available so that the back-end can actually
+            --  perform the inlining.
+
+            if In_Instance
+              and then Comes_From_Source (Subp)
+              and then Optimization_Level > 0
+            then
+               declare
+                  Decl      : Node_Id;
+                  Inst      : Entity_Id;
+                  Inst_Node : Node_Id;
+
+               begin
+                  Inst := Scope (Subp);
+
+                  --  Find enclosing instance
+
+                  while Present (Inst) and then Inst /= Standard_Standard loop
+                     exit when Is_Generic_Instance (Inst);
+                     Inst := Scope (Inst);
+                  end loop;
+
+                  if Present (Inst)
+                    and then Is_Generic_Instance (Inst)
+                    and then not Is_Inlined (Inst)
+                  then
+                     Set_Is_Inlined (Inst);
+                     Decl := Unit_Declaration_Node (Inst);
+
+                     --  Do not add a pending instantiation if the body exits
+                     --  already, or if the instance is a compilation unit, or
+                     --  the instance node is missing.
+
+                     if Present (Corresponding_Body (Decl))
+                       or else Nkind (Parent (Decl)) = N_Compilation_Unit
+                       or else No (Next (Decl))
+                     then
+                        null;
+
+                     else
+                        --  The instantiation node usually follows the package
+                        --  declaration for the instance. If the generic unit
+                        --  has aspect specifications, they are transformed
+                        --  into pragmas in the instance, and the instance node
+                        --  appears after them.
+
+                        Inst_Node := Next (Decl);
+
+                        while Nkind (Inst_Node) /= N_Package_Instantiation loop
+                           Inst_Node := Next (Inst_Node);
+                        end loop;
+
+                        Add_Pending_Instantiation (Inst_Node, Decl);
+                     end if;
+                  end if;
+               end;
+            end if;
 
          --  Front end expansion of simple functions returning unconstrained
          --  types (see Check_And_Split_Unconstrained_Function). Note that the
@@ -3993,10 +4214,6 @@ package body Exp_Ch6 is
              and then Present (Generalized_Indexing (Ref));
       end Is_Element_Reference;
 
-      --  Local variables
-
-      Is_Elem_Ref : constant Boolean := Is_Element_Reference (N);
-
    --  Start of processing for Expand_Ctrl_Function_Call
 
    begin
@@ -4020,20 +4237,24 @@ package body Exp_Ch6 is
 
       Remove_Side_Effects (N);
 
-      --  When the temporary function result appears inside a case expression
-      --  or an if expression, its lifetime must be extended to match that of
-      --  the context. If not, the function result will be finalized too early
-      --  and the evaluation of the expression could yield incorrect result. An
-      --  exception to this rule are references to Ada 2012 container elements.
+      --  The side effect removal of the function call produced a temporary.
+      --  When the context is a case expression, if expression, or expression
+      --  with actions, the lifetime of the temporary must be extended to match
+      --  that of the context. Otherwise the function result will be finalized
+      --  too early and affect the result of the expression. To prevent this
+      --  unwanted effect, the temporary should not be considered for clean up
+      --  actions by the general finalization machinery.
+
+      --  Exception to this rule are references to Ada 2012 container elements.
       --  Such references must be finalized at the end of each iteration of the
       --  related quantified expression, otherwise the container will remain
       --  busy.
 
-      if not Is_Elem_Ref
+      if Nkind (N) = N_Explicit_Dereference
         and then Within_Case_Or_If_Expression (N)
-        and then Nkind (N) = N_Explicit_Dereference
+        and then not Is_Element_Reference (N)
       then
-         Set_Is_Processed_Transient (Entity (Prefix (N)));
+         Set_Is_Ignored_Transient (Entity (Prefix (N)));
       end if;
    end Expand_Ctrl_Function_Call;
 
@@ -4988,17 +5209,8 @@ package body Exp_Ch6 is
    ---------------------------------------
 
    procedure Expand_N_Procedure_Call_Statement (N : Node_Id) is
-      Save_Ghost_Mode : constant Ghost_Mode_Type := Ghost_Mode;
-
    begin
-      --  The procedure call is Ghost when the name is Ghost. Set the mode now
-      --  to ensure that any nodes generated during expansion are properly set
-      --  as Ghost.
-
-      Set_Ghost_Mode (N);
-
       Expand_Call (N);
-      Ghost_Mode := Save_Ghost_Mode;
    end Expand_N_Procedure_Call_Statement;
 
    --------------------------------------
@@ -5020,16 +5232,17 @@ package body Exp_Ch6 is
       --  Distinguish the function and non-function cases:
 
       case Ekind (Return_Applies_To (Return_Statement_Entity (N))) is
-
-         when E_Function          |
-              E_Generic_Function  =>
+         when E_Function
+            | E_Generic_Function
+         =>
             Expand_Simple_Function_Return (N);
 
-         when E_Procedure         |
-              E_Generic_Procedure |
-              E_Entry             |
-              E_Entry_Family      |
-              E_Return_Statement =>
+         when E_Entry
+            | E_Entry_Family
+            | E_Generic_Procedure
+            | E_Procedure
+            | E_Return_Statement
+         =>
             Expand_Non_Function_Return (N);
 
          when others =>
@@ -5158,8 +5371,6 @@ package body Exp_Ch6 is
 
       --  Local variables
 
-      Save_Ghost_Mode : constant Ghost_Mode_Type := Ghost_Mode;
-
       Except_H : Node_Id;
       L        : List_Id;
       Spec_Id  : Entity_Id;
@@ -5189,13 +5400,6 @@ package body Exp_Ch6 is
             Set_Is_Pure (Body_Id, Is_Pure (Spec_Id));
          end if;
       end if;
-
-      --  The subprogram body is Ghost when it is stand alone and subject to
-      --  pragma Ghost or the corresponding spec is Ghost. To accomodate both
-      --  cases, set the mode now to ensure that any nodes generated during
-      --  expansion are marked as Ghost.
-
-      Set_Ghost_Mode (N, Spec_Id);
 
       --  Set L to either the list of declarations if present, or to the list
       --  of statements if no declarations are present. This is used to insert
@@ -5318,7 +5522,6 @@ package body Exp_Ch6 is
               Make_Handled_Sequence_Of_Statements (Loc,
                 Statements => New_List (Make_Null_Statement (Loc))));
 
-            Ghost_Mode := Save_Ghost_Mode;
             return;
          end if;
       end if;
@@ -5341,13 +5544,7 @@ package body Exp_Ch6 is
          Utyp : constant Entity_Id := Underlying_Type (Typ);
 
       begin
-         if not Acts_As_Spec (N)
-           and then Nkind (Parent (Parent (Spec_Id))) /=
-             N_Subprogram_Body_Stub
-         then
-            null;
-
-         elsif Is_Limited_View (Typ) then
+         if Is_Limited_View (Typ) then
             Set_Returns_By_Ref (Spec_Id);
 
          elsif Present (Utyp) and then CW_Or_Has_Controlled_Part (Utyp) then
@@ -5431,30 +5628,6 @@ package body Exp_Ch6 is
       --  Set to encode entity names in package body before gigi is called
 
       Qualify_Entity_Names (N);
-
-      --  If we are unnesting procedures, and this is an outer level procedure
-      --  with nested subprograms, do the unnesting operation now.
-
-      if Opt.Unnest_Subprogram_Mode
-
-        --  We are only interested in subprograms (not generic subprograms)
-
-        and then Is_Subprogram (Spec_Id)
-
-        --  Only deal with outer level subprograms. Nested subprograms are
-        --  handled as part of dealing with the outer level subprogram in
-        --  which they are nested.
-
-        and then Enclosing_Subprogram (Spec_Id) = Empty
-
-        --  We are only interested in subprograms that have nested subprograms
-
-        and then Has_Nested_Subprogram (Spec_Id)
-      then
-         Unest_Bodies.Append ((Spec_Id, N));
-      end if;
-
-      Ghost_Mode := Save_Ghost_Mode;
    end Expand_N_Subprogram_Body;
 
    -----------------------------------
@@ -5462,10 +5635,24 @@ package body Exp_Ch6 is
    -----------------------------------
 
    procedure Expand_N_Subprogram_Body_Stub (N : Node_Id) is
+      Bod : Node_Id;
+
    begin
       if Present (Corresponding_Body (N)) then
-         Expand_N_Subprogram_Body (
-           Unit_Declaration_Node (Corresponding_Body (N)));
+         Bod := Unit_Declaration_Node (Corresponding_Body (N));
+
+         --  The body may have been expanded already when it is analyzed
+         --  through the subunit node. Do no expand again: it interferes
+         --  with the construction of unnesting tables when generating C.
+
+         if not Analyzed (Bod) then
+            Expand_N_Subprogram_Body (Bod);
+         end if;
+
+         --  Add full qualification to entities that may be created late
+         --  during unnesting.
+
+         Qualify_Entity_Names (N);
       end if;
    end Expand_N_Subprogram_Body_Stub;
 
@@ -5483,64 +5670,6 @@ package body Exp_Ch6 is
    procedure Expand_N_Subprogram_Declaration (N : Node_Id) is
       Loc  : constant Source_Ptr := Sloc (N);
       Subp : constant Entity_Id  := Defining_Entity (N);
-
-      procedure Build_Procedure_Form;
-      --  Create a procedure declaration which emulates the behavior of
-      --  function Subp, for C-compatible generation.
-
-      --------------------------
-      -- Build_Procedure_Form --
-      --------------------------
-
-      procedure Build_Procedure_Form is
-         Func_Formal  : Entity_Id;
-         Proc_Formals : List_Id;
-
-      begin
-         Proc_Formals := New_List;
-
-         --  Create a list of formal parameters with the same types as the
-         --  function.
-
-         Func_Formal := First_Formal (Subp);
-         while Present (Func_Formal) loop
-            Append_To (Proc_Formals,
-              Make_Parameter_Specification (Loc,
-                Defining_Identifier =>
-                  Make_Defining_Identifier (Loc, Chars (Func_Formal)),
-                Parameter_Type      =>
-                  New_Occurrence_Of (Etype (Func_Formal), Loc)));
-
-            Next_Formal (Func_Formal);
-         end loop;
-
-         --  Add an extra out parameter to carry the function result
-
-         Name_Len := 6;
-         Name_Buffer (1 .. Name_Len) := "RESULT";
-         Append_To (Proc_Formals,
-           Make_Parameter_Specification (Loc,
-             Defining_Identifier =>
-               Make_Defining_Identifier (Loc, Chars => Name_Find),
-             Out_Present         => True,
-             Parameter_Type      => New_Occurrence_Of (Etype (Subp), Loc)));
-
-         --  The new procedure declaration is inserted immediately after the
-         --  function declaration. The processing in Build_Procedure_Body_Form
-         --  relies on this order.
-
-         Insert_After_And_Analyze (N,
-           Make_Subprogram_Declaration (Loc,
-             Specification =>
-               Make_Procedure_Specification (Loc,
-                 Defining_Unit_Name       =>
-                   Make_Defining_Identifier (Loc, Chars (Subp)),
-                 Parameter_Specifications => Proc_Formals)));
-
-         --  Mark the function as having a procedure form
-
-         Set_Rewritten_For_C (Subp);
-      end Build_Procedure_Form;
 
       --  Local variables
 
@@ -5562,7 +5691,7 @@ package body Exp_Ch6 is
 
          elsif Present (Next (N))
            and then Nkind (Next (N)) = N_Pragma
-           and then Get_Pragma_Id (Pragma_Name (Next (N))) = Pragma_Import
+           and then Get_Pragma_Id (Next (N)) = Pragma_Import
          then
             --  In SPARK, subprogram declarations are also permitted in
             --  declarative parts when immediately followed by a corresponding
@@ -5667,7 +5796,7 @@ package body Exp_Ch6 is
         and then Is_Constrained (Etype (Subp))
         and then not Is_Unchecked_Conversion_Instance (Subp)
       then
-         Build_Procedure_Form;
+         Build_Procedure_Form (N);
       end if;
    end Expand_N_Subprogram_Declaration;
 
@@ -5887,7 +6016,13 @@ package body Exp_Ch6 is
       Subp : Entity_Id;
       Scop : Entity_Id)
    is
-      Rec   : Node_Id;
+      Rec : Node_Id;
+
+      procedure Expand_Internal_Init_Call;
+      --  A call to an operation of the type may occur in the initialization
+      --  of a private component. In that case the prefix of the call is an
+      --  entity name and the call is treated as internal even though it
+      --  appears in code outside of the protected type.
 
       procedure Freeze_Called_Function;
       --  If it is a function call it can appear in elaboration code and
@@ -5895,6 +6030,31 @@ package body Exp_Ch6 is
       --  done before the call is expanded, as the expansion may rewrite it
       --  to something other than a call (e.g. a temporary initialized in a
       --  transient block).
+
+      -------------------------------
+      -- Expand_Internal_Init_Call --
+      -------------------------------
+
+      procedure Expand_Internal_Init_Call is
+      begin
+         --  If the context is a protected object (rather than a protected
+         --  type) the call itself is bound to raise program_error because
+         --  the protected body will not have been elaborated yet. This is
+         --  diagnosed subsequently in Sem_Elab.
+
+         Freeze_Called_Function;
+
+         --  The target of the internal call is the first formal of the
+         --  enclosing initialization procedure.
+
+         Rec := New_Occurrence_Of (First_Formal (Current_Scope), Sloc (N));
+         Build_Protected_Subprogram_Call (N,
+           Name     => Name (N),
+           Rec      => Rec,
+           External => False);
+         Analyze (N);
+         Resolve (N, Etype (Subp));
+      end Expand_Internal_Init_Call;
 
       ----------------------------
       -- Freeze_Called_Function --
@@ -5915,18 +6075,43 @@ package body Exp_Ch6 is
       --  Exp_Ch9.Build_Simple_Entry_Call. The call is intra-object only if the
       --  subprogram being called is in the protected body being compiled, and
       --  if the protected object in the call is statically the enclosing type.
-      --  The object may be an component of some other data structure, in which
+      --  The object may be a component of some other data structure, in which
       --  case this must be handled as an inter-object call.
 
       if not In_Open_Scopes (Scop)
+        or else Is_Entry_Wrapper (Current_Scope)
         or else not Is_Entity_Name (Name (N))
       then
          if Nkind (Name (N)) = N_Selected_Component then
             Rec := Prefix (Name (N));
 
-         else
-            pragma Assert (Nkind (Name (N)) = N_Indexed_Component);
+         elsif Nkind (Name (N)) = N_Indexed_Component then
             Rec := Prefix (Prefix (Name (N)));
+
+         --  If this is a call within an entry wrapper, it appears within a
+         --  precondition that calls another primitive of the synchronized
+         --  type. The target object of the call is the first actual on the
+         --  wrapper. Note that this is an external call, because the wrapper
+         --  is called outside of the synchronized object. This means that
+         --  an entry call to an entry with preconditions involves two
+         --  synchronized operations.
+
+         elsif Ekind (Current_Scope) = E_Procedure
+           and then Is_Entry_Wrapper (Current_Scope)
+         then
+            Rec := New_Occurrence_Of (First_Entity (Current_Scope), Sloc (N));
+
+         else
+            --  If the context is the initialization procedure for a protected
+            --  type, the call is legal because the called entity must be a
+            --  function of that enclosing type, and this is treated as an
+            --  internal call.
+
+            pragma Assert
+              (Is_Entity_Name (Name (N)) and then Inside_Init_Proc);
+
+            Expand_Internal_Init_Call;
+            return;
          end if;
 
          Freeze_Called_Function;
@@ -5947,7 +6132,6 @@ package body Exp_Ch6 is
            Name     => Name (N),
            Rec      => Rec,
            External => False);
-
       end if;
 
       --  Analyze and resolve the new call. The actuals have already been
@@ -6568,7 +6752,6 @@ package body Exp_Ch6 is
 
             case Nkind (Discrim_Source) is
                when N_Defining_Identifier =>
-
                   pragma Assert (Is_Composite_Type (Discrim_Source)
                                   and then Has_Discriminants (Discrim_Source)
                                   and then Is_Constrained (Discrim_Source));
@@ -6594,8 +6777,9 @@ package body Exp_Ch6 is
                      end loop;
                   end;
 
-               when N_Aggregate | N_Extension_Aggregate =>
-
+               when N_Aggregate
+                  | N_Extension_Aggregate
+               =>
                   --  Unimplemented: extension aggregate case where discrims
                   --  come from ancestor part, not extension part.
 
@@ -6690,7 +6874,6 @@ package body Exp_Ch6 is
                   null;
 
                when others =>
-
                   declare
                      Level : constant Node_Id :=
                                Make_Integer_Literal (Loc,
@@ -6708,7 +6891,6 @@ package body Exp_Ch6 is
                      Set_Etype (Level, Standard_Natural);
                      Check_Against_Result_Level (Level);
                   end;
-
             end case;
          end;
       end if;
@@ -6757,7 +6939,7 @@ package body Exp_Ch6 is
          --  once in the call to _Postconditions, and once in the actual return
          --  statement, but we can't have side effects happening twice.
 
-         Remove_Side_Effects (Exp);
+         Force_Evaluation (Exp, Mode => Strict);
 
          --  Generate call to _Postconditions
 
@@ -6809,15 +6991,6 @@ package body Exp_Ch6 is
 
       return False;
    end Has_Unconstrained_Access_Discriminants;
-
-   ----------------
-   -- Initialize --
-   ----------------
-
-   procedure Initialize is
-   begin
-      Unest_Bodies.Init;
-   end Initialize;
 
    --------------------------------
    -- Is_Build_In_Place_Function --
@@ -7099,9 +7272,11 @@ package body Exp_Ch6 is
       declare
          Typ  : constant Entity_Id := Etype (Subp);
          Utyp : constant Entity_Id := Underlying_Type (Typ);
+
       begin
          if Is_Limited_View (Typ) then
             Set_Returns_By_Ref (Subp);
+
          elsif Present (Utyp) and then CW_Or_Has_Controlled_Part (Utyp) then
             Set_Returns_By_Ref (Subp);
          end if;
@@ -7207,6 +7382,7 @@ package body Exp_Ch6 is
 
       if Nkind_In (Func_Call,
                    N_Qualified_Expression,
+                   N_Type_Conversion,
                    N_Unchecked_Type_Conversion)
       then
          Func_Call := Expression (Func_Call);
@@ -7426,6 +7602,14 @@ package body Exp_Ch6 is
       Return_Obj_Id   : Entity_Id;
       Return_Obj_Decl : Entity_Id;
 
+      Definite : Boolean;
+      --  True if result subtype is definite, or has a size that does not
+      --  require secondary stack usage (i.e. no variant part or components
+      --  whose type depends on discriminants). In particular, untagged types
+      --  with only access discriminants do not require secondary stack use.
+      --  Note that if the return type is tagged we must always use the sec.
+      --  stack because the call may dispatch on result.
+
    begin
       --  Step past qualification, type conversion (which can occur in actual
       --  parameter contexts), and unchecked conversion (which can occur in
@@ -7465,6 +7649,10 @@ package body Exp_Ch6 is
       end if;
 
       Result_Subt := Etype (Function_Id);
+      Definite :=
+        (Is_Definite_Subtype (Underlying_Type (Result_Subt))
+             and then not Is_Tagged_Type (Result_Subt))
+          or else not Requires_Transient_Scope (Underlying_Type (Result_Subt));
 
       --  If the build-in-place function returns a controlled object, then the
       --  object needs to be finalized immediately after the context. Since
@@ -7503,10 +7691,10 @@ package body Exp_Ch6 is
             Analyze (Function_Call);
          end;
 
-      --  When the result subtype is constrained, an object of the subtype is
+      --  When the result subtype is definite, an object of the subtype is
       --  declared and an access value designating it is passed as an actual.
 
-      elsif Is_Constrained (Underlying_Type (Result_Subt)) then
+      elsif Definite then
 
          --  Create a temporary object to hold the function result
 
@@ -7732,7 +7920,12 @@ package body Exp_Ch6 is
       Result_Subt     : Entity_Id;
 
       Definite : Boolean;
-      --  True for definite function result subtype
+      --  True if result subtype is definite, or has a size that does not
+      --  require secondary stack usage (i.e. no variant part or components
+      --  whose type depends on discriminants). In particular, untagged types
+      --  with only access discriminants do not require secondary stack use.
+      --  Note that if the return type is tagged we must always use the sec.
+      --  stack because the call may dispatch on result.
 
    begin
       --  Step past qualification or unchecked conversion (the latter can occur
@@ -7767,7 +7960,10 @@ package body Exp_Ch6 is
       end if;
 
       Result_Subt := Etype (Function_Id);
-      Definite    := Is_Definite_Subtype (Underlying_Type (Result_Subt));
+      Definite :=
+        (Is_Definite_Subtype (Underlying_Type (Result_Subt))
+             and then not Is_Tagged_Type (Result_Subt))
+          or else not Requires_Transient_Scope (Underlying_Type (Result_Subt));
 
       --  Create an access type designating the function's result subtype. We
       --  use the type of the original call because it may be a call to an
@@ -8199,9 +8395,20 @@ package body Exp_Ch6 is
       pragma Assert (Is_Build_In_Place_Function (Func_Id));
       Func_Typ : constant Entity_Id := Underlying_Type (Etype (Func_Id));
    begin
+      --  A formal giving the finalization master is needed for build-in-place
+      --  functions whose result type needs finalization or is a tagged type.
+      --  Tagged primitive build-in-place functions need such a formal because
+      --  they can be called by a dispatching call, and extensions may require
+      --  finalization even if the root type doesn't. This means they're also
+      --  needed for tagged nonprimitive build-in-place functions with tagged
+      --  results, since such functions can be called via access-to-function
+      --  types, and those can be used to call primitives, so masters have to
+      --  be passed to all such build-in-place functions, primitive or not.
+
       return
         not Restriction_Active (No_Finalization)
-          and then Needs_Finalization (Func_Typ);
+          and then (Needs_Finalization (Func_Typ)
+                     or else Is_Tagged_Type (Func_Typ));
    end Needs_BIP_Finalization_Master;
 
    --------------------------
@@ -8346,13 +8553,16 @@ package body Exp_Ch6 is
    ---------------------------------
 
    procedure Rewrite_Function_Call_For_C (N : Node_Id) is
-      Func_Id     : constant Entity_Id  := Entity (Name (N));
-      Func_Decl   : constant Node_Id    := Unit_Declaration_Node (Func_Id);
+      Orig_Func   : constant Entity_Id  := Entity (Name (N));
+      Func_Id     : constant Entity_Id  := Ultimate_Alias (Orig_Func);
       Par         : constant Node_Id    := Parent (N);
-      Proc_Id     : constant Entity_Id  := Defining_Entity (Next (Func_Decl));
+      Proc_Id     : constant Entity_Id  := Corresponding_Procedure (Func_Id);
       Loc         : constant Source_Ptr := Sloc (Par);
       Actuals     : List_Id;
+      Last_Actual : Node_Id;
       Last_Formal : Entity_Id;
+
+   --  Start of processing for Rewrite_Function_Call_For_C
 
    begin
       --  The actuals may be given by named associations, so the added actual
@@ -8380,12 +8590,25 @@ package body Exp_Ch6 is
 
       --    Proc_Call (..., LHS);
 
+      --  If function is inherited, a conversion may be necessary.
+
       if Nkind (Par) = N_Assignment_Statement then
+         Last_Actual :=  Name (Par);
+
+         if not Comes_From_Source (Orig_Func)
+           and then Etype (Orig_Func) /= Etype (Func_Id)
+         then
+            Last_Actual :=
+              Make_Type_Conversion (Loc,
+                New_Occurrence_Of (Etype (Func_Id), Loc),
+                Last_Actual);
+         end if;
+
          Append_To (Actuals,
            Make_Parameter_Association (Loc,
              Selector_Name             =>
                Make_Identifier (Loc, Chars (Last_Formal)),
-             Explicit_Actual_Parameter => Name (Par)));
+             Explicit_Actual_Parameter => Last_Actual));
 
          Rewrite (Par,
            Make_Procedure_Call_Statement (Loc,
@@ -8477,20 +8700,5 @@ package body Exp_Ch6 is
          P := Parent (P);
       end loop;
    end Set_Enclosing_Sec_Stack_Return;
-
-   ------------------------
-   -- Unnest_Subprograms --
-   ------------------------
-
-   procedure Unnest_Subprograms is
-   begin
-      for J in Unest_Bodies.First .. Unest_Bodies.Last loop
-         declare
-            UBJ : Unest_Entry renames Unest_Bodies.Table (J);
-         begin
-            Unnest_Subprogram (UBJ.Ent, UBJ.Bod);
-         end;
-      end loop;
-   end Unnest_Subprograms;
 
 end Exp_Ch6;

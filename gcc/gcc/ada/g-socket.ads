@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---                     Copyright (C) 2001-2014, AdaCore                     --
+--                     Copyright (C) 2001-2016, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -373,6 +373,9 @@ package GNAT.Sockets is
    --  entities declared therein are not meant for direct access by users,
    --  including through this renaming.
 
+   use type Interfaces.C.int;
+   --  Need visibility on "-" operator so that we can write -1
+
    procedure Initialize;
    pragma Obsolescent
      (Entity  => Initialize,
@@ -676,7 +679,8 @@ package GNAT.Sockets is
    --  a boolean to enable or disable this option.
 
    type Option_Name is
-     (Keep_Alive,          -- Enable sending of keep-alive messages
+     (Generic_Option,
+      Keep_Alive,          -- Enable sending of keep-alive messages
       Reuse_Address,       -- Allow bind to reuse local address
       Broadcast,           -- Enable datagram sockets to recv/send broadcasts
       Send_Buffer,         -- Set/get the maximum socket send buffer in bytes
@@ -691,10 +695,17 @@ package GNAT.Sockets is
       Multicast_Loop,      -- Sent multicast packets are looped to local socket
       Receive_Packet_Info, -- Receive low level packet info as ancillary data
       Send_Timeout,        -- Set timeout value for output
-      Receive_Timeout);    -- Set timeout value for input
+      Receive_Timeout,     -- Set timeout value for input
+      Busy_Polling);       -- Set busy polling mode
+   subtype Specific_Option_Name is
+     Option_Name range Keep_Alive .. Option_Name'Last;
 
    type Option_Type (Name : Option_Name := Keep_Alive) is record
       case Name is
+         when Generic_Option =>
+            Optname : Interfaces.C.int := -1;
+            Optval  : Interfaces.C.int;
+
          when Keep_Alive          |
               Reuse_Address       |
               Broadcast           |
@@ -710,6 +721,9 @@ package GNAT.Sockets is
                when others    =>
                   null;
             end case;
+
+         when Busy_Polling    =>
+            Microseconds : Natural;
 
          when Send_Buffer     |
               Receive_Buffer  =>
@@ -876,10 +890,12 @@ package GNAT.Sockets is
    --  No_Sock_Addr on error (e.g. socket closed or not locally bound).
 
    function Get_Socket_Option
-     (Socket : Socket_Type;
-      Level  : Level_Type := Socket_Level;
-      Name   : Option_Name) return Option_Type;
-   --  Get the options associated with a socket. Raises Socket_Error on error
+     (Socket  : Socket_Type;
+      Level   : Level_Type := Socket_Level;
+      Name    : Option_Name;
+      Optname : Interfaces.C.int := -1) return Option_Type;
+   --  Get the options associated with a socket. Raises Socket_Error on error.
+   --  Optname identifies specific option when Name is Generic_Option.
 
    procedure Listen_Socket
      (Socket : Socket_Type;
@@ -1005,7 +1021,11 @@ package GNAT.Sockets is
    --  Same interface as Ada.Streams.Stream_IO
 
    function Stream (Socket : Socket_Type) return Stream_Access;
-   --  Create a stream associated with an already connected stream-based socket
+   --  Create a stream associated with a connected stream-based socket.
+   --  Note: keep in mind that the default stream attributes for composite
+   --  types perform separate Read/Write operations for each component,
+   --  recursively. If performance is an issue, you may want to consider
+   --  introducing a buffering stage.
 
    function Stream
      (Socket  : Socket_Type;
@@ -1107,7 +1127,10 @@ package GNAT.Sockets is
    --
    --  Note that two different Socket_Set_Type objects must be passed as
    --  R_Socket_Set and W_Socket_Set (even if they denote the same set of
-   --  Sockets), or some event may be lost.
+   --  Sockets), or some event may be lost. Also keep in mind that this
+   --  procedure modifies the passed socket sets to indicate which sockets
+   --  actually had events upon return. The socket set therefore has to
+   --  be reset by the caller for further calls.
    --
    --  Socket_Error is raised when the select(2) system call returns an error
    --  condition, or when a read error occurs on the signalling socket used for

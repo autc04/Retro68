@@ -22,8 +22,8 @@ foo:
 	cxutr	%f1,%r2
 	cgdtr	%r2,1,%f6
 	cgxtr	%r2,1,%f1
-	csdtr	%r2,%f6
-	csxtr	%r2,%f1
+	csdtr	%r6,%f3,13
+	csxtr	%r6,%f1,13
 	cudtr	%r2,%f6
 	cuxtr	%r2,%f1
 	ddtr	%f6,%f2,%f4

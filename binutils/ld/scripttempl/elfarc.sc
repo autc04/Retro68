@@ -433,7 +433,6 @@ cat <<EOF
   /* ARC Extension Sections */
   .arcextmap	  0 : { *(.gnu.linkonce.arcextmap.*) }
 
-  ${STACK_ADDR+${STACK}}
   ${OTHER_SECTIONS}
   ${RELOCATING+${OTHER_END_SYMBOLS}}
   ${RELOCATING+${STACKNOTE}}

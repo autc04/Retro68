@@ -36,15 +36,16 @@ ANSI_SYNOPSIS
         #include <wchar.h>
 
         int wprintf(const wchar_t *<[format]>, ...);
-        int fwprintf(FILE *<[fd]>, const wchar_t *<[format]>, ...);
-        int swprintf(wchar_t *<[str]>, size_t <[size]>,
-			const wchar_t *<[format]>, ...);
+        int fwprintf(FILE *__restrict <[fd]>,
+        	const wchar_t *__restrict <[format]>, ...);
+        int swprintf(wchar_t *__restrict <[str]>, size_t <[size]>,
+                     const wchar_t *__restrict <[format]>, ...);
 
         int _wprintf_r(struct _reent *<[ptr]>, const wchar_t *<[format]>, ...);
         int _fwprintf_r(struct _reent *<[ptr]>, FILE *<[fd]>,
-			const wchar_t *<[format]>, ...);
+                        const wchar_t *<[format]>, ...);
         int _swprintf_r(struct _reent *<[ptr]>, wchar_t *<[str]>,
-			size_t <[size]>, const wchar_t *<[format]>, ...);
+                        size_t <[size]>, const wchar_t *<[format]>, ...);
 
 DESCRIPTION
         <<wprintf>> accepts a series of arguments, applies to each a
@@ -166,39 +167,43 @@ DESCRIPTION
 	        o #
 			The result is to be converted to an
 			alternative form, according to the <[type]>
-			character:
-
-			o+
-			o o
-				Increases precision to force the first
-				digit of the result to be a zero.
-
-			o x
-				A non-zero result will have a <<0x>>
-				prefix.
-
-			o X
-				A non-zero result will have a <<0X>>
-				prefix.
-
-			o a, A, e, E, f, or F
-				The result will always contain a
-			        decimal point even if no digits follow
-			        the point.  (Normally, a decimal point
-			        appears only if a digit follows it.)
-			        Trailing zeros are removed.
-
-			o g or G
-				The result will always contain a
-			        decimal point even if no digits follow
-			        the point.  Trailing zeros are not
-			        removed.
-
-			o all others
-				Undefined.
-
-			o-
+			character.
 		o-
+
+	The alternative form output with the # flag depends on the <[type]>
+	character:
+
+		o+
+		o o
+			Increases precision to force the first
+			digit of the result to be a zero.
+
+		o x
+			A non-zero result will have a <<0x>>
+			prefix.
+
+		o X
+			A non-zero result will have a <<0X>>
+			prefix.
+
+		o a, A, e, E, f, or F
+			The result will always contain a
+			decimal point even if no digits follow
+			the point.  (Normally, a decimal point
+			appears only if a digit follows it.)
+			Trailing zeros are removed.
+
+		o g or G
+			The result will always contain a
+			decimal point even if no digits follow
+			the point.  Trailing zeros are not
+			removed.
+
+		o all others
+			Undefined.
+
+		o-
+
 
 	o <[width]>
 
@@ -498,6 +503,10 @@ DESCRIPTION
 			implementation is similar to <<%#tx>>), except
 			that <<0x>> appears even for the NULL pointer.
 
+		o m
+			Prints the output of <<strerror(errno)>>; no
+			argument is required.  A GNU extension.
+
 		o-
 	O-
 
@@ -586,9 +595,9 @@ _DEFUN(_swprintf_r, (ptr, str, size, fmt),
 
 int
 _DEFUN(swprintf, (str, size, fmt),
-       wchar_t *str   _AND
+       wchar_t *__restrict str   _AND
        size_t size _AND
-       _CONST wchar_t *fmt _DOTS)
+       _CONST wchar_t *__restrict fmt _DOTS)
 {
   int ret;
   va_list ap;

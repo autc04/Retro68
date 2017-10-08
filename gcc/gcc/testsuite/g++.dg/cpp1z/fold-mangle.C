@@ -7,7 +7,7 @@ template < int ... N > void unary_right (A < (N + ...) >);
 template < int ... N > void binary_left (A < (42 + ... + N) >);
 template < int ... N > void binary_right (A < (N + ... + 42) >);
 
-void bar ()
+void bar ()  
 {
   // { dg-final { scan-assembler "_Z10unary_leftIJLi1ELi2ELi3EEEv1AIXflplT_EE" } }
   unary_left < 1, 2, 3 > ({});

@@ -74,13 +74,19 @@
 /* Static linking with shared libstdc++ requires libsupc++ as well.  */
 #define LIBSTDCXX_STATIC "supc++"
 
-/* This now supports a natural alignment mode.  */
-/* AIX word-aligns FP doubles but doubleword-aligns 64-bit ints.  */
-#define ADJUST_FIELD_ALIGN(FIELD, COMPUTED) \
-  ((TARGET_ALIGN_NATURAL == 0						\
-    && TYPE_MODE (strip_array_types (TREE_TYPE (FIELD))) == DFmode)	\
-   ? MIN ((COMPUTED), 32)						\
-   : (COMPUTED))
+/* Compute field alignment.
+   This implements the 'power' alignment rule by pegging the alignment of
+   items (beyond the first aggregate field) to 32 bits.  The pegging is
+   suppressed for vector and long double items (both 128 in size).
+   There is a dummy use of the FIELD argument to avoid an unused variable
+   warning (see PR59496).  */
+#define ADJUST_FIELD_ALIGN(FIELD, TYPE, COMPUTED)		\
+  ((void) (FIELD),						\
+    (TARGET_ALIGN_NATURAL					\
+     ? (COMPUTED)						\
+     : (COMPUTED) == 128					\
+	? 128							\
+	: MIN ((COMPUTED), 32)))
 
 /* AIX increases natural record alignment to doubleword if the first
    field is an FP double while the FP fields remain word aligned.  */

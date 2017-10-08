@@ -102,7 +102,8 @@ foreach testitem $seltests {
 	# the functionality we try to test for cannot be expected to work.
 	set version [remote_exec host "$CXX -dumpversion"]
 	set version [lindex $version 1]
-	if [regexp "^(\[1-9\]\[0-9\]+|\[4-9\]|3.(\[1-9\]\[0-9\]+|\[4-9\]))\\." $version] {
+	if { [regexp "^(\[1-9\]\[0-9\]+|\[4-9\]|3.(\[1-9\]\[0-9\]+))\\." $version] \
+	     || [regexp "^(\[1-9\]\[0-9\]+|\[4-9\])" $version] } {
 	    set testflags "$cflags $cxxflags"
 	    setup_xfail {*-*-*}
 	} else {
@@ -151,7 +152,7 @@ foreach testitem $seltests {
 	set objfile "$objfile --defsym _.d2=0"
     }
 
-    if ![ld_simple_link $ld $ldfile "$ldflags [join $ldargs] $objfile"] {
+    if ![ld_link $ld $ldfile "$ldflags [join $ldargs] $objfile"] {
 	fail $testname
 	continue
     }

@@ -82,6 +82,7 @@ check_PROGRAMS = $(am__EXEEXT_1) $(am__EXEEXT_2) $(am__EXEEXT_3) \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_test.sh \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_keep_unique_test.sh \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_test.sh \
+@GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_pie_test.sh \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_so_test.sh \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	final_layout.sh \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	text_section_grouping.sh \
@@ -103,6 +104,9 @@ check_PROGRAMS = $(am__EXEEXT_1) $(am__EXEEXT_2) $(am__EXEEXT_3) \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_test_1.stdout \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_test_2.stdout \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_test.map \
+@GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_pie_test_1.stdout \
+@GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_pie_test_2.stdout \
+@GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_pie_test.map \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_so_test_1.stdout \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_so_test_2.stdout \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_so_test.map \
@@ -125,6 +129,8 @@ check_PROGRAMS = $(am__EXEEXT_1) $(am__EXEEXT_2) $(am__EXEEXT_3) \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_test icf_test.map \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_keep_unique_test \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_test icf_safe_test.map \
+@GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_pie_test \
+@GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_pie_test.map \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_so_test \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	icf_safe_so_test.map \
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	final_layout \
@@ -971,11 +977,14 @@ check_PROGRAMS = $(am__EXEEXT_1) $(am__EXEEXT_2) $(am__EXEEXT_3) \
 @DEFAULT_TARGET_ARM_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	arm_target2_got_rel \
 @DEFAULT_TARGET_ARM_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	arm_target_lazy_init
 @DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@am__append_99 = aarch64_reloc_none.sh \
-@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	aarch64_relocs.sh
+@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	aarch64_relocs.sh \
+@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	pr21430.sh
 @DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@am__append_100 = aarch64_reloc_none.stdout \
-@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	aarch64_relocs.stdout
+@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	aarch64_relocs.stdout \
+@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	pr21430.stdout
 @DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@am__append_101 = aarch64_reloc_none \
-@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	aarch64_relocs
+@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	aarch64_relocs \
+@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	pr21430
 @DEFAULT_TARGET_S390_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@am__append_102 = split_s390.sh
 @DEFAULT_TARGET_S390_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@am__append_103 = split_s390_z1.stdout split_s390_z2.stdout split_s390_z3.stdout \
 @DEFAULT_TARGET_S390_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	split_s390_z4.stdout split_s390_n1.stdout split_s390_n2.stdout \
@@ -5093,6 +5102,8 @@ icf_keep_unique_test.sh.log: icf_keep_unique_test.sh
 	@p='icf_keep_unique_test.sh'; $(am__check_pre) $(LOG_COMPILE) "$$tst" $(am__check_post)
 icf_safe_test.sh.log: icf_safe_test.sh
 	@p='icf_safe_test.sh'; $(am__check_pre) $(LOG_COMPILE) "$$tst" $(am__check_post)
+icf_safe_pie_test.sh.log: icf_safe_pie_test.sh
+	@p='icf_safe_pie_test.sh'; $(am__check_pre) $(LOG_COMPILE) "$$tst" $(am__check_post)
 icf_safe_so_test.sh.log: icf_safe_so_test.sh
 	@p='icf_safe_so_test.sh'; $(am__check_pre) $(LOG_COMPILE) "$$tst" $(am__check_post)
 final_layout.sh.log: final_layout.sh
@@ -5297,6 +5308,8 @@ aarch64_reloc_none.sh.log: aarch64_reloc_none.sh
 	@p='aarch64_reloc_none.sh'; $(am__check_pre) $(LOG_COMPILE) "$$tst" $(am__check_post)
 aarch64_relocs.sh.log: aarch64_relocs.sh
 	@p='aarch64_relocs.sh'; $(am__check_pre) $(LOG_COMPILE) "$$tst" $(am__check_post)
+pr21430.sh.log: pr21430.sh
+	@p='pr21430.sh'; $(am__check_pre) $(LOG_COMPILE) "$$tst" $(am__check_post)
 split_s390.sh.log: split_s390.sh
 	@p='split_s390.sh'; $(am__check_pre) $(LOG_COMPILE) "$$tst" $(am__check_post)
 dwp_test_1.sh.log: dwp_test_1.sh
@@ -5909,6 +5922,16 @@ uninstall-am:
 @GCC_TRUE@@NATIVE_LINKER_TRUE@icf_safe_test_1.stdout: icf_safe_test
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	$(TEST_NM) $< > $@
 @GCC_TRUE@@NATIVE_LINKER_TRUE@icf_safe_test_2.stdout: icf_safe_test
+@GCC_TRUE@@NATIVE_LINKER_TRUE@	$(TEST_READELF) -h $< > $@
+@GCC_TRUE@@NATIVE_LINKER_TRUE@icf_safe_pie_test.o: icf_safe_test.cc
+@GCC_TRUE@@NATIVE_LINKER_TRUE@	$(CXXCOMPILE) -O0 -c -ffunction-sections -fPIE -g -o $@ $<
+@GCC_TRUE@@NATIVE_LINKER_TRUE@icf_safe_pie_test: icf_safe_pie_test.o gcctestdir/ld
+@GCC_TRUE@@NATIVE_LINKER_TRUE@	$(CXXLINK) -o icf_safe_pie_test -Bgcctestdir/ -Wl,--icf=safe,-Map,icf_safe_pie_test.map icf_safe_pie_test.o -pie
+@GCC_TRUE@@NATIVE_LINKER_TRUE@icf_safe_pie_test.map: icf_safe_pie_test
+@GCC_TRUE@@NATIVE_LINKER_TRUE@	@touch icf_safe_pie_test.map
+@GCC_TRUE@@NATIVE_LINKER_TRUE@icf_safe_pie_test_1.stdout: icf_safe_pie_test
+@GCC_TRUE@@NATIVE_LINKER_TRUE@	$(TEST_NM) $< > $@
+@GCC_TRUE@@NATIVE_LINKER_TRUE@icf_safe_pie_test_2.stdout: icf_safe_pie_test
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	$(TEST_READELF) -h $< > $@
 @GCC_TRUE@@NATIVE_LINKER_TRUE@icf_safe_so_test.o: icf_safe_so_test.cc
 @GCC_TRUE@@NATIVE_LINKER_TRUE@	$(CXXCOMPILE) -O0 -c -ffunction-sections -fPIC -g -o $@ $<
@@ -7854,6 +7877,12 @@ uninstall-am:
 @DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	../ld-new -o $@ aarch64_relocs.o aarch64_globals.o -e0 --emit-relocs
 @DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@aarch64_relocs.stdout: aarch64_relocs
 @DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	$(TEST_OBJDUMP) -dr $< > $@
+@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@pr21430.o: pr21430.s
+@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	$(TEST_AS) -o $@ $<
+@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@pr21430: pr21430.o ../ld-new
+@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	../ld-new -o $@ $<
+@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@pr21430.stdout: pr21430
+@DEFAULT_TARGET_AARCH64_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	$(TEST_NM) -S $< > $@
 @DEFAULT_TARGET_S390_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@split_s390_1_z1.o: split_s390_1_z1.s
 @DEFAULT_TARGET_S390_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@	$(TEST_AS) -m31 -o $@ $<
 @DEFAULT_TARGET_S390_TRUE@@NATIVE_OR_CROSS_LINKER_TRUE@split_s390_1_z2.o: split_s390_1_z2.s

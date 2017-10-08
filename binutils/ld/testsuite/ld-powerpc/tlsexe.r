@@ -51,11 +51,10 @@ Program Headers:
  +04 +\.dynamic *
  +05 +\.tdata \.tbss *
 
-Relocation section '\.rela\.dyn' at offset .* contains 3 entries:
+Relocation section '\.rela\.dyn' at offset .* contains 2 entries:
  +Offset +Info +Type +Symbol's Value +Symbol's Name \+ Addend
 [0-9a-f ]+R_PPC64_TPREL64 +0+ gd \+ 0
 [0-9a-f ]+R_PPC64_DTPMOD64 +0+ ld \+ 0
-[0-9a-f ]+R_PPC64_DTPREL64 +0+50 ld2 \+ 0
 
 Relocation section '\.rela\.plt' at offset .* contains 1 entries:
  +Offset +Info +Type +Symbol's Value +Symbol's Name \+ Addend
@@ -66,7 +65,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* NOTYPE +LOCAL +DEFAULT +UND *
 .* TLS +GLOBAL +DEFAULT +UND gd
 .* TLS +GLOBAL +DEFAULT +UND ld
-.* TLS +GLOBAL +DEFAULT +9 ld2
 .* NOTYPE +GLOBAL +DEFAULT +13 __bss_start
 .* FUNC +GLOBAL +DEFAULT +UND __tls_get_addr_opt
 .* NOTYPE +GLOBAL +DEFAULT +13 _edata

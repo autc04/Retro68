@@ -25,7 +25,7 @@
 #define DEFINE_TABLE
 
 #include "w65-opc.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 
 static fprintf_ftype fpr;
 static void *stream;

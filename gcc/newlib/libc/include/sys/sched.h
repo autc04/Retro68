@@ -14,12 +14,14 @@
  *  OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY OF THIS
  *  SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
  *
- *  $Id: sched.h,v 1.3 2010/04/01 18:33:37 jjohnstn Exp $
+ *  $Id$
  */
 
 
 #ifndef _SYS_SCHED_H_
 #define _SYS_SCHED_H_
+
+#include <sys/_timespec.h>
 
 #ifdef __cplusplus
 extern "C" {

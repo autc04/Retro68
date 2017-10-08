@@ -99,7 +99,9 @@ elf64_sparc_slurp_one_reloc_table (bfd *abfd, asection *asect,
 
       if (ELF64_R_SYM (rela.r_info) == STN_UNDEF
 	  /* PR 17512: file: 996185f8.  */
-	  || ELF64_R_SYM (rela.r_info) > bfd_get_symcount (abfd))
+	  || (!dynamic && ELF64_R_SYM(rela.r_info) > bfd_get_symcount(abfd))
+          || (dynamic
+              && ELF64_R_SYM(rela.r_info) > bfd_get_dynamic_symcount(abfd)))
 	relent->sym_ptr_ptr = bfd_abs_section_ptr->symbol_ptr_ptr;
       else
 	{
@@ -276,6 +278,18 @@ elf64_sparc_canonicalize_dynamic_reloc (bfd *abfd, arelent **storage,
   return ret;
 }
 
+/* Install a new set of internal relocs.  */
+
+static void
+elf64_sparc_set_reloc (bfd *abfd ATTRIBUTE_UNUSED,
+                       asection *asect,
+                       arelent **location,
+                       unsigned int count)
+{
+  asect->orelocation = location;
+  canon_reloc_count (asect) = count;
+}
+
 /* Write out the relocs.  */
 
 static void
@@ -300,14 +314,14 @@ elf64_sparc_write_relocs (bfd *abfd, asection *sec, void * data)
      reloc_count field to zero to inhibit writing them here.  Also,
      sometimes the SEC_RELOC flag gets set even when there aren't any
      relocs.  */
-  if (sec->reloc_count == 0)
+  if (canon_reloc_count (sec) == 0)
     return;
 
   /* We can combine two relocs that refer to the same address
      into R_SPARC_OLO10 if first one is R_SPARC_LO10 and the
      latter is R_SPARC_13 with no associated symbol.  */
   count = 0;
-  for (idx = 0; idx < sec->reloc_count; idx++)
+  for (idx = 0; idx < canon_reloc_count (sec); idx++)
     {
       bfd_vma addr;
 
@@ -315,7 +329,7 @@ elf64_sparc_write_relocs (bfd *abfd, asection *sec, void * data)
 
       addr = sec->orelocation[idx]->address;
       if (sec->orelocation[idx]->howto->type == R_SPARC_LO10
-	  && idx < sec->reloc_count - 1)
+	  && idx < canon_reloc_count (sec) - 1)
 	{
 	  arelent *r = sec->orelocation[idx + 1];
 
@@ -352,7 +366,7 @@ elf64_sparc_write_relocs (bfd *abfd, asection *sec, void * data)
   outbound_relocas = (Elf64_External_Rela *) rela_hdr->contents;
   src_rela = outbound_relocas;
 
-  for (idx = 0; idx < sec->reloc_count; idx++)
+  for (idx = 0; idx < canon_reloc_count (sec); idx++)
     {
       Elf_Internal_Rela dst_rela;
       arelent *ptr;
@@ -386,7 +400,7 @@ elf64_sparc_write_relocs (bfd *abfd, asection *sec, void * data)
 	}
 
       if (ptr->howto->type == R_SPARC_LO10
-	  && idx < sec->reloc_count - 1)
+	  && idx < canon_reloc_count (sec) - 1)
 	{
 	  arelent *r = sec->orelocation[idx + 1];
 
@@ -464,10 +478,10 @@ elf64_sparc_add_symbol_hook (bfd *abfd, struct bfd_link_info *info,
 	{
 	  _bfd_error_handler
 	    /* xgettext:c-format */
-            (_("Register %%g%d used incompatibly: %s in %B, previously %s in %B"),
-             abfd, p->abfd, (int) sym->st_value,
-             **namep ? *namep : "#scratch",
-             *p->name ? p->name : "#scratch");
+	    (_("Register %%g%d used incompatibly: %s in %B,"
+	       " previously %s in %B"),
+	     (int) sym->st_value, **namep ? *namep : "#scratch", abfd,
+	     *p->name ? p->name : "#scratch", p->abfd);
 	  return FALSE;
 	}
 
@@ -488,8 +502,9 @@ elf64_sparc_add_symbol_hook (bfd *abfd, struct bfd_link_info *info,
 		    type = 0;
 		  _bfd_error_handler
 		    /* xgettext:c-format */
-		    (_("Symbol `%s' has differing types: REGISTER in %B, previously %s in %B"),
-		     abfd, p->abfd, *namep, stt_types[type]);
+		    (_("Symbol `%s' has differing types: REGISTER in %B,"
+		       " previously %s in %B"),
+		     *namep, abfd, stt_types[type], p->abfd);
 		  return FALSE;
 		}
 
@@ -534,8 +549,9 @@ elf64_sparc_add_symbol_hook (bfd *abfd, struct bfd_link_info *info,
 	      type = 0;
 	    _bfd_error_handler
 	      /* xgettext:c-format */
-	      (_("Symbol `%s' has differing types: %s in %B, previously REGISTER in %B"),
-	       abfd, p->abfd, *namep, stt_types[type]);
+	      (_("Symbol `%s' has differing types: %s in %B,"
+		 " previously REGISTER in %B"),
+	       *namep, stt_types[type], abfd, p->abfd);
 	    return FALSE;
 	  }
     }
@@ -850,6 +866,8 @@ const struct elf_size_info elf64_sparc_size_info =
   elf64_sparc_canonicalize_reloc
 #define bfd_elf64_canonicalize_dynamic_reloc \
   elf64_sparc_canonicalize_dynamic_reloc
+#define bfd_elf64_set_reloc \
+  elf64_sparc_set_reloc
 #define elf_backend_add_symbol_hook \
   elf64_sparc_add_symbol_hook
 #define elf_backend_get_symbol_type \
@@ -902,6 +920,8 @@ const struct elf_size_info elf64_sparc_size_info =
   _bfd_sparc_elf_finish_dynamic_symbol
 #define elf_backend_finish_dynamic_sections \
   _bfd_sparc_elf_finish_dynamic_sections
+#define elf_backend_fixup_symbol \
+  _bfd_sparc_elf_fixup_symbol
 
 #define bfd_elf64_mkobject \
   _bfd_sparc_elf_mkobject

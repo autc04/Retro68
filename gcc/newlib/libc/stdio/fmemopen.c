@@ -87,7 +87,7 @@ _DEFUN(fmemreader, (ptr, cookie, buf, n),
        struct _reent *ptr _AND
        void *cookie _AND
        char *buf _AND
-       int n)
+       _READ_WRITE_BUFSIZE_TYPE n)
 {
   fmemcookie *c = (fmemcookie *) cookie;
   /* Can't read beyond current size, but EOF condition is not an error.  */
@@ -107,7 +107,7 @@ _DEFUN(fmemwriter, (ptr, cookie, buf, n),
        struct _reent *ptr _AND
        void *cookie _AND
        const char *buf _AND
-       int n)
+       _READ_WRITE_BUFSIZE_TYPE n)
 {
   fmemcookie *c = (fmemcookie *) cookie;
   int adjust = 0; /* true if at EOF, but still need to write NUL.  */
@@ -270,9 +270,9 @@ _DEFUN(fmemcloser, (ptr, cookie),
 FILE *
 _DEFUN(_fmemopen_r, (ptr, buf, size, mode),
        struct _reent *ptr _AND
-       void *buf _AND
+       void *__restrict buf _AND
        size_t size _AND
-       const char *mode)
+       const char *__restrict mode)
 {
   FILE *fp;
   fmemcookie *c;
@@ -291,12 +291,12 @@ _DEFUN(_fmemopen_r, (ptr, buf, size, mode),
   if ((c = (fmemcookie *) _malloc_r (ptr, sizeof *c + (buf ? 0 : size)))
       == NULL)
     {
-      __sfp_lock_acquire ();
+      _newlib_sfp_lock_start ();
       fp->_flags = 0;		/* release */
 #ifndef __SINGLE_THREAD__
       __lock_close_recursive (fp->_lock);
 #endif
-      __sfp_lock_release ();
+      _newlib_sfp_lock_end ();
       return NULL;
     }
 
@@ -343,7 +343,7 @@ _DEFUN(_fmemopen_r, (ptr, buf, size, mode),
 	}
     }
 
-  _flockfile (fp);
+  _newlib_flockfile_start (fp);
   fp->_file = -1;
   fp->_flags = flags;
   fp->_cookie = c;
@@ -355,16 +355,16 @@ _DEFUN(_fmemopen_r, (ptr, buf, size, mode),
   fp->_flags |= __SL64;
 #endif
   fp->_close = fmemcloser;
-  _funlockfile (fp);
+  _newlib_flockfile_end (fp);
   return fp;
 }
 
 #ifndef _REENT_ONLY
 FILE *
 _DEFUN(fmemopen, (buf, size, mode),
-       void *buf _AND
+       void *__restrict buf _AND
        size_t size _AND
-       const char *mode)
+       const char *__restrict mode)
 {
   return _fmemopen_r (_REENT, buf, size, mode);
 }

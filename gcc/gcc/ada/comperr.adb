@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2015, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -294,7 +294,7 @@ package body Comperr is
                if Is_FSF_Version then
                   Write_Str
                     ("| Please submit a bug report; see" &
-                     " http://gcc.gnu.org/bugs.html.");
+                     " https://gcc.gnu.org/bugs/ .");
                   End_Line;
 
                elsif Is_GPL_Version then
@@ -467,7 +467,10 @@ package body Comperr is
       Main := Unit (Cunit (Main_Unit));
 
       case Nkind (Main) is
-         when N_Subprogram_Body | N_Package_Declaration =>
+         when N_Package_Declaration
+            | N_Subprogram_Body
+            | N_Subprogram_Declaration
+         =>
             Unit_Name := Defining_Unit_Name (Specification (Main));
 
          when N_Package_Body =>

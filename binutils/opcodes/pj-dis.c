@@ -22,7 +22,7 @@
 #include "sysdep.h"
 #include <stdio.h>
 #include "opcode/pj.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 
 extern const pj_opc_info_t pj_opc_info[512];
 

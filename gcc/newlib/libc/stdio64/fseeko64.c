@@ -26,18 +26,18 @@ INDEX
 
 ANSI_SYNOPSIS
 	#include <stdio.h>
-	int fseeko64(FILE *<[fp]>, _off64_t <[offset]>, int <[whence]>)
+	int fseeko64(FILE *<[fp]>, _off64_t <[offset]>, int <[whence]>);
 	int _fseeko64_r (struct _reent *<[ptr]>, FILE *<[fp]>,
-                         _off64_t <[offset]>, int <[whence]>)
+                         _off64_t <[offset]>, int <[whence]>);
 TRAD_SYNOPSIS
 	#include <stdio.h>
 
-	int fseeko64(<[fp]>, <[offset]>, <[whence]>)
+	int fseeko64(<[fp]>, <[offset]>, <[whence]>);
 	FILE *<[fp]>;
 	_off64_t <[offset]>;
 	int <[whence]>;
 
-	int _fseeko64_r (<[ptr]>, <[fp]>, <[offset]>, <[whence]>)
+	int _fseeko64_r (<[ptr]>, <[fp]>, <[offset]>, <[whence]>);
 	struct _reent *<[ptr]>;
 	FILE *<[fp]>;
 	_off64_t <[offset]>;
@@ -126,7 +126,7 @@ _DEFUN (_fseeko64_r, (ptr, fp, offset, whence),
 
   CHECK_INIT (ptr, fp);
 
-  _flockfile (fp);
+  _newlib_flockfile_start (fp);
 
   curoff = fp->_offset;
 
@@ -144,7 +144,7 @@ _DEFUN (_fseeko64_r, (ptr, fp, offset, whence),
   if ((seekfn = fp->_seek64) == NULL)
     {
       ptr->_errno = ESPIPE;	/* ??? */
-      _funlockfile(fp);
+      _newlib_flockfile_exit(fp);
       return EOF;
     }
 
@@ -169,7 +169,7 @@ _DEFUN (_fseeko64_r, (ptr, fp, offset, whence),
 	  curoff = seekfn (ptr, fp->_cookie, (_fpos64_t) 0, SEEK_CUR);
 	  if (curoff == -1L)
 	    {
-	      _funlockfile(fp);
+	      _newlib_flockfile_exit(fp);
 	      return EOF;
 	    }
 	}
@@ -194,7 +194,7 @@ _DEFUN (_fseeko64_r, (ptr, fp, offset, whence),
 
     default:
       ptr->_errno = EINVAL;
-      _funlockfile(fp);
+      _newlib_flockfile_exit(fp);
       return (EOF);
     }
 
@@ -209,6 +209,8 @@ _DEFUN (_fseeko64_r, (ptr, fp, offset, whence),
 
   if (fp->_bf._base == NULL)
     __smakebuf_r (ptr, fp);
+
+#if _FSEEK_OPTIMIZATION
   if (fp->_flags & (__SWR | __SRW | __SNBF | __SNPT))
     goto dumb;
   if ((fp->_flags & __SOPT) == 0)
@@ -294,7 +296,7 @@ _DEFUN (_fseeko64_r, (ptr, fp, offset, whence),
       if (HASUB (fp))
 	FREEUB (ptr, fp);
       fp->_flags &= ~__SEOF;
-      _funlockfile(fp);
+      _newlib_flockfile_exit(fp);
       return 0;
     }
 
@@ -323,13 +325,14 @@ _DEFUN (_fseeko64_r, (ptr, fp, offset, whence),
       fp->_p += n;
       fp->_r -= n;
     }
-  _funlockfile(fp);
+  _newlib_flockfile_end(fp);
   return 0;
 
   /*
    * We get here if we cannot optimise the seek ... just
    * do it.  Allow the seek function to change fp->_bf._base.
    */
+#endif
 
 dumb:
   if (_fflush_r (ptr, fp)

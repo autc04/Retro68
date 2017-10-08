@@ -24,7 +24,7 @@
 #include <stdio.h>
 
 #include "opcode/m68hc11.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 
 #define PC_REGNUM 3
 

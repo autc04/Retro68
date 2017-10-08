@@ -227,14 +227,14 @@ static bfd_vma
 score3_bfd_getl48 (const void *p)
 {
   const bfd_byte *addr = p;
-  unsigned long long v;
+  bfd_uint64_t v;
 
-  v = (unsigned long long) addr[4];
-  v |= (unsigned long long) addr[5] << 8;
-  v |= (unsigned long long) addr[2] << 16;
-  v |= (unsigned long long) addr[3] << 24;
-  v |= (unsigned long long) addr[0] << 32;
-  v |= (unsigned long long) addr[1] << 40;
+  v = (bfd_uint64_t) addr[4];
+  v |= (bfd_uint64_t) addr[5] << 8;
+  v |= (bfd_uint64_t) addr[2] << 16;
+  v |= (bfd_uint64_t) addr[3] << 24;
+  v |= (bfd_uint64_t) addr[0] << 32;
+  v |= (bfd_uint64_t) addr[1] << 40;
   return v;
 }
 
@@ -2034,11 +2034,9 @@ score_elf_final_link_relocate (reloc_howto_type *howto,
     {
       const Elf_Internal_Rela *relend;
       const Elf_Internal_Rela *lo16_rel;
-      const struct elf_backend_data *bed;
       bfd_vma lo_value = 0;
 
-      bed = get_elf_backend_data (output_bfd);
-      relend = relocs + input_section->reloc_count * bed->s->int_rels_per_ext_rel;
+      relend = relocs + input_section->reloc_count;
       lo16_rel = score_elf_next_relocation (input_bfd, R_SCORE_GOT_LO16, rel, relend);
       if ((local_p) && (lo16_rel != NULL))
         {
@@ -2769,7 +2767,6 @@ s3_bfd_score_elf_check_relocs (bfd *abfd,
                                asection *sec,
                                const Elf_Internal_Rela *relocs)
 {
-  const char *name;
   bfd *dynobj;
   Elf_Internal_Shdr *symtab_hdr;
   struct elf_link_hash_entry **sym_hashes;
@@ -2779,7 +2776,6 @@ s3_bfd_score_elf_check_relocs (bfd *abfd,
   const Elf_Internal_Rela *rel_end;
   asection *sgot;
   asection *sreloc;
-  const struct elf_backend_data *bed;
 
   if (bfd_link_relocatable (info))
     return TRUE;
@@ -2788,8 +2784,6 @@ s3_bfd_score_elf_check_relocs (bfd *abfd,
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (abfd);
   extsymoff = (elf_bad_symtab (abfd)) ? 0 : symtab_hdr->sh_info;
-
-  name = bfd_get_section_name (abfd, sec);
 
   if (dynobj == NULL)
     {
@@ -2810,8 +2804,7 @@ s3_bfd_score_elf_check_relocs (bfd *abfd,
     }
 
   sreloc = NULL;
-  bed = get_elf_backend_data (abfd);
-  rel_end = relocs + sec->reloc_count * bed->s->int_rels_per_ext_rel;
+  rel_end = relocs + sec->reloc_count;
   for (rel = relocs; rel < rel_end; ++rel)
     {
       unsigned long r_symndx;
@@ -2829,7 +2822,7 @@ s3_bfd_score_elf_check_relocs (bfd *abfd,
         {
 	  _bfd_error_handler
 	    /* xgettext:c-format */
-	    (_("%s: Malformed reloc detected for section %s"), abfd, name);
+	    (_("%B: Malformed reloc detected for section %A"), abfd, sec);
           bfd_set_error (bfd_error_bad_value);
           return FALSE;
         }
@@ -2845,7 +2838,7 @@ s3_bfd_score_elf_check_relocs (bfd *abfd,
 
 	      /* PR15323, ref flags aren't set for references in the
 		 same object.  */
-	      h->root.non_ir_ref = 1;
+	      h->root.non_ir_ref_regular = 1;
             }
         }
 

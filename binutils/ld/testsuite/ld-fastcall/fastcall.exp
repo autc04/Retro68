@@ -45,7 +45,7 @@ if ![ld_assemble $as $srcdir/$subdir/import.s tmpdir/import.o] {
     return
 }
 
-if ![ld_simple_link $ld tmpdir/extern.x "$ldflags tmpdir/export.o tmpdir/import.o"] {
+if ![ld_link $ld tmpdir/extern.x "$ldflags tmpdir/export.o tmpdir/import.o"] {
     fail $testname
 } else {
     pass $testname

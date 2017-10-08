@@ -1,7 +1,7 @@
 #readelf: -s --debug-dump=aranges
 #as: -g
 
-Symbol table '.symtab' contains 10 entries:
+Symbol table '.symtab' contains 11 entries:
    Num:[ ]+Value[ ]+Size[ ]+Type[ ]+Bind[ ]+Vis[ ]+Ndx[ ]+Name
      0: 0+     0 NOTYPE  LOCAL  DEFAULT  UND[ ]+
      1: 0+     0 SECTION LOCAL  DEFAULT    1[ ]+
@@ -11,8 +11,9 @@ Symbol table '.symtab' contains 10 entries:
      5: 0+     0 SECTION LOCAL  DEFAULT    6[ ]+
      6: 0+     0 SECTION LOCAL  DEFAULT    8[ ]+
      7: 0+     0 SECTION LOCAL  DEFAULT    4[ ]+
-     8: 0+     0 SECTION LOCAL  DEFAULT    9[ ]+
-     9: 0+     8 FUNC    GLOBAL DEFAULT    1 testfunc
+     8: 0+     0 SECTION LOCAL  DEFAULT   11[ ]+
+     9: 0+     0 SECTION LOCAL  DEFAULT    9[ ]+
+    10: 0+     8 FUNC    GLOBAL DEFAULT    1 testfunc
 Contents of the .debug_aranges section:
 
   Length:                   (44|28)

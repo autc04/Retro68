@@ -452,7 +452,7 @@ atof_generic (/* return pointer to just AFTER number we read.  */
 
       {
 	/*
-	 * Compute the mantssa (& exponent) of the power of 10.
+	 * Compute the mantissa (& exponent) of the power of 10.
 	 * If successful, then multiply the power of 10 by the digits
 	 * giving return_binary_mantissa and return_binary_exponent.
 	 */

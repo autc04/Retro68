@@ -43,12 +43,13 @@
 #ifndef _GRP_H_
 #define	_GRP_H_
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
 #ifdef __CYGWIN__
 #include <cygwin/grp.h>
 #endif
 
-#if !defined(_POSIX_SOURCE) && !defined(_XOPEN_SOURCE)
+#if __BSD_VISIBLE
 #define	_PATH_GROUP		"/etc/group"
 #endif
 
@@ -66,25 +67,20 @@ extern "C" {
 #ifndef __INSIDE_CYGWIN__
 struct group	*getgrgid (gid_t);
 struct group	*getgrnam (const char *);
+#if __MISC_VISIBLE || __POSIX_VISIBLE
 int		 getgrnam_r (const char *, struct group *,
 			char *, size_t, struct group **);
 int		 getgrgid_r (gid_t, struct group *,
 			char *, size_t, struct group **);
-#ifndef _POSIX_SOURCE
+#endif /* __MISC_VISIBLE || __POSIX_VISIBLE */
+#if __MISC_VISIBLE || __XSI_VISIBLE >= 4
 struct group	*getgrent (void);
 void		 setgrent (void);
 void		 endgrent (void);
-#ifndef __CYGWIN__
-void		 setgrfile (const char *);
-#endif /* !__CYGWIN__ */
-#ifndef _XOPEN_SOURCE
-#ifndef __CYGWIN__
-char		*group_from_gid (gid_t, int);
-int		 setgroupent (int);
-#endif /* !__CYGWIN__ */
+#endif /* __MISC_VISIBLE || __XSI_VISIBLE >= 4 */
+#if __BSD_VISIBLE
 int		 initgroups (const char *, gid_t);
-#endif /* !_XOPEN_SOURCE */
-#endif /* !_POSIX_SOURCE */
+#endif /* __BSD_VISIBLE */
 #endif /* !__INSIDE_CYGWIN__ */
 
 #ifdef __cplusplus

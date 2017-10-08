@@ -1025,8 +1025,8 @@ mn10300_do_tls_transition (bfd *         input_bfd,
     default:
       _bfd_error_handler
 	/* xgettext:c-format */
-	(_("%s: Unsupported transition from %s to %s"),
-	 bfd_get_filename (input_bfd),
+	(_("%B: Unsupported transition from %s to %s"),
+	 input_bfd,
 	 elf_mn10300_howto_table[r_type].name,
 	 elf_mn10300_howto_table[tls_r_type].name);
       break;
@@ -1094,7 +1094,7 @@ mn10300_elf_check_relocs (bfd *abfd,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
 
       r_type = ELF32_R_TYPE (rel->r_info);
@@ -1520,7 +1520,7 @@ mn10300_elf_final_link_relocate (reloc_howto_type *howto,
 	  /* Do not generate relocs when an R_MN10300_32 has been used
 	     with an R_MN10300_SYM_DIFF to compute a difference of two
 	     symbols.  */
-	  && is_sym_diff_reloc == FALSE
+	  && !is_sym_diff_reloc
 	  /* Also, do not generate a reloc when the symbol associated
 	     with the R_MN10300_32 reloc is absolute - there is no
 	     need for a run time computation in this case.  */

@@ -121,6 +121,20 @@ aarch64_ins_reglane (const aarch64_operand *self, const aarch64_opnd_info *info,
 	  insert_field (FLD_imm5, code, value, 0);
 	}
     }
+  else if (inst->opcode->iclass == dotproduct)
+    {
+      unsigned reglane_index = info->reglane.index;
+      switch (info->qualifier)
+	{
+	case AARCH64_OPND_QLF_S_B:
+	  /* L:H */
+	  assert (reglane_index < 4);
+	  insert_fields (code, reglane_index, 0, 2, FLD_L, FLD_H);
+	  break;
+	default:
+	  assert (0);
+	}
+    }
   else
     {
       /* index for e.g. SQDMLAL <Va><d>, <Vb><n>, <Vm>.<Ts>[<index>]
@@ -498,9 +512,8 @@ aarch64_ins_limm_1 (const aarch64_operand *self,
 
   if (invert_p)
     imm = ~imm;
-  if (aarch64_logical_immediate_p (imm, esize, &value) == FALSE)
-    /* The constraint check should have guaranteed this wouldn't happen.  */
-    assert (0);
+  /* The constraint check should have guaranteed this wouldn't happen.  */
+  assert (aarch64_logical_immediate_p (imm, esize, &value));
 
   insert_fields (code, value, 0, 3, self->fields[2], self->fields[1],
 		 self->fields[0]);
@@ -1625,10 +1638,10 @@ convert_bfc_to_bfm (aarch64_inst *inst)
   /* Insert XZR.  */
   copy_operand_info (inst, 3, 2);
   copy_operand_info (inst, 2, 1);
-  copy_operand_info (inst, 0, 0);
+  copy_operand_info (inst, 1, 0);
   inst->operands[1].reg.regno = 0x1f;
 
-  /* Convert the immedate operand.  */
+  /* Convert the immediate operand.  */
   lsb = inst->operands[2].imm.value;
   width = inst->operands[3].imm.value;
   if (inst->operands[2].qualifier == AARCH64_OPND_QLF_imm_0_31)

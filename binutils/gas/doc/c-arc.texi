@@ -658,6 +658,22 @@ A two operands instruction variant would be:
 which describes a two operand instruction with an implicit first
 immediate operand.  The result of this operation would be discarded.
 
+@cindex @code{.arc_attribute} directive, ARC
+@item .arc_attribute @var{tag}, @var{value}
+Set the ARC object attribute @var{tag} to @var{value}.
+
+The @var{tag} is either an attribute number, or one of the following:
+@code{Tag_ARC_PCS_config}, @code{Tag_ARC_CPU_base},
+@code{Tag_ARC_CPU_variation}, @code{Tag_ARC_CPU_name},
+@code{Tag_ARC_ABI_rf16}, @code{Tag_ARC_ABI_osver}, @code{Tag_ARC_ABI_sda},
+@code{Tag_ARC_ABI_pic}, @code{Tag_ARC_ABI_tls}, @code{Tag_ARC_ABI_enumsize},
+@code{Tag_ARC_ABI_exceptions}, @code{Tag_ARC_ABI_double_size},
+@code{Tag_ARC_ISA_config}, @code{Tag_ARC_ISA_apex},
+@code{Tag_ARC_ISA_mpy_option}
+
+The @var{value} is either a @code{number}, @code{"string"}, or
+@code{number, "string"} depending on the tag.
+
 @end table
 
 @node ARC Modifiers

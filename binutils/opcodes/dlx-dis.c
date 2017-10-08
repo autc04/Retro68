@@ -20,7 +20,7 @@
    MA 02110-1301, USA.  */
 
 #include "sysdep.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opcode/dlx.h"
 
 #define R_ERROR     0x1

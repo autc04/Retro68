@@ -167,6 +167,7 @@ accept various extension mnemonics.  For example,
 @code{sha},
 @code{rdpid},
 @code{ptwrite},
+@code{cet},
 @code{prefetchwt1},
 @code{clflushopt},
 @code{se1},
@@ -317,7 +318,7 @@ take precedent.
 @cindex @samp{-mnaked-reg} option, i386
 @cindex @samp{-mnaked-reg} option, x86-64
 @item -mnaked-reg
-This opetion specifies that registers don't require a @samp{%} prefix.
+This option specifies that registers don't require a @samp{%} prefix.
 The @code{.att_syntax} and @code{.intel_syntax} directives will take precedent.
 
 @cindex @samp{-madd-bnd-prefix} option, i386
@@ -597,10 +598,30 @@ quadruple word).
 @cindex encoding options, i386
 @cindex encoding options, x86-64
 
-Different encoding options can be specified via optional mnemonic
-suffix.  @samp{.s} suffix swaps 2 register operands in encoding when
-moving from one register to another.  @samp{.d8} or @samp{.d32} suffix
-prefers 8bit or 32bit displacement in encoding.
+Different encoding options can be specified via pseudo prefixes:
+
+@itemize @bullet
+@item
+@samp{@{disp8@}} -- prefer 8-bit displacement.
+
+@item
+@samp{@{disp32@}} -- prefer 32-bit displacement.
+
+@item
+@samp{@{load@}} -- prefer load-form instruction.
+
+@item
+@samp{@{store@}} -- prefer store-form instruction.
+
+@item
+@samp{@{vex2@}} -- prefer 2-byte VEX prefix for VEX instruction.
+
+@item
+@samp{@{vex3@}} -- prefer 3-byte VEX prefix for VEX instruction.
+
+@item
+@samp{@{evex@}} --  encode with EVEX prefix.
+@end itemize
 
 @cindex conversion instructions, i386
 @cindex i386 conversion instructions
@@ -1198,6 +1219,7 @@ supported on the CPU specified.  The choices for @var{cpu_type} are:
 @item @samp{.avx512vl} @tab @samp{.avx512bw} @tab @samp{.avx512dq} @tab @samp{.avx512ifma}
 @item @samp{.avx512vbmi} @tab @samp{.avx512_4fmaps} @tab @samp{.avx512_4vnniw}
 @item @samp{.avx512_vpopcntdq} @tab @samp{.clwb} @tab @samp{.rdpid} @tab @samp{.ptwrite}
+@item @samp{.cet}
 @item @samp{.3dnow} @tab @samp{.3dnowa} @tab @samp{.sse4a} @tab @samp{.sse5}
 @item @samp{.syscall} @tab @samp{.rdtscp} @tab @samp{.svme} @tab @samp{.abm}
 @item @samp{.lwp} @tab @samp{.fma4} @tab @samp{.xop} @tab @samp{.cx16}

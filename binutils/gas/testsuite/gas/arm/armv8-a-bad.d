@@ -1,2 +1,4 @@
 #name: Invalid v8-a
-#error-output: armv8-a-bad.l
+#source: armv8-ar-bad.s
+#as: -march=armv8-a
+#error-output: armv8-ar-bad.l

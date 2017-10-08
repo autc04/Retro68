@@ -19,7 +19,7 @@
    Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "sysdep.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opcode/cr16.h"
 #include "libiberty.h"
 

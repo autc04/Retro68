@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -80,20 +80,20 @@ package body System.Secondary_Stack is
    --                                      |                  | First (101)
    --                                      +------------------+
    --                         +----------> |          |       |
-   --                         |            +----------+-------+
+   --                         |            +--------- | ------+
+   --                         |                    ^  |
    --                         |                    |  |
-   --                         |                    ^  V
-   --                         |                    |  |
-   --                         |            +-------+----------+
+   --                         |                    |  V
+   --                         |            +------ | ---------+
    --                         |            |       |          |
    --                         |            +------------------+
    --                         |            |                  | Last (100)
    --                         |            |         C        |
    --                         |            |         H        |
-   --    +-----------------+  |  +-------->|         U        |
-   --    |  Current_Chunk -|--+  |         |         N        |
-   --    +-----------------+     |         |         K        |
-   --    |       Top      -|-----+         |                  | First (1)
+   --    +-----------------+  |   +------->|         U        |
+   --    |  Current_Chunk ----+   |        |         N        |
+   --    +-----------------+      |        |         K        |
+   --    |       Top      --------+        |                  | First (1)
    --    +-----------------+               +------------------+
    --    | Default_Size    |               |       Prev       |
    --    +-----------------+               +------------------+
@@ -170,6 +170,15 @@ package body System.Secondary_Stack is
      Ada.Unchecked_Conversion (Address, Fixed_Stack_Ptr);
    --  Convert from address stored in task data structures
 
+   ----------------------------------
+   -- Minimum_Secondary_Stack_Size --
+   ----------------------------------
+
+   function Minimum_Secondary_Stack_Size return Natural is
+   begin
+      return Dummy_Fixed_Stack.Mem'Position;
+   end Minimum_Secondary_Stack_Size;
+
    --------------
    -- Allocate --
    --------------
@@ -178,10 +187,10 @@ package body System.Secondary_Stack is
      (Addr         : out Address;
       Storage_Size : SSE.Storage_Count)
    is
-      Max_Align    : constant SS_Ptr := SS_Ptr (Standard'Maximum_Alignment);
-      Max_Size     : constant SS_Ptr :=
-                       ((SS_Ptr (Storage_Size) + Max_Align - 1) / Max_Align)
-                         * Max_Align;
+      Max_Align : constant SS_Ptr := SS_Ptr (Standard'Maximum_Alignment);
+      Max_Size  : constant SS_Ptr :=
+                    ((SS_Ptr (Storage_Size) + Max_Align - 1) / Max_Align) *
+                      Max_Align;
 
    begin
       --  Case of fixed allocation secondary stack
@@ -227,7 +236,7 @@ package body System.Secondary_Stack is
             Chunk := Stack.Current_Chunk;
 
             --  The Current_Chunk may not be the good one if a lot of release
-            --  operations have taken place. So go down the stack if necessary
+            --  operations have taken place. Go down the stack if necessary.
 
             while Chunk.First > Stack.Top loop
                Chunk := Chunk.Prev;
@@ -250,8 +259,8 @@ package body System.Secondary_Stack is
                      Free (To_Be_Released_Chunk);
                   end if;
 
-                  --  Create new chunk of default size unless it is not
-                  --  sufficient to satisfy the current request.
+               --  Create new chunk of default size unless it is not sufficient
+               --  to satisfy the current request.
 
                elsif SSE.Storage_Count (Max_Size) <= Stack.Default_Size then
                   Chunk.Next :=
@@ -261,7 +270,7 @@ package body System.Secondary_Stack is
 
                   Chunk.Next.Prev := Chunk;
 
-                  --  Otherwise create new chunk of requested size
+               --  Otherwise create new chunk of requested size
 
                else
                   Chunk.Next :=
@@ -366,7 +375,7 @@ package body System.Secondary_Stack is
 
             Put_Line (
                       "  Current allocated space : "
-                      & SS_Ptr'Image (Fixed_Stack.Top - 1)
+                      & SS_Ptr'Image (Fixed_Stack.Top)
                       & " bytes");
          end;
 
@@ -432,7 +441,7 @@ package body System.Secondary_Stack is
             Fixed_Stack.Top  := 0;
             Fixed_Stack.Max  := 0;
 
-            if Size < Dummy_Fixed_Stack.Mem'Position then
+            if Size <= Dummy_Fixed_Stack.Mem'Position then
                Fixed_Stack.Last := 0;
             else
                Fixed_Stack.Last :=
@@ -500,8 +509,8 @@ package body System.Secondary_Stack is
 
    Chunk : aliased Chunk_Id (1, Static_Secondary_Stack_Size);
    for Chunk'Alignment use Standard'Maximum_Alignment;
-   --  Default chunk used, unless gnatbind -D is specified with a value
-   --  greater than Static_Secondary_Stack_Size
+   --  Default chunk used, unless gnatbind -D is specified with a value greater
+   --  than Static_Secondary_Stack_Size.
 
 begin
    declare

@@ -409,6 +409,9 @@ enum mips_operand_type {
   /* $pc, which has no encoding in the architectural instruction.  */
   OP_PC,
 
+  /* $28, which has no encoding in the MIPS16e architectural instruction.  */
+  OP_REG28,
+
   /* A 4-bit XYZW channel mask or 2-bit XYZW index; the size determines
      which.  */
   OP_VU0_SUFFIX,
@@ -932,6 +935,9 @@ mips_opcode_32bit_p (const struct mips_opcode *mo)
    "+z" 5-bit rz register (OP_*_RZ)
    "+Z" 5-bit fz register (OP_*_FZ)
 
+   interAptiv MR2:
+   "-m" register list for SAVE/RESTORE instruction
+
    Enhanced VA Scheme:
    "+j" 9-bit signed offset in bit 7 (OP_*_EVAOFFSET)
 
@@ -1004,7 +1010,7 @@ mips_opcode_32bit_p (const struct mips_opcode *mo)
    Extension character sequences used so far ("-" followed by the
    following), for quick reference when adding more:
    "AB"
-   "abdstuvwxy"
+   "abdmstuvwxy"
 */
 
 /* These are the bits which may be set in the pinfo field of an
@@ -1116,7 +1122,12 @@ mips_opcode_32bit_p (const struct mips_opcode *mo)
 #define INSN2_FORBIDDEN_SLOT        0x00008000
 /* Opcode table entry is for a short MIPS16 form only.  An extended
    encoding may still exist, but with a separate opcode table entry
-   required.  */
+   required.  In disassembly the presence of this flag in an otherwise
+   successful match against an extended instruction encoding inhibits
+   matching against any subsequent short table entry even if it does
+   not have this flag set.  A table entry matching the full extended
+   encoding is needed or otherwise the final EXTEND entry will apply,
+   for the disassembly of the prefix only.  */
 #define INSN2_SHORT_ONLY	    0x00010000
 
 /* Masks used to mark instructions to indicate which MIPS ISA level
@@ -1206,7 +1217,7 @@ static const unsigned int mips_isa_table[] = {
 #undef ISAF
 
 /* Masks used for Chip specific instructions.  */
-#define INSN_CHIP_MASK		  0xc3ff4f60
+#define INSN_CHIP_MASK		  0xc7ff4f60
 
 /* Cavium Networks Octeon instructions.  */
 #define INSN_OCTEON		  0x00000800
@@ -1246,6 +1257,8 @@ static const unsigned int mips_isa_table[] = {
 #define INSN_LOONGSON_3A          0x00000400
 /* RMI Xlr instruction */
 #define INSN_XLR                 0x00000020
+/* Imagination interAptiv MR2.  */
+#define INSN_INTERAPTIV_MR2	  0x04000000
 
 /* DSP ASE */
 #define ASE_DSP			0x00000001
@@ -1274,6 +1287,13 @@ static const unsigned int mips_isa_table[] = {
 #define ASE_XPA			0x00002000
 /* DSP R3 Module.  */
 #define ASE_DSPR3		0x00004000
+/* MIPS16e2 ASE.  */
+#define ASE_MIPS16E2		0x00008000
+/* MIPS16e2 MT ASE instructions.  */
+#define ASE_MIPS16E2_MT		0x00010000
+/* The Virtualization ASE has eXtended Physical Addressing (XPA)
+   instructions which are only valid when both ASEs are enabled.  */
+#define ASE_XPA_VIRT		0x00020000
 
 /* MIPS ISA defines, use instead of hardcoding ISA level.  */
 
@@ -1344,6 +1364,7 @@ static const unsigned int mips_isa_table[] = {
 #define CPU_OCTEON2	6502
 #define CPU_OCTEON3	6503
 #define CPU_XLR     	887682   	/* decimal 'XLR'   */
+#define CPU_INTERAPTIV_MR2 736550	/* decimal 'IA2'  */
 
 /* Return true if the given CPU is included in INSN_* mask MASK.  */
 
@@ -1413,6 +1434,9 @@ cpu_is_member (int cpu, unsigned int mask)
 
     case CPU_XLR:
       return (mask & INSN_XLR) != 0;
+
+    case CPU_INTERAPTIV_MR2:
+      return (mask & INSN_INTERAPTIV_MR2) != 0;
 
     case CPU_MIPS32R6:
       return (mask & INSN_ISA_MASK) == INSN_ISA32R6;
@@ -1820,7 +1844,26 @@ extern int bfd_mips_num_opcodes;
    "e" 11 bit extension value
    "l" register list for entry instruction
    "L" register list for exit instruction
+   ">" 5-bit SYNC code
+   "9" 9-bit signed immediate
+   "G" global pointer ($gp or $28)
+   "N" 5-bit coprocessor register
+   "O" 3-bit sel field for MFC0/MTC0
+   "Q" 5-bit hardware register
+   "T" 5-bit CACHE opcode or PREF hint
+   "b" 5-bit INS/EXT position, which becomes LSB
+       Enforces: 0 <= pos < 32.
+   "c" 5-bit INS size, which becomes MSB
+       Requires that "b" occurs first to set position.
+       Enforces: 0 < (pos+size) <= 32.
+   "d" 5-bit EXT size, which becomes MSBD
+       Requires that "b" occurs first to set position.
+       Enforces: 0 < (pos+size) <= 32.
+   "n" 2-bit immediate (1 .. 4)
+   "o" 5-bit unsigned immediate * 16
+   "r" 3-bit register
    "s" 3-bit ASMACRO select immediate
+   "u" 16-bit unsigned immediate
 
    "I" an immediate value used for macros
 
@@ -1850,16 +1893,16 @@ extern int bfd_mips_num_opcodes;
    "M" 7 bit register list for restore instruction (18 bit extended)
 
    Characters used so far, for quick reference when adding more:
-   "0123456 8 "
-   ".[]<"
-   "ABCDEF HI KLM  P RS UVWXYZ"
-   "a   e   ijklm  pq s  vwxyz"
+   "0123456 89"
+   ".[]<>"
+   "ABCDEFGHI KLMNOPQRSTUVWXYZ"
+   "abcde   ijklmnopqrs uvwxyz"
   */
 
 /* Save/restore encoding for the args field when all 4 registers are
    either saved as arguments or saved/restored as statics.  */
-#define MIPS16_ALL_ARGS    0xe
-#define MIPS16_ALL_STATICS 0xb
+#define MIPS_SVRS_ALL_ARGS    0xe
+#define MIPS_SVRS_ALL_STATICS 0xb
 
 /* The following flags have the same value for the mips16 opcode
    table:

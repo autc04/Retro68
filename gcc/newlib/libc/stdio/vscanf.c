@@ -34,19 +34,31 @@ _DEFUN(vscanf, (fmt, ap),
        _CONST char *fmt _AND 
        va_list ap)
 {
-  _REENT_SMALL_CHECK_INIT (_REENT);
-  return __svfscanf_r (_REENT, _stdin_r (_REENT), fmt, ap);
+  struct _reent *reent = _REENT;
+
+  _REENT_SMALL_CHECK_INIT (reent);
+  return __svfscanf_r (reent, _stdin_r (reent), fmt, ap);
 }
+
+#ifdef _NANO_FORMATTED_IO
+int
+_EXFUN(viscanf, (const char *, __VALIST) _ATTRIBUTE ((__alias__("vscanf"))));
+#endif
 
 #endif /* !_REENT_ONLY */
 
 int
 _DEFUN(_vscanf_r, (ptr, fmt, ap),
        struct _reent *ptr _AND 
-       _CONST char *fmt   _AND 
+       _CONST char *__restrict fmt   _AND 
        va_list ap)
 {
   _REENT_SMALL_CHECK_INIT (ptr);
   return __svfscanf_r (ptr, _stdin_r (ptr), fmt, ap);
 }
 
+#ifdef _NANO_FORMATTED_IO
+int
+_EXFUN(_viscanf_r, (struct _reent *, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("_vscanf_r"))));
+#endif

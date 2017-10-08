@@ -1943,7 +1943,7 @@ s_prefix (int unused ATTRIBUTE_UNUSED)
 
   c = get_symbol_name (&p);
   
-  /* Reseting prefix?  */
+  /* Resetting prefix?  */
   if (*p == ':' && p[1] == 0)
     mmix_current_prefix = NULL;
   else

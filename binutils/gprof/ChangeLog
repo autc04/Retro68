@@ -1,6 +1,39 @@
-2017-03-02  Tristan Gingold  <gingold@adacore.com>
+2017-07-24  Tristan Gingold  <gingold@adacore.com>
 
 	* configure: Regenerate.
+
+2017-07-18  Nick Clifton  <nickc@redhat.com>
+
+	* po/bg.po: Updated translation.
+	* po/da.po: Likewise.
+	* po/de.po: Likewise.
+	* po/eo.po: Likewise.
+	* po/es.po: Likewise.
+	* po/fi.po: Likewise.
+	* po/fr.po: Likewise.
+	* po/ga.po: Likewise.
+	* po/hu.po: Likewise.
+	* po/id.po: Likewise.
+	* po/it.po: Likewise.
+	* po/ja.po: Likewise.
+	* po/ms.po: Likewise.
+	* po/nl.po: Likewise.
+	* po/pt_BR.po: Likewise.
+	* po/ro.po: Likewise.
+	* po/ru.po: Likewise.
+	* po/sr.po: Likewise.
+	* po/sv.po: Likewise.
+	* po/tr.po: Likewise.
+	* po/uk.po: Likewise.
+	* po/vi.po: Likewise.
+
+2017-07-04  Tristan Gingold  <gingold@adacore.com>
+
+	* configure: Regenerate.
+
+2017-07-03  Tristan Gingold  <gingold@adacore.com>
+
+	* po/gprof.pot: Regenerate.
 
 2017-01-02  Alan Modra  <amodra@gmail.com>
 

@@ -157,7 +157,7 @@ out_sleb128 (offsetT value)
   output_leb128 (frag_more (sizeof_leb128 (value, 1)), value, 1);
 }
 
-static offsetT
+static unsigned int
 encoding_size (unsigned char encoding)
 {
   if (encoding == DW_EH_PE_omit)
@@ -183,7 +183,7 @@ encoding_size (unsigned char encoding)
 static void
 emit_expr_encoded (expressionS *exp, int encoding, bfd_boolean emit_encoding)
 {
-  offsetT size = encoding_size (encoding);
+  unsigned int size = encoding_size (encoding);
   bfd_reloc_code_real_type code;
 
   if (encoding == DW_EH_PE_omit)
@@ -197,6 +197,7 @@ emit_expr_encoded (expressionS *exp, int encoding, bfd_boolean emit_encoding)
     {
       reloc_howto_type *howto = bfd_reloc_type_lookup (stdoutput, code);
       char *p = frag_more (size);
+      gas_assert (size == howto->bitsize / 8);
       md_number_to_chars (p, 0, size);
       fix_new (frag_now, p - frag_now->fr_literal, size, exp->X_add_symbol,
 	       exp->X_add_number, howto->pc_relative, code);
@@ -831,8 +832,8 @@ dot_cfi (int arg)
 
   /* If the last address was not at the current PC, advance to current.  */
   if (symbol_get_frag (frchain_now->frch_cfi_data->last_address) != frag_now
-      || S_GET_VALUE (frchain_now->frch_cfi_data->last_address)
-	 != frag_now_fix ())
+      || (S_GET_VALUE (frchain_now->frch_cfi_data->last_address)
+	  != frag_now_fix ()))
     cfi_add_advance_loc (symbol_temp_new_now ());
 
   switch (arg)
@@ -961,8 +962,8 @@ dot_cfi_escape (int ignored ATTRIBUTE_UNUSED)
 
   /* If the last address was not at the current PC, advance to current.  */
   if (symbol_get_frag (frchain_now->frch_cfi_data->last_address) != frag_now
-      || S_GET_VALUE (frchain_now->frch_cfi_data->last_address)
-	 != frag_now_fix ())
+      || (S_GET_VALUE (frchain_now->frch_cfi_data->last_address)
+	  != frag_now_fix ()))
     cfi_add_advance_loc (symbol_temp_new_now ());
 
   tail = &head;
@@ -1009,13 +1010,13 @@ dot_cfi_personality (int ignored ATTRIBUTE_UNUSED)
   if ((encoding & 0xff) != encoding
       || ((((encoding & 0x70) != 0
 #if CFI_DIFF_EXPR_OK || defined tc_cfi_emit_pcrel_expr
-	   && (encoding & 0x70) != DW_EH_PE_pcrel
+	    && (encoding & 0x70) != DW_EH_PE_pcrel
 #endif
-	  )
-	 /* leb128 can be handled, but does something actually need it?  */
+	    )
+	   /* leb128 can be handled, but does something actually need it?  */
 	   || (encoding & 7) == DW_EH_PE_uleb128
 	   || (encoding & 7) > DW_EH_PE_udata8)
-	&& tc_cfi_reloc_for_encoding (encoding) == BFD_RELOC_NONE))
+	  && tc_cfi_reloc_for_encoding (encoding) == BFD_RELOC_NONE))
     {
       as_bad (_("invalid or unsupported encoding in .cfi_personality"));
       ignore_rest_of_line ();
@@ -1082,8 +1083,8 @@ dot_cfi_lsda (int ignored ATTRIBUTE_UNUSED)
 #if CFI_DIFF_LSDA_OK || defined tc_cfi_emit_pcrel_expr
 	    && (encoding & 0x70) != DW_EH_PE_pcrel
 #endif
-	   )
-	 /* leb128 can be handled, but does something actually need it?  */
+	    )
+	   /* leb128 can be handled, but does something actually need it?  */
 	   || (encoding & 7) == DW_EH_PE_uleb128
 	   || (encoding & 7) > DW_EH_PE_udata8)
 	  && tc_cfi_reloc_for_encoding (encoding) == BFD_RELOC_NONE))
@@ -1143,8 +1144,8 @@ dot_cfi_val_encoded_addr (int ignored ATTRIBUTE_UNUSED)
 
   /* If the last address was not at the current PC, advance to current.  */
   if (symbol_get_frag (frchain_now->frch_cfi_data->last_address) != frag_now
-      || S_GET_VALUE (frchain_now->frch_cfi_data->last_address)
-	 != frag_now_fix ())
+      || (S_GET_VALUE (frchain_now->frch_cfi_data->last_address)
+	  != frag_now_fix ()))
     cfi_add_advance_loc (symbol_temp_new_now ());
 
   insn_ptr = alloc_cfi_insn_data ();
@@ -1160,7 +1161,7 @@ dot_cfi_val_encoded_addr (int ignored ATTRIBUTE_UNUSED)
 	  && (encoding & 0x70) != DW_EH_PE_pcrel
 #endif
 	  )
-	 /* leb128 can be handled, but does something actually need it?  */
+      /* leb128 can be handled, but does something actually need it?  */
       || (encoding & 7) == DW_EH_PE_uleb128
       || (encoding & 7) > DW_EH_PE_udata8)
     {
@@ -1204,8 +1205,8 @@ dot_cfi_label (int ignored ATTRIBUTE_UNUSED)
 
   /* If the last address was not at the current PC, advance to current.  */
   if (symbol_get_frag (frchain_now->frch_cfi_data->last_address) != frag_now
-      || S_GET_VALUE (frchain_now->frch_cfi_data->last_address)
-	 != frag_now_fix ())
+      || (S_GET_VALUE (frchain_now->frch_cfi_data->last_address)
+	  != frag_now_fix ()))
     cfi_add_advance_loc (symbol_temp_new_now ());
 
   cfi_add_label (name);
@@ -1235,7 +1236,8 @@ dot_cfi_sections (int ignored ATTRIBUTE_UNUSED)
 	else if (strncmp (name, ".debug_frame", sizeof ".debug_frame") == 0)
 	  sections |= CFI_EMIT_debug_frame;
 #if SUPPORT_COMPACT_EH
-	else if (strncmp (name, ".eh_frame_entry", sizeof ".eh_frame_entry") == 0)
+	else if (strncmp (name, ".eh_frame_entry",
+			  sizeof ".eh_frame_entry") == 0)
 	  {
 	    compact_eh = TRUE;
 	    sections |= CFI_EMIT_eh_frame_compact;
@@ -1258,21 +1260,23 @@ dot_cfi_sections (int ignored ATTRIBUTE_UNUSED)
 	  {
 	    name = input_line_pointer++;
 	    SKIP_WHITESPACE ();
-	    if (!is_name_beginner (*input_line_pointer) && *input_line_pointer != '"')
+	    if (!is_name_beginner (*input_line_pointer)
+		&& *input_line_pointer != '"')
 	      {
 		input_line_pointer = name;
 		break;
 	      }
 	  }
-	else if (is_name_beginner (*input_line_pointer) || *input_line_pointer == '"')
+	else if (is_name_beginner (*input_line_pointer)
+		 || *input_line_pointer == '"')
 	  break;
       }
 
   demand_empty_rest_of_line ();
   if (cfi_sections_set
       && (sections & (CFI_EMIT_eh_frame | CFI_EMIT_eh_frame_compact))
-      && (cfi_sections & (CFI_EMIT_eh_frame | CFI_EMIT_eh_frame_compact))
-	 != (sections & (CFI_EMIT_eh_frame | CFI_EMIT_eh_frame_compact)))
+      && ((cfi_sections & (CFI_EMIT_eh_frame | CFI_EMIT_eh_frame_compact))
+	  != (sections & (CFI_EMIT_eh_frame | CFI_EMIT_eh_frame_compact))))
     as_bad (_("inconsistent uses of .cfi_sections"));
   cfi_sections = sections;
 }
@@ -1931,8 +1935,8 @@ output_fde (struct fde_entry *fde, struct cie_entry *cie,
   expressionS exp;
   offsetT augmentation_size;
   enum dwarf2_format fmt = DWARF2_FORMAT (now_seg);
-  int offset_size;
-  int addr_size;
+  unsigned int offset_size;
+  unsigned int addr_size;
 
   after_size_address = symbol_temp_make ();
   end_address = symbol_temp_make ();
@@ -1970,13 +1974,15 @@ output_fde (struct fde_entry *fde, struct cie_entry *cie,
     {
       bfd_reloc_code_real_type code
 	= tc_cfi_reloc_for_encoding (cie->fde_encoding);
+      addr_size = DWARF2_FDE_RELOC_SIZE;
       if (code != BFD_RELOC_NONE)
 	{
 	  reloc_howto_type *howto = bfd_reloc_type_lookup (stdoutput, code);
-	  char *p = frag_more (4);
-	  md_number_to_chars (p, 0, 4);
-	  fix_new (frag_now, p - frag_now->fr_literal, 4, fde->start_address,
-		   0, howto->pc_relative, code);
+	  char *p = frag_more (addr_size);
+	  gas_assert (addr_size == howto->bitsize / 8);
+	  md_number_to_chars (p, 0, addr_size);
+	  fix_new (frag_now, p - frag_now->fr_literal, addr_size,
+		   fde->start_address, 0, howto->pc_relative, code);
 	}
       else
 	{
@@ -1985,19 +1991,18 @@ output_fde (struct fde_entry *fde, struct cie_entry *cie,
 #if CFI_DIFF_EXPR_OK
 	  exp.X_add_symbol = fde->start_address;
 	  exp.X_op_symbol = symbol_temp_new_now ();
-	  emit_expr (&exp, DWARF2_FDE_RELOC_SIZE);	/* Code offset.  */
+	  emit_expr (&exp, addr_size);	/* Code offset.  */
 #else
 	  exp.X_op = O_symbol;
 	  exp.X_add_symbol = fde->start_address;
 
 #if defined(tc_cfi_emit_pcrel_expr)
-	  tc_cfi_emit_pcrel_expr (&exp, DWARF2_FDE_RELOC_SIZE);	 /* Code offset.  */
+	  tc_cfi_emit_pcrel_expr (&exp, addr_size);	 /* Code offset.  */
 #else
-	  emit_expr (&exp, DWARF2_FDE_RELOC_SIZE);	/* Code offset.  */
+	  emit_expr (&exp, addr_size);	/* Code offset.  */
 #endif
 #endif
 	}
-      addr_size = DWARF2_FDE_RELOC_SIZE;
     }
   else
     {
@@ -2046,8 +2051,8 @@ select_cie_for_fde (struct fde_entry *fde, bfd_boolean eh_frame,
       if (cie->per_encoding != DW_EH_PE_omit)
 	{
 	  if (cie->personality.X_op != fde->personality.X_op
-	      || cie->personality.X_add_number
-		 != fde->personality.X_add_number)
+	      || (cie->personality.X_add_number
+		  != fde->personality.X_add_number))
 	    continue;
 	  switch (cie->personality.X_op)
 	    {
@@ -2310,7 +2315,7 @@ cfi_finish (void)
 
 #if SUPPORT_COMPACT_EH
 	      /* Emit a LEGACY format header if we have processed all
-	         of the .cfi directives without encountering either inline or
+		 of the .cfi directives without encountering either inline or
 		 out-of-line compact unwinding opcodes.  */
 	      if (fde->eh_header_type == EH_COMPACT_HAS_LSDA
 		  || fde->eh_header_type == EH_COMPACT_UNKNOWN)
@@ -2348,7 +2353,8 @@ cfi_finish (void)
 
 	      if (fde->end_address == NULL)
 		{
-		  as_bad (_("open CFI at the end of file; missing .cfi_endproc directive"));
+		  as_bad (_("open CFI at the end of file; "
+			    "missing .cfi_endproc directive"));
 		  fde->end_address = fde->start_address;
 		}
 
@@ -2503,7 +2509,8 @@ cfi_finish (void)
 		}
 	      if (fde->end_address == NULL)
 		{
-		  as_bad (_("open CFI at the end of file; missing .cfi_endproc directive"));
+		  as_bad (_("open CFI at the end of file; "
+			    "missing .cfi_endproc directive"));
 		  fde->end_address = fde->start_address;
 		}
 

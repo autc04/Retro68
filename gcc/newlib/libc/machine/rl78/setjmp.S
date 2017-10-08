@@ -30,6 +30,26 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
+#ifdef __RL78_G10__
+; clobberable
+r8	=	0xffec8
+r9	=	0xffec9
+r10	=	0xffeca
+r11	=	0xffecb
+r12	=	0xffecc
+r13	=	0xffecd
+r14	=	0xffece
+r15	=	0xffecf
+; preserved
+r16	=	0xffed0
+r17	=	0xffed1
+r18	=	0xffed2
+r19	=	0xffed3
+r20	=	0xffed4
+r21	=	0xffed5
+r22	=	0xffed6
+r23	=	0xffed7
+#else
 ; clobberable
 r8	=	0xffef0
 r9	=	0xffef1
@@ -48,6 +68,7 @@ r20	=	0xffeec
 r21	=	0xffeed
 r22	=	0xffeee
 r23	=	0xffeef
+#endif
 
 /* The jump buffer has the following structure:
 	R0 .. R23  3*8 bytes
@@ -57,8 +78,14 @@ r23	=	0xffeef
 	PC         4 bytes
 */
 
-#define SAVEB(ofs,reg) mov a,reg | mov [hl+ofs],a
-#define SAVE(ofs,reg) movw ax,reg | movw [hl+ofs],ax
+	.macro	_saveb	ofs,reg
+	mov	a,\reg
+	mov	[hl+\ofs],a
+	.endm
+	.macro	_save	ofs,reg
+	movw	ax,\reg
+	movw	[hl+\ofs],ax
+	.endm
 
 	.global	_setjmp
 	.type	_setjmp, @function
@@ -72,28 +99,28 @@ _setjmp:
 	movw	hl, ax
 	pop	ax
 	movw	[hl], ax
-	SAVE	(2, bc)
-	SAVE	(4, de)
+	_save	2, bc
+	_save	4, de
 	pop	ax
 	movw	[hl+6], ax
-	SAVE	(8, r8)
-	SAVE	(10, r10)
-	SAVE	(12, r12)
-	SAVE	(14, r14)
-	SAVE	(16, r16)
-	SAVE	(18, r18)
-	SAVE	(20, r20)
-	SAVE	(22, r22)
+	_save	8, r8
+	_save	10, r10
+	_save	12, r12
+	_save	14, r14
+	_save	16, r16
+	_save	18, r18
+	_save	20, r20
+	_save	22, r22
 
 	;; The sp we have now includes one more pushed reg, plus $PC
 	movw	ax, sp
 	addw	ax, #6
 	movw	[hl+24], ax
 
-	SAVEB	(26, es)
-	SAVEB	(27, cs)
-	SAVE	(28, [sp+2])
-	SAVE	(30, [sp+4])
+	_saveb	26, es
+	_saveb	27, cs
+	_save	28, [sp+2]
+	_save	30, [sp+4]
 
 	clrw	ax
 	movw	r8, ax
@@ -102,9 +129,18 @@ _setjmp:
 
 	.size	_setjmp, . - _setjmp
 
-#define LOADB(ofs,reg) mov a,[hl+ofs] | mov reg,a
-#define LOAD(ofs,reg) movw ax,[hl+ofs] | movw reg,ax
-#define PUSH(ofs) movw ax,[hl+ofs] | push ax
+	.macro	_loadb	ofs,reg
+	mov	a,[hl+\ofs]
+	mov	\reg,a
+	.endm
+	.macro	_load	ofs,reg
+	movw	ax,[hl+\ofs]
+	movw	\reg,ax
+	.endm
+	.macro	_push	ofs
+	movw	ax,[hl+\ofs]
+	push	ax
+	.endm
 
 	.global	_longjmp
 	.type _longjmp, @function
@@ -121,24 +157,24 @@ _longjmp:
 	movw	ax, [hl+24]
 	movw	sp, ax		; this is the *new* stack
 
-	PUSH	(30)		; high half of PC
-	PUSH	(28)		; low half of PC
-	PUSH	(6)		; HL
-	PUSH	(0)		; AX
+	_push	30		; high half of PC
+	_push	28		; low half of PC
+	_push	6		; HL
+	_push	0		; AX
 
-	LOAD	(2, bc)
-	LOAD	(4, de)
+	_load	2, bc
+	_load	4, de
 
-	LOAD	(10, r10)
-	LOAD	(12, r12)
-	LOAD	(14, r14)
-	LOAD	(16, r16)
-	LOAD	(18, r18)
-	LOAD	(20, r20)
-	LOAD	(22, r22)
+	_load	10, r10
+	_load	12, r12
+	_load	14, r14
+	_load	16, r16
+	_load	18, r18
+	_load	20, r20
+	_load	22, r22
 
-	LOADB	(26, es)
-	LOADB	(27, cs)
+	_loadb	26, es
+	_loadb	27, cs
 
 	pop	ax
 	pop	hl

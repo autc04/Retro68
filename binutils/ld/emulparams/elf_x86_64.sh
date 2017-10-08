@@ -3,6 +3,7 @@
 . ${srcdir}/emulparams/dynamic_undefined_weak.sh
 . ${srcdir}/emulparams/reloc_overflow.sh
 . ${srcdir}/emulparams/call_nop.sh
+. ${srcdir}/emulparams/cet.sh
 SCRIPT_NAME=elf
 ELFSIZE=64
 OUTPUT_FORMAT="elf64-x86-64"
@@ -24,7 +25,7 @@ IREL_IN_PLT=
 # Reuse TINY_READONLY_SECTION which is placed right after .plt section.
 TINY_READONLY_SECTION="
 .plt.got      ${RELOCATING-0} : { *(.plt.got) }
-.plt.bnd      ${RELOCATING-0} : { *(.plt.bnd) }
+.plt.sec      ${RELOCATING-0} : { *(.plt.sec) }
 "
 
 if [ "x${host}" = "x${target}" ]; then

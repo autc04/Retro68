@@ -10,5 +10,7 @@ AC_CONFIG_AUX_DIR(../../../..)
 
 NEWLIB_CONFIGURE(../../..)
 
+AC_SUBST(CFLAGS)
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

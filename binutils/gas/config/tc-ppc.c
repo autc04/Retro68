@@ -307,7 +307,8 @@ const pseudo_typeS md_pseudo_table[] =
 struct pd_reg
   {
     const char *name;
-    int value;
+    unsigned short value;
+    unsigned short flags;
   };
 
 /* List of registers that are pre-defined:
@@ -331,11 +332,9 @@ struct pd_reg
    There are individual registers as well:
    sp or r.sp     has the value 1
    rtoc or r.toc  has the value 2
-   fpscr          has the value 0
    xer            has the value 1
    lr             has the value 8
    ctr            has the value 9
-   pmr            has the value 0
    dar            has the value 19
    dsisr          has the value 18
    dec            has the value 22
@@ -347,463 +346,460 @@ struct pd_reg
 
 static const struct pd_reg pre_defined_registers[] =
 {
-  { "cr.0", 0 },    /* Condition Registers */
-  { "cr.1", 1 },
-  { "cr.2", 2 },
-  { "cr.3", 3 },
-  { "cr.4", 4 },
-  { "cr.5", 5 },
-  { "cr.6", 6 },
-  { "cr.7", 7 },
+  /* Condition Registers */
+  { "cr.0", 0, PPC_OPERAND_CR_REG },
+  { "cr.1", 1, PPC_OPERAND_CR_REG },
+  { "cr.2", 2, PPC_OPERAND_CR_REG },
+  { "cr.3", 3, PPC_OPERAND_CR_REG },
+  { "cr.4", 4, PPC_OPERAND_CR_REG },
+  { "cr.5", 5, PPC_OPERAND_CR_REG },
+  { "cr.6", 6, PPC_OPERAND_CR_REG },
+  { "cr.7", 7, PPC_OPERAND_CR_REG },
 
-  { "cr0", 0 },
-  { "cr1", 1 },
-  { "cr2", 2 },
-  { "cr3", 3 },
-  { "cr4", 4 },
-  { "cr5", 5 },
-  { "cr6", 6 },
-  { "cr7", 7 },
+  { "cr0", 0, PPC_OPERAND_CR_REG },
+  { "cr1", 1, PPC_OPERAND_CR_REG },
+  { "cr2", 2, PPC_OPERAND_CR_REG },
+  { "cr3", 3, PPC_OPERAND_CR_REG },
+  { "cr4", 4, PPC_OPERAND_CR_REG },
+  { "cr5", 5, PPC_OPERAND_CR_REG },
+  { "cr6", 6, PPC_OPERAND_CR_REG },
+  { "cr7", 7, PPC_OPERAND_CR_REG },
 
-  { "ctr", 9 },
+  { "ctr", 9, PPC_OPERAND_SPR },
+  { "dar", 19, PPC_OPERAND_SPR },
+  { "dec", 22, PPC_OPERAND_SPR },
+  { "dsisr", 18, PPC_OPERAND_SPR },
 
-  { "dar", 19 },    /* Data Access Register */
-  { "dec", 22 },    /* Decrementer */
-  { "dsisr", 18 },  /* Data Storage Interrupt Status Register */
+  /* Floating point registers */
+  { "f.0", 0, PPC_OPERAND_FPR },
+  { "f.1", 1, PPC_OPERAND_FPR },
+  { "f.10", 10, PPC_OPERAND_FPR },
+  { "f.11", 11, PPC_OPERAND_FPR },
+  { "f.12", 12, PPC_OPERAND_FPR },
+  { "f.13", 13, PPC_OPERAND_FPR },
+  { "f.14", 14, PPC_OPERAND_FPR },
+  { "f.15", 15, PPC_OPERAND_FPR },
+  { "f.16", 16, PPC_OPERAND_FPR },
+  { "f.17", 17, PPC_OPERAND_FPR },
+  { "f.18", 18, PPC_OPERAND_FPR },
+  { "f.19", 19, PPC_OPERAND_FPR },
+  { "f.2", 2, PPC_OPERAND_FPR },
+  { "f.20", 20, PPC_OPERAND_FPR },
+  { "f.21", 21, PPC_OPERAND_FPR },
+  { "f.22", 22, PPC_OPERAND_FPR },
+  { "f.23", 23, PPC_OPERAND_FPR },
+  { "f.24", 24, PPC_OPERAND_FPR },
+  { "f.25", 25, PPC_OPERAND_FPR },
+  { "f.26", 26, PPC_OPERAND_FPR },
+  { "f.27", 27, PPC_OPERAND_FPR },
+  { "f.28", 28, PPC_OPERAND_FPR },
+  { "f.29", 29, PPC_OPERAND_FPR },
+  { "f.3", 3, PPC_OPERAND_FPR },
+  { "f.30", 30, PPC_OPERAND_FPR },
+  { "f.31", 31, PPC_OPERAND_FPR },
+  { "f.32", 32, PPC_OPERAND_VSR },
+  { "f.33", 33, PPC_OPERAND_VSR },
+  { "f.34", 34, PPC_OPERAND_VSR },
+  { "f.35", 35, PPC_OPERAND_VSR },
+  { "f.36", 36, PPC_OPERAND_VSR },
+  { "f.37", 37, PPC_OPERAND_VSR },
+  { "f.38", 38, PPC_OPERAND_VSR },
+  { "f.39", 39, PPC_OPERAND_VSR },
+  { "f.4", 4, PPC_OPERAND_FPR },
+  { "f.40", 40, PPC_OPERAND_VSR },
+  { "f.41", 41, PPC_OPERAND_VSR },
+  { "f.42", 42, PPC_OPERAND_VSR },
+  { "f.43", 43, PPC_OPERAND_VSR },
+  { "f.44", 44, PPC_OPERAND_VSR },
+  { "f.45", 45, PPC_OPERAND_VSR },
+  { "f.46", 46, PPC_OPERAND_VSR },
+  { "f.47", 47, PPC_OPERAND_VSR },
+  { "f.48", 48, PPC_OPERAND_VSR },
+  { "f.49", 49, PPC_OPERAND_VSR },
+  { "f.5", 5, PPC_OPERAND_FPR },
+  { "f.50", 50, PPC_OPERAND_VSR },
+  { "f.51", 51, PPC_OPERAND_VSR },
+  { "f.52", 52, PPC_OPERAND_VSR },
+  { "f.53", 53, PPC_OPERAND_VSR },
+  { "f.54", 54, PPC_OPERAND_VSR },
+  { "f.55", 55, PPC_OPERAND_VSR },
+  { "f.56", 56, PPC_OPERAND_VSR },
+  { "f.57", 57, PPC_OPERAND_VSR },
+  { "f.58", 58, PPC_OPERAND_VSR },
+  { "f.59", 59, PPC_OPERAND_VSR },
+  { "f.6", 6, PPC_OPERAND_FPR },
+  { "f.60", 60, PPC_OPERAND_VSR },
+  { "f.61", 61, PPC_OPERAND_VSR },
+  { "f.62", 62, PPC_OPERAND_VSR },
+  { "f.63", 63, PPC_OPERAND_VSR },
+  { "f.7", 7, PPC_OPERAND_FPR },
+  { "f.8", 8, PPC_OPERAND_FPR },
+  { "f.9", 9, PPC_OPERAND_FPR },
 
-  { "f.0", 0 },     /* Floating point registers */
-  { "f.1", 1 },
-  { "f.10", 10 },
-  { "f.11", 11 },
-  { "f.12", 12 },
-  { "f.13", 13 },
-  { "f.14", 14 },
-  { "f.15", 15 },
-  { "f.16", 16 },
-  { "f.17", 17 },
-  { "f.18", 18 },
-  { "f.19", 19 },
-  { "f.2", 2 },
-  { "f.20", 20 },
-  { "f.21", 21 },
-  { "f.22", 22 },
-  { "f.23", 23 },
-  { "f.24", 24 },
-  { "f.25", 25 },
-  { "f.26", 26 },
-  { "f.27", 27 },
-  { "f.28", 28 },
-  { "f.29", 29 },
-  { "f.3", 3 },
-  { "f.30", 30 },
-  { "f.31", 31 },
-
-  { "f.32", 32 },    /* Extended floating point scalar registers (ISA 2.06).  */
-  { "f.33", 33 },
-  { "f.34", 34 },
-  { "f.35", 35 },
-  { "f.36", 36 },
-  { "f.37", 37 },
-  { "f.38", 38 },
-  { "f.39", 39 },
-  { "f.4", 4 },
-  { "f.40", 40 },
-  { "f.41", 41 },
-  { "f.42", 42 },
-  { "f.43", 43 },
-  { "f.44", 44 },
-  { "f.45", 45 },
-  { "f.46", 46 },
-  { "f.47", 47 },
-  { "f.48", 48 },
-  { "f.49", 49 },
-  { "f.5", 5 },
-  { "f.50", 50 },
-  { "f.51", 51 },
-  { "f.52", 52 },
-  { "f.53", 53 },
-  { "f.54", 54 },
-  { "f.55", 55 },
-  { "f.56", 56 },
-  { "f.57", 57 },
-  { "f.58", 58 },
-  { "f.59", 59 },
-  { "f.6", 6 },
-  { "f.60", 60 },
-  { "f.61", 61 },
-  { "f.62", 62 },
-  { "f.63", 63 },
-  { "f.7", 7 },
-  { "f.8", 8 },
-  { "f.9", 9 },
-
-  { "f0", 0 },
-  { "f1", 1 },
-  { "f10", 10 },
-  { "f11", 11 },
-  { "f12", 12 },
-  { "f13", 13 },
-  { "f14", 14 },
-  { "f15", 15 },
-  { "f16", 16 },
-  { "f17", 17 },
-  { "f18", 18 },
-  { "f19", 19 },
-  { "f2", 2 },
-  { "f20", 20 },
-  { "f21", 21 },
-  { "f22", 22 },
-  { "f23", 23 },
-  { "f24", 24 },
-  { "f25", 25 },
-  { "f26", 26 },
-  { "f27", 27 },
-  { "f28", 28 },
-  { "f29", 29 },
-  { "f3", 3 },
-  { "f30", 30 },
-  { "f31", 31 },
-
-  { "f32", 32 },    /* Extended floating point scalar registers (ISA 2.06).  */
-  { "f33", 33 },
-  { "f34", 34 },
-  { "f35", 35 },
-  { "f36", 36 },
-  { "f37", 37 },
-  { "f38", 38 },
-  { "f39", 39 },
-  { "f4", 4 },
-  { "f40", 40 },
-  { "f41", 41 },
-  { "f42", 42 },
-  { "f43", 43 },
-  { "f44", 44 },
-  { "f45", 45 },
-  { "f46", 46 },
-  { "f47", 47 },
-  { "f48", 48 },
-  { "f49", 49 },
-  { "f5", 5 },
-  { "f50", 50 },
-  { "f51", 51 },
-  { "f52", 52 },
-  { "f53", 53 },
-  { "f54", 54 },
-  { "f55", 55 },
-  { "f56", 56 },
-  { "f57", 57 },
-  { "f58", 58 },
-  { "f59", 59 },
-  { "f6", 6 },
-  { "f60", 60 },
-  { "f61", 61 },
-  { "f62", 62 },
-  { "f63", 63 },
-  { "f7", 7 },
-  { "f8", 8 },
-  { "f9", 9 },
-
-  { "fpscr", 0 },
+  { "f0", 0, PPC_OPERAND_FPR },
+  { "f1", 1, PPC_OPERAND_FPR },
+  { "f10", 10, PPC_OPERAND_FPR },
+  { "f11", 11, PPC_OPERAND_FPR },
+  { "f12", 12, PPC_OPERAND_FPR },
+  { "f13", 13, PPC_OPERAND_FPR },
+  { "f14", 14, PPC_OPERAND_FPR },
+  { "f15", 15, PPC_OPERAND_FPR },
+  { "f16", 16, PPC_OPERAND_FPR },
+  { "f17", 17, PPC_OPERAND_FPR },
+  { "f18", 18, PPC_OPERAND_FPR },
+  { "f19", 19, PPC_OPERAND_FPR },
+  { "f2", 2, PPC_OPERAND_FPR },
+  { "f20", 20, PPC_OPERAND_FPR },
+  { "f21", 21, PPC_OPERAND_FPR },
+  { "f22", 22, PPC_OPERAND_FPR },
+  { "f23", 23, PPC_OPERAND_FPR },
+  { "f24", 24, PPC_OPERAND_FPR },
+  { "f25", 25, PPC_OPERAND_FPR },
+  { "f26", 26, PPC_OPERAND_FPR },
+  { "f27", 27, PPC_OPERAND_FPR },
+  { "f28", 28, PPC_OPERAND_FPR },
+  { "f29", 29, PPC_OPERAND_FPR },
+  { "f3", 3, PPC_OPERAND_FPR },
+  { "f30", 30, PPC_OPERAND_FPR },
+  { "f31", 31, PPC_OPERAND_FPR },
+  { "f32", 32, PPC_OPERAND_VSR },
+  { "f33", 33, PPC_OPERAND_VSR },
+  { "f34", 34, PPC_OPERAND_VSR },
+  { "f35", 35, PPC_OPERAND_VSR },
+  { "f36", 36, PPC_OPERAND_VSR },
+  { "f37", 37, PPC_OPERAND_VSR },
+  { "f38", 38, PPC_OPERAND_VSR },
+  { "f39", 39, PPC_OPERAND_VSR },
+  { "f4", 4, PPC_OPERAND_FPR },
+  { "f40", 40, PPC_OPERAND_VSR },
+  { "f41", 41, PPC_OPERAND_VSR },
+  { "f42", 42, PPC_OPERAND_VSR },
+  { "f43", 43, PPC_OPERAND_VSR },
+  { "f44", 44, PPC_OPERAND_VSR },
+  { "f45", 45, PPC_OPERAND_VSR },
+  { "f46", 46, PPC_OPERAND_VSR },
+  { "f47", 47, PPC_OPERAND_VSR },
+  { "f48", 48, PPC_OPERAND_VSR },
+  { "f49", 49, PPC_OPERAND_VSR },
+  { "f5", 5, PPC_OPERAND_FPR },
+  { "f50", 50, PPC_OPERAND_VSR },
+  { "f51", 51, PPC_OPERAND_VSR },
+  { "f52", 52, PPC_OPERAND_VSR },
+  { "f53", 53, PPC_OPERAND_VSR },
+  { "f54", 54, PPC_OPERAND_VSR },
+  { "f55", 55, PPC_OPERAND_VSR },
+  { "f56", 56, PPC_OPERAND_VSR },
+  { "f57", 57, PPC_OPERAND_VSR },
+  { "f58", 58, PPC_OPERAND_VSR },
+  { "f59", 59, PPC_OPERAND_VSR },
+  { "f6", 6, PPC_OPERAND_FPR },
+  { "f60", 60, PPC_OPERAND_VSR },
+  { "f61", 61, PPC_OPERAND_VSR },
+  { "f62", 62, PPC_OPERAND_VSR },
+  { "f63", 63, PPC_OPERAND_VSR },
+  { "f7", 7, PPC_OPERAND_FPR },
+  { "f8", 8, PPC_OPERAND_FPR },
+  { "f9", 9, PPC_OPERAND_FPR },
 
   /* Quantization registers used with pair single instructions.  */
-  { "gqr.0", 0 },
-  { "gqr.1", 1 },
-  { "gqr.2", 2 },
-  { "gqr.3", 3 },
-  { "gqr.4", 4 },
-  { "gqr.5", 5 },
-  { "gqr.6", 6 },
-  { "gqr.7", 7 },
-  { "gqr0", 0 },
-  { "gqr1", 1 },
-  { "gqr2", 2 },
-  { "gqr3", 3 },
-  { "gqr4", 4 },
-  { "gqr5", 5 },
-  { "gqr6", 6 },
-  { "gqr7", 7 },
+  { "gqr.0", 0, PPC_OPERAND_GQR },
+  { "gqr.1", 1, PPC_OPERAND_GQR },
+  { "gqr.2", 2, PPC_OPERAND_GQR },
+  { "gqr.3", 3, PPC_OPERAND_GQR },
+  { "gqr.4", 4, PPC_OPERAND_GQR },
+  { "gqr.5", 5, PPC_OPERAND_GQR },
+  { "gqr.6", 6, PPC_OPERAND_GQR },
+  { "gqr.7", 7, PPC_OPERAND_GQR },
+  { "gqr0", 0, PPC_OPERAND_GQR },
+  { "gqr1", 1, PPC_OPERAND_GQR },
+  { "gqr2", 2, PPC_OPERAND_GQR },
+  { "gqr3", 3, PPC_OPERAND_GQR },
+  { "gqr4", 4, PPC_OPERAND_GQR },
+  { "gqr5", 5, PPC_OPERAND_GQR },
+  { "gqr6", 6, PPC_OPERAND_GQR },
+  { "gqr7", 7, PPC_OPERAND_GQR },
 
-  { "lr", 8 },     /* Link Register */
+  { "lr", 8, PPC_OPERAND_SPR },
 
-  { "pmr", 0 },
+  /* General Purpose Registers */
+  { "r.0", 0, PPC_OPERAND_GPR },
+  { "r.1", 1, PPC_OPERAND_GPR },
+  { "r.10", 10, PPC_OPERAND_GPR },
+  { "r.11", 11, PPC_OPERAND_GPR },
+  { "r.12", 12, PPC_OPERAND_GPR },
+  { "r.13", 13, PPC_OPERAND_GPR },
+  { "r.14", 14, PPC_OPERAND_GPR },
+  { "r.15", 15, PPC_OPERAND_GPR },
+  { "r.16", 16, PPC_OPERAND_GPR },
+  { "r.17", 17, PPC_OPERAND_GPR },
+  { "r.18", 18, PPC_OPERAND_GPR },
+  { "r.19", 19, PPC_OPERAND_GPR },
+  { "r.2", 2, PPC_OPERAND_GPR },
+  { "r.20", 20, PPC_OPERAND_GPR },
+  { "r.21", 21, PPC_OPERAND_GPR },
+  { "r.22", 22, PPC_OPERAND_GPR },
+  { "r.23", 23, PPC_OPERAND_GPR },
+  { "r.24", 24, PPC_OPERAND_GPR },
+  { "r.25", 25, PPC_OPERAND_GPR },
+  { "r.26", 26, PPC_OPERAND_GPR },
+  { "r.27", 27, PPC_OPERAND_GPR },
+  { "r.28", 28, PPC_OPERAND_GPR },
+  { "r.29", 29, PPC_OPERAND_GPR },
+  { "r.3", 3, PPC_OPERAND_GPR },
+  { "r.30", 30, PPC_OPERAND_GPR },
+  { "r.31", 31, PPC_OPERAND_GPR },
+  { "r.4", 4, PPC_OPERAND_GPR },
+  { "r.5", 5, PPC_OPERAND_GPR },
+  { "r.6", 6, PPC_OPERAND_GPR },
+  { "r.7", 7, PPC_OPERAND_GPR },
+  { "r.8", 8, PPC_OPERAND_GPR },
+  { "r.9", 9, PPC_OPERAND_GPR },
 
-  { "r.0", 0 },    /* General Purpose Registers */
-  { "r.1", 1 },
-  { "r.10", 10 },
-  { "r.11", 11 },
-  { "r.12", 12 },
-  { "r.13", 13 },
-  { "r.14", 14 },
-  { "r.15", 15 },
-  { "r.16", 16 },
-  { "r.17", 17 },
-  { "r.18", 18 },
-  { "r.19", 19 },
-  { "r.2", 2 },
-  { "r.20", 20 },
-  { "r.21", 21 },
-  { "r.22", 22 },
-  { "r.23", 23 },
-  { "r.24", 24 },
-  { "r.25", 25 },
-  { "r.26", 26 },
-  { "r.27", 27 },
-  { "r.28", 28 },
-  { "r.29", 29 },
-  { "r.3", 3 },
-  { "r.30", 30 },
-  { "r.31", 31 },
-  { "r.4", 4 },
-  { "r.5", 5 },
-  { "r.6", 6 },
-  { "r.7", 7 },
-  { "r.8", 8 },
-  { "r.9", 9 },
+  { "r.sp", 1, PPC_OPERAND_GPR },
 
-  { "r.sp", 1 },   /* Stack Pointer */
+  { "r.toc", 2, PPC_OPERAND_GPR },
 
-  { "r.toc", 2 },  /* Pointer to the table of contents */
+  { "r0", 0, PPC_OPERAND_GPR },
+  { "r1", 1, PPC_OPERAND_GPR },
+  { "r10", 10, PPC_OPERAND_GPR },
+  { "r11", 11, PPC_OPERAND_GPR },
+  { "r12", 12, PPC_OPERAND_GPR },
+  { "r13", 13, PPC_OPERAND_GPR },
+  { "r14", 14, PPC_OPERAND_GPR },
+  { "r15", 15, PPC_OPERAND_GPR },
+  { "r16", 16, PPC_OPERAND_GPR },
+  { "r17", 17, PPC_OPERAND_GPR },
+  { "r18", 18, PPC_OPERAND_GPR },
+  { "r19", 19, PPC_OPERAND_GPR },
+  { "r2", 2, PPC_OPERAND_GPR },
+  { "r20", 20, PPC_OPERAND_GPR },
+  { "r21", 21, PPC_OPERAND_GPR },
+  { "r22", 22, PPC_OPERAND_GPR },
+  { "r23", 23, PPC_OPERAND_GPR },
+  { "r24", 24, PPC_OPERAND_GPR },
+  { "r25", 25, PPC_OPERAND_GPR },
+  { "r26", 26, PPC_OPERAND_GPR },
+  { "r27", 27, PPC_OPERAND_GPR },
+  { "r28", 28, PPC_OPERAND_GPR },
+  { "r29", 29, PPC_OPERAND_GPR },
+  { "r3", 3, PPC_OPERAND_GPR },
+  { "r30", 30, PPC_OPERAND_GPR },
+  { "r31", 31, PPC_OPERAND_GPR },
+  { "r4", 4, PPC_OPERAND_GPR },
+  { "r5", 5, PPC_OPERAND_GPR },
+  { "r6", 6, PPC_OPERAND_GPR },
+  { "r7", 7, PPC_OPERAND_GPR },
+  { "r8", 8, PPC_OPERAND_GPR },
+  { "r9", 9, PPC_OPERAND_GPR },
 
-  { "r0", 0 },     /* More general purpose registers */
-  { "r1", 1 },
-  { "r10", 10 },
-  { "r11", 11 },
-  { "r12", 12 },
-  { "r13", 13 },
-  { "r14", 14 },
-  { "r15", 15 },
-  { "r16", 16 },
-  { "r17", 17 },
-  { "r18", 18 },
-  { "r19", 19 },
-  { "r2", 2 },
-  { "r20", 20 },
-  { "r21", 21 },
-  { "r22", 22 },
-  { "r23", 23 },
-  { "r24", 24 },
-  { "r25", 25 },
-  { "r26", 26 },
-  { "r27", 27 },
-  { "r28", 28 },
-  { "r29", 29 },
-  { "r3", 3 },
-  { "r30", 30 },
-  { "r31", 31 },
-  { "r4", 4 },
-  { "r5", 5 },
-  { "r6", 6 },
-  { "r7", 7 },
-  { "r8", 8 },
-  { "r9", 9 },
+  { "rtoc", 2, PPC_OPERAND_GPR },
 
-  { "rtoc", 2 },  /* Table of contents */
+  { "sdr1", 25, PPC_OPERAND_SPR },
 
-  { "sdr1", 25 }, /* Storage Description Register 1 */
+  { "sp", 1, PPC_OPERAND_GPR },
 
-  { "sp", 1 },
+  { "srr0", 26, PPC_OPERAND_SPR },
+  { "srr1", 27, PPC_OPERAND_SPR },
 
-  { "srr0", 26 }, /* Machine Status Save/Restore Register 0 */
-  { "srr1", 27 }, /* Machine Status Save/Restore Register 1 */
+  /* Vector (Altivec/VMX) registers */
+  { "v.0", 0, PPC_OPERAND_VR },
+  { "v.1", 1, PPC_OPERAND_VR },
+  { "v.10", 10, PPC_OPERAND_VR },
+  { "v.11", 11, PPC_OPERAND_VR },
+  { "v.12", 12, PPC_OPERAND_VR },
+  { "v.13", 13, PPC_OPERAND_VR },
+  { "v.14", 14, PPC_OPERAND_VR },
+  { "v.15", 15, PPC_OPERAND_VR },
+  { "v.16", 16, PPC_OPERAND_VR },
+  { "v.17", 17, PPC_OPERAND_VR },
+  { "v.18", 18, PPC_OPERAND_VR },
+  { "v.19", 19, PPC_OPERAND_VR },
+  { "v.2", 2, PPC_OPERAND_VR },
+  { "v.20", 20, PPC_OPERAND_VR },
+  { "v.21", 21, PPC_OPERAND_VR },
+  { "v.22", 22, PPC_OPERAND_VR },
+  { "v.23", 23, PPC_OPERAND_VR },
+  { "v.24", 24, PPC_OPERAND_VR },
+  { "v.25", 25, PPC_OPERAND_VR },
+  { "v.26", 26, PPC_OPERAND_VR },
+  { "v.27", 27, PPC_OPERAND_VR },
+  { "v.28", 28, PPC_OPERAND_VR },
+  { "v.29", 29, PPC_OPERAND_VR },
+  { "v.3", 3, PPC_OPERAND_VR },
+  { "v.30", 30, PPC_OPERAND_VR },
+  { "v.31", 31, PPC_OPERAND_VR },
+  { "v.4", 4, PPC_OPERAND_VR },
+  { "v.5", 5, PPC_OPERAND_VR },
+  { "v.6", 6, PPC_OPERAND_VR },
+  { "v.7", 7, PPC_OPERAND_VR },
+  { "v.8", 8, PPC_OPERAND_VR },
+  { "v.9", 9, PPC_OPERAND_VR },
 
-  { "v.0", 0 },     /* Vector (Altivec/VMX) registers */
-  { "v.1", 1 },
-  { "v.10", 10 },
-  { "v.11", 11 },
-  { "v.12", 12 },
-  { "v.13", 13 },
-  { "v.14", 14 },
-  { "v.15", 15 },
-  { "v.16", 16 },
-  { "v.17", 17 },
-  { "v.18", 18 },
-  { "v.19", 19 },
-  { "v.2", 2 },
-  { "v.20", 20 },
-  { "v.21", 21 },
-  { "v.22", 22 },
-  { "v.23", 23 },
-  { "v.24", 24 },
-  { "v.25", 25 },
-  { "v.26", 26 },
-  { "v.27", 27 },
-  { "v.28", 28 },
-  { "v.29", 29 },
-  { "v.3", 3 },
-  { "v.30", 30 },
-  { "v.31", 31 },
-  { "v.4", 4 },
-  { "v.5", 5 },
-  { "v.6", 6 },
-  { "v.7", 7 },
-  { "v.8", 8 },
-  { "v.9", 9 },
+  { "v0", 0, PPC_OPERAND_VR },
+  { "v1", 1, PPC_OPERAND_VR },
+  { "v10", 10, PPC_OPERAND_VR },
+  { "v11", 11, PPC_OPERAND_VR },
+  { "v12", 12, PPC_OPERAND_VR },
+  { "v13", 13, PPC_OPERAND_VR },
+  { "v14", 14, PPC_OPERAND_VR },
+  { "v15", 15, PPC_OPERAND_VR },
+  { "v16", 16, PPC_OPERAND_VR },
+  { "v17", 17, PPC_OPERAND_VR },
+  { "v18", 18, PPC_OPERAND_VR },
+  { "v19", 19, PPC_OPERAND_VR },
+  { "v2", 2, PPC_OPERAND_VR },
+  { "v20", 20, PPC_OPERAND_VR },
+  { "v21", 21, PPC_OPERAND_VR },
+  { "v22", 22, PPC_OPERAND_VR },
+  { "v23", 23, PPC_OPERAND_VR },
+  { "v24", 24, PPC_OPERAND_VR },
+  { "v25", 25, PPC_OPERAND_VR },
+  { "v26", 26, PPC_OPERAND_VR },
+  { "v27", 27, PPC_OPERAND_VR },
+  { "v28", 28, PPC_OPERAND_VR },
+  { "v29", 29, PPC_OPERAND_VR },
+  { "v3", 3, PPC_OPERAND_VR },
+  { "v30", 30, PPC_OPERAND_VR },
+  { "v31", 31, PPC_OPERAND_VR },
+  { "v4", 4, PPC_OPERAND_VR },
+  { "v5", 5, PPC_OPERAND_VR },
+  { "v6", 6, PPC_OPERAND_VR },
+  { "v7", 7, PPC_OPERAND_VR },
+  { "v8", 8, PPC_OPERAND_VR },
+  { "v9", 9, PPC_OPERAND_VR },
 
-  { "v0", 0 },
-  { "v1", 1 },
-  { "v10", 10 },
-  { "v11", 11 },
-  { "v12", 12 },
-  { "v13", 13 },
-  { "v14", 14 },
-  { "v15", 15 },
-  { "v16", 16 },
-  { "v17", 17 },
-  { "v18", 18 },
-  { "v19", 19 },
-  { "v2", 2 },
-  { "v20", 20 },
-  { "v21", 21 },
-  { "v22", 22 },
-  { "v23", 23 },
-  { "v24", 24 },
-  { "v25", 25 },
-  { "v26", 26 },
-  { "v27", 27 },
-  { "v28", 28 },
-  { "v29", 29 },
-  { "v3", 3 },
-  { "v30", 30 },
-  { "v31", 31 },
-  { "v4", 4 },
-  { "v5", 5 },
-  { "v6", 6 },
-  { "v7", 7 },
-  { "v8", 8 },
-  { "v9", 9 },
+  /* Vector Scalar (VSX) registers (ISA 2.06).  */
+  { "vs.0", 0, PPC_OPERAND_VSR },
+  { "vs.1", 1, PPC_OPERAND_VSR },
+  { "vs.10", 10, PPC_OPERAND_VSR },
+  { "vs.11", 11, PPC_OPERAND_VSR },
+  { "vs.12", 12, PPC_OPERAND_VSR },
+  { "vs.13", 13, PPC_OPERAND_VSR },
+  { "vs.14", 14, PPC_OPERAND_VSR },
+  { "vs.15", 15, PPC_OPERAND_VSR },
+  { "vs.16", 16, PPC_OPERAND_VSR },
+  { "vs.17", 17, PPC_OPERAND_VSR },
+  { "vs.18", 18, PPC_OPERAND_VSR },
+  { "vs.19", 19, PPC_OPERAND_VSR },
+  { "vs.2", 2, PPC_OPERAND_VSR },
+  { "vs.20", 20, PPC_OPERAND_VSR },
+  { "vs.21", 21, PPC_OPERAND_VSR },
+  { "vs.22", 22, PPC_OPERAND_VSR },
+  { "vs.23", 23, PPC_OPERAND_VSR },
+  { "vs.24", 24, PPC_OPERAND_VSR },
+  { "vs.25", 25, PPC_OPERAND_VSR },
+  { "vs.26", 26, PPC_OPERAND_VSR },
+  { "vs.27", 27, PPC_OPERAND_VSR },
+  { "vs.28", 28, PPC_OPERAND_VSR },
+  { "vs.29", 29, PPC_OPERAND_VSR },
+  { "vs.3", 3, PPC_OPERAND_VSR },
+  { "vs.30", 30, PPC_OPERAND_VSR },
+  { "vs.31", 31, PPC_OPERAND_VSR },
+  { "vs.32", 32, PPC_OPERAND_VSR },
+  { "vs.33", 33, PPC_OPERAND_VSR },
+  { "vs.34", 34, PPC_OPERAND_VSR },
+  { "vs.35", 35, PPC_OPERAND_VSR },
+  { "vs.36", 36, PPC_OPERAND_VSR },
+  { "vs.37", 37, PPC_OPERAND_VSR },
+  { "vs.38", 38, PPC_OPERAND_VSR },
+  { "vs.39", 39, PPC_OPERAND_VSR },
+  { "vs.4", 4, PPC_OPERAND_VSR },
+  { "vs.40", 40, PPC_OPERAND_VSR },
+  { "vs.41", 41, PPC_OPERAND_VSR },
+  { "vs.42", 42, PPC_OPERAND_VSR },
+  { "vs.43", 43, PPC_OPERAND_VSR },
+  { "vs.44", 44, PPC_OPERAND_VSR },
+  { "vs.45", 45, PPC_OPERAND_VSR },
+  { "vs.46", 46, PPC_OPERAND_VSR },
+  { "vs.47", 47, PPC_OPERAND_VSR },
+  { "vs.48", 48, PPC_OPERAND_VSR },
+  { "vs.49", 49, PPC_OPERAND_VSR },
+  { "vs.5", 5, PPC_OPERAND_VSR },
+  { "vs.50", 50, PPC_OPERAND_VSR },
+  { "vs.51", 51, PPC_OPERAND_VSR },
+  { "vs.52", 52, PPC_OPERAND_VSR },
+  { "vs.53", 53, PPC_OPERAND_VSR },
+  { "vs.54", 54, PPC_OPERAND_VSR },
+  { "vs.55", 55, PPC_OPERAND_VSR },
+  { "vs.56", 56, PPC_OPERAND_VSR },
+  { "vs.57", 57, PPC_OPERAND_VSR },
+  { "vs.58", 58, PPC_OPERAND_VSR },
+  { "vs.59", 59, PPC_OPERAND_VSR },
+  { "vs.6", 6, PPC_OPERAND_VSR },
+  { "vs.60", 60, PPC_OPERAND_VSR },
+  { "vs.61", 61, PPC_OPERAND_VSR },
+  { "vs.62", 62, PPC_OPERAND_VSR },
+  { "vs.63", 63, PPC_OPERAND_VSR },
+  { "vs.7", 7, PPC_OPERAND_VSR },
+  { "vs.8", 8, PPC_OPERAND_VSR },
+  { "vs.9", 9, PPC_OPERAND_VSR },
 
-  { "vs.0", 0 },     /* Vector Scalar (VSX) registers (ISA 2.06).  */
-  { "vs.1", 1 },
-  { "vs.10", 10 },
-  { "vs.11", 11 },
-  { "vs.12", 12 },
-  { "vs.13", 13 },
-  { "vs.14", 14 },
-  { "vs.15", 15 },
-  { "vs.16", 16 },
-  { "vs.17", 17 },
-  { "vs.18", 18 },
-  { "vs.19", 19 },
-  { "vs.2", 2 },
-  { "vs.20", 20 },
-  { "vs.21", 21 },
-  { "vs.22", 22 },
-  { "vs.23", 23 },
-  { "vs.24", 24 },
-  { "vs.25", 25 },
-  { "vs.26", 26 },
-  { "vs.27", 27 },
-  { "vs.28", 28 },
-  { "vs.29", 29 },
-  { "vs.3", 3 },
-  { "vs.30", 30 },
-  { "vs.31", 31 },
-  { "vs.32", 32 },
-  { "vs.33", 33 },
-  { "vs.34", 34 },
-  { "vs.35", 35 },
-  { "vs.36", 36 },
-  { "vs.37", 37 },
-  { "vs.38", 38 },
-  { "vs.39", 39 },
-  { "vs.4", 4 },
-  { "vs.40", 40 },
-  { "vs.41", 41 },
-  { "vs.42", 42 },
-  { "vs.43", 43 },
-  { "vs.44", 44 },
-  { "vs.45", 45 },
-  { "vs.46", 46 },
-  { "vs.47", 47 },
-  { "vs.48", 48 },
-  { "vs.49", 49 },
-  { "vs.5", 5 },
-  { "vs.50", 50 },
-  { "vs.51", 51 },
-  { "vs.52", 52 },
-  { "vs.53", 53 },
-  { "vs.54", 54 },
-  { "vs.55", 55 },
-  { "vs.56", 56 },
-  { "vs.57", 57 },
-  { "vs.58", 58 },
-  { "vs.59", 59 },
-  { "vs.6", 6 },
-  { "vs.60", 60 },
-  { "vs.61", 61 },
-  { "vs.62", 62 },
-  { "vs.63", 63 },
-  { "vs.7", 7 },
-  { "vs.8", 8 },
-  { "vs.9", 9 },
+  { "vs0", 0, PPC_OPERAND_VSR },
+  { "vs1", 1, PPC_OPERAND_VSR },
+  { "vs10", 10, PPC_OPERAND_VSR },
+  { "vs11", 11, PPC_OPERAND_VSR },
+  { "vs12", 12, PPC_OPERAND_VSR },
+  { "vs13", 13, PPC_OPERAND_VSR },
+  { "vs14", 14, PPC_OPERAND_VSR },
+  { "vs15", 15, PPC_OPERAND_VSR },
+  { "vs16", 16, PPC_OPERAND_VSR },
+  { "vs17", 17, PPC_OPERAND_VSR },
+  { "vs18", 18, PPC_OPERAND_VSR },
+  { "vs19", 19, PPC_OPERAND_VSR },
+  { "vs2", 2, PPC_OPERAND_VSR },
+  { "vs20", 20, PPC_OPERAND_VSR },
+  { "vs21", 21, PPC_OPERAND_VSR },
+  { "vs22", 22, PPC_OPERAND_VSR },
+  { "vs23", 23, PPC_OPERAND_VSR },
+  { "vs24", 24, PPC_OPERAND_VSR },
+  { "vs25", 25, PPC_OPERAND_VSR },
+  { "vs26", 26, PPC_OPERAND_VSR },
+  { "vs27", 27, PPC_OPERAND_VSR },
+  { "vs28", 28, PPC_OPERAND_VSR },
+  { "vs29", 29, PPC_OPERAND_VSR },
+  { "vs3", 3, PPC_OPERAND_VSR },
+  { "vs30", 30, PPC_OPERAND_VSR },
+  { "vs31", 31, PPC_OPERAND_VSR },
+  { "vs32", 32, PPC_OPERAND_VSR },
+  { "vs33", 33, PPC_OPERAND_VSR },
+  { "vs34", 34, PPC_OPERAND_VSR },
+  { "vs35", 35, PPC_OPERAND_VSR },
+  { "vs36", 36, PPC_OPERAND_VSR },
+  { "vs37", 37, PPC_OPERAND_VSR },
+  { "vs38", 38, PPC_OPERAND_VSR },
+  { "vs39", 39, PPC_OPERAND_VSR },
+  { "vs4", 4, PPC_OPERAND_VSR },
+  { "vs40", 40, PPC_OPERAND_VSR },
+  { "vs41", 41, PPC_OPERAND_VSR },
+  { "vs42", 42, PPC_OPERAND_VSR },
+  { "vs43", 43, PPC_OPERAND_VSR },
+  { "vs44", 44, PPC_OPERAND_VSR },
+  { "vs45", 45, PPC_OPERAND_VSR },
+  { "vs46", 46, PPC_OPERAND_VSR },
+  { "vs47", 47, PPC_OPERAND_VSR },
+  { "vs48", 48, PPC_OPERAND_VSR },
+  { "vs49", 49, PPC_OPERAND_VSR },
+  { "vs5", 5, PPC_OPERAND_VSR },
+  { "vs50", 50, PPC_OPERAND_VSR },
+  { "vs51", 51, PPC_OPERAND_VSR },
+  { "vs52", 52, PPC_OPERAND_VSR },
+  { "vs53", 53, PPC_OPERAND_VSR },
+  { "vs54", 54, PPC_OPERAND_VSR },
+  { "vs55", 55, PPC_OPERAND_VSR },
+  { "vs56", 56, PPC_OPERAND_VSR },
+  { "vs57", 57, PPC_OPERAND_VSR },
+  { "vs58", 58, PPC_OPERAND_VSR },
+  { "vs59", 59, PPC_OPERAND_VSR },
+  { "vs6", 6, PPC_OPERAND_VSR },
+  { "vs60", 60, PPC_OPERAND_VSR },
+  { "vs61", 61, PPC_OPERAND_VSR },
+  { "vs62", 62, PPC_OPERAND_VSR },
+  { "vs63", 63, PPC_OPERAND_VSR },
+  { "vs7", 7, PPC_OPERAND_VSR },
+  { "vs8", 8, PPC_OPERAND_VSR },
+  { "vs9", 9, PPC_OPERAND_VSR },
 
-  { "vs0", 0 },
-  { "vs1", 1 },
-  { "vs10", 10 },
-  { "vs11", 11 },
-  { "vs12", 12 },
-  { "vs13", 13 },
-  { "vs14", 14 },
-  { "vs15", 15 },
-  { "vs16", 16 },
-  { "vs17", 17 },
-  { "vs18", 18 },
-  { "vs19", 19 },
-  { "vs2", 2 },
-  { "vs20", 20 },
-  { "vs21", 21 },
-  { "vs22", 22 },
-  { "vs23", 23 },
-  { "vs24", 24 },
-  { "vs25", 25 },
-  { "vs26", 26 },
-  { "vs27", 27 },
-  { "vs28", 28 },
-  { "vs29", 29 },
-  { "vs3", 3 },
-  { "vs30", 30 },
-  { "vs31", 31 },
-  { "vs32", 32 },
-  { "vs33", 33 },
-  { "vs34", 34 },
-  { "vs35", 35 },
-  { "vs36", 36 },
-  { "vs37", 37 },
-  { "vs38", 38 },
-  { "vs39", 39 },
-  { "vs4", 4 },
-  { "vs40", 40 },
-  { "vs41", 41 },
-  { "vs42", 42 },
-  { "vs43", 43 },
-  { "vs44", 44 },
-  { "vs45", 45 },
-  { "vs46", 46 },
-  { "vs47", 47 },
-  { "vs48", 48 },
-  { "vs49", 49 },
-  { "vs5", 5 },
-  { "vs50", 50 },
-  { "vs51", 51 },
-  { "vs52", 52 },
-  { "vs53", 53 },
-  { "vs54", 54 },
-  { "vs55", 55 },
-  { "vs56", 56 },
-  { "vs57", 57 },
-  { "vs58", 58 },
-  { "vs59", 59 },
-  { "vs6", 6 },
-  { "vs60", 60 },
-  { "vs61", 61 },
-  { "vs62", 62 },
-  { "vs63", 63 },
-  { "vs7", 7 },
-  { "vs8", 8 },
-  { "vs9", 9 },
-
-  { "xer", 1 },
-
+  { "xer", 1, PPC_OPERAND_SPR }
 };
 
 #define REG_NAME_CNT	(sizeof (pre_defined_registers) / sizeof (struct pd_reg))
@@ -811,7 +807,7 @@ static const struct pd_reg pre_defined_registers[] =
 /* Given NAME, find the register number associated with that name, return
    the integer value associated with the given name or -1 on failure.  */
 
-static int
+static const struct pd_reg *
 reg_name_search (const struct pd_reg *regs, int regcount, const char *name)
 {
   int middle, low, high;
@@ -829,11 +825,11 @@ reg_name_search (const struct pd_reg *regs, int regcount, const char *name)
       else if (cmp > 0)
 	low = middle + 1;
       else
-	return regs[middle].value;
+	return &regs[middle];
     }
   while (low <= high);
 
-  return -1;
+  return NULL;
 }
 
 /*
@@ -851,7 +847,7 @@ reg_name_search (const struct pd_reg *regs, int regcount, const char *name)
 static bfd_boolean
 register_name (expressionS *expressionP)
 {
-  int reg_number;
+  const struct pd_reg *reg;
   char *name;
   char *start;
   char c;
@@ -865,16 +861,17 @@ register_name (expressionS *expressionP)
     return FALSE;
 
   c = get_symbol_name (&name);
-  reg_number = reg_name_search (pre_defined_registers, REG_NAME_CNT, name);
+  reg = reg_name_search (pre_defined_registers, REG_NAME_CNT, name);
 
   /* Put back the delimiting char.  */
   *input_line_pointer = c;
 
   /* Look to see if it's in the register table.  */
-  if (reg_number >= 0)
+  if (reg != NULL)
     {
       expressionP->X_op = O_register;
-      expressionP->X_add_number = reg_number;
+      expressionP->X_add_number = reg->value;
+      expressionP->X_md = reg->flags;
 
       /* Make the rest nice.  */
       expressionP->X_add_symbol = NULL;
@@ -897,19 +894,19 @@ static bfd_boolean cr_operand;
 /* Names to recognize in a condition code.  This table is sorted.  */
 static const struct pd_reg cr_names[] =
 {
-  { "cr0", 0 },
-  { "cr1", 1 },
-  { "cr2", 2 },
-  { "cr3", 3 },
-  { "cr4", 4 },
-  { "cr5", 5 },
-  { "cr6", 6 },
-  { "cr7", 7 },
-  { "eq", 2 },
-  { "gt", 1 },
-  { "lt", 0 },
-  { "so", 3 },
-  { "un", 3 }
+  { "cr0", 0, PPC_OPERAND_CR_REG },
+  { "cr1", 1, PPC_OPERAND_CR_REG },
+  { "cr2", 2, PPC_OPERAND_CR_REG },
+  { "cr3", 3, PPC_OPERAND_CR_REG },
+  { "cr4", 4, PPC_OPERAND_CR_REG },
+  { "cr5", 5, PPC_OPERAND_CR_REG },
+  { "cr6", 6, PPC_OPERAND_CR_REG },
+  { "cr7", 7, PPC_OPERAND_CR_REG },
+  { "eq", 2, PPC_OPERAND_CR_BIT },
+  { "gt", 1, PPC_OPERAND_CR_BIT },
+  { "lt", 0, PPC_OPERAND_CR_BIT },
+  { "so", 3, PPC_OPERAND_CR_BIT },
+  { "un", 3, PPC_OPERAND_CR_BIT }
 };
 
 /* Parsing function.  This returns non-zero if it recognized an
@@ -918,22 +915,77 @@ static const struct pd_reg cr_names[] =
 int
 ppc_parse_name (const char *name, expressionS *exp)
 {
-  int val;
+  const struct pd_reg *reg;
 
   if (! cr_operand)
     return 0;
 
   if (*name == '%')
     ++name;
-  val = reg_name_search (cr_names, sizeof cr_names / sizeof cr_names[0],
+  reg = reg_name_search (cr_names, sizeof cr_names / sizeof cr_names[0],
 			 name);
-  if (val < 0)
+  if (reg == NULL)
     return 0;
 
-  exp->X_op = O_constant;
-  exp->X_add_number = val;
+  exp->X_op = O_register;
+  exp->X_add_number = reg->value;
+  exp->X_md = reg->flags;
 
   return 1;
+}
+
+/* Propagate X_md and check register expressions.  This is to support
+   condition codes like 4*cr5+eq.  */
+
+int
+ppc_optimize_expr (expressionS *left, operatorT op, expressionS *right)
+{
+  /* Accept 4*cr<n> and cr<n>*4.  */
+  if (op == O_multiply
+      && ((right->X_op == O_register
+	   && right->X_md == PPC_OPERAND_CR_REG
+	   && left->X_op == O_constant
+	   && left->X_add_number == 4)
+	  || (left->X_op == O_register
+	      && left->X_md == PPC_OPERAND_CR_REG
+	      && right->X_op == O_constant
+	      && right->X_add_number == 4)))
+    {
+      left->X_op = O_register;
+      left->X_md = PPC_OPERAND_CR_REG | PPC_OPERAND_CR_BIT;
+      left->X_add_number *= right->X_add_number;
+      return 1;
+    }
+
+  /* Accept the above plus <cr bit>, and <cr bit> plus the above.  */
+  if (right->X_op == O_register
+      && left->X_op == O_register
+      && op == O_add
+      && ((right->X_md == PPC_OPERAND_CR_BIT
+	   && left->X_md == (PPC_OPERAND_CR_REG | PPC_OPERAND_CR_BIT))
+	  || (right->X_md == (PPC_OPERAND_CR_REG | PPC_OPERAND_CR_BIT)
+	      && left->X_md == PPC_OPERAND_CR_BIT)))
+    {
+      left->X_md = PPC_OPERAND_CR_BIT;
+      right->X_op = O_constant;
+      return 0;
+    }
+
+  /* Accept reg +/- constant.  */
+  if (left->X_op == O_register
+      && !((op == O_add || op == O_subtract) && right->X_op == O_constant))
+    as_warn (_("invalid register expression"));
+
+  /* Accept constant + reg.  */
+  if (right->X_op == O_register)
+    {
+      if (op == O_add && left->X_op == O_constant)
+	left->X_md = right->X_md;
+      else
+	as_warn (_("invalid register expression"));
+    }
+
+  return 0;
 }
 
 /* Local variables.  */
@@ -1141,7 +1193,8 @@ md_parse_option (int c, const char *arg)
 
     case 'm':
       new_cpu = ppc_parse_cpu (ppc_cpu, &sticky, arg);
-      if (new_cpu != 0)
+      /* "raw" is only valid for the disassembler.  */
+      if (new_cpu != 0 && (new_cpu & PPC_OPCODE_RAW) == 0)
 	{
 	  ppc_cpu = new_cpu;
 	  if (strcmp (arg, "vle") == 0)
@@ -1288,12 +1341,11 @@ PowerPC options:\n\
 -mpower8, -mpwr8        generate code for Power8 architecture\n\
 -mpower9, -mpwr9        generate code for Power9 architecture\n\
 -mcell                  generate code for Cell Broadband Engine architecture\n\
--mcom                   generate code Power/PowerPC common instructions\n\
+-mcom                   generate code for Power/PowerPC common instructions\n\
 -many                   generate code for any architecture (PWR/PWRX/PPC)\n"));
   fprintf (stream, _("\
 -maltivec               generate code for AltiVec\n\
 -mvsx                   generate code for Vector-Scalar (VSX) instructions\n\
--mhtm                   generate code for Hardware Transactional Memory\n\
 -me300                  generate code for PowerPC e300 family\n\
 -me500, -me500x2        generate code for Motorola e500 core complex\n\
 -me500mc,               generate code for Freescale e500mc core complex\n\
@@ -2916,7 +2968,16 @@ md_assemble (char *str)
 	as_bad (_("missing operand"));
       else if (ex.X_op == O_register)
 	{
-	  insn = ppc_insert_operand (insn, operand, ex.X_add_number,
+	  if ((ex.X_md
+	       & ~operand->flags
+	       & (PPC_OPERAND_GPR | PPC_OPERAND_FPR | PPC_OPERAND_VR
+		  | PPC_OPERAND_VSR | PPC_OPERAND_CR_BIT | PPC_OPERAND_CR_REG
+		  | PPC_OPERAND_SPR | PPC_OPERAND_GQR)) != 0
+	      && !((ex.X_md & PPC_OPERAND_GPR) != 0
+		   && ex.X_add_number != 0
+		   && (operand->flags & PPC_OPERAND_GPR_0) != 0))
+	    as_warn (_("invalid register expression"));
+	  insn = ppc_insert_operand (insn, operand, ex.X_add_number & 0xff,
 				     ppc_cpu, (char *) NULL, 0);
 	}
       else if (ex.X_op == O_constant)
@@ -4173,7 +4234,7 @@ ppc_lglobl (int ignore ATTRIBUTE_UNUSED)
 
    (In principle, there's no reason why the relocations _have_ to be at
    the beginning.  Anywhere in the csect would do.  However, inserting
-   at the beginning is what the native assmebler does, and it helps to
+   at the beginning is what the native assembler does, and it helps to
    deal with cases where the .ref statements follow the section contents.)
 
    ??? .refs don't work for empty .csects.  However, the native assembler
@@ -5108,7 +5169,7 @@ ppc_ydata (int ignore ATTRIBUTE_UNUSED)
    initial:   .section .reldata "drw3"
 	      d - initialized data
 	      r - readable
-	      w - writeable
+	      w - writable
 	      3 - double word aligned (that would be 8 byte boundary)
 
    commentary:
@@ -5344,13 +5405,13 @@ ppc_pe_comm (int lcomm)
  *
  * Section Protection:
  * 'r' - section is readable
- * 'w' - section is writeable
+ * 'w' - section is writable
  * 'x' - section is executable
  * 's' - section is sharable
  *
  * Section Alignment:
  * '0' - align to byte boundary
- * '1' - align to halfword undary
+ * '1' - align to halfword boundary
  * '2' - align to word boundary
  * '3' - align to doubleword boundary
  * '4' - align to quadword boundary
@@ -5451,7 +5512,7 @@ ppc_pe_section (int ignore ATTRIBUTE_UNUSED)
 		case 'r': /* section is readable */
 		  flags |= IMAGE_SCN_MEM_READ;
 		  break;
-		case 'w': /* section is writeable */
+		case 'w': /* section is writable */
 		  flags |= IMAGE_SCN_MEM_WRITE;
 		  break;
 		case 'x': /* section is executable */

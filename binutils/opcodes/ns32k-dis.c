@@ -20,7 +20,7 @@
 
 #include "sysdep.h"
 #include "bfd.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #if !defined(const) && !defined(__STDC__)
 #define const
 #endif

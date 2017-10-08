@@ -54,4 +54,10 @@ Disassembly of section \.text:
 			5c: R_MIPS_GPREL16	gvar
   60:	27840000 	addiu	\$4,\$28,0
 			60: R_MIPS_GPREL16	gvar
+  64:	8f840000 	lw	\$4,0\(\$28\)
+			64: R_MIPS_GPREL16	gvar
+  68:	af840000 	sw	\$4,0\(\$28\)
+			68: R_MIPS_GPREL16	gvar
+  6c:	27840000 	addiu	\$4,\$28,0
+			6c: R_MIPS_GPREL16	gvar
 	\.\.\.

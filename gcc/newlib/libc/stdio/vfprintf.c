@@ -114,7 +114,7 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)vfprintf.c	5.50 (Berkeley) 12/16/92";*/
-static char *rcsid = "$Id: vfprintf.c,v 1.43 2002/08/13 02:40:06 fitzsim Exp $";
+static char *rcsid = "$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -178,9 +178,17 @@ static char *rcsid = "$Id: vfprintf.c,v 1.43 2002/08/13 02:40:06 fitzsim Exp $";
 #endif
 
 #ifdef STRING_ONLY
-#define __SPRINT __ssprint_r
+# ifdef _FVWRITE_IN_STREAMIO
+#  define __SPRINT __ssprint_r
+# else
+#  define __SPRINT __ssputs_r
+# endif
 #else
-#define __SPRINT __sprint_r
+# ifdef _FVWRITE_IN_STREAMIO
+#  define __SPRINT __sprint_r
+# else
+#  define __SPRINT __sfputs_r
+# endif
 #endif
 
 /* The __sprint_r/__ssprint_r functions are shared between all versions of
@@ -188,6 +196,76 @@ static char *rcsid = "$Id: vfprintf.c,v 1.43 2002/08/13 02:40:06 fitzsim Exp $";
    the INTEGER_ONLY versions here. */
 #ifdef STRING_ONLY
 #ifdef INTEGER_ONLY
+#ifndef _FVWRITE_IN_STREAMIO
+int
+_DEFUN(__ssputs_r, (ptr, fp, buf, len),
+       struct _reent *ptr _AND
+       FILE *fp _AND
+       _CONST char *buf _AND
+       size_t len)
+{
+	register int w;
+
+	w = fp->_w;
+	if (len >= w && fp->_flags & (__SMBF | __SOPT)) {
+		/* must be asprintf family */
+		unsigned char *str;
+		int curpos = (fp->_p - fp->_bf._base);
+		/* Choose a geometric growth factor to avoid
+	 	 * quadratic realloc behavior, but use a rate less
+		 * than (1+sqrt(5))/2 to accomodate malloc
+	 	 * overhead. asprintf EXPECTS us to overallocate, so
+	 	 * that it can add a trailing \0 without
+	 	 * reallocating.  The new allocation should thus be
+	 	 * max(prev_size*1.5, curpos+len+1). */
+		int newsize = fp->_bf._size * 3 / 2;
+		if (newsize < curpos + len + 1)
+			newsize = curpos + len + 1;
+		if (fp->_flags & __SOPT)
+		{
+			/* asnprintf leaves original buffer alone.  */
+			str = (unsigned char *)_malloc_r (ptr, newsize);
+			if (!str)
+			{
+				ptr->_errno = ENOMEM;
+				goto err;
+			}
+			memcpy (str, fp->_bf._base, curpos);
+			fp->_flags = (fp->_flags & ~__SOPT) | __SMBF;
+		}
+		else
+		{
+			str = (unsigned char *)_realloc_r (ptr, fp->_bf._base,
+					newsize);
+			if (!str) {
+				/* Free unneeded buffer.  */
+				_free_r (ptr, fp->_bf._base);
+				/* Ensure correct errno, even if free
+				 * changed it.  */
+				ptr->_errno = ENOMEM;
+				goto err;
+			}
+		}
+		fp->_bf._base = str;
+		fp->_p = str + curpos;
+		fp->_bf._size = newsize;
+		w = len;
+		fp->_w = newsize - curpos;
+	}
+	if (len < w)
+		w = len;
+	(void)memmove ((_PTR) fp->_p, (_PTR) buf, (size_t) (w));
+	fp->_w -= w;
+	fp->_p += w;
+
+	return 0;
+
+err:
+	fp->_flags |= __SERR;
+	return EOF;
+}
+#endif
+
 int
 _DEFUN(__ssprint_r, (ptr, fp, uio),
        struct _reent *ptr _AND
@@ -280,11 +358,46 @@ err:
   return EOF;
 }
 #else /* !INTEGER_ONLY */
+#ifndef _FVWRITE_IN_STREAMIO
+int __ssputs_r (struct _reent *, FILE *, _CONST char *, size_t);
+#endif
 int __ssprint_r (struct _reent *, FILE *, register struct __suio *);
 #endif /* !INTEGER_ONLY */
 
 #else /* !STRING_ONLY */
 #ifdef INTEGER_ONLY
+
+#ifndef _FVWRITE_IN_STREAMIO
+int
+_DEFUN(__sfputs_r, (ptr, fp, buf, len),
+       struct _reent *ptr _AND
+       FILE *fp _AND
+       _CONST char *buf _AND
+       size_t len)
+{
+	register int i;
+
+#ifdef _WIDE_ORIENT
+	if (fp->_flags2 & __SWID) {
+		wchar_t *p;
+
+		p = (wchar_t *) buf;
+		for (i = 0; i < (len / sizeof (wchar_t)); i++) {
+			if (_fputwc_r (ptr, p[i], fp) == WEOF)
+				return -1;
+		}
+	} else {
+#else
+	{
+#endif
+		for (i = 0; i < len; i++) {
+			if (_fputc_r (ptr, buf[i], fp) == EOF)
+				return -1;
+		}
+	}
+	return (0);
+}
+#endif
 /*
  * Flush out all the vectors defined by the given uio,
  * then reset it so that it can be reused.
@@ -301,6 +414,7 @@ _DEFUN(__sprint_r, (ptr, fp, uio),
 		uio->uio_iovcnt = 0;
 		return (0);
 	}
+#ifdef _WIDE_ORIENT
 	if (fp->_flags2 & __SWID) {
 		struct __siov *iov;
 		wchar_t *p;
@@ -319,6 +433,7 @@ _DEFUN(__sprint_r, (ptr, fp, uio),
 			}
 		}
 	} else
+#endif
 		err = __sfvwrite_r(ptr, fp, uio);
 out:
 	uio->uio_resid = 0;
@@ -326,15 +441,21 @@ out:
 	return (err);
 }
 #else /* !INTEGER_ONLY */
+#ifndef _FVWRITE_IN_STREAMIO
+int __sfputs_r (struct _reent *, FILE *, _CONST char *buf, size_t);
+#endif
 int __sprint_r (struct _reent *, FILE *, register struct __suio *);
 #endif /* !INTEGER_ONLY */
 
+#ifdef _UNBUF_STREAM_OPT
 /*
  * Helper function for `fprintf to unbuffered unix file': creates a
  * temporary buffer.  We only work on write-only files; this avoids
  * worries about ungetc buffers and so forth.
+ *
+ * Make sure to avoid inlining.
  */
-static int
+_NOINLINE_STATIC int
 _DEFUN(__sbprintf, (rptr, fp, fmt, ap),
        struct _reent *rptr _AND
        register FILE *fp   _AND
@@ -372,6 +493,7 @@ _DEFUN(__sbprintf, (rptr, fp, fmt, ap),
 #endif
 	return (ret);
 }
+#endif /* _UNBUF_STREAM_OPT */
 #endif /* !STRING_ONLY */
 
 
@@ -548,7 +670,6 @@ _DEFUN(_VFPRINTF_R, (data, fp, fmt0, ap),
 	register int ch;	/* character from fmt */
 	register int n, m;	/* handy integers (short term usage) */
 	register char *cp;	/* handy char pointer (short term usage) */
-	register struct __siov *iovp;/* for PRINT macro */
 	register int flags;	/* flags as above */
 	char *fmt_anchor;       /* current format spec being processed */
 #ifndef _NO_POS_ARGS
@@ -567,9 +688,9 @@ _DEFUN(_VFPRINTF_R, (data, fp, fmt0, ap),
 	char sign;		/* sign prefix (' ', '+', '-', or \0) */
 #ifdef _WANT_IO_C99_FORMATS
 				/* locale specific numeric grouping */
-	char *thousands_sep;
-	size_t thsnd_len;
-	const char *grouping;
+	char *thousands_sep = NULL;
+	size_t thsnd_len = 0;
+	const char *grouping = NULL;
 #endif
 #ifdef FLOATING_POINT
 	char *decimal_point = _localeconv_r (data)->decimal_point;
@@ -585,7 +706,7 @@ _DEFUN(_VFPRINTF_R, (data, fp, fmt0, ap),
 #if defined (FLOATING_POINT) || defined (_WANT_IO_C99_FORMATS)
 	int ndig = 0;		/* actual number of digits returned by cvt */
 #endif
-#ifdef _WANT_IO_C99_FORMATS
+#if defined (FLOATING_POINT) && defined (_WANT_IO_C99_FORMATS)
 	int nseps;		/* number of group separators with ' */
 	int nrepeats;		/* number of repeats of the last group */
 #endif
@@ -595,9 +716,12 @@ _DEFUN(_VFPRINTF_R, (data, fp, fmt0, ap),
 	int realsz;		/* field size expanded by dprec */
 	int size;		/* size of converted field or string */
 	char *xdigs = NULL;	/* digits for [xX] conversion */
+#ifdef _FVWRITE_IN_STREAMIO
 #define NIOV 8
 	struct __suio uio;	/* output information: summary */
 	struct __siov iov[NIOV];/* ... and individual io vectors */
+	register struct __siov *iovp;/* for PRINT macro */
+#endif
 	char buf[BUF];		/* space for %c, %S, %[diouxX], %[aA] */
 	char ox[2];		/* space for 0x hex-prefix */
 #ifdef _MB_CAPABLE
@@ -623,6 +747,7 @@ _DEFUN(_VFPRINTF_R, (data, fp, fmt0, ap),
 	/*
 	 * BEWARE, these `goto error' on error, and PAD uses `n'.
 	 */
+#ifdef _FVWRITE_IN_STREAMIO
 #define	PRINT(ptr, len) { \
 	iovp->iov_base = (ptr); \
 	iovp->iov_len = (len); \
@@ -657,6 +782,30 @@ _DEFUN(_VFPRINTF_R, (data, fp, fmt0, ap),
 	uio.uio_iovcnt = 0; \
 	iovp = iov; \
 }
+#else
+#define PRINT(ptr, len) {		\
+	if (__SPRINT (data, fp, (ptr), (len)) == EOF) \
+		goto error;		\
+}
+#define	PAD(howmany, with) {		\
+	if ((n = (howmany)) > 0) {	\
+		while (n > PADSIZE) {	\
+			PRINT (with, PADSIZE);	\
+			n -= PADSIZE;	\
+		}			\
+		PRINT (with, n);	\
+	}				\
+}
+#define PRINTANDPAD(p, ep, len, with) {	\
+	int n = (ep) - (p);		\
+	if (n > (len))			\
+		n = (len);		\
+	if (n > 0)			\
+		PRINT((p), n);		\
+	PAD((len) - (n > 0 ? n : 0), (with)); \
+}
+#define FLUSH()
+#endif
 
 	/* Macros to support positional arguments */
 #ifndef _NO_POS_ARGS
@@ -708,22 +857,24 @@ _DEFUN(_VFPRINTF_R, (data, fp, fmt0, ap),
 #ifndef STRING_ONLY
 	/* Initialize std streams if not dealing with sprintf family.  */
 	CHECK_INIT (data, fp);
-	_flockfile (fp);
+	_newlib_flockfile_start (fp);
 
 	ORIENT(fp, -1);
 
 	/* sorry, fprintf(read_only_file, "") returns EOF, not 0 */
 	if (cantwrite (data, fp)) {
-		_funlockfile (fp);
+		_newlib_flockfile_exit (fp);
 		return (EOF);
 	}
 
+#ifdef _UNBUF_STREAM_OPT
 	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
 	if ((fp->_flags & (__SNBF|__SWR|__SRW)) == (__SNBF|__SWR) &&
 	    fp->_file >= 0) {
-		_funlockfile (fp);
+		_newlib_flockfile_exit (fp);
 		return (__sbprintf (data, fp, fmt0, ap));
 	}
+#endif
 #else /* STRING_ONLY */
         /* Create initial buffer if we are called by asprintf family.  */
         if (fp->_flags & __SMBF && !fp->_bf._base)
@@ -739,9 +890,11 @@ _DEFUN(_VFPRINTF_R, (data, fp, fmt0, ap),
 #endif /* STRING_ONLY */
 
 	fmt = (char *)fmt0;
+#ifdef _FVWRITE_IN_STREAMIO
 	uio.uio_iov = iovp = iov;
 	uio.uio_resid = 0;
 	uio.uio_iovcnt = 0;
+#endif
 	ret = 0;
 #ifndef _NO_POS_ARGS
 	arg_index = 0;
@@ -757,8 +910,8 @@ _DEFUN(_VFPRINTF_R, (data, fp, fmt0, ap),
 	for (;;) {
 	        cp = fmt;
 #ifdef _MB_CAPABLE
-	        while ((n = __mbtowc (data, &wc, fmt, MB_CUR_MAX,
-				      __locale_charset (), &state)) != 0) {
+	        while ((n = __MBTOWC (data, &wc, fmt, MB_CUR_MAX,
+				      &state)) != 0) {
 		    if (n < 0) {
 			/* Wave invalid chars through. */
 			memset (&state, 0, sizeof state);
@@ -793,9 +946,9 @@ _DEFUN(_VFPRINTF_R, (data, fp, fmt0, ap),
 		sign = '\0';
 #ifdef FLOATING_POINT
 		lead = 0;
-#endif
 #ifdef _WANT_IO_C99_FORMATS
 		nseps = nrepeats = 0;
+#endif
 #endif
 #ifndef _NO_POS_ARGS
 		N = arg_index;
@@ -1179,7 +1332,7 @@ reswitch:	switch (ch) {
 				expsize = exponent (expstr, expt, ch);
 				size = expsize + ndig;
 				if (ndig > 1 || flags & ALT)
-					++size;
+					size += decp_len;
 # ifdef _WANT_IO_C99_FORMATS
 				flags &= ~GROUPING;
 # endif
@@ -1188,18 +1341,20 @@ reswitch:	switch (ch) {
 					if (expt > 0) {
 						size = expt;
 						if (prec || flags & ALT)
-							size += prec + 1;
+							size += prec + decp_len;
 					} else	/* "0.X" */
 						size = (prec || flags & ALT)
-							  ? prec + 2
+							  ? prec + 1 + decp_len
 							  : 1;
 				} else if (expt >= ndig) { /* fixed g fmt */
 					size = expt;
 					if (flags & ALT)
-						++size;
-				} else
-					size = ndig + (expt > 0 ?
-						1 : 2 - expt);
+						size += decp_len;
+				} else {
+					size = ndig + decp_len;
+					if (expt <= 0)
+						size += 1 - expt;
+				}
 # ifdef _WANT_IO_C99_FORMATS
 				if ((flags & GROUPING) && expt > 0) {
 					/* space for thousands' grouping */
@@ -1225,6 +1380,15 @@ reswitch:	switch (ch) {
 				sign = '-';
 			break;
 #endif /* FLOATING_POINT */
+#ifdef _GLIBC_EXTENSION
+		case 'm':  /* extension */
+			{
+				int dummy;
+				cp = _strerror_r (data, data->_errno, 1, &dummy);
+			}
+			flags &= ~LONGINT;
+			goto string;
+#endif
 		case 'n':
 #ifndef _NO_LONGLONG
 			if (flags & QUADINT)
@@ -1272,8 +1436,11 @@ reswitch:	switch (ch) {
 #ifdef _WANT_IO_C99_FORMATS
 		case 'S':
 #endif
-			sign = '\0';
 			cp = GET_ARG (N, ap, char_ptr_t);
+#ifdef _GLIBC_EXTENSION
+string:
+#endif
+			sign = '\0';
 #ifndef __OPTIMIZE_SIZE__
 			/* Behavior is undefined if the user passed a
 			   NULL string when precision is not 0.
@@ -1356,11 +1523,9 @@ reswitch:	switch (ch) {
 				 */
 				char *p = memchr (cp, 0, prec);
 
-				if (p != NULL) {
+				if (p != NULL)
 					size = p - cp;
-					if (size > prec)
-						size = prec;
-				} else
+				else
 					size = prec;
 			} else
 				size = strlen (cp);
@@ -1621,7 +1786,7 @@ error:
 	if (malloc_buf != NULL)
 		_free_r (data, malloc_buf);
 #ifndef STRING_ONLY
-	_funlockfile (fp);
+	_newlib_flockfile_end (fp);
 #endif
 	return (__sferror (fp) ? EOF : ret);
 	/* NOTREACHED */
@@ -1914,8 +2079,7 @@ _DEFUN(get_arg, (data, n, fmt, ap, numargs_p, args, arg_type, last_fmt),
   while (*fmt && n >= numargs)
     {
 # ifdef _MB_CAPABLE
-      while ((nbytes = __mbtowc (data, &wc, fmt, MB_CUR_MAX,
-				 __locale_charset (), &wc_state)) > 0)
+      while ((nbytes = __MBTOWC (data, &wc, fmt, MB_CUR_MAX, &wc_state)) > 0)
 	{
 	  fmt += nbytes;
 	  if (wc == '%')

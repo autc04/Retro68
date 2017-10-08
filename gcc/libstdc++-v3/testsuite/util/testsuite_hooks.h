@@ -1,7 +1,7 @@
 // -*- C++ -*-
-// Utility subroutines for the C++ library testsuite. 
+// Utility subroutines for the C++ library testsuite.
 //
-// Copyright (C) 2000-2016 Free Software Foundation, Inc.
+// Copyright (C) 2000-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -21,10 +21,7 @@
 
 // This file provides the following:
 //
-// 1)  VERIFY(), via _GLIBCXX_ASSERT, from Brent Verner <brent@rcfile.org>.
-//   This file is included in the various testsuite programs to provide
-//   #define(able) assert() behavior for debugging/testing. It may be
-//   a suitable location for other furry woodland creatures as well.
+// 1)  VERIFY()
 //
 // 2)  set_memory_limits()
 //   set_memory_limits() uses setrlimit() to restrict dynamic memory
@@ -54,12 +51,16 @@
 #include <sys/stat.h>
 #endif
 
-#ifdef _GLIBCXX_ASSERT
-# include <cassert>
-# define VERIFY(fn) assert(fn)
-#else
-# define VERIFY(fn) test &= bool(fn)
-#endif
+#define VERIFY(fn)                                                      \
+  do                                                                    \
+  {                                                                     \
+    if (! (fn))								\
+      {									\
+	__builtin_printf("%s:%d: %s: Assertion '%s' failed.\n",		\
+			 __FILE__, __LINE__, __PRETTY_FUNCTION__, #fn); \
+	__builtin_abort();						\
+      }									\
+  } while (false)
 
 #ifdef _GLIBCXX_HAVE_UNISTD_H
 # include <unistd.h>
@@ -72,6 +73,18 @@
 #else
 # define ISO_8859(part,langTERR) ((part) == 15 ?\
          #langTERR ".ISO8859-" #part "@euro" : #langTERR ".ISO8859-" #part)
+#endif
+
+#if __cplusplus < 201103L
+# define THROW(X) throw(X)
+#else
+# define THROW(X) noexcept(false)
+#endif
+
+#if _GLIBCXX_HAVE___CXA_THREAD_ATEXIT || _GLIBCXX_HAVE___CXA_THREAD_ATEXIT_IMPL
+// Correct order of thread_local destruction needs __cxa_thread_atexit_impl
+// or similar support from libc.
+# define CORRECT_THREAD_LOCAL_DTORS 1
 #endif
 
 namespace __gnu_test
@@ -99,7 +112,7 @@ namespace __gnu_test
 
   // Simple callback structure for variable numbers of tests (all with
   // same signature).  Assume all unit tests are of the signature
-  // void test01(); 
+  // void test01();
   class func_callback
   {
   public:
@@ -133,11 +146,11 @@ namespace __gnu_test
 
 
   // Run select unit tests after setting global locale.
-  void 
+  void
   run_tests_wrapped_locale(const char*, const func_callback&);
 
   // Run select unit tests after setting environment variables.
-  void 
+  void
   run_tests_wrapped_env(const char*, const char*, const func_callback&);
 
   // Counting.
@@ -152,9 +165,9 @@ namespace __gnu_test
     object_counter (const object_counter&) { ++count; }
     ~object_counter() { --count; }
   };
-  
+
 #define assert_count(n)   VERIFY(__gnu_test::object_counter::count == n)
-  
+
   // A (static) class for counting copy constructors and possibly throwing an
   // exception on a desired count.
   class copy_constructor
@@ -162,7 +175,7 @@ namespace __gnu_test
   public:
     static unsigned int
     count() { return count_; }
-    
+
     static void
     mark_call()
     {
@@ -170,14 +183,14 @@ namespace __gnu_test
       if (count_ == throw_on_)
 	std::__throw_runtime_error("copy_constructor::mark_call");
     }
-      
+
     static void
     reset()
     {
       count_ = 0;
       throw_on_ = 0;
     }
-      
+
     static void
     throw_on(unsigned int count) { throw_on_ = count; }
 
@@ -185,7 +198,7 @@ namespace __gnu_test
     static unsigned int count_;
     static unsigned int throw_on_;
   };
-  
+
   // A (static) class for counting assignment operator calls and
   // possibly throwing an exception on a desired count.
   class assignment_operator
@@ -193,7 +206,7 @@ namespace __gnu_test
   public:
     static unsigned int
     count() { return count_; }
-    
+
     static void
     mark_call()
     {
@@ -216,14 +229,14 @@ namespace __gnu_test
     static unsigned int count_;
     static unsigned int throw_on_;
   };
-  
+
   // A (static) class for tracking calls to an object's destructor.
   class destructor
   {
   public:
     static unsigned int
     count() { return _M_count; }
-    
+
     static void
     mark_call() { _M_count++; }
 
@@ -233,9 +246,9 @@ namespace __gnu_test
   private:
     static unsigned int _M_count;
   };
-  
-  // An class of objects that can be used for validating various
-  // behaviours and guarantees of containers and algorithms defined in
+
+  // A class of objects that can be used for validating various
+  // behaviors and guarantees of containers and algorithms defined in
   // the standard library.
   class copy_tracker
   {
@@ -262,7 +275,7 @@ namespace __gnu_test
     // copied, well, make it so.
     copy_tracker&
     operator=(const copy_tracker& rhs)
-    { 
+    {
       id_ = rhs.id();
       if (rhs.throw_on_copy_)
         assignment_operator::throw_on(assignment_operator::count() + 1);
@@ -299,12 +312,12 @@ namespace __gnu_test
   { return lhs.id() < rhs.id(); }
 
   // Class for checking required type conversions, implicit and
-  // explicit for given library data structures. 
+  // explicit for given library data structures.
   template<typename _Container>
     struct conversion
     {
       typedef typename _Container::const_iterator const_iterator;
-      
+
       // Implicit conversion iterator to const_iterator.
       static const_iterator
       iterator_to_const_iterator()
@@ -317,11 +330,11 @@ namespace __gnu_test
     };
 
   // A binary semaphore for use across multiple processes.
-  class semaphore 
+  class semaphore
   {
   public:
     // Creates a binary semaphore.  The semaphore is initially in the
-    // unsignaled state. 
+    // unsignaled state.
     semaphore();
 
     // Destroy the semaphore.

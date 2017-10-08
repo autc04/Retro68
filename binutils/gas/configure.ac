@@ -512,7 +512,7 @@ changequote([,])dnl
 	AC_MSG_RESULT($enable_audio_ext)
 	;;
 
-      i386 | riscv | s390 | sparc)
+      aarch64 | i386 | riscv | s390 | sparc)
 	if test $this_target = $target ; then
 	  AC_DEFINE_UNQUOTED(DEFAULT_ARCH, "${arch}", [Default architecture.])
 	fi
@@ -797,7 +797,7 @@ AC_DEFINE_UNQUOTED(TARGET_OS,		"${target_os}",    [Target OS.])
 AC_PROG_YACC
 AM_PROG_LEX
 
-ALL_LINGUAS="fr tr es rw id ru fi ja zh_CN"
+ALL_LINGUAS="fr tr es rw id ru fi ja zh_CN sv"
 ZW_GNU_GETTEXT_SISTER_DIR
 AM_PO_SUBDIRS
 
@@ -827,6 +827,7 @@ AC_C_INLINE
 # VMS doesn't have unlink.
 AC_CHECK_FUNCS(unlink remove, break)
 AC_CHECK_FUNCS(sbrk setlocale)
+AC_CHECK_FUNCS(strsignal)
 
 AM_LC_MESSAGES
 

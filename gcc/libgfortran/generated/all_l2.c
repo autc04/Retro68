@@ -1,5 +1,5 @@
 /* Implementation of the ALL intrinsic
-   Copyright (C) 2002-2016 Free Software Foundation, Inc.
+   Copyright (C) 2002-2017 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -24,8 +24,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 <http://www.gnu.org/licenses/>.  */
 
 #include "libgfortran.h"
-#include <stdlib.h>
-#include <assert.h>
 
 
 #if defined (HAVE_GFC_LOGICAL_2)
@@ -201,9 +199,9 @@ all_l2 (gfc_array_l2 * const restrict retarray,
           base -= sstride[n] * extent[n];
           dest -= dstride[n] * extent[n];
           n++;
-          if (n == rank)
+          if (n >= rank)
             {
-              /* Break out of the look.  */
+              /* Break out of the loop.  */
               continue_loop = 0;
               break;
             }

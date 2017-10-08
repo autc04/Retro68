@@ -13,7 +13,7 @@
  *  suitability of this software for any purpose.
  */
 
-/* HPUX_ID = "@(#) $Revision: 1.1 $" */
+/* HPUX_ID = "@(#) $Revision$" */
 /* strlen(s): Return length of string s */
 
 #define start   arg0

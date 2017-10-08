@@ -1,4 +1,4 @@
-#as: -64 -Av9m
+#as: -64 -Av9m8
 #objdump: -dr
 #name: sparc64 rdasr
 
@@ -16,3 +16,4 @@ Disassembly of section .text:
   18:	8b 46 00 00 	rd  %stick, %g5
   1c:	89 46 40 00 	rd  %stick_cmpr, %g4
   20:	8d 46 80 00 	rd  %cfr, %g6
+  24:	85 43 40 00 	rd  %entropy, %g2

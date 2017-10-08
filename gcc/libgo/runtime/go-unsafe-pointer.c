@@ -36,7 +36,13 @@ static const String reflection_string =
   sizeof REFLECTION - 1
 };
 
-const uintptr unsafe_Pointer_gc[] = {sizeof(void*), GC_APTR, 0, GC_END};
+const uintptr unsafe_Pointer_gc[] __attribute__((aligned(4))) =
+  {sizeof(void*), GC_APTR, 0, GC_END};
+
+extern const FuncVal runtime_pointerhash_descriptor
+  __asm__ (GOSYM_PREFIX "runtime.pointerhash$descriptor");
+extern const FuncVal runtime_pointerequal_descriptor
+  __asm__ (GOSYM_PREFIX "runtime.pointerequal$descriptor");
 
 const struct __go_type_descriptor unsafe_Pointer =
 {
@@ -51,9 +57,9 @@ const struct __go_type_descriptor unsafe_Pointer =
   /* __hash */
   78501163U,
   /* __hashfn */
-  &__go_type_hash_identity_descriptor,
+  &runtime_pointerhash_descriptor,
   /* __equalfn */
-  &__go_type_equal_identity_descriptor,
+  &runtime_pointerequal_descriptor,
   /* __gc */
   unsafe_Pointer_gc,
   /* __reflection */
@@ -79,6 +85,12 @@ static const String preflection_string =
   sizeof PREFLECTION - 1,
 };
 
+extern const uintptr pointer_unsafe_Pointer_gc[]
+  __asm__ (GOSYM_PREFIX "__go_td_pN14_unsafe.Pointer$gc");
+
+const uintptr pointer_unsafe_Pointer_gc[] __attribute__((aligned(4))) =
+  {sizeof(void*), GC_APTR, 0, GC_END};
+
 const struct __go_ptr_type pointer_unsafe_Pointer =
 {
   /* __common */
@@ -94,11 +106,11 @@ const struct __go_ptr_type pointer_unsafe_Pointer =
     /* __hash */
     1256018616U,
     /* __hashfn */
-    &__go_type_hash_identity_descriptor,
+    &runtime_pointerhash_descriptor,
     /* __equalfn */
-    &__go_type_equal_identity_descriptor,
+    &runtime_pointerequal_descriptor,
     /* __gc */
-    unsafe_Pointer_gc,
+    pointer_unsafe_Pointer_gc,
     /* __reflection */
     &preflection_string,
     /* __uncommon */

@@ -85,8 +85,7 @@
 #if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 6)
 #define __PRETTY_FUNCTION__  ((char *) NULL)
 #endif
-#define gas_assert(P) \
-  ((void) ((P) ? 0 : (as_assert (__FILE__, __LINE__, __PRETTY_FUNCTION__), 0)))
+#define gas_assert(P)	((void) ((P) ? 0 : (abort (), 0)))
 #undef abort
 #define abort()		as_abort (__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
@@ -459,8 +458,8 @@ PRINTF_LIKE (as_warn);
 PRINTF_WHERE_LIKE (as_bad_where);
 PRINTF_WHERE_LIKE (as_warn_where);
 
-void   as_assert (const char *, int, const char *) ATTRIBUTE_NORETURN;
 void   as_abort (const char *, int, const char *) ATTRIBUTE_NORETURN;
+void   signal_init (void);
 void   sprint_value (char *, addressT);
 int    had_errors (void);
 int    had_warnings (void);

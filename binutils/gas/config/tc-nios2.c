@@ -727,8 +727,8 @@ const pseudo_typeS md_pseudo_table[] = {
 #define CDX_CBRANCH_SUBTYPE(N) (CDXBRANCH | CBRANCH | (N))
 #define SUBTYPE_ADDIS(SUBTYPE) ((SUBTYPE) & 0xffff)
 
-/* For the -relax-section mode, unconditional branches require 2 extra i
-   nstructions besides the addis, conditional branches require 3.  */
+/* For the -relax-section mode, unconditional branches require 2 extra
+   instructions besides the addis, conditional branches require 3.  */
 #define UBRANCH_ADDIS_TO_SIZE(N) (((N) + 2) * 4)
 #define CBRANCH_ADDIS_TO_SIZE(N) (((N) + 3) * 4)
 
@@ -3246,7 +3246,7 @@ nios2_translate_pseudo_insn (nios2_insn_infoS *insn)
 
   nios2_ps_insn_infoS *ps_insn;
 
-  /* Find which real insn the pseudo-op transates to and
+  /* Find which real insn the pseudo-op translates to and
      switch the insn_info ptr to point to it.  */
   ps_insn = nios2_ps_lookup (insn->insn_nios2_opcode->name);
 

@@ -1,7 +1,6 @@
 #objdump: -d --prefix-addresses --show-raw-insn
 #name: MIPS16 ASMACRO instruction
-#as: -32
-#source: mips16-asmacro.s
+#as: -32 -I$srcdir/$subdir
 
 .*: +file format .*mips.*
 

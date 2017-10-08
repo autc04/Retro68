@@ -2,7 +2,7 @@
 
 // 2006-02-26  Paolo Carlini  <pcarlini@suse.de>
 //
-// Copyright (C) 2006-2016 Free Software Foundation, Inc.
+// Copyright (C) 2006-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,20 +30,20 @@ template<typename T>
   void test01_do()
   {
     T x = T();
-    
+
     bool ret;
     int iret;
 
     ret = std::tr1::signbit(x);
-    
+
     iret = std::tr1::fpclassify(x);
     iret = iret; // Suppress unused warning.
-    
+
     ret = std::tr1::isfinite(x);
     ret = std::tr1::isinf(x);
     ret = std::tr1::isnan(x);
     ret = std::tr1::isnormal(x);
-    
+
     ret = std::tr1::isgreater(x, x);
     ret = std::tr1::isgreaterequal(x, x);
     ret = std::tr1::isless(x, x);

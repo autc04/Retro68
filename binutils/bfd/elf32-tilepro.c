@@ -1504,7 +1504,7 @@ tilepro_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
 
       r_type = tilepro_elf_tls_transition (info, r_type, h == NULL);
@@ -3896,7 +3896,7 @@ tilepro_elf_finish_dynamic_sections (bfd *output_bfd,
 
       ret = tilepro_finish_dyn (output_bfd, info, dynobj, sdyn, splt);
 
-      if (ret != TRUE)
+      if (!ret)
 	return ret;
 
       /* Fill in the first entry in the procedure linkage table.  */

@@ -140,7 +140,8 @@ extern int mips_fix_adjustable (struct fix *);
 extern int mips_force_relocation (struct fix *);
 
 #define TC_FORCE_RELOCATION_SUB_SAME(FIX, SEG) \
-  (! SEG_NORMAL (SEG) || mips_force_relocation (FIX))
+  (GENERIC_FORCE_RELOCATION_SUB_SAME (FIX, SEG) \
+   || mips_force_relocation (FIX))
 
 #define TC_FORCE_RELOCATION_ABS(FIX) mips_force_relocation_abs (FIX)
 extern bfd_boolean mips_force_relocation_abs (struct fix *);

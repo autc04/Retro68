@@ -1,3 +1,67 @@
+2016-12-31  Dimitar Dimitrov  <dimitar@dinux.eu>
+
+	* NEWS: Mention new PRU target.
+	* Makefile.am: Add PRU target.
+	* configure.tgt: Ditto.
+	* emulparams/pruelf.sh: New file.
+	* emultempl/pruelf.em: New file.
+	* scripttempl/pru.sc: New file.
+	* Makefile.in: Regenerate.
+	* testsuite/ld-pru/emit-relocs-1.d: New PRU testcase file.
+	* testsuite/ld-pru/emit-relocs-1.ld: Ditto.
+	* testsuite/ld-pru/emit-relocs-1a.s: Ditto.
+	* testsuite/ld-pru/emit-relocs-1b.s
+	* testsuite/ld-pru/ldi32.d: Ditto.
+	* testsuite/ld-pru/ldi32.s: Ditto.
+	* testsuite/ld-pru/ldi32_symbol.s: Ditto.
+	* testsuite/ld-pru/norelax_ldi32-data.d: Ditto.
+	* testsuite/ld-pru/norelax_ldi32-dis.d: Ditto.
+	* testsuite/ld-pru/pcrel_s10.d: Ditto.
+	* testsuite/ld-pru/pcrel_s10.s: Ditto.
+	* testsuite/ld-pru/pcrel_s10_label.s: Ditto.
+	* testsuite/ld-pru/pcrel_u8-illegal.d: Ditto.
+	* testsuite/ld-pru/pcrel_u8-illegal.s: Ditto.
+	* testsuite/ld-pru/pcrel_u8-illegal2.d: Ditto.
+	* testsuite/ld-pru/pcrel_u8-illegal2.s: Ditto.
+	* testsuite/ld-pru/pcrel_u8-illegal3.d: Ditto.
+	* testsuite/ld-pru/pcrel_u8-illegal3.s: Ditto.
+	* testsuite/ld-pru/pcrel_u8.d: Ditto.
+	* testsuite/ld-pru/pcrel_u8.s: Ditto.
+	* testsuite/ld-pru/pcrel_u8_label.s: Ditto.
+	* testsuite/ld-pru/pmem.d: Ditto.
+	* testsuite/ld-pru/pmem.s: Ditto.
+	* testsuite/ld-pru/pmem_symbol.s: Ditto.
+	* testsuite/ld-pru/pru.exp: Ditto.
+	* testsuite/ld-pru/relax_ldi32-data.d: Ditto.
+	* testsuite/ld-pru/relax_ldi32-dis.d: Ditto.
+	* testsuite/ld-pru/relax_ldi32.s: Ditto.
+	* testsuite/ld-pru/relax_ldi32_symbol.s: Ditto.
+	* testsuite/ld-pru/reloc.d: Ditto.
+	* testsuite/ld-pru/reloc.s: Ditto.
+	* testsuite/ld-pru/reloc_symbol.s: Ditto.
+	* testsuite/ld-pru/u16.d: Ditto.
+	* testsuite/ld-pru/u16.s: Ditto.
+	* testsuite/ld-pru/u16_symbol.s: Ditto.
+	* testsuite/lib/ld-lib.exp (check_shared_lib_support): No shared
+	libraries are supported for PRU.
+	(check_gc_sections_available): Mark PRU as not supported.
+	* testsuite/ld-elf/eh-frame-hdr.d: Disable for PRU.
+	* testsuite/ld-elf/endsym.d: Likewise.
+	* testsuite/ld-elf/group8a.d: Likewise.
+	* testsuite/ld-elf/group8b.d: Likewise.
+	* testsuite/ld-elf/group9a.d: Likewise.
+	* testsuite/ld-elf/group9b.d: Likewise.
+	* testsuite/ld-elf/merge.d: Likewise.
+	* testsuite/ld-elf/pr12851.d: Likewise.
+	* testsuite/ld-elf/pr14926.d: Likewise.
+	* testsuite/ld-elf/sec-to-seg.exp: Likewise.
+	* testsuite/ld-elf/sec64k.exp: Mark sec64k case as too big for PRU.
+	* testsuite/ld-srec/srec.exp (run_srec_test): Add setup for PRU.
+
+2016-12-31  Dimitar Dimitrov  <dimitar@dinux.eu>
+
+	* testsuite/lib/ld-lib.exp (run_dump_test): Pass -- to send_log.
+
 2016-12-28  Alan Modra  <amodra@gmail.com>
 
 	PR ld/20995

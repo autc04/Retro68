@@ -14,6 +14,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
+ /* Doc in swscanf.c */
 
 #include <_ansi.h>
 #include <reent.h>
@@ -25,14 +26,15 @@
 #ifndef _REENT_ONLY
 
 int
-wscanf(_CONST wchar_t *fmt, ...)
+wscanf(_CONST wchar_t *__restrict fmt, ...)
 {
   int ret;
   va_list ap;
+  struct _reent *reent = _REENT;
 
-  _REENT_SMALL_CHECK_INIT (_REENT);
+  _REENT_SMALL_CHECK_INIT (reent);
   va_start (ap, fmt);
-  ret = _vfwscanf_r (_REENT, _stdin_r (_REENT), fmt, ap);
+  ret = _vfwscanf_r (reent, _stdin_r (reent), fmt, ap);
   va_end (ap);
   return ret;
 }

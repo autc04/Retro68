@@ -78,14 +78,15 @@ struct	stat
 
 #define	S_ISUID		0004000	/* set user id on execution */
 #define	S_ISGID		0002000	/* set group id on execution */
-#ifndef	_POSIX_SOURCE
 #define	S_ISVTX		0001000	/* save swapped text even after use */
+#if __BSD_VISIBLE
 #define	S_IREAD		0000400	/* read permission, owner */
 #define	S_IWRITE 	0000200	/* write permission, owner */
 #define	S_IEXEC		0000100	/* execute/search permission, owner */
-
 #define	S_ENFMT 	0002000	/* enforcement-mode locking */
+#endif /* __BSD_VISIBLE */
 
+#if __POSIX_VISIBLE >= 200112
 #define	S_IFMT		_IFMT
 #define	S_IFDIR		_IFDIR
 #define	S_IFCHR		_IFCHR
@@ -94,7 +95,7 @@ struct	stat
 #define	S_IFLNK		_IFLNK
 #define	S_IFSOCK	_IFSOCK
 #define	S_IFIFO		_IFIFO
-#endif	/* !_POSIX_SOURCE */
+#endif	/* __POSIX_VISIBLE >= 200112 */
 
 
 #define	S_IRWXU 	0000700	/* rwx, owner */
@@ -122,7 +123,7 @@ int	_EXFUN(chmod,( const char *_path, mode_t _mode ));
 int	_EXFUN(fstat,( int _fd, struct stat *_sbuf ));
 int	_EXFUN(mkdir,( char *_path, mode_t _mode ));
 int	_EXFUN(mkfifo,( char *_path, mode_t _mode ));
-int	_EXFUN(stat,( const char *_path, struct stat *_sbuf ));
+int	_EXFUN(stat,( const char *__restrict _path, struct stat *__restrict _sbuf ));
 mode_t	_EXFUN(umask,( mode_t _mask ));
 
 #ifdef __cplusplus

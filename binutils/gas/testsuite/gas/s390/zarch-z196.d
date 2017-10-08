@@ -258,4 +258,5 @@ Disassembly of section .text:
 .*:	b9 2b 00 56 [	 ]*kmo	%r5,%r6
 .*:	b9 2c 00 00 [	 ]*pcc
 .*:	b9 2d 60 59 [	 ]*kmctr	%r5,%r6,%r9
+.*:	b9 28 00 00 [	 ]*pckmo
 .*:	07 07 [	 ]*nopr	%r7

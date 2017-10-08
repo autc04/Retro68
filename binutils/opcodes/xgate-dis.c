@@ -21,7 +21,7 @@
 
 #include "sysdep.h"
 #include <assert.h>
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opintl.h"
 #include "libiberty.h"
 #include "ansidecl.h"

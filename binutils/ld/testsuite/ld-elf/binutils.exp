@@ -61,7 +61,7 @@ proc binutils_test { prog_name ld_options test {test_name ""} {readelf_options "
 	return
     }
 
-    if { ![ld_simple_link $ld tmpdir/$test "$ld_options -z stack-size=0 tmpdir/$test.o"] } {
+    if { ![ld_link $ld tmpdir/$test "$ld_options -z stack-size=0 tmpdir/$test.o"] } {
 	if { [string match "*not supported*" $link_output]
 	     || [string match "*unrecognized option*" $link_output]
 	     || [string match "*-z relro ignored*" $link_output] } {

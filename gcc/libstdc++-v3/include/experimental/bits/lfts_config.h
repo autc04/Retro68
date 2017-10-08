@@ -1,6 +1,6 @@
 // Namespace declarations for Library Fundamentals TS -*- C++ -*-
 
-// Copyright (C) 2016 Free Software Foundation, Inc.
+// Copyright (C) 2016-2017 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -46,10 +46,14 @@ inline namespace fundamentals_v2 { inline namespace __7 { } }
 
 namespace experimental
 {
-inline namespace fundamentals_v1 { inline namespace __7 { } }
+inline namespace fundamentals_v1 {
+  inline namespace __7 { }
+  namespace __detail { inline namespace __7 { } }
+}
 inline namespace fundamentals_v2 {
   inline namespace __7 { }
   namespace pmr { inline namespace __7 { } }
+  namespace __detail { inline namespace __7 { } }
 } // namespace fundamentals_v2
 inline namespace literals { inline namespace string_view_literals {
   inline namespace __7 { }

@@ -172,6 +172,11 @@ typedef struct
   /* If set, display the target memory usage (per memory region).  */
   bfd_boolean print_memory_usage;
 
+  /* Should we force section groups to be resolved?  Controlled with
+     --force-group-allocation on the command line or FORCE_GROUP_ALLOCATION
+     in the linker script.  */
+  bfd_boolean force_group_allocation;
+
   /* Big or little endian as set on command line.  */
   enum endian_enum endian;
 

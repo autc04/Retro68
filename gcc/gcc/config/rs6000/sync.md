@@ -1,5 +1,5 @@
 ;; Machine description for PowerPC synchronization instructions.
-;; Copyright (C) 2005-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2017 Free Software Foundation, Inc.
 ;; Contributed by Geoffrey Keating.
 
 ;; This file is part of GCC.
@@ -157,8 +157,7 @@
       rtx op1 = operands[1];
       rtx pti_reg = gen_reg_rtx (PTImode);
 
-      // Can't have indexed address for 'lq'
-      if (indexed_address (XEXP (op1, 0), TImode))
+      if (!quad_address_p (XEXP (op1, 0), TImode, false))
 	{
 	  rtx old_addr = XEXP (op1, 0);
 	  rtx new_addr = force_reg (Pmode, old_addr);
@@ -231,8 +230,7 @@
       rtx op1 = operands[1];
       rtx pti_reg = gen_reg_rtx (PTImode);
 
-      // Can't have indexed address for 'stq'
-      if (indexed_address (XEXP (op0, 0), TImode))
+      if (!quad_address_p (XEXP (op0, 0), TImode, false))
 	{
 	  rtx old_addr = XEXP (op0, 0);
 	  rtx new_addr = force_reg (Pmode, old_addr);

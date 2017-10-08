@@ -101,6 +101,8 @@ if [istarget xtensa*-*-*] then {
     run_dump_test "trampoline"
     run_dump_test "first_frag_align"
     run_dump_test "auto-litpools"
+    run_dump_test "auto-litpools-first1"
+    run_dump_test "auto-litpools-first2"
     run_dump_test "loc"
     run_dump_test "init-fini-literals"
 }

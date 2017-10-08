@@ -180,8 +180,9 @@ CODE_FRAGMENT
 .
 .  {* Flags bits to be saved in bfd_preserve_save.  *}
 .#define BFD_FLAGS_SAVED \
-.  (BFD_IN_MEMORY | BFD_COMPRESS | BFD_DECOMPRESS | BFD_PLUGIN \
-.   | BFD_COMPRESS_GABI | BFD_CONVERT_ELF_COMMON | BFD_USE_ELF_STT_COMMON)
+.  (BFD_IN_MEMORY | BFD_COMPRESS | BFD_DECOMPRESS | BFD_LINKER_CREATED \
+.   | BFD_PLUGIN | BFD_COMPRESS_GABI | BFD_CONVERT_ELF_COMMON \
+.   | BFD_USE_ELF_STT_COMMON)
 .
 .  {* Flags bits which are for BFD use only.  *}
 .#define BFD_FLAGS_FOR_BFD_USE_MASK \
@@ -610,38 +611,255 @@ CODE_FRAGMENT
 
 static const char *_bfd_error_program_name;
 
+/* This macro and _doprnt taken from libiberty _doprnt.c, tidied a
+   little and extended to handle '%A' and '%B'.  'L' as a modifer for
+   integer formats is used for bfd_vma and bfd_size_type args, which
+   vary in size depending on BFD configuration.  */
+
+#define PRINT_TYPE(TYPE) \
+  do								\
+    {								\
+      TYPE value = va_arg (ap, TYPE);				\
+      result = fprintf (stream, specifier, value);		\
+    } while (0)
+
+static int
+_doprnt (FILE *stream, const char *format, va_list ap)
+{
+  const char *ptr = format;
+  char specifier[128];
+  int total_printed = 0;
+
+  while (*ptr != '\0')
+    {
+      int result;
+
+      if (*ptr != '%')
+	{
+	  /* While we have regular characters, print them.  */
+	  char *end = strchr (ptr, '%');
+	  if (end != NULL)
+	    result = fprintf (stream, "%.*s", (int) (end - ptr), ptr);
+	  else
+	    result = fprintf (stream, "%s", ptr);
+	  ptr += result;
+	}
+      else
+	{
+	  /* We have a format specifier!  */
+	  char *sptr = specifier;
+	  int wide_width = 0, short_width = 0;
+
+	  /* Copy the % and move forward.  */
+	  *sptr++ = *ptr++;
+
+	  /* Move past flags.  */
+	  while (strchr ("-+ #0", *ptr))
+	    *sptr++ = *ptr++;
+
+	  if (*ptr == '*')
+	    {
+	      int value = abs (va_arg (ap, int));
+	      sptr += sprintf (sptr, "%d", value);
+	      ptr++;
+	    }
+	  else
+	    /* Handle explicit numeric value.  */
+	    while (ISDIGIT (*ptr))
+	      *sptr++ = *ptr++;
+
+	  if (*ptr == '.')
+	    {
+	      /* Copy and go past the period.  */
+	      *sptr++ = *ptr++;
+	      if (*ptr == '*')
+		{
+		  int value = abs (va_arg (ap, int));
+		  sptr += sprintf (sptr, "%d", value);
+		  ptr++;
+		}
+	      else
+		/* Handle explicit numeric value.  */
+		while (ISDIGIT (*ptr))
+		  *sptr++ = *ptr++;
+	    }
+	  while (strchr ("hlL", *ptr))
+	    {
+	      switch (*ptr)
+		{
+		case 'h':
+		  short_width = 1;
+		  break;
+		case 'l':
+		  wide_width++;
+		  break;
+		case 'L':
+		  wide_width = 2;
+		  break;
+		default:
+		  abort();
+		}
+	      *sptr++ = *ptr++;
+	    }
+
+	  /* Copy the type specifier, and NULL terminate.  */
+	  *sptr++ = *ptr++;
+	  *sptr = '\0';
+
+	  switch (ptr[-1])
+	    {
+	    case 'd':
+	    case 'i':
+	    case 'o':
+	    case 'u':
+	    case 'x':
+	    case 'X':
+	    case 'c':
+	      {
+		/* Short values are promoted to int, so just copy it
+		   as an int and trust the C library printf to cast it
+		   to the right width.  */
+		if (short_width)
+		  PRINT_TYPE (int);
+		else
+		  {
+		    /* L modifier for bfd_vma or bfd_size_type may be
+		       either long long or long.  */
+		    if (sptr[-2] == 'L')
+		      {
+			sptr[-2] = 'l';
+			if (BFD_ARCH_SIZE < 64 || BFD_HOST_64BIT_LONG)
+			  wide_width = 1;
+			else
+			  {
+			    sptr[-1] = 'l';
+			    *sptr++ = ptr[-1];
+			    *sptr = '\0';
+			  }
+		      }
+
+		    switch (wide_width)
+		      {
+		      case 0:
+			PRINT_TYPE (int);
+			break;
+		      case 1:
+			PRINT_TYPE (long);
+			break;
+		      case 2:
+		      default:
+#if defined (__MSVCRT__)
+			sptr[-3] = 'I';
+			sptr[-2] = '6';
+			sptr[-1] = '4';
+			*sptr++ = ptr[-1];
+			*sptr = '\0';
+#endif
+#if defined (__GNUC__) || defined (HAVE_LONG_LONG)
+			PRINT_TYPE (long long);
+#else
+			/* Fake it and hope for the best.  */
+			PRINT_TYPE (long);
+#endif
+			break;
+		      }
+		  }
+	      }
+	      break;
+	    case 'f':
+	    case 'e':
+	    case 'E':
+	    case 'g':
+	    case 'G':
+	      {
+		if (wide_width == 0)
+		  PRINT_TYPE (double);
+		else
+		  {
+#if defined (__GNUC__) || defined (HAVE_LONG_DOUBLE)
+		    PRINT_TYPE (long double);
+#else
+		    /* Fake it and hope for the best.  */
+		    PRINT_TYPE (double);
+#endif
+		  }
+	      }
+	      break;
+	    case 's':
+	      PRINT_TYPE (char *);
+	      break;
+	    case 'p':
+	      PRINT_TYPE (void *);
+	      break;
+	    case '%':
+	      fputc ('%', stream);
+	      result = 1;
+	      break;
+	    case 'A':
+	      {
+		asection *sec = va_arg (ap, asection *);
+		bfd *abfd;
+		const char *group = NULL;
+		struct coff_comdat_info *ci;
+
+		if (sec == NULL)
+		  /* Invoking %A with a null section pointer is an
+		     internal error.  */
+		  abort ();
+		abfd = sec->owner;
+		if (abfd != NULL
+		    && bfd_get_flavour (abfd) == bfd_target_elf_flavour
+		    && elf_next_in_group (sec) != NULL
+		    && (sec->flags & SEC_GROUP) == 0)
+		  group = elf_group_name (sec);
+		else if (abfd != NULL
+			 && bfd_get_flavour (abfd) == bfd_target_coff_flavour
+			 && (ci = bfd_coff_get_comdat_section (sec->owner,
+							       sec)) != NULL)
+		  group = ci->name;
+		if (group != NULL)
+		  result = fprintf (stream, "%s[%s]", sec->name, group);
+		else
+		  result = fprintf (stream, "%s", sec->name);
+	      }
+	      break;
+	    case 'B':
+	      {
+		bfd *abfd = va_arg (ap, bfd *);
+
+		if (abfd == NULL)
+		  /* Invoking %B with a null bfd pointer is an
+		     internal error.  */
+		  abort ();
+		else if (abfd->my_archive
+			 && !bfd_is_thin_archive (abfd->my_archive))
+		  result = fprintf (stream, "%s(%s)",
+				    abfd->my_archive->filename, abfd->filename);
+		else
+		  result = fprintf (stream, "%s", abfd->filename);
+	      }
+	      break;
+	    default:
+	      abort();
+	    }
+	}
+      if (result == -1)
+	return -1;
+      total_printed += result;
+    }
+
+  return total_printed;
+}
+
 /* This is the default routine to handle BFD error messages.
    Like fprintf (stderr, ...), but also handles some extra format specifiers.
 
    %A section name from section.  For group components, print group name too.
-   %B file name from bfd.  For archive components, prints archive too.
-
-   Note - because these two extra format specifiers require special handling
-   they are scanned for and processed in this function, before calling
-   vfprintf.  This means that the *arguments* for these format specifiers
-   must be the first ones in the variable argument list, regardless of where
-   the specifiers appear in the format string.  Thus for example calling
-   this function with a format string of:
-
-      "blah %s blah %A blah %d blah %B"
-
-   would involve passing the arguments as:
-
-      "blah %s blah %A blah %d blah %B",
-        asection_for_the_%A,
-	bfd_for_the_%B,
-	string_for_the_%s,
-	integer_for_the_%d);
- */
+   %B file name from bfd.  For archive components, prints archive too.  */
 
 static void
 error_handler_internal (const char *fmt, va_list ap)
 {
-  char *bufp;
-  const char *new_fmt, *p;
-  size_t avail = 1000;
-  char buf[1000];
-
   /* PR 4992: Don't interrupt output being sent to stdout.  */
   fflush (stdout);
 
@@ -650,136 +868,7 @@ error_handler_internal (const char *fmt, va_list ap)
   else
     fprintf (stderr, "BFD: ");
 
-  new_fmt = fmt;
-  bufp = buf;
-
-  /* Reserve enough space for the existing format string.  */
-  avail -= strlen (fmt) + 1;
-  if (avail > 1000)
-    _exit (EXIT_FAILURE);
-
-  p = fmt;
-  while (1)
-    {
-      char *q;
-      size_t len, extra, trim;
-
-      p = strchr (p, '%');
-      if (p == NULL || p[1] == '\0')
-	{
-	  if (new_fmt == buf)
-	    {
-	      len = strlen (fmt);
-	      memcpy (bufp, fmt, len + 1);
-	    }
-	  break;
-	}
-
-      if (p[1] == 'A' || p[1] == 'B')
-	{
-	  len = p - fmt;
-	  memcpy (bufp, fmt, len);
-	  bufp += len;
-	  fmt = p + 2;
-	  new_fmt = buf;
-
-	  /* If we run out of space, tough, you lose your ridiculously
-	     long file or section name.  It's not safe to try to alloc
-	     memory here;  We might be printing an out of memory message.  */
-	  if (avail == 0)
-	    {
-	      *bufp++ = '*';
-	      *bufp++ = '*';
-	      *bufp = '\0';
-	    }
-	  else
-	    {
-	      if (p[1] == 'B')
-		{
-		  bfd *abfd = va_arg (ap, bfd *);
-
-		  if (abfd == NULL)
-		    /* Invoking %B with a null bfd pointer is an internal error.  */
-		    abort ();
-		  else if (abfd->my_archive
-			   && !bfd_is_thin_archive (abfd->my_archive))
-		    snprintf (bufp, avail, "%s(%s)",
-			      abfd->my_archive->filename, abfd->filename);
-		  else
-		    snprintf (bufp, avail, "%s", abfd->filename);
-		}
-	      else
-		{
-		  asection *sec = va_arg (ap, asection *);
-		  bfd *abfd;
-		  const char *group = NULL;
-		  struct coff_comdat_info *ci;
-
-		  if (sec == NULL)
-		    /* Invoking %A with a null section pointer is an internal error.  */
-		    abort ();
-		  abfd = sec->owner;
-		  if (abfd != NULL
-		      && bfd_get_flavour (abfd) == bfd_target_elf_flavour
-		      && elf_next_in_group (sec) != NULL
-		      && (sec->flags & SEC_GROUP) == 0)
-		    group = elf_group_name (sec);
-		  else if (abfd != NULL
-			   && bfd_get_flavour (abfd) == bfd_target_coff_flavour
-			   && (ci = bfd_coff_get_comdat_section (sec->owner,
-								 sec)) != NULL)
-		    group = ci->name;
-		  if (group != NULL)
-		    snprintf (bufp, avail, "%s[%s]", sec->name, group);
-		  else
-		    snprintf (bufp, avail, "%s", sec->name);
-		}
-	      len = strlen (bufp);
-	      avail = avail - len + 2;
-
-	      /* We need to replace any '%' we printed by "%%".
-		 First count how many.  */
-	      q = bufp;
-	      bufp += len;
-	      extra = 0;
-	      while ((q = strchr (q, '%')) != NULL)
-		{
-		  ++q;
-		  ++extra;
-		}
-
-	      /* If there isn't room, trim off the end of the string.  */
-	      q = bufp;
-	      bufp += extra;
-	      if (extra > avail)
-		{
-		  trim = extra - avail;
-		  bufp -= trim;
-		  do
-		    {
-		      if (*--q == '%')
-			--extra;
-		    }
-		  while (--trim != 0);
-		  *q = '\0';
-		  avail = extra;
-		}
-	      avail -= extra;
-
-	      /* Now double all '%' chars, shuffling the string as we go.  */
-	      while (extra != 0)
-		{
-		  while ((q[extra] = *q) != '%')
-		    --q;
-		  q[--extra] = '%';
-		  --q;
-		}
-	    }
-	}
-      p = p + 2;
-    }
-
-  vfprintf (stderr, new_fmt, ap);
+  _doprnt (stderr, fmt, ap);
 
   /* On AIX, putc is implemented as a macro that triggers a -Wunused-value
      warning, so use the fputc function to avoid it.  */
@@ -999,17 +1088,9 @@ DESCRIPTION
 	section @var{sec} to the values @var{rel} and @var{count}.
 	The argument @var{abfd} is ignored.
 
+.#define bfd_set_reloc(abfd, asect, location, count) \
+.     BFD_SEND (abfd, _bfd_set_reloc, (abfd, asect, location, count))
 */
-
-void
-bfd_set_reloc (bfd *ignore_abfd ATTRIBUTE_UNUSED,
-	       sec_ptr asect,
-	       arelent **location,
-	       unsigned int count)
-{
-  asect->orelocation = location;
-  asect->reloc_count = count;
-}
 
 /*
 FUNCTION
@@ -1306,7 +1387,7 @@ bfd_scan_vma (const char *string, const char **end, int base)
   if (sizeof (bfd_vma) <= sizeof (unsigned long))
     return strtoul (string, (char **) end, base);
 
-#ifdef HAVE_STRTOULL
+#if defined (HAVE_STRTOULL) && defined (HAVE_LONG_LONG)
   if (sizeof (bfd_vma) <= sizeof (unsigned long long))
     return strtoull (string, (char **) end, base);
 #endif

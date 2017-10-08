@@ -124,7 +124,7 @@ set testsrcfiles "tmpdir/main.o $srcdir/$subdir/func.c tmpdir/text.o"
 set testsrcfiles_notext "tmpdir/main.o $srcdir/$subdir/func.c"
 # Rather than having libs we just define dummy values for anything
 # we may need to link a target exe; we aren't going to run it anyway.
-set libs "[ld_simple_link_defsyms] --defsym ${_}printf=${_}main --defsym ${_}puts=${_}main"
+set libs "[ld_link_defsyms] --defsym ${_}printf=${_}main --defsym ${_}puts=${_}main"
 if { $dotsym } {
     append libs " --defsym .printf=.main --defsym .puts=.main"
 }

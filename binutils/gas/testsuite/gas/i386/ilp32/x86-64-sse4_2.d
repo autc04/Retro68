@@ -23,10 +23,14 @@ Disassembly of section .text:
 [ 	]*[0-9a-f]+:	f2 48 0f 38 f1 d9    	crc32q %rcx,%rbx
 [ 	]*[0-9a-f]+:	66 0f 38 37 01       	pcmpgtq \(%rcx\),%xmm0
 [ 	]*[0-9a-f]+:	66 0f 38 37 c1       	pcmpgtq %xmm1,%xmm0
-[ 	]*[0-9a-f]+:	66 0f 3a 61 01 00    	pcmpestri \$0x0,\(%rcx\),%xmm0
-[ 	]*[0-9a-f]+:	66 0f 3a 61 c1 00    	pcmpestri \$0x0,%xmm1,%xmm0
-[ 	]*[0-9a-f]+:	66 0f 3a 60 01 01    	pcmpestrm \$0x1,\(%rcx\),%xmm0
-[ 	]*[0-9a-f]+:	66 0f 3a 60 c1 01    	pcmpestrm \$0x1,%xmm1,%xmm0
+[ 	]*[0-9a-f]+:	66 0f 3a 61 01 00    	pcmpestril? \$0x0,\(%rcx\),%xmm0
+[ 	]*[0-9a-f]+:	66 0f 3a 61 c1 00    	pcmpestril? \$0x0,%xmm1,%xmm0
+[ 	]*[0-9a-f]+:	66 48 0f 3a 61 01 00 	pcmpestriq \$0x0,\(%rcx\),%xmm0
+[ 	]*[0-9a-f]+:	66 0f 3a 61 c1 00    	pcmpestril? \$0x0,%xmm1,%xmm0
+[ 	]*[0-9a-f]+:	66 0f 3a 60 01 01    	pcmpestrml? \$0x1,\(%rcx\),%xmm0
+[ 	]*[0-9a-f]+:	66 0f 3a 60 c1 01    	pcmpestrml? \$0x1,%xmm1,%xmm0
+[ 	]*[0-9a-f]+:	66 48 0f 3a 60 01 01 	pcmpestrmq \$0x1,\(%rcx\),%xmm0
+[ 	]*[0-9a-f]+:	66 0f 3a 60 c1 01    	pcmpestrml? \$0x1,%xmm1,%xmm0
 [ 	]*[0-9a-f]+:	66 0f 3a 63 01 02    	pcmpistri \$0x2,\(%rcx\),%xmm0
 [ 	]*[0-9a-f]+:	66 0f 3a 63 c1 02    	pcmpistri \$0x2,%xmm1,%xmm0
 [ 	]*[0-9a-f]+:	66 0f 3a 62 01 03    	pcmpistrm \$0x3,\(%rcx\),%xmm0

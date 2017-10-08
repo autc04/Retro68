@@ -133,7 +133,7 @@ static const struct reg_name other_registers[] =
   (sizeof (other_registers) / sizeof (struct reg_name))
 
 /* reg_name_search does a binary search of the given register table
-   to see if "name" is a valid regiter name.  Returns the register
+   to see if "name" is a valid register name.  Returns the register
    number from the array on success, or -1 on failure.  */
 
 static int

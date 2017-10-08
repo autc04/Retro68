@@ -5,5 +5,5 @@
 #notarget: *-*-*aout *-*-*oldld frv-*-linux* metag-*-linux*
 
 #...
-[0-9a-f]+ D +__start__foo
+[0-9a-f]+ d +__start__foo
 #...

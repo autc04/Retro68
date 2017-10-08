@@ -675,9 +675,9 @@ _bfd_XXi_swap_aouthdr_out (bfd * abfd, void * in, void * out)
 
   extra->NumberOfRvaAndSizes = IMAGE_NUMBEROF_DIRECTORY_ENTRIES;
 
-  add_data_entry (abfd, extra, 0, ".edata", ib);
-  add_data_entry (abfd, extra, 2, ".rsrc", ib);
-  add_data_entry (abfd, extra, 3, ".pdata", ib);
+  add_data_entry (abfd, extra, PE_EXPORT_TABLE, ".edata", ib);
+  add_data_entry (abfd, extra, PE_RESOURCE_TABLE, ".rsrc", ib);
+  add_data_entry (abfd, extra, PE_EXCEPTION_TABLE, ".pdata", ib);
 
   /* In theory we do not need to call add_data_entry for .idata$2 or
      .idata$5.  It will be done in bfd_coff_final_link where all the
@@ -695,7 +695,7 @@ _bfd_XXi_swap_aouthdr_out (bfd * abfd, void * in, void * out)
   if (extra->DataDirectory[PE_IMPORT_TABLE].VirtualAddress == 0)
     /* Until other .idata fixes are made (pending patch), the entry for
        .idata is needed for backwards compatibility.  FIXME.  */
-    add_data_entry (abfd, extra, 1, ".idata", ib);
+    add_data_entry (abfd, extra, PE_IMPORT_TABLE, ".idata", ib);
 
   /* For some reason, the virtual size (which is what's set by
      add_data_entry) for .reloc is not the same as the size recorded
@@ -703,7 +703,7 @@ _bfd_XXi_swap_aouthdr_out (bfd * abfd, void * in, void * out)
      but since it's the best we've got, use it.  It does do the right
      thing for .pdata.  */
   if (pe->has_reloc_section)
-    add_data_entry (abfd, extra, 5, ".reloc", ib);
+    add_data_entry (abfd, extra, PE_BASE_RELOCATION_TABLE, ".reloc", ib);
 
   {
     asection *sec;
@@ -1086,9 +1086,8 @@ _bfd_XXi_swap_scnhdr_out (bfd * abfd, void * in, void * out)
       else
 	{
 	  /* xgettext:c-format */
-	  _bfd_error_handler (_("%s: line number overflow: 0x%lx > 0xffff"),
-			      bfd_get_filename (abfd),
-			      scnhdr_int->s_nlnno);
+	  _bfd_error_handler (_("%B: line number overflow: 0x%lx > 0xffff"),
+			      abfd, scnhdr_int->s_nlnno);
 	  bfd_set_error (bfd_error_file_truncated);
 	  H_PUT_16 (abfd, 0xffff, scnhdr_ext->s_nlnno);
 	  ret = 0;
@@ -1432,6 +1431,11 @@ pe_print_idata (bfd * abfd, void * vfile)
       /* PR 17512 file: 078-12277-0.004.  */
       bfd_size_type maxlen = (char *)(data + datasize) - dll - 1;
       fprintf (file, _("\n\tDLL Name: %.*s\n"), (int) maxlen, dll);
+
+      /* PR 21546: When the Hint Address is zero,
+	 we try the First Thunk instead.  */
+      if (hint_addr == 0)
+	hint_addr = first_thunk;
 
       if (hint_addr != 0)
 	{
@@ -2256,7 +2260,7 @@ pe_print_reloc (bfd * abfd, void * vfile)
 	       _("\nVirtual Address: %08lx Chunk size %ld (0x%lx) Number of fixups %ld\n"),
 	       (unsigned long) virtual_address, size, size, number);
 
-      chunk_end = p + size;
+      chunk_end = p - 8 + size;
       if (chunk_end > end)
 	chunk_end = end;
       j = 0;
@@ -3832,7 +3836,7 @@ rsrc_merge_string_entries (rsrc_entry * a ATTRIBUTE_UNUSED,
     {
       if (a->parent != NULL
 	  && a->parent->entry != NULL
-	  && a->parent->entry->is_name == FALSE)
+	  && !a->parent->entry->is_name)
 	_bfd_error_handler (_(".rsrc merge failure: duplicate string resource: %d"),
 			    ((a->parent->entry->name_id.id - 1) << 4) + i);
       return FALSE;
@@ -3940,22 +3944,22 @@ rsrc_sort_entries (rsrc_dir_chain *  chain,
 		     There should only ever be one non-zero lang manifest -
 		     if there are more it is an error.  A non-zero lang
 		     manifest takes precedence over a default manifest.  */
-		  if (entry->is_name == FALSE
+		  if (!entry->is_name
 		      && entry->name_id.id == 1
 		      && dir != NULL
 		      && dir->entry != NULL
-		      && dir->entry->is_name == FALSE
+		      && !dir->entry->is_name
 		      && dir->entry->name_id.id == 0x18)
 		    {
 		      if (next->value.directory->names.num_entries == 0
 			  && next->value.directory->ids.num_entries == 1
-			  && next->value.directory->ids.first_entry->is_name == FALSE
+			  && !next->value.directory->ids.first_entry->is_name
 			  && next->value.directory->ids.first_entry->name_id.id == 0)
 			/* Fall through so that NEXT is dropped.  */
 			;
 		      else if (entry->value.directory->names.num_entries == 0
 			       && entry->value.directory->ids.num_entries == 1
-			       && entry->value.directory->ids.first_entry->is_name == FALSE
+			       && !entry->value.directory->ids.first_entry->is_name
 			       && entry->value.directory->ids.first_entry->name_id.id == 0)
 			{
 			  /* Swap ENTRY and NEXT.  Then fall through so that the old ENTRY is dropped.  */
@@ -3996,22 +4000,22 @@ rsrc_sort_entries (rsrc_dir_chain *  chain,
 		     message - because there should never be duplicates.
 		     The exception is Type 18/Name 1/Lang 0 which is the
 		     defaul manifest - this can just be dropped.  */
-		  if (entry->is_name == FALSE
+		  if (!entry->is_name
 		      && entry->name_id.id == 0
 		      && dir != NULL
 		      && dir->entry != NULL
-		      && dir->entry->is_name == FALSE
+		      && !dir->entry->is_name
 		      && dir->entry->name_id.id == 1
 		      && dir->entry->parent != NULL
 		      && dir->entry->parent->entry != NULL
-		      && dir->entry->parent->entry->is_name == FALSE
+		      && !dir->entry->parent->entry->is_name
 		      && dir->entry->parent->entry->name_id.id == 0x18 /* RT_MANIFEST */)
 		    ;
 		  else if (dir != NULL
 			   && dir->entry != NULL
 			   && dir->entry->parent != NULL
 			   && dir->entry->parent->entry != NULL
-			   && dir->entry->parent->entry->is_name == FALSE
+			   && !dir->entry->parent->entry->is_name
 			   && dir->entry->parent->entry->name_id.id == 0x6 /* RT_STRING */)
 		    {
 		      /* Strings need special handling.  */
@@ -4220,16 +4224,16 @@ rsrc_process_section (bfd * abfd,
       if (data > dataend)
 	{
 	  /* Corrupted .rsrc section - cannot merge.  */
-	  _bfd_error_handler (_("%s: .rsrc merge failure: corrupt .rsrc section"),
-			      bfd_get_filename (abfd));
+	  _bfd_error_handler (_("%B: .rsrc merge failure: corrupt .rsrc section"),
+			      abfd);
 	  bfd_set_error (bfd_error_file_truncated);
 	  goto end;
 	}
 
       if ((data - p) > rsrc_sizes [num_resource_sets])
 	{
-	  _bfd_error_handler (_("%s: .rsrc merge failure: unexpected .rsrc size"),
-			      bfd_get_filename (abfd));
+	  _bfd_error_handler (_("%B: .rsrc merge failure: unexpected .rsrc size"),
+			      abfd);
 	  bfd_set_error (bfd_error_file_truncated);
 	  goto end;
 	}

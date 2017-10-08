@@ -35,7 +35,11 @@ const struct __sFILE_fake __sf_fake_stderr =
     {_NULL, 0, 0, 0, 0, {_NULL, 0}, 0, _NULL};
 #endif
 
+#if (defined (__OPTIMIZE_SIZE__) || defined (PREFER_SIZE_OVER_SPEED))
+_NOINLINE_STATIC _VOID
+#else
 static _VOID
+#endif
 _DEFUN(std, (ptr, flags, file, data),
             FILE *ptr _AND
             int flags _AND
@@ -62,7 +66,11 @@ _DEFUN(std, (ptr, flags, file, data),
   ptr->_flags |= __SL64;
 #endif /* __LARGE64_FILES */
   ptr->_seek = __sseek;
+#ifdef _STDIO_CLOSE_PER_REENT_STD_STREAMS
   ptr->_close = __sclose;
+#else /* _STDIO_CLOSE_STD_STREAMS */
+  ptr->_close = NULL;
+#endif /* _STDIO_CLOSE_STD_STREAMS */
 #if !defined(__SINGLE_THREAD__) && !defined(_REENT_SMALL)
   __lock_init_recursive (ptr->_lock);
   /*
@@ -77,23 +85,27 @@ _DEFUN(std, (ptr, flags, file, data),
 #endif
 }
 
+struct glue_with_file {
+  struct _glue glue;
+  FILE file;
+};
+
 struct _glue *
 _DEFUN(__sfmoreglue, (d, n),
        struct _reent *d _AND
        register int n)
 {
-  struct _glue *g;
-  FILE *p;
+  struct glue_with_file *g;
 
-  g = (struct _glue *) _malloc_r (d, sizeof (*g) + n * sizeof (FILE));
+  g = (struct glue_with_file *)
+    _malloc_r (d, sizeof (*g) + (n - 1) * sizeof (FILE));
   if (g == NULL)
     return NULL;
-  p = (FILE *) (g + 1);
-  g->_next = NULL;
-  g->_niobs = n;
-  g->_iobs = p;
-  memset (p, 0, n * sizeof (FILE));
-  return g;
+  g->glue._next = NULL;
+  g->glue._niobs = n;
+  g->glue._iobs = &g->file;
+  memset (&g->file, 0, n * sizeof (FILE));
+  return &g->glue;
 }
 
 /*
@@ -108,7 +120,7 @@ _DEFUN(__sfp, (d),
   int n;
   struct _glue *g;
 
-  __sfp_lock_acquire ();
+  _newlib_sfp_lock_start ();
 
   if (!_GLOBAL_REENT->__sdidinit)
     __sinit (_GLOBAL_REENT);
@@ -121,7 +133,7 @@ _DEFUN(__sfp, (d),
 	  (g->_next = __sfmoreglue (d, NDYNAMIC)) == NULL)
 	break;
     }
-  __sfp_lock_release ();
+  _newlib_sfp_lock_exit ();
   d->_errno = ENOMEM;
   return NULL;
 
@@ -132,7 +144,7 @@ found:
 #ifndef __SINGLE_THREAD__
   __lock_init_recursive (fp->_lock);
 #endif
-  __sfp_lock_release ();
+  _newlib_sfp_lock_end ();
 
   fp->_p = NULL;		/* no current pointer */
   fp->_w = 0;			/* nothing to read or write */
@@ -162,8 +174,22 @@ _VOID
 _DEFUN(_cleanup_r, (ptr),
        struct _reent *ptr)
 {
-  _CAST_VOID _fwalk(ptr, fclose);
-  /* _CAST_VOID _fwalk (ptr, fflush); */	/* `cheating' */
+  int (*cleanup_func) (struct _reent *, FILE *);
+#ifdef _STDIO_BSD_SEMANTICS
+  /* BSD and Glibc systems only flush streams which have been written to
+     at exit time.  Calling flush rather than close for speed, as on
+     the aforementioned systems. */
+  cleanup_func = __sflushw_r;
+#else
+  /* Otherwise close files and flush read streams, too.
+     Note we call flush directly if "--enable-lite-exit" is in effect.  */
+#ifdef _LITE_EXIT
+  cleanup_func = _fflush_r;
+#else
+  cleanup_func = _fclose_r;
+#endif
+#endif
+  _CAST_VOID _fwalk_reent (ptr, cleanup_func);
 }
 
 #ifndef _REENT_ONLY
@@ -192,7 +218,6 @@ _DEFUN(__sinit, (s),
 
   /* make sure we clean up on exit */
   s->__cleanup = _cleanup_r;	/* conservative */
-  s->__sdidinit = 1;
 
   s->__sglue._next = NULL;
 #ifndef _REENT_SMALL
@@ -201,6 +226,11 @@ _DEFUN(__sinit, (s),
 #else
   s->__sglue._niobs = 0;
   s->__sglue._iobs = NULL;
+  /* Avoid infinite recursion when calling __sfp  for _GLOBAL_REENT.  The
+     problem is that __sfp checks for _GLOBAL_REENT->__sdidinit and calls
+     __sinit if it's 0. */
+  if (s == _GLOBAL_REENT)
+    s->__sdidinit = 1;
   s->_stdin = __sfp(s);
   s->_stdout = __sfp(s);
   s->_stderr = __sfp(s);
@@ -223,6 +253,8 @@ _DEFUN(__sinit, (s),
   /* POSIX requires stderr to be opened for reading and writing, even
      when the underlying fd 2 is write-only.  */
   std (s->_stderr, __SRW | __SNBF, 2, s);
+
+  s->__sdidinit = 1;
 
   __sinit_lock_release ();
 }
@@ -261,7 +293,8 @@ static int
 _DEFUN(__fp_lock, (ptr),
        FILE * ptr)
 {
-  _flockfile (ptr);
+  if (!(ptr->_flags2 & __SNLK))
+    _flockfile (ptr);
 
   return 0;
 }
@@ -271,7 +304,8 @@ static int
 _DEFUN(__fp_unlock, (ptr),
        FILE * ptr)
 {
-  _funlockfile (ptr);
+  if (!(ptr->_flags2 & __SNLK))
+    _funlockfile (ptr);
 
   return 0;
 }

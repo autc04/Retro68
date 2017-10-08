@@ -324,6 +324,9 @@ proc run_dump_test_arch { name opts arch } {
 
     set proparch [lindex [mips_arch_properties $arch 0] 0]
     set prefixes [list ${proparch}@ ]
+    if { [ string match "mips16e2*" $proparch ] } {
+	lappend prefixes mips16e2@
+    }
     if { [ string match "mips16e*" $proparch ] } {
 	lappend prefixes mips16e@
     }
@@ -380,6 +383,9 @@ proc run_list_test_arch { name opts arch } {
     set testname "MIPS $name ([concat $opts [mips_arch_displayname $arch]])"
     set proparch [lindex [mips_arch_properties $arch 0] 0]
     set prefixes [list ${proparch}@ ]
+    if { [ string match "mips16e2*" $proparch ] } {
+	lappend prefixes mips16e2@
+    }
     if { [ string match "mips16e*" $proparch ] } {
 	lappend prefixes mips16e@
     }
@@ -488,8 +494,14 @@ mips_arch_create mips16-64 64	mips16-32	{} \
 			{ -march=mips3 -mips16 } { -mmips:4000 }
 mips_arch_create mips16e-32 32	mips16-32	{} \
 			{ -march=mips32 -mips16 } { -mmips:isa32 }
+mips_arch_create mips16e2-32 32	mips16e-32	{} \
+			{ -march=mips32r2 -mips16 -mmips16e2 } \
+			{ -mmips:isa32r2 }
 mips_arch_create mips16e-64 64	mips16-64 { mips16e-32 } \
 			{ -march=mips64 -mips16 } { -mmips:isa64 }
+mips_arch_create mips16e2-64 64	mips16e-64 { mips16e2-32 } \
+			{ -march=mips64r2 -mips16 -mmips16e2 } \
+			{ -mmips:isa64r2 }
 mips_arch_create micromips 64	mips64r2 {} \
 			{ -march=mips64r2 -mmicromips } {}
 mips_arch_create r3000 	32	mips1	{} \
@@ -501,6 +513,9 @@ mips_arch_create r4000 	64	mips3	{} \
 			{ -march=r4000 -mtune=r4000 } { -mmips:4000 }
 mips_arch_create vr5400	64	mips4	{ ror } \
 			{ -march=vr5400 -mtune=vr5400 } { -mmips:5400 }
+mips_arch_create interaptiv-mr2 32 mips32r3	{} \
+			{ -march=interaptiv-mr2 -mtune=interaptiv-mr2 } \
+			{ -mmips:interaptiv-mr2 }
 mips_arch_create sb1 	64	mips64	{ mips3d oddspreg } \
 			{ -march=sb1 -mtune=sb1 } { -mmips:sb1 } \
 			{ mipsisa64sb1-*-* mipsisa64sb1el-*-* }
@@ -521,6 +536,9 @@ mips_arch_create xlr 	64	mips64	{ oddspreg } \
 mips_arch_create r5900 	64	mips3	{ gpr_ilocks singlefloat nollsc } \
 			{ -march=r5900 -mtune=r5900 } { -mmips:5900 } \
 			{ mipsr5900el-*-* mips64r5900el-*-* }
+mips_arch_create mips16e2-interaptiv-mr2 32 mips16e2-32 {} \
+			{ -march=interaptiv-mr2 -mips16 } \
+			{ -mmips:interaptiv-mr2 }
 
 #
 # And now begin the actual tests!  VxWorks uses RELA rather than REL
@@ -884,10 +902,16 @@ if { [istarget mips*-*-vxworks*] } {
     # Check MIPS16e extensions
     run_dump_test_arches "mips16e"	[mips_arch_list_matching mips16e-32]
     run_dump_test_arches "mips16e-64"	[mips_arch_list_matching mips16e-32]
+    # Check MIPS16e2 extensions.
+    run_dump_test_arches "mips16e2"	[mips_arch_list_matching mips16e2-32]
+    run_dump_test_arches "mips16e2-mt"	[mips_arch_list_matching mips16e2-32]
     # Check MIPS16 ISA subset disassembly
     run_dump_test_arches "mips16-sub"	[mips_arch_list_matching mips16-32]
     run_dump_test_arches "mips16e-sub"	[mips_arch_list_matching mips16-32]
     run_dump_test_arches "mips16e-64-sub" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16e2-sub"	[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16e2-mt-sub" \
 					[mips_arch_list_matching mips16-32]
 
     # Check jalx handling
@@ -963,10 +987,17 @@ if { [istarget mips*-*-vxworks*] } {
 
     # Check MIPS16 HI16/LO16 relocations
     run_dump_test "mips16-hilo"
+    run_dump_test "mips16e2-hilo"
     if $has_newabi {
 	run_dump_test "mips16-hilo-n32"
+	run_dump_test "mips16e2-hilo-n32"
     }
     run_dump_test "mips16-hilo-match"
+    run_dump_test "mips16-reloc-error"
+    run_dump_test "mips16e2-reloc-error"
+    run_dump_test "mips16-reg-error"
+    run_dump_test "mips16e2-imm-error"
+
     run_dump_test "delay"
     run_dump_test "nodelay"
     run_dump_test "mips4010"
@@ -1038,6 +1069,8 @@ if { [istarget mips*-*-vxworks*] } {
 
     run_dump_test_arches "relax"	[mips_arch_list_matching mips2 !mips32r6]
     run_dump_test_arches "relax-at"	[mips_arch_list_matching mips2 !mips32r6]
+    run_dump_test_arches "relax-offset"	[mips_arch_list_matching mips1 \
+					    !mips32r6]
     run_dump_test "relax-swap1-mips1"
     run_dump_test "relax-swap1-mips2"
     run_dump_test "relax-swap2"
@@ -1091,9 +1124,14 @@ if { [istarget mips*-*-vxworks*] } {
     # Verify that ASE markings are handled properly.
     run_dump_test "elf_ase_mips16"
     run_dump_test "elf_ase_mips16-2"
+    run_dump_test "elf_ase_mips16e2"
+    run_dump_test "elf_ase_mips16e2-2"
 
     run_dump_test "elf_ase_micromips"
     run_dump_test "elf_ase_micromips-2"
+
+    # Verify that machine markings are handled properly.
+    run_dump_test "elf_mach_interaptiv-mr2"
 
     run_dump_test "mips-gp32-fp32-pic"
     run_dump_test "mips-gp32-fp64-pic"
@@ -1122,6 +1160,7 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "elf-rel8-mips16"
     run_dump_test "elf-rel9"
     run_dump_test "elf-rel9-mips16"
+    run_dump_test "elf-rel9-mips16e2"
     if $has_newabi {
 	run_dump_test "elf-rel10"
 	run_dump_test "elf-rel11"
@@ -1182,16 +1221,28 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "jalr2"
     run_dump_test_arches "jalr3"	[mips_arch_list_matching mips1 \
 					    !micromips]
+    run_dump_test_arches "jalr4"	[mips_arch_list_matching mips1 \
+					    !micromips]
     if $has_newabi {
 	run_dump_test_arches "jalr3-n32" \
+					[mips_arch_list_matching mips3 \
+					    !micromips]
+	run_dump_test_arches "jalr4-n32" \
 					[mips_arch_list_matching mips3 \
 					    !micromips]
 	run_dump_test_arches "jalr3-n64" \
 					[mips_arch_list_matching mips3 \
 					    !micromips]
+	run_dump_test_arches "jalr4-n64" \
+					[mips_arch_list_matching mips3 \
+					    !micromips]
     }
 
-    run_dump_test_arches "aent"	[mips_arch_list_matching mips1]
+    run_dump_test_arches "aent"		[mips_arch_list_matching mips1]
+    run_dump_test_arches "aent-2"	[mips_arch_list_matching mips1]
+    run_dump_test_arches "aent-mdebug"	[mips_arch_list_matching mips1]
+    run_dump_test_arches "aent-mdebug-2" \
+					[mips_arch_list_matching mips1]
 
     run_dump_test_arches "loc-swap"	[mips_arch_list_all]
     run_dump_test_arches "loc-swap-dis"	[mips_arch_list_all]
@@ -1336,6 +1387,16 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "mips64-dsp"
     run_dump_test "mips32-mt"
 
+    run_dump_test_arches "save" [lsort -dictionary -unique [concat \
+				[mips_arch_list_matching mips16e-32] \
+				[mips_arch_list_matching interaptiv-mr2]]]
+    run_dump_test_arches "save-err" [lsort -dictionary -unique [concat \
+				[mips_arch_list_matching mips16e-32] \
+				[mips_arch_list_matching interaptiv-mr2]]]
+    run_dump_test_arches "save-sub" [lsort -dictionary -unique [concat \
+				[mips_arch_list_matching mips1 !micromips] \
+				[mips_arch_list_matching mips16-32]]]
+
     run_dump_test "mips16-dwarf2"
     if $has_newabi {
 	run_dump_test "mips16-dwarf2-n32"
@@ -1343,8 +1404,11 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "mips16-stabs"
 
     run_dump_test "mips16e-jrc"
-    run_dump_test "mips16e-save"
-    run_list_test "mips16e-save-err" "-march=mips32 -32"
+    run_dump_test "mips16e2-lui"
+    run_dump_test "mips16e2-mt-err"
+    run_dump_test "mips16e2-copy"
+    run_dump_test "mips16e2-copy-err"
+
     run_dump_test "mips16-intermix"
     run_dump_test "mips16-extend"
     run_dump_test "mips16-extend-swap"
@@ -1389,8 +1453,12 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "mips16-vis-1"
     run_dump_test "call-nonpic-1"
     run_dump_test "mips32-sync"
-    run_dump_test_arches "mips32r2-sync" \
-					[mips_arch_list_matching mips32r2]
+    run_dump_test_arches "mips32r2-sync" [lsort -dictionary -unique [concat \
+					[mips_arch_list_matching mips32r2] \
+					[mips_arch_list_matching mips16e2-32]]]
+    run_dump_test_arches "mips32r2-sync-1" [lsort -dictionary -unique [concat \
+					[mips_arch_list_matching mips32r2] \
+					[mips_arch_list_matching mips16e2-32]]]
     run_dump_test_arches "alnv_ps-swap" [mips_arch_list_matching fpisa5 \
 						!mips32r6]
     run_dump_test_arches "cache" [lsort -dictionary -unique [concat \
@@ -1447,8 +1515,14 @@ if { [istarget mips*-*-vxworks*] } {
 	run_dump_test_arches "hilo-diff-el-n64" [mips_arch_list_matching mips3]
     }
     run_dump_test_arches "lui"		[mips_arch_list_matching mips1]
-    run_list_test_arches "lui-1" "-32"	[mips_arch_list_matching mips1]
-    run_list_test_arches "lui-2" "-32"	[mips_arch_list_matching mips1]
+    run_dump_test_arches "lui-1"	[lsort -dictionary -unique [concat \
+					[mips_arch_list_matching mips1] \
+					[mips_arch_list_matching mips16e2-32]]]
+    run_dump_test_arches "lui-2"	[lsort -dictionary -unique [concat \
+					[mips_arch_list_matching mips1] \
+					[mips_arch_list_matching mips16e2-32]]]
+    run_dump_test_arches "addiu-error"	[mips_arch_list_all]
+    run_dump_test_arches "break-error"	[mips_arch_list_all]
 
     run_dump_test "r5900"
     run_dump_test "r5900-full"
@@ -1489,8 +1563,10 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test_arches "msa-relax"	[mips_arch_list_matching mips32r2 !mips32r6]
     run_dump_test_arches "msa-branch"	[mips_arch_list_matching mips32r2]
 
-    run_dump_test_arches "xpa"		[mips_arch_list_matching mips32r2 !micromips]
-    run_dump_test_arches "r5" "-32"	[mips_arch_list_matching mips32r5 !micromips]
+    run_dump_test_arches "xpa"		[mips_arch_list_matching mips32r2]
+    run_dump_test_arches "xpa-err"	[mips_arch_list_matching mips32r2]
+    run_dump_test_arches "xpa-virt-err"	[mips_arch_list_matching mips32r2]
+    run_dump_test_arches "r5" "-32"	[mips_arch_list_matching mips32r5]
 
     run_dump_test "pcrel-1"
     run_dump_test "pcrel-2"
@@ -1515,23 +1591,138 @@ if { [istarget mips*-*-vxworks*] } {
     run_list_test "pcrel-reloc-6" "-32 --defsym offset=4" \
 	"MIPS local PC-relative relocations 6b"
 
+    run_dump_test_arches "mips16-pcrel-0" [mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-1" [mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-2" [mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-3" [mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-4" [mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-5" [mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-pic-0" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-pic-1" \
+					[mips_arch_list_matching mips16-64]
+    if $has_newabi {
+	run_dump_test_arches "mips16-pcrel-n32-0" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-n32-1" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-n64-sym32-0" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-n64-sym32-1" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-n64-0" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-n64-1" \
+					[mips_arch_list_matching mips16-64]
+    }
+    run_dump_test_arches "mips16-pcrel-delay-0" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-delay-1" \
+					[mips_arch_list_matching mips16-32]
     run_dump_test "mips16-pcrel-relax-0"
     run_dump_test "mips16-pcrel-relax-1"
     run_dump_test "mips16-pcrel-relax-2"
     run_dump_test "mips16-pcrel-relax-3"
-    run_dump_test "mips16-pcrel-reloc-0"
-    run_dump_test "mips16-pcrel-reloc-1"
-    run_dump_test "mips16-pcrel-reloc-2"
-    run_dump_test "mips16-pcrel-reloc-3"
-    run_dump_test "mips16-pcrel-reloc-4"
-    run_dump_test "mips16-pcrel-reloc-5"
-    run_dump_test "mips16-pcrel-reloc-6"
-    run_dump_test "mips16-pcrel-reloc-7"
-    run_dump_test "mips16-pcrel-addend-0"
-    run_dump_test "mips16-pcrel-addend-1"
-    run_dump_test "mips16-pcrel-addend-2"
-    run_dump_test "mips16-pcrel-addend-3"
-    run_dump_test "mips16-pcrel-absolute"
+    run_dump_test_arches "mips16-pcrel-reloc-0" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-reloc-1" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-reloc-2" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-reloc-3" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-reloc-4" \
+					[mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-reloc-5" \
+					[mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-reloc-6" \
+					[mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-reloc-7" \
+					[mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-addend-0" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-addend-1" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-addend-2" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-addend-3" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-addend-4" \
+					[mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-addend-5" \
+					[mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-addend-6" \
+					[mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-addend-7" \
+					[mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-addend-8" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-addend-9" \
+					[mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-addend-pic-8" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-addend-pic-9" \
+					[mips_arch_list_matching mips16-64]
+    if $has_newabi {
+	run_dump_test_arches "mips16-pcrel-addend-n32-8" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-addend-n32-9" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-addend-n64-sym32-8" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-addend-n64-sym32-9" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-addend-n64-8" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-addend-n64-9" \
+					[mips_arch_list_matching mips16-64]
+    }
+    run_dump_test_arches "mips16-pcrel-absolute" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-absolute-1" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-absolute-2" \
+					[mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-absolute-3" \
+					[mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-absolute-4" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-absolute-5" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-absolute-6" \
+					[mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-absolute-7" \
+					[mips_arch_list_matching mips16-64]
+    run_dump_test_arches "mips16-pcrel-absolute-pic-4" \
+					[mips_arch_list_matching mips16-32]
+    run_dump_test_arches "mips16-pcrel-absolute-pic-6" \
+					[mips_arch_list_matching mips16-64]
+    if $has_newabi {
+	run_dump_test_arches "mips16-pcrel-absolute-n32-4" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-absolute-n32-6" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-absolute-n64-4" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-absolute-n64-6" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-absolute-n64-sym32-4" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-absolute-n64-sym32-6" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-absolute-pic-n32-4" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-absolute-pic-n32-6" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-absolute-pic-n64-4" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-absolute-pic-n64-6" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-absolute-pic-n64-sym32-4" \
+					[mips_arch_list_matching mips16-64]
+	run_dump_test_arches "mips16-pcrel-absolute-pic-n64-sym32-6" \
+					[mips_arch_list_matching mips16-64]
+    }
     run_dump_test "mips16-branch-reloc-0"
     run_dump_test "mips16-branch-reloc-1"
     run_dump_test "mips16-branch-reloc-2"
@@ -1540,13 +1731,24 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "mips16-branch-addend-1"
     run_dump_test "mips16-branch-addend-2"
     run_dump_test "mips16-branch-addend-3"
+    run_dump_test "mips16-branch-addend-4"
+    run_dump_test "mips16-branch-addend-5"
     run_dump_test "mips16-branch-absolute"
+    run_dump_test "mips16-branch-absolute-1"
+    run_dump_test "mips16-branch-absolute-2"
     run_dump_test "mips16-branch-absolute-addend"
+    run_dump_test "mips16-branch-absolute-addend-1"
     if $has_newabi {
 	run_dump_test "mips16-branch-absolute-n32"
+	run_dump_test "mips16-branch-absolute-n32-1"
+	run_dump_test "mips16-branch-absolute-n32-2"
 	run_dump_test "mips16-branch-absolute-addend-n32"
+	run_dump_test "mips16-branch-absolute-addend-n32-1"
 	run_dump_test "mips16-branch-absolute-n64"
+	run_dump_test "mips16-branch-absolute-n64-1"
+	run_dump_test "mips16-branch-absolute-n64-2"
 	run_dump_test "mips16-branch-absolute-addend-n64"
+	run_dump_test "mips16-branch-absolute-addend-n64-1"
     }
     run_dump_test "mips16-absolute-reloc-0"
     run_dump_test "mips16-absolute-reloc-1"
@@ -1786,9 +1988,33 @@ if { [istarget mips*-*-vxworks*] } {
 	"MIPS invalid PIC option in VxWorks PIC"
     run_list_test "option-pic-vxworks-2" "-mvxworks-pic" \
 	"MIPS invalid switch to SVR4 PIC from VxWorks PIC"
+    run_dump_test "option-pic-relax-0"
+    run_dump_test "option-pic-relax-1"
+    run_dump_test "option-pic-relax-2"
+    run_dump_test "option-pic-relax-3"
+    run_dump_test "option-pic-relax-3a"
+    run_dump_test "option-pic-relax-4"
+    run_dump_test "option-pic-relax-5"
 
     run_dump_test_arches "isa-override-1" "" [mips_arch_list_matching mips1]
-    run_list_test_arches "isa-override-2" "-32" [mips_arch_list_matching mips1]
+    run_dump_test_arches "isa-override-2" "" [mips_arch_list_matching mips1]
+
+    run_dump_test "debug-label-end-1"
+    run_dump_test "debug-label-end-2"
+    run_dump_test "debug-label-end-3"
+
+    run_dump_test "org-1"
+    run_dump_test "org-2"
+    run_dump_test "org-3"
+    run_dump_test "org-4"
+    run_dump_test "org-5"
+    run_dump_test "org-6"
+    run_dump_test "org-7"
+    run_dump_test "org-8"
+    run_dump_test "org-9"
+    run_dump_test "org-10"
+    run_dump_test "org-11"
+    run_dump_test "org-12"
 
     run_dump_test_arches "r6"		[mips_arch_list_matching mips32r6]
     if $has_newabi {

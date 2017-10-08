@@ -67,6 +67,7 @@ for ARG in $*; do
 			;;
 		--host-cxx-compiler=*)
 			HOST_CMAKE_FLAGS[${#HOST_CMAKE_FLAGS[@]}]="-DCMAKE_CXX_COMPILER=${ARG#*=}"
+			HOST_CXX_COMPILER="${ARG#*=}"
 			;;
 		--host-c-compiler=*)
 			HOST_CMAKE_FLAGS[${#HOST_CMAKE_FLAGS[@]}]="-DCMAKE_C_COMPILER=${ARG#*=}"
@@ -91,6 +92,7 @@ fi
 if [ $BUILD_PPC != false ]; then
 	ARCHS="$ARCHS powerpc"
 fi
+
 
 ##################### Sanity checks
 
@@ -121,6 +123,26 @@ if [ $SKIP_THIRDPARTY != false ]; then
 		echo "Not all third-party components have been built yet, ignoring --skip-thirdparty."
 		SKIP_THIRDPARTY=false
 	fi
+fi
+
+### Running on a Power Mac (tested with 10.4 Tiger)
+
+if [ "`uname -m`" = "Power Macintosh" ]; then
+		# The default compiler won't work, 
+		# check whether the compiler has been explictly specified
+		# on the command line
+	if [ $SKIP_THIRDPARTY = false ]; then
+		if [ -z "$HOST_CXX_COMPILER" -o -z "$HOST_C_COMPILER" ]; then
+			echo "**** Apple's version of GCC on Power Macs is too old."
+			echo "**** Please explicitly specify the C and C++ compilers"
+			echo "**** using the --host-c-compiler and --host-cxx-compiler options."
+			echo "**** You can install a usable compiler using tigerbrew."
+			exit 1
+		fi
+	fi
+
+		# work around a problem with building gcc-7 with homebrew's gcc-5
+	export gcc_cv_c_no_fpie=no
 fi
 
 ##################### Locate and check Interfaces & Libraries
@@ -260,6 +282,9 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		export CPPFLAGS="-I/usr/local/include"
 		export LDFLAGS="-L/usr/local/lib"
 		
+		export CC=$HOST_C_COMPILER
+		export CXX=$HOST_CXX_COMPILER
+		
 		# Build binutils for 68K
 		mkdir -p binutils-build
 		cd binutils-build
@@ -283,6 +308,8 @@ if [ $SKIP_THIRDPARTY != true ]; then
 
 		unset CPPFLAGS
 		unset LDFLAGS
+		unset CC
+		unset CXX
 
 		# Move the real linker aside and install symlinks to Elf2Mac
 		# (Elf2Mac is built by cmake below)
@@ -306,6 +333,9 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		export CPPFLAGS="-I/usr/local/include"
 		export LDFLAGS="-L/usr/local/lib"
 
+		export CC=$HOST_C_COMPILER
+		export CXX=$HOST_CXX_COMPILER
+		
 		# Build binutils for PPC
 		mkdir -p binutils-build-ppc
 		cd binutils-build-ppc
@@ -327,6 +357,8 @@ if [ $SKIP_THIRDPARTY != true ]; then
 
 		unset CPPFLAGS
 		unset LDFLAGS
+		unset CC
+		unset CXX
 
 		if [ $CLEAN_AFTER_BUILD != false ]; then
 			rm -rf binutils-build-ppc
@@ -383,6 +415,10 @@ sh "$SRC/prepare-rincludes.sh" "$RINCLUDES" "toolchain/RIncludes"
 # and link files from toolchain/CIncludes
 function linkheaders()
 {
+	# incompatible with Universal Interfaces on case-insensitive file systems
+	# (and does not currently work anyways)
+    rm -f "$1"/threads.h
+
 	# the following command doesn't work on older Mac OS X versions.
 	# allow it to fail quietly, at worst we leave some dangling symlinks around
 	# in the rare situation that headers are removed from the input directory

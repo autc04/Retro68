@@ -10,12 +10,12 @@ INDEX
 ANSI_SYNOPSIS
 	#include <time.h>
 	void tzset(void);
-	void _tzset_r (struct _reent *);
+	void _tzset_r (struct _reent *<[reent_ptr]>);
 
 TRAD_SYNOPSIS
 	#include <time.h>
 	void tzset();
-	void _tzset_r (reent_ptr)
+	void _tzset_r (<[reent_ptr]>);
         struct _reent *reent_ptr;
 
 DESCRIPTION
@@ -68,7 +68,15 @@ Supporting OS subroutine required: None
 #include "local.h"
 
 _VOID
+_DEFUN_VOID (_tzset_unlocked)
+{
+  _tzset_unlocked_r (_REENT);
+}
+
+_VOID
 _DEFUN_VOID (tzset)
 {
-  _tzset_r (_REENT);
+  TZ_LOCK;
+  _tzset_unlocked_r (_REENT);
+  TZ_UNLOCK;
 }

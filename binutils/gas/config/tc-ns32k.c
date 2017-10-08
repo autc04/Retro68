@@ -148,8 +148,8 @@ expressionS exprP;
    10	implied1
    11	implied2
 
-   For every entry there is a datalength in bytes. This is stored in size[n].
-  	 0,	the objectlength is not explicitly given by the instruction
+   For every entry there is a data length in bytes. This is stored in size[n].
+  	 0,	the object length is not explicitly given by the instruction
   		and the operand is undefined. This is a case for relaxation.
   		Reserve 4 bytes for the final object.
 
@@ -173,9 +173,9 @@ expressionS exprP;
 
    The low-order-byte corresponds to low physical memory.
    Obviously a FRAGment must be created for each valid disp in PART whose
-   datalength is undefined (to bad) .
+   data length is undefined (to bad) .
    The case where just the expression is undefined is less severe and is
-   handled by fix. Here the number of bytes in the objectfile is known.
+   handled by fix. Here the number of bytes in the object file is known.
    With this representation we simplify the assembly and separates the
    machine dependent/independent parts in a more clean way (said OE).  */
 
@@ -362,7 +362,7 @@ char disp_test[] =
 char disp_size[] =
 {4, 1, 2, 0, 4};
 
-/* Parse a general operand into an addressingmode struct
+/* Parse a general operand into an addressing mode struct
 
    In:  pointer at operand in ascii form
         pointer at addr_mode struct for result
@@ -622,7 +622,7 @@ addr_mode (char *operand,
 
 	  addrmodeP->am_size += 1;	/* scaled index byte.  */
 	  j = str[strl - 4] - '0';	/* store temporary.  */
-	  str[strl - 6] = '\000';	/* nullterminate for recursive call.  */
+	  str[strl - 6] = '\000';	/* null terminate for recursive call.  */
 	  i = addr_mode (str, addrmodeP, 1);
 
 	  if (!i || addrmodeP->mode == 20)
@@ -704,7 +704,7 @@ get_addr_mode (char *ptr, addr_modeS *addrmodeP)
   if ((tmp = addrmodeP->scaled_reg))
     {				/* Build indexbyte.  */
       tmp--;			/* Remember regnumber comes incremented for
-				   flagpurpose.  */
+				   flag purpose.  */
       tmp |= addrmodeP->scaled_mode << 3;
       addrmodeP->index_byte = (char) tmp;
       addrmodeP->am_size += 1;
@@ -795,7 +795,7 @@ get_addr_mode (char *ptr, addr_modeS *addrmodeP)
   return addrmodeP->mode;
 }
 
-/* Read an optionlist.  */
+/* Read an option list.  */
 
 static void
 optlist (char *str,			/* The string to extract options from.  */
@@ -924,7 +924,7 @@ encode_operand (int argc,
       switch ((d = operandsP[(loop << 1) + 1]))
 	{
 	case 'f':		/* Operand of sfsr turns out to be a nasty
-				   specialcase.  */
+				   special-case.  */
 	  opcode_bit_ptr -= 5;
 	  /* Fall through.  */
 	case 'Z':		/* Float not immediate.  */
@@ -1011,12 +1011,12 @@ encode_operand (int argc,
 	  opcode_bit_ptr -= 3;
 	  iif.iifP[1].object |= tmp << opcode_bit_ptr;
 	  break;
-	case 'O':		/* Setcfg instruction optionslist.  */
+	case 'O':		/* Setcfg instruction options list.  */
 	  optlist (argv[i], opt3, &tmp);
 	  opcode_bit_ptr -= 4;
 	  iif.iifP[1].object |= tmp << 15;
 	  break;
-	case 'C':		/* Cinv instruction optionslist.  */
+	case 'C':		/* Cinv instruction options list.  */
 	  optlist (argv[i], opt4, &tmp);
 	  opcode_bit_ptr -= 4;
 	  iif.iifP[1].object |= tmp << 15; /* Insert the regtype in opcode.  */
@@ -1370,7 +1370,7 @@ md_number_to_chars (char *buf, valueT value, int nbytes)
   number_to_chars_littleendian (buf, value, nbytes);
 }
 
-/* This is a variant of md_numbers_to_chars. The reason for its'
+/* This is a variant of md_numbers_to_chars. The reason for its
    existence is the fact that ns32k uses Huffman coded
    displacements. This implies that the bit order is reversed in
    displacements and that they are prefixed with a size-tag.
@@ -1435,7 +1435,7 @@ md_number_to_disp (char *buf, long val, int n)
       break;
 
     default:
-      as_fatal (_("Internal logic error.  line %d, file \"%s\""),
+      as_fatal (_("Internal logic error.  Line %d, file: \"%s\""),
 		__LINE__, __FILE__);
     }
 }

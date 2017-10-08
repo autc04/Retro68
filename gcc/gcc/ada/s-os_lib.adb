@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                     Copyright (C) 1995-2015, AdaCore                     --
+--                     Copyright (C) 1995-2016, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -511,7 +511,6 @@ package body System.OS_Lib is
             when None =>
                null;
          end case;
-
       end Copy_To;
 
    --  Start of processing for Copy_File
@@ -622,6 +621,7 @@ package body System.OS_Lib is
       Ada_Pathname : String_Access :=
                        To_Path_String_Access
                          (Pathname, C_String_Length (Pathname));
+
    begin
       Copy_File (Ada_Name.all, Ada_Pathname.all, Success, Mode, Preserve);
       Free (Ada_Name);
@@ -639,9 +639,10 @@ package body System.OS_Lib is
       Copy_Timestamp   : Boolean := True;
       Copy_Permissions : Boolean := True)
    is
-      F    : aliased String (1 .. From'Length + 1);
+      F : aliased String (1 .. From'Length + 1);
+      T : aliased String (1 .. To'Length + 1);
+
       Mode : Integer;
-      T    : aliased String (1 .. To'Length + 1);
 
    begin
       if Copy_Timestamp then
@@ -713,6 +714,7 @@ package body System.OS_Lib is
       Ada_Dest   : String_Access :=
                      To_Path_String_Access
                        (Dest, C_String_Length (Dest));
+
    begin
       Copy_Time_Stamps (Ada_Source.all, Ada_Dest.all, Success);
       Free (Ada_Source);
@@ -1495,24 +1497,40 @@ package body System.OS_Lib is
       return Is_Directory (F_Name'Address);
    end Is_Directory;
 
-   ----------------------
-   -- Is_Readable_File --
-   ----------------------
+   -----------------------------
+   -- Is_Read_Accessible_File --
+   -----------------------------
 
-   function Is_Readable_File (Name : C_File_Name) return Boolean is
+   function Is_Read_Accessible_File (Name : String) return Boolean is
+      function Is_Read_Accessible_File (Name : Address) return Integer;
+      pragma Import
+        (C, Is_Read_Accessible_File, "__gnat_is_read_accessible_file");
+      F_Name : String (1 .. Name'Length + 1);
+
+   begin
+      F_Name (1 .. Name'Length) := Name;
+      F_Name (F_Name'Last)      := ASCII.NUL;
+      return Is_Read_Accessible_File (F_Name'Address) /= 0;
+   end Is_Read_Accessible_File;
+
+   ----------------------------
+   -- Is_Owner_Readable_File --
+   ----------------------------
+
+   function Is_Owner_Readable_File (Name : C_File_Name) return Boolean is
       function Is_Readable_File (Name : Address) return Integer;
       pragma Import (C, Is_Readable_File, "__gnat_is_readable_file");
    begin
       return Is_Readable_File (Name) /= 0;
-   end Is_Readable_File;
+   end Is_Owner_Readable_File;
 
-   function Is_Readable_File (Name : String) return Boolean is
+   function Is_Owner_Readable_File (Name : String) return Boolean is
       F_Name : String (1 .. Name'Length + 1);
    begin
       F_Name (1 .. Name'Length) := Name;
       F_Name (F_Name'Last)      := ASCII.NUL;
-      return Is_Readable_File (F_Name'Address);
-   end Is_Readable_File;
+      return Is_Owner_Readable_File (F_Name'Address);
+   end Is_Owner_Readable_File;
 
    ------------------------
    -- Is_Executable_File --
@@ -1571,24 +1589,40 @@ package body System.OS_Lib is
       return Is_Symbolic_Link (F_Name'Address);
    end Is_Symbolic_Link;
 
-   ----------------------
-   -- Is_Writable_File --
-   ----------------------
+   ------------------------------
+   -- Is_Write_Accessible_File --
+   ------------------------------
 
-   function Is_Writable_File (Name : C_File_Name) return Boolean is
+   function Is_Write_Accessible_File (Name : String) return Boolean is
+      function Is_Write_Accessible_File (Name : Address) return Integer;
+      pragma Import
+        (C, Is_Write_Accessible_File, "__gnat_is_write_accessible_file");
+      F_Name : String (1 .. Name'Length + 1);
+
+   begin
+      F_Name (1 .. Name'Length) := Name;
+      F_Name (F_Name'Last)      := ASCII.NUL;
+      return Is_Write_Accessible_File (F_Name'Address) /= 0;
+   end Is_Write_Accessible_File;
+
+   ----------------------------
+   -- Is_Owner_Writable_File --
+   ----------------------------
+
+   function Is_Owner_Writable_File (Name : C_File_Name) return Boolean is
       function Is_Writable_File (Name : Address) return Integer;
       pragma Import (C, Is_Writable_File, "__gnat_is_writable_file");
    begin
       return Is_Writable_File (Name) /= 0;
-   end Is_Writable_File;
+   end Is_Owner_Writable_File;
 
-   function Is_Writable_File (Name : String) return Boolean is
+   function Is_Owner_Writable_File (Name : String) return Boolean is
       F_Name : String (1 .. Name'Length + 1);
    begin
       F_Name (1 .. Name'Length) := Name;
       F_Name (F_Name'Last)      := ASCII.NUL;
-      return Is_Writable_File (F_Name'Address);
-   end Is_Writable_File;
+      return Is_Owner_Writable_File (F_Name'Address);
+   end Is_Owner_Writable_File;
 
    ----------
    -- Kill --
@@ -1819,8 +1853,8 @@ package body System.OS_Lib is
 
       else
          Result :=
-          Non_Blocking_Spawn
-            (Program_Name, Args, Output_File_Descriptor, Err_To_Out);
+           Non_Blocking_Spawn
+             (Program_Name, Args, Output_File_Descriptor, Err_To_Out);
 
          --  Close the file just created for the output, as the file descriptor
          --  cannot be used anywhere, being a local value. It is safe to do
@@ -1848,6 +1882,8 @@ package body System.OS_Lib is
       Saved_Error  : File_Descriptor;
       Saved_Output : File_Descriptor;
 
+      Dummy_Status : Boolean;
+
    begin
       --  Do not attempt to spawn if the output files could not be created
 
@@ -1862,6 +1898,17 @@ package body System.OS_Lib is
 
       Saved_Error  := Dup (Standerr);
       Dup2 (Stderr_FD, Standerr);
+
+      Set_Close_On_Exec (Saved_Output, True, Dummy_Status);
+      Set_Close_On_Exec (Saved_Error,  True, Dummy_Status);
+
+      --  Close the files just created for the output, as the file descriptors
+      --  cannot be used anywhere, being local values. It is safe to do that,
+      --  as the file descriptors have been duplicated to form standard output
+      --  and standard error of the spawned process.
+
+      Close (Stdout_FD);
+      Close (Stderr_FD);
 
       --  Spawn the program
 
@@ -2013,7 +2060,7 @@ package body System.OS_Lib is
       function Readlink
         (Path   : System.Address;
          Buf    : System.Address;
-         Bufsiz : Integer) return Integer;
+         Bufsiz : size_t) return Integer;
       pragma Import (C, Readlink, "__gnat_readlink");
 
       function To_Canonical_File_Spec
@@ -2585,6 +2632,7 @@ package body System.OS_Lib is
       function rename (From, To : Address) return Integer;
       pragma Import (C, rename, "__gnat_rename");
       R : Integer;
+
    begin
       R := rename (Old_Name, New_Name);
       Success := (R = 0);
@@ -2597,6 +2645,7 @@ package body System.OS_Lib is
    is
       C_Old_Name : String (1 .. Old_Name'Length + 1);
       C_New_Name : String (1 .. New_Name'Length + 1);
+
    begin
       C_Old_Name (1 .. Old_Name'Length) := Old_Name;
       C_Old_Name (C_Old_Name'Last)      := ASCII.NUL;
@@ -2630,6 +2679,7 @@ package body System.OS_Lib is
       procedure C_Set_Executable (Name : C_File_Name; Mode : Integer);
       pragma Import (C, C_Set_Executable, "__gnat_set_executable");
       C_Name : aliased String (Name'First .. Name'Last + 1);
+
    begin
       C_Name (Name'Range)  := Name;
       C_Name (C_Name'Last) := ASCII.NUL;
@@ -2644,6 +2694,7 @@ package body System.OS_Lib is
       procedure C_Set_File_Time (Name : C_File_Name; Time : OS_Time);
       pragma Import (C, C_Set_File_Time, "__gnat_set_file_time_name");
       C_Name : aliased String (Name'First .. Name'Last + 1);
+
    begin
       C_Name (Name'Range)  := Name;
       C_Name (C_Name'Last) := ASCII.NUL;
@@ -2658,6 +2709,7 @@ package body System.OS_Lib is
       procedure C_Set_Non_Readable (Name : C_File_Name);
       pragma Import (C, C_Set_Non_Readable, "__gnat_set_non_readable");
       C_Name : aliased String (Name'First .. Name'Last + 1);
+
    begin
       C_Name (Name'Range)  := Name;
       C_Name (C_Name'Last) := ASCII.NUL;
@@ -2672,6 +2724,7 @@ package body System.OS_Lib is
       procedure C_Set_Non_Writable (Name : C_File_Name);
       pragma Import (C, C_Set_Non_Writable, "__gnat_set_non_writable");
       C_Name : aliased String (Name'First .. Name'Last + 1);
+
    begin
       C_Name (Name'Range)  := Name;
       C_Name (C_Name'Last) := ASCII.NUL;
@@ -2686,6 +2739,7 @@ package body System.OS_Lib is
       procedure C_Set_Readable (Name : C_File_Name);
       pragma Import (C, C_Set_Readable, "__gnat_set_readable");
       C_Name : aliased String (Name'First .. Name'Last + 1);
+
    begin
       C_Name (Name'Range)  := Name;
       C_Name (C_Name'Last) := ASCII.NUL;
@@ -2700,6 +2754,7 @@ package body System.OS_Lib is
       procedure C_Set_Writable (Name : C_File_Name);
       pragma Import (C, C_Set_Writable, "__gnat_set_writable");
       C_Name : aliased String (Name'First .. Name'Last + 1);
+
    begin
       C_Name (Name'Range)  := Name;
       C_Name (C_Name'Last) := ASCII.NUL;
@@ -2846,8 +2901,8 @@ package body System.OS_Lib is
          type Chars is array (Positive range <>) of aliased Character;
          type Char_Ptr is access constant Character;
 
-         Command_Len  : constant Positive := Program_Name'Length + 1 +
-                                               Args_Length (Args);
+         Command_Len  : constant Positive :=
+                          Program_Name'Length + 1 + Args_Length (Args);
          Command_Last : Natural := 0;
          Command      : aliased Chars (1 .. Command_Len);
          --  Command contains all characters of the Program_Name and Args, all

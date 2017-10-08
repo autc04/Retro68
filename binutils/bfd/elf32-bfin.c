@@ -329,11 +329,11 @@ bfin_bfd_reloc (bfd *abfd,
   /* Here the variable relocation holds the final address of the
      symbol we are relocating against, plus any addend.  */
 
-  if (howto->pc_relative == TRUE)
+  if (howto->pc_relative)
     {
       relocation -= input_section->output_section->vma + input_section->output_offset;
 
-      if (howto->pcrel_offset == TRUE)
+      if (howto->pcrel_offset)
         relocation -= reloc_entry->address;
     }
 
@@ -1191,7 +1191,7 @@ bfin_check_relocs (bfd * abfd,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
 
       switch (ELF32_R_TYPE (rel->r_info))
@@ -4949,9 +4949,8 @@ elf32_bfin_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
   if (0)
 #endif
   _bfd_error_handler
-    ("old_flags = 0x%.8lx, new_flags = 0x%.8lx, init = %s, filename = %s",
-     old_flags, new_flags, elf_flags_init (obfd) ? "yes" : "no",
-     bfd_get_filename (ibfd));
+    ("old_flags = 0x%.8lx, new_flags = 0x%.8lx, init = %s, filename = %B",
+     old_flags, new_flags, elf_flags_init (obfd) ? "yes" : "no", ibfd);
 
   if (!elf_flags_init (obfd))			/* First call, no flags set.  */
     {
@@ -4964,12 +4963,12 @@ elf32_bfin_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
       error = TRUE;
       if (IS_FDPIC (obfd))
 	_bfd_error_handler
-	  (_("%s: cannot link non-fdpic object file into fdpic executable"),
-	   bfd_get_filename (ibfd));
+	  (_("%B: cannot link non-fdpic object file into fdpic executable"),
+	   ibfd);
       else
 	_bfd_error_handler
-	  (_("%s: cannot link fdpic object file into non-fdpic executable"),
-	   bfd_get_filename (ibfd));
+	  (_("%B: cannot link fdpic object file into non-fdpic executable"),
+	   ibfd);
     }
 
   if (error)

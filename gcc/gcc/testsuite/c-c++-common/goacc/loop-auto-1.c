@@ -74,6 +74,21 @@ void Foo ()
 	    for (int kx = 0; kx < 10; kx++) {}
 	  }
       }
+
+#pragma acc loop auto
+    for (int ix = 0; ix < 10; ix++)
+      {
+#pragma acc loop auto
+	for (int jx = 0; jx < 10; jx++)
+	  {
+#pragma acc loop auto /* { dg-warning "insufficient partitioning" } */
+	    for (int kx = 0; kx < 10; kx++)
+	      {
+#pragma acc loop auto
+		for (int lx = 0; lx < 10; lx++) {}
+	      }
+	  }
+      }
   }
 }
 
@@ -186,10 +201,10 @@ void Worker (void)
 	for (int jx = 0; jx < 10; jx++) {}
       }
 
-#pragma acc loop auto /* { dg-warning "insufficient partitioning" } */
+#pragma acc loop auto
     for (int ix = 0; ix < 10; ix++)
       {
-#pragma acc loop auto
+#pragma acc loop auto /* { dg-warning "insufficient partitioning" } */
 	for (int jx = 0; jx < 10; jx++)
 	  {
 #pragma acc loop auto

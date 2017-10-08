@@ -26,7 +26,7 @@ static struct
     int has_offset;		/* 1 if operand has offset.  */
     unsigned int in_offset;	/* >=1 if processing operand of offset.  */
     unsigned int in_bracket;	/* >=1 if processing operand in brackets.  */
-    unsigned int in_scale;	/* >=1 if processing multipication operand
+    unsigned int in_scale;	/* >=1 if processing multiplication operand
 				 * in brackets.  */
     i386_operand_type reloc_types;	/* Value obtained from lex_got().  */
     const reg_entry *base;	/* Base register (if any).  */

@@ -591,7 +591,7 @@ elf_vax_check_relocs (bfd *abfd, struct bfd_link_info *info, asection *sec,
 
 	  /* PR15323, ref flags aren't set for references in the same
 	     object.  */
-	  h->root.non_ir_ref = 1;
+	  h->root.non_ir_ref_regular = 1;
 	}
 
       switch (ELF32_R_TYPE (rel->r_info))
@@ -632,10 +632,9 @@ elf_vax_check_relocs (bfd *abfd, struct bfd_link_info *info, asection *sec,
 		  if (eh->got_addend != (bfd_vma) rel->r_addend)
 		    _bfd_error_handler
 		      /* xgettext:c-format */
-		      (_("%s: warning: GOT addend of %ld to `%s' does"
+		      (_("%B: warning: GOT addend of %ld to `%s' does"
 			 " not match previous GOT addend of %ld"),
-			 bfd_get_filename (abfd), rel->r_addend,
-			 h->root.root.string,
+			 abfd, rel->r_addend, h->root.root.string,
 			 eh->got_addend);
 
 		}
@@ -1509,10 +1508,9 @@ elf_vax_relocate_section (bfd *output_bfd,
 	  else if (rel->r_addend != 0)
 	    _bfd_error_handler
 	      /* xgettext:c-format */
-	      (_("%s: warning: PLT addend of %d to `%s' from %s section ignored"),
-		      bfd_get_filename (input_bfd), rel->r_addend,
-		      h->root.root.string,
-		      bfd_get_section_name (input_bfd, input_section));
+	      (_("%B: warning: PLT addend of %d to `%s'"
+		 " from %A section ignored"),
+	       input_bfd, rel->r_addend, h->root.root.string, input_section);
 	  rel->r_addend = 0;
 
 	  break;
@@ -1635,17 +1633,16 @@ elf_vax_relocate_section (bfd *output_bfd,
 		  if (h != NULL)
 		    _bfd_error_handler
 		      /* xgettext:c-format */
-		      (_("%s: warning: %s relocation against symbol `%s' from %s section"),
-		      bfd_get_filename (input_bfd), howto->name,
-		      h->root.root.string,
-		      bfd_get_section_name (input_bfd, input_section));
+		      (_("%B: warning: %s relocation against symbol `%s'"
+			 " from %A section"),
+		      input_bfd, howto->name, h->root.root.string,
+		      input_section);
 		  else
 		    _bfd_error_handler
 		      /* xgettext:c-format */
-		      (_("%s: warning: %s relocation to 0x%x from %s section"),
-		      bfd_get_filename (input_bfd), howto->name,
-		      outrel.r_addend,
-		      bfd_get_section_name (input_bfd, input_section));
+		      (_("%B: warning: %s relocation to 0x%x from %A section"),
+		      input_bfd, howto->name, outrel.r_addend,
+		      input_section);
 		}
 	      loc = sreloc->contents;
 	      loc += sreloc->reloc_count++ * sizeof (Elf32_External_Rela);

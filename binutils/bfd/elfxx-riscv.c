@@ -833,6 +833,21 @@ static reloc_howto_type howto_table[] =
 	 0,				/* src_mask */
 	 MINUS_ONE,			/* dst_mask */
 	 FALSE),			/* pcrel_offset */
+
+  /* 32-bit PC relative.  */
+  HOWTO (R_RISCV_32_PCREL,		/* type */
+	 0,				/* rightshift */
+	 2,				/* size */
+	 32,				/* bitsize */
+	 TRUE,				/* pc_relative */
+	 0,				/* bitpos */
+	 complain_overflow_dont,	/* complain_on_overflow */
+	 bfd_elf_generic_reloc,		/* special_function */
+	 "R_RISCV_32_PCREL",		/* name */
+	 FALSE,				/* partial_inplace */
+	 0,				/* src_mask */
+	 MINUS_ONE,			/* dst_mask */
+	 FALSE),			/* pcrel_offset */
 };
 
 /* A mapping from BFD reloc types to RISC-V ELF reloc types.  */
@@ -894,6 +909,7 @@ static const struct elf_reloc_map riscv_reloc_map[] =
   { BFD_RELOC_RISCV_SET8, R_RISCV_SET8 },
   { BFD_RELOC_RISCV_SET16, R_RISCV_SET16 },
   { BFD_RELOC_RISCV_SET32, R_RISCV_SET32 },
+  { BFD_RELOC_RISCV_32_PCREL, R_RISCV_32_PCREL },
 };
 
 /* Given a BFD reloc type, return a howto structure.  */

@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "opcode/v850.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opintl.h"
 
 static const char *const v850_reg_names[] =

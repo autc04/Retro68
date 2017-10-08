@@ -317,6 +317,7 @@ cat <<EOF
   ${RELOCATING+_end = .;}
   ${RELOCATING+PROVIDE (end = .);}
   ${RELOCATING+${DATA_SEGMENT_END}}
+  ${STACK_ADDR+${STACK}}
 
   /* These sections are not mapped under the BPABI.  */
   .dynamic      0 : { *(.dynamic) }
@@ -342,7 +343,6 @@ EOF
 . $srcdir/scripttempl/DWARF.sc
 
 cat <<EOF
-  ${STACK_ADDR+${STACK}}
   ${OTHER_SECTIONS}
   ${RELOCATING+${OTHER_SYMBOLS}}
   ${RELOCATING+${DISCARDED}}

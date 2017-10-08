@@ -25,7 +25,7 @@
 #define DEFINE_TABLE
 
 #include "h8500-opc.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opintl.h"
 
 /* Maximum length of an instruction.  */

@@ -25,6 +25,10 @@ This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 #ifndef FR30_CPU_H
 #define FR30_CPU_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CGEN_ARCH fr30
 
 /* Given symbol S, return fr30_cgen_<S>.  */
@@ -308,5 +312,9 @@ extern CGEN_KEYWORD fr30_cgen_opval_h_r15;
 extern const CGEN_HW_ENTRY fr30_cgen_hw_table[];
 
 
+
+   #ifdef __cplusplus
+   }
+   #endif
 
 #endif /* FR30_CPU_H */

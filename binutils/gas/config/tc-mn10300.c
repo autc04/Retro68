@@ -284,7 +284,7 @@ static const struct reg_name other_registers[] =
 #define OTHER_REG_NAME_CNT	ARRAY_SIZE (other_registers)
 
 /* Perform a binary search of the given register table REGS to see
-   if NAME is a valid regiter name.  Returns the register number from
+   if NAME is a valid register name.  Returns the register number from
    the array on success, or -1 on failure.  */
 
 static int
@@ -2422,7 +2422,7 @@ mn10300_fix_adjustable (struct fix *fixp)
 
   /* Likewise, do not adjust symbols that won't be merged, or debug
      symbols, because they too break relaxation.  We do want to adjust
-     other mergable symbols, like .rodata, because code relaxations
+     other mergeable symbols, like .rodata, because code relaxations
      need section-relative symbols to properly relax them.  */
   if (! (S_GET_SEGMENT (fixp->fx_addsy)->flags & SEC_MERGE))
     return FALSE;

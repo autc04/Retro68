@@ -1,5 +1,5 @@
 /* Dependency analysis
-   Copyright (C) 2000-2016 Free Software Foundation, Inc.
+   Copyright (C) 2000-2017 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of GCC.
@@ -505,7 +505,6 @@ gfc_dep_compare_expr (gfc_expr *e1, gfc_expr *e2)
 
     case EXPR_FUNCTION:
       return gfc_dep_compare_functions (e1, e2, false);
-      break;
 
     default:
       return -2;

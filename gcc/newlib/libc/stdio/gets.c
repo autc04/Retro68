@@ -70,6 +70,7 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
 #include <_ansi.h>
 #include <reent.h>
 #include <stdio.h>
+#include "local.h"
 
 char *
 _DEFUN(_gets_r, (ptr, buf),
@@ -78,13 +79,17 @@ _DEFUN(_gets_r, (ptr, buf),
 {
   register int c;
   register char *s = buf;
+  FILE *fp;
 
-  _flockfile (stdin);
-  while ((c = __sgetc_r (ptr, stdin)) != '\n')
+  _REENT_SMALL_CHECK_INIT (ptr);
+  fp = _stdin_r (ptr);
+  CHECK_INIT (ptr, fp);
+  _newlib_flockfile_start (fp);
+  while ((c = __sgetc_r (ptr, fp)) != '\n')
     if (c == EOF)
       if (s == buf)
 	{
-	  _funlockfile (stdin);
+	  _newlib_flockfile_exit (fp);
 	  return NULL;
 	}
       else
@@ -92,7 +97,7 @@ _DEFUN(_gets_r, (ptr, buf),
     else
       *s++ = c;
   *s = 0;
-  _funlockfile (stdin);
+  _newlib_flockfile_end (fp);
   return buf;
 }
 

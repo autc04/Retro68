@@ -1,24 +1,71 @@
-2016-12-21  Release Manager
+2017-08-14  Release Manager
 
-	* GCC 6.3.0 released.
+	* GCC 7.2.0 released.
 
-2016-08-22  Release Manager
+2017-05-02  Release Manager
 
-	* GCC 6.2.0 released.
+	* GCC 7.1.0 released.
 
-2016-05-10  Sebastian Huber  <sebastian.huber@embedded-brains.de>
+2017-02-06  Palmer Dabbelt <palmer@dabbelt.com>
 
-	Backport from mainline:
-	2016-04-27  Sebastian Huber  <sebastian.huber@embedded-brains.de>
+	* configure.tgt: Add RISC-V tuple.
+
+2017-02-01  Richard Henderson  <rth@redhat.com>
+            Torvald Riegel  <triegel@redhat.com>
+
+	* acinclude.m4: Add #define FAST_ATOMIC_LDST_*.
+	* auto-config.h.in: Regenerate.
+	* config/x86/host-config.h (FAST_ATOMIC_LDST_16): Define to 0.
+	(atomic_compare_exchange_n): New.
+	* glfree.c (EXACT, LARGER): Change condition and add comments.
+
+2017-01-30  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+
+	PR target/78945
+	* config/arm/exch_n.c (libat_exchange): Check __ARM_FEATURE_SIMD32.
+
+2017-01-21  Jakub Jelinek  <jakub@redhat.com>
+
+	PR other/79046
+	* testsuite/Makefile.am (gcc_version): Use @get_gcc_base_ver@ instead
+	of cat to get version from BASE-VER file.
+	* testsuite/Makefile.in: Regenerated.
+
+2017-01-17  Jakub Jelinek  <jakub@redhat.com>
+
+	PR other/79046
+	* configure.ac: Add GCC_BASE_VER.
+	* Makefile.am (gcc_version): Use @get_gcc_base_ver@ instead of cat to
+	get version from BASE-VER file.
+	* testsuite/Makefile.in: Regenerated.
+	* configure: Regenerated.
+	* Makefile.in: Regenerated.
+
+2017-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+2016-11-15  Matthias Klose  <doko@ubuntu.com>
+
+	* configure: Regenerate.
+
+2016-04-27  Sebastian Huber  <sebastian.huber@embedded-brains.de>
 
 	* configure.tgt (configure_tgt_pre_target_cpu_XCFLAGS): New variable.
 	(*-*-rtems*): New supported target.
 	* config/rtems/host-config.h: New file.
 	* config/rtems/lock.c: Likewise.
 
-2016-04-27  Release Manager
+2016-04-25  H.J. Lu  <hongjiu.lu@intel.com>
 
-	* GCC 6.1.0 released.
+	PR target/70454
+	* configure.tgt (XCFLAGS): Revert the last change.
+
+2016-04-20  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR target/70454
+	* configure.tgt (XCFLAGS): Don't add -march=i486 to compile
+	32-bit x86 target library on x86-64.
 
 2016-01-06  Szabolcs Nagy  <szabolcs.nagy@arm.com>
 
@@ -266,7 +313,7 @@
 
 	* Initial commit.
 
-Copyright (C) 2012-2016 Free Software Foundation, Inc.
+Copyright (C) 2012-2017 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

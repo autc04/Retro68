@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2016 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2017 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
@@ -28,9 +28,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #include "format.h"
 #include "unix.h"
 #include <string.h>
-#include <errno.h>
 #include <ctype.h>
-#include <stdlib.h>
 #include <assert.h>
 
 typedef unsigned char uchar;
@@ -567,7 +565,7 @@ read_a_char4 (st_parameter_dt *dtp, const fnode *f, char *p, int length)
 }
 
 /* eat_leading_spaces()-- Given a character pointer and a width,
- * ignore the leading spaces.  */
+   ignore the leading spaces.  */
 
 static char *
 eat_leading_spaces (int *width, char *p)
@@ -619,7 +617,7 @@ next_char (st_parameter_dt *dtp, char **p, int *w)
 
 
 /* read_decimal()-- Read a decimal integer value.  The values here are
- * signed values. */
+   signed values. */
 
 void
 read_decimal (st_parameter_dt *dtp, const fnode *f, char *dest, int length)
@@ -724,9 +722,9 @@ read_decimal (st_parameter_dt *dtp, const fnode *f, char *dest, int length)
 
 
 /* read_radix()-- This function reads values for non-decimal radixes.
- * The difference here is that we treat the values here as unsigned
- * values for the purposes of overflow.  If minus sign is present and
- * the top bit is set, the value will be incorrect. */
+   The difference here is that we treat the values here as unsigned
+   values for the purposes of overflow.  If minus sign is present and
+   the top bit is set, the value will be incorrect. */
 
 void
 read_radix (st_parameter_dt *dtp, const fnode *f, char *dest, int length,
@@ -1087,7 +1085,13 @@ exponent:
      the d parameter before explict conversion takes place.  */
 
   if (w == 0)
-    goto bad_float;
+    {
+      /* Extension: allow default exponent of 0 when omitted.  */
+      if (dtp->common.flags & IOPARM_DT_DEFAULT_EXP)
+	goto done;
+      else
+	goto bad_float;
+    }
 
   if (dtp->u.p.blank_status == BLANK_UNSPECIFIED)
     {
@@ -1223,7 +1227,7 @@ bad_float:
 
 
 /* read_x()-- Deal with the X/TR descriptor.  We just read some data
- * and never look at it. */
+   and never look at it. */
 
 void
 read_x (st_parameter_dt *dtp, int n)
@@ -1256,7 +1260,8 @@ read_x (st_parameter_dt *dtp, int n)
       q = fbuf_getc (dtp->u.p.current_unit);
       if (q == EOF)
 	break;
-      else if (q == '\n' || q == '\r')
+      else if (dtp->u.p.current_unit->flags.cc != CC_NONE
+	       && (q == '\n' || q == '\r'))
 	{
 	  /* Unexpected end of line. Set the position.  */
 	  dtp->u.p.sf_seen_eor = 1;
@@ -1282,8 +1287,9 @@ read_x (st_parameter_dt *dtp, int n)
     } 
 
  done:
-  if ((dtp->common.flags & IOPARM_DT_HAS_SIZE) != 0)
-    dtp->u.p.size_used += (GFC_IO_INT) n;
+  if (((dtp->common.flags & IOPARM_DT_HAS_SIZE) != 0) ||
+      dtp->u.p.current_unit->has_size)
+    dtp->u.p.current_unit->size_used += (GFC_IO_INT) n;
   dtp->u.p.current_unit->bytes_left -= n;
   dtp->u.p.current_unit->strm_pos += (gfc_offset) n;
 }

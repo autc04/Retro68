@@ -118,6 +118,12 @@ run_ld_link_tests {
     {"Build mpx4"
      "-m elf_x86_64 -z bndplt tmpdir/libcall1.so" "" "--64"
      {mpx4a.s} {{objdump -dw mpx4.dd}} "mpx4"}
+    {"Build mpx3 (-z now)"
+     "-z now -m elf_x86_64 -z bndplt tmpdir/libcall.so" "" "--64"
+     {mpx3a.s} {{objdump -dw mpx3n.dd}} "mpx3n"}
+    {"Build mpx4 (-z now)"
+     "-z now -m elf_x86_64 -z bndplt tmpdir/libcall1.so" "" "--64"
+     {mpx4a.s} {{objdump -dw mpx4n.dd}} "mpx4n"}
 }
 
 run_ld_link_exec_tests $run_tests
@@ -126,3 +132,7 @@ run_dump_test "bnd-branch-1"
 run_dump_test "bnd-ifunc-1"
 run_dump_test "bnd-ifunc-2"
 run_dump_test "bnd-plt-1"
+run_dump_test "bnd-branch-1-now"
+run_dump_test "bnd-ifunc-1-now"
+run_dump_test "bnd-ifunc-2-now"
+run_dump_test "bnd-plt-1-now"

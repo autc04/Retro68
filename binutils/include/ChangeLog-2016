@@ -1,3 +1,10 @@
+2016-12-31  Dimitar Dimitrov  <dimitar@dinux.eu>
+
+	* elf/common.h: Add PRU ELF.
+	* elf/pru.h: New file.
+	* opcode/pru.h: New file.
+	* dis-asm.h (print_insn_pru): Declare.
+
 2016-12-23  Maciej W. Rozycki  <macro@imgtec.com>
 
 	* opcode/mips.h: Document `0', `1', `2', `3', `4' and `s'

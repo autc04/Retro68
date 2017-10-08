@@ -1,5 +1,5 @@
 /* Implementation of the RESHAPE intrinsic
-   Copyright (C) 2002-2016 Free Software Foundation, Inc.
+   Copyright (C) 2002-2017 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -24,8 +24,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 <http://www.gnu.org/licenses/>.  */
 
 #include "libgfortran.h"
-#include <stdlib.h>
-#include <assert.h>
 
 
 #if defined (HAVE_GFC_COMPLEX_16)
@@ -80,6 +78,10 @@ reshape_c16 (gfc_array_c16 * const restrict ret,
   index_type shape_data[GFC_MAX_DIMENSIONS];
 
   rdim = GFC_DESCRIPTOR_EXTENT(shape,0);
+  /* rdim is always > 0; this lets the compiler optimize more and
+   avoids a potential warning.  */
+  GFC_ASSERT(rdim>0);
+
   if (rdim != GFC_DESCRIPTOR_RANK(ret))
     runtime_error("rank of return array incorrect in RESHAPE intrinsic");
 
@@ -234,6 +236,11 @@ reshape_c16 (gfc_array_c16 * const restrict ret,
     }
 
   sdim = GFC_DESCRIPTOR_RANK (source);
+
+  /* sdim is always > 0; this lets the compiler optimize more and
+   avoids a warning.  */
+  GFC_ASSERT(sdim>0);
+
   ssize = 1;
   sempty = 0;
   for (n = 0; n < sdim; n++)

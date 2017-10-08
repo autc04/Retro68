@@ -3,17 +3,23 @@
 #ifndef _SYS_PARAM_H
 # define _SYS_PARAM_H
 
-# define HZ (100)
-# define NOFILE	(60)
-# define PATHSIZE (1024)
+#include <machine/param.h>
+#include <machine/endian.h>
 
-#define BIG_ENDIAN      4321
-#define LITTLE_ENDIAN   1234
-
-#ifdef __ARMEB__
-#define BYTE_ORDER BIG_ENDIAN
-#else
-#define BYTE_ORDER LITTLE_ENDIAN
+#ifndef NBBY
+# define NBBY 8		/* number of bits in a byte */
 #endif
+#ifndef HZ
+# define HZ (60)
+#endif
+#ifndef NOFILE
+# define NOFILE (60)
+#endif
+#ifndef PATHSIZE
+# define PATHSIZE (1024)
+#endif
+
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 #endif

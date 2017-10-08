@@ -302,4 +302,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 07                	sysret 
 [ 	]*[a-f0-9]+:	0f 01 f8             	swapgs 
 [ 	]*[a-f0-9]+:	66 68 22 22          	pushw  \$0x2222
+[ 	]*[a-f0-9]+:	f6 c9 01             	test   \$(0x)?0*1,%cl
+[ 	]*[a-f0-9]+:	66 f7 c9 02 00       	test   \$(0x)?0*2,%cx
+[ 	]*[a-f0-9]+:	f7 c9 04 00 00 00    	test   \$(0x)?0*4,%ecx
+[ 	]*[a-f0-9]+:	48 f7 c9 08 00 00 00 	test   \$(0x)?0*8,%rcx
 #pass

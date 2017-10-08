@@ -21,7 +21,7 @@
 #include "sysdep.h"
 #include <stdio.h>
 #include "opcode/d10v.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 
 /* The PC wraps at 18 bits, except for the segment number,
    so use this mask to keep the parts we want.  */

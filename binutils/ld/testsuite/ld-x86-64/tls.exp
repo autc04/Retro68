@@ -65,6 +65,14 @@ run_cc_link_tests [list \
 	{} \
 	"libtls-1b.so" \
     ] \
+    [list \
+	"Build libtls-1bn.so" \
+	"-Wl,-z,now -shared tmpdir/tls-gd1.o tmpdir/tls-ld1.o" \
+	"" \
+	{dummy.s} \
+	{} \
+	"libtls-1bn.so" \
+    ] \
 ]
 
 run_ld_link_exec_tests [list \
@@ -78,12 +86,30 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
+	"TLS GD/LD -> LE transition without PLT (dynamic, -z now)" \
+	"-Wl,-z,now tmpdir/tls-def1.o tmpdir/tls-main1.o tmpdir/tls-gd1.o \
+	 tmpdir/tls-ld1.o" \
+	"" \
+	{ dummy.s } \
+	"tls-1an" \
+	"pass.out" \
+    ] \
+    [list \
 	"TLS GD/LD -> LE transition without PLT (PIE)" \
 	"-pie tmpdir/tls-def1.o tmpdir/tls-main1.o tmpdir/tls-gd1.o \
 	 tmpdir/tls-ld1.o" \
 	"" \
 	{ dummy.s } \
 	"tls-1b" \
+	"pass.out" \
+    ] \
+    [list \
+	"TLS GD/LD -> LE transition without PLT (PIE, -z now)" \
+	"-pie -Wl,-z,now tmpdir/tls-def1.o tmpdir/tls-main1.o tmpdir/tls-gd1.o \
+	 tmpdir/tls-ld1.o" \
+	"" \
+	{ dummy.s } \
+	"tls-1bn" \
 	"pass.out" \
     ] \
     [list \
@@ -97,17 +123,26 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"TLS GD/LD -> IE transition without PLT" \
-	"tmpdir/tls-main1.o tmpdir/tls-gd1.o tmpdir/tls-ld1.o \
-	 tmpdir/libtls-1a.so -R tmpdir" \
+	"-Wl,--no-as-needed,-R,tmpdir tmpdir/tls-main1.o \
+	 tmpdir/tls-gd1.o tmpdir/tls-ld1.o tmpdir/libtls-1a.so" \
 	"" \
 	{ dummy.s } \
 	"tls-1d" \
 	"pass.out" \
     ] \
     [list \
+	"TLS GD/LD -> IE transition without PLT (-z now)" \
+	"-Wl,-z,now tmpdir/tls-main1.o tmpdir/tls-gd1.o tmpdir/tls-ld1.o \
+	 tmpdir/libtls-1a.so -Wl,-R,tmpdir" \
+	"" \
+	{ dummy.s } \
+	"tls-1dn" \
+	"pass.out" \
+    ] \
+    [list \
 	"TLS without PLT (1)" \
-	"tmpdir/tls-main1.o \
-	 tmpdir/libtls-1a.so tmpdir/libtls-1b.so -R tmpdir" \
+	"-Wl,--no-as-needed,-R,tmpdir tmpdir/tls-main1.o \
+	 tmpdir/libtls-1a.so tmpdir/libtls-1b.so" \
 	"" \
 	{ dummy.s } \
 	"tls-1e" \
@@ -115,11 +150,97 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"TLS without PLT (2)" \
-	"tmpdir/tls-main1.o tmpdir/tls-def1.o \
-	 tmpdir/libtls-1b.so -R tmpdir" \
+	"-Wl,--no-as-needed,-R,tmpdir tmpdir/tls-main1.o \
+	 tmpdir/tls-def1.o tmpdir/libtls-1b.so" \
 	"" \
 	{ dummy.s } \
 	"tls-1f" \
 	"pass.out" \
+    ] \
+    [list \
+	"TLS without PLT (3)" \
+	"-Wl,--no-as-needed -Wl,-z,now tmpdir/tls-main1.o \
+	 tmpdir/libtls-1a.so tmpdir/libtls-1bn.so -Wl,-R,tmpdir" \
+	"" \
+	{ dummy.s } \
+	"tls-1en" \
+	"pass.out" \
+    ] \
+    [list \
+	"TLS without PLT (4)" \
+	"-Wl,-z,now tmpdir/tls-main1.o tmpdir/tls-def1.o \
+	 tmpdir/libtls-1bn.so -Wl,-R,tmpdir" \
+	"" \
+	{ dummy.s } \
+	"tls-1fn" \
+	"pass.out" \
+    ] \
+]
+
+# -mtls-dialect=gnu2 isn't supported on x32.
+if [istarget "x86_64-*-linux*-gnux32"] {
+    return
+}
+
+run_cc_link_tests [list \
+    [list \
+	"Build libtlsdesc1.so" \
+	"-shared" \
+	"-fPIC $GNU2_CFLAGS" \
+	{ tlsdesc1b.c } \
+	{} \
+	"libtlsdesc1.so" \
+    ] \
+    [list \
+	"Build libtlsdesc1n.so" \
+	"-Wl,-z,now -shared" \
+	"-fPIC $GNU2_CFLAGS" \
+	{ tlsdesc1b.c } \
+	{} \
+	"libtlsdesc1n.so" \
+    ] \
+]
+
+# Run-time tests which require working GNU2 TLS support.
+if { ![check_gnu2_tls_available] } {
+    return
+}
+
+run_ld_link_exec_tests [list \
+    [list \
+	"Run tlsdesc1" \
+	"-Wl,--no-as-needed tmpdir/libtlsdesc1.so" \
+	"" \
+	{ tlsdesc1a.c } \
+	"tlsdesc1a" \
+	"pass.out" \
+	"$GNU2_CFLAGS" \
+    ] \
+    [list \
+	"Run tlsdesc1 (-z now)" \
+	"-Wl,-z,now -Wl,--no-as-needed tmpdir/libtlsdesc1n.so" \
+	"" \
+	{ tlsdesc1a.c } \
+	"tlsdesc1b" \
+	"pass.out" \
+	"$GNU2_CFLAGS" \
+    ] \
+    [list \
+	"Run tlsdesc1 with PIE" \
+	"-pie -Wl,--no-as-needed tmpdir/libtlsdesc1.so" \
+	"" \
+	{ tlsdesc1a.c } \
+	"tlsdesc1c" \
+	"pass.out" \
+	"-fPIE $GNU2_CFLAGS" \
+    ] \
+    [list \
+	"Run tlsdesc1 with PIE (-z now)" \
+	"-pie -Wl,-z,now -Wl,--no-as-needed tmpdir/libtlsdesc1n.so" \
+	"" \
+	{ tlsdesc1a.c } \
+	"tlsdesc1d" \
+	"pass.out" \
+	"-fPIE $GNU2_CFLAGS" \
     ] \
 ]

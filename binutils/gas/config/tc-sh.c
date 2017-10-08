@@ -488,7 +488,7 @@ static struct hash_control *opcode_hash_control;	/* Opcode mnemonics */
 
 
 #ifdef OBJ_ELF
-/* Determinet whether the symbol needs any kind of PIC relocation.  */
+/* Determine whether the symbol needs any kind of PIC relocation.  */
 
 inline static int
 sh_PIC_related_p (symbolS *sym)
@@ -4292,7 +4292,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
   if (max != 0 && (val < min || val > max))
     as_bad_where (fixP->fx_file, fixP->fx_line, _("offset out of range"));
   else if (max != 0)
-    /* Stop the generic code from trying to overlow check the value as well.
+    /* Stop the generic code from trying to overflow check the value as well.
        It may not have the correct value anyway, as we do not store val back
        into *valP.  */
     fixP->fx_no_overflow = 1;
@@ -4348,7 +4348,7 @@ md_estimate_size_before_relax (fragS *fragP, segT segment_type)
 	}
       else if (fragP->fr_symbol)
 	{
-	  /* Its got a segment, but its not ours, so it will always be long.  */
+	  /* It's got a segment, but it's not ours, so it will always be long.  */
 	  fragP->fr_subtype = C (what, UNDEF_WORD_DISP);
 	}
       else

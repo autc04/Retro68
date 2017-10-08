@@ -21,6 +21,7 @@
 @set POWERPC
 @set POWERPC64
 @set Renesas
+@set S/390
 @set SPU
 @set TICOFF
 @set WIN32

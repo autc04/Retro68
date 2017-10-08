@@ -27,6 +27,8 @@
 # ctors and dtors are folded, except for x86 (32 and 64 bit), which
 # uses relocation types to detect if function pointers are taken.
 
+set -e
+
 check_nofold()
 {
     func_addr_1=`grep $2 $1 | awk '{print $1}'`
@@ -57,8 +59,7 @@ END {
 
 arch_specific_safe_fold()
 {
-    grep_x86=`grep -q -e "Advanced Micro Devices X86-64" -e "Intel 80386" -e "ARM" -e "TILE" -e "PowerPC" -e "AArch64" -e "IBM S/390" $2`
-    if [ $? -eq 0 ];
+    if grep -q -e "Advanced Micro Devices X86-64" -e "Intel 80386" -e "ARM" -e "TILE" -e "PowerPC" -e "AArch64" -e "IBM S/390" $2;
     then
       check_fold $3 $4 $5
     else

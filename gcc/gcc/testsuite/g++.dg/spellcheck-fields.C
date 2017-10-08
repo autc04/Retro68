@@ -38,7 +38,7 @@ int test4 (struct foo *ptr)
 int test5 (struct foo *ptr)
 {
   return ptr->this_is_unlike_any_of_the_fields;   /* { dg-bogus "did you mean" } */
-  /* { dg-error "has no member named" "" { target *-*-* } 40 } */
+  /* { dg-error "has no member named" "" { target *-*-* } .-1 } */
 }
 
 union u
@@ -59,7 +59,7 @@ struct has_anon
 
 int test7 (struct has_anon *ptr)
 {
-  return ptr->s.colour; /* { dg-error "'struct has_anon::<anonymous>' has no member named 'colour'; did you mean 'color'?" } */
+  return ptr->s.colour; /* { dg-error "'struct has_anon::<unnamed>' has no member named 'colour'; did you mean 'color'?" } */
 }
 
 int test8 (foo &ref)

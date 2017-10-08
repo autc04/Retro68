@@ -1,5 +1,5 @@
 /* Tail merging for gimple.
-   Copyright (C) 2011-2016 Free Software Foundation, Inc.
+   Copyright (C) 2011-2017 Free Software Foundation, Inc.
    Contributed by Tom de Vries (tom@codesourcery.com)
 
 This file is part of GCC.
@@ -808,6 +808,9 @@ static void
 same_succ_flush_bb (basic_block bb)
 {
   same_succ *same = BB_SAME_SUCC (bb);
+  if (! same)
+    return;
+
   BB_SAME_SUCC (bb) = NULL;
   if (bitmap_single_bit_set_p (same->bbs))
     same_succ_htab->remove_elt_with_hash (same, same->hashval);
@@ -1270,6 +1273,10 @@ find_duplicate (same_succ *same_succ, basic_block bb1, basic_block bb2)
       gimple *stmt1 = gsi_stmt (gsi1);
       gimple *stmt2 = gsi_stmt (gsi2);
 
+      if (gimple_code (stmt1) == GIMPLE_LABEL
+	  && gimple_code (stmt2) == GIMPLE_LABEL)
+	break;
+
       if (!gimple_equal_p (same_succ, stmt1, stmt2))
 	return;
 
@@ -1282,6 +1289,20 @@ find_duplicate (same_succ *same_succ, basic_block bb1, basic_block bb2)
       gsi_advance_bw_nondebug_nonlocal (&gsi2, &vuse2, &vuse_escaped);
     }
 
+  while (!gsi_end_p (gsi1) && gimple_code (gsi_stmt (gsi1)) == GIMPLE_LABEL)
+    {
+      tree label = gimple_label_label (as_a <glabel *> (gsi_stmt (gsi1)));
+      if (DECL_NONLOCAL (label) || FORCED_LABEL (label))
+	return;
+      gsi_prev (&gsi1);
+    }
+  while (!gsi_end_p (gsi2) && gimple_code (gsi_stmt (gsi2)) == GIMPLE_LABEL)
+    {
+      tree label = gimple_label_label (as_a <glabel *> (gsi_stmt (gsi2)));
+      if (DECL_NONLOCAL (label) || FORCED_LABEL (label))
+	return;
+      gsi_prev (&gsi2);
+    }
   if (!(gsi_end_p (gsi1) && gsi_end_p (gsi2)))
     return;
 
@@ -1385,11 +1406,11 @@ deps_ok_for_redirect_from_bb_to_bb (basic_block from, basic_block to)
   basic_block cd, dep_bb = BB_DEP_BB (to);
   edge_iterator ei;
   edge e;
-  bitmap from_preds = BITMAP_ALLOC (NULL);
 
   if (dep_bb == NULL)
     return true;
 
+  bitmap from_preds = BITMAP_ALLOC (NULL);
   FOR_EACH_EDGE (e, ei, from->preds)
     bitmap_set_bit (from_preds, e->src->index);
   cd = nearest_common_dominator_for_set (CDI_DOMINATORS, from_preds);
@@ -1433,7 +1454,7 @@ find_clusters_1 (same_succ *same_succ)
       /* TODO: handle blocks with phi-nodes.  We'll have to find corresponding
 	 phi-nodes in bb1 and bb2, with the same alternatives for the same
 	 preds.  */
-      if (bb_has_non_vop_phi (bb1))
+      if (bb_has_non_vop_phi (bb1) || bb_has_eh_pred (bb1))
 	continue;
 
       nr_comparisons = 0;
@@ -1441,7 +1462,7 @@ find_clusters_1 (same_succ *same_succ)
 	{
 	  bb2 = BASIC_BLOCK_FOR_FN (cfun, j);
 
-	  if (bb_has_non_vop_phi (bb2))
+	  if (bb_has_non_vop_phi (bb2) || bb_has_eh_pred (bb2))
 	    continue;
 
 	  if (BB_CLUSTER (bb1) != NULL && BB_CLUSTER (bb1) == BB_CLUSTER (bb2))
@@ -1558,6 +1579,23 @@ replace_block_by (basic_block bb1, basic_block bb2)
   FOR_EACH_EDGE (e2, ei, bb2->succs)
     {
       e2->probability = GCOV_COMPUTE_SCALE (e2->count, out_sum);
+    }
+
+  /* Move over any user labels from bb1 after the bb2 labels.  */
+  gimple_stmt_iterator gsi1 = gsi_start_bb (bb1);
+  if (!gsi_end_p (gsi1) && gimple_code (gsi_stmt (gsi1)) == GIMPLE_LABEL)
+    {
+      gimple_stmt_iterator gsi2 = gsi_after_labels (bb2);
+      while (!gsi_end_p (gsi1)
+	     && gimple_code (gsi_stmt (gsi1)) == GIMPLE_LABEL)
+	{
+	  tree label = gimple_label_label (as_a <glabel *> (gsi_stmt (gsi1)));
+	  gcc_assert (!DECL_NONLOCAL (label) && !FORCED_LABEL (label));
+	  if (DECL_ARTIFICIAL (label))
+	    gsi_next (&gsi1);
+	  else
+	    gsi_move_before (&gsi1, &gsi2);
+	}
     }
 
   /* Clear range info from all stmts in BB2 -- this transformation
