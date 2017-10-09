@@ -31,12 +31,6 @@
 
 void referenceMyMalloc() {}
 
-int* __errno()
-{
-	static int realErrno = 0;
-	return &realErrno;
-}
-
 void *_malloc_r(struct _reent *reent_ptr, size_t sz)
 {
 	Ptr p = NewPtr(sz);
