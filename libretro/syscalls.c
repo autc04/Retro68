@@ -30,6 +30,8 @@
 #include <reent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include <MacMemory.h>
 #include <Processes.h>
@@ -83,7 +85,17 @@ ssize_t _read_r(struct _reent *reent, int fd, void *buf, size_t count)
 int _open_r(struct _reent *reent, const char* name, int flags, int mode)
 {
 	Str255 pname;
+#if TARGET_API_MAC_CARBON
+	// Carbon has the new, sane version.
 	c2pstrcpy(pname,name);
+#else
+	// It is also availble in various glue code libraries and
+	// in some versions of InterfaceLib, but it's confusing.
+	// Using the inplace variant, c2pstr, isn't much better than
+	// doing things by hand:
+	strncpy(&pname[1],name,255);
+	pname[0] = strlen(name);
+#endif
 	short ref;
 
 	SInt8 permission;
