@@ -1,5 +1,6 @@
 #include "Carbon.h"
 #include "Launcher.h"
+#include "Utilities.h"
 
 const std::string launchCFM =
 	"/System/Library/Frameworks/Carbon.framework/Versions/A/Support/LaunchCFMApp";

@@ -1,5 +1,6 @@
 #include "MiniVMac.h"
 #include "Launcher.h"
+#include "Utilities.h"
 
 extern "C" {
 #include "hfs.h"

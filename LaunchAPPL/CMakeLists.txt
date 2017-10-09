@@ -3,6 +3,7 @@ find_package(Boost COMPONENTS filesystem program_options)
 set(LAUNCHMETHODS
 	Executor.h Executor.cc
 	MiniVMac.h MiniVMac.cc
+	SSH.h SSH.cc
 )
 
 if(APPLE)
@@ -20,6 +21,8 @@ add_executable(LaunchAPPL
 
 	LaunchMethod.h LaunchMethod.cc
 	Launcher.h Launcher.cc
+
+	Utilities.h Utilities.cc
 
 	${LAUNCHMETHODS})
 	

@@ -19,8 +19,6 @@ protected:
 	ResourceFile app;
 	boost::filesystem::path tempDir, appPath, outPath;
 	bool keepTempFiles;
-
-	int ChildProcess(std::string program, std::vector<std::string> args, int timeout);
 public:
 	/**
 	 * @brief Launcher

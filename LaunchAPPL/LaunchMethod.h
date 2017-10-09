@@ -66,13 +66,6 @@ public:
 	virtual std::unique_ptr<Launcher> MakeLauncher(variables_map& options) = 0;
 
 protected:
-
-	/**
-	 * @brief CheckExecutable
-	 * @param program
-	 * @return true if "program" exists in the $PATH and is executable.
-	 */
-	bool CheckExecutable(std::string program);
 };
 
 #endif // LAUNCHMETHOD_H
