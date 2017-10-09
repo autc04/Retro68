@@ -67,17 +67,12 @@ static void writeMacBinary(std::ostream& out, std::string filename,
 						   ResType type, ResType creator,
 						   const Resources& rsrc, const std::string& data)
 {
-	out.seekp(128);
-	out << data;
-	std::streampos dataend = out.tellp();
-	while((int)out.tellp() % 128)
-		byte(out,0);
-	std::streampos rsrcstart = out.tellp(); //((int)dataend + 0x7F) & ~0x7F;
-	rsrc.writeFork(out);
 
-	std::streampos rsrcend = out.tellp();
-	while((int)out.tellp() % 128)
-		byte(out,0);
+	std::ostringstream resstream;
+	rsrc.writeFork(resstream);
+
+	const std::string& rsrcBytes = resstream.str();
+
 
 	std::ostringstream header;
 	byte(header, 0);
@@ -94,21 +89,22 @@ static void writeMacBinary(std::ostream& out, std::string filename,
 	word(header, 0); // folder id
 	byte(header, 0); // protected flag
 	byte(header, 0);
-	longword(header, ((int)dataend - 128));
-	longword(header, (int) (rsrcend - rsrcstart));
+	longword(header, (int)data.size());
+	longword(header, (int)rsrcBytes.size());
 	longword(header, 0); // creation date
 	longword(header, 0); // modification date
 	while((int)header.tellp() < 124)
 		byte(header,0);
-
-	out.seekp(0);
 	std::string headerData = header.str();
-//   out.write(&headerData[0], headerData.size());
 	out << headerData;
 	word(out, CalculateCRC(0, &headerData[0], headerData.size()));
 	word(out, 0);
-	//longword(out,0);
-	out.seekp(0, std::ios::end);
+	out << data;
+	while((int)out.tellp() % 128)
+		byte(out,0);
+	rsrc.writeFork(out);
+	while((int)out.tellp() % 128)
+		byte(out,0);
 }
 
 
