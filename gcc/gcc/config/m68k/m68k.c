@@ -5491,6 +5491,9 @@ m68k_function_value (const_tree valtype, const_tree func_decl_or_type, bool outg
     break;
   }
 
+#if 1 /* POINTERS_IN_D0 */
+  return gen_rtx_REG (mode, D0_REG);
+#else
   /* If the function returns a pointer, push that into %a0.  */
   if (type && POINTER_TYPE_P (TREE_TYPE (type)) && !outgoing)
     /* For compatibility with the large body of existing code which
@@ -5513,6 +5516,7 @@ m68k_function_value (const_tree valtype, const_tree func_decl_or_type, bool outg
     return gen_rtx_REG (mode, A0_REG);
   else
     return gen_rtx_REG (mode, D0_REG);
+#endif
 }
 
 /* Worker function for TARGET_RETURN_IN_MEMORY.  */
