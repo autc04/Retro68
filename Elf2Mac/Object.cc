@@ -132,8 +132,12 @@ Object::Object(string input)
 void Object::FlatCode(std::ostream& out)
 {
 	for(auto sec : codeSections)
+	{
+		sec->FixRelocs();
 		out << sec->GetData();
-
+	}
+		
+	dataSection->FixRelocs();
 	out << dataSection->GetData();
 
 	std::vector<RuntimeReloc> relocs;
