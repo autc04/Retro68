@@ -31,6 +31,21 @@ enum RecordType {
 	kComputedRef = 10
 };
 
+enum ReferenceFlags {	// flags field of kReference
+	k16BitPatch = 0x10,	// default 32Bit
+	kFromData = 0x01,	// default fromCode
+	kA5Relative = 0x80,	// default absolute
+
+	kUnknownReferenceFlags = 0x6E	// rather a lot, isn't it?
+	    // The following flags are known to exist from DumpOBJ,
+	    // but their value is unkown as I haven't actually seen them yet:
+	    // k32BitOffsets (default k16BitOffsets)
+};
+
+enum ComputedReferenceFlags {
+	kDifference = 0x80
+};
+
 struct Reloc
 {
 	int size;
@@ -42,21 +57,45 @@ struct Reloc
 
 int Reloc::write(std::ostream& out, uint8_t *p)
 {
-	assert(size == 2);
-	out << "\t.short ";
-	int val = (int)p[0] * 256 + p[1];
+	if(size == 2)
+	{
+		out << "\t.short ";
+		int val = (int)p[0] * 256 + p[1];
 
-	out << name1;
-	if(name2.size())
-		out << " - " << name2;
-	if(val > 0)
-		out << " + " << val;
-	else if(val < 0)
-		out << " - " << -val;
-	if(name2.size() == 0)
-		out << "-.";
-	out << std::endl;
-	return 2;
+		out << name1;
+		if(name2.size())
+			out << " - " << name2;
+		if(val > 0)
+			out << " + " << val;
+		else if(val < 0)
+			out << " - " << -val;
+		if(name2.size() == 0)
+			out << "-.";
+		out << std::endl;
+		return 2;
+	}
+	else if(size == 4)
+	{
+		out << "\t.long ";
+		int val = ((int)p[0] << 24) | ((int)p[1] << 16) | ((int)p[2] << 8) | p[3];
+
+		out << name1;
+		if(name2.size())
+			out << " - " << name2;
+		if(val > 0)
+			out << " + " << val;
+		else if(val < 0)
+			out << " - " << -val;
+		if(name2.size() == 0)
+			out << "-.";
+		out << std::endl;
+		return 4;
+	}
+	else
+	{
+		assert(false);
+		return 1;
+	}
 }
 
 struct Module
@@ -346,9 +385,24 @@ int main(int argc, char* argv[])
 						std::cerr << "Reference to " << name << " at\n";
 					Reloc reloc;
 					reloc.name1 = name;
-					reloc.size = 2;
 
-					assert(flags == 0x10);
+					if(flags & kUnknownReferenceFlags)
+					{
+						std::cerr << "Unknown relocation flags: 0x" << std::hex << flags << std::endl;
+						std::cerr << "Cannot convert this file.\n";
+						std::exit(1);
+					}
+					if(flags & kA5Relative)
+					{
+						std::cerr << "Unsupported relocation flags: 0x" << std::hex << flags << std::endl;
+						std::cerr << "MPW .o files with near-model global variables or calls to imported functions will not work.\n";
+						std::cerr << "Cannot convert this file.\n";
+						std::exit(1);
+					}
+					flags &= ~kFromData;	// FIXME: sticking data bits in the text section, not nice, but might sometimes work
+
+					reloc.size = (flags & k16BitPatch ? 2 : 4);
+
 					assert(module);
 
 					while(in.tellg() < end)
