@@ -219,7 +219,18 @@ void sortModules(std::vector<std::shared_ptr<Module>>& modules)
 
 int main(int argc, char* argv[])
 {
+	if(argc != 2)
+	{
+		std::cerr << "Usage: ConvertOBJ mpw.o > retro68.s\n";
+		return 1;
+	}
 	std::ifstream in(argv[1]);
+	if(!in)
+	{
+		std::cerr << "Could not read imput file \"" << argv[1] << "\"\n";
+		std::cerr << "Usage: ConvertOBJ mpw.o > retro68.s\n";
+		return 1;
+	}
 
 	unordered_map<int,string>	stringDictionary;
 	
