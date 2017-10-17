@@ -66,6 +66,26 @@ found at:
     
 You will need a Mac or a Mac emulator (with DiscCopy) to read that file.
 
+### Windows Compilation using Cygwin
+
+You can compile Retro68 on Windows using via a Cygwin terminal. When installing
+Cygwin, select the following packages in the Cygwin Setup program (as per the dependencies 
+listed above):
+
+- bison
+- cmake
+- gcc-core
+- gcc-g++
+- libboost-devel
+- libgmp-devel
+- libmpc-devel
+- libmpfr-devel
+- make
+- zlib-devel
+
+Additional dependencies will be automatically installed.
+
+Note that compilation via Cygwin is around 3X slower than other platforms.
 
 ### Compiling Retro68
 
