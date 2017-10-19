@@ -1,0 +1,2 @@
+# Ensure Windows Git clients maintain Unix line endings on checkout
+* text eol=lf
