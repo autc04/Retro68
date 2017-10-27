@@ -192,7 +192,9 @@ void Retro68InitMultisegApp()
         jtEntry->jmp.addr = addr;
         ++jtEntry;
     }
-    
+    if(relocState.hasFlushCodeCache)
+        FlushCodeCache();
+
     // Zero-initialize bss
     for(uint32_t *p = (uint32_t*) &_sbss;
         p < (uint32_t*) &_ebss; ++p)
