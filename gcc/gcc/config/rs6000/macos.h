@@ -147,6 +147,7 @@
   do                                      \
     {                                     \
       builtin_define ("__ppc__");               \
+      builtin_define ("__PPC__");               \
       builtin_define ("__POWERPC__");           \
       builtin_define ("__NATURAL_ALIGNMENT__"); \
       builtin_assert ("system=macos");     \
