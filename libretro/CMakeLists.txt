@@ -25,7 +25,9 @@ cmake_minimum_required(VERSION 2.8)
 
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 	find_program(CONVERT_OBJ ConvertObj PATH "${CMAKE_INSTALL_PREFIX}/../bin/")
-	add_custom_command(
+    
+    set(INTERFACE_O InterfaceO_NOTFOUND CACHE STRING "path to MPW Interface.o file")
+    add_custom_command(
 		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/Interface.s
 		COMMAND ${CONVERT_OBJ} ${INTERFACE_O} > ${CMAKE_CURRENT_BINARY_DIR}/Interface.s
 	)
