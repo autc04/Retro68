@@ -303,10 +303,12 @@ The binary is in Retro68-build/build-target/Samples/Dialog/.
 License
 -------
 
-The original parts of Retro68 are licensed under GPL3+, as are
+The original parts of Retro68 are licensed under [GPL3+](./COPYING), as are
 most other parts. Some parts are licensed GPL2+ or with more
-liberal licenses. Check the copyright notices in the individual
-files.
+liberal licenses. The *libretro* runtime library is licensed under GPL3+ with the
+GCC runtime exception (see [COPYING.RUNTIME](./COPYING.RUNTIME), so there are no licensing restrictions
+on programs compiled with Retro68.
+Check the copyright notices in the individual files for details.
 
 
 
