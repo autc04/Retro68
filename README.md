@@ -14,7 +14,7 @@ Installing/Building
 
 ### Prerequisites
 
-- Linux or Mac OS X
+- Linux, Mac OS X or Windows (via Cygwin)
 - boost
 - CMake 2.8
 - GCC dependencies: GMP 4.2+, MPFR 2.3.1+ and MPC 0.8.0+
@@ -74,6 +74,7 @@ listed above):
 
 - bison
 - cmake
+- flex
 - gcc-core
 - gcc-g++
 - libboost-devel
@@ -81,6 +82,7 @@ listed above):
 - libmpc-devel
 - libmpfr-devel
 - make
+- texinfo
 - zlib-devel
 
 Additional dependencies will be automatically installed.
