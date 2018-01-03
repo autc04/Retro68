@@ -1,36 +1,28 @@
 /* Plural expression evaluation.
-   Copyright (C) 2000-2002 Free Software Foundation, Inc.
+   Copyright (C) 2000-2003, 2007, 2015-2016 Free Software Foundation, Inc.
 
-   This program is free software; you can redistribute it and/or modify it
-   under the terms of the GNU Library General Public License as published
-   by the Free Software Foundation; either version 2, or (at your option)
-   any later version.
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Lesser General Public License as published by
+   the Free Software Foundation; either version 2.1 of the License, or
+   (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU Library General Public
-   License along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301,
-   USA.  */
+   You should have received a copy of the GNU Lesser General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #ifndef STATIC
 #define STATIC static
 #endif
 
 /* Evaluate the plural expression and return an index value.  */
-STATIC unsigned long int plural_eval PARAMS ((struct expression *pexp,
-					      unsigned long int n))
-     internal_function;
-
 STATIC
 unsigned long int
 internal_function
-plural_eval (pexp, n)
-     struct expression *pexp;
-     unsigned long int n;
+plural_eval (const struct expression *pexp, unsigned long int n)
 {
   switch (pexp->nargs)
     {
