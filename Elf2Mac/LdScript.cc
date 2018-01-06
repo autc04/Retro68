@@ -28,7 +28,7 @@
 using std::string;
 
 const char * scriptStart = R"ld(/* ld script for Elf2Mac */
-ENTRY( _start )
+ENTRY( @entryPoint@ )
 SECTIONS
 {
 )ld";
@@ -45,7 +45,7 @@ const char * textSection = R"ld(/* ld script for Elf2Mac */
         SHORT(DEFINED(__break_on_entry) ? 0xA9FF : 0x4e71);
         LONG(0x61000002); /* bsr *+2 */
         SHORT(0x0697); /* addi.l #_, (a7) */
-        LONG(_start - _entry_trampoline - 6);
+        LONG(@entryPoint@ - _entry_trampoline - 6);
 
         PROVIDE(_start = .); /* fallback entry point to a safe spot - needed for libretro bootstrap */
         Retro68InitMultisegApp = .; /* override this for the single-segment case */
@@ -181,16 +181,16 @@ const char * scriptEnd = R"ld(
 )ld";
 
 
-void CreateFlatLdScript(std::ostream& out, bool stripMacsbug)
+void CreateFlatLdScript(std::ostream& out, string entryPoint, bool stripMacsbug)
 {
 	out << "_MULTISEG_APP = 0;\n";
-	out << scriptStart;
+	out << boost::replace_all_copy<string>(scriptStart, "@entryPoint@", entryPoint);
 	if(stripMacsbug)
 	{
 		out << "\t.strippedmacsbugnames 0 (NOLOAD) : { *(.text.*.macsbug) }\n";
 		out << "\t. = 0;\n";
 	}
-	out << textSection << scriptEnd;
+	out << boost::replace_all_copy<string>(textSection, "@entryPoint@", entryPoint) << scriptEnd;
 }
 
 
@@ -211,13 +211,13 @@ void SegmentInfo::WriteFiltersKeep(std::ostream &out, string section)
 	}
 }
 
-void SegmentInfo::CreateLdScript(std::ostream &out)
+void SegmentInfo::CreateLdScript(std::ostream &out, string entryPoint)
 {
 	out << "\t.code" << id << " : {\n";
 	out << "\t\tFILL(0x4E71);\n";
 	if(id == 1)
 	{
-		out << R"ld(
+		out << boost::replace_all_copy<string>(R"ld(
 		_stext = .;
 		FILL(0x4E71);
 		PROVIDE(_rsrc_start = .);
@@ -226,14 +226,14 @@ void SegmentInfo::CreateLdScript(std::ostream &out)
 		SHORT(DEFINED(__break_on_entry) ? 0xA9FF : 0x4e71);
 		LONG(0x61000002);	/* bsr *+2 */
 		SHORT(0x0697); /* addi.l #_, (a7) */
-		LONG(_start - _entry_trampoline - 6);
+		LONG(@entryPoint@ - _entry_trampoline - 6);
 		PROVIDE(_start = .);  /* fallback entry point to a safe spot - needed for libretro bootstrap */
 		SHORT(0x4e75); /* rts */
 
 		FILL(0);
 		*(.relocvars)
 		FILL(0x4E71);
-)ld";
+)ld", "@entryPoint@", entryPoint);
 	}
 	WriteFilters(out, ".text");
 
@@ -284,10 +284,10 @@ void SegmentInfo::CreateLdScript(std::ostream &out)
 
 }
 
-void SegmentMap::CreateLdScript(std::ostream &out, bool stripMacsbug)
+void SegmentMap::CreateLdScript(std::ostream &out, string entryPoint, bool stripMacsbug)
 {
 	out << "_MULTISEG_APP = 1;\n";
-	out << scriptStart;
+	out << boost::replace_all_copy<string>(scriptStart, "@entryPoint@", entryPoint);
 	if(stripMacsbug)
 	{
 		out << "\t.strippedmacsbugnames 0 (NOLOAD) : { *(.text.*.macsbug) }\n";
@@ -295,7 +295,7 @@ void SegmentMap::CreateLdScript(std::ostream &out, bool stripMacsbug)
 	}
 	for(SegmentInfo& seg: segments)
 	{
-		seg.CreateLdScript(out);
+		seg.CreateLdScript(out, entryPoint);
 	}
 
 	out << scriptEnd;

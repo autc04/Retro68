@@ -95,6 +95,7 @@ int main(int argc, char *argv[])
 	if(boost::algorithm::ends_with(argv[0], "ld"))
 	{
 		string outputFile = "a.out";
+        string entryPoint = "_start";
 		bool elf2mac = false;
 		bool flatoutput = false;
 		bool segments = true;
@@ -116,10 +117,21 @@ int main(int argc, char *argv[])
 			{
 				outputFile = (*p).substr(2);
 			}
-			else if(*p == "-elf2mac")
+			else if(*p == "-elf2mac" || *p == "--elf2mac")
 			{
 				elf2mac = true;
 			}
+            else if(*p == "-e")
+			{
+				++p;
+				if(p == e)
+					errx(EXIT_FAILURE, "-e missing argument");
+				entryPoint = *p;
+			}
+            else if(boost::algorithm::starts_with(*p, "-e"))
+            {
+                entryPoint = (*p).substr(2);
+            }
 			else if(*p == "--mac-flat")
 			{
 				elf2mac = true;
@@ -163,12 +175,11 @@ int main(int argc, char *argv[])
 				ofstream out(tmpfile);
 				if(segments)
 				{
-					segmentMap.CreateLdScript(out, stripMacsbug);
-					segmentMap.CreateLdScript(std::cout, stripMacsbug);
+					segmentMap.CreateLdScript(out, entryPoint, stripMacsbug);
 				}
 				else
 				{
-					CreateFlatLdScript(out, stripMacsbug);
+					CreateFlatLdScript(out, entryPoint, stripMacsbug);
 				}
 			}
 

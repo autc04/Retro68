@@ -39,7 +39,7 @@ public:
 
 	void WriteFilters(std::ostream& out, std::string section);
 	void WriteFiltersKeep(std::ostream& out, std::string section);
-	void CreateLdScript(std::ostream& out);
+	void CreateLdScript(std::ostream& out, std::string entryPoint);
 };
 
 class SegmentMap
@@ -49,7 +49,7 @@ public:
 	SegmentMap();
 	SegmentMap(std::string filename);
 
-	void CreateLdScript(std::ostream& out, bool stripMacsbug);
+	void CreateLdScript(std::ostream& out, std::string entryPoint, bool stripMacsbug);
 	std::string GetSegmentName(int id);
 };
 
