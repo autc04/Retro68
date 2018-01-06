@@ -225,6 +225,8 @@ void Object::SingleSegmentApp(string output)
 
 void Object::MultiSegmentApp(string output, SegmentMap& segmentMap)
 {
+    bool noisy = false;
+    
 	ResourceFile file(output);
 	Resources& rsrc = file.resources;
 
@@ -290,14 +292,16 @@ void Object::MultiSegmentApp(string output, SegmentMap& segmentMap)
 			id++;
 		}
 
-		std::cout << "CODE 0: " << code0.str().size() << " bytes\n";
-		std::cout << "above A5: " << 0x20 + 8 * (jtEntryCount+2) << " bytes\n";
-		std::cout << "below A5: " << data_and_bss_size << " bytes\n";
-		std::cout << ".data: " << dataSection->shdr.sh_size << " bytes at A5-"
-		            << std::hex << data_and_bss_size << std::dec << "\n";
-		std::cout << ".bss: " << bssSection->shdr.sh_size << " bytes at A5-"
-		            << std::hex << bssSection->shdr.sh_size << std::dec << "\n";
-
+        if(noisy)
+        {
+            std::cout << "CODE 0: " << code0.str().size() << " bytes\n";
+            std::cout << "above A5: " << 0x20 + 8 * (jtEntryCount+2) << " bytes\n";
+            std::cout << "below A5: " << data_and_bss_size << " bytes\n";
+            std::cout << ".data: " << dataSection->shdr.sh_size << " bytes at A5-"
+                        << std::hex << data_and_bss_size << std::dec << "\n";
+            std::cout << ".bss: " << bssSection->shdr.sh_size << " bytes at A5-"
+                        << std::hex << bssSection->shdr.sh_size << std::dec << "\n";
+        }
 		rsrc.addResource(Resource(ResType("CODE"), 0, code0.str()));
 	}
 
@@ -322,9 +326,10 @@ void Object::MultiSegmentApp(string output, SegmentMap& segmentMap)
 			int exceptionSize = sec->shdr.sh_addr + codeSize - sec->exceptionInfoStart;
 			double percent = 100.0 * exceptionSize / codeSize;
 
-			std::cout << "CODE " << id << " has " << exceptionSize << " bytes of exception info (" << percent << "%)\n";
+			if(noisy)
+                std::cout << "CODE " << id << " has " << exceptionSize << " bytes of exception info (" << percent << "%)\n";
 		}
-		else
+		else if(noisy)
 			std::cout << "exception info marker not found: " << exceptionInfoMarker << std::endl;
 	}
 	dataSection->outputBase = -data_and_bss_size;
@@ -361,13 +366,16 @@ void Object::MultiSegmentApp(string output, SegmentMap& segmentMap)
 		}
 		code << sec->GetData();
 
-		std::cout << "CODE " << id << ": " << code.str().size() << " bytes\n";
+        if(noisy)
+        {
+            std::cout << "CODE " << id << ": " << code.str().size() << " bytes\n";
 
-		if(code.str().size() == 80)
-		{
-			std::cout << "... empty. Skipping.\n";
-			continue;
-		}
+            if(code.str().size() == 80)
+            {
+                std::cout << "... empty. Skipping.\n";
+                continue;
+            }
+        }
 
 		string segmentName = segmentMap.GetSegmentName(id);
 
@@ -382,7 +390,8 @@ void Object::MultiSegmentApp(string output, SegmentMap& segmentMap)
 	rsrc.addResource(Resource(ResType("DATA"),0, dataSection->GetData()));
 	rsrc.addResource(Resource(ResType("RELA"),0, SerializeRelocs(dataSection->GetRelocations(true))));
 
-	std::cout << "DATA 0: " << dataSection->shdr.sh_size << " bytes\n";
+    if(noisy)
+	    std::cout << "DATA 0: " << dataSection->shdr.sh_size << " bytes\n";
 
 	file.creator = ResType("????");
 	file.type = ResType("APPL");
