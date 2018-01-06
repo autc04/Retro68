@@ -31,6 +31,7 @@ BUILD_PPC=true
 BUILD_CARBON=true
 CLEAN_AFTER_BUILD=false
 HOST_CMAKE_FLAGS=()
+CMAKE_GENERATOR=
 
 function usage()
 {
@@ -44,6 +45,7 @@ function usage()
 	echo "    --clean-after-build       remove intermediate build files right after building"
 	echo "    --host-cxx-compiler       specify C++ compiler (needed on Mac OS X 10.4)" 
 	echo "    --host-c-compiler         specify C compiler (needed on Mac OS X 10.4)"
+	echo "    --ninja                   use ninja for cmake builds"
 	echo "    --help                    show this help message"
 }
 
@@ -73,6 +75,9 @@ for ARG in $*; do
 			HOST_CMAKE_FLAGS[${#HOST_CMAKE_FLAGS[@]}]="-DCMAKE_C_COMPILER=${ARG#*=}"
 			HOST_C_COMPILER="${ARG#*=}"
 			;;
+        --ninja)
+            CMAKE_GENERATOR=-GNinja
+            ;;
 		--help)
 			usage
 			exit 0
@@ -392,7 +397,7 @@ echo "Building host-based tools..."
 
 mkdir -p build-host
 cd build-host
-cmake ${SRC} -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_BUILD_TYPE=Debug "${HOST_CMAKE_FLAGS[@]}"
+cmake ${SRC} -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_BUILD_TYPE=Debug "${HOST_CMAKE_FLAGS[@]}" ${CMAKE_GENERATOR}
 cd ..
 cmake --build build-host --target install
 
@@ -490,7 +495,8 @@ if [ $BUILD_68K != false ]; then
 
 	cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intree.toolchain.cmake \
 				 -DCMAKE_BUILD_TYPE=Release \
-				 "-DINTERFACE_O=${INTERFACE_O}"
+				 "-DINTERFACE_O=${INTERFACE_O}" \
+                 ${CMAKE_GENERATOR}
 	cd ..
 	cmake --build build-target --target install
 
@@ -502,7 +508,8 @@ if [ $BUILD_PPC != false ]; then
 	mkdir -p build-target-ppc
 	cd build-target-ppc
 	cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intreeppc.toolchain.cmake \
-				 -DCMAKE_BUILD_TYPE=Release
+				 -DCMAKE_BUILD_TYPE=Release \
+                 ${CMAKE_GENERATOR}
 	cd ..
 	cmake --build build-target-ppc --target install
 fi
@@ -513,7 +520,8 @@ if [ $BUILD_CARBON != false ]; then
 	mkdir -p build-target-carbon
 	cd build-target-carbon
 	cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intreecarbon.toolchain.cmake \
-				 -DCMAKE_BUILD_TYPE=Release
+				 -DCMAKE_BUILD_TYPE=Release \
+                 ${CMAKE_GENERATOR}
 	cd ..
 	cmake --build build-target-carbon --target install
 fi
