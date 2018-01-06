@@ -28,15 +28,18 @@ function(add_application name)
 			add_custom_command(
 				OUTPUT ${f}.rsrc.bin
 				COMMAND ${REZ} ${REZ_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/${f} -I ${REZ_INCLUDE_PATH} -o ${f}.rsrc.bin
-				DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${f})
-			list(APPEND rsrc_files "${CMAKE_CURRENT_BINARY_DIR}/${f}.rsrc.bin")
+                DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${f})
+            list(APPEND rsrc_files "${CMAKE_CURRENT_BINARY_DIR}/${f}.rsrc.bin")
 			list(APPEND rez_files "${f}")
 		elseif(${f} MATCHES "\\.rsrc$")
-			list(APPEND rsrc_files "${CMAKE_CURRENT_SOURCE_DIR}/${f}")
+            get_filename_component(abspath "${f}" ABSOLUTE)
+            list(APPEND rsrc_files "${abspath}")
 		elseif(${f} MATCHES "\\.rsrc.bin$")
-			list(APPEND rsrc_files "${CMAKE_CURRENT_SOURCE_DIR}/${f}")
-		else()
-			list(APPEND files "${CMAKE_CURRENT_SOURCE_DIR}/${f}")
+            get_filename_component(abspath "${f}" ABSOLUTE)
+            list(APPEND rsrc_files "${abspath}")
+        else()
+            get_filename_component(abspath "${f}" ABSOLUTE)
+            list(APPEND files "${abspath}")
 		endif()
 	endforeach()
 
@@ -53,7 +56,7 @@ function(add_application name)
 	endif()
 
 	foreach(f ${rsrc_files})
-		list(APPEND ARGS_MAKEAPPL_ARGS "${f}")
+		list(APPEND ARGS_MAKEAPPL_ARGS "--copy" "${f}")
 	endforeach()
 
 	if(NOT ARGS_TYPE)
@@ -80,7 +83,7 @@ function(add_application name)
 					--copy "${name}.code.bin"
 					-o "${name}.bin"
 					--cc "${name}.dsk" --cc "${name}.APPL" --cc "%${name}.ad"
-					-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
+					-t '${ARGS_TYPE}' -c '${ARGS_CREATOR}'
 					${ARGS_MAKEAPPL_ARGS}
 			DEPENDS ${name} ${rsrc_files})
 		add_custom_target(${name}_APPL ALL DEPENDS ${name}.bin)
@@ -109,7 +112,7 @@ function(add_application name)
 					-DCFRAG_NAME="\\"${name}\\""
 					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
 					--cc "%${name}.ad"
-					-t ${ARGS_TYPE} -c ${ARGS_CREATOR}
+					-t '${ARGS_TYPE}' -c '${ARGS_CREATOR}'
 					--data ${name}.pef
 					${ARGS_MAKEAPPL_ARGS}
 			DEPENDS ${name}.pef ${rsrc_files})
