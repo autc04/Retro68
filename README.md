@@ -301,6 +301,10 @@ Intended for System 6 without Multifinder.
 Shows a simple and useless dialog box. Demonstrates how to use Rez, the resource compiler.
 The binary is in Retro68-build/build-target/Samples/Dialog/.
 
+### Sample Program: WDEF
+
+On the one hand, this is an example for a very basic multi window application with menus and desk accessories.
+On the other hand, it shows how to write code resources like WDEF window definition procedures.
 
 License
 -------

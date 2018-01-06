@@ -49,6 +49,7 @@ add_subdirectory(Samples/Raytracer)
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 add_subdirectory(Samples/Launcher)
 add_subdirectory(Samples/SystemExtension)
+add_subdirectory(Samples/WDEF)
 endif()
 
 enable_testing()
