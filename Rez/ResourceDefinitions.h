@@ -66,7 +66,7 @@ public:
 
 	enum class Attrs
 	{
-		none = 0, hex = 1, key = 2, unsigned_ = 4, literal = 8
+		none = 0, hex = 1, key = 2, unsigned_ = 4, literal = 8, binary = 16
 	};
 
 	Type type;

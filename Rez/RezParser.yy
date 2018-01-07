@@ -61,6 +61,7 @@
 %token WIDE "wide";
 %token LITERAL "literal";
 %token UNSIGNED "unsigned";
+%token BINARY "binary";
 
 %token BOOLEAN "boolean";
 %token BIT "bit";
@@ -303,6 +304,7 @@ field_attribute : "hex"			{ $$ = SimpleField::Attrs::hex; }
 				| "key"			{ $$ = SimpleField::Attrs::key; }
 				| "unsigned"	{ $$ = SimpleField::Attrs::unsigned_; }
 				| "literal"		{ $$ = SimpleField::Attrs::literal; }
+                | "binary"      { $$ = SimpleField::Attrs::binary; }
 				;
 
 %type <FieldPtr> switch_definition;
