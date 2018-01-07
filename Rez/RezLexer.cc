@@ -117,6 +117,8 @@ RezLexer::RezLexer(RezWorld& world, std::string filename, const std::string &dat
 	pImpl->ctx.add_macro_definition("Rez=1");
 	pImpl->ctx.add_macro_definition("true=1");
 	pImpl->ctx.add_macro_definition("false=0");
+	pImpl->ctx.add_macro_definition("TRUE=1");
+	pImpl->ctx.add_macro_definition("FALSE=0");
 
 	pImpl->iter = pImpl->ctx.begin();
 }
