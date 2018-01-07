@@ -147,7 +147,7 @@ int ResourceCompiler::getArrayIndex(const std::string &arrayName)
 
 void ResourceCompiler::problem(Diagnostic d)
 {
-	if(prePass)
+	if(!prePass)
 		world.problem(d);
 }
 
