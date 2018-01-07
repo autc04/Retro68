@@ -189,7 +189,10 @@ std::string ReadExpr::evaluateString(ResourceCompiler *ctx)
 {
 	std::string filename = arg->evaluateString(ctx);
 	std::ifstream instream(filename);
-	// ### TODO: check error
+    if(!instream)
+    {
+        ctx->problem(Diagnostic(Diagnostic::Severity::error, "could not $$read file " + filename, location));
+    }
 	return std::string(std::istreambuf_iterator<char>(instream.rdbuf()),
 					   std::istreambuf_iterator<char>());
 }
