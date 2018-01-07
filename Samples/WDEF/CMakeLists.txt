@@ -30,25 +30,44 @@ cmake_minimum_required(VERSION 2.8)
 
 # First, let's build a separate code resource:
 add_executable(WDEF wdef.c)
-set_target_properties(WDEF PROPERTIES
-        # tell wdef.c that it is being compiled as a code resource
-    COMPILE_DEFINITIONS "COMPILING_AS_CODE_RESOURCE"
-    
-    COMPILE_OPTIONS -ffunction-sections # make things smaller
 
-		# set a linker flag that says we want a flat piece
-		# of code in a data file, specify entry point,
-        # and add -Wl,-gc-sections to make things smaller.
-    LINK_FLAGS "-Wl,--mac-flat -Wl,-eMYWINDOWDEFPROC -Wl,-gc-sections")
-    
+if(CMAKE_SYSTEM_NAME MATCHES Retro68)
+    set_target_properties(WDEF PROPERTIES
+            # tell wdef.c that it is being compiled as a code resource
+        COMPILE_DEFINITIONS "COMPILING_AS_CODE_RESOURCE"
+        
+        COMPILE_OPTIONS -ffunction-sections # make things smaller
+
+            # set a linker flag that says we want a flat piece
+            # of code in a data file, specify entry point,
+            # and add -Wl,-gc-sections to make things smaller.
+        LINK_FLAGS "-Wl,--mac-flat -Wl,-eMYWINDOWDEFPROC -Wl,-gc-sections")
+    set(WDEF_R wdef.r)
+    set(WDEF_RESOURCE WDEF)
+elseif(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
+    set_target_properties(WDEF PROPERTIES
+        COMPILE_OPTIONS -ffunction-sections # make things smaller
+        # tell wdef.c that it is being compiled as a code resource
+        COMPILE_DEFINITIONS "COMPILING_AS_CODE_RESOURCE"
+        LINK_FLAGS " -Wl,-eMyWindowDefProc -Wl,-gc-sections"
+        )
+    set(WDEF_R wdefppc.r)
+
+    add_custom_command(
+        OUTPUT WDEF.pef
+        COMMAND ${MAKE_PEF} WDEF -o "WDEF.pef"
+        DEPENDS WDEF)
+    set(WDEF_RESOURCE WDEF.pef)
+endif()
+
     # wrap the compiled WDEF into a resource
 add_custom_command(
     OUTPUT WDEF.rsrc.bin
     COMMAND ${REZ} -I ${REZ_INCLUDE_PATH}
-                    ${CMAKE_CURRENT_SOURCE_DIR}/wdef.r
+                    ${CMAKE_CURRENT_SOURCE_DIR}/${WDEF_R}
                     -o WDEF.rsrc.bin
                     
-    DEPENDS WDEF wdef.r)
+    DEPENDS ${WDEF_RESOURCE} ${WDEF_R})
     
 # Now build the application
 add_application(WDEFShell

@@ -3,7 +3,9 @@
 #include <Fonts.h>
 
 #ifdef COMPILING_AS_CODE_RESOURCE
+#ifndef __PPC__
 #include <Retro68Runtime.h>
+#endif
 #include <LowMem.h>
 #endif
 
@@ -14,7 +16,9 @@ pascal long MyWindowDefProc(short varCode, WindowRef window, short message, long
     // First, our machine code doesn't yet know where in RAM it is located, so things
     // will crash as soon as we call a function or access a global variable.
     // The following call, part of libretro, fixes that:
+#ifndef __PPC__
     RETRO68_RELOCATE();
+#endif
 
     // Next, Quickdraw's global variables are stored as part of the application's
     // global variables. If we acces "qd.", we'll get our own copy, which QuickDraw knows
@@ -24,7 +28,7 @@ pascal long MyWindowDefProc(short varCode, WindowRef window, short message, long
     // alternatively, we could just avoid accessing QuickDraw globals. In our case, that would mean
     // using GetPort instead of qdPtr->thePort, and not using qdPtr->white and qdPtr->ltGray.
 #else
-    // We're part of the real application, we could be using qd. in the first place:
+    // We're part of the real application, we could be using `qd' in the first place:
     QDGlobalsPtr qdPtr = &qd;
 #endif
 
@@ -49,6 +53,7 @@ pascal long MyWindowDefProc(short varCode, WindowRef window, short message, long
 
                 MoveTo(r.left, r.top - 10);
                 HLock((Handle) peek->titleHandle);
+                //TextMode(srcOr);
                 DrawString(*peek->titleHandle);
                 HUnlock((Handle) peek->titleHandle);
             }

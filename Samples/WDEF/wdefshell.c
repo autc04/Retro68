@@ -79,8 +79,14 @@ void InitCustomWDEF()
 
     Handle h = GetResource('WDEF', 128);
     HLock(h);
-    *(WindowDefProcPtr*)(*h + 6) = &MyWindowDefProc;
+    *(WindowDefUPP*)(*h + 6) = NewWindowDefUPP(&MyWindowDefProc);
+    // note: for 68K, the above is equivalent to:
+    //    *(WindowDefProcPtr*)(*h + 6) = &MyWindowDefProc;
+    // for PPC, it creates a routine descriptor data structure to get out of the emulator again.
 
+    // On PPC only, we could also bypass the emulator by putting the routine descriptor into the resource,
+    // and putting the pointer to the code into it here. This wouldn't work for the 68K version of this code, though.
+    
     // By the way, this was the only part of this file relevant for dealing
     // with custom WDEFs.
 }
@@ -221,6 +227,9 @@ void DoUpdate(WindowRef w)
     OffsetRect(&r, 32, 32);
     FillRect(&r, &qd.gray);
     FrameRect(&r);
+
+    MoveTo(100,100);
+    DrawString("\pHello, world.");
 
     EndUpdate(w);
 }
