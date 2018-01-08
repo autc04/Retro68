@@ -67,6 +67,7 @@ pascal void* Retro68LoadSegment(uint8_t *p)
 
     // TODO: UseResFile?
     Handle CODE = GetResource('CODE', id);
+    assert(CODE);
     HLock(CODE);
     
     uint8_t *base = StripAddressCompat((uint8_t *)*CODE);
