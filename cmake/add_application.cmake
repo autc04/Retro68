@@ -55,8 +55,14 @@ function(add_application name)
 		set_target_properties(${name} PROPERTIES LINKER_LANGUAGE CXX)
 	endif()
 
-	foreach(f ${rsrc_files})
-		list(APPEND ARGS_MAKEAPPL_ARGS "--copy" "${f}")
+    foreach(f ${rsrc_files})
+            # DO NOT add --copy here.
+            # The files in rsrc_files are guaranteed to be .rsrc or .rsrc.bin, so they
+            # will be recognized by Rez.
+            # Currently, the --copy flag has the side effect that Rez processes all --copy inputs
+            # before other inputs, so this messes up the overriding mechanics, leading to the wrong SIZE resource
+            # being included. (duplicate resources shouldn't be replaced silently, and overriding should be explicit...)
+		list(APPEND ARGS_MAKEAPPL_ARGS "${f}")
 	endforeach()
 
 	if(NOT ARGS_TYPE)
