@@ -287,6 +287,13 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		export CPPFLAGS="-I/usr/local/include"
 		export LDFLAGS="-L/usr/local/lib"
 		
+			# or they could be using MacPorts. Default install
+			# location is /opt/local
+		if [ -d "/opt/local/include" ]; then
+			export CPPFLAGS="$CPPFLAGS -I/opt/local/include"
+			export LDFLAGS="$LDFLAGS -L/opt/local/lib"
+		fi
+
 		export CC=$HOST_C_COMPILER
 		export CXX=$HOST_CXX_COMPILER
 		
@@ -337,6 +344,13 @@ if [ $SKIP_THIRDPARTY != true ]; then
 			# in /usr/local via the homebrew package manager
 		export CPPFLAGS="-I/usr/local/include"
 		export LDFLAGS="-L/usr/local/lib"
+
+			# or they could be using MacPorts. Default install
+			# location is /opt/local
+		if [ -d "/opt/local/include" ]; then
+			export CPPFLAGS="$CPPFLAGS -I/opt/local/include"
+			export LDFLAGS="$LDFLAGS -L/opt/local/lib"
+		fi
 
 		export CC=$HOST_C_COMPILER
 		export CXX=$HOST_CXX_COMPILER
