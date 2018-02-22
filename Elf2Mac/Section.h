@@ -67,7 +67,7 @@ public:
 	std::vector<RuntimeReloc> GetRelocations(bool useOffsets);
 
 	void ScanRelocs();
-	void FixRelocs();
+	void FixRelocs(bool allowDirectCodeRefs);
 
 };
 

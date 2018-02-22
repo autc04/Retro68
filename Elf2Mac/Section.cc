@@ -150,7 +150,7 @@ void Section::ScanRelocs()
 	}
 }
 
-void Section::FixRelocs()
+void Section::FixRelocs(bool allowDirectCodeRefs)
 {
 	for(Reloc& rela : relocs)
 	{
@@ -189,7 +189,7 @@ void Section::FixRelocs()
 						assert(sym.section.get() == this);
 					}
 				}
-				else
+				else if(!allowDirectCodeRefs)
 				{
 					if(sym.section.get() != this)
 					{

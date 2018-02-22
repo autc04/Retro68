@@ -133,11 +133,11 @@ void Object::FlatCode(std::ostream& out)
 {
 	for(auto sec : codeSections)
 	{
-		sec->FixRelocs();
+		sec->FixRelocs(true);
 		out << sec->GetData();
 	}
 		
-	dataSection->FixRelocs();
+	dataSection->FixRelocs(true);
 	out << dataSection->GetData();
 
 	std::vector<RuntimeReloc> relocs;
@@ -338,7 +338,7 @@ void Object::MultiSegmentApp(string output, SegmentMap& segmentMap)
 
 	for(auto namedSec : sections)
 	{
-		namedSec.second->FixRelocs();
+		namedSec.second->FixRelocs(false);
 	}
 
 	for(auto sec : codeSections)
