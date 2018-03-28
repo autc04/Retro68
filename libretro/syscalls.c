@@ -118,6 +118,8 @@ int _open_r(struct _reent *reent, const char* name, int flags, int mode)
 	}
 
 	OSErr err = HOpenDF(0,0,pname,fsRdWrPerm,&ref);
+    if(err == paramErr)
+        err = HOpen(0,0,pname,fsRdWrPerm,&ref);
 
 	if(err)
 		return -1;	// TODO: errno
