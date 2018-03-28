@@ -28,9 +28,13 @@
 
 int main(int argc, char* argv[]);
 
+void __do_global_dtors();
+
 void __start()
 {
 	int result;
+
+	atexit(&__do_global_dtors);
 	{
 		char *argv[2] = { "./a.out", NULL };
 		result = main(1, argv);

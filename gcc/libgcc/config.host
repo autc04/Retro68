@@ -1123,7 +1123,7 @@ rs6000-ibm-aix[56789].* | powerpc-ibm-aix[56789].*)
 	extra_parts="crtcxa.o crtcxa_s.o crtdbase.o"
 	;;
 powerpc-*-macos)
-	tmake_file="t-fdpbit rs6000/t-ibm-ldouble rs6000/t-aix-cxa"
+	tmake_file="t-fdpbit rs6000/t-ibm-ldouble"
 	;;
 rl78-*-elf)
 	tmake_file="$tm_file t-fdpbit rl78/t-rl78"
