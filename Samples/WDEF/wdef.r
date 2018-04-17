@@ -1,3 +1,3 @@
-data 'WDEF' (129) {
+data 'WDEF' (129, locked) {
     $$read("WDEF")
 };

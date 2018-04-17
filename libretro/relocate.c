@@ -232,6 +232,16 @@ void Retro68Relocate()
 	else
 	{
 		data_displacement = displacement;
+#if 0
+        // find the beginning of the current code resource and lock it.
+        // this crashes with some implementations of the memory manager
+        // if we guess wrong, so let's don't for now.
+        // Therefore, all Retro68-compiled code resources have to be locked,
+        // or they might get relocated as soon as the global variables are
+        // relocated below.
+        // TODO: figure out a way to reliably determine the offset from the
+        //       start of the resource (to pass it from Elf2Mac, probably).
+
 		{
 			uint8_t *orig_rsrc_start;
 			GET_VIRTUAL_ADDRESS(orig_rsrc_start, _rsrc_start);
@@ -245,7 +255,7 @@ void Retro68Relocate()
 				rState->codeHandle = h;  
 			}
 		}
-		
+#endif	
 		// Allocate BSS section (uninitialized/zero-initialized global data)
 		if(!rState->bssPtr)
 		{
