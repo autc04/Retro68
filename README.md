@@ -28,7 +28,7 @@ For Ubuntu Linux, the following should help a bit:
 
 On a Mac, get the homebrew package manager and:
 
-    brew install boost --c++11
+    brew install boost
     brew install cmake gmp mpfr libmpc bison
 
 You can also run Retro68 on a PowerMac G4 or G5 running Mac OS 10.4 (Tiger).
