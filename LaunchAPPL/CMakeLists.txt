@@ -1,5 +1,10 @@
+add_subdirectory(Common)
+
 if(CMAKE_SYSTEM_NAME MATCHES Retro.*)
-    add_subdirectory(Server)
+    if(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
+    else()
+        add_subdirectory(Server)
+    endif()
 else()
     add_subdirectory(Client)
 endif()

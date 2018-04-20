@@ -4,6 +4,7 @@ set(LAUNCHMETHODS
 	Executor.h Executor.cc
 	MiniVMac.h MiniVMac.cc
 	SSH.h SSH.cc
+    Serial.h Serial.cc
 )
 
 if(APPLE)
@@ -28,7 +29,7 @@ add_executable(LaunchAPPL
 	
 
 target_include_directories(LaunchAPPL PRIVATE ${CMAKE_INSTALL_PREFIX}/include ${Boost_INCLUDE_DIR})
-target_link_libraries(LaunchAPPL ResourceFiles ${Boost_LIBRARIES})
+target_link_libraries(LaunchAPPL ResourceFiles LaunchAPPLCommon ${Boost_LIBRARIES})
 
 if(APPLE)
 	find_library(APPLICATIONSERVICES_FW ApplicationServices)

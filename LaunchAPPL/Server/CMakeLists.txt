@@ -1,1 +1,2 @@
 add_application(LaunchAPPLServer CONSOLE main.cc)
+target_link_libraries(LaunchAPPLServer LaunchAPPLCommon)

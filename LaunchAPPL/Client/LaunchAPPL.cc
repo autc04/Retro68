@@ -20,6 +20,7 @@
 #include "Executor.h"
 #include "MiniVMac.h"
 #include "SSH.h"
+#include "Serial.h"
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -42,7 +43,8 @@ static void RegisterLaunchMethods()
 		new Carbon(),
 #endif
 	    new Executor(), new MiniVMac(),
-	    new SSH()
+	    new SSH(),
+        new Serial()
 		// #### Add new `LaunchMethod`s here.
 	};
 	
