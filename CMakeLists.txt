@@ -52,9 +52,10 @@ add_subdirectory(Samples/SystemExtension)
 add_subdirectory(Samples/WDEF)
 endif()
 
+add_subdirectory(LaunchAPPL)
+
 enable_testing()
 add_subdirectory(AutomatedTests)
-
 else()
 
 set(RETRO68_ROOT ${CMAKE_INSTALL_PREFIX})
