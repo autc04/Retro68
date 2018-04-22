@@ -50,7 +50,7 @@ void ReliableStream::ack()
         kAck, (uint8_t)~kAck, (uint8_t)receivedInputPacket, (uint8_t)~receivedInputPacket
     };
     stream.write(packet, 8);
-    printf("ack sent\n");
+    //printf("ack sent\n");
 }
 
 void ReliableStream::nack()
@@ -60,7 +60,7 @@ void ReliableStream::nack()
         kNack, (uint8_t)~kNack, (uint8_t)receivedInputPacket, (uint8_t)~receivedInputPacket
     };
     stream.write(packet, 8);
-    printf("nack sent\n");
+    //printf("nack sent\n");
 }
 
 void ReliableStream::gotAck(uint8_t id)
@@ -232,8 +232,7 @@ void ReliableStream::write(const void* p, size_t n)
 
 size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
 {
-    printf("data available (%d) - state %d\n", (int)n, (int)state);
-
+    //printf("data available (%d) - state %d\n", (int)n, (int)state);
     switch(state)
     {
         case State::waiting:
@@ -303,6 +302,7 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
                         return 8;
                     }
                     state = State::receiving;
+                    inputMatchMagic1 = inputMatchMagic2 = 0;
                     return 8;
                 default:
                     state = State::skipping;
@@ -336,17 +336,15 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
 
         case State::receiving:
             {
-                int match = 0, match2 = 0;
                 int i;
-                int consumed = 0;
 
                 for(i = 0; i < n; i++)
                 {
                     incomingPacket.push_back(p[i]);
 
-                    if(match2 == 4)
+                    if(inputMatchMagic2 == 4)
                     {
-                        match2 = 0;
+                        inputMatchMagic2 = 0;
                         incomingPacket.pop_back();
                         switch(p[i])
                         {
@@ -367,26 +365,23 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
                         }
                     }
 
-                    if(p[i] != magic1[match])
-                        match = 0;
-                    if(p[i] == magic1[match])
-                        match++;
-                    if(p[i] != magic2[match2])
-                        match2 = 0;
-                    if(p[i] == magic2[match2])
-                        match2++;
+                    if(p[i] != magic1[inputMatchMagic1])
+                        inputMatchMagic1 = 0;
+                    if(p[i] == magic1[inputMatchMagic1])
+                        inputMatchMagic1++;
+                    if(p[i] != magic2[inputMatchMagic2])
+                        inputMatchMagic2 = 0;
+                    if(p[i] == magic2[inputMatchMagic2])
+                        inputMatchMagic2++;
                     
-                    if(match == 4)
+                    if(inputMatchMagic1 == 4)
                     {
                         state = State::waiting;
                         nack();
                         return i-3;
                     }
-
-
-                    
                 }
-                return n - std::max(match, match2);
+                return n;
             }
             break;
     }

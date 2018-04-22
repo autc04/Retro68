@@ -36,6 +36,7 @@ class ReliableStream : public Stream, public StreamListener
 
     State state = State::waiting;
     std::vector<uint8_t> incomingPacket;
+    int inputMatchMagic1, inputMatchMagic2;
 
     std::list<std::vector<uint8_t>> packetsToSend;
     std::list<std::vector<uint8_t>> sentPackets;
