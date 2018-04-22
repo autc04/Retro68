@@ -39,7 +39,7 @@ private:
 
     void setupNextError()
     {
-        nextError += 8 * 1000 + 3;
+        nextError += rand() % (40 * 8 * 1000 + 3);
     }
 
     void maybeFlipBit(uint8_t* p, size_t n)

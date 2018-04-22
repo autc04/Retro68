@@ -10,13 +10,15 @@ class ReliableStream : public Stream, public StreamListener
 {
     Stream& stream;
 
-    static const int packetSize = 256;
+    static const int maxInFlight = 4;
+    static const int packetSize = 1024;
     
     unsigned receivedInputPacket = 0;
     unsigned sentOutputPacket = 0;
     unsigned ackedOutputPacket = 0;
 
-    void sendPacket();
+    void sendOnePacket();
+    void sendPackets();
     void nack();
     void ack();
 
