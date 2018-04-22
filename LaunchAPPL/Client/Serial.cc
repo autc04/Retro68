@@ -2,6 +2,7 @@
 #include "Launcher.h"
 #include "Utilities.h"
 #include "Stream.h"
+#include "ReliableStream.h"
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
@@ -29,6 +30,7 @@ public:
 class SerialLauncher : public Launcher
 {
     SerialStream stream;
+    ReliableStream rStream;
 public:
 	SerialLauncher(po::variables_map& options);
 	virtual ~SerialLauncher();
@@ -36,7 +38,7 @@ public:
 	virtual bool Go(int timeout = 0);
 
 private:
-    void write(const void *p, size_t n) { stream.write(p, n); }
+    void write(const void *p, size_t n) { rStream.write(p, n); }
     ssize_t read(void * p, size_t n);
 };
 
@@ -56,7 +58,7 @@ SerialStream::SerialStream(po::variables_map &options)
     tios.c_lflag = 0;
     tios.c_oflag = 0;
     tios.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-    tios.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
+    tios.c_cc[VMIN]     = 1;   /* blocking read until 1 chars received */
     tcsetattr(fd,TCSANOW,&tios);
     usleep(500000);
 }
@@ -98,14 +100,14 @@ void SerialStream::wait()
         ssize_t n = ::read(fd, readBuffer, kReadBufferSize);
         if(n > 0)
         {
-            onReceive(readBuffer, n);
+            notifyReceive(readBuffer, n);
         }
     }
 }
 
 
 SerialLauncher::SerialLauncher(po::variables_map &options)
-    : Launcher(options), stream(options)
+    : Launcher(options), stream(options), rStream(stream)
 {
 }
 
@@ -115,11 +117,12 @@ SerialLauncher::~SerialLauncher()
 
 ssize_t SerialLauncher::read(void *p, size_t n)
 {
-    ssize_t available = stream.read(p, n);
+    ssize_t available = rStream.read(p, n);
     while(!available)
     {
+        rStream.flushWrite();
         stream.wait();
-        available = stream.read(p, n);
+        available = rStream.read(p, n);
     }
     return available;
 }

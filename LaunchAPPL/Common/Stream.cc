@@ -9,7 +9,7 @@ Stream::~Stream()
 {
 }
 
-void Stream::onReceive(const uint8_t* p, size_t n)
+void Stream::notifyReceive(const uint8_t* p, size_t n)
 {
     if(buffer_.empty())
     {

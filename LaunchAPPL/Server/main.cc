@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include <Stream.h>
+#include <ReliableStream.h>
 #include <Processes.h>
 
 class MacSerialStream : public Stream
@@ -73,10 +74,9 @@ void MacSerialStream::idle()
 {
     long count = 0;
 	SerGetBuf(inRefNum, &count);
-    if(count)
-        printf("sergetbuf -> %ld\n", count);
     while(count > 0)
     {
+        printf("something received.\n");
         long count1 = count > kReadBufferSize ? kReadBufferSize : count;
         ParamBlockRec pb;
         memset(&pb, 0, sizeof(pb));
@@ -88,8 +88,7 @@ void MacSerialStream::idle()
             return;
         count -= count1;
 
-        printf("onReceive: %ld\n", count1);
-        onReceive((uint8_t*)readBuffer, count1);
+        notifyReceive((uint8_t*)readBuffer, count1);
         Delay(20,nullptr);
     }
 }
@@ -196,8 +195,10 @@ int main()
 	
     {
         MacSerialStream stream;
+        ReliableStream rStream(stream);
+        stream.setListener(&rStream);
         Listener listener;
-        stream.setListener(&listener);
+        rStream.setListener(&listener);
 
         while(!Button())
         {
