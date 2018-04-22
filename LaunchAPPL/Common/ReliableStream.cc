@@ -35,6 +35,7 @@ ReliableStream::ReliableStream(Stream& stream)
     : stream(stream)
 {
     incomingPacket.reserve(packetSize + 4);
+    stream.setListener(this);
 }
 ReliableStream::~ReliableStream()
 {
@@ -65,12 +66,12 @@ void ReliableStream::nack()
     printf("nack sent\n");
 }
 
-void ReliableStream::gotNack(uint8_t id)
+void ReliableStream::gotAck(uint8_t id)
 {
     printf("got ack\n");
 }
 
-void ReliableStream::gotAck(uint8_t id)
+void ReliableStream::gotNack(uint8_t id)
 {
     printf("got nack\n");
 }

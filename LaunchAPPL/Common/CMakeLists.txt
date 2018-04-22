@@ -4,6 +4,7 @@ add_library(LaunchAPPLCommon
     ReliableStream.h
     ReliableStream.cc
     CRC32.h
+    UnreliableStream.h
 )
 target_include_directories(LaunchAPPLCommon PUBLIC .)
 

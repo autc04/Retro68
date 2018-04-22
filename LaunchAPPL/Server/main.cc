@@ -9,6 +9,8 @@
 #include <ReliableStream.h>
 #include <Processes.h>
 
+#include <UnreliableStream.h>
+
 class MacSerialStream : public Stream
 {
     static const long kInputBufferSize = 4096;
@@ -195,8 +197,15 @@ int main()
 	
     {
         MacSerialStream stream;
+
+//#define SIMULATE_ERRORS
+#ifdef SIMULATE_ERRORS
+        UnreliableStream uStream(stream);
+        ReliableStream rStream(uStream);
+#else
         ReliableStream rStream(stream);
-        stream.setListener(&rStream);
+#endif
+
         Listener listener;
         rStream.setListener(&listener);
 
