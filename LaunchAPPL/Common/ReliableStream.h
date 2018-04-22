@@ -3,15 +3,18 @@
 
 #include "Stream.h"
 
+#include <vector>
+#include <list>
+
 class ReliableStream : public Stream, public StreamListener
 {
     Stream& stream;
 
     static const int packetSize = 256;
     
-    int receivedInputPacket = 0;
-    int sentOutputPacket = 0;
-    int ackedOutputPacket = 0;
+    unsigned receivedInputPacket = 0;
+    unsigned sentOutputPacket = 0;
+    unsigned ackedOutputPacket = 0;
 
     void sendPacket();
     void nack();
@@ -31,6 +34,9 @@ class ReliableStream : public Stream, public StreamListener
 
     State state = State::waiting;
     std::vector<uint8_t> incomingPacket;
+
+    std::list<std::vector<uint8_t>> packetsToSend;
+    std::list<std::vector<uint8_t>> sentPackets;
 
 public:
     ReliableStream(Stream& stream);

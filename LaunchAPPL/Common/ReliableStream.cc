@@ -42,9 +42,6 @@ ReliableStream::~ReliableStream()
 }
 
 
-void ReliableStream::sendPacket()
-{
-}
 
 void ReliableStream::ack()
 {
@@ -68,12 +65,26 @@ void ReliableStream::nack()
 
 void ReliableStream::gotAck(uint8_t id)
 {
-    printf("got ack\n");
+    printf("got ack %d\n", (int)id);
+    unsigned nAcked = (id - ackedOutputPacket) & 0xFF;
+    ackedOutputPacket += nAcked;
+    for(int i = 0; i < nAcked; i++)
+        sentPackets.pop_front();
 }
 
 void ReliableStream::gotNack(uint8_t id)
 {
-    printf("got nack\n");
+    printf("got nack %d\n", (int)id);
+
+    unsigned nAcked = (id - ackedOutputPacket) & 0xFF;
+    ackedOutputPacket += nAcked;
+    for(int i = 0; i < nAcked; i++)
+        sentPackets.pop_front();
+
+    sentOutputPacket = ackedOutputPacket;
+
+    packetsToSend.splice(packetsToSend.begin(), sentPackets);
+    flushWrite();
 }
 
 void ReliableStream::processIncoming()
@@ -103,15 +114,24 @@ void ReliableStream::processIncoming()
     incomingPacket.clear();
 }
 
-void ReliableStream::write(const void* p0, size_t n)
+void ReliableStream::sendPacket()
 {
-    const uint8_t* p = (const uint8_t*)p0;
+    if(packetsToSend.empty())
+        return;
     
+    const uint8_t* p = packetsToSend.front().data();
+    size_t n = packetsToSend.front().size();
+
     ++sentOutputPacket;
-    std::vector<uint8_t> packet = {
+    sentPackets.splice(sentPackets.end(), packetsToSend, packetsToSend.begin());
+
+    std::vector<uint8_t> packet;
+    packet.reserve(n + 32);
+    packet = {
         magic1[0], magic1[1], magic1[2], magic1[3],
         kDataPacket, (uint8_t)~kDataPacket, (uint8_t)sentOutputPacket, (uint8_t)~sentOutputPacket
     };
+    
     int match = 0, match2 = 0;
     int i;
     int consumed = 0;
@@ -151,24 +171,9 @@ void ReliableStream::write(const void* p0, size_t n)
             match2 = 0;
         }
     }
-    uint32_t crc = crc32(0, p, p + n);
-    printf("sending crc: %x\n", crc);
+    while(consumed < i)
+        packet.push_back(p[consumed++]);
 
-    if(crc == magic1_32 || crc == magic2_32)
-    {
-        packet.push_back(magic2[0]);
-        packet.push_back(magic2[1]);
-        packet.push_back(magic2[2]);
-        packet.push_back(magic2[3]);
-        packet.push_back(crc == magic1_32 ? kEscapedMagic1 : kEscapedMagic2);
-    }
-    else
-    {
-        packet.push_back(crc >> 24);
-        packet.push_back(crc >> 16);
-        packet.push_back(crc >> 8);
-        packet.push_back(crc);
-    }
 
     packet.push_back(magic2[0]);
     packet.push_back(magic2[1]);
@@ -176,12 +181,40 @@ void ReliableStream::write(const void* p0, size_t n)
     packet.push_back(magic2[3]);
     packet.push_back(kEndOfPacket);
 
+    printf("sent packet: %d, total %d bytes\n", sentOutputPacket, (int)packet.size());
     stream.write(packet.data(), packet.size());
 }
 
+
 void ReliableStream::flushWrite()
 {
+    while(!packetsToSend.empty())
+        sendPacket();
+}
 
+void ReliableStream::write(const void* p, size_t n)
+{
+    const size_t packetSize = 1024;
+
+    while(n)
+    {
+        size_t n1 = n > packetSize ? packetSize : n;
+
+        packetsToSend.emplace_back();
+        auto& packet = packetsToSend.back();
+        packet.reserve(n1 + 4);
+        packet.insert(packet.end(), (const uint8_t*)p, ((const uint8_t*)p)+n1);
+        uint32_t crc = crc32(0,  packet.begin(), packet.end());
+        printf("outgoing crc: %x (bytes: %d without crc and header)\n", (unsigned) crc, (int)packet.size());
+        packet.push_back(crc >> 24);
+        packet.push_back(crc >> 16);
+        packet.push_back(crc >> 8);
+        packet.push_back(crc);
+
+        p = ((const uint8_t*)p) + n1;
+        n -= n1;
+    }
+    flushWrite();
 }
 
 size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
@@ -197,6 +230,7 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
                 || (n > 3 && p[3] != magic1[3]) )
             {
                 state = State::skipping;
+                printf("no magic\n");
                 nack();
                 gotNack(ackedOutputPacket);
                 return n > 4 ? 4 : n;
@@ -250,7 +284,8 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
                     }
                     if(p[6] != ((receivedInputPacket + 1) & 0xFF))
                     {
-                        nack();
+                        printf("bad serial: %d %d\n", p[6], receivedInputPacket+1);
+                        //nack();
                         state = State::skipping;
                         return 8;
                     }
