@@ -30,6 +30,22 @@ namespace
 
 ConsoleWindow::ConsoleWindow(Rect r, ConstStr255Param title)
 {
+    {
+        // give MultiFinder a chance to bring the App to front
+        // see Technote TB 35 - MultiFinder Miscellanea
+        // "If your application [...] has the canBackground bit set in the
+        //  size resource, then it should call _EventAvail several times
+        //  (or _WaitNextEvent or _GetNextEvent) before putting up the splash
+        //  screen, or the splash screen will come up behind the frontmost
+        //  layer. If the canBackground bit is set, MultiFinder will not move
+        //  your layer to the front until you call _GetNextEvent,
+        //  _WaitNextEvent, or _EventAvail."
+        
+        EventRecord event;
+        for(int i = 0; i < 5; i++)
+            EventAvail(everyEvent, &event);
+    }
+
 	GrafPtr port;
 
 	win = NewWindow(NULL, &r, "\pRetro68 Console", true, 0, (WindowPtr)-1, false, 0);
