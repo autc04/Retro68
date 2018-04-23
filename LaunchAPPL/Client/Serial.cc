@@ -149,7 +149,7 @@ bool SerialLauncher::Go(int timeout)
     read(&tmp, 4);
     tmp = ntohl(tmp);
 
-    return false;
+    return true;
 }
 
 
