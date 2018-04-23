@@ -18,7 +18,9 @@ enum thing : uint8_t
     kEscapedMagic1,
     kEscapedMagic2,
     kAck,
-    kNack
+    kNack,
+    kReset1,
+    kReset2
 };
 
 inline uint32_t readLong(uint8_t* p)
@@ -31,17 +33,36 @@ inline uint32_t readLong(uint8_t* p)
     return x;
 }
 
-ReliableStream::ReliableStream(Stream& stream)
-    : stream(stream)
+ReliableStream::ReliableStream(Stream* stream)
+    : StreamWrapper(stream)
 {
     incomingPacket.reserve(packetSize + 4);
-    stream.setListener(this);
 }
-ReliableStream::~ReliableStream()
+
+void ReliableStream::reset(int sendReset)
 {
+    printf("reset %d\n", sendReset);
+    receivedInputPacket = 0;
+    sentOutputPacket = 0;
+    ackedOutputPacket = 0;
+
+    incomingPacket.clear();
+    state = State::waiting;
+    sentPackets.clear();
+    packetsToSend.clear();
+
+    resetResponse = false;
+
+    if(sendReset)
+    {
+        uint8_t resetKind = sendReset == 1 ? kReset1 : kReset2;
+        uint8_t packet[] = {
+            magic1[0], magic1[1], magic1[2], magic1[3],
+            resetKind, (uint8_t)~resetKind
+        };
+        underlying().write(packet, 6);
+    }
 }
-
-
 
 void ReliableStream::ack()
 {
@@ -49,7 +70,7 @@ void ReliableStream::ack()
         magic1[0], magic1[1], magic1[2], magic1[3],
         kAck, (uint8_t)~kAck, (uint8_t)receivedInputPacket, (uint8_t)~receivedInputPacket
     };
-    stream.write(packet, 8);
+    underlying().write(packet, 8);
     //printf("ack sent\n");
 }
 
@@ -59,14 +80,14 @@ void ReliableStream::nack()
         magic1[0], magic1[1], magic1[2], magic1[3],
         kNack, (uint8_t)~kNack, (uint8_t)receivedInputPacket, (uint8_t)~receivedInputPacket
     };
-    stream.write(packet, 8);
+    underlying().write(packet, 8);
     //printf("nack sent\n");
 }
 
 void ReliableStream::gotAck(uint8_t id)
 {
-    printf("got ack %d\n", (int)id);
     unsigned nAcked = (id - ackedOutputPacket) & 0xFF;
+    printf("got ack %d -> %u packets of %u acked\n", (int)id, nAcked, (unsigned)sentPackets.size());
     if(nAcked <= sentPackets.size())
     {
         ackedOutputPacket += nAcked;
@@ -98,7 +119,7 @@ void ReliableStream::gotNack(uint8_t id)
 
 void ReliableStream::processIncoming()
 {
-    printf("Received packet %d - %d bytes\n", receivedInputPacket, (int)incomingPacket.size());
+    printf("Received packet %d - %d bytes\n", receivedInputPacket + 1, (int)incomingPacket.size());
     if(incomingPacket.size() < 4)
     {
         nack();
@@ -193,11 +214,13 @@ void ReliableStream::sendOnePacket()
     packet.push_back(kEndOfPacket);
 
     printf("sent packet: %d, total %d bytes\n", sentOutputPacket, (int)packet.size());
-    stream.write(packet.data(), packet.size());
+    printf("sendOnePacket: %d - %d packets, next = %d\n", (int)packetsToSend.size(), (int)sentPackets.size(), sentOutputPacket + 1);
+    underlying().write(packet.data(), packet.size());
 }
 
 void ReliableStream::sendPackets()
 {
+    printf("sendPackets: %d - %d packets, next = %d\n", (int)packetsToSend.size(), (int)sentPackets.size(), sentOutputPacket + 1);
     while(!packetsToSend.empty() && sentPackets.size() < maxInFlight)
         sendOnePacket();
 }
@@ -229,6 +252,7 @@ void ReliableStream::write(const void* p, size_t n)
     }
     flushWrite();
 }
+//#include <MacTypes.h>
 
 size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
 {
@@ -245,7 +269,15 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
                 printf("no magic\n");
                 nack();
                 gotNack(ackedOutputPacket);
-                return n > 4 ? 4 : n;
+
+                if(p[0] != magic1[0])
+                    return 0;
+                else if(p[1] != magic1[1])
+                    return 1;
+                else if(p[2] != magic1[2])
+                    return 2;
+                else
+                    return 3;
             }
             if(n < 6)
                 return 0;
@@ -304,6 +336,18 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
                     state = State::receiving;
                     inputMatchMagic1 = inputMatchMagic2 = 0;
                     return 8;
+                
+                case kReset1:
+                    reset(2);
+                    notifyReset();
+                    return 6;
+
+                case kReset2:
+                    reset(0);
+                    resetResponse = true;
+                    notifyReset();
+                    return 6;
+
                 default:
                     state = State::skipping;
                     nack();

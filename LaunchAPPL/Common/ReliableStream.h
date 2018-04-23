@@ -6,16 +6,11 @@
 #include <vector>
 #include <list>
 
-class ReliableStream : public Stream, public StreamListener
+class ReliableStream : public StreamWrapper
 {
-    Stream& stream;
-
     static const int maxInFlight = 4;
     static const int packetSize = 1024;
     
-    unsigned receivedInputPacket = 0;
-    unsigned sentOutputPacket = 0;
-    unsigned ackedOutputPacket = 0;
 
     void sendOnePacket();
     void sendPackets();
@@ -34,6 +29,10 @@ class ReliableStream : public Stream, public StreamListener
         receiving
     };
 
+    unsigned receivedInputPacket = 0;
+    unsigned sentOutputPacket = 0;
+    unsigned ackedOutputPacket = 0;
+
     State state = State::waiting;
     std::vector<uint8_t> incomingPacket;
     int inputMatchMagic1, inputMatchMagic2;
@@ -41,14 +40,21 @@ class ReliableStream : public Stream, public StreamListener
     std::list<std::vector<uint8_t>> packetsToSend;
     std::list<std::vector<uint8_t>> sentPackets;
 
-public:
-    ReliableStream(Stream& stream);
-    virtual ~ReliableStream();
+    bool resetResponse = false;
 
+    virtual size_t onReceive(const uint8_t* p, size_t n);
+public:
+    explicit ReliableStream(Stream* stream);
+    void reset(int sendReset);
+    bool resetResponseArrived() { return resetResponse; }
+    
     virtual void write(const void* p, size_t n) override;
     virtual void flushWrite() override;
 
-    virtual size_t onReceive(const uint8_t* p, size_t n) override;
+
+    virtual bool readyToWrite() { return packetsToSend.empty() && underlying().readyToWrite(); }
+            bool allDataArrived() { return packetsToSend.empty() && sentPackets.empty() && underlying().readyToWrite(); }
+
 };
 
 #endif

@@ -65,9 +65,7 @@ int main()
     fwd1.prefix = "1->2";
     fwd2.prefix = "2->1";
 
-    ReliableStream rel1(fwd1), rel2(fwd2);
-    fwd1.setListener(&rel1);
-    fwd2.setListener(&rel2);
+    ReliableStream rel1(&fwd1), rel2(&fwd2);
 
     DumpToConsole dump1("one:");
     DumpToConsole dump2("two:");

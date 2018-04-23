@@ -4,15 +4,13 @@
 #include "Stream.h"
 
     // A stream filter to simulate bit errors
-class UnreliableStream : public Stream, private StreamListener
+class UnreliableStream : public StreamWrapper
 {
-    Stream& stream_;
     int nextError = 0;
 public:
-    UnreliableStream(Stream& stream)
-        : stream_(stream)
+    UnreliableStream(Stream* stream)
+        : StreamWrapper(stream)
     {
-        stream_.setListener(this);
         setupNextError();
     }
     virtual void write(const void* p, size_t n) override
@@ -20,11 +18,11 @@ public:
         std::vector<uint8_t> tmp(n);
         memcpy(tmp.data(), p, n);
         maybeFlipBit(tmp.data(), n);
-        stream_.write(tmp.data(),n);
+        underlying().write(tmp.data(),n);
     }
     virtual void flushWrite() override
     {
-        stream_.flushWrite();
+        underlying().flushWrite();
     }
 
 private:

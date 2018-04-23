@@ -210,22 +210,37 @@ void SetStatus(AppStatus stat, int done = 0, int total = 0)
     InvalRect(&statusWindow->portRect);
 }
 
-class Listener : public StreamListener
+ProcessSerialNumber psn;
+
+class LaunchServer : public StreamListener
 {
+    Stream* stream;
+
     uint32_t dataSize, rsrcSize;
     uint32_t remainingSize;
     short refNum;
 public:
+    LaunchServer(Stream* stream) : stream(stream)
+    {
+        stream->setListener(this);
+    }
+
     enum class State
     {
         size,
         data,
         rsrc,
         launch,
-        stop
+        wait,
+        respond
     };
     State state = State::size;
 
+    void onReset()
+    {
+        SetStatus(AppStatus::ready, 0, 0);
+        state = State::size;
+    }
 
     size_t onReceive(const uint8_t* p, size_t n)
     {
@@ -317,13 +332,12 @@ int main()
 //#define SIMULATE_ERRORS
 #ifdef SIMULATE_ERRORS
     UnreliableStream uStream(stream);
-    ReliableStream rStream(uStream);
+    ReliableStream rStream(&uStream);
 #else
-    ReliableStream rStream(stream);
+    ReliableStream rStream(&stream);
 #endif
 
-    Listener listener;
-    rStream.setListener(&listener);
+    LaunchServer server(&rStream);
 
 
     for(;;)
@@ -381,26 +395,57 @@ int main()
 
         stream.idle();
     
-        if(listener.state == Listener::State::launch)
+        if(server.state == LaunchServer::State::launch)
         {
-            stream.close();
+            //stream.close();
             {
                 LaunchParamBlockRec lpb;
                 memset(&lpb, 0, sizeof(lpb));
 
-                lpb.reserved1 = (unsigned long) "\pRetro68App";
+              /*  lpb.reserved1 = (unsigned long) "\pRetro68App";
                 lpb.reserved2 = 0;
                 lpb.launchBlockID = extendedBlock;
                 lpb.launchEPBLength = 6;
                 lpb.launchFileFlags = 0;
-                lpb.launchControlFlags = 0xC000;
+                lpb.launchControlFlags = 0xC000;*/
 
-                printf("Launching...\n");
+                FSSpec spec;
+                FSMakeFSSpec(0,0,"\pRetro68App",&spec);
+                lpb.launchBlockID = extendedBlock;
+                lpb.launchEPBLength = extendedBlockLen;
+                lpb.launchFileFlags = 0;
+                lpb.launchControlFlags = launchContinue;
+                lpb.launchAppSpec = &spec;
+
+
                 OSErr err = LaunchApplication(&lpb);
-                listener.state = Listener::State::size;
+                psn = lpb.launchProcessSN;
+                server.state = LaunchServer::State::wait;
+
+                SetStatus(AppStatus::running, 0, 0);
+                
+            }
+        }
+        else if(server.state == LaunchServer::State::wait)
+        {
+            ProcessInfoRec info;
+            OSErr err = GetProcessInformation(&psn,&info);
+            if(err)
+            {
+                server.state = LaunchServer::State::respond;
+                SetStatus(AppStatus::uploading, 0, 0);
                 uint32_t zero = 0;
-                stream.write(&zero, 4);
-                stream.flushWrite();
+                rStream.write(&zero, 4);
+                rStream.flushWrite();
+            }
+        }
+        else if(server.state == LaunchServer::State::respond)
+        {
+            if(rStream.allDataArrived())
+            {
+                server.state = LaunchServer::State::size;
+                SetStatus(AppStatus::ready, 0, 0);
+                rStream.reset(0);
             }
         }
     }

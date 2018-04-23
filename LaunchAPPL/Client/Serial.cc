@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <poll.h>
 
+#include <iostream>
 namespace po = boost::program_options;
 
 
@@ -38,7 +39,7 @@ public:
 	virtual bool Go(int timeout = 0);
 
 private:
-    void write(const void *p, size_t n) { rStream.write(p, n); }
+    void write(const void *p, size_t n);
     ssize_t read(void * p, size_t n);
 };
 
@@ -64,6 +65,8 @@ SerialStream::SerialStream(po::variables_map &options)
 }
 SerialStream::~SerialStream()
 {
+    tcdrain(fd);
+    usleep(500000);
     close(fd);
 }
 
@@ -107,7 +110,7 @@ void SerialStream::wait()
 
 
 SerialLauncher::SerialLauncher(po::variables_map &options)
-    : Launcher(options), stream(options), rStream(stream)
+    : Launcher(options), stream(options), rStream(&stream)
 {
 }
 
@@ -127,9 +130,24 @@ ssize_t SerialLauncher::read(void *p, size_t n)
     return available;
 }
 
+void SerialLauncher::write(const void *p, size_t n)
+{
+    while(!rStream.readyToWrite())
+        stream.wait();
+    rStream.write(p, n);
+}
+
+
 bool SerialLauncher::Go(int timeout)
 {
     uint32_t tmp;
+
+    rStream.reset(1);
+    std::cout << "reset send.\n";
+    while(!rStream.resetResponseArrived())
+        stream.wait();
+
+    std::cout << "reset response received.\n";
 
     {
         std::ostringstream rsrcOut;
@@ -145,6 +163,8 @@ bool SerialLauncher::Go(int timeout)
         write(data.data(), data.size());
         write(rsrc.data(), rsrc.size());
     }
+    while(!rStream.allDataArrived())
+        stream.wait();
 
     read(&tmp, 4);
     tmp = ntohl(tmp);
