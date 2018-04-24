@@ -20,6 +20,8 @@ public:
     ~MacSerialStream();
 
     void close();
+
+    void setBaud(int baud);
 };
 
 #endif

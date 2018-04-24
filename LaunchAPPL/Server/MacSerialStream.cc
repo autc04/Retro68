@@ -67,3 +67,25 @@ void MacSerialStream::idle()
         notifyReceive((uint8_t*)readBuffer, count1);
     }
 }
+
+void MacSerialStream::setBaud(int baud)
+{
+    short baudval = 0;
+    switch(baud)
+    {
+        case 9600:      baudval = baud9600; break;
+        case 14400:     baudval = baud14400; break;
+        case 19200:     baudval = baud19200; break;
+        case 28800:     baudval = baud28800; break;
+        case 38400:     baudval = baud38400; break;
+        case 57600:     baudval = baud57600; break;
+        case 115200:    baudval = 0; break;
+        case 230400:    baudval = 0; break;
+    }
+	SerReset(outRefNum, baudval | data8 | noParity | stop10);
+
+    if(baud == 115200)
+        Control(outRefNum, kSERD115KBaud, nullptr);
+    else if(baud == 230400)
+        Control(outRefNum, kSERD230KBaud, nullptr);
+}

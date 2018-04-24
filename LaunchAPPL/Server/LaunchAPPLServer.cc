@@ -40,7 +40,8 @@ enum
 {
     kMenuApple = 128,
     kMenuFile,
-    kMenuEdit
+    kMenuEdit,
+    kMenuSpeed
 };
 
 enum
@@ -50,6 +51,9 @@ enum
     kItemQuit = 1
 };
 
+long gBaud = 19200;
+
+void SetBaud(long baud);
 
 void ShowAboutBox()
 {
@@ -116,6 +120,16 @@ void UpdateMenus()
         DisableItem(m,5);
         DisableItem(m,6);
     }
+
+    m = GetMenu(kMenuSpeed);
+    for(int i = 1; i <= CountMenuItems(m); i++)
+    {
+        Str255 str;
+        long baud;
+        GetMenuItemText(m, i, str);
+        StringToNum(str, &baud);
+        CheckMenuItem(m, i, baud == gBaud);
+    }
 }
 
 void DoMenuCommand(long menuCommand)
@@ -154,7 +168,12 @@ void DoMenuCommand(long menuCommand)
             // edit command not handled by desk accessory
         }
     }
-
+    else if(menuID == kMenuSpeed)
+    {
+        GetMenuItemText(GetMenu(menuID), menuItem, str);
+        StringToNum(str, &gBaud);
+        SetBaud(gBaud);
+    }
     HiliteMenu(0);
 }
 
@@ -313,6 +332,12 @@ public:
 
 short outRefNum;
 long outSize, outSizeRemaining;
+MacSerialStream *gSerialStream;
+
+void SetBaud(long baud)
+{
+    gSerialStream->setBaud(baud);
+}
 
 int main()
 {
@@ -334,6 +359,7 @@ int main()
     statusWindow = GetNewWindow(129, NULL, (WindowPtr) -1);
     SetStatus(AppStatus::ready);
     MacSerialStream stream;
+    gSerialStream = &stream;
 
 //#define SIMULATE_ERRORS
 #ifdef SIMULATE_ERRORS

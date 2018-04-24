@@ -55,8 +55,23 @@ resource 'MENU' (130) {
     }
 };
 
+resource 'MENU' (131) {
+    131, textMenuProc;
+    allEnabled, enabled;
+    "Speed";
+    {
+        "9600", noIcon, noKey, noMark, plain;
+        "19200", noIcon, noKey, check, plain;
+        "38400", noIcon, noKey, noMark, plain;
+        "57600", noIcon, noKey, noMark, plain;
+        "115200", noIcon, noKey, noMark, plain;
+        "230400", noIcon, noKey, noMark, plain;
+    }
+};
+
+
 resource 'MBAR' (128) {
-    { 128, 129, 130 };
+    { 128, 129, 130, 131 };
 };
 
 data 'TEXT' (128) {
