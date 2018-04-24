@@ -259,6 +259,9 @@ public:
                     FSDelete("\pRetro68App", 0);
                     Create("\pRetro68App", 0, '????', 'APPL');
                     OpenDF("\pRetro68App", 0, &refNum);
+                    FSDelete("\pout", 0);
+                    Create("\pout", 0, 'ttxt', 'TEXT');
+
                     state = State::data;
                     remainingSize = dataSize;
                     return 8;
@@ -307,6 +310,9 @@ public:
         }
     }
 };
+
+short outRefNum;
+long outSize, outSizeRemaining;
 
 int main()
 {
@@ -433,15 +439,35 @@ int main()
             if(err)
             {
                 server.state = LaunchServer::State::respond;
-                SetStatus(AppStatus::uploading, 0, 0);
                 uint32_t zero = 0;
                 rStream.write(&zero, 4);
+
+                OpenDF("\pout", 0, &outRefNum);
+                GetEOF(outRefNum, &outSize);
+                outSizeRemaining = outSize;
+                SetStatus(AppStatus::uploading, 0, outSize);
+                
+                rStream.write(&outSize, 4);
                 rStream.flushWrite();
             }
         }
         else if(server.state == LaunchServer::State::respond)
         {
-            if(rStream.allDataArrived())
+            while(outSizeRemaining && rStream.readyToWrite())
+            {
+                char buf[1024];
+                long count = outSizeRemaining > 1024 ? 1024 : outSizeRemaining;
+                FSRead(outRefNum, &count, buf);
+                rStream.write(buf, count);
+                outSizeRemaining -= count;
+            }
+            SetStatus(AppStatus::uploading, outSize - outSizeRemaining, outSize);
+
+            if(outSizeRemaining == 0)
+            {
+                FSClose(outRefNum);
+            }
+            if(outSizeRemaining == 0 && rStream.allDataArrived())
             {
                 server.state = LaunchServer::State::size;
                 SetStatus(AppStatus::ready, 0, 0);

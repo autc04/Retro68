@@ -32,11 +32,13 @@ class SerialLauncher : public Launcher
 {
     SerialStream stream;
     ReliableStream rStream;
+    std::vector<char> outputBytes;
 public:
 	SerialLauncher(po::variables_map& options);
 	virtual ~SerialLauncher();
 
 	virtual bool Go(int timeout = 0);
+	virtual void DumpOutput();
 
 private:
     void write(const void *p, size_t n);
@@ -118,16 +120,17 @@ SerialLauncher::~SerialLauncher()
 {
 }
 
-ssize_t SerialLauncher::read(void *p, size_t n)
+ssize_t SerialLauncher::read(void *p0, size_t n)
 {
-    ssize_t available = rStream.read(p, n);
-    while(!available)
+    uint8_t* p = (uint8_t*)p0;
+    ssize_t gotBytes = rStream.read(p, n);
+    while(gotBytes < n)
     {
         rStream.flushWrite();
         stream.wait();
-        available = rStream.read(p, n);
+        gotBytes += rStream.read(p + gotBytes, n - gotBytes);
     }
-    return available;
+    return gotBytes;
 }
 
 void SerialLauncher::write(const void *p, size_t n)
@@ -167,11 +170,25 @@ bool SerialLauncher::Go(int timeout)
         stream.wait();
 
     read(&tmp, 4);
-    tmp = ntohl(tmp);
+    uint32_t result = ntohl(tmp);
 
-    return true;
+    if(result == 0)
+    {
+        read(&tmp, 4);
+        uint32_t size = ntohl(tmp);
+
+        outputBytes.resize(size);
+        if(size > 0)
+            read(outputBytes.data(), size);
+    }
+
+    return result == 0;
 }
 
+void SerialLauncher::DumpOutput()
+{
+    std::cout.write(outputBytes.data(), outputBytes.size());
+}
 
 void Serial::GetOptions(options_description &desc)
 {
