@@ -88,7 +88,7 @@ resource 'WIND' (128, "About") {
 };
 
 resource 'WIND' (129, "Main") {
-    {30, 10, 200, 400}, noGrowDocProc;
+    {50, 10, 200, 400}, noGrowDocProc;
     visible;
     noGoAway;
     0, "Retro68 Application Launching Server";
@@ -97,7 +97,7 @@ resource 'WIND' (129, "Main") {
 
 resource 'STR#' (128) {
     {
-        "Ready.";
+        "Listening on Modem Port...";
         "Downloading Application...";
         "Running Application...";
         "Sending Results...";
