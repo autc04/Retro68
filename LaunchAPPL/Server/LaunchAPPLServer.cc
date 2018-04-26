@@ -333,6 +333,7 @@ public:
 short outRefNum;
 long outSize, outSizeRemaining;
 MacSerialStream *gSerialStream;
+int nullEventCounter = 0;
 
 void SetBaud(long baud)
 {
@@ -424,23 +425,27 @@ int main()
                     break;
             }
         }
+        else
+            nullEventCounter++;
 
         stream.idle();
     
         if(server.state == LaunchServer::State::launch)
         {
-            //stream.close();
+            //
             {
                 LaunchParamBlockRec lpb;
                 memset(&lpb, 0, sizeof(lpb));
 
-              /*  lpb.reserved1 = (unsigned long) "\pRetro68App";
+#if 1
+                lpb.reserved1 = (unsigned long) "\pRetro68App";
                 lpb.reserved2 = 0;
                 lpb.launchBlockID = extendedBlock;
                 lpb.launchEPBLength = 6;
                 lpb.launchFileFlags = 0;
-                lpb.launchControlFlags = 0xC000;*/
-
+                lpb.launchControlFlags = 0xC000;
+               // stream.close();
+#else
                 FSSpec spec;
                 FSMakeFSSpec(0,0,"\pRetro68App",&spec);
                 lpb.launchBlockID = extendedBlock;
@@ -448,21 +453,59 @@ int main()
                 lpb.launchFileFlags = 0;
                 lpb.launchControlFlags = launchContinue;
                 lpb.launchAppSpec = &spec;
-
+#endif
 
                 OSErr err = LaunchApplication(&lpb);
-                psn = lpb.launchProcessSN;
-                server.state = LaunchServer::State::wait;
 
-                SetStatus(AppStatus::running, 0, 0);
-                
+                if(err < 0)
+                {
+                    server.state = LaunchServer::State::size;
+                    SetStatus(AppStatus::ready, 0, 0);
+                }
+                else
+                {
+                    psn = lpb.launchProcessSN;
+                    server.state = LaunchServer::State::wait;
+                    nullEventCounter = 0;
+
+                    SetStatus(AppStatus::running, 0, 0);
+                }
             }
         }
-        else if(server.state == LaunchServer::State::wait)
+        else if(server.state == LaunchServer::State::wait && nullEventCounter > 3)
         {
+            bool running = false;
+
+#if 0 
             ProcessInfoRec info;
+            memset(&info, 0, sizeof(info));
+            info.processInfoLength = sizeof(info);
             OSErr err = GetProcessInformation(&psn,&info);
-            if(err)
+            running = (err == noErr);
+#else
+            {
+                uint8_t *fcbs = *(uint8_t**)0x34E; // FCBSPtr;
+
+                uint16_t bufSize = * (uint16_t*) fcbs;
+                uint8_t *end = fcbs + bufSize;
+
+                
+                
+                for(uint8_t *fcb = fcbs + 2; fcb < end; fcb += 94)
+                {
+                    if(*(uint32_t*) fcb == 0)
+                        continue;
+                    if(*(OSType*) (fcb + 0x32) != 'APPL')
+                        continue;
+                    if(EqualString(fcb + 0x3E, "\pRetro68App", true, true))
+                    {
+                        running = true;
+                        break;
+                    }
+                }
+            }
+#endif
+            if(!running)
             {
                 server.state = LaunchServer::State::respond;
                 uint32_t zero = 0;
@@ -500,6 +543,9 @@ int main()
                 rStream.reset(0);
             }
         }
+
+        //if(someoneExited)
+        //    SetStatus(AppStatus::running, 50, 100);
     }
 	return 0;
 }
