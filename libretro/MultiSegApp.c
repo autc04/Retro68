@@ -2,14 +2,17 @@
 #include <Traps.h>
 #include <Resources.h>
 #include <Memory.h>
+#include <Processes.h>
 #include <stdint.h>
 #include "PoorMansDebugging.h"
 
 #include "Retro68Runtime.h"
 
-static pascal void (*OriginalLoadSeg)(short id);
-static pascal void (*OriginalUnloadSeg)(void *ptr);
-static pascal void (*OriginalExitToShell)();
+static UniversalProcPtr OriginalLoadSeg;
+static UniversalProcPtr OriginalUnloadSeg;
+static UniversalProcPtr OriginalExitToShell;
+static UniversalProcPtr OriginalLaunch;
+static UniversalProcPtr OriginalChain;
 
 extern pascal void PatchedLoadSeg();
 
@@ -167,13 +170,58 @@ static pascal void PatchedUnloadSeg(Ptr ptr)
 	HUnlock(CODE);
 	HPurge(CODE);
 }
+
+static void InstallPatches();
+static void UninstallPatches();
+
 static pascal void PatchedExitToShell()
+{
+    UninstallPatches();
+    ExitToShell();
+}
+
+#pragma parameter __D0 Launch(__A0)
+pascal OSErr Launch(void *param) = { 0xA9F2 };
+
+#pragma parameter __D0 Chain(__A0)
+pascal OSErr Chain(void *param) = { 0xA9F2 };
+
+#pragma parameter __D0 PatchedLaunch(__A0)
+static pascal OSErr PatchedLaunch(void *p)
+{
+    UninstallPatches();
+    OSErr err = Launch(p);
+    InstallPatches();
+    return err;
+}
+
+#pragma parameter __D0 PatchedChain(__A0)
+static pascal OSErr PatchedChain(void *p)
+{
+    UninstallPatches();
+    OSErr err = Chain(p);
+    InstallPatches();
+    return err;
+}
+
+static void InstallPatches()
+{
+    SetToolTrapAddress((UniversalProcPtr)&PatchedLoadSeg, _LoadSeg);
+    SetToolTrapAddress((UniversalProcPtr)&PatchedUnloadSeg, _UnLoadSeg);
+    SetToolTrapAddress((UniversalProcPtr)&PatchedExitToShell, _ExitToShell);
+    SetToolTrapAddress((UniversalProcPtr)&PatchedLaunch, _Launch);
+    SetToolTrapAddress((UniversalProcPtr)&PatchedChain, _Chain);
+}
+
+static void UninstallPatches()
 {
     SetToolTrapAddress((UniversalProcPtr)OriginalLoadSeg, _LoadSeg);
     SetToolTrapAddress((UniversalProcPtr)OriginalUnloadSeg, _UnLoadSeg);
     SetToolTrapAddress((UniversalProcPtr)OriginalExitToShell, _ExitToShell);
-    OriginalExitToShell();
+    SetToolTrapAddress((UniversalProcPtr)OriginalLaunch, _Launch);
+    SetToolTrapAddress((UniversalProcPtr)OriginalChain, _Chain);
 }
+
 
 // section boundaries
 extern uint8_t _stext, _etext, _sdata, _edata, _sbss[], _ebss;
@@ -204,12 +252,12 @@ void Retro68InitMultisegApp()
     // Set up patched LoadSeg
 
 	// NOTE: OriginalLoadSeg is the first global variable we can use
-    OriginalLoadSeg = (void(*)(short)) GetToolTrapAddress(_LoadSeg);
-    OriginalUnloadSeg = (void(*)(void*)) GetToolTrapAddress(_UnLoadSeg);
-    OriginalExitToShell = (void(*)()) GetToolTrapAddress(_ExitToShell);
-    SetToolTrapAddress((UniversalProcPtr)&PatchedLoadSeg, _LoadSeg);
-    SetToolTrapAddress((UniversalProcPtr)&PatchedUnloadSeg, _UnLoadSeg);
-    SetToolTrapAddress((UniversalProcPtr)&PatchedExitToShell, _ExitToShell);
+    OriginalLoadSeg = GetToolTrapAddress(_LoadSeg);
+    OriginalUnloadSeg = GetToolTrapAddress(_UnLoadSeg);
+    OriginalExitToShell = GetToolTrapAddress(_ExitToShell);
+    OriginalLaunch = GetToolTrapAddress(_Launch);
+    OriginalChain = GetToolTrapAddress(_Chain);
+    InstallPatches();
 
     // Load and relocate statically initialized DATA
     Handle DATA = Get1Resource('DATA', 0);
