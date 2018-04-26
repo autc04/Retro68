@@ -8,9 +8,8 @@
 
 class ReliableStream : public StreamWrapper
 {
-    static const int maxInFlight = 4;
+    static const int maxInFlight = 3;
     static const int packetSize = 1024;
-    
 
     void sendOnePacket();
     void sendPackets();
