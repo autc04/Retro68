@@ -4,32 +4,6 @@
 #include <TextUtils.h>
 #include <string.h>
 
-class AppLauncherSingle : public AppLauncher
-{
-public:
-    virtual bool Launch(ConstStr255Param name)
-    {
-        LaunchParamBlockRec lpb;
-        memset(&lpb, 0, sizeof(lpb));
-
-        lpb.reserved1 = (unsigned long) name;
-        lpb.reserved2 = 0;
-        lpb.launchBlockID = extendedBlock;
-        lpb.launchEPBLength = 6;
-        lpb.launchFileFlags = 0;
-        lpb.launchControlFlags = 0xC000;
-        
-        LaunchApplication(&lpb);
-
-        return false;
-    }
-
-    virtual bool IsRunning(ConstStr255Param name)
-    {
-        return false;
-    }
-};
-
 class AppLauncher7 : public AppLauncher
 {
     ProcessSerialNumber psn;
@@ -62,7 +36,7 @@ public:
     }
 };
 
-class AppLauncherMultiFinder : public AppLauncher
+class AppLauncher6 : public AppLauncher
 {
 public:
     virtual bool Launch(ConstStr255Param name)
@@ -111,12 +85,6 @@ std::unique_ptr<AppLauncher> CreateAppLauncher()
     if(environ.systemVersion >= 0x0700)
         return std::make_unique<AppLauncher7>();
     else 
-    {
-        uint32_t& Twitcher2 = *(uint32_t*) 0xB7C;
-        if(Twitcher2 == 0 || Twitcher2 == 0xFFFFFFFF)
-            return std::make_unique<AppLauncherSingle>();
-        else
-            return std::make_unique<AppLauncherMultiFinder>();
-    }
+        return std::make_unique<AppLauncher6>();
 #endif
 }
