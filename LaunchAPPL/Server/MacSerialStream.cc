@@ -7,18 +7,8 @@
 
 MacSerialStream::MacSerialStream()
 {
-	OSErr err;
-    err = OpenDriver("\p.AOut", &outRefNum);
-	err = OpenDriver("\p.AIn", &inRefNum);
-	SerSetBuf(inRefNum, inputBuffer, kInputBufferSize);
-
-
-	SerShk shk;
-	memset(&shk, 0, sizeof(shk));
-	shk.fCTS = true;
-	Control(outRefNum, kSERDHandshake, &shk);
-	
-	SerReset(outRefNum, baud19200 | data8 | noParity | stop10);
+    curBaud = 19200;
+    open();
 }
 
 void MacSerialStream::close()
@@ -30,6 +20,22 @@ void MacSerialStream::close()
 	CloseDriver(inRefNum);
 	CloseDriver(outRefNum);
     inRefNum = outRefNum = 0;
+}
+
+void MacSerialStream::open()
+{
+	OSErr err;
+    err = OpenDriver("\p.AOut", &outRefNum);
+	err = OpenDriver("\p.AIn", &inRefNum);
+	SerSetBuf(inRefNum, inputBuffer, kInputBufferSize);
+
+
+	SerShk shk;
+	memset(&shk, 0, sizeof(shk));
+	shk.fCTS = true;
+	Control(outRefNum, kSERDHandshake, &shk);
+    
+    setBaud(curBaud);
 }
 
 MacSerialStream::~MacSerialStream()
@@ -70,6 +76,7 @@ void MacSerialStream::idle()
 
 void MacSerialStream::setBaud(int baud)
 {
+    curBaud = baud;
     short baudval = 0;
     switch(baud)
     {

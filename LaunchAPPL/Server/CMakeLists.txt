@@ -2,7 +2,9 @@ add_application(LaunchAPPLServer
     LaunchAPPLServer.r
     LaunchAPPLServer.cc
     MacSerialStream.h
-    MacSerialStream.cc)
+    MacSerialStream.cc
+    AppLauncher.h
+    AppLauncher.cc)
 
 target_link_libraries(LaunchAPPLServer LaunchAPPLCommon)
 set_target_properties(LaunchAPPLServer PROPERTIES
