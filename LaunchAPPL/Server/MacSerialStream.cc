@@ -5,9 +5,9 @@
 
 #include <string.h>
 
-MacSerialStream::MacSerialStream()
+MacSerialStream::MacSerialStream(int baud)
+    : curBaud(baud)
 {
-    curBaud = 19200;
     open();
 }
 

@@ -17,7 +17,7 @@ public:
 
     void idle();
 
-    MacSerialStream();
+    MacSerialStream(int baud = 19200);
     ~MacSerialStream();
 
     void close();

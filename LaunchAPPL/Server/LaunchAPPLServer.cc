@@ -54,7 +54,14 @@ enum
     kItemQuit = 1
 };
 
-long gBaud = 19200;
+struct Prefs
+{
+    long baud = 19200;
+    bool inSubLaunch = false;
+};
+
+Prefs gPrefs;
+bool gQuitting = false;
 
 void SetBaud(long baud);
 
@@ -131,7 +138,7 @@ void UpdateMenus()
         long baud;
         GetMenuItemText(m, i, str);
         StringToNum(str, &baud);
-        CheckMenuItem(m, i, baud == gBaud);
+        CheckMenuItem(m, i, baud == gPrefs.baud);
     }
 }
 
@@ -158,7 +165,7 @@ void DoMenuCommand(long menuCommand)
         switch(menuItem)
         {
             case kItemQuit:
-                ExitToShell();
+                gQuitting = true;
                 break;
         }
     }
@@ -174,8 +181,8 @@ void DoMenuCommand(long menuCommand)
     else if(menuID == kMenuSpeed)
     {
         GetMenuItemText(GetMenu(menuID), menuItem, str);
-        StringToNum(str, &gBaud);
-        SetBaud(gBaud);
+        StringToNum(str, &gPrefs.baud);
+        SetBaud(gPrefs.baud);
     }
     HiliteMenu(0);
 }
@@ -343,7 +350,32 @@ void SetBaud(long baud)
     gSerialStream->setBaud(baud);
 }
 
+void StartResponding(LaunchServer& server, ReliableStream& rStream)
+{
+    server.state = LaunchServer::State::respond;
+    uint32_t zero = 0;
+    rStream.write(&zero, 4);
 
+    OpenDF("\pout", 0, &outRefNum);
+    GetEOF(outRefNum, &outSize);
+    outSizeRemaining = outSize;
+    SetStatus(AppStatus::uploading, 0, outSize);
+    
+    rStream.write(&outSize, 4);
+    rStream.flushWrite();
+}
+
+void WritePrefs()
+{
+    short refNum;
+    Create("\pLaunchAPPLServer Preferences", 0, '????', 'LAPR');
+    if(OpenDF("\pLaunchAPPLServer Preferences", 0, &refNum) == noErr)
+    {
+        long count = sizeof(gPrefs);
+        FSWrite(refNum, &count, &gPrefs);
+        FSClose(refNum);
+    }
+}
 
 int main()
 {
@@ -364,7 +396,18 @@ int main()
 
     statusWindow = GetNewWindow(129, NULL, (WindowPtr) -1);
     SetStatus(AppStatus::ready);
-    MacSerialStream stream;
+
+    {
+        short refNum;
+        if(OpenDF("\pLaunchAPPLServer Preferences", 0, &refNum) == noErr)
+        {
+            long count = sizeof(gPrefs);
+            FSRead(refNum, &count, &gPrefs);
+            FSClose(refNum);
+        }
+    }
+
+    MacSerialStream stream(gPrefs.baud);
     gSerialStream = &stream;
 
 //#define SIMULATE_ERRORS
@@ -379,7 +422,13 @@ int main()
 
     std::unique_ptr<AppLauncher> appLauncher = CreateAppLauncher();
 
-    for(;;)
+   if(gPrefs.inSubLaunch)
+   {
+       gPrefs.inSubLaunch = false;
+       StartResponding(server, rStream);
+   }
+
+    while(!gQuitting)
     {
         EventRecord e;
         WindowRef win;
@@ -439,7 +488,12 @@ int main()
         if(server.state == LaunchServer::State::launch)
         {
             gSerialStream->close();
+            gPrefs.inSubLaunch = true;
+            WritePrefs();
             bool launched = appLauncher->Launch("\pRetro68App");
+            gPrefs.inSubLaunch = false;
+            WritePrefs();
+
             if(launched)
             {
                 server.state = LaunchServer::State::wait;
@@ -458,17 +512,7 @@ int main()
             if(!appLauncher->IsRunning("\pRetro68App"))
             {
                 gSerialStream->open();
-                server.state = LaunchServer::State::respond;
-                uint32_t zero = 0;
-                rStream.write(&zero, 4);
-
-                OpenDF("\pout", 0, &outRefNum);
-                GetEOF(outRefNum, &outSize);
-                outSizeRemaining = outSize;
-                SetStatus(AppStatus::uploading, 0, outSize);
-                
-                rStream.write(&outSize, 4);
-                rStream.flushWrite();
+                StartResponding(server, rStream);
             }
         }
         else if(server.state == LaunchServer::State::respond)
@@ -494,9 +538,8 @@ int main()
                 rStream.reset(0);
             }
         }
-
-        //if(someoneExited)
-        //    SetStatus(AppStatus::running, 50, 100);
     }
+
+    WritePrefs();
 	return 0;
 }
