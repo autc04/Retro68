@@ -57,6 +57,8 @@ public:
     }
     virtual bool IsRunning(ConstStr255Param name)
     {
+        // Iterate through open files to find if the application is still open
+        
         uint8_t *fcbs = *(uint8_t**)0x34E; // FCBSPtr;
 
         uint16_t bufSize = * (uint16_t*) fcbs;
@@ -68,7 +70,7 @@ public:
                 continue;
             if(*(OSType*) (fcb + 0x32) != 'APPL')
                 continue;
-            if(EqualString(fcb + 0x3E, "\pRetro68App", true, true))
+            if(EqualString(fcb + 0x3E, name, true, true))
                 return true;
         }
         return false;
