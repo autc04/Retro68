@@ -41,7 +41,7 @@ ReliableStream::ReliableStream(Stream* stream)
 
 void ReliableStream::reset(int sendReset)
 {
-    printf("reset %d\n", sendReset);
+    //printf("reset %d\n", sendReset);
     receivedInputPacket = 0;
     sentOutputPacket = 0;
     ackedOutputPacket = 0;
@@ -87,7 +87,7 @@ void ReliableStream::nack()
 void ReliableStream::gotAck(uint8_t id)
 {
     unsigned nAcked = (id - ackedOutputPacket) & 0xFF;
-    printf("got ack %d -> %u packets of %u acked\n", (int)id, nAcked, (unsigned)sentPackets.size());
+    //printf("got ack %d -> %u packets of %u acked\n", (int)id, nAcked, (unsigned)sentPackets.size());
     if(nAcked <= sentPackets.size())
     {
         ackedOutputPacket += nAcked;
@@ -100,7 +100,7 @@ void ReliableStream::gotAck(uint8_t id)
 
 void ReliableStream::gotNack(uint8_t id)
 {
-    printf("got nack %d\n", (int)id);
+    //printf("got nack %d\n", (int)id);
 
     unsigned nAcked = (id - ackedOutputPacket) & 0xFF;
     if(nAcked <= sentPackets.size())
@@ -119,7 +119,7 @@ void ReliableStream::gotNack(uint8_t id)
 
 void ReliableStream::processIncoming()
 {
-    printf("Received packet %d - %d bytes\n", receivedInputPacket + 1, (int)incomingPacket.size());
+    //printf("Received packet %d - %d bytes\n", receivedInputPacket + 1, (int)incomingPacket.size());
     if(incomingPacket.size() < 4)
     {
         nack();
@@ -130,7 +130,7 @@ void ReliableStream::processIncoming()
     uint32_t receivedCRC = readLong(&incomingPacket[incomingPacket.size()-4]);
     if(receivedCRC != expectedCRC)
     {
-        printf("CRC mismatch %x != %x\n", receivedCRC, expectedCRC);
+        //printf("CRC mismatch %x != %x\n", receivedCRC, expectedCRC);
 
         nack();
         incomingPacket.clear();
@@ -138,7 +138,7 @@ void ReliableStream::processIncoming()
     }
 
     receivedInputPacket++;
-    printf("Verified packet %d - %d bytes\n", receivedInputPacket, (int)incomingPacket.size());
+    //printf("Verified packet %d - %d bytes\n", receivedInputPacket, (int)incomingPacket.size());
     ack();
     notifyReceive(incomingPacket.data(), incomingPacket.size() - 4);
     incomingPacket.clear();
@@ -213,14 +213,14 @@ void ReliableStream::sendOnePacket()
     packet.push_back(magic2[3]);
     packet.push_back(kEndOfPacket);
 
-    printf("sent packet: %d, total %d bytes\n", sentOutputPacket, (int)packet.size());
-    printf("sendOnePacket: %d - %d packets, next = %d\n", (int)packetsToSend.size(), (int)sentPackets.size(), sentOutputPacket + 1);
+    //printf("sent packet: %d, total %d bytes\n", sentOutputPacket, (int)packet.size());
+    //printf("sendOnePacket: %d - %d packets, next = %d\n", (int)packetsToSend.size(), (int)sentPackets.size(), sentOutputPacket + 1);
     underlying().write(packet.data(), packet.size());
 }
 
 void ReliableStream::sendPackets()
 {
-    printf("sendPackets: %d - %d packets, next = %d\n", (int)packetsToSend.size(), (int)sentPackets.size(), sentOutputPacket + 1);
+    //printf("sendPackets: %d - %d packets, next = %d\n", (int)packetsToSend.size(), (int)sentPackets.size(), sentOutputPacket + 1);
     while(!packetsToSend.empty() && sentPackets.size() < maxInFlight)
         sendOnePacket();
 }
@@ -241,7 +241,7 @@ void ReliableStream::write(const void* p, size_t n)
         packet.reserve(n1 + 4);
         packet.insert(packet.end(), (const uint8_t*)p, ((const uint8_t*)p)+n1);
         uint32_t crc = crc32(0,  packet.begin(), packet.end());
-        printf("outgoing crc: %x (bytes: %d without crc and header)\n", (unsigned) crc, (int)packet.size());
+        //printf("outgoing crc: %x (bytes: %d without crc and header)\n", (unsigned) crc, (int)packet.size());
         packet.push_back(crc >> 24);
         packet.push_back(crc >> 16);
         packet.push_back(crc >> 8);
@@ -266,7 +266,7 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
                 || (n > 3 && p[3] != magic1[3]) )
             {
                 state = State::skipping;
-                printf("no magic\n");
+                //printf("no magic\n");
                 nack();
                 gotNack(ackedOutputPacket);
 
@@ -328,7 +328,7 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
                     }
                     if(p[6] != ((receivedInputPacket + 1) & 0xFF))
                     {
-                        printf("bad serial: %d %d\n", p[6], receivedInputPacket+1);
+                        //printf("bad serial: %d %d\n", p[6], receivedInputPacket+1);
                         //nack();
                         state = State::skipping;
                         return 8;
