@@ -26,7 +26,7 @@
 #include <TextUtils.h>
 #include <Dialogs.h>
 #include <Devices.h>
-
+#include <Traps.h>
 
 #include "MacSerialStream.h"
 #include "AppLauncher.h"
@@ -399,8 +399,22 @@ int main()
     InitMenus();
     TEInit();
     InitDialogs(NULL);
-#endif
     
+    short& ROM85      = *(short*) 0x028E;
+	Boolean is128KROM = (ROM85 > 0);
+	Boolean hasSysEnvirons = false;
+	Boolean hasWaitNextEvent = false;
+	if (is128KROM)
+	{
+		UniversalProcPtr trapSysEnv = GetOSTrapAddress(_SysEnvirons);
+        UniversalProcPtr trapWaitNextEvent = GetToolTrapAddress(_WaitNextEvent);
+		UniversalProcPtr trapUnimpl = GetToolTrapAddress(_Unimplemented);
+
+		hasSysEnvirons = (trapSysEnv != trapUnimpl);
+		hasWaitNextEvent = (trapWaitNextEvent != trapUnimpl);
+	}
+#endif
+
     SetMenuBar(GetNewMBar(128));
     AppendResMenu(GetMenu(128), 'DRVR');
     DrawMenuBar();
@@ -445,15 +459,21 @@ int main()
     {
         EventRecord e;
         WindowRef win;
-        
-#if 0 && !TARGET_API_MAC_CARBON
-        SystemTask();
-        if(GetNextEvent(everyEvent, &e))
-#else
-        // actually, we should be using WaitNextEvent
-        // on everything starting from System 7
-        if(WaitNextEvent(everyEvent, &e, 10, NULL))
+        Boolean hadEvent;
+
+#if !TARGET_API_MAC_CARBON
+        if(!hasWaitNextEvent)
+        {
+            SystemTask();
+            hadEvent = GetNextEvent(everyEvent, &e);
+        }
+        else
 #endif
+        {
+            hadEvent = WaitNextEvent(everyEvent, &e, 10, NULL);
+        }
+        
+        if(hadEvent)
         {
             switch(e.what)
             {
