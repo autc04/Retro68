@@ -218,6 +218,13 @@ void DoUpdate(WindowRef w)
         PaintRect(&r);
     }
 
+    Str255 str;
+    NumToString(FreeMem(), str);
+    MoveTo(10,80);
+    DrawString(str); DrawString("\p / ");
+    NumToString(ApplicationZone()->bkLim - (Ptr)ApplicationZone(), str);
+    DrawString(str); DrawString("\p bytes free");
+
     EndUpdate(w);
 }
 
@@ -379,6 +386,12 @@ void WritePrefs()
 
 int main()
 {
+    // default stack size is 8KB on B&W macs
+    // and 24 KB on Color macs.
+    // 8KB seems to be not quite enough,
+    // so increase stack size by 8KB.
+    SetApplLimit(GetApplLimit() - 8192);
+    MaxApplZone();
 #if !TARGET_API_MAC_CARBON
     InitGraf(&qd.thePort);
     InitFonts();
@@ -387,7 +400,7 @@ int main()
     TEInit();
     InitDialogs(NULL);
 #endif
-
+    
     SetMenuBar(GetNewMBar(128));
     AppendResMenu(GetMenu(128), 'DRVR');
     DrawMenuBar();

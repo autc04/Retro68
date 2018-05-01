@@ -123,6 +123,6 @@ resource 'SIZE' (-1) {
 	reserved,
 	reserved,
 	reserved,
-	256 * 1024,
-	256 * 1024
+	136 * 1024,
+	136 * 1024
 };

@@ -10,3 +10,7 @@ target_include_directories(LaunchAPPLCommon PUBLIC .)
 
 add_executable(TestLaunchAPPLCommon Test.cc)
 target_link_libraries(TestLaunchAPPLCommon LaunchAPPLCommon)
+
+if(CMAKE_SYSTEM_NAME MATCHES Retro68)
+    #target_compile_options(LaunchAPPLCommon PRIVATE -ffunction-sections -fno-exceptions -Os)
+endif()

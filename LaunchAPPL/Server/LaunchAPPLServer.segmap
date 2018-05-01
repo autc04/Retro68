@@ -1,0 +1,9 @@
+SEGMENT Serial
+    */libLaunchAPPLCommon.a:ReliableStream.*
+    */MacSerialStream.*
+
+SEGMENT Launcher
+    */AppLauncher.*
+
+SEGMENT libstdc++
+    */libstdc++.a:*
