@@ -22,10 +22,10 @@ resource 'CODE' (1) {
 
 resource 'SIZE' (-1) {
 	dontSaveScreen,
-	acceptSuspendResumeEvents,
+	ignoreSuspendResumeEvents,
 	enableOptionSwitch,
-	canBackground,
-	multiFinderAware,
+	cannotBackground,
+	needsActivateOnFGSwitch,
 	backgroundAndForeground,
 	dontGetFrontClicks,
 	ignoreChildDiedEvents,
