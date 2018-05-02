@@ -332,6 +332,8 @@ Currently, LaunchAPPL supports the following methods for launching Mac applicati
 * carbon - launch as a Carbon app on PowerPC Macs and via Rosetta on Intel Macs up to Snow Leopard (10.6)
 * minivmac - launch using the Mini vMac emulator
 * executor - launch using Executor
+* ssh - Invoke the `LaunchAPPL` tool remotely via ssh
+* serial - Connect to a real Mac running the `LaunchAPPLServer` application via a null modem cable
 
 If you're running on a Mac that's old enough to use the `classic` or `carbon` backends,
 they will work out of the box, just launch an application as follows

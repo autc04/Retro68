@@ -18,6 +18,23 @@
 
 # emulator = carbon
 
+# ########### A real Mac connected via a serial cable
+
+    # Prerequisited:
+    # - A Mac with a modem port, and any classic Mac system software
+    # - The LaunchAPPLServer application
+    #   (`Retro68-build/build-target/LaunchAPPL/Server/`) running on that Mac
+    # - A computer with a serial port (or USB serial adapter) running Retro68
+    # - A Mac-To-PC null modem cable
+    #   (https://allpinouts.org/pinouts/cables/serial/macintosh-to-pc-null-modem/)
+
+    # if you change the speed, make sure to choose the matching speed from the
+    # menu in the server application
+
+# emulator = serial
+# serial-port = /dev/ttyUSB0
+# serial-baud = 19200
+
 
 # ########### Mini vMac (old 68K Macs)
 
@@ -48,7 +65,7 @@
     # And finally, autoquit:
 # autoquit-image = ./autoquit-1.1.1.dsk
 
-# ########### Executor (68K only)
+# ########### Executor
 
     # No ROM files needed - an opensource reimplementation of classic Mac OS.
 
