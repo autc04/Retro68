@@ -1,5 +1,7 @@
 #include "Test.h"
 #include <Events.h>
+#include <Quickdraw.h>
+#include <Windows.h>
 
 int zeroInitedArray[32768];
 int commonSymbol;
@@ -28,7 +30,15 @@ int main()
 		}
 		zeroInitedArray[i] = 42;
 	}
+	
+    // Initialize some of the Macintosh Toolbox
+    // and maybe trigger a context switch, so we can be sure
+    // our global variables were put in the right placce.
+    InitGraf(&qd.thePort);
+	InitFonts();
+	InitWindows();
 	GetNextEvent(everyEvent, &e);
+
 	for(i = 0; i < 32768; i++)
 	{
 		if(zeroInitedArray[i] != 42)
