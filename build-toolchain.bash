@@ -308,7 +308,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		# Build gcc for 68K
 		mkdir -p gcc-build
 		cd gcc-build
-		export target_configargs="--disable-nls --enable-libstdcxx-dual-abi=no"
+		export target_configargs="--disable-nls --enable-libstdcxx-dual-abi=no --disable-libstdcxx-verbose"
 		$SRC/gcc/configure --target=m68k-apple-macos --prefix=$PREFIX \
 				--enable-languages=c,c++ --with-arch=m68k --with-cpu=m68000 \
 				--disable-libssp MAKEINFO=missing
@@ -366,7 +366,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		# Build gcc for PPC
 		mkdir -p gcc-build-ppc
 		cd gcc-build-ppc
-		export target_configargs="--disable-nls --enable-libstdcxx-dual-abi=no"
+		export target_configargs="--disable-nls --enable-libstdcxx-dual-abi=no --disable-libstdcxx-verbose"
 		$SRC/gcc/configure --target=powerpc-apple-macos --prefix=$PREFIX \
 			--enable-languages=c,c++ --disable-libssp --disable-lto MAKEINFO=missing
 		make -j8
