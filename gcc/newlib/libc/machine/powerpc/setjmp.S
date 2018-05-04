@@ -2,6 +2,7 @@
    Ian Lance Taylor, Cygnus Support, 9 Feb 1994.  
    Modified by Jeff Johnston, Red Hat Inc. 2 Oct 2001. */
 
+        .toc
 	.csect .text[PR]
 	.align 2
 	.globl setjmp
