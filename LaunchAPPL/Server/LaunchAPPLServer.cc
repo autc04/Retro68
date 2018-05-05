@@ -32,6 +32,7 @@
 #include "AppLauncher.h"
 
 #include <ReliableStream.h>
+#include "ServerProtocol.h"
 #include <Processes.h>
 #include <string.h>
 #include <stdio.h>
@@ -263,44 +264,58 @@ public:
 
     enum class State
     {
-        size,
+        command,
+        header,
         data,
         rsrc,
         launch,
         wait,
         respond
     };
-    State state = State::size;
+    State state = State::command;
+    RemoteCommand command;
 
     void onReset()
     {
         SetStatus(AppStatus::ready, 0, 0);
-        state = State::size;
+        state = State::command;
     }
 
     size_t onReceive(const uint8_t* p, size_t n)
     {
         switch(state)
         {
-            case State::size:
+            case State::command:
                 {
-                    if(n < 8)
+                    if(n < 1)
                         return 0;
-                    dataSize = *(const uint32_t*)p;
-                    rsrcSize = *(const uint32_t*)(p+4);
+                    command = (RemoteCommand)p[0];
+                    if(command == RemoteCommand::launchApp)
+                        state = State::header;
+                    return 1;
+                }
+
+            case State::header:
+                {
+                    if(n < 16)
+                        return 0;
+                    OSType type = *(const OSType*)(p+0);
+                    OSType creator = *(const OSType*)(p+4);
+                    dataSize = *(const uint32_t*)(p+8);
+                    rsrcSize = *(const uint32_t*)(p+12);
 
                     SetStatus(AppStatus::downloading, 0, dataSize + rsrcSize);
                     printf("Data Size: %u / %u\n", dataSize, rsrcSize);
 
                     FSDelete("\pRetro68App", 0);
-                    Create("\pRetro68App", 0, '????', 'APPL');
+                    Create("\pRetro68App", 0, creator, type);
                     OpenDF("\pRetro68App", 0, &refNum);
                     FSDelete("\pout", 0);
                     Create("\pout", 0, 'ttxt', 'TEXT');
 
                     state = State::data;
                     remainingSize = dataSize;
-                    return 8;
+                    return 16;
                 }
 
             case State::data:
@@ -536,7 +551,7 @@ int main()
             }
             else
             {
-                server.state = LaunchServer::State::size;
+                server.state = LaunchServer::State::command;
                 SetStatus(AppStatus::ready, 0, 0);
             }
         }
@@ -566,7 +581,7 @@ int main()
             }
             if(outSizeRemaining == 0 && rStream.allDataArrived())
             {
-                server.state = LaunchServer::State::size;
+                server.state = LaunchServer::State::command;
                 SetStatus(AppStatus::ready, 0, 0);
                 rStream.reset(0);
             }

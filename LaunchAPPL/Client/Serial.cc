@@ -3,6 +3,7 @@
 #include "Utilities.h"
 #include "Stream.h"
 #include "ReliableStream.h"
+#include "ServerProtocol.h"
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -162,21 +163,28 @@ bool SerialLauncher::Go(int timeout)
 
     do
     {
-    rStream.reset(1);
+        rStream.reset(1);
         std::cerr << "Connecting... (" << stream.baud << " baud)" << std::endl;
         using clock = std::chrono::steady_clock;
         auto startTime = clock::now();
         while(!rStream.resetResponseArrived() && clock::now() - startTime < 5s)
-        stream.wait();
+            stream.wait();
     } while(!rStream.resetResponseArrived());
 
     std::cerr << "Connected." << std::endl;
 
     {
+        RemoteCommand cmd = RemoteCommand::launchApp;
+        write(&cmd, 1);
+
+        write(std::string(app.type).data(), 4);
+        write(std::string(app.creator).data(), 4);
+        
         std::ostringstream rsrcOut;
         app.resources.writeFork(rsrcOut);
         std::string rsrc = rsrcOut.str();
         std::string& data = app.data;
+        std::cerr << "Transfering " << (data.size() + rsrc.size() + 1023) / 1024 << " KB." << std::endl;
 
         tmp = htonl(data.size());
         write(&tmp, 4);
@@ -192,12 +200,12 @@ bool SerialLauncher::Go(int timeout)
     read(&tmp, 4);
     uint32_t result = ntohl(tmp);
     std::cerr << "Finished." << std::endl;
-
+    
     if(result == 0)
     {
         read(&tmp, 4);
         uint32_t size = ntohl(tmp);
-
+    
         outputBytes.resize(size);
         if(size > 0)
             read(outputBytes.data(), size);
