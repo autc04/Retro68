@@ -40,6 +40,7 @@ class ReliableStream : public StreamWrapper
     std::list<std::vector<uint8_t>> sentPackets;
 
     bool resetResponse = false;
+    bool flushRequested = false;
 
     virtual size_t onReceive(const uint8_t* p, size_t n);
 public:
