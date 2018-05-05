@@ -52,6 +52,11 @@ add_subdirectory(Samples/SystemExtension)
 add_subdirectory(Samples/WDEF)
 endif()
 
+if(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
+else()
+add_subdirectory(Samples/MPWTool)
+endif()
+
 add_subdirectory(LaunchAPPL)
 
 enable_testing()
