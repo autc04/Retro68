@@ -128,6 +128,7 @@ int main(int argc, char *argv[])
 
 	desc.add_options()
 			("timeout,t", po::value<int>(),"abort after timeout")
+            ("upgrade-server", "upgrade the server application")
 	;
 	po::options_description hidden, alldesc;
 	hidden.add_options()

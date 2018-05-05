@@ -36,6 +36,7 @@ class SerialLauncher : public Launcher
     SerialStream stream;
     ReliableStream rStream;
     std::vector<char> outputBytes;
+    bool upgradeMode = false;
 public:
 	SerialLauncher(po::variables_map& options);
 	virtual ~SerialLauncher();
@@ -131,6 +132,8 @@ void SerialStream::wait()
 SerialLauncher::SerialLauncher(po::variables_map &options)
     : Launcher(options), stream(options), rStream(&stream)
 {
+    if(options.count("upgrade-server"))
+        upgradeMode = true;
 }
 
 SerialLauncher::~SerialLauncher()
@@ -174,7 +177,7 @@ bool SerialLauncher::Go(int timeout)
     std::cerr << "Connected." << std::endl;
 
     {
-        RemoteCommand cmd = RemoteCommand::launchApp;
+        RemoteCommand cmd = upgradeMode ? RemoteCommand::upgradeLauncher : RemoteCommand::launchApp;
         write(&cmd, 1);
 
         write(std::string(app.type).data(), 4);
@@ -199,13 +202,12 @@ bool SerialLauncher::Go(int timeout)
     std::cerr << "Running Appliation..." << std::endl;
     read(&tmp, 4);
     uint32_t result = ntohl(tmp);
-    std::cerr << "Finished." << std::endl;
+    std::cerr << "Finished (result = " << result << ")." << std::endl;
     
     if(result == 0)
     {
         read(&tmp, 4);
         uint32_t size = ntohl(tmp);
-    
         outputBytes.resize(size);
         if(size > 0)
             read(outputBytes.data(), size);

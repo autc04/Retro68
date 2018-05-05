@@ -27,6 +27,7 @@
 #include <Dialogs.h>
 #include <Devices.h>
 #include <Traps.h>
+#include <LowMem.h>
 
 #include "MacSerialStream.h"
 #include "AppLauncher.h"
@@ -290,7 +291,7 @@ public:
                     if(n < 1)
                         return 0;
                     command = (RemoteCommand)p[0];
-                    if(command == RemoteCommand::launchApp)
+                    if(command == RemoteCommand::launchApp || command == RemoteCommand::upgradeLauncher)
                         state = State::header;
                     return 1;
                 }
@@ -538,6 +539,21 @@ int main()
             gSerialStream->close();
             gPrefs.inSubLaunch = true;
             WritePrefs();
+
+            if(server.command == RemoteCommand::upgradeLauncher)
+            {
+                FSDelete("\pLaunchAPPLServer.old", 0);
+                Rename(LMGetCurApName(), 0, "\pLaunchAPPLServer.old");
+                Rename("\pRetro68App", 0, LMGetCurApName());
+
+                LaunchParamBlockRec lpb;
+                memset(&lpb, 0, sizeof(lpb));
+                lpb.reserved1 = (unsigned long) LMGetCurApName();
+                lpb.reserved2 = 0;
+                OSErr err = LaunchApplication(&lpb);
+                ExitToShell();
+            }
+
             bool launched = appLauncher->Launch("\pRetro68App");
             gPrefs.inSubLaunch = false;
             WritePrefs();

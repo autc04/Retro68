@@ -4,5 +4,6 @@
 
 enum class RemoteCommand : uint8_t
 {
-    launchApp = 1
+    launchApp = 1,
+    upgradeLauncher = 2
 };
