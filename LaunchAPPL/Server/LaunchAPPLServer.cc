@@ -396,6 +396,24 @@ void WritePrefs()
     }
 }
 
+pascal OSErr aeRun (const AppleEvent *theAppleEvent, AppleEvent *reply, long handlerRefcon)
+{
+    return noErr;
+}
+pascal OSErr aeOpen (const AppleEvent *theAppleEvent, AppleEvent *reply, long handlerRefcon)
+{
+    return noErr;
+}
+pascal OSErr aePrint (const AppleEvent *theAppleEvent, AppleEvent *reply, long handlerRefcon)
+{
+    return noErr;
+}
+pascal OSErr aeQuit (const AppleEvent *theAppleEvent, AppleEvent *reply, long handlerRefcon)
+{
+    gQuitting = true;
+    return noErr;
+}
+
 int main()
 {
     // default stack size is 8KB on B&W macs
@@ -411,20 +429,29 @@ int main()
     InitMenus();
     TEInit();
     InitDialogs(NULL);
+#endif
     
+#if TARGET_CPU_68K && !TARGET_RT_MAC_CFM
     short& ROM85      = *(short*) 0x028E;
 	Boolean is128KROM = (ROM85 > 0);
 	Boolean hasSysEnvirons = false;
 	Boolean hasWaitNextEvent = false;
+    Boolean hasAppleEvents = false;
 	if (is128KROM)
 	{
+		UniversalProcPtr trapUnimpl = GetToolTrapAddress(_Unimplemented);
 		UniversalProcPtr trapSysEnv = GetOSTrapAddress(_SysEnvirons);
         UniversalProcPtr trapWaitNextEvent = GetToolTrapAddress(_WaitNextEvent);
-		UniversalProcPtr trapUnimpl = GetToolTrapAddress(_Unimplemented);
+        UniversalProcPtr trapAppleEvents = GetToolTrapAddress(_Pack8);
 
 		hasSysEnvirons = (trapSysEnv != trapUnimpl);
 		hasWaitNextEvent = (trapWaitNextEvent != trapUnimpl);
+        hasAppleEvents = (trapAppleEvents != trapUnimpl);
 	}
+#else
+	const Boolean hasSysEnvirons = true;
+	const Boolean hasWaitNextEvent = true;
+    const Boolean hasAppleEvents = true;
 #endif
 
     SetMenuBar(GetNewMBar(128));
@@ -432,6 +459,14 @@ int main()
     DrawMenuBar();
 
     InitCursor();
+
+    if(hasAppleEvents)
+    {
+        AEInstallEventHandler(kCoreEventClass, kAEOpenApplication, NewAEEventHandlerUPP(&aeRun), 0, false);
+        AEInstallEventHandler(kCoreEventClass, kAEOpenDocuments, NewAEEventHandlerUPP(&aeOpen), 0, false);
+        AEInstallEventHandler(kCoreEventClass, kAEPrintDocuments, NewAEEventHandlerUPP(&aePrint), 0, false);
+        AEInstallEventHandler(kCoreEventClass, kAEQuitApplication, NewAEEventHandlerUPP(&aeQuit), 0, false);
+    }
 
     statusWindow = GetNewWindow(129, NULL, (WindowPtr) -1);
     SetStatus(AppStatus::ready);
@@ -522,6 +557,10 @@ int main()
                     break;
                 case updateEvt:
                     DoUpdate((WindowRef)e.message);
+                    break;
+                case kHighLevelEvent:
+                    if(hasAppleEvents)
+                        AEProcessAppleEvent(&e);
                     break;
             }
         }
