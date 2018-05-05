@@ -9,3 +9,4 @@ public:
 };
 
 std::unique_ptr<AppLauncher> CreateAppLauncher();
+std::unique_ptr<AppLauncher> CreateToolLauncher();

@@ -273,6 +273,8 @@ public:
     State state = State::command;
     RemoteCommand command;
 
+    OSType type, creator;
+
     void onReset()
     {
         SetStatus(AppStatus::ready, 0, 0);
@@ -297,8 +299,8 @@ public:
                 {
                     if(n < 16)
                         return 0;
-                    OSType type = *(const OSType*)(p+0);
-                    OSType creator = *(const OSType*)(p+4);
+                    type = *(const OSType*)(p+0);
+                    creator = *(const OSType*)(p+4);
                     dataSize = *(const uint32_t*)(p+8);
                     rsrcSize = *(const uint32_t*)(p+12);
 
@@ -430,7 +432,7 @@ int main()
     TEInit();
     InitDialogs(NULL);
 #endif
-    
+
 #if TARGET_CPU_68K && !TARGET_RT_MAC_CFM
     short& ROM85      = *(short*) 0x028E;
 	Boolean is128KROM = (ROM85 > 0);
@@ -494,7 +496,7 @@ int main()
 
     LaunchServer server(&rStream);
 
-    std::unique_ptr<AppLauncher> appLauncher = CreateAppLauncher();
+    std::unique_ptr<AppLauncher> appLauncher;
 
    if(gPrefs.inSubLaunch)
    {
@@ -589,6 +591,11 @@ int main()
                 ExitToShell();
             }
 
+            if(server.type == 'MPST')
+                appLauncher = CreateToolLauncher();
+            else
+                appLauncher = CreateAppLauncher();
+
             bool launched = appLauncher->Launch("\pRetro68App");
             gPrefs.inSubLaunch = false;
             WritePrefs();
@@ -603,6 +610,7 @@ int main()
             else
             {
                 server.state = LaunchServer::State::command;
+                gSerialStream->open();
                 SetStatus(AppStatus::ready, 0, 0);
             }
         }
