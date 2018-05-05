@@ -89,7 +89,7 @@ function(add_application name)
 					--copy "${name}.code.bin"
 					-o "${name}.bin"
 					--cc "${name}.dsk" --cc "${name}.APPL" --cc "%${name}.ad"
-					-t '${ARGS_TYPE}' -c '${ARGS_CREATOR}'
+					-t "${ARGS_TYPE}" -c "${ARGS_CREATOR}"
 					${ARGS_MAKEAPPL_ARGS}
 			DEPENDS ${name} ${rsrc_files})
 		add_custom_target(${name}_APPL ALL DEPENDS ${name}.bin)
@@ -118,7 +118,7 @@ function(add_application name)
 					-DCFRAG_NAME="\\"${name}\\""
 					-o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
 					--cc "%${name}.ad"
-					-t '${ARGS_TYPE}' -c '${ARGS_CREATOR}'
+					-t "${ARGS_TYPE}" -c "${ARGS_CREATOR}"
 					--data ${name}.pef
 					${ARGS_MAKEAPPL_ARGS}
 			DEPENDS ${name}.pef ${rsrc_files})
