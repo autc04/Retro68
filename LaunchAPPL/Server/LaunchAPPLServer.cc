@@ -36,7 +36,6 @@
 #include "ServerProtocol.h"
 #include <Processes.h>
 #include <string.h>
-#include <stdio.h>
 #include <memory>
 
 #include <UnreliableStream.h>
@@ -248,8 +247,6 @@ void SetStatus(AppStatus stat, int done = 0, int total = 0)
     InvalRect(&statusWindow->portRect);
 }
 
-ProcessSerialNumber psn;
-
 class LaunchServer : public StreamListener
 {
     Stream* stream;
@@ -306,7 +303,6 @@ public:
                     rsrcSize = *(const uint32_t*)(p+12);
 
                     SetStatus(AppStatus::downloading, 0, dataSize + rsrcSize);
-                    printf("Data Size: %u / %u\n", dataSize, rsrcSize);
 
                     FSDelete("\pRetro68App", 0);
                     Create("\pRetro68App", 0, creator, type);
