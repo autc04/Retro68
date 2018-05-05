@@ -8,10 +8,11 @@
 #include <fcntl.h>
 #include <arpa/inet.h>
 #include <poll.h>
-
+#include <chrono>
 #include <iostream>
-namespace po = boost::program_options;
 
+namespace po = boost::program_options;
+using namespace std::literals::chrono_literals;
 
 class SerialStream : public Stream
 {
@@ -19,6 +20,7 @@ class SerialStream : public Stream
     uint8_t readBuffer[kReadBufferSize];
 public:
     int fd;
+    int baud;
 
     virtual void write(const void* p, size_t n) override;
 
@@ -49,7 +51,7 @@ private:
 SerialStream::SerialStream(po::variables_map &options)
 {
     std::string port = options["serial-port"].as<std::string>();
-    int baud = options["serial-baud"].as<int>();
+    baud = options["serial-baud"].as<int>();
     fd = open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY );
     if(fd < 0)
         throw std::runtime_error("Cannot open serial port.\n");
@@ -154,17 +156,21 @@ void SerialLauncher::write(const void *p, size_t n)
     rStream.write(p, n);
 }
 
-
 bool SerialLauncher::Go(int timeout)
 {
     uint32_t tmp;
 
+    do
+    {
     rStream.reset(1);
-    std::cout << "reset send.\n";
-    while(!rStream.resetResponseArrived())
+        std::cerr << "Connecting... (" << stream.baud << " baud)" << std::endl;
+        using clock = std::chrono::steady_clock;
+        auto startTime = clock::now();
+        while(!rStream.resetResponseArrived() && clock::now() - startTime < 5s)
         stream.wait();
+    } while(!rStream.resetResponseArrived());
 
-    std::cout << "reset response received.\n";
+    std::cerr << "Connected." << std::endl;
 
     {
         std::ostringstream rsrcOut;
@@ -182,9 +188,10 @@ bool SerialLauncher::Go(int timeout)
     }
     while(!rStream.allDataArrived())
         stream.wait();
-
+    std::cerr << "Running Appliation..." << std::endl;
     read(&tmp, 4);
     uint32_t result = ntohl(tmp);
+    std::cerr << "Finished." << std::endl;
 
     if(result == 0)
     {
