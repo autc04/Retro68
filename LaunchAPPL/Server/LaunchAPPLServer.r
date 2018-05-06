@@ -21,6 +21,7 @@
 #include "Menus.r"
 #include "Windows.r"
 #include "MacTypes.r"
+#include "Finder.r"
 
 resource 'MENU' (128) {
     128, textMenuProc;
@@ -125,4 +126,28 @@ resource 'SIZE' (-1) {
 	reserved,
 	150 * 1024,
 	136 * 1024
+};
+
+type 'R68L' as 'STR ';
+resource 'R68L' (0, purgeable) {
+    "LaunchAPPLServer (c) 2018"
+};
+
+resource 'FREF' (128, purgeable) {
+    'APPL',
+    0,
+    ""
+};
+
+resource 'BNDL' (128, purgeable) {
+    'R68L',
+    0,
+    {
+        'ICN#', {
+            0, 128
+        },
+        'FREF', {
+            10, 128
+        }
+    }
 };

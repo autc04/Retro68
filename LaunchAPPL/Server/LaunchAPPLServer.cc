@@ -389,7 +389,7 @@ void StartResponding(LaunchServer& server, ReliableStream& rStream)
 void WritePrefs()
 {
     short refNum;
-    Create("\pLaunchAPPLServer Preferences", 0, '????', 'LAPR');
+    Create("\pLaunchAPPLServer Preferences", 0, 'R68L', 'LAPR');
     if(OpenDF("\pLaunchAPPLServer Preferences", 0, &refNum) == noErr)
     {
         long count = sizeof(gPrefs);
@@ -579,16 +579,19 @@ int main()
 
             if(server.command == RemoteCommand::upgradeLauncher)
             {
-                FSDelete("\pLaunchAPPLServer.old", 0);
-                Rename(LMGetCurApName(), 0, "\pLaunchAPPLServer.old");
-                Rename("\pRetro68App", 0, LMGetCurApName());
+                if(server.creator == 'R68L' && server.type == 'APPL')
+                {
+                    FSDelete("\pLaunchAPPLServer.old", 0);
+                    Rename(LMGetCurApName(), 0, "\pLaunchAPPLServer.old");
+                    Rename("\pRetro68App", 0, LMGetCurApName());
 
-                LaunchParamBlockRec lpb;
-                memset(&lpb, 0, sizeof(lpb));
-                lpb.reserved1 = (unsigned long) LMGetCurApName();
-                lpb.reserved2 = 0;
-                OSErr err = LaunchApplication(&lpb);
-                ExitToShell();
+                    LaunchParamBlockRec lpb;
+                    memset(&lpb, 0, sizeof(lpb));
+                    lpb.reserved1 = (unsigned long) LMGetCurApName();
+                    lpb.reserved2 = 0;
+                    OSErr err = LaunchApplication(&lpb);
+                    ExitToShell();
+                }
             }
 
             if(server.type == 'MPST')

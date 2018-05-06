@@ -1,5 +1,10 @@
 add_application(LaunchAPPLServer 
+    TYPE "APPL"
+    CREATOR "R68L"
+
+
     LaunchAPPLServer.r
+    LauncherIcon.r
     LaunchAPPLServer.cc
     MacSerialStream.h
     MacSerialStream.cc
