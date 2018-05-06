@@ -580,7 +580,8 @@ int main()
         else
             nullEventCounter++;
 
-        stream.idle();
+        if(server.state != LaunchServer::State::wait)
+            stream.idle();
     
         if(server.state == LaunchServer::State::launch)
         {
