@@ -9,15 +9,6 @@ class ToolLauncher : public AppLauncher
     bool replyReceived;
     AEEventHandlerUPP replyHandler = nullptr;
 
-    static pascal OSErr handleReply(const AppleEvent *theAppleEvent, AppleEvent *reply, long handlerRefcon)
-    {
-        ToolLauncher *self = (ToolLauncher*)handlerRefcon;
-        self->replyReceived = true;
-
-        AERemoveEventHandler(kCoreEventClass, kAEAnswer, handleReply, false);
-        return noErr;
-    }
-
     Handle buildCommandLine(ConstStr255Param name)
     {
         CInfoPBRec pb;
@@ -70,12 +61,21 @@ class ToolLauncher : public AppLauncher
         return text;
     }
 
+    static pascal OSErr handleReply(const AppleEvent *theAppleEvent, AppleEvent *reply, long handlerRefcon)
+    {
+        ToolLauncher *self = (ToolLauncher*)handlerRefcon;
+        self->replyReceived = true;
+
+        AERemoveEventHandler(kCoreEventClass, kAEAnswer, self->replyHandler, false);
+        return noErr;
+    }
+
 public:
     virtual bool Launch(ConstStr255Param name)
     {
         if(!replyHandler)
             replyHandler = NewAEEventHandlerUPP(&handleReply);
-        AEInstallEventHandler(kCoreEventClass, kAEAnswer, handleReply, (long)this, false);
+        AEInstallEventHandler(kCoreEventClass, kAEAnswer, replyHandler, (long)this, false);
 
         AEAddressDesc address;
 

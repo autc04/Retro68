@@ -4,6 +4,7 @@ SEGMENT Serial
 
 SEGMENT Launcher
     */AppLauncher.*
+    */ToolLauncher.*
 
 SEGMENT libstdc++
     */libstdc++.a:*
