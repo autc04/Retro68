@@ -24,6 +24,8 @@ public:
     void open();
 
     void setBaud(int baud);
+
+    static void unloadSegDummy();
 };
 
 #endif

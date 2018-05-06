@@ -28,6 +28,8 @@
 #include <Devices.h>
 #include <Traps.h>
 #include <LowMem.h>
+#include <SegLoad.h>
+#include <Gestalt.h>
 
 #include "MacSerialStream.h"
 #include "AppLauncher.h"
@@ -438,21 +440,30 @@ int main()
 	Boolean is128KROM = (ROM85 > 0);
 	Boolean hasSysEnvirons = false;
 	Boolean hasWaitNextEvent = false;
+    Boolean hasGestalt = false;
     Boolean hasAppleEvents = false;
 	if (is128KROM)
 	{
 		UniversalProcPtr trapUnimpl = GetToolTrapAddress(_Unimplemented);
 		UniversalProcPtr trapSysEnv = GetOSTrapAddress(_SysEnvirons);
         UniversalProcPtr trapWaitNextEvent = GetToolTrapAddress(_WaitNextEvent);
-        UniversalProcPtr trapAppleEvents = GetToolTrapAddress(_Pack8);
+        UniversalProcPtr trapGestalt = GetOSTrapAddress(_Gestalt);
 
 		hasSysEnvirons = (trapSysEnv != trapUnimpl);
 		hasWaitNextEvent = (trapWaitNextEvent != trapUnimpl);
-        hasAppleEvents = (trapAppleEvents != trapUnimpl);
+        hasGestalt = (trapGestalt != trapUnimpl);
+
+        if(hasGestalt)
+        {
+            long response = 0;
+            OSErr err = Gestalt(gestaltAppleEventsAttr, &response);
+            hasAppleEvents = err == noErr && response != 0;
+        }
 	}
 #else
 	const Boolean hasSysEnvirons = true;
 	const Boolean hasWaitNextEvent = true;
+    const Boolean hasGestalt = true;
     const Boolean hasAppleEvents = true;
 #endif
 
@@ -574,6 +585,7 @@ int main()
         if(server.state == LaunchServer::State::launch)
         {
             gSerialStream->close();
+            UnloadSeg((void*) &MacSerialStream::unloadSegDummy);
             gPrefs.inSubLaunch = true;
             WritePrefs();
 
@@ -621,6 +633,9 @@ int main()
         {
             if(!appLauncher->IsRunning("\pRetro68App"))
             {
+                appLauncher.reset();
+                UnloadSeg((void*) &CreateAppLauncher);
+                UnloadSeg((void*) &CreateToolLauncher);
                 gSerialStream->open();
                 StartResponding(server, rStream);
             }

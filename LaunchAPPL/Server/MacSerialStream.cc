@@ -96,3 +96,7 @@ void MacSerialStream::setBaud(int baud)
     else if(baud == 230400)
         Control(outRefNum, kSERD230KBaud, nullptr);
 }
+
+void MacSerialStream::unloadSegDummy()
+{
+}
