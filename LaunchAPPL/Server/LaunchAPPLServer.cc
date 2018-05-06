@@ -33,9 +33,10 @@
 
 #include "MacSerialStream.h"
 #include "AppLauncher.h"
+#include "StatusDisplay.h"
 
 #include <ReliableStream.h>
-#include "ServerProtocol.h"
+#include <ServerProtocol.h>
 #include <Processes.h>
 #include <string.h>
 #include <memory>
@@ -190,64 +191,8 @@ void DoMenuCommand(long menuCommand)
     HiliteMenu(0);
 }
 
+std::unique_ptr<StatusDisplay> statusDisplay;
 
-WindowPtr statusWindow;
-Str255 statusString = "\p";
-int progressDone, progressTotal = 0;
-
-void DoUpdate(WindowRef w)
-{
-    if(w != statusWindow)
-        return;
-
-#if TARGET_API_MAC_CARBON
-    SetPortWindowPort(w);
-#else
-    SetPort(w);
-#endif
-    BeginUpdate(w);
-    EraseRect(&w->portRect);
-
-    MoveTo(10,20);
-    DrawString(statusString);
-
-    Rect r;
-    
-    if(progressTotal)
-    {
-        SetRect(&r, 10, 40, w->portRect.right-10, 60);
-        FrameRect(&r);
-        SetRect(&r, 10, 40, 10 + (w->portRect.right-20) * progressDone / progressTotal, 60);
-        PaintRect(&r);
-    }
-
-    Str255 str;
-    NumToString(FreeMem(), str);
-    MoveTo(10,80);
-    DrawString(str); DrawString("\p / ");
-    NumToString(ApplicationZone()->bkLim - (Ptr)ApplicationZone(), str);
-    DrawString(str); DrawString("\p bytes free");
-
-    EndUpdate(w);
-}
-
-enum class AppStatus
-{
-    ready = 1,
-    downloading = 2,
-    running = 3,
-    uploading = 4
-};
-
-void SetStatus(AppStatus stat, int done = 0, int total = 0)
-{
-    GetIndString(statusString,128,(short)stat);
-
-    progressTotal = total;
-    progressDone = done;
-    SetPort(statusWindow);
-    InvalRect(&statusWindow->portRect);
-}
 
 class LaunchServer : public StreamListener
 {
@@ -279,7 +224,7 @@ public:
 
     void onReset()
     {
-        SetStatus(AppStatus::ready, 0, 0);
+        statusDisplay->SetStatus(AppStatus::ready, 0, 0);
         state = State::command;
     }
 
@@ -306,7 +251,7 @@ public:
                     dataSize = *(const uint32_t*)(p+8);
                     rsrcSize = *(const uint32_t*)(p+12);
 
-                    SetStatus(AppStatus::downloading, 0, dataSize + rsrcSize);
+                    statusDisplay->SetStatus(AppStatus::downloading, 0, dataSize + rsrcSize);
 
                     FSDelete("\pRetro68App", 0);
                     Create("\pRetro68App", 0, creator, type);
@@ -326,7 +271,7 @@ public:
                     FSWrite(refNum, &count, p);
                     remainingSize -= count;
 
-                    SetStatus(AppStatus::downloading, dataSize - remainingSize, dataSize + rsrcSize);
+                    statusDisplay->SetStatus(AppStatus::downloading, dataSize - remainingSize, dataSize + rsrcSize);
 
                     if(remainingSize)
                         return count;
@@ -347,14 +292,14 @@ public:
                     FSWrite(refNum, &count, p);
                     remainingSize -= count;
 
-                    SetStatus(AppStatus::downloading, dataSize + rsrcSize - remainingSize, dataSize + rsrcSize);
+                    statusDisplay->SetStatus(AppStatus::downloading, dataSize + rsrcSize - remainingSize, dataSize + rsrcSize);
 
                     if(remainingSize)
                         return count;
 
                     FSClose(refNum);
 
-                    SetStatus(AppStatus::running);
+                    statusDisplay->SetStatus(AppStatus::running);
 
                     state = State::launch;
                     return count;
@@ -382,7 +327,7 @@ void StartResponding(LaunchServer& server, ReliableStream& rStream)
     OpenDF("\pout", 0, &outRefNum);
     GetEOF(outRefNum, &outSize);
     outSizeRemaining = outSize;
-    SetStatus(AppStatus::uploading, 0, outSize);
+    statusDisplay->SetStatus(AppStatus::uploading, 0, outSize);
     
     rStream.write(&outSize, 4);
     rStream.flushWrite();
@@ -481,9 +426,8 @@ int main()
         AEInstallEventHandler(kCoreEventClass, kAEQuitApplication, NewAEEventHandlerUPP(&aeQuit), 0, false);
     }
 
-    statusWindow = GetNewWindow(129, NULL, (WindowPtr) -1);
-    SetStatus(AppStatus::ready);
-
+    statusDisplay = std::make_unique<StatusDisplay>();
+    
     {
         short refNum;
         if(OpenDF("\pLaunchAPPLServer Preferences", 0, &refNum) == noErr)
@@ -569,7 +513,8 @@ int main()
                     }
                     break;
                 case updateEvt:
-                    DoUpdate((WindowRef)e.message);
+                    if(statusDisplay && (WindowRef)e.message == statusDisplay->GetWindow())
+                        statusDisplay->Update();
                     break;
                 case kHighLevelEvent:
                     if(hasAppleEvents)
@@ -582,7 +527,8 @@ int main()
 
         if(server.state != LaunchServer::State::wait)
             stream.idle();
-    
+        statusDisplay->Idle();
+
         if(server.state == LaunchServer::State::launch)
         {
             gSerialStream->close();
@@ -621,13 +567,13 @@ int main()
                 server.state = LaunchServer::State::wait;
                 nullEventCounter = 0;
 
-                SetStatus(AppStatus::running, 0, 0);
+                statusDisplay->SetStatus(AppStatus::running, 0, 0);
             }
             else
             {
                 server.state = LaunchServer::State::command;
                 gSerialStream->open();
-                SetStatus(AppStatus::ready, 0, 0);
+                statusDisplay->SetStatus(AppStatus::ready, 0, 0);
             }
         }
         else if(server.state == LaunchServer::State::wait && nullEventCounter > 3)
@@ -651,7 +597,7 @@ int main()
                 rStream.write(buf, count);
                 outSizeRemaining -= count;
             }
-            SetStatus(AppStatus::uploading, outSize - outSizeRemaining, outSize);
+            statusDisplay->SetStatus(AppStatus::uploading, outSize - outSizeRemaining, outSize);
 
             if(outSizeRemaining == 0)
             {
@@ -660,7 +606,7 @@ int main()
             if(outSizeRemaining == 0 && rStream.allDataArrived())
             {
                 server.state = LaunchServer::State::command;
-                SetStatus(AppStatus::ready, 0, 0);
+                statusDisplay->SetStatus(AppStatus::ready, 0, 0);
                 rStream.reset(0);
             }
         }

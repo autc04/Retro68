@@ -10,7 +10,10 @@ add_application(LaunchAPPLServer
     MacSerialStream.cc
     AppLauncher.h
     AppLauncher.cc
-    ToolLauncher.cc)
+    ToolLauncher.cc
+    StatusDisplay.h
+    StatusDisplay.cc
+)
 
 target_link_libraries(LaunchAPPLServer LaunchAPPLCommon)
 set_target_properties(LaunchAPPLServer PROPERTIES
