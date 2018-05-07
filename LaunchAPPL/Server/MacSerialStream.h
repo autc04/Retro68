@@ -5,7 +5,7 @@
 
 class MacSerialStream : public Stream
 {
-    static const long kInputBufferSize = 4096;
+    static const long kInputBufferSize = 8192;
     static const long kReadBufferSize = 4096;
     char inputBuffer[kInputBufferSize];
     char readBuffer[kReadBufferSize];
