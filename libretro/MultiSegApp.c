@@ -181,13 +181,13 @@ static pascal void PatchedExitToShell()
 }
 
 #pragma parameter __D0 Launch(__A0)
-pascal OSErr Launch(void *param) = { 0xA9F2 };
+OSErr Launch(void *param) = { 0xA9F2 };
 
 #pragma parameter __D0 Chain(__A0)
-pascal OSErr Chain(void *param) = { 0xA9F2 };
+OSErr Chain(void *param) = { 0xA9F2 };
 
 #pragma parameter __D0 PatchedLaunch(__A0)
-static pascal OSErr PatchedLaunch(void *p)
+static OSErr PatchedLaunch(void *p)
 {
     UninstallPatches();
     OSErr err = Launch(p);
@@ -196,7 +196,7 @@ static pascal OSErr PatchedLaunch(void *p)
 }
 
 #pragma parameter __D0 PatchedChain(__A0)
-static pascal OSErr PatchedChain(void *p)
+static OSErr PatchedChain(void *p)
 {
     UninstallPatches();
     OSErr err = Chain(p);

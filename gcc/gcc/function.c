@@ -5513,7 +5513,7 @@ expand_function_end (void)
       tree decl_result = DECL_RESULT (current_function_decl);
       rtx decl_rtl = DECL_RTL (decl_result);
 
-      if (lookup_attribute ("pascal", TYPE_ATTRIBUTES (TREE_TYPE(current_function_decl))))
+      if (IS_PASCAL_FUNC(TREE_TYPE(current_function_decl), current_function_decl))
 	{
 	  enum machine_mode mode = GET_MODE(decl_rtl);;
 
