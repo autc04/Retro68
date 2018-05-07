@@ -48,7 +48,7 @@ enum
     kMenuApple = 128,
     kMenuFile,
     kMenuEdit,
-    kMenuSpeed
+    kMenuConnection
 };
 
 enum
@@ -60,6 +60,9 @@ enum
 
 struct Prefs
 {
+    const static int currentVersion = 1;
+    int version = currentVersion;
+    int port = 0;
     long baud = 19200;
     bool inSubLaunch = false;
 };
@@ -135,8 +138,10 @@ void UpdateMenus()
         DisableItem(m,6);
     }
 
-    m = GetMenu(kMenuSpeed);
-    for(int i = 1; i <= CountMenuItems(m); i++)
+    m = GetMenu(kMenuConnection);
+    CheckMenuItem(m, 1, gPrefs.port == 0);
+    CheckMenuItem(m, 2, gPrefs.port == 1);
+    for(int i = 3; i <= CountMenuItems(m); i++)
     {
         Str255 str;
         long baud;
@@ -182,11 +187,18 @@ void DoMenuCommand(long menuCommand)
             // edit command not handled by desk accessory
         }
     }
-    else if(menuID == kMenuSpeed)
+    else if(menuID == kMenuConnection)
     {
-        GetMenuItemText(GetMenu(menuID), menuItem, str);
-        StringToNum(str, &gPrefs.baud);
-        SetBaud(gPrefs.baud);
+        if(menuItem <= 2)
+        {
+            gPrefs.port = menuItem - 1;
+        }
+        if(menuItem >= 3)
+        {
+            GetMenuItemText(GetMenu(menuID), menuItem, str);
+            StringToNum(str, &gPrefs.baud);
+            SetBaud(gPrefs.baud);
+        }
     }
     HiliteMenu(0);
 }
@@ -433,12 +445,15 @@ int main()
         if(OpenDF("\pLaunchAPPLServer Preferences", 0, &refNum) == noErr)
         {
             long count = sizeof(gPrefs);
+            gPrefs.version = -1;
             FSRead(refNum, &count, &gPrefs);
+            if(gPrefs.version != Prefs::currentVersion)
+                gPrefs = Prefs();
             FSClose(refNum);
         }
     }
 
-    MacSerialStream stream(gPrefs.baud);
+    MacSerialStream stream(gPrefs.port, gPrefs.baud);
     gSerialStream = &stream;
 
 //#define SIMULATE_ERRORS
@@ -474,7 +489,7 @@ int main()
         else
 #endif
         {
-            hadEvent = WaitNextEvent(everyEvent, &e, 10, NULL);
+            hadEvent = WaitNextEvent(everyEvent, &e, 1, NULL);
         }
         
         if(hadEvent)

@@ -11,13 +11,13 @@ class MacSerialStream : public Stream
     char readBuffer[kReadBufferSize];
 
     short outRefNum, inRefNum;
-    int curBaud;
+    int port, curBaud;
 public:
     virtual void write(const void* p, size_t n) override;
 
     void idle();
 
-    MacSerialStream(int baud = 19200);
+    MacSerialStream(int port = 0, int baud = 19200);
     ~MacSerialStream();
 
     void close();

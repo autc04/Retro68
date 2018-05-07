@@ -5,8 +5,8 @@
 
 #include <string.h>
 
-MacSerialStream::MacSerialStream(int baud)
-    : curBaud(baud)
+MacSerialStream::MacSerialStream(int port, int baud)
+    : port(port), curBaud(baud)
 {
     open();
 }
@@ -25,8 +25,8 @@ void MacSerialStream::close()
 void MacSerialStream::open()
 {
 	OSErr err;
-    err = OpenDriver("\p.AOut", &outRefNum);
-	err = OpenDriver("\p.AIn", &inRefNum);
+    err = OpenDriver(port ? "\p.BOut" : "\p.AOut", &outRefNum);
+	err = OpenDriver(port ? "\p.BIn" : "\p.AIn", &inRefNum);
 	SerSetBuf(inRefNum, inputBuffer, kInputBufferSize);
 
 

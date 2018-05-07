@@ -59,8 +59,11 @@ resource 'MENU' (130) {
 resource 'MENU' (131) {
     131, textMenuProc;
     allEnabled, enabled;
-    "Speed";
+    "Connection";
     {
+        "Modem Port", noIcon, noKey, noMark, plain;
+        "Printer Port", noIcon, noKey, noMark, plain;
+        "-", noIcon, noKey, noMark, plain;
         "9600", noIcon, noKey, noMark, plain;
         "19200", noIcon, noKey, check, plain;
         "38400", noIcon, noKey, noMark, plain;
