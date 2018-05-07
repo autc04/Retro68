@@ -96,7 +96,7 @@ resource 'WIND' (129, "Main") {
     centerMainScreen;
 };
 
-resource 'STR#' (128) {
+resource 'STR#' (128, purgeable) {
     {
         "Listening on Modem Port...";
         "Downloading Application...";
@@ -105,7 +105,17 @@ resource 'STR#' (128) {
     }
 };
 
-
+resource 'STR#' (129, purgeable) {
+    {
+        "Heap Size:", " KB";
+        "Free Memory:", " KB";
+        "File Size:", " KB";
+        "Transferred:", " KB";
+        "Speed:", " B/s";
+        "Time remaining:", " s";
+        "Transmission errors:", "";
+    }
+};
 
 resource 'SIZE' (-1) {
 	dontSaveScreen,

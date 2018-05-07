@@ -18,11 +18,24 @@ class StatusDisplay
     AppStatus status = AppStatus::empty;
     int progressDone, progressTotal = 0;
     long freeMem;
+    long startTime;
+    long speed = -1;
+    long timeRemaining = -1;
+    int errorCount;
 
     RgnHandle background;
     Rect statusRect;
     Rect progressRect;
-    Rect memRect;
+
+    static const int nValues = 7;
+    Rect valueRects[nValues];
+    short columnWidths[6];
+
+    enum class Stat : short;
+
+    void DrawValue(Stat stat, ConstStr255Param str);
+    void DrawValue(Stat stat, long val);
+
 public:
     StatusDisplay();
     ~StatusDisplay();
@@ -35,4 +48,5 @@ public:
     void SetStatus(AppStatus s);
     void SetProgress(int done = 0, int total = 0);
     void SetStatus(AppStatus stat, int done, int total);
+    void SetErrorCount(int errorCount);
 };

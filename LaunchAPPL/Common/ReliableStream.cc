@@ -46,6 +46,8 @@ void ReliableStream::reset(int sendReset)
     sentOutputPacket = 0;
     ackedOutputPacket = 0;
 
+    failedReceiveCount = failedSendCount = 0;
+
     incomingPacket.clear();
     state = State::waiting;
     sentPackets.clear();
@@ -82,6 +84,7 @@ void ReliableStream::nack()
     };
     underlying().write(packet, 8);
     //printf("nack sent\n");
+    failedReceiveCount++;
 }
 
 void ReliableStream::gotAck(uint8_t id)
@@ -111,6 +114,7 @@ void ReliableStream::gotNack(uint8_t id)
 
         sentOutputPacket = ackedOutputPacket;
 
+        failedSendCount += packetsToSend.size();
         packetsToSend.splice(packetsToSend.begin(), sentPackets);
         
         sendPackets();

@@ -32,6 +32,9 @@ class ReliableStream : public StreamWrapper
     unsigned sentOutputPacket = 0;
     unsigned ackedOutputPacket = 0;
 
+    unsigned failedReceiveCount = 0;
+    unsigned failedSendCount = 0;
+
     State state = State::waiting;
     std::vector<uint8_t> incomingPacket;
     int inputMatchMagic1, inputMatchMagic2;
@@ -55,6 +58,8 @@ public:
     virtual bool readyToWrite() { return packetsToSend.empty() && underlying().readyToWrite(); }
             bool allDataArrived() { return packetsToSend.empty() && sentPackets.empty() && underlying().readyToWrite(); }
 
+    unsigned getFailedReceiveCount() const { return failedReceiveCount; }
+    unsigned getFailedSendCount() const { return failedSendCount; }
 };
 
 #endif

@@ -526,7 +526,10 @@ int main()
             nullEventCounter++;
 
         if(server.state != LaunchServer::State::wait)
+        {
             stream.idle();
+            statusDisplay->SetErrorCount(rStream.getFailedReceiveCount() + rStream.getFailedSendCount());
+        }
         statusDisplay->Idle();
 
         if(server.state == LaunchServer::State::launch)
