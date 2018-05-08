@@ -27,8 +27,10 @@ public:
     virtual void flushWrite() {}
     long read(void *p, size_t n);
 
-    virtual bool readyToWrite() { return true; }
-    bool readyToRead() { return !buffer_.empty(); }
+    virtual bool readyToWrite() const { return true; }
+    bool readyToRead() const { return !buffer_.empty(); }
+
+    virtual bool allDataArrived() const { return true; }
 protected:
     void notifyReceive(const uint8_t* p, size_t n);
     void notifyReset();

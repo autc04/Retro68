@@ -21,7 +21,7 @@ class StatusDisplay
     long startTime;
     long speed = -1;
     long timeRemaining = -1;
-    int errorCount;
+    int errorCount = -1;
 
     RgnHandle background;
     Rect statusRect;

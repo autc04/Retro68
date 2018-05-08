@@ -55,8 +55,8 @@ public:
     virtual void flushWrite() override;
 
 
-    virtual bool readyToWrite() { return packetsToSend.empty() && underlying().readyToWrite(); }
-            bool allDataArrived() { return packetsToSend.empty() && sentPackets.empty() && underlying().readyToWrite(); }
+    virtual bool readyToWrite() const override { return packetsToSend.empty() && underlying().readyToWrite(); }
+    virtual bool allDataArrived() const override { return packetsToSend.empty() && sentPackets.empty() && underlying().readyToWrite(); }
 
     unsigned getFailedReceiveCount() const { return failedReceiveCount; }
     unsigned getFailedSendCount() const { return failedSendCount; }

@@ -68,9 +68,36 @@ struct Prefs
 };
 
 Prefs gPrefs;
+
+void WritePrefs()
+{
+    short refNum;
+    Create("\pLaunchAPPLServer Preferences", 0, 'R68L', 'LAPR');
+    if(OpenDF("\pLaunchAPPLServer Preferences", 0, &refNum) == noErr)
+    {
+        long count = sizeof(gPrefs);
+        FSWrite(refNum, &count, &gPrefs);
+        FSClose(refNum);
+    }
+}
+
+void ReadPrefs()
+{
+    short refNum;
+    if(OpenDF("\pLaunchAPPLServer Preferences", 0, &refNum) == noErr)
+    {
+        long count = sizeof(gPrefs);
+        gPrefs.version = -1;
+        FSRead(refNum, &count, &gPrefs);
+        if(gPrefs.version != Prefs::currentVersion)
+            gPrefs = Prefs();
+        FSClose(refNum);
+    }
+}
+
 bool gQuitting = false;
 
-void SetBaud(long baud);
+void ConnectionChanged();
 
 void ShowAboutBox()
 {
@@ -197,27 +224,79 @@ void DoMenuCommand(long menuCommand)
         {
             GetMenuItemText(GetMenu(menuID), menuItem, str);
             StringToNum(str, &gPrefs.baud);
-            SetBaud(gPrefs.baud);
         }
+        ConnectionChanged();
     }
     HiliteMenu(0);
 }
 
 std::unique_ptr<StatusDisplay> statusDisplay;
 
+class ConnectionProvider
+{
+protected:
+    StreamListener *listener;
+public:
+    void setListener(StreamListener *l) { listener = l; }
+
+    virtual Stream* getStream() = 0;
+    virtual void idle() {}
+    virtual void suspend() {}
+    virtual void resume() {}
+};
+
+class SerialConnectionProvider : public ConnectionProvider
+{
+    struct Streams
+    {
+        MacSerialStream serialStream;
+        ReliableStream reliableStream;
+
+        Streams()
+            : serialStream(gPrefs.port, gPrefs.baud)
+            , reliableStream(&serialStream)
+        {
+        }
+    };
+    std::unique_ptr<Streams> streams = std::make_unique<Streams>();
+public:
+    virtual Stream* getStream()
+    {
+        return streams ? &streams->reliableStream : nullptr;
+    }
+
+    virtual void idle()
+    {
+        if(streams)
+        {
+            streams->reliableStream.setListener(listener);
+            streams->serialStream.idle();
+            statusDisplay->SetErrorCount(streams->reliableStream.getFailedReceiveCount()
+                                        + streams->reliableStream.getFailedSendCount());
+        }
+    }
+    virtual void suspend()
+    {
+        streams.reset();
+    }
+    virtual void resume()
+    {
+        if(!streams)
+            streams = std::make_unique<Streams>();
+    }
+};
+
+std::unique_ptr<ConnectionProvider> connection;
 
 class LaunchServer : public StreamListener
 {
-    Stream* stream;
-
     uint32_t dataSize, rsrcSize;
     uint32_t remainingSize;
     short refNum;
-public:
-    LaunchServer(Stream* stream) : stream(stream)
-    {
-        stream->setListener(this);
-    }
+    short outRefNum;
+    long outSize, outSizeRemaining;
+    std::unique_ptr<AppLauncher> appLauncher;
+    int nullEventCounter = 0;
 
     enum class State
     {
@@ -233,6 +312,8 @@ public:
     RemoteCommand command;
 
     OSType type, creator;
+
+public:
 
     void onReset()
     {
@@ -318,43 +399,122 @@ public:
                 }
         }
     }
+
+    void idle()
+    {
+        ++nullEventCounter;
+        connection->idle();
+
+        if(state == State::launch)
+        {
+            connection->suspend();
+            UnloadSeg((void*) &MacSerialStream::unloadSegDummy);
+            gPrefs.inSubLaunch = true;
+            WritePrefs();
+
+            if(command == RemoteCommand::upgradeLauncher)
+            {
+                if(creator == 'R68L' && type == 'APPL')
+                {
+                    FSDelete("\pLaunchAPPLServer.old", 0);
+                    Rename(LMGetCurApName(), 0, "\pLaunchAPPLServer.old");
+                    Rename("\pRetro68App", 0, LMGetCurApName());
+
+                    LaunchParamBlockRec lpb;
+                    memset(&lpb, 0, sizeof(lpb));
+                    lpb.reserved1 = (unsigned long) LMGetCurApName();
+                    lpb.reserved2 = 0;
+                    OSErr err = LaunchApplication(&lpb);
+                    ExitToShell();
+                }
+            }
+
+            if(type == 'MPST')
+                appLauncher = CreateToolLauncher();
+            else
+                appLauncher = CreateAppLauncher();
+
+            bool launched = appLauncher->Launch("\pRetro68App");
+            gPrefs.inSubLaunch = false;
+            WritePrefs();
+
+            if(launched)
+            {
+                state = State::wait;
+                nullEventCounter = 0;
+
+                statusDisplay->SetStatus(AppStatus::running, 0, 0);
+            }
+            else
+            {
+                state = State::command;
+                connection->resume();
+                statusDisplay->SetStatus(AppStatus::ready, 0, 0);
+            }
+        }
+        else if(state == State::wait && nullEventCounter > 3)
+        {
+            if(!appLauncher->IsRunning("\pRetro68App"))
+            {
+                appLauncher.reset();
+                UnloadSeg((void*) &CreateAppLauncher);
+                UnloadSeg((void*) &CreateToolLauncher);
+                connection->resume();
+                StartResponding();
+            }
+        }
+        else if(state == State::respond)
+        {
+            Stream *stream = connection->getStream();
+            while(outSizeRemaining && stream->readyToWrite())
+            {
+                char buf[1024];
+                long count = outSizeRemaining > 1024 ? 1024 : outSizeRemaining;
+                FSRead(outRefNum, &count, buf);
+                stream->write(buf, count);
+                outSizeRemaining -= count;
+            }
+            statusDisplay->SetStatus(AppStatus::uploading, outSize - outSizeRemaining, outSize);
+
+            if(outSizeRemaining == 0)
+            {
+                FSClose(outRefNum);
+            }
+            if(outSizeRemaining == 0 && stream->allDataArrived())
+            {
+                state = State::command;
+                statusDisplay->SetStatus(AppStatus::ready, 0, 0);
+            }
+        }
+    }
+
+
+    void StartResponding()
+    {
+        Stream *stream = connection->getStream();
+
+        state = State::respond;
+        uint32_t zero = 0;
+        stream->write(&zero, 4);
+
+        OpenDF("\pout", 0, &outRefNum);
+        GetEOF(outRefNum, &outSize);
+        outSizeRemaining = outSize;
+        statusDisplay->SetStatus(AppStatus::uploading, 0, outSize);
+        
+        stream->write(&outSize, 4);
+        stream->flushWrite();
+    }
+
 };
 
-short outRefNum;
-long outSize, outSizeRemaining;
-MacSerialStream *gSerialStream;
-int nullEventCounter = 0;
+LaunchServer server;
 
-void SetBaud(long baud)
+void ConnectionChanged()
 {
-    gSerialStream->setBaud(baud);
-}
-
-void StartResponding(LaunchServer& server, ReliableStream& rStream)
-{
-    server.state = LaunchServer::State::respond;
-    uint32_t zero = 0;
-    rStream.write(&zero, 4);
-
-    OpenDF("\pout", 0, &outRefNum);
-    GetEOF(outRefNum, &outSize);
-    outSizeRemaining = outSize;
-    statusDisplay->SetStatus(AppStatus::uploading, 0, outSize);
-    
-    rStream.write(&outSize, 4);
-    rStream.flushWrite();
-}
-
-void WritePrefs()
-{
-    short refNum;
-    Create("\pLaunchAPPLServer Preferences", 0, 'R68L', 'LAPR');
-    if(OpenDF("\pLaunchAPPLServer Preferences", 0, &refNum) == noErr)
-    {
-        long count = sizeof(gPrefs);
-        FSWrite(refNum, &count, &gPrefs);
-        FSClose(refNum);
-    }
+    connection = std::make_unique<SerialConnectionProvider>();
+    connection->setListener(&server);
+    server.onReset();
 }
 
 pascal OSErr aeRun (const AppleEvent *theAppleEvent, AppleEvent *reply, long handlerRefcon)
@@ -379,9 +539,8 @@ int main()
 {
     // default stack size is 8KB on B&W macs
     // and 24 KB on Color macs.
-    // 8KB seems to be not quite enough,
-    // so increase stack size by 8KB.
-    SetApplLimit(GetApplLimit() - 8192);
+    // 8KB is too little as soon as we allocate a buffer on the stack.
+    // To allow that, increae stack size: SetApplLimit(GetApplLimit() - 8192);
     MaxApplZone();
 #if !TARGET_API_MAC_CARBON
     InitGraf(&qd.thePort);
@@ -440,38 +599,13 @@ int main()
 
     statusDisplay = std::make_unique<StatusDisplay>();
     
-    {
-        short refNum;
-        if(OpenDF("\pLaunchAPPLServer Preferences", 0, &refNum) == noErr)
-        {
-            long count = sizeof(gPrefs);
-            gPrefs.version = -1;
-            FSRead(refNum, &count, &gPrefs);
-            if(gPrefs.version != Prefs::currentVersion)
-                gPrefs = Prefs();
-            FSClose(refNum);
-        }
-    }
-
-    MacSerialStream stream(gPrefs.port, gPrefs.baud);
-    gSerialStream = &stream;
-
-//#define SIMULATE_ERRORS
-#ifdef SIMULATE_ERRORS
-    UnreliableStream uStream(stream);
-    ReliableStream rStream(&uStream);
-#else
-    ReliableStream rStream(&stream);
-#endif
-
-    LaunchServer server(&rStream);
-
-    std::unique_ptr<AppLauncher> appLauncher;
+    ReadPrefs();
+    ConnectionChanged();
 
    if(gPrefs.inSubLaunch)
    {
        gPrefs.inSubLaunch = false;
-       StartResponding(server, rStream);
+       server.StartResponding();
    }
 
     while(!gQuitting)
@@ -537,97 +671,9 @@ int main()
                     break;
             }
         }
-        else
-            nullEventCounter++;
 
-        if(server.state != LaunchServer::State::wait)
-        {
-            stream.idle();
-            statusDisplay->SetErrorCount(rStream.getFailedReceiveCount() + rStream.getFailedSendCount());
-        }
+        server.idle();
         statusDisplay->Idle();
-
-        if(server.state == LaunchServer::State::launch)
-        {
-            gSerialStream->close();
-            UnloadSeg((void*) &MacSerialStream::unloadSegDummy);
-            gPrefs.inSubLaunch = true;
-            WritePrefs();
-
-            if(server.command == RemoteCommand::upgradeLauncher)
-            {
-                if(server.creator == 'R68L' && server.type == 'APPL')
-                {
-                    FSDelete("\pLaunchAPPLServer.old", 0);
-                    Rename(LMGetCurApName(), 0, "\pLaunchAPPLServer.old");
-                    Rename("\pRetro68App", 0, LMGetCurApName());
-
-                    LaunchParamBlockRec lpb;
-                    memset(&lpb, 0, sizeof(lpb));
-                    lpb.reserved1 = (unsigned long) LMGetCurApName();
-                    lpb.reserved2 = 0;
-                    OSErr err = LaunchApplication(&lpb);
-                    ExitToShell();
-                }
-            }
-
-            if(server.type == 'MPST')
-                appLauncher = CreateToolLauncher();
-            else
-                appLauncher = CreateAppLauncher();
-
-            bool launched = appLauncher->Launch("\pRetro68App");
-            gPrefs.inSubLaunch = false;
-            WritePrefs();
-
-            if(launched)
-            {
-                server.state = LaunchServer::State::wait;
-                nullEventCounter = 0;
-
-                statusDisplay->SetStatus(AppStatus::running, 0, 0);
-            }
-            else
-            {
-                server.state = LaunchServer::State::command;
-                gSerialStream->open();
-                statusDisplay->SetStatus(AppStatus::ready, 0, 0);
-            }
-        }
-        else if(server.state == LaunchServer::State::wait && nullEventCounter > 3)
-        {
-            if(!appLauncher->IsRunning("\pRetro68App"))
-            {
-                appLauncher.reset();
-                UnloadSeg((void*) &CreateAppLauncher);
-                UnloadSeg((void*) &CreateToolLauncher);
-                gSerialStream->open();
-                StartResponding(server, rStream);
-            }
-        }
-        else if(server.state == LaunchServer::State::respond)
-        {
-            while(outSizeRemaining && rStream.readyToWrite())
-            {
-                char buf[1024];
-                long count = outSizeRemaining > 1024 ? 1024 : outSizeRemaining;
-                FSRead(outRefNum, &count, buf);
-                rStream.write(buf, count);
-                outSizeRemaining -= count;
-            }
-            statusDisplay->SetStatus(AppStatus::uploading, outSize - outSizeRemaining, outSize);
-
-            if(outSizeRemaining == 0)
-            {
-                FSClose(outRefNum);
-            }
-            if(outSizeRemaining == 0 && rStream.allDataArrived())
-            {
-                server.state = LaunchServer::State::command;
-                statusDisplay->SetStatus(AppStatus::ready, 0, 0);
-                rStream.reset(0);
-            }
-        }
     }
 
     WritePrefs();
