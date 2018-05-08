@@ -1,6 +1,7 @@
 SEGMENT Serial
     */libLaunchAPPLCommon.a:ReliableStream.*
     */MacSerialStream.*
+    */SerialConnectionProvider.*
 
 SEGMENT Launcher
     */AppLauncher.*

@@ -31,17 +31,17 @@
 #include <SegLoad.h>
 #include <Gestalt.h>
 
-#include "MacSerialStream.h"
 #include "AppLauncher.h"
 #include "StatusDisplay.h"
 
-#include <ReliableStream.h>
 #include <ServerProtocol.h>
 #include <Processes.h>
 #include <string.h>
 #include <memory>
 
-#include <UnreliableStream.h>
+#include "ConnectionProvider.h"
+#include "SerialConnectionProvider.h"
+#include <Stream.h>
 
 enum
 {
@@ -232,61 +232,6 @@ void DoMenuCommand(long menuCommand)
 
 std::unique_ptr<StatusDisplay> statusDisplay;
 
-class ConnectionProvider
-{
-protected:
-    StreamListener *listener;
-public:
-    void setListener(StreamListener *l) { listener = l; }
-
-    virtual ~ConnectionProvider() {}
-    virtual Stream* getStream() = 0;
-    virtual void idle() {}
-    virtual void suspend() {}
-    virtual void resume() {}
-};
-
-class SerialConnectionProvider : public ConnectionProvider
-{
-    struct Streams
-    {
-        MacSerialStream serialStream;
-        ReliableStream reliableStream;
-
-        Streams()
-            : serialStream(gPrefs.port, gPrefs.baud)
-            , reliableStream(&serialStream)
-        {
-        }
-    };
-    std::unique_ptr<Streams> streams = std::make_unique<Streams>();
-public:
-    virtual Stream* getStream()
-    {
-        return streams ? &streams->reliableStream : nullptr;
-    }
-
-    virtual void idle()
-    {
-        if(streams)
-        {
-            streams->reliableStream.setListener(listener);
-            streams->serialStream.idle();
-            statusDisplay->SetErrorCount(streams->reliableStream.getFailedReceiveCount()
-                                        + streams->reliableStream.getFailedSendCount());
-        }
-    }
-    virtual void suspend()
-    {
-        streams.reset();
-    }
-    virtual void resume()
-    {
-        if(!streams)
-            streams = std::make_unique<Streams>();
-    }
-};
-
 std::unique_ptr<ConnectionProvider> connection;
 
 class LaunchServer : public StreamListener
@@ -411,7 +356,8 @@ public:
         if(state == State::launch)
         {
             connection->suspend();
-            UnloadSeg((void*) &MacSerialStream::unloadSegDummy);
+            if(void *seg = connection->segmentToUnload())
+                UnloadSeg(seg);
             gPrefs.inSubLaunch = true;
             WritePrefs();
 
@@ -513,7 +459,7 @@ LaunchServer server;
 
 void ConnectionChanged()
 {
-    connection = std::make_unique<SerialConnectionProvider>();
+    connection = std::make_unique<SerialConnectionProvider>(gPrefs.port, gPrefs.baud, statusDisplay.get());
     connection->setListener(&server);
     server.onReset();
 }

@@ -13,6 +13,9 @@ add_application(LaunchAPPLServer
     ToolLauncher.cc
     StatusDisplay.h
     StatusDisplay.cc
+    ConnectionProvider.h
+    SerialConnectionProvider.h
+    SerialConnectionProvider.cc
 )
 
 target_link_libraries(LaunchAPPLServer LaunchAPPLCommon)
