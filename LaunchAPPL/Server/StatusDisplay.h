@@ -5,10 +5,12 @@
 enum class AppStatus
 {
     empty = 0,
-    ready = 1,
-    downloading = 2,
-    running = 3,
-    uploading = 4
+    readyModem = 1,
+    readyPrinter,
+    downloading,
+    upgrading,
+    running,
+    uploading
 };
 
 class StatusDisplay

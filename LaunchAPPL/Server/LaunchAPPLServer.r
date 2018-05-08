@@ -102,7 +102,9 @@ resource 'WIND' (129, "Main") {
 resource 'STR#' (128, purgeable) {
     {
         "Listening on Modem Port...";
+        "Listening on Printer Port...";
         "Downloading Application...";
+        "Downloading Upgrade...";
         "Running Application...";
         "Sending Results...";
     }

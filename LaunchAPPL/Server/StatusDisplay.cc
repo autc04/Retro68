@@ -69,8 +69,6 @@ StatusDisplay::StatusDisplay()
         DiffRgn(background, tmp, background);
     }
     DisposeRgn(tmp);
-
-    SetStatus(AppStatus::ready);
 }
 
 StatusDisplay::~StatusDisplay()
@@ -176,7 +174,7 @@ void StatusDisplay::Idle()
     }
 
     long newTimeRemaining = -1;
-    if(status == AppStatus::downloading)
+    if(status == AppStatus::downloading || status == AppStatus::upgrading)
     {
         long now = TickCount();
         if(now - startTime > 60 && progressDone > 4000)
@@ -206,7 +204,7 @@ void StatusDisplay::SetStatus(AppStatus stat)
     if(stat != status)
     {
         status = stat;
-        if(status == AppStatus::downloading)
+        if(status == AppStatus::downloading || status == AppStatus::upgrading)
             startTime = TickCount();
         GetIndString(statusString,128,(short)stat);
         SetPort(statusWindow);

@@ -239,6 +239,7 @@ protected:
 public:
     void setListener(StreamListener *l) { listener = l; }
 
+    virtual ~ConnectionProvider() {}
     virtual Stream* getStream() = 0;
     virtual void idle() {}
     virtual void suspend() {}
@@ -317,7 +318,7 @@ public:
 
     void onReset()
     {
-        statusDisplay->SetStatus(AppStatus::ready, 0, 0);
+        statusDisplay->SetStatus(gPrefs.port ? AppStatus::readyPrinter : AppStatus::readyModem, 0, 0);
         state = State::command;
     }
 
@@ -344,7 +345,9 @@ public:
                     dataSize = *(const uint32_t*)(p+8);
                     rsrcSize = *(const uint32_t*)(p+12);
 
-                    statusDisplay->SetStatus(AppStatus::downloading, 0, dataSize + rsrcSize);
+                    statusDisplay->SetStatus(command == RemoteCommand::upgradeLauncher ?
+                                                AppStatus::upgrading : AppStatus::downloading,
+                                                0, dataSize + rsrcSize);
 
                     FSDelete("\pRetro68App", 0);
                     Create("\pRetro68App", 0, creator, type);
@@ -364,7 +367,7 @@ public:
                     FSWrite(refNum, &count, p);
                     remainingSize -= count;
 
-                    statusDisplay->SetStatus(AppStatus::downloading, dataSize - remainingSize, dataSize + rsrcSize);
+                    statusDisplay->SetProgress(dataSize - remainingSize, dataSize + rsrcSize);
 
                     if(remainingSize)
                         return count;
@@ -385,7 +388,7 @@ public:
                     FSWrite(refNum, &count, p);
                     remainingSize -= count;
 
-                    statusDisplay->SetStatus(AppStatus::downloading, dataSize + rsrcSize - remainingSize, dataSize + rsrcSize);
+                    statusDisplay->SetProgress(dataSize + rsrcSize - remainingSize, dataSize + rsrcSize);
 
                     if(remainingSize)
                         return count;
@@ -447,9 +450,8 @@ public:
             }
             else
             {
-                state = State::command;
                 connection->resume();
-                statusDisplay->SetStatus(AppStatus::ready, 0, 0);
+                onReset();
             }
         }
         else if(state == State::wait && nullEventCounter > 3)
@@ -482,8 +484,7 @@ public:
             }
             if(outSizeRemaining == 0 && stream->allDataArrived())
             {
-                state = State::command;
-                statusDisplay->SetStatus(AppStatus::ready, 0, 0);
+                onReset();
             }
         }
     }
