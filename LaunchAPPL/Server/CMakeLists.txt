@@ -16,6 +16,11 @@ add_application(LaunchAPPLServer
     ConnectionProvider.h
     SerialConnectionProvider.h
     SerialConnectionProvider.cc
+
+    MacTCPStream.h
+    MacTCPStream.cc
+    TCPConnectionProvider.h
+    TCPConnectionProvider.cc
 )
 
 target_link_libraries(LaunchAPPLServer LaunchAPPLCommon)

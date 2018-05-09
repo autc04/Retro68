@@ -3,6 +3,10 @@ SEGMENT Serial
     */MacSerialStream.*
     */SerialConnectionProvider.*
 
+SEGMENT MacTCP
+    */MacTCPStream.*
+    */TCPConnectionProvider.*
+
 SEGMENT Launcher
     */AppLauncher.*
     */ToolLauncher.*

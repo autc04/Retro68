@@ -5,6 +5,7 @@ set(LAUNCHMETHODS
 	MiniVMac.h MiniVMac.cc
 	SSH.h SSH.cc
     Serial.h Serial.cc
+    TCP.h TCP.cc
 )
 
 if(APPLE)
