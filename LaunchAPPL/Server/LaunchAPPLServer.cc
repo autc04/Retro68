@@ -41,6 +41,7 @@
 
 #include "ConnectionProvider.h"
 #include "SerialConnectionProvider.h"
+#include "TCPConnectionProvider.h"
 #include <Stream.h>
 
 enum
@@ -58,11 +59,19 @@ enum
     kItemQuit = 1
 };
 
+enum class Port : int
+{
+    modemPort = 0,
+    printerPort,
+    macTCP
+};
+bool portsAvailable[] = { true, true, false };
+
 struct Prefs
 {
     const static int currentVersion = 1;
     int version = currentVersion;
-    int port = 0;
+    Port port = Port::modemPort;
     long baud = 19200;
     bool inSubLaunch = false;
 };
@@ -135,6 +144,21 @@ void ShowAboutBox()
     DisposeWindow(w);
 }
 
+void SetItemEnabled(MenuHandle m, short item, bool enabled)
+{
+#if TARGET_API_MAC_CARBON
+    if(enabled)
+        EnableMenuItem(m,item);
+    else
+        DisableMenuItem(m,item);
+#else
+    if(enabled)
+        EnableItem(m,item);
+    else
+        DisableItem(m,item);
+#endif
+}
+
 void UpdateMenus()
 {
     MenuRef m = GetMenu(kMenuFile);
@@ -146,29 +170,22 @@ void UpdateMenus()
 #endif
 
     m = GetMenu(kMenuEdit);
-    if(w && GetWindowKind(w) < 0)
-    {  
+    
+    bool enableEditMenu = (w && GetWindowKind(w) < 0);
         // Desk accessory in front: Enable edit menu items
-        EnableItem(m,1);
-        EnableItem(m,3);
-        EnableItem(m,4);
-        EnableItem(m,5);
-        EnableItem(m,6);
-    }
-    else
-    {   
         // Application window or nothing in front, disable edit menu
-        DisableItem(m,1);
-        DisableItem(m,3);
-        DisableItem(m,4);
-        DisableItem(m,5);
-        DisableItem(m,6);
-    }
+
+    for(short i : {1,3,4,5,6})
+        SetItemEnabled(m,i,enableEditMenu);
 
     m = GetMenu(kMenuConnection);
-    CheckMenuItem(m, 1, gPrefs.port == 0);
-    CheckMenuItem(m, 2, gPrefs.port == 1);
-    for(int i = 3; i <= CountMenuItems(m); i++)
+    SetItemEnabled(m, 1, portsAvailable[(int)Port::macTCP]);
+    CheckMenuItem(m, 1, gPrefs.port == Port::macTCP);
+    SetItemEnabled(m, 2, portsAvailable[(int)Port::modemPort]);
+    CheckMenuItem(m, 2, gPrefs.port == Port::modemPort);
+    SetItemEnabled(m, 3, portsAvailable[(int)Port::printerPort]);
+    CheckMenuItem(m, 3, gPrefs.port == Port::printerPort);
+    for(int i = 4; i <= CountMenuItems(m); i++)
     {
         Str255 str;
         long baud;
@@ -216,14 +233,20 @@ void DoMenuCommand(long menuCommand)
     }
     else if(menuID == kMenuConnection)
     {
-        if(menuItem <= 2)
+        switch(menuItem)
         {
-            gPrefs.port = menuItem - 1;
-        }
-        if(menuItem >= 3)
-        {
-            GetMenuItemText(GetMenu(menuID), menuItem, str);
-            StringToNum(str, &gPrefs.baud);
+            case 1:
+                gPrefs.port = Port::macTCP;
+                break;
+            case 2:
+                gPrefs.port = Port::modemPort;
+                break;
+            case 3:
+                gPrefs.port = Port::printerPort;
+                break;
+            default:
+                GetMenuItemText(GetMenu(menuID), menuItem, str);
+                StringToNum(str, &gPrefs.baud);
         }
         ConnectionChanged();
     }
@@ -263,7 +286,7 @@ public:
 
     void onReset()
     {
-        statusDisplay->SetStatus(gPrefs.port ? AppStatus::readyPrinter : AppStatus::readyModem, 0, 0);
+        statusDisplay->SetStatus(gPrefs.port == Port::printerPort ? AppStatus::readyPrinter : AppStatus::readyModem, 0, 0);
         state = State::command;
     }
 
@@ -457,9 +480,23 @@ public:
 
 LaunchServer server;
 
+
+
 void ConnectionChanged()
 {
-    connection = std::make_unique<SerialConnectionProvider>(gPrefs.port, gPrefs.baud, statusDisplay.get());
+    switch(gPrefs.port)
+    {
+        case Port::macTCP:
+            connection = std::make_unique<TCPConnectionProvider>(statusDisplay.get());;
+            break;
+        case Port::modemPort:
+            connection = std::make_unique<SerialConnectionProvider>(0, gPrefs.baud, statusDisplay.get());
+            break;
+        case Port::printerPort:
+            connection = std::make_unique<SerialConnectionProvider>(0, gPrefs.baud, statusDisplay.get());
+            break;
+    }
+    
     connection->setListener(&server);
     server.onReset();
 }
@@ -529,6 +566,20 @@ int main()
     const Boolean hasGestalt = true;
     const Boolean hasAppleEvents = true;
 #endif
+    if(hasGestalt)
+    {
+        long resp;
+        if(Gestalt('mtcp', &resp) == noErr)
+            portsAvailable[(int)Port::macTCP] = true;
+        if(Gestalt(gestaltSerialAttr, &resp) == noErr)
+        {
+            portsAvailable[(int)Port::modemPort] = 
+                (resp & ((1 << gestaltHidePortA) | (1<< gestaltPortADisabled))) == 0;
+            portsAvailable[(int)Port::printerPort] = 
+                (resp & ((1 << gestaltHidePortB) | (1<< gestaltPortBDisabled))) == 0;
+        }
+    }
+
 
     SetMenuBar(GetNewMBar(128));
     AppendResMenu(GetMenu(128), 'DRVR');

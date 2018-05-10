@@ -61,6 +61,7 @@ resource 'MENU' (131) {
     allEnabled, enabled;
     "Connection";
     {
+        "MacTCP", noIcon, noKey, noMark, plain;
         "Modem Port", noIcon, noKey, noMark, plain;
         "Printer Port", noIcon, noKey, noMark, plain;
         "-", noIcon, noKey, noMark, plain;
