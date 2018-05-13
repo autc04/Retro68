@@ -88,8 +88,8 @@ function(add_application name)
 					-I${REZ_INCLUDE_PATH}
 					--copy "${name}.code.bin"
 					-o "${name}.bin"
-					--cc "${name}.dsk" --cc "${name}.APPL" --cc "%${name}.ad"
 					-t "${ARGS_TYPE}" -c "${ARGS_CREATOR}"
+					--cc "${name}.dsk" --cc "${name}.APPL" --cc "%${name}.ad"
 					${ARGS_MAKEAPPL_ARGS}
 			DEPENDS ${name} ${rsrc_files})
 		add_custom_target(${name}_APPL ALL DEPENDS ${name}.bin)
