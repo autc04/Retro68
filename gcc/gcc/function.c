@@ -5513,6 +5513,7 @@ expand_function_end (void)
       tree decl_result = DECL_RESULT (current_function_decl);
       rtx decl_rtl = DECL_RTL (decl_result);
 
+#ifdef IS_PASCAL_FUNC
       if (IS_PASCAL_FUNC(TREE_TYPE(current_function_decl), current_function_decl))
 	{
 	  enum machine_mode mode = GET_MODE(decl_rtl);;
@@ -5524,7 +5525,9 @@ expand_function_end (void)
 	  emit_move_insn (return_slot, decl_rtl);
 	  crtl->return_rtx = return_slot;
 	}
-      else if (REG_P (decl_rtl)
+      else
+#endif
+      if (REG_P (decl_rtl)
 	  ? REGNO (decl_rtl) >= FIRST_PSEUDO_REGISTER
 	  : DECL_REGISTER (decl_result))
 	{
