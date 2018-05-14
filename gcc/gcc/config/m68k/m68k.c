@@ -6777,8 +6777,8 @@ m68k_write_macsbug_name(FILE *file, const char *name, tree decl)
     len = 255;
 
   const char *section_name = DECL_SECTION_NAME (decl);
-  if(flag_function_sections)
-      fprintf(file, "\t.section %s.macsbug,\"ax\",@progbits\n", section_name);
+  if(flag_function_sections && section_name)
+      fprintf(file, "\t.pushsection %s.macsbug,\"ax\",@progbits\n", section_name);
   fprintf(file, "# macsbug symbol\n");
   if(!retro68_hack_asm_rts_counter)
     fprintf(file, "\trts\n");
@@ -6790,7 +6790,7 @@ m68k_write_macsbug_name(FILE *file, const char *name, tree decl)
   ASM_OUTPUT_ASCII(file, name, len);
   fprintf(file, "\t.align 2,0\n\t.short 0\n");
   if(flag_function_sections && section_name)
-      fprintf(file, "\t.section %s,\"ax\",@progbits\n", section_name);
+        fprintf(file, "\t.popsection\n", section_name);
 }
 
 static tree
