@@ -40,8 +40,13 @@
 #include <memory>
 
 #include "ConnectionProvider.h"
+#if !TARGET_API_MAC_CARBON
 #include "SerialConnectionProvider.h"
 #include "TCPConnectionProvider.h"
+#endif
+
+#include "CarbonFileCompat.h"
+
 #include <Stream.h>
 
 enum
@@ -65,7 +70,12 @@ enum class Port : int
     printerPort,
     macTCP
 };
+
+#if TARGET_API_MAC_CARBON
+bool portsAvailable[] = { false, false, false };
+#else
 bool portsAvailable[] = { true, true, false };
+#endif
 
 struct Prefs
 {
@@ -111,12 +121,19 @@ void ConnectionChanged();
 void ShowAboutBox()
 {
     WindowRef w = GetNewWindow(128, NULL, (WindowPtr) -1);
-#if !TARGET_API_MAC_CARBON
-    MacMoveWindow(w,
-        qd.screenBits.bounds.right/2 - w->portRect.right/2,
-        qd.screenBits.bounds.bottom/2 - w->portRect.bottom/2,
-        false);
+#if TARGET_API_MAC_CARBON
+    Rect screenBounds = (*GetMainDevice())->gdRect;
+    Rect portBounds;
+    GetWindowPortBounds(w,&portBounds);
+#else
+    const Rect& screenBounds = qd.screenBits.bounds;
+    const Rect& portBounds = w->portRect;
 #endif
+    MacMoveWindow(w,
+        screenBounds.right/2 - portBounds.right/2,
+        screenBounds.bottom/2 - portBounds.bottom/2,
+        false);
+
     ShowWindow(w);
 #if TARGET_API_MAC_CARBON
     SetPortWindowPort(w);
@@ -126,12 +143,8 @@ void ShowAboutBox()
 
     Handle h = GetResource('TEXT', 128);
     HLock(h);
-#if TARGET_API_MAC_CARBON
-    Rect r;
-    GetWindowPortBounds(w,&r);
-#else
-    Rect r = w->portRect;
-#endif
+    Rect r = portBounds;
+
     InsetRect(&r, 10,10);
     TETextBox(*h, GetHandleSize(h), &r, teJustLeft);
 
@@ -161,7 +174,7 @@ void SetItemEnabled(MenuHandle m, short item, bool enabled)
 
 void UpdateMenus()
 {
-    MenuRef m = GetMenu(kMenuFile);
+    MenuRef m = GetMenuHandle(kMenuFile);
     WindowRef w = FrontWindow();
 
 #if TARGET_API_MAC_CARBON
@@ -169,7 +182,7 @@ void UpdateMenus()
     #define DisableItem DisableMenuItem
 #endif
 
-    m = GetMenu(kMenuEdit);
+    m = GetMenuHandle(kMenuEdit);
     
     bool enableEditMenu = (w && GetWindowKind(w) < 0);
         // Desk accessory in front: Enable edit menu items
@@ -178,7 +191,7 @@ void UpdateMenus()
     for(short i : {1,3,4,5,6})
         SetItemEnabled(m,i,enableEditMenu);
 
-    m = GetMenu(kMenuConnection);
+    m = GetMenuHandle(kMenuConnection);
     SetItemEnabled(m, 1, portsAvailable[(int)Port::macTCP]);
     CheckMenuItem(m, 1, gPrefs.port == Port::macTCP);
     SetItemEnabled(m, 2, portsAvailable[(int)Port::modemPort]);
@@ -245,7 +258,7 @@ void DoMenuCommand(long menuCommand)
                 gPrefs.port = Port::printerPort;
                 break;
             default:
-                GetMenuItemText(GetMenu(menuID), menuItem, str);
+                GetMenuItemText(GetMenuHandle(menuID), menuItem, str);
                 StringToNum(str, &gPrefs.baud);
         }
         ConnectionChanged();
@@ -374,7 +387,8 @@ public:
     void idle()
     {
         ++nullEventCounter;
-        connection->idle();
+        if(connection)
+            connection->idle();
 
         if(state == State::launch)
         {
@@ -486,6 +500,7 @@ void ConnectionChanged()
 {
     switch(gPrefs.port)
     {
+#if !TARGET_API_MAC_CARBON
         case Port::macTCP:
             connection = std::make_unique<TCPConnectionProvider>(statusDisplay.get());;
             break;
@@ -495,10 +510,14 @@ void ConnectionChanged()
         case Port::printerPort:
             connection = std::make_unique<SerialConnectionProvider>(0, gPrefs.baud, statusDisplay.get());
             break;
+#endif
     }
     
-    connection->setListener(&server);
-    server.onReset();
+    if(connection)
+    {
+        connection->setListener(&server);
+        server.onReset();
+    }
 }
 
 pascal OSErr aeRun (const AppleEvent *theAppleEvent, AppleEvent *reply, long handlerRefcon)
@@ -521,12 +540,13 @@ pascal OSErr aeQuit (const AppleEvent *theAppleEvent, AppleEvent *reply, long ha
 
 int main()
 {
+#if !TARGET_API_MAC_CARBON
     // default stack size is 8KB on B&W macs
     // and 24 KB on Color macs.
     // 8KB is too little as soon as we allocate a buffer on the stack.
     // To allow that, increae stack size: SetApplLimit(GetApplLimit() - 8192);
     MaxApplZone();
-#if !TARGET_API_MAC_CARBON
+
     InitGraf(&qd.thePort);
     InitFonts();
     InitWindows();
@@ -566,6 +586,8 @@ int main()
     const Boolean hasGestalt = true;
     const Boolean hasAppleEvents = true;
 #endif
+
+#if !TARGET_API_MAC_CARBON
     if(hasGestalt)
     {
         long resp;
@@ -579,7 +601,7 @@ int main()
                 (resp & ((1 << gestaltHidePortB) | (1<< gestaltPortBDisabled))) == 0;
         }
     }
-
+#endif
 
     SetMenuBar(GetNewMBar(128));
     AppendResMenu(GetMenu(128), 'DRVR');
@@ -643,7 +665,11 @@ int main()
                                 DisposeWindow(win);
                             break;
                         case inDrag:
+#if !TARGET_API_MAC_CARBON
                             DragWindow(win, e.where, &qd.screenBits.bounds);
+#else
+                            DragWindow(win, e.where, nullptr);
+#endif
                             break;
                         case inMenuBar:
                             UpdateMenus();

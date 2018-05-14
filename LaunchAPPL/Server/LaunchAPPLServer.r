@@ -140,7 +140,7 @@ resource 'SIZE' (-1) {
 	notDisplayManagerAware,
 	reserved,
 	reserved,
-	150 * 1024,
+	350 * 1024,
 	136 * 1024
 };
 

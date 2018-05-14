@@ -22,7 +22,12 @@ StatusDisplay::StatusDisplay()
 {
     statusWindow = GetNewWindow(129, NULL, (WindowPtr) -1);
 
+#if TARGET_API_MAC_CARBON
+    Rect bounds;
+    GetWindowPortBounds(statusWindow, &bounds);
+#else
     Rect bounds = statusWindow->portRect;
+#endif
 
     SetRect(&statusRect, 10, 0, bounds.right-10, 30);
     SetRect(&progressRect, 10, 30, bounds.right-10, 46);
@@ -30,7 +35,11 @@ StatusDisplay::StatusDisplay()
     memset(columnWidths, 0, sizeof(columnWidths));
     columnWidths[1] = columnWidths[4] = 50;
     
+#if TARGET_API_MAC_CARBON
+    SetPortWindowPort(statusWindow);
+#else
     SetPort(statusWindow);
+#endif
     TextSize(9);
     TextFace(bold);
     for(int i = 0; i < 2 * nValues; i++)
@@ -77,6 +86,16 @@ StatusDisplay::~StatusDisplay()
     DisposeRgn(background);
 }
 
+void StatusDisplay::Inval(const Rect& r)
+{
+#if TARGET_API_MAC_CARBON
+    InvalWindowRect(statusWindow, &r);
+#else
+    SetPort(statusWindow);
+    InvalRect(&r);
+#endif
+}
+
 void StatusDisplay::DrawValue(Stat stat, ConstStr255Param str)
 {
     Rect& r = valueRects[(short)stat];
@@ -120,10 +139,20 @@ void StatusDisplay::Update()
         SetRect(&r, progressRect.left+1, progressRect.top+1,
                     progressRect.left+1 + (progressRect.right-progressRect.left-2) * progressDone / progressTotal,
                     progressRect.bottom-1);
-        FillRect(&r, &qd.dkGray);
+
+#if TARGET_API_MAC_CARBON
+        Pattern fg, bg;
+        GetQDGlobalsDarkGray(&fg);
+        GetQDGlobalsLightGray(&bg);
+#else
+        const Pattern& fg = qd.dkGray;
+        const Pattern& bg = qd.ltGray;
+#endif
+
+        FillRect(&r, &fg);
         r.left = r.right;
         r.right = progressRect.right - 1;
-        FillRect(&r, &qd.ltGray);
+        FillRect(&r, &bg);
     }
     else
         EraseRect(&progressRect);
@@ -144,7 +173,9 @@ void StatusDisplay::Update()
     }
 
     TextFace(normal);
+#if !TARGET_API_MAC_CARBON
     DrawValue(Stat::heapSize, (ApplicationZone()->bkLim - (Ptr)ApplicationZone()) / 1024);
+#endif
     DrawValue(Stat::freeMem, freeMem);
     if(progressTotal)
     {
@@ -169,8 +200,7 @@ void StatusDisplay::Idle()
     if(newFreeMem != freeMem)
     {
         freeMem = newFreeMem;
-        SetPort(statusWindow);
-        InvalRect(&valueRects[(short)Stat::freeMem]);
+        Inval(valueRects[(short)Stat::freeMem]);
     }
 
     long newTimeRemaining = -1;
@@ -185,8 +215,7 @@ void StatusDisplay::Idle()
             if(newSpeed != speed)
             {
                 speed = newSpeed;
-                SetPort(statusWindow);
-                InvalRect(&valueRects[(short)Stat::speed]);
+                Inval(valueRects[(short)Stat::speed]);
             }
         }
     }
@@ -194,8 +223,7 @@ void StatusDisplay::Idle()
     if(newTimeRemaining != timeRemaining)
     {
         timeRemaining = newTimeRemaining;
-        SetPort(statusWindow);
-        InvalRect(&valueRects[(short)Stat::timeRemaining]);
+        Inval(valueRects[(short)Stat::timeRemaining]);
     }
 }
 
@@ -207,8 +235,7 @@ void StatusDisplay::SetStatus(AppStatus stat)
         if(status == AppStatus::downloading || status == AppStatus::upgrading)
             startTime = TickCount();
         GetIndString(statusString,128,(short)stat);
-        SetPort(statusWindow);
-        InvalRect(&statusRect);
+        Inval(statusRect);
     }
 }
 
@@ -216,11 +243,10 @@ void StatusDisplay::SetProgress(int done, int total)
 {
     if(done != progressDone || total != progressTotal)
     {
-        SetPort(statusWindow);
-        InvalRect(&progressRect);
+        Inval(progressRect);
         if(total != progressTotal)
-            InvalRect(&valueRects[(short)Stat::fileSize]);
-        InvalRect(&valueRects[(short)Stat::transferred]);
+            Inval(valueRects[(short)Stat::fileSize]);
+        Inval(valueRects[(short)Stat::transferred]);
         progressTotal = total;
         progressDone = done;
     }
@@ -237,7 +263,6 @@ void StatusDisplay::SetErrorCount(int newErrorCount)
     if(newErrorCount != errorCount)
     {
         errorCount = newErrorCount;
-        SetPort(statusWindow);
-        InvalRect(&valueRects[(short)Stat::transmissionErrors]);
+        Inval(valueRects[(short)Stat::transmissionErrors]);
     }
 }

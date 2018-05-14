@@ -37,6 +37,7 @@ class StatusDisplay
 
     void DrawValue(Stat stat, ConstStr255Param str);
     void DrawValue(Stat stat, long val);
+    void Inval(const Rect& r);
 
 public:
     StatusDisplay();
