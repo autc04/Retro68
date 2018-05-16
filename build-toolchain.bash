@@ -494,6 +494,11 @@ for arch in $ARCHS; do
 		"$PREFIX/bin/${arch}-apple-macos-ar" cqs "$PREFIX/${arch}-apple-macos/lib/libretrocrt.a"
 	fi
 done
+if [ ! -e "$PREFIX/powerpc-apple-macos/lib/libretrocrt-carbon.a" ]; then
+    echo "Creating dummy libretrocrt-carbon.a for $arch..."
+    "$PREFIX/bin/powerpc-apple-macos-ar" cqs "$PREFIX/powerpc-apple-macos/lib/libretrocrt-carbon.a"
+fi
+
 	# the real libretrocrt.a is built and installed by 
 	# `cmake --build build-target --target install` later
 

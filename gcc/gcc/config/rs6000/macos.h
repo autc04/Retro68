@@ -169,9 +169,9 @@
 %{shared:-bM:SRE}"
 
 #define LIB_SPEC "-lc"
-#define LIBGCC_SPEC "-lgcc -lretrocrt -lgcc %{carbon: -lCarbonLib} %{!carbon: -lInterfaceLib}"
+#define LIBGCC_SPEC "-lgcc %{carbon: -lretrocrt-carbon} %{!carbon: -lretrocrt} -lgcc %{carbon: -lCarbonLib} %{!carbon: -lInterfaceLib}"
 
-#define LINK_GCC_C_SEQUENCE_SPEC "--start-group -lgcc -lc -lretrocrt %{carbon: -lCarbonLib} %{!carbon: -lInterfaceLib} --end-group"
+#define LINK_GCC_C_SEQUENCE_SPEC "--start-group -lgcc -lc %{carbon: -lretrocrt-carbon} %{!carbon: -lretrocrt} %{carbon: -lCarbonLib} %{!carbon: -lInterfaceLib} --end-group"
 
 #undef STARTFILE_SPEC
 #define STARTFILE_SPEC ""

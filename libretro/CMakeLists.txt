@@ -78,3 +78,9 @@ set_target_properties(retrocrt
 	    COMPILE_OPTIONS -ffunction-sections)
 
 install(TARGETS retrocrt  DESTINATION lib)
+
+    # different library name for Carbon
+    # (Carbon shares the powerpc-apple-macos/ directory with Classic PPC)
+if(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
+    set_target_properties(retrocrt PROPERTIES OUTPUT_NAME retrocrt-carbon)
+endif()
