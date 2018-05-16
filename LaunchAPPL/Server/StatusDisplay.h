@@ -33,6 +33,8 @@ class StatusDisplay
     Rect valueRects[nValues];
     short columnWidths[6];
 
+    PixPatHandle progressBg, progressFg;
+
     enum class Stat : short;
 
     void DrawValue(Stat stat, ConstStr255Param str);

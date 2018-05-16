@@ -7,6 +7,8 @@ const short tableTop = 50;
 const short tableLineHeight = 20;
 const short tableBaseline = 15;
 
+extern Boolean hasColorQD;
+
 enum class StatusDisplay::Stat : short
 {
     heapSize,
@@ -20,7 +22,9 @@ enum class StatusDisplay::Stat : short
 
 StatusDisplay::StatusDisplay()
 {
-    statusWindow = GetNewWindow(129, NULL, (WindowPtr) -1);
+    statusWindow = hasColorQD ? 
+        GetNewCWindow(129, NULL, (WindowPtr) -1) 
+        : GetNewWindow(129, NULL, (WindowPtr) -1);
 
 #if TARGET_API_MAC_CARBON
     Rect bounds;
@@ -78,6 +82,12 @@ StatusDisplay::StatusDisplay()
         DiffRgn(background, tmp, background);
     }
     DisposeRgn(tmp);
+
+    if(hasColorQD)
+    {
+        progressBg = GetPixPat(128);
+        progressFg = GetPixPat(129);
+    }
 }
 
 StatusDisplay::~StatusDisplay()
@@ -116,11 +126,7 @@ void StatusDisplay::DrawValue(Stat stat, long val)
 
 void StatusDisplay::Update()
 {
-#if TARGET_API_MAC_CARBON
     SetPortWindowPort(statusWindow);
-#else
-    SetPort(statusWindow);
-#endif
     BeginUpdate(statusWindow);
     EraseRgn(background);
 
@@ -140,19 +146,20 @@ void StatusDisplay::Update()
                     progressRect.left+1 + (progressRect.right-progressRect.left-2) * progressDone / progressTotal,
                     progressRect.bottom-1);
 
-#if TARGET_API_MAC_CARBON
-        Pattern fg, bg;
-        GetQDGlobalsDarkGray(&fg);
-        GetQDGlobalsLightGray(&bg);
-#else
-        const Pattern& fg = qd.dkGray;
-        const Pattern& bg = qd.ltGray;
+#if TARGET_CPU_68K && !TARGET_RT_MAC_CFM
+        if(!hasColorQD)
+            FillRect(&r, &qd.dkGray);
+        else
 #endif
-
-        FillRect(&r, &fg);
+            FillCRect(&r, progressFg);
         r.left = r.right;
         r.right = progressRect.right - 1;
-        FillRect(&r, &bg);
+#if TARGET_CPU_68K && !TARGET_RT_MAC_CFM
+        if(!hasColorQD)
+            FillRect(&r, &qd.ltGray);
+        else
+#endif
+            FillCRect(&r, progressBg);
     }
     else
         EraseRect(&progressRect);

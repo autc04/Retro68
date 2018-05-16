@@ -82,6 +82,8 @@ bool portsAvailable[] = { false, false, false, false };
 #else
 bool portsAvailable[] = { true, true, false, false };
 #endif
+Boolean hasIconUtils = true;
+Boolean hasColorQD = true;
 
 struct Prefs
 {
@@ -132,7 +134,9 @@ void ShowAboutBox()
         return;
     }
 
-    WindowRef w = GetNewWindow(128, NULL, (WindowPtr) -1);
+    WindowRef w = hasColorQD ? 
+        GetNewCWindow(128, NULL, (WindowPtr) -1) 
+        : GetNewWindow(128, NULL, (WindowPtr) -1);
     aboutWindow = w;
 #if TARGET_API_MAC_CARBON
     Rect screenBounds = (*GetMainDevice())->gdRect;
@@ -155,12 +159,24 @@ void UpdateAboutWindow()
     SetPortWindowPort(aboutWindow);
     BeginUpdate(aboutWindow);
 
+    Rect portRect;
+    GetWindowPortBounds(aboutWindow,&portRect);
+    EraseRect(&portRect);
+
     Rect r;
-    GetWindowPortBounds(aboutWindow,&r);
-    EraseRect(&r);
+    SetRect(&r, portRect.right/2 - 16, 10, portRect.right/2 + 16, 42);
 
-    InsetRect(&r, 10,10);
+    if(hasIconUtils)
+        PlotIconID(&r, kAlignAbsoluteCenter, kTransformNone, 128);
+    else
+        PlotIcon(&r, GetResource('ICN#', 128));
 
+    r = portRect;
+    r.left += 10;
+    r.top += 52;
+    r.bottom -= 10;
+    r.right -= 10;
+    
     Handle h = GetResource('TEXT', 128);
     HLock(h);
     TETextBox(*h, GetHandleSize(h), &r, teJustLeft);
@@ -643,6 +659,9 @@ int main()
 	Boolean hasWaitNextEvent = false;
     Boolean hasGestalt = false;
     Boolean hasAppleEvents = false;
+    hasIconUtils = false;
+    hasColorQD = false;
+
 	if (is128KROM)
 	{
 		UniversalProcPtr trapUnimpl = GetToolTrapAddress(_Unimplemented);
@@ -659,6 +678,12 @@ int main()
             long response = 0;
             OSErr err = Gestalt(gestaltAppleEventsAttr, &response);
             hasAppleEvents = err == noErr && response != 0;
+
+            err = Gestalt(gestaltIconUtilitiesAttr, &response);
+            hasIconUtils = err == noErr && response != 0;
+
+            err = Gestalt(gestaltQuickdrawVersion, &response);
+            hasColorQD = err == noErr && response != 0;
         }
 	}
 #else

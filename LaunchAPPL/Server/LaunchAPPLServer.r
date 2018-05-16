@@ -94,10 +94,10 @@ data 'TEXT' (128, purgeable) {
 };
 
 resource 'WIND' (128, "About") {
-    {0, 0, 200, 320}, noGrowDocProc;
+    {0, 0, 242, 320}, noGrowDocProc;
     invisible;
     goAway;
-    0, "About LaunchAPPLShell";
+    0, "About LaunchAPPLServer";
     noAutoCenter;
 };
 
