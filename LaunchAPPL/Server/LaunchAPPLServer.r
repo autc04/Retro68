@@ -38,6 +38,8 @@ resource 'MENU' (129) {
     allEnabled, enabled;
     "File";
     {
+        "Close", noIcon, "W", noMark, plain;
+        "-", noIcon, noKey, noMark, plain;
         "Quit", noIcon, "Q", noMark, plain;
     }
 };
@@ -80,16 +82,22 @@ resource 'MBAR' (128) {
     { 128, 129, 130, 131 };
 };
 
-data 'TEXT' (128) {
-    "About LaunchAPPLShell\r\r"
-    "Listens on the modem port for an application sent by Retro68's LaunchAPPL tool."
+data 'TEXT' (128, purgeable) {
+    "This application is the counterpart to Retro68's LaunchAPPL tool.\r"
+    "\r"
+    "It will listen via TCP or via serial port for applications sent by "
+    "the LaunchAPPL tool from a modern system and execute it on this Mac.\r"
+    "\r"
+    "Pick your connection type from the \"Connection\" menu. "
+    "Not all connection types are available on all Macs and system software versions."
+
 };
 
 resource 'WIND' (128, "About") {
-    {0, 0, 150, 320}, altDBoxProc;
+    {0, 0, 200, 320}, noGrowDocProc;
     invisible;
-    noGoAway;
-    0, "";
+    goAway;
+    0, "About LaunchAPPLShell";
     noAutoCenter;
 };
 

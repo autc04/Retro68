@@ -65,7 +65,8 @@ enum
 {
     kItemAbout = 1,
 
-    kItemQuit = 1
+    kItemClose = 1,
+    kItemQuit = 3
 };
 
 enum class Port : int
@@ -120,12 +121,19 @@ void ReadPrefs()
 }
 
 bool gQuitting = false;
-
+WindowRef aboutWindow = nullptr;
 void ConnectionChanged();
 
 void ShowAboutBox()
 {
+    if(aboutWindow)
+    {
+        SelectWindow(aboutWindow);
+        return;
+    }
+
     WindowRef w = GetNewWindow(128, NULL, (WindowPtr) -1);
+    aboutWindow = w;
 #if TARGET_API_MAC_CARBON
     Rect screenBounds = (*GetMainDevice())->gdRect;
     Rect portBounds;
@@ -140,41 +148,37 @@ void ShowAboutBox()
         false);
 
     ShowWindow(w);
-#if TARGET_API_MAC_CARBON
-    SetPortWindowPort(w);
-#else
-    SetPort(w);
-#endif
+}
+
+void UpdateAboutWindow()
+{
+    SetPortWindowPort(aboutWindow);
+    BeginUpdate(aboutWindow);
+
+    Rect r;
+    GetWindowPortBounds(aboutWindow,&r);
+    EraseRect(&r);
+
+    InsetRect(&r, 10,10);
 
     Handle h = GetResource('TEXT', 128);
     HLock(h);
-    Rect r = portBounds;
-
-    InsetRect(&r, 10,10);
     TETextBox(*h, GetHandleSize(h), &r, teJustLeft);
+    HUnlock(h);
 
-    ReleaseResource(h);
-    while(!Button())
-        ;
-    while(Button())
-        ;
-    FlushEvents(everyEvent, 0);
-    DisposeWindow(w);
+    EndUpdate(aboutWindow);
 }
 
+#if TARGET_API_MAC_CARBON
+    #define EnableItem EnableMenuItem
+    #define DisableItem DisableMenuItem
+#endif
 void SetItemEnabled(MenuHandle m, short item, bool enabled)
 {
-#if TARGET_API_MAC_CARBON
-    if(enabled)
-        EnableMenuItem(m,item);
-    else
-        DisableMenuItem(m,item);
-#else
     if(enabled)
         EnableItem(m,item);
     else
         DisableItem(m,item);
-#endif
 }
 
 void UpdateMenus()
@@ -182,10 +186,11 @@ void UpdateMenus()
     MenuRef m = GetMenuHandle(kMenuFile);
     WindowRef w = FrontWindow();
 
-#if TARGET_API_MAC_CARBON
-    #define EnableItem EnableMenuItem
-    #define DisableItem DisableMenuItem
-#endif
+    m = GetMenuHandle(kMenuFile);
+    if(w && (w == aboutWindow || GetWindowKind(w) < 0))
+        EnableItem(m,kItemClose);
+    else
+        DisableItem(m,kItemClose);
 
     m = GetMenuHandle(kMenuEdit);
     
@@ -205,13 +210,14 @@ void UpdateMenus()
     CheckMenuItem(m, 3, gPrefs.port == Port::modemPort);
     SetItemEnabled(m, 4, portsAvailable[(int)Port::printerPort]);
     CheckMenuItem(m, 4, gPrefs.port == Port::printerPort);
-    for(int i = 5; i <= CountMenuItems(m); i++)
+    for(int i = 6; i <= CountMenuItems(m); i++)
     {
         Str255 str;
         long baud;
         GetMenuItemText(m, i, str);
         StringToNum(str, &baud);
         CheckMenuItem(m, i, baud == gPrefs.baud);
+        SetItemEnabled(m, i, gPrefs.port == Port::modemPort || gPrefs.port == Port::printerPort);
     }
 }
 
@@ -237,6 +243,23 @@ void DoMenuCommand(long menuCommand)
     {
         switch(menuItem)
         {
+            case kItemClose:
+                w = FrontWindow();
+                if(w)
+                {
+#if !TARGET_API_MAC_CARBON
+                    if(GetWindowKind(w) < 0)
+                        CloseDeskAcc(GetWindowKind(w));
+                    else 
+#endif
+                    if(w == aboutWindow)
+                    {
+                        DisposeWindow(w);
+                        aboutWindow = nullptr;
+                    }
+                }
+                break;
+
             case kItemQuit:
                 gQuitting = true;
                 break;
@@ -534,11 +557,28 @@ LaunchServer server;
 void ConnectionChanged()
 {
     connection.reset(); // deallocate before we create the new provider
+
+    bool first = true;
+    for(;;)
+    {
+        using std::begin, std::end;
+        if((int)gPrefs.port >= end(portsAvailable)-begin(portsAvailable))
+        {
+            if(!first)
+                return;
+            first = false;
+            gPrefs.port = (Port) 0;
+        }
+        if(portsAvailable[(int)gPrefs.port])
+            break;
+        gPrefs.port = Port((int)gPrefs.port + 1);
+    }
+
     switch(gPrefs.port)
     {
 #if !TARGET_API_MAC_CARBON
         case Port::macTCP:
-            connection = std::make_unique<TCPConnectionProvider>(statusDisplay.get());;
+            connection = std::make_unique<TCPConnectionProvider>(statusDisplay.get());
             break;
         case Port::modemPort:
             connection = std::make_unique<SerialConnectionProvider>(0, gPrefs.baud, statusDisplay.get());
@@ -711,7 +751,13 @@ int main()
                     {
                         case inGoAway:
                             if(TrackGoAway(win, e.where))
-                                DisposeWindow(win);
+                            {
+                                if(win == aboutWindow)
+                                {
+                                    DisposeWindow(win);
+                                    aboutWindow = nullptr;
+                                }
+                            }
                             break;
                         case inDrag:
 #if !TARGET_API_MAC_CARBON
@@ -737,6 +783,8 @@ int main()
                 case updateEvt:
                     if(statusDisplay && (WindowRef)e.message == statusDisplay->GetWindow())
                         statusDisplay->Update();
+                    else if(aboutWindow && (WindowRef)e.message == aboutWindow)
+                        UpdateAboutWindow();
                     break;
                 case kHighLevelEvent:
                     if(hasAppleEvents)
