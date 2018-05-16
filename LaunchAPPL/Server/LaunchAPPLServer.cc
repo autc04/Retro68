@@ -44,6 +44,10 @@
 #include "SerialConnectionProvider.h"
 #include "TCPConnectionProvider.h"
 #endif
+#if !TARGET_CPU_68K
+#include "OpenTptConnectionProvider.h"
+#endif
+
 
 #include "CarbonFileCompat.h"
 
@@ -68,13 +72,14 @@ enum class Port : int
 {
     modemPort = 0,
     printerPort,
-    macTCP
+    macTCP,
+    openTptTCP
 };
 
 #if TARGET_API_MAC_CARBON
-bool portsAvailable[] = { false, false, false };
+bool portsAvailable[] = { false, false, false, false };
 #else
-bool portsAvailable[] = { true, true, false };
+bool portsAvailable[] = { true, true, false, true/*###*/ };
 #endif
 
 struct Prefs
@@ -194,11 +199,13 @@ void UpdateMenus()
     m = GetMenuHandle(kMenuConnection);
     SetItemEnabled(m, 1, portsAvailable[(int)Port::macTCP]);
     CheckMenuItem(m, 1, gPrefs.port == Port::macTCP);
-    SetItemEnabled(m, 2, portsAvailable[(int)Port::modemPort]);
-    CheckMenuItem(m, 2, gPrefs.port == Port::modemPort);
-    SetItemEnabled(m, 3, portsAvailable[(int)Port::printerPort]);
-    CheckMenuItem(m, 3, gPrefs.port == Port::printerPort);
-    for(int i = 4; i <= CountMenuItems(m); i++)
+    SetItemEnabled(m, 2, portsAvailable[(int)Port::openTptTCP]);
+    CheckMenuItem(m, 2, gPrefs.port == Port::openTptTCP);
+    SetItemEnabled(m, 3, portsAvailable[(int)Port::modemPort]);
+    CheckMenuItem(m, 3, gPrefs.port == Port::modemPort);
+    SetItemEnabled(m, 4, portsAvailable[(int)Port::printerPort]);
+    CheckMenuItem(m, 4, gPrefs.port == Port::printerPort);
+    for(int i = 5; i <= CountMenuItems(m); i++)
     {
         Str255 str;
         long baud;
@@ -252,9 +259,12 @@ void DoMenuCommand(long menuCommand)
                 gPrefs.port = Port::macTCP;
                 break;
             case 2:
-                gPrefs.port = Port::modemPort;
+                gPrefs.port = Port::openTptTCP;
                 break;
             case 3:
+                gPrefs.port = Port::modemPort;
+                break;
+            case 4:
                 gPrefs.port = Port::printerPort;
                 break;
             default:
@@ -498,6 +508,7 @@ LaunchServer server;
 
 void ConnectionChanged()
 {
+    connection.reset(); // deallocate before we create the new provider
     switch(gPrefs.port)
     {
 #if !TARGET_API_MAC_CARBON
@@ -509,6 +520,11 @@ void ConnectionChanged()
             break;
         case Port::printerPort:
             connection = std::make_unique<SerialConnectionProvider>(0, gPrefs.baud, statusDisplay.get());
+            break;
+#endif
+#if !TARGET_CPU_68K
+        case Port::openTptTCP:
+            connection = std::make_unique<OpenTptConnectionProvider>(statusDisplay.get());;
             break;
 #endif
     }

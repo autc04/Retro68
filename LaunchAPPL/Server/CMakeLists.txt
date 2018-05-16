@@ -15,6 +15,16 @@ else()
         )
 endif()
 
+if(CMAKE_SYSTEM_NAME MATCHES Retro68)
+else()
+    list(APPEND CONNECTION_SOURCES
+            OpenTptStream.h
+            OpenTptStream.cc
+            OpenTptConnectionProvider.h
+            OpenTptConnectionProvider.cc
+        )
+endif()
+
 
 add_application(LaunchAPPLServer 
     TYPE "APPL"
@@ -48,3 +58,23 @@ else()
             LINK_FLAGS "-Wl,-gc-sections"
         )
 endif()
+
+if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
+    target_link_libraries(LaunchAPPLServer  -lOpenTransportAppPPC -lOpenTransportLib -lOpenTptInternetLib )
+endif()
+
+if(FALSE)
+add_application(tcptest 
+    CONSOLE
+
+
+    tcptest.cc
+)
+
+target_link_libraries(tcptest LaunchAPPLCommon)
+set_target_properties(tcptest PROPERTIES
+        CXX_STANDARD 17
+        LINK_FLAGS "-Wl,-gc-sections"
+    )
+
+    endif()
