@@ -79,7 +79,7 @@ enum class Port : int
 #if TARGET_API_MAC_CARBON
 bool portsAvailable[] = { false, false, false, false };
 #else
-bool portsAvailable[] = { true, true, false, true/*###*/ };
+bool portsAvailable[] = { true, true, false, false };
 #endif
 
 struct Prefs
@@ -616,6 +616,14 @@ int main()
             portsAvailable[(int)Port::printerPort] = 
                 (resp & ((1 << gestaltHidePortB) | (1<< gestaltPortBDisabled))) == 0;
         }
+    }
+#endif
+#if !TARGET_CPU_68K
+    if(hasGestalt)
+    {
+        long resp;
+        if(Gestalt(gestaltOpenTpt, &resp) == noErr && resp)
+            portsAvailable[(int)Port::openTptTCP] = true;
     }
 #endif
 
