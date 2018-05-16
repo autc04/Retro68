@@ -238,6 +238,13 @@ if [ $BUILD_PPC != false ]; then
 		explainInterfaces
 	fi
 
+	if locateInterfaceThing OPENTRANSPORTAPPPPC OpenTransportAppPPC.o; then
+		PPCLIBRARIES=`dirname "$OPENTRANSPORTAPPPPC"`
+	else
+		echo "Could not find OpenTransportAppPPC.o anywhere inside InterfaceAndLibraries/"
+		echo "(This file is required for OpenTransport on PPC only)"
+fi
+
 fi
 
 if [ $BUILD_CARBON != false ]; then
@@ -475,6 +482,21 @@ if [ $BUILD_PPC != false ]; then
 			done
 			;;
 	esac
+
+    if [ -d ${PPCLIBRARIES} ]; then
+        echo "Copying static PPC libraries"
+        for obj in ${PPCLIBRARIES}/OpenT*.o ${PPCLIBRARIES}/CarbonAccessors.o ${PPCLIBRARIES}/CursorDevicesGlue.o; do
+            if [ -r $obj ]; then
+                # copy the library:
+                cp $obj toolchain/powerpc-apple-macos/lib/
+
+                # and wrap it in a .a archive for convenience
+            	lib=toolchain/powerpc-apple-macos/lib/lib`basename "${obj%.o}"`.a
+                rm -f $lib
+                toolchain/bin/powerpc-apple-macos-ar cqs $lib $obj
+            fi
+        done
+    fi
 fi
 
 # if [ $BUILD_PPC != false ]; then
