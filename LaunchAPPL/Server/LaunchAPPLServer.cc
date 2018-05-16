@@ -302,6 +302,7 @@ class LaunchServer : public StreamListener
     };
     State state = State::command;
     RemoteCommand command;
+    bool upgrade = false;
 
     OSType type, creator;
 
@@ -402,49 +403,58 @@ public:
 
         if(state == State::launch)
         {
-            connection->suspend();
-            if(void *seg = connection->segmentToUnload())
-                UnloadSeg(seg);
-            gPrefs.inSubLaunch = true;
-            WritePrefs();
 
             if(command == RemoteCommand::upgradeLauncher)
             {
+                Stream *stream = connection->getStream();
                 if(creator == 'R68L' && type == 'APPL')
                 {
-                    FSDelete("\pLaunchAPPLServer.old", 0);
-                    Rename(LMGetCurApName(), 0, "\pLaunchAPPLServer.old");
-                    Rename("\pRetro68App", 0, LMGetCurApName());
+                    uint32_t zero = 0;
+                    stream->write(&zero, 4);
+                    stream->write(&zero, 4);
 
-                    LaunchParamBlockRec lpb;
-                    memset(&lpb, 0, sizeof(lpb));
-                    lpb.reserved1 = (unsigned long) LMGetCurApName();
-                    lpb.reserved2 = 0;
-                    OSErr err = LaunchApplication(&lpb);
-                    ExitToShell();
+                    upgrade = true;
                 }
-            }
-
-            if(type == 'MPST')
-                appLauncher = CreateToolLauncher();
-            else
-                appLauncher = CreateAppLauncher();
-
-            bool launched = appLauncher->Launch("\pRetro68App");
-            gPrefs.inSubLaunch = false;
-            WritePrefs();
-
-            if(launched)
-            {
-                state = State::wait;
-                nullEventCounter = 0;
-
-                statusDisplay->SetStatus(AppStatus::running, 0, 0);
+                else
+                {
+                    uint32_t error = 1;
+                    stream->write(&error, 4);
+                }
+                stream->flushWrite();
+                outRefNum = 0;
+                outSizeRemaining = 0;
+                outSize = 0;
+                state = State::respond;
             }
             else
             {
-                connection->resume();
-                onReset();
+                connection->suspend();
+                if(void *seg = connection->segmentToUnload())
+                    UnloadSeg(seg);
+                gPrefs.inSubLaunch = true;
+                WritePrefs();
+
+                if(type == 'MPST')
+                    appLauncher = CreateToolLauncher();
+                else
+                    appLauncher = CreateAppLauncher();
+
+                bool launched = appLauncher->Launch("\pRetro68App");
+                gPrefs.inSubLaunch = false;
+                WritePrefs();
+
+                if(launched)
+                {
+                    state = State::wait;
+                    nullEventCounter = 0;
+
+                    statusDisplay->SetStatus(AppStatus::running, 0, 0);
+                }
+                else
+                {
+                    connection->resume();
+                    onReset();
+                }
             }
         }
         else if(state == State::wait && nullEventCounter > 3)
@@ -471,12 +481,27 @@ public:
             }
             statusDisplay->SetStatus(AppStatus::uploading, outSize - outSizeRemaining, outSize);
 
-            if(outSizeRemaining == 0)
+            if(outSizeRemaining == 0 && outRefNum)
             {
                 FSClose(outRefNum);
             }
             if(outSizeRemaining == 0 && stream->allDataArrived())
             {
+                if(upgrade)
+                {
+                    connection.reset();
+
+                    FSDelete("\pLaunchAPPLServer.old", 0);
+                    Rename(LMGetCurApName(), 0, "\pLaunchAPPLServer.old");
+                    Rename("\pRetro68App", 0, LMGetCurApName());
+
+                    LaunchParamBlockRec lpb;
+                    memset(&lpb, 0, sizeof(lpb));
+                    lpb.reserved1 = (unsigned long) LMGetCurApName();
+                    lpb.reserved2 = 0;
+                    OSErr err = LaunchApplication(&lpb);
+                    ExitToShell();
+                }
                 onReset();
             }
         }
