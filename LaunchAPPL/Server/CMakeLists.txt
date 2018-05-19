@@ -36,8 +36,11 @@ add_application(LaunchAPPLServer
     AppLauncher.h
     AppLauncher.cc
     ToolLauncher.cc
+    Window.h
     StatusDisplay.h
     StatusDisplay.cc
+    AboutBox.h
+    AboutBox.cc
     ConnectionProvider.h
     CarbonFileCompat.h
 

@@ -2,6 +2,8 @@
 #include <Windows.h>
 #include <TextUtils.h>
 
+#include "Window.h"
+
 enum class AppStatus
 {
     empty = 0,
@@ -13,7 +15,7 @@ enum class AppStatus
     uploading
 };
 
-class StatusDisplay
+class StatusDisplay : public Window
 {
     WindowPtr statusWindow;
     Str255 statusString = "\p";
@@ -46,7 +48,7 @@ public:
     ~StatusDisplay();
 
     WindowPtr GetWindow() { return statusWindow; }
-    void Update();
+    virtual void Update() override;
 
     void Idle();
 

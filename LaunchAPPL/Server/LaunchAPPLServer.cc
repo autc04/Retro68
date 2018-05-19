@@ -33,6 +33,7 @@
 
 #include "AppLauncher.h"
 #include "StatusDisplay.h"
+#include "AboutBox.h"
 
 #include <ServerProtocol.h>
 #include <Processes.h>
@@ -48,6 +49,7 @@
 #include "OpenTptConnectionProvider.h"
 #endif
 
+#include "SystemInfo.h"
 
 #include "CarbonFileCompat.h"
 
@@ -82,8 +84,8 @@ bool portsAvailable[] = { false, false, false, false };
 #else
 bool portsAvailable[] = { true, true, false, false };
 #endif
-Boolean hasIconUtils = true;
-Boolean hasColorQD = true;
+bool hasIconUtils = true;
+bool hasColorQD = true;
 
 struct Prefs
 {
@@ -126,64 +128,6 @@ bool gQuitting = false;
 WindowRef aboutWindow = nullptr;
 void ConnectionChanged();
 
-void ShowAboutBox()
-{
-    if(aboutWindow)
-    {
-        SelectWindow(aboutWindow);
-        return;
-    }
-
-    WindowRef w = hasColorQD ? 
-        GetNewCWindow(128, NULL, (WindowPtr) -1) 
-        : GetNewWindow(128, NULL, (WindowPtr) -1);
-    aboutWindow = w;
-#if TARGET_API_MAC_CARBON
-    Rect screenBounds = (*GetMainDevice())->gdRect;
-    Rect portBounds;
-    GetWindowPortBounds(w,&portBounds);
-#else
-    const Rect& screenBounds = qd.screenBits.bounds;
-    const Rect& portBounds = w->portRect;
-#endif
-    MacMoveWindow(w,
-        screenBounds.right/2 - portBounds.right/2,
-        screenBounds.bottom/2 - portBounds.bottom/2,
-        false);
-
-    ShowWindow(w);
-}
-
-void UpdateAboutWindow()
-{
-    SetPortWindowPort(aboutWindow);
-    BeginUpdate(aboutWindow);
-
-    Rect portRect;
-    GetWindowPortBounds(aboutWindow,&portRect);
-    EraseRect(&portRect);
-
-    Rect r;
-    SetRect(&r, portRect.right/2 - 16, 10, portRect.right/2 + 16, 42);
-
-    if(hasIconUtils)
-        PlotIconID(&r, kAlignAbsoluteCenter, kTransformNone, 128);
-    else
-        PlotIcon(&r, GetResource('ICN#', 128));
-
-    r = portRect;
-    r.left += 10;
-    r.top += 52;
-    r.bottom -= 10;
-    r.right -= 10;
-    
-    Handle h = GetResource('TEXT', 128);
-    HLock(h);
-    TETextBox(*h, GetHandleSize(h), &r, teJustLeft);
-    HUnlock(h);
-
-    EndUpdate(aboutWindow);
-}
 
 #if TARGET_API_MAC_CARBON
     #define EnableItem EnableMenuItem
@@ -246,7 +190,7 @@ void DoMenuCommand(long menuCommand)
     if(menuID == kMenuApple)
     {
         if(menuItem == kItemAbout)
-            ShowAboutBox();
+            AboutBox::ShowAboutBox();
 #if !TARGET_API_MAC_CARBON
         else
         {
@@ -777,10 +721,9 @@ int main()
                         case inGoAway:
                             if(TrackGoAway(win, e.where))
                             {
-                                if(win == aboutWindow)
+                                if(Window *winObject = reinterpret_cast<Window*>(GetWRefCon(win)))
                                 {
-                                    DisposeWindow(win);
-                                    aboutWindow = nullptr;
+                                    delete winObject;
                                 }
                             }
                             break;
@@ -806,10 +749,11 @@ int main()
                     }
                     break;
                 case updateEvt:
-                    if(statusDisplay && (WindowRef)e.message == statusDisplay->GetWindow())
-                        statusDisplay->Update();
-                    else if(aboutWindow && (WindowRef)e.message == aboutWindow)
-                        UpdateAboutWindow();
+                    win = reinterpret_cast<WindowRef>(e.message);
+                    if(Window *winObject = reinterpret_cast<Window*>(GetWRefCon(win)))
+                    {
+                        winObject->Update();
+                    }
                     break;
                 case kHighLevelEvent:
                     if(hasAppleEvents)

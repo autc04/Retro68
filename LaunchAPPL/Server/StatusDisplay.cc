@@ -2,12 +2,12 @@
 #include <Quickdraw.h>
 #include <Windows.h>
 #include <string.h>
+#include "SystemInfo.h"
 
 const short tableTop = 50;
 const short tableLineHeight = 20;
 const short tableBaseline = 15;
 
-extern Boolean hasColorQD;
 
 enum class StatusDisplay::Stat : short
 {
@@ -25,6 +25,7 @@ StatusDisplay::StatusDisplay()
     statusWindow = hasColorQD ? 
         GetNewCWindow(129, NULL, (WindowPtr) -1) 
         : GetNewWindow(129, NULL, (WindowPtr) -1);
+    SetWRefCon(statusWindow, reinterpret_cast<long>(static_cast<Window*>(this)));
 
 #if TARGET_API_MAC_CARBON
     Rect bounds;
