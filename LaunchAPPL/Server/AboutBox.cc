@@ -25,15 +25,36 @@ AboutBox::AboutBox()
 
 #if TARGET_API_MAC_CARBON
     Rect screenBounds = (*GetMainDevice())->gdRect;
-    Rect portBounds;
-    GetWindowPortBounds(window,&portBounds);
+    Rect portRect;
+    GetWindowPortBounds(window,&portRect);
 #else
     const Rect& screenBounds = qd.screenBits.bounds;
-    const Rect& portBounds = window->portRect;
+    const Rect& portRect = window->portRect;
 #endif
+
+    Rect viewRect = portRect;
+    viewRect.left += 10;
+    viewRect.top += 52;
+    viewRect.bottom -= 10;
+    viewRect.right -= 10;
+
+    SetPortWindowPort(window);
+    textEdit = TENew(&viewRect, &viewRect);
+
+    Handle h = GetResource('TEXT', 128);
+    HLock(h);
+    TESetText(*h, GetHandleSize(h), textEdit);
+    HUnlock(h);
+
+    {
+        viewRect.bottom = viewRect.top + (*textEdit)->lineHeight * (*textEdit)->nLines;
+        (*textEdit)->viewRect.bottom = (*textEdit)->destRect.bottom = viewRect.bottom;
+        SizeWindow(window, portRect.right, viewRect.bottom + 10, false);
+    }
+
     MacMoveWindow(window,
-        screenBounds.right/2 - portBounds.right/2,
-        screenBounds.bottom/2 - portBounds.bottom/2,
+        screenBounds.right/2 - portRect.right/2,
+        screenBounds.bottom/2 - portRect.bottom/2,
         false);
 
     ShowWindow(window);
@@ -41,6 +62,7 @@ AboutBox::AboutBox()
 
 AboutBox::~AboutBox()
 {
+    TEDispose(textEdit);
     DisposeWindow(window);
     if(aboutBox == this)
         aboutBox = nullptr;
@@ -63,16 +85,7 @@ void AboutBox::Update()
     else
         PlotIcon(&r, GetResource('ICN#', 128));
 
-    r = portRect;
-    r.left += 10;
-    r.top += 52;
-    r.bottom -= 10;
-    r.right -= 10;
-    
-    Handle h = GetResource('TEXT', 128);
-    HLock(h);
-    TETextBox(*h, GetHandleSize(h), &r, teJustLeft);
-    HUnlock(h);
+    TEUpdate(&portRect, textEdit);
 
     EndUpdate(window);
 }
