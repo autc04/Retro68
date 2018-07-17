@@ -24,7 +24,7 @@ Installing/Building
 
 For Ubuntu Linux, the following should help a bit:
 
-    sudo apt-get install cmake libgmp-dev libmpfr-dev libmpc-dev libboost-all-dev bison
+    sudo apt-get install cmake libgmp-dev libmpfr-dev libmpc-dev libboost-all-dev bison texinfo
 
 On a Mac, get the homebrew package manager and:
 
