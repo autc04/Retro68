@@ -1927,7 +1927,7 @@ m68k-*-macos*)
 	default_cf_cpu=5206
 	tm_file="${tm_file} m68k/m68k-none.h m68k/m68kelf.h dbxelf.h elfos.h newlib-stdint.h m68k/m68kemb.h m68k/m68k-macos.h"
 	tm_defines="${tm_defines} MOTOROLA=1"
-	tmake_file="m68k/t-floatlib m68k/t-m68kbare m68k/t-m68kelf"
+	tmake_file="m68k/t-floatlib m68k/t-m68kbare m68k/t-m68kelf m68k/t-macos"
 	tmake_file="$tmake_file m68k/t-mlibs"
 	;;
 
