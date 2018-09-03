@@ -165,7 +165,7 @@ INTERFACES_DIR="$SRC/InterfacesAndLibraries"
 function verifyInterfaceDirNames()
 {
         printf "Searching for special characters in subdirs of $INTERFACES_DIR"
-        local found=`find "$INTERFACES_DIR" -name ".*" -print `
+        local found=`find "$INTERFACES_DIR" -type d -name "*" -print `
         if [ "`echo $found | grep \&`" ]; then
                 echo "\n$found Contained special character &"
                 return 1        # failure
