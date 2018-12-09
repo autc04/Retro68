@@ -155,6 +155,8 @@ bool ResourceFile::assign(std::string pathstring, ResourceFile::Format f)
 	{
 		if(path.extension() == ".bin")
 			format = Format::macbin;
+		else if(path.extension() == ".as")
+			format = Format::applesingle;
 		else if(path.extension() == ".dsk" || path.extension() == ".img")
 			format = Format::diskimage;
 		else if(path.filename().string().substr(0,2) == "._")
