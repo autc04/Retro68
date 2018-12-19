@@ -57,7 +57,7 @@ Macintosh Programmer's Workshop (MPW; redistribution is not officially allowed, 
 and with Metrowerks CodeWarrior.
 
 One of the most easily found downloads is the MPW 3.5 Golden Master release,
-usually in a file named mpg-gm.img_.bin. At the time of this writing, this can be
+usually in a file named *mpw-gm.img_.bin*. At the time of this writing, this can be
 found at:
 
     http://macintoshgarden.org/apps/macintosh-programmers-workshop
@@ -176,7 +176,7 @@ The elf target has a hack to protect MacsBug symbols from -gc-sections.
 
 Various patches and hacks:
 - New target platforms `m68k-apple-macos` and `powerpc-apple-macos`.
-- support `"\pPascal String Literals"``
+- support `"\pPascal String Literals"`
 
 68K specific:
 - Changed register usage.
@@ -202,7 +202,7 @@ package. Or rather, brutally ripped out of it, hacked to compile on non-linux
 platforms (<endian.h> is not a standard header file), and made to build with
 cmake instead of autotools. Much simpler now.
 
-### hfsutils:
+### hfsutils
 
 No changes.
 
