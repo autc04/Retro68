@@ -118,7 +118,7 @@
 	{
 	public:
 		RezSymbol() = default;
-		RezSymbol(const yy::RezParser::symbol_type& x) : yy::RezParser::symbol_type(x) {}
+		RezSymbol(yy::RezParser::symbol_type&& x) : yy::RezParser::symbol_type(std::move(x)) {}
 	};
 }
 
