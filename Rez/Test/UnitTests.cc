@@ -25,6 +25,28 @@ BOOST_AUTO_TEST_SUITE(LexSuite)
 		BOOST_CHECK_EQUAL(t.token(), TOKEN);	\
 	} while(0)
 
+BOOST_AUTO_TEST_CASE(moveBisonSymbol)
+{
+	// Bison 3.2 contains a bug in the move constructor for its symbol type.
+	// It will crash when used.
+	// Unfortunately, there is no copy constructor any more, so it's hard to avoid.
+	std::string filename = "foo";
+	yy::location loc(&filename, 0,0);
+	auto sym = RezParser::make_INTLIT(42, loc);
+	auto sym2 = std::move(sym);
+}
+
+BOOST_AUTO_TEST_CASE(moveRezSymbol)
+{
+	// This tests my workaround for the bison bug;
+	// RezSymbol derives from bison's symbol type and reimplements all move constructors
+	std::string filename = "foo";
+	yy::location loc(&filename, 0,0);
+	RezSymbol sym = RezParser::make_INTLIT(42, loc);
+	auto sym2 = std::move(sym);
+}
+
+
 BOOST_AUTO_TEST_CASE(basicInt)
 {
 	RezWorld world;
