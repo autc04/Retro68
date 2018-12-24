@@ -118,18 +118,7 @@
 	{
 	public:
 		RezSymbol() = default;
-		
-		// Bison 3.2 has a bug in the move constructor for basic_symbol<by_type>.
-		// Bison-generated code uses only basic_symbol<by_type>::move, which
-		// works without crashing.
-		RezSymbol(yy::RezParser::symbol_type&& x)
-		{
-			move(x);
-		}
-		RezSymbol(RezSymbol&& x)
-		{
-			move(x);
-		}
+		RezSymbol(yy::RezParser::symbol_type&& x) : yy::RezParser::symbol_type(std::move(x)) {}
 	};
 }
 
