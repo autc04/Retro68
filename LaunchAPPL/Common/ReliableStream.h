@@ -45,7 +45,7 @@ class ReliableStream : public StreamWrapper
     bool resetResponse = false;
     bool flushRequested = false;
 
-    virtual size_t onReceive(const uint8_t* p, size_t n);
+    virtual size_t onReceive(const uint8_t* p, size_t n) override;
 public:
     explicit ReliableStream(Stream* stream);
     void reset(int sendReset);

@@ -47,6 +47,8 @@ class Field
 public:
 	yy::location location;
 
+	virtual ~Field() = default;
+
 	virtual bool needsValue() { return true; }
 
 	virtual void compile(ExprPtr expr, ResourceCompiler *compiler, bool prePass) = 0;

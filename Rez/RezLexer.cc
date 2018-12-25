@@ -166,7 +166,7 @@ RezLexer::WaveToken RezLexer::nextWave()
 			return tok;
 		}
 	}
-	catch(preprocess_exception e)
+	catch(const preprocess_exception& e)
 	{
 		curFile = e.file_name();
 		auto yypos = yy::position(&curFile, e.line_no(), e.column_no());

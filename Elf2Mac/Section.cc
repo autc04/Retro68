@@ -211,6 +211,9 @@ void Section::FixRelocs(bool allowDirectCodeRefs)
 			case SectionKind::bss:
 				relocBase = RelocBase::bss;
 				break;
+			case SectionKind::undefined:
+				assert(false);
+				break;
 		}
 		rela.relocBase = relocBase;
 

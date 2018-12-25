@@ -1,6 +1,7 @@
 #include "ReliableStream.h"
 #include <iterator>
 #include "CRC32.h"
+#include <cassert>
 
 using std::begin;
 using std::end;
@@ -460,4 +461,5 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
             }
             break;
     }
+    assert(false);
 }

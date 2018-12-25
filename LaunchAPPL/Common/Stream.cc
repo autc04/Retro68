@@ -84,4 +84,5 @@ StreamWrapper& StreamWrapper::operator=(StreamWrapper&& other)
     if(underlying_)
         underlying_->setListener(this);
     other.underlying_ = nullptr;
+    return *this;
 }

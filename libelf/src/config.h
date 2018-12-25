@@ -52,9 +52,6 @@
 # define rwlock_unlock(lock) ((void) (lock))
 #endif	/* USE_LOCKS */
 
-/* gettext helper macro.  */
-#define N_(Str) Str
-
 /* Compiler-specific definitions.  */
 //#define strong_alias(name, aliasname) \
  // extern __typeof (name) aliasname __attribute__ ((alias (#name)));
