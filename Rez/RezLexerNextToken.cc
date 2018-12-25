@@ -217,6 +217,9 @@ RezSymbol RezLexer::nextToken()
 				};
 
 				std::string s = tok.get_value().c_str();
+				if(s.size() >= 2 && s[0] == '$' && std::all_of(s.begin()+1, s.end(), [](char c) { return isxdigit(c); }))
+					return RezParser::make_INTLIT(readInt(s.c_str()+1, nullptr, 16), loc);
+
 				std::string lower = s;
 				std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 				auto p = keywords.find(lower);
