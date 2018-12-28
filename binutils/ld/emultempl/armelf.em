@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 1991-2017 Free Software Foundation, Inc.
+#   Copyright (C) 1991-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -58,6 +58,7 @@ gld${EMULATION_NAME}_before_parse (void)
   input_flags.dynamic = ${DYNAMIC_LINK-TRUE};
   config.has_shared = `if test -n "$GENERATE_SHLIB_SCRIPT" ; then echo TRUE ; else echo FALSE ; fi`;
   config.separate_code = `if test "x${SEPARATE_CODE}" = xyes ; then echo TRUE ; else echo FALSE ; fi`;
+  link_info.check_relocs_after_open_input = TRUE;
   link_info.relro = DEFAULT_LD_Z_RELRO;
 }
 
@@ -101,8 +102,8 @@ arm_elf_before_allocation (void)
       /* Here we rummage through the found bfds to collect glue information.  */
       LANG_FOR_EACH_INPUT_STATEMENT (is)
 	{
-          /* Initialise mapping tables for code/data.  */
-          bfd_elf32_arm_init_maps (is->the_bfd);
+	  /* Initialise mapping tables for code/data.  */
+	  bfd_elf32_arm_init_maps (is->the_bfd);
 
 	  if (!bfd_elf32_arm_process_before_allocation (is->the_bfd,
 							&link_info)
@@ -110,7 +111,8 @@ arm_elf_before_allocation (void)
 	      || !bfd_elf32_arm_stm32l4xx_erratum_scan (is->the_bfd,
 							&link_info))
 	    /* xgettext:c-format */
-	    einfo (_("Errors encountered processing file %s"), is->filename);
+	    einfo (_("%P: errors encountered processing file %s\n"),
+		   is->filename);
 	}
 
       /* We have seen it all.  Allocate it, and carry on.  */
@@ -262,7 +264,7 @@ elf32_arm_add_stub_section (const char * stub_sec_name,
     }
 
  err_ret:
-  einfo ("%X%P: can not make stub section: %E\n");
+  einfo (_("%X%P: can not make stub section: %E\n"));
   return NULL;
 }
 
@@ -374,7 +376,7 @@ gld${EMULATION_NAME}_after_allocation (void)
   ret = bfd_elf_discard_info (link_info.output_bfd, & link_info);
   if (ret < 0)
     {
-      einfo ("%X%P: .eh_frame/.stab edit: %E\n");
+      einfo (_("%X%P: .eh_frame/.stab edit: %E\n"));
       return;
     }
   else if (ret > 0)
@@ -389,7 +391,8 @@ gld${EMULATION_NAME}_after_allocation (void)
 	{
 	  if (ret < 0)
 	    {
-	      einfo ("%X%P: could not compute sections lists for stub generation: %E\n");
+	      einfo (_("%X%P: could not compute sections lists "
+		       "for stub generation: %E\n"));
 	      return;
 	    }
 
@@ -403,7 +406,7 @@ gld${EMULATION_NAME}_after_allocation (void)
 				      & elf32_arm_add_stub_section,
 				      & gldarm_layout_sections_again))
 	    {
-	      einfo ("%X%P: cannot size stub section: %E\n");
+	      einfo (_("%X%P: can not size stub section: %E\n"));
 	      return;
 	    }
 	}
@@ -421,9 +424,9 @@ gld${EMULATION_NAME}_finish (void)
   {
     LANG_FOR_EACH_INPUT_STATEMENT (is)
       {
-        /* Figure out where VFP11 erratum veneers (and the labels returning
-           from same) have been placed.  */
-        bfd_elf32_arm_vfp11_fix_veneer_locations (is->the_bfd, &link_info);
+	/* Figure out where VFP11 erratum veneers (and the labels returning
+	   from same) have been placed.  */
+	bfd_elf32_arm_vfp11_fix_veneer_locations (is->the_bfd, &link_info);
 
 	 /* Figure out where STM32L4XX erratum veneers (and the labels returning
 	   from them) have been placed.  */
@@ -437,7 +440,7 @@ gld${EMULATION_NAME}_finish (void)
       if (stub_file->the_bfd->sections != NULL)
 	{
 	  if (! elf32_arm_build_stubs (& link_info))
-	    einfo ("%X%P: can not build stubs: %E\n");
+	    einfo (_("%X%P: can not build stubs: %E\n"));
 	}
     }
 
@@ -510,7 +513,8 @@ arm_elf_create_output_section_statements (void)
 	 These will only be created if the output format is an arm format,
 	 hence we do not support linking and changing output formats at the
 	 same time.  Use a link followed by objcopy to change output formats.  */
-      einfo ("%F%X%P: error: Cannot change output format whilst linking ARM binaries.\n");
+      einfo (_("%F%P: error: cannot change output format "
+	       "whilst linking %s binaries\n"), "ARM");
       return;
     }
 
@@ -520,24 +524,24 @@ arm_elf_create_output_section_statements (void)
 					bfd_get_target (link_info.output_bfd));
 
       if (params.in_implib_bfd == NULL)
-	einfo ("%F%s: Can't open: %E\n", in_implib_filename);
+	einfo (_("%F%P: %s: can't open: %E\n"), in_implib_filename);
 
       if (!bfd_check_format (params.in_implib_bfd, bfd_object))
-	einfo ("%F%s: Not a relocatable file: %E\n", in_implib_filename);
+	einfo (_("%F%P: %s: not a relocatable file: %E\n"), in_implib_filename);
     }
 
   bfd_elf32_arm_set_target_params (link_info.output_bfd, &link_info, &params);
 
   stub_file = lang_add_input_file ("linker stubs",
- 				   lang_input_file_is_fake_enum,
- 				   NULL);
+				   lang_input_file_is_fake_enum,
+				   NULL);
   stub_file->the_bfd = bfd_create ("linker stubs", link_info.output_bfd);
   if (stub_file->the_bfd == NULL
       || ! bfd_set_arch_mach (stub_file->the_bfd,
- 			      bfd_get_arch (link_info.output_bfd),
- 			      bfd_get_mach (link_info.output_bfd)))
+			      bfd_get_arch (link_info.output_bfd),
+			      bfd_get_mach (link_info.output_bfd)))
     {
-      einfo ("%X%P: can not create BFD %E\n");
+      einfo (_("%F%P: can not create BFD: %E\n"));
       return;
     }
 
@@ -651,13 +655,13 @@ PARSE_AND_LIST_OPTIONS='
                    "                                remain stable\n"));
   fprintf (file, _("\
   --stub-group-size=N         Maximum size of a group of input sections that\n\
-                               can be handled by one stub section.  A negative\n\
-                               value locates all stubs after their branches\n\
-                               (with a group size of -N), while a positive\n\
-                               value allows two groups of input sections, one\n\
-                               before, and one after each stub section.\n\
-                               Values of +/-1 indicate the linker should\n\
-                               choose suitable defaults.\n"));
+                                can be handled by one stub section.  A negative\n\
+                                value locates all stubs after their branches\n\
+                                (with a group size of -N), while a positive\n\
+                                value allows two groups of input sections, one\n\
+                                before, and one after each stub section.\n\
+                                Values of +/-1 indicate the linker should\n\
+                                choose suitable defaults.\n"));
   fprintf (file, _("  --[no-]fix-cortex-a8        Disable/enable Cortex-A8 Thumb-2 branch erratum fix\n"));
   fprintf (file, _("  --no-merge-exidx-entries    Disable merging exidx entries\n"));
   fprintf (file, _("  --[no-]fix-arm1176          Disable/enable ARM1176 BLX immediate erratum fix\n"));
@@ -702,26 +706,26 @@ PARSE_AND_LIST_ARGS_CASES='
 
     case OPTION_VFP11_DENORM_FIX:
       if (strcmp (optarg, "none") == 0)
-        params.vfp11_denorm_fix = BFD_ARM_VFP11_FIX_NONE;
+	params.vfp11_denorm_fix = BFD_ARM_VFP11_FIX_NONE;
       else if (strcmp (optarg, "scalar") == 0)
-        params.vfp11_denorm_fix = BFD_ARM_VFP11_FIX_SCALAR;
+	params.vfp11_denorm_fix = BFD_ARM_VFP11_FIX_SCALAR;
       else if (strcmp (optarg, "vector") == 0)
-        params.vfp11_denorm_fix = BFD_ARM_VFP11_FIX_VECTOR;
+	params.vfp11_denorm_fix = BFD_ARM_VFP11_FIX_VECTOR;
       else
-        einfo (_("Unrecognized VFP11 fix type '\''%s'\''.\n"), optarg);
+	einfo (_("%P: unrecognized VFP11 fix type '\''%s'\''\n"), optarg);
       break;
 
     case OPTION_STM32L4XX_FIX:
       if (!optarg)
-        params.stm32l4xx_fix = BFD_ARM_STM32L4XX_FIX_DEFAULT;
+	params.stm32l4xx_fix = BFD_ARM_STM32L4XX_FIX_DEFAULT;
       else if (strcmp (optarg, "none") == 0)
-        params.stm32l4xx_fix = BFD_ARM_STM32L4XX_FIX_NONE;
+	params.stm32l4xx_fix = BFD_ARM_STM32L4XX_FIX_NONE;
       else if (strcmp (optarg, "default") == 0)
-        params.stm32l4xx_fix = BFD_ARM_STM32L4XX_FIX_DEFAULT;
+	params.stm32l4xx_fix = BFD_ARM_STM32L4XX_FIX_DEFAULT;
       else if (strcmp (optarg, "all") == 0)
-        params.stm32l4xx_fix = BFD_ARM_STM32L4XX_FIX_ALL;
+	params.stm32l4xx_fix = BFD_ARM_STM32L4XX_FIX_ALL;
       else
-        einfo (_("Unrecognized STM32L4XX fix type '\''%s'\''.\n"), optarg);
+	einfo (_("%P: unrecognized STM32L4XX fix type '\''%s'\''\n"), optarg);
       break;
 
     case OPTION_NO_ENUM_SIZE_WARNING:
@@ -740,9 +744,9 @@ PARSE_AND_LIST_ARGS_CASES='
       {
 	const char *end;
 
-        group_size = bfd_scan_vma (optarg, &end, 0);
-        if (*end)
-	  einfo (_("%P%F: invalid number `%s'\''\n"), optarg);
+	group_size = bfd_scan_vma (optarg, &end, 0);
+	if (*end)
+	  einfo (_("%F%P: invalid number `%s'\''\n"), optarg);
       }
       break;
 

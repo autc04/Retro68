@@ -27,12 +27,12 @@ start32:
 	stosb	%es:(%edi)
 	stosb	(%esi)
 
+	xlat	(%ebx)
+	xlat	(%bx)
+	xlat	%ds:(%ebx)
+	xlatb
+	xlatb	(%ebx)
 	xlatb	%cs:(%ebx)
-	xlatb	(%esi)
-	xlatb	(,%ebx)
-	xlatb	1(%ebx)
-	xlatb	x(%ebx)
-	xlatb	0
 
 	.code16
 start16:
@@ -75,12 +75,11 @@ intel32:
 	stos	byte ptr es:[edi]
 	stos	byte ptr [esi]
 
+	xlatb
+	xlat	[bx]
+	xlat	ds:[ebx]
+	xlat	byte ptr [ebx]
 	xlat	byte ptr cs:[ebx]
-	xlat	byte ptr [esi]
-	xlat	byte ptr [%ebx*1]
-	xlat	byte ptr [ebx+1]
-	xlat	byte ptr x[ebx]
-	xlat	byte ptr FLAT:0
 
 	.code16
 intel16:

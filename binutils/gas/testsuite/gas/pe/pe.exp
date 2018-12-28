@@ -1,6 +1,6 @@
 # Expect control script for GAS testsuite PE object-format-specific tests.
 
-# Copyright (C) 2009-2017 Free Software Foundation, Inc.
+# Copyright (C) 2009-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ run_dump_test "set"
 # These tests are only for x86_64 targets
 if ([istarget "x86_64-*-mingw*"]) then {
 	run_list_test "seh-x64-err-1" ""
+	run_list_test "seh-x64-err-2" ""
 	run_dump_test "peseh-x64"
 	run_dump_test "peseh-x64-2"
 	run_dump_test "peseh-x64-3"

@@ -1,7 +1,7 @@
 /* illegal-lse.s Test file For AArch64 LSE atomic instructions that
    could be rejected by the assembler.
 
-   Copyright (C) 2014-2017 Free Software Foundation, Inc.
+   Copyright (C) 2014-2018 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.

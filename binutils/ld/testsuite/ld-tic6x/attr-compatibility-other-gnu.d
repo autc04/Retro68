@@ -3,4 +3,4 @@
 #ld: -r -melf32_tic6x_le
 #source: attr-compatibility-other.s
 #source: attr-compatibility-gnu.s
-#error: .*Object tag '1, gnu' is incompatible with tag '1, other'
+#error: .*object tag '1, gnu' is incompatible with tag '1, other'

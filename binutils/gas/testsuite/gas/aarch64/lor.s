@@ -1,6 +1,6 @@
 /* lor.s Test file for AArch64 LOR extension instructions.
 
-   Copyright (C) 2015-2017 Free Software Foundation, Inc.  Contributed by ARM Ltd.
+   Copyright (C) 2015-2018 Free Software Foundation, Inc.  Contributed by ARM Ltd.
 
    This file is part of GAS.
 

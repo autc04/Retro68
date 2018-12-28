@@ -1,5 +1,5 @@
 /* tc-riscv.h -- header file for tc-riscv.c.
-   Copyright (C) 2011-2017 Free Software Foundation, Inc.
+   Copyright (C) 2011-2018 Free Software Foundation, Inc.
 
    Contributed by Andrew Waterman (andrew@sifive.com).
    Based on MIPS target.
@@ -39,6 +39,9 @@ struct expressionS;
    sure FAKE_LABEL_NAME is printable.  It still must be distinct from any
    real label name.  So, append a space, which other labels can't contain.  */
 #define FAKE_LABEL_NAME ".L0 "
+/* Changing the special character in FAKE_LABEL_NAME requires changing
+   FAKE_LABEL_CHAR too.  */
+#define FAKE_LABEL_CHAR ' '
 
 #define md_relax_frag(segment, fragp, stretch) \
   riscv_relax_frag (segment, fragp, stretch)
@@ -59,7 +62,7 @@ extern bfd_boolean riscv_frag_align_code (int);
 extern void riscv_handle_align (fragS *);
 #define HANDLE_ALIGN riscv_handle_align
 
-#define MAX_MEM_FOR_RS_ALIGN_CODE 7
+#define MAX_MEM_FOR_RS_ALIGN_CODE (3 + 4)
 
 /* The ISA of the target may change based on command-line arguments.  */
 #define TARGET_FORMAT riscv_target_format()

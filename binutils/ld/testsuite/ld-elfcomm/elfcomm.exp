@@ -1,5 +1,5 @@
 # Expect script for common symbol tests
-#   Copyright (C) 2003-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2003-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -101,7 +101,7 @@ proc test_sort_common {} {
 
 test_sort_common
 
-set test1	"size/aligment change of common symbols"
+set test1	"size/alignment change of common symbols"
 set test1w1	"$test1 (warning 1)"
 set test1w2	"$test1 (warning 2)"
 set test1c1	"$test1 (change 1)"
@@ -182,15 +182,6 @@ global link_output
 
 set options "-r tmpdir/common1a.o tmpdir/common1b.o"
 
-# SH64 targets needs an extra ld option for this test.
-if [istarget sh64*-*-*] {
-    if [istarget sh64*l*-*-*] {
-	set options "-mshlelf32 $options"
-    } else {
-	set options "-mshelf32 $options"
-    }
-}
-
 if { [ld_link $ld tmpdir/common1.o $options] } {
     unresolved $test1w1
     return
@@ -199,14 +190,14 @@ if { [ld_link $ld tmpdir/common1.o $options] } {
 # This test fails on MIPS because the backend sets type_change_ok.
 # The size change warning is suppressed.  Same on hppa64.
 if {[istarget mips*-*-*] || [istarget hppa*64*-*-*]} {
-    if { ![regexp "Warning: alignment (\[0-9\]+) of symbol \`_?foo1\' in tmpdir/common1b.o is smaller than 64 in tmpdir/common1a.o" $link_output] } {
+    if { ![regexp "warning: alignment (\[0-9\]+) of symbol \`_?foo1\' in tmpdir/common1b.o is smaller than 64 in tmpdir/common1a.o" $link_output] } {
         fail $test1w1
     } else {
         pass $test1w1
     }
 } else {
-    if { ![regexp "Warning: alignment (\[0-9\]+) of symbol \`_?foo1\' in tmpdir/common1b.o is smaller than 64 in tmpdir/common1a.o" $link_output]
-         || ![regexp "Warning: size of symbol \`_?foo1\' changed from 2 in tmpdir/common1a.o to 21 in tmpdir/common1b.o" $link_output] } {
+    if { ![regexp "warning: alignment (\[0-9\]+) of symbol \`_?foo1\' in tmpdir/common1b.o is smaller than 64 in tmpdir/common1a.o" $link_output]
+         || ![regexp "warning: size of symbol \`_?foo1\' changed from 2 in tmpdir/common1a.o to 21 in tmpdir/common1b.o" $link_output] } {
         fail $test1w1
     } else {
         pass $test1w1
@@ -219,21 +210,12 @@ if { [dump_common1 $test1c1] } {
 
 set options "-r tmpdir/common1b.o tmpdir/common1a.o"
 
-# SH64 targets needs an extra ld option for this test.
-if [istarget sh64*-*-*] {
-    if [istarget sh64*l*-*-*] {
-	set options "-mshlelf32 $options"
-    } else {
-	set options "-mshelf32 $options"
-    }
-}
-
 if { [ld_link $ld tmpdir/common1.o $options] } {
     unresolved $test1w2
     return
 }
 
-if { ![regexp "Warning: alignment (\[0-9\]+) of symbol \`_?foo1\' in tmpdir/common1b.o is smaller than 64 in tmpdir/common1a.o" $link_output] } {
+if { ![regexp "warning: alignment (\[0-9\]+) of symbol \`_?foo1\' in tmpdir/common1b.o is smaller than 64 in tmpdir/common1a.o" $link_output] } {
     fail $test1w2
 } else {
     pass $test1w2

@@ -1,7 +1,7 @@
 #source: start1.s
 #source: expdref4.s
 #as: --no-underscore --em=criself
-#ld: -m crislinux
+#ld: -m crislinux --hash-style=sysv
 #ld_after_inputfiles: tmpdir/libdso-15.so
 #readelf: -a -x 11
 
@@ -15,7 +15,7 @@
 #...
  +\[[0-9]+\] .bss +NOBITS +[0-9a-f]* [0-9a-f]* 00000c .*
 #...
-Relocation section '.rela.dyn' at offset 0x... contains 1 entries:
+Relocation section '.rela.dyn' at offset 0x... contains 1 entry:
 #...
 .* R_CRIS_COPY .* __expobj2@TST3 \+ 0
 

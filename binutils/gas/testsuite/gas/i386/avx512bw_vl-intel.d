@@ -1271,6 +1271,22 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f3 4d 2f 3f aa 00 10 00 00 7b[ 	]*vpcmpb k5\{k7\},ymm6,YMMWORD PTR \[edx\+0x1000\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 4d 2f 3f 6a 80 7b[ 	]*vpcmpb k5\{k7\},ymm6,YMMWORD PTR \[edx-0x1000\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 4d 2f 3f aa e0 ef ff ff 7b[ 	]*vpcmpb k5\{k7\},ymm6,YMMWORD PTR \[edx-0x1020\],0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3f ed 00[ 	]*vpcmpeqb k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3f ed 00[ 	]*vpcmpeqb k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3f ed 02[ 	]*vpcmpleb k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3f 68 7f 02[ 	]*vpcmpleb k5,xmm6,XMMWORD PTR \[eax\+0x7f0\]
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3f a8 00 08 00 00 02[ 	]*vpcmpleb k5,xmm6,XMMWORD PTR \[eax\+0x800\]
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3f ed 02[ 	]*vpcmpleb k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3f 68 7f 02[ 	]*vpcmpleb k5,ymm6,YMMWORD PTR \[eax\+0xfe0\]
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3f a8 00 10 00 00 02[ 	]*vpcmpleb k5,ymm6,YMMWORD PTR \[eax\+0x1000\]
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3f ed 01[ 	]*vpcmpltb k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3f ed 01[ 	]*vpcmpltb k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3f ed 04[ 	]*vpcmpneqb k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3f ed 04[ 	]*vpcmpneqb k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3f ed 06[ 	]*vpcmpnleb k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3f ed 06[ 	]*vpcmpnleb k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3f ed 05[ 	]*vpcmpnltb k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3f ed 05[ 	]*vpcmpnltb k5,ymm6,ymm5
 [ 	]*[a-f0-9]+:[ 	]*62 f3 cd 0f 3f ed ab[ 	]*vpcmpw k5\{k7\},xmm6,xmm5,0xab
 [ 	]*[a-f0-9]+:[ 	]*62 f3 cd 0f 3f ed 7b[ 	]*vpcmpw k5\{k7\},xmm6,xmm5,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 cd 0f 3f 29 7b[ 	]*vpcmpw k5\{k7\},xmm6,XMMWORD PTR \[ecx\],0x7b
@@ -1287,6 +1303,22 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f3 cd 2f 3f aa 00 10 00 00 7b[ 	]*vpcmpw k5\{k7\},ymm6,YMMWORD PTR \[edx\+0x1000\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 cd 2f 3f 6a 80 7b[ 	]*vpcmpw k5\{k7\},ymm6,YMMWORD PTR \[edx-0x1000\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 cd 2f 3f aa e0 ef ff ff 7b[ 	]*vpcmpw k5\{k7\},ymm6,YMMWORD PTR \[edx-0x1020\],0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3f ed 00[ 	]*vpcmpeqw k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3f ed 00[ 	]*vpcmpeqw k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3f ed 02[ 	]*vpcmplew k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3f 68 7f 02[ 	]*vpcmplew k5,xmm6,XMMWORD PTR \[eax\+0x7f0\]
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3f a8 00 08 00 00 02[ 	]*vpcmplew k5,xmm6,XMMWORD PTR \[eax\+0x800\]
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3f ed 02[ 	]*vpcmplew k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3f 68 7f 02[ 	]*vpcmplew k5,ymm6,YMMWORD PTR \[eax\+0xfe0\]
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3f a8 00 10 00 00 02[ 	]*vpcmplew k5,ymm6,YMMWORD PTR \[eax\+0x1000\]
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3f ed 01[ 	]*vpcmpltw k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3f ed 01[ 	]*vpcmpltw k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3f ed 04[ 	]*vpcmpneqw k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3f ed 04[ 	]*vpcmpneqw k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3f ed 06[ 	]*vpcmpnlew k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3f ed 06[ 	]*vpcmpnlew k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3f ed 05[ 	]*vpcmpnltw k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3f ed 05[ 	]*vpcmpnltw k5,ymm6,ymm5
 [ 	]*[a-f0-9]+:[ 	]*62 f3 4d 0f 3e ed ab[ 	]*vpcmpub k5\{k7\},xmm6,xmm5,0xab
 [ 	]*[a-f0-9]+:[ 	]*62 f3 4d 0f 3e ed 7b[ 	]*vpcmpub k5\{k7\},xmm6,xmm5,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 4d 0f 3e 29 7b[ 	]*vpcmpub k5\{k7\},xmm6,XMMWORD PTR \[ecx\],0x7b
@@ -1303,6 +1335,18 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f3 4d 2f 3e aa 00 10 00 00 7b[ 	]*vpcmpub k5\{k7\},ymm6,YMMWORD PTR \[edx\+0x1000\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 4d 2f 3e 6a 80 7b[ 	]*vpcmpub k5\{k7\},ymm6,YMMWORD PTR \[edx-0x1000\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 4d 2f 3e aa e0 ef ff ff 7b[ 	]*vpcmpub k5\{k7\},ymm6,YMMWORD PTR \[edx-0x1020\],0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3e ed 00[ 	]*vpcmpequb k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3e ed 00[ 	]*vpcmpequb k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3e ed 02[ 	]*vpcmpleub k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3e ed 02[ 	]*vpcmpleub k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3e ed 01[ 	]*vpcmpltub k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3e ed 01[ 	]*vpcmpltub k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3e ed 04[ 	]*vpcmpnequb k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3e ed 04[ 	]*vpcmpnequb k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3e ed 06[ 	]*vpcmpnleub k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3e ed 06[ 	]*vpcmpnleub k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 08 3e ed 05[ 	]*vpcmpnltub k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 4d 28 3e ed 05[ 	]*vpcmpnltub k5,ymm6,ymm5
 [ 	]*[a-f0-9]+:[ 	]*62 f3 cd 0f 3e ed ab[ 	]*vpcmpuw k5\{k7\},xmm6,xmm5,0xab
 [ 	]*[a-f0-9]+:[ 	]*62 f3 cd 0f 3e ed 7b[ 	]*vpcmpuw k5\{k7\},xmm6,xmm5,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 cd 0f 3e 29 7b[ 	]*vpcmpuw k5\{k7\},xmm6,XMMWORD PTR \[ecx\],0x7b
@@ -1319,6 +1363,18 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f3 cd 2f 3e aa 00 10 00 00 7b[ 	]*vpcmpuw k5\{k7\},ymm6,YMMWORD PTR \[edx\+0x1000\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 cd 2f 3e 6a 80 7b[ 	]*vpcmpuw k5\{k7\},ymm6,YMMWORD PTR \[edx-0x1000\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 f3 cd 2f 3e aa e0 ef ff ff 7b[ 	]*vpcmpuw k5\{k7\},ymm6,YMMWORD PTR \[edx-0x1020\],0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3e ed 00[ 	]*vpcmpequw k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3e ed 00[ 	]*vpcmpequw k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3e ed 02[ 	]*vpcmpleuw k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3e ed 02[ 	]*vpcmpleuw k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3e ed 01[ 	]*vpcmpltuw k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3e ed 01[ 	]*vpcmpltuw k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3e ed 04[ 	]*vpcmpnequw k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3e ed 04[ 	]*vpcmpnequw k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3e ed 06[ 	]*vpcmpnleuw k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3e ed 06[ 	]*vpcmpnleuw k5,ymm6,ymm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 08 3e ed 05[ 	]*vpcmpnltuw k5,xmm6,xmm5
+[ 	]*[a-f0-9]+:[ 	]*62 f3 cd 28 3e ed 05[ 	]*vpcmpnltuw k5,ymm6,ymm5
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 0f 1c f5[ 	]*vpabsb xmm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 8f 1c f5[ 	]*vpabsb xmm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 0f 1c 31[ 	]*vpabsb xmm6\{k7\},XMMWORD PTR \[ecx\]

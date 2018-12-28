@@ -1,4 +1,4 @@
-# Copyright (C) 2001-2017 Free Software Foundation, Inc.
+# Copyright (C) 2001-2018 Free Software Foundation, Inc.
 # Contributed by Red Hat
 
 # This program is free software; you can redistribute it and/or modify
@@ -56,7 +56,7 @@ proc do_align_test {} {
 }
 
 
-if [istarget powerpc-ibm-aix*] then {
+if { [istarget "powerpc*-*-aix*"] || [istarget "rs6000-*-aix*"] } then {
 
     # Make sure that symbols are correctly aligned 
     do_align_test

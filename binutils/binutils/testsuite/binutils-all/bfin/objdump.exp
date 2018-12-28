@@ -1,4 +1,4 @@
-#   Copyright (C) 2009-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,23 +30,24 @@ send_user "Version [binutil_version $OBJDUMP]"
 ###################################
 
 if {![binutils_assemble $srcdir/$subdir/unknown-mode.s tmpdir/unknown-mode.o]} then {
-    return
-}
-
-if [is_remote host] {
-    set objfile [remote_download host tmpdir/unknown-mode.o]
+    fail "unknown mode test (assembling)"
 } else {
-    set objfile tmpdir/unknown-mode.o
-}
 
-# Make sure that the unknown mode does not cause abort.
+    if [is_remote host] {
+	set objfile [remote_download host tmpdir/unknown-mode.o]
+    } else {
+	set objfile tmpdir/unknown-mode.o
+    }
 
-set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -D $objfile"]
+    # Make sure that the unknown mode does not cause abort.
 
-set want "e1 c1\[ \t\]*ILLEGAL.*34 98 .*\[\r\n\]"
+    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -D $objfile"]
 
-if [regexp $want $got] then {
-    pass "unknown mode test"
-} else {
-    fail "unknown mode test"
+    set want "e1 c1\[ \t\]*ILLEGAL.*34 98 .*\[\r\n\]"
+
+    if [regexp $want $got] then {
+	pass "unknown mode test"
+    } else {
+	fail "unknown mode test"
+    }
 }

@@ -12,6 +12,6 @@
 #   Set prologue_end to true
 # here
 #------------------------------------------------------------------------
-.*  Special opcode 6: advance Address by 0 to 0x[01] and Line by 1 to 2
+.*  Special opcode 6: advance Address by 0 to 0x[01] and Line by 1 to 2 \(view 1\)
 .*  Advance PC by .*
 .*  Extended opcode 1: End of Sequence

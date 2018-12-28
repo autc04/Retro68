@@ -1,5 +1,5 @@
 # Expect script for `readelf' tests that depend on LD.
-#   Copyright (C) 2017 Free Software Foundation, Inc.
+#   Copyright (C) 2017-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -31,12 +31,10 @@ if ![is_elf_format] {
 }
 
 # This target requires a non-default emulation for successful shared
-# library/executable builds, and has dump variances.
+# library/executable builds.
 set LFLAGS ""
-set DUMP ""
 if [istarget "tic6x-*-*"] {
     append LFLAGS " -melf32_tic6x_le"
-    set DUMP "-tic6x"
 }
 
 if [check_shared_lib_support] {
@@ -44,9 +42,9 @@ if [check_shared_lib_support] {
 	[list \
 	    "readelf version information" \
 	    "$LFLAGS --no-dynamic-linker -e 0 --export-dynamic -T ver_def.ld\
-	     --version-script=ver_def.ver" \
+	      --hash-style=sysv --version-script=ver_def.ver" \
 	    "" "" \
 	    {ver_def.s} \
-	    [list [list readelf --version-info ver_def$DUMP.vd]] \
+	    [list [list readelf --version-info ver_def.vd]] \
 	    "ver_def"]]
 }

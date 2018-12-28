@@ -44,17 +44,17 @@ Raw dump of debug contents of section .z?debug_line:
 
  Opcodes:
   Opcode 1 has 0 args
-  Opcode 2 has 1 args
-  Opcode 3 has 1 args
-  Opcode 4 has 1 args
-  Opcode 5 has 1 args
+  Opcode 2 has 1 arg
+  Opcode 3 has 1 arg
+  Opcode 4 has 1 arg
+  Opcode 5 has 1 arg
   Opcode 6 has 0 args
   Opcode 7 has 0 args
   Opcode 8 has 0 args
-  Opcode 9 has 1 args
+  Opcode 9 has 1 arg
   Opcode 10 has 0 args
   Opcode 11 has 0 args
-  Opcode 12 has 1 args
+  Opcode 12 has 1 arg
   Opcode 13 has 0 args
   Opcode 14 has 0 args
   Opcode 15 has 0 args
@@ -69,7 +69,7 @@ Raw dump of debug contents of section .z?debug_line:
   \[0x.*\]  Extended opcode 2: set Address to .*
   \[0x.*\]  Advance Line by 3 to 4
   \[0x.*\]  Copy
-  \[0x.*\]  Copy
+  \[0x.*\]  Copy \(view 1\)
   \[0x.*\]  Extended opcode 2: set Address to .*
   \[0x.*\]  Extended opcode 1: End of Sequence
 

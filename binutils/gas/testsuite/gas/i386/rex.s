@@ -10,6 +10,16 @@ _start:
 	rex/fxsave (%r8,%r8)
 	rex64/fxsave (%r8,%r8)
 
+	rex.w add	(%rax,%rax), %eax
+	rex.r add	(%rax,%rax), %eax
+	rex.b add	(%rax,%rax), %eax
+	rex.x add	(%rax,%rax), %eax
+
+	rex.w add	(%r8,%rax), %eax
+	rex.r add	(%rax,%r8), %eax
+	rex.b add	(%rax,%rax), %r8d
+	rex.x add	(%rax,%rax), %rax
+
 	.byte 0x41,0x9b,0xdd,0x30
 	fsave (%r8)
 

@@ -35,7 +35,7 @@ There are [0-9]+ program headers, starting at offset [0-9]+
 
 Program Headers:
  +Type +Offset +VirtAddr +PhysAddr +FileSiz +MemSiz +Flg Align
- +PHDR +0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ R E 0x8
+ +PHDR +0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ R +0x8
  +INTERP +0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ R +0x1
 .*Requesting program interpreter.*
  +LOAD +0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ R E 0x10000
@@ -47,17 +47,14 @@ Program Headers:
 Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 2 entries:
  +Offset +Info +Type +Symbol's Value +Symbol's Name \+ Addend
 [0-9a-f]+ +0+100000026 R_ALPHA_TPREL64 +0+ sG2 \+ 0
-[0-9a-f]+ +0+400000026 R_ALPHA_TPREL64 +0+ sG1 \+ 0
+[0-9a-f]+ +0+300000026 R_ALPHA_TPREL64 +0+ sG1 \+ 0
 
 Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 [0-9 ]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND 
 [0-9 ]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG2
 [0-9 ]+: 0+ +0 +FUNC +GLOBAL +DEFAULT +UND __tls_get_addr
-[0-9 ]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +13 __bss_start
 [0-9 ]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG1
-[0-9 ]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +13 _edata
-[0-9 ]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +13 _end
 
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name

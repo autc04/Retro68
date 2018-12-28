@@ -3,7 +3,7 @@
 #as: -mbig-endian
 #source: unwind-2.s
 
-Unwind table index '.c6xabi.exidx' .*
+Unwind section '.c6xabi.exidx' .*
 
 0x0: 0x83020227
   Compact model index: 3

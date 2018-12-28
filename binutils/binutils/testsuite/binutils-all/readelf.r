@@ -1,5 +1,5 @@
 
-Relocation section '.rel.*' at offset 0x.* contains . entries:
+Relocation section '.rel.*' at offset 0x.* contains . entr(y|ies):
  Offset     Info    Type            Sym.Value  Sym. Name.*
 # NDS32 targets puts R_NDS32_RELAX_ENT here
 #...

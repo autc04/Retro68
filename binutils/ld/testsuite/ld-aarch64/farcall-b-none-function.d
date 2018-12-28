@@ -8,14 +8,15 @@
 Disassembly of section .text:
 
 .* <_start>:
-    1000:	14000003 	b	100c <__bar_veneer>
+    1000:	14000004 	b	1010 <__bar_veneer>
     1004:	d65f03c0 	ret
-    1008:	14000007 	b	1024 <__bar_veneer\+0x18>
+    1008:	14000008 	b	1028 <__bar_veneer\+0x18>
+    100c:	d503201f 	nop
 
 .* <__bar_veneer>:
-    100c:	90040010 	adrp	x16, 8001000 <bar>
-    1010:	91000210 	add	x16, x16, #0x0
-    1014:	d61f0200 	br	x16
+    1010:	90040010 	adrp	x16, 8001000 <bar>
+    1014:	91000210 	add	x16, x16, #0x0
+    1018:	d61f0200 	br	x16
 	...
 
 Disassembly of section .foo:

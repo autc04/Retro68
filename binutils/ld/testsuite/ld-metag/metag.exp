@@ -1,6 +1,6 @@
 # Expect script for ld-metag tests
 #
-#   Copyright (C) 2013-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2013-2018 Free Software Foundation, Inc.
 #   Contributed by Imagination Technologies Ltd.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -31,7 +31,7 @@ set metag_tests {
      { {objdump -Dz pcrel.d} }
      "pcrel"
     }
-    {"Simple PIC shared library" "-shared" "" ""
+    {"Simple PIC shared library" "-shared --hash-style=sysv" "" ""
      {shared.s}
      { {objdump -fdw shared.d} {objdump -Rw shared.r} }
      "shared.so"
@@ -41,17 +41,17 @@ set metag_tests {
      { {objdump -fdw stub.d} }
      "stub"
     }
-    {"Shared library for stub tests" "-shared" "" ""
+    {"Shared library for stub tests" "-shared --hash-style=sysv" "" ""
      {stub_shared.s}
      { {objdump -fdw stub_shared.d} {objdump -Rw stub_shared.r} }
      "stub_shared.so"
     }
-    {"Long branch stub (PIC, app)" "tmpdir/stub_shared.so" "" ""
+    {"Long branch stub (PIC, app)" "--hash-style=sysv tmpdir/stub_shared.so" "" ""
      {stub_pic_app.s}
      { {objdump -fdw stub_pic_app.d} {objdump -Rw stub_pic_app.r} }
      "stub_pic_app"
     }
-    {"Long branch stub (PIC, shared)" "-shared" "" ""
+    {"Long branch stub (PIC, shared)" "-shared --hash-style=sysv" "" ""
      {stub_pic_shared.s}
      { {objdump -fdw stub_pic_shared.d} }
      "stub_pic_shared.so"

@@ -1,5 +1,5 @@
 /* tc-mcore.c -- Assemble code for M*Core
-   Copyright (C) 1999-2017 Free Software Foundation, Inc.
+   Copyright (C) 1999-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -1947,7 +1947,10 @@ md_apply_fix (fixS *   fixP,
     case BFD_RELOC_MCORE_PCREL_IMM11BY2:
       if ((val & 1) != 0)
 	as_bad_where (file, fixP->fx_line,
-		      _("odd distance branch (0x%lx bytes)"), (long) val);
+		      ngettext ("odd distance branch (0x%lx byte)",
+				"odd distance branch (0x%lx bytes)",
+				(long) val),
+		      (long) val);
       val /= 2;
       if (((val & ~0x3ff) != 0) && ((val | 0x3ff) != -1))
 	as_bad_where (file, fixP->fx_line,

@@ -353,7 +353,7 @@ foo:
  lgs    edx, 0x90909090[eax]
  movzx  edx, byte ptr 0x90909090[eax]
  movzx  edx, word ptr 0x90909090[eax]
- ud2b
+ ud2
  btc    0x90909090[eax], edx
  bsf    edx, 0x90909090[eax]
  bsr    edx, 0x90909090[eax]
@@ -650,7 +650,7 @@ fdiv   QWORD PTR [ebx]
 fdivp
 fdivp  st(3)
 fdivp  st(3),st
-fdivp  st,st(3)
+fdiv  st,st(3)
 fdivr
 fdivr  st(3)
 fdivr  st,st(3)
@@ -660,7 +660,7 @@ fdivr  QWORD PTR [ebx]
 fdivrp
 fdivrp st(3)
 fdivrp st(3),st
-fdivrp st,st(3)
+fdivr st,st(3)
 fmul
 fmul	st(3)
 fmul	st,st(3)
@@ -679,7 +679,7 @@ fsub   DWORD PTR [ebx]
 fsub   QWORD PTR [ebx]
 fsubp
 fsubp  st(3)
-fsubp  st,st(3)
+fsub  st,st(3)
 fsubp  st(3),st
 fsubr  st(3)
 fsubr  st,st(3)
@@ -689,7 +689,7 @@ fsubr  QWORD PTR [ebx]
 fsubrp
 fsubrp st(3)
 fsubrp st(3),st
-fsubrp st,st(3)
+fsubr st,st(3)
 
 fidivr  word ptr [ebx]
 fidivr  dword ptr [ebx]
@@ -698,6 +698,12 @@ fidivr  dword ptr [ebx]
  cmovpo edx, 0x90909090[eax]
  cmovpe  dx, 0x90909090[eax]
  cmovpo dx, 0x90909090[eax]
+
+ # Check base/index swapping
+	.allow_index_reg
+ mov    eax, [eax+esp]
+ mov    eax, [eiz+eax]
+ vgatherdps xmm0, [xmm1+eax], xmm2
 
 	# Test that disassembly of a partial instruction shows the partial byte:
 	# https://www.sourceware.org/ml/binutils/2015-08/msg00226.html

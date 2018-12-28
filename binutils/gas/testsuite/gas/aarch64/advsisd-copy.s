@@ -1,6 +1,6 @@
 /* advsisd-copy.s Test file for AArch64 Advanced-SISD copy instructions.
 
-   Copyright (C) 2011-2017 Free Software Foundation, Inc.
+   Copyright (C) 2011-2018 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.

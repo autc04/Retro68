@@ -1,4 +1,4 @@
-#   Copyright (C) 2010-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2010-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -677,22 +677,14 @@ proc test_gnu_debuglink {} {
     global srcdir
     global subdir
     global env
-    global CC_FOR_TARGET
     global STRIP
     global OBJCOPY
     global OBJDUMP
 
     set test "gnu-debuglink"
-    if {![info exists CC_FOR_TARGET]} {
-	set CC_FOR_TARGET $env(CC)
-    }
-    if { $CC_FOR_TARGET == "" } {
-	unsupported $test
-	return
-    }
 
     if { [target_compile $srcdir/$subdir/testprog.c tmpdir/testprog exectuable debug] != "" } {
-	fail "$test (build)"
+	unsupported "$test (build)"
 	return
     }
     set got [remote_exec host "$OBJDUMP -S tmpdir/testprog" "" "/dev/null" "tmpdir/testprog.dump"]
@@ -762,6 +754,6 @@ proc test_gnu_debuglink {} {
     }
 }
 
-if {[isnative] && [is_elf_format]} then {
+if {[is_elf_format]} then {
     test_gnu_debuglink
 }

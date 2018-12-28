@@ -4,7 +4,7 @@
 #source: tls128.s
 #source: tls-commx.s
 #as: --no-underscore --em=criself --pic -I$srcdir/$subdir
-#ld: -m crislinux --shared
+#ld: -m crislinux --shared --hash-style=sysv
 #objdump: -d -s -t -r -p
 
 # Linking a file with a DTPOFF from a .dtpoffd of a GD COMMON
@@ -23,13 +23,13 @@ SYMBOL TABLE:
 0+80 g       .tbss	0+4 x
 #...
 Contents of section .rela.dyn:
- 01a4 b4220000 17030000 00000000           .*
+ 0154 64220000 17030000 00000000           .*
 Contents of section .text:
- 01b0 41b20000 5fae0c00                    .*
+ 0160 41b20000 5fae0c00                    .*
 #...
 Contents of section .got:
- 22a8 38220000 00000000 00000000 00000000  .*
- 22b8 00000000                             .*
+ 2258 e8210000 00000000 00000000 00000000  .*
+ 2268 00000000                             .*
 Contents of section .debug_info:
  0000 80000000                             .*
 #...

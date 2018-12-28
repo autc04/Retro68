@@ -1265,6 +1265,22 @@ _start:
 	vpcmpb	$123, 4096(%edx), %ymm6, %k5{%k7}	 # AVX512{BW,VL}
 	vpcmpb	$123, -4096(%edx), %ymm6, %k5{%k7}	 # AVX512{BW,VL} Disp8
 	vpcmpb	$123, -4128(%edx), %ymm6, %k5{%k7}	 # AVX512{BW,VL}
+	vpcmpb	$0, %xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpb	$0, %ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpleb	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpleb	0x7f0(%eax), %xmm6, %k5	 # AVX512{BW,VL} Disp8
+	vpcmpleb	0x800(%eax), %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpleb	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpleb	0xfe0(%eax), %ymm6, %k5	 # AVX512{BW,VL} Disp8
+	vpcmpleb	0x1000(%eax), %ymm6, %k5 # AVX512{BW,VL}
+	vpcmpltb	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpltb	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpneqb	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpneqb	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpnleb	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpnleb	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpnltb	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpnltb	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
 	vpcmpw	$0xab, %xmm5, %xmm6, %k5{%k7}	 # AVX512{BW,VL}
 	vpcmpw	$123, %xmm5, %xmm6, %k5{%k7}	 # AVX512{BW,VL}
 	vpcmpw	$123, (%ecx), %xmm6, %k5{%k7}	 # AVX512{BW,VL}
@@ -1281,6 +1297,22 @@ _start:
 	vpcmpw	$123, 4096(%edx), %ymm6, %k5{%k7}	 # AVX512{BW,VL}
 	vpcmpw	$123, -4096(%edx), %ymm6, %k5{%k7}	 # AVX512{BW,VL} Disp8
 	vpcmpw	$123, -4128(%edx), %ymm6, %k5{%k7}	 # AVX512{BW,VL}
+	vpcmpw	$0, %xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpw	$0, %ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmplew	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmplew	0x7f0(%eax), %xmm6, %k5	 # AVX512{BW,VL} Disp8
+	vpcmplew	0x800(%eax), %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmplew	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmplew	0xfe0(%eax), %ymm6, %k5	 # AVX512{BW,VL} Disp8
+	vpcmplew	0x1000(%eax), %ymm6, %k5 # AVX512{BW,VL}
+	vpcmpltw	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpltw	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpneqw	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpneqw	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpnlew	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpnlew	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpnltw	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpnltw	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
 	vpcmpub	$0xab, %xmm5, %xmm6, %k5{%k7}	 # AVX512{BW,VL}
 	vpcmpub	$123, %xmm5, %xmm6, %k5{%k7}	 # AVX512{BW,VL}
 	vpcmpub	$123, (%ecx), %xmm6, %k5{%k7}	 # AVX512{BW,VL}
@@ -1297,6 +1329,18 @@ _start:
 	vpcmpub	$123, 4096(%edx), %ymm6, %k5{%k7}	 # AVX512{BW,VL}
 	vpcmpub	$123, -4096(%edx), %ymm6, %k5{%k7}	 # AVX512{BW,VL} Disp8
 	vpcmpub	$123, -4128(%edx), %ymm6, %k5{%k7}	 # AVX512{BW,VL}
+	vpcmpub	$0, %xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpub	$0, %ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpleub	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpleub	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpltub	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpltub	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpnequb	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpnequb	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpnleub	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpnleub	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpnltub	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpnltub	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
 	vpcmpuw	$0xab, %xmm5, %xmm6, %k5{%k7}	 # AVX512{BW,VL}
 	vpcmpuw	$123, %xmm5, %xmm6, %k5{%k7}	 # AVX512{BW,VL}
 	vpcmpuw	$123, (%ecx), %xmm6, %k5{%k7}	 # AVX512{BW,VL}
@@ -1313,6 +1357,18 @@ _start:
 	vpcmpuw	$123, 4096(%edx), %ymm6, %k5{%k7}	 # AVX512{BW,VL}
 	vpcmpuw	$123, -4096(%edx), %ymm6, %k5{%k7}	 # AVX512{BW,VL} Disp8
 	vpcmpuw	$123, -4128(%edx), %ymm6, %k5{%k7}	 # AVX512{BW,VL}
+	vpcmpuw	$0, %xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpuw	$0, %ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpleuw	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpleuw	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpltuw	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpltuw	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpnequw	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpnequw	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpnleuw	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpnleuw	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
+	vpcmpnltuw	%xmm5, %xmm6, %k5	 # AVX512{BW,VL}
+	vpcmpnltuw	%ymm5, %ymm6, %k5	 # AVX512{BW,VL}
 
 	.intel_syntax noprefix
 	vpabsb	xmm6{k7}, xmm5	 # AVX512{BW,VL}

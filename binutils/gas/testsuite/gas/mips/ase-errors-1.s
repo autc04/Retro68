@@ -102,6 +102,23 @@
 	.set noeva
 	lbue $4,16($5)		# ERROR: eva not enabled
 
+	.set mips32r6
+	.set crc		# OK
+	crc32b $4,$7,$4		# OK
+	crc32d $4,$7,$4		# ERROR: 64-bit only
+	.set mips32r5		# ERROR: too low
+	crc32b $4,$7,$4		# OK
+	.set nocrc
+	crc32b $4,$7,$4		# ERROR: crc not enabled
+
+	.set mips32r6
+	.set ginv		# OK
+	ginvi $a0		# OK
+	.set mips32r5		# ERROR: too low
+	ginvt $a0, 1		# OK
+	.set noginv
+	ginvi $a0		# ERROR: ginv not enabled
+
 	# There should be no errors after this.
 	.set fp=32
 	.set mips1

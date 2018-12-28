@@ -23,6 +23,14 @@ void SortDescending(int array[], int size) {
 extern "C" int OverriddenCFunction(int i) {
   return i * i;
 }
+
+// Extra lines to put SometimeInlineFunction at line 30+.
+
+// And a dummy function to workaround a GCC 7 bug with debug line numbers.
+int DummyFunction(int i) {
+  return i ^ 0x5555;
+}
+
 // This is inline in debug_msg.cc, which makes it a weak symbol too.
 int SometimesInlineFunction(int i) {
   return i * i;

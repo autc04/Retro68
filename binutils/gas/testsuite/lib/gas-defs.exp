@@ -1,4 +1,4 @@
-# Copyright (C) 1993-2017 Free Software Foundation, Inc.
+# Copyright (C) 1993-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -383,20 +383,24 @@ proc run_dump_tests { testcases {extra_options {}} } {
 #	is useful if several .d files differ by options only.  Options are
 #	always read from FILE.d.
 #
-#   target: GLOBS...
-#       Run this test only on a specified list of targets.  More precisely,
-#       each glob in the space-separated list is passed to "istarget"; if
-#       it evaluates true for any of them, the test will be run, otherwise
-#       it will be marked unsupported.
+#   target: GLOB|PROC ...
+#	Run this test only on a specified list of targets.  More precisely,
+#	in the space-separated list each glob is passed to "istarget" and
+#	each proc is called as a TCL procedure.  List items are interpreted
+#	such that procs are denoted by surrounding square brackets, and any
+#	other items are consired globs.  If the call evaluates true for any
+#	of them, the test will be run, otherwise it will be marked
+#	unsupported.
 #
-#   not-target: GLOBS...
-#       Do not run this test on a specified list of targets.  Again,
-#       the each glob in the space-separated list is passed to
-#       "istarget", and the test is run if it evaluates *false* for
-#       *all* of them.  Otherwise it will be marked unsupported.
+#   not-target: GLOB|PROC ...
+#	Do not run this test on a specified list of targets.  Again, each
+#	glob in the space-separated list is passed to "istarget" and each
+#	proc is called as a TCL procedure, and the test is run if it
+#	evaluates *false* for *all* of them.  Otherwise it will be marked
+#	unsupported.
 #
-#   skip: GLOBS...
-#   not-skip: GLOBS...
+#   skip: GLOB|PROC ...
+#   not-skip: GLOB|PROC ...
 #       These are exactly the same as "not-target" and "target",
 #       respectively, except that they do nothing at all if the check
 #       fails.  They should only be used in groups, to construct a single
@@ -575,13 +579,13 @@ proc run_dump_test { name {extra_options {}} } {
 	    return
 	}
 	foreach glob $opts(skip) {
-	    if {[istarget $glob]} { return }
+	    if {[match_target $glob]} { return }
 	}
     }
     if { $opts(not-skip) != "" } then {
 	set skip 1
 	foreach glob $opts(not-skip) {
-	    if {[istarget $glob]} {
+	    if {[match_target $glob]} {
 		set skip 0
 		break
 	    }
@@ -596,7 +600,7 @@ proc run_dump_test { name {extra_options {}} } {
 	}
 	set skip 1
 	foreach glob $opts(target) {
-	    if {[istarget $glob]} {
+	    if {[match_target $glob]} {
 		set skip 0
 		break
 	    }
@@ -608,7 +612,7 @@ proc run_dump_test { name {extra_options {}} } {
     }
     if { $opts(not-target) != "" } then {
 	foreach glob $opts(not-target) {
-	    if {[istarget $glob]} {
+	    if {[match_target $glob]} {
 		unsupported $testname
 		return
 	    }

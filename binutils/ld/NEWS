@@ -1,5 +1,31 @@
 -*- text -*-
 
+Changes in 2.31:
+
+* Speed up direct linking with DLLs for Cygwin and Mingw targets.
+
+* Add a configure option --enable-separate-code to decide whether
+  -z separate-code should be enabled in ELF linker by default.  Default
+  to yes for Linux/x86 targets.  Note that -z separate-code can increase
+  disk and memory size.
+
+Changes in 2.30:
+
+* Add -z separate-code to generate separate code PT_LOAD segment.
+
+* Add "-z undefs" command line option as the inverse of the "-z defs" option.
+
+* Add -z globalaudit command line option to force audit libraries to be run
+  for every dynamic object loaded by an executable - provided that the loader
+  supports this functionality.
+
+* Tighten linker script grammar around file name specifiers to prevent the use
+  of SORT_BY_ALIGNMENT and SORT_BY_INIT_PRIORITY on filenames.  These would
+  previously be accepted but had no effect.
+
+* The EXCLUDE_FILE directive can now be placed within any SORT_* directive
+  within input section lists.
+
 Changes in 2.29:
 
 * Support for -z shstk in the x86 ELF linker to generate
@@ -63,7 +89,8 @@ Changes in 2.27:
 
 * Add a configure option --enable-relro to decide whether -z relro should
   be enabled in ELF linker by default.  Default to yes for all Linux
-  targets except FRV, HPPA, IA64 and MIPS.
+  targets except FRV, HPPA, IA64 and MIPS.  Note that -z relro can increase
+  disk and memory size.
 
 * Support for -z noreloc-overflow in the x86-64 ELF linker to disable
   relocation overflow check.
@@ -701,7 +728,7 @@ Changes in version 2.1:
   other utilities should work on Risc/Ultrix and Irix.
 
 
-Copyright (C) 2012-2017 Free Software Foundation, Inc.
+Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

@@ -20,10 +20,10 @@ top_builddir = @top_builddir@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
-datadir = $(prefix)/@DATADIRNAME@
-localedir = $(datadir)/locale
-gnulocaledir = $(prefix)/share/locale
-gettextsrcdir = $(prefix)/share/gettext/po
+datadir = @datadir@
+localedir = @localedir@
+gnulocaledir = @datarootdir@/locale
+gettextsrcdir = @datarootdir@/gettext/po
 subdir = po
 
 DESTDIR =

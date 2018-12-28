@@ -13,15 +13,20 @@ _start:
 	notrack jmp *(%eax)
 	notrack jmpw *(%eax)
 
+	notrack bnd call *%eax
+	notrack bnd call *%ax
+	notrack bnd jmp *%eax
+	notrack bnd jmp *%ax
+
+	notrack bnd call *(%eax)
+	notrack bnd callw *(%eax)
+	notrack bnd jmp *(%eax)
+	notrack bnd jmpw *(%eax)
+
 	bnd notrack call *%eax
 	bnd notrack call *%ax
-	bnd notrack jmp *%eax
-	bnd notrack jmp *%ax
-
 	bnd notrack call *(%eax)
 	bnd notrack callw *(%eax)
-	bnd notrack jmp *(%eax)
-	bnd notrack jmpw *(%eax)
 
 	.intel_syntax noprefix
 	notrack call eax
@@ -34,24 +39,29 @@ _start:
 	notrack jmp DWORD PTR [eax]
 	notrack jmp WORD PTR [eax]
 
+	notrack bnd call eax
+	notrack bnd call ax
+	notrack bnd jmp eax
+	notrack bnd jmp ax
+
+	notrack bnd call DWORD PTR [eax]
+	notrack bnd call WORD PTR [eax]
+	notrack bnd jmp DWORD PTR [eax]
+	notrack bnd jmp WORD PTR [eax]
+
 	bnd notrack call eax
 	bnd notrack call ax
-	bnd notrack jmp eax
-	bnd notrack jmp ax
-
 	bnd notrack call DWORD PTR [eax]
 	bnd notrack call WORD PTR [eax]
-	bnd notrack jmp DWORD PTR [eax]
-	bnd notrack jmp WORD PTR [eax]
 
-	# ds bnd call *%eax
-	.byte 0x3e
+	# bnd notrack call *%eax
 	.byte 0xf2
+	.byte 0x3e
 	.byte 0xff
 	.byte 0xd0
 
-	# ds callw *%ax
-	.byte 0x3e
+	# notrack callw *%ax
 	.byte 0x66
+	.byte 0x3e
 	.byte 0xff
 	.byte 0xd0

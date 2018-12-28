@@ -1,4 +1,4 @@
-# Copyright (C) 1993-2017 Free Software Foundation, Inc.
+# Copyright (C) 1993-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -23,19 +23,29 @@ proc is_elf_format {} {
     # config.sub for these targets curiously transforms a target doublet
     # ending in -elf to -none.  eg. m68hc12-elf to m68hc12-unknown-none
     # They are always elf.
-    if { [istarget m68hc1*-*] || [istarget xgate-*] } {
+    if { [istarget m68hc1*-*] || [istarget s12z*-*] || [istarget xgate-*] } {
 	return 1;
     }
+# vxworks (and windiss) excluded due to number of ELF tests that need
+# modifying to pass on those targets.
+#	 && ![istarget *-*-vxworks*]
+#	 && ![istarget *-*-windiss*]
 
-    if {    ![istarget *-*-eabi*]
-	 && ![istarget *-*-elf*]
-	 && ![istarget *-*-freebsd*]
+    if {    ![istarget *-*-chorus*]
+	 && ![istarget *-*-cloudabi*]
+	 && ![istarget *-*-eabi*]
+	 && ![istarget *-*-*elf*]
+	 && ![istarget *-*-*freebsd*]
+	 && ![istarget *-*-fuchsia*]
 	 && ![istarget *-*-gnu*]
 	 && ![istarget *-*-irix5*]
 	 && ![istarget *-*-irix6*]
-	 && ![istarget *-*-linux*]
+	 && ![istarget *-*-kaos*]
+	 && ![istarget *-*-*linux*]
+	 && ![istarget *-*-lynxos*]
 	 && ![istarget *-*-nacl*]
 	 && ![istarget *-*-netbsd*]
+	 && ![istarget *-*-nto*]
 	 && ![istarget *-*-openbsd*]
 	 && ![istarget *-*-rtems*]
 	 && ![istarget *-*-solaris2*]
@@ -43,44 +53,24 @@ proc is_elf_format {} {
 	 && ![istarget *-*-unixware*]
 	 && ![istarget *-*-wasm32*]
 	 && ![istarget avr-*-*]
-	 && ![istarget bfin-*-uclinux]
-	 && ![istarget frv-*-uclinux*]
 	 && ![istarget hppa*64*-*-hpux*]
-	 && ![istarget ia64-*-hpux*]
-	 && ![istarget sh*-*-uclinux*]
-	 && ![istarget tic6x*-*-uclinux*] } {
+	 && ![istarget ia64-*-hpux*] } {
 	return 0
     }
 
-    if {    [istarget *-*-linux*aout*]
-	 || [istarget *-*-linux*ecoff*]
-	 || [istarget *-*-linux*oldld*]
-	 || [istarget *-*-rtemscoff*]
-	 || [istarget h8500-*-rtems*]
-	 || [istarget i?86-*-freebsd\[12\].*]
-	 || [istarget i960-*-rtems*] } {
+    if { [istarget *-*-linux*ecoff*]
+	 || [istarget *-*-rtemscoff*] } {
 	return 0
     }
 
     if { ![istarget *-*-netbsdelf*]
-	 && (   [istarget *-*-netbsd*aout*]
-	     || [istarget *-*-netbsdpe*]
-	     || [istarget arm*-*-netbsd*]
-	     || [istarget sparc-*-netbsd*]
-	     || [istarget i*86-*-netbsd*]
-	     || [istarget m68*-*-netbsd*]
-	     || [istarget vax-*-netbsd*]
+	 && (   [istarget vax-*-netbsd*]
 	     || [istarget ns32k-*-netbsd*]) } {
     	return 0
     }
 
     if {    [istarget arm-*-openbsd*]
-	 || [istarget i386-*-openbsd\[0-2\].*]
-	 || [istarget i386-*-openbsd3.\[0-2\]]
-	 || [istarget m68*-*-openbsd*]
 	 || [istarget ns32k-*-openbsd*]
-	 || [istarget sparc-*-openbsd\[0-2\].*]
-	 || [istarget sparc-*-openbsd3.\[0-1\]]
 	 || [istarget vax-*-openbsd*] } {
 	return 0
     }
@@ -91,34 +81,11 @@ proc is_elf_format {} {
 # True if the object format is known to be a.out.
 #
 proc is_aout_format {} {
-    if { [istarget *-*-netbsdelf]
-	 || [istarget sparc64-*-netbsd*]
-	 || [istarget sparc64-*-openbsd*] } {
-	return 0
-    }
-    if { [istarget *-*-*\[ab\]out*]
-	 || [istarget *-*-linux*oldld*]
+    if { [istarget *-*-*aout*]
 	 || [istarget *-*-bsd*]
 	 || [istarget *-*-msdos*]
-	 || [istarget arm-*-netbsd*]
-	 || [istarget arm-*-openbsd*]
-	 || [istarget arm-*-riscix*]
-	 || [istarget i?86-*-freebsd\[12\].*]
-	 || [istarget i?86-*-netbsd*]
-	 || [istarget i?86-*-openbsd\[0-2\]*]
-	 || [istarget i?86-*-openbsd3.\[0-2\]*]
-	 || [istarget i?86-*-vsta]
-	 || [istarget i?86-*-mach*]
-	 || [istarget m68*-*-netbsd*]
-	 || [istarget m68*-*-openbsd*]
 	 || [istarget ns32k-*-*]
 	 || [istarget pdp11-*-*]
-	 || [istarget sparc*-*-sunos4*]
-	 || [istarget sparc*-*-netbsd*]
-	 || [istarget sparc*-*-openbsd\[0-2\]*]
-	 || [istarget sparc*-*-openbsd3.\[0-1\]*]
-	 || [istarget sparc*-fujitsu-none]
-	 || [istarget vax-dec-ultrix*]
 	 || [istarget vax-*-netbsd] } {
 	return 1
     }
@@ -163,6 +130,17 @@ proc is_elf64 { binary_file } {
     return 0
 }
 
+# True if the target matches TARGET, specified as a TCL procedure if
+# in square brackets or as machine triplet otherwise.
+#
+proc match_target { target } {
+   if [string match {\[*\]} $target] {
+	return $target
+   } else {
+	return [istarget $target]
+   }
+}
+
 # True if the ELF target supports STB_GNU_UNIQUE with the ELF header's
 # OSABI field set to ELFOSABI_GNU.
 #
@@ -171,7 +149,7 @@ proc is_elf64 { binary_file } {
 # and Visium targets set OSABI to ELFOSABI_STANDALONE and cannot
 # support STB_GNU_UNIQUE.  Likewise non-EABI ARM targets set OSABI to
 # ELFOSABI_ARM, and TI C6X targets to ELFOSABI_C6000_*.  Finally
-# rather than `bfd_elf_final_link' AM33/2.0, D30V, DLX, i960, and
+# rather than `bfd_elf_final_link' AM33/2.0, D30V, DLX, and
 # picoJava targets use `_bfd_generic_final_link', which does not
 # support STB_GNU_UNIQUE symbol binding causing assertion failures.
 #
@@ -199,7 +177,6 @@ proc supports_gnu_unique {} {
     if { [istarget "am33_2.0-*-*"]
 	 || [istarget "d30v-*-*"]
 	 || [istarget "dlx-*-*"]
-	 || [istarget "i960-*-*"]
 	 || [istarget "pj*-*-*"] } {
 	return 0
     }

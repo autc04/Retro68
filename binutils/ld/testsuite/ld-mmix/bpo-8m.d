@@ -4,4 +4,4 @@
 #source: bpo-1.s
 #as: -linker-allocated-gregs
 #ld: -m mmo
-#error: Too many global registers: 224
+#error: too many global registers: 224

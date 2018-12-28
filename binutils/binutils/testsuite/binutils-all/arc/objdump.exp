@@ -1,4 +1,4 @@
-#   Copyright (C) 2016-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2016-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -52,6 +52,10 @@ proc check_assembly { testname objfile expected { disas_flags "" } } {
     global OBJDUMP
     global OBJDUMPFLAGS
 
+    if [string equal "" $objfile] then {
+	fail $testname
+	return
+    }
     set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS --disassemble $disas_flags \
 	$objfile"]
 
@@ -77,7 +81,7 @@ check_assembly "arc double_store -Mcpu=hs" $objfile \
     $double_store_hs_expected "-Mcpu=hs"
 check_assembly "arc double_store -Mcpu=hs38_linux" $objfile \
     $double_store_hs_expected "-Mcpu=hs38_linux"
-set double_store_em_expected ".long 0x1b000006"
+set double_store_em_expected {word\s*0x1b000006}
 check_assembly "arc double_store -Mcpu=em" $objfile \
     $double_store_em_expected "-Mcpu=em"
 check_assembly "arc double_store -Mcpu=em4_dmips" $objfile \
@@ -91,4 +95,9 @@ check_assembly "arc double_store -Mcpu=em,fpus" $objfile \
 # Make sure that the last cpu= value is used.
 check_assembly "arc double_store -Mcpu=hs,cpu=em" $objfile \
     $double_store_em_expected "-Mcpu=hs,cpu=em"
-
+# Check the hex printing for short immediates.
+set thexobj [do_objfile hexprint.s]
+check_assembly "arc hex printing" $thexobj \
+    {st\s*r0,\[r1,0xfffffff7\]} "-Mhex"
+check_assembly "arc normal printing" $thexobj \
+    {st\s*r0,\[r1,-9\]}

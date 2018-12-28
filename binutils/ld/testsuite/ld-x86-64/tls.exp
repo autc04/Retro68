@@ -1,5 +1,5 @@
 # Expect script for x86-64 TLS tests.
-#   Copyright (C) 2016-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2016-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -206,16 +206,30 @@ if { ![check_gnu2_tls_available] } {
     return
 }
 
+if { [at_least_gcc_version 5 0] } {
+    run_ld_link_exec_tests [list \
+	[list \
+	    "Run tlsdesc1" \
+	    "-Wl,--no-as-needed tmpdir/libtlsdesc1.so" \
+	    "" \
+	    { tlsdesc1a.c } \
+	    "tlsdesc1a" \
+	    "pass.out" \
+	    "$GNU2_CFLAGS" \
+	] \
+	[list \
+	    "Run tlsdesc1 with PIE" \
+	    "-pie -Wl,--no-as-needed tmpdir/libtlsdesc1.so" \
+	    "" \
+	    { tlsdesc1a.c } \
+	    "tlsdesc1c" \
+	    "pass.out" \
+	    "-fPIE $GNU2_CFLAGS" \
+	] \
+    ]
+}
+
 run_ld_link_exec_tests [list \
-    [list \
-	"Run tlsdesc1" \
-	"-Wl,--no-as-needed tmpdir/libtlsdesc1.so" \
-	"" \
-	{ tlsdesc1a.c } \
-	"tlsdesc1a" \
-	"pass.out" \
-	"$GNU2_CFLAGS" \
-    ] \
     [list \
 	"Run tlsdesc1 (-z now)" \
 	"-Wl,-z,now -Wl,--no-as-needed tmpdir/libtlsdesc1n.so" \
@@ -224,15 +238,6 @@ run_ld_link_exec_tests [list \
 	"tlsdesc1b" \
 	"pass.out" \
 	"$GNU2_CFLAGS" \
-    ] \
-    [list \
-	"Run tlsdesc1 with PIE" \
-	"-pie -Wl,--no-as-needed tmpdir/libtlsdesc1.so" \
-	"" \
-	{ tlsdesc1a.c } \
-	"tlsdesc1c" \
-	"pass.out" \
-	"-fPIE $GNU2_CFLAGS" \
     ] \
     [list \
 	"Run tlsdesc1 with PIE (-z now)" \

@@ -1,6 +1,6 @@
 // sparc.cc -- sparc target support for gold.
 
-// Copyright (C) 2008-2017 Free Software Foundation, Inc.
+// Copyright (C) 2008-2018 Free Software Foundation, Inc.
 // Written by David S. Miller <davem@davemloft.net>.
 
 // This file is part of gold.
@@ -499,6 +499,7 @@ Target::Target_info Target_sparc<32, true>::sparc_info =
   NULL,			// attributes_vendor
   "_start",		// entry_symbol_name
   32,			// hash_entry_size
+  elfcpp::SHT_PROGBITS,	// unwind_section_type
 };
 
 template<>
@@ -527,6 +528,7 @@ Target::Target_info Target_sparc<64, true>::sparc_info =
   NULL,			// attributes_vendor
   "_start",		// entry_symbol_name
   32,			// hash_entry_size
+  elfcpp::SHT_PROGBITS,	// unwind_section_type
 };
 
 // We have to take care here, even when operating in little-endian
@@ -4164,7 +4166,7 @@ Target_sparc<size, big_endian>::Relocate::relax_call(
   if (op3 != 0x3d)
     {
       // First check RS1
-      reg = (delay_insn >> 14) & 0x15;
+      reg = (delay_insn >> 14) & 0x1f;
       if (reg == 15)
 	return;
 

@@ -5,7 +5,7 @@
 #source: tls-ldgd-14.s
 #source: tls-hx1x2.s
 #as: --pic --no-underscore --em=criself
-#ld: -m crislinux tmpdir/tls-dso-xz-1.so
+#ld: -m crislinux tmpdir/tls-dso-xz-1.so --hash-style=sysv
 #objdump: -s -h -t -T -R -r -p
 
 # Check that we have proper NPTL/TLS markings and GOT for two
@@ -38,17 +38,17 @@ DYNAMIC SYMBOL TABLE:
 #...
 DYNAMIC RELOCATION RECORDS
 OFFSET   TYPE              VALUE 
-0008230c R_CRIS_DTP        x
-00082314 R_CRIS_DTP        z
+000822b0 R_CRIS_DTP        x
+000822b8 R_CRIS_DTP        z
 
 Contents of section .interp:
 #...
 Contents of section \.text:
- 801dc 41b20000 5fae8000 5fbe8400 5fae1400  .*
- 801ec 5fae1c00                             .*
+ 80180 41b20000 5fae8000 5fbe8400 5fae1400  .*
+ 80190 5fae1c00                             .*
 Contents of section \.tdata:
 #...
 Contents of section \.got:
- 822f8 78220800 0+ 0+ 010+  .*
- 82308 0+ 0+ 0+ 0+  .*
- 82318 0+                             .*
+ 8229c 1c220800 0+ 0+ 010+  .*
+ 822ac 0+ 0+ 0+ 0+  .*
+ 822bc 0+                             .*

@@ -3,7 +3,7 @@
 extern void abort (void);
 extern int foo (int) __attribute__ ((visibility("hidden")));
 
-int bar()
+void bar(void)
 {
   if (foo (5) != 5)
     abort ();

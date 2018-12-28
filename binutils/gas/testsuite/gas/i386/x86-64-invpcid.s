@@ -6,3 +6,4 @@ foo:
 
 	.intel_syntax noprefix
 	invpcid	rdx,[rax]
+	invpcid	rdx,oword ptr [rax]

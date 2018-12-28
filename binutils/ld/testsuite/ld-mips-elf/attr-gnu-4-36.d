@@ -2,7 +2,7 @@
 #source: attr-gnu-4-6.s
 #ld: -r
 #readelf: -A
-#warning: Warning: .* uses -msoft-float \(set by .*\), .* uses -mhard-float
+#warning: warning: .* uses -msoft-float \(set by .*\), .* uses -mhard-float
 
 Attribute Section: gnu
 File Attributes

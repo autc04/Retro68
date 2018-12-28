@@ -1,5 +1,5 @@
 #objdump: -dr --show-raw-insn
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix* *-*-vxworks
+#skip: *-*-pe *-*-wince *-*-vxworks
 #name: TARGET reloc
 
 .*:     file format .*arm.*

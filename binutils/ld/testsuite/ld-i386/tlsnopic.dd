@@ -16,14 +16,14 @@ Disassembly of section .text:
  +[0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	03 05 ([0-9a-f]{2} ){4}[ 	]+add    0x[0-9a-f]+c,%eax
+ +[0-9a-f]+:	03 05 ([0-9a-f]{2} ){4}[ 	]+add    0x[0-9a-f]+(c|8),%eax
 #				->R_386_TLS_TPOFF	sg1
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  @indntpoff direct %gs access IE against global var
- +[0-9a-f]+:	8b 15 ([0-9a-f]{2} ){4}[ 	]+mov    0x[0-9a-f]+0,%edx
+ +[0-9a-f]+:	8b 15 ([0-9a-f]{2} ){4}[ 	]+mov    0x[0-9a-f]+(0|c),%edx
 #				->R_386_TLS_TPOFF	sg2
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -36,14 +36,14 @@ Disassembly of section .text:
  +[0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	03 05 ([0-9a-f]{2} ){4}[ 	]+add    0x[0-9a-f]+4,%eax
+ +[0-9a-f]+:	03 05 ([0-9a-f]{2} ){4}[ 	]+add    0x[0-9a-f]+(4|0),%eax
 #				->R_386_TLS_TPOFF	[0x14000000]
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  @indntpoff direct %gs access IE against hidden var
- +[0-9a-f]+:	8b 15 ([0-9a-f]{2} ){4}[ 	]+mov    0x[0-9a-f]+8,%edx
+ +[0-9a-f]+:	8b 15 ([0-9a-f]{2} ){4}[ 	]+mov    0x[0-9a-f]+(8|4),%edx
 #				->R_386_TLS_TPOFF	[0x18000000]
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -56,14 +56,14 @@ Disassembly of section .text:
  +[0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	03 05 ([0-9a-f]{2} ){4}[ 	]+add    0x[0-9a-f]+4,%eax
+ +[0-9a-f]+:	03 05 ([0-9a-f]{2} ){4}[ 	]+add    0x[0-9a-f]+(4|0),%eax
 #				->R_386_TLS_TPOFF	[0x00000000]
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  @indntpoff direct %gs access IE against local var
- +[0-9a-f]+:	8b 15 ([0-9a-f]{2} ){4}[ 	]+mov    0x[0-9a-f]+8,%edx
+ +[0-9a-f]+:	8b 15 ([0-9a-f]{2} ){4}[ 	]+mov    0x[0-9a-f]+(8|4),%edx
 #				->R_386_TLS_TPOFF	[0x04000000]
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *

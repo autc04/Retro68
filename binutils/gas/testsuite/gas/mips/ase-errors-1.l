@@ -40,3 +40,11 @@
 # ----------------------------------------------------------------------------
 .*:100: Warning: the `eva' extension requires MIPS32 revision 2 or greater
 .*:103: Error: opcode not supported.* `lbue \$4,16\(\$5\)'
+# ----------------------------------------------------------------------------
+.*:108: Error: opcode not supported.* `crc32d \$4,\$7,\$4'
+.*:109: Warning: the `crc' extension requires MIPS32 revision 6 or greater
+.*:112: Error: opcode not supported.* `crc32b \$4,\$7,\$4'
+# ----------------------------------------------------------------------------
+.*:117: Warning: the `ginv' extension requires MIPS32 revision 6 or greater
+.*:120: Error: opcode not supported.* `ginvi \$a0'
+# ----------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 # Expect script for ld-weak tests
-#   Copyright (C) 2001-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2001-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -55,12 +55,6 @@ if {    ![istarget alpha*-*-linux*]
      && ![istarget *-*-nacl*] } {
     return
 }
-
-if { [istarget *-*-linux*aout*]
-     || [istarget *-*-linux*oldld*] } {
-    return
-}
-
 if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
     return
 }
@@ -384,130 +378,71 @@ if { [istarget mips*-*-*] && ! [at_least_gcc_version 4 3] } then {
 	 || [string match "*option ignored*" $exec_output]
 	 || [string match "*unrecognized option*" $exec_output]
 	 || [string match "*passed to ld*" $exec_output] } {
-	if [istarget *-*-sunos4*] {
-	    set picflag "-pic"
-	} else {
-	    set picflag "-KPIC"
-	}
+	set picflag "-KPIC"
     }
 }
 verbose "Using $picflag to compile PIC code"
 
-if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/foo.c $tmpdir/foo.o] {
-    unresolved "ELF weak"
-    return
-}
-
-if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar.c $tmpdir/bar.o] {
-    unresolved "ELF weak"
-    return
-}
-
-if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/main.c $tmpdir/main.o] {
-    unresolved "ELF weak"
-    return
-}
-
-if {![ld_link $CC $tmpdir/libbar.so "$shared $tmpdir/bar.o"]} {
+if {![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/foo.c $tmpdir/foo.o]
+    || ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar.c $tmpdir/bar.o]
+    || ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/main.c $tmpdir/main.o]
+    || ![ld_link $CC $tmpdir/libbar.so "$shared $tmpdir/bar.o"]
+    || ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/foo1a.c $tmpdir/foo1a.o]
+    || ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/foo1b.c $tmpdir/foo1b.o]
+    || ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar1a.c $tmpdir/bar1a.o]
+    || ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar1b.c $tmpdir/bar1b.o]
+    || ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar1c.c $tmpdir/bar1c.o]
+    || ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/main1.c $tmpdir/main1.o]
+    || ![ld_link $CC $tmpdir/libfoo1a.so "$shared $tmpdir/foo1a.o"]
+    || ![ld_link $CC $tmpdir/libfoo1b.so "$shared $tmpdir/foo1b.o"]
+    || ![ld_link $CC $tmpdir/libbar1a.so "$shared $tmpdir/bar1a.o $tmpdir/libfoo1a.so"]} then {
     fail "ELF weak"
-    return
+} else {
+    build_lib "ELF DSO weak func first" libfoo "foo.o bar.o" dso.dsym
+    build_lib "ELF DSO weak func last" libfoo "bar.o foo.o" dso.dsym
+    build_lib "ELF DSO weak func first DSO" libfoo "foo.o libbar.so" dsow.dsym
+    build_lib "ELF DSO weak func last DSO" libfoo "libbar.so foo.o" dsow.dsym
+    build_exec "ELF weak func first" foo "main.o bar.o" "" strong "" strong.sym
+    build_exec "ELF weak func last" foo "bar.o main.o" "" strong "" strong.sym
+    build_exec "ELF weak func first DSO" foo "main.o libbar.so" "-Wl,-rpath,.,--no-as-needed" weak weak.dsym ""
+    build_exec "ELF weak func last DSO" foo "libbar.so main.o" "-Wl,-rpath,.,--no-as-needed" weak weak.dsym ""
+    build_lib "ELF DSO weak data first" libfoo "bar1a.o foo1a.o" dsodata.dsym
+    build_lib "ELF DSO weak data last" libfoo "foo1a.o bar1a.o" dsodata.dsym
+    build_lib "ELF DSO weak data first DSO" libfoo "main1.o libfoo1a.so" dsowdata.dsym
+    build_lib "ELF DSO weak data last DSO" libfoo "libfoo1a.so main1.o" dsowdata.dsym
+    build_lib "ELF DSO weak data first DSO common" libfoo "main1.o libfoo1b.so" dsowdata.dsym
+    build_lib "ELF DSO weak data last DSO common" libfoo "libfoo1b.so main1.o" dsowdata.dsym
+    build_exec "ELF weak data first" foo "main1.o bar1a.o foo1a.o" "" strongdata "" strongdata.sym
+    build_exec "ELF weak data last" foo "foo1a.o main1.o bar1a.o" "" strongdata "" strongdata.sym
+    build_exec "ELF weak data first common" foo "main1.o bar1a.o foo1b.o" "" strongdata "" strongcomm.sym
+    build_exec "ELF weak data last common" foo "foo1b.o main1.o bar1a.o" "" strongdata "" strongcomm.sym
+    build_exec "ELF weak data first DSO" foo "main1.o libbar1a.so libfoo1a.so" "-Wl,-rpath,.,--no-as-needed" weakdata weakdata.dsym ""
+    build_exec "ELF weak data last DSO" foo "libfoo1a.so main1.o libbar1a.so" "-Wl,-rpath,.,--no-as-needed" weakdata weakdata.dsym ""
+    build_exec "ELF weak data first DSO common" foo "main1.o libbar1a.so libfoo1b.so" "-Wl,--no-as-needed,-rpath,.,-rpath-link,." weakdata weakdata.dsym ""
+    build_exec "ELF weak data last DSO common" foo "libfoo1b.so main1.o libbar1a.so" "-Wl,--no-as-needed,-rpath,.,-rpath-link,." weakdata weakdata.dsym ""
 }
 
-if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/foo1a.c $tmpdir/foo1a.o] {
-    unresolved "ELF weak"
-    return
-}
-
-if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/foo1b.c $tmpdir/foo1b.o] {
-    unresolved "ELF weak"
-    return
-}
-
-if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar1a.c $tmpdir/bar1a.o] {
-    unresolved "ELF weak"
-    return
-}
-
-if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar1b.c $tmpdir/bar1b.o] {
-    unresolved "ELF weak"
-    return
-}
-
-if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar1c.c $tmpdir/bar1c.o] {
-    unresolved "ELF weak"
-    return
-}
-
-if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/main1.c $tmpdir/main1.o] {
-    unresolved "ELF weak"
-    return
-}
-
-if {![ld_link $CC $tmpdir/libfoo1a.so "$shared $tmpdir/foo1a.o"]} {
-    fail "ELF weak"
-    return
-}
-
-if {![ld_link $CC $tmpdir/libfoo1b.so "$shared $tmpdir/foo1b.o"]} {
-    fail "ELF weak"
-    return
-}
-
-if {![ld_link $CC $tmpdir/libbar1a.so "$shared $tmpdir/bar1a.o $tmpdir/libfoo1a.so"]} {
-    fail "ELF weak"
-    return
-}
-
-build_lib "ELF DSO weak func first" libfoo "foo.o bar.o" dso.dsym
-build_lib "ELF DSO weak func last" libfoo "bar.o foo.o" dso.dsym
-build_lib "ELF DSO weak func first DSO" libfoo "foo.o libbar.so" dsow.dsym
-build_lib "ELF DSO weak func last DSO" libfoo "libbar.so foo.o" dsow.dsym
-build_exec "ELF weak func first" foo "main.o bar.o" "" strong "" strong.sym
-build_exec "ELF weak func last" foo "bar.o main.o" "" strong "" strong.sym
-build_exec "ELF weak func first DSO" foo "main.o libbar.so" "-Wl,-rpath,.,--no-as-needed" weak weak.dsym ""
-build_exec "ELF weak func last DSO" foo "libbar.so main.o" "-Wl,-rpath,.,--no-as-needed" weak weak.dsym ""
-
-build_lib "ELF DSO weak data first" libfoo "bar1a.o foo1a.o" dsodata.dsym
-build_lib "ELF DSO weak data last" libfoo "foo1a.o bar1a.o" dsodata.dsym
-build_lib "ELF DSO weak data first DSO" libfoo "main1.o libfoo1a.so" dsowdata.dsym
-build_lib "ELF DSO weak data last DSO" libfoo "libfoo1a.so main1.o" dsowdata.dsym
-build_lib "ELF DSO weak data first DSO common" libfoo "main1.o libfoo1b.so" dsowdata.dsym
-build_lib "ELF DSO weak data last DSO common" libfoo "libfoo1b.so main1.o" dsowdata.dsym
-build_exec "ELF weak data first" foo "main1.o bar1a.o foo1a.o" "" strongdata "" strongdata.sym
-build_exec "ELF weak data last" foo "foo1a.o main1.o bar1a.o" "" strongdata "" strongdata.sym
-build_exec "ELF weak data first common" foo "main1.o bar1a.o foo1b.o" "" strongdata "" strongcomm.sym
-build_exec "ELF weak data last common" foo "foo1b.o main1.o bar1a.o" "" strongdata "" strongcomm.sym
-build_exec "ELF weak data first DSO" foo "main1.o libbar1a.so libfoo1a.so" "-Wl,-rpath,.,--no-as-needed" weakdata weakdata.dsym ""
-build_exec "ELF weak data last DSO" foo "libfoo1a.so main1.o libbar1a.so" "-Wl,-rpath,.,--no-as-needed" weakdata weakdata.dsym ""
-build_exec "ELF weak data first DSO common" foo "main1.o libbar1a.so libfoo1b.so" "-Wl,--no-as-needed,-rpath,.,-rpath-link,." weakdata weakdata.dsym ""
-build_exec "ELF weak data last DSO common" foo "libfoo1b.so main1.o libbar1a.so" "-Wl,--no-as-needed,-rpath,.,-rpath-link,." weakdata weakdata.dsym ""
-
-if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/size_foo.c $tmpdir/size_foo.o] {
+if {![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/size_foo.c $tmpdir/size_foo.o]
+    || ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/size_bar.c $tmpdir/size_bar_s.o]
+    || ![ld_compile "$CC $CFLAGS $picflag -DSIZE_BIG" $srcdir/$subdir/size_bar.c $tmpdir/size_bar.o]
+    || ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/size_main.c $tmpdir/size_main.o]} then {
     unresolved "ELF weak (size)"
-    return
+} else {
+    build_lib "ELF DSO small bar (size)" libsize_bar_s "size_bar_s.o" ""
+    build_lib "ELF DSO foo with small bar (size)" libsize_foo "size_foo.o libsize_bar_s.so" ""
+    build_lib "ELF DSO big bar (size)" libsize_bar "size_bar.o" ""
+    build_exec "ELF weak size" size_main "size_main.o libsize_foo.so libsize_bar.so" "-Wl,-rpath=.,-rpath-link=.,--no-as-needed" size "" ""
 }
-
-if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/size_bar.c $tmpdir/size_bar.o] {
-    unresolved "ELF weak (size)"
-    return
-}
-
-build_lib "ELF DSO small bar (size)" libsize_bar "size_bar.o" ""
-build_lib "ELF DSO foo with small bar (size)" libsize_foo "size_foo.o libsize_bar.so" ""
-
-if ![ld_compile "$CC $CFLAGS $picflag -DSIZE_BIG" $srcdir/$subdir/size_bar.c $tmpdir/size_bar.o] {
-    unresolved "ELF weak (size)"
-    return
-}
-
-build_lib "ELF DSO big bar (size)" libsize_bar "size_bar.o" ""
-
-if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/size_main.c $tmpdir/size_main.o] {
-    unresolved "ELF weak (size)"
-    return
-}
-
-build_exec "ELF weak size" size_main "size_main.o libsize_foo.so libsize_bar.so" "-Wl,-rpath,.,--no-as-needed" size "" ""
 
 verbose "size2"
 run_dump_test $srcdir/$subdir/size2
+
+if {![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/alias.c $tmpdir/alias.o]
+    || ![ld_link $CC $tmpdir/alias.so "$shared $tmpdir/alias.o"]
+    || ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/aliasmain.c $tmpdir/aliasmain.o]
+    || ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/weakref1.c $tmpdir/weakref1.o]
+    || ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/weakref2.c $tmpdir/weakref2.o]} then {
+    unresolved "ELF weak (alias)"
+} else {
+    build_exec "ELF weak (alias)" alias "aliasmain.o weakref1.o weakref2.o alias.so" "-Wl,-rpath=.,--no-as-needed" alias "" ""
+}

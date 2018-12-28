@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2017 Free Software Foundation, Inc.
+# Copyright (C) 2016-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -40,6 +40,11 @@ set arccommon_tests {
 	{tls-dtpoff.s}
         {{objdump -fdw tls-dtpoff.dd} {readelf --relocs tls-dtpoff.rd}}
         "sda-relocs.so" }
+    { "JLI simple"
+        "-q -T jli-script.ld -A elf32-arclittle" "" "-mcpu=em4 -EL"
+	{jli-simple.s}
+        {{objdump -fdw jli-simple.dd} {readelf --relocs jli-simple.rd}}
+        "jli-simple.so" }
 }
 
 run_ld_link_tests $arccommon_tests

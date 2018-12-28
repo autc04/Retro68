@@ -1,5 +1,5 @@
 /* ARM ELF support for BFD.
-   Copyright (C) 1998-2017 Free Software Foundation, Inc.
+   Copyright (C) 1998-2018 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -240,6 +240,13 @@ START_RELOC_NUMBERS (elf_arm_reloc_type)
   RELOC_NUMBER (R_ARM_THM_ALU_ABS_G3_NC,135)
 
   RELOC_NUMBER (R_ARM_IRELATIVE,      	160)
+  RELOC_NUMBER (R_ARM_GOTFUNCDESC,    	161)
+  RELOC_NUMBER (R_ARM_GOTOFFFUNCDESC, 	162)
+  RELOC_NUMBER (R_ARM_FUNCDESC,       	163)
+  RELOC_NUMBER (R_ARM_FUNCDESC_VALUE, 	164)
+  RELOC_NUMBER (R_ARM_TLS_GD32_FDPIC,   165)
+  RELOC_NUMBER (R_ARM_TLS_LDM32_FDPIC,  166)
+  RELOC_NUMBER (R_ARM_TLS_IE32_FDPIC,   167)
 
   /* Extensions?  R=read-only?  */
   RELOC_NUMBER (R_ARM_RXPC25,         	249)

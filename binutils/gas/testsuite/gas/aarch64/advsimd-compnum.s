@@ -1,9 +1,16 @@
 	.include "advsimd-armv8_3.s"
 
-	fadd	v1.2d, v2.2d, v3.2d
-	fadd	v1.2s, v2.2s, v3.2s
-	fadd	v1.4s, v2.4s, v3.4s
-	fadd	v0.4h, v0.4h, v0.4h
-	fadd	v1.4h, v2.4h, v3.4h
-	fadd	v0.8h, v0.8h, v0.8h
-	fadd	v1.8h, v2.8h, v3.8h
+	.macro three_same_no_rot op, sz
+	.irp d, 1.\sz, 2.\sz, 5.\sz, 13.\sz, 27.\sz
+	.irp m, 2.\sz, 3.\sz, 5.\sz, 14.\sz, 31.\sz
+	.irp n, 3.\sz, 4.\sz, 6.\sz, 15.\sz, 30.\sz
+		\op v\d, v\m, v\n
+	.endr
+	.endr
+	.endr
+	.endm
+
+	three_same_no_rot fadd, 2d
+	three_same_no_rot fadd, 2s
+	three_same_no_rot fadd, 4h
+	three_same_no_rot fadd, 8h

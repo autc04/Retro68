@@ -2,7 +2,7 @@
 # as: -mfpu=vfp3 -mcpu=cortex-a8 -mthumb
 # source: vldr.s
 # objdump: -dr --prefix-addresses --show-raw-insn
-# skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
+# skip: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

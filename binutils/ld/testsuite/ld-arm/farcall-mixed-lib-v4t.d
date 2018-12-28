@@ -92,28 +92,28 @@ Disassembly of section .text:
  .*:	4770      	bx	lr
 #...
 
-.* <__app_func(_weak)?_from_thumb>:
+.* <__app_func_weak_from_thumb>:
  .*:	4778      	bx	pc
  .*:	46c0      	nop			; \(mov r8, r8\)
- .*:	e59fc000 	ldr	ip, \[pc\]	; 200038c <__app_func(_weak)?_from_thumb\+0xc>
+ .*:	e59fc000 	ldr	ip, \[pc\]	; .* <__app_func_weak_from_thumb\+0xc>
  .*:	e08cf00f 	add	pc, ip, pc
- .*:	fdffff(2|1)8 	.word	0xfdffff(2|1)8
+ .*:	fdffff34 	.word	0xfdffff34
 
-.* <__app_func(_weak)?_from_thumb>:
+.* <__app_func_from_thumb>:
  .*:	4778      	bx	pc
  .*:	46c0      	nop			; \(mov r8, r8\)
- .*:	e59fc000 	ldr	ip, \[pc\]	; 200039c <__app_func(_weak)?_from_thumb\+0xc>
+ .*:	e59fc000 	ldr	ip, \[pc\]	; .* <__app_func_from_thumb\+0xc>
  .*:	e08cf00f 	add	pc, ip, pc
- .*:	fdffff(0|1)8 	.word	0xfdffff(0|1)8
+ .*:	fdffff14 	.word	0xfdffff14
 
 .* <lib_func3>:
- .*:	e59fc004 	ldr	ip, \[pc, #4\]	; 20003ac <lib_func3\+0xc>
+ .*:	e59fc004 	ldr	ip, \[pc, #4\]	; .* <lib_func3\+0xc>
  .*:	e08cc00f 	add	ip, ip, pc
  .*:	e12fff1c 	bx	ip
  .*:	ffffffc5 	.word	0xffffffc5
 
 .* <lib_func2>:
- .*:	e59fc004 	ldr	ip, \[pc, #4\]	; 20003bc <lib_func2\+0xc>
+ .*:	e59fc004 	ldr	ip, \[pc, #4\]	; .* <lib_func2\+0xc>
  .*:	e08cc00f 	add	ip, ip, pc
  .*:	e12fff1c 	bx	ip
  .*:	feffff55 	.word	0xfeffff55

@@ -1,5 +1,5 @@
 # Expect script for frame section tests
-#   Copyright (C) 2004-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -29,7 +29,7 @@ if ![is_elf_format] {
 }
 
 # No shared lib support on this target.
-if { [istarget "mcore-*-*"] } {
+if ![istarget shared] {
     return
 }
 
@@ -64,14 +64,16 @@ if { ![ld_assemble_flags $as $as_opt $srcdir/$subdir/tbss.s tmpdir/tbss.o ]
     return
 }
 
-if { [ld_link $ld tmpdir/frame.so "--shared tmpdir/frame.o tmpdir/tbss.o"] } {
-    pass "$test1"
+if { [ld_link $ld tmpdir/frame.so "-z noseparate-code --shared tmpdir/frame.o tmpdir/tbss.o"] } {
+    pass "$test1 -z noseparate-code"
 } else {
-    if [string match "*shared not supported*" $link_output] {
-	unsupported "-shared is not supported by this target"
-    } else {
-	fail "$test1"
-    }
+   fail "$test1 -z noseparate-code"
+}
+
+if { [ld_link $ld tmpdir/frame.so "-z separate-code --shared tmpdir/frame.o tmpdir/tbss.o"] } {
+    pass "$test1 -z separate-code"
+} else {
+    fail "$test1 -z separate-code"
 }
 
 if ![ld_assemble_flags $as $as_opt $srcdir/$subdir/table.s tmpdir/table.o ] {
@@ -79,12 +81,14 @@ if ![ld_assemble_flags $as $as_opt $srcdir/$subdir/table.s tmpdir/table.o ] {
     return
 }
 
-if { [ld_link $ld tmpdir/table.so "--shared tmpdir/table.o tmpdir/tbss.o"] } {
-    pass "$test2"
+if { [ld_link $ld tmpdir/table.so "-z noseparate-code --shared tmpdir/table.o tmpdir/tbss.o"] } {
+    pass "$test2 -z noseparate-code"
 } else {
-    if [string match "*shared not supported*" $link_output] {
-	unsupported "-shared is not supported by this target"
-    } else {
-	fail "$test2"
-    }
+    fail "$test2 -z noseparate-code"
+}
+
+if { [ld_link $ld tmpdir/table.so "-z separate-code --shared tmpdir/table.o tmpdir/tbss.o"] } {
+    pass "$test2 -z separate-code"
+} else {
+    fail "$test2 -z separate-code"
 }

@@ -2,7 +2,7 @@
 #source: attr-gnu-4-6.s
 #ld: -r
 #readelf: -A
-#warning: Warning: .* uses -msingle-float \(set by .*\), .* uses -mgp32 -mfp64
+#warning: warning: .* uses -msingle-float \(set by .*\), .* uses -mgp32 -mfp64
 
 Attribute Section: gnu
 File Attributes

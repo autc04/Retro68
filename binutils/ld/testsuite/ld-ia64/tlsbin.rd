@@ -36,7 +36,7 @@ There are [0-9]+ program headers, starting at offset [0-9]+
 
 Program Headers:
  +Type +Offset +VirtAddr +PhysAddr +FileSiz +MemSiz +Flg Align
- +PHDR +0x0+40 0x40+40 0x40+40 0x0+188 0x0+188 R E 0x8
+ +PHDR +0x0+40 0x40+40 0x40+40 0x0+188 0x0+188 R +0x8
  +INTERP +0x0+1c8 0x40+1c8 0x40+1c8 0x[0-9a-f]+ 0x[0-9a-f]+ R +0x1
 .*Requesting program interpreter.*
  +LOAD +0x0+ 0x40+ 0x40+ 0x0+1[0-9a-f]+ 0x0+1[0-9a-f]+ R E 0x10000
@@ -52,7 +52,7 @@ Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 3 entries:
 [0-9a-f ]+R_IA64_DTPMOD64LSB +0+ sG1 \+ 0
 [0-9a-f ]+R_IA64_DTPREL64LSB +0+ sG1 \+ 0
 
-Relocation section '.rela.IA_64.pltoff' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '.rela.IA_64.pltoff' at offset 0x[0-9a-f]+ contains 1 entry:
  +Offset +Info +Type +Symbol's Value +Symbol's Name \+ Addend
 [0-9a-f ]+R_IA64_IPLTLSB +0+ __tls_get_addr \+ 0
 
@@ -61,10 +61,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* NOTYPE +LOCAL +DEFAULT +UND *
 .* TLS +GLOBAL +DEFAULT +UND sG2
 .* FUNC +GLOBAL +DEFAULT +UND __tls_get_addr
-.* NOTYPE +GLOBAL +DEFAULT +15 __bss_start
 .* TLS +GLOBAL +DEFAULT +UND sG1
-.* NOTYPE +GLOBAL +DEFAULT +15 _edata
-.* NOTYPE +GLOBAL +DEFAULT +15 _end
 
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name

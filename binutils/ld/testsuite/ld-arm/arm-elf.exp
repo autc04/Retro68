@@ -1,5 +1,5 @@
 # Expect script for various ARM ELF tests.
-#   Copyright (C) 2002-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -21,23 +21,24 @@
 
 if {[istarget "arm-*-vxworks"]} {
     set armvxworkstests {
-	{"VxWorks shared library test 1" "-shared -Tvxworks1.ld" ""
+	{"VxWorks shared library test 1"
+	 "-shared -Tvxworks1.ld --hash-style=sysv" ""
 	 "" {vxworks1-lib.s}
 	 {{readelf --relocs vxworks1-lib.rd} {objdump -dr vxworks1-lib.dd}
 	  {readelf --symbols vxworks1-lib.nd} {readelf -d vxworks1-lib.td}}
 	 "libvxworks1.so"}
-	{"VxWorks executable test 1 (dynamic)" \
-	 "tmpdir/libvxworks1.so -Tvxworks1.ld -q --force-dynamic" ""
+	{"VxWorks executable test 1 (dynamic)"
+	 "tmpdir/libvxworks1.so -Tvxworks1.ld --hash-style=sysv -q --force-dynamic" ""
 	 "" {vxworks1.s}
 	 {{readelf --relocs vxworks1.rd} {objdump -dr vxworks1.dd}}
 	 "vxworks1"}
 	{"VxWorks executable test 2 (dynamic)" \
-	 "-Tvxworks1.ld -q --force-dynamic" ""
+	 "-Tvxworks1.ld --hash-style=sysv -q --force-dynamic" ""
 	 "" {vxworks2.s}
 	 {{readelf --segments vxworks2.sd}}
 	 "vxworks2"}
 	{"VxWorks executable test 2 (static)"
-	 "-Tvxworks1.ld" ""
+	 "-Tvxworks1.ld --hash-style=sysv" ""
 	 "" {vxworks2.s}
 	 {{readelf --segments vxworks2-static.sd}}
 	 "vxworks2"}
@@ -99,43 +100,57 @@ set armelftests_common_1 {
     {"arm-rel31" "-static -T arm.ld" "" "" {arm-rel31.s}
      {{objdump -s arm-rel31.d}}
      "arm-rel31"}
-    {"arm-rel32" "-shared -T arm-dyn.ld" "" "" {arm-rel32.s}
+    {"arm-rel32" "-shared -T arm-dyn.ld --hash-style=sysv" "" "" {arm-rel32.s}
      {{objdump -Rsj.data arm-rel32.d}}
      "arm-rel32"}
     {"arm-call" "--no-fix-arm1176 -static -T arm.ld" "" "-meabi=4" {arm-call1.s arm-call2.s}
      {{objdump -d arm-call.d}}
      "arm-call"}
-    {"TLS shared library" "-shared -T arm-lib.ld" "" "" {tls-lib.s}
+    {"TLS shared library" "-shared -T arm-lib.ld --hash-style=sysv" ""
+     "" {tls-lib.s}
      {{objdump -fdw tls-lib.d} {objdump -Rw tls-lib.r}}
      "tls-lib.so"}
-    {"TLS dynamic application" "-T arm-dyn.ld tmpdir/tls-lib.so" "" "" {tls-app.s}
+    {"TLS dynamic application"
+     "-T arm-dyn.ld --hash-style=sysv tmpdir/tls-lib.so" "" "" {tls-app.s}
      {{objdump -fdw tls-app.d} {objdump -Rw tls-app.r}}
      "tls-app"}
-    {"TLS gnu shared library got" "-shared -T arm-dyn.ld" "" "" {tls-gdesc-got.s}
+    {"TLS gnu shared library got"
+     "-shared -T arm-dyn.ld --hash-style=sysv" "" "" {tls-gdesc-got.s}
      {{objdump "-fDR -j .got" tls-gdesc-got.d}}
      "tls-lib2-got.so"}
-    {"TLS gnu GD to IE relaxation" "-static -T arm-dyn.ld" "" "" {tls-gdierelax.s}
+    {"TLS gnu GD to IE relaxation"
+     "-static -T arm-dyn.ld --hash-style=sysv" "" "" {tls-gdierelax.s}
      {{objdump -fdw tls-gdierelax.d}}
      "tls-app-rel-ie"}
-    {"TLS gnu GD to IE shared relaxation" "--no-fix-arm1176 -shared -T arm-dyn.ld" "" "" {tls-gdierelax2.s}
+    {"TLS gnu GD to IE shared relaxation"
+     "--no-fix-arm1176 -shared -T arm-dyn.ld --hash-style=sysv" ""
+     "" {tls-gdierelax2.s}
      {{objdump -fdw tls-gdierelax2.d}}
      "tls-app-rel-ie2"}
-    {"TLS gnu GD to LE relaxation" "-T arm-dyn.ld" "" "" {tls-gdlerelax.s}
+    {"TLS gnu GD to LE relaxation" "-T arm-dyn.ld --hash-style=sysv" ""
+     "" {tls-gdlerelax.s}
      {{objdump -fdw tls-gdlerelax.d}}
      "tls-app-rel-le"}
-    {"TLS mixed models shared lib" "-shared -T arm-dyn.ld" "" "" {tls-mixed.s}
+    {"TLS mixed models shared lib"
+     "-shared -T arm-dyn.ld --hash-style=sysv" "" "" {tls-mixed.s}
      {{objdump -Rw tls-mixed.r}}
      "tls-mixed.so"}
-    {"TLS descseq relaxation" "-T arm-dyn.ld" "" "" {tls-descrelax.s}
+    {"TLS descseq relaxation"
+     "-T arm-dyn.ld --hash-style=sysv" "" "" {tls-descrelax.s}
      {{objdump -fdw tls-descrelax.d}}
      "tls-descrelax"}
-    {"TLS descseq relaxation v7" "-T arm-dyn.ld" "" "" {tls-descrelax-v7.s}
+    {"TLS descseq relaxation v7"
+     "-T arm-dyn.ld --hash-style=sysv" "" "" {tls-descrelax-v7.s}
      {{objdump -fdw tls-descrelax-v7.d}}
      "tls-descrelax-v7"}
-    {"TLS descseq relaxation BE8" "-T arm-dyn.ld -EB --be8" "" "-mbig-endian" {tls-descrelax-be8.s}
+    {"TLS descseq relaxation BE8"
+     "-T arm-dyn.ld --hash-style=sysv -EB --be8" ""
+     "-mbig-endian" {tls-descrelax-be8.s}
      {{objdump -fdw tls-descrelax-be8.d}}
      "tls-descrelax-be8"}
-    {"TLS descseq relaxation BE32" "-T arm-dyn.ld -EB" "" "-mbig-endian" {tls-descrelax-be32.s}
+    {"TLS descseq relaxation BE32"
+     "-T arm-dyn.ld --hash-style=sysv -EB" ""
+     "-mbig-endian" {tls-descrelax-be32.s}
      {{objdump -fdw tls-descrelax-be32.d}}
      "tls-descrelax-be32"}
     {"TLS local PIC symbol static link" "-T arm.ld" "" "" {tls-local-static.s}
@@ -229,7 +244,7 @@ set armelftests_common_3 {
     {"EABI ABI flags ld -r" "-r" "" "-mfloat-abi=soft -meabi=5" {eabi-soft-float.s}
      {{readelf -h eabi-soft-float-r.d}}
      "eabi-soft-float-r.o"}
-    {"PC-relative in -shared" "-shared" ""
+    {"PC-relative in -shared" "-shared --hash-style=sysv" ""
      "" {pcrel-shared.s}
      {{readelf -dr pcrel-shared.rd}}
      "pcrel-shared.so"}
@@ -267,7 +282,8 @@ set armelftests_nonacl {
     {"jump19" "-static -T arm.ld" "" "" {jump19.s}
      {{objdump -dr jump19.d}}
      "jump19"}
-    {"Thumb and -gc-sections" "-shared -T arm-dyn.ld" "" "" {gc-thumb-lib.s}
+    {"Thumb and -gc-sections"
+     "-shared -T arm-dyn.ld --hash-style=sysv" "" "" {gc-thumb-lib.s}
      {}
      "gc-thumb-lib.so"}
     {"Thumb and -gc-sections" "-pie -T arm.ld -gc-sections tmpdir/gc-thumb-lib.so" "" "" {gc-thumb.s}
@@ -294,32 +310,42 @@ set armelftests_nonacl {
     {"Non-pcrel function reference" "tmpdir/arm-lib.so" "" "" {arm-app-abs32.s}
      {{objdump -fdw arm-app-abs32.d} {objdump -Rw arm-app-abs32.r}}
      "arm-app-abs32"}
-    {"Thumb shared library with ARM entry points" "-shared -T arm-lib.ld" "" "-mthumb-interwork"
-     {mixed-lib.s}
+    {"Thumb shared library with ARM entry points"
+     "-shared -T arm-lib.ld --hash-style=sysv" ""
+     "-mthumb-interwork" {mixed-lib.s}
      {{objdump -fdw armthumb-lib.d} {readelf -Ds armthumb-lib.sym}}
      "armthumb-lib.so"}
-    {"Mixed ARM/Thumb shared library" "-shared -T arm-lib.ld -use-blx" "" ""
-     {mixed-lib.s}
+    {"Mixed ARM/Thumb shared library"
+     "-shared -T arm-lib.ld --hash-style=sysv -use-blx" ""
+     "" {mixed-lib.s}
      {{objdump -fdw mixed-lib.d} {objdump -Rw mixed-lib.r}
       {readelf -Ds mixed-lib.sym}}
      "mixed-lib.so"}
-    {"Mixed ARM/Thumb dynamic application" "tmpdir/mixed-lib.so -T arm-dyn.ld" "" ""
-     {mixed-app.s}
+    {"Mixed ARM/Thumb dynamic application"
+     "tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv" ""
+     "" {mixed-app.s}
      {{objdump -fdw mixed-app.d} {objdump -Rw mixed-app.r}
       {readelf -Ds mixed-app.sym}}
      "mixed-app"}
-    {"Mixed ARM/Thumb arch5 dynamic application" "tmpdir/mixed-lib.so -T arm-dyn.ld --use-blx" "" ""
-     {mixed-app.s}
+    {"Mixed ARM/Thumb arch5 dynamic application"
+     "tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv --use-blx" ""
+     "" {mixed-app.s}
      {{objdump -fdw mixed-app-v5.d} {objdump -Rw mixed-app.r}
       {readelf -Ds mixed-app.sym}}
      "mixed-app-v5"}
-    {"Using Thumb lib by another lib" "-shared tmpdir/mixed-lib.so" "" "" {use-thumb-lib.s}
+    {"Using Thumb lib by another lib"
+     "-shared --hash-style=sysv tmpdir/mixed-lib.so" ""
+     "" {use-thumb-lib.s}
      {{readelf -Ds use-thumb-lib.sym}}
      "use-thumb-lib.so"}
-    {"TLS gnu shared library inlined trampoline" "--no-fix-arm1176 -shared -T arm-dyn.ld" "" "" {tls-descseq.s}
+    {"TLS gnu shared library inlined trampoline"
+     "--no-fix-arm1176 -shared -T arm-dyn.ld --hash-style=sysv" ""
+     "" {tls-descseq.s}
      {{objdump -fdw tls-descseq.d} {objdump -Rw tls-descseq.r}}
      "tls-lib2inline.so"}
-    {"TLS shared library gdesc local" "--no-fix-arm1176 -shared -T arm-dyn.ld" "" "" {tls-lib-loc.s}
+    {"TLS shared library gdesc local"
+     "--no-fix-arm1176 -shared -T arm-dyn.ld --hash-style=sysv" ""
+     "" {tls-lib-loc.s}
      {{objdump -fdw tls-lib-loc.d} {objdump -Rw tls-lib-loc.r}}
      "tls-lib-loc.so"}
 }
@@ -555,30 +581,35 @@ set armeabitests_nonacl {
      {{objdump -d farcall-mix2.d}}
      "farcall-mix2"}
 
-    {"Mixed ARM/Thumb dynamic application with farcalls" "tmpdir/mixed-lib.so -T arm-dyn.ld --section-start .far_arm=0x2100000 --section-start .far_thumb=0x2200000" "" ""
-     {farcall-mixed-app.s}
+    {"Mixed ARM/Thumb dynamic application with farcalls"
+     "tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv --section-start .far_arm=0x2100000 --section-start .far_thumb=0x2200000" ""
+     "" {farcall-mixed-app.s}
      {{objdump -fdw farcall-mixed-app.d} {objdump -Rw farcall-mixed-app.r}
       {readelf -Ds farcall-mixed-app.sym}}
      "farcall-mixed-app"}
-    {"Mixed ARM/Thumb arch5 dynamic application with farcalls" "tmpdir/mixed-lib.so -T arm-dyn.ld --use-blx --section-start .far_arm=0x2100000 --section-start .far_thumb=0x2200000" "" ""
-     {farcall-mixed-app.s}
+    {"Mixed ARM/Thumb arch5 dynamic application with farcalls"
+     "tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv --use-blx --section-start .far_arm=0x2100000 --section-start .far_thumb=0x2200000" ""
+     "" {farcall-mixed-app.s}
      {{objdump -fdw farcall-mixed-app-v5.d} {objdump -Rw farcall-mixed-app.r}
       {readelf -Ds farcall-mixed-app.sym}}
      "farcall-mixed-app-v5"}
 
-    {"Mixed ARM/Thumb2 dynamic application with farcalls" "tmpdir/mixed-lib.so -T arm-dyn.ld --section-start .mid_thumb=0x10081c0 --section-start .far_arm=0x2100000 --section-start .far_thumb=0x2200000" "" ""
-     {farcall-mixed-app2.s}
+    {"Mixed ARM/Thumb2 dynamic application with farcalls"
+     "tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv --section-start .mid_thumb=0x10081c0 --section-start .far_arm=0x2100000 --section-start .far_thumb=0x2200000" ""
+     "" {farcall-mixed-app2.s}
      {{objdump -fdw farcall-mixed-app2.d} {objdump -Rw farcall-mixed-app2.r}
       {readelf -Ds farcall-mixed-app2.sym}}
      "farcall-mixed-app2"}
 
-    {"Mixed ARM/Thumb shared library with long branches (v4t)" "-shared -T arm-lib.ld" "" "-march=armv4t"
-     {farcall-mixed-lib1.s farcall-mixed-lib2.s}
+    {"Mixed ARM/Thumb shared library with long branches (v4t)"
+     "-shared -T arm-lib.ld --hash-style=sysv" ""
+     "-march=armv4t" {farcall-mixed-lib1.s farcall-mixed-lib2.s}
      {{objdump -fdw farcall-mixed-lib-v4t.d}}
      "farcall-mixed-lib.so"}
 
-    {"Mixed ARM/Thumb shared library with long branches (v5t)" "--no-fix-arm1176 -shared -T arm-lib.ld" "" "-march=armv5t"
-     {farcall-mixed-lib1.s farcall-mixed-lib2.s}
+    {"Mixed ARM/Thumb shared library with long branches (v5t)"
+     "--no-fix-arm1176 -shared -T arm-lib.ld --hash-style=sysv" ""
+     "-march=armv5t" {farcall-mixed-lib1.s farcall-mixed-lib2.s}
      {{objdump -fdw farcall-mixed-lib.d}}
      "farcall-mixed-lib.so"}
 
@@ -773,19 +804,29 @@ set armeabitests_nonacl {
      {{objdump -d farcall-group-limit.d}}
      "farcall-group-limit"}
 
-    {"TLS gnu shared library" "--no-fix-arm1176 -shared -T arm-dyn.ld" "" "" {tls-gdesc.s}
+    {"TLS gnu shared library"
+     "--no-fix-arm1176 -shared -T arm-dyn.ld --hash-style=sysv" ""
+     "" {tls-gdesc.s}
      {{objdump -fdw tls-gdesc.d} {objdump -Rw tls-gdesc.r}}
      "tls-lib2.so"}
-    {"TLS gnu shared library non-lazy" "-z now -shared -T arm-dyn.ld" "" "" {tls-gdesc.s}
+    {"TLS gnu shared library non-lazy"
+     "-z now -shared -T arm-dyn.ld --hash-style=sysv" ""
+     "" {tls-gdesc.s}
      {{readelf "-x .got" tls-gdesc-nlazy.g}}
      "tls-lib2-nlazy.so"}
-    {"TLS long plt library" "-shared -T arm-dyn.ld --section-start .foo=0x4001000" "" "" {tls-longplt-lib.s}
+    {"TLS long plt library"
+     "-shared -T arm-dyn.ld --hash-style=sysv --section-start .foo=0x4001000" ""
+     "" {tls-longplt-lib.s}
      {{objdump -fdw tls-longplt-lib.d}}
      "tls-longplt-lib.so"}
-    {"TLS long plt" "-T arm-dyn.ld --section-start .foo=0x4001000 tmpdir/tls-longplt-lib.so" "" "" {tls-longplt.s}
+    {"TLS long plt"
+     "-T arm-dyn.ld --hash-style=sysv --section-start .foo=0x4001000 tmpdir/tls-longplt-lib.so" ""
+     "" {tls-longplt.s}
      {{objdump -fdw tls-longplt.d}}
      "tls-longplt"}
-    {"TLS thumb1" "-shared -T arm-dyn.ld --section-start .foo=0x4001000" "" "" {tls-thumb1.s}
+    {"TLS thumb1"
+     "-shared -T arm-dyn.ld --hash-style=sysv --section-start .foo=0x4001000" ""
+     "" {tls-thumb1.s}
      {{objdump -fdw tls-thumb1.d}}
      "tls-thumb1"}
     {"Cortex-A8 erratum fix, b.w"
@@ -867,7 +908,7 @@ set armeabitests_nonacl {
      {{objdump -dr cortex-a8-fix-blx-plt.d}}
      "cortex-a8-fix-blx-plt"}
     {"Cortex-A8 erratum fix, relocate bl.w to PLT"
-     "-EL --section-start=.plt=0x8e00 -Ttext=0x8f00 --fix-cortex-a8 -shared" ""
+     "-EL --section-start=.plt=0x8e00 -Ttext=0x8f00 --fix-cortex-a8 -shared --hash-style=sysv" ""
      "-EL" {cortex-a8-thumb-target.s cortex-a8-fix-bl-rel.s}
      {{objdump -dr cortex-a8-fix-bl-rel-plt.d}}
      "cortex-a8-fix-bl-rel-thumb"}
@@ -962,16 +1003,58 @@ set armeabitests_nonacl {
      "" {long-plt-format.s}
      {{objdump "-d -j .plt" long-plt-format.d}}
      "long-plt-format"}
-    {"IFUNC and TLS descriptor shared library" "-shared -T arm-lib.ld --version-script=ifunc-gdesc.ver" "" "" {ifunc-gdesc.s}
+    {"IFUNC and TLS descriptor shared library"
+     "-shared -T arm-lib.ld --hash-style=sysv --version-script=ifunc-gdesc.ver" ""
+     "" {ifunc-gdesc.s}
      {{objdump "-Rw" ifunc-gdesc.r}}
      "ifunc-gdesc.so"}
     {"arm-pic-veneer" "-static -T arm.ld --pic-veneer" "" "" {arm-pic-veneer.s}
      {{objdump -d arm-pic-veneer.d}}
      "arm-pic-veneer"}
-    {"Preempt Thumb symbol" "tmpdir/mixed-lib.so -T arm-dyn.ld --use-blx" "" ""
-     {preempt-app.s}
+    {"Preempt Thumb symbol"
+     "tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv --use-blx" ""
+     "" {preempt-app.s}
      {{readelf -Ds preempt-app.sym}}
      "preempt-app"}
+}
+
+set armfdpiceabitests {
+    {"FDPIC ARM shared library little endian"
+     "-shared -T fdpic-shared.ld --hash-style=sysv -EL -m armelf_linux_fdpiceabi" ""
+     "-EL -fdpic" {fdpic-shared.s}
+     {{objdump -fdw fdpic-shared.d} {objdump -Rw fdpic-shared.r}
+      {readelf -Ds fdpic-shared.sym}}
+     "fdpic-shared.so"}
+    {"FDPIC ARM dynamic executable little endian"
+     "tmpdir/fdpic-shared.so -T fdpic-main.ld --hash-style=sysv -EL -m armelf_linux_fdpiceabi" ""
+     "-EL -fdpic" {fdpic-main.s}
+     {{objdump -fdw fdpic-main.d} {objdump -Rw fdpic-main.r}
+      {readelf -Ds fdpic-main.sym}}
+     "fdpic-main"}
+    {"FDPIC ARM shared library big endian"
+     "-shared -T fdpic-shared.ld --hash-style=sysv -EB -m armelfb_linux_fdpiceabi" ""
+     "-EB -fdpic" {fdpic-shared.s}
+     {{objdump -fdw fdpic-shared.d} {objdump -Rw fdpic-shared.r}
+      {readelf -Ds fdpic-shared.sym}}
+     "fdpic-shared.so"}
+    {"FDPIC ARM dynamic executable big endian"
+     "tmpdir/fdpic-shared.so -T fdpic-main.ld --hash-style=sysv -EB -m armelfb_linux_fdpiceabi" ""
+     "-EB -fdpic" {fdpic-main.s}
+     {{objdump -fdw fdpic-main.d} {objdump -Rw fdpic-main.r}
+      {readelf -Ds fdpic-main.sym}}
+     "fdpic-main"}
+    {"FDPIC ARM shared library little endian M profile"
+     "-shared -T fdpic-shared.ld --hash-style=sysv -EL -m armelf_linux_fdpiceabi" ""
+     "-EL -fdpic" {fdpic-shared-m.s}
+     {{objdump -fdw fdpic-shared-m.d} {objdump -Rw fdpic-shared.r}
+      {readelf -Ds fdpic-shared-m.sym}}
+     "fdpic-shared.so"}
+    {"FDPIC ARM dynamic executable little endian M profile"
+     "tmpdir/fdpic-shared.so -T fdpic-main.ld --hash-style=sysv -EL -m armelf_linux_fdpiceabi" ""
+     "-EL -fdpic" {fdpic-main-m.s}
+     {{objdump -fdw fdpic-main-m.d} {objdump -Rw fdpic-main.r}
+      {readelf -Ds fdpic-main-m.sym}}
+     "fdpic-main"}
 }
 
 # Massage the $armeabitests_common list into run_ld_link_tests standard form.
@@ -998,6 +1081,10 @@ for {set i 0} {$i < $neabi_common} {incr i} {
 run_ld_link_tests $armeabitests_common
 if { !$is_nacl } {
     run_ld_link_tests $armeabitests_nonacl
+}
+
+if { [istarget "arm*-*-uclinuxfdpiceabi"] } {
+    run_ld_link_tests $armfdpiceabitests
 }
 
 run_dump_test "attr-merge-div-00"

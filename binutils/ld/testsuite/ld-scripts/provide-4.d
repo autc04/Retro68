@@ -1,7 +1,7 @@
 #source: provide-2.s
 #ld: -T provide-4.t
 #PROG: nm
-#map: provide-4-map.d
+#map: provide-4.map
 #...
 0+3 A baz
 0+2000 D foo

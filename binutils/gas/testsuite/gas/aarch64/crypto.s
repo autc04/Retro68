@@ -1,6 +1,6 @@
 /* crypto.s Test file for AArch64 Advanced-SIMD Crypto instructions.
 
-   Copyright (C) 2012-2017 Free Software Foundation, Inc.  Contributed by ARM Ltd.
+   Copyright (C) 2012-2018 Free Software Foundation, Inc.  Contributed by ARM Ltd.
 
    This file is part of GAS.
 

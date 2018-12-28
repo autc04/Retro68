@@ -1,5 +1,5 @@
 /* SPARC-specific support for 32-bit ELF
-   Copyright (C) 1993-2017 Free Software Foundation, Inc.
+   Copyright (C) 1993-2018 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -86,7 +86,7 @@ elf32_sparc_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
     {
       error = TRUE;
       _bfd_error_handler
-	(_("%B: compiled for a 64 bit system and target is 32 bit"), ibfd);
+	(_("%pB: compiled for a 64 bit system and target is 32 bit"), ibfd);
     }
   else if ((ibfd->flags & DYNAMIC) == 0)
     {
@@ -99,7 +99,7 @@ elf32_sparc_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
       && previous_ibfd_e_flags != (unsigned long) -1)
     {
       _bfd_error_handler
-	(_("%B: linking little endian files with big endian files"), ibfd);
+	(_("%pB: linking little endian files with big endian files"), ibfd);
       error = TRUE;
     }
   previous_ibfd_e_flags = elf_elfheader (ibfd)->e_flags & EF_SPARC_LEDATA;
@@ -175,25 +175,6 @@ elf32_sparc_reloc_type_class (const struct bfd_link_info *info ATTRIBUTE_UNUSED,
     }
 }
 
-/* Hook called by the linker routine which adds symbols from an object
-   file.  */
-
-static bfd_boolean
-elf32_sparc_add_symbol_hook (bfd * abfd,
-			     struct bfd_link_info * info,
-			     Elf_Internal_Sym * sym,
-			     const char ** namep ATTRIBUTE_UNUSED,
-			     flagword * flagsp ATTRIBUTE_UNUSED,
-			     asection ** secp ATTRIBUTE_UNUSED,
-			     bfd_vma * valp ATTRIBUTE_UNUSED)
-{
-  if (ELF_ST_TYPE (sym->st_info) == STT_GNU_IFUNC
-      && (abfd->flags & DYNAMIC) == 0
-      && bfd_get_flavour (info->output_bfd) == bfd_target_elf_flavour)
-    elf_tdata (info->output_bfd)->has_gnu_symbols |= elf_gnu_symbol_ifunc;
-  return TRUE;
-}
-
 #define TARGET_BIG_SYM	sparc_elf32_vec
 #define TARGET_BIG_NAME	"elf32-sparc"
 #define ELF_ARCH	bfd_arch_sparc
@@ -236,10 +217,9 @@ elf32_sparc_add_symbol_hook (bfd * abfd,
 #define bfd_elf32_mkobject		_bfd_sparc_elf_mkobject
 #define elf_backend_object_p		_bfd_sparc_elf_object_p
 #define elf_backend_gc_mark_hook	_bfd_sparc_elf_gc_mark_hook
-#define elf_backend_gc_sweep_hook       _bfd_sparc_elf_gc_sweep_hook
 #define elf_backend_plt_sym_val		_bfd_sparc_elf_plt_sym_val
 #define elf_backend_init_index_section	_bfd_elf_init_1_index_section
-#define elf_backend_fixup_symbol        _bfd_sparc_elf_fixup_symbol
+#define elf_backend_fixup_symbol	_bfd_sparc_elf_fixup_symbol
 
 #define elf_backend_can_gc_sections 1
 #define elf_backend_can_refcount 1
@@ -250,7 +230,7 @@ elf32_sparc_add_symbol_hook (bfd * abfd,
 #define elf_backend_want_dynrelro 1
 #define elf_backend_rela_normal 1
 
-#define elf_backend_add_symbol_hook		elf32_sparc_add_symbol_hook
+#define elf_backend_linux_prpsinfo32_ugid16	TRUE
 
 #include "elf32-target.h"
 
@@ -266,10 +246,10 @@ elf32_sparc_add_symbol_hook (bfd * abfd,
 
 /* The 32-bit static TLS arena size is rounded to the nearest 8-byte
    boundary.  */
-#undef  elf_backend_static_tls_alignment
+#undef	elf_backend_static_tls_alignment
 #define elf_backend_static_tls_alignment	8
 
-#undef  elf_backend_strtab_flags
+#undef	elf_backend_strtab_flags
 #define elf_backend_strtab_flags	SHF_STRINGS
 
 static bfd_boolean

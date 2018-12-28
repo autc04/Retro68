@@ -1,6 +1,6 @@
 #source: pr19636-2.s
 #as: --64 -mrelax-relocations=no
-#ld: -pie -m elf_x86_64 --no-dynamic-linker
+#ld: -pie -m elf_x86_64 --no-dynamic-linker --hash-style=sysv -z max-page-size=0x200000 -z noseparate-code
 #objdump: -dw
 #notarget: x86_64-*-nacl*
 

@@ -21,6 +21,15 @@ psllq $2, %mm6
 psllq $2, %xmm10
 pslldq $2, %xmm10
 
+	add	$1, %axl
+	add	$1, %cxl
+	add	$1, %dxl
+	add	$1, %bxl
+	add	$1, %spl
+	add	$1, %bpl
+	add	$1, %sil
+	add	$1, %dil
+
 .intel_syntax noprefix
 psrlw mm6, 2
 psrlw xmm2, 2

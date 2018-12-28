@@ -1,5 +1,5 @@
 /* obj-evax.c - EVAX (openVMS/Alpha) object file format.
-   Copyright (C) 1996-2017 Free Software Foundation, Inc.
+   Copyright (C) 1996-2018 Free Software Foundation, Inc.
    Contributed by Klaus Kämpf (kkaempf@progis.de) of
      proGIS Software, Aachen, Germany.
    Extensively enhanced by Douglas Rupp of AdaCore.
@@ -470,13 +470,13 @@ shorten_identifier (char *name)
   newname [MAX_LABEL_LENGTH] = 0;
   /* Now append the suffix of the original identifier, if any.  */
   if (suffix_length)
-  strncpy (newname + MAX_LABEL_LENGTH - suffix_length,
-	   name + len - suffix_length,
-	   suffix_length);
-  strncpy (newname + final_len, "_h", 2);
-  strncpy (newname + final_len + 2 , crc_chars, 5);
-  strncpy (newname + final_len + 2 + 5, encode_16 (len), 3);
-  strncpy (newname + final_len + 2 + 5 + 3, encode_16 (sum), 3);
+    strncpy (newname + MAX_LABEL_LENGTH - suffix_length,
+	     name + len - suffix_length,
+	     suffix_length);
+  memcpy (newname + final_len, "_h", 2);
+  memcpy (newname + final_len + 2 , crc_chars, 5);
+  memcpy (newname + final_len + 2 + 5, encode_16 (len), 3);
+  memcpy (newname + final_len + 2 + 5 + 3, encode_16 (sum), 3);
   if (!is_truncated_identifier (newname))
     abort ();
   return newname;

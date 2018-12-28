@@ -6649,6 +6649,9 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 f2 d6 58 27 aa 00 04 00 00 	vptestnmq k5,zmm5,QWORD PTR \[edx\+0x400\]\{1to8\}
 [ 	]*[a-f0-9]+:	62 f2 d6 58 27 6a 80 	vptestnmq k5,zmm5,QWORD PTR \[edx-0x400\]\{1to8\}
 [ 	]*[a-f0-9]+:	62 f2 d6 58 27 aa f8 fb ff ff 	vptestnmq k5,zmm5,QWORD PTR \[edx-0x408\]\{1to8\}
+[ 	]*[a-f0-9]+:	67 62 f1 7c 48 58 07 	vaddps zmm0,zmm0,ZMMWORD PTR \[bx\]
+[ 	]*[a-f0-9]+:	67 62 f1 7c 48 58 47 01 	vaddps zmm0,zmm0,ZMMWORD PTR \[bx\+0x40\]
+[ 	]*[a-f0-9]+:	67 62 f1 7c 48 58 87 34 12 	vaddps zmm0,zmm0,ZMMWORD PTR \[bx\+0x1234\]
 [ 	]*[a-f0-9]+:	62 f1 d5 48 58 f4    	vaddpd zmm6,zmm5,zmm4
 [ 	]*[a-f0-9]+:	62 f1 d5 4f 58 f4    	vaddpd zmm6\{k7\},zmm5,zmm4
 [ 	]*[a-f0-9]+:	62 f1 d5 cf 58 f4    	vaddpd zmm6\{k7\}\{z\},zmm5,zmm4
@@ -13289,4 +13292,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 f2 d6 58 27 aa 00 04 00 00 	vptestnmq k5,zmm5,QWORD PTR \[edx\+0x400\]\{1to8\}
 [ 	]*[a-f0-9]+:	62 f2 d6 58 27 6a 80 	vptestnmq k5,zmm5,QWORD PTR \[edx-0x400\]\{1to8\}
 [ 	]*[a-f0-9]+:	62 f2 d6 58 27 aa f8 fb ff ff 	vptestnmq k5,zmm5,QWORD PTR \[edx-0x408\]\{1to8\}
+[ 	]*[a-f0-9]+:	67 62 f1 7c 48 58 07 	vaddps zmm0,zmm0,ZMMWORD PTR \[bx\]
+[ 	]*[a-f0-9]+:	67 62 f1 7c 48 58 47 01 	vaddps zmm0,zmm0,ZMMWORD PTR \[bx\+0x40\]
+[ 	]*[a-f0-9]+:	67 62 f1 7c 48 58 87 34 12 	vaddps zmm0,zmm0,ZMMWORD PTR \[bx\+0x1234\]
 #pass

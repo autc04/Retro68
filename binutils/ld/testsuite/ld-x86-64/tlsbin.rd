@@ -59,7 +59,7 @@ Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 4 entries:
 [0-9a-f ]+R_X86_64_TPOFF64 +0+ sG6 \+ 0
 [0-9a-f ]+R_X86_64_TPOFF64 +0+ sG1 \+ 0
 
-Relocation section '.rela.plt' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '.rela.plt' at offset 0x[0-9a-f]+ contains 1 entry:
  +Offset +Info +Type +Symbol's Value +Symbol's Name \+ Addend
 [0-9a-f ]+R_X86_64_JUMP_SLOT[0-9a-f ]+__tls_get_addr \+ 0
 
@@ -69,11 +69,8 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* TLS +GLOBAL +DEFAULT +UND sG5
 .* TLS +GLOBAL +DEFAULT +UND sG2
 .* FUNC +GLOBAL +DEFAULT +UND __tls_get_addr
-.* NOTYPE +GLOBAL +DEFAULT +13 __bss_start
 .* TLS +GLOBAL +DEFAULT +UND sG6
 .* TLS +GLOBAL +DEFAULT +UND sG1
-.* NOTYPE +GLOBAL +DEFAULT +13 _edata
-.* NOTYPE +GLOBAL +DEFAULT +13 _end
 
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name

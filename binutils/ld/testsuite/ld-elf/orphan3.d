@@ -7,7 +7,7 @@
 #ld:
 #readelf: -S --wide
 #xfail: "d30v-*-*" "dlx-*-*" "fr30-*-*" "frv-*-elf" "ft32-*-*"
-#xfail: "i860-*-*" "i960-*-*" "iq2000-*-*" "mn10200-*-*" "msp430-*-*" "mt-*-*"
+#xfail: "iq2000-*-*" "mn10200-*-*" "msp430-*-*" "mt-*-*"
 #xfail: "pj-*-*"
 #xfail: "xstormy16-*-*"
 

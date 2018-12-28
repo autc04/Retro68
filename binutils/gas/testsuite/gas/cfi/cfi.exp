@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2017 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -96,11 +96,7 @@ if  { [istarget "i*86-*-*"] || [istarget "x86_64-*-*"] } then {
     if { [istarget "*-pe" ] || [istarget "*-rtemscoff*"] } then {
 	return
     }
-
-    if { [istarget sh64*-*-*] || [istarget sh5*-*-*] } then {
-    } else {
-	run_dump_test "cfi-sh-1"
-    }
+    run_dump_test "cfi-sh-1"
 
 } elseif { [istarget sparc*-*-*] } then {
     global NM

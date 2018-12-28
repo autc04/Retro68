@@ -3,6 +3,7 @@
 #as: -march=from-abi -KPIC -64 -EB
 #objdump: --prefix-addresses -d --show-raw-insn
 #ld: -shared -melf64btsmip
+#target: [check_shared_lib_support]
 
 .*:     file format elf.*mips.*
 

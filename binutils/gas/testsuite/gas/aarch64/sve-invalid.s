@@ -914,7 +914,7 @@
 	fadd	z0.s, p1/m, z0.s, #0
 	fadd	z0.s, p1/m, z0.s, #0.0
 	fadd	z0.s, p1/m, z0.s, #0.5			// OK
-	fadd	z0.s, p1/m, z0.s, #1
+	fadd	z0.s, p1/m, z0.s, #1			// OK
 	fadd	z0.s, p1/m, z0.s, #1.0			// OK
 	fadd	z0.s, p1/m, z0.s, #1.5
 	fadd	z0.s, p1/m, z0.s, #2
@@ -923,16 +923,16 @@
 	fmul	z0.s, p1/m, z0.s, #0
 	fmul	z0.s, p1/m, z0.s, #0.0
 	fmul	z0.s, p1/m, z0.s, #0.5			// OK
-	fmul	z0.s, p1/m, z0.s, #1
+	fmul	z0.s, p1/m, z0.s, #1			// OK
 	fmul	z0.s, p1/m, z0.s, #1.0
 	fmul	z0.s, p1/m, z0.s, #1.5
-	fmul	z0.s, p1/m, z0.s, #2
+	fmul	z0.s, p1/m, z0.s, #2			// OK
 	fmul	z0.s, p1/m, z0.s, #2.0			// OK
 
-	fmax	z0.s, p1/m, z0.s, #0
+	fmax	z0.s, p1/m, z0.s, #0			// OK
 	fmax	z0.s, p1/m, z0.s, #0.0			// OK
 	fmax	z0.s, p1/m, z0.s, #0.5
-	fmax	z0.s, p1/m, z0.s, #1
+	fmax	z0.s, p1/m, z0.s, #1			// OK
 	fmax	z0.s, p1/m, z0.s, #1.0			// OK
 	fmax	z0.s, p1/m, z0.s, #1.5
 	fmax	z0.s, p1/m, z0.s, #2

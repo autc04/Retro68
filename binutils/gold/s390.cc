@@ -1,6 +1,6 @@
 // s390.cc -- s390 target support for gold.
 
-// Copyright (C) 2015-2017 Free Software Foundation, Inc.
+// Copyright (C) 2015-2018 Free Software Foundation, Inc.
 // Written by Marcin Kościelnicki <koriakin@0x04.net>.
 
 // This file is part of gold.
@@ -827,6 +827,7 @@ Target::Target_info Target_s390<32>::s390_info =
   NULL,			// attributes_vendor
   "_start",		// entry_symbol_name
   32,			// hash_entry_size
+  elfcpp::SHT_PROGBITS,	// unwind_section_type
 };
 
 template<>
@@ -855,6 +856,7 @@ Target::Target_info Target_s390<64>::s390_info =
   NULL,			// attributes_vendor
   "_start",		// entry_symbol_name
   64,			// hash_entry_size
+  elfcpp::SHT_PROGBITS,	// unwind_section_type
 };
 
 template<int size>

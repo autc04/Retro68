@@ -72,5 +72,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	f2 0f c7             	\(bad\)  
 [ 	]*[a-f0-9]+:	f0 90                	lock nop
+[ 	]*[a-f0-9]+:	c5 fb e6 40 20       	vcvtpd2dqx 0x20\(%eax\),%xmm0
+[ 	]*[a-f0-9]+:	62 f1 ff 18 e6 40 04 	vcvtpd2dq 0x20\(%eax\)\{1to2\},%xmm0
+[ 	]*[a-f0-9]+:	c5 fb e6 40 20       	vcvtpd2dqx 0x20\(%eax\),%xmm0
 	...
 #pass

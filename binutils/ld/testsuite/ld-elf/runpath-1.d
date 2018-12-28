@@ -1,7 +1,7 @@
 #source: start.s
 #readelf: -d -W
 #ld: -shared -rpath . --enable-new-dtags
-#target: *-*-linux* *-*-gnu*
+#target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
 
 #failif
 #...

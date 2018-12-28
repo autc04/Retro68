@@ -1,6 +1,6 @@
 // gold.cc -- main linker functions
 
-// Copyright (C) 2006-2017 Free Software Foundation, Inc.
+// Copyright (C) 2006-2018 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -175,7 +175,7 @@ queue_initial_tasks(const General_options& options,
 		    Workqueue* workqueue, Input_objects* input_objects,
 		    Symbol_table* symtab, Layout* layout, Mapfile* mapfile)
 {
-  if (cmdline.begin() == cmdline.end())
+  if (cmdline.number_of_input_files() == 0)
     {
       bool is_ok = false;
       if (options.printed_version())

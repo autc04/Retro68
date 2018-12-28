@@ -1,7 +1,7 @@
 #name: ARM IT automatic instruction generation 3
 #as: -mthumb -march=armv7a -mimplicit-it=always
 #objdump: -d --prefix-addresses --show-raw-insn
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#skip: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

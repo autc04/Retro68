@@ -6,7 +6,7 @@
 #source: tls-z.s
 #source: tls-hx1x2.s
 #as: --pic --no-underscore --em=criself
-#ld: --shared -m crislinux
+#ld: --shared -m crislinux --hash-style=sysv
 #objdump: -s -t -R -p -T
 
 # Check that we have proper NPTL/TLS markings and GOT for two
@@ -17,21 +17,21 @@
 
 Program Header:
     LOAD off    0x0+ vaddr 0x0+ paddr 0x0+ align 2\*\*13
-         filesz 0x0+23c memsz 0x0+23c flags r-x
-    LOAD off    0x0+23c vaddr 0x0+223c paddr 0x0+223c align 2\*\*13
+         filesz 0x0+1e8 memsz 0x0+1e8 flags r-x
+    LOAD off    0x0+1e8 vaddr 0x0+21e8 paddr 0x0+21e8 align 2\*\*13
          filesz 0x0+124 memsz 0x0+124 flags rw-
- DYNAMIC off    0x0+2cc vaddr 0x0+22cc paddr 0x0+22cc align 2\*\*2
+ DYNAMIC off    0x0+278 vaddr 0x0+2278 paddr 0x0+2278 align 2\*\*2
          filesz 0x0+70 memsz 0x0+70 flags rw-
-     TLS off    0x0+23c vaddr 0x0+223c paddr 0x0+223c align 2\*\*2
+     TLS off    0x0+1e8 vaddr 0x0+21e8 paddr 0x0+21e8 align 2\*\*2
          filesz 0x0+90 memsz 0x0+90 flags r--
 
 Dynamic Section:
   HASH                 0x0+b4
-  STRTAB               0x0+1b8
-  SYMTAB               0x0+f8
-  STRSZ                0x0+42
+  STRTAB               0x0+17c
+  SYMTAB               0x0+ec
+  STRSZ                0x0+2a
   SYMENT               0x0+10
-  RELA                 0x0+1fc
+  RELA                 0x0+1a8
   RELASZ               0x0+24
   RELAENT              0x0+c
 private flags = 0:
@@ -55,18 +55,18 @@ DYNAMIC SYMBOL TABLE:
 
 DYNAMIC RELOCATION RECORDS
 OFFSET   TYPE              VALUE 
-0+2348 R_CRIS_DTPMOD     \*ABS\*
-0+2350 R_CRIS_DTP        x
-0+2358 R_CRIS_DTP        z
+0+22f4 R_CRIS_DTPMOD     \*ABS\*
+0+22fc R_CRIS_DTP        x
+0+2304 R_CRIS_DTP        z
 
 Contents of section \.hash:
 #...
 Contents of section \.text:
- 0220 6fae8800 00006fbe 8c000000 6fae1400  .*
- 0230 0+ 6fae1c00 0+           .*
+ 01cc 6fae8800 00006fbe 8c000000 6fae1400  .*
+ 01dc 0+ 6fae1c00 0+           .*
 Contents of section .tdata:
 #...
 Contents of section \.got:
- 233c cc220+ 0+ 0+ 0+  .*
- 234c 0+ 0+ 0+ 0+  .*
- 235c 0+                             .*
+ 22e8 78220+ 0+ 0+ 0+  .*
+ 22f8 0+ 0+ 0+ 0+  .*
+ 2308 0+                             .*

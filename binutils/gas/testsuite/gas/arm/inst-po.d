@@ -1,6 +1,6 @@
 #name: .inst pseudo-opcode test 1
 #objdump: -d --prefix-addresses --show-raw-insn
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#skip: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

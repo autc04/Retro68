@@ -22,7 +22,7 @@ OFFSET   TYPE              VALUE
 
 
 Contents of section .group:
- 0000 01000000 07000000                    .*
+ 0000 01000000 07000000 08000000           .*
 Contents of section .text:
  0000 00000000 00000000 00000000 00000000  .*
  0010 00000000.*

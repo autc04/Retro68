@@ -268,7 +268,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	41 0f 01 38          	invlpg \(%r8\)
 [ 	]*[a-f0-9]+:	0f 01 38             	invlpg \(%rax\)
 [ 	]*[a-f0-9]+:	0f 00 c0             	sldt   %eax
-[ 	]*[a-f0-9]+:	48 0f 00 c0          	sldt   %rax
+[ 	]*[a-f0-9]+:	0f 00 c0             	sldt   %eax
 [ 	]*[a-f0-9]+:	66 0f 00 c0          	sldt   %ax
 [ 	]*[a-f0-9]+:	0f 00 00             	sldt   \(%rax\)
 [ 	]*[a-f0-9]+:	e6 00                	out    %al,\$0x0
@@ -293,7 +293,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 01 e0             	smsw   %eax
 [ 	]*[a-f0-9]+:	66 0f 01 e0          	smsw   %ax
 [ 	]*[a-f0-9]+:	0f 01 20             	smsw   \(%rax\)
-[ 	]*[a-f0-9]+:	48 0f 00 c8          	str    %rax
+[ 	]*[a-f0-9]+:	0f 00 c8             	str    %eax
 [ 	]*[a-f0-9]+:	0f 00 c8             	str    %eax
 [ 	]*[a-f0-9]+:	66 0f 00 c8          	str    %ax
 [ 	]*[a-f0-9]+:	0f 00 08             	str    \(%rax\)
@@ -305,4 +305,13 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	66 f7 c9 02 00       	test   \$(0x)?0*2,%cx
 [ 	]*[a-f0-9]+:	f7 c9 04 00 00 00    	test   \$(0x)?0*4,%ecx
 [ 	]*[a-f0-9]+:	48 f7 c9 08 00 00 00 	test   \$(0x)?0*8,%rcx
+[ 	]*[a-f0-9]+:	c0 f0 02             	shl    \$0x2,%al
+[ 	]*[a-f0-9]+:	c1 f0 01             	shl    \$0x1,%eax
+[ 	]*[a-f0-9]+:	48 c1 f0 01          	shl    \$0x1,%rax
+[ 	]*[a-f0-9]+:	d0 f0                	shl    %al
+[ 	]*[a-f0-9]+:	d1 f0                	shl    %eax
+[ 	]*[a-f0-9]+:	48 d1 f0             	shl    %rax
+[ 	]*[a-f0-9]+:	d2 f0                	shl    %cl,%al
+[ 	]*[a-f0-9]+:	d3 f0                	shl    %cl,%eax
+[ 	]*[a-f0-9]+:	48 d3 f0             	shl    %cl,%rax
 #pass

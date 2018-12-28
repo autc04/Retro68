@@ -2,7 +2,7 @@
 #source: armv8-2-fp16-scalar.s
 #objdump: -d
 #as: -march=armv8.2-a+fp16 -mfpu=fp-armv8
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
+#skip: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 Disassembly of section .text:

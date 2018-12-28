@@ -1,6 +1,6 @@
 // arm.cc -- arm target support for gold.
 
-// Copyright (C) 2009-2017 Free Software Foundation, Inc.
+// Copyright (C) 2009-2018 Free Software Foundation, Inc.
 // Written by Doug Kwan <dougkwan@google.com> based on the i386 code
 // by Ian Lance Taylor <iant@google.com>.
 // This file also contains borrowed and adapted code from
@@ -129,7 +129,7 @@ const size_t ARM_TCB_SIZE = 8;
 // Target::do_select_as_default_target() hook so that we do not spend time
 // building the table if we are not linking ARM objects.
 //
-// An alternative is to to process the information in arm-reloc.def in
+// An alternative is to process the information in arm-reloc.def in
 // compilation time and generate a representation of it in PODs only.  That
 // way we can avoid initialization when the linker starts.
 
@@ -3062,6 +3062,7 @@ const Target::Target_info Target_arm<big_endian>::arm_info =
   "aeabi",		// attributes_vendor
   "_start",		// entry_symbol_name
   32,			// hash_entry_size
+  elfcpp::SHT_PROGBITS,	// unwind_section_type
 };
 
 // Arm relocate functions class
@@ -4516,30 +4517,49 @@ Stub::do_fixed_endian_write(unsigned char* view, section_size_type view_size)
 {
   const Stub_template* stub_template = this->stub_template();
   const Insn_template* insns = stub_template->insns();
+  const bool enable_be8 = parameters->options().be8();
 
-  // FIXME:  We do not handle BE8 encoding yet.
   unsigned char* pov = view;
   for (size_t i = 0; i < stub_template->insn_count(); i++)
     {
       switch (insns[i].type())
 	{
 	case Insn_template::THUMB16_TYPE:
-	  elfcpp::Swap<16, big_endian>::writeval(pov, insns[i].data() & 0xffff);
+	  if (enable_be8)
+	    elfcpp::Swap<16, false>::writeval(pov, insns[i].data() & 0xffff);
+	  else
+	    elfcpp::Swap<16, big_endian>::writeval(pov,
+						   insns[i].data() & 0xffff);
 	  break;
 	case Insn_template::THUMB16_SPECIAL_TYPE:
-	  elfcpp::Swap<16, big_endian>::writeval(
-	      pov,
-	      this->thumb16_special(i));
+	  if (enable_be8)
+	    elfcpp::Swap<16, false>::writeval(pov, this->thumb16_special(i));
+	  else
+	    elfcpp::Swap<16, big_endian>::writeval(pov,
+						   this->thumb16_special(i));
 	  break;
 	case Insn_template::THUMB32_TYPE:
 	  {
 	    uint32_t hi = (insns[i].data() >> 16) & 0xffff;
 	    uint32_t lo = insns[i].data() & 0xffff;
-	    elfcpp::Swap<16, big_endian>::writeval(pov, hi);
-	    elfcpp::Swap<16, big_endian>::writeval(pov + 2, lo);
+	    if (enable_be8)
+	      {
+	        elfcpp::Swap<16, false>::writeval(pov, hi);
+	        elfcpp::Swap<16, false>::writeval(pov + 2, lo);
+	      }
+	    else
+	      {
+		elfcpp::Swap<16, big_endian>::writeval(pov, hi);
+		elfcpp::Swap<16, big_endian>::writeval(pov + 2, lo);
+	      }
 	  }
 	  break;
 	case Insn_template::ARM_TYPE:
+	  if (enable_be8)
+	    elfcpp::Swap<32, false>::writeval(pov, insns[i].data());
+	  else
+	    elfcpp::Swap<32, big_endian>::writeval(pov, insns[i].data());
+	  break;
 	case Insn_template::DATA_TYPE:
 	  elfcpp::Swap<32, big_endian>::writeval(pov, insns[i].data());
 	  break;
@@ -11660,7 +11680,7 @@ Target_arm<big_endian>::merge_object_attributes(
 	      if (in_attr[elfcpp::Tag_MPextension_use].int_value()
 		  != in_attr[i].int_value())
 		{
-		  gold_error(_("%s has has both the current and legacy "
+		  gold_error(_("%s has both the current and legacy "
 			       "Tag_MPextension_use attributes"),
 			     name);
 		}
@@ -12120,6 +12140,7 @@ Target_arm<big_endian>::scan_reloc_section_for_stubs(
       const Symbol_value<32> *psymval;
       bool is_defined_in_discarded_section;
       unsigned int shndx;
+      const Symbol* gsym = NULL;
       if (r_sym < local_count)
 	{
 	  sym = NULL;
@@ -12172,7 +12193,6 @@ Target_arm<big_endian>::scan_reloc_section_for_stubs(
 	}
       else
 	{
-	  const Symbol* gsym;
 	  gsym = arm_object->global_symbol(r_sym);
 	  gold_assert(gsym != NULL);
 	  if (gsym->is_forwarder())
@@ -12213,11 +12233,11 @@ Target_arm<big_endian>::scan_reloc_section_for_stubs(
       Symbol_value<32> symval2;
       if (is_defined_in_discarded_section)
 	{
+	  std::string name = arm_object->section_name(relinfo->data_shndx);
+
 	  if (comdat_behavior == CB_UNDETERMINED)
-	    {
-	      std::string name = arm_object->section_name(relinfo->data_shndx);
  	      comdat_behavior = default_comdat_behavior.get(name.c_str());
-	    }
+
 	  if (comdat_behavior == CB_PRETEND)
 	    {
 	      // FIXME: This case does not work for global symbols.
@@ -12227,7 +12247,7 @@ Target_arm<big_endian>::scan_reloc_section_for_stubs(
 	      // script.
 	      bool found;
 	      typename elfcpp::Elf_types<32>::Elf_Addr value =
-		arm_object->map_to_kept_section(shndx, &found);
+		arm_object->map_to_kept_section(shndx, name, &found);
 	      if (found)
 		symval2.set_output_value(value + psymval->input_value());
 	      else
@@ -12235,10 +12255,8 @@ Target_arm<big_endian>::scan_reloc_section_for_stubs(
 	    }
 	  else
 	    {
-	      if (comdat_behavior == CB_WARNING)
-		gold_warning_at_location(relinfo, i, offset,
-					 _("relocation refers to discarded "
-					   "section"));
+	      if (comdat_behavior == CB_ERROR)
+	        issue_discarded_error(relinfo, i, offset, r_sym, gsym);
 	      symval2.set_output_value(0);
 	    }
 	  symval2.set_no_output_symtab_entry();
@@ -12775,7 +12793,7 @@ Target_arm<big_endian>::scan_span_for_cortex_a8_erratum(
 
 	      Arm_address target = (pc_for_insn + offset) | (is_blx ? 0 : 1);
 
-	      // Add a new stub if destination address in in the same page.
+	      // Add a new stub if destination address is in the same page.
 	      if (((address + i) & ~0xfffU) == (target & ~0xfffU))
 		{
 		  Cortex_a8_stub* stub =
@@ -12877,7 +12895,7 @@ Target_arm<big_endian>::fix_exidx_coverage(
     const Task* task)
 {
   // We need to look at all the input sections in output in ascending
-  // order of of output address.  We do that by building a sorted list
+  // order of output address.  We do that by building a sorted list
   // of output sections by addresses.  Then we looks at the output sections
   // in order.  The input sections in an output section are already sorted
   // by addresses within the output section.
@@ -13037,6 +13055,7 @@ const Target::Target_info Target_arm_nacl<big_endian>::arm_nacl_info =
   "aeabi",		// attributes_vendor
   "_start",		// entry_symbol_name
   32,			// hash_entry_size
+  elfcpp::SHT_PROGBITS,	// unwind_section_type
 };
 
 template<bool big_endian>

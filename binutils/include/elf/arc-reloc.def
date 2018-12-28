@@ -1,5 +1,5 @@
 /* ARC relocation types
-   Copyright (C) 2015-2017 Free Software Foundation, Inc.
+   Copyright (C) 2015-2018 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -413,6 +413,13 @@ ARC_RELOC_HOWTO(ARC_S25H_PCREL_PLT, 61, \
                 replace_disp25h, \
                 signed, \
                 ( ME ( ( ( ( L + A ) - P ) >> 1 ) ) ))
+
+ARC_RELOC_HOWTO(ARC_JLI_SECTOFF, 63, \
+                1, \
+                10, \
+                replace_jli, \
+                bitfield, \
+                ( ( S - JLI ) >> 2))
 
 ARC_RELOC_HOWTO(ARC_TLS_DTPMOD, 66, \
                 2, \

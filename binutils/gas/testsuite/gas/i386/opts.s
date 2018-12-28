@@ -172,6 +172,10 @@ _start:
 	movq %mm0,%mm4
 	movq.s %mm0,%mm4
 
+# Tests for op bnd, bnd
+	bndmov %bnd1,%bnd2
+	bndmov.s %bnd1,%bnd2
+
 	.intel_syntax noprefix
 
 # Tests for op reg, reg
@@ -287,3 +291,7 @@ _start:
 # Tests for op mm, mm
 	movq mm4,mm0
 	movq.s mm4,mm0
+
+# Tests for op bnd, bnd
+	bndmov bnd1,bnd2
+	bndmov.s bnd1,bnd2

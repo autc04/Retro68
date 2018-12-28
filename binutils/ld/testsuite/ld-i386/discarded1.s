@@ -2,7 +2,7 @@
 .globl _start
 	.type	_start, @function
 _start:
-	movl	x@GOT(%ecx), %eax
+	divl	x@GOT(%ecx), %eax
 	.size	_start, .-_start
 .globl x
 	.data

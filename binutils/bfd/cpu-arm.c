@@ -1,5 +1,5 @@
 /* BFD support for the ARM processor
-   Copyright (C) 1994-2017 Free Software Foundation, Inc.
+   Copyright (C) 1994-2018 Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -190,7 +190,7 @@ bfd_arm_merge_machines (bfd *ibfd, bfd *obfd)
     {
       /* xgettext: c-format */
       _bfd_error_handler (_("\
-error: %B is compiled for the EP9312, whereas %B is compiled for XScale"),
+error: %pB is compiled for the EP9312, whereas %pB is compiled for XScale"),
 			  ibfd, obfd);
       bfd_set_error (bfd_error_wrong_format);
       return FALSE;
@@ -202,7 +202,7 @@ error: %B is compiled for the EP9312, whereas %B is compiled for XScale"),
     {
       /* xgettext: c-format */
       _bfd_error_handler (_("\
-error: %B is compiled for the EP9312, whereas %B is compiled for XScale"),
+error: %pB is compiled for the EP9312, whereas %pB is compiled for XScale"),
 			  obfd, ibfd);
       bfd_set_error (bfd_error_wrong_format);
       return FALSE;
@@ -233,7 +233,7 @@ arm_check_note (bfd *abfd,
   unsigned long namesz;
   unsigned long descsz;
   unsigned long type;
-  char *        descr;
+  char *	descr;
 
   if (buffer_size < offsetof (arm_Note, name))
     return FALSE;
@@ -274,16 +274,16 @@ arm_check_note (bfd *abfd,
   return TRUE;
 }
 
-#define NOTE_ARCH_STRING 	"arch: "
+#define NOTE_ARCH_STRING	"arch: "
 
 bfd_boolean
 bfd_arm_update_notes (bfd *abfd, const char *note_section)
 {
-  asection *     arm_arch_section;
-  bfd_size_type  buffer_size;
-  bfd_byte *     buffer;
-  char *         arch_string;
-  char *         expected;
+  asection *	 arm_arch_section;
+  bfd_size_type	 buffer_size;
+  bfd_byte *	 buffer;
+  char *	 arch_string;
+  char *	 expected;
 
   /* Look for a note section.  If one is present check the architecture
      string encoded in it, and set it to the current architecture if it is
@@ -335,7 +335,7 @@ bfd_arm_update_notes (bfd *abfd, const char *note_section)
 	{
 	  _bfd_error_handler
 	    /* xgettext: c-format */
-	    (_("warning: unable to update contents of %s section in %B"),
+	    (_("warning: unable to update contents of %s section in %pB"),
 	     note_section, abfd);
 	  goto FAIL;
 	}
@@ -378,11 +378,11 @@ architectures[] =
 unsigned int
 bfd_arm_get_mach_from_notes (bfd *abfd, const char *note_section)
 {
-  asection *     arm_arch_section;
-  bfd_size_type  buffer_size;
-  bfd_byte *     buffer;
-  char *         arch_string;
-  int            i;
+  asection *	 arm_arch_section;
+  bfd_size_type	 buffer_size;
+  bfd_byte *	 buffer;
+  char *	 arch_string;
+  int		 i;
 
   /* Look for a note section.  If one is present check the architecture
      string encoded in it, and set it to the current architecture if it is

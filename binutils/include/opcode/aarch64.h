@@ -1,6 +1,6 @@
 /* AArch64 assembler/disassembler support.
 
-   Copyright (C) 2009-2017 Free Software Foundation, Inc.
+   Copyright (C) 2009-2018 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GNU Binutils.
@@ -37,6 +37,11 @@ extern "C" {
 typedef uint32_t aarch64_insn;
 
 /* The following bitmasks control CPU features.  */
+#define AARCH64_FEATURE_SHA2	0x200000000ULL  /* SHA2 instructions.  */
+#define AARCH64_FEATURE_AES	0x800000000ULL  /* AES instructions.  */
+#define AARCH64_FEATURE_V8_4	0x000000800ULL  /* ARMv8.4 processors.  */
+#define AARCH64_FEATURE_SM4	0x100000000ULL  /* SM3 & SM4 instructions.  */
+#define AARCH64_FEATURE_SHA3	0x400000000ULL  /* SHA3 instructions.  */
 #define AARCH64_FEATURE_V8	0x00000001	/* All processors.  */
 #define AARCH64_FEATURE_V8_2	0x00000020      /* ARMv8.2 processors.  */
 #define AARCH64_FEATURE_V8_3	0x00000040      /* ARMv8.3 processors.  */
@@ -56,6 +61,7 @@ typedef uint32_t aarch64_insn;
 #define AARCH64_FEATURE_RCPC	0x20000000	/* RCPC instructions.  */
 #define AARCH64_FEATURE_COMPNUM	0x40000000	/* Complex # instructions.  */
 #define AARCH64_FEATURE_DOTPROD 0x080000000     /* Dot Product instructions.  */
+#define AARCH64_FEATURE_F16_FML	0x1000000000ULL	/* v8.2 FP16FML ins.  */
 
 /* Architectures are the sum of the base and extensions.  */
 #define AARCH64_ARCH_V8		AARCH64_FEATURE (AARCH64_FEATURE_V8, \
@@ -70,18 +76,21 @@ typedef uint32_t aarch64_insn;
 						 | AARCH64_FEATURE_RDMA)
 #define AARCH64_ARCH_V8_2	AARCH64_FEATURE (AARCH64_ARCH_V8_1,	\
 						 AARCH64_FEATURE_V8_2	\
-						 | AARCH64_FEATURE_F16	\
 						 | AARCH64_FEATURE_RAS)
 #define AARCH64_ARCH_V8_3	AARCH64_FEATURE (AARCH64_ARCH_V8_2,	\
 						 AARCH64_FEATURE_V8_3	\
 						 | AARCH64_FEATURE_RCPC	\
 						 | AARCH64_FEATURE_COMPNUM)
+#define AARCH64_ARCH_V8_4	AARCH64_FEATURE (AARCH64_ARCH_V8_3,	\
+						 AARCH64_FEATURE_V8_4   \
+						 | AARCH64_FEATURE_DOTPROD \
+						 | AARCH64_FEATURE_F16_FML)
 
 #define AARCH64_ARCH_NONE	AARCH64_FEATURE (0, 0)
 #define AARCH64_ANY		AARCH64_FEATURE (-1, 0)	/* Any basic core.  */
 
 /* CPU-specific features.  */
-typedef unsigned long aarch64_feature_set;
+typedef unsigned long long aarch64_feature_set;
 
 #define AARCH64_CPU_HAS_ALL_FEATURES(CPU,FEAT)	\
   ((~(CPU) & (FEAT)) == 0)
@@ -160,6 +169,7 @@ enum aarch64_opnd
   AARCH64_OPND_Sn,	/* AdvSIMD Scalar Sn.  */
   AARCH64_OPND_Sm,	/* AdvSIMD Scalar Sm.  */
 
+  AARCH64_OPND_Va,	/* AdvSIMD Vector Va.  */
   AARCH64_OPND_Vd,	/* AdvSIMD Vector Vd.  */
   AARCH64_OPND_Vn,	/* AdvSIMD Vector Vn.  */
   AARCH64_OPND_Vm,	/* AdvSIMD Vector Vm.  */
@@ -168,6 +178,8 @@ enum aarch64_opnd
   AARCH64_OPND_Ed,	/* AdvSIMD Vector Element Vd.  */
   AARCH64_OPND_En,	/* AdvSIMD Vector Element Vn.  */
   AARCH64_OPND_Em,	/* AdvSIMD Vector Element Vm.  */
+  AARCH64_OPND_Em16,	/* AdvSIMD Vector Element Vm restricted to V0 - V15 when
+			   qualifier is S_H.  */
   AARCH64_OPND_LVn,	/* AdvSIMD Vector register list used in e.g. TBL.  */
   AARCH64_OPND_LVt,	/* AdvSIMD Vector register list used in ld/st.  */
   AARCH64_OPND_LVt_AL,	/* AdvSIMD Vector register list for loading single
@@ -178,6 +190,7 @@ enum aarch64_opnd
   AARCH64_OPND_CRm,	/* Co-processor register in CRm field.  */
 
   AARCH64_OPND_IDX,	/* AdvSIMD EXT index operand.  */
+  AARCH64_OPND_MASK,	/* AdvSIMD EXT index operand.  */
   AARCH64_OPND_IMM_VLSL,/* Immediate for shifting vector registers left.  */
   AARCH64_OPND_IMM_VLSR,/* Immediate for shifting vector registers right.  */
   AARCH64_OPND_SIMD_IMM,/* AdvSIMD modified immediate without shift.  */
@@ -192,6 +205,7 @@ enum aarch64_opnd
   AARCH64_OPND_IMMS,	/* Immediate #<imms> in e.g. BFM.  */
   AARCH64_OPND_WIDTH,	/* Immediate #<width> in e.g. BFI.  */
   AARCH64_OPND_IMM,	/* Immediate.  */
+  AARCH64_OPND_IMM_2,	/* Immediate.  */
   AARCH64_OPND_UIMM3_OP1,/* Unsigned 3-bit immediate in the op1 field.  */
   AARCH64_OPND_UIMM3_OP2,/* Unsigned 3-bit immediate in the op2 field.  */
   AARCH64_OPND_UIMM4,	/* Unsigned 4-bit immediate in the CRm field.  */
@@ -235,6 +249,7 @@ enum aarch64_opnd
   AARCH64_OPND_ADDR_SIMM10,	/* Address of signed 10-bit immediate.  */
   AARCH64_OPND_ADDR_UIMM12,	/* Address of unsigned 12-bit immediate.  */
   AARCH64_OPND_SIMD_ADDR_SIMPLE,/* Address of ld/st multiple structures.  */
+  AARCH64_OPND_ADDR_OFFSET,     /* Address with an optional 9-bit immediate.  */
   AARCH64_OPND_SIMD_ADDR_POST,	/* Address of ld/st multiple post-indexed.  */
 
   AARCH64_OPND_SYSREG,		/* System register operand.  */
@@ -259,6 +274,7 @@ enum aarch64_opnd
   AARCH64_OPND_SVE_ADDR_RI_U6x2,    /* SVE [<Xn|SP>, #<uimm6>*2].  */
   AARCH64_OPND_SVE_ADDR_RI_U6x4,    /* SVE [<Xn|SP>, #<uimm6>*4].  */
   AARCH64_OPND_SVE_ADDR_RI_U6x8,    /* SVE [<Xn|SP>, #<uimm6>*8].  */
+  AARCH64_OPND_SVE_ADDR_R,	    /* SVE [<Xn|SP>].  */
   AARCH64_OPND_SVE_ADDR_RR,	    /* SVE [<Xn|SP>, <Xm|XZR>].  */
   AARCH64_OPND_SVE_ADDR_RR_LSL1,    /* SVE [<Xn|SP>, <Xm|XZR>, LSL #1].  */
   AARCH64_OPND_SVE_ADDR_RR_LSL2,    /* SVE [<Xn|SP>, <Xm|XZR>, LSL #2].  */
@@ -347,6 +363,7 @@ enum aarch64_opnd
   AARCH64_OPND_SVE_ZnxN,	/* SVE vector register list in Zn.  */
   AARCH64_OPND_SVE_Zt,		/* SVE vector register in Zt.  */
   AARCH64_OPND_SVE_ZtxN,	/* SVE vector register list in Zt.  */
+  AARCH64_OPND_SM3_IMM2,	/* SM3 encodes lane in bits [13, 14].  */
 };
 
 /* Qualifier constrains an operand.  It either specifies a variant of an
@@ -382,6 +399,11 @@ enum aarch64_opnd_qualifier
   AARCH64_OPND_QLF_S_S,
   AARCH64_OPND_QLF_S_D,
   AARCH64_OPND_QLF_S_Q,
+  /* This type qualifier has a special meaning in that it means that 4 x 1 byte
+     are selected by the instruction.  Other than that it has no difference
+     with AARCH64_OPND_QLF_S_B in encoding.  It is here purely for syntactical
+     reasons and is an exception from normal AArch64 disassembly scheme.  */
+  AARCH64_OPND_QLF_S_4B,
 
   /* Qualifying an operand which is a SIMD vector register or a SIMD vector
      register list; indicating register shape.
@@ -389,6 +411,7 @@ enum aarch64_opnd_qualifier
      a use is only for the ease of operand encoding/decoding and qualifier
      sequence matching; such a use should not be applied widely; use the value
      constraint qualifiers for immediate operands wherever possible.  */
+  AARCH64_OPND_QLF_V_4B,
   AARCH64_OPND_QLF_V_8B,
   AARCH64_OPND_QLF_V_16B,
   AARCH64_OPND_QLF_V_2H,
@@ -509,6 +532,8 @@ enum aarch64_insn_class
   sve_size_hsd,
   sve_size_sd,
   testbranch,
+  cryptosm3,
+  cryptosm4,
   dotproduct,
 };
 
@@ -742,7 +767,11 @@ extern aarch64_opcode aarch64_opcode_table[];
 #define F_LSE_SZ (1 << 27)
 /* Require an exact qualifier match, even for NIL qualifiers.  */
 #define F_STRICT (1ULL << 28)
-/* Next bit is 29.  */
+/* This system instruction is used to read system registers.  */
+#define F_SYS_READ (1ULL << 29)
+/* This system instruction is used to write system registers.  */
+#define F_SYS_WRITE (1ULL << 30)
+/* Next bit is 31.  */
 
 static inline bfd_boolean
 alias_opcode_p (const aarch64_opcode *opcode)
@@ -934,9 +963,17 @@ struct aarch64_opnd_info
 	  unsigned preind : 1;		/* Pre-indexed.  */
 	  unsigned postind : 1;		/* Post-indexed.  */
 	} addr;
+
+      struct
+	{
+	  /* The encoding of the system register.  */
+	  aarch64_insn value;
+
+	  /* The system register flags.  */
+	  uint32_t flags;
+	} sysreg;
+
       const aarch64_cond *cond;
-      /* The encoding of the system register.  */
-      aarch64_insn sysreg;
       /* The encoding of the PSTATE field.  */
       aarch64_insn pstatefield;
       const aarch64_sys_ins_reg *sysins_op;
@@ -1070,6 +1107,7 @@ struct aarch64_operand_error
   int index;
   const char *error;
   int data[3];	/* Some data for extra information.  */
+  bfd_boolean non_fatal;
 };
 
 typedef struct aarch64_operand_error aarch64_operand_error;
@@ -1094,7 +1132,8 @@ aarch64_get_opcode (enum aarch64_op);
 /* Generate the string representation of an operand.  */
 extern void
 aarch64_print_operand (char *, size_t, bfd_vma, const aarch64_opcode *,
-		       const aarch64_opnd_info *, int, int *, bfd_vma *);
+		       const aarch64_opnd_info *, int, int *, bfd_vma *,
+		       char **);
 
 /* Miscellaneous interface.  */
 
@@ -1115,7 +1154,8 @@ extern int
 aarch64_zero_register_p (const aarch64_opnd_info *);
 
 extern int
-aarch64_decode_insn (aarch64_insn, aarch64_inst *, bfd_boolean);
+aarch64_decode_insn (aarch64_insn, aarch64_inst *, bfd_boolean,
+		     aarch64_operand_error *errors);
 
 /* Given an operand qualifier, return the expected data element size
    of a qualified operand.  */

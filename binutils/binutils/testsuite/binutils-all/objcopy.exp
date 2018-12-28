@@ -1,4 +1,4 @@
-#   Copyright (C) 1994-2017 Free Software Foundation, Inc.
+#   Copyright (C) 1994-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -47,7 +47,6 @@ proc objcopy_test {testname srcfile} {
     global copyfile
 
     if {![binutils_assemble $srcdir/$subdir/${srcfile} $tempfile]} then {
- 	perror "unresolved $testname"
 	unresolved "objcopy ($testname)"
 	remote_file host delete $tempfile
 	return
@@ -78,19 +77,13 @@ proc objcopy_test {testname srcfile} {
 	# files in the first place, and may order things a little
 	# differently. Those systems should use setup_xfail here.
 
-	setup_xfail "h8300-*-coff"
-	setup_xfail "h8500-*-rtems*" "h8500-*-coff"
 	setup_xfail "hppa*-*-*"
-	setup_xfail "i960-*"
-	setup_xfail "m68*-*-*coff" "m68*-*-hpux*" "m68*-*-lynxos*"
-	setup_xfail "m68*-*-sysv*" "m68*-apple-aux*"
 	setup_xfail "m8*-*"
 	setup_xfail "sh-*-coff*"
-	setup_xfail "tic80-*-*" "w65-*"
+	setup_xfail "tic80-*-*"
 
 	clear_xfail "hppa*64*-*-hpux*" "hppa*-*-linux*" "hppa*-*-lites*"
 	clear_xfail "hppa*-*-*n*bsd*" "hppa*-*-rtems*" "*-*-*elf*"
-	clear_xfail "m68*-*-sysv4*"
 
 	if [string equal "" $exec_output] then {
 	    pass "objcopy ($testname)"
@@ -571,7 +564,7 @@ proc copy_setup { } {
     set res [build_wrapper testglue.o]
     set flags { debug }
 
-    if { [istarget *-*-uclinux*] && ![istarget tic6x-*-*] } {
+    if { [istarget *-*-uclinux*] && ![istarget tic6x-*-*] && ![istarget arm*-*-uclinuxfdpiceabi] } {
 	return 1
     }
 
@@ -658,7 +651,6 @@ proc copy_executable { prog flags test1 test2 } {
 	    setup_xfail "*-*-*"
 	}
 
-	setup_xfail "arm*-*-coff"
 	setup_xfail "arm*-*-pe"
 	setup_xfail "*-*-mingw*"
 	setup_xfail "*-*-cygwin*"
@@ -842,7 +834,7 @@ proc keep_debug_symbols_and_test_copy { prog1 flags1 test1 prog2 flags2 test2 } 
 }
 
 # Tests that in a debug only copy of a file the sections
-# headers whoes types have been changed to NOBITS still
+# headers whose types have been changed to NOBITS still
 # retain their sh_link fields.
 
 proc keep_debug_symbols_and_check_links { prog flags test } {
@@ -1052,13 +1044,21 @@ if [is_elf_format] {
     objcopy_test_readelf "GNU_MBIND section" mbind1.s
     run_dump_test "group-5"
     run_dump_test "group-6"
+    run_dump_test "group-7a"
+    run_dump_test "group-7b"
+    run_dump_test "group-7c"
     run_dump_test "copy-1"
     run_dump_test "note-1"
     if [is_elf64 tmpdir/bintest.o] {
 	run_dump_test "note-2-64"
+	run_dump_test "note-3-64"
+	run_dump_test "note-4-64"
     } else {
 	run_dump_test "note-2-32"
+	run_dump_test "note-3-32"
+	run_dump_test "note-4-32"
     }
+    run_dump_test "note-5"
 }
 
 run_dump_test "copy-2"
@@ -1078,16 +1078,60 @@ if [is_elf_format] {
     run_dump_test "strip-8"
     run_dump_test "strip-9"
     run_dump_test "strip-12"
+
+    if { [istarget "mips64*-*-openbsd*"] } {
+	set reloc_format mips64
+    } elseif { ([istarget "arm*-*"] \
+		&& ![istarget "*-*-vxworks"] \
+		&& ![istarget "*-*-windiss"]) \
+	       || [istarget "d10v-*"] \
+	       || [istarget "dlx-*"] \
+	       || [istarget "i*86-*"] \
+	       || [istarget "m681*-*"] \
+	       || [istarget "m68hc1*-*"] \
+	       || ([istarget "mips*-*"] \
+		   && ![istarget "mips64*-ps2-elf*"] \
+		   && ![istarget "*-*-irix6*"] \
+		   && ![istarget "mips64*-*-freebsd*"] \
+		   && ![istarget "mips64*-*-kfreebsd*-gnu"] \
+		   && ![istarget "mips64*-*-linux*"]) \
+	       || [istarget "score*-*"] \
+	       || [istarget "xgate-*"] } {
+	set reloc_format rel
+    } else {
+	set reloc_format rela
+    }
+    run_dump_test "strip-13" [list [list source strip-13${reloc_format}.s]]
+    # Select a relocation number that corresponds to one actually
+    # supported by the target and ABI being tested.
+    if { [istarget "aarch64*-*"] } {
+	set reloc 259
+    } elseif { [istarget "ia64*-*"] \
+	       || [istarget "m32r*-*"] \
+	       || [istarget "nds32*-*"] \
+	       || [istarget "v850*-*"] } {
+	set reloc 50
+    } elseif { [istarget "pru-*"] } {
+	set reloc 11
+    } else {
+	set reloc 1
+    }
+    run_dump_test "strip-14" [list \
+				[list source strip-14${reloc_format}.s] \
+				[list as "--defsym RELOC=${reloc}"] \
+				[list as [expr {[is_elf64 tmpdir/bintest.o] \
+				    ? "--defsym ELF64=1" : ""}]]]
+    run_dump_test "strip-15" [list \
+				[list source strip-15${reloc_format}.s] \
+				[list as "--defsym RELOC=${reloc}"] \
+				[list as [expr {[is_elf64 tmpdir/bintest.o] \
+				    ? "--defsym ELF64=1" : ""}]]]
+
     # This requires STB_GNU_UNIQUE support with OSABI set to GNU.
     if { [supports_gnu_unique] } {
 	run_dump_test "strip-10"
     }
-    set extra_strip11 ""
-    if { [istarget "sh64*-*"] } {
-	# pr17755 testcase
-	set extra_strip11 { { "as" "--isa=SHmedia --abi=64" } }
-    }
-    run_dump_test "strip-11" $extra_strip11
+    run_dump_test "strip-11"
 
     if { [istarget "i*86-*"] || [istarget "x86_64-*-*"] } {
 	# Check to make sure we don't strip a symbol named in relocations.

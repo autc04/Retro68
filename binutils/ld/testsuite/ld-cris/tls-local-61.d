@@ -1,6 +1,6 @@
 #source: tls-local-59.s
 #as: --pic --no-underscore --em=criself -I$srcdir/$subdir
-#ld: -m crislinux --shared
+#ld: -m crislinux --shared --hash-style=sysv
 #objdump: -s -t -r -p -R -T
 
 # A DSO with a R_CRIS_32_GOT_GD, a R_CRIS_16_GOT_GD, a
@@ -18,15 +18,15 @@ Program Header:
 #...
 DYNAMIC RELOCATION RECORDS
 OFFSET   TYPE              VALUE 
-00002304 R_CRIS_32_TPREL   \*ABS\*
-00002308 R_CRIS_DTP        \*ABS\*
+000022b0 R_CRIS_32_TPREL   \*ABS\*
+000022b4 R_CRIS_DTP        \*ABS\*
 
 Contents of section \.hash:
 #...
 Contents of section \.text:
- 01ec 6fae1000 00006fae 0c000000 5fae1000  .*
- 01fc 5fae0c00                             .*
+ 0198 6fae1000 00006fae 0c000000 5fae1000  .*
+ 01a8 5fae0c00                             .*
 #...
 Contents of section \.got:
- 22f8 80220+ 0+ 0+ 0+  .*
- 2308 0+ 0+                    .*
+ 22a4 2c220+ 0+ 0+ 0+  .*
+ 22b4 0+ 0+                    .*

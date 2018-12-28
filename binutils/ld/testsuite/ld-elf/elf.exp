@@ -1,5 +1,5 @@
 # Expect script for various ELF tests.
-#   Copyright (C) 2002-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -61,6 +61,8 @@ if { [is_remote host] } then {
     remote_download host merge.ld
 }
 
+# Note - the output file from the second test (symbol3w.a) is
+# used in the proc is_elf64 test below...
 run_ld_link_tests [list \
     [list "Build symbol3.a" \
 	"" "" $hpux \
@@ -70,113 +72,50 @@ run_ld_link_tests [list \
 	{symbol3w.s} {} "symbol3w.a" ] \
 ]
 
-if { [check_shared_lib_support] } then {
-    run_ld_link_tests {
-	{"Build pr14170a.o" "" "" "" {pr14170a.s} {} "pr14170.a" }
-    }
-    setup_xfail "tic6x-*-*"
-    run_ld_link_tests {
-	{"Build shared library for pr14170"
-	    "-shared" "" "" "pr14170b.s" {} "pr14170.so" }
-    }
-    # bfin does not currently support copy relocs.
-    setup_xfail "bfin-*-*"
-    run_ld_link_tests [list \
-	[list "PR ld/14170" \
-	    "--no-dynamic-linker tmpdir/pr14170a.o tmpdir/pr14170.so" "" $hpux \
-	     {pr14170c.s} { } "pr14170" ] \
-    ]
-}
 
-# Only run these tests on targets that support creating shared libraries.
-if { [check_shared_lib_support] } then {
-    # This target requires extra GAS options when building non-PIC code
-    # for linking with shared libraries.
-    set AFLAGS_NONPIC ""
-    if [istarget "mips*-*-*"] {
-	append AFLAGS_NONPIC " -call_nonpic"
+# True if the object format is known to be 64-bit ELF.
+#
+proc is_elf64 { binary_file } {
+    global READELF
+    global READELFFLAGS
+
+    set readelf_size ""
+    catch "exec $READELF $READELFFLAGS -h $binary_file > readelf.out" got
+
+    if ![string match "" $got] then {
+	return 0
     }
 
-    # Run a test to check linking a shared library with a broken linker
-    # script that accidentally marks dynamic sections as notes.  The
-    # resulting executable is not expected to work, but the linker
-    # should not seg-fault whilst creating the binary.
-    setup_xfail "tic6x-*-*"
-    run_ld_link_tests {
-	{"Build shared library for next test"
-	    "-shared" "" "" "note-3.s" {} "note-3.so" }
-	{"Link using broken linker script"
-	    "--script note-3.t tmpdir/note-3.so" "" "" ""
-	    { { ld "note-3.l" } }
-	    "a.out" }
+    if { ![regexp "\n\[ \]*Class:\[ \]*ELF(\[0-9\]+)\n" \
+	       [file_contents readelf.out] nil readelf_size] } {
+	verbose "FAILED to determine ELF size"
+	return 0
     }
-    setup_xfail "tic6x-*-*"
-    run_ld_link_tests {
-	{"Build pr17068.so"
-	    "-shared" "" ""
-	    {pr17068d.s} {} "pr17068.so"}
-	{"Build pr17068a.a"
-	    "" "" ""
-	    {pr17068a.s pr17068c.s pr17068ez.s} {} "pr17068a.a"}
-	{"Build pr17068b.a"
-	    "" "" ""
-	    {pr17068b.s pr17068e.s} {} "pr17068b.a"}
+
+    if { $readelf_size == "64" } {
+	return 1
     }
-    # bfin does not currently support copy relocs.
-    setup_xfail "bfin-*-*"
-    run_ld_link_tests {
-	{"pr17068 link --as-needed lib in group"
-	    "--as-needed --no-dynamic-linker" "--start-group tmpdir/pr17068a.a tmpdir/pr17068.so tmpdir/pr17068b.a --end-group" ""
-	    {start.s pr17068.s} {} "pr17068"}
-    }
-    # xfail on tic6x due to non-PIC/non-PID warnings
-    setup_xfail "tic6x-*-*"
-    # Fails on MIPS because ABI trickery means that a NULL reloc is also emitted.
-    setup_xfail "mips*-*-*"
-    # Fails on bfin because relocations are not created.
-    setup_xfail "bfin-*-*"
-    run_ld_link_tests {
-	{"-Bsymbolic-functions"
-	    "-shared -Bsymbolic-functions" "" ""
-	    {symbolic-func.s} {{readelf {-r --wide} symbolic-func.r}}
-	    "symbolic-func.so"}
-    }
-    # xfail on tic6x due to non-PIC/non-PID warnings
-    setup_xfail "tic6x-*-*"
-    run_ld_link_tests {
-	{"Build pr20995.so"
-	    "-shared" "" ""
-	    {pr20995b.s} {} "pr20995.so"}
-    }
-    setup_xfail "tic6x-*-*"
-    # xfail on arm*-*-eabi*.  The list can be enlarged to those targets that
-    # don't support GNU_RELRO.  For more details, please see discussions at:
-    #   https://sourceware.org/ml/binutils/2017-01/msg00441.html
-    setup_xfail "arm*-*-eabi*" "hppa*64*-*-hpux*"
-    run_ld_link_tests {
-	{"Build pr20995-2.so"
-	    "-shared -z relro" "" ""
-	    {pr20995c.s} {{readelf {-l --wide} pr20995-2so.r}} "pr20995-2.so"}
-    }
-    # These targets don't copy dynamic variables into .bss.
-    setup_xfail "alpha-*-*" "bfin-*-*" "ia64-*-*" "xtensa-*-*"
-    # or don't have .data.rel.ro
-    setup_xfail "hppa*64*-*-hpux*"
-    run_ld_link_tests [list \
-	[list \
-	    "pr20995" \
-	    "" "tmpdir/pr20995.so" "$AFLAGS_NONPIC" \
-	    {pr20995a.s} {{readelf {-S --wide} pr20995.r}} "pr20995"]]
-    # xfail on arm*-*-eabi* is particularly because of no support of GNU_RELRO.
-    # Please see the link above for details.
-    setup_xfail "alpha-*-*" "bfin-*-*" "ia64-*-*" "xtensa-*-*" "arm*-*-eabi*"
-    setup_xfail "hppa*64*-*-hpux*"
-    run_ld_link_tests [list \
-	[list \
-	    "pr20995-2" \
-	    "" "tmpdir/pr20995-2.so" "$AFLAGS_NONPIC" \
-	    {pr20995a.s} {{readelf {-S --wide} pr20995.r}} "pr20995-2"]]
+
+    return 0
 }
+
+if [is_elf64 tmpdir/symbol3w.a] {
+    set ASFLAGS "$ASFLAGS --defsym ALIGN=3"
+} else {
+    set ASFLAGS "$ASFLAGS --defsym ALIGN=2"
+}
+
+
+
+# Targets that use _bfd_generic_link_add_symbols won't pass pr21703 tests
+run_ld_link_tests {
+      {"PR ld/21703"
+	"--allow-multiple-definition tmpdir/pr21703-1.o tmpdir/pr21703-2.o" "" "" \
+	{pr21703-1.s pr21703-2.s} {{readelf {-s} pr21703.sd}} "pr21703" }
+      {"PR ld/21703 -r"
+	"-r --allow-multiple-definition tmpdir/pr21703-3.o tmpdir/pr21703-4.o" "" "" \
+	{pr21703-3.s pr21703-4.s} {{readelf {-s} pr21703-r.sd}} "pr21703.o" }
+} "d30v-*-*" "dlx-*-*" "pj-*-*"
 
 if [is_underscore_target] {
     set ASFLAGS "$ASFLAGS --defsym UNDERSCORE=1"
@@ -212,21 +151,6 @@ run_ld_link_tests [list \
 	"implib" ] \
 ] $xfail_implib
 
-if { [istarget *-*-linux*]
-     || [istarget *-*-nacl*]
-     || [istarget *-*-gnu*] } {
-    run_ld_link_tests {
-	{"Weak symbols in dynamic objects 1 (support)"
-	    "-shared" "" "" {weak-dyn-1a.s}
-	    {}
-	    "libweakdyn1a.so"}
-	{"Weak symbols in dynamic objects 1 (main test)"
-	    "-shared tmpdir/libweakdyn1a.so -Tweak-dyn-1.ld" "" "" {weak-dyn-1b.s}
-	    {{readelf {--relocs --wide} weak-dyn-1.rd}}
-	    "libweakdyn1b.so"}
-    }
-}
-
 #v850 gas complains about .tbss.var section attributes.
 if { [check_gc_sections_available] && ![istarget "v850-*-*"] } {
     run_ld_link_tests {
@@ -241,6 +165,8 @@ if { [istarget *-*-*linux*]
     run_ld_link_tests {
 	{"stack exec" "-z execstack" "" "" {stack.s}
 	    {{readelf {-Wl} stack-exec.rd}} "stack-exec.exe"}
+	{"stack noexec" "-z noexecstack" "" "" {stack.s}
+	    {{readelf {-Wl} stack-noexec.rd}} "stack-noexec.exe"}
 	{"stack size" "-z stack-size=0x123400" "" "" {stack.s}
 	    {{readelf {-Wl} stack-size.rd}} "stack-size.exe"}
     }

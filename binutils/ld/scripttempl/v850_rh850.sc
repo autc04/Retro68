@@ -1,11 +1,11 @@
-# Copyright (C) 2014-2017 Free Software Foundation, Inc.
-# 
+# Copyright (C) 2014-2018 Free Software Foundation, Inc.
+#
 # Copying and distribution of this file, with or without modification,
 # are permitted in any medium without royalty provided the copyright
 # notice and this notice are preserved.
 
 cat << EOF
-/* Copyright (C) 2014-2017 Free Software Foundation, Inc.
+/* Copyright (C) 2014-2018 Free Software Foundation, Inc.
 
    Copying and distribution of this script, with or without modification,
    are permitted in any medium without royalty provided the copyright
@@ -82,7 +82,7 @@ SECTIONS
   {
     *(.text)
     ${RELOCATING+*(.text.*)}
-    
+
     /* .gnu.warning sections are handled specially by elf32.em.  */
     *(.gnu.warning)
     *(.gnu.linkonce.t*)
@@ -100,7 +100,7 @@ SECTIONS
     ${RELOCATING+PROVIDE(__ctbp = .);}
     *(.call_table_data)
   } = 0xff   /* Fill gaps with 0xff.  */
-  
+
   .call_table_text :
   {
     *(.call_table_text)
@@ -169,7 +169,7 @@ SECTIONS
   /* We want the small data sections together, so single-instruction offsets
      can access them all, and initialized data all before uninitialized, so
      we can shorten the on-disk segment size.  */
-     
+
   .sdata ${SDATA_START_ADDR} :
   {
 	${RELOCATING+PROVIDE (__gp = . + 0x8000);}
@@ -189,7 +189,7 @@ SECTIONS
      it can directly precede the .bss section.  This allows runtime startup
      code to initialise all the zero-data sections by simply taking the
      value of '_edata' and zeroing until it reaches '_end'.  */
-     
+
   .sbss :
   {
 	${RELOCATING+__sbss_start = .;}
@@ -214,7 +214,7 @@ SECTIONS
   ${RELOCATING+PROVIDE (end = .);}
   ${RELOCATING+PROVIDE (_heap_start = .);}
 
-  .note.renesas 0 : { KEEP(*(.note.renesas)) }  
+  .note.renesas 0 : { KEEP(*(.note.renesas)) }
 
   /* Stabs debugging sections.  */
   .stab 0		: { *(.stab) }

@@ -1,5 +1,5 @@
 /* tc-cr16.c -- Assembler code for the CR16 CPU core.
-   Copyright (C) 2007-2017 Free Software Foundation, Inc.
+   Copyright (C) 2007-2018 Free Software Foundation, Inc.
 
    Contributed by M R Swami Reddy <MR.Swami.Reddy@nsc.com>
 
@@ -178,7 +178,12 @@ l_cons (int nbytes)
               if ((width = exp.X_add_number) >
                   (unsigned int)(BITS_PER_CHAR * nbytes))
                 {
-                  as_warn (_("field width %lu too big to fit in %d bytes: truncated to %d bits"), width, nbytes, (BITS_PER_CHAR * nbytes));
+		  as_warn (ngettext ("field width %lu too big to fit in %d"
+				     " byte: truncated to %d bits",
+				     "field width %lu too big to fit in %d"
+				     " bytes: truncated to %d bits",
+				     nbytes),
+			   width, nbytes, (BITS_PER_CHAR * nbytes));
                   width = BITS_PER_CHAR * nbytes;
                 }                   /* Too big.  */
 
@@ -1119,8 +1124,7 @@ getreg_image (reg r)
 /* Issue a error message when register is illegal.  */
 #define IMAGE_ERR \
   as_bad (_("Illegal register (`%s') in Instruction: `%s'"), \
-            reg_name, ins_parse);                            \
-  break;
+	  reg_name, ins_parse);
 
   switch (rreg->type)
     {
@@ -1129,6 +1133,7 @@ getreg_image (reg r)
         return rreg->image;
       else
         IMAGE_ERR;
+      break;
 
     case CR16_P_REGTYPE:
       return rreg->image;
@@ -1136,6 +1141,7 @@ getreg_image (reg r)
 
     default:
       IMAGE_ERR;
+      break;
     }
 
   return 0;

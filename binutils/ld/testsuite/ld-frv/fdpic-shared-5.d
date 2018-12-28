@@ -1,7 +1,7 @@
 #name: FRV uClinux PIC relocs to undefined symbols, shared linking
 #source: fdpic5.s
 #objdump: -DRz -j .text -j .data -j .got -j .plt
-#ld: -shared
+#ld: -shared --hash-style=sysv
 
 .*:     file format elf.*frv.*
 
@@ -49,16 +49,16 @@ Disassembly of section \.dat[0-9a-f ]+:
 Disassembly of section \.got:
 
 [0-9a-f ]+<.got>:
-[0-9a-f ]+:	00 00 04 7c 	.*
+[0-9a-f ]+:	00 00 03 f8 	.*
 [0-9a-f	 ]+: R_FRV_FUNCDESC_VALUE	UF9
 [0-9a-f ]+:	00 00 00 00 	.*
-[0-9a-f ]+:	00 00 04 64 	.*
+[0-9a-f ]+:	00 00 03 e0 	.*
 [0-9a-f	 ]+: R_FRV_FUNCDESC_VALUE	UF8
 [0-9a-f ]+:	00 00 00 00 	.*
-[0-9a-f ]+:	00 00 04 74 	.*
+[0-9a-f ]+:	00 00 03 f0 	.*
 [0-9a-f	 ]+: R_FRV_FUNCDESC_VALUE	UF0
 [0-9a-f ]+:	00 00 00 00 	.*
-[0-9a-f ]+:	00 00 04 6c 	.*
+[0-9a-f ]+:	00 00 03 e8 	.*
 [0-9a-f	 ]+: R_FRV_FUNCDESC_VALUE	UF7
 [0-9a-f ]+:	00 00 00 00 	.*
 

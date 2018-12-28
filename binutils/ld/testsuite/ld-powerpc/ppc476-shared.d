@@ -1,6 +1,6 @@
 #source: ppc476-shared.s
 #as: -a32
-#ld: -melf32ppc -q -shared --ppc476-workaround -T ppc476-shared.lnk
+#ld: -melf32ppc -q -shared -z common-page-size=0x10000 --ppc476-workaround -T ppc476-shared.lnk
 #objdump: -dr
 #target: powerpc*-*-*
 

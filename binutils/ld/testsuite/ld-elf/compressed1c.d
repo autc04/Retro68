@@ -2,7 +2,7 @@
 #as: --compress-debug-sections=zlib-gabi
 #ld: -shared --compress-debug-sections=none
 #readelf: -t
-#target: *-*-linux* *-*-gnu*
+#target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
 
 #failif
 #...

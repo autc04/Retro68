@@ -1,7 +1,7 @@
 #source: mbind1.s
 #ld: -shared -z common-page-size=0x1000 -z max-page-size=0x200000
 #readelf: -S -l --wide
-#target: *-*-linux* *-*-gnu*
+#target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
 
 #...
   \[[ 0-9]+\] \.mbind\.text[ 	]+PROGBITS[ 	]+[0-9a-f]+ [0-9a-f]+ [0-9a-f]+ 00 AXD  0   0 4096

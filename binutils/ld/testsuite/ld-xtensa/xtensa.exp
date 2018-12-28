@@ -1,5 +1,5 @@
 # Expect script for ld-xtensa tests
-#   Copyright (C) 2008-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2008-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -34,7 +34,8 @@ if { !([istarget "xtensa*-*-linux*"]) } {
 
 set xtensatests {
     {"TLS -shared transitions"
-     "-shared -melf32xtensa" "" "" {tlspic1.s tlspic2.s}
+     "-shared -melf32xtensa --hash-style=sysv" ""
+     "" {tlspic1.s tlspic2.s}
      {{readelf -WSsrl tlspic.rd}
       {objdump "-drj.text --start-address=0x350" tlspic.dd}
       {objdump "-sj.text --stop-address=0x350" tlspic.sd}
@@ -43,7 +44,8 @@ set xtensatests {
     {"Helper shared library" "-shared -melf32xtensa" ""
      "" {tlslib.s} {} "libtlslib.so"}
     {"TLS exec transitions"
-     "-melf32xtensa tmpdir/libtlslib.so" "" "" {tlsbin.s}
+     "-melf32xtensa tmpdir/libtlslib.so --hash-style=sysv" ""
+     "" {tlsbin.s}
      {{readelf -WSsrl tlsbin.rd}
       {objdump "-drj.text --start-address=0x400238" tlsbin.dd}
       {objdump "-sj.text --stop-address=0x400238" tlsbin.sd}

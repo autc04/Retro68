@@ -1,5 +1,5 @@
 /* RISC-V-specific support for ELF.
-   Copyright (C) 2011-2017 Free Software Foundation, Inc.
+   Copyright (C) 2011-2018 Free Software Foundation, Inc.
 
    Contributed by Andrew Waterman (andrew@sifive.com).
    Based on TILE-Gx and MIPS targets.
@@ -31,6 +31,13 @@
 #include <stdint.h>
 
 #define MINUS_ONE ((bfd_vma)0 - 1)
+
+/* Special handler for ADD/SUB relocations that allows them to be filled out
+   both in the pre-linked and post-linked file.  This is necessary to make
+   pre-linked debug info work, as due to linker relaxations we need to emit
+   relocations for the debug info.  */
+static bfd_reloc_status_type riscv_elf_add_sub_reloc
+  (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
 
 /* The relocation table used for SHT_RELA sections.  */
 
@@ -106,8 +113,8 @@ static reloc_howto_type howto_table[] =
 	 bfd_elf_generic_reloc,		/* special_function */
 	 "R_RISCV_COPY",		/* name */
 	 FALSE,				/* partial_inplace */
-	 0,         			/* src_mask */
-	 0,		        	/* dst_mask */
+	 0,				/* src_mask */
+	 0,				/* dst_mask */
 	 FALSE),			/* pcrel_offset */
 
   HOWTO (R_RISCV_JUMP_SLOT,		/* type */
@@ -120,8 +127,8 @@ static reloc_howto_type howto_table[] =
 	 bfd_elf_generic_reloc,		/* special_function */
 	 "R_RISCV_JUMP_SLOT",		/* name */
 	 FALSE,				/* partial_inplace */
-	 0,         			/* src_mask */
-	 0,		        	/* dst_mask */
+	 0,				/* src_mask */
+	 0,				/* dst_mask */
 	 FALSE),			/* pcrel_offset */
 
   /* Dynamic TLS relocations.  */
@@ -132,7 +139,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc, 	/* special_function */
+	 bfd_elf_generic_reloc,		/* special_function */
 	 "R_RISCV_TLS_DTPMOD32",	/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -146,7 +153,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc, 	/* special_function */
+	 bfd_elf_generic_reloc,		/* special_function */
 	 "R_RISCV_TLS_DTPMOD64",	/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -160,7 +167,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc, 	/* special_function */
+	 bfd_elf_generic_reloc,		/* special_function */
 	 "R_RISCV_TLS_DTPREL32",	/* name */
 	 TRUE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -174,7 +181,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc, 	/* special_function */
+	 bfd_elf_generic_reloc,		/* special_function */
 	 "R_RISCV_TLS_DTPREL64",	/* name */
 	 TRUE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -188,7 +195,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc, 	/* special_function */
+	 bfd_elf_generic_reloc,		/* special_function */
 	 "R_RISCV_TLS_TPREL32",		/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -202,7 +209,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc, 	/* special_function */
+	 bfd_elf_generic_reloc,		/* special_function */
 	 "R_RISCV_TLS_TPREL64",		/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -480,7 +487,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
+	 riscv_elf_add_sub_reloc,	/* special_function */
 	 "R_RISCV_ADD8",		/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -495,7 +502,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
+	 riscv_elf_add_sub_reloc,	/* special_function */
 	 "R_RISCV_ADD16",		/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -510,7 +517,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
+	 riscv_elf_add_sub_reloc,	/* special_function */
 	 "R_RISCV_ADD32",		/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -525,7 +532,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
+	 riscv_elf_add_sub_reloc,	/* special_function */
 	 "R_RISCV_ADD64",		/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -540,7 +547,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
+	 riscv_elf_add_sub_reloc,	/* special_function */
 	 "R_RISCV_SUB8",		/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -555,7 +562,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
+	 riscv_elf_add_sub_reloc,	/* special_function */
 	 "R_RISCV_SUB16",		/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -570,7 +577,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
+	 riscv_elf_add_sub_reloc,	/* special_function */
 	 "R_RISCV_SUB32",		/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -585,7 +592,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
+	 riscv_elf_add_sub_reloc,	/* special_function */
 	 "R_RISCV_SUB64",		/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -767,7 +774,7 @@ static reloc_howto_type howto_table[] =
 	 FALSE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
+	 riscv_elf_add_sub_reloc,	/* special_function */
 	 "R_RISCV_SUB6",		/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
@@ -941,13 +948,65 @@ riscv_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED, const char *r_name)
 }
 
 reloc_howto_type *
-riscv_elf_rtype_to_howto (unsigned int r_type)
+riscv_elf_rtype_to_howto (bfd *abfd, unsigned int r_type)
 {
   if (r_type >= ARRAY_SIZE (howto_table))
     {
-      (*_bfd_error_handler) (_("unrecognized relocation (0x%x)"), r_type);
+      (*_bfd_error_handler) (_("%pB: unsupported relocation type %#x"),
+			     abfd, r_type);
       bfd_set_error (bfd_error_bad_value);
       return NULL;
     }
   return &howto_table[r_type];
+}
+
+/* Special_function of RISCV_ADD and RISCV_SUB relocations.  */
+
+static bfd_reloc_status_type
+riscv_elf_add_sub_reloc (bfd *abfd,
+			 arelent *reloc_entry,
+			 asymbol *symbol,
+			 void *data,
+			 asection *input_section,
+			 bfd *output_bfd,
+			 char **error_message ATTRIBUTE_UNUSED)
+{
+  reloc_howto_type *howto = reloc_entry->howto;
+  bfd_vma relocation;
+
+  if (output_bfd != NULL
+      && (symbol->flags & BSF_SECTION_SYM) == 0
+      && (!reloc_entry->howto->partial_inplace || reloc_entry->addend == 0))
+    {
+      reloc_entry->address += input_section->output_offset;
+      return bfd_reloc_ok;
+    }
+
+  if (output_bfd != NULL)
+    return bfd_reloc_continue;
+
+  relocation = symbol->value + symbol->section->output_section->vma
+    + symbol->section->output_offset + reloc_entry->addend;
+  bfd_vma old_value = bfd_get (howto->bitsize, abfd,
+			       data + reloc_entry->address);
+
+  switch (howto->type)
+    {
+    case R_RISCV_ADD8:
+    case R_RISCV_ADD16:
+    case R_RISCV_ADD32:
+    case R_RISCV_ADD64:
+      relocation = old_value + relocation;
+      break;
+    case R_RISCV_SUB6:
+    case R_RISCV_SUB8:
+    case R_RISCV_SUB16:
+    case R_RISCV_SUB32:
+    case R_RISCV_SUB64:
+      relocation = old_value - relocation;
+      break;
+    }
+  bfd_put (howto->bitsize, abfd, relocation, data + reloc_entry->address);
+
+  return bfd_reloc_ok;
 }

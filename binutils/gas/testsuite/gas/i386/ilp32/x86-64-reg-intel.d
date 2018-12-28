@@ -26,6 +26,14 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 73 f6 02          	psllq  mm6,0x2
 [ 	]*[a-f0-9]+:	66 41 0f 73 f2 02    	psllq  xmm10,0x2
 [ 	]*[a-f0-9]+:	66 41 0f 73 fa 02    	pslldq xmm10,0x2
+[ 	]*[a-f0-9]+:	40 80 c0 01[ 	]+add    al,0x1
+[ 	]*[a-f0-9]+:	40 80 c1 01[ 	]+add    cl,0x1
+[ 	]*[a-f0-9]+:	40 80 c2 01[ 	]+add    dl,0x1
+[ 	]*[a-f0-9]+:	40 80 c3 01[ 	]+add    bl,0x1
+[ 	]*[a-f0-9]+:	40 80 c4 01[ 	]+add    spl,0x1
+[ 	]*[a-f0-9]+:	40 80 c5 01[ 	]+add    bpl,0x1
+[ 	]*[a-f0-9]+:	40 80 c6 01[ 	]+add    sil,0x1
+[ 	]*[a-f0-9]+:	40 80 c7 01[ 	]+add    dil,0x1
 [ 	]*[a-f0-9]+:	0f 71 d6 02          	psrlw  mm6,0x2
 [ 	]*[a-f0-9]+:	66 0f 71 d2 02       	psrlw  xmm2,0x2
 [ 	]*[a-f0-9]+:	0f 71 e6 02          	psraw  mm6,0x2

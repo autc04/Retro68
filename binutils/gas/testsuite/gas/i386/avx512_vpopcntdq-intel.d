@@ -43,6 +43,7 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 48 55 31[ 	]*vpopcntd zmm6,ZMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 48 55 b4 f4 c0 1d fe ff[ 	]*vpopcntd zmm6,ZMMWORD PTR \[esp\+esi\*8-0x1e240\]
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 58 55 30[ 	]*vpopcntd zmm6,DWORD PTR \[eax\]\{1to16\}
+[ 	]*[a-f0-9]+:[ 	]*62 f2 7d 58 55 30[ 	]*vpopcntd zmm6,DWORD PTR \[eax\]\{1to16\}
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 48 55 72 7f[ 	]*vpopcntd zmm6,ZMMWORD PTR \[edx\+0x1fc0\]
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 48 55 b2 00 20 00 00[ 	]*vpopcntd zmm6,ZMMWORD PTR \[edx\+0x2000\]
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 48 55 72 80[ 	]*vpopcntd zmm6,ZMMWORD PTR \[edx-0x2000\]
@@ -56,6 +57,7 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fd cf 55 f5[ 	]*vpopcntq zmm6\{k7\}\{z\},zmm5
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fd 48 55 31[ 	]*vpopcntq zmm6,ZMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fd 48 55 b4 f4 c0 1d fe ff[ 	]*vpopcntq zmm6,ZMMWORD PTR \[esp\+esi\*8-0x1e240\]
+[ 	]*[a-f0-9]+:[ 	]*62 f2 fd 58 55 30[ 	]*vpopcntq zmm6,QWORD PTR \[eax\]\{1to8\}
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fd 58 55 30[ 	]*vpopcntq zmm6,QWORD PTR \[eax\]\{1to8\}
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fd 48 55 72 7f[ 	]*vpopcntq zmm6,ZMMWORD PTR \[edx\+0x1fc0\]
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fd 48 55 b2 00 20 00 00[ 	]*vpopcntq zmm6,ZMMWORD PTR \[edx\+0x2000\]

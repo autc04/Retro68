@@ -1,5 +1,5 @@
 /* symbols.c -symbol table-
-   Copyright (C) 1987-2017 Free Software Foundation, Inc.
+   Copyright (C) 1987-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -25,6 +25,7 @@
 #include "obstack.h"		/* For "symbols.h" */
 #include "subsegs.h"
 #include "struc-symbol.h"
+#include "write.h"
 
 /* This is non-zero if symbols are case sensitive, which is the
    default.  */
@@ -107,6 +108,7 @@ save_symbol_name (const char *name)
   size_t name_length;
   char *ret;
 
+  gas_assert (name != NULL);
   name_length = strlen (name) + 1;	/* +1 for \0.  */
   obstack_grow (&notes, name, name_length);
   ret = (char *) obstack_finish (&notes);
@@ -406,8 +408,7 @@ colon (/* Just seen "x:" - rattle symbols & frags.  */
 		}
 	      else
 		{
-#if (!defined (OBJ_AOUT) && !defined (OBJ_MAYBE_AOUT) \
-     && !defined (OBJ_BOUT) && !defined (OBJ_MAYBE_BOUT))
+#if (!defined (OBJ_AOUT) && !defined (OBJ_MAYBE_AOUT))
 		  static const char *od_buf = "";
 #else
 		  char od_buf[100];
@@ -1355,7 +1356,7 @@ resolve_symbol_value (symbolS *symp)
 	     operands must be absolute.  We already handled the case of
 	     addition or subtraction of a constant above.  This will
 	     probably need to be changed for an object file format which
-	     supports arbitrary expressions, such as IEEE-695.  */
+	     supports arbitrary expressions.  */
 	  if (!(seg_left == absolute_section
 		&& seg_right == absolute_section)
 	      && !(op == O_eq || op == O_ne)
@@ -2161,6 +2162,9 @@ S_IS_LOCAL (symbolS *s)
 	  && ! S_IS_DEBUG (s)
 	  && (strchr (name, DOLLAR_LABEL_CHAR)
 	      || strchr (name, LOCAL_LABEL_CHAR)
+#if FAKE_LABEL_CHAR != DOLLAR_LABEL_CHAR
+	      || strchr (name, FAKE_LABEL_CHAR)
+#endif
 	      || TC_LABEL_IS_LOCAL (name)
 	      || (! flag_keep_locals
 		  && (bfd_is_local_label (stdoutput, s->bsym)
@@ -3087,7 +3091,7 @@ symbol_relc_make_sym (symbolS * sym)
       || S_GET_SEGMENT (sym) == absolute_section)
     return symbol_relc_make_expr (& sym->sy_value);
 
-  /* This may be a "fake symbol" L0\001, referring to ".".
+  /* This may be a "fake symbol", referring to ".".
      Write out a special null symbol to refer to this position.  */
   if (! strcmp (S_GET_NAME (sym), FAKE_LABEL_NAME))
     return xstrdup (".");

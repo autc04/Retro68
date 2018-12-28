@@ -1,6 +1,6 @@
 // script.cc -- handle linker scripts for gold.
 
-// Copyright (C) 2006-2017 Free Software Foundation, Inc.
+// Copyright (C) 2006-2018 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -1110,6 +1110,29 @@ Script_options::is_pending_assignment(const char* name)
     if ((*p)->name() == name)
       return true;
   return false;
+}
+
+// Populates the set with symbols defined in defsym LHS.
+
+void Script_options::find_defsym_defs(Unordered_set<std::string>& defsym_set)
+{
+  for (Symbol_assignments::const_iterator p = this->symbol_assignments_.begin();
+       p != this->symbol_assignments_.end();
+       ++p)
+    {
+      defsym_set.insert((*p)->name());
+    }
+}
+
+void
+Script_options::set_defsym_uses_in_real_elf(Symbol_table* symtab) const
+{
+  for (Symbol_assignments::const_iterator p = this->symbol_assignments_.begin();
+       p != this->symbol_assignments_.end();
+       ++p)
+    {
+      (*p)->value()->set_expr_sym_in_real_elf(symtab);
+    }
 }
 
 // Add a symbol to be defined.

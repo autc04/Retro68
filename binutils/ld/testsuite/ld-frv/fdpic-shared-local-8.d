@@ -1,7 +1,7 @@
 #name: FRV uClinux PIC relocs to forced-local symbols with addends, shared linking
 #source: fdpic8.s
 #objdump: -DR -j .text -j .data -j .got -j .plt
-#ld: -shared --version-script fdpic8.ldv
+#ld: -shared --hash-style=sysv --version-script fdpic8.ldv
 
 .*:     file format elf.*frv.*
 

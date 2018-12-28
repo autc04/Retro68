@@ -1,5 +1,5 @@
 # Expect script for LD selective linking tests
-#   Copyright (C) 1998-2017 Free Software Foundation, Inc.
+#   Copyright (C) 1998-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -55,13 +55,6 @@ if [istarget mips*-*] {
     set cflags "-mno-abicalls $cflags"
     # MIPS ELF uses __start by default, we override it.
     set ldflags "-e _start $ldflags"
-}
-
-if [istarget sh64*-*-elf] {
-    # This is what gcc passes to ld by default, plus switch to the
-    # "usual" ELF _start (shelf32 normally uses just `start' for COFF
-    # compatibility)
-    set ldflags "-e _start -mshelf32 $ldflags"
 }
 
 if [istarget avr-*-*] {

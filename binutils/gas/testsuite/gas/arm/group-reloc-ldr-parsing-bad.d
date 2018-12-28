@@ -1,3 +1,3 @@
 #name: Group relocation tests, parsing failures (ldr)
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#skip: *-*-pe *-*-wince
 #error-output: group-reloc-ldr-parsing-bad.l

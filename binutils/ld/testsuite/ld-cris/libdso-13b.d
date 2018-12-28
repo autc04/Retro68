@@ -1,14 +1,14 @@
 #source: dso-1.s
 #source: dsov32-3.s
 #as: --pic --no-underscore --march=v32 --em=criself
-#ld: --shared -m crislinux --version-script $srcdir/$subdir/hidedsofns2468
+#ld: --shared -m crislinux --version-script $srcdir/$subdir/hidedsofns2468 --hash-style=sysv
 #readelf: -d -r
 
 # Like libdso-13.d, but without -z nocombreloc and with a version
 # script hiding the function called pcrel-without-plt.  There should
 # be no warning, no relocations in the output and no TEXTREL marking.
 
-Dynamic section at offset 0x1b0 contains 9 entries:
+Dynamic section at offset .* contains 9 entries:
   Tag        Type                         Name/Value
  0x00000004 \(HASH\) .*
  0x00000005 \(STRTAB\) .*

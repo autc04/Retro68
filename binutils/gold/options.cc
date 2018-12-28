@@ -1,6 +1,6 @@
 // options.c -- handle command line options for gold
 
-// Copyright (C) 2006-2017 Free Software Foundation, Inc.
+// Copyright (C) 2006-2018 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -448,7 +448,6 @@ General_options::parse_library(const char*, const char* arg,
   cmdline->inputs().add_file(file);
 }
 
-#ifdef ENABLE_PLUGINS
 void
 General_options::parse_plugin(const char*, const char* arg,
 			      Command_line*)
@@ -464,7 +463,6 @@ General_options::parse_plugin_opt(const char*, const char* arg,
 {
   this->add_plugin_option(arg);
 }
-#endif // ENABLE_PLUGINS
 
 void
 General_options::parse_R(const char* option, const char* arg,
@@ -1208,6 +1206,13 @@ General_options::finalize()
 		 program_name);
 #endif
 
+#ifndef ENABLE_PLUGINS
+  if (this->has_plugins())
+    gold_fatal(_("cannot use --plugin: "
+		 "%s was compiled without plugin support"),
+	       program_name);
+#endif
+
   std::string libpath;
   if (this->user_set_Y())
     {
@@ -1343,6 +1348,8 @@ General_options::finalize()
 	gold_fatal(_("incremental linking is not compatible with --plugin"));
       if (this->relro())
 	gold_fatal(_("incremental linking is not compatible with -z relro"));
+      if (this->pie())
+	gold_fatal(_("incremental linking is not compatible with -pie"));
       if (this->gc_sections())
 	{
 	  gold_warning(_("ignoring --gc-sections for an incremental link"));
@@ -1566,6 +1573,12 @@ Command_line::process(int argc, const char** argv)
   if (this->inputs_.in_group())
     {
       fprintf(stderr, _("%s: missing group end\n"), program_name);
+      usage();
+    }
+
+  if (this->inputs_.in_lib())
+    {
+      fprintf(stderr, _("%s: missing lib end\n"), program_name);
       usage();
     }
 

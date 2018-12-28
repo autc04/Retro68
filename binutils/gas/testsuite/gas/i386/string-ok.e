@@ -8,11 +8,6 @@
 .*:22: Warning: .*
 .*:25: Warning: .*
 .*:28: Warning: .*
-.*:31: Warning: .*
-.*:32: Warning: .*
-.*:33: Warning: .*
-.*:34: Warning: .*
-.*:35: Warning: .*
 
 .*:54: Warning: .*
 .*:54: Warning: .*
@@ -23,8 +18,3 @@
 .*:70: Warning: .*
 .*:73: Warning: .*
 .*:76: Warning: .*
-.*:79: Warning: .*
-.*:80: Warning: .*
-.*:81: Warning: .*
-.*:82: Warning: .*
-.*:83: Warning: .*

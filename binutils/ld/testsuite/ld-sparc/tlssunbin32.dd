@@ -16,7 +16,7 @@ Disassembly of section .text:
  +11008:	9d e3 bf 98 	save  %sp, -104, %sp
  +1100c:	2f 00 00 48 	sethi  %hi\(0x12000\), %l7
  +11010:	7f ff ff fc 	call  11000 <.*>
- +11014:	ae 05 e2 64 	add  %l7, 0x264, %l7	! 12264 <.*>
+ +11014:	ae 05 e2 7c 	add  %l7, 0x27c, %l7	! 1227c <.*>
  +11018:	01 00 00 00 	nop *
  +1101c:	01 00 00 00 	nop *
  +11020:	01 00 00 00 	nop *
@@ -172,7 +172,7 @@ Disassembly of section .text:
 00012000 <_start>:
  +12000:	9d e3 bf 98 	save  %sp, -104, %sp
  +12004:	29 00 00 8c 	sethi  %hi\(0x23000\), %l4
- +12008:	a8 15 22 74 	or  %l4, 0x274, %l4	! 23274 <.*>
+ +12008:	a8 15 22 8c 	or  %l4, 0x28c, %l4	! 2328c <.*>
  +1200c:	01 00 00 00 	nop *
  +12010:	01 00 00 00 	nop *
  +12014:	01 00 00 00 	nop *

@@ -4,7 +4,7 @@
 # readelf: -x 4 -r
 # target: *-*-*eabi* *-*-symbianelf *-*-linux-* *-*-elf *-*-nacl*
 
-Relocation section '.rel.text.foo' at offset .* contains 1 entries:
+Relocation section '.rel.text.foo' at offset .* contains 1 entry:
  Offset     Info    Type            Sym.Value  Sym. Name
 00000010  00000c60 R_ARM_GOT_PREL    00000000   i
 

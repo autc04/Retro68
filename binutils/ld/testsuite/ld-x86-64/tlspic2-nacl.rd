@@ -17,11 +17,11 @@ Section Headers:
  +\[[ 0-9]+\] .dynstr +.*
  +\[[ 0-9]+\] .rela.dyn +.*
  +\[[ 0-9]+\] .rela.plt +.*
- +\[[ 0-9]+\] .tdata +PROGBITS +0+100104c8 [0-9a-f]+ 0+60 00 WAT +0 +0 +1
- +\[[ 0-9]+\] .tbss +NOBITS +0+10010528 [0-9a-f]+ 0+20 00 WAT +0 +0 +1
- +\[[ 0-9]+\] .dynamic +DYNAMIC +0+10010528 [0-9a-f]+ 0+130 10 +WA +5 +0 +8
- +\[[ 0-9]+\] .got +PROGBITS +0+10010658 [0-9a-f]+ 0+98 08 +WA +0 +0 +8
- +\[[ 0-9]+\] .got.plt +PROGBITS +0+100106f0 [0-9a-f]+ 0+20 08 +WA +0 +0 +8
+ +\[[ 0-9]+\] .tdata +PROGBITS +0+10010458 [0-9a-f]+ 0+60 00 WAT +0 +0 +1
+ +\[[ 0-9]+\] .tbss +NOBITS +0+100104b8 [0-9a-f]+ 0+20 00 WAT +0 +0 +1
+ +\[[ 0-9]+\] .dynamic +DYNAMIC +0+100104b8 [0-9a-f]+ 0+130 10 +WA +5 +0 +8
+ +\[[ 0-9]+\] .got +PROGBITS +0+100105e8 [0-9a-f]+ 0+98 08 +WA +0 +0 +8
+ +\[[ 0-9]+\] .got.plt +PROGBITS +0+10010680 [0-9a-f]+ 0+20 08 +WA +0 +0 +8
  +\[[ 0-9]+\] .symtab +.*
  +\[[ 0-9]+\] .strtab +.*
  +\[[ 0-9]+\] .shstrtab +.*
@@ -35,10 +35,10 @@ There are [0-9]+ program headers, starting at offset [0-9]+
 Program Headers:
  +Type +Offset +VirtAddr +PhysAddr +FileSiz +MemSiz +Flg Align
  +LOAD +0x0+10000 0x0+ 0x0+ 0x[0-9a-f]+ 0x[0-9a-f]+ R E 0x10000
- +LOAD +0x0+ 0x0+10000000 0x0+10000000 0x0+4c8 0x0+4c8 R +0x10000
- +LOAD +0x0+4c8 0x0+100104c8 0x0+100104c8 0x0+248 0x0+248 RW +0x10000
- +DYNAMIC +0x0+528 0x0+10010528 0x0+10010528 0x0+130 0x0+130 RW +0x8
- +TLS +0x0+4c8 0x0+100104c8 0x0+100104c8 0x0+60 0x0+80 R +0x1
+ +LOAD +0x0+ 0x0+10000000 0x0+10000000 0x0+458 0x0+458 R +0x10000
+ +LOAD +0x0+458 0x0+10010458 0x0+10010458 0x0+248 0x0+248 RW +0x10000
+ +DYNAMIC +0x0+4b8 0x0+100104b8 0x0+100104b8 0x0+130 0x0+130 RW +0x8
+ +TLS +0x0+458 0x0+10010458 0x0+10010458 0x0+60 0x0+80 R +0x1
 
  Section to Segment mapping:
  +Segment Sections...
@@ -66,7 +66,7 @@ Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 15 entries:
 [0-9a-f ]+R_X86_64_DTPOFF64 +0+ sg1 \+ 0
 [0-9a-f ]+R_X86_64_TPOFF64 +0+4 sg2 \+ 0
 
-Relocation section '.rela.plt' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '.rela.plt' at offset 0x[0-9a-f]+ contains 1 entry:
  +Offset +Info +Type +Symbol's Value +Symbol's Name \+ Addend
 [0-9a-f ]+R_X86_64_JUMP_SLOT +0+ __tls_get_addr \+ 0
 
@@ -80,12 +80,9 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
 .* TLS +GLOBAL +DEFAULT +8 sg1
 .* FUNC +GLOBAL +DEFAULT +2 fn1
-.* NOTYPE +GLOBAL +DEFAULT +12 __bss_start
 .* TLS +GLOBAL +DEFAULT +8 sg2
 .* TLS +GLOBAL +DEFAULT +8 sg6
 .* TLS +GLOBAL +DEFAULT +8 sg7
-.* NOTYPE +GLOBAL +DEFAULT +12 _edata
-.* NOTYPE +GLOBAL +DEFAULT +12 _end
 
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
@@ -137,9 +134,6 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
 .* TLS +GLOBAL +DEFAULT +8 sg1
 .* FUNC +GLOBAL +DEFAULT +2 fn1
-.* NOTYPE +GLOBAL +DEFAULT +12 __bss_start
 .* TLS +GLOBAL +DEFAULT +8 sg2
 .* TLS +GLOBAL +DEFAULT +8 sg6
 .* TLS +GLOBAL +DEFAULT +8 sg7
-.* NOTYPE +GLOBAL +DEFAULT +12 _edata
-.* NOTYPE +GLOBAL +DEFAULT +12 _end

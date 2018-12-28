@@ -43,6 +43,7 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 48 55 31[ 	]*vpopcntd \(%ecx\),%zmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 48 55 b4 f4 c0 1d fe ff[ 	]*vpopcntd -0x1e240\(%esp,%esi,8\),%zmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 58 55 30[ 	]*vpopcntd \(%eax\)\{1to16\},%zmm6
+[ 	]*[a-f0-9]+:[ 	]*62 f2 7d 58 55 30[ 	]*vpopcntd \(%eax\)\{1to16\},%zmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 48 55 72 7f[ 	]*vpopcntd 0x1fc0\(%edx\),%zmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 48 55 b2 00 20 00 00[ 	]*vpopcntd 0x2000\(%edx\),%zmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 7d 48 55 72 80[ 	]*vpopcntd -0x2000\(%edx\),%zmm6
@@ -56,6 +57,7 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fd cf 55 f5[ 	]*vpopcntq %zmm5,%zmm6\{%k7\}\{z\}
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fd 48 55 31[ 	]*vpopcntq \(%ecx\),%zmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fd 48 55 b4 f4 c0 1d fe ff[ 	]*vpopcntq -0x1e240\(%esp,%esi,8\),%zmm6
+[ 	]*[a-f0-9]+:[ 	]*62 f2 fd 58 55 30[ 	]*vpopcntq \(%eax\)\{1to8\},%zmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fd 58 55 30[ 	]*vpopcntq \(%eax\)\{1to8\},%zmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fd 48 55 72 7f[ 	]*vpopcntq 0x1fc0\(%edx\),%zmm6
 [ 	]*[a-f0-9]+:[ 	]*62 f2 fd 48 55 b2 00 20 00 00[ 	]*vpopcntq 0x2000\(%edx\),%zmm6

@@ -9,5 +9,5 @@
 Disassembly of section .text:
 
 0+70000000 <_start>:
-[ 	]*[a-f0-9]+:	48 8d 05 f9 ff ff 2f 	lea    0x2ffffff9\(%rip\),%rax        # a0000000 <foo>
-[ 	]*[a-f0-9]+:	4c 8d 1d f2 ff ff 2f 	lea    0x2ffffff2\(%rip\),%r11        # a0000000 <foo>
+[ 	]*[a-f0-9]+:	48 8b 05 ([0-9a-f]{2} ){4} *	mov    [-]?0x[a-f0-9]+\(%rip\),%rax        # [a-f0-9]+ <.got>
+[ 	]*[a-f0-9]+:	4c 8b 1d ([0-9a-f]{2} ){4} *	mov    [-]?0x[a-f0-9]+\(%rip\),%r11        # [a-f0-9]+ <.got>

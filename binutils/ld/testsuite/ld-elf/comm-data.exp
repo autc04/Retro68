@@ -1,6 +1,6 @@
 # Expect script for common symbol override.
 #
-# Copyright (C) 2011-2017 Free Software Foundation, Inc.
+# Copyright (C) 2011-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -40,6 +40,12 @@ if [istarget "tic6x-*-*"] {
 set LFLAGS ""
 if [istarget "tic6x-*-*"] {
     append LFLAGS " -melf32_tic6x_le"
+}
+# These targets do not default to linking with shared libraries.
+if { [istarget "mips*vr4100*-*-elf*"] \
+     || [istarget "mips*vr4300*-*-elf*"] \
+     || [istarget "mips*vr5000*-*-elf*"] } {
+    append LFLAGS " -call_shared"
 }
 
 set testname "Common symbol override test"

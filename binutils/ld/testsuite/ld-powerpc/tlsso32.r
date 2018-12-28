@@ -52,9 +52,9 @@ Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 18 entries:
 [0-9a-f ]+R_PPC_TPREL16 +0+30 +le0 \+ 0
 [0-9a-f ]+R_PPC_TPREL16_HA +0+34 +le1 \+ 0
 [0-9a-f ]+R_PPC_TPREL16_LO +0+34 +le1 \+ 0
-[0-9a-f ]+R_PPC_TPREL16 +0+10430 +\.tdata \+ 10444
-[0-9a-f ]+R_PPC_TPREL16_HA +0+10430 +\.tdata \+ 10448
-[0-9a-f ]+R_PPC_TPREL16_LO +0+10430 +\.tdata \+ 10448
+[0-9a-f ]+R_PPC_TPREL16 +0+103d0 +\.tdata \+ 103e4
+[0-9a-f ]+R_PPC_TPREL16_HA +0+103d0 +\.tdata \+ 103e8
+[0-9a-f ]+R_PPC_TPREL16_LO +0+103d0 +\.tdata \+ 103e8
 [0-9a-f ]+R_PPC_DTPMOD32 +0
 [0-9a-f ]+R_PPC_DTPREL32 +0
 [0-9a-f ]+R_PPC_DTPMOD32 +0
@@ -64,7 +64,7 @@ Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 18 entries:
 [0-9a-f ]+R_PPC_DTPREL32 +0+1c +gd0 \+ 0
 [0-9a-f ]+R_PPC_TPREL32 +0+2c +ie0 \+ 0
 
-Relocation section '\.rela\.plt' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '\.rela\.plt' at offset 0x[0-9a-f]+ contains 1 entry:
  Offset +Info +Type +Sym\. Value +Symbol's Name \+ Addend
 [0-9a-f ]+R_PPC_JMP_SLOT +0+ +__tls_get_addr \+ 0
 
@@ -80,12 +80,8 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* TLS +GLOBAL +DEFAULT +8 le1
 .* TLS +GLOBAL +DEFAULT +UND ld
 .* NOTYPE +GLOBAL +DEFAULT +6 _start
-.* NOTYPE +GLOBAL +DEFAULT +11 __end
 .* TLS +GLOBAL +DEFAULT +8 ld2
 .* TLS +GLOBAL +DEFAULT +8 ld1
-.* NOTYPE +GLOBAL +DEFAULT +11 __bss_start
-.* NOTYPE +GLOBAL +DEFAULT +11 _edata
-.* NOTYPE +GLOBAL +DEFAULT +11 _end
 .* TLS +GLOBAL +DEFAULT +8 gd0
 .* TLS +GLOBAL +DEFAULT +8 ie0
 
@@ -124,11 +120,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +GLOBAL +DEFAULT +8 le1
 .* TLS +GLOBAL +DEFAULT +UND ld
 .* NOTYPE +GLOBAL +DEFAULT +6 _start
-.* NOTYPE +GLOBAL +DEFAULT +11 __end
 .* TLS +GLOBAL +DEFAULT +8 ld2
 .* TLS +GLOBAL +DEFAULT +8 ld1
-.* NOTYPE +GLOBAL +DEFAULT +11 __bss_start
-.* NOTYPE +GLOBAL +DEFAULT +11 _edata
-.* NOTYPE +GLOBAL +DEFAULT +11 _end
 .* TLS +GLOBAL +DEFAULT +8 gd0
 .* TLS +GLOBAL +DEFAULT +8 ie0

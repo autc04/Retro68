@@ -1,7 +1,7 @@
 #source: start.s
 #readelf: -d -s -D
 #ld: -shared --hash-style=gnu
-#target: *-*-linux* *-*-gnu*
+#target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
 #notarget: mips*-*-*
 
 #...

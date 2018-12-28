@@ -1,7 +1,7 @@
 // pie_copyrelocs_shared_test.cc -- a test case for gold, used
 // by pie_copyrelocs_test
 
-// Copyright (C) 2014-2017 Free Software Foundation, Inc.
+// Copyright (C) 2014-2018 Free Software Foundation, Inc.
 // Written by Sriraman Tallam <tmsriram@google.com>.
 
 // This file is part of gold.

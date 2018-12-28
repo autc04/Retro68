@@ -1,5 +1,5 @@
 /* RISC-V ELF support for BFD.
-   Copyright (C) 2011-2017 Free Software Foundation, Inc.
+   Copyright (C) 2011-2018 Free Software Foundation, Inc.
 
    Contributed by Andrew Waterman (andrew@sifive.com).
    Based on MIPS ELF support for BFD, by Ian Lance Taylor.
@@ -109,6 +109,9 @@ END_RELOC_NUMBERS (R_RISCV_max)
 
 /* File uses the quad-float ABI.  */
 #define EF_RISCV_FLOAT_ABI_QUAD 0x0006
+
+/* File uses the 32E base integer instruction.  */
+#define EF_RISCV_RVE 0x0008
 
 /* The name of the global pointer symbol.  */
 #define RISCV_GP_SYMBOL "__global_pointer$"

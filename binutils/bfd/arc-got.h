@@ -1,5 +1,5 @@
 /* ARC-specific support for 32-bit ELF
-   Copyright (C) 1994-2017 Free Software Foundation, Inc.
+   Copyright (C) 1994-2018 Free Software Foundation, Inc.
    Contributed by Cupertino Miranda (cmiranda@synopsys.com).
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -227,10 +227,10 @@ arc_fill_got_info_for_reloc (enum tls_type_e type,
     {
       case GOT_NORMAL:
 	{
-  	  bfd_vma offset
+	  bfd_vma offset
 	    = ADD_SYMBOL_REF_SEC_AND_RELOC (got, bfd_link_pic (info)
 						 || h != NULL, h);
-  	  new_got_entry_to_list (list, type, offset, TLS_GOT_NONE);
+	  new_got_entry_to_list (list, type, offset, TLS_GOT_NONE);
 	}
 	break;
 
@@ -262,14 +262,14 @@ arc_fill_got_info_for_reloc (enum tls_type_e type,
 
 
 static bfd_vma
-relocate_fix_got_relocs_for_got_info (struct got_entry **          list_p,
-				      enum tls_type_e              type,
-				      struct bfd_link_info *       info,
-				      bfd *                        output_bfd,
-				      unsigned long                r_symndx,
-				      Elf_Internal_Sym *           local_syms,
-			  	      asection **                  local_sections,
-			     	      struct elf_link_hash_entry * h,
+relocate_fix_got_relocs_for_got_info (struct got_entry **	   list_p,
+				      enum tls_type_e		   type,
+				      struct bfd_link_info *	   info,
+				      bfd *			   output_bfd,
+				      unsigned long		   r_symndx,
+				      Elf_Internal_Sym *	   local_syms,
+				      asection **		   local_sections,
+				      struct elf_link_hash_entry * h,
 				      struct arc_relocation_data * reloc_data)
 {
   struct elf_link_hash_table *htab = elf_hash_table (info);
@@ -460,14 +460,14 @@ create_got_dynrelocs_for_single_entry (struct got_entry *list,
       enum tls_got_entries e = list->existing_entries;
 
       BFD_ASSERT (list->type != GOT_TLS_GD
-    	      || list->existing_entries == TLS_GOT_MOD_AND_OFF);
+		  || list->existing_entries == TLS_GOT_MOD_AND_OFF);
 
       bfd_vma dynindx = (h == NULL || h->dynindx == -1) ? 0 : h->dynindx;
 
       if (e == TLS_GOT_MOD_AND_OFF || e == TLS_GOT_MOD)
 	{
 	      ADD_RELA (output_bfd, got, got_offset, dynindx,
-	    	    R_ARC_TLS_DTPMOD, 0);
+			R_ARC_TLS_DTPMOD, 0);
 	      ARC_DEBUG ("arc_info: TLS_DYNRELOC: type = %d, \
 GOT_OFFSET = %#lx, GOT_VMA = %#lx, INDEX = %ld, ADDEND = 0x0\n",
 			 list->type,
@@ -509,7 +509,7 @@ static void
 create_got_dynrelocs_for_got_info (struct got_entry **list_p,
 				   bfd *output_bfd,
 				   struct bfd_link_info *  info,
-			     	   struct elf_link_hash_entry *h)
+				   struct elf_link_hash_entry *h)
 {
   if (list_p == NULL)
     return;

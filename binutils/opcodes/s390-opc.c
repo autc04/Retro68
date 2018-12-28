@@ -1,5 +1,5 @@
 /* s390-opc.c -- S390 opcode list
-   Copyright (C) 2000-2017 Free Software Foundation, Inc.
+   Copyright (C) 2000-2018 Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
 
    This file is part of the GNU opcodes library.
@@ -436,6 +436,7 @@ const struct s390_operand s390_operands[] =
 #define INSTR_RX_RRRD      4, { R_8,D_20,X_12,B_16,0,0 }         /* e.g. l     */
 #define INSTR_RX_RERRD     4, { RE_8,D_20,X_12,B_16,0,0 }        /* e.g. d     */
 #define INSTR_RX_URRD      4, { U4_8,D_20,X_12,B_16,0,0 }        /* e.g. bc    */
+#define INSTR_SI_RD        4, { D_20,B_16,0,0,0,0 }              /* e.g. lpsw  */
 #define INSTR_SI_URD       4, { D_20,B_16,U8_8,0,0,0 }           /* e.g. cli   */
 #define INSTR_SIY_URD      6, { D20_20,B_16,U8_8,0,0,0 }         /* e.g. tmy   */
 #define INSTR_SIY_IRD      6, { D20_20,B_16,I8_8,0,0,0 }         /* e.g. asi   */
@@ -453,7 +454,7 @@ const struct s390_operand s390_operands[] =
 #define INSTR_SSF_RRDRD    6, { D_20,B_16,D_36,B_32,R_8,0 }      /* e.g. mvcos */
 #define INSTR_SSF_RERDRD2  6, { RE_8,D_20,B_16,D_36,B_32,0 }     /* e.g. lpd   */
 #define INSTR_S_00         4, { 0,0,0,0,0,0 }                    /* e.g. hsch  */
-#define INSTR_S_RD         4, { D_20,B_16,0,0,0,0 }              /* e.g. lpsw  */
+#define INSTR_S_RD         4, { D_20,B_16,0,0,0,0 }              /* e.g. stck  */
 #define INSTR_VRV_VVXRDU   6, { V_8,D_20,VX_12,B_16,U4_32,0 }    /* e.g. vgef  */
 #define INSTR_VRI_V0U      6, { V_8,U16_16,0,0,0,0 }             /* e.g. vgbm  */
 #define INSTR_VRI_V        6, { V_8,0,0,0,0,0 }                  /* e.g. vzero */
@@ -654,6 +655,7 @@ const struct s390_operand s390_operands[] =
 #define MASK_RX_RRRD      { 0xff, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define MASK_RX_RERRD     { 0xff, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define MASK_RX_URRD      { 0xff, 0x00, 0x00, 0x00, 0x00, 0x00 }
+#define MASK_SI_RD        { 0xff, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define MASK_SI_URD       { 0xff, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define MASK_SIY_URD      { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }
 #define MASK_SIY_IRD      { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }

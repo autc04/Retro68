@@ -1,4 +1,4 @@
-#   Copyright (C) 2004-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,10 +18,6 @@ if {![istarget "arm*-*-*"]} then {
   return
 }
 
-if {[istarget "*-*-aout"]} then {
-  return
-}
-
 if {![is_remote host] && [which $OBJDUMP] == 0} then {
     perror "$OBJDUMP does not exist"
     return
@@ -34,35 +30,36 @@ send_user "Version [binutil_version $OBJDUMP]"
 ###########################
 
 if {![binutils_assemble $srcdir/$subdir/thumb2-cond.s tmpdir/thumb2-cond.o]} then {
-    return
-}
-
-if [is_remote host] {
-    set objfile [remote_download host tmpdir/thumb2-cond.o]
+    fail "thumb2-cond (assembling)"
 } else {
-    set objfile tmpdir/thumb2-cond.o
-}
 
-# Make sure that conditional instructions are correctly decoded.
+    if [is_remote host] {
+	set objfile [remote_download host tmpdir/thumb2-cond.o]
+    } else {
+	set objfile tmpdir/thumb2-cond.o
+    }
 
-set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS --disassemble --start-address=6 $objfile"]
+    # Make sure that conditional instructions are correctly decoded.
 
-set want "bcc.w\[ \t\]*e12.*bx\[ \t\]*lr"
+    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS --disassemble --start-address=6 $objfile"]
 
-if [regexp $want $got] then {
-    pass "thumb2-cond test1"
-} else {
-    fail "thumb2-cond test1"
-}
+    set want "bcc.w\[ \t\]*e12.*bx\[ \t\]*lr"
 
-set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS --disassemble --start-address=10 $objfile"]
+    if [regexp $want $got] then {
+	pass "thumb2-cond test1"
+    } else {
+	fail "thumb2-cond test1"
+    }
 
-set want "bx\[ \t\]*lr"
+    set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS --disassemble --start-address=10 $objfile"]
 
-if [regexp $want $got] then {
-    pass "thumb2-cond test2"
-} else {
-    fail "thumb2-cond test2"
+    set want "bx\[ \t\]*lr"
+
+    if [regexp $want $got] then {
+	pass "thumb2-cond test2"
+    } else {
+	fail "thumb2-cond test2"
+    }
 }
 
 ###########################
@@ -70,45 +67,47 @@ if [regexp $want $got] then {
 ###########################
 
 if {![binutils_assemble $srcdir/$subdir/simple.s tmpdir/simple.o]} then {
-    return
-}
-
-if [is_remote host] {
-    set objfile [remote_download host tmpdir/simple.o]
-} else {
-    set objfile tmpdir/simple.o
-}
-
-# Make sure multiple disassemblies come out the same
-
-set got [binutils_run $OBJDUMP "-dr $objfile $objfile"]
-
-set want "$objfile:\[ \]*file format.*$objfile:\[ \]*file format.*push.*add.*sub.*str.*add.*ldmfd"
-
-if [regexp $want $got] then {
-    pass "multiple input files"
-} else {
     fail "multiple input files"
+} else {
+
+    if [is_remote host] {
+	set objfile [remote_download host tmpdir/simple.o]
+    } else {
+	set objfile tmpdir/simple.o
+    }
+
+    # Make sure multiple disassemblies come out the same
+
+    set got [binutils_run $OBJDUMP "-dr $objfile $objfile"]
+
+    set want "$objfile:\[ \]*file format.*$objfile:\[ \]*file format.*push.*add.*sub.*str.*add.*ldmfd"
+
+    if [regexp $want $got] then {
+	pass "multiple input files"
+    } else {
+	fail "multiple input files"
+    }
 }
 
 if {![binutils_assemble $srcdir/$subdir/rvct_symbol.s tmpdir/rvct_symbol.o]} then {
-    return
-}
-
-if [is_remote host] {
-    set objfile [remote_download host tmpdir/rvct_symbol.o]
-} else {
-    set objfile tmpdir/rvct_symbol.o
-}
-
-# Make sure multiple disassemblies come out the same
-
-set got [binutils_run $OBJDUMP "-D $objfile $objfile"]
-
-set want "foo.*global_a.*global_b"
-
-if [regexp $want $got] then {
-    pass "skip rvct symbol"
-} else {
     fail "skip rvct symbol"
+} else {
+
+    if [is_remote host] {
+	set objfile [remote_download host tmpdir/rvct_symbol.o]
+    } else {
+	set objfile tmpdir/rvct_symbol.o
+    }
+
+    # Make sure multiple disassemblies come out the same
+
+    set got [binutils_run $OBJDUMP "-D $objfile $objfile"]
+
+    set want "foo.*global_a.*global_b"
+
+    if [regexp $want $got] then {
+	pass "skip rvct symbol"
+    } else {
+	fail "skip rvct symbol"
+    }
 }

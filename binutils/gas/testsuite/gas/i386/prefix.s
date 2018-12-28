@@ -391,5 +391,9 @@
 
 	nop
 
+	vcvtpd2dqx 0x20(%eax),%xmm0
+	vcvtpd2dq 0x20(%eax){1to2},%xmm0
+	vcvtpd2dqx 0x20(%eax),%xmm0
+
 # Get a good alignment.
  .p2align	4,0

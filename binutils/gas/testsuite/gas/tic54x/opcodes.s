@@ -119,7 +119,7 @@ _opcodes:
 	ld	#7,arp		
 	ld	*ar2+,asm	
 	ldm	ar3,a		
-	ld	*ar2+,a || mac	*ar3+,b	; single-line parallell
+	ld	*ar2+,a || mac	*ar3+,b	; single-line parallel
 	ld	*ar4+,b	|| macr	*ar5+,a	; with optional DST_ specified
 	ld	*ar2+,a			; double-line parallel
 	|| mas	*ar3+		

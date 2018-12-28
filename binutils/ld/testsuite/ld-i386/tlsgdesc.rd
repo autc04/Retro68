@@ -65,12 +65,9 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG5
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG2
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG4
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 __bss_start
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG6
  +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +7 fc1
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG1
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 _edata
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 _end
  +[0-9]+: 0+ +0 +NOTYPE +GLOBAL +DEFAULT +UND ___tls_get_addr
 
 Symbol table '\.symtab' contains [0-9]+ entries:
@@ -92,10 +89,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG5
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG2
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG4
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 __bss_start
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG6
  +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +7 fc1
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG1
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 _edata
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 _end
  +[0-9]+: 0+ +0 +NOTYPE +GLOBAL +DEFAULT +UND ___tls_get_addr

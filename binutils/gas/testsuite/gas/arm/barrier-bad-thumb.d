@@ -1,5 +1,5 @@
 #name: Bad barrier options (Thumb)
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
+#skip: *-*-pe *-*-wince
 #source: barrier-bad.s
 #as: -mthumb
 #error-output: barrier-bad.l

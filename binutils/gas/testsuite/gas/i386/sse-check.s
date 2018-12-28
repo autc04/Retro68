@@ -18,3 +18,12 @@ _start:
 # SSE4 instructions
 	blendvpd %xmm0,%xmm1,%xmm0
 	pcmpgtq %xmm1,%xmm0
+
+# PCMUL instruction
+	pclmulqdq $-1,%xmm1,%xmm2
+
+# AES instructions
+	aesdec %xmm1,%xmm2
+
+# GFNI instructions
+	gf2p8mulb %xmm1,%xmm2

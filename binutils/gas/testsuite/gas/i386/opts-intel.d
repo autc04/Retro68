@@ -166,6 +166,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 ca 11 e2          	vmovss.s xmm2,xmm6,xmm4
 [ 	]*[a-f0-9]+:	0f 6f e0             	movq   mm4,mm0
 [ 	]*[a-f0-9]+:	0f 7f c4             	movq.s mm4,mm0
+[ 	]*[a-f0-9]+:	66 0f 1a d1          	bndmov bnd2,bnd1
+[ 	]*[a-f0-9]+:	66 0f 1b ca          	bndmov.s bnd2,bnd1
 [ 	]*[a-f0-9]+:	00 d1                	add    cl,dl
 [ 	]*[a-f0-9]+:	02 ca                	add.s cl,dl
 [ 	]*[a-f0-9]+:	66 01 d1             	add    cx,dx
@@ -270,4 +272,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 ca 11 e2          	vmovss.s xmm2,xmm6,xmm4
 [ 	]*[a-f0-9]+:	0f 6f e0             	movq   mm4,mm0
 [ 	]*[a-f0-9]+:	0f 7f c4             	movq.s mm4,mm0
+[ 	]*[a-f0-9]+:	66 0f 1a ca          	bndmov bnd1,bnd2
+[ 	]*[a-f0-9]+:	66 0f 1b d1          	bndmov.s bnd1,bnd2
 #pass

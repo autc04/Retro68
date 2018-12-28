@@ -2,7 +2,7 @@
 
 # ver_test_10.sh -- test global/local symbols
 
-# Copyright (C) 2008-2017 Free Software Foundation, Inc.
+# Copyright (C) 2008-2018 Free Software Foundation, Inc.
 # Written by Ian Lance Taylor <iant@google.com>.
 
 # This file is part of gold.

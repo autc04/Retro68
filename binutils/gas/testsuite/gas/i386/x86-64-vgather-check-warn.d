@@ -33,4 +33,6 @@ Disassembly of section .text:
 [ 	]+[a-f0-9]+:[ 	]+62 e2 7d 41 91 84 c5 7b 00 00 00[ 	]+vpgatherqd 0x7b\(%rbp,%zmm16,8\),%ymm16\{%k1\}
 [ 	]+[a-f0-9]+:[ 	]+62 e2 fd 41 91 84 cd 7b 00 00 00[ 	]+vpgatherqq 0x7b\(%rbp,%zmm17,8\),%zmm16\{%k1\}
 [ 	]+[a-f0-9]+:[ 	]+62 e2 fd 41 91 84 c5 7b 00 00 00[ 	]+vpgatherqq 0x7b\(%rbp,%zmm16,8\),%zmm16\{%k1\}
+[ 	]+[a-f0-9]+:[ 	]+62 e2 7d 21 91 84 cd 7b 00 00 00[ 	]+vpgatherqd 0x7b\(%rbp,%ymm17,8\),%xmm16\{%k1\}
+[ 	]+[a-f0-9]+:[ 	]+62 e2 7d 21 91 84 c5 7b 00 00 00[ 	]+vpgatherqd 0x7b\(%rbp,%ymm16,8\),%xmm16\{%k1\}
 #pass

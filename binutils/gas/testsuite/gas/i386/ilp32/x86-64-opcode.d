@@ -269,7 +269,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	41 0f 01 38          	invlpg \(%r8\)
 [ 	]*[a-f0-9]+:	0f 01 38             	invlpg \(%rax\)
 [ 	]*[a-f0-9]+:	0f 00 c0             	sldt   %eax
-[ 	]*[a-f0-9]+:	48 0f 00 c0          	sldt   %rax
+[ 	]*[a-f0-9]+:	0f 00 c0             	sldt   %eax
 [ 	]*[a-f0-9]+:	66 0f 00 c0          	sldt   %ax
 [ 	]*[a-f0-9]+:	0f 00 00             	sldt   \(%rax\)
 [ 	]*[a-f0-9]+:	e6 00                	out    %al,\$0x0
@@ -294,7 +294,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 01 e0             	smsw   %eax
 [ 	]*[a-f0-9]+:	66 0f 01 e0          	smsw   %ax
 [ 	]*[a-f0-9]+:	0f 01 20             	smsw   \(%rax\)
-[ 	]*[a-f0-9]+:	48 0f 00 c8          	str    %rax
+[ 	]*[a-f0-9]+:	0f 00 c8             	str    %eax
 [ 	]*[a-f0-9]+:	0f 00 c8             	str    %eax
 [ 	]*[a-f0-9]+:	66 0f 00 c8          	str    %ax
 [ 	]*[a-f0-9]+:	0f 00 08             	str    \(%rax\)

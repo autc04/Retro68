@@ -753,6 +753,6 @@ Disassembly of section .text:
 0+0598 <[^>]*> 41600024 	dvp
 0+059c <[^>]*> 41620004 	evp	v0
 0+05a0 <[^>]*> 41620024 	dvp	v0
-0+05a4 <[^>]*> 41700000 	sigrie	0x0
-0+05a8 <[^>]*> 4170ffff 	sigrie	0xffff
+0+05a4 <[^>]*> 04170000 	sigrie	0x0
+0+05a8 <[^>]*> 0417ffff 	sigrie	0xffff
 	\.\.\.

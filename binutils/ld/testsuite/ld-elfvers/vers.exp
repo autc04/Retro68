@@ -1,5 +1,5 @@
 # Expect script for ld-version tests
-#   Copyright (C) 1997-2017 Free Software Foundation, Inc.
+#   Copyright (C) 1997-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -59,11 +59,6 @@ if { ![istarget hppa*64*-*-hpux*]
     return
 }
 
-if { [istarget *-*-linux*aout*]
-     || [istarget *-*-linux*oldld*] } {
-    return
-}
-
 if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
     return
 }
@@ -93,11 +88,7 @@ if { [istarget mips*-*-*] && ! [at_least_gcc_version 4 3] } then {
 	 || [string match "*option ignored*" $exec_output]
 	 || [string match "*unrecognized option*" $exec_output]
 	 || [string match "*passed to ld*" $exec_output] } {
-	if [istarget *-*-sunos4*] {
-	    set picflag "-pic"
-	} else {
-	    set picflag "-KPIC"
-	}
+	set picflag "-KPIC"
     }
 }
 

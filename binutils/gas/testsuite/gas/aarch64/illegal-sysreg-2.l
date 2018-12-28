@@ -27,8 +27,6 @@
 [^:]*:[0-9]+: Error: selected processor does not support system register name 'pmbptr_el1'
 [^:]*:[0-9]+: Error: selected processor does not support system register name 'pmbsr_el1'
 [^:]*:[0-9]+: Error: selected processor does not support system register name 'pmbsr_el1'
-[^:]*:[0-9]+: Error: selected processor does not support system register name 'pmbidr_el1'
-[^:]*:[0-9]+: Error: selected processor does not support system register name 'pmbidr_el1'
 [^:]*:[0-9]+: Error: selected processor does not support system register name 'pmscr_el1'
 [^:]*:[0-9]+: Error: selected processor does not support system register name 'pmscr_el1'
 [^:]*:[0-9]+: Error: selected processor does not support system register name 'pmsicr_el1'

@@ -1,4 +1,5 @@
 #source: ../../../cfi/cfi-x86_64.s
+#as: -O0
 #readelf: -wf
 #name: CFI on x86-64
 Contents of the .eh_frame section:

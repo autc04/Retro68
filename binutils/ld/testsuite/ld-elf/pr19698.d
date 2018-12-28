@@ -1,6 +1,6 @@
 #ld: -shared $srcdir/$subdir/pr19698.t
 #readelf : --dyn-syms --wide
-#target: *-*-linux* *-*-gnu* *-*-solaris*
+#target: *-*-linux* *-*-gnu* *-*-solaris* arm*-*-uclinuxfdpiceabi
 
 Symbol table '\.dynsym' contains [0-9]+ entries:
 #...

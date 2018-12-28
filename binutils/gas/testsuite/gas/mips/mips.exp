@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2017 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -648,6 +648,11 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "branch-local-3"
     run_dump_test "branch-local-ignore-3"
     run_dump_test "branch-local-4"
+    run_dump_test "branch-local-5"
+    run_dump_test "branch-local-ignore-5"
+    run_dump_test "branch-local-6"
+    run_dump_test "branch-local-ignore-6"
+    run_dump_test "branch-local-7"
     if $has_newabi {
 	run_dump_test "branch-local-n32-1"
 	run_dump_test "branch-local-n32-2"
@@ -655,17 +660,30 @@ if { [istarget mips*-*-vxworks*] } {
 	run_dump_test "branch-local-n32-3"
 	run_dump_test "branch-local-ignore-n32-3"
 	run_dump_test "branch-local-n32-4"
+	run_dump_test "branch-local-n32-5"
+	run_dump_test "branch-local-ignore-n32-5"
+	run_dump_test "branch-local-n32-6"
+	run_dump_test "branch-local-ignore-n32-6"
+	run_dump_test "branch-local-n32-7"
 	run_dump_test "branch-local-n64-1"
 	run_dump_test "branch-local-n64-2"
 	run_dump_test "branch-local-ignore-n64-2"
 	run_dump_test "branch-local-n64-3"
 	run_dump_test "branch-local-ignore-n64-3"
 	run_dump_test "branch-local-n64-4"
+	run_dump_test "branch-local-n64-5"
+	run_dump_test "branch-local-ignore-n64-5"
+	run_dump_test "branch-local-n64-6"
+	run_dump_test "branch-local-ignore-n64-6"
+	run_dump_test "branch-local-n64-7"
     }
     run_dump_test "branch-addend"
+    run_dump_test "branch-addend-micromips"
     if $has_newabi {
 	run_dump_test "branch-addend-n32"
+	run_dump_test "branch-addend-micromips-n32"
 	run_dump_test "branch-addend-n64"
+	run_dump_test "branch-addend-micromips-n64"
     }
     run_dump_test "branch-absolute"
     run_dump_test "branch-absolute-addend"
@@ -1131,6 +1149,7 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "elf_ase_micromips-2"
 
     # Verify that machine markings are handled properly.
+    run_dump_test "elf_mach_5900"
     run_dump_test "elf_mach_interaptiv-mr2"
 
     run_dump_test "mips-gp32-fp32-pic"
@@ -1475,6 +1494,10 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "pr12915"
     run_dump_test "reginfo-1a"
     run_dump_test "reginfo-1b"
+    run_dump_test "reginfo-2"
+    if $has_newabi {
+	run_dump_test "reginfo-2-n32"
+    }
 
     run_dump_test "micromips"
     run_dump_test "micromips-trap"
@@ -1727,6 +1750,8 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "mips16-branch-reloc-1"
     run_dump_test "mips16-branch-reloc-2"
     run_dump_test "mips16-branch-reloc-3"
+    run_dump_test "mips16-branch-reloc-4"
+    run_dump_test "mips16-branch-reloc-5"
     run_dump_test "mips16-branch-addend-0"
     run_dump_test "mips16-branch-addend-1"
     run_dump_test "mips16-branch-addend-2"
@@ -2016,6 +2041,8 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "org-11"
     run_dump_test "org-12"
 
+    run_dump_test_arches "stabs-symbol-type" [mips_arch_list_all]
+
     run_dump_test_arches "r6"		[mips_arch_list_matching mips32r6]
     if $has_newabi {
 	run_dump_test_arches "r6-n32"	[mips_arch_list_matching mips64r6]
@@ -2029,4 +2056,12 @@ if { [istarget mips*-*-vxworks*] } {
 
     run_list_test_arches "r6-branch-constraints"  "-32" \
 			[mips_arch_list_matching mips32r6]
+
+    run_dump_test_arches "crc"		[mips_arch_list_matching mips32r6]
+    run_dump_test_arches "crc-err"	[mips_arch_list_matching mips32r6]
+    run_dump_test_arches "crc64"	[mips_arch_list_matching mips64r6]
+    run_dump_test_arches "crc64-err"	[mips_arch_list_matching mips64r6]
+
+    run_dump_test_arches "ginv"	[mips_arch_list_matching mips32r6]
+    run_dump_test_arches "ginv-err"	[mips_arch_list_matching mips32r6]
 }

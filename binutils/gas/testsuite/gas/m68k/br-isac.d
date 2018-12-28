@@ -1,7 +1,6 @@
 #name: br-isac.d
 #objdump: -dr
 #as: -march=isac -pcrel
-#not-target: *-*-*aout m68k-*-netbsd m68k-*-openbsd*
 
 .*:     file format .*
 

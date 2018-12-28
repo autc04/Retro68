@@ -1,7 +1,7 @@
 #source: pr19617.s
 #ld: --dynamic-list-data --no-dynamic-linker
 #readelf : --dyn-syms --wide
-#target: *-*-linux* *-*-gnu* *-*-solaris*
+#target: *-*-linux* *-*-gnu* *-*-solaris* arm*-*-uclinuxfdpiceabi
 
 #failif
 #...

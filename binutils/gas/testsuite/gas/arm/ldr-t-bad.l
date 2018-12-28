@@ -1,9 +1,9 @@
 [^:]*: Assembler messages:
 [^:]*:8: Error: registers may not be the same -- `ldr r1,\[r1,#5\]!'
-[^:]*:12: Error: ldr to register 15 must be 4-byte alligned -- `ldr r15,\[r15,#5\]'
+[^:]*:12: Error: ldr to register 15 must be 4-byte aligned -- `ldr r15,\[r15,#5\]'
 [^:]*:16: Error: branch must be last instruction in IT block -- `ldrge r15,\[r15,#4\]'
 [^:]*:25: Error: branch must be last instruction in IT block -- `ldrge r15,.0x4'
-[^:]*:30: Error: ldr to register 15 must be 4-byte alligned -- `ldr r15,.-0xab7'
+[^:]*:30: Error: ldr to register 15 must be 4-byte aligned -- `ldr r15,.-0xab7'
 [^:]*:36: Error: branch must be last instruction in IT block -- `ldrge r15,\[r15,r1\]'
 [^:]*:41: Error: r13 not allowed here -- `ldr r1,\[r2,r13\]'
 [^:]*:42: Error: r15 not allowed here -- `ldr r2,\[r2,r15\]'

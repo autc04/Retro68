@@ -2,7 +2,7 @@
 #name: C6X unwinding directives 3 (segment change)
 #source: unwind-3.s
 
-Unwind table index '.c6xabi.exidx.text.bar' .*
+Unwind section '.c6xabi.exidx.text.bar' .*
 
 0x0: 0x830e2807
   Compact model index: 3
@@ -10,7 +10,7 @@ Unwind table index '.c6xabi.exidx.text.bar' .*
   Registers restored: B11, B13
   Return register: B3
 
-Unwind table index '.c6xabi.exidx' .*
+Unwind section '.c6xabi.exidx' .*
 
 0x0: 0x80008021
   Compact model index: 0

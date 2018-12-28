@@ -1,5 +1,5 @@
 /* strings -- print the strings of printable characters in files
-   Copyright (C) 1993-2017 Free Software Foundation, Inc.
+   Copyright (C) 1993-2018 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,7 +125,7 @@ static struct option long_options[] =
   {"print-file-name", no_argument, NULL, 'f'},
   {"bytes", required_argument, NULL, 'n'},
   {"radix", required_argument, NULL, 't'},
-  {"include-all-whitespace", required_argument, NULL, 'w'},
+  {"include-all-whitespace", no_argument, NULL, 'w'},
   {"encoding", required_argument, NULL, 'e'},
   {"target", required_argument, NULL, 'T'},
   {"output-separator", required_argument, NULL, 's'},

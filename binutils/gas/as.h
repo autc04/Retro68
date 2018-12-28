@@ -1,5 +1,5 @@
 /* as.h - global header file
-   Copyright (C) 1987-2017 Free Software Foundation, Inc.
+   Copyright (C) 1987-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -279,6 +279,16 @@ enum _relax_state
      1 variable char: fill character  */
   rs_space,
 
+  /* .nop directive with expression operand that needs to be computed
+     later.  Similar to rs_space, but different.  It fills with no-op
+     instructions.
+     fr_symbol: operand
+     1 constant byte: no-op fill control byte.  */
+  rs_space_nop,
+
+  /* Similar to rs_fill.  It is used to implement .nop directive .  */
+  rs_fill_nop,
+
   /* A DWARF leb128 value; only ELF uses this.  The subtype is 0 for
      unsigned, 1 for signed.  */
   rs_leb128,
@@ -486,6 +496,7 @@ void   cond_exit_macro (int);
 int    seen_at_least_1_file (void);
 void   app_pop (char *);
 const char * as_where (unsigned int *);
+const char * as_where_physical (unsigned int *);
 void   bump_line_counters (void);
 void   do_scrub_begin (int);
 void   input_scrub_begin (void);
@@ -583,6 +594,10 @@ COMMON int flag_allow_nonconst_size;
 
 /* If we should generate ELF common symbols with the STT_COMMON type.  */
 extern int flag_use_elf_stt_common;
+
+/* TRUE iff GNU Build attribute notes should
+   be generated if none are in the input files.  */
+extern bfd_boolean flag_generate_build_notes;
 
 /* If section name substitution sequences should be honored */
 COMMON int flag_sectname_subst;

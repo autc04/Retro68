@@ -5,7 +5,7 @@
 
 There are no relocations in this file.
 
-Symbol table '\.dynsym' contains 1 entries:
+Symbol table '\.dynsym' contains 1 entry:
  +Num: +Value +Size Type +Bind +Vis +Ndx Name
  +0: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND +
 
@@ -13,4 +13,4 @@ Hex dump of section '.got':
   0x[0-9a-f]+ [0 ]+\.+
 
 Hex dump of section '.got.plt':
-  0x[0-9a-f]+ +[0-9a-f]+ +[0 ]+ .\.+
+  0x[0-9a-f]+ +[0-9a-f]+ +[0 ]+ .*
