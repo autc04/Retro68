@@ -1,5 +1,5 @@
 /* { dg-do compile { target { powerpc*-*-* } } } */
-/* { dg-skip-if "" { powerpc*-*-darwin* } { "*" } { "" } } */
+/* { dg-skip-if "" { powerpc*-*-darwin* } } */
 
 void
 use_cpu_is_builtins (unsigned int *p)
@@ -73,6 +73,7 @@ use_cpu_supports_builtins (unsigned int *p)
   p[37] = __builtin_cpu_supports ("vsx");
   p[38] = __builtin_cpu_supports ("darn");
   p[39] = __builtin_cpu_supports ("scv");
+  p[40] = __builtin_cpu_supports ("htm-no-suspend");
 #else
   p[0] = 0;
 #endif

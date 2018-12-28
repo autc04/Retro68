@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1992-2016, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2018, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -88,7 +88,6 @@ extern void mark_visited (tree t);
 
 /* This macro calls the above function but short-circuits the common
    case of a constant to save time and also checks for NULL.  */
-
 #define MARK_VISITED(EXP)		\
 do {					\
   if((EXP) && !CONSTANT_CLASS_P (EXP))	\
@@ -98,12 +97,10 @@ do {					\
 /* Finalize the processing of From_Limited_With incomplete types.  */
 extern void finalize_from_limited_with (void);
 
-/* Return the equivalent type to be used for GNAT_ENTITY, if it's a
-   kind of type (such E_Task_Type) that has a different type which Gigi
-   uses for its representation.  If the type does not have a special type
-   for its representation, return GNAT_ENTITY.  If a type is supposed to
-   exist, but does not, abort unless annotating types, in which case
-   return Empty.   If GNAT_ENTITY is Empty, return Empty.  */
+/* Return the equivalent type to be used for GNAT_ENTITY, if it's a kind
+   of type (such E_Task_Type) that has a different type which Gigi uses
+   for its representation.  If the type does not have a special type for
+   its representation, return GNAT_ENTITY.  */
 extern Entity_Id Gigi_Equivalent_Type (Entity_Id gnat_entity);
 
 /* Given GNAT_ENTITY, elaborate all expressions that are required to
@@ -153,6 +150,9 @@ extern tree maybe_pad_type (tree type, tree size, unsigned int align,
 			    Entity_Id gnat_entity, bool is_component_type,
 			    bool is_user_type, bool definition,
 			    bool set_rm_size);
+
+/* Return true if padded TYPE was built with an RM size.  */
+extern bool pad_type_has_rm_size (tree type);
 
 /* Return a copy of the padded TYPE but with reverse storage order.  */
 extern tree set_reverse_storage_order_on_pad_type (tree type);
@@ -315,12 +315,9 @@ extern void post_error_ne_tree (const char *msg, Node_Id node, Entity_Id ent,
 extern void post_error_ne_tree_2 (const char *msg, Node_Id node, Entity_Id ent,
                                   tree t, int num);
 
-/* Return a label to branch to for the exception type in KIND or NULL_TREE
+/* Return a label to branch to for the exception type in KIND or Empty
    if none.  */
-extern tree get_exception_label (char kind);
-
-/* Return the decl for the current elaboration procedure.  */
-extern tree get_elaboration_procedure (void);
+extern Entity_Id get_exception_label (char kind);
 
 /* If nonzero, pretend we are allocating at global level.  */
 extern int force_global;
@@ -429,7 +426,8 @@ enum standard_datatypes
   ADT_all_others_decl,
   ADT_unhandled_others_decl,
 
-  ADT_LAST};
+  ADT_LAST
+};
 
 /* Define kind of exception information associated with raise statements.  */
 enum exception_info_kind
@@ -726,6 +724,8 @@ extern tree create_label_decl (tree name, Node_Id gnat_node);
 
    DEBUG_INFO_P is true if we need to write debug information for it.
 
+   DEFINITION is true if the subprogram is to be considered as a definition.
+
    ATTR_LIST is the list of attributes to be attached to the subprogram.
 
    GNAT_NODE is used for the position of the decl.  */
@@ -734,7 +734,8 @@ extern tree create_subprog_decl (tree name, tree asm_name, tree type,
 				 enum inline_status_t inline_status,
 				 bool public_flag, bool extern_flag,
 				 bool artificial_p, bool debug_info_p,
-				 struct attrib *attr_list, Node_Id gnat_node);
+				 bool definition, struct attrib *attr_list,
+				 Node_Id gnat_node);
 
 /* Given a subprogram declaration DECL, its assembler name and its type,
    finish constructing the subprogram declaration from ASM_NAME and TYPE.  */
@@ -1001,7 +1002,7 @@ extern int fp_size_to_prec (int size);
    from the parameter association for the instantiation of a generic.  We do
    not want to emit source location for them: the code generated for their
    initialization is likely to disturb debugging.  */
-extern bool renaming_from_generic_instantiation_p (Node_Id gnat_node);
+extern bool renaming_from_instantiation_p (Node_Id gnat_node);
 
 /* Try to process all nodes in the deferred context queue.  Keep in the queue
    the ones that cannot be processed yet, remove the other ones.  If FORCE is
@@ -1074,7 +1075,7 @@ maybe_vector_array (tree exp)
 static inline unsigned HOST_WIDE_INT
 ceil_pow2 (unsigned HOST_WIDE_INT x)
 {
-  return (unsigned HOST_WIDE_INT) 1 << (floor_log2 (x - 1) + 1);
+  return (unsigned HOST_WIDE_INT) 1 << ceil_log2 (x);
 }
 
 /* Return true if EXP, a CALL_EXPR, is an atomic load.  */
@@ -1170,4 +1171,17 @@ maybe_debug_type (tree type)
     type = TYPE_DEBUG_TYPE (type);
 
   return type;
+}
+
+/* Like build_qualified_type, but TYPE_QUALS is added to the existing
+   qualifiers on TYPE.  */
+
+static inline tree
+change_qualified_type (tree type, int type_quals)
+{
+  /* Qualifiers must be put on the associated array type.  */
+  if (TREE_CODE (type) == UNCONSTRAINED_ARRAY_TYPE)
+    return type;
+
+  return build_qualified_type (type, TYPE_QUALS (type) | type_quals);
 }

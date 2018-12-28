@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2014-2016, Free Software Foundation, Inc.         --
+--          Copyright (C) 2014-2018, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -31,10 +31,11 @@ with Lib;      use Lib;
 with Namet;    use Namet;
 with Nlists;   use Nlists;
 with Nmake;    use Nmake;
-with Opt;      use Opt;
+with Opt;
 with Output;   use Output;
 with Rtsfind;  use Rtsfind;
 with Sem;      use Sem;
+with Sem_Aux;  use Sem_Aux;
 with Sem_Ch8;  use Sem_Ch8;
 with Sem_Mech; use Sem_Mech;
 with Sem_Res;  use Sem_Res;
@@ -176,9 +177,24 @@ package body Exp_Unst is
    ----------------
 
    function Subp_Index (Sub : Entity_Id) return SI_Type is
+      E : Entity_Id := Sub;
+
    begin
-      pragma Assert (Is_Subprogram (Sub));
-      return SI_Type (UI_To_Int (Subps_Index (Sub)));
+      pragma Assert (Is_Subprogram (E));
+
+      if Subps_Index (E) = Uint_0 then
+         E := Ultimate_Alias (E);
+
+         if Ekind (E) = E_Function
+           and then Rewritten_For_C (E)
+           and then Present (Corresponding_Procedure (E))
+         then
+            E := Corresponding_Procedure (E);
+         end if;
+      end if;
+
+      pragma Assert (Subps_Index (E) /= Uint_0);
+      return SI_Type (UI_To_Int (Subps_Index (E)));
    end Subp_Index;
 
    -----------------------
@@ -283,6 +299,16 @@ package body Exp_Unst is
       --  Nothing to do inside a generic (all processing is for instance)
 
       if Inside_A_Generic then
+         return;
+      end if;
+
+      --  If the main unit is a package body then we need to examine the spec
+      --  to determine whether the main unit is generic (the scope stack is not
+      --  present when this is called on the main unit).
+
+      if Ekind (Cunit_Entity (Main_Unit)) = E_Package_Body
+        and then Is_Generic_Unit (Spec_Entity (Cunit_Entity (Main_Unit)))
+      then
          return;
       end if;
 
@@ -537,8 +563,8 @@ package body Exp_Unst is
                Ent := Entity (Name (N));
 
                --  We are only interested in calls to subprograms nested
-               --  within Subp. Calls to Subp itself or to subprograms that
-               --  are outside the nested structure do not affect us.
+               --  within Subp. Calls to Subp itself or to subprograms
+               --  that are outside the nested structure do not affect us.
 
                if Scope_Within (Ent, Subp) then
 
@@ -557,6 +583,40 @@ package body Exp_Unst is
                      end if;
                   end if;
                end if;
+
+            --  Record a 'Access as a (potential) call
+
+            elsif Nkind (N) = N_Attribute_Reference then
+               declare
+                  Attr : constant Attribute_Id :=
+                           Get_Attribute_Id (Attribute_Name (N));
+               begin
+                  case Attr is
+                     when Attribute_Access
+                        | Attribute_Unchecked_Access
+                        | Attribute_Unrestricted_Access
+                     =>
+                        if Nkind (Prefix (N)) in N_Has_Entity then
+                           Ent := Entity (Prefix (N));
+
+                           --  We are only interested in calls to subprograms
+                           --  nested within Subp.
+
+                           if Scope_Within (Ent, Subp) then
+                              if Is_Imported (Ent) then
+                                 null;
+
+                              elsif Is_Subprogram (Ent) then
+                                 Append_Unique_Call
+                                   ((N, Current_Subprogram, Ent));
+                              end if;
+                           end if;
+                        end if;
+
+                     when others =>
+                        null;
+                  end case;
+               end;
 
             --  Record a subprogram. We record a subprogram body that acts as
             --  a spec. Otherwise we record a subprogram declaration, providing
@@ -1600,8 +1660,9 @@ package body Exp_Unst is
             Act    : Node_Id;
 
          begin
-            if Present (STT.ARECnF) then
-
+            if Present (STT.ARECnF)
+              and then Nkind (CTJ.N) /= N_Attribute_Reference
+            then
                --  CTJ.N is a call to a subprogram which may require a pointer
                --  to an activation record. The subprogram containing the call
                --  is CTJ.From and the subprogram being called is CTJ.To, so we

@@ -1,5 +1,5 @@
 // PR c++/80562
-// { dg-options -std=c++1z }
+// { dg-options -std=c++17 }
 
 struct T {
   constexpr auto foo() { return false; }
@@ -7,7 +7,7 @@ struct T {
 
 template <class MustBeTemplate>
 constexpr auto bf(T t) {
-    if constexpr(t.foo()) {
+    if constexpr(t.foo()) {	// { dg-error "constant expression" }
         return false;
     }
     return true;
