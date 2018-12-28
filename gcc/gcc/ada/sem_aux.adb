@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -458,6 +458,32 @@ package body Sem_Aux is
          when others           => raise Program_Error;
       end case;
    end Get_Binary_Nkind;
+
+   -----------------------
+   -- Get_Called_Entity --
+   -----------------------
+
+   function Get_Called_Entity (Call : Node_Id) return Entity_Id is
+      Nam : constant Node_Id := Name (Call);
+      Id  : Entity_Id;
+
+   begin
+      if Nkind (Nam) = N_Explicit_Dereference then
+         Id := Etype (Nam);
+         pragma Assert (Ekind (Id) = E_Subprogram_Type);
+
+      elsif Nkind (Nam) = N_Selected_Component then
+         Id := Entity (Selector_Name (Nam));
+
+      elsif Nkind (Nam) = N_Indexed_Component then
+         Id := Entity (Selector_Name (Prefix (Nam)));
+
+      else
+         Id := Entity (Nam);
+      end if;
+
+      return Id;
+   end Get_Called_Entity;
 
    -------------------
    -- Get_Low_Bound --
@@ -1041,16 +1067,24 @@ package body Sem_Aux is
 
    function Is_Generic_Formal (E : Entity_Id) return Boolean is
       Kind : Node_Kind;
+
    begin
       if No (E) then
          return False;
       else
-         Kind := Nkind (Parent (E));
+         --  Formal derived types are rewritten as private extensions, so
+         --  examine original node.
+
+         Kind := Nkind (Original_Node (Parent (E)));
+
          return
            Nkind_In (Kind, N_Formal_Object_Declaration,
-                           N_Formal_Package_Declaration,
                            N_Formal_Type_Declaration)
-             or else Is_Formal_Subprogram (E);
+             or else Is_Formal_Subprogram (E)
+             or else
+               (Ekind (E) = E_Package
+                 and then Nkind (Original_Node (Unit_Declaration_Node (E))) =
+                            N_Formal_Package_Declaration);
       end if;
    end Is_Generic_Formal;
 
@@ -1295,7 +1329,10 @@ package body Sem_Aux is
    ----------------------
 
    function Nearest_Ancestor (Typ : Entity_Id) return Entity_Id is
-      D : constant Node_Id := Declaration_Node (Typ);
+      D : constant Node_Id := Original_Node (Declaration_Node (Typ));
+      --  We use the original node of the declaration, because derived
+      --  types from record subtypes are rewritten as record declarations,
+      --  and it is the original declaration that carries the ancestor.
 
    begin
       --  If we have a subtype declaration, get the ancestor subtype
@@ -1656,6 +1693,7 @@ package body Sem_Aux is
         and then Nkind (N) /= N_Package_Renaming_Declaration
         and then Nkind (N) /= N_Procedure_Instantiation
         and then Nkind (N) /= N_Protected_Body
+        and then Nkind (N) /= N_Protected_Type_Declaration
         and then Nkind (N) /= N_Subprogram_Declaration
         and then Nkind (N) /= N_Subprogram_Body
         and then Nkind (N) /= N_Subprogram_Body_Stub

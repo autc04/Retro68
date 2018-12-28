@@ -1,6 +1,6 @@
 #source: expdref2.s
 #as: --pic --no-underscore --em=criself
-#ld: --shared -m crislinux
+#ld: --shared -m crislinux --hash-style=sysv
 #ld_after_inputfiles: tmpdir/libdso-15.so
 #objdump: -s -T
 
@@ -22,17 +22,17 @@ DYNAMIC SYMBOL TABLE:
 0+[	 ]+DF \*UND\*[	 ]+0+  TST3[	 ]+expfn2
 #...
 Contents of section .rela.dyn:
- 01d4 fc220000 0a040000 00000000 00230000  .*
- 01e4 0a050000 00000000                    .*
+ 017c a4220000 0a040000 00000000 a8220000  .*
+ 018c 0a050000 00000000                    .*
 Contents of section .plt:
- 01ec fce17e7e 0401307a 08013009 00000000  .*
- 01fc 00000000 6f0d0c00 00003009 3f7e0000  .*
- 020c 00002ffe ecffffff 6f0d1000 00003009  .*
- 021c 3f7e0000 00002ffe ecffffff           .*
+ 0194 fce17e7e 0401307a 08013009 00000000  .*
+ 01a4 00000000 6f0d0c00 00003009 3f7e0000  .*
+ 01b4 00002ffe ecffffff 6f0d1000 00003009  .*
+ 01c4 3f7e0000 00002ffe ecffffff           .*
 Contents of section .text:
- 0228 6fae0c00 00006fae ccffffff 6fae1000  .*
- 0238 00006fae d4ffffff                    .*
+ 01d0 6fae0c00 00006fae ccffffff 6fae1000  .*
+ 01e0 00006fae d4ffffff                    .*
 #...
 Contents of section .got:
- 22f0 40220000 00000000 00000000 00000000  .*
- 2300 00000000                             .*
+ 2298 e8210000 00000000 00000000 00000000  .*
+ 22a8 00000000                             .*

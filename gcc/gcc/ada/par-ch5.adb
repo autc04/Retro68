@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1067,9 +1067,11 @@ package body Ch5 is
 
    begin
       Assign_Node := New_Node (N_Assignment_Statement, Prev_Token_Ptr);
+      Current_Assign_Node := Assign_Node;
       Set_Name (Assign_Node, LHS);
       Set_Expression (Assign_Node, P_Expression_No_Right_Paren);
       TF_Semicolon;
+      Current_Assign_Node := Empty;
       return Assign_Node;
    end P_Assignment_Statement;
 

@@ -1,5 +1,5 @@
 /* tc-rx.c -- Assembler for the Renesas RX
-   Copyright (C) 2008-2017 Free Software Foundation, Inc.
+   Copyright (C) 2008-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -560,7 +560,7 @@ rx_list (int ignore ATTRIBUTE_UNUSED)
 static void
 rx_rept (int ignore ATTRIBUTE_UNUSED)
 {
-  int count = get_absolute_expression ();
+  size_t count = get_absolute_expression ();
 
   do_repeat_with_expander (count, "MREPEAT", "ENDR", "..MACREP");
 }
@@ -2681,6 +2681,7 @@ rx_start_line (void)
   int in_single_quote = 0;
   int done = 0;
   char * p = input_line_pointer;
+  char prev_char = 0;
 
   /* Scan the line looking for question marks.  Skip past quote enclosed regions.  */
   do
@@ -2693,7 +2694,9 @@ rx_start_line (void)
 	  break;
 
 	case '"':
-	  in_double_quote = ! in_double_quote;
+	  /* Handle escaped double quote \" inside a string.  */
+	  if (prev_char != '\\')
+	    in_double_quote = ! in_double_quote;
 	  break;
 
 	case '\'':
@@ -2722,7 +2725,7 @@ rx_start_line (void)
 	  break;
 	}
 
-      p ++;
+      prev_char = *p++;
     }
   while (! done);
 }

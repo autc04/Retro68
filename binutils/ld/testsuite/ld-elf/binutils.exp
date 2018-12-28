@@ -1,5 +1,5 @@
 # Expect script for binutils tests
-# Copyright (C) 2006-2017 Free Software Foundation, Inc.
+# Copyright (C) 2006-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -24,13 +24,9 @@
 # Make sure that binutils can correctly handle ld output in ELF.
 
 if { ![istarget *-*-linux*]
+     && ![istarget arm*-*-uclinuxfdpiceabi]
      && ![istarget *-*-nacl*]
      && ![istarget *-*-gnu*]} {
-    return
-}
-
-if { [istarget *-*-linux*aout*]
-     || [istarget *-*-linux*oldld*] } {
     return
 }
 
@@ -81,13 +77,35 @@ proc binutils_test { prog_name ld_options test {test_name ""} {readelf_options "
     }
 
     if [string match "*-z relro*" $ld_options] {
+	# These targets set TEXT_DYNAMIC and therefore have `.dynamic'
+	# in the (read-only) text segment rather than data segment.
+	set relro_dynamic [expr !([istarget "hppa64*-*-*"] \
+				  || ([istarget "mips*-*-*"] \
+				      && ![istarget "*-*-vxworks*"]))]
+	# These targets have `.got' in regular data even though they do
+	# not have `.got' there.
+	set relro_gotplt [expr [istarget "mips*-*-*"]]
+	# These targets do not set NO_SMALL_DATA or DATA_GOT and therefore
+	# have `.got' in (read-write) small data rather than regular data.
+	set relro_got [expr !([istarget "alpha*-*-*"] \
+			      || [istarget "hppa*-*-linux-*"] \
+			      || [istarget "hppa*-*-netbsd*"] \
+			      || [istarget "hppa*-*-openbsd*"] \
+			      || [istarget "metag-*-*"] \
+			      || [istarget "mips*-*-*"] \
+			      || [istarget "nios2*-*-*"] \
+			      || [istarget "or1k-*-*"] \
+			      || [istarget "riscv*-*-*"] \
+			      || [istarget "sh*-*-*"] \
+			      || [istarget "x86_64-*-rdos*"])]
 	# Check if GNU_RELRO segment is generated.
 	set got [remote_exec host "grep GNU_RELRO tmpdir/$test.exp"]
 	if { ![string match "*GNU_RELRO*" $got] } then {
 	    set got [remote_exec host "cat tmpdir/$test.exp"]
 	    if { [string match "*.data.rel.ro*" $got]
-		 || [string match "*.dynamic*" $got]
-		 || [string match "*.got*" $got]
+		 || ($relro_dynamic && [string match "*.dynamic*" $got])
+		 || ($relro_gotplt && [string match "*.got.plt*" $got])
+		 || ($relro_got && [string match "*.got*" $got])
 		 || [string match "*.eh_frame*" $got]
 		 || [string match "*.gcc_except_table*" $got]
 		 || [string match "*.exception_ranges*" $got]
@@ -144,10 +162,8 @@ binutils_test strip "-z relro -shared" relro1
 binutils_test objcopy "-z relro" relro1
 binutils_test objcopy "-z relro -shared" relro1
 if { ([istarget "i?86-*-elf*"]
-      || (([istarget "i?86-*-linux*"]
-	   || [istarget "i?86-*-gnu*"])
-	  && ![istarget "*-*-*aout*"]
-	  && ![istarget "*-*-*oldld*"])
+      || [istarget "i?86-*-linux*"]
+      || [istarget "i?86-*-gnu*"]
       || [istarget "x86_64-*-linux*"]
       || [istarget "amd64-*-linux*"]
       || [istarget "i?86-*nacl*"]
@@ -164,9 +180,11 @@ if { ![istarget "hppa64-*-*"] } {
     lappend tls_tests "tdata3" "tbss1" "tbss2" "tbss3"
 }
 set tls_opts {
-    ""
+    "-z noseparate-code"
+    "-z separate-code"
     "-z relro"
-    "-shared"
+    "-shared -z noseparate-code"
+    "-shared -z separate-code"
     "-shared -z relro"
     "-z max-page-size=0x100000"
     "-z max-page-size=0x100000 -z common-page-size=0x1000"

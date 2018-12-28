@@ -1,4 +1,4 @@
-# Copyright (C) 2013-2017 Free Software Foundation, Inc.
+# Copyright (C) 2013-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,4 +59,9 @@ if $has_newabi {
     run_dump_test "mips-note-2-n64"
     run_dump_test "mips-note-2r-n32"
     run_dump_test "mips-note-2r-n64"
+}
+
+run_dump_test "mips-reginfo"
+if $has_newabi {
+    run_dump_test "mips-reginfo-n32"
 }

@@ -1,3 +1,3 @@
 #name: Bad barrier options (ARM)
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
+#skip: *-*-pe *-*-wince
 #error-output: barrier-bad.l

@@ -1,5 +1,5 @@
 /* Handle errors.
-   Copyright (C) 2000-2017 Free Software Foundation, Inc.
+   Copyright (C) 2000-2018 Free Software Foundation, Inc.
    Contributed by Andy Vaught & Niels Kristian Bech Jensen
 
 This file is part of GCC.
@@ -789,7 +789,7 @@ gfc_warning (int opt, const char *gmsgid, va_list ap)
   diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc,
 		       DK_WARNING);
   diagnostic.option_index = opt;
-  bool ret = report_diagnostic (&diagnostic);
+  bool ret = diagnostic_report_diagnostic (global_dc, &diagnostic);
 
   if (buffered_p)
     {
@@ -864,6 +864,15 @@ gfc_notify_std (int std, const char *gmsgid, ...)
 
   switch (std)
   {
+    case GFC_STD_F2018_DEL:
+      msg = _("Fortran 2018 deleted feature:");
+      break;
+    case GFC_STD_F2018_OBS:
+      msg = _("Fortran 2018 obsolescent feature:");
+      break;
+    case GFC_STD_F2018:
+      msg = _("Fortran 2018:");
+      break;
     case GFC_STD_F2008_TS:
       msg = "TS 29113/TS 18508:";
       break;
@@ -917,7 +926,8 @@ gfc_notify_std (int std, const char *gmsgid, ...)
 */
 static bool
 gfc_format_decoder (pretty_printer *pp, text_info *text, const char *spec,
-		    int precision, bool wide, bool set_locus, bool hash)
+		    int precision, bool wide, bool set_locus, bool hash,
+		    bool *quoted, const char **buffer_ptr)
 {
   switch (*spec)
     {
@@ -948,7 +958,7 @@ gfc_format_decoder (pretty_printer *pp, text_info *text, const char *spec,
 	 etc. diagnostics can use the FE printer while the FE is still
 	 active.  */
       return default_tree_printer (pp, text, spec, precision, wide,
-				   set_locus, hash);
+				   set_locus, hash, quoted, buffer_ptr);
     }
 }
 
@@ -1138,7 +1148,7 @@ gfc_warning_now_at (location_t loc, int opt, const char *gmsgid, ...)
   va_start (argp, gmsgid);
   diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc, DK_WARNING);
   diagnostic.option_index = opt;
-  ret = report_diagnostic (&diagnostic);
+  ret = diagnostic_report_diagnostic (global_dc, &diagnostic);
   va_end (argp);
   return ret;
 }
@@ -1157,7 +1167,7 @@ gfc_warning_now (int opt, const char *gmsgid, ...)
   diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc,
 		       DK_WARNING);
   diagnostic.option_index = opt;
-  ret = report_diagnostic (&diagnostic);
+  ret = diagnostic_report_diagnostic (global_dc, &diagnostic);
   va_end (argp);
   return ret;
 }
@@ -1176,7 +1186,7 @@ gfc_warning_internal (int opt, const char *gmsgid, ...)
   diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc,
 		       DK_WARNING);
   diagnostic.option_index = opt;
-  ret = report_diagnostic (&diagnostic);
+  ret = diagnostic_report_diagnostic (global_dc, &diagnostic);
   va_end (argp);
   return ret;
 }
@@ -1194,7 +1204,7 @@ gfc_error_now (const char *gmsgid, ...)
 
   va_start (argp, gmsgid);
   diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc, DK_ERROR);
-  report_diagnostic (&diagnostic);
+  diagnostic_report_diagnostic (global_dc, &diagnostic);
   va_end (argp);
 }
 
@@ -1210,7 +1220,7 @@ gfc_fatal_error (const char *gmsgid, ...)
 
   va_start (argp, gmsgid);
   diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc, DK_FATAL);
-  report_diagnostic (&diagnostic);
+  diagnostic_report_diagnostic (global_dc, &diagnostic);
   va_end (argp);
 
   gcc_unreachable ();
@@ -1295,7 +1305,7 @@ gfc_error_opt (int opt, const char *gmsgid, va_list ap)
     }
 
   diagnostic_set_info (&diagnostic, gmsgid, &argp, &richloc, DK_ERROR);
-  report_diagnostic (&diagnostic);
+  diagnostic_report_diagnostic (global_dc, &diagnostic);
 
   if (buffered_p)
     {
@@ -1345,7 +1355,7 @@ gfc_internal_error (const char *gmsgid, ...)
 
   va_start (argp, gmsgid);
   diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc, DK_ICE);
-  report_diagnostic (&diagnostic);
+  diagnostic_report_diagnostic (global_dc, &diagnostic);
   va_end (argp);
 
   gcc_unreachable ();

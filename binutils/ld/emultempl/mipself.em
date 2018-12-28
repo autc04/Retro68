@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2004-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -44,7 +44,7 @@ mips_after_parse (void)
      MIPS ABI requires a mapping between the GOT and the symbol table.  */
   if (link_info.emit_gnu_hash)
     {
-      einfo ("%X%P: .gnu.hash is incompatible with the MIPS ABI\n");
+      einfo (_("%X%P: .gnu.hash is incompatible with the MIPS ABI\n"));
       link_info.emit_hash = TRUE;
       link_info.emit_gnu_hash = FALSE;
     }
@@ -157,7 +157,7 @@ mips_add_stub_section (const char *stub_sec_name, asection *input_section,
 				 bfd_get_arch (link_info.output_bfd),
 				 bfd_get_mach (link_info.output_bfd)))
 	{
-	  einfo ("%F%P: can not create BFD %E\n");
+	  einfo (_("%F%P: can not create BFD: %E\n"));
 	  return NULL;
 	}
       stub_bfd->flags |= BFD_LINKER_CREATED;
@@ -190,7 +190,7 @@ mips_add_stub_section (const char *stub_sec_name, asection *input_section,
     return stub_sec;
 
  err_ret:
-  einfo ("%X%P: can not make stub section: %E\n");
+  einfo (_("%X%P: can not make stub section: %E\n"));
   return NULL;
 }
 

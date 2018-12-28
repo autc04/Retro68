@@ -1,15 +1,15 @@
-#   Copyright (C) 1995-2017 Free Software Foundation, Inc.
+#   Copyright (C) 1995-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
@@ -113,7 +113,7 @@ proc long_filenames { bfdtests } {
 	fail $testname
 	return
     }
-    
+
     if [is_remote host] {
 	remote_file host delete $file1
 	remote_file host delete $file2
@@ -435,6 +435,12 @@ proc deterministic_archive { } {
 	return
     }
 
+    set got [binutils_run $AR "tvO $archive"]
+    if ![string match "rw-r--r-- 0/0 *bintest.o 0x*" $got] {
+	fail $testname
+	return
+    }
+
     pass $testname
 }
 
@@ -449,6 +455,7 @@ proc unique_symbol { } {
 
     if ![binutils_assemble $srcdir/$subdir/unique.s tmpdir/unique.o] {
 	unresolved $testname
+	return
     }
 
     if [is_remote host] {
@@ -570,7 +577,7 @@ proc empty_archive { } {
 
     # FIXME: There ought to be a way to dynamically create an empty file.
     set empty $srcdir/$subdir/empty
-    
+
     if [is_remote host] {
 	set archive artest.a
 	set objfile [remote_download host $empty]

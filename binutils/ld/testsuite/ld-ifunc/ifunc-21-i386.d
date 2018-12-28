@@ -1,7 +1,8 @@
-#ld: -m elf_i386
+#ld: -m elf_i386 -z noseparate-code
 #as: --32 -mrelax-relocations=yes
 #objdump: -dw
 #target: x86_64-*-* i?86-*-*
+#notarget: x86_64-*-nacl* i?86-*-nacl*
 
 .*: +file format .*
 

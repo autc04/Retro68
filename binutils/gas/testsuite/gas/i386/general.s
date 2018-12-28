@@ -132,10 +132,10 @@
 	fcompl	%st(5)
 	faddp	%st(1),%st
 	fmulp	%st(2),%st
-	fsubp	%st(3),%st
-	fsubrp	%st(4),%st
-	fdivp	%st(5),%st
-	fdivrp	%st(6),%st
+	fsub	%st(3),%st
+	fsubr	%st(4),%st
+	fdiv	%st(5),%st
+	fdivr	%st(6),%st
 	fadd
 	fsub
 	fmul

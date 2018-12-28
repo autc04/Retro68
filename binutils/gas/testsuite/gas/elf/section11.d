@@ -3,6 +3,9 @@
 #name: Disabling section padding
 # The RX port uses non standard section names.
 #skip: rx-*-*
+# RISC-V handles alignment via linker relaxation, so object files don't have
+# the expected alignment.
+#not-target: riscv*-*-*
 
 #...
   \[ .\] .text[ 	]+PROGBITS[ 	]+0+00 0+[0-9a-f]+ 0+0(1|4|5) 00  AX  0   0 16

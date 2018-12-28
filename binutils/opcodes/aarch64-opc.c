@@ -1,5 +1,5 @@
 /* aarch64-opc.c -- AArch64 opcode support.
-   Copyright (C) 2009-2017 Free Software Foundation, Inc.
+   Copyright (C) 2009-2018 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of the GNU opcodes library.
@@ -240,7 +240,9 @@ const aarch64_field fields[] =
     { 22,  2 },	/* type: floating point type field in fp data inst.  */
     { 30,  2 },	/* ldst_size: size field in ld/st reg offset inst.  */
     { 10,  6 },	/* imm6: in add/sub reg shifted instructions.  */
+    { 15,  6 },	/* imm6_2: in rmif instructions.  */
     { 11,  4 },	/* imm4: in advsimd ext and advsimd ins instructions.  */
+    {  0,  4 },	/* imm4_2: in rmif instructions.  */
     { 16,  5 },	/* imm5: in conditional compare (immediate) instructions.  */
     { 15,  7 },	/* imm7: in load/store pair pre/post index instructions.  */
     { 13,  8 },	/* imm8: in floating-point scalar move immediate inst.  */
@@ -316,6 +318,7 @@ const aarch64_field fields[] =
     { 11,  2 }, /* rotate1: FCMLA immediate rotate.  */
     { 13,  2 }, /* rotate2: Indexed element FCMLA immediate rotate.  */
     { 12,  1 }, /* rotate3: FCADD immediate rotate.  */
+    { 12,  2 }, /* SM3: Indexed element SM3 2 bits index immediate.  */
 };
 
 enum aarch64_operand_class
@@ -695,7 +698,9 @@ struct operand_qualifier_data aarch64_opnd_qualifiers[] =
   {4, 1, 0x2, "s", OQK_OPD_VARIANT},
   {8, 1, 0x3, "d", OQK_OPD_VARIANT},
   {16, 1, 0x4, "q", OQK_OPD_VARIANT},
+  {1, 4, 0x0, "4b", OQK_OPD_VARIANT},
 
+  {1, 4, 0x0, "4b", OQK_OPD_VARIANT},
   {1, 8, 0x0, "8b", OQK_OPD_VARIANT},
   {1, 16, 0x1, "16b", OQK_OPD_VARIANT},
   {2, 2, 0x0, "2h", OQK_OPD_VARIANT},
@@ -1602,6 +1607,7 @@ operand_general_constraint_met_p (const aarch64_opnd_info *opnds, int idx,
 	      return 0;
 	    }
 	  break;
+	case AARCH64_OPND_ADDR_OFFSET:
 	case AARCH64_OPND_ADDR_SIMM9:
 	  /* Unscaled signed 9 bits immediate offset.  */
 	  if (!value_in_range_p (opnd->addr.offset.imm, -256, 255))
@@ -1829,6 +1835,7 @@ operand_general_constraint_met_p (const aarch64_opnd_info *opnds, int idx,
 	  max_value = 7;
 	  goto sve_imm_offset;
 
+	case AARCH64_OPND_SVE_ADDR_R:
 	case AARCH64_OPND_SVE_ADDR_RR:
 	case AARCH64_OPND_SVE_ADDR_RR_LSL1:
 	case AARCH64_OPND_SVE_ADDR_RR_LSL2:
@@ -2461,7 +2468,8 @@ operand_general_constraint_met_p (const aarch64_opnd_info *opnds, int idx,
 	     MSR PAN, #uimm4
 	     The immediate must be #0 or #1.  */
 	  if ((opnd->pstatefield == 0x03	/* UAO.  */
-	       || opnd->pstatefield == 0x04)	/* PAN.  */
+	       || opnd->pstatefield == 0x04	/* PAN.  */
+	       || opnd->pstatefield == 0x1a)	/* DIT.  */
 	      && opnds[1].imm.value > 1)
 	    {
 	      set_imm_out_of_range_error (mismatch_detail, idx, 0, 1);
@@ -2508,7 +2516,7 @@ operand_general_constraint_met_p (const aarch64_opnd_info *opnds, int idx,
 	 01		0:Rm
 	 10		M:Rm
 	 11		RESERVED  */
-      if (type == AARCH64_OPND_Em && qualifier == AARCH64_OPND_QLF_S_H
+      if (type == AARCH64_OPND_Em16 && qualifier == AARCH64_OPND_QLF_S_H
 	  && !value_in_range_p (opnd->reglane.regno, 0, 15))
 	{
 	  set_regno_out_of_range_error (mismatch_detail, idx, 0, 15);
@@ -2847,7 +2855,7 @@ typedef union
 static uint64_t
 expand_fp_imm (int size, uint32_t imm8)
 {
-  uint64_t imm;
+  uint64_t imm = 0;
   uint32_t imm8_7, imm8_6_0, imm8_6, imm8_6_repl4;
 
   imm8_7 = (imm8 >> 7) & 0x01;	/* imm8<7>   */
@@ -3025,7 +3033,7 @@ void
 aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
 		       const aarch64_opcode *opcode,
 		       const aarch64_opnd_info *opnds, int idx, int *pcrel_p,
-		       bfd_vma *address)
+		       bfd_vma *address, char** notes ATTRIBUTE_UNUSED)
 {
   unsigned int i, num_conds;
   const char *name = NULL;
@@ -3050,7 +3058,7 @@ aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
     case AARCH64_OPND_PAIRREG:
     case AARCH64_OPND_SVE_Rm:
       /* The optional-ness of <Xt> in e.g. IC <ic_op>{, <Xt>} is determined by
-	 the <ic_op>, therefore we we use opnd->present to override the
+	 the <ic_op>, therefore we use opnd->present to override the
 	 generic optional-ness information.  */
       if (opnd->type == AARCH64_OPND_Rt_SYS)
 	{
@@ -3142,6 +3150,7 @@ aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
 		opnd->reg.regno);
       break;
 
+    case AARCH64_OPND_Va:
     case AARCH64_OPND_Vd:
     case AARCH64_OPND_Vn:
     case AARCH64_OPND_Vm:
@@ -3152,6 +3161,8 @@ aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
     case AARCH64_OPND_Ed:
     case AARCH64_OPND_En:
     case AARCH64_OPND_Em:
+    case AARCH64_OPND_Em16:
+    case AARCH64_OPND_SM3_IMM2:
       snprintf (buf, size, "v%d.%s[%" PRIi64 "]", opnd->reglane.regno,
 		aarch64_get_qualifier_name (opnd->qualifier),
 		opnd->reglane.index);
@@ -3222,7 +3233,9 @@ aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
       break;
 
     case AARCH64_OPND_IDX:
+    case AARCH64_OPND_MASK:
     case AARCH64_OPND_IMM:
+    case AARCH64_OPND_IMM_2:
     case AARCH64_OPND_WIDTH:
     case AARCH64_OPND_UIMM3_OP1:
     case AARCH64_OPND_UIMM3_OP2:
@@ -3465,6 +3478,7 @@ aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
       break;
 
     case AARCH64_OPND_ADDR_REGOFF:
+    case AARCH64_OPND_SVE_ADDR_R:
     case AARCH64_OPND_SVE_ADDR_RR:
     case AARCH64_OPND_SVE_ADDR_RR_LSL1:
     case AARCH64_OPND_SVE_ADDR_RR_LSL2:
@@ -3499,6 +3513,7 @@ aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
     case AARCH64_OPND_ADDR_SIMM9:
     case AARCH64_OPND_ADDR_SIMM9_2:
     case AARCH64_OPND_ADDR_SIMM10:
+    case AARCH64_OPND_ADDR_OFFSET:
     case AARCH64_OPND_SVE_ADDR_RI_S4x16:
     case AARCH64_OPND_SVE_ADDR_RI_S4xVL:
     case AARCH64_OPND_SVE_ADDR_RI_S4x2xVL:
@@ -3542,15 +3557,42 @@ aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
 
     case AARCH64_OPND_SYSREG:
       for (i = 0; aarch64_sys_regs[i].name; ++i)
-	if (aarch64_sys_regs[i].value == opnd->sysreg
-	    && ! aarch64_sys_reg_deprecated_p (&aarch64_sys_regs[i]))
-	  break;
-      if (aarch64_sys_regs[i].name)
-	snprintf (buf, size, "%s", aarch64_sys_regs[i].name);
+	{
+	  bfd_boolean exact_match
+	    = (aarch64_sys_regs[i].flags & opnd->sysreg.flags)
+	       == opnd->sysreg.flags;
+
+	  /* Try and find an exact match, But if that fails, return the first
+	     partial match that was found.  */
+	  if (aarch64_sys_regs[i].value == opnd->sysreg.value
+	      && ! aarch64_sys_reg_deprecated_p (&aarch64_sys_regs[i])
+	      && (name == NULL || exact_match))
+	    {
+	      name = aarch64_sys_regs[i].name;
+	      if (exact_match)
+		{
+		  if (notes)
+		    *notes = NULL;
+		  break;
+		}
+
+	      /* If we didn't match exactly, that means the presense of a flag
+		 indicates what we didn't want for this instruction.  e.g. If
+		 F_REG_READ is there, that means we were looking for a write
+		 register.  See aarch64_ext_sysreg.  */
+	      if (aarch64_sys_regs[i].flags & F_REG_WRITE)
+		*notes = _("reading from a write-only register.");
+	      else if (aarch64_sys_regs[i].flags & F_REG_READ)
+		*notes = _("writing to a read-only register.");
+	    }
+	}
+
+      if (name)
+	snprintf (buf, size, "%s", name);
       else
 	{
 	  /* Implementation defined system register.  */
-	  unsigned int value = opnd->sysreg;
+	  unsigned int value = opnd->sysreg.value;
 	  snprintf (buf, size, "s%u_%u_c%u_c%u_%u", (value >> 14) & 0x3,
 		    (value >> 11) & 0x7, (value >> 7) & 0xf, (value >> 3) & 0xf,
 		    value & 0x7);
@@ -3624,26 +3666,8 @@ aarch64_print_operand (char *buf, size_t size, bfd_vma pc,
 #define C14 14
 #define C15 15
 
-#ifdef F_DEPRECATED
-#undef F_DEPRECATED
-#endif
-#define F_DEPRECATED	0x1	/* Deprecated system register.  */
-
-#ifdef F_ARCHEXT
-#undef F_ARCHEXT
-#endif
-#define F_ARCHEXT	0x2	/* Architecture dependent system register.  */
-
-#ifdef F_HASXT
-#undef F_HASXT
-#endif
-#define F_HASXT		0x4	/* System instruction register <Xt>
-				   operand.  */
-
-
-/* TODO there are two more issues need to be resolved
-   1. handle read-only and write-only system registers
-   2. handle cpu-implementation-defined system registers.  */
+/* TODO there is one more issues need to be resolved
+   1. handle cpu-implementation-defined system registers.  */
 const aarch64_sys_reg aarch64_sys_regs [] =
 {
   { "spsr_el1",         CPEN_(0,C0,0),	0 }, /* = spsr_svc */
@@ -3653,7 +3677,7 @@ const aarch64_sys_reg aarch64_sys_regs [] =
   { "sp_el0",           CPEN_(0,C1,0),	0 },
   { "spsel",            CPEN_(0,C2,0),	0 },
   { "daif",             CPEN_(3,C2,1),	0 },
-  { "currentel",        CPEN_(0,C2,2),	0 }, /* RO */
+  { "currentel",        CPEN_(0,C2,2),	F_REG_READ }, /* RO */
   { "pan",		CPEN_(0,C2,3),	F_ARCHEXT },
   { "uao",		CPEN_ (0, C2, 4), F_ARCHEXT },
   { "nzcv",             CPEN_(3,C2,0),	0 },
@@ -3673,45 +3697,45 @@ const aarch64_sys_reg aarch64_sys_regs [] =
   { "sp_el2",           CPEN_(6,C1,0),	0 },
   { "spsr_svc",         CPEN_(0,C0,0),	F_DEPRECATED }, /* = spsr_el1 */
   { "spsr_hyp",         CPEN_(4,C0,0),	F_DEPRECATED }, /* = spsr_el2 */
-  { "midr_el1",         CPENC(3,0,C0,C0,0),	0 }, /* RO */
-  { "ctr_el0",          CPENC(3,3,C0,C0,1),	0 }, /* RO */
-  { "mpidr_el1",        CPENC(3,0,C0,C0,5),	0 }, /* RO */
-  { "revidr_el1",       CPENC(3,0,C0,C0,6),	0 }, /* RO */
-  { "aidr_el1",         CPENC(3,1,C0,C0,7),	0 }, /* RO */
-  { "dczid_el0",        CPENC(3,3,C0,C0,7),	0 }, /* RO */
-  { "id_dfr0_el1",      CPENC(3,0,C0,C1,2),	0 }, /* RO */
-  { "id_pfr0_el1",      CPENC(3,0,C0,C1,0),	0 }, /* RO */
-  { "id_pfr1_el1",      CPENC(3,0,C0,C1,1),	0 }, /* RO */
-  { "id_afr0_el1",      CPENC(3,0,C0,C1,3),	0 }, /* RO */
-  { "id_mmfr0_el1",     CPENC(3,0,C0,C1,4),	0 }, /* RO */
-  { "id_mmfr1_el1",     CPENC(3,0,C0,C1,5),	0 }, /* RO */
-  { "id_mmfr2_el1",     CPENC(3,0,C0,C1,6),	0 }, /* RO */
-  { "id_mmfr3_el1",     CPENC(3,0,C0,C1,7),	0 }, /* RO */
-  { "id_mmfr4_el1",     CPENC(3,0,C0,C2,6),	0 }, /* RO */
-  { "id_isar0_el1",     CPENC(3,0,C0,C2,0),	0 }, /* RO */
-  { "id_isar1_el1",     CPENC(3,0,C0,C2,1),	0 }, /* RO */
-  { "id_isar2_el1",     CPENC(3,0,C0,C2,2),	0 }, /* RO */
-  { "id_isar3_el1",     CPENC(3,0,C0,C2,3),	0 }, /* RO */
-  { "id_isar4_el1",     CPENC(3,0,C0,C2,4),	0 }, /* RO */
-  { "id_isar5_el1",     CPENC(3,0,C0,C2,5),	0 }, /* RO */
-  { "mvfr0_el1",        CPENC(3,0,C0,C3,0),	0 }, /* RO */
-  { "mvfr1_el1",        CPENC(3,0,C0,C3,1),	0 }, /* RO */
-  { "mvfr2_el1",        CPENC(3,0,C0,C3,2),	0 }, /* RO */
-  { "ccsidr_el1",       CPENC(3,1,C0,C0,0),	0 }, /* RO */
-  { "id_aa64pfr0_el1",  CPENC(3,0,C0,C4,0),	0 }, /* RO */
-  { "id_aa64pfr1_el1",  CPENC(3,0,C0,C4,1),	0 }, /* RO */
-  { "id_aa64dfr0_el1",  CPENC(3,0,C0,C5,0),	0 }, /* RO */
-  { "id_aa64dfr1_el1",  CPENC(3,0,C0,C5,1),	0 }, /* RO */
-  { "id_aa64isar0_el1", CPENC(3,0,C0,C6,0),	0 }, /* RO */
-  { "id_aa64isar1_el1", CPENC(3,0,C0,C6,1),	0 }, /* RO */
-  { "id_aa64mmfr0_el1", CPENC(3,0,C0,C7,0),	0 }, /* RO */
-  { "id_aa64mmfr1_el1", CPENC(3,0,C0,C7,1),	0 }, /* RO */
-  { "id_aa64mmfr2_el1", CPENC (3, 0, C0, C7, 2), F_ARCHEXT }, /* RO */
-  { "id_aa64afr0_el1",  CPENC(3,0,C0,C5,4),	0 }, /* RO */
-  { "id_aa64afr1_el1",  CPENC(3,0,C0,C5,5),	0 }, /* RO */
-  { "id_aa64zfr0_el1",  CPENC (3, 0, C0, C4, 4), F_ARCHEXT }, /* RO */
-  { "clidr_el1",        CPENC(3,1,C0,C0,1),	0 }, /* RO */
-  { "csselr_el1",       CPENC(3,2,C0,C0,0),	0 }, /* RO */
+  { "midr_el1",         CPENC(3,0,C0,C0,0),	F_REG_READ }, /* RO */
+  { "ctr_el0",          CPENC(3,3,C0,C0,1),	F_REG_READ }, /* RO */
+  { "mpidr_el1",        CPENC(3,0,C0,C0,5),	F_REG_READ }, /* RO */
+  { "revidr_el1",       CPENC(3,0,C0,C0,6),	F_REG_READ }, /* RO */
+  { "aidr_el1",         CPENC(3,1,C0,C0,7),	F_REG_READ }, /* RO */
+  { "dczid_el0",        CPENC(3,3,C0,C0,7),	F_REG_READ }, /* RO */
+  { "id_dfr0_el1",      CPENC(3,0,C0,C1,2),	F_REG_READ }, /* RO */
+  { "id_pfr0_el1",      CPENC(3,0,C0,C1,0),	F_REG_READ }, /* RO */
+  { "id_pfr1_el1",      CPENC(3,0,C0,C1,1),	F_REG_READ }, /* RO */
+  { "id_afr0_el1",      CPENC(3,0,C0,C1,3),	F_REG_READ }, /* RO */
+  { "id_mmfr0_el1",     CPENC(3,0,C0,C1,4),	F_REG_READ }, /* RO */
+  { "id_mmfr1_el1",     CPENC(3,0,C0,C1,5),	F_REG_READ }, /* RO */
+  { "id_mmfr2_el1",     CPENC(3,0,C0,C1,6),	F_REG_READ }, /* RO */
+  { "id_mmfr3_el1",     CPENC(3,0,C0,C1,7),	F_REG_READ }, /* RO */
+  { "id_mmfr4_el1",     CPENC(3,0,C0,C2,6),	F_REG_READ }, /* RO */
+  { "id_isar0_el1",     CPENC(3,0,C0,C2,0),	F_REG_READ }, /* RO */
+  { "id_isar1_el1",     CPENC(3,0,C0,C2,1),	F_REG_READ }, /* RO */
+  { "id_isar2_el1",     CPENC(3,0,C0,C2,2),	F_REG_READ }, /* RO */
+  { "id_isar3_el1",     CPENC(3,0,C0,C2,3),	F_REG_READ }, /* RO */
+  { "id_isar4_el1",     CPENC(3,0,C0,C2,4),	F_REG_READ }, /* RO */
+  { "id_isar5_el1",     CPENC(3,0,C0,C2,5),	F_REG_READ }, /* RO */
+  { "mvfr0_el1",        CPENC(3,0,C0,C3,0),	F_REG_READ }, /* RO */
+  { "mvfr1_el1",        CPENC(3,0,C0,C3,1),	F_REG_READ }, /* RO */
+  { "mvfr2_el1",        CPENC(3,0,C0,C3,2),	F_REG_READ }, /* RO */
+  { "ccsidr_el1",       CPENC(3,1,C0,C0,0),	F_REG_READ }, /* RO */
+  { "id_aa64pfr0_el1",  CPENC(3,0,C0,C4,0),	F_REG_READ }, /* RO */
+  { "id_aa64pfr1_el1",  CPENC(3,0,C0,C4,1),	F_REG_READ }, /* RO */
+  { "id_aa64dfr0_el1",  CPENC(3,0,C0,C5,0),	F_REG_READ }, /* RO */
+  { "id_aa64dfr1_el1",  CPENC(3,0,C0,C5,1),	F_REG_READ }, /* RO */
+  { "id_aa64isar0_el1", CPENC(3,0,C0,C6,0),	F_REG_READ }, /* RO */
+  { "id_aa64isar1_el1", CPENC(3,0,C0,C6,1),	F_REG_READ }, /* RO */
+  { "id_aa64mmfr0_el1", CPENC(3,0,C0,C7,0),	F_REG_READ }, /* RO */
+  { "id_aa64mmfr1_el1", CPENC(3,0,C0,C7,1),	F_REG_READ }, /* RO */
+  { "id_aa64mmfr2_el1", CPENC (3, 0, C0, C7, 2), F_ARCHEXT | F_REG_READ }, /* RO */
+  { "id_aa64afr0_el1",  CPENC(3,0,C0,C5,4),	F_REG_READ }, /* RO */
+  { "id_aa64afr1_el1",  CPENC(3,0,C0,C5,5),	F_REG_READ }, /* RO */
+  { "id_aa64zfr0_el1",  CPENC (3, 0, C0, C4, 4), F_ARCHEXT | F_REG_READ }, /* RO */
+  { "clidr_el1",        CPENC(3,1,C0,C0,1),	F_REG_READ }, /* RO */
+  { "csselr_el1",       CPENC(3,2,C0,C0,0),	0 },
   { "vpidr_el2",        CPENC(3,4,C0,C0,0),	0 },
   { "vmpidr_el2",       CPENC(3,4,C0,C0,5),	0 },
   { "sctlr_el1",        CPENC(3,0,C1,C0,0),	0 },
@@ -3771,11 +3795,11 @@ const aarch64_sys_reg aarch64_sys_regs [] =
   { "esr_el2",          CPENC(3,4,C5,C2,0),	0 },
   { "esr_el3",          CPENC(3,6,C5,C2,0),	0 },
   { "esr_el12",		CPENC (3, 5, C5, C2, 0), F_ARCHEXT },
-  { "vsesr_el2",	CPENC (3, 4, C5, C2, 3), F_ARCHEXT }, /* RO */
+  { "vsesr_el2",	CPENC (3, 4, C5, C2, 3), F_ARCHEXT },
   { "fpexc32_el2",      CPENC(3,4,C5,C3,0),	0 },
-  { "erridr_el1",	CPENC (3, 0, C5, C3, 0), F_ARCHEXT }, /* RO */
+  { "erridr_el1",	CPENC (3, 0, C5, C3, 0), F_ARCHEXT | F_REG_READ }, /* RO */
   { "errselr_el1",	CPENC (3, 0, C5, C3, 1), F_ARCHEXT },
-  { "erxfr_el1",	CPENC (3, 0, C5, C4, 0), F_ARCHEXT }, /* RO */
+  { "erxfr_el1",	CPENC (3, 0, C5, C4, 0), F_ARCHEXT | F_REG_READ }, /* RO */
   { "erxctlr_el1",	CPENC (3, 0, C5, C4, 1), F_ARCHEXT },
   { "erxstatus_el1",	CPENC (3, 0, C5, C4, 2), F_ARCHEXT },
   { "erxaddr_el1",	CPENC (3, 0, C5, C4, 3), F_ARCHEXT },
@@ -3799,27 +3823,27 @@ const aarch64_sys_reg aarch64_sys_regs [] =
   { "vbar_el2",         CPENC(3,4,C12,C0,0),	0 },
   { "vbar_el3",         CPENC(3,6,C12,C0,0),	0 },
   { "vbar_el12",	CPENC (3, 5, C12, C0, 0), F_ARCHEXT },
-  { "rvbar_el1",        CPENC(3,0,C12,C0,1),	0 }, /* RO */
-  { "rvbar_el2",        CPENC(3,4,C12,C0,1),	0 }, /* RO */
-  { "rvbar_el3",        CPENC(3,6,C12,C0,1),	0 }, /* RO */
+  { "rvbar_el1",        CPENC(3,0,C12,C0,1),	F_REG_READ }, /* RO */
+  { "rvbar_el2",        CPENC(3,4,C12,C0,1),	F_REG_READ }, /* RO */
+  { "rvbar_el3",        CPENC(3,6,C12,C0,1),	F_REG_READ }, /* RO */
   { "rmr_el1",          CPENC(3,0,C12,C0,2),	0 },
   { "rmr_el2",          CPENC(3,4,C12,C0,2),	0 },
   { "rmr_el3",          CPENC(3,6,C12,C0,2),	0 },
-  { "isr_el1",          CPENC(3,0,C12,C1,0),	0 }, /* RO */
+  { "isr_el1",          CPENC(3,0,C12,C1,0),	F_REG_READ }, /* RO */
   { "disr_el1",		CPENC (3, 0, C12, C1, 1), F_ARCHEXT },
   { "vdisr_el2",	CPENC (3, 4, C12, C1, 1), F_ARCHEXT },
   { "contextidr_el1",   CPENC(3,0,C13,C0,1),	0 },
   { "contextidr_el2",	CPENC (3, 4, C13, C0, 1), F_ARCHEXT },
   { "contextidr_el12",	CPENC (3, 5, C13, C0, 1), F_ARCHEXT },
   { "tpidr_el0",        CPENC(3,3,C13,C0,2),	0 },
-  { "tpidrro_el0",      CPENC(3,3,C13,C0,3),	0 }, /* RO */
+  { "tpidrro_el0",      CPENC(3,3,C13,C0,3),	0 }, /* RW */
   { "tpidr_el1",        CPENC(3,0,C13,C0,4),	0 },
   { "tpidr_el2",        CPENC(3,4,C13,C0,2),	0 },
   { "tpidr_el3",        CPENC(3,6,C13,C0,2),	0 },
   { "teecr32_el1",      CPENC(2,2,C0, C0,0),	0 }, /* See section 3.9.7.1 */
-  { "cntfrq_el0",       CPENC(3,3,C14,C0,0),	0 }, /* RO */
-  { "cntpct_el0",       CPENC(3,3,C14,C0,1),	0 }, /* RO */
-  { "cntvct_el0",       CPENC(3,3,C14,C0,2),	0 }, /* RO */
+  { "cntfrq_el0",       CPENC(3,3,C14,C0,0),	0 }, /* RW */
+  { "cntpct_el0",       CPENC(3,3,C14,C0,1),	F_REG_READ }, /* RO */
+  { "cntvct_el0",       CPENC(3,3,C14,C0,2),	F_REG_READ }, /* RO */
   { "cntvoff_el2",      CPENC(3,4,C14,C0,3),	0 },
   { "cntkctl_el1",      CPENC(3,0,C14,C1,0),	0 },
   { "cntkctl_el12",	CPENC (3, 5, C14, C1, 0), F_ARCHEXT },
@@ -3850,13 +3874,13 @@ const aarch64_sys_reg aarch64_sys_regs [] =
   { "teehbr32_el1",     CPENC(2,2,C1,C0,0),	0 },
   { "sder32_el3",       CPENC(3,6,C1,C1,1),	0 },
   { "mdscr_el1",         CPENC(2,0,C0, C2, 2),	0 },
-  { "mdccsr_el0",        CPENC(2,3,C0, C1, 0),	0 },  /* r */
+  { "mdccsr_el0",        CPENC(2,3,C0, C1, 0),	F_REG_READ  },  /* r */
   { "mdccint_el1",       CPENC(2,0,C0, C2, 0),	0 },
   { "dbgdtr_el0",        CPENC(2,3,C0, C4, 0),	0 },
-  { "dbgdtrrx_el0",      CPENC(2,3,C0, C5, 0),	0 },  /* r */
-  { "dbgdtrtx_el0",      CPENC(2,3,C0, C5, 0),	0 },  /* w */
-  { "osdtrrx_el1",       CPENC(2,0,C0, C0, 2),	0 },  /* r */
-  { "osdtrtx_el1",       CPENC(2,0,C0, C3, 2),	0 },  /* w */
+  { "dbgdtrrx_el0",      CPENC(2,3,C0, C5, 0),	F_REG_READ  },  /* r */
+  { "dbgdtrtx_el0",      CPENC(2,3,C0, C5, 0),	F_REG_WRITE },  /* w */
+  { "osdtrrx_el1",       CPENC(2,0,C0, C0, 2),	0 },
+  { "osdtrtx_el1",       CPENC(2,0,C0, C3, 2),	0 },
   { "oseccr_el1",        CPENC(2,0,C0, C6, 2),	0 },
   { "dbgvcr32_el2",      CPENC(2,4,C0, C7, 0),	0 },
   { "dbgbvr0_el1",       CPENC(2,0,C0, C0, 4),	0 },
@@ -3923,35 +3947,35 @@ const aarch64_sys_reg aarch64_sys_regs [] =
   { "dbgwcr13_el1",      CPENC(2,0,C0, C13,7),	0 },
   { "dbgwcr14_el1",      CPENC(2,0,C0, C14,7),	0 },
   { "dbgwcr15_el1",      CPENC(2,0,C0, C15,7),	0 },
-  { "mdrar_el1",         CPENC(2,0,C1, C0, 0),	0 },  /* r */
-  { "oslar_el1",         CPENC(2,0,C1, C0, 4),	0 },  /* w */
-  { "oslsr_el1",         CPENC(2,0,C1, C1, 4),	0 },  /* r */
+  { "mdrar_el1",         CPENC(2,0,C1, C0, 0),	F_REG_READ  },  /* r */
+  { "oslar_el1",         CPENC(2,0,C1, C0, 4),	F_REG_WRITE },  /* w */
+  { "oslsr_el1",         CPENC(2,0,C1, C1, 4),	F_REG_READ  },  /* r */
   { "osdlr_el1",         CPENC(2,0,C1, C3, 4),	0 },
   { "dbgprcr_el1",       CPENC(2,0,C1, C4, 4),	0 },
   { "dbgclaimset_el1",   CPENC(2,0,C7, C8, 6),	0 },
   { "dbgclaimclr_el1",   CPENC(2,0,C7, C9, 6),	0 },
-  { "dbgauthstatus_el1", CPENC(2,0,C7, C14,6),	0 },  /* r */
+  { "dbgauthstatus_el1", CPENC(2,0,C7, C14,6),	F_REG_READ  },  /* r */
   { "pmblimitr_el1",	 CPENC (3, 0, C9, C10, 0), F_ARCHEXT },  /* rw */
   { "pmbptr_el1",	 CPENC (3, 0, C9, C10, 1), F_ARCHEXT },  /* rw */
   { "pmbsr_el1",	 CPENC (3, 0, C9, C10, 3), F_ARCHEXT },  /* rw */
-  { "pmbidr_el1",	 CPENC (3, 0, C9, C10, 7), F_ARCHEXT },  /* ro */
+  { "pmbidr_el1",	 CPENC (3, 0, C9, C10, 7), F_ARCHEXT | F_REG_READ },  /* ro */
   { "pmscr_el1",	 CPENC (3, 0, C9, C9, 0),  F_ARCHEXT },  /* rw */
   { "pmsicr_el1",	 CPENC (3, 0, C9, C9, 2),  F_ARCHEXT },  /* rw */
   { "pmsirr_el1",	 CPENC (3, 0, C9, C9, 3),  F_ARCHEXT },  /* rw */
   { "pmsfcr_el1",	 CPENC (3, 0, C9, C9, 4),  F_ARCHEXT },  /* rw */
   { "pmsevfr_el1",	 CPENC (3, 0, C9, C9, 5),  F_ARCHEXT },  /* rw */
   { "pmslatfr_el1",	 CPENC (3, 0, C9, C9, 6),  F_ARCHEXT },  /* rw */
-  { "pmsidr_el1",	 CPENC (3, 0, C9, C9, 7),  F_ARCHEXT },  /* ro */
+  { "pmsidr_el1",	 CPENC (3, 0, C9, C9, 7),  F_ARCHEXT },  /* rw */
   { "pmscr_el2",	 CPENC (3, 4, C9, C9, 0),  F_ARCHEXT },  /* rw */
   { "pmscr_el12",	 CPENC (3, 5, C9, C9, 0),  F_ARCHEXT },  /* rw */
   { "pmcr_el0",          CPENC(3,3,C9,C12, 0),	0 },
   { "pmcntenset_el0",    CPENC(3,3,C9,C12, 1),	0 },
   { "pmcntenclr_el0",    CPENC(3,3,C9,C12, 2),	0 },
   { "pmovsclr_el0",      CPENC(3,3,C9,C12, 3),	0 },
-  { "pmswinc_el0",       CPENC(3,3,C9,C12, 4),	0 },  /* w */
+  { "pmswinc_el0",       CPENC(3,3,C9,C12, 4),	F_REG_WRITE },  /* w */
   { "pmselr_el0",        CPENC(3,3,C9,C12, 5),	0 },
-  { "pmceid0_el0",       CPENC(3,3,C9,C12, 6),	0 },  /* r */
-  { "pmceid1_el0",       CPENC(3,3,C9,C12, 7),	0 },  /* r */
+  { "pmceid0_el0",       CPENC(3,3,C9,C12, 6),	F_REG_READ  },  /* r */
+  { "pmceid1_el0",       CPENC(3,3,C9,C12, 7),	F_REG_READ  },  /* r */
   { "pmccntr_el0",       CPENC(3,3,C9,C13, 0),	0 },
   { "pmxevtyper_el0",    CPENC(3,3,C9,C13, 1),	0 },
   { "pmxevcntr_el0",     CPENC(3,3,C9,C13, 2),	0 },
@@ -4022,6 +4046,18 @@ const aarch64_sys_reg aarch64_sys_regs [] =
   { "pmevtyper29_el0",   CPENC(3,3,C14,C15,5),	0 },
   { "pmevtyper30_el0",   CPENC(3,3,C14,C15,6),	0 },
   { "pmccfiltr_el0",     CPENC(3,3,C14,C15,7),	0 },
+
+  { "dit",		 CPEN_ (3, C2, 5), F_ARCHEXT },
+  { "vstcr_el2",	 CPENC(3, 4, C2, C6, 2), F_ARCHEXT },
+  { "vsttbr_el2",	 CPENC(3, 4, C2, C6, 0), F_ARCHEXT },
+  { "cnthvs_tval_el2",	 CPENC(3, 4, C14, C4, 0), F_ARCHEXT },
+  { "cnthvs_cval_el2",	 CPENC(3, 4, C14, C4, 2), F_ARCHEXT },
+  { "cnthvs_ctl_el2",	 CPENC(3, 4, C14, C4, 1), F_ARCHEXT },
+  { "cnthps_tval_el2",	 CPENC(3, 4, C14, C5, 0), F_ARCHEXT },
+  { "cnthps_cval_el2",	 CPENC(3, 4, C14, C5, 2), F_ARCHEXT },
+  { "cnthps_ctl_el2",	 CPENC(3, 4, C14, C5, 1), F_ARCHEXT },
+  { "sder32_el2",	 CPENC(3, 4, C1, C3, 1), F_ARCHEXT },
+  { "vncr_el2",		 CPENC(3, 4, C2, C2, 0), F_ARCHEXT },
   { 0,          CPENC(0,0,0,0,0),	0 },
 };
 
@@ -4159,9 +4195,87 @@ aarch64_sys_reg_supported_p (const aarch64_feature_set features,
       && !AARCH64_CPU_HAS_FEATURE (features, AARCH64_FEATURE_SVE))
     return FALSE;
 
+  /* ARMv8.4 features.  */
+
+  /* PSTATE.DIT.  */
+  if (reg->value == CPEN_ (3, C2, 5)
+      && !AARCH64_CPU_HAS_FEATURE (features, AARCH64_FEATURE_V8_4))
+    return FALSE;
+
+  /* Virtualization extensions.  */
+  if ((reg->value == CPENC(3, 4, C2, C6, 2)
+       || reg->value == CPENC(3, 4, C2, C6, 0)
+       || reg->value == CPENC(3, 4, C14, C4, 0)
+       || reg->value == CPENC(3, 4, C14, C4, 2)
+       || reg->value == CPENC(3, 4, C14, C4, 1)
+       || reg->value == CPENC(3, 4, C14, C5, 0)
+       || reg->value == CPENC(3, 4, C14, C5, 2)
+       || reg->value == CPENC(3, 4, C14, C5, 1)
+       || reg->value == CPENC(3, 4, C1, C3, 1)
+       || reg->value == CPENC(3, 4, C2, C2, 0))
+      && !AARCH64_CPU_HAS_FEATURE (features, AARCH64_FEATURE_V8_4))
+    return FALSE;
+
+  /* ARMv8.4 TLB instructions.  */
+  if ((reg->value == CPENS (0, C8, C1, 0)
+       || reg->value == CPENS (0, C8, C1, 1)
+       || reg->value == CPENS (0, C8, C1, 2)
+       || reg->value == CPENS (0, C8, C1, 3)
+       || reg->value == CPENS (0, C8, C1, 5)
+       || reg->value == CPENS (0, C8, C1, 7)
+       || reg->value == CPENS (4, C8, C4, 0)
+       || reg->value == CPENS (4, C8, C4, 4)
+       || reg->value == CPENS (4, C8, C1, 1)
+       || reg->value == CPENS (4, C8, C1, 5)
+       || reg->value == CPENS (4, C8, C1, 6)
+       || reg->value == CPENS (6, C8, C1, 1)
+       || reg->value == CPENS (6, C8, C1, 5)
+       || reg->value == CPENS (4, C8, C1, 0)
+       || reg->value == CPENS (4, C8, C1, 4)
+       || reg->value == CPENS (6, C8, C1, 0)
+       || reg->value == CPENS (0, C8, C6, 1)
+       || reg->value == CPENS (0, C8, C6, 3)
+       || reg->value == CPENS (0, C8, C6, 5)
+       || reg->value == CPENS (0, C8, C6, 7)
+       || reg->value == CPENS (0, C8, C2, 1)
+       || reg->value == CPENS (0, C8, C2, 3)
+       || reg->value == CPENS (0, C8, C2, 5)
+       || reg->value == CPENS (0, C8, C2, 7)
+       || reg->value == CPENS (0, C8, C5, 1)
+       || reg->value == CPENS (0, C8, C5, 3)
+       || reg->value == CPENS (0, C8, C5, 5)
+       || reg->value == CPENS (0, C8, C5, 7)
+       || reg->value == CPENS (4, C8, C0, 2)
+       || reg->value == CPENS (4, C8, C0, 6)
+       || reg->value == CPENS (4, C8, C4, 2)
+       || reg->value == CPENS (4, C8, C4, 6)
+       || reg->value == CPENS (4, C8, C4, 3)
+       || reg->value == CPENS (4, C8, C4, 7)
+       || reg->value == CPENS (4, C8, C6, 1)
+       || reg->value == CPENS (4, C8, C6, 5)
+       || reg->value == CPENS (4, C8, C2, 1)
+       || reg->value == CPENS (4, C8, C2, 5)
+       || reg->value == CPENS (4, C8, C5, 1)
+       || reg->value == CPENS (4, C8, C5, 5)
+       || reg->value == CPENS (6, C8, C6, 1)
+       || reg->value == CPENS (6, C8, C6, 5)
+       || reg->value == CPENS (6, C8, C2, 1)
+       || reg->value == CPENS (6, C8, C2, 5)
+       || reg->value == CPENS (6, C8, C5, 1)
+       || reg->value == CPENS (6, C8, C5, 5))
+      && !AARCH64_CPU_HAS_FEATURE (features, AARCH64_FEATURE_V8_4))
+    return FALSE;
+
   return TRUE;
 }
 
+/* The CPENC below is fairly misleading, the fields
+   here are not in CPENC form. They are in op2op1 form. The fields are encoded
+   by ins_pstatefield, which just shifts the value by the width of the fields
+   in a loop. So if you CPENC them only the first value will be set, the rest
+   are masked out to 0. As an example. op2 = 3, op1=2. CPENC would produce a
+   value of 0b110000000001000000 (0x30040) while what you want is
+   0b011010 (0x1a).  */
 const aarch64_sys_reg aarch64_pstatefields [] =
 {
   { "spsel",            0x05,	0 },
@@ -4169,6 +4283,7 @@ const aarch64_sys_reg aarch64_pstatefields [] =
   { "daifclr",          0x1f,	0 },
   { "pan",		0x04,	F_ARCHEXT },
   { "uao",		0x03,	F_ARCHEXT },
+  { "dit",		0x1a,	F_ARCHEXT },
   { 0,          CPENC(0,0,0,0,0), 0 },
 };
 
@@ -4187,6 +4302,11 @@ aarch64_pstatefield_supported_p (const aarch64_feature_set features,
   /* UAO.  Values are from aarch64_pstatefields.  */
   if (reg->value == 0x03
       && !AARCH64_CPU_HAS_FEATURE (features, AARCH64_FEATURE_V8_2))
+    return FALSE;
+
+  /* DIT.  Values are from aarch64_pstatefields.  */
+  if (reg->value == 0x1a
+      && !AARCH64_CPU_HAS_FEATURE (features, AARCH64_FEATURE_V8_4))
     return FALSE;
 
   return TRUE;
@@ -4267,6 +4387,55 @@ const aarch64_sys_ins_reg aarch64_sys_regs_tlbi[] =
     { "vale2",     CPENS (4, C8, C7, 5), F_HASXT },
     { "vale3",     CPENS (6, C8, C7, 5), F_HASXT },
     { "vaale1",    CPENS (0, C8, C7, 7), F_HASXT },
+
+    { "vmalle1os",    CPENS (0, C8, C1, 0), F_ARCHEXT },
+    { "vae1os",       CPENS (0, C8, C1, 1), F_HASXT | F_ARCHEXT },
+    { "aside1os",     CPENS (0, C8, C1, 2), F_HASXT | F_ARCHEXT },
+    { "vaae1os",      CPENS (0, C8, C1, 3), F_HASXT | F_ARCHEXT },
+    { "vale1os",      CPENS (0, C8, C1, 5), F_HASXT | F_ARCHEXT },
+    { "vaale1os",     CPENS (0, C8, C1, 7), F_HASXT | F_ARCHEXT },
+    { "ipas2e1os",    CPENS (4, C8, C4, 0), F_HASXT | F_ARCHEXT },
+    { "ipas2le1os",   CPENS (4, C8, C4, 4), F_HASXT | F_ARCHEXT },
+    { "vae2os",       CPENS (4, C8, C1, 1), F_HASXT | F_ARCHEXT },
+    { "vale2os",      CPENS (4, C8, C1, 5), F_HASXT | F_ARCHEXT },
+    { "vmalls12e1os", CPENS (4, C8, C1, 6), F_ARCHEXT },
+    { "vae3os",       CPENS (6, C8, C1, 1), F_HASXT | F_ARCHEXT },
+    { "vale3os",      CPENS (6, C8, C1, 5), F_HASXT | F_ARCHEXT },
+    { "alle2os",      CPENS (4, C8, C1, 0), F_ARCHEXT },
+    { "alle1os",      CPENS (4, C8, C1, 4), F_ARCHEXT },
+    { "alle3os",      CPENS (6, C8, C1, 0), F_ARCHEXT },
+
+    { "rvae1",      CPENS (0, C8, C6, 1), F_HASXT | F_ARCHEXT },
+    { "rvaae1",     CPENS (0, C8, C6, 3), F_HASXT | F_ARCHEXT },
+    { "rvale1",     CPENS (0, C8, C6, 5), F_HASXT | F_ARCHEXT },
+    { "rvaale1",    CPENS (0, C8, C6, 7), F_HASXT | F_ARCHEXT },
+    { "rvae1is",    CPENS (0, C8, C2, 1), F_HASXT | F_ARCHEXT },
+    { "rvaae1is",   CPENS (0, C8, C2, 3), F_HASXT | F_ARCHEXT },
+    { "rvale1is",   CPENS (0, C8, C2, 5), F_HASXT | F_ARCHEXT },
+    { "rvaale1is",  CPENS (0, C8, C2, 7), F_HASXT | F_ARCHEXT },
+    { "rvae1os",    CPENS (0, C8, C5, 1), F_HASXT | F_ARCHEXT },
+    { "rvaae1os",   CPENS (0, C8, C5, 3), F_HASXT | F_ARCHEXT },
+    { "rvale1os",   CPENS (0, C8, C5, 5), F_HASXT | F_ARCHEXT },
+    { "rvaale1os",  CPENS (0, C8, C5, 7), F_HASXT | F_ARCHEXT },
+    { "ripas2e1is", CPENS (4, C8, C0, 2), F_HASXT | F_ARCHEXT },
+    { "ripas2le1is",CPENS (4, C8, C0, 6), F_HASXT | F_ARCHEXT },
+    { "ripas2e1",   CPENS (4, C8, C4, 2), F_HASXT | F_ARCHEXT },
+    { "ripas2le1",  CPENS (4, C8, C4, 6), F_HASXT | F_ARCHEXT },
+    { "ripas2e1os", CPENS (4, C8, C4, 3), F_HASXT | F_ARCHEXT },
+    { "ripas2le1os",CPENS (4, C8, C4, 7), F_HASXT | F_ARCHEXT },
+    { "rvae2",      CPENS (4, C8, C6, 1), F_HASXT | F_ARCHEXT },
+    { "rvale2",     CPENS (4, C8, C6, 5), F_HASXT | F_ARCHEXT },
+    { "rvae2is",    CPENS (4, C8, C2, 1), F_HASXT | F_ARCHEXT },
+    { "rvale2is",   CPENS (4, C8, C2, 5), F_HASXT | F_ARCHEXT },
+    { "rvae2os",    CPENS (4, C8, C5, 1), F_HASXT | F_ARCHEXT },
+    { "rvale2os",   CPENS (4, C8, C5, 5), F_HASXT | F_ARCHEXT },
+    { "rvae3",      CPENS (6, C8, C6, 1), F_HASXT | F_ARCHEXT },
+    { "rvale3",     CPENS (6, C8, C6, 5), F_HASXT | F_ARCHEXT },
+    { "rvae3is",    CPENS (6, C8, C2, 1), F_HASXT | F_ARCHEXT },
+    { "rvale3is",   CPENS (6, C8, C2, 5), F_HASXT | F_ARCHEXT },
+    { "rvae3os",    CPENS (6, C8, C5, 1), F_HASXT | F_ARCHEXT },
+    { "rvale3os",   CPENS (6, C8, C5, 5), F_HASXT | F_ARCHEXT },
+
     { 0,       CPENS(0,0,0,0), 0 }
 };
 

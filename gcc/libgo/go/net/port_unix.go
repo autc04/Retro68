@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris nacl
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris nacl
 
 // Read system port mappings from /etc/services
 
@@ -17,6 +17,8 @@ func readServices() {
 	if err != nil {
 		return
 	}
+	defer file.close()
+
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 		// "http 80/tcp www www-http # World Wide Web HTTP"
 		if i := byteIndex(line, '#'); i >= 0 {
@@ -43,7 +45,6 @@ func readServices() {
 			}
 		}
 	}
-	file.close()
 }
 
 // goLookupPort is the native Go implementation of LookupPort.

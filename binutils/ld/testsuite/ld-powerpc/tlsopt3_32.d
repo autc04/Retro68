@@ -15,9 +15,9 @@ Disassembly of section \.text:
 Disassembly of section \.no_opt3:
 
 0+1800098 <\.no_opt3>:
-.*:	(38 6d ff ec|ec ff 6d 38) 	addi    r3,r13,-20
+.*:	(38 7e ff ec|ec ff 7e 38) 	addi    r3,r30,-20
 .*:	(48 00 00 0c|0c 00 00 48) 	b       .*
-.*:	(38 6d ff f4|f4 ff 6d 38) 	addi    r3,r13,-12
+.*:	(38 7e ff f4|f4 ff 7e 38) 	addi    r3,r30,-12
 .*:	(48 00 00 0c|0c 00 00 48) 	b       .*
 .*:	(4b ff ff ed|ed ff ff 4b) 	bl      1800094 <__tls_get_addr>
 .*:	(48 00 00 08|08 00 00 48) 	b       .*

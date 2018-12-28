@@ -1,5 +1,5 @@
 #source: hidden2.s
-#ld: -shared -T hidden2.ld
+#ld: -shared -T hidden2.ld --hash-style=sysv
 #readelf: -Ds
 # It is also ok to remove this symbol, but we currently make it local.
 

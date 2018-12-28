@@ -1,6 +1,6 @@
 /* tc-avr.c -- Assembler code for the ATMEL AVR
 
-   Copyright (C) 1999-2017 Free Software Foundation, Inc.
+   Copyright (C) 1999-2018 Free Software Foundation, Inc.
    Contributed by Denis Chertykov <denisc@overta.ru>
 
    This file is part of GAS, the GNU Assembler.
@@ -402,10 +402,21 @@ static struct mcu_type_s mcu_types[] =
   {"atxmega16e5", AVR_ISA_XMEGA,  bfd_mach_avrxmega2},
   {"atxmega8e5",  AVR_ISA_XMEGA,  bfd_mach_avrxmega2},
   {"atxmega32x1", AVR_ISA_XMEGA,  bfd_mach_avrxmega2},
+  {"attiny212",   AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
+  {"attiny214",   AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
+  {"attiny412",   AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
+  {"attiny414",   AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
   {"attiny416",   AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
   {"attiny417",   AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
+  {"attiny814",   AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
   {"attiny816",   AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
   {"attiny817",   AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
+  {"attiny1614",  AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
+  {"attiny1616",  AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
+  {"attiny1617",  AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
+  {"attiny3214",  AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
+  {"attiny3216",  AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
+  {"attiny3217",  AVR_ISA_XMEGA,  bfd_mach_avrxmega3},
   {"atxmega64a3", AVR_ISA_XMEGA,  bfd_mach_avrxmega4},
   {"atxmega64a3u",AVR_ISA_XMEGAU, bfd_mach_avrxmega4},
   {"atxmega64a4u",AVR_ISA_XMEGAU, bfd_mach_avrxmega4},
@@ -661,7 +672,7 @@ md_show_usage (FILE *stream)
 	"                   avr51 - enhanced AVR core with up to 128K program memory\n"
 	"                   avr6  - enhanced AVR core with up to 256K program memory\n"
 	"                   avrxmega2 - XMEGA, > 8K, < 64K FLASH, < 64K RAM\n"
-	"                   avrxmega3 - XMEGA, > 8K, <= 64K FLASH, > 64K RAM\n"
+	"                   avrxmega3 - XMEGA, RAM + FLASH < 64K, Flash visible in RAM\n"
 	"                   avrxmega4 - XMEGA, > 64K, <= 128K FLASH, <= 64K RAM\n"
 	"                   avrxmega5 - XMEGA, > 64K, <= 128K FLASH, > 64K RAM\n"
 	"                   avrxmega6 - XMEGA, > 128K, <= 256K FLASH, <= 64K RAM\n"
@@ -1315,6 +1326,15 @@ avr_operand (struct avr_opcodes_s *opcode,
   return op_mask;
 }
 
+/* TC_FRAG_INIT hook */
+
+void
+avr_frag_init (fragS *frag)
+{
+  memset (& frag->tc_frag_data, 0, sizeof frag->tc_frag_data);
+}
+
+
 /* Parse instruction operands.
    Return binary opcode.  */
 
@@ -1326,7 +1346,6 @@ avr_operands (struct avr_opcodes_s *opcode, char **line)
   char *frag = frag_more (opcode->insn_size * 2);
   char *str = *line;
   int where = frag - frag_now->fr_literal;
-  static unsigned int prev = 0;  /* Previous opcode.  */
   int regno1 = -2;
   int regno2 = -2;
 
@@ -1392,7 +1411,7 @@ avr_operands (struct avr_opcodes_s *opcode, char **line)
          (AVR core bug, fixed in the newer devices).  */
       if (!(avr_opt.no_skip_bug ||
             (avr_mcu->isa & (AVR_ISA_MUL | AVR_ISA_MOVW)))
-	  && AVR_SKIP_P (prev))
+	  && AVR_SKIP_P (frag_now->tc_frag_data.prev_opcode))
 	as_warn (_("skipping two-word instruction"));
 
       bfd_putl32 ((bfd_vma) bin, frag);
@@ -1400,7 +1419,7 @@ avr_operands (struct avr_opcodes_s *opcode, char **line)
   else
     bfd_putl16 ((bfd_vma) bin, frag);
 
-  prev = bin;
+  frag_now->tc_frag_data.prev_opcode = bin;
   *line = str;
   return bin;
 }

@@ -1,7 +1,7 @@
 #ld: -T assign-loc.t
 #source: data.s
 #nm: -n
-#notarget: rs6000-*-aix*
+#notarget: powerpc*-*-aix* rs6000-*-aix*
 #...
 0+0100 A HEAP_SIZE
 #...

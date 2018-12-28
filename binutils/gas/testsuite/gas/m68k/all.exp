@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2017 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,9 +31,6 @@ if [istarget "m6812-*-*"] then {
 }
 if { [istarget m68*-*-*] || [istarget fido*-*-*] } then {
     gas_test "t2.s" "" "" "cross-section branch"
-    if [istarget m68*-motorola-sysv] then {
-	run_dump_test t2
-    }
 
     gas_test "pic1.s" "" "" "PIC generation"
 
@@ -41,9 +38,6 @@ if { [istarget m68*-*-*] || [istarget fido*-*-*] } then {
 
     gas_test_error "p2410.s" "" "out-of-range 'bras'"
 
-    # Reloc types etc. need changing for aout and coff to pass.
-    setup_xfail "*-*"
-    clear_xfail "*-*-*elf*" "*-*-sysv4*" "*-*-rtems*" "*-*-*linux*" "*-*-*gnu*" "*-*-psos*"
     run_dump_test pcrel
 
     # Since fido is basically CPU32, it does not support those
@@ -76,9 +70,7 @@ if { [istarget m68*-*-*] || [istarget fido*-*-*] } then {
     run_dump_test mcf-fpu
     run_dump_test mcf-trap
     run_dump_test mcf-wdebug
-    if { [istarget *-*-elf] || [istarget *-*-linux*] } then {
-      run_dump_test arch-cpu-1
-    }
+    run_dump_test arch-cpu-1
     run_dump_test cpu32
 
     run_dump_test br-isaa
@@ -92,12 +84,6 @@ if { [istarget m68*-*-*] || [istarget fido*-*-*] } then {
 
     gas_test_error "p13050-1.s" "-march=isab" "moveb (d8,An,Xi),(d16,An) unsupported on isab"
     run_dump_test p13050-2
-
-    if { [istarget *-*-*aout] || [istarget *-*-netbsd] || [istarget *-*-openbsd*] } then {
-      run_dump_test p3041
-      run_dump_test p3041data
-      run_dump_test p3041pcrel
-    }
 
     set testname "68000 operands"
     gas_run "operands.s" "-m68000" "2>err.out"

@@ -1,5 +1,5 @@
 /* ARM assembler/disassembler support.
-   Copyright (C) 2004-2017 Free Software Foundation, Inc.
+   Copyright (C) 2004-2018 Free Software Foundation, Inc.
 
    This file is part of GDB and GAS.
 
@@ -66,12 +66,14 @@
 #define ARM_EXT2_RAS	 0x00000080	/* RAS extension.  */
 #define ARM_EXT2_V8_3A	 0x00000100	/* ARM V8.3A.  */
 #define ARM_EXT2_V8A	 0x00000200	/* ARMv8-A.  */
+#define ARM_EXT2_V8_4A	 0x00000400	/* ARM V8.4A.  */
+#define ARM_EXT2_FP16_FML 0x00000800	/* ARM V8.2A FP16-FML instructions.  */
 
 /* Co-processor space extensions.  */
 #define ARM_CEXT_XSCALE   0x00000001	/* Allow MIA etc.          */
 #define ARM_CEXT_MAVERICK 0x00000002	/* Use Cirrus/DSP coprocessor.  */
-#define ARM_CEXT_IWMMXT   0x00000004    /* Intel Wireless MMX technology coprocessor.   */
-#define ARM_CEXT_IWMMXT2  0x00000008    /* Intel Wireless MMX technology coprocessor version 2.   */
+#define ARM_CEXT_IWMMXT   0x00000004    /* Intel Wireless MMX technology coprocessor.  */
+#define ARM_CEXT_IWMMXT2  0x00000008    /* Intel Wireless MMX technology coprocessor version 2.  */
 
 #define FPU_ENDIAN_PURE	 0x80000000	/* Pure-endian doubles.	      */
 #define FPU_ENDIAN_BIG	 0		/* Double words-big-endian.   */
@@ -156,6 +158,7 @@
 #define ARM_AEXT2_V8_1A	(ARM_AEXT2_V8A | ARM_EXT2_PAN)
 #define ARM_AEXT2_V8_2A	(ARM_AEXT2_V8_1A | ARM_EXT2_V8_2A | ARM_EXT2_RAS)
 #define ARM_AEXT2_V8_3A	(ARM_AEXT2_V8_2A | ARM_EXT2_V8_3A)
+#define ARM_AEXT2_V8_4A	(ARM_AEXT2_V8_3A | ARM_EXT2_FP16_FML | ARM_EXT2_V8_4A)
 #define ARM_AEXT_V8M_BASE (ARM_AEXT_V6SM | ARM_EXT_DIV)
 #define ARM_AEXT_V8M_MAIN ARM_AEXT_V7M
 #define ARM_AEXT_V8M_MAIN_DSP ARM_AEXT_V7EM
@@ -227,6 +230,9 @@
 						 | FPU_VFP_ARMV8)
 #define FPU_ARCH_CRYPTO_NEON_VFP_ARMV8 \
   ARM_FEATURE_COPROC (FPU_CRYPTO_ARMV8 | FPU_NEON_ARMV8 | FPU_VFP_ARMV8)
+#define FPU_ARCH_CRYPTO_NEON_VFP_ARMV8_DOTPROD \
+  ARM_FEATURE_COPROC (FPU_CRYPTO_ARMV8 | FPU_NEON_ARMV8 | FPU_VFP_ARMV8 \
+		      | FPU_NEON_EXT_DOTPROD)
 #define ARCH_CRC_ARMV8 ARM_FEATURE_COPROC (CRC_EXT_ARMV8)
 #define FPU_ARCH_NEON_VFP_ARMV8_1 \
   ARM_FEATURE_COPROC (FPU_NEON_ARMV8				 \
@@ -284,6 +290,9 @@
 				     CRC_EXT_ARMV8 | FPU_NEON_EXT_RDMA)
 #define ARM_ARCH_V8_3A	ARM_FEATURE (ARM_AEXT_V8A, ARM_AEXT2_V8_3A,	\
 				     CRC_EXT_ARMV8 | FPU_NEON_EXT_RDMA)
+#define ARM_ARCH_V8_4A	ARM_FEATURE (ARM_AEXT_V8A, ARM_AEXT2_V8_4A,	\
+				     CRC_EXT_ARMV8 | FPU_NEON_EXT_RDMA \
+				     | FPU_NEON_EXT_DOTPROD)
 #define ARM_ARCH_V8M_BASE ARM_FEATURE_CORE (ARM_AEXT_V8M_BASE, ARM_AEXT2_V8M)
 #define ARM_ARCH_V8M_MAIN ARM_FEATURE_CORE (ARM_AEXT_V8M_MAIN, \
 					    ARM_AEXT2_V8M_MAIN)
@@ -362,31 +371,28 @@ typedef struct
   ((CPU).core[0] == ((arm_feature_set)ARM_ANY).core[0] \
    && (CPU).core[1] == ((arm_feature_set)ARM_ANY).core[1])
 
-#define ARM_MERGE_FEATURE_SETS(TARG,F1,F2)	\
-  do {						\
-    (TARG).core[0] = (F1).core[0] | (F2).core[0];\
-    (TARG).core[1] = (F1).core[1] | (F2).core[1];\
-    (TARG).coproc = (F1).coproc | (F2).coproc;	\
-  } while (0)
+#define ARM_MERGE_FEATURE_SETS(TARG,F1,F2)		\
+  do							\
+    {							\
+      (TARG).core[0] = (F1).core[0] | (F2).core[0];	\
+      (TARG).core[1] = (F1).core[1] | (F2).core[1];	\
+      (TARG).coproc = (F1).coproc | (F2).coproc;	\
+    }							\
+  while (0)
 
-#define ARM_CLEAR_FEATURE(TARG,F1,F2)		\
-  do {						\
-    (TARG).core[0] = (F1).core[0] &~ (F2).core[0];\
-    (TARG).core[1] = (F1).core[1] &~ (F2).core[1];\
-    (TARG).coproc = (F1).coproc &~ (F2).coproc;	\
-  } while (0)
-
-#define ARM_FEATURE_COPY(F1, F2)		\
-  do {						\
-      (F1).core[0] = (F2).core[0];		\
-      (F1).core[1] = (F2).core[1];		\
-      (F1).coproc = (F2).coproc;		\
-  } while (0)
+#define ARM_CLEAR_FEATURE(TARG,F1,F2)			\
+  do							\
+    {							\
+      (TARG).core[0] = (F1).core[0] &~ (F2).core[0];	\
+      (TARG).core[1] = (F1).core[1] &~ (F2).core[1];	\
+      (TARG).coproc = (F1).coproc &~ (F2).coproc;	\
+    }							\
+  while (0)
 
 #define ARM_FEATURE_EQUAL(T1,T2)		\
-  ((T1).core[0] == (T2).core[0]			\
+  (   (T1).core[0] == (T2).core[0]		\
    && (T1).core[1] == (T2).core[1]		\
-   && (T1).coproc == (T2).coproc)
+   && (T1).coproc  == (T2).coproc)
 
 #define ARM_FEATURE_ZERO(T)			\
   ((T).core[0] == 0 && (T).core[1] == 0 && (T).coproc == 0)

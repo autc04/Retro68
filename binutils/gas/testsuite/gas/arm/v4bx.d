@@ -1,7 +1,7 @@
 # objdump: -dr --prefix-addresses --show-raw-insn
 # as: -meabi=4 --fix-v4bx
 # This test is only valid on ELF based ports.
-#not-target: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#not-target: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

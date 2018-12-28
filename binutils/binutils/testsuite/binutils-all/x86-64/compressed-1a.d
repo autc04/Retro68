@@ -74,17 +74,17 @@ Raw dump of debug contents of section .[z]?debug_line:
 
  Opcodes:
   Opcode 1 has 0 args
-  Opcode 2 has 1 args
-  Opcode 3 has 1 args
-  Opcode 4 has 1 args
-  Opcode 5 has 1 args
+  Opcode 2 has 1 arg
+  Opcode 3 has 1 arg
+  Opcode 4 has 1 arg
+  Opcode 5 has 1 arg
   Opcode 6 has 0 args
   Opcode 7 has 0 args
   Opcode 8 has 0 args
-  Opcode 9 has 1 args
+  Opcode 9 has 1 arg
   Opcode 10 has 0 args
   Opcode 11 has 0 args
-  Opcode 12 has 1 args
+  Opcode 12 has 1 arg
 
  The Directory Table is empty.
 
@@ -96,10 +96,10 @@ Raw dump of debug contents of section .[z]?debug_line:
   \[0x.*\]  Extended opcode 2: set Address to 0x0
   \[0x.*\]  Advance Line by 10 to 11
   \[0x.*\]  Copy
-  \[0x.*\]  Special opcode 6: advance Address by 0 to 0x0 and Line by 1 to 12
+  \[0x.*\]  Special opcode 6: advance Address by 0 to 0x0 and Line by 1 to 12 \(view 1\)
   \[0x.*\]  Advance Line by -7 to 5
   \[0x.*\]  Special opcode 229: advance Address by 16 to 0x10 and Line by 0 to 5
-  \[0x.*\]  Special opcode 6: advance Address by 0 to 0x10 and Line by 1 to 6
+  \[0x.*\]  Special opcode 6: advance Address by 0 to 0x10 and Line by 1 to 6 \(view 1\)
   \[0x.*\]  Advance PC by 5 to 0x15
   \[0x.*\]  Extended opcode 1: End of Sequence
 

@@ -6,10 +6,10 @@
 
 .*:     file format elf32-avr
 
-Decoded dump of debug contents of section \.debug_line:
+Contents of the \.debug_line section:
 
 CU: large-debug-line-table\.c:
-File name                            Line number    Starting address
+File name                            Line number    Starting address.*
 large-debug-line-table\.c                       1                   0
 
 #...

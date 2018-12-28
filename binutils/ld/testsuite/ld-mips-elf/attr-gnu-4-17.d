@@ -2,7 +2,7 @@
 #source: attr-gnu-4-7.s
 #ld: -r
 #readelf: -A
-#warning: Warning: .* uses -mdouble-float \(set by .*\), .* uses -mgp32 -mfp64 -mno-odd-spreg
+#warning: warning: .* uses -mdouble-float \(set by .*\), .* uses -mgp32 -mfp64 -mno-odd-spreg
 
 Attribute Section: gnu
 File Attributes

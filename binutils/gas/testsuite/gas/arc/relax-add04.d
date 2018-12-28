@@ -8,7 +8,7 @@ Disassembly of section .text:
 
 00000000 <.text>:
    0:	78e0                	nop_s
-   2:	2740 7281           	add	r1,pcl,0xa
+   2:	2740 7281           	add	r1,pcl,0xa\s.*
    6:	264a 7000\s+.*
    a:	78e0                	nop_s
    c:	2000 0000           	add	r0,r0,r0

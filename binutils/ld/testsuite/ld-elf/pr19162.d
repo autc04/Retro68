@@ -1,8 +1,8 @@
 #source: pr19162a.s
 #source: pr19162b.s
-#ld: -shared -z max-page-size=0x200000
+#ld: -shared -z max-page-size=0x200000 -z noseparate-code
 #readelf: -l --wide
-#target: *-*-linux* *-*-gnu* *-*-nacl*
+#target: *-*-linux* *-*-gnu* *-*-nacl* arm*-*-uclinuxfdpiceabi
 #notarget: arc*-*-* hppa*-*-*
 # arc target has an extra 64K stack section.
 # hppa fails due to PR 12376.

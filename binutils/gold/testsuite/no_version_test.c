@@ -1,6 +1,6 @@
 // ver_no_default.c -- a test case for gold
 
-// Copyright (C) 2009-2017 Free Software Foundation, Inc.
+// Copyright (C) 2009-2018 Free Software Foundation, Inc.
 // Written by Doug Kwan <dougkwan@google.com>.
 
 // This file is part of gold.

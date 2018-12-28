@@ -1,5 +1,5 @@
 /* .eh_frame section optimization.
-   Copyright (C) 2001-2017 Free Software Foundation, Inc.
+   Copyright (C) 2001-2018 Free Software Foundation, Inc.
    Written by Jakub Jelinek <jakub@redhat.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -483,7 +483,7 @@ bfd_elf_discard_eh_frame_entry (struct eh_frame_hdr_info *hdr_info)
 	  hdr_info->array_count--;
 	  hdr_info->u.compact.entries[hdr_info->array_count] = NULL;
 	  i--;
-        }
+	}
     }
 }
 
@@ -619,15 +619,6 @@ _bfd_elf_parse_eh_frame (bfd *abfd, struct bfd_link_info *info,
 
   REQUIRE (bfd_malloc_and_get_section (abfd, sec, &ehbuf));
 
-  if (sec->size >= 4
-      && bfd_get_32 (abfd, ehbuf) == 0
-      && cookie->rel == cookie->relend)
-    {
-      /* Empty .eh_frame section.  */
-      free (ehbuf);
-      return;
-    }
-
   /* If .eh_frame section size doesn't fit into int, we cannot handle
      it (it would need to use 64-bit .eh_frame format anyway).  */
   REQUIRE (sec->size == (unsigned int) sec->size);
@@ -665,12 +656,15 @@ _bfd_elf_parse_eh_frame (bfd *abfd, struct bfd_link_info *info,
 
   sec_info = (struct eh_frame_sec_info *)
       bfd_zmalloc (sizeof (struct eh_frame_sec_info)
-                   + (num_entries - 1) * sizeof (struct eh_cie_fde));
+		   + (num_entries - 1) * sizeof (struct eh_cie_fde));
   REQUIRE (sec_info);
 
   /* We need to have a "struct cie" for each CIE in this section.  */
-  local_cies = (struct cie *) bfd_zmalloc (num_cies * sizeof (*local_cies));
-  REQUIRE (local_cies);
+  if (num_cies)
+    {
+      local_cies = (struct cie *) bfd_zmalloc (num_cies * sizeof (*local_cies));
+      REQUIRE (local_cies);
+    }
 
   /* FIXME: octets_per_byte.  */
 #define ENSURE_NO_RELOCS(buf)				\
@@ -724,7 +718,9 @@ _bfd_elf_parse_eh_frame (bfd *abfd, struct bfd_link_info *info,
       if (hdr_length == 0)
 	{
 	  /* A zero-length CIE should only be found at the end of
-	     the section.  */
+	     the section, but allow multiple terminators.  */
+	  while (skip_bytes (&buf, ehbuf + sec->size, 4))
+	    REQUIRE (bfd_get_32 (abfd, buf - 4) == 0);
 	  REQUIRE ((bfd_size_type) (buf - ehbuf) == sec->size);
 	  ENSURE_NO_RELOCS (buf);
 	  sec_info->count++;
@@ -795,7 +791,7 @@ _bfd_elf_parse_eh_frame (bfd *abfd, struct bfd_link_info *info,
 		{
 		  aug++;
 		  REQUIRE (read_uleb128 (&buf, end, &cie->augmentation_size));
-	  	  ENSURE_NO_RELOCS (buf);
+		  ENSURE_NO_RELOCS (buf);
 		}
 
 	      while (*aug != '\0')
@@ -943,7 +939,7 @@ _bfd_elf_parse_eh_frame (bfd *abfd, struct bfd_link_info *info,
 	    {
 	      (*info->callbacks->minfo)
 		/* xgettext:c-format */
-		(_("discarding zero address range FDE in %B(%A).\n"),
+		(_("discarding zero address range FDE in %pB(%pA).\n"),
 		 abfd, sec);
 	      this_inf->u.fde.cie_inf = NULL;
 	    }
@@ -1014,7 +1010,7 @@ _bfd_elf_parse_eh_frame (bfd *abfd, struct bfd_link_info *info,
 	  bfd_byte *p;
 
 	  this_inf->set_loc = (unsigned int *)
-              bfd_malloc ((set_loc_count + 1) * sizeof (unsigned int));
+	      bfd_malloc ((set_loc_count + 1) * sizeof (unsigned int));
 	  REQUIRE (this_inf->set_loc);
 	  this_inf->set_loc[0] = set_loc_count;
 	  p = insns;
@@ -1046,9 +1042,9 @@ _bfd_elf_parse_eh_frame (bfd *abfd, struct bfd_link_info *info,
   goto success;
 
  free_no_table:
-  (*info->callbacks->einfo)
+  _bfd_error_handler
     /* xgettext:c-format */
-    (_("%P: error in %B(%A); no .eh_frame_hdr table will be created.\n"),
+    (_("error in %pB(%pA); no .eh_frame_hdr table will be created"),
      abfd, sec);
   hdr_info->u.dwarf.table = FALSE;
   if (sec_info)
@@ -1339,7 +1335,7 @@ offset_adjust (bfd_vma offset, const asection *sec)
   struct eh_frame_sec_info *sec_info
     = (struct eh_frame_sec_info *) elf_section_data (sec)->sec_info;
   unsigned int lo, hi, mid;
-  struct eh_cie_fde *ent;
+  struct eh_cie_fde *ent = NULL;
   bfd_signed_vma delta;
 
   lo = 0;
@@ -1536,16 +1532,16 @@ _bfd_elf_discard_section_eh_frame
 		hdr_info->u.dwarf.table = FALSE;
 		if (num_warnings_issued < 10)
 		  {
-		    (*info->callbacks->einfo)
+		    _bfd_error_handler
 		      /* xgettext:c-format */
-		      (_("%P: FDE encoding in %B(%A) prevents .eh_frame_hdr"
-			 " table being created.\n"), abfd, sec);
+		      (_("FDE encoding in %pB(%pA) prevents .eh_frame_hdr"
+			 " table being created"), abfd, sec);
 		    num_warnings_issued ++;
 		  }
 		else if (num_warnings_issued == 10)
 		  {
-		    (*info->callbacks->einfo)
-		      (_("%P: Further warnings about FDE encoding preventing .eh_frame_hdr generation dropped.\n"));
+		    _bfd_error_handler
+		      (_("further warnings about FDE encoding preventing .eh_frame_hdr generation dropped"));
 		    num_warnings_issued ++;
 		  }
 	      }
@@ -1594,16 +1590,7 @@ _bfd_elf_discard_section_eh_frame
 	offset += size_of_output_cie_fde (ent);
       }
 
-  /* Pad the last FDE out to the output section alignment if there are
-     following sections, in order to ensure no padding between this
-     section and the next.  (Relies on the output section alignment
-     being the maximum of all input sections alignments, which is the
-     case unless someone is overriding alignment via scripts.)  */
   eh_alignment = 4;
-  if (sec->map_head.s != NULL
-      && (sec->map_head.s->size != 4
-	  || sec->map_head.s->map_head.s != NULL))
-    eh_alignment = 1 << sec->output_section->alignment_power;
   offset = (offset + eh_alignment - 1) & -eh_alignment;
   sec->rawsize = sec->size;
   sec->size = offset;
@@ -1645,7 +1632,7 @@ _bfd_elf_discard_section_eh_frame_hdr (bfd *abfd, struct bfd_link_info *info)
   if (info->eh_frame_hdr_type == COMPACT_EH_HDR)
     {
       /* For compact frames we only add the header.  The actual table comes
-         from the .eh_frame_entry sections.  */
+	 from the .eh_frame_entry sections.  */
       sec->size = 8;
     }
   else
@@ -1876,7 +1863,7 @@ _bfd_elf_write_section_eh_frame_entry (bfd *abfd, struct bfd_link_info *info,
       if (addr <= last_addr)
 	{
 	  /* xgettext:c-format */
-	  _bfd_error_handler (_("%B: %A not in order"), sec->owner, sec);
+	  _bfd_error_handler (_("%pB: %pA not in order"), sec->owner, sec);
 	  return FALSE;
 	}
 
@@ -1890,7 +1877,7 @@ _bfd_elf_write_section_eh_frame_entry (bfd *abfd, struct bfd_link_info *info,
   if (addr & 1)
     {
       /* xgettext:c-format */
-      _bfd_error_handler (_("%B: %A invalid input section size"),
+      _bfd_error_handler (_("%pB: %pA invalid input section size"),
 			  sec->owner, sec);
       bfd_set_error (bfd_error_bad_value);
       return FALSE;
@@ -1898,7 +1885,7 @@ _bfd_elf_write_section_eh_frame_entry (bfd *abfd, struct bfd_link_info *info,
   if (last_addr >= addr + sec->rawsize)
     {
       /* xgettext:c-format */
-      _bfd_error_handler (_("%B: %A points past end of text section"),
+      _bfd_error_handler (_("%pB: %pA points past end of text section"),
 			  sec->owner, sec);
       bfd_set_error (bfd_error_bad_value);
       return FALSE;
@@ -1950,7 +1937,7 @@ _bfd_elf_write_section_eh_frame (bfd *abfd,
     {
       hdr_info->frame_hdr_is_compact = FALSE;
       hdr_info->u.dwarf.array = (struct eh_frame_array_ent *)
-        bfd_malloc (hdr_info->u.dwarf.fde_count
+	bfd_malloc (hdr_info->u.dwarf.fde_count
 		    * sizeof (*hdr_info->u.dwarf.array));
     }
   if (hdr_info->u.dwarf.array == NULL)
@@ -2146,9 +2133,9 @@ _bfd_elf_write_section_eh_frame (bfd *abfd,
 			address += elf_gp (abfd);
 			break;
 		      default:
-			(*info->callbacks->einfo)
-			  (_("%P: DW_EH_PE_datarel unspecified"
-			     " for this architecture.\n"));
+			_bfd_error_handler
+			  (_("DW_EH_PE_datarel unspecified"
+			     " for this architecture"));
 			/* Fall thru */
 		      case bfd_arch_frv:
 		      case bfd_arch_i386:
@@ -2317,7 +2304,7 @@ _bfd_elf_fixup_eh_frame_hdr (struct bfd_link_info *info)
       if (sec->output_section != osec)
 	{
 	  _bfd_error_handler
-	    (_("Invalid output section for .eh_frame_entry: %A"),
+	    (_("invalid output section for .eh_frame_entry: %pA"),
 	     sec->output_section);
 	  return FALSE;
 	}
@@ -2334,13 +2321,13 @@ _bfd_elf_fixup_eh_frame_hdr (struct bfd_link_info *info)
 
       p->offset = p->u.indirect.section->output_offset;
       if (p->next != NULL)
-        i--;
+	i--;
     }
 
   if (i != 0)
     {
       _bfd_error_handler
-	(_("Invalid contents in %A section"), osec);
+	(_("invalid contents in %pA section"), osec);
       return FALSE;
     }
 
@@ -2389,7 +2376,7 @@ write_compact_eh_frame_hdr (bfd *abfd, struct bfd_link_info *info)
 /* The .eh_frame_hdr format for DWARF frames:
 
    ubyte version		(currently 1)
-   ubyte eh_frame_ptr_enc  	(DW_EH_PE_* encoding of pointer to start of
+   ubyte eh_frame_ptr_enc	(DW_EH_PE_* encoding of pointer to start of
 				 .eh_frame section)
    ubyte fde_count_enc		(DW_EH_PE_* encoding of total FDE count
 				 number (or DW_EH_PE_omit if there is no
@@ -2496,10 +2483,9 @@ write_dwarf_eh_frame_hdr (bfd *abfd, struct bfd_link_info *info)
 	    overlap = TRUE;
 	}
       if (overflow)
-	(*info->callbacks->einfo) (_("%P: .eh_frame_hdr entry overflow.\n"));
+	_bfd_error_handler (_(".eh_frame_hdr entry overflow"));
       if (overlap)
-	(*info->callbacks->einfo)
-	  (_("%P: .eh_frame_hdr refers to overlapping FDEs.\n"));
+	_bfd_error_handler (_(".eh_frame_hdr refers to overlapping FDEs"));
       if (overflow || overlap)
 	{
 	  bfd_set_error (bfd_error_bad_value);

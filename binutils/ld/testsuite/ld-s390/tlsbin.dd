@@ -151,7 +151,7 @@ Disassembly of section .text:
   +[0-9a-f]+:	90 6e f0 18       	stm	%r6,%r14,24\(%r15\)
   +[0-9a-f]+:	a7 d5 00 0c       	bras	%r13,[0-9a-f]+ <_start\+0x1c>
 # sG6@indntpoff
-  +[0-9a-f]+:	00 40 15 a4       	.long	0x004015a4
+  +[0-9a-f]+:	00 40 15 64       	.long	0x00401564
 # bg6@indntpoff
   +[0-9a-f]+:	ff ff ff d4       	.long	0xffffffd4
 # bl6@indntpoff

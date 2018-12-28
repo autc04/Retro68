@@ -26,12 +26,12 @@ Disassembly of section .text:
 [ 	]+[0-9a-f]+:	ae[ 	]+scas   (%es:)?\(%edi\),%al
 [ 	]+[0-9a-f]+:	aa[ 	]+stos   %al,(%es:)?\(%edi\)
 [ 	]+[0-9a-f]+:	aa[ 	]+stos   %al,(%es:)?\(%edi\)
-[ 	]+[0-9a-f]+:	2e d7[ 	]+xlat   %cs:\(%ebx\)
-[ 	]+[0-9a-f]+:	d7[ 	]+xlat   (%ds:)?\(%ebx\)
-[ 	]+[0-9a-f]+:	d7[ 	]+xlat   (%ds:)?\(%ebx\)
-[ 	]+[0-9a-f]+:	d7[ 	]+xlat   (%ds:)?\(%ebx\)
-[ 	]+[0-9a-f]+:	d7[ 	]+xlat   (%ds:)?\(%ebx\)
-[ 	]+[0-9a-f]+:	d7[ 	]+xlat   (%ds:)?\(%ebx\)
+[ 	]+[0-9a-f]+:	d7[ 	]+xlatb? +(%ds:)?\(%ebx\)
+[ 	]+[0-9a-f]+:	67 d7[ 	]+xlatb? +(%ds:)?\(%bx\)
+[ 	]+[0-9a-f]+:	d7[ 	]+xlatb? +(%ds:)?\(%ebx\)
+[ 	]+[0-9a-f]+:	d7[ 	]+xlatb? +(%ds:)?\(%ebx\)
+[ 	]+[0-9a-f]+:	d7[ 	]+xlatb? +(%ds:)?\(%ebx\)
+[ 	]+[0-9a-f]+:	2e d7[ 	]+xlatb? +%cs:\(%ebx\)
 
 [0-9a-f]+ <.*start16>:
 [ 	]+[0-9a-f]+:	a6[ 	]+cmpsb  (%es:)?\(%edi\),(%ds:)?\(%esi\)
@@ -63,12 +63,11 @@ Disassembly of section .text:
 [ 	]+[0-9a-f]+:	ae[ 	]+scas   (%es:)?\(%edi\),%al
 [ 	]+[0-9a-f]+:	aa[ 	]+stos   %al,(%es:)?\(%edi\)
 [ 	]+[0-9a-f]+:	aa[ 	]+stos   %al,(%es:)?\(%edi\)
+[ 	]+[0-9a-f]+:	d7[ 	]+xlat   (%ds:)?\(%ebx\)
+[ 	]+[0-9a-f]+:	67 d7[ 	]+xlat   (%ds:)?\(%bx\)
+[ 	]+[0-9a-f]+:	d7[ 	]+xlat   (%ds:)?\(%ebx\)
+[ 	]+[0-9a-f]+:	d7[ 	]+xlat   (%ds:)?\(%ebx\)
 [ 	]+[0-9a-f]+:	2e d7[ 	]+xlat   %cs:\(%ebx\)
-[ 	]+[0-9a-f]+:	d7[ 	]+xlat   (%ds:)?\(%ebx\)
-[ 	]+[0-9a-f]+:	d7[ 	]+xlat   (%ds:)?\(%ebx\)
-[ 	]+[0-9a-f]+:	d7[ 	]+xlat   (%ds:)?\(%ebx\)
-[ 	]+[0-9a-f]+:	d7[ 	]+xlat   (%ds:)?\(%ebx\)
-[ 	]+[0-9a-f]+:	d7[ 	]+xlat   (%ds:)?\(%ebx\)
 
 [0-9a-f]+ <.*intel16>:
 [ 	]+[0-9a-f]+:	a6[ 	]+cmpsb  (%es:)?\(%edi\),(%ds:)?\(%esi\)

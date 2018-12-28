@@ -1,7 +1,7 @@
 #source: start1.s
 #source: tls-dso-tpoffgotcomm1.s
 #as: --no-underscore --pic --em=criself -I$srcdir/$subdir
-#ld: -m crislinux -shared
+#ld: -m crislinux -shared --hash-style=sysv
 #objdump: -d -h -s -t -r -R -p
 
 # Make sure we can link a file with TPOFFGOT relocs against common
@@ -11,7 +11,7 @@
 
 Program Header:
     LOAD off    0x0+ vaddr 0x0+ paddr 0x0+ align 2\*\*13
-         filesz 0x0+1c8 memsz 0x0+1c8 flags r-x
+         filesz 0x0+178 memsz 0x0+178 flags r-x
     LOAD off .*
          filesz .*
  DYNAMIC off .*
@@ -21,7 +21,7 @@ Program Header:
 #...
 Sections:
 #...
-  7 .got          0+14  0+2240  0+2240  0+240  2\*\*2
+  7 .got          0+14  0+21f0  0+21f0  0+1f0  2\*\*2
                   CONTENTS, ALLOC, LOAD, DATA
 SYMBOL TABLE:
 #...
@@ -31,16 +31,16 @@ SYMBOL TABLE:
 
 #...
 Contents of section .got:
- 2240 c8210000 00000000 00000000 00000000  .*
- 2250 00000000                             .*
+ 21f0 78210000 00000000 00000000 00000000  .*
+ 2200 00000000                             .*
 
 Disassembly of section \.text:
 
-0+1b8 <_start>:
- 1b8:	41b2                	moveq 1,\$r11
+0+168 <_start>:
+ 168:	41b2                	moveq 1,\$r11
 	\.\.\.
 
-0+1bc <do_test>:
- 1bc:	2f0e 0c00 0000      	add\.d c <bar\+0x8>,\$r0
- 1c2:	1f1e 1000           	add\.w 0x10,\$r1
+0+16c <do_test>:
+ 16c:	2f0e 0c00 0000      	add\.d c <bar\+0x8>,\$r0
+ 172:	1f1e 1000           	add\.w 0x10,\$r1
 	\.\.\.

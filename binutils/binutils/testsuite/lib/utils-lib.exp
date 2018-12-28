@@ -1,4 +1,4 @@
-# Copyright (C) 1993-2017 Free Software Foundation, Inc.
+# Copyright (C) 1993-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -51,12 +51,17 @@ proc binutil_version { prog } {
 # default_binutils_run
 #	run a program, returning the output
 #	sets binutils_run_failed if the program does not exist
+#	sets binutils_run_status to the exit status of the program
 #
 proc default_binutils_run { prog progargs } {
     global binutils_run_failed
+    global binutils_run_status
     global host_triplet
 
     set binutils_run_failed 0
+    if [info exists binutils_run_status] {
+	unset binutils_run_status
+    }
 
     if ![is_remote host] {
 	if {[which $prog] == 0} then {
@@ -83,6 +88,7 @@ proc default_binutils_run { prog progargs } {
     regsub -all "\\$" "$progargs" "\\$" progargs
 
     set state [remote_exec host $prog $progargs]
+    set binutils_run_status [lindex $state 0]
     set exec_output [prune_warnings [lindex $state 1]]
     if {![string match "" $exec_output]} then {
 	send_log "$exec_output\n"
@@ -127,7 +133,6 @@ proc default_binutils_assemble_flags { source object asflags } {
     } else {
 	send_log "$exec_output\n"
 	verbose "$exec_output"
-	perror "$source: assembly failed"
 	return 0
     }
 }
@@ -219,20 +224,24 @@ proc exe_ext {} {
 #	is useful if several .d files differ by options only.  Options are
 #	always read from FILE.d.
 #
-#   target: GLOBS...
-#       Run this test only on a specified list of targets.  More precisely,
-#       each glob in the space-separated list is passed to "istarget"; if
-#       it evaluates true for any of them, the test will be run, otherwise
-#       it will be marked unsupported.
+#   target: GLOB|PROC ...
+#	Run this test only on a specified list of targets.  More precisely,
+#	in the space-separated list each glob is passed to "istarget" and
+#	each proc is called as a TCL procedure.  List items are interpreted
+#	such that procs are denoted by surrounding square brackets, and any
+#	other items are consired globs.  If the call evaluates true for any
+#	of them, the test will be run, otherwise it will be marked
+#	unsupported.
 #
-#   not-target: GLOBS...
-#       Do not run this test on a specified list of targets.  Again,
-#       the each glob in the space-separated list is passed to
-#       "istarget", and the test is run if it evaluates *false* for
-#       *all* of them.  Otherwise it will be marked unsupported.
+#   not-target: GLOB|PROC ...
+#	Do not run this test on a specified list of targets.  Again, each
+#	glob in the space-separated list is passed to "istarget" and each
+#	proc is called as a TCL procedure, and the test is run if it
+#	evaluates *false* for *all* of them.  Otherwise it will be marked
+#	unsupported.
 #
-#   skip: GLOBS...
-#   not-skip: GLOBS...
+#   skip: GLOB|PROC ...
+#   not-skip: GLOB|PROC ...
 #       These are exactly the same as "not-target" and "target",
 #       respectively, except that they do nothing at all if the check
 #       fails.  They should only be used in groups, to construct a single
@@ -242,22 +251,22 @@ proc exe_ext {} {
 #
 #   error: REGEX
 #	An error with message matching REGEX must be emitted for the test
-#	to pass.  The PROG, objdump, nm and objcopy options have no
-#	meaning and need not supplied if this is present.
+#	to pass.  The DUMPPROG, addr2line, nm, objdump, readelf and size
+#	options have no meaning and need not supplied if this is present.
+#	Multiple "error" directives append to the expected error message.
+#
+#   error_output: FILE
+#	Means the same as 'error', except the regular expression lines
+#	are contains in FILE.
 #
 #   warning: REGEX
-#	Expect a gas warning matching REGEX.  It is an error to issue
-#	both "error" and "warning".
+#	Expect a warning matching REGEX.  It is an error to issue both
+#	"error" and "warning".  Multiple "warning" directives append to
+#	the expected linker warning message.
 #
-#   stderr: FILE
-#       FILE contains regexp lines to be matched against the diagnostic
-#       output of the assembler.  This does not preclude the use of
-#       PROG, nm, objdump, or objcopy.
-#
-#   error-output: FILE
-#       Means the same as 'stderr', but also indicates that the assembler
-#       is expected to exit unsuccessfully (therefore PROG, objdump, nm,
-#       and objcopy have no meaning and should not be supplied).
+#   warning_output: FILE
+#	Means the same as 'warning', except the regular expression
+#	lines are contains in FILE.
 #
 # Each option may occur at most once.
 #
@@ -271,6 +280,7 @@ proc run_dump_test { name {extra_options {}} } {
     global OBJDUMP NM OBJCOPY READELF STRIP
     global OBJDUMPFLAGS NMFLAGS OBJCOPYFLAGS READELFFLAGS STRIPFLAGS
     global ELFEDIT ELFEDITFLAGS
+    global binutils_run_status
     global host_triplet
     global env
     global copyfile
@@ -305,6 +315,10 @@ proc run_dump_test { name {extra_options {}} } {
     set opts(DUMPPROG) {}
     set opts(source) {}
     set opts(dump) {}
+    set opts(error) {}
+    set opts(warning) {}
+    set opts(error_output) {}
+    set opts(warning_output) {}
     set opts(target) {}
     set opts(not-target) {}
     set opts(skip) {}
@@ -323,12 +337,18 @@ proc run_dump_test { name {extra_options {}} } {
 	# directory.
 	regsub -all "\\\$srcdir" "$opt_val" "$srcdir/$subdir" opt_val
 
-	if [string length $opts($opt_name)] {
-	    perror "option $opt_name multiply set in $file.d"
-	    unresolved $subdir/$name
-	    return
+	switch -- $opt_name {
+	    warning {}
+	    error {}
+	    default {
+		if [string length $opts($opt_name)] {
+		    perror "option $opt_name multiply set in $file.d"
+		    unresolved $subdir/$name
+		    return
+		}
+	    }
 	}
-	set opts($opt_name) $opt_val
+	append opts($opt_name) $opt_val
     }
 
     foreach i $extra_options {
@@ -346,7 +366,8 @@ proc run_dump_test { name {extra_options {}} } {
 
 	# add extra option to end of existing option, adding space
 	# if necessary.
-	if [string length $opts($opt_name)] {
+	if { ![regexp "warning|error" $opt_name]
+	     && [string length $opts($opt_name)] } {
 	    append opts($opt_name) " "
 	}
 	append opts($opt_name) $opt_val
@@ -384,28 +405,35 @@ proc run_dump_test { name {extra_options {}} } {
     }
 
     set dumpprogram ""
-    if { $opts(DUMPPROG) != "" } {
-	switch -- $opts(DUMPPROG) {
-	    addr2line	{ set dumpprogram addr2line }
-	    nm		{ set dumpprogram nm }
-	    objdump	{ set dumpprogram objdump }
-	    readelf	{ set dumpprogram readelf }
-	    size	{ set dumpprogram size }
-	    default	{
-		perror "unrecognized dump program option $opts(DUMPPROG) in $file.d"
-		unresolved $testname
-		return }
-	}
-    } else {
-	# Guess which program to run, by seeing which option was specified.
-	foreach p {addr2line nm objdump readelf size} {
-	    if {$opts($p) != ""} {
-		if {$dumpprogram != ""} {
-		    perror "more than one possible dump program specified in $file.d"
+    # It's meaningless to require an output-testing method when we
+    # expect an error.
+    if { $opts(error) == "" && $opts(error_output) == "" } {
+	if { $opts(DUMPPROG) != "" } {
+	    switch -- $opts(DUMPPROG) {
+		addr2line	{ set dumpprogram addr2line }
+		nm		{ set dumpprogram nm }
+		objdump		{ set dumpprogram objdump }
+		readelf		{ set dumpprogram readelf }
+		size		{ set dumpprogram size }
+		default		{
+		    perror "unrecognized dump program option $opts(DUMPPROG)\
+			    in $file.d"
 		    unresolved $testname
 		    return
-		} else {
-		    set dumpprogram $p
+		}
+	    }
+	} else {
+	    # Guess which program to run, by seeing which option was specified.
+	    foreach p {addr2line nm objdump readelf size} {
+		if {$opts($p) != ""} {
+		    if {$dumpprogram != ""} {
+			perror "more than one possible dump program specified\
+				in $file.d"
+			unresolved $testname
+			return
+		    } else {
+			set dumpprogram $p
+		    }
 		}
 	    }
 	}
@@ -421,13 +449,13 @@ proc run_dump_test { name {extra_options {}} } {
 	    return
 	}
 	foreach glob $opts(skip) {
-	    if {[istarget $glob]} { return }
+	    if {[match_target $glob]} { return }
 	}
     }
     if { $opts(not-skip) != "" } then {
 	set skip 1
 	foreach glob $opts(not-skip) {
-	    if {[istarget $glob]} {
+	    if {[match_target $glob]} {
 		set skip 0
 		break
 	    }
@@ -437,7 +465,7 @@ proc run_dump_test { name {extra_options {}} } {
     if { $opts(target) != "" } then {
 	set skip 1
 	foreach glob $opts(target) {
-	    if {[istarget $glob]} {
+	    if {[match_target $glob]} {
 		set skip 0
 		break
 	    }
@@ -449,7 +477,7 @@ proc run_dump_test { name {extra_options {}} } {
     }
     if { $opts(not-target) != "" } then {
 	foreach glob $opts(not-target) {
-	    if {[istarget $glob]} {
+	    if {[match_target $glob]} {
 		unsupported $testname
 		return
 	    }
@@ -488,16 +516,95 @@ proc run_dump_test { name {extra_options {}} } {
 	}
     }
 
+    if { (($opts(warning) != "") && ($opts(error) != "")) \
+	 || (($opts(warning) != "") && ($opts(error_output) != "")) \
+	 || (($opts(warning) != "") && ($opts(warning_output) != "")) \
+	 || (($opts(error) != "") && ($opts(warning_output) != "")) \
+	 || (($opts(error) != "") && ($opts(error_output) != "")) \
+	 || (($opts(warning_output) != "") && ($opts(error_output) != "")) } {
+	perror "bad mix of warning, error, warning_output, and error_output\
+		test-directives"
+	unresolved $testname
+	return
+    }
+
+    set check_prog(source) ""
+    set check_prog(terminal) 0
+    if { $opts(error) != "" \
+	 || $opts(warning) != "" \
+	 || $opts(error_output) != "" \
+	 || $opts(warning_output) != "" } {
+
+	if { $opts(error) != "" || $opts(error_output) != "" } {
+	    set check_prog(terminal) 1
+	} else {
+	    set check_prog(terminal) 0
+	}
+
+	if { $opts(error) != "" || $opts(warning) != "" } {
+	    set check_prog(source) "regex"
+	    if { $opts(error) != "" } {
+		set check_prog(regex) $opts(error)
+	    } else {
+		set check_prog(regex) $opts(warning)
+	    }
+	} else {
+	    set check_prog(source) "file"
+	    if { $opts(error_output) != "" } {
+		set check_prog(file) $opts(error_output)
+	    } else {
+		set check_prog(file) $opts(warning_output)
+	    }
+	}
+    }
+
     set progopts1 $opts($program)
     eval set progopts \$[string toupper $program]FLAGS
     eval set binary \$[string toupper $program]
 
     set exec_output [binutils_run $binary "$progopts $progopts1 $tempfile $destopt ${copyfile}.o"]
-    if ![string match "" $exec_output] {
-	send_log "$exec_output\n"
+    set cmdret 0
+    if [info exists binutils_run_status] {
+	set cmdret $binutils_run_status
+    }
+
+    regsub "\n$" $exec_output "" exec_output
+    if { $cmdret != 0 || $exec_output != "" || $check_prog(source) != "" } {
+	set exitstat "succeeded"
+	if { $cmdret != 0 } {
+	    set exitstat "failed"
+	}
+
+	if { $check_prog(source) == "regex" } {
+	    verbose -log "$exitstat with: <$exec_output>,\
+			  expected: <$check_prog(regex)>"
+	} elseif { $check_prog(source) == "file" } {
+	    verbose -log "$exitstat with: <$exec_output>,\
+			  expected in file $check_prog(file)"
+	    set_file_contents "tmpdir/prog.messages" "$exec_output"
+	} else {
+	    verbose -log "$exitstat with: <$exec_output>, no expected output"
+	}
+	send_log -- "$exec_output\n"
 	verbose "$exec_output"
-	fail $testname
-	return
+
+	if { (($check_prog(source) == "") == ($exec_output == "")) \
+	     && (($cmdret == 0) == ($check_prog(terminal) == 0)) \
+	     && ((($check_prog(source) == "regex") \
+		  && ($check_prog(regex) == "") == ($exec_output == "") \
+		  && [regexp -- $check_prog(regex) $exec_output]) \
+		 || (($check_prog(source) == "file") \
+		     && (![regexp_diff "tmpdir/prog.messages" \
+			   "$srcdir/$subdir/$check_prog(file)"]))) } {
+	    # We have the expected output from prog.
+	    if { $check_prog(terminal) || $program == "" } {
+		pass $testname
+		return
+	    }
+	} else {
+	    fail $testname
+	    return
+	}
     }
 
     set progopts1 $opts($dumpprogram)

@@ -64,7 +64,7 @@
 /* Copy the first part of user declarations.  */
 #line 1 "mcparse.y" /* yacc.c:339  */
  /* mcparse.y -- parser for Windows mc files
-  Copyright (C) 2007-2017 Free Software Foundation, Inc.
+  Copyright (C) 2007-2018 Free Software Foundation, Inc.
 
   Parser for Windows mc files
   Written by Kai Tietz, Onevision.

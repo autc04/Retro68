@@ -3,7 +3,7 @@
 #ld:-EL --fix-stm32l4xx-629360 -Ttext=0x80000
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: STM32L4XX erratum : LDM cannot be patched when LDM is too far from veneer section
-#warning: .*Cannot create STM32L4XX veneer. Jump out of range by 24 bytes. Cannot encode branch instruction.*
+#warning: .*cannot create STM32L4XX veneer; jump out of range by 24 bytes; cannot encode branch instruction.*
 
 # Test the `LDM*' instructions when too far from the veneer section
 # They cannot, thus should not, be patched

@@ -1,5 +1,5 @@
 # Expect script for ld-sh tests
-#   Copyright (C) 1995-2017 Free Software Foundation, Inc.
+#   Copyright (C) 1995-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -25,11 +25,6 @@
 # the linker.
 
 if ![istarget sh*-*-*] {
-    return
-}
-
-if { ([istarget sh64*-*-*] || [istarget sh5*-*-*])} {
-    # relaxing not supported on sh64 yet.
     return
 }
 

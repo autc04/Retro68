@@ -33,7 +33,7 @@
 #as: -x
 #ld: -m elf64mmix
 #objdump: -dt
-#error: Too many global registers: 224, max 223
+#error: too many global registers: 224, max 223
 
 # Allocating the maximum number of gregs *plus one* is an error; other end
 # of the stick.

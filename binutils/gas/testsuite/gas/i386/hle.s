@@ -331,6 +331,7 @@ _start:
 	.byte 0xf0; .byte 0xf2; andb %al,(%ecx)
 	.byte 0xf0; .byte 0xf3; andb %al,(%ecx)
 	xrelease movb %al,(%ecx)
+	xrelease movb %al,0x12345678
 	xacquire lock orb %al,(%ecx)
 	lock xacquire orb %al,(%ecx)
 	xrelease lock orb %al,(%ecx)
@@ -385,6 +386,7 @@ _start:
 	.byte 0xf0; .byte 0xf2; andw %ax,(%ecx)
 	.byte 0xf0; .byte 0xf3; andw %ax,(%ecx)
 	xrelease movw %ax,(%ecx)
+	xrelease movw %ax,0x12345678
 	xacquire lock orw %ax,(%ecx)
 	lock xacquire orw %ax,(%ecx)
 	xrelease lock orw %ax,(%ecx)
@@ -439,6 +441,7 @@ _start:
 	.byte 0xf0; .byte 0xf2; andl %eax,(%ecx)
 	.byte 0xf0; .byte 0xf3; andl %eax,(%ecx)
 	xrelease movl %eax,(%ecx)
+	xrelease movl %eax,0x12345678
 	xacquire lock orl %eax,(%ecx)
 	lock xacquire orl %eax,(%ecx)
 	xrelease lock orl %eax,(%ecx)

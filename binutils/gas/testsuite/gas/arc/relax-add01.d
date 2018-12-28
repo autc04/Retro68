@@ -7,7 +7,7 @@
 Disassembly of section .text:
 
 00000000 <.text>:
-   0:	2740 7401           	add	r1,pcl,0x10
+   0:	2740 7401           	add	r1,pcl,0x10\s.*
    4:	264a 7000\s+.*
    8:	264a 7000\s+.*
    c:	264a 7000\s+.*

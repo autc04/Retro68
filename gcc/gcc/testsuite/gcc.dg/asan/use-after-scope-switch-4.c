@@ -15,7 +15,7 @@ int main(int argc, char **argv)
   int x = 0;
 
   for (;;)
-    switch (e.c)
+    switch (e.c)    
       case 3:
 	{
 	  int resxxx;

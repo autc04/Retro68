@@ -2,7 +2,7 @@
 # as:
 # objdump: -dr
 # This test is only valid on ELF based ports.
-#not-target: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix* *-*-vxworks
+#not-target: *-*-pe *-*-wince *-*-vxworks
 
 .*: +file format .*arm.*
 

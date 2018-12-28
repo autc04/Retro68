@@ -2,7 +2,7 @@
 
 # arm_abs_global.sh -- test ARM absolute relocations against global symbols.
 
-# Copyright (C) 2010-2017 Free Software Foundation, Inc.
+# Copyright (C) 2010-2018 Free Software Foundation, Inc.
 # Written by Doug Kwan <dougkwan@google.com>
 
 # This file is part of gold.

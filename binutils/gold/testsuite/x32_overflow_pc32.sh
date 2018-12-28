@@ -2,7 +2,7 @@
 
 # x86_64_overflow_pc32.sh -- a test case for overflow checking.
 
-# Copyright (C) 2016-2017 Free Software Foundation, Inc.
+# Copyright (C) 2016-2018 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@gmail.com>.
 
 # This file is part of gold.

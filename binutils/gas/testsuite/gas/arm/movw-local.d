@@ -1,5 +1,5 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#skip: *-*-pe *-*-wince
 #name: MOVW/MOVT relocations against local symbols
 
 .*: +file format .*arm.*

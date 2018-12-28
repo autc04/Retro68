@@ -10,41 +10,31 @@ Disassembly of section .text:
 
 0+ <nop15>:
 [ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	eb 0d                	jmp    10 <nop14>
-[ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	90                   	nop
+[ 	]*[a-f0-9]+:	8d b4 26 00 00 00 00 	lea    0x0\(%esi,%eiz,1\),%esi
+[ 	]*[a-f0-9]+:	8d b4 26 00 00 00 00 	lea    0x0\(%esi,%eiz,1\),%esi
 [ 	]*[a-f0-9]+:	90                   	nop
 
 0+10 <nop14>:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	8d b4 26 00 00 00 00 	lea    0x0\(%esi,%eiz,1\),%esi
-[ 	]*[a-f0-9]+:	8d bc 27 00 00 00 00 	lea    0x0\(%edi,%eiz,1\),%edi
+[ 	]*[a-f0-9]+:	8d b4 26 00 00 00 00 	lea    0x0\(%esi,%eiz,1\),%esi
 
 0+20 <nop13>:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
+[ 	]*[a-f0-9]+:	8d b4 26 00 00 00 00 	lea    0x0\(%esi,%eiz,1\),%esi
 [ 	]*[a-f0-9]+:	8d b6 00 00 00 00    	lea    0x0\(%esi\),%esi
-[ 	]*[a-f0-9]+:	8d bc 27 00 00 00 00 	lea    0x0\(%edi,%eiz,1\),%edi
 
 0+30 <nop12>:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	8d b6 00 00 00 00    	lea    0x0\(%esi\),%esi
-[ 	]*[a-f0-9]+:	8d bf 00 00 00 00    	lea    0x0\(%edi\),%edi
+[ 	]*[a-f0-9]+:	8d b4 26 00 00 00 00 	lea    0x0\(%esi,%eiz,1\),%esi
+[ 	]*[a-f0-9]+:	8d 74 26 00          	lea    0x0\(%esi,%eiz,1\),%esi
+[ 	]*[a-f0-9]+:	90                   	nop
 
 0+40 <nop11>:
 [ 	]*[a-f0-9]+:	90                   	nop
@@ -52,8 +42,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
+[ 	]*[a-f0-9]+:	8d b4 26 00 00 00 00 	lea    0x0\(%esi,%eiz,1\),%esi
 [ 	]*[a-f0-9]+:	8d 74 26 00          	lea    0x0\(%esi,%eiz,1\),%esi
-[ 	]*[a-f0-9]+:	8d bc 27 00 00 00 00 	lea    0x0\(%edi,%eiz,1\),%edi
 
 0+50 <nop10>:
 [ 	]*[a-f0-9]+:	90                   	nop
@@ -62,8 +52,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
+[ 	]*[a-f0-9]+:	8d b4 26 00 00 00 00 	lea    0x0\(%esi,%eiz,1\),%esi
 [ 	]*[a-f0-9]+:	8d 76 00             	lea    0x0\(%esi\),%esi
-[ 	]*[a-f0-9]+:	8d bc 27 00 00 00 00 	lea    0x0\(%edi,%eiz,1\),%edi
 
 0+60 <nop9>:
 [ 	]*[a-f0-9]+:	90                   	nop
@@ -73,8 +63,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	89 f6                	mov    %esi,%esi
-[ 	]*[a-f0-9]+:	8d bc 27 00 00 00 00 	lea    0x0\(%edi,%eiz,1\),%edi
+[ 	]*[a-f0-9]+:	8d b4 26 00 00 00 00 	lea    0x0\(%esi,%eiz,1\),%esi
+[ 	]*[a-f0-9]+:	66 90                	xchg   %ax,%ax
 
 0+70 <nop8>:
 [ 	]*[a-f0-9]+:	90                   	nop
@@ -85,8 +75,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	8d b4 26 00 00 00 00 	lea    0x0\(%esi,%eiz,1\),%esi
+[ 	]*[a-f0-9]+:	90                   	nop
 
 0+80 <nop7>:
 [ 	]*[a-f0-9]+:	90                   	nop
@@ -125,8 +115,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	8d 74 26 00          	lea    0x0\(%esi,%eiz,1\),%esi
+[ 	]*[a-f0-9]+:	90                   	nop
 
 0+b0 <nop4>:
 [ 	]*[a-f0-9]+:	90                   	nop

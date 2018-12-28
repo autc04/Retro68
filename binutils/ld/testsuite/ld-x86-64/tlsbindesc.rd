@@ -54,19 +54,16 @@ Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 4 entries:
  +Offset +Info +Type +Symbol's Value +Symbol's Name \+ Addend
 0+601360 +0+100000012 R_X86_64_TPOFF64 +0+ sG5 \+ 0
 0+601368 +0+200000012 R_X86_64_TPOFF64 +0+ sG2 \+ 0
-0+601370 +0+400000012 R_X86_64_TPOFF64 +0+ sG6 \+ 0
-0+601378 +0+500000012 R_X86_64_TPOFF64 +0+ sG1 \+ 0
+0+601370 +0+300000012 R_X86_64_TPOFF64 +0+ sG6 \+ 0
+0+601378 +0+400000012 R_X86_64_TPOFF64 +0+ sG1 \+ 0
 
 Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG5
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG2
- +[0-9]+: 0+[0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +11 __bss_start
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG6
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG1
- +[0-9]+: 0+[0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +11 _edata
- +[0-9]+: 0+[0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +11 _end
 
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name

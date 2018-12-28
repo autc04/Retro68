@@ -221,6 +221,13 @@ _start:
 	vcmpgt_oqps (%rcx),%ymm6,%ymm2
 	vcmptrue_usps %ymm4,%ymm6,%ymm2
 	vcmptrue_usps (%rcx),%ymm6,%ymm2
+    vgf2p8mulb %ymm4, %ymm5, %ymm6
+	vgf2p8mulb (%rcx), %ymm5, %ymm6
+	vgf2p8mulb -123456(%rax,%r14,8), %ymm5, %ymm6
+	vgf2p8mulb 4064(%rdx), %ymm5, %ymm6
+	vgf2p8mulb 4096(%rdx), %ymm5, %ymm6
+	vgf2p8mulb -4096(%rdx), %ymm5, %ymm6
+	vgf2p8mulb -4128(%rdx), %ymm5, %ymm6
 
 # Tests for op ymm/mem256, xmm
 	vcvtpd2dqy %ymm4,%xmm4
@@ -309,6 +316,22 @@ _start:
 	vshufpd $7,(%rcx),%ymm6,%ymm2
 	vshufps $7,%ymm4,%ymm6,%ymm2
 	vshufps $7,(%rcx),%ymm6,%ymm2
+    vgf2p8affineqb $0xab, %ymm4, %ymm5, %ymm6
+	vgf2p8affineqb $123, %ymm4, %ymm5, %ymm6
+	vgf2p8affineqb $123, (%rcx), %ymm5, %ymm6
+	vgf2p8affineqb $123, -123456(%rax,%r14,8), %ymm5, %ymm6
+	vgf2p8affineqb $123, 4064(%rdx), %ymm5, %ymm6
+	vgf2p8affineqb $123, 4096(%rdx), %ymm5, %ymm6
+	vgf2p8affineqb $123, -4096(%rdx), %ymm5, %ymm6
+	vgf2p8affineqb $123, -4128(%rdx), %ymm5, %ymm6
+	vgf2p8affineinvqb $0xab, %ymm4, %ymm5, %ymm6
+	vgf2p8affineinvqb $123, %ymm4, %ymm5, %ymm6
+	vgf2p8affineinvqb $123, (%rcx), %ymm5, %ymm6
+	vgf2p8affineinvqb $123, -123456(%rax,%r14,8), %ymm5, %ymm6
+	vgf2p8affineinvqb $123, 4064(%rdx), %ymm5, %ymm6
+	vgf2p8affineinvqb $123, 4096(%rdx), %ymm5, %ymm6
+	vgf2p8affineinvqb $123, -4096(%rdx), %ymm5, %ymm6
+	vgf2p8affineinvqb $123, -4128(%rdx), %ymm5, %ymm6
 
 # Tests for op ymm, ymm/mem256, ymm, ymm
 	vblendvpd %ymm4,%ymm6,%ymm2,%ymm7
@@ -783,6 +806,13 @@ _start:
 	vcmpgt_oqps (%rcx),%xmm6,%xmm7
 	vcmptrue_usps %xmm4,%xmm6,%xmm2
 	vcmptrue_usps (%rcx),%xmm6,%xmm7
+    vgf2p8mulb %xmm4, %xmm5, %xmm6
+	vgf2p8mulb (%rcx), %xmm5, %xmm6
+	vgf2p8mulb -123456(%rax,%r14,8), %xmm5, %xmm6
+	vgf2p8mulb 2032(%rdx), %xmm5, %xmm6
+	vgf2p8mulb 2048(%rdx), %xmm5, %xmm6
+	vgf2p8mulb -2048(%rdx), %xmm5, %xmm6
+	vgf2p8mulb -2064(%rdx), %xmm5, %xmm6
 
 # Tests for op mem128, xmm, xmm
 	vmaskmovps (%rcx),%xmm4,%xmm6
@@ -847,6 +877,22 @@ _start:
 	vshufpd $7,(%rcx),%xmm6,%xmm2
 	vshufps $7,%xmm4,%xmm6,%xmm2
 	vshufps $7,(%rcx),%xmm6,%xmm2
+    vgf2p8affineqb $0xab, %xmm4, %xmm5, %xmm6
+	vgf2p8affineqb $123, %xmm4, %xmm5, %xmm6
+	vgf2p8affineqb $123, (%rcx), %xmm5, %xmm6
+	vgf2p8affineqb $123, -123456(%rax,%r14,8), %xmm5, %xmm6
+	vgf2p8affineqb $123, 2032(%rdx), %xmm5, %xmm6
+	vgf2p8affineqb $123, 2048(%rdx), %xmm5, %xmm6
+	vgf2p8affineqb $123, -2048(%rdx), %xmm5, %xmm6
+	vgf2p8affineqb $123, -2064(%rdx), %xmm5, %xmm6
+	vgf2p8affineinvqb $0xab, %xmm4, %xmm5, %xmm6
+	vgf2p8affineinvqb $123, %xmm4, %xmm5, %xmm6
+	vgf2p8affineinvqb $123, (%rcx), %xmm5, %xmm6
+	vgf2p8affineinvqb $123, -123456(%rax,%r14,8), %xmm5, %xmm6
+	vgf2p8affineinvqb $123, 2032(%rdx), %xmm5, %xmm6
+	vgf2p8affineinvqb $123, 2048(%rdx), %xmm5, %xmm6
+	vgf2p8affineinvqb $123, -2048(%rdx), %xmm5, %xmm6
+	vgf2p8affineinvqb $123, -2064(%rdx), %xmm5, %xmm6
 
 # Tests for op xmm, xmm/mem128, xmm, xmm
 	vblendvpd %xmm4,%xmm6,%xmm2,%xmm7
@@ -1958,6 +2004,14 @@ _start:
 	vcmptrue_usps ymm2,ymm6,ymm4
 	vcmptrue_usps ymm2,ymm6,YMMWORD PTR [rcx]
 	vcmptrue_usps ymm2,ymm6,[rcx]
+    vgf2p8mulb ymm6, ymm5, ymm4
+	vgf2p8mulb ymm6, ymm5, YMMWORD PTR [rcx]
+	vgf2p8mulb ymm6, ymm5, [rcx]
+	vgf2p8mulb ymm6, ymm5, YMMWORD PTR [rax+r14*8-123456]
+	vgf2p8mulb ymm6, ymm5, YMMWORD PTR [rdx+4064]
+	vgf2p8mulb ymm6, ymm5, YMMWORD PTR [rdx+4096]
+	vgf2p8mulb ymm6, ymm5, YMMWORD PTR [rdx-4096]
+	vgf2p8mulb ymm6, ymm5, YMMWORD PTR [rdx-4128]
 
 # Tests for op ymm/mem256, xmm
 	vcvtpd2dq xmm4,ymm4
@@ -2083,6 +2137,24 @@ _start:
 	vshufps ymm2,ymm6,ymm4,7
 	vshufps ymm2,ymm6,YMMWORD PTR [rcx],7
 	vshufps ymm2,ymm6,[rcx],7
+    vgf2p8affineqb ymm6, ymm5, ymm4, 0xab
+	vgf2p8affineqb ymm6, ymm5, ymm4, 123
+	vgf2p8affineqb ymm6, ymm5, YMMWORD PTR [rcx], 123
+	vgf2p8affineqb ymm6, ymm5, [rcx], 123
+	vgf2p8affineqb ymm6, ymm5, YMMWORD PTR [rax+r14*8-123456], 123
+	vgf2p8affineqb ymm6, ymm5, YMMWORD PTR [rdx+4064], 123
+	vgf2p8affineqb ymm6, ymm5, YMMWORD PTR [rdx+4096], 123
+	vgf2p8affineqb ymm6, ymm5, YMMWORD PTR [rdx-4096], 123
+	vgf2p8affineqb ymm6, ymm5, YMMWORD PTR [rdx-4128], 123
+	vgf2p8affineinvqb ymm6, ymm5, ymm4, 0xab
+	vgf2p8affineinvqb ymm6, ymm5, ymm4, 123
+	vgf2p8affineinvqb ymm6, ymm5, YMMWORD PTR [rcx], 123
+	vgf2p8affineinvqb ymm6, ymm5, [rcx], 123
+	vgf2p8affineinvqb ymm6, ymm5, YMMWORD PTR [rax+r14*8-123456], 123
+	vgf2p8affineinvqb ymm6, ymm5, YMMWORD PTR [rdx+4064], 123
+	vgf2p8affineinvqb ymm6, ymm5, YMMWORD PTR [rdx+4096], 123
+	vgf2p8affineinvqb ymm6, ymm5, YMMWORD PTR [rdx-4096], 123
+	vgf2p8affineinvqb ymm6, ymm5, YMMWORD PTR [rdx-4128], 123
 
 # Tests for op ymm, ymm/mem256, ymm, ymm
 	vblendvpd ymm7,ymm2,ymm6,ymm4
@@ -2784,6 +2856,15 @@ _start:
 	vcmptrue_usps xmm2,xmm6,xmm4
 	vcmptrue_usps xmm7,xmm6,XMMWORD PTR [rcx]
 	vcmptrue_usps xmm7,xmm6,[rcx]
+    vgf2p8mulb xmm6, xmm5, xmm4
+	vgf2p8mulb xmm6, xmm5, XMMWORD PTR [rcx]
+	vgf2p8mulb xmm6, xmm5, [rcx]
+	vgf2p8mulb xmm6, xmm5, XMMWORD PTR [rax+r14*8-123456]
+	vgf2p8mulb xmm6, xmm5, XMMWORD PTR [rdx+2032]
+	vgf2p8mulb xmm6, xmm5, XMMWORD PTR [rdx+2048]
+	vgf2p8mulb xmm6, xmm5, XMMWORD PTR [rdx-2048]
+	vgf2p8mulb xmm6, xmm5, XMMWORD PTR [rdx-2064]
+
 
 # Tests for op mem128, xmm, xmm
 	vmaskmovps xmm6,xmm4,XMMWORD PTR [rcx]
@@ -2872,6 +2953,25 @@ _start:
 	vshufps xmm2,xmm6,xmm4,7
 	vshufps xmm2,xmm6,XMMWORD PTR [rcx],7
 	vshufps xmm2,xmm6,[rcx],7
+    vgf2p8affineqb xmm6, xmm5, xmm4, 0xab
+	vgf2p8affineqb xmm6, xmm5, xmm4, 123
+	vgf2p8affineqb xmm6, xmm5, XMMWORD PTR [rcx], 123
+	vgf2p8affineqb xmm6, xmm5, [rcx], 123
+	vgf2p8affineqb xmm6, xmm5, XMMWORD PTR [rax+r14*8-123456], 123
+	vgf2p8affineqb xmm6, xmm5, XMMWORD PTR [rdx+2032], 123
+	vgf2p8affineqb xmm6, xmm5, XMMWORD PTR [rdx+2048], 123
+	vgf2p8affineqb xmm6, xmm5, XMMWORD PTR [rdx-2048], 123
+	vgf2p8affineqb xmm6, xmm5, XMMWORD PTR [rdx-2064], 123
+	vgf2p8affineinvqb xmm6, xmm5, xmm4, 0xab
+	vgf2p8affineinvqb xmm6, xmm5, xmm4, 123
+	vgf2p8affineinvqb xmm6, xmm5, XMMWORD PTR [rcx], 123
+	vgf2p8affineinvqb xmm6, xmm5, [rcx], 123
+	vgf2p8affineinvqb xmm6, xmm5, XMMWORD PTR [rax+r14*8-123456], 123
+	vgf2p8affineinvqb xmm6, xmm5, XMMWORD PTR [rdx+2032], 123
+	vgf2p8affineinvqb xmm6, xmm5, XMMWORD PTR [rdx+2048], 123
+	vgf2p8affineinvqb xmm6, xmm5, XMMWORD PTR [rdx-2048], 123
+	vgf2p8affineinvqb xmm6, xmm5, XMMWORD PTR [rdx-2064], 123
+
 
 # Tests for op xmm, xmm/mem128, xmm, xmm
 	vblendvpd xmm7,xmm2,xmm6,xmm4

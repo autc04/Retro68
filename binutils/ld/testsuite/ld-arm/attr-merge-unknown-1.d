@@ -2,4 +2,4 @@
 #source: blank.s
 #as:
 #ld:
-#error: Unknown mandatory EABI object attribute 40
+#error: unknown mandatory EABI object attribute 40

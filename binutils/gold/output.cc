@@ -1,6 +1,6 @@
 // output.cc -- manage the output file for gold
 
-// Copyright (C) 2006-2017 Free Software Foundation, Inc.
+// Copyright (C) 2006-2018 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -127,14 +127,26 @@ namespace gold
 static int
 gold_fallocate(int o, off_t offset, off_t len)
 {
+  if (len <= 0)
+    return 0;
+
 #ifdef HAVE_POSIX_FALLOCATE
   if (parameters->options().posix_fallocate())
-    return ::posix_fallocate(o, offset, len);
+    {
+      int err = ::posix_fallocate(o, offset, len);
+      if (err != EINVAL && err != ENOSYS && err != EOPNOTSUPP)
+	return err;
+    }
 #endif // defined(HAVE_POSIX_FALLOCATE)
+
 #ifdef HAVE_FALLOCATE
-  if (::fallocate(o, 0, offset, len) == 0)
-    return 0;
+  {
+    int err = ::fallocate(o, 0, offset, len);
+    if (err != EINVAL && err != ENOSYS && err != EOPNOTSUPP)
+      return err;
+  }
 #endif // defined(HAVE_FALLOCATE)
+
   if (::ftruncate(o, offset + len) < 0)
     return errno;
   return 0;
@@ -2383,7 +2395,8 @@ Output_section::Output_section(const char* name, elfcpp::Elf_Word type,
     lookup_maps_(new Output_section_lookup_maps),
     free_list_(),
     free_space_fill_(NULL),
-    patch_space_(0)
+    patch_space_(0),
+    reloc_section_(NULL)
 {
   // An unallocated section has no address.  Forcing this means that
   // we don't need special treatment for symbols defined in debug

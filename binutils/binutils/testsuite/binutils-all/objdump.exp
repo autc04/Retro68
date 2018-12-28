@@ -1,4 +1,4 @@
-#   Copyright (C) 1993-2017 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,13 +34,13 @@ send_user "Version [binutil_version $OBJDUMP]"
 set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -i"]
 
 set cpus_expected [list]
-lappend cpus_expected aarch64 alpha arc ARC700 ARCv2 arm cris
-lappend cpus_expected d10v d30v fr30 fr500 fr550 h8 hppa i386 i860 i960 iamcu ip2022
-lappend cpus_expected m16c m32c m32r m68hc11 m68hc12 m68k m88k MCore mep c5 h1 MicroBlaze
+lappend cpus_expected aarch64 alpha am33-2 arc ARC700 ARCv2 arm cris
+lappend cpus_expected d10v d30v fr30 fr500 fr550 h8 hppa i386 iamcu ip2022
+lappend cpus_expected m16c m32c m32r m68hc11 m68hc12 m68k MCore mep c5 h1 MicroBlaze
 lappend cpus_expected mips mn10200 mn10300 ms1 msp MSP430 nds32 n1h_v3 ns32k
 lappend cpus_expected or1k or1knd pj powerpc pyramid riscv romp rs6000 s390 sh sparc
-lappend cpus_expected tahoe tic54x tic80 tilegx tms320c30 tms320c4x tms320c54x
-lappend cpus_expected v850 vax we32k x86-64 xscale xtensa z8k z8001 z8002
+lappend cpus_expected tic54x tic80 tilegx tms320c30 tms320c4x tms320c54x
+lappend cpus_expected v850 vax x86-64 xscale xtensa z8k z8001 z8002
 
 # Make sure the target CPU shows up in the list.
 lappend cpus_expected ${target_cpu}
@@ -62,9 +62,11 @@ if [regexp $want $got] then {
 
 
 if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
+    fail "objdump (assembling)"
     return
 }
 if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest2.o]} then {
+    fail "objdump (assembling)"
     return
 }
 if [is_remote host] {
@@ -75,18 +77,16 @@ if [is_remote host] {
     set testfile2 tmpdir/bintest2.o
 }
 
+# $testarchive exists only if it is supported.
+set testarchive tmpdir/bintest.a
+remote_file host file delete $testarchive
 if { ![istarget "alpha-*-*"] || [is_elf_format] } then {
-    remote_file host file delete tmpdir/bintest.a
     set got [binutils_run $AR "rc tmpdir/bintest.a $testfile2"]
     if ![string match "" $got] then {
 	fail "bintest.a"
 	remote_file host delete tmpdir/bintest.a
-    } else {
-	if [is_remote host] {
-	    set testarchive [remote_download host tmpdir/bintest.a]
-	} else {
-	    set testarchive tmpdir/bintest.a
-	}
+    } elseif [is_remote host] {
+	set testarchive [remote_download host tmpdir/bintest.a]
     }
     remote_file host delete tmpdir/bintest2.o
 }
@@ -278,8 +278,6 @@ if { ![is_elf_format] } then {
 
 if { ![is_elf_format]
      || [istarget "hppa64*-*-hpux*"]
-     || [istarget "i370-*-*"]
-     || [istarget "i960-*-*"]
      || [istarget "ia64*-*-*"]
      || [istarget "mcore-*-*"]
      || [istarget "moxie-*-*"]
@@ -337,7 +335,7 @@ if { ![is_elf_format] } then {
 	send_log "\n"
     }
 
-    setup_xfail "msp430-*-*" "nds32*-*-*" "riscv*-*-*"
+    setup_xfail "msp430-*-*" "nds32*-*-*"
     if { [regexp_diff objdump.out $srcdir/$subdir/dw2-ranges.W] } then {
 	fail "objdump -W for debug_ranges"
     } else {
@@ -349,30 +347,29 @@ proc test_build_id_debuglink {} {
     global srcdir
     global subdir
     global env
-    global CC_FOR_TARGET
     global STRIP
     global OBJCOPY
     global OBJDUMP
     global CFLAGS_FOR_TARGET
     
     set test "build-id-debuglink"
-    if {![info exists CC_FOR_TARGET]} {
-	set CC_FOR_TARGET $env(CC)
-    }
-    if { $CC_FOR_TARGET == "" } {
-	unsupported $test
-	return
-    }
 
     # Use a fixed build-id.
+    if { [info exists CFLAGS_FOR_TARGET] } {
+	set save_CFLAGS_FOR_TARGET $CFLAGS_FOR_TARGET
+    }
     set CFLAGS_FOR_TARGET "-g -Wl,--build-id=0x12345678abcdef01"
 
     if { [target_compile $srcdir/$subdir/testprog.c tmpdir/testprog exectuable debug] != "" } {
-	fail "$test (build)"
+	unsupported "$test (build)"
 	return
     }
 
-    # FIXME: Do we need to restore CFLAGS_FOR_TARGET to its old value ?
+    if { [info exists save_CFLAGS_FOR_TARGET] } {
+	set CFLAGS_FOR_TARGET $save_CFLAGS_FOR_TARGET
+    } else {
+	unset CFLAGS_FOR_TARGET
+    }
 
     if { [binutils_run $STRIP "--strip-debug --remove-section=.comment tmpdir/testprog -o tmpdir/testprog.strip"] != "" } {
 	fail "$test (strip debug info)"
@@ -422,9 +419,92 @@ proc test_build_id_debuglink {} {
     }
 }
 
-if {[isnative] && [is_elf_format]} then {
+if {[is_elf_format]} then {
     test_build_id_debuglink
 }
+
+# Test objdump -Wk on a file containing debug links.
+
+if { [is_elf_format] } then {
+    set testsrc $srcdir/$subdir/debuglink.s
+
+    if { ![binutils_assemble $testsrc tmpdir/debuglink.o] } then {
+	fail "objdump -Wk (reason: could not assemble source)"
+    }
+
+    if [is_remote host] {
+	set testfile [remote_download host tmpdir/debuglink.o]
+    } else {
+	set testfile tmpdir/debuglink.o
+    }
+
+    set got [remote_exec host "$OBJDUMP $OBJDUMPFLAGS -Wk $testfile" "" "/dev/null" "objdump.out"]
+
+    if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
+	fail "objdump -Wk (reason: unexpected output)"
+	send_log $got
+	send_log "\n"
+    }
+
+    if { [regexp_diff objdump.out $srcdir/$subdir/objdump.Wk] } then {
+	fail "objdump -Wk"
+    } else {
+	pass "objdump -Wk"
+    }
+}
+
+
+# Very similar to proc test_build_id_debuglink except this time we
+# display some of the contents of the separate debug info file.
+
+proc test_follow_debuglink {} {
+    global srcdir
+    global subdir
+    global OBJDUMP
+    
+    set test "follow-debuglink"
+
+    if {![binutils_assemble $srcdir/$subdir/debuglink.s tmpdir/debuglink.o]} then {
+	fail "$test (reason: assemble first source file)"
+	return
+    }
+
+    if {![binutils_assemble $srcdir/$subdir/linkdebug.s tmpdir/linkdebug.debug]} then {
+	fail "$test (reason: assemble second source file)"
+	return
+    }
+
+    if ![is_remote host] {
+	set tempfile tmpdir/debuglink.o
+    } else {
+	set tempfile [remote_download host tmpdir/linkdebug.debug]
+	set tempfile [remote_download host tmpdir/debuglink.o]
+    }
+    
+    set got [remote_exec host "$OBJDUMP --dwarf=follow-links --dwarf=info --dwarf=str $tempfile" "" "/dev/null" "tmpdir/objdump.out"]
+    if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
+	fail "$test (reason: unexpected error output from objdump)"
+	return
+    }
+
+    if { [regexp_diff tmpdir/objdump.out $srcdir/$subdir/objdump.WK2] } then {
+	fail $test
+	verbose "output is \n[file_contents objdump.out]" 2
+	return
+    }
+
+    pass $test
+
+    # Tidy up
+    set got [remote_exec host "rm tmpdir/objdump.out"]
+    set got [remote_exec host "rm $tempfile"]
+    set got [remote_exec host "rm tmpdir/linkdebug.debug"]
+}
+
+if {[is_elf_format]} then {
+    test_follow_debuglink
+}
+
 
 # Options which are not tested: -a -d -D -R -T -x -l --stabs
 # I don't see any generic way to test any of these other than -a.

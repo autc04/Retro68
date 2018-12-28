@@ -1,6 +1,6 @@
 // Debugging string implementation -*- C++ -*-
 
-// Copyright (C) 2003-2017 Free Software Foundation, Inc.
+// Copyright (C) 2003-2018 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -565,7 +565,7 @@ template<typename _CharT, typename _Traits = std::char_traits<_CharT>,
       insert(iterator __p, _InputIterator __first, _InputIterator __last)
       {
 	typename __gnu_debug::_Distance_traits<_InputIterator>::__type __dist;
-	__glibcxx_check_insert_range2(__p, __first, __last, __dist);
+	__glibcxx_check_insert_range(__p, __first, __last, __dist);
 
 	if (__dist.second >= __dp_sign)
 	  _Base::insert(__p.base(), __gnu_debug::__unsafe(__first),

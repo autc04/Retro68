@@ -1,5 +1,5 @@
 # Expect script for ld-x86_64 tests
-#   Copyright (C) 2002-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -50,20 +50,23 @@ set x86_64tests {
      "-melf_x86_64 tmpdir/libpltlib.so" "" "--64" {plt.s}
      {{objdump -drj.plt plt.pd}} "plt"}
     {"TLS -fpic -shared transitions"
-     "-shared -melf_x86_64 --no-ld-generated-unwind-info" ""
+     "-shared -melf_x86_64 --no-ld-generated-unwind-info \
+      -z noseparate-code -z max-page-size=0x200000 --hash-style=sysv" ""
      "--64" {tlspic1.s tlspic2.s}
      {{readelf -WSsrl tlspic.rd} {objdump -drj.text\ -Mintel64 tlspic.dd}
       {objdump -sj.got tlspic.sd} {objdump -sj.tdata tlspic.td}}
       "libtlspic.so"}
     {"TLS -fpic -shared transitions with r15 as GOT base"
-     "-shared -melf_x86_64 --no-ld-generated-unwind-info" ""
+     "-shared -melf_x86_64 --no-ld-generated-unwind-info \
+      -z noseparate-code -z max-page-size=0x200000 --hash-style=sysv" ""
      "--64 -mrelax-relocations=yes"
      {tlspic3.s tlspic2.s}
      {{readelf -WSsrl tlspic2.rd} {objdump -drj.text\ -Mintel64 tlspic2.dd}
       {objdump -sj.got tlspic2.sd} {objdump -sj.tdata tlspic2.td}}
       "libtlspic2.so"}
     {"TLS descriptor -fpic -shared transitions"
-     "-shared -melf_x86_64 --no-ld-generated-unwind-info" ""
+     "-shared -melf_x86_64 --no-ld-generated-unwind-info \
+      -z noseparate-code -z max-page-size=0x200000 --hash-style=sysv" ""
      "--64" {tlsdesc.s tlspic2.s}
      {{readelf -WSsrld tlsdesc.rd} {objdump -drj.text tlsdesc.dd}
       {objdump "-s -j.got -j.got.plt" tlsdesc.sd} {objdump -sj.tdata tlsdesc.td}
@@ -71,25 +74,29 @@ set x86_64tests {
     {"Helper shared library" "-shared -melf_x86_64" ""
      "--64" {tlslib.s} {} "libtlslib.so"}
     {"TLS -fpic and -fno-pic exec transitions"
-     "-melf_x86_64 tmpdir/libtlslib.so --no-ld-generated-unwind-info" ""
+     "-melf_x86_64 tmpdir/libtlslib.so --no-ld-generated-unwind-info \
+      -z noseparate-code -z max-page-size=0x200000 --hash-style=sysv" ""
      "--64" {tlsbinpic.s tlsbin.s}
      {{readelf -WSsrl tlsbin.rd} {objdump -drj.text tlsbin.dd}
       {objdump -sj.got tlsbin.sd} {objdump -sj.tdata tlsbin.td}}
       "tlsbin"}
     {"TLS -fpic and -fno-pic exec transitions without PLT"
-     "-melf_x86_64 tmpdir/libtlslib.so --no-ld-generated-unwind-info" ""
+     "-melf_x86_64 tmpdir/libtlslib.so --no-ld-generated-unwind-info \
+      -z noseparate-code -z max-page-size=0x200000 --hash-style=sysv" ""
      "-mrelax-relocations=yes --64" {tlsbinpic2.s tlsbin.s}
      {{readelf -WSsrl tlsbin2.rd} {objdump -drj.text tlsbin2.dd}
       {objdump -sj.got tlsbin2.sd} {objdump -sj.tdata tlsbin2.td}}
       "tlsbin2"}
     {"TLS descriptor -fpic and -fno-pic exec transitions"
-     "-melf_x86_64 tmpdir/libtlslib.so --no-ld-generated-unwind-info" ""
+     "-melf_x86_64 tmpdir/libtlslib.so --no-ld-generated-unwind-info \
+      -z noseparate-code -z max-page-size=0x200000 --hash-style=sysv" ""
      "--64" {tlsbindesc.s tlsbin.s}
      {{readelf -WSsrl tlsbindesc.rd} {objdump -drj.text tlsbindesc.dd}
       {objdump -sj.got tlsbindesc.sd} {objdump -sj.tdata tlsbindesc.td}}
       "tlsbindesc"}
     {"TLS with global dynamic and descriptors"
-     "-shared -melf_x86_64 --no-ld-generated-unwind-info" ""
+     "-shared -melf_x86_64 --no-ld-generated-unwind-info \
+      -z noseparate-code -z max-page-size=0x200000 --hash-style=sysv" ""
      "--64" {tlsgdesc.s}
      {{readelf -WSsrl tlsgdesc.rd} {objdump -drj.text\ -Mintel64 tlsgdesc.dd}}
       "libtlsgdesc.so"}
@@ -226,6 +233,13 @@ if [istarget "*-*-nacl*"] {
     # Change all the -melf_x86_64 to -melf_x86_64_nacl so linking can succeed.
     regsub -all -- $lhs $x86_64tests $rhs x86_64tests
 
+    set zlhs {-z noseparate-code -z max-page-size=0x200000}
+    set zrhs {}
+
+    # Remove -z max-page-size=0x200000 -z noseparate-code since they
+    # generate different addresses for nacl targets.
+    regsub -all -- $zlhs $x86_64tests $zrhs x86_64tests
+
     # Same, applied to all the run_dump_test cases.
     set options_regsub(ld) [list $lhs $rhs]
 
@@ -267,6 +281,7 @@ if { ![ld_link $ld tmpdir/$test "-m$emul tmpdir/${test}a.o tmpdir/${test}b.o"] }
 
 run_dump_test "abs"
 run_dump_test "abs-l1om"
+run_dump_test "apic"
 run_dump_test "pcrel8"
 run_dump_test "pcrel16"
 run_dump_test "tlsgd2"
@@ -291,6 +306,7 @@ run_dump_test "protected6a"
 run_dump_test "protected6b"
 run_dump_test "protected7a"
 run_dump_test "protected7b"
+run_dump_test "protected8"
 run_dump_test "tlsle1"
 run_dump_test "tlspie1"
 run_dump_test "tlspie2a"
@@ -365,6 +381,28 @@ run_dump_test "property-x86-shstk4"
 run_dump_test "property-x86-shstk4-x32"
 run_dump_test "property-x86-shstk5"
 run_dump_test "property-x86-shstk5-x32"
+run_dump_test "pr21884"
+run_dump_test "pr21884-nacl"
+run_dump_test "pr22071"
+run_dump_test "pr22115-1a"
+run_dump_test "pr22115-1a-x32"
+run_dump_test "pr22115-1b"
+run_dump_test "pr22115-1b-x32"
+run_dump_test "pr22115-1c"
+run_dump_test "pr22115-1c-x32"
+run_dump_test "pr22115-1d"
+run_dump_test "pr22115-1d-x32"
+run_dump_test "pr22135"
+run_dump_test "pr22782a"
+run_dump_test "pr22782b"
+run_dump_test "pr23189"
+run_dump_test "pr23194"
+run_dump_test "pr23324a"
+run_dump_test "pr23324b"
+run_dump_test "pr23372a"
+run_dump_test "pr23372a-x32"
+run_dump_test "pr23372b"
+run_dump_test "pr23372b-x32"
 
 if { ![istarget "x86_64-*-linux*"] && ![istarget "x86_64-*-nacl*"]} {
     return
@@ -491,6 +529,9 @@ run_dump_test "pr19636-1d"
 run_dump_test "pr19636-1e"
 run_dump_test "pr19636-1f"
 run_dump_test "pr19636-1g"
+run_dump_test "pr19636-1h"
+run_dump_test "pr19636-1i"
+run_dump_test "pr19636-1j"
 run_dump_test "pr19636-2a"
 run_dump_test "pr19636-2b"
 run_dump_test "pr19636-2c"
@@ -501,6 +542,10 @@ run_dump_test "pr19636-2f"
 run_dump_test "pr19636-2g"
 run_dump_test "pr19636-2h"
 run_dump_test "pr19636-2i"
+run_dump_test "pr19636-2j"
+run_dump_test "pr19636-2k"
+run_dump_test "pr19636-2l"
+run_dump_test "pr19636-2m"
 run_dump_test "pr19636-3a"
 run_dump_test "pr19636-3b"
 run_dump_test "pr19636-3c"
@@ -567,6 +612,8 @@ run_dump_test "pr20253-4f"
 run_dump_test "pr20253-5a"
 run_dump_test "pr20253-5b"
 run_dump_test "tlsdesc2"
+run_dump_test "pr22048"
+run_dump_test "pr22929"
 
 proc undefined_weak {cflags ldflags} {
     set testname "Undefined weak symbol"
@@ -574,8 +621,8 @@ proc undefined_weak {cflags ldflags} {
 	set testname "$testname ($cflags $ldflags)"
     }
 
-    if { [ regexp "\-fPIE" $cflags]
-	 && ![ regexp "nodynamic-undefined-weak" $ldflags] } {
+    if { [string match "*-fPIE*" $cflags]
+	 && ![string match "*nodynamic-undefined-weak*" $ldflags] } {
 	set weak_symbol "Weak defined"
     } else {
 	set weak_symbol "Weak undefined"
@@ -1037,7 +1084,195 @@ if { [isnative] && [which $CC] != 0 } {
 	    {{readelf {-n} property-7.r}} \
 	    "property-7b.o" \
 	] \
+	[list \
+	    "Build pr22001-1.so" \
+	    "-shared" \
+	    "-fPIC" \
+	    { pr22001-1a.c } \
+	    {} \
+	    "pr22001-1.so" \
+	] \
+	[list \
+	    "Build pr22001-1a" \
+	    "$NOPIE_LDFLAGS -Wl,-z,nocopyreloc,--no-as-needed tmpdir/pr22001-1.so" \
+	    "$NOPIE_CFLAGS" \
+	    { pr22001-1b.c } \
+	    {{error_output "pr22001-1a.err"}} \
+	    "pr22001-1a" \
+	] \
+	[list \
+	    "Build pr21997-1.so" \
+	    "-shared" \
+	    "" \
+	    { property-stack.S property-no-copy.S pr21997-1a.S } \
+	    {} \
+	    "pr21997-1.so" \
+	] \
+	[list \
+	    "Build pr21997-1a" \
+	    "$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/pr21997-1.so" \
+	    "$NOPIE_CFLAGS" \
+	    { pr21997-1b.c } \
+	    {{error_output "pr21997-1a.err"}} \
+	    "pr21997-1a" \
+	] \
+	[list \
+	    "Build pr22064a.o" \
+	    "" \
+	    "" \
+	    { pr22064a.S } \
+	] \
+	[list \
+	    "Build pr22064.so" \
+	    "-shared" \
+	    "-fPIC" \
+	    { pr22064b.c } \
+	    {} \
+	    "pr22064.so" \
+	] \
+	[list \
+	    "Build pr22393-3a.so" \
+	    "-shared -Wl,-z,separate-code,-z,max-page-size=0x1000" \
+	    "-fPIC" \
+	    {pr22393-3a.c} \
+	    {{readelf -lW pr22393-3a.rd} \
+	     {readelf -lW pr22393-3b.rd}} \
+	    "pr22393-3a.so" \
+	] \
+	[list \
+	    "Build pr22393-3a-now.so" \
+	    "-shared -Wl,-z,separate-code,-z,now,-z,max-page-size=0x1000" \
+	    "-fPIC" \
+	    {pr22393-3a.c} \
+	    {{readelf -lW pr22393-3a.rd} \
+	     {readelf -lW pr22393-3b.rd}} \
+	    "pr22393-3a-now.so" \
+	] \
+	[list \
+	    "Build pr22393-3" \
+	    "$NOPIE_LDFLAGS -Wl,-z,separate-code,-z,max-page-size=0x1000,--no-as-needed tmpdir/pr22393-3a.so" \
+	    "$NOPIE_CFLAGS" \
+	    {pr22393-3b.c} \
+	    {{readelf -lW pr22393-3a.rd} \
+	     {readelf -lW pr22393-3b.rd}} \
+	    "pr22393-3" \
+	] \
+	[list \
+	    "Build pr22393-3 (PIE)" \
+	    "-pie -Wl,-z,separate-code,-z,max-page-size=0x1000,--no-as-needed tmpdir/pr22393-3a-now.so" \
+	    "-fPIE" \
+	    {pr22393-3b.c} \
+	    {{readelf -lW pr22393-3a.rd} \
+	     {readelf -lW pr22393-3b.rd}} \
+	    "pr22393-3-pie" \
+	] \
+	[list \
+	    "Build pr22393-3 (static)" \
+	    "-static -Wl,-z,separate-code,-z,max-page-size=0x1000" \
+	    "" \
+	    {pr22393-3a.c pr22393-3b.c} \
+	    {{readelf -lW pr22393-3a.rd} \
+	     {readelf -lW pr22393-3b.rd}} \
+	    "pr22393-3-static" \
+	] \
+	[list \
+	    "Build pr22791-1.so" \
+	    "-shared" \
+	    "-fPIC" \
+	    { pr22791-1a.c } \
+	    {} \
+	    "pr22791-1.so" \
+	] \
+	[list \
+	    "Build pr22791-1" \
+	    "-pie -Wl,--no-as-needed tmpdir/pr22791-1.so" \
+	    "$NOPIE_CFLAGS" \
+	    { pr22791-1b.s } \
+	    {{error_output "pr22791-1.err"}} \
+	    "pr22791-1" \
+	] \
+	[list \
+	    "Build pr22791-2a.o" \
+	    "" \
+	    "$NOPIE_CFLAGS" \
+	    { pr22791-2a.s } \
+	] \
+	[list \
+	    "Build pr22791-2.so" \
+	    "-shared tmpdir/pr22791-2a.o" \
+	    "-fPIC" \
+	    { pr22791-2b.c } \
+	    {{readelf -drW pr22791-2.rd}} \
+	    "pr22791-2.so" \
+	] \
+	[list \
+	    "Build pr22791-2" \
+	    "-pie -Wl,--no-as-needed tmpdir/pr22791-2.so" \
+	    "$NOPIE_CFLAGS" \
+	    { pr22791-2c.s } \
+	    {{readelf -drW pr22791-2.rd}} \
+	    "pr22791-2" \
+	] \
+	[list \
+	    "Build pr22842.so" \
+	    "-shared" \
+	    "-fPIC" \
+	    { pr22842a.c } \
+	    {} \
+	    "pr22842.so" \
+	] \
+	[list \
+	    "Build pr22842" \
+	    "-pie -Wl,--no-as-needed tmpdir/pr22842.so" \
+	    "" \
+	    { pr22842b.S } \
+	    {{readelf -rW pr22842a.rd} \
+	     {readelf -rW pr22842b.rd}} \
+	    "pr22842" \
+	] \
     ]
+
+    if  {[istarget "x86_64-*-linux*-gnux32"]} {
+	run_ld_link_exec_tests [list \
+	    [list \
+		"Run pr22001-1b" \
+		"$NOPIE_LDFLAGS -Wl,-z,nocopyreloc,--no-as-needed tmpdir/pr22001-1.so" \
+		"" \
+		{ pr22001-1c.c } \
+		"pr22001-1b" \
+		"pass.out" \
+		"$NOPIE_CFLAGS" \
+	    ] \
+	    [list \
+		"Run pr21997-1b" \
+		"$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/pr21997-1.so" \
+		"" \
+		{ pr21997-1c.c } \
+		"pr21997-1b" \
+		"pass.out" \
+		"$NOPIE_CFLAGS" \
+	    ] \
+	]
+    } else {
+	run_cc_link_tests [list \
+	    [list \
+		"Build pr22001-1b" \
+		"$NOPIE_LDFLAGS -Wl,-z,nocopyreloc,--no-as-needed tmpdir/pr22001-1.so" \
+		"$NOPIE_CFLAGS" \
+		{ pr22001-1c.c } \
+		{{error_output "pr22001-1b.err"}} \
+		"pr22001-1b" \
+	    ] \
+	    [list \
+		"Build pr21997-1b" \
+		"$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/pr21997-1.so" \
+		"$NOPIE_CFLAGS" \
+		{ pr21997-1c.c } \
+		{{error_output "pr21997-1b.err"}} \
+		"pr21997-1b" \
+	    ] \
+	]
+    }
 
     run_ld_link_exec_tests [list \
 	[list \
@@ -1213,6 +1448,130 @@ if { [isnative] && [which $CC] != 0 } {
 	    {property-x86-2.S property-x86-1.S pass.c property-stack.S} \
 	    "property-5-static" "pass.out" \
 	] \
+	[list \
+	    "Run pr22001-1a (PIC 1)" \
+	    "$NOPIE_LDFLAGS -Wl,-z,nocopyreloc,--no-as-needed tmpdir/pr22001-1.so" \
+	    "" \
+	    { pr22001-1b.c } \
+	    "pr22001-1a-pic-1" \
+	    "pass.out" \
+	    "-fPIC" \
+	] \
+	[list \
+	    "Run pr22001-1a (PIC 2)" \
+	    "-pie -Wl,-z,nocopyreloc,--no-as-needed tmpdir/pr22001-1.so" \
+	    "" \
+	    { pr22001-1b.c } \
+	    "pr22001-1a-pic-2" \
+	    "pass.out" \
+	    "-fPIC" \
+	] \
+	[list \
+	    "Run pr22001-1b (PIC 1)" \
+	    "$NOPIE_LDFLAGS -Wl,-z,nocopyreloc,--no-as-needed tmpdir/pr22001-1.so" \
+	    "" \
+	    { pr22001-1c.c } \
+	    "pr22001-1b-pic-1" \
+	    "pass.out" \
+	    "-fPIC" \
+	] \
+	[list \
+	    "Run pr22001-1b (PIC 2)" \
+	    "-pie -Wl,-z,nocopyreloc,--no-as-needed tmpdir/pr22001-1.so" \
+	    "" \
+	    { pr22001-1c.c } \
+	    "pr22001-1b-pic-2" \
+	    "pass.out" \
+	    "-fPIC" \
+	] \
+	[list \
+	    "Run pr21997-1a (PIC 1)" \
+	    "$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/pr21997-1.so" \
+	    "" \
+	    { pr21997-1b.c } \
+	    "pr21997-1a-pic-1" \
+	    "pass.out" \
+	    "-fPIC" \
+	] \
+	[list \
+	    "Run pr21997-1a (PIC 2)" \
+	    "-pie -Wl,--no-as-needed tmpdir/pr21997-1.so" \
+	    "" \
+	    { pr21997-1b.c } \
+	    "pr21997-1a-pic-2" \
+	    "pass.out" \
+	    "-fPIC" \
+	] \
+	[list \
+	    "Run pr21997-1b (PIC 1)" \
+	    "$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/pr21997-1.so" \
+	    "" \
+	    { pr21997-1c.c } \
+	    "pr21997-1b-pic-1" \
+	    "pass.out" \
+	    "-fPIC" \
+	] \
+	[list \
+	    "Run pr21997-1b (PIC 2)" \
+	    "-pie -Wl,--no-as-needed tmpdir/pr21997-1.so" \
+	    "" \
+	    { pr21997-1c.c } \
+	    "pr21997-1b-pic-2" \
+	    "pass.out" \
+	    "-fPIC" \
+	] \
+	[list \
+	    "Run pr22064" \
+	    "-pie -Wl,--no-as-needed tmpdir/pr22064a.o tmpdir/pr22064.so" \
+	    "" \
+	    { dummy.s } \
+	    "pr22064-pie" \
+	    "pass.out" \
+	    "-fPIE" \
+	] \
+	[list \
+	    "Run pr22393-3" \
+	    "$NOPIE_LDFLAGS -Wl,-z,separate-code,-z,max-page-size=0x1000,--no-as-needed tmpdir/pr22393-3a.so" \
+	    "" \
+	    {pr22393-3b.c} \
+	    "pr22393-3" \
+	    "pass.out" \
+	    "$NOPIE_CFLAGS" \
+	] \
+	[list \
+	    "Run pr22393-3 (PIE)" \
+	    "-pie -Wl,-z,separate-code,-z,max-page-size=0x1000,--no-as-needed tmpdir/pr22393-3a-now.so" \
+	    "" \
+	    {pr22393-3b.c} \
+	    "pr22393-3-pie" \
+	    "pass.out" \
+	    "-fPIE" \
+	] \
+	[list \
+	    "Run pr22393-3 (static)" \
+	    "-static -Wl,-z,separate-code,-z,max-page-size=0x1000" \
+	    "" \
+	    {pr22393-3a.c pr22393-3b.c} \
+	    "pr22393-3-static" \
+	    "pass.out" \
+	] \
+	[list \
+	    "Run pr22791-2" \
+	    "-pie -Wl,--no-as-needed tmpdir/pr22791-2.so" \
+	    "" \
+	    { pr22791-2c.s } \
+	    "pr22791-2" \
+	    "pass.out" \
+	    "$NOPIE_CFLAGS" \
+	] \
+	[list \
+	    "Build pr22842" \
+	    "-pie -Wl,--no-as-needed tmpdir/pr22842.so" \
+	    "" \
+	    { pr22842b.S } \
+	    "pr22842" \
+	    "pass.out" \
+	] \
     ]
 
     # Run-time tests which require working ifunc attribute support.
@@ -1269,7 +1628,8 @@ if { [isnative] && [which $CC] != 0 } {
 	    [list \
 		"Build plt-main with -z bndplt" \
 		"tmpdir/plt-main1.o tmpdir/plt-main2.o tmpdir/plt-main3.o \
-		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z bndplt" \
+		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z bndplt \
+		 -z noseparate-code -z max-page-size=0x200000" \
 		"" \
 		{ plt-main5.c } \
 		{{objdump {-drw} plt-main-bnd.dd}} \
@@ -1278,7 +1638,8 @@ if { [isnative] && [which $CC] != 0 } {
 	    [list \
 		"Build plt-main with PIE and -z bndplt" \
 		"tmpdir/plt-main1.o tmpdir/plt-main2.o tmpdir/plt-main3.o \
-		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z bndplt -pie" \
+		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z bndplt -pie \
+		 -z noseparate-code -z max-page-size=0x200000" \
 		"-fPIC" \
 		{ plt-main5.c } \
 		{{objdump {-drw} plt-main-bnd.dd}} \
@@ -1287,7 +1648,8 @@ if { [isnative] && [which $CC] != 0 } {
 	    [list \
 		"Build plt-main with -z bndplt -z now" \
 		"tmpdir/plt-main1.o tmpdir/plt-main2.o tmpdir/plt-main3.o \
-		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z bndplt -z now" \
+		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z bndplt -z now \
+		 -z noseparate-code -z max-page-size=0x200000" \
 		"" \
 		{ plt-main5.c } \
 		{{readelf {-SW} plt-main-bnd-now.rd} {objdump {-drw} plt-main-bnd.dd}} \
@@ -1296,7 +1658,8 @@ if { [isnative] && [which $CC] != 0 } {
 	    [list \
 		"Build plt-main with PIE and -z bndplt -z now" \
 		"tmpdir/plt-main1.o tmpdir/plt-main2.o tmpdir/plt-main3.o \
-		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z bndplt -z now -pie" \
+		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z bndplt -z now -pie \
+		 -z noseparate-code -z max-page-size=0x200000" \
 		"-fPIC" \
 		{ plt-main5.c } \
 		{{readelf {-SW} plt-main-bnd-now.rd} {objdump {-drw} plt-main-bnd.dd}} \
@@ -1392,7 +1755,8 @@ if { [isnative] && [which $CC] != 0 } {
 	    [list \
 		"Build plt-main with -z ibtplt" \
 		"tmpdir/plt-main1.o tmpdir/plt-main2.o tmpdir/plt-main3.o \
-		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z ibtplt" \
+		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z ibtplt \
+		 -z noseparate-code -z max-page-size=0x200000" \
 		"" \
 		{ plt-main5.c } \
 		$pltdump \
@@ -1401,7 +1765,8 @@ if { [isnative] && [which $CC] != 0 } {
 	    [list \
 		"Build plt-main with PIE and -z ibtplt" \
 		"tmpdir/plt-main1.o tmpdir/plt-main2.o tmpdir/plt-main3.o \
-		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z ibtplt -pie" \
+		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z ibtplt -pie \
+		 -z noseparate-code -z max-page-size=0x200000" \
 		"-fPIC" \
 		{ plt-main5.c } \
 		$pltdump \
@@ -1410,7 +1775,8 @@ if { [isnative] && [which $CC] != 0 } {
 	    [list \
 		"Build plt-main with -z ibtplt -z now" \
 		"tmpdir/plt-main1.o tmpdir/plt-main2.o tmpdir/plt-main3.o \
-		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z ibtplt -z now" \
+		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z ibtplt -z now \
+		 -z noseparate-code -z max-page-size=0x200000" \
 		"" \
 		{ plt-main5.c } \
 		$pltsecdump \
@@ -1419,7 +1785,8 @@ if { [isnative] && [which $CC] != 0 } {
 	    [list \
 		"Build plt-main with PIE and -z ibtplt -z now" \
 		"tmpdir/plt-main1.o tmpdir/plt-main2.o tmpdir/plt-main3.o \
-		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z ibtplt -z now -pie" \
+		 tmpdir/plt-main4.o tmpdir/libplt-lib.so -z ibtplt -z now -pie \
+		 -z noseparate-code -z max-page-size=0x200000" \
 		"-fPIC" \
 		{ plt-main5.c } \
 		$pltsecdump \
@@ -1427,7 +1794,8 @@ if { [isnative] && [which $CC] != 0 } {
 	    ] \
 	    [list \
 		"Build libibtplt-lib.so with -z ibtplt" \
-		"-shared -z ibtplt" \
+		"-shared -z ibtplt \
+		 -z noseparate-code -z max-page-size=0x200000" \
 		"-fPIC" \
 		{ plt-main1.c plt-main2.c plt-main3.c plt-main4.c} \
 		$pltdump \
@@ -1435,7 +1803,8 @@ if { [isnative] && [which $CC] != 0 } {
 	    ] \
 	    [list \
 		"Build libibtplt--now-lib.so with -z ibtplt -z now" \
-		"-shared -z ibtplt -z now" \
+		"-shared -z ibtplt -z now \
+		 -z noseparate-code -z max-page-size=0x200000" \
 		"-fPIC" \
 		{ plt-main1.c plt-main2.c plt-main3.c plt-main4.c} \
 		$pltdump \
@@ -1544,7 +1913,8 @@ if { ![istarget "x86_64-*-linux*"]} {
 run_ld_link_tests [list \
     [list \
 	"basic PLT generation (-z now)" \
-	"-z now -melf_x86_64 tmpdir/libpltlib.so" \
+	"-z now -melf_x86_64 --hash-style=sysv tmpdir/libpltlib.so \
+	 -z noseparate-code -z max-page-size=0x200000" \
 	"" \
 	"--64" \
 	{plt2.s} \
@@ -1572,7 +1942,11 @@ run_ld_link_tests [list \
 ]
 
 # Linux only tests
-run_dump_test "pr17618"
+global LD_CLASS
+if { "$LD_CLASS" == "64bit" } then {
+    # This test needs 64-bit linker.
+    run_dump_test "pr17618"
+}
 run_dump_test "pltgot-1"
 run_dump_test "pltgot-2"
 run_dump_test "pr20830a"

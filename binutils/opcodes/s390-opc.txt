@@ -1,5 +1,5 @@
 #  S/390 opcodes list. Use s390-mkopc to convert it into the opcode table.
-#  Copyright (C) 2000-2017 Free Software Foundation, Inc.
+#  Copyright (C) 2000-2018 Free Software Foundation, Inc.
 #  Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
 5a a RX_RRRD "add" g5 esa,zarch
 6a ad RX_FRRD "add normalized (long)" g5 esa,zarch
@@ -103,7 +103,7 @@ b7 lctl RS_CCRD "load control" g5 esa,zarch
 20 lpdr RR_FF "load positive (long)" g5 esa,zarch
 30 lper RR_FF "load positive (short)" g5 esa,zarch
 10 lpr RR_RR "load positive" g5 esa,zarch
-82 lpsw S_RD "load PSW" g5 esa,zarch
+82 lpsw SI_RD "load PSW" g5 esa,zarch
 18 lr RR_RR "load" g5 esa,zarch
 b1 lra RX_RRRD "load real address" g5 esa,zarch
 25 ldxr RR_FFE "load rounded (ext. to long)" g5 esa,zarch
@@ -199,7 +199,7 @@ b25e srst RRE_RR "search string" g5 esa,zarch
 b225 ssar RRE_R0 "set secondary ASN" g5 esa,zarch
 b233 ssch S_RD "start subchannel" g5 esa,zarch
 b22b sske RRE_RR "set storage key extended" g5 esa,zarch
-80 ssm S_RD "set system mask" g5 esa,zarch
+80 ssm SI_RD "set system mask" g5 esa,zarch
 50 st RX_RRRD "store" g5 esa,zarch
 9b stam RS_AARD "store access multiple" g5 esa,zarch
 b212 stap S_RD "store CPU address" g5 esa,zarch
@@ -235,7 +235,7 @@ e501 tprot SSE_RDRD "test protection" g5 esa,zarch
 dc tr SS_L0RDRD "translate" g5 esa,zarch
 99 trace RS_RRRD "trace" g5 esa,zarch
 dd trt SS_L0RDRD "translate and test" g5 esa,zarch
-93 ts S_RD "test and set" g5 esa,zarch
+93 ts SI_RD "test and set" g5 esa,zarch
 b235 tsch S_RD "test subchannel" g5 esa,zarch
 f3 unpk SS_LLRDRD "unpack" g5 esa,zarch
 0102 upt E "update tree" g5 esa,zarch
@@ -1876,3 +1876,7 @@ e30000000049 stgsc RXY_RRRD "store guarded storage controls" arch12 zarch
 # Message-Security-Assist Extension 8
 
 b929 kma RRF_R0RR "cipher message with galois counter mode" arch12 zarch
+
+b93c prno RRE_RR "perform pseudorandom number operation" arch12 zarch
+b9a1 tpei RRE_RR "test pending external interruption" arch12 zarch
+b9ac irbm RRE_RR "insert reference bits multiple" arch12 zarch

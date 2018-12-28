@@ -1,6 +1,6 @@
 #as: -march=loongson3a -mabi=o64
 #objdump: -M reg-names=numeric -dr
-#name: Loongson-3A tests
+#name: Loongson-3A tests 2
 
 .*:     file format .*
 

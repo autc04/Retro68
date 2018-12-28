@@ -21,17 +21,17 @@ Raw dump of debug contents of section \.debug_line:
 
  Opcodes:
   Opcode 1 has 0 args
-  Opcode 2 has 1 args
-  Opcode 3 has 1 args
-  Opcode 4 has 1 args
-  Opcode 5 has 1 args
+  Opcode 2 has 1 arg
+  Opcode 3 has 1 arg
+  Opcode 4 has 1 arg
+  Opcode 5 has 1 arg
   Opcode 6 has 0 args
   Opcode 7 has 0 args
   Opcode 8 has 0 args
-  Opcode 9 has 1 args
+  Opcode 9 has 1 arg
   Opcode 10 has 0 args
   Opcode 11 has 0 args
-  Opcode 12 has 1 args
+  Opcode 12 has 1 arg
 
  The Directory Table is empty\.
 
@@ -44,9 +44,9 @@ Raw dump of debug contents of section \.debug_line:
   \[0x.*\]  Special opcode 11: advance Address by 0 to 0x0 and Line by 6 to 7
   \[0x.*\]  Special opcode 63: advance Address by 4 to 0x4 and Line by 2 to 9
   \[0x.*\]  Special opcode 120: advance Address by 8 to 0xc and Line by 3 to 12
-  \[0x.*\]  Special opcode 7: advance Address by 0 to 0xc and Line by 2 to 14
+  \[0x.*\]  Special opcode 7: advance Address by 0 to 0xc and Line by 2 to 14 \(view 1\)
   \[0x.*\]  Special opcode 120: advance Address by 8 to 0x14 and Line by 3 to 17
-  \[0x.*\]  Special opcode 7: advance Address by 0 to 0x14 and Line by 2 to 19
+  \[0x.*\]  Special opcode 7: advance Address by 0 to 0x14 and Line by 2 to 19 \(view 1\)
   \[0x.*\]  Special opcode 120: advance Address by 8 to 0x1c and Line by 3 to 22
   \[0x.*\]  Special opcode 63: advance Address by 4 to 0x20 and Line by 2 to 24
   \[0x.*\]  Special opcode 120: advance Address by 8 to 0x28 and Line by 3 to 27
@@ -54,7 +54,7 @@ Raw dump of debug contents of section \.debug_line:
   \[0x.*\]  Special opcode 120: advance Address by 8 to 0x34 and Line by 3 to 32
   \[0x.*\]  Special opcode 63: advance Address by 4 to 0x38 and Line by 2 to 34
   \[0x.*\]  Special opcode 120: advance Address by 8 to 0x40 and Line by 3 to 37
-  \[0x.*\]  Special opcode 7: advance Address by 0 to 0x40 and Line by 2 to 39
+  \[0x.*\]  Special opcode 7: advance Address by 0 to 0x40 and Line by 2 to 39 \(view 1\)
   \[0x.*\]  Special opcode 120: advance Address by 8 to 0x48 and Line by 3 to 42
   \[0x.*\]  Special opcode 63: advance Address by 4 to 0x4c and Line by 2 to 44
   \[0x.*\]  Advance PC by 36 to 0x70

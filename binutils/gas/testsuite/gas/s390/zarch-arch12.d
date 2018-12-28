@@ -198,3 +198,6 @@ Disassembly of section .text:
 .*:	e3 69 b8 f0 fd 4d [	 ]*lgsc	%r6,-10000\(%r9,%r11\)
 .*:	e3 69 b8 f0 fd 49 [	 ]*stgsc	%r6,-10000\(%r9,%r11\)
 .*:	b9 29 90 6b [	 ]*kma	%r6,%r9,%r11
+.*:	b9 3c 00 69 [	 ]*prno	%r6,%r9
+.*:	b9 a1 00 69 [	 ]*tpei	%r6,%r9
+.*:	b9 ac 00 69 [	 ]*irbm	%r6,%r9

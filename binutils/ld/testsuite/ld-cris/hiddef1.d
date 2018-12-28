@@ -1,7 +1,7 @@
 #source: gotrel1.s
 #source: hiddef1.s
 #source: hidrefgotplt1.s
-#ld: -shared -m crislinux
+#ld: -shared -m crislinux --hash-style=sysv
 #as: --pic --no-underscore -I$srcdir/$subdir --em=criself
 #readelf: -S -s -r
 
@@ -18,11 +18,11 @@ There are 11 section headers, starting at offset 0x[0-9a-f]+:
 #...
   \[[ 0-9]+\] \.got              PROGBITS        [0-9a-f]+ [0-9a-f]+ 0+10 04  WA  0   0  4
 #...
-Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 1 entry:
 #...
 [0-9a-f]+  0+c R_CRIS_RELATIVE +[0-9a-f]+
 #...
-Symbol table '\.dynsym' contains 6 entries:
+Symbol table '\.dynsym' contains 3 entries:
 #...
-Symbol table '\.symtab' contains 18 entries:
+Symbol table '\.symtab' contains 15 entries:
 #pass

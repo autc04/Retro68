@@ -14,4 +14,16 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f ae 29             	xrstor \(%ecx\)
 [ 	]*[a-f0-9]+:	0f ae 21             	xsave  \(%ecx\)
 [ 	]*[a-f0-9]+:	0f ae 31             	xsaveopt \(%ecx\)
+[a-f0-9]+ <avx>:
+[ 	]*[a-f0-9]+:	0f ae 20             	xsave  \(%eax\)
+[ 	]*[a-f0-9]+:	0f ae 28             	xrstor \(%eax\)
+[a-f0-9]+ <lwp>:
+[ 	]*[a-f0-9]+:	0f ae 20             	xsave  \(%eax\)
+[ 	]*[a-f0-9]+:	0f ae 28             	xrstor \(%eax\)
+[a-f0-9]+ <mpx>:
+[ 	]*[a-f0-9]+:	0f ae 20             	xsave  \(%eax\)
+[ 	]*[a-f0-9]+:	0f ae 28             	xrstor \(%eax\)
+[a-f0-9]+ <pku>:
+[ 	]*[a-f0-9]+:	0f ae 20             	xsave  \(%eax\)
+[ 	]*[a-f0-9]+:	0f ae 28             	xrstor \(%eax\)
 #pass

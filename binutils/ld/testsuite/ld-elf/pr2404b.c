@@ -3,7 +3,7 @@
 extern int bar (void);
 
 int times = -1;
-int time;
+int time1;
 
 int
 main ()
@@ -12,9 +12,9 @@ main ()
   times = 20;
   printf ("times: %d\n", times);
 
-  printf ("time: %d\n", time);
-  time = 10;
-  printf ("time: %d\n", time);
+  printf ("time1: %d\n", time1);
+  time1 = 10;
+  printf ("time1: %d\n", time1);
   bar ();
 
   return 0;

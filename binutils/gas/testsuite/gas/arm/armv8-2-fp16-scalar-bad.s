@@ -62,6 +62,25 @@
 	.endr
 	.endm
 
+	.macro f16_ss_mov reg0, reg1
+	.irp op, vins, vmovx
+	  .irp cond, eq.f16, ne.f16, ge.f16, lt.f16, gt.f16, le.f16
+		\op\cond s\reg0, s\reg1
+	  .endr
+	.endr
+	.endm
+
+	.macro t_f16_ss_mov reg0, reg1
+	.irp op, vins, vmovx
+	  .irp cond, eq, ne, ge, lt, gt, le
+	    .irp mode, .f16
+		it \cond
+		\op\cond\mode s\reg0, s\reg1
+	    .endr
+	  .endr
+	.endr
+	.endm
+
 	.text
 
 	@ invalied immediate range
@@ -84,3 +103,8 @@
 	f16_ssi_cvt_imm32 2, 2, #29
 	f16_ss_cvt_r 0, 10
 	f16_ss_vrint 3, 11
+	f16_ss_mov 0, 1
+
+	.syntax unified
+	.thumb
+	t_f16_ss_mov 0, 1

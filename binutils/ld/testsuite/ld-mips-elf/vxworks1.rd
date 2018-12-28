@@ -1,5 +1,5 @@
 
-Relocation section '\.rela\.dyn' at offset .* contains 1 entries:
+Relocation section '\.rela\.dyn' at offset .* contains 1 entry:
  Offset     Info    Type            Sym.Value  Sym. Name \+ Addend
 00081c00  .*7e R_MIPS_COPY       00081c00   dglobal \+ 0
 

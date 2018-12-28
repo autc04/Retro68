@@ -1,5 +1,5 @@
 # Support routines for LD testsuite.
-#   Copyright (C) 1994-2017 Free Software Foundation, Inc.
+#   Copyright (C) 1994-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -85,6 +85,8 @@ proc run_host_cmd { prog command } {
     global link_output
     global gcc_B_opt
     global ld_L_opt
+    global gcc_ld_B_opt_tested
+    global ld
 
     if { ![is_remote host] && [which "$prog"] == 0 } then {
 	perror "$prog does not exist"
@@ -106,6 +108,22 @@ proc run_host_cmd { prog command } {
     set gccexe [string replace $gccexe 0 [string last "/" $gccexe] ""]
     if {[string match "*cc*" $gccexe] || [string match "*++*" $gccexe]} then {
 	set gccflags "$gcc_B_opt $gccflags $ld_L_opt"
+	if {![info exists gcc_ld_B_opt_tested]} {
+	    set gcc_ld_B_opt_tested 1
+	    set ld_version_message [run_host_cmd "$ld" "--version"]
+	    set gcc_ld_version_message [run_host_cmd "$prog" "$gccflags -Wl,--version"]
+	    if {[string first $ld_version_message $gcc_ld_version_message] < 0} {
+		perror "************************************************************************"
+		perror "Your compiler driver ignores -B when choosing ld."
+		perror "You will not be testing the new ld in many of the following tests."
+		set gcc_ld_version [run_host_cmd "$prog" "$gccflags --print-prog-name=ld"]
+		if {![string match "" $gcc_ld_version] && ![string match "ld" $gcc_ld_version]} {
+		
+		    perror "It seems you will be testing $gcc_ld_version instead."
+		}
+		perror "************************************************************************"
+	    }
+	}
     }
 
     verbose -log "$prog $gccflags $command"
@@ -517,13 +535,26 @@ proc ld_link_defsyms {} {
 #       once.
 #
 #   target: TARGET
-#       Only run the test for TARGET.  This may occur more than once; the
-#       target being tested must match at least one.  You may provide target
-#       name "cfi" for any target supporting the CFI statements.
+#	Only run the test for TARGET.
+#	You may provide target name "cfi" for any target supporting the
+#	CFI statements.  You may provide target name "shared" for any
+#	target supporting shared libraries.  Otherwise TARGET is called
+#	as a TCL procedure if surrounded by square brackets, or passed
+#	to "istarget" if not.
+#	This may occur more than once; the target being tested must match
+#	at least one.
+#
+#   alltargets: TARGET
+#	Only run the test for TARGET.
+#	The syntax for TARGET is as with 'target'.
+#	This may occur more than once; the target being tested must match
+#	all of them.
 #
 #   notarget: TARGET
-#       Do not run the test for TARGET.  This may occur more than once;
-#       the target being tested must not match any of them.
+#	Do not run the test for TARGET.
+#	The syntax for TARGET is as with 'target'.
+#	This may occur more than once; the target being tested must not
+#	match any of them.
 #
 #   error: REGEX
 #	An error with message matching REGEX must be emitted for the test
@@ -599,6 +630,7 @@ proc run_dump_test { name {extra_options {}} } {
     set opts(ld_after_inputfiles) {}
     set opts(xfail) {}
     set opts(target) {}
+    set opts(alltargets) {}
     set opts(notarget) {}
     set opts(objdump) {}
     set opts(nm) {}
@@ -628,6 +660,7 @@ proc run_dump_test { name {extra_options {}} } {
 	switch -- $opt_name {
 	    xfail {}
 	    target {}
+	    alltargets {}
 	    notarget {}
 	    warning {}
 	    error {}
@@ -717,7 +750,7 @@ proc run_dump_test { name {extra_options {}} } {
     if { [llength $opts(target)] > 0 } {
 	set targmatch 0
 	foreach targ $opts(target) {
-	    if [istarget $targ] {
+	    if [match_target $targ] {
 		set targmatch 1
 		break
 	    }
@@ -726,8 +759,13 @@ proc run_dump_test { name {extra_options {}} } {
 	    return
 	}
     }
+    foreach targ $opts(alltargets) {
+	if ![match_target $targ] {
+	    return
+	}
+    }
     foreach targ $opts(notarget) {
-	if [istarget $targ] {
+	if [match_target $targ] {
 	    return
 	}
     }
@@ -976,7 +1014,7 @@ proc run_dump_test { name {extra_options {}} } {
                  && (($cmdret == 0) == ($check_ld(terminal) == 0)) \
                  && ((($check_ld(source) == "regex") \
                       && ($check_ld(regex) == "") == ($comp_output == "") \
-                      && [regexp $check_ld(regex) $comp_output]) \
+                      && [regexp -- $check_ld(regex) $comp_output]) \
                      || (($check_ld(source) == "file") \
                          && (![regexp_diff "tmpdir/ld.messages" "$srcdir/$subdir/$check_ld(file)"]))) } {
                 # We have the expected output from ld.
@@ -1364,7 +1402,7 @@ if ![string length [info proc prune_warnings]] {
 # ldtests contains test-items with 3 items followed by 1 lists, 2 items
 # and 3 optional items:
 #   0:name
-#   1:ld options
+#   1:ld leading options, placed before object files
 #   2:assembler options
 #   3:filenames of source files
 #   4:name of output file
@@ -1372,6 +1410,7 @@ if ![string length [info proc prune_warnings]] {
 #   6:compiler flags (optional)
 #   7:language (optional)
 #   8:linker warning (optional)
+#   9:ld trailing options, placed after object files (optional)
 # args is an optional list of target triplets to be xfailed.
 
 proc run_ld_link_exec_tests { ldtests args } {
@@ -1387,6 +1426,7 @@ proc run_ld_link_exec_tests { ldtests args } {
     global errcnt
     global exec_output
     global board_cflags
+    global STATIC_LDFLAGS
 
     # When using GCC as the linker driver, we need to specify board cflags when
     # linking because cflags may contain linker options.  For example when
@@ -1411,6 +1451,7 @@ proc run_ld_link_exec_tests { ldtests args } {
 	set cflags [lindex $testitem 6]
 	set lang [lindex $testitem 7]
 	set warning [lindex $testitem 8]
+	set ld_after [lindex $testitem 9]
 	set objfiles {}
 	set failed 0
 
@@ -1453,8 +1494,15 @@ proc run_ld_link_exec_tests { ldtests args } {
 	    # compile only
 	    pass $testname
 	    continue;
-	} elseif ![$link_proc $link_cmd $binfile "$board_cflags -L$srcdir/$subdir $ld_options $objfiles"] {
-	    set failed 1
+	} else {
+	    if { [string match "" $STATIC_LDFLAGS] \
+		 && [regexp -- ".* \[-\]+static .*" " $board_cflags $ld_options $objfiles $ld_after "] } {
+		untested $testname
+		continue
+	    }
+	    if ![$link_proc $link_cmd $binfile "$board_cflags -L$srcdir/$subdir $ld_options $objfiles $ld_after"] {
+		set failed 1
+	    }
 	}
 
 	# Check if exec_output is expected.
@@ -1534,6 +1582,7 @@ proc run_cc_link_tests { ldtests } {
     global ar
     global exec_output
     global board_cflags
+    global STATIC_LDFLAGS
 
     if [board_info [target_info name] exists cflags] {
         set board_cflags " [board_info [target_info name] cflags]"
@@ -1631,6 +1680,11 @@ proc run_cc_link_tests { ldtests } {
 		set failed 1
 	    }
 	} else {
+	    if { [string match "" $STATIC_LDFLAGS] \
+		 && [regexp -- ".* \[-\]+static .*" " $board_cflags $ldflags $objfiles "] } {
+		untested $testname
+		continue
+	    }
 	    ld_link $cc_cmd $binfile "$board_cflags -L$srcdir/$subdir $ldflags $objfiles"
 	    set ld_output "$exec_output"
 
@@ -1746,13 +1800,10 @@ proc check_gc_sections_available { } {
 	# advertised by ld's options.
 	if {   [istarget d30v-*-*]
 	    || [istarget dlx-*-*]
-	    || [istarget i960-*-*]
 	    || [istarget pj*-*-*]
 	    || [istarget pru*-*-*]
 	    || [istarget alpha-*-*]
 	    || [istarget hppa*64-*-*]
-	    || [istarget i370-*-*]
-	    || [istarget i860-*-*]
 	    || [istarget ia64-*-*]
 	    || [istarget mep-*-*]
 	    || [istarget mn10200-*-*] } {
@@ -1782,60 +1833,20 @@ proc check_gc_sections_available { } {
 }
 
 # Returns true if -shared is supported on the target
-# Only used and accurate for ELF targets at the moment
 
 proc check_shared_lib_support { } {
-    if {![istarget aarch64*-*-elf]
-	 && ![istarget arc*-*-elf*]
-	 && ![istarget arm*-*-elf]
-	 && ![istarget avr-*-*]
-	 && ![istarget cr16-*-*]
-	 && ![istarget cris*-*-elf]
-	 && ![istarget crx-*-*]
-	 && ![istarget d10v-*-*]
-	 && ![istarget d30v-*-*]
-	 && ![istarget dlx-*-*]
-	 && ![istarget epiphany-*-*]
-	 && ![istarget fr30-*-*]
-	 && ![istarget frv-*-*]
-	 && ![istarget ft32-*-*]
-	 && ![istarget h8300-*-*]
-	 && ![istarget i860-*-*]
-	 && ![istarget i960-*-*]
-	 && ![istarget ip2k-*-*]
-	 && ![istarget iq2000-*-*]
-	 && ![istarget lm32-*-*]
-	 && ![istarget m32c-*-*]
-	 && ![istarget m32r-*-*]
-	 && ![istarget m6811-*-*]
-	 && ![istarget m6812-*-*]
-	 && ![istarget m68hc1*-*-*]
-	 && ![istarget mcore*-*-*]
-	 && ![istarget mep-*-*]
-	 && ![istarget microblaze-*-*]
-	 && ![istarget mips*-*-elf]
-	 && ![istarget mn10200-*-*]
-	 && ![istarget moxie-*-*]
-	 && ![istarget msp430-*-*]
-	 && ![istarget mt-*-*]
-	 && ![istarget nds32*-*-*]
-	 && ![istarget nios2-*-elf]
-	 && ![istarget or1k*-*-*]
-	 && ![istarget pj-*-*]
-	 && ![istarget pru-*-*]
-	 && ![istarget rl78-*-*]
-	 && ![istarget rx-*-*]
-	 && ![istarget spu-*-*]
-	 && ![istarget v850*-*-*]
-	 && ![istarget visium-*-*]
-	 && ![istarget xc16x-*-elf]
-	 && ![istarget xgate-*-*]
-	 && ![istarget xstormy16-*-*]
-	 && ![istarget *-*-irix*]
-	 && ![istarget *-*-rtems] } {
-	return 1
+    global shared_available_saved
+    global ld
+
+    if {![info exists shared_available_saved]} {
+	set ld_output [remote_exec host $ld "-shared"]
+	if { [ string first "not supported" $ld_output ] >= 0 } {
+	    set shared_available_saved 0
+	} else {
+	    set shared_available_saved 1
+	}
     }
-    return 0
+    return $shared_available_saved
 }
 
 # Return true if target uses genelf.em (assuming it is ELF).
@@ -1845,8 +1856,6 @@ proc is_generic_elf { } {
 	 || [istarget "fr30-*-*"]
 	 || ([istarget "frv-*-*"] && ![istarget "frv-*-linux*"])
 	 || [istarget "ft32-*-*"]
-	 || [istarget "i860-*-*"]
-	 || [istarget "i960-*-*"]
 	 || [istarget "iq2000-*-*"]
 	 || [istarget "mn10200-*-*"]
 	 || [istarget "moxie-*-*"]
@@ -2128,7 +2137,7 @@ proc check_ifunc_available { } {
 	    set src [remote_download host $src]
 	}
 	set ifunc_available_saved [run_host_cmd_yesno "$CC" "$flags $src -o $output"]
-	if { $ifunc_available_saved == 1 } {
+	if { [isnative] && $ifunc_available_saved == 1 } {
 	  set ifunc_available_saved [run_host_cmd_yesno "$output" ""]
 	}
 	remote_file host delete $src
@@ -2175,7 +2184,7 @@ proc check_ifunc_attribute_available { } {
 	    set src [remote_download host $src]
 	}
 	set ifunc_attribute_available_saved [run_host_cmd_yesno "$CC" "$flags $src -o $output"]
-	if { $ifunc_attribute_available_saved == 1 } {
+	if { [isnative] && $ifunc_attribute_available_saved == 1 } {
 	  set ifunc_attribute_available_saved [run_host_cmd_yesno "$output" ""]
 	}
 	remote_file host delete $src
@@ -2191,6 +2200,9 @@ rename "istarget" "istarget_ld"
 proc istarget { target } {
     if {$target == "cfi"} {
 	return [check_as_cfi]
+    }
+    if {$target == "shared"} {
+	return [check_shared_lib_support]
     }
     return [istarget_ld $target]
 }

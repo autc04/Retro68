@@ -1,5 +1,5 @@
 /* RISC-V disassembler
-   Copyright (C) 2011-2017 Free Software Foundation, Inc.
+   Copyright (C) 2011-2018 Free Software Foundation, Inc.
 
    Contributed by Andrew Waterman (andrew@sifive.com).
    Based on MIPS target.
@@ -64,8 +64,8 @@ parse_riscv_dis_option (const char *option)
     }
   else
     {
-      /* Invalid option.  */
-      fprintf (stderr, _("Unrecognized disassembler option: %s\n"), option);
+      /* xgettext:c-format */
+      opcodes_error_handler (_("unrecognized disassembler option: %s"), option);
     }
 }
 
@@ -101,7 +101,7 @@ maybe_print_address (struct riscv_private_data *pd, int base_reg, int offset)
 {
   if (pd->hi_addr[base_reg] != (bfd_vma)-1)
     {
-      pd->print_addr = pd->hi_addr[base_reg] + offset;
+      pd->print_addr = (base_reg != 0 ? pd->hi_addr[base_reg] : 0) + offset;
       pd->hi_addr[base_reg] = -1;
     }
   else if (base_reg == X_GP && pd->gp != (bfd_vma)-1)
@@ -226,6 +226,8 @@ print_insn_args (const char *d, insn_t l, bfd_vma pc, disassemble_info *info)
 
 	case 'b':
 	case 's':
+	  if ((l & MASK_JALR) == MATCH_JALR)
+	    maybe_print_address (pd, rs1, 0);
 	  print (info->stream, "%s", riscv_gpr_names[rs1]);
 	  break;
 
@@ -498,7 +500,7 @@ The following RISC-V-specific disassembler options are supported for use\n\
 with the -M switch (multiple options should be separated by commas):\n"));
 
   fprintf (stream, _("\n\
-  numeric       Print numeric reigster names, rather than ABI names.\n"));
+  numeric       Print numeric register names, rather than ABI names.\n"));
 
   fprintf (stream, _("\n\
   no-aliases    Disassemble only into canonical instructions, rather\n\

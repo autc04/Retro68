@@ -2,4 +2,4 @@
 #source: aix-weak-3b.s
 #as: -a32 --defsym size=32
 #ld: -b32 -e.main -bnoautoimp tmpdir/aix-weak-3a.so
-#error: .*multiple definition of `x1'\n[^\n]*first defined here
+#error: .*multiple definition of `x1';[^\n]*first defined here

@@ -1,6 +1,6 @@
 #ld: -shared
 #readelf: -W -x .strtab
-#target: *-*-linux* *-*-gnu*
+#target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
 
 #failif
 #...

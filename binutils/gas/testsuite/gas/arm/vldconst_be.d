@@ -1,7 +1,7 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: ARM vldr with immediate constant (Big Endian)
 #as: -mcpu=arm7m -mbig-endian
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
+#skip: *-*-pe *-*-wince
 #source: vldconst.s
 
 .*: +file format .*arm.*

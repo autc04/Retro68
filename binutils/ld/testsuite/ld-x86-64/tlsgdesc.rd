@@ -48,14 +48,14 @@ Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 8 entries:
 [0-9a-f]+ +0+300000010 R_X86_64_DTPMOD64 +0+ sG2 \+ 0
 [0-9a-f]+ +0+300000011 R_X86_64_DTPOFF64 +0+ sG2 \+ 0
 [0-9a-f]+ +0+400000012 R_X86_64_TPOFF64 +0+ sG4 \+ 0
-[0-9a-f]+ +0+700000012 R_X86_64_TPOFF64 +0+ sG6 \+ 0
-[0-9a-f]+ +0+900000010 R_X86_64_DTPMOD64 +0+ sG1 \+ 0
-[0-9a-f]+ +0+900000011 R_X86_64_DTPOFF64 +0+ sG1 \+ 0
+[0-9a-f]+ +0+600000012 R_X86_64_TPOFF64 +0+ sG6 \+ 0
+[0-9a-f]+ +0+800000010 R_X86_64_DTPMOD64 +0+ sG1 \+ 0
+[0-9a-f]+ +0+800000011 R_X86_64_DTPOFF64 +0+ sG1 \+ 0
 
 Relocation section '.rela.plt' at offset 0x[0-9a-f]+ contains 3 entries:
  +Offset +Info +Type +Symbol's Value +Symbol's Name \+ Addend
 [0-9a-f]+ +0+500000007 R_X86_64_JUMP_SLOT +0+ __tls_get_addr \+ 0
-[0-9a-f]+ +0+900000024 R_X86_64_TLSDESC +0+ sG1 \+ 0
+[0-9a-f]+ +0+800000024 R_X86_64_TLSDESC +0+ sG1 \+ 0
 [0-9a-f]+ +0+300000024 R_X86_64_TLSDESC +0+ sG2 \+ 0
 
 Symbol table '\.dynsym' contains [0-9]+ entries:
@@ -66,12 +66,9 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG2
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG4
  +[0-9]+: 0+ +0 +NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 __bss_start
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG6
  +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +7 fc1
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG1
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 _edata
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 _end
 
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
@@ -93,9 +90,6 @@ Symbol table '\.symtab' contains [0-9]+ entries:
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG2
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG4
  +[0-9]+: 0+ +0 +NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 __bss_start
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG6
  +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +7 fc1
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG1
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 _edata
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 _end

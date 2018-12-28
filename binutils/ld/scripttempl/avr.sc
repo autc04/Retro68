@@ -1,5 +1,5 @@
-# Copyright (C) 2014-2017 Free Software Foundation, Inc.
-# 
+# Copyright (C) 2014-2018 Free Software Foundation, Inc.
+#
 # Copying and distribution of this file, with or without modification,
 # are permitted in any medium without royalty provided the copyright
 # notice and this notice are preserved.
@@ -16,7 +16,7 @@
 #         __RODATA_PM_OFFSET__ (which defaults to RODATA_PM_OFFSET).
 
 cat <<EOF
-/* Copyright (C) 2014-2017 Free Software Foundation, Inc.
+/* Copyright (C) 2014-2018 Free Software Foundation, Inc.
 
    Copying and distribution of this script, with or without modification,
    are permitted in any medium without royalty provided the copyright
@@ -128,8 +128,8 @@ SECTIONS
     ${RELOCATING+ *libprintf_flt.a:*(.progmem.data)}
     ${RELOCATING+ *libc.a:*(.progmem.data)}
 
-    ${RELOCATING+ *(.progmem*)}
-    
+    ${RELOCATING+ *(.progmem.*)}
+
     ${RELOCATING+. = ALIGN(2);}
 
     /* For code that needs to reside in the lower 128k progmem.  */
@@ -195,6 +195,8 @@ SECTIONS
     /* For code that needs not to reside in the lower progmem.  */
     *(.hightext)
     ${RELOCATING+ *(.hightext*)}
+
+    ${RELOCATING+ *(.progmemx.*)}
 
     ${RELOCATING+. = ALIGN(2);}
 
@@ -329,7 +331,7 @@ cat <<EOF
   .stab.exclstr 0 : { *(.stab.exclstr) }
   .stab.index 0 : { *(.stab.index) }
   .stab.indexstr 0 : { *(.stab.indexstr) }
-  .comment 0 : { *(.comment) } 
+  .comment 0 : { *(.comment) }
   .note.gnu.build-id : { *(.note.gnu.build-id) }
 EOF
 

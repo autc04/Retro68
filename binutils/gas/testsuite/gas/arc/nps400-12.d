@@ -54,6 +54,6 @@ Disassembly of section .text:
 000000b4 <label>:
   b4:	3a2f 0025           	getrtc	r2,\[cm:r0\]
   b8:	3e2f 7025           	getrtc	0,\[cm:r0\]
-  bc:	07f8 ffd5           	bnj	-8
-  c0:	07f4 ffd7           	bnm	-12
-  c4:	07f0 ffd8           	bnt	-16
+  bc:	07f8 ffd5           	bnj	-8.*
+  c0:	07f4 ffd7           	bnm	-12.*
+  c4:	07f0 ffd8           	bnt	-16.*

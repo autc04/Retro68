@@ -1,5 +1,5 @@
 /* This file is tc-avr.h
-   Copyright (C) 1999-2017 Free Software Foundation, Inc.
+   Copyright (C) 1999-2018 Free Software Foundation, Inc.
 
    Contributed by Denis Chertykov <denisc@overta.ru>
 
@@ -230,7 +230,7 @@ extern symbolS* avr_undefined_symbol (char*);
 extern void avr_post_relax_hook (void);
 
 #define HANDLE_ALIGN(fragP) avr_handle_align (fragP)
-extern void avr_handle_align (fragS *fragP);
+extern void avr_handle_align (fragS *);
 
 struct avr_frag_data
 {
@@ -240,5 +240,8 @@ struct avr_frag_data
 
   char fill;
   offsetT alignment;
+  unsigned int prev_opcode;
 };
 #define TC_FRAG_TYPE			struct avr_frag_data
+#define TC_FRAG_INIT(frag)		avr_frag_init (frag)
+extern void avr_frag_init (fragS *);

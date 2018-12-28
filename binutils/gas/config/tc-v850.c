@@ -1,5 +1,5 @@
 /* tc-v850.c -- Assembler code for the NEC V850
-   Copyright (C) 1996-2017 Free Software Foundation, Inc.
+   Copyright (C) 1996-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -3065,7 +3065,6 @@ md_assemble (char *str)
   dwarf2_emit_insn (0);
 
   /* Write out the instruction.  */
-
   if (relaxable && fc > 0)
     {
       insn_size = 2;

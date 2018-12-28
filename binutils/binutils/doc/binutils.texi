@@ -10,7 +10,7 @@
 
 @copying
 @c man begin COPYRIGHT
-Copyright @copyright{} 1991-2017 Free Software Foundation, Inc.
+Copyright @copyright{} 1991-2018 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3
@@ -34,7 +34,6 @@ section entitled ``GNU Free Documentation License''.
 * c++filt: (binutils)c++filt.	  Filter to demangle encoded C++ symbols.
 * cxxfilt: (binutils)c++filt.     MS-DOS name for c++filt.
 * dlltool: (binutils)dlltool.	  Create files needed to build and use DLLs.
-* nlmconv: (binutils)nlmconv.     Converts object code into an NLM.
 * nm: (binutils)nm.               List symbols from object files.
 * objcopy: (binutils)objcopy.	  Copy and translate object files.
 * objdump: (binutils)objdump.     Display information from object files.
@@ -121,9 +120,6 @@ Demangle encoded C++ symbols (on MS-DOS, this program is named
 @item addr2line
 Convert addresses into file names and line numbers
 
-@item nlmconv
-Convert object code into a Netware Loadable Module
-
 @item windres
 Manipulate Windows resources
 
@@ -151,7 +147,6 @@ in the section entitled ``GNU Free Documentation License''.
 * c++filt::			Filter to demangle encoded C++ symbols
 * cxxfilt: c++filt.             MS-DOS name for c++filt
 * addr2line::			Convert addresses to file and line
-* nlmconv::                     Converts object code into an NLM
 * windmc::			Generator for Windows message resources
 * windres::			Manipulate Windows resources
 * dlltool::			Create files needed to build and use DLLs
@@ -366,9 +361,10 @@ modifier.  In either case it does the same thing.
 @cindex contents of archive
 Display a @emph{table} listing the contents of @var{archive}, or those
 of the files listed in @var{member}@dots{} that are present in the
-archive.  Normally only the member name is shown; if you also want to
-see the modes (permissions), timestamp, owner, group, and size, you can
-request that by also specifying the @samp{v} modifier.
+archive.  Normally only the member name is shown, but if the modifier
+@samp{O} is specified, then the corresponding offset of the member is also
+displayed.  Finally, in order to see the modes (permissions), timestamp,
+owner, group, and size the @samp{v} modifier should be included.
 
 If you do not specify a @var{member}, all files in the archive
 are listed.
@@ -460,6 +456,11 @@ entries in the archive with the same name.  Extract or delete instance
 Preserve the @emph{original} dates of members when extracting them.  If
 you do not specify this modifier, files extracted from the archive
 are stamped with the time of extraction.
+
+@item O
+@cindex offsets of files
+Display member offsets inside the archive. Use together with the @samp{t}
+option.
 
 @item P
 Use the full path name when matching names in the archive.  @sc{gnu}
@@ -802,7 +803,9 @@ linking.
 
 @item B
 @itemx b
-The symbol is in the uninitialized data section (known as BSS).
+The symbol is in the BSS data section.  This section typically
+contains zero-initialized or uninitialized data, although the exact
+behavior is system dependent.
 
 @item C
 The symbol is common.  Common symbols are uninitialized data.  When
@@ -848,7 +851,8 @@ The symbol is in a read only data section.
 
 @item S
 @itemx s
-The symbol is in an uninitialized data section for small objects.
+The symbol is in an uninitialized or zero-initialized data section
+for small objects.
 
 @item T
 @itemx t
@@ -1117,6 +1121,7 @@ objcopy [@option{-F} @var{bfdname}|@option{--target=}@var{bfdname}]
         [@option{-B} @var{bfdarch}|@option{--binary-architecture=}@var{bfdarch}]
         [@option{-S}|@option{--strip-all}]
         [@option{-g}|@option{--strip-debug}]
+        [@option{--strip-unneeded}]
         [@option{-K} @var{symbolname}|@option{--keep-symbol=}@var{symbolname}]
         [@option{-N} @var{symbolname}|@option{--strip-symbol=}@var{symbolname}]
         [@option{--strip-unneeded-symbol=}@var{symbolname}]
@@ -1166,7 +1171,7 @@ objcopy [@option{-F} @var{bfdname}|@option{--target=}@var{bfdname}]
         [@option{--localize-symbols=}@var{filename}]
         [@option{--globalize-symbols=}@var{filename}]
         [@option{--weaken-symbols=}@var{filename}]
-        [@option{--add-symbol} @var{name}=[@var{section}:]@var{value}[,@var{flags}]
+        [@option{--add-symbol} @var{name}=[@var{section}:]@var{value}[,@var{flags}]]
         [@option{--alt-machine-code=}@var{index}]
         [@option{--prefix-symbols=}@var{string}]
         [@option{--prefix-sections=}@var{string}]
@@ -1634,7 +1639,7 @@ symbol table in the order they appear.
 @item --rename-section @var{oldname}=@var{newname}[,@var{flags}]
 Rename a section from @var{oldname} to @var{newname}, optionally
 changing the section's flags to @var{flags} in the process.  This has
-the advantage over usng a linker script to perform the rename in that
+the advantage over using a linker script to perform the rename in that
 the output stays as an object file and does not become a linked
 executable.
 
@@ -1871,7 +1876,7 @@ needed if debugging abilities are required.  The suggested procedure
 to create these files is as follows:
 
 @enumerate
-@item Link the executable as normal.  Assuming that is is called
+@item Link the executable as normal.  Assuming that it is called
 @code{foo} then...
 @item Run @code{objcopy --only-keep-debug foo foo.dbg} to
 create a file containing the debugging info.
@@ -2071,11 +2076,8 @@ objdump [@option{-a}|@option{--archive-headers}]
         [@option{-r}|@option{--reloc}]
         [@option{-R}|@option{--dynamic-reloc}]
         [@option{-s}|@option{--full-contents}]
-        [@option{-W[lLiaprmfFsoRt]}|
-         @option{--dwarf}[=rawline,=decodedline,=info,=abbrev,=pubnames]
-                 [=aranges,=macro,=frames,=frames-interp,=str,=loc]
-                 [=Ranges,=pubtypes,=trace_info,=trace_abbrev]
-                 [=trace_aranges,=gdb_index]
+        [@option{-W[lLiaprmfFsoRtUuTgAckK]}|
+         @option{--dwarf}[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index,=addr,=cu_index,=links,=follow-links]]
         [@option{-G}|@option{--stabs}]
         [@option{-t}|@option{--syms}]
         [@option{-T}|@option{--dynamic-syms}]
@@ -2166,9 +2168,9 @@ for more information on demangling.
 
 @item -g
 @itemx --debugging
-Display debugging information.  This attempts to parse STABS and IEEE
+Display debugging information.  This attempts to parse STABS
 debugging format information stored in the file and print it out using
-a C like syntax.  If neither of these formats are found this option
+a C like syntax.  If no STABS debuging was found this option
 falls back on the @option{-W} option to print any DWARF information in
 the file.
 
@@ -2312,7 +2314,11 @@ precision FP instructions, @option{quarkse_em} selects the printing of
 special QuarkSE-EM instructions, @option{fpuda} selects the printing
 of double precision assist instructions, @option{fpus} selects the
 printing of FPU single precision FP instructions, while @option{fpud}
-selects the printing of FPU souble precision FP instructions.
+selects the printing of FPU double precision FP instructions.
+Additionally, one can choose to have all the immediates printed in
+hexadecimal using @option{hex}.  By default, the short immediates are
+printed using the decimal representation, while the long immediate
+values are printed as hexadecimal.
 
 @option{cpu=...} allows to enforce a particular ISA when disassembling
 instructions, overriding the @option{-m} value or whatever is in the ELF file.
@@ -2341,6 +2347,11 @@ disassembler to interpret all instructions as Thumb instructions by
 using the switch @option{--disassembler-options=force-thumb}.  This can be
 useful when attempting to disassemble thumb code produced by other
 compilers.
+
+For AArch64 targets this switch can be used to set whether instructions are
+disassembled as the most general instruction using the @option{-M no-aliases}
+option or whether instruction notes should be generated as comments in the
+disasssembly using @option{-M notes}.
 
 For the x86, some of the options duplicate functions of the @option{-m}
 switch, but allow finer grained control.  Multiple selections from the
@@ -2556,42 +2567,9 @@ This is the default when @option{--prefix-addresses} is used.
 Display @var{width} bytes on a single line when disassembling
 instructions.
 
-@item -W[lLiaprmfFsoRt]
-@itemx --dwarf[=rawline,=decodedline,=info,=abbrev,=pubnames]
-@itemx --dwarf[=aranges,=macro,=frames,=frames-interp,=str,=loc]
-@itemx --dwarf[=Ranges,=pubtypes,=trace_info,=trace_abbrev]
-@itemx --dwarf[=trace_aranges,=gdb_index]
-@cindex DWARF
-@cindex debug symbols
-Displays the contents of the debug sections in the file, if any are
-present.  If one of the optional letters or words follows the switch
-then only data found in those specific sections will be dumped.
-
-Note that there is no single letter option to display the content of
-trace sections or .gdb_index.
-
-Note: the output from the @option{=info} option can also be affected
-by the options @option{--dwarf-depth}, the @option{--dwarf-start} and
-the @option{--dwarf-check}.
-
-@item --dwarf-depth=@var{n}
-Limit the dump of the @code{.debug_info} section to @var{n} children.
-This is only useful with @option{--dwarf=info}.  The default is
-to print all DIEs; the special value 0 for @var{n} will also have this
-effect.
-
-With a non-zero value for @var{n}, DIEs at or deeper than @var{n}
-levels will not be printed.  The range for @var{n} is zero-based.
-
-@item --dwarf-start=@var{n}
-Print only DIEs beginning with the DIE numbered @var{n}.  This is only
-useful with @option{--dwarf=info}.
-
-If specified, this option will suppress printing of any header
-information and all DIEs before the DIE numbered @var{n}.  Only
-siblings and children of the specified DIE will be printed.
-
-This can be used in conjunction with @option{--dwarf-depth}.
+@item -W[lLiaprmfFsoRtUuTgAckK]
+@itemx --dwarf[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index,=addr,=cu_index,=links,=follow-links]
+@include debug.options.texi
 
 @item --dwarf-check
 Enable additional checks for consistency of Dwarf information.
@@ -3348,7 +3326,7 @@ needed if debugging abilities are required.  The suggested procedure
 to create these files is as follows:
 
 @enumerate
-@item Link the executable as normal.  Assuming that is is called
+@item Link the executable as normal.  Assuming that it is called
 @code{foo} then...
 @item Run @code{objcopy --only-keep-debug foo foo.dbg} to
 create a file containing the debugging info.
@@ -3722,111 +3700,6 @@ prefixed with @samp{(inlined by)}.
 @ignore
 @c man begin SEEALSO addr2line
 Info entries for @file{binutils}.
-@c man end
-@end ignore
-
-@node nlmconv
-@chapter nlmconv
-
-@command{nlmconv} converts a relocatable object file into a NetWare
-Loadable Module.
-
-@ignore
-@command{nlmconv} currently works with @samp{i386} object
-files in @code{coff}, @sc{elf}, or @code{a.out} format, and @sc{SPARC}
-object files in @sc{elf}, or @code{a.out} format@footnote{
-@command{nlmconv} should work with any @samp{i386} or @sc{sparc} object
-format in the Binary File Descriptor library.  It has only been tested
-with the above formats.}.
-@end ignore
-
-@quotation
-@emph{Warning:} @command{nlmconv} is not always built as part of the binary
-utilities, since it is only useful for NLM targets.
-@end quotation
-
-@c man title nlmconv converts object code into an NLM.
-
-@smallexample
-@c man begin SYNOPSIS nlmconv
-nlmconv [@option{-I} @var{bfdname}|@option{--input-target=}@var{bfdname}]
-        [@option{-O} @var{bfdname}|@option{--output-target=}@var{bfdname}]
-        [@option{-T} @var{headerfile}|@option{--header-file=}@var{headerfile}]
-        [@option{-d}|@option{--debug}] [@option{-l} @var{linker}|@option{--linker=}@var{linker}]
-        [@option{-h}|@option{--help}] [@option{-V}|@option{--version}]
-        @var{infile} @var{outfile}
-@c man end
-@end smallexample
-
-@c man begin DESCRIPTION nlmconv
-
-@command{nlmconv} converts the relocatable @samp{i386} object file
-@var{infile} into the NetWare Loadable Module @var{outfile}, optionally
-reading @var{headerfile} for NLM header information.  For instructions
-on writing the NLM command file language used in header files, see the
-@samp{linkers} section, @samp{NLMLINK} in particular, of the @cite{NLM
-Development and Tools Overview}, which is part of the NLM Software
-Developer's Kit (``NLM SDK''), available from Novell, Inc.
-@command{nlmconv} uses the @sc{gnu} Binary File Descriptor library to read
-@var{infile};
-@ifclear man
-see @ref{BFD,,BFD,ld.info,Using LD}, for more information.
-@end ifclear
-
-@command{nlmconv} can perform a link step.  In other words, you can list
-more than one object file for input if you list them in the definitions
-file (rather than simply specifying one input file on the command line).
-In this case, @command{nlmconv} calls the linker for you.
-
-@c man end
-
-@c man begin OPTIONS nlmconv
-
-@table @env
-@item -I @var{bfdname}
-@itemx --input-target=@var{bfdname}
-Object format of the input file.  @command{nlmconv} can usually determine
-the format of a given file (so no default is necessary).
-@xref{Target Selection}, for more information.
-
-@item -O @var{bfdname}
-@itemx --output-target=@var{bfdname}
-Object format of the output file.  @command{nlmconv} infers the output
-format based on the input format, e.g. for a @samp{i386} input file the
-output format is @samp{nlm32-i386}.
-@xref{Target Selection}, for more information.
-
-@item -T @var{headerfile}
-@itemx --header-file=@var{headerfile}
-Reads @var{headerfile} for NLM header information.  For instructions on
-writing the NLM command file language used in header files, see@ see the
-@samp{linkers} section, of the @cite{NLM Development and Tools
-Overview}, which is part of the NLM Software Developer's Kit, available
-from Novell, Inc.
-
-@item -d
-@itemx --debug
-Displays (on standard error) the linker command line used by @command{nlmconv}.
-
-@item -l @var{linker}
-@itemx --linker=@var{linker}
-Use @var{linker} for any linking.  @var{linker} can be an absolute or a
-relative pathname.
-
-@item -h
-@itemx --help
-Prints a usage summary.
-
-@item -V
-@itemx --version
-Prints the version number for @command{nlmconv}.
-@end table
-
-@c man end
-
-@ignore
-@c man begin SEEALSO nlmconv
-the Info entries for @file{binutils}.
 @c man end
 @end ignore
 
@@ -4623,8 +4496,8 @@ readelf [@option{-a}|@option{--all}]
         [@option{-R} <number or name>|@option{--relocated-dump=}<number or name>]
         [@option{-z}|@option{--decompress}]
         [@option{-c}|@option{--archive-index}]
-        [@option{-w[lLiaprmfFsoRt]}|
-         @option{--debug-dump}[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index]]
+        [@option{-w[lLiaprmfFsoRtUuTgAckK]}|
+         @option{--debug-dump}[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index,=addr,=cu_index,=links,=follow-links]]
         [@option{--dwarf-depth=@var{n}}]
         [@option{--dwarf-start=@var{n}}]
         [@option{-I}|@option{--histogram}]
@@ -4661,8 +4534,13 @@ given.
 @itemx --all
 Equivalent to specifying @option{--file-header},
 @option{--program-headers}, @option{--sections}, @option{--symbols},
-@option{--relocs}, @option{--dynamic}, @option{--notes} and
-@option{--version-info}.
+@option{--relocs}, @option{--dynamic}, @option{--notes},
+@option{--version-info}, @option{--arch-specific}, @option{--unwind},
+@option{--section-groups} and @option{--histogram}.
+
+Note - this option does not enable @option{--use-dynamic} itself, so
+if that option is not present on the command line then dynamic symbols
+and dynamic relocs will not be displayed.
 
 @item -h
 @itemx --file-header
@@ -4758,6 +4636,9 @@ When displaying symbols, this option makes @command{readelf} use the
 symbol hash tables in the file's dynamic section, rather than the
 symbol table sections.
 
+When displaying relocations, this option makes @command{readelf}
+display the dynamic relocations rather than the static relocations.
+
 @item -x <number or name>
 @itemx --hex-dump=<number or name>
 Displays the contents of the indicated section as a hexadecimal bytes.
@@ -4791,44 +4672,9 @@ Displays the file symbol index information contained in the header part
 of binary archives.  Performs the same function as the @option{t}
 command to @command{ar}, but without using the BFD library.  @xref{ar}.
 
-@item -w[lLiaprmfFsoRt]
-@itemx --debug-dump[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index]
-Displays the contents of the debug sections in the file, if any are
-present.  If one of the optional letters or words follows the switch
-then only data found in those specific sections will be dumped.
-
-Note that there is no single letter option to display the content of
-trace sections or .gdb_index.
-
-Note: the @option{=decodedline} option will display the interpreted
-contents of a .debug_line section whereas the @option{=rawline} option
-dumps the contents in a raw format.
-
-Note: the @option{=frames-interp} option will display the interpreted
-contents of a .debug_frame section whereas the @option{=frames} option
-dumps the contents in a raw format.
-
-Note: the output from the @option{=info} option can also be affected
-by the options @option{--dwarf-depth} and @option{--dwarf-start}.
-
-@item --dwarf-depth=@var{n}
-Limit the dump of the @code{.debug_info} section to @var{n} children.
-This is only useful with @option{--debug-dump=info}.  The default is
-to print all DIEs; the special value 0 for @var{n} will also have this
-effect.
-
-With a non-zero value for @var{n}, DIEs at or deeper than @var{n}
-levels will not be printed.  The range for @var{n} is zero-based.
-
-@item --dwarf-start=@var{n}
-Print only DIEs beginning with the DIE numbered @var{n}.  This is only
-useful with @option{--debug-dump=info}.
-
-If specified, this option will suppress printing of any header
-information and all DIEs before the DIE numbered @var{n}.  Only
-siblings and children of the specified DIE will be printed.
-
-This can be used in conjunction with @option{--dwarf-depth}.
+@item -w[lLiaprmfFsoRtUuTgAckK]
+@itemx --debug-dump[=rawline,=decodedline,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=frames-interp,=str,=loc,=Ranges,=pubtypes,=trace_info,=trace_abbrev,=trace_aranges,=gdb_index,=addr,=cu_index,=links,=follow-links]
+@include debug.options.texi
 
 @item -I
 @itemx --histogram

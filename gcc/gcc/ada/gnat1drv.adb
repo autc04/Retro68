@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,36 +23,36 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Atree;    use Atree;
-with Back_End; use Back_End;
+with Atree;     use Atree;
+with Back_End;  use Back_End;
 with Checks;
 with Comperr;
-with Csets;    use Csets;
-with Debug;    use Debug;
+with Csets;
+with Debug;     use Debug;
 with Elists;
-with Errout;   use Errout;
+with Errout;    use Errout;
 with Exp_CG;
 with Fmap;
-with Fname;    use Fname;
-with Fname.UF; use Fname.UF;
+with Fname;     use Fname;
+with Fname.UF;  use Fname.UF;
 with Frontend;
-with Ghost;    use Ghost;
-with Gnatvsn;  use Gnatvsn;
+with Ghost;     use Ghost;
+with Gnatvsn;   use Gnatvsn;
 with Inline;
-with Lib;      use Lib;
-with Lib.Writ; use Lib.Writ;
+with Lib;       use Lib;
+with Lib.Writ;  use Lib.Writ;
 with Lib.Xref;
-with Namet;    use Namet;
+with Namet;     use Namet;
 with Nlists;
-with Opt;      use Opt;
-with Osint;    use Osint;
-with Osint.C;  use Osint.C;
-with Output;   use Output;
+with Opt;       use Opt;
+with Osint;     use Osint;
+with Osint.C;   use Osint.C;
+with Output;    use Output;
 with Par_SCO;
 with Prepcomp;
-with Repinfo;  use Repinfo;
+with Repinfo;   use Repinfo;
 with Restrict;
-with Rident;   use Rident;
+with Rident;    use Rident;
 with Rtsfind;
 with SCOs;
 with Sem;
@@ -61,25 +61,26 @@ with Sem_Ch12;
 with Sem_Ch13;
 with Sem_Elim;
 with Sem_Eval;
+with Sem_SPARK; use Sem_SPARK;
 with Sem_Type;
 with Set_Targ;
-with Sinfo;    use Sinfo;
-with Sinput.L; use Sinput.L;
-with Snames;
-with Sprint;   use Sprint;
+with Sinfo;     use Sinfo;
+with Sinput.L;  use Sinput.L;
+with Snames;    use Snames;
+with Sprint;    use Sprint;
 with Stringt;
-with Stylesw;  use Stylesw;
-with Targparm; use Targparm;
+with Stylesw;   use Stylesw;
+with Targparm;  use Targparm;
 with Tbuild;
 with Tree_Gen;
-with Treepr;   use Treepr;
+with Treepr;    use Treepr;
 with Ttypes;
-with Types;    use Types;
-with Uintp;    use Uintp;
-with Uname;    use Uname;
+with Types;     use Types;
+with Uintp;
+with Uname;     use Uname;
 with Urealp;
 with Usage;
-with Validsw;  use Validsw;
+with Validsw;   use Validsw;
 
 with System.Assertions;
 with System.OS_Lib;
@@ -116,7 +117,32 @@ procedure Gnat1drv is
    ----------------------------
 
    procedure Adjust_Global_Switches is
+      procedure SPARK_Library_Warning (Kind : String);
+      --  Issue a warning in GNATprove mode if the run-time library does not
+      --  fully support IEEE-754 floating-point semantics.
+
+      ---------------------------
+      -- SPARK_Library_Warning --
+      ---------------------------
+
+      procedure SPARK_Library_Warning (Kind : String) is
+      begin
+         Write_Line
+           ("warning: run-time library may be configured incorrectly");
+         Write_Line
+           ("warning: (SPARK analysis requires support for " & Kind & ')');
+      end SPARK_Library_Warning;
+
+   --  Start of processing for Adjust_Global_Switches
+
    begin
+      --  Define pragma GNAT_Annotate as an alias of pragma Annotate, to be
+      --  able to work around bootstrap limitations with the old syntax of
+      --  pragma Annotate, and use pragma GNAT_Annotate in compiler sources
+      --  when needed.
+
+      Map_Pragma_Name (From => Name_Gnat_Annotate, To => Name_Annotate);
+
       --  -gnatd.M enables Relaxed_RM_Semantics
 
       if Debug_Flag_Dot_MM then
@@ -140,7 +166,9 @@ procedure Gnat1drv is
       if Generate_C_Code then
          Modify_Tree_For_C := True;
          Unnest_Subprogram_Mode := True;
+         Building_Static_Dispatch_Tables := False;
          Minimize_Expression_With_Actions := True;
+         Expand_Nonbinary_Modular_Ops := True;
 
          --  Set operating mode to Generate_Code to benefit from full front-end
          --  expansion (e.g. generics).
@@ -158,6 +186,13 @@ procedure Gnat1drv is
 
       if Debug_Flag_Dot_EE then
          Error_To_Warning := True;
+      end if;
+
+      --  -gnatdJ sets Include_Subprogram_In_Messages, adding the related
+      --  subprogram as part of the error and warning messages.
+
+      if Debug_Flag_JJ then
+         Include_Subprogram_In_Messages := True;
       end if;
 
       --  Disable CodePeer_Mode in Check_Syntax, since we need front-end
@@ -246,7 +281,15 @@ procedure Gnat1drv is
          Restrict.Restrictions.Set   (Max_Asynchronous_Select_Nesting) := True;
          Restrict.Restrictions.Value (Max_Asynchronous_Select_Nesting) := 0;
 
-         --  Suppress division by zero and access checks since they are handled
+         --  Enable pragma Ignore_Pragma (Global) to support legacy code. As a
+         --  consequence, Refined_Global pragma should be ignored as well, as
+         --  it is only allowed on a body when pragma Global is given for the
+         --  spec.
+
+         Set_Name_Table_Boolean3 (Name_Global, True);
+         Set_Name_Table_Boolean3 (Name_Refined_Global, True);
+
+         --  Suppress division by zero checks since they are handled
          --  implicitly by CodePeer.
 
          --  Turn off dynamic elaboration checks: generates inconsistencies in
@@ -286,6 +329,11 @@ procedure Gnat1drv is
 
          Debug_Generated_Code := False;
 
+         --  Ditto for -gnateG which interacts badly with handling of pragma
+         --  Annotate in gnat2scil.
+
+         Generate_Processed_File := False;
+
          --  Disable Exception_Extra_Info (-gnateE) which generates more
          --  complex trees with no added value, and may confuse CodePeer.
 
@@ -322,6 +370,7 @@ procedure Gnat1drv is
          Reset_Validity_Check_Options;
          Validity_Check_Default       := True;
          Validity_Check_Copies        := True;
+         Check_Validity_Of_Parameters := False;
 
          --  Turn off style check options and ignore any style check pragmas
          --  since we are not interested in any front-end warnings when we are
@@ -342,6 +391,15 @@ procedure Gnat1drv is
          --  This is useful when using CodePeer mode with other compilers.
 
          Relaxed_RM_Semantics := True;
+
+         if not Generate_CodePeer_Messages then
+
+            --  Suppress compiler warnings by default when generating SCIL for
+            --  CodePeer, except when combined with -gnateC where we do want to
+            --  emit GNAT warnings.
+
+            Warning_Mode := Suppress;
+         end if;
 
          --  Disable all simple value propagation. This is an optimization
          --  which is valuable for code optimization, and also for generation
@@ -375,6 +433,22 @@ procedure Gnat1drv is
       --  executable.
 
       if GNATprove_Mode then
+
+         --  Turn off CodePeer mode (which can be set via e.g. -gnatC or
+         --  -gnateC), not compatible with GNATprove mode.
+
+         CodePeer_Mode := False;
+         Generate_SCIL := False;
+
+         --  Turn off C tree generation, not compatible with GNATprove mode. We
+         --  do not expect this to happen in normal use, since both modes are
+         --  enabled by special tools, but it is useful to turn off these flags
+         --  this way when we are doing GNATprove tests on existing test suites
+         --  that may have -gnateg set, to avoid the need for special casing.
+
+         Modify_Tree_For_C := False;
+         Generate_C_Code := False;
+         Unnest_Subprogram_Mode := False;
 
          --  Turn off inlining, which would confuse formal verification output
          --  and gain nothing.
@@ -458,6 +532,7 @@ procedure Gnat1drv is
          --  data is directly detected by GNATprove's flow analysis.
 
          Validity_Checks_On := False;
+         Check_Validity_Of_Parameters := False;
 
          --  Turn off style check options since we are not interested in any
          --  front-end warnings when we are getting SPARK output.
@@ -475,6 +550,19 @@ procedure Gnat1drv is
          --  which is more complex to formally verify than the original source.
 
          Tagged_Type_Expansion := False;
+
+         --  Detect that the runtime library support for floating-point numbers
+         --  may not be compatible with SPARK analysis of IEEE-754 floats.
+
+         if Denorm_On_Target = False then
+            SPARK_Library_Warning ("float subnormals");
+
+         elsif Machine_Rounds_On_Target = False then
+            SPARK_Library_Warning ("float rounding");
+
+         elsif Signed_Zeros_On_Target = False then
+            SPARK_Library_Warning ("signed zeros");
+         end if;
       end if;
 
       --  Set Configurable_Run_Time mode if system.ads flag set or if the
@@ -484,7 +572,7 @@ procedure Gnat1drv is
          Configurable_Run_Time_Mode := True;
       end if;
 
-      --  Set -gnatR3m mode if debug flag A set
+      --  Set -gnatRm mode if debug flag A set
 
       if Debug_Flag_AA then
          Back_Annotate_Rep_Info := True;
@@ -504,26 +592,20 @@ procedure Gnat1drv is
          Atree.Num_Extension_Nodes := Atree.Num_Extension_Nodes + 1;
       end if;
 
-      --  Disable static allocation of dispatch tables if -gnatd.t or if layout
-      --  is enabled. The front end's layout phase currently treats types that
-      --  have discriminant-dependent arrays as not being static even when a
+      --  Disable static allocation of dispatch tables if -gnatd.t is enabled.
+      --  The front end's layout phase currently treats types that have
+      --  discriminant-dependent arrays as not being static even when a
       --  discriminant constraint on the type is static, and this leads to
       --  problems with subtypes of type Ada.Tags.Dispatch_Table_Wrapper. ???
 
-      if Debug_Flag_Dot_T or else Frontend_Layout_On_Target then
-         Static_Dispatch_Tables := False;
+      if Debug_Flag_Dot_T then
+         Building_Static_Dispatch_Tables := False;
       end if;
 
       --  Flip endian mode if -gnatd8 set
 
       if Debug_Flag_8 then
          Ttypes.Bytes_Big_Endian := not Ttypes.Bytes_Big_Endian;
-      end if;
-
-      --  Activate front-end layout if debug flag -gnatdF is set
-
-      if Debug_Flag_FF then
-         Targparm.Frontend_Layout_On_Target := True;
       end if;
 
       --  Set and check exception mechanism. This is only meaningful when
@@ -788,7 +870,7 @@ procedure Gnat1drv is
          --  pragma, to be used this way and to cause the body file to be
          --  ignored in this context).
 
-         if Src_Ind /= No_Source_File
+         if Src_Ind > No_Source_File
            and then Source_File_Is_Body (Src_Ind)
          then
             Errout.Finalize (Last_Call => False);
@@ -910,10 +992,11 @@ procedure Gnat1drv is
       --  Validate independence pragmas (again using values annotated by the
       --  back end for component layout where possible) but only for non-GCC
       --  back ends, as this is done a priori for GCC back ends.
-
-      if AAMP_On_Target then
-         Sem_Ch13.Validate_Independence;
-      end if;
+      --  ??? We use to test for AAMP_On_Target which is now gone, consider
+      --
+      --  if AAMP_On_Target then
+      --     Sem_Ch13.Validate_Independence;
+      --  end if;
    end Post_Compilation_Validation_Checks;
 
    --  Local variables
@@ -1001,6 +1084,12 @@ begin
                Write_Line ("cannot locate file system.ads");
                raise Unrecoverable_Error;
 
+            elsif S = No_Access_To_Source_File then
+               Write_Line
+                 ("fatal error, run-time library not installed correctly");
+               Write_Line ("no read access for file system.ads");
+               raise Unrecoverable_Error;
+
             --  Read system.ads successfully, remember its source index
 
             else
@@ -1076,7 +1165,7 @@ begin
 
       --  Exit with errors if the main source could not be parsed
 
-      if Sinput.Main_Source_File = No_Source_File then
+      if Sinput.Main_Source_File <= No_Source_File then
          Errout.Finalize (Last_Call => True);
          Errout.Output_Messages;
          Exit_Program (E_Errors);
@@ -1109,6 +1198,7 @@ begin
       if Compilation_Errors then
          Treepr.Tree_Dump;
          Post_Compilation_Validation_Checks;
+         Errout.Finalize (Last_Call => True);
          Errout.Output_Messages;
          Namet.Finalize;
 
@@ -1119,7 +1209,6 @@ begin
             Tree_Gen;
          end if;
 
-         Errout.Finalize (Last_Call => True);
          Exit_Program (E_Errors);
       end if;
 
@@ -1297,9 +1386,9 @@ begin
                Write_Str (" (subunit)");
                Write_Eol;
 
-               --  Force generation of ALI file, for backward compatibility
-
-               Opt.Force_ALI_Tree_File := True;
+               --  Do not generate an ALI file in this case, because it would
+               --  become obsolete when the parent is compiled, and thus
+               --  confuse tools such as gnatfind.
 
             elsif Main_Unit_Kind = N_Subprogram_Declaration then
                Write_Str (" (subprogram spec)");
@@ -1365,7 +1454,6 @@ begin
         and then
           (not (Back_Annotate_Rep_Info or Generate_SCIL or GNATprove_Mode)
             or else Main_Unit_Kind = N_Subunit
-            or else Frontend_Layout_On_Target
             or else ASIS_GNSA_Mode)
       then
          Post_Compilation_Validation_Checks;
@@ -1390,11 +1478,18 @@ begin
 
       Prepcomp.Add_Dependencies;
 
-      --  In gnatprove mode we're writing the ALI much earlier than usual
-      --  as flow analysis needs the file present in order to append its
-      --  own globals to it.
-
       if GNATprove_Mode then
+
+         --  Perform the new SPARK checking rules for pointer aliasing. This is
+         --  only activated in GNATprove mode and on SPARK code.
+
+         if Debug_Flag_FF then
+            Check_Safe_Pointers (Main_Unit_Node);
+         end if;
+
+         --  In GNATprove mode we're writing the ALI much earlier than usual
+         --  as flow analysis needs the file present in order to append its
+         --  own globals to it.
 
          --  Note: In GNATprove mode, an "object" file is always generated as
          --  the result of calling gnat1 or gnat2why, although this is not the

@@ -27,3 +27,5 @@ avx512vgather:
 	vpgatherqd	123(%rbp,%zmm16,8), %ymm16{%k1}
 	vpgatherqq	123(%rbp,%zmm17,8), %zmm16{%k1}
 	vpgatherqq	123(%rbp,%zmm16,8), %zmm16{%k1}
+	vpgatherqd	123(%rbp,%ymm17,8), %xmm16{%k1}
+	vpgatherqd	123(%rbp,%ymm16,8), %xmm16{%k1}

@@ -16,6 +16,7 @@
 .* U d2l
 .* U dpfp_status
 .* U fp_status
+.* U jli_base
 .* mx0
 .* mx1
 .* my0

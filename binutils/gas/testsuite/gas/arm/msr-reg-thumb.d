@@ -3,7 +3,7 @@
 # source: msr-reg.s
 # objdump: -dr --prefix-addresses --show-raw-insn
 # warning: writing to APSR without specifying a bitmask is deprecated
-# skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
+# skip: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

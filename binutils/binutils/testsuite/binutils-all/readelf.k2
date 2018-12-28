@@ -1,0 +1,4 @@
+The \.debug_info section contains a link to a dwo file:
+  Name:      file\.dwo
+  Directory: /another/path/
+  ID:        (12|dd) (34|cc) (56|bb) (78|aa) (78|aa) (56|bb) (34|cc) (12|dd)

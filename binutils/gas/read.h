@@ -1,5 +1,5 @@
 /* read.h - of read.c
-   Copyright (C) 1986-2017 Free Software Foundation, Inc.
+   Copyright (C) 1986-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -19,6 +19,7 @@
    02110-1301, USA.  */
 
 extern char *input_line_pointer;	/* -> char we are parsing now.  */
+extern bfd_boolean input_from_string;
 
 /* Define to make whitespace be allowed in many syntactically
    unnecessary places.  Normally undefined.  For compatibility with
@@ -146,8 +147,8 @@ extern void stabs_generate_asm_file (void);
 extern void stabs_generate_asm_lineno (void);
 extern void stabs_generate_asm_func (const char *, const char *);
 extern void stabs_generate_asm_endfunc (const char *, const char *);
-extern void do_repeat (int,const char *,const char *);
-extern void do_repeat_with_expander (int, const char *, const char *, const char *);
+extern void do_repeat (size_t, const char *, const char *);
+extern void do_repeat_with_expander (size_t, const char *, const char *, const char *);
 extern void end_repeat (int);
 extern void do_parse_cons_expression (expressionS *, int);
 
@@ -205,6 +206,7 @@ extern void s_purgem (int);
 extern void s_rept (int);
 extern void s_set (int);
 extern void s_space (int mult);
+extern void s_nops (int);
 extern void s_stab (int what);
 extern void s_struct (int);
 extern void s_text (int);

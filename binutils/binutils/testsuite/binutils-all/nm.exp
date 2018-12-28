@@ -1,4 +1,4 @@
-#   Copyright (C) 1993-2017 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,128 +31,94 @@ send_user "Version [binutil_version $NM]"
 
 
 if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
-    return
-}
-
-if [is_remote host] {
-    set tempfile [remote_download host tmpdir/bintest.o]
+    fail "nm (assembling)"
 } else {
-    set tempfile tmpdir/bintest.o
-}
 
-# Test nm with no arguments.
+    if [is_remote host] {
+	set tempfile [remote_download host tmpdir/bintest.o]
+    } else {
+	set tempfile tmpdir/bintest.o
+    }
 
-# This test does not work correctly on ECOFF targets, because ECOFF
-# stores most symbols twice, which messes up the nm output.
-setup_xfail "alpha*-*-osf*" "alpha*-*-netware*"
-setup_xfail "mips*-*-ultrix*" "mips*-*-ecoff*" "mips*-*-irix4*"
-setup_xfail "mips*-*-riscos*" "mips*-*-sysv3*" "mips*-sony-bsd*"
+    # Test nm with no arguments.
 
-# This test does not work correctly on XCOFF targets, because XCOFF
-# does not enter static symbols in the symbol table.
-setup_xfail "*-*-aix*"
+    # This test does not work correctly on ECOFF targets, because ECOFF
+    # stores most symbols twice, which messes up the nm output.
+    setup_xfail "alpha*-*-osf*"
+    setup_xfail "mips*-*-ultrix*" "mips*-*-ecoff*" "mips*-*-irix4*"
+    setup_xfail "mips*-*-riscos*" "mips*-*-sysv3*"
 
-set got [binutils_run $NM "$NMFLAGS $tempfile"]
+    # This test does not work correctly on XCOFF targets, because XCOFF
+    # does not enter static symbols in the symbol table.
+    setup_xfail "*-*-aix*"
 
-if [info exists vars] then { unset vars }
-while {[regexp "(\[a-zA-Z\]) (\[a-z_\]*_symbol)(.*)" $got all type symbol rest]} {
-    set vars($symbol) $type
-    set got $rest
-}
+    set got [binutils_run $NM "$NMFLAGS $tempfile"]
 
-if {![info exists vars(text_symbol)] \
-     || $vars(text_symbol) != "T" \
-     || ![info exists vars(data_symbol)] \
-     || $vars(data_symbol) != "D" \
-     || ![info exists vars(common_symbol)] \
-     || $vars(common_symbol) != "C" \
-     || ![info exists vars(external_symbol)] \
-     || $vars(external_symbol) != "U" \
-     || ![info exists vars(static_text_symbol)] \
-     || $vars(static_text_symbol) != "t" \
-     || ![info exists vars(static_data_symbol)] \
-     || $vars(static_data_symbol) != "d"} {
-    fail "nm (no arguments)"
-} else {
-    pass "nm (no arguments)"
-}
+    if [info exists vars] then { unset vars }
+    while {[regexp "(\[a-zA-Z\]) (\[a-z_\]*_symbol)(.*)" $got all type symbol rest]} {
+	set vars($symbol) $type
+	set got $rest
+    }
 
-# Test nm -g
+    if {![info exists vars(text_symbol)] \
+	    || $vars(text_symbol) != "T" \
+	    || ![info exists vars(data_symbol)] \
+	    || $vars(data_symbol) != "D" \
+	    || ![info exists vars(common_symbol)] \
+	    || $vars(common_symbol) != "C" \
+	    || ![info exists vars(external_symbol)] \
+	    || $vars(external_symbol) != "U" \
+	    || ![info exists vars(static_text_symbol)] \
+	    || $vars(static_text_symbol) != "t" \
+	    || ![info exists vars(static_data_symbol)] \
+	    || $vars(static_data_symbol) != "d"} {
+	fail "nm (no arguments)"
+    } else {
+	pass "nm (no arguments)"
+    }
 
-set got [binutils_run $NM "$NMFLAGS -g $tempfile"]
+    # Test nm -g
 
-if [info exists vars] then { unset vars }
-while {[regexp "(\[a-z_\]*_symbol)(.*)" $got all symbol rest]} {
-    set vars($symbol) 1
-    set got $rest
-}
+    set got [binutils_run $NM "$NMFLAGS -g $tempfile"]
 
-if {![info exists vars(text_symbol)] \
-     || ![info exists vars(data_symbol)] \
-     || ![info exists vars(common_symbol)] \
-     || ![info exists vars(external_symbol)] \
-     || [info exists vars(static_text_symbol)] \
-     || [info exists vars(static_data_symbol)]} {
-    fail "nm -g"
-} else {
-    pass "nm -g"
-}
+    if [info exists vars] then { unset vars }
+    while {[regexp "(\[a-z_\]*_symbol)(.*)" $got all symbol rest]} {
+	set vars($symbol) 1
+	set got $rest
+    }
 
-if [is_elf_format] {
-    # PR binutils/12753
-    # Test nm -g on a unique global symbol.
+    if {![info exists vars(text_symbol)] \
+	    || ![info exists vars(data_symbol)] \
+	    || ![info exists vars(common_symbol)] \
+	    || ![info exists vars(external_symbol)] \
+	    || [info exists vars(static_text_symbol)] \
+	    || [info exists vars(static_data_symbol)]} {
+	fail "nm -g"
+    } else {
+	pass "nm -g"
+    }
 
-    # Only some targets support unique symbols.
-    if {([istarget "i?86-*-*"]
-	 || [istarget "x86_64-*-*"]
-	 || [istarget "arm-*-*"]
-	 || [istarget "powerpc*-*-*"]
-	 || [istarget "sparc*-*-*"])} then {
+    # Test nm -P
 
-	if {![binutils_assemble $srcdir/$subdir/unique.s tmpdir/unique.o]} then {
-	    fail "nm -g on unique symbols (assembling)"
-	} else {
-	    if [is_remote host] {
-		set tmpfile [remote_download host tmpdir/unique.o]
-	    } else {
-		set tmpfile tmpdir/unique.o
-	    }
-	
-	    set got [binutils_run $NM "$NMFLAGS -g $tmpfile"]
+    # This test does not work correctly on ECOFF targets, because ECOFF
+    # stores most symbols twice, which messes up the nm output.
+    setup_xfail "alpha*-*-osf*"
+    setup_xfail "mips*-*-ultrix*" "mips*-*-ecoff*" "mips*-*-irix4*"
+    setup_xfail "mips*-*-riscos*" "mips*-*-sysv3*"
 
-	    if [regexp "u foo" $got] then {
-		pass "nm -g on unique symbols"
-	    } else {
-		fail "nm -g on unique symbols"
-	    }
+    # This test does not work correctly on XCOFF targets, because XCOFF
+    # does not enter static symbols in the symbol table.
+    setup_xfail "*-*-aix*"
 
-	    if { $verbose < 1 } {
-		remote_file host delete "tmpdir/unique.o"
-	    }
-	}
-   }
-}
+    set got [binutils_run $NM "$NMFLAGS -P $tempfile"]
 
-# Test nm -P
+    set want "common_symbol C \[0\]*4.*data_symbol D \[0-9a-fA-F\]*.*external_symbol U.*static_data_symbol d \[0-9a-fA-F\]*.*static_text_symbol t \[0-9a-fA-F\]*.*text_symbol T \[0-9a-fA-F\]*"
 
-# This test does not work correctly on ECOFF targets, because ECOFF
-# stores most symbols twice, which messes up the nm output.
-setup_xfail "alpha*-*-osf*" "alpha*-*-netware*"
-setup_xfail "mips*-*-ultrix*" "mips*-*-ecoff*" "mips*-*-irix4*"
-setup_xfail "mips*-*-riscos*" "mips*-*-sysv3*" "mips*-sony-bsd*"
-
-# This test does not work correctly on XCOFF targets, because XCOFF
-# does not enter static symbols in the symbol table.
-setup_xfail "*-*-aix*"
-
-set got [binutils_run $NM "$NMFLAGS -P $tempfile"]
-
-set want "common_symbol C \[0\]*4.*data_symbol D \[0-9a-fA-F\]*.*external_symbol U.*static_data_symbol d \[0-9a-fA-F\]*.*static_text_symbol t \[0-9a-fA-F\]*.*text_symbol T \[0-9a-fA-F\]*"
-
-if [regexp $want $got] then {
-    pass "nm -P"
-} else {
-    fail "nm -P"
+    if [regexp $want $got] then {
+	pass "nm -P"
+    } else {
+	fail "nm -P"
+    }
 }
 
 # Test nm --size-sort
@@ -169,7 +135,6 @@ if {   [is_elf_format]
     || [istarget *-*-freebsd*]
     || [istarget *-*-lynxos*]
     || [istarget "mmix-knuth-mmixware"]
-    || [istarget *-*-netware*]
     || [istarget *-*-nto*]
     || [istarget *-*-rdos*]
     || [istarget *-*-tpf*]
@@ -183,32 +148,57 @@ if {   [is_elf_format]
 }
 
 if {![binutils_assemble $srcdir/$subdir/$nm_1_src tmpdir/nm-1.o]} then {
-    return
-}
-
-if [is_remote host] {
-    set tempfile [remote_download host tmpdir/nm-1.o]
+    fail "nm --size-sort (assembling)"
 } else {
-    set tempfile tmpdir/nm-1.o
-}
 
-# This test does not work correctly on ECOFF targets, because ECOFF
-# stores most symbols twice, which messes up the nm output.
-setup_xfail "alpha*-*-osf*" "alpha*-*-netware*"
-setup_xfail "mips*-*-ultrix*" "mips*-*-ecoff*" "mips*-*-irix4*"
-setup_xfail "mips*-*-riscos*" "mips*-*-sysv3*" "mips*-sony-bsd*"
+    if [is_remote host] {
+	set tempfile [remote_download host tmpdir/nm-1.o]
+    } else {
+	set tempfile tmpdir/nm-1.o
+    }
 
-set got [binutils_run $NM "$NMFLAGS --size-sort $tempfile"]
+    # This test does not work correctly on ECOFF targets, because ECOFF
+    # stores most symbols twice, which messes up the nm output.
+    setup_xfail "alpha*-*-osf*"
+    setup_xfail "mips*-*-ultrix*" "mips*-*-ecoff*" "mips*-*-irix4*"
+    setup_xfail "mips*-*-riscos*" "mips*-*-sysv3*"
 
-set want "0*4 T text_symbol3.*0*8 T text_symbol2.*0*c T text_symbol1"
+    set got [binutils_run $NM "$NMFLAGS --size-sort $tempfile"]
 
-if [regexp $want $got] then {
-    pass "nm --size-sort"
-} else {
-    fail "nm --size-sort"
+    set want "0*4 T text_symbol3.*0*8 T text_symbol2.*0*c T text_symbol1"
+
+    if [regexp $want $got] then {
+	pass "nm --size-sort"
+    } else {
+	fail "nm --size-sort"
+    }
 }
 
 if [is_elf_format] {
+    # PR binutils/12753
+    # Test nm -g on a unique global symbol.
+    if {![binutils_assemble $srcdir/$subdir/unique.s tmpdir/unique.o]} then {
+	unsupported "nm -g on unique symbols"
+    } else {
+	if [is_remote host] {
+	    set tmpfile [remote_download host tmpdir/unique.o]
+	} else {
+	    set tmpfile tmpdir/unique.o
+	}
+
+	set got [binutils_run $NM "$NMFLAGS -g $tmpfile"]
+
+	if [regexp "u foo" $got] then {
+	    pass "nm -g on unique symbols"
+	} else {
+	    fail "nm -g on unique symbols"
+	}
+
+	if { $verbose < 1 } {
+	    remote_file host delete "tmpdir/unique.o"
+	}
+    }
+
     # PR binutils/20751
     # Test nm --with-symbol-versions
 

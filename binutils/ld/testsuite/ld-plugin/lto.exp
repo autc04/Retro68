@@ -1,5 +1,5 @@
 # Expect script for ld-plugin LTO tests
-#   Copyright (C) 2011-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2011-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -28,6 +28,8 @@ if { ![check_plugin_api_available]
      || ![check_lto_available] } {
     return
 }
+
+global INT128_CFLAGS
 
 global CFLAGS
 global CXXFLAGS
@@ -208,6 +210,15 @@ set lto_link_tests [list \
    "-flto -Wl,-plugin,$plug_so" "-flto" \
    {pr20321.c} {{warning ".*: duplicated plugin"}} \
    "pr20321" "c"] \
+  [list "Build pr22502a.o" \
+   "" "" \
+   {pr22502a.c}] \
+  [list "Build pr22502b.o" \
+   "$plug_opt" "-flto $lto_no_fat" \
+   {pr22502b.c}] \
+  [list "Build pr22751.a" \
+   "$plug_opt" "-flto $lto_no_fat $INT128_CFLAGS" \
+   {pr22751.c} {} "pr22751.a"] \
 ]
 
 if { [at_least_gcc_version 4 7] } {
@@ -231,6 +242,10 @@ set lto_compile_elf_tests [list \
   [list "Compile 8b" \
    "" "-flto -O2" \
    {lto-8b.c} {} ""] \
+  [list "PR ld/23309" \
+   "-O2 -flto -fuse-linker-plugin -fvisibility=hidden -ffunction-sections -Wl,--gc-sections,-u,KeepMe" \
+   "-O2 -flto -fuse-linker-plugin -fvisibility=hidden -ffunction-sections" \
+   {pr23309.c} {{"nm" {} "pr23309.d"}} "pr23309.exe" "c"] \
 ]
 
 # Generate input files for complex LTO tests for ELF.
@@ -286,16 +301,32 @@ set lto_link_elf_tests [list \
   [list "PR ld/16746 (2)" \
    "-O2 -flto -fuse-linker-plugin tmpdir/pr16746c.o tmpdir/pr16746a.o" "-O2 -flto" \
    {dummy.c} {} "pr16746b.exe"] \
-  [list "PR ld/14918" \
-   "-flto" "-flto" \
-   {pr14918.c} {{"readelf" {-d --wide} "pr14918.d"}} "pr14918.exe" "c"] \
   [list "Build pr21382a.o" \
    "" "-O2 -flto" \
    {pr21382a.c} {} "" "c"] \
   [list "Build pr21382.so" \
    "-shared" "-O2 -fpic" \
    {pr21382b.c} {} "pr21382.so" "c"] \
+  [list {Build pr22220lib.so} \
+   {-shared -Wl,--version-script=pr22220lib.ver} {-fPIC} \
+   {pr22220lib.cc} {} {pr22220lib.so} {c++}] \
+  [list {Build pr22220main.o} \
+   {} {-flto} \
+   {pr22220main.cc} {} {} {c++}] \
 ]
+
+# PR 14918 checks that libgcc is not spuriously included in a shared link of
+# an empty program.  The ARM crt1.o startup code however calls __libc_csu_init
+# in /usr/lib/libc_nonshared.a(elf-init.oS).  This in turn needs
+# __aeabi_unwind_cpp_pr0@@GCC_3.5 which is provided by libgcc_s.so.1, so the
+# test fails.  Hence this code to skip the test.
+if { ! [istarget "arm*-*-*"] } {
+    set lto_link_elf_tests [concat $lto_link_elf_tests [list \
+  [list "PR ld/14918" \
+   "-flto" "-flto" \
+   {pr14918.c} {{"readelf" {-d --wide} "pr14918.d"}} "pr14918.exe" "c"] \
+  ]]
+}
 
 # Check final symbols in executables.
 set lto_link_symbol_tests [list \
@@ -375,6 +406,13 @@ set lto_run_tests [list \
   [list "Run pr20267b" \
    "-O2 -flto tmpdir/pr20267a.o tmpdir/libpr20267b.a" "" \
    {dummy.c} "pr20267b" "pass.out" "-flto -O2" "c"] \
+  [list "Run pr22502" \
+   "-O2 -flto tmpdir/pr22502a.o tmpdir/pr22502b.o" "" \
+   {dummy.c} "pr20267" "pass.out" "-flto -O2" "c"] \
+  [list "Run pr22751" \
+   "-O2 -flto" "" \
+   {dummy.c} "pr22751" "pass.out" "-flto -O2" "c" "" \
+   "-Wl,--whole-archive tmpdir/pr22751.a -Wl,--no-whole-archive"] \
 ]
 
 if { [at_least_gcc_version 4 7] } {
@@ -396,6 +434,12 @@ set lto_run_elf_shared_tests [list \
   [list "Run pr21382" \
    "-O2 -flto -fuse-linker-plugin -Wl,--as-needed tmpdir/pr21382a.o tmpdir/pr21382.so" "" \
    {dummy.c} "pr21382.exe" "pass.out" "" "c"] \
+  [list {pr22220a} \
+   {-flto -fuse-linker-plugin tmpdir/pr22220main.o tmpdir/pr22220lib.so} {} \
+   {dummy.c} {pr22220a.exe} {pass.out} {} {c++}] \
+  [list {pr22220b} \
+   {-flto -fuse-linker-plugin -Wl,--no-as-needed tmpdir/pr22220lib.so tmpdir/pr22220main.o} {} \
+   {dummy.c} {pr22220b.exe} {pass.out} {} {c++}] \
 ]
 
 # LTO run-time tests for ELF
@@ -454,9 +498,8 @@ if { [at_least_gcc_version 4 7] } {
     # Since the asm symbol name hack in pr12365b.c doesn't work on all
     # targets, run PR ld/12365 tests only for known targets.
     if { ([istarget "i?86-*-elf*"]
-	   || (([istarget "i?86-*-linux*"] || [istarget "i?86-*-gnu*"])
-		&& ![istarget "*-*-*aout*"]
-		&& ![istarget "*-*-*oldld*"])
+	   || [istarget "i?86-*-linux*"]
+	   || [istarget "i?86-*-gnu*"]
 	   || [istarget "i?86-*-nacl*"]
 	   || [istarget "x86_64-*-nacl*"]
 	   || [istarget "x86_64-*-linux*"]
@@ -479,6 +522,32 @@ if { [at_least_gcc_version 4 7] } {
 	} {
 	    fail $testname
 	}
+
+	run_cc_link_tests [list \
+	    [list \
+		"Build pr22721a.so" \
+		"-shared -nostdlib -nostartfiles -Wl,-version-script,pr22721.t" \
+		"" \
+		{pr22721a.s} \
+		{} \
+		"pr22721a.so" \
+	    ] \
+	    [list \
+		"Build pr22721b.o" \
+		"$plug_opt" \
+		"-O2 -fPIC -flto $lto_no_fat" \
+		{pr22721b.c} \
+	    ] \
+	    [list \
+		"Build PR ld/pr22721" \
+		"-O2 -flto -fuse-linker-plugin -nostdlib -nostartfiles \
+		-Wl,-e,_start tmpdir/pr22721b.o tmpdir/pr22721a.so" \
+		"" \
+		{dummy.c} \
+		{} \
+		"pr22721.exe"
+	    ] \
+	]
     }
     set testname "PR ld/12942 (3)"
     set exec_output [run_host_cmd "$CXX" "-O2 -flto -fuse-linker-plugin tmpdir/pr12942b.o tmpdir/pr12942a.o"]
@@ -507,6 +576,32 @@ run_ld_link_exec_tests $lto_run_tests
 
 if { [is_elf_format] } {
     run_ld_link_exec_tests $lto_run_elf_tests
+
+    # Note - it is not guaranteed that the ordering of symbols in the dynamic
+    # symbol table will match the ordering of the symbols specified by the
+    # --dynamic-list command line option.
+    #
+    # For PR22983 we want to make sure that all four symbols specified in
+    # pr222983.t are present in the output, but a simple sequences of regexps
+    # will not work as we do not know the order of the symbols.  (Readelf
+    # does not have a symbol sorting option and the run_cc_list_tests proc
+    # does not allow for the output of the dump program to piped into `sort`).
+    #
+    # So instead we run readelf four times, each time checking for the
+    # presence of a specific symbol from the pr22983.t file.
+    run_cc_link_tests [list \
+	[list \
+	    "Build pr22983" \
+	    "-Wl,--dynamic-list,pr22983.t" \
+	    "-flto" \
+	     {pr22983a.c pr22983b.c} \
+	    {{readelf {--dyn-syms --wide} pr22983.1.d} \
+	     {readelf {--dyn-syms --wide} pr22983.2.d} \
+	     {readelf {--dyn-syms --wide} pr22983.3.d} \
+	     {readelf {--dyn-syms --wide} pr22983.4.d}} \
+	    "pr22983" \
+	] \
+    ]
 }
 
 if { [is_elf_format] && [check_lto_shared_available] } {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux nacl netbsd openbsd solaris
 
 package runtime
 
@@ -29,16 +29,21 @@ func sighandler(sig uint32, info *_siginfo_t, ctxt unsafe.Pointer, gp *g) {
 	_g_ := getg()
 	c := sigctxt{info, ctxt}
 
+	sigfault, sigpc := getSiginfo(info, ctxt)
+
 	if sig == _SIGPROF {
-		sigprof()
+		sigprof(sigpc, gp, _g_.m)
 		return
 	}
-
-	sigfault, sigpc := getSiginfo(info, ctxt)
 
 	flags := int32(_SigThrow)
 	if sig < uint32(len(sigtable)) {
 		flags = sigtable[sig].flags
+	}
+	if flags&_SigPanic != 0 && gp.throwsplit {
+		// We can't safely sigpanic because it may grow the
+		// stack. Abort in the signal handler instead.
+		flags = (flags &^ _SigPanic) | _SigThrow
 	}
 	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
 		// Emulate gc by passing arguments out of band,
@@ -92,9 +97,9 @@ func sighandler(sig uint32, info *_siginfo_t, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	print("PC=", hex(sigpc), " m=", _g_.m.id, " sigcode=", c.sigcode(), "\n")
-	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+	if _g_.m.lockedg != 0 && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
 		print("signal arrived during cgo execution\n")
-		gp = _g_.m.lockedg
+		gp = _g_.m.lockedg.ptr()
 	}
 	print("\n")
 
@@ -111,7 +116,7 @@ func sighandler(sig uint32, info *_siginfo_t, ctxt unsafe.Pointer, gp *g) {
 
 	if docrash {
 		crashing++
-		if crashing < sched.mcount {
+		if crashing < mcount()-int32(extraMCount) {
 			// There are other m's that need to dump their stacks.
 			// Relay SIGQUIT to the next m by sending it to the current process.
 			// All m's that have already received SIGQUIT have signal masks blocking

@@ -1,6 +1,7 @@
 #as: -J --divide
 #objdump: -dwMintel
 #name: i386 intel-ok
+#stderr: intelok.e
 
 .*: +file format .*
 

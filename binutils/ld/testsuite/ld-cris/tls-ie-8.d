@@ -1,5 +1,5 @@
 #as: --pic --no-underscore --em=criself
-#ld: --shared -m crislinux
+#ld: --shared -m crislinux --hash-style=sysv
 #source: tls-ie-8.s
 #source: tls128g.s
 #source: tls-x.s
@@ -12,21 +12,21 @@
 
 Program Header:
     LOAD off    0x0+ vaddr 0x0+ paddr 0x0+ align 2\*\*13
-         filesz 0x0+1b8 memsz 0x0+1b8 flags r-x
-    LOAD off    0x0+1b8 vaddr 0x0+21b8 paddr 0x0+21b8 align 2\*\*13
+         filesz 0x0+164 memsz 0x0+164 flags r-x
+    LOAD off    0x0+164 vaddr 0x0+2164 paddr 0x0+2164 align 2\*\*13
          filesz 0x0+10c memsz 0x0+10c flags rw-
- DYNAMIC off    0x0+23c vaddr 0x0+223c paddr 0x0+223c align 2\*\*2
+ DYNAMIC off    0x0+1e8 vaddr 0x0+21e8 paddr 0x0+21e8 align 2\*\*2
          filesz 0x0+78 memsz 0x0+78 flags rw-
-     TLS off    0x0+1b8 vaddr 0x0+21b8 paddr 0x0+21b8 align 2\*\*2
+     TLS off    0x0+164 vaddr 0x0+2164 paddr 0x0+2164 align 2\*\*2
          filesz 0x0+84 memsz 0x0+84 flags r--
 
 Dynamic Section:
   HASH                 0x0+b4
-  STRTAB               0x0+17c
-  SYMTAB               0x0+ec
-  STRSZ                0x0+2b
+  STRTAB               0x0+140
+  SYMTAB               0x0+e0
+  STRSZ                0x0+13
   SYMENT               0x0+10
-  RELA                 0x0+1a8
+  RELA                 0x0+154
   RELASZ               0x0+c
   RELAENT              0x0+c
   FLAGS                0x0+10
@@ -43,12 +43,12 @@ DYNAMIC SYMBOL TABLE:
 
 DYNAMIC RELOCATION RECORDS
 OFFSET   TYPE              VALUE 
-0+22c0 R_CRIS_32_TPREL   x
+0+226c R_CRIS_32_TPREL   x
 
 Contents of section \.hash:
 #...
 Contents of section \.text:
- 01b4 5fae0c00                             .*
+ 0160 5fae0c00                             .*
 #...
 Contents of section \.got:
- 22b4 3c220+ 0+ 0+ 0+  .*
+ 2260 e8210+ 0+ 0+ 0+  .*

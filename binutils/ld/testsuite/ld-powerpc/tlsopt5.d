@@ -1,6 +1,6 @@
 #source: tlsopt5.s
 #as: -a64
-#ld: --gc-sections --no-plt-localentry tlsdll.so
+#ld: -shared --gc-sections --no-plt-localentry tlsdll.so
 #objdump: -dr
 #target: powerpc64*-*-*
 
@@ -8,7 +8,7 @@
 
 Disassembly of section \.text:
 
-0000000010000300 <.*\.plt_call\.__tls_get_addr_opt@@GLIBC_2\.22>:
+.* <.*\.plt_call\.__tls_get_addr_opt@@GLIBC_2\.22>:
 .*:	(00 00 63 e9|e9 63 00 00) 	ld      r11,0\(r3\)
 .*:	(08 00 83 e9|e9 83 00 08) 	ld      r12,8\(r3\)
 .*:	(78 1b 60 7c|7c 60 1b 78) 	mr      r0,r3
@@ -27,14 +27,14 @@ Disassembly of section \.text:
 .*:	(a6 03 68 7d|7d 68 03 a6) 	mtlr    r11
 .*:	(20 00 80 4e|4e 80 00 20) 	blr
 
-0000000010000344 <_start>:
+.* <_start>:
 .*:	(08 80 62 38|38 62 80 08) 	addi    r3,r2,-32760
 .*:	(b9 ff ff 4b|4b ff ff b9) 	bl      .*
 .*:	(00 00 00 60|60 00 00 00) 	nop
-.*:	(b8 02 01 00|00 00 00 00) 	.*
-.*:	(00 00 00 00|00 01 02 b8) 	.*
+.*
+.*
 
-0000000010000358 <__glink_PLTresolve>:
+.* <__glink_PLTresolve>:
 .*:	(a6 02 08 7c|7c 08 02 a6) 	mflr    r0
 .*:	(05 00 9f 42|42 9f 00 05) 	bcl     .*
 .*:	(a6 02 68 7d|7d 68 02 a6) 	mflr    r11
@@ -50,5 +50,5 @@ Disassembly of section \.text:
 .*:	(08 00 6b e9|e9 6b 00 08) 	ld      r11,8\(r11\)
 .*:	(20 04 80 4e|4e 80 04 20) 	bctr
 
-0000000010000390 <__tls_get_addr_opt@plt>:
+.* <__tls_get_addr_opt@plt>:
 .*:	(c8 ff ff 4b|4b ff ff c8) 	b       .*

@@ -9,16 +9,15 @@
 # taken in a read-only section we should get a copy reloc for the OPD
 # entry.
 
-Relocation section .* contains 1 entries:
+Relocation section .* contains 1 entry:
 .*
 .* R_PPC64_COPY .* my_func \+ 0
 
-Symbol table '\.dynsym' contains 5 entries:
-.*
-     0: .*
-     1: 0+10010408     4 FUNC    GLOBAL DEFAULT   12 my_func
+Symbol table '\.dynsym' contains 2 entries:
 #...
-Symbol table '\.symtab' contains 20 entries:
+.*: 0*[1-9a-f][0-9a-f]*     4 FUNC    GLOBAL DEFAULT   1[23] my_func
 #...
-    15: 0+10010408     4 FUNC    GLOBAL DEFAULT   12 my_func
+Symbol table '\.symtab' contains .* entries:
+#...
+.*: 0*[1-9a-f][0-9a-f]*     4 FUNC    GLOBAL DEFAULT   1[23] my_func
 #pass

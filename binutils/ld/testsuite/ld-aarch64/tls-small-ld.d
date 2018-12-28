@@ -1,5 +1,5 @@
 #source: tls-small-ld.s
-#ld: -T relocs.ld -shared
+#ld: -T relocs.ld -shared --hash-style=sysv
 #readelf: -Wr
 
 Relocation section '\.rela\.dyn' at offset 0x10070 contains 2 entries:

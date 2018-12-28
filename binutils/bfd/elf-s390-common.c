@@ -1,5 +1,5 @@
 /* IBM S/390-specific support for ELF 32 and 64 bit functions
-   Copyright (C) 2000-2017 Free Software Foundation, Inc.
+   Copyright (C) 2000-2018 Free Software Foundation, Inc.
    Contributed by Andreas Krebbel.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -102,7 +102,7 @@ s390_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
   if (h->plt.refcount <= 0 && h->got.refcount <= 0)
     {
       /* When building shared library, we need to handle the case
-         where it is marked with regular reference, but not non-GOT
+	 where it is marked with regular reference, but not non-GOT
 	 reference.  It may happen if we didn't see STT_GNU_IFUNC
 	 symbol at the time when checking relocations.  */
       if (bfd_link_pic (info)
@@ -207,9 +207,9 @@ elf_s390_allocate_local_syminfo (bfd *abfd, Elf_Internal_Shdr *symtab_hdr)
   bfd_size_type size;
 
   size = symtab_hdr->sh_info;
-  size *= (sizeof (bfd_signed_vma)       /* local got */
-	   + sizeof (struct plt_entry)   /* local plt */
-	   + sizeof(char));              /* local tls type */
+  size *= (sizeof (bfd_signed_vma)	 /* local got */
+	   + sizeof (struct plt_entry)	 /* local plt */
+	   + sizeof(char));		 /* local tls type */
   elf_local_got_refcounts (abfd) = ((bfd_signed_vma *)
 				    bfd_zalloc (abfd, size));
   if (elf_local_got_refcounts (abfd) == NULL)
@@ -219,25 +219,6 @@ elf_s390_allocate_local_syminfo (bfd *abfd, Elf_Internal_Shdr *symtab_hdr)
 			  + symtab_hdr->sh_info);
   elf_s390_local_got_tls_type (abfd)
     = (char *) (elf_s390_local_plt (abfd) + symtab_hdr->sh_info);
-
-  return TRUE;
-}
-
-/* Pick ELFOSABI_GNU if IFUNC symbols are used.  */
-
-static bfd_boolean
-elf_s390_add_symbol_hook (bfd *abfd,
-			  struct bfd_link_info *info,
-			  Elf_Internal_Sym *sym,
-			  const char **namep ATTRIBUTE_UNUSED,
-			  flagword *flagsp ATTRIBUTE_UNUSED,
-			  asection **secp ATTRIBUTE_UNUSED,
-			  bfd_vma *valp ATTRIBUTE_UNUSED)
-{
-  if (ELF_ST_TYPE (sym->st_info) == STT_GNU_IFUNC
-      && (abfd->flags & DYNAMIC) == 0
-      && bfd_get_flavour (info->output_bfd) == bfd_target_elf_flavour)
-    elf_tdata (info->output_bfd)->has_gnu_symbols |= elf_gnu_symbol_ifunc;
 
   return TRUE;
 }
@@ -286,12 +267,12 @@ elf_s390_merge_obj_attributes (bfd *ibfd, struct bfd_link_info *info)
   if (in_attr->i > 2)
     _bfd_error_handler
       /* xgettext:c-format */
-      (_("Warning: %B uses unknown vector ABI %d"), ibfd,
+      (_("warning: %pB uses unknown vector ABI %d"), ibfd,
        in_attr->i);
   else if (out_attr->i > 2)
     _bfd_error_handler
       /* xgettext:c-format */
-      (_("Warning: %B uses unknown vector ABI %d"), obfd,
+      (_("warning: %pB uses unknown vector ABI %d"), obfd,
        out_attr->i);
   else if (in_attr->i != out_attr->i)
     {
@@ -303,7 +284,7 @@ elf_s390_merge_obj_attributes (bfd *ibfd, struct bfd_link_info *info)
 
 	  _bfd_error_handler
 	    /* xgettext:c-format */
-	    (_("Warning: %B uses vector %s ABI, %B uses %s ABI"),
+	    (_("warning: %pB uses vector %s ABI, %pB uses %s ABI"),
 	     ibfd, abi_str[in_attr->i], obfd, abi_str[out_attr->i]);
 	}
       if (in_attr->i > out_attr->i)

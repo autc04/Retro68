@@ -21,8 +21,8 @@ f (int i)
   switch (i)
     {
     case 1:
-      { /* { dg-warning "statement may fall through" "" { target c } . } */
-	int a[i]; /* { dg-warning "statement may fall through" "" { target c++ } . } */
+      { /* { dg-warning "statement may fall through" "" { target c } } */
+	int a[i]; /* { dg-warning "statement may fall through" "" { target c++ } } */
       }
     case 2:
       bar (99);
@@ -31,8 +31,8 @@ f (int i)
   switch (i)
     {
     case 1:
-      for (int j = 0; j < 10; j++) /* { dg-warning "statement may fall through" "" { target c } . } */
-	map[j] = j; /* { dg-warning "statement may fall through" "" { target c++ } . } */
+      for (int j = 0; j < 10; j++) /* { dg-warning "statement may fall through" "" { target c } } */
+	map[j] = j; /* { dg-warning "statement may fall through" "" { target c++ } } */
     case 2:
       bar (99);
     }
@@ -51,9 +51,9 @@ f (int i)
     {
     case 1:
       {
-	switch (i + 2)
+	switch (i + 2) /* { dg-warning "statement may fall through" } */
 	  case 4:
-	    bar (1); /* { dg-warning "statement may fall through" } */
+	    bar (1);
 	  case 5:
 	    bar (5);
 	    return;

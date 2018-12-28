@@ -1,5 +1,6 @@
 .*: Assembler messages:
 .*:6: Error: .*
+.*:8: Error: .*
 GAS LISTING .*
 
 
@@ -11,3 +12,5 @@ GAS LISTING .*
 [ 	]*4[ 	]+11
 [ 	]*5[ 	]+\# PCLMUL \+ AVX
 [ 	]*6[ 	]+vpclmulqdq \$8,%xmm4,%xmm6,%xmm2
+[ 	]*7[ 	]+# GFNI \+ AVX
+[ 	]*8[ 	]+vgf2p8mulb %xmm1,%xmm2,%xmm3

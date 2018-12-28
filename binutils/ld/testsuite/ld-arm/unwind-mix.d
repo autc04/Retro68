@@ -1,5 +1,5 @@
 
-Unwind table index '\.ARM\.exidx' at offset .* contains 4 entries:
+Unwind section '\.ARM\.exidx' at offset .* contains 4 entries:
 
 0x8004 <_start>: @0x8010
   Compact model index: 1

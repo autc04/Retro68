@@ -5,3 +5,6 @@
 .*:16: Warning: SSE instruction `phaddw' is used
 .*:19: Warning: SSE instruction `blendvpd' is used
 .*:20: Warning: SSE instruction `pcmpgtq' is used
+.*:23: Warning: SSE instruction `pclmulqdq' is used
+.*:26: Warning: SSE instruction `aesdec' is used
+.*:29: Warning: SSE instruction `gf2p8mulb' is used

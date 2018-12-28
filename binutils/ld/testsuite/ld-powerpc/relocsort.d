@@ -15,7 +15,7 @@
 0+0 +[0-9a-f]+ R_PPC64_ADDR16_HA +6
 0+0 +[0-9a-f]+ R_PPC64_ADDR14 +7
 0+0 +[0-9a-f]+ R_PPC64_ADDR14_BRTAKEN +8
-0+0 +[0-9a-f]+ R_PPC64_ADDR14_BRNTAKE +9
+0+0 +[0-9a-f]+ R_PPC64_ADDR14_BRNTAKEN +9
 0+4 +[0-9a-f]+ R_PPC64_REL24 +0+0 __tls_get_addr \+ 0
 0+4 +[0-9a-f]+ R_PPC64_TLSGD +0+0 x \+ 0
 0+8 +[0-9a-f]+ R_PPC64_REL24 +a

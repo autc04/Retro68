@@ -1,407 +1,639 @@
-2017-07-23  Alan Modra  <amodra@gmail.com>
+2018-07-18  Nick Clifton  <nickc@redhat.com>
 
-	* powerpc.cc (glink_eh_frame_fde_64v2): Correct advance to
-	restore of LR.
-	(glink_eh_frame_fde_64v1): Advance to restore of LR at latest
-	possible insn.
+	2.31.1 Release point.
+	* Makefile.am: Replace spurious spaces with tabs.
+	* po/gold.pot: Regenerate.
 
-2017-07-18  Nick Clifton  <nickc@redhat.com>
+2018-07-18  Nick Clifton  <nickc@redhat.com>
 
-	* po/es.po: Updated translation.
-	* po/fi.po: Likewise.
-	* po/fr.po: Likewise.
-	* po/id.po: Likewise.
-	* po/it.po: Likewise.
-	* po/vi.po: Likewise.
-	* po/zh_CN.po: Likewise.
+	* po/fr.po: Updated French translation.
 
-	* po/ja.po: New translation.
-	* po/sv.po: Likewise.
-	* po/uk.po: Likewise.
+2018-07-16  Nick Clifton  <nickc@redhat.com>
 
-2017-07-06  Han Shen  <shenhan@google.com>
+	* Import patch from mainline:
 
-	PR gold/21491
-	* aarch64.cc (Erratum_stub::invalidate_erratum_stub): New method.
-	(Erratum_stub::is_invalidated_erratum_stub): New method.
-	(Stub_table::relocate_reloc_stub): Renamed from "relocate_stub".
-	(Stub_table::relocate_reloc_stubs): Renamed from "relocate_stubs".
-	(Stub_table::relocate_erratum_stub): New method.
-	(AArch64_relobj::fix_errata_and_relocate_erratum_stubs): Renamed from
-	"fix_errata".
-	(Target_aarch64::relocate_reloc_stub): Renamed from "relocate_stub".
+	2018-07-14  Cary Coutant  <ccoutant@gmail.com>
 
-2017-06-23  Alan Modra  <amodra@gmail.com>
-
-	* options.h (General_options): Add plt_localentry.
-	* powerpc.cc (Target_powerpc::st_other): New function.
-	(Target_powerpc::plt_localentry0_, plt_localentry0_init_,
-	has_localentry0_): New vars.
-	(Target_powerpc::plt_localentry0, set_has_localentry0,
-	is_elfv2_localentry0): New functions.
-	(Target_powerpc::Branch_info::mark_pltcall): Don't set tocsave or
-	return true for localentry:0 calls.
-	(Stub_table::Plt_stub_ent::localentry0_): New var.
-	(Stub_table::add_plt_call_entry): Set localentry0_ and has_localentry0_.
-	Don't set r2save_ for localentry:0 calls.
-	(Output_data_glink::do_write): Save r2 in __glink_PLTresolve for elfv2.
-	(Target_powerpc::scan_relocs): Default plt_localentry0_.
-	(Target_powerpc::do_finalize_sections): Set DT_PPC64_OPT.
-	(Target_powerpc::Relocate::relocate): Don't require nop following
-	calls for localentry:0 plt calls, and don't change nop.
-
-2017-06-23  Alan Modra  <amodra@gmail.com>
-
-	* powerpc.cc (Target_powerpc::tocsave_loc_): New var.
-	(Target_powerpc::mark_pltcall, add_tocsave, tocsave_loc): New functions.
-	(Target_powerpc::Branch_info::tocsave_): New var.
-	(Target_powerpc::Branch_info::mark_pltcall): New function.
-	(Target_powerpc::Branch_info::make_stub): Pass tocsave_ to
-	add_plt_call_entry.
-	(Stub_table::Plt_stub_ent): Make public.  Add r2save_.
-	(Stub_table::add_plt_call_entry): Add bool tocsave_ param.  Set
-	r2save_.
-	(Stub_table::find_plt_call_entry): Return Plt_stub_ent*.  Adjust
-	use throughout.
-	(Stub_table::do_write): Conditionally output r2 save in plt stubs.
-	(Target_powerpc::Scan::local): Handle R_PPC64_TOCSAVE.
-	(Target_powerpc::Scan::global): Likewise.
-	(Target_powerpc::Relocate::relocate): Skip r2 save in plt call stub
-	with tocsave reloc.  Replace header tocsave nop with r2 save.
-	* symtab.h (struct Symbol_location_hash): Make public.
-
-2017-06-21  Alan Modra  <amodra@gmail.com>
-
-	* powerpc.cc (Plt_stub_key): Rename from Plt_stub_ent.  Remove indx_.
-	(Plt_stub_key_hash): Rename from Plt_stub_ent_hash.
-	(struct Plt_stub_ent): New.
-	(Plt_stub_entries): Map from Plt_stub_key to Plt_stub_ent.  Adjust
-	use throughout file.
-
-2017-06-20  Eric Christopher  <echristo@gmail.com>
-
-	* aarch64.cc (scan_reloc_for_stub): Use plt_address_for_global to
-	calculate the symbol value.
-	(scan_reloc_section_for_stubs): Allow stubs to be created for
-	section symbols.
-	(maybe_apply_stub): Handle creating stubs for weak symbols to
-	match the code in scan_reloc_for_stub.
-
-2017-06-20  James Clarke  <jrtc27@jrtc27.com>
-
-	* powerpc.cc (Stub_table::define_stub_syms): Always include object's
-	uniq_ value.
-
-2017-06-15  Eric Christopher  <echristo@gmail.com>
-
-	* aarch64.cc: Fix a few typos and grammar-os.
-
-2017-06-15  Jiong Wang  <jiong.wang@arm.com>
-
-	* aarch64.cc (Insn_utilities::is_mrs_tpidr_el0): New method.
-	(AArch64_relobj<size, big_endian>::try_fix_erratum_843419_optimized):
-	Return ture for some TLS relaxed sequences.
-
-2017-06-07  Eric Christopher  <echristo@gmail.com>
-
-	* aarch64.cc (maybe_apply_stub): Add debug logging for looking
-	up stubs to undefined symbols and early return rather than
-	fail to look them up.
-	(scan_reloc_for_stub): Add debug logging for no stub creation
-	for undefined symbols.
-
-2017-05-23  Alan Modra  <amodra@gmail.com>
-
-	PR 21503
-	* options.h: Add --emit-stub-syms option.
-	* powerpc.cc (object_id): New.
-	(Powerpc_relobj): Add uniq_ and accessor.  Sort variables for
-	better packing.
-	(Powerpc_dynobj): Sort variables for better packing.
-	(Target_powerpc::define_local): New function.
-	(Target_powerpc::group_sections): Pass stub table size to
-	Stub_table constructor.
-	(Target_powerpc::do_relax): Define stub and glink symbols.
-	(Stub_table): Add uniq_ variable, and id param to constructor.
-	(Stub_table::Plt_stub_ent): Add indx_ variable.
-	(Stub_table::Branch_stub_entries): Move typedef earlier.
-	(Stub_table::branch_stub_size): Replace "to" parameter with a
-	Branch_stub_entries iterator.
-	(Stub_table::add_long_branch_entry): Adjust to suit.
-	(Stub_table::add_plt_call_entry): Set indx_.
-	(Stub_table::define_stub_syms): New function.
-
-2017-05-15  Eric Christopher <echristo@gmail.com>
-
-        * layout.cc (Layout::segment_precedes): Add a case for testing
-        pointer equality when determining which segment precedes
-        another.
-
-2017-05-13  James Clarke  <jrtc27@jrtc27.com>
-
-	PR gold/21444
-	* gold.cc (Target_sparc::Relocate::relocate_tls): Local
-	variables are final for position-independent executables. This
-	has to be consistent with Target_sparc::Scan::local otherwise
-	they will disagree as to whether local-exec is used.
-
-2017-05-12  Igor Kudrin  <ikudrin@accesssoftek.com>
-
-	PR gold/21430
-	* aarch64.cc
-	(AArch64_relobj::convert_input_section_to_relaxed_section):
-	Set the section offset to -1ULL.
-	(Target_aarch64::relocate_section): Adjust the view in case
-	of a relaxed input section.
-	* testsuite/Makefile.am (pr21430): New test.
-	* testsuite/Makefile.in: Regenerate
-	* testsuite/pr21430.s: New test source file.
-	* testsuite/pr21430.sh: New test script.
-
-2017-04-27  Alan Modra  <amodra@gmail.com>
-
-	* testsuite/plugin_section_order.c (onload): Add missing break.
-
-2017-03-15  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
-
-	* mips.cc (Mips_got_entry::hash()): Shift addend to reduce
-	possibility of collisions.
-	(Mips_got_entry::equals): Fix case for GOT_TLS_LDM
-	entries.
-
-2017-03-15  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
-
-	* mips.cc (Mips_relobj::merge_processor_specific_data_): New data
-	member.
-	(Mips_relobj::merge_processor_specific_data): New method.
-	(Mips_relobj::do_read_symbols): Set merge_processor_specific_data_
-	to false, only if the input file is a binary or if object has no
-	contents except the section name string table and an empty symbol
-	table with the undefined symbol.
-	(Target_mips::do_finalize_sections): Refactor.  Skip empty object files
-	for merging processor-specific data.
-
-2017-03-15  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
-
-	* mips.cc (Target_mips::Relocate::calculated_value_): New data
-	member.
-	(Target_mips::Relocate::calculate_only_): Likewise.
-	(Target_mips::Relocate::relocate): Handle multiple consecutive
-	relocations with the same offset.
-
-2017-03-15  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
-
-	* mips.cc (Target_mips::Relocate::relocate): Remove redundant
-	checks for relocatable link.
-	(Mips_relocate_functions::reljalr): Likewise.
-
-2017-03-15  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
-
-	* mips.cc (class Mips_output_section_options): New class.
-	(Target_mips::do_make_output_section): New method.
-
-2017-03-15  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
-
-	* mips.cc (Mips_relocate_functions::rel26): Don't print relocation
-	overflow error message.
-	(Target_mips::relocate_special_relocatable): Improve relocation
-	overflow error message.
-	(Target_mips::Relocate::relocate): Likewise.
-
-2017-03-15  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
-
-	* mips.cc (symbol_refs_local): Return false if a symbol
-	is from a dynamic object.
-	(Target_mips::got_section): Make _GLOBAL_OFFSET_TABLE_ STV_HIDDEN.
-	(Target_mips::set_gp): Refactor.  Make _gp STT_NOTYPE and
-	STB_LOCAL.
-	(Target_mips::do_finalize_sections): Set _gp after all the checks
-	for creating .got are done.
-	(Target_mips::Scan::global): Remove unused code.
-
-2017-02-22  Alan Modra  <amodra@gmail.com>
-
-	* powerpc.cc (Target_powerpc::make_iplt_section): Check that
-	output_section exists before attempting add_output_section_data.
-	(Target_powerpc::make_brlt_section): Likewise.
-
-2017-02-15  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
-
-	* mips.cc (Target_mips::Scan::get_reference_flags): Remove
-	gold_unreachable from default case.
-
-2017-02-15  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
-
-	PR gold/21111
-	* mips.cc (Mips_relocate_functions::relhigher): New method.
-	(Mips_relocate_functions::relhighest): Likewise.
-	(mips_get_size_for_reloc): Add support for relocs: R_MIPS_HIGHER and
-	R_MIPS_HIGHEST.
-	(Target_mips::Scan::local): Add support for relocs: R_MIPS_HIGHER,
-	R_MIPS_HIGHEST, R_MICROMIPS_HIGHER and R_MICROMIPS_HIGHEST.
-	(Target_mips::Scan::global): Likewise.
-	(Target_mips::Scan::get_reference_flags): Likewise.
-	(Target_mips::Relocate::relocate): Call static methods for resolving
-	HIGHER and HIGHEST relocations.
-
-2017-02-03  Rahul Chaudhry  <rahulchaudhry@google.com>
-
-	* x86_64.cc (Target_x86_64::do_can_check_for_function_pointers):
-	Return true even when building pie binaries.
-	(Target_x86_64::possible_function_pointer_reloc): Check opcode
-	for R_X86_64_PC32 relocations.
-	(Target_x86_64::local_reloc_may_be_function_pointer): Pass
-	extra arguments to local_reloc_may_be_function_pointer.
-	(Target_x86_64::global_reloc_may_be_function_pointer): Likewise.
-	* gc.h (gc_process_relocs): Add check for STT_FUNC.
-	* testsuite/Makefile.am (icf_safe_pie_test): New test case.
+	PR gold/23409
+	* symtab.cc (Symbol_table::define_special_symbol): Add check for
+	version name on existing symbol.
+	* testsuite/Makefile.am (ver_test_pr23409): New test case.
 	* testsuite/Makefile.in: Regenerate.
-	* testsuite/icf_safe_pie_test.sh: New shell script.
+	* testsuite/ver_test_pr23409.sh: New test script.
+	* testsuite/ver_test_pr23409_1.script: New version script.
+	* testsuite/ver_test_pr23409_2.script: New version script.
 
-2017-02-03  Alan Modra  <amodra@gmail.com>
+2018-07-14  Nick Clifton  <nickc@redhat.com>
 
-	* powerpc.cc (Powerpc_relobj::make_toc_relative): Don't crash
-	when no .toc section exists.
+	2.31 Release point.
+	* po/gold.pot: Regenerate.
 
-2017-01-31  Cary Coutant  <ccoutant@gmail.com>
+2018-07-11  Franz Sirl  <franz.sirl-kernel@lauterbach.com>
 
-	PR gold/21090
-	* x86_64.cc (Target_x86_64::can_convert_mov_to_lea): Add check
-	for predefined symbol.
-	(Target_x86_64::Relocate::relocate): Fix formatting.
+	* main.cc: Print m.arena as long long.
 
-2017-01-23  Rahul Chaudhry  <rahulchaudhry@google.com>
+2018-07-09  Cary Coutant  <ccoutant@gmail.com>
 
-        * testsuite/icf_safe_so_test.sh: Use "set -e".
-        * testsuite/icf_safe_test.sh: Likewise.
-        * testsuite/icf_test.sh: Likewise.
+	* incremental.cc (Sized_incremental_binary::setup_readers): Use
+	emplace_back for C++ 11 or later.
 
-2017-01-23  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
+2018-07-06  Alan Modra  <amodra@gmail.com>
 
-	* mips.cc (Mips_output_data_plt::rel_plt): Remove const from return
+	* powerpc.cc: Include attributes.h.
+	(Powerpc_relobj::attributes_section_data_): New variable, with
+	accessor and associated constructor and destructor support.
+	(Powerpc_dynobj::attributes_section_data_): Likewise.
+	(Powerpc_relobj::do_read_symbols): Stash SHT_GNU_ATTRIBUTES section
+	contents in attributes_section_data_.
+	(Powerpc_dynobj::do_read_symbols): Likewise.
+	(Target_powerpc): Add attributes_section_data_, last_fp_, last_ld_,
+	last_vec_, and last_struct_ vars.
+	(Target_powerpc::merge_object_attributes): New function.
+	(Target_powerpc::do_finalize_sections): Iterate over input objects
+	merging attributes.  Create output attributes section.
+
+2018-06-26  Nick Clifton  <nickc@redhat.com>
+
+	* po/uk.po: Updated Ukranian translation.
+
+2018-06-24  Nick Clifton  <nickc@redhat.com>
+
+	* po/gold.pot: Regenerate.
+
+2018-06-24  Nick Clifton  <nickc@redhat.com>
+
+	2.31 branch created.
+
+2018-06-23  Cary Coutant  <ccoutant@gmail.com>
+
+	* version.cc (version_string): Bump to 1.16.
+	* NEWS: Add new features in 1.16.
+
+2018-06-23  Cary Coutant  <ccoutant@gmail.com>
+
+	PR gold/22914
+	* x86_64.cc (Target_x86_64::record_gnu_property): Initialize val.
+
+2018-06-23  Cary Coutant  <ccoutant@gmail.com>
+
+	PR gold/22915
+	* x86_64.cc (Output_data_plt_x86_64_ibt): New class.
+	(Target_x86_64::do_make_data_plt): (All instantiations) Check for
+	IBT feature bit and create IBT PLTs.
+
+2018-06-22  Cary Coutant  <ccoutant@gmail.com>
+
+	PR gold/22914
+	* layout.cc (read_sized_value): Fix spelling of section name.
+	(Layout::layout_gnu_property): Call Sized_target::record_gnu_property
+	for target-specific properties;
+	don't store them with target-independent properties yet.
+	(Layout::merge_gnu_properties): New method.
+	(Layout::add_gnu_property): New method.
+	(Layout::create_gnu_properties_note): Call target to finalize
+	target-specific properties. Fix spelling of output section name.
+	* layout.h (Layout::merge_gnu_properties): New method.
+	(Layout::add_gnu_property): New method.
+	* object.cc (Sized_relobj_file::do_layout): Call
+	Layout::merge_gnu_properties.
+	* target.h (Target::merge_gnu_property): Remove.
+	(Target::finalize_gnu_properties): New method.
+	(Target::do_merge_gnu_property): Move to Sized_target and rename.
+	(Target::do_finalize_gnu_properties): New virtual method.
+	(Sized_target::record_gnu_property): Moved and renamed from
+	Target::do_merge_gnu_property.
+	(Sized_target::merge_gnu_properties): New virtual method.
+	* x86_64.cc (Target_x86_64::isa_1_used_, isa_1_needed_)
+	(feature_1_, object_feature_1_, seen_first_object_): New data members.
+	(Target_x86_64::do_merge_gnu_property): Rename to ...
+	(Target_x86_64::record_gnu_property): ... this.  Save target-specific
+	properties in Target class object.
+	(Target_x86_64::merge_gnu_properties): New method.
+	(add_property): New static inline function.
+	(Target_x86_64::do_finalize_gnu_properties): New method.
+	* testsuite/Makefile.am (gnu_property_test): Remove C source file;
+	link directly without compiler driver.
+	* testsuite/Makefile.in: Regenerate.
+	* testsuite/gnu_property_a.S: Add _start.
+
+2018-06-22  Cary Coutant  <ccoutant@gmail.com>
+
+	* incremental.cc (Sized_incremental_binary::setup_readers): Use
+	emplace_back for GCC 5 and later.
+	* incremental.h (Incremental_binary::Input_reader): Provide copy
+	constructor.
+	(Sized_incremental_binary::Sized_input_reader): Likewise.
+
+2018-06-22  Cary Coutant  <ccoutant@gmail.com>
+
+	PR gold/22914
+	* layout.cc (Layout::Layout): Initialize gnu_properties_.
+	(read_sized_value, write_sized_value): New functions.
+	(Layout::layout_gnu_property): New method.
+	(Layout::create_notes): Call create_gnu_properties_note.
+	(Layout::create_gnu_properties_note): New method.
+	* layout.h (Layout::layout_gnu_property): New method.
+	(Layout::create_gnu_properties_note): New method.
+	(Layout::Gnu_property, Layout::Gnu_properties): New types.
+	(Layout::gnu_properties_): New data member.
+	* object.cc (Sized_relobj_file::layout_gnu_property_section): New
+	method.
+	(Sized_relobj_file::do_layout): Handle .note.gnu.property sections.
+	* object.h (Sized_relobj_file::layout_gnu_property_section): New
+	method.
+	* target.h (Target::merge_gnu_property): New method.
+	(Target::do_merge_gnu_property): New virtual method.
+	* x86_64.cc (Target_x86_64::do_merge_gnu_property): New method.
+	* testsuite/Makefile.am (gnu_property_test): New test case.
+	* testsuite/Makefile.in: Regenerate.
+	* testsuite/gnu_property_a.S: New source file.
+	* testsuite/gnu_property_b.S: New source file.
+	* testsuite/gnu_property_c.S: New source file.
+	* testsuite/gnu_property_main.c: New source file.
+	* testsuite/gnu_property_test.sh: New test script.
+
+2018-06-21  Cary Coutant  <ccoutant@gmail.com>
+
+	* resolve.cc (Symbol_table::resolve): Rename tobinding to
+	orig_tobinding.  Call set_is_needed() for objects that resolve
+	non-weak references.
+	(Symbol_table::should_override): Allow a dynamic definition to
+	override an earlier one in a not-needed library.
+	* symtab.cc (Symbol_table::set_dynsym_indexes): Remove separate
+	processing for as-needed symbols.  Add warning when discarding
+	version informatin.
+	* testsuite/Makefile.am (weak_as_needed): New test case.
+	* testsuite/Makefile.in: Regenerate.
+	* testsuite/weak_as_needed.sh: New test script.
+	* testsuite/weak_as_needed_a.c: New source file.
+	* testsuite/weak_as_needed_b.c: New source file.
+	* testsuite/weak_as_needed_b.script: New version script.
+	* testsuite/weak_as_needed_c.c: New source file.
+	* testsuite/weak_as_needed_c.script: New version script.
+
+2018-06-20  Cary Coutant  <ccoutant@gmail.com>
+
+	PR gold/23268
+	* dynobj.cc (Versions::Versions): Change init for needs_base_version_.
+	(Versions::record_version): Add verdefs for both shared objects and
+	executables.
+	(Versions::add_def): Likewise for base version.
+	(Versions::add_need): Don't add base version for executables.
+	(Versions::version_index): Look up version for both shared objects and
+	executables.
+	* testsuite/Makefile.am (ver_test_14): New test case.
+	* testsuite/Makefile.in: Regenerate.
+	* testsuite/ver_test_14.script: New version script.
+	* testsuite/ver_test_14.sh: New test script.
+
+2018-06-19  Joshua Watt  <jpewhacker@gmail.com>
+	    Cary Coutant  <ccoutant@gmail.com>
+
+	* configure.ac: Replace manual thread configuration with AX_PTHREAD.
+	Add --enable-threads=auto.
+	* Makefile.am (THREADFLAGS, THREADLIBS): New defines.
+	(AM_CFLAGS, AM_CXXFLAGS): Add $(THREADFLAGS).
+	(THREADSLIB): Remove; change all references to THREADLIBS.
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* config.in: Regenerate.
+	* configure: Regenerate.
+	* testsuite/Makefile.am (THREADSLIB): Replace with...
+	(THREADFLAGS, THREADLIBS): ... these.
+	(LDADD): Remove; add as individual defines for...
+	(object_unittest, binary_unittest, leb128_unittest)
+	(overflow_unittest): ... these tests.
+	(tls_test, tls_pic_test, tls_pie_test, tls_pie_pic_test)
+	(tls_shared_test, tls_shared_ie_test, tls_shared_gd_to_ie_test)
+	(tls_shared_gnu2_gd_to_ie_test, tls_shared_gnu2_test_LDFLAGS)
+	(tls_shared_nonpic_test_LDFLAGS): Add $(THREADFLAGS) and ($THREADLIBS).
+	* testsuite/Makefile.in: Regenerate.
+
+2018-06-19  Cary Coutant  <ccoutant@gmail.com>
+
+	* testsuite/Makefile.am (MOSTLYCLEANFILES): Add *.stderr.
+	* testsuite/Makefile.in: Regenerate.
+
+2018-06-19  Simon Marchi  <simon.marchi@ericsson.com>
+
+	* configure.ac: Remove AC_PREREQ, add missing quoting and usage
+	of AC_LANG_SOURCE.
+	* Makefile.in: Re-generate.
+	* aclocal.m4: Re-generate.
+	* configure: Re-generate.
+	* testsuite/Makefile.in: Re-generate.
+
+2018-05-10  Stephen Crane  <sjc@immunant.com>
+
+	* aarch64.cc (Target_aarch64::do_finalize_sections): Use size of
+	.got section for the _GLOBAL_OFFSET_TABLE_ symbol computation.
+
+2018-04-24  Cary Coutant  <ccoutant@gmail.com>
+
+	PR gold/20642
+	PR gold/22820
+	* gc.h (gc_process_relocs): Flag STT_SECTION symbols in symvec.
+	* icf.cc (get_section_contents): For merge sections, ignore the
+	addend for relocations against non-section symbols.
+
+2018-04-24  Cary Coutant  <ccoutant@gmail.com>
+
+	PR gold/16504
+	* dynobj.cc (Versions::symbol_section_contents): Don't set
+	VERSYM_HIDDEN flag for undefined symbols.
+	* symtab.cc (Symbol_table::add_from_object): Don't override default
+	version definition with a different default version.
+	* symtab.h (Symbol::from_dyn): New method.
+	* testsuite/plugin_test.c (struct sym_info): Add ver field.
+	(claim_file_hook): Pass symbol version to plugin API.
+	(parse_readelf_line): Parse symbol version.
+	* testsuite/Makefile.am (ver_test_pr16504): New test case.
+	* testsuite/Makefile.in: Regenerate.
+	* testsuite/ver_test_pr16504.sh: New test script.
+	* testsuite/ver_test_pr16504_a.c: New source file.
+	* testsuite/ver_test_pr16504_a.script: New version script.
+	* testsuite/ver_test_pr16504_b.c: New source file.
+	* testsuite/ver_test_pr16504_b.script: New version script.
+
+2018-04-19  Cary Coutant  <ccoutant@gmail.com>
+
+	PR gold/23046
+	* gc.h (gc_process_relocs): Pass target to
+	scan.local_reloc_may_be_function_pointer.
+
+2018-04-18  Nick Clifton  <nickc@redhat.com>
+
+	* po/es.po: Updated Spanish translation.
+
+2018-04-14  Cary Coutant  <ccoutant@gmail.com>
+
+	PR gold/23046
+	* gc.h (gc_process_relocs): Pass target to
+	scan.global_reloc_may_be_function_pointer.
+
+2018-04-09  Alan Modra  <amodra@gmail.com>
+
+	* configure: Regenerate.
+
+2018-04-09  Alan Modra  <amodra@gmail.com>
+
+	* powerpc.cc (Target_powerpc::Track_tls::maybe_skip_tls_get_addr_call):
+	Handle inline plt sequence relocs.
+	(Stub_table::Plt_stub_key::Plt_stub_key): Likewise.
+	(Target_powerpc::Scan::reloc_needs_plt_for_ifunc): Likewise.
+	(Target_powerpc::Relocate::relocate): Likewise.
+
+2018-04-09  Alan Modra  <amodra@gmail.com>
+
+	* powerpc.cc (Target_powerpc::lplt_): New variable.
+	(Target_powerpc::lplt_section): Associated accessor.
+	(Target_powerpc::plt_off): Handle local non-ifunc symbols.
+	(Target_powerpc::make_lplt_section): New function.
+	(Target_powerpc::make_local_plt_entry): New function.
+	(Powerpc_relobj::do_relocate_sections): Write out lplt.
+	(Output_data_plt_powerpc::first_plt_entry_offset): Zero for lplt.
+	(Output_data_plt_powerpc::add_local_entry): New function.
+	(Output_data_plt_powerpc::do_write): Ignore lplt.
+	(Target_powerpc::make_iplt_section): Make lplt first.
+	(Target_powerpc::make_brlt_section): Make .branch_lt relro.
+	(Target_powerpc::Scan::local): Handle PLT16 relocs.
+
+2018-04-09  Alan Modra  <amodra@gmail.com>
+
+	* powerpc.cc (Target_powerpc::plt_off): New functions.
+	(is_plt16_reloc): New function.
+	(Stub_table::plt_off): Use Target_powerpc::plt_off.
+	(Stub_table::plt_call_size): Use plt_off.
+	(Stub_table::do_write): Likewise.
+	(Target_powerpc::Scan::get_reference_flags): Return RELATIVE_REF
+	for PLT16 relocations.
+	(Target_powerpc::Scan::reloc_needs_plt_for_ifunc): Return true
+	for PLT16 relocations.
+	(Target_powerpc::Scan::global): Make a PLT entry for PLT16 relocations.
+	(Target_powerpc::Relocate::relocate): Support PLT16 relocations.
+	(Powerpc_scan_relocatable_reloc::global_strategy): Return RELOC_SPECIAL
+	for ppc32 plt16 relocs.
+
+2018-04-06  Cary Coutant  <ccoutant@gmail.com>
+
+	* object.cc (Sized_relobj_file::include_section_group): Store
+	reference to Kept_section info for discarded comdat sections
+	regardless of size.  Move size checking to map_to_kept_section.
+	(Sized_relobj_file::include_linkonce_section): Likewise.
+	(Sized_relobj_file::map_to_kept_section): Add section name parameter.
+	Insert size checking logic from above functions.
+	(Sized_relobj_file::find_kept_section_object): New method.
+	(Sized_relobj_file::get_symbol_name): New method.
+	* object.h (Sized_relobj_file::map_to_kept_section): Add section_name
+	parameter.  Adjust all callers.
+	(Sized_relobj_file::find_kept_section_object): New method.
+	(Sized_relobj_file::get_symbol_name): New method.
+	(Sized_relobj_file::Kept_comdat_section): Replace object and shndx
+	fields with sh_size, kept_section, symndx, and is_comdat fields.
+	(Sized_relobj_file::set_kept_comdat_section): Replace kept_object
+	and kept_shndx parameters with is_comdat, symndx, sh_size, and
+	kept_section.
+	(Sized_relobj_file::get_kept_comdat_section): Likewise.
+	* target-reloc.h (enum Comdat_behavior): Change CB_WARNING to CB_ERROR.
+	Adjust all references.
+	(issue_undefined_symbol_error): New function template.
+	(relocate_section): Pass section name to map_to_kept_section.
+	Move discarded section code to new function above.
+	* aarch64.cc (Target_aarch64::scan_reloc_section_for_stubs): Move
+	declaration for gsym out one level.  Call issue_discarded_error.
+	* arm.cc (Target_arm::scan_reloc_section_for_stubs): Likewise.
+	* powerpc.cc (Relocate_comdat_behavior): Change CB_WARNING to CB_ERROR.
+
+2018-04-05  Cary Coutant  <ccoutant@gmail.com>
+
+	* target-reloc.h (relocate_section): Add local symbol index or global
+	symbol name to warning about relocation that refers to discarded
+	section.
+
+2018-04-05  James Cowgill  <james.cowgill@mips.com>
+
+	Revert previous patch and apply revised patch.
+
+	PR gold/22770
+	* mips.cc (Mips_got_info::record_got_page_entry): Don't insert
+	Got_page_entry for object's GOT.
+	(Mips_got_info::add_got_page_entries): Add all pages from from's GOT.
+	Rename to add_got_page_count.
+	(Got_page_entry): Remove num_pages.
+
+2018-04-05  James Cowgill  <james.cowgill@mips.com>
+
+	PR gold/22770
+	* mips.cc (Mips_got_info::record_got_page_entry): Fetch existing
+	page entries for the object's GOT.
+
+2018-04-05  Alan Modra  <amodra@gmail.com>
+
+	* powerpc.cc (Target_powerpc::make_brlt_section): Make .branch_lt relro.
+
+2018-04-04  Nick Clifton  <nickc@redhat.com>
+
+	* po/es.po: Updated Spanish translation.
+
+2018-04-02  Cary Coutant  <ccoutant@gmail.com>
+
+	PR gold/23016
+	* incremental.cc (can_incremental_update): Check for unwind section
 	type.
-	(Target_mips::make_plt_entry): Make the sh_info field of .rel.plt
-	point to .plt.
+	* layout.h (Layout::layout): Add sh_type parameter.
+	* layout.cc (Layout::layout): Likewise.
+	(Layout::layout_reloc): Create new output reloc section if data
+	section does not already have one.
+	(Layout::layout_eh_frame): Check for unwind section type.
+	(Layout::make_eh_frame_section): Use unwind section type for .eh_frame
+	and .eh_frame_hdr.
+	* object.h (Sized_relobj_file::Shdr_write): New typedef.
+	(Sized_relobj_file::layout_section): Add sh_type parameter.
+	(Sized_relobj_file::Deferred_layout::Deferred_layout): Add sh_type
+	parameter.
+	* object.cc (Sized_relobj_file::check_eh_frame_flags): Check for
+	unwind section type.
+	(Sized_relobj_file::layout_section): Add sh_type parameter; pass it
+	to Layout::layout.
+	(Sized_relobj_file::do_layout): Make local copy of sh_type.
+	Force .eh_frame sections to unwind section type.
+	Pass sh_type to layout_section.
+	(Sized_relobj_file<size, big_endian>::do_layout_deferred_sections):
+	Pass sh_type to layout_section.
+	* output.cc (Output_section::Output_section): Initialize reloc_section_.
+	* output.h (Output_section::reloc_section): New method.
+	(Output_section::set_reloc_section): New method.
+	(Output_section::reloc_section_): New data member.
+	* target.h (Target::unwind_section_type): New method.
+	(Target::Target_info::unwind_section_type): New data member.
 
-2017-01-23  Vladimir Radosavljevic  <Vladimir.Radosavljevic@imgtec.com>
+	* aarch64.cc (aarch64_info): Add unwind_section_type.
+	* arm.cc (arm_info, arm_nacl_info): Likewise.
+	* i386.cc (i386_info, i386_nacl_info, iamcu_info): Likewise.
+	* mips.cc (mips_info, mips_nacl_info): Likewise.
+	* powerpc.cc (powerpc_info): Likewise.
+	* s390.cc (s390_info): Likewise.
+	* sparc.cc (sparc_info): Likewise.
+	* tilegx.cc (tilegx_info): Likewise.
+	* x86_64.cc (x86_64_info, x86_64_nacl_info): Likewise.
 
-	PR gold/21054
-	* mips.cc (Mips_got_info::record_global_got_symbol): Don't add symbol
-	to the dynamic symbol table if it is forced to local visibility.
-	(Target_mips::do_finalize_sections): Don't add __RLD_MAP symbol to the
-	dynamic symbol table if it is forced to local visibility.
+	* testsuite/Makefile.am (pr23016_1, pr23016_2): New test cases.
+	* testsuite/Makefile.in: Regenerate.
+	* testsuite/testfile.cc: Add unwind_section_type.
+	* testsuite/pr23016_1.sh: New test script.
+	* testsuite/pr23016_1a.s: New source file.
+	* testsuite/pr23016_1b.s: New source file.
+	* testsuite/pr23016_2.sh: New test script.
+	* testsuite/pr23016_2a.s: New source file.
+	* testsuite/pr23016_2b.s: New source file.
 
-2017-01-20  Nick Clifton  <nickc@redhat.com>
+2018-03-28  Cary Coutant  <ccoutant@gmail.com>
 
-	* aarch64.cc (Stub_template_repertoire): Change ST_E_835769_INSNS
-        from a pointer to an array.
+	PR gold/21423
+	PR gold/22500
+	* configure.ac: Call AC_USE_SYSTEM_EXTENSIONS.
+	Replace check for --enable-plugins with AC_PLUGINS.
+	* options.cc (parse_plugin, parse_plugin_opt): Remove #ifdef.
+	(General_options::finalize): Check if plugins enabled.
+	* options.h (--plugin, --plugin-opt): Define even if plugins not
+	enabled.
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* testsuite/Makefile.in: Regenerate.
 
-2017-01-13  H.J. Lu  <hongjiu.lu@intel.com>
+2018-03-28  Cary Coutant  <ccoutant@gmail.com>
 
-	PR gold/21040
-	* powerpc.cc (Powerpc_relobj<size, big_endian>::make_toc_relative):
-	Cast 0x80008000 to uint64_t.
+	PR gold/22969
+	* aarch64-reloc.def: Add TLSLE_LDST* relocations.
+	* aarch64.cc (Target_aarch64::optimize_tls_reloc): Likewise.
+	(Target_aarch64::Scan::local): Likewise.
+	(Target_aarch64::Scan::global): Likewise.
+	(Target_aarch64::Relocate::relocate): Likewise.
+	(Target_aarch64::Relocate::relocate_tls): Likewise.
 
-2017-01-12  Cary Coutant  <ccoutant@gmail.com>
+2018-03-27  Roland McGrath  <mcgrathr@google.com>
 
-	* object.cc (Sized_relobj_file): Fix byte counts for calls to memmem.
+	* testsuite/split_x86_64.sh: Fix bad regexp.
 
-2017-01-11  Cary Coutant  <ccoutant@gmail.com>
+2018-03-26  Cary Coutant  <ccoutant@gmail.com>
 
-	PR gold/21040
-	* x86_64.cc (Output_data_plt_x86_64_bnd::do_fill_first_plt_entry):
-	Remove unnecessary 'typename' keyword.
-	(Output_data_plt_x86_64_bnd::do_fill_plt_entry): Likewise.
-	(Output_data_plt_x86_64_bnd::fill_aplt_entry): Likewise.
-	(Output_data_plt_x86_64_bnd::do_fill_tlsdesc_entry): Likewise.
-	(Output_data_plt_x86_64_bnd::do_write): Likewise.
+	PR gold/22868
+	* plugin.cc (Sized_pluginobj::do_add_symbols): Use a real section
+	index instead of SHN_ABS for defined symbols.
+	* testsuite/Makefile.am (plugin_pr22868): New test case.
+	* testsuite/Makefile.in: Regenerate
+	* testsuite/plugin_pr22868.sh: New test script.
+	* testsuite/plugin_pr22868_a.c: New source file.
+	* testsuite/plugin_pr22868_b.c: New source file.
 
-2017-01-11  Cary Coutant  <ccoutant@gmail.com>
+2018-03-23  Cary Coutant  <ccoutant@gmail.com>
 
-	PR gold/21040
-	* x86_64.cc (Output_data_plt_x86_64_bnd::do_fill_first_plt_entry):
-	Remove unnecessary 'typename' keyword.
-	(Output_data_plt_x86_64_bnd::do_fill_plt_entry): Likewise.
-	(Output_data_plt_x86_64_bnd::do_fill_tlsdesc_entry): Likewise.
-	(Output_data_plt_x86_64_bnd::fill_aplt_entry): Likewise.
-	* testsuite/copy_test_relro_1.cc (p, b, c, q): Add separate extern
-	declarations.
+	* plugin.cc (link_or_copy_file): Remove newlines from warning messages.
+	Add pedantic check for return value from ::write.
 
-2017-01-11  Cary Coutant  <ccoutant@gmail.com>
+2018-03-23  Cary Coutant  <ccoutant@gmail.com>
 
-	PR gold/21039
-	* testsuite/script_test_13.sh: Adjust patterns to work for i386.
-	* testsuite/script_test_15a.sh: Likewise.
-	* testsuite/script_test_15b.sh: Likewise.
-	* testsuite/script_test_15c.sh: Likewise.
+	* debug.h (DEBUG_PLUGIN): New constant.
+	(DEBUG_ALL): Add DEBUG_PLUGIN.
+	(debug_string_to_enum): Likewise.
+	* plugin.cc (make_sized_plugin_object): Add filename parameter.
+	(Plugin_recorder): New class.
+	(Plugin_manager::~Plugin_manager): Delete recorder_.
+	(Plugin_manager::load_plugins): Create and initialize recorder_.
+	(Plugin_manager::claim_file): Record claimed and unclaimed files.
+	(Plugin_manager::make_plugin_object): Use object name as name for
+	plugin object, if available.
+	(Plugin_manager::add_input_file): Record replacement files.
+	(Sized_pluginobj::do_add_symbols): Record plugin symbols.
+	(Plugin_finish::run): Call Plugin_recorder::finish().
+	(make_sized_plugin_object): Add filename parameter and pass to
+	Sized_pluginobj constructor.
+	* plugin.h (Plugin::filename): New method.
+	(Plugin::recorder): New method.
+	(Plugin::recorder_): New data member.
 
-2017-01-11  Alan Modra  <amodra@gmail.com>
+2018-03-07  Sriraman Tallam  <tmsriram@google.com>
 
-	* powerpc.cc (class Powerpc_copy_relocs): New.
-	(Powerpc_copy_relocs::emit): New function.
-	(Powerpc_relobj::relatoc_, toc_, no_toc_opt_): New variables.
-	(Powerpc_relobj::toc_shndx, set_no_toc_opt, no_toc_opt): New inlines.
-	(Powerpc_relobj::do_relocate_sections): New function.
-	(Powerpc_relobj::make_toc_relative): Likewise.
-	(Powerpc_relobj::do_find_special_sections): Stash away .rela.toc
-	and .toc too.
-	(ok_lo_toc_insn): Move earlier, and handle more insns.
-	(Target_powerpc::Scan::local): If optimizing toc accesses, set
-	no_toc_opt for entries we can't edit.  Check insn validity.
-	Emit "toc optimization is not supported" warning, downgraded
-	from error.
-	(Target_powerpc::Scan::global): Likewise.
-	(Target_powerpc::Relocate::relocate): Edit TOC indirect code
-	to TOC relative.  Don't emit "toc optimization is not supported"
-	error here.
+	* layout.cc (Layout::default_section_order): Check for text section
+	prefixes.
+	(Layout::text_section_name_mapping): New static member.
+	(Layout::text_section_name_mapping_count): New static member.
+	(Layout::match_section_name): New static function.
+	(Layout::output_section_name): Check for text section prefixes.
+	* layout.h (Output_section_order::ORDER_TEXT_HOT): New enum value.
+	(Output_section_order::ORDER_TEXT_STARTUP): New enum value.
+	(Output_section_order::ORDER_TEXT_EXIT): New enum value.
+	(Output_section_order::ORDER_TEXT_UNLIKELY): New enum value.
+	(Layout::text_section_name_mapping): New static member.
+	(Layout::text_section_name_mapping_count): New static member.
+	(Layout::match_section_name): New static function.
+	* options.h (keep_text_section_prefix): New -z option.
+	* testsuite/Makefile.am (keep_text_section_prefix): New test.
+	* testsuite/Makefile.in: Regenerate.
+	* testsuite/keep_text_section_prefix.cc: New test source.
+	* testsuite/keep_text_section_prefix.sh: New test script.
 
-2017-01-10  Cary Coutant  <ccoutant@gmail.com>
+2018-02-22  Sriraman Tallam  <tmsriram@google.com>
 
-	* aarch64.cc (AArch64_relobj::do_relocate_sections): Call
-	Sized_relobj_file::relocate_section_range().
-	* arm.cc (Arm_relobj::do_relocate_sections): Likewise.
-	* object.h (Sized_relobj_file::relocate_section_range): New method.
-	* reloc.cc (Sized_relobj_file::do_relocate_sections): Move
-	implementation...
-	(Sized_relobj_file::relocate_section_range): ...to new method.
+	* plugin.cc (get_wrap_symbols): New plugin interface.
+	(load): Add get_wrap_symbols to transfer vector.
+	* plugin-api.h (ld_plugin_get_wrap_symbols): New plugin interface.
+	* testsuite/plugin_test.c (onload): Call and check get_wrap_symbols
+	interface.
+	* testsuite/plugin_test_wrap_symbols.sh: New test script.
+	* testsuite/plugin_test_wrap_symbols_1.cc: New file.
+	* testsuite/plugin_test_wrap_symbols_2.cc: New file.
+	* testsuite/Makefile.am (plugin_test_wrap_symbols): New test.
+	* testsuite/Makefile.in: Regenerate.
 
-2017-01-10  Alan Modra  <amodra@gmail.com>
+2018-02-07  Sriraman Tallam  <tmsriram@google.com>
 
-	* testsuite/ver_test_8.sh: Accept .TOC. in lieu of
-	_GLOBAL_OFFSET_TABLE_.  Allow zero count.
-	* testsuite/copy_test_relro_1.cc (c, q): New vars.
-	* testsuite/copy_test_relro.cc: Rewrite to test read-only
-	status of variables directly.  Reference new vars in
-	read-only data.
+	* expression.cc (Symbol_expression::set_expr_sym_in_real_elf):
+	New method.
+	(Unary_expression::set_expr_sym_in_real_elf): New method.
+	(Binary_expression::set_expr_sym_in_real_elf): New method.
+	(Trinary_expression::set_expr_sym_in_real_elf): New method.
+	* plugin.cc (get_symbol_resolution_info): Fix symbol resolution if
+	defined or used in defsyms.
+	* plugin.h (Plugin_manager::is_defsym_def): New method.
+	(Plugin_manager::Plugin_manager): Initialize defsym_defines_set_.
+	(Plugin_manager::defsym_defines_set_): New member.
+	(Plugin_manager::Defsym_defines_set): New typedef.
+	* script.cc (Script_options::set_defsym_uses_in_real_elf): New method.
+	(Script_options::find_defsym_defs): New method.
+	* script.h (Expression::set_expr_sym_in_real_elf): New method.
+	(Symbol_assignment::is_defsym): New method.
+	(Symbol_assignment::value): New method.
+	(Script_options::find_defsym_defs): New method.
+	(Script_options::set_defsym_uses_in_real_elf): New method.
+	* testsuite/Makefile.am (plugin_test_defsym): New test.
+	* testsuite/Makefile.in: Regenerate.
+	* testsuite/plugin_test.c: Check for new symbol resolution.
+	* testsuite/plugin_test_defsym.sh: New script.
+	* testsuite/plugin_test_defsym.c: New test source.
 
-2017-01-10  Alan Modra  <amodra@gmail.com>
+2018-02-07  Alan Modra  <amodra@gmail.com>
 
-	* options.h: Add --secure-plt option.
-	* powerpc.cc (Target_powerpc::Scan::local): Detect and error
-	on -fPIC -mbss-plt code.
-	(Target_powerpc::Scan::global): Likewise.
+	Revert 2018-01-17  Alan Modra  <amodra@gmail.com>
+	* options.h: Remove --speculate-indirect-jumps support.
+	* powerpc.cc: Likewise.
 
-2017-01-09  Alan Modra  <amodra@gmail.com>
+2018-02-02  Cary Coutant  <ccoutant@gmail.com>
 
-	* powerpc.cc (Target_powerpc::make_plt_section): Point sh_info of
-	".rela.plt" at ".plt".
+	* PR gold/22776
+	* dwarf_reader.cc (Sized_dwarf_line_info::read_header_prolog): Add
+	support for DWARF-4 line number tables.
+	* dwarf_reader.h (Sized_dwarf_line_info::max_ops_per_insn): New field.
 
-2017-01-07  Alan Modra  <amodra@gmail.com>
+2018-01-18  Alan Modra  <amodra@gmail.com>
 
-	* powerpc.cc: Use shorter equivalent elfcpp typedef for
-	Reltype and reloc_size throughout.
-	(Target_powerpc::symval_for_branch): Exclude dynamic symbols.
-	(Target_powerpc::Scan::local): Use local var r_sym.
-	(Target_powerpc::Scan::global: Likewise.
-	(Target_powerpc::Relocate::relocate): Delete shadowing r_sym.
+	* powerpc.cc (param_plt_align): New function supplying default
+	--plt-align values.  Use it..
+	(Stub_table::plt_call_align): ..here, and..
+	(Output_data_glink::global_entry_align): ..here.
+	(Stub_table::stub_align): Correct 32-bit minimum alignment.
 
-2017-01-02  Alan Modra  <amodra@gmail.com>
+2018-01-17  Alan Modra  <amodra@gmail.com>
+
+	* options.h (speculate_indirect_jumps): New option.
+	* powerpc.cc (beqctrm, beqctrlm, crseteq): New insn constants.
+	(output_bctr): New function.
+	(Stub_table::plt_call_size): Add space for speculation barrier.
+	(Stub_table::branch_stub_size): Likewise.
+	(Output_data_glink::pltresolve_size): Likewise.
+	(Stub_table::do_write): Output speculation barriers.
+
+2018-01-17  Alan Modra  <amodra@gmail.com>
+
+	* options.h (plt_align): Support for PowerPC32 too.
+	* powerpc.cc (Stub_table::stub_align): Heed --plt-align for 32-bit.
+	(Stub_table::plt_call_size, branch_stub_size): Tidy.
+	(Stub_table::plt_call_align): Implement using stub_align.
+	(Output_data_glink::global_entry_align): New function.
+	(Output_data_glink::global_entry_off): New function.
+	(Output_data_glink::global_entry_address): Use global_entry_off.
+	(Output_data_glink::pltresolve_size): New function, replacing
+	pltresolve_size_ constant.  Update all uses.
+	(Output_data_glink::add_global_entry): Align offset.
+	(Output_data_glink::set_final_data_size): Use global_entry_align.
+	(Stub_table::do_write): Don't pad __glink_PLTrelsolve with nops.
+	Tidy stub output.  Use global_entry_off.
+
+2018-01-15  Cary Coutant  <ccoutant@gmail.com>
+
+	PR gold/22694
+	* options.h (-fuse-ld): Add correct helparg.
+
+2018-01-15  Nick Clifton  <nickc@redhat.com>
+
+	* po/uk.po: Updated Ukranian translation.
+
+2018-01-13  Nick Clifton  <nickc@redhat.com>
+
+	* po/gold.pot: Regenerated.
+
+2018-01-13  Nick Clifton  <nickc@redhat.com>
+
+	2.30 branch created.
+
+2018-01-12  Cary Coutant  <ccoutant@gmail.com>
+
+	* NEWS: Add new features in 1.15.
+	* version.cc (version_string): Bump to 1.15.
+
+2018-01-12  Sterling Augustine  <saugustine@google.com>
+
+	* cref.cc (Cref_inputs::Cref_table_compare::operator): Add
+	conditionals and calls to is_forwarder.
+
+2018-01-03  Alan Modra  <amodra@gmail.com>
 
 	Update year range in copyright notice of all files.
 
-For older changes see ChangeLog-2016
+For older changes see ChangeLog-2017
 
-Copyright (C) 2017 Free Software Foundation, Inc.
+Copyright (C) 2018 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

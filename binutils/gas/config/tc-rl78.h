@@ -1,5 +1,5 @@
 /* tc-rl78.h - header file for Renesas RL78
-   Copyright (C) 2011-2017 Free Software Foundation, Inc.
+   Copyright (C) 2011-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 

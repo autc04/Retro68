@@ -33,7 +33,9 @@ Disassembly of section .text:
 [ \t0-9a-f]+:[ \t]+aa0503e0[ \t]+mov[ \t]+x0, x5
 [ \t0-9a-f]+:[ \t]+d65f03c0[ \t]+ret
 
-[ \t0-9a-f]+:[ \t]+14000007[ \t]+b[ \t]+[0-9a-f]+ <__erratum_835769_veneer_0\+0x8>
+[ \t0-9a-f]+:[ \t]+d503201f[ \t]+nop
+[ \t0-9a-f]+:[ \t]+14000008[ \t]+b[ \t]+[0-9a-f]+ <__erratum_835769_veneer_0\+0x8>
+[ \t0-9a-f]+:[ \t]+d503201f[ \t]+nop
 [0-9a-f]+ <__erratum_835769_veneer_2>:
 [ \t0-9a-f]+:[ \t]+9b031885[ \t]+madd[ \t]+x5, x4, x3, x6
 [ \t0-9a-f]+:[ \t0-9a-z]+[ \t]+b[ \t]+[0-9a-f]+ <a7str\+0x[0-9a-f]+>

@@ -1,7 +1,7 @@
 #name: FRV TLS relocs with addends, dynamic linking
 #source: tls-2.s
 #objdump: -DR -j .text -j .got -j .plt
-#ld: tmpdir/tls-1-dep.so
+#ld: --hash-style=sysv tmpdir/tls-1-dep.so
 
 .*:     file format elf.*frv.*
 
@@ -156,32 +156,32 @@ Disassembly of section \.text:
 Disassembly of section \.got:
 
 [0-9a-f ]+<.*>:
-[0-9a-f ]+:	00 01 02 c0 	.*
+[0-9a-f ]+:	00 01 02 38 	.*
 [0-9a-f ]+:	00 00 08 21 	.*
-[0-9a-f ]+:	00 01 02 c0 	.*
+[0-9a-f ]+:	00 01 02 38 	.*
 [0-9a-f ]+:	00 00 f8 21 	.*
-[0-9a-f ]+:	00 01 02 c0 	.*
+[0-9a-f ]+:	00 01 02 38 	.*
 [0-9a-f ]+:	00 00 00 01 	.*
 [0-9a-f ]+:	00 00 00 00 	.*
 [0-9a-f	 ]+: R_FRV_TLSDESC_VALUE	x
 [0-9a-f ]+:	00 00 00 01 	.*
-[0-9a-f ]+:	00 01 02 c0 	.*
+[0-9a-f ]+:	00 01 02 38 	.*
 [0-9a-f ]+:	ff ff f8 11 	.*
-[0-9a-f ]+:	00 01 02 c0 	.*
+[0-9a-f ]+:	00 01 02 38 	.*
 [0-9a-f ]+:	00 00 10 01 	.*
 [0-9a-f ]+:	00 00 00 00 	.*
 [0-9a-f	 ]+: R_FRV_TLSDESC_VALUE	x
 [0-9a-f ]+:	00 00 10 01 	.*
-[0-9a-f ]+:	00 01 02 c0 	.*
+[0-9a-f ]+:	00 01 02 38 	.*
 [0-9a-f ]+:	00 00 08 11 	.*
-[0-9a-f ]+:	00 01 02 c0 	.*
+[0-9a-f ]+:	00 01 02 38 	.*
 [0-9a-f ]+:	00 01 00 01 	.*
 [0-9a-f ]+:	00 00 00 00 	.*
 [0-9a-f	 ]+: R_FRV_TLSDESC_VALUE	x
 [0-9a-f ]+:	00 01 00 01 	.*
-[0-9a-f ]+:	00 01 02 c0 	.*
+[0-9a-f ]+:	00 01 02 38 	.*
 [0-9a-f ]+:	00 00 f8 11 	.*
-[0-9a-f ]+:	00 01 02 c0 	.*
+[0-9a-f ]+:	00 01 02 38 	.*
 [0-9a-f ]+:	ff ff f8 21 	.*
 
 [0-9a-f ]+<_GLOBAL_OFFSET_TABLE_>:

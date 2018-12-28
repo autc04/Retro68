@@ -215,6 +215,13 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 cc c2 11 1e       	vcmpgt_oqps ymm2,ymm6,YMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c5 cc c2 d4 1f       	vcmptrue_usps ymm2,ymm6,ymm4
 [ 	]*[a-f0-9]+:	c5 cc c2 11 1f       	vcmptrue_usps ymm2,ymm6,YMMWORD PTR \[ecx\]
+[ 	]*[a-f0-9]+:	c4 e2 55 cf f4       	vgf2p8mulb ymm6,ymm5,ymm4
+[ 	]*[a-f0-9]+:	c4 e2 55 cf 31       	vgf2p8mulb ymm6,ymm5,YMMWORD PTR \[ecx\]
+[ 	]*[a-f0-9]+:	c4 e2 55 cf b4 f4 c0 1d fe ff 	vgf2p8mulb ymm6,ymm5,YMMWORD PTR \[esp\+esi\*8-0x1e240\]
+[ 	]*[a-f0-9]+:	c4 e2 55 cf b2 e0 0f 00 00 	vgf2p8mulb ymm6,ymm5,YMMWORD PTR \[edx\+0xfe0\]
+[ 	]*[a-f0-9]+:	c4 e2 55 cf b2 00 10 00 00 	vgf2p8mulb ymm6,ymm5,YMMWORD PTR \[edx\+0x1000\]
+[ 	]*[a-f0-9]+:	c4 e2 55 cf b2 00 f0 ff ff 	vgf2p8mulb ymm6,ymm5,YMMWORD PTR \[edx-0x1000\]
+[ 	]*[a-f0-9]+:	c4 e2 55 cf b2 e0 ef ff ff 	vgf2p8mulb ymm6,ymm5,YMMWORD PTR \[edx-0x1020\]
 [ 	]*[a-f0-9]+:	c5 ff e6 e4          	vcvtpd2dq xmm4,ymm4
 [ 	]*[a-f0-9]+:	c5 ff e6 21          	vcvtpd2dq xmm4,YMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c5 fd 5a e4          	vcvtpd2ps xmm4,ymm4
@@ -291,6 +298,22 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 cd c6 11 07       	vshufpd ymm2,ymm6,YMMWORD PTR \[ecx\],0x7
 [ 	]*[a-f0-9]+:	c5 cc c6 d4 07       	vshufps ymm2,ymm6,ymm4,0x7
 [ 	]*[a-f0-9]+:	c5 cc c6 11 07       	vshufps ymm2,ymm6,YMMWORD PTR \[ecx\],0x7
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce f4 ab    	vgf2p8affineqb ymm6,ymm5,ymm4,0xab
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce f4 7b    	vgf2p8affineqb ymm6,ymm5,ymm4,0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce 31 7b    	vgf2p8affineqb ymm6,ymm5,YMMWORD PTR \[ecx\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce b4 f4 c0 1d fe ff 7b 	vgf2p8affineqb ymm6,ymm5,YMMWORD PTR \[esp\+esi\*8-0x1e240\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce b2 e0 0f 00 00 7b 	vgf2p8affineqb ymm6,ymm5,YMMWORD PTR \[edx\+0xfe0\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce b2 00 10 00 00 7b 	vgf2p8affineqb ymm6,ymm5,YMMWORD PTR \[edx\+0x1000\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce b2 00 f0 ff ff 7b 	vgf2p8affineqb ymm6,ymm5,YMMWORD PTR \[edx-0x1000\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce b2 e0 ef ff ff 7b 	vgf2p8affineqb ymm6,ymm5,YMMWORD PTR \[edx-0x1020\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf f4 ab    	vgf2p8affineinvqb ymm6,ymm5,ymm4,0xab
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf f4 7b    	vgf2p8affineinvqb ymm6,ymm5,ymm4,0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf 31 7b    	vgf2p8affineinvqb ymm6,ymm5,YMMWORD PTR \[ecx\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf b4 f4 c0 1d fe ff 7b 	vgf2p8affineinvqb ymm6,ymm5,YMMWORD PTR \[esp\+esi\*8-0x1e240\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf b2 e0 0f 00 00 7b 	vgf2p8affineinvqb ymm6,ymm5,YMMWORD PTR \[edx\+0xfe0\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf b2 00 10 00 00 7b 	vgf2p8affineinvqb ymm6,ymm5,YMMWORD PTR \[edx\+0x1000\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf b2 00 f0 ff ff 7b 	vgf2p8affineinvqb ymm6,ymm5,YMMWORD PTR \[edx-0x1000\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf b2 e0 ef ff ff 7b 	vgf2p8affineinvqb ymm6,ymm5,YMMWORD PTR \[edx-0x1020\],0x7b
 [ 	]*[a-f0-9]+:	c4 e3 6d 4b fe 40    	vblendvpd ymm7,ymm2,ymm6,ymm4
 [ 	]*[a-f0-9]+:	c4 e3 6d 4b 39 40    	vblendvpd ymm7,ymm2,YMMWORD PTR \[ecx\],ymm4
 [ 	]*[a-f0-9]+:	c4 e3 6d 4a fe 40    	vblendvps ymm7,ymm2,ymm6,ymm4
@@ -745,6 +768,13 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 c8 c2 39 1e       	vcmpgt_oqps xmm7,xmm6,XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c5 c8 c2 d4 1f       	vcmptrue_usps xmm2,xmm6,xmm4
 [ 	]*[a-f0-9]+:	c5 c8 c2 39 1f       	vcmptrue_usps xmm7,xmm6,XMMWORD PTR \[ecx\]
+[ 	]*[a-f0-9]+:	c4 e2 51 cf f4       	vgf2p8mulb xmm6,xmm5,xmm4
+[ 	]*[a-f0-9]+:	c4 e2 51 cf 31       	vgf2p8mulb xmm6,xmm5,XMMWORD PTR \[ecx\]
+[ 	]*[a-f0-9]+:	c4 e2 51 cf b4 f4 c0 1d fe ff 	vgf2p8mulb xmm6,xmm5,XMMWORD PTR \[esp\+esi\*8-0x1e240\]
+[ 	]*[a-f0-9]+:	c4 e2 51 cf b2 f0 07 00 00 	vgf2p8mulb xmm6,xmm5,XMMWORD PTR \[edx\+0x7f0\]
+[ 	]*[a-f0-9]+:	c4 e2 51 cf b2 00 08 00 00 	vgf2p8mulb xmm6,xmm5,XMMWORD PTR \[edx\+0x800\]
+[ 	]*[a-f0-9]+:	c4 e2 51 cf b2 00 f8 ff ff 	vgf2p8mulb xmm6,xmm5,XMMWORD PTR \[edx-0x800\]
+[ 	]*[a-f0-9]+:	c4 e2 51 cf b2 f0 f7 ff ff 	vgf2p8mulb xmm6,xmm5,XMMWORD PTR \[edx-0x810\]
 [ 	]*[a-f0-9]+:	c4 e2 59 2c 31       	vmaskmovps xmm6,xmm4,XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c4 e2 59 2d 31       	vmaskmovpd xmm6,xmm4,XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c4 e3 79 df f4 07    	vaeskeygenassist xmm6,xmm4,0x7
@@ -797,6 +827,22 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 c9 c6 11 07       	vshufpd xmm2,xmm6,XMMWORD PTR \[ecx\],0x7
 [ 	]*[a-f0-9]+:	c5 c8 c6 d4 07       	vshufps xmm2,xmm6,xmm4,0x7
 [ 	]*[a-f0-9]+:	c5 c8 c6 11 07       	vshufps xmm2,xmm6,XMMWORD PTR \[ecx\],0x7
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce f4 ab    	vgf2p8affineqb xmm6,xmm5,xmm4,0xab
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce f4 7b    	vgf2p8affineqb xmm6,xmm5,xmm4,0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce 31 7b    	vgf2p8affineqb xmm6,xmm5,XMMWORD PTR \[ecx\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce b4 f4 c0 1d fe ff 7b 	vgf2p8affineqb xmm6,xmm5,XMMWORD PTR \[esp\+esi\*8-0x1e240\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce b2 f0 07 00 00 7b 	vgf2p8affineqb xmm6,xmm5,XMMWORD PTR \[edx\+0x7f0\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce b2 00 08 00 00 7b 	vgf2p8affineqb xmm6,xmm5,XMMWORD PTR \[edx\+0x800\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce b2 00 f8 ff ff 7b 	vgf2p8affineqb xmm6,xmm5,XMMWORD PTR \[edx-0x800\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce b2 f0 f7 ff ff 7b 	vgf2p8affineqb xmm6,xmm5,XMMWORD PTR \[edx-0x810\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf f4 ab    	vgf2p8affineinvqb xmm6,xmm5,xmm4,0xab
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf f4 7b    	vgf2p8affineinvqb xmm6,xmm5,xmm4,0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf 31 7b    	vgf2p8affineinvqb xmm6,xmm5,XMMWORD PTR \[ecx\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf b4 f4 c0 1d fe ff 7b 	vgf2p8affineinvqb xmm6,xmm5,XMMWORD PTR \[esp\+esi\*8-0x1e240\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf b2 f0 07 00 00 7b 	vgf2p8affineinvqb xmm6,xmm5,XMMWORD PTR \[edx\+0x7f0\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf b2 00 08 00 00 7b 	vgf2p8affineinvqb xmm6,xmm5,XMMWORD PTR \[edx\+0x800\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf b2 00 f8 ff ff 7b 	vgf2p8affineinvqb xmm6,xmm5,XMMWORD PTR \[edx-0x800\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf b2 f0 f7 ff ff 7b 	vgf2p8affineinvqb xmm6,xmm5,XMMWORD PTR \[edx-0x810\],0x7b
 [ 	]*[a-f0-9]+:	c4 e3 69 4b fe 40    	vblendvpd xmm7,xmm2,xmm6,xmm4
 [ 	]*[a-f0-9]+:	c4 e3 69 4b 39 40    	vblendvpd xmm7,xmm2,XMMWORD PTR \[ecx\],xmm4
 [ 	]*[a-f0-9]+:	c4 e3 69 4a fe 40    	vblendvps xmm7,xmm2,xmm6,xmm4
@@ -1641,6 +1687,14 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 cc c2 d4 1f       	vcmptrue_usps ymm2,ymm6,ymm4
 [ 	]*[a-f0-9]+:	c5 cc c2 11 1f       	vcmptrue_usps ymm2,ymm6,YMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c5 cc c2 11 1f       	vcmptrue_usps ymm2,ymm6,YMMWORD PTR \[ecx\]
+[ 	]*[a-f0-9]+:	c4 e2 55 cf f4       	vgf2p8mulb ymm6,ymm5,ymm4
+[ 	]*[a-f0-9]+:	c4 e2 55 cf 31       	vgf2p8mulb ymm6,ymm5,YMMWORD PTR \[ecx\]
+[ 	]*[a-f0-9]+:	c4 e2 55 cf 31       	vgf2p8mulb ymm6,ymm5,YMMWORD PTR \[ecx\]
+[ 	]*[a-f0-9]+:	c4 e2 55 cf b4 f4 c0 1d fe ff 	vgf2p8mulb ymm6,ymm5,YMMWORD PTR \[esp\+esi\*8-0x1e240\]
+[ 	]*[a-f0-9]+:	c4 e2 55 cf b2 e0 0f 00 00 	vgf2p8mulb ymm6,ymm5,YMMWORD PTR \[edx\+0xfe0\]
+[ 	]*[a-f0-9]+:	c4 e2 55 cf b2 00 10 00 00 	vgf2p8mulb ymm6,ymm5,YMMWORD PTR \[edx\+0x1000\]
+[ 	]*[a-f0-9]+:	c4 e2 55 cf b2 00 f0 ff ff 	vgf2p8mulb ymm6,ymm5,YMMWORD PTR \[edx-0x1000\]
+[ 	]*[a-f0-9]+:	c4 e2 55 cf b2 e0 ef ff ff 	vgf2p8mulb ymm6,ymm5,YMMWORD PTR \[edx-0x1020\]
 [ 	]*[a-f0-9]+:	c5 ff e6 e4          	vcvtpd2dq xmm4,ymm4
 [ 	]*[a-f0-9]+:	c5 ff e6 21          	vcvtpd2dq xmm4,YMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c5 fd 5a e4          	vcvtpd2ps xmm4,ymm4
@@ -1754,6 +1808,24 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 cc c6 d4 07       	vshufps ymm2,ymm6,ymm4,0x7
 [ 	]*[a-f0-9]+:	c5 cc c6 11 07       	vshufps ymm2,ymm6,YMMWORD PTR \[ecx\],0x7
 [ 	]*[a-f0-9]+:	c5 cc c6 11 07       	vshufps ymm2,ymm6,YMMWORD PTR \[ecx\],0x7
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce f4 ab    	vgf2p8affineqb ymm6,ymm5,ymm4,0xab
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce f4 7b    	vgf2p8affineqb ymm6,ymm5,ymm4,0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce 31 7b    	vgf2p8affineqb ymm6,ymm5,YMMWORD PTR \[ecx\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce 31 7b    	vgf2p8affineqb ymm6,ymm5,YMMWORD PTR \[ecx\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce b4 f4 c0 1d fe ff 7b 	vgf2p8affineqb ymm6,ymm5,YMMWORD PTR \[esp\+esi\*8-0x1e240\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce b2 e0 0f 00 00 7b 	vgf2p8affineqb ymm6,ymm5,YMMWORD PTR \[edx\+0xfe0\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce b2 00 10 00 00 7b 	vgf2p8affineqb ymm6,ymm5,YMMWORD PTR \[edx\+0x1000\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce b2 00 f0 ff ff 7b 	vgf2p8affineqb ymm6,ymm5,YMMWORD PTR \[edx-0x1000\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 ce b2 e0 ef ff ff 7b 	vgf2p8affineqb ymm6,ymm5,YMMWORD PTR \[edx-0x1020\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf f4 ab    	vgf2p8affineinvqb ymm6,ymm5,ymm4,0xab
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf f4 7b    	vgf2p8affineinvqb ymm6,ymm5,ymm4,0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf 31 7b    	vgf2p8affineinvqb ymm6,ymm5,YMMWORD PTR \[ecx\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf 31 7b    	vgf2p8affineinvqb ymm6,ymm5,YMMWORD PTR \[ecx\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf b4 f4 c0 1d fe ff 7b 	vgf2p8affineinvqb ymm6,ymm5,YMMWORD PTR \[esp\+esi\*8-0x1e240\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf b2 e0 0f 00 00 7b 	vgf2p8affineinvqb ymm6,ymm5,YMMWORD PTR \[edx\+0xfe0\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf b2 00 10 00 00 7b 	vgf2p8affineinvqb ymm6,ymm5,YMMWORD PTR \[edx\+0x1000\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf b2 00 f0 ff ff 7b 	vgf2p8affineinvqb ymm6,ymm5,YMMWORD PTR \[edx-0x1000\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d5 cf b2 e0 ef ff ff 7b 	vgf2p8affineinvqb ymm6,ymm5,YMMWORD PTR \[edx-0x1020\],0x7b
 [ 	]*[a-f0-9]+:	c4 e3 6d 4b fe 40    	vblendvpd ymm7,ymm2,ymm6,ymm4
 [ 	]*[a-f0-9]+:	c4 e3 6d 4b 39 40    	vblendvpd ymm7,ymm2,YMMWORD PTR \[ecx\],ymm4
 [ 	]*[a-f0-9]+:	c4 e3 6d 4b 39 40    	vblendvpd ymm7,ymm2,YMMWORD PTR \[ecx\],ymm4
@@ -2435,6 +2507,14 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 c8 c2 d4 1f       	vcmptrue_usps xmm2,xmm6,xmm4
 [ 	]*[a-f0-9]+:	c5 c8 c2 39 1f       	vcmptrue_usps xmm7,xmm6,XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c5 c8 c2 39 1f       	vcmptrue_usps xmm7,xmm6,XMMWORD PTR \[ecx\]
+[ 	]*[a-f0-9]+:	c4 e2 51 cf f4       	vgf2p8mulb xmm6,xmm5,xmm4
+[ 	]*[a-f0-9]+:	c4 e2 51 cf 31       	vgf2p8mulb xmm6,xmm5,XMMWORD PTR \[ecx\]
+[ 	]*[a-f0-9]+:	c4 e2 51 cf 31       	vgf2p8mulb xmm6,xmm5,XMMWORD PTR \[ecx\]
+[ 	]*[a-f0-9]+:	c4 e2 51 cf b4 f4 c0 1d fe ff 	vgf2p8mulb xmm6,xmm5,XMMWORD PTR \[esp\+esi\*8-0x1e240\]
+[ 	]*[a-f0-9]+:	c4 e2 51 cf b2 f0 07 00 00 	vgf2p8mulb xmm6,xmm5,XMMWORD PTR \[edx\+0x7f0\]
+[ 	]*[a-f0-9]+:	c4 e2 51 cf b2 00 08 00 00 	vgf2p8mulb xmm6,xmm5,XMMWORD PTR \[edx\+0x800\]
+[ 	]*[a-f0-9]+:	c4 e2 51 cf b2 00 f8 ff ff 	vgf2p8mulb xmm6,xmm5,XMMWORD PTR \[edx-0x800\]
+[ 	]*[a-f0-9]+:	c4 e2 51 cf b2 f0 f7 ff ff 	vgf2p8mulb xmm6,xmm5,XMMWORD PTR \[edx-0x810\]
 [ 	]*[a-f0-9]+:	c4 e2 59 2c 31       	vmaskmovps xmm6,xmm4,XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c4 e2 59 2c 31       	vmaskmovps xmm6,xmm4,XMMWORD PTR \[ecx\]
 [ 	]*[a-f0-9]+:	c4 e2 59 2d 31       	vmaskmovpd xmm6,xmm4,XMMWORD PTR \[ecx\]
@@ -2515,6 +2595,24 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 c8 c6 d4 07       	vshufps xmm2,xmm6,xmm4,0x7
 [ 	]*[a-f0-9]+:	c5 c8 c6 11 07       	vshufps xmm2,xmm6,XMMWORD PTR \[ecx\],0x7
 [ 	]*[a-f0-9]+:	c5 c8 c6 11 07       	vshufps xmm2,xmm6,XMMWORD PTR \[ecx\],0x7
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce f4 ab    	vgf2p8affineqb xmm6,xmm5,xmm4,0xab
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce f4 7b    	vgf2p8affineqb xmm6,xmm5,xmm4,0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce 31 7b    	vgf2p8affineqb xmm6,xmm5,XMMWORD PTR \[ecx\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce 31 7b    	vgf2p8affineqb xmm6,xmm5,XMMWORD PTR \[ecx\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce b4 f4 c0 1d fe ff 7b 	vgf2p8affineqb xmm6,xmm5,XMMWORD PTR \[esp\+esi\*8-0x1e240\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce b2 f0 07 00 00 7b 	vgf2p8affineqb xmm6,xmm5,XMMWORD PTR \[edx\+0x7f0\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce b2 00 08 00 00 7b 	vgf2p8affineqb xmm6,xmm5,XMMWORD PTR \[edx\+0x800\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce b2 00 f8 ff ff 7b 	vgf2p8affineqb xmm6,xmm5,XMMWORD PTR \[edx-0x800\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 ce b2 f0 f7 ff ff 7b 	vgf2p8affineqb xmm6,xmm5,XMMWORD PTR \[edx-0x810\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf f4 ab    	vgf2p8affineinvqb xmm6,xmm5,xmm4,0xab
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf f4 7b    	vgf2p8affineinvqb xmm6,xmm5,xmm4,0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf 31 7b    	vgf2p8affineinvqb xmm6,xmm5,XMMWORD PTR \[ecx\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf 31 7b    	vgf2p8affineinvqb xmm6,xmm5,XMMWORD PTR \[ecx\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf b4 f4 c0 1d fe ff 7b 	vgf2p8affineinvqb xmm6,xmm5,XMMWORD PTR \[esp\+esi\*8-0x1e240\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf b2 f0 07 00 00 7b 	vgf2p8affineinvqb xmm6,xmm5,XMMWORD PTR \[edx\+0x7f0\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf b2 00 08 00 00 7b 	vgf2p8affineinvqb xmm6,xmm5,XMMWORD PTR \[edx\+0x800\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf b2 00 f8 ff ff 7b 	vgf2p8affineinvqb xmm6,xmm5,XMMWORD PTR \[edx-0x800\],0x7b
+[ 	]*[a-f0-9]+:	c4 e3 d1 cf b2 f0 f7 ff ff 7b 	vgf2p8affineinvqb xmm6,xmm5,XMMWORD PTR \[edx-0x810\],0x7b
 [ 	]*[a-f0-9]+:	c4 e3 69 4b fe 40    	vblendvpd xmm7,xmm2,xmm6,xmm4
 [ 	]*[a-f0-9]+:	c4 e3 69 4b 39 40    	vblendvpd xmm7,xmm2,XMMWORD PTR \[ecx\],xmm4
 [ 	]*[a-f0-9]+:	c4 e3 69 4b 39 40    	vblendvpd xmm7,xmm2,XMMWORD PTR \[ecx\],xmm4

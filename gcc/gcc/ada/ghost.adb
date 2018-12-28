@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2014-2016, Free Software Foundation, Inc.         --
+--          Copyright (C) 2014-2018, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,7 +23,7 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Alloc;    use Alloc;
+with Alloc;
 with Aspects;  use Aspects;
 with Atree;    use Atree;
 with Einfo;    use Einfo;
@@ -281,6 +281,13 @@ package body Ghost is
                   if Chars (Subp_Id) = Name_uPostconditions then
                      return True;
 
+                  --  The context is the internally built predicate function,
+                  --  which is OK because the real check was done before the
+                  --  predicate function was generated.
+
+                  elsif Is_Predicate_Function (Subp_Id) then
+                     return True;
+
                   else
                      Subp_Decl :=
                        Original_Node (Unit_Declaration_Node (Subp_Id));
@@ -362,10 +369,12 @@ package body Ghost is
                   return True;
 
                --  An assertion expression pragma is Ghost when it contains a
-               --  reference to a Ghost entity (SPARK RM 6.9(10)).
+               --  reference to a Ghost entity (SPARK RM 6.9(10)), except for
+               --  predicate pragmas (SPARK RM 6.9(11)).
 
-               elsif Assertion_Expression_Pragma (Prag_Id) then
-
+               elsif Assertion_Expression_Pragma (Prag_Id)
+                 and then Prag_Id /= Pragma_Predicate
+               then
                   --  Ensure that the assertion policy and the Ghost policy are
                   --  compatible (SPARK RM 6.9(18)).
 
@@ -464,9 +473,16 @@ package body Ghost is
                   return True;
 
                --  A reference to a Ghost entity can appear within an aspect
-               --  specification (SPARK RM 6.9(10)).
+               --  specification (SPARK RM 6.9(10)). The precise checking will
+               --  occur when analyzing the corresponding pragma. We make an
+               --  exception for predicate aspects that only allow referencing
+               --  a Ghost entity when the corresponding type declaration is
+               --  Ghost (SPARK RM 6.9(11)).
 
-               elsif Nkind (Par) = N_Aspect_Specification then
+               elsif Nkind (Par) = N_Aspect_Specification
+                 and then not Same_Aspect
+                                (Get_Aspect_Id (Par), Aspect_Predicate)
+               then
                   return True;
 
                elsif Is_OK_Declaration (Par) then
@@ -790,6 +806,42 @@ package body Ghost is
       end if;
    end Check_Ghost_Refinement;
 
+   ----------------------
+   -- Check_Ghost_Type --
+   ----------------------
+
+   procedure Check_Ghost_Type (Typ : Entity_Id) is
+      Conc_Typ : Entity_Id;
+      Full_Typ : Entity_Id;
+
+   begin
+      if Is_Ghost_Entity (Typ) then
+         Conc_Typ := Empty;
+         Full_Typ := Typ;
+
+         if Is_Single_Concurrent_Type (Typ) then
+            Conc_Typ := Anonymous_Object (Typ);
+            Full_Typ := Conc_Typ;
+
+         elsif Is_Concurrent_Type (Typ) then
+            Conc_Typ := Typ;
+         end if;
+
+         --  A Ghost type cannot be concurrent (SPARK RM 6.9(19)). Verify this
+         --  legality rule first to give a finer-grained diagnostic.
+
+         if Present (Conc_Typ) then
+            Error_Msg_N ("ghost type & cannot be concurrent", Conc_Typ);
+         end if;
+
+         --  A Ghost type cannot be effectively volatile (SPARK RM 6.9(7))
+
+         if Is_Effectively_Volatile (Full_Typ) then
+            Error_Msg_N ("ghost type & cannot be volatile", Full_Typ);
+         end if;
+      end if;
+   end Check_Ghost_Type;
+
    ------------------
    -- Ghost_Entity --
    ------------------
@@ -1091,25 +1143,18 @@ package body Ghost is
 
    procedure Lock is
    begin
-      Ignored_Ghost_Units.Locked := True;
       Ignored_Ghost_Units.Release;
+      Ignored_Ghost_Units.Locked := True;
    end Lock;
 
    -----------------------------------
    -- Mark_And_Set_Ghost_Assignment --
    -----------------------------------
 
-   procedure Mark_And_Set_Ghost_Assignment
-     (N    : Node_Id;
-      Mode : out Ghost_Mode_Type)
-   is
+   procedure Mark_And_Set_Ghost_Assignment (N : Node_Id) is
       Id : Entity_Id;
 
    begin
-      --  Save the previous Ghost mode in effect
-
-      Mode := Ghost_Mode;
-
       --  An assignment statement becomes Ghost when its target denotes a Ghost
       --  object. Install the Ghost mode of the target.
 
@@ -1134,17 +1179,12 @@ package body Ghost is
 
    procedure Mark_And_Set_Ghost_Body
      (N       : Node_Id;
-      Spec_Id : Entity_Id;
-      Mode    : out Ghost_Mode_Type)
+      Spec_Id : Entity_Id)
    is
       Body_Id : constant Entity_Id := Defining_Entity (N);
       Policy  : Name_Id := No_Name;
 
    begin
-      --  Save the previous Ghost mode in effect
-
-      Mode := Ghost_Mode;
-
       --  A body becomes Ghost when it is subject to aspect or pragma Ghost
 
       if Is_Subject_To_Ghost (N) then
@@ -1193,17 +1233,12 @@ package body Ghost is
 
    procedure Mark_And_Set_Ghost_Completion
      (N       : Node_Id;
-      Prev_Id : Entity_Id;
-      Mode    : out Ghost_Mode_Type)
+      Prev_Id : Entity_Id)
    is
       Compl_Id : constant Entity_Id := Defining_Entity (N);
       Policy   : Name_Id := No_Name;
 
    begin
-      --  Save the previous Ghost mode in effect
-
-      Mode := Ghost_Mode;
-
       --  A completion elaborated in a Ghost region is automatically Ghost
       --  (SPARK RM 6.9(2)).
 
@@ -1243,18 +1278,11 @@ package body Ghost is
    -- Mark_And_Set_Ghost_Declaration --
    ------------------------------------
 
-   procedure Mark_And_Set_Ghost_Declaration
-     (N    : Node_Id;
-      Mode : out Ghost_Mode_Type)
-   is
+   procedure Mark_And_Set_Ghost_Declaration (N : Node_Id) is
       Par_Id : Entity_Id;
       Policy : Name_Id := No_Name;
 
    begin
-      --  Save the previous Ghost mode in effect
-
-      Mode := Ghost_Mode;
-
       --  A declaration becomes Ghost when it is subject to aspect or pragma
       --  Ghost.
 
@@ -1309,16 +1337,48 @@ package body Ghost is
 
    procedure Mark_And_Set_Ghost_Instantiation
      (N      : Node_Id;
-      Gen_Id : Entity_Id;
-      Mode   : out Ghost_Mode_Type)
+      Gen_Id : Entity_Id)
    is
+      procedure Check_Ghost_Actuals;
+      --  Check the context of ghost actuals
+
+      -------------------------
+      -- Check_Ghost_Actuals --
+      -------------------------
+
+      procedure Check_Ghost_Actuals is
+         Assoc : Node_Id := First (Generic_Associations (N));
+         Act   : Node_Id;
+
+      begin
+         while Present (Assoc) loop
+            if Nkind (Assoc) /= N_Others_Choice then
+               Act := Explicit_Generic_Actual_Parameter (Assoc);
+
+               --  Within a nested instantiation, a defaulted actual is an
+               --  empty association, so nothing to check.
+
+               if No (Act) then
+                  null;
+
+               elsif Comes_From_Source (Act)
+                  and then Nkind (Act) in N_Has_Etype
+                  and then Present (Etype (Act))
+                  and then Is_Ghost_Entity (Etype (Act))
+               then
+                  Check_Ghost_Context (Etype (Act), Act);
+               end if;
+            end if;
+
+            Next (Assoc);
+         end loop;
+      end Check_Ghost_Actuals;
+
+      --  Local variables
+
       Policy : Name_Id := No_Name;
 
    begin
-      --  Save the previous Ghost mode in effect
-
-      Mode := Ghost_Mode;
-
       --  An instantiation becomes Ghost when it is subject to pragma Ghost
 
       if Is_Subject_To_Ghost (N) then
@@ -1349,23 +1409,23 @@ package body Ghost is
       --  Install the appropriate Ghost mode
 
       Install_Ghost_Mode (Policy);
+
+      --  Check ghost actuals. Given that this routine is unconditionally
+      --  invoked with subprogram and package instantiations, this check
+      --  verifies the context of all the ghost entities passed in generic
+      --  instantiations.
+
+      Check_Ghost_Actuals;
    end Mark_And_Set_Ghost_Instantiation;
 
    ---------------------------------------
    -- Mark_And_Set_Ghost_Procedure_Call --
    ---------------------------------------
 
-   procedure Mark_And_Set_Ghost_Procedure_Call
-     (N    : Node_Id;
-      Mode : out Ghost_Mode_Type)
-   is
+   procedure Mark_And_Set_Ghost_Procedure_Call (N : Node_Id) is
       Id : Entity_Id;
 
    begin
-      --  Save the previous Ghost mode in effect
-
-      Mode := Ghost_Mode;
-
       --  A procedure call becomes Ghost when the procedure being invoked is
       --  Ghost. Install the Ghost mode of the procedure.
 
@@ -1453,10 +1513,10 @@ package body Ghost is
 
    begin
       if Nkind (N) = N_Use_Package_Clause then
-         Nam := First (Names (N));
+         Nam := Name (N);
 
       elsif Nkind (N) = N_Use_Type_Clause then
-         Nam := First (Subtype_Marks (N));
+         Nam := Subtype_Mark (N);
 
       elsif Nkind (N) = N_With_Clause then
          Nam := Name (N);
@@ -1695,10 +1755,7 @@ package body Ghost is
    -- Set_Ghost_Mode --
    --------------------
 
-   procedure Set_Ghost_Mode
-     (N    : Node_Or_Entity_Id;
-      Mode : out Ghost_Mode_Type)
-   is
+   procedure Set_Ghost_Mode (N : Node_Or_Entity_Id) is
       procedure Set_Ghost_Mode_From_Entity (Id : Entity_Id);
       --  Install the Ghost mode of entity Id
 
@@ -1724,10 +1781,6 @@ package body Ghost is
    --  Start of processing for Set_Ghost_Mode
 
    begin
-      --  Save the previous Ghost mode in effect
-
-      Mode := Ghost_Mode;
-
       --  The Ghost mode of an assignment statement depends on the Ghost mode
       --  of the target.
 

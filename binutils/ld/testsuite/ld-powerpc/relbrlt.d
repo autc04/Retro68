@@ -1,6 +1,6 @@
 #source: relbrlt.s
 #as: -a64
-#ld: -melf64ppc --no-ld-generated-unwind-info --emit-relocs
+#ld: -melf64ppc --no-plt-align --no-ld-generated-unwind-info --emit-relocs
 #objdump: -Dr
 
 .*

@@ -16,11 +16,11 @@ Section Headers:
  +\[[ 0-9]+\] .dynsym +.*
  +\[[ 0-9]+\] .dynstr +.*
  +\[[ 0-9]+\] .rela.dyn +.*
- +\[[ 0-9]+\] .tdata +PROGBITS +0+100303b0 [0-9a-f]+ 0+60 00 WAT +0 +0 +1
- +\[[ 0-9]+\] .tbss +NOBITS +0+10030410 [0-9a-f]+ 0+40 00 WAT +0 +0 +1
- +\[[ 0-9]+\] .dynamic +DYNAMIC +0+10030410 [0-9a-f]+ 0+100 10 +WA +5 +0 +8
- +\[[ 0-9]+\] .got +PROGBITS +0+10030510 [0-9a-f]+ 0+28 08 +WA +0 +0 +8
- +\[[ 0-9]+\] .got.plt +PROGBITS +0+10030538 [0-9a-f]+ 0+18 08 +WA +0 +0 +8
+ +\[[ 0-9]+\] .tdata +PROGBITS +0+10030348 [0-9a-f]+ 0+60 00 WAT +0 +0 +1
+ +\[[ 0-9]+\] .tbss +NOBITS +0+100303a8 [0-9a-f]+ 0+40 00 WAT +0 +0 +1
+ +\[[ 0-9]+\] .dynamic +DYNAMIC +0+100303a8 [0-9a-f]+ 0+100 10 +WA +5 +0 +8
+ +\[[ 0-9]+\] .got +PROGBITS +0+100304a8 [0-9a-f]+ 0+28 08 +WA +0 +0 +8
+ +\[[ 0-9]+\] .got.plt +PROGBITS +0+100304d0 [0-9a-f]+ 0+18 08 +WA +0 +0 +8
  +\[[ 0-9]+\] .symtab +.*
  +\[[ 0-9]+\] .strtab +.*
  +\[[ 0-9]+\] .shstrtab +.*
@@ -37,10 +37,10 @@ Program Headers:
  +INTERP.*
 .*Requesting program interpreter.*
  +LOAD +0x0+10000 0x0+20000 0x0+20000 0x0+10000 0x0+10000 R E +0x10000
- +LOAD +0x0+ 0x0+10020000 0x0+10020000 0x0+3b0 0x0+3b0 R +0x10000
- +LOAD +0x0+3b0 0x0+100303b0 0x0+100303b0 0x0+1a0 0x0+1a0 RW +0x10000
- +DYNAMIC +0x0+410 0x0+10030410 0x0+10030410 0x0+100 0x0+100 RW +0x8
- +TLS +0x0+3b0 0x0+100303b0 0x0+100303b0 0x0+60 0x0+a0 R +0x1
+ +LOAD +0x0+ 0x0+10020000 0x0+10020000 0x0+348 0x0+348 R +0x10000
+ +LOAD +0x0+348 0x0+10030348 0x0+10030348 0x0+1a0 0x0+1a0 RW +0x10000
+ +DYNAMIC +0x0+3a8 0x0+100303a8 0x0+100303a8 0x0+100 0x0+100 RW +0x8
+ +TLS +0x0+348 0x0+10030348 0x0+10030348 0x0+60 0x0+a0 R +0x1
 
  Section to Segment mapping:
  +Segment Sections...
@@ -66,11 +66,8 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* TLS +GLOBAL +DEFAULT +UND sG5
 .* TLS +GLOBAL +DEFAULT +UND sG2
 .* FUNC +GLOBAL +DEFAULT +UND __tls_get_addr
-.* NOTYPE +GLOBAL +DEFAULT +11 __bss_start
 .* TLS +GLOBAL +DEFAULT +UND sG6
 .* TLS +GLOBAL +DEFAULT +UND sG1
-.* NOTYPE +GLOBAL +DEFAULT +11 _edata
-.* NOTYPE +GLOBAL +DEFAULT +11 _end
 
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name

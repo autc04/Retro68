@@ -35,7 +35,7 @@ There are [0-9]+ program headers, starting at offset [0-9]+
 
 Program Headers:
   Type +Offset +VirtAddr +PhysAddr +FileSiz +MemSiz +Flg Align
-  PHDR +0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x0+150 R E 0x8
+  PHDR +0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x0+150 R +0x8
   INTERP +0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ R +0x1
 .*Requesting program interpreter.*
   LOAD +0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ R E 0x10000
@@ -50,7 +50,7 @@ Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 3 entries:
 [0-9a-f]+  [0-9a-f]+ R_ALPHA_DTPMOD64 +0+ sG1 \+ 0
 [0-9a-f]+  [0-9a-f]+ R_ALPHA_DTPREL64 +0+ sG1 \+ 0
 
-Relocation section '.rela.plt' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '.rela.plt' at offset 0x[0-9a-f]+ contains 1 entry:
  +Offset +Info +Type +Symbol's Value  Symbol's Name \+ Addend
 [0-9a-f]+  [0-9a-f]+ R_ALPHA_JMP_SLOT +[0-9a-f]+ __tls_get_addr \+ 0
 
@@ -59,10 +59,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 [0-9 ]+: [0-9a-f]+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
 [0-9 ]+: [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +UND sG2
 [0-9 ]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +UND __tls_get_addr
-[0-9 ]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +13 __bss_start
 [0-9 ]+: [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +UND sG1
-[0-9 ]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +13 _edata
-[0-9 ]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +13 _end
 
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name

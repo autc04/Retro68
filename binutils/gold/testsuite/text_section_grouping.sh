@@ -2,7 +2,7 @@
 
 # text_section_grouping.sh -- test
 
-# Copyright (C) 2012-2017 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 # Written by Sriraman Tallam <tmsriram@google.com>.
 
 # This file is part of gold.

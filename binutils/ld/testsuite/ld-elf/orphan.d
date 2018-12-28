@@ -1,7 +1,7 @@
 #source: orphan.s
 #ld: -T orphan.ld
 #readelf: -S --wide
-#xfail: d30v-*-* dlx-*-* fr30-*-* frv-*-elf ft32-*-* i860-*-* i960-*-*
+#xfail: d30v-*-* dlx-*-* fr30-*-* frv-*-elf ft32-*-*
 #xfail: iq*-*-* mn10200-*-* moxie-*-* msp*-*-* mt-*-* pj*-*-*
 # if not using elf32.em, you don't get fancy orphan handling
 

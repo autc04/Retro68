@@ -1,7 +1,7 @@
 #source: expdyn1.s
 #source: expdref1.s --pic
 #as: --no-underscore --em=criself
-#ld: -m crislinux --export-dynamic tmpdir/libdso-1.so
+#ld: -m crislinux --export-dynamic tmpdir/libdso-1.so --hash-style=sysv
 #objdump: -s -j .got
 
 # Like expdyn2.d, but testing that the .got contents is correct.  There

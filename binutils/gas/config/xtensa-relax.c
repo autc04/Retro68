@@ -1,5 +1,5 @@
 /* Table of relaxations for Xtensa assembly.
-   Copyright (C) 2003-2017 Free Software Foundation, Inc.
+   Copyright (C) 2003-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -1764,7 +1764,9 @@ build_transition (insn_pattern *initial_insn,
 	  /* Check for the right number of ops.  */
 	  if (xtensa_opcode_num_operands (isa, bi->opcode)
 	      != (int) operand_count)
-	    as_fatal (_("opcode '%s': replacement does not have %d ops"),
+	    as_fatal (ngettext ("opcode '%s': replacement does not have %d op",
+				"opcode '%s': replacement does not have %d ops",
+				xtensa_opcode_num_operands (isa, bi->opcode)),
 		      opcode_name,
 		      xtensa_opcode_num_operands (isa, bi->opcode));
 	}

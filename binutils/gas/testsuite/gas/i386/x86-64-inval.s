@@ -115,3 +115,4 @@ movnti word ptr [rax], ax
 	jmpd [r8]	# 32-bit data size not allowed
 	jmpd [rax]	# 32-bit data size not allowed
 	jmpq [ax]	# no 16-bit addressing
+	mov eax,[rax+0x876543210] # out of range displacement

@@ -1,5 +1,5 @@
 /* Support for the generic parts of PE/PEI; the common executable parts.
-   Copyright (C) 1995-2017 Free Software Foundation, Inc.
+   Copyright (C) 1995-2018 Free Software Foundation, Inc.
    Written by Cygnus Solutions.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -154,7 +154,7 @@ _bfd_XXi_swap_sym_in (bfd * abfd, void * ext1, void * in1)
 	  name = _bfd_coff_internal_syment_name (abfd, in, namebuf);
 	  if (name == NULL)
 	    {
-	      _bfd_error_handler (_("%B: unable to find name for empty section"),
+	      _bfd_error_handler (_("%pB: unable to find name for empty section"),
 				  abfd);
 	      bfd_set_error (bfd_error_invalid_target);
 	      return;
@@ -180,7 +180,7 @@ _bfd_XXi_swap_sym_in (bfd * abfd, void * ext1, void * in1)
 	      name = (const char *) bfd_alloc (abfd, strlen (namebuf) + 1);
 	      if (name == NULL)
 		{
-		  _bfd_error_handler (_("%B: out of memory creating name for empty section"),
+		  _bfd_error_handler (_("%pB: out of memory creating name for empty section"),
 				      abfd);
 		  return;
 		}
@@ -191,7 +191,7 @@ _bfd_XXi_swap_sym_in (bfd * abfd, void * ext1, void * in1)
 	  sec = bfd_make_section_anyway_with_flags (abfd, name, flags);
 	  if (sec == NULL)
 	    {
-	      _bfd_error_handler (_("%B: unable to create fake empty section"),
+	      _bfd_error_handler (_("%pB: unable to create fake empty section"),
 				  abfd);
 	      return;
 	    }
@@ -294,7 +294,7 @@ _bfd_XXi_swap_aux_in (bfd *	abfd,
 		      int       in_class,
 		      int	indx ATTRIBUTE_UNUSED,
 		      int	numaux ATTRIBUTE_UNUSED,
-		      void * 	in1)
+		      void *	in1)
 {
   AUXENT *ext = (AUXENT *) ext1;
   union internal_auxent *in = (union internal_auxent *) in1;
@@ -529,7 +529,7 @@ _bfd_XXi_swap_aouthdr_in (bfd * abfd,
       {
 	/* xgettext:c-format */
 	_bfd_error_handler
-	  (_("%B: aout header specifies an invalid number of data-directory entries: %d"),
+	  (_("%pB: aout header specifies an invalid number of data-directory entries: %ld"),
 	   abfd, a->NumberOfRvaAndSizes);
 	bfd_set_error (bfd_error_bad_value);
 
@@ -540,7 +540,7 @@ _bfd_XXi_swap_aouthdr_in (bfd * abfd,
 
     for (idx = 0; idx < a->NumberOfRvaAndSizes; idx++)
       {
-        /* If data directory is empty, rva also should be 0.  */
+	/* If data directory is empty, rva also should be 0.  */
 	int size =
 	  H_GET_32 (abfd, src->DataDirectory[idx][1]);
 
@@ -828,7 +828,7 @@ _bfd_XXi_only_swap_filehdr_out (bfd * abfd, void * in, void * out)
   if (pe_data (abfd)->dll)
     filehdr_in->f_flags |= F_DLL;
 
-  filehdr_in->pe.e_magic    = DOSMAGIC;
+  filehdr_in->pe.e_magic    = IMAGE_DOS_SIGNATURE;
   filehdr_in->pe.e_cblp     = 0x90;
   filehdr_in->pe.e_cp       = 0x3;
   filehdr_in->pe.e_crlc     = 0x0;
@@ -872,7 +872,7 @@ _bfd_XXi_only_swap_filehdr_out (bfd * abfd, void * in, void * out)
   filehdr_in->pe.dos_message[13] = 0x0a0d0d2e;
   filehdr_in->pe.dos_message[14] = 0x24;
   filehdr_in->pe.dos_message[15] = 0x0;
-  filehdr_in->pe.nt_signature = NT_SIGNATURE;
+  filehdr_in->pe.nt_signature = IMAGE_NT_SIGNATURE;
 
   H_PUT_16 (abfd, filehdr_in->f_magic, filehdr_out->f_magic);
   H_PUT_16 (abfd, filehdr_in->f_nscns, filehdr_out->f_nscns);
@@ -974,8 +974,8 @@ _bfd_XXi_swap_scnhdr_out (bfd * abfd, void * in, void * out)
 	}
       else
        {
-         ps = 0;
-         ss = scnhdr_int->s_size;
+	 ps = 0;
+	 ss = scnhdr_int->s_size;
        }
     }
   else
@@ -1018,7 +1018,7 @@ _bfd_XXi_swap_scnhdr_out (bfd * abfd, void * in, void * out)
 
     typedef struct
     {
-      const char * 	section_name;
+      char section_name[SCNNMLEN];
       unsigned long	must_have;
     }
     pe_required_section_flags;
@@ -1037,7 +1037,6 @@ _bfd_XXi_swap_scnhdr_out (bfd * abfd, void * in, void * out)
 	{ ".text" , IMAGE_SCN_MEM_READ | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE },
 	{ ".tls",   IMAGE_SCN_MEM_READ | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_WRITE },
 	{ ".xdata", IMAGE_SCN_MEM_READ | IMAGE_SCN_CNT_INITIALIZED_DATA },
-	{ NULL, 0}
       };
 
     pe_required_section_flags * p;
@@ -1050,10 +1049,12 @@ _bfd_XXi_swap_scnhdr_out (bfd * abfd, void * in, void * out)
        by ld --enable-auto-import (if auto-import is actually needed),
        by ld --omagic, or by obcopy --writable-text.  */
 
-    for (p = known_sections; p->section_name; p++)
-      if (strcmp (scnhdr_int->s_name, p->section_name) == 0)
+    for (p = known_sections;
+	 p < known_sections + ARRAY_SIZE (known_sections);
+	 p++)
+      if (memcmp (scnhdr_int->s_name, p->section_name, SCNNMLEN) == 0)
 	{
-	  if (strcmp (scnhdr_int->s_name, ".text")
+	  if (memcmp (scnhdr_int->s_name, ".text", sizeof ".text")
 	      || (bfd_get_file_flags (abfd) & WP_TEXT))
 	    scnhdr_int->s_flags &= ~IMAGE_SCN_MEM_WRITE;
 	  scnhdr_int->s_flags |= p->must_have;
@@ -1066,7 +1067,7 @@ _bfd_XXi_swap_scnhdr_out (bfd * abfd, void * in, void * out)
   if (coff_data (abfd)->link_info
       && ! bfd_link_relocatable (coff_data (abfd)->link_info)
       && ! bfd_link_pic (coff_data (abfd)->link_info)
-      && strcmp (scnhdr_int->s_name, ".text") == 0)
+      && memcmp (scnhdr_int->s_name, ".text", sizeof ".text") == 0)
     {
       /* By inference from looking at MS output, the 32 bit field
 	 which is the combination of the number_of_relocs and
@@ -1086,7 +1087,7 @@ _bfd_XXi_swap_scnhdr_out (bfd * abfd, void * in, void * out)
       else
 	{
 	  /* xgettext:c-format */
-	  _bfd_error_handler (_("%B: line number overflow: 0x%lx > 0xffff"),
+	  _bfd_error_handler (_("%pB: line number overflow: 0x%lx > 0xffff"),
 			      abfd, scnhdr_int->s_nlnno);
 	  bfd_set_error (bfd_error_file_truncated);
 	  H_PUT_16 (abfd, 0xffff, scnhdr_ext->s_nlnno);
@@ -1094,9 +1095,9 @@ _bfd_XXi_swap_scnhdr_out (bfd * abfd, void * in, void * out)
 	}
 
       /* Although we could encode 0xffff relocs here, we do not, to be
-         consistent with other parts of bfd. Also it lets us warn, as
-         we should never see 0xffff here w/o having the overflow flag
-         set.  */
+	 consistent with other parts of bfd. Also it lets us warn, as
+	 we should never see 0xffff here w/o having the overflow flag
+	 set.  */
       if (scnhdr_int->s_nreloc < 0xffff)
 	H_PUT_16 (abfd, scnhdr_int->s_nreloc, scnhdr_ext->s_nreloc);
       else
@@ -1169,8 +1170,8 @@ _bfd_XXi_slurp_codeview_record (bfd * abfd, file_ptr where, unsigned long length
       cvinfo->Age = H_GET_32(abfd, cvinfo70->Age);
 
       /* A GUID consists of 4,2,2 byte values in little-endian order, followed
-         by 8 single bytes.  Byte swap them so we can conveniently treat the GUID
-         as 16 bytes in big-endian order.  */
+	 by 8 single bytes.  Byte swap them so we can conveniently treat the GUID
+	 as 16 bytes in big-endian order.  */
       bfd_putb32 (bfd_getl32 (cvinfo70->Signature), cvinfo->Signature);
       bfd_putb16 (bfd_getl16 (&(cvinfo70->Signature[4])), &(cvinfo->Signature[4]));
       bfd_putb16 (bfd_getl16 (&(cvinfo70->Signature[6])), &(cvinfo->Signature[6]));
@@ -1182,7 +1183,7 @@ _bfd_XXi_slurp_codeview_record (bfd * abfd, file_ptr where, unsigned long length
       return cvinfo;
     }
   else if ((cvinfo->CVSignature == CVINFO_PDB20_CVSIGNATURE)
-           && (length > sizeof (CV_INFO_PDB20)))
+	   && (length > sizeof (CV_INFO_PDB20)))
     {
       CV_INFO_PDB20 *cvinfo20 = (CV_INFO_PDB20 *)(buffer);
       cvinfo->Age = H_GET_32(abfd, cvinfo20->Age);
@@ -1309,12 +1310,12 @@ pe_print_idata (bfd * abfd, void * vfile)
 	  return TRUE;
 	}
       else if (!(section->flags & SEC_HAS_CONTENTS))
-        {
+	{
 	  fprintf (file,
 		   _("\nThere is an import table in %s, but that section has no contents\n"),
 		   section->name);
 	  return TRUE;
-        }
+	}
     }
 
   /* xgettext:c-format */
@@ -1349,11 +1350,11 @@ pe_print_idata (bfd * abfd, void * vfile)
       offset = abfd->start_address - rel_section->vma;
 
       if (offset >= rel_section->size || offset + 8 > rel_section->size)
-        {
-          if (data != NULL)
-            free (data);
-          return FALSE;
-        }
+	{
+	  if (data != NULL)
+	    free (data);
+	  return FALSE;
+	}
 
       start_address = bfd_get_32 (abfd, data + offset);
       loadable_toc_address = bfd_get_32 (abfd, data + offset + 4);
@@ -1425,7 +1426,7 @@ pe_print_idata (bfd * abfd, void * vfile)
 	break;
 
       if (dll_name - adj >= section->size)
-        break;
+	break;
 
       dll = (char *) data + dll_name - adj;
       /* PR 17512 file: 078-12277-0.004.  */
@@ -1437,7 +1438,7 @@ pe_print_idata (bfd * abfd, void * vfile)
       if (hint_addr == 0)
 	hint_addr = first_thunk;
 
-      if (hint_addr != 0)
+      if (hint_addr != 0 && hint_addr - adj < datasize)
 	{
 	  bfd_byte *ft_data;
 	  asection *ft_section;
@@ -1514,7 +1515,7 @@ pe_print_idata (bfd * abfd, void * vfile)
 			 member_high, member,
 			 WithoutHighBit (member_high), member);
 	      /* PR binutils/17512: Handle corrupt PE data.  */
-	      else if (amt + 2 >= datasize)
+	      else if (amt >= datasize || amt + 2 >= datasize)
 		fprintf (file, _("\t<corrupt: 0x%04lx>"), member);
 	      else
 		{
@@ -1548,11 +1549,12 @@ pe_print_idata (bfd * abfd, void * vfile)
 		break;
 
 	      amt = member - adj;
+
 	      if (HighBitSet (member))
 		fprintf (file, "\t%04lx\t %4lu  <none>",
 			 member, WithoutHighBit (member));
 	      /* PR binutils/17512: Handle corrupt PE data.  */
-	      else if (amt + 2 >= datasize)
+	      else if (amt >= datasize || amt + 2 >= datasize)
 		fprintf (file, _("\t<corrupt: 0x%04lx>"), member);
 	      else
 		{
@@ -1602,14 +1604,14 @@ pe_print_edata (bfd * abfd, void * vfile)
   bfd_vma       adj;
   struct EDT_type
   {
-    long export_flags;          /* Reserved - should be zero.  */
+    long export_flags;		/* Reserved - should be zero.  */
     long time_stamp;
     short major_ver;
     short minor_ver;
-    bfd_vma name;               /* RVA - relative to image base.  */
-    long base;                  /* Ordinal base.  */
+    bfd_vma name;		/* RVA - relative to image base.  */
+    long base;			/* Ordinal base.  */
     unsigned long num_functions;/* Number in the export address table.  */
-    unsigned long num_names;    /* Number in the name pointer table.  */
+    unsigned long num_names;	/* Number in the name pointer table.  */
     bfd_vma eat_addr;		/* RVA to the export address table.  */
     bfd_vma npt_addr;		/* RVA to the Export Name Pointer Table.  */
     bfd_vma ot_addr;		/* RVA to the Ordinal Table.  */
@@ -1650,12 +1652,12 @@ pe_print_edata (bfd * abfd, void * vfile)
 	  return TRUE;
 	}
       else if (!(section->flags & SEC_HAS_CONTENTS))
-        {
+	{
 	  fprintf (file,
 		   _("\nThere is an export table in %s, but that section has no contents\n"),
 		   section->name);
 	  return TRUE;
-        }
+	}
 
       dataoff = addr - section->vma;
       datasize = extra->DataDirectory[PE_EXPORT_TABLE].Size;
@@ -1669,7 +1671,7 @@ pe_print_edata (bfd * abfd, void * vfile)
     }
 
   /* PR 17512: Handle corrupt PE binaries.  */
-  if (datasize < 36)
+  if (datasize < 40)
     {
       fprintf (file,
 	       /* xgettext:c-format */
@@ -1691,17 +1693,17 @@ pe_print_edata (bfd * abfd, void * vfile)
     return FALSE;
 
   /* Go get Export Directory Table.  */
-  edt.export_flags   = bfd_get_32 (abfd, data +  0);
-  edt.time_stamp     = bfd_get_32 (abfd, data +  4);
-  edt.major_ver      = bfd_get_16 (abfd, data +  8);
-  edt.minor_ver      = bfd_get_16 (abfd, data + 10);
-  edt.name           = bfd_get_32 (abfd, data + 12);
-  edt.base           = bfd_get_32 (abfd, data + 16);
+  edt.export_flags   = bfd_get_32 (abfd, data +	 0);
+  edt.time_stamp     = bfd_get_32 (abfd, data +	 4);
+  edt.major_ver	     = bfd_get_16 (abfd, data +	 8);
+  edt.minor_ver	     = bfd_get_16 (abfd, data + 10);
+  edt.name	     = bfd_get_32 (abfd, data + 12);
+  edt.base	     = bfd_get_32 (abfd, data + 16);
   edt.num_functions  = bfd_get_32 (abfd, data + 20);
-  edt.num_names      = bfd_get_32 (abfd, data + 24);
-  edt.eat_addr       = bfd_get_32 (abfd, data + 28);
-  edt.npt_addr       = bfd_get_32 (abfd, data + 32);
-  edt.ot_addr        = bfd_get_32 (abfd, data + 36);
+  edt.num_names	     = bfd_get_32 (abfd, data + 24);
+  edt.eat_addr	     = bfd_get_32 (abfd, data + 28);
+  edt.npt_addr	     = bfd_get_32 (abfd, data + 32);
+  edt.ot_addr	     = bfd_get_32 (abfd, data + 36);
 
   adj = section->vma - extra->ImageBase + dataoff;
 
@@ -1767,8 +1769,8 @@ pe_print_edata (bfd * abfd, void * vfile)
      forward the call to another dll. Something like:
       typedef union
       {
-        long export_rva;
-        long forwarder_rva;
+	long export_rva;
+	long forwarder_rva;
       } export_address_table_entry;  */
 
   fprintf (file,
@@ -1902,7 +1904,7 @@ pe_print_pdata (bfd * abfd, void * vfile)
   if ((stop % onaline) != 0)
     fprintf (file,
 	     /* xgettext:c-format */
-	     _("Warning, .pdata section size (%ld) is not a multiple of %d\n"),
+	     _("warning, .pdata section size (%ld) is not a multiple of %d\n"),
 	     (long) stop, onaline);
 
   fprintf (file,
@@ -1952,10 +1954,10 @@ pe_print_pdata (bfd * abfd, void * vfile)
       if (i + PDATA_ROW_SIZE > stop)
 	break;
 
-      begin_addr      = GET_PDATA_ENTRY (abfd, data + i     );
-      end_addr        = GET_PDATA_ENTRY (abfd, data + i +  4);
+      begin_addr      = GET_PDATA_ENTRY (abfd, data + i	    );
+      end_addr	      = GET_PDATA_ENTRY (abfd, data + i +  4);
       eh_handler      = GET_PDATA_ENTRY (abfd, data + i +  8);
-      eh_data         = GET_PDATA_ENTRY (abfd, data + i + 12);
+      eh_data	      = GET_PDATA_ENTRY (abfd, data + i + 12);
       prolog_end_addr = GET_PDATA_ENTRY (abfd, data + i + 16);
 
       if (begin_addr == 0 && end_addr == 0 && eh_handler == 0
@@ -2018,7 +2020,7 @@ pe_print_pdata (bfd * abfd, void * vfile)
 
 typedef struct sym_cache
 {
-  int        symcount;
+  int	     symcount;
   asymbol ** syms;
 } sym_cache;
 
@@ -2099,7 +2101,7 @@ _bfd_XX_print_ce_compressed_pdata (bfd * abfd, void * vfile)
   if ((stop % onaline) != 0)
     fprintf (file,
 	     /* xgettext:c-format */
-	     _("Warning, .pdata section size (%ld) is not a multiple of %d\n"),
+	     _("warning, .pdata section size (%ld) is not a multiple of %d\n"),
 	     (long) stop, onaline);
 
   fprintf (file,
@@ -2153,8 +2155,8 @@ _bfd_XX_print_ce_compressed_pdata (bfd * abfd, void * vfile)
       fprintf (file, "%2d  %2d   ", flag32bit, exception_flag);
 
       /* Get the exception handler's address and the data passed from the
-         .text section. This is really the data that belongs with the .pdata
-         but got "compressed" out for the ARM and SH4 architectures.  */
+	 .text section. This is really the data that belongs with the .pdata
+	 but got "compressed" out for the ARM and SH4 architectures.  */
       tsection = bfd_get_section_by_name (abfd, ".text");
       if (tsection && coff_section_data (abfd, tsection)
 	  && pei_section_data (abfd, tsection))
@@ -2321,13 +2323,13 @@ rsrc_print_resource_directory (FILE * , bfd *, unsigned int, bfd_byte *,
    or section_end + 1 upon failure.  */
 
 static bfd_byte *
-rsrc_print_resource_entries (FILE *         file,
-			     bfd *          abfd,
+rsrc_print_resource_entries (FILE *	    file,
+			     bfd *	    abfd,
 			     unsigned int   indent,
 			     bfd_boolean    is_name,
-			     bfd_byte *     data,
+			     bfd_byte *	    data,
 			     rsrc_regions * regions,
-			     bfd_vma        rva_bias)
+			     bfd_vma	    rva_bias)
 {
   unsigned long entry, addr, size;
   bfd_byte * leaf;
@@ -2442,12 +2444,12 @@ rsrc_print_resource_entries (FILE *         file,
 #define min(a,b) ((a) < (b) ? (a) : (b))
 
 static bfd_byte *
-rsrc_print_resource_directory (FILE *         file,
-			       bfd *          abfd,
+rsrc_print_resource_directory (FILE *	      file,
+			       bfd *	      abfd,
 			       unsigned int   indent,
 			       bfd_byte *     data,
 			       rsrc_regions * regions,
-			       bfd_vma        rva_bias)
+			       bfd_vma	      rva_bias)
 {
   unsigned int num_names, num_ids;
   bfd_byte * highest_data = data;
@@ -2638,27 +2640,27 @@ pe_print_debugdata (bfd * abfd, void * vfile)
   for (section = abfd->sections; section != NULL; section = section->next)
     {
       if ((addr >= section->vma) && (addr < (section->vma + section->size)))
-        break;
+	break;
     }
 
   if (section == NULL)
     {
       fprintf (file,
-               _("\nThere is a debug directory, but the section containing it could not be found\n"));
+	       _("\nThere is a debug directory, but the section containing it could not be found\n"));
       return TRUE;
     }
   else if (!(section->flags & SEC_HAS_CONTENTS))
     {
       fprintf (file,
-               _("\nThere is a debug directory in %s, but that section has no contents\n"),
-               section->name);
+	       _("\nThere is a debug directory in %s, but that section has no contents\n"),
+	       section->name);
       return TRUE;
     }
   else if (section->size < size)
     {
       fprintf (file,
-               _("\nError: section %s contains the debug data starting address but it is too small\n"),
-               section->name);
+	       _("\nError: section %s contains the debug data starting address but it is too small\n"),
+	       section->name);
       return FALSE;
     }
 
@@ -2694,43 +2696,43 @@ pe_print_debugdata (bfd * abfd, void * vfile)
       _bfd_XXi_swap_debugdir_in (abfd, ext, &idd);
 
       if ((idd.Type) >= IMAGE_NUMBEROF_DEBUG_TYPES)
-        type_name = debug_type_names[0];
+	type_name = debug_type_names[0];
       else
-        type_name = debug_type_names[idd.Type];
+	type_name = debug_type_names[idd.Type];
 
       fprintf (file, " %2ld  %14s %08lx %08lx %08lx\n",
 	       idd.Type, type_name, idd.SizeOfData,
 	       idd.AddressOfRawData, idd.PointerToRawData);
 
       if (idd.Type == PE_IMAGE_DEBUG_TYPE_CODEVIEW)
-        {
-          char signature[CV_INFO_SIGNATURE_LENGTH * 2 + 1];
+	{
+	  char signature[CV_INFO_SIGNATURE_LENGTH * 2 + 1];
 	  /* PR 17512: file: 065-29434-0.001:0.1
 	     We need to use a 32-bit aligned buffer
 	     to safely read in a codeview record.  */
-          char buffer[256 + 1] ATTRIBUTE_ALIGNED_ALIGNOF (CODEVIEW_INFO);
+	  char buffer[256 + 1] ATTRIBUTE_ALIGNED_ALIGNOF (CODEVIEW_INFO);
 
-          CODEVIEW_INFO *cvinfo = (CODEVIEW_INFO *) buffer;
+	  CODEVIEW_INFO *cvinfo = (CODEVIEW_INFO *) buffer;
 
-          /* The debug entry doesn't have to have to be in a section,
+	  /* The debug entry doesn't have to have to be in a section,
 	     in which case AddressOfRawData is 0, so always use PointerToRawData.  */
-          if (!_bfd_XXi_slurp_codeview_record (abfd, (file_ptr) idd.PointerToRawData,
+	  if (!_bfd_XXi_slurp_codeview_record (abfd, (file_ptr) idd.PointerToRawData,
 					       idd.SizeOfData, cvinfo))
-            continue;
+	    continue;
 
-          for (i = 0; i < cvinfo->SignatureLength; i++)
-            sprintf (&signature[i*2], "%02x", cvinfo->Signature[i] & 0xff);
+	  for (i = 0; i < cvinfo->SignatureLength; i++)
+	    sprintf (&signature[i*2], "%02x", cvinfo->Signature[i] & 0xff);
 
 	  /* xgettext:c-format */
-          fprintf (file, _("(format %c%c%c%c signature %s age %ld)\n"),
+	  fprintf (file, _("(format %c%c%c%c signature %s age %ld)\n"),
 		   buffer[0], buffer[1], buffer[2], buffer[3],
 		   signature, cvinfo->Age);
-        }
+	}
     }
 
   if (size % sizeof (struct external_IMAGE_DEBUG_DIRECTORY) != 0)
     fprintf (file,
-            _("The debug directory size is not a multiple of the debug directory entry size\n"));
+	    _("The debug directory size is not a multiple of the debug directory entry size\n"));
 
   return TRUE;
 }
@@ -2975,9 +2977,9 @@ _bfd_XX_bfd_copy_private_bfd_data_common (bfd * ibfd, bfd * obfd)
       bfd_byte *data;
 
       if (section && bfd_malloc_and_get_section (obfd, section, &data))
-        {
-          unsigned int i;
-          struct external_IMAGE_DEBUG_DIRECTORY *dd =
+	{
+	  unsigned int i;
+	  struct external_IMAGE_DEBUG_DIRECTORY *dd =
 	    (struct external_IMAGE_DEBUG_DIRECTORY *)(data + (addr - section->vma));
 
 	  /* PR 17512: file: 0f15796a.  */
@@ -2985,43 +2987,54 @@ _bfd_XX_bfd_copy_private_bfd_data_common (bfd * ibfd, bfd * obfd)
 	      > bfd_get_section_size (section))
 	    {
 	      /* xgettext:c-format */
-	      _bfd_error_handler (_("%B: Data Directory size (%lx) exceeds space left in section (%lx)"),
-				  obfd, ope->pe_opthdr.DataDirectory[PE_DEBUG_DATA].Size,
-				  bfd_get_section_size (section) - (addr - section->vma));
+	      _bfd_error_handler
+		(_("%pB: Data Directory size (%lx) "
+		   "exceeds space left in section (%" PRIx64 ")"),
+		 obfd, ope->pe_opthdr.DataDirectory[PE_DEBUG_DATA].Size,
+		 (uint64_t) (section->size - (addr - section->vma)));
+	      return FALSE;
+	    }
+	  /* PR 23110.  */
+	  else if (ope->pe_opthdr.DataDirectory[PE_DEBUG_DATA].Size < 0)
+	    {
+	      /* xgettext:c-format */
+	      _bfd_error_handler
+		(_("%pB: Data Directory size (%#lx) is negative"),
+		 obfd, ope->pe_opthdr.DataDirectory[PE_DEBUG_DATA].Size);
 	      return FALSE;
 	    }
 
-          for (i = 0; i < ope->pe_opthdr.DataDirectory[PE_DEBUG_DATA].Size
+	  for (i = 0; i < ope->pe_opthdr.DataDirectory[PE_DEBUG_DATA].Size
 		 / sizeof (struct external_IMAGE_DEBUG_DIRECTORY); i++)
-            {
-              asection *ddsection;
-              struct external_IMAGE_DEBUG_DIRECTORY *edd = &(dd[i]);
-              struct internal_IMAGE_DEBUG_DIRECTORY idd;
+	    {
+	      asection *ddsection;
+	      struct external_IMAGE_DEBUG_DIRECTORY *edd = &(dd[i]);
+	      struct internal_IMAGE_DEBUG_DIRECTORY idd;
 
-              _bfd_XXi_swap_debugdir_in (obfd, edd, &idd);
+	      _bfd_XXi_swap_debugdir_in (obfd, edd, &idd);
 
-              if (idd.AddressOfRawData == 0)
-                continue; /* RVA 0 means only offset is valid, not handled yet.  */
+	      if (idd.AddressOfRawData == 0)
+		continue; /* RVA 0 means only offset is valid, not handled yet.  */
 
-              ddsection = find_section_by_vma (obfd, idd.AddressOfRawData + ope->pe_opthdr.ImageBase);
-              if (!ddsection)
-                continue; /* Not in a section! */
+	      ddsection = find_section_by_vma (obfd, idd.AddressOfRawData + ope->pe_opthdr.ImageBase);
+	      if (!ddsection)
+		continue; /* Not in a section! */
 
-              idd.PointerToRawData = ddsection->filepos + (idd.AddressOfRawData
+	      idd.PointerToRawData = ddsection->filepos + (idd.AddressOfRawData
 							   + ope->pe_opthdr.ImageBase) - ddsection->vma;
 
-              _bfd_XXi_swap_debugdir_out (obfd, &idd, edd);
-            }
+	      _bfd_XXi_swap_debugdir_out (obfd, &idd, edd);
+	    }
 
-          if (!bfd_set_section_contents (obfd, section, data, 0, section->size))
+	  if (!bfd_set_section_contents (obfd, section, data, 0, section->size))
 	    {
-	      _bfd_error_handler (_("Failed to update file offsets in debug directory"));
+	      _bfd_error_handler (_("failed to update file offsets in debug directory"));
 	      return FALSE;
 	    }
-        }
+	}
       else if (section)
 	{
-	  _bfd_error_handler (_("%B: Failed to read debug data section"), obfd);
+	  _bfd_error_handler (_("%pB: failed to read debug data section"), obfd);
 	  return FALSE;
 	}
     }
@@ -3100,12 +3113,12 @@ static bfd_byte *
 rsrc_count_directory (bfd *, bfd_byte *, bfd_byte *, bfd_byte *, bfd_vma);
 
 static bfd_byte *
-rsrc_count_entries (bfd *          abfd,
-		    bfd_boolean    is_name,
-		    bfd_byte *     datastart,
-		    bfd_byte *     data,
-		    bfd_byte *     dataend,
-		    bfd_vma        rva_bias)
+rsrc_count_entries (bfd *	   abfd,
+		    bfd_boolean	   is_name,
+		    bfd_byte *	   datastart,
+		    bfd_byte *	   data,
+		    bfd_byte *	   dataend,
+		    bfd_vma	   rva_bias)
 {
   unsigned long entry, addr, size;
 
@@ -3153,11 +3166,11 @@ rsrc_count_entries (bfd *          abfd,
 }
 
 static bfd_byte *
-rsrc_count_directory (bfd *          abfd,
+rsrc_count_directory (bfd *	     abfd,
 		      bfd_byte *     datastart,
 		      bfd_byte *     data,
 		      bfd_byte *     dataend,
-		      bfd_vma        rva_bias)
+		      bfd_vma	     rva_bias)
 {
   unsigned int  num_entries, num_ids;
   bfd_byte *    highest_data = data;
@@ -3189,7 +3202,7 @@ rsrc_count_directory (bfd *          abfd,
 
 typedef struct rsrc_dir_chain
 {
-  unsigned int         num_entries;
+  unsigned int	       num_entries;
   struct rsrc_entry *  first_entry;
   struct rsrc_entry *  last_entry;
 } rsrc_dir_chain;
@@ -3209,15 +3222,15 @@ typedef struct rsrc_directory
 
 typedef struct rsrc_string
 {
-  unsigned int  len;
-  bfd_byte *    string;
+  unsigned int	len;
+  bfd_byte *	string;
 } rsrc_string;
 
 typedef struct rsrc_leaf
 {
-  unsigned int  size;
-  unsigned int  codepage;
-  bfd_byte *    data;
+  unsigned int	size;
+  unsigned int	codepage;
+  bfd_byte *	data;
 } rsrc_leaf;
 
 typedef struct rsrc_entry
@@ -3225,18 +3238,18 @@ typedef struct rsrc_entry
   bfd_boolean is_name;
   union
   {
-    unsigned int          id;
-    struct rsrc_string    name;
+    unsigned int	  id;
+    struct rsrc_string	  name;
   } name_id;
 
   bfd_boolean is_dir;
   union
   {
     struct rsrc_directory * directory;
-    struct rsrc_leaf *      leaf;
+    struct rsrc_leaf *	    leaf;
   } value;
 
-  struct rsrc_entry *     next_entry;
+  struct rsrc_entry *	  next_entry;
   struct rsrc_directory * parent;
 } rsrc_entry;
 
@@ -3245,13 +3258,13 @@ rsrc_parse_directory (bfd *, rsrc_directory *, bfd_byte *,
 		      bfd_byte *, bfd_byte *, bfd_vma, rsrc_entry *);
 
 static bfd_byte *
-rsrc_parse_entry (bfd *            abfd,
-		  bfd_boolean      is_name,
-		  rsrc_entry *     entry,
-		  bfd_byte *       datastart,
-		  bfd_byte *       data,
-		  bfd_byte *       dataend,
-		  bfd_vma          rva_bias,
+rsrc_parse_entry (bfd *		   abfd,
+		  bfd_boolean	   is_name,
+		  rsrc_entry *	   entry,
+		  bfd_byte *	   datastart,
+		  bfd_byte *	   data,
+		  bfd_byte *	   dataend,
+		  bfd_vma	   rva_bias,
 		  rsrc_directory * parent)
 {
   unsigned long val, addr, size;
@@ -3323,14 +3336,14 @@ rsrc_parse_entry (bfd *            abfd,
 }
 
 static bfd_byte *
-rsrc_parse_entries (bfd *            abfd,
+rsrc_parse_entries (bfd *	     abfd,
 		    rsrc_dir_chain * chain,
-		    bfd_boolean      is_name,
-		    bfd_byte *       highest_data,
-		    bfd_byte *       datastart,
-		    bfd_byte *       data,
-		    bfd_byte *       dataend,
-		    bfd_vma          rva_bias,
+		    bfd_boolean	     is_name,
+		    bfd_byte *	     highest_data,
+		    bfd_byte *	     datastart,
+		    bfd_byte *	     data,
+		    bfd_byte *	     dataend,
+		    bfd_vma	     rva_bias,
 		    rsrc_directory * parent)
 {
   unsigned int i;
@@ -3376,12 +3389,12 @@ rsrc_parse_entries (bfd *            abfd,
 }
 
 static bfd_byte *
-rsrc_parse_directory (bfd *            abfd,
+rsrc_parse_directory (bfd *	       abfd,
 		      rsrc_directory * table,
 		      bfd_byte *       datastart,
 		      bfd_byte *       data,
 		      bfd_byte *       dataend,
-		      bfd_vma          rva_bias,
+		      bfd_vma	       rva_bias,
 		      rsrc_entry *     entry)
 {
   bfd_byte * highest_data = data;
@@ -3432,14 +3445,14 @@ rsrc_write_string (rsrc_write_data * data,
 
 static inline unsigned int
 rsrc_compute_rva (rsrc_write_data * data,
-		  bfd_byte *        addr)
+		  bfd_byte *	    addr)
 {
   return (addr - data->datastart) + data->rva_bias;
 }
 
 static void
 rsrc_write_leaf (rsrc_write_data * data,
-		 rsrc_leaf *       leaf)
+		 rsrc_leaf *	   leaf)
 {
   bfd_put_32 (data->abfd, rsrc_compute_rva (data, data->next_data),
 	      data->next_leaf);
@@ -3458,8 +3471,8 @@ static void rsrc_write_directory (rsrc_write_data *, rsrc_directory *);
 
 static void
 rsrc_write_entry (rsrc_write_data *  data,
-		  bfd_byte *         where,
-		  rsrc_entry *       entry)
+		  bfd_byte *	     where,
+		  rsrc_entry *	     entry)
 {
   if (entry->is_name)
     {
@@ -3587,19 +3600,19 @@ u16_mbtouc (wchar_t * puc, const unsigned short * s, unsigned int n)
   if (c < 0xdc00)
     {
       if (n >= 2)
-        {
-          if (s[1] >= 0xdc00 && s[1] < 0xe000)
-            {
-              *puc = 0x10000 + ((c - 0xd800) << 10) + (s[1] - 0xdc00);
-              return 2;
-            }
-        }
+	{
+	  if (s[1] >= 0xdc00 && s[1] < 0xe000)
+	    {
+	      *puc = 0x10000 + ((c - 0xd800) << 10) + (s[1] - 0xdc00);
+	      return 2;
+	    }
+	}
       else
-        {
-          /* Incomplete multibyte character.  */
-          *puc = 0xfffd;
-          return n;
-        }
+	{
+	  /* Incomplete multibyte character.  */
+	  *puc = 0xfffd;
+	  return n;
+	}
     }
 
   /* Invalid multibyte character.  */
@@ -3724,7 +3737,7 @@ rsrc_resource_name (rsrc_entry * entry, rsrc_directory * dir)
 	    case 1: strcat (buffer, " (CURSOR)"); break;
 	    case 2: strcat (buffer, " (BITMAP)"); break;
 	    case 3: strcat (buffer, " (ICON)"); break;
-            case 4: strcat (buffer, " (MENU)"); break;
+	    case 4: strcat (buffer, " (MENU)"); break;
 	    case 5: strcat (buffer, " (DIALOG)"); break;
 	    case 6: strcat (buffer, " (STRING)"); is_string = TRUE; break;
 	    case 7: strcat (buffer, " (FONTDIR)"); break;
@@ -4100,14 +4113,14 @@ rsrc_merge (struct rsrc_entry * a, struct rsrc_entry * b)
 
   if (adir->characteristics != bdir->characteristics)
     {
-      _bfd_error_handler (_(".rsrc merge failure: dirs with differing characteristics\n"));
+      _bfd_error_handler (_(".rsrc merge failure: dirs with differing characteristics"));
       bfd_set_error (bfd_error_file_truncated);
       return;
     }
 
   if (adir->major != bdir->major || adir->minor != bdir->minor)
     {
-      _bfd_error_handler (_(".rsrc merge failure: differing directory versions\n"));
+      _bfd_error_handler (_(".rsrc merge failure: differing directory versions"));
       bfd_set_error (bfd_error_file_truncated);
       return;
     }
@@ -4132,22 +4145,22 @@ rsrc_process_section (bfd * abfd,
 		      struct coff_final_link_info * pfinfo)
 {
   rsrc_directory    new_table;
-  bfd_size_type     size;
-  asection *        sec;
+  bfd_size_type	    size;
+  asection *	    sec;
   pe_data_type *    pe;
-  bfd_vma           rva_bias;
-  bfd_byte *        data;
-  bfd_byte *        datastart;
-  bfd_byte *        dataend;
-  bfd_byte *        new_data;
-  unsigned int      num_resource_sets;
+  bfd_vma	    rva_bias;
+  bfd_byte *	    data;
+  bfd_byte *	    datastart;
+  bfd_byte *	    dataend;
+  bfd_byte *	    new_data;
+  unsigned int	    num_resource_sets;
   rsrc_directory *  type_tables;
   rsrc_write_data   write_data;
-  unsigned int      indx;
-  bfd *             input;
-  unsigned int      num_input_rsrc = 0;
-  unsigned int      max_num_input_rsrc = 4;
-  ptrdiff_t *       rsrc_sizes = NULL;
+  unsigned int	    indx;
+  bfd *		    input;
+  unsigned int	    num_input_rsrc = 0;
+  unsigned int	    max_num_input_rsrc = 4;
+  ptrdiff_t *	    rsrc_sizes = NULL;
 
   new_table.names.num_entries = 0;
   new_table.ids.num_entries = 0;
@@ -4224,7 +4237,7 @@ rsrc_process_section (bfd * abfd,
       if (data > dataend)
 	{
 	  /* Corrupted .rsrc section - cannot merge.  */
-	  _bfd_error_handler (_("%B: .rsrc merge failure: corrupt .rsrc section"),
+	  _bfd_error_handler (_("%pB: .rsrc merge failure: corrupt .rsrc section"),
 			      abfd);
 	  bfd_set_error (bfd_error_file_truncated);
 	  goto end;
@@ -4232,7 +4245,7 @@ rsrc_process_section (bfd * abfd,
 
       if ((data - p) > rsrc_sizes [num_resource_sets])
 	{
-	  _bfd_error_handler (_("%B: .rsrc merge failure: unexpected .rsrc size"),
+	  _bfd_error_handler (_("%pB: .rsrc merge failure: unexpected .rsrc size"),
 			      abfd);
 	  bfd_set_error (bfd_error_file_truncated);
 	  goto end;
@@ -4276,9 +4289,9 @@ rsrc_process_section (bfd * abfd,
 
   /* FIXME: Should we verify that all type tables are the same ?  */
   new_table.characteristics = type_tables[0].characteristics;
-  new_table.time            = type_tables[0].time;
-  new_table.major           = type_tables[0].major;
-  new_table.minor           = type_tables[0].minor;
+  new_table.time	    = type_tables[0].time;
+  new_table.major	    = type_tables[0].major;
+  new_table.minor	    = type_tables[0].minor;
 
   /* Chain the NAME entries onto the table.  */
   new_table.names.first_entry = NULL;
@@ -4312,13 +4325,13 @@ rsrc_process_section (bfd * abfd,
   if (new_data == NULL)
     goto end;
 
-  write_data.abfd        = abfd;
-  write_data.datastart   = new_data;
-  write_data.next_table  = new_data;
-  write_data.next_leaf   = new_data + sizeof_tables_and_entries;
+  write_data.abfd	 = abfd;
+  write_data.datastart	 = new_data;
+  write_data.next_table	 = new_data;
+  write_data.next_leaf	 = new_data + sizeof_tables_and_entries;
   write_data.next_string = write_data.next_leaf + sizeof_leaves;
-  write_data.next_data   = write_data.next_string + sizeof_strings;
-  write_data.rva_bias    = sec->vma - pe->pe_opthdr.ImageBase;
+  write_data.next_data	 = write_data.next_string + sizeof_strings;
+  write_data.rva_bias	 = sec->vma - pe->pe_opthdr.ImageBase;
 
   rsrc_write_directory (& write_data, & new_table);
 
@@ -4371,7 +4384,7 @@ _bfd_XXi_final_link_postscript (bfd * abfd, struct coff_final_link_info *pfinfo)
       else
 	{
 	  _bfd_error_handler
-	    (_("%B: unable to fill in DataDictionary[1] because .idata$2 is missing"),
+	    (_("%pB: unable to fill in DataDictionary[1] because .idata$2 is missing"),
 	     abfd);
 	  result = FALSE;
 	}
@@ -4391,13 +4404,13 @@ _bfd_XXi_final_link_postscript (bfd * abfd, struct coff_final_link_info *pfinfo)
       else
 	{
 	  _bfd_error_handler
-	    (_("%B: unable to fill in DataDictionary[1] because .idata$4 is missing"),
+	    (_("%pB: unable to fill in DataDictionary[1] because .idata$4 is missing"),
 	     abfd);
 	  result = FALSE;
 	}
 
       /* The import address table.  This is the size/address of
-         .idata$5.  */
+	 .idata$5.  */
       h1 = coff_link_hash_lookup (coff_hash_table (info),
 				  ".idata$5", FALSE, FALSE, TRUE);
       if (h1 != NULL
@@ -4412,7 +4425,7 @@ _bfd_XXi_final_link_postscript (bfd * abfd, struct coff_final_link_info *pfinfo)
       else
 	{
 	  _bfd_error_handler
-	    (_("%B: unable to fill in DataDictionary[12] because .idata$5 is missing"),
+	    (_("%pB: unable to fill in DataDictionary[12] because .idata$5 is missing"),
 	     abfd);
 	  result = FALSE;
 	}
@@ -4432,7 +4445,7 @@ _bfd_XXi_final_link_postscript (bfd * abfd, struct coff_final_link_info *pfinfo)
       else
 	{
 	  _bfd_error_handler
-	    (_("%B: unable to fill in DataDictionary[PE_IMPORT_ADDRESS_TABLE (12)] because .idata$6 is missing"),
+	    (_("%pB: unable to fill in DataDictionary[PE_IMPORT_ADDRESS_TABLE (12)] because .idata$6 is missing"),
 	     abfd);
 	  result = FALSE;
 	}
@@ -4474,11 +4487,11 @@ _bfd_XXi_final_link_postscript (bfd * abfd, struct coff_final_link_info *pfinfo)
 	  else
 	    {
 	      _bfd_error_handler
-		(_("%B: unable to fill in DataDictionary[PE_IMPORT_ADDRESS_TABLE(12)]"
+		(_("%pB: unable to fill in DataDictionary[PE_IMPORT_ADDRESS_TABLE(12)]"
 		   " because .idata$6 is missing"), abfd);
 	      result = FALSE;
 	    }
-        }
+	}
     }
 
   h1 = coff_link_hash_lookup (coff_hash_table (info),
@@ -4499,7 +4512,7 @@ _bfd_XXi_final_link_postscript (bfd * abfd, struct coff_final_link_info *pfinfo)
       else
 	{
 	  _bfd_error_handler
-	    (_("%B: unable to fill in DataDictionary[9] because __tls_used is missing"),
+	    (_("%pB: unable to fill in DataDictionary[9] because __tls_used is missing"),
 	     abfd);
 	  result = FALSE;
 	}

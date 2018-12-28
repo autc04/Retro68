@@ -1,6 +1,6 @@
 /* test_plugin.c -- simple linker plugin test
 
-   Copyright (C) 2008-2017 Free Software Foundation, Inc.
+   Copyright (C) 2008-2018 Free Software Foundation, Inc.
    Written by Cary Coutant <ccoutant@google.com>.
 
    This file is part of gold.
@@ -46,6 +46,7 @@ struct sym_info
   char* vis;
   char* sect;
   char* name;
+  char* ver;
 };
 
 static struct claimed_file* first_claimed_file = NULL;
@@ -68,6 +69,7 @@ static ld_plugin_get_input_section_name get_input_section_name = NULL;
 static ld_plugin_get_input_section_contents get_input_section_contents = NULL;
 static ld_plugin_update_section_order update_section_order = NULL;
 static ld_plugin_allow_section_ordering allow_section_ordering = NULL;
+static ld_plugin_get_wrap_symbols get_wrap_symbols = NULL;
 
 #define MAXOPTS 10
 
@@ -158,6 +160,9 @@ onload(struct ld_plugin_tv *tv)
 	case LDPT_ALLOW_SECTION_ORDERING:
 	  allow_section_ordering = *entry->tv_u.tv_allow_section_ordering;
 	  break;
+	case LDPT_GET_WRAP_SYMBOLS:
+	  get_wrap_symbols = *entry->tv_u.tv_get_wrap_symbols;
+	  break;
         default:
           break;
         }
@@ -245,6 +250,28 @@ onload(struct ld_plugin_tv *tv)
     {
       fprintf(stderr, "tv_allow_section_ordering interface missing\n");
       return LDPS_ERR;
+    }
+
+  if (get_wrap_symbols == NULL)
+    {
+      fprintf(stderr, "tv_get_wrap_symbols interface missing\n");
+      return LDPS_ERR;
+    }
+  else
+    {
+      const char **wrap_symbols;
+      uint64_t count = 0;
+      if (get_wrap_symbols(&count, &wrap_symbols) == LDPS_OK)
+	{
+	  (*message)(LDPL_INFO, "Number of wrap symbols = %lu", count);
+	  for (; count > 0; --count)
+            (*message)(LDPL_INFO, "Wrap symbol %s", wrap_symbols[count - 1]);
+	}
+      else
+	{
+          fprintf(stderr, "tv_get_wrap_symbols interface call failed\n");
+          return LDPS_ERR;
+	}
     }
 
   return LDPS_OK;
@@ -371,7 +398,14 @@ claim_file_hook (const struct ld_plugin_input_file* file, int* claimed)
           syms[nsyms].name = malloc(len + 1);
           strncpy(syms[nsyms].name, info.name, len + 1);
         }
-      syms[nsyms].version = NULL;
+      if (info.ver == NULL)
+        syms[nsyms].version = NULL;
+      else
+        {
+          len = strlen(info.ver);
+          syms[nsyms].version = malloc(len + 1);
+          strncpy(syms[nsyms].version, info.ver, len + 1);
+        }
       syms[nsyms].def = def;
       syms[nsyms].visibility = vis;
       syms[nsyms].size = info.size;
@@ -650,11 +684,26 @@ parse_readelf_line(char* p, struct sym_info* info)
   p += strspn(p, " ");
 
   /* Name field.  */
-  /* FIXME:  Look for version.  */
-  len = strlen(p);
-  if (len == 0)
-    p = NULL;
-  else if (p[len-1] == '\n')
-    p[--len] = '\0';
-  info->name = p;
+  len = strcspn(p, "@\n");
+  if (len > 0 && p[len] == '@')
+    {
+      /* Get the symbol version.  */
+      char* vp = p + len;
+      int vlen;
+
+      vp += strspn(vp, "@");
+      vlen = strcspn(vp, "\n");
+      vp[vlen] = '\0';
+      if (vlen > 0)
+	info->ver = vp;
+      else
+	info->ver = NULL;
+    }
+  else
+    info->ver = NULL;
+  p[len] = '\0';
+  if (len > 0)
+    info->name = p;
+  else
+    info->name = NULL;
 }

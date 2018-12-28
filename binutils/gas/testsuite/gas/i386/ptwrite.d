@@ -15,4 +15,5 @@ Disassembly of section \.text:
  +[a-f0-9]+:	f3 0f ae 21          	ptwritel \(%ecx\)
  +[a-f0-9]+:	f3 0f ae e1          	ptwrite %ecx
  +[a-f0-9]+:	f3 0f ae 21          	ptwritel \(%ecx\)
+ +[a-f0-9]+:	f3 0f ae 21          	ptwritel \(%ecx\)
 #pass

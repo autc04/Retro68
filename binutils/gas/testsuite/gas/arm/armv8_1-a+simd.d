@@ -1,7 +1,7 @@
 #name: Valid ARMv8.1-A with +simd
 #as: -march=armv8.1-a+simd
 #objdump: -dr
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
+#skip: *-*-pe *-*-wince
 #source: armv8-a+rdma.s
 
 .*: +file format .*arm.*

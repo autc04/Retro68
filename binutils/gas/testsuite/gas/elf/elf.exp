@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2017 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -93,6 +93,7 @@ if { [is_elf_format] } then {
     # optimization because it interfers with link-time relaxation of
     # function prologues.
     if {![istarget "mn10300-*-*"]
+	&& ![istarget "am3*-*-*"]
 	&& ![istarget "xtensa*-*-*"]
 	&& ![istarget "msp430*-*-*"]
 	&& ![istarget "nds32*-*-*"]
@@ -121,6 +122,7 @@ if { [is_elf_format] } then {
     run_dump_test "group1a"
     run_dump_test "group1b"
     run_dump_test "group2"
+    run_dump_test "group3"
     case $target_triplet in {
 	{ hppa64*-*-hpux* } { }
 	{ riscv*-*-* } { }
@@ -138,6 +140,7 @@ if { [is_elf_format] } then {
     }
     case $target_triplet in {
 	{ alpha*-*-* } { }
+	{ am3*-*-* } { }
 	{ *c54x*-*-* } { }
 	{ cr16*-*-* } { }
 	{ crx*-*-* } { }
@@ -220,6 +223,20 @@ if { [is_elf_format] } then {
     run_dump_test "dwarf2-2"
     run_dump_test "dwarf2-3"
     run_dump_test "dwarf2-4"
+    run_dump_test "dwarf2-5"
+    run_dump_test "dwarf2-6"
+    run_dump_test "dwarf2-7"
+    run_dump_test "dwarf2-8"
+    run_dump_test "dwarf2-9"
+    run_dump_test "dwarf2-10"
+    run_dump_test "dwarf2-11"
+    run_dump_test "dwarf2-12"
+    run_dump_test "dwarf2-13"
+    run_dump_test "dwarf2-14"
+    run_dump_test "dwarf2-15"
+    run_dump_test "dwarf2-16"
+    run_dump_test "dwarf2-17"
+    run_dump_test "dwarf2-18"
     run_dump_test "bss"
     run_dump_test "bad-bss"
     run_dump_test "bad-section-flag"
@@ -236,6 +253,10 @@ if { [is_elf_format] } then {
 	run_dump_test "common3b"
 	run_dump_test "common4a"
 	run_dump_test "common4b"
+	run_dump_test "common5a"
+	run_dump_test "common5b"
+	run_dump_test "common5c"
+	run_dump_test "common5d"
     }
 
     run_dump_test "strtab"

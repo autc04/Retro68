@@ -1,6 +1,6 @@
 # Expect script for linker support of IFUNC symbols and relocations.
 #
-#   Copyright (C) 2009-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2018 Free Software Foundation, Inc.
 #   Contributed by Red Hat.
 #
 # This file is part of the GNU Binutils.
@@ -33,10 +33,8 @@ if {!(([istarget "i?86-*-*"]
        || [istarget "s390*-*-*"])
       && ([istarget "*-*-elf*"]
 	  || [istarget "*-*-nacl*"]
-	  || (([istarget "*-*-linux*"]
-	       || [istarget "*-*-gnu*"])
-	      && ![istarget "*-*-*aout*"]
-	      && ![istarget "*-*-*oldld*"]))) } {
+	  || [istarget "*-*-linux*"]
+	  || [istarget "*-*-gnu*"])) } {
     verbose "IFUNC tests not run - target does not support IFUNC"
     return
 }
@@ -45,6 +43,16 @@ if {!(([istarget "i?86-*-*"]
 
 if ![check_shared_lib_support] {
     return
+}
+
+# This test does not need a compiler...
+run_dump_test "ifuncmod5"
+
+set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+foreach t $test_list {
+    # We need to strip the ".d", but can leave the dirname.
+    verbose [file rootname $t]
+    run_dump_test [file rootname $t]
 }
 
 # We need a working compiler.  (Strictly speaking this is
@@ -164,7 +172,7 @@ if ![ld_compile "$CC -c -fPIC" "$srcdir/$subdir/prog.c" "tmpdir/shared_prog.o"] 
     fail "Could not create a PIC object file"
     set fails [expr $fails + 1]
 }
-if ![ld_compile "$CC -c" "$srcdir/$subdir/prog.c" "tmpdir/static_prog.o"] {
+if ![ld_compile "$CC -c $NOPIE_CFLAGS" "$srcdir/$subdir/prog.c" "tmpdir/static_prog.o"] {
     fail "Could not create a non-PIC object file"
     set fails [expr $fails + 1]
 }
@@ -172,7 +180,7 @@ if ![ld_compile "$CC -c -fPIC -DWITH_IFUNC" "$srcdir/$subdir/lib.c" "tmpdir/shar
     fail "Could not create a PIC object file containing an IFUNC symbol"
     set fails [expr $fails + 1]
 }
-if ![ld_compile "$CC -c -DWITH_IFUNC" "$srcdir/$subdir/lib.c" "tmpdir/static_ifunc.o"] {
+if ![ld_compile "$CC -c $NOPIE_CFLAGS -DWITH_IFUNC" "$srcdir/$subdir/lib.c" "tmpdir/static_ifunc.o"] {
     fail "Could not create a non-PIC object file containing an IFUNC symbol"
     set fails [expr $fails + 1]
 }
@@ -214,17 +222,19 @@ if ![ld_link $CC "tmpdir/dynamic_prog" "-Wl,--no-as-needed,-rpath=./tmpdir,-Bdyn
     fail "Could not link a dynamic executable"
     set fails [expr $fails + 1]
 }
-if ![ld_link $CC "tmpdir/local_prog" "-Wl,--no-as-needed,-rpath=./tmpdir -Ltmpdir tmpdir/static_prog.o -lifunc"] {
+if ![ld_link $CC "tmpdir/local_prog" "$NOPIE_LDFLAGS -Wl,--no-as-needed,-rpath=./tmpdir -Ltmpdir tmpdir/static_prog.o -lifunc"] {
     fail "Could not link a dynamic executable using local ifunc"
     set fails [expr $fails + 1]
 }
-if ![ld_link $CC "tmpdir/static_prog" "-static -Ltmpdir tmpdir/static_prog.o -lifunc"] {
-    fail "Could not link a static executable"
-    set fails [expr $fails + 1]
-}
-if ![ld_link $ld "tmpdir/static_nonifunc_prog" "-static tmpdir/empty.o"] {
-    fail "Could not link a non-ifunc using static executable"
-    set fails [expr $fails + 1]
+if ![string match "" $STATIC_LDFLAGS] {
+    if ![ld_link $CC "tmpdir/static_prog" "-static -Ltmpdir tmpdir/static_prog.o -lifunc"] {
+	fail "Could not link a static executable"
+	set fails [expr $fails + 1]
+    }
+    if ![ld_link $ld "tmpdir/static_nonifunc_prog" "-static tmpdir/empty.o"] {
+	fail "Could not link a non-ifunc using static executable"
+	set fails [expr $fails + 1]
+    }
 }
 if ![ld_link $CC "tmpdir/test-1" "-Wl,--no-as-needed,-rpath=./tmpdir tmpdir/test-1.o tmpdir/libshared_ifunc.so"] {
     fail "Could not link test-1"
@@ -265,7 +275,8 @@ if {! [check_osabi tmpdir/local_prog {UNIX - GNU}]} {
     fail "Local ifunc-using executable does not have an OS/ABI field of GNU"
     set fails [expr $fails + 1]
 }
-if {! [check_osabi tmpdir/static_prog {UNIX - GNU}]} {
+if { ![string match "" $STATIC_LDFLAGS] \
+     && ![check_osabi tmpdir/static_prog {UNIX - GNU}]} {
     fail "Static ifunc-using executable does not have an OS/ABI field of GNU"
     set fails [expr $fails + 1]
 }
@@ -290,7 +301,8 @@ if {[contains_ifunc_symbol tmpdir/local_prog] != 1} {
     fail "Local ifunc-using executable does not contain an IFUNC symbol"
     set fails [expr $fails + 1]
 }
-if {[contains_ifunc_symbol tmpdir/static_prog] != 1} {
+if { ![string match "" $STATIC_LDFLAGS] \
+     && [contains_ifunc_symbol tmpdir/static_prog] != 1} {
     fail "Static ifunc-using executable does not contain an IFUNC symbol"
     set fails [expr $fails + 1]
 }
@@ -328,7 +340,8 @@ if {[contains_irelative_reloc tmpdir/local_prog] != 1} {
     fail "Local ifunc-using executable does not contain R_*_IRELATIVE relocation"
     set fails [expr $fails + 1]
 }
-if {[contains_irelative_reloc tmpdir/static_prog] != 1} {
+if { ![string match "" $STATIC_LDFLAGS] \
+    && [contains_irelative_reloc tmpdir/static_prog] != 1} {
     fail "Static ifunc-using executable does not contain R_*_IRELATIVE relocation"
     set fails [expr $fails + 1]
 }
@@ -418,13 +431,6 @@ run_ld_link_exec_tests [list \
 	"-g" \
     ] \
 ]
-
-set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
-foreach t $test_list {
-    # We need to strip the ".d", but can leave the dirname.
-    verbose [file rootname $t]
-    run_dump_test [file rootname $t]
-}
 
 # Run-time tests which require working IFUNC support.
 if { ![check_ifunc_available] } {
@@ -575,6 +581,76 @@ run_cc_link_tests [list \
 	{} \
 	"libpr18841cn.so" \
     ] \
+    [list \
+	"Build libpr23169a.so" \
+	"-shared" \
+	"-fPIC -O2 -g" \
+	{ pr23169a.c } \
+	{} \
+	"libpr23169a.so" \
+    ] \
+    [list \
+	"Build libpr23169b.so" \
+	"-shared -Wl,-z,now" \
+	"-fPIC -O2 -g" \
+	{ pr23169a.c } \
+	{} \
+	"libpr23169b.so" \
+    ] \
+    [list \
+	"Build pr23169a" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/libpr23169a.so" \
+	"$NOPIE_CFLAGS -O2 -g" \
+	{ pr23169b.c pr23169c.c } \
+	{{readelf {--dyn-syms} pr23169a.rd} \
+	 {readelf {-r -W} pr23169b.rd}} \
+	"pr23169a" \
+    ] \
+    [list \
+	"Build pr23169b" \
+	"-pie -Wl,--no-as-needed tmpdir/libpr23169a.so" \
+	"-fPIE -O2 -g" \
+	{ pr23169b.c pr23169c.c } \
+	{{readelf {--dyn-syms} pr23169c.rd} \
+	 {readelf {-r -W} pr23169b.rd}} \
+	"pr23169b" \
+    ] \
+    [list \
+	"Build pr23169c" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/libpr23169a.so" \
+	"-fPIE -O2 -g" \
+	{ pr23169b.c pr23169c.c } \
+	{{readelf {--dyn-syms} pr23169c.rd} \
+	 {readelf {-r -W} pr23169b.rd}} \
+	"pr23169c" \
+    ] \
+    [list \
+	"Build pr23169d" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed,-z,now tmpdir/libpr23169b.so" \
+	"$NOPIE_CFLAGS -O2 -g" \
+	{ pr23169b.c pr23169c.c } \
+	{{readelf {--dyn-syms} pr23169a.rd} \
+	 {readelf {-r -W} pr23169b.rd}} \
+	"pr23169d" \
+    ] \
+    [list \
+	"Build pr23169e" \
+	"-pie -Wl,--no-as-needed,-z,now tmpdir/libpr23169b.so" \
+	"-fPIE -O2 -g" \
+	{ pr23169b.c pr23169c.c } \
+	{{readelf {--dyn-syms} pr23169c.rd} \
+	 {readelf {-r -W} pr23169b.rd}} \
+	"pr23169e" \
+    ] \
+    [list \
+	"Build pr23169f" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed,-z,now tmpdir/libpr23169b.so" \
+	"-fPIE -O2 -g" \
+	{ pr23169b.c pr23169c.c } \
+	{{readelf {--dyn-syms} pr23169c.rd} \
+	 {readelf {-r -W} pr23169b.rd}} \
+	"pr23169f" \
+    ] \
 ]
 
 run_ld_link_exec_tests [list \
@@ -627,3 +703,70 @@ run_ld_link_exec_tests [list \
 	"pr18841.out" \
     ] \
 ]
+
+# The pr23169 testcase is not valid.  In general, you can't call ifunc
+# resolvers in another binary unless you know what you're doing.  In
+# particular you must ensure that the binary containing the resolver
+# is relocated before the resolver is called (for example, the
+# function addresses returned by the resolver may be loaded from the
+# GOT).
+# That does not happen for the pr23169 testcase where the resolver is
+# in the executable (which is relocated last by ld.so).
+if { [isnative]
+     && ![istarget "powerpc-*-*"] } {
+run_ld_link_exec_tests [list \
+    [list \
+	"Run pr23169a" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/libpr23169a.so" \
+	"" \
+	{ pr23169b.c pr23169c.c } \
+	"pr23169a" \
+	"pass.out" \
+	"$NOPIE_CFLAGS -O2 -g" \
+    ] \
+    [list \
+	"Run pr23169b" \
+	"-pie -Wl,--no-as-needed tmpdir/libpr23169a.so" \
+	"" \
+	{ pr23169b.c pr23169c.c } \
+	"pr23169b" \
+	"pass.out" \
+	"-fPIE -O2 -g" \
+    ] \
+    [list \
+	"Run pr23169c" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/libpr23169a.so" \
+	"" \
+	{ pr23169b.c pr23169c.c } \
+	"pr23169c" \
+	"pass.out" \
+	"-fPIE -O2 -g" \
+    ] \
+    [list \
+	"Run pr23169d" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed,-z,now tmpdir/libpr23169b.so" \
+	"" \
+	{ pr23169b.c pr23169c.c } \
+	"pr23169d" \
+	"pass.out" \
+	"$NOPIE_CFLAGS -O2 -g" \
+    ] \
+    [list \
+	"Run pr23169e" \
+	"-pie -Wl,--no-as-needed,-z,now tmpdir/libpr23169b.so" \
+	"" \
+	{ pr23169b.c pr23169c.c } \
+	"pr23169e" \
+	"pass.out" \
+	"-fPIE -O2 -g" \
+    ] \
+    [list \
+	"Run pr23169f" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed,-z,now tmpdir/libpr23169b.so" \
+	"" \
+	{ pr23169b.c pr23169c.c } \
+	"pr23169f" \
+	"pass.out" \
+	"-fPIE -O2 -g" \
+    ] \
+]}

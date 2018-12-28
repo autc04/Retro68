@@ -10,7 +10,7 @@ Relocation section '\.rel\.dyn' at offset [0x0-9a-f]+ contains 3 entries:
 [0-9a-f]+ +[0-9a-f]+ +R_386_PC32 +0+ +func
 [0-9a-f]+ +[0-9a-f]+ +R_386_GLOB_DAT +0+ +func
 
-Relocation section '\.rel\.plt' at offset [0x0-9a-f]+ contains 1 entries:
+Relocation section '\.rel\.plt' at offset [0x0-9a-f]+ contains 1 entry:
  +Offset +Info +Type +Sym. Value +Symbol's Name
 [0-9a-f]+ +[0-9a-f]+ +R_386_JUMP_SLOT +0+ +func
 

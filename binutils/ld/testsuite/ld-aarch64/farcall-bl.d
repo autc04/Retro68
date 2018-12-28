@@ -8,13 +8,14 @@
 Disassembly of section .text:
 
 0+1000 <_start>:
- +1000:	94000003 	bl	100c <__bar_veneer>
- +1004:	d65f03c0 	ret
-[ \t]+1008:[ \t]+14000007[ \t]+b[ \t]+1024 <__bar_veneer\+0x18>
-0+100c <__bar_veneer>:
-    100c:	90040010 	adrp	x16, 8001000 <bar>
-    1010:	91000210 	add	x16, x16, #0x0
-    1014:	d61f0200 	br	x16
+[ \t]+1000:[ \t]+94000004[ \t]+	bl[ \t]+1010 <__bar_veneer>
+[ \t]+1004:[ \t]+d65f03c0[ \t]+ret
+[ \t]+1008:[ \t]+14000008[ \t]+b[ \t]+1028 <__bar_veneer\+0x18>
+[ \t]+100c:[ \t]+d503201f[ \t]+nop
+0+1010 <__bar_veneer>:
+[ \t]+1010:[ \t]+90040010[ \t]+adrp[ \t]+x16, 8001000 <bar>
+[ \t]+1014:[ \t]+91000210[ \t]+add[ \t]+x16, x16, #0x0
+[ \t]+1018:[ \t]+d61f0200[ \t]+br[ \t]+x16
 	...
 
 Disassembly of section .foo:

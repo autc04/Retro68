@@ -34,7 +34,7 @@ There are [0-9]+ program headers, starting at offset [0-9]+
 
 Program Headers:
  +Type +Offset +VirtAddr +PhysAddr +FileSiz +MemSiz +Flg Align
- +PHDR +0x0+34 0x0+400034 0x0+400034 0x0+c0 0x0+c0 R E 0x4
+ +PHDR +0x0+34 0x0+400034 0x0+400034 0x0+c0 0x0+c0 R +0x4
  +INTERP +0x0+f4 0x0+4000f4 0x0+4000f4 0x0+d 0x0+d R +0x1
 .*Requesting program interpreter.*
  +LOAD .* R E 0x1000
@@ -58,7 +58,7 @@ Relocation section '.rela.dyn' at offset .* contains 4 entries:
 [0-9a-f ]+R_390_TLS_TPOFF +0+ +sG6 \+ 0
 [0-9a-f ]+R_390_TLS_TPOFF +0+ +sG1 \+ 0
 
-Relocation section '.rela.plt' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '.rela.plt' at offset 0x[0-9a-f]+ contains 1 entry:
  Offset +Info +Type +Sym.Value +Sym. Name \+ Addend
 [0-9a-f ]+R_390_JMP_SLOT[0-9a-f ]+__tls_get_offset \+ 0
 
@@ -68,11 +68,8 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* TLS +GLOBAL +DEFAULT +UND sG3
 .* TLS +GLOBAL +DEFAULT +UND sG2
 .* FUNC +GLOBAL +DEFAULT +UND __tls_get_offset
-.* NOTYPE +GLOBAL +DEFAULT +12 __bss_start
 .* TLS +GLOBAL +DEFAULT +UND sG6
 .* TLS +GLOBAL +DEFAULT +UND sG1
-.* NOTYPE +GLOBAL +DEFAULT +12 _edata
-.* NOTYPE +GLOBAL +DEFAULT +12 _end
 
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name

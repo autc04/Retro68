@@ -2,7 +2,7 @@
 #source: attr-gnu-4-8.s -W
 #ld: -r
 #readelf: -A
-#warning: Warning: .* uses -mdouble-float \(set by .*\), .* uses unknown floating point ABI 8
+#warning: warning: .* uses -mdouble-float \(set by .*\), .* uses unknown floating point ABI 8
 
 Attribute Section: gnu
 File Attributes

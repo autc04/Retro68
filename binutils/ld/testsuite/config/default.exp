@@ -1,5 +1,5 @@
 # Basic expect script for LD Regression Tests
-#   Copyright (C) 1993-2017 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -251,6 +251,17 @@ if ![info exists LDFLAGS] then {
     set LDFLAGS {}
 }
 
+# Set LD_CLASS to "64bit" for a 64-bit *host* linker.
+if { ![info exists LD_CLASS] } then {
+    set REAL_LD [findfile $base_dir/.libs/ld-new .libs/ld-new $LD [transform ld]]
+    set readelf_output [run_host_cmd "$READELF" "-h $REAL_LD"]
+    if { [regexp {[ \t]+Class:[ \t]+ELF64} $readelf_output] } then {
+	set LD_CLASS "64bit"
+    } else {
+	set LD_CLASS "32bit"
+    }
+}
+
 # Set PLT_CFLAGS to "-fplt" if target compiler supports it.
 
 if { ![info exists PLT_CFLAGS] } then {
@@ -363,5 +374,79 @@ if { ![info exists GNU2_CFLAGS] } then {
 	}
     } else {
 	set GNU2_CFLAGS ""
+    }
+}
+
+# Set INT128_CFLAGS to "-DHAS_INT128" if target compiler supports __int128.
+
+if { ![info exists INT128_CFLAGS] } then {
+    if { [which $CC] != 0 } {
+	# Check if gcc supports __int128.
+	set flags ""
+	if [board_info [target_info name] exists cflags] {
+	    append flags " [board_info [target_info name] cflags]"
+	}
+	if [board_info [target_info name] exists ldflags] {
+	    append flags " [board_info [target_info name] ldflags]"
+	}
+
+	set basename "tmpdir/int128[pid]"
+	set src ${basename}.c
+	set output ${basename}.o
+	set f [open $src "w"]
+	puts $f "__int128 a = 42;"
+	close $f
+	if [is_remote host] {
+	    set src [remote_download host $src]
+	}
+	set int128_available [run_host_cmd_yesno "$CC" "$flags -c $src -o $output"]
+	remote_file host delete $src
+	remote_file host delete $output
+	file delete $src
+
+	if { $int128_available == 1 } then {
+	    set INT128_CFLAGS "-DHAS_INT128"
+	} else {
+	    set INT128_CFLAGS ""
+	}
+    } else {
+	set INT128_CFLAGS ""
+    }
+}
+
+# Set STATIC_LDFLAGS to "-static" if target compiler supports it.
+
+if { ![info exists STATIC_LDFLAGS] } then {
+    if { [which $CC] != 0 } {
+	# Check if gcc supports -static.
+	set flags ""
+	if [board_info [target_info name] exists cflags] {
+	    append flags " [board_info [target_info name] cflags]"
+	}
+	if [board_info [target_info name] exists ldflags] {
+	    append flags " [board_info [target_info name] ldflags]"
+	}
+
+	set basename "tmpdir/static[pid]"
+	set src ${basename}.c
+	set output ${basename}
+	set f [open $src "w"]
+	puts $f "int main (void) { return 0; }"
+	close $f
+	if [is_remote host] {
+	    set src [remote_download host $src]
+	}
+	set static_available [run_host_cmd_yesno "$CC" "-static $flags $src -o $output"]
+	remote_file host delete $src
+	remote_file host delete $output
+	file delete $src
+
+	if { $static_available == 1 } then {
+	    set STATIC_LDFLAGS "-static"
+	} else {
+	    set STATIC_LDFLAGS ""
+	}
+    } else {
+	set STATIC_LDFLAGS ""
     }
 }

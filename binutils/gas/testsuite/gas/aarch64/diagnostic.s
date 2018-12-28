@@ -259,10 +259,10 @@
 	ld2	{v0.b, v1.b}[16], [x0]
 	ld2	{v0.b, v1.b}[67], [x0]
 
-	fmov	d0, #2
-	fmov	d0, #-2
-	fmov	s0, 2
-	fmov	s0, -2
+
+
+
+
 
 	st2	{v0.4s, v1.4s}, [sp], xzr
 	str	x1, [x2, sp]
@@ -295,3 +295,19 @@
 	orr	x0, x0, #0xff, mul #1
 	orr	x0, x0, #0xfe, mul #255
 	orr	x0, x0, #0xfc, mul #256
+
+	ip0 	.req 	x0
+	ip1	.req 	x1
+	lr	.req 	x2
+	fp	.req 	x3
+
+	stlxrb 	w26, w26, [x0]
+	stlxrh	w26, w26, [x1]
+	stlxr 	w26, w26, [x2]
+	stlxrb 	w26, w27, [x26]
+	stlxrh	w26, w27, [x26]
+	stlxr 	w26, w27, [x26]
+	stlxr 	w26, x27, [x26]
+	stlxr	w26, x26, [x3]
+	ldxp	x26, x26, [x5]
+	ldxp	x26, x1, [x26]

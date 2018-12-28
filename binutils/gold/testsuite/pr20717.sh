@@ -3,7 +3,7 @@
 # pr20717.sh -- test --gc-sections for an unused orphan section
 # when the last section in the linker script has a KEEP statement.
 
-# Copyright (C) 2016-2017 Free Software Foundation, Inc.
+# Copyright (C) 2016-2018 Free Software Foundation, Inc.
 # Written by Igor Kudrin  <ikudrin@accesssoftek.com>
 
 # This file is part of gold.

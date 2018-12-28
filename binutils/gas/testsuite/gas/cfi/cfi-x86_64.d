@@ -1,3 +1,4 @@
+#as: -O0
 #objdump: -Wf
 #name: CFI on x86-64
 #...

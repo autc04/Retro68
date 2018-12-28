@@ -2,7 +2,7 @@
 #source: dso-2b.s
 #source: dso-1c.s
 #as: --pic --no-underscore --em=criself -I$srcdir/$subdir
-#ld: --shared -m crislinux
+#ld: --shared -m crislinux --hash-style=sysv
 #readelf: -s -r
 
 # PR 16044 is about a (compile-time-non-local) hidden function symbol,
@@ -23,21 +23,18 @@
 # local, its absence from the dynamic symbol table and that the
 # relocation and symbol values match.
 
-Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 1 entry:
  Offset[ 	]+Info[ 	]+Type[ 	]+Sym\.Value  Sym\. Name \+ Addend
-[0-9a-f]+  0+[0-9a-f]+ R_CRIS_RELATIVE[ 	]+184
+[0-9a-f]+  0+[0-9a-f]+ R_CRIS_RELATIVE[ 	]+128
 
-Symbol table '\.dynsym' contains 7 entries:
+Symbol table '\.dynsym' contains 4 entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
  +0: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND 
  +1: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 
  +2: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +5 export_1
- +3: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +7 __bss_start
- +4: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +7 _edata
- +5: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +7 _end
- +6: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +5 export_2
+ +3: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +5 export_2
 
 Symbol table '\.symtab' contains [0-9]+ entries:
 #...
- +[0-9]+: 0+184  +2 FUNC + LOCAL + DEFAULT + 5 dsofn
+ +[0-9]+: 0+128  +2 FUNC + LOCAL + DEFAULT + 5 dsofn
 #...

@@ -64,7 +64,7 @@
 /* Copy the first part of user declarations.  */
 #line 1 "rcparse.y" /* yacc.c:339  */
  /* rcparse.y -- parser for Windows rc files
-   Copyright (C) 1997-2017 Free Software Foundation, Inc.
+   Copyright (C) 1997-2018 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
    Extended by Kai Tietz, Onevision.
 

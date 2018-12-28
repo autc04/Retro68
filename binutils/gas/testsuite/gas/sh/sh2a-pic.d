@@ -1,7 +1,6 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: SH2a PIC relocations
 #as: -isa=sh2a
-#skip: sh*-*-symbian*
 
 dump.o:     file format elf32-sh.*
 

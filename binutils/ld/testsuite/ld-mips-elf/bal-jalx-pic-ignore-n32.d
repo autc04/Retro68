@@ -3,4 +3,5 @@
 #as: -EB -n32 -march=from-abi
 #ld: -EB -Ttext 0x1c000000 -e 0x1c000000 -shared --ignore-branch-isa
 #objdump: -dr --prefix-addresses --show-raw-insn
+#target: [check_shared_lib_support]
 #dump: bal-jalx-pic-ignore.d

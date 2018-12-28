@@ -1,7 +1,7 @@
 #source: tlspic1.s
 #source: tlspic2.s
 #as: -little
-#ld: -shared -EL
+#ld: -shared -EL --hash-style=sysv
 #readelf: -Ssrl
 #target: sh*-*-linux* sh*-*-netbsd*
 
@@ -59,7 +59,7 @@ Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 10 entries:
 [0-9a-f ]+R_SH_TLS_DTPOFF32 +0+ +sg1 \+ 0
 [0-9a-f ]+R_SH_TLS_TPOFF32 +0+04 +sg2 \+ 0
 
-Relocation section '\.rela\.plt' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '\.rela\.plt' at offset 0x[0-9a-f]+ contains 1 entry:
  Offset +Info +Type +Sym\.Value +Sym\. Name \+ Addend
 [0-9a-f ]+R_SH_JMP_SLOT[0-9a-f ]+__tls_get_addr \+ [0-9a-f]+
 
@@ -72,6 +72,4 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* FUNC +GLOBAL +DEFAULT +7 fn1
 #...
 .* TLS +GLOBAL +DEFAULT +8 sg2
-#...
-
 #pass

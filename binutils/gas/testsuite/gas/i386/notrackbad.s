@@ -8,11 +8,9 @@ _start:
 
 	fs notrack call *%eax
 	notrack fs call *%eax
-	notrack bnd call *%eax
-	notrack data16 call *%eax
 
 	.intel_syntax noprefix
 	fs notrack call eax
 	notrack fs call eax
-	notrack bnd call eax
-	notrack data16 call eax
+
+	.p2align	4,0

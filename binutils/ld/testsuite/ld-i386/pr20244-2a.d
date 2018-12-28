@@ -1,6 +1,6 @@
 #source: pr20244-2.s
 #as: --32
-#ld: -m elf_i386
+#ld: -m elf_i386 -z noseparate-code
 #objdump: --sym -dw
 #notarget: i?86-*-nacl* x86_64-*-nacl*
 

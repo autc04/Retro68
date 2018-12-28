@@ -1,6 +1,6 @@
 #name: ARM IT instruction
 #objdump: -dr --prefix-addresses --show-raw-insn
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#skip: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

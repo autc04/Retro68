@@ -77,7 +77,7 @@ Relocation section '.rel.dyn' at offset 0x[0-9a-f]+ contains 26 entries:
 [0-9a-f ]+R_386_TLS_DTPOFF3 0+ +sg1
 [0-9a-f ]+R_386_TLS_TPOFF32 0+4 +sg2
 
-Relocation section '.rel.plt' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '.rel.plt' at offset 0x[0-9a-f]+ contains 1 entry:
  Offset +Info +Type +Sym.Value +Sym. Name
 [0-9a-f ]+R_386_JUMP_SLOT +0+ +___tls_get_addr
 
@@ -90,12 +90,9 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
  +[0-9]+: 0+10 +0 +TLS +GLOBAL +DEFAULT +8 sg5
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +8 sg1
  +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +2 fn1
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +12 __bss_start
  +[0-9]+: 0+4 +0 +TLS +GLOBAL +DEFAULT +8 sg2
  +[0-9]+: 0+14 +0 +TLS +GLOBAL +DEFAULT +8 sg6
  +[0-9]+: 0+18 +0 +TLS +GLOBAL +DEFAULT +8 sg7
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +12 _edata
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +12 _end
  +[0-9]+: 0+ +0 +NOTYPE +GLOBAL +DEFAULT +UND ___tls_get_addr
 
 Symbol table '\.symtab' contains [0-9]+ entries:
@@ -147,10 +144,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
  +[0-9]+: 0+10 +0 +TLS +GLOBAL +DEFAULT +8 sg5
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +8 sg1
  +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +2 fn1
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +12 __bss_start
  +[0-9]+: 0+4 +0 +TLS +GLOBAL +DEFAULT +8 sg2
  +[0-9]+: 0+14 +0 +TLS +GLOBAL +DEFAULT +8 sg6
  +[0-9]+: 0+18 +0 +TLS +GLOBAL +DEFAULT +8 sg7
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +12 _edata
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +12 _end
  +[0-9]+: 0+ +0 +NOTYPE +GLOBAL +DEFAULT +UND ___tls_get_addr

@@ -14,9 +14,6 @@ TEMPLATE_NAME=elf32
 GENERATE_SHLIB_SCRIPT=yes
 ENTRY=__start
 SYMPREFIX=_
-# PR 17739.  Delay checking relocs until after all files have
-# been opened and linker garbage collection has taken place.
-CHECK_RELOCS_AFTER_OPEN_INPUT=yes
 
 GOT=".got          ${RELOCATING-0} : {
   PROVIDE(__GLOBAL_OFFSET_TABLE_ = .);

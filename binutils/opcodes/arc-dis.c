@@ -1,5 +1,5 @@
 /* Instruction printing code for the ARC.
-   Copyright (C) 1994-2017 Free Software Foundation, Inc.
+   Copyright (C) 1994-2018 Free Software Foundation, Inc.
 
    Contributed by Claudiu Zissulescu (claziss@synopsys.com)
 
@@ -122,6 +122,9 @@ static linkclass decodelist = NULL;
 
 static unsigned enforced_isa_mask = ARC_OPCODE_NONE;
 
+/* True if we want to print using only hex numbers.  */
+static bfd_boolean print_hex = FALSE;
+
 /* Macros section.  */
 
 #ifdef DEBUG
@@ -186,6 +189,7 @@ skip_this_opcode (const struct arc_opcode *opcode)
     {
     case FLOAT:
     case DSP:
+    case ARITH:
       break;
     default:
       return FALSE;
@@ -771,8 +775,11 @@ parse_option (const char *option)
       add_to_decodelist (FLOAT, DP);
       add_to_decodelist (FLOAT, CVT);
     }
+  else if (CONST_STRNEQ (option, "hex"))
+    print_hex = TRUE;
   else
-    fprintf (stderr, _("Unrecognised disassembler option: %s\n"), option);
+    /* xgettext:c-format */
+    opcodes_error_handler (_("unrecognised disassembler option: %s"), option);
 }
 
 #define ARC_CPU_TYPE_A6xx(NAME,EXTRA)			\
@@ -814,7 +821,8 @@ parse_cpu_option (const char *option)
 	}
     }
 
-  fprintf (stderr, _("Unrecognised disassembler CPU option: %s\n"), option);
+  /* xgettext:c-format */
+  opcodes_error_handler (_("unrecognised disassembler CPU option: %s"), option);
   return ARC_OPCODE_NONE;
 }
 
@@ -917,9 +925,10 @@ print_insn_arc (bfd_vma memaddr,
   bfd_boolean open_braket;
   int size;
   const struct arc_operand *operand;
-  int value;
+  int value, vpcl;
   struct arc_operand_iterator iter;
   struct arc_disassemble_info *arc_infop;
+  bfd_boolean rpcl = FALSE, rset = FALSE;
 
   if (info->disassembler_options)
     {
@@ -1016,6 +1025,7 @@ print_insn_arc (bfd_vma memaddr,
 
   /* Read the insn into a host word.  */
   status = (*info->read_memory_func) (memaddr, buffer, size, info);
+
   if (status != 0)
     {
       (*info->memory_error_func) (status, memaddr, info);
@@ -1126,23 +1136,23 @@ print_insn_arc (bfd_vma memaddr,
       switch (insn_len)
 	{
 	case 2:
-	  (*info->fprintf_func) (info->stream, ".long %#04llx",
+	  (*info->fprintf_func) (info->stream, ".shor\t%#04llx",
 				 insn & 0xffff);
 	  break;
 	case 4:
-	  (*info->fprintf_func) (info->stream, ".long %#08llx",
+	  (*info->fprintf_func) (info->stream, ".word\t%#08llx",
 				 insn & 0xffffffff);
 	  break;
 	case 6:
-	  (*info->fprintf_func) (info->stream, ".long %#08llx",
+	  (*info->fprintf_func) (info->stream, ".long\t%#08llx",
 				 insn & 0xffffffff);
-	  (*info->fprintf_func) (info->stream, ".long %#04llx",
+	  (*info->fprintf_func) (info->stream, ".long\t%#04llx",
 				 (insn >> 32) & 0xffff);
 	  break;
 	case 8:
-	  (*info->fprintf_func) (info->stream, ".long %#08llx",
+	  (*info->fprintf_func) (info->stream, ".long\t%#08llx",
 				 insn & 0xffffffff);
-	  (*info->fprintf_func) (info->stream, ".long %#08llx",
+	  (*info->fprintf_func) (info->stream, ".long\t%#08llx",
 				 insn >> 32);
 	  break;
 	default:
@@ -1172,6 +1182,7 @@ print_insn_arc (bfd_vma memaddr,
 
   /* Now extract and print the operands.  */
   operand = NULL;
+  vpcl = 0;
   while (operand_iterator_next (&iter, &operand, &value))
     {
       if (open_braket && (operand->flags & ARC_OPERAND_BRAKET))
@@ -1209,6 +1220,20 @@ print_insn_arc (bfd_vma memaddr,
 
       need_comma = TRUE;
 
+      if (operand->flags & ARC_OPERAND_PCREL)
+	{
+	  rpcl = TRUE;
+	  vpcl = value;
+	  rset = TRUE;
+
+	  info->target = (bfd_vma) (memaddr & ~3) + value;
+	}
+      else if (!(operand->flags & ARC_OPERAND_IR))
+	{
+	  vpcl = value;
+	  rset = TRUE;
+	}
+
       /* Print the operand as directed by the flags.  */
       if (operand->flags & ARC_OPERAND_IR)
 	{
@@ -1226,6 +1251,10 @@ print_insn_arc (bfd_vma memaddr,
 		rname = regnames[value + 1];
 	      (*info->fprintf_func) (info->stream, "%s", rname);
 	    }
+	  if (value == 63)
+	    rpcl = TRUE;
+	  else
+	    rpcl = FALSE;
 	}
       else if (operand->flags & ARC_OPERAND_LIMM)
 	{
@@ -1241,22 +1270,18 @@ print_insn_arc (bfd_vma memaddr,
 		info->target = (bfd_vma) value;
 	    }
 	}
-      else if (operand->flags & ARC_OPERAND_PCREL)
-	{
-	   /* PCL relative.  */
-	  if (info->flags & INSN_HAS_RELOC)
-	    memaddr = 0;
-	  (*info->print_address_func) ((memaddr & ~3) + value, info);
-
-	  info->target = (bfd_vma) (memaddr & ~3) + value;
-	}
       else if (operand->flags & ARC_OPERAND_SIGNED)
 	{
 	  const char *rname = get_auxreg (opcode, value, isa_mask);
 	  if (rname && open_braket)
 	    (*info->fprintf_func) (info->stream, "%s", rname);
 	  else
-	    (*info->fprintf_func) (info->stream, "%d", value);
+	    {
+	      if (print_hex)
+		(*info->fprintf_func) (info->stream, "%#x", value);
+	      else
+		(*info->fprintf_func) (info->stream, "%d", value);
+	    }
 	}
       else if (operand->flags & ARC_OPERAND_ADDRTYPE)
 	{
@@ -1272,6 +1297,7 @@ print_insn_arc (bfd_vma memaddr,
 	      && !(operand->flags & ARC_OPERAND_ALIGNED16)
 	      && value >= 0 && value <= 14)
 	    {
+	      /* Leave/Enter mnemonics.  */
 	      switch (value)
 		{
 		case 0:
@@ -1285,6 +1311,8 @@ print_insn_arc (bfd_vma memaddr,
 					 regnames[13 + value - 1]);
 		  break;
 		}
+	      rpcl = FALSE;
+	      rset = FALSE;
 	    }
 	  else
 	    {
@@ -1313,6 +1341,21 @@ print_insn_arc (bfd_vma memaddr,
 	       : ARC_OPERAND_KIND_SHIMM);
 	}
       arc_infop->operands_count ++;
+    }
+
+  /* Pretty print extra info for pc-relative operands.  */
+  if (rpcl && rset)
+    {
+      if (info->flags & INSN_HAS_RELOC)
+	/* If the instruction has a reloc associated with it, then the
+	   offset field in the instruction will actually be the addend
+	   for the reloc.  (We are using REL type relocs).  In such
+	   cases, we can ignore the pc when computing addresses, since
+	   the addend is not currently pc-relative.  */
+	memaddr = 0;
+
+      (*info->fprintf_func) (info->stream, "\t;");
+      (*info->print_address_func) ((memaddr & ~3) + vpcl, info);
     }
 
   return insn_len;
@@ -1367,6 +1410,8 @@ with -M switch (multiple options should be separated by commas):\n"));
   fpus            Recognize single precision FPU instructions.\n"));
   fprintf (stream, _("\
   fpud            Recognize double precision FPU instructions.\n"));
+  fprintf (stream, _("\
+  hex             Use only hexadecimal number to print immediates.\n"));
 }
 
 void arc_insn_decode (bfd_vma addr,

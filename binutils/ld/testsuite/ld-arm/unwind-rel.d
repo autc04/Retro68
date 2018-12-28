@@ -13,7 +13,7 @@ Relocation section '\.rel\.ARM\.exidx' at offset .* contains 5 entries:
 00000010  0000012a R_ARM_PREL31      00000000   \.text
 00000010  00000e00 R_ARM_NONE        00000000   __aeabi_unwind_cpp_pr0
 
-Unwind table index '\.ARM\.exidx' at offset .* contains 3 entries:
+Unwind section '\.ARM\.exidx' at offset .* contains 3 entries:
 
 0x0: 0x80a8b0b0
   Compact model index: 0

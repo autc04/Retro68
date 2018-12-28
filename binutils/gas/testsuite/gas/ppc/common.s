@@ -64,6 +64,8 @@ start:
 	crnand	1,2,3
 	crnor	0,1,2
 	cror	5,6,7
+	crmove	5,6
+	cror	5,6,6
 	crorc	2,3,4
 	crxor	6,7,0
 	eqv.	10,11,12
@@ -121,7 +123,9 @@ start:
 	mfsrr1	8
 	mfxer	30
 	mr.	30,31
+	or.	30,31,31
 	mr	30,31
+	or	30,31,31
 	mtcr	3
 	mtcrf	0x80,3
 	mtctr	19
@@ -155,7 +159,9 @@ start:
 	nor.	20,21,22
 	nor	20,21,22
 	not.	20,21
+	nor.	20,21,21
 	not	20,21
+	nor	20,21,21
 	or	0,2,4
 	or.	12,14,16
 	orc	15,16,17

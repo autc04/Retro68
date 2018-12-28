@@ -1,5 +1,5 @@
 # Expect script for binutils tests
-#   Copyright (C) 2009-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -25,10 +25,8 @@
 # STT_GNU_IFUNC symbols.
 
 if { !([istarget "i?86-*-elf*"]
-       || (([istarget "i?86-*-linux*"]
-	    || [istarget "i?86-*-gnu*"])
-	   && ![istarget "*-*-*aout*"]
-	   && ![istarget "*-*-*oldld*"])
+       || [istarget "i?86-*-linux*"]
+       || [istarget "i?86-*-gnu*"]
        || [istarget "i?86-*-nacl*"]
        || [istarget "x86_64-*-nacl*"]
        || [istarget "x86_64-*-linux*"]

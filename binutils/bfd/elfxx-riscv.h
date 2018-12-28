@@ -1,5 +1,5 @@
 /* RISC-V ELF specific backend routines.
-   Copyright (C) 2011-2017 Free Software Foundation, Inc.
+   Copyright (C) 2011-2018 Free Software Foundation, Inc.
 
    Contributed by Andrew Waterman (andrew@sifive.com).
    Based on MIPS target.
@@ -30,4 +30,4 @@ extern reloc_howto_type *
 riscv_reloc_type_lookup (bfd *, bfd_reloc_code_real_type);
 
 extern reloc_howto_type *
-riscv_elf_rtype_to_howto (unsigned int r_type);
+riscv_elf_rtype_to_howto (bfd *, unsigned int r_type);

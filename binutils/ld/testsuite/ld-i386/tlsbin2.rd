@@ -71,11 +71,8 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG7
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG2
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG4
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +11 __bss_start
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG6
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG1
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +11 _edata
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +11 _end
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG8
  +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +UND ___tls_get_addr
 

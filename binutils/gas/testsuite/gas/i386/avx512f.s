@@ -7262,6 +7262,10 @@ _start:
 	vptestnmq	-1024(%edx){1to8}, %zmm5, %k5	 # AVX512F Disp8
 	vptestnmq	-1032(%edx){1to8}, %zmm5, %k5	 # AVX512F
 
+	vaddps		(%bx), %zmm0, %zmm0
+	vaddps		0x40(%bx), %zmm0, %zmm0
+	vaddps		0x1234(%bx), %zmm0, %zmm0
+
 	.intel_syntax noprefix
 	vaddpd	zmm6, zmm5, zmm4	 # AVX512F
 	vaddpd	zmm6{k7}, zmm5, zmm4	 # AVX512F
@@ -14520,3 +14524,7 @@ _start:
 	vptestnmq	k5, zmm5, [edx+1024]{1to8}	 # AVX512F
 	vptestnmq	k5, zmm5, [edx-1024]{1to8}	 # AVX512F Disp8
 	vptestnmq	k5, zmm5, [edx-1032]{1to8}	 # AVX512F
+
+	vaddps		zmm0, zmm0, [bx]
+	vaddps		zmm0, zmm0, [bx+0x40]
+	vaddps		zmm0, zmm0, [bx+0x1234]

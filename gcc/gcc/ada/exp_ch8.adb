@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -176,18 +176,26 @@ package body Exp_Ch8 is
 
       --  Ada 2005 (AI-318-02): If the renamed object is a call to a build-in-
       --  place function, then a temporary return object needs to be created
-      --  and access to it must be passed to the function. Currently we limit
-      --  such functions to those with inherently limited result subtypes, but
-      --  eventually we plan to expand the functions that are treated as
-      --  build-in-place to include other composite result types.
+      --  and access to it must be passed to the function.
 
-      if Ada_Version >= Ada_2005
-        and then Is_Build_In_Place_Function_Call (Nam)
-      then
+      if Is_Build_In_Place_Function_Call (Nam) then
          Make_Build_In_Place_Call_In_Anonymous_Context (Nam);
+
+      --  Ada 2005 (AI-318-02): Specialization of previous case for renaming
+      --  containing build-in-place function calls whose returned object covers
+      --  interface types.
+
+      elsif Present (Unqual_BIP_Iface_Function_Call (Nam)) then
+         Make_Build_In_Place_Iface_Call_In_Anonymous_Context (Nam);
       end if;
 
-      --  Create renaming entry for debug information
+      --  Create renaming entry for debug information. Mark the entity as
+      --  needing debug info if it comes from sources because the current
+      --  setting in Freeze_Entity occurs too late. ???
+
+      if Comes_From_Source (Defining_Identifier (N)) then
+         Set_Debug_Info_Needed (Defining_Identifier (N));
+      end if;
 
       Decl := Debug_Renaming_Declaration (N);
 

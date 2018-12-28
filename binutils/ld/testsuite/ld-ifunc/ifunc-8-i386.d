@@ -4,6 +4,7 @@
 #as: --32
 #readelf: -r --wide
 #target: x86_64-*-* i?86-*-*
+#notarget: x86_64-*-nacl* i?86-*-nacl*
 
 Relocation section '.rel.plt' at .*
 [ ]+Offset[ ]+Info[ ]+Type[ ]+.*

@@ -23,7 +23,7 @@
 # MA 02110-1301, USA.
 
 # The goal of this program is to verify if --section-ordering-file works as
-# intended.  File final_layout.cc is in this test.
+# intended.  File plugin_final_layout.cc is in this test.
 
 
 set -e
@@ -37,7 +37,7 @@ BEGIN { saw1 = 0; saw2 = 0; err = 0; }
      saw2 = 1;
      if (!saw1)
        {
-	  printf \"layout of $2 and $3 is not right\\n\";
+	  printf \"layout of $2 and $3 is not right in file $1\\n\";
 	  err = 1;
 	  exit 1;
        }
@@ -45,12 +45,12 @@ BEGIN { saw1 = 0; saw2 = 0; err = 0; }
 END {
       if (!saw1 && !err)
         {
-	  printf \"did not see $2\\n\";
+	  printf \"did not see $2 in file $1\\n\";
 	  exit 1;
 	}
       if (!saw2 && !err)
 	{
-	  printf \"did not see $3\\n\";
+	  printf \"did not see $3 in file $1\\n\";
 	  exit 1;
 	}
     }" $1
@@ -74,12 +74,12 @@ BEGIN { saw_section = 0; saw_unique = 0; }
 END {
       if (!saw_section)
 	{
-	  printf \"Section $2 not seen in output\\n\";
+	  printf \"Section $2 not seen in output file $1\\n\";
 	  exit 1;
 	}
       else if (!saw_unique)
 	{
-	  printf \"Unique segment not seen for: $2\\n\";
+	  printf \"Unique segment not seen for: $2 in file $1\\n\";
 	  exit 1;
 	}
     }" $1
@@ -88,3 +88,7 @@ END {
 check plugin_final_layout.stdout "_Z3foov" "_Z3barv"
 check plugin_final_layout.stdout "_Z3barv" "_Z3bazv"
 check_unique_segment plugin_final_layout_readelf.stdout ".text.plugin_created_unique"
+
+check plugin_layout_new_file.stdout "_Z3foov" "_Z3barv"
+check plugin_layout_new_file.stdout "_Z3barv" "_Z3bazv"
+check_unique_segment plugin_layout_new_file_readelf.stdout ".text.plugin_created_unique"

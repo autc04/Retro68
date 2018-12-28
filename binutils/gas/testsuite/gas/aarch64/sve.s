@@ -40540,3 +40540,26 @@
 	ORN       Z0.D, Z0.D, #0X1
 
 	.include  "advsimd-compnum.s"
+
+	#  PR 22988 - check that [Rn] is equivalent to [Rn,xzr]
+	ldff1b   z0.b, p1/z, [x0]
+	ldff1b   z0.h, p1/z, [x1]
+	ldff1b   z0.s, p1/z, [x2]
+	ldff1b   z0.d, p1/z, [x3]
+
+	ldff1d   z0.d, p0/z, [x0]
+
+	ldff1h   z0.h, p1/z, [x9]
+	ldff1h   z0.s, p1/z, [x10]
+	ldff1h   z0.d, p1/z, [x11]
+
+	ldff1sb  z0.s, p1/z, [x14]
+	ldff1sb  z0.d, p1/z, [x15]
+
+	ldff1sh  z0.s, p1/z, [x18]
+	ldff1sh  z0.d, p1/z, [x19]
+
+	ldff1sw  z0.d, p1/z, [x23]
+
+	ldff1w   z0.d, p1/z, [x27]
+	

@@ -3,7 +3,7 @@
 #source: barrier.s
 #as: -mcpu=cortex-a8 -mthumb
 # This test is only valid on ELF based ports.
-#not-target: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
+#not-target: *-*-pe *-*-wince
 
 # Test Barrier Instruction Operands
 
@@ -59,7 +59,7 @@ Disassembly of section .text:
 000000b8 <[^>]*> f3bf 8f46 	dsb	(nshst|unst|#6)
 000000bc <[^>]*> f3bf 8f43 	dsb	(osh|#3)
 000000c0 <[^>]*> f3bf 8f6f 	isb	(sy|#15)
-000000c4 <[^>]*> f3bf 8f40 	dsb	#0
+000000c4 <[^>]*> f3bf 8f40 	ssbb
 000000c8 <[^>]*> f3bf 8f4f 	dsb	(sy|#15)
 000000cc <[^>]*> f3bf 8f50 	dmb	#0
 000000d0 <[^>]*> f3bf 8f5f 	dmb	(sy|#15)

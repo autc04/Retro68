@@ -1,7 +1,7 @@
 #name: 32-bit Thumb conditional instructions backward search
 #as: -march=armv6kt2
 # This test is only valid on ELF based ports.
-#skip: *-*-*aout* *-*-pe *-*-*coff *-*-wince *-*-netbsd *-*-riscix*
+#skip: *-*-pe *-*-wince
 #source: thumb2_it_search.s
 #objdump: -dr --prefix-addresses --show-raw-insn
 
