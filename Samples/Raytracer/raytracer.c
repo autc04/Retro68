@@ -39,6 +39,7 @@
 
 #include <math.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 pascal /* <- pascal calling convention, for no reason in particular except to test the comppiler */
 bool hitSphere(float x0, float y0, float z0, float dx, float dy, float dz, float *t)
