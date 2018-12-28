@@ -5549,7 +5549,7 @@ expand_function_end (void)
 	{
 	  enum machine_mode mode = GET_MODE(decl_rtl);;
 
-	  rtx return_slot = GEN_INT(crtl->args.pops_args + 8);
+	  rtx return_slot = gen_int_mode(crtl->args.pops_args + 8, Pmode);
 	  return_slot = gen_rtx_PLUS(Pmode, arg_pointer_rtx, return_slot);
 	  return_slot = gen_rtx_MEM(mode, return_slot);
 	  MEM_VOLATILE_P(return_slot) = true;

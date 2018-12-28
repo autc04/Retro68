@@ -570,7 +570,7 @@ emit_call_1 (rtx funexp, tree fntree ATTRIBUTE_UNUSED, tree fndecl ATTRIBUTE_UNU
       if (valreg)
         {
           rtx pop_insn;
-          int modesize = GET_MODE_SIZE (GET_MODE (valreg));
+          poly_uint16 modesize = GET_MODE_SIZE (GET_MODE (valreg));
 #ifdef PUSH_ROUNDING
           modesize = PUSH_ROUNDING (modesize);
 #endif
@@ -581,7 +581,7 @@ emit_call_1 (rtx funexp, tree fntree ATTRIBUTE_UNUSED, tree fndecl ATTRIBUTE_UNU
                                ));
       
           stack_pointer_delta -= modesize;
-          add_reg_note (pop_insn, REG_ARGS_SIZE, GEN_INT (stack_pointer_delta));
+					add_reg_note (pop_insn, REG_ARGS_SIZE, gen_int_mode (stack_pointer_delta, Pmode));
         }
     }
 
@@ -4242,15 +4242,12 @@ expand_call (tree exp, rtx target, int ignore)
 
   if (is_pascal)
   { /* ### */
-    int modesize;
-    
-
     pascal_return_mode = TYPE_MODE (TREE_TYPE (funtype));
-    modesize = GET_MODE_SIZE (pascal_return_mode);
+    poly_uint16 modesize = GET_MODE_SIZE (pascal_return_mode);
 #ifdef PUSH_ROUNDING
     modesize = PUSH_ROUNDING (modesize);
 #endif
-    push_block (GEN_INT (modesize), 0, 0);
+    push_block (gen_int_mode (modesize, VOIDmode), 0, 0);
     //stack_pointer_delta -= INTVAL (GEN_INT (modesize));
     NO_DEFER_POP;
   }

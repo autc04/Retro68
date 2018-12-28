@@ -303,9 +303,6 @@ extern void m68k_register_pragmas(void);
 #define PREFERRED_STACK_BOUNDARY \
   ((TARGET_COLDFIRE || TARGET_FIDOA) ? 32 : 16)
 
-#define FUNCTION_ARG_PADDING(MODE, TYPE) upward
-
-
 /* No data type wants to be aligned rounder than this.
    Most published ABIs say that ints should be aligned on 16-bit
    boundaries, but CPUs with 32-bit busses get better performance

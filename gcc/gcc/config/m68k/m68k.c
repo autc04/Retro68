@@ -198,16 +198,14 @@ static bool m68k_output_addr_const_extra (FILE *, rtx);
 static void m68k_init_sync_libfuncs (void) ATTRIBUTE_UNUSED;
 static enum flt_eval_method
 m68k_excess_precision (enum excess_precision_type);
-<<<<<<< HEAD
 
 static tree m68k_mangle_decl_assembler_name (tree decl, tree id);
-=======
+static pad_direction m68k_function_arg_padding (machine_mode mode, const_tree type);
 static unsigned int m68k_hard_regno_nregs (unsigned int, machine_mode);
 static bool m68k_hard_regno_mode_ok (unsigned int, machine_mode);
 static bool m68k_modes_tieable_p (machine_mode, machine_mode);
 static machine_mode m68k_promote_function_mode (const_tree, machine_mode,
 						int *, const_tree, int);
->>>>>>> upstream
 
 /* Initialize the GCC target structure.  */
 
@@ -355,33 +353,6 @@ static machine_mode m68k_promote_function_mode (const_tree, machine_mode,
 #undef TARGET_ATOMIC_TEST_AND_SET_TRUEVAL
 #define TARGET_ATOMIC_TEST_AND_SET_TRUEVAL 128
 
-<<<<<<< HEAD
-#undef TARGET_FUNCTION_VALUE
-#define TARGET_FUNCTION_VALUE m68k_function_value
-
-#undef TARGET_MANGLE_DECL_ASSEMBLER_NAME
-#define TARGET_MANGLE_DECL_ASSEMBLER_NAME m68k_mangle_decl_assembler_name
-
-static const struct attribute_spec m68k_attribute_table[] =
-{
-  /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler,
-       affects_type_identity } */
-  { "interrupt", 0, 0, true,  false, false, m68k_handle_fndecl_attribute,
-    false },
-  /* Stdcall attribute says callee is responsible for popping arguments
-     if they are not variable.  */
-  { "pascal",   0, 0, false, true,  true, m68k_handle_fndecl_attribute,
-    true },
-  { "regparam",   1, 1, false, true,  true, m68k_handle_fndecl_attribute,
-    true },
-  { "raw_inline",   1, 32, false, true,  true, m68k_handle_fndecl_attribute,
-    false },
-  { "interrupt_handler", 0, 0, true,  false, false,
-    m68k_handle_fndecl_attribute, false },
-  { "interrupt_thread", 0, 0, true,  false, false,
-    m68k_handle_fndecl_attribute, false },
-  { NULL,                0, 0, false, false, false, NULL, false }
-=======
 #undef TARGET_HARD_REGNO_NREGS
 #define TARGET_HARD_REGNO_NREGS m68k_hard_regno_nregs
 #undef TARGET_HARD_REGNO_MODE_OK
@@ -393,6 +364,15 @@ static const struct attribute_spec m68k_attribute_table[] =
 #undef TARGET_PROMOTE_FUNCTION_MODE
 #define TARGET_PROMOTE_FUNCTION_MODE m68k_promote_function_mode
 
+#undef TARGET_FUNCTION_VALUE
+#define TARGET_FUNCTION_VALUE m68k_function_value
+
+#undef TARGET_MANGLE_DECL_ASSEMBLER_NAME
+#define TARGET_MANGLE_DECL_ASSEMBLER_NAME m68k_mangle_decl_assembler_name
+
+#undef TARGET_FUNCTION_ARG_PADDING
+#define TARGET_FUNCTION_ARG_PADDING m68k_function_arg_padding
+
 static const struct attribute_spec m68k_attribute_table[] =
 {
   /* { name, min_len, max_len, decl_req, type_req, fn_type_req,
@@ -403,8 +383,13 @@ static const struct attribute_spec m68k_attribute_table[] =
     m68k_handle_fndecl_attribute, NULL },
   { "interrupt_thread", 0, 0, true,  false, false, false,
     m68k_handle_fndecl_attribute, NULL },
+  { "pascal", 0, 0, false, true, true, true,
+    m68k_handle_fndecl_attribute, NULL },
+  { "regparam", 1, 1, false, true, true, true,
+    m68k_handle_fndecl_attribute, NULL },
+  { "raw_inline", 1, 32, false, true, true, false,
+    m68k_handle_fndecl_attribute, NULL },
   { NULL, 0, 0, false, false, false, false, NULL, NULL }
->>>>>>> upstream
 };
 
 struct gcc_target targetm = TARGET_INITIALIZER;
@@ -6881,8 +6866,11 @@ m68k_mangle_decl_assembler_name (tree decl, tree id)
   return id;
 }
 
-
-
+static pad_direction
+m68k_function_arg_padding (machine_mode mode, const_tree type)
+{
+  return PAD_UPWARD;
+}
 
 /* Implement PUSH_ROUNDING.  On the 680x0, sp@- in a byte insn really pushes
    a word.  On the ColdFire, sp@- in a byte insn pushes just a byte.  */
