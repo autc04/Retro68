@@ -1,115 +1,68 @@
-Please feel free to add, edit, delete this file.
-Please do not make ChangeLog entries.
+			 Newlib Maintainers
 
-COPYING, COPYING.LIB, README
-	http://gnu.org.
 
-Makefile.*; configure; configure.ac; src-release
-	Any global maintainer can approve changes to these
-	files, but they should be aware	that they need to
-	be kept in sync with their counterparts in the GCC
-	repository.  Also please notify the following of
-	any committed patches:
-		binutils@sourceware.org
-		gdb-patches@sourceware.org
+		      Blanket Write Privileges
 
-bfd/; binutils/; elfcpp/; gas/; gold/; gprof/; ld/; opcodes/; cpu/;
-BFD's part of include/
+The official maintainers of newlib:
 
-	binutils: http://sourceware.org/binutils/
-	Patches to binutils@sourceware.org.
-	Please notify the following of any interface changes:
-		gdb-patches@sourceware.org
+Corinna Vinschen		corinna@vinschen.de
+Jeff Johnston			jjohnstn@redhat.com
 
-cgen/; cgen parts of opcodes/, sim/ & include/
-	cgen: http://sourceware.org/cgen/
-	Patches to cgen@sourceware.org
-	May need separate opcodes/ or sim/ approval for
-		commits of regenerated files there.
 
-config.guess; config.sub; readline/support/config.{sub,guess}
-	config: http://savannah.gnu.org/projects/config
-	Patches to config-patches@gnu.org.
-	Changes need to be done in tandem with the official CONFIG
-	sources or submitted to the master file maintainer and brought
-	in via a merge.  When updating any of these files, please be
-	sure to update all of them.
-	Please notify the following of any committed patches:
-		binutils@sourceware.org
-		gdb-patches@sourceware.org
+		     Various Domain Maintainers
 
-depcomp; mkinstalldirs
-        Send bug reports and patches to bug-automake@gnu.org.
+This is a list of maintainers who look after specific domains of newlib.
+Individuals who maintain parts of newlib need approval to check in changes
+outside of the immediate domain that they maintain.
 
-gdb/; readline/; sim/; GDB's part of include/
-	GDB: http://www.gnu.org/software/gdb/
-	Patches to gdb-patches@sourceware.org.
-	See also gdb/MAINTAINERS and sim/MAINTAINERS.
+If there is no maintainer for a given domain then the responsibility
+falls to the head maintainers.
 
-include/
-	See binutils/, gdb/, sid/, gcc/, libiberty/ etc.
+If there are several maintainers for a given domain then
+responsibility falls to the first maintainer.  The first maintainer is
+free to devolve that responsibility among the other maintainers.
 
-intl/; config.rhost; libiberty/; libiberty's part of include/;
-compile; depcomp; install-sh; missing; ylwrap; config/
-	gcc: http://gcc.gnu.org
-	Changes need to be done in tandem with the official GCC
-	sources or submitted to the master file maintainer and brought
-	in via a merge.  Note: approved patches in gcc's libiberty or
-	intl are automatically approved in this libiberty and intl also;
-	feel free to merge them yourself if needed sooner than the next
-	merge.  Otherwise, changes are automatically merged, usually
-	within a day.
+Makefile.in, configure*:	jjohnstn@redhat.com
 
-libdecnumber/
-	See libiberty.  The master copy of this directory is in the GCC
-	repository.
+Cygwin:				corinna@vinschen.de
 
-ltconfig; ltmain.sh; ltcf-*.sh
-	libtool: http://www.gnu.org/software/libtool/
-	Changes need to be done in tandem with the official LIBTOOL
-	sources or submitted to the master file maintainer and brought
-	in via a merge.
+Web pages:			jjohnstn@redhat.com
 
-move-if-change
-	Send bug reports and patches to bug-gnulib@gnu.org.
 
-symlink-tree
-	gcc: http://gcc.gnu.org
-	See libiberty.
+			CPU Port Maintainers	(CPU alphabetical order)
 
-newlib/; libgloss/
-	http://sourceware.org/newlib/
-	Patches to newlib@sourceware.org.
+CPU port maintainers may make changes in cpu-specific directories, as
+well as cpu-specific portions of the build system, without approval.
 
-sid/; SID's part of cgen/
-	sid: http://sourceware.org/sid/
-	Patches to sid@sourceware.org
+arm                     Nick Clifton            nickc@redhat.com
+			Richard Earnshaw	richard.earnshaw@arm.com
+m32c port		DJ Delorie		dj@redhat.com
+mn10300			Nick Clifton		nickc@redhat.com
+moxie			Anthony Green		green@moxielogic.com
+risc-v			Kito Cheng		kito.cheng@gmail.com
+rl78			DJ Delorie		dj@redhat.com
+aarch64			Richard Earnshaw	richard.earnshaw@arm.com
+			Marcus Shawcroft	marcus.shawcroft@arm.com
+msp430			DJ Delorie		dj@redhat.com
+			Nick Clifton		nickc@redhat.com
 
-texinfo/texinfo.tex
-	texinfo: http://ftp.gnu.org.
-	Latest version can be found on ftp://ftp.gnu.org and can be
-	imported at any (reasonable) time.
-	Please not use GCC's texinfo.  Please do not import texinfo.
+			OS Port Maintainers	(OS alphabetical order)
 
-tcl/; tix/; itcl/; tk/; libgui/
-	insight: http://sourceware.org/insight/
-	Contact insight@sourceware.org.
+OS port maintainers may make changes in OS-specific directories, as
+well as OS-specific portions of the build system, without approval.
 
-winsup/
-	cygwin: http://sourceware.org/cygwin
-	Patches to cygwin-patches@cygwin.com.
-	General discussion cygwin@cygwin.com.
+RTEMS			Joel Sherrill		joel.sherrill@oarcorp.com
+			Sebastian Huber		sebastian.huber@embedded-brains.de
 
-config-ml.in; makefile.vms; mkdep; setup.com;
-etc/; utils/;
-	Any global maintainer can approve changes to these
-	files and directories.
+			Write After Approval
 
-modules file
-	If you understand the file format (or can cut-and-paste existing
-	entries), modify it. If it scares you, get someone who does
-	understand it to help you.  Be prepared to fix it if you do break it.
+These are users with general write privileges after getting approval:
 
-/* Local variables: */
-/* change-log-default-name: "/dev/null" */
-/* End: */
+Anthony Green			green@moxielogic.com
+DJ Delorie			dj@redhat.com
+Jim Wilson			jimw@sifive.com
+Nick Clifton			nickc@redhat.com
+Eric Blake			eblake@redhat.com
+Will Newton			will.newton@linaro.org
+Sebastian Huber			sebastian.huber@embedded-brains.de
+Joel Sherrill			joel.sherrill@oarcorp.com
