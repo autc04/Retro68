@@ -746,6 +746,11 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
 	newlib_cflags="${newlib_cflags} -DHAVE_RENAME -DHAVE_SYSTEM -DMISSING_SYSCALL_NAMES"
 	syscall_dir=
 	;;
+  m68k-apple-macos)
+	newlib_cflags="${newlib_cflags} -DREENTRANT_SYSCALLS_PROVIDED -DMALLOC_PROVIDED"
+	newlib_cflags="${newlib_cflags} -ffunction-sections"
+	syscall_dir=syscalls
+	;; 
   mcore-*-*)
 	syscall_dir=syscalls
 	;;
@@ -811,6 +816,11 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
 	syscall_dir=syscalls
 	;;
   riscv*-*-*)
+	syscall_dir=syscalls
+	;;
+  powerpc-*-macos)
+	newlib_cflags="${newlib_cflags} -DREENTRANT_SYSCALLS_PROVIDED -DMALLOC_PROVIDED"
+	newlib_cflags="${newlib_cflags} -ffunction-sections"
 	syscall_dir=syscalls
 	;;
   sh*-*-*)
