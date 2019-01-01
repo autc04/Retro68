@@ -2,7 +2,7 @@ Retro68
 =======
 
 A GCC-based cross-compilation environment for 68K and PowerPC Macs.
-Why? Because there is no decent C++11 Compiler targeting Apple's System 6.
+Why? Because there is no decent C++17 Compiler targeting Apple's System 6.
 If that's not a sufficient reason for you, I'm sure you will find
 something more useful elsewhere.
 
@@ -147,9 +147,9 @@ projects with a few components added.
 
 
 Third Party Components:
-- binutils 2.28
-- gcc 6.3.0
-- newlib 2.10.1 (inside the gcc directory)
+- binutils 2.31.1
+- gcc 8.2.0
+- newlib 3.0.0 (inside the gcc directory)
 - libelf from elfutils-0.170
 - hfsutils 3.2.6
 
