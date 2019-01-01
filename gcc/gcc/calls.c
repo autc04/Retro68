@@ -569,19 +569,16 @@ emit_call_1 (rtx funexp, tree fntree ATTRIBUTE_UNUSED, tree fndecl ATTRIBUTE_UNU
     {
       if (valreg)
         {
-          rtx pop_insn;
           poly_uint16 modesize = GET_MODE_SIZE (GET_MODE (valreg));
 #ifdef PUSH_ROUNDING
           modesize = PUSH_ROUNDING (modesize);
 #endif
-          pop_insn = emit_move_insn(valreg,
+          rtx pop_insn = emit_move_insn(valreg,
                        gen_rtx_MEM( GET_MODE (valreg),
-                               gen_rtx_POST_INC( Pmode,
-                                        stack_pointer_rtx)
+																stack_pointer_rtx
                                ));
       
-          stack_pointer_delta -= modesize;
-					add_reg_note (pop_insn, REG_ARGS_SIZE, gen_int_mode (stack_pointer_delta, Pmode));
+				  adjust_stack(gen_int_mode (modesize, Pmode));
         }
     }
 
@@ -3818,6 +3815,9 @@ expand_call (tree exp, rtx target, int ignore)
   if (must_tail_call)
     try_tail_call = 1;
 
+  if (is_pascal)
+    try_tail_call = 0;
+
   /*  Rest of purposes for tail call optimizations to fail.  */
   if (try_tail_call)
     try_tail_call = can_implement_as_sibling_call_p (exp,
@@ -4240,17 +4240,16 @@ expand_call (tree exp, rtx target, int ignore)
 					      &low_to_save, &high_to_save);
 #endif
 
-  if (is_pascal)
-  { /* ### */
-    pascal_return_mode = TYPE_MODE (TREE_TYPE (funtype));
-    poly_uint16 modesize = GET_MODE_SIZE (pascal_return_mode);
+      if (is_pascal)
+	{ /* ### */
+	  pascal_return_mode = TYPE_MODE (TREE_TYPE (funtype));
+	  poly_uint16 modesize = GET_MODE_SIZE (pascal_return_mode);
 #ifdef PUSH_ROUNDING
-    modesize = PUSH_ROUNDING (modesize);
+	  modesize = PUSH_ROUNDING (modesize);
 #endif
-    push_block (gen_int_mode (modesize, VOIDmode), 0, 0);
-    //stack_pointer_delta -= INTVAL (GEN_INT (modesize));
-    NO_DEFER_POP;
-  }
+	  push_block (gen_int_mode (modesize, Pmode), 0, 0);
+	  NO_DEFER_POP;	// ### UNBALANCED
+	}
 
       /* Now store (and compute if necessary) all non-register parms.
 	 These come before register parms, since they can require block-moves,
