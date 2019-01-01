@@ -386,7 +386,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		# Build binutils for PPC
 		mkdir -p binutils-build-ppc
 		cd binutils-build-ppc
-		$SRC/binutils/configure --target=powerpc-apple-macos --prefix=$PREFIX --disable-doc
+		$SRC/binutils/configure --disable-plugins --target=powerpc-apple-macos --prefix=$PREFIX --disable-doc
 		make -j8
 		make install
 		cd ..
