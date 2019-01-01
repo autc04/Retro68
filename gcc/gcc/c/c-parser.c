@@ -18461,7 +18461,8 @@ static tree c_parser_inline_opcodes(c_parser * parser)
         c_parser_error (parser, "expected %<}%>");
     }
   
-  return build_tree_list (get_identifier("__raw_inline__"), attr_args);
+  return build_tree_list (
+		canonicalize_attr_name(get_identifier("__raw_inline__")), attr_args);
 }
 
 /* Parse the body of a function declaration marked with "__RTL".

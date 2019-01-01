@@ -39388,7 +39388,7 @@ static tree cp_parser_inline_opcodes(cp_parser * parser)
         cp_parser_error (parser, "expected %<}%>");
     }
   
-  return build_tree_list (get_identifier("__raw_inline__"), attr_args);
+  return build_tree_list (canonicalize_attr_name(get_identifier("__raw_inline__")), attr_args);
 }
 
 /* Like finish_fully_implicit_template, but to be used in error
