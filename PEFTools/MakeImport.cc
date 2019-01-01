@@ -212,7 +212,7 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, fs::path dest, fs::path tmp
 	}
 }
 
-void MakeImportLibraryMulti(fs::path path, fs::path libname)
+bool MakeImportLibraryMulti(fs::path path, fs::path libname)
 {
 	ResourceFile resFile(path.string());
 	assert(resFile.read());
@@ -226,7 +226,7 @@ void MakeImportLibraryMulti(fs::path path, fs::path libname)
 	if(data.size() < 8 || std::string(data.begin(), data.begin()+8) != "Joy!peff")
 	{
 		std::cerr << "Not a PEF shared library. Ignoring.\n";
-		return;
+		return false;
 	}
 	
 	if(resFile.resources.resources.find(ResRef("cfrg",0)) == resFile.resources.resources.end())
@@ -255,6 +255,14 @@ void MakeImportLibraryMulti(fs::path path, fs::path libname)
 				member->length);
 
 		member = (CFragResourceMember*)  (((char*)member) + member->memberSize);
+	}
+
+	if(!std::any_of(members.begin(), members.end(), [](const auto& member) {
+			return member.architecture == 'pwpc' || member.architecture == '\?\?\?\?';
+		}))
+	{
+		std::cerr << "Does not contain a PowerPC variant. Ignoring.\n";
+		return false;
 	}
 
 	fs::path tmpdir = libname.parent_path() / fs::unique_path("makeimport-tmp-%%%%-%%%%-%%%%-%%%%");
@@ -331,6 +339,8 @@ void MakeImportLibraryMulti(fs::path path, fs::path libname)
 		throw;
 	}
 	fs::remove_all(tmpdir);
+
+	return true;
 }
 
 int main (int argc, char * const argv[])
