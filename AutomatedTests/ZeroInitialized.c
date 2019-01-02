@@ -34,9 +34,11 @@ int main()
     // Initialize some of the Macintosh Toolbox
     // and maybe trigger a context switch, so we can be sure
     // our global variables were put in the right placce.
-    InitGraf(&qd.thePort);
+#if !TARGET_API_MAC_CARBON
+	InitGraf(&qd.thePort);
 	InitFonts();
 	InitWindows();
+#endif
 	GetNextEvent(everyEvent, &e);
 
 	for(i = 0; i < 32768; i++)
