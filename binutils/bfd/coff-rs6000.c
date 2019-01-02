@@ -468,16 +468,7 @@ _bfd_xcoff_swap_aux_in (bfd *abfd, void * ext1, int type, int in_class,
 	}
       else
 	{
-	  if (numaux > 1)
-	    {
-	      if (indx == 0)
-		memcpy (in->x_file.x_fname, ext->x_file.x_n.x_fname,
-			numaux * sizeof (AUXENT));
-	    }
-	  else
-	    {
-	      memcpy (in->x_file.x_fname, ext->x_file.x_n.x_fname, FILNMLEN);
-	    }
+	  memcpy (in->x_file.x_fname, ext->x_file.x_n.x_fname, FILNMLEN);
 	}
       goto end;
 
