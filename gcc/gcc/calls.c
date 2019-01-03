@@ -564,26 +564,6 @@ emit_call_1 (rtx funexp, tree fntree ATTRIBUTE_UNUSED, tree fndecl ATTRIBUTE_UNU
   else if (!ACCUMULATE_OUTGOING_ARGS && (ecf_flags & ECF_NORETURN) != 0)
     add_args_size_note (call_insn, stack_pointer_delta);
 
-
-  if (is_pascal)
-    {
-      if (valreg)
-        {
-          poly_uint16 modesize = GET_MODE_SIZE (GET_MODE (valreg));
-#ifdef PUSH_ROUNDING
-          modesize = PUSH_ROUNDING (modesize);
-#endif
-          rtx pop_insn = emit_move_insn(valreg,
-                       gen_rtx_MEM( GET_MODE (valreg),
-																stack_pointer_rtx
-                               ));
-      
-				  adjust_stack(gen_int_mode (modesize, Pmode));
-        }
-    }
-
-
-
   if (!ACCUMULATE_OUTGOING_ARGS)
     {
       /* If returning from the subroutine does not automatically pop the args,
@@ -618,6 +598,24 @@ emit_call_1 (rtx funexp, tree fntree ATTRIBUTE_UNUSED, tree fndecl ATTRIBUTE_UNU
      such machines.  */
   else if (maybe_ne (n_popped, 0))
     anti_adjust_stack (gen_int_mode (n_popped, Pmode));
+
+
+  if (is_pascal)
+    {
+      if (valreg)
+        {
+          poly_uint16 modesize = GET_MODE_SIZE (GET_MODE (valreg));
+#ifdef PUSH_ROUNDING
+          modesize = PUSH_ROUNDING (modesize);
+#endif
+          rtx pop_insn = emit_move_insn(valreg,
+                       gen_rtx_MEM( GET_MODE (valreg),
+			            stack_pointer_rtx
+                               ));
+      
+	  adjust_stack(gen_int_mode (modesize, Pmode));
+        }
+    }
 }
 
 /* Determine if the function identified by FNDECL is one with
@@ -4248,7 +4246,6 @@ expand_call (tree exp, rtx target, int ignore)
 	  modesize = PUSH_ROUNDING (modesize);
 #endif
 	  push_block (gen_int_mode (modesize, Pmode), 0, 0);
-	  NO_DEFER_POP;	// ### UNBALANCED
 	}
 
       /* Now store (and compute if necessary) all non-register parms.
@@ -4340,7 +4337,11 @@ expand_call (tree exp, rtx target, int ignore)
       if (TYPE_MODE (rettype) != VOIDmode
 	  && ! structure_value_addr)
 	{
-	  if (pcc_struct_value)
+	  if (is_pascal)
+	    {
+	      valreg = gen_reg_rtx(TYPE_MODE(rettype));
+	    }
+	  else if (pcc_struct_value)
 	    {
 	      valreg = hard_function_value (build_pointer_type (rettype),
 					    fndecl, NULL, (pass == 0));
