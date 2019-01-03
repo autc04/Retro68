@@ -4,10 +4,9 @@
 #include <unistd.h>
 
 int
-_DEFUN (execve, (name, argv, env),
-     _CONST char *name _AND
-     char *_CONST argv[] _AND
-     char *_CONST env[])
+execve (const char *name,
+     char *const argv[],
+     char *const env[])
 {
   return _execve_r (_REENT, name, argv, env);
 }

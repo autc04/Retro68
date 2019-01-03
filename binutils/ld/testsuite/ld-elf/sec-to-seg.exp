@@ -1,6 +1,6 @@
 # Test the assigment of sections to segments.
 #
-# Copyright (C) 2008-2017 Free Software Foundation, Inc.
+# Copyright (C) 2008-2018 Free Software Foundation, Inc.
 # Contributed by Red Hat.
 #
 # This file is part of the GNU Binutils.
@@ -80,10 +80,8 @@ if {    [istarget avr-*-*]
      || [istarget dlx-*-*]
      || [istarget ft32-*-*]
      || [istarget h8300-*-*]
-     || [istarget i960-*-*]
      || [istarget ip2k-*-*]
      || [istarget m32r-*-*]
-     || [istarget m88k-*-*]
      || [istarget moxie-*-*]
      || [istarget msp430-*-*]
      || [istarget mt-*-*]

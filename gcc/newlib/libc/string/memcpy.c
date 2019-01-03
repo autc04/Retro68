@@ -2,17 +2,10 @@
 FUNCTION
         <<memcpy>>---copy memory regions
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <string.h>
         void* memcpy(void *restrict <[out]>, const void *restrict <[in]>,
                      size_t <[n]>);
-
-TRAD_SYNOPSIS
-        #include <string.h>
-        void *memcpy(<[out]>, <[in]>, <[n]>
-        void *<[out]>;
-        void *<[in]>;
-        size_t <[n]>;
 
 DESCRIPTION
         This function copies <[n]> bytes from the memory region
@@ -50,17 +43,16 @@ QUICKREF
 /* Threshhold for punting to the byte copier.  */
 #define TOO_SMALL(LEN)  ((LEN) < BIGBLOCKSIZE)
 
-_PTR
-_DEFUN (memcpy, (dst0, src0, len0),
-	_PTR __restrict dst0 _AND
-	_CONST _PTR __restrict src0 _AND
+void *
+memcpy (void *__restrict dst0,
+	const void *__restrict src0,
 	size_t len0)
 {
 #if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
   char *dst = (char *) dst0;
   char *src = (char *) src0;
 
-  _PTR save = dst0;
+  void *save = dst0;
 
   while (len0--)
     {
@@ -70,9 +62,9 @@ _DEFUN (memcpy, (dst0, src0, len0),
   return save;
 #else
   char *dst = dst0;
-  _CONST char *src = src0;
+  const char *src = src0;
   long *aligned_dst;
-  _CONST long *aligned_src;
+  const long *aligned_src;
 
   /* If the size is small, or either SRC or DST is unaligned,
      then punt into the byte copy loop.  This should be rare.  */

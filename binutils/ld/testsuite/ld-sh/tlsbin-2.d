@@ -1,7 +1,7 @@
 #source: tlsbinpic.s
 #source: tlsbin.s
 #as: -little
-#ld: -EL tmpdir/tlsbin-0-dso.so
+#ld: -EL --hash-style=sysv tmpdir/tlsbin-0-dso.so
 #readelf: -Ssrl
 #target: sh*-*-linux* sh*-*-netbsd*
 
@@ -59,7 +59,7 @@ Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 4 entries:
 [0-9a-f ]+R_SH_TLS_TPOFF32 +0+ +sG4 \+ 0
 [0-9a-f ]+R_SH_TLS_TPOFF32 +0+ +sG1 \+ 0
 
-Relocation section '\.rela\.plt' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '\.rela\.plt' at offset 0x[0-9a-f]+ contains 1 entry:
  Offset +Info +Type +Sym\.Value +Sym\. Name \+ Addend
 [0-9a-f ]+R_SH_JMP_SLOT[0-9a-f ]+__tls_get_addr \+ [0-9a-f]+
 
@@ -72,6 +72,4 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* FUNC +GLOBAL +DEFAULT +UND __tls_get_addr
 #...
 .* TLS +GLOBAL +DEFAULT +UND sG1
-#...
-
 #pass

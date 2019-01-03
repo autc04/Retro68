@@ -7,15 +7,14 @@
 
 typedef struct
 {
-  _CONST char* str;
+  const char* str;
   unsigned int pad0[ 3 ];
   int arg_errno;
   unsigned int pad1[ 3 ];
 } c99_perror_t;
 
 void
-_DEFUN (perror, (s),
-	_CONST char *s)
+perror (const char *s)
 
 {
   c99_perror_t arg;

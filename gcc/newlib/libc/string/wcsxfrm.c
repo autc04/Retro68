@@ -5,17 +5,10 @@ FUNCTION
 INDEX
 	wcsxfrm
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wchar.h>
 	int wcsxfrm(wchar_t *__restrict <[stra]>,
 		    const wchar_t *__restrict <[strb]>, size_t <[n]>);
-
-TRAD_SYNOPSIS
-	#include <wchar.h>
-	size_t wcsxfrm(<[stra]>, <[strb]>, <[n]>)
-	wchar_t *__restrict <[stra]>;
-	wchar_t *__restrict <[strb]>;
-	size_t   <[n]>
 
 DESCRIPTION
 	<<wcsxfrm>> transforms the wide-character string pointed to by
@@ -43,9 +36,8 @@ PORTABILITY
 #include <wchar.h>
 
 size_t
-_DEFUN (wcsxfrm, (a, b, n),
-	wchar_t *__restrict a _AND
-	_CONST wchar_t *__restrict b _AND
+wcsxfrm (wchar_t *__restrict a,
+	const wchar_t *__restrict b,
 	size_t n)
 
 {

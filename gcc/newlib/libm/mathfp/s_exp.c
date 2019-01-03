@@ -15,18 +15,10 @@ INDEX
 INDEX
         expf
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <math.h>
         double exp(double <[x]>);
         float expf(float <[x]>);
-
-TRAD_SYNOPSIS
-        #include <math.h>
-        double exp(<[x]>);
-        double <[x]>;
-
-        float expf(<[x]>);
-        float <[x]>;
 
 DESCRIPTION
         <<exp>> and <<expf>> calculate the exponential of <[x]>, that is,
@@ -78,8 +70,7 @@ static const double q[] = { 0.5, 0.56817302698551221787e-1,
                      0.75104028399870046114e-6 };
 
 double
-_DEFUN (exp, (double),
-        double x)
+exp (double x)
 {
   int N;
   double g, z, R, P, Q;

@@ -32,16 +32,9 @@ FUNCTION
 INDEX
 	_kill_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <reent.h>
 	int _kill_r(struct _reent *<[ptr]>, int <[pid]>, int <[sig]>);
-
-TRAD_SYNOPSIS
-	#include <reent.h>
-	int _kill_r(<[ptr]>, <[pid]>, <[sig]>)
-	struct _reent *<[ptr]>;
-	int <[pid]>;
-	int <[sig]>;
 
 DESCRIPTION
 	This is a reentrant version of <<kill>>.  It
@@ -50,9 +43,8 @@ DESCRIPTION
 */
 
 int
-_DEFUN (_kill_r, (ptr, pid, sig),
-     struct _reent *ptr _AND
-     int pid _AND
+_kill_r (struct _reent *ptr,
+     int pid,
      int sig)
 {
   int ret;
@@ -71,14 +63,9 @@ FUNCTION
 INDEX
 	_getpid_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <reent.h>
 	int _getpid_r(struct _reent *<[ptr]>);
-
-TRAD_SYNOPSIS
-	#include <reent.h>
-	int _getpid_r(<[ptr]>)
-	struct _reent *<[ptr]>;
 
 DESCRIPTION
 	This is a reentrant version of <<getpid>>.  It
@@ -90,8 +77,7 @@ DESCRIPTION
 */
 
 int
-_DEFUN (_getpid_r, (ptr),
-     struct _reent *ptr)
+_getpid_r (struct _reent *ptr)
 {
   int ret;
   ret = _getpid ();

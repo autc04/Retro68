@@ -8,7 +8,7 @@ AM_CCASFLAGS = $(INCLUDES)
 
 noinst_LIBRARIES = lib.a
 
-lib_a_SOURCES = setjmp.S access.c strcmp.S strcpy.c \
+lib_a_SOURCES = setjmp.S strcmp.S strcpy.c \
 		aeabi_memcpy.c aeabi_memcpy-armv7a.S \
 		aeabi_memmove.c aeabi_memmove-soft.S \
 		aeabi_memset.c aeabi_memset-soft.S aeabi_memclr.c
@@ -25,7 +25,7 @@ lib_a_CFLAGS = $(AM_CFLAGS)
 ACLOCAL_AMFLAGS = -I ../../.. -I ../../../..
 CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
 
-MEMCHR_DEP=acle-compat.h arm_asm.h
+MEMCHR_DEP=acle-compat.h
 MEMCPY_DEP=memcpy-armv7a.S memcpy-armv7m.S
 STRCMP_DEP=strcmp-arm-tiny.S strcmp-armv4.S strcmp-armv4t.S strcmp-armv6.S \
 	strcmp-armv6m.S strcmp-armv7.S strcmp-armv7m.S

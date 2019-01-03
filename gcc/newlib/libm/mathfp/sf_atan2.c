@@ -18,8 +18,7 @@
 #include "zmath.h"
 
 float
-_DEFUN (atan2f, (float, float),
-        float v _AND
+atan2f (float v,
         float u)
 {
   return (atangentf (0.0, v, u, 1));

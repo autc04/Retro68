@@ -7,16 +7,12 @@ INDEX
 INDEX
 	isalnum_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <ctype.h>
 	int isalnum(int <[c]>);
 
 	#include <ctype.h>
 	int isalnum_l(int <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <ctype.h>
-	int isalnum(<[c]>);
 
 
 DESCRIPTION
@@ -48,7 +44,7 @@ No OS subroutines are required.
 #undef isalnum
 
 int
-_DEFUN(isalnum,(c),int c)
+isalnum (int c)
 {
 	return(__CTYPE_PTR[c+1] & (_U|_L|_N));
 }

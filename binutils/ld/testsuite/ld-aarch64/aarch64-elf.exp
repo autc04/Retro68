@@ -1,5 +1,5 @@
 # Expect script for various AARCH64 ELF tests.
-# Copyright (C) 2009-2017 Free Software Foundation, Inc.
+# Copyright (C) 2009-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -99,10 +99,26 @@ run_dump_test "emit-relocs-89"
 run_dump_test "emit-relocs-90"
 run_dump_test "emit-relocs-90-overflow"
 run_dump_test "emit-relocs-92"
-run_dump_test_lp64 "emit-relocs-257"
-run_dump_test_lp64 "emit-relocs-257-be"
+
+run_dump_test "emit-relocs-112"
+run_dump_test "emit-relocs-112-overflow"
+run_dump_test "emit-relocs-113"
+run_dump_test "emit-relocs-114"
+run_dump_test "emit-relocs-114-overflow"
+run_dump_test "emit-relocs-115"
+run_dump_test "emit-relocs-116"
+run_dump_test "emit-relocs-116-overflow"
+run_dump_test "emit-relocs-117"
+run_dump_test "emit-relocs-118"
+run_dump_test "emit-relocs-118-overflow"
+run_dump_test "emit-relocs-119"
+
+run_dump_test "emit-relocs-257"
+run_dump_test "emit-relocs-257-be"
 # 258 is tested in 257
 # 259 is tested in 257
+run_dump_test_lp64 "emit-relocs-258-dyn-bad"
+run_dump_test_lp64 "emit-relocs-259-dyn-bad"
 run_dump_test_lp64 "emit-relocs-260"
 run_dump_test_lp64 "emit-relocs-260-be"
 # 261 is tested by 260
@@ -141,7 +157,17 @@ run_dump_test_lp64 "emit-relocs-284"
 run_dump_test_lp64 "emit-relocs-285"
 run_dump_test_lp64 "emit-relocs-286"
 run_dump_test_lp64 "emit-relocs-286-bad"
-# 287-298 are not done yet
+run_dump_test_lp64 "emit-relocs-287"
+run_dump_test_lp64 "emit-relocs-287-overflow"
+run_dump_test_lp64 "emit-relocs-288"
+run_dump_test_lp64 "emit-relocs-289"
+run_dump_test_lp64 "emit-relocs-289-overflow"
+run_dump_test_lp64 "emit-relocs-290"
+run_dump_test_lp64 "emit-relocs-291"
+run_dump_test_lp64 "emit-relocs-291-overflow"
+run_dump_test_lp64 "emit-relocs-292"
+run_dump_test_lp64 "emit-relocs-293"
+# 294-298 are not done yet
 run_dump_test_lp64 "emit-relocs-299"
 # 300 is not done yet
 run_dump_test_lp64 "emit-relocs-301"
@@ -185,6 +211,18 @@ run_dump_test_lp64 "emit-relocs-536"
 run_dump_test_lp64 "emit-relocs-537"
 run_dump_test_lp64 "emit-relocs-537-overflow"
 run_dump_test_lp64 "emit-relocs-538"
+run_dump_test_lp64 "emit-relocs-552"
+run_dump_test_lp64 "emit-relocs-552-overflow"
+run_dump_test_lp64 "emit-relocs-553"
+run_dump_test_lp64 "emit-relocs-554"
+run_dump_test_lp64 "emit-relocs-554-overflow"
+run_dump_test_lp64 "emit-relocs-555"
+run_dump_test_lp64 "emit-relocs-556"
+run_dump_test_lp64 "emit-relocs-556-overflow"
+run_dump_test_lp64 "emit-relocs-557"
+run_dump_test_lp64 "emit-relocs-558"
+run_dump_test_lp64 "emit-relocs-558-overflow"
+run_dump_test_lp64 "emit-relocs-559"
 
 run_dump_test "reloc-overflow-bad"
 
@@ -273,6 +311,8 @@ run_dump_test "pr17415"
 run_dump_test_lp64 "tprel_g2_overflow"
 run_dump_test "tprel_add_lo12_overflow"
 run_dump_test "protected-data"
+run_dump_test_lp64 "pr22764"
+run_dump_test_lp64 "pr20402"
 
 # ifunc tests
 run_dump_test "ifunc-1"

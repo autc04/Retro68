@@ -2,7 +2,7 @@
 
 # plugin_test_10.sh -- a test case for the plugin API.
 
-# Copyright (C) 2010-2017 Free Software Foundation, Inc.
+# Copyright (C) 2010-2018 Free Software Foundation, Inc.
 # Written by Rafael Ávila de Espíndola <rafael.espindola@gmail.com>
 
 # This file is part of gold.

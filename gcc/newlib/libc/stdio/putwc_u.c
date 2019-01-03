@@ -34,9 +34,8 @@
 #undef putwc_unlocked
 
 wint_t
-_DEFUN(_putwc_unlocked_r, (ptr, wc, fp),
-	struct _reent *ptr _AND
-	wchar_t wc _AND
+_putwc_unlocked_r (struct _reent *ptr,
+	wchar_t wc,
 	FILE *fp)
 {
   return _fputwc_unlocked_r (ptr, wc, fp);
@@ -46,8 +45,7 @@ _DEFUN(_putwc_unlocked_r, (ptr, wc, fp),
  * if it is a macro, may evaluate `fp' more than once.
  */
 wint_t
-_DEFUN(putwc_unlocked, (wc, fp),
-	wchar_t wc _AND
+putwc_unlocked (wchar_t wc,
 	FILE *fp)
 {
   return fputwc_unlocked (wc, fp);

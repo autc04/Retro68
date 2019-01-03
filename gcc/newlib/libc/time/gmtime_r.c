@@ -46,18 +46,17 @@
 #define YEARS_PER_ERA		400
 
 struct tm *
-_DEFUN (gmtime_r, (tim_p, res),
-	_CONST time_t *__restrict tim_p _AND
+gmtime_r (const time_t *__restrict tim_p,
 	struct tm *__restrict res)
 {
   long days, rem;
-  _CONST time_t lcltime = *tim_p;
+  const time_t lcltime = *tim_p;
   int era, weekday, year;
   unsigned erayear, yearday, month, day;
   unsigned long eraday;
 
-  days = ((long)lcltime) / SECSPERDAY + EPOCH_ADJUSTMENT_DAYS;
-  rem = ((long)lcltime) % SECSPERDAY;
+  days = lcltime / SECSPERDAY + EPOCH_ADJUSTMENT_DAYS;
+  rem = lcltime % SECSPERDAY;
   if (rem < 0)
     {
       rem += SECSPERDAY;

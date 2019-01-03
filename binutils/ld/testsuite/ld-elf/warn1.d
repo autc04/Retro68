@@ -2,10 +2,10 @@
 #source: symbol1ref.s
 #source: symbol1w.s
 #ld: -T group.ld
-#warning: ^[^\\n]*\): warning: witty one-liner$
+#warning: ^[^\n]*\): warning: witty one-liner$
 #readelf: -s
 #notarget: "sparc64-*-solaris2*" "sparcv9-*-solaris2*"
-#xfail: "d30v-*-*" "dlx-*-*" "i960-*-*" "pj-*-*"
+#xfail: "d30v-*-*" "dlx-*-*" "pj-*-*"
 
 # Check that warnings are generated for the .gnu.warning.SYMBOL
 # construct and that the symbol still appears as expected.

@@ -12,14 +12,9 @@ FUNCTION
 INDEX
 	atexit
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
 	int atexit (void (*<[function]>)(void));
-
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-	int atexit ((<[function]>)
-	  void (*<[function]>)();
 
 DESCRIPTION
 You can use <<atexit>> to enroll functions in a list of functions that
@@ -58,9 +53,7 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
  */
 
 int
-_DEFUN (atexit,
-	(fn),
-	_VOID _EXFNPTR(fn, (_VOID)))
+atexit (void (*fn) (void))
 {
   return __register_exitproc (__et_atexit, fn, NULL, NULL);
 }

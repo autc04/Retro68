@@ -37,7 +37,7 @@ INDEX
 INDEX
 	_getwchar_unlocked_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wchar.h>
 	wint_t getwchar(void);
 
@@ -50,22 +50,6 @@ ANSI_SYNOPSIS
 
 	#include <wchar.h>
 	wint_t _getwchar_unlocked_r(struct _reent *<[reent]>);
-
-TRAD_SYNOPSIS
-	#include <wchar.h>
-	wint_t getwchar();
-
-	#define _GNU_SOURCE
-	#include <wchar.h>
-	wint_t getwchar_unlocked();
-
-	#include <wchar.h>
-	wint_t _getwchar_r(<[reent]>)
-	char * <[reent]>;
-
-	#include <wchar.h>
-	wint_t _getwchar_unlocked_r(<[reent]>)
-	char * <[reent]>;
 
 DESCRIPTION
 <<getwchar>> function or macro is the wide character equivalent of
@@ -109,8 +93,7 @@ PORTABILITY
 #undef getwchar
 
 wint_t
-_DEFUN (_getwchar_r, (ptr),
-	struct _reent *ptr)
+_getwchar_r (struct _reent *ptr)
 {
   return _fgetwc_r (ptr, stdin);
 }
@@ -119,7 +102,7 @@ _DEFUN (_getwchar_r, (ptr),
  * Synonym for fgetwc(stdin).
  */
 wint_t
-_DEFUN_VOID (getwchar)
+getwchar (void)
 {
   _REENT_SMALL_CHECK_INIT (_REENT);
   return fgetwc (stdin);

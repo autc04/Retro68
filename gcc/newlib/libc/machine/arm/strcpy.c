@@ -42,9 +42,12 @@ char* __attribute__((naked))
 strcpy (char* dst, const char* src)
 {
   asm (
+      ".syntax unified\n\t"
 #if !(defined(__OPTIMIZE_SIZE__) || defined (PREFER_SIZE_OVER_SPEED) || \
       (defined (__thumb__) && !defined (__thumb2__)))
-       "optpld	r1\n\t"
+#ifdef _ISA_ARM_7
+       "pld	[r1]\n\t"
+#endif
        "eor	r2, r0, r1\n\t"
        "mov	ip, r0\n\t"
        "tst	r2, #3\n\t"
@@ -75,7 +78,9 @@ strcpy (char* dst, const char* src)
 	  load stalls.  */
        ".p2align 2\n"
   "2:\n\t"
-       "optpld	r1, #8\n\t"
+#ifdef _ISA_ARM_7
+       "pld	[r1, #8]\n\t"
+#endif
        "ldr	r4, [r1], #4\n\t"
        "sub	r2, r3, "magic1(r5)"\n\t"
        "bics	r2, r2, r3\n\t"
@@ -104,7 +109,7 @@ strcpy (char* dst, const char* src)
 #ifndef __thumb2__
        "ldr	r5, [sp], #4\n\t"
 #endif
-       "RETURN\n"
+       "bx	lr\n"
 
        /* Strings have the same offset from word alignment, but it's
 	  not zero.  */
@@ -115,7 +120,7 @@ strcpy (char* dst, const char* src)
        "strb	r2, [ip], #1\n\t"
        "cmp	r2, #0\n\t"
        "it	eq\n"
-       "RETURN	eq\n"
+       "bxeq	lr\n"
   "1:\n\t"
        "tst	r1, #2\n\t"
        "beq	5b\n\t"
@@ -123,19 +128,19 @@ strcpy (char* dst, const char* src)
 #ifdef __ARMEB__
        "tst	r2, #0xff00\n\t"
        "iteet	ne\n\t"
-       "strneh	r2, [ip], #2\n\t"
+       "strhne	r2, [ip], #2\n\t"
        "lsreq	r2, r2, #8\n\t"
-       "streqb	r2, [ip]\n\t"
+       "strbeq	r2, [ip]\n\t"
        "tstne	r2, #0xff\n\t"
 #else
        "tst	r2, #0xff\n\t"
        "itet	ne\n\t"
-       "strneh	r2, [ip], #2\n\t"
-       "streqb	r2, [ip]\n\t"
+       "strhne	r2, [ip], #2\n\t"
+       "strbeq	r2, [ip]\n\t"
        "tstne	r2, #0xff00\n\t"
 #endif
        "bne	5b\n\t"
-       "RETURN\n"
+       "bx	lr\n"
 
        /* src and dst do not have a common word-alignement.  Fall back to
 	  byte copying.  */
@@ -144,7 +149,7 @@ strcpy (char* dst, const char* src)
        "strb	r2, [ip], #1\n\t"
        "cmp	r2, #0\n\t"
        "bne	4b\n\t"
-       "RETURN"
+       "bx	lr\n\t"
 
 #elif !defined (__thumb__) || defined (__thumb2__)
        "mov	r3, r0\n\t"
@@ -153,17 +158,17 @@ strcpy (char* dst, const char* src)
        "strb	r2, [r3], #1\n\t"
        "cmp	r2, #0\n\t"
        "bne	1b\n\t"
-       "RETURN"
+       "bx	lr\n\t"
 #else
-       "mov	r3, r0\n\t"
+       "movs	r3, r0\n\t"
   "1:\n\t"
        "ldrb	r2, [r1]\n\t"
-       "add	r1, r1, #1\n\t"
+       "adds	r1, #1\n\t"
        "strb	r2, [r3]\n\t"
-       "add	r3, r3, #1\n\t"
+       "adds	r3, #1\n\t"
        "cmp	r2, #0\n\t"
        "bne	1b\n\t"
-       "RETURN"
+       "bx	lr\n\t"
 #endif
        );
 }

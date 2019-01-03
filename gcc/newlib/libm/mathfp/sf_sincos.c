@@ -18,9 +18,8 @@
 #include "zmath.h"
 
 void
-_DEFUN (sincosf, (x, sinx, cosx),
-        float x _AND
-        float *sinx _AND
+sincosf (float x,
+        float *sinx,
         float *cosx)
 {
   *sinx = sin (x);

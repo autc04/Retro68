@@ -32,6 +32,6 @@
 #source: start.s
 #as: -x
 #ld: -m mmo
-#error: Too many global registers: 224, max 223
+#error: too many global registers: 224, max 223
 
 # Allocating the maximum number of gregs *plus one* is an error, mmo.

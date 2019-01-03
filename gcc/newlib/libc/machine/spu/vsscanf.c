@@ -35,11 +35,7 @@ Author: Joel Schopp <jschopp@austin.ibm.com>
 
 #include "c99ppe.h"
 
-#ifdef _HAVE_STDC
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #ifdef INTEGER_ONLY
 #  define vsscanf vsiscanf
@@ -47,9 +43,9 @@ Author: Joel Schopp <jschopp@austin.ibm.com>
 
 typedef struct
 {
-  _CONST char *str;
+  const char *str;
   unsigned int pad0[ 3 ];
-  _CONST char *fmt;
+  const char *fmt;
   unsigned int pad1[ 3 ];
   va_list ap;
 } c99_vsscanf_t;
@@ -57,9 +53,8 @@ typedef struct
 #ifndef _REENT_ONLY
 
 int
-_DEFUN (vsscanf, (str, fmt, ap),
-    _CONST char *__restrict str _AND
-    _CONST char *__restrict fmt _AND
+vsscanf (const char *__restrict str,
+    const char *__restrict fmt,
     va_list ap)
 {
   c99_vsscanf_t args;

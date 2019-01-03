@@ -61,15 +61,15 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 2a 00             	cvtpi2ps \(%rax\),%xmm0
 [ 	]*[a-f0-9]+:	0f 2d 00             	cvtps2pi \(%rax\),%mm0
 [ 	]*[a-f0-9]+:	f2 0f 2d 00          	cvtsd2si \(%rax\),%eax
-[ 	]*[a-f0-9]+:	f2 48 0f 2d 00       	cvtsd2siq \(%rax\),%rax
+[ 	]*[a-f0-9]+:	f2 48 0f 2d 00       	cvtsd2si \(%rax\),%rax
 [ 	]*[a-f0-9]+:	f2 0f 2c 00          	cvttsd2si \(%rax\),%eax
-[ 	]*[a-f0-9]+:	f2 48 0f 2c 00       	cvttsd2siq \(%rax\),%rax
+[ 	]*[a-f0-9]+:	f2 48 0f 2c 00       	cvttsd2si \(%rax\),%rax
 [ 	]*[a-f0-9]+:	f2 0f 5a 00          	cvtsd2ss \(%rax\),%xmm0
 [ 	]*[a-f0-9]+:	f3 0f 5a 00          	cvtss2sd \(%rax\),%xmm0
 [ 	]*[a-f0-9]+:	f3 0f 2d 00          	cvtss2si \(%rax\),%eax
-[ 	]*[a-f0-9]+:	f3 48 0f 2d 00       	cvtss2siq \(%rax\),%rax
+[ 	]*[a-f0-9]+:	f3 48 0f 2d 00       	cvtss2si \(%rax\),%rax
 [ 	]*[a-f0-9]+:	f3 0f 2c 00          	cvttss2si \(%rax\),%eax
-[ 	]*[a-f0-9]+:	f3 48 0f 2c 00       	cvttss2siq \(%rax\),%rax
+[ 	]*[a-f0-9]+:	f3 48 0f 2c 00       	cvttss2si \(%rax\),%rax
 [ 	]*[a-f0-9]+:	f2 0f 5e 00          	divsd  \(%rax\),%xmm0
 [ 	]*[a-f0-9]+:	f3 0f 5e 00          	divss  \(%rax\),%xmm0
 [ 	]*[a-f0-9]+:	f2 0f 5f 00          	maxsd  \(%rax\),%xmm0
@@ -180,15 +180,15 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 2a 00             	cvtpi2ps \(%rax\),%xmm0
 [ 	]*[a-f0-9]+:	0f 2d 00             	cvtps2pi \(%rax\),%mm0
 [ 	]*[a-f0-9]+:	f2 0f 2d 00          	cvtsd2si \(%rax\),%eax
-[ 	]*[a-f0-9]+:	f2 48 0f 2d 00       	cvtsd2siq \(%rax\),%rax
+[ 	]*[a-f0-9]+:	f2 48 0f 2d 00       	cvtsd2si \(%rax\),%rax
 [ 	]*[a-f0-9]+:	f2 0f 2c 00          	cvttsd2si \(%rax\),%eax
-[ 	]*[a-f0-9]+:	f2 48 0f 2c 00       	cvttsd2siq \(%rax\),%rax
+[ 	]*[a-f0-9]+:	f2 48 0f 2c 00       	cvttsd2si \(%rax\),%rax
 [ 	]*[a-f0-9]+:	f2 0f 5a 00          	cvtsd2ss \(%rax\),%xmm0
 [ 	]*[a-f0-9]+:	f3 0f 5a 00          	cvtss2sd \(%rax\),%xmm0
 [ 	]*[a-f0-9]+:	f3 0f 2d 00          	cvtss2si \(%rax\),%eax
-[ 	]*[a-f0-9]+:	f3 48 0f 2d 00       	cvtss2siq \(%rax\),%rax
+[ 	]*[a-f0-9]+:	f3 48 0f 2d 00       	cvtss2si \(%rax\),%rax
 [ 	]*[a-f0-9]+:	f3 0f 2c 00          	cvttss2si \(%rax\),%eax
-[ 	]*[a-f0-9]+:	f3 48 0f 2c 00       	cvttss2siq \(%rax\),%rax
+[ 	]*[a-f0-9]+:	f3 48 0f 2c 00       	cvttss2si \(%rax\),%rax
 [ 	]*[a-f0-9]+:	f2 0f 5e 00          	divsd  \(%rax\),%xmm0
 [ 	]*[a-f0-9]+:	f3 0f 5e 00          	divss  \(%rax\),%xmm0
 [ 	]*[a-f0-9]+:	f2 0f 5f 00          	maxsd  \(%rax\),%xmm0

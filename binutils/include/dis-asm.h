@@ -1,6 +1,6 @@
 /* Interface between the opcode library and its callers.
 
-   Copyright (C) 1999-2017 Free Software Foundation, Inc.
+   Copyright (C) 1999-2018 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -158,7 +158,7 @@ typedef struct disassemble_info
   /* These are for buffer_read_memory.  */
   bfd_byte *buffer;
   bfd_vma buffer_vma;
-  unsigned int buffer_length;
+  size_t buffer_length;
 
   /* This variable may be set by the instruction decoder.  It suggests
       the number of bytes objdump should display on a single line.  If
@@ -241,7 +241,6 @@ typedef int (*disassembler_ftype) (bfd_vma, disassemble_info *);
 extern int print_insn_m32c		(bfd_vma, disassemble_info *);
 extern int print_insn_mep		(bfd_vma, disassemble_info *);
 extern int print_insn_sh		(bfd_vma, disassemble_info *);
-extern int print_insn_sh64x_media	(bfd_vma, disassemble_info *);
 extern int print_insn_sparc		(bfd_vma, disassemble_info *);
 extern int print_insn_rx		(bfd_vma, disassemble_info *);
 extern int print_insn_rl78		(bfd_vma, disassemble_info *);
@@ -255,6 +254,7 @@ extern disassembler_ftype cris_get_disassembler (bfd *);
 extern void print_aarch64_disassembler_options (FILE *);
 extern void print_i386_disassembler_options (FILE *);
 extern void print_mips_disassembler_options (FILE *);
+extern void print_nfp_disassembler_options (FILE *);
 extern void print_ppc_disassembler_options (FILE *);
 extern void print_riscv_disassembler_options (FILE *);
 extern void print_arm_disassembler_options (FILE *);

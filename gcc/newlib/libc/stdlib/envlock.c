@@ -7,17 +7,10 @@ INDEX
 INDEX
 	__env_unlock
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <envlock.h>
 	void __env_lock (struct _reent *<[reent]>);
 	void __env_unlock (struct _reent *<[reent]>);
-
-TRAD_SYNOPSIS
-	void __env_lock(<[reent]>)
-	struct _reent *<[reent]>;
-
-	void __env_unlock(<[reent]>)
-	struct _reent *<[reent]>;
 
 DESCRIPTION
 The <<setenv>> family of routines call these functions when they need to
@@ -39,7 +32,7 @@ that it already holds.
 #include <sys/lock.h>
 
 #ifndef __SINGLE_THREAD__
-__LOCK_INIT_RECURSIVE(static, __env_lock_object);
+__LOCK_INIT_RECURSIVE(static, __env_recursive_mutex);
 #endif
 
 void
@@ -47,7 +40,7 @@ __env_lock (ptr)
      struct _reent *ptr;
 {
 #ifndef __SINGLE_THREAD__
-  __lock_acquire_recursive (__env_lock_object);
+  __lock_acquire_recursive (__env_recursive_mutex);
 #endif
 }
 
@@ -56,6 +49,6 @@ __env_unlock (ptr)
      struct _reent *ptr;
 {
 #ifndef __SINGLE_THREAD__
-  __lock_release_recursive (__env_lock_object);
+  __lock_release_recursive (__env_recursive_mutex);
 #endif
 }

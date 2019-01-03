@@ -1,6 +1,6 @@
 # Expect script for symbol export classes, ARM variation.
 #
-# Copyright (C) 2012-2017 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -26,13 +26,13 @@
 
 # Exclude non-Linux targets; feel free to include your favorite one
 # if you like.
-if { ![istarget arm*-*-linux*] } {
+if { ![istarget arm*-*-linux*] && ![istarget arm*-*-uclinuxfdpiceabi] } {
     return
 }
 
 set testname "ARM symbol export class test"
 
-if [istarget arm*-*-linux-*eabi*] {
+if { [istarget arm*-*-linux-*eabi*] || [ istarget arm*-*-uclinuxfdpiceabi] } {
     set emul armelf_linux_eabi
 } else {
     set emul armelf_linux

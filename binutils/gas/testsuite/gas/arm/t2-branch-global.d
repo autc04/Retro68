@@ -1,6 +1,6 @@
 #name: Thumb-2 branch to constant address
 #This test is only valid on ELF based ports.
-#not-target: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#not-target: *-*-pe *-*-wince
 #objdump: -rd
 
 

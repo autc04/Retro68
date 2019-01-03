@@ -11,7 +11,7 @@ INDEX
 INDEX
 	strsep
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
       	char *strtok(char *restrict <[source]>,
                      const char *restrict <[delimiters]>);
@@ -19,21 +19,6 @@ ANSI_SYNOPSIS
                        const char *restrict <[delimiters]>,
                        char **<[lasts]>);
 	char *strsep(char **<[source_ptr]>, const char *<[delimiters]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	char *strtok(<[source]>, <[delimiters]>);
-	char *<[source]>;
-	char *<[delimiters]>;
-
-	char *strtok_r(<[source]>, <[delimiters]>, <[lasts]>);
-	char *<[source]>;
-	char *<[delimiters]>;
-	char **<[lasts]>;
-
-	char *strsep(<[source_ptr]>, <[delimiters]>);
-	char **<[source_ptr]>;
-	char *<[delimiters]>;
 
 DESCRIPTION
 	The <<strtok>> function is used to isolate sequential tokens in a 
@@ -85,6 +70,7 @@ QUICKREF
 /* undef STRICT_ANSI so that strtok_r prototype will be defined */
 #undef  __STRICT_ANSI__
 #include <string.h>
+#include <stdlib.h>
 #include <_ansi.h>
 #include <reent.h>
 
@@ -93,8 +79,7 @@ QUICKREF
 extern char *__strtok_r (char *, const char *, char **, int);
 
 char *
-_DEFUN (strtok, (s, delim),
-	register char *__restrict s _AND
+strtok (register char *__restrict s,
 	register const char *__restrict delim)
 {
 	struct _reent *reent = _REENT;

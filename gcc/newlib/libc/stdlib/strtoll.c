@@ -11,7 +11,7 @@ INDEX
 INDEX
 	_strtoll_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
         long long strtoll(const char *restrict <[s]>, char **restrict <[ptr]>,
 			  int <[base]>);
@@ -24,19 +24,6 @@ ANSI_SYNOPSIS
         long long _strtoll_r(void *<[reent]>, 
 			     const char *restrict <[s]>,
 			     char **restrict <[ptr]>, int <[base]>);
-
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-	long long strtoll (<[s]>, <[ptr]>, <[base]>)
-        const char *<[s]>;
-        char **<[ptr]>;
-        int <[base]>;
-
-	long long _strtoll_r (<[reent]>, <[s]>, <[ptr]>, <[base]>)
-	char *<[reent]>;
-        const char *<[s]>;
-        char **<[ptr]>;
-        int <[base]>;
 
 DESCRIPTION
 The function <<strtoll>> converts the string <<*<[s]>>> to
@@ -146,7 +133,7 @@ No supporting OS subroutines are required.
  * Convert a string to a long long integer.
  */
 static long long
-_strtoll_l (struct _reent *rptr, _CONST char *__restrict nptr,
+_strtoll_l (struct _reent *rptr, const char *__restrict nptr,
 	    char **__restrict endptr, int base, locale_t loc)
 {
 	register const unsigned char *s = (const unsigned char *)nptr;
@@ -227,10 +214,9 @@ _strtoll_l (struct _reent *rptr, _CONST char *__restrict nptr,
 }
 
 long long
-_DEFUN (_strtoll_r, (rptr, nptr, endptr, base),
-	struct _reent *rptr _AND
-	_CONST char *__restrict nptr _AND
-	char **__restrict endptr _AND
+_strtoll_r (struct _reent *rptr,
+	const char *__restrict nptr,
+	char **__restrict endptr,
 	int base)
 {
 	return _strtoll_l (rptr, nptr, endptr, base, __get_current_locale ());
@@ -246,9 +232,8 @@ strtoll_l (const char *__restrict s, char **__restrict ptr, int base,
 }
 
 long long
-_DEFUN (strtoll, (s, ptr, base),
-	_CONST char *__restrict s _AND
-	char **__restrict ptr _AND
+strtoll (const char *__restrict s,
+	char **__restrict ptr,
 	int base)
 {
 	return _strtoll_l (_REENT, s, ptr, base, __get_current_locale ());

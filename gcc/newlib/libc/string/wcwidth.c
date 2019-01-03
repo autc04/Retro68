@@ -5,14 +5,9 @@ FUNCTION
 INDEX
 	wcwidth
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wchar.h>
 	int wcwidth(const wchar_t <[wc]>);
-
-TRAD_SYNOPSIS
-	#include <wchar.h>
-	int wcwidth(<[wc]>)
-	wchar_t *<[wc]>;
 
 DESCRIPTION
 	The <<wcwidth>> function shall determine the number of column
@@ -168,8 +163,7 @@ bisearch(wint_t ucs, const struct interval *table, int max)
  */
 
 int
-_DEFUN (__wcwidth, (ucs),
-	_CONST wint_t ucs)
+__wcwidth (const wint_t ucs)
 {
 #ifdef _MB_CAPABLE
   /* sorted list of non-overlapping intervals of East Asian Ambiguous
@@ -334,8 +328,7 @@ _DEFUN (__wcwidth, (ucs),
 }
 
 int     
-_DEFUN (wcwidth, (wc),
-	_CONST wchar_t wc)
+wcwidth (const wchar_t wc)
 { 
   wint_t wi = wc;
 

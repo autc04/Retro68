@@ -4,6 +4,7 @@
 #as: --32
 #readelf: -s --wide
 #target: x86_64-*-* i?86-*-*
+#notarget: x86_64-*-nacl* i?86-*-nacl*
 
 #...
  +[0-9]+: +[0-9a-f]+ +4 +OBJECT +GLOBAL +DEFAULT +[1-9] foo

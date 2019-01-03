@@ -23,7 +23,7 @@ INDEX
 INDEX
 	_strtod_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <stdlib.h>
         double strtod(const char *restrict <[str]>, char **restrict <[tail]>);
         float strtof(const char *restrict <[str]>, char **restrict <[tail]>);
@@ -41,21 +41,6 @@ ANSI_SYNOPSIS
 
         double _strtod_r(void *<[reent]>,
                          const char *restrict <[str]>, char **restrict <[tail]>);
-
-TRAD_SYNOPSIS
-        #include <stdlib.h>
-        double strtod(<[str]>,<[tail]>)
-        char *<[str]>;
-        char **<[tail]>;
-
-        float strtof(<[str]>,<[tail]>)
-        char *<[str]>;
-        char **<[tail]>;
-
-        double _strtod_r(<[reent]>,<[str]>,<[tail]>)
-	char *<[reent]>;
-        char *<[str]>;
-        char **<[tail]>;
 
 DESCRIPTION
 	<<strtod>>, <<strtof>>, <<strtold>> parse the character string
@@ -167,7 +152,7 @@ THIS SOFTWARE.
 #undef tinytens
 /* The factor of 2^106 in tinytens[4] helps us avoid setting the underflow */
 /* flag unnecessarily.  It leads to a song and dance at the end of strtod. */
-static _CONST double tinytens[] = { 1e-16, 1e-32,
+static const double tinytens[] = { 1e-16, 1e-32,
 #ifdef _DOUBLE_IS_32BITS
 				    0.0, 0.0, 0.0
 #else
@@ -189,8 +174,7 @@ static _CONST double tinytens[] = { 1e-16, 1e-32,
 
 #ifdef Avoid_Underflow /*{*/
  static double
-_DEFUN (sulp, (x, scale),
-       	U x _AND
+sulp (U x,
 	int scale)
 {
         U u;
@@ -212,10 +196,9 @@ _DEFUN (sulp, (x, scale),
 #ifndef NO_HEX_FP
 
 static void
-_DEFUN (ULtod, (L, bits, exp, k),
-	__ULong *L _AND
-	__ULong *bits _AND
-	Long exp _AND
+ULtod (__ULong *L,
+	__ULong *bits,
+	Long exp,
 	int k)
 {
 	switch(k & STRTOG_Retmask) {
@@ -258,7 +241,7 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 #endif
 	int bb2, bb5, bbe, bd2, bd5, bbbits, bs2, c, decpt, dsign,
 		 e, e1, esign, i, j, k, nd, nd0, nf, nz, nz0, sign;
-	_CONST char *s, *s0, *s1;
+	const char *s, *s0, *s1;
 	double aadj, adj;
 	U aadj1, rv, rv0;
 	Long L;
@@ -303,7 +286,7 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 	if (*s == '0') {
 #ifndef NO_HEX_FP
 		{
-		static _CONST FPI fpi = { 53, 1-1023-53+1, 2046-1023-53+1, 1, SI };
+		static const FPI fpi = { 53, 1-1023-53+1, 2046-1023-53+1, 1, SI };
 		Long exp;
 		__ULong bits[2];
 		switch(s[1]) {
@@ -430,7 +413,7 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 #ifdef INFNAN_CHECK
 			/* Check for Nan and Infinity */
 			__ULong bits[2];
-			static _CONST FPI fpinan =	/* only 52 explicit bits */
+			static const FPI fpinan =	/* only 52 explicit bits */
 				{ 52, 1-1023-53+1, 2046-1023-53+1, 1, SI };
 			if (!decpt)
 			 switch(c) {
@@ -1267,9 +1250,8 @@ _strtod_l (struct _reent *ptr, const char *__restrict s00, char **__restrict se,
 }
 
 double
-_DEFUN (_strtod_r, (ptr, s00, se),
-	struct _reent *ptr _AND
-	_CONST char *__restrict s00 _AND
+_strtod_r (struct _reent *ptr,
+	const char *__restrict s00,
 	char **__restrict se)
 {
   return _strtod_l (ptr, s00, se, __get_current_locale ());
@@ -1284,8 +1266,7 @@ strtod_l (const char *__restrict s00, char **__restrict se, locale_t loc)
 }
 
 double
-_DEFUN (strtod, (s00, se),
-	_CONST char *__restrict s00 _AND char **__restrict se)
+strtod (const char *__restrict s00, char **__restrict se)
 {
   return _strtod_l (_REENT, s00, se, __get_current_locale ());
 }
@@ -1305,8 +1286,7 @@ strtof_l (const char *__restrict s00, char **__restrict se, locale_t loc)
 }
 
 float
-_DEFUN (strtof, (s00, se),
-	_CONST char *__restrict s00 _AND
+strtof (const char *__restrict s00,
 	char **__restrict se)
 {
   double val = _strtod_l (_REENT, s00, se, __get_current_locale ());

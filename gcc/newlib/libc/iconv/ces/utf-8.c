@@ -43,10 +43,9 @@
 
 #if defined (ICONV_FROM_UCS_CES_UTF_8)
 static size_t
-_DEFUN(convert_from_ucs, (data, in, outbuf, outbytesleft),
-                         _VOID_PTR data         _AND
-                         register ucs4_t in     _AND
-                         unsigned char **outbuf _AND
+convert_from_ucs (void *data,
+                         register ucs4_t in,
+                         unsigned char **outbuf,
                          size_t *outbytesleft)
 {
   register unsigned char *cp;
@@ -125,12 +124,11 @@ _DEFUN(convert_from_ucs, (data, in, outbuf, outbytesleft),
 
 #if defined (ICONV_TO_UCS_CES_UTF_8)
 static ucs4_t
-_DEFUN(convert_to_ucs, (data, inbuf, inbytesleft),
-                       _VOID_PTR data               _AND
-                       _CONST unsigned char **inbuf _AND
+convert_to_ucs (void *data,
+                       const unsigned char **inbuf,
                        size_t *inbytesleft)
 {
-  register _CONST unsigned char *in = *inbuf;
+  register const unsigned char *in = *inbuf;
   register size_t bytes;
   ucs4_t res;
 
@@ -259,14 +257,13 @@ _DEFUN(convert_to_ucs, (data, inbuf, inbytesleft),
 #endif /* ICONV_TO_UCS_CES_UTF_8 */
 
 static int
-_DEFUN(get_mb_cur_max, (data),
-                       _VOID_PTR data)
+get_mb_cur_max (void *data)
 {
   return UTF8_MB_CUR_MAX;
 }
 
 #if defined (ICONV_TO_UCS_CES_UTF_8)
-_CONST iconv_to_ucs_ces_handlers_t
+const iconv_to_ucs_ces_handlers_t
 _iconv_to_ucs_ces_handlers_utf_8 = 
 {
   NULL,
@@ -280,7 +277,7 @@ _iconv_to_ucs_ces_handlers_utf_8 =
 #endif
 
 #if defined (ICONV_FROM_UCS_CES_UTF_8)
-_CONST iconv_from_ucs_ces_handlers_t
+const iconv_from_ucs_ces_handlers_t
 _iconv_from_ucs_ces_handlers_utf_8 =
 {
   NULL,

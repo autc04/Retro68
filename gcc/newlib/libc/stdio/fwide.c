@@ -7,22 +7,11 @@ INDEX
 INDEX
 	_fwide_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wchar.h>
 	int fwide(FILE *<[fp]>, int <[mode]>);
 
 	int _fwide_r(struct _reent *<[ptr]>, FILE *<[fp]>, int <[mode]>);
-
-TRAD_SYNOPSIS
-	#include <wchar.h>
-	int fwide(<[fp]>, <[mode]>);
-	FILE *<[fp]>;
-	int <[mode]>;
-
-	int _fwide_r(<[ptr]>, <[fp]>, <[mode]>);
-	struct _reent *<[ptr]>;
-	FILE *<[fp]>;
-	int <[mode]>;
 
 DESCRIPTION
 When <[mode]> is zero, the <<fwide>> function determines the current
@@ -59,9 +48,8 @@ C99, POSIX.1-2001.
 #include "local.h"
 
 int
-_DEFUN(_fwide_r, (ptr, fp, mode),
-	struct _reent *ptr _AND
-	FILE *fp _AND
+_fwide_r (struct _reent *ptr,
+	FILE *fp,
 	int mode)
 {
   int ret;
@@ -81,8 +69,7 @@ _DEFUN(_fwide_r, (ptr, fp, mode),
 }
 
 int
-_DEFUN(fwide, (fp, mode),
-	FILE *fp _AND
+fwide (FILE *fp,
 	int mode)
 {
   return _fwide_r (_REENT, fp, mode);

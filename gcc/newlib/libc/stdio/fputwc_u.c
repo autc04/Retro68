@@ -30,9 +30,8 @@
 #include "local.h"
 
 wint_t
-_DEFUN(_fputwc_unlocked_r, (ptr, wc, fp),
-	struct _reent *ptr _AND
-	wchar_t wc _AND
+_fputwc_unlocked_r (struct _reent *ptr,
+	wchar_t wc,
 	FILE *fp)
 {
   ORIENT(fp, 1);
@@ -40,8 +39,7 @@ _DEFUN(_fputwc_unlocked_r, (ptr, wc, fp),
 }
 
 wint_t
-_DEFUN(fputwc_unlocked, (wc, fp),
-	wchar_t wc _AND
+fputwc_unlocked (wchar_t wc,
 	FILE *fp)
 {
   struct _reent *reent = _REENT;

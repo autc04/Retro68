@@ -1,5 +1,5 @@
 #source: got-1.s
-#ld: -shared
+#ld: -shared --hash-style=sysv
 #readelf: -d -r
 
 Dynamic section at offset .* contains 9 entries:
@@ -14,6 +14,6 @@ Dynamic section at offset .* contains 9 entries:
  0x00000009 \(RELAENT\)                    12 \(bytes\)
  0x00000000 \(NULL\)                       0x0
 
-Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 1 entry:
  Offset     Info    Type            Sym.Value  Sym. Name \+ Addend
 [0-9a-f]+  [0-9a-f]+ R_68K_GLOB_DAT    00000000   a \+ 0

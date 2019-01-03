@@ -1,6 +1,6 @@
 # Test linking directly to S-records.
 # By Ian Lance Taylor, Cygnus Support.
-#   Copyright (C) 1999-2017 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -229,7 +229,7 @@ proc run_srec_test { test objs } {
 
     # Tell the ELF linker to not do anything clever with .eh_frame,
     # not to put anything in small data, and define various symbols.
-    set flags "--traditional-format -G 0 "
+    set flags "--traditional-format -G 0 -e 0 "
     append flags [ld_link_defsyms]
 
     # If the linker script uses SIZEOF_HEADERS, use a -Ttext argument
@@ -282,12 +282,10 @@ proc run_srec_test { test objs } {
 	setup_xfail "msp430*-*-*"
     }
 
-    # SH64 targets cannot convert format in the linker 
-    # using the -oformat command line switch.
-    if [istarget sh64*-*-elf] {
-        # This is what gcc passes to ld by default.
-        set flags "$flags -mshelf32"
-	setup_xfail "sh64*-*-*"
+    # The RISC-V target does not correctly process
+    # relocs when output format is not ELF.
+    if [istarget riscv*-*-*] {
+	setup_xfail "riscv*-*-*"
     }
 
     # V850 targets need libgcc.a

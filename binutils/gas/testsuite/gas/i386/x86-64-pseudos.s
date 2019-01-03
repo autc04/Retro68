@@ -30,6 +30,19 @@ _start:
 	movaps 128(%rax),%xmm2
 	{disp8} movaps 128(%rax),%xmm2
 	{disp32} movaps 128(%rax),%xmm2
+	{rex} mov %al,%ah
+	{rex} movl %eax,%ebx
+	{rex} movl %eax,%r14d
+	{rex} movl %eax,(%r8)
+	{rex} movaps %xmm7,%xmm2
+	{rex} movaps %xmm7,%xmm12
+	{rex} movaps (%rcx),%xmm2
+	{rex} movaps (%r8),%xmm2
+	{rex} phaddw (%rcx),%mm0
+	{rex} phaddw (%r8),%mm0
+	{rex} vmovaps %xmm7,%xmm2
+	{rex} vmovaps %xmm17,%xmm2
+	{rex} rorx $7,%eax,%ebx
 
 	.intel_syntax noprefix
 	{vex3} vmovaps xmm2,xmm7
@@ -60,3 +73,16 @@ _start:
 	movaps xmm2,XMMWORD PTR [rax+128]
 	{disp8} movaps xmm2,XMMWORD PTR [rax+128]
 	{disp32} movaps xmm2,XMMWORD PTR [rax+128]
+	{rex} mov ah,al
+	{rex} mov ebx,eax
+	{rex} mov r14d,eax
+	{rex} mov DWORD PTR [r8],eax
+	{rex} movaps xmm2,xmm7
+	{rex} movaps xmm12,xmm7
+	{rex} movaps xmm2,XMMWORD PTR [rcx]
+	{rex} movaps xmm2,XMMWORD PTR [r8]
+	{rex} phaddw mm0,QWORD PTR [rcx]
+	{rex} phaddw mm0,QWORD PTR [r8]
+	{rex} vmovaps xmm2,xmm7
+	{rex} vmovaps xmm2,xmm17
+	{rex} rorx ebx,eax,0x7

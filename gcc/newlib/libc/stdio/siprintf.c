@@ -44,7 +44,7 @@ INDEX
 INDEX
 	_asniprintf_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <stdio.h>
 
         int iprintf(const char *<[format]>, ...);
@@ -94,27 +94,14 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
 #include <_ansi.h>
 #include <reent.h>
 #include <stdio.h>
-#ifdef _HAVE_STDC
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include <limits.h>
 #include "local.h"
 
 int
-#ifdef _HAVE_STDC
-_DEFUN(_siprintf_r, (ptr, str, fmt),
-       struct _reent *ptr _AND
-       char *str          _AND
-       _CONST char *fmt _DOTS)
-#else
-_siprintf_r(ptr, str, fmt, va_alist)
-           struct _reent *ptr;
-           char *str;
-           _CONST char *fmt;
-           va_dcl
-#endif
+_siprintf_r (struct _reent *ptr,
+       char *str,
+       const char *fmt, ...)
 {
   int ret;
   va_list ap;
@@ -124,11 +111,7 @@ _siprintf_r(ptr, str, fmt, va_alist)
   f._bf._base = f._p = (unsigned char *) str;
   f._bf._size = f._w = INT_MAX;
   f._file = -1;  /* No file. */
-#ifdef _HAVE_STDC
   va_start (ap, fmt);
-#else
-  va_start (ap);
-#endif
   ret = _svfiprintf_r (ptr, &f, fmt, ap);
   va_end (ap);
   *f._p = 0;
@@ -138,16 +121,8 @@ _siprintf_r(ptr, str, fmt, va_alist)
 #ifndef _REENT_ONLY
 
 int
-#ifdef _HAVE_STDC
-_DEFUN(siprintf, (str, fmt),
-       char *str _AND
-       _CONST char *fmt _DOTS)
-#else
-siprintf(str, fmt, va_alist)
-        char *str;
-        _CONST char *fmt;
-        va_dcl
-#endif
+siprintf (char *str,
+       const char *fmt, ...)
 {
   int ret;
   va_list ap;
@@ -157,11 +132,7 @@ siprintf(str, fmt, va_alist)
   f._bf._base = f._p = (unsigned char *) str;
   f._bf._size = f._w = INT_MAX;
   f._file = -1;  /* No file. */
-#ifdef _HAVE_STDC
   va_start (ap, fmt);
-#else
-  va_start (ap);
-#endif
   ret = _svfiprintf_r (_REENT, &f, fmt, ap);
   va_end (ap);
   *f._p = 0;

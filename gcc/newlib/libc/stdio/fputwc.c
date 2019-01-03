@@ -45,7 +45,7 @@ INDEX
 INDEX
 	_putwc_unlocked_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	#include <wchar.h>
 	wint_t fputwc(wchar_t <[wc]>, FILE *<[fp]>);
@@ -79,61 +79,6 @@ ANSI_SYNOPSIS
 	#include <stdio.h>
 	#include <wchar.h>
 	wint_t _putwc_unlocked_r(struct _reent *<[ptr]>, wchar_t <[wc]>, FILE *<[fp]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	#include <wchar.h>
-	wint_t fputwc(<[wc]>, <[fp]>)
-	wchar_t <[wc]>;
-	FILE *<[fp]>;
-
-	#define _GNU_SOURCE
-	#include <stdio.h>
-	#include <wchar.h>
-	wint_t fputwc_unlocked(<[wc]>, <[fp]>)
-	wchar_t <[wc]>;
-	FILE *<[fp]>;
-
-	#include <stdio.h>
-	#include <wchar.h>
-	wint_t _fputwc_r(<[ptr]>, <[wc]>, <[fp]>)
-	struct _reent *<[ptr]>;
-	wchar_t <[wc]>;
-	FILE *<[fp]>;
-
-	#include <stdio.h>
-	#include <wchar.h>
-	wint_t _fputwc_unlocked_r(<[ptr]>, <[wc]>, <[fp]>)
-	struct _reent *<[ptr]>;
-	wchar_t <[wc]>;
-	FILE *<[fp]>;
-
-	#include <stdio.h>
-	#include <wchar.h>
-	wint_t putwc(<[wc]>, <[fp]>)
-	wchar_t <[wc]>;
-	FILE *<[fp]>;
-
-	#define _GNU_SOURCE
-	#include <stdio.h>
-	#include <wchar.h>
-	wint_t putwc_unlocked(<[wc]>, <[fp]>)
-	wchar_t <[wc]>;
-	FILE *<[fp]>;
-
-	#include <stdio.h>
-	#include <wchar.h>
-	wint_t _putwc_r(<[ptr]>, <[wc]>, <[fp]>)
-	struct _reent *<[ptr]>;
-	wchar_t <[wc]>;
-	FILE *<[fp]>;
-
-	#include <stdio.h>
-	#include <wchar.h>
-	wint_t _putwc_unlocked_r(<[ptr]>, <[wc]>, <[fp]>)
-	struct _reent *<[ptr]>;
-	wchar_t <[wc]>;
-	FILE *<[fp]>;
 
 DESCRIPTION
 <<fputwc>> writes the wide character argument <[wc]> to the file or
@@ -183,9 +128,8 @@ PORTABILITY
 #include "local.h"
 
 wint_t
-_DEFUN(__fputwc, (ptr, wc, fp),
-	struct _reent *ptr _AND
-	wchar_t wc _AND
+__fputwc (struct _reent *ptr,
+	wchar_t wc,
 	FILE *fp)
 {
   char buf[MB_LEN_MAX];
@@ -218,9 +162,8 @@ _DEFUN(__fputwc, (ptr, wc, fp),
 }
 
 wint_t
-_DEFUN(_fputwc_r, (ptr, wc, fp),
-	struct _reent *ptr _AND
-	wchar_t wc _AND
+_fputwc_r (struct _reent *ptr,
+	wchar_t wc,
 	FILE *fp)
 {
   wint_t r;
@@ -233,8 +176,7 @@ _DEFUN(_fputwc_r, (ptr, wc, fp),
 }
 
 wint_t
-_DEFUN(fputwc, (wc, fp),
-	wchar_t wc _AND
+fputwc (wchar_t wc,
 	FILE *fp)
 {
   struct _reent *reent = _REENT;

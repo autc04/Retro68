@@ -1,6 +1,6 @@
 # Expect script for the PROVIDE_HIDDEN linker script command.
 #
-# Copyright (C) 2013-2017 Free Software Foundation, Inc.
+# Copyright (C) 2013-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -34,6 +34,12 @@ if { ![is_elf_format] || ![check_shared_lib_support] } {
 set AFLAGS_PIC ""
 if [istarget "tic6x-*-*"] {
     append AFLAGS_PIC " -mpic -mpid=near"
+}
+# These targets do not default to linking with shared libraries.
+if { [istarget "mips*vr4100*-*-elf*"] \
+     || [istarget "mips*vr4300*-*-elf*"] \
+     || [istarget "mips*vr5000*-*-elf*"] } {
+    append LFLAGS " -call_shared"
 }
 
 set testname "PROVIDE_HIDDEN test"
@@ -77,10 +83,12 @@ run_ld_link_tests [list \
 	"provide-hidden-3"] \
     [list \
 	"$testname 4" \
-	"-T provide-hidden-1.ld" "tmpdir/provide-hidden-s.so" \
+	"$LFLAGS -T provide-hidden-1.ld" "tmpdir/provide-hidden-s.so" \
 	"" \
 	[list provide-hidden-3.s] \
-	[list "readelf -s provide-hidden-dynsec.nd"] \
+	[list \
+	    [list readelf -s provide-hidden-sec.nd] \
+	    [list readelf -s provide-hidden-dyn.nd]] \
 	"provide-hidden-4"] \
     [list \
 	"$testname 5" \
@@ -93,7 +101,7 @@ run_ld_link_tests [list \
 	"provide-hidden-5"] \
     [list \
 	"$testname 6" \
-	"-T provide-hidden-1.ld" "tmpdir/provide-hidden-s.so" \
+	"$LFLAGS -T provide-hidden-1.ld" "tmpdir/provide-hidden-s.so" \
 	"" \
 	[list provide-hidden-4.s] \
 	[list \
@@ -129,10 +137,12 @@ run_ld_link_tests [list \
 	"provide-hidden-9"] \
     [list \
 	"$testname 10" \
-	"-T provide-hidden-2.ld" "tmpdir/provide-hidden-s.so" \
+	"$LFLAGS -T provide-hidden-2.ld" "tmpdir/provide-hidden-s.so" \
 	"" \
 	[list provide-hidden-3.s] \
-	[list "readelf -s provide-hidden-dynabs.nd"] \
+	[list \
+	    [list readelf -s provide-hidden-abs.nd] \
+	    [list readelf -s provide-hidden-dyn.nd]] \
 	"provide-hidden-10"] \
     [list \
 	"$testname 11" \
@@ -145,7 +155,7 @@ run_ld_link_tests [list \
 	"provide-hidden-11"] \
     [list \
 	"$testname 12" \
-	"-T provide-hidden-2.ld" "tmpdir/provide-hidden-s.so" \
+	"$LFLAGS -T provide-hidden-2.ld" "tmpdir/provide-hidden-s.so" \
 	"" \
 	[list provide-hidden-4.s] \
 	[list \

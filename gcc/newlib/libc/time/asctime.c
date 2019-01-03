@@ -19,18 +19,10 @@ INDEX
 INDEX
 	_asctime_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <time.h>
 	char *asctime(const struct tm *<[clock]>);
 	char *_asctime_r(const struct tm *<[clock]>, char *<[buf]>);
-
-TRAD_SYNOPSIS
-	#include <time.h>
-	char *asctime(<[clock]>)
-	struct tm *<[clock]>;
-	char *asctime_r(<[clock]>)
-	struct tm *<[clock]>;
-	char *<[buf]>;
 
 DESCRIPTION
 Format the time value at <[clock]> into a string of the form
@@ -47,6 +39,8 @@ ANSI C requires <<asctime>>.
 <<asctime>> requires no supporting OS subroutines.
 */
 
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <_ansi.h>
 #include <reent.h>
@@ -54,8 +48,7 @@ ANSI C requires <<asctime>>.
 #ifndef _REENT_ONLY
 
 char *
-_DEFUN (asctime, (tim_p),
-	_CONST struct tm *tim_p)
+asctime (const struct tm *tim_p)
 {
   struct _reent *reent = _REENT;
 

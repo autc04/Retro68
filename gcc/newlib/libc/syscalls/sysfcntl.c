@@ -5,9 +5,8 @@
 #include <errno.h>
 
 int
-_DEFUN (fcntl, (fd, flag, arg),
-     int fd _AND
-     int flag _AND
+fcntl (int fd,
+     int flag,
      int arg)
 {
 #ifdef HAVE_FCNTL

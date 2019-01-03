@@ -13,9 +13,8 @@
 
 #include "rand48.h"
 
-_VOID
-_DEFUN (_srand48_r, (r, seed),
-       struct _reent *r _AND
+void
+_srand48_r (struct _reent *r,
        long seed)
 {
   _REENT_CHECK_RAND48(r);
@@ -29,9 +28,8 @@ _DEFUN (_srand48_r, (r, seed),
 }
 
 #ifndef _REENT_ONLY
-_VOID
-_DEFUN (srand48, (seed),
-       long seed)
+void
+srand48 (long seed)
 {
   _srand48_r (_REENT, seed);
 }

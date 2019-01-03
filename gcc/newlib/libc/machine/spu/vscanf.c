@@ -35,11 +35,7 @@ Author: Joel Schopp <jschopp@austin.ibm.com>
 
 #include "c99ppe.h"
 
-#ifdef _HAVE_STDC
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #ifdef INTEGER_ONLY
 #  define vscanf viscanf
@@ -55,8 +51,7 @@ typedef struct
 #ifndef _REENT_ONLY
 
 int
-_DEFUN (vscanf, (fmt, ap),
-     _CONST char *fmt _AND
+vscanf (const char *fmt,
      va_list ap)
 {
   c99_vscanf_t args;

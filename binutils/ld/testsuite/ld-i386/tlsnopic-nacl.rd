@@ -16,9 +16,9 @@ Section Headers:
  +\[[ 0-9]+\] \.dynstr +.*
  +\[[ 0-9]+\] \.rel.dyn +.*
  +\[[ 0-9]+\] \.tbss +NOBITS +[0-9a-f]+ [0-9a-f]+ 000024 00 WAT +0 +0 +1
- +\[[ 0-9]+\] \.dynamic +DYNAMIC +0*10010284 .*
- +\[[ 0-9]+\] \.got +PROGBITS +0*10010304 .*
- +\[[ 0-9]+\] \.got.plt +PROGBITS +0*1001031c .*
+ +\[[ 0-9]+\] \.dynamic +DYNAMIC +0*10010230 .*
+ +\[[ 0-9]+\] \.got +PROGBITS +0*100102b0 .*
+ +\[[ 0-9]+\] \.got.plt +PROGBITS +0*100102c8 .*
  +\[[ 0-9]+\] \.symtab +.*
  +\[[ 0-9]+\] \.strtab +.*
  +\[[ 0-9]+\] \.shstrtab +.*
@@ -77,10 +77,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
  +[0-9]+: 0+ +0 +FUNC +GLOBAL +DEFAULT +1 fn3
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sg5
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sg1
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +9 __bss_start
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sg2
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +9 _edata
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +9 _end
 
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
@@ -105,14 +102,11 @@ Symbol table '\.symtab' contains [0-9]+ entries:
  +[0-9]+: 0+1c +0 +TLS +LOCAL +DEFAULT +6 sh3
  +[0-9]+: 0+20 +0 +TLS +LOCAL +DEFAULT +6 sh4
  +[0-9]+: 0+14 +0 +TLS +LOCAL +DEFAULT +6 sh1
- +[0-9]+: 0*1001031c +0 +OBJECT +LOCAL +DEFAULT +9 _GLOBAL_OFFSET_TABLE_
+ +[0-9]+: 0*100102c8 +0 +OBJECT +LOCAL +DEFAULT +9 _GLOBAL_OFFSET_TABLE_
  +[0-9]+: 0+18 +0 +TLS +LOCAL +DEFAULT +6 sh2
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sg3
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sg4
  +[0-9]+: 0+ +0 +FUNC +GLOBAL +DEFAULT +1 fn3
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sg5
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sg1
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +9 __bss_start
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sg2
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +9 _edata
- +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +9 _end

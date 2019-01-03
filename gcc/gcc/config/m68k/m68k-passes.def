@@ -1,0 +1,22 @@
+
+/*
+   Macros that can be used in this file:
+   INSERT_PASS_AFTER (PASS, INSTANCE, TGT_PASS)
+   INSERT_PASS_BEFORE (PASS, INSTANCE, TGT_PASS)
+   REPLACE_PASS (PASS, INSTANCE, TGT_PASS)
+ */
+
+	// insert a stack adjustments (csa) pass early in compilation,
+	// before register allocation.
+	// This allows removing some extraneous moves in connection with pascal functions:
+	// pascal short bar(); pascal void foo(short);
+	// foo(bar());
+	// 
+	// subq #2, sp
+	// jsr bar
+	// move (sp), d0	; <-- otherwise we end up with these two useless instructions
+	// move d0, (sp)	; <-- which are not removed if the register is already allocated
+	//			; <-- when csa figures out that no actual push or pop is needed
+	// jsr foo
+
+INSERT_PASS_AFTER (pass_combine, 1, pass_stack_adjustments);

@@ -11,7 +11,7 @@ FUNCTION
 INDEX
 	memmem
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	char *memmem(const void *<[s1]>, size_t <[l1]>, const void *<[s2]>,
 		     size_t <[l2]>);
@@ -46,10 +46,9 @@ QUICKREF
 #endif
 
 void *
-_DEFUN (memmem, (haystack_start, haystack_len, needle_start, needle_len),
-	const void *haystack_start _AND
-	size_t haystack_len _AND
-	const void *needle_start _AND
+memmem (const void *haystack_start,
+	size_t haystack_len,
+	const void *needle_start,
 	size_t needle_len)
 {
   /* Abstract memory is considered to be an array of 'unsigned char' values,

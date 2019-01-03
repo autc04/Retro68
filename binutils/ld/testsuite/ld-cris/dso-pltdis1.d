@@ -2,7 +2,7 @@
 #source: dsov32-2.s
 #source: dsofn4g.s
 #as: --pic --no-underscore --march=v32 --em=criself
-#ld: --shared -m crislinux
+#ld: --shared -m crislinux --hash-style=sysv
 #objdump: -d -R
 
 # Check dissassembly of the .plt section, specifically the synthetic
@@ -20,42 +20,42 @@
 
 Disassembly of section \.plt:
 
-0+1b4 <.*>:
- 1b4:	84e2                	subq 4,\$sp
- 1b6:	0401                	addoq 4,\$r0,\$acr
- 1b8:	7e7a                	move \$mof,\[\$sp\]
- 1ba:	3f7a                	move \[\$acr\],\$mof
- 1bc:	04f2                	addq 4,\$acr
- 1be:	6ffa                	move\.d \[\$acr\],\$acr
- 1c0:	bf09                	jump \$acr
- 1c2:	b005                	nop 
+0+160 <.*>:
+ 160:	84e2                	subq 4,\$sp
+ 162:	0401                	addoq 4,\$r0,\$acr
+ 164:	7e7a                	move \$mof,\[\$sp\]
+ 166:	3f7a                	move \[\$acr\],\$mof
+ 168:	04f2                	addq 4,\$acr
+ 16a:	6ffa                	move\.d \[\$acr\],\$acr
+ 16c:	bf09                	jump \$acr
+ 16e:	b005                	nop 
 	\.\.\.
 #...
- 1ce:	6f0d ..00 0000      	addo\.d .*
- 1d4:	6ffa                	move\.d \[\$acr\],\$acr
- 1d6:	bf09                	jump \$acr
- 1d8:	b005                	nop 
- 1da:	3f7e .... ....      	move .*,\$mof
- 1e0:	bf0e .... ....      	ba .*
- 1e6:	b005                	nop 
+ 17a:	6f0d ..00 0000      	addo\.d .*
+ 180:	6ffa                	move\.d \[\$acr\],\$acr
+ 182:	bf09                	jump \$acr
+ 184:	b005                	nop 
+ 186:	3f7e .... ....      	move .*,\$mof
+ 18c:	bf0e .... ....      	ba .*
+ 192:	b005                	nop 
 
-0+1e8 <dsofn@plt>:
- 1e8:	6f0d ..00 0000      	addo\.d .*
- 1ee:	6ffa                	move\.d \[\$acr\],\$acr
- 1f0:	bf09                	jump \$acr
- 1f2:	b005                	nop 
- 1f4:	3f7e .... ....      	move .*,\$mof
- 1fa:	bf0e baff ffff      	ba 1b4 <.*>
- 200:	b005                	nop 
+0+194 <dsofn@plt>:
+ 194:	6f0d ..00 0000      	addo\.d .*
+ 19a:	6ffa                	move\.d \[\$acr\],\$acr
+ 19c:	bf09                	jump \$acr
+ 19e:	b005                	nop 
+ 1a0:	3f7e .... ....      	move .*,\$mof
+ 1a6:	bf0e baff ffff      	ba 160 <.*>
+ 1ac:	b005                	nop 
 
 Disassembly of section \.text:
 #...
-0+202 <dsofn3>:
- 202:	bfbe e6ff ffff      	bsr 1e8 <dsofn@plt>
- 208:	b005                	nop 
+0+1ae <dsofn3>:
+ 1ae:	bfbe e6ff ffff      	bsr 194 <dsofn@plt>
+ 1b4:	b005                	nop 
 
-0+20a <dsofn4>:
- 20a:	7f0d ae20 0000      	lapc 22b8 <_GLOBAL_OFFSET_TABLE_>,\$r0
- 210:	5f0d 1400           	addo\.w 0x14,\$r0,\$acr
- 214:	bfbe baff ffff      	bsr 1ce <.*>
+0+1b6 <dsofn4>:
+ 1b6:	7f0d ae20 0000      	lapc 2264 <_GLOBAL_OFFSET_TABLE_>,\$r0
+ 1bc:	5f0d 1400           	addo\.w 0x14,\$r0,\$acr
+ 1c0:	bfbe baff ffff      	bsr 17a <.*>
 #pass

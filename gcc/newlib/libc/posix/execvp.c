@@ -21,9 +21,8 @@
  */
 
 static char *
-_DEFUN (strccpy, (s1, s2, c),
-	char *s1 _AND
-	char *s2 _AND
+strccpy (char *s1,
+	char *s2,
 	char c)
 {
   char *dest = s1;
@@ -36,9 +35,8 @@ _DEFUN (strccpy, (s1, s2, c),
 }
 
 int
-_DEFUN (execvp, (file, argv),
-	_CONST char *file _AND
-	char * _CONST argv[])
+execvp (const char *file,
+	char * const argv[])
 {
   char *path = getenv ("PATH");
   char buf[MAXNAMLEN];

@@ -26,8 +26,7 @@
 static xdr_vprintf_t xdr_vprintf = NULL;
 
 xdr_vprintf_t
-_DEFUN (xdr_set_vprintf, (fnptr),
-        xdr_vprintf_t fnptr)
+xdr_set_vprintf (xdr_vprintf_t fnptr)
 {
   xdr_vprintf_t tmp = xdr_vprintf;
   xdr_vprintf = fnptr;
@@ -35,8 +34,7 @@ _DEFUN (xdr_set_vprintf, (fnptr),
 }
 
 void
-_DEFUN (xdr_vwarnx, (format, ap),
-        _CONST char *format _AND
+xdr_vwarnx (const char *format,
 	va_list ap)
 {
   if (xdr_vprintf)
@@ -48,8 +46,7 @@ _DEFUN (xdr_vwarnx, (format, ap),
 }
 
 void
-_DEFUN (xdr_warnx, (fmt),
-        _CONST char *fmt _DOTS)
+xdr_warnx (const char *fmt, ...)
 {
   va_list ap;
   va_start (ap, fmt);

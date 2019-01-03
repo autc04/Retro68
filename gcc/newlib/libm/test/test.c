@@ -9,8 +9,7 @@ int inacc;
 
 
 int
-_DEFUN(main,(ac, av),
-       int ac _AND
+main (int ac,
        char **av)
 {
   int i;
@@ -55,10 +54,9 @@ bt();
 }
 
 
-static _CONST char *iname = "foo";
+static const char *iname = "foo";
 void 
-_DEFUN(newfunc,(string),
-       _CONST char *string)
+newfunc (const char *string)
 {
   if (strcmp(iname, string)) 
   {
@@ -92,8 +90,7 @@ int reduce = 0;
 int strtod_vector = 0;
 
 int 
-_DEFUN(bigger,(a,b),
-	   __ieee_double_shape_type *a  _AND
+bigger (__ieee_double_shape_type *a,
 	   __ieee_double_shape_type *b)
 {
 
@@ -116,8 +113,7 @@ _DEFUN(bigger,(a,b),
 
 /* Return the first bit different between two double numbers */
 int 
-_DEFUN(mag_of_error,(is, shouldbe),
-       double is _AND
+mag_of_error (double is,
        double shouldbe)
 {
   __ieee_double_shape_type a,b;
@@ -183,8 +179,7 @@ _DEFUN(mag_of_error,(is, shouldbe),
 
 
 void
-_DEFUN(test_sok,(is, shouldbe),
-       char *is _AND
+test_sok (char *is,
        char *shouldbe)
 {
   if (strcmp(is,shouldbe))
@@ -197,8 +192,7 @@ _DEFUN(test_sok,(is, shouldbe),
   }
 }
 void
-_DEFUN(test_iok,(is, shouldbe),
-       int is _AND
+test_iok (int is,
        int shouldbe)
 {
   if (is != shouldbe){
@@ -215,9 +209,8 @@ _DEFUN(test_iok,(is, shouldbe),
    prec float conversions against double results
 */
 void 
-_DEFUN(test_scok,(is, shouldbe, count),
-       char *is _AND
-       char *shouldbe _AND
+test_scok (char *is,
+       char *shouldbe,
        int count)
 {
   if (strncmp(is,shouldbe, count))
@@ -231,8 +224,7 @@ _DEFUN(test_scok,(is, shouldbe, count),
 }
 
 void
-_DEFUN(test_eok,(is, shouldbe),
-       int is _AND
+test_eok (int is,
        int shouldbe)
 {
   if (is != shouldbe){
@@ -245,9 +237,8 @@ _DEFUN(test_eok,(is, shouldbe),
 }
 
 void
-_DEFUN(test_mok,(value, shouldbe, okmag),
-       double value _AND
-       double shouldbe _AND
+test_mok (double value,
+       double shouldbe,
        int okmag)
 {
   __ieee_double_shape_type a,b;

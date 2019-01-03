@@ -49,28 +49,26 @@
 #define UCS_2BE "ucs_2be"
 #define UCS_2LE "ucs_2le"
 
-static _VOID_PTR
-_DEFUN(ucs_2_init, (rptr, encoding),
-                   struct _reent *rptr _AND
-                   _CONST char *encoding)
+static void *
+ucs_2_init (struct _reent *rptr,
+                   const char *encoding)
 {
   int *data;
   
   if ((data = (int *) _malloc_r(rptr, sizeof (int))) == NULL)
-    return (_VOID_PTR)NULL;
+    return (void *)NULL;
   
   if (strcmp (encoding, UCS_2LE) == 0)
     *data = UCS_2_LITTLE_ENDIAN;
   else
     *data = UCS_2_BIG_ENDIAN;
      
-  return (_VOID_PTR)data;
+  return (void *)data;
 }
 
 static size_t
-_DEFUN(ucs_2_close, (rptr, data),
-                    struct _reent *rptr _AND
-                    _VOID_PTR data)
+ucs_2_close (struct _reent *rptr,
+                    void *data)
 {
   _free_r (rptr, data);
   return 0;
@@ -78,10 +76,9 @@ _DEFUN(ucs_2_close, (rptr, data),
 
 #if defined (ICONV_FROM_UCS_CES_UCS_2)
 static size_t
-_DEFUN(ucs_2_convert_from_ucs, (data, in, outbuf, outbytesleft),
-                               _VOID_PTR data         _AND
-                               ucs4_t in              _AND
-                               unsigned char **outbuf _AND
+ucs_2_convert_from_ucs (void *data,
+                               ucs4_t in,
+                               unsigned char **outbuf,
                                size_t *outbytesleft)
 {
   if ((in  >= 0x0000D800 && in <= 0x0000DFFF) /* Surrogate character */
@@ -105,9 +102,8 @@ _DEFUN(ucs_2_convert_from_ucs, (data, in, outbuf, outbytesleft),
 
 #if defined (ICONV_TO_UCS_CES_UCS_2)
 static ucs4_t
-_DEFUN(ucs_2_convert_to_ucs, (data, inbuf, inbytesleft),
-                             _VOID_PTR data               _AND
-                             _CONST unsigned char **inbuf _AND
+ucs_2_convert_to_ucs (void *data,
+                             const unsigned char **inbuf,
                              size_t *inbytesleft)
 {
   ucs4_t res;
@@ -132,14 +128,13 @@ _DEFUN(ucs_2_convert_to_ucs, (data, inbuf, inbytesleft),
 #endif /* ICONV_TO_UCS_CES_UCS_2 */
 
 static int
-_DEFUN(ucs_2_get_mb_cur_max, (data),
-                             _VOID_PTR data)
+ucs_2_get_mb_cur_max (void *data)
 {
   return 2;
 }
 
 #if defined (ICONV_TO_UCS_CES_UCS_2)
-_CONST iconv_to_ucs_ces_handlers_t
+const iconv_to_ucs_ces_handlers_t
 _iconv_to_ucs_ces_handlers_ucs_2 = 
 {
   ucs_2_init,
@@ -153,7 +148,7 @@ _iconv_to_ucs_ces_handlers_ucs_2 =
 #endif
 
 #if defined (ICONV_FROM_UCS_CES_UCS_2)
-_CONST iconv_from_ucs_ces_handlers_t
+const iconv_from_ucs_ces_handlers_t
 _iconv_from_ucs_ces_handlers_ucs_2 =
 {
   ucs_2_init,

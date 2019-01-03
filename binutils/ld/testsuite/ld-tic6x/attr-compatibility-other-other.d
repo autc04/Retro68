@@ -3,4 +3,4 @@
 #ld: -r -melf32_tic6x_le
 #source: attr-compatibility-other.s
 #source: attr-compatibility-other.s
-#error: .*Object has vendor-specific contents that must be processed by the 'other' toolchain
+#error: .*object has vendor-specific contents that must be processed by the 'other' toolchain

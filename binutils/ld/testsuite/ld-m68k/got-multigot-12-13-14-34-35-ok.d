@@ -1,5 +1,5 @@
 #as: -mcpu=5206
-#ld: -shared --got=multigot
+#ld: -shared --got=multigot --hash-style=sysv
 #readelf: -d -r
 
 Dynamic section at offset .* contains 9 entries:

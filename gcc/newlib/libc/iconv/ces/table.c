@@ -57,44 +57,42 @@
  */
 
 static ucs2_t
-_EXFUN(find_code_size, (ucs2_t code, _CONST __uint16_t *tblp));
+find_code_size (ucs2_t code, const __uint16_t *tblp);
 
 static __inline ucs2_t
-_EXFUN(find_code_speed, (ucs2_t code, _CONST __uint16_t *tblp));
+find_code_speed (ucs2_t code, const __uint16_t *tblp);
 
 static __inline ucs2_t
-_EXFUN(find_code_speed_8bit, (ucs2_t code, _CONST unsigned char *tblp));
+find_code_speed_8bit (ucs2_t code, const unsigned char *tblp);
 
 #ifdef _ICONV_ENABLE_EXTERNAL_CCS
-static _CONST iconv_ccs_desc_t *
-_EXFUN(load_file, (struct _reent *rptr, _CONST char *name, int direction));
+static const iconv_ccs_desc_t *
+load_file (struct _reent *rptr, const char *name, int direction);
 #endif
 
 /*
  * Interface data and functions implementation.
  */
 static size_t
-_DEFUN(table_close, (rptr, data),
-                    struct _reent *rptr _AND
-                    _VOID_PTR data)
+table_close (struct _reent *rptr,
+                    void *data)
 {
-  _CONST iconv_ccs_desc_t *ccsp = (iconv_ccs_desc_t *)data;
+  const iconv_ccs_desc_t *ccsp = (iconv_ccs_desc_t *)data;
 
   if (ccsp->type == TABLE_EXTERNAL)
-    _free_r (rptr, (_VOID_PTR)ccsp->tbl);
+    _free_r (rptr, (void *)ccsp->tbl);
 
-  _free_r( rptr, (_VOID_PTR)ccsp);
+  _free_r( rptr, (void *)ccsp);
   return 0;
 }
 
 #if defined (ICONV_FROM_UCS_CES_TABLE)
-static _VOID_PTR
-_DEFUN(table_init_from_ucs, (rptr, encoding),
-                            struct _reent *rptr _AND
-                            _CONST char *encoding)
+static void *
+table_init_from_ucs (struct _reent *rptr,
+                            const char *encoding)
 {
   int i;
-  _CONST iconv_ccs_t *biccsp = NULL;
+  const iconv_ccs_t *biccsp = NULL;
   iconv_ccs_desc_t *ccsp;
   
   for (i = 0; _iconv_ccs[i] != NULL; i++)
@@ -116,24 +114,23 @@ _DEFUN(table_init_from_ucs, (rptr, encoding),
       ccsp->optimization = biccsp->from_ucs_type;
       ccsp->tbl = biccsp->from_ucs;
       
-      return (_VOID_PTR)ccsp;
+      return (void *)ccsp;
     }
     
 #ifdef _ICONV_ENABLE_EXTERNAL_CCS
-  return (_VOID_PTR)load_file (rptr, encoding, 1);
+  return (void *)load_file (rptr, encoding, 1);
 #else
   return NULL;
 #endif
 }
 
 static size_t
-_DEFUN(table_convert_from_ucs, (data, in, outbuf, outbytesleft),
-                               _VOID_PTR data         _AND
-                               ucs4_t in              _AND
-                               unsigned char **outbuf _AND
+table_convert_from_ucs (void *data,
+                               ucs4_t in,
+                               unsigned char **outbuf,
                                size_t *outbytesleft)
 {
-  _CONST iconv_ccs_desc_t *ccsp = (iconv_ccs_desc_t *)data;
+  const iconv_ccs_desc_t *ccsp = (iconv_ccs_desc_t *)data;
   ucs2_t code;
 
   if (in > 0xFFFF || in == INVALC)
@@ -142,7 +139,7 @@ _DEFUN(table_convert_from_ucs, (data, in, outbuf, outbytesleft),
   if (ccsp->bits == TABLE_8BIT)
     {
       code = find_code_speed_8bit ((ucs2_t)in,
-                                  (_CONST unsigned char *)ccsp->tbl);
+                                  (const unsigned char *)ccsp->tbl);
       if (code == INVALC)
         return (size_t)ICONV_CES_INVALID_CHARACTER;
       **outbuf = (unsigned char)code;
@@ -171,13 +168,12 @@ _DEFUN(table_convert_from_ucs, (data, in, outbuf, outbytesleft),
 #endif /* ICONV_FROM_UCS_CES_TABLE */
 
 #if defined (ICONV_TO_UCS_CES_TABLE)
-static _VOID_PTR
-_DEFUN(table_init_to_ucs, (rptr, encoding),
-                          struct _reent *rptr _AND
-                          _CONST char *encoding)
+static void *
+table_init_to_ucs (struct _reent *rptr,
+                          const char *encoding)
 {
   int i;
-  _CONST iconv_ccs_t *biccsp = NULL;
+  const iconv_ccs_t *biccsp = NULL;
   iconv_ccs_desc_t *ccsp;
   
   for (i = 0; _iconv_ccs[i] != NULL; i++)
@@ -199,23 +195,22 @@ _DEFUN(table_init_to_ucs, (rptr, encoding),
       ccsp->optimization = biccsp->to_ucs_type;
       ccsp->tbl = biccsp->to_ucs;
       
-      return (_VOID_PTR)ccsp;
+      return (void *)ccsp;
     }
   
 #ifdef _ICONV_ENABLE_EXTERNAL_CCS
-  return (_VOID_PTR)load_file (rptr, encoding, 0);
+  return (void *)load_file (rptr, encoding, 0);
 #else
   return NULL;
 #endif
 }
 
 static ucs4_t
-_DEFUN(table_convert_to_ucs, (data, inbuf, inbytesleft),
-                             _VOID_PTR data               _AND
-                             _CONST unsigned char **inbuf _AND
+table_convert_to_ucs (void *data,
+                             const unsigned char **inbuf,
                              size_t *inbytesleft)
 {
-  _CONST iconv_ccs_desc_t *ccsp = (iconv_ccs_desc_t *)data;
+  const iconv_ccs_desc_t *ccsp = (iconv_ccs_desc_t *)data;
   ucs2_t ucs;
   
   if (ccsp->bits == TABLE_8BIT)
@@ -253,15 +248,14 @@ _DEFUN(table_convert_to_ucs, (data, inbuf, inbytesleft),
 #endif /* ICONV_TO_UCS_CES_TABLE */
 
 static int
-_DEFUN(table_get_mb_cur_max, (data),
-                             _VOID_PTR data)
+table_get_mb_cur_max (void *data)
 {
   return ((iconv_ccs_desc_t *)data)->bits/8;
 }
 
 
 #if defined (ICONV_TO_UCS_CES_TABLE)
-_CONST iconv_to_ucs_ces_handlers_t
+const iconv_to_ucs_ces_handlers_t
 _iconv_to_ucs_ces_handlers_table = 
 {
   table_init_to_ucs,
@@ -275,7 +269,7 @@ _iconv_to_ucs_ces_handlers_table =
 #endif /* ICONV_FROM_UCS_CES_TABLE */
 
 #if defined (ICONV_FROM_UCS_CES_TABLE)
-_CONST iconv_from_ucs_ces_handlers_t
+const iconv_from_ucs_ces_handlers_t
 _iconv_from_ucs_ces_handlers_table =
 {
   table_init_from_ucs,
@@ -297,15 +291,14 @@ _iconv_from_ucs_ces_handlers_table =
  *
  * PARAMETERS:
  *     ucs2_t code - code whose mapping to find.
- *     _CONST __uint16_t *tblp - table pointer.
+ *     const __uint16_t *tblp - table pointer.
  *
  * RETURN:
  *     Code that corresponds to 'code'.
  */
 static __inline ucs2_t
-_DEFUN(find_code_speed, (code, tblp),
-                        ucs2_t code _AND
-                        _CONST __uint16_t *tblp)
+find_code_speed (ucs2_t code,
+                        const __uint16_t *tblp)
 {
   int idx = tblp[code >> 8];
 
@@ -320,15 +313,14 @@ _DEFUN(find_code_speed, (code, tblp),
  *
  * PARAMETERS:
  *     ucs2_t code - code whose mapping to find.
- *     _CONST __uint16_t *tblp - table pointer.
+ *     const __uint16_t *tblp - table pointer.
  *
  * RETURN:
  *     Code that corresponds to 'code'.
  */
 static __inline ucs2_t
-_DEFUN(find_code_speed_8bit, (code, tblp),
-                             ucs2_t code _AND
-                             _CONST unsigned char *tblp)
+find_code_speed_8bit (ucs2_t code,
+                             const unsigned char *tblp)
 {
   int idx;
   unsigned char ccs;
@@ -360,15 +352,14 @@ _DEFUN(find_code_speed_8bit, (code, tblp),
  *
  * PARAMETERS:
  *     ucs2_t code - code whose mapping to find.
- *     _CONST __uint16_t *tblp - table pointer.
+ *     const __uint16_t *tblp - table pointer.
  *
  * RETURN:
  *     Code that corresponds to 'code'.
  */
 static ucs2_t
-_DEFUN(find_code_size, (code, tblp),
-                       ucs2_t code _AND
-                       _CONST __uint16_t *tblp)
+find_code_size (ucs2_t code,
+                       const __uint16_t *tblp)
 {
   int first, last, cur, center;
 
@@ -447,7 +438,7 @@ _DEFUN(find_code_size, (code, tblp),
  *
  * PARAMETERS:
  *    struct _reent *rptr - reent structure of current thread/process.
- *    _CONST char *name - encoding name.
+ *    const char *name - encoding name.
  *    int direction - conversion direction.
  *
  * DESCRIPTION:
@@ -459,17 +450,16 @@ _DEFUN(find_code_size, (code, tblp),
  * RETURN:
  *    iconv_ccs_desc_t * pointer is success, NULL if failure.
  */
-static _CONST iconv_ccs_desc_t *
-_DEFUN(load_file, (rptr, name, direction), 
-                  struct _reent *rptr _AND
-                  _CONST char *name   _AND
+static const iconv_ccs_desc_t *
+load_file (struct _reent *rptr,
+                  const char *name,
                   int direction)
 {
   int fd;
-  _CONST unsigned char *buf;
+  const unsigned char *buf;
   int tbllen, hdrlen;
   off_t off;
-  _CONST char *fname;
+  const char *fname;
   iconv_ccs_desc_t *ccsp = NULL;
   int nmlen = strlen(name);
   /* Since CCS table name length can vary - it is aligned (by adding extra
@@ -487,10 +477,10 @@ _DEFUN(load_file, (rptr, name, direction),
   if ((fd = _open_r (rptr, fname, O_RDONLY, S_IRUSR)) == -1)
     goto error1;
   
-  if ((buf = (_CONST unsigned char *)_malloc_r (rptr, hdrlen)) == NULL)
+  if ((buf = (const unsigned char *)_malloc_r (rptr, hdrlen)) == NULL)
     goto error2;
 
-  if (_read_r (rptr, fd, (_VOID_PTR)buf, hdrlen) != hdrlen)
+  if (_read_r (rptr, fd, (void *)buf, hdrlen) != hdrlen)
     goto error3;
 
   if (_16BIT_ELT (EXTTABLE_VERSION_OFF) != TABLE_VERSION_1
@@ -559,33 +549,33 @@ _DEFUN(load_file, (rptr, name, direction),
     goto error4;
 
   if (_lseek_r (rptr, fd, off, SEEK_SET) == (off_t)-1
-      || _read_r (rptr, fd, (_VOID_PTR)ccsp->tbl, tbllen) != tbllen)
+      || _read_r (rptr, fd, (void *)ccsp->tbl, tbllen) != tbllen)
     goto error5;
 
   goto normal_exit;
 
 error5:
-  _free_r (rptr, (_VOID_PTR)ccsp->tbl);
+  _free_r (rptr, (void *)ccsp->tbl);
   ccsp->tbl = NULL;
 error4:
-  _free_r (rptr, (_VOID_PTR)ccsp);
+  _free_r (rptr, (void *)ccsp);
   ccsp = NULL;
 error3:
 normal_exit:
-  _free_r (rptr, (_VOID_PTR)buf);
+  _free_r (rptr, (void *)buf);
 error2:
   if (_close_r (rptr, fd) == -1)
     {
       if (ccsp != NULL)
         {
           if (ccsp->tbl != NULL)
-            _free_r (rptr, (_VOID_PTR)ccsp->tbl);
-          _free_r (rptr, (_VOID_PTR)ccsp);
+            _free_r (rptr, (void *)ccsp->tbl);
+          _free_r (rptr, (void *)ccsp);
         }
       ccsp = NULL;
     }
 error1:
-  _free_r (rptr, (_VOID_PTR)fname);
+  _free_r (rptr, (void *)fname);
   return ccsp;
 }
 #endif

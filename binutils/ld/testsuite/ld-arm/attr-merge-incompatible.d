@@ -2,4 +2,4 @@
 #source: attr-merge-incompatiblea.s
 #as:
 #ld:
-#error: Object has vendor-specific contents that must be processed by the '.+' toolchain
+#error: object has vendor-specific contents that must be processed by the '.+' toolchain

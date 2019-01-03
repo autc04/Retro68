@@ -50,21 +50,21 @@
 # define htonl(x) xdr_htonl(x)
 #endif
 
-static void _EXFUN (xdrstdio_destroy, (XDR *));
-static bool_t _EXFUN (xdrstdio_getlong, (XDR *, long *));
-static bool_t _EXFUN (xdrstdio_putlong, (XDR *, _CONST long *));
-static bool_t _EXFUN (xdrstdio_getbytes, (XDR *, char *, u_int));
-static bool_t _EXFUN (xdrstdio_putbytes, (XDR *, _CONST char *, u_int));
-static u_int _EXFUN (xdrstdio_getpos, (XDR *));
-static bool_t _EXFUN (xdrstdio_setpos, (XDR *, u_int));
-static int32_t * _EXFUN (xdrstdio_inline, (XDR *, u_int));
-static bool_t _EXFUN (xdrstdio_getint32, (XDR*, int32_t *));
-static bool_t _EXFUN (xdrstdio_putint32, (XDR*, _CONST int32_t *));
+static void xdrstdio_destroy (XDR *);
+static bool_t xdrstdio_getlong (XDR *, long *);
+static bool_t xdrstdio_putlong (XDR *, const long *);
+static bool_t xdrstdio_getbytes (XDR *, char *, u_int);
+static bool_t xdrstdio_putbytes (XDR *, const char *, u_int);
+static u_int xdrstdio_getpos (XDR *);
+static bool_t xdrstdio_setpos (XDR *, u_int);
+static int32_t * xdrstdio_inline (XDR *, u_int);
+static bool_t xdrstdio_getint32 (XDR*, int32_t *);
+static bool_t xdrstdio_putint32 (XDR*, const int32_t *);
 
 /*
  * Ops vector for stdio type XDR
  */
-static _CONST struct xdr_ops xdrstdio_ops = {
+static const struct xdr_ops xdrstdio_ops = {
   xdrstdio_getlong,             /* deseraialize a long int */
   xdrstdio_putlong,             /* seraialize a long int */
   xdrstdio_getbytes,            /* deserialize counted bytes */
@@ -83,9 +83,8 @@ static _CONST struct xdr_ops xdrstdio_ops = {
  * Operation flag is set to op.
  */
 void
-_DEFUN (xdrstdio_create, (xdrs, file, op),
-        XDR * xdrs _AND
-	FILE * file _AND
+xdrstdio_create (XDR * xdrs,
+	FILE * file,
 	enum xdr_op op)
 {
   xdrs->x_op = op;
@@ -100,16 +99,14 @@ _DEFUN (xdrstdio_create, (xdrs, file, op),
  * Cleans up the xdr stream handle xdrs previously set up by xdrstdio_create.
  */
 static void
-_DEFUN (xdrstdio_destroy, (xdrs),
-        XDR * xdrs)
+xdrstdio_destroy (XDR * xdrs)
 {
   (void) fflush ((FILE *) xdrs->x_private);
   /* XXX: should we close the file ?? */
 }
 
 static bool_t
-_DEFUN (xdrstdio_getlong, (xdrs, lp),
-        XDR * xdrs _AND
+xdrstdio_getlong (XDR * xdrs,
 	long *lp)
 {
   u_int32_t temp;
@@ -121,9 +118,8 @@ _DEFUN (xdrstdio_getlong, (xdrs, lp),
 }
 
 static bool_t
-_DEFUN (xdrstdio_putlong, (xdrs, lp),
-        XDR * xdrs _AND
-	_CONST long *lp)
+xdrstdio_putlong (XDR * xdrs,
+	const long *lp)
 {
   u_int32_t temp = htonl ((u_int32_t) * lp);
 
@@ -133,9 +129,8 @@ _DEFUN (xdrstdio_putlong, (xdrs, lp),
 }
 
 static bool_t
-_DEFUN (xdrstdio_getbytes, (xdrs, addr, len),
-        XDR * xdrs _AND
-        char *addr _AND
+xdrstdio_getbytes (XDR * xdrs,
+        char *addr,
 	u_int len)
 {
   if ((len != 0) && (fread (addr, (size_t) len, 1,
@@ -145,9 +140,8 @@ _DEFUN (xdrstdio_getbytes, (xdrs, addr, len),
 }
 
 static bool_t
-_DEFUN (xdrstdio_putbytes, (xdrs, addr, len),
-        XDR * xdrs _AND
-        _CONST char *addr _AND
+xdrstdio_putbytes (XDR * xdrs,
+        const char *addr,
 	u_int len)
 {
   if ((len != 0) && (fwrite (addr, (size_t) len, 1,
@@ -157,15 +151,13 @@ _DEFUN (xdrstdio_putbytes, (xdrs, addr, len),
 }
 
 static u_int
-_DEFUN (xdrstdio_getpos, (xdrs),
-        XDR * xdrs)
+xdrstdio_getpos (XDR * xdrs)
 {
   return ((u_int) ftell ((FILE *) xdrs->x_private));
 }
 
 static bool_t
-_DEFUN (xdrstdio_setpos, (xdrs, pos),
-        XDR * xdrs _AND
+xdrstdio_setpos (XDR * xdrs,
         u_int pos)
 {
   return ((fseek ((FILE *) xdrs->x_private, (long) pos, 0) < 0) ?
@@ -174,8 +166,7 @@ _DEFUN (xdrstdio_setpos, (xdrs, pos),
 
 /* ARGSUSED */
 static int32_t *
-_DEFUN (xdrstdio_inline, (xdrs, len),
-        XDR * xdrs _AND
+xdrstdio_inline (XDR * xdrs,
 	u_int len)
 {
   /*
@@ -191,8 +182,7 @@ _DEFUN (xdrstdio_inline, (xdrs, len),
 }
 
 static bool_t
-_DEFUN (xdrstdio_getint32, (xdrs, ip),
-        XDR *xdrs _AND
+xdrstdio_getint32 (XDR *xdrs,
 	int32_t *ip)
 {
   int32_t temp;
@@ -204,9 +194,8 @@ _DEFUN (xdrstdio_getint32, (xdrs, ip),
 }
 
 static bool_t
-_DEFUN (xdrstdio_putint32, (xdrs, ip),
-        XDR *xdrs _AND
-	_CONST int32_t *ip)
+xdrstdio_putint32 (XDR *xdrs,
+	const int32_t *ip)
 {
   int32_t temp = htonl (*ip);
 

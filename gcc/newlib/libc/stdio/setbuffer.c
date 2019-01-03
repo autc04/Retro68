@@ -27,16 +27,9 @@ FUNCTION
 INDEX
 	setbuffer
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	void setbuffer(FILE *<[fp]>, char *<[buf]>, int <[size]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	void setbuffer(<[fp]>, <[buf]>, <[size]>)
-	FILE *<[fp]>;
-	char *<[buf]>;
-	int <[size]>;
 
 DESCRIPTION
 <<setbuffer>> specifies that output to the file or stream identified by
@@ -71,11 +64,10 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
 #include <stdio.h>
 #include "local.h"
 
-_VOID
-_DEFUN(setbuffer, (fp, buf, size),
-       FILE * fp _AND
-       char *buf _AND
+void
+setbuffer (FILE * fp,
+       char *buf,
        int size)
 {
-  _CAST_VOID setvbuf (fp, buf, buf ? _IOFBF : _IONBF, (size_t) size);
+  (void) setvbuf (fp, buf, buf ? _IOFBF : _IONBF, (size_t) size);
 }

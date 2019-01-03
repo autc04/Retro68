@@ -34,54 +34,11 @@
 #include "local.h"
 
 /*
- * strnstr - locate a substring in a fixed-size string.
- *
- * PARAMETERS:
- *   _CONST char *haystack - the string in which to search.
- *   _CONST char *needle   - the string which to search.
- *   int length            - the maximum 'haystack' string length.
- *
- * DESCRIPTION:
- *   The  strstr() function finds the first occurrence of the substring 
- *   'needle' in the string 'haystack'. At most 'length' bytes are searched.
- *
- * RETURN:
- *   Returns a pointer to the beginning of substring, or NULL if substring
- *   was not found.
- */
-static char *
-_DEFUN(strnstr, (haystack, needle, length),
-                _CONST char *haystack _AND
-                _CONST char *needle   _AND
-                int length)
-{
-  _CONST char *max = haystack + length;
-
-  if (*haystack == '\0')
-    return *needle == '\0' ? (char *)haystack : (char *)NULL;
-
-  while (haystack < max)
-    {
-      int i = 0;
-      while (1)
-        {
-          if (needle[i] == '\0')
-            return (char *)haystack;
-          if (needle[i] != haystack[i])
-            break;
-          i += 1;
-        }
-      haystack += 1;
-    }
-  return (char *)NULL;
-}
-
-/*
  * canonical_form - canonize 'str'.
  *
  * PARAMETERS:
  *   struct _reent *rptr - reent structure of current thread/process.
- *   _CONST char *str    - string to canonize. 
+ *   const char *str    - string to canonize. 
  *
  * DESCRIPTION:
  *   Converts all letters to small and substitute all '-' characters by '_'
@@ -90,15 +47,14 @@ _DEFUN(strnstr, (haystack, needle, length),
  * RETURN:
  *   Returns canonical form of 'str' if success, NULL if failure.
  */
-static _CONST char *
-_DEFUN(canonical_form, (rptr, str), 
-                       struct _reent *rptr _AND
-                       _CONST char *str)
+static const char *
+canonical_form (struct _reent *rptr,
+                       const char *str)
 {
   char *p, *p1;
 
   if (str == NULL || (p = p1 = _strdup_r (rptr, str)) == NULL)
-    return (_CONST char *)NULL;
+    return (const char *)NULL;
 
   for (; *str; str++, p++)
     {
@@ -108,7 +64,7 @@ _DEFUN(canonical_form, (rptr, str),
         *p = tolower (*str);
     }
 
-  return (_CONST char *)p1;
+  return (const char *)p1;
 }
 
 /*
@@ -116,8 +72,8 @@ _DEFUN(canonical_form, (rptr, str),
  *
  * PARAMETERS:
  *   struct _reent *rptr - reent structure of current thread/process.
- *   _CONST char *alias  - alias by which "official" name should be found.
- *   _CONST char *table  - aliases table.
+ *   const char *alias  - alias by which "official" name should be found.
+ *   const char *table  - aliases table.
  *   int len             - aliases table length.
  *
  * DESCRIPTION:
@@ -136,17 +92,16 @@ _DEFUN(canonical_form, (rptr, str),
  *   and sets current thread's/process's errno.
  */
 static char *
-_DEFUN(find_alias, (rptr, alias, table, len),
-                   struct _reent *rptr _AND
-                   _CONST char *alias  _AND
-                   _CONST char *table  _AND
+find_alias (struct _reent *rptr,
+                   const char *alias,
+                   const char *table,
                    int len)
 {
-  _CONST char *end;
-  _CONST char *p;
+  const char *end;
+  const char *p;
   int l = strlen (alias);
-  _CONST char *ptable = table;
-  _CONST char *table_end = table + len;
+  const char *ptable = table;
+  const char *table_end = table + len;
 
   if (table == NULL || alias == NULL || *table == '\0' || *alias == '\0')
     return NULL;
@@ -179,7 +134,7 @@ search_again:
  *
  * PARAMETERS:
  *   struct _reent *rptr - reent structure of current thread/process.
- *   _CONST char *ca     - encoding alias to resolve.
+ *   const char *ca     - encoding alias to resolve.
  *
  * DESCRIPTION: 
  *   First, tries to find 'ca' among built-in aliases. If not found, tries to 
@@ -190,9 +145,8 @@ search_again:
  *   and sets current thread's/process's errno.
  */
 char *
-_DEFUN(_iconv_resolve_encoding_name, (rptr, cname, path), 
-                                     struct _reent *rptr _AND
-                                     _CONST char *ca)
+_iconv_resolve_encoding_name (struct _reent *rptr,
+                                     const char *ca)
 {
   char *p = (char *)ca;
 
@@ -206,7 +160,7 @@ _DEFUN(_iconv_resolve_encoding_name, (rptr, cname, path),
 
   p = find_alias (rptr, ca, _iconv_aliases, strlen (_iconv_aliases));
   
-  _free_r (rptr, (_VOID_PTR)ca);
+  _free_r (rptr, (void *)ca);
   return p;
 }
 

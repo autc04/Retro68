@@ -52,7 +52,7 @@ INDEX
 INDEX
 	_mkostemps_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
 	char *mktemp(char *<[path]>);
 	char *mkdtemp(char *<[path]>);
@@ -139,12 +139,11 @@ Supporting OS subroutines required: <<getpid>>, <<mkdir>>, <<open>>, <<stat>>.
 #include <ctype.h>
 
 static int
-_DEFUN(_gettemp, (ptr, path, doopen, domkdir, suffixlen, flags),
-       struct _reent *ptr _AND
-       char *path         _AND
-       register int *doopen _AND
-       int domkdir        _AND
-       size_t suffixlen   _AND
+_gettemp (struct _reent *ptr,
+       char *path,
+       register int *doopen,
+       int domkdir,
+       size_t suffixlen,
        int flags)
 {
   register char *start, *trv;
@@ -263,8 +262,7 @@ _DEFUN(_gettemp, (ptr, path, doopen, domkdir, suffixlen, flags),
 #endif
 
 int
-_DEFUN(_mkstemp_r, (ptr, path),
-       struct _reent *ptr _AND
+_mkstemp_r (struct _reent *ptr,
        char *path)
 {
   int fd;
@@ -274,17 +272,15 @@ _DEFUN(_mkstemp_r, (ptr, path),
 
 #if !defined _ELIX_LEVEL || _ELIX_LEVEL >= 4
 char *
-_DEFUN(_mkdtemp_r, (ptr, path),
-       struct _reent *ptr _AND
+_mkdtemp_r (struct _reent *ptr,
        char *path)
 {
   return (_gettemp (ptr, path, (int *) NULL, 1, 0, 0) ? path : NULL);
 }
 
 int
-_DEFUN(_mkstemps_r, (ptr, path, len),
-       struct _reent *ptr _AND
-       char *path _AND
+_mkstemps_r (struct _reent *ptr,
+       char *path,
        int len)
 {
   int fd;
@@ -293,9 +289,8 @@ _DEFUN(_mkstemps_r, (ptr, path, len),
 }
 
 int
-_DEFUN(_mkostemp_r, (ptr, path, flags),
-       struct _reent *ptr _AND
-       char *path _AND
+_mkostemp_r (struct _reent *ptr,
+       char *path,
        int flags)
 {
   int fd;
@@ -304,10 +299,9 @@ _DEFUN(_mkostemp_r, (ptr, path, flags),
 }
 
 int
-_DEFUN(_mkostemps_r, (ptr, path, len, flags),
-       struct _reent *ptr _AND
-       char *path _AND
-       int len _AND
+_mkostemps_r (struct _reent *ptr,
+       char *path,
+       int len,
        int flags)
 {
   int fd;
@@ -317,8 +311,7 @@ _DEFUN(_mkostemps_r, (ptr, path, len, flags),
 #endif /* _ELIX_LEVEL */
 
 char *
-_DEFUN(_mktemp_r, (ptr, path),
-       struct _reent *ptr _AND
+_mktemp_r (struct _reent *ptr,
        char *path)
 {
   return (_gettemp (ptr, path, (int *) NULL, 0, 0, 0) ? path : (char *) NULL);
@@ -327,8 +320,7 @@ _DEFUN(_mktemp_r, (ptr, path),
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(mkstemp, (path),
-       char *path)
+mkstemp (char *path)
 {
   int fd;
 
@@ -337,15 +329,13 @@ _DEFUN(mkstemp, (path),
 
 # if !defined _ELIX_LEVEL || _ELIX_LEVEL >= 4
 char *
-_DEFUN(mkdtemp, (path),
-       char *path)
+mkdtemp (char *path)
 {
   return (_gettemp (_REENT, path, (int *) NULL, 1, 0, 0) ? path : NULL);
 }
 
 int
-_DEFUN(mkstemps, (path, len),
-       char *path _AND
+mkstemps (char *path,
        int len)
 {
   int fd;
@@ -354,8 +344,7 @@ _DEFUN(mkstemps, (path, len),
 }
 
 int
-_DEFUN(mkostemp, (path, flags),
-       char *path _AND
+mkostemp (char *path,
        int flags)
 {
   int fd;
@@ -364,9 +353,8 @@ _DEFUN(mkostemp, (path, flags),
 }
 
 int
-_DEFUN(mkostemps, (path, len, flags),
-       char *path _AND
-       int len _AND
+mkostemps (char *path,
+       int len,
        int flags)
 {
   int fd;
@@ -376,8 +364,7 @@ _DEFUN(mkostemps, (path, len, flags),
 # endif /* _ELIX_LEVEL */
 
 char *
-_DEFUN(mktemp, (path),
-       char *path)
+mktemp (char *path)
 {
   return (_gettemp (_REENT, path, (int *) NULL, 0, 0, 0) ? path : (char *) NULL);
 }

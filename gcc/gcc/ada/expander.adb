@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -82,7 +82,8 @@ package body Expander is
    --  Ghost mode.
 
    procedure Expand (N : Node_Id) is
-      Mode : Ghost_Mode_Type;
+      Saved_GM : constant Ghost_Mode_Type := Ghost_Mode;
+      --  Save the Ghost mode to restore on exit
 
    begin
       --  If we were analyzing a default expression (or other spec expression)
@@ -98,7 +99,7 @@ package body Expander is
       --  Establish the Ghost mode of the context to ensure that any generated
       --  nodes during expansion are marked as Ghost.
 
-      Set_Ghost_Mode (N, Mode);
+      Set_Ghost_Mode (N);
 
       --  The GNATprove_Mode flag indicates that a light expansion for formal
       --  verification should be used. This expansion is never done inside
@@ -434,6 +435,9 @@ package body Expander is
                when N_Record_Representation_Clause =>
                   Expand_N_Record_Representation_Clause (N);
 
+               when N_Reduction_Expression =>
+                  Expand_N_Reduction_Expression (N);
+
                when N_Requeue_Statement =>
                   Expand_N_Requeue_Statement (N);
 
@@ -529,7 +533,7 @@ package body Expander is
       end if;
 
    <<Leave>>
-      Restore_Ghost_Mode (Mode);
+      Restore_Ghost_Mode (Saved_GM);
    end Expand;
 
    ---------------------------

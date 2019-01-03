@@ -5,6 +5,9 @@
 .*:16: Error: .*
 .*:19: Error: .*
 .*:20: Error: .*
+.*:23: Error: .*
+.*:26: Error: .*
+.*:29: Error: .*
 GAS LISTING .*
 
 
@@ -38,3 +41,18 @@ GAS LISTING .*
 [ 	]*20[ 	]+\?\?\?\? 660F3837 		pcmpgtq %xmm1,%xmm0
 .*  Error: SSE instruction `pcmpgtq' is used
 [ 	]*20[ 	]+C1
+[ 	]*21[ 	]+
+[ 	]*22[ 	]+\# PCMUL instruction
+[ 	]*23[ 	]+\?\?\?\? 660F3A44 		pclmulqdq \$-1,%xmm1,%xmm2
+.*  Error: SSE instruction `pclmulqdq' is used
+[ 	]*23[ 	]+D1FF
+[ 	]*24[ 	]+
+[ 	]*25[ 	]+\# AES instructions
+[ 	]*26[ 	]+\?\?\?\? 660F38DE 		aesdec %xmm1,%xmm2
+.*  Error: SSE instruction `aesdec' is used
+[ 	]*26[ 	]+D1
+[ 	]*27[ 	]+
+[ 	]*28[ 	]+\# GFNI instructions
+[ 	]*29[ 	]+\?\?\?\? 660F38CF 		gf2p8mulb %xmm1,%xmm2
+.*  Error: SSE instruction `gf2p8mulb' is used
+[ 	]*29[ 	]+D1

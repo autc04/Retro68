@@ -11,18 +11,13 @@ INDEX
 INDEX
 	_toupper
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <ctype.h>
 	int toupper(int <[c]>);
 	int _toupper(int <[c]>);
 
 	#include <ctype.h>
 	int toupper_l(int <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <ctype.h>
-	int toupper(<[c]>);
-	int _toupper(<[c]>);
 
 
 DESCRIPTION
@@ -67,7 +62,7 @@ No supporting OS subroutines are required.
 
 #undef toupper
 int
-_DEFUN(toupper,(c),int c)
+toupper (int c)
 {
 #if defined (_MB_EXTENDED_CHARSETS_ISO) || defined (_MB_EXTENDED_CHARSETS_WINDOWS)
   if ((unsigned char) c <= 0x7f)

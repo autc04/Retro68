@@ -37,17 +37,12 @@ INDEX
 INDEX
 	wctrans_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wctype.h>
 	wctrans_t wctrans(const char *<[c]>);
 
 	#include <wctype.h>
 	wctrans_t wctrans_l(const char *<[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <wctype.h>
-	wctrans_t wctrans(<[c]>)
-	const char * <[c]>;
 
 
 DESCRIPTION
@@ -80,8 +75,7 @@ No supporting OS subroutines are required.
 #include "local.h"
 
 wctrans_t
-_DEFUN (_wctrans_r, (r, c), 
-	struct _reent *r _AND
+_wctrans_r (struct _reent *r,
 	const char *c)
 {
   if (!strcmp (c, "tolower"))
@@ -97,8 +91,7 @@ _DEFUN (_wctrans_r, (r, c),
 
 #ifndef _REENT_ONLY
 wctrans_t
-_DEFUN (wctrans, (c),
-	const char *c)
+wctrans (const char *c)
 {
   return _wctrans_r (_REENT, c);
 }

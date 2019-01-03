@@ -16,7 +16,7 @@ INDEX
 INDEX
 	_vdiprintf_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	#include <stdarg.h>
 	int diprintf(int <[fd]>, const char *<[format]>, ...);
@@ -49,10 +49,9 @@ Supporting OS subroutines required: <<sbrk>>, <<write>>.
 #include <stdarg.h>
 
 int
-_DEFUN(_diprintf_r, (ptr, fd, format),
-       struct _reent *ptr _AND
-       int fd _AND
-       const char *format _DOTS)
+_diprintf_r (struct _reent *ptr,
+       int fd,
+       const char *format, ...)
 {
   va_list ap;
   int n;
@@ -66,9 +65,8 @@ _DEFUN(_diprintf_r, (ptr, fd, format),
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(diprintf, (fd, format),
-       int fd _AND
-       const char *format _DOTS)
+diprintf (int fd,
+       const char *format, ...)
 {
   va_list ap;
   int n;

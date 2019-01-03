@@ -2,7 +2,7 @@
 
 # two_file_shared.sh -- check that debug info gets symbol addresses
 
-# Copyright (C) 2009-2017 Free Software Foundation, Inc.
+# Copyright (C) 2009-2018 Free Software Foundation, Inc.
 # Written by Ian Lance Taylor <iant@google.com>.
 
 # This file is part of gold.

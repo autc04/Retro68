@@ -8,16 +8,12 @@ INDEX
 INDEX
 	isxdigit_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <ctype.h>
 	int isxdigit(int <[c]>);
 
 	#include <ctype.h>
 	int isxdigit_l(int <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <ctype.h>
-	int isxdigit(int <[c]>);
 
 DESCRIPTION
 <<isxdigit>> is a macro which classifies singlebyte charset values by table
@@ -48,7 +44,7 @@ No supporting OS subroutines are required.
 
 #undef isxdigit
 int
-_DEFUN(isxdigit,(c),int c)
+isxdigit (int c)
 {
 	return(__CTYPE_PTR[c+1] & ((_X)|(_N)));
 }

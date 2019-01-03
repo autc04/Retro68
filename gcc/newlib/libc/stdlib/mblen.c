@@ -5,15 +5,9 @@ FUNCTION
 INDEX
 	mblen
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
 	int mblen(const char *<[s]>, size_t <[n]>);
-
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-	int mblen(<[s]>, <[n]>)
-	const char *<[s]>;
-	size_t <[n]>;
 
 DESCRIPTION
 When _MB_CAPABLE is not defined, this is a minimal ANSI-conforming 
@@ -49,8 +43,7 @@ effects vary with the locale.
 #include "local.h"
 
 int
-_DEFUN (mblen, (s, n), 
-        const char *s _AND
+mblen (const char *s,
         size_t n)
 {
 #ifdef _MB_CAPABLE

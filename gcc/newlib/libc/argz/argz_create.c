@@ -11,9 +11,8 @@
 #include <stdlib.h>
 
 error_t
-_DEFUN (argz_create, (argv, argz, argz_len),
-       char *const argv[] _AND
-       char **argz _AND
+argz_create (char *const argv[],
+       char **argz,
        size_t *argz_len)
 {
   int argc = 0;

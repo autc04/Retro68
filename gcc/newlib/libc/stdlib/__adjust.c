@@ -9,10 +9,9 @@
 #define abs(x) (((x) < 0) ? -(x) : (x))
 
 double
-_DEFUN (__adjust, (ptr, acc, dexp, sign),
-	struct _reent *ptr _AND
-	double *acc _AND
-	int dexp _AND
+__adjust (struct _reent *ptr,
+	double *acc,
+	int dexp,
 	int sign)
      /* *acc	the 64 bit accumulator */
      /* dexp	decimal exponent       */

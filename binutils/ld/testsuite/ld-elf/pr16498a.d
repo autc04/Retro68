@@ -1,6 +1,6 @@
 #ld: -shared -T pr16498a.t
 #readelf: -l --wide
-#target: *-*-linux* *-*-gnu* *-*-nacl*
+#target: *-*-linux* *-*-gnu* *-*-nacl* arm*-*-uclinuxfdpiceabi
 
 #...
   TLS .*

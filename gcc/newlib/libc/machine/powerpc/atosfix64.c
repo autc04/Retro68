@@ -8,17 +8,15 @@
 #include <_ansi.h>
 
 __int64_t
-_DEFUN (_atosfix64_r, (reent, s),
-	struct _reent *reent _AND
-	_CONST char *s)
+_atosfix64_r (struct _reent *reent,
+	const char *s)
 {
   return _strtosfix64_r (reent, s, NULL);
 }
 
 #ifndef _REENT_ONLY
 __int64_t
-_DEFUN (atosfix64, (s),
-	_CONST char *s)
+atosfix64 (const char *s)
 {
   return strtosfix64 (s, NULL);
 }

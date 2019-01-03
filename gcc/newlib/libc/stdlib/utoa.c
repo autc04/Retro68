@@ -5,7 +5,7 @@ FUNCTION
 INDEX
 	utoa
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
 	char *utoa(unsigned <[value]>, char *<[str]>, int <[base]>);
 	char *__utoa(unsigned <[value]>, char *<[str]>, int <[base]>);
@@ -28,9 +28,8 @@ No supporting OS subroutine calls are required.
 #include <stdlib.h>
 
 char *
-_DEFUN (__utoa, (value, str, base),
-        unsigned value _AND
-        char *str _AND 
+__utoa (unsigned value,
+        char *str,
         int base)
 {
   const char digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -67,9 +66,8 @@ _DEFUN (__utoa, (value, str, base),
 }
 
 char *  
-_DEFUN (utoa, (value, str, base),
-        unsigned value _AND
-        char *str _AND
+utoa (unsigned value,
+        char *str,
         int base)
 {
   return __utoa (value, str, base);

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2015-2016, Free Software Foundation, Inc.         --
+--          Copyright (C) 2015-2018, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -52,16 +52,6 @@ with SCIL_LL;  use SCIL_LL;
 with Tbuild;   use Tbuild;
 
 package body Contracts is
-
-   procedure Analyze_Contracts
-     (L          : List_Id;
-      Freeze_Nod : Node_Id;
-      Freeze_Id  : Entity_Id);
-   --  Subsidiary to the one parameter version of Analyze_Contracts and routine
-   --  Analyze_Previous_Constracts. Analyze the contracts of all constructs in
-   --  the list L. If Freeze_Nod is set, then the analysis stops when the node
-   --  is reached. Freeze_Id is the entity of some related context which caused
-   --  freezing up to node Freeze_Nod.
 
    procedure Build_And_Analyze_Contract_Only_Subprograms (L : List_Id);
    --  (CodePeer): Subsidiary procedure to Analyze_Contracts which builds the
@@ -351,31 +341,15 @@ package body Contracts is
    -----------------------
 
    procedure Analyze_Contracts (L : List_Id) is
+      Decl : Node_Id;
+
    begin
       if CodePeer_Mode and then Debug_Flag_Dot_KK then
          Build_And_Analyze_Contract_Only_Subprograms (L);
       end if;
 
-      Analyze_Contracts (L, Freeze_Nod => Empty, Freeze_Id => Empty);
-   end Analyze_Contracts;
-
-   procedure Analyze_Contracts
-     (L          : List_Id;
-      Freeze_Nod : Node_Id;
-      Freeze_Id  : Entity_Id)
-   is
-      Decl : Node_Id;
-
-   begin
       Decl := First (L);
       while Present (Decl) loop
-
-         --  The caller requests that the traversal stops at a particular node
-         --  that causes contract "freezing".
-
-         if Present (Freeze_Nod) and then Decl = Freeze_Nod then
-            exit;
-         end if;
 
          --  Entry or subprogram declarations
 
@@ -384,9 +358,23 @@ package body Contracts is
                             N_Generic_Subprogram_Declaration,
                             N_Subprogram_Declaration)
          then
-            Analyze_Entry_Or_Subprogram_Contract
-              (Subp_Id   => Defining_Entity (Decl),
-               Freeze_Id => Freeze_Id);
+            declare
+               Subp_Id : constant Entity_Id := Defining_Entity (Decl);
+
+            begin
+               Analyze_Entry_Or_Subprogram_Contract (Subp_Id);
+
+               --  If analysis of a class-wide pre/postcondition indicates
+               --  that a class-wide clone is needed, analyze its declaration
+               --  now. Its body is created when the body of the original
+               --  operation is analyzed (and rewritten).
+
+               if Is_Subprogram (Subp_Id)
+                 and then Present (Class_Wide_Clone (Subp_Id))
+               then
+                  Analyze (Unit_Declaration_Node (Class_Wide_Clone (Subp_Id)));
+               end if;
+            end;
 
          --  Entry or subprogram bodies
 
@@ -396,9 +384,7 @@ package body Contracts is
          --  Objects
 
          elsif Nkind (Decl) = N_Object_Declaration then
-            Analyze_Object_Contract
-              (Obj_Id    => Defining_Entity (Decl),
-               Freeze_Id => Freeze_Id);
+            Analyze_Object_Contract (Defining_Entity (Decl));
 
          --  Protected units
 
@@ -419,8 +405,9 @@ package body Contracts is
          then
             Analyze_Task_Contract (Defining_Entity (Decl));
 
-         --  For type declarations, we need to do the pre-analysis of
-         --  Iterable aspect specifications.
+         --  For type declarations, we need to do the pre-analysis of Iterable
+         --  aspect specifications.
+
          --  Other type aspects need to be resolved here???
 
          elsif Nkind (Decl) = N_Private_Type_Declaration
@@ -429,6 +416,7 @@ package body Contracts is
             declare
                E  : constant Entity_Id := Defining_Identifier (Decl);
                It : constant Node_Id   := Find_Aspect (E, Aspect_Iterable);
+
             begin
                if Present (It) then
                   Validate_Iterable_Aspect (E, It);
@@ -444,11 +432,18 @@ package body Contracts is
    -- Analyze_Entry_Or_Subprogram_Body_Contract --
    -----------------------------------------------
 
+   --  WARNING: This routine manages SPARK regions. Return statements must be
+   --  replaced by gotos which jump to the end of the routine and restore the
+   --  SPARK mode.
+
    procedure Analyze_Entry_Or_Subprogram_Body_Contract (Body_Id : Entity_Id) is
       Body_Decl : constant Node_Id   := Unit_Declaration_Node (Body_Id);
       Items     : constant Node_Id   := Contract (Body_Id);
       Spec_Id   : constant Entity_Id := Unique_Defining_Entity (Body_Decl);
-      Mode      : SPARK_Mode_Type;
+
+      Saved_SM  : constant SPARK_Mode_Type := SPARK_Mode;
+      Saved_SMP : constant Node_Id         := SPARK_Mode_Pragma;
+      --  Save the SPARK_Mode-related data to restore on exit
 
    begin
       --  When a subprogram body declaration is illegal, its defining entity is
@@ -473,7 +468,7 @@ package body Contracts is
       --  context. To remedy this, restore the original SPARK_Mode of the
       --  related subprogram body.
 
-      Save_SPARK_Mode_And_Set (Body_Id, Mode);
+      Set_SPARK_Mode (Body_Id);
 
       --  Ensure that the contract cases or postconditions mention 'Result or
       --  define a post-state.
@@ -499,7 +494,7 @@ package body Contracts is
       --  Restore the SPARK_Mode of the enclosing context after all delayed
       --  pragmas have been analyzed.
 
-      Restore_SPARK_Mode (Mode);
+      Restore_SPARK_Mode (Saved_SM, Saved_SMP);
 
       --  Capture all global references in a generic subprogram body now that
       --  the contract has been analyzed.
@@ -523,12 +518,20 @@ package body Contracts is
    -- Analyze_Entry_Or_Subprogram_Contract --
    ------------------------------------------
 
+   --  WARNING: This routine manages SPARK regions. Return statements must be
+   --  replaced by gotos which jump to the end of the routine and restore the
+   --  SPARK mode.
+
    procedure Analyze_Entry_Or_Subprogram_Contract
      (Subp_Id   : Entity_Id;
       Freeze_Id : Entity_Id := Empty)
    is
       Items     : constant Node_Id := Contract (Subp_Id);
       Subp_Decl : constant Node_Id := Unit_Declaration_Node (Subp_Id);
+
+      Saved_SM  : constant SPARK_Mode_Type := SPARK_Mode;
+      Saved_SMP : constant Node_Id         := SPARK_Mode_Pragma;
+      --  Save the SPARK_Mode-related data to restore on exit
 
       Skip_Assert_Exprs : constant Boolean :=
                             Ekind_In (Subp_Id, E_Entry, E_Entry_Family)
@@ -537,7 +540,6 @@ package body Contracts is
 
       Depends  : Node_Id := Empty;
       Global   : Node_Id := Empty;
-      Mode     : SPARK_Mode_Type;
       Prag     : Node_Id;
       Prag_Nam : Name_Id;
 
@@ -557,7 +559,7 @@ package body Contracts is
       --  context. To remedy this, restore the original SPARK_Mode of the
       --  related subprogram body.
 
-      Save_SPARK_Mode_And_Set (Subp_Id, Mode);
+      Set_SPARK_Mode (Subp_Id);
 
       --  All subprograms carry a contract, but for some it is not significant
       --  and should not be processed.
@@ -658,6 +660,7 @@ package body Contracts is
 
       if SPARK_Mode = On
         and then Ekind_In (Subp_Id, E_Function, E_Generic_Function)
+        and then Comes_From_Source (Subp_Id)
         and then not Is_Volatile_Function (Subp_Id)
       then
          Check_Nonvolatile_Function_Profile (Subp_Id);
@@ -666,7 +669,7 @@ package body Contracts is
       --  Restore the SPARK_Mode of the enclosing context after all delayed
       --  pragmas have been analyzed.
 
-      Restore_SPARK_Mode (Mode);
+      Restore_SPARK_Mode (Saved_SM, Saved_SMP);
 
       --  Capture all global references in a generic subprogram now that the
       --  contract has been analyzed.
@@ -682,21 +685,28 @@ package body Contracts is
    -- Analyze_Object_Contract --
    -----------------------------
 
+   --  WARNING: This routine manages SPARK regions. Return statements must be
+   --  replaced by gotos which jump to the end of the routine and restore the
+   --  SPARK mode.
+
    procedure Analyze_Object_Contract
      (Obj_Id    : Entity_Id;
       Freeze_Id : Entity_Id := Empty)
    is
-      Obj_Typ      : constant Entity_Id := Etype (Obj_Id);
-      AR_Val       : Boolean := False;
-      AW_Val       : Boolean := False;
-      ER_Val       : Boolean := False;
-      EW_Val       : Boolean := False;
-      Items        : Node_Id;
-      Mode         : SPARK_Mode_Type;
-      Prag         : Node_Id;
-      Ref_Elmt     : Elmt_Id;
-      Restore_Mode : Boolean := False;
-      Seen         : Boolean := False;
+      Obj_Typ : constant Entity_Id := Etype (Obj_Id);
+
+      Saved_SM  : constant SPARK_Mode_Type := SPARK_Mode;
+      Saved_SMP : constant Node_Id         := SPARK_Mode_Pragma;
+      --  Save the SPARK_Mode-related data to restore on exit
+
+      AR_Val   : Boolean := False;
+      AW_Val   : Boolean := False;
+      ER_Val   : Boolean := False;
+      EW_Val   : Boolean := False;
+      Items    : Node_Id;
+      Prag     : Node_Id;
+      Ref_Elmt : Elmt_Id;
+      Seen     : Boolean := False;
 
    begin
       --  The loop parameter in an element iterator over a formal container
@@ -727,8 +737,7 @@ package body Contracts is
       if Is_Single_Concurrent_Object (Obj_Id)
         and then Present (SPARK_Pragma (Obj_Id))
       then
-         Restore_Mode := True;
-         Save_SPARK_Mode_And_Set (Obj_Id, Mode);
+         Set_SPARK_Mode (Obj_Id);
       end if;
 
       --  Constant-related checks
@@ -878,12 +887,6 @@ package body Contracts is
                then
                   Error_Msg_N
                     ("discriminated object & cannot be volatile", Obj_Id);
-
-               --  An object of a tagged type cannot be effectively volatile
-               --  (SPARK RM C.6(5)).
-
-               elsif Is_Tagged_Type (Obj_Typ) then
-                  Error_Msg_N ("tagged object & cannot be volatile", Obj_Id);
                end if;
 
             --  The object is not effectively volatile
@@ -934,14 +937,16 @@ package body Contracts is
       --  Restore the SPARK_Mode of the enclosing context after all delayed
       --  pragmas have been analyzed.
 
-      if Restore_Mode then
-         Restore_SPARK_Mode (Mode);
-      end if;
+      Restore_SPARK_Mode (Saved_SM, Saved_SMP);
    end Analyze_Object_Contract;
 
    -----------------------------------
    -- Analyze_Package_Body_Contract --
    -----------------------------------
+
+   --  WARNING: This routine manages SPARK regions. Return statements must be
+   --  replaced by gotos which jump to the end of the routine and restore the
+   --  SPARK mode.
 
    procedure Analyze_Package_Body_Contract
      (Body_Id   : Entity_Id;
@@ -950,7 +955,11 @@ package body Contracts is
       Body_Decl : constant Node_Id   := Unit_Declaration_Node (Body_Id);
       Items     : constant Node_Id   := Contract (Body_Id);
       Spec_Id   : constant Entity_Id := Spec_Entity (Body_Id);
-      Mode      : SPARK_Mode_Type;
+
+      Saved_SM  : constant SPARK_Mode_Type := SPARK_Mode;
+      Saved_SMP : constant Node_Id         := SPARK_Mode_Pragma;
+      --  Save the SPARK_Mode-related data to restore on exit
+
       Ref_State : Node_Id;
 
    begin
@@ -969,7 +978,7 @@ package body Contracts is
       --  context. To remedy this, restore the original SPARK_Mode of the
       --  related package body.
 
-      Save_SPARK_Mode_And_Set (Body_Id, Mode);
+      Set_SPARK_Mode (Body_Id);
 
       Ref_State := Get_Pragma (Body_Id, Pragma_Refined_State);
 
@@ -983,7 +992,7 @@ package body Contracts is
       --  Restore the SPARK_Mode of the enclosing context after all delayed
       --  pragmas have been analyzed.
 
-      Restore_SPARK_Mode (Mode);
+      Restore_SPARK_Mode (Saved_SM, Saved_SMP);
 
       --  Capture all global references in a generic package body now that the
       --  contract has been analyzed.
@@ -999,12 +1008,20 @@ package body Contracts is
    -- Analyze_Package_Contract --
    ------------------------------
 
+   --  WARNING: This routine manages SPARK regions. Return statements must be
+   --  replaced by gotos which jump to the end of the routine and restore the
+   --  SPARK mode.
+
    procedure Analyze_Package_Contract (Pack_Id : Entity_Id) is
       Items     : constant Node_Id := Contract (Pack_Id);
       Pack_Decl : constant Node_Id := Unit_Declaration_Node (Pack_Id);
+
+      Saved_SM  : constant SPARK_Mode_Type := SPARK_Mode;
+      Saved_SMP : constant Node_Id         := SPARK_Mode_Pragma;
+      --  Save the SPARK_Mode-related data to restore on exit
+
       Init      : Node_Id := Empty;
       Init_Cond : Node_Id := Empty;
-      Mode      : SPARK_Mode_Type;
       Prag      : Node_Id;
       Prag_Nam  : Name_Id;
 
@@ -1024,7 +1041,7 @@ package body Contracts is
       --  context. To remedy this, restore the original SPARK_Mode of the
       --  related package.
 
-      Save_SPARK_Mode_And_Set (Pack_Id, Mode);
+      Set_SPARK_Mode (Pack_Id);
 
       if Present (Items) then
 
@@ -1071,7 +1088,7 @@ package body Contracts is
       --  Restore the SPARK_Mode of the enclosing context after all delayed
       --  pragmas have been analyzed.
 
-      Restore_SPARK_Mode (Mode);
+      Restore_SPARK_Mode (Saved_SM, Saved_SMP);
 
       --  Capture all global references in a generic package now that the
       --  contract has been analyzed.
@@ -1082,76 +1099,6 @@ package body Contracts is
             Gen_Id => Pack_Id);
       end if;
    end Analyze_Package_Contract;
-
-   --------------------------------
-   -- Analyze_Previous_Contracts --
-   --------------------------------
-
-   procedure Analyze_Previous_Contracts (Body_Decl : Node_Id) is
-      Body_Id   : constant Entity_Id := Defining_Entity (Body_Decl);
-      Orig_Decl : constant Node_Id   := Original_Node (Body_Decl);
-
-      Par : Node_Id;
-
-   begin
-      --  A body that is in the process of being inlined appears from source,
-      --  but carries name _parent. Such a body does not cause "freezing" of
-      --  contracts.
-
-      if Chars (Body_Id) = Name_uParent then
-         return;
-      end if;
-
-      --  Climb the parent chain looking for an enclosing package body. Do not
-      --  use the scope stack, as a body uses the entity of its corresponding
-      --  spec.
-
-      Par := Parent (Body_Decl);
-      while Present (Par) loop
-         if Nkind (Par) = N_Package_Body then
-            Analyze_Package_Body_Contract
-              (Body_Id   => Defining_Entity (Par),
-               Freeze_Id => Defining_Entity (Body_Decl));
-
-            exit;
-
-         --  Do not look for an enclosing package body when the construct which
-         --  causes freezing is a body generated for an expression function and
-         --  it appears within a package spec. This ensures that the traversal
-         --  will not reach too far up the parent chain and attempt to freeze a
-         --  package body which should not be frozen.
-
-         --    package body Enclosing_Body
-         --      with Refined_State => (State => Var)
-         --    is
-         --       package Nested is
-         --          type Some_Type is ...;
-         --          function Cause_Freezing return ...;
-         --       private
-         --          function Cause_Freezing is (...);
-         --       end Nested;
-         --
-         --       Var : Nested.Some_Type;
-
-         elsif Nkind (Par) = N_Package_Declaration
-           and then Nkind (Orig_Decl) = N_Expression_Function
-         then
-            exit;
-         end if;
-
-         Par := Parent (Par);
-      end loop;
-
-      --  Analyze the contracts of all eligible construct up to the body which
-      --  caused the "freezing".
-
-      if Is_List_Member (Body_Decl) then
-         Analyze_Contracts
-           (L          => List_Containing (Body_Decl),
-            Freeze_Nod => Body_Decl,
-            Freeze_Id  => Body_Id);
-      end if;
-   end Analyze_Previous_Contracts;
 
    --------------------------------
    -- Analyze_Protected_Contract --
@@ -1209,10 +1156,18 @@ package body Contracts is
    -- Analyze_Task_Contract --
    ---------------------------
 
+   --  WARNING: This routine manages SPARK regions. Return statements must be
+   --  replaced by gotos which jump to the end of the routine and restore the
+   --  SPARK mode.
+
    procedure Analyze_Task_Contract (Task_Id : Entity_Id) is
       Items : constant Node_Id := Contract (Task_Id);
-      Mode  : SPARK_Mode_Type;
-      Prag  : Node_Id;
+
+      Saved_SM  : constant SPARK_Mode_Type := SPARK_Mode;
+      Saved_SMP : constant Node_Id         := SPARK_Mode_Pragma;
+      --  Save the SPARK_Mode-related data to restore on exit
+
+      Prag : Node_Id;
 
    begin
       --  Do not analyze a contract multiple times
@@ -1230,7 +1185,7 @@ package body Contracts is
       --  context. To remedy this, restore the original SPARK_Mode of the
       --  related task unit.
 
-      Save_SPARK_Mode_And_Set (Task_Id, Mode);
+      Set_SPARK_Mode (Task_Id);
 
       --  Analyze Global first, as Depends may mention items classified in the
       --  global categorization.
@@ -1253,7 +1208,7 @@ package body Contracts is
       --  Restore the SPARK_Mode of the enclosing context after all delayed
       --  pragmas have been analyzed.
 
-      Restore_SPARK_Mode (Mode);
+      Restore_SPARK_Mode (Saved_SM, Saved_SMP);
    end Analyze_Task_Contract;
 
    -------------------------------------------------
@@ -2025,12 +1980,33 @@ package body Contracts is
                   return False;
 
                --  Determine whether the subprogram is declared in the visible
-               --  declarations of the package containing the type.
+               --  declarations of the package containing the type, or in the
+               --  visible declaration of a child unit of that package.
 
                else
-                  return List_Containing (Subp_Decl) =
-                    Visible_Declarations
-                      (Specification (Unit_Declaration_Node (Scope (Typ))));
+                  declare
+                     Decls      : constant List_Id   :=
+                                    List_Containing (Subp_Decl);
+                     Subp_Scope : constant Entity_Id :=
+                                    Scope (Defining_Entity (Subp_Decl));
+                     Typ_Scope  : constant Entity_Id := Scope (Typ);
+
+                  begin
+                     return
+                       Decls = Visible_Declarations
+                           (Specification (Unit_Declaration_Node (Typ_Scope)))
+
+                         or else
+                           (Ekind (Subp_Scope) = E_Package
+                             and then Typ_Scope /= Subp_Scope
+                             and then Is_Child_Unit (Subp_Scope)
+                             and then
+                               Is_Ancestor_Package (Typ_Scope, Subp_Scope)
+                             and then
+                               Decls = Visible_Declarations
+                                 (Specification
+                                   (Unit_Declaration_Node (Subp_Scope))));
+                  end;
                end if;
             end Has_Public_Visibility_Of_Subprogram;
 
@@ -2321,6 +2297,11 @@ package body Contracts is
             end if;
          end Process_Contract_Cases_For;
 
+         pragma Unmodified (Stmts);
+         --  Stmts is passed as IN OUT to signal that the list can be updated,
+         --  even if the corresponding integer value representing the list does
+         --  not change.
+
       --  Start of processing for Process_Contract_Cases
 
       begin
@@ -2462,6 +2443,11 @@ package body Contracts is
                end if;
             end loop;
          end Process_Spec_Postconditions;
+
+         pragma Unmodified (Stmts);
+         --  Stmts is passed as IN OUT to signal that the list can be updated,
+         --  even if the corresponding integer value representing the list does
+         --  not change.
 
       --  Start of processing for Process_Postconditions
 
@@ -3014,6 +3000,187 @@ package body Contracts is
          End_Scope;
       end if;
    end Expand_Subprogram_Contract;
+
+   -------------------------------
+   -- Freeze_Previous_Contracts --
+   -------------------------------
+
+   procedure Freeze_Previous_Contracts (Body_Decl : Node_Id) is
+      function Causes_Contract_Freezing (N : Node_Id) return Boolean;
+      pragma Inline (Causes_Contract_Freezing);
+      --  Determine whether arbitrary node N causes contract freezing
+
+      procedure Freeze_Contracts;
+      pragma Inline (Freeze_Contracts);
+      --  Freeze the contracts of all eligible constructs which precede body
+      --  Body_Decl.
+
+      procedure Freeze_Enclosing_Package_Body;
+      pragma Inline (Freeze_Enclosing_Package_Body);
+      --  Freeze the contract of the nearest package body (if any) which
+      --  encloses body Body_Decl.
+
+      ------------------------------
+      -- Causes_Contract_Freezing --
+      ------------------------------
+
+      function Causes_Contract_Freezing (N : Node_Id) return Boolean is
+      begin
+         return Nkind_In (N, N_Entry_Body,
+                             N_Package_Body,
+                             N_Protected_Body,
+                             N_Subprogram_Body,
+                             N_Subprogram_Body_Stub,
+                             N_Task_Body);
+      end Causes_Contract_Freezing;
+
+      ----------------------
+      -- Freeze_Contracts --
+      ----------------------
+
+      procedure Freeze_Contracts is
+         Body_Id : constant Entity_Id := Defining_Entity (Body_Decl);
+         Decl    : Node_Id;
+
+      begin
+         --  Nothing to do when the body which causes freezing does not appear
+         --  in a declarative list because there cannot possibly be constructs
+         --  with contracts.
+
+         if not Is_List_Member (Body_Decl) then
+            return;
+         end if;
+
+         --  Inspect the declarations preceding the body, and freeze individual
+         --  contracts of eligible constructs.
+
+         Decl := Prev (Body_Decl);
+         while Present (Decl) loop
+
+            --  Stop the traversal when a preceding construct that causes
+            --  freezing is encountered as there is no point in refreezing
+            --  the already frozen constructs.
+
+            if Causes_Contract_Freezing (Decl) then
+               exit;
+
+            --  Entry or subprogram declarations
+
+            elsif Nkind_In (Decl, N_Abstract_Subprogram_Declaration,
+                                  N_Entry_Declaration,
+                                  N_Generic_Subprogram_Declaration,
+                                  N_Subprogram_Declaration)
+            then
+               Analyze_Entry_Or_Subprogram_Contract
+                 (Subp_Id   => Defining_Entity (Decl),
+                  Freeze_Id => Body_Id);
+
+            --  Objects
+
+            elsif Nkind (Decl) = N_Object_Declaration then
+               Analyze_Object_Contract
+                 (Obj_Id    => Defining_Entity (Decl),
+                  Freeze_Id => Body_Id);
+
+            --  Protected units
+
+            elsif Nkind_In (Decl, N_Protected_Type_Declaration,
+                                  N_Single_Protected_Declaration)
+            then
+               Analyze_Protected_Contract (Defining_Entity (Decl));
+
+            --  Subprogram body stubs
+
+            elsif Nkind (Decl) = N_Subprogram_Body_Stub then
+               Analyze_Subprogram_Body_Stub_Contract (Defining_Entity (Decl));
+
+            --  Task units
+
+            elsif Nkind_In (Decl, N_Single_Task_Declaration,
+                                  N_Task_Type_Declaration)
+            then
+               Analyze_Task_Contract (Defining_Entity (Decl));
+            end if;
+
+            Prev (Decl);
+         end loop;
+      end Freeze_Contracts;
+
+      -----------------------------------
+      -- Freeze_Enclosing_Package_Body --
+      -----------------------------------
+
+      procedure Freeze_Enclosing_Package_Body is
+         Orig_Decl : constant Node_Id := Original_Node (Body_Decl);
+         Par       : Node_Id;
+
+      begin
+         --  Climb the parent chain looking for an enclosing package body. Do
+         --  not use the scope stack, because a body utilizes the entity of its
+         --  corresponding spec.
+
+         Par := Parent (Body_Decl);
+         while Present (Par) loop
+            if Nkind (Par) = N_Package_Body then
+               Analyze_Package_Body_Contract
+                 (Body_Id   => Defining_Entity (Par),
+                  Freeze_Id => Defining_Entity (Body_Decl));
+
+               exit;
+
+            --  Do not look for an enclosing package body when the construct
+            --  which causes freezing is a body generated for an expression
+            --  function and it appears within a package spec. This ensures
+            --  that the traversal will not reach too far up the parent chain
+            --  and attempt to freeze a package body which must not be frozen.
+
+            --    package body Enclosing_Body
+            --      with Refined_State => (State => Var)
+            --    is
+            --       package Nested is
+            --          type Some_Type is ...;
+            --          function Cause_Freezing return ...;
+            --       private
+            --          function Cause_Freezing is (...);
+            --       end Nested;
+            --
+            --       Var : Nested.Some_Type;
+
+            elsif Nkind (Par) = N_Package_Declaration
+              and then Nkind (Orig_Decl) = N_Expression_Function
+            then
+               exit;
+
+            --  Prevent the search from going too far
+
+            elsif Is_Body_Or_Package_Declaration (Par) then
+               exit;
+            end if;
+
+            Par := Parent (Par);
+         end loop;
+      end Freeze_Enclosing_Package_Body;
+
+      --  Local variables
+
+      Body_Id : constant Entity_Id := Defining_Entity (Body_Decl);
+
+   --  Start of processing for Freeze_Previous_Contracts
+
+   begin
+      pragma Assert (Causes_Contract_Freezing (Body_Decl));
+
+      --  A body that is in the process of being inlined appears from source,
+      --  but carries name _parent. Such a body does not cause freezing of
+      --  contracts.
+
+      if Chars (Body_Id) = Name_uParent then
+         return;
+      end if;
+
+      Freeze_Enclosing_Package_Body;
+      Freeze_Contracts;
+   end Freeze_Previous_Contracts;
 
    ---------------------------------
    -- Inherit_Subprogram_Contract --

@@ -4,7 +4,7 @@
 #objdump: -s -j .got
 #xfail: arc*-*-elf*
 
-[^:]+:     file format elf32-littlearc
+[^:]+:     file format elf32-.*arc
 
 Contents of section \.got:
- [0-9a-f]+ 08000000 0c000000 +.+
+ [0-9a-f]+ [08]+ [0c]+ +.+

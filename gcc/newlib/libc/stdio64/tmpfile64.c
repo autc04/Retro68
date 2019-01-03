@@ -7,18 +7,11 @@ INDEX
 INDEX
 	_tmpfile64_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	FILE *tmpfile64(void);
 
 	FILE *_tmpfile64_r(void *<[reent]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	FILE *tmpfile64();
-
-	FILE *_tmpfile64_r(<[reent]>)
-	char *<[reent]>;
 
 DESCRIPTION
 Create a large temporary file (a file which will be deleted automatically),
@@ -60,8 +53,7 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<getpid>>,
 #ifdef __LARGE64_FILES
 
 FILE *
-_DEFUN (_tmpfile64_r, (ptr),
-	struct _reent *ptr)
+_tmpfile64_r (struct _reent *ptr)
 {
   FILE *fp;
   int e;
@@ -83,7 +75,7 @@ _DEFUN (_tmpfile64_r, (ptr),
   e = ptr->_errno;
   if (!fp)
     _close_r (ptr, fd);
-  _CAST_VOID _remove_r (ptr, f);
+  (void) _remove_r (ptr, f);
   ptr->_errno = e;
   return fp;
 }
@@ -91,7 +83,7 @@ _DEFUN (_tmpfile64_r, (ptr),
 #ifndef _REENT_ONLY
 
 FILE *
-_DEFUN_VOID (tmpfile64)
+tmpfile64 (void)
 {
   return _tmpfile64_r (_REENT);
 }

@@ -7,19 +7,10 @@ INDEX
 INDEX
         _atoll_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <stdlib.h>
         long long atoll(const char *<[str]>);
         long long _atoll_r(struct _reent *<[ptr]>, const char *<[str]>);
-
-TRAD_SYNOPSIS
-        #include <stdlib.h>
-        long long atoll(<[str]>)
-        const char *<[str]>;
-
-        long long _atoll_r(<[ptr]>, <[str]>)
-	struct _reent *<[ptr]>;
-        const char *<[str]>;
 
 DESCRIPTION
 The function <<atoll>> converts the initial portion of the string 
@@ -78,17 +69,15 @@ No supporting OS subroutines are required.
 
 #ifndef _REENT_ONLY
 long long
-_DEFUN(atoll, (str),
-       _CONST char *str)
+atoll (const char *str)
 {
 	return strtoll(str, (char **)NULL, 10);
 }
 #endif /* !_REENT_ONLY */
 
 long long
-_DEFUN(_atoll_r, (ptr, str),
-       struct _reent *ptr _AND
-       _CONST char *str)
+_atoll_r (struct _reent *ptr,
+       const char *str)
 {
 	return _strtoll_r(ptr, str, (char **)NULL, 10);
 }

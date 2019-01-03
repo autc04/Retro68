@@ -16,19 +16,10 @@ tan
 INDEX
 tanf
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <math.h>
         double tan(double <[x]>);
         float tanf(float <[x]>);
-
-TRAD_SYNOPSIS
-        #include <math.h>
-        double tan(<[x]>)
-        double <[x]>;
-
-        float tanf(<[x]>)
-        float <[x]>;
-
 
 DESCRIPTION
 <<tan>> computes the tangent of the argument <[x]>.
@@ -72,8 +63,7 @@ static const double q[] = { -0.46671683339755294240,
                              0.49819433993786512270e-6 };
 
 double
-_DEFUN (tan, (double),
-        double x)
+tan (double x)
 {
   double y, f, g, XN, xnum, xden, res;
   int N;

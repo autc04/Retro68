@@ -4,7 +4,7 @@
 #source: tls128.s
 #source: tls-x.s
 #as: --no-underscore --em=criself --pic -I$srcdir/$subdir
-#ld: -m crislinux --shared
+#ld: -m crislinux --shared --hash-style=sysv --hash-style=sysv
 #objdump: -d -s -t -r -p
 
 # Linking a file with a DTPOFF from a .dtpoffd of a GD variable, PIC
@@ -23,13 +23,13 @@ SYMBOL TABLE:
 0+80 g       .tdata	0+4 x
 #...
 Contents of section .rela.dyn:
- 01a4 b8220000 17030000 00000000           .*
+ 0154 68220000 17030000 00000000           .*
 Contents of section .text:
- 01b0 41b20000 5fae0c00                    .*
+ 0160 41b20000 5fae0c00                    .*
 #...
 Contents of section .got:
- 22ac 3c220000 00000000 00000000 00000000  .*
- 22bc 00000000                             .*
+ 225c ec210000 00000000 00000000 00000000  .*
+ 226c 00000000                             .*
 Contents of section .debug_info:
  0000 80000000                             .*
 #...

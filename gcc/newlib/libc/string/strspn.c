@@ -5,15 +5,9 @@ FUNCTION
 INDEX
 	strspn
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	size_t strspn(const char *<[s1]>, const char *<[s2]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	size_t strspn(<[s1]>, <[s2]>)
-	char *<[s1]>;
-	char *<[s2]>;
 
 DESCRIPTION
 	This function computes the length of the initial segment of
@@ -36,12 +30,11 @@ QUICKREF
 #include <string.h>
 
 size_t
-_DEFUN (strspn, (s1, s2),
-	_CONST char *s1 _AND
-	_CONST char *s2)
+strspn (const char *s1,
+	const char *s2)
 {
-  _CONST char *s = s1;
-  _CONST char *c;
+  const char *s = s1;
+  const char *c;
 
   while (*s1)
     {

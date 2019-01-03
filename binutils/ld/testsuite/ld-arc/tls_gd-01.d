@@ -1,10 +1,10 @@
 #source: tls_gd-01.s
 #as: -mcpu=arc700
-#ld: -shared
+#ld: -shared --hash-style=sysv
 #objdump: -d
 #xfail: arc*-*-elf*
 
-[^:]+:     file format elf32-littlearc
+[^:]+:     file format elf32-.*arc
 
 
 Disassembly of section \.text:

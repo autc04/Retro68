@@ -8,27 +8,12 @@ INDEX
 INDEX
 	_pwrite_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <unistd.h>
 	ssize_t pwrite(int <[fd]>, const void *<[buf]>, 
                        size_t <[n]>, off_t <[off]>);
 	ssize_t _pwrite_r(struct _reent *<[rptr]>, int <[fd]>, 
                           const void *<[buf]>, size_t <[n]>, off_t <[off]>);
-
-TRAD_SYNOPSIS
-	#include <unistd.h>
-	ssize_t pwrite(<[fd]>, <[buf]>, <[n]>, <[off]>)
-	int <[fd]>;
-	const void *<[buf]>;
-	size_t <[n]>;
-	off_t <[off]>;
-
-	ssize_t _pwrite_r(<[rptr]>, <[fd]>, <[buf]>, <[n]>, <[off]>)
-	struct _reent *<[rptr]>;
-	int <[fd]>;
-	const void *<[buf]>;
-	size_t <[n]>;
-	off_t <[off]>;
 
 DESCRIPTION
 The <<pwrite>> function is similar to <<write>>.  One difference is that
@@ -54,11 +39,10 @@ Supporting OS subroutine required: <<write>>, <<lseek>>.
 #include <reent.h>
 
 ssize_t
-_DEFUN (_pwrite_r, (rptr, fd, buf, n, off),
-     struct _reent *rptr _AND
-     int fd _AND
-     _CONST _PTR buf _AND
-     size_t n _AND
+_pwrite_r (struct _reent *rptr,
+     int fd,
+     const void *buf,
+     size_t n,
      off_t off)
 {
   off_t cur_pos;
@@ -81,10 +65,9 @@ _DEFUN (_pwrite_r, (rptr, fd, buf, n, off),
 #ifndef _REENT_ONLY
 
 ssize_t
-_DEFUN (pwrite, (fd, buf, n, off),
-     int fd _AND
-     _CONST _PTR buf _AND
-     size_t n _AND
+pwrite (int fd,
+     const void *buf,
+     size_t n,
      off_t off)
 {
   return _pwrite_r (_REENT, fd, buf, n, off);

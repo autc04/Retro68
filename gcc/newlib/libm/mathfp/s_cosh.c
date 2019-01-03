@@ -6,18 +6,10 @@
 FUNCTION
         <<cosh>>, <<coshf>>---hyperbolic cosine
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <math.h>
         double cosh(double <[x]>);
         float coshf(float <[x]>);
-
-TRAD_SYNOPSIS
-        #include <math.h>
-        double cosh(<[x]>);
-        double <[x]>;
-
-        float coshf(<[x]>);
-        float <[x]>;
 
 DESCRIPTION
 
@@ -71,8 +63,7 @@ QUICKREF
 #ifndef _DOUBLE_IS_32BITS
 
 double
-_DEFUN (cosh, (double),
-        double x)
+cosh (double x)
 {
   return (sineh (x, 1));
 }

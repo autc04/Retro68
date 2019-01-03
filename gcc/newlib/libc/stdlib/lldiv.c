@@ -5,14 +5,9 @@ FUNCTION
 INDEX
         lldiv
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <stdlib.h>
         lldiv_t lldiv(long long <[n]>, long long <[d]>);
-
-TRAD_SYNOPSIS
-        #include <stdlib.h>
-        lldiv_t lldiv(<[n]>, <[d]>)
-        long long <[n]>, <[d]>;
 
 DESCRIPTION
 Divide
@@ -99,8 +94,7 @@ No supporting OS subroutines are required.
  * subtract denom from r.rem.
  */
 lldiv_t
-_DEFUN (lldiv, (number, denom), 
-       long long numer _AND long long denom)
+lldiv (long long numer, long long denom)
 {
 	lldiv_t retval;
 

@@ -1,6 +1,6 @@
 # Test --print-memory-usage linker functionality
 # By Tristan Gingold, AdaCore
-#   Copyright (C) 2015-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2015-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #

@@ -2,15 +2,9 @@
 FUNCTION
 	<<wmemcmp>>---compare wide characters in memory 
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wchar.h>
 	int wmemcmp(const wchar_t *<[s1]>, const wchar_t *<[s2]>, size_t <[n]>);
-
-TRAD_SYNOPSIS
-	int wmemcmp(<[s1]>, <[s2]>, <[n]>
-	const wchar_t *<[s1]>;
-	const wchar_t *<[s2]>;
-	size_t <[n]>;
 
 DESCRIPTION
 	The <<wmemcmp>> function compares the first <[n]> wide characters of the
@@ -68,9 +62,8 @@ No supporting OS subroutines are required.
 #include <wchar.h>
 
 int
-_DEFUN (wmemcmp, (s1, s2, n),
-	_CONST wchar_t * s1 _AND
-	_CONST wchar_t * s2 _AND
+wmemcmp (const wchar_t * s1,
+	const wchar_t * s2,
 	size_t n)
 {
   size_t i;

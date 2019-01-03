@@ -1,6 +1,6 @@
 # Expect script for symbol export classes.
 #
-# Copyright (C) 2012-2017 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -32,6 +32,7 @@ if { ![is_elf_format] } {
 # Exclude some more targets; feel free to include your favorite one
 # if you like.
 if { ![istarget *-*-linux*]
+     && ![istarget arm*-*-uclinuxfdpiceabi]
      && ![istarget *-*-nacl*]
      && ![istarget *-*-gnu*] } {
     return

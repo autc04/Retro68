@@ -20,9 +20,8 @@
 #ifndef _DOUBLE_IS_32BITS
 
 void
-_DEFUN (sincos, (x, sinx, cosx),
-        double x _AND
-        double *sinx _AND
+sincos (double x,
+        double *sinx,
         double *cosx)
 {
   *sinx = sin (x);

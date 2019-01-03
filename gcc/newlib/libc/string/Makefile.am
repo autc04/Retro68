@@ -8,6 +8,11 @@ GENERAL_SOURCES = \
 	bcopy.c \
 	bzero.c \
 	explicit_bzero.c \
+	ffsl.c \
+	ffsll.c \
+	fls.c \
+	flsl.c \
+	flsll.c \
 	index.c \
 	memchr.c \
 	memcmp.c \
@@ -35,6 +40,7 @@ GENERAL_SOURCES = \
 	strncmp.c \
 	strncpy.c \
 	strnlen.c \
+	strnstr.c \
 	strpbrk.c \
 	strrchr.c \
 	strsep.c \
@@ -112,13 +118,15 @@ ELIX_4_SOURCES = \
 	strcasecmp_l.c \
 	strcoll_l.c \
 	strncasecmp_l.c \
+	strverscmp.c \
 	strxfrm_l.c \
 	wcscasecmp.c \
 	wcscasecmp_l.c \
 	wcscoll_l.c \
 	wcsncasecmp.c \
 	wcsncasecmp_l.c \
-	wcsxfrm_l.c
+	wcsxfrm_l.c \
+	wmempcpy.c
 endif !ELIX_LEVEL_3
 endif !ELIX_LEVEL_2
 endif !ELIX_LEVEL_1
@@ -156,6 +164,7 @@ wcswidth.def	wcsxfrm.def	wcwidth.def	wmemchr.def \
 wmemcmp.def	wmemcpy.def	wmemmove.def	wmemset.def \
 memmem.def	memrchr.def	rawmemchr.def	strchrnul.def \
 strcasecmp_l.def strcoll_l.def	strncasecmp_l.def strxfrm_l.def \
-wcscasecmp_l.def wcscoll_l.def	wcsncasecmp_l.def wcsxfrm_l.def
+wcscasecmp_l.def wcscoll_l.def	wcsncasecmp_l.def wcsxfrm_l.def \
+strverscmp.def	strnstr.def	wmempcpy.def
 
 CHAPTERS = strings.tex wcstrings.tex

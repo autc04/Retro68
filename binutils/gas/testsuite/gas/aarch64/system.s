@@ -44,6 +44,8 @@
 	all_barriers	op=isb, from=0, to=15
 
 	isb
+	ssbb
+	pssbb
 
 	//
 	// PREFETCHS

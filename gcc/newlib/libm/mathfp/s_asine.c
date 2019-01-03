@@ -24,7 +24,7 @@ INDEX
 INDEX
    asinef
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <math.h>
         double asine(double <[x]>);
         float asinef(float <[x]>);
@@ -32,26 +32,6 @@ ANSI_SYNOPSIS
         float asinf(float <[x]>);
         double acos(double <[x]>);
         float acosf(float <[x]>);
-
-TRAD_SYNOPSIS
-        #include <math.h>
-        double asine(<[x]>);
-        double <[x]>;
-
-        float asinef(<[x]>);
-        float <[x]>;
-
-        double asin(<[x]>)
-        double <[x]>;
-
-        float asinf(<[x]>)
-        float <[x]>;
-
-        double acos(<[x]>)
-        double <[x]>;
-
-        float acosf(<[x]>)
-        float <[x]>;
 
 DESCRIPTION
 
@@ -109,8 +89,7 @@ static const double a[] = { 0.0, 0.78539816339744830962 };
 static const double b[] = { 1.57079632679489661923, 0.78539816339744830962 };
 
 double
-_DEFUN (asine, (double, int),
-        double x _AND
+asine (double x,
         int acosine)
 {
   int flag, i;

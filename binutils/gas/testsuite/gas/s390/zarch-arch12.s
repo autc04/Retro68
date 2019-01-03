@@ -192,3 +192,6 @@ foo:
 	lgsc	%r6,-10000(%r9,%r11)
 	stgsc	%r6,-10000(%r9,%r11)
 	kma	%r6,%r9,%r11
+	prno	%r6,%r9
+	tpei	%r6,%r9
+	irbm	%r6,%r9

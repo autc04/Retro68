@@ -5,16 +5,9 @@ FUNCTION
 INDEX
 	memmove
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	void *memmove(void *<[dst]>, const void *<[src]>, size_t <[length]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	void *memmove(<[dst]>, <[src]>, <[length]>)
-	void *<[dst]>;
-	void *<[src]>;
-	size_t <[length]>;
 
 DESCRIPTION
 	This function moves <[length]> characters from the block of
@@ -55,16 +48,15 @@ QUICKREF
 #define TOO_SMALL(LEN)  ((LEN) < BIGBLOCKSIZE)
 
 /*SUPPRESS 20*/
-_PTR
+void *
 __inhibit_loop_to_libcall
-_DEFUN (memmove, (dst_void, src_void, length),
-	_PTR dst_void _AND
-	_CONST _PTR src_void _AND
+memmove (void *dst_void,
+	const void *src_void,
 	size_t length)
 {
 #if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
   char *dst = dst_void;
-  _CONST char *src = src_void;
+  const char *src = src_void;
 
   if (src < dst && dst < src + length)
     {
@@ -87,9 +79,9 @@ _DEFUN (memmove, (dst_void, src_void, length),
   return dst_void;
 #else
   char *dst = dst_void;
-  _CONST char *src = src_void;
+  const char *src = src_void;
   long *aligned_dst;
-  _CONST long *aligned_src;
+  const long *aligned_src;
 
   if (src < dst && dst < src + length)
     {

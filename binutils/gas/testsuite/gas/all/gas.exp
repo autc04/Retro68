@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2017 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,10 +59,12 @@ if { ![istarget cris-*-*] && ![istarget crisv32-*-*]
 if {    ![istarget alpha*-*-*vms*]
      && ![istarget am3*-*-*]
      && ![istarget avr-*-*]
+     && ![istarget ft32-*-*]
      && ![istarget hppa*-*-*]
      && ![istarget microblaze-*-*]
      && ![istarget mn10300-*-*]
      && ![istarget msp430*-*-*]
+     && ![istarget riscv*-*-*]
      && ![istarget rl78-*-*]
      && ![istarget rx-*-*] } then {
     gas_test_error "diff1.s" "" "difference of two undefined symbols"
@@ -70,6 +72,8 @@ if {    ![istarget alpha*-*-*vms*]
 
 gas_test_error "equiv1.s" "" ".equiv for symbol already set to another one"
 gas_test_error "equiv2.s" "" ".equiv for symbol already set to an expression"
+
+gas_test_error "none.s" "-o $srcdir/$subdir/none.s" "Output file must be distinct from input"
 
 # .equ works differently on some targets.
 case $target_triplet in {
@@ -92,6 +96,7 @@ gas_test_error "assign-bad.s" "" "== assignment for symbol already set"
 # .equ works differently on some targets.
 # linkrelax-ing prevents most forward references from working.
 case $target_triplet in {
+    { am3*-*-* } { }
     { *c54x*-*-* } { }
     { cr16*-*-* } { }
     { crx*-*-* } { }
@@ -103,7 +108,7 @@ case $target_triplet in {
     default {
 	# Some targets don't manage to resolve BFD_RELOC_8 for constants.
 	setup_xfail "alpha*-*-*" "*c30*-*-*" "*c4x*-*-*" \
-	    "d\[13\]0v*-*-*" "i860-*-*" \
+	    "d\[13\]0v*-*-*" \
 	    "nds32*-*-*" "pdp11-*-*" "xtensa*-*-*"
 	run_dump_test forward
     }
@@ -139,6 +144,7 @@ if { ![is_aout_format] } {
 # pdp11 gets unexpected reloc types.
 case $target_triplet in {
     { alpha*-*-* } { }
+    { am3*-*-* } { }
     { cr16*-*-* } { }
     { crx*-*-* } { }
     { h8300-*-* } { }
@@ -155,7 +161,6 @@ case $target_triplet in {
     { z80-*-* } { }
     default {
 	run_dump_test redef
-	setup_xfail "arm-epoc-pe*"
 	# These targets fail redef2 because they disallow redefined
 	# symbols on relocs.
 	setup_xfail "m68hc1*-*-*" "m6811-*-*" "m6812-*-*" "rl78-*-*"
@@ -273,12 +278,13 @@ if {    ![istarget *c30*-*-*]
      && ![istarget *c54x*-*-*]
      && ![istarget cr16*-*-*]
      && ![istarget crx*-*-*]
+     && ![istarget ft32-*-*]
      && ![istarget h8300*-*-*]
      && ![istarget hppa*-*-*] } then {
     # The vax fails because VMS can apparently actually handle this
     # case in relocs, so gas doesn't handle it itself.
     # msp430, mn10[23]00 and riscv emit two relocs to handle the difference of two symbols.
-    setup_xfail "mn10200-*-*" "mn10300*-*-*" "msp430*-*-*" "riscv*-*-*" "vax*-*-vms*"
+    setup_xfail "am3*-*-*" "mn10200-*-*" "mn10300*-*-*" "msp430*-*-*" "riscv*-*-*" "vax*-*-vms*"
     do_930509a
 }
 
@@ -330,8 +336,7 @@ if {   ([istarget *-*-coff*] && ![istarget arm*-*-coff] && ![istarget *c4x*-*-co
      || [istarget i*86-*-cygwin*] \
      || [istarget x86_64-*-mingw*] \
      || [istarget i*86-*-*nt] \
-     || [istarget i*86-*-interix*] \
-     || ([istarget i960-*-vxworks5.*] && ![istarget i960-*-vxworks5.0*]) } {
+     || [istarget i*86-*-interix*] } {
     run_dump_test cofftag
 }
 
@@ -394,6 +399,7 @@ if { ![istarget "tic4x*-*-*"] && ![istarget "tic54x*-*-*"] } {
     run_dump_test sleb128-7
     run_dump_test sleb128-8
 }
+run_dump_test sleb128-9
 
 # .byte is 32 bits on tic4x, and .p2align isn't supported on tic54x
 # .space is different on hppa*-hpux.
@@ -407,10 +413,7 @@ if { ![istarget "powerpc*-*-*"] && ![istarget "rs6000*-*-*"] && ![istarget "s390
     run_dump_test byte
 }
 
-# .quad is 16 bytes on i960.
-if { ![istarget "i960-*-*"] } {
-    run_dump_test quad
-}
+run_dump_test quad
 
 # som doesn't use .data section.
 case $target_triplet in {
@@ -461,12 +464,6 @@ case $target_triplet in {
     { "mmix-*-*" } {
 	set nop_type 5
     }
-    { "i960-*-*" } {
-	set nop_type 4
-    }
-    { "i370-*-*" } {
-	set nop_type 3
-    }
     { "or1k*-*-*" } {
 	set nop_type 2
     }
@@ -483,3 +480,5 @@ run_dump_test "org-3"
 run_dump_test "org-4"
 run_dump_test "org-5"
 run_dump_test "org-6"
+
+run_dump_test "fill-1"

@@ -11,7 +11,7 @@
 # about how, when, where and which addends to use.  A DSO must have the
 # same value in the addend as in the data, so either can be used.
 
-Relocation section '\.rela\.text' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '\.rela\.text' at offset 0x[0-9a-f]+ contains 1 entry:
 .*
 0000019c +[0-9a-f]+ R_SH_RELATIVE +1a0
 

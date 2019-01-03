@@ -30,9 +30,8 @@
  */
 
 int
-_DEFUN(__sflags, (ptr, mode, optr),
-       struct _reent *ptr  _AND
-       register char *mode _AND
+__sflags (struct _reent *ptr,
+       register char *mode,
        int *optr)
 {
   register int ret, m, o;

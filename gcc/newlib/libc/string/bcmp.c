@@ -5,16 +5,9 @@ FUNCTION
 INDEX
 	bcmp
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <strings.h>
 	int bcmp(const void *<[s1]>, const void *<[s2]>, size_t <[n]>);
-
-TRAD_SYNOPSIS
-	#include <strings.h>
-	int bcmp(<[s1]>, <[s2]>, <[n]>)
-	const void *<[s1]>;
-	const void *<[s2]>;
-	size_t <[n]>;
 
 DESCRIPTION
 	This function compares not more than <[n]> bytes of the
@@ -39,9 +32,8 @@ QUICKREF
 #include <strings.h>
 
 int
-_DEFUN (bcmp, (m1, m2, n),
-	_CONST void *m1 _AND
-	_CONST void *m2 _AND
+bcmp (const void *m1,
+	const void *m2,
 	size_t n)
 
 {

@@ -5,15 +5,9 @@ FUNCTION
 INDEX
 	strnlen
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	size_t strnlen(const char *<[str]>, size_t <[n]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	size_t strnlen(<[str]>, <[n]>)
-	char *<[src]>;
-	size_t <[n]>;
 
 DESCRIPTION
 	The <<strnlen>> function works out the length of the string
@@ -36,11 +30,10 @@ PORTABILITY
 #include <string.h>
 
 size_t
-_DEFUN (strnlen, (str, n),
-	_CONST char *str _AND
+strnlen (const char *str,
 	size_t n)
 {
-  _CONST char *start = str;
+  const char *start = str;
 
   while (n-- > 0 && *str)
     str++;

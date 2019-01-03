@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2002-2016, Free Software Foundation, Inc.         --
+--          Copyright (C) 2002-2018, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1572,7 +1572,6 @@ package body Prep is
             then
                Start_Of_Processing := Token_Ptr + 2;
             else
-               pragma Assert (Sinput.Source (Token_Ptr) = ASCII.LF);
                Start_Of_Processing := Token_Ptr + 1;
             end if;
          end if;

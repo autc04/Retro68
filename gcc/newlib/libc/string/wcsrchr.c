@@ -2,15 +2,9 @@
 FUNCTION
 	<<wcsrchr>>---wide-character string scanning operation 
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wchar.h>
 	wchar_t *wcsrchr(const wchar_t *<[s]>, wchar_t <[c]>);
-
-TRAD_SYNOPSIS
-	#include <wchar.h>
-	wchar_t *wcsrchr(<[s]>, <[c]>
-	const wchar_t *<[s]>;
-	wchar_t <[c]>;
 
 DESCRIPTION
 	The <<wcsrchr>> function locates the last occurrence of <[c]> in the
@@ -66,11 +60,10 @@ No supporting OS subroutines are required.
 #include <wchar.h>
 
 wchar_t *
-_DEFUN (wcsrchr, (s, c),
-	_CONST wchar_t * s _AND
+wcsrchr (const wchar_t * s,
 	wchar_t c)
 {
-  _CONST wchar_t *p;
+  const wchar_t *p;
 
   p = s;
   while (*p)

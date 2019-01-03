@@ -33,7 +33,7 @@ INDEX
 INDEX
 	posix_spawnp
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <spawn.h>
 
 	int posix_spawn(pid_t *<[pid]>, const char *<[path]>,
@@ -147,7 +147,7 @@ typedef struct __posix_spawn_file_actions_entry {
  */
 
 static int
-process_spawnattr(_CONST posix_spawnattr_t sa)
+process_spawnattr(const posix_spawnattr_t sa)
 {
 	struct sigaction sigact = { .sa_flags = 0, .sa_handler = SIG_DFL };
 	int i;
@@ -240,7 +240,7 @@ process_file_actions_entry(posix_spawn_file_actions_entry_t *fae)
 }
 
 static int
-process_file_actions(_CONST posix_spawn_file_actions_t fa)
+process_file_actions(const posix_spawn_file_actions_t fa)
 {
 	posix_spawn_file_actions_entry_t *fae;
 	int error;
@@ -255,10 +255,10 @@ process_file_actions(_CONST posix_spawn_file_actions_t fa)
 }
 
 static int
-do_posix_spawn(pid_t *pid, _CONST char *path,
-	_CONST posix_spawn_file_actions_t *fa,
-	_CONST posix_spawnattr_t *sa,
-	char * _CONST argv[], char * _CONST envp[], int use_env_path)
+do_posix_spawn(pid_t *pid, const char *path,
+	const posix_spawn_file_actions_t *fa,
+	const posix_spawnattr_t *sa,
+	char * const argv[], char * const envp[], int use_env_path)
 {
 	pid_t p;
 	volatile int error = 0;
@@ -294,25 +294,23 @@ do_posix_spawn(pid_t *pid, _CONST char *path,
 }
 
 int
-_DEFUN(posix_spawn, (pid, path, fa, sa, argv, envp),
-	pid_t *pid _AND
-	_CONST char *path _AND
-	_CONST posix_spawn_file_actions_t *fa _AND
-	_CONST posix_spawnattr_t *sa _AND
-	char * _CONST argv[] _AND
-	char * _CONST envp[])
+posix_spawn (pid_t *pid,
+	const char *path,
+	const posix_spawn_file_actions_t *fa,
+	const posix_spawnattr_t *sa,
+	char * const argv[],
+	char * const envp[])
 {
 	return do_posix_spawn(pid, path, fa, sa, argv, envp, 0);
 }
 
 int
-_DEFUN(posix_spawnp, (pid, path, fa, sa, argv, envp),
-	pid_t *pid _AND
-	_CONST char *path _AND
-	_CONST posix_spawn_file_actions_t *fa _AND
-	_CONST posix_spawnattr_t *sa _AND
-	char * _CONST argv[] _AND
-	char * _CONST envp[])
+posix_spawnp (pid_t *pid,
+	const char *path,
+	const posix_spawn_file_actions_t *fa,
+	const posix_spawnattr_t *sa,
+	char * const argv[],
+	char * const envp[])
 {
 	return do_posix_spawn(pid, path, fa, sa, argv, envp, 1);
 }
@@ -322,8 +320,7 @@ _DEFUN(posix_spawnp, (pid, path, fa, sa, argv, envp),
  */
 
 int
-_DEFUN(posix_spawn_file_actions_init, (ret),
-	posix_spawn_file_actions_t *ret)
+posix_spawn_file_actions_init (posix_spawn_file_actions_t *ret)
 {
 	posix_spawn_file_actions_t fa;
 
@@ -337,8 +334,7 @@ _DEFUN(posix_spawn_file_actions_init, (ret),
 }
 
 int
-_DEFUN(posix_spawn_file_actions_destroy, (fa),
-	posix_spawn_file_actions_t *fa)
+posix_spawn_file_actions_destroy (posix_spawn_file_actions_t *fa)
 {
 	posix_spawn_file_actions_entry_t *fae;
 
@@ -357,11 +353,10 @@ _DEFUN(posix_spawn_file_actions_destroy, (fa),
 }
 
 int
-_DEFUN(posix_spawn_file_actions_addopen, (fa, fildes, path, oflag, mode),
-	posix_spawn_file_actions_t * __restrict fa _AND
-	int fildes _AND
-	_CONST char * __restrict path _AND
-	int oflag _AND
+posix_spawn_file_actions_addopen (posix_spawn_file_actions_t * __restrict fa,
+	int fildes,
+	const char * __restrict path,
+	int oflag,
 	mode_t mode)
 {
 	posix_spawn_file_actions_entry_t *fae;
@@ -392,9 +387,8 @@ _DEFUN(posix_spawn_file_actions_addopen, (fa, fildes, path, oflag, mode),
 }
 
 int
-_DEFUN(posix_spawn_file_actions_adddup2, (fa, fildes, newfildes),
-	posix_spawn_file_actions_t *fa _AND
-	int fildes _AND
+posix_spawn_file_actions_adddup2 (posix_spawn_file_actions_t *fa,
+	int fildes,
 	int newfildes)
 {
 	posix_spawn_file_actions_entry_t *fae;
@@ -417,8 +411,7 @@ _DEFUN(posix_spawn_file_actions_adddup2, (fa, fildes, newfildes),
 }
 
 int
-_DEFUN(posix_spawn_file_actions_addclose, (fa, fildes),
-	posix_spawn_file_actions_t *fa _AND
+posix_spawn_file_actions_addclose (posix_spawn_file_actions_t *fa,
 	int fildes)
 {
 	posix_spawn_file_actions_entry_t *fae;
@@ -444,8 +437,7 @@ _DEFUN(posix_spawn_file_actions_addclose, (fa, fildes),
  */
 
 int
-_DEFUN(posix_spawnattr_init, (ret),
-	posix_spawnattr_t *ret)
+posix_spawnattr_init (posix_spawnattr_t *ret)
 {
 	posix_spawnattr_t sa;
 
@@ -459,16 +451,14 @@ _DEFUN(posix_spawnattr_init, (ret),
 }
 
 int
-_DEFUN(posix_spawnattr_destroy, (sa),
-	posix_spawnattr_t *sa)
+posix_spawnattr_destroy (posix_spawnattr_t *sa)
 {
 	free(*sa);
 	return (0);
 }
 
 int
-_DEFUN(posix_spawnattr_getflags, (sa, flags),
-	_CONST posix_spawnattr_t * __restrict sa _AND
+posix_spawnattr_getflags (const posix_spawnattr_t * __restrict sa,
 	short * __restrict flags)
 {
 	*flags = (*sa)->sa_flags;
@@ -476,8 +466,7 @@ _DEFUN(posix_spawnattr_getflags, (sa, flags),
 }
 
 int
-_DEFUN(posix_spawnattr_getpgroup, (sa, pgroup),
-	_CONST posix_spawnattr_t * __restrict sa _AND
+posix_spawnattr_getpgroup (const posix_spawnattr_t * __restrict sa,
 	pid_t * __restrict pgroup)
 {
 	*pgroup = (*sa)->sa_pgroup;
@@ -485,8 +474,7 @@ _DEFUN(posix_spawnattr_getpgroup, (sa, pgroup),
 }
 
 int
-_DEFUN(posix_spawnattr_getschedparam, (sa, schedparam),
-	_CONST posix_spawnattr_t * __restrict sa _AND
+posix_spawnattr_getschedparam (const posix_spawnattr_t * __restrict sa,
 	struct sched_param * __restrict schedparam)
 {
 	*schedparam = (*sa)->sa_schedparam;
@@ -494,8 +482,7 @@ _DEFUN(posix_spawnattr_getschedparam, (sa, schedparam),
 }
 
 int
-_DEFUN(posix_spawnattr_getschedpolicy, (sa, schedpolicy),
-	_CONST posix_spawnattr_t * __restrict sa _AND
+posix_spawnattr_getschedpolicy (const posix_spawnattr_t * __restrict sa,
 	int * __restrict schedpolicy)
 {
 	*schedpolicy = (*sa)->sa_schedpolicy;
@@ -503,8 +490,7 @@ _DEFUN(posix_spawnattr_getschedpolicy, (sa, schedpolicy),
 }
 
 int
-_DEFUN(posix_spawnattr_getsigdefault, (sa, sigdefault),
-	_CONST posix_spawnattr_t * __restrict sa _AND
+posix_spawnattr_getsigdefault (const posix_spawnattr_t * __restrict sa,
 	sigset_t * __restrict sigdefault)
 {
 	*sigdefault = (*sa)->sa_sigdefault;
@@ -512,8 +498,7 @@ _DEFUN(posix_spawnattr_getsigdefault, (sa, sigdefault),
 }
 
 int
-_DEFUN(posix_spawnattr_getsigmask, (sa, sigmask),
-	_CONST posix_spawnattr_t * __restrict sa _AND
+posix_spawnattr_getsigmask (const posix_spawnattr_t * __restrict sa,
 	sigset_t * __restrict sigmask)
 {
 	*sigmask = (*sa)->sa_sigmask;
@@ -521,8 +506,7 @@ _DEFUN(posix_spawnattr_getsigmask, (sa, sigmask),
 }
 
 int
-_DEFUN(posix_spawnattr_setflags, (sa, flags),
-	posix_spawnattr_t *sa _AND
+posix_spawnattr_setflags (posix_spawnattr_t *sa,
 	short flags)
 {
 	(*sa)->sa_flags = flags;
@@ -530,8 +514,7 @@ _DEFUN(posix_spawnattr_setflags, (sa, flags),
 }
 
 int
-_DEFUN(posix_spawnattr_setpgroup, (sa, pgroup),
-	posix_spawnattr_t *sa _AND
+posix_spawnattr_setpgroup (posix_spawnattr_t *sa,
 	pid_t pgroup)
 {
 	(*sa)->sa_pgroup = pgroup;
@@ -539,17 +522,15 @@ _DEFUN(posix_spawnattr_setpgroup, (sa, pgroup),
 }
 
 int
-_DEFUN(posix_spawnattr_setschedparam, (sa, schedparam),
-	posix_spawnattr_t * __restrict sa _AND
-	_CONST struct sched_param * __restrict schedparam)
+posix_spawnattr_setschedparam (posix_spawnattr_t * __restrict sa,
+	const struct sched_param * __restrict schedparam)
 {
 	(*sa)->sa_schedparam = *schedparam;
 	return (0);
 }
 
 int
-_DEFUN(posix_spawnattr_setschedpolicy, (sa, schedpolicy),
-	posix_spawnattr_t *sa _AND
+posix_spawnattr_setschedpolicy (posix_spawnattr_t *sa,
 	int schedpolicy)
 {
 	(*sa)->sa_schedpolicy = schedpolicy;
@@ -557,18 +538,16 @@ _DEFUN(posix_spawnattr_setschedpolicy, (sa, schedpolicy),
 }
 
 int
-_DEFUN(posix_spawnattr_setsigdefault, (sa, sigdefault),
-	posix_spawnattr_t * __restrict sa _AND
-	_CONST sigset_t * __restrict sigdefault)
+posix_spawnattr_setsigdefault (posix_spawnattr_t * __restrict sa,
+	const sigset_t * __restrict sigdefault)
 {
 	(*sa)->sa_sigdefault = *sigdefault;
 	return (0);
 }
 
 int
-_DEFUN(posix_spawnattr_setsigmask, (sa, sigmask),
-	posix_spawnattr_t * __restrict sa _AND
-	_CONST sigset_t * __restrict sigmask)
+posix_spawnattr_setsigmask (posix_spawnattr_t * __restrict sa,
+	const sigset_t * __restrict sigmask)
 {
 	(*sa)->sa_sigmask = *sigmask;
 	return (0);

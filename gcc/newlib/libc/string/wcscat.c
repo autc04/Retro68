@@ -4,15 +4,10 @@ FUNCTION
 INDEX
 	wcscat
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wchar.h>
 	wchar_t *wcscat(wchar_t *__restrict <[s1]>,
 			const wchar_t *__restrict <[s2]>);
-
-TRAD_SYNOPSIS
-	wchar_t *wcscat(<[s1]>, <[s2]>
-	wchar_t *__restrict <[s1]>;
-	const wchar_t *__restrict <[s2]>;
 
 DESCRIPTION
 	The <<wcscat>> function appends a copy of the wide-character string
@@ -66,13 +61,12 @@ No supporting OS subroutines are required.
 #include <wchar.h>
 
 wchar_t *
-_DEFUN (wcscat, (s1, s2),
-	wchar_t *__restrict s1 _AND
-	_CONST wchar_t *__restrict s2)
+wcscat (wchar_t *__restrict s1,
+	const wchar_t *__restrict s2)
 {
   wchar_t *p;
   wchar_t *q;
-  _CONST wchar_t *r;
+  const wchar_t *r;
 
   p = s1;
   while (*p)

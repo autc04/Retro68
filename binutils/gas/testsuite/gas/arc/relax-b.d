@@ -14,6 +14,6 @@ Disassembly of section .text:
    4:	2000 0000           	add	r0,r0,r0
 
 00000008 <bar>:
-   8:	ffff                	bl_s	4 <foo>
+   8:	ffff                	bl_s	-4	;4 <foo>
    a:	2100 0041           	add	r1,r1,r1
-   e:	f1fc                	b_s	4 <foo>
+   e:	f1fc                	b_s	-8	;4 <foo>

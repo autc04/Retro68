@@ -56,10 +56,9 @@
  * proc is the routine to handle the referenced structure.
  */
 bool_t
-_DEFUN (xdr_reference, (xdrs, pp, size, proc),
-        XDR * xdrs _AND
-	caddr_t * pp _AND
-	u_int size _AND
+xdr_reference (XDR * xdrs,
+	caddr_t * pp,
+	u_int size,
 	xdrproc_t proc)
 {
   caddr_t loc = *pp;
@@ -117,10 +116,9 @@ _DEFUN (xdr_reference, (xdrs, pp, size, proc),
  *
  */
 bool_t
-_DEFUN (xdr_pointer, (xdrs, objpp, obj_size, xdr_obj),
-        XDR * xdrs _AND
-	char **objpp _AND
-	u_int obj_size _AND
+xdr_pointer (XDR * xdrs,
+	char **objpp,
+	u_int obj_size,
 	xdrproc_t xdr_obj)
 {
   bool_t more_data;

@@ -44,7 +44,7 @@ INDEX
 INDEX
 	_asnprintf_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <stdio.h>
 
         int printf(const char *restrict <[format]>, ...);
@@ -570,27 +570,14 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
 #include <_ansi.h>
 #include <reent.h>
 #include <stdio.h>
-#ifdef _HAVE_STDC
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include <limits.h>
 #include "local.h"
 
 int
-#ifdef _HAVE_STDC
-_DEFUN(_sprintf_r, (ptr, str, fmt),
-       struct _reent *ptr _AND
-       char *__restrict str          _AND
-       _CONST char *__restrict fmt _DOTS)
-#else
-_sprintf_r(ptr, str, fmt, va_alist)
-           struct _reent *ptr;
-           char *__restrict str;
-           _CONST char *__restrict fmt;
-           va_dcl
-#endif
+_sprintf_r (struct _reent *ptr,
+       char *__restrict str,
+       const char *__restrict fmt, ...)
 {
   int ret;
   va_list ap;
@@ -600,11 +587,7 @@ _sprintf_r(ptr, str, fmt, va_alist)
   f._bf._base = f._p = (unsigned char *) str;
   f._bf._size = f._w = INT_MAX;
   f._file = -1;  /* No file. */
-#ifdef _HAVE_STDC
   va_start (ap, fmt);
-#else
-  va_start (ap);
-#endif
   ret = _svfprintf_r (ptr, &f, fmt, ap);
   va_end (ap);
   *f._p = '\0';	/* terminate the string */
@@ -613,23 +596,15 @@ _sprintf_r(ptr, str, fmt, va_alist)
 
 #ifdef _NANO_FORMATTED_IO
 int
-_EXFUN(_siprintf_r, (struct _reent *, char *, const char *, ...)
-       _ATTRIBUTE ((__alias__("_sprintf_r"))));
+_siprintf_r (struct _reent *, char *, const char *, ...)
+       _ATTRIBUTE ((__alias__("_sprintf_r")));
 #endif
 
 #ifndef _REENT_ONLY
 
 int
-#ifdef _HAVE_STDC
-_DEFUN(sprintf, (str, fmt),
-       char *__restrict str _AND
-       _CONST char *__restrict fmt _DOTS)
-#else
-sprintf(str, fmt, va_alist)
-        char *str;
-        _CONST char *fmt;
-        va_dcl
-#endif
+sprintf (char *__restrict str,
+       const char *__restrict fmt, ...)
 {
   int ret;
   va_list ap;
@@ -639,11 +614,7 @@ sprintf(str, fmt, va_alist)
   f._bf._base = f._p = (unsigned char *) str;
   f._bf._size = f._w = INT_MAX;
   f._file = -1;  /* No file. */
-#ifdef _HAVE_STDC
   va_start (ap, fmt);
-#else
-  va_start (ap);
-#endif
   ret = _svfprintf_r (_REENT, &f, fmt, ap);
   va_end (ap);
   *f._p = '\0';	/* terminate the string */
@@ -652,7 +623,7 @@ sprintf(str, fmt, va_alist)
 
 #ifdef _NANO_FORMATTED_IO
 int
-_EXFUN(siprintf, (char *, const char *, ...)
-       _ATTRIBUTE ((__alias__("sprintf"))));
+siprintf (char *, const char *, ...)
+       _ATTRIBUTE ((__alias__("sprintf")));
 #endif
 #endif

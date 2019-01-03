@@ -1,6 +1,6 @@
 /* discard_locals_relocatable_test.c -- test --discard-locals/--discard-all -r
 
-   Copyright (C) 2010-2017 Free Software Foundation, Inc.
+   Copyright (C) 2010-2018 Free Software Foundation, Inc.
    Viktor Kutuzov <vkutuzov@accesssoftek.com>.
 
    This file is part of gold.

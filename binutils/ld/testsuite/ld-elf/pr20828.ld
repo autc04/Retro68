@@ -8,6 +8,7 @@ SECTIONS
   }
   .dynamic : { *(.dynamic) }
   .hash : { *(.hash) }
+  .gnu.hash : { *(.gnu.hash) }
   .dynsym : { *(.dynsym) }
   .dynstr : { *(.dynstr) }
   .gnu.version : { *(.gnu.version) }

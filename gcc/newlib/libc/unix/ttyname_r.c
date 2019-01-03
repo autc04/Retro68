@@ -44,9 +44,8 @@
  *  ttyname_r() - POSIX 1003.1b 4.7.2 - Determine Terminal Device Name
  */
 int
-_DEFUN( ttyname_r,(fd, name, namesize),
-	int fd _AND
-	char   *name _AND
+ ttyname_r (int fd,
+	char   *name,
 	size_t  namesize)
 {
   struct stat sb;

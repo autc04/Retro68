@@ -358,7 +358,7 @@ Disassembly of section .text:
  *[0-9a-f]+:	0f b5 90 90 90 90 90[ 	]+lgs[ 	]+edx,(FWORD PTR )?\[eax-0x6f6f6f70\]
  *[0-9a-f]+:	0f b6 90 90 90 90 90[ 	]+movzx[ 	]+edx,BYTE PTR \[eax-0x6f6f6f70\]
  *[0-9a-f]+:	0f b7 90 90 90 90 90[ 	]+movzx[ 	]+edx,WORD PTR \[eax-0x6f6f6f70\]
- *[0-9a-f]+:	0f b9[ 	]+ud1[ 	]*
+ *[0-9a-f]+:	0f 0b[ 	]+ud2[ 	]*
  *[0-9a-f]+:	0f bb 90 90 90 90 90[ 	]+btc[ 	]+(DWORD PTR )?\[eax-0x6f6f6f70\],edx
  *[0-9a-f]+:	0f bc 90 90 90 90 90[ 	]+bsf[ 	]+edx,(DWORD PTR )?\[eax-0x6f6f6f70\]
  *[0-9a-f]+:	0f bd 90 90 90 90 90[ 	]+bsr[ 	]+edx,(DWORD PTR )?\[eax-0x6f6f6f70\]

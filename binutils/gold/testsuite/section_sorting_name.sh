@@ -2,7 +2,7 @@
 
 # section_sorting_name.sh -- test
 
-# Copyright (C) 2013-2017 Free Software Foundation, Inc.
+# Copyright (C) 2013-2018 Free Software Foundation, Inc.
 # Written by Alexander Ivchenko <alexander.ivchenko@intel.com>.
 
 # This file is part of gold.

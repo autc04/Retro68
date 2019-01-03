@@ -6,8 +6,7 @@
 #ifndef _REENT_ONLY
 
 void
-_DEFUN (vec_free, (aptr),
-        _PTR aptr)
+vec_free (void *aptr)
 {
   _free_r (_REENT, aptr);
 }

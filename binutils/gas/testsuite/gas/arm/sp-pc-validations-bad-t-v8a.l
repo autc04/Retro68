@@ -1,48 +1,48 @@
 [^:]*: Assembler messages:
-[^:]*:27: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:27: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:27: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:27: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:27: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0\]'
-[^:]*:28: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:28: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:28: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:28: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:28: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#0\]'
-[^:]*:29: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:29: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:29: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:29: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:29: Error: branch must be last instruction in IT block -- `ldreq r15,\[sp\]'
-[^:]*:30: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:30: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:30: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:30: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:30: Error: branch must be last instruction in IT block -- `ldreq r15,\[sp,#0\]'
-[^:]*:31: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:31: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:31: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:31: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:31: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0\]'
-[^:]*:32: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:32: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:32: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:32: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:32: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,#0\]'
-[^:]*:33: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:33: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:33: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:33: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:33: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#-4\]'
-[^:]*:34: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:34: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:34: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:34: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:34: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0\],#4'
-[^:]*:35: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:35: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:35: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:35: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:35: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#0\]!'
-[^:]*:38: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:38: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:38: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:38: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:38: Error: branch must be last instruction in IT block -- `ldreq r15,label'
-[^:]*:39: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:39: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:39: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:39: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:39: Error: branch must be last instruction in IT block -- `ldreq.w r15,label'
-[^:]*:40: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:40: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:40: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:40: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:40: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[pc,#-0\]'
-[^:]*:43: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:43: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:43: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:43: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:43: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,r1\]'
-[^:]*:44: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:44: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:44: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:44: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:44: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,r1\]'
-[^:]*:45: IT blocks containing 16-bit Thumb instructions of the following class are deprecated in ARMv8: Short branches, Undefined, SVC, LDM/STM
-[^:]*:45: IT blocks containing more than one conditional instruction are deprecated in ARMv8
+[^:]*:45: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:45: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
 [^:]*:45: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,r1,LSL#2\]'
 [^:]*:48: Error: r15 not allowed here -- `ldrb pc,\[r0,#4\]'
 [^:]*:51: Error: r15 not allowed here -- `ldrb.w pc,\[r0,#4\]'

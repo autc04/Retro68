@@ -4,8 +4,7 @@
 #include <unistd.h>
 
 int
-_DEFUN (unlink, (file),
-        _CONST char *file)
+unlink (const char *file)
 {
   return _unlink_r (_REENT, file);
 }

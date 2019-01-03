@@ -11,18 +11,13 @@ INDEX
 INDEX
 	_tolower
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <ctype.h>
 	int tolower(int <[c]>);
 	int _tolower(int <[c]>);
 
 	#include <ctype.h>
 	int tolower_l(int <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <ctype.h>
-	int tolower(<[c]>);
-	int _tolower(<[c]>);
 
 
 DESCRIPTION
@@ -67,7 +62,7 @@ No supporting OS subroutines are required.
 
 #undef tolower
 int
-_DEFUN(tolower,(c),int c)
+tolower (int c)
 {
 #if defined (_MB_EXTENDED_CHARSETS_ISO) || defined (_MB_EXTENDED_CHARSETS_WINDOWS)
   if ((unsigned char) c <= 0x7f) 

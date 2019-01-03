@@ -8,17 +8,12 @@ INDEX
 INDEX
 	iswalnum_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wctype.h>
 	int iswalnum(wint_t <[c]>);
 
 	#include <wctype.h>
 	int iswalnum_l(wint_t <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <wctype.h>
-	int iswalnum(<[c]>)
-	wint_t <[c]>;
 
 DESCRIPTION
 <<iswalnum>> is a function which classifies wide-character values that
@@ -42,7 +37,7 @@ No supporting OS subroutines are required.
 #include <wctype.h>
 
 int
-_DEFUN(iswalnum,(c),wint_t c)
+iswalnum (wint_t c)
 {
   return (iswalpha (c) || iswdigit (c));
 }

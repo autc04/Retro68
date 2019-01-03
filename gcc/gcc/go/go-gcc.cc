@@ -1,5 +1,5 @@
 // go-gcc.cc -- Go frontend to gcc IR.
-// Copyright (C) 2011-2017 Free Software Foundation, Inc.
+// Copyright (C) 2011-2018 Free Software Foundation, Inc.
 // Contributed by Ian Lance Taylor, Google.
 
 // This file is part of GCC.
@@ -276,7 +276,7 @@ class Gcc_backend : public Backend
   { return this->make_expression(null_pointer_node); }
 
   Bexpression*
-  var_expression(Bvariable* var, Varexpr_context, Location);
+  var_expression(Bvariable* var, Location);
 
   Bexpression*
   indirect_expression(Btype*, Bexpression* expr, bool known_valid, Location);
@@ -348,7 +348,8 @@ class Gcc_backend : public Backend
   array_index_expression(Bexpression* array, Bexpression* index, Location);
 
   Bexpression*
-  call_expression(Bexpression* fn, const std::vector<Bexpression*>& args,
+  call_expression(Bfunction* caller, Bexpression* fn,
+                  const std::vector<Bexpression*>& args,
                   Bexpression* static_chain, Location);
 
   Bexpression*
@@ -425,7 +426,7 @@ class Gcc_backend : public Backend
   global_variable_set_init(Bvariable*, Bexpression*);
 
   Bvariable*
-  local_variable(Bfunction*, const std::string&, Btype*, bool,
+  local_variable(Bfunction*, const std::string&, Btype*, Bvariable*, bool,
 		 Location);
 
   Bvariable*
@@ -485,7 +486,8 @@ class Gcc_backend : public Backend
   Bfunction*
   function(Btype* fntype, const std::string& name, const std::string& asm_name,
            bool is_visible, bool is_declaration, bool is_inlinable,
-           bool disable_split_stack, bool in_unique_section, Location);
+           bool disable_split_stack, bool does_not_return,
+	   bool in_unique_section, Location);
 
   Bstatement*
   function_defer_statement(Bfunction* function, Bexpression* undefer,
@@ -505,6 +507,10 @@ class Gcc_backend : public Backend
                            const std::vector<Bexpression*>&,
                            const std::vector<Bfunction*>&,
                            const std::vector<Bvariable*>&);
+
+  void
+  write_export_data(const char* bytes, unsigned int size);
+
 
  private:
   // Make a Bexpression from a tree.
@@ -534,6 +540,9 @@ class Gcc_backend : public Backend
 
   tree
   non_zero_size_type(tree);
+
+  tree
+  convert_tree(tree, tree, Location);
 
 private:
   void
@@ -627,7 +636,7 @@ Gcc_backend::Gcc_backend()
 						     NULL_TREE);
   tree math_function_type_long =
     build_function_type_list(long_double_type_node, long_double_type_node,
-			     long_double_type_node, NULL_TREE);
+			     NULL_TREE);
   tree math_function_type_two = build_function_type_list(double_type_node,
 							 double_type_node,
 							 double_type_node,
@@ -748,6 +757,19 @@ Gcc_backend::Gcc_backend()
   this->define_builtin(BUILT_IN_TRAP, "__builtin_trap", NULL,
 		       build_function_type(void_type_node, void_list_node),
 		       false, true);
+
+  // The runtime uses __builtin_prefetch.
+  this->define_builtin(BUILT_IN_PREFETCH, "__builtin_prefetch", NULL,
+		       build_varargs_function_type_list(void_type_node,
+							const_ptr_type_node,
+							NULL_TREE),
+		       false, false);
+
+  // The compiler uses __builtin_unreachable for cases that can not
+  // occur.
+  this->define_builtin(BUILT_IN_UNREACHABLE, "__builtin_unreachable", NULL,
+		       build_function_type(void_type_node, void_list_node),
+		       true, true);
 }
 
 // Get an unnamed integer type.
@@ -940,6 +962,13 @@ Gcc_backend::fill_in_struct(Btype* fill,
     }
   TYPE_FIELDS(fill_tree) = field_trees;
   layout_type(fill_tree);
+
+  // Because Go permits converting between named struct types and
+  // equivalent struct types, for which we use VIEW_CONVERT_EXPR, and
+  // because we don't try to maintain TYPE_CANONICAL for struct types,
+  // we need to tell the middle-end to use structural equality.
+  SET_TYPE_STRUCTURAL_EQUALITY(fill_tree);
+
   return fill;
 }
 
@@ -1175,6 +1204,8 @@ Gcc_backend::type_size(Btype* btype)
   tree t = btype->get_tree();
   if (t == error_mark_node)
     return 1;
+  if (t == void_type_node)
+    return 0;
   t = TYPE_SIZE_UNIT(t);
   gcc_assert(tree_fits_uhwi_p (t));
   unsigned HOST_WIDE_INT val_wide = TREE_INT_CST_LOW(t);
@@ -1244,7 +1275,7 @@ Gcc_backend::zero_expression(Btype* btype)
 // An expression that references a variable.
 
 Bexpression*
-Gcc_backend::var_expression(Bvariable* var, Varexpr_context, Location location)
+Gcc_backend::var_expression(Bvariable* var, Location location)
 {
   tree ret = var->get_tree(location);
   if (ret == error_mark_node)
@@ -1444,7 +1475,8 @@ Gcc_backend::convert_expression(Btype* type, Bexpression* expr,
     return this->error_expression();
 
   tree ret;
-  if (this->type_size(type) == 0)
+  if (this->type_size(type) == 0
+      || TREE_TYPE(expr_tree) == void_type_node)
     {
       // Do not convert zero-sized types.
       ret = expr_tree;
@@ -1766,8 +1798,7 @@ Gcc_backend::constructor_expression(Btype* btype,
       constructor_elt empty = {NULL, NULL};
       constructor_elt* elt = init->quick_push(empty);
       elt->index = field;
-      elt->value = fold_convert_loc(location.gcc_location(), TREE_TYPE(field),
-                                    val);
+      elt->value = this->convert_tree(TREE_TYPE(field), val, location);
       if (!TREE_CONSTANT(elt->value))
 	is_constant = false;
     }
@@ -1873,17 +1904,28 @@ Gcc_backend::array_index_expression(Bexpression* array, Bexpression* index,
       || index_tree == error_mark_node)
     return this->error_expression();
 
-  tree ret = build4_loc(location.gcc_location(), ARRAY_REF,
-			TREE_TYPE(TREE_TYPE(array_tree)), array_tree,
-                        index_tree, NULL_TREE, NULL_TREE);
+  // A function call that returns a zero sized object will have been
+  // changed to return void.  If we see void here, assume we are
+  // dealing with a zero sized type and just evaluate the operands.
+  tree ret;
+  if (TREE_TYPE(array_tree) != void_type_node)
+    ret = build4_loc(location.gcc_location(), ARRAY_REF,
+		     TREE_TYPE(TREE_TYPE(array_tree)), array_tree,
+		     index_tree, NULL_TREE, NULL_TREE);
+  else
+    ret = fold_build2_loc(location.gcc_location(), COMPOUND_EXPR,
+			  void_type_node, array_tree, index_tree);
+
   return this->make_expression(ret);
 }
 
 // Create an expression for a call to FN_EXPR with FN_ARGS.
 Bexpression*
-Gcc_backend::call_expression(Bexpression* fn_expr,
+Gcc_backend::call_expression(Bfunction*, // containing fcn for call
+                             Bexpression* fn_expr,
                              const std::vector<Bexpression*>& fn_args,
-                             Bexpression* chain_expr, Location location)
+                             Bexpression* chain_expr,
+                             Location location)
 {
   tree fn = fn_expr->get_tree();
   if (fn == error_mark_node || TREE_TYPE(fn) == error_mark_node)
@@ -1997,6 +2039,7 @@ Gcc_backend::init_statement(Bfunction*, Bvariable* var, Bexpression* init)
   // initializer.  Such initializations don't mean anything anyhow.
   if (int_size_in_bytes(TREE_TYPE(var_tree)) != 0
       && init_tree != NULL_TREE
+      && TREE_TYPE(init_tree) != void_type_node
       && int_size_in_bytes(TREE_TYPE(init_tree)) != 0)
     {
       DECL_INITIAL(var_tree) = init_tree;
@@ -2029,34 +2072,14 @@ Gcc_backend::assignment_statement(Bfunction* bfn, Bexpression* lhs,
   // expression; avoid crashes here by avoiding assignments of
   // zero-sized expressions.  Such assignments don't really mean
   // anything anyhow.
-  if (int_size_in_bytes(TREE_TYPE(lhs_tree)) == 0
+  if (TREE_TYPE(lhs_tree) == void_type_node
+      || int_size_in_bytes(TREE_TYPE(lhs_tree)) == 0
+      || TREE_TYPE(rhs_tree) == void_type_node
       || int_size_in_bytes(TREE_TYPE(rhs_tree)) == 0)
     return this->compound_statement(this->expression_statement(bfn, lhs),
 				    this->expression_statement(bfn, rhs));
 
-  // Sometimes the same unnamed Go type can be created multiple times
-  // and thus have multiple tree representations.  Make sure this does
-  // not confuse the middle-end.
-  if (TREE_TYPE(lhs_tree) != TREE_TYPE(rhs_tree))
-    {
-      tree lhs_type_tree = TREE_TYPE(lhs_tree);
-      gcc_assert(TREE_CODE(lhs_type_tree) == TREE_CODE(TREE_TYPE(rhs_tree)));
-      if (POINTER_TYPE_P(lhs_type_tree)
-	  || INTEGRAL_TYPE_P(lhs_type_tree)
-	  || SCALAR_FLOAT_TYPE_P(lhs_type_tree)
-	  || COMPLEX_FLOAT_TYPE_P(lhs_type_tree))
-	rhs_tree = fold_convert_loc(location.gcc_location(), lhs_type_tree,
-				    rhs_tree);
-      else if (TREE_CODE(lhs_type_tree) == RECORD_TYPE
-	       || TREE_CODE(lhs_type_tree) == ARRAY_TYPE)
-	{
-	  gcc_assert(int_size_in_bytes(lhs_type_tree)
-		     == int_size_in_bytes(TREE_TYPE(rhs_tree)));
-	  rhs_tree = fold_build1_loc(location.gcc_location(),
-				     VIEW_CONVERT_EXPR,
-				     lhs_type_tree, rhs_tree);
-	}
-    }
+  rhs_tree = this->convert_tree(TREE_TYPE(lhs_tree), rhs_tree, location);
 
   return this->make_statement(fold_build2_loc(location.gcc_location(),
                                               MODIFY_EXPR,
@@ -2275,8 +2298,8 @@ Gcc_backend::switch_statement(
   tree tv = value->get_tree();
   if (tv == error_mark_node)
     return this->error_statement();
-  tree t = build3_loc(switch_location.gcc_location(), SWITCH_EXPR,
-                      NULL_TREE, tv, stmt_list, NULL_TREE);
+  tree t = build2_loc(switch_location.gcc_location(), SWITCH_EXPR,
+                      NULL_TREE, tv, stmt_list);
   return this->make_statement(t);
 }
 
@@ -2486,6 +2509,43 @@ Gcc_backend::non_zero_size_type(tree type)
   gcc_unreachable();
 }
 
+// Convert EXPR_TREE to TYPE_TREE.  Sometimes the same unnamed Go type
+// can be created multiple times and thus have multiple tree
+// representations.  Make sure this does not confuse the middle-end.
+
+tree
+Gcc_backend::convert_tree(tree type_tree, tree expr_tree, Location location)
+{
+  if (type_tree == TREE_TYPE(expr_tree))
+    return expr_tree;
+
+  if (type_tree == error_mark_node
+      || expr_tree == error_mark_node
+      || TREE_TYPE(expr_tree) == error_mark_node)
+    return error_mark_node;
+
+  gcc_assert(TREE_CODE(type_tree) == TREE_CODE(TREE_TYPE(expr_tree)));
+  if (POINTER_TYPE_P(type_tree)
+      || INTEGRAL_TYPE_P(type_tree)
+      || SCALAR_FLOAT_TYPE_P(type_tree)
+      || COMPLEX_FLOAT_TYPE_P(type_tree))
+    return fold_convert_loc(location.gcc_location(), type_tree, expr_tree);
+  else if (TREE_CODE(type_tree) == RECORD_TYPE
+	   || TREE_CODE(type_tree) == ARRAY_TYPE)
+    {
+      gcc_assert(int_size_in_bytes(type_tree)
+		 == int_size_in_bytes(TREE_TYPE(expr_tree)));
+      if (TYPE_MAIN_VARIANT(type_tree)
+	  == TYPE_MAIN_VARIANT(TREE_TYPE(expr_tree)))
+	return fold_build1_loc(location.gcc_location(), NOP_EXPR,
+			       type_tree, expr_tree);
+      return fold_build1_loc(location.gcc_location(), VIEW_CONVERT_EXPR,
+			     type_tree, expr_tree);
+    }
+
+  gcc_unreachable();
+}
+
 // Make a global variable.
 
 Bvariable*
@@ -2563,8 +2623,8 @@ Gcc_backend::global_variable_set_init(Bvariable* var, Bexpression* expr)
 
 Bvariable*
 Gcc_backend::local_variable(Bfunction* function, const std::string& name,
-			    Btype* btype, bool is_address_taken,
-			    Location location)
+			    Btype* btype, Bvariable* decl_var, 
+			    bool is_address_taken, Location location)
 {
   tree type_tree = btype->get_tree();
   if (type_tree == error_mark_node)
@@ -2576,6 +2636,11 @@ Gcc_backend::local_variable(Bfunction* function, const std::string& name,
   TREE_USED(decl) = 1;
   if (is_address_taken)
     TREE_ADDRESSABLE(decl) = 1;
+  if (decl_var != NULL)
+    {
+      DECL_HAS_VALUE_EXPR_P(decl) = 1;
+      SET_DECL_VALUE_EXPR(decl, decl_var->get_decl());
+    }
   go_preserve_from_gc(decl);
   return new Bvariable(decl);
 }
@@ -2690,9 +2755,10 @@ Gcc_backend::temporary_variable(Bfunction* function, Bblock* bblock,
       BIND_EXPR_VARS(bind_tree) = BLOCK_VARS(block_tree);
     }
 
-  if (this->type_size(btype) != 0 && init_tree != NULL_TREE)
-    DECL_INITIAL(var) = fold_convert_loc(location.gcc_location(), type_tree,
-                                         init_tree);
+  if (this->type_size(btype) != 0
+      && init_tree != NULL_TREE
+      && TREE_TYPE(init_tree) != void_type_node)
+    DECL_INITIAL(var) = this->convert_tree(type_tree, init_tree, location);
 
   if (is_address_taken)
     TREE_ADDRESSABLE(var) = 1;
@@ -2701,9 +2767,11 @@ Gcc_backend::temporary_variable(Bfunction* function, Bblock* bblock,
                                                 DECL_EXPR,
 						void_type_node, var));
 
-  // Don't initialize VAR with BINIT, but still evaluate BINIT for
-  // its side effects.
-  if (this->type_size(btype) == 0 && init_tree != NULL_TREE)
+  // For a zero sized type, don't initialize VAR with BINIT, but still
+  // evaluate BINIT for its side effects.
+  if (init_tree != NULL_TREE
+      && (this->type_size(btype) == 0
+	  || TREE_TYPE(init_tree) == void_type_node))
     *pstatement =
       this->compound_statement(this->expression_statement(function, binit),
 			       *pstatement);
@@ -2998,8 +3066,8 @@ Bfunction*
 Gcc_backend::function(Btype* fntype, const std::string& name,
                       const std::string& asm_name, bool is_visible,
                       bool is_declaration, bool is_inlinable,
-                      bool disable_split_stack, bool in_unique_section,
-                      Location location)
+                      bool disable_split_stack, bool does_not_return,
+		      bool in_unique_section, Location location)
 {
   tree functype = fntype->get_tree();
   if (functype != error_mark_node)
@@ -3032,9 +3100,11 @@ Gcc_backend::function(Btype* fntype, const std::string& name,
     DECL_UNINLINABLE(decl) = 1;
   if (disable_split_stack)
     {
-      tree attr = get_identifier("__no_split_stack__");
+      tree attr = get_identifier ("no_split_stack");
       DECL_ATTRIBUTES(decl) = tree_cons(attr, NULL_TREE, NULL_TREE);
     }
+  if (does_not_return)
+    TREE_THIS_VOLATILE(decl) = 1;
   if (in_unique_section)
     resolve_unique_section(decl, 0, 1);
 
@@ -3211,6 +3281,13 @@ Gcc_backend::write_global_definitions(
 
   delete[] defs;
 }
+
+void
+Gcc_backend::write_export_data(const char* bytes, unsigned int size)
+{
+  go_write_export_data(bytes, size);
+}
+
 
 // Define a builtin function.  BCODE is the builtin function code
 // defined by builtins.def.  NAME is the name of the builtin function.

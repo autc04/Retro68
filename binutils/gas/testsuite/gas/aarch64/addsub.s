@@ -1,6 +1,6 @@
 /* addsub.s Test file for AArch64 add-subtract instructions.
 
-   Copyright (C) 2012-2017 Free Software Foundation, Inc.
+   Copyright (C) 2012-2018 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.
@@ -221,4 +221,20 @@ func:
 	.irp op, NEG, NEGS
 	do_shift	2, \op, W7, W
 	do_shift	2, \op, X7, X
+	.endr
+
+	/*
+	 * Check for correct aliasing
+	 */
+
+	.irp op, NEGS
+	do_shift	2, \op, WZR, W
+	do_shift	2, \op, XZR, X
+	.endr
+
+	.irp op, SUBS
+	do_shift	3, \op, W7, W
+	do_shift	3, \op, X7, X
+	do_shift	0, \op, WZR, W
+	do_shift	0, \op, XZR, X
 	.endr

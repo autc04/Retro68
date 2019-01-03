@@ -40,10 +40,9 @@
 
 #if defined (ICONV_FROM_UCS_CES_US_ASCII)
 static size_t
-_DEFUN(us_ascii_convert_from_ucs, (data, in, outbuf, outbytesleft),
-                                  _VOID_PTR data         _AND
-                                  ucs4_t in              _AND
-                                  unsigned char **outbuf _AND
+us_ascii_convert_from_ucs (void *data,
+                                  ucs4_t in,
+                                  unsigned char **outbuf,
                                   size_t *outbytesleft)
 {
   if (in  > 0x7F)
@@ -60,9 +59,8 @@ _DEFUN(us_ascii_convert_from_ucs, (data, in, outbuf, outbytesleft),
 
 #if defined (ICONV_TO_UCS_CES_US_ASCII)
 static ucs4_t
-_DEFUN(us_ascii_convert_to_ucs, (data, inbuf, inbytesleft),
-                                _VOID_PTR data               _AND
-                                _CONST unsigned char **inbuf _AND
+us_ascii_convert_to_ucs (void *data,
+                                const unsigned char **inbuf,
                                 size_t *inbytesleft)
 {
   ucs4_t res;
@@ -83,14 +81,13 @@ _DEFUN(us_ascii_convert_to_ucs, (data, inbuf, inbytesleft),
 #endif /* ICONV_TO_UCS_CES_US_ASCII */
 
 static int
-_DEFUN(us_ascii_get_mb_cur_max, (data),
-                                _VOID_PTR data)
+us_ascii_get_mb_cur_max (void *data)
 {
   return 2;
 }
 
 #if defined (ICONV_TO_UCS_CES_US_ASCII)
-_CONST iconv_to_ucs_ces_handlers_t
+const iconv_to_ucs_ces_handlers_t
 _iconv_to_ucs_ces_handlers_us_ascii = 
 {
   NULL,
@@ -104,7 +101,7 @@ _iconv_to_ucs_ces_handlers_us_ascii =
 #endif
 
 #if defined (ICONV_FROM_UCS_CES_US_ASCII)
-_CONST iconv_from_ucs_ces_handlers_t
+const iconv_from_ucs_ces_handlers_t
 _iconv_from_ucs_ces_handlers_us_ascii =
 {
   NULL,

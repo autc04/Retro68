@@ -34,12 +34,11 @@
  * optimization) right after the _fstat() that finds the buffer size.
  */
 
-_VOID
-_DEFUN(__smakebuf_r, (ptr, fp),
-       struct _reent *ptr _AND
+void
+__smakebuf_r (struct _reent *ptr,
        register FILE *fp)
 {
-  register _PTR p;
+  register void *p;
   int flags;
   size_t size;
   int couldbetty;
@@ -76,10 +75,9 @@ _DEFUN(__smakebuf_r, (ptr, fp),
  * Internal routine to determine `proper' buffering for a file.
  */
 int
-_DEFUN(__swhatbuf_r, (ptr, fp, bufsize, couldbetty),
-	struct _reent *ptr _AND
-	FILE *fp _AND
-	size_t *bufsize _AND
+__swhatbuf_r (struct _reent *ptr,
+	FILE *fp,
+	size_t *bufsize,
 	int *couldbetty)
 {
 #ifdef _FSEEK_OPTIMIZATION

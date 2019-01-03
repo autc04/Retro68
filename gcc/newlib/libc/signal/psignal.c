@@ -6,15 +6,9 @@ FUNCTION
 INDEX
 	psignal
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	void psignal(int <[signal]>, const char *<[prefix]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	void psignal(<[signal]>, <[prefix]>)
-	int <[signal]>;
-	const char *<[prefix]>;
 
 DESCRIPTION
 Use <<psignal>> to print (on standard error) a signal message
@@ -39,10 +33,9 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
 #include <stdio.h>
 #include <string.h>
 
-_VOID
-_DEFUN(psignal, (sig, s),
-       int sig _AND
-       _CONST char *s)
+void
+psignal (int sig,
+       const char *s)
 {
   if (s != NULL && *s != '\0')
     fprintf (stderr, "%s: %s\n", s, strsignal (sig));

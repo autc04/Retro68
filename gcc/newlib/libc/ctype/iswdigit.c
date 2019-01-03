@@ -8,17 +8,12 @@ INDEX
 INDEX
 	iswdigit_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wctype.h>
 	int iswdigit(wint_t <[c]>);
 
 	#include <wctype.h>
 	int iswdigit_l(wint_t <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <wctype.h>
-	int iswdigit(<[c]>)
-	wint_t <[c]>;
 
 DESCRIPTION
 <<iswdigit>> is a function which classifies wide-character values that
@@ -41,7 +36,7 @@ No supporting OS subroutines are required.
 #include <wctype.h>
 
 int
-_DEFUN(iswdigit,(c), wint_t c)
+iswdigit (wint_t c)
 {
   return (c >= (wint_t)'0' && c <= (wint_t)'9');
 }

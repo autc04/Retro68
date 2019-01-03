@@ -40,6 +40,7 @@ managing areas of memory.  The corresponding declarations are in
 * strncat::     Concatenate strings
 * strncmp::     Character string compare
 * strncpy::     Counted copy string
+* strnstr::     Find string segment
 * strnlen::     Character string length
 * strpbrk::     Find chars in string
 * strrchr::     Reverse search for character in string
@@ -48,6 +49,7 @@ managing areas of memory.  The corresponding declarations are in
 * strstr::      Find string segment
 * strtok::      Get next token from a string
 * strupr::	Convert string to upper case
+* strverscmp::  Compare version strings
 * strxfrm::     Transform string
 * swab::        Swap adjacent bytes
 * wcscasecmp::  Compare wide character strings ignoring case
@@ -158,6 +160,9 @@ managing areas of memory.  The corresponding declarations are in
 @include string/strncpy.def
 
 @page
+@include string/strnstr.def
+
+@page
 @include string/strnlen.def
 
 @page
@@ -180,6 +185,9 @@ managing areas of memory.  The corresponding declarations are in
 
 @page
 @include string/strupr.def
+
+@page
+@include string/strverscmp.def
 
 @page
 @include string/strxfrm.def

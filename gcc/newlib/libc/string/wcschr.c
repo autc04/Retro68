@@ -2,14 +2,9 @@
 FUNCTION
 	<<wcschr>>---wide-character string scanning operation
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wchar.h>
 	wchar_t *wcschr(const wchar_t *<[s]>, wchar_t <[c]>);
-
-TRAD_SYNOPSIS
-	wchar_t *wcschr(<[s]>, <[c]>
-	const wchar_t *<[s]>;
-	wchar_t <[c]>;
 
 DESCRIPTION
 	The <<wcschr>> function locates the first occurrence of <[c]> in the
@@ -63,11 +58,10 @@ No supporting OS subroutines are required.
 #include <wchar.h>
 
 wchar_t *
-_DEFUN (wcschr, (s, c),
-	_CONST wchar_t * s _AND
+wcschr (const wchar_t * s,
 	wchar_t c)
 {
-  _CONST wchar_t *p;
+  const wchar_t *p;
 
   p = s;
   do

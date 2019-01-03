@@ -22,14 +22,9 @@ FUNCTION
 INDEX
 	getw
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	int getw(FILE *<[fp]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	int getw(<[fp]>)
-	FILE *<[fp]>;
 
 DESCRIPTION
 <<getw>> is a function, defined in <<stdio.h>>.  You can use <<getw>>
@@ -59,8 +54,7 @@ static char sccsid[] = "%W% (Berkeley) %G%";
 #include <stdio.h>
 
 int
-_DEFUN(getw, (fp),
-       register FILE *fp)
+getw (register FILE *fp)
 {
   int result;
   if (fread ((char*)&result, sizeof (result), 1, fp) != 1)

@@ -25,7 +25,7 @@ INDEX
 INDEX
 	_mallopt_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <malloc.h>
 	struct mallinfo mallinfo(void);
 	void malloc_stats(void);
@@ -34,27 +34,6 @@ ANSI_SYNOPSIS
 	struct mallinfo _mallinfo_r(void *<[reent]>);
 	void _malloc_stats_r(void *<[reent]>);
 	int _mallopt_r(void *<[reent]>, int <[parameter]>, <[value]>);
-
-TRAD_SYNOPSIS
-	#include <malloc.h>
-	struct mallinfo mallinfo();
-
-	void malloc_stats();
-
-	int mallopt(<[parameter]>, <[value]>)
-	int <[parameter]>;
-	int <[value]>;
-
-	struct mallinfo _mallinfo_r(<[reent]>);
-	char *<[reent]>;
-
-	void _malloc_stats_r(<[reent]>);
-	char *<[reent]>;
-
-	int _mallopt_r(<[reent]>, <[parameter]>, <[value]>)
-	char *<[reent]>;
-	int <[parameter]>;
-	int <[value]>;
 
 DESCRIPTION
 <<mallinfo>> returns a structure describing the current state of
@@ -105,21 +84,20 @@ not portable.
 #ifndef _REENT_ONLY
 
 struct mallinfo
-_DEFUN_VOID (mallinfo)
+mallinfo (void)
 {
   return _mallinfo_r (_REENT);
 }
 
 #if !defined (_ELIX_LEVEL) || _ELIX_LEVEL >= 2
 void
-_DEFUN_VOID (malloc_stats)
+malloc_stats (void)
 {
   _malloc_stats_r (_REENT);
 }
 
 int
-_DEFUN (mallopt, (p, v),
-	int p _AND
+mallopt (int p,
 	int v)
 {
   return _mallopt_r (_REENT, p, v);
@@ -136,8 +114,7 @@ _DEFUN (mallopt, (p, v),
    malloc_stats.  */
 
 void
-_DEFUN (_mstats_r, (ptr, s),
-	struct _reent *ptr _AND
+_mstats_r (struct _reent *ptr,
 	char *s)
 {
   _REENT_SMALL_CHECK_INIT(ptr);
@@ -147,8 +124,7 @@ _DEFUN (_mstats_r, (ptr, s),
 
 #ifndef _REENT_ONLY
 void
-_DEFUN (mstats, (s),
-	char *s)
+mstats (char *s)
 {
   _mstats_r (_REENT, s);
 }

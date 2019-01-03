@@ -1,8 +1,8 @@
 // { dg-options "-std=gnu++17" }
-// { dg-do run { target c++1z } }
+// { dg-do run { target c++17 } }
 // { dg-require-cstdint "" }
 
-// Copyright (C) 2017 Free Software Foundation, Inc.
+// Copyright (C) 2017-2018 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the

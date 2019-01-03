@@ -31,9 +31,8 @@ static char sccsid[] = "%W% (Berkeley) %G%";
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(vsprintf, (str, fmt, ap),
-       char *__restrict str        _AND
-       const char *__restrict fmt _AND
+vsprintf (char *__restrict str,
+       const char *__restrict fmt,
        va_list ap)
 {
   return _vsprintf_r (_REENT, str, fmt, ap);
@@ -41,17 +40,16 @@ _DEFUN(vsprintf, (str, fmt, ap),
 
 #ifdef _NANO_FORMATTED_IO
 int
-_EXFUN(vsiprintf, (char *, const char *, __VALIST)
-       _ATTRIBUTE ((__alias__("vsprintf"))));
+vsiprintf (char *, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("vsprintf")));
 #endif
 
 #endif /* !_REENT_ONLY */
 
 int
-_DEFUN(_vsprintf_r, (ptr, str, fmt, ap),
-       struct _reent *ptr _AND
-       char *__restrict str          _AND
-       const char *__restrict fmt   _AND
+_vsprintf_r (struct _reent *ptr,
+       char *__restrict str,
+       const char *__restrict fmt,
        va_list ap)
 {
   int ret;
@@ -68,6 +66,6 @@ _DEFUN(_vsprintf_r, (ptr, str, fmt, ap),
 
 #ifdef _NANO_FORMATTED_IO
 int
-_EXFUN(_vsiprintf_r, (struct _reent *, char *, const char *, __VALIST)
-       _ATTRIBUTE ((__alias__("_vsprintf_r"))));
+_vsiprintf_r (struct _reent *, char *, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("_vsprintf_r")));
 #endif

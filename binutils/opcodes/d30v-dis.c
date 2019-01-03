@@ -1,5 +1,5 @@
 /* Disassemble D30V instructions.
-   Copyright (C) 1997-2017 Free Software Foundation, Inc.
+   Copyright (C) 1997-2018 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -225,7 +225,9 @@ print_insn (struct disassemble_info *info,
 		  val |= OPERAND_FLAG;
 		  break;
 		default:
-		  fprintf (stderr, "illegal id (%d)\n", id);
+		  /* xgettext: c-format */
+		  opcodes_error_handler (_("illegal id (%d)"), id);
+		  abort ();
 		}
 	    }
 	  else if (oper->flags & OPERAND_ACC)

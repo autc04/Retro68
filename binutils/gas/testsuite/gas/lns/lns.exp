@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2017 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,20 +24,18 @@ run_dump_test "lns-duplicate"
 # ??? Won't work on targets that don't have a bare "nop" insn.
 # Perhaps we could arrange for an include file or something that
 # defined a macro...
-if {
-        ![istarget i370-*-*]
-     && ![istarget i960-*-*]
-     && ![istarget s390*-*-*]
-} {
+if { ![istarget s390*-*-*] } {
     # Use alternate file for targets using DW_LNS_fixed_advance_pc opcodes.
     if {    [istarget am3*-*-*]
 	 || [istarget avr*-*-*]
 	 || [istarget cr16-*-*]
 	 || [istarget crx-*-*]
+	 || [istarget ft32*-*]
 	 || [istarget mn10*-*-*]
 	 || [istarget msp430-*-*]
 	 || [istarget nds32*-*-*]
 	 || [istarget pru-*-*]
+	 || [istarget riscv*-*-*]
 	 || [istarget rl78-*-*]
 	 || [istarget xtensa*-*-*] } {
       run_dump_test "lns-common-1-alt"

@@ -15,7 +15,7 @@ INDEX
 INDEX
 	_atoufix64_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
         __uint16_t atoufix16(const char *<[s]>);
 	__uint32_t atoufix32(const char *<[s]>);
@@ -25,29 +25,6 @@ ANSI_SYNOPSIS
 	__uint32_t _atoufix32_r(struct __reent *, const char *<[s]>);
 	__uint64_t _atoufix32_r(struct __reent *, const char *<[s]>);
 
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-	__uint16_t atoufix16(<[s]>)
-	const char *<[s]>;
-	
-	__uint32_t atoufix32(<[s]>)
-	const char *<[s]>;
-
-	__uint64_t atoufix64(<[s]>)
-	const char *<[s]>;
-
-	__uint16_t _atoufix16_r(<reent>, <[s]>)
-	struct _reent *<[reent]>;
-	const char *<[s]>;
-	
-	__uint32_t _atoufix32_r(<reent>, <[s]>)
-	struct _reent *<[reent]>;
-	const char *<[s]>;
-	
-	__uint64_t _atoufix64_r(<reent>, <[s]>)
-	struct _reent *<[reent]>;
-	const char *<[s]>;
-	
 DESCRIPTION
 	<<atoufix16>> converts the initial portion of a string to a
 	16-bit fraction unsigned fixed point value.
@@ -85,17 +62,15 @@ PORTABILITY
 #include <_ansi.h>
 
 __uint16_t
-_DEFUN (_atoufix16_r, (reent, s),
-	struct _reent *reent _AND
-	_CONST char *s)
+_atoufix16_r (struct _reent *reent,
+	const char *s)
 {
   return _strtoufix16_r (reent, s, NULL);
 }
 
 #ifndef _REENT_ONLY
 __uint16_t
-_DEFUN (atoufix16, (s),
-	_CONST char *s)
+atoufix16 (const char *s)
 {
   return strtoufix16 (s, NULL);
 }

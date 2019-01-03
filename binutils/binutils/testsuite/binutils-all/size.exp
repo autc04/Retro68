@@ -1,4 +1,4 @@
-#   Copyright (C) 1993-2017 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,51 +31,52 @@ send_user "Version [binutil_version $SIZE]"
 
 
 if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
-    return
-}
-
-if [is_remote host] {
-    set testfile [remote_download host tmpdir/bintest.o]
+    fail "size (assembling)"
 } else {
-    set testfile tmpdir/bintest.o
-}
 
-set dec "\[0-9\]+"
-set hex "\[0-9a-fA-F\]+"
+    if [is_remote host] {
+	set testfile [remote_download host tmpdir/bintest.o]
+    } else {
+	set testfile tmpdir/bintest.o
+    }
 
-# Test size with no arguments
+    set dec "\[0-9\]+"
+    set hex "\[0-9a-fA-F\]+"
 
-set got [binutils_run $SIZE "$SIZEFLAGS $testfile"]
+    # Test size with no arguments
 
-set want "($dec)\[ 	\]+($dec)\[ 	\]+($dec)\[ 	\]+($dec)\[ 	\]+($hex)\[ 	\]+${testfile}"
+    set got [binutils_run $SIZE "$SIZEFLAGS $testfile"]
 
-if ![regexp $want $got all text data bss dtot hextot] then {
-    fail "size (no arguments)"
-} else {
-    if {$text < 8 || $data < 4} then {
-	# The z80-coff port defaults to a "binary" like output
-	# file format which does not include a data section.
-	setup_xfail "z80-*-coff"
+    set want "($dec)\[ 	\]+($dec)\[ 	\]+($dec)\[ 	\]+($dec)\[ 	\]+($hex)\[ 	\]+${testfile}"
+
+    if ![regexp $want $got all text data bss dtot hextot] then {
 	fail "size (no arguments)"
     } else {
-	pass "size (no arguments)"
+	if {$text < 8 || $data < 4} then {
+	    # The z80-coff port defaults to a "binary" like output
+	    # file format which does not include a data section.
+	    setup_xfail "z80-*-coff"
+	    fail "size (no arguments)"
+	} else {
+	    pass "size (no arguments)"
+	}
     }
-}
 
-# Test size -A
+    # Test size -A
 
-set got [binutils_run $SIZE "$SIZEFLAGS -A ${testfile}"]
+    set got [binutils_run $SIZE "$SIZEFLAGS -A ${testfile}"]
 
-set want "${testfile}.*(text|TEXT|P)\[^\n\r\]*\[ 	\]($dec)\[ 	\]+$dec.*(\\.data|DATA|D_1)\[^\n\r\]*\[ 	\]($dec)\[ 	\]+$dec"
+    set want "${testfile}.*(text|TEXT|P)\[^\n\r\]*\[ 	\]($dec)\[ 	\]+$dec.*(\\.data|DATA|D_1)\[^\n\r\]*\[ 	\]($dec)\[ 	\]+$dec"
 
-if ![regexp $want $got all textname textsize dataname datasize] then {
-    fail "size -A"
-} else {
-    verbose "text size: $textsize"
-    verbose "data size: $datasize"
-    if {$textsize < 8 || $datasize < 4} then {
+    if ![regexp $want $got all textname textsize dataname datasize] then {
 	fail "size -A"
     } else {
-	pass "size -A"
+	verbose "text size: $textsize"
+	verbose "data size: $datasize"
+	if {$textsize < 8 || $datasize < 4} then {
+	    fail "size -A"
+	} else {
+	    pass "size -A"
+	}
     }
 }

@@ -9,7 +9,7 @@
 
 Disassembly of section .plt:
 
-0+c0 <.plt>:
+.* <.plt>:
 [ 	]*[a-f0-9]+:	ff b3 04 00 00 00    	pushl  0x4\(%ebx\)
 [ 	]*[a-f0-9]+:	ff a3 08 00 00 00    	jmp    \*0x8\(%ebx\)
 [ 	]*[a-f0-9]+:	00 00                	add    %al,\(%eax\)
@@ -20,7 +20,7 @@ Disassembly of section .plt:
 
 Disassembly of section .text:
 
-0+e0 <_start>:
+.* <_start>:
 [ 	]*[a-f0-9]+:	3b 80 f8 ff ff ff    	cmp    -0x8\(%eax\),%eax
 [ 	]*[a-f0-9]+:	ff a0 fc ff ff ff    	jmp    \*-0x4\(%eax\)
-[ 	]*[a-f0-9]+:	e8 df ff ff ff       	call   d0 <.*>
+[ 	]*[a-f0-9]+:	e8 df ff ff ff       	call   .* <\.plt\+0x10>

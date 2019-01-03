@@ -5,15 +5,9 @@ FUNCTION
 INDEX
 	strrchr
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	char * strrchr(const char *<[string]>, int <[c]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	char * strrchr(<[string]>, <[c]>);
-	char *<[string]>;
-	int *<[c]>;
 
 DESCRIPTION
 	This function finds the last occurence of <[c]> (converted to
@@ -36,11 +30,10 @@ QUICKREF
 #include <string.h>
 
 char *
-_DEFUN (strrchr, (s, i),
-	_CONST char *s _AND
+strrchr (const char *s,
 	int i)
 {
-  _CONST char *last = NULL;
+  const char *last = NULL;
 
   if (i)
     {

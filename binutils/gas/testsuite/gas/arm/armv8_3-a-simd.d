@@ -1,6 +1,6 @@
 #as: -march=armv8.3-a+fp16+simd
 #objdump: -dr
-#skip: *-*-pe *-wince-* *-*-coff
+#skip: *-*-pe *-wince-*
 
 .*: +file format .*arm.*
 

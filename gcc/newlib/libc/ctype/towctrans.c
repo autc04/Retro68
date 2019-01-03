@@ -37,18 +37,12 @@ INDEX
 INDEX
 	towctrans_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wctype.h>
 	wint_t towctrans(wint_t <[c]>, wctrans_t <[w]>);
 
 	#include <wctype.h>
 	wint_t towctrans_l(wint_t <[c]>, wctrans_t <[w]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <wctype.h>
-	wint_t towctrans(<[c]>, <[w]>)
-	wint_t <[c]>;
-	wctrans_t <[w]>;
 
 
 DESCRIPTION
@@ -82,9 +76,8 @@ No supporting OS subroutines are required.
 #include "local.h"
 
 wint_t
-_DEFUN (_towctrans_r, (r, c, w), 
-	struct _reent *r _AND
-	wint_t c _AND 
+_towctrans_r (struct _reent *r,
+	wint_t c,
 	wctrans_t w)
 {
   if (w == WCT_TOLOWER)
@@ -100,8 +93,7 @@ _DEFUN (_towctrans_r, (r, c, w),
 
 #ifndef _REENT_ONLY
 wint_t
-_DEFUN (towctrans, (c, w),
-	wint_t c _AND
+towctrans (wint_t c,
         wctrans_t w)
 {
   return _towctrans_r (_REENT, c, w);

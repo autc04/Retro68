@@ -2,7 +2,7 @@
 
 # bnd_ifunc_1.sh -- test -z bndplt for x86_64
 
-# Copyright (C) 2016-2017 Free Software Foundation, Inc.
+# Copyright (C) 2016-2018 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@gmail.com>.
 
 # This file is part of gold.

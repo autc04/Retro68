@@ -1,6 +1,6 @@
 # Test NOCROSSREFS in a linker script.
 # By Ian Lance Taylor, Cygnus Support.
-#   Copyright (C) 2000-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2000-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -75,11 +75,6 @@ if { ![ld_compile $CC "$srcdir/$subdir/cross1.c" tmpdir/cross1.o] \
 }
 
 set flags [big_or_little_endian]
-
-if [istarget sh64*-*-elf] {
-    # This is what gcc passes to ld by default.
-    set flags "-mshelf32"
-}
 
 # arc-elf32 requires the symbol __SDATA_BEGIN__ to always be present.
 if [istarget arc*-*-elf32] {

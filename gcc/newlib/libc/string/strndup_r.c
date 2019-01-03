@@ -3,12 +3,11 @@
 #include <string.h>
 
 char *
-_DEFUN (_strndup_r, (reent_ptr, str, n), 
-        struct _reent *reent_ptr  _AND
-        _CONST char   *str _AND
+_strndup_r (struct _reent *reent_ptr,
+        const char   *str,
         size_t n)
 {
-  _CONST char *ptr = str;
+  const char *ptr = str;
   size_t len;
   char *copy;
 

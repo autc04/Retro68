@@ -1,6 +1,6 @@
 // dwarf.h -- DWARF2 constants  -*- C++ -*-
 
-// Copyright (C) 2006-2017 Free Software Foundation, Inc.
+// Copyright (C) 2006-2018 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of elfcpp.
@@ -72,6 +72,7 @@ namespace elfcpp
 #define DW_FIRST_CFA(name, value) enum DW_CFA { \
   name = value
 #define DW_CFA(name, value) , name = value
+#define DW_CFA_DUP(name, value) , name = value
 #define DW_END_CFA };
 
 #define DW_FIRST_IDX(name, value) enum dwarf_name_index_attribute { \
@@ -107,6 +108,7 @@ namespace elfcpp
 #undef DW_END_ATE
 
 #undef DW_FIRST_CFA
+#undef DW_CFA_DUP
 #undef DW_CFA
 #undef DW_END_CFA
 

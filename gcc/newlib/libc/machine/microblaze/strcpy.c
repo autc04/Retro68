@@ -34,15 +34,9 @@ FUNCTION
 INDEX
 	strcpy
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	char *strcpy(char *restrict <[dst]>, const char *restrict <[src]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	char *strcpy(<[dst]>, <[src]>)
-	char *<[dst]>;
-	char *<[src]>;
 
 DESCRIPTION
 	<<strcpy>> copies the string pointed to by <[src]>
@@ -87,9 +81,8 @@ QUICKREF
 #endif
 
 char*
-_DEFUN (strcpy, (dst0, src0),
-	char *__restrict dst0 _AND
-	_CONST char *__restrict src0)
+strcpy (char *__restrict dst0,
+	const char *__restrict src0)
 {
 
 #ifndef HAVE_HW_PCMP
@@ -103,9 +96,9 @@ _DEFUN (strcpy, (dst0, src0),
   return s;
 #else
   char *dst = dst0;
-  _CONST char *src = src0;
+  const char *src = src0;
   long *aligned_dst;
-  _CONST long *aligned_src;
+  const long *aligned_src;
 
   /* If SRC or DEST is unaligned, then copy bytes.  */
   if (!UNALIGNED (src, dst))

@@ -5,13 +5,9 @@ FUNCTION
 INDEX
 	ffs
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <strings.h>
 	int ffs(int <[word]>);
-
-TRAD_SYNOPSIS
-	#include <strings.h>
-	int ffs(<[word]>);
 
 DESCRIPTION
 
@@ -29,18 +25,8 @@ No supporting OS subroutines are required.  */
 #include <strings.h>
 
 int
-_DEFUN(ffs, (word),
-       int word)
+ffs(int i)
 {
-  int i;
 
-  if (!word)
-    return 0;
-
-  i = 0;
-  for (;;)
-    {
-      if (((1 << i++) & word) != 0)
-	return i;
-    }
+	return (__builtin_ffs(i));
 }

@@ -28,7 +28,7 @@ INDEX
 INDEX
 	_fputs_unlocked_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	int fputs(const char *restrict <[s]>, FILE *restrict <[fp]>);
 
@@ -41,30 +41,6 @@ ANSI_SYNOPSIS
 
 	#include <stdio.h>
 	int _fputs_unlocked_r(struct _reent *<[ptr]>, const char *restrict <[s]>, FILE *restrict <[fp]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	int fputs(<[s]>, <[fp]>)
-	char *<[s]>;
-	FILE *<[fp]>;
-
-	#define _GNU_SOURCE
-	#include <stdio.h>
-	int fputs_unlocked(<[s]>, <[fp]>)
-	char *<[s]>;
-	FILE *<[fp]>;
-
-	#include <stdio.h>
-	int _fputs_r(<[ptr]>, <[s]>, <[fp]>)
-	struct _reent *<[ptr]>;
-	char *<[s]>;
-	FILE *<[fp]>;
-
-	#include <stdio.h>
-	int _fputs_unlocked_r(<[ptr]>, <[s]>, <[fp]>)
-	struct _reent *<[ptr]>;
-	char *<[s]>;
-	FILE *<[fp]>;
 
 DESCRIPTION
 <<fputs>> writes the string at <[s]> (but without the trailing null)
@@ -110,9 +86,8 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
  * Write the given string to the given file.
  */
 int
-_DEFUN(_fputs_r, (ptr, s, fp),
-       struct _reent * ptr _AND
-       char _CONST *__restrict s _AND
+_fputs_r (struct _reent * ptr,
+       char const *__restrict s,
        FILE *__restrict fp)
 {
 #ifdef _FVWRITE_IN_STREAMIO
@@ -133,7 +108,7 @@ _DEFUN(_fputs_r, (ptr, s, fp),
   _newlib_flockfile_end (fp);
   return result;
 #else
-  _CONST char *p = s;
+  const char *p = s;
 
   CHECK_INIT(ptr, fp);
 
@@ -159,8 +134,7 @@ error:
 
 #ifndef _REENT_ONLY
 int
-_DEFUN(fputs, (s, fp),
-       char _CONST *__restrict s _AND
+fputs (char const *__restrict s,
        FILE *__restrict fp)
 {
   return _fputs_r (_REENT, s, fp);

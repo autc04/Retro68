@@ -131,9 +131,35 @@ typedef struct {
 
 #endif /* !defined(_UNIX98_THREAD_MUTEX_ATTRIBUTES) */
 
-typedef __uint32_t pthread_mutex_t;      /* identify a mutex */
+struct _Chain_Node {
+  struct _Chain_Node *_next;
+  struct _Chain_Node *_previous;
+};
 
-#define _PTHREAD_MUTEX_INITIALIZER ((pthread_mutex_t) 0xFFFFFFFF)
+struct _RBTree_Node {
+  struct _RBTree_Node *_left;
+  struct _RBTree_Node *_right;
+  struct _RBTree_Node *_parent;
+  int _color;
+};
+
+struct _Priority_Node {
+  union {
+    struct _RBTree_Node _RBTree;
+    struct _Chain_Node _Chain;
+  } _Node;
+  __uint64_t _priority;
+};
+
+typedef struct {
+  unsigned long _flags;
+  struct _Mutex_recursive_Control _Recursive;
+  struct _Priority_Node _Priority_ceiling;
+  const struct _Scheduler_Control *_scheduler;
+} pthread_mutex_t;
+
+#define _PTHREAD_MUTEX_INITIALIZER \
+  { 0, _MUTEX_RECURSIVE_INITIALIZER, { { { 0, 0, 0, 0 } }, 0 }, 0 }
 
 typedef struct {
   int   is_initialized;
@@ -152,9 +178,13 @@ typedef struct {
 
 /* Condition Variables */
 
-typedef __uint32_t pthread_cond_t;       /* identify a condition variable */
+typedef struct {
+  unsigned long _flags;
+  struct _Thread_queue_Queue _Queue;
+  pthread_mutex_t *_mutex;
+} pthread_cond_t;
 
-#define _PTHREAD_COND_INITIALIZER ((pthread_cond_t) 0xFFFFFFFF)
+#define _PTHREAD_COND_INITIALIZER { 0, _THREAD_QUEUE_INITIALIZER, 0 }
 
 typedef struct {
   int      is_initialized;
@@ -169,17 +199,23 @@ typedef struct {
 typedef __uint32_t pthread_key_t;        /* thread-specific data keys */
 
 typedef struct {
-  int   is_initialized;  /* is this structure initialized? */
-  int   init_executed;   /* has the initialization routine been run? */
-} pthread_once_t;       /* dynamic package initialization */
+  unsigned char _flags;
+} pthread_once_t;
 
-#define _PTHREAD_ONCE_INIT  { 1, 0 }  /* is initialized and not run */
+#define _PTHREAD_ONCE_INIT { 0 }
+
 #endif /* defined(_POSIX_THREADS) */
 
 /* POSIX Barrier Types */
 
 #if defined(_POSIX_BARRIERS)
-typedef __uint32_t pthread_barrier_t;        /* POSIX Barrier Object */
+typedef struct {
+  unsigned long _flags;
+  struct _Thread_queue_Queue _Queue;
+  unsigned int _count;
+  unsigned int _waiting_threads;
+} pthread_barrier_t;
+
 typedef struct {
   int   is_initialized;  /* is this structure initialized? */
 #if defined(_POSIX_THREAD_PROCESS_SHARED)
@@ -200,9 +236,14 @@ typedef struct {
 /* POSIX Reader/Writer Lock Types */
 
 #if defined(_POSIX_READER_WRITER_LOCKS)
-typedef __uint32_t pthread_rwlock_t;         /* POSIX RWLock Object */
+typedef struct {
+  unsigned long _flags;
+  struct _Thread_queue_Queue _Queue;
+  unsigned int _current_state;
+  unsigned int _number_of_readers;
+} pthread_rwlock_t;
 
-#define _PTHREAD_RWLOCK_INITIALIZER ((pthread_rwlock_t) 0xFFFFFFFF)
+#define _PTHREAD_RWLOCK_INITIALIZER { 0, _THREAD_QUEUE_INITIALIZER, 0, 0 }
 
 typedef struct {
   int   is_initialized;       /* is this structure initialized? */

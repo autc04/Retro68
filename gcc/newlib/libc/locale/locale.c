@@ -11,7 +11,7 @@ INDEX
 INDEX
 	_localeconv_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <locale.h>
 	char *setlocale(int <[category]>, const char *<[locale]>);
 	lconv *localeconv(void);
@@ -19,22 +19,6 @@ ANSI_SYNOPSIS
 	char *_setlocale_r(void *<[reent]>,
                         int <[category]>, const char *<[locale]>);
 	lconv *_localeconv_r(void *<[reent]>);
-
-TRAD_SYNOPSIS
-	#include <locale.h>
-	char *setlocale(<[category]>, <[locale]>)
-	int <[category]>;
-	char *<[locale]>;
-
-	lconv *localeconv();
-
-	char *_setlocale_r(<[reent]>, <[category]>, <[locale]>)
-	char *<[reent]>;
-	int <[category]>;
-	char *<[locale]>;
-
-	lconv *_localeconv_r(<[reent]>);
-	char *<[reent]>;
 
 DESCRIPTION
 <<setlocale>> is the facility defined by ANSI C to condition the
@@ -305,10 +289,9 @@ static char *currentlocale (void);
 #endif /* _MB_CAPABLE */
 
 char *
-_DEFUN(_setlocale_r, (p, category, locale),
-       struct _reent *p _AND
-       int category _AND
-       _CONST char *locale)
+_setlocale_r (struct _reent *p,
+       int category,
+       const char *locale)
 {
 #ifndef _MB_CAPABLE
   if (locale)
@@ -498,7 +481,11 @@ __loadlocale (struct __locale_t *loc, int category, const char *new_locale)
   mbtowc_p l_mbtowc;
   int cjknarrow = 0;
 
-  /* Avoid doing everything twice if nothing has changed. */
+  /* Avoid doing everything twice if nothing has changed.
+
+     duplocale relies on this test to go wrong so the locale is actually
+     duplicated when required.  Any change here has to be synced with a
+     matching change in duplocale. */
   if (!strcmp (new_locale, loc->categories[category]))
     return loc->categories[category];
 
@@ -978,7 +965,7 @@ __get_locale_env (struct _reent *p, int category)
 #endif /* _MB_CAPABLE */
 
 int
-_DEFUN_VOID (__locale_mb_cur_max)
+__locale_mb_cur_max (void)
 {
 #ifdef __HAVE_LOCALE_INFO__
   return __get_current_ctype_locale ()->mb_cur_max[0];
@@ -1002,9 +989,8 @@ __locale_ctype_ptr (void)
 #ifndef _REENT_ONLY
 
 char *
-_DEFUN (setlocale, (category, locale),
-	int category _AND
-	_CONST char *locale)
+setlocale (int category,
+	const char *locale)
 {
   return _setlocale_r (_REENT, category, locale);
 }

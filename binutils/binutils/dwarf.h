@@ -1,5 +1,5 @@
 /* dwarf.h - DWARF support header file
-   Copyright (C) 2005-2017 Free Software Foundation, Inc.
+   Copyright (C) 2005-2018 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -116,6 +116,9 @@ enum dwarf_section_display_enum
   debug_addr,
   dwp_cu_index,
   dwp_tu_index,
+  gnu_debuglink,
+  gnu_debugaltlink,
+  separate_debug_str,
   max
 };
 
@@ -125,30 +128,31 @@ struct dwarf_section
      or not.  COMPRESSED_NAME and UNCOMPRESSED_NAME are the two
      possibilities.  NAME is set to whichever one is used for this
      input file, as determined by load_debug_section().  */
-  const char *uncompressed_name;
-  const char *compressed_name;
-  const char *name;
-  unsigned char *start;
-  dwarf_vma address;
-  dwarf_size_type size;
-  enum dwarf_section_display_enum abbrev_sec;
-
+  const char *                     uncompressed_name;
+  const char *                     compressed_name;
+  const char *                     name;
+  /* If non-NULL then FILENAME is the name of the separate debug info
+     file containing the section.  */
+  const char *                     filename;
+  unsigned char *                  start;
+  dwarf_vma                        address;
+  dwarf_size_type                  size;
+  enum dwarf_section_display_enum  abbrev_sec;
   /* Used by clients to help them implement the reloc_at callback.  */
-  void * reloc_info;
-  unsigned long num_relocs;
-
+  void *                           reloc_info;
+  unsigned long                    num_relocs;
   /* A spare field for random use.  */
-  void *user_data;
+  void *                           user_data;
 };
 
 /* A structure containing the name of a debug section
    and a pointer to a function that can decode it.  */
 struct dwarf_section_display
 {
-  struct dwarf_section section;
-  int (*display) (struct dwarf_section *, void *);
-  int *enabled;
-  bfd_boolean relocate;
+  struct dwarf_section  section;
+  int (*                display) (struct dwarf_section *, void *);
+  int *                 enabled;
+  bfd_boolean           relocate;
 };
 
 extern struct dwarf_section_display debug_displays [];
@@ -170,9 +174,12 @@ typedef struct
   dwarf_vma	 ranges_base;
   /* This is an array of offsets to the location list table.  */
   dwarf_vma *    loc_offsets;
+  /* This is an array of offsets to the location view table.  */
+  dwarf_vma *    loc_views;
   int *          have_frame_base;
   unsigned int   num_loc_offsets;
   unsigned int   max_loc_offsets;
+  unsigned int   num_loc_views;
   /* List of .debug_ranges offsets seen in this .debug_info.  */
   dwarf_vma *    range_lists;
   unsigned int   num_range_lists;
@@ -201,6 +208,7 @@ extern int do_trace_aranges;
 extern int do_debug_addr;
 extern int do_debug_cu_index;
 extern int do_wide;
+extern int do_debug_links;
 
 extern int dwarf_cutoff_level;
 extern unsigned long dwarf_start_die;
@@ -213,9 +221,13 @@ extern void init_dwarf_regnames_iamcu (void);
 extern void init_dwarf_regnames_x86_64 (void);
 extern void init_dwarf_regnames_aarch64 (void);
 extern void init_dwarf_regnames_s390 (void);
+extern void init_dwarf_regnames_riscv (void);
 
-extern int load_debug_section (enum dwarf_section_display_enum, void *);
-extern void free_debug_section (enum dwarf_section_display_enum);
+extern bfd_boolean  load_debug_section (enum dwarf_section_display_enum, void *);
+extern void         free_debug_section (enum dwarf_section_display_enum);
+extern void *       load_separate_debug_file (void *, const char *);
+extern void         close_debug_file (void *);
+extern void *       open_debug_file (const char *);
 
 extern void free_debug_memory (void);
 

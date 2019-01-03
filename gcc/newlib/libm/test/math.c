@@ -35,8 +35,7 @@ int verbose;
 
 /* To test exceptions - we trap them all and return a known value */
 int
-_DEFUN(matherr,(e),
-       struct exception *e)
+matherr (struct exception *e)
 {
   if (traperror) 
   {
@@ -50,8 +49,7 @@ _DEFUN(matherr,(e),
 }
 
 
-void _DEFUN(translate_to,(file,r),
-	    FILE *file _AND
+void translate_to (FILE *file,
 	    double r)
 {
   __ieee_double_shape_type bits;
@@ -60,11 +58,10 @@ void _DEFUN(translate_to,(file,r),
 }
 
 int 
-_DEFUN(ffcheck,( is, p, name, serrno, merror),
-       double is _AND
-       one_line_type *p _AND
-       char *name _AND
-       int serrno _AND
+ffcheck (double is,
+       one_line_type *p,
+       char *name,
+       int serrno,
        int merror)
 {
   /* Make sure the answer isn't to far wrong from the correct value */
@@ -108,8 +105,7 @@ _DEFUN(ffcheck,( is, p, name, serrno, merror),
 }
 
 double
-_DEFUN(thedouble, (msw, lsw),
-       long msw _AND
+thedouble (long msw,
        long lsw)
 {
   __ieee_double_shape_type x;
@@ -123,14 +119,13 @@ int calc;
 int reduce;
 
 
-_DEFUN(frontline,(f, mag, p, result, merror, errno, args, name),
-       FILE *f _AND
-       int mag _AND
-       one_line_type *p _AND
-       double result _AND
-       int merror _AND
-       int errno _AND
-       char *args _AND
+frontline (FILE *f,
+       int mag,
+       one_line_type *p,
+       double result,
+       int merror,
+       int errno,
+       char *args,
        char *name)
 {
   if (reduce && p->error_bit < mag) 
@@ -176,12 +171,11 @@ _DEFUN(frontline,(f, mag, p, result, merror, errno, args, name),
   fprintf(f, ")*/\n");      
 }
 
-_DEFUN(finish,(f, vector,  result , p, args, name),
-       FILE *f _AND
-       int vector _AND
-       double result _AND
-       one_line_type *p _AND
-       char *args _AND
+finish (FILE *f,
+       int vector,
+       double result,
+       one_line_type *p,
+       char *args,
        char *name)
 {
   int mag;
@@ -194,11 +188,10 @@ _DEFUN(finish,(f, vector,  result , p, args, name),
 } 
 int redo;  
 
-_DEFUN(run_vector_1,(vector, p, func, name, args),
-       int vector _AND
-       one_line_type *p _AND
-       char *func _AND
-       char *name _AND
+run_vector_1 (int vector,
+       one_line_type *p,
+       char *func,
+       char *name,
        char *args)
 {
   FILE *f;
@@ -270,7 +263,7 @@ _DEFUN(run_vector_1,(vector, p, func, name, args),
 
     if (strcmp(args,"dd")==0)
     {
-      typedef double _EXFUN((*pdblfunc),(double));
+      typedef double (*pdblfunc) (double);
       
       /* Double function returning a double */
       
@@ -283,7 +276,7 @@ _DEFUN(run_vector_1,(vector, p, func, name, args),
       float arga;
       double a;
       
-      typedef float _EXFUN((*pdblfunc),(float));
+      typedef float (*pdblfunc) (float);
       
       /* Double function returning a double */
       
@@ -296,7 +289,7 @@ _DEFUN(run_vector_1,(vector, p, func, name, args),
     }      
     else if (strcmp(args,"ddd")==0)
      {
-       typedef double _EXFUN((*pdblfunc),(double,double));
+       typedef double (*pdblfunc) (double,double);
       
        result = ((pdblfunc)(func))(arg1,arg2);
        finish(f, vector, result, p,args, name);       
@@ -308,7 +301,7 @@ _DEFUN(run_vector_1,(vector, p, func, name, args),
        float arga;
        float argb;
       
-       typedef float _EXFUN((*pdblfunc),(float,float));
+       typedef float (*pdblfunc) (float,float);
       
 
        if (arg1 < FLT_MAX && arg2 < FLT_MAX) 
@@ -321,7 +314,7 @@ _DEFUN(run_vector_1,(vector, p, func, name, args),
      }      
      else if (strcmp(args,"did")==0)
      {
-       typedef double _EXFUN((*pdblfunc),(int,double));
+       typedef double (*pdblfunc) (int,double);
       
        result = ((pdblfunc)(func))((int)arg1,arg2);
        finish(f, vector, result, p,args, name);       
@@ -333,7 +326,7 @@ _DEFUN(run_vector_1,(vector, p, func, name, args),
        float arga;
        float argb;
       
-       typedef float _EXFUN((*pdblfunc),(int,float));
+       typedef float (*pdblfunc) (int,float);
       
 
        if (arg1 < FLT_MAX && arg2 < FLT_MAX) 
@@ -354,7 +347,7 @@ _DEFUN(run_vector_1,(vector, p, func, name, args),
 }
 
 void
-_DEFUN_VOID(test_math)
+test_math (void)
 {
   test_acos(0);
   test_acosf(0);
@@ -429,12 +422,12 @@ _DEFUN_VOID(test_math)
 */
 
 #if 0
-float _DEFUN(cosf,(a), float a) { return cos((double)a); }
-float _DEFUN(sinf,(a), float  a) { return sin((double)a); }
-float _DEFUN(log1pf,(a), float a) { return log1p((double)a); }
-float _DEFUN(tanf,(a), float a) { return tan((double)a); }
-float _DEFUN(ceilf,(a), float a) { return ceil(a); }
-float _DEFUN(floorf,(a), float a) { return floor(a); }
+float cosf (float a) { return cos((double)a); }
+float sinf (float  a) { return sin((double)a); }
+float log1pf (float a) { return log1p((double)a); }
+float tanf (float a) { return tan((double)a); }
+float ceilf (float a) { return ceil(a); }
+float floorf (float a) { return floor(a); }
 #endif
 
 /*ndef HAVE_FLOAT*/

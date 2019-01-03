@@ -1,5 +1,5 @@
 # Expect script for ELF MPX tests.
-#   Copyright (C) 2013-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2013-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -107,23 +107,26 @@ set run_tests {
 
 run_ld_link_tests {
     {"Build libcall.so"
-     "-m elf_x86_64 -shared -z bndplt" "" "--64"
-     {mpx3b.s} {} "libcall.so"}
+     "-m elf_x86_64 -shared -z bndplt" ""
+     "--64" {mpx3b.s} {} "libcall.so"}
     {"Build mpx3"
-     "-m elf_x86_64 -z bndplt tmpdir/libcall.so" "" "--64"
-     {mpx3a.s} {{objdump -dw mpx3.dd}} "mpx3"}
+     "-m elf_x86_64 -z bndplt tmpdir/libcall.so" ""
+     "--64" {mpx3a.s} {{objdump -dw mpx3.dd}} "mpx3"}
     {"Build libcall1.so"
-     "-m elf_x86_64 -shared -z bndplt" "" "--64"
-     {mpx4b.s} {} "libcall1.so"}
+     "-m elf_x86_64 -shared -z bndplt" ""
+     "--64" {mpx4b.s} {} "libcall1.so"}
     {"Build mpx4"
-     "-m elf_x86_64 -z bndplt tmpdir/libcall1.so" "" "--64"
-     {mpx4a.s} {{objdump -dw mpx4.dd}} "mpx4"}
+     "-m elf_x86_64 -z bndplt --hash-style=sysv tmpdir/libcall1.so \
+      -z max-page-size=0x200000 -z noseparate-code" ""
+     "--64" {mpx4a.s} {{objdump -dw mpx4.dd}} "mpx4"}
     {"Build mpx3 (-z now)"
-     "-z now -m elf_x86_64 -z bndplt tmpdir/libcall.so" "" "--64"
-     {mpx3a.s} {{objdump -dw mpx3n.dd}} "mpx3n"}
+     "-z now -m elf_x86_64 -z bndplt --hash-style=sysv tmpdir/libcall.so \
+      -z max-page-size=0x200000 -z noseparate-code" ""
+     "--64" {mpx3a.s} {{objdump -dw mpx3n.dd}} "mpx3n"}
     {"Build mpx4 (-z now)"
-     "-z now -m elf_x86_64 -z bndplt tmpdir/libcall1.so" "" "--64"
-     {mpx4a.s} {{objdump -dw mpx4n.dd}} "mpx4n"}
+     "-z now -m elf_x86_64 -z bndplt --hash-style=sysv tmpdir/libcall1.so \
+      -z max-page-size=0x200000 -z noseparate-code" ""
+     "--64" {mpx4a.s} {{objdump -dw mpx4n.dd}} "mpx4n"}
 }
 
 run_ld_link_exec_tests $run_tests

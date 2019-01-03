@@ -11,7 +11,9 @@
 /* Make this a weak reference to avoid pulling in free.  */
 void free(void *) _ATTRIBUTE((__weak__));
 
-__LOCK_INIT_RECURSIVE(, __atexit_lock);
+#ifndef __SINGLE_THREAD__
+__LOCK_INIT_RECURSIVE(, __atexit_recursive_mutex);
+#endif
 
 #ifdef _REENT_GLOBAL_ATEXIT
 struct _atexit *_global_atexit = _NULL;
@@ -63,8 +65,7 @@ register_fini(void)
  */
 
 void 
-_DEFUN (__call_exitprocs, (code, d),
-	int code _AND _PTR d)
+__call_exitprocs (int code, void *d)
 {
   register struct _atexit *p;
   struct _atexit **lastp;
@@ -75,7 +76,7 @@ _DEFUN (__call_exitprocs, (code, d),
 
 
 #ifndef __SINGLE_THREAD__
-  __lock_acquire_recursive(__atexit_lock);
+  __lock_acquire_recursive(__atexit_recursive_mutex);
 #endif
 
  restart:
@@ -117,9 +118,9 @@ _DEFUN (__call_exitprocs, (code, d),
 	  if (!args || (args->_fntypes & i) == 0)
 	    fn ();
 	  else if ((args->_is_cxa & i) == 0)
-	    (*((void (*)(int, _PTR)) fn))(code, args->_fnargs[n]);
+	    (*((void (*)(int, void *)) fn))(code, args->_fnargs[n]);
 	  else
-	    (*((void (*)(_PTR)) fn))(args->_fnargs[n]);
+	    (*((void (*)(void *)) fn))(args->_fnargs[n]);
 
 	  /* The function we called call atexit and registered another
 	     function (or functions).  Call these new functions before
@@ -157,7 +158,7 @@ _DEFUN (__call_exitprocs, (code, d),
 #endif
     }
 #ifndef __SINGLE_THREAD__
-  __lock_release_recursive(__atexit_lock);
+  __lock_release_recursive(__atexit_recursive_mutex);
 #endif
 
 }

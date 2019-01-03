@@ -14,11 +14,10 @@
 #include "local.h"
 
 char *
-_DEFUN(_asniprintf_r, (ptr, buf, lenp, fmt),
-       struct _reent *ptr _AND
-       char *buf _AND
-       size_t *lenp _AND
-       const char *fmt _DOTS)
+_asniprintf_r (struct _reent *ptr,
+       char *buf,
+       size_t *lenp,
+       const char *fmt, ...)
 {
   int ret;
   va_list ap;
@@ -61,10 +60,9 @@ _DEFUN(_asniprintf_r, (ptr, buf, lenp, fmt),
 #ifndef _REENT_ONLY
 
 char *
-_DEFUN(asniprintf, (buf, lenp, fmt),
-       char *buf _AND
-       size_t *lenp _AND
-       const char *fmt _DOTS)
+asniprintf (char *buf,
+       size_t *lenp,
+       const char *fmt, ...)
 {
   int ret;
   va_list ap;

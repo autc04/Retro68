@@ -11,7 +11,7 @@ INDEX
 INDEX
 	_strtoul_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
         unsigned long strtoul(const char *restrict <[s]>,
 			      char **restrict <[ptr]>, int <[base]>);
@@ -23,19 +23,6 @@ ANSI_SYNOPSIS
 
         unsigned long _strtoul_r(void *<[reent]>, const char *restrict <[s]>,
 				 char **restrict <[ptr]>, int <[base]>);
-
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-        unsigned long strtoul(<[s]>, <[ptr]>, <[base]>)
-        char *<[s]>;
-        char **<[ptr]>;
-        int <[base]>;
-
-        unsigned long _strtoul_r(<[reent]>, <[s]>, <[ptr]>, <[base]>)
-	char *<[reent]>;
-        char *<[s]>;
-        char **<[ptr]>;
-        int <[base]>;
 
 DESCRIPTION
 The function <<strtoul>> converts the string <<*<[s]>>> to
@@ -204,10 +191,9 @@ _strtoul_l (struct _reent *rptr, const char *__restrict nptr,
 }
 
 unsigned long
-_DEFUN (_strtoul_r, (rptr, nptr, endptr, base),
-	struct _reent *rptr _AND
-	_CONST char *__restrict nptr _AND
-	char **__restrict endptr _AND
+_strtoul_r (struct _reent *rptr,
+	const char *__restrict nptr,
+	char **__restrict endptr,
 	int base)
 {
   return _strtoul_l (rptr, nptr, endptr, base, __get_current_locale ());
@@ -223,9 +209,8 @@ strtoul_l (const char *__restrict s, char **__restrict ptr, int base,
 }
 
 unsigned long
-_DEFUN (strtoul, (s, ptr, base),
-	_CONST char *__restrict s _AND
-	char **__restrict ptr _AND
+strtoul (const char *__restrict s,
+	char **__restrict ptr,
 	int base)
 {
 	return _strtoul_l (_REENT, s, ptr, base, __get_current_locale ());

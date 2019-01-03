@@ -1,5 +1,5 @@
 # Expect script for SIZEOF tests
-#   Copyright (C) 2004-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -23,7 +23,7 @@
 # a.out objdump displays the file header inside the text segment,
 # confusing run_dump_test.
 
-if {[istarget "rs6000-*-aix*"] || [is_aout_format]} {
+if {[istarget "powerpc*-*-aix*"] || [istarget "rs6000-*-aix*"] || [is_aout_format]} {
     unsupported size-1
     unsupported size-2
     return

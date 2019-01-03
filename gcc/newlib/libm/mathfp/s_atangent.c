@@ -20,29 +20,12 @@ INDEX
 INDEX
    atanf
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <math.h>
         double atan(double <[x]>);
         float atan(float <[x]>);
         double atan2(double <[y]>,double <[x]>);
         float atan2f(float <[y]>,float <[x]>);
-
-TRAD_SYNOPSIS
-        #include <math.h>
-        double atan2(<[y]>,<[x]>);
-        double <[y]>;
-        double <[x]>;
-
-        float atan2f(<[y]>,<[x]>);
-        float <[y]>;
-        float <[x]>;
-
-        #include <math.h>
-        double atan(<[x]>);
-        double <[x]>;
-
-        float atanf(<[x]>);
-        float <[x]>;
 
 DESCRIPTION
 
@@ -102,10 +85,9 @@ static const double p[] = { -0.13688768894191926929e+2,
                      -0.83758299368150059274 };
 
 double
-_DEFUN (atangent, (double, double, double, int),
-        double x _AND
-        double v _AND
-        double u _AND
+atangent (double x,
+        double v,
+        double u,
         int arctan2)
 {
   double f, g, R, P, Q, A, res;

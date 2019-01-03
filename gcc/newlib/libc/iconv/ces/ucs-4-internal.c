@@ -44,10 +44,9 @@
 
 #if defined (ICONV_FROM_UCS_CES_UCS_4_INTERNAL)
 static size_t
-_DEFUN(ucs_4_internal_convert_from_ucs, (data, in, outbuf, outbytesleft),
-                                        _VOID_PTR data         _AND
-                                        register ucs4_t in     _AND
-                                        unsigned char **outbuf _AND
+ucs_4_internal_convert_from_ucs (void *data,
+                                        register ucs4_t in,
+                                        unsigned char **outbuf,
                                         size_t *outbytesleft)
 {
   if (in > 0x7FFFFFFF)
@@ -66,9 +65,8 @@ _DEFUN(ucs_4_internal_convert_from_ucs, (data, in, outbuf, outbytesleft),
 
 #if defined (ICONV_TO_UCS_CES_UCS_4_INTERNAL)
 static ucs4_t
-_DEFUN(ucs_4_internal_convert_to_ucs, (data, inbuf, inbytesleft),
-                                      _VOID_PTR data               _AND
-                                      _CONST unsigned char **inbuf _AND
+ucs_4_internal_convert_to_ucs (void *data,
+                                      const unsigned char **inbuf,
                                       size_t *inbytesleft)
 {
   register ucs4_t res;
@@ -89,14 +87,13 @@ _DEFUN(ucs_4_internal_convert_to_ucs, (data, inbuf, inbytesleft),
 #endif /* ICONV_TO_UCS_CES_UCS_4_INTERNAL */
 
 static int
-_DEFUN(ucs_4_internal_get_mb_cur_max, (data),
-                                      _VOID_PTR data)
+ucs_4_internal_get_mb_cur_max (void *data)
 {
   return 2;
 }
 
 #if defined (ICONV_TO_UCS_CES_UCS_4_INTERNAL)
-_CONST iconv_to_ucs_ces_handlers_t
+const iconv_to_ucs_ces_handlers_t
 _iconv_to_ucs_ces_handlers_ucs_4_internal = 
 {
   NULL,
@@ -110,7 +107,7 @@ _iconv_to_ucs_ces_handlers_ucs_4_internal =
 #endif
 
 #if defined (ICONV_FROM_UCS_CES_UCS_4_INTERNAL)
-_CONST iconv_from_ucs_ces_handlers_t
+const iconv_from_ucs_ces_handlers_t
 _iconv_from_ucs_ces_handlers_ucs_4_internal =
 {
   NULL,

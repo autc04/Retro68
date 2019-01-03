@@ -3,11 +3,7 @@
 
 #include "c99ppe.h"
 
-#ifdef _HAVE_STDC
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #ifdef INTEGER_ONLY
 #  define vsnprintf vsniprintf
@@ -19,7 +15,7 @@ typedef struct
   unsigned int pad0[ 3 ];
   size_t size;
   unsigned int pad1[ 3 ];
-  _CONST char* fmt;
+  const char* fmt;
   unsigned int pad2[ 3 ];
   va_list ap;
 } c99_vsnprintf_t;
@@ -27,10 +23,9 @@ typedef struct
 #ifndef _REENT_ONLY
 
 int
-_DEFUN (vsnprintf, (str, size, fmt, ap),
-     char *__restrict str _AND
-     size_t size _AND
-     _CONST char *__restrict fmt _AND
+vsnprintf (char *__restrict str,
+     size_t size,
+     const char *__restrict fmt,
      va_list ap)
 {
   c99_vsnprintf_t args;

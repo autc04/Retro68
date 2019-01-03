@@ -5,17 +5,10 @@ FUNCTION
 INDEX
 	stpncpy
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	char *stpncpy(char *restrict <[dst]>, const char *restrict <[src]>,
                       size_t <[length]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	char *stpncpy(<[dst]>, <[src]>, <[length]>)
-	char *<[dst]>;
-	char *<[src]>;
-	size_t <[length]>;
 
 DESCRIPTION
 	<<stpncpy>> copies not more than <[length]> characters from the
@@ -68,16 +61,15 @@ QUICKREF
 #define TOO_SMALL(LEN) ((LEN) < sizeof (long))
 
 char *
-_DEFUN (stpncpy, (dst, src),
-	char *__restrict dst _AND
-	_CONST char *__restrict src _AND
+stpncpy (char *__restrict dst,
+	const char *__restrict src,
 	size_t count)
 {
   char *ret = NULL;
 
 #if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__)
   long *aligned_dst;
-  _CONST long *aligned_src;
+  const long *aligned_src;
 
   /* If SRC and DEST is aligned and count large enough, then copy words.  */
   if (!UNALIGNED (src, dst) && !TOO_SMALL (count))

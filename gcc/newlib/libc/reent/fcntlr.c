@@ -28,18 +28,10 @@ FUNCTION
 INDEX
 	_fcntl_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <reent.h>
 	int _fcntl_r(struct _reent *<[ptr]>,
 		     int <[fd]>, int <[cmd]>, <[arg]>);
-
-TRAD_SYNOPSIS
-	#include <reent.h>
-	int _fcntl_r(<[ptr]>, <[fd]>, <[cmd]>, <[arg]>)
-	struct _reent *<[ptr]>;
-	int <[fd]>;
-	int <[cmd]>;
-	int <[arg]>;
 
 DESCRIPTION
 	This is a reentrant version of <<fcntl>>.  It
@@ -48,10 +40,9 @@ DESCRIPTION
 */
 
 int
-_DEFUN (_fcntl_r, (ptr, fd, cmd, arg),
-     struct _reent *ptr _AND
-     int fd _AND
-     int cmd _AND
+_fcntl_r (struct _reent *ptr,
+     int fd,
+     int cmd,
      int arg)
 {
   int ret;

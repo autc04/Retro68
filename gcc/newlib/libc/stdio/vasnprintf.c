@@ -14,11 +14,10 @@
 #include "local.h"
 
 char *
-_DEFUN(_vasnprintf_r, (ptr, buf, lenp, fmt, ap),
-       struct _reent *ptr _AND
-       char *buf _AND
-       size_t *lenp _AND
-       const char *fmt _AND
+_vasnprintf_r (struct _reent *ptr,
+       char *buf,
+       size_t *lenp,
+       const char *fmt,
        va_list ap)
 {
   int ret;
@@ -58,18 +57,17 @@ _DEFUN(_vasnprintf_r, (ptr, buf, lenp, fmt, ap),
 
 #ifdef _NANO_FORMATTED_IO
 char *
-_EXFUN(_vasniprintf_r, (struct _reent*, char *, size_t *,
+_vasniprintf_r (struct _reent*, char *, size_t *,
 			const char *, __VALIST)
-       _ATTRIBUTE ((__alias__("_vasnprintf_r"))));
+       _ATTRIBUTE ((__alias__("_vasnprintf_r")));
 #endif
 
 #ifndef _REENT_ONLY
 
 char *
-_DEFUN(vasnprintf, (buf, lenp, fmt, ap),
-       char *buf _AND
-       size_t *lenp _AND
-       const char *fmt _AND
+vasnprintf (char *buf,
+       size_t *lenp,
+       const char *fmt,
        va_list ap)
 {
   return _vasnprintf_r (_REENT, buf, lenp, fmt, ap);
@@ -77,7 +75,7 @@ _DEFUN(vasnprintf, (buf, lenp, fmt, ap),
 
 #ifdef _NANO_FORMATTED_IO
 char *
-_EXFUN(vasniprintf, (char *, size_t *, const char *, __VALIST)
-       _ATTRIBUTE ((__alias__("vasnprintf"))));
+vasniprintf (char *, size_t *, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("vasnprintf")));
 #endif
 #endif /* ! _REENT_ONLY */

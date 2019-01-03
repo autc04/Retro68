@@ -15,7 +15,7 @@ INDEX
 INDEX
 	_vec_free_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
 	void *vec_malloc(size_t <[nbytes]>);
 	void *vec_realloc(void *<[aptr]>, size_t <[nbytes]>);
@@ -26,32 +26,6 @@ ANSI_SYNOPSIS
 	void *_vec_realloc_r(void *<[reent]>, 
                          void *<[aptr]>, size_t <[nbytes]>);
 	void _vec_free_r(void *<[reent]>, void *<[aptr]>);
-
-
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-	char *vec_malloc(<[nbytes]>)
-	size_t <[nbytes]>;
-
-	char *vec_realloc(<[aptr]>, <[nbytes]>)
-	char *<[aptr]>;
-	size_t <[nbytes]>;
-
-	void vec_free(<[aptr]>)
-	char *<[aptr]>;
-
-	char *_vec_malloc_r(<[reent]>,<[nbytes]>)
-	char *<[reent]>;
-	size_t <[nbytes]>;
-
-	char *_vec_realloc_r(<[reent]>, <[aptr]>, <[nbytes]>)
-	char *<[reent]>;
-	char *<[aptr]>;
-	size_t <[nbytes]>;
-
-	void _vec_free_r(<[reent]>, <[aptr]>)
-	char *<[reent]>;
-	char *<[aptr]>;
 
 DESCRIPTION
 These functions manage a pool of system memory that is 16-byte aligned..
@@ -121,9 +95,8 @@ Supporting OS subroutines required: <<sbrk>>.  */
 
 #ifndef _REENT_ONLY
 
-_PTR
-_DEFUN (vec_malloc, (nbytes),
-	size_t nbytes)		/* get a block */
+void *
+vec_malloc (size_t nbytes)		/* get a block */
 {
   return _memalign_r (_REENT, 16, nbytes);
 }

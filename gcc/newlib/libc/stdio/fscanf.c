@@ -18,33 +18,18 @@
 #include <_ansi.h>
 #include <reent.h>
 #include <stdio.h>
-#ifdef _HAVE_STDC
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "local.h"
 
 #ifndef _REENT_ONLY
 
 int
-#ifdef _HAVE_STDC
-fscanf(FILE *__restrict fp, _CONST char *__restrict fmt, ...)
-#else
-fscanf(FILE *fp, fmt, va_alist)
-       FILE *fp;
-       char *fmt;
-       va_dcl
-#endif
+fscanf(FILE *__restrict fp, const char *__restrict fmt, ...)
 {
   int ret;
   va_list ap;
 
-#ifdef _HAVE_STDC
   va_start (ap, fmt);
-#else
-  va_start (ap);
-#endif
   ret = _vfscanf_r (_REENT, fp, fmt, ap);
   va_end (ap);
   return ret;
@@ -52,31 +37,19 @@ fscanf(FILE *fp, fmt, va_alist)
 
 #ifdef _NANO_FORMATTED_IO
 int
-_EXFUN(fiscanf, (FILE *, const char *, ...)
-       _ATTRIBUTE ((__alias__("fscanf"))));
+fiscanf (FILE *, const char *, ...)
+       _ATTRIBUTE ((__alias__("fscanf")));
 #endif
 
 #endif /* !_REENT_ONLY */
 
 int
-#ifdef _HAVE_STDC
-_fscanf_r(struct _reent *ptr, FILE *__restrict fp, _CONST char *__restrict fmt, ...)
-#else
-_fscanf_r(ptr, FILE *fp, fmt, va_alist)
-          struct _reent *ptr;
-          FILE *fp;
-          char *fmt;
-          va_dcl
-#endif
+_fscanf_r(struct _reent *ptr, FILE *__restrict fp, const char *__restrict fmt, ...)
 {
   int ret;
   va_list ap;
 
-#ifdef _HAVE_STDC
   va_start (ap, fmt);
-#else
-  va_start (ap);
-#endif
   ret = _vfscanf_r (ptr, fp, fmt, ap);
   va_end (ap);
   return (ret);
@@ -84,6 +57,6 @@ _fscanf_r(ptr, FILE *fp, fmt, va_alist)
 
 #ifdef _NANO_FORMATTED_IO
 int
-_EXFUN(_fiscanf_r, (struct _reent *, FILE *, const char *, ...)
-       _ATTRIBUTE ((__alias__("_fscanf_r"))));
+_fiscanf_r (struct _reent *, FILE *, const char *, ...)
+       _ATTRIBUTE ((__alias__("_fscanf_r")));
 #endif

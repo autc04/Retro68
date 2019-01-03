@@ -1,5 +1,5 @@
 # Expect script for ld-i386 tests
-#   Copyright (C) 2002-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -24,23 +24,24 @@
 
 if {[istarget "i?86-*-vxworks"]} {
     set i386tests {
-	{"VxWorks shared library test 1" "-shared -Tvxworks1.ld" ""
+	{"VxWorks shared library test 1"
+	 "-shared -Tvxworks1.ld --hash-style=sysv" ""
 	 "" {vxworks1-lib.s}
 	 {{readelf --relocs vxworks1-lib.rd} {objdump -dr vxworks1-lib.dd}
 	  {readelf --symbols vxworks1-lib.nd} {readelf -d vxworks1-lib.td}}
 	 "libvxworks1.so"}
 	{"VxWorks executable test 1 (dynamic)" \
-	 "tmpdir/libvxworks1.so -Tvxworks1.ld -q --force-dynamic" ""
+	 "tmpdir/libvxworks1.so -Tvxworks1.ld --hash-style=sysv -q --force-dynamic" ""
 	 "" {vxworks1.s}
 	 {{readelf --relocs vxworks1.rd} {objdump -dr vxworks1.dd}}
 	 "vxworks1"}
 	{"VxWorks executable test 2 (dynamic)" \
-	 "-Tvxworks1.ld -q --force-dynamic" ""
+	 "-Tvxworks1.ld --hash-style=sysv -q --force-dynamic" ""
 	 "" {vxworks2.s}
 	 {{readelf --segments vxworks2.sd}}
 	 "vxworks2"}
 	{"VxWorks executable test 2 (static)"
-	 "-Tvxworks1.ld" ""
+	 "-Tvxworks1.ld --hash-style=sysv" ""
 	 "" {vxworks2.s}
 	 {{readelf --segments vxworks2-static.sd}}
 	 "vxworks2"}
@@ -98,10 +99,8 @@ if [istarget "*-*-go32*"] {
 }
 
 if { !([istarget "i?86-*-elf*"]
-       || (([istarget "i?86-*-linux*"]
-	    || [istarget "i?86-*-gnu*"])
-	   && ![istarget "*-*-*aout*"]
-	   && ![istarget "*-*-*oldld*"])
+       || [istarget "i?86-*-linux*"]
+       || [istarget "i?86-*-gnu*"]
        || [istarget "i?86-*-nacl*"]
        || [istarget "x86_64-*-nacl*"]
        || [istarget "x86_64-*-linux*"]
@@ -128,20 +127,23 @@ set i386tests {
      "-shared -melf_i386 tmpdir/libpltlib.so" "" "--32" {plt-pic.s}
      {{objdump -drj.plt plt-pic.pd}} "libplt-pic.so"}
     {"TLS -fpic -shared transitions"
-     "-shared -melf_i386 --no-ld-generated-unwind-info" ""
+     "-shared -melf_i386 --no-ld-generated-unwind-info \
+      -z noseparate-code --hash-style=sysv" ""
      "--32" {tlspic1.s tlspic2.s}
      {{readelf -Ssrl tlspic.rd} {objdump -drj.text tlspic.dd}
       {objdump -sj.got tlspic.sd} {objdump -sj.tdata tlspic.td}}
       "libtlspic.so"}
     {"TLS -fpic -shared transitions without PLT"
-     "-shared -melf_i386 --no-ld-generated-unwind-info" ""
+     "-shared -melf_i386 --no-ld-generated-unwind-info \
+      -z noseparate-code --hash-style=sysv" ""
      "-mrelax-relocations=yes --32"
      {tlspic3.s tlspic2.s}
      {{readelf -Ssrl tlspic2.rd} {objdump -drj.text tlspic2.dd}
       {objdump -sj.got tlspic2.sd} {objdump -sj.tdata tlspic2.td}}
       "libtlspic2.so"}
     {"TLS descriptor -fpic -shared transitions"
-     "-shared -melf_i386 --no-ld-generated-unwind-info" ""
+     "-shared -melf_i386 --no-ld-generated-unwind-info \
+      -z noseparate-code --hash-style=sysv" ""
      "--32" {tlsdesc.s tlspic2.s}
      {{readelf -Ssrl tlsdesc.rd} {objdump -drj.text tlsdesc.dd}
       {objdump "-s -j.got -j.got.plt" tlsdesc.sd} {objdump -sj.tdata tlsdesc.td}}
@@ -149,31 +151,36 @@ set i386tests {
     {"Helper shared library" "-shared -melf_i386" ""
      "--32" {tlslib.s} {} "libtlslib.so"}
     {"TLS -fpic and -fno-pic exec transitions"
-     "-melf_i386 tmpdir/libtlslib.so --no-ld-generated-unwind-info" ""
+     "-melf_i386 tmpdir/libtlslib.so --no-ld-generated-unwind-info \
+      -z noseparate-code --hash-style=sysv" ""
      "--32" {tlsbinpic.s tlsbin.s}
      {{readelf -Ssrl tlsbin.rd} {objdump -drj.text tlsbin.dd}
       {objdump -sj.got tlsbin.sd} {objdump -sj.tdata tlsbin.td}}
       "tlsbin"}
     {"TLS -fpic and -fno-pic exec transitions without PLT"
-     "-melf_i386 tmpdir/libtlslib.so --no-ld-generated-unwind-info" ""
+     "-melf_i386 tmpdir/libtlslib.so --no-ld-generated-unwind-info \
+      -z noseparate-code --hash-style=sysv" ""
      "-mrelax-relocations=yes --32"
      {tlsbinpic2.s tlsbin.s}
      {{readelf -Ssrl tlsbin2.rd} {objdump -drj.text tlsbin2.dd}
       {objdump -sj.got tlsbin2.sd} {objdump -sj.tdata tlsbin2.td}}
       "tlsbin2"}
     {"TLS descriptor -fpic and -fno-pic exec transitions"
-     "-melf_i386 tmpdir/libtlslib.so --no-ld-generated-unwind-info" ""
+     "-melf_i386 tmpdir/libtlslib.so --no-ld-generated-unwind-info \
+      -z noseparate-code --hash-style=sysv" ""
      "--32" {tlsbindesc.s tlsbin.s}
      {{readelf -Ssrl tlsbindesc.rd} {objdump -drj.text tlsbindesc.dd}
       {objdump -sj.got tlsbindesc.sd} {objdump -sj.tdata tlsbindesc.td}}
       "tlsbindesc"}
     {"TLS -fno-pic -shared"
-     "-shared -melf_i386 --no-ld-generated-unwind-info" ""
+     "-shared -melf_i386 --no-ld-generated-unwind-info \
+      -z noseparate-code --hash-style=sysv" ""
      "--32" {tlsnopic1.s tlsnopic2.s}
      {{readelf -Ssrl tlsnopic.rd} {objdump -drj.text tlsnopic.dd}
       {objdump -sj.got tlsnopic.sd}} "libtlsnopic.so"}
     {"TLS with global dynamic and descriptors"
-     "-shared -melf_i386 --no-ld-generated-unwind-info" ""
+     "-shared -melf_i386 --no-ld-generated-unwind-info \
+      -z noseparate-code --hash-style=sysv" ""
      "--32" {tlsgdesc.s}
      {{readelf -Ssrl tlsgdesc.rd} {objdump -drj.text tlsgdesc.dd}}
       "libtlsgdesc.so"}
@@ -307,6 +314,7 @@ run_dump_test "protected4"
 run_dump_test "protected5"
 run_dump_test "protected6a"
 run_dump_test "protected6b"
+run_dump_test "protected7"
 run_dump_test "tlspie1"
 run_dump_test "tlspie2"
 run_dump_test "tlspie3a"
@@ -365,6 +373,9 @@ run_dump_test "pr19636-1f"
 run_dump_test "pr19636-1g"
 run_dump_test "pr19636-1h"
 run_dump_test "pr19636-1i"
+run_dump_test "pr19636-1j"
+run_dump_test "pr19636-1k"
+run_dump_test "pr19636-1l"
 run_dump_test "pr19636-2a"
 run_dump_test "pr19636-2b"
 run_dump_test "pr19636-2c"
@@ -380,6 +391,8 @@ run_dump_test "pr19636-3d"
 run_dump_test "pr19636-3e"
 run_dump_test "pr19636-3f"
 run_dump_test "pr19636-3g"
+run_dump_test "pr19636-3h"
+run_dump_test "pr19636-3i"
 run_dump_test "pr19636-4a"
 run_dump_test "pr19636-4b"
 run_dump_test "pr19636-4c"
@@ -434,6 +447,21 @@ run_dump_test "property-x86-shstk3a"
 run_dump_test "property-x86-shstk3b"
 run_dump_test "property-x86-shstk4"
 run_dump_test "property-x86-shstk5"
+run_dump_test "pie1"
+run_dump_test "pie1-nacl"
+run_dump_test "pr21884"
+run_dump_test "pr21884-nacl"
+run_dump_test "pr22115-1a"
+run_dump_test "pr22115-1b"
+run_dump_test "pr22115-1c"
+run_dump_test "pr22115-1d"
+run_dump_test "pr22135"
+run_dump_test "pr22782"
+run_dump_test "pr22929"
+run_dump_test "pr23189"
+run_dump_test "pr23194"
+run_dump_test "pr23372a"
+run_dump_test "pr23372b"
 
 if { !([istarget "i?86-*-linux*"]
        || [istarget "i?86-*-gnu*"]
@@ -462,8 +490,8 @@ proc undefined_weak {cflags ldflags} {
 	set testname "$testname ($cflags $ldflags)"
     }
 
-    if { [ regexp "\-fPIE" $cflags]
-	 && ![ regexp "\-z nodynamic-undefined-weak" $ldflags] } {
+    if { [string match "*-fPIE*" $cflags]
+	 && ![string match "*-z nodynamic-undefined-weak*" $ldflags] } {
 	set weak_symbol "Weak defined"
     } else {
 	set weak_symbol "Weak undefined"
@@ -1239,6 +1267,33 @@ if { [isnative]
 if { [isnative]
      && [istarget "i?86-*-*"]
      && [which $CC] != 0 } {
+    run_cc_link_tests [list \
+	[list \
+	    "Build pr22001-1.so" \
+	    "-shared" \
+	    "" \
+	    { pr22001-1a.c } \
+	    {} \
+	    "pr22001-1.so" \
+	] \
+	[list \
+	    "Build pr21997-1.so" \
+	    "-shared" \
+	    "" \
+	    { property-stack.S property-no-copy.S pr21997-1a.S } \
+	    {} \
+	    "pr21997-1.so" \
+	] \
+	[list \
+	    "Build pr22842.so" \
+	    "-shared" \
+	    "-fPIC" \
+	    { pr22842a.c } \
+	    {} \
+	    "pr22842.so" \
+	] \
+    ]
+
     run_ld_link_exec_tests [list \
 	[list \
 	    "Run weakundef1 without PIE" \
@@ -1250,15 +1305,114 @@ if { [isnative]
 	    "$NOPIE_CFLAGS" \
 	] \
 	[list \
-	    "Run weakundef1 with PIE" \
-	    "-pie" \
+	    "Run pr22001-1" \
+	    "$NOPIE_LDFLAGS -Wl,-z,nocopyreloc,--no-as-needed tmpdir/pr22001-1.so" \
 	    "" \
-	    { weakundef1.c } \
-	    "weakundef1pie" \
+	    { pr22001-1b.c } \
+	    "pr22001-1" \
 	    "pass.out" \
-	    "-fPIE" \
+	    "$NOPIE_CFLAGS" \
+	] \
+	[list \
+	    "Run pr22001-1 (PIE 1)" \
+	    "$NOPIE_LDFLAGS -Wl,-z,nocopyreloc,--no-as-needed tmpdir/pr22001-1.so" \
+	    "" \
+	    { pr22001-1c.S } \
+	    "pr22001-1-pie-1" \
+	    "pass.out" \
+	] \
+	[list \
+	    "Run pr22001-1 (PIE 2)" \
+	    "-pie -Wl,-z,nocopyreloc,--no-as-needed tmpdir/pr22001-1.so" \
+	    "" \
+	    { pr22001-1c.S } \
+	    "pr22001-1-pie-2" \
+	    "pass.out" \
+	] \
+	[list \
+	    "Run pr22001-1 (PIC 1)" \
+	    "$NOPIE_LDFLAGS -Wl,-z,nocopyreloc,--no-as-needed tmpdir/pr22001-1.so" \
+	    "" \
+	    { pr22001-1b.c } \
+	    "pr22001-1-pic-1" \
+	    "pass.out" \
+	    "-fPIC" \
+	] \
+	[list \
+	    "Run pr22001-1 (PIC 2)" \
+	    "-pie -Wl,-z,nocopyreloc,--no-as-needed tmpdir/pr22001-1.so" \
+	    "" \
+	    { pr22001-1b.c } \
+	    "pr22001-1-pic-2" \
+	    "pass.out" \
+	    "-fPIC" \
+	] \
+	[list \
+	    "Run pr21997-1" \
+	    "$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/pr21997-1.so" \
+	    "" \
+	    { pr21997-1b.c } \
+	    "pr21997-1" \
+	    "pass.out" \
+	    "$NOPIE_CFLAGS" \
+	] \
+	[list \
+	    "Run pr21997-1 (PIC 1)" \
+	    "$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/pr21997-1.so" \
+	    "" \
+	    { pr21997-1b.c } \
+	    "pr21997-1-pic-1" \
+	    "pass.out" \
+	    "-fPIC" \
+	] \
+	[list \
+	    "Run pr21997-1 (PIC 2)" \
+	    "-pie -Wl,--no-as-needed tmpdir/pr21997-1.so" \
+	    "" \
+	    { pr21997-1b.c } \
+	    "pr21997-1-pic-2" \
+	    "pass.out" \
+	    "-fPIC" \
+	] \
+	[list \
+	    "Run pr21997-1 (PIE 1)" \
+	    "$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/pr21997-1.so" \
+	    "" \
+	    { pr21997-1c.S } \
+	    "pr21997-1-pie-1" \
+	    "pass.out" \
+	] \
+	[list \
+	    "Run pr21997-1 (PIE 2)" \
+	    "-pie -Wl,--no-as-needed tmpdir/pr21997-1.so" \
+	    "" \
+	    { pr21997-1c.S } \
+	    "pr21997-1-pie-2" \
+	    "pass.out" \
+	] \
+	[list \
+	    "Build pr22842" \
+	    "-pie -Wl,--no-as-needed tmpdir/pr22842.so" \
+	    "" \
+	    { pr22842b.S } \
+	    "pr22842" \
+	    "pass.out" \
 	] \
     ]
+
+    if { [at_least_gcc_version 5 0] } {
+	run_ld_link_exec_tests [list \
+	    [list \
+		"Run weakundef1 with PIE" \
+		"-pie" \
+		"" \
+		{ weakundef1.c } \
+		"weakundef1pie" \
+		"pass.out" \
+		"-fPIE" \
+	    ] \
+	]
+    }
 }
 
 if { !([istarget "i?86-*-linux*"]
@@ -1269,7 +1423,8 @@ if { !([istarget "i?86-*-linux*"]
 run_ld_link_tests [list \
     [list \
 	"basic PLT generation (non-PIC, -z now)" \
-	"-z now -melf_i386 tmpdir/libpltlib.so" \
+	"-z now -melf_i386 --hash-style=sysv \
+	 -z noseparate-code tmpdir/libpltlib.so" \
 	"" \
 	"--32" \
 	{plt2.s} \

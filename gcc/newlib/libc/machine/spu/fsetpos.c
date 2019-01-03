@@ -39,15 +39,14 @@ typedef struct
 {
   int fp;
   unsigned int pad0[ 3 ];
-  _CONST _fpos_t *pos;
+  const _fpos_t *pos;
 } c99_fsetpos_t;
 
 #ifndef _REENT_ONLY
 
 int
-_DEFUN (fsetpos, (iop, pos),
-	FILE * iop _AND
-	_CONST _fpos_t * pos)
+fsetpos (FILE * iop,
+	const _fpos_t * pos)
 {
   c99_fsetpos_t args;
 

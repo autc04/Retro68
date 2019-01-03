@@ -10,3 +10,4 @@
 .*:25: Warning: .*
 .*:27: Warning: .*
 .*:29: Warning: .*
+.*:31: Warning: .*

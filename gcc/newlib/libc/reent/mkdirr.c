@@ -26,17 +26,10 @@ FUNCTION
 INDEX
 	_mkdir_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <reent.h>
 	int _mkdir_r(struct _reent *<[ptr]>,
 		     const char *<[path]>, int <[mode]>);
-
-TRAD_SYNOPSIS
-	#include <reent.h>
-	int _mkdir_r(<[ptr]>, <[path]>, <[mode]>)
-	struct _reent *<[ptr]>;
-	char *<[path]>;
-	int <[mode]>;
 
 DESCRIPTION
 	This is a reentrant version of <<mkdir>>.  It
@@ -47,9 +40,8 @@ DESCRIPTION
 #include <sys/stat.h>
 
 int
-_DEFUN (_mkdir_r, (ptr, path, mode),
-     struct _reent *ptr _AND
-     _CONST char *path _AND
+_mkdir_r (struct _reent *ptr,
+     const char *path,
      int mode)
 {
   int ret;

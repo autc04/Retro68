@@ -8,5 +8,5 @@
 .*: +file format elf32-pru
 
 Disassembly of section .text:
-[0-9a-f]+ <[^>]*> ldi	r16, 48879
 [0-9a-f]+ <[^>]*> ldi	r16.w2, 57005
+[0-9a-f]+ <[^>]*> ldi	r16.w0, 48879

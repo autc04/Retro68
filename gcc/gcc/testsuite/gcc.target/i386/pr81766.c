@@ -1,5 +1,9 @@
-/* { dg-do compile } */
-/* { dg-require-effective-target lp64 } */
-/* { dg-options "-O2 -fPIE -mcmodel=large" } */
+/* PR target/81766 */
+/* { dg-do compile { target { pie && lp64 } } } */
+/* { dg-options "-O2 -fpie -mcmodel=large" } */
 
-int main() { return 0; }
+int
+main ()
+{
+  return 0;
+}

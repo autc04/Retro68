@@ -2,7 +2,7 @@
 #source: group1b.s
 #ld: -T group.ld
 #readelf: -s
-#xfail: d30v-*-* dlx-*-* i960-*-* pj*-*-*
+#xfail: d30v-*-* dlx-*-* pj*-*-* *-*-solaris*
 # generic linker targets don't comply with all symbol merging rules
 
 Symbol table '.symtab' contains .* entries:

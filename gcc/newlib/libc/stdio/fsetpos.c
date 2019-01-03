@@ -24,22 +24,11 @@ INDEX
 INDEX
 	_fsetpos_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	int fsetpos(FILE *<[fp]>, const fpos_t *<[pos]>);
 	int _fsetpos_r(struct _reent *<[ptr]>, FILE *<[fp]>,
 	               const fpos_t *<[pos]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	int fsetpos(<[fp]>, <[pos]>)
-	FILE *<[fp]>;
-	fpos_t *<[pos]>;
-
-	int _fsetpos_r(<[ptr]>, <[fp]>, <[pos]>)
-	struct _reent *<[ptr]>;
-	FILE *<[fp]>;
-	fpos_t *<[pos]>;
 
 DESCRIPTION
 Objects of type <<FILE>> can have a ``position'' that records how much
@@ -70,10 +59,9 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
 #include <stdio.h>
 
 int
-_DEFUN(_fsetpos_r, (ptr, iop, pos),
-       struct _reent * ptr _AND
-       FILE * iop          _AND
-       _CONST _fpos_t * pos)
+_fsetpos_r (struct _reent * ptr,
+       FILE * iop,
+       const _fpos_t * pos)
 {
   int x = _fseek_r (ptr, iop, *pos, SEEK_SET);
 
@@ -85,9 +73,8 @@ _DEFUN(_fsetpos_r, (ptr, iop, pos),
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(fsetpos, (iop, pos),
-       FILE * iop _AND
-       _CONST _fpos_t * pos)
+fsetpos (FILE * iop,
+       const _fpos_t * pos)
 {
   return _fsetpos_r (_REENT, iop, pos);
 }

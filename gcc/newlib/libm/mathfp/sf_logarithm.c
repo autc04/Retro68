@@ -31,8 +31,7 @@ static const float C2 = 1.428606820e-06;
 static const float C3 = 0.4342944819;
 
 float
-_DEFUN (logarithmf, (float, int),
-        float x _AND
+logarithmf (float x,
         int ten)
 {
   int N;

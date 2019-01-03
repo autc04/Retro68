@@ -20,10 +20,10 @@
 static char *parse_number ();
 #endif
 
-static long _EXFUN(get_number, (char *, long, int));
-static void _EXFUN(print_number, (int, int, long));
-static void _EXFUN(write_char, (char c));
-static void _EXFUN(write_string, (_CONST char *s));
+static long get_number (char *, long, int);
+static void print_number (int, int, long);
+static void write_char (char c);
+static void write_string (const char *s);
 
 /* Non-zero for big-endian systems.  */
 static int big_endian_p;
@@ -177,9 +177,8 @@ parse_number (s, p)
 /* Fetch the number at S of SIZE bytes.  */
 
 static long
-_DEFUN(get_number, (s, size, unsigned_p),
-     char *s _AND
-     long size _AND
+get_number (char *s,
+     long size,
      int unsigned_p)
 {
   long x;
@@ -220,9 +219,8 @@ _DEFUN(get_number, (s, size, unsigned_p),
 /* Print X in base BASE.  */
 
 static void
-_DEFUN(print_number, (base, unsigned_p, n),
-     int base _AND
-     int unsigned_p _AND
+print_number (int base,
+     int unsigned_p,
      long n)
 {
   static char chars[16] = "0123456789abcdef";
@@ -254,8 +252,7 @@ _DEFUN(print_number, (base, unsigned_p, n),
    stdio is working.  */
 
 static void
-_DEFUN(write_char, (c),
-     char c)
+write_char (char c)
 {
   _write_r (_REENT, CONSOLE_FD, &c, 1);
 }
@@ -265,8 +262,7 @@ _DEFUN(write_char, (c),
    stdio is working.  */
 
 static void
-_DEFUN(write_string, (s),
-     _CONST char *s)
+write_string (const char *s)
 {
   _write_r (_REENT, CONSOLE_FD, s, strlen (s));
 }

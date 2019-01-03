@@ -1,6 +1,5 @@
 # name: Mixed 16 and 32-bit Thumb conditional instructions
 # as: -march=armv6kt2 -mimplicit-it=always
-#skip: *-*-*aout*
 # source: thumb2_it.s
 # objdump: -dr --prefix-addresses --show-raw-insn
 

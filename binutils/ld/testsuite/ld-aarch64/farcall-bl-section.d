@@ -8,21 +8,23 @@
 Disassembly of section .text:
 
 .* <_start>:
-    1000:	94000008 	bl	1020 <___veneer>
-    1004:	94000003 	bl	1010 <___veneer>
+    1000:	9400000a 	bl	1028 <___veneer>
+    1004:	94000005 	bl	1018 <___veneer>
     1008:	d65f03c0 	ret
-    100c:	1400000d 	b	1040 <___veneer\+0x20>
+    100c:	d503201f 	nop
+    1010:	1400000e 	b	1048 <___veneer\+0x20>
+    1014:	d503201f 	nop
 
 .* <___veneer>:
-    1010:	90040010 	adrp	x16, 8001000 <bar>
-    1014:	91001210 	add	x16, x16, #0x4
-    1018:	d61f0200 	br	x16
-    101c:	00000000 	.inst	0x00000000 ; undefined
+    1018:	90040010 	adrp	x16, 8001000 <bar>
+    101c:	91001210 	add	x16, x16, #0x4
+    1020:	d61f0200 	br	x16
+    1024:	00000000 	.inst	0x00000000 ; undefined
 
 .* <___veneer>:
-    1020:	90040010 	adrp	x16, 8001000 <bar>
-    1024:	91000210 	add	x16, x16, #0x0
-    1028:	d61f0200 	br	x16
+    1028:	90040010 	adrp	x16, 8001000 <bar>
+    102c:	91000210 	add	x16, x16, #0x0
+    1030:	d61f0200 	br	x16
 	...
 
 Disassembly of section .foo:

@@ -1,5 +1,5 @@
 /* Mach-O object file format
-   Copyright (C) 2009-2017 Free Software Foundation, Inc.
+   Copyright (C) 2009-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -250,8 +250,10 @@ obj_mach_o_make_or_get_sect (char * segname, char * sectname,
 		 bfd_section_name (stdoutput, sec),
 		 bfd_errmsg (bfd_get_error ()));
 
-      strncpy (msect->segname, segname, sizeof (msect->segname));
-      strncpy (msect->sectname, sectname, sizeof (msect->sectname));
+      strncpy (msect->segname, segname, BFD_MACH_O_SEGNAME_SIZE);
+      msect->segname[BFD_MACH_O_SEGNAME_SIZE] = 0;
+      strncpy (msect->sectname, sectname, BFD_MACH_O_SECTNAME_SIZE);
+      msect->sectname[BFD_MACH_O_SECTNAME_SIZE] = 0;
 
       msect->align = secalign;
       msect->flags = sectype | secattr;
@@ -1808,15 +1810,21 @@ obj_mach_o_set_indirect_symbols (bfd *abfd, asection *sec,
 	    {
 	      unsigned n;
 	      bfd_mach_o_asymbol *sym;
+
+	      /* FIXME: It seems that there can be more indirect symbols
+		 than is computed by the loop above.  So be paranoid and
+		 allocate enough space for every symbol to be indirect.
+		 See PR 21939 for an example of where this is needed.  */
+	      if (nactual < bfd_get_symcount (abfd))
+		nactual = bfd_get_symcount (abfd);
+
 	      ms->indirect_syms =
 			bfd_zalloc (abfd,
 				    nactual * sizeof (bfd_mach_o_asymbol *));
 
 	      if (ms->indirect_syms == NULL)
-		{
-		  as_fatal (_("internal error: failed to allocate %d indirect"
-			      "symbol pointers"), nactual);
-		}
+		as_fatal (_("internal error: failed to allocate %d indirect"
+			    "symbol pointers"), nactual);
 
 	      for (isym = list, n = 0; isym != NULL; isym = isym->next, n++)
 		{
@@ -1827,7 +1835,11 @@ obj_mach_o_set_indirect_symbols (bfd *abfd, asection *sec,
 
 		     Absolute symbols are handled specially.  */
 		  if (sym->symbol.section == bfd_abs_section_ptr)
-		    ms->indirect_syms[n] = sym;
+		    {
+		      if (n >= nactual)
+			as_fatal (_("internal error: more indirect mach-o symbols than expected"));
+		      ms->indirect_syms[n] = sym;
+		    }
 		  else if (S_IS_LOCAL (isym->sym) && ! lazy)
 		    ;
 		  else
@@ -1847,6 +1859,8 @@ obj_mach_o_set_indirect_symbols (bfd *abfd, asection *sec,
 			      && ! (sym->n_type & BFD_MACH_O_N_PEXT)
 			      && (sym->n_type & BFD_MACH_O_N_EXT))
 			    sym->n_desc |= lazy;
+			  if (n >= nactual)
+			    as_fatal (_("internal error: more indirect mach-o symbols than expected"));
 			  ms->indirect_syms[n] = sym;
 		        }
 		    }

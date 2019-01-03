@@ -13,10 +13,9 @@
 #include <stddef.h>
 
 error_t
-_DEFUN (argz_insert, (argz, argz_len, before, entry),
-       char **argz _AND
-       size_t *argz_len _AND
-       char *before _AND
+argz_insert (char **argz,
+       size_t *argz_len,
+       char *before,
        const char *entry)
 {
   int len = 0;

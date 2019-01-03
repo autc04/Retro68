@@ -5,17 +5,9 @@ FUNCTION
 INDEX
 	pread64
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <unistd.h>
 	ssize_t pread64(int <[fd]>, void *<[buf]>, size_t <[n]>, loff_t <[off]>);
-
-TRAD_SYNOPSIS
-	#include <unistd.h>
-	ssize_t pread64(<[fd]>, <[buf]>, <[n]>, <[off]>)
-	int <[fd]>;
-	void *<[buf]>;
-	size_t <[n]>;
-	loff_t <[off]>;
 
 DESCRIPTION
 The <<pread64>> function is similar to <<pread>>.  The only difference is
@@ -38,10 +30,9 @@ Supporting OS subroutine required: <<read>>, <<lseek64>>.
 #include <machine/weakalias.h>
 
 ssize_t
-_DEFUN (__libc_pread64, (fd, buf, n, off),
-     int fd _AND
-     _PTR buf _AND
-     size_t n _AND
+__libc_pread64 (int fd,
+     void *buf,
+     size_t n,
      loff_t off)
 {
   loff_t cur_pos;

@@ -17,19 +17,10 @@ tanh
 INDEX
 tanhf
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <math.h>
         double tanh(double <[x]>);
         float tanhf(float <[x]>);
-
-TRAD_SYNOPSIS
-        #include <math.h>
-        double tanh(<[x]>)
-        double <[x]>;
-
-        float tanhf(<[x]>)
-        float <[x]>;
-
 
 DESCRIPTION
 
@@ -78,8 +69,7 @@ static const double q[] = { 0.48402357071988688686e+4,
                             0.11274474380534949335e+3 }; 
 
 double
-_DEFUN (tanh, (double),
-        double x)
+tanh (double x)
 {
   double f, res, g, P, Q, R;
 

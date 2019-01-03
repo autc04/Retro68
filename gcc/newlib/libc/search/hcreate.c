@@ -57,20 +57,19 @@ __RCSID("$NetBSD: hcreate.c,v 1.2 2001/02/19 21:26:04 ross Exp $");
 static struct hsearch_data htab;
 
 int
-_DEFUN(hcreate, (nel), size_t nel)
+hcreate (size_t nel)
 {
   return hcreate_r (nel, &htab);
 }
 
 void
-_DEFUN_VOID (hdestroy)
+hdestroy (void)
 {
   hdestroy_r (&htab);
 }
 
 ENTRY *
-_DEFUN(hsearch, (item, action), 
-       ENTRY item _AND
+hsearch (ENTRY item,
        ACTION action)
 {
   ENTRY *retval;

@@ -2,7 +2,7 @@
 #ld: -T merge.ld
 #objdump: -s
 #xfail: "d30v-*-*" "dlx-*-*" "hppa64-*-*"
-#xfail: "i960-*-*" "ip2k-*-*" "pj-*-*"
+#xfail: "ip2k-*-*" "pj-*-*"
 
 .*:     file format .*elf.*
 

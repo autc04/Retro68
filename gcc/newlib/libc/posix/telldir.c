@@ -70,8 +70,8 @@ struct ddloc {
 static long	dd_loccnt = 1;	/* Index of entry for sequential readdir's */
 static struct	ddloc *dd_hash[NDIRHASH];   /* Hash list heads for ddlocs */
 
-#ifdef HAVE_DD_LOCK
-__LOCK_INIT(static, dd_hash_lock);
+#if !defined(__SINGLE_THREAD__) && defined(HAVE_DD_LOCK)
+__LOCK_INIT(static, __dd_hash_mutex);
 #endif
 
 /*
@@ -81,8 +81,7 @@ __LOCK_INIT(static, dd_hash_lock);
 #if !defined(_ELIX_LEVEL) || (_ELIX_LEVEL >= 2)
 
 long
-_DEFUN(telldir, (dirp),
-       DIR *dirp)
+telldir (DIR *dirp)
 {
 	register int index;
 	register struct ddloc *lp;
@@ -92,7 +91,9 @@ _DEFUN(telldir, (dirp),
 
 #ifdef HAVE_DD_LOCK
 	__lock_acquire_recursive(dirp->dd_lock);
-	__lock_acquire(dd_hash_lock);
+#ifndef __SINGLE_THREAD__
+	__lock_acquire(__dd_hash_mutex);
+#endif
 #endif
 	index = dd_loccnt++;
 	lp->loc_index = index;
@@ -102,7 +103,9 @@ _DEFUN(telldir, (dirp),
 	lp->loc_next = dd_hash[LOCHASH(index)];
 	dd_hash[LOCHASH(index)] = lp;
 #ifdef HAVE_DD_LOCK
-	__lock_release(dd_hash_lock);
+#ifndef __SINGLE_THREAD__
+	__lock_release(__dd_hash_mutex);
+#endif
 	__lock_release_recursive(dirp->dd_lock);
 #endif
 	return (index);
@@ -115,16 +118,15 @@ _DEFUN(telldir, (dirp),
  * Only values returned by "telldir" should be passed to seekdir.
  */
 void
-_DEFUN(_seekdir, (dirp, loc),
-	register DIR *dirp _AND
+_seekdir (register DIR *dirp,
 	long loc)
 {
 	register struct ddloc *lp;
 	register struct ddloc **prevlp;
 	struct dirent *dp;
 
-#ifdef HAVE_DD_LOCK
-	__lock_acquire(dd_hash_lock);
+#if !defined(__SINGLE_THREAD__) && defined(HAVE_DD_LOCK)
+	__lock_acquire(__dd_hash_mutex);
 #endif
 	if (loc != 0) {
 		prevlp = &dd_hash[LOCHASH(loc)];
@@ -136,8 +138,8 @@ _DEFUN(_seekdir, (dirp, loc),
 			lp = lp->loc_next;
 		}
 		if (lp == NULL) {
-#ifdef HAVE_DD_LOCK
-			__lock_release(dd_hash_lock);
+#if !defined(__SINGLE_THREAD__) && defined(HAVE_DD_LOCK)
+			__lock_release(__dd_hash_mutex);
 #endif
 			return;
 		}
@@ -162,20 +164,19 @@ found:
 		dirp->dd_seek = 0;
 		dirp->dd_loc = 0;
 	}
-#ifdef HAVE_DD_LOCK
-	__lock_release(dd_hash_lock);
+#if !defined(__SINGLE_THREAD__) && defined(HAVE_DD_LOCK)
+	__lock_release(__dd_hash_mutex);
 #endif
 }
 
 /* clean out any hash entries from a closed directory */
 void
-_DEFUN(_cleanupdir, (dirp),
-	register DIR *dirp)
+_cleanupdir (register DIR *dirp)
 {
 	int i;
 
-#ifdef HAVE_DD_LOCK
-	__lock_acquire(dd_hash_lock);
+#if !defined(__SINGLE_THREAD__) && defined(HAVE_DD_LOCK)
+	__lock_acquire(__dd_hash_mutex);
 #endif
 	for (i = 0; i < NDIRHASH; ++i) {
 		struct ddloc head;
@@ -199,8 +200,8 @@ _DEFUN(_cleanupdir, (dirp),
 		}
 		dd_hash[i] = head.loc_next;
 	}
-#ifdef HAVE_DD_LOCK
-	__lock_release(dd_hash_lock);
+#if !defined(__SINGLE_THREAD__) && defined(HAVE_DD_LOCK)
+	__lock_release(__dd_hash_mutex);
 #endif
 
 }

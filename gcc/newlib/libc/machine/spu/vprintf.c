@@ -3,11 +3,7 @@
 
 #include "c99ppe.h"
 
-#ifdef _HAVE_STDC
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #ifdef INTEGER_ONLY
 #  define vprintf viprintf
@@ -15,7 +11,7 @@
 
 typedef struct
 {
-  _CONST char* fmt;
+  const char* fmt;
   unsigned int pad0[ 3 ];
   va_list ap;
 } c99_vprintf_t;
@@ -23,8 +19,7 @@ typedef struct
 #ifndef _REENT_ONLY
 
 int
-_DEFUN (vprintf, (fmt, ap),
-     _CONST char *fmt _AND
+vprintf (const char *fmt,
      va_list ap)
 {
   c99_vprintf_t args;

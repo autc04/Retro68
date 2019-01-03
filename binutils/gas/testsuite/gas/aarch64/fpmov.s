@@ -15,3 +15,8 @@
 	fmov	d0, 0.2421875
 	fmov	d0, 0x3fcf000000000000
 	fmov	s0, 0x3e780000
+
+	fmov	d0, #2
+	fmov	d0, #-2
+	fmov	s0, 2
+	fmov	s0, -2

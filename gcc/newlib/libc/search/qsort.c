@@ -5,18 +5,10 @@ FUNCTION
 INDEX
 	qsort
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
 	void qsort(void *<[base]>, size_t <[nmemb]>, size_t <[size]>,
 		   int (*<[compar]>)(const void *, const void *) );
-
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-	qsort(<[base]>, <[nmemb]>, <[size]>, <[compar]> )
-	char *<[base]>;
-	size_t <[nmemb]>;
-	size_t <[size]>;
-	int (*<[compar]>)();
 
 DESCRIPTION
 <<qsort>> sorts an array (beginning at <[base]>) of <[nmemb]> objects.
@@ -85,8 +77,8 @@ typedef int		 cmp_t(const void *, const void *, void *);
 #else
 typedef int		 cmp_t(const void *, const void *);
 #endif
-static inline char	*med3 _PARAMS((char *, char *, char *, cmp_t *, void *));
-static inline void	 swapfunc _PARAMS((char *, char *, int, int));
+static inline char	*med3 (char *, char *, char *, cmp_t *, void *);
+static inline void	 swapfunc (char *, char *, int, int);
 
 #define min(a, b)	(a) < (b) ? a : b
 
@@ -108,10 +100,9 @@ static inline void	 swapfunc _PARAMS((char *, char *, int, int));
 	es % sizeof(long) ? 2 : es == sizeof(long)? 0 : 1;
 
 static inline void
-_DEFUN(swapfunc, (a, b, n, swaptype),
-	char *a _AND
-	char *b _AND
-	int n _AND
+swapfunc (char *a,
+	char *b,
+	int n,
 	int swaptype)
 {
 	if(swaptype <= 1)
@@ -139,11 +130,10 @@ _DEFUN(swapfunc, (a, b, n, swaptype),
 #endif
 
 static inline char *
-_DEFUN(med3, (a, b, c, cmp, thunk),
-	char *a _AND
-	char *b _AND
-	char *c _AND
-	cmp_t *cmp _AND
+med3 (char *a,
+	char *b,
+	char *c,
+	cmp_t *cmp,
 	void *thunk
 #if !defined(I_AM_QSORT_R) && !defined(I_AM_GNU_QSORT_R)
 __unused
@@ -157,27 +147,24 @@ __unused
 
 #if defined(I_AM_QSORT_R)
 void
-_DEFUN(__bsd_qsort_r, (a, n, es, thunk, cmp),
-	void *a _AND
-	size_t n _AND
-	size_t es _AND
-	void *thunk _AND
+__bsd_qsort_r (void *a,
+	size_t n,
+	size_t es,
+	void *thunk,
 	cmp_t *cmp)
 #elif defined(I_AM_GNU_QSORT_R)
 void
-_DEFUN(qsort_r, (a, n, es, cmp, thunk),
-	void *a _AND
-	size_t n _AND
-	size_t es _AND
-	cmp_t *cmp _AND
+qsort_r (void *a,
+	size_t n,
+	size_t es,
+	cmp_t *cmp,
 	void *thunk)
 #else
 #define thunk NULL
 void
-_DEFUN(qsort, (a, n, es, cmp),
-	void *a _AND
-	size_t n _AND
-	size_t es _AND
+qsort (void *a,
+	size_t n,
+	size_t es,
 	cmp_t *cmp)
 #endif
 {

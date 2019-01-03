@@ -5,8 +5,7 @@
 #include <sys/time.h>
 
 int
-_DEFUN (gettimeofday, (ptimeval, ptimezone),
-     struct timeval *ptimeval _AND
+gettimeofday (struct timeval *ptimeval,
      void *ptimezone)
 {
   return _gettimeofday_r (_REENT, ptimeval, ptimezone);

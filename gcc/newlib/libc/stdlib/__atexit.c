@@ -48,7 +48,7 @@ const void * __atexit_dummy = &__call_exitprocs;
 #endif
 
 #ifndef __SINGLE_THREAD__
-extern _LOCK_RECURSIVE_T __atexit_lock;
+extern _LOCK_RECURSIVE_T __atexit_recursive_mutex;
 #endif
 
 #ifdef _REENT_GLOBAL_ATEXIT
@@ -63,18 +63,16 @@ static struct _atexit _global_atexit0 = _ATEXIT_INIT;
  */
 
 int
-_DEFUN (__register_exitproc,
-	(type, fn, arg, d),
-	int type _AND
-	void (*fn) (void) _AND
-	void *arg _AND
+__register_exitproc (int type,
+	void (*fn) (void),
+	void *arg,
 	void *d)
 {
   struct _on_exit_args * args;
   register struct _atexit *p;
 
 #ifndef __SINGLE_THREAD__
-  __lock_acquire_recursive(__atexit_lock);
+  __lock_acquire_recursive(__atexit_recursive_mutex);
 #endif
 
   p = _GLOBAL_ATEXIT;
@@ -91,7 +89,7 @@ _DEFUN (__register_exitproc,
     {
 #ifndef _ATEXIT_DYNAMIC_ALLOC
 #ifndef __SINGLE_THREAD__
-      __lock_release_recursive(__atexit_lock);
+      __lock_release_recursive(__atexit_recursive_mutex);
 #endif
       return -1;
 #else
@@ -100,7 +98,7 @@ _DEFUN (__register_exitproc,
       if (!malloc)
 	{
 #ifndef __SINGLE_THREAD__
-	  __lock_release_recursive(__atexit_lock);
+	  __lock_release_recursive(__atexit_recursive_mutex);
 #endif
 	  return -1;
 	}
@@ -109,7 +107,7 @@ _DEFUN (__register_exitproc,
       if (p == NULL)
 	{
 #ifndef __SINGLE_THREAD__
-	  __lock_release_recursive(__atexit_lock);
+	  __lock_release_recursive(__atexit_recursive_mutex);
 #endif
 	  return -1;
 	}
@@ -133,7 +131,7 @@ _DEFUN (__register_exitproc,
 	{
 #ifndef _ATEXIT_DYNAMIC_ALLOC
 #ifndef __SINGLE_THREAD__
-	  __lock_release_recursive(__atexit_lock);
+	  __lock_release_recursive(__atexit_recursive_mutex);
 #endif
 	  return -1;
 #else
@@ -143,7 +141,7 @@ _DEFUN (__register_exitproc,
 	  if (args == NULL)
 	    {
 #ifndef __SINGLE_THREAD__
-	      __lock_release(__atexit_lock);
+	      __lock_release(__atexit_recursive_mutex);
 #endif
 	      return -1;
 	    }
@@ -163,7 +161,7 @@ _DEFUN (__register_exitproc,
     }
   p->_fns[p->_ind++] = fn;
 #ifndef __SINGLE_THREAD__
-  __lock_release_recursive(__atexit_lock);
+  __lock_release_recursive(__atexit_recursive_mutex);
 #endif
   return 0;
 }

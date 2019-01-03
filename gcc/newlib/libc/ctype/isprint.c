@@ -14,7 +14,7 @@ INDEX
 INDEX
 	isgraph_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <ctype.h>
 	int isprint(int <[c]>);
 	int isgraph(int <[c]>);
@@ -22,11 +22,6 @@ ANSI_SYNOPSIS
 	#include <ctype.h>
 	int isprint_l(int <[c]>, locale_t <[locale]>);
 	int isgraph_l(int <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <ctype.h>
-	int isprint(<[c]>);
-	int isgraph(<[c]>);
 
 DESCRIPTION
 <<isprint>> is a macro which classifies singlebyte charset values by table
@@ -62,7 +57,7 @@ No supporting OS subroutines are required.
 
 #undef isgraph
 int
-_DEFUN(isgraph,(c),int c)
+isgraph (int c)
 {
 	return(__CTYPE_PTR[c+1] & (_P|_U|_L|_N));
 }
@@ -70,7 +65,7 @@ _DEFUN(isgraph,(c),int c)
 
 #undef isprint
 int
-_DEFUN(isprint,(c),int c)
+isprint (int c)
 {
 	return(__CTYPE_PTR[c+1] & (_P|_U|_L|_N|_B));
 }

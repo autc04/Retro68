@@ -5,14 +5,9 @@ FUNCTION
 INDEX
 	strupr
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	char *strupr(char *<[a]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	char *strupr(<[a]>)
-	char *<[a]>;
 
 DESCRIPTION
 	<<strupr>> converts each character in the string at <[a]> to
@@ -34,8 +29,7 @@ QUICKREF
 #include <ctype.h>
 
 char *
-_DEFUN (strupr, (s),
-	char *s)
+strupr (char *s)
 {
   unsigned char *ucs = (unsigned char *) s;
   for ( ; *ucs != '\0'; ucs++)

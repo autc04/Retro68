@@ -37,17 +37,12 @@ INDEX
 INDEX
 	towupper_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wctype.h>
 	wint_t towupper(wint_t <[c]>);
 
 	#include <wctype.h>
 	wint_t towupper_l(wint_t <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <wctype.h>
-	wint_t towupper(<[c]>)
-	wint_t <[c]>;
 
 
 DESCRIPTION
@@ -78,7 +73,7 @@ No supporting OS subroutines are required.
 #include "local.h"
 
 wint_t
-_DEFUN(towupper,(c), wint_t c)
+towupper (wint_t c)
 {
 #ifdef _MB_CAPABLE
   c = _jp2uc (c);

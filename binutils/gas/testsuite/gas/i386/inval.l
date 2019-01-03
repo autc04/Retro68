@@ -80,6 +80,9 @@
 .*:87: Error: .*
 .*:88: Error: .*
 .*:90: Error: .*
+.*:92: Error: .*shl.*
+.*:93: Error: .*rol.*
+.*:94: Error: .*rcl.*
 GAS LISTING .*
 
 
@@ -176,3 +179,7 @@ GAS LISTING .*
 [ 	]*88[ 	]+movzx eax, \[eax\]
 [ 	]*89[ 	]+
 [ 	]*90[ 	]+movnti word ptr \[eax\], ax
+[ 	]*[1-9][0-9]*[ 	]+
+[ 	]*[1-9][0-9]*[ 	]+shl \[eax\], 1
+[ 	]*[1-9][0-9]*[ 	]+rol \[ecx\], 2
+[ 	]*[1-9][0-9]*[ 	]+rcl \[edx\], cl

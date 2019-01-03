@@ -38,8 +38,6 @@ Disassembly of section .text:
   [0-9a-f]+:	d5389a27 	mrs	x7, pmbptr_el1
   [0-9a-f]+:	d5189a67 	msr	pmbsr_el1, x7
   [0-9a-f]+:	d5389a67 	mrs	x7, pmbsr_el1
-  [0-9a-f]+:	d5189ae7 	msr	pmbidr_el1, x7
-  [0-9a-f]+:	d5389ae7 	mrs	x7, pmbidr_el1
   [0-9a-f]+:	d5189907 	msr	pmscr_el1, x7
   [0-9a-f]+:	d5389907 	mrs	x7, pmscr_el1
   [0-9a-f]+:	d5189947 	msr	pmsicr_el1, x7

@@ -32,7 +32,7 @@ INDEX
 INDEX
 	_vsscanf_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	#include <stdarg.h>
 	int vscanf(const char *<[fmt]>, va_list <[list]>);
@@ -45,40 +45,6 @@ ANSI_SYNOPSIS
                        va_list <[list]>);
 	int _vsscanf_r(struct _reent *<[reent]>, const char *<[str]>,
                        const char *<[fmt]>, va_list <[list]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	#include <varargs.h>
-	int vscanf( <[fmt]>, <[ist]>)
-	char *<[fmt]>;
-	va_list <[list]>;
-
-	int vfscanf( <[fp]>, <[fmt]>, <[list]>)
-	FILE *<[fp]>;
-	char *<[fmt]>;
-	va_list <[list]>;
-
-	int vsscanf( <[str]>, <[fmt]>, <[list]>)
-	char *<[str]>;
-	char *<[fmt]>;
-	va_list <[list]>;
-
-	int _vscanf_r( <[reent]>, <[fmt]>, <[ist]>)
-	struct _reent *<[reent]>;
-	char *<[fmt]>;
-	va_list <[list]>;
-
-	int _vfscanf_r( <[reent]>, <[fp]>, <[fmt]>, <[list]>)
-	struct _reent *<[reent]>;
-	FILE *<[fp]>;
-	char *<[fmt]>;
-	va_list <[list]>;
-
-	int _vsscanf_r( <[reent]>, <[str]>, <[fmt]>, <[list]>)
-	struct _reent *<[reent]>;
-	char *<[str]>;
-	char *<[fmt]>;
-	va_list <[list]>;
 
 DESCRIPTION
 <<vscanf>>, <<vfscanf>>, and <<vsscanf>> are (respectively) variants
@@ -212,6 +178,7 @@ static void * get_arg (int, va_list *, int *, void **);
 #define	SUPPRESS	0x10	/* suppress assignment */
 #define	POINTER		0x20	/* weird %p pointer (`fake hex') */
 #define	NOSKIP		0x40	/* do not skip blanks */
+#define	MALLOC 		0x80	/* handle 'm' modifier */
 
 /*
  * The following are used in numeric conversions only:
@@ -257,9 +224,8 @@ typedef unsigned long long u_long_long;
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(VFSCANF, (fp, fmt, ap),
-       register FILE *fp _AND
-       _CONST char *fmt _AND
+VFSCANF (register FILE *fp,
+       const char *fmt,
        va_list ap)
 {
   struct _reent *reent = _REENT;
@@ -269,9 +235,8 @@ _DEFUN(VFSCANF, (fp, fmt, ap),
 }
 
 int
-_DEFUN(__SVFSCANF, (fp, fmt0, ap),
-       register FILE *fp _AND
-       char _CONST *fmt0 _AND
+__SVFSCANF (register FILE *fp,
+       char const *fmt0,
        va_list ap)
 {
   return __SVFSCANF_R (_REENT, fp, fmt0, ap);
@@ -280,10 +245,9 @@ _DEFUN(__SVFSCANF, (fp, fmt0, ap),
 #endif /* !_REENT_ONLY */
 
 int
-_DEFUN(_VFSCANF_R, (data, fp, fmt, ap),
-       struct _reent *data _AND
-       register FILE *fp   _AND
-       _CONST char *fmt    _AND
+_VFSCANF_R (struct _reent *data,
+       register FILE *fp,
+       const char *fmt,
        va_list ap)
 {
   CHECK_INIT(data, fp);
@@ -296,9 +260,8 @@ _DEFUN(_VFSCANF_R, (data, fp, fmt, ap),
  * regular ungetc which will drag in file I/O items we don't need.
  * So, we create our own trimmed-down version.  */
 int
-_DEFUN(_sungetc_r, (data, fp, ch),
-	struct _reent *data _AND
-	int c               _AND
+_sungetc_r (struct _reent *data,
+	int c,
 	register FILE *fp)
 {
   if (c == EOF)
@@ -354,8 +317,7 @@ _DEFUN(_sungetc_r, (data, fp, ch),
 
 /* String only version of __srefill_r for sscanf family.  */
 int
-_DEFUN(__ssrefill_r, (ptr, fp),
-       struct _reent * ptr _AND
+__ssrefill_r (struct _reent * ptr,
        register FILE * fp)
 {
   /*
@@ -380,11 +342,10 @@ _DEFUN(__ssrefill_r, (ptr, fp),
 }
 
 size_t
-_DEFUN(_sfread_r, (ptr, buf, size, count, fp),
-       struct _reent * ptr _AND
-       _PTR buf _AND
-       size_t size _AND
-       size_t count _AND
+_sfread_r (struct _reent * ptr,
+       void *buf,
+       size_t size,
+       size_t count,
        FILE * fp)
 {
   register size_t resid;
@@ -400,7 +361,7 @@ _DEFUN(_sfread_r, (ptr, buf, size, count, fp),
 
   while (resid > (r = fp->_r))
     {
-      _CAST_VOID memcpy ((_PTR) p, (_PTR) fp->_p, (size_t) r);
+      (void) memcpy ((void *) p, (void *) fp->_p, (size_t) r);
       fp->_p += r;
       fp->_r = 0;
       p += r;
@@ -411,22 +372,33 @@ _DEFUN(_sfread_r, (ptr, buf, size, count, fp),
           return (total - resid) / size;
         }
     }
-  _CAST_VOID memcpy ((_PTR) p, (_PTR) fp->_p, resid);
+  (void) memcpy ((void *) p, (void *) fp->_p, resid);
   fp->_r -= resid;
   fp->_p += resid;
   return count;
 }
 #else /* !STRING_ONLY || !INTEGER_ONLY */
-int _EXFUN (_sungetc_r, (struct _reent *, int, register FILE *));
-int _EXFUN (__ssrefill_r, (struct _reent *, register FILE *));
-size_t _EXFUN (_sfread_r, (struct _reent *, _PTR buf, size_t, size_t, FILE *));
+int _sungetc_r (struct _reent *, int, register FILE *);
+int __ssrefill_r (struct _reent *, register FILE *);
+size_t _sfread_r (struct _reent *, void *buf, size_t, size_t, FILE *);
 #endif /* !STRING_ONLY || !INTEGER_ONLY */
 
+static inline int
+__wctob (struct _reent *rptr, wint_t wc)
+{
+  mbstate_t mbs;
+  unsigned char pmb[MB_LEN_MAX];
+
+  if (wc == WEOF)
+    return EOF;
+  memset (&mbs, '\0', sizeof (mbs));
+  return __WCTOMB (rptr, (char *) pmb, wc, &mbs) == 1 ? (int) pmb[0] : 0;
+}
+
 int
-_DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
-       struct _reent *rptr _AND
-       register FILE *fp   _AND
-       char _CONST *fmt0   _AND
+__SVFSCANF_R (struct _reent *rptr,
+       register FILE *fp,
+       char const *fmt0,
        va_list ap)
 {
   register u_char *fmt = (u_char *) fmt0;
@@ -453,8 +425,129 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 #ifdef _MB_CAPABLE
   mbstate_t state;              /* value to keep track of multibyte state */
 #endif
+#ifdef _WANT_IO_C99_FORMATS
+#define _WANT_IO_POSIX_EXTENSIONS
+#endif
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+  /* POSIX requires that fscanf frees all allocated strings from 'm'
+     conversions in case it returns EOF.  m_ptr is used to keep track.
+     It will be allocated on the stack the first time an 'm' conversion
+     takes place, and it will be free'd on return from the function.
+     This implementation tries to save space by only allocating 8
+     pointer slots at a time.  Most scenarios should never have to call
+     realloc again.  This implementation allows only up to 65528 'm'
+     conversions per fscanf invocation for now.  That should be enough
+     for almost all scenarios, right? */
+  struct m_ptrs {
+    void ***m_arr;		/* Array of pointer args to 'm' conversion */
+    uint16_t m_siz;		/* Number of slots in m_arr */
+    uint16_t m_cnt;		/* Number of valid entries in m_arr */
+  } *m_ptr = NULL;
+  #define init_m_ptr()							\
+    do									\
+      {									\
+	if (!m_ptr)							\
+	  {								\
+	    m_ptr = (struct m_ptrs *) alloca (sizeof *m_ptr);		\
+	    m_ptr->m_arr = NULL;					\
+	    m_ptr->m_siz = 0;						\
+	    m_ptr->m_cnt = 0;						\
+	  }								\
+      }									\
+    while (0)
+  #define push_m_ptr(arg)						\
+    do									\
+      {									\
+	if (m_ptr->m_cnt >= m_ptr->m_siz)				\
+	  {								\
+	    void ***n = NULL;						\
+									\
+	    if (m_ptr->m_siz + 8 > 0 && m_ptr->m_siz + 8 < UINT16_MAX)	\
+	      n = (void ***) realloc (m_ptr->m_arr,			\
+				      (m_ptr->m_siz + 8) *		\
+				      sizeof (void **));		\
+	    if (!n)							\
+	      {								\
+		nassigned = EOF;					\
+		goto match_failure;					\
+	      }								\
+	    m_ptr->m_arr = n;						\
+	    m_ptr->m_siz += 8;						\
+	  }								\
+	m_ptr->m_arr[m_ptr->m_cnt++] = (void **) (arg);				\
+      }									\
+    while (0)
+  #define alloc_m_ptr(_type, _p, _p0, _p_p, _w)				\
+    ({									\
+      _p_p = GET_ARG (N, ap, _type **);					\
+      if (!_p_p)							\
+	goto match_failure;						\
+      _p0 = (_type *) malloc ((_w) * sizeof (_type));			\
+      if (!_p0)								\
+	{								\
+	  nassigned = EOF;						\
+	  goto match_failure;						\
+	}								\
+      *_p_p = _p0;							\
+      push_m_ptr (_p_p);						\
+      _p = _p0;								\
+      _w;								\
+    })
+  /* For systems with wchar_t == 2 (UTF-16) check if there's room for
+     at least 2 wchar_t's (surrogate pairs). */
+  #define realloc_m_ptr(_type, _p, _p0, _p_p, _w)			\
+    ({									\
+      size_t _nw = (_w);						\
+      ptrdiff_t _dif = _p - _p0;					\
+      if (_p_p &&							\
+	  ((sizeof (_type) == 2 && _dif >= _nw - 1)			\
+	   || _dif >= _nw))						\
+	{								\
+	  _p0 = (_type *) realloc (_p0, (_nw << 1) * sizeof (_type));			\
+	  if (!_p0)							\
+	    {								\
+	      nassigned = EOF;						\
+	      goto match_failure;					\
+	    }								\
+	  _p = _p0 + _dif;						\
+	  *_p_p = _p0;							\
+	  _nw <<= 1;							\
+	}								\
+      _nw;								\
+    })
+  #define shrink_m_ptr(_type, _p_p, _w, _cw)				\
+    ({									\
+	size_t _nw = (_w);						\
+	if (_p_p && _nw < _cw)						\
+	  {								\
+	    _type *_np_p = (_type *)					\
+			   realloc (*_p_p, _nw * sizeof (_type));	\
+	    if (_np_p)							\
+	      *_p_p = _np_p;						\
+	  }								\
+    })
+  #define free_m_ptr()							\
+    do									\
+      {									\
+	if (m_ptr)							\
+	  {								\
+	    if (nassigned == EOF)					\
+	      {								\
+		int i;							\
+		for (i = 0; i < m_ptr->m_cnt; ++i)			\
+		  {							\
+		    free (*m_ptr->m_arr[i]);				\
+		    *m_ptr->m_arr[i] = NULL;				\
+		  }							\
+	      }								\
+	    if (m_ptr->m_arr)						\
+	      free (m_ptr->m_arr);					\
+	  }								\
+      }									\
+    while (0)
+#endif
 
-  #define CCFN_PARAMS	_PARAMS((struct _reent *, const char *, char **, int))
+  #define CCFN_PARAMS	(struct _reent *, const char *, char **, int)
   u_long (*ccfn)CCFN_PARAMS=0;	/* conversion function (strtol/strtoul) */
   char ccltab[256];		/* character class table for %[...] */
   char buf[BUF];		/* buffer for numeric conversions */
@@ -474,7 +567,7 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 #endif
 
   /* `basefix' is used to avoid `if' tests in the integer scanner */
-  static _CONST short basefix[17] =
+  static const short basefix[17] =
     {10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
   /* Macro to support positional arguments */
@@ -564,9 +657,14 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	  continue;
 
 	case '*':
+	  if ((flags & (CHAR | SHORT | LONG | LONGDBL | SUPPRESS | MALLOC))
+	      || width)
+	    goto match_failure;
 	  flags |= SUPPRESS;
 	  goto again;
 	case 'l':
+	  if (flags & (CHAR | SHORT | LONG | LONGDBL))
+	    goto match_failure;
 #if defined _WANT_IO_C99_FORMATS || !defined _NO_LONGLONG
 	  if (*fmt == 'l')	/* Check for 'll' = long long (SUSv3) */
 	    {
@@ -578,9 +676,13 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	    flags |= LONG;
 	  goto again;
 	case 'L':
+	  if (flags & (CHAR | SHORT | LONG | LONGDBL))
+	    goto match_failure;
 	  flags |= LONGDBL;
 	  goto again;
 	case 'h':
+	  if (flags & (CHAR | SHORT | LONG | LONGDBL))
+	    goto match_failure;
 #ifdef _WANT_IO_C99_FORMATS
 	  if (*fmt == 'h')	/* Check for 'hh' = char int (SUSv3) */
 	    {
@@ -593,12 +695,16 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	  goto again;
 #ifdef _WANT_IO_C99_FORMATS
 	case 'j': /* intmax_t */
+	  if (flags & (CHAR | SHORT | LONG | LONGDBL))
+	    goto match_failure;
 	  if (sizeof (intmax_t) == sizeof (long))
 	    flags |= LONG;
 	  else
 	    flags |= LONGDBL;
 	  goto again;
 	case 't': /* ptrdiff_t */
+	  if (flags & (CHAR | SHORT | LONG | LONGDBL))
+	    goto match_failure;
 	  if (sizeof (ptrdiff_t) < sizeof (int))
 	    /* POSIX states ptrdiff_t is 16 or more bits, as
 	       is short.  */
@@ -615,6 +721,8 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	    flags |= LONGDBL;
 	  goto again;
 	case 'z': /* size_t */
+	  if (flags & (CHAR | SHORT | LONG | LONGDBL))
+	    goto match_failure;
 	  if (sizeof (size_t) < sizeof (int))
 	    /* POSIX states size_t is 16 or more bits, as is short.  */
 	    flags |= SHORT;
@@ -630,6 +738,14 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	    flags |= LONGDBL;
 	  goto again;
 #endif /* _WANT_IO_C99_FORMATS */
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	case 'm':
+	  if (flags & (CHAR | SHORT | LONG | LONGDBL | MALLOC))
+	    goto match_failure;
+	  init_m_ptr ();
+	  flags |= MALLOC;
+	  goto again;
+#endif
 
 	case '0':
 	case '1':
@@ -641,11 +757,15 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	case '7':
 	case '8':
 	case '9':
+	  if (flags & (CHAR | SHORT | LONG | LONGDBL | MALLOC))
+	    goto match_failure;
 	  width = width * 10 + c - '0';
 	  goto again;
 
 #ifndef _NO_POS_ARGS
 	case '$':
+	  if (flags & (CHAR | SHORT | LONG | LONGDBL | SUPPRESS | MALLOC))
+	    goto match_failure;
 	  if (width <= MAX_POS_ARGS)
 	    {
 	      N = width - 1;
@@ -787,20 +907,8 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	    }
 	  continue;
 
-	  /*
-	   * Disgusting backwards compatibility hacks.	XXX
-	   */
-	case '\0':		/* compat */
-	  _newlib_flockfile_exit (fp);
-	  return EOF;
-
-	default:		/* compat */
-	  if (isupper (c))
-	    flags |= LONG;
-	  c = CT_INT;
-	  ccfn = (u_long (*)CCFN_PARAMS)_strtol_r;
-	  base = 10;
-	  break;
+	default:
+	  goto match_failure;
 	}
 
       /*
@@ -844,12 +952,20 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 #if !defined(_ELIX_LEVEL) || _ELIX_LEVEL >= 2
           if (flags & LONG)
             {
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	      wchar_t **wcp_p = NULL;
+	      wchar_t *wcp0 = NULL;
+	      size_t wcp_siz = 0;
+#endif
               mbstate_t state;
-              memset (&state, 0, sizeof (mbstate_t));
-              if ((flags & SUPPRESS) == 0)
-                wcp = GET_ARG (N, ap, wchar_t *);
-              else
+              if (flags & SUPPRESS)
                 wcp = NULL;
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	      else if (flags & MALLOC)
+		wcp_siz = alloc_m_ptr (wchar_t, wcp, wcp0, wcp_p, 32);
+#endif
+              else
+                wcp = GET_ARG (N, ap, wchar_t *);
               n = 0;
               while (width != 0)
                 {
@@ -858,6 +974,10 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
                   buf[n++] = *fp->_p;
                   fp->_r -= 1;
                   fp->_p += 1;
+		  /* Got a high surrogate, allow low surrogate to slip
+		     through */
+		  if (mbslen != 3 || state.__count != 4)
+		    memset (&state, 0, sizeof (mbstate_t));
                   if ((mbslen = _mbrtowc_r (rptr, wcp, buf, n, &state))
                                                          == (size_t)-1)
                     goto input_failure; /* Invalid sequence */
@@ -866,9 +986,17 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
                   if (mbslen != (size_t)-2) /* Incomplete sequence */
                     {
                       nread += n;
-                      width -= 1;
+		      /* Handle high surrogate */
+		      if (mbslen != 3 || state.__count != 4)
+			width -= 1;
                       if (!(flags & SUPPRESS))
-                        wcp += 1;
+			{
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+			  wcp_siz = realloc_m_ptr (wchar_t, wcp, wcp0, wcp_p,
+						   wcp_siz);
+#endif
+			  wcp++;
+			}
                       n = 0;
                     }
                   if (BufferEmpty)
@@ -878,12 +1006,15 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
                       break;
                     }
                 }
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	      shrink_m_ptr (wchar_t, wcp_p, wcp - wcp0, wcp_siz);
+#endif
               if (!(flags & SUPPRESS))
                 nassigned++;
             }
           else
-#endif
-        	  if (flags & SUPPRESS)
+#endif /* ELIX_LEVEL */
+	  if (flags & SUPPRESS)
 	    {
 	      size_t sum = 0;
 	      for (;;)
@@ -912,10 +1043,20 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	    }
 	  else
 	    {
-	      size_t r = _fread_r (rptr, (_PTR) GET_ARG (N, ap, char *), 1, width, fp);
-
+	      size_t r;
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	      char **p_p = NULL;
+	      if (flags & MALLOC)
+		alloc_m_ptr (char, p, p0, p_p, width);
+	      else
+#endif
+		p = GET_ARG (N, ap, char *);
+	      r = _fread_r (rptr, p, 1, width, fp);
 	      if (r == 0)
 		goto input_failure;
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	      shrink_m_ptr (char, p_p, r, width);
+#endif
 	      nread += r;
 	      nassigned++;
 	    }
@@ -924,8 +1065,81 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	case CT_CCL:
 	  /* scan a (nonempty) character class (sets NOSKIP) */
 	  if (width == 0)
-	    width = ~0;		/* `infinity' */
+	    width = SIZE_MAX;
 	  /* take only those things in the class */
+#if !defined(_ELIX_LEVEL) || _ELIX_LEVEL >= 2
+	  if (flags & LONG)
+	    {
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	      wchar_t **wcp_p = NULL;
+	      wchar_t *wcp0 = NULL;
+	      size_t wcp_siz = 0;
+#endif
+              mbstate_t state;
+              if (flags & SUPPRESS)
+                wcp = &wc;
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	      else if (flags & MALLOC)
+		wcp_siz = alloc_m_ptr (wchar_t, wcp, wcp0, wcp_p, 32);
+#endif
+              else
+		wcp = GET_ARG (N, ap, wchar_t *);
+              n = 0;
+              while (width != 0) {
+                  if (n == MB_CUR_MAX)
+                    goto input_failure;
+                  buf[n++] = *fp->_p;
+                  fp->_r -= 1;
+                  fp->_p += 1;
+		  /* Got a high surrogate, allow low surrogate to slip
+		     through */
+		  if (mbslen != 3 || state.__count != 4)
+		    memset (&state, 0, sizeof (mbstate_t));
+                  if ((mbslen = _mbrtowc_r (rptr, wcp, buf, n, &state))
+                                                        == (size_t)-1)
+                    goto input_failure;
+                  if (mbslen == 0)
+                    *wcp = L'\0';
+                  if (mbslen != (size_t)-2) /* Incomplete sequence */
+                    {
+                      if (!ccltab[__wctob (rptr, *wcp)])
+                        {
+                          while (n != 0)
+                            _ungetc_r (rptr, (unsigned char) buf[--n], fp);
+                          break;
+                        }
+                      nread += n;
+		      /* Handle high surrogate */
+		      if (mbslen != 3 || state.__count != 4)
+			width -= 1;
+                      if ((flags & SUPPRESS) == 0)
+			{
+			  wcp += 1;
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+			  wcp_siz = realloc_m_ptr (wchar_t, wcp, wcp0, wcp_p,
+						   wcp_siz);
+#endif
+			}
+                      n = 0;
+                    }
+                  if (BufferEmpty)
+                    {
+                      if (n != 0)
+                        goto input_failure;
+                      break;
+                    }
+                }
+              if (!(flags & SUPPRESS))
+                {
+                  *wcp = L'\0';
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+		  shrink_m_ptr (wchar_t, wcp_p, wcp - wcp0 + 1, wcp_siz);
+#endif
+                  nassigned++;
+                }
+	    }
+	  else
+#endif /* ELIX_LEVEL */
 	  if (flags & SUPPRESS)
 	    {
 	      n = 0;
@@ -943,14 +1157,26 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 		}
 	      if (n == 0)
 		goto match_failure;
+	      nread += n;
 	    }
 	  else
 	    {
-	      p0 = p = GET_ARG (N, ap, char *);
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	      char **p_p = NULL;
+	      size_t p_siz = 0;
+
+	      if (flags & MALLOC)
+		p_siz = alloc_m_ptr (char, p, p0, p_p, 32);
+	      else
+#endif
+		p0 = p = GET_ARG (N, ap, char *);
 	      while (ccltab[*fp->_p])
 		{
 		  fp->_r--;
 		  *p++ = *fp->_p++;
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+		  p_siz = realloc_m_ptr (char, p, p0, p_p, p_siz);
+#endif
 		  if (--width == 0)
 		    break;
 		  if (BufferEmpty)
@@ -964,25 +1190,36 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	      if (n == 0)
 		goto match_failure;
 	      *p = 0;
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	      shrink_m_ptr (char, p_p, n + 1, p_siz);
+#endif
 	      nassigned++;
+	      nread += n;
 	    }
-	  nread += n;
 	  break;
 
 	case CT_STRING:
 	  /* like CCL, but zero-length string OK, & no NOSKIP */
 	  if (width == 0)
-            width = (size_t)~0;
+	    width = SIZE_MAX;
 #if !defined(_ELIX_LEVEL) || _ELIX_LEVEL >= 2
           if (flags & LONG)
             {
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	      wchar_t **wcp_p = NULL;
+	      wchar_t *wcp0 = NULL;
+	      size_t wcp_siz = 0;
+#endif
               /* Process %S and %ls placeholders */
               mbstate_t state;
-              memset (&state, 0, sizeof (mbstate_t));
-              if ((flags & SUPPRESS) == 0)
-                wcp = GET_ARG (N, ap, wchar_t *);
-              else
+              if (flags & SUPPRESS)
                 wcp = &wc;
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	      else if (flags & MALLOC)
+		wcp_siz = alloc_m_ptr (wchar_t, wcp, wcp0, wcp_p, 32);
+#endif
+              else
+		wcp = GET_ARG (N, ap, wchar_t *);
               n = 0;
               while (!isspace (*fp->_p) && width != 0)
                 {
@@ -991,6 +1228,10 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
                   buf[n++] = *fp->_p;
                   fp->_r -= 1;
                   fp->_p += 1;
+		  /* Got a high surrogate, allow low surrogate to slip
+		     through */
+		  if (mbslen != 3 || state.__count != 4)
+		    memset (&state, 0, sizeof (mbstate_t));
                   if ((mbslen = _mbrtowc_r (rptr, wcp, buf, n, &state))
                                                         == (size_t)-1)
                     goto input_failure;
@@ -1005,9 +1246,17 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
                           break;
                         }
                       nread += n;
-                      width -= 1;
+		      /* Handle high surrogate */
+		      if (mbslen != 3 || state.__count != 4)
+			width -= 1;
                       if ((flags & SUPPRESS) == 0)
-                        wcp += 1;
+			{
+			  wcp += 1;
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+			  wcp_siz = realloc_m_ptr (wchar_t, wcp, wcp0, wcp_p,
+						   wcp_siz);
+#endif
+			}
                       n = 0;
                     }
                   if (BufferEmpty)
@@ -1020,12 +1269,15 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
               if (!(flags & SUPPRESS))
                 {
                   *wcp = L'\0';
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+		  shrink_m_ptr (wchar_t, wcp_p, wcp - wcp0 + 1, wcp_siz);
+#endif
                   nassigned++;
                 }
             }
           else
 #endif
-        	  if (flags & SUPPRESS)
+	  if (flags & SUPPRESS)
 	    {
 	      n = 0;
 	      while (!isspace (*fp->_p))
@@ -1040,17 +1292,32 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	    }
 	  else
 	    {
-	      p0 = p = GET_ARG (N, ap, char *);
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	      char **p_p = NULL;
+	      size_t p_siz = 0;
+
+	      if (flags & MALLOC)
+		p_siz = alloc_m_ptr (char, p, p0, p_p, 32);
+	      else
+#endif
+		p0 = GET_ARG (N, ap, char *);
+	      p = p0;
 	      while (!isspace (*fp->_p))
 		{
 		  fp->_r--;
 		  *p++ = *fp->_p++;
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+		  p_siz = realloc_m_ptr (char, p, p0, p_p, p_siz);
+#endif
 		  if (--width == 0)
 		    break;
 		  if (BufferEmpty)
 		    break;
 		}
 	      *p = 0;
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+	      shrink_m_ptr (char, p_p, p - p0 + 1, p_siz);
+#endif
 	      nread += p - p0;
 	      nassigned++;
 	    }
@@ -1635,12 +1902,14 @@ input_failure:
      should have been set prior to here.  On EOF failure (including
      invalid format string), return EOF if no matches yet, else number
      of matches made prior to failure.  */
-  _newlib_flockfile_exit (fp);
-  return nassigned && !(fp->_flags & __SERR) ? nassigned : EOF;
+  nassigned = nassigned && !(fp->_flags & __SERR) ? nassigned : EOF;
 match_failure:
 all_done:
   /* Return number of matches, which can be 0 on match failure.  */
   _newlib_flockfile_end (fp);
+#ifdef _WANT_IO_POSIX_EXTENSIONS
+  free_m_ptr ();
+#endif
   return nassigned;
 }
 

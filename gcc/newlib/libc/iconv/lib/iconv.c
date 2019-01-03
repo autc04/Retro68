@@ -41,7 +41,7 @@ INDEX
 INDEX
 	_iconv_close_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <iconv.h>
 	iconv_t iconv_open (const char *<[to]>, const char *<[from]>);
 	int iconv_close (iconv_t <[cd]>);
@@ -57,44 +57,6 @@ ANSI_SYNOPSIS
 			 iconv_t <[cd]>, const char **<[inbuf]>, 
 	                 size_t *<[inbytesleft]>, 
 		         char **<[outbuf]>, size_t *<[outbytesleft]>);
-
-TRAD_SYNOPSIS
-	#include <iconv.h>
-        size_t iconv (<[cd]>, <[in]>, <[inleft]>, <[out]>, <[outleft]>);
-	iconv_t <[cd]>;
-	char **<[in]>;
-	size_t *<[inleft]>; 
-        char **<[out]>;
-       	size_t *<[outleft]>);
-
-	#include <iconv.h>
-	iconv_t iconv_open (<[to]>, <[from]>);
-	const char *<[to]>;
-       	const char *<[from]>;
-
-	#include <iconv.h>
-	int iconv_close (<[cd]>);
-	iconv_t <[cd]>;
-
-	#include <iconv.h>
-        size_t _iconv_r (<[rptr]>, <[cd]>, <[in]>, <[inleft]>, <[out]>, <[outleft]>);
-	struct _reent *<[rptr]>;
-	iconv_t <[cd]>;
-	const char **<[in]>;
-	size_t *<[inleft]>; 
-        char **<[out]>;
-       	size_t *<[outleft]>);
-
-	#include <iconv.h>
-	iconv_t _iconv_open_r (<[rptr]>, <[to]>, <[from]>);
-	struct _reent *<[rptr]>;
-	const char *<[to]>;
-       	const char *<[from]>;
-
-	#include <iconv.h>
-	int iconv_close (<[rptr]>, <[cd]>);
-	struct _reent *<[rptr]>;
-	iconv_t <[cd]>;
 
 DESCRIPTION
 The function <<iconv>> converts characters from <[in]> which are in one
@@ -158,29 +120,27 @@ No supporting OS subroutine calls are required.
  */
 
 iconv_t
-_DEFUN(iconv_open, (to, from), 
-                   _CONST char *to _AND
-                   _CONST char *from)
+iconv_open (const char *to,
+                   const char *from)
 {
   return _iconv_open_r (_REENT, to, from);
 }
 
 
 size_t
-_DEFUN(iconv, (cd, inbuf, inbytesleft, outbuf, outbytesleft),
-              iconv_t cd          _AND
-              char **__restrict inbuf _AND
-              size_t *__restrict inbytesleft _AND
-              char **__restrict outbuf       _AND
+iconv (iconv_t cd,
+              char **__restrict inbuf,
+              size_t *__restrict inbytesleft,
+              char **__restrict outbuf,
               size_t *__restrict outbytesleft)
 {
-    return _iconv_r (_REENT, cd, (_CONST char **) inbuf, inbytesleft,
+    return _iconv_r (_REENT, cd, (const char **) inbuf, inbytesleft,
 		     outbuf, outbytesleft);
 }
 
 
 int
-_DEFUN(iconv_close, (cd), iconv_t cd)
+iconv_close (iconv_t cd)
 {
     return _iconv_close_r (_REENT, cd);
 }
@@ -188,22 +148,21 @@ _DEFUN(iconv_close, (cd), iconv_t cd)
 
 #ifndef _REENT_ONLY
 iconv_t
-_DEFUN(_iconv_open_r, (rptr, to, from),
-                      struct _reent *rptr _AND
-                      _CONST char *to     _AND
-                      _CONST char *from)
+_iconv_open_r (struct _reent *rptr,
+                      const char *to,
+                      const char *from)
 {
   iconv_conversion_t *ic;
     
   if (to == NULL || from == NULL || *to == '\0' || *from == '\0')
     return (iconv_t)-1;
 
-  if ((to = (_CONST char *)_iconv_resolve_encoding_name (rptr, to)) == NULL)
+  if ((to = (const char *)_iconv_resolve_encoding_name (rptr, to)) == NULL)
     return (iconv_t)-1;
 
-  if ((from = (_CONST char *)_iconv_resolve_encoding_name (rptr, from)) == NULL)
+  if ((from = (const char *)_iconv_resolve_encoding_name (rptr, from)) == NULL)
     {
-      _free_r (rptr, (_VOID_PTR)to);
+      _free_r (rptr, (void *)to);
       return (iconv_t)-1;
     }
 
@@ -225,31 +184,30 @@ _DEFUN(_iconv_open_r, (rptr, to, from),
       ic->data = ic->handlers->open (rptr, to, from);
     }
 
-  _free_r (rptr, (_VOID_PTR)to);
-  _free_r (rptr, (_VOID_PTR)from);
+  _free_r (rptr, (void *)to);
+  _free_r (rptr, (void *)from);
 
   if (ic->data == NULL)
     {
-      _free_r (rptr, (_VOID_PTR)ic);
+      _free_r (rptr, (void *)ic);
       return (iconv_t)-1;
     }
 
-  return (_VOID_PTR)ic;
+  return (void *)ic;
 }
 
 
 size_t
-_DEFUN(_iconv_r, (rptr, cd, inbuf, inbytesleft, outbuf, outbytesleft),
-                 struct _reent *rptr _AND
-                 iconv_t cd          _AND
-                 _CONST char **inbuf _AND
-                 size_t *inbytesleft _AND
-                 char **outbuf       _AND
+_iconv_r (struct _reent *rptr,
+                 iconv_t cd,
+                 const char **inbuf,
+                 size_t *inbytesleft,
+                 char **outbuf,
                  size_t *outbytesleft)
 {
   iconv_conversion_t *ic = (iconv_conversion_t *)cd;
 
-  if ((_VOID_PTR)cd == NULL || cd == (iconv_t)-1 || ic->data == NULL
+  if ((void *)cd == NULL || cd == (iconv_t)-1 || ic->data == NULL
        || (ic->handlers != &_iconv_null_conversion_handlers
            && ic->handlers != &_iconv_ucs_conversion_handlers))
     {
@@ -287,7 +245,7 @@ _DEFUN(_iconv_r, (rptr, cd, inbuf, inbytesleft, outbuf, outbytesleft),
           
           if (*outbytesleft >= state_null.__count)
             {
-              memcpy ((_VOID_PTR)(*outbuf), (_VOID_PTR)&state_null, state_null.__count);
+              memcpy ((void *)(*outbuf), (void *)&state_null, state_null.__count);
               
               *outbuf += state_null.__count;
               *outbytesleft -= state_null.__count;
@@ -317,7 +275,7 @@ _DEFUN(_iconv_r, (rptr, cd, inbuf, inbytesleft, outbuf, outbytesleft),
 
   return ic->handlers->convert (rptr,
                                 ic->data,
-                                (_CONST unsigned char**)inbuf,
+                                (const unsigned char**)inbuf,
                                 inbytesleft,
                                 (unsigned char**)outbuf,
                                 outbytesleft,
@@ -326,14 +284,13 @@ _DEFUN(_iconv_r, (rptr, cd, inbuf, inbytesleft, outbuf, outbytesleft),
 
 
 int
-_DEFUN(_iconv_close_r, (rptr, cd),
-                       struct _reent *rptr _AND
+_iconv_close_r (struct _reent *rptr,
                        iconv_t cd)
 {
   int res;
   iconv_conversion_t *ic = (iconv_conversion_t *)cd;
   
-  if ((_VOID_PTR)cd == NULL || cd == (iconv_t)-1 || ic->data == NULL
+  if ((void *)cd == NULL || cd == (iconv_t)-1 || ic->data == NULL
        || (ic->handlers != &_iconv_null_conversion_handlers
            && ic->handlers != &_iconv_ucs_conversion_handlers))
     {
@@ -343,7 +300,7 @@ _DEFUN(_iconv_close_r, (rptr, cd),
 
   res = (int)ic->handlers->close (rptr, ic->data);
   
-  _free_r (rptr, (_VOID_PTR)cd);
+  _free_r (rptr, (void *)cd);
 
   return res;
 }

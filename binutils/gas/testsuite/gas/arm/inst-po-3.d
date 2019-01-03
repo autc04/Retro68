@@ -1,7 +1,7 @@
 #name: .inst pseudo-opcode with automatic IT blocks test
 #as: -mimplicit-it=always
 #objdump: -d --prefix-addresses --show-raw-insn
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#skip: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

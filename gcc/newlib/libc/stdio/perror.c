@@ -24,20 +24,11 @@ INDEX
 INDEX
 	_perror_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	void perror(char *<[prefix]>);
 
 	void _perror_r(struct _reent *<[reent]>, char *<[prefix]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	void perror(<[prefix]>)
-	char *<[prefix]>;
-
-	void _perror_r(<[reent]>, <[prefix]>)
-	struct _reent *<[reent]>;
-	char *<[prefix]>;
 
 DESCRIPTION
 Use <<perror>> to print (on standard error) an error message
@@ -67,10 +58,9 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
 #include <string.h>
 #include "local.h"
 
-_VOID
-_DEFUN(_perror_r, (ptr, s),
-       struct _reent *ptr _AND
-       _CONST char *s)
+void
+_perror_r (struct _reent *ptr,
+       const char *s)
 {
   char *error;
   int dummy;
@@ -90,9 +80,8 @@ _DEFUN(_perror_r, (ptr, s),
 
 #ifndef _REENT_ONLY
 
-_VOID
-_DEFUN(perror, (s),
-       _CONST char *s)
+void
+perror (const char *s)
 {
   _perror_r (_REENT, s);
 }

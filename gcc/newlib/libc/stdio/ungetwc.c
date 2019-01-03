@@ -33,7 +33,7 @@ INDEX
 INDEX
         _ungetwc_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <stdio.h>
         #include <wchar.h>
         wint_t ungetwc(wint_t <[wc]>, FILE *<[stream]>);
@@ -74,9 +74,8 @@ C99
 #include "local.h"
 
 wint_t
-_DEFUN(_ungetwc_r, (ptr, wc, fp),
-	struct _reent *ptr _AND
-	wint_t wc _AND
+_ungetwc_r (struct _reent *ptr,
+	wint_t wc,
 	register FILE *fp)
 {
   char buf[MB_LEN_MAX];
@@ -106,8 +105,7 @@ _DEFUN(_ungetwc_r, (ptr, wc, fp),
  * MT-safe version.
  */
 wint_t
-_DEFUN(ungetwc, (wint_t wc, FILE *fp),
-	wint_t wc _AND
+ungetwc (wint_t wc,
 	FILE *fp)
 {
   struct _reent *reent = _REENT;

@@ -37,17 +37,12 @@ INDEX
 INDEX
 	iswgraph_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wctype.h>
 	int iswgraph(wint_t <[c]>);
 
 	#include <wctype.h>
 	int iswgraph_l(wint_t <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <wctype.h>
-	int iswgraph(<[c]>)
-	wint_t <[c]>;
 
 DESCRIPTION
 <<iswgraph>> is a function which classifies wide-character values that
@@ -70,7 +65,7 @@ No supporting OS subroutines are required.
 #include <wctype.h>
 
 int
-_DEFUN(iswgraph,(c),wint_t c)
+iswgraph (wint_t c)
 {
   return (iswprint (c) && !iswspace (c));
 }

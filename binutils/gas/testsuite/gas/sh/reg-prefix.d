@@ -1,7 +1,6 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #as: --allow-reg-prefix -big
 #name: SH --allow-reg-prefix option
-#skip: sh*-*-symbian*
 # Test SH register names prefixed with $:
 
 .*:     file format elf.*sh.*

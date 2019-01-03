@@ -5,15 +5,9 @@ FUNCTION
 INDEX
 	index
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <strings.h>
 	char * index(const char *<[string]>, int <[c]>);
-
-TRAD_SYNOPSIS
-	#include <strings.h>
-	char * index(<[string]>, <[c]>);
-	char *<[string]>;
-	int *<[c]>;
 
 DESCRIPTION
 	This function finds the first occurence of <[c]> (converted to
@@ -37,8 +31,7 @@ QUICKREF
 #include <strings.h>
 
 char *
-_DEFUN (index, (s, c),
-	_CONST char *s _AND
+index (const char *s,
 	int c)
 {
   return strchr (s, c);

@@ -5,16 +5,9 @@ FUNCTION
 INDEX
 	memcmp
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	int memcmp(const void *<[s1]>, const void *<[s2]>, size_t <[n]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	int memcmp(<[s1]>, <[s2]>, <[n]>)
-	void *<[s1]>;
-	void *<[s2]>;
-	size_t <[n]>;
 
 DESCRIPTION
 	This function compares not more than <[n]> characters of the
@@ -50,9 +43,8 @@ QUICKREF
 #define TOO_SMALL(LEN)  ((LEN) < LBLOCKSIZE)
 
 int
-_DEFUN (memcmp, (m1, m2, n),
-	_CONST _PTR m1 _AND
-	_CONST _PTR m2 _AND
+memcmp (const void *m1,
+	const void *m2,
 	size_t n)
 {
 #if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)

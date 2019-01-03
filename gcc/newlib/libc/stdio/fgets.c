@@ -28,7 +28,7 @@ INDEX
 INDEX
 	_fgets_unlocked_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <stdio.h>
 	char *fgets(char *restrict <[buf]>, int <[n]>, FILE *restrict <[fp]>);
 
@@ -41,34 +41,6 @@ ANSI_SYNOPSIS
 
         #include <stdio.h>
 	char *_fgets_unlocked_r(struct _reent *<[ptr]>, char *restrict <[buf]>, int <[n]>, FILE *restrict <[fp]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	char *fgets(<[buf]>,<[n]>,<[fp]>)
-        char *<[buf]>;
-	int <[n]>;
-	FILE *<[fp]>;
-
-	#define _GNU_SOURCE
-	#include <stdio.h>
-	char *fgets_unlocked(<[buf]>,<[n]>,<[fp]>)
-        char *<[buf]>;
-	int <[n]>;
-	FILE *<[fp]>;
-
-	#include <stdio.h>
-	char *_fgets_r(<[ptr]>, <[buf]>,<[n]>,<[fp]>)
-	struct _reent *<[ptr]>;
-        char *<[buf]>;
-	int <[n]>;
-	FILE *<[fp]>;
-
-	#include <stdio.h>
-	char *_fgets_unlocked_r(<[ptr]>, <[buf]>,<[n]>,<[fp]>)
-	struct _reent *<[ptr]>;
-        char *<[buf]>;
-	int <[n]>;
-	FILE *<[fp]>;
 
 DESCRIPTION
 	Reads at most <[n-1]> characters from <[fp]> until a newline
@@ -122,10 +94,9 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
  */
 
 char *
-_DEFUN(_fgets_r, (ptr, buf, n, fp),
-       struct _reent * ptr _AND
-       char *__restrict buf _AND
-       int n     _AND
+_fgets_r (struct _reent * ptr,
+       char *__restrict buf,
+       int n,
        FILE *__restrict fp)
 {
   size_t len;
@@ -192,20 +163,20 @@ _DEFUN(_fgets_r, (ptr, buf, n, fp),
        */
       if (len > n)
 	len = n;
-      t = (unsigned char *) memchr ((_PTR) p, '\n', len);
+      t = (unsigned char *) memchr ((void *) p, '\n', len);
       if (t != 0)
 	{
 	  len = ++t - p;
 	  fp->_r -= len;
 	  fp->_p = t;
-	  _CAST_VOID memcpy ((_PTR) s, (_PTR) p, len);
+	  (void) memcpy ((void *) s, (void *) p, len);
 	  s[len] = 0;
           _newlib_flockfile_exit (fp);
 	  return (buf);
 	}
       fp->_r -= len;
       fp->_p += len;
-      _CAST_VOID memcpy ((_PTR) s, (_PTR) p, len);
+      (void) memcpy ((void *) s, (void *) p, len);
       s += len;
     }
   while ((n -= len) != 0);
@@ -217,9 +188,8 @@ _DEFUN(_fgets_r, (ptr, buf, n, fp),
 #ifndef _REENT_ONLY
 
 char *
-_DEFUN(fgets, (buf, n, fp),
-       char *__restrict buf _AND
-       int n     _AND
+fgets (char *__restrict buf,
+       int n,
        FILE *__restrict fp)
 {
   return _fgets_r (_REENT, buf, n, fp);

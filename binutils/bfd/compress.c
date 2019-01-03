@@ -1,5 +1,5 @@
 /* Compressed section support (intended for debug sections).
-   Copyright (C) 2008-2017 Free Software Foundation, Inc.
+   Copyright (C) 2008-2018 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -54,7 +54,7 @@ decompress_contents (bfd_byte *compressed_buffer,
       if (rc != Z_OK)
 	break;
       strm.next_out = ((Bytef*) uncompressed_buffer
-                       + (uncompressed_size - strm.avail_out));
+		       + (uncompressed_size - strm.avail_out));
       rc = inflate (&strm, Z_FINISH);
       if (rc != Z_STREAM_END)
 	break;
@@ -106,7 +106,7 @@ bfd_compress_section_contents (bfd *abfd, sec_ptr sec,
       if (orig_compression_header_size == 0)
 	{
 	  /* Convert it from .zdebug* section.  Get the uncompressed
-	     size first.  We need to substract the 12-byte overhead in
+	     size first.  We need to subtract the 12-byte overhead in
 	     .zdebug* section.  Set orig_compression_header_size to
 	     the 12-bye overhead.  */
 	  orig_compression_header_size = 12;
@@ -252,8 +252,8 @@ bfd_get_full_section_contents (bfd *abfd, sec_ptr sec, bfd_byte **ptr)
 	      if (bfd_get_error () == bfd_error_no_memory)
 		_bfd_error_handler
 		  /* xgettext:c-format */
-		  (_("error: %B(%A) is too large (%#lx bytes)"),
-		  abfd, sec, (long) sz);
+		  (_("error: %pB(%pA) is too large (%#" PRIx64 " bytes)"),
+		  abfd, sec, (uint64_t) sz);
 	      return FALSE;
 	    }
 	}
@@ -397,7 +397,7 @@ bfd_is_section_compressed_with_header (bfd *abfd, sec_ptr sec,
   if (bfd_get_section_contents (abfd, sec, header, 0, header_size))
     {
       if (compression_header_size == 0)
-        /* In this case, it should be "ZLIB" followed by the uncompressed
+	/* In this case, it should be "ZLIB" followed by the uncompressed
 	   section size, 8 bytes in big-endian order.  */
 	compressed = CONST_STRNEQ ((char*) header , "ZLIB");
       else

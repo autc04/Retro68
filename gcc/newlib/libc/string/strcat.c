@@ -5,15 +5,9 @@ FUNCTION
 INDEX
 	strcat
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	char *strcat(char *restrict <[dst]>, const char *restrict <[src]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	char *strcat(<[dst]>, <[src]>)
-	char *<[dst]>;
-	char *<[src]>;
 
 DESCRIPTION
 	<<strcat>> appends a copy of the string pointed to by <[src]>
@@ -60,9 +54,8 @@ QUICKREF
 /*SUPPRESS 530*/
 
 char *
-_DEFUN (strcat, (s1, s2),
-	char *__restrict s1 _AND
-	_CONST char *__restrict s2)
+strcat (char *__restrict s1,
+	const char *__restrict s2)
 {
 #if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
   char *s = s1;

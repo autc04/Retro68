@@ -18,6 +18,7 @@
  */
 
 #include "fdlibm.h"
+#if __OBSOLETE_MATH
 #include <errno.h>
 
 #ifdef __STDC__
@@ -107,7 +108,9 @@
 		    if (_LIB_VERSION == _SVID_) 
 		        exc.retval = 0.0;
 		    else 
-		        exc.retval = 0.0/0.0;	/* X/Open allow NaN */
+		        /* Use a float divide, to avoid a soft-float double
+			   divide call on single-float only targets.  */
+		        exc.retval = (0.0f/0.0f);	/* X/Open allow NaN */
 		    if (_LIB_VERSION == _POSIX_) 
 		        errno = EDOM;
 		    else if (!matherr(&exc)) {
@@ -126,11 +129,11 @@
 		    if (_LIB_VERSION == _SVID_) {
 		       exc.retval = HUGE;
 		       y *= 0.5;
-		       if(x<0.0&&rint(y)!=y) exc.retval = -HUGE;
+		       if(x<0.0f&&rintf(y)!=y) exc.retval = -HUGE;
 		    } else {
 		       exc.retval = HUGE_VAL;
                        y *= 0.5;
-		       if(x<0.0&&rint(y)!=y) exc.retval = -HUGE_VAL;
+		       if(x<0.0f&&rintf(y)!=y) exc.retval = -HUGE_VAL;
 		    }
 		    if (_LIB_VERSION == _POSIX_)
 		        errno = ERANGE;
@@ -177,3 +180,4 @@
 }
 
 #endif /* defined(_DOUBLE_IS_32BITS) */
+#endif /* __OBSOLETE_MATH */

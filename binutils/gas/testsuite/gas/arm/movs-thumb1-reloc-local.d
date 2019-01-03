@@ -1,5 +1,5 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#skip: *-*-pe *-*-wince
 #name: MOVS relocations against local symbols for armv6s-m
 
 .*: +file format .*arm.*

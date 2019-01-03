@@ -10,9 +10,9 @@ struct ConfigFile {
 struct Configuration {
     ConfigFile _configFile;
 
-    Configuration(const std::string &root, const char *baseName)
+    Configuration(const std::string &root, const char *baseName) 
         : _configFile(root + baseName, "=") { }
-    Configuration(const std::string &root, const char *a, const char *b)
+    Configuration(const std::string &root, const char *a, const char *b) 
         : _configFile(root + a + b) { }
 };
 

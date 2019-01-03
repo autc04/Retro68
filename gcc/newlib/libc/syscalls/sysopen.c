@@ -3,16 +3,14 @@
 #include <reent.h>
 #include <fcntl.h>
 
-#ifdef _HAVE_STDC
 
 /* The prototype in <fcntl.h> uses ..., so we must correspond.  */
 
 #include <stdarg.h>
 
 int
-_DEFUN (open, (file, flags, ...),
-        const char *file _AND
-        int flags _DOTS)
+open (const char *file,
+        int flags, ...)
 {
   va_list ap;
   int ret;
@@ -23,15 +21,3 @@ _DEFUN (open, (file, flags, ...),
   return ret;
 }
 
-#else /* ! _HAVE_STDC */
-
-int 
-open (file, flags, mode)
-     const char *file;
-     int flags;
-     int mode;
-{
-  return _open_r (_REENT, file, flags, mode);
-}
-
-#endif /* ! _HAVE_STDC */

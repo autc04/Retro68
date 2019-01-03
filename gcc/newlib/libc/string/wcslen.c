@@ -2,13 +2,9 @@
 FUNCTION
 	<<wcslen>>---get wide-character string length 
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wchar.h>
 	size_t wcslen(const wchar_t *<[s]>);
-
-TRAD_SYNOPSIS
-	size_t wcslen(<[s]>
-	const wchar_t *<[s]>;
 
 DESCRIPTION
 	The <<wcslen>> function computes the number of wide-character codes
@@ -59,10 +55,9 @@ No supporting OS subroutines are required.
 #include <wchar.h>
 
 size_t
-_DEFUN (wcslen, (s),
-	_CONST wchar_t * s)
+wcslen (const wchar_t * s)
 {
-  _CONST wchar_t *p;
+  const wchar_t *p;
 
   p = s;
   while (*p)

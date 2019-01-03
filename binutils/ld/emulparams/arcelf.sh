@@ -16,6 +16,7 @@ ARCH=arc
 MACHINE=
 ENTRY=__start
 SDATA_START_SYMBOLS='__SDATA_BEGIN__ = . + 0x100;'
+JLI_START_TABLE='__JLI_TABLE__ = .;'
 OTHER_SECTIONS="/DISCARD/ : { *(.__arc_profile_*) }"
 EMBEDDED=yes
 

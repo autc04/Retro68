@@ -5,15 +5,9 @@ FUNCTION
 INDEX
 	rawmemchr
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	void *rawmemchr(const void *<[src]>, int <[c]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	void *rawmemchr(<[src]>, <[c]>)
-	void *<[src]>;
-	void *<[c]>;
 
 DESCRIPTION
 	This function searches memory starting at <<*<[src]>>> for the
@@ -66,12 +60,11 @@ QUICKREF
    to fill (long)MASK. */
 #define DETECTCHAR(X,MASK) (DETECTNULL(X ^ MASK))
 
-_PTR
-_DEFUN (rawmemchr, (src_void, c),
-	_CONST _PTR src_void _AND
+void *
+rawmemchr (const void *src_void,
 	int c)
 {
-  _CONST unsigned char *src = (_CONST unsigned char *) src_void;
+  const unsigned char *src = (const unsigned char *) src_void;
   unsigned char d = c;
 
 #if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__)

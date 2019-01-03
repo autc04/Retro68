@@ -1,6 +1,6 @@
 /* sysreg-1.s Test file for AArch64 system registers.
 
-   Copyright (C) 2011-2017 Free Software Foundation, Inc.
+   Copyright (C) 2011-2018 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.

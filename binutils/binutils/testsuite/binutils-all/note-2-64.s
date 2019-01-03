@@ -2,7 +2,7 @@
 	.org 0x100
 	.global note1.s
 note1.s:
-	.word 0
+	.dc.l 0
 	
 	.pushsection .gnu.build.attributes, "0x100000", %note
 	.balign 4
@@ -10,7 +10,7 @@ note1.s:
 	.dc.l 8
 	.dc.l 0x100
 	.asciz "$1"
-	.8byte note1.s
+	.8byte 0x100
 
 	.dc.l 12
 	.dc.l 0
@@ -40,14 +40,14 @@ note2.s:
 	.global func1
 	.type func1, STT_FUNC
 func1:	
-	.word 0x100
+	.dc.l 0x100
 
 	.pushsection .gnu.build.attributes, "0x100000", %note
 	.dc.l 4 	
 	.dc.l 8		
 	.dc.l 0x100	
 	.asciz "$1"	
-	.8byte note2.s	
+	.8byte 0x104	
 
 	.dc.l 12 	
 	.dc.l 0		
@@ -61,9 +61,10 @@ func1:
 	.dc.b 0 	
 
 	.dc.l 4
-	.dc.l 0		
+	.dc.l 8	
 	.dc.l 0x101	
 	.dc.b 0x2a, 0x7, 1, 0
+	.8byte 0x104	
 
 	.dc.l 4
 	.dc.l 0		
@@ -74,14 +75,14 @@ func1:
 
 	.global note3.s
 note3.s:
-	.word 0x100
+	.dc.l 0x100
 	
 	.pushsection .gnu.build.attributes, "0x100000", %note
 	.dc.l 4 	
 	.dc.l 8		
 	.dc.l 0x100	
 	.asciz "$1"	
-	.8byte note3.s
+	.8byte 0x108
 
 	.dc.l 12 	
 	.dc.l 0		

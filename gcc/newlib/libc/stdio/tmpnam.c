@@ -15,30 +15,12 @@ INDEX
 INDEX
 	_tempnam_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	char *tmpnam(char *<[s]>);
 	char *tempnam(char *<[dir]>, char *<[pfx]>);
 	char *_tmpnam_r(struct _reent *<[reent]>, char *<[s]>);
 	char *_tempnam_r(struct _reent *<[reent]>, char *<[dir]>, char *<[pfx]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	char *tmpnam(<[s]>)
-	char *<[s]>;
-
-	char *tempnam(<[dir]>, <[pfx]>)
-	char *<[dir]>;
-	char *<[pfx]>;
-
-	char *_tmpnam_r(<[reent]>, <[s]>)
-	struct _reent *<[reent]>;
-	char *<[s]>;
-
-	char *_tempnam_r(<[reent]>, <[dir]>, <[pfx]>)
-	struct *<[reent]>;
-	char *<[dir]>;
-	char *<[pfx]>;
 
 DESCRIPTION
 Use either of these functions to generate a name for a temporary file.
@@ -104,12 +86,11 @@ The global pointer <<environ>> is also required.
    another one.  Return nonzero if successful, otherwise zero.  */
 
 static int
-_DEFUN(worker, (ptr, result, part1, part2, part3, part4),
-       struct _reent *ptr _AND
-       char *result       _AND
-       _CONST char *part1 _AND
-       _CONST char *part2 _AND
-       int part3          _AND
+worker (struct _reent *ptr,
+       char *result,
+       const char *part1,
+       const char *part2,
+       int part3,
        int *part4)
 {
   /*  Generate the filename and make sure that there isn't one called
@@ -136,8 +117,7 @@ _DEFUN(worker, (ptr, result, part1, part2, part3, part4),
 }
 
 char *
-_DEFUN(_tmpnam_r, (p, s),
-       struct _reent *p _AND
+_tmpnam_r (struct _reent *p,
        char *s)
 {
   char *result;
@@ -165,14 +145,13 @@ _DEFUN(_tmpnam_r, (p, s),
 }
 
 char *
-_DEFUN(_tempnam_r, (p, dir, pfx),
-       struct _reent *p _AND
-       _CONST char *dir _AND
-       _CONST char *pfx)
+_tempnam_r (struct _reent *p,
+       const char *dir,
+       const char *pfx)
 {
   char *filename;
   int length;
-  _CONST char *prefix = (pfx) ? pfx : "";
+  const char *prefix = (pfx) ? pfx : "";
   if (dir == NULL && (dir = getenv ("TMPDIR")) == NULL)
     dir = P_tmpdir;
 
@@ -192,16 +171,14 @@ _DEFUN(_tempnam_r, (p, dir, pfx),
 #ifndef _REENT_ONLY
 
 char *
-_DEFUN(tempnam, (dir, pfx),
-       _CONST char *dir _AND
-       _CONST char *pfx)
+tempnam (const char *dir,
+       const char *pfx)
 {
   return _tempnam_r (_REENT, dir, pfx);
 }
 
 char *
-_DEFUN(tmpnam, (s),
-       char *s)
+tmpnam (char *s)
 {
   return _tmpnam_r (_REENT, s);
 }

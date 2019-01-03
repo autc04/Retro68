@@ -88,7 +88,7 @@ check_missing debug_msg.err "odr_violation1.cc:1[6-8]"
 check_missing debug_msg.err "odr_violation2.cc:2[3-5]"
 check debug_msg.err ": symbol 'SometimesInlineFunction(int)' defined in multiple places (possible ODR violation):"
 check debug_msg.err "debug_msg.cc:6[89]"
-check debug_msg.err "odr_violation2.cc:2[7-9]"
+check debug_msg.err "odr_violation2.cc:3[0-7]"
 
 # Check for the same error messages when using --compressed-debug-sections.
 if test -r debug_msg_cdebug.err
@@ -114,7 +114,7 @@ then
   check_missing debug_msg_cdebug.err "odr_violation2.cc:2[3-5]"
   check debug_msg_cdebug.err ": symbol 'SometimesInlineFunction(int)' defined in multiple places (possible ODR violation):"
   check debug_msg_cdebug.err "debug_msg.cc:6[89]"
-  check debug_msg_cdebug.err "odr_violation2.cc:2[7-9]"
+  check debug_msg_cdebug.err "odr_violation2.cc:3[0-7]"
 fi
 
 # When linking together .so's, we don't catch the line numbers, but we
@@ -132,7 +132,7 @@ check_missing debug_msg_so.err "odr_violation1.cc:1[6-8]"
 check_missing debug_msg_so.err "odr_violation2.cc:2[3-5]"
 check debug_msg_so.err ": symbol 'SometimesInlineFunction(int)' defined in multiple places (possible ODR violation):"
 check debug_msg_so.err "debug_msg.cc:6[89]"
-check debug_msg_so.err "odr_violation2.cc:2[7-9]"
+check debug_msg_so.err "odr_violation2.cc:3[0-7]"
 
 # These messages shouldn't need any debug info to detect:
 check debug_msg_ndebug.err "debug_msg_ndebug.so: error: undefined reference to 'undef_fn1()'"

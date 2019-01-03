@@ -104,11 +104,10 @@ int hash_accesses, hash_collisions, hash_expansions, hash_overflows;
 /* OPEN/CLOSE */
 
 extern DB *
-_DEFUN(__hash_open, (file, flags, mode, info, dflags),
-	const char *file _AND
-	int flags _AND
-	int mode _AND
-	int dflags _AND
+__hash_open (const char *file,
+	int flags,
+	int mode,
+	int dflags,
 	const HASHINFO *info)	/* Special directives for create */
 {
 	HTAB *hashp;

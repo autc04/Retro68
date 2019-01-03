@@ -43,9 +43,8 @@
 
 /* ARGSUSED */
 static bool_t
-_DEFUN (x_putlong, (xdrs, longp),
-        XDR * xdrs _AND
-	_CONST long *longp)
+x_putlong (XDR * xdrs,
+	const long *longp)
 {
   xdrs->x_handy += BYTES_PER_XDR_UNIT;
   return TRUE;
@@ -53,9 +52,8 @@ _DEFUN (x_putlong, (xdrs, longp),
 
 /* ARGSUSED */
 static bool_t
-_DEFUN (x_putbytes, (xdrs, bp, len),
-        XDR * xdrs _AND
-	const char *bp _AND
+x_putbytes (XDR * xdrs,
+	const char *bp,
 	u_int len)
 {
   xdrs->x_handy += len;
@@ -63,16 +61,14 @@ _DEFUN (x_putbytes, (xdrs, bp, len),
 }
 
 static u_int
-_DEFUN (x_getpostn, (xdrs),
-        XDR * xdrs)
+x_getpostn (XDR * xdrs)
 {
   return xdrs->x_handy;
 }
 
 /* ARGSUSED */
 static bool_t
-_DEFUN (x_setpostn, (xdrs, pos),
-        XDR * xdrs _AND
+x_setpostn (XDR * xdrs,
 	u_int pos)
 {
   /* This is not allowed */
@@ -80,8 +76,7 @@ _DEFUN (x_setpostn, (xdrs, pos),
 }
 
 static int32_t *
-_DEFUN (x_inline, (xdrs, len),
-        XDR * xdrs _AND
+x_inline (XDR * xdrs,
 	u_int len)
 {
   if (len == 0)
@@ -111,15 +106,14 @@ _DEFUN (x_inline, (xdrs, len),
 }
 
 static int
-_DEFUN_VOID (harmless)
+harmless (void)
 {
   /* Always return FALSE/NULL, as the case may be */
   return 0;
 }
 
 static void
-_DEFUN (x_destroy, (xdrs),
-        XDR * xdrs)
+x_destroy (XDR * xdrs)
 {
   xdrs->x_handy = 0;
   xdrs->x_base = 0;
@@ -132,9 +126,8 @@ _DEFUN (x_destroy, (xdrs),
 }
 
 static bool_t
-_DEFUN (x_putint32, (xdrs, int32p),
-        XDR *xdrs _AND
-	_CONST int32_t *int32p)
+x_putint32 (XDR *xdrs,
+	const int32_t *int32p)
 {
   xdrs->x_handy += BYTES_PER_XDR_UNIT;
   return TRUE;
@@ -142,17 +135,16 @@ _DEFUN (x_putint32, (xdrs, int32p),
 
 
 unsigned long
-_DEFUN (xdr_sizeof, (func, data),
-        xdrproc_t func _AND
-	_PTR data)
+xdr_sizeof (xdrproc_t func,
+	void *data)
 {
   XDR x;
   struct xdr_ops ops;
   bool_t stat;
   /* to stop ANSI-C compiler from complaining */
-  typedef bool_t _EXFNPTR (dummyfunc1, (XDR *, long *));
-  typedef bool_t _EXFNPTR (dummyfunc2, (XDR *, caddr_t, u_int));
-  typedef bool_t _EXFNPTR (dummyfunc3, (XDR *, int32_t *));
+  typedef bool_t (*dummyfunc1) (XDR *, long *);
+  typedef bool_t (*dummyfunc2) (XDR *, caddr_t, u_int);
+  typedef bool_t (*dummyfunc3) (XDR *, int32_t *);
 
   ops.x_putlong = x_putlong;
   ops.x_putbytes = x_putbytes;

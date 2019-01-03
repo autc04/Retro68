@@ -77,13 +77,13 @@ Disassembly of section .text:
  .*:	4770      	bx	lr
 #...
 
-.* <__app_func(_weak)?_from_thumb>:
- .*:	e59fc000 	ldr	ip, \[pc\]	; 2000378 <__app_func(_weak)?_from_thumb\+0x8>
+.* <__app_func_weak_from_thumb>:
+ .*:	e59fc000 	ldr	ip, \[pc\]	; .* <__app_func_weak_from_thumb\+0x8>
  .*:	e08ff00c 	add	pc, pc, ip
- .*:	fdffff(34|28) 	.word	0xfdffff(34|28)
+ .*:	fdffff40 	.word	0xfdffff40
 
-.* <__app_func(_weak)?_from_thumb>:
- .*:	e59fc000 	ldr	ip, \[pc\]	; 2000384 <__app_func(_weak)?_from_thumb\+0x8>
+.* <__app_func_from_thumb>:
+ .*:	e59fc000 	ldr	ip, \[pc\]	; .* <__app_func_from_thumb\+0x8>
  .*:	e08ff00c 	add	pc, pc, ip
- .*:	fdffff(1c|28) 	.word	0xfdffff(1c|28)
+ .*:	fdffff28 	.word	0xfdffff28
 	...

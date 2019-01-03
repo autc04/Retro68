@@ -5,15 +5,9 @@ FUNCTION
 INDEX
 	strcpy
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	char *strcpy(char *<[dst]>, const char *<[src]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	char *strcpy(<[dst]>, <[src]>)
-	char *<[dst]>;
-	char *<[src]>;
 
 DESCRIPTION
 	<<strcpy>> copies the string pointed to by <[src]>
@@ -58,9 +52,8 @@ QUICKREF
 #endif
 
 char*
-_DEFUN (strcpy, (dst0, src0),
-	char *dst0 _AND
-	_CONST char *src0)
+strcpy (char *dst0,
+	const char *src0)
 {
 #if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
   char *s = dst0;
@@ -71,9 +64,9 @@ _DEFUN (strcpy, (dst0, src0),
   return s;
 #else
   char *dst = dst0;
-  _CONST char *src = src0;
+  const char *src = src0;
   long *aligned_dst;
-  _CONST long *aligned_src;
+  const long *aligned_src;
 
   /* If SRC or DEST is unaligned, then copy bytes.  */
   if (!UNALIGNED (src, dst))

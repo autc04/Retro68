@@ -50,10 +50,9 @@ typedef struct
 #ifndef _REENT_ONLY
 
 int
-_DEFUN (setvbuf, (fp, buf, mode, size),
-	FILE * fp _AND
-	char *buf _AND
-	int mode _AND
+setvbuf (FILE * fp,
+	char *buf,
+	int mode,
 	size_t size)
 {
   c99_setvbuf_t args;

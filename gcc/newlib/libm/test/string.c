@@ -3,15 +3,14 @@
 #include <errno.h>
 
 
-_CONST char *it = "<UNSET>";	/* Routine name for message routines. */
+const char *it = "<UNSET>";	/* Routine name for message routines. */
 int  errors = 0;
 
 /* Complain if condition is not true.  */
 #define check(thing) checkit(thing, __LINE__)
 
 void
-_DEFUN(checkit,(ok,l),
-       int ok _AND
+checkit (int ok,
        int l )
 
 {
@@ -31,9 +30,8 @@ _DEFUN(checkit,(ok,l),
 #define equal(a, b)  funcqual(a,b,__LINE__);
 
 void
-_DEFUN(funcqual,(a,b,l),
-       char *a _AND
-       char *b _AND
+funcqual (char *a,
+       char *b,
        int l)
 {
   newfunc(it);
@@ -145,7 +143,7 @@ void test_string()
   equal(one, "abcd");	/* Zero count. */
 
   (void) strncat(one, "gh", 2);
-  equal(one, "abcdgh");	/* Count _AND length equal. */
+  equal(one, "abcdgh");	/* Count, length equal. */
   it = "strncmp";
   /* strncmp - first test as strcmp with big counts";*/
   check(strncmp("", "", 99) == 0); /* Trivial case. */
@@ -494,7 +492,7 @@ void test_string()
 
   (void) memset(one+5, 0, 1);
   equal(one, "axxxe");	/* Zero fill. */
-  equal(one+6, "gh");	/* _AND the leftover. */
+  equal(one+6, "gh");	/*, the leftover. */
 
   (void) memset(one+2, 010045, 1);
   equal(one, "ax\045xe");	/* Unsigned char convert. */

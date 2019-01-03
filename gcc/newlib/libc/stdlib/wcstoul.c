@@ -11,7 +11,7 @@ INDEX
 INDEX
 	_wcstoul_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wchar.h>
         unsigned long wcstoul(const wchar_t *__restrict <[s]>,
 			      wchar_t **__restrict <[ptr]>, int <[base]>);
@@ -23,19 +23,6 @@ ANSI_SYNOPSIS
 
         unsigned long _wcstoul_r(void *<[reent]>, const wchar_t *<[s]>,
 				 wchar_t **<[ptr]>, int <[base]>);
-
-TRAD_SYNOPSIS
-	#include <wchar.h>
-        unsigned long wcstoul(<[s]>, <[ptr]>, <[base]>)
-        wchar_t *__restrict <[s]>;
-        wchar_t **__restrict <[ptr]>;
-        int <[base]>;
-
-        unsigned long _wcstoul_r(<[reent]>, <[s]>, <[ptr]>, <[base]>)
-	wchar_t *<[reent]>;
-        wchar_t *<[s]>;
-        wchar_t **<[ptr]>;
-        int <[base]>;
 
 DESCRIPTION
 The function <<wcstoul>> converts the wide string <<*<[s]>>> to
@@ -205,10 +192,9 @@ _wcstoul_l (struct _reent *rptr, const wchar_t *nptr, wchar_t **endptr,
 }
 
 unsigned long
-_DEFUN (_wcstoul_r, (rptr, nptr, endptr, base),
-	struct _reent *rptr _AND
-	_CONST wchar_t *nptr _AND
-	wchar_t **endptr _AND
+_wcstoul_r (struct _reent *rptr,
+	const wchar_t *nptr,
+	wchar_t **endptr,
 	int base)
 {
 	return _wcstoul_l (rptr, nptr, endptr, base, __get_current_locale ());
@@ -224,9 +210,8 @@ wcstoul_l (const wchar_t *__restrict s, wchar_t **__restrict ptr, int base,
 }
 
 unsigned long
-_DEFUN (wcstoul, (s, ptr, base),
-	_CONST wchar_t *__restrict s _AND
-	wchar_t **__restrict ptr _AND
+wcstoul (const wchar_t *__restrict s,
+	wchar_t **__restrict ptr,
 	int base)
 {
 	return _wcstoul_l (_REENT, s, ptr, base, __get_current_locale ());

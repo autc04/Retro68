@@ -15,7 +15,7 @@ Relocation section '\.rela\.MMIX\.spec_data\.2' at offset .* contains 2 entries:
 0+  0+600000004 R_MMIX_32 +0+ +forw +\+ 0
 0+8  0+700000005 R_MMIX_64 +0+ +other +\+ 0
 
-Relocation section '\.rela\.MMIX\.spec_data\.3' at offset .* contains 1 entries:
+Relocation section '\.rela\.MMIX\.spec_data\.3' at offset .* contains 1 entry:
 .*
 0+  0+700000005 R_MMIX_64 +0+ +other +\+ 0
 

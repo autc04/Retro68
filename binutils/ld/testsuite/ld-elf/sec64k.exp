@@ -1,5 +1,5 @@
 # Expect script for tests for >64k sections
-#   Copyright (C) 2002-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -31,7 +31,6 @@ if ![is_elf_format] {
 # before local symbols, so don't bother testing them.
 if { [istarget "d30v-*-*"]
      || [istarget "dlx-*-*"]
-     || [istarget "i960-*-*"]
      || [istarget "pj*-*-*"] } {
     return
 }
@@ -41,6 +40,7 @@ if {[istarget "ft32-*-*"]
     || [istarget "h8300-*-*"]
     || [istarget "ip2k-*-*"]
     || [istarget "m68hc1*-*"]
+    || [istarget "s12z-*"]
     || [istarget "xgate-*"] } {
     return
 }

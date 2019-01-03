@@ -10,39 +10,15 @@
 #include <cpuid.h>
 #endif
 
+#ifdef __linux__
+#include <syscall.h>
+#endif
+
 #include "config.h"
 
 #include "runtime.h"
 #include "arch.h"
 #include "array.h"
-
-enum {
-	maxround = sizeof(uintptr),
-};
-
-extern volatile intgo runtime_MemProfileRate
-  __asm__ (GOSYM_PREFIX "runtime.MemProfileRate");
-
-struct gotraceback_ret {
-	int32 level;
-	bool  all;
-	bool  crash;
-};
-
-extern struct gotraceback_ret gotraceback(void)
-  __asm__ (GOSYM_PREFIX "runtime.gotraceback");
-
-// runtime_gotraceback is the C interface to runtime.gotraceback.
-int32
-runtime_gotraceback(bool *crash)
-{
-	struct gotraceback_ret r;
-
-	r = gotraceback();
-	if(crash != nil)
-		*crash = r.crash;
-	return r.level;
-}
 
 int32
 runtime_atoi(const byte *p, intgo len)
@@ -57,28 +33,47 @@ runtime_atoi(const byte *p, intgo len)
 	return n;
 }
 
-uint32
-runtime_fastrand(void)
-{
-	M *m;
-	uint32 x;
+#if defined(__i386__) || defined(__x86_64__) || defined (__s390__) || defined (__s390x__)
 
-	m = runtime_m();
-	x = m->fastrand;
-	x += x;
-	if(x & 0x80000000L)
-		x ^= 0x88888eefUL;
-	m->fastrand = x;
-	return x;
-}
+// When cputicks is just asm instructions, skip the split stack
+// prologue for speed.
+
+int64 runtime_cputicks(void) __attribute__((no_split_stack));
+
+#endif
+
+// Whether the processor supports SSE2.
+#if defined (__i386__)
+static _Bool hasSSE2;
+
+// Force appropriate CPU level so that we can call the lfence/mfence
+// builtins.
+
+#pragma GCC push_options
+#pragma GCC target("sse2")
+
+#elif defined(__x86_64__)
+#define hasSSE2 true
+#endif
+
+#if defined(__i386__) || defined(__x86_64__)
+// Whether to use lfence, as opposed to mfence.
+// Set based on cpuid.
+static _Bool lfenceBeforeRdtsc;
+#endif // defined(__i386__) || defined(__x86_64__)
 
 int64
 runtime_cputicks(void)
 {
-#if defined(__386__) || defined(__x86_64__)
-  uint32 low, high;
-  asm("rdtsc" : "=a" (low), "=d" (high));
-  return (int64)(((uint64)high << 32) | (uint64)low);
+#if defined(__i386__) || defined(__x86_64__)
+  if (hasSSE2) {
+    if (lfenceBeforeRdtsc) {
+      __builtin_ia32_lfence();
+    } else {
+      __builtin_ia32_mfence();
+    }
+  }
+  return __builtin_ia32_rdtsc();
 #elif defined (__s390__) || defined (__s390x__)
   uint64 clock = 0;
   /* stckf may not write the return variable in case of a clock error, so make
@@ -95,6 +90,10 @@ runtime_cputicks(void)
 #endif
 }
 
+#if defined(__i386__)
+#pragma GCC pop_options
+#endif
+
 void
 runtime_signalstack(byte *p, uintptr n)
 {
@@ -107,22 +106,6 @@ runtime_signalstack(byte *p, uintptr n)
 		st.ss_flags = SS_DISABLE;
 	if(sigaltstack(&st, nil) < 0)
 		*(int *)0xf1 = 0xf1;
-}
-
-struct debugVars	runtime_debug;
-
-void
-runtime_setdebug(struct debugVars* d) {
-  runtime_debug = *d;
-}
-
-void memclrBytes(Slice)
-     __asm__ (GOSYM_PREFIX "runtime.memclrBytes");
-
-void
-memclrBytes(Slice s)
-{
-	runtime_memclr(s.__values, s.__count);
 }
 
 int32 go_open(char *, int32, int32)
@@ -170,6 +153,28 @@ go_errno()
   return (intgo)errno;
 }
 
+uintptr getEnd(void)
+  __asm__ (GOSYM_PREFIX "runtime.getEnd");
+
+uintptr
+getEnd()
+{
+#ifdef _AIX
+  // mmap adresses range start at 0x30000000 on AIX for 32 bits processes
+  uintptr end = 0x30000000U;
+#else
+  uintptr end = 0;
+  uintptr *pend;
+
+  pend = &__go_end;
+  if (pend != nil) {
+    end = *pend;
+  }
+#endif
+
+  return end;
+}
+
 // CPU-specific initialization.
 // Fetch CPUID info on x86.
 
@@ -179,8 +184,21 @@ runtime_cpuinit()
 #if defined(__i386__) || defined(__x86_64__)
 	unsigned int eax, ebx, ecx, edx;
 
+	if (__get_cpuid(0, &eax, &ebx, &ecx, &edx)) {
+		if (eax != 0
+		    && ebx == 0x756E6547    // "Genu"
+		    && edx == 0x49656E69    // "ineI"
+		    && ecx == 0x6C65746E) { // "ntel"
+			lfenceBeforeRdtsc = true;
+		}
+	}
 	if (__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {
 		setCpuidECX(ecx);
+#if defined(__i386__)
+		if ((edx & bit_SSE2) != 0) {
+			hasSSE2 = true;
+		}
+#endif
 	}
 
 #if defined(HAVE_AS_X86_AES)
@@ -188,3 +206,29 @@ runtime_cpuinit()
 #endif
 #endif
 }
+
+// A publication barrier: a store/store barrier.
+
+void publicationBarrier(void)
+  __asm__ (GOSYM_PREFIX "runtime.publicationBarrier");
+
+void
+publicationBarrier()
+{
+  __atomic_thread_fence(__ATOMIC_RELEASE);
+}
+
+#ifdef __linux__
+
+/* Currently sbrk0 is only called on GNU/Linux.  */
+
+uintptr sbrk0(void)
+  __asm__ (GOSYM_PREFIX "runtime.sbrk0");
+
+uintptr
+sbrk0()
+{
+  return syscall(SYS_brk, (uintptr)(0));
+}
+
+#endif /* __linux__ */

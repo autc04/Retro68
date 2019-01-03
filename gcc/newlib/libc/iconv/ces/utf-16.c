@@ -58,24 +58,22 @@
 #define UTF_16LE "utf_16le"
 
 static size_t
-_DEFUN(utf_16_close, (rptr, data),
-                     struct _reent *rptr _AND
-                     _VOID_PTR data)
+utf_16_close (struct _reent *rptr,
+                     void *data)
 {
   _free_r(rptr, data);
   return 0;
 }
 
 #if defined (ICONV_FROM_UCS_CES_UTF_16)
-static _VOID_PTR
-_DEFUN(utf_16_init_from_ucs, (rptr, encoding),
-                             struct _reent *rptr _AND
-                             _CONST char *encoding)
+static void *
+utf_16_init_from_ucs (struct _reent *rptr,
+                             const char *encoding)
 {
   int *data;
   
   if ((data = (int *)_malloc_r (rptr, sizeof (int))) == NULL)
-    return (_VOID_PTR)NULL;
+    return (void *)NULL;
   
   if (strcmp (encoding, UTF_16LE) == 0)
     *data = UTF16_LITTLE_ENDIAN;
@@ -84,14 +82,13 @@ _DEFUN(utf_16_init_from_ucs, (rptr, encoding),
   else
     *data = UTF16_SYSTEM_ENDIAN;
      
-  return (_VOID_PTR)data;
+  return (void *)data;
 }
 
 static size_t
-_DEFUN(utf_16_convert_from_ucs, (data, in, outbuf, outbytesleft),
-                                _VOID_PTR data         _AND
-                                register ucs4_t in     _AND
-                                unsigned char **outbuf _AND
+utf_16_convert_from_ucs (void *data,
+                                register ucs4_t in,
+                                unsigned char **outbuf,
                                 size_t *outbytesleft)
 {
   register ucs2_t *cp;
@@ -169,15 +166,14 @@ _DEFUN(utf_16_convert_from_ucs, (data, in, outbuf, outbytesleft),
 #endif /* ICONV_FROM_UCS_CES_UTF_16 */
 
 #if defined (ICONV_TO_UCS_CES_UTF_16)
-static _VOID_PTR
-_DEFUN(utf_16_init_to_ucs, (rptr, encoding),
-                           struct _reent *rptr _AND
-                           _CONST char *encoding)
+static void *
+utf_16_init_to_ucs (struct _reent *rptr,
+                           const char *encoding)
 {
   int *data;
   
   if ((data = (int *)_malloc_r (rptr, sizeof (int))) == NULL)
-    return (_VOID_PTR)NULL;
+    return (void *)NULL;
   
   if (strcmp (encoding, UTF_16BE) == 0)
     *data = UTF16_BIG_ENDIAN;
@@ -186,13 +182,12 @@ _DEFUN(utf_16_init_to_ucs, (rptr, encoding),
   else
     *data = UTF16_UNDEFINED;
      
-  return (_VOID_PTR)data;
+  return (void *)data;
 }
 
 static ucs4_t
-_DEFUN(utf_16_convert_to_ucs, (data, inbuf, inbytesleft),
-                              _VOID_PTR data               _AND
-                              _CONST unsigned char **inbuf _AND
+utf_16_convert_to_ucs (void *data,
+                              const unsigned char **inbuf,
                               size_t *inbytesleft)
 {
   register ucs2_t w1;
@@ -268,14 +263,13 @@ _DEFUN(utf_16_convert_to_ucs, (data, inbuf, inbytesleft),
 #endif /* ICONV_TO_UCS_CES_UTF_16 */
 
 static int
-_DEFUN(utf_16_get_mb_cur_max, (data),
-                              _VOID_PTR data)
+utf_16_get_mb_cur_max (void *data)
 {
   return 6;
 }
 
 #if defined (ICONV_TO_UCS_CES_UTF_16)
-_CONST iconv_to_ucs_ces_handlers_t
+const iconv_to_ucs_ces_handlers_t
 _iconv_to_ucs_ces_handlers_utf_16 = 
 {
   utf_16_init_to_ucs,
@@ -289,7 +283,7 @@ _iconv_to_ucs_ces_handlers_utf_16 =
 #endif
 
 #if defined (ICONV_FROM_UCS_CES_UTF_16)
-_CONST iconv_from_ucs_ces_handlers_t
+const iconv_from_ucs_ces_handlers_t
 _iconv_from_ucs_ces_handlers_utf_16 =
 {
   utf_16_init_from_ucs,

@@ -65,7 +65,7 @@
 #line 1 "defparse.y" /* yacc.c:339  */
  /* defparse.y - parser for .def files */
 
-/* Copyright (C) 1995-2017 Free Software Foundation, Inc.
+/* Copyright (C) 1995-2018 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 

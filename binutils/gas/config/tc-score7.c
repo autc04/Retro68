@@ -1,5 +1,5 @@
 /* tc-score7.c -- Assembler for Score7
-   Copyright (C) 2009-2017 Free Software Foundation, Inc.
+   Copyright (C) 2009-2018 Free Software Foundation, Inc.
    Contributed by:
    Brain.lin (brain.lin@sunplusct.com)
    Mei Ligang (ligang@sunnorth.com.cn)
@@ -6077,8 +6077,7 @@ s7_s_score_lcomm (int bytes_p)
   *p = c;
 
   if (
-#if (defined (OBJ_AOUT) || defined (OBJ_MAYBE_AOUT) \
-     || defined (OBJ_BOUT) || defined (OBJ_MAYBE_BOUT))
+#if (defined (OBJ_AOUT) || defined (OBJ_MAYBE_AOUT))
 #ifdef BFD_ASSEMBLER
        (OUTPUT_FLAVOR != bfd_target_aout_flavour
         || (S_GET_OTHER (symbolP) == 0 && S_GET_DESC (symbolP) == 0)) &&

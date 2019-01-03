@@ -1,7 +1,7 @@
 #name: .inst pseudo-opcode test 1 - big endian version
 #as: -mbig-endian
 #objdump: -d --prefix-addresses --show-raw-insn
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#skip: *-*-pe *-*-wince
 #source: inst-po.s
 
 .*: +file format .*arm.*

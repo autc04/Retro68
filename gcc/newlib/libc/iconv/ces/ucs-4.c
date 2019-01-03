@@ -50,28 +50,26 @@
 #define UCS_4BE "ucs_4be"
 #define UCS_4LE "ucs_4le"
 
-static _VOID_PTR
-_DEFUN(ucs_4_init, (rptr, encoding),
-                   struct _reent *rptr _AND
-                   _CONST char *encoding)
+static void *
+ucs_4_init (struct _reent *rptr,
+                   const char *encoding)
 {
   int *data;
   
   if ((data = (int *)_malloc_r (rptr, sizeof(int))) == NULL)
-    return (_VOID_PTR)NULL;
+    return (void *)NULL;
   
   if (strcmp (encoding, UCS_4LE) == 0)
     *data = UCS_4_LITTLE_ENDIAN;
   else
     *data = UCS_4_BIG_ENDIAN;
      
-  return (_VOID_PTR)data;
+  return (void *)data;
 }
 
 static size_t
-_DEFUN(ucs_4_close, (rptr, data),
-                    struct _reent *rptr _AND
-                    _VOID_PTR data)
+ucs_4_close (struct _reent *rptr,
+                    void *data)
 {
   _free_r(rptr, data);
   return 0;
@@ -80,10 +78,9 @@ _DEFUN(ucs_4_close, (rptr, data),
 
 #if defined (ICONV_FROM_UCS_CES_UCS_4)
 static size_t
-_DEFUN(ucs_4_convert_from_ucs, (data, in, outbuf, outbytesleft),
-                               _VOID_PTR data         _AND
-                               ucs4_t in              _AND
-                               unsigned char **outbuf _AND
+ucs_4_convert_from_ucs (void *data,
+                               ucs4_t in,
+                               unsigned char **outbuf,
                                size_t *outbytesleft)
 {
   if ((in  >= 0x0000D800 && in <= 0x0000DFFF) /* Surrogate character */
@@ -107,9 +104,8 @@ _DEFUN(ucs_4_convert_from_ucs, (data, in, outbuf, outbytesleft),
 
 #if defined (ICONV_TO_UCS_CES_UCS_4)
 static ucs4_t
-_DEFUN(ucs_4_convert_to_ucs, (data, inbuf, inbytesleft),
-                             _VOID_PTR data               _AND
-                             _CONST unsigned char **inbuf _AND
+ucs_4_convert_to_ucs (void *data,
+                             const unsigned char **inbuf,
                              size_t *inbytesleft)
 {
   ucs4_t res;
@@ -134,14 +130,13 @@ _DEFUN(ucs_4_convert_to_ucs, (data, inbuf, inbytesleft),
 #endif /* ICONV_TO_UCS_CES_UCS_4 */
 
 static int
-_DEFUN(ucs_4_get_mb_cur_max, (data),
-                             _VOID_PTR data)
+ucs_4_get_mb_cur_max (void *data)
 {
   return 4;
 }
 
 #if defined (ICONV_TO_UCS_CES_UCS_4)
-_CONST iconv_to_ucs_ces_handlers_t
+const iconv_to_ucs_ces_handlers_t
 _iconv_to_ucs_ces_handlers_ucs_4 = 
 {
   ucs_4_init,
@@ -155,7 +150,7 @@ _iconv_to_ucs_ces_handlers_ucs_4 =
 #endif
 
 #if defined (ICONV_FROM_UCS_CES_UCS_4)
-_CONST iconv_from_ucs_ces_handlers_t
+const iconv_from_ucs_ces_handlers_t
 _iconv_from_ucs_ces_handlers_ucs_4 =
 {
   ucs_4_init,

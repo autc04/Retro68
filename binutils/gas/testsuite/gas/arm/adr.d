@@ -1,3 +1,4 @@
+#as: -mthumb-interwork
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: ADR
 

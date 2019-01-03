@@ -1,7 +1,7 @@
 #source: textrel1.s
 #source: textrel2.s
 #as: -little
-#ld: -shared -EL
+#ld: -shared -EL --hash-style=sysv
 #readelf: -d
 #target: sh*-*-elf sh*-*-linux* sh*-*-netbsd*
 

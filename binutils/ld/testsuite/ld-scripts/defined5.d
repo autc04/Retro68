@@ -1,7 +1,7 @@
 #ld: -Tdefined5.t
 #nm: -B
 #source: defined5.s
-#xfail: rs6000-*-aix*
+#xfail: powerpc*-*-aix* rs6000-*-aix*
 
 # Check that arithmetic on DEFINED works.
 #...

@@ -12,7 +12,7 @@ INDEX
 INDEX
 	open_wmemstream
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	FILE *open_memstream(char **restrict <[buf]>,
 			     size_t *restrict <[size]>);
@@ -93,10 +93,9 @@ typedef struct memstream {
 /* Write up to non-zero N bytes of BUF into the stream described by COOKIE,
    returning the number of bytes written or EOF on failure.  */
 static _READ_WRITE_RETURN_TYPE
-_DEFUN(memwriter, (ptr, cookie, buf, n),
-       struct _reent *ptr _AND
-       void *cookie _AND
-       const char *buf _AND
+memwriter (struct _reent *ptr,
+       void *cookie,
+       const char *buf,
        _READ_WRITE_BUFSIZE_TYPE n)
 {
   memstream *c = (memstream *) cookie;
@@ -147,10 +146,9 @@ _DEFUN(memwriter, (ptr, cookie, buf, n),
 /* Seek to position POS relative to WHENCE within stream described by
    COOKIE; return resulting position or fail with EOF.  */
 static _fpos_t
-_DEFUN(memseeker, (ptr, cookie, pos, whence),
-       struct _reent *ptr _AND
-       void *cookie _AND
-       _fpos_t pos _AND
+memseeker (struct _reent *ptr,
+       void *cookie,
+       _fpos_t pos,
        int whence)
 {
   memstream *c = (memstream *) cookie;
@@ -215,10 +213,9 @@ _DEFUN(memseeker, (ptr, cookie, pos, whence),
    COOKIE; return resulting position or fail with EOF.  */
 #ifdef __LARGE64_FILES
 static _fpos64_t
-_DEFUN(memseeker64, (ptr, cookie, pos, whence),
-       struct _reent *ptr _AND
-       void *cookie _AND
-       _fpos64_t pos _AND
+memseeker64 (struct _reent *ptr,
+       void *cookie,
+       _fpos64_t pos,
        int whence)
 {
   _off64_t offset = (_off64_t) pos;
@@ -275,8 +272,7 @@ _DEFUN(memseeker64, (ptr, cookie, pos, whence),
 
 /* Reclaim resources used by stream described by COOKIE.  */
 static int
-_DEFUN(memcloser, (ptr, cookie),
-       struct _reent *ptr _AND
+memcloser (struct _reent *ptr,
        void *cookie)
 {
   memstream *c = (memstream *) cookie;
@@ -295,10 +291,9 @@ _DEFUN(memcloser, (ptr, cookie),
 /* Open a memstream that tracks a dynamic buffer in BUF and SIZE.
    Return the new stream, or fail with NULL.  */
 static FILE *
-_DEFUN(internal_open_memstream_r, (ptr, buf, size, wide),
-       struct _reent *ptr _AND
-       char **buf _AND
-       size_t *size _AND
+internal_open_memstream_r (struct _reent *ptr,
+       char **buf,
+       size_t *size,
        int wide)
 {
   FILE *fp;
@@ -378,18 +373,16 @@ _DEFUN(internal_open_memstream_r, (ptr, buf, size, wide),
 }
 
 FILE *
-_DEFUN(_open_memstream_r, (ptr, buf, size),
-       struct _reent *ptr _AND
-       char **buf _AND
+_open_memstream_r (struct _reent *ptr,
+       char **buf,
        size_t *size)
 {
   return internal_open_memstream_r (ptr, buf, size, -1);
 }
 
 FILE *
-_DEFUN(_open_wmemstream_r, (ptr, buf, size),
-       struct _reent *ptr _AND
-       wchar_t **buf _AND
+_open_wmemstream_r (struct _reent *ptr,
+       wchar_t **buf,
        size_t *size)
 {
   return internal_open_memstream_r (ptr, (char **)buf, size, 1);
@@ -397,16 +390,14 @@ _DEFUN(_open_wmemstream_r, (ptr, buf, size),
 
 #ifndef _REENT_ONLY
 FILE *
-_DEFUN(open_memstream, (buf, size),
-       char **buf _AND
+open_memstream (char **buf,
        size_t *size)
 {
   return _open_memstream_r (_REENT, buf, size);
 }
 
 FILE *
-_DEFUN(open_wmemstream, (buf, size),
-       wchar_t **buf _AND
+open_wmemstream (wchar_t **buf,
        size_t *size)
 {
   return _open_wmemstream_r (_REENT, buf, size);

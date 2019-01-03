@@ -3,7 +3,7 @@
 #ld: -r
 #readelf: -h
 # This test is only valid on ELF based ports.
-# not-target: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+# not-target: *-*-pe *-*-wince
 # if we compile for EABI ver4, ld should *not* set either of the float ABI flags
 
 ELF Header:

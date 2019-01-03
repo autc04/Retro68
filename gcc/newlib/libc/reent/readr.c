@@ -26,18 +26,10 @@ FUNCTION
 INDEX
 	_read_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <reent.h>
 	_ssize_t _read_r(struct _reent *<[ptr]>,
 		         int <[fd]>, void *<[buf]>, size_t <[cnt]>);
-
-TRAD_SYNOPSIS
-	#include <reent.h>
-	_ssize_t _read_r(<[ptr]>, <[fd]>, <[buf]>, <[cnt]>)
-	struct _reent *<[ptr]>;
-	int <[fd]>;
-	char *<[buf]>;
-	size_t <[cnt]>;
 
 DESCRIPTION
 	This is a reentrant version of <<read>>.  It
@@ -46,10 +38,9 @@ DESCRIPTION
 */
 
 _ssize_t
-_DEFUN (_read_r, (ptr, fd, buf, cnt),
-     struct _reent *ptr _AND
-     int fd _AND
-     _PTR buf _AND
+_read_r (struct _reent *ptr,
+     int fd,
+     void *buf,
      size_t cnt)
 {
   _ssize_t ret;

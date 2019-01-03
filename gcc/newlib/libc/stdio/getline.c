@@ -6,16 +6,9 @@ FUNCTION
 INDEX
         getline
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <stdio.h>
         ssize_t getline(char **<[bufptr]>, size_t *<[n]>, FILE *<[fp]>);
-
-TRAD_SYNOPSIS
-        #include <stdio.h>
-        ssize_t getline(<[bufptr]>, <[n]>, <[fp]>)
-        char **<[bufptr]>;
-        size_t *<[n]>;
-        FILE *<[fp]>;
 
 DESCRIPTION
 <<getline>> reads a file <[fp]> up to and possibly including the
@@ -41,12 +34,11 @@ No supporting OS subroutines are directly required.
 #include <_ansi.h>
 #include <stdio.h>
 
-extern ssize_t _EXFUN(__getdelim, (char **, size_t *, int, FILE *));
+extern ssize_t __getdelim (char **, size_t *, int, FILE *);
 
 ssize_t
-_DEFUN(__getline, (lptr, n, fp),
-       char **lptr _AND
-       size_t *n   _AND
+__getline (char **lptr,
+       size_t *n,
        FILE *fp)
 {
   return __getdelim (lptr, n, '\n', fp);

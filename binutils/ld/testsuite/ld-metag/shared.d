@@ -17,7 +17,7 @@ Disassembly of section .plt:
  .*:	82120780 	          ADD       A0.2,A0.2,#0x40f0
  .*:	c600806a 	          GETD      PC,\[A0.2\]
  .*:	03000004 	          MOV       D1Re0,#0
- .*:	a0fffee0 	          B         184 <.*>
+ .*:	a0fffee0 	          B         .* <\.plt>
 Disassembly of section .text:
 
 .* <lib_func1>:
@@ -28,7 +28,7 @@ Disassembly of section .text:
  .*:	82000040 	          ADD       A0StP,A0StP,#0x8
  .*:	83880001 	          ADDT      A1LbP,CPC1,#0
  .*:	830b0660 	          ADD       A1LbP,A1LbP,#0x60cc
- .*:	abfffe94 	          CALLR     D1RtP,198 <app_func2@plt>
+ .*:	abfffe94 	          CALLR     D1RtP,.* <app_func2@plt>
  .*:	a70c018d 	          GETD      D0Ar6,\[A1LbP\+#-8180\]
  .*:	00000200 	          ADD       D0Re0,D0Re0,D0Ar6
  .*:	01000205 	          MOV       D1Re0,A1LbP

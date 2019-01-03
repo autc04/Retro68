@@ -88,8 +88,8 @@
 # define MAXEXPLEN		7
 # define DEFPREC		6
 
-extern char *_dtoa_r _PARAMS((struct _reent *, double, int,
-			      int, int *, int *, char **));
+extern char *_dtoa_r (struct _reent *, double, int,
+			      int, int *, int *, char **);
 
 # define _DTOA_R _dtoa_r
 # define FREXP frexp
@@ -114,7 +114,7 @@ extern char *_dtoa_r _PARAMS((struct _reent *, double, int,
 #define u_quad_t unsigned long
 
 typedef quad_t * quad_ptr_t;
-typedef _PTR     void_ptr_t;
+typedef void *void_ptr_t;
 typedef char *   char_ptr_t;
 typedef long *   long_ptr_t;
 typedef int  *   int_ptr_t;
@@ -215,11 +215,11 @@ _printf_common (struct _reent *data,
 		int *realsz,
 		FILE *fp,
 		int (*pfunc)(struct _reent *, FILE *,
-			     _CONST char *, size_t len));
+			     const char *, size_t len));
 
 extern int
 _printf_i (struct _reent *data, struct _prt_data_t *pdata, FILE *fp,
-	   int (*pfunc)(struct _reent *, FILE *, _CONST char *, size_t len),
+	   int (*pfunc)(struct _reent *, FILE *, const char *, size_t len),
 	   va_list *ap);
 
 /* Make _printf_float weak symbol, so it won't be linked in if target program
@@ -229,6 +229,6 @@ _printf_float (struct _reent *data,
 	       struct _prt_data_t *pdata,
 	       FILE *fp,
 	       int (*pfunc)(struct _reent *, FILE *,
-			    _CONST char *, size_t len),
+			    const char *, size_t len),
 	       va_list *ap) _ATTRIBUTE((__weak__));
 #endif

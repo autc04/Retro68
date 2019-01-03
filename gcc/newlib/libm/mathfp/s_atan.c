@@ -10,18 +10,10 @@ INDEX
 INDEX
    atanf
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <math.h>
         double atan(double <[x]>);
         float atanf(float <[x]>);
-
-TRAD_SYNOPSIS
-        #include <math.h>
-        double atan(<[x]>);
-        double <[x]>;
-
-        float atanf(<[x]>);
-        float <[x]>;
 
 DESCRIPTION
 
@@ -62,8 +54,7 @@ PORTABILITY
 #ifndef _DOUBLE_IS_32BITS
 
 double
-_DEFUN (atan, (double),
-        double x)
+atan (double x)
 {
   switch (numtest (x))
     {

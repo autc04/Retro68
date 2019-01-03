@@ -35,11 +35,7 @@ Author: Joel Schopp <jschopp@austin.ibm.com>
 
 #include "c99ppe.h"
 
-#ifdef _HAVE_STDC
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #ifdef INTEGER_ONLY
 #  define vfscanf vfiscanf
@@ -57,9 +53,8 @@ typedef struct
 #ifndef _REENT_ONLY
 
 int
-_DEFUN (vfscanf, (fp, fmt, ap),
-    FILE *__restrict fp _AND
-    _CONST char *__restrict fmt _AND
+vfscanf (FILE *__restrict fp,
+    const char *__restrict fmt,
     va_list ap)
 {
   c99_vfscanf_t args;

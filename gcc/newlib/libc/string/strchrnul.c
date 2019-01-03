@@ -5,15 +5,9 @@ FUNCTION
 INDEX
 	strchrnul
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	char * strchrnul(const char *<[string]>, int <[c]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	char * strchrnul(<[string]>, <[c]>);
-	const char *<[string]>;
-	int <[c]>;
 
 DESCRIPTION
 	This function finds the first occurence of <[c]> (converted to
@@ -37,8 +31,7 @@ QUICKREF
 #include <string.h>
 
 char *
-_DEFUN (strchrnul, (s1, i),
-	_CONST char *s1 _AND
+strchrnul (const char *s1,
 	int i)
 {
   char *s = strchr(s1, i);

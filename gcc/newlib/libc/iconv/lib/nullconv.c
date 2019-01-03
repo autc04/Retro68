@@ -35,34 +35,30 @@
 static int null_conversion_dummy_data;
 
 
-static _VOID_PTR
-_DEFUN(null_conversion_open, (rptr, to, from),
-                             struct _reent *rptr _AND
-                             _CONST char *to     _AND
-                             _CONST char *from)
+static void *
+null_conversion_open (struct _reent *rptr,
+                             const char *to,
+                             const char *from)
 {
-  return (_VOID_PTR)&null_conversion_dummy_data;
+  return (void *)&null_conversion_dummy_data;
 }
 
 
 static size_t
-_DEFUN(null_conversion_close, (rptr, data),
-                              struct _reent *rptr _AND
-                              _VOID_PTR data)
+null_conversion_close (struct _reent *rptr,
+                              void *data)
 {
   return 0;
 }
 
 
 static size_t
-_DEFUN(null_conversion_convert,
-                     (rptr, data, inbuf, inbytesleft, outbuf, outbytesleft),
-                     struct _reent *rptr          _AND
-                     _VOID_PTR data               _AND
-                     _CONST unsigned char **inbuf _AND
-                     size_t *inbytesleft          _AND
-                     unsigned char **outbuf       _AND
-                     size_t *outbytesleft         _AND
+null_conversion_convert (struct _reent *rptr,
+                     void *data,
+                     const unsigned char **inbuf,
+                     size_t *inbytesleft,
+                     unsigned char **outbuf,
+                     size_t *outbytesleft,
                      int flags)
 {
   size_t result;
@@ -93,18 +89,16 @@ _DEFUN(null_conversion_convert,
 
 
 static int
-_DEFUN(null_conversion_get_mb_cur_max, (data, direction),
-                                       _VOID_PTR data     _AND
+null_conversion_get_mb_cur_max (void *data,
                                        int direction)
 {
   return ICONV_MB_LEN_MAX;
 }
 
 
-static _VOID
-_DEFUN(null_conversion_get_state, (data, state, size),
-                                  _VOID_PTR data   _AND
-                                  mbstate_t *state _AND
+static void
+null_conversion_get_state (void *data,
+                                  mbstate_t *state,
                                   int direction)
 {
   return;
@@ -112,24 +106,22 @@ _DEFUN(null_conversion_get_state, (data, state, size),
 
 
 static int
-_DEFUN(null_conversion_set_state, (data, state, direction),
-                                  _VOID_PTR data   _AND
-                                  mbstate_t *state _AND
+null_conversion_set_state (void *data,
+                                  mbstate_t *state,
                                   int direction)
 {
   return 0;
 }
 
 static int
-_DEFUN(null_conversion_is_stateful, (data, direction),
-                                    _VOID_PTR data _AND
+null_conversion_is_stateful (void *data,
                                     int direction)
 {
   return 0;
 }
 
 /* Null conversion definition object */
-_CONST iconv_conversion_handlers_t
+const iconv_conversion_handlers_t
 _iconv_null_conversion_handlers =
 {
   null_conversion_open,

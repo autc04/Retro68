@@ -8,16 +8,12 @@ INDEX
 INDEX
 	isupper_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <ctype.h>
 	int isupper(int <[c]>);
 
 	#include <ctype.h>
 	int isupper_l(int <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <ctype.h>
-	int isupper(<[c]>);
 
 DESCRIPTION
 <<isupper>> is a macro which classifies singlebyte charset values by table
@@ -45,7 +41,7 @@ No supporting OS subroutines are required.
 
 #undef isupper
 int
-_DEFUN(isupper,(c),int c)
+isupper (int c)
 {
 	return ((__CTYPE_PTR[c+1] & (_U|_L)) == _U);
 }

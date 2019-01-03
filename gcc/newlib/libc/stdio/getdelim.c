@@ -6,18 +6,10 @@ FUNCTION
 INDEX
 	getdelim
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	int getdelim(char **<[bufptr]>, size_t *<[n]>,
                      int <[delim]>, FILE *<[fp]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	int getdelim(<[bufptr]>, <[n]>, <[delim]>, <[fp]>)
-	char **<[bufptr]>;
-	size_t *<[n]>;
-	int <[delim]>;
-	FILE *<[fp]>;
 
 DESCRIPTION
 <<getdelim>> reads a file <[fp]> up to and possibly including a specified
@@ -48,10 +40,9 @@ No supporting OS subroutines are directly required.
 #define DEFAULT_LINE_SIZE 128
 
 ssize_t
-_DEFUN(__getdelim, (bufptr, n, delim, fp),
-       char **bufptr _AND
-       size_t *n     _AND
-       int delim     _AND 
+__getdelim (char **bufptr,
+       size_t *n,
+       int delim,
        FILE *fp)
 {
   char *buf;

@@ -1,6 +1,6 @@
 /* tc-msp430.c -- Assembler code for the Texas Instruments MSP430
 
-  Copyright (C) 2002-2017 Free Software Foundation, Inc.
+  Copyright (C) 2002-2018 Free Software Foundation, Inc.
   Contributed by Dmitry Diky <diwil@mail.ru>
 
   This file is part of GAS, the GNU Assembler.
@@ -415,6 +415,13 @@ parse_exp (char * s, expressionS * op)
   expression (op);
   if (op->X_op == O_absent)
     as_bad (_("missing operand"));
+  /* Our caller is likely to check that the entire expression was parsed.
+     If we have found a hex constant with an 'h' suffix, ilp will be left
+     pointing at the 'h', so skip it here.  */
+  if (input_line_pointer != NULL
+      && op->X_op == O_constant
+      && (*input_line_pointer == 'h' || *input_line_pointer == 'H'))
+    ++ input_line_pointer;
   return input_line_pointer;
 }
 
@@ -625,7 +632,7 @@ msp430_profiler (int dummy ATTRIBUTE_UNUSED)
       /* Now get profiling info.  */
       halt = extract_operand (input_line_pointer, str, 1024);
       /* Process like ".word xxx" directive.  */
-      parse_exp (str, & exp);
+      (void) parse_exp (str, & exp);
       emit_expr (& exp, 2);
       input_line_pointer = halt;
     }
@@ -676,6 +683,8 @@ static bfd_boolean warn_interrupt_nops = TRUE;
 #define OPTION_MCPU 'c'
 #define OPTION_MOVE_DATA 'd'
 static bfd_boolean move_data = FALSE;
+#define OPTION_DATA_REGION 'r'
+static bfd_boolean upper_data_region_in_use = FALSE;
 
 enum
 {
@@ -1448,6 +1457,12 @@ md_parse_option (int c, const char * arg)
     case OPTION_MOVE_DATA:
       move_data = TRUE;
       return 1;
+
+    case OPTION_DATA_REGION:
+      if (strcmp (arg, "upper") == 0
+	  || strcmp (arg, "either") == 0)
+	upper_data_region_in_use = TRUE;
+      return 1;
     }
 
   return 0;
@@ -1478,14 +1493,19 @@ msp430_make_init_symbols (const char * name)
 
   /* Note - data assigned to the .either.data section may end up being
      placed in the .upper.data section if the .lower.data section is
-     full.  Hence the need to define the crt0 symbol.  */
+     full.  Hence the need to define the crt0 symbol.
+     The linker may create upper or either data sections, even when none exist
+     at the moment, so use the value of the data-region flag to determine if
+     the symbol is needed.  */
   if (strncmp (name, ".either.data", 12) == 0
-      || strncmp (name, ".upper.data", 11) == 0)
+      || strncmp (name, ".upper.data", 11) == 0
+      || upper_data_region_in_use)
     (void) symbol_find_or_make ("__crt0_move_highdata");
 
   /* See note about .either.data above.  */
   if (strncmp (name, ".upper.bss", 10) == 0
-      || strncmp (name, ".either.bss", 11) == 0)
+      || strncmp (name, ".either.bss", 11) == 0
+      || upper_data_region_in_use)
     (void) symbol_find_or_make ("__crt0_init_highbss");
 }
 
@@ -1570,6 +1590,7 @@ struct option md_longopts[] =
   {"mY", no_argument, NULL, OPTION_NO_WARN_INTR_NOPS},
   {"my", no_argument, NULL, OPTION_WARN_INTR_NOPS},
   {"md", no_argument, NULL, OPTION_MOVE_DATA},
+  {"mdata-region", required_argument, NULL, OPTION_DATA_REGION},
   {NULL, no_argument, NULL, 0}
 };
 
@@ -1601,6 +1622,9 @@ md_show_usage (FILE * stream)
 	   _("  -my - warn about missing NOPs after changing interrupts (default)\n"));
   fprintf (stream,
 	   _("  -md - Force copying of data from ROM to RAM at startup\n"));
+  fprintf (stream,
+	   _("  -mdata-region={none|lower|upper|either} - select region data will be\n"
+	     "    placed in.\n"));
 }
 
 symbolS *
@@ -1692,6 +1716,7 @@ msp430_srcoperand (struct msp430_operand_s * op,
 		   bfd_boolean allow_20bit_values,
 		   bfd_boolean constants_allowed)
 {
+  char * end;
   char *__tl = l;
 
   /* Check if an immediate #VALUE.  The hash sign should be only at the beginning!  */
@@ -1748,7 +1773,12 @@ msp430_srcoperand (struct msp430_operand_s * op,
       op->mode = OP_EXP;
       op->vshift = vshift;
 
-      parse_exp (__tl, &(op->exp));
+      end = parse_exp (__tl, &(op->exp));
+      if (end != NULL && *end != 0 && *end != ')' )
+	{
+	  as_bad (_("extra characters '%s' at end of immediate expression '%s'"), end, l);
+	  return 1;
+	}
       if (op->exp.X_op == O_constant)
 	{
 	  int x = op->exp.X_add_number;
@@ -1945,7 +1975,12 @@ msp430_srcoperand (struct msp430_operand_s * op,
       op->am = 1;		/* mode As == 01 bin.  */
       op->ol = 1;		/* Immediate value followed by instruction.  */
       __tl = h + 1;
-      parse_exp (__tl, &(op->exp));
+      end = parse_exp (__tl, &(op->exp));
+      if (end != NULL && *end != 0)
+	{
+	  as_bad (_("extra characters '%s' at the end of absolute operand '%s'"), end, l);
+	  return 1;
+	}
       op->mode = OP_EXP;
       op->vshift = 0;
       if (op->exp.X_op == O_constant)
@@ -2056,7 +2091,12 @@ msp430_srcoperand (struct msp430_operand_s * op,
       *h = 0;
       op->mode = OP_EXP;
       op->vshift = 0;
-      parse_exp (__tl, &(op->exp));
+      end = parse_exp (__tl, &(op->exp));
+      if (end != NULL && *end != 0)
+	{
+	  as_bad (_("extra characters '%s' at end of operand '%s'"), end, l);
+	  return 1;
+	}
       if (op->exp.X_op == O_constant)
 	{
 	  int x = op->exp.X_add_number;
@@ -2118,23 +2158,20 @@ msp430_srcoperand (struct msp430_operand_s * op,
     }
 
   /* Symbolic mode 'mov a, b' == 'mov x(pc), y(pc)'.  */
-  do
+  op->mode = OP_EXP;
+  op->reg = 0;		/* PC relative... be careful.  */
+  /* An expression starting with a minus sign is a constant, not an address.  */
+  op->am = (*l == '-' ? 3 : 1);
+  op->ol = 1;
+  op->vshift = 0;
+  __tl = l;
+  end = parse_exp (__tl, &(op->exp));
+  if (end != NULL && * end != 0)
     {
-      op->mode = OP_EXP;
-      op->reg = 0;		/* PC relative... be careful.  */
-      /* An expression starting with a minus sign is a constant, not an address.  */
-      op->am = (*l == '-' ? 3 : 1);
-      op->ol = 1;
-      op->vshift = 0;
-      __tl = l;
-      parse_exp (__tl, &(op->exp));
-      return 0;
+      as_bad (_("extra characters '%s' at end of operand '%s'"), end, l);
+      return 1;
     }
-  while (0);
-
-  /* Unreachable.  */
-  as_bad (_("unknown addressing mode for operand %s"), l);
-  return 1;
+  return 0;
 }
 
 
@@ -2161,7 +2198,7 @@ msp430_dstoperand (struct msp430_operand_s * op,
       op->am = 1;
       op->ol = 1;
       op->vshift = 0;
-      parse_exp (__tl, &(op->exp));
+      (void) parse_exp (__tl, &(op->exp));
 
       if (op->exp.X_op != O_constant || op->exp.X_add_number != 0)
 	{
@@ -2458,6 +2495,7 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
   int insn_length = 0;
   char l1[MAX_OP_LEN], l2[MAX_OP_LEN];
   char *frag;
+  char *end;
   int where;
   struct msp430_operand_s op1, op2;
   int res = 0;
@@ -2563,7 +2601,9 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
       && opcode->insn_opnumb
       && (!*line || *line == '\n'))
     {
-      as_bad (_("instruction %s requires %d operand(s)"),
+      as_bad (ngettext ("instruction %s requires %d operand",
+			"instruction %s requires %d operands",
+			opcode->insn_opnumb),
 	      opcode->name, opcode->insn_opnumb);
       return 0;
     }
@@ -2631,7 +2671,7 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 
 		case NOP_CHECK_CPU12:
 		  if (silicon_errata_warn & SILICON_ERRATA_CPU12)
-		    as_warn (_("CPU12: CMP/BIT with PC destinstion ignores next instruction"));
+		    as_warn (_("CPU12: CMP/BIT with PC destination ignores next instruction"));
 
 		  if (silicon_errata_fix & SILICON_ERRATA_CPU12)
 		    doit = TRUE;
@@ -2724,9 +2764,9 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 		   || is_opcode ("bicx") || is_opcode ("bisx") || is_opcode ("movx")))
 	    {
 	      if (silicon_errata_fix & SILICON_ERRATA_CPU11)
-		as_bad (_("CPU11: PC is destinstion of SR altering instruction"));
+		as_bad (_("CPU11: PC is destination of SR altering instruction"));
 	      else if (silicon_errata_warn & SILICON_ERRATA_CPU11)
-		as_warn (_("CPU11: PC is destinstion of SR altering instruction"));
+		as_warn (_("CPU11: PC is destination of SR altering instruction"));
 	    }
 	  
 	  /* If the status register is the destination...  */
@@ -2741,9 +2781,9 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 		  ))
 	    {
 	      if (silicon_errata_fix & SILICON_ERRATA_CPU13)
-		as_bad (_("CPU13: SR is destinstion of SR altering instruction"));
+		as_bad (_("CPU13: SR is destination of SR altering instruction"));
 	      else if (silicon_errata_warn & SILICON_ERRATA_CPU13)
-		as_warn (_("CPU13: SR is destinstion of SR altering instruction"));
+		as_warn (_("CPU13: SR is destination of SR altering instruction"));
 	    }
 	  
 	  if (is_opcode ("clr") && bin == 0x4302 /* CLR R2*/)
@@ -2849,9 +2889,9 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 		  ))
 	    {
 	      if (silicon_errata_fix & SILICON_ERRATA_CPU13)
-		as_bad (_("CPU13: SR is destinstion of SR altering instruction"));
+		as_bad (_("CPU13: SR is destination of SR altering instruction"));
 	      else if (silicon_errata_warn & SILICON_ERRATA_CPU13)
-		as_warn (_("CPU13: SR is destinstion of SR altering instruction"));
+		as_warn (_("CPU13: SR is destination of SR altering instruction"));
 	    }
 	  
 	  if (extended_op)
@@ -3089,7 +3129,12 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 		as_bad (_("expected #n as first argument of %s"), opcode->name);
 		break;
 	      }
-	    parse_exp (l1 + 1, &(op1.exp));
+	    end = parse_exp (l1 + 1, &(op1.exp));
+	    if (end != NULL && *end != 0)
+	      {
+		as_bad (_("extra characters '%s' at end of constant expression '%s'"), end, l1);
+		break;
+	      }
 	    if (op1.exp.X_op != O_constant)
 	      {
 		as_bad (_("expected constant expression as first argument of %s"),
@@ -3160,7 +3205,12 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 		as_bad (_("expected #n as first argument of %s"), opcode->name);
 		break;
 	      }
-	    parse_exp (l1 + 1, &(op1.exp));
+	    end = parse_exp (l1 + 1, &(op1.exp));
+	    if (end != NULL && *end != 0)
+	      {
+		as_bad (_("extra characters '%s' at end of operand '%s'"), end, l1);
+		break;
+	      }
 	    if (op1.exp.X_op != O_constant)
 	      {
 		as_bad (_("expected constant expression as first argument of %s"),
@@ -3223,7 +3273,12 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 
 	    if (*l1 == '#')
 	      {
-		parse_exp (l1 + 1, &(op1.exp));
+		end = parse_exp (l1 + 1, &(op1.exp));
+		if (end != NULL && *end != 0)
+		  {
+		    as_bad (_("extra characters '%s' at end of operand '%s'"), end, l1);
+		    break;
+		  }
 
 		if (op1.exp.X_op == O_constant)
 		  {
@@ -3335,7 +3390,12 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 	  /* The RPT instruction only accepted immediates and registers.  */
 	  if (*l1 == '#')
 	    {
-	      parse_exp (l1 + 1, &(op1.exp));
+	      end = parse_exp (l1 + 1, &(op1.exp));
+	      if (end != NULL && *end != 0)
+		{
+		  as_bad (_("extra characters '%s' at end of operand '%s'"), end, l1);
+		  break;
+		}
 	      if (op1.exp.X_op != O_constant)
 		{
 		  as_bad (_("expected constant value as argument to RPT"));
@@ -3410,9 +3470,9 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 	       || is_opcode ("bicx") || is_opcode ("bisx") || is_opcode ("movx")))
 	{
 	  if (silicon_errata_fix & SILICON_ERRATA_CPU11)
-	    as_bad (_("CPU11: PC is destinstion of SR altering instruction"));
+	    as_bad (_("CPU11: PC is destination of SR altering instruction"));
 	  else if (silicon_errata_warn & SILICON_ERRATA_CPU11)
-	    as_warn (_("CPU11: PC is destinstion of SR altering instruction"));
+	    as_warn (_("CPU11: PC is destination of SR altering instruction"));
 	}
 	  
       /* If the status register is the destination...  */
@@ -3427,9 +3487,9 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 	      ))
 	{
 	  if (silicon_errata_fix & SILICON_ERRATA_CPU13)
-	    as_bad (_("CPU13: SR is destinstion of SR altering instruction"));
+	    as_bad (_("CPU13: SR is destination of SR altering instruction"));
 	  else if (silicon_errata_warn & SILICON_ERRATA_CPU13)
-	    as_warn (_("CPU13: SR is destinstion of SR altering instruction"));
+	    as_warn (_("CPU13: SR is destination of SR altering instruction"));
 	}
 	  
       if (   (is_opcode ("bic") && bin == 0xc232)
@@ -3605,9 +3665,9 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 	  && (is_opcode ("rra") || is_opcode ("rrc") || is_opcode ("sxt")))
 	{
 	  if (silicon_errata_fix & SILICON_ERRATA_CPU13)
-	    as_bad (_("CPU13: SR is destinstion of SR altering instruction"));
+	    as_bad (_("CPU13: SR is destination of SR altering instruction"));
 	  else if (silicon_errata_warn & SILICON_ERRATA_CPU13)
-	    as_warn (_("CPU13: SR is destinstion of SR altering instruction"));
+	    as_warn (_("CPU13: SR is destination of SR altering instruction"));
 	}
 	  
       insn_length = (extended_op ? 2 : 0) + 2 + (op1.ol * 2);
@@ -3703,7 +3763,12 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 	  if (*m == '$')
 	    m++;
 
-	  parse_exp (m, &exp);
+	  end = parse_exp (m, &exp);
+	  if (end != NULL && *end != 0)
+	    {
+	      as_bad (_("extra characters '%s' at end of operand '%s'"), end, l1);
+	      break;
+	    }
 
 	  /* In order to handle something like:
 
@@ -3797,7 +3862,12 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 	  if (*m == '#' || *m == '$')
 	    m++;
 
-	  parse_exp (m, & exp);
+	  end = parse_exp (m, & exp);
+	  if (end != NULL && *end != 0)
+	    {
+	      as_bad (_("extra characters '%s' at end of operand '%s'"), end, l1);
+	      break;
+	    }
 	  if (exp.X_op == O_symbol)
 	    {
 	      /* Relaxation required.  */
@@ -3843,7 +3913,12 @@ msp430_operands (struct msp430_opcode_s * opcode, char * line)
 	  if (*m == '#' || *m == '$')
 	    m++;
 
-	  parse_exp (m, & exp);
+	  end = parse_exp (m, & exp);
+	  if (end != NULL && *end != 0)
+	    {
+	      as_bad (_("extra characters '%s' at end of operand '%s'"), end, l1);
+	      break;
+	    }
 	  if (exp.X_op == O_symbol)
 	    {
 	      /* Relaxation required.  */

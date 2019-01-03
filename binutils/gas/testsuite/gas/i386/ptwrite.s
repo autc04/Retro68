@@ -9,4 +9,5 @@ _start:
 
 	.intel_syntax noprefix
 	ptwrite ecx
+	ptwrite [ecx]
 	ptwrite DWORD PTR [ecx]

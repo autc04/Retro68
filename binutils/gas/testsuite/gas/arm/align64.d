@@ -1,6 +1,6 @@
 # name: 64 Bytes alignment test
 # objdump: -dr --prefix-addresses --show-raw-insn
-#skip: *-*-*coff *-*-pe *-*-wince
+#skip: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

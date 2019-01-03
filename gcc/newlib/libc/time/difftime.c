@@ -10,15 +10,9 @@ FUNCTION
 INDEX
 	difftime
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <time.h>
 	double difftime(time_t <[tim1]>, time_t <[tim2]>);
-
-TRAD_SYNOPSIS
-	#include <time.h>
-	double difftime(<[tim1]>, <[tim2]>)
-	time_t <[tim1]>;
-	time_t <[tim2]>;
 
 DESCRIPTION
 Subtracts the two times in the arguments: `<<<[tim1]> - <[tim2]>>>'.
@@ -36,8 +30,7 @@ in all implementations.
 #include <time.h>
 
 double
-_DEFUN (difftime, (tim1, tim2),
-	time_t tim1 _AND
+difftime (time_t tim1,
 	time_t tim2)
 {
   return (double)(tim1 - tim2);

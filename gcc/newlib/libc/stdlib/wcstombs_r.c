@@ -3,11 +3,10 @@
 #include "local.h"
 
 size_t
-_DEFUN (_wcstombs_r, (reent, s, pwcs, n, state),
-        struct _reent *r    _AND         
-        char          *__restrict s    _AND
-        const wchar_t *__restrict pwcs _AND
-        size_t         n    _AND
+_wcstombs_r (struct _reent *r,
+        char          *__restrict s,
+        const wchar_t *__restrict pwcs,
+        size_t         n,
         mbstate_t     *state)
 {
   char *ptr = s;

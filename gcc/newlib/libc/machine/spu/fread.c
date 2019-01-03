@@ -49,10 +49,9 @@ typedef struct
 #ifndef _REENT_ONLY
 
 size_t
-_DEFUN (fread, (buf, size, count, fp),
-	_PTR __restrict  buf _AND
-	size_t size _AND
-	size_t count _AND
+fread (void *__restrict  buf,
+	size_t size,
+	size_t count,
 	FILE *__restrict fp)
 {
   c99_fread_t args;

@@ -10,21 +10,10 @@ INDEX
 INDEX
         ldexpf
 
-ANSI_SYNOPSIS
+SYNOPSIS
        #include <math.h>
        double ldexp(double <[val]>, int <[exp]>);
        float ldexpf(float <[val]>, int <[exp]>);
-
-TRAD_SYNOPSIS
-       #include <math.h>
-
-       double ldexp(<[val]>, <[exp]>)
-              double <[val]>;
-              int <[exp]>;
-
-       float ldexpf(<[val]>, <[exp]>)
-              float <[val]>;
-              int <[exp]>;
 
 DESCRIPTION
 <<ldexp>> calculates the value
@@ -74,8 +63,7 @@ PORTABILITY
 #define DOUBLE_EXP_OFFS 1023
 
 double
-_DEFUN (ldexp, (double, int),
-        double d _AND
+ldexp (double d,
         int e)
 {
   int exp;

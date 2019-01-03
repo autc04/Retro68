@@ -4,11 +4,7 @@
 
 #include "c99ppe.h"
 
-#ifdef _HAVE_STDC
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #ifdef INTEGER_ONLY
 #  define vsprintf vsiprintf
@@ -26,9 +22,8 @@ typedef struct
 #ifndef _REENT_ONLY
 
 int
-_DEFUN (vsprintf, (str, fmt, ap),
-     char *__restrict str _AND
-     _CONST char *__restrict fmt _AND
+vsprintf (char *__restrict str,
+     const char *__restrict fmt,
      va_list ap)
 {
   c99_vsprintf_t args;

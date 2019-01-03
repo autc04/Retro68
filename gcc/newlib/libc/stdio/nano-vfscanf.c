@@ -60,7 +60,7 @@ INDEX
 INDEX
 	_vsscanf_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	#include <stdarg.h>
 	int vscanf(const char *<[fmt]>, va_list <[list]>);
@@ -73,40 +73,6 @@ ANSI_SYNOPSIS
                        va_list <[list]>);
 	int _vsscanf_r(struct _reent *<[reent]>, const char *<[str]>,
                        const char *<[fmt]>, va_list <[list]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	#include <varargs.h>
-	int vscanf( <[fmt]>, <[ist]>)
-	char *<[fmt]>;
-	va_list <[list]>;
-
-	int vfscanf( <[fp]>, <[fmt]>, <[list]>)
-	FILE *<[fp]>;
-	char *<[fmt]>;
-	va_list <[list]>;
-
-	int vsscanf( <[str]>, <[fmt]>, <[list]>)
-	char *<[str]>;
-	char *<[fmt]>;
-	va_list <[list]>;
-
-	int _vscanf_r( <[reent]>, <[fmt]>, <[ist]>)
-	struct _reent *<[reent]>;
-	char *<[fmt]>;
-	va_list <[list]>;
-
-	int _vfscanf_r( <[reent]>, <[fp]>, <[fmt]>, <[list]>)
-	struct _reent *<[reent]>;
-	FILE *<[fp]>;
-	char *<[fmt]>;
-	va_list <[list]>;
-
-	int _vsscanf_r( <[reent]>, <[str]>, <[fmt]>, <[list]>)
-	struct _reent *<[reent]>;
-	char *<[str]>;
-	char *<[fmt]>;
-	va_list <[list]>;
 
 DESCRIPTION
 <<vscanf>>, <<vfscanf>>, and <<vsscanf>> are (respectively) variants
@@ -153,6 +119,15 @@ Supporting OS subroutines required:
 #include "../stdlib/local.h"
 #include "nano-vfscanf_local.h"
 
+/* GCC PR 14577 at https://gcc.gnu.org/bugzilla/show_bug.cgi?id=14557 */
+#if __STDC_VERSION__ >= 201112L
+#define va_ptr(ap) _Generic(&(ap), va_list *: &(ap), default: (va_list *)(ap))
+#elif __GNUC__ >= 4
+#define va_ptr(ap) __builtin_choose_expr(__builtin_types_compatible_p(__typeof__(&(ap)), va_list *), &(ap), (va_list *)(ap))
+#else
+#define va_ptr(ap) (sizeof(ap) == sizeof(va_list) ? (va_list *)&(ap) : (va_list *)(ap))
+#endif
+
 #define VFSCANF vfscanf
 #define _VFSCANF_R _vfscanf_r
 #define __SVFSCANF __svfscanf
@@ -169,9 +144,8 @@ Supporting OS subroutines required:
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(VFSCANF, (fp, fmt, ap),
-       register FILE *fp _AND
-       _CONST char *fmt _AND
+VFSCANF (register FILE *fp,
+       const char *fmt,
        va_list ap)
 {
   CHECK_INIT(_REENT, fp);
@@ -179,13 +153,12 @@ _DEFUN(VFSCANF, (fp, fmt, ap),
 }
 
 int
-_EXFUN(vfiscanf, (FILE *, const char *, __VALIST)
-       _ATTRIBUTE ((__alias__("vfscanf"))));
+vfiscanf (FILE *, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("vfscanf")));
 
 int
-_DEFUN(__SVFSCANF, (fp, fmt0, ap),
-       register FILE *fp _AND
-       char _CONST *fmt0 _AND
+__SVFSCANF (register FILE *fp,
+       char const *fmt0,
        va_list ap)
 {
   return __SVFSCANF_R (_REENT, fp, fmt0, ap);
@@ -194,10 +167,9 @@ _DEFUN(__SVFSCANF, (fp, fmt0, ap),
 #endif
 
 int
-_DEFUN(_VFSCANF_R, (data, fp, fmt, ap),
-       struct _reent *data _AND
-       register FILE *fp   _AND
-       _CONST char *fmt    _AND
+_VFSCANF_R (struct _reent *data,
+       register FILE *fp,
+       const char *fmt,
        va_list ap)
 {
   CHECK_INIT(data, fp);
@@ -205,8 +177,8 @@ _DEFUN(_VFSCANF_R, (data, fp, fmt, ap),
 }
 
 int
-_EXFUN(_vfiscanf_r, (struct _reent *, FILE *, const char *, __VALIST)
-       _ATTRIBUTE ((__alias__("_vfscanf_r"))));
+_vfiscanf_r (struct _reent *, FILE *, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("_vfscanf_r")));
 #endif /* !STRING_ONLY.  */
 
 #if defined (STRING_ONLY)
@@ -214,9 +186,8 @@ _EXFUN(_vfiscanf_r, (struct _reent *, FILE *, const char *, __VALIST)
    regular ungetc which will drag in file I/O items we don't need.
    So, we create our own trimmed-down version.  */
 int
-_DEFUN(_sungetc_r, (data, fp, ch),
-	struct _reent *data _AND
-	int c               _AND
+_sungetc_r (struct _reent *data,
+	int c,
 	register FILE *fp)
 {
   if (c == EOF)
@@ -263,8 +234,7 @@ _DEFUN(_sungetc_r, (data, fp, ch),
 
 /* String only version of __srefill_r for sscanf family.  */
 int
-_DEFUN(__ssrefill_r, (ptr, fp),
-       struct _reent * ptr _AND
+__ssrefill_r (struct _reent * ptr,
        register FILE * fp)
 {
   /* Our only hope of further input is the ungetc buffer.
@@ -287,16 +257,15 @@ _DEFUN(__ssrefill_r, (ptr, fp),
 }
 
 #else
-int _EXFUN (_sungetc_r, (struct _reent *, int, register FILE *));
-int _EXFUN (__ssrefill_r, (struct _reent *, register FILE *));
-size_t _EXFUN (_sfread_r, (struct _reent *, _PTR buf, size_t, size_t, FILE *));
+int _sungetc_r (struct _reent *, int, register FILE *);
+int __ssrefill_r (struct _reent *, register FILE *);
+size_t _sfread_r (struct _reent *, void *buf, size_t, size_t, FILE *);
 #endif /* !STRING_ONLY.  */
 
 int
-_DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
-       struct _reent *rptr _AND
-       register FILE *fp   _AND
-       char _CONST *fmt0   _AND
+__SVFSCANF_R (struct _reent *rptr,
+       register FILE *fp,
+       char const *fmt0,
        va_list ap)
 {
   register u_char *fmt = (u_char *) fmt0;
@@ -458,12 +427,12 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 	}
       ret = 0;
       if (scan_data.code < CT_INT)
-	ret = _scanf_chars (rptr, &scan_data, fp, &ap);
+	ret = _scanf_chars (rptr, &scan_data, fp, va_ptr(ap));
       else if (scan_data.code < CT_FLOAT)
-	ret = _scanf_i (rptr, &scan_data, fp, &ap);
+	ret = _scanf_i (rptr, &scan_data, fp, va_ptr(ap));
 #ifdef FLOATING_POINT
       else if (_scanf_float)
-	ret = _scanf_float (rptr, &scan_data, fp, &ap);
+	ret = _scanf_float (rptr, &scan_data, fp, va_ptr(ap));
 #endif
 
       if (ret == MATCH_FAILURE)
@@ -488,11 +457,11 @@ all_done:
 
 #ifdef STRING_ONLY
 int
-_EXFUN(__ssvfiscanf_r, (struct _reent *, FILE *, const char *, __VALIST)
-       _ATTRIBUTE ((__alias__("__ssvfscanf_r"))));
+__ssvfiscanf_r (struct _reent *, FILE *, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("__ssvfscanf_r")));
 #else
 int
-_EXFUN(__svfiscanf_r, (struct _reent *, FILE *, const char *, __VALIST)
-       _ATTRIBUTE ((__alias__("__svfscanf_r"))));
+__svfiscanf_r (struct _reent *, FILE *, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("__svfscanf_r")));
 #endif
 

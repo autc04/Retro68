@@ -32,7 +32,7 @@ INDEX
 INDEX
 	_swprintf_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <wchar.h>
 
         int wprintf(const wchar_t *<[format]>, ...);
@@ -553,11 +553,10 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
  * a variable set to _REENT.  */
 
 int
-_DEFUN(_swprintf_r, (ptr, str, size, fmt),
-       struct _reent *ptr _AND
-       wchar_t *str          _AND
-       size_t size        _AND
-       _CONST wchar_t *fmt _DOTS)
+_swprintf_r (struct _reent *ptr,
+       wchar_t *str,
+       size_t size,
+       const wchar_t *fmt, ...)
 {
   int ret;
   va_list ap;
@@ -594,10 +593,9 @@ _DEFUN(_swprintf_r, (ptr, str, size, fmt),
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(swprintf, (str, size, fmt),
-       wchar_t *__restrict str   _AND
-       size_t size _AND
-       _CONST wchar_t *__restrict fmt _DOTS)
+swprintf (wchar_t *__restrict str,
+       size_t size,
+       const wchar_t *__restrict fmt, ...)
 {
   int ret;
   va_list ap;

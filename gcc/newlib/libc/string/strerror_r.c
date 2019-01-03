@@ -6,20 +6,13 @@ FUNCTION
 INDEX
 	strerror_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	#ifdef _GNU_SOURCE
 	char *strerror_r(int <[errnum]>, char *<[buffer]>, size_t <[n]>);
 	#else
 	int strerror_r(int <[errnum]>, char *<[buffer]>, size_t <[n]>);
 	#endif
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	char *strerror_r(<[errnum]>, <[buffer]>, <[n]>)
-	int <[errnum]>;
-	char *<[buffer]>;
-	size_t <[n]>;
 
 DESCRIPTION
 <<strerror_r>> converts the error number <[errnum]> into a
@@ -72,9 +65,8 @@ a non-empty alternate string without assigning into its third argument.
 /* For backwards-compatible linking, this must be the GNU signature;
    see xpg_strerror_r.c for the POSIX version.  */
 char *
-_DEFUN (strerror_r, (errnum, buffer, n),
-	int errnum _AND
-	char *buffer _AND
+strerror_r (int errnum,
+	char *buffer,
 	size_t n)
 {
   char *error = _strerror_r (_REENT, errnum, 1, NULL);

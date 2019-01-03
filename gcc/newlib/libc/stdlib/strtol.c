@@ -11,7 +11,7 @@ INDEX
 INDEX
 	_strtol_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
         long strtol(const char *restrict <[s]>, char **restrict <[ptr]>,
 		    int <[base]>);
@@ -22,19 +22,6 @@ ANSI_SYNOPSIS
 
         long _strtol_r(void *<[reent]>, const char *restrict <[s]>,
 		       char **restrict <[ptr]>,int <[base]>);
-
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-	long strtol (<[s]>, <[ptr]>, <[base]>)
-        char *<[s]>;
-        char **<[ptr]>;
-        int <[base]>;
-
-	long _strtol_r (<[reent]>, <[s]>, <[ptr]>, <[base]>)
-	char *<[reent]>;
-        char *<[s]>;
-        char **<[ptr]>;
-        int <[base]>;
 
 DESCRIPTION
 The function <<strtol>> converts the string <<*<[s]>>> to
@@ -225,10 +212,9 @@ _strtol_l (struct _reent *rptr, const char *__restrict nptr,
 }
 
 long
-_DEFUN (_strtol_r, (rptr, nptr, endptr, base),
-	struct _reent *rptr _AND
-	_CONST char *__restrict nptr _AND
-	char **__restrict endptr _AND
+_strtol_r (struct _reent *rptr,
+	const char *__restrict nptr,
+	char **__restrict endptr,
 	int base)
 {
 	return _strtol_l (rptr, nptr, endptr, base, __get_current_locale ());
@@ -244,9 +230,8 @@ strtol_l (const char *__restrict s, char **__restrict ptr, int base,
 }
 
 long
-_DEFUN (strtol, (s, ptr, base),
-	_CONST char *__restrict s _AND
-	char **__restrict ptr _AND
+strtol (const char *__restrict s,
+	char **__restrict ptr,
 	int base)
 {
 	return _strtol_l (_REENT, s, ptr, base, __get_current_locale ());

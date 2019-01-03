@@ -679,4 +679,4 @@ Disassembly of section .text:
 .*:	e3 69 b8 f0 fd 3a [ 	]*llzrgf	%r6,-10000\(%r9,%r11\)
 .*:	e3 69 b8 f0 fd 3b [ 	]*lzrf	%r6,-10000\(%r9,%r11\)
 .*:	e3 69 b8 f0 fd 2a [ 	]*lzrg	%r6,-10000\(%r9,%r11\)
-.*:	b9 3c 00 69 [ 	]*ppno	%r6,%r9
+.*:	b9 3c 00 69 [ 	]*prno	%r6,%r9

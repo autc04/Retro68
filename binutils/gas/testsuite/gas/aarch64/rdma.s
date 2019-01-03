@@ -1,6 +1,6 @@
 /* rdma.s Test file for AArch64 v8.1 Advanced-SIMD instructions.
 
-   Copyright (C) 2012-2017 Free Software Foundation, Inc.  Contributed by ARM Ltd.
+   Copyright (C) 2012-2018 Free Software Foundation, Inc.  Contributed by ARM Ltd.
 
    This file is part of GAS.
 
@@ -24,8 +24,15 @@
 	.arch_extension rdma
 	.endif
 
-	.macro vect_inst I T
-	\I v0.\()\T, v1.\()\T, v2.\()\T
+         /* irp seems broken, so get creative.  */
+	.macro vect_inst I, T
+	.irp    x, 0.\T, 3.\T, 13.\T, 23.\T, 29.\T
+	.irp    y, 1.\T, 4.\T, 14.\T, 24.\T, 30.\T
+	.irp    z, 2.\T, 5.\T, 15.\T, 25.\T, 31.\T
+	\I v\x, v\y, v\z
+	.endr
+	.endr
+	.endr
 	.endm
 
 	.text
@@ -45,9 +52,15 @@
 	scalar_inst \inst \reg
         .endr
         .endr
-	
+
 	.macro vect_indexed_inst I S T N
-	\I v0.\S\T, v1.\S\T, v2.\T[\N]
+	.irp    x, 0.\S\T, 3.\S\T, 13.\S\T, 23.\S\T, 29.\S\T
+	.irp    y, 1.\S\T, 4.\S\T, 14.\S\T, 24.\S\T, 30.\S\T
+	.irp    z, 0.\T[\N], 5.\T[\N], 10.\T[\N], 13.\T[\N], 15.\T[\N]
+	\I v\x, v\y, v\z
+	.endr
+	.endr
+	.endr
 	.endm
 
 	.text
@@ -63,7 +76,7 @@
         .endr
 	.endr
 	.endr
-	
+
 	.macro scalar_indexed_inst I T N
 	\I \T\()0, \T\()1, v2.\T[\N]
 	.endm

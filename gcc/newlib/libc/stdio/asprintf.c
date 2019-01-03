@@ -25,10 +25,9 @@
 #include "local.h"
 
 int
-_DEFUN(_asprintf_r, (ptr, strp, fmt),
-       struct _reent *ptr _AND
-       char **__restrict strp        _AND
-       const char *__restrict fmt _DOTS)
+_asprintf_r (struct _reent *ptr,
+       char **__restrict strp,
+       const char *__restrict fmt, ...)
 {
   int ret;
   va_list ap;
@@ -52,16 +51,15 @@ _DEFUN(_asprintf_r, (ptr, strp, fmt),
 
 #ifdef _NANO_FORMATTED_IO
 int
-_EXFUN(_asiprintf_r, (struct _reent *, char **, const char *, ...)
-       _ATTRIBUTE ((__alias__("_asprintf_r"))));
+_asiprintf_r (struct _reent *, char **, const char *, ...)
+       _ATTRIBUTE ((__alias__("_asprintf_r")));
 #endif
 
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(asprintf, (strp, fmt),
-       char **__restrict strp _AND
-       const char *__restrict fmt _DOTS)
+asprintf (char **__restrict strp,
+       const char *__restrict fmt, ...)
 {
   int ret;
   va_list ap;
@@ -85,7 +83,7 @@ _DEFUN(asprintf, (strp, fmt),
 
 #ifdef _NANO_FORMATTED_IO
 int
-_EXFUN(asiprintf, (char **, const char *, ...)
-       _ATTRIBUTE ((__alias__("asprintf"))));
+asiprintf (char **, const char *, ...)
+       _ATTRIBUTE ((__alias__("asprintf")));
 #endif
 #endif /* ! _REENT_ONLY */

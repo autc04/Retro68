@@ -8,7 +8,7 @@ INDEX
 INDEX
 	_duplocale_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <locale.h>
 	locale_t duplocale(locale_t <[locobj]>);
 
@@ -64,7 +64,8 @@ _duplocale_r (struct _reent *p, struct __locale_t *locobj)
 	   __loadlocale.  It knows what to do to replicate the category. */
 	tmp_locale.lc_cat[i].ptr = NULL;
 	tmp_locale.lc_cat[i].buf = NULL;
-	if (!__loadlocale (&tmp_locale, i, tmp_locale.categories[i]))
+	tmp_locale.categories[i][0] = '\0';	/* __loadlocale tests this! */
+	if (!__loadlocale (&tmp_locale, i, locobj->categories[i]))
 	  goto error;
       }
 #endif /* __HAVE_LOCALE_INFO__ */

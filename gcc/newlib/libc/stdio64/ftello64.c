@@ -24,19 +24,10 @@ INDEX
 INDEX
 	_ftello64_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	_off64_t ftello64(FILE *<[fp]>);
 	_off64_t _ftello64_r(struct _reent *<[ptr]>, FILE *<[fp]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	_off64_t ftello64(<[fp]>)
-	FILE *<[fp]>;
-
-	_off64_t _ftello64_r(<[ptr]>, <[fp]>)
-	struct _reent *<[ptr]>;
-	FILE *<[fp]>;
 
 DESCRIPTION
 Objects of type <<FILE>> can have a ``position'' that records how much
@@ -85,8 +76,7 @@ static char sccsid[] = "%W% (Berkeley) %G%";
 #ifdef __LARGE64_FILES
 
 _off64_t
-_DEFUN (_ftello64_r, (ptr, fp),
-	struct _reent *ptr _AND
+_ftello64_r (struct _reent *ptr,
 	register FILE * fp)
 {
   _fpos64_t pos;
@@ -105,24 +95,30 @@ _DEFUN (_ftello64_r, (ptr, fp),
     {
       ptr->_errno = ESPIPE;
       _newlib_flockfile_exit(fp);
-      return -1L;
+      return (_off64_t) -1;
     }
 
-  /* Find offset of underlying I/O object, then adjust for buffered
-     bytes.  Flush a write stream, since the offset may be altered if
-     the stream is appending.  Do not flush a read stream, since we
-     must not lose the ungetc buffer.  */
-  if (fp->_flags & __SWR)
-    _fflush_r (ptr, fp);
-  if (fp->_flags & __SOFF)
+  /* Find offset of underlying I/O object, then adjust for buffered bytes. */
+  if (!(fp->_flags & __SRD) && (fp->_flags & __SWR) &&
+      fp->_p != NULL && fp->_p - fp->_bf._base > 0 &&
+      (fp->_flags & __SAPP))
+    {
+      pos = fp->_seek64 (ptr, fp->_cookie, (_fpos64_t) 0, SEEK_END);
+      if (pos == (_fpos64_t) -1)
+	{
+          _newlib_flockfile_exit (fp);
+          return (_off64_t) -1;
+	}
+    }
+  else if (fp->_flags & __SOFF)
     pos = fp->_offset;
   else
     {
       pos = fp->_seek64 (ptr, fp->_cookie, (_fpos64_t) 0, SEEK_CUR);
-      if (pos == -1L)
+      if (pos == (_fpos64_t) -1)
         {
           _newlib_flockfile_exit(fp);
-          return pos;
+          return (_off64_t) pos;
         }
     }
   if (fp->_flags & __SRD)
@@ -147,14 +143,13 @@ _DEFUN (_ftello64_r, (ptr, fp),
     }
 
   _newlib_flockfile_end(fp);
-  return pos;
+  return (_off64_t) pos;
 }
 
 #ifndef _REENT_ONLY
 
 _off64_t
-_DEFUN (ftello64, (fp),
-	register FILE * fp)
+ftello64 (register FILE * fp)
 {
   return _ftello64_r (_REENT, fp);
 }

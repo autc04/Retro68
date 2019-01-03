@@ -5,14 +5,9 @@ FUNCTION
 INDEX
 	strsignal
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	char *strsignal(int <[signal]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	char *strsignal(<[signal]>)
-	int <[signal]>;
 
 DESCRIPTION
 <<strsignal>> converts the signal number <[signal]> into a
@@ -37,7 +32,7 @@ QUICKREF
 /*
  *  Written by Joel Sherrill <joel.sherrill@OARcorp.com>.
  *
- *  COPYRIGHT (c) 2010.
+ *  COPYRIGHT (c) 2010, 2017.
  *  On-Line Applications Research Corporation (OAR).
  *
  *  Permission to use, copy, modify, and distribute this software for any
@@ -49,18 +44,16 @@ QUICKREF
  *  WARRANTY.  IN PARTICULAR,  THE AUTHOR MAKES NO REPRESENTATION
  *  OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY OF THIS
  *  SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
- *
- *  $Id$
  */
 
 #include <string.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <reent.h>
 
 char *
-_DEFUN (strsignal, (signal),
-	int signal)
+strsignal (int signal)
 {
   char *buffer;
   struct _reent *ptr;
@@ -71,7 +64,7 @@ _DEFUN (strsignal, (signal),
   buffer = _REENT_SIGNAL_BUF(ptr);
 
 #if defined(SIGRTMIN) && defined(SIGRTMAX)
-  if ((signal >= SIGRTMIN) || (signal <= SIGRTMAX)) {
+  if ((signal >= SIGRTMIN) && (signal <= SIGRTMAX)) {
     siprintf (buffer, "Real-time signal %d", signal - SIGRTMIN);
     return buffer;
   }

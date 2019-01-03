@@ -28,28 +28,12 @@ INDEX
 INDEX
 	_ftello_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	long ftell(FILE *<[fp]>);
 	off_t ftello(FILE *<[fp]>);
 	long _ftell_r(struct _reent *<[ptr]>, FILE *<[fp]>);
 	off_t _ftello_r(struct _reent *<[ptr]>, FILE *<[fp]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	long ftell(<[fp]>)
-	FILE *<[fp]>;
-
-	off_t ftello(<[fp]>)
-	FILE *<[fp]>;
-
-	long _ftell_r(<[ptr]>, <[fp]>)
-	struct _reent *<[ptr]>;
-	FILE *<[fp]>;
-
-	off_t _ftello_r(<[ptr]>, <[fp]>)
-	struct _reent *<[ptr]>;
-	FILE *<[fp]>;
 
 DESCRIPTION
 Objects of type <<FILE>> can have a ``position'' that records how much
@@ -99,8 +83,7 @@ static char sccsid[] = "%W% (Berkeley) %G%";
 #include "local.h"
 
 long
-_DEFUN(_ftell_r, (ptr, fp),
-       struct _reent *ptr _AND
+_ftell_r (struct _reent *ptr,
        register FILE * fp)
 {
   _fpos_t pos;
@@ -117,8 +100,7 @@ _DEFUN(_ftell_r, (ptr, fp),
 #ifndef _REENT_ONLY
 
 long
-_DEFUN(ftell, (fp),
-       register FILE * fp)
+ftell (register FILE * fp)
 {
   return _ftell_r (_REENT, fp);
 }

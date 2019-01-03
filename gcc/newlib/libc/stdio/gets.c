@@ -24,22 +24,12 @@ INDEX
 INDEX
 	_gets_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <stdio.h>
 
 	char *gets(char *<[buf]>);
 
 	char *_gets_r(struct _reent *<[reent]>, char *<[buf]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-
-	char *gets(<[buf]>)
-	char *<[buf]>;
-
-	char *_gets_r(<[reent]>, <[buf]>)
-	struct _reent *<[reent]>;
-	char *<[buf]>;
 
 DESCRIPTION
 	Reads characters from standard input until a newline is found.
@@ -73,8 +63,7 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
 #include "local.h"
 
 char *
-_DEFUN(_gets_r, (ptr, buf),
-       struct _reent *ptr _AND
+_gets_r (struct _reent *ptr,
        char *buf)
 {
   register int c;
@@ -104,8 +93,7 @@ _DEFUN(_gets_r, (ptr, buf),
 #ifndef _REENT_ONLY
 
 char *
-_DEFUN(gets, (buf),
-       char *buf)
+gets (char *buf)
 {
   return _gets_r (_REENT, buf);
 }

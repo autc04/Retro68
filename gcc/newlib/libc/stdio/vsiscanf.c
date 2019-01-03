@@ -21,11 +21,7 @@
 #include <reent.h>
 #include <stdio.h>
 #include <string.h>
-#ifdef _HAVE_STDC
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "local.h"
 
 /*
@@ -35,9 +31,8 @@
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(vsiscanf, (str, fmt, ap), 
-       _CONST char *str _AND 
-       _CONST char *fmt _AND 
+vsiscanf (const char *str,
+       const char *fmt,
        va_list ap)
 {
   return _vsiscanf_r (_REENT, str, fmt, ap);
@@ -46,10 +41,9 @@ _DEFUN(vsiscanf, (str, fmt, ap),
 #endif /* !_REENT_ONLY */
 
 int
-_DEFUN(_vsiscanf_r, (ptr, str, fmt, ap),
-       struct _reent *ptr _AND 
-       _CONST char *str   _AND 
-       _CONST char *fmt   _AND 
+_vsiscanf_r (struct _reent *ptr,
+       const char *str,
+       const char *fmt,
        va_list ap)
 {
   FILE f;

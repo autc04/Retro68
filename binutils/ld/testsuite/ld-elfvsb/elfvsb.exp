@@ -1,5 +1,5 @@
 # Expect script for ld-visibility tests
-#   Copyright (C) 2000-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2000-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -46,11 +46,6 @@ if { ![istarget hppa*64*-*-hpux*] \
      && ![istarget s390*-*-linux*] \
      && ![istarget sh\[34\]*-*-linux*] \
      && ![istarget x86_64-*-linux*] } {
-    return
-}
-
-if { [istarget *-*-linux*aout*] \
-     || [istarget *-*-linux*oldld*] } {
     return
 }
 
@@ -299,8 +294,6 @@ proc visibility_run {visibility} {
 		if [ string match $support_protected "no" ] {
 		    setup_xfail $target_triplet
 		}
-	    } else {
-		setup_xfail "*-*-sunos4*"
 	    }
 
 	    # Non-pic code uses name binding rules for applications to
@@ -342,9 +335,6 @@ proc visibility_run {visibility} {
 		if [ string match $support_protected "no" ] {
 		    setup_xfail $target_triplet
 		}
-	    } else {
-		setup_xfail "*-*-sunos4*"
-		setup_xfail "*-*-linux*libc1"
 	    }
 	    if { [ string match $visibility "hidden_normal" ]
 		 || [ string match $visibility "hidden_weak" ]
@@ -377,7 +367,7 @@ proc visibility_run {visibility} {
 
 	    visibility_test $visibility vnp "visibility ($visibility) (non PIC, load offset)" \
 		mainnp.o sh1np.o sh2np.o elfvsb \
-		"-T $srcdir/$subdir/elf-offset.ld"
+		"-Wl,-T,$srcdir/$subdir/elf-offset.ld,--hash-style=sysv"
 	} }
 
 	# Now compile the code using -fpic.
@@ -392,14 +382,11 @@ proc visibility_run {visibility} {
 		    setup_xfail $target_triplet
 		}
 	    }
-	    # SunOS can not compare function pointers correctly
-	    if [istarget "*-*-sunos4*"] {
-		visibility_test $visibility vp "visibility ($visibility)" mainnp.o sh1p.o sh2p.o sun4
-	    } else { if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+	    if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
 		visibility_test $visibility vp "visibility ($visibility)" mainnp.o sh1p.o sh2p.o xcoff
 	    } else {
 		visibility_test $visibility vp "visibility ($visibility)" mainnp.o sh1p.o sh2p.o elfvsb $COMPRESS_LDFLAG
-	    } }
+	    }
 	}
     }}
 
@@ -423,8 +410,6 @@ proc visibility_run {visibility} {
 		    if [ string match $support_protected "no" ] {
 			setup_xfail $target_triplet
 		    }
-		} else {
-		    setup_xfail "*-*-sunos4*"
 		}
 		if { ![ string match $visibility "hidden_undef" ]
 		     && ![ string match $visibility "protected_undef" ] } {
@@ -493,11 +478,7 @@ if { [istarget mips*-*-*] && ! [at_least_gcc_version 4 3] } then {
 	 || [string match "*option ignored*" $exec_output] \
 	 || [string match "*unrecognized option*" $exec_output] \
 	 || [string match "*passed to ld*" $exec_output] } {
-	if [istarget *-*-sunos4*] {
-	    set picflag "-pic"
-	} else {
-	    set picflag "-KPIC"
-	}
+	set picflag "-KPIC"
     }
 }
 verbose "Using $picflag to compile PIC code"

@@ -29,9 +29,8 @@
 #include "local.h"
 
 int
-_DEFUN(_fputc_unlocked_r, (ptr, ch, file),
-       struct _reent *ptr _AND
-       int ch _AND
+_fputc_unlocked_r (struct _reent *ptr,
+       int ch,
        FILE * file)
 {
   CHECK_INIT(ptr, file);
@@ -40,8 +39,7 @@ _DEFUN(_fputc_unlocked_r, (ptr, ch, file),
 
 #ifndef _REENT_ONLY
 int
-_DEFUN(fputc_unlocked, (ch, file),
-       int ch _AND
+fputc_unlocked (int ch,
        FILE * file)
 {
 #if !defined(__OPTIMIZE_SIZE__) && !defined(PREFER_SIZE_OVER_SPEED)

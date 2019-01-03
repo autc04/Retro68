@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2009-2016, Free Software Foundation, Inc.         --
+--          Copyright (C) 2009-2018, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -44,7 +44,6 @@ with Table;
 
 with GNAT.HTable;      use GNAT.HTable;
 with GNAT.Heap_Sort_G;
-with GNAT.Table;
 
 package body Par_SCO is
 
@@ -76,12 +75,13 @@ package body Par_SCO is
    --  running some steps multiple times (the second pass has to be started
    --  from multiple places).
 
-   package SCO_Raw_Table is new GNAT.Table
+   package SCO_Raw_Table is new Table.Table
      (Table_Component_Type => SCO_Table_Entry,
       Table_Index_Type     => Nat,
       Table_Low_Bound      => 1,
       Table_Initial        => 500,
-      Table_Increment      => 300);
+      Table_Increment      => 300,
+      Table_Name           => "Raw_Table");
 
    -----------------------
    -- Unit Number Table --
@@ -214,8 +214,8 @@ package body Par_SCO is
    --  Parameter D, when present, indicates the dominant of the first
    --  declaration or statement within N.
 
-   --  Why is Traverse_Sync_Definition commented specificaly and
-   --   the others are not???
+   --  Why is Traverse_Sync_Definition commented specifically, whereas
+   --  the others are not???
 
    procedure Traverse_Generic_Package_Declaration (N : Node_Id);
 
@@ -1483,6 +1483,8 @@ package body Par_SCO is
                   To_Node := Last (Parameter_Specifications (N));
                elsif Present (Entry_Index (N)) then
                   To_Node := Entry_Index (N);
+               else
+                  To_Node := Entry_Direct_Name (N);
                end if;
 
             when N_Case_Statement =>
@@ -1678,32 +1680,27 @@ package body Par_SCO is
                --  Aspects rewritten into pragmas controlled by a Check_Policy:
                --  Current_Pragma_Sloc must be set to the sloc of the aspect
                --  specification. The corresponding pragma will have the same
-               --  sloc.
+               --  sloc. Note that Invariant, Pre, and Post will be enabled if
+               --  the policy is Check; on the other hand, predicate aspects
+               --  will be enabled for Check and Ignore (when Add_Predicate
+               --  is called) because the actual checks occur in client units.
+               --  When the assertion policy for Predicate is Disable, the
+               --  SCO remains disabled, because Add_Predicate is never called.
 
-               when Aspect_Invariant
+               --  Pre/post can have checks in client units too because of
+               --  inheritance, so should they receive the same treatment???
+
+               when Aspect_Dynamic_Predicate
+                  | Aspect_Invariant
                   | Aspect_Post
                   | Aspect_Postcondition
                   | Aspect_Pre
                   | Aspect_Precondition
+                  | Aspect_Predicate
+                  | Aspect_Static_Predicate
                   | Aspect_Type_Invariant
                =>
                   C1 := 'a';
-
-               --  Aspects whose checks are generated in client units,
-               --  regardless of whether or not the check is activated in the
-               --  unit which contains the declaration: create decision as
-               --  unconditionally enabled aspect (but still make a pragma
-               --  entry since Set_SCO_Pragma_Enabled will be called when
-               --  analyzing actual checks, possibly in other units).
-
-               --  Pre/post can have checks in client units too because of
-               --  inheritance, so should they be moved here???
-
-               when Aspect_Dynamic_Predicate
-                  | Aspect_Predicate
-                  | Aspect_Static_Predicate
-               =>
-                  C1 := 'A';
 
                --  Other aspects: just process any decision nested in the
                --  aspect expression.
@@ -1812,13 +1809,15 @@ package body Par_SCO is
                   Process_Decisions_Defer
                     (Parameter_Specifications (Spec), 'X');
 
-                  --  Case of a null procedure: generate a NULL statement SCO
+                  --  Case of a null procedure: generate SCO for fictitious
+                  --  NULL statement located at the NULL keyword in the
+                  --  procedure specification.
 
                   if Nkind (N) = N_Subprogram_Declaration
                     and then Nkind (Spec) = N_Procedure_Specification
                     and then Null_Present (Spec)
                   then
-                     Traverse_Degenerate_Subprogram (N);
+                     Traverse_Degenerate_Subprogram (Null_Statement (Spec));
 
                   --  Case of an expression function: generate a statement SCO
                   --  for the expression (and then decision SCOs for any nested

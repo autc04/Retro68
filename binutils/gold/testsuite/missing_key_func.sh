@@ -3,7 +3,7 @@
 # missing_key_func.sh -- a test case for printing error messages when
 # a class is missing its key function.
 
-# Copyright (C) 2013-2017 Free Software Foundation, Inc.
+# Copyright (C) 2013-2018 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@google.com>
 
 # This file is part of gold.

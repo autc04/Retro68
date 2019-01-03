@@ -24,10 +24,6 @@
 .*:132: Warning:.*
 .*:133: Warning:.*
 .*:134: Warning:.*
-.*:135: Warning:.*
-.*:136: Warning:.*
-.*:137: Warning:.*
-.*:138: Warning:.*
 .*:139: Warning:.*
 .*:140: Warning:.*
 .*:141: Warning:.*
@@ -194,14 +190,10 @@
 .*Warning:.*
  134 014a DECA              		fmulp	%st\(2\),%st
 .*Warning:.*
- 135 014c DEE3              		fsubp	%st\(3\),%st
-.*Warning:.*
- 136 014e DEEC              		fsubrp	%st\(4\),%st
-.*Warning:.*
- 137 0150 DEF5              		fdivp	%st\(5\),%st
-.*Warning:.*
- 138 0152 DEFE              		fdivrp	%st\(6\),%st
-.*Warning:.*
+ 135 014c D8E3              		fsub	%st\(3\),%st
+ 136 014e D8EC              		fsubr	%st\(4\),%st
+ 137 0150 D8F5              		fdiv	%st\(5\),%st
+ 138 0152 D8FE              		fdivr	%st\(6\),%st
  139 0154 DEC1              		fadd
 .*Warning:.*
  140 0156 DEE1              		fsub

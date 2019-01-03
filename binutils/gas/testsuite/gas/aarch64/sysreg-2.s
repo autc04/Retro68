@@ -44,7 +44,7 @@
 
 	/* Statistical profiling.  */
 
-	.irp reg, pmblimitr_el1, pmbptr_el1, pmbsr_el1 pmbidr_el1
+	.irp reg, pmblimitr_el1, pmbptr_el1, pmbsr_el1
 	rw_sys_reg sys_reg=\reg xreg=x7 r=1 w=1
 	.endr
 

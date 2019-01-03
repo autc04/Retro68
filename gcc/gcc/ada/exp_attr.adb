@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -39,7 +39,6 @@ with Exp_Pakd; use Exp_Pakd;
 with Exp_Strm; use Exp_Strm;
 with Exp_Tss;  use Exp_Tss;
 with Exp_Util; use Exp_Util;
-with Fname;    use Fname;
 with Freeze;   use Freeze;
 with Gnatvsn;  use Gnatvsn;
 with Itypes;   use Itypes;
@@ -63,7 +62,6 @@ with Sinfo;    use Sinfo;
 with Snames;   use Snames;
 with Stand;    use Stand;
 with Stringt;  use Stringt;
-with Targparm; use Targparm;
 with Tbuild;   use Tbuild;
 with Ttypes;   use Ttypes;
 with Uintp;    use Uintp;
@@ -83,6 +81,9 @@ package body Exp_Attr is
    --  Valid_Scalars attribute node, used to insert the function body, and the
    --  value returned is the entity of the constructed function body. We do not
    --  bother to generate a separate spec for this subprogram.
+
+   function Build_Disp_Get_Task_Id_Call (Actual : Node_Id) return Node_Id;
+   --  Build a call to Disp_Get_Task_Id, passing Actual as actual parameter
 
    function Build_Record_VS_Func
      (R_Type : Entity_Id;
@@ -355,6 +356,25 @@ package body Exp_Attr is
       return Func_Id;
    end Build_Array_VS_Func;
 
+   ---------------------------------
+   -- Build_Disp_Get_Task_Id_Call --
+   ---------------------------------
+
+   function Build_Disp_Get_Task_Id_Call (Actual : Node_Id) return Node_Id is
+      Loc  : constant Source_Ptr := Sloc (Actual);
+      Typ  : constant Entity_Id  := Etype (Actual);
+      Subp : constant Entity_Id  := Find_Prim_Op (Typ, Name_uDisp_Get_Task_Id);
+
+   begin
+      --  Generate:
+      --    _Disp_Get_Task_Id (Actual)
+
+      return
+        Make_Function_Call (Loc,
+          Name                   => New_Occurrence_Of (Subp, Loc),
+          Parameter_Associations => New_List (Actual));
+   end Build_Disp_Get_Task_Id_Call;
+
    --------------------------
    -- Build_Record_VS_Func --
    --------------------------
@@ -402,6 +422,10 @@ package body Exp_Attr is
 
    --       return True;
    --    end _Valid_Scalars;
+
+   --  If the record type is an unchecked union, we can only check components
+   --  in the invariant part, given that there are no discriminant values to
+   --  select a variant.
 
    function Build_Record_VS_Func
      (R_Type : Entity_Id;
@@ -455,7 +479,9 @@ package body Exp_Attr is
       begin
          Append_To (Result, Make_VS_If (E, Component_Items (CL)));
 
-         if No (Variant_Part (CL)) then
+         if No (Variant_Part (CL))
+           or else Is_Unchecked_Union (R_Type)
+         then
             return Result;
          end if;
 
@@ -542,6 +568,11 @@ package body Exp_Attr is
                --  Don't bother with tag, always valid, and not scalar anyway
 
                elsif Field_Name = Name_uTag then
+                  null;
+
+               elsif Ekind (Def_Id) = E_Discriminant
+                 and then Is_Unchecked_Union (R_Type)
+               then
                   null;
 
                --  Don't bother with component with no scalar components
@@ -1023,13 +1054,13 @@ package body Exp_Attr is
       Base_Typ  : constant Entity_Id := Base_Type (Etype (Pref));
       Exprs     : constant List_Id   := Expressions (N);
       Aux_Decl  : Node_Id;
-      Blk       : Node_Id;
+      Blk       : Node_Id := Empty;
       Decls     : List_Id;
       Installed : Boolean;
       Loc       : Source_Ptr;
       Loop_Id   : Entity_Id;
       Loop_Stmt : Node_Id;
-      Result    : Node_Id;
+      Result    : Node_Id := Empty;
       Scheme    : Node_Id;
       Temp_Decl : Node_Id;
       Temp_Id   : Entity_Id;
@@ -1055,7 +1086,8 @@ package body Exp_Attr is
          Loop_Stmt := N;
          while Present (Loop_Stmt) loop
             if Nkind (Loop_Stmt) = N_Loop_Statement
-              and then Comes_From_Source (Loop_Stmt)
+              and then Nkind (Original_Node (Loop_Stmt)) = N_Loop_Statement
+              and then Comes_From_Source (Original_Node (Loop_Stmt))
             then
                exit;
             end if;
@@ -1093,8 +1125,6 @@ package body Exp_Attr is
 
             Decls := Declarations (Parent (Parent (Loop_Stmt)));
          end if;
-
-         Result := Empty;
 
       --  Transform the loop into a conditional block
 
@@ -1650,8 +1680,8 @@ package body Exp_Attr is
             --  Perform a view conversion when either the argument or the
             --  formal parameter are of a private type.
 
-            if Is_Private_Type (Formal_Typ)
-              or else Is_Private_Type (Item_Typ)
+            if Is_Private_Type (Base_Type (Formal_Typ))
+              or else Is_Private_Type (Base_Type (Item_Typ))
             then
                Rewrite (Item,
                  Unchecked_Convert_To (Formal_Typ, Relocate_Node (Item)));
@@ -1723,15 +1753,28 @@ package body Exp_Attr is
 
       --  Ada 2005 (AI-318-02): If attribute prefix is a call to a build-in-
       --  place function, then a temporary return object needs to be created
-      --  and access to it must be passed to the function. Currently we limit
-      --  such functions to those with inherently limited result subtypes, but
-      --  eventually we plan to expand the functions that are treated as
-      --  build-in-place to include other composite result types.
+      --  and access to it must be passed to the function.
 
-      if Ada_Version >= Ada_2005
-        and then Is_Build_In_Place_Function_Call (Pref)
-      then
-         Make_Build_In_Place_Call_In_Anonymous_Context (Pref);
+      if Is_Build_In_Place_Function_Call (Pref) then
+
+         --  If attribute is 'Old, the context is a postcondition, and
+         --  the temporary must go in the corresponding subprogram, not
+         --  the postcondition function or any created blocks, as when
+         --  the attribute appears in a quantified expression. This is
+         --  handled below in the expansion of the attribute.
+
+         if Attribute_Name (Parent (Pref)) = Name_Old then
+            null;
+         else
+            Make_Build_In_Place_Call_In_Anonymous_Context (Pref);
+         end if;
+
+      --  Ada 2005 (AI-318-02): Specialization of the previous case for prefix
+      --  containing build-in-place function calls whose returned object covers
+      --  interface types.
+
+      elsif Present (Unqual_BIP_Iface_Function_Call (Pref)) then
+         Make_Build_In_Place_Iface_Call_In_Anonymous_Context (Pref);
       end if;
 
       --  If prefix is a protected type name, this is a reference to the
@@ -2114,10 +2157,9 @@ package body Exp_Attr is
                                      (Etype (Prefix (Ref_Object))));
                   begin
                      --  No implicit conversion required if designated types
-                     --  match, or if we have an unrestricted access.
+                     --  match.
 
                      if Obj_DDT /= Btyp_DDT
-                       and then Id /= Attribute_Unrestricted_Access
                        and then not (Is_Class_Wide_Type (Obj_DDT)
                                       and then Etype (Obj_DDT) = Btyp_DDT)
                      then
@@ -2217,7 +2259,7 @@ package body Exp_Attr is
          --  issues are taken care of by the virtual machine.
 
          elsif Is_Class_Wide_Type (Ptyp)
-           and then Is_Interface (Ptyp)
+           and then Is_Interface (Underlying_Type (Ptyp))
            and then Tagged_Type_Expansion
            and then not (Nkind (Pref) in N_Has_Entity
                           and then Is_Subprogram (Entity (Pref)))
@@ -2473,6 +2515,7 @@ package body Exp_Attr is
       --  Transforms 'Callable attribute into a call to the Callable function
 
       when Attribute_Callable =>
+
          --  We have an object of a task interface class-wide type as a prefix
          --  to Callable. Generate:
          --    callable (Task_Id (Pref._disp_get_task_id));
@@ -2490,16 +2533,10 @@ package body Exp_Attr is
                   Make_Unchecked_Type_Conversion (Loc,
                     Subtype_Mark =>
                       New_Occurrence_Of (RTE (RO_ST_Task_Id), Loc),
-                    Expression   =>
-                      Make_Selected_Component (Loc,
-                        Prefix        =>
-                          New_Copy_Tree (Pref),
-                        Selector_Name =>
-                          Make_Identifier (Loc, Name_uDisp_Get_Task_Id))))));
+                    Expression   => Build_Disp_Get_Task_Id_Call (Pref)))));
 
          else
-            Rewrite (N,
-              Build_Call_With_Task (Pref, RTE (RE_Callable)));
+            Rewrite (N, Build_Call_With_Task (Pref, RTE (RE_Callable)));
          end if;
 
          Analyze_And_Resolve (N, Standard_Boolean);
@@ -2657,6 +2694,18 @@ package body Exp_Attr is
             Rewrite (N,
               New_Occurrence_Of
                 (Extra_Constrained (Formal_Ent), Sloc (N)));
+
+         --  If the prefix is an access to object, the attribute applies to
+         --  the designated object, so rewrite with an explicit dereference.
+
+         elsif Is_Access_Type (Etype (Pref))
+           and then
+             (not Is_Entity_Name (Pref) or else Is_Object (Entity (Pref)))
+         then
+            Rewrite (Pref,
+              Make_Explicit_Dereference (Loc, Relocate_Node (Pref)));
+            Analyze_And_Resolve (N, Standard_Boolean);
+            return;
 
          --  For variables with a Extra_Constrained field, we use the
          --  corresponding entity.
@@ -3026,16 +3075,15 @@ package body Exp_Attr is
       --  Note: The Elaborated attribute is never passed to the back end
 
       when Attribute_Elaborated => Elaborated : declare
-         Ent : constant Entity_Id := Entity (Pref);
+         Elab_Id : constant Entity_Id := Elaboration_Entity (Entity (Pref));
 
       begin
-         if Present (Elaboration_Entity (Ent)) then
+         if Present (Elab_Id) then
             Rewrite (N,
               Make_Op_Ne (Loc,
-                Left_Opnd =>
-                  New_Occurrence_Of (Elaboration_Entity (Ent), Loc),
-                Right_Opnd =>
-                  Make_Integer_Literal (Loc, Uint_0)));
+                Left_Opnd  => New_Occurrence_Of (Elab_Id, Loc),
+                Right_Opnd => Make_Integer_Literal (Loc, Uint_0)));
+
             Analyze_And_Resolve (N, Typ);
          else
             Rewrite (N, New_Occurrence_Of (Standard_True, Loc));
@@ -3362,24 +3410,30 @@ package body Exp_Attr is
          end if;
       end First_Bit_Attr;
 
-      -----------------
-      -- Fixed_Value --
-      -----------------
+      --------------------------------
+      -- Fixed_Value, Integer_Value --
+      --------------------------------
 
-      --  We transform:
+      --  We transform
 
       --     fixtype'Fixed_Value (integer-value)
+      --     inttype'Fixed_Value (fixed-value)
 
       --  into
 
-      --     fixtype(integer-value)
+      --     fixtype (integer-value)
+      --     inttype (fixed-value)
+
+      --  respectively.
 
       --  We do all the required analysis of the conversion here, because we do
       --  not want this to go through the fixed-point conversion circuits. Note
       --  that the back end always treats fixed-point as equivalent to the
       --  corresponding integer type anyway.
 
-      when Attribute_Fixed_Value =>
+      when Attribute_Fixed_Value
+         | Attribute_Integer_Value
+      =>
          Rewrite (N,
            Make_Type_Conversion (Loc,
              Subtype_Mark => New_Occurrence_Of (Entity (Pref), Loc),
@@ -3576,12 +3630,8 @@ package body Exp_Attr is
               and then Is_Task_Interface (Ptyp)
             then
                Rewrite (N,
-                 Unchecked_Convert_To (Id_Kind,
-                   Make_Selected_Component (Loc,
-                     Prefix =>
-                       New_Copy_Tree (Pref),
-                     Selector_Name =>
-                       Make_Identifier (Loc, Name_uDisp_Get_Task_Id))));
+                 Unchecked_Convert_To
+                   (Id_Kind, Build_Disp_Get_Task_Id_Call (Pref)));
 
             else
                Rewrite (N,
@@ -3599,7 +3649,15 @@ package body Exp_Attr is
       --  Image attribute is handled in separate unit Exp_Imgv
 
       when Attribute_Image =>
-         Exp_Imgv.Expand_Image_Attribute (N);
+
+         --  Leave attribute unexpanded in CodePeer mode: the gnat2scil
+         --  back-end knows how to handle this attribute directly.
+
+         if CodePeer_Mode then
+            return;
+         end if;
+
+         Expand_Image_Attribute (N);
 
       ---------
       -- Img --
@@ -3608,13 +3666,7 @@ package body Exp_Attr is
       --  X'Img is expanded to typ'Image (X), where typ is the type of X
 
       when Attribute_Img =>
-         Rewrite (N,
-           Make_Attribute_Reference (Loc,
-             Prefix         => New_Occurrence_Of (Ptyp, Loc),
-             Attribute_Name => Name_Image,
-             Expressions    => New_List (Relocate_Node (Pref))));
-
-         Analyze_And_Resolve (N, Standard_String);
+         Expand_Image_Attribute (N);
 
       -----------
       -- Input --
@@ -3789,10 +3841,17 @@ package body Exp_Attr is
 
                begin
                   --  Read the internal tag (RM 13.13.2(34)) and use it to
-                  --  initialize a dummy tag value:
-
+                  --  initialize a dummy tag value. We used to generate:
+                  --
                   --     Descendant_Tag (String'Input (Strm), P_Type);
-
+                  --
+                  --  which turns into a call to String_Input_Blk_IO. However,
+                  --  if the input is malformed, that could try to read an
+                  --  enormous String, causing chaos. So instead we call
+                  --  String_Input_Tag, which does the same thing as
+                  --  String_Input_Blk_IO, except that if the String is
+                  --  absurdly long, it raises an exception.
+                  --
                   --  This value is used only to provide a controlling
                   --  argument for the eventual _Input call. Descendant_Tag is
                   --  called rather than Internal_Tag to ensure that we have a
@@ -3812,15 +3871,17 @@ package body Exp_Attr is
                       Name                   =>
                         New_Occurrence_Of (RTE (RE_Descendant_Tag), Loc),
                       Parameter_Associations => New_List (
-                        Make_Attribute_Reference (Loc,
-                          Prefix         =>
-                            New_Occurrence_Of (Standard_String, Loc),
-                          Attribute_Name => Name_Input,
-                          Expressions    => New_List (
+                        Make_Function_Call (Loc,
+                          Name                   =>
+                            New_Occurrence_Of
+                              (RTE (RE_String_Input_Tag), Loc),
+                          Parameter_Associations => New_List (
                             Relocate_Node (Duplicate_Subexpr (Strm)))),
+
                         Make_Attribute_Reference (Loc,
                           Prefix         => New_Occurrence_Of (P_Type, Loc),
                           Attribute_Name => Name_Tag)));
+
                   Set_Etype (Expr, RTE (RE_Tag));
 
                   --  Now we need to get the entity for the call, and construct
@@ -3916,37 +3977,6 @@ package body Exp_Attr is
             Freeze_Stream_Subprogram (Fname);
          end if;
       end Input;
-
-      -------------------
-      -- Integer_Value --
-      -------------------
-
-      --  We transform
-
-      --    inttype'Fixed_Value (fixed-value)
-
-      --  into
-
-      --    inttype(integer-value))
-
-      --  we do all the required analysis of the conversion here, because we do
-      --  not want this to go through the fixed-point conversion circuits. Note
-      --  that the back end always treats fixed-point as equivalent to the
-      --  corresponding integer type anyway.
-
-      when Attribute_Integer_Value =>
-         Rewrite (N,
-           Make_Type_Conversion (Loc,
-             Subtype_Mark => New_Occurrence_Of (Entity (Pref), Loc),
-             Expression   => Relocate_Node (First (Exprs))));
-         Set_Etype (N, Entity (Pref));
-         Set_Analyzed (N);
-
-         --  Note: it might appear that a properly analyzed unchecked
-         --  conversion would be just fine here, but that's not the case, since
-         --  the full range check performed by the following call is critical.
-
-         Apply_Type_Conversion_Checks (N);
 
       -------------------
       -- Invalid_Value --
@@ -5516,12 +5546,17 @@ package body Exp_Attr is
 
                --  Ada 2005 (AI-216): Program_Error is raised when executing
                --  the default implementation of the Read attribute of an
-               --  Unchecked_Union type.
+               --  Unchecked_Union type. We replace the attribute with a
+               --  raise statement (rather than inserting it before) to handle
+               --  properly the case of an unchecked union that is a record
+               --  component.
 
                if Is_Unchecked_Union (Base_Type (U_Type)) then
-                  Insert_Action (N,
+                  Rewrite (N,
                     Make_Raise_Program_Error (Loc,
                       Reason => PE_Unchecked_Union_Restriction));
+                  Set_Etype (N, B_Type);
+                  return;
                end if;
 
                if Has_Discriminants (U_Type)
@@ -6239,7 +6274,7 @@ package body Exp_Attr is
 
          elsif Comes_From_Source (N)
             and then Is_Class_Wide_Type (Etype (Prefix (N)))
-            and then Is_Interface (Etype (Prefix (N)))
+            and then Is_Interface (Underlying_Type (Etype (Prefix (N))))
          then
             --  Generate:
             --    (To_Tag_Ptr (Prefix'Address)).all
@@ -6279,7 +6314,7 @@ package body Exp_Attr is
 
          --  The prefix of Terminated is of a task interface class-wide type.
          --  Generate:
-         --    terminated (Task_Id (Pref._disp_get_task_id));
+         --    terminated (Task_Id (_disp_get_task_id (Pref)));
 
          if Ada_Version >= Ada_2005
            and then Ekind (Ptyp) = E_Class_Wide_Type
@@ -6288,18 +6323,13 @@ package body Exp_Attr is
          then
             Rewrite (N,
               Make_Function_Call (Loc,
-                Name =>
+                Name                   =>
                   New_Occurrence_Of (RTE (RE_Terminated), Loc),
                 Parameter_Associations => New_List (
                   Make_Unchecked_Type_Conversion (Loc,
                     Subtype_Mark =>
                       New_Occurrence_Of (RTE (RO_ST_Task_Id), Loc),
-                    Expression =>
-                      Make_Selected_Component (Loc,
-                        Prefix =>
-                          New_Copy_Tree (Pref),
-                        Selector_Name =>
-                          Make_Identifier (Loc, Name_uDisp_Get_Task_Id))))));
+                    Expression   => Build_Disp_Get_Task_Id_Call (Pref)))));
 
          elsif Restricted_Profile then
             Rewrite (N,
@@ -6488,32 +6518,50 @@ package body Exp_Attr is
          ---------------------
 
          function Make_Range_Test return Node_Id is
-            Temp : constant Node_Id := Duplicate_Subexpr (Pref);
+            Temp : Node_Id;
 
          begin
-            --  The value whose validity is being checked has been captured in
-            --  an object declaration. We certainly don't want this object to
-            --  appear valid because the declaration initializes it.
+            --  The prefix of attribute 'Valid should always denote an object
+            --  reference. The reference is either coming directly from source
+            --  or is produced by validity check expansion. The object may be
+            --  wrapped in a conversion in which case the call to Unqual_Conv
+            --  will yield it.
 
-            if Is_Entity_Name (Temp) then
-               Set_Is_Known_Valid (Entity (Temp), False);
+            --  If the prefix denotes a variable which captures the value of
+            --  an object for validation purposes, use the variable in the
+            --  range test. This ensures that no extra copies or extra reads
+            --  are produced as part of the test. Generate:
+
+            --    Temp : ... := Object;
+            --    if not Temp in ... then
+
+            if Is_Validation_Variable_Reference (Pref) then
+               Temp := New_Occurrence_Of (Entity (Unqual_Conv (Pref)), Loc);
+
+            --  Otherwise the prefix is either a source object or a constant
+            --  produced by validity check expansion. Generate:
+
+            --    Temp : constant ... := Pref;
+            --    if not Temp in ... then
+
+            else
+               Temp := Duplicate_Subexpr (Pref);
             end if;
 
             return
               Make_In (Loc,
-                Left_Opnd  =>
-                  Unchecked_Convert_To (Btyp, Temp),
+                Left_Opnd  => Unchecked_Convert_To (Btyp, Temp),
                 Right_Opnd =>
                   Make_Range (Loc,
-                    Low_Bound =>
+                    Low_Bound  =>
                       Unchecked_Convert_To (Btyp,
                         Make_Attribute_Reference (Loc,
-                          Prefix => New_Occurrence_Of (Ptyp, Loc),
+                          Prefix         => New_Occurrence_Of (Ptyp, Loc),
                           Attribute_Name => Name_First)),
                     High_Bound =>
                       Unchecked_Convert_To (Btyp,
                         Make_Attribute_Reference (Loc,
-                          Prefix => New_Occurrence_Of (Ptyp, Loc),
+                          Prefix         => New_Occurrence_Of (Ptyp, Loc),
                           Attribute_Name => Name_Last))));
          end Make_Range_Test;
 
@@ -6884,14 +6932,15 @@ package body Exp_Attr is
          --  are any non-valid scalar subcomponents, and call the function.
 
          elsif Is_Record_Type (Ftyp)
-            and then Nkind (Type_Definition (Declaration_Node (Ftyp))) =
-                                                        N_Record_Definition
+           and then Present (Declaration_Node (Ftyp))
+           and then Nkind (Type_Definition (Declaration_Node (Ftyp))) =
+                      N_Record_Definition
          then
             Rewrite (N,
               Make_Function_Call (Loc,
                 Name                   =>
                   New_Occurrence_Of (Build_Record_VS_Func (Ftyp, N), Loc),
-              Parameter_Associations => New_List (Pref)));
+                Parameter_Associations => New_List (Pref)));
 
          --  Other record types or types with discriminants
 
@@ -6975,6 +7024,13 @@ package body Exp_Attr is
       --  Wide_Image attribute is handled in separate unit Exp_Imgv
 
       when Attribute_Wide_Image =>
+         --  Leave attribute unexpanded in CodePeer mode: the gnat2scil
+         --  back-end knows how to handle this attribute directly.
+
+         if CodePeer_Mode then
+            return;
+         end if;
+
          Exp_Imgv.Expand_Wide_Image_Attribute (N);
 
       ---------------------
@@ -6984,6 +7040,13 @@ package body Exp_Attr is
       --  Wide_Wide_Image attribute is handled in separate unit Exp_Imgv
 
       when Attribute_Wide_Wide_Image =>
+         --  Leave attribute unexpanded in CodePeer mode: the gnat2scil
+         --  back-end knows how to handle this attribute directly.
+
+         if CodePeer_Mode then
+            return;
+         end if;
+
          Exp_Imgv.Expand_Wide_Wide_Image_Attribute (N);
 
       ----------------
@@ -7200,14 +7263,21 @@ package body Exp_Attr is
                --  Unchecked_Union type. However, if the 'Write reference is
                --  within the generated Output stream procedure, Write outputs
                --  the components, and the default values of the discriminant
-               --  are streamed by the Output procedure itself.
+               --  are streamed by the Output procedure itself. If there are
+               --  no default values this is also erroneous.
 
-               if Is_Unchecked_Union (Base_Type (U_Type))
-                 and not Is_TSS (Current_Scope, TSS_Stream_Output)
-               then
-                  Insert_Action (N,
-                    Make_Raise_Program_Error (Loc,
-                      Reason => PE_Unchecked_Union_Restriction));
+               if Is_Unchecked_Union (Base_Type (U_Type)) then
+                  if (not Is_TSS (Current_Scope, TSS_Stream_Output)
+                       and not Is_TSS (Current_Scope, TSS_Stream_Write))
+                    or else No (Discriminant_Default_Value
+                                 (First_Discriminant (U_Type)))
+                  then
+                     Rewrite (N,
+                       Make_Raise_Program_Error (Loc,
+                         Reason => PE_Unchecked_Union_Restriction));
+                     Set_Etype (N, U_Type);
+                     return;
+                  end if;
                end if;
 
                if Has_Discriminants (U_Type)
@@ -7724,7 +7794,7 @@ package body Exp_Attr is
       --  instead. That is why we include the test Is_Available when dealing
       --  with these cases.
 
-      if not Is_Predefined_File_Name (Unit_File_Name (Current_Sem_Unit)) then
+      if not Is_Predefined_Unit (Current_Sem_Unit) then
          --  Storage_Array as defined in package System.Storage_Elements
 
          if Is_RTE (Base_Typ, RE_Storage_Array) then
@@ -8198,17 +8268,16 @@ package body Exp_Attr is
       function Is_GCC_Target return Boolean is
       begin
          return not CodePeer_Mode
-           and then not AAMP_On_Target
            and then not Modify_Tree_For_C;
       end Is_GCC_Target;
 
    --  Start of processing for Is_Inline_Floating_Point_Attribute
 
    begin
-      --  Machine and Model can be expanded by the GCC and AAMP back ends only
+      --  Machine and Model can be expanded by the GCC back end only
 
       if Id = Attribute_Machine or else Id = Attribute_Model then
-         return Is_GCC_Target or else AAMP_On_Target;
+         return Is_GCC_Target;
 
       --  Remaining cases handled by all back ends are Rounding and Truncation
       --  when appearing as the operand of a conversion to some integer type.

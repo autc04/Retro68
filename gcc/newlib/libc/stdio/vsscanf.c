@@ -21,11 +21,7 @@
 #include <reent.h>
 #include <stdio.h>
 #include <string.h>
-#ifdef _HAVE_STDC
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "local.h"
 
 /*
@@ -35,9 +31,8 @@
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(vsscanf, (str, fmt, ap), 
-       _CONST char *__restrict str _AND 
-       _CONST char *__restrict fmt _AND 
+vsscanf (const char *__restrict str,
+       const char *__restrict fmt,
        va_list ap)
 {
   return _vsscanf_r (_REENT, str, fmt, ap);
@@ -45,17 +40,16 @@ _DEFUN(vsscanf, (str, fmt, ap),
 
 #ifdef _NANO_FORMATTED_IO
 int
-_EXFUN(vsiscanf, (const char *, const char *, __VALIST)
-       _ATTRIBUTE ((__alias__("vsscanf"))));
+vsiscanf (const char *, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("vsscanf")));
 #endif
 
 #endif /* !_REENT_ONLY */
 
 int
-_DEFUN(_vsscanf_r, (ptr, str, fmt, ap),
-       struct _reent *ptr _AND 
-       _CONST char *__restrict str   _AND 
-       _CONST char *__restrict fmt   _AND 
+_vsscanf_r (struct _reent *ptr,
+       const char *__restrict str,
+       const char *__restrict fmt,
        va_list ap)
 {
   FILE f;
@@ -72,6 +66,6 @@ _DEFUN(_vsscanf_r, (ptr, str, fmt, ap),
 
 #ifdef _NANO_FORMATTED_IO
 int
-_EXFUN(_vsiscanf_r, (struct _reent *, const char *, const char *, __VALIST)
-       _ATTRIBUTE ((__alias__("_vsscanf_r"))));
+_vsiscanf_r (struct _reent *, const char *, const char *, __VALIST)
+       _ATTRIBUTE ((__alias__("_vsscanf_r")));
 #endif

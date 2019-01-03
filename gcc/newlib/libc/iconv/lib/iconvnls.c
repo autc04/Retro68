@@ -46,9 +46,9 @@
  *
  * PARAMETERS:
  *   struct _reent *rptr - reent structure of current thread/process.  
- *   _CONST char *file   - the name of file.
- *   _CONST char *dir    - the name of subdirectory;
- *   _CONST char *ext    - file extension.
+ *   const char *file   - the name of file.
+ *   const char *dir    - the name of subdirectory;
+ *   const char *ext    - file extension.
  *
  * DESCRIPTION:
  *   Function constructs patch to icionv-related file.
@@ -58,12 +58,11 @@
  *   The pointer to file name if success, In case of error returns NULL
  *   and sets current thread's/process's errno.
  */
-_CONST char *
-_DEFUN(_iconv_nls_construct_filename, (rptr, file, ext),
-                                      struct _reent *rptr _AND
-                                      _CONST char *file   _AND
-                                      _CONST char *dir    _AND
-                                      _CONST char *ext)
+const char *
+_iconv_nls_construct_filename (struct _reent *rptr,
+                                      const char *file,
+                                      const char *dir,
+                                      const char *ext)
 {
   int len1, len2, len3;
   char *path;
@@ -78,7 +77,7 @@ _DEFUN(_iconv_nls_construct_filename, (rptr, file, ext),
   len3 = strlen (ext);
 
   if ((p = _malloc_r (rptr, len1 + dirlen + len2 + len3 + 3)) == NULL)
-    return (_CONST char *)NULL;
+    return (const char *)NULL;
 
   memcpy (p, path, len1);
   if (p[len1 - 1] != '/')
@@ -95,7 +94,7 @@ _DEFUN(_iconv_nls_construct_filename, (rptr, file, ext),
   }
   p[len1] = '\0';
  
-  return (_CONST char *)p;
+  return (const char *)p;
 }
 
 
@@ -114,8 +113,7 @@ _DEFUN(_iconv_nls_construct_filename, (rptr, file, ext),
  *    "to" encoding's value if 'direction' isn't 0.
  */
 int
-_DEFUN(_iconv_nls_get_mb_cur_max, (cd, direction),
-                                  iconv_t cd _AND
+_iconv_nls_get_mb_cur_max (iconv_t cd,
                                   int direction)
 {
   iconv_conversion_t *ic = (iconv_conversion_t *)cd;
@@ -137,8 +135,7 @@ _DEFUN(_iconv_nls_get_mb_cur_max, (cd, direction),
 
  */
 int
-_DEFUN(_iconv_nls_is_stateful, (cd, direction),
-                               iconv_t cd _AND
+_iconv_nls_is_stateful (iconv_t cd,
                                int direction)
 {
   iconv_conversion_t *ic = (iconv_conversion_t *)cd;
@@ -166,18 +163,17 @@ _DEFUN(_iconv_nls_is_stateful, (cd, direction),
  *    Same as _iconv_r.
  */
 size_t
-_DEFUN(_iconv_nls_conv, (rptr, cd, inbuf, inbytesleft, outbuf, outbytesleft),
-                        struct _reent *rptr _AND
-                        iconv_t cd          _AND
-                        _CONST char **inbuf _AND
-                        size_t *inbytesleft _AND
-                        char **outbuf       _AND
+_iconv_nls_conv (struct _reent *rptr,
+                        iconv_t cd,
+                        const char **inbuf,
+                        size_t *inbytesleft,
+                        char **outbuf,
                         size_t *outbytesleft)
 {
   iconv_conversion_t *ic = (iconv_conversion_t *)cd;
   int flags = ICONV_FAIL_BIT;
 
-  if ((_VOID_PTR)cd == NULL || cd == (iconv_t)-1 || ic->data == NULL
+  if ((void *)cd == NULL || cd == (iconv_t)-1 || ic->data == NULL
        || (ic->handlers != &_iconv_null_conversion_handlers
            && ic->handlers != &_iconv_ucs_conversion_handlers))
     {
@@ -199,7 +195,7 @@ _DEFUN(_iconv_nls_conv, (rptr, cd, inbuf, inbytesleft, outbuf, outbytesleft),
 
   return ic->handlers->convert (rptr,
                                 ic->data,
-                                (_CONST unsigned char**)inbuf,
+                                (const unsigned char**)inbuf,
                                 inbytesleft,
                                 (unsigned char**)outbuf,
                                 outbytesleft,
@@ -219,10 +215,9 @@ _DEFUN(_iconv_nls_conv, (rptr, cd, inbuf, inbytesleft, outbuf, outbytesleft),
  *    shift state if 'direction' is 0 and "to" encodings's shift state
  *    if 'direction' isn't 0.
  */
-_VOID
-_DEFUN(_iconv_nls_get_state, (cd, ps, direction),
-                             iconv_t cd    _AND
-                             mbstate_t *ps _AND
+void
+_iconv_nls_get_state (iconv_t cd,
+                             mbstate_t *ps,
                              int direction)
 {
   iconv_conversion_t *ic = (iconv_conversion_t *)cd;
@@ -247,9 +242,8 @@ _DEFUN(_iconv_nls_get_state, (cd, ps, direction),
  *    0 if success, -1 if failure.
  */
 int
-_DEFUN(_iconv_nls_set_state, (cd, ps, direction),
-                             iconv_t cd    _AND
-                             mbstate_t *ps _AND
+_iconv_nls_set_state (iconv_t cd,
+                             mbstate_t *ps,
                              int direction)
 {
   iconv_conversion_t *ic = (iconv_conversion_t *)cd;
@@ -259,10 +253,9 @@ _DEFUN(_iconv_nls_set_state, (cd, ps, direction),
 
 /* Same as iconv_open() but don't perform name resolving */
 static iconv_t
-_DEFUN(iconv_open1, (rptr, to, from),
-                     struct _reent *rptr _AND
-                     _CONST char *to     _AND
-                     _CONST char *from)
+iconv_open1 (struct _reent *rptr,
+                     const char *to,
+                     const char *from)
 {
   iconv_conversion_t *ic;
     
@@ -289,11 +282,11 @@ _DEFUN(iconv_open1, (rptr, to, from),
 
   if (ic->data == NULL)
     {
-      _free_r (rptr, (_VOID_PTR)ic);
+      _free_r (rptr, (void *)ic);
       return (iconv_t)-1;
     }
 
-  return (_VOID_PTR)ic;
+  return (void *)ic;
 }
 
 /*
@@ -301,7 +294,7 @@ _DEFUN(iconv_open1, (rptr, to, from),
  *
  * PARAMETERS:
  *     struct _reent *rptr - process's reent structure;
- *     _CONST char *encoding - encoding name;
+ *     const char *encoding - encoding name;
  *     iconv_t *tomb - wchar -> encoding iconv descriptor pointer;
  *     iconv_t *towc - encoding -> wchar iconv descriptor pointer;
  *     int flag - perform encoding name resolving flag.
@@ -316,14 +309,13 @@ _DEFUN(iconv_open1, (rptr, to, from),
  *     If successful - return 0, else set errno and return -1.
  */
 int
-_DEFUN(_iconv_nls_open, (rptr, encoding, towc, tomb),
-                        struct _reent *rptr   _AND
-                        _CONST char *encoding _AND
-                        iconv_t *tomb         _AND
-                        iconv_t *towc         _AND
+_iconv_nls_open (struct _reent *rptr,
+                        const char *encoding,
+                        iconv_t *tomb,
+                        iconv_t *towc,
                         int flag)
 {
-  _CONST char *wchar_encoding;
+  const char *wchar_encoding;
 
   if (sizeof (wchar_t) > 2 && WCHAR_MAX > 0xFFFF)
     wchar_encoding = "ucs_4_internal";

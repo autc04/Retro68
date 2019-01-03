@@ -255,6 +255,12 @@ case "${host_cpu}" in
   powerpc*)
 	machine_dir=powerpc
 	;;
+  riscv*)
+	libm_machine_dir=riscv
+	machine_dir=riscv
+	newlib_cflags="${newlib_cflags} -DHAVE_NANOSLEEP"
+	default_newlib_atexit_dynamic_alloc="no"
+	;;
   rl78)
 	machine_dir=rl78
 	newlib_cflags="${newlib_cflags} -DPREFER_SIZE_OVER_SPEED -DSMALL_MEMORY"
@@ -580,7 +586,7 @@ case "${host}" in
 	default_newlib_io_long_double="yes"
 	default_newlib_io_pos_args="yes"
 	CC="${CC} -I${cygwin_srcdir}/include"
-	newlib_cflags="${newlib_cflags} -DHAVE_OPENDIR -DHAVE_RENAME -DSIGNAL_PROVIDED -D_COMPILING_NEWLIB -DHAVE_BLKSIZE -DHAVE_FCNTL -DMALLOC_PROVIDED"
+	newlib_cflags="${newlib_cflags} -DHAVE_OPENDIR -DHAVE_RENAME -DGETREENT_PROVIDED -DSIGNAL_PROVIDED -D_COMPILING_NEWLIB -DHAVE_BLKSIZE -DHAVE_FCNTL -DMALLOC_PROVIDED"
 	syscall_dir=syscalls
 	;;
   *-*-phoenix*)
@@ -599,11 +605,9 @@ case "${host}" in
 	default_newlib_io_long_long="yes"
 	default_newlib_io_c99_formats="yes"
 	newlib_cflags="${newlib_cflags} -D_COMPILING_NEWLIB"
-	newlib_cflags="${newlib_cflags} -DMALLOC_PROVIDED -DEXIT_PROVIDED -DSIGNAL_PROVIDED -DREENTRANT_SYSCALLS_PROVIDED -DHAVE_NANOSLEEP -DHAVE_BLKSIZE -DHAVE_FCNTL -DHAVE_ASSERT_FUNC"
+newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVIDED -DSIGNAL_PROVIDED -DGETREENT_PROVIDED -DREENTRANT_SYSCALLS_PROVIDED -DHAVE_NANOSLEEP -DHAVE_BLKSIZE -DHAVE_FCNTL -DHAVE_ASSERT_FUNC"
         # turn off unsupported items in posix directory 
 	newlib_cflags="${newlib_cflags} -D_NO_GETLOGIN -D_NO_GETPWENT -D_NO_GETUT -D_NO_GETPASS -D_NO_SIGSET -D_NO_WORDEXP -D_NO_POPEN -D_NO_POSIX_SPAWN"
-        # turn off using cli/sti in i386 setjmp/longjmp
-	newlib_cflags="${newlib_cflags} -D_I386MACH_ALLOW_HW_INTERRUPTS"
 	;;
 # VxWorks supplies its own version of malloc, and the newlib one
 # doesn't work because VxWorks does not have sbrk.
@@ -809,6 +813,9 @@ case "${host}" in
 	;;
   powerpcle-*-pe)
 	newlib_cflags="${newlib_cflags} -DHAVE_OPENDIR -DHAVE_RENAME -DHAVE_FCNTL -D_NO_POSIX_SPAWN"
+	syscall_dir=syscalls
+	;;
+  riscv*-*-*)
 	syscall_dir=syscalls
 	;;
   powerpc-*-macos)

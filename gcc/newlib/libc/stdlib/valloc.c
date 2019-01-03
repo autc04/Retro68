@@ -8,16 +8,14 @@
 
 #ifndef _REENT_ONLY
 
-_PTR
-_DEFUN (valloc, (nbytes),
-	size_t nbytes)
+void *
+valloc (size_t nbytes)
 {
   return _valloc_r (_REENT, nbytes);
 }
 
-_PTR
-_DEFUN (pvalloc, (nbytes),
-	size_t nbytes)
+void *
+pvalloc (size_t nbytes)
 {
   return _pvalloc_r (_REENT, nbytes);
 }

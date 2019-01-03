@@ -5,14 +5,9 @@ FUNCTION
 INDEX
 	strlwr
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	char *strlwr(char *<[a]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	char *strlwr(<[a]>)
-	char *<[a]>;
 
 DESCRIPTION
 	<<strlwr>> converts each character in the string at <[a]> to
@@ -34,8 +29,7 @@ QUICKREF
 #include <ctype.h>
 
 char *
-_DEFUN (strlwr, (s),
-	char *s)
+strlwr (char *s)
 {
   unsigned char *ucs = (unsigned char *) s;
   for ( ; *ucs != '\0'; ucs++)

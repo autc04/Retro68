@@ -16,7 +16,7 @@ INDEX
 INDEX
 	_vdprintf_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	#include <stdarg.h>
 	int dprintf(int <[fd]>, const char *restrict <[format]>, ...);
@@ -53,10 +53,9 @@ Supporting OS subroutines required: <<sbrk>>, <<write>>.
 #include "local.h"
 
 int
-_DEFUN(_dprintf_r, (ptr, fd, format),
-       struct _reent *ptr _AND
-       int fd _AND
-       const char *__restrict format _DOTS)
+_dprintf_r (struct _reent *ptr,
+       int fd,
+       const char *__restrict format, ...)
 {
 	va_list ap;
 	int n;
@@ -69,16 +68,15 @@ _DEFUN(_dprintf_r, (ptr, fd, format),
 
 #ifdef _NANO_FORMATTED_IO
 int
-_EXFUN(_diprintf_r, (struct _reent *, int, const char *, ...)
-       _ATTRIBUTE ((__alias__("_dprintf_r"))));
+_diprintf_r (struct _reent *, int, const char *, ...)
+       _ATTRIBUTE ((__alias__("_dprintf_r")));
 #endif
 
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(dprintf, (fd, format),
-       int fd _AND
-       const char *__restrict format _DOTS)
+dprintf (int fd,
+       const char *__restrict format, ...)
 {
   va_list ap;
   int n;
@@ -93,7 +91,7 @@ _DEFUN(dprintf, (fd, format),
 
 #ifdef _NANO_FORMATTED_IO
 int
-_EXFUN(diprintf, (int, const char *, ...)
-       _ATTRIBUTE ((__alias__("dprintf"))));
+diprintf (int, const char *, ...)
+       _ATTRIBUTE ((__alias__("dprintf")));
 #endif
 #endif /* ! _REENT_ONLY */

@@ -1,5 +1,5 @@
 /* Interprocedural Identical Code Folding pass
-   Copyright (C) 2014-2017 Free Software Foundation, Inc.
+   Copyright (C) 2014-2018 Free Software Foundation, Inc.
 
    Contributed by Jan Hubicka <hubicka@ucw.cz> and Martin Liska <mliska@suse.cz>
 
@@ -74,7 +74,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-cfg.h"
 #include "symbol-summary.h"
 #include "ipa-prop.h"
-#include "ipa-inline.h"
+#include "ipa-fnsummary.h"
 #include "except.h"
 #include "attribs.h"
 #include "print-tree.h"
@@ -83,6 +83,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "ipa-icf.h"
 #include "stor-layout.h"
 #include "dbgcnt.h"
+#include "tree-vector-builder.h"
 
 using namespace ipa_icf_gimple;
 
@@ -195,8 +196,8 @@ sem_item::dump (void)
 {
   if (dump_file)
     {
-      fprintf (dump_file, "[%s] %s (%u) (tree:%p)\n", type == FUNC ? "func" : "var",
-	       node->name(), node->order, (void *) node->decl);
+      fprintf (dump_file, "[%s] %s (tree:%p)\n", type == FUNC ? "func" : "var",
+	       node->dump_name (), (void *) node->decl);
       fprintf (dump_file, "  hash: %u\n", get_hash ());
       fprintf (dump_file, "  references: ");
 
@@ -286,11 +287,11 @@ sem_function::get_hash (void)
 
       /* Add common features of declaration itself.  */
       if (DECL_FUNCTION_SPECIFIC_TARGET (decl))
-        hstate.add_wide_int
+        hstate.add_hwi
 	 (cl_target_option_hash
 	   (TREE_TARGET_OPTION (DECL_FUNCTION_SPECIFIC_TARGET (decl))));
       if (DECL_FUNCTION_SPECIFIC_OPTIMIZATION (decl))
-	hstate.add_wide_int
+	hstate.add_hwi
 	 (cl_optimization_hash
 	   (TREE_OPTIMIZATION (DECL_FUNCTION_SPECIFIC_OPTIMIZATION (decl))));
       hstate.add_flag (DECL_CXX_CONSTRUCTOR_P (decl));
@@ -869,13 +870,9 @@ sem_function::equals (sem_item *item,
 
   if (dump_file && (dump_flags & TDF_DETAILS))
     fprintf (dump_file,
-	     "Equals called for:%s:%s (%u:%u) (%s:%s) with result: %s\n\n",
-	     xstrdup_for_dump (node->name()),
-	     xstrdup_for_dump (item->node->name ()),
-	     node->order,
-	     item->node->order,
-	     xstrdup_for_dump (node->asm_name ()),
-	     xstrdup_for_dump (item->node->asm_name ()),
+	     "Equals called for: %s:%s with result: %s\n\n",
+	     node->dump_name (),
+	     item->node->dump_name (),
 	     eq ? "true" : "false");
 
   return eq;
@@ -1116,6 +1113,17 @@ sem_function::merge (sem_item *alias_item)
       return false;
     }
 
+  if (!original->in_same_comdat_group_p (alias)
+      || original->comdat_local_p ())
+    {
+      if (dump_file)
+	fprintf (dump_file,
+		 "Not unifying; alias nor wrapper cannot be created; "
+		 "across comdat group boundary\n\n");
+
+      return false;
+    }
+
   /* See if original is in a section that can be discarded if the main
      symbol is not used.  */
 
@@ -1190,8 +1198,8 @@ sem_function::merge (sem_item *alias_item)
 	    fprintf (dump_file,
 		     "can not create wrapper of stdarg function.\n");
 	}
-      else if (inline_summaries
-	       && inline_summaries->get (alias)->self_size <= 2)
+      else if (ipa_fn_summaries
+	       && ipa_fn_summaries->get (alias)->self_size <= 2)
 	{
 	  if (dump_file)
 	    fprintf (dump_file, "Wrapper creation is not "
@@ -1332,7 +1340,8 @@ sem_function::merge (sem_item *alias_item)
       alias->icf_merged = true;
       local_original->icf_merged = true;
 
-      ipa_merge_profiles (local_original, alias, true);
+      /* FIXME update local_original counts.  */
+      ipa_merge_profiles (original, alias, true);
       alias->create_wrapper (local_original);
 
       if (dump_file)
@@ -1425,6 +1434,7 @@ sem_function::init (void)
 	      }
 	  }
 
+	hstate.commit_flag ();
 	gcode_hash = hstate.end ();
 	bb_sizes.safe_push (nondbg_stmt_count);
 
@@ -1440,8 +1450,8 @@ sem_function::init (void)
     {
       cfg_checksum = 0;
       inchash::hash hstate;
-      hstate.add_wide_int (cnode->thunk.fixed_offset);
-      hstate.add_wide_int (cnode->thunk.virtual_value);
+      hstate.add_hwi (cnode->thunk.fixed_offset);
+      hstate.add_hwi (cnode->thunk.virtual_value);
       hstate.add_flag (cnode->thunk.this_adjusting);
       hstate.add_flag (cnode->thunk.virtual_offset_p);
       hstate.add_flag (cnode->thunk.add_pointer_bounds_args);
@@ -1488,7 +1498,7 @@ sem_item::add_expr (const_tree exp, inchash::hash &hstate)
 	unsigned HOST_WIDE_INT idx;
 	tree value;
 
-	hstate.add_wide_int (int_size_in_bytes (TREE_TYPE (exp)));
+	hstate.add_hwi (int_size_in_bytes (TREE_TYPE (exp)));
 
 	FOR_EACH_CONSTRUCTOR_VALUE (CONSTRUCTOR_ELTS (exp), idx, value)
 	  if (value)
@@ -1503,7 +1513,7 @@ sem_item::add_expr (const_tree exp, inchash::hash &hstate)
     case VAR_DECL:
     case CONST_DECL:
     case PARM_DECL:
-      hstate.add_wide_int (int_size_in_bytes (TREE_TYPE (exp)));
+      hstate.add_hwi (int_size_in_bytes (TREE_TYPE (exp)));
       break;
     case MEM_REF:
     case POINTER_PLUS_EXPR:
@@ -1521,7 +1531,7 @@ sem_item::add_expr (const_tree exp, inchash::hash &hstate)
       }
       break;
     CASE_CONVERT:
-      hstate.add_wide_int (int_size_in_bytes (TREE_TYPE (exp)));
+      hstate.add_hwi (int_size_in_bytes (TREE_TYPE (exp)));
       return add_expr (TREE_OPERAND (exp, 0), hstate);
     default:
       break;
@@ -1592,11 +1602,11 @@ sem_item::add_type (const_tree type, inchash::hash &hstate)
 
 	  hstate2.add_int (nf);
 	  hash = hstate2.end ();
-	  hstate.add_wide_int (hash);
+	  hstate.add_hwi (hash);
 	  optimizer->m_type_hash_cache.put (type, hash);
 	}
       else
-        hstate.add_wide_int (*val);
+        hstate.add_hwi (*val);
     }
 }
 
@@ -1647,6 +1657,11 @@ sem_function::hash_stmt (gimple *stmt, inchash::hash &hstate)
 	  if (gimple_op (stmt, i))
 	    add_type (TREE_TYPE (gimple_op (stmt, i)), hstate);
 	}
+      /* Consider nocf_check attribute in hash as it affects code
+ 	 generation.  */
+      if (code == GIMPLE_CALL
+	  && flag_cf_protection & CF_BRANCH)
+	hstate.add_flag (gimple_call_nocf_check_p (as_a <gcall *> (stmt)));
     default:
       break;
     }
@@ -1887,12 +1902,9 @@ sem_variable::equals (sem_item *item,
 			      DECL_INITIAL (item->node->decl));
   if (dump_file && (dump_flags & TDF_DETAILS))
     fprintf (dump_file,
-	     "Equals called for vars:%s:%s (%u:%u) (%s:%s) with result: %s\n\n",
-	     xstrdup_for_dump (node->name()),
-	     xstrdup_for_dump (item->node->name ()),
-	     node->order, item->node->order,
-	     xstrdup_for_dump (node->asm_name ()),
-	     xstrdup_for_dump (item->node->asm_name ()), ret ? "true" : "false");
+	     "Equals called for vars: %s:%s with result: %s\n\n",
+	     node->dump_name (), item->node->dump_name (),
+	     ret ? "true" : "false");
 
   return ret;
 }
@@ -2024,17 +2036,17 @@ sem_variable::equals (tree t1, tree t2)
 						&TREE_REAL_CST (t2)));
     case VECTOR_CST:
       {
-	unsigned i;
+	if (maybe_ne (VECTOR_CST_NELTS (t1), VECTOR_CST_NELTS (t2)))
+	  return return_false_with_msg ("VECTOR_CST nelts mismatch");
 
-        if (VECTOR_CST_NELTS (t1) != VECTOR_CST_NELTS (t2))
-          return return_false_with_msg ("VECTOR_CST nelts mismatch");
+	unsigned int count
+	  = tree_vector_builder::binary_encoded_nelts (t1, t2);
+	for (unsigned int i = 0; i < count; ++i)
+	  if (!sem_variable::equals (VECTOR_CST_ENCODED_ELT (t1, i),
+				     VECTOR_CST_ENCODED_ELT (t2, i)))
+	    return false;
 
-	for (i = 0; i < VECTOR_CST_NELTS (t1); ++i)
-	  if (!sem_variable::equals (VECTOR_CST_ELT (t1, i),
-				     VECTOR_CST_ELT (t2, i)))
-	    return 0;
-
-	return 1;
+	return true;
       }
     case ARRAY_REF:
     case ARRAY_RANGE_REF:
@@ -2114,28 +2126,11 @@ sem_variable::get_hash (void)
 
   hstate.add_int (456346417);
   if (DECL_SIZE (decl) && tree_fits_shwi_p (DECL_SIZE (decl)))
-    hstate.add_wide_int (tree_to_shwi (DECL_SIZE (decl)));
+    hstate.add_hwi (tree_to_shwi (DECL_SIZE (decl)));
   add_expr (ctor, hstate);
   set_hash (hstate.end ());
 
   return m_hash;
-}
-
-/* Set all points-to UIDs of aliases pointing to node N as UID.  */
-
-static void
-set_alias_uids (symtab_node *n, int uid)
-{
-  ipa_ref *ref;
-  FOR_EACH_ALIAS (n, ref)
-    {
-      if (dump_file)
-	fprintf (dump_file, "  Setting points-to UID of [%s] as %d\n",
-		 xstrdup_for_dump (ref->referring->asm_name ()), uid);
-
-      SET_DECL_PT_UID (ref->referring->decl, uid);
-      set_alias_uids (ref->referring, uid);
-    }
 }
 
 /* Merges instance with an ALIAS_ITEM, where alias, thunk or redirection can
@@ -2264,7 +2259,6 @@ sem_variable::merge (sem_item *alias_item)
       if (dump_file)
 	fprintf (dump_file, "Unified; Variable alias has been created.\n");
 
-      set_alias_uids (original, DECL_UID (original->decl));
       return true;
     }
 }
@@ -2284,7 +2278,7 @@ unsigned int sem_item_optimizer::class_id = 0;
 
 sem_item_optimizer::sem_item_optimizer ()
 : worklist (0), m_classes (0), m_classes_count (0), m_cgraph_node_hooks (NULL),
-  m_varpool_node_hooks (NULL)
+  m_varpool_node_hooks (NULL), m_merged_variables ()
 {
   m_items.create (0);
   bitmap_obstack_initialize (&m_bmstack);
@@ -2309,6 +2303,7 @@ sem_item_optimizer::~sem_item_optimizer ()
   m_items.release ();
 
   bitmap_obstack_release (&m_bmstack);
+  m_merged_variables.release ();
 }
 
 /* Write IPA ICF summary for symbols.  */
@@ -2398,8 +2393,8 @@ sem_item_optimizer::read_section (lto_file_decl_data *file_data,
       gcc_assert (node->definition);
 
       if (dump_file)
-	fprintf (dump_file, "Symbol added:%s (tree: %p, uid:%u)\n",
-		 node->asm_name (), (void *) node->decl, node->order);
+	fprintf (dump_file, "Symbol added: %s (tree: %p)\n",
+		 node->dump_asm_name (), (void *) node->decl);
 
       if (is_a<cgraph_node *> (node))
 	{
@@ -2643,7 +2638,7 @@ sem_item_optimizer::execute (void)
   bool merged_p = merge_classes (prev_class_count);
 
   if (dump_file && (dump_flags & TDF_DETAILS))
-    symtab_node::dump_table (dump_file);
+    symtab->dump (dump_file);
 
   return merged_p;
 }
@@ -2726,7 +2721,7 @@ sem_item_optimizer::update_hash_by_addr_refs ()
 
 		if (TYPE_NAME (class_type)
 		     && DECL_ASSEMBLER_NAME_SET_P (TYPE_NAME (class_type)))
-		  hstate.add_wide_int
+		  hstate.add_hwi
 		    (IDENTIFIER_HASH_VALUE
 		       (DECL_ASSEMBLER_NAME (TYPE_NAME (class_type))));
 
@@ -3560,11 +3555,101 @@ sem_item_optimizer::merge_classes (unsigned int prev_class_count)
 	      }
 
 	    if (dbg_cnt (merged_ipa_icf))
-	      merged_p |= source->merge (alias);
+	      {
+		bool merged = source->merge (alias);
+		merged_p |= merged;
+
+		if (merged && alias->type == VAR)
+		  {
+		    symtab_pair p = symtab_pair (source->node, alias->node);
+		    m_merged_variables.safe_push (p);
+		  }
+	      }
 	  }
       }
 
+  if (!m_merged_variables.is_empty ())
+    fixup_points_to_sets ();
+
   return merged_p;
+}
+
+/* Fixup points to set PT.  */
+
+void
+sem_item_optimizer::fixup_pt_set (struct pt_solution *pt)
+{
+  if (pt->vars == NULL)
+    return;
+
+  unsigned i;
+  symtab_pair *item;
+  FOR_EACH_VEC_ELT (m_merged_variables, i, item)
+    if (bitmap_bit_p (pt->vars, DECL_UID (item->second->decl)))
+      bitmap_set_bit (pt->vars, DECL_UID (item->first->decl));
+}
+
+/* Set all points-to UIDs of aliases pointing to node N as UID.  */
+
+static void
+set_alias_uids (symtab_node *n, int uid)
+{
+  ipa_ref *ref;
+  FOR_EACH_ALIAS (n, ref)
+    {
+      if (dump_file)
+	fprintf (dump_file, "  Setting points-to UID of [%s] as %d\n",
+		 xstrdup_for_dump (ref->referring->asm_name ()), uid);
+
+      SET_DECL_PT_UID (ref->referring->decl, uid);
+      set_alias_uids (ref->referring, uid);
+    }
+}
+
+/* Fixup points to analysis info.  */
+
+void
+sem_item_optimizer::fixup_points_to_sets (void)
+{
+  /* TODO: remove in GCC 9 and trigger PTA re-creation after IPA passes.  */
+  cgraph_node *cnode;
+
+  FOR_EACH_DEFINED_FUNCTION (cnode)
+    {
+      tree name;
+      unsigned i;
+      function *fn = DECL_STRUCT_FUNCTION (cnode->decl);
+      if (!gimple_in_ssa_p (fn))
+	continue;
+
+      FOR_EACH_SSA_NAME (i, name, fn)
+	if (POINTER_TYPE_P (TREE_TYPE (name))
+	    && SSA_NAME_PTR_INFO (name))
+	  fixup_pt_set (&SSA_NAME_PTR_INFO (name)->pt);
+      fixup_pt_set (&fn->gimple_df->escaped);
+
+       /* The above get's us to 99% I guess, at least catching the
+	  address compares.  Below also gets us aliasing correct
+	  but as said we're giving leeway to the situation with
+	  readonly vars anyway, so ... */
+       basic_block bb;
+       FOR_EACH_BB_FN (bb, fn)
+	for (gimple_stmt_iterator gsi = gsi_start_bb (bb); !gsi_end_p (gsi);
+	     gsi_next (&gsi))
+	  {
+	    gcall *call = dyn_cast<gcall *> (gsi_stmt (gsi));
+	    if (call)
+	      {
+		fixup_pt_set (gimple_call_use_set (call));
+		fixup_pt_set (gimple_call_clobber_set (call));
+	      }
+	  }
+    }
+
+  unsigned i;
+  symtab_pair *item;
+  FOR_EACH_VEC_ELT (m_merged_variables, i, item)
+    set_alias_uids (item->first, DECL_UID (item->first->decl));
 }
 
 /* Dump function prints all class members to a FILE with an INDENT.  */
@@ -3577,9 +3662,7 @@ congruence_class::dump (FILE *file, unsigned int indent) const
 
   FPUTS_SPACES (file, indent + 2, "");
   for (unsigned i = 0; i < members.length (); i++)
-    fprintf (file, "%s(%p/%u) ", members[i]->node->asm_name (),
-	     (void *) members[i]->decl,
-	     members[i]->node->order);
+    fprintf (file, "%s ", members[i]->node->dump_asm_name ());
 
   fprintf (file, "\n");
 }

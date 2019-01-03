@@ -24,22 +24,11 @@ INDEX
 INDEX
 	_fopen64_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	FILE *fopen64(const char *<[file]>, const char *<[mode]>);
 	FILE *_fopen64_r(void *<[reent]>,
                        const char *<[file]>, const char *<[mode]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	FILE *fopen64(<[file]>, <[mode]>)
-	char *<[file]>;
-	char *<[mode]>;
-
-	FILE *_fopen64_r(<[reent]>, <[file]>, <[mode]>)
-	char *<[reent]>;
-	char *<[file]>;
-	char *<[mode]>;
 
 DESCRIPTION
 <<fopen64>> is identical to <<fopen>> except it opens a large file that
@@ -75,10 +64,9 @@ static char sccsid[] = "%W% (Berkeley) %G%";
 #ifdef __LARGE64_FILES
 
 FILE *
-_DEFUN (_fopen64_r, (ptr, file, mode),
-	struct _reent *ptr _AND
-	_CONST char *file _AND
-	_CONST char *mode)
+_fopen64_r (struct _reent *ptr,
+	const char *file,
+	const char *mode)
 {
   register FILE *fp;
   register int f;
@@ -104,7 +92,7 @@ _DEFUN (_fopen64_r, (ptr, file, mode),
 
   fp->_file = f;
   fp->_flags = flags;
-  fp->_cookie = (_PTR) fp;
+  fp->_cookie = (void *) fp;
   fp->_read = __sread;
   fp->_write = __swrite64;
   fp->_seek = __sseek;
@@ -128,9 +116,8 @@ _DEFUN (_fopen64_r, (ptr, file, mode),
 #ifndef _REENT_ONLY
 
 FILE *
-_DEFUN (fopen64, (file, mode),
-	_CONST char *file _AND
-	_CONST char *mode)
+fopen64 (const char *file,
+	const char *mode)
 {
   return _fopen64_r (_REENT, file, mode);
 }

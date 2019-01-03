@@ -8,7 +8,7 @@ INDEX
 INDEX
 	strtoull_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
         unsigned long long strtoull(const char *restrict <[s]>,
 				    char **restrict <[ptr]>, int <[base]>);
@@ -21,19 +21,6 @@ ANSI_SYNOPSIS
         unsigned long long _strtoull_r(void *<[reent]>,
 				       const char *restrict <[s]>,
 				       char **restrict <[ptr]>, int <[base]>);
-
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-        unsigned long long strtoull(<[s]>, <[ptr]>, <[base]>)
-        char *<[s]>;
-        char **<[ptr]>;
-        int <[base]>;
-
-        unsigned long long _strtoull_r(<[reent]>, <[s]>, <[ptr]>, <[base]>)
-	char *<[reent]>;
-        char *<[s]>;
-        char **<[ptr]>;
-        int <[base]>;
 
 DESCRIPTION
 The function <<strtoull>> converts the string <<*<[s]>>> to
@@ -202,10 +189,9 @@ _strtoull_l (struct _reent *rptr, const char *__restrict nptr,
 }
 
 unsigned long long
-_DEFUN (_strtoull_r, (rptr, nptr, endptr, base),
-	struct _reent *rptr _AND
-	_CONST char *__restrict nptr _AND
-	char **__restrict endptr _AND
+_strtoull_r (struct _reent *rptr,
+	const char *__restrict nptr,
+	char **__restrict endptr,
 	int base)
 {
 	return _strtoull_l (rptr, nptr, endptr, base, __get_current_locale ());
@@ -221,9 +207,8 @@ strtoull_l (const char *__restrict s, char **__restrict ptr, int base,
 }
 
 unsigned long long
-_DEFUN (strtoull, (s, ptr, base),
-	_CONST char *__restrict s _AND
-	char **__restrict ptr _AND
+strtoull (const char *__restrict s,
+	char **__restrict ptr,
 	int base)
 {
 	return _strtoull_l (_REENT, s, ptr, base, __get_current_locale ());

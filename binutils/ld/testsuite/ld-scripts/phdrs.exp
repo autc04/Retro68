@@ -1,6 +1,6 @@
 # Test PHDRS in a linker script.
 # By Ian Lance Taylor, Cygnus Support.
-#   Copyright (C) 1999-2017 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #

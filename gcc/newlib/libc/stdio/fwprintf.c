@@ -23,10 +23,9 @@
 #include <stdarg.h>
 
 int
-_DEFUN(_fwprintf_r, (ptr, fp, fmt),
-       struct _reent *ptr _AND
-       FILE *fp _AND
-       const wchar_t *fmt _DOTS)
+_fwprintf_r (struct _reent *ptr,
+       FILE *fp,
+       const wchar_t *fmt, ...)
 {
   int ret;
   va_list ap;
@@ -40,9 +39,8 @@ _DEFUN(_fwprintf_r, (ptr, fp, fmt),
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(fwprintf, (fp, fmt),
-       FILE *__restrict fp _AND
-       const wchar_t *__restrict fmt _DOTS)
+fwprintf (FILE *__restrict fp,
+       const wchar_t *__restrict fmt, ...)
 {
   int ret;
   va_list ap;

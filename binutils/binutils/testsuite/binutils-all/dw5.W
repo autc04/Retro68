@@ -301,17 +301,17 @@ Raw dump of debug contents of section .debug_line:
 
  Opcodes:
   Opcode 1 has 0 args
-  Opcode 2 has 1 args
-  Opcode 3 has 1 args
-  Opcode 4 has 1 args
-  Opcode 5 has 1 args
+  Opcode 2 has 1 arg
+  Opcode 3 has 1 arg
+  Opcode 4 has 1 arg
+  Opcode 5 has 1 arg
   Opcode 6 has 0 args
   Opcode 7 has 0 args
   Opcode 8 has 0 args
-  Opcode 9 has 1 args
+  Opcode 9 has 1 arg
   Opcode 10 has 0 args
   Opcode 11 has 0 args
-  Opcode 12 has 1 args
+  Opcode 12 has 1 arg
 
  The Directory Table \(offset 0x22\):
   Entry	Name
@@ -342,13 +342,15 @@ Raw dump of debug contents of section .debug_line:
   \[0x00000091\]  Extended opcode 1: End of Sequence
 
 
-Decoded dump of debug contents of section .debug_line:
+Contents of the .debug_line section:
 
 CU: ./main.c:
-File name                            Line number    Starting address
+File name                            Line number    Starting address    View
 main.c                                         6              0x1234
 main.c                                         6             0x12346
+main.c                                         6              0x1234
 
+main.c                                         5              0x1234
 main.c                                         5              0x1234
 main.c                                         5              0x1234
 

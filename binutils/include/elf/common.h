@@ -1,5 +1,5 @@
 /* ELF support for BFD.
-   Copyright (C) 1991-2017 Free Software Foundation, Inc.
+   Copyright (C) 1991-2018 Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -78,6 +78,7 @@
 
 #define ELFOSABI_C6000_ELFABI 64 /* Bare-metal TMS320C6000 */
 #define ELFOSABI_C6000_LINUX 65 /* Linux TMS320C6000 */
+#define ELFOSABI_ARM_FDPIC   65 /* ARM FDPIC */
 #define ELFOSABI_ARM	     97	/* ARM */
 #define ELFOSABI_STANDALONE 255	/* Standalone (embedded) application */
 
@@ -338,6 +339,7 @@
 #define EM_RISCV 	243 	/* RISC-V */
 #define EM_LANAI	244	/* Lanai 32-bit processor.  */
 #define EM_BPF		247	/* Linux BPF – in-kernel virtual machine.  */
+#define EM_NFP		250	/* Netronome Flow Processor.  */
 
 /* If it is necessary to assign new unofficial EM_* values, please pick large
    random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
@@ -365,6 +367,9 @@
 
 /* Unofficial value for Web Assembly binaries, as used by LLVM.  */
 #define EM_WEBASSEMBLY		0x4157
+
+/* Freescale S12Z.   The Freescale toolchain generates elf files with this value.  */
+#define EM_S12Z               0x4DEF
 
 /* DLX magic number.  Written in the absense of an ABI.  */
 #define EM_DLX			0x5aa5
@@ -570,6 +575,32 @@
 					/*   note name must be "LINUX".  */
 #define NT_PPC_VSX	0x102		/* PowerPC VSX registers */
 					/*   note name must be "LINUX".  */
+#define NT_PPC_TAR	0x103		/* PowerPC Target Address Register */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_PPR	0x104		/* PowerPC Program Priority Register */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_DSCR	0x105		/* PowerPC Data Stream Control Register */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_EBB	0x106		/* PowerPC Event Based Branch Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_PMU	0x107		/* PowerPC Performance Monitor Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CGPR	0x108		/* PowerPC TM checkpointed GPR Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CFPR	0x109		/* PowerPC TM checkpointed FPR Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CVMX	0x10a		/* PowerPC TM checkpointed VMX Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CVSX	0x10b		/* PowerPC TM checkpointed VSX Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_SPR	0x10c		/* PowerPC TM Special Purpose Registers */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CTAR	0x10d		/* PowerPC TM checkpointed TAR */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CPPR	0x10e		/* PowerPC TM checkpointed PPR */
+					/*   note name must be "LINUX".  */
+#define NT_PPC_TM_CDSCR	0x10f		/* PowerPC TM checkpointed Data SCR */
+					/*   note name must be "LINUX".  */
 #define NT_386_TLS	0x200		/* x86 TLS information */
 					/*   note name must be "LINUX".  */
 #define NT_386_IOPERM	0x201		/* x86 io permissions */
@@ -641,6 +672,7 @@
 #define	NT_FREEBSD_PROCSTAT_OSREL	14	/* Procstat osreldate data. */
 #define	NT_FREEBSD_PROCSTAT_PSSTRINGS	15	/* Procstat ps_strings data. */
 #define	NT_FREEBSD_PROCSTAT_AUXV	16	/* Procstat auxv data. */
+#define	NT_FREEBSD_PTLWPINFO	17	/* Thread ptrace miscellaneous info. */
 
 /* Note segments for core files on NetBSD systems.  Note name
    must start with "NetBSD-CORE".  */
@@ -979,6 +1011,9 @@
 #define	DF_1_SINGLETON	0x02000000
 #define	DF_1_STUB	0x04000000
 #define	DF_1_PIE	0x08000000
+#define	DF_1_KMOD	0x10000000
+#define	DF_1_WEAKFILTER	0x20000000
+#define	DF_1_NOCOMMON	0x40000000
 
 /* Flag values for the DT_FLAGS entry.	*/
 #define DF_ORIGIN	(1 << 0)
@@ -1117,6 +1152,8 @@
 #define AT_FREEBSD_PAGESIZESLEN 21      /* Number of pagesizes. */
 #define AT_FREEBSD_TIMEKEEP     22      /* Pointer to timehands. */
 #define AT_FREEBSD_STACKPROT    23      /* Initial stack protection. */
+#define AT_FREEBSD_EHDRFLAGS    24      /* e_flags field from ELF header. */
+#define AT_FREEBSD_HWCAP        25      /* CPU feature flags. */
 
 #define AT_SUN_UID      2000    /* Effective user ID.  */
 #define AT_SUN_RUID     2001    /* Real user ID.  */

@@ -321,6 +321,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f0 f2 20 01          	lock xacquire and BYTE PTR \[ecx\],al
 [ 	]*[a-f0-9]+:	f0 f3 20 01          	lock xrelease and BYTE PTR \[ecx\],al
 [ 	]*[a-f0-9]+:	f3 88 01             	xrelease mov BYTE PTR \[ecx\],al
+[ 	]*[a-f0-9]+:	f3 88 05 78 56 34 12 	xrelease mov BYTE PTR ds:0x12345678,al
 [ 	]*[a-f0-9]+:	f2 f0 08 01          	xacquire lock or BYTE PTR \[ecx\],al
 [ 	]*[a-f0-9]+:	f2 f0 08 01          	xacquire lock or BYTE PTR \[ecx\],al
 [ 	]*[a-f0-9]+:	f3 f0 08 01          	xrelease lock or BYTE PTR \[ecx\],al
@@ -372,6 +373,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f0 f2 66 21 01       	lock xacquire and WORD PTR \[ecx\],ax
 [ 	]*[a-f0-9]+:	f0 f3 66 21 01       	lock xrelease and WORD PTR \[ecx\],ax
 [ 	]*[a-f0-9]+:	66 f3 89 01          	xrelease mov WORD PTR \[ecx\],ax
+[ 	]*[a-f0-9]+:	66 f3 89 05 78 56 34 12 	xrelease mov WORD PTR ds:0x12345678,ax
 [ 	]*[a-f0-9]+:	66 f2 f0 09 01       	xacquire lock or WORD PTR \[ecx\],ax
 [ 	]*[a-f0-9]+:	66 f2 f0 09 01       	xacquire lock or WORD PTR \[ecx\],ax
 [ 	]*[a-f0-9]+:	66 f3 f0 09 01       	xrelease lock or WORD PTR \[ecx\],ax
@@ -423,6 +425,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f0 f2 21 01          	lock xacquire and DWORD PTR \[ecx\],eax
 [ 	]*[a-f0-9]+:	f0 f3 21 01          	lock xrelease and DWORD PTR \[ecx\],eax
 [ 	]*[a-f0-9]+:	f3 89 01             	xrelease mov DWORD PTR \[ecx\],eax
+[ 	]*[a-f0-9]+:	f3 89 05 78 56 34 12 	xrelease mov DWORD PTR ds:0x12345678,eax
 [ 	]*[a-f0-9]+:	f2 f0 09 01          	xacquire lock or DWORD PTR \[ecx\],eax
 [ 	]*[a-f0-9]+:	f2 f0 09 01          	xacquire lock or DWORD PTR \[ecx\],eax
 [ 	]*[a-f0-9]+:	f3 f0 09 01          	xrelease lock or DWORD PTR \[ecx\],eax

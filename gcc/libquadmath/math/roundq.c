@@ -21,9 +21,6 @@
 
 #include "quadmath-imp.h"
 
-static const __float128 huge = 1.0E4930Q;
-
-
 __float128
 roundq (__float128 x)
 {
@@ -36,13 +33,10 @@ roundq (__float128 x)
     {
       if (j0 < 0)
 	{
-	  if (huge + x > 0.0)
-	    {
-	      i0 &= 0x8000000000000000ULL;
-	      if (j0 == -1)
-		i0 |= 0x3fff000000000000LL;
-	      i1 = 0;
-	    }
+	  i0 &= 0x8000000000000000ULL;
+	  if (j0 == -1)
+	    i0 |= 0x3fff000000000000LL;
+	  i1 = 0;
 	}
       else
 	{
@@ -50,13 +44,9 @@ roundq (__float128 x)
 	  if (((i0 & i) | i1) == 0)
 	    /* X is integral.  */
 	    return x;
-	  if (huge + x > 0.0)
-	    {
-	      /* Raise inexact if x != 0.  */
-	      i0 += 0x0000800000000000LL >> j0;
-	      i0 &= ~i;
-	      i1 = 0;
-	    }
+	  i0 += 0x0000800000000000LL >> j0;
+	  i0 &= ~i;
+	  i1 = 0;
 	}
     }
   else if (j0 > 111)
@@ -74,14 +64,10 @@ roundq (__float128 x)
 	/* X is integral.  */
 	return x;
 
-      if (huge + x > 0.0)
-	{
-	  /* Raise inexact if x != 0.  */
-	  uint64_t j = i1 + (1LL << (111 - j0));
-	  if (j < i1)
-	    i0 += 1;
-	  i1 = j;
-	}
+      uint64_t j = i1 + (1LL << (111 - j0));
+      if (j < i1)
+	i0 += 1;
+      i1 = j;
       i1 &= ~i;
     }
 

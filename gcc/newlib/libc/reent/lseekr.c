@@ -26,18 +26,10 @@ FUNCTION
 INDEX
 	_lseek_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <reent.h>
 	off_t _lseek_r(struct _reent *<[ptr]>,
 		       int <[fd]>, off_t <[pos]>, int <[whence]>);
-
-TRAD_SYNOPSIS
-	#include <reent.h>
-	off_t _lseek_r(<[ptr]>, <[fd]>, <[pos]>, <[whence]>)
-	struct _reent *<[ptr]>;
-	int <[fd]>;
-	off_t <[pos]>;
-	int <[whence]>;
 
 DESCRIPTION
 	This is a reentrant version of <<lseek>>.  It
@@ -46,10 +38,9 @@ DESCRIPTION
 */
 
 _off_t
-_DEFUN (_lseek_r, (ptr, fd, pos, whence),
-     struct _reent *ptr _AND
-     int fd _AND
-     _off_t pos _AND
+_lseek_r (struct _reent *ptr,
+     int fd,
+     _off_t pos,
      int whence)
 {
   _off_t ret;

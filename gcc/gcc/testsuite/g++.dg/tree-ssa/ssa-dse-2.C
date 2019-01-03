@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -fdump-tree-dse2-details" } */
+/* { dg-options "-O2 -fdump-tree-dse2-details -Wno-return-type" } */
 
 typedef __SIZE_TYPE__ size_t;
 extern "C"
@@ -54,6 +54,4 @@ fill_vec_av_set (av_set_t av)
 }
 
 /* { dg-final { scan-tree-dump-not "Trimming statement .head = -" "dse2" } } */
-/* { dg-final { scan-tree-dump "Deleted dead call: " "dse2" } } */
-
-
+/* { dg-final { scan-tree-dump-not "mem\[^\r\n\]*, 0\\);" "dse2" } } */

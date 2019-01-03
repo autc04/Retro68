@@ -5,15 +5,9 @@ FUNCTION
 INDEX
 	stpcpy
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	char *stpcpy(char *restrict <[dst]>, const char *restrict <[src]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	char *stpcpy(<[dst]>, <[src]>)
-	char *<[dst]>;
-	char *<[src]>;
 
 DESCRIPTION
 	<<stpcpy>> copies the string pointed to by <[src]>
@@ -59,13 +53,12 @@ QUICKREF
 #endif
 
 char*
-_DEFUN (stpcpy, (dst, src),
-	char *__restrict dst _AND
-	_CONST char *__restrict src)
+stpcpy (char *__restrict dst,
+	const char *__restrict src)
 {
 #if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__)
   long *aligned_dst;
-  _CONST long *aligned_src;
+  const long *aligned_src;
 
   /* If SRC or DEST is unaligned, then copy bytes.  */
   if (!UNALIGNED (src, dst))

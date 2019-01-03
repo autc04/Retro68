@@ -8,16 +8,12 @@ INDEX
 INDEX
 	iscntrl_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <ctype.h>
 	int iscntrl(int <[c]>);
 
 	#include <ctype.h>
 	int iscntrl_l(int <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <ctype.h>
-	int iscntrl(<[c]>);
 
 DESCRIPTION
 <<iscntrl>> is a macro which classifies singlebyte charset values by table
@@ -50,7 +46,7 @@ No supporting OS subroutines are required.
 
 #undef iscntrl
 int
-_DEFUN(iscntrl,(c),int c)
+iscntrl (int c)
 {
 	return(__CTYPE_PTR[c+1] & _C);
 }

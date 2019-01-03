@@ -1,6 +1,6 @@
 /* Single instruction disassembler for the Visium.
 
-   Copyright (C) 2002-2017 Free Software Foundation, Inc.
+   Copyright (C) 2002-2018 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -189,7 +189,7 @@ disassem_class1 (disassemble_info *info, unsigned int ins)
     {
     case 0:
       /* Stop.  */
-      (*info->fprintf_func) (info->stream, "stop");
+      (*info->fprintf_func) (info->stream, "stop    %d,r%d", indx, source_a);
       break;
     case 1:
       /* BMI - Block Move Indirect.  */

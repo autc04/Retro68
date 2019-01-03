@@ -177,7 +177,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	a7 d5 00 16       	bras	%r13,[0-9a-f]+ <_start\+0x30>
 # sG6@indntpoff
  +[0-9a-f]+:	00 00 00 00       	.long	0x00000000
- +[0-9a-f]+:	01 00 18 98       	.long	0x01001898
+ +[0-9a-f]+:	01 00 18 18       	.long	0x01001818
 # bg6@indntpoff
  +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
  +[0-9a-f]+:	ff ff ff d4       	.long	0xffffffd4

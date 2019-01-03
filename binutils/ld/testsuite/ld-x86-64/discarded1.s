@@ -2,7 +2,7 @@
 .globl _start
 	.type	_start, @function
 _start:
-	movq	x@GOTPCREL(%rip), %rax
+	divq	x@GOTPCREL(%rip), %rax
 	.size	_start, .-_start
 .globl x
 	.data

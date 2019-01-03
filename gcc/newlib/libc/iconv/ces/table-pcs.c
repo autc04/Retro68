@@ -40,10 +40,9 @@
 
 #if defined (ICONV_FROM_UCS_CES_TABLE_PCS)
 static size_t
-_DEFUN(table_pcs_convert_from_ucs, (data, in, outbuf, outbytesleft),
-                               _VOID_PTR data         _AND
-                               ucs4_t in              _AND
-                               unsigned char **outbuf _AND
+table_pcs_convert_from_ucs (void *data,
+                               ucs4_t in,
+                               unsigned char **outbuf,
                                size_t *outbytesleft)
 {
   if (*outbytesleft < 1)
@@ -64,25 +63,22 @@ _DEFUN(table_pcs_convert_from_ucs, (data, in, outbuf, outbytesleft),
                                                     outbytesleft);
 }
 
-static _VOID_PTR
-_DEFUN(table_pcs_from_ucs_init, (rptr, encoding),
-                                struct _reent *rptr _AND
-                                _CONST char *encoding)
+static void *
+table_pcs_from_ucs_init (struct _reent *rptr,
+                                const char *encoding)
 {
   return _iconv_from_ucs_ces_handlers_table.init (rptr, encoding);
 }
 
 static size_t
-_DEFUN(table_pcs_from_ucs_close, (rptr, data),
-                                 struct _reent *rptr _AND
-                                 _VOID_PTR data)
+table_pcs_from_ucs_close (struct _reent *rptr,
+                                 void *data)
 {
   return _iconv_from_ucs_ces_handlers_table.close (rptr, data);
 }
 
 static int
-_DEFUN(table_pcs_from_ucs_get_mb_cur_max, (data),
-                                           _VOID_PTR data)
+table_pcs_from_ucs_get_mb_cur_max (void *data)
 {
   return _iconv_from_ucs_ces_handlers_table.get_mb_cur_max (data);
 }
@@ -91,9 +87,8 @@ _DEFUN(table_pcs_from_ucs_get_mb_cur_max, (data),
 
 #if defined (ICONV_TO_UCS_CES_TABLE_PCS)
 static ucs4_t
-_DEFUN(table_pcs_convert_to_ucs, (data, inbuf, inbytesleft),
-                             _VOID_PTR data               _AND
-                             _CONST unsigned char **inbuf _AND
+table_pcs_convert_to_ucs (void *data,
+                             const unsigned char **inbuf,
                              size_t *inbytesleft)
 {
   if (*inbytesleft < 1)
@@ -112,25 +107,22 @@ _DEFUN(table_pcs_convert_to_ucs, (data, inbuf, inbytesleft),
                                                              inbytesleft);
 }
 
-static _VOID_PTR
-_DEFUN(table_pcs_to_ucs_init, (rptr, encoding),
-                              struct _reent *rptr _AND
-                              _CONST char *encoding)
+static void *
+table_pcs_to_ucs_init (struct _reent *rptr,
+                              const char *encoding)
 {
   return _iconv_to_ucs_ces_handlers_table.init (rptr, encoding);
 }
 
 static size_t
-_DEFUN(table_pcs_to_ucs_close, (rptr, data),
-                               struct _reent *rptr _AND
-                               _VOID_PTR data)
+table_pcs_to_ucs_close (struct _reent *rptr,
+                               void *data)
 {
   return _iconv_to_ucs_ces_handlers_table.close (rptr, data);
 }
 
 static int
-_DEFUN(table_pcs_to_ucs_get_mb_cur_max, (data),
-                                         _VOID_PTR data)
+table_pcs_to_ucs_get_mb_cur_max (void *data)
 {
   return _iconv_to_ucs_ces_handlers_table.get_mb_cur_max (data);
 }
@@ -138,7 +130,7 @@ _DEFUN(table_pcs_to_ucs_get_mb_cur_max, (data),
 #endif /* ICONV_TO_UCS_CES_TABLE_PCS */
 
 #if defined (ICONV_FROM_UCS_CES_TABLE_PCS)
-_CONST iconv_from_ucs_ces_handlers_t
+const iconv_from_ucs_ces_handlers_t
 _iconv_from_ucs_ces_handlers_table_pcs =
 {
   table_pcs_from_ucs_init,
@@ -152,7 +144,7 @@ _iconv_from_ucs_ces_handlers_table_pcs =
 #endif
 
 #if defined (ICONV_TO_UCS_CES_TABLE_PCS)
-_CONST iconv_to_ucs_ces_handlers_t
+const iconv_to_ucs_ces_handlers_t
 _iconv_to_ucs_ces_handlers_table_pcs = 
 {
   table_pcs_to_ucs_init,

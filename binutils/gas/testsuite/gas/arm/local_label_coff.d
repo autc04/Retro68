@@ -2,7 +2,7 @@
 #name: ARM local label relocs to section symbol relocs (COFF)
 # This test is only valid on COFF based targets, except Windows CE.
 # There are ELF and Windows CE versions of this test.
-#not-skip: *-unknown-pe *-epoc-pe *-*-*coff
+#not-skip: *-unknown-pe
 
 # Check if relocations against local symbols are converted to 
 # relocations against section symbols.

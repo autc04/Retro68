@@ -5,14 +5,9 @@ FUNCTION
 INDEX
 	ldiv
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
 	ldiv_t ldiv(long <[n]>, long <[d]>);
-
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-	ldiv_t ldiv(<[n]>, <[d]>)
-	long <[n]>, <[d]>;
 
 DESCRIPTION
 Divide
@@ -87,8 +82,7 @@ No supporting OS subroutines are required.
 #include <stdlib.h>		/* ldiv_t */
 
 ldiv_t
-_DEFUN (ldiv, (num, denom),
-        long num _AND
+ldiv (long num,
         long denom)
 {
 	ldiv_t r;

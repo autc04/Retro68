@@ -41,7 +41,7 @@ INDEX
 INDEX
 	pclose
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	FILE *popen(const char *<[s]>, const char *<[mode]>);
 
@@ -109,8 +109,7 @@ static struct pid {
 } *pidlist;
 
 FILE *
-_DEFUN(popen, (program, type),
-	const char *program _AND
+popen (const char *program,
 	const char *type)
 {
 	struct pid *cur;
@@ -197,8 +196,7 @@ _DEFUN(popen, (program, type),
  *	if already `pclosed', or waitpid returns an error.
  */
 int
-_DEFUN(pclose, (iop),
-	FILE *iop)
+pclose (FILE *iop)
 {
 	register struct pid *cur, *last;
 	int pstat;

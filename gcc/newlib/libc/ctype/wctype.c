@@ -37,17 +37,12 @@ INDEX
 INDEX
 	wctype_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wctype.h>
 	wctype_t wctype(const char *<[c]>);
 
 	#include <wctype.h>
 	wctype_t wctype_l(const char *<[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <wctype.h>
-	wctype_t wctype(<[c]>)
-	const char * <[c]>;
 
 
 DESCRIPTION
@@ -81,8 +76,7 @@ No supporting OS subroutines are required.
 #include "local.h"
 
 wctype_t
-_DEFUN (_wctype_r, (r, c), 
-	struct _reent *r _AND
+_wctype_r (struct _reent *r,
 	const char *c)
 {
   switch (*c)
@@ -140,8 +134,7 @@ _DEFUN (_wctype_r, (r, c),
 
 #ifndef _REENT_ONLY
 wctype_t
-_DEFUN (wctype, (c),
-	const char *c)
+wctype (const char *c)
 {
   return _wctype_r (_REENT, c);
 }

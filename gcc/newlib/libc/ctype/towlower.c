@@ -37,17 +37,12 @@ INDEX
 INDEX
 	towlower_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wctype.h>
 	wint_t towlower(wint_t <[c]>);
 
 	#include <wctype.h>
 	wint_t towlower_l(wint_t <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <wctype.h>
-	wint_t towlower(<[c]>)
-	wint_t <[c]>;
 
 
 DESCRIPTION
@@ -78,7 +73,7 @@ No supporting OS subroutines are required.
 #include "local.h"
 
 wint_t
-_DEFUN(towlower,(c), wint_t c)
+towlower (wint_t c)
 {
 #ifdef _MB_CAPABLE
   c = _jp2uc (c);

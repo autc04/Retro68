@@ -30,7 +30,7 @@ FUNCTION
 INDEX
 	__fsetlocking
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	#include <stdio_ext.h>
 	int __fsetlocking(FILE *<[fp]>, int <[type]>);
@@ -65,8 +65,7 @@ No supporting OS subroutines are required.
 #include "local.h"
 
 int
-_DEFUN(__fsetlocking, (fp, type),
-       FILE * fp _AND
+__fsetlocking (FILE * fp,
        int type)
 {
   int result;

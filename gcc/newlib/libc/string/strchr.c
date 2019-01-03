@@ -5,15 +5,9 @@ FUNCTION
 INDEX
 	strchr
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <string.h>
 	char * strchr(const char *<[string]>, int <[c]>);
-
-TRAD_SYNOPSIS
-	#include <string.h>
-	char * strchr(<[string]>, <[c]>);
-	const char *<[string]>;
-	int <[c]>;
 
 DESCRIPTION
 	This function finds the first occurence of <[c]> (converted to
@@ -58,11 +52,10 @@ QUICKREF
 #define DETECTCHAR(X,MASK) (DETECTNULL(X ^ MASK))
 
 char *
-_DEFUN (strchr, (s1, i),
-	_CONST char *s1 _AND
+strchr (const char *s1,
 	int i)
 {
-  _CONST unsigned char *s = (_CONST unsigned char *)s1;
+  const unsigned char *s = (const unsigned char *)s1;
   unsigned char c = i;
 
 #if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__)

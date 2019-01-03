@@ -3,7 +3,7 @@
 # arm_target2_got_rel.sh -- test --target2=got-rel options.
 # This test is based on ld/testsuite/ld-arm/arm-target2-got-rel.d.
 
-# Copyright (C) 2016-2017 Free Software Foundation, Inc.
+# Copyright (C) 2016-2018 Free Software Foundation, Inc.
 # Written by Igor Kudrin <ikudrin@accesssoftek.com>.
 
 # This file is part of gold.

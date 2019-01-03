@@ -24,22 +24,12 @@ INDEX
 INDEX
 	_getc_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	int getc(FILE *<[fp]>);
 
 	#include <stdio.h>
 	int _getc_r(struct _reent *<[ptr]>, FILE *<[fp]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	int getc(<[fp]>)
-	FILE *<[fp]>;
-
-	#include <stdio.h>
-	int _getc_r(<[ptr]>, <[fp]>)
-	struct _reent *<[ptr]>;
-	FILE *<[fp]>;
 
 DESCRIPTION
 <<getc>> is a macro, defined in <<stdio.h>>.  You can use <<getc>>
@@ -86,8 +76,7 @@ static char sccsid[] = "%W% (Berkeley) %G%";
 #undef getc
 
 int
-_DEFUN(_getc_r, (ptr, fp),
-       struct _reent *ptr _AND
+_getc_r (struct _reent *ptr,
        register FILE *fp)
 {
   int result;
@@ -101,8 +90,7 @@ _DEFUN(_getc_r, (ptr, fp),
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(getc, (fp),
-       register FILE *fp)
+getc (register FILE *fp)
 {
   int result;
   struct _reent *reent = _REENT;

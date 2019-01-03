@@ -1,5 +1,5 @@
 /* nm.c -- Describe symbol table of a rel file.
-   Copyright (C) 1991-2017 Free Software Foundation, Inc.
+   Copyright (C) 1991-2018 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -157,7 +157,6 @@ static int sort_by_size = 0;	/* Sort by size of symbol.  */
 static int undefined_only = 0;	/* Print undefined symbols only.  */
 static int dynamic = 0;		/* Print dynamic symbols.  */
 static int show_version = 0;	/* Show the version number.  */
-static int show_stats = 0;	/* Show statistics.  */
 static int show_synthetic = 0;	/* Display synthesized symbols too.  */
 static int line_numbers = 0;	/* Print line numbers for symbols.  */
 static int allow_special_symbols = 0;  /* Allow special symbols.  */
@@ -221,7 +220,6 @@ static struct option long_options[] =
   {"reverse-sort", no_argument, &reverse_sort, 1},
   {"size-sort", no_argument, 0, OPTION_SIZE_SORT},
   {"special-syms", no_argument, &allow_special_symbols, 1},
-  {"stats", no_argument, &show_stats, 1},
   {"synthetic", no_argument, &show_synthetic, 1},
   {"target", required_argument, 0, OPTION_TARGET},
   {"defined-only", no_argument, &defined_only, 1},
@@ -480,7 +478,9 @@ filter_symbols (bfd *abfd, bfd_boolean is_dynamic, void *minisyms,
       if (sym == NULL)
 	bfd_fatal (bfd_get_filename (abfd));
 
-      if (strcmp (sym->name, "__gnu_lto_slim") == 0)
+      if (sym->name[0] == '_'
+	  && sym->name[1] == '_'
+	  && strcmp (sym->name + (sym->name[2] == '_'), "__gnu_lto_slim") == 0)
 	non_fatal (_("%s: plugin needed to handle lto object"),
 		   bfd_get_filename (abfd));
 
@@ -763,7 +763,6 @@ sort_symbols_by_size (bfd *abfd, bfd_boolean is_dynamic, void *minisyms,
       asection *sec;
       bfd_vma sz;
       asymbol *temp;
-      int synthetic = (sym->flags & BSF_SYNTHETIC);
 
       if (from + size < fromend)
 	{
@@ -780,10 +779,13 @@ sort_symbols_by_size (bfd *abfd, bfd_boolean is_dynamic, void *minisyms,
       sec = bfd_get_section (sym);
 
       /* Synthetic symbols don't have a full type set of data available, thus
-	 we can't rely on that information for the symbol size.  */
-      if (!synthetic && bfd_get_flavour (abfd) == bfd_target_elf_flavour)
+	 we can't rely on that information for the symbol size.  Ditto for
+	 bfd/section.c:global_syms like *ABS*.  */
+      if ((sym->flags & (BSF_SECTION_SYM | BSF_SYNTHETIC)) == 0
+	  && bfd_get_flavour (abfd) == bfd_target_elf_flavour)
 	sz = ((elf_symbol_type *) sym)->internal_elf_sym.st_size;
-      else if (!synthetic && bfd_is_com_section (sec))
+      else if ((sym->flags & (BSF_SECTION_SYM | BSF_SYNTHETIC)) == 0
+	       && bfd_is_com_section (sec))
 	sz = sym->value;
       else
 	{
@@ -872,8 +874,9 @@ print_symbol (bfd *        abfd,
 
   info.sinfo = &syminfo;
   info.ssize = ssize;
-  /* Synthetic symbols do not have a full symbol type set of data available.  */
-  if ((sym->flags & BSF_SYNTHETIC) != 0)
+  /* Synthetic symbols do not have a full symbol type set of data available.
+     Nor do bfd/section.c:global_syms like *ABS*.  */
+  if ((sym->flags & (BSF_SECTION_SYM | BSF_SYNTHETIC)) != 0)
     {
       info.elfinfo = NULL;
       info.coffinfo = NULL;
@@ -891,7 +894,7 @@ print_symbol (bfd *        abfd,
       const char *  version_string = NULL;
       bfd_boolean   hidden = FALSE;
 
-      if ((sym->flags & BSF_SYNTHETIC) == 0)
+      if ((sym->flags & (BSF_SECTION_SYM | BSF_SYNTHETIC)) == 0)
 	version_string = bfd_get_symbol_version_string (abfd, sym, &hidden);
 
       if (bfd_is_und_section (bfd_get_section (sym)))
@@ -1096,6 +1099,7 @@ display_rel_file (bfd *abfd, bfd *archive_bfd)
   void *minisyms;
   unsigned int size;
   struct size_sym *symsizes;
+  asymbol *synthsyms = NULL;
 
   if (! dynamic)
     {
@@ -1126,7 +1130,6 @@ display_rel_file (bfd *abfd, bfd *archive_bfd)
 
   if (show_synthetic && size == sizeof (asymbol *))
     {
-      asymbol *synthsyms;
       asymbol **static_syms = NULL;
       asymbol **dyn_syms = NULL;
       long static_count = 0;
@@ -1203,6 +1206,8 @@ display_rel_file (bfd *abfd, bfd *archive_bfd)
   else
     print_size_symbols (abfd, dynamic, symsizes, symcount, archive_bfd);
 
+  if (synthsyms)
+    free (synthsyms);
   free (minisyms);
   free (symsizes);
 }
@@ -1796,15 +1801,6 @@ main (int argc, char **argv)
     }
 
   END_PROGRESS (program_name);
-
-#ifdef HAVE_SBRK
-  if (show_stats)
-    {
-      char *lim = (char *) sbrk (0);
-
-      non_fatal (_("data size %ld"), (long) (lim - (char *) &environ));
-    }
-#endif
 
   exit (retval);
   return retval;

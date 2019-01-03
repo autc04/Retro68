@@ -13,9 +13,8 @@
  * Ignores `locale' stuff.
  */
 __int64_t
-_DEFUN (_strtosfix64_r, (rptr, nptr, endptr),
-	struct _reent *rptr _AND
-	_CONST char *nptr _AND
+_strtosfix64_r (struct _reent *rptr,
+	const char *nptr,
 	char **endptr)
 {
   union long_double_union ldbl;
@@ -105,8 +104,7 @@ _DEFUN (_strtosfix64_r, (rptr, nptr, endptr),
 #ifndef _REENT_ONLY
 
 __int64_t
-_DEFUN (strtosfix64, (s, ptr, base),
-	_CONST char *s _AND
+strtosfix64 (const char *s,
 	char **ptr)
 {
   return _strtosfix64_r (_REENT, s, ptr);

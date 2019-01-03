@@ -32,7 +32,7 @@ INDEX
 INDEX
 	_swscanf_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <stdio.h>
 
         int wscanf(const wchar_t *__restrict <[format]>, ...);
@@ -46,36 +46,6 @@ ANSI_SYNOPSIS
                       const wchar_t *<[format]>, ...);
         int _swscanf_r(struct _reent *<[ptr]>, const wchar_t *<[str]>,
                       const wchar_t *<[format]>, ...);
-
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-
-	int wscanf(<[format]> [, <[arg]>, ...])
-	wchar_t *__restrict <[format]>;
-
-	int fwscanf(<[fd]>, <[format]> [, <[arg]>, ...]);
-	FILE *<[fd]>;
-	wchar_t *<[format]>;
-
-	int swscanf(<[str]>, <[format]> [, <[arg]>, ...]);
-	wchar_t *__restrict <[str]>;
-	wchar_t *__restrict <[format]>;
-
-	int _wscanf_r(<[ptr]>, <[format]> [, <[arg]>, ...])
-        struct _reent *<[ptr]>;
-	wchar_t *<[format]>;
-
-	int _fwscanf_r(<[ptr]>, <[fd]>, <[format]> [, <[arg]>, ...]);
-        struct _reent *<[ptr]>;
-	FILE *<[fd]>;
-	wchar_t *<[format]>;
-
-	int _swscanf_r(<[ptr]>, <[str]>, <[format]> [, <[arg]>, ...]);
-        struct _reent *<[ptr]>;
-	wchar_t *<[str]>;
-	wchar_t *<[format]>;
-
 
 DESCRIPTION
         <<wscanf>> scans a series of input fields from standard input,
@@ -445,7 +415,7 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
 #ifndef _REENT_ONLY 
 
 int 
-swscanf (_CONST wchar_t *__restrict str, _CONST wchar_t *__restrict fmt, ...)
+swscanf (const wchar_t *__restrict str, const wchar_t *__restrict fmt, ...)
 {
   int ret;
   va_list ap;
@@ -467,7 +437,7 @@ swscanf (_CONST wchar_t *__restrict str, _CONST wchar_t *__restrict fmt, ...)
 #endif /* !_REENT_ONLY */
 
 int 
-_swscanf_r (struct _reent *ptr, _CONST wchar_t *str, _CONST wchar_t *fmt, ...)
+_swscanf_r (struct _reent *ptr, const wchar_t *str, const wchar_t *fmt, ...)
 {
   int ret;
   va_list ap;

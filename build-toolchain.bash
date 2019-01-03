@@ -386,7 +386,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		# Build binutils for PPC
 		mkdir -p binutils-build-ppc
 		cd binutils-build-ppc
-		$SRC/binutils/configure --target=powerpc-apple-macos --prefix=$PREFIX --disable-doc
+		$SRC/binutils/configure --disable-plugins --target=powerpc-apple-macos --prefix=$PREFIX --disable-doc
 		make -j8
 		make install
 		cd ..
@@ -520,31 +520,6 @@ if [ $BUILD_PPC != false ]; then
     fi
 fi
 
-# if [ $BUILD_PPC != false ]; then
-#	echo "Copying PowerPC import libraries..."
-#	cp $SRC/ImportLibraries/*.a toolchain/powerpc-apple-macos/lib/
-#fi
-
-
-
-
-	# If this is the first build,
-	# create an empty libretrocrt.a for each platform so that cmake's compiler
-	# test doesn't fail
-for arch in $ARCHS; do
-	if [ ! -e "$PREFIX/${arch}-apple-macos/lib/libretrocrt.a" ]; then
-		echo "Creating dummy libretrocrt.a for $arch..."
-		"$PREFIX/bin/${arch}-apple-macos-ar" cqs "$PREFIX/${arch}-apple-macos/lib/libretrocrt.a"
-	fi
-done
-if [ $BUILD_PPC != false ]; then
-	if [ ! -e "$PREFIX/powerpc-apple-macos/lib/libretrocrt-carbon.a" ]; then
-    		echo "Creating dummy libretrocrt-carbon.a for $arch..."
-    		"$PREFIX/bin/powerpc-apple-macos-ar" cqs "$PREFIX/powerpc-apple-macos/lib/libretrocrt-carbon.a"
-	fi
-fi
-	# the real libretrocrt.a is built and installed by 
-	# `cmake --build build-target --target install` later
 
 	##################### Setup Interfaces & Libraries
 
@@ -558,6 +533,7 @@ if [ $BUILD_68K != false ]; then
 
 	cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intree.toolchain.cmake \
 				 -DCMAKE_BUILD_TYPE=Release \
+				 -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
 				 "-DINTERFACE_O=${INTERFACE_O}" \
                  ${CMAKE_GENERATOR}
 	cd ..
@@ -572,6 +548,7 @@ if [ $BUILD_PPC != false ]; then
 	cd build-target-ppc
 	cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intreeppc.toolchain.cmake \
 				 -DCMAKE_BUILD_TYPE=Release \
+				 -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
                  ${CMAKE_GENERATOR}
 	cd ..
 	cmake --build build-target-ppc --target install
@@ -584,6 +561,7 @@ if [ $BUILD_CARBON != false ]; then
 	cd build-target-carbon
 	cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intreecarbon.toolchain.cmake \
 				 -DCMAKE_BUILD_TYPE=Release \
+				 -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
                  ${CMAKE_GENERATOR}
 	cd ..
 	cmake --build build-target-carbon --target install

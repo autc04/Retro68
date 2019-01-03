@@ -8,16 +8,12 @@ INDEX
 INDEX
 	isspace_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <ctype.h>
 	int isspace(int <[c]>);
 
 	#include <ctype.h>
 	int isspace_l(int <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <ctype.h>
-	int isspace(<[c]>);
 
 DESCRIPTION
 <<isspace>> is a macro which classifies singlebyte charset values by table
@@ -48,7 +44,7 @@ No supporting OS subroutines are required.
 
 #undef isspace
 int
-_DEFUN(isspace,(c),int c)
+isspace (int c)
 {
 	return(__CTYPE_PTR[c+1] & _S);
 }

@@ -22,17 +22,13 @@
 #include <reent.h>
 #include <stdio.h>
 #include <wchar.h>
-#ifdef _HAVE_STDC
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "local.h"
 
 #ifndef _REENT_ONLY
 
 int
-vwscanf (_CONST wchar_t *__restrict fmt, va_list ap)
+vwscanf (const wchar_t *__restrict fmt, va_list ap)
 {
   struct _reent *reent = _REENT;
 
@@ -43,7 +39,7 @@ vwscanf (_CONST wchar_t *__restrict fmt, va_list ap)
 #endif /* !_REENT_ONLY */
 
 int
-_vwscanf_r (struct _reent *ptr, _CONST wchar_t *fmt, va_list ap)
+_vwscanf_r (struct _reent *ptr, const wchar_t *fmt, va_list ap)
 {
   _REENT_SMALL_CHECK_INIT (ptr);
   return __svfwscanf_r (ptr, _stdin_r (ptr), fmt, ap);

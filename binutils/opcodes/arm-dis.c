@@ -1,5 +1,5 @@
 /* Instruction printing code for the ARM
-   Copyright (C) 1994-2017 Free Software Foundation, Inc.
+   Copyright (C) 1994-2018 Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
    Modification by James G. Smith (jsmith@cygnus.co.uk)
 
@@ -911,6 +911,24 @@ static const struct opcode32 coprocessor_opcodes[] =
     0xfc200d00, 0xffb00f00, "v%4?usdot.%4?us8\t%12-15,22V, %16-19,7V, %0-3,5V"},
   {ARM_FEATURE_COPROC (FPU_NEON_EXT_DOTPROD),
     0xfe000d00, 0xff000f00, "v%4?usdot.%4?us8\t%12-15,22V, %16-19,7V, %0-3D[%5?10]"},
+
+  /* ARMv8.2 FMAC Long instructions in the space of coprocessor 8.  */
+  {ARM_FEATURE_CORE_HIGH (ARM_EXT2_FP16_INST | ARM_EXT2_V8_2A),
+    0xfc200810, 0xffb00f50, "vfmal.f16\t%12-15,22D, s%7,16-19d, s%5,0-3d"},
+  {ARM_FEATURE_CORE_HIGH (ARM_EXT2_FP16_INST | ARM_EXT2_V8_2A),
+    0xfca00810, 0xffb00f50, "vfmsl.f16\t%12-15,22D, s%7,16-19d, s%5,0-3d"},
+  {ARM_FEATURE_CORE_HIGH (ARM_EXT2_FP16_INST | ARM_EXT2_V8_2A),
+    0xfc200850, 0xffb00f50, "vfmal.f16\t%12-15,22Q, d%16-19,7d, d%0-3,5d"},
+  {ARM_FEATURE_CORE_HIGH (ARM_EXT2_FP16_INST | ARM_EXT2_V8_2A),
+    0xfca00850, 0xffb00f50, "vfmsl.f16\t%12-15,22Q, d%16-19,7d, d%0-3,5d"},
+  {ARM_FEATURE_CORE_HIGH (ARM_EXT2_FP16_INST | ARM_EXT2_V8_2A),
+    0xfe000810, 0xffb00f50, "vfmal.f16\t%12-15,22D, s%7,16-19d, s%5,0-2d[%3d]"},
+  {ARM_FEATURE_CORE_HIGH (ARM_EXT2_FP16_INST | ARM_EXT2_V8_2A),
+    0xfe100810, 0xffb00f50, "vfmsl.f16\t%12-15,22D, s%7,16-19d, s%5,0-2d[%3d]"},
+  {ARM_FEATURE_CORE_HIGH (ARM_EXT2_FP16_INST | ARM_EXT2_V8_2A),
+    0xfe000850, 0xffb00f50, "vfmal.f16\t%12-15,22Q, d%16-19,7d, d%0-2d[%3,5d]"},
+  {ARM_FEATURE_CORE_HIGH (ARM_EXT2_FP16_INST | ARM_EXT2_V8_2A),
+    0xfe100850, 0xffb00f50, "vfmsl.f16\t%12-15,22Q, d%16-19,7d, d%0-2d[%3,5d]"},
 
   /* V5 coprocessor instructions.  */
   {ARM_FEATURE_CORE_LOW (ARM_EXT_V5),
@@ -1828,6 +1846,11 @@ static const struct opcode32 arm_opcodes[] =
   /* MP Extension instructions.  */
   {ARM_FEATURE_CORE_LOW (ARM_EXT_MP), 0xf410f000, 0xfc70f000, "pldw\t%a"},
 
+  /* Speculation Barriers.  */
+  {ARM_FEATURE_CORE_LOW (ARM_EXT_V3), 0xe320f014, 0xffffffff, "csdb"},
+  {ARM_FEATURE_CORE_LOW (ARM_EXT_V3), 0xf57ff040, 0xffffffff, "ssbb"},
+  {ARM_FEATURE_CORE_LOW (ARM_EXT_V3), 0xf57ff044, 0xffffffff, "pssbb"},
+
   /* V7 instructions.  */
   {ARM_FEATURE_CORE_LOW (ARM_EXT_V7), 0xf450f000, 0xfd70f000, "pli\t%P"},
   {ARM_FEATURE_CORE_LOW (ARM_EXT_V7), 0x0320f0f0, 0x0ffffff0, "dbg%c\t#%0-3d"},
@@ -2509,7 +2532,7 @@ static const struct opcode16 thumb_opcodes[] =
 
   /* ARMv8-M Security Extensions instructions.  */
   {ARM_FEATURE_CORE_HIGH (ARM_EXT2_V8M), 0x4784, 0xff87, "blxns\t%3-6r"},
-  {ARM_FEATURE_CORE_HIGH (ARM_EXT2_V8M), 0x4704, 0xff07, "bxns\t%3-6r"},
+  {ARM_FEATURE_CORE_HIGH (ARM_EXT2_V8M), 0x4704, 0xff87, "bxns\t%3-6r"},
 
   /* ARM V8 instructions.  */
   {ARM_FEATURE_CORE_LOW (ARM_EXT_V8),  0xbf50, 0xffff, "sevl%c"},
@@ -2699,7 +2722,6 @@ static const struct opcode16 thumb_opcodes[] =
        %<bitfield>W	print bitfield*4 in decimal
        %<bitfield>r	print bitfield as an ARM register
        %<bitfield>R	as %<>r but r15 is UNPREDICTABLE
-       %<bitfield>S	as %<>R but r13 is UNPREDICTABLE
        %<bitfield>c	print bitfield as a condition code
 
        %<bitfield>'c	print specified char iff bitfield is all ones
@@ -2767,17 +2789,22 @@ static const struct opcode32 thumb32_opcodes[] =
 
   /* CRC32 instructions.  */
   {ARM_FEATURE_COPROC (CRC_EXT_ARMV8),
-    0xfac0f080, 0xfff0f0f0, "crc32b\t%8-11S, %16-19S, %0-3S"},
+    0xfac0f080, 0xfff0f0f0, "crc32b\t%8-11R, %16-19R, %0-3R"},
   {ARM_FEATURE_COPROC (CRC_EXT_ARMV8),
-    0xfac0f090, 0xfff0f0f0, "crc32h\t%9-11S, %16-19S, %0-3S"},
+    0xfac0f090, 0xfff0f0f0, "crc32h\t%9-11R, %16-19R, %0-3R"},
   {ARM_FEATURE_COPROC (CRC_EXT_ARMV8),
-    0xfac0f0a0, 0xfff0f0f0, "crc32w\t%8-11S, %16-19S, %0-3S"},
+    0xfac0f0a0, 0xfff0f0f0, "crc32w\t%8-11R, %16-19R, %0-3R"},
   {ARM_FEATURE_COPROC (CRC_EXT_ARMV8),
-    0xfad0f080, 0xfff0f0f0, "crc32cb\t%8-11S, %16-19S, %0-3S"},
+    0xfad0f080, 0xfff0f0f0, "crc32cb\t%8-11R, %16-19R, %0-3R"},
   {ARM_FEATURE_COPROC (CRC_EXT_ARMV8),
-    0xfad0f090, 0xfff0f0f0, "crc32ch\t%8-11S, %16-19S, %0-3S"},
+    0xfad0f090, 0xfff0f0f0, "crc32ch\t%8-11R, %16-19R, %0-3R"},
   {ARM_FEATURE_COPROC (CRC_EXT_ARMV8),
-    0xfad0f0a0, 0xfff0f0f0, "crc32cw\t%8-11S, %16-19S, %0-3S"},
+    0xfad0f0a0, 0xfff0f0f0, "crc32cw\t%8-11R, %16-19R, %0-3R"},
+
+  /* Speculation Barriers.  */
+  {ARM_FEATURE_CORE_LOW (ARM_EXT_V6T2), 0xf3af8014, 0xffffffff, "csdb"},
+  {ARM_FEATURE_CORE_LOW (ARM_EXT_V6T2), 0xf3bf8f40, 0xffffffff, "ssbb"},
+  {ARM_FEATURE_CORE_LOW (ARM_EXT_V6T2), 0xf3bf8f44, 0xffffffff, "pssbb"},
 
   /* V7 instructions.  */
   {ARM_FEATURE_CORE_LOW (ARM_EXT_V7), 0xf910f000, 0xff70f000, "pli%c\t%a"},
@@ -3370,7 +3397,7 @@ print_insn_coprocessor (bfd_vma pc,
   struct arm_private_data *private_data = info->private_data;
   arm_feature_set allowed_arches = ARM_ARCH_NONE;
 
-  ARM_FEATURE_COPY (allowed_arches, private_data->features);
+  allowed_arches = private_data->features;
 
   for (insn = coprocessor_opcodes; insn->assembler; insn++)
     {
@@ -3396,7 +3423,7 @@ print_insn_coprocessor (bfd_vma pc,
 	    continue;
 
 	  case SENTINEL_GENERIC_START:
-	    ARM_FEATURE_COPY (allowed_arches, private_data->features);
+	    allowed_arches = private_data->features;
 	    continue;
 
 	  default:
@@ -5987,10 +6014,6 @@ print_insn_thumb32 (bfd_vma pc, struct disassemble_info *info, long given)
 		      value_in_comment = val * 4;
 		      break;
 
-		    case 'S':
-		      if (val == 13)
-			is_unpredictable = TRUE;
-		      /* Fall through.  */
 		    case 'R':
 		      if (val == 15)
 			is_unpredictable = TRUE;
@@ -6126,14 +6149,17 @@ parse_arm_disassembler_options (const char *options)
 	      }
 
 	  if (i >= NUM_ARM_OPTIONS)
-	    fprintf (stderr, _("Unrecognised register name set: %s\n"), opt);
+	    /* xgettext: c-format */
+	    opcodes_error_handler (_("unrecognised register name set: %s"),
+				   opt);
 	}
       else if (CONST_STRNEQ (opt, "force-thumb"))
 	force_thumb = 1;
       else if (CONST_STRNEQ (opt, "no-force-thumb"))
 	force_thumb = 0;
       else
-	fprintf (stderr, _("Unrecognised disassembler option: %s\n"), opt);
+	/* xgettext: c-format */
+	opcodes_error_handler (_("unrecognised disassembler option: %s"), opt);
     }
 
   return;

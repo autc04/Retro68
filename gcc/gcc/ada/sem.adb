@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2016, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,7 +29,6 @@ with Debug_A;   use Debug_A;
 with Elists;    use Elists;
 with Exp_SPARK; use Exp_SPARK;
 with Expander;  use Expander;
-with Fname;     use Fname;
 with Ghost;     use Ghost;
 with Lib;       use Lib;
 with Lib.Load;  use Lib.Load;
@@ -102,8 +101,8 @@ package body Sem is
    --  Ghost mode.
 
    procedure Analyze (N : Node_Id) is
-      Mode     : Ghost_Mode_Type;
-      Mode_Set : Boolean := False;
+      Saved_GM : constant Ghost_Mode_Type := Ghost_Mode;
+      --  Save the Ghost mode to restore on exit
 
    begin
       Debug_A_Entry ("analyzing  ", N);
@@ -120,8 +119,7 @@ package body Sem is
       --  marked as Ghost.
 
       if Is_Declaration (N) then
-         Mark_And_Set_Ghost_Declaration (N, Mode);
-         Mode_Set := True;
+         Mark_And_Set_Ghost_Declaration (N);
       end if;
 
       --  Otherwise processing depends on the node kind
@@ -517,6 +515,12 @@ package body Sem is
          when N_Record_Representation_Clause =>
             Analyze_Record_Representation_Clause (N);
 
+         when N_Reduction_Expression =>
+            Analyze_Reduction_Expression (N);
+
+         when N_Reduction_Expression_Parameter =>
+            Analyze_Reduction_Expression_Parameter (N);
+
          when N_Reference =>
             Analyze_Reference (N);
 
@@ -614,6 +618,14 @@ package body Sem is
          when N_With_Clause =>
             Analyze_With_Clause (N);
 
+         --  A call to analyze a marker is ignored because the node does not
+         --  have any static and run-time semantics.
+
+         when N_Call_Marker
+            | N_Variable_Reference_Marker
+         =>
+            null;
+
          --  A call to analyze the Empty node is an error, but most likely it
          --  is an error caused by an attempt to analyze a malformed piece of
          --  tree caused by some other error, so if there have been any other
@@ -654,6 +666,15 @@ package body Sem is
             | N_SCIL_Membership_Test
          =>
             null;
+
+         --  A quantified expression with a missing "all" or "some" qualifier
+         --  looks identical to an iterated component association. By language
+         --  definition, the latter must be present within array aggregates. If
+         --  this is not the case, then the iterated component association is
+         --  really an illegal quantified expression. Diagnose this scenario.
+
+         when N_Iterated_Component_Association =>
+            Diagnose_Iterated_Component_Association (N);
 
          --  For the remaining node types, we generate compiler abort, because
          --  these nodes are always analyzed within the Sem_Chn routines and
@@ -705,7 +726,6 @@ package body Sem is
             | N_Function_Specification
             | N_Generic_Association
             | N_Index_Or_Discriminant_Constraint
-            | N_Iterated_Component_Association
             | N_Iteration_Scheme
             | N_Mod_Clause
             | N_Modular_Type_Definition
@@ -725,6 +745,33 @@ package body Sem is
       end case;
 
       Debug_A_Exit ("analyzing  ", N, "  (done)");
+
+      --  Mark relevant use-type and use-package clauses as effective
+      --  preferring the original node over the analyzed one in the case that
+      --  constant folding has occurred and removed references that need to be
+      --  examined. Also, if the node in question is overloaded then this is
+      --  deferred until resolution.
+
+      declare
+         Operat : Node_Id := Empty;
+      begin
+         --  Attempt to obtain a checkable operator node
+
+         if Nkind (Original_Node (N)) in N_Op then
+            Operat := Original_Node (N);
+         elsif Nkind (N) in N_Op then
+            Operat := N;
+         end if;
+
+         --  Mark the operator
+
+         if Present (Operat)
+           and then Present (Entity (Operat))
+           and then not Is_Overloaded (Operat)
+         then
+            Mark_Use_Clauses (Operat);
+         end if;
+      end;
 
       --  Now that we have analyzed the node, we call the expander to perform
       --  possible expansion. We skip this for subexpressions, because we don't
@@ -762,9 +809,7 @@ package body Sem is
          Expand_SPARK_Potential_Renaming (N);
       end if;
 
-      if Mode_Set then
-         Restore_Ghost_Mode (Mode);
-      end if;
+      Restore_Ghost_Mode (Saved_GM);
    end Analyze;
 
    --  Version with check(s) suppressed
@@ -1184,32 +1229,6 @@ package body Sem is
       end if;
    end Insert_List_After_And_Analyze;
 
-   --  Version with check(s) suppressed
-
-   procedure Insert_List_After_And_Analyze
-     (N : Node_Id; L : List_Id; Suppress : Check_Id)
-   is
-   begin
-      if Suppress = All_Checks then
-         declare
-            Svs : constant Suppress_Array := Scope_Suppress.Suppress;
-         begin
-            Scope_Suppress.Suppress := (others => True);
-            Insert_List_After_And_Analyze (N, L);
-            Scope_Suppress.Suppress := Svs;
-         end;
-
-      else
-         declare
-            Svg : constant Boolean := Scope_Suppress.Suppress (Suppress);
-         begin
-            Scope_Suppress.Suppress (Suppress) := True;
-            Insert_List_After_And_Analyze (N, L);
-            Scope_Suppress.Suppress (Suppress) := Svg;
-         end;
-      end if;
-   end Insert_List_After_And_Analyze;
-
    ------------------------------------
    -- Insert_List_Before_And_Analyze --
    ------------------------------------
@@ -1242,41 +1261,24 @@ package body Sem is
       end if;
    end Insert_List_Before_And_Analyze;
 
-   --  Version with check(s) suppressed
-
-   procedure Insert_List_Before_And_Analyze
-     (N : Node_Id; L : List_Id; Suppress : Check_Id)
-   is
-   begin
-      if Suppress = All_Checks then
-         declare
-            Svs : constant Suppress_Array := Scope_Suppress.Suppress;
-         begin
-            Scope_Suppress.Suppress := (others => True);
-            Insert_List_Before_And_Analyze (N, L);
-            Scope_Suppress.Suppress := Svs;
-         end;
-
-      else
-         declare
-            Svg : constant Boolean := Scope_Suppress.Suppress (Suppress);
-         begin
-            Scope_Suppress.Suppress (Suppress) := True;
-            Insert_List_Before_And_Analyze (N, L);
-            Scope_Suppress.Suppress (Suppress) := Svg;
-         end;
-      end if;
-   end Insert_List_Before_And_Analyze;
-
    ----------
    -- Lock --
    ----------
 
    procedure Lock is
    begin
-      Scope_Stack.Locked := True;
       Scope_Stack.Release;
+      Scope_Stack.Locked := True;
    end Lock;
+
+   ------------------------
+   -- Preanalysis_Active --
+   ------------------------
+
+   function Preanalysis_Active return Boolean is
+   begin
+      return not Full_Analysis and not Expander_Active;
+   end Preanalysis_Active;
 
    ----------------
    -- Preanalyze --
@@ -1472,8 +1474,8 @@ package body Sem is
       --  Sequential_IO) as this would prevent pragma Extend_System from being
       --  taken into account, for example when Text_IO is renaming DEC.Text_IO.
 
-      if Is_Predefined_File_Name
-           (Unit_File_Name (Current_Sem_Unit), Renamings_Included => False)
+      if Is_Predefined_Unit (Current_Sem_Unit)
+        and then not Is_Predefined_Renaming (Current_Sem_Unit)
       then
          GNAT_Mode := True;
       end if;
@@ -1521,7 +1523,7 @@ package body Sem is
 
       Save_Opt_Config_Switches (Save_Config_Switches);
       Set_Opt_Config_Switches
-        (Is_Internal_File_Name (Unit_File_Name (Current_Sem_Unit)),
+        (Is_Internal_Unit (Current_Sem_Unit),
          Is_Main_Unit_Or_Main_Unit_Spec);
 
       --  Save current non-partition-wide restrictions

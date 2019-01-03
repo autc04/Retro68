@@ -33,20 +33,40 @@ _start:
 #extern syms
 #GD
  addi 3,31,gd@got@tlsgd		#R_PPC_GOT_TLSGD16	gd
+ .ifdef TLSMARK
+ bl __tls_get_addr(gd@tlsgd)	#R_PPC_TLSGD		gd
+				#R_PPC_REL24		__tls_get_addr
+ .else
  bl __tls_get_addr		#R_PPC_REL24		__tls_get_addr
+ .endif
 
 #LD
  addi 3,31,ld@got@tlsld		#R_PPC_GOT_TLSLD16	ld
+ .ifdef TLSMARK
+ bl __tls_get_addr(ld@tlsld)	#R_PPC_TLSLD		ld
+				#R_PPC_REL24		__tls_get_addr
+ .else
  bl __tls_get_addr		#R_PPC_REL24		__tls_get_addr
+ .endif
 
 #global syms
 #GD
  addi 3,31,gd0@got@tlsgd	#R_PPC_GOT_TLSGD16	gd0
- bl __tls_get_addr+0x8000@plt	#R_PPC_PLTREL24		__tls_get_addr
+ .ifdef TLSMARK
+ bl __tls_get_addr+0x8000(gd0@tlsgd)@plt #R_PPC_TLSGD	gd0
+				#R_PPC_PLTREL24		__tls_get_addr+0x8000
+ .else
+ bl __tls_get_addr+0x8000@plt	#R_PPC_PLTREL24		__tls_get_addr+0x8000
+ .endif
 
 #LD
  addi 3,31,ld0@got@tlsld	#R_PPC_GOT_TLSLD16	ld0
- bl __tls_get_addr+0x8000@plt	#R_PPC_PLTREL24		__tls_get_addr
+ .ifdef TLSMARK
+ bl __tls_get_addr+0x8000(ld0@tlsld)@plt #R_PPC_TLSLD	ld0
+				#R_PPC_PLTREL24		__tls_get_addr+0x8000
+ .else
+ bl __tls_get_addr+0x8000@plt	#R_PPC_PLTREL24		__tls_get_addr+0x8000
+ .endif
 
  addi 9,3,ld0@dtprel		#R_PPC_DTPREL16		ld0
 
@@ -66,11 +86,21 @@ _start:
 #local syms, use a different got reg too.
 #GD
  addi 3,30,gd4@got@tlsgd	#R_PPC_GOT_TLSGD16	gd4
+ .ifdef TLSMARK
+ bl __tls_get_addr(gd4@tlsgd)	#R_PPC_TLSGD		gd4
+				#R_PPC_REL24		__tls_get_addr
+ .else
  bl __tls_get_addr		#R_PPC_REL24		__tls_get_addr
+ .endif
 
 #LD
  addi 3,30,ld4@got@tlsld	#R_PPC_GOT_TLSLD16	ld4
+ .ifdef TLSMARK
+ bl __tls_get_addr(ld4@tlsld)	#R_PPC_TLSLD		ld4
+				#R_PPC_REL24		__tls_get_addr
+ .else
  bl __tls_get_addr		#R_PPC_REL24		__tls_get_addr
+ .endif
 
  stw 10,ld4@dtprel(3)		#R_PPC_DTPREL16	ld4
 

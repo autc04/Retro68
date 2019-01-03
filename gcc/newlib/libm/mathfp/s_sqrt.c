@@ -16,15 +16,10 @@ INDEX
 INDEX
         sqrtf
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <math.h>
         double sqrt(double <[x]>);
         float  sqrtf(float <[x]>);
-
-TRAD_SYNOPSIS
-        #include <math.h>
-        double sqrt(<[x]>);
-        float  sqrtf(<[x]>);
 
 DESCRIPTION
         <<sqrt>> computes the positive square root of the argument.
@@ -67,8 +62,7 @@ PORTABILITY
 #ifndef _DOUBLE_IS_32BITS
 
 double
-_DEFUN (sqrt, (double),
-        double x)
+sqrt (double x)
 {
   double f, y;
   int exp, i, odd;

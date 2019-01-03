@@ -2,7 +2,7 @@
    preference.  It is also used to test the -Mno-aliases option in
    the disassemler.
 
-   Copyright (C) 2012-2017 Free Software Foundation, Inc.
+   Copyright (C) 2012-2018 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.

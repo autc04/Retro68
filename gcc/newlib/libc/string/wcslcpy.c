@@ -2,16 +2,9 @@
 FUNCTION
 	<<wcslcpy>>---copy a wide-character string to specified length
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wchar.h>
 	size_t wcslcpy(wchar_t *<[dst]>, const wchar_t *<[src]>, size_t <[siz]>);
-
-TRAD_SYNOPSIS
-	#include <wchar.h>
-	size_t wcslcpy(<[dst]>, <[src]>, <[siz]>)
-	wchar_t *<[dst]>;
-	const wchar_t *<[src]>;
-	size_t <[siz]>;
 
 DESCRIPTION
 	<<wcslcpy>> copies wide characters from <[src]> to <[dst]>
@@ -69,13 +62,12 @@ No supporting OS subroutines are required.
  * Returns wcslen(src); if retval >= siz, truncation occurred.
  */
 size_t
-_DEFUN (wcslcpy, (dst, src, siz),
-	wchar_t * dst _AND
-	_CONST wchar_t * src _AND
+wcslcpy (wchar_t * dst,
+	const wchar_t * src,
 	size_t siz)
 {
   wchar_t *d = dst;
-  _CONST wchar_t *s = src;
+  const wchar_t *s = src;
   size_t n = siz;
 
   /* Copy as many bytes as will fit */

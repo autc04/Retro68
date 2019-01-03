@@ -1,7 +1,7 @@
 #name: Valid ARMv8.2-A with ARMv8.1-A NEON instructions.
 #as: -march=armv8.2-a -mfpu=neon-fp-armv8
 #objdump: -dr
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
+#skip: *-*-pe *-*-wince
 #source: armv8-a+rdma.s
 
 .*: +file format .*arm.*

@@ -5,14 +5,9 @@ FUNCTION
 INDEX
 	_Exit
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
 	void _Exit(int <[code]>);
-
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-	void _Exit(<[code]>)
-	int <[code]>;
 
 DESCRIPTION
 Use <<_Exit>> to return control from a program to the host operating
@@ -39,8 +34,7 @@ Supporting OS subroutines required: <<_exit>>.
 #include <reent.h>
 
 void 
-_DEFUN (_Exit, (code),
-	int code)
+_Exit (int code)
 {
   _exit (code);
 }

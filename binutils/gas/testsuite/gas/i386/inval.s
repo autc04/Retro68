@@ -88,3 +88,7 @@ movzx ax, [eax]
 movzx eax, [eax]
 
 movnti word ptr [eax], ax
+
+	shl [eax], 1
+	rol [ecx], 2
+	rcl [edx], cl

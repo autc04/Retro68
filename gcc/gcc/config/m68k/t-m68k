@@ -9,3 +9,4 @@ m68k-mac-pragmas.o: $(srcdir)/config/m68k/m68k-mac-pragmas.c
 
 M68K_MLIB_CPU += && (CPU !~ "^m68060") && (CPU !~ "^cpu32") && (CPU !~ "^fidoa")
 
+PASSES_EXTRA += $(srcdir)/config/m68k/m68k-passes.def

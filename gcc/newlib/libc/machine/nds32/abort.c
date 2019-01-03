@@ -5,13 +5,9 @@ FUNCTION
 INDEX
 	abort
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
 	void abort(void);
-
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-	void abort();
 
 DESCRIPTION
 Use <<abort>> to signal that your program has detected a condition it
@@ -32,8 +28,8 @@ Supporting OS subroutines required: <<_exit>>.
 
 #include <unistd.h>
 
-_VOID
-_DEFUN_VOID (abort)
+void
+abort (void)
 {
   while (1)
     {

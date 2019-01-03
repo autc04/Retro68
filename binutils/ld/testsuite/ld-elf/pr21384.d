@@ -1,6 +1,6 @@
 #ld: -T pr21384.ld --dynamic-list $srcdir/$subdir/pr21384.dl --no-dynamic-linker
 #readelf : --dyn-syms --wide
-#target: *-*-linux* *-*-gnu* *-*-solaris*
+#target: *-*-linux* *-*-gnu* *-*-solaris* arm*-*-uclinuxfdpiceabi
 
 Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size Type +Bind +Vis +Ndx Name

@@ -8,22 +8,20 @@
 #include "local.h"
 
 int
-_DEFUN (_mbtowc_r, (r, pwc, s, n, state),
-        struct _reent *r   _AND
-        wchar_t       *__restrict pwc _AND 
-        const char    *__restrict s   _AND        
-        size_t         n   _AND
+_mbtowc_r (struct _reent *r,
+        wchar_t       *__restrict pwc,
+        const char    *__restrict s,
+        size_t         n,
         mbstate_t      *state)
 {
   return __MBTOWC (r, pwc, s, n, state);
 }
 
 int
-_DEFUN (__ascii_mbtowc, (r, pwc, s, n, state),
-        struct _reent *r       _AND
-        wchar_t       *pwc     _AND 
-        const char    *s       _AND        
-        size_t         n       _AND
+__ascii_mbtowc (struct _reent *r,
+        wchar_t       *pwc,
+        const char    *s,
+        size_t         n,
         mbstate_t      *state)
 {
   wchar_t dummy;
@@ -55,11 +53,11 @@ _DEFUN (__ascii_mbtowc, (r, pwc, s, n, state),
 }
 
 #ifdef _MB_CAPABLE
-typedef enum { ESCAPE, DOLLAR, BRACKET, AT, B, J, 
+typedef enum __packed { ESCAPE, DOLLAR, BRACKET, AT, B, J,
                NUL, JIS_CHAR, OTHER, JIS_C_NUM } JIS_CHAR_TYPE;
-typedef enum { ASCII, JIS, A_ESC, A_ESC_DL, JIS_1, J_ESC, J_ESC_BR,
+typedef enum __packed { ASCII, JIS, A_ESC, A_ESC_DL, JIS_1, J_ESC, J_ESC_BR,
                INV, JIS_S_NUM } JIS_STATE; 
-typedef enum { COPY_A, COPY_J1, COPY_J2, MAKE_A, NOOP, EMPTY, ERROR } JIS_ACTION;
+typedef enum __packed { COPY_A, COPY_J1, COPY_J2, MAKE_A, NOOP, EMPTY, ERROR } JIS_ACTION;
 
 /************************************************************************************** 
  * state/action tables for processing JIS encoding
@@ -528,11 +526,10 @@ __cp_mbtowc (int val)
 #endif /* _MB_EXTENDED_CHARSETS_WINDOWS */
 
 int
-_DEFUN (__utf8_mbtowc, (r, pwc, s, n, state),
-        struct _reent *r       _AND
-        wchar_t       *pwc     _AND 
-        const char    *s       _AND        
-        size_t         n       _AND
+__utf8_mbtowc (struct _reent *r,
+        wchar_t       *pwc,
+        const char    *s,
+        size_t         n,
         mbstate_t      *state)
 {
   wchar_t dummy;
@@ -730,11 +727,10 @@ _DEFUN (__utf8_mbtowc, (r, pwc, s, n, state),
    because the underlying OS requires wchar_t == UTF-16. */
 #ifndef  __CYGWIN__
 int
-_DEFUN (__sjis_mbtowc, (r, pwc, s, n, state),
-        struct _reent *r       _AND
-        wchar_t       *pwc     _AND 
-        const char    *s       _AND        
-        size_t         n       _AND
+__sjis_mbtowc (struct _reent *r,
+        wchar_t       *pwc,
+        const char    *s,
+        size_t         n,
         mbstate_t      *state)
 {
   wchar_t dummy;
@@ -787,11 +783,10 @@ _DEFUN (__sjis_mbtowc, (r, pwc, s, n, state),
 }
 
 int
-_DEFUN (__eucjp_mbtowc, (r, pwc, s, n, state),
-        struct _reent *r       _AND
-        wchar_t       *pwc     _AND 
-        const char    *s       _AND        
-        size_t         n       _AND
+__eucjp_mbtowc (struct _reent *r,
+        wchar_t       *pwc,
+        const char    *s,
+        size_t         n,
         mbstate_t      *state)
 {
   wchar_t dummy;
@@ -870,11 +865,10 @@ _DEFUN (__eucjp_mbtowc, (r, pwc, s, n, state),
 }
 
 int
-_DEFUN (__jis_mbtowc, (r, pwc, s, n, state),
-        struct _reent *r       _AND
-        wchar_t       *pwc     _AND 
-        const char    *s       _AND        
-        size_t         n       _AND
+__jis_mbtowc (struct _reent *r,
+        wchar_t       *pwc,
+        const char    *s,
+        size_t         n,
         mbstate_t      *state)
 {
   wchar_t dummy;

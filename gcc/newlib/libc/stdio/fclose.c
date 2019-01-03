@@ -24,19 +24,10 @@ INDEX
 INDEX
 	_fclose_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	int fclose(FILE *<[fp]>);
 	int _fclose_r(struct _reent *<[reent]>, FILE *<[fp]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	int fclose(<[fp]>)
-	FILE *<[fp]>;
-
-	int fclose(<[fp]>)
-        struct _reent *<[reent]>
-	FILE *<[fp]>;
 
 DESCRIPTION
 If the file or stream identified by <[fp]> is open, <<fclose>> closes
@@ -65,8 +56,7 @@ Required OS subroutines: <<close>>, <<fstat>>, <<isatty>>, <<lseek>>,
 #include "local.h"
 
 int
-_DEFUN(_fclose_r, (rptr, fp),
-      struct _reent *rptr _AND
+_fclose_r (struct _reent *rptr,
       register FILE * fp)
 {
   int r;
@@ -130,8 +120,7 @@ _DEFUN(_fclose_r, (rptr, fp),
 #ifndef _REENT_ONLY
 
 int
-_DEFUN(fclose, (fp),
-       register FILE * fp)
+fclose (register FILE * fp)
 {
   return _fclose_r(_REENT, fp);
 }

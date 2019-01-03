@@ -1,7 +1,7 @@
 #name: FRV uClinux PIC relocs to global symbols, pie linking
 #source: fdpic2.s
 #objdump: -DR -j .text -j .data -j .got -j .plt
-#ld: -pie
+#ld: -pie --hash-style=sysv
 
 .*:     file format elf.*frv.*
 

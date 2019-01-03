@@ -47,7 +47,7 @@ INDEX
 INDEX
 	_vswprintf_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	#include <stdarg.h>
 	#include <wchar.h>
@@ -149,7 +149,7 @@ SEEALSO
 # undef _NO_LONGLONG
 #endif
 
-int _EXFUN(_VFWPRINTF_R, (struct _reent *, FILE *, _CONST wchar_t *, va_list));
+int _VFWPRINTF_R (struct _reent *, FILE *, const wchar_t *, va_list);
 /* Defined in vfprintf.c. */
 #ifdef _FVWRITE_IN_STREAMIO
 # ifdef STRING_ONLY
@@ -157,14 +157,14 @@ int _EXFUN(_VFWPRINTF_R, (struct _reent *, FILE *, _CONST wchar_t *, va_list));
 # else
 #  define __SPRINT __sprint_r
 # endif
-int _EXFUN(__SPRINT, (struct _reent *, FILE *, register struct __suio *));
+int __SPRINT (struct _reent *, FILE *, register struct __suio *);
 #else
 # ifdef STRING_ONLY
 #  define __SPRINT __ssputs_r
 # else
 #  define __SPRINT __sfputs_r
 # endif
-int _EXFUN(__SPRINT, (struct _reent *, FILE *, _CONST char *, size_t));
+int __SPRINT (struct _reent *, FILE *, const char *, size_t);
 #endif
 #ifndef STRING_ONLY
 #ifdef _UNBUF_STREAM_OPT
@@ -174,10 +174,9 @@ int _EXFUN(__SPRINT, (struct _reent *, FILE *, _CONST char *, size_t));
  * worries about ungetc buffers and so forth.
  */
 static int
-_DEFUN(__sbwprintf, (rptr, fp, fmt, ap),
-       struct _reent *rptr _AND
-       register FILE *fp   _AND
-       _CONST wchar_t *fmt  _AND
+__sbwprintf (struct _reent *rptr,
+       register FILE *fp,
+       const wchar_t *fmt,
        va_list ap)
 {
 	int ret;
@@ -228,8 +227,8 @@ _DEFUN(__sbwprintf, (rptr, fp, fmt, ap),
 
 # ifdef _NO_LONGDBL
 
-extern char *_dtoa_r _PARAMS((struct _reent *, double, int,
-			      int, int *, int *, char **));
+extern char *_dtoa_r (struct _reent *, double, int,
+			      int, int *, int *, char **);
 
 #  define _PRINTF_FLOAT_TYPE double
 #  define _DTOA_R _dtoa_r
@@ -237,10 +236,10 @@ extern char *_dtoa_r _PARAMS((struct _reent *, double, int,
 
 # else /* !_NO_LONGDBL */
 
-extern char *_ldtoa_r _PARAMS((struct _reent *, _LONG_DOUBLE, int,
-			      int, int *, int *, char **));
+extern char *_ldtoa_r (struct _reent *, _LONG_DOUBLE, int,
+			      int, int *, int *, char **);
 
-extern int _EXFUN(_ldcheck,(_LONG_DOUBLE *));
+extern int _ldcheck (_LONG_DOUBLE *);
 
 #  define _PRINTF_FLOAT_TYPE _LONG_DOUBLE
 #  define _DTOA_R _ldtoa_r
@@ -289,7 +288,7 @@ static int wexponent(wchar_t *, int, int);
 #endif
 
 typedef quad_t * quad_ptr_t;
-typedef _PTR     void_ptr_t;
+typedef void *void_ptr_t;
 typedef char *   char_ptr_t;
 typedef wchar_t* wchar_ptr_t;
 typedef long *   long_ptr_t;
@@ -325,9 +324,9 @@ union arg_val
 };
 
 static union arg_val *
-_EXFUN(get_arg, (struct _reent *data, int n, wchar_t *fmt,
+get_arg (struct _reent *data, int n, wchar_t *fmt,
                  va_list *ap, int *numargs, union arg_val *args,
-                 int *arg_type, wchar_t **last_fmt));
+                 int *arg_type, wchar_t **last_fmt);
 #endif /* !_NO_POS_ARGS */
 
 /*
@@ -366,9 +365,8 @@ _EXFUN(get_arg, (struct _reent *data, int n, wchar_t *fmt,
 
 #ifndef STRING_ONLY
 int
-_DEFUN(VFWPRINTF, (fp, fmt0, ap),
-       FILE *__restrict fp         _AND
-       _CONST wchar_t *__restrict fmt0 _AND
+VFWPRINTF (FILE *__restrict fp,
+       const wchar_t *__restrict fmt0,
        va_list ap)
 {
   int result;
@@ -378,10 +376,9 @@ _DEFUN(VFWPRINTF, (fp, fmt0, ap),
 #endif /* STRING_ONLY */
 
 int
-_DEFUN(_VFWPRINTF_R, (data, fp, fmt0, ap),
-       struct _reent *data _AND
-       FILE * fp           _AND
-       _CONST wchar_t *fmt0   _AND
+_VFWPRINTF_R (struct _reent *data,
+       FILE * fp,
+       const wchar_t *fmt0,
        va_list ap)
 {
 	register wchar_t *fmt;	/* format string */
@@ -452,10 +449,10 @@ _DEFUN(_VFWPRINTF_R, (data, fp, fmt0, ap),
 	 * below longer.
 	 */
 #define	PADSIZE	16		/* pad chunk size */
-	static _CONST wchar_t blanks[PADSIZE] =
+	static const wchar_t blanks[PADSIZE] =
 	 {L' ',L' ',L' ',L' ',L' ',L' ',L' ',L' ',
 	  L' ',L' ',L' ',L' ',L' ',L' ',L' ',L' '};
-	static _CONST wchar_t zeroes[PADSIZE] =
+	static const wchar_t zeroes[PADSIZE] =
 	 {L'0',L'0',L'0',L'0',L'0',L'0',L'0',L'0',
 	  L'0',L'0',L'0',L'0',L'0',L'0',L'0',L'0'};
 
@@ -519,7 +516,7 @@ _DEFUN(_VFWPRINTF_R, (data, fp, fmt0, ap),
 }
 #else
 #define PRINT(ptr, len) {		\
-	if (__SPRINT (data, fp, (_CONST char *)(ptr), (len) * sizeof (wchar_t)) == EOF) \
+	if (__SPRINT (data, fp, (const char *)(ptr), (len) * sizeof (wchar_t)) == EOF) \
 		goto error;		\
 }
 #define	PAD(howmany, with) {		\
@@ -970,6 +967,8 @@ reswitch:	switch (ch) {
 				break;
 			}
 			if (isnan (_fpvalue)) {
+				if (signbit (_fpvalue))
+					sign = L'-';
 				if (ch <= L'G') /* 'A', 'E', 'F', or 'G' */
 					cp = L"NAN";
 				else
@@ -1001,6 +1000,8 @@ reswitch:	switch (ch) {
 				break;
 			}
 			if (expt == 1) {
+				if (signbit (_fpvalue))
+					sign = L'-';
 				if (ch <= L'G') /* 'A', 'E', 'F', or 'G' */
 					cp = L"NAN";
 				else
@@ -1195,7 +1196,7 @@ string:
 
 				if (prec >= 0) {
 					char *p = arg;
-					memset ((_PTR)&ps, '\0', sizeof (mbstate_t));
+					memset ((void *)&ps, '\0', sizeof (mbstate_t));
 					while (nchars < (size_t)prec) {
 						nconv = mbrlen (p, MB_CUR_MAX, &ps);
 						if (nconv == 0 || nconv == (size_t)-1 ||
@@ -1220,7 +1221,7 @@ string:
 					cp = malloc_buf;
 				} else
 					cp = buf;
-				memset ((_PTR)&ps, '\0', sizeof (mbstate_t));
+				memset ((void *)&ps, '\0', sizeof (mbstate_t));
 				p = cp;
 				while (insize != 0) {
 					nconv = _mbrtowc_r (data, p, arg, insize, &ps);
@@ -1730,14 +1731,13 @@ wexponent(wchar_t *p0, int exp, int fmtch)
 
 /* function to get positional parameter N where n = N - 1 */
 static union arg_val *
-_DEFUN(get_arg, (data, n, fmt, ap, numargs_p, args, arg_type, last_fmt),
-       struct _reent *data _AND
-       int n               _AND
-       wchar_t *fmt        _AND
-       va_list *ap         _AND
-       int *numargs_p      _AND
-       union arg_val *args _AND
-       int *arg_type       _AND
+get_arg (struct _reent *data,
+       int n,
+       wchar_t *fmt,
+       va_list *ap,
+       int *numargs_p,
+       union arg_val *args,
+       int *arg_type,
        wchar_t **last_fmt)
 {
   wchar_t ch;

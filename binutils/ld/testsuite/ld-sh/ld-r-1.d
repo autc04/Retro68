@@ -4,7 +4,6 @@
 #ld: -r -EL
 #readelf: -r -x1 -x2
 #target: sh*-*-elf sh*-*-linux*
-#notarget: sh64*-*-linux*
 
 # Make sure relocations against global and local symbols with relative and
 # absolute 32-bit relocs don't come out wrong after ld -r.  Remember that
@@ -12,7 +11,7 @@
 # where and which addends to use and how.  A file linked -r must have the
 # same layout as a plain assembly file: the addend is in the data only.
 
-Relocation section '\.rela\.text' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '\.rela\.text' at offset 0x[0-9a-f]+ contains 1 entry:
 .*
 00000008  00000101 R_SH_DIR32 +00000000 +\.text +\+ 0
 

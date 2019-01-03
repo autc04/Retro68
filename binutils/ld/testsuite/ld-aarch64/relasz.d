@@ -1,5 +1,5 @@
 #source: relasz.s
-#ld: -shared -Taarch64.ld
+#ld: -shared --hash-style=sysv -Taarch64.ld
 #readelf: -d
 # Check that the RELASZ section has the correct size even if we are
 # using a non-default linker script that merges .rela.dyn and .rela.plt

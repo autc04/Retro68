@@ -8,9 +8,8 @@
 
 #ifndef _REENT_ONLY
 
-_PTR
-_DEFUN (memalign, (align, nbytes),
-	size_t align _AND
+void *
+memalign (size_t align,
 	size_t nbytes)
 {
   return _memalign_r (_REENT, align, nbytes);

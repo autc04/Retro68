@@ -1,6 +1,6 @@
 // aarch64-reloc.def -- AArch64 relocation definitions.
 
-// Copyright (C) 2014-2017 Free Software Foundation, Inc.
+// Copyright (C) 2014-2018 Free Software Foundation, Inc.
 // Written by Han Shen <shenhan@google.com> and Jing Yu <jingyu@google.com>.
 
 // This file is part of gold.
@@ -108,6 +108,14 @@ ARD(TLSLE_MOVW_TPREL_G0_NC       , STATIC ,  AARCH64   ,    Y,   0,    0,0      
 ARD(TLSLE_ADD_TPREL_HI12         , STATIC ,  AARCH64   ,    Y,  -1,    0,24               ,   12,23 , Symbol::TLS_REF ,                              ADD   )
 ARD(TLSLE_ADD_TPREL_LO12         , STATIC ,  AARCH64   ,    Y,  -1,    0,12               ,    0,11 , Symbol::TLS_REF ,                              ADD   )
 ARD(TLSLE_ADD_TPREL_LO12_NC      , STATIC ,  AARCH64   ,    Y,  -1,    0,0                ,    0,11 , Symbol::TLS_REF ,                              ADD   )
+ARD(TLSLE_LDST8_TPREL_LO12       , STATIC ,  AARCH64   ,    Y,  -1,    0,12               ,    0,11 , Symbol::TLS_REF ,                              LDST  )
+ARD(TLSLE_LDST8_TPREL_LO12_NC    , STATIC ,  AARCH64   ,    Y,  -1,    0,0                ,    0,11 , Symbol::TLS_REF ,                              LDST  )
+ARD(TLSLE_LDST16_TPREL_LO12      , STATIC ,  AARCH64   ,    Y,  -1,    0,12               ,    1,11 , Symbol::TLS_REF ,                              LDST  )
+ARD(TLSLE_LDST16_TPREL_LO12_NC   , STATIC ,  AARCH64   ,    Y,  -1,    0,0                ,    1,11 , Symbol::TLS_REF ,                              LDST  )
+ARD(TLSLE_LDST32_TPREL_LO12      , STATIC ,  AARCH64   ,    Y,  -1,    0,12               ,    2,11 , Symbol::TLS_REF ,                              LDST  )
+ARD(TLSLE_LDST32_TPREL_LO12_NC   , STATIC ,  AARCH64   ,    Y,  -1,    0,0                ,    2,11 , Symbol::TLS_REF ,                              LDST  )
+ARD(TLSLE_LDST64_TPREL_LO12      , STATIC ,  AARCH64   ,    Y,  -1,    0,12               ,    3,11 , Symbol::TLS_REF ,                              LDST  )
+ARD(TLSLE_LDST64_TPREL_LO12_NC   , STATIC ,  AARCH64   ,    Y,  -1,    0,0                ,    3,11 , Symbol::TLS_REF ,                              LDST  )
 // Above is from Table 4-18, Local Exec TLS relocations, 544-571.
 
 ARD(TLSDESC_ADR_PAGE21           , STATIC ,  AARCH64   ,    Y,  -1,    32,32              ,   12,32 , Symbol::TLS_REF ,                              ADRP  )

@@ -1,4 +1,4 @@
-/* Copyright (C) 2017 Free Software Foundation, Inc.
+/* Copyright (C) 2017-2018 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -550,17 +550,17 @@ xvar:
 	.byte	0xf2	/* Line Range Value (Special Opcodes) */
 	.byte	0xd	/* Special Opcode Base */
 	.byte	0	/* opcode: 0x1 has 0 args */
-	.byte	0x1	/* opcode: 0x2 has 1 args */
-	.byte	0x1	/* opcode: 0x3 has 1 args */
-	.byte	0x1	/* opcode: 0x4 has 1 args */
-	.byte	0x1	/* opcode: 0x5 has 1 args */
+	.byte	0x1	/* opcode: 0x2 has 1 arg */
+	.byte	0x1	/* opcode: 0x3 has 1 arg */
+	.byte	0x1	/* opcode: 0x4 has 1 arg */
+	.byte	0x1	/* opcode: 0x5 has 1 arg */
 	.byte	0	/* opcode: 0x6 has 0 args */
 	.byte	0	/* opcode: 0x7 has 0 args */
 	.byte	0	/* opcode: 0x8 has 0 args */
-	.byte	0x1	/* opcode: 0x9 has 1 args */
+	.byte	0x1	/* opcode: 0x9 has 1 arg */
 	.byte	0	/* opcode: 0xa has 0 args */
 	.byte	0	/* opcode: 0xb has 0 args */
-	.byte	0x1	/* opcode: 0xc has 1 args */
+	.byte	0x1	/* opcode: 0xc has 1 arg */
 	.byte	0x1	/* Directory entry format count */
 	.uleb128 0x1	/* DW_LNCT_path */
 	.uleb128 0x1f	/* DW_FORM_line_strp */

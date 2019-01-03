@@ -22,15 +22,9 @@ FUNCTION
 INDEX
 	setbuf
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdio.h>
 	void setbuf(FILE *<[fp]>, char *<[buf]>);
-
-TRAD_SYNOPSIS
-	#include <stdio.h>
-	void setbuf(<[fp]>, <[buf]>)
-	FILE *<[fp]>;
-	char *<[buf]>;
 
 DESCRIPTION
 <<setbuf>> specifies that output to the file or stream identified by <[fp]>
@@ -70,10 +64,9 @@ Supporting OS subroutines required: <<close>>, <<fstat>>, <<isatty>>,
 #include <stdio.h>
 #include "local.h"
 
-_VOID
-_DEFUN(setbuf, (fp, buf),
-       FILE *__restrict fp _AND
+void
+setbuf (FILE *__restrict fp,
        char *__restrict buf)
 {
-  _CAST_VOID setvbuf (fp, buf, buf ? _IOFBF : _IONBF, BUFSIZ);
+  (void) setvbuf (fp, buf, buf ? _IOFBF : _IONBF, BUFSIZ);
 }

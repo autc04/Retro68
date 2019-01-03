@@ -54,12 +54,11 @@
  * xdr procedure to call to handle each element of the array.
  */
 bool_t
-_DEFUN (xdr_array, (xdrs, addrp, sizep, maxsize, elsize, elproc),
-        XDR * xdrs _AND
-	caddr_t * addrp _AND
-	u_int * sizep _AND
-	u_int maxsize _AND
-        u_int elsize _AND
+xdr_array (XDR * xdrs,
+	caddr_t * addrp,
+	u_int * sizep,
+	u_int maxsize,
+        u_int elsize,
 	xdrproc_t elproc)
 {
   u_int i;
@@ -138,11 +137,10 @@ _DEFUN (xdr_array, (xdrs, addrp, sizep, maxsize, elsize, elproc),
  * > xdr_elem: routine to XDR each element
  */
 bool_t
-_DEFUN (xdr_vector, (xdrs, basep, nelem, elemsize, xdr_elem),
-        XDR * xdrs _AND
-	char *basep _AND
-	u_int nelem _AND
-	u_int elemsize _AND
+xdr_vector (XDR * xdrs,
+	char *basep,
+	u_int nelem,
+	u_int elemsize,
         xdrproc_t xdr_elem)
 {
   u_int i;

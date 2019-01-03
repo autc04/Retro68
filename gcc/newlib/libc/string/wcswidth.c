@@ -5,15 +5,9 @@ FUNCTION
 INDEX
 	wcswidth
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wchar.h>
 	int wcswidth(const wchar_t *<[pwcs]>, size_t <[n]>);
-
-TRAD_SYNOPSIS
-	#include <wchar.h>
-	int wcswidth(<[pwcs]>, <[n]>)
-	wchar_t *<[wc]>;
-	size_t <[n]>;
 
 DESCRIPTION
 	The <<wcswidth>> function shall determine the number of column
@@ -40,8 +34,7 @@ PORTABILITY
 #include "local.h"
 
 int
-_DEFUN (wcswidth, (pwcs, n),
-	_CONST wchar_t *pwcs _AND
+wcswidth (const wchar_t *pwcs,
 	size_t n)
 
 {

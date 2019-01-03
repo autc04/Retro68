@@ -1,5 +1,5 @@
 /* ppc.h -- Header file for PowerPC opcode table
-   Copyright (C) 1994-2017 Free Software Foundation, Inc.
+   Copyright (C) 1994-2018 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support
 
    This file is part of GDB, GAS, and the GNU binutils.
@@ -30,6 +30,14 @@ extern "C" {
 
 typedef uint64_t ppc_cpu_t;
 
+#if BFD_HOST_64BIT_LONG
+# define PPC_INT_FMT "l"
+#elif defined (__MSVCRT__)
+# define PPC_INT_FMT "I64"
+#else
+# define PPC_INT_FMT "ll"
+#endif
+
 /* The opcode table is an array of struct powerpc_opcode.  */
 
 struct powerpc_opcode
@@ -39,13 +47,13 @@ struct powerpc_opcode
 
   /* The opcode itself.  Those bits which will be filled in with
      operands are zeroes.  */
-  unsigned long opcode;
+  uint64_t opcode;
 
   /* The opcode mask.  This is used by the disassembler.  This is a
      mask containing ones indicating those bits which must match the
      opcode field, and zeroes indicating those bits which need not
      match (and are presumably filled in by operands).  */
-  unsigned long mask;
+  uint64_t mask;
 
   /* One bit flags for the opcode.  These are used to indicate which
      specific processors support the instructions.  The defined values
@@ -67,9 +75,11 @@ struct powerpc_opcode
    in the order in which the disassembler should consider
    instructions.  */
 extern const struct powerpc_opcode powerpc_opcodes[];
-extern const int powerpc_num_opcodes;
+extern const unsigned int powerpc_num_opcodes;
 extern const struct powerpc_opcode vle_opcodes[];
-extern const int vle_num_opcodes;
+extern const unsigned int vle_num_opcodes;
+extern const struct powerpc_opcode spe2_opcodes[];
+extern const unsigned int spe2_num_opcodes;
 
 /* Values defined for the flags field of a struct powerpc_opcode.  */
 
@@ -215,6 +225,15 @@ extern const int vle_num_opcodes;
    the underlying machine instruction.  */
 #define PPC_OPCODE_RAW	     0x40000000000ull
 
+/* Opcode is supported by PowerPC LSP */
+#define PPC_OPCODE_LSP	     0x80000000000ull
+
+/* Opcode is only supported by Freescale SPE2 APU.  */
+#define PPC_OPCODE_SPE2	    0x100000000000ull
+
+/* Opcode is supported by EFS2.  */
+#define PPC_OPCODE_EFS2	    0x200000000000ull
+
 /* A macro to extract the major opcode from an instruction.  */
 #define PPC_OP(i) (((i) >> 26) & 0x3f)
 
@@ -226,13 +245,19 @@ extern const int vle_num_opcodes;
 
 /* A macro to convert a VLE opcode to a VLE opcode segment.  */
 #define VLE_OP_TO_SEG(i) ((i) >> 1)
+
+/* A macro to extract the extended opcode from a SPE2 instruction.  */
+#define SPE2_XOP(i) ((i) & 0x7ff)
+
+/* A macro to convert a SPE2 extended opcode to a SPE2 xopcode segment.  */
+#define SPE2_XOP_TO_SEG(i) ((i) >> 7)
 
 /* The operands table is an array of struct powerpc_operand.  */
 
 struct powerpc_operand
 {
   /* A bitmask of bits in the operand.  */
-  unsigned int bitm;
+  uint64_t bitm;
 
   /* The shift operation to be applied to the operand.  No shift
      is made if this is zero.  For positive values, the operand
@@ -260,8 +285,8 @@ struct powerpc_operand
      string (the operand will be inserted in any case).  If the
      operand value is legal, *ERRMSG will be unchanged (most operands
      can accept any value).  */
-  unsigned long (*insert)
-    (unsigned long instruction, long op, ppc_cpu_t dialect, const char **errmsg);
+  uint64_t (*insert)
+    (uint64_t instruction, int64_t op, ppc_cpu_t dialect, const char **errmsg);
 
   /* Extraction function.  This is used by the disassembler.  To
      extract this operand type from an instruction, check this field.
@@ -282,7 +307,7 @@ struct powerpc_operand
      non-zero if this operand type can not actually be extracted from
      this operand (i.e., the instruction does not match).  If the
      operand is valid, *INVALID will not be changed.  */
-  long (*extract) (unsigned long instruction, ppc_cpu_t dialect, int *invalid);
+  int64_t (*extract) (uint64_t instruction, ppc_cpu_t dialect, int *invalid);
 
   /* One bit syntax flags.  */
   unsigned long flags;
@@ -380,14 +405,6 @@ extern const unsigned int num_powerpc_operands;
 /* Valid range of operand is 0..n rather than 0..n-1.  */
 #define PPC_OPERAND_PLUS1 (0x20000)
 
-/* This operand does not actually exist in the assembler input.  This
-   is used to support extended mnemonics such as mr, for which two
-   operands fields are identical.  The assembler should call the
-   insert function with any op value.  The disassembler should call
-   the extract function, ignore the return value, and check the value
-   placed in the valid argument.  */
-#define PPC_OPERAND_FAKE (0x40000)
-
 /* This operand is optional, and is zero if omitted.  This is used for
    example, in the optional BF field in the comparison instructions.  The
    assembler must count the number of operands remaining on the line,
@@ -446,7 +463,7 @@ extern const int powerpc_num_macros;
 
 extern ppc_cpu_t ppc_parse_cpu (ppc_cpu_t, ppc_cpu_t *, const char *);
 
-static inline long
+static inline int64_t
 ppc_optional_operand_value (const struct powerpc_operand *operand)
 {
   if ((operand->flags & PPC_OPERAND_OPTIONAL_VALUE) != 0)

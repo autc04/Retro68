@@ -1,6 +1,6 @@
 /* fp-const0-parse.s Test file For AArch64 float constant 0 parse.
 
-   Copyright (C) 2014-2017 Free Software Foundation, Inc.
+   Copyright (C) 2014-2018 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.

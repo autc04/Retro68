@@ -1,6 +1,7 @@
 SECTIONS
 {
   .hash : { *(.hash) }
+  .gnu.hash : { *(.gnu.hash) }
   .dynsym : { *(.dynsym) }
   .dynstr : { *(.dynstr) }
   .rel.dyn : { *(.rel.dyn) }

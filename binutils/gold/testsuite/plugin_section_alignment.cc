@@ -1,6 +1,6 @@
 // plugin_section_alignment.cc -- plugins to test ordering with {size,alignment}
 //
-// Copyright (C) 2016-2017 Free Software Foundation, Inc.
+// Copyright (C) 2016-2018 Free Software Foundation, Inc.
 // Written by Than McIntosh <thanm@google.com>.
 //
 // This file is part of gold.

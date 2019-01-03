@@ -5,16 +5,9 @@ FUNCTION
 INDEX
 	wcstombs
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
 	size_t wcstombs(char *restrict <[s]>, const wchar_t *restrict <[pwc]>, size_t <[n]>);
-
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-	size_t wcstombs(<[s]>, <[pwc]>, <[n]>)
-	char *<[s]>;
-	const wchar_t *<[pwc]>;
-	size_t <[n]>;
 
 DESCRIPTION
 When _MB_CAPABLE is not defined, this is a minimal ANSI-conforming 
@@ -55,9 +48,8 @@ effects vary with the locale.
 #include <wchar.h>
 
 size_t
-_DEFUN (wcstombs, (s, pwcs, n),
-        char          *__restrict s    _AND
-        const wchar_t *__restrict pwcs _AND
+wcstombs (char          *__restrict s,
+        const wchar_t *__restrict pwcs,
         size_t         n)
 {
 #ifdef _MB_CAPABLE

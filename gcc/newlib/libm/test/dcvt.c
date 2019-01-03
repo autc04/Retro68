@@ -28,8 +28,7 @@ static struct p {
 #define _MAX_PREC 16
 
 static char 
-_DEFUN(nextdigit,(value),
-double *value)
+nextdigit (double *value)
 {
   double tmp;
   
@@ -39,9 +38,8 @@ double *value)
 
 
 static char *
-_DEFUN(print_nan,(buffer, value, precision),
-       char *buffer _AND
-       double value _AND
+print_nan (char *buffer,
+       double value,
        int precision)
 {
   size_t  i;
@@ -100,8 +98,7 @@ typedef struct
 
 
 void
-_DEFUN(renormalize,(in),
-       cvt_info_type *in)
+renormalize (cvt_info_type *in)
 {
 
   /* Make sure all numbers are less than 1 */
@@ -133,8 +130,7 @@ _DEFUN(renormalize,(in),
  */
 
 static void 
-_DEFUN(normalize,(value, in),
-       double value _AND
+normalize (double value,
        cvt_info_type *in)
 {
   int j;
@@ -195,10 +191,9 @@ _DEFUN(normalize,(value, in),
   
 }
 int
-_DEFUN(round,(in, start, now, ch),
-       cvt_info_type *in _AND
-       char *start _AND
-       char *now _AND
+round (cvt_info_type *in,
+       char *start,
+       char *now,
        char ch)
 {
   double rounder = 5.0;
@@ -272,8 +267,7 @@ _DEFUN(round,(in, start, now, ch),
 
 
 void
-_DEFUN(_cvte,(in),
-       register  cvt_info_type *in)
+_cvte (register  cvt_info_type *in)
 {
   int buffer_idx  =0;
   int digit = 0;
@@ -341,8 +335,7 @@ _DEFUN(_cvte,(in),
 
 /* Produce NNNN.FFFF */
 void
-_DEFUN(_cvtf,(in),
-       cvt_info_type *in)
+_cvtf (cvt_info_type *in)
 {
   
   int buffer_idx = 0;		/* Current char being output */
@@ -434,12 +427,11 @@ _DEFUN(_cvtf,(in),
 
 
 char *
-_DEFUN(_dcvt,(buffer, invalue, precision, width, type, dot),
-       char *buffer _AND
-       double invalue _AND
-       int precision _AND
-       int width _AND
-       char type _AND
+_dcvt (char *buffer,
+       double invalue,
+       int precision,
+       int width,
+       char type,
        int dot)
 {
   cvt_info_type in;
@@ -533,11 +525,10 @@ _DEFUN(_dcvt,(buffer, invalue, precision, width, type, dot),
 
 
 char *
-_DEFUN(fcvtbuf,(invalue,ndigit,decpt,sign, fcvt_buf),
-       double invalue _AND 
-       int ndigit _AND
-       int *decpt _AND
-       int *sign _AND
+fcvtbuf (double invalue,
+       int ndigit,
+       int *decpt,
+       int *sign,
        char *fcvt_buf)
 {
   cvt_info_type in;
@@ -563,11 +554,10 @@ _DEFUN(fcvtbuf,(invalue,ndigit,decpt,sign, fcvt_buf),
 
 
 char *
-_DEFUN(ecvtbuf,(invalue,ndigit,decpt,sign, fcvt_buf),
-       double invalue _AND 
-       int ndigit _AND
-       int *decpt _AND
-       int *sign _AND
+ecvtbuf (double invalue,
+       int ndigit,
+       int *decpt,
+       int *sign,
        char *fcvt_buf)
 {
   cvt_info_type in;
@@ -596,9 +586,8 @@ _DEFUN(ecvtbuf,(invalue,ndigit,decpt,sign, fcvt_buf),
 
 
 char *
-_DEFUN(gcvt,(d,ndigit,buf),
-   double d _AND
-   int ndigit _AND
+gcvt (double d,
+   int ndigit,
    char *buf)
 {
   return _dcvt(buf, d, ndigit, 0, 'g', 1);

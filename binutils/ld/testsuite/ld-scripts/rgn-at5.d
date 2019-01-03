@@ -2,7 +2,7 @@
 # source: rgn-at5.s
 # ld: -T rgn-at5.t -z max-page-size=0x1000
 # objdump: -w -h
-# target: *-*-linux* *-*-gnu*
+# target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
 # xfail: rx-*-*
 #   FAILS on the RX because the linker has to set LMA == VMA for the
 #   Renesas loader.

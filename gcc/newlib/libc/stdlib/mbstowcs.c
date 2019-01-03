@@ -5,16 +5,9 @@ FUNCTION
 INDEX
 	mbstowcs
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <stdlib.h>
 	int mbstowcs(wchar_t *restrict <[pwc]>, const char *restrict <[s]>, size_t <[n]>);
-
-TRAD_SYNOPSIS
-	#include <stdlib.h>
-	int mbstowcs(<[pwc]>, <[s]>, <[n]>)
-	wchar_t *<[pwc]>;
-	const char *<[s]>;
-	size_t <[n]>;
 
 DESCRIPTION
 When _MB_CAPABLE is not defined, this is a minimal ANSI-conforming 
@@ -54,9 +47,8 @@ effects vary with the locale.
 #include <wchar.h>
 
 size_t
-_DEFUN (mbstowcs, (pwcs, s, n),
-        wchar_t *__restrict pwcs _AND
-        const char *__restrict s _AND
+mbstowcs (wchar_t *__restrict pwcs,
+        const char *__restrict s,
         size_t n)
 {
 #ifdef _MB_CAPABLE

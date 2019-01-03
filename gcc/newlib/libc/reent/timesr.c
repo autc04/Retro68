@@ -32,17 +32,10 @@ FUNCTION
 INDEX
 	_times_r
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <reent.h>
 	#include <sys/times.h>
 	clock_t _times_r(struct _reent *<[ptr]>, struct tms *<[ptms]>);
-
-TRAD_SYNOPSIS
-	#include <reent.h>
-	#include <sys/times.h>
-	clock_t _times_r(<[ptr]>, <[ptms]>)
-	struct _reent *<[ptr]>;
-	struct tms *<[ptms]>;
 
 DESCRIPTION
 	This is a reentrant version of <<times>>.  It
@@ -51,8 +44,7 @@ DESCRIPTION
 */
 
 clock_t
-_DEFUN (_times_r, (ptr, ptms),
-     struct _reent *ptr _AND
+_times_r (struct _reent *ptr,
      struct tms *ptms)
 {
   clock_t ret;

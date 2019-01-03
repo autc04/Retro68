@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2017 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -99,12 +99,17 @@ if [istarget xtensa*-*-*] then {
     run_dump_test "weak-call"
     run_dump_test "jlong"
     run_dump_test "trampoline"
+    run_list_test "trampoline-2"
     run_dump_test "first_frag_align"
     run_dump_test "auto-litpools"
+    run_dump_test "auto-litpools-2"
+    run_dump_test "auto-litpools-3"
+    run_dump_test "auto-litpools-4"
     run_dump_test "auto-litpools-first1"
     run_dump_test "auto-litpools-first2"
     run_dump_test "loc"
     run_dump_test "init-fini-literals"
+    run_dump_test "text-section-literals-1"
 }
 
 if [info exists errorInfo] then {

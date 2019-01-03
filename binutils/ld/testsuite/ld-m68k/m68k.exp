@@ -1,5 +1,5 @@
 # Expect script for run_dump_test based ld-m68k tests.
-#   Copyright (C) 2006-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -61,7 +61,8 @@ run_dump_test "merge-ok-1c"
 foreach { id sources } { a { plt1.s } b { plt1-empty.s plt1.s } } {
     foreach arch { 68020 cpu32 isab isac } {
 	run_ld_link_tests [list \
-	    [list "PLT 1$id ($arch)" "-shared -T plt1.ld" "" "-m$arch" \
+	    [list "PLT 1$id ($arch)" \
+		 "-shared -T plt1.ld --hash-style=sysv" "" "-m$arch" \
 		 $sources [list [list objdump -dr plt1-$arch.d]] \
 		 plt1-${id}-${arch}.so]]
     }
@@ -81,11 +82,11 @@ if { [istarget m68k-*-linux*] } then {
 	    {{nm -ngD tls-def-1.d}}
 	    "tls-def-1.so"}
 	{"TLS direct symbol use"
-	    "-shared tmpdir/tls-def-1.so" "" "" {tls-gd-1.s}
+	    "-shared --hash-style=sysv tmpdir/tls-def-1.so" "" "" {tls-gd-1.s}
 	    {{nm -ngD tls-gd-1.d2} {readelf -d tls-gd-1.d3}}
 	    "tls-gd-1.so"}
 	{"TLS indirect symbol use"
-	    "--copy-dt-needed-entries tmpdir/tls-gd-1.so -rpath-link ./" "" "" {tls-main-1.s}
+	    "--copy-dt-needed-entries --hash-style=sysv tmpdir/tls-gd-1.so -rpath-link ./" "" "" {tls-main-1.s}
 	    {{readelf -d tls-main-1.d}}
 	    "tls-main-1"}}
 

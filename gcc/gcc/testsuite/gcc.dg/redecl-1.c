@@ -52,13 +52,14 @@ void test3(void)
 
 void prime4(void)
 {
-  bar4();			/* { dg-warning "implicit declaration of function" "implicit" } */
+  bar4(); /* { dg-line implicit_bar4 } */
+  /* { dg-warning "implicit declaration of function" "implicit" { target *-*-* } implicit_bar4 } */
 }
 
 void test4(void)
 {
   extern double bar4(double);	/* { dg-error "conflict" } */
-/* { dg-message "note: previous implicit declaration" "previous" { target *-*-* } 55 } */
+/* { dg-message "note: previous implicit declaration" "previous" { target *-*-* } implicit_bar4 } */
 }
 
 /* Implicit decl, clashing with extern at previous function scope.  */
@@ -75,7 +76,7 @@ void test5(void)
 
 /* Extern then static, both at file scope.  */
 
-extern int test6(int);		/* { dg-message "note: previous" "" } */
+extern int test6(int);		/* { dg-message "note: previous" } */
 static int test6(int x)		/* { dg-error "follows non-static" } */
 { return x; }
 
@@ -84,7 +85,7 @@ static int test6(int x)		/* { dg-error "follows non-static" } */
 
 void prime7(void)
 {
-  extern int test7(int);	/* { dg-message "note: previous" "" } */
+  extern int test7(int);	/* { dg-message "note: previous" } */
 }
 
 static int test7(int x)		/* { dg-error "follows non-static" } */
@@ -94,7 +95,7 @@ static int test7(int x)		/* { dg-error "follows non-static" } */
 
 void prime8(void)
 {
-  test8();			/* { dg-message "note: previous" "" } */
+  test8();			/* { dg-message "note: previous" } */
                                 /* { dg-warning "implicit" "implicit" { target *-*-* } .-1 } */
 }
 

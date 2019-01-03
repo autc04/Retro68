@@ -39,6 +39,7 @@ _start:
 	vpopcntd	zmm6, ZMMWORD PTR [ecx]	 # AVX512_VPOPCNTDQ
 	vpopcntd	zmm6, ZMMWORD PTR [esp+esi*8-123456]	 # AVX512_VPOPCNTDQ
 	vpopcntd	zmm6, [eax]{1to16}	 # AVX512_VPOPCNTDQ
+	vpopcntd	zmm6, DWORD PTR [eax]{1to16}	 # AVX512_VPOPCNTDQ
 	vpopcntd	zmm6, ZMMWORD PTR [edx+8128]	 # AVX512_VPOPCNTDQ Disp8
 	vpopcntd	zmm6, ZMMWORD PTR [edx+8192]	 # AVX512_VPOPCNTDQ
 	vpopcntd	zmm6, ZMMWORD PTR [edx-8192]	 # AVX512_VPOPCNTDQ Disp8
@@ -53,6 +54,7 @@ _start:
 	vpopcntq	zmm6, ZMMWORD PTR [ecx]	 # AVX512_VPOPCNTDQ
 	vpopcntq	zmm6, ZMMWORD PTR [esp+esi*8-123456]	 # AVX512_VPOPCNTDQ
 	vpopcntq	zmm6, [eax]{1to8}	 # AVX512_VPOPCNTDQ
+	vpopcntq	zmm6, QWORD PTR [eax]{1to8}	 # AVX512_VPOPCNTDQ
 	vpopcntq	zmm6, ZMMWORD PTR [edx+8128]	 # AVX512_VPOPCNTDQ Disp8
 	vpopcntq	zmm6, ZMMWORD PTR [edx+8192]	 # AVX512_VPOPCNTDQ
 	vpopcntq	zmm6, ZMMWORD PTR [edx-8192]	 # AVX512_VPOPCNTDQ Disp8

@@ -52,17 +52,29 @@ extern "C" {
 #define _FNOFOLLOW      0x100000
 #define _FDIRECTORY     0x200000
 #define _FEXECSRCH      0x400000
+#define _FTMPFILE       0x800000
+#define _FNOATIME       0x1000000
 
 #define O_BINARY	_FBINARY
 #define O_TEXT		_FTEXT
-#define O_CLOEXEC	_FNOINHERIT
-#define O_DIRECT        _FDIRECT
-#define O_NOFOLLOW      _FNOFOLLOW
 #define O_DSYNC         _FSYNC
 #define O_RSYNC         _FSYNC
-#define O_DIRECTORY     _FDIRECTORY
 #define O_EXEC          _FEXECSRCH
 #define O_SEARCH        _FEXECSRCH
+
+/* POSIX-1.2008 specific flags */
+#if __POSIX_VISIBLE >= 200809
+#define O_CLOEXEC	_FNOINHERIT
+#define O_NOFOLLOW      _FNOFOLLOW
+#define O_DIRECTORY     _FDIRECTORY
+#endif
+
+/* Linux-specific flags */
+#if __GNU_VISIBLE
+#define O_DIRECT        _FDIRECT
+#define O_TMPFILE	_FTMPFILE
+#define O_NOATIME	_FNOATIME
+#endif
 #endif
 
 #if __MISC_VISIBLE
@@ -187,27 +199,27 @@ struct eflock {
 #include <sys/types.h>
 #include <sys/stat.h>		/* sigh. for the mode bits for open/creat */
 
-extern int open _PARAMS ((const char *, int, ...));
+extern int open (const char *, int, ...);
 #if __ATFILE_VISIBLE
-extern int openat _PARAMS ((int, const char *, int, ...));
+extern int openat (int, const char *, int, ...);
 #endif
-extern int creat _PARAMS ((const char *, mode_t));
-extern int fcntl _PARAMS ((int, int, ...));
+extern int creat (const char *, mode_t);
+extern int fcntl (int, int, ...);
 #if __BSD_VISIBLE
-extern int flock _PARAMS ((int, int));
+extern int flock (int, int);
 #endif
 #if __GNU_VISIBLE
 #include <sys/time.h>
-extern int futimesat _PARAMS ((int, const char *, const struct timeval *));
+extern int futimesat (int, const char *, const struct timeval *);
 #endif
 
 /* Provide _<systemcall> prototypes for functions provided by some versions
    of newlib.  */
 #ifdef _COMPILING_NEWLIB
-extern int _open _PARAMS ((const char *, int, ...));
-extern int _fcntl _PARAMS ((int, int, ...));
+extern int _open (const char *, int, ...);
+extern int _fcntl (int, int, ...);
 #ifdef __LARGE64_FILES
-extern int _open64 _PARAMS ((const char *, int, ...));
+extern int _open64 (const char *, int, ...);
 #endif
 #endif
 

@@ -7,15 +7,10 @@ INDEX
 INDEX
 	unctrllen
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <unctrl.h>
 	char *unctrl(int <[c]>);
 	int unctrllen(int <[c]>);
-
-TRAD_SYNOPSIS
-	#include <unctrl.h>
-	char *unctrl(<[c]>);
-	int unctrllen(<[c]>);
 
 DESCRIPTION
 <<unctrl>> is a macro which returns the printable representation of <[c]>
@@ -74,7 +69,7 @@ No supporting OS subroutines are required.
 static char sccsid[] = "@(#)unctrl.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
-_CONST char * _CONST __unctrl[256] = {
+const char * const __unctrl[256] = {
 	"^@",  "^A",  "^B",  "^C",  "^D",  "^E",  "^F",  "^G",
 	"^H",  "^I",  "^J",  "^K",  "^L",  "^M",  "^N",  "^O",
 	"^P",  "^Q",  "^R",  "^S",  "^T",  "^U",  "^V",  "^W",
@@ -110,7 +105,7 @@ _CONST char * _CONST __unctrl[256] = {
 	"0xf8", "0xf9",	"0xfa", "0xfb", "0xfc", "0xfd", "0xfe", "0xff",
 };
 
-_CONST char __unctrllen[256] = {
+const char __unctrllen[256] = {
 	2, 2, 2, 2, 2, 2, 2, 2,
 	2, 2, 2, 2, 2, 2, 2, 2,
 	2, 2, 2, 2, 2, 2, 2, 2,

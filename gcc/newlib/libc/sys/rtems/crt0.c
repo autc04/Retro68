@@ -10,12 +10,13 @@
  *  but this is enough to satisfy the autoconf macro AC_PROG_CC.
  */
 
+#include <sys/lock.h>
+#include <sys/stat.h>
+#include <sys/uio.h>
 #include <reent.h>
-
-#include <signal.h> /* sigset_t */
-#include <time.h> /* struct timespec */
-#include <unistd.h> /* isatty */
-#include <sys/lock.h> /* _Mutex_recursive_Control */
+#include <signal.h>
+#include <time.h>
+#include <unistd.h>
 #include <machine/_arc4random.h>
 #include <machine/_libatomic.h>
 
@@ -29,7 +30,7 @@ ret func body
 RTEMS_STUB(void *,malloc(size_t s), { return 0; })
 RTEMS_STUB(void *,realloc(void* p, size_t s), { return 0; })
 RTEMS_STUB(void, free(void* ptr), { })
-RTEMS_STUB(_PTR, calloc(size_t s1, size_t s2), { return 0; })
+RTEMS_STUB(void *, calloc(size_t s1, size_t s2), { return 0; })
 RTEMS_STUB(int, posix_memalign(void **p, size_t si, size_t s2), { return -1; })
 
 /* Stubs for routines from RTEMS <sys/lock.h> */
@@ -68,7 +69,7 @@ RTEMS_STUB(void, _Libatomic_Lock_n(void *ptr, __size_t n), { });
 RTEMS_STUB(void, _Libatomic_Unlock_n(void *ptr, __size_t n), { });
 
 /* Stubs for routines for arc4random (from <unistd.h> and <machine/_arc4random.h> */
-RTEMS_STUB(int,  getentropy(void *ptr, __size_t n), { });
+RTEMS_STUB(int,  getentropy(void *ptr, __size_t n), { return -1; });
 RTEMS_STUB(void, _arc4random_getentropy_fail(void), { });
 
 #if defined(__GNUC__)
@@ -97,6 +98,7 @@ RTEMS_STUB(int, access(const char *pathname, int mode), { return -1; })
 RTEMS_STUB(int, clock_gettime(clockid_t clk_id, struct timespec *tp), { return -1; })
 RTEMS_STUB(int, close (int fd), { return -1; })
 RTEMS_STUB(int, dup2(int oldfd, int newfd), { return -1; })
+RTEMS_STUB(int, fchmod(int fd, mode_t mode ), { return -1; })
 RTEMS_STUB(int, fcntl( int fd, int cmd, ... /* arg */ ), { return -1; })
 RTEMS_STUB(pid_t, fork(void), { return -1; })
 RTEMS_STUB(int, fstat(int fd, struct stat *buf), { return -1; })
@@ -113,10 +115,12 @@ RTEMS_STUB(int, lstat(const char *path, struct stat *buf), { return -1; })
 RTEMS_STUB(int, open(const char *pathname, int flags, int mode), { return -1; })
 RTEMS_STUB(int, pipe(int pipefd[2]), { return -1; })
 RTEMS_STUB(_ssize_t, read(int fd, void *buf, size_t count), { return -1; })
+RTEMS_STUB(ssize_t, readv (int fd, const struct iovec *iov, int iovcnt), { return -1; })
 RTEMS_STUB(int, sched_yield(void), { return -1; })
 RTEMS_STUB(int, sigfillset(sigset_t *set), { return -1; })
 RTEMS_STUB(int, sigprocmask(int how, const sigset_t *set, sigset_t *oldset), { return -1; })
 RTEMS_STUB(int, stat(const char *path, struct stat *buf), { return -1; })
+RTEMS_STUB(long, sysconf(int name), { return -1; })
 RTEMS_STUB(int, unlink(const char *pathname), { return -1; })
 RTEMS_STUB(pid_t, vfork(void), { return -1; })
 #if !defined(_NO_POPEN) && !defined(_NO_WORDEXP)
@@ -124,6 +128,7 @@ RTEMS_STUB(pid_t, vfork(void), { return -1; })
 RTEMS_STUB(int, waitpid (pid_t pid, int *status, int options), { return -1; })
 #endif
 RTEMS_STUB(_ssize_t, write (int fd, const void *buf, size_t nbytes), { return -1; })
+RTEMS_STUB(ssize_t, writev (int fd, const struct iovec *iov, int iovcnt), { return -1; })
 
 /* stubs for functions from reent.h */
 RTEMS_STUB(int, _close_r (struct _reent *r, int fd), { return -1; })
@@ -141,6 +146,7 @@ RTEMS_STUB(int, _fstat_r (struct _reent *r, int fd, struct stat *buf), { return 
 RTEMS_STUB(uid_t, geteuid (), { return -1; })
 RTEMS_STUB(gid_t, getgid (), { return -1; })
 RTEMS_STUB(gid_t, _getgid_r (struct _reent *r), { return -1; })
+RTEMS_STUB(struct _reent *, __getreent (void), { return 0; })
 RTEMS_STUB(pid_t, getpid (), { return -1; })
 RTEMS_STUB(pid_t, getppid (), { return -1; })
 RTEMS_STUB(pid_t, _getpid_r (struct _reent *r), { return -1; })
@@ -180,10 +186,10 @@ RTEMS_STUB(int, issetugid (void), { return 0; })
 #endif
 
 /* stdlib.h */
-RTEMS_STUB(_PTR, _realloc_r(struct _reent *r, _PTR p, size_t s), { return 0; })
-RTEMS_STUB(_PTR, _calloc_r(struct _reent *r, size_t s1, size_t s2), { return 0; })
-RTEMS_STUB(_PTR, _malloc_r(struct _reent * r, size_t s), { return 0; })
-RTEMS_STUB(_VOID, _free_r(struct _reent *r, _PTR *p), { })
+RTEMS_STUB(void *, _realloc_r(struct _reent *r, void *p, size_t s), { return 0; })
+RTEMS_STUB(void *, _calloc_r(struct _reent *r, size_t s1, size_t s2), { return 0; })
+RTEMS_STUB(void *, _malloc_r(struct _reent * r, size_t s), { return 0; })
+RTEMS_STUB(void, _free_r(struct _reent *r, void **p), { })
 
 /* stubs for functions required by libc/stdlib */
 RTEMS_STUB(void, __assert_func(const char *file, int line, const char *failedexpr), { })

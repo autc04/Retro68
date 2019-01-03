@@ -2,14 +2,9 @@
 FUNCTION
 	<<wcspbrk>>----scan wide-character string for a wide-character code
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <wchar.h>
 	wchar_t *wcspbrk(const wchar_t *<[s]>, const wchar_t *<[set]>);
-
-TRAD_SYNOPSIS
-	wchar_t *wcspbrk(<[s]>, <[set]>
-	const wchar_t *<[s]>;
-	const wchar_t *<[set]>;
 
 DESCRIPTION
 	The <<wcspbrk>> function locates the first occurrence in the
@@ -62,12 +57,11 @@ No supporting OS subroutines are required.
 #include <wchar.h>
 
 wchar_t *
-_DEFUN (wcspbrk, (s, set),
-	_CONST wchar_t * s _AND
-	_CONST wchar_t * set)
+wcspbrk (const wchar_t * s,
+	const wchar_t * set)
 {
-  _CONST wchar_t *p;
-  _CONST wchar_t *q;
+  const wchar_t *p;
+  const wchar_t *q;
 
   p = s;
   while (*p)

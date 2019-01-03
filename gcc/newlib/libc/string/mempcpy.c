@@ -2,15 +2,9 @@
 FUNCTION
         <<mempcpy>>---copy memory regions and return end pointer
 
-ANSI_SYNOPSIS
+SYNOPSIS
         #include <string.h>
         void* mempcpy(void *<[out]>, const void *<[in]>, size_t <[n]>);
-
-TRAD_SYNOPSIS
-        void *mempcpy(<[out]>, <[in]>, <[n]>
-        void *<[out]>;
-        void *<[in]>;
-        size_t <[n]>;
 
 DESCRIPTION
         This function copies <[n]> bytes from the memory region
@@ -48,10 +42,9 @@ PORTABILITY
 /* Threshhold for punting to the byte copier.  */
 #define TOO_SMALL(LEN)  ((LEN) < BIGBLOCKSIZE)
 
-_PTR
-_DEFUN (mempcpy, (dst0, src0, len0),
-	_PTR dst0 _AND
-	_CONST _PTR src0 _AND
+void *
+mempcpy (void *dst0,
+	const void *src0,
 	size_t len0)
 {
 #if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
@@ -66,9 +59,9 @@ _DEFUN (mempcpy, (dst0, src0, len0),
   return dst;
 #else
   char *dst = dst0;
-  _CONST char *src = src0;
+  const char *src = src0;
   long *aligned_dst;
-  _CONST long *aligned_src;
+  const long *aligned_src;
 
   /* If the size is small, or either SRC or DST is unaligned,
      then punt into the byte copy loop.  This should be rare.  */

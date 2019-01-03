@@ -25,7 +25,7 @@ INDEX
 INDEX
 	strftime_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <time.h>
 	size_t strftime(char *restrict <[s]>, size_t <[maxsize]>,
 			const char *restrict <[format]>,
@@ -34,14 +34,6 @@ ANSI_SYNOPSIS
 			  const char *restrict <[format]>,
 			  const struct tm *restrict <[timp]>,
 			  locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <time.h>
-	size_t strftime(<[s]>, <[maxsize]>, <[format]>, <[timp]>)
-	char *<[s]>;
-	size_t <[maxsize]>;
-	char *<[format]>;
-	struct tm *<[timp]>;
 
 DESCRIPTION
 <<strftime>> converts a <<struct tm>> representation of the time (at
@@ -349,15 +341,14 @@ locale, hard-coding the "C" locale settings.
 #  error "YEAR_BASE < 0"
 #endif
 
-static _CONST int dname_len[7] =
+static const int dname_len[7] =
 {6, 6, 7, 9, 8, 6, 8};
 
 /* Using the tm_year, tm_wday, and tm_yday components of TIM_P, return
    -1, 0, or 1 as the adjustment to add to the year for the ISO week
    numbering used in "%g%G%V", avoiding overflow.  */
 static int
-_DEFUN (iso_year_adjust, (tim_p),
-	_CONST struct tm *tim_p)
+iso_year_adjust (const struct tm *tim_p)
 {
   /* Account for fact that tm_year==0 is year 1900.  */
   int leap = isleap (tim_p->tm_year + (YEAR_BASE
@@ -1439,11 +1430,10 @@ recurse:
 }
 
 size_t
-_DEFUN (strftime, (s, maxsize, format, tim_p),
-	CHAR *__restrict s _AND
-	size_t maxsize _AND
-	_CONST CHAR *__restrict format _AND
-	_CONST struct tm *__restrict tim_p)
+strftime (CHAR *__restrict s,
+	size_t maxsize,
+	const CHAR *__restrict format,
+	const struct tm *__restrict tim_p)
 {
 #ifdef _WANT_C99_TIME_FORMATS
   era_info_t *era_info = NULL;

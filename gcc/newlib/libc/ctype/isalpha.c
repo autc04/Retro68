@@ -8,16 +8,12 @@ INDEX
 INDEX
 	isalpha_l
 
-ANSI_SYNOPSIS
+SYNOPSIS
 	#include <ctype.h>
 	int isalpha(int <[c]>);
 
 	#include <ctype.h>
 	int isalpha_l(int <[c]>, locale_t <[locale]>);
-
-TRAD_SYNOPSIS
-	#include <ctype.h>
-	int isalpha(<[c]>);
 
 DESCRIPTION
 <<isalpha>> is a macro which classifies singlebyte charset values by table
@@ -47,7 +43,7 @@ No supporting OS subroutines are required.
 
 #undef isalpha
 int
-_DEFUN(isalpha,(c),int c)
+isalpha (int c)
 {
 	return(__CTYPE_PTR[c+1] & (_U|_L));
 }

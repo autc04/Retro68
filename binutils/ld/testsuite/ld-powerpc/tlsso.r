@@ -46,7 +46,7 @@ Program Headers:
 
 Relocation section '\.rela\.dyn' at offset .* contains 18 entries:
  +Offset +Info +Type +Symbol's Value +Symbol's Name \+ Addend
-[0-9a-f ]+R_PPC64_RELATIVE +55c
+[0-9a-f ]+R_PPC64_RELATIVE +4fc
 [0-9a-f ]+R_PPC64_RELATIVE +18800
 [0-9a-f ]+R_PPC64_TPREL16 +0+60 le0 \+ 0
 [0-9a-f ]+R_PPC64_TPREL16_HA +0+68 le1 \+ 0
@@ -65,7 +65,7 @@ Relocation section '\.rela\.dyn' at offset .* contains 18 entries:
 [0-9a-f ]+R_PPC64_DTPREL64 +0+38 gd0 \+ 0
 [0-9a-f ]+R_PPC64_TPREL64 +0+58 ie0 \+ 0
 
-Relocation section '\.rela\.plt' at offset .* contains 1 entries:
+Relocation section '\.rela\.plt' at offset .* contains 1 entry:
  +Offset +Info +Type +Symbol's Value +Symbol's Name \+ Addend
 [0-9a-f ]+R_PPC64_JMP_SLOT +0+ __tls_get_addr \+ 0
 
@@ -83,9 +83,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* FUNC +GLOBAL +DEFAULT +10 _start
 .* TLS +GLOBAL +DEFAULT +8 ld2
 .* TLS +GLOBAL +DEFAULT +8 ld1
-.* NOTYPE +GLOBAL +DEFAULT +12 __bss_start
-.* NOTYPE +GLOBAL +DEFAULT +12 _edata
-.* NOTYPE +GLOBAL +DEFAULT +12 _end
 .* TLS +GLOBAL +DEFAULT +8 gd0
 .* TLS +GLOBAL +DEFAULT +8 ie0
 
@@ -114,8 +111,8 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +LOCAL +DEFAULT +7 le5
 .* FILE +LOCAL +DEFAULT +ABS 
 .* OBJECT +LOCAL +DEFAULT +9 _DYNAMIC
-.* NOTYPE +LOCAL +DEFAULT +6 .*\.plt_call\.__tls_get_addr
 .* NOTYPE +LOCAL +DEFAULT +6 __glink_PLTresolve
+.* NOTYPE +LOCAL +DEFAULT +6 .*\.plt_call\.__tls_get_addr
 .* TLS +GLOBAL +DEFAULT +UND gd
 .* TLS +GLOBAL +DEFAULT +8 le0
 .* NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
@@ -125,8 +122,5 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* FUNC +GLOBAL +DEFAULT +10 _start
 .* TLS +GLOBAL +DEFAULT +8 ld2
 .* TLS +GLOBAL +DEFAULT +8 ld1
-.* NOTYPE +GLOBAL +DEFAULT +12 __bss_start
-.* NOTYPE +GLOBAL +DEFAULT +12 _edata
-.* NOTYPE +GLOBAL +DEFAULT +12 _end
 .* TLS +GLOBAL +DEFAULT +8 gd0
 .* TLS +GLOBAL +DEFAULT +8 ie0

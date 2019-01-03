@@ -38,7 +38,7 @@ THIS SOFTWARE.
 #include "gd_qnan.h"
 
 #if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && !defined(_SMALL_HEXDIG)
-_CONST unsigned char __hexdig[256]=
+const unsigned char __hexdig[256]=
 {
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -59,8 +59,7 @@ _CONST unsigned char __hexdig[256]=
 };
 #else /* !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && !defined(_SMALL_HEXDIG) */
 unsigned char
-_DEFUN (__hexdig_fun, (c),
-		unsigned char c)
+__hexdig_fun (unsigned char c)
 {
 	if(c>='0' && c<='9') return c-'0'+0x10;
 	else if(c>='a' && c<='f') return c-'a'+0x10+10;
@@ -70,8 +69,7 @@ _DEFUN (__hexdig_fun, (c),
 #endif /* !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__) && !defined(_SMALL_HEXDIG) */
 
 static void
-_DEFUN(rshift, (b, k),
-	_Bigint *b _AND
+rshift (_Bigint *b,
 	int k)
 {
 	__ULong *x, *x1, *xe, y;
@@ -101,8 +99,7 @@ _DEFUN(rshift, (b, k),
 }
 
 static _Bigint *
-_DEFUN (increment, (ptr, b),
-	struct _reent *ptr _AND
+increment (struct _reent *ptr,
 	_Bigint *b)
 {
 	__ULong *x, *xe;
@@ -149,7 +146,7 @@ gethex (struct _reent *ptr, const char **sp, const FPI *fpi,
 	Long *exp, _Bigint **bp, int sign, locale_t loc)
 {
 	_Bigint *b;
-	_CONST unsigned char *decpt, *s0, *s, *s1;
+	const unsigned char *decpt, *s0, *s, *s1;
 	int esign, havedig, irv, k, n, nbits, up, zret;
 	__ULong L, lostbits, *x;
 	Long e, e1;
@@ -159,7 +156,7 @@ gethex (struct _reent *ptr, const char **sp, const FPI *fpi,
 	unsigned char decp_end = decimalpoint[decp_len - 1];
 
 	havedig = 0;
-	s0 = *(_CONST unsigned char **)sp + 2;
+	s0 = *(const unsigned char **)sp + 2;
 	while(s0[havedig] == '0')
 		havedig++;
 	s0 += havedig;
