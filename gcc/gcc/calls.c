@@ -22,7 +22,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "backend.h"
 #include "target.h"
-#include "tm.h"
 #include "rtl.h"
 #include "tree.h"
 #include "gimple.h"
@@ -396,9 +395,7 @@ emit_call_1 (rtx funexp, tree fntree ATTRIBUTE_UNUSED, tree fndecl ATTRIBUTE_UNU
 	     poly_int64 struct_value_size ATTRIBUTE_UNUSED,
 	     rtx next_arg_reg ATTRIBUTE_UNUSED, rtx valreg,
 	     int old_inhibit_defer_pop, rtx call_fusage, int ecf_flags,
-	     cumulative_args_t args_so_far ATTRIBUTE_UNUSED,
-
-             bool is_pascal)
+	     cumulative_args_t args_so_far ATTRIBUTE_UNUSED)
 {
   rtx rounded_stack_size_rtx = gen_int_mode (rounded_stack_size, Pmode);
   rtx call, funmem, pat;
@@ -598,24 +595,6 @@ emit_call_1 (rtx funexp, tree fntree ATTRIBUTE_UNUSED, tree fndecl ATTRIBUTE_UNU
      such machines.  */
   else if (maybe_ne (n_popped, 0))
     anti_adjust_stack (gen_int_mode (n_popped, Pmode));
-
-
-  if (is_pascal)
-    {
-      if (valreg)
-        {
-          poly_uint16 modesize = GET_MODE_SIZE (GET_MODE (valreg));
-#ifdef PUSH_ROUNDING
-          modesize = PUSH_ROUNDING (modesize);
-#endif
-          rtx pop_insn = emit_move_insn(valreg,
-                       gen_rtx_MEM( GET_MODE (valreg),
-			            stack_pointer_rtx
-                               ));
-      
-	  adjust_stack(gen_int_mode (modesize, Pmode));
-        }
-    }
 }
 
 /* Determine if the function identified by FNDECL is one with
@@ -1952,7 +1931,7 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
 				 poly_int64_pod *old_pending_adj,
 				 int *must_preallocate, int *ecf_flags,
 				 bool *may_tailcall, bool call_from_thunk_p,
-                                 bool reverse_args)
+				 bool reverse_args)
 {
   CUMULATIVE_ARGS *args_so_far_pnt = get_cumulative_args (args_so_far);
   location_t loc = EXPR_LOCATION (exp);
@@ -1981,8 +1960,6 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
       i = 0, inc = 1;
     }
 
-  /* First fill in the actual arguments in the ARGS array, splitting
-     complex arguments if necessary.  */
   {
     int j = i, ptr_arg = -1;
     call_expr_arg_iterator iter;
@@ -3523,11 +3500,8 @@ expand_call (tree exp, rtx target, int ignore)
   /* The static chain value to use for this call.  */
   rtx static_chain_value;
 
-  /* Nonzero if this is a call to a pascal-declared function. */
-  bool is_pascal = false /* ### */;
-  /* The mode of the value being returned by a pascal-declared function. */
-  enum machine_mode pascal_return_mode = VOIDmode;
-
+  /* True if this is a call to a pascal-declared function. */
+  bool is_pascal = false;
 
   /* See if this is "nothrow" function call.  */
   if (TREE_NOTHROW (exp))
@@ -3774,7 +3748,7 @@ expand_call (tree exp, rtx target, int ignore)
 				   &old_stack_level, &old_pending_adj,
 				   &must_preallocate, &flags,
 				   &try_tail_call, CALL_FROM_THUNK_P (exp),
-                                   is_pascal);
+				   is_pascal);
 
   if (args_size.var)
     must_preallocate = 1;
@@ -4239,8 +4213,8 @@ expand_call (tree exp, rtx target, int ignore)
 #endif
 
       if (is_pascal)
-	{ /* ### */
-	  pascal_return_mode = TYPE_MODE (TREE_TYPE (funtype));
+	{
+	  auto pascal_return_mode = TYPE_MODE (TREE_TYPE (funtype));
 	  poly_uint16 modesize = GET_MODE_SIZE (pascal_return_mode);
 #ifdef PUSH_ROUNDING
 	  modesize = PUSH_ROUNDING (modesize);
@@ -4335,13 +4309,10 @@ expand_call (tree exp, rtx target, int ignore)
       valreg = 0;
       valbnd = 0;
       if (TYPE_MODE (rettype) != VOIDmode
-	  && ! structure_value_addr)
+	  && ! structure_value_addr
+	  && ! is_pascal)
 	{
-	  if (is_pascal)
-	    {
-	      valreg = gen_reg_rtx(TYPE_MODE(rettype));
-	    }
-	  else if (pcc_struct_value)
+	  if (pcc_struct_value)
 	    {
 	      valreg = hard_function_value (build_pointer_type (rettype),
 					    fndecl, NULL, (pass == 0));
@@ -4459,7 +4430,28 @@ expand_call (tree exp, rtx target, int ignore)
       emit_call_1 (funexp, exp, fndecl, funtype, unadjusted_args_size,
 		   adjusted_args_size.constant, struct_value_size,
 		   next_arg_reg, valreg, old_inhibit_defer_pop, call_fusage,
-		   flags, args_so_far, is_pascal);
+		   flags, args_so_far);
+
+      if (is_pascal)
+      {
+	if (TYPE_MODE (rettype) != VOIDmode
+	    && ! structure_value_addr)
+	  {
+	    valreg = gen_reg_rtx(TYPE_MODE(rettype));
+
+	    poly_uint16 modesize = GET_MODE_SIZE (GET_MODE (valreg));
+#ifdef PUSH_ROUNDING
+	    modesize = PUSH_ROUNDING (modesize);
+#endif
+	    emit_move_insn(valreg,
+			   gen_rtx_MEM( GET_MODE (valreg),
+					stack_pointer_rtx
+			   ));
+
+	    adjust_stack(gen_int_mode (modesize, Pmode));
+	  }
+	}
+
 
       if (flag_ipa_ra)
 	{
@@ -5509,8 +5501,7 @@ emit_library_call_value_1 (int retval, rtx orgfun, rtx value,
 	       targetm.calls.function_arg (args_so_far,
 					   VOIDmode, void_type_node, true),
 	       valreg,
-	       old_inhibit_defer_pop + 1, call_fusage, flags, args_so_far,
-               false /*is_pascal*/);
+	       old_inhibit_defer_pop + 1, call_fusage, flags, args_so_far);
 
   if (flag_ipa_ra)
     {

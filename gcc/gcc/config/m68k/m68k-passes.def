@@ -19,4 +19,4 @@
 	//			; <-- when csa figures out that no actual push or pop is needed
 	// jsr foo
 
-  INSERT_PASS_AFTER (pass_combine, 1, pass_stack_adjustments);
+INSERT_PASS_AFTER (pass_combine, 1, pass_stack_adjustments);
