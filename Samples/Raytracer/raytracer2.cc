@@ -76,7 +76,7 @@ public:
 		//if(l == 0)
 		//	return *this;
 		//else
-			return (*this) * (T(1) / length());
+			return (*this) * (T(1) / l);
 	}
 #else
 	vec3<T> normalize() const { 

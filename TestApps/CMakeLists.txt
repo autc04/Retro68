@@ -16,7 +16,6 @@
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
 cmake_minimum_required(VERSION 2.8)
-set(CMAKE_CXX_FLAGS "-std=c++11") # -fomit-frame-pointer")
 
 add_application(EmptyTest EmptyTest.c)
 

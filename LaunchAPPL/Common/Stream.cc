@@ -38,7 +38,7 @@ void Stream::notifyReset()
         listener_->onReset();
 }
 
-long Stream::read(void *p, size_t n)
+size_t Stream::read(void *p, size_t n)
 {
     if(buffer_.size() <= n)
     {

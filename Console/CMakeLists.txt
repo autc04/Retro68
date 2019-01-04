@@ -16,7 +16,6 @@
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
 cmake_minimum_required(VERSION 2.8)
-set(CMAKE_CXX_FLAGS "-std=c++11")
 
 add_library(RetroConsole
 	Console.cc
@@ -28,7 +27,13 @@ add_library(RetroConsole
 	)
 set_target_properties(retrocrt
 	PROPERTIES
-	    COMPILE_OPTIONS -ffunction-sections)
+        COMPILE_OPTIONS -ffunction-sections)
+
+# different library name for Carbon
+# (Carbon shares the powerpc-apple-macos/ directory with Classic PPC)
+if(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
+    set_target_properties(RetroConsole PROPERTIES OUTPUT_NAME RetroConsoleCarbon)
+endif()
 
 install(TARGETS RetroConsole  DESTINATION lib)
 

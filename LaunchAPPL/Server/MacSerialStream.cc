@@ -15,25 +15,23 @@ void MacSerialStream::close()
 {
     if(inRefNum == 0)
         return;
-	SerSetBuf(inRefNum, NULL, 0);
-	
-	CloseDriver(inRefNum);
-	CloseDriver(outRefNum);
+    SerSetBuf(inRefNum, NULL, 0);
+    
+    CloseDriver(inRefNum);
+    CloseDriver(outRefNum);
     inRefNum = outRefNum = 0;
 }
 
 void MacSerialStream::open()
 {
-	OSErr err;
-    err = OpenDriver(port ? "\p.BOut" : "\p.AOut", &outRefNum);
-	err = OpenDriver(port ? "\p.BIn" : "\p.AIn", &inRefNum);
-	SerSetBuf(inRefNum, inputBuffer, kInputBufferSize);
+    OpenDriver(port ? "\p.BOut" : "\p.AOut", &outRefNum);
+    OpenDriver(port ? "\p.BIn" : "\p.AIn", &inRefNum);
+    SerSetBuf(inRefNum, inputBuffer, kInputBufferSize);
 
-
-	SerShk shk;
-	memset(&shk, 0, sizeof(shk));
-	shk.fCTS = true;
-	Control(outRefNum, kSERDHandshake, &shk);
+    SerShk shk;
+    memset(&shk, 0, sizeof(shk));
+    shk.fCTS = true;
+    Control(outRefNum, kSERDHandshake, &shk);
     
     setBaud(curBaud);
 }
@@ -45,18 +43,18 @@ MacSerialStream::~MacSerialStream()
 
 void MacSerialStream::write(const void* p, size_t n)
 {
-	ParamBlockRec pb;
-	memset(&pb, 0, sizeof(pb));
-	pb.ioParam.ioRefNum = outRefNum;
-	pb.ioParam.ioBuffer = (Ptr)p;
-	pb.ioParam.ioReqCount = n;
+    ParamBlockRec pb;
+    memset(&pb, 0, sizeof(pb));
+    pb.ioParam.ioRefNum = outRefNum;
+        pb.ioParam.ioBuffer = (Ptr)p;
+        pb.ioParam.ioReqCount = n;
 	OSErr err = PBWriteSync(&pb);
 }
 
 void MacSerialStream::idle()
 {
     long count = 0;
-	SerGetBuf(inRefNum, &count);
+    SerGetBuf(inRefNum, &count);
     while(count > 0)
     {
         long count1 = count > kReadBufferSize ? kReadBufferSize : count;
@@ -89,7 +87,7 @@ void MacSerialStream::setBaud(int baud)
         case 115200:    baudval = 0; break;
         case 230400:    baudval = 0; break;
     }
-	SerReset(outRefNum, baudval | data8 | noParity | stop10);
+    SerReset(outRefNum, baudval | data8 | noParity | stop10);
 
     if(baud == 115200)
         Control(outRefNum, kSERD115KBaud, nullptr);

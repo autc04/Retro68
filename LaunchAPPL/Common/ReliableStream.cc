@@ -95,7 +95,7 @@ void ReliableStream::gotAck(uint8_t id)
     if(nAcked <= sentPackets.size())
     {
         ackedOutputPacket += nAcked;
-        for(int i = 0; i < nAcked; i++)
+        for(unsigned i = 0; i < nAcked; i++)
             sentPackets.pop_front();
 
         sendPackets();
@@ -110,7 +110,7 @@ void ReliableStream::gotNack(uint8_t id)
     if(nAcked <= sentPackets.size())
     {
         ackedOutputPacket += nAcked;
-        for(int i = 0; i < nAcked; i++)
+        for(unsigned i = 0; i < nAcked; i++)
             sentPackets.pop_front();
 
         sentOutputPacket = ackedOutputPacket;
@@ -171,8 +171,8 @@ void ReliableStream::sendOnePacket()
     };
     
     int match = 0, match2 = 0;
-    int i;
-    int consumed = 0;
+    size_t i;
+    size_t consumed = 0;
     for(i = 0; i < n; i++)
     {
         if(p[i] == magic1[match])
@@ -390,8 +390,8 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
 
         case State::skipping:
             {
-                int match = 0;
-                int i;
+                unsigned match = 0;
+                unsigned i;
                 for(i = 0; i < n; i++)
                 {
                     if(p[i] == magic1[match++])
@@ -401,7 +401,6 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
                             state = State::waiting;
                             return i-3;
                         }
-                            
                     }
                     else
                         match = 0;
@@ -412,9 +411,7 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
 
         case State::receiving:
             {
-                int i;
-
-                for(i = 0; i < n; i++)
+                for(unsigned i = 0; i < n; i++)
                 {
                     incomingPacket.push_back(p[i]);
 
@@ -461,5 +458,5 @@ size_t ReliableStream::onReceive(const uint8_t* p, size_t n)
             }
             break;
     }
-    assert(false);
+    std::abort();   // unreachable
 }

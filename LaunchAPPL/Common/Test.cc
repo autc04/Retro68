@@ -15,7 +15,7 @@ public:
     virtual void write(const void* p, size_t n)
     {
         std::cout << prefix << ": ";
-        for(int i = 0; i < n; i++)
+        for(size_t i = 0; i < n; i++)
             std::cout << std::hex << std::setfill('0') << std::setw(2) << (int) ((uint8_t*)p)[i] << " ";
         std::cout << std::endl;
         other->enqueueReceive(p,n);
@@ -45,7 +45,7 @@ public:
     size_t onReceive(const uint8_t* p, size_t n)
     {
         std::cout << prefix;
-        for(int i = 0; i < n; i++)
+        for(size_t i = 0; i < n; i++)
         {
             if(p[i] >= 128 || p[i] < 32)
                 std::cout << "\\x" << std::hex << (unsigned)p[i];

@@ -46,7 +46,7 @@ public:
 
 private:
     void write(const void *p, size_t n);
-    ssize_t read(void * p, size_t n);
+    size_t read(void * p, size_t n);
 };
 
 
@@ -140,10 +140,10 @@ SerialLauncher::~SerialLauncher()
 {
 }
 
-ssize_t SerialLauncher::read(void *p0, size_t n)
+size_t SerialLauncher::read(void *p0, size_t n)
 {
     uint8_t* p = (uint8_t*)p0;
-    ssize_t gotBytes = rStream.read(p, n);
+    size_t gotBytes = rStream.read(p, n);
     while(gotBytes < n)
     {
         rStream.flushWrite();

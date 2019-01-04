@@ -94,7 +94,7 @@ TCPLauncher::~TCPLauncher()
 ssize_t TCPLauncher::read(void *p0, size_t n)
 {
     uint8_t* p = (uint8_t*)p0;
-    ssize_t gotBytes = rStream.read(p, n);
+    size_t gotBytes = rStream.read(p, n);
     while(gotBytes < n)
     {
         rStream.flushWrite();

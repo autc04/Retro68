@@ -375,6 +375,9 @@ public:
                     state = State::launch;
                     return count;
                 }
+
+            default:
+                return 0;
         }
     }
 
@@ -412,8 +415,10 @@ public:
             else
             {
                 connection->suspend();
+#if TARGET_CPU_68K
                 if(void *seg = connection->segmentToUnload())
                     UnloadSeg(seg);
+#endif
                 gPrefs.inSubLaunch = true;
                 WritePrefs();
 
@@ -482,7 +487,7 @@ public:
                     memset(&lpb, 0, sizeof(lpb));
                     lpb.reserved1 = (unsigned long) LMGetCurApName();
                     lpb.reserved2 = 0;
-                    OSErr err = LaunchApplication(&lpb);
+                    LaunchApplication(&lpb);
                     ExitToShell();
                 }
                 onReset();
@@ -552,6 +557,8 @@ void ConnectionChanged()
             connection = std::make_unique<OpenTptConnectionProvider>(statusDisplay.get());;
             break;
 #endif
+        default:
+            ;
     }
     
     if(connection)
@@ -599,7 +606,6 @@ int main()
 #if TARGET_CPU_68K && !TARGET_RT_MAC_CFM
     short& ROM85      = *(short*) 0x028E;
 	Boolean is128KROM = (ROM85 > 0);
-	Boolean hasSysEnvirons = false;
 	Boolean hasWaitNextEvent = false;
     Boolean hasGestalt = false;
     Boolean hasAppleEvents = false;
@@ -609,11 +615,9 @@ int main()
 	if (is128KROM)
 	{
 		UniversalProcPtr trapUnimpl = GetToolTrapAddress(_Unimplemented);
-		UniversalProcPtr trapSysEnv = GetOSTrapAddress(_SysEnvirons);
         UniversalProcPtr trapWaitNextEvent = GetToolTrapAddress(_WaitNextEvent);
         UniversalProcPtr trapGestalt = GetOSTrapAddress(_Gestalt);
 
-		hasSysEnvirons = (trapSysEnv != trapUnimpl);
 		hasWaitNextEvent = (trapWaitNextEvent != trapUnimpl);
         hasGestalt = (trapGestalt != trapUnimpl);
 
@@ -631,8 +635,9 @@ int main()
         }
 	}
 #else
-	const Boolean hasSysEnvirons = true;
+#if !TARGET_API_MAC_CARBON
 	const Boolean hasWaitNextEvent = true;
+#endif
     const Boolean hasGestalt = true;
     const Boolean hasAppleEvents = true;
 #endif

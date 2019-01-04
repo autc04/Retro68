@@ -32,7 +32,7 @@ public:
 	{
 		printf("Foo::~Foo() was called. (delaying 1 sec)\n");
 
-		long start = TickCount();
+		unsigned long start = TickCount();
 		while(TickCount() < start + 60)
 			;
 	}
@@ -50,7 +50,7 @@ __attribute__((destructor))
 void des()
 {
 	printf("des() called. (delaying 1 sec)\n");
-	long start = TickCount();
+	unsigned long start = TickCount();
 	while(TickCount() < start + 60)
 		;
 }

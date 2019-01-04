@@ -1,5 +1,3 @@
-set(CMAKE_CXX_FLAGS "--std=c++11 -Wall -Werror=return-type -Wno-multichar")
-
 find_package(Boost COMPONENTS filesystem system REQUIRED)
 
 add_executable(MakePEF MakePEF.cc rs6000.h PEF.h)

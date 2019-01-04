@@ -85,12 +85,12 @@ int main(int argc, char** argv)
 	
 	std::cout << "Generating numbers..." << std::flush;
 	
-	const int n = 1000;
+	const size_t n = 1000;
 	std::vector<fixed> numbers(n);
 	std::vector<float> floats(n);
 	std::vector<double> doubles(n);
 
-	for(int i = 0; i < numbers.size(); i++)
+	for(size_t i = 0; i < numbers.size(); i++)
 	{
 		numbers[i] = fixed(std::rand(), fixed::raw());
 		floats[i] = float(std::rand()) / RAND_MAX;

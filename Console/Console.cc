@@ -19,7 +19,6 @@
 
 #include "Console.h"
 #include "MacUtils.h"
-#include "Events.h"
 #include "Fonts.h"
 #include "Processes.h"
 
@@ -254,7 +253,6 @@ void Console::write(const char *p, int n)
 std::string Console::ReadLine()
 {
 	std::string buffer;
-	EventRecord event;
 	char c;
 	
 	do

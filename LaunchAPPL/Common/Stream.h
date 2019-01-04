@@ -25,7 +25,7 @@ public:
 
     virtual void write(const void* p, size_t n) = 0;
     virtual void flushWrite() {}
-    long read(void *p, size_t n);
+    size_t read(void *p, size_t n);
 
     virtual bool readyToWrite() const { return true; }
     bool readyToRead() const { return !buffer_.empty(); }

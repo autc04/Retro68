@@ -85,7 +85,6 @@ void OpenTptStream::write(const void* p, size_t n)
 
 void OpenTptStream::tryReading()
 {
-    OSStatus err;
     OTResult result;
     OTFlags flags;
     do
