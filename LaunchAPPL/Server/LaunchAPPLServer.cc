@@ -293,7 +293,8 @@ public:
 
     void onReset()
     {
-        statusDisplay->SetStatus(gPrefs.port == Port::printerPort ? AppStatus::readyPrinter : AppStatus::readyModem, 0, 0);
+        AppStatus readyState{ (int)AppStatus::readyModem + (int)gPrefs.port - (int)Port::modemPort };
+        statusDisplay->SetStatus(readyState, 0, 0);
         state = State::command;
     }
 

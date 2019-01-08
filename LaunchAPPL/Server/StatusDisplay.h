@@ -9,6 +9,8 @@ enum class AppStatus
     empty = 0,
     readyModem = 1,
     readyPrinter,
+    readyMacTCP,
+    readyOpenTpt,
     downloading,
     upgrading,
     running,

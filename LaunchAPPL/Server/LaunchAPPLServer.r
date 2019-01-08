@@ -113,6 +113,8 @@ resource 'STR#' (128, purgeable) {
     {
         "Listening on Modem Port...";
         "Listening on Printer Port...";
+        "Listening on TCP port 1984 (MacTCP)...";
+        "Listening on TCP port 1984 (OpenTransport)...";
         "Downloading Application...";
         "Downloading Upgrade...";
         "Running Application...";
