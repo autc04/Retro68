@@ -331,8 +331,21 @@ public:
                     FSDelete("\pout", 0);
                     Create("\pout", 0, 'ttxt', 'TEXT');
 
+                    if(dataSize)
+                    {
                     state = State::data;
                     remainingSize = dataSize;
+                    }
+                    else if(rsrcSize)
+                    {
+                        FSClose(refNum);
+                        OpenRF("\pRetro68App", 0, &refNum);
+                        state = State::rsrc;
+                        remainingSize = rsrcSize;
+                    }
+                    else
+                        state = State::launch;
+
                     return 16;
                 }
 
@@ -350,9 +363,13 @@ public:
 
                     FSClose(refNum);
                     OpenRF("\pRetro68App", 0, &refNum);
+                    if(rsrcSize)
+                    {
                     state = State::rsrc;
                     remainingSize = rsrcSize;
-
+                    }
+                    else
+                        state = State::launch;
 
                     return count;
                 }
