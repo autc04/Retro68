@@ -62,10 +62,10 @@ void Section::SetRela(Elf_Scn *scn)
 		GElf_Rela rela;
 		gelf_getrela(data, i, &rela);
 
-		if(rela.r_offset < shdr.sh_addr || rela.r_offset >= shdr.sh_addr + shdr.sh_size)
+		if(rela.r_offset < shdr.sh_addr || rela.r_offset > shdr.sh_addr + shdr.sh_size - 4)
 		{
-			// For some reason, there sometimes are relocations beyond the end of the sections
-			// in LD output. That's bad. Let's ignore it.
+			// FIXME: There are sometimes relocations beyond the end of the sections
+			//        in LD output for some reason. That's bad. Let's ignore it.
 			continue;
 		}
 		relocs.push_back(rela);

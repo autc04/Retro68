@@ -94,7 +94,7 @@ pascal void* Retro68LoadSegment(uint8_t *p)
     	Handle RELA = NULL;
     	RELA = GetResource('RELA', id);
     	assert(RELA);
-		Retro68ApplyRelocations(base + 40, codeSize, *RELA, displacements);
+		Retro68ApplyRelocations(base + 40, codeSize - 40, *RELA, displacements);
 		HPurge(RELA);
     }
 

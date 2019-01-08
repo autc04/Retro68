@@ -131,7 +131,7 @@ void Retro68ApplyRelocations(uint8_t *base, uint32_t size, void *relocations, ui
 		uint8_t kind = val & 0x3;
 
 		assert(addrPtr >= base);
-		assert(addrPtr < base + size);
+		assert(addrPtr <= base + size - 4);
 
 		uint8_t *addr = (uint8_t*) READ_UNALIGNED_LONGWORD(addrPtr);
 		addr += displacements[kind];
