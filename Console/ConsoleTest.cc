@@ -1,23 +1,23 @@
-#include "Console.h"
+#include "retro/Console.h"
 #include <string.h>
 
-namespace Retro
+namespace retro
 {
 	void InitConsole();
 }
 
 int main()
 {
-	Retro::InitConsole();
+	retro::InitConsole();
 	std::string out = "Hello, world.\nEnter \"exit\" to quit.\n";
-	Retro::Console::currentInstance->write(out.data(), out.size());
+	retro::Console::currentInstance->write(out.data(), out.size());
 	
 	std::string in;
 	do
 	{
-		in = Retro::Console::currentInstance->ReadLine();
+		in = retro::Console::currentInstance->ReadLine();
 		out = "You Entered: " + in;
-		Retro::Console::currentInstance->write(out.data(), out.size());
+		retro::Console::currentInstance->write(out.data(), out.size());
 	} while(in != "exit\n");
 	return 0;
 }

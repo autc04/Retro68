@@ -15,15 +15,13 @@
 #   You should have received a copy of the GNU General Public License
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 2.8)
-
 add_library(RetroConsole
-	Console.cc
-	Console.h
-	ConsoleWindow.cc
-	ConsoleWindow.h
-	MacUtils.h
-	InitConsole.cc
+	retro/Console.cc
+	retro/Console.h
+	retro/ConsoleWindow.cc
+	retro/ConsoleWindow.h
+	retro/MacUtils.h
+	retro/InitConsole.cc
 	)
 set_target_properties(retrocrt
 	PROPERTIES
@@ -34,6 +32,7 @@ set_target_properties(retrocrt
 if(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
     set_target_properties(RetroConsole PROPERTIES OUTPUT_NAME RetroConsoleCarbon)
 endif()
+target_include_directories(RetroConsole PUBLIC .)
 
 install(TARGETS RetroConsole  DESTINATION lib)
 

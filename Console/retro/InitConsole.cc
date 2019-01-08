@@ -32,18 +32,19 @@
 #include "Console.h"
 #include "ConsoleWindow.h"
 
-namespace Retro
+namespace retro
 {
 	void InitConsole();
 }
 
-using namespace Retro;
+using namespace retro;
 
-void Retro::InitConsole()
+void retro::InitConsole()
 {
 	if(Console::currentInstance)
 		return;
-	
+    Console::currentInstance = (Console*) -1;
+
 #if !TARGET_API_MAC_CARBON
 	InitGraf(&qd.thePort);
 	InitFonts();
@@ -54,11 +55,26 @@ void Retro::InitConsole()
 #else
 	Rect r = (*GetMainDevice())->gdRect;
 #endif
+    {
+        // give MultiFinder a chance to bring the App to front
+        // see Technote TB 35 - MultiFinder Miscellanea
+        // "If your application [...] has the canBackground bit set in the
+        //  size resource, then it should call _EventAvail several times
+        //  (or _WaitNextEvent or _GetNextEvent) before putting up the splash
+        //  screen, or the splash screen will come up behind the frontmost
+        //  layer. If the canBackground bit is set, MultiFinder will not move
+        //  your layer to the front until you call _GetNextEvent,
+        //  _WaitNextEvent, or _EventAvail."
+        
+        EventRecord event;
+        for(int i = 0; i < 5; i++)
+            EventAvail(everyEvent, &event);
+    }
 
 	r.top += 40;
 	InsetRect(&r, 5,5);
 	
-	new ConsoleWindow(r, "\pRetro68 Console");
+	Console::currentInstance = new ConsoleWindow(r, "\pRetro68 Console");
 	InitCursor();
 }
 
@@ -83,7 +99,9 @@ extern "C" ssize_t _consoleread(int fd, void *buf, size_t count)
 	static std::string consoleBuf;
 	if(consoleBuf.size() == 0)
 	{
-		consoleBuf = Console::currentInstance->ReadLine() + "\n";
+		consoleBuf = Console::currentInstance->ReadLine();
+        if(!Console::currentInstance->IsEOF())
+            consoleBuf += "\n";
 	}
 	if(count > consoleBuf.size())
 		count = consoleBuf.size();

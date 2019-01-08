@@ -17,22 +17,22 @@
     along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <Quickdraw.h>
-#include <stdlib.h>
+#include <Windows.h>
+#include <vector>
+#include <string>
 
-class PortSetter
+#include "Console.h"
+
+namespace retro
 {
-   GrafPtr save;
-public:
-   PortSetter(GrafPtr port)
-   {
-      ::GetPort(&save);
-      ::SetPort(port);
-   }
+	class ConsoleWindow : public Console
+	{
+	public:
+		ConsoleWindow(Rect r, ConstStr255Param title);
+		~ConsoleWindow();
+	private:
+		WindowPtr win;
 
-   ~PortSetter()
-   {
-      ::SetPort(save);
-   }
-};
-
+		virtual char WaitNextChar();
+	};
+}

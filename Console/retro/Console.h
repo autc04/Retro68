@@ -23,14 +23,17 @@
 #include <vector>
 #include <string>
 
-namespace Retro
+namespace retro
 {
-
 	class Console
 	{
 	public:
+		Console();
 		Console(GrafPtr port, Rect r);
 		~Console();
+
+		void Reshape(Rect newBounds);
+
 		void Draw(Rect r);
 		void Draw() { Draw(bounds); }
 		void putch(char c);
@@ -44,8 +47,10 @@ namespace Retro
 		short GetCols() const { return cols; }
 		
 		void Idle();
+
+        bool IsEOF() const { return eof; }
 	private:
-		GrafPtr consolePort;
+		GrafPtr consolePort = nullptr;
 		Rect bounds;
 
 		std::vector<char> chars, onscreen;
@@ -53,15 +58,16 @@ namespace Retro
 		short cellSizeX;
 		short cellSizeY;
 
-		short rows, cols;
+		short rows = 0, cols = 0;
 
 		short cursorX, cursorY;
 
-		Rect dirtyRect;
+		Rect dirtyRect = {};
 		
-		long blinkTicks;
-		bool cursorDrawn;
-		bool cursorVisible;
+		long blinkTicks = 0;
+		bool cursorDrawn = false;
+		bool cursorVisible = true;
+        bool eof = false;
 
 		void PutCharNoUpdate(char c);
 		void Update();
@@ -73,13 +79,11 @@ namespace Retro
 		
 		void InvalidateCursor();
 
-		virtual char WaitNextChar() = 0;
+		virtual char WaitNextChar();
 	
 	protected:
-		Console();
 		void Init(GrafPtr port, Rect r);
 		
-		void Reshape(Rect newBounds);
 	};
 
 
