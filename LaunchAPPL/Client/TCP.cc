@@ -65,6 +65,8 @@ TCPStream::TCPStream(po::variables_map &options)
 TCPStream::~TCPStream()
 {
     close(fd);
+    // a little hack: delay 0.1 seconds so that LaunchAPPLServer has time to reopen the port
+    usleep(100000);
 }
 
 void TCPStream::write(const void* p, size_t n)
