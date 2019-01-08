@@ -300,6 +300,9 @@ public:
 
     size_t onReceive(const uint8_t* p, size_t n)
     {
+#ifdef DEBUG_CONSOLE
+        printf("Received %d bytes in state %d.\n", (int)n, (int)state);
+#endif
         switch(state)
         {
             case State::command:
@@ -309,6 +312,7 @@ public:
                     command = (RemoteCommand)p[0];
                     if(command == RemoteCommand::launchApp || command == RemoteCommand::upgradeLauncher)
                         state = State::header;
+
                     return 1;
                 }
 
@@ -333,8 +337,8 @@ public:
 
                     if(dataSize)
                     {
-                    state = State::data;
-                    remainingSize = dataSize;
+                        state = State::data;
+                        remainingSize = dataSize;
                     }
                     else if(rsrcSize)
                     {
@@ -365,8 +369,8 @@ public:
                     OpenRF("\pRetro68App", 0, &refNum);
                     if(rsrcSize)
                     {
-                    state = State::rsrc;
-                    remainingSize = rsrcSize;
+                        state = State::rsrc;
+                        remainingSize = rsrcSize;
                     }
                     else
                         state = State::launch;
@@ -458,6 +462,9 @@ public:
                 }
                 else
                 {
+#ifdef DEBUG_CONSOLE
+                    printf("Failed to Launch.\n");
+#endif
                     connection->resume();
                     onReset();
                 }

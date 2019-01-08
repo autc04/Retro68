@@ -25,10 +25,17 @@ else()
         )
 endif()
 
+option(LAUNCHAPPLSERVER_DEBUG_CONSOLE "Add a debug console to LaunchAPPLServer" FALSE)
+
+set(MAYBE_CONSOLE)
+if(LAUNCHAPPLSERVER_DEBUG_CONSOLE)
+    set(MAYBE_CONSOLE "CONSOLE")
+endif()
 
 add_application(LaunchAPPLServer 
     TYPE "APPL"
     CREATOR "R68L"
+    ${MAYBE_CONSOLE}
 
     LaunchAPPLServer.r
     LauncherIcon.r
@@ -46,6 +53,9 @@ add_application(LaunchAPPLServer
 
     ${CONNECTION_SOURCES}
 )
+if(LAUNCHAPPLSERVER_DEBUG_CONSOLE)
+    target_compile_definitions(LaunchAPPLServer PRIVATE DEBUG_CONSOLE)
+endif()
 
 target_link_libraries(LaunchAPPLServer LaunchAPPLCommon)
 set_target_properties(LaunchAPPLServer PROPERTIES

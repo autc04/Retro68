@@ -3,6 +3,9 @@
 #include <TextUtils.h>
 
 #include "Window.h"
+#ifdef DEBUG_CONSOLE
+#include <retro/Console.h>
+#endif
 
 enum class AppStatus
 {
@@ -38,6 +41,11 @@ class StatusDisplay : public Window
     short columnWidths[6];
 
     PixPatHandle progressBg, progressFg;
+
+#ifdef DEBUG_CONSOLE
+    Rect consoleRect;
+    retro::Console console;
+#endif
 
     enum class Stat : short;
 

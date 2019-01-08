@@ -72,6 +72,22 @@ StatusDisplay::StatusDisplay()
                 tableTop + (i/2+1) * tableLineHeight);
     }
 
+#ifdef DEBUG_CONSOLE
+    short consoleTop = tableTop + (nValues+1)/2 * tableLineHeight + 10;
+    SetRect(&consoleRect, 10, consoleTop,
+            bounds.right - 10, consoleTop + 150);
+#if TARGET_API_MAC_CARBON
+    console = retro::Console(GetWindowPort(statusWindow), consoleRect);
+#else
+    console = retro::Console(statusWindow, consoleRect);
+#endif
+    retro::Console::currentInstance = &console;
+
+    bounds.bottom = consoleRect.bottom + 10;
+#else
+    bounds.bottom = tableTop + (nValues+1)/2 * tableLineHeight + 10;
+#endif
+
     RgnHandle tmp = NewRgn();
     background = NewRgn();
     RectRgn(background, &bounds);
@@ -82,6 +98,11 @@ StatusDisplay::StatusDisplay()
         RectRgn(tmp, &valueRects[i]);
         DiffRgn(background, tmp, background);
     }
+#ifdef DEBUG_CONSOLE
+    RectRgn(tmp, &consoleRect);
+    DiffRgn(background, tmp, background);
+#endif
+
     DisposeRgn(tmp);
 
     if(hasColorQD)
@@ -89,6 +110,9 @@ StatusDisplay::StatusDisplay()
         progressBg = GetPixPat(128);
         progressFg = GetPixPat(129);
     }
+
+    SizeWindow(statusWindow, bounds.right, bounds.bottom, false);
+    ShowWindow(statusWindow);
 }
 
 StatusDisplay::~StatusDisplay()
@@ -199,6 +223,21 @@ void StatusDisplay::Update()
     DrawValue(Stat::timeRemaining, timeRemaining);
     DrawValue(Stat::transmissionErrors, errorCount);
 
+#ifdef DEBUG_CONSOLE
+    Rect updateRect;
+#if TARGET_API_MAC_CARBON
+    RgnHandle rgn = NewRgn();
+    GetPortVisibleRegion(GetWindowPort(statusWindow), rgn);
+    GetRegionBounds(rgn, &updateRect);
+    DisposeRgn(rgn);
+#else
+    updateRect = (*qd.thePort->visRgn)->rgnBBox; // Life was simple back then.
+#endif
+
+    console.Draw(updateRect);
+    FrameRect(&consoleRect);
+#endif
+
     EndUpdate(statusWindow);
 }
 
@@ -244,6 +283,11 @@ void StatusDisplay::SetStatus(AppStatus stat)
             startTime = TickCount();
         GetIndString(statusString,128,(short)stat);
         Inval(statusRect);
+
+#ifdef DEBUG_CONSOLE
+        statusString[statusString[0]+1] = 0;
+        printf("%s\n", (const char*)statusString+1);
+#endif
     }
 }
 

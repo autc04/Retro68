@@ -103,7 +103,7 @@ resource 'WIND' (128, "About") {
 
 resource 'WIND' (129, "Main") {
     {50, 10, 200, 400}, noGrowDocProc;
-    visible;
+    invisible;
     noGoAway;
     0, "Retro68 Application Launching Server";
     centerMainScreen;
