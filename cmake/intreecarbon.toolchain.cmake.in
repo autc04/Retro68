@@ -28,6 +28,7 @@ set( REZ_INCLUDE_PATH "${CMAKE_INSTALL_PREFIX}/RIncludes" )
 
 set( CMAKE_C_COMPILER "${RETRO68_ROOT}/bin/powerpc-apple-macos-gcc" )
 set( CMAKE_CXX_COMPILER "${RETRO68_ROOT}/bin/powerpc-apple-macos-g++" )
+set( CMAKE_EXE_LINKER_FLAGS_INIT "-carbon" )
 
 list( APPEND CMAKE_MODULE_PATH "@CMAKE_SOURCE_DIR@/cmake" )
 

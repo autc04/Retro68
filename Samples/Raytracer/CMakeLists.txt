@@ -36,23 +36,22 @@ if(APPLE)
 	target_link_libraries(Raytracer "-framework Carbon")
 	target_link_libraries(Raytracer2 "-framework Carbon")
 else()
-		# save 200KB of code by removing unused stuff
-	set(CMAKE_EXE_LINKER_FLAGS "-Wl,-gc-sections")
-
 	add_application(Raytracer
 		raytracer.c
 		)
-	target_link_libraries(Raytracer "-lm")
+    target_link_libraries(Raytracer "-lm")
 
 	add_application(Raytracer2
 		raytracer2.cc
 		fixed.h
 		fixed.cc
-		)
-	if(NOT (CMAKE_SYSTEM_NAME MATCHES RetroCarbon))
+        )
 
-	add_application(FixedBenchmark CONSOLE
-					FILES fixedbenchmark.cc fixed.h fixed.cc)
-	endif()
+    add_application(FixedBenchmark CONSOLE
+                    FILES fixedbenchmark.cc fixed.h fixed.cc)
+    
+    # save 200KB of code by removing unused stuff
+    set_target_properties(Raytracer PROPERTIES LINK_FLAGS "-Wl,-gc-sections")
+    set_target_properties(Raytracer2 PROPERTIES LINK_FLAGS "-Wl,-gc-sections")    
 endif()
 

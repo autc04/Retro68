@@ -28,6 +28,7 @@ set( REZ_INCLUDE_PATH "${RETRO68_ROOT}/m68k-apple-macos/RIncludes" )
 
 set( CMAKE_C_COMPILER "${RETRO68_ROOT}/bin/powerpc-apple-macos-gcc" )
 set( CMAKE_CXX_COMPILER "${RETRO68_ROOT}/bin/powerpc-apple-macos-g++" )
+set( CMAKE_EXE_LINKER_FLAGS_INIT "-carbon" )
 
 set( REZ_TEMPLATES_PATH ${REZ_INCLUDE_PATH})
 

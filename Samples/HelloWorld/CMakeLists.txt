@@ -18,7 +18,6 @@ add_application(HelloWorld
 set_target_properties(HelloWorld PROPERTIES COMPILE_OPTIONS -ffunction-sections)
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 	set_target_properties(HelloWorld PROPERTIES LINK_FLAGS "-Wl,-gc-sections -Wl,--mac-strip-macsbug")
-
 else()
 	set_target_properties(HelloWorld PROPERTIES LINK_FLAGS "-Wl,-gc-sections")
 endif()
