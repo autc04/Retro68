@@ -24,8 +24,9 @@ set(CMAKE_C_STANDARD_REQUIRED TRUE)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror=return-type -Wno-multichar")
 
-if(CMAKE_SYSTEM_NAME MATCHES Retro.*)
+enable_testing()
 
+if(CMAKE_SYSTEM_NAME MATCHES Retro.*)
 
 set( REZ_TEMPLATES_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libretro)
 include(add_application)
@@ -61,7 +62,6 @@ endif()
 
 add_subdirectory(LaunchAPPL)
 
-enable_testing()
 add_subdirectory(AutomatedTests)
 else()
 

@@ -443,6 +443,8 @@ cmake ${SRC} -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_BUILD_TYPE=Debug "${HOST_CMA
 cd ..
 cmake --build build-host --target install
 
+echo 'subdirs("build-host")' > CTestTestfile.cmake
+
 	# make tools (such as MakeImport and the compilers) available for later commands
 export PATH=$PREFIX/bin:$PATH
 
@@ -539,6 +541,7 @@ if [ $BUILD_68K != false ]; then
 	cd ..
 	cmake --build build-target --target install
 
+    echo 'subdirs("build-target")' >> CTestTestfile.cmake
 fi
 
 if [ $BUILD_PPC != false ]; then
@@ -552,6 +555,8 @@ if [ $BUILD_PPC != false ]; then
                  ${CMAKE_GENERATOR}
 	cd ..
 	cmake --build build-target-ppc --target install
+
+    echo 'subdirs("build-target-ppc")' >> CTestTestfile.cmake
 fi
 
 if [ $BUILD_CARBON != false ]; then
@@ -565,6 +570,8 @@ if [ $BUILD_CARBON != false ]; then
                  ${CMAKE_GENERATOR}
 	cd ..
 	cmake --build build-target-carbon --target install
+
+    echo 'subdirs("build-target-carbon")' >> CTestTestfile.cmake
 fi
 
 echo

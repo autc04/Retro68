@@ -20,10 +20,23 @@ else()
 	endif()
 endif()
 
+if(CMAKE_SYSTEM_NAME MATCHES "RetroCarbon")
+    set(TESTCASE_PREFIX "Carbon.")
+elseif(CMAKE_SYSTEM_NAME MATCHES "Retro68")
+    set(TESTCASE_PREFIX "M68K.")
+elseif(CMAKE_SYSTEM_NAME MATCHES "RetroPPC")
+    set(TESTCASE_PREFIX "PPC.")
+else()
+    set(TESTCASE_PREFIX)
+endif()
+
 set(RETRO68_TEST_CONFIG "--timeout=10" CACHE String "Options to pass to LaunchAPPL when running tests")
 
+set(LAUNCH_METHOD_FLAG)
 if(RETRO68_LAUNCH_METHOD MATCHES "NONE")
-else() # extends to end of file
+else()
+set(LAUNCH_METHOD_FLAG "-e ${RETRO68_LAUNCH_METHOD}")
+endif()	# RETRO68_LAUNCH_METHOD
 
 enable_testing()
 
@@ -32,8 +45,11 @@ enable_testing()
 function(test FILE)
 	get_filename_component(NAME ${FILE} NAME_WE)
 	add_application(${NAME} ${FILE} Test.h Test.c)
-	add_test(NAME ${NAME} COMMAND ${LAUNCH_APPL}
-		-e ${RETRO68_LAUNCH_METHOD} ${RETRO68_TEST_CONFIG} ${ARGN} ${NAME}.bin)
+	add_test(NAME ${TESTCASE_PREFIX}${NAME} COMMAND ${LAUNCH_APPL}
+        ${LAUNCH_METHOD_FLAG} ${RETRO68_TEST_CONFIG} ${NAME}.bin)
+    if(ARGN)
+        set_tests_properties(${TESTCASE_PREFIX}${NAME} ${ARGN})
+    endif()
 endfunction()
 
 if(CMAKE_SYSTEM_NAME MATCHES "Retro68")
@@ -43,32 +59,24 @@ endif()
 
 test(Empty.c)
 
-test(File.c)
-set_tests_properties(File PROPERTIES PASS_REGULAR_EXPRESSION "OK")
+test(File.c PROPERTIES PASS_REGULAR_EXPRESSION "OK")
 
-test(Timeout.c)
-set_tests_properties(Timeout PROPERTIES PASS_REGULAR_EXPRESSION "One")
+test(Timeout.c PROPERTIES PASS_REGULAR_EXPRESSION "One")
 
-test(Log.c)
-set_tests_properties(Log PROPERTIES PASS_REGULAR_EXPRESSION "One\nTwo\nThree")
+test(Log.c PROPERTIES PASS_REGULAR_EXPRESSION "One\nTwo\nThree")
 
 test(ZeroInitialized.c)
-set_tests_properties(Log PROPERTIES PASS_REGULAR_EXPRESSION "One\nTwo\nThree")
 
+test(Init.cc PROPERTIES PASS_REGULAR_EXPRESSION "constructor\nmain\ndestructor")
 
-test(Init.cc)
-set_tests_properties(Init PROPERTIES PASS_REGULAR_EXPRESSION "constructor\nmain\ndestructor")
-
-test(StdIO.c)
-set_tests_properties(StdIO PROPERTIES PASS_REGULAR_EXPRESSION "OK")
+test(StdIO.c PROPERTIES PASS_REGULAR_EXPRESSION "OK")
 
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 	add_application(Segments Segment1.c Segment2.c Segments.segmap Test.h Test.c)
 	set_target_properties(Segments PROPERTIES
 		LINK_FLAGS "-Wl,-gc-sections -Wl,--mac-segments -Wl,${CMAKE_CURRENT_SOURCE_DIR}/Segments.segmap")
-	add_test(NAME Segments COMMAND ${LAUNCH_APPL}
-		-e ${RETRO68_LAUNCH_METHOD} ${RETRO68_TEST_CONFIG} Segments.bin)
+	add_test(NAME ${TESTCASE_PREFIX}Segments COMMAND ${LAUNCH_APPL}
+        ${LAUNCH_METHOD_FLAG} ${RETRO68_TEST_CONFIG} Segments.bin)
 endif()
 
 
-endif()	# RETRO68_LAUNCH_METHOD
