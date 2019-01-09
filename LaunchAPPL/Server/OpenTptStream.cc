@@ -11,6 +11,10 @@
 #include <string.h>
 #include <TextUtils.h>
 
+#ifdef DEBUG_CONSOLE
+#include <stdio.h>
+#endif
+
 OpenTptStream::OpenTptStream()
 {
     InitOpenTransport();
@@ -53,12 +57,20 @@ void OpenTptStream::tryListening()
     OSStatus err;
 
     err = endpoint->Listen(&call);
+#ifdef DEBUG_CONSOLE
+    printf("Listen: err = %d.\n", (int)err);
+#endif
+
     if(err < 0)
         return; // hopefully, kOTNoData
 
     endpoint->SetBlocking();
             
     err = endpoint->Accept(endpoint, &call);
+#ifdef DEBUG_CONSOLE
+    printf("Accept: err = %d.\n", (int)err);
+#endif
+
     endpoint->SetNonBlocking();
 
     connected = true;
@@ -122,4 +134,3 @@ void OpenTptStream::idle()
             break;
     }
 }
-

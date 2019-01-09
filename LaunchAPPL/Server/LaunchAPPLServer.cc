@@ -301,7 +301,7 @@ public:
     size_t onReceive(const uint8_t* p, size_t n)
     {
 #ifdef DEBUG_CONSOLE
-        printf("Received %d bytes in state %d.\n", (int)n, (int)state);
+//        printf("Received %d bytes in state %d.\n", (int)n, (int)state);
 #endif
         switch(state)
         {
