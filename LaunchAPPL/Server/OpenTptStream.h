@@ -11,6 +11,7 @@ class OpenTptStream : public Stream
 
     bool connected = false;
 
+    TEndpoint *listenerEndpoint;
     TEndpoint *endpoint;
     TCall call;
 

@@ -21,8 +21,8 @@ OpenTptStream::OpenTptStream()
     OSStatus err;
 
 
-    //endpoint = OTOpenEndpoint(OTCreateConfiguration(kTCPName), 0, nullptr, &err);
-    endpoint = OTOpenEndpoint(OTCreateConfiguration(kTCPName), 0, nullptr, &err);
+    listenerEndpoint = OTOpenEndpoint(OTCreateConfiguration(kTCPName), 0, nullptr, &err);
+    endpoint = nullptr;
 
     InetAddress addr, retAddr;
     OTInitInetAddress(&addr, 1984, 0);
@@ -36,10 +36,10 @@ OpenTptStream::OpenTptStream()
     ret.addr.buf = (UInt8*) &retAddr;
 
 
-    endpoint->Bind(&req, &ret);
+    listenerEndpoint->Bind(&req, &ret);
 
-    endpoint->SetSynchronous();
-    endpoint->SetNonBlocking();
+    listenerEndpoint->SetSynchronous();
+    
     tryListening();
 }
 
@@ -55,8 +55,9 @@ void OpenTptStream::tryListening()
     call.addr.buf = (UInt8*) &clientAddr;
 
     OSStatus err;
-
-    err = endpoint->Listen(&call);
+    
+    listenerEndpoint->SetNonBlocking();
+    err = listenerEndpoint->Listen(&call);
 #ifdef DEBUG_CONSOLE
     printf("Listen: err = %d.\n", (int)err);
 #endif
@@ -64,9 +65,15 @@ void OpenTptStream::tryListening()
     if(err < 0)
         return; // hopefully, kOTNoData
 
-    endpoint->SetBlocking();
+    if(!endpoint)
+    {
+        endpoint = OTOpenEndpoint(OTCreateConfiguration(kTCPName), 0, nullptr, &err);
+        endpoint->SetSynchronous();
+    }
+
+    listenerEndpoint->SetBlocking();
             
-    err = endpoint->Accept(endpoint, &call);
+    err = listenerEndpoint->Accept(endpoint, &call);
 #ifdef DEBUG_CONSOLE
     printf("Accept: err = %d.\n", (int)err);
 #endif
@@ -79,12 +86,17 @@ void OpenTptStream::tryListening()
 
 OpenTptStream::~OpenTptStream()
 {
-    endpoint->SetSynchronous();
-    endpoint->SetNonBlocking();
-    if(connected)
-        endpoint->SndDisconnect(&call);
-    endpoint->Unbind();
-    OTCloseProvider(endpoint);
+    if(endpoint)
+    {
+        endpoint->SetNonBlocking();
+        if(connected)
+        	endpoint->SndDisconnect(&call);
+        endpoint->Unbind();
+        OTCloseProvider(endpoint);
+    }
+    listenerEndpoint->SetNonBlocking();
+    listenerEndpoint->Unbind();
+    OTCloseProvider(listenerEndpoint);
     CloseOpenTransport();
 }
 
@@ -112,25 +124,34 @@ void OpenTptStream::tryReading()
 void OpenTptStream::idle()
 {
     OSStatus err;
-    switch(endpoint->Look())
+    if(connected)
     {
-        case T_DISCONNECT:
-            endpoint->RcvDisconnect(nullptr);
-            connected = false;
-            tryListening();
-            break;
-        case T_ORDREL:
-            err = endpoint->RcvOrderlyDisconnect();
-            if(err == noErr)
-                endpoint->SndOrderlyDisconnect();
-            connected = false;
-            tryListening();
-            break;
-        case T_LISTEN:
-            tryListening();
-            break;
-        case T_DATA:
-            tryReading();
-            break;
+        switch(endpoint->Look())
+        {
+            case T_DISCONNECT:
+                endpoint->RcvDisconnect(nullptr);
+                connected = false;
+                tryListening();
+                break;
+            case T_ORDREL:
+                err = endpoint->RcvOrderlyDisconnect();
+                if(err == noErr)
+                    endpoint->SndOrderlyDisconnect();
+                connected = false;
+                tryListening();
+                break;
+            case T_DATA:
+                tryReading();
+                break;
+        }
+    }
+    else
+    {
+        switch(listenerEndpoint->Look())
+        {
+            case T_LISTEN:
+                tryListening();
+                break;
+        }
     }
 }
