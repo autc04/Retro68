@@ -79,4 +79,4 @@ if(CMAKE_SYSTEM_NAME MATCHES Retro68)
         ${LAUNCH_METHOD_FLAG} ${RETRO68_TEST_CONFIG} Segments.bin)
 endif()
 
-
+test(Exceptions.cc PROPERTIES PASS_REGULAR_EXPRESSION "OK")
