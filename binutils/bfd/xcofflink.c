@@ -1792,6 +1792,12 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 	      }
 	    csect = section;
 	    value = sym.n_value - csect->vma;
+
+		// RetroPPC: keep constructors & exception tables
+	    if(strncmp(name, "_GLOBAL__", 9) == 0)
+	      {
+		csect->flags |= SEC_KEEP;
+	      }
 	  }
 	  break;
 
@@ -3764,6 +3770,20 @@ bfd_xcoff_size_dynamic_sections (bfd *output_bfd,
       if (info->fini_function != NULL
 	  && !xcoff_mark_symbol_by_name (info, info->fini_function, 0))
 	goto error_return;
+
+	// RetroPPC: mark sections with SEC_KEEP flag set
+      for (sub = info->input_bfds; sub != NULL; sub = sub->link.next)
+	{
+	  asection *o;
+
+	  for (o = sub->sections; o != NULL; o = o->next)
+	    {
+	      if (o->flags & SEC_KEEP)
+	        xcoff_mark(info, o);
+	    }
+	}
+
+
       if (auto_export_flags != 0)
 	{
 	  xcoff_link_hash_traverse (xcoff_hash_table (info),

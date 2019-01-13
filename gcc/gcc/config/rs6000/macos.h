@@ -204,8 +204,16 @@
 #define PTRDIFF_TYPE "long int"
 
 /* The AIX linker will discard static constructors in object files before
-   collect has a chance to see them, so scan the object files directly.  */
-#define COLLECT_EXPORT_LIST
+   collect has a chance to see them, so collect2 contains functionality
+   to scan the object files directly, enabled by:
+	#define COLLECT_EXPORT_LIST
+   
+   However, this seems to find all constructors and exception frame tables,
+   and thus leads to huge executables.
+   As we don't need to be compatible with the AIX linker, binutils had been
+   made to not discard these symbols any more *if* the corresponding object
+   file is loaded.
+*/
 
 /* Select a format to encode pointers in exception handling data.  CODE
    is 0 for data, 1 for code labels, 2 for function pointers.  GLOBAL is
