@@ -49,8 +49,12 @@ function(add_application name)
 		list(APPEND ARGS_MAKEAPPL_ARGS -DBREAK_ON_ENTRY)
 	endif()
 	if(${ARGS_CONSOLE})
-		target_link_libraries(${name} RetroConsole)
-		
+        if(TARGET RetroConsole OR NOT (CMAKE_SYSTEM_NAME MATCHES RetroCarbon))    
+            target_link_libraries(${name} RetroConsole)
+        else()
+            target_link_libraries(${name} RetroConsoleCarbon)
+        endif()
+        
 			# RetroConsole library uses C++:
 		set_target_properties(${name} PROPERTIES LINKER_LANGUAGE CXX)
 	endif()
