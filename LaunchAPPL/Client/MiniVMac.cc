@@ -1,6 +1,7 @@
 #include "MiniVMac.h"
 #include "Launcher.h"
 #include "Utilities.h"
+#include "BinaryIO.h"
 
 extern "C" {
 #include "hfs.h"
@@ -34,6 +35,7 @@ class MiniVMacLauncher : public Launcher
     hfsvol *vol;
 
     void CopySystemFile(const std::string& fn, bool required);
+    fs::path ConvertImage(const fs::path& path);
 public:
     MiniVMacLauncher(po::variables_map& options);
     virtual ~MiniVMacLauncher();
@@ -64,12 +66,57 @@ static void copyDirectoryRecursively(const fs::path& sourceDir, const fs::path& 
 
     for (const auto& dirEnt : fs::recursive_directory_iterator{sourceDir})
     {
-        const auto& path = dirEnt.path();
+        auto path = dirEnt.path();
         auto relativePathStr = path.string().substr(sourceDir.string().size());
-        fs::copy(path, destinationDir / relativePathStr);
+        auto dst = destinationDir / relativePathStr;
+
+        if(fs::is_directory(path))
+            fs::create_directory(dst);
+        else
+            fs::copy_file(path, dst);
     }
 }
 #endif
+
+fs::path MiniVMacLauncher::ConvertImage(const fs::path& path)
+{
+    fs::ifstream in(path);
+    
+    in.seekg(0x40);
+    uint32_t diskCopyLength = longword(in);
+
+    in.seekg(0x52);
+    uint16_t diskCopySig = word(in);
+
+    //in.seekg(1024);
+    //uint16_t rawHFSSig = word(in);
+
+    in.seekg(0x54 + 1024);
+    uint16_t diskCopyHFSSig = word(in);
+
+    in.seekg(0, std::ios::end);
+    uint32_t actualSize = in.tellg();
+
+    if(diskCopySig == 0x0100 && actualSize == diskCopyLength + 0x54
+        && diskCopyLength % 512 == 0 && diskCopyHFSSig == 0x4244)
+    {
+        auto outPath = tempDir / fs::unique_path();
+        
+        fs::ofstream out(outPath);
+
+        in.seekg(0x54);
+
+        char buf[4096];
+
+        while(in.read(buf, sizeof(buf)), in.gcount() > 0)
+            out.write(buf, in.gcount());
+
+        return outPath;
+    }
+    else
+        return path;
+}
+
 
 MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     : Launcher(options),
@@ -81,6 +128,9 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
 
     systemImage = fs::absolute(options["system-image"].as<std::string>(), vmacDir);
     fs::path autoquitImage = fs::absolute(options["autoquit-image"].as<std::string>(), vmacDir);
+
+    systemImage = ConvertImage(systemImage);
+    autoquitImage = ConvertImage(autoquitImage);
 
     std::vector<unsigned char> bootblock1(1024);
     fs::ifstream(systemImage).read((char*) bootblock1.data(), 1024);
