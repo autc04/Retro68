@@ -8855,6 +8855,12 @@ grokfndecl (tree ctype,
 		  (IDENTIFIER_POINTER (declarator))))))
     SET_DECL_LANGUAGE (decl, lang_c);
 
+  if (attrlist && lookup_attribute ("pascal", *attrlist))
+    {
+	    // paradoxical, but true: Mac pascal function names aren't mangled.
+      SET_DECL_LANGUAGE (decl, lang_c);
+    }
+
   /* Should probably propagate const out from type to decl I bet (mrs).  */
   if (staticp)
     {

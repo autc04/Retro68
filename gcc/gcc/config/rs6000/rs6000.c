@@ -1547,6 +1547,9 @@ static const struct attribute_spec rs6000_attribute_table[] =
     rs6000_handle_struct_attribute, NULL },
   { "gcc_struct", 0, 0, false, false, false, false,
     rs6000_handle_struct_attribute, NULL },
+  { "pascal", 0, 0, false, true, true, false/*don't be strict about function pointers*/,
+    NULL, NULL },
+
 #ifdef SUBTARGET_ATTRIBUTE_TABLE
   SUBTARGET_ATTRIBUTE_TABLE,
 #endif
