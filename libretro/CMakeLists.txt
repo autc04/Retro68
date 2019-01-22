@@ -21,8 +21,6 @@
 #	see the files COPYING and COPYING.RUNTIME respectively.  If not, see
 #	<http://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 2.8)
-
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 	find_program(CONVERT_OBJ ConvertObj PATH "${CMAKE_INSTALL_PREFIX}/../bin/")
     

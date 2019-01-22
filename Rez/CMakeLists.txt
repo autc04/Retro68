@@ -15,8 +15,6 @@
 #   You should have received a copy of the GNU General Public License
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 2.8)
-
 find_package(Boost COMPONENTS wave filesystem system thread regex program_options)
 
 # Look for bison.

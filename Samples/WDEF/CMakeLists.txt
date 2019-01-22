@@ -21,8 +21,6 @@
 # cmake .. -DCMAKE_TOOLCHAIN_FILE=path/to/Retro68-build/toolchain/cmake/retro68.toolchain.cmake
 # make
 
-cmake_minimum_required(VERSION 2.8)
-
 # This sample program contains a custom window definition procedure (WDEF) defined in wdef.c.
 # It is used in two different ways:
 # 1. The 80s way: compiled as a separate 'WDEF' code resource.

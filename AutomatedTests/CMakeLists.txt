@@ -1,6 +1,3 @@
-cmake_minimum_required(VERSION 3.3)
-
-
 find_program(LAUNCH_APPL LaunchAPPL PATH "${CMAKE_INSTALL_PREFIX}/../bin/")
 execute_process(COMMAND ${LAUNCH_APPL} --list-emulators
 	OUTPUT_VARIABLE EMULATOR_LIST)

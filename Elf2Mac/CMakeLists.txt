@@ -15,8 +15,6 @@
 #   You should have received a copy of the GNU General Public License
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 3.1)
-
 find_package(Boost COMPONENTS REQUIRED)
 
 add_executable(Elf2Mac
