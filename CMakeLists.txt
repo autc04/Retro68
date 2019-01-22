@@ -72,7 +72,6 @@ configure_file(cmake/intreecarbon.toolchain.cmake.in cmake/intreecarbon.toolchai
 
 add_subdirectory(libelf)
 add_subdirectory(ResourceFiles)
-add_subdirectory(MakeAPPL)
 add_subdirectory(Rez)
 add_subdirectory(ConvertObj)
 add_subdirectory(PEFTools)
