@@ -20,7 +20,7 @@
 
 # ########### A real Mac connected via a serial cable
 
-    # Prerequisited:
+    # Prerequisites:
     # - A Mac with a modem port, and any classic Mac system software
     # - The LaunchAPPLServer application
     #   (`Retro68-build/build-target/LaunchAPPL/Server/`) running on that Mac
@@ -34,6 +34,25 @@
 # emulator = serial
 # serial-port = /dev/ttyUSB0
 # serial-baud = 19200
+
+
+# ########### A real Mac running Mac OS X
+
+    # Prerequisites
+    # - A Mac running Mac OS X that is reachable via ssh
+    # - LaunchAPPL compiled for that Mac
+
+# ########### A real Mac connected via TCP/IP
+
+    # Prerequisites:
+    # - An old Mac connected to your local TCP/IP network
+    # - System Software that supports MacTCP or OpenTransport
+    # - LanchAPPLServer compiled by Retro68 for your old Mac
+    # - A firewall that protects your Mac from the open internet
+    #       (LaunchAPPLServer opens an unsecured TCP port and executes any application it receives there!)
+
+# emulator = tcp
+# tcp-address = 192.168.0.42        # IP address of your mac
 
 
 # ########### Mini vMac (old 68K Macs)
@@ -87,4 +106,3 @@
 
 # executor-option = -appearance # uncommenting these two lines
 # executor-option = windows     # is seriously not recommended.
-

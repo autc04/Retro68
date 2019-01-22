@@ -16,7 +16,7 @@ Installing/Building
 
 - Linux, Mac OS X or Windows (via Cygwin)
 - boost
-- CMake 2.8
+- CMake 3.8 or later
 - GCC dependencies: GMP 4.2+, MPFR 2.3.1+ and MPC 0.8.0+
 - bison version 3.0.2 or later
 - Apple Universal Interfaces (version 3.x; version 3.4 is tested)
@@ -106,7 +106,7 @@ to add that to your `PATH`.
 If you're building this on a PowerMac running Mac OS X 10.4, tell the build script
 to use the gcc you've installed via tigerbrew:
 
-    ../Retro68/build-toolchain.bash --host-cxx-compiler=g++-5 --host-c-compiler=gcc-5
+    ../Retro68/build-toolchain.bash --host-cxx-compiler=g++-7 --host-c-compiler=gcc-7
 
 ### Build options and recompiling
 
@@ -234,13 +234,6 @@ GNU assembler (`powerpc-apple-macos-as`). Well, as long as the .o file does not
 use global variables or non-local function calls. Used to import glue code from
 MPW's `Interface.o` library.
 
-### MakeAPPL
-
-Reads a FLAT executable as output by elf2flt and converts it to
-a MacBinary file containing a classic Macintosh application.
-The CMake setup for the sample programs no longer uses this, but rather uses
-Rez to generate the appropriate resources.
-
 ### PEFTools
 
 Tools supporting the Apple's PEF format, the Preferred Executable Format
@@ -334,6 +327,7 @@ Currently, LaunchAPPL supports the following methods for launching Mac applicati
 * executor - launch using Executor
 * ssh - Invoke the `LaunchAPPL` tool remotely via ssh
 * serial - Connect to a real Mac running the `LaunchAPPLServer` application via a null modem cable
+* tcp - Connect to a real Mac running the `LaunchAPPLServer` application via a completely insecure TCP connection
 
 If you're running on a Mac that's old enough to use the `classic` or `carbon` backends,
 they will work out of the box, just launch an application as follows
@@ -347,7 +341,7 @@ copy the file `Retro68/LaunchAPPL/LaunchAPPL.cfg.example` to `~/.LaunchAPPL.cfg`
 and edit to taste (documentation is provided in comments).
 
 **CONTRIBUTION OPPORTUNITY** - This tool can easily be extended with further backends,
-so make it work with your favourtite emulator. Just add new subclasses for the
+so make it work with your favourite emulator. Just add new subclasses for the
 `LaunchMethod` and `Launcher` classes, they're documented.
 
 ### The Test Suite
