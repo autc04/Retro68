@@ -213,19 +213,25 @@ void sortModules(std::vector<std::shared_ptr<Module>>& modules)
 				continue;
 			if(r.second.name2.empty())
 			{
-				std::shared_ptr<Module> m1;
-				m1 = nameMap.find(r.second.name1)->second;
-				m1->nearrefs.push_back(m);
-				m->nearrefs.push_back(m1);
+				if(auto p = nameMap.find(r.second.name1); p != nameMap.end())
+                {
+                    std::shared_ptr<Module> m1 = p->second;
+                    m1->nearrefs.push_back(m);
+                    m->nearrefs.push_back(m1);
+                }
 			}
 			else
 			{
-				std::shared_ptr<Module> m1;
-				m1 = nameMap.find(r.second.name1)->second;
-				std::shared_ptr<Module> m2;
-				m2 = nameMap.find(r.second.name2)->second;
-				m1->nearrefs.push_back(m2);
-				m2->nearrefs.push_back(m1);
+                auto p1 = nameMap.find(r.second.name1);
+                auto p2 = nameMap.find(r.second.name2);
+
+                if(p1 != nameMap.end() && p2 != nameMap.end())
+                {
+                    std::shared_ptr<Module> m1 = p1->second;
+                    std::shared_ptr<Module> m2 = p2->second;
+                    m1->nearrefs.push_back(m2);
+                    m2->nearrefs.push_back(m1);
+                }
 			}
 		}
 	
@@ -253,8 +259,11 @@ void sortModules(std::vector<std::shared_ptr<Module>>& modules)
 			}
 			++p;
 		}
-        sorted.push_back(nameMap[*unemitted.begin()]);
-		unemitted.erase(unemitted.begin());
+        if(!unemitted.empty())
+        {
+            sorted.push_back(nameMap[*unemitted.begin()]);
+            unemitted.erase(unemitted.begin());
+        }
 	}
 	
 	sorted.swap(modules);
