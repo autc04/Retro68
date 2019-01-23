@@ -22,13 +22,15 @@ enum RecordType {
 	kPad = 0,
 	kFirst = 1,
 	kLast = 2,
+    kComment = 3,
 	kDictionary = 4,
 	kModule = 5,
 	kEntryPoint = 6,
 	kSize = 7,
 	kContent = 8,
 	kReference = 9,
-	kComputedRef = 10
+	kComputedRef = 10,
+    kFilename = 11
 };
 
 enum ReferenceFlags {	// flags field of kReference
@@ -86,8 +88,6 @@ int Reloc::write(std::ostream& out, uint8_t *p)
 			out << " + " << val;
 		else if(val < 0)
 			out << " - " << -val;
-		if(name2.size() == 0)
-			out << "-.";
 		out << std::endl;
 		return 4;
 	}
@@ -311,6 +311,23 @@ int main(int argc, char* argv[])
 					}
 				}
 				break;
+            case kComment:
+                {
+					/*int flags =*/ byte(in);
+					int size = word(in);
+                    size -= 4;
+                    if(verbose)
+                        std::cerr << "Comment: ";
+                    while(size-- > 0)
+                    {
+                        char c = byte(in);
+                        if(verbose)
+                            std::cerr << c;
+                    }
+                    if(verbose)
+                        std::cerr << std::endl;
+                }
+                break;
 			case kDictionary:
 				{
 					/*int flags =*/ byte(in);
@@ -455,6 +472,11 @@ int main(int argc, char* argv[])
 					}
 				}
 				break;
+            case kFilename:
+                /* int flags = */ byte(in);
+                /* short nameref = */ word(in);
+                /* long date = */ longword(in);
+                break;
 			case kLast:
 				byte(in);
 				endOfObject = true;
