@@ -16,7 +16,7 @@ Installing/Building
 
 - Linux, Mac OS X or Windows (via Cygwin)
 - boost
-- CMake 3.8 or later
+- CMake 3.9 or later
 - GCC dependencies: GMP 4.2+, MPFR 2.3.1+ and MPC 0.8.0+
 - bison version 3.0.2 or later
 - Apple Universal Interfaces (version 3.x; version 3.4 is tested)

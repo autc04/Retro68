@@ -1,4 +1,4 @@
-#   Copyright 2012 Wolfgang Thaller.
+#   Copyright 2019 Wolfgang Thaller.
 #
 #   This file is part of Retro68.
 #
@@ -15,7 +15,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.9)
 project(Retro)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
