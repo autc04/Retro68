@@ -282,7 +282,33 @@ int main(int argc, char* argv[])
 	std::shared_ptr<Module> module;
 	std::vector<std::shared_ptr<Module>> modules;
 
-	std::cout << "\t.text\n\t.align 2\n";
+
+    {
+        int firstRecord = byte(in);
+        /*int flags =*/ byte(in);
+        int version = word(in);
+
+        if(firstRecord != kFirst)
+        {
+            std::cerr << "Not an MPW object file.\n";
+            return 1;
+        }
+
+        if(version > 3)
+        {
+            std::cerr << "Unknown/invalid MPW object file version "
+                << version << std::endl;
+            return 1;
+        }
+
+        if(verbose)
+        {
+            std::cerr << "First\n";
+            std::cerr << "Version: " << version << std::endl;
+        }
+    }
+
+    std::cout << "\t.text\n\t.align 2\n";
 
 	for(bool endOfObject = false; !endOfObject;) {
 		if(verbose)
@@ -303,17 +329,6 @@ int main(int argc, char* argv[])
 			case kPad:
 				if(verbose)
 					std::cerr << "Pad\n";
-				break;
-			case kFirst:
-				{
-					/*int flags =*/ byte(in);
-					int version = word(in);
-					if(verbose)
-					{
-						std::cerr << "First\n";
-						std::cerr << "Version: " << version << std::endl;
-					}
-				}
 				break;
             case kComment:
                 {
