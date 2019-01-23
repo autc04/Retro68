@@ -128,6 +128,9 @@ string encodeIdentifier(const string& s)
 	if(isValidIdentifier(s))
 		return s;
 
+    if(s.empty())
+        return "__z";
+
 	std::ostringstream ss;
 
 	if(isdigit(s[0]))
@@ -401,7 +404,7 @@ int main(int argc, char* argv[])
 					if(verbose)
 						std::cerr << "Reference to " << name << " at\n";
 					Reloc reloc;
-					reloc.name1 = name;
+					reloc.name1 = encodeIdentifier(name);
 
 					if(flags & kUnknownReferenceFlags)
 					{
@@ -451,8 +454,8 @@ int main(int argc, char* argv[])
 					string name2 = stringDictionary[word(in)];
 
 					Reloc reloc;
-					reloc.name1 = name1;
-					reloc.name2 = name2;
+					reloc.name1 = encodeIdentifier(name1);
+					reloc.name2 = encodeIdentifier(name2);
 					reloc.size = 2;
 
 					assert(flags == 0x90);
