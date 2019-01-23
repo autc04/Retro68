@@ -2,6 +2,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <unordered_set>
+#include <set>
 #include <string>
 #include "BinaryIO.h"
 #include <stdint.h>
@@ -194,9 +195,9 @@ void Module::write(std::ostream& out)
 
 void sortModules(std::vector<std::shared_ptr<Module>>& modules)
 {
-	std::unordered_set<std::shared_ptr<Module>> unemitted;
+	std::set<std::string> unemitted;
 	for(auto& m : modules)
-		unemitted.insert(m);
+		unemitted.insert(m->name);
 	
 	std::unordered_map<std::string, std::shared_ptr<Module>> nameMap;
 	for(auto& m : modules)
@@ -242,7 +243,7 @@ void sortModules(std::vector<std::shared_ptr<Module>>& modules)
 			{
 				if(std::shared_ptr<Module> m2 = m2weak.lock())
 				{
-					auto unemittedP = unemitted.find(m2);
+					auto unemittedP = unemitted.find(m2->name);
 					if(unemittedP != unemitted.end())
 					{
 						sorted.push_back(m2);
@@ -252,7 +253,7 @@ void sortModules(std::vector<std::shared_ptr<Module>>& modules)
 			}
 			++p;
 		}
-		sorted.push_back(*unemitted.begin());
+        sorted.push_back(nameMap[*unemitted.begin()]);
 		unemitted.erase(unemitted.begin());
 	}
 	
