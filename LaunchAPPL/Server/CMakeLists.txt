@@ -25,6 +25,13 @@ else()
         )
 endif()
 
+list(APPEND CONNECTION_SOURCES
+    SharedFileStream.h
+    SharedFileStream.cc
+    SharedFileProvider.h
+    SharedFileProvider.cc
+)
+
 option(LAUNCHAPPLSERVER_DEBUG_CONSOLE "Add a debug console to LaunchAPPLServer" FALSE)
 
 set(MAYBE_CONSOLE)
@@ -50,6 +57,8 @@ add_application(LaunchAPPLServer
     AboutBox.cc
     ConnectionProvider.h
     CarbonFileCompat.h
+    Preferences.h
+    Preferences.cc
 
     ${CONNECTION_SOURCES}
 )
@@ -73,7 +82,7 @@ else()
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
-    target_link_libraries(LaunchAPPLServer  -lOpenTransportAppPPC -lOpenTransportLib -lOpenTptInternetLib )
+    target_link_libraries(LaunchAPPLServer -lOpenTransportAppPPC -lOpenTransportLib -lOpenTptInternetLib -lNavigationLib)
 endif()
 
 if(FALSE)

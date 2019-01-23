@@ -22,6 +22,7 @@
 #include "SSH.h"
 #include "Serial.h"
 #include "TCP.h"
+#include "SharedFile.h"
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -46,7 +47,8 @@ static void RegisterLaunchMethods()
 	    new Executor(), new MiniVMac(),
 	    new SSH(),
         new Serial(),
-        new TCP()
+        new TCP(),
+        new SharedFile()
 		// #### Add new `LaunchMethod`s here.
 	};
 	

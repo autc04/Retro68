@@ -54,6 +54,16 @@
 # emulator = tcp
 # tcp-address = 192.168.0.42        # IP address of your mac
 
+# ########### A real Mac or emulator that can access a shared volume
+
+    # Prerequisited:
+    # - LaunchAPPLServer compiled by Retro68 for your Mac or emulator
+    # - A volume or folder shared between your classic Mac/emulator and the computer you're running LaunchAPPL on
+
+    # For example, this can be SheepShaver or Basilisk with their built-in shared folder support.
+
+# emulator = shared
+# shared-directory = /path/to/some/empty/directory
 
 # ########### Mini vMac (old 68K Macs)
 

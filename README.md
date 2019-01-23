@@ -328,6 +328,7 @@ Currently, LaunchAPPL supports the following methods for launching Mac applicati
 * ssh - Invoke the `LaunchAPPL` tool remotely via ssh
 * serial - Connect to a real Mac running the `LaunchAPPLServer` application via a null modem cable
 * tcp - Connect to a real Mac running the `LaunchAPPLServer` application via a completely insecure TCP connection
+* shared - Communicate with `LaunchAPPLServer` via files in a shared folder
 
 If you're running on a Mac that's old enough to use the `classic` or `carbon` backends,
 they will work out of the box, just launch an application as follows

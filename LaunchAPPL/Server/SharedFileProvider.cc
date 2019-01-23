@@ -17,32 +17,38 @@
     along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "SharedFileProvider.h"
+#include "SharedFileStream.h"
+#include "Preferences.h"
 
-#include <Stream.h>
-#include <OpenTransport.h>
-#include <stdint.h>
-
-class OpenTptStream : public Stream
+SharedFileProvider::SharedFileProvider(StatusDisplay *statusDisplay)
 {
-    static const long kReadBufferSize = 4096;
-    uint8_t readBuffer[kReadBufferSize];
+    stream = std::make_unique<SharedFileStream>(gPrefs.sharedDirectoryPath);
+}
 
-    bool connected = false;
+SharedFileProvider::~SharedFileProvider()
+{
+}
 
-    TEndpoint *listenerEndpoint;
-    TEndpoint *endpoint;
-    TCall call;
+Stream* SharedFileProvider::getStream()
+{
+    return stream.get();
+}
 
-    void tryListening();
-    void tryReading();
-public:
-    virtual void write(const void* p, size_t n) override;
+void SharedFileProvider::idle()
+{
+    if(stream)
+    {
+        stream->setListener(listener);
+        stream->idle();
+    }
+}
 
-    void idle();
+void SharedFileProvider::unloadSegDummy()
+{
+}
 
-    OpenTptStream();
-    ~OpenTptStream();
-};
-
-
+void *SharedFileProvider::segmentToUnload()
+{
+    return (void*) &unloadSegDummy;
+}

@@ -3,9 +3,11 @@ find_package(Boost COMPONENTS filesystem program_options)
 set(LAUNCHMETHODS
 	Executor.h Executor.cc
 	MiniVMac.h MiniVMac.cc
-	SSH.h SSH.cc
+    SSH.h SSH.cc
+    StreamBasedLauncher.h StreamBasedLauncher.cc
     Serial.h Serial.cc
     TCP.h TCP.cc
+    SharedFile.h SharedFile.cc
 )
 
 if(APPLE)

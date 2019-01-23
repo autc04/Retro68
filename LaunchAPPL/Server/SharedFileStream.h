@@ -20,29 +20,24 @@
 #pragma once
 
 #include <Stream.h>
-#include <OpenTransport.h>
 #include <stdint.h>
 
-class OpenTptStream : public Stream
+class SharedFileStream : public Stream
 {
+    short vRefNum;
+    long dirID;
+
+    int outQueueHead = 1, outQueueTail = 1;
     static const long kReadBufferSize = 4096;
     uint8_t readBuffer[kReadBufferSize];
 
-    bool connected = false;
-
-    TEndpoint *listenerEndpoint;
-    TEndpoint *endpoint;
-    TCall call;
-
-    void tryListening();
-    void tryReading();
+    void MakeFileName(unsigned char *name, int i);
 public:
     virtual void write(const void* p, size_t n) override;
+    virtual bool allDataArrived() const override;
 
     void idle();
 
-    OpenTptStream();
-    ~OpenTptStream();
+    SharedFileStream(const unsigned char* path);
+    ~SharedFileStream();
 };
-
-

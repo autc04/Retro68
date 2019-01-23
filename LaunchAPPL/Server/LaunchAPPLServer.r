@@ -1,5 +1,5 @@
 /*
-	Copyright 2018 Wolfgang Thaller.
+	Copyright 2019 Wolfgang Thaller.
 
 	This file is part of Retro68.
 
@@ -22,6 +22,7 @@
 #include "Windows.r"
 #include "MacTypes.r"
 #include "Finder.r"
+#include "Dialogs.r"
 
 resource 'MENU' (128) {
     128, textMenuProc;
@@ -67,6 +68,7 @@ resource 'MENU' (131) {
         "OpenTransport TCP", noIcon, noKey, noMark, plain;
         "Modem Port", noIcon, noKey, noMark, plain;
         "Printer Port", noIcon, noKey, noMark, plain;
+        "Shared Files", noIcon, noKey, noMark, plain;
         "-", noIcon, noKey, noMark, plain;
         "9600", noIcon, noKey, noMark, plain;
         "19200", noIcon, noKey, check, plain;
@@ -74,6 +76,8 @@ resource 'MENU' (131) {
         "57600", noIcon, noKey, noMark, plain;
         "115200", noIcon, noKey, noMark, plain;
         "230400", noIcon, noKey, noMark, plain;
+        "-", noIcon, noKey, noMark, plain;
+        "Choose Shared Directory...", noIcon, noKey, noMark, plain;
     }
 };
 
@@ -115,6 +119,7 @@ resource 'STR#' (128, purgeable) {
         "Listening on Printer Port...";
         "Listening on TCP port 1984 (MacTCP)...";
         "Listening on TCP port 1984 (OpenTransport)...";
+        "Waiting for shared files...";
         "Downloading Application...";
         "Downloading Upgrade...";
         "Running Application...";
@@ -151,7 +156,7 @@ resource 'SIZE' (-1) {
 	notDisplayManagerAware,
 	reserved,
 	reserved,
-	350 * 1024,
+	500 * 1024,
 	136 * 1024
 };
 
@@ -176,5 +181,77 @@ resource 'BNDL' (128, purgeable) {
         'FREF', {
             10, 128
         }
+    }
+};
+
+resource 'DLOG' (128, purgeable)
+{
+	{0, 0, 225, 348},
+	dBoxProc,
+	invisible,
+	noGoAway,
+	0x0,
+	128,
+	"",
+	noAutoCenter
+};
+
+resource 'DITL' (128, purgeable)
+{
+	{
+		/* [1] */
+		{138, 256, 156, 336},
+		Button { enabled, "Open" },
+		/* [2] */
+		{1152, 59, 1232, 77},
+		Button { enabled, "" },
+		/* [3] */
+		{188, 256, 206, 336},
+		Button { enabled, "Cancel" },
+		/* [4] */
+		{39, 232, 59, 347},
+		UserItem { disabled },
+		/* [5] */
+		{68, 256, 86, 336},
+		Button { enabled, "Eject" },
+		/* [6] */
+		{93, 256, 111, 336},
+		Button { enabled, "Drive" },
+		/* [7] */
+		{39, 12, 210, 230},
+		UserItem { enabled },
+		/* [8] */
+		{39, 229, 210, 246},
+		UserItem { enabled },
+		/* [9] */
+		{124, 252, 125, 340},
+		UserItem { disabled },
+		/* [10] */
+		{1044, 20, 1145, 116},
+		StaticText { disabled, "" },
+		/* [11] */
+        {163, 256, 181, 336},
+		Button { enabled, "Choose" }
+	}
+};
+
+resource 'DLOG' (129, purgeable)
+{
+    {0, 0, 200, 344}, dBoxProc, invisible, noGoAway, 0,
+    129, "", noAutoCenter
+};
+resource 'DITL'(129)
+{
+    {
+        {169, 252, 189, 332}, Button { enabled, "Open" },
+        {107, 252, 127, 332}, Button { enabled, "Cancel" },
+        {0, 0, 0, 0}, HelpItem { disabled, HMScanhdlg {-6042}},
+        {8, 235, 24, 337}, UserItem { enabled },
+        {32, 252, 52, 332}, Button { enabled, "Eject" },
+        {60, 252, 80, 332}, Button { enabled, "Desktop" },
+        {29, 12, 193, 230}, UserItem { enabled },
+        {6, 12, 25, 230}, UserItem { enabled },
+        {93, 251, 94, 333}, Picture  { disabled, 11 },
+        {138, 252, 158, 332}, Button { enabled, "Choose" },
     }
 };

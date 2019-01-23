@@ -18,31 +18,24 @@
 */
 
 #pragma once
+#include "ConnectionProvider.h"
+#include <memory>
 
-#include <Stream.h>
-#include <OpenTransport.h>
-#include <stdint.h>
+class SharedFileStream;
+class StatusDisplay;
 
-class OpenTptStream : public Stream
+class SharedFileProvider : public ConnectionProvider
 {
-    static const long kReadBufferSize = 4096;
-    uint8_t readBuffer[kReadBufferSize];
+    std::unique_ptr<SharedFileStream> stream;
 
-    bool connected = false;
-
-    TEndpoint *listenerEndpoint;
-    TEndpoint *endpoint;
-    TCall call;
-
-    void tryListening();
-    void tryReading();
+    static void unloadSegDummy();
 public:
-    virtual void write(const void* p, size_t n) override;
+    SharedFileProvider(StatusDisplay *statusDisplay);
+    virtual ~SharedFileProvider();
 
-    void idle();
+    virtual Stream* getStream();
 
-    OpenTptStream();
-    ~OpenTptStream();
+    virtual void idle();
+
+    virtual void* segmentToUnload();
 };
-
-

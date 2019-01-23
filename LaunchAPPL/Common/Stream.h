@@ -36,6 +36,12 @@ protected:
     void notifyReset();
 };
 
+class WaitableStream : public Stream
+{
+public:
+    virtual void wait() = 0;
+};
+
 class StreamWrapper : public Stream, private StreamListener
 {
     Stream* underlying_;

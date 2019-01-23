@@ -1,5 +1,5 @@
 /*
-    Copyright 2018 Wolfgang Thaller.
+    Copyright 2019 Wolfgang Thaller.
 
     This file is part of Retro68.
 
@@ -34,6 +34,7 @@
 #include "AppLauncher.h"
 #include "StatusDisplay.h"
 #include "AboutBox.h"
+#include "Preferences.h"
 
 #include <ServerProtocol.h>
 #include <Processes.h>
@@ -48,6 +49,7 @@
 #if !TARGET_CPU_68K
 #include "OpenTptConnectionProvider.h"
 #endif
+#include "SharedFileProvider.h"
 
 #include "SystemInfo.h"
 
@@ -68,33 +70,19 @@ enum
     kItemAbout = 1,
 
     kItemClose = 1,
-    kItemQuit = 3
-};
+    kItemQuit = 3,
 
-enum class Port : int
-{
-    modemPort = 0,
-    printerPort,
-    macTCP,
-    openTptTCP
+    kItemChooseFolder = 14
 };
 
 #if TARGET_API_MAC_CARBON
-bool portsAvailable[] = { false, false, false, false };
+bool portsAvailable[] = { false, false, false, false, true };
 #else
-bool portsAvailable[] = { true, true, false, false };
+bool portsAvailable[] = { true, true, false, false, true };
 #endif
 bool hasIconUtils = true;
 bool hasColorQD = true;
-
-struct Prefs
-{
-    const static int currentVersion = 1;
-    int version = currentVersion;
-    Port port = Port::modemPort;
-    long baud = 19200;
-    bool inSubLaunch = false;
-};
+bool hasSys7StdFile = true;
 
 Prefs gPrefs;
 
@@ -170,7 +158,9 @@ void UpdateMenus()
     CheckMenuItem(m, 3, gPrefs.port == Port::modemPort);
     SetItemEnabled(m, 4, portsAvailable[(int)Port::printerPort]);
     CheckMenuItem(m, 4, gPrefs.port == Port::printerPort);
-    for(int i = 6; i <= CountMenuItems(m); i++)
+    SetItemEnabled(m, 5, portsAvailable[(int)Port::sharedFiles]);
+    CheckMenuItem(m, 5, gPrefs.port == Port::sharedFiles);
+    for(int i = 7; i < kItemChooseFolder; i++)
     {
         Str255 str;
         long baud;
@@ -250,6 +240,13 @@ void DoMenuCommand(long menuCommand)
             case 4:
                 gPrefs.port = Port::printerPort;
                 break;
+            case 5:
+                gPrefs.port = Port::sharedFiles;
+                break;
+            case kItemChooseFolder:
+                ChooseSharedDirectory();
+                UnloadSeg((void*) &ChooseSharedDirectory);
+                break;
             default:
                 GetMenuItemText(GetMenuHandle(menuID), menuItem, str);
                 StringToNum(str, &gPrefs.baud);
@@ -301,7 +298,7 @@ public:
     size_t onReceive(const uint8_t* p, size_t n)
     {
 #ifdef DEBUG_CONSOLE
-//        printf("Received %d bytes in state %d.\n", (int)n, (int)state);
+        printf("Received %d bytes in state %d.\n", (int)n, (int)state);
 #endif
         switch(state)
         {
@@ -546,7 +543,12 @@ LaunchServer server;
 
 void ConnectionChanged()
 {
+    void *connectionSeg = connection ? connection->segmentToUnload() : nullptr;
+
     connection.reset(); // deallocate before we create the new provider
+
+    if(connectionSeg)
+        UnloadSeg(connectionSeg);
 
     bool first = true;
     for(;;)
@@ -582,6 +584,15 @@ void ConnectionChanged()
             connection = std::make_unique<OpenTptConnectionProvider>(statusDisplay.get());;
             break;
 #endif
+        case Port::sharedFiles:
+            if(gPrefs.sharedDirectoryPath[0] == 0)
+            {
+                ChooseSharedDirectory();
+                UnloadSeg((void*) &ChooseSharedDirectory);
+            }
+            if(gPrefs.sharedDirectoryPath[0] != 0)
+                connection = std::make_unique<SharedFileProvider>(statusDisplay.get());;
+            break;
         default:
             ;
     }
@@ -657,6 +668,9 @@ int main()
 
             err = Gestalt(gestaltQuickdrawVersion, &response);
             hasColorQD = err == noErr && response != 0;
+
+            err = Gestalt(gestaltStandardFileAttr, &response);
+            hasSys7StdFile = err == noErr && (response & (1 << gestaltStandardFile58)) != 0;
         }
 	}
 #else

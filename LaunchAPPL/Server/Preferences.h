@@ -19,30 +19,30 @@
 
 #pragma once
 
-#include <Stream.h>
-#include <OpenTransport.h>
-#include <stdint.h>
+#include <MacTypes.h>
 
-class OpenTptStream : public Stream
+enum class Port : int
 {
-    static const long kReadBufferSize = 4096;
-    uint8_t readBuffer[kReadBufferSize];
-
-    bool connected = false;
-
-    TEndpoint *listenerEndpoint;
-    TEndpoint *endpoint;
-    TCall call;
-
-    void tryListening();
-    void tryReading();
-public:
-    virtual void write(const void* p, size_t n) override;
-
-    void idle();
-
-    OpenTptStream();
-    ~OpenTptStream();
+    modemPort = 0,
+    printerPort,
+    macTCP,
+    openTptTCP,
+    sharedFiles
 };
 
+struct Prefs
+{
+    const static int currentVersion = 2;
+    int version = currentVersion;
+    Port port = Port::modemPort;
+    long baud = 19200;
+    bool inSubLaunch = false;
+    Str255 sharedDirectoryPath;
+};
 
+extern Prefs gPrefs;
+
+void ChooseSharedDirectory();
+
+void ReadPrefs();
+void WritePrefs();

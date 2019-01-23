@@ -1,5 +1,5 @@
 #include "Serial.h"
-#include "Launcher.h"
+#include "StreamBasedLauncher.h"
 #include "Utilities.h"
 #include "Stream.h"
 #include "ReliableStream.h"
@@ -15,7 +15,7 @@
 namespace po = boost::program_options;
 using namespace std::literals::chrono_literals;
 
-class SerialStream : public Stream
+class SerialStream : public WaitableStream
 {
     static const long kReadBufferSize = 4096;
     uint8_t readBuffer[kReadBufferSize];
@@ -25,28 +25,18 @@ public:
 
     virtual void write(const void* p, size_t n) override;
 
-    void wait();
+    virtual void wait() override;
 
     SerialStream(po::variables_map &options);
     ~SerialStream();
 };
 
-class SerialLauncher : public Launcher
+class SerialLauncher : public StreamBasedLauncher
 {
     SerialStream stream;
     ReliableStream rStream;
-    std::vector<char> outputBytes;
-    bool upgradeMode = false;
 public:
 	SerialLauncher(po::variables_map& options);
-	virtual ~SerialLauncher();
-
-	virtual bool Go(int timeout = 0);
-	virtual void DumpOutput();
-
-private:
-    void write(const void *p, size_t n);
-    size_t read(void * p, size_t n);
 };
 
 
@@ -128,41 +118,10 @@ void SerialStream::wait()
     }
 }
 
-
 SerialLauncher::SerialLauncher(po::variables_map &options)
-    : Launcher(options), stream(options), rStream(&stream)
+    : StreamBasedLauncher(options), stream(options), rStream(&stream)
 {
-    if(options.count("upgrade-server"))
-        upgradeMode = true;
-}
-
-SerialLauncher::~SerialLauncher()
-{
-}
-
-size_t SerialLauncher::read(void *p0, size_t n)
-{
-    uint8_t* p = (uint8_t*)p0;
-    size_t gotBytes = rStream.read(p, n);
-    while(gotBytes < n)
-    {
-        rStream.flushWrite();
-        stream.wait();
-        gotBytes += rStream.read(p + gotBytes, n - gotBytes);
-    }
-    return gotBytes;
-}
-
-void SerialLauncher::write(const void *p, size_t n)
-{
-    while(!rStream.readyToWrite())
-        stream.wait();
-    rStream.write(p, n);
-}
-
-bool SerialLauncher::Go(int timeout)
-{
-    uint32_t tmp;
+    SetupStream(&stream, &rStream);
 
     do
     {
@@ -175,50 +134,6 @@ bool SerialLauncher::Go(int timeout)
     } while(!rStream.resetResponseArrived());
 
     std::cerr << "Connected." << std::endl;
-
-    {
-        RemoteCommand cmd = upgradeMode ? RemoteCommand::upgradeLauncher : RemoteCommand::launchApp;
-        write(&cmd, 1);
-
-        write(std::string(app.type).data(), 4);
-        write(std::string(app.creator).data(), 4);
-        
-        std::ostringstream rsrcOut;
-        app.resources.writeFork(rsrcOut);
-        std::string rsrc = rsrcOut.str();
-        std::string& data = app.data;
-        std::cerr << "Transfering " << (data.size() + rsrc.size() + 1023) / 1024 << " KB." << std::endl;
-
-        tmp = htonl(data.size());
-        write(&tmp, 4);
-        tmp = htonl(rsrc.size());
-        write(&tmp, 4);
-
-        write(data.data(), data.size());
-        write(rsrc.data(), rsrc.size());
-    }
-    while(!rStream.allDataArrived())
-        stream.wait();
-    std::cerr << "Running Appliation..." << std::endl;
-    read(&tmp, 4);
-    uint32_t result = ntohl(tmp);
-    std::cerr << "Finished (result = " << result << ")." << std::endl;
-    
-    if(result == 0)
-    {
-        read(&tmp, 4);
-        uint32_t size = ntohl(tmp);
-        outputBytes.resize(size);
-        if(size > 0)
-            read(outputBytes.data(), size);
-    }
-
-    return result == 0;
-}
-
-void SerialLauncher::DumpOutput()
-{
-    std::cout.write(outputBytes.data(), outputBytes.size());
 }
 
 void Serial::GetOptions(options_description &desc)
