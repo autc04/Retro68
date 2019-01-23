@@ -16,8 +16,10 @@ using std::string;
 using std::vector;
 using std::unordered_map;
 
-unordered_map<string,string>	sectionMap;
+using stringid = int;
+unordered_map<stringid,stringid>	sectionMap;
 bool verbose = false;
+unordered_map<stringid,string>	stringDictionary;
 
 enum RecordType {
 	kPad = 0,
@@ -49,68 +51,6 @@ enum ComputedReferenceFlags {
 	kDifference = 0x80
 };
 
-struct Reloc
-{
-	int size;
-	string name1;
-	string name2;
-
-	int write(std::ostream& out, uint8_t *p);
-};
-
-int Reloc::write(std::ostream& out, uint8_t *p)
-{
-	if(size == 2)
-	{
-		out << "\t.short ";
-		int val = (int)p[0] * 256 + p[1];
-
-		out << name1;
-		if(name2.size())
-			out << " - " << name2;
-		if(val > 0)
-			out << " + " << val;
-		else if(val < 0)
-			out << " - " << -val;
-		if(name2.size() == 0)
-			out << "-.";
-		out << std::endl;
-		return 2;
-	}
-	else if(size == 4)
-	{
-		out << "\t.long ";
-		int val = ((int)p[0] << 24) | ((int)p[1] << 16) | ((int)p[2] << 8) | p[3];
-
-		out << name1;
-		if(name2.size())
-			out << " - " << name2;
-		if(val > 0)
-			out << " + " << val;
-		else if(val < 0)
-			out << " - " << -val;
-		out << std::endl;
-		return 4;
-	}
-	else
-	{
-		assert(false);
-		return 1;
-	}
-}
-
-struct Module
-{
-	string name;
-	string segment;
-	vector<uint8_t> bytes;
-	unordered_map<uint32_t, vector<string>> labels;
-	unordered_map<uint32_t, Reloc> relocs;
-
-	std::vector<std::weak_ptr<Module>> nearrefs;
-
-	void write(std::ostream& out);
-};
 
 bool isValidIdentifier(const string& s)
 {
@@ -150,10 +90,73 @@ string encodeIdentifier(const string& s)
 	return ss.str();
 }
 
+struct Reloc
+{
+	int size;
+	stringid name1 = -1;
+	stringid name2 = -1;
+
+	int write(std::ostream& out, uint8_t *p);
+};
+
+int Reloc::write(std::ostream& out, uint8_t *p)
+{
+	if(size == 2)
+	{
+		out << "\t.short ";
+		int val = (int)p[0] * 256 + p[1];
+
+		out << encodeIdentifier(stringDictionary[name1]);
+		if(name2 != -1)
+			out << " - " << encodeIdentifier(stringDictionary[name2]);
+		if(val > 0)
+			out << " + " << val;
+		else if(val < 0)
+			out << " - " << -val;
+		if(name2 == -1)
+			out << "-.";
+		out << std::endl;
+		return 2;
+	}
+	else if(size == 4)
+	{
+		out << "\t.long ";
+		int val = ((int)p[0] << 24) | ((int)p[1] << 16) | ((int)p[2] << 8) | p[3];
+
+		out << encodeIdentifier(stringDictionary[name1]);
+		if(name2 != -1)
+			out << " - " << encodeIdentifier(stringDictionary[name2]);
+		if(val > 0)
+			out << " + " << val;
+		else if(val < 0)
+			out << " - " << -val;
+		out << std::endl;
+		return 4;
+	}
+	else
+	{
+		assert(false);
+		return 1;
+	}
+}
+
+struct Module
+{
+	stringid name;
+	stringid segment;
+	vector<uint8_t> bytes;
+	unordered_map<uint32_t, vector<stringid>> labels;
+	unordered_map<uint32_t, Reloc> relocs;
+
+	std::vector<std::weak_ptr<Module>> nearrefs;
+
+	void write(std::ostream& out);
+};
+
 void Module::write(std::ostream& out)
 {
 	uint32_t offset = 0;
-	string encodedName = encodeIdentifier(sectionMap[name]);
+	string encodedName = encodeIdentifier(stringDictionary[sectionMap[name]]);
 
 	out << "\t.section	.text." << encodedName << ",\"ax\",@progbits\n";
 
@@ -162,9 +165,9 @@ void Module::write(std::ostream& out)
 		auto labelP = labels.find(offset);
 		if(labelP != labels.end())
 		{
-			for(string rawLabel : labelP->second)
+			for(stringid rawLabel : labelP->second)
 			{
-				string label = encodeIdentifier(rawLabel);
+				string label = encodeIdentifier(stringDictionary[rawLabel]);
 				out << "\t.globl " << label << "\n";
 				out << label << ":\n";
 			}
@@ -195,11 +198,11 @@ void Module::write(std::ostream& out)
 
 void sortModules(std::vector<std::shared_ptr<Module>>& modules)
 {
-	std::set<std::string> unemitted;
+	std::set<stringid> unemitted;
 	for(auto& m : modules)
 		unemitted.insert(m->name);
 	
-	std::unordered_map<std::string, std::shared_ptr<Module>> nameMap;
+	std::unordered_map<stringid, std::shared_ptr<Module>> nameMap;
 	for(auto& m : modules)
 		for(auto& l : m->labels)
 			for(auto& str : l.second)
@@ -211,7 +214,7 @@ void sortModules(std::vector<std::shared_ptr<Module>>& modules)
 		{
 			if(r.second.size != 2)
 				continue;
-			if(r.second.name2.empty())
+			if(r.second.name2 == -1)
 			{
 				if(auto p = nameMap.find(r.second.name1); p != nameMap.end())
                 {
@@ -284,7 +287,6 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	unordered_map<int,string>	stringDictionary;
 	
 	bool shouldSortModules = true;
 	
@@ -379,11 +381,11 @@ int main(int argc, char* argv[])
 			case kModule:
 				{
 					int flags = byte(in);
-					string name = stringDictionary[word(in)];
+					stringid name = word(in);
 					sectionMap[name] = name;
-					string segment = stringDictionary[word(in)];
+					stringid segment = word(in);
 					if(verbose)
-						std::cerr << "Module " << name << "(" << segment << "), flags = " << flags << "\n";
+						std::cerr << "Module " << stringDictionary[name] << "(" << stringDictionary[segment] << "), flags = " << flags << "\n";
 
 					module.reset(new Module());
 					module->name = name;
@@ -424,12 +426,12 @@ int main(int argc, char* argv[])
 					int flags = byte(in);
 					int sz = word(in);
 					int end = (int)(in.tellg()) - 4 + sz;
-					string name = stringDictionary[word(in)];
+					stringid name = word(in);
 
 					if(verbose)
-						std::cerr << "Reference to " << name << " at\n";
+						std::cerr << "Reference to " << stringDictionary[name] << " at\n";
 					Reloc reloc;
-					reloc.name1 = encodeIdentifier(name);
+					reloc.name1 = name;
 
 					if(flags & kUnknownReferenceFlags)
 					{
@@ -462,10 +464,10 @@ int main(int argc, char* argv[])
 			case kEntryPoint:
 				{
 					/*int flags =*/ byte(in);
-					string name = stringDictionary[word(in)];
+					stringid name = word(in);
 					long offset = longword(in);
 					if(verbose)
-						std::cerr << "EntryPoint " << name << " at offset " << offset << "\n";
+						std::cerr << "EntryPoint " << stringDictionary[name] << " at offset " << offset << "\n";
 					assert(module);
 					module->labels[offset].push_back(name);
 				}
@@ -475,22 +477,22 @@ int main(int argc, char* argv[])
 					int flags = byte(in);
 					int sz = word(in);
 					int end = (int)(in.tellg()) - 4 + sz;
-					string name1 = stringDictionary[word(in)];
-					string name2 = stringDictionary[word(in)];
+					stringid name1 = word(in);
+					stringid name2 = word(in);
 
 					Reloc reloc;
-					reloc.name1 = encodeIdentifier(name1);
-					reloc.name2 = encodeIdentifier(name2);
+					reloc.name1 = name1;
+					reloc.name2 = name2;
 					reloc.size = 2;
 
 					assert(flags == 0x90);
 					assert(module);
 
-					string secName = sectionMap[name1];
-					if(secName != "")
-						sectionMap[module->name] = secName;
+                    if(auto p = sectionMap.find(name1); p != sectionMap.end())
+                        sectionMap[module->name] = p->second;
 					if(verbose)
-						std::cerr << "ComputedReference to " << name1 << " - " << name2 << " at\n";
+						std::cerr << "ComputedReference to "
+                            << stringDictionary[name1] << " - " << stringDictionary[name2] << " at\n";
 					while(in.tellg() < end)
 					{
 						int offset = word(in);
