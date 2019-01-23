@@ -15,11 +15,13 @@
 using std::string;
 using std::vector;
 using std::unordered_map;
+using std::unordered_set;
 
 using stringid = int;
 unordered_map<stringid,stringid>	sectionMap;
 bool verbose = false;
 unordered_map<stringid,string>	stringDictionary;
+unordered_set<stringid> localLabels;
 
 enum RecordType {
 	kPad = 0,
@@ -34,6 +36,11 @@ enum RecordType {
 	kReference = 9,
 	kComputedRef = 10,
     kFilename = 11
+};
+
+enum ModuleFlags {
+    kData = 0x01,   // default code
+    kExtern = 0x08  // default local
 };
 
 enum ReferenceFlags {	// flags field of kReference
@@ -52,29 +59,15 @@ enum ComputedReferenceFlags {
 };
 
 
-bool isValidIdentifier(const string& s)
+string encodeIdentifier(stringid id)
 {
-	if(s.empty())
-		return false;
-	if(s[0] != '_' && !isalpha(s[0]))
-		return false;
-	for(char c : s)
-		if(c != '_' && !isalnum(c))
-			return false;
-	return true;
-}
-
-string encodeIdentifier(const string& s)
-{
-	if(isValidIdentifier(s))
-		return s;
-
-    if(s.empty())
-        return "__z";
-
+    const string& s = stringDictionary[id];
 	std::ostringstream ss;
 
-	if(isdigit(s[0]))
+    if(localLabels.find(id) != localLabels.end())
+        ss << "L" << id << ".";
+
+    if(s.empty() || isdigit(s[0]))
 		ss << "__z";
 
 	for(char c : s)
@@ -106,9 +99,9 @@ int Reloc::write(std::ostream& out, uint8_t *p)
 		out << "\t.short ";
 		int val = (int)p[0] * 256 + p[1];
 
-		out << encodeIdentifier(stringDictionary[name1]);
+		out << encodeIdentifier(name1);
 		if(name2 != -1)
-			out << " - " << encodeIdentifier(stringDictionary[name2]);
+			out << " - " << encodeIdentifier(name2);
 		if(val > 0)
 			out << " + " << val;
 		else if(val < 0)
@@ -123,9 +116,9 @@ int Reloc::write(std::ostream& out, uint8_t *p)
 		out << "\t.long ";
 		int val = ((int)p[0] << 24) | ((int)p[1] << 16) | ((int)p[2] << 8) | p[3];
 
-		out << encodeIdentifier(stringDictionary[name1]);
+		out << encodeIdentifier(name1);
 		if(name2 != -1)
-			out << " - " << encodeIdentifier(stringDictionary[name2]);
+			out << " - " << encodeIdentifier(name2);
 		if(val > 0)
 			out << " + " << val;
 		else if(val < 0)
@@ -156,7 +149,7 @@ struct Module
 void Module::write(std::ostream& out)
 {
 	uint32_t offset = 0;
-	string encodedName = encodeIdentifier(stringDictionary[sectionMap[name]]);
+	string encodedName = encodeIdentifier(sectionMap[name]);
 
 	out << "\t.section	.text." << encodedName << ",\"ax\",@progbits\n";
 
@@ -167,8 +160,9 @@ void Module::write(std::ostream& out)
 		{
 			for(stringid rawLabel : labelP->second)
 			{
-				string label = encodeIdentifier(stringDictionary[rawLabel]);
-				out << "\t.globl " << label << "\n";
+				string label = encodeIdentifier(rawLabel);
+				if(localLabels.find(rawLabel) == localLabels.end())
+                    out << "\t.globl " << label << "\n";
 				out << label << ":\n";
 			}
 		}
@@ -387,6 +381,9 @@ int main(int argc, char* argv[])
 					if(verbose)
 						std::cerr << "Module " << stringDictionary[name] << "(" << stringDictionary[segment] << "), flags = " << flags << "\n";
 
+                    if((flags & kExtern) == 0)
+                        localLabels.insert(name);
+
 					module.reset(new Module());
 					module->name = name;
 					module->labels[0].push_back(name);
@@ -463,11 +460,14 @@ int main(int argc, char* argv[])
 				break;
 			case kEntryPoint:
 				{
-					/*int flags =*/ byte(in);
+					int flags = byte(in);
 					stringid name = word(in);
 					long offset = longword(in);
 					if(verbose)
 						std::cerr << "EntryPoint " << stringDictionary[name] << " at offset " << offset << "\n";
+                    if((flags & kExtern) == 0)
+                        localLabels.insert(name);
+
 					assert(module);
 					module->labels[offset].push_back(name);
 				}
