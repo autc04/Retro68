@@ -492,6 +492,7 @@ resource_body1	: resource_item	{ $$ = std::make_shared<CompoundExpr>(@1); $$->ad
 				| resource_body1 "," resource_item	{ $$ = $1; $$->addItem($3); }
 				| resource_body1 ";" resource_item	{ $$ = $1; $$->addItem($3); }
 				| resource_body1 ";" { $$ = $1; }
+				| resource_body1 "," { $$ = $1; }
 				;
 
 resource_item	: value { $$ = $1; }
