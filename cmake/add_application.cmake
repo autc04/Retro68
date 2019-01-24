@@ -46,7 +46,7 @@ function(add_application name)
 	add_executable(${name} ${files} ${rez_files})
 
 	if(${ARGS_DEBUGBREAK})
-		list(APPEND ARGS_MAKEAPPL_ARGS -DBREAK_ON_ENTRY)
+		target_link_options(${name} PRIVATE "LINKER:--defsym=__break_on_entry=1")
 	endif()
 	if(${ARGS_CONSOLE})
         if(TARGET RetroConsole OR NOT (CMAKE_SYSTEM_NAME MATCHES RetroCarbon))    
