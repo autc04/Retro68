@@ -596,7 +596,7 @@ void ConnectionChanged()
         default:
             ;
     }
-    
+    WritePrefs();
     if(connection)
     {
         connection->setListener(&server);

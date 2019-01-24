@@ -169,6 +169,8 @@ void StatusDisplay::DrawValue(Stat stat, long val)
 
 void StatusDisplay::Update()
 {
+    GrafPtr savePort;
+    GetPort(&savePort);
     SetPortWindowPort(statusWindow);
     BeginUpdate(statusWindow);
     EraseRgn(background);
@@ -257,6 +259,7 @@ void StatusDisplay::Update()
 #endif
 
     EndUpdate(statusWindow);
+    SetPort(savePort);
 }
 
 void StatusDisplay::Idle()

@@ -89,6 +89,8 @@ AboutBox::~AboutBox()
 
 void AboutBox::Update()
 {
+    GrafPtr savePort;
+    GetPort(&savePort);
     SetPortWindowPort(window);
     BeginUpdate(window);
 
@@ -107,4 +109,5 @@ void AboutBox::Update()
     TEUpdate(&portRect, textEdit);
 
     EndUpdate(window);
+    SetPort(savePort);
 }
