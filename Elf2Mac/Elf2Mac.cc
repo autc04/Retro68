@@ -100,6 +100,7 @@ int main(int argc, char *argv[])
 		bool flatoutput = false;
 		bool segments = true;
 		bool stripMacsbug = false;
+        bool saveLdScript = false;
 
 		SegmentMap segmentMap;
 
@@ -158,6 +159,10 @@ int main(int argc, char *argv[])
 			{
 				stripMacsbug = true;
 			}
+            else if(*p == "--mac-keep-ldscript")
+            {
+                saveLdScript = true;
+            }
 			else
 			{
 				args2.push_back(*p);
@@ -188,7 +193,10 @@ int main(int argc, char *argv[])
 			args2.push_back("-T");
 			args2.push_back(tmpfile);
 			RealLD(args2);
-			unlink(tmpfile);
+			if(saveLdScript)
+                std::cerr << "Ld Script at: " << tmpfile << std::endl;
+            else
+                unlink(tmpfile);
 			Object theObject(outputFile + ".gdb");
 			if(flatoutput)
 				theObject.FlatCode(outputFile);
