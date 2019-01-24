@@ -35,7 +35,8 @@ SegmentMap::SegmentMap()
 	                      "*/libretrocrt.a:MultiSegApp.c.obj",
 	                      "*/libretrocrt.a:LoadSeg.s.obj",
 	                      "*/libretrocrt.a:*",
-	                      "*/libgcc.a:*",
+                          "*/libInterface.a:*",
+        	              "*/libgcc.a:*",
 	                      "*/libc.a:*"
 	                      );
 	segments.emplace_back(5, "libstdc++ locale",
@@ -65,6 +66,7 @@ SegmentMap::SegmentMap(std::string filename)
 	                      "*/libretrocrt.a:MultiSegApp.c.obj",
 	                      "*/libretrocrt.a:LoadSeg.s.obj",
 	                      "*/libretrocrt.a:*",
+                          "*/libInterface.a:*",
 	                      "*/libgcc.a:*",
 	                      "*/libc.a:*"
 	                      );

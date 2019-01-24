@@ -22,16 +22,8 @@
 #	<http://www.gnu.org/licenses/>.
 
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
-	find_program(CONVERT_OBJ ConvertObj PATH "${CMAKE_INSTALL_PREFIX}/../bin/")
-    
-    set(INTERFACE_O InterfaceO_NOTFOUND CACHE STRING "path to MPW Interface.o file")
-    add_custom_command(
-		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/Interface.s
-		COMMAND ${CONVERT_OBJ} ${INTERFACE_O} > ${CMAKE_CURRENT_BINARY_DIR}/Interface.s
-	)
-	enable_language(ASM)
-
-	set(ARCH_FILES
+    enable_language(ASM)
+    set(ARCH_FILES
 		Retro68Runtime.h
 		start.c
 		relocate.c
@@ -39,7 +31,6 @@ if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 		MultiSegApp.c
 		LoadSeg.s
 		# glue.c
-		${CMAKE_CURRENT_BINARY_DIR}/Interface.s
 		qdglobals.c
 		Retro68.r
 		Retro68APPL.r

@@ -55,6 +55,7 @@ const char * textSection = R"ld(/* ld script for Elf2Mac */
         */libretrocrt.a:start.c.obj(.text*)
         */libretrocrt.a:relocate.c.obj(.text*)
         */libretrocrt.a:*(.text*)
+        */libInterface.a:*(.text*)
         *(.text*)
 
         *(.stub)

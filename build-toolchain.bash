@@ -238,7 +238,7 @@ fi
 if [ $BUILD_68K != false ]; then
 
 	if locateInterfaceThing INTERFACE_O Interface.o; then
-		true
+		M68KLIBRARIES=`dirname "$INTERFACE_O"`
 	else
 		echo "Could not find Interface.o anywhere inside InterfaceAndLibraries/"
 		echo "(This file is required for 68K support only)"
@@ -264,7 +264,7 @@ if [ $BUILD_PPC != false ]; then
 	else
 		echo "Could not find OpenTransportAppPPC.o anywhere inside InterfaceAndLibraries/"
 		echo "(This file is required for OpenTransport on PPC only)"
-fi
+    fi
 
 fi
 
@@ -487,6 +487,22 @@ if [ $BUILD_PPC != false ]; then
     linkheaders toolchain/powerpc-apple-macos/include
 fi
 
+if [ $BUILD_68K != false ]; then
+    echo "Converting 68K static libraries..."
+    for macobj in "${M68KLIBRARIES}/"*.o; do
+        if [ -r $macobj ]; then
+            libname=`basename "$macobj"`
+            libname=${libname%.o}
+            printf "    %30s => %-30s\n" ${libname}.o lib${libname}.a
+            obj="toolchain/m68k-apple-macos/lib/$libname.o"
+            lib="toolchain/m68k-apple-macos/lib/lib${libname}.a"
+            rm -f $lib
+
+            (ConvertObj "$macobj" | m68k-apple-macos-as - -o $obj) && m68k-apple-macos-ar cqs $lib $obj
+        fi
+    done
+fi
+
 if [ $BUILD_PPC != false ]; then
 	case `ResInfo -n "$INTERFACELIB" || echo 0` in
 		0)
@@ -531,12 +547,9 @@ if [ $BUILD_68K != false ]; then
 	mkdir -p build-target
 	cd build-target
 
-	INTERFACE_O=`find "$SRC/InterfacesAndLibraries" -name ".*" -prune -o -name Interface.o -print`
-
 	cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intree.toolchain.cmake \
 				 -DCMAKE_BUILD_TYPE=Release \
 				 -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
-				 "-DINTERFACE_O=${INTERFACE_O}" \
                  ${CMAKE_GENERATOR}
 	cd ..
 	cmake --build build-target --target install
