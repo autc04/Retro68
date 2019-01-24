@@ -14,5 +14,9 @@ SEGMENT Launcher
     */AppLauncher.*
     */ToolLauncher.*
 
+SEGMENT Preferences
+    */Preferences.*
+    */libNavigation.far.a:*
+
 SEGMENT libstdc++
     */libstdc++.a:*

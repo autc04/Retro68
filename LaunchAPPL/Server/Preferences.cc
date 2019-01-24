@@ -70,9 +70,6 @@ static void ConvertToPathName(const FSSpec& spec)
     WritePrefs();
 }
 
-#if !TARGET_CPU_68K
-    // TODO: need to properly link to Navigation.far.o on 68K
-
 static pascal void NavEventProc(NavEventCallbackMessage callBackSelector, NavCBRecPtr callBackParms, void *callBackUD)
 {
     if(callBackSelector == kNavCBEvent)
@@ -125,7 +122,6 @@ static bool ChooseSharedDirectoryNav(FSSpec& spec)
     }
     return success;
 }
-#endif
 
 #if !TARGET_API_MAC_CARBON
 static bool choosePressed = false;
@@ -223,19 +219,18 @@ void ChooseSharedDirectory()
     bool ok = false;
 
 
-#if TARGET_API_MAC_CARBON
-    ok = ChooseSharedDirectoryNav(spec); 
-#else
-
-#if !TARGET_CPU_68K
-    if(NavServicesAvailable())
-        ok = ChooseSharedDirectoryNav(spec);
-#else
+#if TARGET_CPU_68K
     if(!hasSys7StdFile)
         ok = ChooseSharedDirectory6(spec);
-#endif
     else
-        ok = ChooseSharedDirectory7(spec);
+#endif
+#if !TARGET_API_MAC_CARBON
+        if(NavServicesAvailable())
+#endif
+            ok = ChooseSharedDirectoryNav(spec);
+#if !TARGET_API_MAC_CARBON
+        else
+            ok = ChooseSharedDirectory7(spec);
 #endif
 
     if(ok)

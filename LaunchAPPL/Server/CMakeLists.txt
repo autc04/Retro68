@@ -84,6 +84,9 @@ endif()
 if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
     target_link_libraries(LaunchAPPLServer -lOpenTransportAppPPC -lOpenTransportLib -lOpenTptInternetLib -lNavigationLib)
 endif()
+if(CMAKE_SYSTEM_NAME MATCHES Retro68)
+    target_link_libraries(LaunchAPPLServer -lNavigation.far)
+endif()
 
 if(FALSE)
 add_application(tcptest 
