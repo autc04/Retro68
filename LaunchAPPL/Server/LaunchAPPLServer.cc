@@ -689,10 +689,13 @@ int main()
             portsAvailable[(int)Port::macTCP] = true;
         if(Gestalt(gestaltSerialAttr, &resp) == noErr)
         {
+            // gestaltPortADisabled and gestaltPortBDisabled are "recent" additions
+            // (Universal Interfaces 3.4 only). Use the literal constants for compatibility
+            // in case people are using older interfaces.
             portsAvailable[(int)Port::modemPort] = 
-                (resp & ((1 << gestaltHidePortA) | (1<< gestaltPortADisabled))) == 0;
+                (resp & ((1 << gestaltHidePortA) | (1<< 5/*gestaltPortADisabled*/))) == 0;
             portsAvailable[(int)Port::printerPort] = 
-                (resp & ((1 << gestaltHidePortB) | (1<< gestaltPortBDisabled))) == 0;
+                (resp & ((1 << gestaltHidePortB) | (1<< 6/*gestaltPortBDisabled*/))) == 0;
         }
     }
 #endif
