@@ -1,4 +1,14 @@
-set(CONNECTION_SOURCES)
+set(CONNECTION_SOURCES
+        OpenTptStream.h
+        OpenTptStream.cc
+        OpenTptConnectionProvider.h
+        OpenTptConnectionProvider.cc
+
+        SharedFileStream.h
+        SharedFileStream.cc
+        SharedFileProvider.h
+        SharedFileProvider.cc
+    )
 
 if(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
 else()
@@ -13,24 +23,7 @@ else()
             TCPConnectionProvider.h
             TCPConnectionProvider.cc
         )
-endif()
-
-if(CMAKE_SYSTEM_NAME MATCHES Retro68)
-else()
-    list(APPEND CONNECTION_SOURCES
-            OpenTptStream.h
-            OpenTptStream.cc
-            OpenTptConnectionProvider.h
-            OpenTptConnectionProvider.cc
-        )
-endif()
-
-list(APPEND CONNECTION_SOURCES
-    SharedFileStream.h
-    SharedFileStream.cc
-    SharedFileProvider.h
-    SharedFileProvider.cc
-)
+endif()        
 
 option(LAUNCHAPPLSERVER_DEBUG_CONSOLE "Add a debug console to LaunchAPPLServer" FALSE)
 
@@ -85,7 +78,7 @@ if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
     target_link_libraries(LaunchAPPLServer -lOpenTransportAppPPC -lOpenTransportLib -lOpenTptInternetLib -lNavigationLib)
 endif()
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
-    target_link_libraries(LaunchAPPLServer -lNavigation.far)
+    target_link_libraries(LaunchAPPLServer -lOpenTransport -lOpenTransportApp -lOpenTptInet -lNavigation.far)
 endif()
 
 if(FALSE)

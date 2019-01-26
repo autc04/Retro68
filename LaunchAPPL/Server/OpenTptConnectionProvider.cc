@@ -54,5 +54,5 @@ void OpenTptConnectionProvider::unloadSegDummy()
 
 void *OpenTptConnectionProvider::segmentToUnload()
 {
-    return nullptr;//(void*) &unloadSegDummy;
+    return (void*) &unloadSegDummy;
 }

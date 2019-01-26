@@ -46,9 +46,7 @@
 #include "SerialConnectionProvider.h"
 #include "TCPConnectionProvider.h"
 #endif
-#if !TARGET_CPU_68K
 #include "OpenTptConnectionProvider.h"
-#endif
 #include "SharedFileProvider.h"
 
 #include "SystemInfo.h"
@@ -579,11 +577,9 @@ void ConnectionChanged()
             connection = std::make_unique<SerialConnectionProvider>(0, gPrefs.baud, statusDisplay.get());
             break;
 #endif
-#if !TARGET_CPU_68K
         case Port::openTptTCP:
             connection = std::make_unique<OpenTptConnectionProvider>(statusDisplay.get());;
             break;
-#endif
         case Port::sharedFiles:
             if(gPrefs.sharedDirectoryPath[0] == 0)
             {
@@ -699,14 +695,12 @@ int main()
         }
     }
 #endif
-#if !TARGET_CPU_68K
     if(hasGestalt)
     {
         long resp;
         if(Gestalt(gestaltOpenTpt, &resp) == noErr && resp)
             portsAvailable[(int)Port::openTptTCP] = true;
     }
-#endif
 
     SetMenuBar(GetNewMBar(128));
     AppendResMenu(GetMenu(128), 'DRVR');

@@ -7,6 +7,10 @@ SEGMENT MacTCP
     */MacTCPStream.*
     */TCPConnectionProvider.*
 
+SEGMENT OpenTransport
+    */OpenTpt*.*
+    */libOpenT*.a:*
+
 SEGMENT SharedFile
     */SharedFile*.*
 
