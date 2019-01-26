@@ -17,9 +17,15 @@ using std::vector;
 using std::unordered_map;
 using std::unordered_set;
 
+bool verbose = false;
+bool shouldSortModules = true;
+bool addMacsbugNames = true;
+bool functionSections = true;
+bool dataSections = true;
+bool dataInText = false;
+
 using stringid = int;
 unordered_map<stringid,stringid>	sectionMap;
-bool verbose = false;
 unordered_map<stringid,string>	stringDictionary;
 unordered_set<stringid> localLabels;
 
@@ -58,6 +64,11 @@ enum ComputedReferenceFlags {
 	kDifference = 0x80
 };
 
+enum ContentFlags {
+    // kData = 0x01 // ?
+    kContentOffset = 0x08,
+    kContentRepeat = 0x10
+};
 
 string encodeIdentifier(stringid id)
 {
@@ -137,6 +148,7 @@ struct Module
 {
 	stringid name;
 	stringid segment;
+    bool isData;
 	vector<uint8_t> bytes;
 	unordered_map<uint32_t, vector<stringid>> labels;
 	unordered_map<uint32_t, Reloc> relocs;
@@ -148,12 +160,28 @@ struct Module
 
 void Module::write(std::ostream& out)
 {
-	uint32_t offset = 0;
+	
 	string encodedName = encodeIdentifier(sectionMap[name]);
 
-	out << "\t.section	.text." << encodedName << ",\"ax\",@progbits\n";
+	if(isData && !dataInText)
+    {
+        if(dataSections)
+            out << "\t.section .data." << encodedName << ",\"aw\"\n";
+        else
+            out << "\t.data\n";
+        if(bytes.size() >= 2)
+            out << "\t.align 2,0\n";
+    }
+    else
+    {
+        if(functionSections)
+            out << "\t.section	.text." << encodedName << ",\"ax\",@progbits\n";
+        else
+            out << "\t.section	.text,\"ax\",@progbits\n";
+        out << "\t.align 2,0\n";
+    }
 
-	while(offset < bytes.size())
+	for(uint32_t offset = 0; offset < bytes.size();)
 	{
 		auto labelP = labels.find(offset);
 		if(labelP != labels.end())
@@ -178,15 +206,18 @@ void Module::write(std::ostream& out)
 			offset++;
 		}
 	}
-	out << "\t.section	.text." << encodedName << ".macsbug,\"ax\",@progbits\n";
-	if(encodedName.size() < 32)
-		out << "\t.byte " << (encodedName.size() | 0x80) << "\n";
-	else
-		out << "\t.byte 0x80\n"
-			<< "\t.byte " << encodedName.size() << "\n";
-	out << "\t.ascii \"" << encodedName << "\"\n";
-	out << "\t.align 2,0\n\t.short 0\n";
-
+    if(addMacsbugNames && !isData)
+    {
+        if(functionSections)
+            out << "\t.section	.text." << encodedName << ".macsbug,\"ax\",@progbits\n";
+        if(encodedName.size() < 32)
+            out << "\t.byte " << (encodedName.size() | 0x80) << "\n";
+        else
+            out << "\t.byte 0x80\n"
+                << "\t.byte " << encodedName.size() << "\n";
+        out << "\t.ascii \"" << encodedName << "\"\n";
+        out << "\t.align 2,0\n\t.short 0\n";
+    }
 	out << "# ######\n\n";
 }
 
@@ -280,9 +311,6 @@ int main(int argc, char* argv[])
 		std::cerr << "Usage: ConvertOBJ mpw.o > retro68.s\n";
 		return 1;
 	}
-
-	
-	bool shouldSortModules = true;
 	
 	std::shared_ptr<Module> module;
 	std::vector<std::shared_ptr<Module>> modules;
@@ -378,6 +406,7 @@ int main(int argc, char* argv[])
 					stringid name = word(in);
 					sectionMap[name] = name;
 					stringid segment = word(in);
+                    
 					if(verbose)
 						std::cerr << "Module " << stringDictionary[name] << "(" << stringDictionary[segment] << "), flags = " << flags << "\n";
 
@@ -386,6 +415,8 @@ int main(int argc, char* argv[])
 
 					module.reset(new Module());
 					module->name = name;
+                    module->segment = segment;
+                    module->isData = (flags & kData) != 0;
 					module->labels[0].push_back(name);
 					modules.push_back(module);
 				}
@@ -395,17 +426,30 @@ int main(int argc, char* argv[])
 					int flags = byte(in);
 					int sz = word(in) - 4;
 					uint32_t offset = 0;
-					if(flags & 0x08)
+					if(flags & kContentOffset)
 					{
 					 	offset = longword(in);
 						sz -= 4;
 					}
+                    int repeat = 1;
+                    if(flags & kContentRepeat)
+                    {
+                        repeat = word(in);
+                        sz -= 2;
+                    }
+   	                if(verbose)
+						std::cerr << "Content (offset = " << offset << ", size = " << sz << ", repeat = " << repeat <<  ")\n";
+
 					assert(module.get());
-					if(module->bytes.size() < offset + sz)
-						module->bytes.resize(offset + sz);
+					if(module->bytes.size() < offset + sz * repeat)
+						module->bytes.resize(offset + sz * repeat);
 					in.read((char*) &module->bytes[offset], sz);
-					if(verbose)
-						std::cerr << "Content (offset = " << offset << ", size = " << sz << ")\n";
+                    while(--repeat > 0)
+                    {
+                        std::copy(module->bytes.begin() + offset, module->bytes.begin() + offset + sz,
+                                  module->bytes.begin() + offset + sz);
+                        offset += sz;
+                    }
 				}
 				break;
 			case kSize:
