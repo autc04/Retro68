@@ -131,8 +131,17 @@ static pascal short DlgHookProc(short item, DialogRef theDialog)
         return 1;
     if(item == 11)
     {
+        short type;
+        Rect r;
+        ControlHandle button;
+
+        GetDialogItem(theDialog, 1, &type, (Handle*)&button, &r);
+
         choosePressed = true;
-        return sfHookOpenFolder;
+        if((*button)->contrlHilite == 0)
+            return sfHookOpenFolder;
+        else
+            return 1;
     }
 
     return item;
@@ -149,7 +158,11 @@ static bool ChooseSharedDirectory6(FSSpec& spec)
     auto dlgHookProc = NewDlgHookUPP(&DlgHookProc);
     auto fileFilterProc = NewFileFilterUPP(&FileFilterProc);
     choosePressed = false;
-    SFPGetFile(Point{-1,-1}, "\p", fileFilterProc, 0, nullptr, dlgHookProc, &reply, 128, nullptr);
+
+    Point position = { short((qd.screenBits.bounds.bottom - 225) / 2),
+                       short((qd.screenBits.bounds.right  - 348) / 2) };
+
+    SFPGetFile(position, "\p", fileFilterProc, 0, nullptr, dlgHookProc, &reply, 128, nullptr);
     DisposeDlgHookUPP(dlgHookProc);
     DisposeFileFilterUPP(fileFilterProc);
 
@@ -164,6 +177,9 @@ static bool ChooseSharedDirectory6(FSSpec& spec)
 }
 static pascal short DlgHookYDProc(short item, DialogRef theDialog, void *yourDataPtr)
 {
+    if(GetWRefCon(theDialog) != sfMainDialogRefCon)
+        return item;
+
     if(choosePressed)
         return 1;
     if(item == 10)
