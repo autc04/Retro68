@@ -2,6 +2,7 @@
 #include "Launcher.h"
 #include "Utilities.h"
 #include "BinaryIO.h"
+#include "ResourceFile.h"
 
 extern "C" {
 #include "hfs.h"
@@ -35,6 +36,7 @@ class MiniVMacLauncher : public Launcher
     hfsvol *vol;
 
     void CopySystemFile(const std::string& fn, bool required);
+    void MakeAlias(const std::string& dest, const std::string& src);
     fs::path ConvertImage(const fs::path& path);
 public:
     MiniVMacLauncher(po::variables_map& options);
@@ -126,8 +128,10 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     vmacDir = fs::absolute( options["minivmac-dir"].as<std::string>() );
     vmacPath = fs::absolute( options["minivmac-path"].as<std::string>(), vmacDir );
 
+    bool usesAutQuit7 = options.count("autquit7-image");
+
     systemImage = fs::absolute(options["system-image"].as<std::string>(), vmacDir);
-    fs::path autoquitImage = fs::absolute(options["autoquit-image"].as<std::string>(), vmacDir);
+    fs::path autoquitImage = fs::absolute(options[usesAutQuit7 ? "autquit7-image" : "autoquit-image"].as<std::string>(), vmacDir);
 
     systemImage = ConvertImage(systemImage);
     autoquitImage = ConvertImage(autoquitImage);
@@ -147,8 +151,9 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     hfs_format(imagePath.string().c_str(), 0, 0, "SysAndApp", 0, NULL);
 
     {
-        bootblock1[0x1A] = 8;
-        memcpy(&bootblock1[0x1B],"AutoQuit", 8);
+        std::string finderName = std::string(usesAutQuit7 ? "Finder" : "AutoQuit");
+        bootblock1[0x1A] = finderName.size();
+        memcpy(&bootblock1[0x1B], finderName.c_str(), finderName.size());
         bootblock1[0x5A] = 3;
         memcpy(&bootblock1[0x5B],"App", 3);
 
@@ -176,6 +181,11 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     CopySystemFile(systemFileName, true);
     CopySystemFile("MacsBug", false);
 
+    if (usesAutQuit7)
+    {
+        CopySystemFile("Finder", true);
+    }
+
     {
         std::ostringstream rsrcOut;
         app.resources.writeFork(rsrcOut);
@@ -190,18 +200,27 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
         hfs_close(file);
     }
 
-    hfs_umount(sysvol);
+    hfs_umount(sysvol); sysvol = NULL;
     sysvol = hfs_mount(autoquitImage.string().c_str(),0, HFS_MODE_RDONLY);
     if(!sysvol)
         throw std::runtime_error("Cannot open disk image: " + autoquitImage.string());
     assert(sysvol);
-    CopySystemFile("AutoQuit", true);
+    if (usesAutQuit7)
+    {
+        CopySystemFile("AutQuit7", true);
+        MakeAlias("AutQuit7 alias", "AutQuit7");
+        hfs_mkdir(vol, "Startup Items");
+        hfs_rename(vol, "AutQuit7 alias", "Startup Items");
+    }
+    else
+    {
+        CopySystemFile("AutoQuit", true);
+    }
 
     {
         hfsfile *file = hfs_create(vol, "out", "TEXT", "MPS ");
         hfs_close(file);
     }
-
     hfs_umount(sysvol); sysvol = NULL;
     hfs_umount(vol); vol = NULL;
 
@@ -326,6 +345,39 @@ void MiniVMacLauncher::CopySystemFile(const std::string &fn, bool required)
     hfs_close(out);
 }
 
+void MiniVMacLauncher::MakeAlias(const std::string& dest, const std::string& src)
+{
+    hfsdirent ent;
+    hfsvolent vent;
+
+    hfs_stat(vol, src.c_str(), &ent);
+    hfs_vstat(vol, &vent);
+
+    AliasData alias;
+    alias.size = sizeof(AliasData);
+    memcpy(&(alias.volumeName), vent.name, 27);
+    alias.volumeNameSize = strlen(vent.name);
+    alias.volumeCreationDate = vent.crdate;
+    alias.parentDirID = ent.parid;
+    memcpy(&(alias.fileName), ent.name, 63);
+    alias.fileNameSize = strlen(ent.name);
+    alias.fileNum = ent.cnid;
+    alias.fileCreationDate = ent.crdate;
+    memcpy(&(alias.typeCode), ent.u.file.type, 4);
+    memcpy(&(alias.creatorCode), ent.u.file.creator, 4);
+
+    std::ostringstream roalias;
+    Resources res;
+    res.addResource(Resource("alis", 0, std::string((char*)&alias, sizeof(AliasData))));
+    res.writeFork(roalias);
+    std::string ralias = roalias.str();
+
+    hfsfile *falias = hfs_create(vol, dest.c_str(), "adrp", ent.u.file.creator);
+    hfs_setfork(falias, 1);
+    hfs_write(falias, ralias.data(), ralias.size());
+    hfs_close(falias);
+}
+
 
 bool MiniVMacLauncher::Go(int timeout)
 {
@@ -361,6 +413,7 @@ void MiniVMac::GetOptions(options_description &desc)
             ("minivmac-rom", po::value<std::string>()->default_value("./vMac.ROM"),"minivmac ROM file")
             ("system-image", po::value<std::string>(),"path to disk image with system")
             ("autoquit-image", po::value<std::string>(),"path to autoquit disk image, available from the minivmac web site")
+            ("autquit7-image", po::value<std::string>(),"path to autquit7 disk image, available from the minivmac web site")
             ;
 }
 
@@ -370,7 +423,7 @@ bool MiniVMac::CheckOptions(variables_map &options)
         && options.count("minivmac-dir") != 0
         && options.count("minivmac-rom") != 0
         && options.count("system-image") != 0
-        && options.count("autoquit-image") != 0;
+        && (options.count("autoquit-image") + options.count("autquit7-image")) == 1;
 }
 
 std::unique_ptr<Launcher> MiniVMac::MakeLauncher(variables_map &options)
