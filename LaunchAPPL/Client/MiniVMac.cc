@@ -224,7 +224,7 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     
         fs::create_symlink(
             romFile,
-            tempDir / romFile.filename() );
+            tempDir / "vMac.ROM" );
     }
 
     /*
