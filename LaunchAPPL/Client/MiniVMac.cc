@@ -25,6 +25,45 @@ using std::vector;
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
+
+/* Adapted from http://sebastien.kirche.free.fr/python_stuff/MacOS-aliases.txt */
+typedef struct
+{
+    int16_t type;                           /* type of data */
+    int16_t size;                           /* length of variable length data */
+    char data[];                            /* actual data */
+} VarData;
+
+typedef struct
+{
+    /* Type Code: alis */
+    char userType[4] = {0, 0, 0, 0};        /* for application use, can be zeros */
+    uint16_t size;                          /* alias record size, including variable length data */
+    int16_t version = 2;                    /* alias version, current 2 */
+    int16_t type = 0;                       /* file = 0, directory = 1 */
+    char volumeNameSize;
+    char volumeName[27];                    /* volume name */
+    uint32_t volumeCreationDate;            /* volume creation date, seconds since 1904 */
+    uint16_t volumeSig = 0x4244; /*BD*/     /* volume signature MFS = RW, HFS = BD */
+    int16_t volumeType = 5;                 /* [HD] = 0, Foreign = 1, Floppy: 400K, 800K, 1400K = 2-4, OtherEjectable = 5 */
+    int32_t parentDirID;                    /* parent directory ID, 0 for relative searches */
+    char fileNameSize;
+    char fileName[63];                      /* file or directory name */
+    int32_t fileNum;                        /* file number or directory ID */
+    uint32_t fileCreationDate;              /* file or directory creation date, seconds since 1904 */
+    char typeCode[4];                       /* file type */
+    char creatorCode[4];                    /* file's creator */
+    int16_t nlvlFrom = 0;                   /* next level up from alias, used in relative searches */
+    int16_t nlvlTo = 0;                     /* next level down to target, ditto */
+    uint32_t volumeAttr = 0;                /* various flags (locked, ejectable), see link above */
+    int16_t volumeFSID = 0;                 /* file system ID for the volume, 0 for MFS, HFS */
+    int16_t unused = 0;
+    uint32_t unused1 = 0;
+    uint32_t unused2 = 0;
+    VarData vdata[];                        /* variable length data, see link above */
+} AliasData;
+
+
 class MiniVMacLauncher : public Launcher
 {
     fs::path imagePath;
@@ -36,6 +75,7 @@ class MiniVMacLauncher : public Launcher
     hfsvol *vol;
 
     void CopySystemFile(const std::string& fn, bool required);
+    uint16_t GetSystemVersion(const std::string& systemFileName);
     void MakeAlias(const std::string& dest, const std::string& src);
     fs::path ConvertImage(const fs::path& path);
 public:
@@ -128,13 +168,8 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     vmacDir = fs::absolute( options["minivmac-dir"].as<std::string>() );
     vmacPath = fs::absolute( options["minivmac-path"].as<std::string>(), vmacDir );
 
-    bool usesAutQuit7 = options.count("autquit7-image");
-
     systemImage = fs::absolute(options["system-image"].as<std::string>(), vmacDir);
-    fs::path autoquitImage = fs::absolute(options[usesAutQuit7 ? "autquit7-image" : "autoquit-image"].as<std::string>(), vmacDir);
-
     systemImage = ConvertImage(systemImage);
-    autoquitImage = ConvertImage(autoquitImage);
 
     std::vector<unsigned char> bootblock1(1024);
     fs::ifstream(systemImage).read((char*) bootblock1.data(), 1024);
@@ -142,35 +177,38 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     if(bootblock1[0] != 'L' || bootblock1[1] != 'K' || bootblock1[0xA] > 15)
         throw std::runtime_error("Not a bootable Mac disk image: " + systemImage.string());
 
-    string systemFileName(bootblock1.begin() + 0xB, bootblock1.begin() + 0xB + bootblock1[0xA]);
-
-
-    int size = 5000*1024;
-
-    fs::ofstream(imagePath, std::ios::binary | std::ios::trunc).seekp(size-1).put(0);
-    hfs_format(imagePath.string().c_str(), 0, 0, "SysAndApp", 0, NULL);
-
-    {
-        std::string finderName = std::string(usesAutQuit7 ? "Finder" : "AutoQuit");
-        bootblock1[0x1A] = finderName.size();
-        memcpy(&bootblock1[0x1B], finderName.c_str(), finderName.size());
-        bootblock1[0x5A] = 3;
-        memcpy(&bootblock1[0x5B],"App", 3);
-
-        fs::fstream(imagePath, std::ios::in | std::ios::out | std::ios::binary)
-                .write((const char*) bootblock1.data(), 1024);
-    }
-
-
-    vol = hfs_mount(imagePath.string().c_str(), 0, HFS_MODE_RDWR);
-    assert(vol);
-
     sysvol = hfs_mount(systemImage.string().c_str(),0, HFS_MODE_RDONLY);
     assert(sysvol);
     hfsvolent ent;
     hfs_vstat(sysvol, &ent);
     hfs_setcwd(sysvol, ent.blessed);
 
+    string systemFileName(bootblock1.begin() + 0xB, bootblock1.begin() + 0xB + bootblock1[0xA]);
+    uint16_t sysver = GetSystemVersion(systemFileName);
+
+    bool usesAutQuit7 = (sysver >= 0x700);
+    fs::path autoquitImage = fs::absolute(options[usesAutQuit7 ? "autquit7-image" : "autoquit-image"].as<std::string>(), vmacDir);
+    autoquitImage = ConvertImage(autoquitImage);
+
+    int size = 5000*1024;
+
+    fs::ofstream(imagePath, std::ios::binary | std::ios::trunc).seekp(size-1).put(0);
+    hfs_format(imagePath.string().c_str(), 0, 0, "SysAndApp", 0, NULL);
+
+    if(!usesAutQuit7)
+    {
+        std::string finderName = std::string(usesAutQuit7 ? "Finder" : "AutoQuit");
+        bootblock1[0x1A] = finderName.size();
+        memcpy(&bootblock1[0x1B], finderName.c_str(), finderName.size());
+        bootblock1[0x5A] = 3;
+        memcpy(&bootblock1[0x5B],"App", 3);
+    }
+    fs::fstream(imagePath, std::ios::in | std::ios::out | std::ios::binary)
+            .write((const char*) bootblock1.data(), 1024);
+
+
+    vol = hfs_mount(imagePath.string().c_str(), 0, HFS_MODE_RDWR);
+    assert(vol);
 
     hfs_vstat(vol, &ent);
     ent.blessed = hfs_getcwd(vol);
@@ -200,7 +238,7 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
         hfs_close(file);
     }
 
-    hfs_umount(sysvol); sysvol = NULL;
+    hfs_umount(sysvol);
     sysvol = hfs_mount(autoquitImage.string().c_str(),0, HFS_MODE_RDONLY);
     if(!sysvol)
         throw std::runtime_error("Cannot open disk image: " + autoquitImage.string());
@@ -379,6 +417,22 @@ void MiniVMacLauncher::MakeAlias(const std::string& dest, const std::string& src
 }
 
 
+uint16_t MiniVMacLauncher::GetSystemVersion(const std::string& systemFileName)
+{
+    hfsdirent fileent;
+    hfs_stat(sysvol, systemFileName.c_str(), &fileent);
+    hfsfile* system = hfs_open(sysvol, systemFileName.c_str());
+    std::vector<uint8_t> buffer(fileent.u.file.rsize);
+    hfs_setfork(system, 1);
+    hfs_read(system, buffer.data(), fileent.u.file.rsize);
+    hfs_close(system);
+    std::istringstream systemResStream(std::string((char*)buffer.data(), buffer.size()));
+    Resources systemRes(systemResStream);
+    Resource vers = systemRes.resources[ResRef('vers', 1)];
+    return (uint16_t)vers.getData()[0] << 8 | vers.getData()[1];
+}
+
+
 bool MiniVMacLauncher::Go(int timeout)
 {
     fs::current_path(tempDir);
@@ -423,7 +477,8 @@ bool MiniVMac::CheckOptions(variables_map &options)
         && options.count("minivmac-dir") != 0
         && options.count("minivmac-rom") != 0
         && options.count("system-image") != 0
-        && (options.count("autoquit-image") + options.count("autquit7-image")) == 1;
+        && options.count("autoquit-image") != 0
+        && options.count("autquit7-image") != 0;
 }
 
 std::unique_ptr<Launcher> MiniVMac::MakeLauncher(variables_map &options)
