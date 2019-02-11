@@ -187,7 +187,16 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     uint16_t sysver = GetSystemVersion(systemFileName);
 
     bool usesAutQuit7 = (sysver >= 0x700);
-    fs::path autoquitImage = fs::absolute(options[usesAutQuit7 ? "autquit7-image" : "autoquit-image"].as<std::string>(), vmacDir);
+    std::string optionsKey = usesAutQuit7 ? "autquit7-image" : "autoquit-image";
+    if(options.count(optionsKey) == 0)
+    {
+        std::ostringstream str;
+        str << "'" << optionsKey << "' not configured for Mini vMac and System version " << (sysver >> 8); 
+        throw std::runtime_error(str.str());
+    }
+
+    fs::path autoquitImage = fs::absolute(options[optionsKey].as<std::string>(), vmacDir);
+
     autoquitImage = ConvertImage(autoquitImage);
 
     int size = 5000*1024;
@@ -197,7 +206,7 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
 
     if(!usesAutQuit7)
     {
-        std::string finderName = std::string(usesAutQuit7 ? "Finder" : "AutoQuit");
+        std::string finderName = std::string("AutoQuit");
         bootblock1[0x1A] = finderName.size();
         memcpy(&bootblock1[0x1B], finderName.c_str(), finderName.size());
         bootblock1[0x5A] = 3;
@@ -477,8 +486,7 @@ bool MiniVMac::CheckOptions(variables_map &options)
         && options.count("minivmac-dir") != 0
         && options.count("minivmac-rom") != 0
         && options.count("system-image") != 0
-        && options.count("autoquit-image") != 0
-        && options.count("autquit7-image") != 0;
+        && options.count("autoquit-image") + options.count("autquit7-image") > 0;
 }
 
 std::unique_ptr<Launcher> MiniVMac::MakeLauncher(variables_map &options)
