@@ -2,6 +2,7 @@
 #include "Stream.h"
 #include "ServerProtocol.h"
 #include <iostream>
+#include <sstream>
 #include <arpa/inet.h>
 
 StreamBasedLauncher::StreamBasedLauncher(boost::program_options::variables_map &options)
