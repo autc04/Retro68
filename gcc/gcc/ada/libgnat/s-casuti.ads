@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1995-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1995-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -49,6 +49,7 @@ package System.Case_Util is
    --  returns the input argument unchanged.
 
    procedure To_Upper (A : in out String);
+   function To_Upper (A : String) return String;
    --  Folds all characters of string A to upper case
 
    function To_Lower (A : Character) return Character;
@@ -56,9 +57,11 @@ package System.Case_Util is
    --  returns the input argument unchanged.
 
    procedure To_Lower (A : in out String);
+   function To_Lower (A : String) return String;
    --  Folds all characters of string A to lower case
 
    procedure To_Mixed (A : in out String);
+   function To_Mixed (A : String) return String;
    --  Converts A to mixed case (i.e. lower case, except for initial
    --  character and any character after an underscore, which are
    --  converted to upper case.

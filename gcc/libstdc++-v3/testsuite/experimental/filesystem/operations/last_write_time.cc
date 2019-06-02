@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2018 Free Software Foundation, Inc.
+// Copyright (C) 2016-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -81,7 +81,7 @@ test01()
   ::utimbuf times;
   times.modtime = std::numeric_limits<std::time_t>::max() - 1;
   times.actime = std::numeric_limits<std::time_t>::max() - 1;
-  VERIFY( !::utime(p.c_str(), &times) );
+  VERIFY( !::utime(p.string().c_str(), &times) );
 #else
   return;
 #endif

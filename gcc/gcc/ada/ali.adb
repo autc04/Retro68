@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -39,7 +39,7 @@ package body ALI is
    --  line type markers in the ALI file. This is used in Scan_ALI to detect
    --  (or skip) invalid lines. The following letters are still available:
    --
-   --    B G H J K O Q Z
+   --    B F G H J K O Q Z
 
    Known_ALI_Lines : constant array (Character range 'A' .. 'Z') of Boolean :=
      ('V'    => True,   -- version
@@ -59,7 +59,6 @@ package body ALI is
       'Y'    => True,   -- limited_with
       'Z'    => True,   -- implicit with from instantiation
       'C'    => True,   -- SCO information
-      'F'    => True,   -- SPARK cross-reference information
       'T'    => True,   -- task stack information
       others => False);
 
@@ -2342,7 +2341,7 @@ package body ALI is
             --  The file/path name may be quoted
 
             Sdep.Table (Sdep.Last).Sfile :=
-              Get_File_Name (May_Be_Quoted =>  True);
+              Get_File_Name (May_Be_Quoted => True);
 
             Sdep.Table (Sdep.Last).Stamp := Get_Stamp;
             Sdep.Table (Sdep.Last).Dummy_Entry :=

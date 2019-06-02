@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2013-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 2013-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -74,24 +74,6 @@ package System.Exceptions.Machine is
       URC_CONTINUE_UNWIND);
 
    pragma Convention (C, Unwind_Reason_Code);
-
-   --  Phase identifiers
-
-   type Unwind_Action is new Integer;
-   pragma Convention (C, Unwind_Action);
-
-   UA_SEARCH_PHASE  : constant Unwind_Action := 1;
-   UA_CLEANUP_PHASE : constant Unwind_Action := 2;
-   UA_HANDLER_FRAME : constant Unwind_Action := 4;
-   UA_FORCE_UNWIND  : constant Unwind_Action := 8;
-   UA_END_OF_STACK  : constant Unwind_Action := 16;  --  GCC extension
-
-   pragma Unreferenced
-     (UA_SEARCH_PHASE,
-      UA_CLEANUP_PHASE,
-      UA_HANDLER_FRAME,
-      UA_FORCE_UNWIND,
-      UA_END_OF_STACK);
 
    --  Mandatory common header for any exception object handled by the
    --  GCC unwinding runtime.

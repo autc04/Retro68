@@ -1,6 +1,6 @@
 // List implementation -*- C++ -*-
 
-// Copyright (C) 2001-2018 Free Software Foundation, Inc.
+// Copyright (C) 2001-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -243,13 +243,13 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	return __tmp;
       }
 
-      bool
-      operator==(const _Self& __x) const _GLIBCXX_NOEXCEPT
-      { return _M_node == __x._M_node; }
+      friend bool
+      operator==(const _Self& __x, const _Self& __y) _GLIBCXX_NOEXCEPT
+      { return __x._M_node == __y._M_node; }
 
-      bool
-      operator!=(const _Self& __x) const _GLIBCXX_NOEXCEPT
-      { return _M_node != __x._M_node; }
+      friend bool
+      operator!=(const _Self& __x, const _Self& __y) _GLIBCXX_NOEXCEPT
+      { return __x._M_node != __y._M_node; }
 
       // The only member points to the %list element.
       __detail::_List_node_base* _M_node;
@@ -327,29 +327,17 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	return __tmp;
       }
 
-      bool
-      operator==(const _Self& __x) const _GLIBCXX_NOEXCEPT
-      { return _M_node == __x._M_node; }
+      friend bool
+      operator==(const _Self& __x, const _Self& __y) _GLIBCXX_NOEXCEPT
+      { return __x._M_node == __y._M_node; }
 
-      bool
-      operator!=(const _Self& __x) const _GLIBCXX_NOEXCEPT
-      { return _M_node != __x._M_node; }
+      friend bool
+      operator!=(const _Self& __x, const _Self& __y) _GLIBCXX_NOEXCEPT
+      { return __x._M_node != __y._M_node; }
 
       // The only member points to the %list element.
       const __detail::_List_node_base* _M_node;
     };
-
-  template<typename _Val>
-    inline bool
-    operator==(const _List_iterator<_Val>& __x,
-	       const _List_const_iterator<_Val>& __y) _GLIBCXX_NOEXCEPT
-    { return __x._M_node == __y._M_node; }
-
-  template<typename _Val>
-    inline bool
-    operator!=(const _List_iterator<_Val>& __x,
-	       const _List_const_iterator<_Val>& __y) _GLIBCXX_NOEXCEPT
-    { return __x._M_node != __y._M_node; }
 
 _GLIBCXX_BEGIN_NAMESPACE_CXX11
   /// See bits/stl_deque.h's _Deque_base for an explanation.
@@ -384,7 +372,8 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       {
 	__detail::_List_node_header _M_node;
 
-	_List_impl() _GLIBCXX_NOEXCEPT_IF( noexcept(_Node_alloc_type()) )
+	_List_impl() _GLIBCXX_NOEXCEPT_IF(
+	    is_nothrow_default_constructible<_Node_alloc_type>::value)
 	: _Node_alloc_type()
 	{ }
 
@@ -1058,7 +1047,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *  Returns true if the %list is empty.  (Thus begin() would equal
        *  end().)
        */
-      bool
+      _GLIBCXX_NODISCARD bool
       empty() const _GLIBCXX_NOEXCEPT
       { return this->_M_impl._M_node._M_next == &this->_M_impl._M_node; }
 
@@ -1673,6 +1662,18 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       { splice(__position, std::move(__x), __first, __last); }
 #endif
 
+    private:
+#if __cplusplus > 201703L
+# define __cpp_lib_list_remove_return_type 201806L
+      typedef size_type __remove_return_type;
+# define _GLIBCXX_LIST_REMOVE_RETURN_TYPE_TAG \
+      __attribute__((__abi_tag__("__cxx20")))
+#else
+      typedef void __remove_return_type;
+# define _GLIBCXX_LIST_REMOVE_RETURN_TYPE_TAG
+#endif
+    public:
+
       /**
        *  @brief  Remove all elements equal to value.
        *  @param  __value  The value to remove.
@@ -1684,7 +1685,8 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *  touched in any way.  Managing the pointer is the user's
        *  responsibility.
        */
-      void
+      _GLIBCXX_LIST_REMOVE_RETURN_TYPE_TAG
+      __remove_return_type
       remove(const _Tp& __value);
 
       /**
@@ -1699,7 +1701,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *  responsibility.
        */
       template<typename _Predicate>
-	void
+	__remove_return_type
 	remove_if(_Predicate);
 
       /**
@@ -1712,7 +1714,8 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *  the pointed-to memory is not touched in any way.  Managing
        *  the pointer is the user's responsibility.
        */
-      void
+      _GLIBCXX_LIST_REMOVE_RETURN_TYPE_TAG
+      __remove_return_type
       unique();
 
       /**
@@ -1728,8 +1731,10 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
        *  Managing the pointer is the user's responsibility.
        */
       template<typename _BinaryPredicate>
-	void
+	__remove_return_type
 	unique(_BinaryPredicate);
+
+#undef _GLIBCXX_LIST_REMOVE_RETURN_TYPE_TAG
 
       /**
        *  @brief  Merge sorted lists.

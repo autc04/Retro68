@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -171,7 +171,6 @@ package body Sem_Ch4 is
    --  being called. The caller will have verified that the object is legal
    --  for the call. If the remaining parameters match, the first parameter
    --  will rewritten as a dereference if needed, prior to completing analysis.
-
    procedure Check_Misspelled_Selector
      (Prefix : Entity_Id;
       Sel    : Node_Id);
@@ -675,7 +674,11 @@ package body Sem_Ch4 is
                   return;
                end if;
 
-               if Expander_Active then
+               --  In GNATprove mode we need to preserve the link between
+               --  the original subtype indication and the anonymous subtype,
+               --  to extend proofs to constrained acccess types.
+
+               if Expander_Active or else GNATprove_Mode then
                   Def_Id := Make_Temporary (Loc, 'S');
 
                   Insert_Action (E,
@@ -1345,7 +1348,7 @@ package body Sem_Ch4 is
             --  parameter has been analyzed, but may need a subsequent
             --  dereference, so skip its analysis now.
 
-            if N /= Original_Node (N)
+            if Is_Rewrite_Substitution (N)
               and then Nkind (Original_Node (N)) = Nkind (N)
               and then Nkind (Name (N)) /= Nkind (Name (Original_Node (N)))
               and then Present (Parameter_Associations (N))
@@ -1905,8 +1908,8 @@ package body Sem_Ch4 is
          while Present (Op_Id) loop
             if Ekind (Op_Id) = E_Operator then
 
-               --  Do not consider operators declared in dead code, they can
-               --  not be part of the resolution.
+               --  Do not consider operators declared in dead code, they
+               --  cannot be part of the resolution.
 
                if Is_Eliminated (Op_Id) then
                   null;
@@ -3030,10 +3033,10 @@ package body Sem_Ch4 is
    begin
       Analyze_Expression (L);
 
-      if No (R) and then Ada_Version >= Ada_2012 then
+      if No (R) then
+         pragma Assert (Ada_Version >= Ada_2012);
          Analyze_Set_Membership;
          Check_Function_Writable_Actuals (N);
-
          return;
       end if;
 
@@ -3199,12 +3202,28 @@ package body Sem_Ch4 is
       Actuals : constant List_Id   := Parameter_Associations (N);
       Prev_T  : constant Entity_Id := Etype (N);
 
+      --  Recognize cases of prefixed calls that have been rewritten in
+      --  various ways. The simplest case is a rewritten selected component,
+      --  but it can also be an already-examined indexed component, or a
+      --  prefix that is itself a rewritten prefixed call that is in turn
+      --  an indexed call (the syntactic ambiguity involving the indexing of
+      --  a function with defaulted parameters that returns an array).
+      --  A flag Maybe_Indexed_Call might be useful here ???
+
       Must_Skip  : constant Boolean := Skip_First
                      or else Nkind (Original_Node (N)) = N_Selected_Component
                      or else
                        (Nkind (Original_Node (N)) = N_Indexed_Component
-                          and then Nkind (Prefix (Original_Node (N)))
-                            = N_Selected_Component);
+                         and then Nkind (Prefix (Original_Node (N))) =
+                                    N_Selected_Component)
+                     or else
+                       (Nkind (Parent (N)) = N_Function_Call
+                         and then Is_Array_Type (Etype (Name (N)))
+                         and then Etype (Original_Node (N)) =
+                                    Component_Type (Etype (Name (N)))
+                         and then Nkind (Original_Node (Parent (N))) =
+                                    N_Selected_Component);
+
       --  The first formal must be omitted from the match when trying to find
       --  a primitive operation that is a possible interpretation, and also
       --  after the call has been rewritten, because the corresponding actual
@@ -3883,7 +3902,7 @@ package body Sem_Ch4 is
             Comp := First_Entity (T);
             while Present (Comp) loop
                if Chars (Comp) = Chars (Sel)
-                 and then Is_Visible_Component (Comp)
+                 and then Is_Visible_Component (Comp, Sel)
                then
 
                   --  AI05-105:  if the context is an object renaming with
@@ -4288,9 +4307,9 @@ package body Sem_Ch4 is
          end if;
       end Check_High_Bound;
 
-      -----------------------------
-      -- Is_Universal_Expression --
-      -----------------------------
+      --------------------------------
+      -- Check_Universal_Expression --
+      --------------------------------
 
       procedure Check_Universal_Expression (N : Node_Id) is
       begin
@@ -4342,79 +4361,6 @@ package body Sem_Ch4 is
 
       Check_Function_Writable_Actuals (N);
    end Analyze_Range;
-
-   -----------------------------------
-   -- Analyze_Reduction_Expression --
-   -----------------------------------
-
-   procedure Analyze_Reduction_Expression (N : Node_Id) is
-      Expr    : constant Node_Id := Expression (N);
-      QE_Scop : Entity_Id;
-
-   begin
-      QE_Scop := New_Internal_Entity (E_Loop, Current_Scope, Sloc (N), 'L');
-      Set_Etype  (QE_Scop, Standard_Void_Type);
-      Set_Scope  (QE_Scop, Current_Scope);
-      Set_Parent (QE_Scop, N);
-
-      Push_Scope (QE_Scop);
-
-      --  All constituents are preanalyzed and resolved to avoid untimely
-      --  generation of various temporaries and types. Full analysis and
-      --  expansion is carried out when the reduction expression is
-      --  transformed into an expression with actions.
-
-      if Present (Iterator_Specification (N)) then
-         Preanalyze (Iterator_Specification (N));
-
-      else pragma Assert (Present (Loop_Parameter_Specification (N)));
-         declare
-            Loop_Par : constant Node_Id := Loop_Parameter_Specification (N);
-
-         begin
-            Preanalyze (Loop_Par);
-
-            if Nkind (Discrete_Subtype_Definition (Loop_Par)) = N_Function_Call
-              and then Parent (Loop_Par) /= N
-            then
-               --  The parser cannot distinguish between a loop specification
-               --  and an iterator specification. If after preanalysis the
-               --  proper form has been recognized, rewrite the expression to
-               --  reflect the right kind. This is needed for proper ASIS
-               --  navigation. If expansion is enabled, the transformation is
-               --  performed when the expression is rewritten as a loop.
-
-               Set_Iterator_Specification (N,
-                 New_Copy_Tree (Iterator_Specification (Parent (Loop_Par))));
-
-               Set_Defining_Identifier (Iterator_Specification (N),
-                 Relocate_Node (Defining_Identifier (Loop_Par)));
-               Set_Name (Iterator_Specification (N),
-                 Relocate_Node (Discrete_Subtype_Definition (Loop_Par)));
-               Set_Comes_From_Source (Iterator_Specification (N),
-                 Comes_From_Source (Loop_Parameter_Specification (N)));
-               Set_Loop_Parameter_Specification (N, Empty);
-            end if;
-         end;
-      end if;
-
-      Preanalyze (Expr);
-      End_Scope;
-
-      Set_Etype (N, Etype (Expr));
-   end Analyze_Reduction_Expression;
-
-   --------------------------------------------
-   -- Analyze_Reduction_Expression_Parameter --
-   --------------------------------------------
-
-   procedure Analyze_Reduction_Expression_Parameter (N : Node_Id) is
-      Expr : constant Node_Id := Expression (N);
-
-   begin
-      Analyze (Expr);
-      Set_Etype (N, Etype (Expr));
-   end Analyze_Reduction_Expression_Parameter;
 
    -----------------------
    -- Analyze_Reference --
@@ -5375,7 +5321,7 @@ package body Sem_Ch4 is
                Comp := First_Component (Base_Type (Prefix_Type));
                while Present (Comp) loop
                   if Chars (Comp) = Chars (Sel)
-                    and then Is_Visible_Component (Comp)
+                    and then Is_Visible_Component (Comp, Sel)
                   then
                      Set_Entity_With_Checks (Sel, Comp);
                      Generate_Reference (Comp, Sel);
@@ -6082,7 +6028,7 @@ package body Sem_Ch4 is
 
       Comp  := First_Entity (Prefix);
       while Nr_Of_Suggestions <= Max_Suggestions and then Present (Comp) loop
-         if Is_Visible_Component (Comp) then
+         if Is_Visible_Component (Comp, Sel) then
             if Is_Bad_Spelling_Of (Chars (Comp), Chars (Sel)) then
                Nr_Of_Suggestions := Nr_Of_Suggestions + 1;
 
@@ -7566,7 +7512,7 @@ package body Sem_Ch4 is
    begin
       if Is_Overloaded (N) then
          if Debug_Flag_V then
-            Write_Str ("Remove_Abstract_Operations: ");
+            Write_Line ("Remove_Abstract_Operations: ");
             Write_Overloads (N);
          end if;
 
@@ -7761,7 +7707,7 @@ package body Sem_Ch4 is
          end if;
 
          if Debug_Flag_V then
-            Write_Str ("Remove_Abstract_Operations done: ");
+            Write_Line ("Remove_Abstract_Operations done: ");
             Write_Overloads (N);
          end if;
       end if;
@@ -8985,45 +8931,80 @@ package body Sem_Ch4 is
            (Anc_Type : Entity_Id;
             Error    : out Boolean)
          is
-            Cls_Type    : Entity_Id;
-            Hom         : Entity_Id;
-            Hom_Ref     : Node_Id;
-            Success     : Boolean;
+            function First_Formal_Match
+              (Subp_Id : Entity_Id;
+               Typ     : Entity_Id) return Boolean;
+            --  Predicate to verify that the first foramal of class-wide
+            --  subprogram Subp_Id matches type Typ of the prefix.
+
+            ------------------------
+            -- First_Formal_Match --
+            ------------------------
+
+            function First_Formal_Match
+              (Subp_Id : Entity_Id;
+               Typ     : Entity_Id) return Boolean
+            is
+               Ctrl : constant Entity_Id := First_Formal (Subp_Id);
+
+            begin
+               return
+                 Present (Ctrl)
+                   and then
+                     (Base_Type (Etype (Ctrl)) = Typ
+                       or else
+                         (Ekind (Etype (Ctrl)) = E_Anonymous_Access_Type
+                           and then
+                             Base_Type (Designated_Type (Etype (Ctrl))) =
+                               Typ));
+            end First_Formal_Match;
+
+            --  Local variables
+
+            CW_Typ : constant Entity_Id := Class_Wide_Type (Anc_Type);
+
+            Candidate : Entity_Id;
+            --  If homonym is a renaming, examine the renamed program
+
+            Hom      : Entity_Id;
+            Hom_Ref  : Node_Id;
+            Success  : Boolean;
+
+         --  Start of processing for Traverse_Homonyms
 
          begin
             Error := False;
-
-            Cls_Type := Class_Wide_Type (Anc_Type);
-
-            Hom := Current_Entity (Subprog);
 
             --  Find a non-hidden operation whose first parameter is of the
             --  class-wide type, a subtype thereof, or an anonymous access
             --  to same. If in an instance, the operation can be considered
             --  even if hidden (it may be hidden because the instantiation
             --  is expanded after the containing package has been analyzed).
+            --  If the subprogram is a generic actual in an enclosing instance,
+            --  it appears as a renaming that is a candidate interpretation as
+            --  well.
 
+            Hom := Current_Entity (Subprog);
             while Present (Hom) loop
                if Ekind_In (Hom, E_Procedure, E_Function)
-                 and then (not Is_Hidden (Hom) or else In_Instance)
-                 and then Scope (Hom) = Scope (Base_Type (Anc_Type))
-                 and then Present (First_Formal (Hom))
-                 and then
-                   (Base_Type (Etype (First_Formal (Hom))) = Cls_Type
-                     or else
-                       (Is_Access_Type (Etype (First_Formal (Hom)))
-                         and then
-                           Ekind (Etype (First_Formal (Hom))) =
-                             E_Anonymous_Access_Type
-                         and then
-                           Base_Type
-                             (Designated_Type (Etype (First_Formal (Hom)))) =
-                                                                   Cls_Type))
+                 and then Present (Renamed_Entity (Hom))
+                 and then Is_Generic_Actual_Subprogram (Hom)
+                 and then In_Open_Scopes (Scope (Hom))
+               then
+                  Candidate := Renamed_Entity (Hom);
+               else
+                  Candidate := Hom;
+               end if;
+
+               if Ekind_In (Candidate, E_Function, E_Procedure)
+                 and then (not Is_Hidden (Candidate) or else In_Instance)
+                 and then Scope (Candidate) = Scope (Base_Type (Anc_Type))
+                 and then First_Formal_Match (Candidate, CW_Typ)
                then
                   --  If the context is a procedure call, ignore functions
                   --  in the name of the call.
 
-                  if Ekind (Hom) = E_Function
+                  if Ekind (Candidate) = E_Function
                     and then Nkind (Parent (N)) = N_Procedure_Call_Statement
                     and then N = Name (Parent (N))
                   then
@@ -9032,37 +9013,37 @@ package body Sem_Ch4 is
                   --  If the context is a function call, ignore procedures
                   --  in the name of the call.
 
-                  elsif Ekind (Hom) = E_Procedure
+                  elsif Ekind (Candidate) = E_Procedure
                     and then Nkind (Parent (N)) /= N_Procedure_Call_Statement
                   then
                      goto Next_Hom;
                   end if;
 
-                  Set_Etype (Call_Node, Any_Type);
+                  Set_Etype         (Call_Node, Any_Type);
                   Set_Is_Overloaded (Call_Node, False);
                   Success := False;
 
                   if No (Matching_Op) then
-                     Hom_Ref := New_Occurrence_Of (Hom, Sloc (Subprog));
-                     Set_Etype (Call_Node, Any_Type);
-                     Set_Parent (Call_Node, Parent (Node_To_Replace));
+                     Hom_Ref := New_Occurrence_Of (Candidate, Sloc (Subprog));
 
-                     Set_Name (Call_Node, Hom_Ref);
+                     Set_Etype  (Call_Node, Any_Type);
+                     Set_Name   (Call_Node, Hom_Ref);
+                     Set_Parent (Call_Node, Parent (Node_To_Replace));
 
                      Analyze_One_Call
                        (N          => Call_Node,
-                        Nam        => Hom,
+                        Nam        => Candidate,
                         Report     => Report_Error,
                         Success    => Success,
                         Skip_First => True);
 
                      Matching_Op :=
-                       Valid_Candidate (Success, Call_Node, Hom);
+                       Valid_Candidate (Success, Call_Node, Candidate);
 
                   else
                      Analyze_One_Call
                        (N          => Call_Node,
-                        Nam        => Hom,
+                        Nam        => Candidate,
                         Report     => Report_Error,
                         Success    => Success,
                         Skip_First => True);
@@ -9071,9 +9052,10 @@ package body Sem_Ch4 is
                      --  traversals, before and after looking at interfaces.
                      --  Check for this case before reporting a real ambiguity.
 
-                     if Present (Valid_Candidate (Success, Call_Node, Hom))
+                     if Present
+                          (Valid_Candidate (Success, Call_Node, Candidate))
                        and then Nkind (Call_Node) /= N_Function_Call
-                       and then Hom /= Matching_Op
+                       and then Candidate /= Matching_Op
                      then
                         Error_Msg_NE ("ambiguous call to&", N, Hom);
                         Report_Ambiguity (Matching_Op);
@@ -9535,6 +9517,23 @@ package body Sem_Ch4 is
                  Present (Original_Protected_Subprogram (Prim_Op))
                    and then Chars (Original_Protected_Subprogram (Prim_Op)) =
                               Chars (Subprog);
+
+            --  In an instance, the selector name may be a generic actual that
+            --  renames a primitive operation of the type of the prefix.
+
+            elsif In_Instance and then Present (Current_Entity (Subprog)) then
+               declare
+                  Subp : constant Entity_Id := Current_Entity (Subprog);
+               begin
+                  if Present (Subp)
+                    and then Is_Subprogram (Subp)
+                    and then Present (Renamed_Entity (Subp))
+                    and then Is_Generic_Actual_Subprogram (Subp)
+                    and then Chars (Renamed_Entity (Subp)) = Chars (Prim_Op)
+                  then
+                     return True;
+                  end if;
+               end;
             end if;
 
             return False;

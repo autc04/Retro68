@@ -1,7 +1,6 @@
 # Process this file with autoconf to produce a configure script, like so:
 # aclocal && autoconf && autoheader && automake
 
-AC_PREREQ(2.64)
 AC_INIT([GNU Fortran Runtime Library], 0.3,,[libgfortran])
 AC_CONFIG_HEADER(config.h)
 GCC_TOPLEV_SUBDIRS
@@ -206,7 +205,8 @@ AM_CONDITIONAL(LIBGFOR_USE_SYMVER_SUN, [test "x$gfortran_use_symver" = xsun])
 # * C library support for other features such as signal, environment
 #   variables, time functions
 
-AM_CONDITIONAL(LIBGFOR_MINIMAL, [test "x${target_cpu}" = xnvptx])
+AM_CONDITIONAL(LIBGFOR_MINIMAL, [test "x${target_cpu}" = xnvptx \
+				 || test "x${target_cpu}" = xamdgcn])
 
 # Figure out whether the compiler supports "-ffunction-sections -fdata-sections",
 # similarly to how libstdc++ does it
@@ -275,8 +275,9 @@ AC_TYPE_UINTPTR_T
 AC_CHECK_TYPES([ptrdiff_t])
 
 # check header files (we assume C89 is available, so don't check for that)
-AC_CHECK_HEADERS_ONCE(unistd.h sys/time.h sys/times.h sys/resource.h \
-sys/types.h sys/stat.h sys/wait.h floatingpoint.h ieeefp.h fenv.h fptrap.h \
+AC_CHECK_HEADERS_ONCE(unistd.h sys/random.h sys/time.h sys/times.h \
+sys/resource.h sys/types.h sys/stat.h sys/uio.h sys/wait.h \
+floatingpoint.h ieeefp.h fenv.h fptrap.h \
 fpxcp.h pwd.h complex.h xlocale.h)
 
 GCC_HEADER_STDINT(gstdint.h)
@@ -312,8 +313,9 @@ if test "${hardwire_newlib:-0}" -eq 1; then
    fi
 else
    AC_CHECK_FUNCS_ONCE(getrusage times mkstemp strtof strtold snprintf \
-   ftruncate chsize chdir getlogin gethostname kill link symlink sleep ttyname \
-   alarm access fork setmode fcntl \
+   ftruncate chsize chdir getentropy getlogin gethostname kill link symlink \
+   sleep ttyname \
+   alarm access fork setmode fcntl writev \
    gettimeofday stat fstat lstat getpwuid vsnprintf dup \
    getcwd localtime_r gmtime_r getpwuid_r ttyname_r clock_gettime \
    getgid getpid getuid geteuid umask getegid \
@@ -607,8 +609,8 @@ fi
 LIBGFOR_CHECK_ATTRIBUTE_VISIBILITY
 LIBGFOR_CHECK_ATTRIBUTE_ALIAS
 
-# Check out sync builtins support.
-LIBGFOR_CHECK_SYNC_FETCH_AND_ADD
+# Check out atomic builtins support.
+LIBGFOR_CHECK_ATOMIC_FETCH_ADD
 
 # Check out #pragma weak.
 LIBGFOR_GTHREAD_WEAK

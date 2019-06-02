@@ -1,5 +1,5 @@
 /* Control flow graph manipulation code for GNU compiler.
-   Copyright (C) 1987-2018 Free Software Foundation, Inc.
+   Copyright (C) 1987-2019 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -813,10 +813,14 @@ emit_nop_for_unique_locus_between (basic_block a, basic_block b)
 static void
 rtl_merge_blocks (basic_block a, basic_block b)
 {
+  /* If B is a forwarder block whose outgoing edge has no location, we'll
+     propagate the locus of the edge between A and B onto it.  */
+  const bool forward_edge_locus
+    = (b->flags & BB_FORWARDER_BLOCK) != 0
+      && LOCATION_LOCUS (EDGE_SUCC (b, 0)->goto_locus) == UNKNOWN_LOCATION;
   rtx_insn *b_head = BB_HEAD (b), *b_end = BB_END (b), *a_end = BB_END (a);
   rtx_insn *del_first = NULL, *del_last = NULL;
   rtx_insn *b_debug_start = b_end, *b_debug_end = b_end;
-  bool forwarder_p = (b->flags & BB_FORWARDER_BLOCK) != 0;
   int b_empty = 0;
 
   if (dump_file)
@@ -887,9 +891,11 @@ rtl_merge_blocks (basic_block a, basic_block b)
   BB_HEAD (b) = b_empty ? NULL : b_head;
   delete_insn_chain (del_first, del_last, true);
 
-  /* When not optimizing and the edge is the only place in RTL which holds
-     some unique locus, emit a nop with that locus in between.  */
-  if (!optimize)
+  /* If not optimizing, preserve the locus of the single edge between
+     blocks A and B if necessary by emitting a nop.  */
+  if (!optimize
+      && !forward_edge_locus
+      && !DECL_IGNORED_P (current_function_decl))
     {
       emit_nop_for_unique_locus_between (a, b);
       a_end = BB_END (a);
@@ -918,9 +924,7 @@ rtl_merge_blocks (basic_block a, basic_block b)
 
   df_bb_delete (b->index);
 
-  /* If B was a forwarder block, propagate the locus on the edge.  */
-  if (forwarder_p
-      && LOCATION_LOCUS (EDGE_SUCC (b, 0)->goto_locus) == UNKNOWN_LOCATION)
+  if (forward_edge_locus)
     EDGE_SUCC (b, 0)->goto_locus = EDGE_SUCC (a, 0)->goto_locus;
 
   if (dump_file)
@@ -982,6 +986,31 @@ block_label (basic_block block)
     }
 
   return as_a <rtx_code_label *> (BB_HEAD (block));
+}
+
+/* Remove all barriers from BB_FOOTER of a BB.  */
+
+static void
+remove_barriers_from_footer (basic_block bb)
+{
+  rtx_insn *insn = BB_FOOTER (bb);
+
+  /* Remove barriers but keep jumptables.  */
+  while (insn)
+    {
+      if (BARRIER_P (insn))
+	{
+	  if (PREV_INSN (insn))
+	    SET_NEXT_INSN (PREV_INSN (insn)) = NEXT_INSN (insn);
+	  else
+	    BB_FOOTER (bb) = NEXT_INSN (insn);
+	  if (NEXT_INSN (insn))
+	    SET_PREV_INSN (NEXT_INSN (insn)) = PREV_INSN (insn);
+	}
+      if (LABEL_P (insn))
+	return;
+      insn = NEXT_INSN (insn);
+    }
 }
 
 /* Attempt to perform edge redirection by replacing possibly complex jump
@@ -1047,26 +1076,8 @@ try_redirect_by_replacing_jump (edge e, basic_block target, bool in_cfglayout)
       /* Selectively unlink whole insn chain.  */
       if (in_cfglayout)
 	{
-	  rtx_insn *insn = BB_FOOTER (src);
-
 	  delete_insn_chain (kill_from, BB_END (src), false);
-
-	  /* Remove barriers but keep jumptables.  */
-	  while (insn)
-	    {
-	      if (BARRIER_P (insn))
-		{
-		  if (PREV_INSN (insn))
-		    SET_NEXT_INSN (PREV_INSN (insn)) = NEXT_INSN (insn);
-		  else
-		    BB_FOOTER (src) = NEXT_INSN (insn);
-		  if (NEXT_INSN (insn))
-		    SET_PREV_INSN (NEXT_INSN (insn)) = PREV_INSN (insn);
-		}
-	      if (LABEL_P (insn))
-		break;
-	      insn = NEXT_INSN (insn);
-	    }
+	  remove_barriers_from_footer (src);
 	}
       else
 	delete_insn_chain (kill_from, PREV_INSN (BB_HEAD (target)),
@@ -1264,11 +1275,13 @@ patch_jump_insn (rtx_insn *insn, rtx_insn *old_label, basic_block new_bb)
 
 	  /* If the substitution doesn't succeed, die.  This can happen
 	     if the back end emitted unrecognizable instructions or if
-	     target is exit block on some arches.  */
+	     target is exit block on some arches.  Or for crossing
+	     jumps.  */
 	  if (!redirect_jump (as_a <rtx_jump_insn *> (insn),
 			      block_label (new_bb), 0))
 	    {
-	      gcc_assert (new_bb == EXIT_BLOCK_PTR_FOR_FN (cfun));
+	      gcc_assert (new_bb == EXIT_BLOCK_PTR_FOR_FN (cfun)
+			  || CROSSING_JUMP_P (insn));
 	      return false;
 	    }
 	}
@@ -2540,15 +2553,15 @@ rtl_verify_edges (void)
 	    n_abnormal++;
 	}
 
-        if (!has_crossing_edge
-	    && JUMP_P (BB_END (bb))
-	    && CROSSING_JUMP_P (BB_END (bb)))
-          {
-	    print_rtl_with_bb (stderr, get_insns (), TDF_BLOCKS | TDF_DETAILS);
-            error ("Region crossing jump across same section in bb %i",
-                   bb->index);
-            err = 1;
-          }
+      if (!has_crossing_edge
+	  && JUMP_P (BB_END (bb))
+	  && CROSSING_JUMP_P (BB_END (bb)))
+	{
+	  print_rtl_with_bb (stderr, get_insns (), TDF_BLOCKS | TDF_DETAILS);
+	  error ("Region crossing jump across same section in bb %i",
+		 bb->index);
+	  err = 1;
+	}
 
       if (n_eh && !find_reg_note (BB_END (bb), REG_EH_REGION, NULL_RTX))
 	{
@@ -2605,6 +2618,19 @@ rtl_verify_edges (void)
 	{
 	  error ("abnormal edges for no purpose in bb %i", bb->index);
 	  err = 1;
+	}
+
+      int has_eh = -1;
+      FOR_EACH_EDGE (e, ei, bb->preds)
+	{
+	  if (has_eh == -1)
+	    has_eh = (e->flags & EDGE_EH);
+	  if ((e->flags & EDGE_EH) == has_eh)
+	    continue;
+	  error ("EH incoming edge mixed with non-EH incoming edges "
+		 "in bb %i", bb->index);
+	  err = 1;
+	  break;
 	}
     }
 
@@ -3315,8 +3341,15 @@ fixup_abnormal_edges (void)
 			 If it's placed after a trapping call (i.e. that
 			 call is the last insn anyway), we have no fallthru
 			 edge.  Simply delete this use and don't try to insert
-			 on the non-existent edge.  */
-		      if (GET_CODE (PATTERN (insn)) != USE)
+			 on the non-existent edge.
+			 Similarly, sometimes a call that can throw is
+			 followed in the source with __builtin_unreachable (),
+			 meaning that there is UB if the call returns rather
+			 than throws.  If there weren't any instructions
+			 following such calls before, supposedly even the ones
+			 we've deleted aren't significant and can be
+			 removed.  */
+		      if (e)
 			{
 			  /* We're not deleting it, we're moving it.  */
 			  insn->set_undeleted ();
@@ -3903,9 +3936,9 @@ fixup_reorder_chain (void)
 	force_nonfallthru (e);
     }
 
-  /* Ensure goto_locus from edges has some instructions with that locus
-     in RTL.  */
-  if (!optimize)
+  /* Ensure goto_locus from edges has some instructions with that locus in RTL
+     when not optimizing.  */
+  if (!optimize && !DECL_IGNORED_P (current_function_decl))
     FOR_EACH_BB_FN (bb, cfun)
       {
         edge e;
@@ -4217,7 +4250,7 @@ duplicate_insn_chain (rtx_insn *from, rtx_insn *to)
 /* Create a duplicate of the basic block BB.  */
 
 static basic_block
-cfg_layout_duplicate_bb (basic_block bb)
+cfg_layout_duplicate_bb (basic_block bb, copy_bb_data *)
 {
   rtx_insn *insn;
   basic_block new_bb;
@@ -4370,6 +4403,7 @@ cfg_layout_redirect_edge_and_branch (edge e, basic_block dest)
 	  	 "Removing crossing jump while redirecting edge form %i to %i\n",
 		 e->src->index, dest->index);
       delete_insn (BB_END (src));
+      remove_barriers_from_footer (src);
       e->flags |= EDGE_FALLTHRU;
     }
 
@@ -4435,6 +4469,9 @@ cfg_layout_redirect_edge_and_branch (edge e, basic_block dest)
     }
   else
     ret = redirect_branch_edge (e, dest);
+
+  if (!ret)
+    return NULL;
 
   fixup_partition_crossing (ret);
   /* We don't want simplejumps in the insn stream during cfglayout.  */
@@ -4592,7 +4629,11 @@ cfg_layout_can_merge_blocks_p (basic_block a, basic_block b)
 static void
 cfg_layout_merge_blocks (basic_block a, basic_block b)
 {
-  bool forwarder_p = (b->flags & BB_FORWARDER_BLOCK) != 0;
+  /* If B is a forwarder block whose outgoing edge has no location, we'll
+     propagate the locus of the edge between A and B onto it.  */
+  const bool forward_edge_locus
+    = (b->flags & BB_FORWARDER_BLOCK) != 0
+      && LOCATION_LOCUS (EDGE_SUCC (b, 0)->goto_locus) == UNKNOWN_LOCATION;
   rtx_insn *insn;
 
   gcc_checking_assert (cfg_layout_can_merge_blocks_p (a, b));
@@ -4613,9 +4654,11 @@ cfg_layout_merge_blocks (basic_block a, basic_block b)
     try_redirect_by_replacing_jump (EDGE_SUCC (a, 0), b, true);
   gcc_assert (!JUMP_P (BB_END (a)));
 
-  /* When not optimizing and the edge is the only place in RTL which holds
-     some unique locus, emit a nop with that locus in between.  */
-  if (!optimize)
+  /* If not optimizing, preserve the locus of the single edge between
+     blocks A and B if necessary by emitting a nop.  */
+  if (!optimize
+      && !forward_edge_locus
+      && !DECL_IGNORED_P (current_function_decl))
     emit_nop_for_unique_locus_between (a, b);
 
   /* Move things from b->footer after a->footer.  */
@@ -4682,9 +4725,7 @@ cfg_layout_merge_blocks (basic_block a, basic_block b)
 
   df_bb_delete (b->index);
 
-  /* If B was a forwarder block, propagate the locus on the edge.  */
-  if (forwarder_p
-      && LOCATION_LOCUS (EDGE_SUCC (b, 0)->goto_locus) == UNKNOWN_LOCATION)
+  if (forward_edge_locus)
     EDGE_SUCC (b, 0)->goto_locus = EDGE_SUCC (a, 0)->goto_locus;
 
   if (dump_file)
@@ -5039,30 +5080,28 @@ rtl_can_remove_branch_p (const_edge e)
 }
 
 static basic_block
-rtl_duplicate_bb (basic_block bb)
+rtl_duplicate_bb (basic_block bb, copy_bb_data *id)
 {
-  bb = cfg_layout_duplicate_bb (bb);
+  bb = cfg_layout_duplicate_bb (bb, id);
   bb->aux = NULL;
   return bb;
 }
 
 /* Do book-keeping of basic block BB for the profile consistency checker.
-   If AFTER_PASS is 0, do pre-pass accounting, or if AFTER_PASS is 1
-   then do post-pass accounting.  Store the counting in RECORD.  */
+   Store the counting in RECORD.  */
 static void
-rtl_account_profile_record (basic_block bb, int after_pass,
-			    struct profile_record *record)
+rtl_account_profile_record (basic_block bb, struct profile_record *record)
 {
   rtx_insn *insn;
   FOR_BB_INSNS (bb, insn)
     if (INSN_P (insn))
       {
-	record->size[after_pass] += insn_cost (insn, false);
+	record->size += insn_cost (insn, false);
 	if (bb->count.initialized_p ())
-	  record->time[after_pass]
+	  record->time
 	    += insn_cost (insn, true) * bb->count.to_gcov_type ();
 	else if (profile_status_for_fn (cfun) == PROFILE_GUESSED)
-	  record->time[after_pass]
+	  record->time
 	    += insn_cost (insn, true) * bb->count.to_frequency (cfun);
       }
 }

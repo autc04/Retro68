@@ -1,6 +1,6 @@
 // Class filesystem::directory_entry etc. -*- C++ -*-
 
-// Copyright (C) 2014-2018 Free Software Foundation, Inc.
+// Copyright (C) 2014-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,6 +27,11 @@
 #endif
 
 #include <experimental/filesystem>
+
+#ifndef _GLIBCXX_HAVE_DIRENT_H
+# error "the <dirent.h> header is needed to build the Filesystem TS"
+#endif
+
 #include <utility>
 #include <stack>
 #include <string.h>
@@ -37,6 +42,7 @@
 #include "dir-common.h"
 
 namespace fs = std::experimental::filesystem;
+namespace posix = std::filesystem::__gnu_posix;
 
 struct fs::_Dir : std::filesystem::_Dir_base
 {
@@ -47,7 +53,7 @@ struct fs::_Dir : std::filesystem::_Dir_base
       path = p;
   }
 
-  _Dir(DIR* dirp, const path& p) : _Dir_base(dirp), path(p) { }
+  _Dir(posix::DIR* dirp, const path& p) : _Dir_base(dirp), path(p) { }
 
   _Dir(_Dir&&) = default;
 
@@ -185,7 +191,7 @@ recursive_directory_iterator(const path& p, directory_options options,
 {
   if (ec)
     ec->clear();
-  if (DIR* dirp = ::opendir(p.c_str()))
+  if (posix::DIR* dirp = posix::opendir(p.c_str()))
     {
       auto sp = std::make_shared<_Dir_stack>();
       sp->push(_Dir{ dirp, p });

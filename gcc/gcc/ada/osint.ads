@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -255,10 +255,26 @@ package Osint is
    --  from the disk and then cached in the File_Attributes parameter (possibly
    --  along with other values).
 
-   type File_Attributes is private;
-   Unknown_Attributes : constant File_Attributes;
+   File_Attributes_Size : constant Natural := 32;
+   --  This should be big enough to fit a "struct file_attributes" on any
+   --  system. It doesn't cause any malfunction if it is too big (which avoids
+   --  the need for either mapping the struct exactly or importing the sizeof
+   --  from C, which would result in dynamic code). However, it does waste
+   --  space (e.g. when a component of this type appears in a record, if it is
+   --  unnecessarily large). Note: for runtime units, use System.OS_Constants.
+   --  SIZEOF_struct_file_attributes instead, which has the exact value.
+
+   type File_Attributes is
+     array (1 .. File_Attributes_Size)
+       of System.Storage_Elements.Storage_Element;
+   for File_Attributes'Alignment use Standard'Maximum_Alignment;
+
+   Unknown_Attributes : File_Attributes;
    --  A cache for various attributes for a file (length, accessibility,...)
-   --  This must be initialized to Unknown_Attributes prior to the first call.
+   --  Will be initialized properly at elaboration (for efficiency later on,
+   --  avoid function calls every time we want to reset the attributes) prior
+   --  to the first usage. We cannot make it constant since the compiler may
+   --  put it in a read-only section.
 
    function Is_Directory
      (Name : C_File_Name;
@@ -491,6 +507,9 @@ package Osint is
    --  Read_Source_File, except those that come from the run-time library
    --  (i.e. Include_Dir_Default_Prefix). The text is sent to whatever Output
    --  is currently using (e.g. standard output or standard error).
+
+   procedure Dump_Command_Line_Source_File_Names;
+   --  Prints out the names of all source files on the command-line
 
    -------------------------------------------
    -- Representation of Library Information --
@@ -753,23 +772,5 @@ private
    --  in Output_File_Name. A check is made for disk full, and if this is
    --  detected, the file being written is deleted, and a fatal error is
    --  signalled.
-
-   File_Attributes_Size : constant Natural := 32;
-   --  This should be big enough to fit a "struct file_attributes" on any
-   --  system. It doesn't cause any malfunction if it is too big (which avoids
-   --  the need for either mapping the struct exactly or importing the sizeof
-   --  from C, which would result in dynamic code). However, it does waste
-   --  space (e.g. when a component of this type appears in a record, if it is
-   --  unnecessarily large). Note: for runtime units, use System.OS_Constants.
-   --  SIZEOF_struct_file_attributes instead, which has the exact value.
-
-   type File_Attributes is
-     array (1 .. File_Attributes_Size)
-       of System.Storage_Elements.Storage_Element;
-   for File_Attributes'Alignment use Standard'Maximum_Alignment;
-
-   Unknown_Attributes : constant File_Attributes := (others => 0);
-   --  Will be initialized properly at elaboration (for efficiency later on,
-   --  avoid function calls every time we want to reset the attributes).
 
 end Osint;

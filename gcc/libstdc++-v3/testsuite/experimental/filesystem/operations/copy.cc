@@ -2,7 +2,7 @@
 // { dg-do run { target c++11 } }
 // { dg-require-filesystem-ts "" }
 
-// Copyright (C) 2014-2018 Free Software Foundation, Inc.
+// Copyright (C) 2014-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -67,6 +67,11 @@ test01()
 void
 test02()
 {
+#if defined(__MINGW32__) || defined(__MINGW64__)
+  // No symlink support
+  return;
+#endif
+
   auto from = __gnu_test::nonexistent_path();
   auto to = __gnu_test::nonexistent_path();
   std::error_code ec, bad = std::make_error_code(std::errc::invalid_argument);
@@ -114,7 +119,7 @@ test03()
   auto to = __gnu_test::nonexistent_path();
 
   // test empty file
-  std::ofstream{from.native()};
+  std::ofstream{from.c_str()};
   VERIFY( fs::exists(from) );
   VERIFY( fs::file_size(from) == 0 );
   fs::copy(from, to);
@@ -123,7 +128,7 @@ test03()
 
   remove(to);
   VERIFY( !fs::exists(to) );
-  std::ofstream{from.native()} << "Hello, filesystem!";
+  std::ofstream{from.c_str()} << "Hello, filesystem!";
   VERIFY( fs::file_size(from) != 0 );
   fs::copy(from, to);
   VERIFY( fs::exists(to) );
@@ -150,9 +155,9 @@ test04()
   }
 
   __gnu_test::scoped_file f1(from/"a/f1");
-  std::ofstream{f1.path} << "file one";
+  std::ofstream{f1.path.c_str()} << "file one";
   __gnu_test::scoped_file f2(from/"a/b/f2");
-  std::ofstream{f2.path} << "file two";
+  std::ofstream{f2.path.c_str()} << "file two";
 
   copy(from, to, ec);
   VERIFY( !ec );

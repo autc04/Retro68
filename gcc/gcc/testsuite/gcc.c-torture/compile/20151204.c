@@ -1,4 +1,4 @@
-/* { dg-skip-if "Array too big" { "avr-*-*" } } */
+/* { dg-require-effective-target size20plus } */
 
 typedef __SIZE_TYPE__ size_t;
 

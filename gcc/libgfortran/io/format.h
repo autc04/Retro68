@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2018 Free Software Foundation, Inc.
+/* Copyright (C) 2009-2019 Free Software Foundation, Inc.
    Contributed by Janne Blomqvist
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -78,7 +78,7 @@ struct fnode
     {
       char *string;
       int string_len;
-      gfc_array_i4 *vlist;
+      gfc_full_array_i4 *vlist;
     }
     udf;  /* User Defined Format.  */
 

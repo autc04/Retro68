@@ -1,8 +1,7 @@
-// { dg-options "-std=gnu++17 -lstdc++fs" }
+// { dg-options "-std=gnu++17" }
 // { dg-do run { target c++17 } }
-// { dg-require-filesystem-ts "" }
 
-// Copyright (C) 2014-2018 Free Software Foundation, Inc.
+// Copyright (C) 2014-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -83,6 +82,24 @@ test01()
   v2 = { "/", "rootname", "dir", "filename" };
 #endif
   VERIFY( v == v2 );
+
+  p = "c:relative/path";
+  v.assign(p.begin(), p.end());
+#if defined(__MINGW32__) || defined(__MINGW64__)
+  v2 = { "c:", "relative", "path" };
+#else
+  v2 = { "c:relative", "path" };
+#endif
+  VERIFY( v == v2 );
+
+  p = "c:/absolute/path";
+  v.assign(p.begin(), p.end());
+#if defined(__MINGW32__) || defined(__MINGW64__)
+  v2 = { "c:", "/", "absolute", "path" };
+#else
+  v2 = { "c:", "absolute", "path" };
+#endif
+  VERIFY( v == v2 );
 }
 
 void
@@ -104,7 +121,7 @@ test02()
 void
 test03()
 {
-  path paths[] = { "single", "multiple/elements" };
+  path paths[] = { "single", "multiple/elements", "trailing/slash/", "/." };
   for (const path& p : paths)
     for (auto iter = p.begin(); iter != p.end(); ++iter)
     {
@@ -118,10 +135,28 @@ test03()
     }
 }
 
+void
+test04()
+{
+  std::filesystem::path p = "/a/b/c/d/e/f/g";
+  VERIFY( std::distance(p.begin(), p.end()) == 8);
+  auto it = p.begin();
+  std::advance(it, 1);
+  VERIFY( std::distance(p.begin(), it) == 1 );
+  VERIFY( it->string() == "a" );
+  std::advance(it, 3);
+  VERIFY( std::distance(p.begin(), it) == 4 );
+  VERIFY( it->string() == "d" );
+  std::advance(it, -2);
+  VERIFY( std::distance(p.begin(), it) == 2 );
+  VERIFY( it->string() == "b" );
+}
+
 int
 main()
 {
   test01();
   test02();
   test03();
+  test04();
 }

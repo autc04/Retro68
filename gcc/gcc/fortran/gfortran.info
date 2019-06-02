@@ -1,7 +1,7 @@
-This is gfortran.info, produced by makeinfo version 6.4 from
+This is gfortran.info, produced by makeinfo version 6.5 from
 gfortran.texi.
 
-Copyright (C) 1999-2018 Free Software Foundation, Inc.
+Copyright (C) 1999-2019 Free Software Foundation, Inc.
 
    Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3 or
@@ -31,7 +31,7 @@ compiler, ('gfortran').
    Published by the Free Software Foundation 51 Franklin Street, Fifth
 Floor Boston, MA 02110-1301 USA
 
-   Copyright (C) 1999-2018 Free Software Foundation, Inc.
+   Copyright (C) 1999-2019 Free Software Foundation, Inc.
 
    Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3 or
@@ -247,10 +247,18 @@ files where the preprocessor is run automatically, use '-nocpp'.
 preprocess included files, use the equivalent preprocessor statement
 '#include'.
 
-   If GNU Fortran invokes the preprocessor, '__GFORTRAN__' is defined
-and '__GNUC__', '__GNUC_MINOR__' and '__GNUC_PATCHLEVEL__' can be used
-to determine the version of the compiler.  See *note Overview: (cpp)Top.
-for details.
+   If GNU Fortran invokes the preprocessor, '__GFORTRAN__' is defined.
+The macros '__GNUC__', '__GNUC_MINOR__' and '__GNUC_PATCHLEVEL__' can be
+used to determine the version of the compiler.  See *note Overview:
+(cpp)Top. for details.
+
+   GNU Fortran supports a number of 'INTEGER' and 'REAL' kind types in
+additional to the kind types required by the Fortran standard.  The
+availability of any given kind type is architecture dependent.  The
+following pre-defined preprocessor macros can be used to conditionally
+include code for these additional kind types: '__GFC_INT_1__',
+'__GFC_INT_2__', '__GFC_INT_8__', '__GFC_INT_16__', '__GFC_REAL_10__',
+and '__GFC_REAL_16__'.
 
    While CPP is the de-facto standard for preprocessing Fortran code,
 Part 3 of the Fortran 95 standard (ISO/IEC 1539-3:1998) defines
@@ -346,9 +354,8 @@ enhancements to allocatable arrays.
 Specification 'Further Interoperability of Fortran with C' (ISO/IEC TS
 29113:2012).  Full support of those standards and future Fortran
 standards is planned.  The current status of the support is can be found
-in the *note Fortran 2003 status::, *note Fortran 2008 status::, *note
-TS 29113 status::, *note TS 18508 status:: and *note Fortran 2018
-status:: sections of the documentation.
+in the *note Fortran 2003 status::, *note Fortran 2008 status:: and
+*note Fortran 2018 status:: sections of the documentation.
 
    Additionally, the GNU Fortran compilers supports the OpenMP
 specification (version 4.0 and most of the features of the 4.5 version,
@@ -430,9 +437,9 @@ _Fortran Language Options_
           -fall-intrinsics -fbackslash -fcray-pointer -fd-lines-as-code
           -fd-lines-as-comments
           -fdec -fdec-structure -fdec-intrinsic-ints -fdec-static -fdec-math
-          -fdefault-double-8 -fdefault-integer-8 -fdefault-real-8
+          -fdec-include -fdefault-double-8 -fdefault-integer-8 -fdefault-real-8
           -fdefault-real-10 -fdefault-real-16 -fdollar-ok -ffixed-line-length-N
-          -ffixed-line-length-none -ffree-form -ffree-line-length-N
+          -ffixed-line-length-none -fpad-source -ffree-form -ffree-line-length-N
           -ffree-line-length-none -fimplicit-none -finteger-4-integer-8
           -fmax-identifier-length -fmodule-private -ffixed-form -fno-range-check
           -fopenacc -fopenmp -freal-4-real-10 -freal-4-real-16 -freal-4-real-8
@@ -577,6 +584,11 @@ accepted by the compiler:
      Enable DEC-style STATIC and AUTOMATIC attributes to explicitly
      specify the storage of variables and other objects.
 
+'-fdec-include'
+     Enable parsing of INCLUDE as a statement in addition to parsing it
+     as INCLUDE line.  When parsed as INCLUDE statement, INCLUDE does
+     not have to be on a single line and can use line continuations.
+
 '-fdollar-ok'
      Allow '$' as a valid non-first character in a symbol name.  Symbols
      that start with '$' are rejected since it is unclear which rules to
@@ -602,8 +614,9 @@ accepted by the compiler:
 
 '-ffixed-line-length-N'
      Set column after which characters are ignored in typical fixed-form
-     lines in the source file, and through which spaces are assumed (as
-     if padded to that length) after the ends of short fixed-form lines.
+     lines in the source file, and, unless '-fno-pad-source', through
+     which spaces are assumed (as if padded to that length) after the
+     ends of short fixed-form lines.
 
      Popular values for N include 72 (the standard and the default), 80
      (card image), and 132 (corresponding to "extended-source" options
@@ -612,6 +625,14 @@ accepted by the compiler:
      never have implicit spaces appended to them to fill out the line.
      '-ffixed-line-length-0' means the same thing as
      '-ffixed-line-length-none'.
+
+'-fno-pad-source'
+     By default fixed-form lines have spaces assumed (as if padded to
+     that length) after the ends of short fixed-form lines.  This is not
+     done either if '-ffixed-line-length-0', '-ffixed-line-length-none'
+     or if '-fno-pad-source' option is used.  With any of those options
+     continued character constants never have implicit spaces appended
+     to them to fill out the line.
 
 '-ffree-line-length-N'
      Set column after which characters are ignored in typical free-form
@@ -672,36 +693,41 @@ accepted by the compiler:
 
 '-fdefault-real-8'
      Set the default real type to an 8 byte wide type.  This option also
-     affects the kind of non-double real constants like '1.0', and does
-     promote the default width of 'DOUBLE PRECISION' to 16 bytes if
-     possible, unless '-fdefault-double-8' is given, too.  Unlike
-     '-freal-4-real-8', it does not promote variables with explicit kind
-     declaration.
+     affects the kind of non-double real constants like '1.0'.  This
+     option promotes the default width of 'DOUBLE PRECISION' and double
+     real constants like '1.d0' to 16 bytes if possible.  If
+     '-fdefault-double-8' is given along with 'fdefault-real-8', 'DOUBLE
+     PRECISION' and double real constants are not promoted.  Unlike
+     '-freal-4-real-8', 'fdefault-real-8' does not promote variables
+     with explicit kind declarations.
 
 '-fdefault-real-10'
-     Set the default real type to a 10 byte wide type.  This option also
-     affects the kind of non-double real constants like '1.0', and does
-     promote the default width of 'DOUBLE PRECISION' to 16 bytes if
-     possible, unless '-fdefault-double-8' is given.  Unlike
-     '-freal-4-real-10', it does not promote variables with explicit
-     kind declaration.
+     Set the default real type to an 10 byte wide type.  This option
+     also affects the kind of non-double real constants like '1.0'.
+     This option promotes the default width of 'DOUBLE PRECISION' and
+     double real constants like '1.d0' to 16 bytes if possible.  If
+     '-fdefault-double-8' is given along with 'fdefault-real-10',
+     'DOUBLE PRECISION' and double real constants are not promoted.
+     Unlike '-freal-4-real-10', 'fdefault-real-10' does not promote
+     variables with explicit kind declarations.
 
 '-fdefault-real-16'
-     Set the default real type to a 16 byte wide type.  This option also
-     affects the kind of non-double real constants like '1.0', and does
-     promote the default width of 'DOUBLE PRECISION' to 16 bytes if
-     possible, unless '-fdefault-double-8' is given.  Unlike
-     '-freal-4-real-16', it does not promote variables with explicit
-     kind declaration.
+     Set the default real type to an 16 byte wide type.  This option
+     also affects the kind of non-double real constants like '1.0'.
+     This option promotes the default width of 'DOUBLE PRECISION' and
+     double real constants like '1.d0' to 16 bytes if possible.  If
+     '-fdefault-double-8' is given along with 'fdefault-real-16',
+     'DOUBLE PRECISION' and double real constants are not promoted.
+     Unlike '-freal-4-real-16', 'fdefault-real-16' does not promote
+     variables with explicit kind declarations.
 
 '-fdefault-double-8'
-     Set the 'DOUBLE PRECISION' type to an 8 byte wide type.  Do nothing
-     if this is already the default.  If '-fdefault-real-8' is given,
-     'DOUBLE PRECISION' would instead be promoted to 16 bytes if
-     possible, and '-fdefault-double-8' can be used to prevent this.
-     The kind of real constants like '1.d0' will not be changed by
-     '-fdefault-real-8' though, so also '-fdefault-double-8' does not
-     affect it.
+     Set the 'DOUBLE PRECISION' type and double real constants like
+     '1.d0' to an 8 byte wide type.  Do nothing if this is already the
+     default.  This option prevents '-fdefault-real-8',
+     '-fdefault-real-10', and '-fdefault-real-16', from promoting
+     'DOUBLE PRECISION' and double real constants like '1.d0' to 16
+     bytes.
 
 '-finteger-4-integer-8'
      Promote all 'INTEGER(KIND=4)' entities to an 'INTEGER(KIND=8)'
@@ -743,10 +769,10 @@ accepted by the compiler:
      and Fortran 2018 standards, respectively; errors are given for all
      extensions beyond the relevant language standard, and warnings are
      given for the Fortran 77 features that are permitted but
-     obsolescent in later standards.  '-std=f2008ts' allows the Fortran
-     2008 standard including the additions of the Technical
-     Specification (TS) 29113 on Further Interoperability of Fortran
-     with C and TS 18508 on Additional Parallel Features in Fortran.
+     obsolescent in later standards.  The deprecated option
+     '-std=f2008ts' acts as an alias for '-std=f2018'.  It is only
+     present for backwards compatibility with earlier gfortran versions
+     and should not be used any more.
 
 '-ftest-forall-temp'
      Enhance test coverage by forcing most forall assignments to use
@@ -1131,7 +1157,7 @@ produced by GNU Fortran:
      tab followed by a digit between 1 and 9 is supported.  '-Wtabs'
      will cause a warning to be issued if a tab is encountered.  Note,
      '-Wtabs' is active for '-pedantic', '-std=f95', '-std=f2003',
-     '-std=f2008', '-std=f2008ts', '-std=f2018' and '-Wall'.
+     '-std=f2008', '-std=f2018' and '-Wall'.
 
 '-Wundefined-do-loop'
      Warn if a DO loop with step either 1 or -1 yields an underflow or
@@ -1172,8 +1198,9 @@ produced by GNU Fortran:
      '-falign-commons'.
 
 '-Wfunction-elimination'
-     Warn if any calls to functions are eliminated by the optimizations
-     enabled by the '-ffrontend-optimize' option.
+     Warn if any calls to impure functions are eliminated by the
+     optimizations enabled by the '-ffrontend-optimize' option.  This
+     option is implied by '-Wextra'.
 
 '-Wrealloc-lhs'
      Warn when the compiler might insert code to for allocation or
@@ -1206,7 +1233,7 @@ produced by GNU Fortran:
 
 '-Wdo-subscript'
      Warn if an array subscript inside a DO loop could lead to an
-     out-of-bounds access even if the compiler can not prove that the
+     out-of-bounds access even if the compiler cannot prove that the
      statement is actually executed, in cases like
             real a(3)
             do i=1,4
@@ -1278,6 +1305,13 @@ either your program or the GNU Fortran compiler.
      provisions for dealing with these exceptions, enabling traps for
      these three exceptions is probably a good idea.
 
+     If the option is used more than once in the command line, the lists
+     will be joined: ''ffpe-trap='LIST1 'ffpe-trap='LIST2' is equivalent
+     to 'ffpe-trap='LIST1,LIST2.
+
+     Note that once enabled an exception cannot be disabled (no negative
+     form).
+
      Many, if not most, floating point operations incur loss of
      precision due to rounding, and hence the 'ffpe-trap=inexact' is
      likely to be uninteresting in practice.
@@ -1291,6 +1325,9 @@ either your program or the GNU Fortran compiler.
      following exceptions: 'invalid', 'zero', 'overflow', 'underflow',
      'inexact' and 'denormal'.  (See '-ffpe-trap' for a description of
      the exceptions.)
+
+     If the option is used more than once in the command line, only the
+     last one will be used.
 
      By default, a summary for all exceptions but 'inexact' is shown.
 
@@ -1427,6 +1464,9 @@ the other form by either removing 'no-' or adding it.
      local variables smaller than the value given by
      '-fmax-stack-var-size'.  Use the option '-frecursive' to use no
      static memory.
+
+     Local variables or arrays having an explicit 'SAVE' attribute are
+     silently ignored unless the '-pedantic' option is added.
 
 '-ff2c'
      Generate code designed to be compatible with code generated by
@@ -1739,6 +1779,11 @@ the other form by either removing 'no-' or adding it.
      may convert them into quiet NaN and that trapping needs to be
      enabled (e.g.  via '-ffpe-trap').
 
+     The '-finit-integer' option will parse the value into an integer of
+     type 'INTEGER(kind=C_LONG)' on the host.  Said value is then
+     assigned to the integer variables in the Fortran code, which might
+     result in wraparound if the value is too large for the kind.
+
      Finally, note that enabling any of the '-finit-*' options will
      silence warnings that would have been emitted by '-Wuninitialized'
      for the affected local variables.
@@ -1781,10 +1826,14 @@ the other form by either removing 'no-' or adding it.
 '-ffrontend-optimize'
      This option performs front-end optimization, based on manipulating
      parts the Fortran parse tree.  Enabled by default by any '-O'
-     option.  Optimizations enabled by this option include inlining
-     calls to 'MATMUL', elimination of identical function calls within
-     expressions, removing unnecessary calls to 'TRIM' in comparisons
-     and assignments and replacing 'TRIM(a)' with 'a(1:LEN_TRIM(a))'.
+     option except '-O0' and '-Og'.  Optimizations enabled by this
+     option include:
+        * inlining calls to 'MATMUL',
+        * elimination of identical function calls within expressions,
+        * removing unnecessary calls to 'TRIM' in comparisons and
+          assignments,
+        * replacing 'TRIM(a)' with 'a(1:LEN_TRIM(a))' and
+        * short-circuiting of logical operators ('.AND.' and '.OR.').
      It can be deselected by specifying '-fno-frontend-optimize'.
 
 '-ffrontend-loop-interchange'
@@ -2051,8 +2100,6 @@ File: gfortran.info,  Node: Fortran standards status,  Next: Compiler Characteri
 
 * Fortran 2003 status::
 * Fortran 2008 status::
-* TS 29113 status::
-* TS 18508 status::
 * Fortran 2018 status::
 
 
@@ -2141,8 +2188,7 @@ can be found below.  See also the wiki page
      including the support for intrinsics with real and complex
      arguments.
 
-   * Support for the asynchronous input/output syntax; however, the data
-     transfer is currently always synchronously performed.
+   * Support for the asynchronous input/output.
 
    * 'FLUSH' statement.
 
@@ -2190,7 +2236,7 @@ can be found below.  See also the wiki page
    * Renaming of operators in the 'USE' statement.
 
 
-File: gfortran.info,  Node: Fortran 2008 status,  Next: TS 29113 status,  Prev: Fortran 2003 status,  Up: Fortran standards status
+File: gfortran.info,  Node: Fortran 2008 status,  Next: Fortran 2018 status,  Prev: Fortran 2003 status,  Up: Fortran standards status
 
 4.2 Fortran 2008 status
 =======================
@@ -2309,10 +2355,24 @@ In particular, the following is implemented.
      are supported for named constants ('PARAMETER').
 
 
-File: gfortran.info,  Node: TS 29113 status,  Next: TS 18508 status,  Prev: Fortran 2008 status,  Up: Fortran standards status
+File: gfortran.info,  Node: Fortran 2018 status,  Prev: Fortran 2008 status,  Up: Fortran standards status
 
-4.3 Technical Specification 29113 Status
-========================================
+4.3 Status of Fortran 2018 support
+==================================
+
+   * ERROR STOP in a PURE procedure An 'ERROR STOP' statement is
+     permitted in a 'PURE' procedure.
+
+   * IMPLICIT NONE with a spec-list Support the 'IMPLICIT NONE'
+     statement with an 'implicit-none-spec-list'.
+
+   * Behavior of INQUIRE with the RECL= specifier
+
+     The behavior of the 'INQUIRE' statement with the 'RECL=' specifier
+     now conforms to Fortran 2018.
+
+4.3.1 TS 29113 Status (Further Interoperability with C)
+-------------------------------------------------------
 
 GNU Fortran supports some of the new features of the Technical
 Specification (TS) 29113 on Further Interoperability of Fortran with C.
@@ -2321,8 +2381,6 @@ about the current TS 29113 implementation status.  In particular, the
 following is implemented.
 
    See also *note Further Interoperability of Fortran with C::.
-
-   * The '-std=f2008ts' option.
 
    * The 'OPTIONAL' attribute is allowed for dummy arguments of 'BIND(C)
      procedures.'
@@ -2334,14 +2392,16 @@ following is implemented.
 
    * Assumed types ('TYPE(*)').
 
-   * Assumed-rank ('DIMENSION(..)').  However, the array descriptor of
-     the TS is not yet supported.
+   * Assumed-rank ('DIMENSION(..)').
 
-
-File: gfortran.info,  Node: TS 18508 status,  Next: Fortran 2018 status,  Prev: TS 29113 status,  Up: Fortran standards status
+   * ISO_Fortran_binding (now in Fortran 2018 18.4) is implemented such
+     that conversion of the array descriptor for assumed type or assumed
+     rank arrays is done in the library.  The include file
+     ISO_Fortran_binding.h is can be found in
+     '~prefix/lib/gcc/$target/$version'.
 
-4.4 Technical Specification 18508 Status
-========================================
+4.3.2 TS 18508 Status (Additional Parallel Features)
+----------------------------------------------------
 
 GNU Fortran supports the following new features of the Technical
 Specification 18508 on Additional Parallel Features in Fortran:
@@ -2360,25 +2420,6 @@ Specification 18508 on Additional Parallel Features in Fortran:
      'STOPPED_IMAGES')
 
 
-File: gfortran.info,  Node: Fortran 2018 status,  Prev: TS 18508 status,  Up: Fortran standards status
-
-4.5 Status of Fortran 2018 support
-==================================
-
-So far very little work has been done to support Fortran 2018.
-
-   * ERROR STOP in a PURE procedure An 'ERROR STOP' statement is
-     permitted in a 'PURE' procedure.
-
-   * IMPLICIT NONE with a spec-list Support the 'IMPLICIT NONE'
-     statement with an 'implicit-none-spec-list'.
-
-   * Behavior of INQUIRE with the RECL= specifier
-
-     The behavior of the 'INQUIRE' statement with the 'RECL=' specifier
-     now conforms to Fortran 2018.
-
-
 File: gfortran.info,  Node: Compiler Characteristics,  Next: Extensions,  Prev: Fortran standards status,  Up: Top
 
 5 Compiler Characteristics
@@ -2392,11 +2433,14 @@ might in some way or another become visible to the programmer.
 
 * KIND Type Parameters::
 * Internal representation of LOGICAL variables::
+* Evaluation of logical expressions::
+* MAX and MIN intrinsics with REAL NaN arguments::
 * Thread-safety of the runtime library::
 * Data consistency and durability::
 * Files opened without an explicit ACTION= specifier::
 * File operations on symbolic links::
 * File format of unformatted sequential files::
+* Asynchronous I/O::
 
 
 File: gfortran.info,  Node: KIND Type Parameters,  Next: Internal representation of LOGICAL variables,  Up: Compiler Characteristics
@@ -2443,7 +2487,7 @@ ISO_FORTRAN_ENV:: module.  For C interoperability, the kind parameters
 of the *note ISO_C_BINDING:: module should be used.
 
 
-File: gfortran.info,  Node: Internal representation of LOGICAL variables,  Next: Thread-safety of the runtime library,  Prev: KIND Type Parameters,  Up: Compiler Characteristics
+File: gfortran.info,  Node: Internal representation of LOGICAL variables,  Next: Evaluation of logical expressions,  Prev: KIND Type Parameters,  Up: Compiler Characteristics
 
 5.2 Internal representation of LOGICAL variables
 ================================================
@@ -2462,9 +2506,40 @@ behavior.
 Interoperability with C::.
 
 
-File: gfortran.info,  Node: Thread-safety of the runtime library,  Next: Data consistency and durability,  Prev: Internal representation of LOGICAL variables,  Up: Compiler Characteristics
+File: gfortran.info,  Node: Evaluation of logical expressions,  Next: MAX and MIN intrinsics with REAL NaN arguments,  Prev: Internal representation of LOGICAL variables,  Up: Compiler Characteristics
 
-5.3 Thread-safety of the runtime library
+5.3 Evaluation of logical expressions
+=====================================
+
+The Fortran standard does not require the compiler to evaluate all parts
+of an expression, if they do not contribute to the final result.  For
+logical expressions with '.AND.' or '.OR.' operators, in particular, GNU
+Fortran will optimize out function calls (even to impure functions) if
+the result of the expression can be established without them.  However,
+since not all compilers do that, and such an optimization can
+potentially modify the program flow and subsequent results, GNU Fortran
+throws warnings for such situations with the '-Wfunction-elimination'
+flag.
+
+
+File: gfortran.info,  Node: MAX and MIN intrinsics with REAL NaN arguments,  Next: Thread-safety of the runtime library,  Prev: Evaluation of logical expressions,  Up: Compiler Characteristics
+
+5.4 MAX and MIN intrinsics with REAL NaN arguments
+==================================================
+
+The Fortran standard does not specify what the result of the 'MAX' and
+'MIN' intrinsics are if one of the arguments is a 'NaN'.  Accordingly,
+the GNU Fortran compiler does not specify that either, as this allows
+for faster and more compact code to be generated.  If the programmer
+wishes to take some specific action in case one of the arguments is a
+'NaN', it is necessary to explicitly test the arguments before calling
+'MAX' or 'MIN', e.g.  with the 'IEEE_IS_NAN' function from the intrinsic
+module 'IEEE_ARITHMETIC'.
+
+
+File: gfortran.info,  Node: Thread-safety of the runtime library,  Next: Data consistency and durability,  Prev: MAX and MIN intrinsics with REAL NaN arguments,  Up: Compiler Characteristics
+
+5.5 Thread-safety of the runtime library
 ========================================
 
 GNU Fortran can be used in programs with multiple threads, e.g. by using
@@ -2509,7 +2584,7 @@ is in progress in another thread.
 
 File: gfortran.info,  Node: Data consistency and durability,  Next: Files opened without an explicit ACTION= specifier,  Prev: Thread-safety of the runtime library,  Up: Compiler Characteristics
 
-5.4 Data consistency and durability
+5.6 Data consistency and durability
 ===================================
 
 This section contains a brief overview of data and metadata consistency
@@ -2580,7 +2655,7 @@ validation and flushing dirty data and metadata.
 
 File: gfortran.info,  Node: Files opened without an explicit ACTION= specifier,  Next: File operations on symbolic links,  Prev: Data consistency and durability,  Up: Compiler Characteristics
 
-5.5 Files opened without an explicit ACTION= specifier
+5.7 Files opened without an explicit ACTION= specifier
 ======================================================
 
 The Fortran standard says that if an 'OPEN' statement is executed
@@ -2595,7 +2670,7 @@ dependent.  GNU Fortran behaves as follows:
 
 File: gfortran.info,  Node: File operations on symbolic links,  Next: File format of unformatted sequential files,  Prev: Files opened without an explicit ACTION= specifier,  Up: Compiler Characteristics
 
-5.6 File operations on symbolic links
+5.8 File operations on symbolic links
 =====================================
 
 This section documents the behavior of GNU Fortran for file operations
@@ -2616,9 +2691,9 @@ on symbolic links, on systems that support them.
      to be deleted, not its target.
 
 
-File: gfortran.info,  Node: File format of unformatted sequential files,  Prev: File operations on symbolic links,  Up: Compiler Characteristics
+File: gfortran.info,  Node: File format of unformatted sequential files,  Next: Asynchronous I/O,  Prev: File operations on symbolic links,  Up: Compiler Characteristics
 
-5.7 File format of unformatted sequential files
+5.9 File format of unformatted sequential files
 ===============================================
 
 Unformatted sequential files are stored as logical records using record
@@ -2631,8 +2706,8 @@ are four-byte integers by default, and eight-byte integers if the
 compability only) is in effect.
 
    The representation of the record markers is that of unformatted files
-given with the '-fconvert' option, the *Note CONVERT specifier:: on the
-open statement or the *Note GFORTRAN_CONVERT_UNIT:: environment
+given with the '-fconvert' option, the *note CONVERT specifier:: in an
+open statement or the *note GFORTRAN_CONVERT_UNIT:: environment
 variable.
 
    The maximum number of bytes of user data in a subrecord is 2147483639
@@ -2649,7 +2724,7 @@ contains a negative number, then there is a preceding subrecord.
 
    In the most simple case, with only one subrecord per logical record,
 both record markers contain the number of bytes of user data in the
-record,
+record.
 
    The format for unformatted sequential data can be duplicated using
 unformatted stream, as shown in the example program for an unformatted
@@ -2669,6 +2744,22 @@ record containing a single subrecord:
        read (10) b
        if (all (a == b)) print *,'success!'
      end program main
+
+
+File: gfortran.info,  Node: Asynchronous I/O,  Prev: File format of unformatted sequential files,  Up: Compiler Characteristics
+
+5.10 Asynchronous I/O
+=====================
+
+Asynchronous I/O is supported if the program is linked against the POSIX
+thread library.  If that is not the case, all I/O is performed as
+synchronous.  On systems which do not support pthread condition
+variables, such as AIX, I/O is also performed as synchronous.
+
+   On some systems, such as Darwin or Solaris, the POSIX thread library
+is always linked in, so asynchronous I/O is always performed.  On other
+sytems, such as Linux, it is necessary to specify '-pthread',
+'-lpthread' or '-fopenmp' during the linking step.
 
 
 File: gfortran.info,  Node: Extensions,  Next: Mixed-Language Programming,  Prev: Compiler Characteristics,  Up: Top
@@ -3067,9 +3158,10 @@ variables: an integer "pointer" that holds a memory address, and a
    or,
              pointer ( <pointer1> , <pointee1> ), ( <pointer2> , <pointee2> ), ...
    The pointer is an integer that is intended to hold a memory address.
-The pointee may be an array or scalar.  A pointee can be an assumed size
-array--that is, the last dimension may be left unspecified by using a
-'*' in place of a value--but a pointee cannot be an assumed shape array.
+The pointee may be an array or scalar.  If an assumed-size array is
+permitted within the scoping unit, a pointee can be an assumed-size
+array.  That is, the last dimension may be left unspecified by using a
+'*' in place of a value.  A pointee cannot be an assumed shape array.
 No space is allocated for the pointee.
 
    The pointee may have its type declared before or after the pointer
@@ -3929,6 +4021,7 @@ make code that uses them running with the GNU Fortran compiler.
 * Alternate complex function syntax::
 * Volatile COMMON blocks::
 * OPEN( ... NAME=)::
+* Q edit descriptor::
 
 
 File: gfortran.info,  Node: ENCODE and DECODE statements,  Next: Variable FORMAT expressions,  Up: Extensions not implemented in GNU Fortran
@@ -4032,7 +4125,7 @@ and is not supported by 'gfortran'.  Note that 'gfortran' accepts
 'VOLATILE' variables in 'COMMON' blocks since revision 4.3.
 
 
-File: gfortran.info,  Node: OPEN( ... NAME=),  Prev: Volatile COMMON blocks,  Up: Extensions not implemented in GNU Fortran
+File: gfortran.info,  Node: OPEN( ... NAME=),  Next: Q edit descriptor,  Prev: Volatile COMMON blocks,  Up: Extensions not implemented in GNU Fortran
 
 6.2.5 'OPEN( ... NAME=)'
 ------------------------
@@ -4041,6 +4134,28 @@ Some Fortran compilers, including 'g77', let the user declare 'OPEN( ...
 NAME=)'.  This is invalid standard Fortran syntax and is not supported
 by 'gfortran'.  'OPEN( ... NAME=)' should be replaced with 'OPEN( ...
 FILE=)'.
+
+
+File: gfortran.info,  Node: Q edit descriptor,  Prev: OPEN( ... NAME=),  Up: Extensions not implemented in GNU Fortran
+
+6.2.6 'Q' edit descriptor
+-------------------------
+
+Some Fortran compilers provide the 'Q' edit descriptor, which transfers
+the number of characters left within an input record into an integer
+variable.
+
+   A direct replacement of the 'Q' edit descriptor is not available in
+'gfortran'.  How to replicate its functionality using
+standard-conforming code depends on what the intent of the original code
+is.
+
+   Options to replace 'Q' may be to read the whole line into a character
+variable and then counting the number of non-blank characters left using
+'LEN_TRIM'.  Another method may be to use formatted stream, read the
+data up to the position where the 'Q' descriptor occurred, use 'INQUIRE'
+to get the file position, count the characters up to the next 'NEW_LINE'
+and then start reading from the position marked previously.
 
 
 File: gfortran.info,  Node: Mixed-Language Programming,  Next: Coarray Programming,  Prev: Extensions,  Up: Top
@@ -4433,11 +4548,15 @@ and constraints, it adds assumed-type ('TYPE(*)') and assumed-rank
 assumed-shape, assumed-rank and deferred-shape arrays, including
 allocatables and pointers.
 
-   Note: Currently, GNU Fortran does not support the array descriptor
-(dope vector) as specified in the Technical Specification, but uses an
-array descriptor with different fields.  The Chasm Language
-Interoperability Tools, <http://chasm-interop.sourceforge.net/>, provide
-an interface to GNU Fortran's array descriptor.
+   Note: Currently, GNU Fortran does not use internally the array
+descriptor (dope vector) as specified in the Technical Specification,
+but uses an array descriptor with different fields.  Assumed type and
+assumed rank formal arguments are converted in the library to the
+specified form.  The ISO_Fortran_binding API functions (also Fortran
+2018 18.4) are implemented in libgfortran.  Alternatively, the Chasm
+Language Interoperability Tools,
+<http://chasm-interop.sourceforge.net/>, provide an interface to GNU
+Fortran's array descriptor.
 
    The Technical Specification adds the following new features, which
 are supported by GNU Fortran:
@@ -4498,6 +4617,7 @@ File: gfortran.info,  Node: GNU Fortran Compiler Directives,  Next: Non-Fortran 
 
 * ATTRIBUTES directive::
 * UNROLL directive::
+* BUILTIN directive::
 
 
 File: gfortran.info,  Node: ATTRIBUTES directive,  Next: UNROLL directive,  Up: GNU Fortran Compiler Directives
@@ -4567,7 +4687,7 @@ of the procedure; for variables and procedure pointers, they shall be in
 the same declaration part as the variable or procedure pointer.
 
 
-File: gfortran.info,  Node: UNROLL directive,  Prev: ATTRIBUTES directive,  Up: GNU Fortran Compiler Directives
+File: gfortran.info,  Node: UNROLL directive,  Next: BUILTIN directive,  Prev: ATTRIBUTES directive,  Up: GNU Fortran Compiler Directives
 
 7.2.2 UNROLL directive
 ----------------------
@@ -4581,6 +4701,28 @@ unrolled.  It must be placed immediately before a 'DO' loop and applies
 only to the loop that follows.  N is an integer constant specifying the
 unrolling factor.  The values of 0 and 1 block any unrolling of the
 loop.
+
+
+File: gfortran.info,  Node: BUILTIN directive,  Prev: UNROLL directive,  Up: GNU Fortran Compiler Directives
+
+7.2.3 BUILTIN directive
+-----------------------
+
+The syntax of the directive is
+
+   '!GCC$ BUILTIN (B) attributes simd FLAGS IF('target')'
+
+   You can use this directive to define which middle-end built-ins
+provide vector implementations.  'B' is name of the middle-end built-in.
+'FLAGS' are optional and must be either "(inbranch)" or "(notinbranch)".
+'IF' statement is optional and is used to filter multilib ABIs for the
+built-in that should be vectorized.  Example usage:
+
+     !GCC$ builtin (sinf) attributes simd (notinbranch) if('x86_64')
+
+   The purpose of the directive is to provide an API among the GCC
+compiler and the GNU C Library which would define vector implementations
+of math routines.
 
 
 File: gfortran.info,  Node: Non-Fortran Main Program,  Next: Naming and argument-passing conventions,  Prev: GNU Fortran Compiler Directives,  Up: Mixed-Language Programming
@@ -6752,6 +6894,7 @@ File: gfortran.info,  Node: Intrinsic Procedures,  Next: Intrinsic Modules,  Pre
 * 'FDATE':         FDATE,     Subroutine (or function) to get the current time as a string
 * 'FGET':          FGET,      Read a single character in stream mode from stdin
 * 'FGETC':         FGETC,     Read a single character in stream mode
+* 'FINDLOC':       FINDLOC,   Search an array for a value
 * 'FLOOR':         FLOOR,     Integer floor function
 * 'FLUSH':         FLUSH,     Flush I/O unit(s)
 * 'FNUM':          FNUM,      File number function
@@ -6798,6 +6941,7 @@ File: gfortran.info,  Node: Intrinsic Procedures,  Next: Intrinsic Modules,  Pre
 * 'IOR':           IOR,       Bitwise logical or
 * 'IPARITY':       IPARITY,   Bitwise XOR of array elements
 * 'IRAND':         IRAND,     Integer pseudo-random number
+* 'IS_CONTIGUOUS':  IS_CONTIGUOUS, Test whether an array is contiguous
 * 'IS_IOSTAT_END':  IS_IOSTAT_END, Test for end-of-file value
 * 'IS_IOSTAT_EOR':  IS_IOSTAT_EOR, Test for end-of-record value
 * 'ISATTY':        ISATTY,    Whether a unit is a terminal device
@@ -6866,6 +7010,7 @@ File: gfortran.info,  Node: Intrinsic Procedures,  Next: Intrinsic Modules,  Pre
 * 'RADIX':         RADIX,     Base of a data model
 * 'RAN':           RAN,       Real pseudo-random number
 * 'RAND':          RAND,      Real pseudo-random number
+* 'RANDOM_INIT':   RANDOM_INIT, Initialize pseudo-random number generator
 * 'RANDOM_NUMBER': RANDOM_NUMBER, Pseudo-random number
 * 'RANDOM_SEED':   RANDOM_SEED, Initialize a pseudo-random number sequence
 * 'RANGE':         RANGE,     Decimal exponent range
@@ -7620,14 +7765,21 @@ _Syntax_:
 
 _Arguments_:
      I           The type shall be either a scalar 'INTEGER' type
-                 or a scalar 'LOGICAL' type.
-     J           The type shall be the same as the type of I.
+                 or a scalar 'LOGICAL' type or a
+                 boz-literal-constant.
+     J           The type shall be the same as the type of I or a
+                 boz-literal-constant.  I and J shall not both be
+                 boz-literal-constants.  If either I or J is a
+                 boz-literal-constant, then the other argument
+                 must be a scalar 'INTEGER'.
 
 _Return value_:
      The return type is either a scalar 'INTEGER' or a scalar 'LOGICAL'.
      If the kind type parameters differ, then the smaller kind type is
      implicitly converted to larger kind, and the return has the larger
-     kind.
+     kind.  A boz-literal-constant is converted to an 'INTEGER' with the
+     kind type parameter of the other argument as-if a call to *note
+     INT:: occurred.
 
 _Example_:
           PROGRAM test_and
@@ -11755,7 +11907,7 @@ _See also_:
      *note FGETC::, *note FPUT::, *note FPUTC::
 
 
-File: gfortran.info,  Node: FGETC,  Next: FLOOR,  Prev: FGET,  Up: Intrinsic Procedures
+File: gfortran.info,  Node: FGETC,  Next: FINDLOC,  Prev: FGET,  Up: Intrinsic Procedures
 
 9.107 'FGETC' -- Read a single character in stream mode
 =======================================================
@@ -11811,9 +11963,67 @@ _See also_:
      *note FGET::, *note FPUT::, *note FPUTC::
 
 
-File: gfortran.info,  Node: FLOOR,  Next: FLUSH,  Prev: FGETC,  Up: Intrinsic Procedures
+File: gfortran.info,  Node: FINDLOC,  Next: FLOOR,  Prev: FGETC,  Up: Intrinsic Procedures
 
-9.108 'FLOOR' -- Integer floor function
+9.108 'FINDLOC' -- Search an array for a value
+==============================================
+
+_Description_:
+     Determines the location of the element in the array with the value
+     given in the VALUE argument, or, if the DIM argument is supplied,
+     determines the locations of the maximum element along each row of
+     the array in the DIM direction.  If MASK is present, only the
+     elements for which MASK is '.TRUE.' are considered.  If more than
+     one element in the array has the value VALUE, the location returned
+     is that of the first such element in array element order if the
+     BACK is not present or if it is '.FALSE.'.  If BACK is true, the
+     location returned is that of the last such element.  If the array
+     has zero size, or all of the elements of MASK are '.FALSE.', then
+     the result is an array of zeroes.  Similarly, if DIM is supplied
+     and all of the elements of MASK along a given row are zero, the
+     result value for that row is zero.
+
+_Standard_:
+     Fortran 2008 and later.
+
+_Class_:
+     Transformational function
+
+_Syntax_:
+     'RESULT = FINDLOC(ARRAY, VALUE, DIM [, MASK] [,KIND]
+     [,BACK])'
+     'RESULT = FINDLOC(ARRAY, VALUE, [, MASK] [,KIND]
+     [,BACK])'
+
+_Arguments_:
+     ARRAY       Shall be an array of intrinsic type.
+     VALUE       A scalar of intrinsic type which is in type
+                 conformance with ARRAY.
+     DIM         (Optional) Shall be a scalar of type 'INTEGER',
+                 with a value between one and the rank of ARRAY,
+                 inclusive.  It may not be an optional dummy
+                 argument.
+     KIND        (Optional) An 'INTEGER' initialization
+                 expression indicating the kind parameter of the
+                 result.
+     BACK        (Optional) A scalar of type 'LOGICAL'.
+
+_Return value_:
+     If DIM is absent, the result is a rank-one array with a length
+     equal to the rank of ARRAY.  If DIM is present, the result is an
+     array with a rank one less than the rank of ARRAY, and a size
+     corresponding to the size of ARRAY with the DIM dimension removed.
+     If DIM is present and ARRAY has a rank of one, the result is a
+     scalar.  If the optional argument KIND is present, the result is an
+     integer of kind KIND, otherwise it is of default kind.
+
+_See also_:
+     *note MAXLOC::, *note MINLOC::
+
+
+File: gfortran.info,  Node: FLOOR,  Next: FLUSH,  Prev: FINDLOC,  Up: Intrinsic Procedures
+
+9.109 'FLOOR' -- Integer floor function
 =======================================
 
 _Description_:
@@ -11852,7 +12062,7 @@ _See also_:
 
 File: gfortran.info,  Node: FLUSH,  Next: FNUM,  Prev: FLOOR,  Up: Intrinsic Procedures
 
-9.109 'FLUSH' -- Flush I/O unit(s)
+9.110 'FLUSH' -- Flush I/O unit(s)
 ==================================
 
 _Description_:
@@ -11915,7 +12125,7 @@ _Note_:
 
 File: gfortran.info,  Node: FNUM,  Next: FPUT,  Prev: FLUSH,  Up: Intrinsic Procedures
 
-9.110 'FNUM' -- File number function
+9.111 'FNUM' -- File number function
 ====================================
 
 _Description_:
@@ -11949,7 +12159,7 @@ _Example_:
 
 File: gfortran.info,  Node: FPUT,  Next: FPUTC,  Prev: FNUM,  Up: Intrinsic Procedures
 
-9.111 'FPUT' -- Write a single character in stream mode to stdout
+9.112 'FPUT' -- Write a single character in stream mode to stdout
 =================================================================
 
 _Description_:
@@ -11999,7 +12209,7 @@ _See also_:
 
 File: gfortran.info,  Node: FPUTC,  Next: FRACTION,  Prev: FPUT,  Up: Intrinsic Procedures
 
-9.112 'FPUTC' -- Write a single character in stream mode
+9.113 'FPUTC' -- Write a single character in stream mode
 ========================================================
 
 _Description_:
@@ -12053,7 +12263,7 @@ _See also_:
 
 File: gfortran.info,  Node: FRACTION,  Next: FREE,  Prev: FPUTC,  Up: Intrinsic Procedures
 
-9.113 'FRACTION' -- Fractional part of the model representation
+9.114 'FRACTION' -- Fractional part of the model representation
 ===============================================================
 
 _Description_:
@@ -12087,7 +12297,7 @@ _Example_:
 
 File: gfortran.info,  Node: FREE,  Next: FSEEK,  Prev: FRACTION,  Up: Intrinsic Procedures
 
-9.114 'FREE' -- Frees memory
+9.115 'FREE' -- Frees memory
 ============================
 
 _Description_:
@@ -12123,7 +12333,7 @@ _See also_:
 
 File: gfortran.info,  Node: FSEEK,  Next: FSTAT,  Prev: FREE,  Up: Intrinsic Procedures
 
-9.115 'FSEEK' -- Low level file positioning subroutine
+9.116 'FSEEK' -- Low level file positioning subroutine
 ======================================================
 
 _Description_:
@@ -12193,7 +12403,7 @@ _See also_:
 
 File: gfortran.info,  Node: FSTAT,  Next: FTELL,  Prev: FSEEK,  Up: Intrinsic Procedures
 
-9.116 'FSTAT' -- Get file status
+9.117 'FSTAT' -- Get file status
 ================================
 
 _Description_:
@@ -12231,7 +12441,7 @@ _See also_:
 
 File: gfortran.info,  Node: FTELL,  Next: GAMMA,  Prev: FSTAT,  Up: Intrinsic Procedures
 
-9.117 'FTELL' -- Current stream position
+9.118 'FTELL' -- Current stream position
 ========================================
 
 _Description_:
@@ -12272,7 +12482,7 @@ _See also_:
 
 File: gfortran.info,  Node: GAMMA,  Next: GERROR,  Prev: FTELL,  Up: Intrinsic Procedures
 
-9.118 'GAMMA' -- Gamma function
+9.119 'GAMMA' -- Gamma function
 ===============================
 
 _Description_:
@@ -12313,7 +12523,7 @@ _See also_:
 
 File: gfortran.info,  Node: GERROR,  Next: GETARG,  Prev: GAMMA,  Up: Intrinsic Procedures
 
-9.119 'GERROR' -- Get last system error message
+9.120 'GERROR' -- Get last system error message
 ===============================================
 
 _Description_:
@@ -12345,7 +12555,7 @@ _See also_:
 
 File: gfortran.info,  Node: GETARG,  Next: GET_COMMAND,  Prev: GERROR,  Up: Intrinsic Procedures
 
-9.120 'GETARG' -- Get command line arguments
+9.121 'GETARG' -- Get command line arguments
 ============================================
 
 _Description_:
@@ -12375,7 +12585,7 @@ _Arguments_:
 
 _Return value_:
      After 'GETARG' returns, the VALUE argument holds the POSth command
-     line argument.  If VALUE can not hold the argument, it is truncated
+     line argument.  If VALUE cannot hold the argument, it is truncated
      to fit the length of VALUE.  If there are less than POS arguments
      specified at the command line, VALUE will be filled with blanks.
      If POS = 0, VALUE is set to the name of the program (on systems
@@ -12401,7 +12611,7 @@ _See also_:
 
 File: gfortran.info,  Node: GET_COMMAND,  Next: GET_COMMAND_ARGUMENT,  Prev: GETARG,  Up: Intrinsic Procedures
 
-9.121 'GET_COMMAND' -- Get the entire command line
+9.122 'GET_COMMAND' -- Get the entire command line
 ==================================================
 
 _Description_:
@@ -12446,7 +12656,7 @@ _See also_:
 
 File: gfortran.info,  Node: GET_COMMAND_ARGUMENT,  Next: GETCWD,  Prev: GET_COMMAND,  Up: Intrinsic Procedures
 
-9.122 'GET_COMMAND_ARGUMENT' -- Get command line arguments
+9.123 'GET_COMMAND_ARGUMENT' -- Get command line arguments
 ==========================================================
 
 _Description_:
@@ -12474,7 +12684,7 @@ _Arguments_:
 
 _Return value_:
      After 'GET_COMMAND_ARGUMENT' returns, the VALUE argument holds the
-     NUMBER-th command line argument.  If VALUE can not hold the
+     NUMBER-th command line argument.  If VALUE cannot hold the
      argument, it is truncated to fit the length of VALUE.  If there are
      less than NUMBER arguments specified at the command line, VALUE
      will be filled with blanks.  If NUMBER = 0, VALUE is set to the
@@ -12505,7 +12715,7 @@ _See also_:
 
 File: gfortran.info,  Node: GETCWD,  Next: GETENV,  Prev: GET_COMMAND_ARGUMENT,  Up: Intrinsic Procedures
 
-9.123 'GETCWD' -- Get current working directory
+9.124 'GETCWD' -- Get current working directory
 ===============================================
 
 _Description_:
@@ -12544,7 +12754,7 @@ _See also_:
 
 File: gfortran.info,  Node: GETENV,  Next: GET_ENVIRONMENT_VARIABLE,  Prev: GETCWD,  Up: Intrinsic Procedures
 
-9.124 'GETENV' -- Get an environmental variable
+9.125 'GETENV' -- Get an environmental variable
 ===============================================
 
 _Description_:
@@ -12592,7 +12802,7 @@ _See also_:
 
 File: gfortran.info,  Node: GET_ENVIRONMENT_VARIABLE,  Next: GETGID,  Prev: GETENV,  Up: Intrinsic Procedures
 
-9.125 'GET_ENVIRONMENT_VARIABLE' -- Get an environmental variable
+9.126 'GET_ENVIRONMENT_VARIABLE' -- Get an environmental variable
 =================================================================
 
 _Description_:
@@ -12647,7 +12857,7 @@ _Example_:
 
 File: gfortran.info,  Node: GETGID,  Next: GETLOG,  Prev: GET_ENVIRONMENT_VARIABLE,  Up: Intrinsic Procedures
 
-9.126 'GETGID' -- Group ID function
+9.127 'GETGID' -- Group ID function
 ===================================
 
 _Description_:
@@ -12674,7 +12884,7 @@ _See also_:
 
 File: gfortran.info,  Node: GETLOG,  Next: GETPID,  Prev: GETGID,  Up: Intrinsic Procedures
 
-9.127 'GETLOG' -- Get login name
+9.128 'GETLOG' -- Get login name
 ================================
 
 _Description_:
@@ -12712,7 +12922,7 @@ _See also_:
 
 File: gfortran.info,  Node: GETPID,  Next: GETUID,  Prev: GETLOG,  Up: Intrinsic Procedures
 
-9.128 'GETPID' -- Process ID function
+9.129 'GETPID' -- Process ID function
 =====================================
 
 _Description_:
@@ -12743,7 +12953,7 @@ _See also_:
 
 File: gfortran.info,  Node: GETUID,  Next: GMTIME,  Prev: GETPID,  Up: Intrinsic Procedures
 
-9.129 'GETUID' -- User ID function
+9.130 'GETUID' -- User ID function
 ==================================
 
 _Description_:
@@ -12770,7 +12980,7 @@ _See also_:
 
 File: gfortran.info,  Node: GMTIME,  Next: HOSTNM,  Prev: GETUID,  Up: Intrinsic Procedures
 
-9.130 'GMTIME' -- Convert time to GMT info
+9.131 'GMTIME' -- Convert time to GMT info
 ==========================================
 
 _Description_:
@@ -12821,7 +13031,7 @@ _See also_:
 
 File: gfortran.info,  Node: HOSTNM,  Next: HUGE,  Prev: GMTIME,  Up: Intrinsic Procedures
 
-9.131 'HOSTNM' -- Get system host name
+9.132 'HOSTNM' -- Get system host name
 ======================================
 
 _Description_:
@@ -12854,7 +13064,7 @@ _Return value_:
 
 File: gfortran.info,  Node: HUGE,  Next: HYPOT,  Prev: HOSTNM,  Up: Intrinsic Procedures
 
-9.132 'HUGE' -- Largest number of a kind
+9.133 'HUGE' -- Largest number of a kind
 ========================================
 
 _Description_:
@@ -12885,7 +13095,7 @@ _Example_:
 
 File: gfortran.info,  Node: HYPOT,  Next: IACHAR,  Prev: HUGE,  Up: Intrinsic Procedures
 
-9.133 'HYPOT' -- Euclidean distance function
+9.134 'HYPOT' -- Euclidean distance function
 ============================================
 
 _Description_:
@@ -12918,7 +13128,7 @@ _Example_:
 
 File: gfortran.info,  Node: IACHAR,  Next: IALL,  Prev: HYPOT,  Up: Intrinsic Procedures
 
-9.134 'IACHAR' -- Code in ASCII collating sequence
+9.135 'IACHAR' -- Code in ASCII collating sequence
 ==================================================
 
 _Description_:
@@ -12960,7 +13170,7 @@ _See also_:
 
 File: gfortran.info,  Node: IALL,  Next: IAND,  Prev: IACHAR,  Up: Intrinsic Procedures
 
-9.135 'IALL' -- Bitwise AND of array elements
+9.136 'IALL' -- Bitwise AND of array elements
 =============================================
 
 _Description_:
@@ -13011,7 +13221,7 @@ _See also_:
 
 File: gfortran.info,  Node: IAND,  Next: IANY,  Prev: IALL,  Up: Intrinsic Procedures
 
-9.136 'IAND' -- Bitwise logical and
+9.137 'IAND' -- Bitwise logical and
 ===================================
 
 _Description_:
@@ -13027,15 +13237,17 @@ _Syntax_:
      'RESULT = IAND(I, J)'
 
 _Arguments_:
-     I           The type shall be 'INTEGER'.
-     J           The type shall be 'INTEGER', of the same kind as
-                 I.  (As a GNU extension, different kinds are
-                 also permitted.)
+     I           The type shall be 'INTEGER' or a
+                 boz-literal-constant.
+     J           The type shall be 'INTEGER' with the same kind
+                 type parameter as I or a boz-literal-constant.
+                 I and J shall not both be boz-literal-constants.
 
 _Return value_:
-     The return type is 'INTEGER', of the same kind as the arguments.
-     (If the argument kinds differ, it is of the same kind as the larger
-     argument.)
+     The return type is 'INTEGER' with the kind type parameter of the
+     arguments.  A boz-literal-constant is converted to an 'INTEGER'
+     with the kind type parameter of the other argument as-if a call to
+     *note INT:: occurred.
 
 _Example_:
           PROGRAM test_iand
@@ -13064,7 +13276,7 @@ _See also_:
 
 File: gfortran.info,  Node: IANY,  Next: IARGC,  Prev: IAND,  Up: Intrinsic Procedures
 
-9.137 'IANY' -- Bitwise OR of array elements
+9.138 'IANY' -- Bitwise OR of array elements
 ============================================
 
 _Description_:
@@ -13115,7 +13327,7 @@ _See also_:
 
 File: gfortran.info,  Node: IARGC,  Next: IBCLR,  Prev: IANY,  Up: Intrinsic Procedures
 
-9.138 'IARGC' -- Get the number of command line arguments
+9.139 'IARGC' -- Get the number of command line arguments
 =========================================================
 
 _Description_:
@@ -13154,7 +13366,7 @@ _See also_:
 
 File: gfortran.info,  Node: IBCLR,  Next: IBITS,  Prev: IARGC,  Up: Intrinsic Procedures
 
-9.139 'IBCLR' -- Clear bit
+9.140 'IBCLR' -- Clear bit
 ==========================
 
 _Description_:
@@ -13197,7 +13409,7 @@ _See also_:
 
 File: gfortran.info,  Node: IBITS,  Next: IBSET,  Prev: IBCLR,  Up: Intrinsic Procedures
 
-9.140 'IBITS' -- Bit extraction
+9.141 'IBITS' -- Bit extraction
 ===============================
 
 _Description_:
@@ -13243,7 +13455,7 @@ _See also_:
 
 File: gfortran.info,  Node: IBSET,  Next: ICHAR,  Prev: IBITS,  Up: Intrinsic Procedures
 
-9.141 'IBSET' -- Set bit
+9.142 'IBSET' -- Set bit
 ========================
 
 _Description_:
@@ -13286,7 +13498,7 @@ _See also_:
 
 File: gfortran.info,  Node: ICHAR,  Next: IDATE,  Prev: IBSET,  Up: Intrinsic Procedures
 
-9.142 'ICHAR' -- Character-to-integer conversion function
+9.143 'ICHAR' -- Character-to-integer conversion function
 =========================================================
 
 _Description_:
@@ -13351,7 +13563,7 @@ _See also_:
 
 File: gfortran.info,  Node: IDATE,  Next: IEOR,  Prev: ICHAR,  Up: Intrinsic Procedures
 
-9.143 'IDATE' -- Get current local time subroutine (day/month/year)
+9.144 'IDATE' -- Get current local time subroutine (day/month/year)
 ===================================================================
 
 _Description_:
@@ -13396,7 +13608,7 @@ _See also_:
 
 File: gfortran.info,  Node: IEOR,  Next: IERRNO,  Prev: IDATE,  Up: Intrinsic Procedures
 
-9.144 'IEOR' -- Bitwise logical exclusive or
+9.145 'IEOR' -- Bitwise logical exclusive or
 ============================================
 
 _Description_:
@@ -13412,15 +13624,17 @@ _Syntax_:
      'RESULT = IEOR(I, J)'
 
 _Arguments_:
-     I           The type shall be 'INTEGER'.
-     J           The type shall be 'INTEGER', of the same kind as
-                 I.  (As a GNU extension, different kinds are
-                 also permitted.)
+     I           The type shall be 'INTEGER' or a
+                 boz-literal-constant.
+     J           The type shall be 'INTEGER' with the same kind
+                 type parameter as I or a boz-literal-constant.
+                 I and J shall not both be boz-literal-constants.
 
 _Return value_:
-     The return type is 'INTEGER', of the same kind as the arguments.
-     (If the argument kinds differ, it is of the same kind as the larger
-     argument.)
+     The return type is 'INTEGER' with the kind type parameter of the
+     arguments.  A boz-literal-constant is converted to an 'INTEGER'
+     with the kind type parameter of the other argument as-if a call to
+     *note INT:: occurred.
 
 _Specific names_:
      Name           Argument       Return type    Standard
@@ -13442,7 +13656,7 @@ _See also_:
 
 File: gfortran.info,  Node: IERRNO,  Next: IMAGE_INDEX,  Prev: IEOR,  Up: Intrinsic Procedures
 
-9.145 'IERRNO' -- Get the last system error number
+9.146 'IERRNO' -- Get the last system error number
 ==================================================
 
 _Description_:
@@ -13471,7 +13685,7 @@ _See also_:
 
 File: gfortran.info,  Node: IMAGE_INDEX,  Next: INDEX intrinsic,  Prev: IERRNO,  Up: Intrinsic Procedures
 
-9.146 'IMAGE_INDEX' -- Function that converts a cosubscript to an image index
+9.147 'IMAGE_INDEX' -- Function that converts a cosubscript to an image index
 =============================================================================
 
 _Description_:
@@ -13507,7 +13721,7 @@ _See also_:
 
 File: gfortran.info,  Node: INDEX intrinsic,  Next: INT,  Prev: IMAGE_INDEX,  Up: Intrinsic Procedures
 
-9.147 'INDEX' -- Position of a substring within a string
+9.148 'INDEX' -- Position of a substring within a string
 ========================================================
 
 _Description_:
@@ -13550,7 +13764,7 @@ _See also_:
 
 File: gfortran.info,  Node: INT,  Next: INT2,  Prev: INDEX intrinsic,  Up: Intrinsic Procedures
 
-9.148 'INT' -- Convert to integer type
+9.149 'INT' -- Convert to integer type
 ======================================
 
 _Description_:
@@ -13607,7 +13821,7 @@ _Specific names_:
 
 File: gfortran.info,  Node: INT2,  Next: INT8,  Prev: INT,  Up: Intrinsic Procedures
 
-9.149 'INT2' -- Convert to 16-bit integer type
+9.150 'INT2' -- Convert to 16-bit integer type
 ==============================================
 
 _Description_:
@@ -13639,7 +13853,7 @@ _See also_:
 
 File: gfortran.info,  Node: INT8,  Next: IOR,  Prev: INT2,  Up: Intrinsic Procedures
 
-9.150 'INT8' -- Convert to 64-bit integer type
+9.151 'INT8' -- Convert to 64-bit integer type
 ==============================================
 
 _Description_:
@@ -13669,7 +13883,7 @@ _See also_:
 
 File: gfortran.info,  Node: IOR,  Next: IPARITY,  Prev: INT8,  Up: Intrinsic Procedures
 
-9.151 'IOR' -- Bitwise logical or
+9.152 'IOR' -- Bitwise logical or
 =================================
 
 _Description_:
@@ -13685,15 +13899,17 @@ _Syntax_:
      'RESULT = IOR(I, J)'
 
 _Arguments_:
-     I           The type shall be 'INTEGER'.
-     J           The type shall be 'INTEGER', of the same kind as
-                 I.  (As a GNU extension, different kinds are
-                 also permitted.)
+     I           The type shall be 'INTEGER' or a
+                 boz-literal-constant.
+     J           The type shall be 'INTEGER' with the same kind
+                 type parameter as I or a boz-literal-constant.
+                 I and J shall not both be boz-literal-constants.
 
 _Return value_:
-     The return type is 'INTEGER', of the same kind as the arguments.
-     (If the argument kinds differ, it is of the same kind as the larger
-     argument.)
+     The return type is 'INTEGER' with the kind type parameter of the
+     arguments.  A boz-literal-constant is converted to an 'INTEGER'
+     with the kind type parameter of the other argument as-if a call to
+     *note INT:: occurred.
 
 _Specific names_:
      Name           Argument       Return type    Standard
@@ -13715,7 +13931,7 @@ _See also_:
 
 File: gfortran.info,  Node: IPARITY,  Next: IRAND,  Prev: IOR,  Up: Intrinsic Procedures
 
-9.152 'IPARITY' -- Bitwise XOR of array elements
+9.153 'IPARITY' -- Bitwise XOR of array elements
 ================================================
 
 _Description_:
@@ -13764,9 +13980,9 @@ _See also_:
      *note IANY::, *note IALL::, *note IEOR::, *note PARITY::
 
 
-File: gfortran.info,  Node: IRAND,  Next: IS_IOSTAT_END,  Prev: IPARITY,  Up: Intrinsic Procedures
+File: gfortran.info,  Node: IRAND,  Next: IS_CONTIGUOUS,  Prev: IPARITY,  Up: Intrinsic Procedures
 
-9.153 'IRAND' -- Integer pseudo-random number
+9.154 'IRAND' -- Integer pseudo-random number
 =============================================
 
 _Description_:
@@ -13807,9 +14023,51 @@ _Example_:
           end program test_irand
 
 
-File: gfortran.info,  Node: IS_IOSTAT_END,  Next: IS_IOSTAT_EOR,  Prev: IRAND,  Up: Intrinsic Procedures
+File: gfortran.info,  Node: IS_CONTIGUOUS,  Next: IS_IOSTAT_END,  Prev: IRAND,  Up: Intrinsic Procedures
 
-9.154 'IS_IOSTAT_END' -- Test for end-of-file value
+9.155 'IS_CONTIGUOUS' -- Test whether an array is contiguous
+============================================================
+
+_Description_:
+     'IS_CONTIGUOUS' tests whether an array is contiguous.
+
+_Standard_:
+     Fortran 2008 and later
+
+_Class_:
+     Inquiry function
+
+_Syntax_:
+     'RESULT = IS_CONTIGUOUS(ARRAY)'
+
+_Arguments_:
+     ARRAY       Shall be an array of any type.
+
+_Return value_:
+     Returns a 'LOGICAL' of the default kind, which '.TRUE.' if ARRAY is
+     contiguous and false otherwise.
+
+_Example_:
+          program test
+            integer :: a(10)
+            a = [1,2,3,4,5,6,7,8,9,10]
+            call sub (a)      ! every element, is contiguous
+            call sub (a(::2)) ! every other element, is noncontiguous
+          contains
+            subroutine sub (x)
+              integer :: x(:)
+              if (is_contiguous (x)) then
+                write (*,*) 'X is contiguous'
+              else
+                write (*,*) 'X is not contiguous'
+              end if
+            end subroutine sub
+          end program test
+
+
+File: gfortran.info,  Node: IS_IOSTAT_END,  Next: IS_IOSTAT_EOR,  Prev: IS_CONTIGUOUS,  Up: Intrinsic Procedures
+
+9.156 'IS_IOSTAT_END' -- Test for end-of-file value
 ===================================================
 
 _Description_:
@@ -13847,7 +14105,7 @@ _Example_:
 
 File: gfortran.info,  Node: IS_IOSTAT_EOR,  Next: ISATTY,  Prev: IS_IOSTAT_END,  Up: Intrinsic Procedures
 
-9.155 'IS_IOSTAT_EOR' -- Test for end-of-record value
+9.157 'IS_IOSTAT_EOR' -- Test for end-of-record value
 =====================================================
 
 _Description_:
@@ -13885,7 +14143,7 @@ _Example_:
 
 File: gfortran.info,  Node: ISATTY,  Next: ISHFT,  Prev: IS_IOSTAT_EOR,  Up: Intrinsic Procedures
 
-9.156 'ISATTY' -- Whether a unit is a terminal device.
+9.158 'ISATTY' -- Whether a unit is a terminal device.
 ======================================================
 
 _Description_:
@@ -13920,7 +14178,7 @@ _See also_:
 
 File: gfortran.info,  Node: ISHFT,  Next: ISHFTC,  Prev: ISATTY,  Up: Intrinsic Procedures
 
-9.157 'ISHFT' -- Shift bits
+9.159 'ISHFT' -- Shift bits
 ===========================
 
 _Description_:
@@ -13967,7 +14225,7 @@ _See also_:
 
 File: gfortran.info,  Node: ISHFTC,  Next: ISNAN,  Prev: ISHFT,  Up: Intrinsic Procedures
 
-9.158 'ISHFTC' -- Shift bits circularly
+9.160 'ISHFTC' -- Shift bits circularly
 =======================================
 
 _Description_:
@@ -14018,7 +14276,7 @@ _See also_:
 
 File: gfortran.info,  Node: ISNAN,  Next: ITIME,  Prev: ISHFTC,  Up: Intrinsic Procedures
 
-9.159 'ISNAN' -- Test for a NaN
+9.161 'ISNAN' -- Test for a NaN
 ===============================
 
 _Description_:
@@ -14053,7 +14311,7 @@ _Example_:
 
 File: gfortran.info,  Node: ITIME,  Next: KILL,  Prev: ISNAN,  Up: Intrinsic Procedures
 
-9.160 'ITIME' -- Get current local time subroutine (hour/minutes/seconds)
+9.162 'ITIME' -- Get current local time subroutine (hour/minutes/seconds)
 =========================================================================
 
 _Description_:
@@ -14098,7 +14356,7 @@ _See also_:
 
 File: gfortran.info,  Node: KILL,  Next: KIND,  Prev: ITIME,  Up: Intrinsic Procedures
 
-9.161 'KILL' -- Send a signal to a process
+9.163 'KILL' -- Send a signal to a process
 ==========================================
 
 _Description_:
@@ -14132,7 +14390,7 @@ _See also_:
 
 File: gfortran.info,  Node: KIND,  Next: LBOUND,  Prev: KILL,  Up: Intrinsic Procedures
 
-9.162 'KIND' -- Kind of an entity
+9.164 'KIND' -- Kind of an entity
 =================================
 
 _Description_:
@@ -14167,7 +14425,7 @@ _Example_:
 
 File: gfortran.info,  Node: LBOUND,  Next: LCOBOUND,  Prev: KIND,  Up: Intrinsic Procedures
 
-9.163 'LBOUND' -- Lower dimension bounds of an array
+9.165 'LBOUND' -- Lower dimension bounds of an array
 ====================================================
 
 _Description_:
@@ -14205,7 +14463,7 @@ _See also_:
 
 File: gfortran.info,  Node: LCOBOUND,  Next: LEADZ,  Prev: LBOUND,  Up: Intrinsic Procedures
 
-9.164 'LCOBOUND' -- Lower codimension bounds of an array
+9.166 'LCOBOUND' -- Lower codimension bounds of an array
 ========================================================
 
 _Description_:
@@ -14240,7 +14498,7 @@ _See also_:
 
 File: gfortran.info,  Node: LEADZ,  Next: LEN,  Prev: LCOBOUND,  Up: Intrinsic Procedures
 
-9.165 'LEADZ' -- Number of leading zero bits of an integer
+9.167 'LEADZ' -- Number of leading zero bits of an integer
 ==========================================================
 
 _Description_:
@@ -14274,7 +14532,7 @@ _See also_:
 
 File: gfortran.info,  Node: LEN,  Next: LEN_TRIM,  Prev: LEADZ,  Up: Intrinsic Procedures
 
-9.166 'LEN' -- Length of a character entity
+9.168 'LEN' -- Length of a character entity
 ===========================================
 
 _Description_:
@@ -14314,7 +14572,7 @@ _See also_:
 
 File: gfortran.info,  Node: LEN_TRIM,  Next: LGE,  Prev: LEN,  Up: Intrinsic Procedures
 
-9.167 'LEN_TRIM' -- Length of a character entity without trailing blank characters
+9.169 'LEN_TRIM' -- Length of a character entity without trailing blank characters
 ==================================================================================
 
 _Description_:
@@ -14347,7 +14605,7 @@ _See also_:
 
 File: gfortran.info,  Node: LGE,  Next: LGT,  Prev: LEN_TRIM,  Up: Intrinsic Procedures
 
-9.168 'LGE' -- Lexical greater than or equal
+9.170 'LGE' -- Lexical greater than or equal
 ============================================
 
 _Description_:
@@ -14391,7 +14649,7 @@ _See also_:
 
 File: gfortran.info,  Node: LGT,  Next: LINK,  Prev: LGE,  Up: Intrinsic Procedures
 
-9.169 'LGT' -- Lexical greater than
+9.171 'LGT' -- Lexical greater than
 ===================================
 
 _Description_:
@@ -14435,7 +14693,7 @@ _See also_:
 
 File: gfortran.info,  Node: LINK,  Next: LLE,  Prev: LGT,  Up: Intrinsic Procedures
 
-9.170 'LINK' -- Create a hard link
+9.172 'LINK' -- Create a hard link
 ==================================
 
 _Description_:
@@ -14469,7 +14727,7 @@ _See also_:
 
 File: gfortran.info,  Node: LLE,  Next: LLT,  Prev: LINK,  Up: Intrinsic Procedures
 
-9.171 'LLE' -- Lexical less than or equal
+9.173 'LLE' -- Lexical less than or equal
 =========================================
 
 _Description_:
@@ -14513,7 +14771,7 @@ _See also_:
 
 File: gfortran.info,  Node: LLT,  Next: LNBLNK,  Prev: LLE,  Up: Intrinsic Procedures
 
-9.172 'LLT' -- Lexical less than
+9.174 'LLT' -- Lexical less than
 ================================
 
 _Description_:
@@ -14557,7 +14815,7 @@ _See also_:
 
 File: gfortran.info,  Node: LNBLNK,  Next: LOC,  Prev: LLT,  Up: Intrinsic Procedures
 
-9.173 'LNBLNK' -- Index of the last non-blank character in a string
+9.175 'LNBLNK' -- Index of the last non-blank character in a string
 ===================================================================
 
 _Description_:
@@ -14587,7 +14845,7 @@ _See also_:
 
 File: gfortran.info,  Node: LOC,  Next: LOG,  Prev: LNBLNK,  Up: Intrinsic Procedures
 
-9.174 'LOC' -- Returns the address of a variable
+9.176 'LOC' -- Returns the address of a variable
 ================================================
 
 _Description_:
@@ -14620,7 +14878,7 @@ _Example_:
 
 File: gfortran.info,  Node: LOG,  Next: LOG10,  Prev: LOC,  Up: Intrinsic Procedures
 
-9.175 'LOG' -- Natural logarithm function
+9.177 'LOG' -- Natural logarithm function
 =========================================
 
 _Description_:
@@ -14666,7 +14924,7 @@ _Specific names_:
 
 File: gfortran.info,  Node: LOG10,  Next: LOG_GAMMA,  Prev: LOG,  Up: Intrinsic Procedures
 
-9.176 'LOG10' -- Base 10 logarithm function
+9.178 'LOG10' -- Base 10 logarithm function
 ===========================================
 
 _Description_:
@@ -14704,7 +14962,7 @@ _Specific names_:
 
 File: gfortran.info,  Node: LOG_GAMMA,  Next: LOGICAL,  Prev: LOG10,  Up: Intrinsic Procedures
 
-9.177 'LOG_GAMMA' -- Logarithm of the Gamma function
+9.179 'LOG_GAMMA' -- Logarithm of the Gamma function
 ====================================================
 
 _Description_:
@@ -14745,7 +15003,7 @@ _See also_:
 
 File: gfortran.info,  Node: LOGICAL,  Next: LONG,  Prev: LOG_GAMMA,  Up: Intrinsic Procedures
 
-9.178 'LOGICAL' -- Convert to logical type
+9.180 'LOGICAL' -- Convert to logical type
 ==========================================
 
 _Description_:
@@ -14777,7 +15035,7 @@ _See also_:
 
 File: gfortran.info,  Node: LONG,  Next: LSHIFT,  Prev: LOGICAL,  Up: Intrinsic Procedures
 
-9.179 'LONG' -- Convert to integer type
+9.181 'LONG' -- Convert to integer type
 =======================================
 
 _Description_:
@@ -14808,7 +15066,7 @@ _See also_:
 
 File: gfortran.info,  Node: LSHIFT,  Next: LSTAT,  Prev: LONG,  Up: Intrinsic Procedures
 
-9.180 'LSHIFT' -- Left shift bits
+9.182 'LSHIFT' -- Left shift bits
 =================================
 
 _Description_:
@@ -14845,7 +15103,7 @@ _See also_:
 
 File: gfortran.info,  Node: LSTAT,  Next: LTIME,  Prev: LSHIFT,  Up: Intrinsic Procedures
 
-9.181 'LSTAT' -- Get file status
+9.183 'LSTAT' -- Get file status
 ================================
 
 _Description_:
@@ -14885,7 +15143,7 @@ _See also_:
 
 File: gfortran.info,  Node: LTIME,  Next: MALLOC,  Prev: LSTAT,  Up: Intrinsic Procedures
 
-9.182 'LTIME' -- Convert time to local time info
+9.184 'LTIME' -- Convert time to local time info
 ================================================
 
 _Description_:
@@ -14935,7 +15193,7 @@ _See also_:
 
 File: gfortran.info,  Node: MALLOC,  Next: MASKL,  Prev: LTIME,  Up: Intrinsic Procedures
 
-9.183 'MALLOC' -- Allocate dynamic memory
+9.185 'MALLOC' -- Allocate dynamic memory
 =========================================
 
 _Description_:
@@ -14991,7 +15249,7 @@ _See also_:
 
 File: gfortran.info,  Node: MASKL,  Next: MASKR,  Prev: MALLOC,  Up: Intrinsic Procedures
 
-9.184 'MASKL' -- Left justified mask
+9.186 'MASKL' -- Left justified mask
 ====================================
 
 _Description_:
@@ -15023,7 +15281,7 @@ _See also_:
 
 File: gfortran.info,  Node: MASKR,  Next: MATMUL,  Prev: MASKL,  Up: Intrinsic Procedures
 
-9.185 'MASKR' -- Right justified mask
+9.187 'MASKR' -- Right justified mask
 =====================================
 
 _Description_:
@@ -15055,7 +15313,7 @@ _See also_:
 
 File: gfortran.info,  Node: MATMUL,  Next: MAX,  Prev: MASKR,  Up: Intrinsic Procedures
 
-9.186 'MATMUL' -- matrix multiplication
+9.188 'MATMUL' -- matrix multiplication
 =======================================
 
 _Description_:
@@ -15091,7 +15349,7 @@ _See also_:
 
 File: gfortran.info,  Node: MAX,  Next: MAXEXPONENT,  Prev: MATMUL,  Up: Intrinsic Procedures
 
-9.187 'MAX' -- Maximum value of an argument list
+9.189 'MAX' -- Maximum value of an argument list
 ================================================
 
 _Description_:
@@ -15135,7 +15393,7 @@ _See also_:
 
 File: gfortran.info,  Node: MAXEXPONENT,  Next: MAXLOC,  Prev: MAX,  Up: Intrinsic Procedures
 
-9.188 'MAXEXPONENT' -- Maximum exponent of a real kind
+9.190 'MAXEXPONENT' -- Maximum exponent of a real kind
 ======================================================
 
 _Description_:
@@ -15170,7 +15428,7 @@ _Example_:
 
 File: gfortran.info,  Node: MAXLOC,  Next: MAXVAL,  Prev: MAXEXPONENT,  Up: Intrinsic Procedures
 
-9.189 'MAXLOC' -- Location of the maximum value within an array
+9.191 'MAXLOC' -- Location of the maximum value within an array
 ===============================================================
 
 _Description_:
@@ -15180,22 +15438,25 @@ _Description_:
      DIM direction.  If MASK is present, only the elements for which
      MASK is '.TRUE.' are considered.  If more than one element in the
      array has the maximum value, the location returned is that of the
-     first such element in array element order.  If the array has zero
-     size, or all of the elements of MASK are '.FALSE.', then the result
-     is an array of zeroes.  Similarly, if DIM is supplied and all of
-     the elements of MASK along a given row are zero, the result value
-     for that row is zero.
+     first such element in array element order if the BACK is not
+     present, or is false; if BACK is true, the location returned is
+     that of the last such element.  If the array has zero size, or all
+     of the elements of MASK are '.FALSE.', then the result is an array
+     of zeroes.  Similarly, if DIM is supplied and all of the elements
+     of MASK along a given row are zero, the result value for that row
+     is zero.
 
 _Standard_:
      Fortran 95 and later; ARRAY of 'CHARACTER' and the KIND argument
-     are available in Fortran 2003 and later.
+     are available in Fortran 2003 and later.  The BACK argument is
+     available in Fortran 2008 and later.
 
 _Class_:
      Transformational function
 
 _Syntax_:
-     'RESULT = MAXLOC(ARRAY, DIM [, MASK] [,KIND])'
-     'RESULT = MAXLOC(ARRAY [, MASK] [,KIND])'
+     'RESULT = MAXLOC(ARRAY, DIM [, MASK] [,KIND] [,BACK])'
+     'RESULT = MAXLOC(ARRAY [, MASK] [,KIND] [,BACK])'
 
 _Arguments_:
      ARRAY       Shall be an array of type 'INTEGER' or 'REAL'.
@@ -15208,6 +15469,7 @@ _Arguments_:
      KIND        (Optional) An 'INTEGER' initialization
                  expression indicating the kind parameter of the
                  result.
+     BACK        (Optional) A scalar of type 'LOGICAL'.
 
 _Return value_:
      If DIM is absent, the result is a rank-one array with a length
@@ -15219,12 +15481,12 @@ _Return value_:
      integer of kind KIND, otherwise it is of default kind.
 
 _See also_:
-     *note MAX::, *note MAXVAL::
+     *note FINDLOC::, *note MAX::, *note MAXVAL::
 
 
 File: gfortran.info,  Node: MAXVAL,  Next: MCLOCK,  Prev: MAXLOC,  Up: Intrinsic Procedures
 
-9.190 'MAXVAL' -- Maximum value of an array
+9.192 'MAXVAL' -- Maximum value of an array
 ===========================================
 
 _Description_:
@@ -15268,7 +15530,7 @@ _See also_:
 
 File: gfortran.info,  Node: MCLOCK,  Next: MCLOCK8,  Prev: MAXVAL,  Up: Intrinsic Procedures
 
-9.191 'MCLOCK' -- Time function
+9.193 'MCLOCK' -- Time function
 ===============================
 
 _Description_:
@@ -15302,7 +15564,7 @@ _See also_:
 
 File: gfortran.info,  Node: MCLOCK8,  Next: MERGE,  Prev: MCLOCK,  Up: Intrinsic Procedures
 
-9.192 'MCLOCK8' -- Time function (64-bit)
+9.194 'MCLOCK8' -- Time function (64-bit)
 =========================================
 
 _Description_:
@@ -15338,7 +15600,7 @@ _See also_:
 
 File: gfortran.info,  Node: MERGE,  Next: MERGE_BITS,  Prev: MCLOCK8,  Up: Intrinsic Procedures
 
-9.193 'MERGE' -- Merge variables
+9.195 'MERGE' -- Merge variables
 ================================
 
 _Description_:
@@ -15367,7 +15629,7 @@ _Return value_:
 
 File: gfortran.info,  Node: MERGE_BITS,  Next: MIN,  Prev: MERGE,  Up: Intrinsic Procedures
 
-9.194 'MERGE_BITS' -- Merge of bits under mask
+9.196 'MERGE_BITS' -- Merge of bits under mask
 ==============================================
 
 _Description_:
@@ -15386,11 +15648,13 @@ _Syntax_:
      'RESULT = MERGE_BITS(I, J, MASK)'
 
 _Arguments_:
-     I           Shall be of type 'INTEGER'.
-     J           Shall be of type 'INTEGER' and of the same kind
-                 as I.
-     MASK        Shall be of type 'INTEGER' and of the same kind
-                 as I.
+     I           Shall be of type 'INTEGER' or a
+                 boz-literal-constant.
+     J           Shall be of type 'INTEGER' with the same kind
+                 type parameter as I or a boz-literal-constant.
+                 I and J shall not both be boz-literal-constants.
+     MASK        Shall be of type 'INTEGER' or a
+                 boz-literal-constant and of the same kind as I.
 
 _Return value_:
      The result is of the same type and kind as I.
@@ -15398,7 +15662,7 @@ _Return value_:
 
 File: gfortran.info,  Node: MIN,  Next: MINEXPONENT,  Prev: MERGE_BITS,  Up: Intrinsic Procedures
 
-9.195 'MIN' -- Minimum value of an argument list
+9.197 'MIN' -- Minimum value of an argument list
 ================================================
 
 _Description_:
@@ -15442,7 +15706,7 @@ _See also_:
 
 File: gfortran.info,  Node: MINEXPONENT,  Next: MINLOC,  Prev: MIN,  Up: Intrinsic Procedures
 
-9.196 'MINEXPONENT' -- Minimum exponent of a real kind
+9.198 'MINEXPONENT' -- Minimum exponent of a real kind
 ======================================================
 
 _Description_:
@@ -15471,7 +15735,7 @@ _Example_:
 
 File: gfortran.info,  Node: MINLOC,  Next: MINVAL,  Prev: MINEXPONENT,  Up: Intrinsic Procedures
 
-9.197 'MINLOC' -- Location of the minimum value within an array
+9.199 'MINLOC' -- Location of the minimum value within an array
 ===============================================================
 
 _Description_:
@@ -15481,22 +15745,25 @@ _Description_:
      DIM direction.  If MASK is present, only the elements for which
      MASK is '.TRUE.' are considered.  If more than one element in the
      array has the minimum value, the location returned is that of the
-     first such element in array element order.  If the array has zero
-     size, or all of the elements of MASK are '.FALSE.', then the result
-     is an array of zeroes.  Similarly, if DIM is supplied and all of
-     the elements of MASK along a given row are zero, the result value
-     for that row is zero.
+     first such element in array element order if the BACK is not
+     present, or is false; if BACK is true, the location returned is
+     that of the last such element.  If the array has zero size, or all
+     of the elements of MASK are '.FALSE.', then the result is an array
+     of zeroes.  Similarly, if DIM is supplied and all of the elements
+     of MASK along a given row are zero, the result value for that row
+     is zero.
 
 _Standard_:
      Fortran 95 and later; ARRAY of 'CHARACTER' and the KIND argument
-     are available in Fortran 2003 and later.
+     are available in Fortran 2003 and later.  The BACK argument is
+     available in Fortran 2008 and later.
 
 _Class_:
      Transformational function
 
 _Syntax_:
-     'RESULT = MINLOC(ARRAY, DIM [, MASK] [,KIND])'
-     'RESULT = MINLOC(ARRAY [, MASK], [,KIND])'
+     'RESULT = MINLOC(ARRAY, DIM [, MASK] [,KIND] [,BACK])'
+     'RESULT = MINLOC(ARRAY [, MASK], [,KIND] [,BACK])'
 
 _Arguments_:
      ARRAY       Shall be an array of type 'INTEGER', 'REAL' or
@@ -15510,6 +15777,7 @@ _Arguments_:
      KIND        (Optional) An 'INTEGER' initialization
                  expression indicating the kind parameter of the
                  result.
+     BACK        (Optional) A scalar of type 'LOGICAL'.
 
 _Return value_:
      If DIM is absent, the result is a rank-one array with a length
@@ -15521,12 +15789,12 @@ _Return value_:
      integer of kind KIND, otherwise it is of default kind.
 
 _See also_:
-     *note MIN::, *note MINVAL::
+     *note FINDLOC::, *note MIN::, *note MINVAL::
 
 
 File: gfortran.info,  Node: MINVAL,  Next: MOD,  Prev: MINLOC,  Up: Intrinsic Procedures
 
-9.198 'MINVAL' -- Minimum value of an array
+9.200 'MINVAL' -- Minimum value of an array
 ===========================================
 
 _Description_:
@@ -15570,7 +15838,7 @@ _See also_:
 
 File: gfortran.info,  Node: MOD,  Next: MODULO,  Prev: MINVAL,  Up: Intrinsic Procedures
 
-9.199 'MOD' -- Remainder function
+9.201 'MOD' -- Remainder function
 =================================
 
 _Description_:
@@ -15637,7 +15905,7 @@ _See also_:
 
 File: gfortran.info,  Node: MODULO,  Next: MOVE_ALLOC,  Prev: MOD,  Up: Intrinsic Procedures
 
-9.200 'MODULO' -- Modulo function
+9.202 'MODULO' -- Modulo function
 =================================
 
 _Description_:
@@ -15685,7 +15953,7 @@ _See also_:
 
 File: gfortran.info,  Node: MOVE_ALLOC,  Next: MVBITS,  Prev: MODULO,  Up: Intrinsic Procedures
 
-9.201 'MOVE_ALLOC' -- Move allocation from one object to another
+9.203 'MOVE_ALLOC' -- Move allocation from one object to another
 ================================================================
 
 _Description_:
@@ -15724,7 +15992,7 @@ _Example_:
 
 File: gfortran.info,  Node: MVBITS,  Next: NEAREST,  Prev: MOVE_ALLOC,  Up: Intrinsic Procedures
 
-9.202 'MVBITS' -- Move bits from one integer to another
+9.204 'MVBITS' -- Move bits from one integer to another
 =======================================================
 
 _Description_:
@@ -15771,7 +16039,7 @@ _See also_:
 
 File: gfortran.info,  Node: NEAREST,  Next: NEW_LINE,  Prev: MVBITS,  Up: Intrinsic Procedures
 
-9.203 'NEAREST' -- Nearest representable number
+9.205 'NEAREST' -- Nearest representable number
 ===============================================
 
 _Description_:
@@ -15808,7 +16076,7 @@ _Example_:
 
 File: gfortran.info,  Node: NEW_LINE,  Next: NINT,  Prev: NEAREST,  Up: Intrinsic Procedures
 
-9.204 'NEW_LINE' -- New line character
+9.206 'NEW_LINE' -- New line character
 ======================================
 
 _Description_:
@@ -15840,7 +16108,7 @@ _Example_:
 
 File: gfortran.info,  Node: NINT,  Next: NORM2,  Prev: NEW_LINE,  Up: Intrinsic Procedures
 
-9.205 'NINT' -- Nearest whole number
+9.207 'NINT' -- Nearest whole number
 ====================================
 
 _Description_:
@@ -15888,7 +16156,7 @@ _See also_:
 
 File: gfortran.info,  Node: NORM2,  Next: NOT,  Prev: NINT,  Up: Intrinsic Procedures
 
-9.206 'NORM2' -- Euclidean vector norms
+9.208 'NORM2' -- Euclidean vector norms
 =======================================
 
 _Description_:
@@ -15927,7 +16195,7 @@ _Example_:
 
 File: gfortran.info,  Node: NOT,  Next: NULL,  Prev: NORM2,  Up: Intrinsic Procedures
 
-9.207 'NOT' -- Logical negation
+9.209 'NOT' -- Logical negation
 ===============================
 
 _Description_:
@@ -15968,7 +16236,7 @@ _See also_:
 
 File: gfortran.info,  Node: NULL,  Next: NUM_IMAGES,  Prev: NOT,  Up: Intrinsic Procedures
 
-9.208 'NULL' -- Function that returns an disassociated pointer
+9.210 'NULL' -- Function that returns an disassociated pointer
 ==============================================================
 
 _Description_:
@@ -16005,7 +16273,7 @@ _See also_:
 
 File: gfortran.info,  Node: NUM_IMAGES,  Next: OR,  Prev: NULL,  Up: Intrinsic Procedures
 
-9.209 'NUM_IMAGES' -- Function that returns the number of images
+9.211 'NUM_IMAGES' -- Function that returns the number of images
 ================================================================
 
 _Description_:
@@ -16055,7 +16323,7 @@ _See also_:
 
 File: gfortran.info,  Node: OR,  Next: PACK,  Prev: NUM_IMAGES,  Up: Intrinsic Procedures
 
-9.210 'OR' -- Bitwise logical OR
+9.212 'OR' -- Bitwise logical OR
 ================================
 
 _Description_:
@@ -16077,14 +16345,21 @@ _Syntax_:
 
 _Arguments_:
      I           The type shall be either a scalar 'INTEGER' type
-                 or a scalar 'LOGICAL' type.
-     J           The type shall be the same as the type of J.
+                 or a scalar 'LOGICAL' type or a
+                 boz-literal-constant.
+     J           The type shall be the same as the type of I or a
+                 boz-literal-constant.  I and J shall not both be
+                 boz-literal-constants.  If either I and J is a
+                 boz-literal-constant, then the other argument
+                 must be a scalar 'INTEGER'.
 
 _Return value_:
      The return type is either a scalar 'INTEGER' or a scalar 'LOGICAL'.
      If the kind type parameters differ, then the smaller kind type is
      implicitly converted to larger kind, and the return has the larger
-     kind.
+     kind.  A boz-literal-constant is converted to an 'INTEGER' with the
+     kind type parameter of the other argument as-if a call to *note
+     INT:: occurred.
 
 _Example_:
           PROGRAM test_or
@@ -16102,7 +16377,7 @@ _See also_:
 
 File: gfortran.info,  Node: PACK,  Next: PARITY,  Prev: OR,  Up: Intrinsic Procedures
 
-9.211 'PACK' -- Pack an array into an array of rank one
+9.213 'PACK' -- Pack an array into an array of rank one
 =======================================================
 
 _Description_:
@@ -16161,7 +16436,7 @@ _See also_:
 
 File: gfortran.info,  Node: PARITY,  Next: PERROR,  Prev: PACK,  Up: Intrinsic Procedures
 
-9.212 'PARITY' -- Reduction with exclusive OR
+9.214 'PARITY' -- Reduction with exclusive OR
 =============================================
 
 _Description_:
@@ -16201,7 +16476,7 @@ _Example_:
 
 File: gfortran.info,  Node: PERROR,  Next: POPCNT,  Prev: PARITY,  Up: Intrinsic Procedures
 
-9.213 'PERROR' -- Print system error message
+9.215 'PERROR' -- Print system error message
 ============================================
 
 _Description_:
@@ -16228,7 +16503,7 @@ _See also_:
 
 File: gfortran.info,  Node: POPCNT,  Next: POPPAR,  Prev: PERROR,  Up: Intrinsic Procedures
 
-9.214 'POPCNT' -- Number of bits set
+9.216 'POPCNT' -- Number of bits set
 ====================================
 
 _Description_:
@@ -16264,7 +16539,7 @@ _Example_:
 
 File: gfortran.info,  Node: POPPAR,  Next: PRECISION,  Prev: POPCNT,  Up: Intrinsic Procedures
 
-9.215 'POPPAR' -- Parity of the number of bits set
+9.217 'POPPAR' -- Parity of the number of bits set
 ==================================================
 
 _Description_:
@@ -16302,7 +16577,7 @@ _Example_:
 
 File: gfortran.info,  Node: PRECISION,  Next: PRESENT,  Prev: POPPAR,  Up: Intrinsic Procedures
 
-9.216 'PRECISION' -- Decimal precision of a real kind
+9.218 'PRECISION' -- Decimal precision of a real kind
 =====================================================
 
 _Description_:
@@ -16340,7 +16615,7 @@ _Example_:
 
 File: gfortran.info,  Node: PRESENT,  Next: PRODUCT,  Prev: PRECISION,  Up: Intrinsic Procedures
 
-9.217 'PRESENT' -- Determine whether an optional dummy argument is specified
+9.219 'PRESENT' -- Determine whether an optional dummy argument is specified
 ============================================================================
 
 _Description_:
@@ -16379,7 +16654,7 @@ _Example_:
 
 File: gfortran.info,  Node: PRODUCT,  Next: RADIX,  Prev: PRESENT,  Up: Intrinsic Procedures
 
-9.218 'PRODUCT' -- Product of array elements
+9.220 'PRODUCT' -- Product of array elements
 ============================================
 
 _Description_:
@@ -16427,7 +16702,7 @@ _See also_:
 
 File: gfortran.info,  Node: RADIX,  Next: RAN,  Prev: PRODUCT,  Up: Intrinsic Procedures
 
-9.219 'RADIX' -- Base of a model number
+9.221 'RADIX' -- Base of a model number
 =======================================
 
 _Description_:
@@ -16461,7 +16736,7 @@ _Example_:
 
 File: gfortran.info,  Node: RAN,  Next: RAND,  Prev: RADIX,  Up: Intrinsic Procedures
 
-9.220 'RAN' -- Real pseudo-random number
+9.222 'RAN' -- Real pseudo-random number
 ========================================
 
 _Description_:
@@ -16479,9 +16754,9 @@ _See also_:
      *note RAND::, *note RANDOM_NUMBER::
 
 
-File: gfortran.info,  Node: RAND,  Next: RANDOM_NUMBER,  Prev: RAN,  Up: Intrinsic Procedures
+File: gfortran.info,  Node: RAND,  Next: RANDOM_INIT,  Prev: RAN,  Up: Intrinsic Procedures
 
-9.221 'RAND' -- Real pseudo-random number
+9.223 'RAND' -- Real pseudo-random number
 =========================================
 
 _Description_:
@@ -16524,9 +16799,60 @@ _See also_:
      *note SRAND::, *note RANDOM_NUMBER::
 
 
-File: gfortran.info,  Node: RANDOM_NUMBER,  Next: RANDOM_SEED,  Prev: RAND,  Up: Intrinsic Procedures
+File: gfortran.info,  Node: RANDOM_INIT,  Next: RANDOM_NUMBER,  Prev: RAND,  Up: Intrinsic Procedures
 
-9.222 'RANDOM_NUMBER' -- Pseudo-random number
+9.224 'RANDOM_INIT' -- Initialize a pseudo-random number generator
+==================================================================
+
+_Description_:
+     Initializes the state of the pseudorandom number generator used by
+     'RANDOM_NUMBER'.
+
+_Standard_:
+     Fortran 2018
+
+_Class_:
+     Subroutine
+
+_Syntax_:
+     'CALL RANDOM_INIT(REPEATABLE, IMAGE_DISTINCT)'
+
+_Arguments_:
+     REPEATABLE     Shall be a scalar with a 'LOGICAL' type, and it is
+                    'INTENT(IN)'.  If it is '.true.', the seed is set to
+                    a processor-dependent value that is the same each
+                    time 'RANDOM_INIT' is called from the same image.
+                    The term "same image" means a single instance of
+                    program execution.  The sequence of random numbers
+                    is different for repeated execution of the program.
+                    If it is '.false.', the seed is set to a
+                    processor-dependent value.
+     IMAGE_DISTINCT Shall be a scalar with a 'LOGICAL' type, and it is
+                    'INTENT(IN)'.  If it is '.true.', the seed is set to
+                    a processor-dependent value that is distinct from th
+                    seed set by a call to 'RANDOM_INIT' in another
+                    image.  If it is '.false.', the seed is set value
+                    that does depend which image called 'RANDOM_INIT'.
+
+_Example_:
+          program test_random_seed
+            implicit none
+            real x(3), y(3)
+            call random_init(.true., .true.)
+            call random_number(x)
+            call random_init(.true., .true.)
+            call random_number(y)
+            ! x and y are the same sequence
+            if (any(x /= y)) call abort
+          end program test_random_seed
+
+_See also_:
+     *note RANDOM_NUMBER::, *note RANDOM_SEED::
+
+
+File: gfortran.info,  Node: RANDOM_NUMBER,  Next: RANDOM_SEED,  Prev: RANDOM_INIT,  Up: Intrinsic Procedures
+
+9.225 'RANDOM_NUMBER' -- Pseudo-random number
 =============================================
 
 _Description_:
@@ -16562,12 +16888,12 @@ _Example_:
           end program
 
 _See also_:
-     *note RANDOM_SEED::
+     *note RANDOM_SEED::, *note RANDOM_INIT::
 
 
 File: gfortran.info,  Node: RANDOM_SEED,  Next: RANGE,  Prev: RANDOM_NUMBER,  Up: Intrinsic Procedures
 
-9.223 'RANDOM_SEED' -- Initialize a pseudo-random number sequence
+9.226 'RANDOM_SEED' -- Initialize a pseudo-random number sequence
 =================================================================
 
 _Description_:
@@ -16627,12 +16953,12 @@ _Example_:
           end program test_random_seed
 
 _See also_:
-     *note RANDOM_NUMBER::
+     *note RANDOM_NUMBER::, *note RANDOM_INIT::
 
 
 File: gfortran.info,  Node: RANGE,  Next: RANK,  Prev: RANDOM_SEED,  Up: Intrinsic Procedures
 
-9.224 'RANGE' -- Decimal exponent range
+9.227 'RANGE' -- Decimal exponent range
 =======================================
 
 _Description_:
@@ -16664,7 +16990,7 @@ _Example_:
 
 File: gfortran.info,  Node: RANK,  Next: REAL,  Prev: RANGE,  Up: Intrinsic Procedures
 
-9.225 'RANK' -- Rank of a data object
+9.228 'RANK' -- Rank of a data object
 =====================================
 
 _Description_:
@@ -16698,7 +17024,7 @@ _Example_:
 
 File: gfortran.info,  Node: REAL,  Next: RENAME,  Prev: RANK,  Up: Intrinsic Procedures
 
-9.226 'REAL' -- Convert to real type
+9.229 'REAL' -- Convert to real type
 ====================================
 
 _Description_:
@@ -16759,7 +17085,7 @@ _See also_:
 
 File: gfortran.info,  Node: RENAME,  Next: REPEAT,  Prev: REAL,  Up: Intrinsic Procedures
 
-9.227 'RENAME' -- Rename a file
+9.230 'RENAME' -- Rename a file
 ===============================
 
 _Description_:
@@ -16793,7 +17119,7 @@ _See also_:
 
 File: gfortran.info,  Node: REPEAT,  Next: RESHAPE,  Prev: RENAME,  Up: Intrinsic Procedures
 
-9.228 'REPEAT' -- Repeated string concatenation
+9.231 'REPEAT' -- Repeated string concatenation
 ===============================================
 
 _Description_:
@@ -16824,7 +17150,7 @@ _Example_:
 
 File: gfortran.info,  Node: RESHAPE,  Next: RRSPACING,  Prev: REPEAT,  Up: Intrinsic Procedures
 
-9.229 'RESHAPE' -- Function to reshape an array
+9.232 'RESHAPE' -- Function to reshape an array
 ===============================================
 
 _Description_:
@@ -16869,7 +17195,7 @@ _See also_:
 
 File: gfortran.info,  Node: RRSPACING,  Next: RSHIFT,  Prev: RESHAPE,  Up: Intrinsic Procedures
 
-9.230 'RRSPACING' -- Reciprocal of the relative spacing
+9.233 'RRSPACING' -- Reciprocal of the relative spacing
 =======================================================
 
 _Description_:
@@ -16899,7 +17225,7 @@ _See also_:
 
 File: gfortran.info,  Node: RSHIFT,  Next: SAME_TYPE_AS,  Prev: RRSPACING,  Up: Intrinsic Procedures
 
-9.231 'RSHIFT' -- Right shift bits
+9.234 'RSHIFT' -- Right shift bits
 ==================================
 
 _Description_:
@@ -16936,7 +17262,7 @@ _See also_:
 
 File: gfortran.info,  Node: SAME_TYPE_AS,  Next: SCALE,  Prev: RSHIFT,  Up: Intrinsic Procedures
 
-9.232 'SAME_TYPE_AS' -- Query dynamic types for equality
+9.235 'SAME_TYPE_AS' -- Query dynamic types for equality
 ========================================================
 
 _Description_:
@@ -16968,7 +17294,7 @@ _See also_:
 
 File: gfortran.info,  Node: SCALE,  Next: SCAN,  Prev: SAME_TYPE_AS,  Up: Intrinsic Procedures
 
-9.233 'SCALE' -- Scale a real value
+9.236 'SCALE' -- Scale a real value
 ===================================
 
 _Description_:
@@ -17001,7 +17327,7 @@ _Example_:
 
 File: gfortran.info,  Node: SCAN,  Next: SECNDS,  Prev: SCALE,  Up: Intrinsic Procedures
 
-9.234 'SCAN' -- Scan a string for the presence of a set of characters
+9.237 'SCAN' -- Scan a string for the presence of a set of characters
 =====================================================================
 
 _Description_:
@@ -17046,7 +17372,7 @@ _See also_:
 
 File: gfortran.info,  Node: SECNDS,  Next: SECOND,  Prev: SCAN,  Up: Intrinsic Procedures
 
-9.235 'SECNDS' -- Time function
+9.238 'SECNDS' -- Time function
 ===============================
 
 _Description_:
@@ -17086,7 +17412,7 @@ _Example_:
 
 File: gfortran.info,  Node: SECOND,  Next: SELECTED_CHAR_KIND,  Prev: SECNDS,  Up: Intrinsic Procedures
 
-9.236 'SECOND' -- CPU time function
+9.239 'SECOND' -- CPU time function
 ===================================
 
 _Description_:
@@ -17121,7 +17447,7 @@ _See also_:
 
 File: gfortran.info,  Node: SELECTED_CHAR_KIND,  Next: SELECTED_INT_KIND,  Prev: SECOND,  Up: Intrinsic Procedures
 
-9.237 'SELECTED_CHAR_KIND' -- Choose character kind
+9.240 'SELECTED_CHAR_KIND' -- Choose character kind
 ===================================================
 
 _Description_:
@@ -17170,7 +17496,7 @@ _Example_:
 
 File: gfortran.info,  Node: SELECTED_INT_KIND,  Next: SELECTED_REAL_KIND,  Prev: SELECTED_CHAR_KIND,  Up: Intrinsic Procedures
 
-9.238 'SELECTED_INT_KIND' -- Choose integer kind
+9.241 'SELECTED_INT_KIND' -- Choose integer kind
 ================================================
 
 _Description_:
@@ -17208,7 +17534,7 @@ _Example_:
 
 File: gfortran.info,  Node: SELECTED_REAL_KIND,  Next: SET_EXPONENT,  Prev: SELECTED_INT_KIND,  Up: Intrinsic Procedures
 
-9.239 'SELECTED_REAL_KIND' -- Choose real kind
+9.242 'SELECTED_REAL_KIND' -- Choose real kind
 ==============================================
 
 _Description_:
@@ -17277,7 +17603,7 @@ _Example_:
 
 File: gfortran.info,  Node: SET_EXPONENT,  Next: SHAPE,  Prev: SELECTED_REAL_KIND,  Up: Intrinsic Procedures
 
-9.240 'SET_EXPONENT' -- Set the exponent of the model
+9.243 'SET_EXPONENT' -- Set the exponent of the model
 =====================================================
 
 _Description_:
@@ -17312,7 +17638,7 @@ _Example_:
 
 File: gfortran.info,  Node: SHAPE,  Next: SHIFTA,  Prev: SET_EXPONENT,  Up: Intrinsic Procedures
 
-9.241 'SHAPE' -- Determine the shape of an array
+9.244 'SHAPE' -- Determine the shape of an array
 ================================================
 
 _Description_:
@@ -17356,7 +17682,7 @@ _See also_:
 
 File: gfortran.info,  Node: SHIFTA,  Next: SHIFTL,  Prev: SHAPE,  Up: Intrinsic Procedures
 
-9.242 'SHIFTA' -- Right shift with fill
+9.245 'SHIFTA' -- Right shift with fill
 =======================================
 
 _Description_:
@@ -17389,7 +17715,7 @@ _See also_:
 
 File: gfortran.info,  Node: SHIFTL,  Next: SHIFTR,  Prev: SHIFTA,  Up: Intrinsic Procedures
 
-9.243 'SHIFTL' -- Left shift
+9.246 'SHIFTL' -- Left shift
 ============================
 
 _Description_:
@@ -17421,7 +17747,7 @@ _See also_:
 
 File: gfortran.info,  Node: SHIFTR,  Next: SIGN,  Prev: SHIFTL,  Up: Intrinsic Procedures
 
-9.244 'SHIFTR' -- Right shift
+9.247 'SHIFTR' -- Right shift
 =============================
 
 _Description_:
@@ -17453,7 +17779,7 @@ _See also_:
 
 File: gfortran.info,  Node: SIGN,  Next: SIGNAL,  Prev: SHIFTR,  Up: Intrinsic Procedures
 
-9.245 'SIGN' -- Sign copying function
+9.248 'SIGN' -- Sign copying function
 =====================================
 
 _Description_:
@@ -17499,7 +17825,7 @@ _Specific names_:
 
 File: gfortran.info,  Node: SIGNAL,  Next: SIN,  Prev: SIGN,  Up: Intrinsic Procedures
 
-9.246 'SIGNAL' -- Signal handling subroutine (or function)
+9.249 'SIGNAL' -- Signal handling subroutine (or function)
 ==========================================================
 
 _Description_:
@@ -17547,7 +17873,7 @@ _Example_:
 
 File: gfortran.info,  Node: SIN,  Next: SIND,  Prev: SIGNAL,  Up: Intrinsic Procedures
 
-9.247 'SIN' -- Sine function
+9.250 'SIN' -- Sine function
 ============================
 
 _Description_:
@@ -17591,7 +17917,7 @@ _See also_:
 
 File: gfortran.info,  Node: SIND,  Next: SINH,  Prev: SIN,  Up: Intrinsic Procedures
 
-9.248 'SIND' -- Sine function, degrees
+9.251 'SIND' -- Sine function, degrees
 ======================================
 
 _Description_:
@@ -17639,7 +17965,7 @@ _See also_:
 
 File: gfortran.info,  Node: SINH,  Next: SIZE,  Prev: SIND,  Up: Intrinsic Procedures
 
-9.249 'SINH' -- Hyperbolic sine function
+9.252 'SINH' -- Hyperbolic sine function
 ========================================
 
 _Description_:
@@ -17679,7 +18005,7 @@ _See also_:
 
 File: gfortran.info,  Node: SIZE,  Next: SIZEOF,  Prev: SINH,  Up: Intrinsic Procedures
 
-9.250 'SIZE' -- Determine the size of an array
+9.253 'SIZE' -- Determine the size of an array
 ==============================================
 
 _Description_:
@@ -17721,7 +18047,7 @@ _See also_:
 
 File: gfortran.info,  Node: SIZEOF,  Next: SLEEP,  Prev: SIZE,  Up: Intrinsic Procedures
 
-9.251 'SIZEOF' -- Size in bytes of an expression
+9.254 'SIZEOF' -- Size in bytes of an expression
 ================================================
 
 _Description_:
@@ -17769,7 +18095,7 @@ _See also_:
 
 File: gfortran.info,  Node: SLEEP,  Next: SPACING,  Prev: SIZEOF,  Up: Intrinsic Procedures
 
-9.252 'SLEEP' -- Sleep for the specified number of seconds
+9.255 'SLEEP' -- Sleep for the specified number of seconds
 ==========================================================
 
 _Description_:
@@ -17796,7 +18122,7 @@ _Example_:
 
 File: gfortran.info,  Node: SPACING,  Next: SPREAD,  Prev: SLEEP,  Up: Intrinsic Procedures
 
-9.253 'SPACING' -- Smallest distance between two numbers of a given type
+9.256 'SPACING' -- Smallest distance between two numbers of a given type
 ========================================================================
 
 _Description_:
@@ -17833,7 +18159,7 @@ _See also_:
 
 File: gfortran.info,  Node: SPREAD,  Next: SQRT,  Prev: SPACING,  Up: Intrinsic Procedures
 
-9.254 'SPREAD' -- Add a dimension to an array
+9.257 'SPREAD' -- Add a dimension to an array
 =============================================
 
 _Description_:
@@ -17874,7 +18200,7 @@ _See also_:
 
 File: gfortran.info,  Node: SQRT,  Next: SRAND,  Prev: SPREAD,  Up: Intrinsic Procedures
 
-9.255 'SQRT' -- Square-root function
+9.258 'SQRT' -- Square-root function
 ====================================
 
 _Description_:
@@ -17920,7 +18246,7 @@ _Specific names_:
 
 File: gfortran.info,  Node: SRAND,  Next: STAT,  Prev: SQRT,  Up: Intrinsic Procedures
 
-9.256 'SRAND' -- Reinitialize the random number generator
+9.259 'SRAND' -- Reinitialize the random number generator
 =========================================================
 
 _Description_:
@@ -17963,7 +18289,7 @@ _See also_:
 
 File: gfortran.info,  Node: STAT,  Next: STORAGE_SIZE,  Prev: SRAND,  Up: Intrinsic Procedures
 
-9.257 'STAT' -- Get file status
+9.260 'STAT' -- Get file status
 ===============================
 
 _Description_:
@@ -18041,7 +18367,7 @@ _See also_:
 
 File: gfortran.info,  Node: STORAGE_SIZE,  Next: SUM,  Prev: STAT,  Up: Intrinsic Procedures
 
-9.258 'STORAGE_SIZE' -- Storage size in bits
+9.261 'STORAGE_SIZE' -- Storage size in bits
 ============================================
 
 _Description_:
@@ -18070,7 +18396,7 @@ _See also_:
 
 File: gfortran.info,  Node: SUM,  Next: SYMLNK,  Prev: STORAGE_SIZE,  Up: Intrinsic Procedures
 
-9.259 'SUM' -- Sum of array elements
+9.262 'SUM' -- Sum of array elements
 ====================================
 
 _Description_:
@@ -18118,7 +18444,7 @@ _See also_:
 
 File: gfortran.info,  Node: SYMLNK,  Next: SYSTEM,  Prev: SUM,  Up: Intrinsic Procedures
 
-9.260 'SYMLNK' -- Create a symbolic link
+9.263 'SYMLNK' -- Create a symbolic link
 ========================================
 
 _Description_:
@@ -18153,7 +18479,7 @@ _See also_:
 
 File: gfortran.info,  Node: SYSTEM,  Next: SYSTEM_CLOCK,  Prev: SYMLNK,  Up: Intrinsic Procedures
 
-9.261 'SYSTEM' -- Execute a shell command
+9.264 'SYSTEM' -- Execute a shell command
 =========================================
 
 _Description_:
@@ -18191,7 +18517,7 @@ _See also_:
 
 File: gfortran.info,  Node: SYSTEM_CLOCK,  Next: TAN,  Prev: SYSTEM,  Up: Intrinsic Procedures
 
-9.262 'SYSTEM_CLOCK' -- Time function
+9.265 'SYSTEM_CLOCK' -- Time function
 =====================================
 
 _Description_:
@@ -18259,7 +18585,7 @@ _See also_:
 
 File: gfortran.info,  Node: TAN,  Next: TAND,  Prev: SYSTEM_CLOCK,  Up: Intrinsic Procedures
 
-9.263 'TAN' -- Tangent function
+9.266 'TAN' -- Tangent function
 ===============================
 
 _Description_:
@@ -18300,7 +18626,7 @@ _See also_:
 
 File: gfortran.info,  Node: TAND,  Next: TANH,  Prev: TAN,  Up: Intrinsic Procedures
 
-9.264 'TAND' -- Tangent function, degrees
+9.267 'TAND' -- Tangent function, degrees
 =========================================
 
 _Description_:
@@ -18342,7 +18668,7 @@ _See also_:
 
 File: gfortran.info,  Node: TANH,  Next: THIS_IMAGE,  Prev: TAND,  Up: Intrinsic Procedures
 
-9.265 'TANH' -- Hyperbolic tangent function
+9.268 'TANH' -- Hyperbolic tangent function
 ===========================================
 
 _Description_:
@@ -18384,7 +18710,7 @@ _See also_:
 
 File: gfortran.info,  Node: THIS_IMAGE,  Next: TIME,  Prev: TANH,  Up: Intrinsic Procedures
 
-9.266 'THIS_IMAGE' -- Function that returns the cosubscript index of this image
+9.269 'THIS_IMAGE' -- Function that returns the cosubscript index of this image
 ===============================================================================
 
 _Description_:
@@ -18446,7 +18772,7 @@ _See also_:
 
 File: gfortran.info,  Node: TIME,  Next: TIME8,  Prev: THIS_IMAGE,  Up: Intrinsic Procedures
 
-9.267 'TIME' -- Time function
+9.270 'TIME' -- Time function
 =============================
 
 _Description_:
@@ -18484,7 +18810,7 @@ _See also_:
 
 File: gfortran.info,  Node: TIME8,  Next: TINY,  Prev: TIME,  Up: Intrinsic Procedures
 
-9.268 'TIME8' -- Time function (64-bit)
+9.271 'TIME8' -- Time function (64-bit)
 =======================================
 
 _Description_:
@@ -18520,7 +18846,7 @@ _See also_:
 
 File: gfortran.info,  Node: TINY,  Next: TRAILZ,  Prev: TIME8,  Up: Intrinsic Procedures
 
-9.269 'TINY' -- Smallest positive number of a real kind
+9.272 'TINY' -- Smallest positive number of a real kind
 =======================================================
 
 _Description_:
@@ -18548,7 +18874,7 @@ _Example_:
 
 File: gfortran.info,  Node: TRAILZ,  Next: TRANSFER,  Prev: TINY,  Up: Intrinsic Procedures
 
-9.270 'TRAILZ' -- Number of trailing zero bits of an integer
+9.273 'TRAILZ' -- Number of trailing zero bits of an integer
 ============================================================
 
 _Description_:
@@ -18581,7 +18907,7 @@ _See also_:
 
 File: gfortran.info,  Node: TRANSFER,  Next: TRANSPOSE,  Prev: TRAILZ,  Up: Intrinsic Procedures
 
-9.271 'TRANSFER' -- Transfer bit patterns
+9.274 'TRANSFER' -- Transfer bit patterns
 =========================================
 
 _Description_:
@@ -18635,7 +18961,7 @@ _Example_:
 
 File: gfortran.info,  Node: TRANSPOSE,  Next: TRIM,  Prev: TRANSFER,  Up: Intrinsic Procedures
 
-9.272 'TRANSPOSE' -- Transpose an array of rank two
+9.275 'TRANSPOSE' -- Transpose an array of rank two
 ===================================================
 
 _Description_:
@@ -18662,7 +18988,7 @@ _Return value_:
 
 File: gfortran.info,  Node: TRIM,  Next: TTYNAM,  Prev: TRANSPOSE,  Up: Intrinsic Procedures
 
-9.273 'TRIM' -- Remove trailing blank characters of a string
+9.276 'TRIM' -- Remove trailing blank characters of a string
 ============================================================
 
 _Description_:
@@ -18696,7 +19022,7 @@ _See also_:
 
 File: gfortran.info,  Node: TTYNAM,  Next: UBOUND,  Prev: TRIM,  Up: Intrinsic Procedures
 
-9.274 'TTYNAM' -- Get the name of a terminal device.
+9.277 'TTYNAM' -- Get the name of a terminal device.
 ====================================================
 
 _Description_:
@@ -18734,7 +19060,7 @@ _See also_:
 
 File: gfortran.info,  Node: UBOUND,  Next: UCOBOUND,  Prev: TTYNAM,  Up: Intrinsic Procedures
 
-9.275 'UBOUND' -- Upper dimension bounds of an array
+9.278 'UBOUND' -- Upper dimension bounds of an array
 ====================================================
 
 _Description_:
@@ -18772,7 +19098,7 @@ _See also_:
 
 File: gfortran.info,  Node: UCOBOUND,  Next: UMASK,  Prev: UBOUND,  Up: Intrinsic Procedures
 
-9.276 'UCOBOUND' -- Upper codimension bounds of an array
+9.279 'UCOBOUND' -- Upper codimension bounds of an array
 ========================================================
 
 _Description_:
@@ -18807,7 +19133,7 @@ _See also_:
 
 File: gfortran.info,  Node: UMASK,  Next: UNLINK,  Prev: UCOBOUND,  Up: Intrinsic Procedures
 
-9.277 'UMASK' -- Set the file creation mask
+9.280 'UMASK' -- Set the file creation mask
 ===========================================
 
 _Description_:
@@ -18832,7 +19158,7 @@ _Arguments_:
 
 File: gfortran.info,  Node: UNLINK,  Next: UNPACK,  Prev: UMASK,  Up: Intrinsic Procedures
 
-9.278 'UNLINK' -- Remove a file from the file system
+9.281 'UNLINK' -- Remove a file from the file system
 ====================================================
 
 _Description_:
@@ -18865,7 +19191,7 @@ _See also_:
 
 File: gfortran.info,  Node: UNPACK,  Next: VERIFY,  Prev: UNLINK,  Up: Intrinsic Procedures
 
-9.279 'UNPACK' -- Unpack an array of rank one into an array
+9.282 'UNPACK' -- Unpack an array of rank one into an array
 ===========================================================
 
 _Description_:
@@ -18908,7 +19234,7 @@ _See also_:
 
 File: gfortran.info,  Node: VERIFY,  Next: XOR,  Prev: UNPACK,  Up: Intrinsic Procedures
 
-9.280 'VERIFY' -- Scan a string for characters not a given set
+9.283 'VERIFY' -- Scan a string for characters not a given set
 ==============================================================
 
 _Description_:
@@ -18956,7 +19282,7 @@ _See also_:
 
 File: gfortran.info,  Node: XOR,  Prev: VERIFY,  Up: Intrinsic Procedures
 
-9.281 'XOR' -- Bitwise logical exclusive OR
+9.284 'XOR' -- Bitwise logical exclusive OR
 ===========================================
 
 _Description_:
@@ -18978,14 +19304,21 @@ _Syntax_:
 
 _Arguments_:
      I           The type shall be either a scalar 'INTEGER' type
-                 or a scalar 'LOGICAL' type.
-     J           The type shall be the same as the type of I.
+                 or a scalar 'LOGICAL' type or a
+                 boz-literal-constant.
+     J           The type shall be the same as the type of I or a
+                 boz-literal-constant.  I and J shall not both be
+                 boz-literal-constants.  If either I and J is a
+                 boz-literal-constant, then the other argument
+                 must be a scalar 'INTEGER'.
 
 _Return value_:
      The return type is either a scalar 'INTEGER' or a scalar 'LOGICAL'.
      If the kind type parameters differ, then the smaller kind type is
      implicitly converted to larger kind, and the return has the larger
-     kind.
+     kind.  A boz-literal-constant is converted to an 'INTEGER' with the
+     kind type parameter of the other argument as-if a call to *note
+     INT:: occurred.
 
 _Example_:
           PROGRAM test_xor
@@ -20767,7 +21100,7 @@ both forms.
 * APREDICATE=ANSWER:                     Preprocessing Options.
                                                               (line 113)
 * backslash:                             Fortran Dialect Options.
-                                                              (line  74)
+                                                              (line  79)
 * C:                                     Preprocessing Options.
                                                               (line 122)
 * c-prototypes:                          Interoperability Options.
@@ -20790,24 +21123,26 @@ both forms.
                                                               (line 154)
 * dU:                                    Preprocessing Options.
                                                               (line  44)
-* faggressive-function-elimination:      Code Gen Options.    (line 367)
-* falign-commons:                        Code Gen Options.    (line 340)
+* faggressive-function-elimination:      Code Gen Options.    (line 375)
+* falign-commons:                        Code Gen Options.    (line 348)
 * fall-intrinsics:                       Fortran Dialect Options.
                                                               (line  17)
-* fblas-matmul-limit:                    Code Gen Options.    (line 274)
-* fbounds-check:                         Code Gen Options.    (line 198)
-* fcheck:                                Code Gen Options.    (line 141)
-* fcheck-array-temporaries:              Code Gen Options.    (line 201)
-* fcoarray:                              Code Gen Options.    (line 127)
+* fblas-matmul-limit:                    Code Gen Options.    (line 277)
+* fbounds-check:                         Code Gen Options.    (line 201)
+* fcheck:                                Code Gen Options.    (line 144)
+* fcheck-array-temporaries:              Code Gen Options.    (line 204)
+* fcoarray:                              Code Gen Options.    (line 130)
 * fconvert=CONVERSION:                   Runtime Options.     (line  10)
 * fcray-pointer:                         Fortran Dialect Options.
-                                                              (line 120)
+                                                              (line 134)
 * fd-lines-as-code:                      Fortran Dialect Options.
                                                               (line  27)
 * fd-lines-as-comments:                  Fortran Dialect Options.
                                                               (line  27)
 * fdec:                                  Fortran Dialect Options.
                                                               (line  34)
+* fdec-include:                          Fortran Dialect Options.
+                                                              (line  68)
 * fdec-intrinsic-ints:                   Fortran Dialect Options.
                                                               (line  54)
 * fdec-math:                             Fortran Dialect Options.
@@ -20817,93 +21152,95 @@ both forms.
 * fdec-structure:                        Fortran Dialect Options.
                                                               (line  48)
 * fdefault-double-8:                     Fortran Dialect Options.
-                                                              (line 185)
+                                                              (line 205)
 * fdefault-integer-8:                    Fortran Dialect Options.
-                                                              (line 155)
-* fdefault-real-10:                      Fortran Dialect Options.
                                                               (line 169)
+* fdefault-real-10:                      Fortran Dialect Options.
+                                                              (line 185)
 * fdefault-real-16:                      Fortran Dialect Options.
-                                                              (line 177)
+                                                              (line 195)
 * fdefault-real-8:                       Fortran Dialect Options.
-                                                              (line 161)
+                                                              (line 175)
 * fdollar-ok:                            Fortran Dialect Options.
-                                                              (line  68)
+                                                              (line  73)
 * fdump-fortran-optimized:               Debugging Options.   (line  18)
 * fdump-fortran-original:                Debugging Options.   (line  10)
 * fdump-parse-tree:                      Debugging Options.   (line  25)
-* fexternal-blas:                        Code Gen Options.    (line 266)
-* ff2c:                                  Code Gen Options.    (line  25)
+* fexternal-blas:                        Code Gen Options.    (line 269)
+* ff2c:                                  Code Gen Options.    (line  28)
 * ffixed-form:                           Fortran Dialect Options.
                                                               (line  11)
 * ffixed-line-length-N:                  Fortran Dialect Options.
-                                                              (line  91)
-* ffpe-summary=LIST:                     Debugging Options.   (line  59)
+                                                              (line  96)
+* ffpe-summary=LIST:                     Debugging Options.   (line  66)
 * ffpe-trap=LIST:                        Debugging Options.   (line  33)
 * ffree-form:                            Fortran Dialect Options.
                                                               (line  11)
 * ffree-line-length-N:                   Fortran Dialect Options.
-                                                              (line 104)
+                                                              (line 118)
 * fimplicit-none:                        Fortran Dialect Options.
-                                                              (line 115)
-* finit-character:                       Code Gen Options.    (line 309)
-* finit-derived:                         Code Gen Options.    (line 309)
-* finit-integer:                         Code Gen Options.    (line 309)
-* finit-local-zero:                      Code Gen Options.    (line 309)
-* finit-logical:                         Code Gen Options.    (line 309)
-* finit-real:                            Code Gen Options.    (line 309)
-* finline-matmul-limit:                  Code Gen Options.    (line 285)
+                                                              (line 129)
+* finit-character:                       Code Gen Options.    (line 312)
+* finit-derived:                         Code Gen Options.    (line 312)
+* finit-integer:                         Code Gen Options.    (line 312)
+* finit-local-zero:                      Code Gen Options.    (line 312)
+* finit-logical:                         Code Gen Options.    (line 312)
+* finit-real:                            Code Gen Options.    (line 312)
+* finline-matmul-limit:                  Code Gen Options.    (line 288)
 * finteger-4-integer-8:                  Fortran Dialect Options.
-                                                              (line 194)
+                                                              (line 213)
 * fintrinsic-modules-path DIR:           Directory Options.   (line  36)
-* fmax-array-constructor:                Code Gen Options.    (line 204)
+* fmax-array-constructor:                Code Gen Options.    (line 207)
 * fmax-errors=N:                         Error and Warning Options.
                                                               (line  27)
 * fmax-identifier-length=N:              Fortran Dialect Options.
-                                                              (line 111)
-* fmax-stack-var-size:                   Code Gen Options.    (line 222)
+                                                              (line 125)
+* fmax-stack-var-size:                   Code Gen Options.    (line 225)
 * fmax-subrecord-length=LENGTH:          Runtime Options.     (line  29)
 * fmodule-private:                       Fortran Dialect Options.
-                                                              (line  86)
+                                                              (line  91)
 * fno-automatic:                         Code Gen Options.    (line  15)
-* fno-backtrace:                         Debugging Options.   (line  69)
-* fno-protect-parens:                    Code Gen Options.    (line 352)
-* fno-underscoring:                      Code Gen Options.    (line  54)
+* fno-backtrace:                         Debugging Options.   (line  79)
+* fno-protect-parens:                    Code Gen Options.    (line 360)
+* fno-underscoring:                      Code Gen Options.    (line  57)
 * fopenacc:                              Fortran Dialect Options.
-                                                              (line 124)
+                                                              (line 138)
 * fopenmp:                               Fortran Dialect Options.
-                                                              (line 135)
-* fpack-derived:                         Code Gen Options.    (line 244)
+                                                              (line 149)
+* fpack-derived:                         Code Gen Options.    (line 247)
+* fpad-source:                           Fortran Dialect Options.
+                                                              (line 110)
 * fpp:                                   Preprocessing Options.
                                                               (line  12)
 * frange-check:                          Fortran Dialect Options.
-                                                              (line 143)
+                                                              (line 157)
 * freal-4-real-10:                       Fortran Dialect Options.
-                                                              (line 209)
+                                                              (line 228)
 * freal-4-real-16:                       Fortran Dialect Options.
-                                                              (line 209)
+                                                              (line 228)
 * freal-4-real-8:                        Fortran Dialect Options.
-                                                              (line 209)
+                                                              (line 228)
 * freal-8-real-10:                       Fortran Dialect Options.
-                                                              (line 209)
+                                                              (line 228)
 * freal-8-real-16:                       Fortran Dialect Options.
-                                                              (line 209)
+                                                              (line 228)
 * freal-8-real-4:                        Fortran Dialect Options.
-                                                              (line 209)
-* frealloc-lhs:                          Code Gen Options.    (line 361)
+                                                              (line 228)
+* frealloc-lhs:                          Code Gen Options.    (line 369)
 * frecord-marker=LENGTH:                 Runtime Options.     (line  21)
-* frecursive:                            Code Gen Options.    (line 299)
-* frepack-arrays:                        Code Gen Options.    (line 250)
-* frontend-loop-interchange:             Code Gen Options.    (line 384)
-* frontend-optimize:                     Code Gen Options.    (line 375)
-* fsecond-underscore:                    Code Gen Options.    (line 110)
-* fshort-enums:                          Code Gen Options.    (line 260)
-* fshort-enums <1>:                      Fortran 2003 status. (line  93)
+* frecursive:                            Code Gen Options.    (line 302)
+* frepack-arrays:                        Code Gen Options.    (line 253)
+* frontend-loop-interchange:             Code Gen Options.    (line 396)
+* frontend-optimize:                     Code Gen Options.    (line 383)
+* fsecond-underscore:                    Code Gen Options.    (line 113)
+* fshort-enums:                          Code Gen Options.    (line 263)
+* fshort-enums <1>:                      Fortran 2003 status. (line  92)
 * fsign-zero:                            Runtime Options.     (line  34)
-* fstack-arrays:                         Code Gen Options.    (line 236)
+* fstack-arrays:                         Code Gen Options.    (line 239)
 * fsyntax-only:                          Error and Warning Options.
                                                               (line  33)
 * ftest-forall-temp:                     Fortran Dialect Options.
-                                                              (line 239)
+                                                              (line 258)
 * fworking-directory:                    Preprocessing Options.
                                                               (line  55)
 * H:                                     Preprocessing Options.
@@ -20933,7 +21270,7 @@ both forms.
                                                               (line  58)
 * static-libgfortran:                    Link Options.        (line  11)
 * std=STD option:                        Fortran Dialect Options.
-                                                              (line 220)
+                                                              (line 239)
 * UNAME:                                 Preprocessing Options.
                                                               (line 185)
 * undef:                                 Preprocessing Options.
@@ -20955,15 +21292,15 @@ both forms.
 * Wcharacter-truncation:                 Error and Warning Options.
                                                               (line 113)
 * Wcompare-reals:                        Error and Warning Options.
-                                                              (line 253)
+                                                              (line 254)
 * Wconversion:                           Error and Warning Options.
                                                               (line 122)
 * Wconversion-extra:                     Error and Warning Options.
                                                               (line 126)
 * Wdo-subscript:                         Error and Warning Options.
-                                                              (line 265)
+                                                              (line 266)
 * Werror:                                Error and Warning Options.
-                                                              (line 277)
+                                                              (line 278)
 * Wextra:                                Error and Warning Options.
                                                               (line 130)
 * Wfrontend-loop-interchange:            Error and Warning Options.
@@ -20987,15 +21324,15 @@ both forms.
 * Wreal-q-constant:                      Error and Warning Options.
                                                               (line 160)
 * Wrealloc-lhs:                          Error and Warning Options.
-                                                              (line 236)
+                                                              (line 237)
 * Wrealloc-lhs-all:                      Error and Warning Options.
-                                                              (line 248)
+                                                              (line 249)
 * Wsurprising:                           Error and Warning Options.
                                                               (line 164)
 * Wtabs:                                 Error and Warning Options.
                                                               (line 186)
 * Wtargt-lifetime:                       Error and Warning Options.
-                                                              (line 257)
+                                                              (line 258)
 * Wundefined-do-loop:                    Error and Warning Options.
                                                               (line 194)
 * Wunderflow:                            Error and Warning Options.
@@ -21007,7 +21344,7 @@ both forms.
 * Wuse-without-only:                     Error and Warning Options.
                                                               (line 211)
 * Wzerotrip:                             Error and Warning Options.
-                                                              (line 261)
+                                                              (line 262)
 
 
 File: gfortran.info,  Node: Keyword Index,  Prev: Option Index,  Up: Top
@@ -21019,7 +21356,7 @@ Keyword Index
 * Menu:
 
 * $:                                     Fortran Dialect Options.
-                                                              (line  68)
+                                                              (line  73)
 * %LOC:                                  Argument list functions.
                                                               (line   6)
 * %REF:                                  Argument list functions.
@@ -21043,7 +21380,7 @@ Keyword Index
 * ABS:                                   ABS.                 (line   6)
 * absolute value:                        ABS.                 (line   6)
 * ACCESS:                                ACCESS.              (line   6)
-* ACCESS='STREAM' I/O:                   Fortran 2003 status. (line 103)
+* ACCESS='STREAM' I/O:                   Fortran 2003 status. (line 102)
 * ACHAR:                                 ACHAR.               (line   6)
 * ACOS:                                  ACOS.                (line   6)
 * ACOSD:                                 ACOSD.               (line   6)
@@ -21060,14 +21397,14 @@ Keyword Index
                                                               (line  71)
 * alignment of COMMON blocks:            Error and Warning Options.
                                                               (line 226)
-* alignment of COMMON blocks <1>:        Code Gen Options.    (line 340)
+* alignment of COMMON blocks <1>:        Code Gen Options.    (line 348)
 * ALL:                                   ALL.                 (line   6)
 * all warnings:                          Error and Warning Options.
                                                               (line  62)
 * ALLOCATABLE components of derived types: Fortran 2003 status.
-                                                              (line 101)
-* ALLOCATABLE dummy arguments:           Fortran 2003 status. (line  99)
-* ALLOCATABLE function results:          Fortran 2003 status. (line 100)
+                                                              (line 100)
+* ALLOCATABLE dummy arguments:           Fortran 2003 status. (line  98)
+* ALLOCATABLE function results:          Fortran 2003 status. (line  99)
 * ALLOCATED:                             ALLOCATED.           (line   6)
 * allocation, moving:                    MOVE_ALLOC.          (line   6)
 * allocation, status:                    ALLOCATED.           (line   6)
@@ -21097,7 +21434,7 @@ Keyword Index
 * array, AND:                            IALL.                (line   6)
 * array, apply condition:                ALL.                 (line   6)
 * array, apply condition <1>:            ANY.                 (line   6)
-* array, bounds checking:                Code Gen Options.    (line 141)
+* array, bounds checking:                Code Gen Options.    (line 144)
 * array, change dimensions:              RESHAPE.             (line   6)
 * array, combine arrays:                 MERGE.               (line   6)
 * array, condition testing:              ALL.                 (line   6)
@@ -21106,6 +21443,7 @@ Keyword Index
 * array, conditionally count elements:   COUNT.               (line   6)
 * array, conditionally multiply elements: PRODUCT.            (line   6)
 * array, constructors:                   Fortran 2003 status. (line  78)
+* array, contiguity:                     IS_CONTIGUOUS.       (line   6)
 * array, count elements:                 SIZE.                (line   6)
 * array, duplicate dimensions:           SPREAD.              (line   6)
 * array, duplicate elements:             SPREAD.              (line   6)
@@ -21149,6 +21487,7 @@ Keyword Index
 * ASSOCIATED:                            ASSOCIATED.          (line   6)
 * association status:                    ASSOCIATED.          (line   6)
 * association status, C pointer:         C_ASSOCIATED.        (line   6)
+* asynchronous I/O:                      Asynchronous I/O.    (line   6)
 * ATAN:                                  ATAN.                (line   6)
 * ATAN2:                                 ATAN2.               (line   6)
 * ATAN2D:                                ATAN2D.              (line   6)
@@ -21181,11 +21520,11 @@ Keyword Index
                                                               (line   6)
 * BABS:                                  ABS.                 (line   6)
 * backslash:                             Fortran Dialect Options.
-                                                              (line  74)
+                                                              (line  79)
 * BACKSPACE:                             Read/Write after EOF marker.
                                                               (line   6)
 * BACKTRACE:                             BACKTRACE.           (line   6)
-* backtrace:                             Debugging Options.   (line  69)
+* backtrace:                             Debugging Options.   (line  79)
 * backtrace <1>:                         BACKTRACE.           (line   6)
 * base 10 logarithm function:            LOG10.               (line   6)
 * BBCLR:                                 IBCLR.               (line   6)
@@ -21259,14 +21598,14 @@ Keyword Index
 * BMOD:                                  MOD.                 (line   6)
 * BMVBITS:                               MVBITS.              (line   6)
 * BNOT:                                  NOT.                 (line   6)
-* bounds checking:                       Code Gen Options.    (line 141)
+* bounds checking:                       Code Gen Options.    (line 144)
 * BOZ literal constants:                 BOZ literal constants.
                                                               (line   6)
 * BSHFT:                                 ISHFT.               (line   6)
 * BSHFTC:                                ISHFTC.              (line   6)
 * BTEST:                                 BTEST.               (line   6)
 * CABS:                                  ABS.                 (line   6)
-* calling convention:                    Code Gen Options.    (line  25)
+* calling convention:                    Code Gen Options.    (line  28)
 * CARRIAGECONTROL:                       Extended I/O specifiers.
                                                               (line   6)
 * CCOS:                                  COS.                 (line   6)
@@ -21286,10 +21625,10 @@ Keyword Index
 * CHAR:                                  CHAR.                (line   6)
 * character kind:                        SELECTED_CHAR_KIND.  (line   6)
 * character set:                         Fortran Dialect Options.
-                                                              (line  68)
+                                                              (line  73)
 * CHDIR:                                 CHDIR.               (line   6)
-* checking array temporaries:            Code Gen Options.    (line 141)
-* checking subscripts:                   Code Gen Options.    (line 141)
+* checking array temporaries:            Code Gen Options.    (line 144)
+* checking subscripts:                   Code Gen Options.    (line 144)
 * CHMOD:                                 CHMOD.               (line   6)
 * clock ticks:                           MCLOCK.              (line   6)
 * clock ticks <1>:                       MCLOCK8.             (line   6)
@@ -21369,7 +21708,7 @@ Keyword Index
                                                               (line   6)
 * Coarray, _gfortran_caf_unlock:         _gfortran_caf_unlock.
                                                               (line   6)
-* coarrays:                              Code Gen Options.    (line 127)
+* coarrays:                              Code Gen Options.    (line 130)
 * Coarrays:                              Coarray Programming. (line   6)
 * code generation, conventions:          Code Gen Options.    (line   6)
 * collating sequence, ASCII:             ACHAR.               (line   6)
@@ -21574,11 +21913,11 @@ Keyword Index
 * elapsed time <1>:                      SECNDS.              (line   6)
 * elapsed time <2>:                      SECOND.              (line   6)
 * Elimination of functions with identical argument lists: Code Gen Options.
-                                                              (line 367)
+                                                              (line 375)
 * ENCODE:                                ENCODE and DECODE statements.
                                                               (line   6)
-* ENUM statement:                        Fortran 2003 status. (line  93)
-* ENUMERATOR statement:                  Fortran 2003 status. (line  93)
+* ENUM statement:                        Fortran 2003 status. (line  92)
+* ENUMERATOR statement:                  Fortran 2003 status. (line  92)
 * environment variable:                  Environment Variables.
                                                               (line   6)
 * environment variable <1>:              Runtime.             (line   6)
@@ -21599,7 +21938,7 @@ Keyword Index
 * errors, limiting:                      Error and Warning Options.
                                                               (line  27)
 * escape characters:                     Fortran Dialect Options.
-                                                              (line  74)
+                                                              (line  79)
 * ETIME:                                 ETIME.               (line   6)
 * Euclidean distance:                    HYPOT.               (line   6)
 * Euclidean vector norm:                 NORM2.               (line   6)
@@ -21624,8 +21963,8 @@ Keyword Index
                                                               (line   6)
 * extra warnings:                        Error and Warning Options.
                                                               (line 130)
-* f2c calling convention:                Code Gen Options.    (line  25)
-* f2c calling convention <1>:            Code Gen Options.    (line 110)
+* f2c calling convention:                Code Gen Options.    (line  28)
+* f2c calling convention <1>:            Code Gen Options.    (line 113)
 * Factorial function:                    GAMMA.               (line   6)
 * FDATE:                                 FDATE.               (line   6)
 * FDL, GNU Free Documentation License:   GNU Free Documentation License.
@@ -21635,11 +21974,11 @@ Keyword Index
 * file format, fixed:                    Fortran Dialect Options.
                                                               (line  11)
 * file format, fixed <1>:                Fortran Dialect Options.
-                                                              (line  91)
+                                                              (line  96)
 * file format, free:                     Fortran Dialect Options.
                                                               (line  11)
 * file format, free <1>:                 Fortran Dialect Options.
-                                                              (line 104)
+                                                              (line 118)
 * file operation, file number:           FNUM.                (line   6)
 * file operation, flush:                 FLUSH.               (line   6)
 * file operation, position:              FSEEK.               (line   6)
@@ -21665,6 +22004,8 @@ Keyword Index
                                                               (line   6)
 * file, unformatted sequential:          File format of unformatted sequential files.
                                                               (line   6)
+* FINDLOC:                               FINDLOC.             (line   6)
+* findloc:                               FINDLOC.             (line   6)
 * flags inquiry function:                COMPILER_OPTIONS.    (line   6)
 * FLOAT:                                 REAL.                (line   6)
 * FLOATI:                                REAL.                (line   6)
@@ -21681,7 +22022,7 @@ Keyword Index
 * floor:                                 AINT.                (line   6)
 * floor <1>:                             FLOOR.               (line   6)
 * FLUSH:                                 FLUSH.               (line   6)
-* FLUSH statement:                       Fortran 2003 status. (line  89)
+* FLUSH statement:                       Fortran 2003 status. (line  88)
 * FNUM:                                  FNUM.                (line   6)
 * form feed whitespace:                  Form feed as whitespace.
                                                               (line   6)
@@ -21694,15 +22035,15 @@ Keyword Index
 * FPUTC:                                 FPUTC.               (line   6)
 * FRACTION:                              FRACTION.            (line   6)
 * FREE:                                  FREE.                (line   6)
-* Front-end optimization:                Code Gen Options.    (line 375)
+* Front-end optimization:                Code Gen Options.    (line 383)
 * FSEEK:                                 FSEEK.               (line   6)
 * FSTAT:                                 FSTAT.               (line   6)
 * FTELL:                                 FTELL.               (line   6)
 * function elimination:                  Error and Warning Options.
                                                               (line 232)
 * g77:                                   GNU Fortran and G77. (line   6)
-* g77 calling convention:                Code Gen Options.    (line  25)
-* g77 calling convention <1>:            Code Gen Options.    (line 110)
+* g77 calling convention:                Code Gen Options.    (line  28)
+* g77 calling convention <1>:            Code Gen Options.    (line 113)
 * GAMMA:                                 GAMMA.               (line   6)
 * Gamma function:                        GAMMA.               (line   6)
 * Gamma function, logarithm of:          LOG_GAMMA.           (line   6)
@@ -21777,12 +22118,13 @@ Keyword Index
 * IMAGE_INDEX:                           IMAGE_INDEX.         (line   6)
 * IMAGPART:                              AIMAG.               (line   6)
 * IMOD:                                  MOD.                 (line   6)
-* IMPORT statement:                      Fortran 2003 status. (line 120)
+* IMPORT statement:                      Fortran 2003 status. (line 119)
 * IMVBITS:                               MVBITS.              (line   6)
 * INCLUDE directive:                     Directory Options.   (line   6)
 * inclusion, directory search paths for: Directory Options.   (line  14)
 * INDEX:                                 INDEX intrinsic.     (line   6)
 * INOT:                                  NOT.                 (line   6)
+* input/output, asynchronous:            Asynchronous I/O.    (line   6)
 * INT:                                   INT.                 (line   6)
 * INT2:                                  INT2.                (line   6)
 * INT8:                                  INT8.                (line   6)
@@ -21806,7 +22148,7 @@ Keyword Index
 * inverse hyperbolic cosine:             ACOSH.               (line   6)
 * inverse hyperbolic sine:               ASINH.               (line   6)
 * inverse hyperbolic tangent:            ATANH.               (line   6)
-* IOMSG= specifier:                      Fortran 2003 status. (line  91)
+* IOMSG= specifier:                      Fortran 2003 status. (line  90)
 * IOR:                                   IOR.                 (line   6)
 * IOSTAT, end of file:                   IS_IOSTAT_END.       (line   6)
 * IOSTAT, end of record:                 IS_IOSTAT_EOR.       (line   6)
@@ -21817,9 +22159,10 @@ Keyword Index
 * ISHFTC:                                ISHFTC.              (line   6)
 * ISIGN:                                 SIGN.                (line   6)
 * ISNAN:                                 ISNAN.               (line   6)
-* ISO_FORTRAN_ENV statement:             Fortran 2003 status. (line 128)
+* ISO_FORTRAN_ENV statement:             Fortran 2003 status. (line 127)
 * IS_IOSTAT_END:                         IS_IOSTAT_END.       (line   6)
-* IS_IOSTAT_EOR:                         IS_IOSTAT_EOR.       (line   6)
+* IS_IOSTAT_EOR:                         IS_CONTIGUOUS.       (line   6)
+* IS_IOSTAT_EOR <1>:                     IS_IOSTAT_EOR.       (line   6)
 * ITIME:                                 ITIME.               (line   6)
 * JIABS:                                 ABS.                 (line   6)
 * JIAND:                                 IAND.                (line   6)
@@ -21871,8 +22214,8 @@ Keyword Index
 * LGAMMA:                                LOG_GAMMA.           (line   6)
 * LGE:                                   LGE.                 (line   6)
 * LGT:                                   LGT.                 (line   6)
-* libf2c calling convention:             Code Gen Options.    (line  25)
-* libf2c calling convention <1>:         Code Gen Options.    (line 110)
+* libf2c calling convention:             Code Gen Options.    (line  28)
+* libf2c calling convention <1>:         Code Gen Options.    (line 113)
 * libgfortran initialization, set_args:  _gfortran_set_args.  (line   6)
 * libgfortran initialization, set_convert: _gfortran_set_convert.
                                                               (line   6)
@@ -21913,7 +22256,7 @@ Keyword Index
 * login name:                            GETLOG.              (line   6)
 * LOG_GAMMA:                             LOG_GAMMA.           (line   6)
 * LONG:                                  LONG.                (line   6)
-* loop interchange, Fortran:             Code Gen Options.    (line 384)
+* loop interchange, Fortran:             Code Gen Options.    (line 396)
 * loop interchange, warning:             Error and Warning Options.
                                                               (line 135)
 * LSHIFT:                                LSHIFT.              (line   6)
@@ -21929,6 +22272,8 @@ Keyword Index
 * matrix multiplication:                 MATMUL.              (line   6)
 * matrix, transpose:                     TRANSPOSE.           (line   6)
 * MAX:                                   MAX.                 (line   6)
+* MAX, MIN, NaN:                         MAX and MIN intrinsics with REAL NaN arguments.
+                                                              (line   6)
 * MAX0:                                  MAX.                 (line   6)
 * MAX1:                                  MAX.                 (line   6)
 * MAXEXPONENT:                           MAXEXPONENT.         (line   6)
@@ -21938,7 +22283,7 @@ Keyword Index
 * MAXVAL:                                MAXVAL.              (line   6)
 * MCLOCK:                                MCLOCK.              (line   6)
 * MCLOCK8:                               MCLOCK8.             (line   6)
-* memory checking:                       Code Gen Options.    (line 141)
+* memory checking:                       Code Gen Options.    (line 144)
 * MERGE:                                 MERGE.               (line   6)
 * MERGE_BITS:                            MERGE_BITS.          (line   6)
 * messages, error:                       Error and Warning Options.
@@ -21967,7 +22312,7 @@ Keyword Index
 * model representation, significant digits: DIGITS.           (line   6)
 * model representation, smallest number: TINY.                (line   6)
 * module entities:                       Fortran Dialect Options.
-                                                              (line  86)
+                                                              (line  91)
 * module search path:                    Directory Options.   (line  14)
 * module search path <1>:                Directory Options.   (line  29)
 * module search path <2>:                Directory Options.   (line  36)
@@ -21977,7 +22322,7 @@ Keyword Index
 * moving allocation:                     MOVE_ALLOC.          (line   6)
 * multiply array elements:               PRODUCT.             (line   6)
 * MVBITS:                                MVBITS.              (line   6)
-* NAM:                                   OPEN( ... NAME=).    (line   6)
+* NAME:                                  OPEN( ... NAME=).    (line   6)
 * Namelist:                              Extensions to namelist.
                                                               (line   6)
 * natural logarithm function:            LOG.                 (line   6)
@@ -21995,10 +22340,10 @@ Keyword Index
 * open, action:                          Files opened without an explicit ACTION= specifier.
                                                               (line   6)
 * OpenACC:                               Fortran Dialect Options.
-                                                              (line 124)
+                                                              (line 138)
 * OpenACC <1>:                           OpenACC.             (line   6)
 * OpenMP:                                Fortran Dialect Options.
-                                                              (line 135)
+                                                              (line 149)
 * OpenMP <1>:                            OpenMP.              (line   6)
 * operators, unary:                      Unary operators.     (line   6)
 * operators, xor:                        .XOR. operator.      (line   6)
@@ -22020,7 +22365,7 @@ Keyword Index
 * options, preprocessor:                 Preprocessing Options.
                                                               (line   6)
 * options, real kind type promotion:     Fortran Dialect Options.
-                                                              (line 209)
+                                                              (line 228)
 * options, run-time:                     Code Gen Options.    (line   6)
 * options, runtime:                      Runtime Options.     (line   6)
 * options, warnings:                     Error and Warning Options.
@@ -22037,7 +22382,7 @@ Keyword Index
 * paths, search <1>:                     Directory Options.   (line  29)
 * paths, search <2>:                     Directory Options.   (line  36)
 * PERROR:                                PERROR.              (line   6)
-* pointer checking:                      Code Gen Options.    (line 141)
+* pointer checking:                      Code Gen Options.    (line 144)
 * pointer, C address of pointers:        C_F_PROCPOINTER.     (line   6)
 * pointer, C address of procedures:      C_FUNLOC.            (line   6)
 * pointer, C association status:         C_ASSOCIATED.        (line   6)
@@ -22104,7 +22449,7 @@ Keyword Index
                                                               (line  55)
 * PRESENT:                               PRESENT.             (line   6)
 * private:                               Fortran Dialect Options.
-                                                              (line  86)
+                                                              (line  91)
 * procedure pointer, convert C to Fortran: C_LOC.             (line   6)
 * process ID:                            GETPID.              (line   6)
 * PRODUCT:                               PRODUCT.             (line   6)
@@ -22113,7 +22458,8 @@ Keyword Index
 * product, vector:                       DOT_PRODUCT.         (line   6)
 * program termination:                   EXIT.                (line   6)
 * program termination, with core dump:   ABORT.               (line   6)
-* PROTECTED statement:                   Fortran 2003 status. (line 114)
+* PROTECTED statement:                   Fortran 2003 status. (line 113)
+* Q edit descriptor:                     Q edit descriptor.   (line   6)
 * Q exponent-letter:                     Q exponent-letter.   (line   6)
 * RADIX:                                 RADIX.               (line   6)
 * radix, real:                           SELECTED_REAL_KIND.  (line   6)
@@ -22123,16 +22469,18 @@ Keyword Index
 * random number generation <1>:          RAN.                 (line   6)
 * random number generation <2>:          RAND.                (line   6)
 * random number generation <3>:          RANDOM_NUMBER.       (line   6)
+* random number generation, initialization: RANDOM_INIT.      (line   6)
 * random number generation, seeding:     RANDOM_SEED.         (line   6)
 * random number generation, seeding <1>: SRAND.               (line   6)
+* RANDOM_INIT:                           RANDOM_INIT.         (line   6)
 * RANDOM_NUMBER:                         RANDOM_NUMBER.       (line   6)
 * RANDOM_SEED:                           RANDOM_SEED.         (line   6)
 * RANGE:                                 RANGE.               (line   6)
-* range checking:                        Code Gen Options.    (line 141)
+* range checking:                        Code Gen Options.    (line 144)
 * RANK:                                  RANK.                (line   6)
 * rank:                                  RANK.                (line   6)
 * re-association of parenthesized expressions: Code Gen Options.
-                                                              (line 352)
+                                                              (line 360)
 * read character, stream mode:           FGET.                (line   6)
 * read character, stream mode <1>:       FGETC.               (line   6)
 * READONLY:                              Extended I/O specifiers.
@@ -22146,9 +22494,9 @@ Keyword Index
 * real number, relative spacing <1>:     SPACING.             (line   6)
 * real number, scale:                    SCALE.               (line   6)
 * real number, set exponent:             SET_EXPONENT.        (line   6)
-* Reallocate the LHS in assignments:     Code Gen Options.    (line 361)
+* Reallocate the LHS in assignments:     Code Gen Options.    (line 369)
 * Reallocate the LHS in assignments, notification: Error and Warning Options.
-                                                              (line 236)
+                                                              (line 237)
 * REALPART:                              REAL.                (line   6)
 * RECORD:                                STRUCTURE and RECORD.
                                                               (line   6)
@@ -22157,7 +22505,7 @@ Keyword Index
 * Reduction, XOR:                        PARITY.              (line   6)
 * remainder:                             MOD.                 (line   6)
 * RENAME:                                RENAME.              (line   6)
-* repacking arrays:                      Code Gen Options.    (line 250)
+* repacking arrays:                      Code Gen Options.    (line 253)
 * REPEAT:                                REPEAT.              (line   6)
 * RESHAPE:                               RESHAPE.             (line   6)
 * REWIND:                                Read/Write after EOF marker.
@@ -22171,7 +22519,7 @@ Keyword Index
 * rounding, nearest whole number:        NINT.                (line   6)
 * RRSPACING:                             RRSPACING.           (line   6)
 * RSHIFT:                                RSHIFT.              (line   6)
-* run-time checking:                     Code Gen Options.    (line 141)
+* run-time checking:                     Code Gen Options.    (line 144)
 * SAME_TYPE_AS:                          SAME_TYPE_AS.        (line   6)
 * SAVE statement:                        Code Gen Options.    (line  15)
 * SCALE:                                 SCALE.               (line   6)
@@ -22228,21 +22576,21 @@ Keyword Index
 * SRAND:                                 SRAND.               (line   6)
 * Standards:                             Standards.           (line   6)
 * STAT:                                  STAT.                (line   6)
-* statement, ENUM:                       Fortran 2003 status. (line  93)
-* statement, ENUMERATOR:                 Fortran 2003 status. (line  93)
-* statement, FLUSH:                      Fortran 2003 status. (line  89)
-* statement, IMPORT:                     Fortran 2003 status. (line 120)
-* statement, ISO_FORTRAN_ENV:            Fortran 2003 status. (line 128)
-* statement, PROTECTED:                  Fortran 2003 status. (line 114)
+* statement, ENUM:                       Fortran 2003 status. (line  92)
+* statement, ENUMERATOR:                 Fortran 2003 status. (line  92)
+* statement, FLUSH:                      Fortran 2003 status. (line  88)
+* statement, IMPORT:                     Fortran 2003 status. (line 119)
+* statement, ISO_FORTRAN_ENV:            Fortran 2003 status. (line 127)
+* statement, PROTECTED:                  Fortran 2003 status. (line 113)
 * statement, SAVE:                       Code Gen Options.    (line  15)
-* statement, USE, INTRINSIC:             Fortran 2003 status. (line 128)
-* statement, VALUE:                      Fortran 2003 status. (line 116)
-* statement, VOLATILE:                   Fortran 2003 status. (line 118)
+* statement, USE, INTRINSIC:             Fortran 2003 status. (line 127)
+* statement, VALUE:                      Fortran 2003 status. (line 115)
+* statement, VOLATILE:                   Fortran 2003 status. (line 117)
 * STATIC:                                AUTOMATIC and STATIC attributes.
                                                               (line   6)
 * storage size:                          STORAGE_SIZE.        (line   6)
 * STORAGE_SIZE:                          STORAGE_SIZE.        (line   6)
-* STREAM I/O:                            Fortran 2003 status. (line 103)
+* STREAM I/O:                            Fortran 2003 status. (line 102)
 * stream mode, read character:           FGET.                (line   6)
 * stream mode, read character <1>:       FGETC.               (line   6)
 * stream mode, write character:          FPUT.                (line   6)
@@ -22266,21 +22614,21 @@ Keyword Index
                                                               (line   6)
 * STRUCTURE:                             STRUCTURE and RECORD.
                                                               (line   6)
-* structure packing:                     Code Gen Options.    (line 244)
+* structure packing:                     Code Gen Options.    (line 247)
 * subrecord:                             File format of unformatted sequential files.
                                                               (line   6)
-* subscript checking:                    Code Gen Options.    (line 141)
+* subscript checking:                    Code Gen Options.    (line 144)
 * substring position:                    INDEX intrinsic.     (line   6)
 * SUM:                                   SUM.                 (line   6)
 * sum array elements:                    SUM.                 (line   6)
 * suppressing warnings:                  Error and Warning Options.
                                                               (line   6)
 * symbol names:                          Fortran Dialect Options.
-                                                              (line  68)
-* symbol names, transforming:            Code Gen Options.    (line  54)
-* symbol names, transforming <1>:        Code Gen Options.    (line 110)
-* symbol names, underscores:             Code Gen Options.    (line  54)
-* symbol names, underscores <1>:         Code Gen Options.    (line 110)
+                                                              (line  73)
+* symbol names, transforming:            Code Gen Options.    (line  57)
+* symbol names, transforming <1>:        Code Gen Options.    (line 113)
+* symbol names, underscores:             Code Gen Options.    (line  57)
+* symbol names, underscores <1>:         Code Gen Options.    (line 113)
 * SYMLNK:                                SYMLNK.              (line   6)
 * syntax checking:                       Error and Warning Options.
                                                               (line  33)
@@ -22339,12 +22687,12 @@ Keyword Index
 * time, elapsed <4>:                     SECOND.              (line   6)
 * TIME8:                                 TIME8.               (line   6)
 * TINY:                                  TINY.                (line   6)
-* TR 15581:                              Fortran 2003 status. (line  98)
-* trace:                                 Debugging Options.   (line  69)
+* TR 15581:                              Fortran 2003 status. (line  97)
+* trace:                                 Debugging Options.   (line  79)
 * TRAILZ:                                TRAILZ.              (line   6)
 * TRANSFER:                              TRANSFER.            (line   6)
-* transforming symbol names:             Code Gen Options.    (line  54)
-* transforming symbol names <1>:         Code Gen Options.    (line 110)
+* transforming symbol names:             Code Gen Options.    (line  57)
+* transforming symbol names <1>:         Code Gen Options.    (line 113)
 * TRANSPOSE:                             TRANSPOSE.           (line   6)
 * transpose:                             TRANSPOSE.           (line   6)
 * trigonometric function, cosine:        COS.                 (line   6)
@@ -22374,8 +22722,8 @@ Keyword Index
 * UMASK:                                 UMASK.               (line   6)
 * underflow:                             Error and Warning Options.
                                                               (line 199)
-* underscore:                            Code Gen Options.    (line  54)
-* underscore <1>:                        Code Gen Options.    (line 110)
+* underscore:                            Code Gen Options.    (line  57)
+* underscore <1>:                        Code Gen Options.    (line 113)
 * unformatted sequential:                File format of unformatted sequential files.
                                                               (line   6)
 * UNION:                                 UNION and MAP.       (line   6)
@@ -22385,9 +22733,9 @@ Keyword Index
                                                               (line 215)
 * unused parameter:                      Error and Warning Options.
                                                               (line 219)
-* USE, INTRINSIC statement:              Fortran 2003 status. (line 128)
+* USE, INTRINSIC statement:              Fortran 2003 status. (line 127)
 * user id:                               GETUID.              (line   6)
-* VALUE statement:                       Fortran 2003 status. (line 116)
+* VALUE statement:                       Fortran 2003 status. (line 115)
 * variable attributes:                   AUTOMATIC and STATIC attributes.
                                                               (line   6)
 * Varying length character strings:      Varying Length Character Strings.
@@ -22399,7 +22747,7 @@ Keyword Index
 * version of the compiler:               COMPILER_VERSION.    (line   6)
 * VOLATILE:                              Volatile COMMON blocks.
                                                               (line   6)
-* VOLATILE statement:                    Fortran 2003 status. (line 118)
+* VOLATILE statement:                    Fortran 2003 status. (line 117)
 * warning, C binding type:               Error and Warning Options.
                                                               (line 106)
 * warnings, aliasing:                    Error and Warning Options.
@@ -22455,7 +22803,7 @@ Keyword Index
 * warnings, tabs:                        Error and Warning Options.
                                                               (line 186)
 * warnings, to errors:                   Error and Warning Options.
-                                                              (line 277)
+                                                              (line 278)
 * warnings, undefined do loop:           Error and Warning Options.
                                                               (line 194)
 * warnings, underflow:                   Error and Warning Options.
@@ -22489,449 +22837,455 @@ Node: Introduction3367
 Node: About GNU Fortran4116
 Node: GNU Fortran and GCC8117
 Node: Preprocessing and conditional compilation10231
-Node: GNU Fortran and G7711876
-Node: Project Status12449
-Node: Standards15191
-Node: Varying Length Character Strings16578
-Node: Invoking GNU Fortran17330
-Node: Option Summary19164
-Node: Fortran Dialect Options23044
-Node: Preprocessing Options34610
-Node: Error and Warning Options42851
-Node: Debugging Options54600
-Node: Directory Options58629
-Node: Link Options60064
-Node: Runtime Options60690
-Node: Code Gen Options62597
-Node: Interoperability Options80464
-Node: Environment Variables81504
-Node: Runtime82117
-Node: TMPDIR83151
-Node: GFORTRAN_STDIN_UNIT83821
-Node: GFORTRAN_STDOUT_UNIT84203
-Node: GFORTRAN_STDERR_UNIT84604
-Node: GFORTRAN_UNBUFFERED_ALL85006
-Node: GFORTRAN_UNBUFFERED_PRECONNECTED85537
-Node: GFORTRAN_SHOW_LOCUS86181
-Node: GFORTRAN_OPTIONAL_PLUS86677
-Node: GFORTRAN_LIST_SEPARATOR87155
-Node: GFORTRAN_CONVERT_UNIT87763
-Node: GFORTRAN_ERROR_BACKTRACE90618
-Node: Fortran standards status91175
-Node: Fortran 2003 status91467
-Node: Fortran 2008 status96706
-Node: TS 29113 status102080
-Node: TS 18508 status103079
-Node: Fortran 2018 status103894
-Node: Compiler Characteristics104513
-Node: KIND Type Parameters105186
-Node: Internal representation of LOGICAL variables106614
-Node: Thread-safety of the runtime library107474
-Node: Data consistency and durability109877
-Node: Files opened without an explicit ACTION= specifier112990
-Node: File operations on symbolic links113681
-Node: File format of unformatted sequential files114801
-Node: Extensions117149
-Node: Extensions implemented in GNU Fortran117754
-Node: Old-style kind specifications119650
-Node: Old-style variable initialization120752
-Node: Extensions to namelist122064
-Node: X format descriptor without count field124367
-Node: Commas in FORMAT specifications124894
-Node: Missing period in FORMAT specifications125411
-Node: I/O item lists125973
-Node: Q exponent-letter126358
-Node: BOZ literal constants126956
-Node: Real array indices129535
-Node: Unary operators129834
-Node: Implicitly convert LOGICAL and INTEGER values130248
-Node: Hollerith constants support131207
-Node: Cray pointers132979
-Node: CONVERT specifier138426
-Node: OpenMP140421
-Node: OpenACC142679
-Node: Argument list functions143988
-Node: Read/Write after EOF marker145631
-Node: STRUCTURE and RECORD146234
-Node: UNION and MAP151321
-Node: Type variants for integer intrinsics154289
-Node: AUTOMATIC and STATIC attributes156184
-Node: Extended math intrinsics157718
-Node: Form feed as whitespace159514
-Node: TYPE as an alias for PRINT160060
-Node: %LOC as an rvalue160525
-Node: .XOR. operator161172
-Node: Bitwise logical operators161572
-Node: Extended I/O specifiers163073
-Node: Legacy PARAMETER statements166793
-Node: Default exponents167398
-Node: Extensions not implemented in GNU Fortran167750
-Node: ENCODE and DECODE statements168695
-Node: Variable FORMAT expressions170026
-Node: Alternate complex function syntax171131
-Node: Volatile COMMON blocks171681
-Node: OPEN( ... NAME=)172183
-Node: Mixed-Language Programming172585
-Node: Interoperability with C173165
-Node: Intrinsic Types174499
-Node: Derived Types and struct175495
-Node: Interoperable Global Variables176853
-Node: Interoperable Subroutines and Functions178128
-Node: Working with Pointers181922
-Node: Further Interoperability of Fortran with C186398
-Node: GNU Fortran Compiler Directives189752
-Node: ATTRIBUTES directive190042
-Node: UNROLL directive193230
-Node: Non-Fortran Main Program193737
-Node: _gfortran_set_args195925
-Node: _gfortran_set_options196863
-Node: _gfortran_set_convert200470
-Node: _gfortran_set_record_marker201338
-Node: _gfortran_set_fpe202148
-Node: _gfortran_set_max_subrecord_length203346
-Node: Naming and argument-passing conventions204269
-Node: Naming conventions204988
-Node: Argument passing conventions206460
-Node: Coarray Programming211765
-Node: Type and enum ABI Documentation212012
-Node: caf_token_t212310
-Node: caf_register_t212546
-Node: caf_deregister_t213757
-Node: caf_reference_t214259
-Node: caf_team_t218583
-Node: Function ABI Documentation218882
-Node: _gfortran_caf_init221332
-Node: _gfortran_caf_finish222758
-Node: _gfortran_caf_this_image223697
-Node: _gfortran_caf_num_images224452
-Node: _gfortran_caf_image_status225563
-Node: _gfortran_caf_failed_images226683
-Node: _gfortran_caf_stopped_images227853
-Node: _gfortran_caf_register229026
-Node: _gfortran_caf_deregister233208
-Node: _gfortran_caf_is_present234814
-Node: _gfortran_caf_send235893
-Node: _gfortran_caf_get239083
-Node: _gfortran_caf_sendget242164
-Node: _gfortran_caf_send_by_ref246075
-Node: _gfortran_caf_get_by_ref249684
-Node: _gfortran_caf_sendget_by_ref253203
-Node: _gfortran_caf_lock257499
-Node: _gfortran_caf_unlock259285
-Node: _gfortran_caf_event_post260766
-Node: _gfortran_caf_event_wait262215
-Node: _gfortran_caf_event_query264322
-Node: _gfortran_caf_sync_all265653
-Node: _gfortran_caf_sync_images266581
-Node: _gfortran_caf_sync_memory268116
-Node: _gfortran_caf_error_stop269108
-Node: _gfortran_caf_error_stop_str269712
-Node: _gfortran_caf_fail_image270417
-Node: _gfortran_caf_atomic_define270953
-Node: _gfortran_caf_atomic_ref272268
-Node: _gfortran_caf_atomic_cas273572
-Node: _gfortran_caf_atomic_op275333
-Node: _gfortran_caf_co_broadcast277435
-Node: _gfortran_caf_co_max278540
-Node: _gfortran_caf_co_min280166
-Node: _gfortran_caf_co_sum281786
-Node: _gfortran_caf_co_reduce283326
-Node: Intrinsic Procedures285970
-Node: Introduction to Intrinsics303026
-Node: ABORT305376
-Node: ABS306121
-Node: ACCESS308071
-Node: ACHAR310001
-Node: ACOS311205
-Node: ACOSD312491
-Node: ACOSH313803
-Node: ADJUSTL314799
-Node: ADJUSTR315741
-Node: AIMAG316691
-Node: AINT318063
-Node: ALARM319669
-Node: ALL321301
-Node: ALLOCATED323225
-Node: AND324364
-Node: ANINT325663
-Node: ANY327160
-Node: ASIN329086
-Node: ASIND330361
-Node: ASINH331659
-Node: ASSOCIATED332665
-Node: ATAN335676
-Node: ATAND337126
-Node: ATAN2338596
-Node: ATAN2D340459
-Node: ATANH342433
-Node: ATOMIC_ADD343439
-Node: ATOMIC_AND344971
-Node: ATOMIC_CAS346559
-Node: ATOMIC_DEFINE348418
-Node: ATOMIC_FETCH_ADD350137
-Node: ATOMIC_FETCH_AND351937
-Node: ATOMIC_FETCH_OR353727
-Node: ATOMIC_FETCH_XOR355504
-Node: ATOMIC_OR357287
-Node: ATOMIC_REF358872
-Node: ATOMIC_XOR360768
-Node: BACKTRACE362353
-Node: BESSEL_J0362933
-Node: BESSEL_J1363949
-Node: BESSEL_JN364966
-Node: BESSEL_Y0366791
-Node: BESSEL_Y1367746
-Node: BESSEL_YN368701
-Node: BGE370532
-Node: BGT371224
-Node: BIT_SIZE371874
-Node: BLE372696
-Node: BLT373378
-Node: BTEST374016
-Node: C_ASSOCIATED375473
-Node: C_F_POINTER376684
-Node: C_F_PROCPOINTER378119
-Node: C_FUNLOC379626
-Node: C_LOC380997
-Node: C_SIZEOF382276
-Node: CEILING383689
-Node: CHAR384697
-Node: CHDIR385909
-Node: CHMOD387083
-Node: CMPLX388998
-Node: CO_BROADCAST390441
-Node: CO_MAX392214
-Node: CO_MIN394094
-Node: CO_REDUCE395960
-Node: CO_SUM399463
-Node: COMMAND_ARGUMENT_COUNT401370
-Node: COMPILER_OPTIONS402287
-Node: COMPILER_VERSION403313
-Node: COMPLEX404277
-Node: CONJG405416
-Node: COS406472
-Node: COSD407927
-Node: COSH409376
-Node: COTAN410559
-Node: COTAND411698
-Node: COUNT412877
-Node: CPU_TIME414902
-Node: CSHIFT416259
-Node: CTIME417919
-Node: DATE_AND_TIME419427
-Node: DBLE421907
-Node: DCMPLX422702
-Node: DIGITS423884
-Node: DIM424851
-Node: DOT_PRODUCT426132
-Node: DPROD427775
-Node: DREAL428702
-Node: DSHIFTL429368
-Node: DSHIFTR430701
-Node: DTIME432035
-Node: EOSHIFT434850
-Node: EPSILON436923
-Node: ERF437650
-Node: ERFC438431
-Node: ERFC_SCALED439241
-Node: ETIME439934
-Node: EVENT_QUERY442173
-Node: EXECUTE_COMMAND_LINE443762
-Node: EXIT446357
-Node: EXP447235
-Node: EXPONENT448488
-Node: EXTENDS_TYPE_OF449252
-Node: FDATE450110
-Node: FGET451596
-Node: FGETC453423
-Node: FLOOR455231
-Node: FLUSH456220
-Node: FNUM458099
-Node: FPUT458824
-Node: FPUTC460458
-Node: FRACTION462239
-Node: FREE463143
-Node: FSEEK463986
-Node: FSTAT466292
-Node: FTELL467379
-Node: GAMMA468361
-Node: GERROR469415
-Node: GETARG470137
-Node: GET_COMMAND471910
-Node: GET_COMMAND_ARGUMENT473284
-Node: GETCWD475332
-Node: GETENV476312
-Node: GET_ENVIRONMENT_VARIABLE477744
-Node: GETGID479907
-Node: GETLOG480444
-Node: GETPID481306
-Node: GETUID482036
-Node: GMTIME482552
-Node: HOSTNM484312
-Node: HUGE485233
-Node: HYPOT485955
-Node: IACHAR486781
-Node: IALL487949
-Node: IAND489434
-Node: IANY491007
-Node: IARGC492501
-Node: IBCLR493522
-Node: IBITS494770
-Node: IBSET496274
-Node: ICHAR497517
-Node: IDATE499687
-Node: IEOR500987
-Node: IERRNO502453
-Node: IMAGE_INDEX503002
-Node: INDEX intrinsic504030
-Node: INT505556
-Node: INT2507315
-Node: INT8508083
-Node: IOR508798
-Node: IPARITY510240
-Node: IRAND511772
-Node: IS_IOSTAT_END513131
-Node: IS_IOSTAT_EOR514230
-Node: ISATTY515359
-Node: ISHFT516142
-Node: ISHFTC517711
-Node: ISNAN519518
-Node: ITIME520285
-Node: KILL521583
-Node: KIND522668
-Node: LBOUND523514
-Node: LCOBOUND524852
-Node: LEADZ525987
-Node: LEN526848
-Node: LEN_TRIM528144
-Node: LGE529132
-Node: LGT530645
-Node: LINK532123
-Node: LLE533162
-Node: LLT534662
-Node: LNBLNK536133
-Node: LOC536911
-Node: LOG537643
-Node: LOG10538988
-Node: LOG_GAMMA539978
-Node: LOGICAL541080
-Node: LONG541892
-Node: LSHIFT542650
-Node: LSTAT543736
-Node: LTIME544936
-Node: MALLOC546618
-Node: MASKL548080
-Node: MASKR548847
-Node: MATMUL549617
-Node: MAX550790
-Node: MAXEXPONENT552325
-Node: MAXLOC553142
-Node: MAXVAL555483
-Node: MCLOCK557123
-Node: MCLOCK8558146
-Node: MERGE559376
-Node: MERGE_BITS560128
-Node: MIN560993
-Node: MINEXPONENT562531
-Node: MINLOC563162
-Node: MINVAL565534
-Node: MOD567187
-Node: MODULO569351
-Node: MOVE_ALLOC570654
-Node: MVBITS571687
-Node: NEAREST573339
-Node: NEW_LINE574439
-Node: NINT575212
-Node: NORM2576633
-Node: NOT577775
-Node: NULL578945
-Node: NUM_IMAGES579853
-Node: OR581554
-Node: PACK582840
-Node: PARITY584848
-Node: PERROR586069
-Node: POPCNT586694
-Node: POPPAR587566
-Node: PRECISION588620
-Node: PRESENT589507
-Node: PRODUCT590619
-Node: RADIX592153
-Node: RAN592965
-Node: RAND593421
-Node: RANDOM_NUMBER594756
-Node: RANDOM_SEED595970
-Node: RANGE598419
-Node: RANK599100
-Node: REAL599881
-Node: RENAME601870
-Node: REPEAT602892
-Node: RESHAPE603620
-Node: RRSPACING605087
-Node: RSHIFT605780
-Node: SAME_TYPE_AS606920
-Node: SCALE607752
-Node: SCAN608533
-Node: SECNDS610091
-Node: SECOND611183
-Node: SELECTED_CHAR_KIND612059
-Node: SELECTED_INT_KIND613654
-Node: SELECTED_REAL_KIND614831
-Node: SET_EXPONENT617508
-Node: SHAPE618505
-Node: SHIFTA619929
-Node: SHIFTL620893
-Node: SHIFTR621730
-Node: SIGN622568
-Node: SIGNAL623794
-Node: SIN625300
-Node: SIND626391
-Node: SINH627720
-Node: SIZE628733
-Node: SIZEOF630052
-Node: SLEEP631707
-Node: SPACING632268
-Node: SPREAD633282
-Node: SQRT634433
-Node: SRAND635765
-Node: STAT636999
-Node: STORAGE_SIZE640167
-Node: SUM641046
-Node: SYMLNK642538
-Node: SYSTEM643673
-Node: SYSTEM_CLOCK644928
-Node: TAN647758
-Node: TAND648829
-Node: TANH649913
-Node: THIS_IMAGE651088
-Node: TIME653388
-Node: TIME8654559
-Node: TINY655758
-Node: TRAILZ656359
-Node: TRANSFER657177
-Node: TRANSPOSE659213
-Node: TRIM659903
-Node: TTYNAM660761
-Node: UBOUND661679
-Node: UCOBOUND663069
-Node: UMASK664206
-Node: UNLINK664888
-Node: UNPACK665868
-Node: VERIFY667163
-Node: XOR668892
-Node: Intrinsic Modules670265
-Node: ISO_FORTRAN_ENV670554
-Node: ISO_C_BINDING674957
-Node: IEEE modules678663
-Node: OpenMP Modules OMP_LIB and OMP_LIB_KINDS679806
-Node: OpenACC Module OPENACC681346
-Node: Contributing682273
-Node: Contributors683127
-Node: Projects684758
-Node: Proposed Extensions685565
-Node: Copying687575
-Node: GNU Free Documentation License725121
-Node: Funding750245
-Node: Option Index752771
-Node: Keyword Index770500
+Node: GNU Fortran and G7712320
+Node: Project Status12893
+Node: Standards15635
+Node: Varying Length Character Strings16972
+Node: Invoking GNU Fortran17724
+Node: Option Summary19558
+Node: Fortran Dialect Options23465
+Node: Preprocessing Options36052
+Node: Error and Warning Options44293
+Node: Debugging Options56075
+Node: Directory Options60471
+Node: Link Options61906
+Node: Runtime Options62532
+Node: Code Gen Options64439
+Node: Interoperability Options82852
+Node: Environment Variables83892
+Node: Runtime84505
+Node: TMPDIR85539
+Node: GFORTRAN_STDIN_UNIT86209
+Node: GFORTRAN_STDOUT_UNIT86591
+Node: GFORTRAN_STDERR_UNIT86992
+Node: GFORTRAN_UNBUFFERED_ALL87394
+Node: GFORTRAN_UNBUFFERED_PRECONNECTED87925
+Node: GFORTRAN_SHOW_LOCUS88569
+Node: GFORTRAN_OPTIONAL_PLUS89065
+Node: GFORTRAN_LIST_SEPARATOR89543
+Node: GFORTRAN_CONVERT_UNIT90151
+Node: GFORTRAN_ERROR_BACKTRACE93006
+Node: Fortran standards status93563
+Node: Fortran 2003 status93815
+Node: Fortran 2008 status98970
+Node: Fortran 2018 status104348
+Node: Compiler Characteristics106706
+Node: KIND Type Parameters107489
+Node: Internal representation of LOGICAL variables108917
+Node: Evaluation of logical expressions109774
+Node: MAX and MIN intrinsics with REAL NaN arguments110625
+Node: Thread-safety of the runtime library111446
+Node: Data consistency and durability113851
+Node: Files opened without an explicit ACTION= specifier116964
+Node: File operations on symbolic links117655
+Node: File format of unformatted sequential files118775
+Node: Asynchronous I/O121147
+Node: Extensions121847
+Node: Extensions implemented in GNU Fortran122452
+Node: Old-style kind specifications124348
+Node: Old-style variable initialization125450
+Node: Extensions to namelist126762
+Node: X format descriptor without count field129065
+Node: Commas in FORMAT specifications129592
+Node: Missing period in FORMAT specifications130109
+Node: I/O item lists130671
+Node: Q exponent-letter131056
+Node: BOZ literal constants131654
+Node: Real array indices134233
+Node: Unary operators134532
+Node: Implicitly convert LOGICAL and INTEGER values134946
+Node: Hollerith constants support135905
+Node: Cray pointers137677
+Node: CONVERT specifier143185
+Node: OpenMP145180
+Node: OpenACC147438
+Node: Argument list functions148747
+Node: Read/Write after EOF marker150390
+Node: STRUCTURE and RECORD150993
+Node: UNION and MAP156080
+Node: Type variants for integer intrinsics159048
+Node: AUTOMATIC and STATIC attributes160943
+Node: Extended math intrinsics162477
+Node: Form feed as whitespace164273
+Node: TYPE as an alias for PRINT164819
+Node: %LOC as an rvalue165284
+Node: .XOR. operator165931
+Node: Bitwise logical operators166331
+Node: Extended I/O specifiers167832
+Node: Legacy PARAMETER statements171552
+Node: Default exponents172157
+Node: Extensions not implemented in GNU Fortran172509
+Node: ENCODE and DECODE statements173476
+Node: Variable FORMAT expressions174807
+Node: Alternate complex function syntax175912
+Node: Volatile COMMON blocks176462
+Node: OPEN( ... NAME=)176964
+Node: Q edit descriptor177392
+Node: Mixed-Language Programming178344
+Node: Interoperability with C178924
+Node: Intrinsic Types180258
+Node: Derived Types and struct181254
+Node: Interoperable Global Variables182612
+Node: Interoperable Subroutines and Functions183887
+Node: Working with Pointers187681
+Node: Further Interoperability of Fortran with C192157
+Node: GNU Fortran Compiler Directives195729
+Node: ATTRIBUTES directive196041
+Node: UNROLL directive199229
+Node: BUILTIN directive199762
+Node: Non-Fortran Main Program200580
+Node: _gfortran_set_args202768
+Node: _gfortran_set_options203706
+Node: _gfortran_set_convert207313
+Node: _gfortran_set_record_marker208181
+Node: _gfortran_set_fpe208991
+Node: _gfortran_set_max_subrecord_length210189
+Node: Naming and argument-passing conventions211112
+Node: Naming conventions211831
+Node: Argument passing conventions213303
+Node: Coarray Programming218608
+Node: Type and enum ABI Documentation218855
+Node: caf_token_t219153
+Node: caf_register_t219389
+Node: caf_deregister_t220600
+Node: caf_reference_t221102
+Node: caf_team_t225426
+Node: Function ABI Documentation225725
+Node: _gfortran_caf_init228175
+Node: _gfortran_caf_finish229601
+Node: _gfortran_caf_this_image230540
+Node: _gfortran_caf_num_images231295
+Node: _gfortran_caf_image_status232406
+Node: _gfortran_caf_failed_images233526
+Node: _gfortran_caf_stopped_images234696
+Node: _gfortran_caf_register235869
+Node: _gfortran_caf_deregister240051
+Node: _gfortran_caf_is_present241657
+Node: _gfortran_caf_send242736
+Node: _gfortran_caf_get245926
+Node: _gfortran_caf_sendget249007
+Node: _gfortran_caf_send_by_ref252918
+Node: _gfortran_caf_get_by_ref256527
+Node: _gfortran_caf_sendget_by_ref260046
+Node: _gfortran_caf_lock264342
+Node: _gfortran_caf_unlock266128
+Node: _gfortran_caf_event_post267609
+Node: _gfortran_caf_event_wait269058
+Node: _gfortran_caf_event_query271165
+Node: _gfortran_caf_sync_all272496
+Node: _gfortran_caf_sync_images273424
+Node: _gfortran_caf_sync_memory274959
+Node: _gfortran_caf_error_stop275951
+Node: _gfortran_caf_error_stop_str276555
+Node: _gfortran_caf_fail_image277260
+Node: _gfortran_caf_atomic_define277796
+Node: _gfortran_caf_atomic_ref279111
+Node: _gfortran_caf_atomic_cas280415
+Node: _gfortran_caf_atomic_op282176
+Node: _gfortran_caf_co_broadcast284278
+Node: _gfortran_caf_co_max285383
+Node: _gfortran_caf_co_min287009
+Node: _gfortran_caf_co_sum288629
+Node: _gfortran_caf_co_reduce290169
+Node: Intrinsic Procedures292813
+Node: Introduction to Intrinsics310072
+Node: ABORT312422
+Node: ABS313167
+Node: ACCESS315117
+Node: ACHAR317047
+Node: ACOS318251
+Node: ACOSD319537
+Node: ACOSH320849
+Node: ADJUSTL321845
+Node: ADJUSTR322787
+Node: AIMAG323737
+Node: AINT325109
+Node: ALARM326715
+Node: ALL328347
+Node: ALLOCATED330271
+Node: AND331410
+Node: ANINT333145
+Node: ANY334642
+Node: ASIN336568
+Node: ASIND337843
+Node: ASINH339141
+Node: ASSOCIATED340147
+Node: ATAN343158
+Node: ATAND344608
+Node: ATAN2346078
+Node: ATAN2D347941
+Node: ATANH349915
+Node: ATOMIC_ADD350921
+Node: ATOMIC_AND352453
+Node: ATOMIC_CAS354041
+Node: ATOMIC_DEFINE355900
+Node: ATOMIC_FETCH_ADD357619
+Node: ATOMIC_FETCH_AND359419
+Node: ATOMIC_FETCH_OR361209
+Node: ATOMIC_FETCH_XOR362986
+Node: ATOMIC_OR364769
+Node: ATOMIC_REF366354
+Node: ATOMIC_XOR368250
+Node: BACKTRACE369835
+Node: BESSEL_J0370415
+Node: BESSEL_J1371431
+Node: BESSEL_JN372448
+Node: BESSEL_Y0374273
+Node: BESSEL_Y1375228
+Node: BESSEL_YN376183
+Node: BGE378014
+Node: BGT378706
+Node: BIT_SIZE379356
+Node: BLE380178
+Node: BLT380860
+Node: BTEST381498
+Node: C_ASSOCIATED382955
+Node: C_F_POINTER384166
+Node: C_F_PROCPOINTER385601
+Node: C_FUNLOC387108
+Node: C_LOC388479
+Node: C_SIZEOF389758
+Node: CEILING391171
+Node: CHAR392179
+Node: CHDIR393391
+Node: CHMOD394565
+Node: CMPLX396480
+Node: CO_BROADCAST397923
+Node: CO_MAX399696
+Node: CO_MIN401576
+Node: CO_REDUCE403442
+Node: CO_SUM406945
+Node: COMMAND_ARGUMENT_COUNT408852
+Node: COMPILER_OPTIONS409769
+Node: COMPILER_VERSION410795
+Node: COMPLEX411759
+Node: CONJG412898
+Node: COS413954
+Node: COSD415409
+Node: COSH416858
+Node: COTAN418041
+Node: COTAND419180
+Node: COUNT420359
+Node: CPU_TIME422384
+Node: CSHIFT423741
+Node: CTIME425401
+Node: DATE_AND_TIME426909
+Node: DBLE429389
+Node: DCMPLX430184
+Node: DIGITS431366
+Node: DIM432333
+Node: DOT_PRODUCT433614
+Node: DPROD435257
+Node: DREAL436184
+Node: DSHIFTL436850
+Node: DSHIFTR438183
+Node: DTIME439517
+Node: EOSHIFT442332
+Node: EPSILON444405
+Node: ERF445132
+Node: ERFC445913
+Node: ERFC_SCALED446723
+Node: ETIME447416
+Node: EVENT_QUERY449655
+Node: EXECUTE_COMMAND_LINE451244
+Node: EXIT453839
+Node: EXP454717
+Node: EXPONENT455970
+Node: EXTENDS_TYPE_OF456734
+Node: FDATE457592
+Node: FGET459078
+Node: FGETC460905
+Node: FINDLOC462715
+Node: FLOOR465175
+Node: FLUSH466166
+Node: FNUM468045
+Node: FPUT468770
+Node: FPUTC470404
+Node: FRACTION472185
+Node: FREE473089
+Node: FSEEK473932
+Node: FSTAT476238
+Node: FTELL477325
+Node: GAMMA478307
+Node: GERROR479361
+Node: GETARG480083
+Node: GET_COMMAND481855
+Node: GET_COMMAND_ARGUMENT483229
+Node: GETCWD485276
+Node: GETENV486256
+Node: GET_ENVIRONMENT_VARIABLE487688
+Node: GETGID489851
+Node: GETLOG490388
+Node: GETPID491250
+Node: GETUID491980
+Node: GMTIME492496
+Node: HOSTNM494256
+Node: HUGE495177
+Node: HYPOT495899
+Node: IACHAR496725
+Node: IALL497893
+Node: IAND499378
+Node: IANY501105
+Node: IARGC502599
+Node: IBCLR503620
+Node: IBITS504868
+Node: IBSET506372
+Node: ICHAR507615
+Node: IDATE509785
+Node: IEOR511085
+Node: IERRNO512705
+Node: IMAGE_INDEX513254
+Node: INDEX intrinsic514282
+Node: INT515808
+Node: INT2517567
+Node: INT8518335
+Node: IOR519050
+Node: IPARITY520646
+Node: IRAND522178
+Node: IS_CONTIGUOUS523537
+Node: IS_IOSTAT_END524703
+Node: IS_IOSTAT_EOR525810
+Node: ISATTY526939
+Node: ISHFT527722
+Node: ISHFTC529291
+Node: ISNAN531098
+Node: ITIME531865
+Node: KILL533163
+Node: KIND534248
+Node: LBOUND535094
+Node: LCOBOUND536432
+Node: LEADZ537567
+Node: LEN538428
+Node: LEN_TRIM539724
+Node: LGE540712
+Node: LGT542225
+Node: LINK543703
+Node: LLE544742
+Node: LLT546242
+Node: LNBLNK547713
+Node: LOC548491
+Node: LOG549223
+Node: LOG10550568
+Node: LOG_GAMMA551558
+Node: LOGICAL552660
+Node: LONG553472
+Node: LSHIFT554230
+Node: LSTAT555316
+Node: LTIME556516
+Node: MALLOC558198
+Node: MASKL559660
+Node: MASKR560427
+Node: MATMUL561197
+Node: MAX562370
+Node: MAXEXPONENT563905
+Node: MAXLOC564722
+Node: MAXVAL567339
+Node: MCLOCK568979
+Node: MCLOCK8570002
+Node: MERGE571232
+Node: MERGE_BITS571984
+Node: MIN573023
+Node: MINEXPONENT574561
+Node: MINLOC575192
+Node: MINVAL577840
+Node: MOD579493
+Node: MODULO581657
+Node: MOVE_ALLOC582960
+Node: MVBITS583993
+Node: NEAREST585645
+Node: NEW_LINE586745
+Node: NINT587518
+Node: NORM2588939
+Node: NOT590081
+Node: NULL591251
+Node: NUM_IMAGES592159
+Node: OR593860
+Node: PACK595583
+Node: PARITY597591
+Node: PERROR598812
+Node: POPCNT599437
+Node: POPPAR600309
+Node: PRECISION601363
+Node: PRESENT602250
+Node: PRODUCT603362
+Node: RADIX604896
+Node: RAN605708
+Node: RAND606164
+Node: RANDOM_INIT607497
+Node: RANDOM_NUMBER609453
+Node: RANDOM_SEED610695
+Node: RANGE613165
+Node: RANK613846
+Node: REAL614627
+Node: RENAME616616
+Node: REPEAT617638
+Node: RESHAPE618366
+Node: RRSPACING619833
+Node: RSHIFT620526
+Node: SAME_TYPE_AS621666
+Node: SCALE622498
+Node: SCAN623279
+Node: SECNDS624837
+Node: SECOND625929
+Node: SELECTED_CHAR_KIND626805
+Node: SELECTED_INT_KIND628400
+Node: SELECTED_REAL_KIND629577
+Node: SET_EXPONENT632254
+Node: SHAPE633251
+Node: SHIFTA634675
+Node: SHIFTL635639
+Node: SHIFTR636476
+Node: SIGN637314
+Node: SIGNAL638540
+Node: SIN640046
+Node: SIND641137
+Node: SINH642466
+Node: SIZE643479
+Node: SIZEOF644798
+Node: SLEEP646453
+Node: SPACING647014
+Node: SPREAD648028
+Node: SQRT649179
+Node: SRAND650511
+Node: STAT651745
+Node: STORAGE_SIZE654913
+Node: SUM655792
+Node: SYMLNK657284
+Node: SYSTEM658419
+Node: SYSTEM_CLOCK659674
+Node: TAN662504
+Node: TAND663575
+Node: TANH664659
+Node: THIS_IMAGE665834
+Node: TIME668134
+Node: TIME8669305
+Node: TINY670504
+Node: TRAILZ671105
+Node: TRANSFER671923
+Node: TRANSPOSE673959
+Node: TRIM674649
+Node: TTYNAM675507
+Node: UBOUND676425
+Node: UCOBOUND677815
+Node: UMASK678952
+Node: UNLINK679634
+Node: UNPACK680614
+Node: VERIFY681909
+Node: XOR683638
+Node: Intrinsic Modules685448
+Node: ISO_FORTRAN_ENV685737
+Node: ISO_C_BINDING690140
+Node: IEEE modules693846
+Node: OpenMP Modules OMP_LIB and OMP_LIB_KINDS694989
+Node: OpenACC Module OPENACC696529
+Node: Contributing697456
+Node: Contributors698310
+Node: Projects699941
+Node: Proposed Extensions700748
+Node: Copying702758
+Node: GNU Free Documentation License740304
+Node: Funding765428
+Node: Option Index767954
+Node: Keyword Index785961
 
 End Tag Table

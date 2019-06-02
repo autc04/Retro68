@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -89,39 +89,54 @@ package Exp_Util is
    --  calls, and this guarantee is preserved for the special cases above.
 
    procedure Insert_Action
-     (Assoc_Node : Node_Id;
-      Ins_Action : Node_Id);
+     (Assoc_Node   : Node_Id;
+      Ins_Action   : Node_Id;
+      Spec_Expr_OK : Boolean := False);
    --  Insert the action Ins_Action at the appropriate point as described
    --  above. The action is analyzed using the default checks after it is
    --  inserted. Assoc_Node is the node with which the action is associated.
+   --  When flag Spec_Expr_OK is set, insertions triggered in the context of
+   --  spec expressions are honored, even though they contradict "Handling
+   --  of Default and Per-Object Expressions".
 
    procedure Insert_Action
-     (Assoc_Node : Node_Id;
-      Ins_Action : Node_Id;
-      Suppress   : Check_Id);
+     (Assoc_Node   : Node_Id;
+      Ins_Action   : Node_Id;
+      Suppress     : Check_Id;
+      Spec_Expr_OK : Boolean := False);
    --  Insert the action Ins_Action at the appropriate point as described
    --  above. The action is analyzed using the default checks as modified
    --  by the given Suppress argument after it is inserted. Assoc_Node is
-   --  the node with which the action is associated.
+   --  the node with which the action is associated. When flag Spec_Expr_OK
+   --  is set, insertions triggered in the context of spec expressions are
+   --  honored, even though they contradict "Handling of Default and Per-
+   --  Object Expressions".
 
    procedure Insert_Actions
-     (Assoc_Node  : Node_Id;
-      Ins_Actions : List_Id);
+     (Assoc_Node   : Node_Id;
+      Ins_Actions  : List_Id;
+      Spec_Expr_OK : Boolean := False);
    --  Insert the list of action Ins_Actions at the appropriate point as
    --  described above. The actions are analyzed using the default checks
    --  after they are inserted. Assoc_Node is the node with which the actions
    --  are associated. Ins_Actions may be No_List, in which case the call has
-   --  no effect.
+   --  no effect. When flag Spec_Expr_OK is set, insertions triggered in the
+   --  context of spec expressions are honored, even though they contradict
+   --  "Handling of Default and Per-Object Expressions".
 
    procedure Insert_Actions
-     (Assoc_Node  : Node_Id;
-      Ins_Actions : List_Id;
-      Suppress    : Check_Id);
+     (Assoc_Node   : Node_Id;
+      Ins_Actions  : List_Id;
+      Suppress     : Check_Id;
+      Spec_Expr_OK : Boolean := False);
    --  Insert the list of action Ins_Actions at the appropriate point as
    --  described above. The actions are analyzed using the default checks
    --  as modified by the given Suppress argument after they are inserted.
-   --  Assoc_Node is the node with which the actions are associated.
+   --  Assoc_Node is the node with which the actions are associated. List
    --  Ins_Actions may be No_List, in which case the call has no effect.
+   --  When flag Spec_Expr_OK is set, insertions triggered in the context of
+   --  spec expressions are honored, even though they contradict "Handling
+   --  of Default and Per-Object Expressions".
 
    procedure Insert_Action_After
      (Assoc_Node : Node_Id;
@@ -505,6 +520,10 @@ package Exp_Util is
    --  elaborated before the original expression Exp, so that there is no need
    --  to repeat the checks.
 
+   function Enclosing_Init_Proc return Entity_Id;
+   --  Obtain the entity of the type initialization procedure which encloses
+   --  the current scope. Return Empty if no such procedure exists.
+
    procedure Ensure_Defined (Typ : Entity_Id; N : Node_Id);
    --  This procedure ensures that type referenced by Typ is defined. For the
    --  case of a type other than an Itype, nothing needs to be done, since
@@ -540,9 +559,9 @@ package Exp_Util is
    --  indicating that no checks were required). The Sloc field of the
    --  constructed N_Or_Else node is copied from Cond1.
 
-   function Exceptions_In_Finalization_OK return Boolean;
-   --  Determine whether the finalization machinery can safely add exception
-   --  handlers and recovery circuitry.
+   function Exceptions_OK return Boolean;
+   --  Determine whether exceptions are allowed to be caught, propagated, or
+   --  raised.
 
    procedure Expand_Static_Predicates_In_Choices (N : Node_Id);
    --  N is either a case alternative or a variant. The Discrete_Choices field
@@ -581,8 +600,9 @@ package Exp_Util is
    function Find_Interface_Tag
      (T     : Entity_Id;
       Iface : Entity_Id) return Entity_Id;
-   --  Ada 2005 (AI-251): Given a type T implementing the interface Iface,
-   --  return the record component containing the tag of Iface.
+   --  Ada 2005 (AI-251): Given a type T and an interface Iface, return the
+   --  record component containing the tag of Iface if T implements Iface or
+   --  Empty if it does not.
 
    function Find_Prim_Op (T : Entity_Id; Name : Name_Id) return Entity_Id;
    --  Find the first primitive operation of a tagged type T with name Name.
@@ -916,6 +936,11 @@ package Exp_Util is
    --  caller has to check whether stack checking is actually enabled in order
    --  to guide the expansion (typically of a function call).
 
+   function Needs_Conditional_Null_Excluding_Check
+     (Typ : Entity_Id) return Boolean;
+   --  Check if a type meets certain properties that require it to have a
+   --  conditional null-excluding check within its Init_Proc.
+
    function Needs_Constant_Address
      (Decl : Node_Id;
       Typ  : Entity_Id) return Boolean;
@@ -1130,11 +1155,16 @@ package Exp_Util is
    --  the boolean array is False..False or True..True, where it is required
    --  that a Constraint_Error exception be raised (RM 4.5.6(6)).
 
-   procedure Silly_Boolean_Array_Xor_Test (N : Node_Id; T : Entity_Id);
-   --  N is the node for a boolean array XOR operation, and T is the type of
-   --  the array. This routine deals with the silly case where the subtype of
-   --  the boolean array is True..True, where a raise of a Constraint_Error
-   --  exception is required (RM 4.5.6(6)).
+   procedure Silly_Boolean_Array_Xor_Test
+     (N : Node_Id;
+      R : Node_Id;
+      T : Entity_Id);
+   --  N is the node for a boolean array XOR operation, T is the type of the
+   --  array, and R is a copy of the right operand of N, required to prevent
+   --  scope anomalies when unnesting is in effect. This routine deals with
+   --  the admitedly silly case where the subtype of the boolean array is
+   --  True..True, where a raise of a Constraint_Error exception is required
+   --  (RM 4.5.6(6)) and ACATS-tested.
 
    function Target_Has_Fixed_Ops
      (Left_Typ   : Entity_Id;

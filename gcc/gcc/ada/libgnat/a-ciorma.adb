@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -539,6 +539,14 @@ package body Ada.Containers.Indefinite_Ordered_Maps is
       if Checks and then Position.Node.Element = null then
          raise Program_Error with
            "Position cursor of function Element is bad";
+      end if;
+
+      if Checks
+        and then (Left (Position.Node) = Position.Node
+                   or else
+                  Right (Position.Node) = Position.Node)
+      then
+         raise Program_Error with "dangling cursor";
       end if;
 
       pragma Assert (Vet (Position.Container.Tree, Position.Node),

@@ -1,4 +1,4 @@
-# Copyright (C) 2007-2018 Free Software Foundation, Inc.
+# Copyright (C) 2007-2019 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -215,6 +215,9 @@ dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/target-attribute/*.{c,S}]] \
 dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/arch12/*.{c,S}]] \
 	"" "-O3 -march=arch12 -mzarch"
 
+dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/arch13/*.{c,S}]] \
+	"" "-O3 -march=arch13 -mzarch"
+
 dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/vxe/*.{c,S}]] \
 	"" "-O3 -march=arch12 -mzarch"
 
@@ -251,6 +254,15 @@ set MD_TEST_OPTS [list \
 set-torture-options $MD_TEST_OPTS
 gcc-dg-runtest [lsort [glob -nocomplain $md_tests]] "" "$DEFAULT_CFLAGS"
 torture-finish
+
+# Tests that should pass on all optimization levels.
+foreach t [list $srcdir/$subdir/pr80080-3.c] {
+	torture-init
+	set-torture-options [list -O1 -O2 -O3 -O0 -Os -Ofast -Og]
+	gcc-dg-runtest [list $t] \
+		"" $DEFAULT_CFLAGS
+	torture-finish
+}
 
 # All done.
 dg-finish

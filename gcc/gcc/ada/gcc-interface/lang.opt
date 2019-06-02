@@ -80,6 +80,10 @@ fsigned-char
 Ada AdaWhy AdaSCIL
 Make \"char\" signed by default.
 
+funsigned-char
+Ada AdaWhy AdaSCIL
+Make \"char\" unsigned by default.
+
 gant
 Ada AdaWhy AdaSCIL Driver Joined Undocumented RejectNegative
 Catch typos.
@@ -95,5 +99,9 @@ Ada AdaWhy AdaSCIL Driver Joined RejectNegative
 fbuiltin-printf
 Ada Undocumented
 Ignored.
+
+fopenacc
+Ada LTO
+; Documented in C but it should be: Enable OpenACC support
 
 ; This comment is to ensure we retain the blank line above.

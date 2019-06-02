@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Free Software Foundation, Inc.
+// Copyright (C) 2017-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++17 -lstdc++fs" }
+// { dg-options "-std=gnu++17" }
 // { dg-do run { target c++17 } }
 // { dg-require-filesystem-ts "" }
 
@@ -25,25 +25,35 @@
 #include <testsuite_fs.h>
 #include <testsuite_hooks.h>
 
+bool check(std::filesystem::space_info const& s)
+{
+  const std::uintmax_t err = -1;
+  return s.capacity != err || s.free != err || s.available != err;
+}
+
 void
 test01()
 {
-  std::filesystem::space_info s = std::filesystem::space("/");
+  const std::filesystem::path root = __gnu_test::root_path();
+  std::filesystem::space_info s = std::filesystem::space(root);
   std::error_code ec = make_error_code(std::errc::invalid_argument);
-  s = std::filesystem::space("/", ec);
+  s = std::filesystem::space(root, ec);
   VERIFY( !ec );
+  VERIFY( check(s) );
+  VERIFY( s.capacity >= s.free );
 
-  s = std::filesystem::space(__gnu_test::nonexistent_path(), ec);
-  VERIFY( ec );
-  VERIFY( s.capacity ==  static_cast<uintmax_t>(-1) );
-  VERIFY( s.free ==  static_cast<uintmax_t>(-1) );
-  VERIFY( s.available ==  static_cast<uintmax_t>(-1) );
+  s = std::filesystem::space(__gnu_test::nonexistent_path()/".", ec);
+  if (ec)
+    VERIFY( ! check(s) );
+  else
+    VERIFY( check(s) );
 }
 
 void
 test02()
 {
   std::filesystem::space_info s = std::filesystem::space(".");
+  VERIFY( check(s) );
   VERIFY( s.capacity >= s.free );
 }
 

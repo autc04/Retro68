@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---            Copyright (C) 2014-2018, Free Software Foundation, Inc.       --
+--            Copyright (C) 2014-2019, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -45,7 +45,7 @@ package body System.Elaboration_Allocators is
    procedure Check_Standard_Allocator is
    begin
       if not Elaboration_In_Progress then
-         raise Program_Error with
+         raise Storage_Error with
            "standard allocator after elaboration is complete is not allowed "
            & "(No_Standard_Allocators_After_Elaboration restriction active)";
       end if;

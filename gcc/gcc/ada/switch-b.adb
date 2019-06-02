@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -399,7 +399,7 @@ package body Switch.B is
             end if;
 
             Ptr := Ptr + 1;
-            Scan_Pos
+            Scan_Nat
               (Switch_Chars, Max, Ptr,
                Quantity_Of_Default_Size_Sec_Stacks, C);
 

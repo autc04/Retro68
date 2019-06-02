@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *          Copyright (C) 1992-2018, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2019, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -39,7 +39,9 @@
 #define _THREAD_SAFE
 
 /* Use 64 bit Large File API */
-#ifndef _LARGEFILE_SOURCE
+#if defined (__QNX__)
+#define _LARGEFILE64_SOURCE 1
+#elif !defined(_LARGEFILE_SOURCE)
 #define _LARGEFILE_SOURCE
 #endif
 #define _FILE_OFFSET_BITS 64
@@ -81,8 +83,8 @@
 #define __BSD_VISIBLE 1
 #endif
 
-#if defined (__QNX__)
-#define _LARGEFILE64_SOURCE 1
+#ifdef __QNX__
+#include <sys/syspage.h>
 #endif
 
 #ifdef IN_RTS
@@ -660,6 +662,7 @@ void
 __gnat_get_executable_suffix_ptr (int *len, const char **value)
 {
   *value = HOST_EXECUTABLE_SUFFIX;
+
   if (!*value)
     *len = 0;
   else
@@ -1473,7 +1476,7 @@ __gnat_set_file_time_name (char *name, time_t time_stamp)
   utimbuf.modtime = time_stamp;
 
   /* Set access time to now in local time.  */
-  t = time ((time_t) 0);
+  t = time (NULL);
   utimbuf.actime = mktime (localtime (&t));
 
   utime (name, &utimbuf);
@@ -2350,8 +2353,11 @@ __gnat_number_of_cpus (void)
 
 #if defined (__linux__) || defined (__sun__) || defined (_AIX) \
   || defined (__APPLE__) || defined (__FreeBSD__) || defined (__OpenBSD__) \
-  || defined (__DragonFly__) || defined (__NetBSD__) || defined (__QNX__)
+  || defined (__DragonFly__) || defined (__NetBSD__)
   cores = (int) sysconf (_SC_NPROCESSORS_ONLN);
+
+#elif defined (__QNX__)
+  cores = (int) _syspage_ptr->num_cpu;
 
 #elif defined (__hpux__)
   struct pst_dynamic psd;
@@ -2586,10 +2592,10 @@ win32_wait (int *status)
 #else
   /* Note that index 0 contains the event handle that is signaled when the
      process list has changed */
-  hl = (HANDLE *) xmalloc (sizeof (HANDLE) * hl_len + 1);
+  hl = (HANDLE *) xmalloc (sizeof (HANDLE) * (hl_len + 1));
   hl[0] = ProcListEvt;
   memmove (&hl[1], HANDLES_LIST, sizeof (HANDLE) * hl_len);
-  pidl = (int *) xmalloc (sizeof (int) * hl_len + 1);
+  pidl = (int *) xmalloc (sizeof (int) * (hl_len + 1));
   memmove (&pidl[1], PID_LIST, sizeof (int) * hl_len);
   hl_len++;
 #endif
@@ -2602,6 +2608,8 @@ win32_wait (int *status)
   /* If there was an error, exit now */
   if (res == WAIT_FAILED)
     {
+      free (hl);
+      free (pidl);
       errno = EINVAL;
       return -1;
     }
@@ -2886,12 +2894,12 @@ __gnat_locate_regular_file (char *file_name, char *path_val)
 char *
 __gnat_locate_exec (char *exec_name, char *path_val)
 {
+  const unsigned int len = strlen (HOST_EXECUTABLE_SUFFIX);
   char *ptr;
-  if (!strstr (exec_name, HOST_EXECUTABLE_SUFFIX))
+
+  if (len > 0 && !strstr (exec_name, HOST_EXECUTABLE_SUFFIX))
     {
-      char *full_exec_name =
-        (char *) alloca
-	  (strlen (exec_name) + strlen (HOST_EXECUTABLE_SUFFIX) + 1);
+      char *full_exec_name = (char *) alloca (strlen (exec_name) + len + 1);
 
       strcpy (full_exec_name, exec_name);
       strcat (full_exec_name, HOST_EXECUTABLE_SUFFIX);
@@ -3231,9 +3239,13 @@ __gnat_lwp_self (void)
 #endif
 
 #if defined (__APPLE__)
-#include <mach/thread_info.h>
-#include <mach/mach_init.h>
-#include <mach/thread_act.h>
+# if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
+#  include <mach/thread_info.h>
+#  include <mach/mach_init.h>
+#  include <mach/thread_act.h>
+# else
+#  include <pthread.h>
+# endif
 
 /* System-wide thread identifier.  Note it could be truncated on 32 bit
    hosts.
@@ -3241,6 +3253,7 @@ __gnat_lwp_self (void)
 void *
 __gnat_lwp_self (void)
 {
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
   thread_identifier_info_data_t data;
   mach_msg_type_number_t count = THREAD_IDENTIFIER_INFO_COUNT;
   kern_return_t kret;
@@ -3251,6 +3264,9 @@ __gnat_lwp_self (void)
     return (void *)(uintptr_t)data.thread_id;
   else
     return 0;
+#else
+  return (void *)pthread_mach_thread_np (pthread_self ());
+#endif
 }
 #endif
 

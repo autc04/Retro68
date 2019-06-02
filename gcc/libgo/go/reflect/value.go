@@ -323,7 +323,7 @@ var callGC bool // for testing; see TestCallMethodJump
 
 func (v Value) call(op string, in []Value) []Value {
 	// Get function pointer, type.
-	t := v.typ
+	t := (*funcType)(unsafe.Pointer(v.typ))
 	var (
 		fn   unsafe.Pointer
 		rcvr Value
@@ -472,7 +472,7 @@ func (v Value) call(op string, in []Value) []Value {
 // The return value rcvrtype gives the method's actual receiver type.
 // The return value t gives the method type signature (without the receiver).
 // The return value fn is a pointer to the method code.
-func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn unsafe.Pointer) {
+func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *rtype, t *funcType, fn unsafe.Pointer) {
 	i := methodIndex
 	if v.typ.Kind() == Interface {
 		tt := (*interfaceType)(unsafe.Pointer(v.typ))
@@ -489,7 +489,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
 		}
 		rcvrtype = iface.itab.typ
 		fn = unsafe.Pointer(&iface.itab.fun[i])
-		t = m.typ
+		t = (*funcType)(unsafe.Pointer(m.typ))
 	} else {
 		rcvrtype = v.typ
 		ms := v.typ.exportedMethods()
@@ -501,7 +501,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
 			panic("reflect: " + op + " of unexported method")
 		}
 		fn = unsafe.Pointer(&m.tfn)
-		t = m.mtyp
+		t = (*funcType)(unsafe.Pointer(m.mtyp))
 	}
 	return
 }
@@ -632,7 +632,7 @@ func (v Value) Field(i int) Value {
 	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
 	// Using an unexported field forces flagRO.
 	if field.pkgPath != nil {
-		if field.anon() {
+		if field.embedded() {
 			fl |= flagEmbedRO
 		} else {
 			fl |= flagStickyRO
@@ -851,7 +851,7 @@ func (v Value) InterfaceData() [2]uintptr {
 func (v Value) IsNil() bool {
 	k := v.kind()
 	switch k {
-	case Chan, Func, Map, Ptr:
+	case Chan, Func, Map, Ptr, UnsafePointer:
 		if v.flag&flagMethod != 0 {
 			return false
 		}
@@ -935,14 +935,7 @@ func (v Value) MapIndex(key Value) Value {
 	typ := tt.elem
 	fl := (v.flag | key.flag).ro()
 	fl |= flag(typ.Kind())
-	if !ifaceIndir(typ) {
-		return Value{typ, *(*unsafe.Pointer)(e), fl}
-	}
-	// Copy result so future changes to the map
-	// won't change the underlying value.
-	c := unsafe_New(typ)
-	typedmemmove(typ, c, e)
-	return Value{typ, c, fl | flagIndir}
+	return copyVal(typ, fl, e)
 }
 
 // MapKeys returns a slice containing all the keys present in the map,
@@ -972,18 +965,94 @@ func (v Value) MapKeys() []Value {
 			// we can do about it.
 			break
 		}
-		if ifaceIndir(keyType) {
-			// Copy result so future changes to the map
-			// won't change the underlying value.
-			c := unsafe_New(keyType)
-			typedmemmove(keyType, c, key)
-			a[i] = Value{keyType, c, fl | flagIndir}
-		} else {
-			a[i] = Value{keyType, *(*unsafe.Pointer)(key), fl}
-		}
+		a[i] = copyVal(keyType, fl, key)
 		mapiternext(it)
 	}
 	return a[:i]
+}
+
+// A MapIter is an iterator for ranging over a map.
+// See Value.MapRange.
+type MapIter struct {
+	m  Value
+	it unsafe.Pointer
+}
+
+// Key returns the key of the iterator's current map entry.
+func (it *MapIter) Key() Value {
+	if it.it == nil {
+		panic("MapIter.Key called before Next")
+	}
+	if mapiterkey(it.it) == nil {
+		panic("MapIter.Key called on exhausted iterator")
+	}
+
+	t := (*mapType)(unsafe.Pointer(it.m.typ))
+	ktype := t.key
+	return copyVal(ktype, it.m.flag.ro()|flag(ktype.Kind()), mapiterkey(it.it))
+}
+
+// Value returns the value of the iterator's current map entry.
+func (it *MapIter) Value() Value {
+	if it.it == nil {
+		panic("MapIter.Value called before Next")
+	}
+	if mapiterkey(it.it) == nil {
+		panic("MapIter.Value called on exhausted iterator")
+	}
+
+	t := (*mapType)(unsafe.Pointer(it.m.typ))
+	vtype := t.elem
+	return copyVal(vtype, it.m.flag.ro()|flag(vtype.Kind()), mapitervalue(it.it))
+}
+
+// Next advances the map iterator and reports whether there is another
+// entry. It returns false when the iterator is exhausted; subsequent
+// calls to Key, Value, or Next will panic.
+func (it *MapIter) Next() bool {
+	if it.it == nil {
+		it.it = mapiterinit(it.m.typ, it.m.pointer())
+	} else {
+		if mapiterkey(it.it) == nil {
+			panic("MapIter.Next called on exhausted iterator")
+		}
+		mapiternext(it.it)
+	}
+	return mapiterkey(it.it) != nil
+}
+
+// MapRange returns a range iterator for a map.
+// It panics if v's Kind is not Map.
+//
+// Call Next to advance the iterator, and Key/Value to access each entry.
+// Next returns false when the iterator is exhausted.
+// MapRange follows the same iteration semantics as a range statement.
+//
+// Example:
+//
+//	iter := reflect.ValueOf(m).MapRange()
+// 	for iter.Next() {
+//		k := iter.Key()
+//		v := iter.Value()
+//		...
+//	}
+//
+func (v Value) MapRange() *MapIter {
+	v.mustBe(Map)
+	return &MapIter{m: v}
+}
+
+// copyVal returns a Value containing the map key or value at ptr,
+// allocating a new variable as needed.
+func copyVal(typ *rtype, fl flag, ptr unsafe.Pointer) Value {
+	if ifaceIndir(typ) {
+		// Copy result so future changes to the map
+		// won't change the underlying value.
+		c := unsafe_New(typ)
+		typedmemmove(typ, c, ptr)
+		return Value{typ, c, fl | flagIndir}
+	}
+	return Value{typ, *(*unsafe.Pointer)(ptr), fl}
 }
 
 // Method returns a function value corresponding to v's i'th method.
@@ -1078,7 +1147,7 @@ func overflowFloat32(x float64) bool {
 }
 
 // OverflowInt reports whether the int64 x cannot be represented by v's type.
-// It panics if v's Kind is not Int, Int8, int16, Int32, or Int64.
+// It panics if v's Kind is not Int, Int8, Int16, Int32, or Int64.
 func (v Value) OverflowInt(x int64) bool {
 	k := v.kind()
 	switch k {
@@ -1942,7 +2011,7 @@ func MakeSlice(typ Type, len, cap int) Value {
 	}
 
 	s := sliceHeader{unsafe_NewArray(typ.Elem().(*rtype), cap), len, cap}
-	return Value{typ.common(), unsafe.Pointer(&s), flagIndir | flag(Slice)}
+	return Value{typ.(*rtype), unsafe.Pointer(&s), flagIndir | flag(Slice)}
 }
 
 // MakeChan creates a new channel with the specified type and buffer size.
@@ -1956,8 +2025,9 @@ func MakeChan(typ Type, buffer int) Value {
 	if typ.ChanDir() != BothDir {
 		panic("reflect.MakeChan: unidirectional channel type")
 	}
-	ch := makechan(typ.(*rtype), buffer)
-	return Value{typ.common(), unsafe.Pointer(&ch), flag(Chan) | flagIndir}
+	t := typ.(*rtype)
+	ch := makechan(t, buffer)
+	return Value{t, unsafe.Pointer(&ch), flag(Chan) | flagIndir}
 }
 
 // MakeMap creates a new map with the specified type.
@@ -1971,8 +2041,9 @@ func MakeMapWithSize(typ Type, n int) Value {
 	if typ.Kind() != Map {
 		panic("reflect.MakeMapWithSize of non-map type")
 	}
-	m := makemap(typ.(*rtype), n)
-	return Value{typ.common(), unsafe.Pointer(&m), flag(Map) | flagIndir}
+	t := typ.(*rtype)
+	m := makemap(t, n)
+	return Value{t, unsafe.Pointer(&m), flag(Map) | flagIndir}
 }
 
 // Indirect returns the value that v points to.
@@ -2010,10 +2081,10 @@ func Zero(typ Type) Value {
 	if typ == nil {
 		panic("reflect: Zero(nil)")
 	}
-	t := typ.common()
+	t := typ.(*rtype)
 	fl := flag(t.Kind())
 	if ifaceIndir(t) {
-		return Value{t, unsafe_New(typ.(*rtype)), fl | flagIndir}
+		return Value{t, unsafe_New(t), fl | flagIndir}
 	}
 	return Value{t, nil, fl}
 }
@@ -2024,16 +2095,18 @@ func New(typ Type) Value {
 	if typ == nil {
 		panic("reflect: New(nil)")
 	}
-	ptr := unsafe_New(typ.(*rtype))
+	t := typ.(*rtype)
+	ptr := unsafe_New(t)
 	fl := flag(Ptr)
-	return Value{typ.common().ptrTo(), ptr, fl}
+	return Value{t.ptrTo(), ptr, fl}
 }
 
 // NewAt returns a Value representing a pointer to a value of the
 // specified type, using p as that pointer.
 func NewAt(typ Type, p unsafe.Pointer) Value {
 	fl := flag(Ptr)
-	return Value{typ.common().ptrTo(), p, fl}
+	t := typ.(*rtype)
+	return Value{t.ptrTo(), p, fl}
 }
 
 // assignTo returns a value v that can be assigned directly to typ.
@@ -2155,7 +2228,7 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 		return cvtDirect
 	}
 
-	// dst and src are unnamed pointer types with same underlying base type.
+	// dst and src are non-defined pointer types with same underlying base type.
 	if dst.Kind() == Ptr && dst.Name() == "" &&
 		src.Kind() == Ptr && src.Name() == "" &&
 		haveIdenticalUnderlyingType(dst.Elem().common(), src.Elem().common(), false) {
@@ -2391,13 +2464,22 @@ func mapiterinit(t *rtype, m unsafe.Pointer) unsafe.Pointer
 func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
 
 //go:noescape
+func mapitervalue(it unsafe.Pointer) (value unsafe.Pointer)
+
+//go:noescape
 func mapiternext(it unsafe.Pointer)
 
 //go:noescape
 func maplen(m unsafe.Pointer) int
-func call(typ *rtype, fnaddr unsafe.Pointer, isInterface bool, isMethod bool, params *unsafe.Pointer, results *unsafe.Pointer)
+
+//go:linkname call runtime.reflectcall
+func call(typ *funcType, fnaddr unsafe.Pointer, isInterface bool, isMethod bool, params *unsafe.Pointer, results *unsafe.Pointer)
 
 func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)
+
+// memmove copies size bytes to dst from src. No write barriers are used.
+//go:noescape
+func memmove(dst, src unsafe.Pointer, size uintptr)
 
 // typedmemmove copies a value of type t to dst from src.
 //go:noescape
@@ -2407,10 +2489,6 @@ func typedmemmove(t *rtype, dst, src unsafe.Pointer)
 // returning the number of elements copied.
 //go:noescape
 func typedslicecopy(elemType *rtype, dst, src sliceHeader) int
-
-//go:noescape
-//extern memmove
-func memmove(adst, asrc unsafe.Pointer, n uintptr)
 
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that

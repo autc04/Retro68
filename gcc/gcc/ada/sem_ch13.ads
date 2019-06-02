@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -42,7 +42,7 @@ package Sem_Ch13 is
    --  is the corresponding entity declared by the declaration node N. Callers
    --  should check that Has_Aspects (N) is True before calling this routine.
 
-   procedure Analyze_Aspect_Specifications_On_Body_Or_Stub (N : Node_Id);
+   procedure Analyze_Aspects_On_Subprogram_Body_Or_Stub (N : Node_Id);
    --  Analyze the aspect specifications of [generic] subprogram body or stub
    --  N. Callers should check that Has_Aspects (N) is True before calling the
    --  routine. This routine diagnoses misplaced aspects that should appear on
@@ -354,27 +354,10 @@ package Sem_Ch13 is
    --  for First, Next, and Has_Element. Optionally an Element primitive may
    --  also be defined.
 
-   -----------------------------------------------------------
-   --  Visibility of Discriminants in Aspect Specifications --
-   -----------------------------------------------------------
-
-   --  The discriminants of a type are visible when analyzing the aspect
-   --  specifications of a type declaration or protected type declaration,
-   --  but not when analyzing those of a subtype declaration. The following
-   --  routines enforce this distinction.
-
    procedure Install_Discriminants (E : Entity_Id);
    --  Make visible the discriminants of type entity E
 
-   procedure Push_Scope_And_Install_Discriminants (E : Entity_Id);
-   --  Push scope E and makes visible the discriminants of type entity E if E
-   --  has discriminants and is not a subtype.
-
    procedure Uninstall_Discriminants (E : Entity_Id);
    --  Remove visibility to the discriminants of type entity E
-
-   procedure Uninstall_Discriminants_And_Pop_Scope (E : Entity_Id);
-   --  Remove visibility to the discriminants of type entity E and pop the
-   --  scope stack if E has discriminants and is not a subtype.
 
 end Sem_Ch13;

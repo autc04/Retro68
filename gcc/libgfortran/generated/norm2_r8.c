@@ -1,5 +1,5 @@
 /* Implementation of the NORM2 intrinsic
-   Copyright (C) 2010-2018 Free Software Foundation, Inc.
+   Copyright (C) 2010-2019 Free Software Foundation, Inc.
    Contributed by Tobias Burnus  <burnus@net-b.de>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -53,10 +53,6 @@ norm2_r8 (gfc_array_r8 * const restrict retarray,
   index_type delta;
   index_type dim;
   int continue_loop;
-
-#ifdef HAVE_BACK_ARG
-  assert(back == 0);
-#endif
 
   /* Make dim zero based to avoid confusion.  */
   rank = GFC_DESCRIPTOR_RANK (array) - 1;
@@ -159,8 +155,10 @@ norm2_r8 (gfc_array_r8 * const restrict retarray,
 	  *dest = 0;
 	else
 	  {
+#if ! defined HAVE_BACK_ARG
 	    for (n = 0; n < len; n++, src += delta)
 	      {
+#endif
 
 	  if (*src != 0)
 	    {

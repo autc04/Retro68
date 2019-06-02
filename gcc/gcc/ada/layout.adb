@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -324,6 +324,16 @@ package body Layout is
            and then not Debug_Flag_6
          then
             Init_Size (E, 2 * System_Address_Size);
+
+         --  If unnesting subprograms, subprogram access types contain the
+         --  address of both the subprogram and an activation record. But if we
+         --  set that, we'll get a warning on different unchecked conversion
+         --  sizes in the RTS. So leave unset in that case.
+
+         elsif Unnest_Subprogram_Mode
+           and then Is_Access_Subprogram_Type (E)
+         then
+            null;
 
          --  Normal case of thin pointer
 

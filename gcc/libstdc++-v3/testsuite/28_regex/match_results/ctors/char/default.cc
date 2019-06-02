@@ -2,7 +2,7 @@
 
 // 2009-06-10  Stephen M. Webb  <stephen.webb@bregmasoft.com>
 //
-// Copyright (C) 2009-2018 Free Software Foundation, Inc.
+// Copyright (C) 2009-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -23,8 +23,9 @@
 
 #include <regex>
 #include <testsuite_hooks.h>
+#include <testsuite_common_types.h>
 
-// Tests default constructor of the match_result class.  
+// Tests default constructor of the match_result class.
 void test01()
 {
   std::cmatch cm;
@@ -43,10 +44,18 @@ void test02()
   VERIFY( sm.begin() == sm.end() ); // PR libstdc++/83600
 }
 
+void test03()
+{
+  // P0935R0
+  __gnu_test::implicitly_default_constructible test;
+  test.operator()<std::cmatch>();
+  test.operator()<std::smatch>();
+}
+
 int
 main()
-{ 
+{
   test01();
   test02();
-  return 0;
+  test03();
 }

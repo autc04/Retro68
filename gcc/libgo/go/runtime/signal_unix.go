@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd hurd linux netbsd openbsd solaris
 
 package runtime
 
@@ -112,6 +112,8 @@ func initsig(preinit bool) {
 			// set SA_ONSTACK if necessary.
 			if fwdSig[i] != _SIG_DFL && fwdSig[i] != _SIG_IGN {
 				setsigstack(i)
+			} else if fwdSig[i] == _SIG_IGN {
+				sigInitIgnored(i)
 			}
 			continue
 		}
@@ -140,8 +142,8 @@ func sigInstallGoHandler(sig uint32) bool {
 	}
 
 	// When built using c-archive or c-shared, only install signal
-	// handlers for synchronous signals and SIGPIPE.
-	if (isarchive || islibrary) && t.flags&_SigPanic == 0 && sig != _SIGPIPE {
+	// handlers for synchronous signals, SIGPIPE, and SIGURG.
+	if (isarchive || islibrary) && t.flags&_SigPanic == 0 && sig != _SIGPIPE && sig != _SIGURG {
 		return false
 	}
 
@@ -398,14 +400,6 @@ func dieFromSignal(sig uint32) {
 	osyield()
 	osyield()
 
-	// On Darwin we may still fail to die, because raise sends the
-	// signal to the whole process rather than just the current thread,
-	// and osyield just sleeps briefly rather than letting all other
-	// threads run. See issue 20315. Sleep longer.
-	if GOOS == "darwin" {
-		usleep(100)
-	}
-
 	// If we are still somehow running, just exit with the wrong status.
 	exit(2)
 }
@@ -444,7 +438,13 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 	// re-installing sighandler. At this point we can just
 	// return and the signal will be re-raised and caught by
 	// the default handler with the correct context.
-	if (isarchive || islibrary) && handler == _SIG_DFL && c.sigcode() != _SI_USER {
+	//
+	// On FreeBSD, the libthr sigaction code prevents
+	// this from working so we fall through to raise.
+	//
+	// The argument above doesn't hold for SIGPIPE, which won't
+	// necessarily be re-raised if we return.
+	if GOOS != "freebsd" && (isarchive || islibrary) && handler == _SIG_DFL && c.sigcode() != _SI_USER && sig != _SIGPIPE {
 		return
 	}
 
@@ -464,6 +464,7 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 	setsig(sig, getSigtramp())
 }
 
+//go:nosplit
 func crash() {
 	if GOOS == "darwin" {
 		// OS X core dumps are linear dumps of the mapped memory,
@@ -727,7 +728,7 @@ func unminitSignals() {
 	}
 }
 
-// blockableSig returns whether sig may be blocked by the signal mask.
+// blockableSig reports whether sig may be blocked by the signal mask.
 // We never want to block the signals marked _SigUnblock;
 // these are the synchronous signals that turn into a Go panic.
 // In a Go program--not a c-archive/c-shared--we never want to block

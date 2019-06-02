@@ -1009,6 +1009,7 @@ func TestIsNil(t *testing.T) {
 		struct{ x func() bool }{},
 		struct{ x chan int }{},
 		struct{ x []string }{},
+		struct{ x unsafe.Pointer }{},
 	}
 	for _, ts := range doNil {
 		ty := TypeOf(ts).Field(0).Type
@@ -1696,9 +1697,9 @@ func TestCallReturnsEmpty(t *testing.T) {
 	// nonzero-sized frame and zero-sized return value.
 	runtime.GC()
 	var finalized uint32
-	f := func() (emptyStruct, *int) {
-		i := new(int)
-		runtime.SetFinalizer(i, func(*int) { atomic.StoreUint32(&finalized, 1) })
+	f := func() (emptyStruct, *[2]int64) {
+		i := new([2]int64) // big enough to not be tinyalloc'd, so finalizer always runs when i dies
+		runtime.SetFinalizer(i, func(*[2]int64) { atomic.StoreUint32(&finalized, 1) })
 		return emptyStruct{}, i
 	}
 	v := ValueOf(f).Call(nil)[0] // out[0] should not alias out[1]'s memory, so the finalizer should run.
@@ -2536,9 +2537,9 @@ func TestFieldPkgPath(t *testing.T) {
 	}{})
 
 	type pkgpathTest struct {
-		index     []int
-		pkgPath   string
-		anonymous bool
+		index    []int
+		pkgPath  string
+		embedded bool
 	}
 
 	checkPkgPath := func(name string, s []pkgpathTest) {
@@ -2547,7 +2548,7 @@ func TestFieldPkgPath(t *testing.T) {
 			if got, want := f.PkgPath, test.pkgPath; got != want {
 				t.Errorf("%s: Field(%d).PkgPath = %q, want %q", name, test.index, got, want)
 			}
-			if got, want := f.Anonymous, test.anonymous; got != want {
+			if got, want := f.Anonymous, test.embedded; got != want {
 				t.Errorf("%s: Field(%d).Anonymous = %v, want %v", name, test.index, got, want)
 			}
 		}
@@ -3928,8 +3929,8 @@ func TestOverflow(t *testing.T) {
 	}
 }
 
-func checkSameType(t *testing.T, x, y interface{}) {
-	if TypeOf(x) != TypeOf(y) {
+func checkSameType(t *testing.T, x Type, y interface{}) {
+	if x != TypeOf(y) || TypeOf(Zero(x).Interface()) != TypeOf(y) {
 		t.Errorf("did not find preexisting type for %s (vs %s)", TypeOf(x), TypeOf(y))
 	}
 }
@@ -4058,7 +4059,7 @@ func TestArrayOf(t *testing.T) {
 
 	// check that type already in binary is found
 	type T int
-	checkSameType(t, Zero(ArrayOf(5, TypeOf(T(1)))).Interface(), [5]T{})
+	checkSameType(t, ArrayOf(5, TypeOf(T(1))), [5]T{})
 }
 
 func TestArrayOfGC(t *testing.T) {
@@ -4195,7 +4196,7 @@ func TestSliceOf(t *testing.T) {
 
 	// check that type already in binary is found
 	type T1 int
-	checkSameType(t, Zero(SliceOf(TypeOf(T1(1)))).Interface(), []T1{})
+	checkSameType(t, SliceOf(TypeOf(T1(1))), []T1{})
 }
 
 func TestSliceOverflow(t *testing.T) {
@@ -4410,7 +4411,18 @@ func TestStructOf(t *testing.T) {
 		})
 	})
 	// check that type already in binary is found
-	checkSameType(t, Zero(StructOf(fields[2:3])).Interface(), struct{ Y uint64 }{})
+	checkSameType(t, StructOf(fields[2:3]), struct{ Y uint64 }{})
+
+	// gccgo used to fail this test.
+	type structFieldType interface{}
+	checkSameType(t,
+		StructOf([]StructField{
+			StructField{
+				Name: "F",
+				Type: TypeOf((*structFieldType)(nil)).Elem(),
+			},
+		}),
+		struct{ F structFieldType }{})
 }
 
 func TestStructOfExportRules(t *testing.T) {
@@ -4822,7 +4834,20 @@ func (i StructI) Get() int { return int(i) }
 
 type StructIPtr int
 
-func (i *StructIPtr) Get() int { return int(*i) }
+func (i *StructIPtr) Get() int  { return int(*i) }
+func (i *StructIPtr) Set(v int) { *(*int)(i) = v }
+
+type SettableStruct struct {
+	SettableField int
+}
+
+func (p *SettableStruct) Set(v int) { p.SettableField = v }
+
+type SettablePointer struct {
+	SettableField *int
+}
+
+func (p *SettablePointer) Set(v int) { *p.SettableField = v }
 
 /*
 gccgo does not yet support StructOf with methods.
@@ -4831,6 +4856,9 @@ func TestStructOfWithInterface(t *testing.T) {
 	const want = 42
 	type Iface interface {
 		Get() int
+	}
+	type IfaceSet interface {
+		Set(int)
 	}
 	tests := []struct {
 		name string
@@ -4893,7 +4921,7 @@ func TestStructOfWithInterface(t *testing.T) {
 			})
 
 			// We currently do not correctly implement methods
-			// for anonymous fields other than the first.
+			// for embedded fields other than the first.
 			// Therefore, for now, we expect those methods
 			// to not exist.  See issues 15924 and 20824.
 			// When those issues are fixed, this test of panic
@@ -4939,8 +4967,93 @@ func TestStructOfWithInterface(t *testing.T) {
 			}
 		}
 	}
+
+	// Test an embedded nil pointer with pointer methods.
+	fields := []StructField{{
+		Name:      "StructIPtr",
+		Anonymous: true,
+		Type:      PtrTo(TypeOf(StructIPtr(want))),
+	}}
+	rt := StructOf(fields)
+	rv := New(rt).Elem()
+	// This should panic since the pointer is nil.
+	shouldPanic(func() {
+		rv.Interface().(IfaceSet).Set(want)
+	})
+
+	// Test an embedded nil pointer to a struct with pointer methods.
+
+	fields = []StructField{{
+		Name:      "SettableStruct",
+		Anonymous: true,
+		Type:      PtrTo(TypeOf(SettableStruct{})),
+	}}
+	rt = StructOf(fields)
+	rv = New(rt).Elem()
+	// This should panic since the pointer is nil.
+	shouldPanic(func() {
+		rv.Interface().(IfaceSet).Set(want)
+	})
+
+	// The behavior is different if there is a second field,
+	// since now an interface value holds a pointer to the struct
+	// rather than just holding a copy of the struct.
+	fields = []StructField{
+		{
+			Name:      "SettableStruct",
+			Anonymous: true,
+			Type:      PtrTo(TypeOf(SettableStruct{})),
+		},
+		{
+			Name:      "EmptyStruct",
+			Anonymous: true,
+			Type:      StructOf(nil),
+		},
+	}
+	// With the current implementation this is expected to panic.
+	// Ideally it should work and we should be able to see a panic
+	// if we call the Set method.
+	shouldPanic(func() {
+		StructOf(fields)
+	})
+
+	// Embed a field that can be stored directly in an interface,
+	// with a second field.
+	fields = []StructField{
+		{
+			Name:      "SettablePointer",
+			Anonymous: true,
+			Type:      TypeOf(SettablePointer{}),
+		},
+		{
+			Name:      "EmptyStruct",
+			Anonymous: true,
+			Type:      StructOf(nil),
+		},
+	}
+	// With the current implementation this is expected to panic.
+	// Ideally it should work and we should be able to call the
+	// Set and Get methods.
+	shouldPanic(func() {
+		StructOf(fields)
+	})
 }
 */
+
+func TestStructOfTooManyFields(t *testing.T) {
+	if runtime.Compiler == "gccgo" {
+		t.Skip("gccgo does not yet implement embedded fields with methods")
+	}
+
+	// Bug Fix: #25402 - this should not panic
+	tt := StructOf([]StructField{
+		{Name: "Time", Type: TypeOf(time.Time{}), Anonymous: true},
+	})
+
+	if _, present := tt.MethodByName("After"); !present {
+		t.Errorf("Expected method `After` to be found")
+	}
+}
 
 func TestChanOf(t *testing.T) {
 	// check construction and use of type not in binary
@@ -4963,7 +5076,7 @@ func TestChanOf(t *testing.T) {
 
 	// check that type already in binary is found
 	type T1 int
-	checkSameType(t, Zero(ChanOf(BothDir, TypeOf(T1(1)))).Interface(), (chan T1)(nil))
+	checkSameType(t, ChanOf(BothDir, TypeOf(T1(1))), (chan T1)(nil))
 }
 
 func TestChanOfDir(t *testing.T) {
@@ -4974,8 +5087,8 @@ func TestChanOfDir(t *testing.T) {
 
 	// check that type already in binary is found
 	type T1 int
-	checkSameType(t, Zero(ChanOf(RecvDir, TypeOf(T1(1)))).Interface(), (<-chan T1)(nil))
-	checkSameType(t, Zero(ChanOf(SendDir, TypeOf(T1(1)))).Interface(), (chan<- T1)(nil))
+	checkSameType(t, ChanOf(RecvDir, TypeOf(T1(1))), (<-chan T1)(nil))
+	checkSameType(t, ChanOf(SendDir, TypeOf(T1(1))), (chan<- T1)(nil))
 
 	// check String form of ChanDir
 	if crt.ChanDir().String() != "<-chan" {
@@ -5051,7 +5164,7 @@ func TestMapOf(t *testing.T) {
 	}
 
 	// check that type already in binary is found
-	checkSameType(t, Zero(MapOf(TypeOf(V(0)), TypeOf(K("")))).Interface(), map[V]K(nil))
+	checkSameType(t, MapOf(TypeOf(V(0)), TypeOf(K(""))), map[V]K(nil))
 
 	// check that invalid key type panics
 	shouldPanic(func() { MapOf(TypeOf((func())(nil)), TypeOf(false)) })
@@ -5181,7 +5294,7 @@ func TestFuncOf(t *testing.T) {
 		{in: []Type{TypeOf(int(0))}, out: []Type{TypeOf(false), TypeOf("")}, want: (func(int) (bool, string))(nil)},
 	}
 	for _, tt := range testCases {
-		checkSameType(t, Zero(FuncOf(tt.in, tt.out, tt.variadic)).Interface(), tt.want)
+		checkSameType(t, FuncOf(tt.in, tt.out, tt.variadic), tt.want)
 	}
 
 	// check that variadic requires last element be a slice.
@@ -5767,7 +5880,7 @@ func clobber() {
 type funcLayoutTest struct {
 	rcvr, t                  Type
 	size, argsize, retOffset uintptr
-	stack                    []byte // pointer bitmap: 1 is pointer, 0 is scalar (or uninitialized)
+	stack                    []byte // pointer bitmap: 1 is pointer, 0 is scalar
 	gc                       []byte
 }
 
@@ -5789,7 +5902,7 @@ func init() {
 			6 * PtrSize,
 			4 * PtrSize,
 			4 * PtrSize,
-			[]byte{1, 0, 1},
+			[]byte{1, 0, 1, 0, 1},
 			[]byte{1, 0, 1, 0, 1},
 		})
 
@@ -5912,7 +6025,8 @@ func TestFuncLayout(t *testing.T) {
 func verifyGCBits(t *testing.T, typ Type, bits []byte) {
 	heapBits := GCBits(New(typ).Interface())
 	if !bytes.Equal(heapBits, bits) {
-		t.Errorf("heapBits incorrect for %v\nhave %v\nwant %v", typ, heapBits, bits)
+		_, _, line, _ := runtime.Caller(1)
+		t.Errorf("line %d: heapBits incorrect for %v\nhave %v\nwant %v", line, typ, heapBits, bits)
 	}
 }
 
@@ -6512,4 +6626,125 @@ func TestIssue22073(t *testing.T) {
 
 	// Shouldn't panic.
 	m.Call(nil)
+}
+
+func TestMapIterNonEmptyMap(t *testing.T) {
+	m := map[string]int{"one": 1, "two": 2, "three": 3}
+	iter := ValueOf(m).MapRange()
+	if got, want := iterateToString(iter), `[one: 1, three: 3, two: 2]`; got != want {
+		t.Errorf("iterator returned %s (after sorting), want %s", got, want)
+	}
+}
+
+func TestMapIterNilMap(t *testing.T) {
+	var m map[string]int
+	iter := ValueOf(m).MapRange()
+	if got, want := iterateToString(iter), `[]`; got != want {
+		t.Errorf("non-empty result iteratoring nil map: %s", got)
+	}
+}
+
+func TestMapIterSafety(t *testing.T) {
+	// Using a zero MapIter causes a panic, but not a crash.
+	func() {
+		defer func() { recover() }()
+		new(MapIter).Key()
+		t.Fatal("Key did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		new(MapIter).Value()
+		t.Fatal("Value did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		new(MapIter).Next()
+		t.Fatal("Next did not panic")
+	}()
+
+	// Calling Key/Value on a MapIter before Next
+	// causes a panic, but not a crash.
+	var m map[string]int
+	iter := ValueOf(m).MapRange()
+
+	func() {
+		defer func() { recover() }()
+		iter.Key()
+		t.Fatal("Key did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		iter.Value()
+		t.Fatal("Value did not panic")
+	}()
+
+	// Calling Next, Key, or Value on an exhausted iterator
+	// causes a panic, but not a crash.
+	iter.Next() // -> false
+	func() {
+		defer func() { recover() }()
+		iter.Key()
+		t.Fatal("Key did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		iter.Value()
+		t.Fatal("Value did not panic")
+	}()
+	func() {
+		defer func() { recover() }()
+		iter.Next()
+		t.Fatal("Next did not panic")
+	}()
+}
+
+func TestMapIterNext(t *testing.T) {
+	// The first call to Next should reflect any
+	// insertions to the map since the iterator was created.
+	m := map[string]int{}
+	iter := ValueOf(m).MapRange()
+	m["one"] = 1
+	if got, want := iterateToString(iter), `[one: 1]`; got != want {
+		t.Errorf("iterator returned deleted elements: got %s, want %s", got, want)
+	}
+}
+
+func TestMapIterDelete0(t *testing.T) {
+	// Delete all elements before first iteration.
+	m := map[string]int{"one": 1, "two": 2, "three": 3}
+	iter := ValueOf(m).MapRange()
+	delete(m, "one")
+	delete(m, "two")
+	delete(m, "three")
+	if got, want := iterateToString(iter), `[]`; got != want {
+		t.Errorf("iterator returned deleted elements: got %s, want %s", got, want)
+	}
+}
+
+func TestMapIterDelete1(t *testing.T) {
+	// Delete all elements after first iteration.
+	m := map[string]int{"one": 1, "two": 2, "three": 3}
+	iter := ValueOf(m).MapRange()
+	var got []string
+	for iter.Next() {
+		got = append(got, fmt.Sprint(iter.Key(), iter.Value()))
+		delete(m, "one")
+		delete(m, "two")
+		delete(m, "three")
+	}
+	if len(got) != 1 {
+		t.Errorf("iterator returned wrong number of elements: got %d, want 1", len(got))
+	}
+}
+
+// iterateToString returns the set of elements
+// returned by an iterator in readable form.
+func iterateToString(it *MapIter) string {
+	var got []string
+	for it.Next() {
+		line := fmt.Sprintf("%v: %v", it.Key(), it.Value())
+		got = append(got, line)
+	}
+	sort.Strings(got)
+	return "[" + strings.Join(got, ", ") + "]"
 }

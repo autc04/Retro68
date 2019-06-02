@@ -1,5 +1,5 @@
 /* Unit tests for function-handling.
-   Copyright (C) 2015-2018 Free Software Foundation, Inc.
+   Copyright (C) 2015-2019 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -661,6 +661,7 @@ test_expansion_to_rtl ()
   ASSERT_STR_CONTAINS (dump, ") ;; function \"test_fn\"\n");
 
   free (dump);
+  free_after_compilation (fun);
 }
 
 /* Run all of the selftests within this file.  */

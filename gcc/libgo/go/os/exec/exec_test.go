@@ -146,11 +146,11 @@ func TestCatGoodAndBadFile(t *testing.T) {
 	}
 }
 
-func TestNoExistBinary(t *testing.T) {
-	// Can't run a non-existent binary
-	err := exec.Command("/no-exist-binary").Run()
+func TestNoExistExecutable(t *testing.T) {
+	// Can't run a non-existent executable
+	err := exec.Command("/no-exist-executable").Run()
 	if err == nil {
-		t.Error("expected error from /no-exist-binary")
+		t.Error("expected error from /no-exist-executable")
 	}
 }
 
@@ -169,6 +169,58 @@ func TestExitStatus(t *testing.T) {
 		}
 	} else {
 		t.Fatalf("expected *exec.ExitError from exit 42; got %T: %v", err, err)
+	}
+}
+
+func TestExitCode(t *testing.T) {
+	// Test that exit code are returned correctly
+	cmd := helperCommand(t, "exit", "42")
+	cmd.Run()
+	want := 42
+	if runtime.GOOS == "plan9" {
+		want = 1
+	}
+	got := cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+
+	cmd = helperCommand(t, "/no-exist-executable")
+	cmd.Run()
+	want = 2
+	if runtime.GOOS == "plan9" {
+		want = 1
+	}
+	got = cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+
+	cmd = helperCommand(t, "exit", "255")
+	cmd.Run()
+	want = 255
+	if runtime.GOOS == "plan9" {
+		want = 1
+	}
+	got = cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+
+	cmd = helperCommand(t, "cat")
+	cmd.Run()
+	want = 0
+	got = cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
+	}
+
+	// Test when command does not call Run().
+	cmd = helperCommand(t, "cat")
+	want = -1
+	got = cmd.ProcessState.ExitCode()
+	if want != got {
+		t.Errorf("ExitCode got %d, want %d", got, want)
 	}
 }
 
@@ -338,7 +390,7 @@ func TestPipeLookPathLeak(t *testing.T) {
 	}
 
 	for i := 0; i < 6; i++ {
-		cmd := exec.Command("something-that-does-not-exist-binary")
+		cmd := exec.Command("something-that-does-not-exist-executable")
 		cmd.StdoutPipe()
 		cmd.StderrPipe()
 		cmd.StdinPipe()
@@ -408,6 +460,12 @@ var testedAlreadyLeaked = false
 // stdin, stdout, stderr, epoll/kqueue, maybe testlog
 func basefds() uintptr {
 	n := os.Stderr.Fd() + 1
+	// The poll (epoll/kqueue) descriptor can be numerically
+	// either between stderr and the testlog-fd, or after
+	// testlog-fd.
+	if poll.IsPollDescriptor(n) {
+		n++
+	}
 	for _, arg := range os.Args {
 		if strings.HasPrefix(arg, "-test.testlogfile=") {
 			n++
@@ -418,7 +476,7 @@ func basefds() uintptr {
 
 func closeUnexpectedFds(t *testing.T, m string) {
 	for fd := basefds(); fd <= 101; fd++ {
-		if fd == poll.PollDescriptor() {
+		if poll.IsPollDescriptor(fd) {
 			continue
 		}
 		err := os.NewFile(fd, "").Close()
@@ -680,6 +738,8 @@ func TestHelperProcess(*testing.T) {
 		ofcmd = "fstat"
 	case "plan9":
 		ofcmd = "/bin/cat"
+	case "aix":
+		ofcmd = "procfiles"
 	}
 
 	args := os.Args
@@ -783,7 +843,7 @@ func TestHelperProcess(*testing.T) {
 			// Now verify that there are no other open fds.
 			var files []*os.File
 			for wantfd := basefds() + 1; wantfd <= 100; wantfd++ {
-				if wantfd == poll.PollDescriptor() {
+				if poll.IsPollDescriptor(wantfd) {
 					continue
 				}
 				f, err := os.Open(os.Args[0])
@@ -797,6 +857,8 @@ func TestHelperProcess(*testing.T) {
 					switch runtime.GOOS {
 					case "plan9":
 						args = []string{fmt.Sprintf("/proc/%d/fd", os.Getpid())}
+					case "aix":
+						args = []string{fmt.Sprint(os.Getpid())}
 					default:
 						args = []string{"-p", fmt.Sprint(os.Getpid())}
 					}
@@ -1009,9 +1071,6 @@ func TestContext(t *testing.T) {
 }
 
 func TestContextCancel(t *testing.T) {
-	if testenv.Builder() == "windows-386-xp" {
-		t.Skipf("known to fail on Windows XP. Issue 17245")
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	c := helperCommandContext(t, ctx, "cat")

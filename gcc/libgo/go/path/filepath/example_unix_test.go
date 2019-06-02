@@ -8,7 +8,6 @@ package filepath_test
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 )
 
@@ -80,24 +79,18 @@ func ExampleJoin() {
 	// a/b/c
 	// a/b/c
 }
-func ExampleWalk() {
-	dir := "dir/to/walk"
-	subDirToSkip := "skip" // dir/to/walk/skip
 
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", dir, err)
-			return err
-		}
-		if info.IsDir() && info.Name() == subDirToSkip {
-			fmt.Printf("skipping a dir without errors: %+v \n", info.Name())
-			return filepath.SkipDir
-		}
-		fmt.Printf("visited file: %q\n", path)
-		return nil
-	})
+func ExampleMatch() {
+	fmt.Println("On Unix:")
+	fmt.Println(filepath.Match("/home/catch/*", "/home/catch/foo"))
+	fmt.Println(filepath.Match("/home/catch/*", "/home/catch/foo/bar"))
+	fmt.Println(filepath.Match("/home/?opher", "/home/gopher"))
+	fmt.Println(filepath.Match("/home/\\*", "/home/*"))
 
-	if err != nil {
-		fmt.Printf("error walking the path %q: %v\n", dir, err)
-	}
+	// Output:
+	// On Unix:
+	// true <nil>
+	// false <nil>
+	// true <nil>
+	// true <nil>
 }

@@ -1,6 +1,6 @@
 // Iterators -*- C++ -*-
 
-// Copyright (C) 2001-2018 Free Software Foundation, Inc.
+// Copyright (C) 2001-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -65,6 +65,10 @@
 #include <bits/move.h>
 #include <bits/ptr_traits.h>
 
+#if __cplusplus >= 201103L
+# include <type_traits>
+#endif
+
 #if __cplusplus > 201402L
 # define __cpp_lib_array_constexpr 201603
 #endif
@@ -122,6 +126,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       */
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // 235 No specification of default ctor for reverse_iterator
+      // 1012. reverse_iterator default ctor should value initialize
       _GLIBCXX17_CONSTEXPR
       reverse_iterator() : current() { }
 
@@ -137,6 +142,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _GLIBCXX17_CONSTEXPR
       reverse_iterator(const reverse_iterator& __x)
       : current(__x.current) { }
+
+#if __cplusplus >= 201103L
+      reverse_iterator& operator=(const reverse_iterator&) = default;
+#endif
 
       /**
        *  A %reverse_iterator across other types can be copied if the
@@ -178,7 +187,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       */
       _GLIBCXX17_CONSTEXPR pointer
       operator->() const
-      { return &(operator*()); }
+      {
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 1052. operator-> should also support smart pointers
+	_Iterator __tmp = current;
+	--__tmp;
+	return _S_to_pointer(__tmp);
+      }
 
       /**
        *  @return  @c *this
@@ -282,6 +297,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       _GLIBCXX17_CONSTEXPR reference
       operator[](difference_type __n) const
       { return *(*this + __n); }
+
+    private:
+      template<typename _Tp>
+	static _GLIBCXX17_CONSTEXPR _Tp*
+	_S_to_pointer(_Tp* __p)
+        { return __p; }
+
+      template<typename _Tp>
+	static _GLIBCXX17_CONSTEXPR pointer
+	_S_to_pointer(_Tp __t)
+        { return __t.operator->(); }
     };
 
   //@{
@@ -399,7 +425,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     { return reverse_iterator<_Iterator>(__x.base() - __n); }
 
 #if __cplusplus >= 201103L
-  // Same as C++14 make_reverse_iterator but used in C++03 mode too.
+  // Same as C++14 make_reverse_iterator but used in C++11 mode too.
   template<typename _Iterator>
     inline _GLIBCXX17_CONSTEXPR reverse_iterator<_Iterator>
     __make_reverse_iterator(_Iterator __i)
@@ -982,6 +1008,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _Iterator, typename _Container>
     _Iterator
     __niter_base(__gnu_cxx::__normal_iterator<_Iterator, _Container> __it)
+    _GLIBCXX_NOEXCEPT_IF(std::is_nothrow_copy_constructible<_Iterator>::value)
     { return __it.base(); }
 
 #if __cplusplus >= 201103L

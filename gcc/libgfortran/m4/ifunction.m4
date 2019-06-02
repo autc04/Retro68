@@ -41,10 +41,6 @@ name`'rtype_qual`_'atype_code` ('rtype` * const restrict retarray,
   index_type dim;
   int continue_loop;
 
-#ifdef HAVE_BACK_ARG
-  assert(back == 0);
-#endif
-
   /* Make dim zero based to avoid confusion.  */
   rank = GFC_DESCRIPTOR_RANK (array) - 1;
   dim = (*pdim) - 1;
@@ -144,8 +140,10 @@ define(START_ARRAY_BLOCK,
 	  *dest = '$1`;
 	else
 	  {
+#if ! defined HAVE_BACK_ARG
 	    for (n = 0; n < len; n++, src += delta)
 	      {
+#endif
 ')dnl
 define(FINISH_ARRAY_FUNCTION,
 `	      }
@@ -212,9 +210,16 @@ m'name`'rtype_qual`_'atype_code` ('rtype` * const restrict retarray,
   index_type mdelta;
   int mask_kind;
 
+  if (mask == NULL)
+    {
 #ifdef HAVE_BACK_ARG
-  assert (back == 0);
+      name`'rtype_qual`_'atype_code (retarray, array, pdim, back);
+#else
+      name`'rtype_qual`_'atype_code (retarray, array, pdim);
 #endif
+      return;
+    }
+
   dim = (*pdim) - 1;
   rank = GFC_DESCRIPTOR_RANK (array) - 1;
 
@@ -393,7 +398,7 @@ void
   index_type dim;
 
 
-  if (*mask)
+  if (mask == NULL || *mask)
     {
 #ifdef HAVE_BACK_ARG
       name`'rtype_qual`_'atype_code (retarray, array, pdim, back);

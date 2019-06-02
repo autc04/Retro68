@@ -43,6 +43,13 @@ func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
 		return
 	}
 
+	// It's OK if writing to memory allocated by persistentalloc.
+	// Do this check last because it is more expensive and rarely true.
+	// If it is false the expense doesn't matter since we are crashing.
+	if inPersistentAlloc(uintptr(unsafe.Pointer(dst))) {
+		return
+	}
+
 	systemstack(func() {
 		println("write of Go pointer", hex(src), "to non-Go memory", hex(uintptr(unsafe.Pointer(dst))))
 		throw(cgoWriteBarrierFail)
@@ -126,10 +133,8 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
 		roots = roots.next
 	}
 
-	aoff := uintptr(src) - mheap_.arena_start
-	idx := aoff >> _PageShift
-	s := mheap_.spans[idx]
-	if s.state == _MSpanManual {
+	s := spanOfUnchecked(uintptr(src))
+	if s.state == mSpanManual {
 		// There are no heap bits for value stored on the stack.
 		// For a channel receive src might be on the stack of some
 		// other goroutine, so we can't unwind the stack even if
@@ -151,9 +156,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
 		if i >= off && bits&bitPointer != 0 {
 			v := *(*unsafe.Pointer)(add(src, i))
 			if cgoIsGoPointer(v) {
-				systemstack(func() {
-					throw(cgoWriteBarrierFail)
-				})
+				throw(cgoWriteBarrierFail)
 			}
 		}
 		hbits = hbits.next()
@@ -186,9 +189,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
 			if bits&1 != 0 {
 				v := *(*unsafe.Pointer)(add(src, i))
 				if cgoIsGoPointer(v) {
-					systemstack(func() {
-						throw(cgoWriteBarrierFail)
-					})
+					throw(cgoWriteBarrierFail)
 				}
 			}
 		}

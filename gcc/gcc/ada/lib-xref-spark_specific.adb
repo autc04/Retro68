@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2011-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 2011-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -168,9 +168,9 @@ package body SPARK_Specific is
       end loop;
    end Iterate_SPARK_Xrefs;
 
-   -------------------------------------
-   -- Enclosing_Subprogram_Or_Package --
-   -------------------------------------
+   ---------------------------------------------
+   -- Enclosing_Subprogram_Or_Library_Package --
+   ---------------------------------------------
 
    function Enclosing_Subprogram_Or_Library_Package
      (N : Node_Id) return Entity_Id
@@ -228,7 +228,18 @@ package body SPARK_Specific is
                end loop;
 
                if Nkind (Context) = N_Pragma then
-                  Context := Parent (Context);
+
+                  --  When used for cross-references then aspects might not be
+                  --  yet linked to pragmas; when used for AST navigation in
+                  --  GNATprove this routine is expected to follow those links.
+
+                  if From_Aspect_Specification (Context) then
+                     Context := Corresponding_Aspect (Context);
+                     pragma Assert (Nkind (Context) = N_Aspect_Specification);
+                     Context := Entity (Context);
+                  else
+                     Context := Parent (Context);
+                  end if;
                end if;
 
             when N_Entry_Body
@@ -287,6 +298,7 @@ package body SPARK_Specific is
 
          Set_Ekind       (Heap, E_Variable);
          Set_Is_Internal (Heap, True);
+         Set_Scope       (Heap, Standard_Standard);
          Set_Has_Fully_Qualified_Name (Heap);
       end Create_Heap;
 

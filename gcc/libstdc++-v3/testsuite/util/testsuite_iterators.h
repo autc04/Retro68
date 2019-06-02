@@ -1,7 +1,7 @@
 // -*- C++ -*-
 // Iterator Wrappers for the C++ library testsuite.
 //
-// Copyright (C) 2004-2018 Free Software Foundation, Inc.
+// Copyright (C) 2004-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -185,6 +185,11 @@ namespace __gnu_test
     void operator,(const T&, const output_iterator_wrapper<U>&) = delete;
 #endif
 
+  template<typename T> struct remove_cv { typedef T type; };
+  template<typename T> struct remove_cv<const T> { typedef T type; };
+  template<typename T> struct remove_cv<volatile T> { typedef T type; };
+  template<typename T> struct remove_cv<const volatile T> { typedef T type; };
+
   /**
    * @brief input_iterator wrapper for pointer
    *
@@ -194,7 +199,8 @@ namespace __gnu_test
    */
   template<class T>
   class input_iterator_wrapper
-  : public std::iterator<std::input_iterator_tag, T, std::ptrdiff_t, T*, T&>
+  : public std::iterator<std::input_iterator_tag, typename remove_cv<T>::type,
+			 std::ptrdiff_t, T*, T&>
   {
   protected:
     input_iterator_wrapper()

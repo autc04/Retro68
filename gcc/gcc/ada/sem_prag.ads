@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -397,6 +397,7 @@ package Sem_Prag is
    --    Extensions_Visible
    --    Global
    --    Initializes
+   --    Max_Entry_Queue_Depth
    --    Max_Queue_Length
    --    Post
    --    Post_Class

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1998-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1998-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -666,7 +666,7 @@ package body Lib.Xref is
 
       --  Do not generate references if we are within a postcondition sub-
       --  program, because the reference does not comes from source, and the
-      --  pre-analysis of the aspect has already created an entry for the ALI
+      --  preanalysis of the aspect has already created an entry for the ALI
       --  file at the proper source location.
 
       if Chars (Current_Scope) = Name_uPostconditions then
@@ -1034,7 +1034,7 @@ package body Lib.Xref is
          --  parameters may end up being marked as not coming from source
          --  although they are. Take these into account specially.
 
-         elsif GNATprove_Mode and then Ekind (E) in Formal_Kind then
+         elsif GNATprove_Mode and then Is_Formal (E) then
             Ent := E;
 
          --  Entity does not come from source, but is a derived subprogram and

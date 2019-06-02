@@ -19,6 +19,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/math"
 	"unsafe"
 )
 
@@ -88,7 +89,8 @@ func makechan(t *chantype, size int) *hchan {
 		throw("makechan: bad alignment")
 	}
 
-	if size < 0 || uintptr(size) > maxSliceCap(elem.size) || uintptr(size)*elem.size > _MaxMem-hchanSize {
+	mem, overflow := math.MulUintptr(elem.size, uintptr(size))
+	if overflow || mem > maxAlloc-hchanSize || size < 0 {
 		panic(plainError("makechan: size out of range"))
 	}
 
@@ -98,20 +100,20 @@ func makechan(t *chantype, size int) *hchan {
 	// TODO(dvyukov,rlh): Rethink when collector can move allocated objects.
 	var c *hchan
 	switch {
-	case size == 0 || elem.size == 0:
+	case mem == 0:
 		// Queue or element size is zero.
 		c = (*hchan)(mallocgc(hchanSize, nil, true))
 		// Race detector uses this location for synchronization.
-		c.buf = unsafe.Pointer(c)
+		c.buf = c.raceaddr()
 	case elem.kind&kindNoPointers != 0:
 		// Elements do not contain pointers.
 		// Allocate hchan and buf in one call.
-		c = (*hchan)(mallocgc(hchanSize+uintptr(size)*elem.size, nil, true))
+		c = (*hchan)(mallocgc(hchanSize+mem, nil, true))
 		c.buf = add(unsafe.Pointer(c), hchanSize)
 	default:
 		// Elements contain pointers.
 		c = new(hchan)
-		c.buf = mallocgc(uintptr(size)*elem.size, elem, true)
+		c.buf = mallocgc(mem, elem, true)
 	}
 
 	c.elemsize = uint16(elem.size)
@@ -157,7 +159,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 		if !block {
 			return false
 		}
-		gopark(nil, nil, "chan send (nil chan)", traceEvGoStop, 2)
+		gopark(nil, nil, waitReasonChanSendNilChan, traceEvGoStop, 2)
 		throw("unreachable")
 	}
 
@@ -166,7 +168,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	}
 
 	if raceenabled {
-		racereadpc(unsafe.Pointer(c), callerpc, funcPC(chansend))
+		racereadpc(c.raceaddr(), callerpc, funcPC(chansend))
 	}
 
 	// Fast path: check for failed non-blocking operation without acquiring the lock.
@@ -246,7 +248,12 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	gp.waiting = mysg
 	gp.param = nil
 	c.sendq.enqueue(mysg)
-	goparkunlock(&c.lock, "chan send", traceEvGoBlockSend, 3)
+	goparkunlock(&c.lock, waitReasonChanSend, traceEvGoBlockSend, 3)
+	// Ensure the value being sent is kept alive until the
+	// receiver copies it out. The sudog has a pointer to the
+	// stack object, but sudogs aren't considered as roots of the
+	// stack tracer.
+	KeepAlive(ep)
 
 	// someone woke us up.
 	if mysg != gp.waiting {
@@ -325,6 +332,8 @@ func sendDirect(t *_type, sg *sudog, src unsafe.Pointer) {
 	// So make sure that no preemption points can happen between read & use.
 	dst := sg.elem
 	typeBitsBulkBarrier(t, uintptr(dst), uintptr(src), t.size)
+	// No need for cgo write barrier checks because dst is always
+	// Go memory.
 	memmove(dst, src, t.size)
 }
 
@@ -350,13 +359,13 @@ func closechan(c *hchan) {
 
 	if raceenabled {
 		callerpc := getcallerpc()
-		racewritepc(unsafe.Pointer(c), callerpc, funcPC(closechan))
-		racerelease(unsafe.Pointer(c))
+		racewritepc(c.raceaddr(), callerpc, funcPC(closechan))
+		racerelease(c.raceaddr())
 	}
 
 	c.closed = 1
 
-	var glist *g
+	var glist gList
 
 	// release all readers
 	for {
@@ -374,10 +383,9 @@ func closechan(c *hchan) {
 		gp := sg.g
 		gp.param = nil
 		if raceenabled {
-			raceacquireg(gp, unsafe.Pointer(c))
+			raceacquireg(gp, c.raceaddr())
 		}
-		gp.schedlink.set(glist)
-		glist = gp
+		glist.push(gp)
 	}
 
 	// release all writers (they will panic)
@@ -393,17 +401,15 @@ func closechan(c *hchan) {
 		gp := sg.g
 		gp.param = nil
 		if raceenabled {
-			raceacquireg(gp, unsafe.Pointer(c))
+			raceacquireg(gp, c.raceaddr())
 		}
-		gp.schedlink.set(glist)
-		glist = gp
+		glist.push(gp)
 	}
 	unlock(&c.lock)
 
 	// Ready all Gs now that we've dropped the channel lock.
-	for glist != nil {
-		gp := glist
-		glist = glist.schedlink.ptr()
+	for !glist.empty() {
+		gp := glist.pop()
 		gp.schedlink = 0
 		goready(gp, 3)
 	}
@@ -444,7 +450,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		if !block {
 			return
 		}
-		gopark(nil, nil, "chan receive (nil chan)", traceEvGoStop, 2)
+		gopark(nil, nil, waitReasonChanReceiveNilChan, traceEvGoStop, 2)
 		throw("unreachable")
 	}
 
@@ -475,7 +481,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 
 	if c.closed != 0 && c.qcount == 0 {
 		if raceenabled {
-			raceacquire(unsafe.Pointer(c))
+			raceacquire(c.raceaddr())
 		}
 		unlock(&c.lock)
 		if ep != nil {
@@ -535,7 +541,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	mysg.c = c
 	gp.param = nil
 	c.recvq.enqueue(mysg)
-	goparkunlock(&c.lock, "chan receive", traceEvGoBlockRecv, 3)
+	goparkunlock(&c.lock, waitReasonChanReceive, traceEvGoBlockRecv, 3)
 
 	// someone woke us up
 	if mysg != gp.waiting {
@@ -751,6 +757,15 @@ func (q *waitq) dequeue() *sudog {
 
 		return sgp
 	}
+}
+
+func (c *hchan) raceaddr() unsafe.Pointer {
+	// Treat read-like and write-like operations on the channel to
+	// happen at this address. Avoid using the address of qcount
+	// or dataqsiz, because the len() and cap() builtins read
+	// those addresses, and we don't want them racing with
+	// operations like close().
+	return unsafe.Pointer(&c.buf)
 }
 
 func racesync(c *hchan, sg *sudog) {

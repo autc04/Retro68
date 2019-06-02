@@ -1,8 +1,8 @@
-// { dg-options "-std=gnu++17 -lstdc++fs" }
+// { dg-options "-std=gnu++17" }
 // { dg-do run { target c++17 } }
 // { dg-require-filesystem-ts "" }
 
-// Copyright (C) 2014-2018 Free Software Foundation, Inc.
+// Copyright (C) 2014-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -31,12 +31,32 @@ void
 test01()
 {
   for (const path& p : __gnu_test::test_paths)
-    VERIFY( absolute(p).is_absolute() );
+  {
+    std::error_code ec;
+    path abs = absolute(p, ec);
+    VERIFY( ec || abs.is_absolute() );
+  }
 }
 
 void
 test02()
 {
+  std::error_code ec = make_error_code(std::errc::invalid_argument);
+  path root = __gnu_test::root_path();
+  VERIFY( absolute(root) == root );
+  VERIFY( absolute(root, ec) == root && !ec );
+  VERIFY( absolute(path{}, ec).empty() && ec );
+
+#if defined(__MINGW32__) || defined(__MINGW64__)
+  path p1("/");
+  VERIFY( absolute(p1) != p1 );
+  path p2("/foo");
+  VERIFY( absolute(p2) != p2 );
+  path p3("foo");
+  VERIFY( absolute(p3) != p3 );
+  path p4("C:\\");
+  VERIFY( absolute(p4) == p4 );
+#else
   path p1("/");
   VERIFY( absolute(p1) == p1 );
   path p2("/foo");
@@ -44,6 +64,7 @@ test02()
   path p3("foo");
   VERIFY( absolute(p3) != p3 );
   VERIFY( absolute(p3) == (std::filesystem::current_path()/p3) );
+#endif
 }
 
 int

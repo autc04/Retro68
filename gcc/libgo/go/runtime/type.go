@@ -20,10 +20,28 @@ type _type struct {
 	hashfn  func(unsafe.Pointer, uintptr) uintptr
 	equalfn func(unsafe.Pointer, unsafe.Pointer) bool
 
-	gcdata *byte
-	string *string
+	gcdata  *byte
+	_string *string
 	*uncommontype
 	ptrToThis *_type
+}
+
+func (t *_type) string() string {
+	return *t._string
+}
+
+// pkgpath returns the path of the package where t was defined, if
+// available. This is not the same as the reflect package's PkgPath
+// method, in that it returns the package path for struct and interface
+// types, not just named types.
+func (t *_type) pkgpath() string {
+	if u := t.uncommontype; u != nil {
+		if u.pkgPath == nil {
+			return ""
+		}
+		return *u.pkgPath
+	}
+	return ""
 }
 
 // Return whether two type descriptors are equal.
@@ -38,7 +56,7 @@ func eqtype(t1, t2 *_type) bool {
 	case t1.kind != t2.kind || t1.hash != t2.hash:
 		return false
 	default:
-		return *t1.string == *t2.string
+		return t1.string() == t2.string()
 	}
 }
 
@@ -68,18 +86,32 @@ type interfacetype struct {
 }
 
 type maptype struct {
-	typ           _type
-	key           *_type
-	elem          *_type
-	bucket        *_type // internal type representing a hash bucket
-	hmap          *_type // internal type representing a hmap
-	keysize       uint8  // size of key slot
-	indirectkey   bool   // store ptr to key instead of key itself
-	valuesize     uint8  // size of value slot
-	indirectvalue bool   // store ptr to value instead of value itself
-	bucketsize    uint16 // size of bucket
-	reflexivekey  bool   // true if k==k for all keys
-	needkeyupdate bool   // true if we need to update key on an overwrite
+	typ        _type
+	key        *_type
+	elem       *_type
+	bucket     *_type // internal type representing a hash bucket
+	keysize    uint8  // size of key slot
+	valuesize  uint8  // size of value slot
+	bucketsize uint16 // size of bucket
+	flags      uint32
+}
+
+// Note: flag values must match those used in the TMAP case
+// in ../cmd/compile/internal/gc/reflect.go:dtypesym.
+func (mt *maptype) indirectkey() bool { // store ptr to key instead of key itself
+	return mt.flags&1 != 0
+}
+func (mt *maptype) indirectvalue() bool { // store ptr to value instead of value itself
+	return mt.flags&2 != 0
+}
+func (mt *maptype) reflexivekey() bool { // true if k==k for all keys
+	return mt.flags&4 != 0
+}
+func (mt *maptype) needkeyupdate() bool { // true if we need to update key on an overwrite
+	return mt.flags&8 != 0
+}
+func (mt *maptype) hashMightPanic() bool { // true if hash function might panic
+	return mt.flags&16 != 0
 }
 
 type arraytype struct {
