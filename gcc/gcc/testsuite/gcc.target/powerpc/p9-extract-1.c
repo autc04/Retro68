@@ -1,7 +1,6 @@
 /* { dg-do compile { target { powerpc64*-*-* && lp64 } } } */
-/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power9" } } */
 /* { dg-require-effective-target powerpc_p9vector_ok } */
-/* { dg-options "-mcpu=power9 -O2" } */
+/* { dg-options "-mdejagnu-cpu=power9 -O2" } */
 
 /* Test to make sure VEXTU{B,H,W}{L,R}X is generated for various vector extract
    operations for ISA 3.0 (-mcpu=power9).  In addition, make sure that neither
@@ -13,84 +12,120 @@
 int
 extract_int_0 (vector int a)
 {
-  int b = vec_extract (a, 0);
+  int c = 0;
+  int b = vec_extract (a, c);
   return b;
 }
 
 int
 extract_int_3 (vector int a)
 {
-  int b = vec_extract (a, 3);
+  int c = 3;
+  int b = vec_extract (a, c);
   return b;
 }
 
 unsigned int
 extract_uint_0 (vector unsigned int a)
 {
-  unsigned int b = vec_extract (a, 0);
+  int c = 0;
+  unsigned int b = vec_extract (a, c);
   return b;
 }
 
 unsigned int
 extract_uint_3 (vector unsigned int a)
 {
-  unsigned int b = vec_extract (a, 3);
+  int c = 3;
+  unsigned int b = vec_extract (a, c);
   return b;
 }
 
 short
 extract_short_0 (vector short a)
 {
-  short b = vec_extract (a, 0);
+  int c = 0;
+  short b = vec_extract (a, c);
   return b;
 }
 
 short
 extract_short_7 (vector short a)
 {
-  short b = vec_extract (a, 7);
+  int c = 7;
+  short b = vec_extract (a, c);
   return b;
 }
 
 unsigned short
 extract_ushort_0 (vector unsigned short a)
 {
-  unsigned short b = vec_extract (a, 0);
+  int c = 0;
+  unsigned short b = vec_extract (a, c);
   return b;
 }
 
 unsigned short
 extract_ushort_7 (vector unsigned short a)
 {
-  unsigned short b = vec_extract (a, 7);
+  int c = 7;
+  unsigned short b = vec_extract (a, c);
   return b;
 }
 
 signed char
 extract_schar_0 (vector signed char a)
 {
-  signed char b = vec_extract (a, 0);
+  int c = 0;
+  signed char b = vec_extract (a, c);
   return b;
 }
 
 signed char
 extract_schar_15 (vector signed char a)
 {
-  signed char b = vec_extract (a, 15);
+  int c = 15;
+  signed char b = vec_extract (a, c);
   return b;
 }
 
 unsigned char
 extract_uchar_0 (vector unsigned char a)
 {
-  unsigned char b = vec_extract (a, 0);
+  int c = 0;
+  unsigned char b = vec_extract (a, c);
   return b;
 }
 
 unsigned char
 extract_uchar_15 (vector unsigned char a)
 {
-  signed char b = vec_extract (a, 15);
+  int c = 15;
+  signed char b = vec_extract (a, c);
+  return b;
+}
+
+unsigned char
+extract_bool_char_0 (vector bool char a)
+{
+  int c = 0;
+  unsigned char b = vec_extract (a, c);
+  return b;
+}
+
+unsigned int
+extract_bool_int_0 (vector bool int a)
+{
+  int c = 0;
+  unsigned int b = vec_extract (a, c);
+  return b;
+}
+
+unsigned short int
+extract_bool_short_int_0 (vector bool short int a)
+{
+  int c = 0;
+  unsigned short int b = vec_extract (a, c);
   return b;
 }
 

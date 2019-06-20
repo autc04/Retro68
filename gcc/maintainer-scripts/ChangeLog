@@ -1,10 +1,34 @@
-2018-07-26  Release Manager
+2019-05-03  Release Manager
 
-	* GCC 8.2.0 released.
+	* GCC 9.1.0 released.
 
-2018-05-02  Release Manager
+2019-02-23  Jonathan Wakely  <jwakely@redhat.com>
 
-	* GCC 8.1.0 released.
+	* generate_libstdcxx_web_docs: Improve error output.
+
+2018-11-22  Martin Liska  <mliska@suse.cz>
+
+	* bugzilla-close-candidate.py: New file.
+
+2018-10-26  Jakub Jelinek  <jakub@redhat.com>
+
+	* update_version_svn (IGNORE_BRANCHES): Add gcc-6-branch.
+	* crontab: Remove gcc-6-branch entry.
+
+	* gcc_release (error, inform): Use $@ instead of $1.
+	(build_sources): Check for ^[[:blank:]]*GCC in both index.html
+	and changes.html, rather than for GCC in one and ^GCC in another one.
+
+2018-05-03  Jakub Jelinek  <jakub@redhat.com>
+
+	PR other/85622
+	* gcc_release: For -f, verify contrib/gennews has the major version
+	pages listed and both index.html and changes.html have been updated
+	for the new release.
+
+2018-04-25  Jakub Jelinek  <jakub@redhat.com>
+
+	* crontab: Enable snapshots from gcc-8-branch.
 
 2018-01-25  Richard Biener  <rguenther@suse.de>
 

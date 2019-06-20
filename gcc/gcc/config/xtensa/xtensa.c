@@ -1,5 +1,5 @@
 /* Subroutines for insn-output.c for Tensilica's Xtensa architecture.
-   Copyright (C) 2001-2018 Free Software Foundation, Inc.
+   Copyright (C) 2001-2019 Free Software Foundation, Inc.
    Contributed by Bob Wilson (bwilson@tensilica.com) at Tensilica.
 
 This file is part of GCC.
@@ -330,6 +330,9 @@ static unsigned HOST_WIDE_INT xtensa_asan_shadow_offset (void);
 
 #undef TARGET_ASAN_SHADOW_OFFSET
 #define TARGET_ASAN_SHADOW_OFFSET xtensa_asan_shadow_offset
+
+#undef TARGET_HAVE_SPECULATION_SAFE_VALUE
+#define TARGET_HAVE_SPECULATION_SAFE_VALUE speculation_safe_value_not_needed
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 
@@ -1614,9 +1617,9 @@ xtensa_expand_atomic (enum rtx_code code, rtx target, rtx mem, rtx val,
       break;
 
     case MULT: /* NAND */
-      tmp = expand_simple_binop (SImode, XOR, old, ac.modemask,
+      tmp = expand_simple_binop (SImode, AND, old, val,
 				 NULL_RTX, 1, OPTAB_DIRECT);
-      tmp = expand_simple_binop (SImode, AND, tmp, val,
+      tmp = expand_simple_binop (SImode, XOR, tmp, ac.modemask,
 				 new_rtx, 1, OPTAB_DIRECT);
       break;
 
@@ -2253,7 +2256,7 @@ xtensa_option_override (void)
   /* Check PIC settings.  PIC is only supported when using L32R
      instructions, and some targets need to always use PIC.  */
   if (flag_pic && TARGET_CONST16)
-    error ("-f%s is not supported with CONST16 instructions",
+    error ("%<-f%s%> is not supported with CONST16 instructions",
 	   (flag_pic > 1 ? "PIC" : "pic"));
   else if (TARGET_FORCE_NO_PIC)
     flag_pic = 0;

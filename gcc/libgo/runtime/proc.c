@@ -59,6 +59,8 @@ uintptr runtime_stacks_sys;
 void gtraceback(G*)
   __asm__(GOSYM_PREFIX "runtime.gtraceback");
 
+static void gscanstack(G*);
+
 #ifdef __rtems__
 #define __thread
 #endif
@@ -338,8 +340,10 @@ runtime_mcall(FuncVal *fv)
 		gp = runtime_g();
 		mp = gp->m;
 
-		if(gp->traceback != nil)
+		if(gp->traceback != 0)
 			gtraceback(gp);
+		if(gp->scang != 0)
+			gscanstack(gp);
 	}
 	if (gp == nil || !gp->fromgogo) {
 #ifdef USING_SPLIT_STACK
@@ -382,7 +386,7 @@ extern void kickoff(void)
   __asm__(GOSYM_PREFIX "runtime.kickoff");
 extern void minit(void)
   __asm__(GOSYM_PREFIX "runtime.minit");
-extern void mstart1(int32)
+extern void mstart1()
   __asm__(GOSYM_PREFIX "runtime.mstart1");
 extern void stopm(void)
   __asm__(GOSYM_PREFIX "runtime.stopm");
@@ -438,14 +442,21 @@ void getTraceback(G*, G*) __asm__(GOSYM_PREFIX "runtime.getTraceback");
 // goroutine stored in the traceback field, which is me.
 void getTraceback(G* me, G* gp)
 {
+	M* holdm;
+
+	holdm = gp->m;
+	gp->m = me->m;
+
 #ifdef USING_SPLIT_STACK
 	__splitstack_getcontext((void*)(&me->stackcontext[0]));
 #endif
 	getcontext(ucontext_arg(&me->context[0]));
 
-	if (gp->traceback != nil) {
+	if (gp->traceback != 0) {
 		runtime_gogo(gp);
 	}
+
+	gp->m = holdm;
 }
 
 // Do a stack trace of gp, and then restore the context to
@@ -455,18 +466,73 @@ void
 gtraceback(G* gp)
 {
 	Traceback* traceback;
-	M* holdm;
 
-	traceback = gp->traceback;
-	gp->traceback = nil;
-	holdm = gp->m;
-	if(holdm != nil && holdm != g->m)
-		runtime_throw("gtraceback: m is not nil");
-	gp->m = traceback->gp->m;
+	traceback = (Traceback*)gp->traceback;
+	gp->traceback = 0;
 	traceback->c = runtime_callers(1, traceback->locbuf,
 		sizeof traceback->locbuf / sizeof traceback->locbuf[0], false);
-	gp->m = holdm;
 	runtime_gogo(traceback->gp);
+}
+
+void doscanstackswitch(G*, G*) __asm__(GOSYM_PREFIX "runtime.doscanstackswitch");
+
+// Switch to gp and let it scan its stack.
+// The first time gp->scang is set (to me). The second time here
+// gp is done scanning, and has unset gp->scang, so we just return.
+void
+doscanstackswitch(G* me, G* gp)
+{
+	M* holdm;
+
+	__go_assert(me->entry == nil);
+	me->fromgogo = false;
+
+	holdm = gp->m;
+	gp->m = me->m;
+
+#ifdef USING_SPLIT_STACK
+	__splitstack_getcontext((void*)(&me->stackcontext[0]));
+#endif
+	getcontext(ucontext_arg(&me->context[0]));
+
+	if(me->entry != nil) {
+		// Got here from mcall.
+		// The stack scanning code may call systemstack, which calls
+		// mcall, which calls setcontext.
+		// Run the function, which at the end will switch back to gp.
+		FuncVal *fv = me->entry;
+		void (*pfn)(G*) = (void (*)(G*))fv->fn;
+		G* gp1 = (G*)me->param;
+		__go_assert(gp1 == gp);
+		me->entry = nil;
+		me->param = nil;
+		__builtin_call_with_static_chain(pfn(gp1), fv);
+		abort();
+	}
+
+	if (gp->scang != 0)
+		runtime_gogo(gp);
+
+	gp->m = holdm;
+}
+
+// Do a stack scan, then switch back to the g that triggers this scan.
+// We come here from doscanstackswitch.
+static void
+gscanstack(G *gp)
+{
+	G *oldg, *oldcurg;
+
+	oldg = (G*)gp->scang;
+	oldcurg = oldg->m->curg;
+	oldg->m->curg = gp;
+	gp->scang = 0;
+
+	doscanstack(gp, (void*)gp->scangcw);
+
+	gp->scangcw = 0;
+	oldg->m->curg = oldcurg;
+	runtime_gogo(oldg);
 }
 
 // Called by pthread_create to start an M.
@@ -510,12 +576,15 @@ runtime_mstart(void *arg)
 	// multiple times via the setcontext call in mcall.
 	getcontext(ucontext_arg(&gp->context[0]));
 
-	if(gp->traceback != nil) {
+	if(gp->traceback != 0) {
 		// Got here from getTraceback.
 		// I'm not sure this ever actually happens--getTraceback
 		// may always go to the getcontext call in mcall.
 		gtraceback(gp);
 	}
+	if(gp->scang != 0)
+		// Got here from doscanswitch. Should not happen.
+		runtime_throw("mstart with scang");
 
 	if(gp->entry != nil) {
 		// Got here from mcall.
@@ -542,7 +611,7 @@ runtime_mstart(void *arg)
 	}
 #endif
 
-	mstart1(0);
+	mstart1();
 
 	// mstart1 does not return, but we need a return statement
 	// here to avoid a compiler warning.
@@ -621,16 +690,17 @@ makeGContext(G* gp, byte* sp, uintptr spsize) {
 // make g->sched refer to the caller's stack segment, because
 // entersyscall is going to return immediately after.
 
-void runtime_entersyscall(int32) __attribute__ ((no_split_stack));
+void runtime_entersyscall() __attribute__ ((no_split_stack));
 static void doentersyscall(uintptr, uintptr)
   __attribute__ ((no_split_stack, noinline));
 
 void
-runtime_entersyscall(int32 dummy __attribute__ ((unused)))
+runtime_entersyscall()
 {
 	// Save the registers in the g structure so that any pointers
 	// held in registers will be seen by the garbage collector.
-	getcontext(ucontext_arg(&g->gcregs[0]));
+	if (!runtime_usestackmaps)
+		getcontext(ucontext_arg(&g->gcregs[0]));
 
 	// Note that if this function does save any registers itself,
 	// we might store the wrong value in the call to getcontext.
@@ -638,8 +708,8 @@ runtime_entersyscall(int32 dummy __attribute__ ((unused)))
 	// callee-saved registers to access the TLS variable g.  We
 	// don't want to put the ucontext_t on the stack because it is
 	// large and we can not split the stack here.
-	doentersyscall((uintptr)runtime_getcallerpc(&dummy),
-		       (uintptr)runtime_getcallersp(&dummy));
+	doentersyscall((uintptr)runtime_getcallerpc(),
+		       (uintptr)runtime_getcallersp());
 }
 
 static void
@@ -672,15 +742,16 @@ static void doentersyscallblock(uintptr, uintptr)
 
 // The same as runtime_entersyscall(), but with a hint that the syscall is blocking.
 void
-runtime_entersyscallblock(int32 dummy __attribute__ ((unused)))
+runtime_entersyscallblock()
 {
 	// Save the registers in the g structure so that any pointers
 	// held in registers will be seen by the garbage collector.
-	getcontext(ucontext_arg(&g->gcregs[0]));
+	if (!runtime_usestackmaps)
+		getcontext(ucontext_arg(&g->gcregs[0]));
 
 	// See comment in runtime_entersyscall.
-	doentersyscallblock((uintptr)runtime_getcallerpc(&dummy),
-			    (uintptr)runtime_getcallersp(&dummy));
+	doentersyscallblock((uintptr)runtime_getcallerpc(),
+			    (uintptr)runtime_getcallersp());
 }
 
 static void
@@ -716,7 +787,7 @@ runtime_malg(bool allocatestack, bool signalstack, byte** ret_stack, uintptr* re
 	G *newg;
 	byte* unused_stack;
 	uintptr unused_stacksize;
-#if USING_SPLIT_STACK
+#ifdef USING_SPLIT_STACK
 	int dont_block_signals = 0;
 	size_t ss_stacksize;
 #endif
@@ -738,7 +809,7 @@ runtime_malg(bool allocatestack, bool signalstack, byte** ret_stack, uintptr* re
 #endif
 		}
 
-#if USING_SPLIT_STACK
+#ifdef USING_SPLIT_STACK
 		*ret_stack = __splitstack_makecontext(stacksize,
 						      (void*)(&newg->stackcontext[0]),
 						      &ss_stacksize);
@@ -777,7 +848,7 @@ void stackfree(G*)
 void
 stackfree(G* gp)
 {
-#if USING_SPLIT_STACK
+#ifdef USING_SPLIT_STACK
   __splitstack_releasecontext((void*)(&gp->stackcontext[0]));
 #else
   // If gcstacksize is 0, the stack is allocated by libc and will be

@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O3 -fdisable-tree-evrp -fdisable-tree-cunrolli -fdisable-tree-vrp1 -fdump-tree-cunroll-blocks-details" } */
+/* { dg-options "-O3 -fgimple -fdump-tree-cunroll-blocks-details" } */
 
 #if __SIZEOF_INT__ < 4
 __extension__ typedef __INT32_TYPE__ i32;
@@ -7,15 +7,53 @@ __extension__ typedef __INT32_TYPE__ i32;
 typedef int i32;
 #endif
 
-struct a {int a[8];int b;};
-void
-t(struct a *a)
+struct a {i32 a[8];i32 b;};
+
+void __GIMPLE (ssa,startwith("fix_loops"))
+t (struct a * a)
 {
-  for (i32 i=0;i<123456 && a->a[i];i++)
-    a->a[i]++;
+  i32 i;
+  i32 _1;
+  i32 _2;
+  i32 _9;
+  i32 _11;
+
+__BB(2):
+  _11 = a_6(D)->a[0];
+  if (_11 != _Literal (i32) 0)
+    goto __BB6;
+  else
+    goto __BB3;
+
+__BB(3):
+  return;
+
+__BB(4):
+  _1 = _2 + _Literal (i32) 1;
+  a_6(D)->a[i_19] = _1;
+  i_8 = i_19 + _Literal (i32) 1;
+  if (i_8 <= _Literal (i32) 123455)
+    goto __BB5;
+  else
+    goto __BB3;
+
+__BB(5):
+  i_19 = __PHI (__BB6: _Literal (i32) 1, __BB4: i_8);
+  _2 = a_6(D)->a[i_19];
+  if (_2 != _Literal (i32) 0)
+    goto __BB4;
+  else
+    goto __BB3;
+
+__BB(6):
+  _9 = _11 + _Literal (i32) 1;
+  a_6(D)->a[0] = _9;
+  goto __BB5;
 }
-/* This pass relies on the fact that we do not eliminate the redundant test for i early.
-   It is necessary to disable all passes that do so.  At the moment it is evrp, vrp1 and cunrolli.  */
+
+/* This testcase relies on the fact that we do not eliminate the redundant test
+   for i early.  It is necessary to disable all passes that do so, for the
+   moment starting with the loop pipeline is good enough.  */
 /* { dg-final { scan-tree-dump-times "Loop 1 iterates 123454 times" 1 "cunroll" } } */
 /* { dg-final { scan-tree-dump-times "Last iteration exit edge was proved true" 1 "cunroll" } } */
 /* { dg-final { scan-tree-dump-times "Exit condition of peeled iterations was eliminated" 1 "cunroll" } } */

@@ -296,7 +296,7 @@ func val(lit string) Value {
 	switch first, last := lit[0], lit[len(lit)-1]; {
 	case first == '"' || first == '`':
 		tok = token.STRING
-		lit = strings.Replace(lit, "_", " ", -1)
+		lit = strings.ReplaceAll(lit, "_", " ")
 	case first == '\'':
 		tok = token.CHAR
 	case last == 'i':
@@ -431,6 +431,7 @@ func TestUnknown(t *testing.T) {
 		MakeBool(false), // token.ADD ok below, operation is never considered
 		MakeString(""),
 		MakeInt64(1),
+		MakeFromLiteral("''", token.CHAR, 0),
 		MakeFromLiteral("-1234567890123456789012345678901234567890", token.INT, 0),
 		MakeFloat64(1.2),
 		MakeImag(MakeFloat64(1.2)),

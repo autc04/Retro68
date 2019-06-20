@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  S p e c                                 --
 --                                                                          --
---          Copyright (C) 1998-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1998-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -51,6 +51,10 @@ package System.OS_Primitives is
    --  case where half a year is too long (which occurs in high integrity mode
    --  with 32-bit words, and possibly on some specific ports of GNAT),
    --  Duration'Last is used instead.
+
+   Max_System_Delay : constant Duration := Max_Sensible_Delay;
+   --  If the Max_System_Delay is larger it doesn't matter. Setting it equal
+   --  allows optimization of code in some targets delay functions.
 
    procedure Initialize;
    --  Initialize global settings related to this package. This procedure

@@ -1,7 +1,6 @@
 /* { dg-do compile { target { powerpc64*-*-* && lp64 } } } */
-/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power9" } } */
 /* { dg-require-effective-target powerpc_p9vector_ok } */
-/* { dg-options "-mcpu=power9 -O2" } */
+/* { dg-options "-mdejagnu-cpu=power9 -O2" } */
 
 #include <altivec.h>
 
@@ -26,6 +25,12 @@ rev_long_long (vector long long a)
   return vec_revb (a);		/* XXBRD.  */
 }
 
+vector bool long long
+rev_bool_long_long (vector bool long long a)
+{
+  return vec_revb (a);		/* XXBRD.  */
+}
+
 vector unsigned long long
 rev_ulong_ulong (vector unsigned long long a)
 {
@@ -44,5 +49,5 @@ rev_uint128 (vector __uint128_t a)
   return vec_revb (a);		/* XXBRQ.  */
 }
 
-/* { dg-final { scan-assembler-times "xxbrd" 4 } } */
+/* { dg-final { scan-assembler-times "xxbrd" 5 } } */
 /* { dg-final { scan-assembler-times "xxbrq" 2 } } */

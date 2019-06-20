@@ -1,10 +1,50 @@
-2018-07-26  Release Manager
+2019-05-03  Release Manager
 
-	* GCC 8.2.0 released.
+	* GCC 9.1.0 released.
 
-2018-05-02  Release Manager
+2018-10-31  Joseph Myers  <joseph@codesourcery.com>
 
-	* GCC 8.1.0 released.
+	PR bootstrap/82856
+	* Makefile.am: Include multilib.am.
+	(AUTOMAKE_OPTIONS): Add info-in-builddir.
+	(CLEANFILES): Remove doc/libffi.info.
+	* configure.ac: Remove AC_PREREQ.
+	* Makefile.in, aclocal.m4, configure, fficonfig.h.in,
+	include/Makefile.in, man/Makefile.in, testsuite/Makefile.in:
+	Regenerate.
+
+2018-08-15  Andreas Schwab  <schwab@suse.de>
+
+	Backport of RISC-V support for libffi go closures
+	* src/riscv/ffi.c (ffi_call_go, ffi_prep_go_closure): New
+	functions.
+	(ffi_call_int): Renamed from ffi_call.
+	(ffi_call_asm, ffi_closure_inner): Adjust interface.
+	* src/riscv/ffitarget.h (FFI_GO_CLOSURES): Define.
+	* src/riscv/sysv.S (ffi_go_closure_asm): New function.
+	(ffi_closure_asm, ffi_call_asm): Update for adjusted interfaces.
+
+2018-05-08  Andreas Schwab  <schwab@suse.de>
+
+	Backport of RISC-V support for libffi
+	* configure.host: Add RISC-V support.
+	* Makefile.am: Likewise.
+	* Makefile.in: Regenerate.
+	* src/riscv/ffi.c, src/riscv/ffitarget.h, src/riscv/sysv.S: New
+	files.
+
+2018-05-04  Alan Modra  <amodra@gmail.com>
+
+	Import from upstream
+	* src/powerpc/ffi_linux64.c (discover_homogeneous_aggregate):
+	Compile for ELFv1 too, handling single element aggregates.
+	(ffi_prep_cif_linux64_core): Call discover_homogeneous_aggregate
+	for ELFv1.  Set FLAG_RETURNS_64BITS for FFI_TYPE_POINTER return.
+	(ffi_prep_args64): Call discover_homogeneous_aggregate for ELFv1,
+	and handle single element structs containing float or double
+	as if the element wasn't wrapped in a struct.  Store floats in
+	second word of doubleword slot when big-endian.
+	(ffi_closure_helper_LINUX64): Similarly.
 
 2018-04-18  David Malcolm  <dmalcolm@redhat.com>
 
@@ -437,7 +477,7 @@
 	* configure: Rebuild.
 
 2012-10-30  James Greenhalgh  <james.greenhalgh at arm.com>
-            Marcus Shawcroft  <marcus.shawcroft at arm.com>
+	    Marcus Shawcroft  <marcus.shawcroft at arm.com>
 
 	* README: Add details of aarch64 port.
 	* src/aarch64/ffi.c: New.
@@ -448,7 +488,7 @@
 	* Makefile.in, configure: Rebuilt.
 
 2012-10-30  James Greenhalgh  <james.greenhalgh at arm.com>
-            Marcus Shawcroft  <marcus.shawcroft at arm.com>
+	    Marcus Shawcroft  <marcus.shawcroft at arm.com>
 
 	* testsuite/lib/libffi.exp: Add support for aarch64.
 	* testsuite/libffi.call/cls_struct_va1.c: New.

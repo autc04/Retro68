@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2018 Free Software Foundation, Inc.
+// Copyright (C) 2017-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,25 +27,33 @@
 
 namespace fs = std::experimental::filesystem;
 
+bool check(fs::space_info const& s)
+{
+  const std::uintmax_t err = -1;
+  return s.capacity != err || s.free != err || s.available != err;
+}
+
 void
 test01()
 {
-  fs::space_info s = fs::space("/");
+  const fs::path root = __gnu_test::root_path();
+  fs::space_info s = fs::space(root);
   std::error_code ec = make_error_code(std::errc::invalid_argument);
-  s = fs::space("/", ec);
+  s = fs::space(root, ec);
   VERIFY( !ec );
 
-  s = fs::space(__gnu_test::nonexistent_path(), ec);
-  VERIFY( ec );
-  VERIFY( s.capacity ==  static_cast<uintmax_t>(-1) );
-  VERIFY( s.free ==  static_cast<uintmax_t>(-1) );
-  VERIFY( s.available ==  static_cast<uintmax_t>(-1) );
+  s = fs::space(__gnu_test::nonexistent_path()/".", ec);
+  if (ec)
+    VERIFY( ! check(s) );
+  else
+    VERIFY( check(s) );
 }
 
 void
 test02()
 {
   fs::space_info s = fs::space(".");
+  VERIFY( check(s) );
   VERIFY( s.capacity >= s.free );
 }
 

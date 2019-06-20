@@ -3,6 +3,7 @@
 
 #include <limits.h>
 #include <openacc.h>
+#include <gomp-constants.h>
 
 /* TODO: "(int) acc_device_*" casts because of the C++ acc_on_device wrapper
    not behaving as expected for -O0.  */
@@ -12,11 +13,7 @@ static unsigned int __attribute__ ((optimize ("O2"))) acc_gang ()
   if (acc_on_device ((int) acc_device_host))
     return 0;
   else if (acc_on_device ((int) acc_device_nvidia))
-    {
-      unsigned int r;
-      asm volatile ("mov.u32 %0,%%ctaid.x;" : "=r" (r));
-      return r;
-    }
+    return __builtin_goacc_parlevel_id (GOMP_DIM_GANG);
   else
     __builtin_abort ();
 }
@@ -27,11 +24,7 @@ static unsigned int __attribute__ ((optimize ("O2"))) acc_worker ()
   if (acc_on_device ((int) acc_device_host))
     return 0;
   else if (acc_on_device ((int) acc_device_nvidia))
-    {
-      unsigned int r;
-      asm volatile ("mov.u32 %0,%%tid.y;" : "=r" (r));
-      return r;
-    }
+    return __builtin_goacc_parlevel_id (GOMP_DIM_WORKER);
   else
     __builtin_abort ();
 }
@@ -42,11 +35,7 @@ static unsigned int __attribute__ ((optimize ("O2"))) acc_vector ()
   if (acc_on_device ((int) acc_device_host))
     return 0;
   else if (acc_on_device ((int) acc_device_nvidia))
-    {
-      unsigned int r;
-      asm volatile ("mov.u32 %0,%%tid.x;" : "=r" (r));
-      return r;
-    }
+    return __builtin_goacc_parlevel_id (GOMP_DIM_VECTOR);
   else
     __builtin_abort ();
 }
@@ -165,7 +154,7 @@ int main ()
     int gangs_min, gangs_max, workers_min, workers_max, vectors_min, vectors_max;
     gangs_min = workers_min = vectors_min = INT_MAX;
     gangs_max = workers_max = vectors_max = INT_MIN;
-#pragma acc parallel copy (vectors_actual) /* { dg-warning "using vector_length \\(32\\), ignoring 1" "" { target openacc_nvidia_accel_configured } } */ \
+#pragma acc parallel copy (vectors_actual) /* { dg-warning "using vector_length \\(32\\), ignoring 1" "" { target openacc_nvidia_accel_selected } } */ \
   vector_length (VECTORS) /* { dg-warning "'vector_length' value must be positive" "" { target c++ } } */
     {
       /* We're actually executing with vector_length (1), just the GCC nvptx
@@ -276,7 +265,7 @@ int main ()
     int gangs_min, gangs_max, workers_min, workers_max, vectors_min, vectors_max;
     gangs_min = workers_min = vectors_min = INT_MAX;
     gangs_max = workers_max = vectors_max = INT_MIN;
-#pragma acc parallel copy (workers_actual) /* { dg-warning "using num_workers \\(32\\), ignoring 2097152" "" { target openacc_nvidia_accel_configured } } */ \
+#pragma acc parallel copy (workers_actual) /* { dg-warning "using num_workers \\(32\\), ignoring 2097152" "" { target openacc_nvidia_accel_selected } } */ \
   num_workers (WORKERS)
     {
       if (acc_on_device (acc_device_host))
@@ -361,7 +350,7 @@ int main ()
     int gangs_min, gangs_max, workers_min, workers_max, vectors_min, vectors_max;
     gangs_min = workers_min = vectors_min = INT_MAX;
     gangs_max = workers_max = vectors_max = INT_MIN;
-#pragma acc parallel copy (vectors_actual) /* { dg-warning "using vector_length \\(32\\), ignoring 2097152" "" { target openacc_nvidia_accel_configured } } */ \
+#pragma acc parallel copy (vectors_actual) /* { dg-warning "using vector_length \\(1024\\), ignoring 2097152" "" { target openacc_nvidia_accel_selected } } */ \
   vector_length (VECTORS)
     {
       if (acc_on_device (acc_device_host))
@@ -372,7 +361,7 @@ int main ()
       else if (acc_on_device (acc_device_nvidia))
 	{
 	  /* The GCC nvptx back end enforces vector_length (32).  */
-	  vectors_actual = 32;
+	  vectors_actual = 1024;
 	}
       else
 	__builtin_abort ();
@@ -401,7 +390,7 @@ int main ()
     int gangs_min, gangs_max, workers_min, workers_max, vectors_min, vectors_max;
     gangs_min = workers_min = vectors_min = INT_MAX;
     gangs_max = workers_max = vectors_max = INT_MIN;
-#pragma acc parallel copy (vectors_actual) /* { dg-warning "using vector_length \\(32\\), ignoring runtime setting" "" { target openacc_nvidia_accel_configured } } */ \
+#pragma acc parallel copy (vectors_actual) /* { dg-warning "using vector_length \\(32\\), ignoring runtime setting" "" { target openacc_nvidia_accel_selected } } */ \
   vector_length (vectors)
     {
       if (acc_on_device (acc_device_host))
@@ -448,7 +437,7 @@ int main ()
     int gangs_min, gangs_max, workers_min, workers_max, vectors_min, vectors_max;
     gangs_min = workers_min = vectors_min = INT_MAX;
     gangs_max = workers_max = vectors_max = INT_MIN;
-#pragma acc parallel copy (gangs_actual, workers_actual, vectors_actual) /* { dg-warning "using vector_length \\(32\\), ignoring 11" "" { target openacc_nvidia_accel_configured } } */ \
+#pragma acc parallel copy (gangs_actual, workers_actual, vectors_actual) /* { dg-warning "using vector_length \\(32\\), ignoring 11" "" { target openacc_nvidia_accel_selected } } */ \
   num_gangs (gangs) \
   num_workers (WORKERS) \
   vector_length (VECTORS)

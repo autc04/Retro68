@@ -977,6 +977,7 @@ func TestResponseSetsTLSConnectionState(t *testing.T) {
 	c := ts.Client()
 	tr := c.Transport.(*Transport)
 	tr.TLSClientConfig.CipherSuites = []uint16{tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA}
+	tr.TLSClientConfig.MaxVersion = tls.VersionTLS12 // to get to pick the cipher suite
 	tr.Dial = func(netw, addr string) (net.Conn, error) {
 		return net.Dial(netw, ts.Listener.Addr().String())
 	}
@@ -1160,6 +1161,40 @@ func TestBasicAuthHeadersPreserved(t *testing.T) {
 		t.Errorf("Invalid auth %q", auth)
 	}
 
+}
+
+func TestStripPasswordFromError(t *testing.T) {
+	client := &Client{Transport: &recordingTransport{}}
+	testCases := []struct {
+		desc string
+		in   string
+		out  string
+	}{
+		{
+			desc: "Strip password from error message",
+			in:   "http://user:password@dummy.faketld/",
+			out:  "Get http://user:***@dummy.faketld/: dummy impl",
+		},
+		{
+			desc: "Don't Strip password from domain name",
+			in:   "http://user:password@password.faketld/",
+			out:  "Get http://user:***@password.faketld/: dummy impl",
+		},
+		{
+			desc: "Don't Strip password from path",
+			in:   "http://user:password@dummy.faketld/password",
+			out:  "Get http://user:***@dummy.faketld/password: dummy impl",
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			_, err := client.Get(tC.in)
+			if err.Error() != tC.out {
+				t.Errorf("Unexpected output for %q: expected %q, actual %q",
+					tC.in, tC.out, err.Error())
+			}
+		})
+	}
 }
 
 func TestClientTimeout_h1(t *testing.T) { testClientTimeout(t, h1Mode) }
@@ -1852,5 +1887,29 @@ func TestTransportBodyReadError(t *testing.T) {
 	}
 	if closeCalls != 1 {
 		t.Errorf("close calls = %d; want 1", closeCalls)
+	}
+}
+
+type roundTripperWithoutCloseIdle struct{}
+
+func (roundTripperWithoutCloseIdle) RoundTrip(*Request) (*Response, error) { panic("unused") }
+
+type roundTripperWithCloseIdle func() // underlying func is CloseIdleConnections func
+
+func (roundTripperWithCloseIdle) RoundTrip(*Request) (*Response, error) { panic("unused") }
+func (f roundTripperWithCloseIdle) CloseIdleConnections()               { f() }
+
+func TestClientCloseIdleConnections(t *testing.T) {
+	c := &Client{Transport: roundTripperWithoutCloseIdle{}}
+	c.CloseIdleConnections() // verify we don't crash at least
+
+	closed := false
+	var tr RoundTripper = roundTripperWithCloseIdle(func() {
+		closed = true
+	})
+	c = &Client{Transport: tr}
+	c.CloseIdleConnections()
+	if !closed {
+		t.Error("not closed")
 	}
 }

@@ -1,5 +1,5 @@
 /* Compiler arithmetic
-   Copyright (C) 2000-2018 Free Software Foundation, Inc.
+   Copyright (C) 2000-2019 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -113,6 +113,11 @@ gfc_arith_error (arith code)
       p =
 	_("Integer outside symmetric range implied by Standard Fortran at %L");
       break;
+    case ARITH_WRONGCONCAT:
+      p =
+	_("Illegal type in character concatenation at %L");
+      break;
+
     default:
       gfc_internal_error ("gfc_arith_error(): Bad error code");
     }
@@ -982,7 +987,12 @@ gfc_arith_concat (gfc_expr *op1, gfc_expr *op2, gfc_expr **resultp)
   gfc_expr *result;
   size_t len;
 
-  gcc_assert (op1->ts.kind == op2->ts.kind);
+  /* By cleverly playing around with constructors, is is possible
+     to get mismaching types here.  */
+  if (op1->ts.type != BT_CHARACTER || op2->ts.type != BT_CHARACTER
+      || op1->ts.kind != op2->ts.kind)
+    return ARITH_WRONGCONCAT;
+
   result = gfc_get_constant_expr (BT_CHARACTER, op1->ts.kind,
 				  &op1->where);
 
@@ -2051,7 +2061,7 @@ gfc_int2int (gfc_expr *src, int kind)
       gfc_convert_mpz_to_signed (result->value.integer,
 				 gfc_integer_kinds[k].bit_size);
 
-      if (warn_conversion && kind < src->ts.kind)
+      if (warn_conversion && !src->do_not_warn && kind < src->ts.kind)
 	gfc_warning_now (OPT_Wconversion, "Conversion from %qs to %qs at %L",
 			 gfc_typename (&src->ts), gfc_typename (&result->ts),
 			 &src->where);
@@ -2462,7 +2472,7 @@ gfc_complex2complex (gfc_expr *src, int kind)
       int w = warn_conversion ? OPT_Wconversion : OPT_Wconversion_extra;
 
       gfc_warning_now (w, "Change of value in conversion from "
-		       " %qs to %qs at %L",
+		       "%qs to %qs at %L",
 		       gfc_typename (&src->ts), gfc_typename (&result->ts),
 		       &src->where);
       did_warn = true;
@@ -2538,10 +2548,10 @@ gfc_character2character (gfc_expr *src, int kind)
 static void
 hollerith2representation (gfc_expr *result, gfc_expr *src)
 {
-  int src_len, result_len;
+  size_t src_len, result_len;
 
   src_len = src->representation.length - src->ts.u.pad;
-  result_len = gfc_target_expr_size (result);
+  gfc_target_expr_size (result, &result_len);
 
   if (src_len > result_len)
     {

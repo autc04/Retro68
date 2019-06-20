@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2018 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2019 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    Namelist output contributed by Paul Thomas
    F2003 I/O support contributed by Jerry DeLisle
@@ -1342,6 +1342,10 @@ write_integer (st_parameter_dt *dtp, const char *source, int kind)
       width = 20;
       break;
 
+    case 16:
+      width = 40;
+      break;
+
     default:
       width = 0;
       break;
@@ -1574,9 +1578,9 @@ write_float_0 (st_parameter_dt *dtp, const fnode *f, const char *source, int kin
 
   /* String buffer to hold final result.  */
   result = select_string (dtp, f, str_buf, &res_len, kind);
-  
+
   buffer = select_buffer (dtp, f, precision, buf_stack, &buf_size, kind);
-  
+
   get_float_string (dtp, f, source , kind, 0, buffer,
                            precision, buf_size, result, &flt_str_len);
   write_float_string (dtp, result, flt_str_len);

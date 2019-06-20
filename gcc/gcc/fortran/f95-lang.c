@@ -1,5 +1,5 @@
 /* gfortran backend interface
-   Copyright (C) 2000-2018 Free Software Foundation, Inc.
+   Copyright (C) 2000-2019 Free Software Foundation, Inc.
    Contributed by Paul Brook.
 
 This file is part of GCC.
@@ -248,7 +248,7 @@ gfc_init (void)
   gfc_init_1 ();
 
   if (!gfc_new_file ())
-    fatal_error (input_location, "can't open input file: %s", gfc_source_file);
+    fatal_error (input_location, "cannot open input file: %s", gfc_source_file);
 
   if (flag_preprocess_only)
     return false;
@@ -1202,6 +1202,10 @@ gfc_init_builtin_functions (void)
 #undef DEF_GOACC_BUILTIN_COMPILER
 #define DEF_GOACC_BUILTIN_COMPILER(code, name, type, attr) \
       gfc_define_builtin (name, builtin_types[type], code, name, attr);
+#undef DEF_GOACC_BUILTIN_ONLY
+#define DEF_GOACC_BUILTIN_ONLY(code, name, type, attr) \
+      gfc_define_builtin ("__builtin_" name, builtin_types[type], code, NULL, \
+			  attr);
 #undef DEF_GOMP_BUILTIN
 #define DEF_GOMP_BUILTIN(code, name, type, attr) /* ignore */
 #include "../omp-builtins.def"

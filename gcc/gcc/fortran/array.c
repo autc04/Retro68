@@ -1,5 +1,5 @@
 /* Array things
-   Copyright (C) 2000-2018 Free Software Foundation, Inc.
+   Copyright (C) 2000-2019 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -533,7 +533,7 @@ gfc_match_array_spec (gfc_array_spec **asp, bool match_dim, bool match_codim)
       as->type = AS_ASSUMED_RANK;
       as->rank = -1;
 
-      if (!gfc_notify_std (GFC_STD_F2008_TS, "Assumed-rank array at %C"))
+      if (!gfc_notify_std (GFC_STD_F2018, "Assumed-rank array at %C"))
 	goto cleanup;
 
       if (!match_codim)
@@ -1246,7 +1246,9 @@ done:
 	{
 	  c = gfc_constructor_first (head);
 	  for (; c; c = gfc_constructor_next (c))
-	    gfc_convert_type (c->expr, &ts, 1);
+	    if (!gfc_convert_type (c->expr, &ts, 1)
+		&& c->expr->ts.type != BT_UNKNOWN)
+	      return MATCH_ERROR;
 	}
     }
   else

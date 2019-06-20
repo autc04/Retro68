@@ -1,5 +1,5 @@
 /* Loop interchange.
-   Copyright (C) 2017-2018 Free Software Foundation, Inc.
+   Copyright (C) 2017-2019 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
 This file is part of GCC.
@@ -523,7 +523,7 @@ loop_cand::analyze_iloop_reduction_var (tree var)
 
   /* Handle and verify a series of stmts feeding the reduction op.  */
   if (single_use != next_def
-      && !check_reduction_path (UNKNOWN_LOCATION, m_loop, phi, next,
+      && !check_reduction_path (dump_user_location_t (), m_loop, phi, next,
 				gimple_assign_rhs_code (single_use)))
     return false;
 
@@ -688,11 +688,16 @@ loop_cand::analyze_induction_var (tree var, tree chrec)
   /* Var is loop invariant, though it's unlikely to happen.  */
   if (tree_does_not_contain_chrecs (chrec))
     {
+      /* Punt on floating point invariants if honoring signed zeros,
+	 representing that as + 0.0 would change the result if init
+	 is -0.0.  Similarly for SNaNs it can raise exception.  */
+      if (HONOR_SIGNED_ZEROS (chrec) || HONOR_SNANS (chrec))
+	return false;
       struct induction *iv = XCNEW (struct induction);
       iv->var = var;
       iv->init_val = init;
       iv->init_expr = chrec;
-      iv->step = build_int_cst (TREE_TYPE (chrec), 0);
+      iv->step = build_zero_cst (TREE_TYPE (chrec));
       m_inductions.safe_push (iv);
       return true;
     }
@@ -1578,7 +1583,7 @@ bool
 tree_loop_interchange::interchange (vec<data_reference_p> datarefs,
 				    vec<ddr_p> ddrs)
 {
-  location_t loc = find_loop_location (m_loop_nest[0]);
+  dump_user_location_t loc = find_loop_location (m_loop_nest[0]);
   bool changed_p = false;
   /* In each iteration we try to interchange I-th loop with (I+1)-th loop.
      The overall effect is to push inner loop to outermost level in whole
@@ -1645,7 +1650,7 @@ tree_loop_interchange::interchange (vec<data_reference_p> datarefs,
     }
   simple_dce_from_worklist (m_dce_seeds);
 
-  if (changed_p)
+  if (changed_p && dump_enabled_p ())
     dump_printf_loc (MSG_OPTIMIZED_LOCATIONS, loc,
 		     "loops interchanged in loop nest\n");
 

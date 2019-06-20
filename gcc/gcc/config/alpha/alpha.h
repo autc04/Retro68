@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for DEC Alpha.
-   Copyright (C) 1992-2018 Free Software Foundation, Inc.
+   Copyright (C) 1992-2019 Free Software Foundation, Inc.
    Contributed by Richard Kenner (kenner@vlsi1.ultra.nyu.edu)
 
 This file is part of GCC.
@@ -678,7 +678,7 @@ enum reg_class {
 
 #define CONSTANT_ADDRESS_P(X)   \
   (CONST_INT_P (X)		\
-   && (unsigned HOST_WIDE_INT) (INTVAL (X) + 0x8000) < 0x10000)
+   && (UINTVAL (X) + 0x8000) < 0x10000)
 
 /* The macros REG_OK_FOR..._P assume that the arg is a REG rtx
    and check its validity for a certain class.
@@ -921,8 +921,5 @@ extern long alpha_auto_offset;
 
 /* By default, turn on GDB extensions.  */
 #define DEFAULT_GDB_EXTENSIONS 1
-
-/* The system headers under Alpha systems are generally C++-aware.  */
-#define NO_IMPLICIT_EXTERN_C
 
 #define TARGET_SUPPORTS_WIDE_INT 1

@@ -1,5 +1,5 @@
 /* Various declarations for language-independent pretty-print subroutines.
-   Copyright (C) 2003-2018 Free Software Foundation, Inc.
+   Copyright (C) 2003-2019 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@integrable-solutions.net>
 
 This file is part of GCC.
@@ -640,6 +640,16 @@ sgr_set_it:
 	{
 	  attrib_add |= sb.wAttributes & ~attrib_rm;
 	}
+      if (attrib_add & COMMON_LVB_REVERSE_VIDEO)
+	{
+	  /* COMMON_LVB_REVERSE_VIDEO is only effective for DBCS.
+	   * Swap foreground and background colors by hand.
+	   */
+	  attrib_add = (attrib_add & 0xFF00)
+			| ((attrib_add & 0x00F0) >> 4)
+			| ((attrib_add & 0x000F) << 4);
+	  attrib_add &= ~COMMON_LVB_REVERSE_VIDEO;
+	}
       SetConsoleTextAttribute (h, attrib_add);
       break;
     }
@@ -684,7 +694,6 @@ mingw_ansi_fputs (const char *str, FILE *fp)
     /* If it is not a console, write everything as-is.  */
     write_all (h, read, strlen (read));
 
-  _close ((intptr_t) h);
   return 1;
 }
 
@@ -696,10 +705,11 @@ static void pp_quoted_string (pretty_printer *, const char *, size_t = -1);
    For use e.g. when implementing "+" in client format decoders.  */
 
 void
-text_info::set_location (unsigned int idx, location_t loc, bool show_caret_p)
+text_info::set_location (unsigned int idx, location_t loc,
+			 enum range_display_kind range_display_kind)
 {
   gcc_checking_assert (m_richloc);
-  m_richloc->set_range (line_table, idx, loc, show_caret_p);
+  m_richloc->set_range (idx, loc, range_display_kind);
 }
 
 location_t
@@ -967,6 +977,7 @@ pp_indent (pretty_printer *pp)
    %ld, %li, %lo, %lu, %lx: long versions of the above.
    %lld, %lli, %llo, %llu, %llx: long long versions.
    %wd, %wi, %wo, %wu, %wx: HOST_WIDE_INT versions.
+   %f: double
    %c: character.
    %s: string.
    %p: pointer (printed in a host-dependent manner).
@@ -1297,6 +1308,10 @@ pp_format (pretty_printer *pp, text_info *text)
 	      (pp, *text->args_ptr, precision, unsigned, "u");
 	  break;
 
+	case 'f':
+	  pp_double (pp, va_arg (*text->args_ptr, double));
+	  break;
+
 	case 'Z':
 	  {
 	    int *v = va_arg (*text->args_ptr, int *);
@@ -1482,14 +1497,29 @@ pp_clear_output_area (pretty_printer *pp)
   pp_buffer (pp)->line_length = 0;
 }
 
-/* Set PREFIX for PRETTY-PRINTER.  */
+/* Set PREFIX for PRETTY-PRINTER, taking ownership of PREFIX, which
+   will eventually be free-ed.  */
+
 void
-pp_set_prefix (pretty_printer *pp, const char *prefix)
+pp_set_prefix (pretty_printer *pp, char *prefix)
 {
+  free (pp->prefix);
   pp->prefix = prefix;
   pp_set_real_maximum_length (pp);
   pp->emitted_prefix = false;
   pp_indentation (pp) = 0;
+}
+
+/* Take ownership of PP's prefix, setting it to NULL.
+   This allows clients to save, overide, and then restore an existing
+   prefix, without it being free-ed.  */
+
+char *
+pp_take_prefix (pretty_printer *pp)
+{
+  char *result = pp->prefix;
+  pp->prefix = NULL;
+  return result;
 }
 
 /* Free PRETTY-PRINTER's prefix, a previously malloc()'d string.  */
@@ -1498,7 +1528,7 @@ pp_destroy_prefix (pretty_printer *pp)
 {
   if (pp->prefix != NULL)
     {
-      free (CONST_CAST (char *, pp->prefix));
+      free (pp->prefix);
       pp->prefix = NULL;
     }
 }
@@ -1535,10 +1565,9 @@ pp_emit_prefix (pretty_printer *pp)
     }
 }
 
-/* Construct a PRETTY-PRINTER with PREFIX and of MAXIMUM_LENGTH
-   characters per line.  */
+/* Construct a PRETTY-PRINTER of MAXIMUM_LENGTH characters per line.  */
 
-pretty_printer::pretty_printer (const char *p, int l)
+pretty_printer::pretty_printer (int maximum_length)
   : buffer (new (XCNEW (output_buffer)) output_buffer ()),
     prefix (),
     padding (pp_none),
@@ -1552,10 +1581,10 @@ pretty_printer::pretty_printer (const char *p, int l)
     translate_identifiers (true),
     show_color ()
 {
-  pp_line_cutoff (this) = l;
+  pp_line_cutoff (this) = maximum_length;
   /* By default, we emit prefixes once per message.  */
   pp_prefixing_rule (this) = DIAGNOSTICS_SHOW_PREFIX_ONCE;
-  pp_set_prefix (this, p);
+  pp_set_prefix (this, NULL);
 }
 
 pretty_printer::~pretty_printer ()
@@ -1564,6 +1593,7 @@ pretty_printer::~pretty_printer ()
     delete m_format_postprocessor;
   buffer->~output_buffer ();
   XDELETE (buffer);
+  free (prefix);
 }
 
 /* Append a string delimited by START and END to the output area of
@@ -2102,10 +2132,7 @@ test_pp_format ()
 {
   /* Avoid introducing locale-specific differences in the results
      by hardcoding open_quote and close_quote.  */
-  const char *old_open_quote = open_quote;
-  const char *old_close_quote = close_quote;
-  open_quote = "`";
-  close_quote = "'";
+  auto_fix_quotes fix_quotes;
 
   /* Verify that plain text is passed through unchanged.  */
   assert_pp_format (SELFTEST_LOCATION, "unformatted", "unformatted");
@@ -2138,6 +2165,7 @@ test_pp_format ()
   ASSERT_PP_FORMAT_2 ("17 12345678", "%wo %x", (HOST_WIDE_INT)15, 0x12345678);
   ASSERT_PP_FORMAT_2 ("0xcafebabe 12345678", "%wx %x", (HOST_WIDE_INT)0xcafebabe,
 		      0x12345678);
+  ASSERT_PP_FORMAT_2 ("1.000000 12345678", "%f %x", 1.0, 0x12345678);
   ASSERT_PP_FORMAT_2 ("A 12345678", "%c %x", 'A', 0x12345678);
   ASSERT_PP_FORMAT_2 ("hello world 12345678", "%s %x", "hello world",
 		      0x12345678);
@@ -2187,10 +2215,101 @@ test_pp_format ()
   assert_pp_format (SELFTEST_LOCATION, "item 3 of 7", "item %i of %i", 3, 7);
   assert_pp_format (SELFTEST_LOCATION, "problem with `bar' at line 10",
 		    "problem with %qs at line %i", "bar", 10);
+}
 
-  /* Restore old values of open_quote and close_quote.  */
-  open_quote = old_open_quote;
-  close_quote = old_close_quote;
+/* A subclass of pretty_printer for use by test_prefixes_and_wrapping.  */
+
+class test_pretty_printer : public pretty_printer
+{
+ public:
+  test_pretty_printer (enum diagnostic_prefixing_rule_t rule,
+		       int max_line_length)
+  {
+    pp_set_prefix (this, xstrdup ("PREFIX: "));
+    wrapping.rule = rule;
+    pp_set_line_maximum_length (this, max_line_length);
+  }
+};
+
+/* Verify that the various values of enum diagnostic_prefixing_rule_t work
+   as expected, with and without line wrapping.  */
+
+static void
+test_prefixes_and_wrapping ()
+{
+  /* Tests of the various prefixing rules, without wrapping.
+     Newlines embedded in pp_string don't affect it; we have to
+     explicitly call pp_newline.  */
+  {
+    test_pretty_printer pp (DIAGNOSTICS_SHOW_PREFIX_ONCE, 0);
+    pp_string (&pp, "the quick brown fox");
+    pp_newline (&pp);
+    pp_string (&pp, "jumps over the lazy dog");
+    pp_newline (&pp);
+    ASSERT_STREQ (pp_formatted_text (&pp),
+		  "PREFIX: the quick brown fox\n"
+		  "   jumps over the lazy dog\n");
+  }
+  {
+    test_pretty_printer pp (DIAGNOSTICS_SHOW_PREFIX_NEVER, 0);
+    pp_string (&pp, "the quick brown fox");
+    pp_newline (&pp);
+    pp_string (&pp, "jumps over the lazy dog");
+    pp_newline (&pp);
+    ASSERT_STREQ (pp_formatted_text (&pp),
+		  "the quick brown fox\n"
+		  "jumps over the lazy dog\n");
+  }
+  {
+    test_pretty_printer pp (DIAGNOSTICS_SHOW_PREFIX_EVERY_LINE, 0);
+    pp_string (&pp, "the quick brown fox");
+    pp_newline (&pp);
+    pp_string (&pp, "jumps over the lazy dog");
+    pp_newline (&pp);
+    ASSERT_STREQ (pp_formatted_text (&pp),
+		  "PREFIX: the quick brown fox\n"
+		  "PREFIX: jumps over the lazy dog\n");
+  }
+
+  /* Tests of the various prefixing rules, with wrapping.  */
+  {
+    test_pretty_printer pp (DIAGNOSTICS_SHOW_PREFIX_ONCE, 20);
+    pp_string (&pp, "the quick brown fox jumps over the lazy dog");
+    pp_newline (&pp);
+    pp_string (&pp, "able was I ere I saw elba");
+    pp_newline (&pp);
+    ASSERT_STREQ (pp_formatted_text (&pp),
+		  "PREFIX: the quick \n"
+		  "   brown fox jumps \n"
+		  "   over the lazy \n"
+		  "   dog\n"
+		  "   able was I ere I \n"
+		  "   saw elba\n");
+  }
+  {
+    test_pretty_printer pp (DIAGNOSTICS_SHOW_PREFIX_NEVER, 20);
+    pp_string (&pp, "the quick brown fox jumps over the lazy dog");
+    pp_newline (&pp);
+    pp_string (&pp, "able was I ere I saw elba");
+    pp_newline (&pp);
+    ASSERT_STREQ (pp_formatted_text (&pp),
+		  "the quick brown fox \n"
+		  "jumps over the lazy \n"
+		  "dog\n"
+		  "able was I ere I \n"
+		  "saw elba\n");
+  }
+  {
+    test_pretty_printer pp (DIAGNOSTICS_SHOW_PREFIX_EVERY_LINE, 20);
+    pp_string (&pp, "the quick brown fox jumps over the lazy dog");
+    pp_newline (&pp);
+    pp_string (&pp, "able was I ere I saw elba");
+    pp_newline (&pp);
+    ASSERT_STREQ (pp_formatted_text (&pp),
+		  "PREFIX: the quick brown fox jumps over the lazy dog\n"
+		  "PREFIX: able was I ere I saw elba\n");
+  }
+
 }
 
 /* Run all of the selftests within this file.  */
@@ -2200,6 +2319,7 @@ pretty_print_c_tests ()
 {
   test_basic_printing ();
   test_pp_format ();
+  test_prefixes_and_wrapping ();
 }
 
 } // namespace selftest

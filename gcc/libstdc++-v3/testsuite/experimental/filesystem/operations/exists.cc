@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2018 Free Software Foundation, Inc.
+// Copyright (C) 2015-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -28,16 +28,18 @@ using std::experimental::filesystem::path;
 void
 test01()
 {
-  VERIFY( exists(path{"/"}) );
-  VERIFY( exists(path{"/."}) );
+  const path root = __gnu_test::root_path();
+
+  VERIFY( exists(root) );
+  VERIFY( exists(root/".") );
   VERIFY( exists(path{"."}) );
   VERIFY( exists(path{".."}) );
   VERIFY( exists(std::experimental::filesystem::current_path()) );
 
   std::error_code ec = std::make_error_code(std::errc::invalid_argument);
-  VERIFY( exists(path{"/"}, ec) );
+  VERIFY( exists(root, ec) );
   VERIFY( !ec );
-  VERIFY( exists(path{"/."}, ec) );
+  VERIFY( exists(root/".", ec) );
   VERIFY( !ec );
   VERIFY( exists(path{"."}, ec) );
   VERIFY( !ec );
@@ -72,6 +74,11 @@ test03()
 void
 test04()
 {
+#if defined(__MINGW32__) || defined(__MINGW64__)
+  // filesystem permissions not supported
+  return;
+#endif
+
   using perms = std::experimental::filesystem::perms;
   path p = __gnu_test::nonexistent_path();
   create_directory(p);

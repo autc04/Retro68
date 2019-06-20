@@ -436,7 +436,7 @@ var mutexprofilerate uint64 // fraction sampled
 // reported. The previous rate is returned.
 //
 // To turn off profiling entirely, pass rate 0.
-// To just read the current rate, pass rate -1.
+// To just read the current rate, pass rate < 0.
 // (For n>1 the details of sampling may change.)
 func SetMutexProfileFraction(rate int) int {
 	if rate < 0 {
@@ -734,7 +734,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 	isOK := func(gp1 *g) bool {
 		// Checking isSystemGoroutine here makes GoroutineProfile
 		// consistent with both NumGoroutine and Stack.
-		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1)
+		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1, false)
 	}
 
 	stopTheWorld("profile")
@@ -833,7 +833,7 @@ func tracealloc(p unsafe.Pointer, size uintptr, typ *_type) {
 	if typ == nil {
 		print("tracealloc(", p, ", ", hex(size), ")\n")
 	} else {
-		print("tracealloc(", p, ", ", hex(size), ", ", *typ.string, ")\n")
+		print("tracealloc(", p, ", ", hex(size), ", ", typ.string(), ")\n")
 	}
 	if gp.m.curg == nil || gp == gp.m.curg {
 		goroutineheader(gp)

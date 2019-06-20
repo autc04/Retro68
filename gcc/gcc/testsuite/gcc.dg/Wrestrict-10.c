@@ -39,8 +39,7 @@ test_arr_strcat_1 (void)
 void __attribute__ ((noclone, noinline))
 test_arr_strcat_2 (void)
 {
-  /* This probably deserves a warning.  */
-  strcpy (b.a, &b.a[i]);
+  strcat (b.a, &b.a[i]);            /* { dg-warning "\\\[-Wrestrict" } */
 }
 
 void __attribute__ ((noclone, noinline))
@@ -58,7 +57,7 @@ test_arr_strncat_2 (void)
 void __attribute__ ((noclone, noinline))
 test_arr_strcpy_1 (void)
 {
-  strcpy (&b.a[i], b.a);
+  strcpy (&b.a[i], b.a);            /* { dg-warning "\\\[-Wrestrict" } */
 }
 
 void __attribute__ ((noclone, noinline))

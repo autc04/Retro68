@@ -7,9 +7,17 @@
 package bytes
 
 import (
+	"internal/bytealg"
 	"unicode"
 	"unicode/utf8"
 )
+
+// Equal returns a boolean reporting whether a and b
+// are the same length and contain the same bytes.
+// A nil argument is equivalent to an empty slice.
+func Equal(a, b []byte) bool {
+	return bytealg.Equal(a, b)
+}
 
 func equalPortable(a, b []byte) bool {
 	if len(a) != len(b) {
@@ -21,6 +29,13 @@ func equalPortable(a, b []byte) bool {
 		}
 	}
 	return true
+}
+
+// Compare returns an integer comparing two byte slices lexicographically.
+// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+// A nil argument is equivalent to an empty slice.
+func Compare(a, b []byte) int {
+	return bytealg.Compare(a, b)
 }
 
 // explode splits s into a slice of UTF-8 sequences, one per Unicode code point (still slices of bytes),
@@ -46,11 +61,15 @@ func explode(s []byte, n int) [][]byte {
 	return a[0:na]
 }
 
-// countGeneric actually implements Count
-func countGeneric(s, sep []byte) int {
+// Count counts the number of non-overlapping instances of sep in s.
+// If sep is an empty slice, Count returns 1 + the number of UTF-8-encoded code points in s.
+func Count(s, sep []byte) int {
 	// special case
 	if len(sep) == 0 {
 		return utf8.RuneCount(s) + 1
+	}
+	if len(sep) == 1 {
+		return bytealg.Count(s, sep[0])
 	}
 	n := 0
 	for {
@@ -76,6 +95,11 @@ func ContainsAny(b []byte, chars string) bool {
 // ContainsRune reports whether the rune is contained in the UTF-8-encoded byte slice b.
 func ContainsRune(b []byte, r rune) bool {
 	return IndexRune(b, r) >= 0
+}
+
+// IndexByte returns the index of the first instance of c in b, or -1 if c is not present in b.
+func IndexByte(b []byte, c byte) int {
+	return bytealg.IndexByte(b, c)
 }
 
 func indexBytePortable(s []byte, c byte) int {
@@ -484,19 +508,19 @@ func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
 // ToUpperSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
 // upper case, giving priority to the special casing rules.
 func ToUpperSpecial(c unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return c.ToUpper(r) }, s)
+	return Map(c.ToUpper, s)
 }
 
 // ToLowerSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
 // lower case, giving priority to the special casing rules.
 func ToLowerSpecial(c unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return c.ToLower(r) }, s)
+	return Map(c.ToLower, s)
 }
 
 // ToTitleSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
 // title case, giving priority to the special casing rules.
 func ToTitleSpecial(c unicode.SpecialCase, s []byte) []byte {
-	return Map(func(r rune) rune { return c.ToTitle(r) }, s)
+	return Map(c.ToTitle, s)
 }
 
 // isSeparator reports whether the rune could mark a word boundary.
@@ -769,6 +793,15 @@ func Replace(s, old, new []byte, n int) []byte {
 	return t[0:w]
 }
 
+// ReplaceAll returns a copy of the slice s with all
+// non-overlapping instances of old replaced by new.
+// If old is empty, it matches at the beginning of the slice
+// and after each UTF-8 sequence, yielding up to k+1 replacements
+// for a k-rune slice.
+func ReplaceAll(s, old, new []byte) []byte {
+	return Replace(s, old, new, -1)
+}
+
 // EqualFold reports whether s and t, interpreted as UTF-8 strings,
 // are equal under Unicode case-folding.
 func EqualFold(s, t []byte) bool {
@@ -800,9 +833,9 @@ func EqualFold(s, t []byte) bool {
 			tr, sr = sr, tr
 		}
 		// Fast check for ASCII.
-		if tr < utf8.RuneSelf && 'A' <= sr && sr <= 'Z' {
-			// ASCII, and sr is upper case.  tr must be lower case.
-			if tr == sr+'a'-'A' {
+		if tr < utf8.RuneSelf {
+			// ASCII only, sr/tr must be upper/lower case
+			if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
 				continue
 			}
 			return false
@@ -822,6 +855,94 @@ func EqualFold(s, t []byte) bool {
 
 	// One string is empty. Are both?
 	return len(s) == len(t)
+}
+
+// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+func Index(s, sep []byte) int {
+	n := len(sep)
+	switch {
+	case n == 0:
+		return 0
+	case n == 1:
+		return IndexByte(s, sep[0])
+	case n == len(s):
+		if Equal(sep, s) {
+			return 0
+		}
+		return -1
+	case n > len(s):
+		return -1
+	case n <= bytealg.MaxLen:
+		// Use brute force when s and sep both are small
+		if len(s) <= bytealg.MaxBruteForce {
+			return bytealg.Index(s, sep)
+		}
+		c0 := sep[0]
+		c1 := sep[1]
+		i := 0
+		t := len(s) - n + 1
+		fails := 0
+		for i < t {
+			if s[i] != c0 {
+				// IndexByte is faster than bytealg.Index, so use it as long as
+				// we're not getting lots of false positives.
+				o := IndexByte(s[i:t], c0)
+				if o < 0 {
+					return -1
+				}
+				i += o
+			}
+			if s[i+1] == c1 && Equal(s[i:i+n], sep) {
+				return i
+			}
+			fails++
+			i++
+			// Switch to bytealg.Index when IndexByte produces too many false positives.
+			if fails > bytealg.Cutover(i) {
+				r := bytealg.Index(s[i:], sep)
+				if r >= 0 {
+					return r + i
+				}
+				return -1
+			}
+		}
+		return -1
+	}
+	c0 := sep[0]
+	c1 := sep[1]
+	i := 0
+	fails := 0
+	t := len(s) - n + 1
+	for i < t {
+		if s[i] != c0 {
+			o := IndexByte(s[i:t], c0)
+			if o < 0 {
+				break
+			}
+			i += o
+		}
+		if s[i+1] == c1 && Equal(s[i:i+n], sep) {
+			return i
+		}
+		i++
+		fails++
+		if fails >= 4+i>>4 && i < t {
+			// Give up on IndexByte, it isn't skipping ahead
+			// far enough to be better than Rabin-Karp.
+			// Experiments (using IndexPeriodic) suggest
+			// the cutover is about 16 byte skips.
+			// TODO: if large prefixes of sep are matching
+			// we should cutover at even larger average skips,
+			// because Equal becomes that much more expensive.
+			// This code does not take that effect into account.
+			j := indexRabinKarp(s[i:], sep)
+			if j < 0 {
+				return -1
+			}
+			return i + j
+		}
+	}
+	return -1
 }
 
 func indexRabinKarp(s, sep []byte) int {

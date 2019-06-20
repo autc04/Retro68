@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2018 Free Software Foundation, Inc.
+// Copyright (C) 2016-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++17 -lstdc++fs" }
+// { dg-options "-std=gnu++17" }
 // { dg-do run { target c++17 } }
 // { dg-require-filesystem-ts "" }
 
@@ -42,7 +42,7 @@ test01()
   VERIFY( !exists(to) );
 
   // test empty file
-  std::ofstream{from.native()};
+  std::ofstream{from};
   VERIFY( exists(from) );
   VERIFY( file_size(from) == 0 );
 
@@ -58,7 +58,7 @@ test01()
   VERIFY( exists(to) );
   VERIFY( file_size(to) == 0 );
 
-  std::ofstream{from.native()} << "Hello, filesystem!";
+  std::ofstream{from} << "Hello, filesystem!";
   VERIFY( file_size(from) != 0 );
   remove(to);
   VERIFY( !exists(to) );

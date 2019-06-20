@@ -21,13 +21,14 @@ func envOr(key, value string) string {
 var (
 	defaultGOROOT string // set by linker
 
-	GOROOT  = envOr("GOROOT", defaultGOROOT)
-	GOARCH  = envOr("GOARCH", defaultGOARCH)
-	GOOS    = envOr("GOOS", defaultGOOS)
-	GO386   = envOr("GO386", defaultGO386)
-	GOARM   = goarm()
-	GOMIPS  = gomips()
-	Version = version
+	GOROOT   = envOr("GOROOT", defaultGOROOT)
+	GOARCH   = envOr("GOARCH", defaultGOARCH)
+	GOOS     = envOr("GOOS", defaultGOOS)
+	GO386    = envOr("GO386", defaultGO386)
+	GOARM    = goarm()
+	GOMIPS   = gomips()
+	GOMIPS64 = gomips64()
+	Version  = version
 )
 
 func goarm() int {
@@ -53,6 +54,15 @@ func gomips() string {
 	panic("unreachable")
 }
 
+func gomips64() string {
+	switch v := envOr("GOMIPS64", defaultGOMIPS64); v {
+	case "hardfloat", "softfloat":
+		return v
+	}
+	log.Fatalf("Invalid GOMIPS64 value. Must be hardfloat or softfloat.")
+	panic("unreachable")
+}
+
 func Getgoextlinkenabled() string {
 	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
 }
@@ -66,7 +76,7 @@ func init() {
 }
 
 func Framepointer_enabled(goos, goarch string) bool {
-	return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
+	return framepointer_enabled != 0 && (goarch == "amd64" && goos != "nacl" || goarch == "arm64" && goos == "linux")
 }
 
 func addexp(s string) {
@@ -94,7 +104,6 @@ var (
 	framepointer_enabled     int = 1
 	Fieldtrack_enabled       int
 	Preemptibleloops_enabled int
-	Clobberdead_enabled      int
 )
 
 // Toolchain experiments.
@@ -108,7 +117,6 @@ var exper = []struct {
 	{"fieldtrack", &Fieldtrack_enabled},
 	{"framepointer", &framepointer_enabled},
 	{"preemptibleloops", &Preemptibleloops_enabled},
-	{"clobberdead", &Clobberdead_enabled},
 }
 
 var defaultExpstring = Expstring()

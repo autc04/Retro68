@@ -1,10 +1,76 @@
-2018-07-26  Release Manager
+2019-05-03  Release Manager
 
-	* GCC 8.2.0 released.
+	* GCC 9.1.0 released.
 
-2018-05-02  Release Manager
+2019-01-01  Jakub Jelinek  <jakub@redhat.com>
 
-	* GCC 8.1.0 released.
+	Update copyright years.
+
+2019-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* libitm.texi: Bump @copying's copyright year.
+
+2018-12-16  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/88482
+	* eh_cpp.cc (__cxa_throw): Change DEST argument type from
+	void * to void (*) (void *).
+	(_ITM_cxa_throw): Likewise.
+	* libitm.h (_ITM_cxa_throw): Likewise.
+	* libitm.texi (_ITM_cxa_throw): Likewise.
+
+2018-12-13  Peter Bergner  <bergner@linux.ibm.com>
+
+	* config/powerpc/target.h (htm_available):  Add support for
+	PPC_FEATURE2_HTM_NO_SUSPEND.  Use __builtin_cpu_supports if available.
+
+2018-10-31  Joseph Myers  <joseph@codesourcery.com>
+
+	PR bootstrap/82856
+	* Makefile.am: Include multilib.am.
+	(AUTOMAKE_OPTIONS): Add info-in-builddir.
+	(CLEANFILES): Remove libitm.info.
+	* configure.ac: Remove AC_PREREQ.
+	* testsuite/Makefile.am (RUNTEST): Remove quotes.
+	* Makefile.in, aclocal.m4, configure, testsuite/Makefile.in:
+	Regenerate.
+
+2018-10-30  Nicholas Krause <xerofoify@gmail.com>
+
+	PR libitm/86293
+	* method-serial.cc: Mark varible as potentially unused
+	to silence warning.
+
+2018-08-03  Sergei Trofimovich  <slyfox@gentoo.org>
+
+	* config/sh/sjlj.S: Adjust to use PIC vs normal code to avoid
+	absolute relocation in a shared library.
+
+2018-06-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR libitm/85988
+	* config/linux/x86/tls.h (SEG_READ): Use the offset of
+	__private_tm as base.
+	(SEG_WRITE): Likewise.
+	(SEG_ENCODE_WRITE): Correct the offset of pointer_guard for x32.
+	(gtm_thr): Replace SEG_READ(10) with SEG_READ(0).
+	(set_gtm_thr): Replace SEG_WRITE(10) with SEG_WRITE(0).
+	(abi_disp): Replace SEG_DECODE_READ(11) with SEG_DECODE_READ(1).
+	(set_abi_disp): Replace SEG_ENCODE_WRITE(11) with
+
+2018-05-17  Jason Merrill  <jason@redhat.com>
+
+	* beginend.cc (save): Disable -Werror=deprecated-copy.
+
+2018-05-02  Tom de Vries  <tom@codesourcery.com>
+
+	PR testsuite/85106
+	* testsuite/lib/libitm.exp: Include scanltranstree.exp.
+
+2018-05-02  Tom de Vries  <tom@codesourcery.com>
+
+	PR testsuite/85106
+	* testsuite/lib/libitm.exp: Include scanwpaipa.exp.
 
 2018-04-24  H.J. Lu  <hongjiu.lu@intel.com>
 
@@ -2103,7 +2169,7 @@
 
 	* Initial commit.
 
-Copyright (C) 2008-2018 Free Software Foundation, Inc.
+Copyright (C) 2008-2019 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

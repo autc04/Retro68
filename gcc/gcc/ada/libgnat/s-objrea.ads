@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2009-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 2009-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -42,14 +42,6 @@ package System.Object_Reader is
    --------------
 
    BUFFER_SIZE : constant := 8 * 1024;
-
-   ------------------
-   -- Object files --
-   ------------------
-
-   type Object_File (<>) is private;
-
-   type Object_File_Access is access Object_File;
 
    ---------------------
    -- Object sections --
@@ -87,6 +79,14 @@ package System.Object_Reader is
 
    --  PECOFF | PECOFF_PLUS appears so often as a case choice, would
    --  seem a good idea to have a subtype name covering these two choices ???
+
+   ------------------
+   -- Object files --
+   ------------------
+
+   type Object_File (Format : Object_Format) is private;
+
+   type Object_File_Access is access Object_File;
 
    ------------------------------
    -- Object architecture type --
@@ -277,7 +277,7 @@ package System.Object_Reader is
       Sec : Object_Section) return Mapped_Stream;
    --  Create a stream for section Sec
 
-   procedure Get_Memory_Bounds
+   procedure Get_Xcode_Bounds
      (Obj   : in out Object_File;
       Low, High : out uint64);
    --  Return the low and high addresses of the code for the object file. Can
@@ -434,8 +434,8 @@ private
       Size       : uint64 := 0;
       --  Length of the section in bytes
 
-      Flag_Alloc : Boolean := False;
-      --  True if the section is mapped in memory by the OS loader
+      Flag_Xcode : Boolean := False;
+      --  True if the section is advertised to contain executable code
    end record;
 
    Null_Section : constant Object_Section := (0, 0, 0, 0, False);

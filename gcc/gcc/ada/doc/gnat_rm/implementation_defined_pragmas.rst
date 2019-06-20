@@ -89,6 +89,158 @@ Syntax:
 For the semantics of this pragma, see the entry for aspect ``Abstract_State`` in
 the SPARK 2014 Reference Manual, section 7.1.4.
 
+Pragma Acc_Parallel
+===================
+Syntax:
+
+.. code-block:: ada
+
+  pragma Acc_Parallel [( ACC_PARALLEL_CLAUSE [, ACC_PARALLEL_CLAUSE... ])];
+
+  ACC_PARALLEL_CLAUSE ::=
+      Acc_If        => boolean_EXPRESSION
+    | Acc_Private   => IDENTIFIERS
+    | Async         => integer_EXPRESSION
+    | Copy          => IDENTIFIERS
+    | Copy_In       => IDENTIFIERS
+    | Copy_Out      => IDENTIFIERS
+    | Create        => IDENTIFIERS
+    | Default       => None
+    | Device_Ptr    => IDENTIFIERS
+    | First_Private => IDENTIFIERS
+    | Num_Gangs     => integer_EXPRESSION
+    | Num_Workers   => integer_EXPRESSION
+    | Present       => IDENTIFIERS
+    | Reduction     => (REDUCTION_RECORD)
+    | Vector_Length => integer_EXPRESSION
+    | Wait          => INTEGERS
+
+  REDUCTION_RECORD ::=
+      "+"   => IDENTIFIERS
+    | "*"   => IDENTIFIERS
+    | "min" => IDENTIFIERS
+    | "max" => IDENTIFIERS
+    | "or"  => IDENTIFIERS
+    | "and" => IDENTIFIERS
+
+  IDENTIFIERS ::=
+    | IDENTIFIER
+    | (IDENTIFIER, IDENTIFIERS)
+
+  INTEGERS ::=
+    | integer_EXPRESSION
+    | (integer_EXPRESSION, INTEGERS)
+
+Requires the :switch:`-fopenacc` flag.
+
+Equivalent to the ``parallel`` directive of the OpenAcc standard. This pragma
+should be placed in loops. It offloads the content of the loop to an
+accelerator device.
+
+For more information about the effect of the clauses, see the OpenAcc
+specification.
+
+Pragma Acc_Loop
+===============
+Syntax:
+
+.. code-block:: ada
+
+  pragma Acc_Loop [( ACC_LOOP_CLAUSE [, ACC_LOOP_CLAUSE... ])];
+
+  ACC_LOOP_CLAUSE ::=
+      Auto
+    | Collapse        => INTEGER_LITERAL
+    | Gang            [=> GANG_ARG]
+    | Independent
+    | Private         => IDENTIFIERS
+    | Reduction       => (REDUCTION_RECORD)
+    | Seq
+    | Tile            => SIZE_EXPRESSION
+    | Vector          [=> integer_EXPRESSION]
+    | Worker          [=> integer_EXPRESSION]
+
+  GANG_ARG ::=
+      integer_EXPRESSION
+    | Static => SIZE_EXPRESSION
+
+  SIZE_EXPRESSION ::=
+      *
+    | integer_EXPRESSION
+
+Requires the :switch:`-fopenacc` flag.
+
+Equivalent to the ``loop`` directive of the OpenAcc standard. This pragma
+should be placed in for loops after the "Acc_Parallel" pragma. It tells the
+compiler how to parallelize the loop.
+
+For more information about the effect of the clauses, see the OpenAcc
+specification.
+
+Pragma Acc_Kernels
+==================
+Syntax:
+
+.. code-block:: ada
+
+  pragma Acc_Kernels [( ACC_KERNELS_CLAUSE [, ACC_KERNELS_CLAUSE...])];
+
+  ACC_KERNELS_CLAUSE ::=
+      Acc_If        => boolean_EXPRESSION
+    | Async         => integer_EXPRESSION
+    | Copy          => IDENTIFIERS
+    | Copy_In       => IDENTIFIERS
+    | Copy_Out      => IDENTIFIERS
+    | Create        => IDENTIFIERS
+    | Default       => None
+    | Device_Ptr    => IDENTIFIERS
+    | Num_Gangs     => integer_EXPRESSION
+    | Num_Workers   => integer_EXPRESSION
+    | Present       => IDENTIFIERS
+    | Vector_Length => integer_EXPRESSION
+    | Wait          => INTEGERS
+
+  IDENTIFIERS ::=
+    | IDENTIFIER
+    | (IDENTIFIER, IDENTIFIERS)
+
+  INTEGERS ::=
+    | integer_EXPRESSION
+    | (integer_EXPRESSION, INTEGERS)
+
+Requires the :switch:`-fopenacc` flag.
+
+Equivalent to the kernels directive of the OpenAcc standard. This pragma should
+be placed in loops.
+
+For more information about the effect of the clauses, see the OpenAcc
+specification.
+
+Pragma Acc_Data
+===============
+Syntax:
+
+.. code-block:: ada
+
+  pragma Acc_Data ([ ACC_DATA_CLAUSE [, ACC_DATA_CLAUSE...]]);
+
+  ACC_DATA_CLAUSE ::=
+      Copy          => IDENTIFIERS
+    | Copy_In       => IDENTIFIERS
+    | Copy_Out      => IDENTIFIERS
+    | Create        => IDENTIFIERS
+    | Device_Ptr    => IDENTIFIERS
+    | Present       => IDENTIFIERS
+
+Requires the :switch:`-fopenacc` flag.
+
+Equivalent to the ``data`` directive of the OpenAcc standard. This pragma
+should be placed in loops.
+
+For more information about the effect of the clauses, see the OpenAcc
+specification.
+
+
 Pragma Ada_83
 =============
 
@@ -396,7 +548,7 @@ Pragma Assertion_Policy
 
 Syntax::
 
-  pragma Assertion_Policy (CHECK | DISABLE | IGNORE);
+  pragma Assertion_Policy (CHECK | DISABLE | IGNORE | SUPPRESSIBLE);
 
   pragma Assertion_Policy (
       ASSERTION_KIND => POLICY_IDENTIFIER
@@ -1173,9 +1325,9 @@ are equivalent to
   pragma Postcondition (if C2 then Pred2);
 
 
-The precondition ensures that one and only one of the conditions is
+The precondition ensures that one and only one of the case guards is
 satisfied on entry to the subprogram.
-The postcondition ensures that for the condition that was True on entry,
+The postcondition ensures that for the case guard that was True on entry,
 the corrresponding consequence is True on exit. Other consequence expressions
 are not evaluated.
 
@@ -1190,13 +1342,13 @@ expressed as contract cases:
 The placement and visibility rules for ``Contract_Cases`` pragmas are
 identical to those described for preconditions and postconditions.
 
-The compiler checks that boolean expressions given in conditions and
-consequences are valid, where the rules for conditions are the same as
+The compiler checks that boolean expressions given in case guards and
+consequences are valid, where the rules for case guards are the same as
 the rule for an expression in ``Precondition`` and the rules for
 consequences are the same as the rule for an expression in
 ``Postcondition``. In particular, attributes ``'Old`` and
 ``'Result`` can only be used within consequence expressions.
-The condition for the last contract case may be ``others``, to denote
+The case guard for the last contract case may be ``others``, to denote
 any case not captured by the previous cases. The
 following is an example of use within a package spec:
 
@@ -1214,7 +1366,7 @@ following is an example of use within a package spec:
 
 
 The meaning of contract cases is that only one case should apply at each
-call, as determined by the corresponding condition evaluating to True,
+call, as determined by the corresponding case guard evaluating to True,
 and that the consequence for this case should hold when the subprogram
 returns.
 
@@ -1678,18 +1830,23 @@ Syntax:
   pragma Elaboration_Checks (Dynamic | Static);
 
 
-This is a configuration pragma that provides control over the
-elaboration model used by the compilation affected by the
-pragma.  If the parameter is ``Dynamic``,
-then the dynamic elaboration
-model described in the Ada Reference Manual is used, as though
-the *-gnatE* switch had been specified on the command
-line.  If the parameter is ``Static``, then the default GNAT static
-model is used.  This configuration pragma overrides the setting
-of the command line.  For full details on the elaboration models
-used by the GNAT compiler, see the chapter on elaboration order handling
-in the *GNAT User's Guide*.
+This is a configuration pragma which specifies the elaboration model to be
+used during compilation. For more information on the elaboration models of
+GNAT, consult the chapter on elaboration order handling in the *GNAT User's
+Guide*.
 
+The pragma may appear in the following contexts:
+
+* Configuration pragmas file
+
+* Prior to the context clauses of a compilation unit's initial declaration
+
+Any other placement of the pragma will result in a warning and the effects of
+the offending pragma will be ignored.
+
+If the pragma argument is ``Dynamic``, then the dynamic elaboration model is in
+effect. If the pragma argument is ``Static``, then the static elaboration model
+is in effect.
 
 Pragma Eliminate
 ================
@@ -3886,6 +4043,11 @@ Once the pragma has been given for a particular root tagged type, all subtypes
 and derived types of this type inherit the pragma automatically, so the effect
 applies to a complete hierarchy (this is necessary to deal with the class-wide
 dispatching versions of the stream routines).
+
+When pragmas ``Discard_Names`` and ``No_Tagged_Streams`` are simultaneously
+applied to a tagged type its Expanded_Name and External_Tag are initialized
+with empty strings. This is useful to avoid exposing entity names at binary
+level but has a negative impact on the debuggability of tagged types.
 
 Pragma Normalize_Scalars
 ========================
@@ -6603,13 +6765,17 @@ Syntax:
 This pragma specifies that the specified entity, which must be
 a variable declared in a library-level package, is to be marked as
 "Thread Local Storage" (``TLS``). On systems supporting this (which
-include Windows, Solaris, GNU/Linux and VxWorks 6), this causes each
+include Windows, Solaris, GNU/Linux, and VxWorks 6), this causes each
 thread (and hence each Ada task) to see a distinct copy of the variable.
 
-The variable may not have default initialization, and if there is
+The variable must not have default initialization, and if there is
 an explicit initialization, it must be either ``null`` for an
-access variable, or a static expression for a scalar variable.
-This provides a low level mechanism similar to that provided by
+access variable, a static expression for a scalar variable, or a fully
+static aggregate for a composite type, that is to say, an aggregate all
+of whose components are static, and which does not include packed or
+discriminated components.
+
+This provides a low-level mechanism similar to that provided by
 the ``Ada.Task_Attributes`` package, but much more efficient
 and is also useful in writing interface code that will interact
 with foreign threads.
@@ -7445,6 +7611,10 @@ pragmas must appear in sequence:
 In this usage, the pattern string must match in the Off and On
 pragmas, and (if *-gnatw.w* is given) at least one matching
 warning must be suppressed.
+
+Note: if the ON form is not found, then the effect of the OFF form extends
+until the end of the file (pragma Warnings is purely textual, so its effect
+does not stop at the end of the enclosing scope).
 
 Note: to write a string that will match any warning, use the string
 ``"***"``. It will not work to use a single asterisk or two

@@ -1,5 +1,5 @@
 /* Swing Modulo Scheduling implementation.
-   Copyright (C) 2004-2018 Free Software Foundation, Inc.
+   Copyright (C) 2004-2019 Free Software Foundation, Inc.
    Contributed by Ayal Zaks and Mustafa Hagog <zaks,mustafa@il.ibm.com>
 
 This file is part of GCC.
@@ -1449,10 +1449,6 @@ sms_schedule (void)
                   fprintf (dump_file, "%" PRId64 "max %" PRId64,
                            (int64_t) trip_count, (int64_t) max_trip_count);
                   fprintf (dump_file, "\n");
-	      	  fprintf (dump_file, "SMS profile-sum-max ");
-	      	  fprintf (dump_file, "%" PRId64,
-	          	   (int64_t) profile_info->sum_max);
-	      	  fprintf (dump_file, "\n");
 	    	}
 	    }
           continue;
@@ -1567,10 +1563,6 @@ sms_schedule (void)
 	      fprintf (dump_file, "%" PRId64,
 	               (int64_t) bb->count.to_gcov_type ());
 	      fprintf (dump_file, "\n");
-	      fprintf (dump_file, "SMS profile-sum-max ");
-	      fprintf (dump_file, "%" PRId64,
-	               (int64_t) profile_info->sum_max);
-	      fprintf (dump_file, "\n");
 	    }
 	  fprintf (dump_file, "SMS doloop\n");
 	  fprintf (dump_file, "SMS built-ddg %d\n", g->num_nodes);
@@ -1605,6 +1597,7 @@ sms_schedule (void)
       mii = 1; /* Need to pass some estimate of mii.  */
       rec_mii = sms_order_nodes (g, mii, node_order, &max_asap);
       mii = MAX (res_MII (g), rec_mii);
+      mii = MAX (mii, 1);
       maxii = MAX (max_asap, MAXII_FACTOR * mii);
 
       if (dump_file)
@@ -3004,9 +2997,7 @@ ps_insn_find_column (partial_schedule_ptr ps, ps_insn_ptr ps_i,
             last_must_precede = next_ps_i;
         }
       /* The closing branch must be the last in the row.  */
-      if (must_precede 
-	  && bitmap_bit_p (must_precede, next_ps_i->id)
-	  && JUMP_P (ps_rtl_insn (ps, next_ps_i->id)))
+      if (JUMP_P (ps_rtl_insn (ps, next_ps_i->id)))
 	return false;
              
        last_in_row = next_ps_i;

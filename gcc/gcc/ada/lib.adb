@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1326,7 +1326,7 @@ package body Lib is
       Write_Str ("=");
       Write_Str (Node_Kind'Image (Nkind (Item)));
 
-      if Item /= Original_Node (Item) then
+      if Is_Rewrite_Substitution (Item) then
          Write_Str (", orig = ");
          Write_Int (Int (Original_Node (Item)));
          Write_Str ("=");

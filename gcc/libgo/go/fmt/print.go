@@ -6,6 +6,7 @@ package fmt
 
 import (
 	"errors"
+	"internal/fmtsort"
 	"io"
 	"os"
 	"reflect"
@@ -139,6 +140,16 @@ func newPrinter() *pp {
 
 // free saves used pp structs in ppFree; avoids an allocation per invocation.
 func (p *pp) free() {
+	// Proper usage of a sync.Pool requires each entry to have approximately
+	// the same memory cost. To obtain this property when the stored type
+	// contains a variably-sized buffer, we add a hard limit on the maximum buffer
+	// to place back in the pool.
+	//
+	// See https://golang.org/issue/23199
+	if cap(p.buf) > 64<<10 {
+		return
+	}
+
 	p.buf = p.buf[:0]
 	p.arg = nil
 	p.value = reflect.Value{}
@@ -341,7 +352,7 @@ func (p *pp) badVerb(verb rune) {
 func (p *pp) fmtBool(v bool, verb rune) {
 	switch verb {
 	case 't', 'v':
-		p.fmt.fmt_boolean(v)
+		p.fmt.fmtBoolean(v)
 	default:
 		p.badVerb(verb)
 	}
@@ -352,7 +363,7 @@ func (p *pp) fmtBool(v bool, verb rune) {
 func (p *pp) fmt0x64(v uint64, leading0x bool) {
 	sharp := p.fmt.sharp
 	p.fmt.sharp = leading0x
-	p.fmt.fmt_integer(v, 16, unsigned, ldigits)
+	p.fmt.fmtInteger(v, 16, unsigned, ldigits)
 	p.fmt.sharp = sharp
 }
 
@@ -363,28 +374,28 @@ func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
 		if p.fmt.sharpV && !isSigned {
 			p.fmt0x64(v, true)
 		} else {
-			p.fmt.fmt_integer(v, 10, isSigned, ldigits)
+			p.fmt.fmtInteger(v, 10, isSigned, ldigits)
 		}
 	case 'd':
-		p.fmt.fmt_integer(v, 10, isSigned, ldigits)
+		p.fmt.fmtInteger(v, 10, isSigned, ldigits)
 	case 'b':
-		p.fmt.fmt_integer(v, 2, isSigned, ldigits)
+		p.fmt.fmtInteger(v, 2, isSigned, ldigits)
 	case 'o':
-		p.fmt.fmt_integer(v, 8, isSigned, ldigits)
+		p.fmt.fmtInteger(v, 8, isSigned, ldigits)
 	case 'x':
-		p.fmt.fmt_integer(v, 16, isSigned, ldigits)
+		p.fmt.fmtInteger(v, 16, isSigned, ldigits)
 	case 'X':
-		p.fmt.fmt_integer(v, 16, isSigned, udigits)
+		p.fmt.fmtInteger(v, 16, isSigned, udigits)
 	case 'c':
-		p.fmt.fmt_c(v)
+		p.fmt.fmtC(v)
 	case 'q':
 		if v <= utf8.MaxRune {
-			p.fmt.fmt_qc(v)
+			p.fmt.fmtQc(v)
 		} else {
 			p.badVerb(verb)
 		}
 	case 'U':
-		p.fmt.fmt_unicode(v)
+		p.fmt.fmtUnicode(v)
 	default:
 		p.badVerb(verb)
 	}
@@ -395,13 +406,13 @@ func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
 func (p *pp) fmtFloat(v float64, size int, verb rune) {
 	switch verb {
 	case 'v':
-		p.fmt.fmt_float(v, size, 'g', -1)
+		p.fmt.fmtFloat(v, size, 'g', -1)
 	case 'b', 'g', 'G':
-		p.fmt.fmt_float(v, size, verb, -1)
+		p.fmt.fmtFloat(v, size, verb, -1)
 	case 'f', 'e', 'E':
-		p.fmt.fmt_float(v, size, verb, 6)
+		p.fmt.fmtFloat(v, size, verb, 6)
 	case 'F':
-		p.fmt.fmt_float(v, size, 'f', 6)
+		p.fmt.fmtFloat(v, size, 'f', 6)
 	default:
 		p.badVerb(verb)
 	}
@@ -432,18 +443,18 @@ func (p *pp) fmtString(v string, verb rune) {
 	switch verb {
 	case 'v':
 		if p.fmt.sharpV {
-			p.fmt.fmt_q(v)
+			p.fmt.fmtQ(v)
 		} else {
-			p.fmt.fmt_s(v)
+			p.fmt.fmtS(v)
 		}
 	case 's':
-		p.fmt.fmt_s(v)
+		p.fmt.fmtS(v)
 	case 'x':
-		p.fmt.fmt_sx(v, ldigits)
+		p.fmt.fmtSx(v, ldigits)
 	case 'X':
-		p.fmt.fmt_sx(v, udigits)
+		p.fmt.fmtSx(v, udigits)
 	case 'q':
-		p.fmt.fmt_q(v)
+		p.fmt.fmtQ(v)
 	default:
 		p.badVerb(verb)
 	}
@@ -472,18 +483,18 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
 				if i > 0 {
 					p.buf.WriteByte(' ')
 				}
-				p.fmt.fmt_integer(uint64(c), 10, unsigned, ldigits)
+				p.fmt.fmtInteger(uint64(c), 10, unsigned, ldigits)
 			}
 			p.buf.WriteByte(']')
 		}
 	case 's':
-		p.fmt.fmt_s(string(v))
+		p.fmt.fmtBs(v)
 	case 'x':
-		p.fmt.fmt_bx(v, ldigits)
+		p.fmt.fmtBx(v, ldigits)
 	case 'X':
-		p.fmt.fmt_bx(v, udigits)
+		p.fmt.fmtBx(v, udigits)
 	case 'q':
-		p.fmt.fmt_q(string(v))
+		p.fmt.fmtQ(string(v))
 	default:
 		p.printValue(reflect.ValueOf(v), verb, 0)
 	}
@@ -527,7 +538,7 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
 	}
 }
 
-func (p *pp) catchPanic(arg interface{}, verb rune) {
+func (p *pp) catchPanic(arg interface{}, verb rune, method string) {
 	if err := recover(); err != nil {
 		// If it's a nil pointer, just say "<nil>". The likeliest causes are a
 		// Stringer that fails to guard against nil or a nil pointer for a
@@ -550,6 +561,8 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
 		p.buf.WriteString(percentBangString)
 		p.buf.WriteRune(verb)
 		p.buf.WriteString(panicString)
+		p.buf.WriteString(method)
+		p.buf.WriteString(" method: ")
 		p.panicking = true
 		p.printArg(err, 'v')
 		p.panicking = false
@@ -566,7 +579,7 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 	// Is it a Formatter?
 	if formatter, ok := p.arg.(Formatter); ok {
 		handled = true
-		defer p.catchPanic(p.arg, verb)
+		defer p.catchPanic(p.arg, verb, "Format")
 		formatter.Format(p, verb)
 		return
 	}
@@ -575,9 +588,9 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 	if p.fmt.sharpV {
 		if stringer, ok := p.arg.(GoStringer); ok {
 			handled = true
-			defer p.catchPanic(p.arg, verb)
+			defer p.catchPanic(p.arg, verb, "GoString")
 			// Print the result of GoString unadorned.
-			p.fmt.fmt_s(stringer.GoString())
+			p.fmt.fmtS(stringer.GoString())
 			return
 		}
 	} else {
@@ -593,13 +606,13 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 			switch v := p.arg.(type) {
 			case error:
 				handled = true
-				defer p.catchPanic(p.arg, verb)
+				defer p.catchPanic(p.arg, verb, "Error")
 				p.fmtString(v.Error(), verb)
 				return
 
 			case Stringer:
 				handled = true
-				defer p.catchPanic(p.arg, verb)
+				defer p.catchPanic(p.arg, verb, "String")
 				p.fmtString(v.String(), verb)
 				return
 			}
@@ -626,7 +639,7 @@ func (p *pp) printArg(arg interface{}, verb rune) {
 	// %T (the value's type) and %p (its address) are special; we always do them first.
 	switch verb {
 	case 'T':
-		p.fmt.fmt_s(reflect.TypeOf(arg).String())
+		p.fmt.fmtS(reflect.TypeOf(arg).String())
 		return
 	case 'p':
 		p.fmtPointer(reflect.ValueOf(arg), 'p')
@@ -743,8 +756,8 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 		} else {
 			p.buf.WriteString(mapString)
 		}
-		keys := f.MapKeys()
-		for i, key := range keys {
+		sorted := fmtsort.Sort(f)
+		for i, key := range sorted.Key {
 			if i > 0 {
 				if p.fmt.sharpV {
 					p.buf.WriteString(commaSpaceString)
@@ -754,7 +767,7 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 			}
 			p.printValue(key, verb, depth+1)
 			p.buf.WriteByte(':')
-			p.printValue(f.MapIndex(key), verb, depth+1)
+			p.printValue(sorted.Value[i], verb, depth+1)
 		}
 		if p.fmt.sharpV {
 			p.buf.WriteByte('}')

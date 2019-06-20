@@ -1,7 +1,7 @@
-This is libquadmath.info, produced by makeinfo version 6.4 from
+This is libquadmath.info, produced by makeinfo version 6.5 from
 libquadmath.texi.
 
-Copyright (C) 2010-2018 Free Software Foundation, Inc.
+Copyright (C) 2010-2019 Free Software Foundation, Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -23,7 +23,7 @@ END-INFO-DIR-ENTRY
    Published by the Free Software Foundation 51 Franklin Street, Fifth
 Floor Boston, MA 02110-1301 USA
 
-   Copyright (C) 2010-2018 Free Software Foundation, Inc.
+   Copyright (C) 2010-2019 Free Software Foundation, Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -120,6 +120,7 @@ The following mathematical functions are available:
 'cosq': cosine function
 'erfq': error function
 'erfcq': complementary error function
+'exp2q': base 2 exponential function
 'expq': exponential function
 'expm1q': exponential minus 1 function
 'fabsq': absolute value function
@@ -135,6 +136,7 @@ The following mathematical functions are available:
 'ilogbq': get exponent of the value
 'isinfq': check for infinity
 'isnanq': check for not a number
+'issignalingq': check for signaling not a number
 'j0q': Bessel function of the first kind, first order
 'j1q': Bessel function of the first kind, second order
 'jnq': Bessel function of the first kind, N-th order
@@ -800,10 +802,10 @@ Tag Table:
 Node: Top1633
 Node: Typedef and constants2367
 Node: Math Library Routines3786
-Node: I/O Library Routines7537
-Node: strtoflt1287862
-Node: quadmath_snprintf8622
-Node: GNU Free Documentation License10832
-Node: Reporting Bugs35979
+Node: I/O Library Routines7623
+Node: strtoflt1287948
+Node: quadmath_snprintf8708
+Node: GNU Free Documentation License10918
+Node: Reporting Bugs36065
 
 End Tag Table

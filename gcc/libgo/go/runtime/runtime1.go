@@ -157,7 +157,7 @@ func check() {
 		h     uint64
 		i, i1 float32
 		j, j1 float64
-		k, k1 unsafe.Pointer
+		k     unsafe.Pointer
 		l     *uint16
 		m     [4]byte
 	)
@@ -246,21 +246,6 @@ func check() {
 		throw("cas6")
 	}
 
-	k = unsafe.Pointer(uintptr(0xfedcb123))
-	if sys.PtrSize == 8 {
-		k = unsafe.Pointer(uintptr(k) << 10)
-	}
-	if casp(&k, nil, nil) {
-		throw("casp1")
-	}
-	k1 = add(k, 1)
-	if !casp(&k, k, k1) {
-		throw("casp2")
-	}
-	if k != k1 {
-		throw("casp3")
-	}
-
 	m = [4]byte{1, 1, 1, 1}
 	atomic.Or8(&m[1], 0xf0)
 	if m[0] != 1 || m[1] != 0xf1 || m[2] != 1 || m[3] != 1 {
@@ -326,37 +311,41 @@ type dbgVar struct {
 // existing int var for that value, which may
 // already have an initial value.
 var debug struct {
-	allocfreetrace   int32
-	cgocheck         int32
-	efence           int32
-	gccheckmark      int32
-	gcpacertrace     int32
-	gcshrinkstackoff int32
-	gcrescanstacks   int32
-	gcstoptheworld   int32
-	gctrace          int32
-	invalidptr       int32
-	sbrk             int32
-	scavenge         int32
-	scheddetail      int32
-	schedtrace       int32
+	allocfreetrace     int32
+	cgocheck           int32
+	clobberfree        int32
+	efence             int32
+	gccheckmark        int32
+	gcpacertrace       int32
+	gcshrinkstackoff   int32
+	gcstoptheworld     int32
+	gctrace            int32
+	invalidptr         int32
+	madvdontneed       int32 // for Linux; issue 28466
+	sbrk               int32
+	scavenge           int32
+	scheddetail        int32
+	schedtrace         int32
+	tracebackancestors int32
 }
 
 var dbgvars = []dbgVar{
 	{"allocfreetrace", &debug.allocfreetrace},
+	{"clobberfree", &debug.clobberfree},
 	{"cgocheck", &debug.cgocheck},
 	{"efence", &debug.efence},
 	{"gccheckmark", &debug.gccheckmark},
 	{"gcpacertrace", &debug.gcpacertrace},
 	{"gcshrinkstackoff", &debug.gcshrinkstackoff},
-	{"gcrescanstacks", &debug.gcrescanstacks},
 	{"gcstoptheworld", &debug.gcstoptheworld},
 	{"gctrace", &debug.gctrace},
 	{"invalidptr", &debug.invalidptr},
+	{"madvdontneed", &debug.madvdontneed},
 	{"sbrk", &debug.sbrk},
 	{"scavenge", &debug.scavenge},
 	{"scheddetail", &debug.scheddetail},
 	{"schedtrace", &debug.schedtrace},
+	{"tracebackancestors", &debug.tracebackancestors},
 }
 
 func parsedebugvars() {
@@ -373,7 +362,9 @@ func parsedebugvars() {
 	// At that point, if debug.invalidptr is set, we crash.
 	// This is not a problem, assuming that M1 really is dead and
 	// the pointer we discovered to it will not be used.
-	// debug.invalidptr = 1
+	if usestackmaps {
+		debug.invalidptr = 1
+	}
 
 	for p := gogetenv("GODEBUG"); p != ""; {
 		field := ""
@@ -411,7 +402,7 @@ func parsedebugvars() {
 	traceback_env = traceback_cache
 }
 
-//go:linkname setTraceback runtime_debug.SetTraceback
+//go:linkname setTraceback runtime..z2fdebug.SetTraceback
 func setTraceback(level string) {
 	var t uint32
 	switch level {
@@ -452,7 +443,9 @@ func timediv(v int64, div int32, rem *int32) int32 {
 	for bit := 30; bit >= 0; bit-- {
 		if v >= int64(div)<<uint(bit) {
 			v = v - (int64(div) << uint(bit))
-			res += 1 << uint(bit)
+			// Before this for loop, res was 0, thus all these
+			// power of 2 increments are now just bitsets.
+			res |= 1 << uint(bit)
 		}
 	}
 	if v >= int64(div) {

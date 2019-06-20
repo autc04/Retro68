@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -3692,8 +3692,16 @@ package body Sem_Ch8 is
       --  and mark any use_package_clauses that affect the visibility of the
       --  implicit generic actual.
 
+      --  Also, we may be looking at an internal renaming of a user-defined
+      --  subprogram created for a generic formal subprogram association,
+      --  which will also have to be marked here. This can occur when the
+      --  corresponding formal subprogram contains references to other generic
+      --  formals.
+
       if Is_Generic_Actual_Subprogram (New_S)
-        and then (Is_Intrinsic_Subprogram (New_S) or else From_Default (N))
+        and then (Is_Intrinsic_Subprogram (New_S)
+                   or else From_Default (N)
+                   or else Nkind (N) = N_Subprogram_Renaming_Declaration)
       then
          Mark_Use_Clauses (New_S);
 
@@ -3782,9 +3790,7 @@ package body Sem_Ch8 is
 
       --  Local variables
 
-      Ghost_Id  : Entity_Id := Empty;
-      Living_Id : Entity_Id := Empty;
-      Pack      : Entity_Id;
+      Pack : Entity_Id;
 
    --  Start of processing for Analyze_Use_Package
 
@@ -3870,22 +3876,9 @@ package body Sem_Ch8 is
          end if;
 
          Use_One_Package (N, Name (N));
-
-         --  Capture the first Ghost package and the first living package
-
-         if Is_Entity_Name (Name (N)) then
-            Pack := Entity (Name (N));
-
-            if Is_Ghost_Entity (Pack) then
-               if No (Ghost_Id) then
-                  Ghost_Id := Pack;
-               end if;
-
-            elsif No (Living_Id) then
-               Living_Id := Pack;
-            end if;
-         end if;
       end if;
+
+      Mark_Ghost_Clause (N);
    end Analyze_Use_Package;
 
    ----------------------
@@ -3916,10 +3909,14 @@ package body Sem_Ch8 is
       --  manipulation of the scope stack so we much guard against those cases
       --  here, otherwise, we must add the new use_type_clause to the previous
       --  use_type_clause chain in order to mark redundant use_type_clauses as
-      --  used.
+      --  used. When the redundant use-type clauses appear in a parent unit and
+      --  a child unit we must prevent a circularity in the chain that would
+      --  otherwise result from the separate steps of analysis and installation
+      --  of the parent context.
 
       if Present (Current_Use_Clause (E))
         and then Current_Use_Clause (E) /= N
+        and then Prev_Use_Clause (Current_Use_Clause (E)) /= N
         and then No (Prev_Use_Clause (N))
       then
          Set_Prev_Use_Clause (N, Current_Use_Clause (E));
@@ -4322,7 +4319,10 @@ package body Sem_Ch8 is
                Analyze (B_Node);
             end if;
 
-            if Is_Intrinsic_Subprogram (Old_S) and then not In_Instance then
+            if Is_Intrinsic_Subprogram (Old_S)
+              and then not In_Instance
+              and then not Relaxed_RM_Semantics
+            then
                Error_Msg_N
                  ("subprogram used in renaming_as_body cannot be intrinsic",
                   Name (N));
@@ -4843,7 +4843,12 @@ package body Sem_Ch8 is
    -- Find_Direct_Name --
    ----------------------
 
-   procedure Find_Direct_Name (N : Node_Id) is
+   procedure Find_Direct_Name
+     (N            : Node_Id;
+      Errors_OK    : Boolean := True;
+      Marker_OK    : Boolean := True;
+      Reference_OK : Boolean := True)
+   is
       E   : Entity_Id;
       E2  : Entity_Id;
       Msg : Boolean;
@@ -5096,6 +5101,10 @@ package body Sem_Ch8 is
          Item      : Node_Id;
 
       begin
+         if not Errors_OK then
+            return;
+         end if;
+
          --  Ada 2005 (AI-262): Generate a precise error concerning the
          --  Beaujolais effect that was previously detected
 
@@ -5263,7 +5272,8 @@ package body Sem_Ch8 is
 
          --  Named aggregate should also be handled similarly ???
 
-         if Nkind (N) = N_Identifier
+         if Errors_OK
+           and then Nkind (N) = N_Identifier
            and then Nkind (Parent (N)) = N_Case_Statement_Alternative
          then
             declare
@@ -5299,124 +5309,125 @@ package body Sem_Ch8 is
          Set_Entity (N, Any_Id);
          Set_Etype  (N, Any_Type);
 
-         --  We use the table Urefs to keep track of entities for which we
-         --  have issued errors for undefined references. Multiple errors
-         --  for a single name are normally suppressed, however we modify
-         --  the error message to alert the programmer to this effect.
+         if Errors_OK then
 
-         for J in Urefs.First .. Urefs.Last loop
-            if Chars (N) = Chars (Urefs.Table (J).Node) then
-               if Urefs.Table (J).Err /= No_Error_Msg
-                 and then Sloc (N) /= Urefs.Table (J).Loc
-               then
-                  Error_Msg_Node_1 := Urefs.Table (J).Node;
+            --  We use the table Urefs to keep track of entities for which we
+            --  have issued errors for undefined references. Multiple errors
+            --  for a single name are normally suppressed, however we modify
+            --  the error message to alert the programmer to this effect.
 
-                  if Urefs.Table (J).Nvis then
-                     Change_Error_Text (Urefs.Table (J).Err,
-                       "& is not visible (more references follow)");
-                  else
-                     Change_Error_Text (Urefs.Table (J).Err,
-                       "& is undefined (more references follow)");
-                  end if;
-
-                  Urefs.Table (J).Err := No_Error_Msg;
-               end if;
-
-               --  Although we will set Msg False, and thus suppress the
-               --  message, we also set Error_Posted True, to avoid any
-               --  cascaded messages resulting from the undefined reference.
-
-               Msg := False;
-               Set_Error_Posted (N, True);
-               return;
-            end if;
-         end loop;
-
-         --  If entry not found, this is first undefined occurrence
-
-         if Nvis then
-            Error_Msg_N ("& is not visible!", N);
-            Emsg := Get_Msg_Id;
-
-         else
-            Error_Msg_N ("& is undefined!", N);
-            Emsg := Get_Msg_Id;
-
-            --  A very bizarre special check, if the undefined identifier
-            --  is put or put_line, then add a special error message (since
-            --  this is a very common error for beginners to make).
-
-            if Nam_In (Chars (N), Name_Put, Name_Put_Line) then
-               Error_Msg_N -- CODEFIX
-                 ("\\possible missing `WITH Ada.Text_'I'O; " &
-                  "USE Ada.Text_'I'O`!", N);
-
-            --  Another special check if N is the prefix of a selected
-            --  component which is a known unit, add message complaining
-            --  about missing with for this unit.
-
-            elsif Nkind (Parent (N)) = N_Selected_Component
-              and then N = Prefix (Parent (N))
-              and then Is_Known_Unit (Parent (N))
-            then
-               Error_Msg_Node_2 := Selector_Name (Parent (N));
-               Error_Msg_N -- CODEFIX
-                 ("\\missing `WITH &.&;`", Prefix (Parent (N)));
-            end if;
-
-            --  Now check for possible misspellings
-
-            declare
-               E      : Entity_Id;
-               Ematch : Entity_Id := Empty;
-
-               Last_Name_Id : constant Name_Id :=
-                                Name_Id (Nat (First_Name_Id) +
-                                           Name_Entries_Count - 1);
-
-            begin
-               for Nam in First_Name_Id .. Last_Name_Id loop
-                  E := Get_Name_Entity_Id (Nam);
-
-                  if Present (E)
-                     and then (Is_Immediately_Visible (E)
-                                 or else
-                               Is_Potentially_Use_Visible (E))
+            for J in Urefs.First .. Urefs.Last loop
+               if Chars (N) = Chars (Urefs.Table (J).Node) then
+                  if Urefs.Table (J).Err /= No_Error_Msg
+                    and then Sloc (N) /= Urefs.Table (J).Loc
                   then
-                     if Is_Bad_Spelling_Of (Chars (N), Nam) then
-                        Ematch := E;
-                        exit;
+                     Error_Msg_Node_1 := Urefs.Table (J).Node;
+
+                     if Urefs.Table (J).Nvis then
+                        Change_Error_Text (Urefs.Table (J).Err,
+                          "& is not visible (more references follow)");
+                     else
+                        Change_Error_Text (Urefs.Table (J).Err,
+                          "& is undefined (more references follow)");
                      end if;
+
+                     Urefs.Table (J).Err := No_Error_Msg;
                   end if;
-               end loop;
 
-               if Present (Ematch) then
-                  Error_Msg_NE -- CODEFIX
-                    ("\possible misspelling of&", N, Ematch);
+                  --  Although we will set Msg False, and thus suppress the
+                  --  message, we also set Error_Posted True, to avoid any
+                  --  cascaded messages resulting from the undefined reference.
+
+                  Msg := False;
+                  Set_Error_Posted (N);
+                  return;
                end if;
-            end;
+            end loop;
+
+            --  If entry not found, this is first undefined occurrence
+
+            if Nvis then
+               Error_Msg_N ("& is not visible!", N);
+               Emsg := Get_Msg_Id;
+
+            else
+               Error_Msg_N ("& is undefined!", N);
+               Emsg := Get_Msg_Id;
+
+               --  A very bizarre special check, if the undefined identifier
+               --  is Put or Put_Line, then add a special error message (since
+               --  this is a very common error for beginners to make).
+
+               if Nam_In (Chars (N), Name_Put, Name_Put_Line) then
+                  Error_Msg_N -- CODEFIX
+                    ("\\possible missing `WITH Ada.Text_'I'O; " &
+                     "USE Ada.Text_'I'O`!", N);
+
+               --  Another special check if N is the prefix of a selected
+               --  component which is a known unit: add message complaining
+               --  about missing with for this unit.
+
+               elsif Nkind (Parent (N)) = N_Selected_Component
+                 and then N = Prefix (Parent (N))
+                 and then Is_Known_Unit (Parent (N))
+               then
+                  Error_Msg_Node_2 := Selector_Name (Parent (N));
+                  Error_Msg_N -- CODEFIX
+                    ("\\missing `WITH &.&;`", Prefix (Parent (N)));
+               end if;
+
+               --  Now check for possible misspellings
+
+               declare
+                  E      : Entity_Id;
+                  Ematch : Entity_Id := Empty;
+
+                  Last_Name_Id : constant Name_Id :=
+                                   Name_Id (Nat (First_Name_Id) +
+                                              Name_Entries_Count - 1);
+
+               begin
+                  for Nam in First_Name_Id .. Last_Name_Id loop
+                     E := Get_Name_Entity_Id (Nam);
+
+                     if Present (E)
+                        and then (Is_Immediately_Visible (E)
+                                    or else
+                                  Is_Potentially_Use_Visible (E))
+                     then
+                        if Is_Bad_Spelling_Of (Chars (N), Nam) then
+                           Ematch := E;
+                           exit;
+                        end if;
+                     end if;
+                  end loop;
+
+                  if Present (Ematch) then
+                     Error_Msg_NE -- CODEFIX
+                       ("\possible misspelling of&", N, Ematch);
+                  end if;
+               end;
+            end if;
+
+            --  Make entry in undefined references table unless the full errors
+            --  switch is set, in which case by refraining from generating the
+            --  table entry we guarantee that we get an error message for every
+            --  undefined reference. The entry is not added if we are ignoring
+            --  errors.
+
+            if not All_Errors_Mode and then Ignore_Errors_Enable = 0 then
+               Urefs.Append (
+                 (Node => N,
+                  Err  => Emsg,
+                  Nvis => Nvis,
+                  Loc  => Sloc (N)));
+            end if;
+
+            Msg := True;
          end if;
-
-         --  Make entry in undefined references table unless the full errors
-         --  switch is set, in which case by refraining from generating the
-         --  table entry, we guarantee that we get an error message for every
-         --  undefined reference. The entry is not added if we are ignoring
-         --  errors.
-
-         if not All_Errors_Mode and then Ignore_Errors_Enable = 0 then
-            Urefs.Append (
-              (Node => N,
-               Err  => Emsg,
-               Nvis => Nvis,
-               Loc  => Sloc (N)));
-         end if;
-
-         Msg := True;
       end Undefined;
 
       --  Local variables
-
-      Is_Assignment_LHS : constant Boolean := Is_LHS (N) = Yes;
 
       Nested_Inst : Entity_Id := Empty;
       --  The entity of a nested instance which appears within Inst (if any)
@@ -5836,7 +5847,7 @@ package body Sem_Ch8 is
             --  If no homonyms were visible, the entity is unambiguous
 
             if not Is_Overloaded (N) then
-               if not Is_Actual_Parameter then
+               if Reference_OK and then not Is_Actual_Parameter then
                   Generate_Reference (E, N);
                end if;
             end if;
@@ -5855,7 +5866,8 @@ package body Sem_Ch8 is
             --  in SPARK mode where renamings are traversed for generating
             --  local effects of subprograms.
 
-            if Is_Object (E)
+            if Reference_OK
+              and then Is_Object (E)
               and then Present (Renamed_Object (E))
               and then not GNATprove_Mode
             then
@@ -5885,7 +5897,7 @@ package body Sem_Ch8 is
                   --  Generate reference unless this is an actual parameter
                   --  (see comment below)
 
-                  if Is_Actual_Parameter then
+                  if Reference_OK and then Is_Actual_Parameter then
                      Generate_Reference (E, N);
                      Set_Referenced (E, R);
                   end if;
@@ -5894,7 +5906,7 @@ package body Sem_Ch8 is
             --  Normal case, not a label: generate reference
 
             else
-               if not Is_Actual_Parameter then
+               if Reference_OK and then not Is_Actual_Parameter then
 
                   --  Package or generic package is always a simple reference
 
@@ -5963,11 +5975,20 @@ package body Sem_Ch8 is
       --  reference is a write when it appears on the left hand side of an
       --  assignment.
 
-      if not Within_Subprogram_Call (N) then
-         Build_Variable_Reference_Marker
-           (N     => N,
-            Read  => not Is_Assignment_LHS,
-            Write => Is_Assignment_LHS);
+      if Marker_OK
+        and then Needs_Variable_Reference_Marker
+                   (N        => N,
+                    Calls_OK => False)
+      then
+         declare
+            Is_Assignment_LHS : constant Boolean := Is_LHS (N) = Yes;
+
+         begin
+            Build_Variable_Reference_Marker
+              (N     => N,
+               Read  => not Is_Assignment_LHS,
+               Write => Is_Assignment_LHS);
+         end;
       end if;
    end Find_Direct_Name;
 
@@ -6040,8 +6061,7 @@ package body Sem_Ch8 is
 
       --  Local variables
 
-      Is_Assignment_LHS : constant Boolean := Is_LHS (N) = Yes;
-      Selector          : constant Node_Id := Selector_Name (N);
+      Selector : constant Node_Id := Selector_Name (N);
 
       Candidate : Entity_Id := Empty;
       P_Name    : Entity_Id;
@@ -6329,7 +6349,11 @@ package body Sem_Ch8 is
                --  If this is a selection from Ada, System or Interfaces, then
                --  we assume a missing with for the corresponding package.
 
-               if Is_Known_Unit (N) then
+               if Is_Known_Unit (N)
+                 and then not (Present (Entity (Prefix (N)))
+                                and then Scope (Entity (Prefix (N))) /=
+                                           Standard_Standard)
+               then
                   if not Error_Posted (N) then
                      Error_Msg_Node_2 := Selector;
                      Error_Msg_N -- CODEFIX
@@ -6610,11 +6634,19 @@ package body Sem_Ch8 is
       --  reference is a write when it appears on the left hand side of an
       --  assignment.
 
-      if not Within_Subprogram_Call (N) then
-         Build_Variable_Reference_Marker
-           (N     => N,
-            Read  => not Is_Assignment_LHS,
-            Write => Is_Assignment_LHS);
+      if Needs_Variable_Reference_Marker
+           (N        => N,
+            Calls_OK => False)
+      then
+         declare
+            Is_Assignment_LHS : constant Boolean := Is_LHS (N) = Yes;
+
+         begin
+            Build_Variable_Reference_Marker
+              (N     => N,
+               Read  => not Is_Assignment_LHS,
+               Write => Is_Assignment_LHS);
+         end;
       end if;
    end Find_Expanded_Name;
 
@@ -7098,7 +7130,7 @@ package body Sem_Ch8 is
             end if;
 
          --  If the selected component appears within a default expression
-         --  and it has an actual subtype, the pre-analysis has not yet
+         --  and it has an actual subtype, the preanalysis has not yet
          --  completed its analysis, because Insert_Actions is disabled in
          --  that context. Within the init proc of the enclosing type we
          --  must complete this analysis, if an actual subtype was created.
@@ -8521,7 +8553,8 @@ package body Sem_Ch8 is
      (Clause1 : Entity_Id;
       Clause2 : Entity_Id) return Entity_Id
    is
-      Scope1, Scope2 : Entity_Id;
+      Scope1 : Entity_Id;
+      Scope2 : Entity_Id;
 
    begin
       if Clause1 = Clause2 then
@@ -9652,12 +9685,17 @@ package body Sem_Ch8 is
             --  current one would have been visible, so make the other one
             --  not use_visible.
 
+            --  In certain pathological cases it is possible that unrelated
+            --  homonyms from distinct formal packages may exist in an
+            --  uninstalled scope. We must test for that here.
+
             elsif Present (Current_Instance)
               and then Is_Potentially_Use_Visible (Prev)
               and then not Is_Overloadable (Prev)
               and then Scope (Id) /= Scope (Prev)
               and then Used_As_Generic_Actual (Scope (Prev))
               and then Used_As_Generic_Actual (Scope (Id))
+              and then Is_List_Member (Scope (Prev))
               and then not In_Same_List (Current_Use_Clause (Scope (Prev)),
                                          Current_Use_Clause (Scope (Id)))
             then

@@ -1,5 +1,5 @@
 /* Implementation of the MINLOC intrinsic
-   Copyright (C) 2017-2018 Free Software Foundation, Inc.
+   Copyright (C) 2017-2019 Free Software Foundation, Inc.
    Contributed by Thomas Koenig
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -28,12 +28,12 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #include <string.h>
 #include <assert.h>
 
-#if defined (HAVE_GFC_INTEGER_1) && defined (HAVE_GFC_INTEGER_8)
+#if defined (HAVE_GFC_UINTEGER_1) && defined (HAVE_GFC_INTEGER_8)
 
 static inline int
-compare_fcn (const GFC_INTEGER_1 *a, const GFC_INTEGER_1 *b, gfc_charlen_type n)
+compare_fcn (const GFC_UINTEGER_1 *a, const GFC_UINTEGER_1 *b, gfc_charlen_type n)
 {
-  if (sizeof (GFC_INTEGER_1) == 1)
+  if (sizeof (GFC_UINTEGER_1) == 1)
     return memcmp (a, b, n);
   else
     return memcmp_char4 (a, b, n);
@@ -50,11 +50,10 @@ minloc2_8_s1 (gfc_array_s1 * const restrict array, GFC_LOGICAL_4 back,
   index_type ret;
   index_type sstride;
   index_type extent;
-  const GFC_INTEGER_1 *src;
-  const GFC_INTEGER_1 *maxval;
+  const GFC_UINTEGER_1 *src;
+  const GFC_UINTEGER_1 *minval;
   index_type i;
 
-  assert(back == 0);
   extent = GFC_DESCRIPTOR_EXTENT(array,0);
   if (extent <= 0)
     return 0;
@@ -63,15 +62,16 @@ minloc2_8_s1 (gfc_array_s1 * const restrict array, GFC_LOGICAL_4 back,
 
   ret = 1;
   src = array->base_addr;
-  maxval = src;
-  for (i=2; i<=extent; i++)
+  minval = NULL;
+  for (i=1; i<=extent; i++)
     {
-      src += sstride;
-      if (compare_fcn (src, maxval, len) < 0)
+      if (minval == NULL || (back ? compare_fcn (src, minval, len) <= 0 :
+      	 	    	    	    compare_fcn (src, minval, len) < 0))
       {
 	 ret = i;
-	 maxval = src;
+	 minval = src;
       }
+      src += sstride;
     }
   return ret;
 }
@@ -89,14 +89,13 @@ mminloc2_8_s1 (gfc_array_s1 * const restrict array,
   index_type ret;
   index_type sstride;
   index_type extent;
-  const GFC_INTEGER_1 *src;
-  const GFC_INTEGER_1 *maxval;
+  const GFC_UINTEGER_1 *src;
+  const GFC_UINTEGER_1 *maxval;
   index_type i, j;
   GFC_LOGICAL_1 *mbase;
   int mask_kind;
   index_type mstride;
 
-  assert (back == 0);
   extent = GFC_DESCRIPTOR_EXTENT(array,0);
   if (extent <= 0)
     return 0;
@@ -134,7 +133,9 @@ mminloc2_8_s1 (gfc_array_s1 * const restrict array,
 
   for (i=j+1; i<=extent; i++)
     {
-      if (*mbase && compare_fcn (src, maxval, len) < 0)
+
+      if (*mbase && (back ? compare_fcn (src, maxval, len) <= 0 :
+      	 	    	    compare_fcn (src, maxval, len) < 0))
       {
 	 ret = i;
 	 maxval = src;

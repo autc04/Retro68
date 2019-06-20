@@ -97,8 +97,6 @@ go_parse_input_files(const char** filenames, unsigned int filename_count,
 	}
     }
 
-  ::gogo->linemap()->stop();
-
   ::gogo->clear_file_scope();
 
   // If the global predeclared names are referenced but not defined,
@@ -122,6 +120,10 @@ go_parse_input_files(const char** filenames, unsigned int filename_count,
   // form which is easier to use.
   ::gogo->lower_parse_tree();
 
+  // At this point we have handled all inline functions, so we no
+  // longer need the linemap.
+  ::gogo->linemap()->stop();
+
   // Create function descriptors as needed.
   ::gogo->create_function_descriptors();
 
@@ -143,11 +145,11 @@ go_parse_input_files(const char** filenames, unsigned int filename_count,
   // Export global identifiers as appropriate.
   ::gogo->do_exports();
 
-  // Turn short-cut operators (&&, ||) into explicit if statements.
-  ::gogo->remove_shortcuts();
-
   // Use temporary variables to force order of evaluation.
   ::gogo->order_evaluations();
+
+  // Turn short-cut operators (&&, ||) into explicit if statements.
+  ::gogo->remove_shortcuts();
 
   // Convert named types to backend representation.
   ::gogo->convert_named_types();

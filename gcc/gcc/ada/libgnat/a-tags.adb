@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1028,9 +1028,9 @@ package body Ada.Tags is
       SSD (T).SSD_Table (Position).Index := Value;
    end Set_Entry_Index;
 
-   -----------------------
-   -- Set_Offset_To_Top --
-   -----------------------
+   -------------------------------
+   -- Set_Dynamic_Offset_To_Top --
+   -------------------------------
 
    procedure Set_Dynamic_Offset_To_Top
      (This         : System.Address;

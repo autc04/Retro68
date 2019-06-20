@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -39,7 +39,15 @@ package body System.Val_Util is
 
    procedure Bad_Value (S : String) is
    begin
-      raise Constraint_Error with "bad input for 'Value: """ & S & '"';
+      --  Bad_Value might be called with very long strings allocated on the
+      --  heap. Limit the size of the message so that we avoid creating a
+      --  Storage_Error during error handling.
+      if S'Length > 127 then
+         raise Constraint_Error with "bad input for 'Value: """
+         & S (S'First .. S'First + 127) & "...""";
+      else
+         raise Constraint_Error with "bad input for 'Value: """ & S & '"';
+      end if;
    end Bad_Value;
 
    ----------------------

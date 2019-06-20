@@ -1,8 +1,7 @@
-// { dg-options "-std=gnu++17 -lstdc++fs" }
+// { dg-options "-std=gnu++17" }
 // { dg-do run { target c++17 } }
-// { dg-require-filesystem-ts "" }
 
-// Copyright (C) 2018 Free Software Foundation, Inc.
+// Copyright (C) 2018-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,11 +28,17 @@ using std::filesystem::path;
 void
 test01()
 {
-  VERIFY( path("/").is_absolute() );
-  VERIFY( path("/foo").is_absolute() );
-  VERIFY( path("/foo/").is_absolute() );
-  VERIFY( path("/foo/bar").is_absolute() );
-  VERIFY( path("/foo/bar/").is_absolute() );
+#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+  const bool is_posix = false;
+#else
+  const bool is_posix = true;
+#endif
+
+  VERIFY( path("/").is_absolute() == is_posix );
+  VERIFY( path("/foo").is_absolute() == is_posix );
+  VERIFY( path("/foo/").is_absolute() == is_posix );
+  VERIFY( path("/foo/bar").is_absolute() == is_posix );
+  VERIFY( path("/foo/bar/").is_absolute() == is_posix );
   VERIFY( ! path("foo").is_absolute() );
   VERIFY( ! path("foo/").is_absolute() );
   VERIFY( ! path("foo/bar").is_absolute() );
@@ -43,16 +48,11 @@ test01()
   VERIFY( ! path("c:foo/").is_absolute() );
   VERIFY( ! path("c:foo/bar").is_absolute() );
   VERIFY( ! path("c:foo/bar/").is_absolute() );
-#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
-  const bool drive_letter_is_root_name = true;
-#else
-  const bool drive_letter_is_root_name = false;
-#endif
-  VERIFY( path("c:/").is_absolute() == drive_letter_is_root_name );
-  VERIFY( path("c:/foo").is_absolute() == drive_letter_is_root_name );
-  VERIFY( path("c:/foo/").is_absolute() == drive_letter_is_root_name );
-  VERIFY( path("c:/foo/bar").is_absolute() == drive_letter_is_root_name );
-  VERIFY( path("c:/foo/bar/").is_absolute() == drive_letter_is_root_name );
+  VERIFY( path("c:/").is_absolute() == !is_posix );
+  VERIFY( path("c:/foo").is_absolute() == !is_posix );
+  VERIFY( path("c:/foo/").is_absolute() == !is_posix );
+  VERIFY( path("c:/foo/bar").is_absolute() == !is_posix );
+  VERIFY( path("c:/foo/bar/").is_absolute() == !is_posix );
 }
 
 int

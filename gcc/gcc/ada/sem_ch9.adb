@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1246,7 +1246,7 @@ package body Sem_Ch9 is
       --  Analyze any aspect specifications that appear on the entry body
 
       if Has_Aspects (N) then
-         Analyze_Aspect_Specifications_On_Body_Or_Stub (N);
+         Analyze_Aspects_On_Subprogram_Body_Or_Stub (N);
       end if;
 
       E := First_Entity (P_Type);
@@ -1662,8 +1662,9 @@ package body Sem_Ch9 is
       --  resolution, and expansion are over.
 
       Mark_Elaboration_Attributes
-        (N_Id   => Def_Id,
-         Checks => True);
+        (N_Id     => Def_Id,
+         Checks   => True,
+         Warnings => True);
 
       --  Process formals
 
@@ -2357,7 +2358,7 @@ package body Sem_Ch9 is
          if Object_Access_Level (Target_Obj) >= Scope_Depth (Outer_Ent)
            and then
              (not Is_Entity_Name (Target_Obj)
-               or else Ekind (Entity (Target_Obj)) not in Formal_Kind
+               or else not Is_Formal (Entity (Target_Obj))
                or else Enclosing /= Scope (Entity (Target_Obj)))
          then
             Error_Msg_N
@@ -2866,8 +2867,9 @@ package body Sem_Ch9 is
       --  resolution, and expansion are over.
 
       Mark_Elaboration_Attributes
-        (N_Id   => Obj_Id,
-         Checks => True);
+        (N_Id     => Obj_Id,
+         Checks   => True,
+         Warnings => True);
 
       --  Instead of calling Analyze on the new node, call the proper analysis
       --  procedure directly. Otherwise the node would be expanded twice, with
@@ -3137,8 +3139,9 @@ package body Sem_Ch9 is
       --  resolution, and expansion are over.
 
       Mark_Elaboration_Attributes
-        (N_Id   => T,
-         Checks => True);
+        (N_Id     => T,
+         Checks   => True,
+         Warnings => True);
 
       Push_Scope (T);
 

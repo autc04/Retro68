@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2018 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2019 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -92,25 +92,6 @@ init_integer (variable * v)
 
   for (q = p; *q; q++)
     if (!isdigit (*q) && (p != q || *q != '-'))
-      return;
-
-  *v->var = atoi (p);
-}
-
-
-/* Initialize an integer environment variable which has to be positive.  */
-
-static void
-init_unsigned_integer (variable * v)
-{
-  char *p, *q;
-
-  p = getenv (v->name);
-  if (p == NULL)
-    return;
-
-  for (q = p; *q; q++)
-    if (!isdigit (*q))
       return;
 
   *v->var = atoi (p);

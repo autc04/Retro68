@@ -18,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"cmd/go/internal/renameio"
 )
 
 // An ActionID is a cache action key, the hash of a complete description of a
@@ -189,6 +191,21 @@ func (c *Cache) get(id ActionID) (Entry, error) {
 	return Entry{buf, size, time.Unix(0, tm)}, nil
 }
 
+// GetFile looks up the action ID in the cache and returns
+// the name of the corresponding data file.
+func (c *Cache) GetFile(id ActionID) (file string, entry Entry, err error) {
+	entry, err = c.Get(id)
+	if err != nil {
+		return "", Entry{}, err
+	}
+	file = c.OutputFile(entry.OutputID)
+	info, err := os.Stat(file)
+	if err != nil || info.Size() != entry.Size {
+		return "", Entry{}, errMissing
+	}
+	return file, entry, nil
+}
+
 // GetBytes looks up the action ID in the cache and returns
 // the corresponding output bytes.
 // GetBytes should only be used for data that can be expected to fit in memory.
@@ -268,7 +285,9 @@ func (c *Cache) Trim() {
 		c.trimSubdir(subdir, cutoff)
 	}
 
-	ioutil.WriteFile(filepath.Join(c.dir, "trim.txt"), []byte(fmt.Sprintf("%d", now.Unix())), 0666)
+	// Ignore errors from here: if we don't write the complete timestamp, the
+	// cache will appear older than it is, and we'll trim it again next time.
+	renameio.WriteFile(filepath.Join(c.dir, "trim.txt"), []byte(fmt.Sprintf("%d", now.Unix())))
 }
 
 // trimSubdir trims a single cache subdirectory.
@@ -323,6 +342,8 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
 	}
 	file := c.fileName(id, "a")
 	if err := ioutil.WriteFile(file, entry, 0666); err != nil {
+		// TODO(bcmills): This Remove potentially races with another go command writing to file.
+		// Can we eliminate it?
 		os.Remove(file)
 		return err
 	}

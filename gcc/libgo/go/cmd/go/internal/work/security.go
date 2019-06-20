@@ -89,7 +89,9 @@ var validCompilerFlags = []*regexp.Regexp{
 	re(`-m32`),
 	re(`-m64`),
 	re(`-m(abi|arch|cpu|fpu|tune)=([^@\-].*)`),
+	re(`-m(no-)?v?aes`),
 	re(`-marm`),
+	re(`-m(no-)?avx[0-9a-z]*`),
 	re(`-mfloat-abi=([^@\-].*)`),
 	re(`-mfpmath=[0-9a-z,+]*`),
 	re(`-m(no-)?avx[0-9a-z.]*`),
@@ -100,6 +102,7 @@ var validCompilerFlags = []*regexp.Regexp{
 	re(`-miphoneos-version-min=(.+)`),
 	re(`-mnop-fun-dllimport`),
 	re(`-m(no-)?sse[0-9.]*`),
+	re(`-m(no-)?ssse3`),
 	re(`-mthumb(-interwork)?`),
 	re(`-mthreads`),
 	re(`-mwindows`),
@@ -112,6 +115,7 @@ var validCompilerFlags = []*regexp.Regexp{
 	re(`--sysroot=([^@\-].*)`),
 	re(`-w`),
 	re(`-x([^@\-].*)`),
+	re(`-v`),
 }
 
 var validCompilerFlagsWithNextArg = []string{
@@ -135,6 +139,7 @@ var validLinkerFlags = []*regexp.Regexp{
 	re(`-f(no-)?(pic|PIC|pie|PIE)`),
 	re(`-f(no-)?openmp(-simd)?`),
 	re(`-fsanitize=([^@\-].*)`),
+	re(`-flat_namespace`),
 	re(`-g([^@\-].*)?`),
 	re(`-headerpad_max_install_names`),
 	re(`-m(abi|arch|cpu|fpu|tune)=([^@\-].*)`),
@@ -150,6 +155,7 @@ var validLinkerFlags = []*regexp.Regexp{
 	re(`-shared`),
 	re(`-?-static([-a-z0-9+]*)`),
 	re(`-?-stdlib=([^@\-].*)`),
+	re(`-v`),
 
 	// Note that any wildcards in -Wl need to exclude comma,
 	// since -Wl splits its argument at commas and passes
@@ -167,6 +173,7 @@ var validLinkerFlags = []*regexp.Regexp{
 	re(`-Wl,-e[=,][a-zA-Z0-9]*`),
 	re(`-Wl,--enable-new-dtags`),
 	re(`-Wl,--end-group`),
+	re(`-Wl,--(no-)?export-dynamic`),
 	re(`-Wl,-framework,[^,@\-][^,]+`),
 	re(`-Wl,-headerpad_max_install_names`),
 	re(`-Wl,--no-undefined`),

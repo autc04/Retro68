@@ -1,5 +1,5 @@
 // PR c++/86480
-// { dg-additional-options -std=c++17 }
+// { dg-do compile { target c++17 } }
 
 template <class...> constexpr bool val = true;
 
@@ -8,7 +8,7 @@ void f()
 {
   [](auto... p)
     {
-      [=]{
+      []{
 	if constexpr (val<T..., decltype(p)...>) { return true; }
 	return false;
       }();

@@ -57,9 +57,14 @@ case $goarch in
 	defaultphyspagesize=8192
 	pcquantum=4
 	;;
-    amd64 | amd64p32)
+    amd64)
 	family=AMD64
 	hugepagesize="1 << 21"
+	;;
+    amd64p32)
+	family=AMD64
+	hugepagesize="1 << 21"
+	ptrsize=4
 	;;
     arm | armbe)
 	family=ARM
@@ -126,6 +131,13 @@ case $goarch in
 		;;
 	esac
 	;;
+    nios2)
+        family=NIOS2
+        cachelinesize=32
+        minframesize=16
+        pcquantum=4
+        ptrsize=4
+        ;;
     ppc)
 	family=PPC
 	bigendian=true
@@ -145,6 +157,11 @@ case $goarch in
 		bigendian=false
 		;;
 	esac
+	;;
+    riscv)
+	family=RISCV
+	pcquantum=2
+	ptrsize=4
 	;;
     riscv64)
 	family=RISCV64
@@ -190,6 +207,10 @@ case $goarch in
 	bigendian=true
 	defaultphyspagesize=8192
 	pcquantum=4
+	;;
+    wasm)
+	family=WASM
+	defaultphyspagesize=65536
 	;;
     *)
 	echo 1>&2 "unrecognized goarch value \"$goarch\""

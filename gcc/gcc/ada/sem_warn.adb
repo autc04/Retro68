@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1999-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -3630,9 +3630,8 @@ package body Sem_Warn is
       Form1     : Entity_Id;
       Form2     : Entity_Id;
       Warn_Only : Boolean;
-      --  GNAT warns on overlapping in-out parameters even when there are no
-      --  two in-out parameters of an elementary type, as stated in
-      --  RM 6.5.1 (17/2).
+      --  GNAT warns on overlapping in-out parameters of any type, not just for
+      --  elementary in-out parameters (as specified in RM 6.4.1 (15/3-17/3)).
 
    --  Start of processing for Warn_On_Overlapping_Actuals
 

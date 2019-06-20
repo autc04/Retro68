@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -225,10 +225,6 @@ package body Lib.Writ is
 
       Num_Sdep : Nat := 0;
       --  Number of active entries in Sdep_Table
-
-      flag_compare_debug : Int;
-      pragma Import (C, flag_compare_debug);
-      --  Import from toplev.c
 
       -----------------------
       -- Local Subprograms --
@@ -744,7 +740,14 @@ package body Lib.Writ is
                   Note_Unit := U;
                end if;
 
-               if Note_Unit = Unit_Num then
+               --  No action needed for pragmas removed by the expander (for
+               --  example, pragmas of ignored ghost entities).
+
+               if Nkind (N) = N_Null_Statement then
+                  pragma Assert (Nkind (Original_Node (N)) = N_Pragma);
+                  null;
+
+               elsif Note_Unit = Unit_Num then
                   Write_Info_Initiate ('N');
                   Write_Info_Char (' ');
 
@@ -844,9 +847,9 @@ package body Lib.Writ is
          --  Write source file name Nam and ALI file name for unit index Idx.
          --  Possibly change Nam to lowercase (generating a new file name).
 
-         --------------------------
-         -- Write_With_File_Name --
-         --------------------------
+         ---------------------------
+         -- Write_With_File_Names --
+         ---------------------------
 
          procedure Write_With_File_Names
            (Nam : in out File_Name_Type;
@@ -952,18 +955,16 @@ package body Lib.Writ is
                if Is_Spec_Name (Uname) then
                   Body_Fname :=
                     Get_File_Name
-                      (Get_Body_Name (Uname),
-                       Subunit => False, May_Fail => True);
+                      (Uname    => Get_Body_Name (Uname),
+                       Subunit  => False,
+                       May_Fail => True);
 
-                  Body_Index :=
-                    Get_Unit_Index
-                      (Get_Body_Name (Uname));
+                  Body_Index := Get_Unit_Index (Get_Body_Name (Uname));
 
                   if Body_Fname = No_File then
                      Body_Fname := Get_File_Name (Uname, Subunit => False);
                      Body_Index := Get_Unit_Index (Uname);
                   end if;
-
                else
                   Body_Fname := Get_File_Name (Uname, Subunit => False);
                   Body_Index := Get_Unit_Index (Uname);
@@ -1049,9 +1050,7 @@ package body Lib.Writ is
       --  We never write an ALI file if the original operating mode was
       --  syntax-only (-gnats switch used in compiler invocation line)
 
-      if Original_Operating_Mode = Check_Syntax
-        or flag_compare_debug /= 0
-      then
+      if Original_Operating_Mode = Check_Syntax then
          return;
       end if;
 
@@ -1539,10 +1538,18 @@ package body Lib.Writ is
             --  Normal case of a unit entry with a source index
 
             if Sind > No_Source_File then
-               Fname := File_Name (Sind);
+               --  We never want directory information in ALI files
+               --  ???But back out this change temporarily until
+               --  gprbuild is fixed.
 
-               --  Ensure that on platforms where the file names are not case
-               --  sensitive, the recorded file name is in lower case.
+               if False then
+                  Fname := Strip_Directory (File_Name (Sind));
+               else
+                  Fname := File_Name (Sind);
+               end if;
+
+               --  Ensure that on platforms where the file names are not
+               --  case sensitive, the recorded file name is in lower case.
 
                if not File_Names_Case_Sensitive then
                   Get_Name_String (Fname);

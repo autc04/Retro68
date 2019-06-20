@@ -1,5 +1,5 @@
 `/* Implementation of the MINLOC intrinsic
-   Copyright (C) 2017-2018 Free Software Foundation, Inc.
+   Copyright (C) 2017-2019 Free Software Foundation, Inc.
    Contributed by Thomas Koenig
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -38,9 +38,10 @@ include(iforeach-s.m4)dnl
 
 FOREACH_FUNCTION(
 `  const atype_name *minval;
-   minval = base;'
+   minval = NULL;'
 ,
-`  if (compare_fcn (base, minval, len) < 0)
+`    if (minval == NULL || (back ? compare_fcn (base, minval, len) <= 0 :
+       	 	    	    	   compare_fcn (base, minval, len) < 0))
     {
       minval = base;
       for (n = 0; n < rank; n++)
@@ -52,7 +53,9 @@ MASKED_FOREACH_FUNCTION(
 
   minval = NULL;'
 ,
-`  if (*mbase && (minval == NULL || compare_fcn (base, minval, len) < 0))
+`  if (*mbase &&
+      (minval == NULL || (back ? compare_fcn (base, minval, len) <= 0 :
+       	 	    	    	 compare_fcn (base, minval, len) < 0)))
     {
       minval = base;
       for (n = 0; n < rank; n++)

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1998-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1998-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -75,7 +75,7 @@ package body Xref_Lib is
 
    procedure Open
      (Name         : String;
-      File         : out ALI_File;
+      File         : in out ALI_File;
       Dependencies : Boolean := False);
    --  Open a new ALI file. If Dependencies is True, the insert every library
    --  file 'with'ed in the files database (used for gnatxref)
@@ -688,7 +688,7 @@ package body Xref_Lib is
 
    procedure Open
      (Name         : String;
-      File         : out ALI_File;
+      File         : in out ALI_File;
       Dependencies : Boolean := False)
    is
       Ali : String_Access renames File.Buffer;

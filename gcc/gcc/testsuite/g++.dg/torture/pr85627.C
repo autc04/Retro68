@@ -27,3 +27,7 @@ bar (__complex double a, __complex double b)
   }
   return res;
 }
+
+/* Verify EH is preserved by complex lowering.  */
+
+/* { dg-final { scan-tree-dump-times "__cxa_begin_catch" 2 "optimized" } } */

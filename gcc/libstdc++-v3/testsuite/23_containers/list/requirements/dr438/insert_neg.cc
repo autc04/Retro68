@@ -1,6 +1,6 @@
 // 2007-04-27  Paolo Carlini  <pcarlini@suse.de>
 
-// Copyright (C) 2007-2018 Free Software Foundation, Inc.
+// Copyright (C) 2007-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,3 +33,5 @@ void f()
   list_type l;
   l.insert(l.begin(), 10, 1);	// { dg-error "here|no match" }
 }
+
+// { dg-prune-output "iterator_traits" }

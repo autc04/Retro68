@@ -1,5 +1,5 @@
 /* Perform optimizations on tree structure.
-   Copyright (C) 1998-2018 Free Software Foundation, Inc.
+   Copyright (C) 1998-2019 Free Software Foundation, Inc.
    Written by Mark Michell (mark@codesourcery.com).
 
 This file is part of GCC.
@@ -46,6 +46,8 @@ update_cloned_parm (tree parm, tree cloned_parm, bool first)
   /* We may have taken its address.  */
   TREE_ADDRESSABLE (cloned_parm) = TREE_ADDRESSABLE (parm);
 
+  DECL_BY_REFERENCE (cloned_parm) = DECL_BY_REFERENCE (parm);
+
   /* The definition might have different constness.  */
   TREE_READONLY (cloned_parm) = TREE_READONLY (parm);
 
@@ -59,6 +61,25 @@ update_cloned_parm (tree parm, tree cloned_parm, bool first)
   DECL_GIMPLE_REG_P (cloned_parm) = DECL_GIMPLE_REG_P (parm);
 }
 
+/* Like copy_decl_no_change, but handle DECL_OMP_PRIVATIZED_MEMBER
+   properly.  */
+
+static tree
+cxx_copy_decl (tree decl, copy_body_data *id)
+{
+  tree copy = copy_decl_no_change (decl, id);
+  if (VAR_P (decl)
+      && DECL_HAS_VALUE_EXPR_P (decl)
+      && DECL_ARTIFICIAL (decl)
+      && DECL_LANG_SPECIFIC (decl)
+      && DECL_OMP_PRIVATIZED_MEMBER (decl))
+    {
+      tree expr = DECL_VALUE_EXPR (copy);
+      walk_tree (&expr, copy_tree_body_r, id, NULL);
+      SET_DECL_VALUE_EXPR (copy, expr);
+    }
+  return copy;
+}
 
 /* FN is a function in High GIMPLE form that has a complete body and no
    CFG.  CLONE is a function whose body is to be set to a copy of FN,
@@ -78,7 +99,7 @@ clone_body (tree clone, tree fn, void *arg_map)
   id.src_cfun = DECL_STRUCT_FUNCTION (fn);
   id.decl_map = static_cast<hash_map<tree, tree> *> (arg_map);
 
-  id.copy_decl = copy_decl_no_change;
+  id.copy_decl = cxx_copy_decl;
   id.transform_call_graph_edges = CB_CGE_DUPLICATE;
   id.transform_new_cfg = true;
   id.transform_return_to_modify = false;
@@ -115,11 +136,6 @@ build_delete_destructor_body (tree delete_dtor, tree complete_dtor)
   tree parm = DECL_ARGUMENTS (delete_dtor);
   tree virtual_size = cxx_sizeof (current_class_type);
 
-  /* Call the corresponding complete destructor.  */
-  gcc_assert (complete_dtor);
-  tree call_dtor = build_cxx_call (complete_dtor, 1, &parm,
-				   tf_warning_or_error);
-
   /* Call the delete function.  */
   tree call_delete = build_op_delete_call (DELETE_EXPR, current_class_ptr,
 					   virtual_size,
@@ -128,10 +144,26 @@ build_delete_destructor_body (tree delete_dtor, tree complete_dtor)
 					   /*alloc_fn=*/NULL_TREE,
 					   tf_warning_or_error);
 
-  /* Operator delete must be called, whether or not the dtor throws.  */
-  add_stmt (build2 (TRY_FINALLY_EXPR, void_type_node, call_dtor, call_delete));
+  tree op = get_callee_fndecl (call_delete);
+  if (op && DECL_P (op) && destroying_delete_p (op))
+    {
+      /* The destroying delete will handle calling complete_dtor.  */
+      add_stmt (call_delete);
+    }
+  else
+    {
+      /* Call the corresponding complete destructor.  */
+      gcc_assert (complete_dtor);
+      tree call_dtor = build_cxx_call (complete_dtor, 1, &parm,
+				       tf_warning_or_error);
 
-  /* Return the address of the object.  */
+      /* Operator delete must be called, whether or not the dtor throws.  */
+      add_stmt (build2 (TRY_FINALLY_EXPR, void_type_node,
+			call_dtor, call_delete));
+    }
+
+  /* Return the address of the object.
+     ??? How is it useful to return an invalid address?  */
   if (targetm.cxx.cdtor_returns_this ())
     {
       tree val = DECL_ARGUMENTS (delete_dtor);
@@ -194,8 +226,7 @@ can_alias_cdtor (tree fn)
   /* ??? Why not use aliases with -frepo?  */
   if (flag_use_repository)
     return false;
-  gcc_assert (DECL_MAYBE_IN_CHARGE_CONSTRUCTOR_P (fn)
-	      || DECL_MAYBE_IN_CHARGE_DESTRUCTOR_P (fn));
+  gcc_assert (DECL_MAYBE_IN_CHARGE_CDTOR_P (fn));
   /* Don't use aliases for weak/linkonce definitions unless we can put both
      symbols in the same COMDAT group.  */
   return (DECL_INTERFACE_KNOWN (fn)
@@ -386,6 +417,8 @@ maybe_thunk_body (tree fn, bool force)
 		  gcc_assert (clone_parm);
 		  DECL_ABSTRACT_ORIGIN (clone_parm) = NULL;
 		  args[parmno] = clone_parm;
+		  /* Clear TREE_ADDRESSABLE on thunk arguments.  */
+		  TREE_ADDRESSABLE (clone_parm) = 0;
 		  clone_parm = TREE_CHAIN (clone_parm);
 		}
 	      if (fn_parm_typelist)
@@ -440,8 +473,7 @@ maybe_clone_body (tree fn)
   bool need_alias = false;
 
   /* We only clone constructors and destructors.  */
-  if (!DECL_MAYBE_IN_CHARGE_CONSTRUCTOR_P (fn)
-      && !DECL_MAYBE_IN_CHARGE_DESTRUCTOR_P (fn))
+  if (!DECL_MAYBE_IN_CHARGE_CDTOR_P (fn))
     return 0;
 
   populate_clone_array (fn, fns);

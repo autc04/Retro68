@@ -49,15 +49,15 @@ For exception handling, either or both of two models are supplied:
 Most programs should experience a substantial speed improvement by
 being compiled with a ZCX run-time.
 This is especially true for
-tasking applications or applications with many exception handlers.}
+tasking applications or applications with many exception handlers.
+Note however that the ZCX run-time does not support asynchronous abort
+of tasks (``abort`` and ``select-then-abort`` constructs) and will instead
+implement abort by polling points in the runtime. You can also add additional
+polling points explicitly if needed in your application via ``pragma
+Abort_Defer``.
 
 This section summarizes which combinations of threads and exception support
 are supplied on various GNAT platforms.
-It then shows how to select a particular library either
-permanently or temporarily,
-explains the properties of (and tradeoffs among) the various threads
-libraries, and provides some additional
-information about several specific platforms.
 
 .. _Summary_of_Run-Time_Configurations:
 
@@ -241,13 +241,13 @@ The name of of that package depends on your GNU/Linux distribution:
 * Debian, Ubuntu: ``libc6-dev`` (normally installed by default).
 
 If using the 32-bit version of GNAT on a 64-bit version of GNU/Linux,
-you'll need the 32-bit version of the glibc and glibc-devel packages:
+you'll need the 32-bit version of the following packages:
 
-* RedHat, SUSE: ``glibc.i686``, ``glibc-devel.i686``
-* Debian, Ubuntu: ``libc6:i386``, ``libc6-dev:i386``
+* RedHat, SUSE: ``glibc.i686``, ``glibc-devel.i686``, ``ncurses-libs.i686``
+* Debian, Ubuntu: ``libc6:i386``, ``libc6-dev:i386``, ``lib32ncursesw5``
 
 Other GNU/Linux distributions might be choosing a different name
-for that package.
+for those packages.
 
 .. index:: Windows
 

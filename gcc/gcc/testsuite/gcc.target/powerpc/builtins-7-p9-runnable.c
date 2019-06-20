@@ -1,7 +1,6 @@
 /* { dg-do run { target { powerpc*-*-* && p9vector_hw } } } */
-/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power9" } } */
 /* { dg-require-effective-target powerpc_p9vector_ok } */
-/* { dg-options "-mcpu=power9 -O2" } */
+/* { dg-options "-mdejagnu-cpu=power9 -O2" } */
 
 #include <altivec.h>
 #define TRUE 1
@@ -82,6 +81,7 @@ vext (vector unsigned char *vc)
 int main()
 {
    vector signed int vsi_arg;
+   vector unsigned int vui_arg;
    vector unsigned char vec_uc_arg, vec_uc_result, vec_uc_expected;
    vector unsigned long long vec_ull_result, vec_ull_expected;
    unsigned long long ull_result, ull_expected;
@@ -113,10 +113,12 @@ int main()
 
    /* insert into char 4 location */
    vec_uc_expected = (vector unsigned char){1, 2, 3, 4,
-					    0xC, 0, 0, 0,
+					    2, 0, 0, 0,
 					    9, 10, 11, 12,
 					    13, 14, 15, 16};
-   vec_uc_result = vec_insert4b (vsi_arg, vec_uc_arg, 4);
+   vui_arg = (vector unsigned int){0x4, 0x3, 0x2, 0x1};
+
+   vec_uc_result = vec_insert4b (vui_arg, vec_uc_arg, 4);
 
    if (result_wrong_uc(vec_uc_expected, vec_uc_result))
      {

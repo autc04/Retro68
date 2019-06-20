@@ -1,5 +1,5 @@
 `/* Implementation of the MAXLOC intrinsic
-   Copyright (C) 2017-2018 Free Software Foundation, Inc.
+   Copyright (C) 2017-2019 Free Software Foundation, Inc.
    Contributed by Thomas Koenig
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -38,9 +38,10 @@ include(iforeach-s.m4)dnl
 
 FOREACH_FUNCTION(
 `  const atype_name *maxval;
-   maxval = base;'
+   maxval = NULL;'
 ,
-`  if (compare_fcn (base, maxval, len) > 0)
+`    if (maxval == NULL || (back ? compare_fcn (base, maxval, len) >= 0 :
+     		   	   	   compare_fcn (base, maxval, len) > 0))
     {
       maxval = base;
       for (n = 0; n < rank; n++)
@@ -52,7 +53,9 @@ MASKED_FOREACH_FUNCTION(
 
   maxval = NULL;'
 ,
-`  if (*mbase && (maxval == NULL || compare_fcn (base, maxval, len) > 0))
+`  if (*mbase &&
+        (maxval == NULL || (back ? compare_fcn (base, maxval, len) >= 0:
+		   	   	   compare_fcn (base, maxval, len) > 0)))
     {
       maxval = base;
       for (n = 0; n < rank; n++)

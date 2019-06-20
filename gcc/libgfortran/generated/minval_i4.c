@@ -1,5 +1,5 @@
 /* Implementation of the MINVAL intrinsic
-   Copyright (C) 2002-2018 Free Software Foundation, Inc.
+   Copyright (C) 2002-2019 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -50,10 +50,6 @@ minval_i4 (gfc_array_i4 * const restrict retarray,
   index_type delta;
   index_type dim;
   int continue_loop;
-
-#ifdef HAVE_BACK_ARG
-  assert(back == 0);
-#endif
 
   /* Make dim zero based to avoid confusion.  */
   rank = GFC_DESCRIPTOR_RANK (array) - 1;
@@ -158,8 +154,10 @@ minval_i4 (gfc_array_i4 * const restrict retarray,
 	  *dest = GFC_INTEGER_4_HUGE;
 	else
 	  {
+#if ! defined HAVE_BACK_ARG
 	    for (n = 0; n < len; n++, src += delta)
 	      {
+#endif
 
 #if defined (GFC_INTEGER_4_QUIET_NAN)
 		if (*src <= result)
@@ -236,9 +234,16 @@ mminval_i4 (gfc_array_i4 * const restrict retarray,
   index_type mdelta;
   int mask_kind;
 
+  if (mask == NULL)
+    {
 #ifdef HAVE_BACK_ARG
-  assert (back == 0);
+      minval_i4 (retarray, array, pdim, back);
+#else
+      minval_i4 (retarray, array, pdim);
 #endif
+      return;
+    }
+
   dim = (*pdim) - 1;
   rank = GFC_DESCRIPTOR_RANK (array) - 1;
 
@@ -446,7 +451,7 @@ sminval_i4 (gfc_array_i4 * const restrict retarray,
   index_type dim;
 
 
-  if (*mask)
+  if (mask == NULL || *mask)
     {
 #ifdef HAVE_BACK_ARG
       minval_i4 (retarray, array, pdim, back);
