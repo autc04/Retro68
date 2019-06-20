@@ -69,11 +69,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "optabs.h"
 #include "builtins.h"
 #include "rtl-iter.h"
-<<<<<<< HEAD
 #include "stringpool.h"
-=======
 #include "toplev.h"
->>>>>>> upstream
 
 /* This file should be included last.  */
 #include "target-def.h"
@@ -368,7 +365,6 @@ static machine_mode m68k_promote_function_mode (const_tree, machine_mode,
 #undef TARGET_PROMOTE_FUNCTION_MODE
 #define TARGET_PROMOTE_FUNCTION_MODE m68k_promote_function_mode
 
-<<<<<<< HEAD
 #undef TARGET_FUNCTION_VALUE
 #define TARGET_FUNCTION_VALUE m68k_function_value
 
@@ -377,10 +373,9 @@ static machine_mode m68k_promote_function_mode (const_tree, machine_mode,
 
 #undef TARGET_FUNCTION_ARG_PADDING
 #define TARGET_FUNCTION_ARG_PADDING m68k_function_arg_padding
-=======
+
 #undef  TARGET_HAVE_SPECULATION_SAFE_VALUE
 #define TARGET_HAVE_SPECULATION_SAFE_VALUE speculation_safe_value_not_needed
->>>>>>> upstream
 
 static const struct attribute_spec m68k_attribute_table[] =
 {

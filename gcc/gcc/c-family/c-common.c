@@ -753,17 +753,15 @@ fix_string_type (tree value)
       charsz = 1;
       e_type = char_type_node;
     }
-<<<<<<< HEAD
   else if (TREE_TYPE (value) == uchar_array_type_node)
     {
-      nchars = length;
+      charsz = 1;
       e_type = unsigned_char_type_node;
-=======
+    }
   else if (flag_char8_t && TREE_TYPE (value) == char8_array_type_node)
     {
       charsz = TYPE_PRECISION (char8_type_node) / BITS_PER_UNIT;
       e_type = char8_type_node;
->>>>>>> upstream
     }
   else if (TREE_TYPE (value) == char16_array_type_node)
     {

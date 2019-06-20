@@ -7738,32 +7738,8 @@ digest_init (location_t init_loc, tree type, tree init, tree origtype,
 
 	  if (char_array)
 	    {
-<<<<<<< HEAD
-	      if (typ2 != char_type_node && typ2 != unsigned_char_type_node)
-		{
-		  error_init (init_loc, "char-array initialized from wide "
-			      "string");
-		  return error_mark_node;
-		}
-	    }
-	  else
-	    {
-	      if (typ2 == char_type_node || typ2 == unsigned_char_type_node)
-		{
-		  error_init (init_loc, "wide character array initialized "
-			      "from non-wide string");
-		  return error_mark_node;
-		}
-	      else if (!comptypes(typ1, typ2))
-		{
-		  error_init (init_loc, "wide character array initialized "
-			      "from incompatible wide string");
-		  return error_mark_node;
-		}
-=======
 	      if (typ2 != char_type_node)
 		incompat_string_cst = true;
->>>>>>> upstream
 	    }
 	  else if (!comptypes (typ1, typ2))
 	    incompat_string_cst = true;

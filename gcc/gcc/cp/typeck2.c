@@ -1109,14 +1109,6 @@ digest_init_r (tree type, tree init, int nested, int flags,
 
 	  if (typ1 != char_type)
 	    {
-<<<<<<< HEAD
-	      if (char_type != char_type_node && char_type != unsigned_char_type_node)
-		{
-		  if (complain & tf_error)
-		    error_at (loc, "char-array initialized from wide string");
-		  return error_mark_node;
-		}
-=======
 	      /* The array element type does not match the initializing string
 	         literal element type; this is only allowed when both types are
 	         ordinary character type.  There are no string literals of
@@ -1128,33 +1120,15 @@ digest_init_r (tree type, tree init, int nested, int flags,
 		/* OK */;
 	      else
 		incompat_string_cst = true;
->>>>>>> upstream
 	    }
 
 	  if (incompat_string_cst)
 	    {
-<<<<<<< HEAD
-	      if (char_type == char_type_node || char_type == unsigned_char_type_node)
-		{
-		  if (complain & tf_error)
-		    error_at (loc,
-			      "int-array initialized from non-wide string");
-		  return error_mark_node;
-		}
-	      else if (char_type != typ1)
-		{
-		  if (complain & tf_error)
-		    error_at (loc, "int-array initialized from incompatible "
-			      "wide string");
-		  return error_mark_node;
-		}
-=======
 	      if (complain & tf_error)
 		error_at (loc, "cannot initialize array of %qT from "
 		          "a string literal with type array of %qT",
 		          typ1, char_type);
 	      return error_mark_node;
->>>>>>> upstream
 	    }
 
 	  if (nested == 2 && !TYPE_DOMAIN (type))

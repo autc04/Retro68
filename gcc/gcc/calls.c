@@ -1934,26 +1934,7 @@ initialize_argument_information (int num_actuals ATTRIBUTE_UNUSED,
     if (struct_value_addr_value)
       {
 	args[j].tree_value = struct_value_addr_value;
-<<<<<<< HEAD
 	j += inc;
-
-	/* If we pass structure address then we need to
-	   create bounds for it.  Since created bounds is
-	   a call statement, we expand it right here to avoid
-	   fixing all other places where it may be expanded.  */
-	if (CALL_WITH_BOUNDS_P (exp))
-	  {
-	    args[j].value = gen_reg_rtx (targetm.chkp_bound_mode ());
-	    args[j].tree_value
-	      = chkp_make_bounds_for_struct_addr (struct_value_addr_value);
-	    expand_expr_real (args[j].tree_value, args[j].value, VOIDmode,
-			      EXPAND_NORMAL, 0, false);
-	    args[j].pointer_arg = j + 1;       // ### ???
-	    j += inc;
-	  }
-=======
-	j--;
->>>>>>> upstream
       }
     argpos = 0;
     FOR_EACH_CALL_EXPR_ARG (arg, iter, exp)

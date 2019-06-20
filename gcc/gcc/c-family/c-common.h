@@ -334,11 +334,8 @@ enum c_tree_index
     CTI_UINTPTR_TYPE,
 
     CTI_CHAR_ARRAY_TYPE,
-<<<<<<< HEAD
     CTI_UCHAR_ARRAY_TYPE,
-=======
     CTI_CHAR8_ARRAY_TYPE,
->>>>>>> upstream
     CTI_CHAR16_ARRAY_TYPE,
     CTI_CHAR32_ARRAY_TYPE,
     CTI_WCHAR_ARRAY_TYPE,
@@ -487,11 +484,8 @@ extern const unsigned int num_c_common_reswords;
 #define truthvalue_false_node		c_global_trees[CTI_TRUTHVALUE_FALSE]
 
 #define char_array_type_node		c_global_trees[CTI_CHAR_ARRAY_TYPE]
-<<<<<<< HEAD
 #define uchar_array_type_node		c_global_trees[CTI_UCHAR_ARRAY_TYPE]
-=======
 #define char8_array_type_node		c_global_trees[CTI_CHAR8_ARRAY_TYPE]
->>>>>>> upstream
 #define char16_array_type_node		c_global_trees[CTI_CHAR16_ARRAY_TYPE]
 #define char32_array_type_node		c_global_trees[CTI_CHAR32_ARRAY_TYPE]
 #define wchar_array_type_node		c_global_trees[CTI_WCHAR_ARRAY_TYPE]

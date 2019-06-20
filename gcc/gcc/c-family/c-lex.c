@@ -1295,19 +1295,10 @@ lex_string (const cpp_token *tok, tree *valp, bool objc_string, bool translate)
     {
     default:
     case CPP_STRING:
-<<<<<<< HEAD
-    case CPP_UTF8STRING:
       if (pascal_string)
-        {
-          TREE_TYPE (value) = uchar_array_type_node;
-        }
+        TREE_TYPE (value) = uchar_array_type_node;
       else
-        {
-          TREE_TYPE (value) = char_array_type_node;
-        }
-=======
-      TREE_TYPE (value) = char_array_type_node;
->>>>>>> upstream
+        TREE_TYPE (value) = char_array_type_node;
       break;
     case CPP_UTF8STRING:
       if (flag_char8_t)
