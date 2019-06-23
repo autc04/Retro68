@@ -5207,6 +5207,7 @@ output_call (rtx x)
               while(arg)
                 {
                   tree word_tree = TREE_VALUE(arg);
+		  gcc_assert(TREE_CODE(word_tree) == INTEGER_CST);
                   if (TREE_CODE(word_tree) == INTEGER_CST)
                     {
                       int word = TREE_INT_CST_LOW(word_tree);

@@ -41505,6 +41505,7 @@ static tree cp_parser_inline_opcodes(cp_parser * parser)
       tree val = cp_parser_constant_expression (parser,
                                                 /*allow_non_constant_p=*/false,
                                                 NULL);
+      val = cp_fully_fold(val);						
       vec_safe_push (expr_list, val);
 
       if(cp_lexer_next_token_is(parser->lexer, CPP_COMMA))
