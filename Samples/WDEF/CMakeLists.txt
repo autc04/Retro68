@@ -79,5 +79,5 @@ add_application(WDEFShell
 	)
 
 # Again, add some options to make things smaller.
-set_target_properties(Dialog PROPERTIES COMPILE_OPTIONS -ffunction-sections)
-set_target_properties(Dialog PROPERTIES LINK_FLAGS "-Wl,-gc-sections")
+set_target_properties(WDEFShell PROPERTIES COMPILE_OPTIONS -ffunction-sections)
+set_target_properties(WDEFShell PROPERTIES LINK_FLAGS "-Wl,-gc-sections")
