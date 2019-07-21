@@ -20,7 +20,8 @@ set -e
 
 # Set up paths.
 SRC=$(cd `dirname $0` && pwd -P)
-PREFIX=`pwd -P`/toolchain/
+DEFAULT_PREFIX=`pwd -P`/toolchain/
+PREFIX=$DEFAULT_PREFIX
 BINUTILS=`pwd -P`/binutils-build
 
 ##################### Command-line Options
@@ -38,6 +39,7 @@ function usage()
 	echo "Usage: $0 [options]"
 	echo
 	echo "Options: "
+	echo "    --prefix                  the path to install the toolchain to"
 	echo "    --skip-thirdparty         do not rebuild gcc & third party libraries"
 	echo "    --no-68k                  disable support for 68K Macs"
 	echo "    --no-ppc                  disable classic PowerPC CFM support"
@@ -51,6 +53,9 @@ function usage()
 
 for ARG in $*; do
 	case $ARG in
+		--prefix=*)
+			PREFIX="${ARG#*=}"
+			;;
 		--skip-thirdparty)
 			SKIP_THIRDPARTY=true
 			;;
@@ -110,10 +115,20 @@ if [ `pwd -P` == "$SRC" ]; then
 	exit 1
 fi
 
+if [ "$PREFIX" != "$DEFAULT_PREFIX" -a -d "$PREFIX" -a $SKIP_THIRDPARTY != true ]; then
+	if [ ! -w "$PREFIX" ]; then
+		echo "$PREFIX is not writable, cannot install to there."
+		exit 1
+	fi
+	if [ "`ls -A "$PREFIX"`" ]; then
+		echo "$PREFIX is not empty, cannot install to there."
+		exit 1
+	fi
+fi
 
 if [ $SKIP_THIRDPARTY != false ]; then
 	MISSING=false
-	if [ ! -d toolchain ]; then MISSING=true; fi
+	if [ ! -d $PREFIX ]; then MISSING=true; fi
 	if [ $BUILD_68K != false ]; then
 		if [ ! -d binutils-build ]; then MISSING=true; fi
 		if [ ! -d gcc-build ]; then MISSING=true; fi
@@ -303,9 +318,11 @@ fi
 
 if [ $SKIP_THIRDPARTY != true ]; then
 
-	# Remove old install tree
-	rm -rf toolchain
-	mkdir -p toolchain
+	if [ "$PREFIX" = "$DEFAULT_PREFIX" ]; then
+		# Remove old install tree
+		rm -rf $PREFIX
+	fi
+	mkdir -p $PREFIX
 
 	# Components needed for targeting 68K: binutils, gcc
 	if [ $BUILD_68K != false ]; then
@@ -435,7 +452,7 @@ fi # SKIP_THIRDPARTY
 echo "Building host-based tools..."
 
 # Copy PEFBinaryFormat.h from Universal Interfaces, needed by MakePEF & MakeImport
-(export LC_ALL=C; sed 's/\r$//' < "$CINCLUDES/PEFBinaryFormat.h" | tr '\r' '\n' > "toolchain/include/PEFBinaryFormat.h")
+(export LC_ALL=C; sed 's/\r$//' < "$CINCLUDES/PEFBinaryFormat.h" | tr '\r' '\n' > "$PREFIX/include/PEFBinaryFormat.h")
 
 mkdir -p build-host
 cd build-host
@@ -451,17 +468,17 @@ export PATH=$PREFIX/bin:$PATH
 ##################### Setup Interfaces & Libraries
 
 echo "Preparing CIncludes..."
-rm -rf "toolchain/CIncludes"
-mkdir "toolchain/CIncludes"
-sh "$SRC/prepare-headers.sh" "$CINCLUDES" "toolchain/CIncludes"
+rm -rf "$PREFIX/CIncludes"
+mkdir "$PREFIX/CIncludes"
+sh "$SRC/prepare-headers.sh" "$CINCLUDES" "$PREFIX/CIncludes"
 
 echo "Preparing RIncludes..."
-rm -rf "toolchain/RIncludes"
-mkdir "toolchain/RIncludes"
-sh "$SRC/prepare-rincludes.sh" "$RINCLUDES" "toolchain/RIncludes"
+rm -rf "$PREFIX/RIncludes"
+mkdir "$PREFIX/RIncludes"
+sh "$SRC/prepare-rincludes.sh" "$RINCLUDES" "$PREFIX/RIncludes"
 
-# remove old symlinks in toolchain/*-apple-macos/include/
-# and link files from toolchain/CIncludes
+# remove old symlinks in $PREFIX/*-apple-macos/include/
+# and link files from $PREFIX/CIncludes
 function linkheaders()
 {
 	# incompatible with Universal Interfaces on case-insensitive file systems
@@ -478,13 +495,13 @@ function linkheaders()
 echo "Creating Symlinks for CIncludes and RIncludes..."
 
 if [ $BUILD_68K != false ]; then
-	ln -sf ../RIncludes toolchain/m68k-apple-macos/RIncludes
-	linkheaders toolchain/m68k-apple-macos/include
+	ln -sf ../RIncludes $PREFIX/m68k-apple-macos/RIncludes
+	linkheaders $PREFIX/m68k-apple-macos/include
 fi
 
 if [ $BUILD_PPC != false ]; then
-	ln -sf ../RIncludes toolchain/powerpc-apple-macos/RIncludes
-	linkheaders toolchain/powerpc-apple-macos/include
+	ln -sf ../RIncludes $PREFIX/powerpc-apple-macos/RIncludes
+	linkheaders $PREFIX/powerpc-apple-macos/include
 fi
 
 if [ $BUILD_68K != false ]; then
@@ -494,8 +511,8 @@ if [ $BUILD_68K != false ]; then
 			libname=`basename "$macobj"`
 			libname=${libname%.o}
 			printf "    %30s => %-30s\n" ${libname}.o lib${libname}.a
-			obj="toolchain/m68k-apple-macos/lib/$libname.o"
-			lib="toolchain/m68k-apple-macos/lib/lib${libname}.a"
+			obj="$PREFIX/m68k-apple-macos/lib/$libname.o"
+			lib="$PREFIX/m68k-apple-macos/lib/lib${libname}.a"
 			rm -f $lib
 
 			(ConvertObj "$macobj" | m68k-apple-macos-as - -o $obj) && m68k-apple-macos-ar cqs $lib $obj
@@ -509,7 +526,7 @@ if [ $BUILD_PPC != false ]; then
 			echo "WARNING: Couldn't read resource fork for \"$INTERFACELIB\"."
 			echo "         Falling back to included import libraries."
 			echo "Copying readymade PowerPC import libraries..."
-			cp $SRC/ImportLibraries/*.a toolchain/powerpc-apple-macos/lib/
+			cp $SRC/ImportLibraries/*.a $PREFIX/powerpc-apple-macos/lib/
 			;;
 		*)
 			echo "Building PowerPC import libraries..."
@@ -517,7 +534,7 @@ if [ $BUILD_PPC != false ]; then
 				libname=`basename "$shlib"`
 				implib=lib${libname}.a
 				printf "    %30s => %-30s\n" ${libname} ${implib}
-				MakeImport "$shlib" "toolchain/powerpc-apple-macos/lib/$implib"
+				MakeImport "$shlib" "$PREFIX/powerpc-apple-macos/lib/$implib"
 			done
 			;;
 	esac
@@ -527,12 +544,12 @@ if [ $BUILD_PPC != false ]; then
 		for obj in ${PPCLIBRARIES}/OpenT*.o ${PPCLIBRARIES}/CarbonAccessors.o ${PPCLIBRARIES}/CursorDevicesGlue.o; do
 			if [ -r $obj ]; then
 				# copy the library:
-				cp $obj toolchain/powerpc-apple-macos/lib/
+				cp $obj $PREFIX/powerpc-apple-macos/lib/
 
 				# and wrap it in a .a archive for convenience
-				lib=toolchain/powerpc-apple-macos/lib/lib`basename "${obj%.o}"`.a
+				lib=$PREFIX/powerpc-apple-macos/lib/lib`basename "${obj%.o}"`.a
 				rm -f $lib
-				toolchain/bin/powerpc-apple-macos-ar cqs $lib $obj
+				$PREFIX/bin/powerpc-apple-macos-ar cqs $lib $obj
 			fi
 		done
 	fi
