@@ -43,7 +43,7 @@ function usage()
 	echo "    --no-ppc                  disable classic PowerPC CFM support"
 	echo "    --no-carbon               disable Carbon CFM support"
 	echo "    --clean-after-build       remove intermediate build files right after building"
-	echo "    --host-cxx-compiler       specify C++ compiler (needed on Mac OS X 10.4)" 
+	echo "    --host-cxx-compiler       specify C++ compiler (needed on Mac OS X 10.4)"
 	echo "    --host-c-compiler         specify C compiler (needed on Mac OS X 10.4)"
 	echo "    --ninja                   use ninja for cmake builds"
 	echo "    --help                    show this help message"
@@ -75,9 +75,9 @@ for ARG in $*; do
 			HOST_CMAKE_FLAGS[${#HOST_CMAKE_FLAGS[@]}]="-DCMAKE_C_COMPILER=${ARG#*=}"
 			HOST_C_COMPILER="${ARG#*=}"
 			;;
-        --ninja)
-            CMAKE_GENERATOR=-GNinja
-            ;;
+		--ninja)
+			CMAKE_GENERATOR=-GNinja
+			;;
 		--help)
 			usage
 			exit 0
@@ -123,7 +123,7 @@ if [ $SKIP_THIRDPARTY != false ]; then
 		if [ ! -d gcc-build-ppc ]; then MISSING=true; fi
 	fi
 	if [ ! -d hfsutils ]; then MISSING=true; fi
-	
+
 	if [ $MISSING != false ]; then
 		echo "Not all third-party components have been built yet, ignoring --skip-thirdparty."
 		SKIP_THIRDPARTY=false
@@ -133,7 +133,7 @@ fi
 ### Running on a Power Mac (tested with 10.4 Tiger)
 
 if [ "`uname -m`" = "Power Macintosh" ]; then
-		# The default compiler won't work, 
+		# The default compiler won't work,
 		# check whether the compiler has been explictly specified
 		# on the command line
 	if [ $SKIP_THIRDPARTY = false ]; then
@@ -164,14 +164,14 @@ INTERFACES_DIR="$SRC/InterfacesAndLibraries"
 
 function verifyInterfaceDirNames()
 {
-        printf "Searching for special characters in subdirs of $INTERFACES_DIR"
-        local found=`find "$INTERFACES_DIR" -type d -name "*" -print `
-        if [ "`echo $found | grep \&`" ]; then
-                echo "\n$found Contained special character &"
-                return 1        # failure
-        else
-                return 0        # success
-        fi
+		printf "Searching for special characters in subdirs of $INTERFACES_DIR"
+		local found=`find "$INTERFACES_DIR" -type d -name "*" -print `
+		if [ "`echo $found | grep \&`" ]; then
+				echo "\n$found Contained special character &"
+				return 1        # failure
+		else
+				return 0        # success
+		fi
 }
 
 function locateInterfaceThing()
@@ -211,12 +211,12 @@ function explainInterfaces()
 echo "Looking for various files in $INTERFACES_DIR/..."
 
 if verifyInterfaceDirNames; then
-        echo "Directory name looks clean"
+		echo "Directory name looks clean"
 else
-        echo "Directory name contained special character & that would break build"
-        echo "Please install the Interfaces and Libraries files in a path under"
-        echo "$INTERFACES_DIR that does not contain the & character"
-        exit 1
+		echo "Directory name contained special character & that would break build"
+		echo "Please install the Interfaces and Libraries files in a path under"
+		echo "$INTERFACES_DIR that does not contain the & character"
+		exit 1
 fi
 
 if locateInterfaceThing CONDITIONALMACROS_H ConditionalMacros.h; then
@@ -264,7 +264,7 @@ if [ $BUILD_PPC != false ]; then
 	else
 		echo "Could not find OpenTransportAppPPC.o anywhere inside InterfaceAndLibraries/"
 		echo "(This file is required for OpenTransport on PPC only)"
-    fi
+	fi
 
 fi
 
@@ -314,7 +314,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 			# in /usr/local via the homebrew package manager
 		export CPPFLAGS="-I/usr/local/include"
 		export LDFLAGS="-L/usr/local/lib"
-		
+
 			# or they could be using MacPorts. Default install
 			# location is /opt/local
 		if [ -d "/opt/local/include" ]; then
@@ -324,7 +324,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 
 		export CC=$HOST_C_COMPILER
 		export CXX=$HOST_CXX_COMPILER
-		
+
 		# Build binutils for 68K
 		mkdir -p binutils-build
 		cd binutils-build
@@ -382,7 +382,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 
 		export CC=$HOST_C_COMPILER
 		export CXX=$HOST_CXX_COMPILER
-		
+
 		# Build binutils for PPC
 		mkdir -p binutils-build-ppc
 		cd binutils-build-ppc
@@ -466,41 +466,41 @@ function linkheaders()
 {
 	# incompatible with Universal Interfaces on case-insensitive file systems
 	# (and does not currently work anyways)
-    rm -f "$1"/threads.h
+	rm -f "$1"/threads.h
 
 	# the following command doesn't work on older Mac OS X versions.
 	# allow it to fail quietly, at worst we leave some dangling symlinks around
 	# in the rare situation that headers are removed from the input directory
 	find "$1" -lname "../../CIncludes/*" -delete || true
-    (cd "$1" && find "../../CIncludes/" -name '*.h' -exec ln -s {} . \;)
+	(cd "$1" && find "../../CIncludes/" -name '*.h' -exec ln -s {} . \;)
 }
 
 echo "Creating Symlinks for CIncludes and RIncludes..."
 
 if [ $BUILD_68K != false ]; then
-    ln -sf ../RIncludes toolchain/m68k-apple-macos/RIncludes
-    linkheaders toolchain/m68k-apple-macos/include
+	ln -sf ../RIncludes toolchain/m68k-apple-macos/RIncludes
+	linkheaders toolchain/m68k-apple-macos/include
 fi
 
 if [ $BUILD_PPC != false ]; then
-    ln -sf ../RIncludes toolchain/powerpc-apple-macos/RIncludes
-    linkheaders toolchain/powerpc-apple-macos/include
+	ln -sf ../RIncludes toolchain/powerpc-apple-macos/RIncludes
+	linkheaders toolchain/powerpc-apple-macos/include
 fi
 
 if [ $BUILD_68K != false ]; then
-    echo "Converting 68K static libraries..."
-    for macobj in "${M68KLIBRARIES}/"*.o; do
-        if [ -r $macobj ]; then
-            libname=`basename "$macobj"`
-            libname=${libname%.o}
-            printf "    %30s => %-30s\n" ${libname}.o lib${libname}.a
-            obj="toolchain/m68k-apple-macos/lib/$libname.o"
-            lib="toolchain/m68k-apple-macos/lib/lib${libname}.a"
-            rm -f $lib
+	echo "Converting 68K static libraries..."
+	for macobj in "${M68KLIBRARIES}/"*.o; do
+		if [ -r $macobj ]; then
+			libname=`basename "$macobj"`
+			libname=${libname%.o}
+			printf "    %30s => %-30s\n" ${libname}.o lib${libname}.a
+			obj="toolchain/m68k-apple-macos/lib/$libname.o"
+			lib="toolchain/m68k-apple-macos/lib/lib${libname}.a"
+			rm -f $lib
 
-            (ConvertObj "$macobj" | m68k-apple-macos-as - -o $obj) && m68k-apple-macos-ar cqs $lib $obj
-        fi
-    done
+			(ConvertObj "$macobj" | m68k-apple-macos-as - -o $obj) && m68k-apple-macos-ar cqs $lib $obj
+		fi
+	done
 fi
 
 if [ $BUILD_PPC != false ]; then
@@ -522,20 +522,20 @@ if [ $BUILD_PPC != false ]; then
 			;;
 	esac
 
-    if [ -d ${PPCLIBRARIES} ]; then
-        echo "Copying static PPC libraries"
-        for obj in ${PPCLIBRARIES}/OpenT*.o ${PPCLIBRARIES}/CarbonAccessors.o ${PPCLIBRARIES}/CursorDevicesGlue.o; do
-            if [ -r $obj ]; then
-                # copy the library:
-                cp $obj toolchain/powerpc-apple-macos/lib/
+	if [ -d ${PPCLIBRARIES} ]; then
+		echo "Copying static PPC libraries"
+		for obj in ${PPCLIBRARIES}/OpenT*.o ${PPCLIBRARIES}/CarbonAccessors.o ${PPCLIBRARIES}/CursorDevicesGlue.o; do
+			if [ -r $obj ]; then
+				# copy the library:
+				cp $obj toolchain/powerpc-apple-macos/lib/
 
-                # and wrap it in a .a archive for convenience
-            	lib=toolchain/powerpc-apple-macos/lib/lib`basename "${obj%.o}"`.a
-                rm -f $lib
-                toolchain/bin/powerpc-apple-macos-ar cqs $lib $obj
-            fi
-        done
-    fi
+				# and wrap it in a .a archive for convenience
+				lib=toolchain/powerpc-apple-macos/lib/lib`basename "${obj%.o}"`.a
+				rm -f $lib
+				toolchain/bin/powerpc-apple-macos-ar cqs $lib $obj
+			fi
+		done
+	fi
 fi
 
 
@@ -550,11 +550,11 @@ if [ $BUILD_68K != false ]; then
 	cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intree.toolchain.cmake \
 				 -DCMAKE_BUILD_TYPE=Release \
 				 -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
-                 ${CMAKE_GENERATOR}
+				 ${CMAKE_GENERATOR}
 	cd ..
 	cmake --build build-target --target install
 
-    echo 'subdirs("build-target")' >> CTestTestfile.cmake
+	echo 'subdirs("build-target")' >> CTestTestfile.cmake
 fi
 
 if [ $BUILD_PPC != false ]; then
@@ -565,11 +565,11 @@ if [ $BUILD_PPC != false ]; then
 	cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intreeppc.toolchain.cmake \
 				 -DCMAKE_BUILD_TYPE=Release \
 				 -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
-                 ${CMAKE_GENERATOR}
+				 ${CMAKE_GENERATOR}
 	cd ..
 	cmake --build build-target-ppc --target install
 
-    echo 'subdirs("build-target-ppc")' >> CTestTestfile.cmake
+	echo 'subdirs("build-target-ppc")' >> CTestTestfile.cmake
 fi
 
 if [ $BUILD_CARBON != false ]; then
@@ -580,11 +580,11 @@ if [ $BUILD_CARBON != false ]; then
 	cmake ${SRC} -DCMAKE_TOOLCHAIN_FILE=../build-host/cmake/intreecarbon.toolchain.cmake \
 				 -DCMAKE_BUILD_TYPE=Release \
 				 -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
-                 ${CMAKE_GENERATOR}
+				 ${CMAKE_GENERATOR}
 	cd ..
 	cmake --build build-target-carbon --target install
 
-    echo 'subdirs("build-target-carbon")' >> CTestTestfile.cmake
+	echo 'subdirs("build-target-carbon")' >> CTestTestfile.cmake
 fi
 
 echo
