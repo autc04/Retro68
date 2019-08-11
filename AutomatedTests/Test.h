@@ -48,7 +48,7 @@ void TestLog(const char *str);
 	    _hpb.ioParam.ioPosOffset = 0; \
 	    _hpb.ioParam.ioRefNum = _ref; \
 	    _hpb.ioParam.ioMisc = NULL; \
-	    PBWriteSync((void*)&_hpb); \
+	    PBWriteSync((ParmBlkPtr)&_hpb); \
 	    char _newline = '\n'; \
 	    _hpb.ioParam.ioCompletion = NULL; \
 	    _hpb.ioParam.ioBuffer = &_newline; \
@@ -57,16 +57,16 @@ void TestLog(const char *str);
 	    _hpb.ioParam.ioPosOffset = 0; \
 	    _hpb.ioParam.ioRefNum = _ref; \
 	    _hpb.ioParam.ioMisc = NULL; \
-	    PBWriteSync((void*)&_hpb); \
+	    PBWriteSync((ParmBlkPtr)&_hpb); \
 	    _hpb.ioParam.ioCompletion = NULL; \
 	    _hpb.ioParam.ioRefNum = _ref; \
 	    _hpb.ioParam.ioMisc = NULL; \
-	    PBCloseSync((void*)&_hpb); \
+	    PBCloseSync((ParmBlkPtr)&_hpb); \
 	    _hpb.ioParam.ioCompletion = NULL; \
 	    _hpb.ioParam.ioNamePtr = NULL; \
 	    _hpb.ioParam.ioVRefNum = 0; \
 	    _hpb.ioParam.ioMisc = NULL; \
-	    PBFlushVolSync((void*)&_hpb); \
+	    PBFlushVolSync((ParmBlkPtr)&_hpb); \
 	} while(0);
 
 /*

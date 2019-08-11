@@ -1,6 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for
    hosting on Windows32, using a Unix style C library and tools.
-   Copyright (C) 1995-2018 Free Software Foundation, Inc.
+   Copyright (C) 1995-2019 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -268,9 +268,6 @@ do {						\
    bytes in one go.  */
 #define CHECK_STACK_LIMIT 4000
 
-#undef STACK_BOUNDARY
-#define STACK_BOUNDARY	(TARGET_64BIT && ix86_abi == MS_ABI ? 128 : BITS_PER_WORD)
-
 /* By default, target has a 80387, uses IEEE compatible arithmetic,
    returns float values in the 387 and needs stack probes.
    We also align doubles to 64-bits for MSVC default compatibility.  */
@@ -290,7 +287,7 @@ do {						\
 
 #undef ASM_OUTPUT_ALIGN
 #define ASM_OUTPUT_ALIGN(FILE,LOG)	\
-    if ((LOG)!=0) fprintf ((FILE), "\t.align %d\n", 1<<(LOG))
+    if ((LOG) != 0) fprintf ((FILE), "\t.align %d\n", 1 << (LOG))
 
 /* Windows uses explicit import from shared libraries.  */
 #define MULTIPLE_SYMBOL_SPACES 1
@@ -378,9 +375,6 @@ do {						\
 #endif
 #endif
 
-/* Don't assume anything about the header files.  */
-#define NO_IMPLICIT_EXTERN_C
-
 #undef PROFILE_HOOK
 #define PROFILE_HOOK(LABEL)						\
   if (MAIN_NAME_P (DECL_NAME (current_function_decl)))			\
@@ -425,11 +419,6 @@ do {						\
 #undef	BIGGEST_FIELD_ALIGNMENT
 #define BIGGEST_FIELD_ALIGNMENT 64
 #endif
-
-/* A bit-field declared as `int' forces `int' alignment for the struct.  */
-#undef PCC_BITFIELD_TYPE_MATTERS
-#define PCC_BITFIELD_TYPE_MATTERS 1
-#define GROUP_BITFIELDS_BY_ALIGN TYPE_NATIVE(rec)
 
 /* Enable alias attribute support.  */
 #ifndef SET_ASM_OP
@@ -491,3 +480,7 @@ do {						\
 
 /* Static stack checking is supported by means of probes.  */
 #define STACK_CHECK_STATIC_BUILTIN 1
+
+#ifndef HAVE_GAS_ALIGNED_COMM
+# define HAVE_GAS_ALIGNED_COMM 0
+#endif

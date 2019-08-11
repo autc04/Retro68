@@ -97,22 +97,19 @@
 # ########### Executor
 
     # No ROM files needed - an opensource reimplementation of classic Mac OS.
+    # I recommend my own "Executor 2000" fork at github.com/autc04/executor
 
 # emulator = executor
 
-    # If Executor is in your PATH and the SystemFolder environment variable
-    # is already set up, nothing else is required.
+    # If Executor is in your PATH, nothing else is required.
 
     # in case it's somewhere else:
 # executor-path = /usr/local/bin/executor
 
-    # Path to the Executor system folder:
+    # override path to the Executor system folder:
 # executor-system-folder = /path/to/ExecutorVolume/System Folder
 
     # Pass more options to Executor.
     # Note that each "word" needs to be specified separately:
-# executor-option = -size       # emulated screen size
-# executor-option = 1600x1200
-
-# executor-option = -appearance # uncommenting these two lines
-# executor-option = windows     # is seriously not recommended.
+# executor-option = -bpp       # screen depth
+# executor-option = 1          

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -745,10 +745,14 @@ package body Bindgen is
          WBI ("      Default_Stack_Size : Integer;");
          WBI ("      pragma Import (C, Default_Stack_Size, " &
               """__gl_default_stack_size"");");
-         WBI ("      Default_Secondary_Stack_Size : " &
-              "System.Parameters.Size_Type;");
-         WBI ("      pragma Import (C, Default_Secondary_Stack_Size, " &
-              """__gnat_default_ss_size"");");
+
+         if Sec_Stack_Used then
+            WBI ("      Default_Secondary_Stack_Size : " &
+                 "System.Parameters.Size_Type;");
+            WBI ("      pragma Import (C, Default_Secondary_Stack_Size, " &
+                 """__gnat_default_ss_size"");");
+         end if;
+
          WBI ("      Leap_Seconds_Support : Integer;");
          WBI ("      pragma Import (C, Leap_Seconds_Support, " &
               """__gl_leap_seconds_support"");");
@@ -1182,7 +1186,7 @@ package body Bindgen is
       end loop;
       WBI ("     & ASCII.NUL;");
 
-      Set_Special_Output (null);
+      Cancel_Special_Output;
 
       Bind_Env_String_Built := True;
    end Gen_Bind_Env_String;

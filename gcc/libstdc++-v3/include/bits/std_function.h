@@ -1,6 +1,6 @@
 // Implementation of std::function -*- C++ -*-
 
-// Copyright (C) 2004-2018 Free Software Foundation, Inc.
+// Copyright (C) 2004-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -131,8 +131,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   class _Function_base
   {
   public:
-    static const std::size_t _M_max_size = sizeof(_Nocopy_types);
-    static const std::size_t _M_max_align = __alignof__(_Nocopy_types);
+    static const size_t _M_max_size = sizeof(_Nocopy_types);
+    static const size_t _M_max_align = __alignof__(_Nocopy_types);
 
     template<typename _Functor>
       class _Base_manager
@@ -150,10 +150,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	static _Functor*
 	_M_get_pointer(const _Any_data& __source)
 	{
-	  const _Functor* __ptr =
-	    __stored_locally? std::__addressof(__source._M_access<_Functor>())
-	    /* have stored a pointer */ : __source._M_access<_Functor*>();
-	  return const_cast<_Functor*>(__ptr);
+	  if _GLIBCXX17_CONSTEXPR (__stored_locally)
+	    {
+	      const _Functor& __f = __source._M_access<_Functor>();
+	      return const_cast<_Functor*>(std::__addressof(__f));
+	    }
+	  else // have stored a pointer
+	    return __source._M_access<_Functor*>();
 	}
 
 	// Clone a location-invariant function object that fits within
@@ -170,7 +173,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	_M_clone(_Any_data& __dest, const _Any_data& __source, false_type)
 	{
 	  __dest._M_access<_Functor*>() =
-	    new _Functor(*__source._M_access<_Functor*>());
+	    new _Functor(*__source._M_access<const _Functor*>());
 	}
 
 	// Destroying a location-invariant object may still require
@@ -784,9 +787,22 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     swap(function<_Res(_Args...)>& __x, function<_Res(_Args...)>& __y) noexcept
     { __x.swap(__y); }
 
+#if __cplusplus >= 201703L
+  namespace __detail::__variant
+  {
+    template<typename> struct _Never_valueless_alt; // see <variant>
+
+    // Provide the strong exception-safety guarantee when emplacing a
+    // function into a variant.
+    template<typename _Signature>
+      struct _Never_valueless_alt<std::function<_Signature>>
+      : std::true_type
+      { };
+  }  // namespace __detail::__variant
+#endif // C++17
+
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
 
 #endif // C++11
-
 #endif // _GLIBCXX_STD_FUNCTION_H

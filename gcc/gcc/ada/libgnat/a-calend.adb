@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -38,7 +38,6 @@ with System.OS_Primitives;
 package body Ada.Calendar with
   SPARK_Mode => Off
 is
-
    --------------------------
    -- Implementation Notes --
    --------------------------
@@ -157,7 +156,7 @@ is
    Leap_Support : constant Boolean := (Flag = 1);
    --  Flag to controls the usage of leap seconds in all Ada.Calendar routines
 
-   Leap_Seconds_Count : constant Natural := 25;
+   Leap_Seconds_Count : constant Natural := 27;
 
    ---------------------
    -- Local Constants --
@@ -203,10 +202,6 @@ is
      Ada_Low + Time_Rep (34 * 366 + 102 * 365) * Nanos_In_Day +
      Time_Rep (Leap_Seconds_Count) * Nano;
 
-   Epoch_Offset : constant Time_Rep := (136 * 365 + 44 * 366) * Nanos_In_Day;
-   --  The difference between 2150-1-1 UTC and 1970-1-1 UTC expressed in
-   --  nanoseconds. Note that year 2100 is non-leap.
-
    Cumulative_Days_Before_Month :
      constant array (Month_Number) of Natural :=
        (0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334);
@@ -240,7 +235,9 @@ is
       -4765132779000000000,
       -4544207978000000000,
       -4449513577000000000,
-      -4339180776000000000);
+      -4339180776000000000,
+      -4244572775000000000,
+      -4197052774000000000);
 
    ---------
    -- "+" --
@@ -503,6 +500,15 @@ is
       Split (Date, Y, M, D, S);
       return D;
    end Day;
+
+   ------------------
+   -- Epoch_Offset --
+   ------------------
+
+   function Epoch_Offset return Time_Rep is
+   begin
+      return (136 * 365 + 44 * 366) * Nanos_In_Day;
+   end Epoch_Offset;
 
    -------------
    -- Is_Leap --

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1279,8 +1279,6 @@ package body Sinfo is
         or else NT (N).Nkind = N_Qualified_Expression
         or else NT (N).Nkind = N_Raise_Expression
         or else NT (N).Nkind = N_Raise_Statement
-        or else NT (N).Nkind = N_Reduction_Expression
-        or else NT (N).Nkind = N_Reduction_Expression_Parameter
         or else NT (N).Nkind = N_Simple_Return_Statement
         or else NT (N).Nkind = N_Type_Conversion
         or else NT (N).Nkind = N_Unchecked_Expression
@@ -1931,6 +1929,7 @@ package body Sinfo is
       (N : Node_Id) return Boolean is
    begin
       pragma Assert (False
+        or else NT (N).Nkind = N_Attribute_Reference
         or else NT (N).Nkind = N_Call_Marker
         or else NT (N).Nkind = N_Entry_Call_Statement
         or else NT (N).Nkind = N_Function_Call
@@ -2069,6 +2068,22 @@ package body Sinfo is
         or else NT (N).Nkind = N_Loop_Statement);
       return Flag16 (N);
    end Is_Null_Loop;
+
+   function Is_OpenAcc_Environment
+      (N : Node_Id) return Boolean is
+   begin
+      pragma Assert (False
+        or else NT (N).Nkind = N_Loop_Statement);
+      return Flag13 (N);
+   end Is_OpenAcc_Environment;
+
+   function Is_OpenAcc_Loop
+      (N : Node_Id) return Boolean is
+   begin
+      pragma Assert (False
+        or else NT (N).Nkind = N_Loop_Statement);
+      return Flag14 (N);
+   end Is_OpenAcc_Loop;
 
    function Is_Overloaded
       (N : Node_Id) return Boolean is
@@ -2217,8 +2232,7 @@ package body Sinfo is
    begin
       pragma Assert (False
         or else NT (N).Nkind = N_Iteration_Scheme
-        or else NT (N).Nkind = N_Quantified_Expression
-        or else NT (N).Nkind = N_Reduction_Expression);
+        or else NT (N).Nkind = N_Quantified_Expression);
       return Node2 (N);
    end Iterator_Specification;
 
@@ -2348,8 +2362,7 @@ package body Sinfo is
    begin
       pragma Assert (False
         or else NT (N).Nkind = N_Iteration_Scheme
-        or else NT (N).Nkind = N_Quantified_Expression
-        or else NT (N).Nkind = N_Reduction_Expression);
+        or else NT (N).Nkind = N_Quantified_Expression);
       return Node4 (N);
    end Loop_Parameter_Specification;
 
@@ -3524,14 +3537,6 @@ package body Sinfo is
         or else NT (N).Nkind = N_Task_Body);
       return Flag13 (N);
    end Was_Originally_Stub;
-
-   function Withed_Body
-      (N : Node_Id) return Node_Id is
-   begin
-      pragma Assert (False
-        or else NT (N).Nkind = N_With_Clause);
-      return Node1 (N);
-   end Withed_Body;
 
    --------------------------
    -- Field Set Procedures --
@@ -4746,8 +4751,6 @@ package body Sinfo is
         or else NT (N).Nkind = N_Qualified_Expression
         or else NT (N).Nkind = N_Raise_Expression
         or else NT (N).Nkind = N_Raise_Statement
-        or else NT (N).Nkind = N_Reduction_Expression
-        or else NT (N).Nkind = N_Reduction_Expression_Parameter
         or else NT (N).Nkind = N_Simple_Return_Statement
         or else NT (N).Nkind = N_Type_Conversion
         or else NT (N).Nkind = N_Unchecked_Expression
@@ -5355,6 +5358,8 @@ package body Sinfo is
    begin
       pragma Assert (False
         or else NT (N).Nkind = N_Allocator);
+      pragma Assert (not Val
+        or else not Is_Static_Coextension (N));
       Set_Flag18 (N, Val);
    end Set_Is_Dynamic_Coextension;
 
@@ -5398,6 +5403,7 @@ package body Sinfo is
       (N : Node_Id; Val : Boolean := True) is
    begin
       pragma Assert (False
+        or else NT (N).Nkind = N_Attribute_Reference
         or else NT (N).Nkind = N_Call_Marker
         or else NT (N).Nkind = N_Entry_Call_Statement
         or else NT (N).Nkind = N_Function_Call
@@ -5537,6 +5543,22 @@ package body Sinfo is
       Set_Flag16 (N, Val);
    end Set_Is_Null_Loop;
 
+   procedure Set_Is_OpenAcc_Environment
+      (N : Node_Id; Val : Boolean := True) is
+   begin
+      pragma Assert (False
+        or else NT (N).Nkind = N_Loop_Statement);
+      Set_Flag13 (N, Val);
+   end Set_Is_OpenAcc_Environment;
+
+   procedure Set_Is_OpenAcc_Loop
+      (N : Node_Id; Val : Boolean := True) is
+   begin
+      pragma Assert (False
+        or else NT (N).Nkind = N_Loop_Statement);
+      Set_Flag14 (N, Val);
+   end Set_Is_OpenAcc_Loop;
+
    procedure Set_Is_Overloaded
       (N : Node_Id; Val : Boolean := True) is
    begin
@@ -5617,6 +5639,8 @@ package body Sinfo is
    begin
       pragma Assert (False
         or else NT (N).Nkind = N_Allocator);
+      pragma Assert (not Val
+        or else not Is_Dynamic_Coextension (N));
       Set_Flag14 (N, Val);
    end Set_Is_Static_Coextension;
 
@@ -5684,8 +5708,7 @@ package body Sinfo is
    begin
       pragma Assert (False
         or else NT (N).Nkind = N_Iteration_Scheme
-        or else NT (N).Nkind = N_Quantified_Expression
-        or else NT (N).Nkind = N_Reduction_Expression);
+        or else NT (N).Nkind = N_Quantified_Expression);
       Set_Node2_With_Parent (N, Val);
    end Set_Iterator_Specification;
 
@@ -5815,8 +5838,7 @@ package body Sinfo is
    begin
       pragma Assert (False
         or else NT (N).Nkind = N_Iteration_Scheme
-        or else NT (N).Nkind = N_Quantified_Expression
-        or else NT (N).Nkind = N_Reduction_Expression);
+        or else NT (N).Nkind = N_Quantified_Expression);
       Set_Node4_With_Parent (N, Val);
    end Set_Loop_Parameter_Specification;
 
@@ -6992,14 +7014,6 @@ package body Sinfo is
       Set_Flag13 (N, Val);
    end Set_Was_Originally_Stub;
 
-   procedure Set_Withed_Body
-     (N : Node_Id; Val : Node_Id) is
-   begin
-      pragma Assert (False
-        or else NT (N).Nkind = N_With_Clause);
-      Set_Node1 (N, Val);
-   end Set_Withed_Body;
-
    -------------------------
    -- Iterator Procedures --
    -------------------------
@@ -7255,9 +7269,9 @@ package body Sinfo is
              T = V11;
    end Nkind_In;
 
-   -----------------
-   -- Pragma_Name --
-   -----------------
+   --------------------------
+   -- Pragma_Name_Unmapped --
+   --------------------------
 
    function Pragma_Name_Unmapped (N : Node_Id) return Name_Id is
    begin

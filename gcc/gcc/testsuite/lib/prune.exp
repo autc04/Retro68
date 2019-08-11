@@ -1,4 +1,4 @@
-#   Copyright (C) 1997-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1997-2019 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ load_lib multiline.exp
 if ![info exists TEST_ALWAYS_FLAGS] {
     set TEST_ALWAYS_FLAGS ""
 }
-set TEST_ALWAYS_FLAGS "-fno-diagnostics-show-caret -fdiagnostics-color=never $TEST_ALWAYS_FLAGS"
+set TEST_ALWAYS_FLAGS "-fno-diagnostics-show-caret -fno-diagnostics-show-line-numbers -fdiagnostics-color=never $TEST_ALWAYS_FLAGS"
 
 proc prune_gcc_output { text } {
     global srcdir

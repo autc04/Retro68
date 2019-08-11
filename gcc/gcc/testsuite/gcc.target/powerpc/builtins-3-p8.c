@@ -1,7 +1,6 @@
 /* { dg-do compile } */
 /* { dg-require-effective-target powerpc_p8vector_ok } */
-/* { dg-options "-maltivec -mcpu=power8" } */
-/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power8" } } */
+/* { dg-options "-maltivec -mdejagnu-cpu=power8" } */
 
 #include <altivec.h>
 
@@ -235,11 +234,11 @@ test_neg_double (vector double x)
 
 /* { dg-final { scan-assembler-times "vcmpequd" 1 } } */
 /* { dg-final { scan-assembler-times "vpksdss"  1 } } */
-/* { dg-final { scan-assembler-times "vpkudus"  2 } } */
+/* { dg-final { scan-assembler-times "vpkudus"  2 } } */  
 /* { dg-final { scan-assembler-times "vpkuhus"  2 } } */
 /* { dg-final { scan-assembler-times "vpkshss"  1 } } */  
 /* { dg-final { scan-assembler-times "vpkshus"  1 } } */  
-/* { dg-final { scan-assembler-times "vpksdus"  1 } } */
+/* { dg-final { scan-assembler-times "vpksdus"  1 } } */  
 /* { dg-final { scan-assembler-times "vpkuwus"  2 } } */  
 /* { dg-final { scan-assembler-times "vpopcntb" 2 } } */
 /* { dg-final { scan-assembler-times "vpopcnth" 2 } } */

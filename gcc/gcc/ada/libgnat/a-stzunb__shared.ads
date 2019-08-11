@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -503,6 +503,7 @@ private
      (Object : in out Unbounded_Wide_Wide_String);
    overriding procedure Finalize
      (Object : in out Unbounded_Wide_Wide_String);
+   pragma Inline (Initialize, Adjust);
 
    Null_Unbounded_Wide_Wide_String : constant Unbounded_Wide_Wide_String :=
                                        (AF.Controlled with

@@ -41,7 +41,8 @@ enable_testing()
 
 function(test FILE)
 	get_filename_component(NAME ${FILE} NAME_WE)
-	add_application(${NAME} ${FILE} Test.h Test.c)
+    add_application(${NAME} ${FILE} Test.h Test.c)
+    target_include_directories(${NAME} PRIVATE .)
 	add_test(NAME ${TESTCASE_PREFIX}${NAME} COMMAND ${LAUNCH_APPL}
         ${LAUNCH_METHOD_FLAG} ${RETRO68_TEST_CONFIG} ${NAME}.bin)
     if(ARGN)
@@ -77,3 +78,7 @@ if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 endif()
 
 test(Exceptions.cc PROPERTIES PASS_REGULAR_EXPRESSION "OK")
+
+configure_file(PascalTrap.c PascalTrapCPP.cc)
+test(PascalTrap.c PROPERTIES PASS_REGULAR_EXPRESSION "OK")
+test(${CMAKE_CURRENT_BINARY_DIR}/PascalTrapCPP.cc PROPERTIES PASS_REGULAR_EXPRESSION "OK")

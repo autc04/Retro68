@@ -1,5 +1,5 @@
 /* Tail call optimization on trees.
-   Copyright (C) 2003-2018 Free Software Foundation, Inc.
+   Copyright (C) 2003-2019 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -476,7 +476,7 @@ find_tail_calls (basic_block bb, struct tailcall **ret)
   tail_recursion = false;
   func = gimple_call_fndecl (call);
   if (func
-      && !DECL_BUILT_IN (func)
+      && !fndecl_built_in_p (func)
       && recursive_call_p (current_function_decl, func))
     {
       tree arg;

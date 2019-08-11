@@ -1,5 +1,5 @@
 ;; ARM Thumb-1 Machine Description
-;; Copyright (C) 2007-2018 Free Software Foundation, Inc.
+;; Copyright (C) 2007-2019 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -1725,7 +1725,7 @@
 	 (match_operand 1 "" ""))
    (use (match_operand 2 "" ""))
    (clobber (reg:SI LR_REGNUM))]
-  "TARGET_THUMB1 && arm_arch5 && !SIBLING_CALL_P (insn)"
+  "TARGET_THUMB1 && arm_arch5t && !SIBLING_CALL_P (insn)"
   "blx\\t%0"
   [(set_attr "length" "2")
    (set_attr "type" "call")]
@@ -1748,7 +1748,7 @@
 	 (match_operand 1 "" ""))
    (use (match_operand 2 "" ""))
    (clobber (reg:SI LR_REGNUM))]
-  "TARGET_THUMB1 && !arm_arch5 && !SIBLING_CALL_P (insn)"
+  "TARGET_THUMB1 && !arm_arch5t && !SIBLING_CALL_P (insn)"
   "*
   {
     if (!TARGET_CALLER_INTERWORKING)
@@ -1769,7 +1769,7 @@
 	      (match_operand 2 "" "")))
    (use (match_operand 3 "" ""))
    (clobber (reg:SI LR_REGNUM))]
-  "TARGET_THUMB1 && arm_arch5"
+  "TARGET_THUMB1 && arm_arch5t"
   "blx\\t%1"
   [(set_attr "length" "2")
    (set_attr "type" "call")]
@@ -1795,7 +1795,7 @@
 	      (match_operand 2 "" "")))
    (use (match_operand 3 "" ""))
    (clobber (reg:SI LR_REGNUM))]
-  "TARGET_THUMB1 && !arm_arch5"
+  "TARGET_THUMB1 && !arm_arch5t"
   "*
   {
     if (!TARGET_CALLER_INTERWORKING)
@@ -1961,5 +1961,18 @@
     DONE;
   }"
   [(set_attr "type" "mov_reg")]
+)
+
+(define_insn "thumb1_stack_protect_test_insn"
+  [(set (match_operand:SI 0 "register_operand" "=&l")
+	(unspec:SI [(match_operand:SI 1 "memory_operand" "m")
+		    (mem:SI (match_operand:SI 2 "register_operand" "+l"))]
+	 UNSPEC_SP_TEST))
+   (clobber (match_dup 2))]
+  "TARGET_THUMB1"
+  "ldr\t%0, [%2]\;ldr\t%2, %1\;eors\t%0, %2, %0"
+  [(set_attr "length" "8")
+   (set_attr "conds" "set")
+   (set_attr "type" "multiple")]
 )
 

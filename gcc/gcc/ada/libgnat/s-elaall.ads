@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---            Copyright (C) 2014-2018, Free Software Foundation, Inc.       --
+--            Copyright (C) 2014-2019, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -51,7 +51,7 @@ package System.Elaboration_Allocators is
    procedure Check_Standard_Allocator;
    --  Called as part of every allocator in a program for which the restriction
    --  No_Standard_Allocators_After_Elaboration is active. This will raise an
-   --  exception (Program_Error with an appropriate message) if it is called
+   --  exception (Storage_Error with an appropriate message) if it is called
    --  after the call to Mark_End_Of_Elaboration.
 
 end System.Elaboration_Allocators;

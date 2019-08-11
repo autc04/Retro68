@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1996-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -513,8 +513,8 @@ procedure Gnatlink is
                           ("Could not locate linker: " & L_Args.all (1).all);
                      end if;
 
-                     --  The other arguments are passed as-is to the linker
-                     --  and override those coming from --GCC= if any.
+                     --  The other arguments are passed as-is to the linker and
+                     --  override those coming from --GCC= if any.
 
                      if L_Args.all'Last >= 2 then
                         Gcc_Linker_Options.Set_Last (0);
@@ -1102,8 +1102,10 @@ procedure Gnatlink is
                   --  We will be looking for the static version of the library
                   --  as it is in the same directory as the shared version.
 
-                  if Next_Line (Nlast - Library_Version'Length + 1 .. Nlast) =
-                       Library_Version
+                  if Nlast >= Library_Version'Length
+                    and then
+                      Next_Line (Nlast - Library_Version'Length + 1 .. Nlast) =
+                        Library_Version
                   then
                      --  Set Last to point to last character before the
                      --  library version.

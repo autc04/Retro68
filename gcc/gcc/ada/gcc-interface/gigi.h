@@ -77,9 +77,9 @@ extern tree end_stmt_group (void);
 /* Set the BLOCK node corresponding to the current code group to GNU_BLOCK.  */
 extern void set_block_for_group (tree);
 
-/* Add a declaration statement for GNU_DECL to the current BLOCK_STMT node.
-   Get SLOC from GNAT_ENTITY.  */
-extern void add_decl_expr (tree gnu_decl, Entity_Id gnat_entity);
+/* Add a declaration statement for GNU_DECL to the current statement group.
+   Get the SLOC to be put onto the statement from GNAT_NODE.  */
+extern void add_decl_expr (tree gnu_decl, Node_Id gnat_node);
 
 /* Mark nodes rooted at T with TREE_VISITED and types as having their
    sized gimplified.  We use this to indicate all variable sizes and
@@ -109,10 +109,6 @@ extern void elaborate_entity (Entity_Id gnat_entity);
 
 /* Get the unpadded version of a GNAT type.  */
 extern tree get_unpadded_type (Entity_Id gnat_entity);
-
-/* Return whether the E_Subprogram_Type/E_Function/E_Procedure GNAT_ENTITY is
-   a C++ imported method or equivalent.  */
-extern bool is_cplusplus_method (Entity_Id gnat_entity);
 
 /* Create a record type that contains a SIZE bytes long field of TYPE with a
     starting bit position so that it is aligned to ALIGN bits, and leaving at
@@ -218,9 +214,6 @@ extern void destroy_gnat_decl (void);
 /* Highest number in the front-end node table.  */
 extern int max_gnat_nodes;
 
-/* Current node being treated, in case abort called.  */
-extern Node_Id error_gnat_node;
-
 /* True when gigi is being called on an analyzed but unexpanded
    tree, and the only purpose of the call is to properly annotate
    types with representation information.  */
@@ -289,7 +282,7 @@ extern void process_type (Entity_Id gnat_entity);
    location and false if it doesn't.  If CLEAR_COLUMN is true, set the column
    information to 0.  */
 extern bool Sloc_to_locus (Source_Ptr Sloc, location_t *locus,
-			   bool clear_column = false);
+			   bool clear_column = false, const_tree decl = 0);
 
 /* Post an error message.  MSG is the error message, properly annotated.
    NODE is the node at which to post the error and the node to use for the
@@ -446,9 +439,11 @@ enum inline_status_t
   /* Inlining is suppressed for the subprogram.  */
   is_suppressed,
   /* No inlining is requested for the subprogram.  */
-  is_disabled,
+  is_default,
   /* Inlining is requested for the subprogram.  */
-  is_enabled,
+  is_requested,
+  /* Inlining is strongly requested for the subprogram.  */
+  is_prescribed,
   /* Inlining is required for the subprogram.  */
   is_required
 };
@@ -548,7 +543,7 @@ extern int gnat_types_compatible_p (tree t1, tree t2);
 /* Return true if EXPR is a useless type conversion.  */
 extern bool gnat_useless_type_conversion (tree expr);
 
-/* Return true if T, a FUNCTION_TYPE, has the specified list of flags.  */
+/* Return true if T, a {FUNCTION,METHOD}_TYPE, has the specified flags.  */
 extern bool fntype_same_flags_p (const_tree, tree, bool, bool, bool);
 
 /* Create an expression whose value is that of EXPR,
@@ -641,6 +636,9 @@ extern tree create_index_type (tree min, tree max, tree index,
 /* Return a subtype of TYPE with range MIN to MAX.  If TYPE is NULL,
    sizetype is used.  */
 extern tree create_range_type (tree type, tree min, tree max);
+
+/* Return an extra subtype of TYPE with range MIN to MAX.  */
+extern tree create_extra_subtype (tree type, tree min, tree max);
 
 /* Return a TYPE_DECL node suitable for the TYPE_STUB_DECL field of TYPE.
    NAME gives the name of the type to be used in the declaration.  */
@@ -1085,7 +1083,7 @@ call_is_atomic_load (tree exp)
 {
   tree fndecl = get_callee_fndecl (exp);
 
-  if (!(fndecl && DECL_BUILT_IN_CLASS (fndecl) == BUILT_IN_NORMAL))
+  if (!(fndecl && fndecl_built_in_p (fndecl, BUILT_IN_NORMAL)))
     return false;
 
   enum built_in_function code = DECL_FUNCTION_CODE (fndecl);

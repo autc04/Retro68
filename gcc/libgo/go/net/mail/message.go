@@ -19,7 +19,6 @@ package mail
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -27,6 +26,7 @@ import (
 	"mime"
 	"net/textproto"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 )
@@ -66,9 +66,12 @@ func ReadMessage(r io.Reader) (msg *Message, err error) {
 
 // Layouts suitable for passing to time.Parse.
 // These are tried in order.
-var dateLayouts []string
+var (
+	dateLayoutsBuildOnce sync.Once
+	dateLayouts          []string
+)
 
-func init() {
+func buildDateLayouts() {
 	// Generate layouts based on RFC 5322, section 3.3.
 
 	dows := [...]string{"", "Mon, "}   // day-of-week
@@ -94,6 +97,7 @@ func init() {
 
 // ParseDate parses an RFC 5322 date string.
 func ParseDate(date string) (time.Time, error) {
+	dateLayoutsBuildOnce.Do(buildDateLayouts)
 	for _, layout := range dateLayouts {
 		t, err := time.Parse(layout, date)
 		if err == nil {
@@ -735,7 +739,7 @@ func isQtext(r rune) bool {
 
 // quoteString renders a string as an RFC 5322 quoted-string.
 func quoteString(s string) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	buf.WriteByte('"')
 	for _, r := range s {
 		if isQtext(r) || isWSP(r) {

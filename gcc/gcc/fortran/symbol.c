@@ -1,5 +1,5 @@
 /* Maintain binary trees of symbols.
-   Copyright (C) 2000-2018 Free Software Foundation, Inc.
+   Copyright (C) 2000-2019 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -107,7 +107,7 @@ gfc_namespace *gfc_global_ns_list;
 
 gfc_gsymbol *gfc_gsym_root = NULL;
 
-gfc_dt_list *gfc_derived_types;
+gfc_symbol *gfc_derived_types;
 
 static gfc_undo_change_set default_undo_chgset_var = { vNULL, vNULL, NULL };
 static gfc_undo_change_set *latest_undo_chgset = &default_undo_chgset_var;
@@ -440,6 +440,9 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
   const char *a1, *a2;
   int standard;
 
+  if (attr->artificial)
+    return true;
+
   if (where == NULL)
     where = &gfc_current_locus;
 
@@ -522,7 +525,7 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
   /* The copying of procedure dummy arguments for module procedures in
      a submodule occur whilst the current state is COMP_CONTAINS. It
      is necessary, therefore, to let this through.  */
-  if (attr->dummy
+  if (name && attr->dummy
       && (attr->function || attr->subroutine)
       && gfc_current_state () == COMP_CONTAINS
       && !(gfc_new_block && gfc_new_block->abr_modproc_decl))
@@ -554,6 +557,7 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
 
   conf (external, intrinsic);
   conf (entry, intrinsic);
+  conf (abstract, intrinsic);
 
   if ((attr->if_source == IFSRC_DECL && !attr->procedure) || attr->contained)
     conf (external, subroutine);
@@ -1303,7 +1307,8 @@ gfc_add_save (symbol_attribute *attr, save_state s, const char *name,
   if (s == SAVE_EXPLICIT)
     gfc_unset_implicit_pure (NULL);
 
-  if (s == SAVE_EXPLICIT && attr->save == SAVE_EXPLICIT)
+  if (s == SAVE_EXPLICIT && attr->save == SAVE_EXPLICIT
+      && (flag_automatic || pedantic))
     {
 	if (!gfc_notify_std (GFC_STD_LEGACY,
 			     "Duplicate SAVE attribute specified at %L",
@@ -1685,7 +1690,15 @@ gfc_add_subroutine (symbol_attribute *attr, const char *name, locus *where)
     return false;
 
   attr->subroutine = 1;
-  return check_conflict (attr, name, where);
+
+  /* If we are looking at a BLOCK DATA statement and we encounter a
+     name with a leading underscore (which must be
+     compiler-generated), do not check. See PR 84394.  */
+
+  if (name && *name != '_' && gfc_current_state () != COMP_BLOCK_DATA)
+    return check_conflict (attr, name, where);
+  else
+    return true;
 }
 
 
@@ -1801,7 +1814,8 @@ gfc_add_procedure (symbol_attribute *attr, procedure_type t,
   if (where == NULL)
     where = &gfc_current_locus;
 
-  if (attr->proc != PROC_UNKNOWN && !attr->module_procedure)
+  if (attr->proc != PROC_UNKNOWN && !attr->module_procedure
+      && attr->access == ACCESS_UNKNOWN)
     {
       if (attr->proc == PROC_ST_FUNCTION && t == PROC_INTERNAL
 	  && !gfc_notification_std (GFC_STD_F2008))
@@ -2735,9 +2749,9 @@ gfc_define_st_label (gfc_st_label *lp, gfc_sl_type type, locus *label_locus)
 	    lp->defined = type;
 
 	  if (lp->referenced == ST_LABEL_DO_TARGET && type != ST_LABEL_DO_TARGET
-      	      && !gfc_notify_std (GFC_STD_F95_OBS, "DO termination statement "
-				  "which is not END DO or CONTINUE with "
-				  "label %d at %C", labelno))
+      	      && !gfc_notify_std (GFC_STD_F95_OBS | GFC_STD_F2018_DEL,
+				  "DO termination statement which is not END DO"
+				  " or CONTINUE with label %d at %C", labelno))
 	    return;
 	  break;
 
@@ -2792,8 +2806,13 @@ gfc_reference_st_label (gfc_st_label *lp, gfc_sl_type type)
     }
 
   if (lp->referenced == ST_LABEL_DO_TARGET && type == ST_LABEL_DO_TARGET
-      && !gfc_notify_std (GFC_STD_F95_OBS, "Shared DO termination label %d "
-			  "at %C", labelno))
+      && !gfc_notify_std (GFC_STD_F95_OBS | GFC_STD_F2018_DEL,
+			  "Shared DO termination label %d at %C", labelno))
+    return false;
+
+  if (type == ST_LABEL_DO_TARGET
+      && !gfc_notify_std (GFC_STD_F2018_OBS, "Labeled DO statement "
+			  "at %L", &gfc_current_locus))
     return false;
 
   if (lp->referenced != ST_LABEL_DO_TARGET)
@@ -3133,6 +3152,7 @@ gfc_new_symbol (const char *name, gfc_namespace *ns)
   p->common_block = NULL;
   p->f2k_derived = NULL;
   p->assoc = NULL;
+  p->dt_next = NULL;
   p->fn_result_spec = 0;
 
   return p;
@@ -3495,22 +3515,6 @@ find_common_symtree (gfc_symtree *st, gfc_common_head *head)
     result = find_common_symtree (st->right, head);
 
   return result;
-}
-
-
-/* Clear the given storage, and make it the current change set for registering
-   changed symbols.  Its contents are freed after a call to
-   gfc_restore_last_undo_checkpoint or gfc_drop_last_undo_checkpoint, but
-   it is up to the caller to free the storage itself.  It is usually a local
-   variable, so there is nothing to do anyway.  */
-
-void
-gfc_new_undo_checkpoint (gfc_undo_change_set &chg_syms)
-{
-  chg_syms.syms = vNULL;
-  chg_syms.tbps = vNULL;
-  chg_syms.previous = latest_undo_chgset;
-  latest_undo_chgset = &chg_syms;
 }
 
 
@@ -3908,23 +3912,6 @@ free_sym_tree (gfc_symtree *sym_tree)
 }
 
 
-/* Free the derived type list.  */
-
-void
-gfc_free_dt_list (void)
-{
-  gfc_dt_list *dt, *n;
-
-  for (dt = gfc_derived_types; dt; dt = n)
-    {
-      n = dt->next;
-      free (dt);
-    }
-
-  gfc_derived_types = NULL;
-}
-
-
 /* Free the gfc_equiv_info's.  */
 
 static void
@@ -4110,7 +4097,7 @@ gfc_symbol_done_2 (void)
       gfc_free_namespace (gfc_current_ns);
       gfc_current_ns = NULL;
     }
-  gfc_free_dt_list ();
+  gfc_derived_types = NULL;
 
   enforce_single_undo_checkpoint ();
   free_undo_change_set_data (*latest_undo_chgset);
@@ -4352,7 +4339,7 @@ gsym_compare (void *_s1, void *_s2)
 /* Get a global symbol, creating it if it doesn't exist.  */
 
 gfc_gsymbol *
-gfc_get_gsymbol (const char *name)
+gfc_get_gsymbol (const char *name, bool bind_c)
 {
   gfc_gsymbol *s;
 
@@ -4363,6 +4350,7 @@ gfc_get_gsymbol (const char *name)
   s = XCNEW (gfc_gsymbol);
   s->type = GSYM_UNKNOWN;
   s->name = gfc_get_string ("%s", name);
+  s->bind_c = bind_c;
 
   gfc_insert_bbt (&gfc_gsym_root, s, gsym_compare);
 
@@ -4373,20 +4361,21 @@ gfc_get_gsymbol (const char *name)
 static gfc_symbol *
 get_iso_c_binding_dt (int sym_id)
 {
-  gfc_dt_list *dt_list;
-
-  dt_list = gfc_derived_types;
+  gfc_symbol *dt_list = gfc_derived_types;
 
   /* Loop through the derived types in the name list, searching for
      the desired symbol from iso_c_binding.  Search the parent namespaces
      if necessary and requested to (parent_flag).  */
-  while (dt_list != NULL)
+  if (dt_list)
     {
-      if (dt_list->derived->from_intmod != INTMOD_NONE
-	  && dt_list->derived->intmod_sym_id == sym_id)
-        return dt_list->derived;
-
-      dt_list = dt_list->next;
+      while (dt_list->dt_next != gfc_derived_types)
+	{
+	  if (dt_list->from_intmod != INTMOD_NONE
+	      && dt_list->intmod_sym_id == sym_id)
+	    return dt_list;
+	
+	  dt_list = dt_list->dt_next;
+	}
     }
 
   return NULL;
@@ -4494,7 +4483,7 @@ verify_bind_c_derived_type (gfc_symbol *derived_sym)
 	  && curr_comp->ts.u.derived->ts.is_iso_c != 1
           && curr_comp->ts.u.derived != derived_sym)
         {
-          /* This should be allowed; the draft says a derived-type can not
+          /* This should be allowed; the draft says a derived-type cannot
              have type parameters if it is has the BIND attribute.  Type
              parameters seem to be for making parameterized derived types.
              There's no need to verify the type if it is c_ptr/c_funptr.  */
@@ -4792,11 +4781,16 @@ generate_isocbinding_symbol (const char *mod_name, iso_c_binding_symbol s,
       if (tmp_sym->attr.flavor == FL_DERIVED
 	  && !get_iso_c_binding_dt (tmp_sym->intmod_sym_id))
 	{
-	  gfc_dt_list *dt_list;
-	  dt_list = gfc_get_dt_list ();
-	  dt_list->derived = tmp_sym;
-	  dt_list->next = gfc_derived_types;
-  	  gfc_derived_types = dt_list;
+	  if (gfc_derived_types)
+	    {
+	      tmp_sym->dt_next = gfc_derived_types->dt_next;
+	      gfc_derived_types->dt_next = tmp_sym;
+	    }
+	  else
+	    {
+	      tmp_sym->dt_next = tmp_sym;
+	    }
+	  gfc_derived_types = tmp_sym;
         }
 
       return tmp_symtree;
@@ -4904,7 +4898,6 @@ generate_isocbinding_symbol (const char *mod_name, iso_c_binding_symbol s,
       case ISOCBINDING_FUNPTR:
 	{
 	  gfc_symbol *dt_sym;
-	  gfc_dt_list **dt_list_ptr = NULL;
 	  gfc_component *tmp_comp = NULL;
 
 	  /* Generate real derived type.  */
@@ -4966,17 +4959,16 @@ generate_isocbinding_symbol (const char *mod_name, iso_c_binding_symbol s,
 	  dt_sym->ts.u.derived = dt_sym;
 
 	  /* Add the symbol created for the derived type to the current ns.  */
-	  dt_list_ptr = &(gfc_derived_types);
-	  while (*dt_list_ptr != NULL && (*dt_list_ptr)->next != NULL)
-	    dt_list_ptr = &((*dt_list_ptr)->next);
-
-	  /* There is already at least one derived type in the list, so append
-	     the one we're currently building for c_ptr or c_funptr.  */
-	  if (*dt_list_ptr != NULL)
-	    dt_list_ptr = &((*dt_list_ptr)->next);
-	  (*dt_list_ptr) = gfc_get_dt_list ();
-	  (*dt_list_ptr)->derived = dt_sym;
-	  (*dt_list_ptr)->next = NULL;
+	  if (gfc_derived_types)
+	    {
+	      dt_sym->dt_next = gfc_derived_types->dt_next;
+	      gfc_derived_types->dt_next = dt_sym;
+	    }
+	  else
+	    {
+	      dt_sym->dt_next = dt_sym;
+	    }
+	  gfc_derived_types = dt_sym;
 
 	  gfc_add_component (dt_sym, "c_address", &tmp_comp);
 	  if (tmp_comp == NULL)

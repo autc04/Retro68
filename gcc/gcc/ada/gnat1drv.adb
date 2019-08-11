@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -50,7 +50,7 @@ with Osint.C;   use Osint.C;
 with Output;    use Output;
 with Par_SCO;
 with Prepcomp;
-with Repinfo;   use Repinfo;
+with Repinfo;
 with Restrict;
 with Rident;    use Rident;
 with Rtsfind;
@@ -161,6 +161,12 @@ procedure Gnat1drv is
          Modify_Tree_For_C := True;
       end if;
 
+      --  -gnatd_A disables generation of ALI files
+
+      if Debug_Flag_Underscore_AA then
+         Disable_ALI_File := True;
+      end if;
+
       --  Set all flags required when generating C code
 
       if Generate_C_Code then
@@ -247,14 +253,19 @@ procedure Gnat1drv is
          GNATprove_Mode := False;
          Debug_Flag_Dot_FF := False;
 
+         --  Turn off length expansion. CodePeer has its own mechanism to
+         --  handle length attribute.
+
+         Debug_Flag_Dot_PP := True;
+
          --  Turn off C tree generation, not compatible with CodePeer mode. We
          --  do not expect this to happen in normal use, since both modes are
          --  enabled by special tools, but it is useful to turn off these flags
          --  this way when we are doing CodePeer tests on existing test suites
          --  that may have -gnateg set, to avoid the need for special casing.
 
-         Modify_Tree_For_C := False;
-         Generate_C_Code := False;
+         Modify_Tree_For_C      := False;
+         Generate_C_Code        := False;
          Unnest_Subprogram_Mode := False;
 
          --  Turn off inlining, confuses CodePeer output and gains nothing
@@ -461,6 +472,12 @@ procedure Gnat1drv is
          --  contracts.
 
          Ineffective_Inline_Warnings := True;
+
+         --  Do not issue warnings for possible propagation of exception.
+         --  GNATprove already issues messages about possible exceptions.
+
+         No_Warn_On_Non_Local_Exception := True;
+         Warn_On_Non_Local_Exception := False;
 
          --  Disable front-end optimizations, to keep the tree as close to the
          --  source code as possible, and also to avoid inconsistencies between
@@ -1144,8 +1161,22 @@ begin
       --  gnat1 is invoked from gcc in the normal case.
 
       if Osint.Number_Of_Files /= 1 then
-         Usage;
-         Write_Eol;
+
+         --  In GNATprove mode, gcc is not called, so we may end up with
+         --  switches wrongly interpreted as source file names when they are
+         --  written by mistake without a starting hyphen. Issue a specific
+         --  error message but do not print the internal 'usage' message.
+
+         if GNATprove_Mode then
+            Write_Str
+              ("one of the following is not a valid switch or source file "
+               & "name: ");
+            Osint.Dump_Command_Line_Source_File_Names;
+         else
+            Usage;
+            Write_Eol;
+         end if;
+
          Osint.Fail ("you must provide one source file");
 
       elsif Usage_Requested then
@@ -1421,10 +1452,11 @@ begin
          Tree_Gen;
 
          --  Generate ALI file if specially requested, or for missing subunits,
-         --  subunits or predefined generic.
+         --  subunits or predefined generic. For ignored ghost code, the object
+         --  file IS generated, so Object should be True.
 
          if Opt.Force_ALI_Tree_File then
-            Write_ALI (Object => False);
+            Write_ALI (Object => Is_Ignored_Ghost_Unit (Main_Unit_Node));
          end if;
 
          Namet.Finalize;
@@ -1437,7 +1469,9 @@ begin
          Exit_Program (Ecode);
       end if;
 
-      --  In -gnatc mode, we only do annotation if -gnatt or -gnatR is also set
+      --  In -gnatc mode we only do annotation if -gnatt or -gnatR is also set,
+      --  or if -gnatwz is enabled (default setting) and there is an unchecked
+      --  conversion that involves a type whose size is not statically known,
       --  as indicated by Back_Annotate_Rep_Info being set to True.
 
       --  We don't call for annotations on a subunit, because to process those
@@ -1449,6 +1483,9 @@ begin
       --  The back end is not invoked in ASIS mode with GNSA because all type
       --  representation information will be provided by the GNSA back end, not
       --  gigi.
+
+      --  A special back end is always called in CodePeer and GNATprove modes,
+      --  unless this is a subunit.
 
       if Back_End_Mode = Declarations_Only
         and then
@@ -1463,7 +1500,11 @@ begin
          Tree_Dump;
          Tree_Gen;
          Namet.Finalize;
-         Check_Rep_Info;
+
+         if not (Generate_SCIL or GNATprove_Mode) then
+            Check_Rep_Info;
+         end if;
+
          return;
       end if;
 
@@ -1546,7 +1587,7 @@ begin
 
       Errout.Finalize (Last_Call => True);
       Errout.Output_Messages;
-      List_Rep_Info (Ttypes.Bytes_Big_Endian);
+      Repinfo.List_Rep_Info (Ttypes.Bytes_Big_Endian);
       Inline.List_Inlining_Info;
 
       --  Only write the library if the backend did not generate any error

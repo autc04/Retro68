@@ -176,7 +176,6 @@ func TestStatError(t *testing.T) {
 	defer chtmpdir(t)()
 
 	path := "no-such-file"
-	Remove(path) // Just in case
 
 	fi, err := Stat(path)
 	if err == nil {
@@ -192,12 +191,10 @@ func TestStatError(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
 	link := "symlink"
-	Remove(link) // Just in case
 	err = Symlink(path, link)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer Remove(link)
 
 	fi, err = Stat(link)
 	if err == nil {
@@ -267,7 +264,7 @@ func TestRead0(t *testing.T) {
 	}
 }
 
-// Reading a closed file should should return ErrClosed error
+// Reading a closed file should return ErrClosed error
 func TestReadClosed(t *testing.T) {
 	path := sfdir + "/" + sfname
 	file, err := Open(path)
@@ -686,12 +683,10 @@ func TestHardLink(t *testing.T) {
 
 	defer chtmpdir(t)()
 	from, to := "hardlinktestfrom", "hardlinktestto"
-	Remove(from) // Just in case.
 	file, err := Create(to)
 	if err != nil {
 		t.Fatalf("open %q failed: %v", to, err)
 	}
-	defer Remove(to)
 	if err = file.Close(); err != nil {
 		t.Errorf("close %q failed: %v", to, err)
 	}
@@ -707,7 +702,6 @@ func TestHardLink(t *testing.T) {
 		t.Errorf("link %q, %q failed to return a valid error", none, none)
 	}
 
-	defer Remove(from)
 	tostat, err := Stat(to)
 	if err != nil {
 		t.Fatalf("stat %q failed: %v", to, err)
@@ -743,11 +737,8 @@ func TestHardLink(t *testing.T) {
 }
 
 // chtmpdir changes the working directory to a new temporary directory and
-// provides a cleanup function. Used when PWD is read-only.
+// provides a cleanup function.
 func chtmpdir(t *testing.T) func() {
-	if runtime.GOOS != "darwin" || (runtime.GOARCH != "arm" && runtime.GOARCH != "arm64") {
-		return func() {} // only needed on darwin/arm{,64}
-	}
 	oldwd, err := Getwd()
 	if err != nil {
 		t.Fatalf("chtmpdir: %v", err)
@@ -772,12 +763,10 @@ func TestSymlink(t *testing.T) {
 
 	defer chtmpdir(t)()
 	from, to := "symlinktestfrom", "symlinktestto"
-	Remove(from) // Just in case.
 	file, err := Create(to)
 	if err != nil {
 		t.Fatalf("Create(%q) failed: %v", to, err)
 	}
-	defer Remove(to)
 	if err = file.Close(); err != nil {
 		t.Errorf("Close(%q) failed: %v", to, err)
 	}
@@ -785,7 +774,6 @@ func TestSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Symlink(%q, %q) failed: %v", to, from, err)
 	}
-	defer Remove(from)
 	tostat, err := Lstat(to)
 	if err != nil {
 		t.Fatalf("Lstat(%q) failed: %v", to, err)
@@ -839,12 +827,10 @@ func TestLongSymlink(t *testing.T) {
 	// Long, but not too long: a common limit is 255.
 	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s
 	from := "longsymlinktestfrom"
-	Remove(from) // Just in case.
 	err := Symlink(s, from)
 	if err != nil {
 		t.Fatalf("symlink %q, %q failed: %v", s, from, err)
 	}
-	defer Remove(from)
 	r, err := Readlink(from)
 	if err != nil {
 		t.Fatalf("readlink %q failed: %v", from, err)
@@ -857,9 +843,6 @@ func TestLongSymlink(t *testing.T) {
 func TestRename(t *testing.T) {
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
-	// Ensure we are not testing the overwrite case here.
-	Remove(from)
-	Remove(to)
 
 	file, err := Create(from)
 	if err != nil {
@@ -872,7 +855,6 @@ func TestRename(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rename %q, %q failed: %v", to, from, err)
 	}
-	defer Remove(to)
 	_, err = Stat(to)
 	if err != nil {
 		t.Errorf("stat %q failed: %v", to, err)
@@ -882,9 +864,6 @@ func TestRename(t *testing.T) {
 func TestRenameOverwriteDest(t *testing.T) {
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
-	// Just in case.
-	Remove(from)
-	Remove(to)
 
 	toData := []byte("to")
 	fromData := []byte("from")
@@ -902,7 +881,6 @@ func TestRenameOverwriteDest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rename %q, %q failed: %v", to, from, err)
 	}
-	defer Remove(to)
 
 	_, err = Stat(from)
 	if err == nil {
@@ -923,9 +901,6 @@ func TestRenameOverwriteDest(t *testing.T) {
 func TestRenameFailed(t *testing.T) {
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
-	// Ensure we are not testing the overwrite case here.
-	Remove(from)
-	Remove(to)
 
 	err := Rename(from, to)
 	switch err := err.(type) {
@@ -941,9 +916,6 @@ func TestRenameFailed(t *testing.T) {
 		}
 	case nil:
 		t.Errorf("rename %q, %q: expected error, got nil", from, to)
-
-		// cleanup whatever was placed in "renameto"
-		Remove(to)
 	default:
 		t.Errorf("rename %q, %q: expected %T, got %T %v", from, to, new(LinkError), err, err)
 	}
@@ -954,7 +926,6 @@ func TestRenameNotExisting(t *testing.T) {
 	from, to := "doesnt-exist", "dest"
 
 	Mkdir(to, 0777)
-	defer Remove(to)
 
 	if err := Rename(from, to); !IsNotExist(err) {
 		t.Errorf("Rename(%q, %q) = %v; want an IsNotExist error", from, to, err)
@@ -965,12 +936,8 @@ func TestRenameToDirFailed(t *testing.T) {
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
 
-	Remove(from)
-	Remove(to)
 	Mkdir(from, 0777)
 	Mkdir(to, 0777)
-	defer Remove(from)
-	defer Remove(to)
 
 	err := Rename(from, to)
 	switch err := err.(type) {
@@ -986,9 +953,6 @@ func TestRenameToDirFailed(t *testing.T) {
 		}
 	case nil:
 		t.Errorf("rename %q, %q: expected error, got nil", from, to)
-
-		// cleanup whatever was placed in "renameto"
-		Remove(to)
 	default:
 		t.Errorf("rename %q, %q: expected %T, got %T %v", from, to, new(LinkError), err, err)
 	}
@@ -1372,6 +1336,10 @@ func TestSeek(t *testing.T) {
 			t.Logf("skipping test case #%d on nacl; https://golang.org/issue/21728", i)
 			continue
 		}
+		if runtime.GOOS == "hurd" && tt.out > 1<<32 {
+			t.Logf("skipping test case #%d on Hurd: file too large", i)
+			continue
+		}
 		off, err := f.Seek(tt.in, tt.whence)
 		if off != tt.out || err != nil {
 			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 && runtime.GOOS == "linux" {
@@ -1388,7 +1356,7 @@ func TestSeek(t *testing.T) {
 
 func TestSeekError(t *testing.T) {
 	switch runtime.GOOS {
-	case "plan9", "nacl":
+	case "js", "nacl", "plan9":
 		t.Skipf("skipping test on %v", runtime.GOOS)
 	}
 
@@ -1483,7 +1451,7 @@ func TestOpenNoName(t *testing.T) {
 	}
 }
 
-func runBinHostname(t *testing.T, argv []string) string {
+func runBinHostname(t *testing.T) string {
 	// Run /bin/hostname and collect output.
 	r, w, err := Pipe()
 	if err != nil {
@@ -1491,6 +1459,10 @@ func runBinHostname(t *testing.T, argv []string) string {
 	}
 	defer r.Close()
 	const path = "/bin/hostname"
+	argv := []string{"hostname"}
+	if runtime.GOOS == "aix" {
+		argv = []string{"hostname", "-s"}
+	}
 	p, err := StartProcess(path, argv, &ProcAttr{Files: []*File{nil, w, Stderr}})
 	if err != nil {
 		if _, err := Stat(path); IsNotExist(err) {
@@ -1521,11 +1493,7 @@ func runBinHostname(t *testing.T, argv []string) string {
 	return output
 }
 
-func testWindowsHostname(t *testing.T) {
-	hostname, err := Hostname()
-	if err != nil {
-		t.Fatal(err)
-	}
+func testWindowsHostname(t *testing.T, hostname string) {
 	cmd := osexec.Command("hostname")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -1533,18 +1501,30 @@ func testWindowsHostname(t *testing.T) {
 	}
 	want := strings.Trim(string(out), "\r\n")
 	if hostname != want {
-		t.Fatalf("Hostname() = %q, want %q", hostname, want)
+		t.Fatalf("Hostname() = %q != system hostname of %q", hostname, want)
 	}
 }
 
 func TestHostname(t *testing.T) {
+	hostname, err := Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hostname == "" {
+		t.Fatal("Hostname returned empty string and no error")
+	}
+	if strings.Contains(hostname, "\x00") {
+		t.Fatalf("unexpected zero byte in hostname: %q", hostname)
+	}
+
 	// There is no other way to fetch hostname on windows, but via winapi.
 	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
 	switch runtime.GOOS {
 	case "android", "plan9":
-		t.Skipf("%s doesn't have /bin/hostname", runtime.GOOS)
+		// No /bin/hostname to verify against.
+		return
 	case "windows":
-		testWindowsHostname(t)
+		testWindowsHostname(t, hostname)
 		return
 	}
 
@@ -1553,17 +1533,7 @@ func TestHostname(t *testing.T) {
 	// Check internal Hostname() against the output of /bin/hostname.
 	// Allow that the internal Hostname returns a Fully Qualified Domain Name
 	// and the /bin/hostname only returns the first component
-	hostname, err := Hostname()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-
-	var want string
-	if runtime.GOOS == "aix" {
-		want = runBinHostname(t, []string{"hostname", "-s"})
-	} else {
-		want = runBinHostname(t, []string{"hostname"})
-	}
+	want := runBinHostname(t)
 	if hostname != want {
 		i := strings.Index(hostname, ".")
 		if i < 0 || hostname[0:i] != want {
@@ -1698,7 +1668,6 @@ func writeFile(t *testing.T, fname string, flag int, text string) string {
 func TestAppend(t *testing.T) {
 	defer chtmpdir(t)()
 	const f = "append.txt"
-	defer Remove(f)
 	s := writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
 	if s != "new" {
 		t.Fatalf("writeFile: have %q want %q", s, "new")
@@ -1765,13 +1734,11 @@ func TestSameFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create(a): %v", err)
 	}
-	defer Remove(fa.Name())
 	fa.Close()
 	fb, err := Create("b")
 	if err != nil {
 		t.Fatalf("Create(b): %v", err)
 	}
-	defer Remove(fb.Name())
 	fb.Close()
 
 	ia1, err := Stat("a")
@@ -1795,23 +1762,54 @@ func TestSameFile(t *testing.T) {
 	}
 }
 
-func TestDevNullFile(t *testing.T) {
-	f, err := Open(DevNull)
-	if err != nil {
-		t.Fatalf("Open(%s): %v", DevNull, err)
-	}
-	defer f.Close()
-	fi, err := f.Stat()
-	if err != nil {
-		t.Fatalf("Stat(%s): %v", DevNull, err)
-	}
-	name := filepath.Base(DevNull)
-	if fi.Name() != name {
-		t.Fatalf("wrong file name have %v want %v", fi.Name(), name)
+func testDevNullFileInfo(t *testing.T, statname, devNullName string, fi FileInfo, ignoreCase bool) {
+	pre := fmt.Sprintf("%s(%q): ", statname, devNullName)
+	name := filepath.Base(devNullName)
+	if ignoreCase {
+		if strings.ToUpper(fi.Name()) != strings.ToUpper(name) {
+			t.Errorf(pre+"wrong file name have %v want %v", fi.Name(), name)
+		}
+	} else {
+		if fi.Name() != name {
+			t.Errorf(pre+"wrong file name have %v want %v", fi.Name(), name)
+		}
 	}
 	if fi.Size() != 0 {
-		t.Fatalf("wrong file size have %d want 0", fi.Size())
+		t.Errorf(pre+"wrong file size have %d want 0", fi.Size())
 	}
+	if fi.Mode()&ModeDevice == 0 {
+		t.Errorf(pre+"wrong file mode %q: ModeDevice is not set", fi.Mode())
+	}
+	if fi.Mode()&ModeCharDevice == 0 {
+		t.Errorf(pre+"wrong file mode %q: ModeCharDevice is not set", fi.Mode())
+	}
+	if fi.Mode().IsRegular() {
+		t.Errorf(pre+"wrong file mode %q: IsRegular returns true", fi.Mode())
+	}
+}
+
+func testDevNullFile(t *testing.T, devNullName string, ignoreCase bool) {
+	f, err := Open(devNullName)
+	if err != nil {
+		t.Fatalf("Open(%s): %v", devNullName, err)
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		t.Fatalf("Stat(%s): %v", devNullName, err)
+	}
+	testDevNullFileInfo(t, "f.Stat", devNullName, fi, ignoreCase)
+
+	fi, err = Stat(devNullName)
+	if err != nil {
+		t.Fatalf("Stat(%s): %v", devNullName, err)
+	}
+	testDevNullFileInfo(t, "Stat", devNullName, fi, ignoreCase)
+}
+
+func TestDevNullFile(t *testing.T) {
+	testDevNullFile(t, DevNull, false)
 }
 
 var testLargeWrite = flag.Bool("large_write", false, "run TestLargeWriteToConsole test that floods console with output")
@@ -1885,7 +1883,7 @@ func TestStatStdin(t *testing.T) {
 		t.Fatal(err)
 	}
 	switch mode := fi.Mode(); {
-	case mode&ModeCharDevice != 0:
+	case mode&ModeCharDevice != 0 && mode&ModeDevice != 0:
 	case mode&ModeNamedPipe != 0:
 	default:
 		t.Fatalf("unexpected Stdin mode (%v), want ModeCharDevice or ModeNamedPipe", mode)
@@ -2221,6 +2219,8 @@ func TestPipeThreads(t *testing.T) {
 		t.Skip("skipping on Windows; issue 19098")
 	case "plan9":
 		t.Skip("skipping on Plan 9; does not support runtime poller")
+	case "js":
+		t.Skip("skipping on js; no support for os.Pipe")
 	}
 
 	threads := 100
@@ -2298,5 +2298,22 @@ func TestDoubleCloseError(t *testing.T) {
 		t.Errorf("second Close returned %q, wanted %q", err, ErrClosed)
 	} else {
 		t.Logf("second close returned expected error %q", err)
+	}
+}
+
+func TestUserHomeDir(t *testing.T) {
+	dir, err := UserHomeDir()
+	if dir == "" && err == nil {
+		t.Fatal("UserHomeDir returned an empty string but no error")
+	}
+	if err != nil {
+		t.Skipf("UserHomeDir failed: %v", err)
+	}
+	fi, err := Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
 	}
 }

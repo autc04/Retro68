@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2018 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2019 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
@@ -100,7 +100,8 @@ array_loop_spec;
 
 /* Subroutine formatted_dtio (struct, unit, iotype, v_list, iostat,
 			      iomsg, (_iotype), (_iomsg))  */
-typedef void (*formatted_dtio)(void *, GFC_INTEGER_4 *, char *, gfc_array_i4 *,
+typedef void (*formatted_dtio)(void *, GFC_INTEGER_4 *, char *,
+			       gfc_full_array_i4 *,
 			       GFC_INTEGER_4 *, char *,
 			       gfc_charlen_type, gfc_charlen_type);
 
@@ -531,7 +532,9 @@ typedef struct st_parameter_dt
 	  /* A flag used to identify when a non-standard expanded namelist read
 	     has occurred.  */
 	  unsigned expanded_read : 1;
-	  /* 13 unused bits.  */
+	  /* Flag to indicate if the statement has async="YES". */
+	  unsigned async : 1;
+	  /* 12 unused bits.  */
 
 	  int child_saved_iostat;
 	  int nml_delim;
@@ -590,7 +593,7 @@ extern char check_st_parameter_dt[sizeof (((st_parameter_dt *) 0)->u.pad)
 typedef struct
 {
   st_parameter_common common;
-  CHARACTER1 (id);
+  GFC_INTEGER_4 *id;
 }
 st_parameter_wait;
 
@@ -658,6 +661,9 @@ typedef struct gfc_unit
   /* Set to 1 if we have read a subrecord.  */
 
   int continued;
+
+  /* Contains the pointer to the async unit.  */
+  struct async_unit *au;
 
   __gthread_mutex_t lock;
   /* Number of threads waiting to acquire this unit's lock.
@@ -815,10 +821,17 @@ extern void next_record (st_parameter_dt *, int);
 internal_proto(next_record);
 
 extern void st_wait (st_parameter_wait *);
-export_proto(st_wait);
+export_proto (st_wait);
+
+extern void st_wait_async (st_parameter_wait *);
+export_proto (st_wait_async);
 
 extern void hit_eof (st_parameter_dt *);
 internal_proto(hit_eof);
+
+extern void transfer_array_inner (st_parameter_dt *, gfc_array_char *, int,
+				  gfc_charlen_type);
+internal_proto (transfer_array_inner);
 
 /* read.c */
 
@@ -948,8 +961,8 @@ internal_proto(free_ionml);
 static inline void
 inc_waiting_locked (gfc_unit *u)
 {
-#ifdef HAVE_SYNC_FETCH_AND_ADD
-  (void) __sync_fetch_and_add (&u->waiting, 1);
+#ifdef HAVE_ATOMIC_FETCH_ADD
+  (void) __atomic_fetch_add (&u->waiting, 1, __ATOMIC_RELAXED);
 #else
   u->waiting++;
 #endif
@@ -958,8 +971,20 @@ inc_waiting_locked (gfc_unit *u)
 static inline int
 predec_waiting_locked (gfc_unit *u)
 {
-#ifdef HAVE_SYNC_FETCH_AND_ADD
-  return __sync_add_and_fetch (&u->waiting, -1);
+#ifdef HAVE_ATOMIC_FETCH_ADD
+  /* Note that the pattern
+
+     if (predec_waiting_locked (u) == 0)
+         // destroy u
+	 
+     could be further optimized by making this be an __ATOMIC_RELEASE,
+     and then inserting a
+
+     __atomic_thread_fence (__ATOMIC_ACQUIRE);
+
+     inside the branch before destroying.  But for now, lets keep it
+     simple.  */
+  return __atomic_add_fetch (&u->waiting, -1, __ATOMIC_ACQ_REL);
 #else
   return --u->waiting;
 #endif
@@ -968,8 +993,8 @@ predec_waiting_locked (gfc_unit *u)
 static inline void
 dec_waiting_unlocked (gfc_unit *u)
 {
-#ifdef HAVE_SYNC_FETCH_AND_ADD
-  (void) __sync_fetch_and_add (&u->waiting, -1);
+#ifdef HAVE_ATOMIC_FETCH_ADD
+  (void) __atomic_fetch_add (&u->waiting, -1, __ATOMIC_RELAXED);
 #else
   __gthread_mutex_lock (&unit_lock);
   u->waiting--;
@@ -988,3 +1013,14 @@ memset4 (gfc_char4_t *p, gfc_char4_t c, int k)
 
 #endif
 
+extern void
+st_write_done_worker (st_parameter_dt *);
+internal_proto (st_write_done_worker);
+
+extern void
+st_read_done_worker (st_parameter_dt *);
+internal_proto (st_read_done_worker);
+
+extern void
+data_transfer_init_worker (st_parameter_dt *, int);
+internal_proto (data_transfer_init_worker);

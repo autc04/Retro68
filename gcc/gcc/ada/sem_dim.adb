@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2011-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 2011-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1558,7 +1558,7 @@ package body Sem_Dim is
             --  For relational operations, only dimension checking is
             --  performed (no propagation). If one operand is the result
             --  of constant folding the dimensions may have been lost
-            --  in a tree copy, so assume that pre-analysis has verified
+            --  in a tree copy, so assume that preanalysis has verified
             --  that dimensions are correct.
 
             elsif N_Kind in N_Op_Compare then

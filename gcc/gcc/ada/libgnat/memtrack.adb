@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -104,12 +104,6 @@ package body System.Memory is
 
    procedure fwrite
      (Ptr    : System.Address;
-      Size   : size_t;
-      Nmemb  : size_t;
-      Stream : File_Ptr);
-
-   procedure fwrite
-     (Str    : String;
       Size   : size_t;
       Nmemb  : size_t;
       Stream : File_Ptr);
@@ -306,9 +300,13 @@ package body System.Memory is
             OS_Exit (255);
          end if;
 
-         fwrite ("GMEM DUMP" & ASCII.LF, 10, 1, Gmemfile);
-         fwrite (Timestamp'Address, Duration'Max_Size_In_Storage_Elements, 1,
-                 Gmemfile);
+         declare
+            S : constant String := "GMEM DUMP" & ASCII.LF;
+         begin
+            fwrite (S'Address, S'Length, 1, Gmemfile);
+            fwrite (Timestamp'Address, Duration'Max_Size_In_Storage_Elements,
+                    1, Gmemfile);
+         end;
       end if;
    end Gmem_Initialize;
 

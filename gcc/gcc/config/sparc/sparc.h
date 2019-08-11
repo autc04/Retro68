@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for Sun SPARC.
-   Copyright (C) 1987-2018 Free Software Foundation, Inc.
+   Copyright (C) 1987-2019 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com).
    64-bit SPARC-V9 support by Michael Tiemann, Jim Wilson, and Doug Evans,
    at Cygnus Support.
@@ -26,6 +26,9 @@ along with GCC; see the file COPYING3.  If not see
    whatever definitions are necessary.  */
 
 #define TARGET_CPU_CPP_BUILTINS() sparc_target_macros ()
+
+/* Target CPU versions for D.  */
+#define TARGET_D_CPU_VERSIONS sparc_d_target_versions
 
 /* Specify this in a cover file to provide bi-architecture (32/64) support.  */
 /* #define SPARC_BI_ARCH */
@@ -87,23 +90,12 @@ along with GCC; see the file COPYING3.  If not see
 
    Different code models are not supported in 32-bit environment.  */
 
-enum cmodel {
-  CM_32,
-  CM_MEDLOW,
-  CM_MEDMID,
-  CM_MEDANY,
-  CM_EMBMEDANY
-};
+#define TARGET_CM_MEDLOW    (sparc_code_model == CM_MEDLOW)
+#define TARGET_CM_MEDMID    (sparc_code_model == CM_MEDMID)
+#define TARGET_CM_MEDANY    (sparc_code_model == CM_MEDANY)
+#define TARGET_CM_EMBMEDANY (sparc_code_model == CM_EMBMEDANY)
 
-/* One of CM_FOO.  */
-extern enum cmodel sparc_cmodel;
-
-/* V9 code model selection.  */
-#define TARGET_CM_MEDLOW    (sparc_cmodel == CM_MEDLOW)
-#define TARGET_CM_MEDMID    (sparc_cmodel == CM_MEDMID)
-#define TARGET_CM_MEDANY    (sparc_cmodel == CM_MEDANY)
-#define TARGET_CM_EMBMEDANY (sparc_cmodel == CM_EMBMEDANY)
-
+/* Default code model to be overridden in 64-bit environment.  */
 #define SPARC_DEFAULT_CMODEL CM_32
 
 /* Do not use the .note.GNU-stack convention by default.  */
@@ -362,11 +354,7 @@ extern enum cmodel sparc_cmodel;
    This is what GAS uses.  Add %(asm_arch) to ASM_SPEC to enable.  */
 
 #define ASM_ARCH32_SPEC "-32"
-#ifdef HAVE_AS_REGISTER_PSEUDO_OP
 #define ASM_ARCH64_SPEC "-64 -no-undeclared-regs"
-#else
-#define ASM_ARCH64_SPEC "-64"
-#endif
 #define ASM_ARCH_DEFAULT_SPEC \
 (DEFAULT_ARCH32_P ? ASM_ARCH32_SPEC : ASM_ARCH64_SPEC)
 
@@ -420,7 +408,7 @@ extern enum cmodel sparc_cmodel;
 
 /* Because libgcc can generate references back to libc (via .umul etc.) we have
    to list libc again after the second libgcc.  */
-#define LINK_GCC_C_SEQUENCE_SPEC "%G %L %G %L"
+#define LINK_GCC_C_SEQUENCE_SPEC "%G %{!nolibc:%L} %G %{!nolibc:%L}"
 
 
 #define PTRDIFF_TYPE (TARGET_ARCH64 ? "long int" : "int")
@@ -805,7 +793,6 @@ extern enum cmodel sparc_cmodel;
 #define STATIC_CHAIN_REGNUM (TARGET_ARCH64 ? 5 : 2)
 
 /* Register which holds the global offset table, if any.  */
-
 #define GLOBAL_OFFSET_TABLE_REGNUM 23
 
 /* Register which holds offset table for position-independent data references.
@@ -813,7 +800,6 @@ extern enum cmodel sparc_cmodel;
    so we use a pseudo-register to make sure it is properly saved and restored
    around calls to setjmp.  Now the ABI of VxWorks RTP makes it live on entry
    to PLT entries so we use the canonical GOT register in this case.  */
-
 #define PIC_OFFSET_TABLE_REGNUM \
   (TARGET_VXWORKS_RTP && flag_pic ? GLOBAL_OFFSET_TABLE_REGNUM : INVALID_REGNUM)
 
@@ -823,7 +809,6 @@ extern enum cmodel sparc_cmodel;
    Originally it was -1, but later on the container of options changed to
    unsigned byte, so we decided to pick 127 as default value, which does
    reflect an undefined default value in case of 0/1.  */
-
 #define DEFAULT_PCC_STRUCT_RETURN 127
 
 /* Functions which return large structures get the address
@@ -1194,7 +1179,6 @@ init_cumulative_args (& (CUM), (FNTYPE), (LIBNAME), (FNDECL));
 
 extern GTY(()) char sparc_hard_reg_printed[8];
 
-#ifdef HAVE_AS_REGISTER_PSEUDO_OP
 #define ASM_DECLARE_REGISTER_GLOBAL(FILE, DECL, REGNO, NAME)		\
 do {									\
   if (TARGET_ARCH64)							\
@@ -1213,8 +1197,6 @@ do {									\
 	  }								\
     }									\
 } while (0)
-#endif
-
 
 /* Emit rtl for profiling.  */
 #define PROFILE_HOOK(LABEL)   sparc_profile_hook (LABEL)
@@ -1496,41 +1478,10 @@ do {									   \
 #define DITF_CONVERSION_LIBFUNCS	0
 #define SUN_INTEGER_MULTIPLY_64 	0
 
-/* Provide the cost of a branch.  For pre-v9 processors we use
-   a value of 3 to take into account the potential annulling of
-   the delay slot (which ends up being a bubble in the pipeline slot)
-   plus a cycle to take into consideration the instruction cache
-   effects.
-
-   On v9 and later, which have branch prediction facilities, we set
-   it to the depth of the pipeline as that is the cost of a
-   mispredicted branch.
-
-   On Niagara, normal branches insert 3 bubbles into the pipe
-   and annulled branches insert 4 bubbles.
-
-   On Niagara-2 and Niagara-3, a not-taken branch costs 1 cycle whereas
-   a taken branch costs 6 cycles.
-
-   The T4 Supplement specifies the branch latency at 2 cycles.
-   The M7 Supplement specifies the branch latency at 1 cycle. */
-
-#define BRANCH_COST(speed_p, predictable_p) \
-	((sparc_cpu == PROCESSOR_V9 \
-	  || sparc_cpu == PROCESSOR_ULTRASPARC) \
-	 ? 7 \
-         : (sparc_cpu == PROCESSOR_ULTRASPARC3 \
-            ? 9 \
-	 : (sparc_cpu == PROCESSOR_NIAGARA \
-	    ? 4 \
-	 : ((sparc_cpu == PROCESSOR_NIAGARA2 \
-	     || sparc_cpu == PROCESSOR_NIAGARA3) \
-	    ? 5 \
-	 : (sparc_cpu == PROCESSOR_NIAGARA4 \
-	    ? 2 \
-	 : (sparc_cpu == PROCESSOR_NIAGARA7 \
-	    ? 1 \
-	 : 3))))))
+/* A C expression for the cost of a branch instruction.  A value of 1
+   is the default; other values are interpreted relative to that.  */
+#define BRANCH_COST(SPEED_P, PREDICTABLE_P) \
+  (sparc_branch_cost (SPEED_P, PREDICTABLE_P))
 
 /* Control the assembler format that we output.  */
 
@@ -1659,7 +1610,7 @@ do {									\
 
 #define ASM_OUTPUT_ALIGN(FILE,LOG)	\
   if ((LOG) != 0)			\
-    fprintf (FILE, "\t.align %d\n", (1<<(LOG)))
+    fprintf (FILE, "\t.align %d\n", (1 << (LOG)))
 
 #define ASM_OUTPUT_SKIP(FILE,SIZE)  \
   fprintf (FILE, "\t.skip " HOST_WIDE_INT_PRINT_UNSIGNED"\n", (SIZE))

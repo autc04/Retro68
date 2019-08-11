@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -763,13 +763,13 @@ package body Ada.Strings.Unbounded is
      (Source     : in out Unbounded_String;
       Chunk_Size : Natural)
    is
-      Growth_Factor : constant := 32;
+      Growth_Factor : constant := 2;
       --  The growth factor controls how much extra space is allocated when
       --  we have to increase the size of an allocated unbounded string. By
       --  allocating extra space, we avoid the need to reallocate on every
       --  append, particularly important when a string is built up by repeated
       --  append operations of small pieces. This is expressed as a factor so
-      --  32 means add 1/32 of the length of the string as growth space.
+      --  2 means add 1/2 of the length of the string as growth space.
 
       Min_Mul_Alloc : constant := Standard'Maximum_Alignment;
       --  Allocation will be done by a multiple of Min_Mul_Alloc This causes

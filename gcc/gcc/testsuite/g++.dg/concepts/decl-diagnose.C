@@ -1,4 +1,5 @@
-// { dg-options "-std=c++17 -fconcepts" }
+// { dg-do compile { target c++17 } }
+// { dg-options "-fconcepts" }
 
 typedef concept int CINT; // { dg-error "'concept' cannot appear in a typedef declaration" }
 
@@ -6,7 +7,7 @@ void f(concept int); // { dg-error "a parameter cannot be declared 'concept'" }
 
 template<typename T>
 concept int f2() { return 0; } // { dg-error "return type" }
-concept bool f3(); // { dg-error "no definition" }
+concept bool f3(); // { dg-error "14:concept .f3. has no definition" }
 
 struct X
 {

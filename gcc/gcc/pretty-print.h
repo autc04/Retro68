@@ -1,5 +1,5 @@
 /* Various declarations for language-independent pretty-print subroutines.
-   Copyright (C) 2002-2018 Free Software Foundation, Inc.
+   Copyright (C) 2002-2019 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@integrable-solutions.net>
 
 This file is part of GCC.
@@ -36,7 +36,8 @@ struct text_info
   void **x_data;
   rich_location *m_richloc;
 
-  void set_location (unsigned int idx, location_t loc, bool caret_p);
+  void set_location (unsigned int idx, location_t loc,
+		     enum range_display_kind range_display_kind);
   location_t get_location (unsigned int index_of_location) const;
 };
 
@@ -215,17 +216,18 @@ class format_postprocessor
    and add additional fields they need.  */
 struct pretty_printer
 {
-  // Default construct a pretty printer with specified prefix
-  // and a maximum line length cut off limit.
-  explicit pretty_printer (const char* = NULL, int = 0);
+  /* Default construct a pretty printer with specified
+     maximum line length cut off limit.  */
+  explicit pretty_printer (int = 0);
 
   virtual ~pretty_printer ();
 
   /* Where we print external representation of ENTITY.  */
   output_buffer *buffer;
 
-  /* The prefix for each new line.  */
-  const char *prefix;
+  /* The prefix for each new line.  If non-NULL, this is "owned" by the
+     pretty_printer, and will eventually be free-ed.  */
+  char *prefix;
 
   /* Where to put whitespace around the entity being formatted.  */
   pp_padding padding;
@@ -328,6 +330,7 @@ pp_get_prefix (const pretty_printer *pp) { return pp->prefix; }
       pp_string (PP, pp_buffer (PP)->digit_buffer);		\
     }								\
   while (0)
+#define pp_double(PP, F)       pp_scalar (PP, "%f", F)
 #define pp_pointer(PP, P)      pp_scalar (PP, "%p", P)
 
 #define pp_identifier(PP, ID)  pp_string (PP, (pp_translate_identifiers (PP) \
@@ -338,7 +341,8 @@ pp_get_prefix (const pretty_printer *pp) { return pp->prefix; }
 #define pp_buffer(PP) (PP)->buffer
 
 extern void pp_set_line_maximum_length (pretty_printer *, int);
-extern void pp_set_prefix (pretty_printer *, const char *);
+extern void pp_set_prefix (pretty_printer *, char *);
+extern char *pp_take_prefix (pretty_printer *);
 extern void pp_destroy_prefix (pretty_printer *);
 extern int pp_remaining_character_count_for_line (pretty_printer *);
 extern void pp_clear_output_area (pretty_printer *);

@@ -1,5 +1,5 @@
 /* Parse tree dumper
-   Copyright (C) 2003-2018 Free Software Foundation, Inc.
+   Copyright (C) 2003-2019 Free Software Foundation, Inc.
    Contributed by Steven Bosscher
 
 This file is part of GCC.
@@ -48,10 +48,61 @@ static void show_expr (gfc_expr *p);
 static void show_code_node (int, gfc_code *);
 static void show_namespace (gfc_namespace *ns);
 static void show_code (int, gfc_code *);
-
+static void show_symbol (gfc_symbol *);
+static void show_typespec (gfc_typespec *);
+static void show_ref (gfc_ref *);
+static void show_attr (symbol_attribute *, const char *);
 
 /* Allow dumping of an expression in the debugger.  */
 void gfc_debug_expr (gfc_expr *);
+
+void debug (symbol_attribute *attr)
+{
+  FILE *tmp = dumpfile;
+  dumpfile = stderr;
+  show_attr (attr, NULL);
+  fputc ('\n', dumpfile);
+  dumpfile = tmp;
+}
+
+void debug (symbol_attribute attr)
+{
+  debug (&attr);
+}
+
+void debug (gfc_expr *e)
+{
+  FILE *tmp = dumpfile;
+  dumpfile = stderr;
+  show_expr (e);
+  fputc (' ', dumpfile);
+  show_typespec (&e->ts);
+  fputc ('\n', dumpfile);
+  dumpfile = tmp;
+}
+
+void debug (gfc_typespec *ts)
+{
+  FILE *tmp = dumpfile;
+  dumpfile = stderr;
+  show_typespec (ts);
+  fputc ('\n', dumpfile);
+  dumpfile = tmp;
+}
+
+void debug (gfc_typespec ts)
+{
+  debug (&ts);
+}
+
+void debug (gfc_ref *p)
+{
+  FILE *tmp = dumpfile;
+  dumpfile = stderr;
+  show_ref (p);
+  fputc ('\n', dumpfile);
+  dumpfile = tmp;
+}
 
 void
 gfc_debug_expr (gfc_expr *e)
@@ -72,6 +123,15 @@ gfc_debug_code (gfc_code *c)
   FILE *tmp = dumpfile;
   dumpfile = stderr;
   show_code (1, c);
+  fputc ('\n', dumpfile);
+  dumpfile = tmp;
+}
+
+void debug (gfc_symbol *sym)
+{
+  FILE *tmp = dumpfile;
+  dumpfile = stderr;
+  show_symbol (sym);
   fputc ('\n', dumpfile);
   dumpfile = tmp;
 }
@@ -306,6 +366,23 @@ show_ref (gfc_ref *p)
 	fputc (':', dumpfile);
 	show_expr (p->u.ss.end);
 	fputc (')', dumpfile);
+	break;
+
+      case REF_INQUIRY:
+	switch (p->u.i)
+	{
+	  case INQUIRY_KIND:
+	    fprintf (dumpfile, " INQUIRY_KIND ");
+	    break;
+	  case INQUIRY_LEN:
+	    fprintf (dumpfile, " INQUIRY_LEN ");
+	    break;
+	  case INQUIRY_RE:
+	    fprintf (dumpfile, " INQUIRY_RE ");
+	    break;
+	  case INQUIRY_IM:
+	    fprintf (dumpfile, " INQUIRY_IM ");
+	}
 	break;
 
       default:
@@ -716,6 +793,8 @@ show_attr (symbol_attribute *attr, const char * module)
     fputs (" ELEMENTAL", dumpfile);
   if (attr->pure)
     fputs (" PURE", dumpfile);
+  if (attr->implicit_pure)
+    fputs (" IMPLICIT_PURE", dumpfile);
   if (attr->recursive)
     fputs (" RECURSIVE", dumpfile);
 
@@ -1382,21 +1461,26 @@ show_omp_clauses (gfc_omp_clauses *omp_clauses)
 	const char *type = NULL;
 	switch (list_type)
 	  {
-	  case OMP_LIST_USE_DEVICE: type = "USE_DEVICE"; break;
-	  case OMP_LIST_DEVICE_RESIDENT: type = "USE_DEVICE"; break;
-	  case OMP_LIST_CACHE: type = ""; break;
 	  case OMP_LIST_PRIVATE: type = "PRIVATE"; break;
 	  case OMP_LIST_FIRSTPRIVATE: type = "FIRSTPRIVATE"; break;
 	  case OMP_LIST_LASTPRIVATE: type = "LASTPRIVATE"; break;
+	  case OMP_LIST_COPYPRIVATE: type = "COPYPRIVATE"; break;
 	  case OMP_LIST_SHARED: type = "SHARED"; break;
 	  case OMP_LIST_COPYIN: type = "COPYIN"; break;
 	  case OMP_LIST_UNIFORM: type = "UNIFORM"; break;
 	  case OMP_LIST_ALIGNED: type = "ALIGNED"; break;
 	  case OMP_LIST_LINEAR: type = "LINEAR"; break;
+	  case OMP_LIST_DEPEND: type = "DEPEND"; break;
+	  case OMP_LIST_MAP: type = "MAP"; break;
+	  case OMP_LIST_TO: type = "TO"; break;
+	  case OMP_LIST_FROM: type = "FROM"; break;
 	  case OMP_LIST_REDUCTION: type = "REDUCTION"; break;
+	  case OMP_LIST_DEVICE_RESIDENT: type = "DEVICE_RESIDENT"; break;
+	  case OMP_LIST_LINK: type = "LINK"; break;
+	  case OMP_LIST_USE_DEVICE: type = "USE_DEVICE"; break;
+	  case OMP_LIST_CACHE: type = "CACHE"; break;
 	  case OMP_LIST_IS_DEVICE_PTR: type = "IS_DEVICE_PTR"; break;
 	  case OMP_LIST_USE_DEVICE_PTR: type = "USE_DEVICE_PTR"; break;
-	  case OMP_LIST_DEPEND: type = "DEPEND"; break;
 	  default:
 	    gcc_unreachable ();
 	  }
@@ -3160,7 +3244,7 @@ write_decl (gfc_typespec *ts, gfc_array_spec *as, const char *sym_name,
 
   fputs (sym_name, dumpfile);
   fputs (post, dumpfile);
-    
+
   if (rok == T_WARN)
     fprintf (dumpfile," /* WARNING: Converting '%s' to interoperable type */",
 	     gfc_typename (ts));

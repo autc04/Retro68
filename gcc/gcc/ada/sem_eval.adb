@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -66,33 +66,25 @@ package body Sem_Eval is
    --  a subexpression is resolved and is therefore accomplished in a bottom
    --  up fashion. The flags are synthesized using the following approach.
 
-   --    Is_Static_Expression is determined by following the detailed rules
-   --    in RM 4.9(4-14). This involves testing the Is_Static_Expression
-   --    flag of the operands in many cases.
+   --    Is_Static_Expression is determined by following the rules in
+   --    RM-4.9. This involves testing the Is_Static_Expression flag of
+   --    the operands in many cases.
 
-   --    Raises_Constraint_Error is set if any of the operands have the flag
-   --    set or if an attempt to compute the value of the current expression
-   --    results in detection of a runtime constraint error.
-
-   --  As described in the spec, the requirement is that Is_Static_Expression
-   --  be accurately set, and in addition for nodes for which this flag is set,
-   --  Raises_Constraint_Error must also be set. Furthermore a node which has
-   --  Is_Static_Expression set, and Raises_Constraint_Error clear, then the
-   --  requirement is that the expression value must be precomputed, and the
-   --  node is either a literal, or the name of a constant entity whose value
-   --  is a static expression.
+   --    Raises_Constraint_Error is usually set if any of the operands have
+   --    the flag set or if an attempt to compute the value of the current
+   --    expression results in Constraint_Error.
 
    --  The general approach is as follows. First compute Is_Static_Expression.
    --  If the node is not static, then the flag is left off in the node and
    --  we are all done. Otherwise for a static node, we test if any of the
-   --  operands will raise constraint error, and if so, propagate the flag
+   --  operands will raise Constraint_Error, and if so, propagate the flag
    --  Raises_Constraint_Error to the result node and we are done (since the
    --  error was already posted at a lower level).
 
    --  For the case of a static node whose operands do not raise constraint
    --  error, we attempt to evaluate the node. If this evaluation succeeds,
    --  then the node is replaced by the result of this computation. If the
-   --  evaluation raises constraint error, then we rewrite the node with
+   --  evaluation raises Constraint_Error, then we rewrite the node with
    --  Apply_Compile_Time_Constraint_Error to raise the exception and also
    --  to post appropriate error messages.
 
@@ -104,11 +96,11 @@ package body Sem_Eval is
    --  Used to convert unsigned (modular) values for folding logical ops
 
    --  The following declarations are used to maintain a cache of nodes that
-   --  have compile time known values. The cache is maintained only for
+   --  have compile-time-known values. The cache is maintained only for
    --  discrete types (the most common case), and is populated by calls to
    --  Compile_Time_Known_Value and Expr_Value, but only used by Expr_Value
    --  since it is possible for the status to change (in particular it is
-   --  possible for a node to get replaced by a constraint error node).
+   --  possible for a node to get replaced by a Constraint_Error node).
 
    CV_Bits : constant := 5;
    --  Number of low order bits of Node_Id value used to reference entries
@@ -171,7 +163,7 @@ package body Sem_Eval is
    --  result is No_Match, then it continues and checks the next element. If
    --  the result is Match or Non_Static, this result is immediately given
    --  as the result without checking the rest of the list. Expr can be of
-   --  discrete, real, or string type and must be a compile time known value
+   --  discrete, real, or string type and must be a compile-time-known value
    --  (it is an error to make the call if these conditions are not met).
 
    function Find_Universal_Operator_Type (N : Node_Id) return Entity_Id;
@@ -231,7 +223,7 @@ package body Sem_Eval is
 
    procedure Out_Of_Range (N : Node_Id);
    --  This procedure is called if it is determined that node N, which appears
-   --  in a non-static context, is a compile time known value which is outside
+   --  in a non-static context, is a compile-time-known value which is outside
    --  its range, i.e. the range of Etype. This is used in contexts where
    --  this is an illegality if N is static, and should generate a warning
    --  otherwise.
@@ -295,8 +287,8 @@ package body Sem_Eval is
    --    If either operand is Any_Type then propagate it to result to prevent
    --    cascaded errors.
    --
-   --    If some operand raises constraint error, then replace the node N
-   --    with the raise constraint error node. This replacement inherits the
+   --    If some operand raises Constraint_Error, then replace the node N
+   --    with the raise Constraint_Error node. This replacement inherits the
    --    Is_Static_Expression flag from the operands.
 
    procedure Test_Expression_Is_Foldable
@@ -547,9 +539,15 @@ package body Sem_Eval is
       --  called in contexts like the expression of a number declaration where
       --  we certainly want to allow out of range values.
 
+      --  We inhibit the warning when expansion is disabled, because the
+      --  preanalysis of a range of a 64-bit modular type may appear to
+      --  violate the constraint on non-static Universal_Integer. If there
+      --  is a true overflow it will be diagnosed during full analysis.
+
       if Etype (N) = Universal_Integer
         and then Nkind (N) = N_Integer_Literal
         and then Nkind (Parent (N)) in N_Subexpr
+        and then Expander_Active
         and then
           (Intval (N) < Expr_Value (Type_Low_Bound (Universal_Integer))
              or else
@@ -574,8 +572,17 @@ package body Sem_Eval is
             null;
 
          elsif Is_Out_Of_Range (N, T, Assume_Valid => True) then
-            Apply_Compile_Time_Constraint_Error
-              (N, "value not in range of}<<", CE_Range_Check_Failed);
+
+            --  Ignore out of range values for System.Priority in CodePeer
+            --  mode since the actual target compiler may provide a wider
+            --  range.
+
+            if CodePeer_Mode and then T = RTE (RE_Priority) then
+               Set_Do_Range_Check (N, False);
+            else
+               Apply_Compile_Time_Constraint_Error
+                 (N, "value not in range of}<<", CE_Range_Check_Failed);
+            end if;
 
          elsif Checks_On then
             Enable_Range_Check (N);
@@ -831,7 +838,7 @@ package body Sem_Eval is
 
       function Is_Same_Value (L, R : Node_Id) return Boolean;
       --  Returns True iff L and R represent expressions that definitely have
-      --  identical (but not necessarily compile time known) values Indeed the
+      --  identical (but not necessarily compile-time-known) values Indeed the
       --  caller is expected to have already dealt with the cases of compile
       --  time known values, so these are not tested here.
 
@@ -1034,7 +1041,7 @@ package body Sem_Eval is
          then
             return True;
 
-         --  Or if they are compile time known and identical
+         --  Or if they are compile-time-known and identical
 
          elsif Compile_Time_Known_Value (Lf)
                  and then
@@ -1114,7 +1121,7 @@ package body Sem_Eval is
          return Unknown;
       end if;
 
-      --  If either operand could raise constraint error, then we cannot
+      --  If either operand could raise Constraint_Error, then we cannot
       --  know the result at compile time (since CE may be raised).
 
       if not (Cannot_Raise_Constraint_Error (L)
@@ -1183,7 +1190,7 @@ package body Sem_Eval is
             return Unknown;
          end if;
 
-      --  Case where comparison involves two compile time known values
+      --  Case where comparison involves two compile-time-known values
 
       elsif Compile_Time_Known_Value (L)
               and then
@@ -1506,7 +1513,7 @@ package body Sem_Eval is
          end if;
 
          --  Next attempt is to see if we have an entity compared with a
-         --  compile time known value, where there is a current value
+         --  compile-time-known value, where there is a current value
          --  conditional for the entity which can tell us the result.
 
          declare
@@ -1658,7 +1665,7 @@ package body Sem_Eval is
             return False;
          end if;
 
-         --  Otherwise check bounds for compile time known
+         --  Otherwise check bounds for compile-time-known
 
          if not Compile_Time_Known_Value (Type_Low_Bound (Typ)) then
             return False;
@@ -1681,7 +1688,7 @@ package body Sem_Eval is
       CV_Ent : CV_Entry renames CV_Cache (Nat (Op) mod CV_Cache_Size);
 
    begin
-      --  Never known at compile time if bad type or raises constraint error
+      --  Never known at compile time if bad type or raises Constraint_Error
       --  or empty (latter case occurs only as a result of a previous error).
 
       if No (Op) then
@@ -1696,33 +1703,50 @@ package body Sem_Eval is
       end if;
 
       --  If we have an entity name, then see if it is the name of a constant
-      --  and if so, test the corresponding constant value, or the name of
-      --  an enumeration literal, which is always a constant.
+      --  and if so, test the corresponding constant value, or the name of an
+      --  enumeration literal, which is always a constant.
 
       if Present (Etype (Op)) and then Is_Entity_Name (Op) then
          declare
-            E : constant Entity_Id := Entity (Op);
-            V : Node_Id;
+            Ent : constant Entity_Id := Entity (Op);
+            Val : Node_Id;
 
          begin
-            --  Never known at compile time if it is a packed array value.
-            --  We might want to try to evaluate these at compile time one
-            --  day, but we do not make that attempt now.
+            --  Never known at compile time if it is a packed array value. We
+            --  might want to try to evaluate these at compile time one day,
+            --  but we do not make that attempt now.
 
             if Is_Packed_Array_Impl_Type (Etype (Op)) then
                return False;
-            end if;
 
-            if Ekind (E) = E_Enumeration_Literal then
+            elsif Ekind (Ent) = E_Enumeration_Literal then
                return True;
 
-            elsif Ekind (E) = E_Constant then
-               V := Constant_Value (E);
-               return Present (V) and then Compile_Time_Known_Value (V);
+            elsif Ekind (Ent) = E_Constant then
+               Val := Constant_Value (Ent);
+
+               if Present (Val) then
+
+                  --  Guard against an illegal deferred constant whose full
+                  --  view is initialized with a reference to itself. Treat
+                  --  this case as a value not known at compile time.
+
+                  if Is_Entity_Name (Val) and then Entity (Val) = Ent then
+                     return False;
+                  else
+                     return Compile_Time_Known_Value (Val);
+                  end if;
+
+               --  Otherwise, the constant does not have a compile-time-known
+               --  value.
+
+               else
+                  return False;
+               end if;
             end if;
          end;
 
-      --  We have a value, see if it is compile time known
+      --  We have a value, see if it is compile-time-known
 
       else
          --  Integer literals are worth storing in the cache
@@ -1785,7 +1809,7 @@ package body Sem_Eval is
             end if;
          end;
 
-      --  We have a value, see if it is compile time known
+      --  We have a value, see if it is compile-time-known
 
       else
          if Compile_Time_Known_Value (Op) then
@@ -2169,7 +2193,7 @@ package body Sem_Eval is
       end if;
 
       --  First loop, make sure all the alternatives are static expressions
-      --  none of which raise Constraint_Error. We make the constraint error
+      --  none of which raise Constraint_Error. We make the Constraint_Error
       --  check because part of the legality condition for a correct static
       --  case expression is that the cases are covered, like any other case
       --  expression. And we can't do that if any of the conditions raise an
@@ -2205,7 +2229,7 @@ package body Sem_Eval is
 
       Set_Is_Static_Expression (N);
 
-      --  Now to deal with propagating a possible constraint error
+      --  Now to deal with propagating a possible Constraint_Error
 
       --  If the selecting expression raises CE, propagate and we are done
 
@@ -2376,7 +2400,7 @@ package body Sem_Eval is
 
    begin
       --  Enumeration literals are always considered to be constants
-      --  and cannot raise constraint error (RM 4.9(22)).
+      --  and cannot raise Constraint_Error (RM 4.9(22)).
 
       if Ekind (Def_Id) = E_Enumeration_Literal then
          Set_Is_Static_Expression (N);
@@ -2474,7 +2498,7 @@ package body Sem_Eval is
          return;
       end if;
 
-      --  If condition raises constraint error then we have already signaled
+      --  If condition raises Constraint_Error then we have already signaled
       --  an error, and we just propagate to the result and do not fold.
 
       if Raises_Constraint_Error (Condition) then
@@ -2499,8 +2523,8 @@ package body Sem_Eval is
       end if;
 
       --  Note that it does not matter if the non-result operand raises a
-      --  Constraint_Error, but if the result raises constraint error then we
-      --  replace the node with a raise constraint error. This will properly
+      --  Constraint_Error, but if the result raises Constraint_Error then we
+      --  replace the node with a raise Constraint_Error. This will properly
       --  propagate Raises_Constraint_Error since this flag is set in Result.
 
       if Raises_Constraint_Error (Result) then
@@ -2607,7 +2631,7 @@ package body Sem_Eval is
                   if List_Length (Expressions (Arr)) >= Lin then
                      Elm := Pick (Expressions (Arr), Lin);
 
-                     --  If the resulting expression is compile time known,
+                     --  If the resulting expression is compile-time-known,
                      --  then we can rewrite the indexed component with this
                      --  value, being sure to mark the result as non-static.
                      --  We also reset the Sloc, in case this generates an
@@ -2662,9 +2686,7 @@ package body Sem_Eval is
    --  the expander that do not correspond to static expressions.
 
    procedure Eval_Integer_Literal (N : Node_Id) is
-      T : constant Entity_Id := Etype (N);
-
-      function In_Any_Integer_Context return Boolean;
+      function In_Any_Integer_Context (Context : Node_Id) return Boolean;
       --  If the literal is resolved with a specific type in a context where
       --  the expected type is Any_Integer, there are no range checks on the
       --  literal. By the time the literal is evaluated, it carries the type
@@ -2675,44 +2697,54 @@ package body Sem_Eval is
       -- In_Any_Integer_Context --
       ----------------------------
 
-      function In_Any_Integer_Context return Boolean is
-         Par : constant Node_Id   := Parent (N);
-         K   : constant Node_Kind := Nkind (Par);
-
+      function In_Any_Integer_Context (Context : Node_Id) return Boolean is
       begin
          --  Any_Integer also appears in digits specifications for real types,
          --  but those have bounds smaller that those of any integer base type,
          --  so we can safely ignore these cases.
 
-         return Nkind_In (K, N_Number_Declaration,
-                             N_Attribute_Reference,
-                             N_Attribute_Definition_Clause,
-                             N_Modular_Type_Definition,
-                             N_Signed_Integer_Type_Definition);
+         return
+           Nkind_In (Context, N_Attribute_Definition_Clause,
+                              N_Attribute_Reference,
+                              N_Modular_Type_Definition,
+                              N_Number_Declaration,
+                              N_Signed_Integer_Type_Definition);
       end In_Any_Integer_Context;
+
+      --  Local variables
+
+      Par : constant Node_Id   := Parent (N);
+      Typ : constant Entity_Id := Etype (N);
 
    --  Start of processing for Eval_Integer_Literal
 
    begin
-
       --  If the literal appears in a non-expression context, then it is
       --  certainly appearing in a non-static context, so check it. This is
       --  actually a redundant check, since Check_Non_Static_Context would
       --  check it, but it seems worthwhile to optimize out the call.
 
-      --  An exception is made for a literal in an if or case expression
+      --  Additionally, when the literal appears within an if or case
+      --  expression it must be checked as well. However, due to the literal
+      --  appearing within a conditional statement, expansion greatly changes
+      --  the nature of its context and performing some of the checks within
+      --  Check_Non_Static_Context on an expanded literal may lead to spurious
+      --  and misleading warnings.
 
-      if (Nkind_In (Parent (N), N_If_Expression, N_Case_Expression_Alternative)
+      if (Nkind_In (Par, N_Case_Expression_Alternative, N_If_Expression)
            or else Nkind (Parent (N)) not in N_Subexpr)
-        and then not In_Any_Integer_Context
+        and then (not Nkind_In (Par, N_Case_Expression_Alternative,
+                                     N_If_Expression)
+                   or else Comes_From_Source (N))
+        and then not In_Any_Integer_Context (Par)
       then
          Check_Non_Static_Context (N);
       end if;
 
       --  Modular integer literals must be in their base range
 
-      if Is_Modular_Integer_Type (T)
-        and then Is_Out_Of_Range (N, Base_Type (T), Assume_Valid => True)
+      if Is_Modular_Integer_Type (Typ)
+        and then Is_Out_Of_Range (N, Base_Type (Typ), Assume_Valid => True)
       then
          Out_Of_Range (N);
       end if;
@@ -2844,7 +2876,7 @@ package body Sem_Eval is
 
       Set_Is_Static_Expression (N);
 
-      --  If left operand raises constraint error, propagate and we are done
+      --  If left operand raises Constraint_Error, propagate and we are done
 
       if Raises_Constraint_Error (Expr) then
          Set_Raises_Constraint_Error (N, True);
@@ -3077,7 +3109,7 @@ package body Sem_Eval is
       if not Fold then
          return;
 
-      --  Don't try fold if target type has constraint error bounds
+      --  Don't try fold if target type has Constraint_Error bounds
 
       elsif not Is_OK_Static_Subtype (Target_Type) then
          Set_Raises_Constraint_Error (N);
@@ -3403,6 +3435,13 @@ package body Sem_Eval is
          if Nkind (Expr) = N_String_Literal then
             return UI_From_Int (String_Length (Strval (Expr)));
 
+         --  With frontend inlining as performed in GNATprove mode, a variable
+         --  may be inserted that has a string literal subtype. Deal with this
+         --  specially as for the previous case.
+
+         elsif Ekind (Etype (Expr)) = E_String_Literal_Subtype then
+            return String_Literal_Length (Etype (Expr));
+
          --  Second easy case, not constrained subtype, so no length
 
          elsif not Is_Constrained (Etype (Expr)) then
@@ -3598,7 +3637,7 @@ package body Sem_Eval is
       --  Now look at the operands, we can't quite use the normal call to
       --  Test_Expression_Is_Foldable here because short circuit operations
       --  are a special case, they can still be foldable, even if the right
-      --  operand raises constraint error.
+      --  operand raises Constraint_Error.
 
       --  If either operand is Any_Type, just propagate to result and do not
       --  try to fold, this prevents cascaded errors.
@@ -3607,8 +3646,8 @@ package body Sem_Eval is
          Set_Etype (N, Any_Type);
          return;
 
-      --  If left operand raises constraint error, then replace node N with
-      --  the raise constraint error node, and we are obviously not foldable.
+      --  If left operand raises Constraint_Error, then replace node N with
+      --  the raise Constraint_Error node, and we are obviously not foldable.
       --  Is_Static_Expression is set from the two operands in the normal way,
       --  and we check the right operand if it is in a non-static context.
 
@@ -3631,12 +3670,12 @@ package body Sem_Eval is
 
       --  Here the result is static, note that, unlike the normal processing
       --  in Test_Expression_Is_Foldable, we did *not* check above to see if
-      --  the right operand raises constraint error, that's because it is not
+      --  the right operand raises Constraint_Error, that's because it is not
       --  significant if the left operand is decisive.
 
       Set_Is_Static_Expression (N);
 
-      --  It does not matter if the right operand raises constraint error if
+      --  It does not matter if the right operand raises Constraint_Error if
       --  it will not be evaluated. So deal specially with the cases where
       --  the right operand is not evaluated. Note that we will fold these
       --  cases even if the right operand is non-static, which is fine, but
@@ -3653,7 +3692,7 @@ package body Sem_Eval is
       end if;
 
       --  If first operand not decisive, then it does matter if the right
-      --  operand raises constraint error, since it will be evaluated, so
+      --  operand raises Constraint_Error, since it will be evaluated, so
       --  we simply replace the node with the right operand. Note that this
       --  properly propagates Is_Static_Expression and Raises_Constraint_Error
       --  (both are set to True in Right).
@@ -3904,7 +3943,7 @@ package body Sem_Eval is
       if not Fold then
          return;
 
-      --  Don't try fold if target type has constraint error bounds
+      --  Don't try fold if target type has Constraint_Error bounds
 
       elsif not Is_OK_Static_Subtype (Target_Type) then
          Set_Raises_Constraint_Error (N);
@@ -4158,9 +4197,9 @@ package body Sem_Eval is
       Val    : Uint;
 
    begin
-      --  If already in cache, then we know it's compile time known and we can
+      --  If already in cache, then we know it's compile-time-known and we can
       --  return the value that was previously stored in the cache since
-      --  compile time known values cannot change.
+      --  compile-time-known values cannot change.
 
       if CV_Ent.N = N then
          return CV_Ent.V;
@@ -4675,7 +4714,7 @@ package body Sem_Eval is
          end if;
 
          --  If bounds not comparable at compile time, then the bounds of T2
-         --  must be compile time known or we cannot answer the query.
+         --  must be compile-time-known or we cannot answer the query.
 
          if not Compile_Time_Known_Value (L2)
            or else not Compile_Time_Known_Value (H2)
@@ -4760,8 +4799,7 @@ package body Sem_Eval is
         and then Compile_Time_Known_Value (Hi)
       then
          declare
-            Typ      :          Entity_Id := Etype (Lo);
-            Full_Typ : constant Entity_Id := Full_View (Typ);
+            Typ : Entity_Id := Etype (Lo);
          begin
             --  When called from the frontend, as part of the analysis of
             --  potentially static expressions, Typ will be the full view of a
@@ -4770,8 +4808,10 @@ package body Sem_Eval is
             --  is null, Typ might be a private type and we need to explicitly
             --  switch to its corresponding full view to access the same info.
 
-            if Present (Full_Typ) then
-               Typ := Full_Typ;
+            if Is_Incomplete_Or_Private_Type (Typ)
+              and then Present (Full_View (Typ))
+            then
+               Typ := Full_View (Typ);
             end if;
 
             if Is_Discrete_Type (Typ) then
@@ -4867,7 +4907,7 @@ package body Sem_Eval is
    --------------------------
 
    --  Determines if Typ is a static subtype as defined in (RM 4.9(26)) where
-   --  neither bound raises constraint error when evaluated.
+   --  neither bound raises Constraint_Error when evaluated.
 
    function Is_OK_Static_Subtype (Typ : Entity_Id) return Boolean is
       Base_T   : constant Entity_Id := Base_Type (Typ);
@@ -5349,8 +5389,7 @@ package body Sem_Eval is
         and then Compile_Time_Known_Value (Hi)
       then
          declare
-            Typ      :          Entity_Id := Etype (Lo);
-            Full_Typ : constant Entity_Id := Full_View (Typ);
+            Typ : Entity_Id := Etype (Lo);
          begin
             --  When called from the frontend, as part of the analysis of
             --  potentially static expressions, Typ will be the full view of a
@@ -5359,8 +5398,10 @@ package body Sem_Eval is
             --  is null, Typ might be a private type and we need to explicitly
             --  switch to its corresponding full view to access the same info.
 
-            if Present (Full_Typ) then
-               Typ := Full_Typ;
+            if Is_Incomplete_Or_Private_Type (Typ)
+              and then Present (Full_View (Typ))
+            then
+               Typ := Full_View (Typ);
             end if;
 
             if Is_Discrete_Type (Typ) then
@@ -5428,9 +5469,11 @@ package body Sem_Eval is
               First_Rep_Item (Parent (N)));
             Rewrite (N, Make_Integer_Literal (Sloc (N), Uint_1));
 
-         --  All cases except the special array case
+         --  All cases except the special array case.
+         --  No message if we are dealing with System.Priority values in
+         --  CodePeer mode where the target runtime may have more priorities.
 
-         else
+         elsif not CodePeer_Mode or else Etype (N) /= RTE (RE_Priority) then
             Apply_Compile_Time_Constraint_Error
               (N, "value not in range of}", CE_Range_Check_Failed);
          end if;
@@ -5643,8 +5686,8 @@ package body Sem_Eval is
    -------------------------
 
    procedure Rewrite_In_Raise_CE (N : Node_Id; Exp : Node_Id) is
-      Typ  : constant Entity_Id := Etype (N);
       Stat : constant Boolean   := Is_Static_Expression (N);
+      Typ  : constant Entity_Id := Etype (N);
 
    begin
       --  If we want to raise CE in the condition of a N_Raise_CE node, we
@@ -5662,9 +5705,16 @@ package body Sem_Eval is
       --  Else build an explicit N_Raise_CE
 
       else
-         Rewrite (N,
-           Make_Raise_Constraint_Error (Sloc (Exp),
-             Reason => CE_Range_Check_Failed));
+         if Nkind (Exp) = N_Raise_Constraint_Error then
+            Rewrite (N,
+              Make_Raise_Constraint_Error (Sloc (Exp),
+                Reason => Reason (Exp)));
+         else
+            Rewrite (N,
+              Make_Raise_Constraint_Error (Sloc (Exp),
+                Reason => CE_Range_Check_Failed));
+         end if;
+
          Set_Raises_Constraint_Error (N);
          Set_Etype (N, Typ);
       end if;
@@ -5986,7 +6036,7 @@ package body Sem_Eval is
                      then
                         return False;
 
-                        --  If either expression raised a constraint error,
+                        --  If either expression raised a Constraint_Error,
                         --  consider the expressions as matching, since this
                         --  helps to prevent cascading errors.
 
@@ -6197,8 +6247,8 @@ package body Sem_Eval is
          Set_Etype (N, Any_Type);
          return;
 
-      --  If operand raises constraint error, then replace node N with the
-      --  raise constraint error node, and we are obviously not foldable.
+      --  If operand raises Constraint_Error, then replace node N with the
+      --  raise Constraint_Error node, and we are obviously not foldable.
       --  Note that this replacement inherits the Is_Static_Expression flag
       --  from the operand.
 
@@ -6225,7 +6275,7 @@ package body Sem_Eval is
          return;
 
       --  Here we have the case of an operand whose type is OK, which is
-      --  static, and which does not raise constraint error, we can fold.
+      --  static, and which does not raise Constraint_Error, we can fold.
 
       else
          Set_Is_Static_Expression (N);
@@ -6265,7 +6315,7 @@ package body Sem_Eval is
          Set_Etype (N, Any_Type);
          return;
 
-      --  If left operand raises constraint error, then replace node N with the
+      --  If left operand raises Constraint_Error, then replace node N with the
       --  Raise_Constraint_Error node, and we are obviously not foldable.
       --  Is_Static_Expression is set from the two operands in the normal way,
       --  and we check the right operand if it is in a non-static context.
@@ -6318,7 +6368,7 @@ package body Sem_Eval is
          return;
 
       --  Else result is static and foldable. Both operands are static, and
-      --  neither raises constraint error, so we can definitely fold.
+      --  neither raises Constraint_Error, so we can definitely fold.
 
       else
          Set_Is_Static_Expression (N);
@@ -6344,7 +6394,7 @@ package body Sem_Eval is
 
       pragma Warnings (Off, Assume_Valid);
       --  For now Assume_Valid is unreferenced since the current implementation
-      --  always returns Unknown if N is not a compile time known value, but we
+      --  always returns Unknown if N is not a compile-time-known value, but we
       --  keep the parameter to allow for future enhancements in which we try
       --  to get the information in the variable case as well.
 
@@ -6355,7 +6405,7 @@ package body Sem_Eval is
       if Error_Posted (N) then
          return Unknown;
 
-      --  Expression that raises constraint error is an odd case. We certainly
+      --  Expression that raises Constraint_Error is an odd case. We certainly
       --  do not want to consider it to be in range. It might make sense to
       --  consider it always out of range, but this causes incorrect error
       --  messages about static expressions out of range. So we just return
@@ -6377,7 +6427,7 @@ package body Sem_Eval is
 
       --  Never known if this is a generic type, since the bounds of generic
       --  types are junk. Note that if we only checked for static expressions
-      --  (instead of compile time known values) below, we would not need this
+      --  (instead of compile-time-known values) below, we would not need this
       --  check, because values of a generic type can never be static, but they
       --  can be known at compile time.
 
@@ -6543,7 +6593,7 @@ package body Sem_Eval is
             return;
          end if;
 
-         --  Test for constraint error raised
+         --  Test for Constraint_Error raised
 
          if Raises_Constraint_Error (Expr) then
 

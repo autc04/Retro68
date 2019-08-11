@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2018 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2019 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
@@ -30,6 +30,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#include "async.h"
 
 typedef unsigned char uchar;
 
@@ -42,6 +43,7 @@ typedef unsigned char uchar;
 void
 set_integer (void *dest, GFC_INTEGER_LARGEST value, int length)
 {
+  NOTE ("set_integer: %lld %p", (long long int) value, dest);
   switch (length)
     {
 #ifdef HAVE_GFC_INTEGER_16

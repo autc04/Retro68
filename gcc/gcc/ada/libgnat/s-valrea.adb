@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -342,7 +342,7 @@ package body System.Val_Real is
       --  For base 10, use power of ten table, repeatedly if necessary
 
       elsif Scale > 0 then
-         while Scale > Maxpow loop
+         while Scale > Maxpow and then Uval'Valid loop
             Uval := Uval * Powten (Maxpow);
             Scale := Scale - Maxpow;
          end loop;
@@ -350,18 +350,21 @@ package body System.Val_Real is
          --  Note that we still know that Scale > 0, since the loop
          --  above leaves Scale in the range 1 .. Maxpow.
 
-         Uval := Uval * Powten (Scale);
+         if Uval'Valid then
+            Uval := Uval * Powten (Scale);
+         end if;
 
       elsif Scale < 0 then
-         while (-Scale) > Maxpow loop
+         while (-Scale) > Maxpow and then Uval'Valid loop
             Uval := Uval / Powten (Maxpow);
             Scale := Scale + Maxpow;
          end loop;
 
          --  Note that we still know that Scale < 0, since the loop
          --  above leaves Scale in the range -Maxpow .. -1.
-
-         Uval := Uval / Powten (-Scale);
+         if Uval'Valid then
+            Uval := Uval / Powten (-Scale);
+         end if;
       end if;
 
       --  Here is where we check for a bad based number

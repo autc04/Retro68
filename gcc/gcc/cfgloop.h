@@ -1,5 +1,5 @@
 /* Natural loop functions
-   Copyright (C) 1987-2018 Free Software Foundation, Inc.
+   Copyright (C) 1987-2019 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -227,6 +227,10 @@ struct GTY ((chain_next ("%h.next"))) loop {
      Other values means unroll with the given unrolling factor.  */
   unsigned short unroll;
 
+  /* If this loop was inlined the main clique of the callee which does
+     not need remapping when copying the loop body.  */
+  unsigned short owned_clique;
+
   /* For SIMD loops, this is a unique identifier of the loop, referenced
      by IFN_GOMP_SIMD_VF, IFN_GOMP_SIMD_LANE and IFN_GOMP_SIMD_LAST_LANE
      builtins.  */
@@ -357,7 +361,7 @@ extern bool loop_exit_edge_p (const struct loop *, const_edge);
 extern bool loop_exits_to_bb_p (struct loop *, basic_block);
 extern bool loop_exits_from_bb_p (struct loop *, basic_block);
 extern void mark_loop_exit_edges (void);
-extern location_t get_loop_location (struct loop *loop);
+extern dump_user_location_t get_loop_location (struct loop *loop);
 
 /* Loops & cfg manipulation.  */
 extern basic_block *get_loop_body (const struct loop *);

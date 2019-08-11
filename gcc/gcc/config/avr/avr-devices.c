@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2018 Free Software Foundation, Inc.
+/* Copyright (C) 2009-2019 Free Software Foundation, Inc.
    Contributed by Anatoly Sokolov (aesok@post.ru)
 
    This file is part of GCC.
@@ -76,7 +76,7 @@ avr_texinfo[] =
     "the @code{MOVW} instruction." },
   { ARCH_AVR3,
     "``Classic'' devices with 16@tie{}KiB up to 64@tie{}KiB of "
-    " program memory." },
+    "program memory." },
   { ARCH_AVR31,
     "``Classic'' devices with 128@tie{}KiB of program memory." },
   { ARCH_AVR35,

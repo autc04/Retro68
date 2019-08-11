@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1123,6 +1123,14 @@ package body Binde is
            and then Units.Table (Chosen).RCI
          then
             null;
+
+         --  If this unit is an interface to a stand-alone library, then we
+         --  don't want to elaborate the body -- that will happen as part of
+         --  the library.
+
+         elsif Units.Table (Chosen).SAL_Interface then
+            null;
+
          else
             Choose
               (Elab_Order => Elab_Order,

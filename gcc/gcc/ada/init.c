@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *          Copyright (C) 1992-2018, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2019, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -1937,7 +1937,7 @@ __gnat_map_signal (int sig,
   Raise_From_Signal_Handler (exception, msg);
 }
 
-#if defined (ARMEL) && (_WRS_VXWORKS_MAJOR >= 7) || defined (__aarch64__)
+#if defined (ARMEL) && (_WRS_VXWORKS_MAJOR >= 7) && !defined (__aarch64__)
 
 /* ARM-vx7 case with arm unwinding exceptions */
 #define HAVE_GNAT_ADJUST_CONTEXT_FOR_RAISE

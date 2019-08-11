@@ -1,5 +1,5 @@
 /* Predictive commoning.
-   Copyright (C) 2005-2018 Free Software Foundation, Inc.
+   Copyright (C) 2005-2019 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -1280,7 +1280,8 @@ find_looparound_phi (struct loop *loop, dref ref, dref root)
   memset (&init_dr, 0, sizeof (struct data_reference));
   DR_REF (&init_dr) = init_ref;
   DR_STMT (&init_dr) = phi;
-  if (!dr_analyze_innermost (&DR_INNERMOST (&init_dr), init_ref, loop))
+  if (!dr_analyze_innermost (&DR_INNERMOST (&init_dr), init_ref, loop,
+			     init_stmt))
     return NULL;
 
   if (!valid_initializer_p (&init_dr, ref->distance + 1, root->ref))
@@ -2835,7 +2836,7 @@ try_combine_chains (struct loop *loop, vec<chain_p> *chains)
     return;
 
   /* Setup UID for all statements in dominance order.  */
-  basic_block *bbs = get_loop_body (loop);
+  basic_block *bbs = get_loop_body_in_dom_order (loop);
   renumber_gimple_stmt_uids_in_blocks (bbs, loop->num_nodes);
   free (bbs);
 

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -305,7 +305,9 @@ package Errout is
    --      Note: this usage is obsolete, use ?? ?*? ?$? ?x? ?X? to specify
    --      the string to be added when Warn_Doc_Switch is set to True. If this
    --      switch is True, then for simple ? messages it has no effect. This
-   --      simple form is to ease transition and will be removed later.
+   --      simple form is to ease transition and may be removed later except
+   --      for GNATprove-specific messages (info and warnings) which are not
+   --      subject to the same GNAT warning switches.
 
    --    Insertion character ?? (Two question marks: default warning)
    --      Like ?, but if the flag Warn_Doc_Switch is True, adds the string

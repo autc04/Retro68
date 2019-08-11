@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2018, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -624,7 +624,7 @@ package Lib.Writ is
    --    Z unit-name [source-name lib-name] [E] [EA] [ED] [AD]
 
    --      One W line is present for each unit that is mentioned in an explicit
-   --      non-limited with clause by the current unit. One Y line is present
+   --      nonlimited with clause by the current unit. One Y line is present
    --      for each unit that is mentioned in an explicit limited with clause
    --      by the current unit. One Z line is present for each unit that is
    --      only implicitly withed by the current unit. The first parameter is

@@ -1,5 +1,5 @@
 /* Loop unrolling.
-   Copyright (C) 2002-2018 Free Software Foundation, Inc.
+   Copyright (C) 2002-2019 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -189,7 +189,7 @@ static rtx get_expansion (struct var_to_expand *);
    appropriate given the dump or -fopt-info settings.  */
 
 static void
-report_unroll (struct loop *loop, location_t locus)
+report_unroll (struct loop *loop, dump_location_t locus)
 {
   dump_flags_t report_flags = MSG_OPTIMIZED_LOCATIONS | TDF_DETAILS;
 
@@ -199,15 +199,16 @@ report_unroll (struct loop *loop, location_t locus)
   if (!dump_enabled_p ())
     return;
 
-  dump_printf_loc (report_flags, locus,
+  dump_metadata_t metadata (report_flags, locus.get_impl_location ());
+  dump_printf_loc (metadata, locus.get_user_location (),
                    "loop unrolled %d times",
                    loop->lpt_decision.times);
   if (profile_info && loop->header->count.initialized_p ())
-    dump_printf (report_flags,
+    dump_printf (metadata,
                  " (header execution count %d)",
                  (int)loop->header->count.to_gcov_type ());
 
-  dump_printf (report_flags, "\n");
+  dump_printf (metadata, "\n");
 }
 
 /* Decide whether unroll loops and how much.  */
@@ -220,7 +221,7 @@ decide_unrolling (int flags)
   FOR_EACH_LOOP (loop, LI_FROM_INNERMOST)
     {
       loop->lpt_decision.decision = LPT_NONE;
-      location_t locus = get_loop_location (loop);
+      dump_user_location_t locus = get_loop_location (loop);
 
       if (dump_enabled_p ())
 	dump_printf_loc (MSG_NOTE, locus,
@@ -399,7 +400,7 @@ decide_unroll_constant_iterations (struct loop *loop, int flags)
     {
       /* However we cannot unroll completely at the RTL level a loop with
 	 constant number of iterations; it should have been peeled instead.  */
-      if ((unsigned) loop->unroll - 1 > desc->niter - 2)
+      if (desc->niter == 0 || (unsigned) loop->unroll > desc->niter - 1)
 	{
 	  if (dump_file)
 	    fprintf (dump_file, ";; Loop should have been peeled\n");
@@ -651,7 +652,7 @@ unroll_loop_constant_iterations (struct loop *loop)
   if (loop->any_likely_upper_bound)
     loop->nb_iterations_likely_upper_bound
       = wi::udiv_trunc (loop->nb_iterations_likely_upper_bound, max_unroll + 1);
-  desc->niter_expr = GEN_INT (desc->niter);
+  desc->niter_expr = gen_int_mode (desc->niter, desc->mode);
 
   /* Remove the edges.  */
   FOR_EACH_VEC_ELT (remove_edges, i, e)
@@ -1019,9 +1020,9 @@ unroll_loop_runtime_iterations (struct loop *loop)
       preheader = split_edge (loop_preheader_edge (loop));
       /* Add in count of edge from switch block.  */
       preheader->count += iter_count;
-      branch_code = compare_and_jump_seq (copy_rtx (niter), GEN_INT (j), EQ,
-					  block_label (preheader), p,
-					  NULL);
+      branch_code = compare_and_jump_seq (copy_rtx (niter),
+					  gen_int_mode (j, desc->mode), EQ,
+					  block_label (preheader), p, NULL);
 
       /* We rely on the fact that the compare and jump cannot be optimized out,
 	 and hence the cfg we create is correct.  */
@@ -1406,7 +1407,7 @@ analyze_insn_to_expand_var (struct loop *loop, rtx_insn *insn)
     }
 
   /* Hmm, this is a bit paradoxical.  We know that INSN is a valid insn
-     in MD.  But if there is no optab to generate the insn, we can not
+     in MD.  But if there is no optab to generate the insn, we cannot
      perform the variable expansion.  This can happen if an MD provides
      an insn but not a named pattern to generate it, for example to avoid
      producing code that needs additional mode switches like for x87/mmx.

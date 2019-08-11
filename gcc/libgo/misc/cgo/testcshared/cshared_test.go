@@ -201,6 +201,16 @@ func run(t *testing.T, env []string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env
+
+	if GOOS != "windows" {
+		// TestUnexportedSymbols relies on file descriptor 30
+		// being closed when the program starts, so enforce
+		// that in all cases. (The first three descriptors are
+		// stdin/stdout/stderr, so we just need to make sure
+		// that cmd.ExtraFiles[27] exists and is nil.)
+		cmd.ExtraFiles = make([]*os.File, 28)
+	}
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("command failed: %v\n%v\n%s\n", args, err, out)
@@ -322,7 +332,11 @@ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
 
 	createHeadersOnce(t)
 
-	runCC(t, "-o", cmd, "main1.c", "-ldl")
+	if GOOS != "freebsd" {
+		runCC(t, "-o", cmd, "main1.c", "-ldl")
+	} else {
+		runCC(t, "-o", cmd, "main1.c")
+	}
 	adbPush(t, cmd)
 
 	defer os.Remove(bin)
@@ -411,7 +425,11 @@ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
 		"-o", libname, pkgname,
 	)
 	adbPush(t, libname)
-	runCC(t, "-pthread", "-o", cmd, cfile, "-ldl")
+	if GOOS != "freebsd" {
+		runCC(t, "-pthread", "-o", cmd, cfile, "-ldl")
+	} else {
+		runCC(t, "-pthread", "-o", cmd, cfile)
+	}
 	adbPush(t, cmd)
 
 	bin := cmdToRun(cmd)
@@ -583,4 +601,56 @@ func copyFile(t *testing.T, dst, src string) {
 	if err := ioutil.WriteFile(dst, data, 0666); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestGo2C2Go(t *testing.T) {
+	switch GOOS {
+	case "darwin":
+		// Darwin shared libraries don't support the multiple
+		// copies of the runtime package implied by this test.
+		t.Skip("linking c-shared into Go programs not supported on Darwin; issue 29061")
+	case "android":
+		t.Skip("test fails on android; issue 29087")
+	}
+
+	t.Parallel()
+
+	tmpdir, err := ioutil.TempDir("", "cshared-TestGo2C2Go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	shlib := filepath.Join(tmpdir, "libtestgo2c2go."+libSuffix)
+	run(t, gopathEnv, "go", "build", "-buildmode=c-shared", "-o", shlib, "go2c2go/go")
+
+	cgoCflags := os.Getenv("CGO_CFLAGS")
+	if cgoCflags != "" {
+		cgoCflags += " "
+	}
+	cgoCflags += "-I" + tmpdir
+
+	cgoLdflags := os.Getenv("CGO_LDFLAGS")
+	if cgoLdflags != "" {
+		cgoLdflags += " "
+	}
+	cgoLdflags += "-L" + tmpdir + " -ltestgo2c2go"
+
+	goenv := append(gopathEnv[:len(gopathEnv):len(gopathEnv)], "CGO_CFLAGS="+cgoCflags, "CGO_LDFLAGS="+cgoLdflags)
+
+	ldLibPath := os.Getenv("LD_LIBRARY_PATH")
+	if ldLibPath != "" {
+		ldLibPath += ":"
+	}
+	ldLibPath += tmpdir
+
+	runenv := append(gopathEnv[:len(gopathEnv):len(gopathEnv)], "LD_LIBRARY_PATH="+ldLibPath)
+
+	bin := filepath.Join(tmpdir, "m1") + exeSuffix
+	run(t, goenv, "go", "build", "-o", bin, "go2c2go/m1")
+	runExe(t, runenv, bin)
+
+	bin = filepath.Join(tmpdir, "m2") + exeSuffix
+	run(t, goenv, "go", "build", "-o", bin, "go2c2go/m2")
+	runExe(t, runenv, bin)
 }

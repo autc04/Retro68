@@ -1,6 +1,6 @@
 // wstring_convert implementation -*- C++ -*-
 
-// Copyright (C) 2015-2018 Free Software Foundation, Inc.
+// Copyright (C) 2015-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -35,10 +35,10 @@
 #else
 
 #include <streambuf>
-#include "stringfwd.h"
-#include "allocator.h"
-#include "codecvt.h"
-#include "unique_ptr.h"
+#include <bits/stringfwd.h>
+#include <bits/allocator.h>
+#include <bits/codecvt.h>
+#include <bits/unique_ptr.h>
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -158,6 +158,39 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       return __str_codecvt_out(__first, __last, __outstr, __cvt, __state, __n);
     }
 
+#ifdef _GLIBCXX_USE_CHAR8_T
+
+  // Convert wide character string to narrow.
+  template<typename _CharT, typename _Traits, typename _Alloc, typename _State>
+    inline bool
+    __str_codecvt_out(const _CharT* __first, const _CharT* __last,
+		      basic_string<char8_t, _Traits, _Alloc>& __outstr,
+		      const codecvt<_CharT, char8_t, _State>& __cvt,
+		      _State& __state, size_t& __count)
+    {
+      using _Codecvt = codecvt<_CharT, char8_t, _State>;
+      using _ConvFn
+	= codecvt_base::result
+	  (_Codecvt::*)(_State&, const _CharT*, const _CharT*, const _CharT*&,
+			char8_t*, char8_t*, char8_t*&) const;
+      _ConvFn __fn = &codecvt<_CharT, char8_t, _State>::out;
+      return __do_str_codecvt(__first, __last, __outstr, __cvt, __state,
+			      __count, __fn);
+    }
+
+  template<typename _CharT, typename _Traits, typename _Alloc, typename _State>
+    inline bool
+    __str_codecvt_out(const _CharT* __first, const _CharT* __last,
+		      basic_string<char8_t, _Traits, _Alloc>& __outstr,
+		      const codecvt<_CharT, char8_t, _State>& __cvt)
+    {
+      _State __state = {};
+      size_t __n;
+      return __str_codecvt_out(__first, __last, __outstr, __cvt, __state, __n);
+    }
+
+#endif  // _GLIBCXX_USE_CHAR8_T
+
 #ifdef _GLIBCXX_USE_WCHAR_T
 
 _GLIBCXX_BEGIN_NAMESPACE_CXX11
@@ -174,14 +207,17 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       typedef typename _Codecvt::state_type 			   state_type;
       typedef typename wide_string::traits_type::int_type	   int_type;
 
-      /** Default constructor.
+      /// Default constructor.
+      wstring_convert() : _M_cvt(new _Codecvt()) { }
+
+      /** Constructor.
        *
        * @param  __pcvt The facet to use for conversions.
        *
        * Takes ownership of @p __pcvt and will delete it in the destructor.
        */
       explicit
-      wstring_convert(_Codecvt* __pcvt = new _Codecvt()) : _M_cvt(__pcvt)
+      wstring_convert(_Codecvt* __pcvt) : _M_cvt(__pcvt)
       {
 	if (!_M_cvt)
 	  __throw_logic_error("wstring_convert");
@@ -325,7 +361,10 @@ _GLIBCXX_END_NAMESPACE_CXX11
     public:
       typedef typename _Codecvt::state_type state_type;
 
-      /** Default constructor.
+      /// Default constructor.
+      wbuffer_convert() : wbuffer_convert(nullptr) { }
+
+      /** Constructor.
        *
        * @param  __bytebuf The underlying byte stream buffer.
        * @param  __pcvt    The facet to use for conversions.
@@ -334,7 +373,7 @@ _GLIBCXX_END_NAMESPACE_CXX11
        * Takes ownership of @p __pcvt and will delete it in the destructor.
        */
       explicit
-      wbuffer_convert(streambuf* __bytebuf = 0, _Codecvt* __pcvt = new _Codecvt,
+      wbuffer_convert(streambuf* __bytebuf, _Codecvt* __pcvt = new _Codecvt,
 		      state_type __state = state_type())
       : _M_buf(__bytebuf), _M_cvt(__pcvt), _M_state(__state)
       {

@@ -1,7 +1,7 @@
 // { dg-options "-std=gnu++17" }
 // { dg-do run }
 
-// Copyright (C) 2016-2018 Free Software Foundation, Inc.
+// Copyright (C) 2016-2019 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 #include <unordered_set>
+#include <ext/throw_allocator.h>
 #include <testsuite_hooks.h>
 
 using namespace std;
@@ -56,6 +57,15 @@ struct AlwaysThrow
   bool operator>(const AlwaysThrow&) const { VERIFY(false); }
 };
 
+struct DeletedMoves
+{
+  DeletedMoves() = default;
+  DeletedMoves(const DeletedMoves&) = default;
+  DeletedMoves(DeletedMoves&&) = delete;
+  DeletedMoves& operator=(const DeletedMoves&) = default;
+  DeletedMoves& operator=(DeletedMoves&&) = delete;
+};
+
 void default_ctor()
 {
   variant<monostate, string> v;
@@ -79,6 +89,12 @@ void move_ctor()
   VERIFY(holds_alternative<string>(u));
   VERIFY(get<string>(u) == "a");
   VERIFY(holds_alternative<string>(v));
+
+  variant<vector<int>, DeletedMoves> d{std::in_place_index<0>, {1, 2, 3, 4}};
+  // DeletedMoves is not move constructible, so this uses copy ctor:
+  variant<vector<int>, DeletedMoves> e(std::move(d));
+  VERIFY(std::get<0>(d).size() == 4);
+  VERIFY(std::get<0>(e).size() == 4);
 }
 
 void arbitrary_ctor()
@@ -88,6 +104,21 @@ void arbitrary_ctor()
   VERIFY(get<1>(v) == "a");
 }
 
+struct ThrowingMoveCtorThrowsCopyCtor
+{
+  ThrowingMoveCtorThrowsCopyCtor() noexcept = default;
+  ThrowingMoveCtorThrowsCopyCtor(ThrowingMoveCtorThrowsCopyCtor&&) {}
+  ThrowingMoveCtorThrowsCopyCtor(ThrowingMoveCtorThrowsCopyCtor const&)
+  {
+    throw 0;
+  }
+
+  ThrowingMoveCtorThrowsCopyCtor& operator=(ThrowingMoveCtorThrowsCopyCtor&&) noexcept
+    = default;
+  ThrowingMoveCtorThrowsCopyCtor& operator=(ThrowingMoveCtorThrowsCopyCtor const&) noexcept
+    = default;
+};
+
 void copy_assign()
 {
   variant<monostate, string> v("a");
@@ -96,6 +127,20 @@ void copy_assign()
   u = v;
   VERIFY(holds_alternative<string>(u));
   VERIFY(get<string>(u) == "a");
+  {
+    std::variant<int, ThrowingMoveCtorThrowsCopyCtor> v1,
+      v2 = ThrowingMoveCtorThrowsCopyCtor();
+    bool should_throw = false;
+    try
+      {
+	v1 = v2;
+      }
+    catch(int)
+      {
+	should_throw = true;
+      }
+    VERIFY(should_throw);
+  }
 }
 
 void move_assign()
@@ -107,6 +152,13 @@ void move_assign()
   VERIFY(holds_alternative<string>(u));
   VERIFY(get<string>(u) == "a");
   VERIFY(holds_alternative<string>(v));
+
+  variant<vector<int>, DeletedMoves> d{std::in_place_index<0>, {1, 2, 3, 4}};
+  variant<vector<int>, DeletedMoves> e;
+  // DeletedMoves is not move assignable, so this uses copy assignment:
+  e = std::move(d);
+  VERIFY(std::get<0>(d).size() == 4);
+  VERIFY(std::get<0>(e).size() == 4);
 }
 
 void arbitrary_assign()
@@ -183,11 +235,15 @@ void emplace()
     AlwaysThrow a;
     try { v.emplace<1>(a); } catch (nullptr_t) { }
     VERIFY(v.valueless_by_exception());
+    v.emplace<0>(42);
+    VERIFY(!v.valueless_by_exception());
   }
   {
     variant<int, AlwaysThrow> v;
     try { v.emplace<1>(AlwaysThrow{}); } catch (nullptr_t) { }
     VERIFY(v.valueless_by_exception());
+    v.emplace<0>(42);
+    VERIFY(!v.valueless_by_exception());
   }
   VERIFY(&v.emplace<0>(1) == &std::get<0>(v));
   VERIFY(&v.emplace<int>(1) == &std::get<int>(v));
@@ -197,6 +253,41 @@ void emplace()
     variant<vector<int>> v;
     VERIFY(&v.emplace<0>({1,2,3}) == &std::get<0>(v));
     VERIFY(&v.emplace<vector<int>>({1,2,3}) == &std::get<vector<int>>(v));
+  }
+
+  {
+    // Ensure no copies of the vector are made, only moves.
+    // See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87431#c21
+
+    // static_assert(__detail::__variant::_Never_valueless_alt<vector<AlwaysThrow>>::value);
+    variant<int, DeletedMoves, vector<AlwaysThrow>> v;
+    v.emplace<2>(1);
+    v.emplace<vector<AlwaysThrow>>(1);
+    v.emplace<0>(0);
+
+    // To test the emplace(initializer_list<U>, Args&&...) members we
+    // can't use AlwaysThrow because elements in an initialier_list
+    // are always copied. Use throw_allocator instead.
+    using Vector = vector<int, __gnu_cxx::throw_allocator_limit<int>>;
+    // static_assert(__detail::__variant::_Never_valueless_alt<Vector>::value);
+    variant<int, DeletedMoves, Vector> vv;
+    Vector::allocator_type::set_limit(1);
+    vv.emplace<2>(1, 1);
+    Vector::allocator_type::set_limit(1);
+    vv.emplace<Vector>(1, 1);
+    Vector::allocator_type::set_limit(1);
+    vv.emplace<0>(0);
+    Vector::allocator_type::set_limit(1);
+    vv.emplace<2>({1, 2, 3});
+    Vector::allocator_type::set_limit(1);
+    vv.emplace<Vector>({1, 2, 3, 4});
+    try {
+      Vector::allocator_type::set_limit(0);
+      vv.emplace<2>(1, 1);
+      VERIFY(false);
+    } catch (const __gnu_cxx::forced_error&) {
+    }
+    VERIFY(vv.valueless_by_exception());
   }
 }
 
@@ -258,6 +349,7 @@ void test_relational()
     VERIFY(v < w);
     VERIFY(v <= w);
     VERIFY(!(v == w));
+    VERIFY(v == v);
     VERIFY(v != w);
     VERIFY(w > v);
     VERIFY(w >= v);
@@ -340,9 +432,30 @@ void test_visit()
   }
 }
 
+struct Hashable
+{
+  Hashable(const char* s) : s(s) { }
+  // Non-trivial special member functions:
+  Hashable(const Hashable&) { }
+  Hashable(Hashable&&) noexcept { }
+  ~Hashable() { }
+
+  string s;
+
+  bool operator==(const Hashable& rhs) const noexcept
+  { return s == rhs.s; }
+};
+
+namespace std {
+  template<> struct hash<Hashable> {
+    size_t operator()(const Hashable& h) const noexcept
+    { return hash<std::string>()(h.s); }
+  };
+}
+
 void test_hash()
 {
-  unordered_set<variant<int, string>> s;
+  unordered_set<variant<int, Hashable>> s;
   VERIFY(s.emplace(3).second);
   VERIFY(s.emplace("asdf").second);
   VERIFY(s.emplace().second);
@@ -354,15 +467,15 @@ void test_hash()
   {
     struct A
     {
-      operator int()
+      operator Hashable()
       {
         throw nullptr;
       }
     };
-    variant<int, string> v;
+    variant<int, Hashable> v;
     try
       {
-        v.emplace<0>(A{});
+        v.emplace<1>(A{});
       }
     catch (nullptr_t)
       {
