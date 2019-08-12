@@ -67,7 +67,7 @@ void MacSerialStream::write(const void* p, size_t n)
     pb.ioParam.ioRefNum = outRefNum;
         pb.ioParam.ioBuffer = (Ptr)p;
         pb.ioParam.ioReqCount = n;
-	OSErr err = PBWriteSync(&pb);
+	/*OSErr err =*/ PBWriteSync(&pb);
 }
 
 void MacSerialStream::idle()
