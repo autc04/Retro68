@@ -78,7 +78,7 @@ function(add_application name)
 
 
 	if(TARGET retrocrt)
-        target_link_libraries(${name} retrocrt)
+        add_dependencies(${name} retrocrt)
 	endif(TARGET retrocrt)
 
 	if(CMAKE_SYSTEM_NAME MATCHES Retro68)

@@ -30,6 +30,15 @@ add_executable(SystemExtension
 	SystemExtension.r
 	ShowInitIcon.h)
 
+if(TARGET retrocrt)
+    # Hack: if we are building as part of the Retro68 source tree,
+    #       make sure the run-time library is already compiled
+    # (not needed for standalone projects)
+    add_dependencies(SystemExtension retrocrt)
+endif(TARGET retrocrt)
+
+
+
 set_target_properties(SystemExtension PROPERTIES
 	OUTPUT_NAME SystemExtension.flt
 	

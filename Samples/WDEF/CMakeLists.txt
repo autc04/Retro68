@@ -29,6 +29,15 @@
 # First, let's build a separate code resource:
 add_executable(WDEF wdef.c)
 
+
+if(TARGET retrocrt)
+    # Hack: if we are building as part of the Retro68 source tree,
+    #       make sure the run-time library is already compiled
+    # (not needed for standalone projects)
+    add_dependencies(WDEF retrocrt)
+endif(TARGET retrocrt)
+
+
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
     set_target_properties(WDEF PROPERTIES
             # tell wdef.c that it is being compiled as a code resource
