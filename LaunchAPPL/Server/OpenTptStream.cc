@@ -24,6 +24,7 @@
 
 #include "OpenTptStream.h"
 
+#include <Files.h> /* in UniversalHeaders 3.4.2 requires Files.h to be included before OpenTransportProviders.h */
 #include <OpenTransport.h>
 #include <OpenTransportProviders.h>
 
