@@ -79,7 +79,7 @@ SegmentMap::SegmentMap(std::string filename)
 		std::string s;
 		in >> std::ws;
 		std::getline(in, s);
-		std::cout << "segs: " << s << std::endl;
+		//std::cout << "segs: " << s << std::endl;
 		if(!in)
 			break;
 
