@@ -77,9 +77,9 @@ function(add_application name)
 	endif()
 
 
-	if(TARGET libretro)
-		set_target_properties(${name} PROPERTIES LINK_DEPENDS libretro)
-	endif(TARGET libretro)
+	if(TARGET retrocrt)
+        target_link_libraries(${name} retrocrt)
+	endif(TARGET retrocrt)
 
 	if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 
