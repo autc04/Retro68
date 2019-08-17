@@ -171,7 +171,7 @@ function setUpInterfacesAndLibraries()
 	if [ $BUILD_68K != false ]; then
 		echo "Converting 68K static libraries..."
 		for macobj in "${M68KLIBRARIES}/"*.o; do
-			if [ -r $macobj ]; then
+			if [ -r "$macobj" ]; then
 				libname=`basename "$macobj"`
 				libname=${libname%.o}
 				printf "    %30s => %-30s\n" ${libname}.o lib${libname}.a
@@ -203,17 +203,17 @@ function setUpInterfacesAndLibraries()
 				;;
 		esac
 
-		if [ -d ${PPCLIBRARIES} ]; then
+		if [ -d "${PPCLIBRARIES}" ]; then
 			echo "Copying static PPC libraries"
-			for obj in ${PPCLIBRARIES}/OpenT*.o ${PPCLIBRARIES}/CarbonAccessors.o ${PPCLIBRARIES}/CursorDevicesGlue.o; do
-				if [ -r $obj ]; then
+			for obj in "${PPCLIBRARIES}/OpenT*.o" "${PPCLIBRARIES}/CarbonAccessors.o" "${PPCLIBRARIES}/CursorDevicesGlue.o"; do
+				if [ -r "$obj" ]; then
 					# copy the library:
-					cp $obj $PREFIX/powerpc-apple-macos/lib/
+					cp "$obj" "$PREFIX/powerpc-apple-macos/lib/"
 
 					# and wrap it in a .a archive for convenience
-					lib=$PREFIX/powerpc-apple-macos/lib/lib`basename "${obj%.o}"`.a
-					rm -f $lib
-					$PREFIX/bin/powerpc-apple-macos-ar cqs $lib $obj
+					lib="$PREFIX"/powerpc-apple-macos/lib/lib`basename "${obj%.o}"`.a
+					rm -f "$lib"
+					powerpc-apple-macos-ar cqs "$lib" "$obj"
 				fi
 			done
 		fi
@@ -228,12 +228,13 @@ if [ "$0" = "$BASH_SOURCE" ]; then
 		exit 1
 	fi
 
-	PREFIX=$1
-	INTERFACES_DIR=$2
+	PREFIX="$1"
+	INTERFACES_DIR="$2"
 	BUILD_68K=${3:-true}
 	BUILD_PPC=${4:-true}
 	BUILD_CARBON=${5:-true}
 	SRC=$(cd `dirname $0` && pwd -P)
+    export PATH="$PREFIX/bin:$PATH"
 
 	locateAndCheckInterfacesAndLibraries
 	setUpInterfacesAndLibraries

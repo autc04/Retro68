@@ -1,10 +1,10 @@
-IN=$1
-OUT=$2
+IN="$1"
+OUT="$2"
 
 # Make Mac OS X's tr and sed not complain that the files are not UTF-8
 export LC_ALL=C
 
-for file in $(cd $IN; ls *.h); do
+for file in $(cd "$IN"; ls *.h); do
 	# Filter by file names.
 	# Some CIncludes packages include the MPW standard library.
 	# Header files from that standard library would overwrite
@@ -52,12 +52,12 @@ for file in $(cd $IN; ls *.h); do
 	esac
 
 	if [ $USE = true ]; then
-		sed 's/\r$//' < $IN/$file | tr '\r' '\n' > $OUT/$file
+		sed 's/\r$//' < "$IN/$file" | tr '\r' '\n' > "$OUT/$file"
 	fi
 done
 
 ############################# ConditionalMacros.h #############################
-cat > $OUT/ConditionalMacros.h <<END_MARKER
+cat > "$OUT/ConditionalMacros.h" <<END_MARKER
 
 #ifndef __CONDITIONALMACROS__WRAP__
 #define __CONDITIONALMACROS__WRAP__
@@ -84,18 +84,18 @@ cat > $OUT/ConditionalMacros.h <<END_MARKER
 #define __DEBUGGING__  /* HACK: Disable Debugging.h because its vdprintf conflicts with stdio.h */
 END_MARKER
 
-sed 's/\r$//' < $IN/ConditionalMacros.h | tr '\r' '\n' | sed 's/__GNUC__/__GNUC_DISABLED__/g' >> $OUT/ConditionalMacros.h
+sed 's/\r$//' < "$IN/ConditionalMacros.h" | tr '\r' '\n' | sed 's/__GNUC__/__GNUC_DISABLED__/g' >> "$OUT/ConditionalMacros.h"
 
-cat >> $OUT/ConditionalMacros.h <<END_MARKER
+cat >> "$OUT/ConditionalMacros.h" <<END_MARKER
 
 
 #endif /* __CONDITIONALMACROS__WRAP__ */
 END_MARKER
 
 ############################# fp.h #############################
-if [ -r $IN/fp.h ]; then
+if [ -r "$IN/fp.h" ]; then
 
-cat > $OUT/fp.h <<END_MARKER
+cat > "$OUT/fp.h" <<END_MARKER
 
 #ifndef __FP__WRAP__
 #define __FP__WRAP__
@@ -123,11 +123,11 @@ END_MARKER
 fi
 
 ############################# MixedMode.h #############################
-sed 's/\r$//' < $IN/MixedMode.h | tr '\r' '\n' | sed 's/Opaque\#\#name\#\#\*/Opaque\#\#name \*/g' > $OUT/MixedMode.h
+sed 's/\r$//' < "$IN/MixedMode.h" | tr '\r' '\n' | sed 's/Opaque\#\#name\#\#\*/Opaque\#\#name \*/g' > "$OUT/MixedMode.h"
 
 ############################# CGBase.h #############################
-if [ -r $IN/CGBase.h ]; then
-cat > $OUT/CGBase.h <<END_MARKER
+if [ -r "$IN/CGBase.h" ]; then
+cat > "$OUT/CGBase.h" <<END_MARKER
 
 #ifndef __CGBASE__WRAP__
 #define __CGBASE__WRAP__
@@ -144,9 +144,9 @@ cat > $OUT/CGBase.h <<END_MARKER
 
 END_MARKER
 
-sed 's/\r$//' < $IN/CGBase.h | tr '\r' '\n' >> $OUT/CGBase.h
+sed 's/\r$//' < "$IN/CGBase.h" | tr '\r' '\n' >> "$OUT/CGBase.h"
 
-cat >> $OUT/CGBase.h <<END_MARKER
+cat >> "$OUT/CGBase.h" <<END_MARKER
 
 #undef u_int32_t __cgbase_incompatible_u_int32_t
 
@@ -158,16 +158,16 @@ END_MARKER
 fi
 
 for f in Types.h Memory.h Windows.h Errors.h; do
-	if [ ! -r $IN/$f ]; then
-		echo "#include \"Mac$f\"" > $OUT/$f
-	elif [ ! -r $IN/Mac$f ]; then
-		echo "#include \"$f\"" > $OUT/Mac$f
+	if [ ! -r "$IN/$f" ]; then
+		echo "#include \"Mac$f\"" > "$OUT/$f"
+	elif [ ! -r "$IN/Mac$f" ]; then
+		echo "#include \"$f\"" > "$OUT/Mac$f"
 	fi
 done
 
-if [ -d $IN/CoreFoundation ]; then
-	mkdir -p $OUT/CoreFoundation
-	for file in $(cd $IN; ls CoreFoundation/*.h); do
-		sed 's/\r$//' < $IN/$file | tr '\r' '\n' > $OUT/$file
+if [ -d "$IN/CoreFoundation" ]; then
+	mkdir -p "$OUT/CoreFoundation"
+	for file in $(cd "$IN"; ls CoreFoundation/*.h); do
+		sed 's/\r$//' < "$IN/$file" | tr '\r' '\n' > "$OUT/$file"
 	done
 fi
