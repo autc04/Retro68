@@ -135,6 +135,21 @@ function locateAndCheckInterfacesAndLibraries()
 	fi
 }
 
+# remove old symlinks in $PREFIX/*-apple-macos/include/
+# and link files from $PREFIX/CIncludes
+function linkheaders()
+{
+	# incompatible with Universal Interfaces on case-insensitive file systems
+	# (and does not currently work anyways)
+	rm -f "$1"/threads.h
+
+	# the following command doesn't work on older Mac OS X versions.
+	# allow it to fail quietly, at worst we leave some dangling symlinks around
+	# in the rare situation that headers are removed from the input directory
+	find "$1" -lname "../../CIncludes/*" -delete || true
+	(cd "$1" && find "../../CIncludes/" -name '*.h' -exec ln -s {} . \;)
+}
+
 function setUpInterfacesAndLibraries()
 {
 	echo "Preparing CIncludes..."
@@ -147,6 +162,22 @@ function setUpInterfacesAndLibraries()
 	mkdir "$PREFIX/RIncludes"
 	sh "$SRC/prepare-rincludes.sh" "$RINCLUDES" "$PREFIX/RIncludes"
 
+    echo "Creating Symlinks for CIncludes and RIncludes..."
+
+    if [ $BUILD_68K != false ]; then
+        ln -sf ../RIncludes $PREFIX/m68k-apple-macos/RIncludes
+        linkheaders $PREFIX/m68k-apple-macos/include
+    fi
+
+    if [ $BUILD_PPC != false ]; then
+        ln -sf ../RIncludes $PREFIX/powerpc-apple-macos/RIncludes
+        linkheaders $PREFIX/powerpc-apple-macos/include
+    fi
+
+    FILE_LIST="$PREFIX/apple-libraries.txt"
+    rm -f "$FILE_LIST"
+    touch "$FILE_LIST"
+
 	if [ $BUILD_68K != false ]; then
 		echo "Converting 68K static libraries..."
 		for macobj in "${M68KLIBRARIES}/"*.o; do
@@ -158,7 +189,11 @@ function setUpInterfacesAndLibraries()
 				lib="$PREFIX/m68k-apple-macos/lib/lib${libname}.a"
 				rm -f $lib
 
-				(ConvertObj "$macobj" | m68k-apple-macos-as - -o $obj) && m68k-apple-macos-ar cqs $lib $obj
+                set -o pipefail
+				((ConvertObj "$macobj" | m68k-apple-macos-as - -o "$obj") || (rm "$obj" && false) ) \
+                    && m68k-apple-macos-ar cqs "$lib" "$obj" \
+                    && echo "m68k-apple-macos/lib/$libname.o" >> "$FILE_LIST" \
+                    && echo "m68k-apple-macos/lib/lib${libname}.a" >> "$FILE_LIST"
 			fi
 		done
 	fi
@@ -177,7 +212,8 @@ function setUpInterfacesAndLibraries()
 					libname=`basename "$shlib"`
 					implib=lib${libname}.a
 					printf "    %30s => %-30s\n" ${libname} ${implib}
-					MakeImport "$shlib" "$PREFIX/powerpc-apple-macos/lib/$implib"
+					MakeImport "$shlib" "$PREFIX/powerpc-apple-macos/lib/$implib" \
+                        && echo "powerpc-apple-macos/lib/$implib" >> "$FILE_LIST"
 				done
 				;;
 		esac
@@ -188,15 +224,35 @@ function setUpInterfacesAndLibraries()
 				if [ -r "$obj" ]; then
 					# copy the library:
 					cp "$obj" "$PREFIX/powerpc-apple-macos/lib/"
-
+                    basename=`basename "${obj%.o}"`
 					# and wrap it in a .a archive for convenience
-					lib="$PREFIX"/powerpc-apple-macos/lib/lib`basename "${obj%.o}"`.a
+					lib="$PREFIX"/powerpc-apple-macos/lib/lib$basename.a
 					rm -f "$lib"
 					powerpc-apple-macos-ar cqs "$lib" "$obj"
+                    echo "powerpc-apple-macos/lib/$basename.o" >> "$FILE_LIST"
+                    echo "powerpc-apple-macos/lib/lib$basename.a" >> "$FILE_LIST"
 				fi
 			done
 		fi
 	fi
+}
+
+function removeInterfacesAndLibraries()
+{
+    FILE_LIST="$PREFIX/apple-libraries.txt"
+    if [ -r "$FILE_LIST" ]; then
+        echo "Removing currently installed Apple Interfaces and Libraries..."
+        for file in `cat "$FILE_LIST"`; do
+            rm "$PREFIX/$file"
+        done
+        find "$PREFIX/m68k-apple-macos/include" -lname "../../CIncludes/*" -delete || true
+        find "$PREFIX/powerpc-apple-macos/include" -lname "../../CIncludes/*" -delete || true
+        rm "$PREFIX/m68k-apple-macos/RIncludes"
+        rm "$PREFIX/powerpc-apple-macos/RIncludes"
+        rm -rf "$PREFIX/CIncludes"
+	    rm -rf "$PREFIX/RIncludes"
+        rm "$FILE_LIST"
+    fi
 }
 
 if [ "$0" = "$BASH_SOURCE" ]; then
@@ -204,6 +260,7 @@ if [ "$0" = "$BASH_SOURCE" ]; then
 
 	if [ $# -lt 2 ]; then
 		echo "Usage: $0 /install/path /path/to/InterfacesAndLibraries"
+		echo "       $0 /install/path --remove"
 		exit 1
 	fi
 
@@ -215,6 +272,11 @@ if [ "$0" = "$BASH_SOURCE" ]; then
 	SRC=$(cd `dirname $0` && pwd -P)
     export PATH="$PREFIX/bin:$PATH"
 
-	locateAndCheckInterfacesAndLibraries
-	setUpInterfacesAndLibraries
+    if [ "${INTERFACES_DIR}" = "--remove" ]; then
+        removeInterfacesAndLibraries
+    else
+        locateAndCheckInterfacesAndLibraries
+        removeInterfacesAndLibraries
+        setUpInterfacesAndLibraries
+    fi
 fi

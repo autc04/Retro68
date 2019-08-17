@@ -359,7 +359,8 @@ int main (int argc, char * const argv[])
 		return 1;
 	}
 	
-	MakeImportLibraryMulti(argv[1], argv[2]);
+	if(!MakeImportLibraryMulti(argv[1], argv[2]))
+        return 1;
 
 	close(fd);
     return 0;
