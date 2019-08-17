@@ -20,6 +20,7 @@ set( CMAKE_SYSTEM_VERSION 1)
 
 set( RETRO68_ROOT "@RETRO68_ROOT@" CACHE PATH "path to root of Retro68 Toolchain" )
 set( CMAKE_INSTALL_PREFIX "${RETRO68_ROOT}/powerpc-apple-macos/" CACHE PATH "installation prefix" )
+set( CMAKE_SYSTEM_PREFIX_PATH "${RETRO68_ROOT}/powerpc-apple-macos/" )
 
 set( MAKE_PEF "@CMAKE_BINARY_DIR@/PEFTools/MakePEF" )
 set( MAKE_IMPORT "@CMAKE_BINARY_DIR@/PEFTools/MakeImport" )

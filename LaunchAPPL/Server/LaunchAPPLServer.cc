@@ -46,7 +46,9 @@
 #include "SerialConnectionProvider.h"
 #include "TCPConnectionProvider.h"
 #endif
+#ifdef HAVE_OPENTRANSPORT
 #include "OpenTptConnectionProvider.h"
+#endif
 #include "SharedFileProvider.h"
 
 #include "SystemInfo.h"
@@ -76,7 +78,11 @@ enum
 #if TARGET_API_MAC_CARBON
 bool portsAvailable[] = { false, false, false, false, true };
 #else
+#ifdef HAVE_OPENTRANSPORT
 bool portsAvailable[] = { true, true, false, false, true };
+#else
+bool portsAvailable[] = { true, false, false, false, true };
+#endif
 #endif
 bool hasIconUtils = true;
 bool hasColorQD = true;
@@ -577,9 +583,11 @@ void ConnectionChanged()
             connection = std::make_unique<SerialConnectionProvider>(0, gPrefs.baud, statusDisplay.get());
             break;
 #endif
+#ifdef HAVE_OPENTRANSPORT
         case Port::openTptTCP:
             connection = std::make_unique<OpenTptConnectionProvider>(statusDisplay.get());;
             break;
+#endif
         case Port::sharedFiles:
             if(gPrefs.sharedDirectoryPath[0] == 0)
             {

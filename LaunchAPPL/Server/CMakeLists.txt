@@ -1,9 +1,19 @@
-set(CONNECTION_SOURCES
-        OpenTptStream.h
-        OpenTptStream.cc
-        OpenTptConnectionProvider.h
-        OpenTptConnectionProvider.cc
+set(HAVE_OPENTRANSPORT NO)
+if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
+    find_library(OPENTRANSPORT_LIBRARY NAMES libOpenTransportLib.a)
+    if(OPENTRANSPORT_LIBRARY)
+        set(HAVE_OPENTRANSPORT YES)
+    endif()
+elseif(CMAKE_SYSTEM_NAME MATCHES Retro68)
+    find_library(OPENTRANSPORT_LIBRARY NAMES libOpenTransport.a)
+    if(OPENTRANSPORT_LIBRARY)
+        set(HAVE_OPENTRANSPORT YES)
+    endif()
+elseif(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
+    set(HAVE_OPENTRANSPORT YES)
+endif()
 
+set(CONNECTION_SOURCES
         SharedFileStream.h
         SharedFileStream.cc
         SharedFileProvider.h
@@ -32,6 +42,15 @@ if(LAUNCHAPPLSERVER_DEBUG_CONSOLE)
     set(MAYBE_CONSOLE "CONSOLE")
 endif()
 
+if(HAVE_OPENTRANSPORT)
+    list(APPEND CONNECTION_SOURCES
+            OpenTptStream.h
+            OpenTptStream.cc
+            OpenTptConnectionProvider.h
+            OpenTptConnectionProvider.cc
+        )
+endif()
+
 add_application(LaunchAPPLServer 
     TYPE "APPL"
     CREATOR "R68L"
@@ -58,6 +77,9 @@ add_application(LaunchAPPLServer
 if(LAUNCHAPPLSERVER_DEBUG_CONSOLE)
     target_compile_definitions(LaunchAPPLServer PRIVATE DEBUG_CONSOLE)
 endif()
+if(HAVE_OPENTRANSPORT)
+    target_compile_definitions(LaunchAPPLServer PRIVATE HAVE_OPENTRANSPORT)
+endif()
 
 target_link_libraries(LaunchAPPLServer LaunchAPPLCommon)
 set_target_properties(LaunchAPPLServer PROPERTIES
@@ -74,11 +96,20 @@ else()
         )
 endif()
 
+if(HAVE_OPENTRANSPORT)
+    if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
+        target_link_libraries(LaunchAPPLServer -lOpenTransportAppPPC -lOpenTransportLib -lOpenTptInternetLib)
+    endif()
+    if(CMAKE_SYSTEM_NAME MATCHES Retro68)
+        target_link_libraries(LaunchAPPLServer -lOpenTransport -lOpenTransportApp -lOpenTptInet)
+    endif()
+endif()
+
 if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
-    target_link_libraries(LaunchAPPLServer -lOpenTransportAppPPC -lOpenTransportLib -lOpenTptInternetLib -lNavigationLib)
+    target_link_libraries(LaunchAPPLServer -lNavigationLib)
 endif()
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
-    target_link_libraries(LaunchAPPLServer -lOpenTransport -lOpenTransportApp -lOpenTptInet -lNavigation.far)
+    target_link_libraries(LaunchAPPLServer -lNavigation.far)
 endif()
 
 if(FALSE)

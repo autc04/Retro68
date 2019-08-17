@@ -20,6 +20,7 @@ set( CMAKE_SYSTEM_VERSION 1)
 
 set( RETRO68_ROOT "@RETRO68_ROOT@" CACHE PATH "path to root of Retro68 Toolchain" )
 set( CMAKE_INSTALL_PREFIX "${RETRO68_ROOT}/m68k-apple-macos/" CACHE PATH "installation prefix" )
+set( CMAKE_SYSTEM_PREFIX_PATH "${RETRO68_ROOT}/m68k-apple-macos/" )
 
 set( MAKE_APPL "${RETRO68_ROOT}/bin/MakeAPPL" )
 set( REZ "${RETRO68_ROOT}/bin/Rez" )
