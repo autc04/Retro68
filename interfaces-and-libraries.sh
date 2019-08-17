@@ -16,18 +16,6 @@
 #   You should have received a copy of the GNU General Public License
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
-function verifyInterfaceDirNames()
-{
-		printf "Searching for special characters in subdirs of $INTERFACES_DIR"
-		local found=`find "$INTERFACES_DIR" -type d -name "*" -print `
-		if [ "`echo $found | grep \&`" ]; then
-				echo "\n$found Contained special character &"
-				return 1        # failure
-		else
-				return 0        # success
-		fi
-}
-
 function locateInterfaceThing()
 {
 	local varname=$1
@@ -65,15 +53,6 @@ function explainInterfaces()
 function locateAndCheckInterfacesAndLibraries()
 {
 	echo "Looking for various files in $INTERFACES_DIR/..."
-
-	if verifyInterfaceDirNames; then
-		echo "Directory name looks clean"
-	else
-		echo "Directory name contained special character & that would break build"
-		echo "Please install the Interfaces and Libraries files in a path under"
-		echo "$INTERFACES_DIR that does not contain the & character"
-		exit 1
-	fi
 
 	if locateInterfaceThing CONDITIONALMACROS_H ConditionalMacros.h; then
 		CINCLUDES=`dirname "$CONDITIONALMACROS_H"`
@@ -142,7 +121,7 @@ function locateAndCheckInterfacesAndLibraries()
 		if locateInterfaceThing CARBONLIB CarbonLib; then
 			carbondir=`dirname "$CARBONLIB"`
 			if [ "$carbondir" != "$SHAREDLIBRARIES" ]; then
-				echo "Carbon.h found, but not in the same directory as InterfaceLib."
+				echo "CarbonLib found, but not in the same directory as InterfaceLib."
 				echo "This is confusing."
 				echo
 				explainInterfaces
