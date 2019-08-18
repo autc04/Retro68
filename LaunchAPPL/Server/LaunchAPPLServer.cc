@@ -645,20 +645,20 @@ int main()
 
 #if TARGET_CPU_68K && !TARGET_RT_MAC_CFM
     short& ROM85      = *(short*) 0x028E;
-	Boolean is128KROM = (ROM85 > 0);
-	Boolean hasWaitNextEvent = false;
+    Boolean is128KROM = (ROM85 > 0);
+    Boolean hasWaitNextEvent = false;
     Boolean hasGestalt = false;
     Boolean hasAppleEvents = false;
     hasIconUtils = false;
     hasColorQD = false;
 
-	if (is128KROM)
-	{
-		UniversalProcPtr trapUnimpl = GetToolTrapAddress(_Unimplemented);
+    if (is128KROM)
+    {
+        UniversalProcPtr trapUnimpl = GetToolTrapAddress(_Unimplemented);
         UniversalProcPtr trapWaitNextEvent = GetToolTrapAddress(_WaitNextEvent);
         UniversalProcPtr trapGestalt = GetOSTrapAddress(_Gestalt);
 
-		hasWaitNextEvent = (trapWaitNextEvent != trapUnimpl);
+        hasWaitNextEvent = (trapWaitNextEvent != trapUnimpl);
         hasGestalt = (trapGestalt != trapUnimpl);
 
         if(hasGestalt)
@@ -676,10 +676,10 @@ int main()
             err = Gestalt(gestaltStandardFileAttr, &response);
             hasSys7StdFile = err == noErr && (response & (1 << gestaltStandardFile58)) != 0;
         }
-	}
+    }
 #else
 #if !TARGET_API_MAC_CARBON
-	const Boolean hasWaitNextEvent = true;
+    const Boolean hasWaitNextEvent = true;
 #endif
     const Boolean hasGestalt = true;
     const Boolean hasAppleEvents = true;
@@ -816,5 +816,5 @@ int main()
     }
 
     WritePrefs();
-	return 0;
+    return 0;
 }

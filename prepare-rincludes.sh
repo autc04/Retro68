@@ -6,6 +6,6 @@ export LC_ALL=C
 
 # cp $IN/[A-Z]*.r $OUT/
 for file in $(cd "$IN"; ls [A-Z]*.r); do
-	tr '\r' '\n' < $IN/$file > $OUT/$file
+    tr '\r' '\n' < $IN/$file > $OUT/$file
 done
 

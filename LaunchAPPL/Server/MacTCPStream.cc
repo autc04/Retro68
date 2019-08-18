@@ -48,13 +48,13 @@ void MacTCPStream::startListening()
     readPB.ioCRefNum = refNum;
     readPB.tcpStream = tcpStream;
 
-	readPB.csCode = TCPPassiveOpen;
-	readPB.ioResult = 1;
-	readPB.csParam.open.ulpTimeoutValue = 5;// ###
-	readPB.csParam.open.ulpTimeoutAction = 1;
-	readPB.csParam.open.validityFlags = 0xC0;
-	readPB.csParam.open.commandTimeoutValue = 0;
-	readPB.csParam.open.localPort = 1984;
+    readPB.csCode = TCPPassiveOpen;
+    readPB.ioResult = 1;
+    readPB.csParam.open.ulpTimeoutValue = 5;// ###
+    readPB.csParam.open.ulpTimeoutAction = 1;
+    readPB.csParam.open.validityFlags = 0xC0;
+    readPB.csParam.open.commandTimeoutValue = 0;
+    readPB.csParam.open.localPort = 1984;
     PBControlAsync((ParmBlkPtr)&readPB);
 }
 
@@ -74,7 +74,7 @@ MacTCPStream::~MacTCPStream()
     memset(&pb, 0, sizeof(pb));
     pb.ioCRefNum = refNum;
     pb.tcpStream = tcpStream;
-	pb.csCode = TCPRelease;
+    pb.csCode = TCPRelease;
     PBControlSync((ParmBlkPtr)&pb);
 }
 

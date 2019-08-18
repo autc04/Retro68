@@ -8,8 +8,8 @@
 class RezLexer::WaveToken : public boost::wave::cpplexer::lex_token<>
 {
 public:
-	WaveToken() = default;
-	WaveToken(const boost::wave::cpplexer::lex_token<> & o) : boost::wave::cpplexer::lex_token<>(o) {}
+    WaveToken() = default;
+    WaveToken(const boost::wave::cpplexer::lex_token<> & o) : boost::wave::cpplexer::lex_token<>(o) {}
 };
 
 #endif // REZLEXERWAVETOKEN_H

@@ -25,10 +25,10 @@
 # Build the code resource as a regular executable
 # (not using the add_application macro)
 add_executable(SystemExtension
-	SystemExtension.c
-	ShowInitIcon.c
-	SystemExtension.r
-	ShowInitIcon.h)
+    SystemExtension.c
+    ShowInitIcon.c
+    SystemExtension.r
+    ShowInitIcon.h)
 
 if(TARGET retrocrt)
     # Hack: if we are building as part of the Retro68 source tree,
@@ -40,23 +40,23 @@ endif(TARGET retrocrt)
 
 
 set_target_properties(SystemExtension PROPERTIES
-	OUTPUT_NAME SystemExtension.flt
-	
-		# set a linker flag that says we want a flat piece
-		# of code in a data file
-	LINK_FLAGS -Wl,--mac-flat)
+    OUTPUT_NAME SystemExtension.flt
+    
+        # set a linker flag that says we want a flat piece
+        # of code in a data file
+    LINK_FLAGS -Wl,--mac-flat)
 
-	# Use Rez to put it together
+    # Use Rez to put it together
 add_custom_command(
-	OUTPUT SystemExtension.bin SystemExtension.dsk
-	COMMAND ${REZ} -I ${REZ_INCLUDE_PATH}
-					${CMAKE_CURRENT_SOURCE_DIR}/SystemExtension.r
-					--copy ${CMAKE_CURRENT_SOURCE_DIR}/Icons.rsrc.bin
-					-o SystemExtension.bin
-					--cc SystemExtension.dsk
-					--cc SystemExtension
-					-t INIT
-	DEPENDS SystemExtension SystemExtension.r Icons.rsrc.bin)
+    OUTPUT SystemExtension.bin SystemExtension.dsk
+    COMMAND ${REZ} -I ${REZ_INCLUDE_PATH}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/SystemExtension.r
+                    --copy ${CMAKE_CURRENT_SOURCE_DIR}/Icons.rsrc.bin
+                    -o SystemExtension.bin
+                    --cc SystemExtension.dsk
+                    --cc SystemExtension
+                    -t INIT
+    DEPENDS SystemExtension SystemExtension.r Icons.rsrc.bin)
 
 
 add_custom_target(SystemExtension_INIT ALL DEPENDS SystemExtension.dsk)

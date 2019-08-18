@@ -110,7 +110,7 @@ OpenTptStream::~OpenTptStream()
     {
         endpoint->SetNonBlocking();
         if(connected)
-        	endpoint->SndDisconnect(&call);
+            endpoint->SndDisconnect(&call);
         endpoint->Unbind();
         OTCloseProvider(endpoint);
     }

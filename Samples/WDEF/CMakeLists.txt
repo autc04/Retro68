@@ -1,19 +1,19 @@
-#	Copyright 2015 Wolfgang Thaller.
+#    Copyright 2015 Wolfgang Thaller.
 #
-#	This file is part of Retro68.
+#    This file is part of Retro68.
 #
-#	Retro68 is free software: you can redistribute it and/or modify
-#	it under the terms of the GNU General Public License as published by
-#	the Free Software Foundation, either version 3 of the License, or
-#	(at your option) any later version.
+#    Retro68 is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
 #
-#	Retro68 is distributed in the hope that it will be useful,
-#	but WITHOUT ANY WARRANTY; without even the implied warranty of
-#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#	GNU General Public License for more details.
+#    Retro68 is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
 #
-#	You should have received a copy of the GNU General Public License
-#	along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
+#    You should have received a copy of the GNU General Public License
+#    along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
 # To use this example as a standalone project using CMake:
 # mkdir build
@@ -78,14 +78,14 @@ add_custom_command(
     
 # Now build the application
 add_application(WDEFShell
-	wdefshell.c
+    wdefshell.c
     wdefshell.r
 
     wdef.c  # the WDEF as a plain source file in the application
 
         # the separately compiled WDEF resource
     ${CMAKE_CURRENT_BINARY_DIR}/WDEF.rsrc.bin   
-	)
+    )
 
 # Again, add some options to make things smaller.
 set_target_properties(WDEFShell PROPERTIES COMPILE_OPTIONS -ffunction-sections)

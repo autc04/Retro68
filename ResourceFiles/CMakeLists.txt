@@ -18,16 +18,16 @@
 find_package(Boost COMPONENTS filesystem system REQUIRED)
 
 add_library(ResourceFiles
-	ResourceFork.h ResourceFork.cc
-	BinaryIO.h BinaryIO.cc
-	ResType.h ResType.cc
-	ResourceFile.h ResourceFile.cc
-	)
+    ResourceFork.h ResourceFork.cc
+    BinaryIO.h BinaryIO.cc
+    ResType.h ResType.cc
+    ResourceFile.h ResourceFile.cc
+    )
 
 target_link_libraries(ResourceFiles ${Boost_LIBRARIES} ${CMAKE_INSTALL_PREFIX}/lib/libhfs.a)
 target_include_directories(ResourceFiles PUBLIC .
-										 PRIVATE ${CMAKE_INSTALL_PREFIX}/include
-										 		${Boost_INCLUDE_DIR})
+                                         PRIVATE ${CMAKE_INSTALL_PREFIX}/include
+                                                 ${Boost_INCLUDE_DIR})
 
 find_package(Boost COMPONENTS program_options REQUIRED)
 

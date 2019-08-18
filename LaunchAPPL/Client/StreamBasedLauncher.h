@@ -12,11 +12,11 @@ class StreamBasedLauncher : public Launcher
     std::vector<char> outputBytes;
     bool upgradeMode = false;
 public:
-	StreamBasedLauncher(boost::program_options::variables_map& options);
-	virtual ~StreamBasedLauncher();
+    StreamBasedLauncher(boost::program_options::variables_map& options);
+    virtual ~StreamBasedLauncher();
 
-	virtual bool Go(int timeout = 0);
-	virtual void DumpOutput();
+    virtual bool Go(int timeout = 0);
+    virtual void DumpOutput();
 
 protected:
     void SetupStream(WaitableStream* aStream, Stream* wrapped = nullptr);

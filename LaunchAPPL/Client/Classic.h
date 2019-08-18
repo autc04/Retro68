@@ -6,10 +6,10 @@
 class Classic : public LaunchMethod
 {
 public:
-	virtual std::string GetName() { return "classic"; }
+    virtual std::string GetName() { return "classic"; }
 
-	virtual bool CheckPlatform();
-	virtual std::unique_ptr<Launcher> MakeLauncher(variables_map& options);
+    virtual bool CheckPlatform();
+    virtual std::unique_ptr<Launcher> MakeLauncher(variables_map& options);
 };
 
 #endif // CLASSIC_H

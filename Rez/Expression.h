@@ -20,12 +20,12 @@ typedef std::shared_ptr<CaseExpr> CaseExprPtr;
 
 enum class BinaryOp
 {
-	XOR, OR, AND, SHIFTLEFT, SHIFTRIGHT, EQUAL, NOTEQUAL, PLUS, MINUS, MULTIPLY, DIVIDE, CONCAT
+    XOR, OR, AND, SHIFTLEFT, SHIFTRIGHT, EQUAL, NOTEQUAL, PLUS, MINUS, MULTIPLY, DIVIDE, CONCAT
 };
 
 enum class UnaryOp
 {
-	MINUS, COMPLEMENT
+    MINUS, COMPLEMENT
 };
 
 class TypeError
@@ -35,138 +35,138 @@ class TypeError
 class Expression
 {
 public:
-	yy::location location;
+    yy::location location;
 
-	Expression(yy::location loc) : location(loc) {}
+    Expression(yy::location loc) : location(loc) {}
 
-	virtual int evaluateInt(ResourceCompiler *ctx);
-	virtual std::string evaluateString(ResourceCompiler *ctx);
-	virtual ~Expression();
+    virtual int evaluateInt(ResourceCompiler *ctx);
+    virtual std::string evaluateString(ResourceCompiler *ctx);
+    virtual ~Expression();
 
-	void error(ResourceCompiler *ctx, std::string err);
+    void error(ResourceCompiler *ctx, std::string err);
 };
 
 class StringExpr : public Expression
 {
-	std::string str;
+    std::string str;
 public:
-	StringExpr(const std::string& str, yy::location loc) : Expression(loc), str(str) {}
-	~StringExpr();
-	virtual std::string evaluateString(ResourceCompiler *ctx);
+    StringExpr(const std::string& str, yy::location loc) : Expression(loc), str(str) {}
+    ~StringExpr();
+    virtual std::string evaluateString(ResourceCompiler *ctx);
 };
 
 class IntExpr : public Expression
 {
-	int val;
+    int val;
 public:
-	IntExpr(int val, yy::location loc) : Expression(loc), val(val) {}
-	~IntExpr();
+    IntExpr(int val, yy::location loc) : Expression(loc), val(val) {}
+    ~IntExpr();
 
-	virtual int evaluateInt(ResourceCompiler *ctx);
+    virtual int evaluateInt(ResourceCompiler *ctx);
 };
 
 class CompoundExpr : public Expression
 {
-	std::vector<ExprPtr> items;
+    std::vector<ExprPtr> items;
 public:
-	CompoundExpr(yy::location loc) : Expression(loc) {}
+    CompoundExpr(yy::location loc) : Expression(loc) {}
 
-	void addItem(ExprPtr item);
-	ExprPtr getItem(int i) const { return items[i]; }
-	int size() const { return items.size(); }
+    void addItem(ExprPtr item);
+    ExprPtr getItem(int i) const { return items[i]; }
+    int size() const { return items.size(); }
 
-	~CompoundExpr();
+    ~CompoundExpr();
 };
 
 class CaseExpr : public Expression
 {
-	std::string tag;
-	CompoundExprPtr expr;
-	friend class SwitchField;
+    std::string tag;
+    CompoundExprPtr expr;
+    friend class SwitchField;
 public:
-	CaseExpr(const std::string& tag, CompoundExprPtr expr, yy::location loc);
+    CaseExpr(const std::string& tag, CompoundExprPtr expr, yy::location loc);
 };
 
 class BinaryExpr : public Expression
 {
-	BinaryOp op;
-	ExprPtr a, b;
+    BinaryOp op;
+    ExprPtr a, b;
 public:
-	BinaryExpr(BinaryOp op, ExprPtr a, ExprPtr b, yy::location loc)
-		: Expression(loc), op(op), a(a), b(b) {}
-	~BinaryExpr();
+    BinaryExpr(BinaryOp op, ExprPtr a, ExprPtr b, yy::location loc)
+        : Expression(loc), op(op), a(a), b(b) {}
+    ~BinaryExpr();
 
-	virtual int evaluateInt(ResourceCompiler *ctx);
-	virtual std::string evaluateString(ResourceCompiler *ctx);
+    virtual int evaluateInt(ResourceCompiler *ctx);
+    virtual std::string evaluateString(ResourceCompiler *ctx);
 };
 
 class UnaryExpr : public Expression
 {
-	UnaryOp op;
-	ExprPtr a;
+    UnaryOp op;
+    ExprPtr a;
 public:
-	UnaryExpr(UnaryOp op, ExprPtr a, yy::location loc)
-		: Expression(loc), op(op), a(a) {}
-	~UnaryExpr();
+    UnaryExpr(UnaryOp op, ExprPtr a, yy::location loc)
+        : Expression(loc), op(op), a(a) {}
+    ~UnaryExpr();
 
-	virtual int evaluateInt(ResourceCompiler *ctx);
+    virtual int evaluateInt(ResourceCompiler *ctx);
 };
 
 class IdentifierExpr : public Expression
 {
 public:
-	std::string id;
-	std::vector<ExprPtr> arguments;
-	IdentifierExpr(std::string id, yy::location loc);
+    std::string id;
+    std::vector<ExprPtr> arguments;
+    IdentifierExpr(std::string id, yy::location loc);
 
-	void addArgument(ExprPtr e);
-	ExprPtr lookup(ResourceCompiler *ctx);
-	virtual int evaluateInt(ResourceCompiler *ctx);
-	virtual std::string evaluateString(ResourceCompiler *ctx);
+    void addArgument(ExprPtr e);
+    ExprPtr lookup(ResourceCompiler *ctx);
+    virtual int evaluateInt(ResourceCompiler *ctx);
+    virtual std::string evaluateString(ResourceCompiler *ctx);
 };
 
 class CountOfExpr : public Expression
 {
-	IdentifierExprPtr arg;
+    IdentifierExprPtr arg;
 public:
-	CountOfExpr(IdentifierExprPtr arg, yy::location loc) : Expression(loc), arg(arg) {}
-	virtual int evaluateInt(ResourceCompiler *ctx);
+    CountOfExpr(IdentifierExprPtr arg, yy::location loc) : Expression(loc), arg(arg) {}
+    virtual int evaluateInt(ResourceCompiler *ctx);
 };
 
 class ArrayIndexExpr : public Expression
 {
-	IdentifierExprPtr arg;
+    IdentifierExprPtr arg;
 public:
-	ArrayIndexExpr(IdentifierExprPtr arg, yy::location loc) : Expression(loc), arg(arg) {}
-	virtual int evaluateInt(ResourceCompiler *ctx);
+    ArrayIndexExpr(IdentifierExprPtr arg, yy::location loc) : Expression(loc), arg(arg) {}
+    virtual int evaluateInt(ResourceCompiler *ctx);
 };
 
 class ReadExpr : public Expression
 {
-	ExprPtr arg;
+    ExprPtr arg;
 public:
-	ReadExpr(ExprPtr arg, yy::location loc) : Expression(loc), arg(arg) {}
-	virtual std::string evaluateString(ResourceCompiler *ctx);
+    ReadExpr(ExprPtr arg, yy::location loc) : Expression(loc), arg(arg) {}
+    virtual std::string evaluateString(ResourceCompiler *ctx);
 };
 
 class UnimplementedExpr : public Expression
 {
-	std::string msg;
+    std::string msg;
 public:
-	UnimplementedExpr(std::string msg, yy::location loc) : Expression(loc), msg(msg) {}
-	virtual int evaluateInt(ResourceCompiler *ctx);
-	virtual std::string evaluateString(ResourceCompiler *ctx);
+    UnimplementedExpr(std::string msg, yy::location loc) : Expression(loc), msg(msg) {}
+    virtual int evaluateInt(ResourceCompiler *ctx);
+    virtual std::string evaluateString(ResourceCompiler *ctx);
 };
 
 class PeekExpr : public Expression
 {
-	ExprPtr addr;
-	ExprPtr offset;
-	ExprPtr size;
+    ExprPtr addr;
+    ExprPtr offset;
+    ExprPtr size;
 public:
-	PeekExpr(ExprPtr addr, ExprPtr offset, ExprPtr size, yy::location loc);
-	PeekExpr(ExprPtr addr, int size, yy::location loc);
-	virtual int evaluateInt(ResourceCompiler *ctx);
+    PeekExpr(ExprPtr addr, ExprPtr offset, ExprPtr size, yy::location loc);
+    PeekExpr(ExprPtr addr, int size, yy::location loc);
+    virtual int evaluateInt(ResourceCompiler *ctx);
 };
 
 #endif // EXPRESSION_H

@@ -13,30 +13,30 @@ class Diagnostic;
 
 class RezWorld
 {
-	friend class RezParser;
+    friend class RezParser;
 
-	std::map<TypeSpec, TypeDefinitionPtr>	types;
-	std::stack<FieldListPtr> fieldLists;
-	std::stack<IdentifierExprPtr> functionCalls;
-	std::stack<SwitchFieldPtr> switches;
+    std::map<TypeSpec, TypeDefinitionPtr>    types;
+    std::stack<FieldListPtr> fieldLists;
+    std::stack<IdentifierExprPtr> functionCalls;
+    std::stack<SwitchFieldPtr> switches;
 
-	Resources resources;
+    Resources resources;
 
 public:
-	RezWorld();
-	void addTypeDefinition(TypeSpec spec, TypeDefinitionPtr type);
+    RezWorld();
+    void addTypeDefinition(TypeSpec spec, TypeDefinitionPtr type);
 
-	TypeDefinitionPtr getTypeDefinition(ResType type, int id, yy::location loc);
+    TypeDefinitionPtr getTypeDefinition(ResType type, int id, yy::location loc);
 
-	void addResource(ResSpec spec, CompoundExprPtr body, yy::location loc);
-	void addData(ResSpec spec, const std::string& data, yy::location loc);
+    void addResource(ResSpec spec, CompoundExprPtr body, yy::location loc);
+    void addData(ResSpec spec, const std::string& data, yy::location loc);
 
-	Resources& getResources() { return resources; }
+    Resources& getResources() { return resources; }
 
-	bool verboseFlag;
-	bool hadErrors;
+    bool verboseFlag;
+    bool hadErrors;
 
-	void problem(Diagnostic d);
+    void problem(Diagnostic d);
 };
 
 

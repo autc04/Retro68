@@ -8,22 +8,22 @@
 class Diagnostic
 {
 public:
-	enum Severity
-	{
-		warning,
-		error,
-		fatalError
-	};
+    enum Severity
+    {
+        warning,
+        error,
+        fatalError
+    };
 
-	Diagnostic();
-	Diagnostic(Severity sev, std::string msg, yy::location loc);
+    Diagnostic();
+    Diagnostic(Severity sev, std::string msg, yy::location loc);
 
 private:
-	Severity severity;
-	std::string message;
-	yy::location location;
+    Severity severity;
+    std::string message;
+    yy::location location;
 
-	friend std::ostream& operator<<(std::ostream&, const Diagnostic&);
+    friend std::ostream& operator<<(std::ostream&, const Diagnostic&);
 };
 
 std::ostream& operator<<(std::ostream&, const Diagnostic&);

@@ -1,20 +1,20 @@
 /*
-	 Copyright 2017 Wolfgang Thaller.
+     Copyright 2017 Wolfgang Thaller.
 
-	 This file is part of Retro68.
+     This file is part of Retro68.
 
-	 Retro68 is free software: you can redistribute it and/or modify
-	 it under the terms of the GNU General Public License as published by
-	 the Free Software Foundation, either version 3 of the License, or
-	 (at your option) any later version.
+     Retro68 is free software: you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation, either version 3 of the License, or
+     (at your option) any later version.
 
-	 Retro68 is distributed in the hope that it will be useful,
-	 but WITHOUT ANY WARRANTY; without even the implied warranty of
-	 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	 GNU General Public License for more details.
+     Retro68 is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
 
-	 You should have received a copy of the GNU General Public License
-	 along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
+     You should have received a copy of the GNU General Public License
+     along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "Symbol.h"
@@ -33,13 +33,13 @@ Symbol::Symbol(Object& theObject, const GElf_Sym &sym)
       sectionKind(SectionKind::undefined),
       needsJT(false)
 {
-	if(st_shndx != SHN_UNDEF && st_shndx < SHN_LORESERVE)
-	{
-		section = theObject.sectionsByElfIndex[st_shndx];
-		sectionKind = section->kind;
-	}
-	if(st_name)
-	{
-		name = elf_strptr(theObject.elf, theObject.mainStringTableIdx, st_name);
-	}
+    if(st_shndx != SHN_UNDEF && st_shndx < SHN_LORESERVE)
+    {
+        section = theObject.sectionsByElfIndex[st_shndx];
+        sectionKind = section->kind;
+    }
+    if(st_name)
+    {
+        name = elf_strptr(theObject.elf, theObject.mainStringTableIdx, st_name);
+    }
 }

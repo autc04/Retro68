@@ -36,7 +36,7 @@ class SerialLauncher : public StreamBasedLauncher
     SerialStream stream;
     ReliableStream rStream;
 public:
-	SerialLauncher(po::variables_map& options);
+    SerialLauncher(po::variables_map& options);
 };
 
 
@@ -146,10 +146,10 @@ void Serial::GetOptions(options_description &desc)
 
 bool Serial::CheckOptions(variables_map &options)
 {
-	return true;
+    return true;
 }
 
 std::unique_ptr<Launcher> Serial::MakeLauncher(variables_map &options)
 {
-	return std::unique_ptr<Launcher>(new SerialLauncher(options));
+    return std::unique_ptr<Launcher>(new SerialLauncher(options));
 }

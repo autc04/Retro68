@@ -30,7 +30,7 @@ class SharedFileLauncher : public StreamBasedLauncher
 {
     SharedFileStream stream;
 public:
-	SharedFileLauncher(po::variables_map& options);
+    SharedFileLauncher(po::variables_map& options);
 };
 
 SharedFileStream::SharedFileStream(po::variables_map &options)
@@ -90,10 +90,10 @@ void SharedFile::GetOptions(options_description &desc)
 
 bool SharedFile::CheckOptions(variables_map &options)
 {
-	return options.count("shared-directory") != 0;
+    return options.count("shared-directory") != 0;
 }
 
 std::unique_ptr<Launcher> SharedFile::MakeLauncher(variables_map &options)
 {
-	return std::unique_ptr<Launcher>(new SharedFileLauncher(options));
+    return std::unique_ptr<Launcher>(new SharedFileLauncher(options));
 }

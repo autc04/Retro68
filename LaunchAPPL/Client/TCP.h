@@ -6,11 +6,11 @@
 class TCP : public LaunchMethod
 {
 public:
-	virtual std::string GetName() { return "tcp"; }
-	virtual void GetOptions(options_description& desc);
-	virtual bool CheckOptions(variables_map& options);
+    virtual std::string GetName() { return "tcp"; }
+    virtual void GetOptions(options_description& desc);
+    virtual bool CheckOptions(variables_map& options);
 
-	virtual std::unique_ptr<Launcher> MakeLauncher(variables_map& options);
+    virtual std::unique_ptr<Launcher> MakeLauncher(variables_map& options);
 };
 
 #endif // EXECUTOR_H

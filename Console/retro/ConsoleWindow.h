@@ -25,14 +25,14 @@
 
 namespace retro
 {
-	class ConsoleWindow : public Console
-	{
-	public:
-		ConsoleWindow(Rect r, ConstStr255Param title);
-		~ConsoleWindow();
-	private:
-		WindowPtr win;
+    class ConsoleWindow : public Console
+    {
+    public:
+        ConsoleWindow(Rect r, ConstStr255Param title);
+        ~ConsoleWindow();
+    private:
+        WindowPtr win;
 
-		virtual char WaitNextChar();
-	};
+        virtual char WaitNextChar();
+    };
 }

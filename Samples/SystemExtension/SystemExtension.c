@@ -4,13 +4,13 @@
 
 void _start()
 {
-	RETRO68_RELOCATE();
-	Retro68CallConstructors();
+    RETRO68_RELOCATE();
+    Retro68CallConstructors();
 
-	ShowInitIcon(130, false);
-	Delay(20, NULL);
-	ShowInitIcon(128, true);
-	Delay(40, NULL);
+    ShowInitIcon(130, false);
+    Delay(20, NULL);
+    ShowInitIcon(128, true);
+    Delay(40, NULL);
 
-	Retro68FreeGlobals();
+    Retro68FreeGlobals();
 }

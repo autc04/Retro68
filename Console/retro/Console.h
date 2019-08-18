@@ -25,66 +25,66 @@
 
 namespace retro
 {
-	class Console
-	{
-	public:
-		Console();
-		Console(GrafPtr port, Rect r);
-		~Console();
+    class Console
+    {
+    public:
+        Console();
+        Console(GrafPtr port, Rect r);
+        ~Console();
 
-		void Reshape(Rect newBounds);
+        void Reshape(Rect newBounds);
 
-		void Draw(Rect r);
-		void Draw() { Draw(bounds); }
-		void putch(char c);
+        void Draw(Rect r);
+        void Draw() { Draw(bounds); }
+        void putch(char c);
 
-		void write(const char *s, int n);
-		std::string ReadLine();
+        void write(const char *s, int n);
+        std::string ReadLine();
 
-		static Console *currentInstance;
+        static Console *currentInstance;
 
-		short GetRows() const { return rows; }
-		short GetCols() const { return cols; }
-		
-		void Idle();
+        short GetRows() const { return rows; }
+        short GetCols() const { return cols; }
+        
+        void Idle();
 
         bool IsEOF() const { return eof; }
-	private:
-		GrafPtr consolePort = nullptr;
-		Rect bounds;
+    private:
+        GrafPtr consolePort = nullptr;
+        Rect bounds;
 
-		std::vector<char> chars, onscreen;
+        std::vector<char> chars, onscreen;
 
-		short cellSizeX;
-		short cellSizeY;
+        short cellSizeX;
+        short cellSizeY;
 
-		short rows = 0, cols = 0;
+        short rows = 0, cols = 0;
 
-		short cursorX, cursorY;
+        short cursorX, cursorY;
 
-		Rect dirtyRect = {};
-		
-		long blinkTicks = 0;
-		bool cursorDrawn = false;
-		bool cursorVisible = true;
+        Rect dirtyRect = {};
+        
+        long blinkTicks = 0;
+        bool cursorDrawn = false;
+        bool cursorVisible = true;
         bool eof = false;
 
-		void PutCharNoUpdate(char c);
-		void Update();
+        void PutCharNoUpdate(char c);
+        void Update();
 
-		Rect CellRect(short x, short y);
-		void DrawCell(short x, short y, bool erase = true);
-		void DrawCells(short x1, short x2, short y, bool erase = true);
-		void ScrollUp(short n = 1);
-		
-		void InvalidateCursor();
+        Rect CellRect(short x, short y);
+        void DrawCell(short x, short y, bool erase = true);
+        void DrawCells(short x1, short x2, short y, bool erase = true);
+        void ScrollUp(short n = 1);
+        
+        void InvalidateCursor();
 
-		virtual char WaitNextChar();
-	
-	protected:
-		void Init(GrafPtr port, Rect r);
-		
-	};
+        virtual char WaitNextChar();
+    
+    protected:
+        void Init(GrafPtr port, Rect r);
+        
+    };
 
 
 }

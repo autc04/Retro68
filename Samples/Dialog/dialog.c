@@ -22,10 +22,10 @@
 #include <Fonts.h>
 
 #ifndef TARGET_API_MAC_CARBON
-	/* NOTE: this is checking whether the Dialogs.h we use *knows* about Carbon,
-	         not whether we are actually compiling for Cabon.
-	         If Dialogs.h is older, we add a define to be able to use the new name
-	         for NewUserItemUPP, which used to be NewUserItemProc. */
+    /* NOTE: this is checking whether the Dialogs.h we use *knows* about Carbon,
+             not whether we are actually compiling for Cabon.
+             If Dialogs.h is older, we add a define to be able to use the new name
+             for NewUserItemUPP, which used to be NewUserItemProc. */
 
 #define NewUserItemUPP NewUserItemProc
 #endif
@@ -33,7 +33,7 @@
 pascal void ButtonFrameProc(DialogRef dlg, DialogItemIndex itemNo)
 {
     DialogItemType type;
-	Handle itemH;
+    Handle itemH;
     Rect box;
 
     GetDialogItem(dlg, 1, &type, &itemH, &box);
@@ -49,8 +49,8 @@ int main()
     InitFonts();
     InitWindows();
     InitMenus();
-	TEInit();
-	InitDialogs(NULL);
+    TEInit();
+    InitDialogs(NULL);
 #endif
     DialogPtr dlg = GetNewDialog(128,0,(WindowPtr)-1);
     InitCursor();
@@ -61,7 +61,7 @@ int main()
     Rect box;
 
     GetDialogItem(dlg, 2, &type, &itemH, &box);
-	SetDialogItem(dlg, 2, type, (Handle) NewUserItemUPP(&ButtonFrameProc), &box);
+    SetDialogItem(dlg, 2, type, (Handle) NewUserItemUPP(&ButtonFrameProc), &box);
 
     ControlHandle cb, radio1, radio2;
     GetDialogItem(dlg, 5, &type, &itemH, &box);
@@ -89,5 +89,5 @@ int main()
     } while(item != 1);
 
     FlushEvents(everyEvent, -1);
-	return 0;
+    return 0;
 }

@@ -2,5 +2,5 @@
 
 void TestLog(const char *str)
 {
-	TEST_LOG_SIZED(str, strlen(str));
+    TEST_LOG_SIZED(str, strlen(str));
 }

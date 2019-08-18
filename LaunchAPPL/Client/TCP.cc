@@ -34,7 +34,7 @@ class TCPLauncher : public StreamBasedLauncher
 {
     TCPStream stream;
 public:
-	TCPLauncher(po::variables_map& options);
+    TCPLauncher(po::variables_map& options);
 };
 
 
@@ -85,10 +85,10 @@ void TCP::GetOptions(options_description &desc)
 
 bool TCP::CheckOptions(variables_map &options)
 {
-	return options.count("tcp-address") != 0;
+    return options.count("tcp-address") != 0;
 }
 
 std::unique_ptr<Launcher> TCP::MakeLauncher(variables_map &options)
 {
-	return std::unique_ptr<Launcher>(new TCPLauncher(options));
+    return std::unique_ptr<Launcher>(new TCPLauncher(options));
 }

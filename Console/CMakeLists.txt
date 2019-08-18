@@ -16,15 +16,15 @@
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
 add_library(RetroConsole
-	retro/Console.cc
-	retro/Console.h
-	retro/ConsoleWindow.cc
-	retro/ConsoleWindow.h
-	retro/MacUtils.h
-	retro/InitConsole.cc
-	)
+    retro/Console.cc
+    retro/Console.h
+    retro/ConsoleWindow.cc
+    retro/ConsoleWindow.h
+    retro/MacUtils.h
+    retro/InitConsole.cc
+    )
 set_target_properties(retrocrt
-	PROPERTIES
+    PROPERTIES
         COMPILE_OPTIONS -ffunction-sections)
 
 # different library name for Carbon
@@ -37,6 +37,6 @@ target_include_directories(RetroConsole PUBLIC .)
 install(TARGETS RetroConsole  DESTINATION lib)
 
 add_application(ConsoleTest
-	ConsoleTest.cc
-	)
+    ConsoleTest.cc
+    )
 target_link_libraries(ConsoleTest RetroConsole)

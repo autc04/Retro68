@@ -5,55 +5,55 @@ OUT="$2"
 export LC_ALL=C
 
 for file in $(cd "$IN"; ls *.h); do
-	# Filter by file names.
-	# Some CIncludes packages include the MPW standard library.
-	# Header files from that standard library would overwrite
-	# newlib header files and stop things from working.
-	case $file in
-			# Apple/MPW standard library internals
-		*Def.h|FSpio.h)
-			USE=false
-			;;
+    # Filter by file names.
+    # Some CIncludes packages include the MPW standard library.
+    # Header files from that standard library would overwrite
+    # newlib header files and stop things from working.
+    case $file in
+            # Apple/MPW standard library internals
+        *Def.h|FSpio.h)
+            USE=false
+            ;;
 
-			# whitelist all uppercase headers
-		[A-Z]*.h)
-			USE=true
-			;;
+            # whitelist all uppercase headers
+        [A-Z]*.h)
+            USE=true
+            ;;
 
-			# whitelist OpenTransport
-		cred.h|dlpi.h|miioccom.h|mistream.h|modnames.h)
-			USE=true
-			;;
-			# whitelist OpenTransport (continued)
-		strlog.h|stropts.h|strstat.h|tihdr.h)
-			USE=true
-			;;
+            # whitelist OpenTransport
+        cred.h|dlpi.h|miioccom.h|mistream.h|modnames.h)
+            USE=true
+            ;;
+            # whitelist OpenTransport (continued)
+        strlog.h|stropts.h|strstat.h|tihdr.h)
+            USE=true
+            ;;
 
-			# Non-standard floating point headers that don't conflict
-		ddrt.h|fp.h)
-			USE=true
-			;;
-			# newlib does not provide fenv.h, so use Apple's
-		fenv.h)
-			USE=true
-			;;
+            # Non-standard floating point headers that don't conflict
+        ddrt.h|fp.h)
+            USE=true
+            ;;
+            # newlib does not provide fenv.h, so use Apple's
+        fenv.h)
+            USE=true
+            ;;
 
-			# veclib headers
-		v*.h)
-			USE=true
-			;;
+            # veclib headers
+        v*.h)
+            USE=true
+            ;;
 
-		# unsupported:	intrinsics.h   perf.h
+        # unsupported:    intrinsics.h   perf.h
 
-		# all other (lowercase) headers: conflict with GCC or newlib headers
-		*)
-			USE=false
-			;;
-	esac
+        # all other (lowercase) headers: conflict with GCC or newlib headers
+        *)
+            USE=false
+            ;;
+    esac
 
-	if [ $USE = true ]; then
-		sed 's/\r$//' < "$IN/$file" | tr '\r' '\n' > "$OUT/$file"
-	fi
+    if [ $USE = true ]; then
+        sed 's/\r$//' < "$IN/$file" | tr '\r' '\n' > "$OUT/$file"
+    fi
 done
 
 ############################# ConditionalMacros.h #############################
@@ -158,16 +158,16 @@ END_MARKER
 fi
 
 for f in Types.h Memory.h Windows.h Errors.h; do
-	if [ ! -r "$IN/$f" ]; then
-		echo "#include \"Mac$f\"" > "$OUT/$f"
-	elif [ ! -r "$IN/Mac$f" ]; then
-		echo "#include \"$f\"" > "$OUT/Mac$f"
-	fi
+    if [ ! -r "$IN/$f" ]; then
+        echo "#include \"Mac$f\"" > "$OUT/$f"
+    elif [ ! -r "$IN/Mac$f" ]; then
+        echo "#include \"$f\"" > "$OUT/Mac$f"
+    fi
 done
 
 if [ -d "$IN/CoreFoundation" ]; then
-	mkdir -p "$OUT/CoreFoundation"
-	for file in $(cd "$IN"; ls CoreFoundation/*.h); do
-		sed 's/\r$//' < "$IN/$file" | tr '\r' '\n' > "$OUT/$file"
-	done
+    mkdir -p "$OUT/CoreFoundation"
+    for file in $(cd "$IN"; ls CoreFoundation/*.h); do
+        sed 's/\r$//' < "$IN/$file" | tr '\r' '\n' > "$OUT/$file"
+    done
 fi

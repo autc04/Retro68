@@ -4,10 +4,10 @@ char readWriteData[6] = "Three";
 
 int main()
 {
-	    // constant initialized data
-	TEST_LOG_SIZED("One",3);
-	TEST_LOG_SIZED("Two",3);
-	    // read-write initialized data
-	TEST_LOG_SIZED(readWriteData,5);
-	return 0;
+        // constant initialized data
+    TEST_LOG_SIZED("One",3);
+    TEST_LOG_SIZED("Two",3);
+        // read-write initialized data
+    TEST_LOG_SIZED(readWriteData,5);
+    return 0;
 }

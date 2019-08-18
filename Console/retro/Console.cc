@@ -293,7 +293,7 @@ std::string Console::ReadLine()
     char c;
     
     do
-    {		
+    {        
         c = WaitNextChar();
         if(!c)
         {

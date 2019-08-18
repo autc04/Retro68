@@ -2,5 +2,5 @@
 
 int main()
 {
-	TEST_LOG_OK();
+    TEST_LOG_OK();
 }
