@@ -225,7 +225,7 @@ function setUpInterfacesAndLibraries()
 
         if [ -d "${PPCLIBRARIES}" ]; then
             echo "Copying static PPC libraries"
-            for obj in "${PPCLIBRARIES}/OpenT*.o" "${PPCLIBRARIES}/CarbonAccessors.o" "${PPCLIBRARIES}/CursorDevicesGlue.o"; do
+            for obj in "${PPCLIBRARIES}/"OpenT*.o "${PPCLIBRARIES}/CarbonAccessors.o" "${PPCLIBRARIES}/CursorDevicesGlue.o"; do
                 if [ -r "$obj" ]; then
                     # copy the library:
                     cp "$obj" "$PREFIX/powerpc-apple-macos/lib/"
