@@ -319,7 +319,7 @@ fi # SKIP_THIRDPARTY
 echo "Building host-based tools..."
 
 # Copy PEFBinaryFormat.h from Universal Interfaces, needed by MakePEF & MakeImport
-(export LC_ALL=C; sed 's/\r$//' < "$CINCLUDES/PEFBinaryFormat.h" | tr '\r' '\n' > "$PREFIX/include/PEFBinaryFormat.h")
+setupPEFBinaryFormat
 
 mkdir -p build-host
 cd build-host

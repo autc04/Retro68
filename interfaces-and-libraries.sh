@@ -150,6 +150,11 @@ function linkheaders()
 	(cd "$1" && find "../../CIncludes/" -name '*.h' -exec ln -s {} . \;)
 }
 
+function setupPEFBinaryFormat()
+{
+	(export LC_ALL=C; sed 's/\r$//' < "$CINCLUDES/PEFBinaryFormat.h" | tr '\r' '\n' > "$PREFIX/include/PEFBinaryFormat.h")
+}
+
 function setUpInterfacesAndLibraries()
 {
 	echo "Preparing CIncludes..."
@@ -162,21 +167,21 @@ function setUpInterfacesAndLibraries()
 	mkdir "$PREFIX/RIncludes"
 	sh "$SRC/prepare-rincludes.sh" "$RINCLUDES" "$PREFIX/RIncludes"
 
-    echo "Creating Symlinks for CIncludes and RIncludes..."
+	echo "Creating Symlinks for CIncludes and RIncludes..."
 
-    if [ $BUILD_68K != false ]; then
-        ln -sf ../RIncludes $PREFIX/m68k-apple-macos/RIncludes
-        linkheaders $PREFIX/m68k-apple-macos/include
-    fi
+	if [ $BUILD_68K != false ]; then
+		ln -sf ../RIncludes $PREFIX/m68k-apple-macos/RIncludes
+		linkheaders $PREFIX/m68k-apple-macos/include
+	fi
 
-    if [ $BUILD_PPC != false ]; then
-        ln -sf ../RIncludes $PREFIX/powerpc-apple-macos/RIncludes
-        linkheaders $PREFIX/powerpc-apple-macos/include
-    fi
+	if [ $BUILD_PPC != false ]; then
+		ln -sf ../RIncludes $PREFIX/powerpc-apple-macos/RIncludes
+		linkheaders $PREFIX/powerpc-apple-macos/include
+	fi
 
-    FILE_LIST="$PREFIX/apple-libraries.txt"
-    rm -f "$FILE_LIST"
-    touch "$FILE_LIST"
+	FILE_LIST="$PREFIX/apple-libraries.txt"
+	rm -f "$FILE_LIST"
+	touch "$FILE_LIST"
 
 	if [ $BUILD_68K != false ]; then
 		echo "Converting 68K static libraries..."
@@ -189,11 +194,11 @@ function setUpInterfacesAndLibraries()
 				lib="$PREFIX/m68k-apple-macos/lib/lib${libname}.a"
 				rm -f $lib
 
-                set -o pipefail
+				set -o pipefail
 				((ConvertObj "$macobj" | m68k-apple-macos-as - -o "$obj") || (rm "$obj" && false) ) \
-                    && m68k-apple-macos-ar cqs "$lib" "$obj" \
-                    && echo "m68k-apple-macos/lib/$libname.o" >> "$FILE_LIST" \
-                    && echo "m68k-apple-macos/lib/lib${libname}.a" >> "$FILE_LIST"
+					&& m68k-apple-macos-ar cqs "$lib" "$obj" \
+					&& echo "m68k-apple-macos/lib/$libname.o" >> "$FILE_LIST" \
+					&& echo "m68k-apple-macos/lib/lib${libname}.a" >> "$FILE_LIST"
 			fi
 		done
 	fi
@@ -213,7 +218,7 @@ function setUpInterfacesAndLibraries()
 					implib=lib${libname}.a
 					printf "    %30s => %-30s\n" ${libname} ${implib}
 					MakeImport "$shlib" "$PREFIX/powerpc-apple-macos/lib/$implib" \
-                        && echo "powerpc-apple-macos/lib/$implib" >> "$FILE_LIST"
+						&& echo "powerpc-apple-macos/lib/$implib" >> "$FILE_LIST"
 				done
 				;;
 		esac
@@ -224,13 +229,13 @@ function setUpInterfacesAndLibraries()
 				if [ -r "$obj" ]; then
 					# copy the library:
 					cp "$obj" "$PREFIX/powerpc-apple-macos/lib/"
-                    basename=`basename "${obj%.o}"`
+					basename=`basename "${obj%.o}"`
 					# and wrap it in a .a archive for convenience
 					lib="$PREFIX"/powerpc-apple-macos/lib/lib$basename.a
 					rm -f "$lib"
 					powerpc-apple-macos-ar cqs "$lib" "$obj"
-                    echo "powerpc-apple-macos/lib/$basename.o" >> "$FILE_LIST"
-                    echo "powerpc-apple-macos/lib/lib$basename.a" >> "$FILE_LIST"
+					echo "powerpc-apple-macos/lib/$basename.o" >> "$FILE_LIST"
+					echo "powerpc-apple-macos/lib/lib$basename.a" >> "$FILE_LIST"
 				fi
 			done
 		fi
@@ -239,20 +244,21 @@ function setUpInterfacesAndLibraries()
 
 function removeInterfacesAndLibraries()
 {
-    FILE_LIST="$PREFIX/apple-libraries.txt"
-    if [ -r "$FILE_LIST" ]; then
-        echo "Removing currently installed Apple Interfaces and Libraries..."
-        for file in `cat "$FILE_LIST"`; do
-            rm "$PREFIX/$file"
-        done
-        find "$PREFIX/m68k-apple-macos/include" -lname "../../CIncludes/*" -delete || true
-        find "$PREFIX/powerpc-apple-macos/include" -lname "../../CIncludes/*" -delete || true
-        rm "$PREFIX/m68k-apple-macos/RIncludes"
-        rm "$PREFIX/powerpc-apple-macos/RIncludes"
-        rm -rf "$PREFIX/CIncludes"
-	    rm -rf "$PREFIX/RIncludes"
-        rm "$FILE_LIST"
-    fi
+	FILE_LIST="$PREFIX/apple-libraries.txt"
+	if [ -r "$FILE_LIST" ]; then
+		echo "Removing currently installed Apple Interfaces and Libraries..."
+		for file in `cat "$FILE_LIST"`; do
+			rm "$PREFIX/$file"
+		done
+		find "$PREFIX/m68k-apple-macos/include" -lname "../../CIncludes/*" -delete || true
+		find "$PREFIX/powerpc-apple-macos/include" -lname "../../CIncludes/*" -delete || true
+		rm "$PREFIX/m68k-apple-macos/RIncludes"
+		rm "$PREFIX/powerpc-apple-macos/RIncludes"
+		rm -rf "$PREFIX/CIncludes"
+		rm -rf "$PREFIX/RIncludes"
+		rm "$FILE_LIST"
+		rm "$PREFIX/include/PEFBinaryFormat.h"
+	fi
 }
 
 if [ "$0" = "$BASH_SOURCE" ]; then
@@ -270,13 +276,14 @@ if [ "$0" = "$BASH_SOURCE" ]; then
 	BUILD_PPC=${4:-true}
 	BUILD_CARBON=${5:-true}
 	SRC=$(cd `dirname $0` && pwd -P)
-    export PATH="$PREFIX/bin:$PATH"
+	export PATH="$PREFIX/bin:$PATH"
 
-    if [ "${INTERFACES_DIR}" = "--remove" ]; then
-        removeInterfacesAndLibraries
-    else
-        locateAndCheckInterfacesAndLibraries
-        removeInterfacesAndLibraries
-        setUpInterfacesAndLibraries
-    fi
+	if [ "${INTERFACES_DIR}" = "--remove" ]; then
+		removeInterfacesAndLibraries
+	else
+		locateAndCheckInterfacesAndLibraries
+		removeInterfacesAndLibraries
+        setupPEFBinaryFormat
+		setUpInterfacesAndLibraries
+	fi
 fi
