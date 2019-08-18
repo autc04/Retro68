@@ -137,17 +137,23 @@ function locateAndCheckInterfacesAndLibraries()
 
 # remove old symlinks in $PREFIX/*-apple-macos/include/
 # and link files from $PREFIX/CIncludes
-function linkheaders()
+function linkHeaders()
 {
     # incompatible with Universal Interfaces on case-insensitive file systems
-    # (and does not currently work anyways)
-    rm -f "$1"/threads.h
+    rm -f "$1"/threads.h        # does not currently work anyways
+    rm -f "$1"/memory.h         # non-standard aliasof string.h
+    rm -f "$1"/strings.h        # traditional bsd string functions
 
-    # the following command doesn't work on older Mac OS X versions.
-    # allow it to fail quietly, at worst we leave some dangling symlinks around
-    # in the rare situation that headers are removed from the input directory
-    find "$1" -lname "../../CIncludes/*" -delete || true
-    (cd "$1" && find "../../CIncludes/" -name '*.h' -exec ln -s {} . \;)
+    (cd "$1" && find "../../CIncludes" -name '*.h' -exec ln -s {} . \;)
+}
+
+function unlinkHeaders()
+{
+    for file  in "$1/"*; do
+        if [[ `readlink "$file"` == ../../CIncludes/* ]]; then
+            rm "$file"
+        fi
+    done
 }
 
 function setupPEFBinaryFormat()
@@ -171,12 +177,12 @@ function setUpInterfacesAndLibraries()
 
     if [ $BUILD_68K != false ]; then
         ln -sf ../RIncludes $PREFIX/m68k-apple-macos/RIncludes
-        linkheaders $PREFIX/m68k-apple-macos/include
+        linkHeaders $PREFIX/m68k-apple-macos/include
     fi
 
     if [ $BUILD_PPC != false ]; then
         ln -sf ../RIncludes $PREFIX/powerpc-apple-macos/RIncludes
-        linkheaders $PREFIX/powerpc-apple-macos/include
+        linkHeaders $PREFIX/powerpc-apple-macos/include
     fi
 
     FILE_LIST="$PREFIX/apple-libraries.txt"
@@ -190,15 +196,19 @@ function setUpInterfacesAndLibraries()
                 libname=`basename "$macobj"`
                 libname=${libname%.o}
                 printf "    %30s => %-30s\n" ${libname}.o lib${libname}.a
+                asm="$PREFIX/m68k-apple-macos/lib/$libname.s"
                 obj="$PREFIX/m68k-apple-macos/lib/$libname.o"
                 lib="$PREFIX/m68k-apple-macos/lib/lib${libname}.a"
+
                 rm -f $lib
 
-                set -o pipefail
-                ((ConvertObj "$macobj" | m68k-apple-macos-as - -o "$obj") || (rm "$obj" && false) ) \
-                    && m68k-apple-macos-ar cqs "$lib" "$obj" \
-                    && echo "m68k-apple-macos/lib/$libname.o" >> "$FILE_LIST" \
-                    && echo "m68k-apple-macos/lib/lib${libname}.a" >> "$FILE_LIST"
+                if ConvertObj "$macobj" > "$asm"; then
+                    m68k-apple-macos-as "$asm" -o "$obj"
+                    m68k-apple-macos-ar cqs "$lib" "$obj"
+                    echo "m68k-apple-macos/lib/$libname.o" >> "$FILE_LIST"
+                    echo "m68k-apple-macos/lib/lib${libname}.a" >> "$FILE_LIST"
+                fi
+                rm -f "$asm"
             fi
         done
     fi
@@ -250,8 +260,8 @@ function removeInterfacesAndLibraries()
         for file in `cat "$FILE_LIST"`; do
             rm "$PREFIX/$file"
         done
-        find "$PREFIX/m68k-apple-macos/include" -lname "../../CIncludes/*" -delete || true
-        find "$PREFIX/powerpc-apple-macos/include" -lname "../../CIncludes/*" -delete || true
+        unlinkHeaders "$PREFIX/m68k-apple-macos/include"
+        unlinkHeaders "$PREFIX/powerpc-apple-macos/include"
         rm "$PREFIX/m68k-apple-macos/RIncludes"
         rm "$PREFIX/powerpc-apple-macos/RIncludes"
         rm -rf "$PREFIX/CIncludes"
@@ -261,7 +271,10 @@ function removeInterfacesAndLibraries()
     fi
 }
 
-if [ "$0" = "$BASH_SOURCE" ]; then
+if (return 0 2>/dev/null); then
+    # We are being sourced from build-toolchain.sh
+    true
+else
     # We are being run directly
 
     if [ $# -lt 2 ]; then
