@@ -20,6 +20,7 @@
 #include "AppLauncher.h"
 
 #include <AppleEvents.h>
+#include <Files.h>
 #include <vector>
 #include <string.h>
 

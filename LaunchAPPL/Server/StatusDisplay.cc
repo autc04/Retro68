@@ -18,10 +18,12 @@
 */
 
 #include "StatusDisplay.h"
+#include "SystemInfo.h"
+
 #include <Quickdraw.h>
 #include <Windows.h>
 #include <string.h>
-#include "SystemInfo.h"
+#include <algorithm>
 
 const short tableTop = 50;
 const short tableLineHeight = 20;

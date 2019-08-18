@@ -37,6 +37,7 @@
 #include <Processes.h>
 #include <Files.h>
 #include <TextUtils.h>
+#include <Errors.h>
 
 void *_sbrk_r(struct _reent *reent, ptrdiff_t increment)
 {
