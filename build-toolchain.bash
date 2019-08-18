@@ -311,7 +311,8 @@ if [ $SKIP_THIRDPARTY != true ]; then
 	if [ $CLEAN_AFTER_BUILD != false ]; then
 		rm -rf hfsutils
 	fi
-
+else # SKIP_THIRDPARTY
+    removeInterfacesAndLibraries
 fi # SKIP_THIRDPARTY
 
 ##################### Build host-based components: MakePEF, MakeImport, ConvertObj, Rez, ...
