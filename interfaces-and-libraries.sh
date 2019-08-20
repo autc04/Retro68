@@ -169,8 +169,8 @@ function setUpInterfacesAndLibraries()
     sh "$SRC/prepare-headers.sh" "$CINCLUDES" "$PREFIX/CIncludes"
 
     echo "Preparing RIncludes..."
-    rm -rf "$PREFIX/RIncludes"
-    mkdir "$PREFIX/RIncludes"
+    mkdir -p "$PREFIX/RIncludes"
+    find "$PREFIX/RIncludes" ! -name 'Retro*.r' -type f -exec rm -f {} \;
     sh "$SRC/prepare-rincludes.sh" "$RINCLUDES" "$PREFIX/RIncludes"
 
     echo "Creating Symlinks for CIncludes and RIncludes..."
@@ -265,7 +265,7 @@ function removeInterfacesAndLibraries()
         rm "$PREFIX/m68k-apple-macos/RIncludes"
         rm "$PREFIX/powerpc-apple-macos/RIncludes"
         rm -rf "$PREFIX/CIncludes"
-        rm -rf "$PREFIX/RIncludes"
+        find "$PREFIX/RIncludes" ! -name 'Retro*.r' -type f -exec rm -f {} \;
         rm "$FILE_LIST"
         rm "$PREFIX/include/PEFBinaryFormat.h"
     fi
