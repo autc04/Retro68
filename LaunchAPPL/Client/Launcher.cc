@@ -22,8 +22,7 @@ Launcher::Launcher(boost::program_options::variables_map &options)
     }
     else
     {
-        app.assign(fn);
-        if(!app.read())
+        if(!app.read(fn))
             throw std::runtime_error("Could not load application file.");
     }
     
@@ -39,8 +38,7 @@ Launcher::Launcher(boost::program_options::variables_map &options)
 Launcher::Launcher(boost::program_options::variables_map &options, ResourceFile::Format f)
     : Launcher(options)
 {
-    app.assign(appPath.string(), f);
-    app.write();
+    app.write(appPath.string(), f);
 }
 
 void Launcher::DumpOutput()

@@ -107,20 +107,18 @@ static void writeMacBinary(std::ostream& out, std::string filename,
         byte(out,0);
 }
 
-
-
-ResourceFile::ResourceFile()
+bool ResourceFile::read(std::string path, Format f)
 {
+    if(!assign(path, f))
+        return false;
+    return read();
 }
 
-ResourceFile::ResourceFile(std::string path, ResourceFile::Format f)
+bool ResourceFile::write(std::string path, Format f)
 {
-    assign(path, f);
-}
-
-ResourceFile::~ResourceFile()
-{
-
+    if(!assign(path, f))
+        return false;
+    return write();
 }
 
 static bool CheckAppleDouble(fs::path path, std::string prefix)
@@ -157,7 +155,7 @@ bool ResourceFile::assign(std::string pathstring, ResourceFile::Format f)
             format = Format::macbin;
         else if(path.extension() == ".as")
             format = Format::applesingle;
-        else if(path.extension() == ".dsk" || path.extension() == ".img")
+        else if(path.extension() == ".dsk")
             format = Format::diskimage;
         else if(path.filename().string().substr(0,2) == "._")
         {

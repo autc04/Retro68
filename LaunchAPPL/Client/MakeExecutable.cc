@@ -11,8 +11,8 @@ namespace fs = boost::filesystem;
 
 void MakeExecutable(string fn)
 {
-    ResourceFile rsrcFile(fn);
-    if(!rsrcFile.read())
+    ResourceFile rsrcFile;
+    if(!rsrcFile.read(fn))
     {
         std::cerr << "Cannot read application file: " << fn << std::endl;
         exit(1);

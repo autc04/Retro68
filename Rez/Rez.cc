@@ -25,8 +25,8 @@ static void usage()
 
 static void CopyBinaryResources(RezWorld& world, const std::string& fn)
 {
-    ResourceFile copyRsrc(fn);
-    if(!copyRsrc.read())
+    ResourceFile copyRsrc;
+    if(!copyRsrc.read(fn))
     {
         world.problem(Diagnostic(Diagnostic::error, "Could not read binary resource file " + fn, yy::location()));
     }
@@ -93,11 +93,11 @@ int main(int argc, const char *argv[])
         world.verboseFlag = true;
 
     std::string outfile = options["output"].as<std::string>();
-    ResourceFile rsrcFile(outfile);
+    ResourceFile rsrcFile;
 
     if(options.count("append"))
     {
-        rsrcFile.read();
+        rsrcFile.read(outfile);
 
         world.getResources().addResources(rsrcFile.resources);
     }
@@ -105,8 +105,8 @@ int main(int argc, const char *argv[])
     if(options.count("data"))
     {
         std::string fn = options["data"].as<std::string>();
-        ResourceFile dataFile(fn);
-        if(!dataFile.read())
+        ResourceFile dataFile;
+        if(!dataFile.read(fn))
             world.problem(Diagnostic(Diagnostic::error, "Could not read dataresource file " + fn, yy::location()));
         rsrcFile.data = dataFile.data;
     }
@@ -162,13 +162,12 @@ int main(int argc, const char *argv[])
     {
         std::cerr << "Writing " << rsrcFile.resources.countResources() << " resources.\n";
     }
-    rsrcFile.write();
+    rsrcFile.write(outfile);
 
     if(options.count("cc"))
         for(std::string ccFile : options["cc"].as<std::vector<std::string>>())
         {
-            rsrcFile.assign(ccFile);
-            rsrcFile.write();
+            rsrcFile.write(ccFile);
         }
 
     return 0;

@@ -51,8 +51,8 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-    ResourceFile file(argv[1]);
-    if(!file.read())
+    ResourceFile file;
+    if(!file.read(argv[1]))
     {
         std::cerr << "Couldn't read input.\n";
         return 1;

@@ -106,9 +106,9 @@ int main(int argc, char *argv[])
     if(options.count("input"))
         for(std::string fn : options["input"].as<std::vector<std::string>>())
         {
-            ResourceFile rsrcFile(fn, format);
+            ResourceFile rsrcFile;
             
-            if(!rsrcFile.read())
+            if(!rsrcFile.read(fn, format))
             {
                 std::cerr << "Can't read file.\n";
                 return 1;
@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
             if(showCreator)
                 out << " " << rsrcFile.creator;
             if(showFormat)
-                out << " " << reverseFormats[rsrcFile.format];
+                out << " " << reverseFormats[rsrcFile.getFormat()];
             if(showCount)
                 out << " " << rsrcFile.resources.resources.size();
             if(showSize)

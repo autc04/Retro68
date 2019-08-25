@@ -25,30 +25,29 @@ public:
         percent_appledouble
     };
 
-    ResourceFile();
-    ResourceFile(std::string path, Format f = Format::autodetect);
-    ~ResourceFile();
-
-    bool assign(std::string path, Format f = Format::autodetect);
-
+    bool read(std::string path, Format f = Format::autodetect);
+    bool write(std::string path, Format f = Format::autodetect);
     bool read(std::istream& in, Format f);
     bool write(std::ostream& in, Format f);
-
-    bool read();
-    bool write();
-
     static bool hasPlainDataFork(Format f);
     bool hasPlainDataFork();
+    Format getFormat() { return format; }
 
     static bool isSingleFork(Format f);
 
-    std::string pathstring;
-    std::string filename;
-    Format format;
     ResType type;
     ResType creator;
     Resources resources;
     std::string data;
+
+private:
+    bool assign(std::string path, Format f = Format::autodetect);
+    bool read();
+    bool write();
+
+    std::string pathstring;
+    std::string filename;
+    Format format = Format::autodetect;
 };
 
 #endif // RESOURCEFILE_H

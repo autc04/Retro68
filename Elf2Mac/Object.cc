@@ -194,7 +194,7 @@ std::string fromhex(std::string hex)
 
 void Object::SingleSegmentApp(string output)
 {
-    ResourceFile file(output);
+    ResourceFile file;
     Resources& rsrc = file.resources;
 
     rsrc.addResource(Resource(ResType("CODE"), 0,
@@ -218,7 +218,7 @@ void Object::SingleSegmentApp(string output)
     file.creator = ResType("????");
     file.type = ResType("APPL");
 
-    file.write();
+    file.write(output);
 }
 
 
@@ -227,7 +227,7 @@ void Object::MultiSegmentApp(string output, SegmentMap& segmentMap)
 {
     bool noisy = false;
     
-    ResourceFile file(output);
+    ResourceFile file;
     Resources& rsrc = file.resources;
 
     for(auto namedSec : sections)
@@ -396,5 +396,5 @@ void Object::MultiSegmentApp(string output, SegmentMap& segmentMap)
     file.creator = ResType("????");
     file.type = ResType("APPL");
 
-    file.write();
+    file.write(output);
 }
