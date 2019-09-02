@@ -259,16 +259,16 @@ function removeInterfacesAndLibraries()
     if [ -r "$FILE_LIST" ]; then
         echo "Removing currently installed Apple Interfaces and Libraries..."
         for file in `cat "$FILE_LIST"`; do
-            rm "$PREFIX/$file"
+            rm -f "$PREFIX/$file"
         done
         unlinkHeaders "$PREFIX/m68k-apple-macos/include"
         unlinkHeaders "$PREFIX/powerpc-apple-macos/include"
-        rm "$PREFIX/m68k-apple-macos/RIncludes"
-        rm "$PREFIX/powerpc-apple-macos/RIncludes"
+        rm -f "$PREFIX/m68k-apple-macos/RIncludes"
+        rm -f "$PREFIX/powerpc-apple-macos/RIncludes"
         rm -rf "$PREFIX/CIncludes"
         find "$PREFIX/RIncludes" ! -name 'Retro*.r' -type f -exec rm -f {} \;
-        rm "$FILE_LIST"
-        rm "$PREFIX/include/PEFBinaryFormat.h"
+        rm -f "$FILE_LIST"
+        rm -f "$PREFIX/include/PEFBinaryFormat.h"
     fi
 }
 
