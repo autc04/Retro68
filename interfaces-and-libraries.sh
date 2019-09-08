@@ -157,11 +157,6 @@ function unlinkHeaders()
     done
 }
 
-function setupPEFBinaryFormat()
-{
-    (export LC_ALL=C; sed 's/\r$//' < "$CINCLUDES/PEFBinaryFormat.h" | tr '\r' '\n' > "$PREFIX/include/PEFBinaryFormat.h")
-}
-
 function setUpInterfacesAndLibraries()
 {
     echo "Preparing CIncludes..."
@@ -268,7 +263,6 @@ function removeInterfacesAndLibraries()
         rm -rf "$PREFIX/CIncludes"
         find "$PREFIX/RIncludes" ! -name 'Retro*.r' -type f -exec rm -f {} \;
         rm -f "$FILE_LIST"
-        rm -f "$PREFIX/include/PEFBinaryFormat.h"
     fi
 }
 
@@ -297,7 +291,6 @@ else
     else
         locateAndCheckInterfacesAndLibraries
         removeInterfacesAndLibraries
-        setupPEFBinaryFormat
         setUpInterfacesAndLibraries
     fi
 fi

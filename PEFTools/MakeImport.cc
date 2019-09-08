@@ -99,8 +99,8 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, fs::path dest, fs::path tmp
         = (PEFSectionHeader*) (pefptr + kPEFFirstSectionHeaderOffset);
 
     PEFSectionHeader *loaderHeader = NULL;
-    UInt16 n = containerHeader->sectionCount;
-    for(UInt16 i=0; i < n; i++)
+    uint16_t n = containerHeader->sectionCount;
+    for(uint16_t i=0; i < n; i++)
     {
         eswap(&sectionHeaders[i]);
         if(sectionHeaders[i].sectionKind == kPEFLoaderSection)
@@ -111,12 +111,12 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, fs::path dest, fs::path tmp
         = (PEFLoaderInfoHeader*) (pefptr + loaderHeader->containerOffset);
     eswap(loaderInfoHeader);
     
-    UInt32 hashTableSize = 1;
-    UInt32 hashTablePower = loaderInfoHeader->exportHashTablePower;
+    uint32_t hashTableSize = 1;
+    uint32_t hashTablePower = loaderInfoHeader->exportHashTablePower;
     while(hashTablePower--)
         hashTableSize *= 2;
     
-    UInt32 nSymbols = loaderInfoHeader->exportedSymbolCount;
+    uint32_t nSymbols = loaderInfoHeader->exportedSymbolCount;
     
     const char *symbols    /* use char pointer to avoid packing issues */
         =    (pefptr    + loaderHeader->containerOffset
@@ -130,15 +130,15 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, fs::path dest, fs::path tmp
     /*const char *stringTableEnd = pefptr
                     + loaderHeader->containerOffset
                     + loaderInfoHeader->exportHashOffset;*/
-    vector< pair< const char *, UInt8 > > classesAndNamePtrs;
+    vector< pair< const char *, uint8_t > > classesAndNamePtrs;
     
-    for(UInt32 i=0; i < nSymbols; i++)
+    for(uint32_t i=0; i < nSymbols; i++)
     {
         PEFExportedSymbol *sym = (PEFExportedSymbol*) (symbols + 10*i);
         eswap(sym);
 
-        UInt8 symclass = PEFExportedSymbolClass(sym->classAndName);
-        UInt32 nameoffset = PEFExportedSymbolNameOffset(sym->classAndName);
+        uint8_t symclass = PEFExportedSymbolClass(sym->classAndName);
+        uint32_t nameoffset = PEFExportedSymbolNameOffset(sym->classAndName);
         
         const char *nameptr
             = stringTable + nameoffset;
@@ -147,10 +147,10 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, fs::path dest, fs::path tmp
     }
     std::sort(classesAndNamePtrs.begin(), classesAndNamePtrs.end());
     
-    vector< pair<string, UInt8> > exportedSymbols;
-    for(UInt32 i=0; i < nSymbols; i++)
+    vector< pair<string, uint8_t> > exportedSymbols;
+    for(uint32_t i=0; i < nSymbols; i++)
     {
-        UInt8 symclass = classesAndNamePtrs[i].second;
+        uint8_t symclass = classesAndNamePtrs[i].second;
         const char *namestart = classesAndNamePtrs[i].first;
         
         string name;
@@ -174,7 +174,7 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, fs::path dest, fs::path tmp
         fs::ofstream expFile(stub_exp);
         fs::ofstream sFile(stub_s);
         sFile << "\t.toc\n";
-        for(UInt32 i=0; i< nSymbols; i++)
+        for(uint32_t i=0; i< nSymbols; i++)
         {
             string& sym = exportedSymbols[i].first;
             if(exportedSymbols[i].second == kPEFTVectorSymbol)
@@ -242,7 +242,7 @@ bool MakeImportLibraryMulti(fs::path path, fs::path libname)
 
     CFragResourceMember *member = &(cfrg -> firstMember);
 
-    for(UInt16 i = 0; i < cfrg->memberCount; i++)
+    for(uint16_t i = 0; i < cfrg->memberCount; i++)
     {
         eswap(member);
         string membername =

@@ -319,9 +319,6 @@ fi # SKIP_THIRDPARTY
 
 echo "Building host-based tools..."
 
-# Copy PEFBinaryFormat.h from Universal Interfaces, needed by MakePEF & MakeImport
-setupPEFBinaryFormat
-
 mkdir -p build-host
 cd build-host
 cmake ${SRC} -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_BUILD_TYPE=Debug "${HOST_CMAKE_FLAGS[@]}" ${CMAKE_GENERATOR}
