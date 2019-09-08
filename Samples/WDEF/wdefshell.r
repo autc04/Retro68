@@ -106,11 +106,11 @@ data 'WDEF' (128) {
 };
 
 resource 'SIZE' (-1) {
-	dontSaveScreen,
+	reserved,
 	acceptSuspendResumeEvents,
-	enableOptionSwitch,
+	reserved,
 	canBackground,
-	multiFinderAware,
+	doesActivateOnFGSwitch,
 	backgroundAndForeground,
 	dontGetFrontClicks,
 	ignoreChildDiedEvents,
@@ -118,7 +118,7 @@ resource 'SIZE' (-1) {
 	isHighLevelEventAware,
 	onlyLocalHLEvents,
 	notStationeryAware,
-	reserved,
+	dontUseTextEditServices,
 	reserved,
 	reserved,
 	reserved,

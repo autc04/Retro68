@@ -71,7 +71,7 @@ AboutBox::AboutBox()
         SizeWindow(window, portRect.right, viewRect.bottom + 10, false);
     }
 
-    MacMoveWindow(window,
+    MoveWindow(window,
         screenBounds.right/2 - portRect.right/2,
         screenBounds.bottom/2 - portRect.bottom/2,
         false);

@@ -94,7 +94,7 @@ void InitCustomWDEF()
 void ShowAboutBox()
 {
     WindowRef w = GetNewWindow(128, NULL, (WindowPtr) - 1);
-    MacMoveWindow(w,
+    MoveWindow(w,
         qd.screenBits.bounds.right/2 - w->portRect.right/2,
         qd.screenBits.bounds.bottom/2 - w->portRect.bottom/2,
         false);
