@@ -21,20 +21,19 @@ resource 'carb' (0) {
 };
 
 resource 'SIZE' (-1) {
-	dontSaveScreen,
-	acceptSuspendResumeEvents,
-	enableOptionSwitch,
-	canBackground,
-	multiFinderAware,
+	reserved,
+	ignoreSuspendResumeEvents,
+	reserved,
+	cannotBackground,
+	needsActivateOnFGSwitch,
 	backgroundAndForeground,
 	dontGetFrontClicks,
 	ignoreChildDiedEvents,
 	is32BitCompatible,
-
 	isHighLevelEventAware,
 	onlyLocalHLEvents,
 	notStationeryAware,
-	reserved,
+	dontUseTextEditServices,
 	reserved,
 	reserved,
 	reserved,
