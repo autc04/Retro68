@@ -66,8 +66,8 @@ struct CFragResourceMember {
   uint8_t        updateLevel;
   uint32_t        currentVersion;
   uint32_t        oldDefVersion;
-  uint32_t        uUsage1;
-  uint16_t        uUsage2;
+  uint32_t        uUsage1;  // default stack size
+  uint16_t        uUsage2;  // app load folder
   uint8_t        usage;
   uint8_t        where;
   uint32_t        offset;
