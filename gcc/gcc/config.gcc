@@ -2785,7 +2785,7 @@ powerpcle-*-eabi*)
 	use_gcc_stdint=wrap
 	;;
 powerpc-apple-macos*)
-	tm_file="${tm_file} rs6000/xcoff.h rs6000/aix-stdint.h rs6000/macos.h"
+	tm_file="${tm_file} rs6000/xcoff.h rs6000/macos.h"
 	tmake_file="rs6000/t-macos"
 	extra_options="${extra_options} rs6000/aix64.opt"
 	use_collect2=yes
