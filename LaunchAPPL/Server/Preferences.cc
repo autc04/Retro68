@@ -18,7 +18,10 @@
 */
 
 #include "Preferences.h"
+
+#ifdef HAVE_NAVIGATION
 #include <Navigation.h>
+#endif
 #include <StandardFile.h>
 #include <LowMem.h>
 #include <stdio.h>
@@ -70,6 +73,7 @@ static void ConvertToPathName(const FSSpec& spec)
     WritePrefs();
 }
 
+#ifdef HAVE_NAVIGATION
 static pascal void NavEventProc(NavEventCallbackMessage callBackSelector, NavCBRecPtr callBackParms, void *callBackUD)
 {
     if(callBackSelector == kNavCBEvent)
@@ -122,6 +126,7 @@ static bool ChooseSharedDirectoryNav(FSSpec& spec)
     }
     return success;
 }
+#endif
 
 #if !TARGET_API_MAC_CARBON
 static bool choosePressed = false;
@@ -240,6 +245,7 @@ void ChooseSharedDirectory()
         ok = ChooseSharedDirectory6(spec);
     else
 #endif
+#ifdef HAVE_NAVIGATION
 #if !TARGET_API_MAC_CARBON
         if(NavServicesAvailable())
 #endif
@@ -248,7 +254,9 @@ void ChooseSharedDirectory()
         else
             ok = ChooseSharedDirectory7(spec);
 #endif
-
+#else
+        ok = ChooseSharedDirectory7(spec);
+#endif
     if(ok)
         ConvertToPathName(spec);
 }

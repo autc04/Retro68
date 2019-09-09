@@ -140,9 +140,9 @@ resource 'STR#' (129, purgeable) {
 };
 
 resource 'SIZE' (-1) {
-	dontSaveScreen,
+	reserved,
 	acceptSuspendResumeEvents,
-	enableOptionSwitch,
+	reserved,
 	canBackground,
 	multiFinderAware,
 	backgroundAndForeground,

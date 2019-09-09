@@ -1,16 +1,24 @@
+include(CheckIncludeFile)
+
+CHECK_INCLUDE_FILE(Navigation.h HAVE_NAVIGATION_H)
+CHECK_INCLUDE_FILE(OpenTransport.h HAVE_OPENTRANSPORT_H)
+CHECK_INCLUDE_FILE(MacTCP.h HAVE_MACTCP_H)
+
 set(HAVE_OPENTRANSPORT NO)
-if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
-    find_library(OPENTRANSPORT_LIBRARY NAMES libOpenTransportLib.a)
-    if(OPENTRANSPORT_LIBRARY)
+if(HAVE_OPENTRANSPORT_H)
+    if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
+        find_library(OPENTRANSPORT_LIBRARY NAMES libOpenTransportLib.a)
+        if(OPENTRANSPORT_LIBRARY)
+            set(HAVE_OPENTRANSPORT YES)
+        endif()
+    elseif(CMAKE_SYSTEM_NAME MATCHES Retro68)
+        find_library(OPENTRANSPORT_LIBRARY NAMES libOpenTransport.a)
+        if(OPENTRANSPORT_LIBRARY)
+            set(HAVE_OPENTRANSPORT YES)
+        endif()
+    elseif(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
         set(HAVE_OPENTRANSPORT YES)
     endif()
-elseif(CMAKE_SYSTEM_NAME MATCHES Retro68)
-    find_library(OPENTRANSPORT_LIBRARY NAMES libOpenTransport.a)
-    if(OPENTRANSPORT_LIBRARY)
-        set(HAVE_OPENTRANSPORT YES)
-    endif()
-elseif(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
-    set(HAVE_OPENTRANSPORT YES)
 endif()
 
 set(CONNECTION_SOURCES
@@ -27,12 +35,16 @@ else()
             SerialConnectionProvider.cc
             MacSerialStream.h
             MacSerialStream.cc
-
-            MacTCPStream.h
-            MacTCPStream.cc
-            TCPConnectionProvider.h
-            TCPConnectionProvider.cc
         )
+
+    if(HAVE_MACTCP_H)
+        list(APPEND CONNECTION_SOURCES
+                MacTCPStream.h
+                MacTCPStream.cc
+                TCPConnectionProvider.h
+                TCPConnectionProvider.cc
+            )
+    endif()
 endif()        
 
 option(LAUNCHAPPLSERVER_DEBUG_CONSOLE "Add a debug console to LaunchAPPLServer" FALSE)
@@ -79,6 +91,12 @@ if(LAUNCHAPPLSERVER_DEBUG_CONSOLE)
 endif()
 if(HAVE_OPENTRANSPORT)
     target_compile_definitions(LaunchAPPLServer PRIVATE HAVE_OPENTRANSPORT)
+endif()
+if(HAVE_NAVIGATION_H)
+    target_compile_definitions(LaunchAPPLServer PRIVATE HAVE_NAVIGATION)
+endif()
+if(HAVE_MACTCP_H AND NOT CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
+    target_compile_definitions(LaunchAPPLServer PRIVATE HAVE_MACTCP)
 endif()
 
 target_link_libraries(LaunchAPPLServer LaunchAPPLCommon)

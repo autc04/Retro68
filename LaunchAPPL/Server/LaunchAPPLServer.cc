@@ -44,6 +44,8 @@
 #include "ConnectionProvider.h"
 #if !TARGET_API_MAC_CARBON
 #include "SerialConnectionProvider.h"
+#endif
+#if HAVE_MACTCP
 #include "TCPConnectionProvider.h"
 #endif
 #ifdef HAVE_OPENTRANSPORT
@@ -573,9 +575,11 @@ void ConnectionChanged()
     switch(gPrefs.port)
     {
 #if !TARGET_API_MAC_CARBON
+#ifdef HAVE_MACTCP
         case Port::macTCP:
             connection = std::make_unique<TCPConnectionProvider>(statusDisplay.get());
             break;
+#endif
         case Port::modemPort:
             connection = std::make_unique<SerialConnectionProvider>(0, gPrefs.baud, statusDisplay.get());
             break;
