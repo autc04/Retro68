@@ -1,11 +1,11 @@
 
-#define LIBGCC_SPEC "--start-group -lretrocrt -lgcc --end-group -lInterface"
+#define LIBGCC_SPEC "--start-group -lretrocrt -lgcc -lInterface --end-group "
 #define LINK_SPEC "-elf2mac -q -undefined=_consolewrite"
 
 #undef  LIB_SPEC
-#define LIB_SPEC "--start-group -lc -lretrocrt --end-group -lInterface"
+#define LIB_SPEC "--start-group -lc -lretrocrt -lInterface --end-group"
 
-#define LINK_GCC_C_SEQUENCE_SPEC "--start-group -lgcc -lc -lretrocrt --end-group -lInterface"
+#define LINK_GCC_C_SEQUENCE_SPEC "--start-group -lgcc -lc -lretrocrt -lInterface --end-group"
 
 
 #undef STARTFILE_SPEC
