@@ -141,9 +141,9 @@ function linkHeaders()
 {
     # On case-insensitive file systems, there will be some conflicts with
     # newlib. For now, universal interfaces get the right of way.
-    rm -f Threads.h        # thread.h: does not currently work anyways
-    rm -f Memory.h         # memory.h: non-standard aliasof string.h
-    rm -f Strings.h        # strings.h: traditional bsd string functions
+    rm -f "$1/Threads.h"        # thread.h: does not currently work anyways
+    rm -f "$1/Memory.h"         # memory.h: non-standard aliasof string.h
+    rm -f "$1/Strings.h"        # strings.h: traditional bsd string functions
 
     (cd "$1" && find "../../CIncludes" -name '*.h' -exec ln -s {} . \;)
 }
