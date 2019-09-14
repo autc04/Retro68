@@ -21,7 +21,7 @@ function locateInterfaceThing()
     local varname=$1
     local name=$2
     printf "Searching for %-25s" "$name..."
-    local found=`find "$INTERFACES_DIR" -name ".*" -prune -o -name $name -print`
+    local found=`find "$INTERFACES_DIR"/ -name ".*" -prune -o -name $name -print`
     if [ -n "$found" ]; then
         eval "$varname=\$found"
         echo ${found#$INTERFACES_DIR/}
@@ -74,6 +74,8 @@ function locateAndCheckInterfacesAndLibraries()
 
         if locateInterfaceThing INTERFACE_O Interface.o; then
             M68KLIBRARIES=`dirname "$INTERFACE_O"`
+        elif locateInterfaceThing INTERFACELIB_68K libInterface.a; then
+            M68KLIBRARIES=`dirname "$INTERFACELIB_68K"`
         else
             echo "Could not find Interface.o anywhere inside InterfaceAndLibraries/"
             echo "(This file is required for 68K support only)"
@@ -194,7 +196,7 @@ function setUpInterfacesAndLibraries()
                 printf "    %30s => %-30s\n" ${libname}.o lib${libname}.a
                 asm="$PREFIX/m68k-apple-macos/lib/$libname.s"
                 obj="$PREFIX/m68k-apple-macos/lib/$libname.o"
-                lib="$PREFIX/m68k-apple-macos/lib/lib${libname}.a"
+                lib="Fm68k-apple-macos/lib/lib${libname}.a"
 
                 rm -f $lib
 
@@ -206,6 +208,11 @@ function setUpInterfacesAndLibraries()
                 fi
                 rm -f "$asm"
             fi
+        done
+        for lib in "${M68KLIBRARIES}/"lib*.a; do
+            libname=`basename "$lib"`
+            cp $lib "$PREFIX/m68k-apple-macos/lib/"
+            echo "m68k-apple-macos/lib/${libname}" >> "$FILE_LIST"
         done
     fi
 
