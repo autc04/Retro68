@@ -196,7 +196,7 @@ function setUpInterfacesAndLibraries()
                 printf "    %30s => %-30s\n" ${libname}.o lib${libname}.a
                 asm="$PREFIX/m68k-apple-macos/lib/$libname.s"
                 obj="$PREFIX/m68k-apple-macos/lib/$libname.o"
-                lib="Fm68k-apple-macos/lib/lib${libname}.a"
+                lib="$PREFIX/m68k-apple-macos/lib/lib${libname}.a"
 
                 rm -f $lib
 
