@@ -16,12 +16,14 @@
 #   You should have received a copy of the GNU General Public License
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
+shopt -s nullglob
+
 function locateInterfaceThing()
 {
     local varname=$1
     local name=$2
     printf "Searching for %-25s" "$name..."
-    local found=`find "$INTERFACES_DIR"/ -name ".*" -prune -o -name $name -print`
+    local found=`find -L "$INTERFACES_DIR"/ -name ".*" -prune -o -name $name -print`
     if [ -n "$found" ]; then
         eval "$varname=\$found"
         echo ${found#$INTERFACES_DIR/}
