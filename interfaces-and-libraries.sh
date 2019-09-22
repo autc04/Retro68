@@ -92,10 +92,8 @@ function locateAndCheckInterfacesAndLibraries()
         if locateInterfaceThing INTERFACELIB InterfaceLib; then
             SHAREDLIBRARIES=`dirname "$INTERFACELIB"`
         else
-            echo "Could not find InterfaceLib anywhere inside InterfaceAndLibraries/"
-            echo "(This file is required for PowerPC support only)"
-            echo
-            explainInterfaces
+            SHAREDLIBRARIES=""
+            echo "Could not find InterfaceLib, using included import libraries."
         fi
 
         if locateInterfaceThing OPENTRANSPORTAPPPPC OpenTransportAppPPC.o; then
@@ -219,10 +217,12 @@ function setUpInterfacesAndLibraries()
     fi
 
     if [ $BUILD_PPC != false ]; then
-        case `ResInfo -n "$INTERFACELIB" || echo 0` in
+        case `ResInfo -n "$INTERFACELIB" > /dev/null || echo 0` in
             0)
-                echo "WARNING: Couldn't read resource fork for \"$INTERFACELIB\"."
-                echo "         Falling back to included import libraries."
+                if [ -n "$INTERFACELIB" ]; then
+                    echo "WARNING: Couldn't read resource fork for \"$INTERFACELIB\"."
+                    echo "         Falling back to included import libraries."
+                fi
                 echo "Copying readymade PowerPC import libraries..."
                 cp $SRC/ImportLibraries/*.a $PREFIX/powerpc-apple-macos/lib/
                 ;;
