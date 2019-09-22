@@ -123,7 +123,7 @@ if(HAVE_OPENTRANSPORT)
     endif()
 endif()
 
-if(HAVE_NAVIGATION)
+if(HAVE_NAVIGATION_H)
     if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
         target_link_libraries(LaunchAPPLServer -lNavigationLib)
     endif()
