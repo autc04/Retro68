@@ -137,86 +137,104 @@ function locateAndCheckInterfacesAndLibraries()
     fi
 }
 
-# remove old symlinks in $PREFIX/*-apple-macos/include/
-# and link files from $PREFIX/CIncludes
-function linkHeaders()
+
+function linkThings()
+{
+    FROM="$1"
+    TO="$2"
+    PATTERN="$3"
+    
+    mkdir -p "$TO"
+    (cd "$TO" && find "$FROM" -name "$PATTERN" -exec ln -s {} . \;)
+}
+
+function removeConflictingHeaders()
 {
     # On case-insensitive file systems, there will be some conflicts with
     # newlib. For now, universal interfaces get the right of way.
-    rm -f "$1/Threads.h"        # thread.h: does not currently work anyways
-    rm -f "$1/Memory.h"         # memory.h: non-standard aliasof string.h
-    rm -f "$1/Strings.h"        # strings.h: traditional bsd string functions
-
-    (cd "$1" && find "../../CIncludes" -name '*.h' -exec ln -s {} . \;)
+    rm -f "$2/Threads.h"        # thread.h: does not currently work anyways
+    rm -f "$2/Memory.h"         # memory.h: non-standard aliasof string.h
+    rm -f "$2/Strings.h"        # strings.h: traditional bsd string functions
 }
 
-function unlinkHeaders()
+
+function unlinkThings()
 {
     for file  in "$1/"*; do
-        if [[ `readlink "$file"` == ../../CIncludes/* ]]; then
+        if [[ `readlink "$file"` == $2/* ]]; then
             rm "$file"
         fi
     done
 }
 
-function setUpInterfacesAndLibraries()
+function linkInterfacesAndLibraries()
 {
-    echo "Preparing CIncludes..."
-    rm -rf "$PREFIX/CIncludes"
-    mkdir "$PREFIX/CIncludes"
-    sh "$SRC/prepare-headers.sh" "$CINCLUDES" "$PREFIX/CIncludes"
-
-    echo "Preparing RIncludes..."
-    mkdir -p "$PREFIX/RIncludes"
-    find "$PREFIX/RIncludes" ! -name 'Retro*.r' -type f -exec rm -f {} \;
-    sh "$SRC/prepare-rincludes.sh" "$RINCLUDES" "$PREFIX/RIncludes"
-
-    echo "Creating Symlinks for CIncludes and RIncludes..."
-
+    linkThings "../$1/RIncludes" "$PREFIX/RIncludes" "*.r"
+    
     if [ $BUILD_68K != false ]; then
-        ln -sf ../RIncludes $PREFIX/m68k-apple-macos/RIncludes
-        linkHeaders $PREFIX/m68k-apple-macos/include
+        ln -sf ../RIncludes "$PREFIX/m68k-apple-macos/RIncludes"
+        removeConflictingHeaders "$PREFIX/m68k-apple-macos/include"
+        linkThings "../../$1/CIncludes" "$PREFIX/m68k-apple-macos/include" "*.h"
     fi
 
     if [ $BUILD_PPC != false ]; then
-        ln -sf ../RIncludes $PREFIX/powerpc-apple-macos/RIncludes
-        linkHeaders $PREFIX/powerpc-apple-macos/include
+        ln -sf ../RIncludes "$PREFIX/powerpc-apple-macos/RIncludes"
+        linkThings "../../$1/CIncludes" "$PREFIX/powerpc-apple-macos/include" "*.h"
     fi
 
-    FILE_LIST="$PREFIX/apple-libraries.txt"
-    rm -f "$FILE_LIST"
-    touch "$FILE_LIST"
+    linkThings "../../$1/lib68k" "$PREFIX/m68k-apple-macos/lib" "*.a"
+    linkThings "../../$1/libppc" "$PREFIX/powerpc-apple-macos/lib" "*.a"
+}
+
+function unlinkInterfacesAndLibraries()
+{
+    unlinkThings "$PREFIX/RIncludes" "../*/RIncludes"
+    unlinkThings "$PREFIX/m68k-apple-macos/include" "../../*/CIncludes"
+    unlinkThings "$PREFIX/powerpc-apple-macos/include" "../../*/CIncludes"
+    unlinkThings "$PREFIX/m68k-apple-macos/lib" "../../*/lib68k"
+    unlinkThings "$PREFIX/powerpc-apple-macos/lib" "../../*/libppc"
+    rm -f "$PREFIX/m68k-apple-macos/RIncludes"
+    rm -f "$PREFIX/powerpc-apple-macos/RIncludes"
+}
+
+function setUpInterfacesAndLibraries()
+{
+    rm -rf "$PREFIX/universal"
+    mkdir "$PREFIX/universal"
+
+    echo "Preparing CIncludes..."
+    mkdir "$PREFIX/universal/CIncludes"
+    sh "$SRC/prepare-headers.sh" "$CINCLUDES" "$PREFIX/universal/CIncludes"
+
+    echo "Preparing RIncludes..."
+    mkdir "$PREFIX/universal/RIncludes"
+    sh "$SRC/prepare-rincludes.sh" "$RINCLUDES" "$PREFIX/universal/RIncludes"
 
     if [ $BUILD_68K != false ]; then
         echo "Converting 68K static libraries..."
+        mkdir -p "$PREFIX/universal/lib68k"
         for macobj in "${M68KLIBRARIES}/"*.o; do
             if [ -r "$macobj" ]; then
                 libname=`basename "$macobj"`
                 libname=${libname%.o}
                 printf "    %30s => %-30s\n" ${libname}.o lib${libname}.a
-                asm="$PREFIX/m68k-apple-macos/lib/$libname.s"
-                obj="$PREFIX/m68k-apple-macos/lib/$libname.o"
-                lib="$PREFIX/m68k-apple-macos/lib/lib${libname}.a"
+                asm="$PREFIX/universal/lib68k/$libname.s"
+                obj="$PREFIX/universal/lib68k/$libname.o"
+                lib="$PREFIX/universal/lib68k/lib${libname}.a"
 
                 rm -f $lib
 
                 if ConvertObj "$macobj" > "$asm"; then
                     m68k-apple-macos-as "$asm" -o "$obj"
                     m68k-apple-macos-ar cqs "$lib" "$obj"
-                    echo "m68k-apple-macos/lib/$libname.o" >> "$FILE_LIST"
-                    echo "m68k-apple-macos/lib/lib${libname}.a" >> "$FILE_LIST"
                 fi
                 rm -f "$asm"
             fi
         done
-        for lib in "${M68KLIBRARIES}/"lib*.a; do
-            libname=`basename "$lib"`
-            cp $lib "$PREFIX/m68k-apple-macos/lib/"
-            echo "m68k-apple-macos/lib/${libname}" >> "$FILE_LIST"
-        done
     fi
 
     if [ $BUILD_PPC != false ]; then
+        mkdir -p "$PREFIX/universal/libppc"
         case `ResInfo -n "$INTERFACELIB" > /dev/null || echo 0` in
             0)
                 if [ -n "$INTERFACELIB" ]; then
@@ -224,7 +242,7 @@ function setUpInterfacesAndLibraries()
                     echo "         Falling back to included import libraries."
                 fi
                 echo "Copying readymade PowerPC import libraries..."
-                cp $SRC/ImportLibraries/*.a $PREFIX/powerpc-apple-macos/lib/
+                cp $PREFIX/multiversal/libppc/*.a $PREFIX/universal/libppc/
                 ;;
             *)
                 echo "Building PowerPC import libraries..."
@@ -232,8 +250,7 @@ function setUpInterfacesAndLibraries()
                     libname=`basename "$shlib"`
                     implib=lib${libname}.a
                     printf "    %30s => %-30s\n" ${libname} ${implib}
-                    MakeImport "$shlib" "$PREFIX/powerpc-apple-macos/lib/$implib" \
-                        && echo "powerpc-apple-macos/lib/$implib" >> "$FILE_LIST"
+                    MakeImport "$shlib" "$PREFIX/universal/libppc/$implib" || true
                 done
                 ;;
         esac
@@ -243,14 +260,12 @@ function setUpInterfacesAndLibraries()
             for obj in "${PPCLIBRARIES}/"OpenT*.o "${PPCLIBRARIES}/CarbonAccessors.o" "${PPCLIBRARIES}/CursorDevicesGlue.o"; do
                 if [ -r "$obj" ]; then
                     # copy the library:
-                    cp "$obj" "$PREFIX/powerpc-apple-macos/lib/"
+                    cp "$obj" "$PREFIX/universal/libppc/"
                     basename=`basename "${obj%.o}"`
                     # and wrap it in a .a archive for convenience
-                    lib="$PREFIX"/powerpc-apple-macos/lib/lib$basename.a
+                    lib="$PREFIX"/universal/libppc/lib$basename.a
                     rm -f "$lib"
                     powerpc-apple-macos-ar cqs "$lib" "$obj"
-                    echo "powerpc-apple-macos/lib/$basename.o" >> "$FILE_LIST"
-                    echo "powerpc-apple-macos/lib/lib$basename.a" >> "$FILE_LIST"
                 fi
             done
         fi
@@ -259,20 +274,8 @@ function setUpInterfacesAndLibraries()
 
 function removeInterfacesAndLibraries()
 {
-    FILE_LIST="$PREFIX/apple-libraries.txt"
-    if [ -r "$FILE_LIST" ]; then
-        echo "Removing currently installed Apple Interfaces and Libraries..."
-        for file in `cat "$FILE_LIST"`; do
-            rm -f "$PREFIX/$file"
-        done
-        unlinkHeaders "$PREFIX/m68k-apple-macos/include"
-        unlinkHeaders "$PREFIX/powerpc-apple-macos/include"
-        rm -f "$PREFIX/m68k-apple-macos/RIncludes"
-        rm -f "$PREFIX/powerpc-apple-macos/RIncludes"
-        rm -rf "$PREFIX/CIncludes"
-        find "$PREFIX/RIncludes" ! -name 'Retro*.r' -type f -exec rm -f {} \;
-        rm -f "$FILE_LIST"
-    fi
+    unlinkInterfacesAndLibraries
+    rm -rf "$PREFIX/universal"
 }
 
 if (return 0 2>/dev/null); then
@@ -297,9 +300,18 @@ else
 
     if [ "${INTERFACES_DIR}" = "--remove" ]; then
         removeInterfacesAndLibraries
+    elif [ "${INTERFACES_DIR}" = "--unlink" ]; then
+        unlinkInterfacesAndLibraries
+    elif [ "${INTERFACES_DIR}" = "--multiversal" ]; then
+        unlinkInterfacesAndLibraries
+        linkInterfacesAndLibraries "multiversal"
+    elif [ "${INTERFACES_DIR}" = "--universal" ]; then
+        unlinkInterfacesAndLibraries
+        linkInterfacesAndLibraries "universal"
     else
         locateAndCheckInterfacesAndLibraries
         removeInterfacesAndLibraries
         setUpInterfacesAndLibraries
+        linkInterfacesAndLibraries "universal"
     fi
 fi

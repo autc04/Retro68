@@ -332,7 +332,11 @@ export PATH=$PREFIX/bin:$PATH
 
 ##################### Set up Interfaces & Libraries
 
+(cd "${SRC}/multiversal" && ruby make-multiverse.rb -G CIncludes -o "${PREFIX}/multiversal")
+mkdir -p "${PREFIX}/multiversal/libppc"
+cp "${SRC}/ImportLibraries"/*.a "${PREFIX}/multiversal/libppc/"
 setUpInterfacesAndLibraries
+linkInterfacesAndLibraries universal
 
 ##################### Build target libraries and samples
 
