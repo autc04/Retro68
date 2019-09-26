@@ -48,6 +48,8 @@ function usage()
 	echo "    --host-cxx-compiler       specify C++ compiler (needed on Mac OS X 10.4)"
 	echo "    --host-c-compiler         specify C compiler (needed on Mac OS X 10.4)"
 	echo "    --ninja                   use ninja for cmake builds"
+    echo "    --universal               use Apple's universal interfaces (default: autodetect)"
+    echo "    --multiversal             use the open-source multiversal interfaces (default: autodetect)"
 	echo "    --help                    show this help message"
 }
 
@@ -83,6 +85,12 @@ for ARG in $*; do
 		--ninja)
 			CMAKE_GENERATOR=-GNinja
 			;;
+        --universal)
+            INTERFACES_KIND=universal
+            ;;
+        --multiversal)
+            INTERFACES_KIND=multiversal
+            ;;
 		--help)
 			usage
 			exit 0
@@ -180,6 +188,12 @@ INTERFACES_DIR="$SRC/InterfacesAndLibraries"
 . "$SRC/interfaces-and-libraries.sh"
 
 locateAndCheckInterfacesAndLibraries
+if [ ${INTERFACES_KIND} = multiversal ] && [ ${BUILD_CARBON} != false ]; then
+    echo
+    echo "Unfortunately, the Multiversal Interfaces don't yet support the Carbon API."
+    echo "Use either --universal or --no-carbon."
+    exit 1
+fi
 
 ##################### Third-Party components: binutils, gcc, hfsutils
 
@@ -336,7 +350,7 @@ export PATH=$PREFIX/bin:$PATH
 mkdir -p "${PREFIX}/multiversal/libppc"
 cp "${SRC}/ImportLibraries"/*.a "${PREFIX}/multiversal/libppc/"
 setUpInterfacesAndLibraries
-linkInterfacesAndLibraries universal
+linkInterfacesAndLibraries ${INTERFACES_KIND}
 
 ##################### Build target libraries and samples
 
@@ -387,7 +401,21 @@ if [ $BUILD_CARBON != false ]; then
 fi
 
 echo
+echo "==============================================================================="
 echo "Done building Retro68."
+echo "The toolchain has been installed to: ${PREFIX}"
+if [ `which Rez` != $PREFIX/bin/Rez ]; then
+    echo "you might want to add ${PREFIX}/bin to your PATH."
+fi
+case "${INTERFACES_KIND}" in
+    universal)
+        echo "Using Apple's Universal Interfaces."
+        ;;
+    multiversal)
+        echo "Using the open-source Multiversal Interfaces."
+        ;;
+esac
+
 if [ $BUILD_68K != false ]; then
 	echo "You will find 68K sample appliations in build-target/Samples/."
 fi

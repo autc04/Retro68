@@ -36,9 +36,23 @@ function locateInterfaceThing()
 
 function explainInterfaces()
 {
-    echo "Please get a copy of Apple's Universal Interfaces & Libraries, "
-    echo "version 3.x, and place it in the InterfacesAndLibraries directory inside"
-    echo "the Retro68 source directory."
+    if [ "$INTERFACES_KIND" = "multiversal" ]; then
+        echo "Apple's Universal Interfaces & Libraries will not be installed."
+        echo "Continuing with the open-source Multiversal Interfaces."
+        echo
+        return
+    fi
+    echo "==============================================================================="
+    if [ -z "$INTERFACES_KIND" ]; then
+        echo "If you want to use Apple's Universal Interfaces & Libraries "
+        echo "rather than the open-source Multiversal Interfaces, get a copy of"
+        echo "version 3.x, and place it in the InterfacesAndLibraries directory inside"
+        echo "the Retro68 source directory."
+    else
+        echo "Please get a copy of Apple's Universal Interfaces & Libraries, "
+        echo "version 3.x, and place it in the InterfacesAndLibraries directory inside"
+        echo "the Retro68 source directory."
+    fi
     echo
     echo "The exact directory layout does not matter, but there has to be"
     echo "  - a directory with C header files (usually \"CIncludes\")"
@@ -49,7 +63,17 @@ function explainInterfaces()
     echo
     echo "The Interfaces&Libraries folder from Apple's last MPW release (MPW 3.5 "
     echo "aka MPW GM 'Golden Master') is known to work."
-    exit 1
+    
+    if [ -z "$INTERFACES_KIND" ]; then
+        INTERFACES_KIND=multiversal
+        echo
+        echo "Continuing with the open-source Multiversal Interfaces."
+        echo "==============================================================================="
+        echo        
+    else
+        echo "==============================================================================="
+        exit 1
+    fi
 }
 
 function locateAndCheckInterfacesAndLibraries()
@@ -59,17 +83,19 @@ function locateAndCheckInterfacesAndLibraries()
     if locateInterfaceThing CONDITIONALMACROS_H ConditionalMacros.h; then
         CINCLUDES=`dirname "$CONDITIONALMACROS_H"`
     else
-        echo "Could not find ConditionalMacros.h anywhere inside InterfaceAndLibraries/"
+        echo "Could not find ConditionalMacros.h anywhere inside $INTERFACES_DIR"
         echo
         explainInterfaces
+        return
     fi
 
     if locateInterfaceThing CONDITIONALMACROS_R ConditionalMacros.r; then
         RINCLUDES=`dirname "$CONDITIONALMACROS_R"`
     else
-        echo "Could not find ConditionalMacros.r anywhere inside InterfaceAndLibraries/"
+        echo "Could not find ConditionalMacros.r anywhere inside $INTERFACES_DIR"
         echo
         explainInterfaces
+        return
     fi
 
     if [ $BUILD_68K != false ]; then
@@ -79,10 +105,11 @@ function locateAndCheckInterfacesAndLibraries()
         elif locateInterfaceThing INTERFACELIB_68K libInterface.a; then
             M68KLIBRARIES=`dirname "$INTERFACELIB_68K"`
         else
-            echo "Could not find Interface.o anywhere inside InterfaceAndLibraries/"
+            echo "Could not find Interface.o anywhere inside $INTERFACES_DIR"
             echo "(This file is required for 68K support only)"
             echo
             explainInterfaces
+            return
         fi
 
     fi
@@ -99,10 +126,9 @@ function locateAndCheckInterfacesAndLibraries()
         if locateInterfaceThing OPENTRANSPORTAPPPPC OpenTransportAppPPC.o; then
             PPCLIBRARIES=`dirname "$OPENTRANSPORTAPPPPC"`
         else
-            echo "Could not find OpenTransportAppPPC.o anywhere inside InterfaceAndLibraries/"
+            echo "Could not find OpenTransportAppPPC.o anywhere inside $INTERFACES_DIR"
             echo "(This file is required for OpenTransport on PPC only)"
         fi
-
     fi
 
     if [ $BUILD_CARBON != false ]; then
@@ -113,12 +139,14 @@ function locateAndCheckInterfacesAndLibraries()
                 echo "This is confusing."
                 echo
                 explainInterfaces
+                return
             fi
         else
-            echo "Could not find Carbon.h anywhere inside InterfaceAndLibraries/"
+            echo "Could not find Carbon.h anywhere inside $INTERFACES_DIR"
             echo "(This file is required for Carbon support only)"
             echo
             explainInterfaces
+            return
         fi
         if locateInterfaceThing CARBONLIB CarbonLib; then
             carbondir=`dirname "$CARBONLIB"`
@@ -127,13 +155,19 @@ function locateAndCheckInterfacesAndLibraries()
                 echo "This is confusing."
                 echo
                 explainInterfaces
+                return
             fi
         else
-            echo "Could not find CarbonLib anywhere inside InterfaceAndLibraries/"
+            echo "Could not find CarbonLib anywhere inside $INTERFACES_DIR"
             echo "(This file is required for Carbon support only)"
             echo
             explainInterfaces
+            return
         fi
+    fi
+
+    if [ -z "$INTERFACES_KIND" ]; then
+        INTERFACES_KIND=universal
     fi
 }
 
@@ -309,6 +343,7 @@ else
         unlinkInterfacesAndLibraries
         linkInterfacesAndLibraries "universal"
     else
+        INTERFACES_KIND=universal
         locateAndCheckInterfacesAndLibraries
         removeInterfacesAndLibraries
         setUpInterfacesAndLibraries
