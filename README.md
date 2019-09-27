@@ -19,12 +19,13 @@ Installing/Building
 - CMake 3.9 or later
 - GCC dependencies: GMP 4.2+, MPFR 2.3.1+ and MPC 0.8.0+
 - bison version 3.0.2 or later
-- Apple Universal Interfaces (version 3.x; version 3.4 is tested)
+- ruby version 2.1 or later
+- Recommended: Apple Universal Interfaces (version 3.x; version 3.4 is tested)
 - An ancient Mac and/or an emulator.
 
 For Ubuntu Linux, the following should help a bit:
 
-    sudo apt-get install cmake libgmp-dev libmpfr-dev libmpc-dev libboost-all-dev bison texinfo
+    sudo apt-get install cmake libgmp-dev libmpfr-dev libmpc-dev libboost-all-dev bison texinfo ruby
 
 On a Mac, get the homebrew package manager and:
 
@@ -37,14 +38,16 @@ In that case, get the tigerbrew package manager and
     brew install gcc cmake gmp mpfr libmpc bison
     brew install boost --c++11
 
-### Apple Universal Interfaces
+### Apple Universal Interfaces vs. Multiversal Interfaces
 
-Before you can build Retro68, you need to find a copy of Apple's Universal Interfaces
-and put it inside the InterfacesAndLibraries directory in the source tree.
-Version 3.4 has received the most testing, but any 3.x version could theoretically
-work.
-The exact directory layout inside the InterfacesAndLibraries directory does
-not matter. The resource forks of the files are not required.
+To compile code for the Mac, you need header files and libraries describing
+the APIs. There are two choices: Apple's Universal Interfaces, or the
+brand-new open source reimplementation, the Multiversal Interfaces.
+
+The Multiversal Interfaces are included with Retro68 out of the box, and they
+are free software. However, they are incomplete and may still contain serious
+bugs. Missing things include Carbon, MacTCP, OpenTransport, Navigation Services,
+and basically everything introduced after System 7.0.
 
 The Universal Interfaces used to be a free download from Apple. However,
 they have taken the site off-line and the license agreement does not allow
@@ -52,17 +55,23 @@ redistribution, which is why it's not included in this repository.
 The concept of fair use might cover keeping it available for reasons of historical
 interest, or it might not. I am not a lawyer.
 
+If you find a copy of Apple's Universal Interfaces, you can put it
+inside the InterfacesAndLibraries directory in the source tree, and 
+Version 3.4 has received the most testing, but any 3.x version could theoretically
+work. The exact directory layout inside the InterfacesAndLibraries directory does
+not matter. It will be picked up automatically when Retro68 is built.
+
 The Universal Interfaces were also included with Apple's free-to-download
 Macintosh Programmer's Workshop (MPW; redistribution is not officially allowed, either)
 and with Metrowerks CodeWarrior.
 
 One of the most easily found downloads is the MPW 3.5 Golden Master release,
-usually in a file named *mpw-gm.img_.bin*. At the time of this writing, this can be
-found at:
+usually in a file named *MPW-GM.img.bin* or *mpw-gm.img_.bin*. At the time of
+this writing, this can be found at:
 
     http://macintoshgarden.org/apps/macintosh-programmers-workshop
     https://www.macintoshrepository.org/1360-macintosh-programmer-s-workshop-mpw-3-0-to-3-5
-
+    https://staticky.com/mirrors/ftp.apple.com/developer/Tool_Chest/Core_Mac_OS_Tools/MPW_etc./MPW-GM_Images/MPW-GM.img.bin
     
 You will need a Mac or a Mac emulator (with DiscCopy) to read that file.
 
