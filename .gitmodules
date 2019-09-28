@@ -1,0 +1,3 @@
+[submodule "multiversal"]
+	path = multiversal
+	url = https://github.com/autc04/multiversal.git
