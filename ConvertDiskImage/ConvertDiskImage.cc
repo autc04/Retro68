@@ -6,7 +6,7 @@
 #include <cassert>
 #include <vector>
 
-void decompreassADC(std::vector<uint8_t>& outbuf, const std::vector<uint8_t>& inbuf)
+void decompressADC(std::vector<uint8_t>& outbuf, const std::vector<uint8_t>& inbuf)
 {
     outbuf.reserve(0x40000);
     auto p = inbuf.begin();
@@ -19,6 +19,7 @@ void decompreassADC(std::vector<uint8_t>& outbuf, const std::vector<uint8_t>& in
             int n = (cmd & 0x7f) + 1;
             outbuf.insert(outbuf.end(), p, p + n);
             p += n;
+            assert(p <= inbuf.end());
         }
         else
         {
@@ -37,8 +38,14 @@ void decompreassADC(std::vector<uint8_t>& outbuf, const std::vector<uint8_t>& in
             }
             ++off;
             
-            outbuf.reserve(outbuf.size() + n);
-            outbuf.insert(outbuf.end(), outbuf.end() - off, outbuf.end() - off + n);
+            assert(n > 0);
+            assert(off > 0);
+            assert(outbuf.size() - off >= 0);
+            outbuf.resize(outbuf.size() + n);
+            auto dst = outbuf.end() - n;
+            auto src = dst - off;
+            while(n--)
+                *dst++ = *src++;
         }
     }
 }
@@ -119,7 +126,7 @@ int main(int argc, char* argv[])
                 break;
             
             case 0x83:
-                decompreassADC(outbuf, inbuf);
+                decompressADC(outbuf, inbuf);
                 break;
         }
 
