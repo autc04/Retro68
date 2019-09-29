@@ -12,22 +12,20 @@ jobs:
   - script: |
       /tmp/docker exec -t -u 0 ci-container \
       sh -c "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Options::="--force-confold" -y install sudo"
-    displayName: set up sudo
+    displayName: Set up sudo
   - checkout: self
     submodules: true
   - script: |
-      whoami
-      pwd
       sudo apt-get install -y \
         cmake libgmp-dev libmpfr-dev libmpc-dev \
         libboost-all-dev bison texinfo \
         ruby flex curl
-    displayName: 'install prerequisites'
+    displayName: 'Install prerequisites'
   - script: |
       mkdir build
       cd build
       ../build-toolchain.bash --no-carbon
-    displayName: 'build'
+    displayName: 'Build'
   - script: |
       cd build
       curl -L -O https://github.com/autc04/executor/releases/download/v0.1.0/Executor2000-0.1.0-Linux.tar.bz2
@@ -35,6 +33,7 @@ jobs:
       echo "executor-path=`pwd`/Executor2000-0.1.0-Linux/bin/executor-headless" > ~/.LaunchAPPL.cfg
       echo "emulator=executor" >> ~/.LaunchAPPL.cfg
       ctest --no-compress-output -T test || true
+    displayName: Run Tests using Executor 2000
   - task: PublishTestResults@2
     inputs:
       testResultsFormat: 'CTest'
@@ -49,9 +48,22 @@ jobs:
     submodules: true
   - script: |
       brew install boost cmake gmp mpfr libmpc bison
-    displayName: 'brew prerequisites'
+    displayName: 'Brew prerequisites'
   - script: |
       mkdir build
       cd build
       ../build-toolchain.bash --no-carbon
-    displayName: build
+    displayName: Build
+  - script: |
+      cd build
+      curl -L -O https://github.com/autc04/executor/releases/download/v0.1.0/Executor2000-0.1.0-Darwin.tar.bz2
+      tar xfvj Executor2000-0.1.0-Darwin.tar.bz2 Executor2000-0.1.0-Darwin/bin/executor-headless
+      echo "executor-path=`pwd`/Executor2000-0.1.0-Darwin/bin/executor-headless" > ~/.LaunchAPPL.cfg
+      echo "emulator=executor" >> ~/.LaunchAPPL.cfg
+      ctest --no-compress-output -T test || true
+    displayName: Run Tests using Executor 2000
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFormat: 'CTest'
+      testResultsFiles: build/Testing/**/*.xml
+      buildPlatform: 'x86_64-macos'
