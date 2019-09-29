@@ -186,9 +186,9 @@ function removeConflictingHeaders()
 {
     # On case-insensitive file systems, there will be some conflicts with
     # newlib. For now, universal interfaces get the right of way.
-    rm -f "$2/Threads.h"        # thread.h: does not currently work anyways
-    rm -f "$2/Memory.h"         # memory.h: non-standard aliasof string.h
-    rm -f "$2/Strings.h"        # strings.h: traditional bsd string functions
+    rm -f "$1/Threads.h"        # thread.h: does not currently work anyways
+    rm -f "$1/Memory.h"         # memory.h: non-standard aliasof string.h
+    rm -f "$1/Strings.h"        # strings.h: traditional bsd string functions
 }
 
 
@@ -213,6 +213,7 @@ function linkInterfacesAndLibraries()
 
     if [ $BUILD_PPC != false ]; then
         ln -sf ../RIncludes "$PREFIX/powerpc-apple-macos/RIncludes"
+        removeConflictingHeaders "$PREFIX/powerpc-apple-macos/include"
         linkThings "../../$1/CIncludes" "$PREFIX/powerpc-apple-macos/include" "*.h"
     fi
 
