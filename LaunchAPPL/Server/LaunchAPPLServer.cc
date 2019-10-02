@@ -584,7 +584,7 @@ void ConnectionChanged()
             connection = std::make_unique<SerialConnectionProvider>(0, gPrefs.baud, statusDisplay.get());
             break;
         case Port::printerPort:
-            connection = std::make_unique<SerialConnectionProvider>(0, gPrefs.baud, statusDisplay.get());
+            connection = std::make_unique<SerialConnectionProvider>(1, gPrefs.baud, statusDisplay.get());
             break;
 #endif
 #ifdef HAVE_OPENTRANSPORT
