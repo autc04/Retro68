@@ -188,12 +188,6 @@ INTERFACES_DIR="$SRC/InterfacesAndLibraries"
 . "$SRC/interfaces-and-libraries.sh"
 
 locateAndCheckInterfacesAndLibraries
-if [ ${INTERFACES_KIND} = multiversal ] && [ ${BUILD_CARBON} != false ]; then
-    echo
-    echo "Unfortunately, the Multiversal Interfaces don't yet support the Carbon API."
-    echo "Use either --universal or --no-carbon."
-    exit 1
-fi
 
 ##################### Third-Party components: binutils, gcc, hfsutils
 
