@@ -49,6 +49,15 @@ are free software. However, they are incomplete and may still contain serious
 bugs. Missing things include Carbon, MacTCP, OpenTransport, Navigation Services,
 and basically everything introduced after System 7.0.
 
+If you'd like to use the Multiversal Interfaces, and you've already cloned the
+Retro68 repository, make sure the Multiversal submodule has been initialized:
+
+    cd Retro68
+    git submodule update --init
+
+If you haven't yet cloned the repository, just clone it and the submodule contents
+at the same time by using `git clone`'s `--recursive` option.
+
 The Universal Interfaces used to be a free download from Apple. However,
 they have taken the site off-line and the license agreement does not allow
 redistribution, which is why it's not included in this repository.
