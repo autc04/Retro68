@@ -458,7 +458,9 @@ void mkpef(const std::string& inFn, const std::string& outFn)
         for(unsigned j=0;j<importLibs[i].imports.size();j++)
         {
             PEFImportedSymbol sym;
-            sym.classAndName = PEFComposeImportedSymbol(kPEFTVectorSymbol /* ### */,
+            uint8_t weakflag = importLibs[i].weak ? 0x80 : 0;
+
+            sym.classAndName = PEFComposeImportedSymbol(weakflag | kPEFTVectorSymbol /* ### */,
                                     importLibs[i].symNameOffsets[j]);
             eswap(&sym);
             out.write((char*)&sym, sizeof(sym));
