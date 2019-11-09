@@ -57,7 +57,7 @@ DEFINE_ESWAP(PEFImportedSymbol, "L")
 DEFINE_ESWAP(PEFLoaderRelocationHeader, "ssLL")
 DEFINE_ESWAP(PEFExportedSymbol, "LLs")
 
-
+DEFINE_ESWAP(uint32_t, "L")
 
 struct CFragResourceMember {
   uint32_t        architecture;

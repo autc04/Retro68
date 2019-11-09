@@ -4,6 +4,7 @@
 #include <vector>
 #include <fstream>
 #include <set>
+#include <algorithm>
 #include <string.h>
 #include <alloca.h>
 
@@ -58,6 +59,31 @@ inline int get(const ch (&x) [n])
     }
 }
 
+class StringTable
+{
+    size_t sz = 0;
+    std::vector<std::string> strings;
+
+public:
+    size_t insert(const std::string& str)
+    {
+        size_t off = sz;
+        strings.push_back(str);
+        sz += str.size() + 1;
+        return off;
+    }
+    size_t size() const { return sz; }
+
+    void write(std::ostream& out)
+    {
+        if(verboseFlag)
+            std::cerr << "strings..." << std::flush;
+        for(const auto& str : strings)
+            out.write(str.c_str(),str.size()+1);
+        if(verboseFlag)
+            std::cerr << "done.\n";
+    }
+};
 
 class ImportLib
 {
@@ -66,14 +92,184 @@ public:
     std::vector<std::string> imports;
     std::vector<int> xcoffImportIndices;
 
+    std::string pefName;
+
     int nameOffset;
     bool weak;
     
     std::vector<int> symNameOffsets;
     
-    ImportLib(std::string path, std::string base, std::string mem)
+    ImportLib(StringTable& stringTable, std::string path, std::string base, std::string mem)
         : path(path), base(base), mem(mem), weak(false)
     {
+        std::string name = mem.empty() ? base : mem;
+
+        if(verboseFlag)
+            std::cerr << "XCOFF name \"" << name << '"' << std::endl;
+
+        int dotIndex = name.rfind('.');
+        if(dotIndex)
+        {
+            name = name.substr(0,dotIndex);
+            if(name.substr(0,3) == "lib")
+                name = name.substr(3);
+        }
+
+        if(name.length() > 6)
+        {
+            if(name.substr(name.length()-6,6) == "__weak")
+            {
+                name = name.substr(0,name.length()-6);
+                weak = true;
+            }
+        }
+        
+        if(name.length() > 5)
+        {
+                // the shared library name has been encoded as hex by MakeImport
+                // in order to avoid potential file name issues
+                // classic MacOS shared library names are in MacRoman and
+                // may contain wierd characters; the shared library name is used
+                // as the file name for the archive member, so there can be problems.
+            if(name.substr(0,5) == "imp__")
+            {
+                std::string realName;
+                
+                int i;
+                int n = name.size();
+                for(i = 5; i < n && name[i] != '_'; i++)
+                    ;
+                ++i;
+                for(; i + 1 < n && name[i] != '_'; i+=2)
+                {
+                    char c1 = tolower(name[i]);
+                    char c2 = tolower(name[i+1]);
+                    assert(isdigit(c1) || (c1 >= 'a' && c1 <= 'f'));
+                    assert(isdigit(c2) || (c2 >= 'a' && c2 <= 'f'));
+                    int c = (c1 >= 'a' ? c1 - 'a' + 10 : c1 - '0') * 16
+                          + (c2 >= 'a' ? c2 - 'a' + 10 : c2 - '0');
+                    realName += (char)c;
+                }
+                name = realName;
+            }
+        }
+
+        pefName = name;
+
+        nameOffset = stringTable.insert(pefName);
+
+        if(verboseFlag)
+        {
+            std::cerr << "PEF name \"" << pefName << '"';
+            if(weak)
+                std::cerr << " (weak)";
+            std::cerr << " at " << std::hex << nameOffset << std::dec << std::endl;
+        }
+    }
+
+    void addSym(StringTable& stringTable, const std::string& name, int xcoffIndex)
+    {
+        imports.push_back(name);
+        symNameOffsets.push_back(stringTable.insert(name));
+        xcoffImportIndices.push_back(xcoffIndex);
+    }
+};
+
+class ExportTable
+{
+    std::vector<uint32_t> table;
+    size_t power_;
+
+    struct Sym
+    {
+        uint32_t key;
+        PEFExportedSymbol sym;
+    };
+    std::vector<Sym> symbols;
+
+    uint32_t hash(const std::string& str)
+    {
+        int32_t hash = 0;
+
+        for(char c : str)
+            hash = ((hash << 1) - (hash >> 16)) ^ c;
+        
+        return uint32_t( (str.size() << 16) | ((hash ^ (hash >> 16)) & 0xFFFF) );
+    }
+
+    void build()
+    {
+        int sz;
+        power_ = 0;
+        for(sz = 1; sz < 65536; sz *= 2, power_++)
+            if(symbols.size() / sz < 10)
+                break;
+        table.clear();
+        table.resize(sz);
+
+        std::sort(symbols.begin(), symbols.end(),
+            [sz](const auto& a, const auto& b) { return a.key % sz < b.key % sz; });
+        
+        for(const auto& sym : symbols)
+            table[sym.key % sz] += 1 << 18;
+        
+        int off = 0;
+
+        for(auto& slot : table)
+        {
+            slot |= off;
+            off += slot >> 18;
+        }
+    }
+public:
+
+    void addExport(StringTable& stringTable, const std::string& name,
+        uint32_t value, int16_t section) /* TODO: symbol class */
+    {
+        uint32_t classAndName = (kPEFTVectorSymbol << 24) | stringTable.insert(name);
+        symbols.push_back({hash(name), {classAndName, value, section}});
+    }
+
+    size_t power()
+    {
+        if(table.empty())
+            build();
+        return power_;
+    }
+
+    size_t count()
+    {
+        if(table.empty())
+            build();
+        return symbols.size();
+    }
+
+    size_t size()
+    {
+        if(table.empty())
+            build();
+        return 4 * table.size() + 14 * symbols.size();
+    }
+
+    void write(std::ostream& out)
+    {
+        if(verboseFlag)
+            std::cerr << "exports..." << std::flush;
+        for(auto& key : table)
+            eswap(&key);
+        for(auto& sym : symbols)
+        {
+            eswap(&sym.key);
+            eswap(&sym.sym);
+        }
+
+        out.write((char*)table.data(), 4 * table.size());
+        for(auto& sym : symbols)
+            out.write((char*)&sym.key, 4);
+        for(auto& sym : symbols)
+            out.write((char*)&sym.sym, 10);
+        if(verboseFlag)
+            std::cerr << "done.\n";
     }
 };
 
@@ -117,6 +313,8 @@ void mkpef(const std::string& inFn, const std::string& outFn)
         xcoffSectionNumbers[xcoffSection.s_name] = i+1;
     }
     
+    StringTable stringTable;
+    ExportTable exports;
 
     std::vector<ImportLib> importLibs;
     std::vector<int> importedSymbolIndices;
@@ -143,7 +341,7 @@ void mkpef(const std::string& inFn, const std::string& outFn)
             p += strlen(p) + 1;
             std::string mem = p;
             p += strlen(p) + 1;
-            importLibs.push_back(ImportLib(path,base,mem));
+            importLibs.push_back(ImportLib(stringTable,path,base,mem));
             if(verboseFlag)
                 std::cerr << "Import: " << path << ", " << base << ", " << mem << '\n';
         }
@@ -169,22 +367,23 @@ void mkpef(const std::string& inFn, const std::string& outFn)
                 assert((get(sym.l_smtype) & 3) == 0 /*XTY_ER*/);
                 if(verboseFlag)
                     std::cerr << "... from file: " << get(sym.l_ifile) << std::endl;
-                importLibs[get(sym.l_ifile)].imports.push_back(name);
-                importLibs[get(sym.l_ifile)].xcoffImportIndices.push_back(i);
-                totalImportedSyms++;
+                importLibs[get(sym.l_ifile)].addSym(stringTable, name, i);
+            }
+            else if((get(sym.l_smtype) & 0xF8) == 0x10 /*L_EXPORT*/)
+            {
+                if(verboseFlag)
+                    std::cerr << "... exported from section " << get(sym.l_scnum) << " addr " << get(sym.l_value) <<  ".\n";
+                exports.addExport(stringTable, name, get(sym.l_value), 0 /* ### */);
             }
         }
         importedSymbolIndices.resize(get(xcoffLoaderHeader.l_nsyms));
         {
             int symbolIndex = 0;
-            for(unsigned i=1;i<importLibs.size();i++)
-            {
-                for(unsigned j=0;j<importLibs[i].xcoffImportIndices.size();j++)
-                {
-                    importedSymbolIndices[importLibs[i].xcoffImportIndices[j]] = symbolIndex;
-                    symbolIndex++;
-                }
-            }
+            for(auto& importLib : importLibs)
+                for(auto xcoffImportIndex : importLib.xcoffImportIndices)
+                    importedSymbolIndices[xcoffImportIndex] = symbolIndex++;
+
+            totalImportedSyms = symbolIndex;
         }
 
         int xcoffDataSecNumber = xcoffSectionNumbers[".data"];
@@ -271,95 +470,6 @@ void mkpef(const std::string& inFn, const std::string& outFn)
     dataSectionHeader.shareKind = kPEFProcessShare;
     dataSectionHeader.alignment = 2;
 
-    std::vector<std::string> loaderStringTable;
-    int loaderStringTableSize = 0;
-    
-    for(unsigned i=1;i<importLibs.size();i++)
-    {
-        ImportLib& imp = importLibs[i];
-        std::string name;
-        
-        if(imp.mem != "")
-            name = imp.mem;
-        else
-            name = imp.base;
-
-
-        if(verboseFlag)
-        {
-            std::cerr << "XCOFF name \"" << name << '"';
-        }
-        int dotIndex = name.rfind('.');
-        if(dotIndex)
-        {
-            name = name.substr(0,dotIndex);
-            if(name.substr(0,3) == "lib")
-                name = name.substr(3);
-        }
-
-        if(name.length() > 6)
-        {
-            if(name.substr(name.length()-6,6) == "__weak")
-            {
-                name = name.substr(0,name.length()-6);
-                imp.weak = true;
-            }
-        }
-        
-        if(name.length() > 5)
-        {
-                // the shared library name has been encoded as hex by MakeImport
-                // in order to avoid potential file name issues
-                // classic MacOS shared library names are in MacRoman and
-                // may contain wierd characters; the shared library name is used
-                // as the file name for the archive member, so there can be problems.
-            if(name.substr(0,5) == "imp__")
-            {
-                std::string realName;
-                
-                int i;
-                int n = name.size();
-                for(i = 5; i < n && name[i] != '_'; i++)
-                    ;
-                ++i;
-                for(; i + 1 < n && name[i] != '_'; i+=2)
-                {
-                    char c1 = tolower(name[i]);
-                    char c2 = tolower(name[i+1]);
-                    assert(isdigit(c1) || (c1 >= 'a' && c1 <= 'f'));
-                    assert(isdigit(c2) || (c2 >= 'a' && c2 <= 'f'));
-                    int c = (c1 >= 'a' ? c1 - 'a' + 10 : c1 - '0') * 16
-                          + (c2 >= 'a' ? c2 - 'a' + 10 : c2 - '0');
-                    realName += (char)c;
-                }
-                name = realName;
-            }
-        }
-        
-        if(verboseFlag)
-        {
-            std::cerr << "PEF name \"" << name << '"';
-            if(imp.weak)
-                std::cerr << " (weak)";
-            std::cerr << " at " << std::hex << loaderStringTableSize << std::dec
-                        << std::endl;
-        }
-        importLibs[i].nameOffset = loaderStringTableSize;
-        loaderStringTable.push_back(name);
-        loaderStringTableSize += name.length() + 1;
-        
-        for(unsigned j=0;j<importLibs[i].imports.size();j++)
-        {
-            name = importLibs[i].imports[j];
-            if(verboseFlag)
-                std::cerr << "Sym name \"" << name << "\" at " << std::hex
-                        << loaderStringTableSize << std::dec << std::endl;
-            importLibs[i].symNameOffsets.push_back(loaderStringTableSize);
-            loaderStringTable.push_back(name);
-            loaderStringTableSize += name.length() + 1;
-        }
-    }
-
     loaderInfoHeader.importedLibraryCount = importLibs.size()-1;
     loaderInfoHeader.totalImportedSymbolCount = totalImportedSyms;
     loaderInfoHeader.relocSectionCount = 1; // data only
@@ -379,7 +489,9 @@ void mkpef(const std::string& inFn, const std::string& outFn)
     loaderInfoHeader.loaderStringsOffset = loaderInfoHeader.relocInstrOffset
                                       + relocInstructions.size() * 2;
     loaderInfoHeader.exportHashOffset = loaderInfoHeader.loaderStringsOffset
-                                      + loaderStringTableSize;
+                                      + stringTable.size();
+    loaderInfoHeader.exportedSymbolCount = exports.count();
+    loaderInfoHeader.exportHashTablePower = exports.power();
 
     PEFLoaderRelocationHeader dataRelocationHeader;
     dataRelocationHeader.sectionIndex = 1;
@@ -392,7 +504,7 @@ void mkpef(const std::string& inFn, const std::string& outFn)
     loaderSectionHeader.defaultAddress = 0;
     loaderSectionHeader.totalLength = 0;
     loaderSectionHeader.unpackedLength = 0;
-    loaderSectionHeader.containerLength = loaderInfoHeader.exportHashOffset + 4;
+    loaderSectionHeader.containerLength = loaderInfoHeader.exportHashOffset + exports.size();
     loaderSectionHeader.containerOffset = sizeof(PEFContainerHeader) + 3*sizeof(PEFSectionHeader)
                                             + textSize + dataSize;
     loaderSectionHeader.sectionKind = kPEFLoaderSection;
@@ -480,21 +592,11 @@ void mkpef(const std::string& inFn, const std::string& outFn)
         out.write((char*)&insn, sizeof(insn));
     }
     if(verboseFlag)
-    {
         std::cerr << "done.\n";
-        std::cerr << "strings..." << std::flush;
-    }
-    for(unsigned i=0;i<loaderStringTable.size();i++)
-    {
-        out.write(loaderStringTable[i].c_str(),loaderStringTable[i].length()+1);
-    }
-    if(verboseFlag)
-        std::cerr << "done.\n";
+
+    stringTable.write(out);
     
-    {
-        int zero = 0;
-        out.write((char*)&zero, 4);
-    }
+    exports.write(out);
 }
 
 int main (int argc, char * const argv[]) {
