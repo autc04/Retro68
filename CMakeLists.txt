@@ -52,6 +52,8 @@ add_subdirectory(Samples/Raytracer)
 if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 add_subdirectory(Samples/Launcher)
 add_subdirectory(Samples/SystemExtension)
+else()
+add_subdirectory(Samples/SharedLibrary)
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
