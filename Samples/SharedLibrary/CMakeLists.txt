@@ -32,7 +32,7 @@ add_library(Library SHARED library.c library.h)
 target_link_options(Library PUBLIC -Wl,-bE:${CMAKE_CURRENT_SOURCE_DIR}/library.exp)
 
 # Note: Step 1 & 2 are equivalent to the command:
-#  powerpc-apple-macos-gcc -shared -bE:library.exp library.c -o libLibrary.so
+#  powerpc-apple-macos-gcc -shared -Wl,-bE:library.exp library.c -o libLibrary.so
 
 # Step 3: Convert the library to PEF format:
 
