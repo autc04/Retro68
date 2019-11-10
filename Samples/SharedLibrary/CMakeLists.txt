@@ -29,7 +29,9 @@ add_library(Library SHARED library.c library.h)
 # target_link_options(Library PUBLIC -Wl,-bexpfull)
 
 # Or tell it to use an export list from a separate file:
-target_link_options(Library PUBLIC -Wl,-bE:${CMAKE_CURRENT_SOURCE_DIR}/library.exp)
+# (CMake 3.13 or later)
+# target_link_options(Library PUBLIC -Wl,-bE:${CMAKE_CURRENT_SOURCE_DIR}/library.exp)
+set_target_properties(Library PROPERTIES LINK_FLAGS -Wl,-bE:${CMAKE_CURRENT_SOURCE_DIR}/library.exp)
 
 # Note: Step 1 & 2 are equivalent to the command:
 #  powerpc-apple-macos-gcc -shared -Wl,-bE:library.exp library.c -o libLibrary.so
