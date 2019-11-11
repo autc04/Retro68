@@ -21,6 +21,24 @@ if(HAVE_OPENTRANSPORT_H)
     endif()
 endif()
 
+set(HAVE_NAVIGATION NO)
+if(HAVE_NAVIGATION_H)
+    if(CMAKE_SYSTEM_NAME MATCHES Retro68)
+        find_library(NAVIGATION_LIBRARY NAMES Navigation.far)
+        if(NAVIGATION_LIBRARY)
+            set(HAVE_NAVIGATION YES)
+        endif()
+    else()
+        set(HAVE_NAVIGATION YES)
+    endif()
+endif()
+
+if(HAVE_MACTCP_H AND NOT CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
+    set(HAVE_MACTCP YES)
+else()
+    set(HAVE_MACTCP NO)
+endif()
+
 set(CONNECTION_SOURCES
         SharedFileStream.h
         SharedFileStream.cc
@@ -36,22 +54,16 @@ else()
             MacSerialStream.h
             MacSerialStream.cc
         )
-
-    if(HAVE_MACTCP_H)
-        list(APPEND CONNECTION_SOURCES
-                MacTCPStream.h
-                MacTCPStream.cc
-                TCPConnectionProvider.h
-                TCPConnectionProvider.cc
-            )
-    endif()
 endif()        
 
-option(LAUNCHAPPLSERVER_DEBUG_CONSOLE "Add a debug console to LaunchAPPLServer" FALSE)
 
-set(MAYBE_CONSOLE)
-if(LAUNCHAPPLSERVER_DEBUG_CONSOLE)
-    set(MAYBE_CONSOLE "CONSOLE")
+if(HAVE_MACTCP)
+    list(APPEND CONNECTION_SOURCES
+            MacTCPStream.h
+            MacTCPStream.cc
+            TCPConnectionProvider.h
+            TCPConnectionProvider.cc
+        )
 endif()
 
 if(HAVE_OPENTRANSPORT)
@@ -62,6 +74,15 @@ if(HAVE_OPENTRANSPORT)
             OpenTptConnectionProvider.cc
         )
 endif()
+
+
+option(LAUNCHAPPLSERVER_DEBUG_CONSOLE "Add a debug console to LaunchAPPLServer" FALSE)
+
+set(MAYBE_CONSOLE)
+if(LAUNCHAPPLSERVER_DEBUG_CONSOLE)
+    set(MAYBE_CONSOLE "CONSOLE")
+endif()
+
 
 add_application(LaunchAPPLServer 
     TYPE "APPL"
@@ -92,10 +113,10 @@ endif()
 if(HAVE_OPENTRANSPORT)
     target_compile_definitions(LaunchAPPLServer PRIVATE HAVE_OPENTRANSPORT)
 endif()
-if(HAVE_NAVIGATION_H)
+if(HAVE_NAVIGATION)
     target_compile_definitions(LaunchAPPLServer PRIVATE HAVE_NAVIGATION)
 endif()
-if(HAVE_MACTCP_H AND NOT CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
+if(HAVE_MACTCP)
     target_compile_definitions(LaunchAPPLServer PRIVATE HAVE_MACTCP)
 endif()
 
@@ -123,7 +144,7 @@ if(HAVE_OPENTRANSPORT)
     endif()
 endif()
 
-if(HAVE_NAVIGATION_H)
+if(HAVE_NAVIGATION)
     if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
         target_link_libraries(LaunchAPPLServer -lNavigationLib)
     endif()
@@ -131,19 +152,3 @@ if(HAVE_NAVIGATION_H)
         target_link_libraries(LaunchAPPLServer -lNavigation.far)
     endif()
 endif()
-
-if(FALSE)
-add_application(tcptest 
-    CONSOLE
-
-
-    tcptest.cc
-)
-
-target_link_libraries(tcptest LaunchAPPLCommon)
-set_target_properties(tcptest PROPERTIES
-        CXX_STANDARD 17
-        LINK_FLAGS "-Wl,-gc-sections"
-    )
-
-    endif()
