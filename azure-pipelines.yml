@@ -24,7 +24,7 @@ jobs:
   - script: |
       mkdir build
       cd build
-      ../build-toolchain.bash --no-carbon
+      ../build-toolchain.bash
     displayName: 'Build'
   - script: |
       cd build
@@ -32,7 +32,7 @@ jobs:
       tar xfvj Executor2000-0.1.0-Linux.tar.bz2 Executor2000-0.1.0-Linux/bin/executor-headless
       echo "executor-path=`pwd`/Executor2000-0.1.0-Linux/bin/executor-headless" > ~/.LaunchAPPL.cfg
       echo "emulator=executor" >> ~/.LaunchAPPL.cfg
-      ctest --no-compress-output -T test || true
+      ctest --no-compress-output -T test -E Carbon || true
     displayName: Run Tests using Executor 2000
   - task: PublishTestResults@2
     inputs:
@@ -52,7 +52,7 @@ jobs:
   - script: |
       mkdir build
       cd build
-      ../build-toolchain.bash --no-carbon
+      ../build-toolchain.bash
     displayName: Build
   - script: |
       cd build
@@ -60,7 +60,7 @@ jobs:
       tar xfvj Executor2000-0.1.0-Darwin.tar.bz2 Executor2000-0.1.0-Darwin/bin/executor-headless
       echo "executor-path=`pwd`/Executor2000-0.1.0-Darwin/bin/executor-headless" > ~/.LaunchAPPL.cfg
       echo "emulator=executor" >> ~/.LaunchAPPL.cfg
-      ctest --no-compress-output -T test || true
+      ctest --no-compress-output -T test -E Carbon || true
     displayName: Run Tests using Executor 2000
   - task: PublishTestResults@2
     inputs:
