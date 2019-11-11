@@ -104,6 +104,9 @@ public:
     {
         std::string name = mem.empty() ? base : mem;
 
+        if(name.empty())    // skip initial empty entry
+            return;
+
         if(verboseFlag)
             std::cerr << "XCOFF name \"" << name << '"' << std::endl;
 
