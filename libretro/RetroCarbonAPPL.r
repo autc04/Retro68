@@ -22,10 +22,10 @@ resource 'carb' (0) {
 
 resource 'SIZE' (-1) {
 	reserved,
-	ignoreSuspendResumeEvents,
+	acceptSuspendResumeEvents,
 	reserved,
-	cannotBackground,
-	needsActivateOnFGSwitch,
+	canBackground,
+	doesActivateOnFGSwitch,
 	backgroundAndForeground,
 	dontGetFrontClicks,
 	ignoreChildDiedEvents,
