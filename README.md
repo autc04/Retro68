@@ -12,6 +12,16 @@ wolfgang.thaller@gmx.net.
 Installing/Building
 -------------------
 
+The Retro68 git repository uses submodules; be sure to use the `--recursive` option to `git clone` or use
+
+    git submodule update --init
+
+after cloning. To get the latest changes, use
+
+    git pull
+    git submodule update
+
+
 ### Prerequisites
 
 - Linux, Mac OS X or Windows (via Cygwin)
@@ -20,12 +30,14 @@ Installing/Building
 - GCC dependencies: GMP 4.2+, MPFR 2.3.1+ and MPC 0.8.0+
 - bison version 3.0.2 or later
 - ruby version 2.1 or later
+- flex
+- texinfo
 - Recommended: Apple Universal Interfaces (version 3.x; version 3.4 is tested)
 - An ancient Mac and/or an emulator.
 
 For Ubuntu Linux, the following should help a bit:
 
-    sudo apt-get install cmake libgmp-dev libmpfr-dev libmpc-dev libboost-all-dev bison texinfo ruby
+    sudo apt-get install cmake libgmp-dev libmpfr-dev libmpc-dev libboost-all-dev bison flex texinfo ruby
 
 On a Mac, get the homebrew package manager and:
 

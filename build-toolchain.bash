@@ -24,6 +24,16 @@ DEFAULT_PREFIX=`pwd -P`/toolchain/
 PREFIX=$DEFAULT_PREFIX
 BINUTILS=`pwd -P`/binutils-build
 
+##################### Prerequisites check
+
+if [ ! -d "$SRC/multiversal" ]; then
+    echo "Could not find directory '$SRC/multiversal'."
+    echo "It looks like you did not clone the git submodules."
+    echo "Please run:"
+    echo "    git submodule update --init"
+    exit 1
+fi
+
 ##################### Command-line Options
 
 SKIP_THIRDPARTY=false

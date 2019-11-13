@@ -24,8 +24,13 @@ find_package(Boost COMPONENTS wave filesystem system thread regex program_option
 set(CMAKE_PROGRAM_PATH ${CMAKE_PROGRAM_PATH} "/usr/local/opt/bison/bin")
 find_package(BISON 3.0.2)
 
-if(Boost_FOUND AND BISON_FOUND)
+if(NOT Boost_FOUND)
+    message(FATAL_ERROR "The boost libraries have not been found.")
+endif()
 
+if(NOT BISON_FOUND)
+    message(FATAL_ERROR "GNU Bison version 3.0.2 or later is required.")
+endif()
 
 include_directories(. ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -78,7 +83,3 @@ target_include_directories(Rez PRIVATE ${Boost_INCLUDE_DIR})
 install(TARGETS Rez RUNTIME DESTINATION bin)
 
 add_subdirectory(Test)
-
-else(Boost_FOUND AND BISON_FOUND)
-    message(WARNING "Rez compiler will not be built; both boost and Bison 3.0.2 are required")
-endif(Boost_FOUND AND BISON_FOUND)
