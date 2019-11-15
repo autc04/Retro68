@@ -332,8 +332,6 @@ on programs compiled with Retro68.
 Check the copyright notices in the individual files for details.
 
 
-
-
 LaunchAPPL and the Test Suite
 -----------------------------
 
@@ -369,7 +367,7 @@ so make it work with your favourite emulator. Just add new subclasses for the
 
 ### The Test Suite
 
-The directory `AutomatedTests` contains an autonated test suite that runs via
+The directory `AutomatedTests` contains an automated test suite that runs via
 `LaunchAPPL`. It's currently only relevant if you want to hack on the low-level
 parts of Retro68.
 
