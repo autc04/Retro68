@@ -98,11 +98,8 @@ extern "C" ssize_t _consoleread(int fd, void *buf, size_t count)
 
     static std::string consoleBuf;
     if(consoleBuf.size() == 0)
-    {
-        consoleBuf = Console::currentInstance->ReadLine();
-        if(!Console::currentInstance->IsEOF())
-            consoleBuf += "\n";
-    }
+       consoleBuf = Console::currentInstance->ReadLine();
+
     if(count > consoleBuf.size())
         count = consoleBuf.size();
     memcpy(buf, consoleBuf.data(), count);
