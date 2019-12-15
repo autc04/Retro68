@@ -27,28 +27,28 @@ namespace retro
 {
     class Attributes
     {
-        public:
-        bool isBold;
-        bool isUnderline;
-        Attributes(void)    // Code should not be in .h
-        {
-            reset();
-        }
-        void reset(void)
-        {
-            isBold=false;
-            isUnderline=false;
-        }
+    public:
+
+        bool isBold(void) const;
+        bool isUnderline(void) const;
+        bool isItalic(void) const;
+        
+        void setBold(const bool v);
+        void setUnderline(const bool v);
+        void setItalic(const bool v);
+        
+        Attributes(void);
+        void reset(void);
+
+    private:
+        
+        bool cBold;
+        bool cUnderline;
+        bool cItalic;
     };
 
-    inline bool operator==(const Attributes& lhs, const Attributes& rhs)
-    { 
-        return lhs.isBold==rhs.isBold && lhs.isUnderline==rhs.isUnderline;
-    }
-    inline bool operator!=(const Attributes& lhs, const Attributes& rhs)
-    {
-        return !(lhs == rhs);
-    }
+//    inline bool operator==(const Attributes& lhs, const Attributes& rhs);
+//    inline bool operator!=(const Attributes& lhs, const Attributes& rhs);
 
     class IConsole
     {
@@ -101,6 +101,7 @@ namespace retro
         void PutCharNoUpdate(char c);
         void Update();
 
+        short CalcStartX(short x, short y);
         Rect CellRect(short x, short y);
         void DrawCell(short x, short y, bool erase = true);
         void DrawCells(short x1, short x2, short y, bool erase = true);

@@ -28,6 +28,58 @@ using namespace retro;
 
 IConsole *IConsole::currentInstance = NULL;
 
+Attributes::Attributes(void)
+{
+    reset();
+}
+void Attributes::reset(void)
+{
+    cBold=false;
+    cUnderline=false;
+    cItalic=false;
+}
+
+bool Attributes::isBold(void) const
+{
+    return cBold;
+}
+
+
+bool Attributes::isUnderline(void) const
+{
+    return cUnderline;
+}
+
+bool Attributes::isItalic(void) const
+{
+    return cItalic;
+}
+
+void Attributes::setBold(const bool v)
+{
+    cBold=v;
+}
+
+void Attributes::setItalic(const bool v)
+{
+    cItalic=v;
+}
+
+void Attributes::setUnderline(const bool v)
+{
+    cUnderline=v;
+}
+
+inline bool operator==(const Attributes& lhs, const Attributes& rhs)
+{ 
+    return lhs.isBold()==rhs.isBold() && lhs.isUnderline()==rhs.isUnderline() && lhs.isItalic()==rhs.isItalic();
+}
+
+inline bool operator!=(const Attributes& lhs, const Attributes& rhs)
+{
+    return !(lhs == rhs);
+}
+
 namespace
 {
     class FontSetup
@@ -102,13 +154,37 @@ void IConsole::Init(GrafPtr port, Rect r)
 
 void IConsole::SetAttributes(Attributes aa)
 {
-    TextFace(aa.isBold?bold:0 + aa.isUnderline?underline:0);
+    TextFace(aa.isBold()?bold:0 + aa.isUnderline()?underline:0 + aa.isItalic()?italic:0);
+}
+
+short IConsole::CalcStartX(short x, short y)
+{
+    Attributes a=attrs[y * cols];
+    SetAttributes(a);
+    short start=0;
+    short widthpx=0;
+    for(int i=0; i<x; ++i)
+    {
+        if(a!=attrs[y * cols + i])
+        {
+            widthpx+=TextWidth(&chars[y * cols + start], 0, i - start);
+            a=attrs[y * cols + i];
+            SetAttributes(a);
+            start=i;
+        }
+    }
+    widthpx+=TextWidth(&chars[y * cols + start], 0, x - start);
+    return widthpx;
 }
 
 Rect IConsole::CellRect(short x, short y)
 {
-    return { (short) (bounds.top + y * cellSizeY),      (short) (bounds.left + x * cellSizeX),
-             (short) (bounds.top + (y+1) * cellSizeY),  (short) (bounds.left + (x+1) * cellSizeX) };
+    short widthpx=CalcStartX(x,y);
+    FontSetup fontSetup;
+    SetAttributes(attrs[y * cols+x]);
+    short cellSizeP=CharWidth('M');
+    return { (short) (bounds.top + y * cellSizeY),      (short) (bounds.left + widthpx),
+             (short) (bounds.top + (y+1) * cellSizeY),  (short) (bounds.left + widthpx+cellSizeP) };
 }
 void IConsole::DrawCell(short x, short y, bool erase)
 {
@@ -131,7 +207,7 @@ void IConsole::DrawCell(short x, short y, bool erase)
 
 void IConsole::DrawCells(short x1, short x2, short y, bool erase)
 {
-    Attributes a=attrs[y * cols + x1];
+    Attributes a=attrs[y * cols];
     SetAttributes(a);
     int start=0;
     int xstart=0;
@@ -204,8 +280,9 @@ void IConsole::Draw(Rect r)
     short minRow = std::max(0, (r.top - bounds.top) / cellSizeY);
     short maxRow = std::min((int)rows, (r.bottom - bounds.top + cellSizeY - 1) / cellSizeY);
     
-    short minCol = std::max(0, (r.left - bounds.left) / cellSizeX);
-    short maxCol = std::min((int)cols, (r.right - bounds.left + cellSizeX - 1) / cellSizeX);
+    short minCol = 0;// std::max(0, (r.left - bounds.left) / cellSizeX);
+    
+    short maxCol = cols; //;std::min((int)cols, (r.right - bounds.left + cellSizeX - 1) / cellSizeX);
     
     EraseRect(&r);
     for(short row = minRow; row < maxRow; ++row)
@@ -215,7 +292,7 @@ void IConsole::Draw(Rect r)
     if(cursorDrawn)
     {
         Rect cursor = CellRect(cursorX, cursorY);
-        InvertRect(&cursor);
+        //InvertRect(&cursor);
     }
     onscreen = chars;
 }
@@ -254,10 +331,13 @@ void IConsole::ProcessEscSequence(char c)
             currentAttr.reset();
             break;
         case '1':   // Bold
-            currentAttr.isBold=true;
+            currentAttr.setBold(true);
+            break;
+        case '3':   // Italic
+            currentAttr.setItalic(true);
             break;
         case '4':   // Underline
-            currentAttr.isUnderline=true;
+            currentAttr.setUnderline(true);
             break;
         default:
             isProcessingEscSequence=false;
@@ -319,6 +399,9 @@ void IConsole::PutCharNoUpdate(char c)
         cursorX++;
         if(cursorX >= cols)
             PutCharNoUpdate('\n');
+        // This is to make sure the cursor width is calculated correctly
+        attrs[cursorY * cols + cursorX] = currentAttr;
+
     }
 }
 
@@ -360,8 +443,8 @@ void IConsole::Update()
         Rect r = CellRect(cursorX, cursorY);
         if(cursorDrawn)
             DrawCell(cursorX, cursorY, true);
-        else
-            InvertRect(&r);
+        //else
+        //    InvertRect(&r);
         cursorDrawn = !cursorDrawn;
     }
 
@@ -436,7 +519,6 @@ void IConsole::InvalidateCursor()
     if(cursorDrawn)
     {
         PortSetter setport(consolePort);
-
         DrawCell(cursorX, cursorY, true);
         cursorDrawn = false;
     }
