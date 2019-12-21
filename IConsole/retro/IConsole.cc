@@ -1,5 +1,5 @@
 /*
-    Copyright 2012 Wolfgang Thaller.
+    Copyright 2012-2019 Wolfgang Thaller, Davide Bucci
 
     This file is part of Retro68.
 
@@ -447,7 +447,7 @@ void IConsole::Update()
         //    InvertRect(&r);
         cursorDrawn = !cursorDrawn;
     }
-
+    
 #if TARGET_API_MAC_CARBON
     QDFlushPortBuffer(consolePort,NULL);
 #endif
