@@ -12,17 +12,22 @@
 
 BOOST_AUTO_TEST_SUITE(LexSuite)
 
+int tokenToType(RezParser::token::yytokentype tok)
+{
+    return RezParser::by_type(tok).type_get();
+}
+
 #define CHECKSYM(TOKEN, TYPE, VAL)    \
     do {    \
         RezSymbol t = lex.nextToken();    \
-        BOOST_CHECK_EQUAL(t.token(), TOKEN);    \
-        if(t.token() == TOKEN)    \
+        BOOST_CHECK_EQUAL(t.type_get(), tokenToType(TOKEN));    \
+        if(t.type_get() == tokenToType(TOKEN))    \
             BOOST_CHECK_EQUAL(t.value.as<TYPE>(), VAL);    \
     } while(0)
 #define CHECKSYM_(TOKEN)    \
     do {    \
         RezSymbol t = lex.nextToken();    \
-        BOOST_CHECK_EQUAL(t.token(), TOKEN);    \
+        BOOST_CHECK_EQUAL(t.type_get(), tokenToType(TOKEN));    \
     } while(0)
 
 BOOST_AUTO_TEST_CASE(moveBisonSymbol)
@@ -55,7 +60,7 @@ BOOST_AUTO_TEST_CASE(basicInt)
     CHECKSYM(RezParser::token::INTLIT, int, 123);
     CHECKSYM(RezParser::token::INTLIT, int, 0x456);
     CHECKSYM(RezParser::token::INTLIT, int, 0xabcd9);
-    CHECKSYM_(0);
+    CHECKSYM_((RezParser::token::yytokentype)0);
 }
 
 BOOST_AUTO_TEST_CASE(alternateHex)
@@ -65,7 +70,7 @@ BOOST_AUTO_TEST_CASE(alternateHex)
 
     CHECKSYM(RezParser::token::INTLIT, int, 0x456);
     CHECKSYM(RezParser::token::INTLIT, int, 0xabcd9);
-    CHECKSYM_(0);
+    CHECKSYM_((RezParser::token::yytokentype)0);
 }
 
 BOOST_AUTO_TEST_CASE(noNewlineAtEOF)
@@ -74,7 +79,7 @@ BOOST_AUTO_TEST_CASE(noNewlineAtEOF)
     RezLexer lex(world, "test", "123 456");
     CHECKSYM(RezParser::token::INTLIT, int, 123);
     CHECKSYM(RezParser::token::INTLIT, int, 456);
-    CHECKSYM_(0);
+    CHECKSYM_((RezParser::token::yytokentype)0);
 }
 
 BOOST_AUTO_TEST_CASE(strings)
@@ -94,7 +99,7 @@ BOOST_AUTO_TEST_CASE(strings)
     CHECKSYM(RezParser::token::STRINGLIT, std::string, "\001\002\003");
     CHECKSYM(RezParser::token::STRINGLIT, std::string, "\x42\x43");
     CHECKSYM(RezParser::token::STRINGLIT, std::string, "Blah \x5F");
-    CHECKSYM_(0);
+    CHECKSYM_((RezParser::token::yytokentype)0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
