@@ -80,6 +80,16 @@ inline bool operator!=(const Attributes& lhs, const Attributes& rhs)
     return !(lhs == rhs);
 }
 
+inline bool operator==(const AttributedChar& lhs, const AttributedChar& rhs)
+{ 
+    return lhs.c==rhs.c && lhs.attrs==rhs.attrs;
+}
+
+inline bool operator!=(const AttributedChar& lhs, const AttributedChar& rhs)
+{
+    return !(lhs == rhs);
+}
+
 namespace
 {
     class FontSetup
@@ -143,8 +153,7 @@ void IConsole::Init(GrafPtr port, Rect r)
     rows = (bounds.bottom - bounds.top) / cellSizeY;
     cols = (bounds.right - bounds.left) / cellSizeX;
 
-    chars = std::vector<char>(rows*cols, ' ');
-    attrs = std::vector<Attributes>(rows*cols);
+    chars = std::vector<AttributedChar>(rows*cols, AttributedChar(' ',currentAttr));
 
     onscreen = chars;
 
@@ -154,37 +163,13 @@ void IConsole::Init(GrafPtr port, Rect r)
 
 void IConsole::SetAttributes(Attributes aa)
 {
-    TextFace(aa.isBold()?bold:0 + aa.isUnderline()?underline:0 + aa.isItalic()?italic:0);
-}
-
-short IConsole::CalcStartX(short x, short y)
-{
-    Attributes a=attrs[y * cols];
-    SetAttributes(a);
-    short start=0;
-    short widthpx=0;
-    for(int i=0; i<x; ++i)
-    {
-        if(a!=attrs[y * cols + i])
-        {
-            widthpx+=TextWidth(&chars[y * cols + start], 0, i - start);
-            a=attrs[y * cols + i];
-            SetAttributes(a);
-            start=i;
-        }
-    }
-    widthpx+=TextWidth(&chars[y * cols + start], 0, x - start);
-    return widthpx;
+    TextFace(aa.isBold()?bold+condense:0 + aa.isUnderline()?underline:0 + aa.isItalic()?italic:0);
 }
 
 Rect IConsole::CellRect(short x, short y)
 {
-    short widthpx=CalcStartX(x,y);
-    FontSetup fontSetup;
-    SetAttributes(attrs[y * cols+x]);
-    short cellSizeP=CharWidth('M');
-    return { (short) (bounds.top + y * cellSizeY),      (short) (bounds.left + widthpx),
-             (short) (bounds.top + (y+1) * cellSizeY),  (short) (bounds.left + widthpx+cellSizeP) };
+    return { (short) (bounds.top + y * cellSizeY),      (short) (bounds.left + x * cellSizeX),
+             (short) (bounds.top + (y+1) * cellSizeY),  (short) (bounds.left + (x+1) * cellSizeX) };
 }
 void IConsole::DrawCell(short x, short y, bool erase)
 {
@@ -202,43 +187,13 @@ void IConsole::DrawCell(short x, short y, bool erase)
     if(erase)
         EraseRect(&r);
     MoveTo(r.left, r.bottom - 2);
-    DrawChar(chars[y * cols + x]);
+    DrawChar(chars[y * cols + x].c);
 }
 
 void IConsole::DrawCells(short x1, short x2, short y, bool erase)
 {
-    Attributes a=attrs[y * cols];
-    SetAttributes(a);
-    int start=0;
-    int xstart=0;
-    int xend=0;
-    for(int i=0; i<x1; ++i)
-    {
-        if(a!=attrs[y * cols + i])
-        {
-            xstart+=TextWidth(&chars[y * cols + start], 0, i - start);
-            a=attrs[y * cols + i];
-            SetAttributes(a);
-            start=i;
-        }
-    }
-    xstart+=TextWidth(&chars[y * cols + start], 0, x1 - start);
-    xend=xstart;
-    for(int i=x1; i<x2; ++i)
-    {
-        if(a!=attrs[y * cols + i])
-        {
-            xend+=TextWidth(&chars[y * cols + start], 0, i - start);
-            a=attrs[y * cols + i];
-            SetAttributes(a);
-            start=i;
-        }
-    }
-    xend+=TextWidth(&chars[y * cols + start], 0, x2 - start);
-
-    Rect r = { (short) (bounds.top + y * cellSizeY),      (short) (bounds.left + xstart),
-               (short) (bounds.top + (y+1) * cellSizeY),  (short) (bounds.left + xend) };
-    
+    Rect r = { (short) (bounds.top + y * cellSizeY),      (short) (bounds.left + x1 * cellSizeX),
+           (short) (bounds.top + (y+1) * cellSizeY),  (short) (bounds.left + x2 * cellSizeX) };
     if(cursorDrawn)
     {
         if(y == cursorY && x1 <= cursorX && x2 > cursorX)
@@ -252,20 +207,16 @@ void IConsole::DrawCells(short x1, short x2, short y, bool erase)
         EraseRect(&r);
     MoveTo(r.left, r.bottom - 2);
 
-    a=attrs[y * cols + x1];
+    Attributes a=chars[y * cols + x1].attrs;
     SetAttributes(a);
-    start=x1;
     for(int i=x1; i<x2; ++i)
     {
-        if(a!=attrs[y * cols + i])
-        {
-            DrawText(&chars[y * cols + start], 0, i - start);
-            a=attrs[y * cols + i];
+        if(a!=chars[y * cols + i].attrs) {
+            a=chars[y * cols + i].attrs;
             SetAttributes(a);
-            start=i;
         }
+        DrawChar(chars[y * cols + i].c);
     }
-    DrawText(&chars[y * cols + start], 0, x2 - start);
 }
 
 void IConsole::Draw(Rect r)
@@ -292,7 +243,7 @@ void IConsole::Draw(Rect r)
     if(cursorDrawn)
     {
         Rect cursor = CellRect(cursorX, cursorY);
-        //InvertRect(&cursor);
+        InvertRect(&cursor);
     }
     onscreen = chars;
 }
@@ -301,11 +252,9 @@ void IConsole::ScrollUp(short n)
 {
     cursorY--;
     std::copy(chars.begin() + cols, chars.end(), chars.begin());
-    std::fill(chars.end() - cols, chars.end(), ' ');
-    std::copy(attrs.begin() + cols, attrs.end(), attrs.begin());
-    std::fill(attrs.end() - cols, attrs.end(), currentAttr);
+    std::fill(chars.end() - cols, chars.end(), AttributedChar(' ', currentAttr));
     std::copy(onscreen.begin() + cols, onscreen.end(), onscreen.begin());
-    std::fill(onscreen.end() - cols, onscreen.end(), ' ');
+    std::fill(onscreen.end() - cols, onscreen.end(), AttributedChar(' ', currentAttr));
     RgnHandle rgn = NewRgn();
     ScrollRect(&bounds, 0, -cellSizeY, rgn);
     DisposeRgn(rgn);
@@ -380,8 +329,8 @@ void IConsole::PutCharNoUpdate(char c)
             ScrollUp();
         break;
     default:
-        chars[cursorY * cols + cursorX] = c;
-        attrs[cursorY * cols + cursorX] = currentAttr;
+        chars[cursorY * cols + cursorX].c = c;
+        chars[cursorY * cols + cursorX].attrs = currentAttr;
 
         if(dirtyRect.right == 0)
         {
@@ -400,8 +349,7 @@ void IConsole::PutCharNoUpdate(char c)
         if(cursorX >= cols)
             PutCharNoUpdate('\n');
         // This is to make sure the cursor width is calculated correctly
-        attrs[cursorY * cols + cursorX] = currentAttr;
-
+        chars[cursorY * cols + cursorX].attrs = currentAttr;
     }
 }
 
@@ -416,12 +364,12 @@ void IConsole::Update()
         bool needclear = false;
         for(short col = dirtyRect.left; col < dirtyRect.right; ++col)
         {
-            char old = onscreen[row * cols + col];
+            AttributedChar old = onscreen[row * cols + col];
             if(chars[row * cols + col] != old)
             {
                 if(start == -1)
                     start = col;
-                if(old != ' ')
+                if(old.c != ' ')
                     needclear = true;
                 onscreen[row * cols + col] = chars[row * cols + col];
             }
@@ -443,8 +391,8 @@ void IConsole::Update()
         Rect r = CellRect(cursorX, cursorY);
         if(cursorDrawn)
             DrawCell(cursorX, cursorY, true);
-        //else
-        //    InvertRect(&r);
+        else
+            InvertRect(&r);
         cursorDrawn = !cursorDrawn;
     }
     
@@ -555,11 +503,11 @@ void IConsole::Reshape(Rect newBounds)
         cursorY = newRows - 1;
     }
 
-    std::vector<char> newChars(newRows*newCols, ' ');
+    std::vector<AttributedChar> newChars(newRows*newCols, AttributedChar(' ', currentAttr));
     for(short row = 0; row < newRows && row + upshift < rows; row++)
     {
-        char *src = &chars[(row+upshift) * cols];
-        char *dst = &newChars[row * newCols];
+        AttributedChar *src = &chars[(row+upshift) * cols];
+        AttributedChar *dst = &newChars[row * newCols];
         std::copy(src, src + std::min(cols, newCols), dst);
     }
     chars.swap(newChars);

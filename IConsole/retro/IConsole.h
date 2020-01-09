@@ -46,6 +46,14 @@ namespace retro
         bool cUnderline;
         bool cItalic;
     };
+    
+    class AttributedChar
+    {
+    public:
+        char c;
+        Attributes attrs;
+        AttributedChar(char cc, Attributes aa) {c=cc; attrs=aa;}
+    };
 
 //    inline bool operator==(const Attributes& lhs, const Attributes& rhs);
 //    inline bool operator!=(const Attributes& lhs, const Attributes& rhs);
@@ -79,8 +87,7 @@ namespace retro
         Rect bounds;
         Attributes currentAttr;
 
-        std::vector<char> chars, onscreen;
-        std::vector<Attributes> attrs;
+        std::vector<AttributedChar> chars, onscreen;
         bool isProcessingEscSequence;
         int sequenceStep;
 
