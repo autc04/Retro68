@@ -12,5 +12,6 @@ ESC[4m          Underline font
 
 
 NOTES:
-(*) The bold font may be slightly larger that the normal font. Hence, the
-character grid may not be perfectly regular if this font is used.
+(*) Obtained with bold + condense style together, so that the character grid
+remains regular (this way, the width of bold characters remains the same as 
+regular ones).
