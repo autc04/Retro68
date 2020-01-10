@@ -32,7 +32,7 @@ IConsoleWindow::IConsoleWindow(Rect r, ConstStr255Param title)
 {
     GrafPtr port;
         //Retro68 Improved Console
-    win = NewWindow(NULL, &r, "\pThe Queen's Footsteps", true, 0, (WindowPtr)-1, false, 0);
+    win = NewWindow(NULL, &r, "\pThe Queen's Footsteps", true, 0, (WindowPtr)-1, true, 0);
 
 #if !TARGET_API_MAC_CARBON
     port = win;
@@ -105,7 +105,6 @@ char IConsoleWindow::WaitNextChar()
                 }
                 break;
             case mouseDown:
-                
                 switch(FindWindow(event.where, &eventWin))
                 {
                     case inDrag:
@@ -118,6 +117,11 @@ char IConsoleWindow::WaitNextChar()
                             Reshape(Rect {0, 0, (short) (growResult >> 16), (short) (growResult & 0xFFFF) });
                         }
                         break;
+                    case inGoAway:
+                        {
+                            if (TrackGoAway(eventWin,event.where))
+                                exit(0);
+                        }
                 }
                 break;
         }
