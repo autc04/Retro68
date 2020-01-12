@@ -17,8 +17,8 @@
     permissions described in the GCC Runtime Library Exception, version
     3.1, as published by the Free Software Foundation.
 
-    You should have received a copy of the GNU General Public License
-    along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
+     You should have received a copy of the GNU General Public License
+     along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <string>
