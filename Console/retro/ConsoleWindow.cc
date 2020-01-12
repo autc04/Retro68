@@ -36,7 +36,7 @@ ConsoleWindow::ConsoleWindow(Rect r, ConstStr255Param title)
 {
     GrafPtr port;
         //Retro68 Improved Console
-    win = NewWindow(NULL, &r, "\pThe Queen's Footsteps", true, 0, (WindowPtr)-1, true, 0);
+    win = NewWindow(NULL, &r, "\pRetro68 Console", true, 0, (WindowPtr)-1, true, 0);
 
 #if !TARGET_API_MAC_CARBON
     port = win;
@@ -126,6 +126,7 @@ char ConsoleWindow::WaitNextChar()
                             if (TrackGoAway(eventWin,event.where))
                                 exit(0);
                         }
+                        break;
                 }
                 break;
         }

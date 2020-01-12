@@ -235,9 +235,8 @@ void Console::Draw(Rect r)
     short minRow = std::max(0, (r.top - bounds.top) / cellSizeY);
     short maxRow = std::min((int)rows, (r.bottom - bounds.top + cellSizeY - 1) / cellSizeY);
 
-    short minCol = 0;// std::max(0, (r.left - bounds.left) / cellSizeX);
-
-    short maxCol = cols; //;std::min((int)cols, (r.right - bounds.left + cellSizeX - 1) / cellSizeX);
+    short minCol = std::max(0, (r.left - bounds.left) / cellSizeX);
+    short maxCol = std::min((int)cols, (r.right - bounds.left + cellSizeX - 1) / cellSizeX);
 
     EraseRect(&r);
     for(short row = minRow; row < maxRow; ++row)
@@ -352,7 +351,6 @@ void Console::PutCharNoUpdate(char c)
         cursorX++;
         if(cursorX >= cols)
             PutCharNoUpdate('\n');
-        // This is to make sure the cursor width is calculated correctly
         chars[cursorY * cols + cursorX].attrs = currentAttr;
     }
 }
