@@ -13,6 +13,10 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
+    Under Section 7 of GPL version 3, you are granted additional
+    permissions described in the GCC Runtime Library Exception, version
+    3.1, as published by the Free Software Foundation.
+
     You should have received a copy of the GNU General Public License
     along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 */
@@ -71,7 +75,7 @@ void Attributes::setUnderline(const bool v)
 }
 
 inline bool operator==(const Attributes& lhs, const Attributes& rhs)
-{ 
+{
     return lhs.isBold()==rhs.isBold() && lhs.isUnderline()==rhs.isUnderline() && lhs.isItalic()==rhs.isItalic();
 }
 
@@ -81,7 +85,7 @@ inline bool operator!=(const Attributes& lhs, const Attributes& rhs)
 }
 
 inline bool operator==(const AttributedChar& lhs, const AttributedChar& rhs)
-{ 
+{
     return lhs.c==rhs.c && lhs.attrs==rhs.attrs;
 }
 
@@ -141,15 +145,15 @@ void Console::Init(GrafPtr port, Rect r)
 {
     consolePort = port;
     bounds = r;
-    
+
     PortSetter setport(consolePort);
     FontSetup fontSetup;
 
     InsetRect(&bounds, 2,2);
-    
+
     cellSizeY = 12;
     cellSizeX = CharWidth('M');
-    
+
     rows = (bounds.bottom - bounds.top) / cellSizeY;
     cols = (bounds.right - bounds.left) / cellSizeX;
 
@@ -202,7 +206,7 @@ void Console::DrawCells(short x1, short x2, short y, bool erase)
             cursorDrawn = false;
         }
     }
-    
+
     if(erase)
         EraseRect(&r);
     MoveTo(r.left, r.bottom - 2);
@@ -230,11 +234,11 @@ void Console::Draw(Rect r)
 
     short minRow = std::max(0, (r.top - bounds.top) / cellSizeY);
     short maxRow = std::min((int)rows, (r.bottom - bounds.top + cellSizeY - 1) / cellSizeY);
-    
+
     short minCol = 0;// std::max(0, (r.left - bounds.left) / cellSizeX);
-    
+
     short maxCol = cols; //;std::min((int)cols, (r.right - bounds.left + cellSizeX - 1) / cellSizeX);
-    
+
     EraseRect(&r);
     for(short row = minRow; row < maxRow; ++row)
     {
@@ -385,7 +389,7 @@ void Console::Update()
             DrawCells(start, dirtyRect.right, row, needclear);
     }
     dirtyRect = Rect();
-    
+
     if(cursorVisible != cursorDrawn)
     {
         Rect r = CellRect(cursorX, cursorY);
@@ -395,7 +399,7 @@ void Console::Update()
             InvertRect(&r);
         cursorDrawn = !cursorDrawn;
     }
-    
+
 #if TARGET_API_MAC_CARBON
     QDFlushPortBuffer(consolePort,NULL);
 #endif
@@ -413,7 +417,7 @@ void Console::write(const char *p, int n)
 {
     if(!rows)
         return;
-    
+
     for(int i = 0; i < n; i++)
         Console::currentInstance->PutCharNoUpdate(*p++);
     Update();
@@ -427,9 +431,9 @@ std::string Console::ReadLine()
 
     std::string buffer;
     char c;
-    
+
     do
-    {        
+    {
         c = WaitNextChar();
         if(!c)
         {
@@ -439,7 +443,7 @@ std::string Console::ReadLine()
 
         if(c == '\r')
             c = '\n';
-        
+
         if(c == '\b')
         {
             if(buffer.size())
@@ -455,7 +459,7 @@ std::string Console::ReadLine()
 
             continue;
         }
-        
+
         putch(c);
         buffer.append(1,c);
     } while(c != '\n');
@@ -498,7 +502,7 @@ void Console::Reshape(Rect newBounds)
     if(cursorY >= newRows)
     {
         upshift = cursorY - (newRows - 1);
-        
+
         InvalidateCursor();
         cursorY = newRows - 1;
     }
@@ -520,7 +524,7 @@ void Console::Reshape(Rect newBounds)
     }
     onscreen.swap(newChars);*/
     onscreen = newChars;
-    
+
     rows = newRows;
     cols = newCols;
 

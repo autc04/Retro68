@@ -13,6 +13,10 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
+    Under Section 7 of GPL version 3, you are granted additional
+    permissions described in the GCC Runtime Library Exception, version
+    3.1, as published by the Free Software Foundation.
+
     You should have received a copy of the GNU General Public License
     along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 */
@@ -32,21 +36,21 @@ namespace retro
         bool isBold(void) const;
         bool isUnderline(void) const;
         bool isItalic(void) const;
-        
+
         void setBold(const bool v);
         void setUnderline(const bool v);
         void setItalic(const bool v);
-        
+
         Attributes(void);
         void reset(void);
 
     private:
-        
+
         bool cBold;
         bool cUnderline;
         bool cItalic;
     };
-    
+
     class AttributedChar
     {
     public:
@@ -78,7 +82,7 @@ namespace retro
 
         short GetRows() const { return rows; }
         short GetCols() const { return cols; }
-        
+
         void Idle();
 
         bool IsEOF() const { return eof; }
@@ -99,7 +103,7 @@ namespace retro
         short cursorX, cursorY;
 
         Rect dirtyRect = {};
-        
+
         long blinkTicks = 0;
         bool cursorDrawn = false;
         bool cursorVisible = true;
@@ -115,14 +119,14 @@ namespace retro
         void ScrollUp(short n = 1);
         void ProcessEscSequence(char c);
         void SetAttributes(Attributes aa);
-        
+
         void InvalidateCursor();
 
         virtual char WaitNextChar();
-    
+
     protected:
         void Init(GrafPtr port, Rect r);
-        
+
     };
 
 
