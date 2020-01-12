@@ -23,7 +23,7 @@ add_library(RetroConsole
     retro/MacUtils.h
     retro/InitConsole.cc
     )
-set_target_properties(retrocrt
+set_target_properties(RetroConsole
     PROPERTIES
         COMPILE_OPTIONS -ffunction-sections)
 
