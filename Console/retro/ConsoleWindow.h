@@ -1,5 +1,5 @@
 /*
-    Copyright 2012 Wolfgang Thaller.
+    Copyright 2012-2020 Wolfgang Thaller, Davide Bucci
 
     This file is part of Retro68.
 

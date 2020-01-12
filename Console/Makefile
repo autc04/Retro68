@@ -6,21 +6,21 @@ CC=$(RETRO68)/bin/m68k-apple-macos-gcc
 CXX=$(RETRO68)/bin/m68k-apple-macos-g++
 REZ=$(RETRO68)/bin/Rez
 
-LDFLAGS=retro/libIConsole.a 
+LDFLAGS=retro/libConsole.a 
 RINCLUDES=$(PREFIX)/RIncludes
 REZFLAGS=-I$(RINCLUDES)
 
-IConsoleTest.bin IConsoleTest.APPL IConsoleTest.dsk: IConsoleTest.code.bin
+ConsoleTest.bin ConsoleTest.APPL ConsoleTest.dsk: ConsoleTest.code.bin
 	$(REZ) $(REZFLAGS) \
-		--copy "IConsoleTest.code.bin" \
+		--copy "ConsoleTest.code.bin" \
 		"$(RINCLUDES)/Retro68APPL.r" \
 		-t "APPL" -c "????" \
-		-o IConsoleTest.bin --cc IConsoleTest.APPL --cc IConsoleTest.dsk
+		-o ConsoleTest.bin --cc ConsoleTest.APPL --cc ConsoleTest.dsk
 
 
-IConsoleTest.code.bin: IConsoleTest.o
+ConsoleTest.code.bin: ConsoleTest.o
 	$(CXX) $< -o $@ $(LDFLAGS)	# C++ used for linking because RetroConsole needs it
 
 .PHONY: clean
 clean:
-	rm -f IConsoleTest.bin IConsoleTest.APPL IConsoleTest.dsk IConsoleTest.code.bin IConsoleTest.code.bin.gdb IConsoleTest.o
+	rm -f ConsoleTest.bin ConsoleTest.APPL ConsoleTest.dsk ConsoleTest.code.bin ConsoleTest.code.bin.gdb ConsoleTest.o
