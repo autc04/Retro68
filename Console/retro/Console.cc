@@ -351,7 +351,6 @@ void Console::PutCharNoUpdate(char c)
         cursorX++;
         if(cursorX >= cols)
             PutCharNoUpdate('\n');
-        chars[cursorY * cols + cursorX].attrs = currentAttr;
     }
 }
 
