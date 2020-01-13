@@ -1,5 +1,5 @@
 /*
-    Copyright 2012 Wolfgang Thaller.
+    Copyright 2012-2020 Wolfgang Thaller, Davide Bucci
 
     This file is part of Retro68.
 
@@ -29,6 +29,39 @@
 
 namespace retro
 {
+    class Attributes
+    {
+    public:
+
+        bool isBold(void) const;
+        bool isUnderline(void) const;
+        bool isItalic(void) const;
+
+        void setBold(const bool v);
+        void setUnderline(const bool v);
+        void setItalic(const bool v);
+
+        Attributes(void);
+        void reset(void);
+
+    private:
+
+        bool cBold;
+        bool cUnderline;
+        bool cItalic;
+    };
+
+    class AttributedChar
+    {
+    public:
+        char c;
+        Attributes attrs;
+        AttributedChar(char cc, Attributes aa) {c=cc; attrs=aa;}
+    };
+
+//    inline bool operator==(const Attributes& lhs, const Attributes& rhs);
+//    inline bool operator!=(const Attributes& lhs, const Attributes& rhs);
+
     class Console
     {
     public:
@@ -49,15 +82,18 @@ namespace retro
 
         short GetRows() const { return rows; }
         short GetCols() const { return cols; }
-        
+
         void Idle();
 
         bool IsEOF() const { return eof; }
     private:
         GrafPtr consolePort = nullptr;
         Rect bounds;
+        Attributes currentAttr;
 
-        std::vector<char> chars, onscreen;
+        std::vector<AttributedChar> chars, onscreen;
+        bool isProcessingEscSequence;
+        int sequenceStep;
 
         short cellSizeX;
         short cellSizeY;
@@ -67,7 +103,7 @@ namespace retro
         short cursorX, cursorY;
 
         Rect dirtyRect = {};
-        
+
         long blinkTicks = 0;
         bool cursorDrawn = false;
         bool cursorVisible = true;
@@ -76,18 +112,21 @@ namespace retro
         void PutCharNoUpdate(char c);
         void Update();
 
+        short CalcStartX(short x, short y);
         Rect CellRect(short x, short y);
         void DrawCell(short x, short y, bool erase = true);
         void DrawCells(short x1, short x2, short y, bool erase = true);
         void ScrollUp(short n = 1);
-        
+        void ProcessEscSequence(char c);
+        void SetAttributes(Attributes aa);
+
         void InvalidateCursor();
 
         virtual char WaitNextChar();
-    
+
     protected:
         void Init(GrafPtr port, Rect r);
-        
+
     };
 
 

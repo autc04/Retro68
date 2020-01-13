@@ -1,5 +1,5 @@
 /*
-    Copyright 2012 Wolfgang Thaller.
+    Copyright 2012-2020 Wolfgang Thaller, Davide Bucci
 
     This file is part of Retro68.
 
@@ -35,8 +35,8 @@ namespace
 ConsoleWindow::ConsoleWindow(Rect r, ConstStr255Param title)
 {
     GrafPtr port;
-
-    win = NewWindow(NULL, &r, "\pRetro68 Console", true, 0, (WindowPtr)-1, false, 0);
+        //Retro68 Improved Console
+    win = NewWindow(NULL, &r, "\pRetro68 Console", true, 0, (WindowPtr)-1, true, 0);
 
 #if !TARGET_API_MAC_CARBON
     port = win;
@@ -73,7 +73,7 @@ char ConsoleWindow::WaitNextChar()
 #else
     Rect *boundsPtr = &qd.screenBits.bounds;
 #endif
-    
+
     do
     {
         #if TARGET_API_MAC_CARBON
@@ -86,7 +86,7 @@ char ConsoleWindow::WaitNextChar()
             SystemTask();
             Idle();
         }
-            
+
         switch(event.what)
         {
             case updateEvt:
@@ -109,7 +109,6 @@ char ConsoleWindow::WaitNextChar()
                 }
                 break;
             case mouseDown:
-                
                 switch(FindWindow(event.where, &eventWin))
                 {
                     case inDrag:
@@ -122,10 +121,16 @@ char ConsoleWindow::WaitNextChar()
                             Reshape(Rect {0, 0, (short) (growResult >> 16), (short) (growResult & 0xFFFF) });
                         }
                         break;
+                    case inGoAway:
+                        {
+                            if (TrackGoAway(eventWin,event.where))
+                                exit(0);
+                        }
+                        break;
                 }
                 break;
         }
     } while(event.what != keyDown && event.what != autoKey);
-    
+
     return event.message & charCodeMask;
 }

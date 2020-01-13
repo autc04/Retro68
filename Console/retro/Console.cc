@@ -1,5 +1,5 @@
 /*
-    Copyright 2012 Wolfgang Thaller.
+    Copyright 2012-2020 Wolfgang Thaller, Davide Bucci
 
     This file is part of Retro68.
 
@@ -32,11 +32,73 @@ using namespace retro;
 
 Console *Console::currentInstance = NULL;
 
+Attributes::Attributes(void)
+{
+    reset();
+}
+void Attributes::reset(void)
+{
+    cBold=false;
+    cUnderline=false;
+    cItalic=false;
+}
+
+bool Attributes::isBold(void) const
+{
+    return cBold;
+}
+
+
+bool Attributes::isUnderline(void) const
+{
+    return cUnderline;
+}
+
+bool Attributes::isItalic(void) const
+{
+    return cItalic;
+}
+
+void Attributes::setBold(const bool v)
+{
+    cBold=v;
+}
+
+void Attributes::setItalic(const bool v)
+{
+    cItalic=v;
+}
+
+void Attributes::setUnderline(const bool v)
+{
+    cUnderline=v;
+}
+
+inline bool operator==(const Attributes& lhs, const Attributes& rhs)
+{
+    return lhs.isBold()==rhs.isBold() && lhs.isUnderline()==rhs.isUnderline() && lhs.isItalic()==rhs.isItalic();
+}
+
+inline bool operator!=(const Attributes& lhs, const Attributes& rhs)
+{
+    return !(lhs == rhs);
+}
+
+inline bool operator==(const AttributedChar& lhs, const AttributedChar& rhs)
+{
+    return lhs.c==rhs.c && lhs.attrs==rhs.attrs;
+}
+
+inline bool operator!=(const AttributedChar& lhs, const AttributedChar& rhs)
+{
+    return !(lhs == rhs);
+}
+
 namespace
 {
     class FontSetup
     {
-        short saveFont, saveSize;
+        short saveFont, saveSize, saveFace;
     public:
         FontSetup()
         {
@@ -48,15 +110,18 @@ namespace
 #else
             saveFont = qd.thePort->txFont;
             saveSize = qd.thePort->txSize;
+            saveFace = qd.thePort->txFace;
 #endif
             TextFont(kFontIDMonaco);
             TextSize(9);
+            TextFace(normal);
         }
 
         ~FontSetup()
         {
             TextFont(saveFont);
             TextSize(saveSize);
+            TextFace(saveFace);
         }
     };
 }
@@ -80,23 +145,29 @@ void Console::Init(GrafPtr port, Rect r)
 {
     consolePort = port;
     bounds = r;
-    
+
     PortSetter setport(consolePort);
     FontSetup fontSetup;
 
     InsetRect(&bounds, 2,2);
-    
+
     cellSizeY = 12;
     cellSizeX = CharWidth('M');
-    
+
     rows = (bounds.bottom - bounds.top) / cellSizeY;
     cols = (bounds.right - bounds.left) / cellSizeX;
 
-    chars = std::vector<char>(rows*cols, ' ');
+    chars = std::vector<AttributedChar>(rows*cols, AttributedChar(' ',currentAttr));
 
     onscreen = chars;
 
     cursorX = cursorY = 0;
+    isProcessingEscSequence=false;
+}
+
+void Console::SetAttributes(Attributes aa)
+{
+    TextFace(aa.isBold()?bold+condense:0 + aa.isUnderline()?underline:0 + aa.isItalic()?italic:0);
 }
 
 Rect Console::CellRect(short x, short y)
@@ -120,14 +191,13 @@ void Console::DrawCell(short x, short y, bool erase)
     if(erase)
         EraseRect(&r);
     MoveTo(r.left, r.bottom - 2);
-    DrawChar(chars[y * cols + x]);
+    DrawChar(chars[y * cols + x].c);
 }
 
 void Console::DrawCells(short x1, short x2, short y, bool erase)
 {
     Rect r = { (short) (bounds.top + y * cellSizeY),      (short) (bounds.left + x1 * cellSizeX),
-               (short) (bounds.top + (y+1) * cellSizeY),  (short) (bounds.left + x2 * cellSizeX) };
-    
+           (short) (bounds.top + (y+1) * cellSizeY),  (short) (bounds.left + x2 * cellSizeX) };
     if(cursorDrawn)
     {
         if(y == cursorY && x1 <= cursorX && x2 > cursorX)
@@ -136,11 +206,21 @@ void Console::DrawCells(short x1, short x2, short y, bool erase)
             cursorDrawn = false;
         }
     }
-    
+
     if(erase)
         EraseRect(&r);
     MoveTo(r.left, r.bottom - 2);
-    DrawText(&chars[y * cols + x1], 0, x2 - x1);
+
+    Attributes a=chars[y * cols + x1].attrs;
+    SetAttributes(a);
+    for(int i=x1; i<x2; ++i)
+    {
+        if(a!=chars[y * cols + i].attrs) {
+            a=chars[y * cols + i].attrs;
+            SetAttributes(a);
+        }
+        DrawChar(chars[y * cols + i].c);
+    }
 }
 
 void Console::Draw(Rect r)
@@ -154,10 +234,10 @@ void Console::Draw(Rect r)
 
     short minRow = std::max(0, (r.top - bounds.top) / cellSizeY);
     short maxRow = std::min((int)rows, (r.bottom - bounds.top + cellSizeY - 1) / cellSizeY);
-    
+
     short minCol = std::max(0, (r.left - bounds.left) / cellSizeX);
     short maxCol = std::min((int)cols, (r.right - bounds.left + cellSizeX - 1) / cellSizeX);
-    
+
     EraseRect(&r);
     for(short row = minRow; row < maxRow; ++row)
     {
@@ -175,9 +255,9 @@ void Console::ScrollUp(short n)
 {
     cursorY--;
     std::copy(chars.begin() + cols, chars.end(), chars.begin());
-    std::fill(chars.end() - cols, chars.end(), ' ');
+    std::fill(chars.end() - cols, chars.end(), AttributedChar(' ', currentAttr));
     std::copy(onscreen.begin() + cols, onscreen.end(), onscreen.begin());
-    std::fill(onscreen.end() - cols, onscreen.end(), ' ');
+    std::fill(onscreen.end() - cols, onscreen.end(), AttributedChar(' ', currentAttr));
     RgnHandle rgn = NewRgn();
     ScrollRect(&bounds, 0, -cellSizeY, rgn);
     DisposeRgn(rgn);
@@ -185,12 +265,63 @@ void Console::ScrollUp(short n)
     dirtyRect.bottom = dirtyRect.bottom > 0 ? dirtyRect.bottom - 1 : 0;
 }
 
+void Console::ProcessEscSequence(char c)
+{
+    switch(sequenceStep)
+    {
+    case 0:
+        if(c=='[')
+            ++sequenceStep;
+        else
+            isProcessingEscSequence=false;
+        break;
+    case 1:
+        ++sequenceStep;
+        switch(c)
+        {
+        case '0':   // Normal character
+            currentAttr.reset();
+            break;
+        case '1':   // Bold
+            currentAttr.setBold(true);
+            break;
+        case '3':   // Italic
+            currentAttr.setItalic(true);
+            break;
+        case '4':   // Underline
+            currentAttr.setUnderline(true);
+            break;
+        default:
+            isProcessingEscSequence=false;
+        }
+        break;
+    case 2:
+        if(c=='m')
+            isProcessingEscSequence=false;
+        else if(c==';')
+            sequenceStep=1;
+        else
+            isProcessingEscSequence=false;
+        break;
+    default:
+        sequenceStep=0;
+    }
+}
 
 void Console::PutCharNoUpdate(char c)
 {
+    if(isProcessingEscSequence)
+    {
+        ProcessEscSequence(c);
+        return;
+    }
     InvalidateCursor();
     switch(c)
     {
+    case '\033':    // Begin of an ANSI escape sequence
+        isProcessingEscSequence=true;
+        sequenceStep=0;
+        break;
     case '\r':
         cursorX = 0;
         break;
@@ -201,7 +332,9 @@ void Console::PutCharNoUpdate(char c)
             ScrollUp();
         break;
     default:
-        chars[cursorY * cols + cursorX] = c;
+        chars[cursorY * cols + cursorX].c = c;
+        chars[cursorY * cols + cursorX].attrs = currentAttr;
+
         if(dirtyRect.right == 0)
         {
             dirtyRect.right = (dirtyRect.left = cursorX) + 1;
@@ -232,12 +365,12 @@ void Console::Update()
         bool needclear = false;
         for(short col = dirtyRect.left; col < dirtyRect.right; ++col)
         {
-            char old = onscreen[row * cols + col];
+            AttributedChar old = onscreen[row * cols + col];
             if(chars[row * cols + col] != old)
             {
                 if(start == -1)
                     start = col;
-                if(old != ' ')
+                if(old.c != ' ')
                     needclear = true;
                 onscreen[row * cols + col] = chars[row * cols + col];
             }
@@ -253,7 +386,7 @@ void Console::Update()
             DrawCells(start, dirtyRect.right, row, needclear);
     }
     dirtyRect = Rect();
-    
+
     if(cursorVisible != cursorDrawn)
     {
         Rect r = CellRect(cursorX, cursorY);
@@ -281,7 +414,7 @@ void Console::write(const char *p, int n)
 {
     if(!rows)
         return;
-    
+
     for(int i = 0; i < n; i++)
         Console::currentInstance->PutCharNoUpdate(*p++);
     Update();
@@ -295,9 +428,9 @@ std::string Console::ReadLine()
 
     std::string buffer;
     char c;
-    
+
     do
-    {        
+    {
         c = WaitNextChar();
         if(!c)
         {
@@ -307,7 +440,7 @@ std::string Console::ReadLine()
 
         if(c == '\r')
             c = '\n';
-        
+
         if(c == '\b')
         {
             if(buffer.size())
@@ -323,7 +456,7 @@ std::string Console::ReadLine()
 
             continue;
         }
-        
+
         putch(c);
         buffer.append(1,c);
     } while(c != '\n');
@@ -335,7 +468,6 @@ void Console::InvalidateCursor()
     if(cursorDrawn)
     {
         PortSetter setport(consolePort);
-
         DrawCell(cursorX, cursorY, true);
         cursorDrawn = false;
     }
@@ -367,16 +499,16 @@ void Console::Reshape(Rect newBounds)
     if(cursorY >= newRows)
     {
         upshift = cursorY - (newRows - 1);
-        
+
         InvalidateCursor();
         cursorY = newRows - 1;
     }
 
-    std::vector<char> newChars(newRows*newCols, ' ');
+    std::vector<AttributedChar> newChars(newRows*newCols, AttributedChar(' ', currentAttr));
     for(short row = 0; row < newRows && row + upshift < rows; row++)
     {
-        char *src = &chars[(row+upshift) * cols];
-        char *dst = &newChars[row * newCols];
+        AttributedChar *src = &chars[(row+upshift) * cols];
+        AttributedChar *dst = &newChars[row * newCols];
         std::copy(src, src + std::min(cols, newCols), dst);
     }
     chars.swap(newChars);
@@ -389,7 +521,7 @@ void Console::Reshape(Rect newBounds)
     }
     onscreen.swap(newChars);*/
     onscreen = newChars;
-    
+
     rows = newRows;
     cols = newCols;
 
