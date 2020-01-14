@@ -265,15 +265,80 @@ void Console::ScrollUp(short n)
     dirtyRect.bottom = dirtyRect.bottom > 0 ? dirtyRect.bottom - 1 : 0;
 }
 
-void Console::ProcessEscSequence(char c)
+void Console::ProcessOSCseq(char c)
 {
     switch(sequenceStep)
     {
-    case 0:
-        if(c=='[')
-            ++sequenceStep;
-        else
+    case 1:
+        if(c!='0')  // The only recognized sequence is OSC 0; 
+        {
+            OSCseq=false;
+            sequenceStep=0;
+            return;
+        }
+        ++sequenceStep;
+        break;
+    case 2:
+        if(c!=';')  // The only recognized sequence is OSC 0; 
+        {
+            OSCseq=false;
+            sequenceStep=0;
+            return;
+        }
+        ++sequenceStep;
+        windowName=" ";
+        break;
+    default:
+        if(c==BEL) // The BEL character ends the sequence.
+        {
+            windowName[0]=windowName.length();
+            SetWTitle(win, (ConstStringPtr)windowName.c_str());
+            OSCseq=false;
             isProcessingEscSequence=false;
+            sequenceStep=0;
+        }
+        else
+        {
+            windowName+=c;
+            ++sequenceStep;
+        }
+    }
+}
+
+void Console::ProcessEscSequence(char c)
+{
+    if(sequenceStep>0 && OSCseq)
+    {
+        ProcessOSCseq(c);
+        //sequenceStep=0;
+        //isProcessingEscSequence=false;
+        return;
+    }
+    if(sequenceStep>MAX_LEN)
+    {
+        // Sequence is too long!
+        sequenceStep=0;
+        isProcessingEscSequence=false;
+        return;
+    }
+
+    switch(sequenceStep)
+    {
+    case 0:
+        if(c=='[')  // Control Sequence Introducer
+        {
+            OSCseq=false;
+            ++sequenceStep;
+        }
+        else if(c==']') // Operating System Command
+        {
+            OSCseq=true;
+            ++sequenceStep;
+        }   
+        else
+        {
+            isProcessingEscSequence=false;
+        }
         break;
     case 1:
         ++sequenceStep;
@@ -305,6 +370,7 @@ void Console::ProcessEscSequence(char c)
         break;
     default:
         sequenceStep=0;
+        isProcessingEscSequence=false;
     }
 }
 

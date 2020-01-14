@@ -35,7 +35,7 @@ namespace retro
         ConsoleWindow(Rect r, ConstStr255Param title);
         ~ConsoleWindow();
     private:
-        WindowPtr win;
+        //WindowPtr win;
 
         virtual char WaitNextChar();
     };

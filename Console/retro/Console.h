@@ -27,6 +27,9 @@
 #include <vector>
 #include <string>
 
+#define BEL 7
+#define MAX_LEN 250
+
 namespace retro
 {
     class Attributes
@@ -86,6 +89,10 @@ namespace retro
         void Idle();
 
         bool IsEOF() const { return eof; }
+    protected:
+        std::string windowName;
+        WindowPtr win;
+
     private:
         GrafPtr consolePort = nullptr;
         Rect bounds;
@@ -94,6 +101,7 @@ namespace retro
         std::vector<AttributedChar> chars, onscreen;
         bool isProcessingEscSequence;
         int sequenceStep;
+        bool OSCseq;
 
         short cellSizeX;
         short cellSizeY;
@@ -118,6 +126,7 @@ namespace retro
         void DrawCells(short x1, short x2, short y, bool erase = true);
         void ScrollUp(short n = 1);
         void ProcessEscSequence(char c);
+        void ProcessOSCseq(char c);
         void SetAttributes(Attributes aa);
 
         void InvalidateCursor();
