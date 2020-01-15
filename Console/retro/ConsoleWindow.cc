@@ -24,6 +24,7 @@
 #include "ConsoleWindow.h"
 #include "Events.h"
 #include <unordered_map>
+#include <cstring>
 
 using namespace retro;
 
@@ -67,9 +68,20 @@ ConsoleWindow::~ConsoleWindow()
 
 void ConsoleWindow::setWindowName(std::string newName)
 {
-    newName=" "+newName;        // Convert into Pascal string
-    newName[0]=newName.length();
-    SetWTitle(win, (ConstStringPtr)newName.c_str());
+    Str255 pname;
+#if TARGET_API_MAC_CARBON
+    // Carbon has the new, sane version.
+    c2pstrcpy(pname,newName.c_str());
+#else
+    // It is also availble in various glue code libraries and
+    // in some versions of InterfaceLib, but it's confusing.
+    // Using the inplace variant, c2pstr, isn't much better than
+    // doing things by hand:
+    strncpy((char *)&pname[1],newName.c_str(),255);
+    pname[0] = newName.length();
+#endif
+
+    SetWTitle(win, pname);
 }
 
 

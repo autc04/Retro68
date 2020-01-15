@@ -270,7 +270,7 @@ void Console::ProcessOSCseq(char c)
     switch(sequenceStep)
     {
     case 1:
-        if(c!='0')  // The only recognized sequence is OSC 0; 
+        if(c!='0')  // The only recognized sequence is OSC 0;
         {
             OSCseq=false;
             sequenceStep=0;
@@ -279,7 +279,7 @@ void Console::ProcessOSCseq(char c)
         ++sequenceStep;
         break;
     case 2:
-        if(c!=';')  // The only recognized sequence is OSC 0; 
+        if(c!=';')  // The only recognized sequence is OSC 0;
         {
             OSCseq=false;
             sequenceStep=0;
@@ -333,7 +333,7 @@ void Console::ProcessEscSequence(char c)
         {
             OSCseq=true;
             ++sequenceStep;
-        }   
+        }
         else
         {
             isProcessingEscSequence=false;
