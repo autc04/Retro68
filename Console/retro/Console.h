@@ -86,14 +86,15 @@ namespace retro
         short GetRows() const { return rows; }
         short GetCols() const { return cols; }
 
+        virtual void setWindowName(std::string newName) {};
+
+
         void Idle();
 
         bool IsEOF() const { return eof; }
-    protected:
-        std::string windowName;
-        WindowPtr win;
 
     private:
+        std::string windowName;
         GrafPtr consolePort = nullptr;
         Rect bounds;
         Attributes currentAttr;

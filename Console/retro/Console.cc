@@ -286,13 +286,12 @@ void Console::ProcessOSCseq(char c)
             return;
         }
         ++sequenceStep;
-        windowName=" ";
+        windowName="";
         break;
     default:
         if(c==BEL) // The BEL character ends the sequence.
         {
-            windowName[0]=windowName.length();
-            SetWTitle(win, (ConstStringPtr)windowName.c_str());
+            setWindowName(windowName);
             OSCseq=false;
             isProcessingEscSequence=false;
             sequenceStep=0;

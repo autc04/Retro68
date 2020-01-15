@@ -36,8 +36,9 @@ ConsoleWindow::ConsoleWindow(Rect r, ConstStr255Param title)
 {
     GrafPtr port;
         //Retro68 Improved Console
-    windowName="Retro68 Console";
-    win = NewWindow(NULL, &r, "\pRetro68 Console", true, 0, (WindowPtr)-1, true, 0);
+    win = NewWindow(NULL, &r, "\p", true, 0, (WindowPtr)-1, true, 0);
+    setWindowName("Retro68 Console");
+
 
 #if !TARGET_API_MAC_CARBON
     port = win;
@@ -63,6 +64,14 @@ ConsoleWindow::~ConsoleWindow()
     windows->erase(win);
     DisposeWindow(win);
 }
+
+void ConsoleWindow::setWindowName(std::string newName)
+{
+    newName=" "+newName;        // Convert into Pascal string
+    newName[0]=newName.length();
+    SetWTitle(win, (ConstStringPtr)newName.c_str());
+}
+
 
 char ConsoleWindow::WaitNextChar()
 {
