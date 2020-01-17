@@ -27,9 +27,6 @@
 #include <vector>
 #include <string>
 
-#define BEL 7
-#define MAX_LEN 250
-
 namespace retro
 {
     class Attributes
@@ -62,8 +59,16 @@ namespace retro
         AttributedChar(char cc, Attributes aa) {c=cc; attrs=aa;}
     };
 
-//    inline bool operator==(const Attributes& lhs, const Attributes& rhs);
-//    inline bool operator!=(const Attributes& lhs, const Attributes& rhs);
+    enum class State
+    {
+        noSequence,
+        waitingForSequenceStart,
+        waitingForControlSequence,
+        waitingForM,
+        waitingForOSCStart,
+        waitingForSemicolon,
+        inWindowName
+    };
 
     class Console
     {
@@ -94,15 +99,14 @@ namespace retro
         bool IsEOF() const { return eof; }
 
     private:
+
+        State sequenceState;
         std::string windowName;
         GrafPtr consolePort = nullptr;
         Rect bounds;
         Attributes currentAttr;
 
         std::vector<AttributedChar> chars, onscreen;
-        bool isProcessingEscSequence;
-        int sequenceStep;
-        bool OSCseq;
 
         short cellSizeX;
         short cellSizeY;
@@ -126,8 +130,7 @@ namespace retro
         void DrawCell(short x, short y, bool erase = true);
         void DrawCells(short x1, short x2, short y, bool erase = true);
         void ScrollUp(short n = 1);
-        void ProcessEscSequence(char c);
-        void ProcessOSCseq(char c);
+        bool ProcessEscSequence(char c);
         void SetAttributes(Attributes aa);
 
         void InvalidateCursor();

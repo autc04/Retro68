@@ -36,10 +36,7 @@ namespace
 ConsoleWindow::ConsoleWindow(Rect r, ConstStr255Param title)
 {
     GrafPtr port;
-        //Retro68 Improved Console
-    win = NewWindow(NULL, &r, "\p", true, 0, (WindowPtr)-1, true, 0);
-    setWindowName("Retro68 Console");
-
+    win = NewWindow(NULL, &r, "\pRetro68 Console", true, 0, (WindowPtr)-1, true, 0);
 
 #if !TARGET_API_MAC_CARBON
     port = win;

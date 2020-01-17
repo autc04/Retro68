@@ -30,6 +30,9 @@
 
 using namespace retro;
 
+const char BEL = 7;
+const char MAX_LEN = 250;
+
 Console *Console::currentInstance = NULL;
 
 Attributes::Attributes(void)
@@ -162,7 +165,7 @@ void Console::Init(GrafPtr port, Rect r)
     onscreen = chars;
 
     cursorX = cursorY = 0;
-    isProcessingEscSequence=false;
+    sequenceState=State::noSequence;
 }
 
 void Console::SetAttributes(Attributes aa)
@@ -265,82 +268,22 @@ void Console::ScrollUp(short n)
     dirtyRect.bottom = dirtyRect.bottom > 0 ? dirtyRect.bottom - 1 : 0;
 }
 
-void Console::ProcessOSCseq(char c)
+bool Console::ProcessEscSequence(char c)
 {
-    switch(sequenceStep)
+    switch(sequenceState)
     {
-    case 1:
-        if(c!='0')  // The only recognized sequence is OSC 0;
-        {
-            OSCseq=false;
-            sequenceStep=0;
-            return;
-        }
-        ++sequenceStep;
-        break;
-    case 2:
-        if(c!=';')  // The only recognized sequence is OSC 0;
-        {
-            OSCseq=false;
-            sequenceStep=0;
-            return;
-        }
-        ++sequenceStep;
-        windowName="";
-        break;
-    default:
-        if(c==BEL) // The BEL character ends the sequence.
-        {
-            setWindowName(windowName);
-            OSCseq=false;
-            isProcessingEscSequence=false;
-            sequenceStep=0;
-        }
+    case State::noSequence:
+        return false;                       // Break is not needed there.
+    case State::waitingForSequenceStart:
+        if(c=='[')
+            sequenceState=State::waitingForControlSequence;
+        else if(c==']')
+            sequenceState=State::waitingForOSCStart;
         else
-        {
-            windowName+=c;
-            ++sequenceStep;
-        }
-    }
-}
-
-void Console::ProcessEscSequence(char c)
-{
-    if(sequenceStep>0 && OSCseq)
-    {
-        ProcessOSCseq(c);
-        //sequenceStep=0;
-        //isProcessingEscSequence=false;
-        return;
-    }
-    if(sequenceStep>MAX_LEN)
-    {
-        // Sequence is too long!
-        sequenceStep=0;
-        isProcessingEscSequence=false;
-        return;
-    }
-
-    switch(sequenceStep)
-    {
-    case 0:
-        if(c=='[')  // Control Sequence Introducer
-        {
-            OSCseq=false;
-            ++sequenceStep;
-        }
-        else if(c==']') // Operating System Command
-        {
-            OSCseq=true;
-            ++sequenceStep;
-        }
-        else
-        {
-            isProcessingEscSequence=false;
-        }
+            sequenceState=State::noSequence;   // Unrecognized sequence
         break;
-    case 1:
-        ++sequenceStep;
+    case State::waitingForControlSequence:
+        sequenceState=State::waitingForM;
         switch(c)
         {
         case '0':   // Normal character
@@ -356,36 +299,61 @@ void Console::ProcessEscSequence(char c)
             currentAttr.setUnderline(true);
             break;
         default:
-            isProcessingEscSequence=false;
+            sequenceState=State::noSequence;   // Unrecognized sequence
         }
         break;
-    case 2:
+    case State::waitingForM:
         if(c=='m')
-            isProcessingEscSequence=false;
-        else if(c==';')
-            sequenceStep=1;
+            sequenceState=State::noSequence;   // Normal end of sequence
         else
-            isProcessingEscSequence=false;
+            sequenceState=State::noSequence;   // Unrecognized sequence (but we end it anyway!)
+        break;
+    case State::waitingForOSCStart:
+        if(c=='0')
+            sequenceState=State::waitingForSemicolon;
+        else
+            sequenceState=State::noSequence;   // Normal end of sequence
+        break;
+    case State::waitingForSemicolon:
+        if(c==';')
+        {
+            sequenceState=State::inWindowName;
+            windowName="";
+        }
+        else
+            sequenceState=State::noSequence;   // Normal end of sequence
+        break;
+    case State::inWindowName:
+        if(c==BEL)
+        {
+            setWindowName(std::move(windowName));
+            sequenceState=State::noSequence;   // Normal end of sequence
+        }
+        else
+        {
+            if(windowName.size() < MAX_LEN)
+                windowName+=c;
+        }
         break;
     default:
-        sequenceStep=0;
-        isProcessingEscSequence=false;
+        sequenceState=State::noSequence;
+        break;
     }
+    return true;
 }
 
 void Console::PutCharNoUpdate(char c)
 {
-    if(isProcessingEscSequence)
-    {
-        ProcessEscSequence(c);
+    if(ProcessEscSequence(c))
         return;
-    }
+
     InvalidateCursor();
     switch(c)
     {
     case '\033':    // Begin of an ANSI escape sequence
-        isProcessingEscSequence=true;
-        sequenceStep=0;
+        //isProcessingEscSequence=true;
+        //sequenceStep=0;
+        sequenceState=State::waitingForSequenceStart;
         break;
     case '\r':
         cursorX = 0;
