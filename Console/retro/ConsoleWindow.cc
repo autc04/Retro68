@@ -24,6 +24,8 @@
 #include "ConsoleWindow.h"
 #include "Events.h"
 #include <unordered_map>
+#include <cstring>
+#include <TextUtils.h>
 
 using namespace retro;
 
@@ -35,7 +37,6 @@ namespace
 ConsoleWindow::ConsoleWindow(Rect r, ConstStr255Param title)
 {
     GrafPtr port;
-        //Retro68 Improved Console
     win = NewWindow(NULL, &r, "\pRetro68 Console", true, 0, (WindowPtr)-1, true, 0);
 
 #if !TARGET_API_MAC_CARBON
@@ -62,6 +63,25 @@ ConsoleWindow::~ConsoleWindow()
     windows->erase(win);
     DisposeWindow(win);
 }
+
+void ConsoleWindow::setWindowName(std::string newName)
+{
+    Str255 pname;
+#if TARGET_API_MAC_CARBON
+    // Carbon has the new, sane version.
+    c2pstrcpy(pname,newName.c_str());
+#else
+    // It is also availble in various glue code libraries and
+    // in some versions of InterfaceLib, but it's confusing.
+    // Using the inplace variant, c2pstr, isn't much better than
+    // doing things by hand:
+    strncpy((char *)&pname[1],newName.c_str(),255);
+    pname[0] = newName.length();
+#endif
+
+    SetWTitle(win, pname);
+}
+
 
 char ConsoleWindow::WaitNextChar()
 {
