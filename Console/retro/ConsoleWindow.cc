@@ -25,6 +25,7 @@
 #include "Events.h"
 #include <unordered_map>
 #include <cstring>
+#include <TextUtils.h>
 
 using namespace retro;
 

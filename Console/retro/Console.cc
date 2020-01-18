@@ -331,7 +331,7 @@ bool Console::ProcessEscSequence(char c)
         }
         else
         {
-            if(windowName.size() < MAX_LEN)
+            if(windowName.size() < MAX_LEN)    // Ignore subsequent characters
                 windowName+=c;
         }
         break;
@@ -351,8 +351,6 @@ void Console::PutCharNoUpdate(char c)
     switch(c)
     {
     case '\033':    // Begin of an ANSI escape sequence
-        //isProcessingEscSequence=true;
-        //sequenceStep=0;
         sequenceState=State::waitingForSequenceStart;
         break;
     case '\r':
