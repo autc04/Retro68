@@ -520,9 +520,10 @@ void Console::Reshape(Rect newBounds)
     if(!consolePort)
         return;
 
-    InsetRect(&newBounds, 2,2);
 
     bounds = newBounds;
+    InsetRect(&bounds, 2,2);
+
     short newRows = (bounds.bottom - bounds.top) / cellSizeY;
     short newCols = (bounds.right - bounds.left) / cellSizeX;
 
@@ -532,7 +533,7 @@ void Console::Reshape(Rect newBounds)
         upshift = cursorY - (newRows - 1);
 
         InvalidateCursor();
-        cursorY = newRows - 1;
+        cursorY = std::max(newRows - 1, 0) ;
     }
 
     std::vector<AttributedChar> newChars(newRows*newCols, AttributedChar(' ', currentAttr));
@@ -543,25 +544,17 @@ void Console::Reshape(Rect newBounds)
         std::copy(src, src + std::min(cols, newCols), dst);
     }
     chars.swap(newChars);
-    /*newChars = std::vector<char>(newRows*newCols, ' ');
-    for(short row = 0; row < newRows && row < rows; row++)
-    {
-        char *src = &chars[row * cols];
-        char *dst = &newChars[row * newCols];
-        std::copy(src, src + std::min(cols, newCols), dst);
-    }
-    onscreen.swap(newChars);*/
+
     onscreen = newChars;
 
     rows = newRows;
     cols = newCols;
 
-    if(upshift)
-    {
-        //dirtyRect = Rect { 0, 0, rows, cols };
-        //Update();
-        Draw();
-    }
+
+    dirtyRect = Rect { 0, 0, rows, cols };
+    EraseRect(&newBounds);
+    Update();
+    Draw(newBounds);
 }
 
 char Console::WaitNextChar()
