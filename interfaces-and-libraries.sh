@@ -209,16 +209,15 @@ function linkInterfacesAndLibraries()
         ln -sf ../RIncludes "$PREFIX/m68k-apple-macos/RIncludes"
         removeConflictingHeaders "$PREFIX/m68k-apple-macos/include"
         linkThings "../../$1/CIncludes" "$PREFIX/m68k-apple-macos/include" "*.h"
+        linkThings "../../$1/lib68k" "$PREFIX/m68k-apple-macos/lib" "*.a"
     fi
 
     if [ $BUILD_PPC != false ]; then
         ln -sf ../RIncludes "$PREFIX/powerpc-apple-macos/RIncludes"
         removeConflictingHeaders "$PREFIX/powerpc-apple-macos/include"
         linkThings "../../$1/CIncludes" "$PREFIX/powerpc-apple-macos/include" "*.h"
+        linkThings "../../$1/libppc" "$PREFIX/powerpc-apple-macos/lib" "*.a"
     fi
-
-    linkThings "../../$1/lib68k" "$PREFIX/m68k-apple-macos/lib" "*.a"
-    linkThings "../../$1/libppc" "$PREFIX/powerpc-apple-macos/lib" "*.a"
 }
 
 function unlinkInterfacesAndLibraries()
