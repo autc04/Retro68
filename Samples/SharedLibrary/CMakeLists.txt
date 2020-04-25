@@ -23,6 +23,13 @@
 # (CMake writes the output to an XCOFF file named libLibrary.so)
 add_library(Library SHARED library.c library.h)
 
+if(TARGET retrocrt)
+    # Hack: if we are building as part of the Retro68 source tree,
+    #       make sure the run-time library is already compiled
+    # (not needed for standalone projects)
+    add_dependencies(Library retrocrt)
+endif(TARGET retrocrt)
+
 # Step 2: Tell the linker to export symbols.
 
 # Either export everything:
