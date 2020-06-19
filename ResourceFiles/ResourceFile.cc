@@ -521,7 +521,7 @@ bool ResourceFile::write()
                 std::ostringstream rsrcOut;
                 resources.writeFork(rsrcOut);
                 std::string rsrc = rsrcOut.str();
-                int size = rsrc.size();
+                int size = rsrc.size() + data.size();
 
                 size += 20 * 1024;
                 size += 800*1024 - size % (800*1024);
