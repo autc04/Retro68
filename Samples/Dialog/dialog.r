@@ -67,7 +67,11 @@ resource 'SIZE' (-1) {
 	dontGetFrontClicks,
 	ignoreChildDiedEvents,
 	is32BitCompatible,
+#ifdef TARGET_API_MAC_CARBON
+    isHighLevelEventAware,
+#else
 	notHighLevelEventAware,
+#endif
 	onlyLocalHLEvents,
 	notStationeryAware,
 	dontUseTextEditServices,
