@@ -269,7 +269,7 @@ function setUpInterfacesAndLibraries()
 
     if [ $BUILD_PPC != false ]; then
         mkdir -p "$PREFIX/universal/libppc"
-        case `ResInfo -n "$INTERFACELIB" > /dev/null || echo 0` in
+        case `ResInfo -n "$INTERFACELIB" 2> /dev/null || echo 0` in
             0)
                 if [ -n "$INTERFACELIB" ]; then
                     echo "WARNING: Couldn't read resource fork for \"$INTERFACELIB\"."
