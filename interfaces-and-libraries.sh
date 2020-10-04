@@ -188,6 +188,7 @@ function removeConflictingHeaders()
     # newlib. For now, universal interfaces get the right of way.
     rm -f "$1/Threads.h"        # thread.h: does not currently work anyways
     rm -f "$1/Memory.h"         # memory.h: non-standard aliasof string.h
+    cp "$1/strings.h" "$1/bsdstrings.h"
     rm -f "$1/Strings.h"        # strings.h: traditional bsd string functions
 }
 
