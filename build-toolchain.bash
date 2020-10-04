@@ -318,10 +318,9 @@ if [ $SKIP_THIRDPARTY != true ]; then
 	# Build hfsutil
 	mkdir -p $PREFIX/lib
 	mkdir -p $PREFIX/share/man/man1
-	rm -rf hfsutils
-	cp -r $SRC/hfsutils .
+	mkdir hfsutils
 	cd hfsutils
-	./configure --prefix=$PREFIX --mandir=$PREFIX/share/man --enable-devlibs
+	$SRC/hfsutils/configure --prefix=$PREFIX --mandir=$PREFIX/share/man --enable-devlibs
 	make
 	make install
 	cd ..

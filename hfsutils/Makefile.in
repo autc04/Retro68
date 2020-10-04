@@ -42,7 +42,7 @@ LIBINSTALL =	@INSTALL_DATA@
 HARDLINK =	ln -f
 
 CC =		@CC@
-INCLUDES =	@CPPFLAGS@ -Ilibhfs @TCL_INCLUDES@ @TK_INCLUDES@
+INCLUDES =	@CPPFLAGS@ -I${src}/libhfs -I. @TCL_INCLUDES@ @TK_INCLUDES@
 DEFINES =	@DEFS@
 LIBOBJS =	@LIBOBJS@
 LIBS =		@LIBS@
@@ -120,7 +120,7 @@ install_cli :: all_cli
 	rm -f "$(BINDEST)/$(HFSUTIL)"
 
 	for file in $(GENERALDOCS) $(CLIDOCS); do  \
-		$(LIBINSTALL) doc/man/$$file  \
+		$(LIBINSTALL) $(src)/doc/man/$$file  \
 		"$(MANDEST)/man$(MANEXT)/`basename $$file .1`.$(MANEXT)";  \
 	done
 
@@ -136,7 +136,7 @@ install_tcl :: all_tcl
 	fi
 
 	for file in $(TCLDOCS); do  \
-		$(LIBINSTALL) doc/man/$$file  \
+		$(LIBINSTALL) $(src)/doc/man/$$file  \
 		"$(MANDEST)/man$(MANEXT)/`basename $$file .1`.$(MANEXT)";  \
 	done
 
@@ -146,7 +146,7 @@ install_tk :: all_tk
 	done
 
 	for file in $(TKDOCS); do  \
-		$(LIBINSTALL) doc/man/$$file  \
+		$(LIBINSTALL) $(src)/doc/man/$$file  \
 		"$(MANDEST)/man$(MANEXT)/`basename $$file .1`.$(MANEXT)";  \
 	done
 

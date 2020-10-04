@@ -40,7 +40,7 @@ SOFTLINK =	@LN_S@
 OS =		unix
 
 CC =		@CC@
-INCLUDES =	@CPPFLAGS@
+INCLUDES =	@CPPFLAGS@ -I.
 DEFINES =	@DEFS@
 LIBOBJS =	@LIBOBJS@
 LIBS =		@LIBS@
@@ -73,7 +73,7 @@ check :: all
 
 install ::
 	$(LIBINSTALL) libhfs.a "$(LIBDEST)/."
-	$(LIBINSTALL) hfs.h "$(INCDEST)/."
+	$(LIBINSTALL) $(src)/hfs.h "$(INCDEST)/."
 
 again :: clean all
 
