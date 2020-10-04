@@ -16,7 +16,8 @@ map<string,ResourceFile::Format> formats {
     {"macbin", ResourceFile::Format::macbin},
     {"basilisk", ResourceFile::Format::basilisk},
     {"applesingle", ResourceFile::Format::applesingle},
-    {"underscore_appledouble", ResourceFile::Format::underscore_appledouble}
+    {"underscore_appledouble", ResourceFile::Format::underscore_appledouble},
+    {"percent_appledouble", ResourceFile::Format::percent_appledouble}
 };
 map<ResourceFile::Format,string> reverseFormats;
 
