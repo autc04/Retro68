@@ -116,9 +116,9 @@ $(HFSTARGET): $(HFSOBJS)
 	$(AR) $@ $(HFSOBJS)
 	$(RANLIB) $@
 
-os.c: os/$(OS).c
-	rm -f $@
-	$(SOFTLINK) os/$(OS).c $@
+#os.c: os/$(OS).c
+#	rm -f $@
+#	$(SOFTLINK) os/$(OS).c $@
 
 ### DEPENDENCIES FOLLOW #######################################################
 
