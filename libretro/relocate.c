@@ -111,31 +111,39 @@ void Retro68ApplyRelocations(uint8_t *base, uint32_t size, void *relocations, ui
 void Retro68ApplyRelocations(uint8_t *base, uint32_t size, void *relocations, uint32_t displacements[])
 {
     uint8_t *reloc = (uint8_t*) relocations;
-    uint8_t *addrPtr = base - 1;
-    while(*reloc)
+    for(int relative = 0; relative <= 1; relative++)
     {
-            // read an uleb128 value
-        uint32_t val = 0;
-        uint8_t b;
-        int i = 0;
-        do
+        uint8_t *addrPtr = base - 1;
+        while(*reloc)
         {
-            b = *reloc++;
-            val |= (b & 0x7F) << i;
-            i += 7;
-        } while(b & 0x80);
+                // read an uleb128 value
+            uint32_t val = 0;
+            uint8_t b;
+            int i = 0;
+            do
+            {
+                b = *reloc++;
+                val |= (b & 0x7F) << i;
+                i += 7;
+            } while(b & 0x80);
 
-            // ... which consists of an offset and the displacement base index
-            // the offset is relative to the previous relocation, or to base-1
-        addrPtr += val >> 2;
-        uint8_t kind = val & 0x3;
+                // ... which consists of an offset and the displacement base index
+                // the offset is relative to the previous relocation, or to base-1
+            addrPtr += val >> 2;
+            uint8_t kind = val & 0x3;
 
-        assert(addrPtr >= base);
-        assert(addrPtr <= base + size - 4);
+            assert(addrPtr >= base);
+            assert(addrPtr <= base + size - 4);
 
-        uint8_t *addr = (uint8_t*) READ_UNALIGNED_LONGWORD(addrPtr);
-        addr += displacements[kind];
-        WRITE_UNALIGNED_LONGWORD(addrPtr, (uint32_t) addr);
+            uint8_t *addr = (uint8_t*) READ_UNALIGNED_LONGWORD(addrPtr);
+            addr += displacements[kind];
+            if(relative)
+                addr -= (uint32_t) addrPtr;
+            
+            WRITE_UNALIGNED_LONGWORD(addrPtr, (uint32_t) addr);
+        }
+
+        reloc++;
     }
 }
 #endif

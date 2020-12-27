@@ -44,26 +44,33 @@ std::string SerializeRelocsUncompressed(std::vector<RuntimeReloc> relocs)
 std::string SerializeRelocs(std::vector<RuntimeReloc> relocs)
 {
     std::ostringstream out;
-    uint32_t offset = -1;
 
-    for(const auto& r : relocs)
+    for(int relative = 0; relative <= 1; relative++)
     {
-        uint32_t delta = r.offset - offset;
-        offset = r.offset;
+        uint32_t offset = -1;
 
-        uint32_t base = (uint32_t) r.base;
-
-        uint32_t encoded = (delta << 2) | base;
-
-        while(encoded >= 128)
+        for(const auto& r : relocs)
         {
-            byte(out, (encoded & 0x7F) | 0x80);
-            encoded >>= 7;
-        }
-        byte(out, encoded);
-    }
+            if(r.relative == (bool)relative)
+            {
+                uint32_t delta = r.offset - offset;
+                offset = r.offset;
 
-    byte(out, 0);
+                uint32_t base = (uint32_t) r.base;
+
+                uint32_t encoded = (delta << 2) | base;
+
+                while(encoded >= 128)
+                {
+                    byte(out, (encoded & 0x7F) | 0x80);
+                    encoded >>= 7;
+                }
+                byte(out, encoded);
+            }
+        }
+
+        byte(out, 0);
+    }
 
     return out.str();
 }

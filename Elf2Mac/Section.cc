@@ -104,16 +104,19 @@ std::vector<RuntimeReloc> Section::GetRelocations(bool useOffsets)
         if(sym.sectionKind == SectionKind::undefined)
             continue;
 
+        uint32_t offset = rela.r_offset;
+        if(useOffsets)
+            offset -= shdr.sh_addr;
+
         if(GELF_R_TYPE(rela.r_info) == R_68K_32)
         {
-            assert(sym.sectionKind != SectionKind::undefined);
-
-            uint32_t offset = rela.r_offset;
-            if(useOffsets)
-                offset -= shdr.sh_addr;
-
-            //longword(out, offset | ((int)rela.relocBase << 24));
             outRelocs.emplace_back(rela.relocBase, offset);
+        }
+
+        if(GELF_R_TYPE(rela.r_info) == R_68K_PC32
+            && sym.st_shndx != idx)
+        {
+            outRelocs.emplace_back(rela.relocBase, offset, true);
         }
     }
 
@@ -154,7 +157,7 @@ void Section::FixRelocs(bool allowDirectCodeRefs)
 {
     for(Reloc& rela : relocs)
     {
-        if(GELF_R_TYPE(rela.r_info) != R_68K_32)
+        if(GELF_R_TYPE(rela.r_info) != R_68K_32 && GELF_R_TYPE(rela.r_info) != R_68K_PC32)
             continue;
 
         int symidx = GELF_R_SYM(rela.r_info);
@@ -163,6 +166,9 @@ void Section::FixRelocs(bool allowDirectCodeRefs)
         Symbol& sym = theObject.symtab->GetSym(symidx);
 
         if(sym.sectionKind == SectionKind::undefined)
+            continue;
+
+        if(GELF_R_TYPE(rela.r_info) == R_68K_PC32 && sym.st_shndx == idx)
             continue;
 
         RelocBase relocBase;
