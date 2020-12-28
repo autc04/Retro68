@@ -75,6 +75,10 @@ if(CMAKE_SYSTEM_NAME MATCHES Retro68)
         LINK_FLAGS "-Wl,-gc-sections -Wl,--mac-segments -Wl,${CMAKE_CURRENT_SOURCE_DIR}/Segments.segmap")
     add_test(NAME ${TESTCASE_PREFIX}Segments COMMAND ${LAUNCH_APPL}
         ${LAUNCH_METHOD_FLAG} ${RETRO68_TEST_CONFIG} Segments.bin)
+
+
+    test(PCRel32.c PROPERTIES PASS_REGULAR_EXPRESSION "OK")
+    target_compile_options(PCRel32 PRIVATE -march=68020)
 endif()
 
 test(Exceptions.cc PROPERTIES PASS_REGULAR_EXPRESSION "OK")

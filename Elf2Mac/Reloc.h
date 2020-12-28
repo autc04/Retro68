@@ -47,11 +47,11 @@ public:
 class RuntimeReloc
 {
 public:
-    RelocBase base;
-    uint32_t offset;
+    RelocBase base = RelocBase::code;
+    uint32_t offset = 0;
+    bool relative = false;
 
-    RuntimeReloc() : base(RelocBase::code), offset(0) {}
-    RuntimeReloc(RelocBase b, uint32_t o) : base(b), offset(o) {}
+    RuntimeReloc(RelocBase b = RelocBase::code, uint32_t o = 0, bool r = false) : base(b), offset(o), relative(r) {}
 };
 
 std::string SerializeRelocsUncompressed(std::vector<RuntimeReloc> relocs);

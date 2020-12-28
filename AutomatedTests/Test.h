@@ -87,8 +87,8 @@ void TestLog(const char *str);
 #define TEST_LOG_NO()    \
     do { \
         char no[3]; \
-        no[0] = 'O'; \
-        no[1] = 'K'; \
+        no[0] = 'N'; \
+        no[1] = 'O'; \
         no[2] = '\0'; \
         TEST_LOG_SIZED(no, 2); \
     } while(0)
