@@ -260,7 +260,7 @@ void Retro68InitMultisegApp()
     InstallPatches();
 
     // Load and relocate statically initialized DATA
-    Handle DATA = Get1Resource('DATA', 0);
+    Handle DATA = GetResource('DATA', 0);
     BlockMoveData(*DATA, &_sdata, &_edata - &_sdata);
     ReleaseResource(DATA);
 

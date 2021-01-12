@@ -294,7 +294,7 @@ void Retro68Relocate()
     uint32_t relocatableSize;
     if(&_MULTISEG_APP == (uint8_t*)1)
     {
-        RELA = Get1Resource('RELA', 1);
+        RELA = GetResource('RELA', 1);
         assert(RELA);
         reloc = *RELA;
         uint32_t text_size = orig_etext - orig_stext;
