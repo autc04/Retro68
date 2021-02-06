@@ -21,7 +21,7 @@ find_package(Boost COMPONENTS wave filesystem system thread regex program_option
     # We need Version 3, and Mac OS X still comes with an outdated version (2.3).
     # So we just add the path where the homebrew package manager installs its
     # "keg-only" version. Shouldn't hurt on Linux.
-set(CMAKE_PROGRAM_PATH ${CMAKE_PROGRAM_PATH} "/usr/local/opt/bison/bin")
+set(CMAKE_PROGRAM_PATH ${CMAKE_PROGRAM_PATH} "/opt/homebrew/opt/bison/bin" "/usr/local/opt/bison/bin")
 find_package(BISON 3.0.2)
 
 if(NOT Boost_FOUND)

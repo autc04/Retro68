@@ -209,21 +209,26 @@ if [ $SKIP_THIRDPARTY != true ]; then
 	fi
 	mkdir -p $PREFIX
 
-	# Components needed for targeting 68K: binutils, gcc
-	if [ $BUILD_68K != false ]; then
-
+	if [ `uname` = Darwin ]; then
 			# present-day Mac users are likely to install dependencies
-			# in /usr/local via the homebrew package manager
-		export CPPFLAGS="-I/usr/local/include"
-		export LDFLAGS="-L/usr/local/lib"
-
+			# via the homebrew package manager
+		if [ `uname -m` = arm64 ]; then
+			export CPPFLAGS="-I/opt/homebrew/include"
+			export LDFLAGS="-L/opt/homebrew/lib"
+		else
+			export CPPFLAGS="-I/usr/local/include"
+			export LDFLAGS="-L/usr/local/lib"
+		fi
 			# or they could be using MacPorts. Default install
 			# location is /opt/local
 		if [ -d "/opt/local/include" ]; then
 			export CPPFLAGS="$CPPFLAGS -I/opt/local/include"
 			export LDFLAGS="$LDFLAGS -L/opt/local/lib"
 		fi
-
+	fi
+		
+	# Components needed for targeting 68K: binutils, gcc
+	if [ $BUILD_68K != false ]; then
 		export CC=$HOST_C_COMPILER
 		export CXX=$HOST_CXX_COMPILER
 
@@ -248,8 +253,6 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		unset target_configargs
 		cd ..
 
-		unset CPPFLAGS
-		unset LDFLAGS
 		unset CC
 		unset CXX
 
@@ -269,19 +272,6 @@ if [ $SKIP_THIRDPARTY != true ]; then
 
 	# Components needed for targeting PPC (including Carbon): binutils, gcc
 	if [ $BUILD_PPC != false ]; then
-
-			# present-day Mac users are likely to install dependencies
-			# in /usr/local via the homebrew package manager
-		export CPPFLAGS="-I/usr/local/include"
-		export LDFLAGS="-L/usr/local/lib"
-
-			# or they could be using MacPorts. Default install
-			# location is /opt/local
-		if [ -d "/opt/local/include" ]; then
-			export CPPFLAGS="$CPPFLAGS -I/opt/local/include"
-			export LDFLAGS="$LDFLAGS -L/opt/local/lib"
-		fi
-
 		export CC=$HOST_C_COMPILER
 		export CXX=$HOST_CXX_COMPILER
 
@@ -304,8 +294,6 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		unset target_configargs
 		cd ..
 
-		unset CPPFLAGS
-		unset LDFLAGS
 		unset CC
 		unset CXX
 
@@ -314,6 +302,10 @@ if [ $SKIP_THIRDPARTY != true ]; then
 			rm -rf gcc-build-ppc
 		fi
 	fi
+
+	unset CPPFLAGS
+	unset LDFLAGS
+
 
 	# Build hfsutil
 	mkdir -p $PREFIX/lib
