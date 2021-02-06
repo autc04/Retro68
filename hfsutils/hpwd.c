@@ -24,6 +24,7 @@
 # endif
 
 # include <stdio.h>
+# include <string.h>
 
 # include "hfs.h"
 # include "hcwd.h"
