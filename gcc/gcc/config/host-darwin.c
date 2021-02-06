@@ -24,7 +24,7 @@
 #include "config/host-darwin.h"
 
 /* Yes, this is really supposed to work.  */
-static char pch_address_space[1024*1024*1024] __attribute__((aligned (4096)));
+static char pch_address_space[1024*1024*1024] __attribute__((aligned (16384)));
 
 /* Return the address of the PCH address space, if the PCH will fit in it.  */
 
