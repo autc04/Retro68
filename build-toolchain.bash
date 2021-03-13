@@ -37,6 +37,7 @@ fi
 ##################### Command-line Options
 
 SKIP_THIRDPARTY=false
+SKIP_HFSUTILS=false
 BUILD_68K=true
 BUILD_PPC=true
 BUILD_CARBON=true
@@ -51,6 +52,7 @@ function usage()
 	echo "Options: "
 	echo "    --prefix                  the path to install the toolchain to"
 	echo "    --skip-thirdparty         do not rebuild gcc & third party libraries"
+	echo "    --skip-hfsutils           do not rebuild hfsutils (--skip-thirdparty will also skip hfsutils)"
 	echo "    --no-68k                  disable support for 68K Macs"
 	echo "    --no-ppc                  disable classic PowerPC CFM support"
 	echo "    --no-carbon               disable Carbon CFM support"
@@ -70,6 +72,9 @@ for ARG in $*; do
 			;;
 		--skip-thirdparty)
 			SKIP_THIRDPARTY=true
+			;;
+		--skip-hfsutils)
+			SKIP_HFSUTILS=true
 			;;
 		--no-68k)
 			BUILD_68K=false
@@ -155,7 +160,7 @@ if [ $SKIP_THIRDPARTY != false ]; then
 		if [ ! -d binutils-build-ppc ]; then MISSING=true; fi
 		if [ ! -d gcc-build-ppc ]; then MISSING=true; fi
 	fi
-	if [ ! -d hfsutils ]; then MISSING=true; fi
+	if [ $SKIP_HFSUTILS != false -a ! -d hfsutils ]; then MISSING=true; fi
 
 	if [ $MISSING != false ]; then
 		echo "Not all third-party components have been built yet, ignoring --skip-thirdparty."
@@ -306,19 +311,20 @@ if [ $SKIP_THIRDPARTY != true ]; then
 	unset CPPFLAGS
 	unset LDFLAGS
 
+	if [ $SKIP_HFSUTILS != false ]; then
+		# Build hfsutil
+		mkdir -p $PREFIX/lib
+		mkdir -p $PREFIX/share/man/man1
+		mkdir -p hfsutils
+		cd hfsutils
+		$SRC/hfsutils/configure --prefix=$PREFIX --mandir=$PREFIX/share/man --enable-devlibs
+		make
+		make install
+		cd ..
 
-	# Build hfsutil
-	mkdir -p $PREFIX/lib
-	mkdir -p $PREFIX/share/man/man1
-	mkdir -p hfsutils
-	cd hfsutils
-	$SRC/hfsutils/configure --prefix=$PREFIX --mandir=$PREFIX/share/man --enable-devlibs
-	make
-	make install
-	cd ..
-
-	if [ $CLEAN_AFTER_BUILD != false ]; then
-		rm -rf hfsutils
+		if [ $CLEAN_AFTER_BUILD != false ]; then
+			rm -rf hfsutils
+		fi
 	fi
 else # SKIP_THIRDPARTY
     removeInterfacesAndLibraries
