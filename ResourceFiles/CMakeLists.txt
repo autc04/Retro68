@@ -24,9 +24,12 @@ add_library(ResourceFiles
     ResourceFile.h ResourceFile.cc
     )
 
-target_link_libraries(ResourceFiles ${Boost_LIBRARIES} ${CMAKE_INSTALL_PREFIX}/lib/libhfs.a)
+find_path(HFS_INCLUDE_DIR NAMES hfs.h)
+find_library(HFS_LIBRARY NAMES hfs)
+
+target_link_libraries(ResourceFiles ${Boost_LIBRARIES} ${HFS_LIBRARY})
 target_include_directories(ResourceFiles PUBLIC .
-                                         PRIVATE ${CMAKE_INSTALL_PREFIX}/include
+                                         PRIVATE ${HFS_INCLUDE_DIR}
                                                  ${Boost_INCLUDE_DIR})
 
 find_package(Boost COMPONENTS program_options REQUIRED)
