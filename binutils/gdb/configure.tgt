@@ -374,7 +374,7 @@ m68hc11*-*-*|m6811*-*-*)
 	;;
 
 m68*-*-aout* | m68*-*-coff* | m68*-*-elf* | m68*-*-rtems* | m68*-*-uclinux* | \
-fido-*-elf*)
+fido-*-elf* | m68*-*-macos)
 	# Target: Motorola m68k embedded
 	gdb_target_obs="m68k-tdep.o"
 	;;
