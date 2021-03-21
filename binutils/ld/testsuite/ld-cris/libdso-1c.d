@@ -19,7 +19,7 @@ DYNAMIC SYMBOL TABLE:
 0+[ 	]+DF \*UND\*	0+[ 	]+TST2[	 ]+expfn
 #...
 Contents of section .rela.dyn:
- 0140 68220000 0a020000 00000000 6c220000  .*
+ 0140 50220000 0a020000 00000000 54220000  .*
  0150 0a030000 00000000                    .*
 Contents of section .plt:
  0158 fce17e7e 0401307a 08013009 00000000  .*
@@ -31,5 +31,5 @@ Contents of section .text:
  01a4 00006fae d4ffffff                    .*
 #...
 Contents of section .got:
- 225c ac210000 00000000 00000000 00000000  .*
- 226c 00000000                             .*
+ 2244 ac210000 00000000 00000000 00000000  .*
+ 2254 00000000                             .*

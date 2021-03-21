@@ -116,3 +116,6 @@ movnti word ptr [rax], ax
 	jmpd [rax]	# 32-bit data size not allowed
 	jmpq [ax]	# no 16-bit addressing
 	mov eax,[rax+0x876543210] # out of range displacement
+
+	.att_syntax prefix
+	movsd (%rsi), %ss:(%rdi), %ss:(%rax)

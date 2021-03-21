@@ -85,14 +85,14 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 1a 14 1d 03 00 00 00 	bndldx 0x3\(,%rbx,1\),%bnd2
 [ 	]*[a-f0-9]+:	42 0f 1a 14 25 03 00 00 00 	bndldx 0x3\(,%r12,1\),%bnd2
 [ 	]*[a-f0-9]+:	0f 1a 0a             	bndldx \(%rdx\),%bnd1
-[ 	]*[a-f0-9]+:	f2 e8 25 02 00 00    	bnd callq 416 <foo>
-[ 	]*[a-f0-9]+:	f2 ff 10             	bnd callq \*\(%rax\)
-[ 	]*[a-f0-9]+:	f2 41 ff 13          	bnd callq \*\(%r11\)
+[ 	]*[a-f0-9]+:	f2 e8 25 02 00 00    	bnd call 416 <foo>
+[ 	]*[a-f0-9]+:	f2 ff 10             	bnd call \*\(%rax\)
+[ 	]*[a-f0-9]+:	f2 41 ff 13          	bnd call \*\(%r11\)
 [ 	]*[a-f0-9]+:	f2 0f 84 17 02 00 00 	bnd je 416 <foo>
-[ 	]*[a-f0-9]+:	f2 e9 11 02 00 00    	bnd jmpq 416 <foo>
-[ 	]*[a-f0-9]+:	f2 ff 21             	bnd jmpq \*\(%rcx\)
-[ 	]*[a-f0-9]+:	f2 41 ff 24 24       	bnd jmpq \*\(%r12\)
-[ 	]*[a-f0-9]+:	f2 c3                	bnd retq 
+[ 	]*[a-f0-9]+:	f2 e9 11 02 00 00    	bnd jmp 416 <foo>
+[ 	]*[a-f0-9]+:	f2 ff 21             	bnd jmp \*\(%rcx\)
+[ 	]*[a-f0-9]+:	f2 41 ff 24 24       	bnd jmp \*\(%r12\)
+[ 	]*[a-f0-9]+:	f2 c3                	bnd ret *
 [ 	]*[a-f0-9]+:	f3 41 0f 1b 0b       	bndmk  \(%r11\),%bnd1
 [ 	]*[a-f0-9]+:	f3 0f 1b 08          	bndmk  \(%rax\),%bnd1
 [ 	]*[a-f0-9]+:	f3 0f 1b 0c 25 99 03 00 00 	bndmk  0x399,%bnd1
@@ -171,19 +171,20 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 1a 14 1d 03 00 00 00 	bndldx 0x3\(,%rbx,1\),%bnd2
 [ 	]*[a-f0-9]+:	42 0f 1a 14 25 03 00 00 00 	bndldx 0x3\(,%r12,1\),%bnd2
 [ 	]*[a-f0-9]+:	0f 1a 0a             	bndldx \(%rdx\),%bnd1
-[ 	]*[a-f0-9]+:	f2 e8 16 00 00 00    	bnd callq 416 <foo>
-[ 	]*[a-f0-9]+:	f2 ff d0             	bnd callq \*%rax
-[ 	]*[a-f0-9]+:	f2 41 ff d3          	bnd callq \*%r11
+[ 	]*[a-f0-9]+:	f2 e8 16 00 00 00    	bnd call 416 <foo>
+[ 	]*[a-f0-9]+:	f2 ff d0             	bnd call \*%rax
+[ 	]*[a-f0-9]+:	f2 41 ff d3          	bnd call \*%r11
 [ 	]*[a-f0-9]+:	f2 74 0c             	bnd je 416 <foo>
 [ 	]*[a-f0-9]+:	f2 eb 09             	bnd jmp 416 <foo>
-[ 	]*[a-f0-9]+:	f2 ff e1             	bnd jmpq \*%rcx
-[ 	]*[a-f0-9]+:	f2 41 ff e4          	bnd jmpq \*%r12
-[ 	]*[a-f0-9]+:	f2 c3                	bnd retq 
+[ 	]*[a-f0-9]+:	f2 ff e1             	bnd jmp \*%rcx
+[ 	]*[a-f0-9]+:	f2 41 ff e4          	bnd jmp \*%r12
+[ 	]*[a-f0-9]+:	f2 c3                	bnd ret *
 
 [a-f0-9]+ <foo>:
-[ 	]*[a-f0-9]+:	f2 c3                	bnd retq 
+[ 	]*[a-f0-9]+:	f2 c3                	bnd ret *
 
 [a-f0-9]+ <bad>:
 [ 	]*[a-f0-9]+:	0f 1a 30             	bndldx \(%rax\),\(bad\)
 [ 	]*[a-f0-9]+:	66 0f 1a c4          	bndmov \(bad\),%bnd0
+[ 	]*[a-f0-9]+:	f3 0f 1b 05 90 90 90 90 	bndmk  \(bad\),%bnd0
 #pass

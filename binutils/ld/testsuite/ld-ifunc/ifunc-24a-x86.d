@@ -2,6 +2,7 @@
 #ld:
 #readelf: -r --wide
 #target: x86_64-*-* i?86-*-*
+#notarget: *-*-lynxos *-*-nto*
 
 Relocation section '.rel(a|).plt' at offset 0x[0-9a-f]+ contains 1 entry:
  +Offset +Info +Type +Sym.* Value +Symbol's Name.*

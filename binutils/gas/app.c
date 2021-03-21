@@ -1,5 +1,5 @@
 /* This is the Assembler Pre-Processor
-   Copyright (C) 1987-2018 Free Software Foundation, Inc.
+   Copyright (C) 1987-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -55,9 +55,8 @@ static const char mri_pseudo[] = ".mri 0";
 static const char   symver_pseudo[] = ".symver";
 static const char * symver_state;
 #endif
-#ifdef TC_ARM
+
 static char last_char;
-#endif
 
 static char lex[256];
 static const char symbol_chars[] =
@@ -244,9 +243,7 @@ struct app_save
 #if defined TC_ARM && defined OBJ_ELF
   const char * symver_state;
 #endif
-#ifdef TC_ARM
-  char last_char;
-#endif
+  char         last_char;
 };
 
 char *
@@ -276,9 +273,7 @@ app_push (void)
 #if defined TC_ARM && defined OBJ_ELF
   saved->symver_state = symver_state;
 #endif
-#ifdef TC_ARM
   saved->last_char = last_char;
-#endif
 
   /* do_scrub_begin() is not useful, just wastes time.  */
 
@@ -318,9 +313,7 @@ app_pop (char *arg)
 #if defined TC_ARM && defined OBJ_ELF
   symver_state = saved->symver_state;
 #endif
-#ifdef TC_ARM
   last_char = saved->last_char;
-#endif
 
   free (arg);
 }
@@ -602,13 +595,11 @@ do_scrub_chars (size_t (*get) (char *, size_t), char *tostart, size_t tolen)
 	      state = old_state;
 	      PUT (ch);
 	    }
-#ifndef NO_STRING_ESCAPES
-	  else if (ch == '\\')
+	  else if (TC_STRING_ESCAPES && ch == '\\')
 	    {
 	      state = 6;
 	      PUT (ch);
 	    }
-#endif
 	  else if (scrub_m68k_mri && ch == '\n')
 	    {
 	      /* Just quietly terminate the string.  This permits lines like
@@ -1291,13 +1282,11 @@ do_scrub_chars (size_t (*get) (char *, size_t), char *tostart, size_t tolen)
 	    goto de_fault;
 #endif
 
-#ifdef TC_ARM
-	  /* For the ARM, care is needed not to damage occurrences of \@
-	     by stripping the @ onwards.  Yuck.  */
+	  /* Care is needed not to damage occurrences of \<comment-char>
+	     by stripping the <comment-char> onwards.  Yuck.  */
 	  if ((to > tostart ? to[-1] : last_char) == '\\')
-	    /* Do not treat the @ as a start-of-comment.  */
+	    /* Do not treat the <comment-char> as a start-of-comment.  */
 	    goto de_fault;
-#endif
 
 #ifdef WARN_COMMENTS
 	  if (!found_comment)
@@ -1474,10 +1463,8 @@ do_scrub_chars (size_t (*get) (char *, size_t), char *tostart, size_t tolen)
 
  fromeof:
   /* We have reached the end of the input.  */
-#ifdef TC_ARM
   if (to > tostart)
     last_char = to[-1];
-#endif
   return to - tostart;
 
  tofull:
@@ -1491,9 +1478,7 @@ do_scrub_chars (size_t (*get) (char *, size_t), char *tostart, size_t tolen)
   else
     saved_input = NULL;
 
-#ifdef TC_ARM
   if (to > tostart)
     last_char = to[-1];
-#endif
   return to - tostart;
 }

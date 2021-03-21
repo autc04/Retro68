@@ -1,5 +1,5 @@
 /* ECOFF debugging support.
-   Copyright (C) 1993-2018 Free Software Foundation, Inc.
+   Copyright (C) 1993-2020 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    This file was put together by Ian Lance Taylor <ian@cygnus.com>.  A
    good deal of it comes directly from mips-tfile.c, by Michael
@@ -946,7 +946,7 @@ typedef struct efdr {
   varray_t	 aux_syms;	/* auxiliary symbols */
   struct efdr	*next_file;	/* next file descriptor */
 				/* string/type hash tables */
-  struct hash_control *str_hash;	/* string hash table */
+  htab_t	str_hash;	/* string hash table */
   thash_t	*thash_head[THASH_SIZE];
 } efdr_t;
 
@@ -994,7 +994,7 @@ static const efdr_t init_file = {
 
   (struct efdr *)0,	/* next_file:	next file structure */
 
-  (struct hash_control *)0,	/* str_hash:	string hash table */
+  (htab_t)0,		/* str_hash:	string hash table */
   { 0 },		/* thash_head:	type hash table */
 };
 
@@ -1111,7 +1111,7 @@ static const type_info_t type_info_init = {
 
 static varray_t file_desc = INIT_VARRAY (efdr_t);
 
-static struct hash_control *tag_hash;
+static htab_t tag_hash;
 
 /* Static types for int and void.  Also, remember the last function's
    type (which is set up when we encounter the declaration for the
@@ -1408,7 +1408,7 @@ static char stabs_symbol[] = STABS_SYMBOL;
 
 static void add_varray_page (varray_t *vp);
 static symint_t add_string (varray_t *vp,
-			    struct hash_control *hash_tbl,
+			    htab_t hash_tbl,
 			    const char *str,
 			    shash_t **ret_hash);
 static localsym_t *add_ecoff_symbol (const char *str, st_t type,
@@ -1475,7 +1475,7 @@ static lineno_list_t *allocate_lineno_list (void);
 void
 ecoff_read_begin_hook (void)
 {
-  tag_hash = hash_new ();
+  tag_hash = str_htab_create ();
   top_tag_head = allocate_thead ();
   top_tag_head->first_tag = (tag_t *) NULL;
   top_tag_head->free = (thead_t *) NULL;
@@ -1548,7 +1548,7 @@ add_varray_page (varray_t *vp /* varray to add page to */)
 
 static symint_t
 add_string (varray_t *vp,			/* string obstack */
-	    struct hash_control *hash_tbl,	/* ptr to hash table */
+	    htab_t hash_tbl,			/* ptr to hash table */
 	    const char *str,			/* string */
 	    shash_t **ret_hash			/* return hash pointer */)
 {
@@ -1558,11 +1558,9 @@ add_string (varray_t *vp,			/* string obstack */
   if (len >= PAGE_USIZE)
     as_fatal (_("string too big (%lu bytes)"), len);
 
-  hash_ptr = (shash_t *) hash_find (hash_tbl, str);
+  hash_ptr = (shash_t *) str_hash_find (hash_tbl, str);
   if (hash_ptr == (shash_t *) NULL)
     {
-      const char *err;
-
       if (vp->objects_last_page + len >= PAGE_USIZE)
 	{
 	  vp->num_allocated =
@@ -1580,10 +1578,8 @@ add_string (varray_t *vp,			/* string obstack */
 
       strcpy (hash_ptr->string, str);
 
-      err = hash_insert (hash_tbl, str, (char *) hash_ptr);
-      if (err)
-	as_fatal (_("inserting \"%s\" into string hash table: %s"),
-		  str, err);
+      if (str_hash_insert (hash_tbl, str, hash_ptr, 0) != NULL)
+	as_fatal (_("duplicate %s"), str);
     }
 
   if (ret_hash != (shash_t **) NULL)
@@ -2009,13 +2005,12 @@ get_tag (const char *tag,	/* tag name */
 	 bt_t basic_type	/* bt_Struct, bt_Union, or bt_Enum */)
 {
   shash_t *hash_ptr;
-  const char *err;
   tag_t *tag_ptr;
 
   if (cur_file_ptr == (efdr_t *) NULL)
     as_fatal (_("no current file pointer"));
 
-  hash_ptr = (shash_t *) hash_find (tag_hash, tag);
+  hash_ptr = (shash_t *) str_hash_find (tag_hash, tag);
 
   if (hash_ptr != (shash_t *) NULL
       && hash_ptr->tag_ptr != (tag_t *) NULL)
@@ -2036,10 +2031,7 @@ get_tag (const char *tag,	/* tag name */
 
       perm = xstrdup (tag);
       hash_ptr = allocate_shash ();
-      err = hash_insert (tag_hash, perm, (char *) hash_ptr);
-      if (err)
-	as_fatal (_("inserting \"%s\" into tag hash table: %s"),
-		  tag, err);
+      str_hash_insert (tag_hash, perm, hash_ptr, 0);
       hash_ptr->string = perm;
     }
 
@@ -2228,8 +2220,7 @@ add_file (const char *file_name, int indx ATTRIBUTE_UNUSED, int fake)
     {
       (void) add_ecoff_symbol (file_name, st_Nil, sc_Nil,
 			       symbol_new (FAKE_LABEL_NAME, now_seg,
-					   (valueT) frag_now_fix (),
-					   frag_now),
+					   frag_now, frag_now_fix ()),
 			       (bfd_vma) 0, 0, ECOFF_MARK_STAB (N_SOL));
       return;
     }
@@ -2281,7 +2272,7 @@ add_file (const char *file_name, int indx ATTRIBUTE_UNUSED, int fake)
       fil_ptr->fake = fake;
 
       /* Allocate the string hash table.  */
-      fil_ptr->str_hash = hash_new ();
+      fil_ptr->str_hash = str_htab_create ();
 
       /* Make sure 0 byte in string table is null  */
       add_string (&fil_ptr->strings,
@@ -2526,10 +2517,8 @@ ecoff_directive_def (int ignore ATTRIBUTE_UNUSED)
     as_warn (_("empty symbol name in .def; ignored"));
   else
     {
-      if (coff_sym_name != (char *) NULL)
-	free (coff_sym_name);
-      if (coff_tag != (char *) NULL)
-	free (coff_tag);
+      free (coff_sym_name);
+      free (coff_tag);
 
       coff_sym_name = xstrdup (name);
       coff_type = type_info_init;
@@ -3021,8 +3010,7 @@ ecoff_directive_end (int ignore ATTRIBUTE_UNUSED)
   else
     (void) add_ecoff_symbol ((const char *) NULL, st_End, sc_Text,
 			     symbol_new (FAKE_LABEL_NAME, now_seg,
-					 (valueT) frag_now_fix (),
-					 frag_now),
+					 frag_now, frag_now_fix ()),
 			     (bfd_vma) 0, (symint_t) 0, (symint_t) 0);
 
 #ifdef md_flush_pending_output
@@ -3265,8 +3253,7 @@ ecoff_directive_loc (int ignore ATTRIBUTE_UNUSED)
     {
       (void) add_ecoff_symbol ((char *) NULL, st_Label, sc_Text,
 			       symbol_new (FAKE_LABEL_NAME, now_seg,
-					   (valueT) frag_now_fix (),
-					   frag_now),
+					   frag_now, frag_now_fix ()),
 			       (bfd_vma) 0, 0, lineno);
       return;
     }
@@ -3700,8 +3687,7 @@ ecoff_build_lineno (const struct ecoff_debug_swap *backend,
       && first_proc_ptr != (proc_t *) NULL
       && local_first_lineno != (lineno_list_t *) NULL
       && ((S_GET_VALUE (first_proc_ptr->sym->as_sym)
-	   + bfd_get_section_vma (stdoutput,
-				  S_GET_SEGMENT (first_proc_ptr->sym->as_sym)))
+	   + bfd_section_vma (S_GET_SEGMENT (first_proc_ptr->sym->as_sym)))
 	  != 0))
     {
       first.file = local_first_lineno->file;
@@ -3981,8 +3967,7 @@ ecoff_build_symbols (const struct ecoff_debug_swap *backend,
 		      else
 			sym_ptr->ecoff_sym.asym.value =
 			  (S_GET_VALUE (as_sym)
-			   + bfd_get_section_vma (stdoutput,
-						  S_GET_SEGMENT (as_sym))
+			   + bfd_section_vma (S_GET_SEGMENT (as_sym))
 			   + sym_ptr->addend);
 
 		      sym_ptr->ecoff_sym.weakext = S_IS_WEAK (as_sym);
@@ -4310,8 +4295,7 @@ ecoff_build_procs (const struct ecoff_debug_swap *backend,
 
 		  adr_sym = proc_ptr->sym->as_sym;
 		  adr = (S_GET_VALUE (adr_sym)
-			 + bfd_get_section_vma (stdoutput,
-						S_GET_SEGMENT (adr_sym)));
+			 + bfd_section_vma (S_GET_SEGMENT (adr_sym)));
 		  if (first)
 		    {
 		      /* This code used to force the adr of the very

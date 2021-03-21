@@ -2,7 +2,7 @@
 
 # arm_farcall_thumb_thumb_be8.sh -- a test case for Thumb->Thumb farcall veneers.
 
-# Copyright (C) 2010-2017 Free Software Foundation, Inc.
+# Copyright (C) 2010-2020 Free Software Foundation, Inc.
 # This file is part of gold.
 # Based on arm_farcall_thumb_thumb.s file
 

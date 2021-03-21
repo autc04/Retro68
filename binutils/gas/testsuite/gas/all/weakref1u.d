@@ -2,8 +2,8 @@
 #name: weakref tests, strong undefined syms
 #source: weakref1.s
 # aout turns undefined into *ABS* symbols.
-# see weakref1.d for comments on the other not-targets
-#not-target: *-*-*aout ns32k-*-netbsd alpha*-*-osf* *-*-ecoff
+# see weakref1.d for comments on the other notargets
+#notarget: *-*-*aout ns32k-*-* alpha*-*-osf* *-*-ecoff
 
 # the rest of this file is generated with the following script:
 # # script begin

@@ -1,5 +1,5 @@
 # Expect script for LD cdtest Tests
-#   Copyright (C) 1993-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -90,6 +90,11 @@ if ![ld_link $CC tmpdir/cdtest {tmpdir/cdtest-foo.o tmpdir/cdtest-bar.o tmpdir/c
 	    fail $test1
 	}
     }
+}
+
+# PR 46
+if [is_pecoff_format] {
+    setup_xfail *-*-*
 }
 
 if ![ld_relocate $ld tmpdir/cdtest.o {-Ur tmpdir/cdtest-foo.o tmpdir/cdtest-bar.o tmpdir/cdtest-main.o}] {

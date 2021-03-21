@@ -2,7 +2,7 @@
 #name: MIPS2 branch likely relaxation with swapping
 #as: -32 -mips2 -KPIC -relax-branch
 #source: relax-swap2.s
-#stderr: relax-swap2.l
+#warning_output: relax-swap2.l
 
 .*: +file format .*mips.*
 

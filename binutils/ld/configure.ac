@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script
 dnl
-dnl   Copyright (C) 2012-2018 Free Software Foundation, Inc.
+dnl   Copyright (C) 2012-2020 Free Software Foundation, Inc.
 dnl
 dnl This file is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
@@ -176,6 +176,15 @@ AC_ARG_ENABLE(relro,
   no)  ac_default_ld_z_relro=0 ;;
 esac])dnl
 
+# Decide if DT_TEXTREL check should be enabled in ELF linker.
+ac_default_ld_textrel_check=unset
+AC_ARG_ENABLE([textrel-check],
+	      AC_HELP_STRING([--enable-textrel-check=@<:@yes|no|warning|error@:>@],
+			     [enable DT_TEXTREL check in ELF linker]),
+[case "${enableval}" in
+  yes|no|warning|error) ac_default_ld_textrel_check=${enableval} ;;
+esac])
+
 # Decide if -z separate-code should be enabled in ELF linker by default.
 ac_default_ld_z_separate_code=unset
 AC_ARG_ENABLE(separate-code,
@@ -211,6 +220,13 @@ case "${enable_default_hash_style}" in
   gnu | both) ac_default_emit_gnu_hash=1 ;;
   *) ac_default_emit_gnu_hash=0 ;;
 esac
+
+GCC_ENABLE([libctf], [yes], [], [Handle .ctf type-info sections])
+if test "${enable_libctf}" = yes; then
+    AC_DEFINE(ENABLE_LIBCTF, 1, [Handle .ctf type-info sections])
+fi
+AM_CONDITIONAL(ENABLE_LIBCTF, test "${enable_libctf}" = yes)
+AC_SUBST(enable_libctf)
 
 AM_BINUTILS_WARNINGS
 
@@ -265,7 +281,6 @@ dnl AC_CHECK_HEADERS(sys/mman.h)
 AC_FUNC_MMAP
 
 AC_SEARCH_LIBS([dlopen], [dl])
-AM_CONDITIONAL([ENABLE_PLUGINS], [test x$plugins = xyes])
 
 AC_ARG_ENABLE(initfini-array,
 [  --disable-initfini-array do not use .init_array/.fini_array sections],
@@ -291,7 +306,11 @@ fi
 
 BFD_BINARY_FOPEN
 
-AC_CHECK_DECLS([strstr, free, sbrk, getenv, environ])
+AC_CHECK_DECLS([asprintf, environ, free, getenv, sbrk, strstr])
+
+# Link in zlib if we can.  This allows us to read and write
+# compressed CTF sections.
+AM_ZLIB
 
 # When converting linker scripts into strings for use in emulation
 # files, use astring.sed if the compiler supports ANSI string
@@ -319,12 +338,7 @@ EMUL=
 all_emuls=
 all_emul_extras=
 all_libpath=
-
-dnl We need to get an arbitrary number of tdir definitions into
-dnl Makefile.  We can't do it using AC_SUBST, because autoconf does
-dnl not permit literal newlines in an AC_SUBST variables.  So we use a
-dnl file.
-rm -f tdirs
+TDIRS=
 
 # If the host is 64-bit, then we enable 64-bit targets by default.
 # This is consistent with what ../bfd/configure.ac does.
@@ -376,19 +390,24 @@ do
 	  all_emuls="$all_emuls e${i}.o"
 	  eval result=\$tdir_$i
 	  test -z "$result" && result=$targ_alias
-	  echo tdir_$i=$result >> tdirs
+	  TDIRS="$TDIRS
+tdir_$i=$result"
 	  case "${i}" in
 	  *elf*)
 	    elf_list_options=TRUE
 	    ;;
 	  *)
-	    if $GREP "TEMPLATE_NAME=elf32" ${srcdir}/emulparams/${i}.sh >/dev/null 2>/dev/null; then
+	    if $GREP "TEMPLATE_NAME=elf" ${srcdir}/emulparams/${i}.sh >/dev/null 2>/dev/null; then
 	      elf_list_options=TRUE
 	    fi
 	    ;;
 	  esac
 	  if test "$elf_list_options" = "TRUE"; then
-	    . ${srcdir}/emulparams/${i}.sh
+	    source_sh()
+	    {
+	      . $1
+	    }
+	    source_sh ${srcdir}/emulparams/${i}.sh
 	    if test x${GENERATE_SHLIB_SCRIPT} = xyes; then
 	      elf_shlib_list_options=TRUE
 	    fi
@@ -443,6 +462,26 @@ AC_DEFINE_UNQUOTED(DEFAULT_LD_Z_RELRO,
   $ac_default_ld_z_relro,
   [Define to 1 if you want to enable -z relro in ELF linker by default.])
 
+ac_default_ld_textrel_check_warning=0
+case "${ac_default_ld_textrel_check}" in
+  unset|no)
+    ac_default_ld_textrel_check=textrel_check_none
+    ;;
+  yes|warning)
+    ac_default_ld_textrel_check=textrel_check_warning
+    ac_default_ld_textrel_check_warning=1
+    ;;
+  error)
+    ac_default_ld_textrel_check=textrel_check_error
+    ;;
+esac
+AC_DEFINE_UNQUOTED(DEFAULT_LD_TEXTREL_CHECK,
+  $ac_default_ld_textrel_check,
+  [The default method for DT_TEXTREL check in ELF linker.])
+AC_DEFINE_UNQUOTED(DEFAULT_LD_TEXTREL_CHECK_WARNING,
+  $ac_default_ld_textrel_check_warning,
+  [Define to 1 if DT_TEXTREL check is warning in ELF linker by default.])
+
 if test "${ac_default_ld_z_separate_code}" = unset; then
   ac_default_ld_z_separate_code=0
 fi
@@ -463,8 +502,8 @@ AC_SUBST(elf_shlib_list_options)
 AC_SUBST(elf_plt_unwind_list_options)
 AC_SUBST(EMUL)
 
-TDIRS=tdirs
-AC_SUBST_FILE(TDIRS)
+AC_SUBST(TDIRS)
+AM_SUBST_NOTMAKE(TDIRS)
 
 if test x${all_targets} = xtrue; then
   if test x${want64} = xtrue; then
@@ -487,10 +526,16 @@ AC_SUBST(EMULATION_LIBPATH)
 
 if test x${enable_static} = xno; then
   TESTBFDLIB="-Wl,--rpath,../bfd/.libs ../bfd/.libs/libbfd.so"
+  TESTCTFLIB="-Wl,--rpath,../libctf/.libs ../libctf/.libs/libctf.so"
 else
   TESTBFDLIB="../bfd/.libs/libbfd.a"
+  TESTCTFLIB="../libctf/.libs/libctf.a"
+fi
+if test "${enable_libctf}" = no; then
+    TESTCTFLIB=
 fi
 AC_SUBST(TESTBFDLIB)
+AC_SUBST(TESTCTFLIB)
 
 target_vendor=${target_vendor=$host_vendor}
 case "$target_vendor" in

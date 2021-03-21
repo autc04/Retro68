@@ -39,17 +39,17 @@ DYNAMIC SYMBOL TABLE:
 #...
 DYNAMIC RELOCATION RECORDS
 OFFSET   TYPE              VALUE 
-000022e4 R_CRIS_DTPMOD     \*ABS\*
-000022ec R_CRIS_DTP        x
-000022f4 R_CRIS_DTP        z
+000022d0 R_CRIS_DTPMOD     \*ABS\*
+000022d8 R_CRIS_DTP        x
+000022e0 R_CRIS_DTP        z
 
 Contents of section \.hash:
 #...
 Contents of section \.text:
- 01c8 5fae8000 5fbe8400 5fae1400 5fae1c00  .*
+ 01b4 5fae8000 5fbe8400 5fae1400 5fae1c00  .*
 Contents of section .tdata:
 #...
 Contents of section \.got:
- 22d8 60220+ 0+ 0+ 0+  .*
- 22e8 0+ 0+ 0+ 0+  .*
- 22f8 0+                             .*
+ 22c4 4c220+ 0+ 0+ 0+  .*
+ 22d4 0+ 0+ 0+ 0+  .*
+ 22e4 0+                             .*

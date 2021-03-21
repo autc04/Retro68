@@ -9,6 +9,42 @@
 Disassembly of section .text:
 
 0+ <_start>:
+[ 	]*[a-f0-9]+:	62 f1 fe 08 2a c0    	vcvtsi2ss %eax,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fe 08 2a 40 01 	vcvtsi2ss 0x4\(%eax\),%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 ff 08 2a c0    	vcvtsi2sd %eax,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 ff 08 2a 40 01 	vcvtsi2sd 0x4\(%eax\),%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fe 08 2d c0    	vcvtss2si %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f1 ff 08 2d c0    	vcvtsd2si %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f1 fe 08 2c c0    	vcvttss2si %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f1 ff 08 2c c0    	vcvttsd2si %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f1 fe 08 7b c0    	vcvtusi2ss %eax,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fe 08 7b 40 01 	vcvtusi2ss 0x4\(%eax\),%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 ff 08 7b c0    	vcvtusi2sd %eax,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 ff 08 7b 40 01 	vcvtusi2sd 0x4\(%eax\),%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fe 08 79 c0    	vcvtss2usi %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f1 ff 08 79 c0    	vcvtsd2usi %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f1 fe 08 78 c0    	vcvttss2usi %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f1 ff 08 78 c0    	vcvttsd2usi %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f3 fd 08 17 c0 00 	vextractps \$0x0,%xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f3 fd 08 17 40 01 00 	vextractps \$0x0,%xmm0,0x4\(%eax\)
+[ 	]*[a-f0-9]+:	62 f1 fd 08 6e c0    	vmovd  %eax,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 6e 40 01 	vmovd  0x4\(%eax\),%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 7e c0    	vmovd  %xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f1 fd 08 7e 40 01 	vmovd  %xmm0,0x4\(%eax\)
+[ 	]*[a-f0-9]+:	62 f2 fd 08 7c c0    	vpbroadcastd %eax,%xmm0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 14 c0 00 	vpextrb \$0x0,%xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f3 fd 08 14 40 01 00 	vpextrb \$0x0,%xmm0,0x1\(%eax\)
+[ 	]*[a-f0-9]+:	62 f3 fd 08 16 c0 00 	vpextrd \$0x0,%xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f3 fd 08 16 40 01 00 	vpextrd \$0x0,%xmm0,0x4\(%eax\)
+[ 	]*[a-f0-9]+:	62 f1 fd 08 c5 c0 00 	vpextrw \$0x0,%xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f3 fd 08 15 c0 00 	vpextrw \$0x0,%xmm0,%eax
+[ 	]*[a-f0-9]+:	62 f3 fd 08 15 40 01 00 	vpextrw \$0x0,%xmm0,0x2\(%eax\)
+[ 	]*[a-f0-9]+:	62 f3 fd 08 20 c0 00 	vpinsrb \$0x0,%eax,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 20 40 01 00 	vpinsrb \$0x0,0x1\(%eax\),%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 22 c0 00 	vpinsrd \$0x0,%eax,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 22 40 01 00 	vpinsrd \$0x0,0x4\(%eax\),%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 c4 c0 00 	vpinsrw \$0x0,%eax,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 c4 40 01 00 	vpinsrw \$0x0,0x2\(%eax\),%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	62 f2 fd 4f 21 f5    	vpmovsxbd %xmm5,%zmm6\{%k7\}
 [ 	]*[a-f0-9]+:	62 f2 fd cf 21 f5    	vpmovsxbd %xmm5,%zmm6\{%k7\}\{z\}
 [ 	]*[a-f0-9]+:	62 f2 fd 4f 21 31    	vpmovsxbd \(%ecx\),%zmm6\{%k7\}

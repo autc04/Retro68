@@ -257,12 +257,12 @@ Disassembly of section .text:
 0+3c0 <[^>]*> eefa 0a10 	(vmrs|fmrx)	r0, fpinst2	@ Impl def
 0+3c4 <[^>]*> eef7 0a10 	(vmrs|fmrx)	r0, mvfr0
 0+3c8 <[^>]*> eef6 0a10 	(vmrs|fmrx)	r0, mvfr1
-0+3cc <[^>]*> eefc 0a10 	(vmrs|fmrx)	r0, <impl def 0xc>
+0+3cc <[^>]*> eefc 0a10 	(vmrs|fmrx)	r0, (<impl def 0xc>|vpr)
 0+3d0 <[^>]*> eee9 0a10 	(vmsr|fmxr)	fpinst, r0	@ Impl def
 0+3d4 <[^>]*> eeea 0a10 	(vmsr|fmxr)	fpinst2, r0	@ Impl def
 0+3d8 <[^>]*> eee7 0a10 	(vmsr|fmxr)	mvfr0, r0
 0+3dc <[^>]*> eee6 0a10 	(vmsr|fmxr)	mvfr1, r0
-0+3e0 <[^>]*> eeec 0a10 	(vmsr|fmxr)	<impl def 0xc>, r0
+0+3e0 <[^>]*> eeec 0a10 	(vmsr|fmxr)	(<impl def 0xc>|vpr), r0
 0+3e4 <[^>]*> bf00      	nop
 0+3e6 <[^>]*> bf00      	nop
 0+3e8 <[^>]*> bf00      	nop

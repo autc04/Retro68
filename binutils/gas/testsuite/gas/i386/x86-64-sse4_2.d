@@ -6,20 +6,20 @@
 Disassembly of section .text:
 
 0+000 <foo>:
-[ 	]*[0-9a-f]+:	f2 0f 38 f0 d9       	crc32b %cl,%ebx
-[ 	]*[0-9a-f]+:	f2 48 0f 38 f0 d9    	crc32b %cl,%rbx
-[ 	]*[0-9a-f]+:	66 f2 0f 38 f1 d9    	crc32w %cx,%ebx
-[ 	]*[0-9a-f]+:	f2 0f 38 f1 d9       	crc32l %ecx,%ebx
-[ 	]*[0-9a-f]+:	f2 48 0f 38 f1 d9    	crc32q %rcx,%rbx
+[ 	]*[0-9a-f]+:	f2 0f 38 f0 d9       	crc32  %cl,%ebx
+[ 	]*[0-9a-f]+:	f2 48 0f 38 f0 d9    	crc32  %cl,%rbx
+[ 	]*[0-9a-f]+:	66 f2 0f 38 f1 d9    	crc32  %cx,%ebx
+[ 	]*[0-9a-f]+:	f2 0f 38 f1 d9       	crc32  %ecx,%ebx
+[ 	]*[0-9a-f]+:	f2 48 0f 38 f1 d9    	crc32  %rcx,%rbx
 [ 	]*[0-9a-f]+:	f2 0f 38 f0 19       	crc32b \(%rcx\),%ebx
 [ 	]*[0-9a-f]+:	66 f2 0f 38 f1 19    	crc32w \(%rcx\),%ebx
 [ 	]*[0-9a-f]+:	f2 0f 38 f1 19       	crc32l \(%rcx\),%ebx
 [ 	]*[0-9a-f]+:	f2 48 0f 38 f1 19    	crc32q \(%rcx\),%rbx
-[ 	]*[0-9a-f]+:	f2 0f 38 f0 d9       	crc32b %cl,%ebx
-[ 	]*[0-9a-f]+:	f2 48 0f 38 f0 d9    	crc32b %cl,%rbx
-[ 	]*[0-9a-f]+:	66 f2 0f 38 f1 d9    	crc32w %cx,%ebx
-[ 	]*[0-9a-f]+:	f2 0f 38 f1 d9       	crc32l %ecx,%ebx
-[ 	]*[0-9a-f]+:	f2 48 0f 38 f1 d9    	crc32q %rcx,%rbx
+[ 	]*[0-9a-f]+:	f2 0f 38 f0 d9       	crc32  %cl,%ebx
+[ 	]*[0-9a-f]+:	f2 48 0f 38 f0 d9    	crc32  %cl,%rbx
+[ 	]*[0-9a-f]+:	66 f2 0f 38 f1 d9    	crc32  %cx,%ebx
+[ 	]*[0-9a-f]+:	f2 0f 38 f1 d9       	crc32  %ecx,%ebx
+[ 	]*[0-9a-f]+:	f2 48 0f 38 f1 d9    	crc32  %rcx,%rbx
 [ 	]*[0-9a-f]+:	66 0f 38 37 01       	pcmpgtq \(%rcx\),%xmm0
 [ 	]*[0-9a-f]+:	66 0f 38 37 c1       	pcmpgtq %xmm1,%xmm0
 [ 	]*[0-9a-f]+:	66 0f 3a 61 01 00    	pcmpestril? \$0x0,\(%rcx\),%xmm0

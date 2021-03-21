@@ -1,7 +1,7 @@
 #objdump: -d
 #name: AArch64 Bignums in Literal Pool (PR 16688)
 # This test is only valid on ELF based ports.
-#not-target: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#notarget: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
 
 .*: +file format.*aarch64.*
 

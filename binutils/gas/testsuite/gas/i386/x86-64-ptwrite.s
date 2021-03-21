@@ -6,7 +6,6 @@ _start:
 	ptwritel %ecx
 	ptwrite %rcx
 	ptwriteq %rcx
-	ptwrite (%rcx)
 	ptwritel (%rcx)
 	ptwriteq (%rcx)
 

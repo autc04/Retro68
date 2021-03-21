@@ -1,6 +1,6 @@
 #as: -32
 #source: attr-gnu-4-7.s
-#PROG: readelf
+#DUMPPROG: readelf
 #readelf: -A
 #name: MIPS gnu_attribute 4,7 (-mfp64 -mno-odd-spreg)
 

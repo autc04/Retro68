@@ -667,6 +667,8 @@ l_lo:
 	l.addi	r1, r1, lo(0xdeadbeef)
 l_hi:	
 	l.movhi	r1, hi(0xdeadbeef)
+l_ha:	
+	l.movhi	r1, ha(0xdeadbeef)
 
 l_mac:
 	l.mac r1,r2
@@ -675,3 +677,26 @@ l_maci:
 	l.maci r2,-1
 	l.maci r2,32767
 	l.maci r2,-32768
+l_adrp:
+	l.adrp r3,globaldata
+	l.adrp r3,localdata
+l_muld:
+	l.muld r0,r0
+	l.muld r31,r31
+	l.muld r3,r4
+l_muldu:
+	l.muldu r0,r0
+	l.muldu r31,r31
+	l.muldu r3,r4
+l_macu:
+	l.macu r0,r0
+	l.macu r31,r31
+	l.macu r3,r4
+l_msb:
+	l.msb r0,r0
+	l.msb r31,r31
+	l.msb r3,r4
+l_msbu:
+	l.msbu r0,r0
+	l.msbu r31,r31
+	l.msbu r3,r4

@@ -1,5 +1,5 @@
 /* tc-xstormy16.h -- Header file for tc-xstormy16.c.
-   Copyright (C) 2000-2018 Free Software Foundation, Inc.
+   Copyright (C) 2000-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -54,7 +54,6 @@ extern int xstormy16_force_relocation (struct fix *);
 
 /* Call md_pcrel_from_section(), not md_pcrel_from().  */
 #define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section (FIX, SEC)
-extern long md_pcrel_from_section (struct fix *, segT);
 
 #define TC_CONS_FIX_NEW xstormy16_cons_fix_new
 extern void xstormy16_cons_fix_new (fragS *f, int, int, expressionS *,

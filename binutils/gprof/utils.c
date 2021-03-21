@@ -85,10 +85,7 @@ print_name_only (Sym *self)
 	  printf ("%s", buf);
 	  size += strlen (buf);
 	}
-      if (demangled)
-	{
-	  free (demangled);
-	}
+      free (demangled);
       DBG (DFNDEBUG, printf ("{%d} ", self->cg.top_order));
       DBG (PROPDEBUG, printf ("%4.0f%% ", 100.0 * self->cg.prop.fract));
     }

@@ -1,5 +1,5 @@
 /* tc-d10v.c -- Assembler code for the Mitsubishi D10V
-   Copyright (C) 1996-2018 Free Software Foundation, Inc.
+   Copyright (C) 1996-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -101,7 +101,7 @@ struct option md_longopts[] =
 size_t md_longopts_size = sizeof (md_longopts);
 
 /* Opcode hash table.  */
-static struct hash_control *d10v_hash;
+static htab_t d10v_hash;
 
 /* Do a binary search of the d10v_predefined_registers array to see if
    NAME is a valid register name.  Return the register number from the
@@ -268,7 +268,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 valueT
 md_section_align (asection *seg, valueT addr)
 {
-  int align = bfd_get_section_alignment (stdoutput, seg);
+  int align = bfd_section_alignment (seg);
   return ((addr + (1 << align) - 1) & -(1 << align));
 }
 
@@ -277,7 +277,7 @@ md_begin (void)
 {
   const char *prev_name = "";
   struct d10v_opcode *opcode;
-  d10v_hash = hash_new ();
+  d10v_hash = str_htab_create ();
 
   /* Insert unique names into hash table.  The D10v instruction set
      has many identical opcode names that have different opcodes based
@@ -289,7 +289,7 @@ md_begin (void)
       if (strcmp (prev_name, opcode->name))
 	{
 	  prev_name = (char *) opcode->name;
-	  hash_insert (d10v_hash, opcode->name, (char *) opcode);
+	  str_hash_insert (d10v_hash, opcode->name, opcode, 0);
 	}
     }
 
@@ -1430,7 +1430,7 @@ do_assemble (char *str, struct d10v_opcode **opcode)
     return -1;
 
   /* Find the first opcode with the proper name.  */
-  *opcode = (struct d10v_opcode *) hash_find (d10v_hash, name);
+  *opcode = (struct d10v_opcode *) str_hash_find (d10v_hash, name);
   if (*opcode == NULL)
     return -1;
 
@@ -1558,8 +1558,8 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	{
 	  struct d10v_opcode *rep, *repi;
 
-	  rep = (struct d10v_opcode *) hash_find (d10v_hash, "rep");
-	  repi = (struct d10v_opcode *) hash_find (d10v_hash, "repi");
+	  rep = (struct d10v_opcode *) str_hash_find (d10v_hash, "rep");
+	  repi = (struct d10v_opcode *) str_hash_find (d10v_hash, "repi");
 	  if ((insn & FM11) == FM11
 	      && ((repi != NULL
 		   && (insn & repi->mask) == (unsigned) repi->opcode)
@@ -1579,6 +1579,9 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       break;
     case BFD_RELOC_16:
       bfd_putb16 ((bfd_vma) value, (unsigned char *) where);
+      break;
+    case BFD_RELOC_8:
+      *where = value;
       break;
 
     case BFD_RELOC_VTABLE_INHERIT:

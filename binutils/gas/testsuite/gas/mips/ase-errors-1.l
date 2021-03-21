@@ -48,3 +48,7 @@
 .*:117: Warning: the `ginv' extension requires MIPS32 revision 6 or greater
 .*:120: Error: opcode not supported.* `ginvi \$a0'
 # ----------------------------------------------------------------------------
+.*:127: Error: opcode not supported .* `llwpe \$2,\$3,\$4'
+.*:128: Error: opcode not supported .* `scwpe \$2,\$3,\$4'
+.*:131: Error: opcode not supported .* `llwpe \$2,\$3,\$4'
+.*:132: Error: opcode not supported .* `scwpe \$2,\$3,\$4'

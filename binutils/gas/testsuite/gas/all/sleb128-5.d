@@ -3,7 +3,7 @@
 # RISC-V doesn't support .sleb operands that are the difference of two symbols
 # because symbol values are not known until after linker relaxation has been
 # performed.
-#not-target : riscv*-*-*
+#notarget : riscv*-*-*
 
 .*: .*
 

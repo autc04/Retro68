@@ -1,5 +1,5 @@
 /* tc-tilegx.c -- Assemble for a Tile-Gx chip.
-   Copyright (C) 2011-2018 Free Software Foundation, Inc.
+   Copyright (C) 2011-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -19,7 +19,6 @@
    MA 02110-1301, USA.  */
 
 #include "as.h"
-#include "struc-symbol.h"
 #include "subsegs.h"
 
 #include "elf/tilegx.h"
@@ -178,13 +177,13 @@ md_show_usage (FILE *stream)
 #define O_hw1_last_plt		O_md27
 #define O_hw2_last_plt		O_md28
 
-static struct hash_control *special_operator_hash;
+static htab_t special_operator_hash;
 
 /* Hash tables for instruction mnemonic lookup.  */
-static struct hash_control *op_hash;
+static htab_t op_hash;
 
 /* Hash table for spr lookup.  */
-static struct hash_control *spr_hash;
+static htab_t spr_hash;
 
 /* True temporarily while parsing an SPR expression. This changes the
  * namespace to include SPR names.  */
@@ -232,7 +231,7 @@ static int allow_suspicious_bundles;
    for that register (e.g. r63 instead of zero), so we should generate
    a warning. The attempted register number can be found by clearing
    NONCANONICAL_REG_NAME_FLAG.  */
-static struct hash_control *main_reg_hash;
+static htab_t main_reg_hash;
 
 
 /* We cannot unambiguously store a 0 in a hash table and look it up,
@@ -263,7 +262,7 @@ md_begin (void)
     as_warn (_("Could not set architecture and machine"));
 
   /* Guarantee text section is aligned.  */
-  bfd_set_section_alignment (stdoutput, text_section,
+  bfd_set_section_alignment (text_section,
                              TILEGX_LOG2_BUNDLE_ALIGNMENT_IN_BYTES);
 
   require_canonical_reg_names = 1;
@@ -274,9 +273,9 @@ md_begin (void)
   tilegx_cie_data_alignment = (tilegx_arch_size == 64 ? -8 : -4);
 
   /* Initialize special operator hash table.  */
-  special_operator_hash = hash_new ();
+  special_operator_hash = str_htab_create ();
 #define INSERT_SPECIAL_OP(name)					\
-  hash_insert (special_operator_hash, #name, (void *)O_##name)
+  str_hash_insert (special_operator_hash, #name, (void *) O_##name, 0)
 
   INSERT_SPECIAL_OP (hw0);
   INSERT_SPECIAL_OP (hw1);
@@ -286,7 +285,7 @@ md_begin (void)
   INSERT_SPECIAL_OP (hw1_last);
   INSERT_SPECIAL_OP (hw2_last);
   /* hw3_last is a convenience alias for the equivalent hw3.  */
-  hash_insert (special_operator_hash, "hw3_last", (void*)O_hw3);
+  str_hash_insert (special_operator_hash, "hw3_last", (void *) O_hw3, 0);
   INSERT_SPECIAL_OP (hw0_got);
   INSERT_SPECIAL_OP (hw0_last_got);
   INSERT_SPECIAL_OP (hw1_last_got);
@@ -311,37 +310,33 @@ md_begin (void)
 #undef INSERT_SPECIAL_OP
 
   /* Initialize op_hash hash table.  */
-  op_hash = hash_new ();
+  op_hash = str_htab_create ();
   for (op = &tilegx_opcodes[0]; op->name != NULL; op++)
-    {
-      const char *hash_err = hash_insert (op_hash, op->name, (void *)op);
-      if (hash_err != NULL)
-	as_fatal (_("Internal Error:  Can't hash %s: %s"), op->name, hash_err);
-    }
+    if (str_hash_insert (op_hash, op->name, op, 0) != NULL)
+      as_fatal (_("duplicate %s"), op->name);
 
   /* Initialize the spr hash table.  */
   parsing_spr = 0;
-  spr_hash = hash_new ();
+  spr_hash = str_htab_create ();
   for (i = 0; i < tilegx_num_sprs; i++)
-    hash_insert (spr_hash, tilegx_sprs[i].name,
-                 (void *) &tilegx_sprs[i]);
+    str_hash_insert (spr_hash, tilegx_sprs[i].name, &tilegx_sprs[i], 0);
 
   /* Set up the main_reg_hash table. We use this instead of
      creating a symbol in the register section to avoid ambiguities
      with labels that have the same names as registers.  */
-  main_reg_hash = hash_new ();
+  main_reg_hash = str_htab_create ();
   for (i = 0; i < TILEGX_NUM_REGISTERS; i++)
     {
       char buf[64];
 
-      hash_insert (main_reg_hash, tilegx_register_names[i],
-		   (void *) (long) (i | CANONICAL_REG_NAME_FLAG));
+      str_hash_insert (main_reg_hash, tilegx_register_names[i],
+		       (void *) (long) (i | CANONICAL_REG_NAME_FLAG), 0);
 
       /* See if we should insert a noncanonical alias, like r63.  */
       sprintf (buf, "r%d", i);
       if (strcmp (buf, tilegx_register_names[i]) != 0)
-	hash_insert (main_reg_hash, xstrdup (buf),
-		     (void *) (long) (i | NONCANONICAL_REG_NAME_FLAG));
+	str_hash_insert (main_reg_hash, xstrdup (buf),
+			 (void *) (long) (i | NONCANONICAL_REG_NAME_FLAG), 0);
     }
 }
 
@@ -737,16 +732,18 @@ emit_tilegx_instruction (tilegx_bundle_bits bits,
 	    }
 	  else if (use_subexp)
 	    {
+	      expressionS *sval = NULL;
 	      /* Now that we've changed the reloc, change ha16(x) into x,
 		 etc.  */
 
-	      if (!operand_exp->X_add_symbol->sy_flags.sy_local_symbol
-                  && operand_exp->X_add_symbol->sy_value.X_md)
+	      if (symbol_symbolS (operand_exp->X_add_symbol))
+		sval = symbol_get_value_expression (operand_exp->X_add_symbol);
+	      if (sval && sval->X_md)
 		{
 		  /* HACK: We used X_md to mark this symbol as a fake wrapper
 		     around a real expression. To unwrap it, we just grab its
 		     value here.  */
-		  operand_exp = &operand_exp->X_add_symbol->sy_value;
+		  operand_exp = sval;
 
 		  if (require_symbol)
 		    {
@@ -947,8 +944,8 @@ tilegx_flush_bundle (void)
 
   /* If the section seems to have no alignment set yet, go ahead and
      make it large enough to hold code.  */
-  if (bfd_get_section_alignment (stdoutput, now_seg) == 0)
-    bfd_set_section_alignment (stdoutput, now_seg,
+  if (bfd_section_alignment (now_seg) == 0)
+    bfd_set_section_alignment (now_seg,
                                TILEGX_LOG2_BUNDLE_ALIGNMENT_IN_BYTES);
 
   for (j = 0; j < current_bundle_index; j++)
@@ -1012,7 +1009,7 @@ tilegx_parse_name (char *name, expressionS *e, char *nextcharP)
 
   if (parsing_spr)
     {
-      void* val = hash_find (spr_hash, name);
+      void* val = str_hash_find (spr_hash, name);
       if (val == NULL)
 	return 0;
 
@@ -1030,7 +1027,7 @@ tilegx_parse_name (char *name, expressionS *e, char *nextcharP)
   else
     {
       /* Look up the operator in our table.  */
-      void* val = hash_find (special_operator_hash, name);
+      void* val = str_hash_find (special_operator_hash, name);
       if (val == 0)
 	return 0;
       op = (operatorT)(long)val;
@@ -1067,7 +1064,7 @@ tilegx_parse_name (char *name, expressionS *e, char *nextcharP)
 	  /* HACK: mark this symbol as a temporary wrapper around a proper
 	     expression, so we can unwrap it later once we have communicated
 	     the relocation type.  */
-	  sym->sy_value.X_md = 1;
+	  symbol_get_value_expression (sym)->X_md = 1;
 	}
 
       memset (e, 0, sizeof *e);
@@ -1097,7 +1094,7 @@ parse_reg_expression (expressionS* expression)
 
   terminating_char = get_symbol_name (&regname);
 
-  pval = hash_find (main_reg_hash, regname);
+  pval = str_hash_find (main_reg_hash, regname);
   if (pval == NULL)
     as_bad (_("Expected register, got '%s'."), regname);
 
@@ -1242,7 +1239,7 @@ md_assemble (char *str)
   old_char = str[opname_len];
   str[opname_len] = '\0';
 
-  op = hash_find(op_hash, str);
+  op = str_hash_find (op_hash, str);
   str[opname_len] = old_char;
   if (op == NULL)
     {
@@ -1312,9 +1309,6 @@ const pseudo_typeS md_pseudo_table[] =
   {"no_allow_suspicious_bundles", s_allow_suspicious_bundles, 0 },
   { NULL, 0, 0 }
 };
-
-/* Equal to MAX_PRECISION in atof-ieee.c  */
-#define MAX_LITTLENUMS 6
 
 void
 md_number_to_chars (char * buf, valueT val, int n)

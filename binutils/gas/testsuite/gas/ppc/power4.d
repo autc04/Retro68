@@ -1,5 +1,5 @@
 #objdump: -drx -Mpower4
-#as: -mpower4
+#as: -mpower4 --generate-missing-build-notes=no
 #name: Power4 instructions
 
 .*
@@ -57,7 +57,7 @@ Disassembly of section \.text:
 .*:	(e0 c3 00 00|00 00 c3 e0) 	lq      r6,0\(r3\)
 .*: R_PPC64_GOT16_LO_DS	dsym0
 .*:	(e0 c3 00 00|00 00 c3 e0) 	lq      r6,0\(r3\)
-.*: R_PPC64_PLT16_LO_DS	\.data
+.*: R_PPC64_PLT16_LO_DS	dsym0
 .*:	(e0 c3 00 .0|.0 00 c3 e0) 	lq      r6,.*\(r3\)
 .*: R_PPC64_SECTOFF_DS	\.data\+0x10
 .*:	(e0 c3 00 .0|.0 00 c3 e0) 	lq      r6,.*\(r3\)

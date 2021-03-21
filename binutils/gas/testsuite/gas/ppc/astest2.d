@@ -1,4 +1,5 @@
 #objdump: -Dr -Mppc
+#as:  --generate-missing-build-notes=no
 #name: PowerPC test 2
 
 .*

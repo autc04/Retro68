@@ -82,6 +82,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* SECTION +LOCAL +DEFAULT +11 
 .* SECTION +LOCAL +DEFAULT +12 
 .* FILE +LOCAL +DEFAULT +ABS .*
+.* NOTYPE +LOCAL +DEFAULT +ABS TLSMARK
 .* TLS +LOCAL +DEFAULT +8 gd4
 .* TLS +LOCAL +DEFAULT +8 ld4
 .* TLS +LOCAL +DEFAULT +8 ld5

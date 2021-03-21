@@ -1,6 +1,6 @@
 #source: ../../../lns/lns-duplicate.s
 #readelf: -wl
-#name: lns-duplicate
+#name: lns-duplicate (ILP32)
 Raw dump of debug contents of section \.z?debug_line:
 #...
  Line Number Statements:

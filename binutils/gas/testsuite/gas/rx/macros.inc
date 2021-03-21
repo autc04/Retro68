@@ -6,6 +6,12 @@ macro	regPlo	{r1;r7}
 macro	regPhi	{r8;r14}
 macro	creg	{psw;fpsw;usp;isp;intb;bpsw;bpc;fintv;extb}
 macro	pswf	{U;I;O;S;Z;C}
+macro	dreg	{dr0;dr15}
+macro	dregh	{drh0;drh15}
+macro	dregl	{drl0;drl15}
+macro	dcreg	{dpsw;dcmr;dcent;depc}
+macro	dregPlo	{dr1;dr7}
+macro	dregPhi	{dr8;dr14}
 
 macro	simm8	{-128;127}
 macro	simm16	{-32768;32768}
@@ -30,9 +36,11 @@ macro	dsp8	252
 macro	dsp16	65532
 macro	dsp8L	1020
 macro	dsp16L	262140
-
+macro	dsp8D	4088
+macro	dsp16D	524256
 macro	dsp	{;{dsp8};{dsp16}}
 macro	dspL	{;{dsp8L};{dsp16L}}
+macro	dspD	{;{dsp8D};{dsp16D}}
 
 macro	memex	{.ub;.b;.uw;.w;.l}
 macro	memx	{dsp}[{reg}]{memex}

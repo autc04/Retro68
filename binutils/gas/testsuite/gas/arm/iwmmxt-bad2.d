@@ -1,3 +1,3 @@
 #name: iWMMXt CoProcessor offset errors
 #as: -mcpu=iwmmxt
-#error-output: iwmmxt-bad2.l
+#error_output: iwmmxt-bad2.l

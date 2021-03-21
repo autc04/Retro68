@@ -4,7 +4,7 @@
 #source: regext1.s
 #source: start.s
 #ld: -m elf64mmix
-#readelf: -Ssx1 -x2
+#readelf: -Ssx1 -T -x2
 
 # We check that the externally visible symbol ext1 is a local register
 # (different meaning of "local" than for symbol), which can be seen as

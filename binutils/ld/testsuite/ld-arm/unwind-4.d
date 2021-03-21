@@ -13,6 +13,8 @@ OFFSET   TYPE              VALUE
 0000000c R_ARM_PREL31      \.text
 00000010 R_ARM_PREL31      \.text
 00000010 R_ARM_NONE        __aeabi_unwind_cpp_pr0
+00000010 R_ARM_PREL31      \.text
+00000010 R_ARM_NONE        __aeabi_unwind_cpp_pr0
 00000018 R_ARM_PREL31      \.text
 
 

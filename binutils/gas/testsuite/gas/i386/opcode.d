@@ -140,7 +140,7 @@ Disassembly of section .text:
  1b5:	8c 90 90 90 90 90 [ 	]*mov    %ss,-0x6f6f6f70\(%eax\)
  1bb:	8d 90 90 90 90 90 [ 	]*lea    -0x6f6f6f70\(%eax\),%edx
  1c1:	8e 90 90 90 90 90 [ 	]*mov    -0x6f6f6f70\(%eax\),%ss
- 1c7:	8f 80 90 90 90 90 [ 	]*popl   -0x6f6f6f70\(%eax\)
+ 1c7:	8f 80 90 90 90 90 [ 	]*pop    -0x6f6f6f70\(%eax\)
  1cd:	90 [ 	]*nop
  1ce:	91 [ 	]*xchg   %eax,%ecx
  1cf:	92 [ 	]*xchg   %eax,%edx

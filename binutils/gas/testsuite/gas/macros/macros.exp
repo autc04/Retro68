@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Free Software Foundation, Inc.
+# Copyright (C) 2012-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,10 +42,10 @@ gas_test_error "err.s" "" "macro infinite recursion"
 setup_xfail "tic4x*-*"
 gas_test "and.s" "" "" "logical and in macro definition"
 
-case $target_triplet in {
-    { hppa*-*-* } { if [istarget *-*-linux*] { run_dump_test semi } }
-    { *c4x*-*-* } { }
-    { *c54x*-*-* } { }
+switch -glob $target_triplet {
+    hppa*-*-* { if [istarget *-*-linux*] { run_dump_test semi } }
+    *c4x*-*-* { }
+    *c54x*-*-* { }
     default {
 	run_dump_test semi
     }
@@ -57,7 +57,6 @@ if { ![istarget hppa*-*-*] || [istarget *-*-linux*] } {
 
     # These fail due to NO_STRING_ESCAPES
     setup_xfail "powerpc*-*-aix*" "powerpc*-*-beos*" "powerpc*-*-macos*"
-    setup_xfail "powerpc*-*-pe" "powerpc*-*-*win*"
     setup_xfail "rs6000-*-*"
     setup_xfail "z80-*-*"
 
@@ -74,14 +73,14 @@ run_dump_test app4
 
 run_list_test badarg ""
 
-case $target_triplet in {
-    { *c54x*-*-* } { }
-    { *c4x*-*-* } { }
-    { mmix-* } { }
-    { ns32k-*-* } { }
-    { rl78-*-* } { }
-    { rx-*-* } { }
-    { vax-*-* } { }
+switch -glob $target_triplet {
+    *c54x*-*-* { }
+    *c4x*-*-* { }
+    mmix-* { }
+    ns32k-*-* { }
+    rl78-*-* { }
+    rx-*-* { }
+    vax-*-* { }
     default { run_list_test dot "-alm" }
 }
 run_list_test end ""

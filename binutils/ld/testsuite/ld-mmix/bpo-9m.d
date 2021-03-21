@@ -11,12 +11,12 @@
 .*:     file format mmo
 
 SYMBOL TABLE:
-0+ g       \.text Main
-0+4 g       \.text x
-0+ g       \.text x2
+0+ g .* Main
+0+14 g       \.text x
+0+10 g       \.text x2
 
 Contents of section \.text:
- 0000 232dfe00 232dfd00 00000000 0000002d  .*
- 0010 00000000 0000002a                    .*
+ 0004 0000003d 00000000 0000003a 232dfe00  .*
+ 0014 232dfd00                             .*
 Contents of section \.MMIX\.reg_contents:
- 07e8 00000000 0000106c 00000000 0000a410  .*
+ 07e8 00000000 0000107c 00000000 0000a420  .*

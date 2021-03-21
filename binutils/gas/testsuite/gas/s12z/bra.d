@@ -2,7 +2,7 @@
 #name:    
 #source:  bra.s
 
-dump.o:     file format elf32-s12z
+.*:     file format elf32-s12z
 
 
 Disassembly of section .text:
@@ -30,5 +30,7 @@ Disassembly of section .text:
   27:	2d ff e8    	blt L4
   2a:	2e ff df    	bgt L3
   2d:	2f ff d3    	ble L1
-  30:	20 02       	bra \*\+2
-  32:	20 7c       	bra \*-4
+  30:	24 ff d3    	bcc L2
+  33:	25 ff d0    	bcs L2
+  36:	20 02       	bra \*\+2
+  38:	20 7c       	bra \*-4

@@ -1,8 +1,8 @@
 #name: MIPS rel64 n64
 #source: rel64.s
-#as: -march=from-abi -KPIC -EB -64
+#as: -KPIC
 #readelf: -x .text -r
-#ld: -shared -melf64btsmip
+#ld: -shared
 
 Relocation section '.rel.dyn' at offset .* contains 2 entries:
   Offset          Info           Type           Sym. Value    Sym. Name

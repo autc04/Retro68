@@ -55,7 +55,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 61 fd 08 7e f0    	vmovq  rax,xmm30
 [ 	]*[a-f0-9]+:	62 41 fd 08 7e f0    	vmovq  r8,xmm30
 [ 	]*[a-f0-9]+:	62 41 fd 08 7e f0    	vmovq  r8,xmm30
-[ 	]*[a-f0-9]+:	62 01 fd 08 d6 ee    	vmovq  xmm30,xmm29
+[ 	]*[a-f0-9]+:	62 01 fd 08 d6 ee    	vmovq\.s xmm30,xmm29
 [ 	]*[a-f0-9]+:	62 01 fe 08 7e f5    	vmovq  xmm30,xmm29
 [ 	]*[a-f0-9]+:	62 01 97 07 11 e6    	vmovsd.s xmm30\{k7\},xmm29,xmm28
 [ 	]*[a-f0-9]+:	62 01 97 07 10 f4    	vmovsd xmm30\{k7\},xmm29,xmm28
@@ -123,7 +123,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 61 fd 08 7e f0    	vmovq  rax,xmm30
 [ 	]*[a-f0-9]+:	62 41 fd 08 7e f0    	vmovq  r8,xmm30
 [ 	]*[a-f0-9]+:	62 41 fd 08 7e f0    	vmovq  r8,xmm30
-[ 	]*[a-f0-9]+:	62 01 fd 08 d6 ee    	vmovq  xmm30,xmm29
+[ 	]*[a-f0-9]+:	62 01 fd 08 d6 ee    	vmovq\.s xmm30,xmm29
 [ 	]*[a-f0-9]+:	62 01 fe 08 7e f5    	vmovq  xmm30,xmm29
 [ 	]*[a-f0-9]+:	62 01 97 07 11 e6    	vmovsd.s xmm30\{k7\},xmm29,xmm28
 [ 	]*[a-f0-9]+:	62 01 97 07 10 f4    	vmovsd xmm30\{k7\},xmm29,xmm28

@@ -8077,30 +8077,30 @@ _start:
 	vfnmsub231ps	ymm30, ymm29, [rdx+512]{1to8}	 # AVX512{F,VL}
 	vfnmsub231ps	ymm30, ymm29, [rdx-512]{1to8}	 # AVX512{F,VL} Disp8
 	vfnmsub231ps	ymm30, ymm29, [rdx-516]{1to8}	 # AVX512{F,VL}
-	vgatherdpd	xmm30{k1}, XMMWORD PTR [r14+xmm31*8-123]	 # AVX512{F,VL}
-	vgatherdpd	xmm30{k1}, XMMWORD PTR [r9+xmm31+256]	 # AVX512{F,VL}
-	vgatherdpd	xmm30{k1}, XMMWORD PTR [rcx+xmm31*4+1024]	 # AVX512{F,VL}
-	vgatherdpd	ymm30{k1}, YMMWORD PTR [r14+xmm31*8-123]	 # AVX512{F,VL}
-	vgatherdpd	ymm30{k1}, YMMWORD PTR [r9+xmm31+256]	 # AVX512{F,VL}
-	vgatherdpd	ymm30{k1}, YMMWORD PTR [rcx+xmm31*4+1024]	 # AVX512{F,VL}
-	vgatherdps	xmm30{k1}, XMMWORD PTR [r14+xmm31*8-123]	 # AVX512{F,VL}
-	vgatherdps	xmm30{k1}, XMMWORD PTR [r9+xmm31+256]	 # AVX512{F,VL}
-	vgatherdps	xmm30{k1}, XMMWORD PTR [rcx+xmm31*4+1024]	 # AVX512{F,VL}
-	vgatherdps	ymm30{k1}, YMMWORD PTR [r14+ymm31*8-123]	 # AVX512{F,VL}
-	vgatherdps	ymm30{k1}, YMMWORD PTR [r9+ymm31+256]	 # AVX512{F,VL}
-	vgatherdps	ymm30{k1}, YMMWORD PTR [rcx+ymm31*4+1024]	 # AVX512{F,VL}
-	vgatherqpd	xmm30{k1}, XMMWORD PTR [r14+xmm31*8-123]	 # AVX512{F,VL}
-	vgatherqpd	xmm30{k1}, XMMWORD PTR [r9+xmm31+256]	 # AVX512{F,VL}
-	vgatherqpd	xmm30{k1}, XMMWORD PTR [rcx+xmm31*4+1024]	 # AVX512{F,VL}
-	vgatherqpd	ymm30{k1}, YMMWORD PTR [r14+ymm31*8-123]	 # AVX512{F,VL}
-	vgatherqpd	ymm30{k1}, YMMWORD PTR [r9+ymm31+256]	 # AVX512{F,VL}
-	vgatherqpd	ymm30{k1}, YMMWORD PTR [rcx+ymm31*4+1024]	 # AVX512{F,VL}
-	vgatherqps	xmm30{k1}, QWORD PTR [r14+xmm31*8-123]	 # AVX512{F,VL}
-	vgatherqps	xmm30{k1}, QWORD PTR [r9+xmm31+256]	 # AVX512{F,VL}
-	vgatherqps	xmm30{k1}, QWORD PTR [rcx+xmm31*4+1024]	 # AVX512{F,VL}
-	vgatherqps	xmm30{k1}, XMMWORD PTR [r14+ymm31*8-123]	 # AVX512{F,VL}
-	vgatherqps	xmm30{k1}, XMMWORD PTR [r9+ymm31+256]	 # AVX512{F,VL}
-	vgatherqps	xmm30{k1}, XMMWORD PTR [rcx+ymm31*4+1024]	 # AVX512{F,VL}
+	vgatherdpd	xmm30{k1}, [r14+xmm31*8-123]	 # AVX512{F,VL}
+	vgatherdpd	xmm30{k1}, [r9+xmm31+256]	 # AVX512{F,VL}
+	vgatherdpd	xmm30{k1}, [rcx+xmm31*4+1024]	 # AVX512{F,VL}
+	vgatherdpd	ymm30{k1}, [r14+xmm31*8-123]	 # AVX512{F,VL}
+	vgatherdpd	ymm30{k1}, [r9+xmm31+256]	 # AVX512{F,VL}
+	vgatherdpd	ymm30{k1}, [rcx+xmm31*4+1024]	 # AVX512{F,VL}
+	vgatherdps	xmm30{k1}, [r14+xmm31*8-123]	 # AVX512{F,VL}
+	vgatherdps	xmm30{k1}, [r9+xmm31+256]	 # AVX512{F,VL}
+	vgatherdps	xmm30{k1}, [rcx+xmm31*4+1024]	 # AVX512{F,VL}
+	vgatherdps	ymm30{k1}, [r14+ymm31*8-123]	 # AVX512{F,VL}
+	vgatherdps	ymm30{k1}, [r9+ymm31+256]	 # AVX512{F,VL}
+	vgatherdps	ymm30{k1}, [rcx+ymm31*4+1024]	 # AVX512{F,VL}
+	vgatherqpd	xmm30{k1}, [r14+xmm31*8-123]	 # AVX512{F,VL}
+	vgatherqpd	xmm30{k1}, [r9+xmm31+256]	 # AVX512{F,VL}
+	vgatherqpd	xmm30{k1}, [rcx+xmm31*4+1024]	 # AVX512{F,VL}
+	vgatherqpd	ymm30{k1}, [r14+ymm31*8-123]	 # AVX512{F,VL}
+	vgatherqpd	ymm30{k1}, [r9+ymm31+256]	 # AVX512{F,VL}
+	vgatherqpd	ymm30{k1}, [rcx+ymm31*4+1024]	 # AVX512{F,VL}
+	vgatherqps	xmm30{k1}, [r14+xmm31*8-123]	 # AVX512{F,VL}
+	vgatherqps	xmm30{k1}, [r9+xmm31+256]	 # AVX512{F,VL}
+	vgatherqps	xmm30{k1}, [rcx+xmm31*4+1024]	 # AVX512{F,VL}
+	vgatherqps	xmm30{k1}, [r14+ymm31*8-123]	 # AVX512{F,VL}
+	vgatherqps	xmm30{k1}, [r9+ymm31+256]	 # AVX512{F,VL}
+	vgatherqps	xmm30{k1}, [rcx+ymm31*4+1024]	 # AVX512{F,VL}
 	vgetexppd	xmm30, xmm29	 # AVX512{F,VL}
 	vgetexppd	xmm30{k7}, xmm29	 # AVX512{F,VL}
 	vgetexppd	xmm30{k7}{z}, xmm29	 # AVX512{F,VL}
@@ -9447,30 +9447,30 @@ _start:
 	vpexpandq	ymm30, ymm29	 # AVX512{F,VL}
 	vpexpandq	ymm30{k7}, ymm29	 # AVX512{F,VL}
 	vpexpandq	ymm30{k7}{z}, ymm29	 # AVX512{F,VL}
-	vpgatherdd	xmm30{k1}, XMMWORD PTR [r14+xmm31*8-123]	 # AVX512{F,VL}
-	vpgatherdd	xmm30{k1}, XMMWORD PTR [r9+xmm31+256]	 # AVX512{F,VL}
-	vpgatherdd	xmm30{k1}, XMMWORD PTR [rcx+xmm31*4+1024]	 # AVX512{F,VL}
-	vpgatherdd	ymm30{k1}, YMMWORD PTR [r14+ymm31*8-123]	 # AVX512{F,VL}
-	vpgatherdd	ymm30{k1}, YMMWORD PTR [r9+ymm31+256]	 # AVX512{F,VL}
-	vpgatherdd	ymm30{k1}, YMMWORD PTR [rcx+ymm31*4+1024]	 # AVX512{F,VL}
-	vpgatherdq	xmm30{k1}, XMMWORD PTR [r14+xmm31*8-123]	 # AVX512{F,VL}
-	vpgatherdq	xmm30{k1}, XMMWORD PTR [r9+xmm31+256]	 # AVX512{F,VL}
-	vpgatherdq	xmm30{k1}, XMMWORD PTR [rcx+xmm31*4+1024]	 # AVX512{F,VL}
-	vpgatherdq	ymm30{k1}, YMMWORD PTR [r14+xmm31*8-123]	 # AVX512{F,VL}
-	vpgatherdq	ymm30{k1}, YMMWORD PTR [r9+xmm31+256]	 # AVX512{F,VL}
-	vpgatherdq	ymm30{k1}, YMMWORD PTR [rcx+xmm31*4+1024]	 # AVX512{F,VL}
-	vpgatherqd	xmm30{k1}, QWORD PTR [r14+xmm31*8-123]	 # AVX512{F,VL}
-	vpgatherqd	xmm30{k1}, QWORD PTR [r9+xmm31+256]	 # AVX512{F,VL}
-	vpgatherqd	xmm30{k1}, QWORD PTR [rcx+xmm31*4+1024]	 # AVX512{F,VL}
-	vpgatherqd	xmm30{k1}, XMMWORD PTR [r14+ymm31*8-123]	 # AVX512{F,VL}
-	vpgatherqd	xmm30{k1}, XMMWORD PTR [r9+ymm31+256]	 # AVX512{F,VL}
-	vpgatherqd	xmm30{k1}, XMMWORD PTR [rcx+ymm31*4+1024]	 # AVX512{F,VL}
-	vpgatherqq	xmm30{k1}, XMMWORD PTR [r14+xmm31*8-123]	 # AVX512{F,VL}
-	vpgatherqq	xmm30{k1}, XMMWORD PTR [r9+xmm31+256]	 # AVX512{F,VL}
-	vpgatherqq	xmm30{k1}, XMMWORD PTR [rcx+xmm31*4+1024]	 # AVX512{F,VL}
-	vpgatherqq	ymm30{k1}, YMMWORD PTR [r14+ymm31*8-123]	 # AVX512{F,VL}
-	vpgatherqq	ymm30{k1}, YMMWORD PTR [r9+ymm31+256]	 # AVX512{F,VL}
-	vpgatherqq	ymm30{k1}, YMMWORD PTR [rcx+ymm31*4+1024]	 # AVX512{F,VL}
+	vpgatherdd	xmm30{k1}, [r14+xmm31*8-123]	 # AVX512{F,VL}
+	vpgatherdd	xmm30{k1}, [r9+xmm31+256]	 # AVX512{F,VL}
+	vpgatherdd	xmm30{k1}, [rcx+xmm31*4+1024]	 # AVX512{F,VL}
+	vpgatherdd	ymm30{k1}, [r14+ymm31*8-123]	 # AVX512{F,VL}
+	vpgatherdd	ymm30{k1}, [r9+ymm31+256]	 # AVX512{F,VL}
+	vpgatherdd	ymm30{k1}, [rcx+ymm31*4+1024]	 # AVX512{F,VL}
+	vpgatherdq	xmm30{k1}, [r14+xmm31*8-123]	 # AVX512{F,VL}
+	vpgatherdq	xmm30{k1}, [r9+xmm31+256]	 # AVX512{F,VL}
+	vpgatherdq	xmm30{k1}, [rcx+xmm31*4+1024]	 # AVX512{F,VL}
+	vpgatherdq	ymm30{k1}, [r14+xmm31*8-123]	 # AVX512{F,VL}
+	vpgatherdq	ymm30{k1}, [r9+xmm31+256]	 # AVX512{F,VL}
+	vpgatherdq	ymm30{k1}, [rcx+xmm31*4+1024]	 # AVX512{F,VL}
+	vpgatherqd	xmm30{k1}, [r14+xmm31*8-123]	 # AVX512{F,VL}
+	vpgatherqd	xmm30{k1}, [r9+xmm31+256]	 # AVX512{F,VL}
+	vpgatherqd	xmm30{k1}, [rcx+xmm31*4+1024]	 # AVX512{F,VL}
+	vpgatherqd	xmm30{k1}, [r14+ymm31*8-123]	 # AVX512{F,VL}
+	vpgatherqd	xmm30{k1}, [r9+ymm31+256]	 # AVX512{F,VL}
+	vpgatherqd	xmm30{k1}, [rcx+ymm31*4+1024]	 # AVX512{F,VL}
+	vpgatherqq	xmm30{k1}, [r14+xmm31*8-123]	 # AVX512{F,VL}
+	vpgatherqq	xmm30{k1}, [r9+xmm31+256]	 # AVX512{F,VL}
+	vpgatherqq	xmm30{k1}, [rcx+xmm31*4+1024]	 # AVX512{F,VL}
+	vpgatherqq	ymm30{k1}, [r14+ymm31*8-123]	 # AVX512{F,VL}
+	vpgatherqq	ymm30{k1}, [r9+ymm31+256]	 # AVX512{F,VL}
+	vpgatherqq	ymm30{k1}, [rcx+ymm31*4+1024]	 # AVX512{F,VL}
 	vpmaxsd	xmm30, xmm29, xmm28	 # AVX512{F,VL}
 	vpmaxsd	xmm30{k7}, xmm29, xmm28	 # AVX512{F,VL}
 	vpmaxsd	xmm30{k7}{z}, xmm29, xmm28	 # AVX512{F,VL}
@@ -10015,38 +10015,38 @@ _start:
 	vporq	ymm30, ymm29, [rdx+1024]{1to4}	 # AVX512{F,VL}
 	vporq	ymm30, ymm29, [rdx-1024]{1to4}	 # AVX512{F,VL} Disp8
 	vporq	ymm30, ymm29, [rdx-1032]{1to4}	 # AVX512{F,VL}
-	vpscatterdd	XMMWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterdd	XMMWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterdd	XMMWORD PTR [r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterdd	XMMWORD PTR [rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterdd	YMMWORD PTR [r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
-	vpscatterdd	YMMWORD PTR [r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
-	vpscatterdd	YMMWORD PTR [r9+ymm31+256]{k1}, ymm30	 # AVX512{F,VL}
-	vpscatterdd	YMMWORD PTR [rcx+ymm31*4+1024]{k1}, ymm30	 # AVX512{F,VL}
-	vpscatterdq	XMMWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterdq	XMMWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterdq	XMMWORD PTR [r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterdq	XMMWORD PTR [rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterdq	YMMWORD PTR [r14+xmm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
-	vpscatterdq	YMMWORD PTR [r14+xmm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
-	vpscatterdq	YMMWORD PTR [r9+xmm31+256]{k1}, ymm30	 # AVX512{F,VL}
-	vpscatterdq	YMMWORD PTR [rcx+xmm31*4+1024]{k1}, ymm30	 # AVX512{F,VL}
-	vpscatterqd	QWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterqd	QWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterqd	QWORD PTR [r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterqd	QWORD PTR [rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterqd	XMMWORD PTR [r14+ymm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterqd	XMMWORD PTR [r14+ymm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterqd	XMMWORD PTR [r9+ymm31+256]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterqd	XMMWORD PTR [rcx+ymm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterqq	XMMWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterqq	XMMWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterqq	XMMWORD PTR [r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterqq	XMMWORD PTR [rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
-	vpscatterqq	YMMWORD PTR [r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
-	vpscatterqq	YMMWORD PTR [r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
-	vpscatterqq	YMMWORD PTR [r9+ymm31+256]{k1}, ymm30	 # AVX512{F,VL}
-	vpscatterqq	YMMWORD PTR [rcx+ymm31*4+1024]{k1}, ymm30	 # AVX512{F,VL}
+	vpscatterdd	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterdd	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterdd	[r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterdd	[rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterdd	[r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
+	vpscatterdd	[r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
+	vpscatterdd	[r9+ymm31+256]{k1}, ymm30	 # AVX512{F,VL}
+	vpscatterdd	[rcx+ymm31*4+1024]{k1}, ymm30	 # AVX512{F,VL}
+	vpscatterdq	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterdq	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterdq	[r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterdq	[rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterdq	[r14+xmm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
+	vpscatterdq	[r14+xmm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
+	vpscatterdq	[r9+xmm31+256]{k1}, ymm30	 # AVX512{F,VL}
+	vpscatterdq	[rcx+xmm31*4+1024]{k1}, ymm30	 # AVX512{F,VL}
+	vpscatterqd	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterqd	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterqd	[r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterqd	[rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterqd	[r14+ymm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterqd	[r14+ymm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterqd	[r9+ymm31+256]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterqd	[rcx+ymm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterqq	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterqq	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterqq	[r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterqq	[rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
+	vpscatterqq	[r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
+	vpscatterqq	[r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
+	vpscatterqq	[r9+ymm31+256]{k1}, ymm30	 # AVX512{F,VL}
+	vpscatterqq	[rcx+ymm31*4+1024]{k1}, ymm30	 # AVX512{F,VL}
 	vpshufd	xmm30, xmm29, 0xab	 # AVX512{F,VL}
 	vpshufd	xmm30{k7}, xmm29, 0xab	 # AVX512{F,VL}
 	vpshufd	xmm30{k7}{z}, xmm29, 0xab	 # AVX512{F,VL}
@@ -10801,38 +10801,38 @@ _start:
 	vrsqrt14ps	ymm30, [rdx+512]{1to8}	 # AVX512{F,VL}
 	vrsqrt14ps	ymm30, [rdx-512]{1to8}	 # AVX512{F,VL} Disp8
 	vrsqrt14ps	ymm30, [rdx-516]{1to8}	 # AVX512{F,VL}
-	vscatterdpd	XMMWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterdpd	XMMWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterdpd	XMMWORD PTR [r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterdpd	XMMWORD PTR [rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterdpd	YMMWORD PTR [r14+xmm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
-	vscatterdpd	YMMWORD PTR [r14+xmm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
-	vscatterdpd	YMMWORD PTR [r9+xmm31+256]{k1}, ymm30	 # AVX512{F,VL}
-	vscatterdpd	YMMWORD PTR [rcx+xmm31*4+1024]{k1}, ymm30	 # AVX512{F,VL}
-	vscatterdps	XMMWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterdps	XMMWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterdps	XMMWORD PTR [r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterdps	XMMWORD PTR [rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterdps	YMMWORD PTR [r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
-	vscatterdps	YMMWORD PTR [r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
-	vscatterdps	YMMWORD PTR [r9+ymm31+256]{k1}, ymm30	 # AVX512{F,VL}
-	vscatterdps	YMMWORD PTR [rcx+ymm31*4+1024]{k1}, ymm30	 # AVX512{F,VL}
-	vscatterqpd	XMMWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterqpd	XMMWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterqpd	XMMWORD PTR [r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterqpd	XMMWORD PTR [rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterqpd	YMMWORD PTR [r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
-	vscatterqpd	YMMWORD PTR [r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
-	vscatterqpd	YMMWORD PTR [r9+ymm31+256]{k1}, ymm30	 # AVX512{F,VL}
-	vscatterqpd	YMMWORD PTR [rcx+ymm31*4+1024]{k1}, ymm30	 # AVX512{F,VL}
-	vscatterqps	QWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterqps	QWORD PTR [r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterqps	QWORD PTR [r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterqps	QWORD PTR [rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterqps	XMMWORD PTR [r14+ymm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterqps	XMMWORD PTR [r14+ymm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterqps	XMMWORD PTR [r9+ymm31+256]{k1}, xmm30	 # AVX512{F,VL}
-	vscatterqps	XMMWORD PTR [rcx+ymm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterdpd	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterdpd	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterdpd	[r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterdpd	[rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterdpd	[r14+xmm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
+	vscatterdpd	[r14+xmm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
+	vscatterdpd	[r9+xmm31+256]{k1}, ymm30	 # AVX512{F,VL}
+	vscatterdpd	[rcx+xmm31*4+1024]{k1}, ymm30	 # AVX512{F,VL}
+	vscatterdps	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterdps	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterdps	[r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterdps	[rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterdps	[r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
+	vscatterdps	[r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
+	vscatterdps	[r9+ymm31+256]{k1}, ymm30	 # AVX512{F,VL}
+	vscatterdps	[rcx+ymm31*4+1024]{k1}, ymm30	 # AVX512{F,VL}
+	vscatterqpd	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterqpd	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterqpd	[r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterqpd	[rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterqpd	[r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
+	vscatterqpd	[r14+ymm31*8-123]{k1}, ymm30	 # AVX512{F,VL}
+	vscatterqpd	[r9+ymm31+256]{k1}, ymm30	 # AVX512{F,VL}
+	vscatterqpd	[rcx+ymm31*4+1024]{k1}, ymm30	 # AVX512{F,VL}
+	vscatterqps	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterqps	[r14+xmm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterqps	[r9+xmm31+256]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterqps	[rcx+xmm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterqps	[r14+ymm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterqps	[r14+ymm31*8-123]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterqps	[r9+ymm31+256]{k1}, xmm30	 # AVX512{F,VL}
+	vscatterqps	[rcx+ymm31*4+1024]{k1}, xmm30	 # AVX512{F,VL}
 	vshufpd	xmm30, xmm29, xmm28, 0xab	 # AVX512{F,VL}
 	vshufpd	xmm30{k7}, xmm29, xmm28, 0xab	 # AVX512{F,VL}
 	vshufpd	xmm30{k7}{z}, xmm29, xmm28, 0xab	 # AVX512{F,VL}

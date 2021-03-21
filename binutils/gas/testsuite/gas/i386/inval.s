@@ -64,6 +64,11 @@ movntiw %ax, (%eax)
 	add (%eiz), %eax
 	add (%eax), %eiz
 
+	mov %cr0, %di
+	mov %ax, %cr7
+	mov %cr0, %bh
+	mov %al, %cr7
+
 	.intel_syntax noprefix
 	cvtsi2ss xmm1,QWORD PTR [eax]
 	cvtsi2sd xmm1,QWORD PTR [eax]
@@ -92,3 +97,18 @@ movnti word ptr [eax], ax
 	shl [eax], 1
 	rol [ecx], 2
 	rcl [edx], cl
+
+	.att_syntax prefix
+	movsd (%esi), %ss:(%edi), %ss:(%eax)
+
+	movl	%ds, %ax
+	movl	%ax, %ds
+	movl	%ax, %bx
+
+	movw	%ds, %eax
+	movw	%eax, %ds
+	movw	%eax, %ebx
+
+	inb	%dx, %ax
+	outb	%ax, %dx
+	movb	%ax, %bx

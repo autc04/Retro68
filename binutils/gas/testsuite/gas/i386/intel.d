@@ -1,7 +1,7 @@
 #as: -J
 #objdump: -dw
-#name: i386 intel
-#stderr: intel.e
+#name: i386 intel (AT&T disassembly)
+#warning_output: intel.e
 
 .*: +file format .*
 
@@ -141,7 +141,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	8c 90 90 90 90 90 [ 	]*mov    %ss,-0x6f6f6f70\(%eax\)
 [ 	]*[a-f0-9]+:	8d 90 90 90 90 90 [ 	]*lea    -0x6f6f6f70\(%eax\),%edx
 [ 	]*[a-f0-9]+:	8e 90 90 90 90 90 [ 	]*mov    -0x6f6f6f70\(%eax\),%ss
-[ 	]*[a-f0-9]+:	8f 80 90 90 90 90 [ 	]*popl   -0x6f6f6f70\(%eax\)
+[ 	]*[a-f0-9]+:	8f 80 90 90 90 90 [ 	]*pop    -0x6f6f6f70\(%eax\)
 [ 	]*[a-f0-9]+:	90 [ 	]*nop
 [ 	]*[a-f0-9]+:	91 [ 	]*xchg   %eax,%ecx
 [ 	]*[a-f0-9]+:	92 [ 	]*xchg   %eax,%edx

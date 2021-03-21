@@ -12,21 +12,21 @@
 
 Program Header:
     LOAD off    0x0+ vaddr 0x0+ paddr 0x0+ align 2\*\*13
-         filesz 0x0+14c memsz 0x0+14c flags r-x
-    LOAD off    0x0+14c vaddr 0x0+214c paddr 0x0+214c align 2\*\*13
+         filesz 0x0+138 memsz 0x0+138 flags r-x
+    LOAD off    0x0+138 vaddr 0x0+2138 paddr 0x0+2138 align 2\*\*13
          filesz 0x0+108 memsz 0x0+108 flags rw-
- DYNAMIC off    0x0+1d0 vaddr 0x0+21d0 paddr 0x0+21d0 align 2\*\*2
+ DYNAMIC off    0x0+1bc vaddr 0x0+21bc paddr 0x0+21bc align 2\*\*2
          filesz 0x0+70 memsz 0x0+70 flags rw-
-     TLS off    0x0+14c vaddr 0x0+214c paddr 0x0+214c align 2\*\*2
+     TLS off    0x0+138 vaddr 0x0+2138 paddr 0x0+2138 align 2\*\*2
          filesz 0x0+84 memsz 0x0+84 flags r--
 
 Dynamic Section:
   HASH                 0x0+b4
-  STRTAB               0x0+124
-  SYMTAB               0x0+d4
+  STRTAB               0x0+110
+  SYMTAB               0x0+d0
   STRSZ                0x0+12
   SYMENT               0x0+10
-  RELA                 0x0+138
+  RELA                 0x0+124
   RELASZ               0x0+c
   RELAENT              0x0+c
 private flags = 0:
@@ -38,13 +38,13 @@ SYMBOL TABLE:
 
 DYNAMIC RELOCATION RECORDS
 OFFSET   TYPE              VALUE 
-0+224c R_CRIS_DTP        \*ABS\*\+0x0+80
+0+2238 R_CRIS_DTP        \*ABS\*\+0x0+80
 
 Contents of section \.hash:
 #...
 Contents of section \.text:
- 0144 6fae0c00 00000000              .*
+ 0130 6fae0c00 00000000              .*
 #...
 Contents of section \.got:
- 2240 d0210+ 0+ 0+ 0+  .*
- 2250 0+                             .*
+ 222c bc210+ 0+ 0+ 0+  .*
+ 223c 0+                             .*

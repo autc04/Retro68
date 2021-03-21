@@ -1,6 +1,6 @@
 #objdump: -dw
 #name: x86-64 manual rex prefix use
-#not-target: x86_64-*-elf*
+#notarget: x86_64-*-elf*
 
 .*: +file format .*
 

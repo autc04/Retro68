@@ -39,4 +39,8 @@
 	vfrczpd %xmm7,%xmm7
 	emms
 	lfence
+	vaddps	%xmm6, %xmm5, %xmm4
+	vaddps	%ymm6, %ymm5, %ymm4
+	vaddps	%zmm6, %zmm5, %zmm4
+	vaddss	%xmm6, %xmm5, %xmm4
 	.p2align 4

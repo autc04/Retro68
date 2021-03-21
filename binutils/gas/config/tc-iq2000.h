@@ -1,5 +1,5 @@
 /* tc-iq2000.h -- Header file for tc-iq2000.c.
-   Copyright (C) 2003-2018 Free Software Foundation, Inc.
+   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -62,4 +62,3 @@
 extern void         iq2000_frob_file         (void);
 extern bfd_boolean  iq2000_fix_adjustable    (struct fix *);
 extern int          iq2000_force_relocation  (struct fix *);
-extern long         md_pcrel_from_section    (struct fix *, segT);

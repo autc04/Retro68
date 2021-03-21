@@ -1,6 +1,5 @@
 #source: pie.s
-#as: -mabi=32 -EB
-#ld: -melf32btsmip -pie
+#ld: -pie
 #readelf: -d
 
 Dynamic section at offset 0x178 contains 17 entries:

@@ -3,7 +3,7 @@
 # no_version_test.sh -- test that .gnu.version* sections are not created
 # in a shared object when symbol versioning is not used.
 
-# Copyright (C) 2009-2017 Free Software Foundation, Inc.
+# Copyright (C) 2009-2020 Free Software Foundation, Inc.
 # Written by Doug Kwan <dougkwan@google.com>
 
 # This file is part of gold.

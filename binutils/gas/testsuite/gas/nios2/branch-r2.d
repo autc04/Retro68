@@ -4,7 +4,7 @@
 #source: branch.s
 
 # Test the branch instructions.
-dump.o:     file format elf32-littlenios2
+.*:     file format elf32-littlenios2
 
 Disassembly of section .text:
 0+0000 <[^>]*> 0000292a 	beq	r4,r5,00000004 <[^>]*>

@@ -9,6 +9,42 @@
 Disassembly of section .text:
 
 0+ <_start>:
+[ 	]*[a-f0-9]+:	62 f1 fe 08 2a c0    	vcvtsi2ss xmm0,xmm0,eax
+[ 	]*[a-f0-9]+:	62 f1 fe 08 2a 40 01 	vcvtsi2ss xmm0,xmm0,DWORD PTR \[eax\+0x4\]
+[ 	]*[a-f0-9]+:	62 f1 ff 08 2a c0    	vcvtsi2sd xmm0,xmm0,eax
+[ 	]*[a-f0-9]+:	62 f1 ff 08 2a 40 01 	vcvtsi2sd xmm0,xmm0,DWORD PTR \[eax\+0x4\]
+[ 	]*[a-f0-9]+:	62 f1 fe 08 2d c0    	vcvtss2si eax,xmm0
+[ 	]*[a-f0-9]+:	62 f1 ff 08 2d c0    	vcvtsd2si eax,xmm0
+[ 	]*[a-f0-9]+:	62 f1 fe 08 2c c0    	vcvttss2si eax,xmm0
+[ 	]*[a-f0-9]+:	62 f1 ff 08 2c c0    	vcvttsd2si eax,xmm0
+[ 	]*[a-f0-9]+:	62 f1 fe 08 7b c0    	vcvtusi2ss xmm0,xmm0,eax
+[ 	]*[a-f0-9]+:	62 f1 fe 08 7b 40 01 	vcvtusi2ss xmm0,xmm0,DWORD PTR \[eax\+0x4\]
+[ 	]*[a-f0-9]+:	62 f1 ff 08 7b c0    	vcvtusi2sd xmm0,xmm0,eax
+[ 	]*[a-f0-9]+:	62 f1 ff 08 7b 40 01 	vcvtusi2sd xmm0,xmm0,DWORD PTR \[eax\+0x4\]
+[ 	]*[a-f0-9]+:	62 f1 fe 08 79 c0    	vcvtss2usi eax,xmm0
+[ 	]*[a-f0-9]+:	62 f1 ff 08 79 c0    	vcvtsd2usi eax,xmm0
+[ 	]*[a-f0-9]+:	62 f1 fe 08 78 c0    	vcvttss2usi eax,xmm0
+[ 	]*[a-f0-9]+:	62 f1 ff 08 78 c0    	vcvttsd2usi eax,xmm0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 17 c0 00 	vextractps eax,xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 17 40 01 00 	vextractps DWORD PTR \[eax\+0x4\],xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 6e c0    	vmovd  xmm0,eax
+[ 	]*[a-f0-9]+:	62 f1 fd 08 6e 40 01 	vmovd  xmm0,DWORD PTR \[eax\+0x4\]
+[ 	]*[a-f0-9]+:	62 f1 fd 08 7e c0    	vmovd  eax,xmm0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 7e 40 01 	vmovd  DWORD PTR \[eax\+0x4\],xmm0
+[ 	]*[a-f0-9]+:	62 f2 fd 08 7c c0    	vpbroadcastd xmm0,eax
+[ 	]*[a-f0-9]+:	62 f3 fd 08 14 c0 00 	vpextrb eax,xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 14 40 01 00 	vpextrb BYTE PTR \[eax\+0x1\],xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 16 c0 00 	vpextrd eax,xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 16 40 01 00 	vpextrd DWORD PTR \[eax\+0x4\],xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 c5 c0 00 	vpextrw eax,xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 15 c0 00 	vpextrw eax,xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 15 40 01 00 	vpextrw WORD PTR \[eax\+0x2\],xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 20 c0 00 	vpinsrb xmm0,xmm0,eax,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 20 40 01 00 	vpinsrb xmm0,xmm0,BYTE PTR \[eax\+0x1\],0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 22 c0 00 	vpinsrd xmm0,xmm0,eax,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 22 40 01 00 	vpinsrd xmm0,xmm0,DWORD PTR \[eax\+0x4\],0x0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 c4 c0 00 	vpinsrw xmm0,xmm0,eax,0x0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 c4 40 01 00 	vpinsrw xmm0,xmm0,WORD PTR \[eax\+0x2\],0x0
 [ 	]*[a-f0-9]+:	62 f2 fd 4f 21 f5    	vpmovsxbd zmm6\{k7\},xmm5
 [ 	]*[a-f0-9]+:	62 f2 fd cf 21 f5    	vpmovsxbd zmm6\{k7\}\{z\},xmm5
 [ 	]*[a-f0-9]+:	62 f2 fd 4f 21 31    	vpmovsxbd zmm6\{k7\},XMMWORD PTR \[ecx\]

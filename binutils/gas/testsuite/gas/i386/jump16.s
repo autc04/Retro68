@@ -71,3 +71,25 @@
 	jmp	0x9090:0x1010
 	jmp	0x9090,xxx
 	jmp	0x9090:xxx
+
+	.att_syntax
+.code16gcc
+	iret
+	iretw
+	iretl
+
+.code16
+	iret
+	iretw
+	iretl
+
+	.intel_syntax noprefix
+.code16gcc
+	iret
+	iretw
+	iretd
+
+.code16
+	iret
+	iretw
+	iretd

@@ -172,8 +172,8 @@ Disassembly of section .text:
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	c9[ 	]+leaveq *
- +[0-9a-f]+:	c3[ 	]+retq *
+ +[0-9a-f]+:	c9[ 	]+leave *
+ +[0-9a-f]+:	c3[ 	]+ret *
 
 [0-9a-f]+ <_start>:
  +[0-9a-f]+:	55[ 	]+push   %rbp
@@ -306,5 +306,5 @@ Disassembly of section .text:
 #  LE, large model
  +[0-9a-f]+:	48 ba a5 ff ff ff ff[ 	]+movabs \$0xffffffffffffffa5,%rdx
  +[0-9a-f]+:	ff ff ff *
- +[0-9a-f]+:	c9[ 	]+leaveq *
- +[0-9a-f]+:	c3[ 	]+retq *
+ +[0-9a-f]+:	c9[ 	]+leave *
+ +[0-9a-f]+:	c3[ 	]+ret *

@@ -1,5 +1,5 @@
 .*:     file format elf32-.*
-architecture: arm, flags 0x[0-9a-f]+:
+architecture: armv7, flags 0x[0-9a-f]+:
 EXEC_P, HAS_SYMS, D_PAGED
 start address 0x[0-9a-f]+
 

@@ -19,15 +19,15 @@ Program Header:
 #...
 DYNAMIC RELOCATION RECORDS
 OFFSET   TYPE              VALUE 
-000022c8 R_CRIS_32_TPREL   \*ABS\*\+0x0+4
-000022cc R_CRIS_DTP        \*ABS\*\+0x0+4
+000022b4 R_CRIS_32_TPREL   \*ABS\*\+0x0+4
+000022b8 R_CRIS_DTP        \*ABS\*\+0x0+4
 
 Contents of section \.hash:
 #...
 Contents of section \.text:
- 01ac 6fae1000 00006fae 0c000000 5fae1000  .*
- 01bc 5fae0c00                             .*
+ 0198 6fae1000 00006fae 0c000000 5fae1000  .*
+ 01a8 5fae0c00                             .*
 #...
 Contents of section \.got:
- 22bc 44220+ 0+ 0+ 040+  .*
- 22cc 0+ 0+                    .*
+ 22a8 30220+ 0+ 0+ 040+  .*
+ 22b8 0+ 0+                    .*

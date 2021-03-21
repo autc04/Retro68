@@ -1,6 +1,6 @@
 #PROG: strip
 #source: compressed-1.s
-#as: --32
+#as: --32 -mx86-used-note=no --gdwarf-3
 #strip:
 #readelf: -S --wide
 #name: strip on uncompressed debug sections

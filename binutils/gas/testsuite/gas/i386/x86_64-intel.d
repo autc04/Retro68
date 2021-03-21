@@ -2,6 +2,7 @@
 #as: -J
 #objdump: -dw -Mintel
 #name: x86-64 (Intel mode)
+#warning_output: x86_64.e
 
 .*: +file format .*
 
@@ -52,7 +53,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	41 03 00             	add    eax,DWORD PTR \[r8\]
 [ 	]*[a-f0-9]+:	45 03 00             	add    r8d,DWORD PTR \[r8\]
 [ 	]*[a-f0-9]+:	49 03 00             	add    rax,QWORD PTR \[r8\]
-[ 	]*[a-f0-9]+:	03 05 22 22 22 22    	add    eax,DWORD PTR \[rip\+0x22222222\]        # 222222c7 <foo\+0x222220c4>
+[ 	]*[a-f0-9]+:	03 05 22 22 22 22    	add    eax,DWORD PTR \[rip\+0x22222222\]        # 2222[0-9a-f]* <foo\+0x2222[0-9a-f]*>
 [ 	]*[a-f0-9]+:	03 45 00             	add    eax,DWORD PTR \[rbp\+0x0\]
 [ 	]*[a-f0-9]+:	03 04 25 22 22 22 22 	add    eax,DWORD PTR ds:0x22222222
 [ 	]*[a-f0-9]+:	41 03 45 00          	add    eax,DWORD PTR \[r13\+0x0\]
@@ -84,10 +85,10 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	83 04 81 11          	add    DWORD PTR \[rcx\+rax\*4\],0x11
 [ 	]*[a-f0-9]+:	41 83 04 81 11       	add    DWORD PTR \[r9\+rax\*4\],0x11
 [ 	]*[a-f0-9]+:	42 83 04 81 11       	add    DWORD PTR \[rcx\+r8\*4\],0x11
-[ 	]*[a-f0-9]+:	83 05 22 22 22 22 33 	add    DWORD PTR \[rip\+0x22222222\],0x33        # 22222342 <foo\+0x2222213f>
-[ 	]*[a-f0-9]+:	48 83 05 22 22 22 22 33 	add    QWORD PTR \[rip\+0x22222222\],0x33        # 2222234a <foo\+0x22222147>
-[ 	]*[a-f0-9]+:	81 05 22 22 22 22 33 33 33 33 	add    DWORD PTR \[rip\+0x22222222\],0x33333333        # 22222354 <foo\+0x22222151>
-[ 	]*[a-f0-9]+:	48 81 05 22 22 22 22 33 33 33 33 	add    QWORD PTR \[rip\+0x22222222\],0x33333333        # 2222235f <foo\+0x2222215c>
+[ 	]*[a-f0-9]+:	83 05 22 22 22 22 33 	add    DWORD PTR \[rip\+0x22222222\],0x33        # 2222[0-9a-f]* <foo\+0x2222[0-9a-f]*>
+[ 	]*[a-f0-9]+:	48 83 05 22 22 22 22 33 	add    QWORD PTR \[rip\+0x22222222\],0x33        # 2222[0-9a-f]* <foo\+0x2222[0-9a-f]*>
+[ 	]*[a-f0-9]+:	81 05 22 22 22 22 33 33 33 33 	add    DWORD PTR \[rip\+0x22222222\],0x33333333        # 2222[0-9a-f]* <foo\+0x2222[0-9a-f]*>
+[ 	]*[a-f0-9]+:	48 81 05 22 22 22 22 33 33 33 33 	add    QWORD PTR \[rip\+0x22222222\],0x33333333        # 2222[0-9a-f]* <foo\+0x2222[0-9a-f]*>
 [ 	]*[a-f0-9]+:	83 04 c5 22 22 22 22 33 	add    DWORD PTR \[rax\*8\+0x22222222\],0x33
 [ 	]*[a-f0-9]+:	83 80 22 22 22 22 33 	add    DWORD PTR \[rax\+0x22222222\],0x33
 [ 	]*[a-f0-9]+:	83 80 22 22 22 22 33 	add    DWORD PTR \[rax\+0x22222222\],0x33
@@ -104,8 +105,16 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	48 63 c0             	movsxd rax,eax
 [ 	]*[a-f0-9]+:	48 0f bf c0          	movsx  rax,ax
 [ 	]*[a-f0-9]+:	48 0f be c0          	movsx  rax,al
+[ 	]*[a-f0-9]+:	cb                   	retf *
+[ 	]*[a-f0-9]+:	ca 10 00             	retf   0x10
+[ 	]*[a-f0-9]+:	66 cb                	retfw *
+[ 	]*[a-f0-9]+:	66 ca 02 00          	retfw  0x2
+[ 	]*[a-f0-9]+:	cb                   	retf *
+[ 	]*[a-f0-9]+:	ca 04 00             	retf   0x4
+[ 	]*[a-f0-9]+:	48 cb                	retfq *
+[ 	]*[a-f0-9]+:	48 ca 08 00          	retfq  0x8
 
-0+1a7 <bar>:
+[0-9a-f]+ <bar>:
 [ 	]*[a-f0-9]+:	b0 00                	mov    al,0x0
 [ 	]*[a-f0-9]+:	66 b8 00 00          	mov    ax,0x0
 [ 	]*[a-f0-9]+:	b8 00 00 00 00       	mov    eax,0x0
@@ -113,7 +122,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	a1 00 00 00 00 00 00 00 00 	movabs eax,ds:0x0
 [ 	]*[a-f0-9]+:	8b 04 25 00 00 00 00 	mov    eax,DWORD PTR ds:0x0
 [ 	]*[a-f0-9]+:	8b 80 00 00 00 00    	mov    eax,DWORD PTR \[rax\+0x0\]
-[ 	]*[a-f0-9]+:	8b 05 00 00 00 00    	mov    eax,DWORD PTR \[rip\+0x0\]        # 1d5 <bar\+0x2e>
+[ 	]*[a-f0-9]+:	8b 05 00 00 00 00    	mov    eax,DWORD PTR \[rip\+0x0\]        # [0-9a-f]+ <bar\+0x[0-9a-f]+>
 [ 	]*[a-f0-9]+:	b0 00                	mov    al,0x0
 [ 	]*[a-f0-9]+:	66 b8 00 00          	mov    ax,0x0
 [ 	]*[a-f0-9]+:	b8 00 00 00 00       	mov    eax,0x0
@@ -121,9 +130,9 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	a1 00 00 00 00 00 00 00 00 	movabs eax,ds:0x0
 [ 	]*[a-f0-9]+:	8b 04 25 00 00 00 00 	mov    eax,DWORD PTR ds:0x0
 [ 	]*[a-f0-9]+:	8b 80 00 00 00 00    	mov    eax,DWORD PTR \[rax\+0x0\]
-[ 	]*[a-f0-9]+:	8b 05 00 00 00 00    	mov    eax,DWORD PTR \[rip\+0x0\]        # 203 <foo>
+[ 	]*[a-f0-9]+:	8b 05 00 00 00 00    	mov    eax,DWORD PTR \[rip\+0x0\]        # [0-9a-f]+ <foo>
 
-0+203 <foo>:
+[0-9a-f]+ <foo>:
 [ 	]*[a-f0-9]+:	a0 11 22 33 44 55 66 77 88 	movabs al,ds:0x8877665544332211
 [ 	]*[a-f0-9]+:	66 a1 11 22 33 44 55 66 77 88 	movabs ax,ds:0x8877665544332211
 [ 	]*[a-f0-9]+:	a1 11 22 33 44 55 66 77 88 	movabs eax,ds:0x8877665544332211
@@ -164,8 +173,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f bf f0             	movsx  esi,ax
 [ 	]*[a-f0-9]+:	48 0f bf f0          	movsx  rsi,ax
 [ 	]*[a-f0-9]+:	48 63 f0             	movsxd rsi,eax
-[ 	]*[a-f0-9]+:	0f be 10             	movsx  edx,BYTE PTR \[rax\]
-[ 	]*[a-f0-9]+:	48 0f be 10          	movsx  rdx,BYTE PTR \[rax\]
 [ 	]*[a-f0-9]+:	66 0f be 10          	movsx  dx,BYTE PTR \[rax\]
 [ 	]*[a-f0-9]+:	0f be 10             	movsx  edx,BYTE PTR \[rax\]
 [ 	]*[a-f0-9]+:	48 0f be 10          	movsx  rdx,BYTE PTR \[rax\]
@@ -177,8 +184,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	48 0f b6 f0          	movzx  rsi,al
 [ 	]*[a-f0-9]+:	0f b7 f0             	movzx  esi,ax
 [ 	]*[a-f0-9]+:	48 0f b7 f0          	movzx  rsi,ax
-[ 	]*[a-f0-9]+:	0f b6 10             	movzx  edx,BYTE PTR \[rax\]
-[ 	]*[a-f0-9]+:	48 0f b6 10          	movzx  rdx,BYTE PTR \[rax\]
 [ 	]*[a-f0-9]+:	66 0f b6 10          	movzx  dx,BYTE PTR \[rax\]
 [ 	]*[a-f0-9]+:	0f b6 10             	movzx  edx,BYTE PTR \[rax\]
 [ 	]*[a-f0-9]+:	48 0f b6 10          	movzx  rdx,BYTE PTR \[rax\]
@@ -222,8 +227,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	9b df e0             	fstsw  ax
 [ 	]*[a-f0-9]+:	9b df e0             	fstsw  ax
 [ 	]*[a-f0-9]+:	66 0f be 00          	movsx  ax,BYTE PTR \[rax\]
-[ 	]*[a-f0-9]+:	0f be 00             	movsx  eax,BYTE PTR \[rax\]
-[ 	]*[a-f0-9]+:	48 0f be 00          	movsx  rax,BYTE PTR \[rax\]
 [ 	]*[a-f0-9]+:	66 0f be 10          	movsx  dx,BYTE PTR \[rax\]
 [ 	]*[a-f0-9]+:	0f be 10             	movsx  edx,BYTE PTR \[rax\]
 [ 	]*[a-f0-9]+:	48 0f be 10          	movsx  rdx,BYTE PTR \[rax\]
@@ -232,8 +235,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	48 63 10             	movsxd rdx,DWORD PTR \[rax\]
 [ 	]*[a-f0-9]+:	48 63 00             	movsxd rax,DWORD PTR \[rax\]
 [ 	]*[a-f0-9]+:	66 0f b6 00          	movzx  ax,BYTE PTR \[rax\]
-[ 	]*[a-f0-9]+:	0f b6 00             	movzx  eax,BYTE PTR \[rax\]
-[ 	]*[a-f0-9]+:	48 0f b6 00          	movzx  rax,BYTE PTR \[rax\]
 [ 	]*[a-f0-9]+:	66 0f b6 10          	movzx  dx,BYTE PTR \[rax\]
 [ 	]*[a-f0-9]+:	0f b6 10             	movzx  edx,BYTE PTR \[rax\]
 [ 	]*[a-f0-9]+:	48 0f b6 10          	movzx  rdx,BYTE PTR \[rax\]
@@ -255,4 +256,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	48 0f b7 00          	movzx  rax,WORD PTR \[rax\]
 [ 	]*[a-f0-9]+:	0f c3 00             	movnti DWORD PTR \[rax\],eax
 [ 	]*[a-f0-9]+:	48 0f c3 00          	movnti QWORD PTR \[rax\],rax
+[ 	]*[a-f0-9]+:	8b 04 25 00 00 00 00 	mov    eax,DWORD PTR (ds:)?0x0
+[ 	]*[a-f0-9]+:	48 89 0c 25 00 00 00 00 	mov    QWORD PTR (ds:)?0x0,rcx
 #pass

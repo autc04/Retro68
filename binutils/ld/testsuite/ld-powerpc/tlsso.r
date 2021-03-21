@@ -44,22 +44,24 @@ Program Headers:
  +02 +\.dynamic *
  +03 +\.tdata \.tbss *
 
-Relocation section '\.rela\.dyn' at offset .* contains 18 entries:
+Relocation section '\.rela\.dyn' at offset .* contains 20 entries:
  +Offset +Info +Type +Symbol's Value +Symbol's Name \+ Addend
-[0-9a-f ]+R_PPC64_RELATIVE +4fc
+[0-9a-f ]+R_PPC64_RELATIVE +51c
 [0-9a-f ]+R_PPC64_RELATIVE +18800
 [0-9a-f ]+R_PPC64_TPREL16 +0+60 le0 \+ 0
 [0-9a-f ]+R_PPC64_TPREL16_HA +0+68 le1 \+ 0
 [0-9a-f ]+R_PPC64_TPREL16_LO +0+68 le1 \+ 0
-[0-9a-f ]+R_PPC64_TPREL16_DS +[0-9a-f]+ \.tdata \+ 28
-[0-9a-f ]+R_PPC64_TPREL16_HA +[0-9a-f]+ \.tdata \+ 30
-[0-9a-f ]+R_PPC64_TPREL16_LO +[0-9a-f]+ \.tdata \+ 30
+[0-9a-f ]+R_PPC64_TPREL16_DS +28
+[0-9a-f ]+R_PPC64_TPREL16_HA +30
+[0-9a-f ]+R_PPC64_TPREL16_LO +30
 [0-9a-f ]+R_PPC64_DTPMOD64 +0
 [0-9a-f ]+R_PPC64_DTPREL64 +0
 [0-9a-f ]+R_PPC64_DTPREL64 +18
 [0-9a-f ]+R_PPC64_DTPMOD64 +0
 [0-9a-f ]+R_PPC64_DTPMOD64 +0+ gd \+ 0
 [0-9a-f ]+R_PPC64_DTPREL64 +0+ gd \+ 0
+[0-9a-f ]+R_PPC64_DTPMOD64 +0+40 ld0 \+ 0
+[0-9a-f ]+R_PPC64_DTPMOD64 +0+ ld \+ 0
 [0-9a-f ]+R_PPC64_DTPREL64 +0+50 ld2 \+ 0
 [0-9a-f ]+R_PPC64_DTPMOD64 +0+38 gd0 \+ 0
 [0-9a-f ]+R_PPC64_DTPREL64 +0+38 gd0 \+ 0
@@ -73,7 +75,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND *
 .* SECTION +LOCAL +DEFAULT +6 *
-.* SECTION +LOCAL +DEFAULT +7 *
+.* SECTION +LOCAL +DEFAULT +10 *
 .* TLS +GLOBAL +DEFAULT +UND gd
 .* TLS +GLOBAL +DEFAULT +8 le0
 .* NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
@@ -102,6 +104,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* SECTION +LOCAL +DEFAULT +11 *
 .* SECTION +LOCAL +DEFAULT +12 *
 .* FILE +LOCAL +DEFAULT +ABS .*
+.* NOTYPE +LOCAL +DEFAULT +ABS TLSMARK
 .* TLS +LOCAL +DEFAULT +7 gd4
 .* TLS +LOCAL +DEFAULT +7 ld4
 .* TLS +LOCAL +DEFAULT +7 ld5

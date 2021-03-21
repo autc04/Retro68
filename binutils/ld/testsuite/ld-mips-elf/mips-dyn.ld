@@ -68,7 +68,7 @@ SECTIONS
     _ftext = . ;
     *(.text .stub .text.* .gnu.linkonce.t.*)
     KEEP (*(.text.*personality*))
-    /* .gnu.warning sections are handled specially by elf32.em.  */
+    /* .gnu.warning sections are handled specially by elf.em.  */
     *(.gnu.warning)
     *(.mips16.fn.*) *(.mips16.call.*)
   } =0

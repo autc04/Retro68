@@ -1,7 +1,7 @@
 #objdump: -dr --prefix-addresses --show-raw-insn -mmips:isa64
 #name: MIPS MIPS64 MIPS-3D ASE instructions (-mips3d flag)
 #as: -mips64 -mips3d
-#stderr: mips64-mips3d.l
+#warning_output: mips64-mips3d.l
 
 # Check MIPS64 MIPS-3D ASE instruction assembly and disassembly
 

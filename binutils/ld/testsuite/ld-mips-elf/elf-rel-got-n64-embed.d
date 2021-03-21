@@ -1,5 +1,5 @@
 #name: MIPS ELF got reloc n64
-#as: -march=from-abi -EB -64 -KPIC
+#as: -KPIC
 #objcopy_objects: -R .MIPS.abiflags
 #source: ../../../gas/testsuite/gas/mips/elf-rel-got-n64.s RUN_OBJCOPY
 #ld:

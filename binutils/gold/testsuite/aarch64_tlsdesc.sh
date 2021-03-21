@@ -2,7 +2,7 @@
 
 # aarch64_tlsdesc.sh -- test R_AARCH64_TLSDESC_* relocations.
 
-# Copyright (C) 2017 Free Software Foundation, Inc.
+# Copyright (C) 2017-2020 Free Software Foundation, Inc.
 # Written by Igor Kudrin <ikudrin@accesssoftek.com>.
 
 # This file is part of gold.

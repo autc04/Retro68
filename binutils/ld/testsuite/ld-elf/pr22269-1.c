@@ -5,4 +5,5 @@ _start (void)
 {
   if (&foo)
     return foo;
+  return 0;
 }

@@ -3,11 +3,11 @@
 #as: --32
 #objdump: -dw
 #target: x86_64-*-* i?86-*-*
-#notarget: x86_64-*-nacl* i?86-*-nacl*
+#notarget: *-*-lynxos *-*-nto*
 
 #...
 0+180 <.*>:
-[ 	]*[a-f0-9]+:	ff b3 04 00 00 00    	pushl  0x4\(%ebx\)
+[ 	]*[a-f0-9]+:	ff b3 04 00 00 00    	push   0x4\(%ebx\)
 [ 	]*[a-f0-9]+:	ff a3 08 00 00 00    	jmp    \*0x8\(%ebx\)
 [ 	]*[a-f0-9]+:	00 00                	add    %al,\(%eax\)
 	...

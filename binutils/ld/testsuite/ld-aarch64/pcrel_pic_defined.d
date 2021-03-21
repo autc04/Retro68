@@ -1,5 +1,6 @@
 #name: PC-Rel relocation against defined
 #source: pcrel.s
+#target: [check_shared_lib_support]
 #ld: -shared -e0 -defsym global_a=0x1000 -defsym global_b=0x2000
 #error: .*: relocation R_AARCH64_ADR_PREL_PG_HI21 against symbol `global_a.*bind externally.*fPIC.*
 #error: .*: dangerous relocation: unsupported relocation

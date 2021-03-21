@@ -4,6 +4,64 @@
 	.text
 _start:
 
+	{evex} vcvtsi2ss %eax, %xmm0, %xmm0
+	{evex} vcvtsi2ss 4(%eax), %xmm0, %xmm0
+
+	{evex} vcvtsi2sd %eax, %xmm0, %xmm0
+	{evex} vcvtsi2sd 4(%eax), %xmm0, %xmm0
+
+	{evex} vcvtss2si %xmm0, %eax
+
+	{evex} vcvtsd2si %xmm0, %eax
+
+	{evex} vcvttss2si %xmm0, %eax
+
+	{evex} vcvttsd2si %xmm0, %eax
+
+	vcvtusi2ss %eax, %xmm0, %xmm0
+	vcvtusi2ss 4(%eax), %xmm0, %xmm0
+
+	vcvtusi2sd %eax, %xmm0, %xmm0
+	vcvtusi2sd 4(%eax), %xmm0, %xmm0
+
+	vcvtss2usi %xmm0, %eax
+
+	vcvtsd2usi %xmm0, %eax
+
+	vcvttss2usi %xmm0, %eax
+
+	vcvttsd2usi %xmm0, %eax
+
+	{evex} vextractps $0, %xmm0, %eax
+	{evex} vextractps $0, %xmm0, 4(%eax)
+
+	{evex} vmovd %eax, %xmm0
+	{evex} vmovd 4(%eax), %xmm0
+
+	{evex} vmovd %xmm0, %eax
+	{evex} vmovd %xmm0, 4(%eax)
+
+	vpbroadcastd %eax, %xmm0
+
+	{evex} vpextrb $0, %xmm0, %eax
+	{evex} vpextrb $0, %xmm0, 1(%eax)
+
+	{evex} vpextrd $0, %xmm0, %eax
+	{evex} vpextrd $0, %xmm0, 4(%eax)
+
+	{evex} vpextrw $0, %xmm0, %eax
+	{evex} {store} vpextrw $0, %xmm0, %eax
+	{evex} vpextrw $0, %xmm0, 2(%eax)
+
+	{evex} vpinsrb $0, %eax, %xmm0, %xmm0
+	{evex} vpinsrb $0, 1(%eax), %xmm0, %xmm0
+
+	{evex} vpinsrd $0, %eax, %xmm0, %xmm0
+	{evex} vpinsrd $0, 4(%eax), %xmm0, %xmm0
+
+	{evex} vpinsrw $0, %eax, %xmm0, %xmm0
+	{evex} vpinsrw $0, 2(%eax), %xmm0, %xmm0
+
 	vpmovsxbd	%xmm5, %zmm6{%k7}	 # AVX512
 	vpmovsxbd	%xmm5, %zmm6{%k7}{z}	 # AVX512
 	vpmovsxbd	(%ecx), %zmm6{%k7}	 # AVX512

@@ -1,2 +1,2 @@
 #as: -march=armv8.3-a -mno-verbose-error
-#error-output: illegal-ldapr.l
+#error_output: illegal-ldapr.l

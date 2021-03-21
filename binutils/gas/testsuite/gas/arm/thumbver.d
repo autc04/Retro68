@@ -1,7 +1,7 @@
 # as: -meabi=4
 # readelf: -s
 # This test is only valid on ELF based ports.
-#not-target: *-*-pe *-*-wince
+#notarget: *-*-pe *-*-wince
 
 Symbol table '\.symtab' contains .* entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name

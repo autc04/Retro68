@@ -1,5 +1,5 @@
 # Expect script for export table in executables tests
-#   Copyright (C) 2003-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -29,7 +29,7 @@ if {![istarget *-pc-cygwin]} {
 }
 
 # No compiler, no test.
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     untested "Exe export test (no compiler available)"
     return
 }

@@ -1,5 +1,5 @@
 /* tc-m68k.c -- Assemble for the m68k family
-   Copyright (C) 1987-2018 Free Software Foundation, Inc.
+   Copyright (C) 1987-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -30,6 +30,7 @@
 #include "elf/m68k.h"
 
 static void m68k_elf_cons (int);
+static void m68k_elf_gnu_attribute (int);
 
 /* This string holds the chars that always start a comment.  If the
    pre-processor is disabled, these aren't very useful.  The macro
@@ -889,6 +890,7 @@ const pseudo_typeS md_pseudo_table[] =
 
   {"arch", s_m68k_arch, 0},
   {"cpu", s_m68k_cpu, 0},
+  {"gnu_attribute", m68k_elf_gnu_attribute, 0},
 
   /* The following pseudo-ops are supported for MRI compatibility.  */
   {"chip", s_chip, 0},
@@ -1318,7 +1320,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 
 /* Handle of the OPCODE hash table.  NULL means any use before
    m68k_ip_begin() will crash.  */
-static struct hash_control *op_hash;
+static htab_t op_hash;
 
 /* Assemble an m68k instruction.  */
 
@@ -1373,7 +1375,7 @@ m68k_ip (char *instring)
 
   c = *p;
   *p = '\0';
-  opcode = (const struct m68k_incant *) hash_find (op_hash, instring);
+  opcode = (const struct m68k_incant *) str_hash_find (op_hash, instring);
   *p = c;
 
   if (pdot != NULL)
@@ -2794,7 +2796,7 @@ m68k_ip (char *instring)
 		      && opP->index.reg <= ZDATA7)
 		    nextword |= (opP->index.reg - ZDATA0) << 12;
 		  else if (opP->index.reg >= ZADDR0
-			   || opP->index.reg <= ZADDR7)
+			   && opP->index.reg <= ZADDR7)
 		    nextword |= (opP->index.reg - ZADDR0 + 8) << 12;
 		}
 
@@ -3957,15 +3959,15 @@ insert_reg (const char *regname, int regnum)
     }
 #endif
 
-  symbol_table_insert (symbol_new (regname, reg_section, regnum,
-				   &zero_address_frag));
+  symbol_table_insert (symbol_new (regname, reg_section,
+				   &zero_address_frag, regnum));
 
   for (i = 0; regname[i]; i++)
     buf[i] = TOUPPER (regname[i]);
   buf[i] = '\0';
 
-  symbol_table_insert (symbol_new (buf, reg_section, regnum,
-				   &zero_address_frag));
+  symbol_table_insert (symbol_new (buf, reg_section,
+				   &zero_address_frag, regnum));
 }
 
 struct init_entry
@@ -4494,7 +4496,6 @@ md_begin (void)
 {
   const struct m68k_opcode *ins;
   struct m68k_incant *hack, *slak;
-  const char *retval = 0;	/* Empty string, or error msg text.  */
   int i;
 
   /* Set up hash tables with 68000 instructions.
@@ -4525,7 +4526,7 @@ md_begin (void)
   qsort (m68k_sorted_opcodes, m68k_numopcodes,
 	 sizeof (m68k_sorted_opcodes[0]), m68k_compare_opcode);
 
-  op_hash = hash_new ();
+  op_hash = str_htab_create ();
 
   obstack_begin (&robyn, 4000);
   for (i = 0; i < m68k_numopcodes; i++)
@@ -4569,22 +4570,20 @@ md_begin (void)
 	}
       while (slak);
 
-      retval = hash_insert (op_hash, ins->name, (char *) hack);
-      if (retval)
-	as_fatal (_("Internal Error:  Can't hash %s: %s"), ins->name, retval);
+      if (str_hash_insert (op_hash, ins->name, hack, 0) != NULL)
+	as_fatal (_("duplicate %s"), ins->name);
     }
 
   for (i = 0; i < m68k_numaliases; i++)
     {
       const char *name = m68k_opcode_aliases[i].primary;
       const char *alias = m68k_opcode_aliases[i].alias;
-      void *val = hash_find (op_hash, name);
+      void *val = (void *) str_hash_find (op_hash, name);
 
       if (!val)
 	as_fatal (_("Internal Error: Can't find %s in hash table"), name);
-      retval = hash_insert (op_hash, alias, val);
-      if (retval)
-	as_fatal (_("Internal Error: Can't hash %s: %s"), alias, retval);
+      if (str_hash_insert (op_hash, alias, val, 0) != NULL)
+	as_fatal (_("duplicate %s"), alias);
     }
 
   /* In MRI mode, all unsized branches are variable sized.  Normally,
@@ -4617,13 +4616,11 @@ md_begin (void)
 	{
 	  const char *name = mri_aliases[i].primary;
 	  const char *alias = mri_aliases[i].alias;
-	  void *val = hash_find (op_hash, name);
+	  void *val = (void *) str_hash_find (op_hash, name);
 
 	  if (!val)
 	    as_fatal (_("Internal Error: Can't find %s in hash table"), name);
-	  retval = hash_jam (op_hash, alias, val);
-	  if (retval)
-	    as_fatal (_("Internal Error: Can't hash %s: %s"), alias, retval);
+	  str_hash_insert (op_hash, alias, val, 1);
 	}
     }
 
@@ -4678,8 +4675,8 @@ md_begin (void)
     while (mote_pseudo_table[n].poc_name)
       {
 	hack = XOBNEW (&robyn, struct m68k_incant);
-	hash_insert (op_hash,
-		     mote_pseudo_table[n].poc_name, (char *) hack);
+	str_hash_insert (op_hash,
+			 mote_pseudo_table[n].poc_name, hack, 0);
 	hack->m_operands = 0;
 	hack->m_opnum = n;
 	n++;
@@ -5558,7 +5555,7 @@ s_proc (int ignore ATTRIBUTE_UNUSED)
    alignment is needed.  */
 
 int
-m68k_conditional_pseudoop (pseudo_typeS *pop)
+m68k_conditional_pseudoop (const pseudo_typeS *pop)
 {
   return (pop->poc_handler == s_mri_if
 	  || pop->poc_handler == s_mri_else);
@@ -6135,8 +6132,7 @@ pop_mri_control (void)
 
   n = mri_control_stack;
   mri_control_stack = n->outer;
-  if (n->top != NULL)
-    free (n->top);
+  free (n->top);
   free (n->next);
   free (n->bottom);
   free (n);
@@ -7950,6 +7946,24 @@ m68k_elf_cons (int nbytes /* 4=.long */)
   /* Put terminator back into stream.  */
   input_line_pointer--;
   demand_empty_rest_of_line ();
+}
+
+/* Parse a .gnu_attribute directive.  */
+static void
+m68k_elf_gnu_attribute (int ignored ATTRIBUTE_UNUSED)
+{
+  int tag = obj_elf_vendor_attribute (OBJ_ATTR_GNU);
+
+  /* Check validity of defined m68k tags.  */
+  if (tag == Tag_GNU_M68K_ABI_FP)
+    {
+      unsigned int val;
+
+      val = bfd_elf_get_obj_attr_int (stdoutput, OBJ_ATTR_GNU, tag);
+
+      if (tag == Tag_GNU_M68K_ABI_FP && val > 2)
+	as_warn (_("unknown .gnu_attribute value"));
+    }
 }
 
 int

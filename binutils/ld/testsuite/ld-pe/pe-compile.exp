@@ -1,6 +1,6 @@
 # Expect script for complex PE tests that require a C compiler
 # in addition to the just-built binutils.
-#   Copyright (C) 2009-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -26,7 +26,7 @@ if {![is_pecoff_format]} {
 }
 
 # No compiler, no test.
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     untested "PE version scripts"
     untested "aligned common tests"
     # Add more "untested" directives here when adding more tests below.

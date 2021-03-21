@@ -13,7 +13,7 @@ Idx Name          Size      VMA               LMA               File off  Algn
   1 \.other        0+50  1000000000000000  1000000000000000  0+  2\*\*2
                   CONTENTS, ALLOC, LOAD, CODE, DATA
   2 \.data         0+4  2000000000000004  2000000000000004  0+  2\*\*2
-                  CONTENTS, ALLOC, LOAD
+                  CONTENTS, ALLOC, LOAD, DATA
 Contents of section \.text:
  0100 e3fd0001                             .*
 Contents of section \.other:

@@ -1,7 +1,8 @@
 	.macro csr val
 	csrr a0,\val
 	.endm
-# 1.9.1 registers
+
+	# Supported the current priv spec 1.11.
 	csr ustatus
 	csr uie
 	csr utvec
@@ -9,12 +10,8 @@
 	csr uscratch
 	csr uepc
 	csr ucause
-	csr ubadaddr
+	csr utval		# Added in 1.10
 	csr uip
-
-	csr fflags
-	csr frm
-	csr fcsr
 
 	csr cycle
 	csr time
@@ -86,26 +83,15 @@
 	csr sideleg
 	csr sie
 	csr stvec
+	csr scounteren		# Added in 1.10
 
 	csr sscratch
 	csr sepc
 	csr scause
-	csr sbadaddr
+	csr stval		# Added in 1.10
 	csr sip
 
-	csr sptbr
-
-	csr hstatus
-	csr hedeleg
-	csr hideleg
-	csr hie
-	csr htvec
-
-	csr hscratch
-	csr hepc
-	csr hcause
-	csr hbadaddr
-	csr hip
+	csr satp		# Added in 1.10
 
 	csr mvendorid
 	csr marchid
@@ -113,24 +99,39 @@
 	csr mhartid
 
 	csr mstatus
-	csr misa
+	csr misa		# 0xf10 in 1.9, but changed to 0x301 since 1.9.1.
 	csr medeleg
 	csr mideleg
 	csr mie
 	csr mtvec
+	csr mcounteren		# Added in 1.10
 
 	csr mscratch
 	csr mepc
 	csr mcause
-	csr mbadaddr
+	csr mtval		# Added in 1.10
 	csr mip
 
-	csr mbase
-	csr mbound
-	csr mibase
-	csr mibound
-	csr mdbase
-	csr mdbound
+	csr pmpcfg0		# Added in 1.10
+	csr pmpcfg1		# Added in 1.10
+	csr pmpcfg2		# Added in 1.10
+	csr pmpcfg3		# Added in 1.10
+	csr pmpaddr0		# Added in 1.10
+	csr pmpaddr1		# Added in 1.10
+	csr pmpaddr2		# Added in 1.10
+	csr pmpaddr3		# Added in 1.10
+	csr pmpaddr4		# Added in 1.10
+	csr pmpaddr5		# Added in 1.10
+	csr pmpaddr6		# Added in 1.10
+	csr pmpaddr7		# Added in 1.10
+	csr pmpaddr8		# Added in 1.10
+	csr pmpaddr9		# Added in 1.10
+	csr pmpaddr10		# Added in 1.10
+	csr pmpaddr11		# Added in 1.10
+	csr pmpaddr12		# Added in 1.10
+	csr pmpaddr13		# Added in 1.10
+	csr pmpaddr14		# Added in 1.10
+	csr pmpaddr15		# Added in 1.10
 
 	csr mcycle
 	csr minstret
@@ -195,10 +196,7 @@
 	csr mhpmcounter30h
 	csr mhpmcounter31h
 
-	csr mucounteren
-	csr mscounteren
-	csr mhcounteren
-
+	csr mcountinhibit	# Added in 1.11
 	csr mhpmevent3
 	csr mhpmevent4
 	csr mhpmevent5
@@ -229,41 +227,58 @@
 	csr mhpmevent30
 	csr mhpmevent31
 
+	# Supported in previous priv spec, but dropped now.
+	csr ubadaddr		# 0x043 in 1.9.1, but the value is utval since 1.10
+	csr sbadaddr		# 0x143 in 1.9.1, but the value is stval since 1.10
+	csr sptbr		# 0x180 in 1.9.1, but the value is satp since 1.10
+	csr mbadaddr		# 0x343 in 1.9.1, but the value is mtval since 1.10
+	csr mucounteren		# 0x320 in 1.9.1, dropped in 1.10, but the value is mcountinhibit since 1.11
+
+	csr hstatus		# 0x200, dropped in 1.10
+	csr hedeleg		# 0x202, dropped in 1.10
+	csr hideleg		# 0x203, dropped in 1.10
+	csr hie			# 0x204, dropped in 1.10
+	csr htvec		# 0x205, dropped in 1.10
+	csr hscratch		# 0x240, dropped in 1.10
+	csr hepc		# 0x241, dropped in 1.10
+	csr hcause		# 0x242, dropped in 1.10
+	csr hbadaddr		# 0x243, dropped in 1.10
+	csr hip			# 0x244, dropped in 1.10
+	csr mbase		# 0x380, dropped in 1.10
+	csr mbound		# 0x381, dropped in 1.10
+	csr mibase		# 0x382, dropped in 1.10
+	csr mibound		# 0x383, dropped in 1.10
+	csr mdbase		# 0x384, dropped in 1.10
+	csr mdbound		# 0x385, dropped in 1.10
+	csr mscounteren		# 0x321, dropped in 1.10
+	csr mhcounteren		# 0x322, dropped in 1.10
+
+	# Unprivileged CSR which are not controlled by privilege spec.
+
+	# Float
+	csr fflags
+	csr frm
+	csr fcsr
+
+	# Core debug
+	csr dcsr
+	csr dpc
+	csr dscratch0
+	csr dscratch1
+	csr dscratch		# 0x7b2, alias to dscratch0
+
+	# Trigger debug
 	csr tselect
 	csr tdata1
 	csr tdata2
 	csr tdata3
-
-	csr dcsr
-	csr dpc
-	csr dscratch
-# 1.10 registers
-	csr utval
-
-	csr scounteren
-	csr stval
-	csr satp
-
-	csr mcounteren
-	csr mtval
-
-	csr pmpcfg0
-	csr pmpcfg1
-	csr pmpcfg2
-	csr pmpcfg3
-	csr pmpaddr0
-	csr pmpaddr1
-	csr pmpaddr2
-	csr pmpaddr3
-	csr pmpaddr4
-	csr pmpaddr5
-	csr pmpaddr6
-	csr pmpaddr7
-	csr pmpaddr8
-	csr pmpaddr9
-	csr pmpaddr10
-	csr pmpaddr11
-	csr pmpaddr12
-	csr pmpaddr13
-	csr pmpaddr14
-	csr pmpaddr15
+	csr tinfo
+	csr tcontrol
+	csr mcontext
+	csr scontext
+	csr mcontrol		# 0x7a1, alias to tdata1
+	csr icount		# 0x7a1, alias to tdata1
+	csr itrigger		# 0x7a1, alias to tdata1
+	csr etrigger		# 0x7a1, alias to tdata1
+	csr textra32		# 0x7a3, alias to tdata3
+	csr textra64		# 0x7a3, alias to tdata3

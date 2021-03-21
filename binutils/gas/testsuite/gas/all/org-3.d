@@ -1,2 +1,2 @@
 #name: .org test 3
-#error-output: org-3.l
+#error_output: org-3.l

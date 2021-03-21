@@ -1,5 +1,6 @@
 #readelf: --relocs --syms -x .text.1 -x .text.2
 #name: i386 ifunc 3
+#as: --generate-missing-build-notes=no
 
 Relocation section '\.rel\.text\.1' at offset .* contains .* entries:
  Offset     Info    Type            Sym.Value  Sym. Name

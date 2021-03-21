@@ -1,6 +1,6 @@
 #source: attr-gnu-4-2.s
 #as: -msingle-float
-#PROG: readelf
+#DUMPPROG: readelf
 #readelf: -A
 #name: MIPS gnu_attribute 4,2 (single precision)
 

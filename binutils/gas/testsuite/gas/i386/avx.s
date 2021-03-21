@@ -95,36 +95,64 @@ _start:
 	vxorps (%ecx),%ymm6,%ymm2
 	vcmpeqpd %ymm4,%ymm6,%ymm2
 	vcmpeqpd (%ecx),%ymm6,%ymm2
+	vcmpeq_oqpd %ymm4,%ymm6,%ymm2
+	vcmpeq_oqpd (%ecx),%ymm6,%ymm2
 	vcmpltpd %ymm4,%ymm6,%ymm2
 	vcmpltpd (%ecx),%ymm6,%ymm2
+	vcmplt_ospd %ymm4,%ymm6,%ymm2
+	vcmplt_ospd (%ecx),%ymm6,%ymm2
 	vcmplepd %ymm4,%ymm6,%ymm2
 	vcmplepd (%ecx),%ymm6,%ymm2
+	vcmple_ospd %ymm4,%ymm6,%ymm2
+	vcmple_ospd (%ecx),%ymm6,%ymm2
 	vcmpunordpd %ymm4,%ymm6,%ymm2
 	vcmpunordpd (%ecx),%ymm6,%ymm2
+	vcmpunord_qpd %ymm4,%ymm6,%ymm2
+	vcmpunord_qpd (%ecx),%ymm6,%ymm2
 	vcmpneqpd %ymm4,%ymm6,%ymm2
 	vcmpneqpd (%ecx),%ymm6,%ymm2
+	vcmpneq_uqpd %ymm4,%ymm6,%ymm2
+	vcmpneq_uqpd (%ecx),%ymm6,%ymm2
 	vcmpnltpd %ymm4,%ymm6,%ymm2
 	vcmpnltpd (%ecx),%ymm6,%ymm2
+	vcmpnlt_uspd %ymm4,%ymm6,%ymm2
+	vcmpnlt_uspd (%ecx),%ymm6,%ymm2
 	vcmpnlepd %ymm4,%ymm6,%ymm2
 	vcmpnlepd (%ecx),%ymm6,%ymm2
+	vcmpnle_uspd %ymm4,%ymm6,%ymm2
+	vcmpnle_uspd (%ecx),%ymm6,%ymm2
 	vcmpordpd %ymm4,%ymm6,%ymm2
 	vcmpordpd (%ecx),%ymm6,%ymm2
+	vcmpord_qpd %ymm4,%ymm6,%ymm2
+	vcmpord_qpd (%ecx),%ymm6,%ymm2
 	vcmpeq_uqpd %ymm4,%ymm6,%ymm2
 	vcmpeq_uqpd (%ecx),%ymm6,%ymm2
 	vcmpngepd %ymm4,%ymm6,%ymm2
 	vcmpngepd (%ecx),%ymm6,%ymm2
+	vcmpnge_uspd %ymm4,%ymm6,%ymm2
+	vcmpnge_uspd (%ecx),%ymm6,%ymm2
 	vcmpngtpd %ymm4,%ymm6,%ymm2
 	vcmpngtpd (%ecx),%ymm6,%ymm2
+	vcmpngt_uspd %ymm4,%ymm6,%ymm2
+	vcmpngt_uspd (%ecx),%ymm6,%ymm2
 	vcmpfalsepd %ymm4,%ymm6,%ymm2
 	vcmpfalsepd (%ecx),%ymm6,%ymm2
+	vcmpfalse_oqpd %ymm4,%ymm6,%ymm2
+	vcmpfalse_oqpd (%ecx),%ymm6,%ymm2
 	vcmpneq_oqpd %ymm4,%ymm6,%ymm2
 	vcmpneq_oqpd (%ecx),%ymm6,%ymm2
 	vcmpgepd %ymm4,%ymm6,%ymm2
 	vcmpgepd (%ecx),%ymm6,%ymm2
+	vcmpge_ospd %ymm4,%ymm6,%ymm2
+	vcmpge_ospd (%ecx),%ymm6,%ymm2
 	vcmpgtpd %ymm4,%ymm6,%ymm2
 	vcmpgtpd (%ecx),%ymm6,%ymm2
+	vcmpgt_ospd %ymm4,%ymm6,%ymm2
+	vcmpgt_ospd (%ecx),%ymm6,%ymm2
 	vcmptruepd %ymm4,%ymm6,%ymm2
 	vcmptruepd (%ecx),%ymm6,%ymm2
+	vcmptrue_uqpd %ymm4,%ymm6,%ymm2
+	vcmptrue_uqpd (%ecx),%ymm6,%ymm2
 	vcmpeq_ospd %ymm4,%ymm6,%ymm2
 	vcmpeq_ospd (%ecx),%ymm6,%ymm2
 	vcmplt_oqpd %ymm4,%ymm6,%ymm2
@@ -159,36 +187,64 @@ _start:
 	vcmptrue_uspd (%ecx),%ymm6,%ymm2
 	vcmpeqps %ymm4,%ymm6,%ymm2
 	vcmpeqps (%ecx),%ymm6,%ymm2
+	vcmpeq_oqps %ymm4,%ymm6,%ymm2
+	vcmpeq_oqps (%ecx),%ymm6,%ymm2
 	vcmpltps %ymm4,%ymm6,%ymm2
 	vcmpltps (%ecx),%ymm6,%ymm2
+	vcmplt_osps %ymm4,%ymm6,%ymm2
+	vcmplt_osps (%ecx),%ymm6,%ymm2
 	vcmpleps %ymm4,%ymm6,%ymm2
 	vcmpleps (%ecx),%ymm6,%ymm2
+	vcmple_osps %ymm4,%ymm6,%ymm2
+	vcmple_osps (%ecx),%ymm6,%ymm2
 	vcmpunordps %ymm4,%ymm6,%ymm2
 	vcmpunordps (%ecx),%ymm6,%ymm2
+	vcmpunord_qps %ymm4,%ymm6,%ymm2
+	vcmpunord_qps (%ecx),%ymm6,%ymm2
 	vcmpneqps %ymm4,%ymm6,%ymm2
 	vcmpneqps (%ecx),%ymm6,%ymm2
+	vcmpneq_uqps %ymm4,%ymm6,%ymm2
+	vcmpneq_uqps (%ecx),%ymm6,%ymm2
 	vcmpnltps %ymm4,%ymm6,%ymm2
 	vcmpnltps (%ecx),%ymm6,%ymm2
+	vcmpnlt_usps %ymm4,%ymm6,%ymm2
+	vcmpnlt_usps (%ecx),%ymm6,%ymm2
 	vcmpnleps %ymm4,%ymm6,%ymm2
 	vcmpnleps (%ecx),%ymm6,%ymm2
+	vcmpnle_usps %ymm4,%ymm6,%ymm2
+	vcmpnle_usps (%ecx),%ymm6,%ymm2
 	vcmpordps %ymm4,%ymm6,%ymm2
 	vcmpordps (%ecx),%ymm6,%ymm2
+	vcmpord_qps %ymm4,%ymm6,%ymm2
+	vcmpord_qps (%ecx),%ymm6,%ymm2
 	vcmpeq_uqps %ymm4,%ymm6,%ymm2
 	vcmpeq_uqps (%ecx),%ymm6,%ymm2
 	vcmpngeps %ymm4,%ymm6,%ymm2
 	vcmpngeps (%ecx),%ymm6,%ymm2
+	vcmpnge_usps %ymm4,%ymm6,%ymm2
+	vcmpnge_usps (%ecx),%ymm6,%ymm2
 	vcmpngtps %ymm4,%ymm6,%ymm2
 	vcmpngtps (%ecx),%ymm6,%ymm2
+	vcmpngt_usps %ymm4,%ymm6,%ymm2
+	vcmpngt_usps (%ecx),%ymm6,%ymm2
 	vcmpfalseps %ymm4,%ymm6,%ymm2
 	vcmpfalseps (%ecx),%ymm6,%ymm2
+	vcmpfalse_oqps %ymm4,%ymm6,%ymm2
+	vcmpfalse_oqps (%ecx),%ymm6,%ymm2
 	vcmpneq_oqps %ymm4,%ymm6,%ymm2
 	vcmpneq_oqps (%ecx),%ymm6,%ymm2
 	vcmpgeps %ymm4,%ymm6,%ymm2
 	vcmpgeps (%ecx),%ymm6,%ymm2
+	vcmpge_osps %ymm4,%ymm6,%ymm2
+	vcmpge_osps (%ecx),%ymm6,%ymm2
 	vcmpgtps %ymm4,%ymm6,%ymm2
 	vcmpgtps (%ecx),%ymm6,%ymm2
+	vcmpgt_osps %ymm4,%ymm6,%ymm2
+	vcmpgt_osps (%ecx),%ymm6,%ymm2
 	vcmptrueps %ymm4,%ymm6,%ymm2
 	vcmptrueps (%ecx),%ymm6,%ymm2
+	vcmptrue_uqps %ymm4,%ymm6,%ymm2
+	vcmptrue_uqps (%ecx),%ymm6,%ymm2
 	vcmpeq_osps %ymm4,%ymm6,%ymm2
 	vcmpeq_osps (%ecx),%ymm6,%ymm2
 	vcmplt_oqps %ymm4,%ymm6,%ymm2
@@ -977,36 +1033,64 @@ _start:
 	vsubsd (%ecx),%xmm6,%xmm2
 	vcmpeqsd %xmm4,%xmm6,%xmm2
 	vcmpeqsd (%ecx),%xmm6,%xmm2
+	vcmpeq_oqsd %xmm4,%xmm6,%xmm2
+	vcmpeq_oqsd (%ecx),%xmm6,%xmm2
 	vcmpltsd %xmm4,%xmm6,%xmm2
 	vcmpltsd (%ecx),%xmm6,%xmm2
+	vcmplt_ossd %xmm4,%xmm6,%xmm2
+	vcmplt_ossd (%ecx),%xmm6,%xmm2
 	vcmplesd %xmm4,%xmm6,%xmm2
 	vcmplesd (%ecx),%xmm6,%xmm2
+	vcmple_ossd %xmm4,%xmm6,%xmm2
+	vcmple_ossd (%ecx),%xmm6,%xmm2
 	vcmpunordsd %xmm4,%xmm6,%xmm2
 	vcmpunordsd (%ecx),%xmm6,%xmm2
+	vcmpunord_qsd %xmm4,%xmm6,%xmm2
+	vcmpunord_qsd (%ecx),%xmm6,%xmm2
 	vcmpneqsd %xmm4,%xmm6,%xmm2
 	vcmpneqsd (%ecx),%xmm6,%xmm2
+	vcmpneq_uqsd %xmm4,%xmm6,%xmm2
+	vcmpneq_uqsd (%ecx),%xmm6,%xmm2
 	vcmpnltsd %xmm4,%xmm6,%xmm2
 	vcmpnltsd (%ecx),%xmm6,%xmm2
+	vcmpnlt_ussd %xmm4,%xmm6,%xmm2
+	vcmpnlt_ussd (%ecx),%xmm6,%xmm2
 	vcmpnlesd %xmm4,%xmm6,%xmm2
 	vcmpnlesd (%ecx),%xmm6,%xmm2
+	vcmpnle_ussd %xmm4,%xmm6,%xmm2
+	vcmpnle_ussd (%ecx),%xmm6,%xmm2
 	vcmpordsd %xmm4,%xmm6,%xmm2
 	vcmpordsd (%ecx),%xmm6,%xmm2
+	vcmpord_qsd %xmm4,%xmm6,%xmm2
+	vcmpord_qsd (%ecx),%xmm6,%xmm2
 	vcmpeq_uqsd %xmm4,%xmm6,%xmm2
 	vcmpeq_uqsd (%ecx),%xmm6,%xmm2
 	vcmpngesd %xmm4,%xmm6,%xmm2
 	vcmpngesd (%ecx),%xmm6,%xmm2
+	vcmpnge_ussd %xmm4,%xmm6,%xmm2
+	vcmpnge_ussd (%ecx),%xmm6,%xmm2
 	vcmpngtsd %xmm4,%xmm6,%xmm2
 	vcmpngtsd (%ecx),%xmm6,%xmm2
+	vcmpngt_ussd %xmm4,%xmm6,%xmm2
+	vcmpngt_ussd (%ecx),%xmm6,%xmm2
 	vcmpfalsesd %xmm4,%xmm6,%xmm2
 	vcmpfalsesd (%ecx),%xmm6,%xmm2
+	vcmpfalse_oqsd %xmm4,%xmm6,%xmm2
+	vcmpfalse_oqsd (%ecx),%xmm6,%xmm2
 	vcmpneq_oqsd %xmm4,%xmm6,%xmm2
 	vcmpneq_oqsd (%ecx),%xmm6,%xmm2
 	vcmpgesd %xmm4,%xmm6,%xmm2
 	vcmpgesd (%ecx),%xmm6,%xmm2
+	vcmpge_ossd %xmm4,%xmm6,%xmm2
+	vcmpge_ossd (%ecx),%xmm6,%xmm2
 	vcmpgtsd %xmm4,%xmm6,%xmm2
 	vcmpgtsd (%ecx),%xmm6,%xmm2
+	vcmpgt_ossd %xmm4,%xmm6,%xmm2
+	vcmpgt_ossd (%ecx),%xmm6,%xmm2
 	vcmptruesd %xmm4,%xmm6,%xmm2
 	vcmptruesd (%ecx),%xmm6,%xmm2
+	vcmptrue_uqsd %xmm4,%xmm6,%xmm2
+	vcmptrue_uqsd (%ecx),%xmm6,%xmm2
 	vcmpeq_ossd %xmm4,%xmm6,%xmm2
 	vcmpeq_ossd (%ecx),%xmm6,%xmm2
 	vcmplt_oqsd %xmm4,%xmm6,%xmm2
@@ -1067,36 +1151,64 @@ _start:
 	vsubss (%ecx),%xmm6,%xmm2
 	vcmpeqss %xmm4,%xmm6,%xmm2
 	vcmpeqss (%ecx),%xmm6,%xmm2
+	vcmpeq_oqss %xmm4,%xmm6,%xmm2
+	vcmpeq_oqss (%ecx),%xmm6,%xmm2
 	vcmpltss %xmm4,%xmm6,%xmm2
 	vcmpltss (%ecx),%xmm6,%xmm2
+	vcmplt_osss %xmm4,%xmm6,%xmm2
+	vcmplt_osss (%ecx),%xmm6,%xmm2
 	vcmpless %xmm4,%xmm6,%xmm2
 	vcmpless (%ecx),%xmm6,%xmm2
+	vcmple_osss %xmm4,%xmm6,%xmm2
+	vcmple_osss (%ecx),%xmm6,%xmm2
 	vcmpunordss %xmm4,%xmm6,%xmm2
 	vcmpunordss (%ecx),%xmm6,%xmm2
+	vcmpunord_qss %xmm4,%xmm6,%xmm2
+	vcmpunord_qss (%ecx),%xmm6,%xmm2
 	vcmpneqss %xmm4,%xmm6,%xmm2
 	vcmpneqss (%ecx),%xmm6,%xmm2
+	vcmpneq_uqss %xmm4,%xmm6,%xmm2
+	vcmpneq_uqss (%ecx),%xmm6,%xmm2
 	vcmpnltss %xmm4,%xmm6,%xmm2
 	vcmpnltss (%ecx),%xmm6,%xmm2
+	vcmpnlt_usss %xmm4,%xmm6,%xmm2
+	vcmpnlt_usss (%ecx),%xmm6,%xmm2
 	vcmpnless %xmm4,%xmm6,%xmm2
 	vcmpnless (%ecx),%xmm6,%xmm2
+	vcmpnle_usss %xmm4,%xmm6,%xmm2
+	vcmpnle_usss (%ecx),%xmm6,%xmm2
 	vcmpordss %xmm4,%xmm6,%xmm2
 	vcmpordss (%ecx),%xmm6,%xmm2
+	vcmpord_qss %xmm4,%xmm6,%xmm2
+	vcmpord_qss (%ecx),%xmm6,%xmm2
 	vcmpeq_uqss %xmm4,%xmm6,%xmm2
 	vcmpeq_uqss (%ecx),%xmm6,%xmm2
 	vcmpngess %xmm4,%xmm6,%xmm2
 	vcmpngess (%ecx),%xmm6,%xmm2
+	vcmpnge_usss %xmm4,%xmm6,%xmm2
+	vcmpnge_usss (%ecx),%xmm6,%xmm2
 	vcmpngtss %xmm4,%xmm6,%xmm2
 	vcmpngtss (%ecx),%xmm6,%xmm2
+	vcmpngt_usss %xmm4,%xmm6,%xmm2
+	vcmpngt_usss (%ecx),%xmm6,%xmm2
 	vcmpfalsess %xmm4,%xmm6,%xmm2
 	vcmpfalsess (%ecx),%xmm6,%xmm2
+	vcmpfalse_oqss %xmm4,%xmm6,%xmm2
+	vcmpfalse_oqss (%ecx),%xmm6,%xmm2
 	vcmpneq_oqss %xmm4,%xmm6,%xmm2
 	vcmpneq_oqss (%ecx),%xmm6,%xmm2
 	vcmpgess %xmm4,%xmm6,%xmm2
 	vcmpgess (%ecx),%xmm6,%xmm2
+	vcmpge_osss %xmm4,%xmm6,%xmm2
+	vcmpge_osss (%ecx),%xmm6,%xmm2
 	vcmpgtss %xmm4,%xmm6,%xmm2
 	vcmpgtss (%ecx),%xmm6,%xmm2
+	vcmpgt_osss %xmm4,%xmm6,%xmm2
+	vcmpgt_osss (%ecx),%xmm6,%xmm2
 	vcmptruess %xmm4,%xmm6,%xmm2
 	vcmptruess (%ecx),%xmm6,%xmm2
+	vcmptrue_uqss %xmm4,%xmm6,%xmm2
+	vcmptrue_uqss (%ecx),%xmm6,%xmm2
 	vcmpeq_osss %xmm4,%xmm6,%xmm2
 	vcmpeq_osss (%ecx),%xmm6,%xmm2
 	vcmplt_oqss %xmm4,%xmm6,%xmm2

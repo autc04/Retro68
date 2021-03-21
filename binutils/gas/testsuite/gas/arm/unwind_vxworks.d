@@ -2,7 +2,7 @@
 #name: Unwind table generation
 # This is the VxWorks variant of this file.
 #source: unwind.s
-#not-skip: *-*-vxworks*
+#noskip: *-*-vxworks*
 
 .*:     file format.*
 

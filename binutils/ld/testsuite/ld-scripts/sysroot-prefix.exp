@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2018 Free Software Foundation, Inc.
+# Copyright (C) 2014-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -164,7 +164,7 @@ proc single_sysroot_prefix_test { type xtestname finalscript ldopt errstr } {
 
     puts $ofd "$finalscript"
     close $ofd
-    verbose -log "script: $finalscript"
+    verbose -log "script $scriptname: $finalscript"
 
     set res [ld_link $ld tmpdir/output "$ldopt tmpdir/main.o -Ltmpdir -lsysroottest"]
     set ld_output "$exec_output"

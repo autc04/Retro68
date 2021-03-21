@@ -2,7 +2,7 @@
 #source: abs.s
 #source: zero.s
 #as: --32 -march=iamcu
-#ld: -m elf_iamcu
+#ld: -m elf_iamcu -z noseparate-code
 #objdump: -rs -j .text
 
 .*:     file format .*

@@ -1,5 +1,5 @@
 # Expect script for Visium tests.
-#   Copyright (C) 2014-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2014-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -24,6 +24,7 @@ if [istarget visium-*-*] {
     run_dump_test "allinsn_def"
     run_dump_test "allinsn_gr5"
     run_dump_test "allinsn_gr6"
+    run_dump_test "bra-1"
     run_dump_test "brr-1"
     run_dump_test "brr-2"
     run_dump_test "high-1"

@@ -41,7 +41,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 1d 04 59          	nopl   \(%ecx,%ebx,2\)
 [ 	]*[a-f0-9]+:	0f 1e 04 59          	nopl   \(%ecx,%ebx,2\)
 [ 	]*[a-f0-9]+:	0f 1f 04 59          	nopl   \(%ecx,%ebx,2\)
-[ 	]*[a-f0-9]+:	0f 1f 00             	nopl   \(%eax\)
 [ 	]*[a-f0-9]+:	0f 1f c0             	nop    %eax
 [ 	]*[a-f0-9]+:	66 0f 1f c0          	nop    %ax
 [ 	]*[a-f0-9]+:	0f 1f 00             	nopl   \(%eax\)

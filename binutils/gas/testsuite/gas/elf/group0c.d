@@ -1,7 +1,7 @@
 #readelf: -sW
 #name: group section name
 #source: group0.s
-#not-target: *-*-solaris*
+#notarget: *-*-solaris*
 
 #...
 .*NOTYPE[ 	]+LOCAL[ 	]+DEFAULT[ 	]+[0-9]+[ 	]+\.foo_group

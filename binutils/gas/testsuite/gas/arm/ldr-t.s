@@ -3,6 +3,7 @@
 .thumb
 	.global foo
 foo:
+	.align 4
 	@ldr-immediate
 
 	@!wback && (n == t)

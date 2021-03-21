@@ -1,8 +1,8 @@
 #objdump: -dr --prefix-addresses --show-raw-insn -mmips:sb1 -M gpr-names=32
 #name: .set arch=FOO
-#stderr: set-arch.l
+#warning_output: set-arch.l
 
-dump\.o:     file format .*
+.*:     file format .*
 
 Disassembly of section \.text:
 00000000 <[^>]*> bc010000 	cache	0x1,0\(zero\)

@@ -11,7 +11,6 @@ foo:
 	vgmh	%v15,253,252
 	vgmf	%v15,253,252
 	vgmg	%v15,253,252
-	vl	%v15,4000(%r6,%r9)
 	vlr	%v15,%v17
 	vlrep	%v15,4000(%r6,%r9),13
 	vlrepb	%v15,4000(%r6,%r9)
@@ -36,7 +35,6 @@ foo:
 	vllezh	%v15,4000(%r6,%r9)
 	vllezf	%v15,4000(%r6,%r9)
 	vllezg	%v15,4000(%r6,%r9)
-	vlm	%v15,%v17,4000(%r6)
 	vlbb	%v15,4000(%r6,%r9),13
 	vlvg	%v15,%r6,4000(%r9),13
 	vlvgb	%v15,%r6,4000(%r9)
@@ -92,12 +90,10 @@ foo:
 	vsegb	%v15,%v17
 	vsegh	%v15,%v17
 	vsegf	%v15,%v17
-	vst	%v15,4000(%r6,%r9)
 	vsteb	%v15,4000(%r6,%r9),13
 	vsteh	%v15,4000(%r6,%r9),13
 	vstef	%v15,4000(%r6,%r9),13
 	vsteg	%v15,4000(%r6,%r9),13
-	vstm	%v15,%v17,4000(%r6)
 	vstl	%v15,%r6,4000(%r9)
 	vuph	%v15,%v17,13
 	vuphb	%v15,%v17
@@ -674,3 +670,11 @@ foo:
 	lzrf	%r6,-10000(%r9,%r11)
 	lzrg	%r6,-10000(%r9,%r11)
 	ppno	%r6,%r9
+	vl		%v15,4000(%r6,%r9)
+	vl		%v15,4000(%r6,%r9),13
+	vlm		%v15,%v17,4000(%r6)
+	vlm		%v15,%v17,4000(%r6),13
+	vst		%v15,4000(%r6,%r9)
+	vst		%v15,4000(%r6,%r9),13
+	vstm		%v15,%v17,4000(%r6)
+	vstm		%v15,%v17,4000(%r6),13

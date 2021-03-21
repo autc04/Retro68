@@ -9,14 +9,6 @@
 .*:25: Warning:.*
 .*:27: Warning:.*
 .*:29: Warning:.*
-.*:39: Warning:.*
-.*:41: Warning:.*
-.*:48: Warning:.*
-.*:51: Warning:.*
-.*:124: Warning:.*
-.*:125: Warning:.*
-.*:126: Warning:.*
-.*:127: Warning:.*
 .*:128: Warning:.*
 .*:129: Warning:.*
 .*:130: Warning:.*
@@ -30,7 +22,11 @@
 .*:142: Warning:.*
 .*:143: Warning:.*
 .*:144: Warning:.*
-.*:178: Warning:.*
+.*:224: Warning:.*
+.*:233: Warning:.*
+.*:234: Warning:.*
+.*:238: Warning:.*
+.*:239: Warning:.*
    1                       	.psize 0
    2                       	.text
    3                       	#test jumps and calls
@@ -79,23 +75,19 @@
   36 007e 1F                		popl	%ds
   37 007f 8CD8              		mov	%ds,%eax
   38 0081 8CD8              		movl	%ds,%eax
-  39 0083 8CD8              		movl	%ds,%ax
-.*Warning:.*
+  39 0083 8CDB              		movl	%ds,%ebx
   40 0085 8ED8              		mov	%eax,%ds
-  41 0087 8ED8              		movl	%ax,%ds
-.*Warning:.*
+  41 0087 8EDB              		movl	%ebx,%ds
   42 0089 8ED8              		movl	%eax,%ds
   43                       	
   44 008b 661E              		pushw	%ds
   45 008d 661F              		popw	%ds
   46 008f 668CD8            		mov	%ds,%ax
   47 0092 668CD8            		movw	%ds,%ax
-  48 0095 668CD8            		movw	%ds,%eax
-.*Warning:.*
+  48 0095 668CDF            		movw	%ds,%di
   49 0098 8ED8              		mov	%ax,%ds
   50 009a 8ED8              		movw	%ax,%ds
-  51 009c 8ED8              		movw	%eax,%ds
-.*Warning:.*
+  51 009c 8EDF              		movw	%di,%ds
   52                       	
   53                       	# test various pushes
   54 009e 6A0A              		pushl	\$10
@@ -167,15 +159,11 @@
  120 012e 0F9303            		setaeb	\(%ebx\)
  121 0131 0F93C0            		setae	%al
  122                       	
- 123                       	#these should give warnings
- 124 0134 0C01              		orb	\$1,%ax
-.*Warning:.*
- 125 0136 0C01              		orb	\$1,%eax
-.*Warning:.*
- 126 0138 80CB01            		orb	\$1,%bx
-.*Warning:.*
- 127 013b 80CB01            		orb	\$1,%ebx
-.*Warning:.*
+ 123 0134 0C01              		orb	\$1,%al
+ 124 0136 0D000100 00       		orl	\$0x100,%eax
+ 125 013b 80CB01            		orb	\$1,%bl
+ 126                       	
+ 127                       	#these should give warnings
  128 013e D9C1              		fldl	%st\(1\)
 .*Warning:.*
  129 0140 DDD2              		fstl	%st\(2\)
@@ -239,8 +227,7 @@
  175 01a9 66F7F1            		div	%cx,%ax
  176 01ac F7F1              		div	%ecx,%eax
  177 01ae 8EDE              		mov	%si,%ds
- 178 01b0 8EDE              		movl	%si,%ds		# warning here
-.*Warning:.*
+ 178 01b0 8EDF              		movl	%edi,%ds
  179 01b2 1E                		pushl	%ds
  180 01b3 1E                		push	%ds
  181 01b4 A0000000 00       		mov	0,%al
@@ -282,5 +269,58 @@
  216 0226 660FB6F8          		movzb	%al,%di
  217 022a 0FB6C8            		movzb	%al,%ecx
  218                       	
- 219                       		# Force a good alignment.
- 220 022d 000000            		.p2align	4,0
+ 219                       	.code16gcc
+[ 	]*[1-9][0-9]*[ 	]*# Except for IRET use 32-bit implicit stack accesses by default.
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+66E8FAFF FFFF[ 	]+call	\.
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+66FF17[ 	]+call	\*\(%bx\)
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+66C80000 00[ 	]+enter	\$0,\$0
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+CF[ 	]+iret
+.*Warning:.*16-bit.*iret.*
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+66FF1F[ 	]+lcall	\*\(%bx\)
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+669A0000 00000000[ 	]+lcall	\$0,\$0
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+66C9[ 	]+leave
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+66CB[ 	]+lret
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+66CA0000[ 	]+lret	\$0
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+666A00[ 	]+push	\$0
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+66683412 0000[ 	]+push	\$0x1234
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+66FF37[ 	]+push	\(%bx\)
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+6606[ 	]+push	%es
+.*Warning:.*32-bit.*push.*
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+660FA0[ 	]+push	%fs
+.*Warning:.*32-bit.*push.*
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+6660[ 	]+pusha
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+669C[ 	]+pushf
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+668F07[ 	]+pop	\(%bx\)
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+6607[ 	]+pop	%es
+.*Warning:.*32-bit.*pop.*
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+660FA1[ 	]+pop	%fs
+.*Warning:.*32-bit.*pop.*
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+6661[ 	]+popa
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+669D[ 	]+popf
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+66C3[ 	]+ret
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+66C20000[ 	]+ret	\$0
+[ 	]*[1-9][0-9]*[ 	]*
+[ 	]*[1-9][0-9]*[ 	]*# However use 16-bit branches not accessing the stack by default.
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+77FE[ 	]+ja	\.
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+0F873012[ 	]+ja	\.\+0x1234
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+E3FE[ 	]+jcxz	\.
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+EBFE[ 	]+jmp	\.
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+E93112[ 	]+jmp	\.\+0x1234
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+FF27[ 	]+jmp	\*\(%bx\)
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+FF2F[ 	]+ljmp	\*\(%bx\)
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+EA000000 00[ 	]+ljmp	\$0,\$0
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+E2FE[ 	]+loop	\.
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+0F05[ 	]+syscall
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+0F34[ 	]+sysenter
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+0F35[ 	]+sysexit
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+0F07[ 	]+sysret
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+C7F8FCFF[ 	]+xbegin	\.
+[ 	]*[1-9][0-9]*[ 	]*
+[ 	]*[1-9][0-9]*[ 	]*# Use 16-bit layout by default for fldenv.
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+67D920[ 	]+fldenv	\(%eax\)
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+67D920[ 	]+fldenvs	\(%eax\)
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f]*[ 	]+6766D920[ 	]+fldenvl	\(%eax\)
+[ 	]*[1-9][0-9]*[ 	]*
+[ 	]*[1-9][0-9]*[ 	]*# Force a good alignment.
+[ 	]*[1-9][0-9]*[ 	]+[0-9a-f 	]+\.p2align	4,0
+#pass

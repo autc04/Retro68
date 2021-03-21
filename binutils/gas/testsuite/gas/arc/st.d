@@ -13,7 +13,7 @@ Disassembly of section .text:
   10:	1a02 004c           	st[hw]+.aw	r1,\[r2,2\]
   14:	1e00 7040 0000 0384 	st	r1,\[0x384\]
   1c:	1a00 0003           	stb	0,\[r2\]
-  20:	1af8 8e01           	st	56,\[r2,-8\]
+  20:	1af8 8e01           	st	-8,\[r2,-8\]
   24:	1e00 7080 0000 0000 	st	r2,\[0\]
 			28: R_ARC_32_ME	foo
   2c:	1a02 0060           	st.di	r1,\[r2,2\]

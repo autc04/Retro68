@@ -144,3 +144,6 @@ func:
 	gen1reg_iter ldapursw x,", [sp]"
 	gen3reg_iter ldapursw x,, [x,,,]
 	gen2reg_iter_offset ldapursw x,,sp
+
+	cfinv
+

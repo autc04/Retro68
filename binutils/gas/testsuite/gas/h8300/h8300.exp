@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Free Software Foundation, Inc.
+# Copyright (C) 2012-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -417,11 +417,13 @@ proc do_h8300_misc {} {
 	    -re " +\[0-9\]+ 0000 7B5C598F\[^\n\]*\n"   { set x [expr $x+1] }
 	    -re " +\[0-9\]+ 0004 0700\[^\n\]*\n"   { set x [expr $x+1] }
 	    -re " +\[0-9\]+ 0006 0308\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0008 0000\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 000a 5670\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 000c 5470\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 000e 0180\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0010 0208\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 6A480010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 6AC80010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 5670\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 5470\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 0180\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 0208\[^\n\]*\n"   { set x [expr $x+1] }
 	    eof					{ break }
 	}
     }
@@ -431,10 +433,8 @@ proc do_h8300_misc {} {
     gas_finish
 
     # Did we find what we were looking for?  If not, flunk it.
-    if [expr $x == 8] then { pass $testname } else { fail $testname }
+    if [expr $x == 10] then { pass $testname } else { fail $testname }
 
-    setup_xfail "h8300*-*-*"
-    fail "h8300 movfpe/movtpe tests"
 }
 
 proc do_h8300_movb {} {
@@ -1025,17 +1025,19 @@ proc do_h8300h_misc {} {
 	    -re " +\[0-9\]+ 0020 01406D00\[^\n\]*\n"   { set x [expr $x+1] }
 	    -re " +\[0-9\]+ 0024 01406B00\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
 	    -re " +\[0-9\]+ 002a 01406B20\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0032 0000\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0034 5670\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0036 5470\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0038 0180\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 003a 0208\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 003c 01406980\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0040 01406F80\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0046 01407800\[^\n\]*\n +\[0-9\]+ +6BA00000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0050 01406D80\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0054 01406B80\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 005a 01406BA0\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0032 6A480010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0036 6AC80010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003a 0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003c 5670\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003e 5470\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0040 0180\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0042 0208\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0044 01406980\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0048 01406F80\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004e 01407800\[^\n\]*\n +\[0-9\]+ +6BA00000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0058 01406D80\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 005c 01406B80\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0062 01406BA0\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
 	    eof					{ break }
 	}
     }
@@ -1045,10 +1047,8 @@ proc do_h8300h_misc {} {
     gas_finish
 
     # Did we find what we were looking for?  If not, flunk it.
-    if [expr $x == 21] then { pass $testname } else { fail $testname }
+    if [expr $x == 23] then { pass $testname } else { fail $testname }
 
-    setup_xfail "h8300*-*-*"
-    fail "h8300h movfpe/movtpe tests"
 }
 
 proc do_h8300h_movb {} {
@@ -1776,24 +1776,26 @@ proc do_h8300s_misc {} {
 	    -re " +\[0-9\]+ 004c 01416D00\[^\n\]*\n"   { set x [expr $x+1] }
 	    -re " +\[0-9\]+ 0050 01416B00\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
 	    -re " +\[0-9\]+ 0056 01416B20\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 005e 0000\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0060 5670\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0062 5470\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0064 0180\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0066 0208\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0068 0218\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 006a 01406980\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 006e 01406F80\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0074 01407800\[^\n\]*\n +\[0-9\]+ +6BA00000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 007e 01406D80\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0082 01406B80\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0088 01406BA0\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0090 01416980\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 0094 01416F80\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 009a 01417800\[^\n\]*\n +\[0-9\]+ +6BA00000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 00a4 01416D80\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 00a8 01416B80\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
-	    -re " +\[0-9\]+ 00ae 01416BA0\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 005e 6A480010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0062 6AC80010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0066 0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0068 5670\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 006a 5470\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 006c 0180\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 006e 0208\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0070 0218\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0072 01406980\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0076 01406F80\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 007c 01407800\[^\n\]*\n +\[0-9\]+ +6BA00000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0086 01406D80\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 008a 01406B80\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0090 01406BA0\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0098 01416980\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 009c 01416F80\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 00a2 01417800\[^\n\]*\n +\[0-9\]+ +6BA00000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 00ac 01416D80\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 00b0 01416B80\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 00b6 01416BA0\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
 	    eof					{ break }
 	}
     }
@@ -1803,10 +1805,7 @@ proc do_h8300s_misc {} {
     gas_finish
 
     # Did we find what we were looking for?  If not, flunk it.
-    if [expr $x == 36] then { pass $testname } else { fail $testname }
-
-    setup_xfail "h8300*-*-*"
-    fail "h8300s movfpe/movtpe tests"
+    if [expr $x == 38] then { pass $testname } else { fail $testname }
 }
 
 proc do_h8300s_movb {} {

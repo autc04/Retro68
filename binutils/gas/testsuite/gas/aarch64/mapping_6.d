@@ -1,4 +1,5 @@
 #objdump: --syms --special-syms
+#as: --generate-missing-build-notes=no
 #name: AArch64 Mapping Symbols Test 6
 
 .*: +file format.*aarch64.*

@@ -2,7 +2,7 @@
 
 # incremental_test.sh -- test that incremental linking information is correct.
 
-# Copyright (C) 2009-2018 Free Software Foundation, Inc.
+# Copyright (C) 2009-2020 Free Software Foundation, Inc.
 # Written by Rafael Avila de Espindola <espindola@google.com>
 # and Cary Coutant <ccoutant@google.com>
 
@@ -49,7 +49,7 @@ check()
 
 # Extract actual command line from linker's -v output.
 cat incremental_test.cmdline |
-  grep "gcctestdir/ld " |
+  grep "gcctestdir/\(collect-\)\?ld " |
   sed "s/--incremental[-a-z]* //g" |
   cut -d ' ' -f 2- > actual
 

@@ -391,6 +391,71 @@
 
 	nop
 
+	repz; movaps %xmm7, %xmm7
+	int $3
+
+# "repz" vmovaps %xmm7, %xmm7
+	.byte 0xc5
+	.byte 0xfa
+	.byte 0x28
+	.byte 0xff
+
+	int $3
+
+# "repnz" {vex3} vmovaps %xmm7, %xmm7
+	.byte 0xc4
+	.byte 0xe1
+	.byte 0x7b
+	.byte 0x28
+	.byte 0xff
+
+	int $3
+
+# "EVEX.W1" vmovaps %xmm7, %xmm7
+	.byte 0x62
+	.byte 0xf1
+	.byte 0xfc
+	.byte 0x08
+	.byte 0x28
+	.byte 0xff
+
+	int $3
+
+# "repz" vmovaps %xmm7, %xmm7
+	.byte 0x62
+	.byte 0xf1
+	.byte 0x7e
+	.byte 0x08
+	.byte 0x28
+	.byte 0xff
+
+	int $3
+
+# "EVEX.W0" vmovapd %xmm7, %xmm7
+	.byte 0x62
+	.byte 0xf1
+	.byte 0x7d
+	.byte 0x08
+	.byte 0x28
+	.byte 0xff
+
+	int $3
+
+# "repnz" vmovapd %xmm7, %xmm7
+	.byte 0x62
+	.byte 0xf1
+	.byte 0xff
+	.byte 0x08
+	.byte 0x28
+	.byte 0xff
+
+	int $3
+
+	.byte 0x66; vmovaps %xmm0, %xmm0
+	repz; {vex3} vmovaps %xmm0, %xmm0
+	repnz; vmovaps %xmm0, %xmm0
+	lock; {evex} vmovaps %xmm0, %xmm0
+
 	vcvtpd2dqx 0x20(%eax),%xmm0
 	vcvtpd2dq 0x20(%eax){1to2},%xmm0
 	vcvtpd2dqx 0x20(%eax),%xmm0

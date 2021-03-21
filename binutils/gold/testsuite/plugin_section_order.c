@@ -1,6 +1,6 @@
 /* plugin_section_reorder.c -- Simple plugin to reorder function sections
 
-   Copyright (C) 2011-2017 Free Software Foundation, Inc.
+   Copyright (C) 2011-2020 Free Software Foundation, Inc.
    Written by Sriraman Tallam <tmsriram@google.com>.
 
    This file is part of gold.

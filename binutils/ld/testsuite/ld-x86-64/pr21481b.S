@@ -1,4 +1,4 @@
-	.section	.rodata.str1.1,"aMS",@progbits,1
+	.section .rodata.foo,"aMS",@progbits,1,unique,1
 .LC0:
 	.string	"PASS"
 	.text
@@ -40,7 +40,7 @@ call_func1:
 	jmp	*func1@GOTPCREL(%rip)
 	.size	call_func1, .-call_func1
 	.globl	func1_p
-	.section	.rodata,"a",@progbits
+	.section .rodata.foo,"a",@progbits,unique,2
 	.align 8
 	.size	func1_p, 8
 	.type	func1_p, @object

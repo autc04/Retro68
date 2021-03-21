@@ -1,8 +1,7 @@
 #source: pr19636-2.s
 #as: --32 -mrelax-relocations=no
-#ld: -shared -Bsymbolic -m elf_i386
+#ld: -shared -Bsymbolic -m elf_i386 -z notext
 #readelf : -r --wide --dyn-syms
-#notarget: i?86-*-nacl* x86_64-*-nacl*
 
 Relocation section '\.rel\.dyn' at offset [0x0-9a-f]+ contains 3 entries:
  +Offset +Info +Type +Sym. Value +Symbol's Name

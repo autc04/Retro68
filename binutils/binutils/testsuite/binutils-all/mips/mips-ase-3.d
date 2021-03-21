@@ -1,7 +1,6 @@
 #PROG: objcopy
 #objdump: -dp --prefix-addresses --show-raw-insn
 #name: MIPS ELF file ASE information interpretation for disassembly 3
-#as: -32
 #objcopy: -R .MIPS.abiflags
 #source: mips-ase-2.s
 

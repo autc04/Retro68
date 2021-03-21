@@ -1,6 +1,7 @@
+#source: ./stz.s
 #objdump: -dr
 
-dump\.o:     file format .*
+.*:     file format .*
 
 
 Disassembly of section \.text:

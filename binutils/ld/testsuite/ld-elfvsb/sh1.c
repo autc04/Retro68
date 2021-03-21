@@ -203,7 +203,7 @@ visibility ()
 #endif
 
 #ifdef HIDDEN_NORMAL_TEST
-asm (".hidden visibility_normal");
+__asm__ (".hidden visibility_normal");
 
 int
 visibility_normal ()
@@ -265,7 +265,7 @@ int visibility_var = 2;
 #endif
 
 #ifdef HIDDEN_NORMAL_TEST
-asm (".hidden visibility_var_normal");
+__asm__ (".hidden visibility_var_normal");
 
 int visibility_var_normal = 2;
 #endif
@@ -325,18 +325,18 @@ visibility_varval ()
 }
 
 #if defined (HIDDEN_TEST) || defined (HIDDEN_UNDEF_TEST)
-asm (".hidden visibility");
-asm (".hidden visibility_var");
+__asm__ (".hidden visibility");
+__asm__ (".hidden visibility_var");
 #else
 #if defined (PROTECTED_TEST) || defined (PROTECTED_UNDEF_TEST) || defined (PROTECTED_WEAK_TEST)
-asm (".protected visibility");
-asm (".protected visibility_var");
+__asm__ (".protected visibility");
+__asm__ (".protected visibility_var");
 #endif
 #endif
 
 #ifdef HIDDEN_NORMAL_TEST
 int shlib_visibility_com;
-asm (".hidden shlib_visibility_com");
+__asm__ (".hidden shlib_visibility_com");
 
 int
 shlib_visibility_checkcom ()
@@ -352,19 +352,19 @@ shlib_visibility_checkweak ()
 #elif defined (HIDDEN_WEAK_TEST)
 #pragma weak shlib_visibility_undef_var_weak
 extern int shlib_visibility_undef_var_weak;
-asm (".hidden shlib_visibility_undef_var_weak");
+__asm__ (".hidden shlib_visibility_undef_var_weak");
 
 #pragma weak shlib_visibility_undef_func_weak
 extern int shlib_visibility_undef_func_weak ();
-asm (".hidden shlib_visibility_undef_func_weak");
+__asm__ (".hidden shlib_visibility_undef_func_weak");
 
 #pragma weak shlib_visibility_var_weak
 extern int shlib_visibility_var_weak;
-asm (".hidden shlib_visibility_var_weak");
+__asm__ (".hidden shlib_visibility_var_weak");
 
 #pragma weak shlib_visibility_func_weak
 extern int shlib_visibility_func_weak ();
-asm (".hidden shlib_visibility_func_weak");
+__asm__ (".hidden shlib_visibility_func_weak");
 
 int
 shlib_visibility_checkcom ()

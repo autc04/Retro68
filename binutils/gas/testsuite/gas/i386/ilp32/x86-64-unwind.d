@@ -1,3 +1,4 @@
+#as: -mx86-used-note=no --generate-missing-build-notes=no
 #source: ../x86-64-unwind.s
 #readelf: -S
 #name: x86-64 (ILP32) unwind

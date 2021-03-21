@@ -59,17 +59,17 @@ Disassembly of section .text:
   b0:	3d 7b ff 0f 	tbitb	\$0x3,0xfff:m\(r13\)
   b4:	3d 7b ff ff 	tbitb	\$0x3,0xffff:m\(r13\)
   b8:	3c 7b 43 23 	tbitb	\$0x3,0x2343:m\(r12\)
-  bc:	10 00 32 c1 	tbitb	\$0x3,0x2345:l\(r2\)
+  bc:	10 00 32 c1 	tbitb	\$0x3,0x12345:l\(r2\)
   c0:	45 23 
-  c2:	10 00 38 c4 	tbitb	\$0x3,0xabcd:l\(r8\)
+  c2:	10 00 38 c4 	tbitb	\$0x3,0x4abcd:l\(r8\)
   c6:	cd ab 
   c8:	10 00 3d df 	tbitb	\$0x3,0xfabcd:l\(r13\)
   cc:	cd ab 
-  ce:	10 00 38 cf 	tbitb	\$0x3,0xabcd:l\(r8\)
+  ce:	10 00 38 cf 	tbitb	\$0x3,0xfabcd:l\(r8\)
   d2:	cd ab 
-  d4:	10 00 39 cf 	tbitb	\$0x3,0xabcd:l\(r9\)
+  d4:	10 00 39 cf 	tbitb	\$0x3,0xfabcd:l\(r9\)
   d8:	cd ab 
-  da:	10 00 39 c4 	tbitb	\$0x3,0xabcd:l\(r9\)
+  da:	10 00 39 c4 	tbitb	\$0x3,0x4abcd:l\(r9\)
   de:	cd ab 
   e0:	31 7a       	tbitb	\$0x3,0x0:s\(r2,r1\)
   e2:	51 7b 01 00 	tbitb	\$0x5,0x1:m\(r2,r1\)

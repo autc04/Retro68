@@ -1,7 +1,8 @@
 SECTIONS
 {
-  .text : {*(.text)}
+  .text : {*(.text .pr)}
   . = ALIGN(data_align);
-  .data : {*(.data)}
+  .data : {*(.data .rw)}
+  .bss : {*(.bss)}
   /DISCARD/ : {*(*)}
 }

@@ -1,7 +1,7 @@
 # as: -march=armv6t2 -mbig-endian
 # objdump: -dr --prefix-addresses --show-raw-insn
 # This test is only valid on ELF based ports.
-#not-target: *-*-pe *-*-wince
+#notarget: *-*-pe *-*-wince
 #name: Thumb2 vldr with immediate constant
 #source: thumb2_vpool.s
 

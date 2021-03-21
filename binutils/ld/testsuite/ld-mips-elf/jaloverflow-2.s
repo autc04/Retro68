@@ -2,6 +2,7 @@
 # overflowing
 
 	.globl	start
+	.type	start, @function
 	.weak	foo
 start:
 	jal	foo

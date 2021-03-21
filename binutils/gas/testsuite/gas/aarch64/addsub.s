@@ -1,6 +1,6 @@
 /* addsub.s Test file for AArch64 add-subtract instructions.
 
-   Copyright (C) 2012-2018 Free Software Foundation, Inc.
+   Copyright (C) 2012-2020 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.

@@ -6,32 +6,37 @@ note1.s:
 	
 	.pushsection .gnu.build.attributes, "0x100000", %note
 	.balign 4
-	.dc.l 4
-	.dc.l 4
+	.dc.l 8
+	.dc.l 8
 	.dc.l 0x100
-	.asciz "$1"
+	.asciz "GA$3p1"
 	.dc.l 0x100
+	.dc.l 0x104
 
-	.dc.l 12
+	.dc.l 14
 	.dc.l 0
 	.dc.l 0x100
-	.asciz "$gcc 7.0.1"
+	.asciz "GA$gcc 7.0.1"
+	.dc.b 0,0
 
-	.dc.l 3
+	.dc.l 5
 	.dc.l 0
 	.dc.l 0x100
-	.dc.b 0x2b, 0x2, 0
-	.dc.b 0
+	.dc.b 0x47, 0x41, 0x2b, 0x2, 0
+	.dc.b 0,0,0
 
-	.dc.l 4
+	.dc.l 6
 	.dc.l 0
 	.dc.l 0x100
-	.dc.b 0x2a, 0x7, 0, 0
+	.dc.b 0x47, 0x41, 0x2a, 0x7, 0, 0
+	.dc.b 0,0
 
-	.dc.l 4
+	.dc.l 6
 	.dc.l 0
 	.dc.l 0x100
-	.dc.b 0x2a, 0x6, 0, 0
+	.dc.b 0x47, 0x41, 0x2a, 0x6, 0, 0
+	.dc.b 0,0
+	
 	.popsection
 
 
@@ -42,33 +47,38 @@ func1:
 	.dc.l 0x100
 	
 	.pushsection .gnu.build.attributes, "0x100000", %note
-	.dc.l 4 	
-	.dc.l 4		
+	.dc.l 8	
+	.dc.l 8		
 	.dc.l 0x100	
-	.asciz "$1"	
+	.asciz "GA$3p1"	
 	.dc.l 0x104	
-
-	.dc.l 12 	
-	.dc.l 0		
-	.dc.l 0x100	
-	.asciz "$gcc 7.0.1"	
-
-	.dc.l 3		
-	.dc.l 0		
-	.dc.l 0x100	
-	.dc.b 0x21, 0x2, 0
-	.dc.b 0 	
-
-	.dc.l 4		
-	.dc.l 4		
-	.dc.l 0x101	
-	.dc.b 0x2a, 0x7, 1, 0
-	.dc.l 0x104	
+	.dc.l 0x108
 	
-	.dc.l 4		
+	.dc.l 14 	
 	.dc.l 0		
 	.dc.l 0x100	
-	.dc.b 0x2a, 0x6, 0, 0
+	.asciz "GA$gcc 7.0.1"
+	.dc.b 0,0
+
+	.dc.l 5	
+	.dc.l 0		
+	.dc.l 0x100	
+	.dc.b 0x47, 0x41, 0x21, 0x2, 0
+	.dc.b 0,0,0
+
+	.dc.l 6	
+	.dc.l 8		
+	.dc.l 0x101	
+	.dc.b 0x47, 0x41, 0x2a, 0x7, 1, 0
+	.dc.b 0,0
+	.dc.l 0x104
+	.dc.l 0x106
+	
+	.dc.l 6
+	.dc.l 0		
+	.dc.l 0x100	
+	.dc.b 0x47, 0x41, 0x2a, 0x6, 0, 0
+	.dc.b 0,0
 	.popsection
 
 	
@@ -77,16 +87,18 @@ note3.s:
 	.dc.l 0x100
 	
 	.pushsection .gnu.build.attributes, "0x100000", %note
-	.dc.l 4 	
-	.dc.l 4		
+	.dc.l 8	
+	.dc.l 8		
 	.dc.l 0x100	
-	.asciz "$1"	
+	.asciz "GA$3p1"	
 	.dc.l 0x108
+	.dc.l 0x10b
 
-	.dc.l 12 	
+	.dc.l 14	
 	.dc.l 0		
 	.dc.l 0x100	
-	.asciz "$gcc 7.0.1"	
+	.asciz "GA$gcc 7.0.1"
+	.dc.b 0,0
 
 	.popsection
 	

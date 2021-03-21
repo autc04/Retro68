@@ -1,6 +1,6 @@
 # name: R_ARM_GOT_PREL relocation
 # source: got_prel.s
-# as: -march=armv5te -meabi=5
+# as: -march=armv5te -meabi=5 --generate-missing-build-notes=no
 # readelf: -x 4 -r
 # target: *-*-*eabi* *-*-symbianelf *-*-linux-* *-*-elf *-*-nacl*
 

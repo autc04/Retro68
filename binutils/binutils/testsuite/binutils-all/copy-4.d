@@ -2,7 +2,7 @@
 #source: bintest.s
 #strip: --strip-unneeded
 #nm: -n
-#not-target: *-*-aix* *-*-linuxecoff
+#notarget: [is_xcoff_format] *-*-linuxecoff
 #name: strip --strip-unneeded on common symbol
 
 #...

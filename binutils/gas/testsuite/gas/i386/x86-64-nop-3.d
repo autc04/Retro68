@@ -1,6 +1,7 @@
 #source: nop-3.s
 #objdump: -drw
 #name: x86-64 .nops 3
+#notarget: *-*-solaris*
 
 .*: +file format .*
 
@@ -17,5 +18,5 @@ Disassembly of section .text:
 Disassembly of section .altinstr_replacement:
 
 0+ <.altinstr_replacement>:
- +[a-f0-9]+:	e9 00 00 00 00       	jmpq   5 <_start\+0x5>	1: R_X86_64_PLT32	foo-0x4
+ +[a-f0-9]+:	e9 00 00 00 00       	jmp    5 <_start\+0x5>	1: R_X86_64_PLT32	foo-0x4
 #pass

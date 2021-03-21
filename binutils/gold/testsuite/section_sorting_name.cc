@@ -1,6 +1,6 @@
 // section_sorting_name.cc -- a test case for gold
 
-// Copyright (C) 2013-2018 Free Software Foundation, Inc.
+// Copyright (C) 2013-2020 Free Software Foundation, Inc.
 // Written by Alexander Ivchenko <alexander.ivchenko@intel.com>.
 
 // This file is part of gold.
@@ -46,6 +46,49 @@ int vbss_0001  __attribute__((section(".bss.0001"))) = 0;
 extern "C"
 __attribute__ ((section(".text.hot0002")))
 int hot_foo_0002()
+{
+  return 1;
+}
+
+extern "C"
+__attribute__ ((section(".text.sorted.0002")))
+int sorted_foo_0002()
+{
+  return 1;
+}
+
+extern "C"
+__attribute__ ((section(".text.sorted.0001.abc")))
+int sorted_foo_0001_abc()
+{
+  return 1;
+}
+
+
+extern "C"
+__attribute__ ((section(".text.sorted.0001")))
+int sorted_foo_0001()
+{
+  return 1;
+}
+
+extern "C"
+__attribute__ ((section(".text.sorted.0003")))
+int sorted_foo_0003()
+{
+  return 1;
+}
+
+extern "C"
+__attribute__ ((section(".text.sorted.z")))
+int sorted_foo_z()
+{
+  return 1;
+}
+
+extern "C"
+__attribute__ ((section(".text.sorted.y")))
+int sorted_foo_y()
 {
   return 1;
 }

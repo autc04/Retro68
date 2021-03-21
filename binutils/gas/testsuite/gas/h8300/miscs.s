@@ -19,8 +19,8 @@ h8300s_misc:
 	ldc.w @er0+,exr
 	ldc.w @h8300s_misc:16,exr
 	ldc.w @h8300s_misc:32,exr
-;	movfpe 16:16,r0l
-;	movtpe r0l,16:16
+	movfpe @16:16,r0l
+	movtpe r0l,@16:16
 	nop
 	rte
 	rts

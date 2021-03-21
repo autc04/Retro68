@@ -107,6 +107,9 @@
 /* Define to 1 if you have the `fileno' function. */
 #undef HAVE_FILENO
 
+/* Define to 1 if you have the `fls' function. */
+#undef HAVE_FLS
+
 /* Define to 1 if you have the `fopen64' function. */
 #undef HAVE_FOPEN64
 
@@ -139,6 +142,9 @@
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the <limits.h> header file. */
+#undef HAVE_LIMITS_H
 
 /* Define to 1 if the system has the type `long double'. */
 #undef HAVE_LONG_DOUBLE
@@ -413,3 +419,6 @@
 
 /* Define to 1 if you need to in order for `stat' and other things to work. */
 #undef _POSIX_SOURCE
+
+/* Use structured /proc on Solaris. */
+#undef _STRUCTURED_PROC

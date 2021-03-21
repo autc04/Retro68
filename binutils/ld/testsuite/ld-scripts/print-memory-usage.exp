@@ -1,6 +1,6 @@
 # Test --print-memory-usage linker functionality
 # By Tristan Gingold, AdaCore
-#   Copyright (C) 2015-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2015-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -29,8 +29,7 @@ if { [istarget mips*-*-*]
      || [istarget pdp11*-*-*]
      || [istarget tic30*-*-*]
      || [istarget tic54x*-*-*]
-     || [istarget *-*-aix*]
-     || [istarget *-*-xcoff*] } {
+     || [is_xcoff_format] } {
     return
 }
 

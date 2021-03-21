@@ -1,5 +1,5 @@
 # Expect script for ld-mep tests
-#   Copyright (C) 2002-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -30,7 +30,7 @@ if ![istarget mep*-*-*] {
 set testbsrweak "MeP bsr to undefined weak function"
 
 if ![ld_assemble $as "$srcdir/$subdir/mep1.s" tmpdir/mep1.o] {
-    unresolved $testbsrweak
+    fail $testbsrweak
 } else { if ![ld_link $ld tmpdir/mep1 "-T$srcdir/$subdir/mep1.ld tmpdir/mep1.o"] {
     fail $testbsrweak
 } else {

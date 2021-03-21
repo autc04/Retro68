@@ -1,6 +1,6 @@
 #source: pr19807-2.s
 #as: --64
-#ld: -pie -melf_x86_64 -z noreloc-overflow
+#ld: -pie -melf_x86_64 -z noreloc-overflow -z notext
 #readelf: -r --wide
 
 Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 1 entry:

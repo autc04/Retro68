@@ -1,4 +1,4 @@
-#readelf: -S
+#readelf: -S -T
 #name: ia64 unwind section
 
 There are 9 section headers, starting at offset .*:

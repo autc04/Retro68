@@ -2,7 +2,8 @@ NOCROSSREFS ( .text .data )
 x = ABSOLUTE(x);
 SECTIONS
 { 
-  .text : { *(.text) }
-  .data : { *(.data) }
+  .text : { *(.text .pr) }
+  .data : { *(.data .rw) }
+  .bss : { *(.bss) }
   /DISCARD/ : { *(*) }
 }

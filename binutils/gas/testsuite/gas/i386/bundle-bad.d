@@ -1,2 +1,2 @@
 #name: .bundle_align_mode diagnostics
-#error-output: bundle-bad.l
+#error_output: bundle-bad.l

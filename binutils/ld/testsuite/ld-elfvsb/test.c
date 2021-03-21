@@ -1,10 +1,10 @@
 #pragma weak main_hidden_data
 extern int main_hidden_data;
-asm (".hidden main_hidden_data");
+__asm__ (".hidden main_hidden_data");
  
 #pragma weak main_hidden_func
 extern int main_hidden_func ();
-asm (".hidden main_hidden_func");
+__asm__ (".hidden main_hidden_func");
 
 int
 _start (void)

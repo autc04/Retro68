@@ -11,4 +11,7 @@ __start:
 	.type main,"function"
 	.global main
 main:
+	.type _main,"function"
+	.global _main
+_main:
 	.long 0

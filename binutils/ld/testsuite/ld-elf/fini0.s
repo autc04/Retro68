@@ -7,6 +7,8 @@ _start:
 __start:
 	.global main	/* Used by HPPA targets.  */
 main:
+	.globl	_main	/* Used by LynxOS targets.  */
+_main:
 	.dc.a 0
 
 	.section .fini, "a"

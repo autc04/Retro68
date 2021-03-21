@@ -1,7 +1,7 @@
 #PROG: objcopy
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: Mixed MIPS and microMIPS disassembly
-#as: -32 -mips2
+#as: -mips2
 
 # Test mixed-mode disassembly in overlapping sections.
 

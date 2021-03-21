@@ -211,8 +211,8 @@ foo:
  fistl  0x90909090(%eax)
  fcoml  0x90909090(%eax)
  fstl   0x90909090(%eax)
- ficom  0x90909090(%eax)
- fist   0x90909090(%eax)
+ ficoms 0x90909090(%eax)
+ fists  0x90909090(%eax)
  loopne .+2-0x70
  loope  .+2-0x70
  loop   .+2-0x70

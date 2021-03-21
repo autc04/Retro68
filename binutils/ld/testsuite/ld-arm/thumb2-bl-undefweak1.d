@@ -1,5 +1,6 @@
 #source: thumb2-bl-undefweak1.s
 #as:
+#target: [check_shared_lib_support]
 #ld: -shared
 #objdump: -dr
 #...

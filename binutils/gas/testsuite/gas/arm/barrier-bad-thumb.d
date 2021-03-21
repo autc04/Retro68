@@ -2,4 +2,4 @@
 #skip: *-*-pe *-*-wince
 #source: barrier-bad.s
 #as: -mthumb
-#error-output: barrier-bad.l
+#error_output: barrier-bad.l

@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-#   Copyright (C) 2012-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2012-2020 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -338,6 +338,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 INSTOBJEXT = @INSTOBJEXT@
+LARGEFILE_CPPFLAGS = @LARGEFILE_CPPFLAGS@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
 LIBINTL = @LIBINTL@
@@ -439,14 +440,14 @@ top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign no-dist no-texinfo.tex info-in-builddir
 ACLOCAL_AMFLAGS = -I .. -I ../config -I ../bfd
 TEXINFO_TEX = ../texinfo/texinfo.tex
-SUFFIXES = .m
+SUFFIXES = .c .m
 SUBDIRS = po
 BASEDIR = $(srcdir)/..
 BFDDIR = $(BASEDIR)/bfd
 INCDIR = $(BASEDIR)/include
 AM_CFLAGS = $(WARN_CFLAGS)
 AM_CPPFLAGS = -DDEBUG -I../bfd -I$(srcdir)/../include \
-	-I$(srcdir)/../bfd @INCINTL@ -I. \
+	-I$(srcdir)/../bfd @INCINTL@ @LARGEFILE_CPPFLAGS@ -I. \
 	-DLOCALEDIR="\"$(datadir)/locale\""
 
 sources = basic_blocks.c call_graph.c cg_arcs.c cg_dfn.c \
@@ -481,7 +482,7 @@ all: $(BUILT_SOURCES) gconfig.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
 .SUFFIXES:
-.SUFFIXES: .m .c .dvi .lo .o .obj .ps
+.SUFFIXES: .c .m .dvi .lo .o .obj .ps
 am--refresh: Makefile
 	@:
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)

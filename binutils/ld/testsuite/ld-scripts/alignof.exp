@@ -1,5 +1,5 @@
 # Test ALIGNOF in a linker script.
-# Copyright (C) 2007-2018 Free Software Foundation, Inc.
+# Copyright (C) 2007-2020 Free Software Foundation, Inc.
 # Contributed by Nathan Sidwell <nathan@codesourcery.com>
 #
 # This file is part of the GNU Binutils.
@@ -28,7 +28,7 @@ if {![is_elf_format] && ![is_pecoff_format]} {
 set testname "ALIGNOF"
 
 if ![ld_assemble $as $srcdir/$subdir/alignof.s tmpdir/alignof.o] {
-    unresolved $testname
+    fail $testname
     return
 }
 
@@ -38,7 +38,7 @@ if ![ld_link $ld tmpdir/alignof "-T $srcdir/$subdir/alignof.t tmpdir/alignof.o"]
 }
 
 if ![ld_nm $nm "" tmpdir/alignof] {
-    unresolved $testname
+    fail $testname
     return
 }
 

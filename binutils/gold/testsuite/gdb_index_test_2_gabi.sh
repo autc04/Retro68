@@ -2,7 +2,7 @@
 
 # gdb_index_test_2gabi.sh -- a test case for the --gdb-index option.
 
-# Copyright (C) 2015-2017 Free Software Foundation, Inc.
+# Copyright (C) 2015-2020 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@google.com>.
 # Modified by H.J. Lu <hongjiu.lu@intel.com>
 

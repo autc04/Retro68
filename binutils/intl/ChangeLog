@@ -1,4 +1,26 @@
-2016-06-11  Daiki Ueno  <ueno@gnu.org>
+2020-02-20  Alan Modra  <amodra@gmail.com>
+
+	* aclocal.m4: Regenerate.
+
+2020-02-19  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* configure: Regenerate.
+
+2019-01-19  Nick Clifton  <nickc@redhat.com>
+
+	* aclocal.m4: Regenerate.
+
+2018-11-09  Hafiz Abid Qadeer  <abidh@codesourcery.com>
+
+	* configure: Regenerate.
+
+2018-08-02  Simon Marchi  <simon.marchi@ericsson.com>
+
+	* libgnuintl.h (_INTL_MAY_RETURN_STRING_ARG, gettext, dgettext,
+	dcgettext, ngettext, dngettext, dcngettext): Backport changes
+	from upstream gettext.
+
+2018-06-19  Simon Marchi  <simon.marchi@ericsson.com>
 
 	build: Fix unintentional soname bump
 	* gettext-runtime/intl/Makefile.in: Revert LTV_CURRENT and increment

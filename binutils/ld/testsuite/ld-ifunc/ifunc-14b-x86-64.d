@@ -4,7 +4,6 @@
 #as: --64
 #readelf: -d
 #target: x86_64-*-*
-#notarget: x86_64-*-nacl*
 
 #failif
 #...

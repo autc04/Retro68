@@ -119,6 +119,18 @@
 	.set noginv
 	ginvi $a0		# ERROR: ginv not enabled
 
+	.set mips32r6
+	.set eva
+	llwpe	$2, $3, $4	# OK
+	scwpe	$2, $3, $4	# OK
+	.set noeva
+	llwpe	$2, $3, $4	# ERROR: eva not enabled
+	scwpe	$2, $3, $4	# ERROR: eva not enabled
+	.set mips32r5
+	.set eva
+	llwpe	$2, $3, $4	# ERROR: only avaialable on R6
+	scwpe	$2, $3, $4	# ERROR: only avaialable on R6
+
 	# There should be no errors after this.
 	.set fp=32
 	.set mips1

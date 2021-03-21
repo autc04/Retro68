@@ -7,10 +7,6 @@
 Disassembly of section .text:
 
 [0-9a-f]+ <.text>:
-.*:	70601075 	campi	\$2,\$3
-.*:	70a02035 	campv	\$4,\$5
-.*:	70e830b5 	camwi	\$6,\$7,\$8
-.*:	714048f5 	ramri	\$9,\$10
 .*:	716c0026 	gsle	\$11,\$12
 .*:	71ae0027 	gsgt	\$13,\$14
 .*:	c8622010 	gslble	\$2,\$3,\$4
@@ -62,4 +58,3 @@ Disassembly of section .text:
 .*:	ca15bff4 	gslqc1	\$f20,\$f21,4080\(\$16\)
 .*:	ea37c036 	gssqc1	\$f22,\$f23,-4096\(\$17\)
 #pass
-

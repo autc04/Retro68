@@ -3,7 +3,7 @@
 #as: -mcpu=arm7m -EL
 #source: inst.s
 # inst.d is used for non-WinCE targets.
-#not-skip: *-wince-*
+#noskip: *-wince-*
 
 # This file is the same as inst.d except that the BL
 # instructions have not had a -8 bias inserted.

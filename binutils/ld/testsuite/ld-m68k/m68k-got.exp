@@ -1,5 +1,5 @@
 # Expect script for run_dump_test based ld-m68k GOT tests.
-#   Copyright (C) 2008-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2008-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -155,62 +155,62 @@ proc got_test { testname } {
 
     switch --  $testname {
 	"got-single-12-ok" {
-	    puts $ofd "#source: $objdir/tmpdir/got-12.s"
+	    puts $ofd "#source: ./tmpdir/got-12.s"
 	    set count 8189
 	}
 	"got-single-13-er" {
-	    puts $ofd "#source: $objdir/tmpdir/got-13.s"
+	    puts $ofd "#source: ./tmpdir/got-13.s"
 	    set count 0
 	}
 	"got-negative-14-ok" {
-	    puts $ofd "#source: $objdir/tmpdir/got-14.s"
+	    puts $ofd "#source: ./tmpdir/got-14.s"
 	    set count 16382
 	}
 	"got-negative-15-er" {
-	    puts $ofd "#source: $objdir/tmpdir/got-15.s"
+	    puts $ofd "#source: ./tmpdir/got-15.s"
 	    set count 0
 	}
 	"got-negative-12-13-14-34-ok" {
-	    puts $ofd "#source: $objdir/tmpdir/got-12.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-13.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-14.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-34.s"
+	    puts $ofd "#source: ./tmpdir/got-12.s"
+	    puts $ofd "#source: ./tmpdir/got-13.s"
+	    puts $ofd "#source: ./tmpdir/got-14.s"
+	    puts $ofd "#source: ./tmpdir/got-34.s"
 	    set count 16382
 	}
 	"got-negative-12-13-14-35-er" {
-	    puts $ofd "#source: $objdir/tmpdir/got-12.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-13.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-14.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-35.s"
+	    puts $ofd "#source: ./tmpdir/got-12.s"
+	    puts $ofd "#source: ./tmpdir/got-13.s"
+	    puts $ofd "#source: ./tmpdir/got-14.s"
+	    puts $ofd "#source: ./tmpdir/got-35.s"
 	    set count 0
 	}
 	"got-multigot-14-ok" {
-	    puts $ofd "#source: $objdir/tmpdir/got-14.s"
+	    puts $ofd "#source: ./tmpdir/got-14.s"
 	    set count 16382
 	}
 	"got-multigot-15-er" {
-	    puts $ofd "#source: $objdir/tmpdir/got-15.s"
+	    puts $ofd "#source: ./tmpdir/got-15.s"
 	    set count 0
 	}
 	"got-multigot-12-13-14-34-35-ok" {
-	    puts $ofd "#source: $objdir/tmpdir/got-12.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-13.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-14.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-34.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-35.s"
+	    puts $ofd "#source: ./tmpdir/got-12.s"
+	    puts $ofd "#source: ./tmpdir/got-13.s"
+	    puts $ofd "#source: ./tmpdir/got-14.s"
+	    puts $ofd "#source: ./tmpdir/got-34.s"
+	    puts $ofd "#source: ./tmpdir/got-35.s"
 	    set count 24578
 	}
 	"got-xgot-15-ok" {
-	    puts $ofd "#source: $objdir/tmpdir/xgot-15.s"
+	    puts $ofd "#source: ./tmpdir/xgot-15.s"
 	    set count 16385
 	}
 	"got-xgot-12-13-14-15-34-35-ok" {
-	    puts $ofd "#source: $objdir/tmpdir/got-12.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-13.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-14.s"
-	    puts $ofd "#source: $objdir/tmpdir/xgot-15.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-34.s"
-	    puts $ofd "#source: $objdir/tmpdir/got-35.s"
+	    puts $ofd "#source: ./tmpdir/got-12.s"
+	    puts $ofd "#source: ./tmpdir/got-13.s"
+	    puts $ofd "#source: ./tmpdir/got-14.s"
+	    puts $ofd "#source: ./tmpdir/xgot-15.s"
+	    puts $ofd "#source: ./tmpdir/got-34.s"
+	    puts $ofd "#source: ./tmpdir/got-35.s"
 	    set count 24581
 	}
     }

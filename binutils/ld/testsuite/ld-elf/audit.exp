@@ -1,5 +1,5 @@
 # Expect script for various ELF tests.
-#   Copyright (C) 2009-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -32,7 +32,7 @@ if ![check_shared_lib_support] {
 }
 
 # Check if compiler works
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     return
 }
 
@@ -49,7 +49,7 @@ set build_tests {
   {"Run with shared with --audit"
      "-shared -Wl,--audit=tmpdir/audit.so" "-fPIC"
      {main.c} {} "libusesaudit.so"}
-  {"Run with shared with --audit"
+  {"Run with shared with three --audit"
      "-shared -Wl,--audit=tmpdir/audit.so -Wl,--audit=tmpdir/audit2.so \
      -Wl,--audit=tmpdir/audit3.so"
      "-fPIC"

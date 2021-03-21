@@ -63,7 +63,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +9 sg5
 .* [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
 .* [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +9 sg1
-.* [0-9a-f]+ +172 +FUNC +GLOBAL +DEFAULT +\[<other>: 88\] +7 fn1
+.* [0-9a-f]+ +172 +FUNC +GLOBAL +DEFAULT +\[STD GPLOAD\] +7 fn1
 .* [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +9 sg2
 .* [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +9 sg6
 .* [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +9 sg7
@@ -118,7 +118,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +9 sg5
 .* [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
 .* [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +9 sg1
-.* [0-9a-f]+ +172 +FUNC +GLOBAL +DEFAULT +\[<other>: 88\] +7 fn1
+.* [0-9a-f]+ +172 +FUNC +GLOBAL +DEFAULT +\[STD GPLOAD\] +7 fn1
 .* [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +9 sg2
 .* [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +9 sg6
 .* [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +9 sg7

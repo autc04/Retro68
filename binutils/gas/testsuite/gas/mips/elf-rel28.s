@@ -1,3 +1,15 @@
+# By default test ld/sd.
+
+# If defined, test lld/scd instead.
+	.ifdef	tlldscd
+	.macro	ld ops:vararg
+	lld	\ops
+	.endm
+	.macro	sd ops:vararg
+	scd	\ops
+	.endm
+	.endif
+
 	.ent	foo
 foo:
 	# Many of these do not make conceptual sense, but they should

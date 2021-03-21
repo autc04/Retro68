@@ -70,13 +70,13 @@ Disassembly of section .text:
 0x[0-9a-f]+ 282f 00a4           	vext2bhl	r0,r2
 0x[0-9a-f]+ 282f 00a5           	vext2bhm	r0,r2
 0x[0-9a-f]+ 2a23 0100           	vlsr2h	r0,r2,r4
-0x[0-9a-f]+ 2a1e 0100           	vmac2h	r0,r2,r4
+0x[0-9a-f]+ 2a1e 0100           	vmac2h	r0r1,r2,r4
 0x[0-9a-f]+ 2a1e 8100           	vmac2hf	r0,r2,r4
 0x[0-9a-f]+ 2a1f 8100           	vmac2hfr	r0,r2,r4
 0x[0-9a-f]+ 2a1f 0100           	vmac2hu	r0,r2,r4
 0x[0-9a-f]+ 2a24 8100           	vmax2h	r0,r2,r4
 0x[0-9a-f]+ 2a25 8100           	vmin2h	r0,r2,r4
-0x[0-9a-f]+ 2a1c 0100           	vmpy2h	r0,r2,r4
+0x[0-9a-f]+ 2a1c 0100           	vmpy2h	r0r1,r2,r4
 0x[0-9a-f]+ 2a1c 8100           	vmpy2hf	r0,r2,r4
 0x[0-9a-f]+ 2a1d 8100           	vmpy2hfr	r0,r2,r4
 0x[0-9a-f]+ 2a1d 0100           	vmpy2hu	r0,r2,r4

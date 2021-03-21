@@ -50,4 +50,8 @@
 	pabsb %xmm5, %xmm6
 	addpd %xmm4, %xmm6
 
+	.intel_syntax noprefix
+	vfpclasspd k0, [eax], 0
+	vfpclassps k0, [eax], 0
+
 	.p2align 4

@@ -1,11 +1,10 @@
 #ld: -Tdata=0x1000 -Tdata=0x2000 -Tcross2.t
 #source: align2a.s
 #objdump: -h
-#notarget: rx-*-* *-*-*aout *-*-netbsd x86_64-*-cygwin *-*-vms
-# RX uses non standard section names.
-# AOUT and NETBSD  have fixed address for the data section.
-# x86_64 Cygwin biases all start addresses to be > 2Gb.
+#notarget: *-*-*aout *-*-netbsd *-*-vms ns32k-*-* rx-*-*
+# AOUT and NETBSD (ns32k is aout) have fixed address for the data section.
 # VMS targets need extra libraries.
+# RX uses non standard section names.
 
 #...
   . \.data[ 	]+0+[0-9a-f]+[ 	]+0+02000[ 	]+0+02000.*

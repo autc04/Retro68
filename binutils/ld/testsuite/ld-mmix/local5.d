@@ -5,7 +5,7 @@
 #source: regext1.s
 #source: start.s
 #ld: -m elf64mmix
-#readelf: -Ssx1 -x2
+#readelf: -Ssx1 -T -x2
 
 # Like local1, but with two checks for a local register.
 

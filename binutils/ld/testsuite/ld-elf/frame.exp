@@ -1,5 +1,5 @@
 # Expect script for frame section tests
-#   Copyright (C) 2004-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -29,7 +29,7 @@ if ![is_elf_format] {
 }
 
 # No shared lib support on this target.
-if ![istarget shared] {
+if ![check_shared_lib_support] {
     return
 }
 
@@ -54,9 +54,6 @@ if { [istarget "tic6x-*-*"] } {
 
 set test1	"read-only .eh_frame section"
 set test2	"read-only .gcc_except_table section"
-
-global as
-global ld
 
 if { ![ld_assemble_flags $as $as_opt $srcdir/$subdir/tbss.s tmpdir/tbss.o ]
      || ![ld_assemble_flags $as $as_opt $srcdir/$subdir/frame.s tmpdir/frame.o] } {

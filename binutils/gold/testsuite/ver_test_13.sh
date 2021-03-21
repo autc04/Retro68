@@ -2,7 +2,7 @@
 
 # ver_test_13.sh -- a test case for version script matching
 
-# Copyright (C) 2015-2017 Free Software Foundation, Inc.
+# Copyright (C) 2015-2020 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@gmail.com>.
 
 # This file is part of gold.

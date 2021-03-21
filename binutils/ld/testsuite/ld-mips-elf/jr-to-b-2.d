@@ -1,7 +1,7 @@
 #name: jr not to b conversion
 #source: jr-to-b-2.s
-#as: -32 -mips1 -EB
-#ld: -shared -melf32btsmip
+#as: -mips1
+#ld: -shared
 #objdump: -d
 
 .*:     file format .*

@@ -1,5 +1,5 @@
 .*:     file format elf32-.*arm
-architecture: arm, flags 0x00000112:
+architecture: armv6t2, flags 0x00000112:
 EXEC_P, HAS_SYMS, D_PAGED
 start address 0x.*
 
@@ -58,7 +58,7 @@ Disassembly of section .foo:
 
 04001038 <__unnamed_veneer>:
  4001038:	4778      	bx	pc
- 400103a:	46c0      	nop			; .*
+ 400103a:	e7fd      	b.n	.+ <.+>
  400103c:	e51ff004 	ldr	pc, \[pc, #-4\]	; .*
  4001040:	000081b0 	.word	0x000081b0
  4001044:	00000000 	.word	0x00000000

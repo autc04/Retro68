@@ -1,5 +1,5 @@
 /* tc-frv.h -- Header file for tc-frv.c.
-   Copyright (C) 2002-2018 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -76,7 +76,6 @@ void frv_frob_label (symbolS *);
 
 /* Call md_pcrel_from_section(), not md_pcrel_from().  */
 #define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section (FIX, SEC)
-extern long md_pcrel_from_section (struct fix *, segT);
 
 /* After all of the symbols have been adjusted, go over the file looking
    for any relocations that pic won't support.  */

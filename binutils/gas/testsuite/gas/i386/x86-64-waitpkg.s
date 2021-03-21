@@ -6,10 +6,13 @@ _start:
 	umonitor %r10
 	umonitor %r10d
 	umwait %ecx
-	umwait %rcx
-	umwait %r10
 	umwait %r10d
+	umwait %edi, %edx, %eax
 	tpause %ecx
-	tpause %rcx
-	tpause %r10
 	tpause %r10d
+	tpause %edi, %edx, %eax
+
+	.intel_syntax noprefix
+
+	umwait esi, edx, eax
+	tpause esi, edx, eax

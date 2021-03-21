@@ -10,14 +10,14 @@
 
 DYNAMIC RELOCATION RECORDS
 OFFSET   TYPE              VALUE 
-0000a1c4 R_CRIS_DTPMOD     \*ABS\*
+0000a1b0 R_CRIS_DTPMOD     \*ABS\*
 
 Contents of section \.text:
- 0144 5faeff7f                             .*
+ 0130 5faeff7f                             .*
 Contents of section \.tdata:
- 2148 2a2a2a2a 2a2a2a2a 2a2a2a2a 2a2a2a2a  .*
+ 2134 2a2a2a2a 2a2a2a2a 2a2a2a2a 2a2a2a2a  .*
 #...
- a138 2a2a2a2a 2a2a2a2a 2a2a2a2a 2a2a2a2a  .*
+ a124 2a2a2a2a 2a2a2a2a 2a2a2a2a 2a2a2a2a  .*
 Contents of section \.got:
- a1b8 48a10000 00000000 00000000 00000000  .*
- a1c8 00000000                             .*
+ a1a4 34a10000 00000000 00000000 00000000  .*
+ a1b4 00000000                             .*

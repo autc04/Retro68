@@ -1,6 +1,6 @@
 # Test that the linker reports undefined symbol line number correctly.
 #
-#   Copyright (C) 2007-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2007-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -28,7 +28,7 @@ set testline "undefined line"
 
 if ![ld_assemble $as "-x $srcdir/$subdir/undefined.s" tmpdir/undefined.o] {
     verbose "Unable to assemble test file!" 1
-    unresolved $testline
+    fail $testline
     return
 }
 

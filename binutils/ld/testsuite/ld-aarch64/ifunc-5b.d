@@ -1,7 +1,7 @@
 #source: ifunc-5.s
+#target: [check_shared_lib_support]
 #ld: -shared -z nocombreloc
 #readelf: -r --wide
-#target: aarch64*-*-*
 
 Relocation section '.rela.got' at .*
 [ ]+Offset[ ]+Info[ ]+Type[ ]+.*

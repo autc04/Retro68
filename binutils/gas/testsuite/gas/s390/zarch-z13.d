@@ -17,7 +17,6 @@ Disassembly of section .text:
 .*:	e7 f0 fd fc 10 46 [ 	]*vgmh	%v15,253,252
 .*:	e7 f0 fd fc 20 46 [ 	]*vgmf	%v15,253,252
 .*:	e7 f0 fd fc 30 46 [ 	]*vgmg	%v15,253,252
-.*:	e7 f6 9f a0 00 06 [ 	]*vl	%v15,4000\(%r6,%r9\)
 .*:	e7 f1 00 00 04 56 [ 	]*vlr	%v15,%v17
 .*:	e7 f6 9f a0 d0 05 [ 	]*vlrep	%v15,4000\(%r6,%r9\),13
 .*:	e7 f6 9f a0 00 05 [ 	]*vlrepb	%v15,4000\(%r6,%r9\)
@@ -42,7 +41,6 @@ Disassembly of section .text:
 .*:	e7 f6 9f a0 10 04 [ 	]*vllezh	%v15,4000\(%r6,%r9\)
 .*:	e7 f6 9f a0 20 04 [ 	]*vllezf	%v15,4000\(%r6,%r9\)
 .*:	e7 f6 9f a0 30 04 [ 	]*vllezg	%v15,4000\(%r6,%r9\)
-.*:	e7 f1 6f a0 04 36 [ 	]*vlm	%v15,%v17,4000\(%r6\)
 .*:	e7 f6 9f a0 d0 07 [ 	]*vlbb	%v15,4000\(%r6,%r9\),13
 .*:	e7 f6 9f a0 d0 22 [ 	]*vlvg	%v15,%r6,4000\(%r9\),13
 .*:	e7 f6 9f a0 00 22 [ 	]*vlvgb	%v15,%r6,4000\(%r9\)
@@ -98,12 +96,10 @@ Disassembly of section .text:
 .*:	e7 f1 00 00 04 5f [ 	]*vsegb	%v15,%v17
 .*:	e7 f1 00 00 14 5f [ 	]*vsegh	%v15,%v17
 .*:	e7 f1 00 00 24 5f [ 	]*vsegf	%v15,%v17
-.*:	e7 f6 9f a0 00 0e [ 	]*vst	%v15,4000\(%r6,%r9\)
 .*:	e7 f6 9f a0 d0 08 [ 	]*vsteb	%v15,4000\(%r6,%r9\),13
 .*:	e7 f6 9f a0 d0 09 [ 	]*vsteh	%v15,4000\(%r6,%r9\),13
 .*:	e7 f6 9f a0 d0 0b [ 	]*vstef	%v15,4000\(%r6,%r9\),13
 .*:	e7 f6 9f a0 d0 0a [ 	]*vsteg	%v15,4000\(%r6,%r9\),13
-.*:	e7 f1 6f a0 04 3e [ 	]*vstm	%v15,%v17,4000\(%r6\)
 .*:	e7 f6 9f a0 00 3f [ 	]*vstl	%v15,%r6,4000\(%r9\)
 .*:	e7 f1 00 00 d4 d7 [ 	]*vuph	%v15,%v17,13
 .*:	e7 f1 00 00 04 d7 [ 	]*vuphb	%v15,%v17
@@ -495,16 +491,16 @@ Disassembly of section .text:
 .*:	e7 f1 40 10 36 ea [ 	]*vfchedbs	%v15,%v17,%v20
 .*:	e7 f1 40 08 36 ea [ 	]*wfchedb	%v15,%v17,%v20
 .*:	e7 f1 40 18 36 ea [ 	]*wfchedbs	%v15,%v17,%v20
-.*:	e7 f1 00 bc d4 c3 [ 	]*vcdg	%v15,%v17,13,12,11
+.*:	e7 f1 00 bc d4 c3 [ 	]*vcfps	%v15,%v17,13,12,11
 .*:	e7 f1 00 cd 34 c3 [ 	]*wcdgb	%v15,%v17,5,12
 .*:	e7 f1 00 cd 34 c3 [ 	]*wcdgb	%v15,%v17,5,12
-.*:	e7 f1 00 bc d4 c1 [ 	]*vcdlg	%v15,%v17,13,12,11
+.*:	e7 f1 00 bc d4 c1 [ 	]*vcfpl	%v15,%v17,13,12,11
 .*:	e7 f1 00 cd 34 c1 [ 	]*wcdlgb	%v15,%v17,5,12
 .*:	e7 f1 00 cd 34 c1 [ 	]*wcdlgb	%v15,%v17,5,12
-.*:	e7 f1 00 bc d4 c2 [ 	]*vcgd	%v15,%v17,13,12,11
+.*:	e7 f1 00 bc d4 c2 [ 	]*vcsfp	%v15,%v17,13,12,11
 .*:	e7 f1 00 cd 34 c2 [ 	]*wcgdb	%v15,%v17,5,12
 .*:	e7 f1 00 cd 34 c2 [ 	]*wcgdb	%v15,%v17,5,12
-.*:	e7 f1 00 bc d4 c0 [ 	]*vclgd	%v15,%v17,13,12,11
+.*:	e7 f1 00 bc d4 c0 [ 	]*vclfp	%v15,%v17,13,12,11
 .*:	e7 f1 00 cd 34 c0 [ 	]*wclgdb	%v15,%v17,5,12
 .*:	e7 f1 00 cd 34 c0 [ 	]*wclgdb	%v15,%v17,5,12
 .*:	e7 f1 40 0c d6 e5 [ 	]*vfd	%v15,%v17,%v20,13,12
@@ -680,3 +676,11 @@ Disassembly of section .text:
 .*:	e3 69 b8 f0 fd 3b [ 	]*lzrf	%r6,-10000\(%r9,%r11\)
 .*:	e3 69 b8 f0 fd 2a [ 	]*lzrg	%r6,-10000\(%r9,%r11\)
 .*:	b9 3c 00 69 [ 	]*prno	%r6,%r9
+.*:	e7 f6 9f a0 00 06 [	]*vl	%v15,4000\(%r6,%r9\)
+.*:	e7 f6 9f a0 d0 06 [	]*vl	%v15,4000\(%r6,%r9\),13
+.*:	e7 f1 6f a0 04 36 [	]*vlm	%v15,%v17,4000\(%r6\)
+.*:	e7 f1 6f a0 d4 36 [	]*vlm	%v15,%v17,4000\(%r6\),13
+.*:	e7 f6 9f a0 00 0e [	]*vst	%v15,4000\(%r6,%r9\)
+.*:	e7 f6 9f a0 d0 0e [	]*vst	%v15,4000\(%r6,%r9\),13
+.*:	e7 f1 6f a0 04 3e [	]*vstm	%v15,%v17,4000\(%r6\)
+.*:	e7 f1 6f a0 d4 3e [	]*vstm	%v15,%v17,4000\(%r6\),13

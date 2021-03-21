@@ -15,7 +15,7 @@ Idx Name          Size      VMA               LMA               File off  Algn
   2 \.a\.fourth\.section 0+10  0+20  0+20  0+  2\*\*2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
   3 \.data         0+4  2000000000000004  2000000000000004  0+  2\*\*2
-                  CONTENTS, ALLOC, LOAD
+                  CONTENTS, ALLOC, LOAD, DATA
   4 anothersec    0+13  2000000000000008  2000000000000008  0+  2\*\*2
                   CONTENTS, ALLOC, LOAD, DATA
   5 thirdsec      0+a  0+  0+  0+  2\*\*2

@@ -2,9 +2,9 @@
 .*:4: Error: .*
 .*:5: Error: .*
 .*:6: Error: .*
-.*:9: Error: .*
-.*:10: Error: .*
-.*:11: Error: .*
+.*:9: Error:.* ambiguous .* `vcvtpd2dq'
+.*:10: Error:.* ambiguous .* `vcvtpd2ps'
+.*:11: Error:.* ambiguous .* `vcvttpd2dq'
 GAS LISTING .*
 
 

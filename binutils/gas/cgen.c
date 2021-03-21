@@ -1,5 +1,5 @@
 /* GAS interface for targets using CGEN: Cpu tools GENerator.
-   Copyright (C) 1996-2018 Free Software Foundation, Inc.
+   Copyright (C) 1996-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -26,7 +26,6 @@
 #include "dwarf2dbg.h"
 
 #include "symbols.h"
-#include "struc-symbol.h"
 
 #ifdef OBJ_COMPLEX_RELC
 static expressionS * make_right_shifted_expr
@@ -62,7 +61,7 @@ cgen_asm_record_register (char *name, int number)
   /* Use symbol_create here instead of symbol_new so we don't try to
      output registers into the object file's symbol table.  */
   symbol_table_insert (symbol_create (name, reg_section,
-				      number, &zero_address_frag));
+				      &zero_address_frag, number));
 }
 
 /* We need to keep a list of fixups.  We can't simply generate them as
@@ -416,6 +415,8 @@ gas_cgen_parse_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
 
       if (! errmsg)
 	{
+	  asymbol *bsym;
+
 	  /* Fragment the expression as necessary, and queue a reloc.  */
 	  memset (& dummy_fixup, 0, sizeof (fixS));
 
@@ -423,11 +424,12 @@ gas_cgen_parse_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
 
 	  if (exp.X_op == O_symbol
 	      && reloc_type == BFD_RELOC_RELC
-	      && exp.X_add_symbol->sy_value.X_op == O_constant
-	      && (!exp.X_add_symbol->bsym
-		  || (exp.X_add_symbol->bsym->section != expr_section
-		      && exp.X_add_symbol->bsym->section != absolute_section
-		      && exp.X_add_symbol->bsym->section != undefined_section)))
+	      && symbol_constant_p (exp.X_add_symbol)
+	      && (!symbol_symbolS (exp.X_add_symbol)
+		  || (bsym = symbol_get_bfdsym (exp.X_add_symbol)) == NULL
+		  || (bsym->section != expr_section
+		      && bsym->section != absolute_section
+		      && bsym->section != undefined_section)))
 	    {
 	      /* Local labels will have been (eagerly) turned into constants
 		 by now, due to the inappropriately deep insight of the
@@ -435,8 +437,8 @@ gas_cgen_parse_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
 		 prematurely dives into the symbol evaluator, and in this
 		 case it gets a bad answer, so we manually create the
 		 expression symbol we want here.  */
-	      stmp = symbol_create (FAKE_LABEL_NAME, expr_section, 0,
-				    & zero_address_frag);
+	      stmp = symbol_create (FAKE_LABEL_NAME, expr_section,
+				    &zero_address_frag, 0);
 	      symbol_set_value_expression (stmp, & exp);
 	    }
 	  else
@@ -455,13 +457,15 @@ gas_cgen_parse_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
 	  if (operand && (operand->hw_type == HW_H_SINT))
 	    signed_p = 1;
 
-	  if (stmp->bsym && (stmp->bsym->section == expr_section)
+	  if (symbol_symbolS (stmp)
+	      && (bsym = symbol_get_bfdsym (stmp)) != NULL
+	      && bsym->section == expr_section
 	      && ! S_IS_LOCAL (stmp))
 	    {
 	      if (signed_p)
-		stmp->bsym->flags |= BSF_SRELC;
+		bsym->flags |= BSF_SRELC;
 	      else
-		stmp->bsym->flags |= BSF_RELC;
+		bsym->flags |= BSF_RELC;
 	    }
 
 	  /* Now package it all up for the fixup emitter.  */
@@ -617,7 +621,8 @@ gas_cgen_finish_insn (const CGEN_INSN *insn, CGEN_INSN_BYTES_PTR buf,
   /* If we're recording insns as numbers (rather than a string of bytes),
      target byte order handling is deferred until now.  */
 #if CGEN_INT_INSN_P
-  cgen_put_insn_value (gas_cgen_cpu_desc, (unsigned char *) f, length, *buf);
+  cgen_put_insn_value (gas_cgen_cpu_desc, (unsigned char *) f, length, *buf,
+                       gas_cgen_cpu_desc->insn_endian);
 #else
   memcpy (f, buf, byte_len);
 #endif
@@ -754,7 +759,7 @@ weak_operand_overflow_check (const expressionS *  exp,
 {
   const unsigned long len = operand->length;
   unsigned long mask;
-  unsigned long opmask = (((1L << (len - 1)) - 1) << 1) | 1;
+  unsigned long opmask = len == 0 ? 0 : (1UL << (len - 1) << 1) - 1;
 
   if (!exp)
     return NULL;
@@ -771,12 +776,12 @@ weak_operand_overflow_check (const expressionS *  exp,
   mask = exp->X_add_number;
 
   if (exp->X_add_symbol
-      && exp->X_add_symbol->sy_value.X_op == O_constant)
-    mask |= exp->X_add_symbol->sy_value.X_add_number;
+      && symbol_constant_p (exp->X_add_symbol))
+    mask |= *symbol_X_add_number (exp->X_add_symbol);
 
   if (exp->X_op_symbol
-      && exp->X_op_symbol->sy_value.X_op == O_constant)
-    mask |= exp->X_op_symbol->sy_value.X_add_number;
+      && symbol_constant_p (exp->X_op_symbol))
+    mask |= *symbol_X_add_number (exp->X_op_symbol);
 
   /* Want to know if mask covers more bits than opmask.
      this is the same as asking if mask has any bits not in opmask,
@@ -800,15 +805,17 @@ make_right_shifted_expr (expressionS * exp,
 {
   symbolS * stmp = 0;
   expressionS * new_exp;
+  asymbol *bsym;
 
   stmp = expr_build_binary (O_right_shift,
 			    make_expr_symbol (exp),
 			    expr_build_uconstant (amount));
+  bsym = symbol_get_bfdsym (stmp);
 
   if (signed_p)
-    stmp->bsym->flags |= BSF_SRELC;
+    bsym->flags |= BSF_SRELC;
   else
-    stmp->bsym->flags |= BSF_RELC;
+    bsym->flags |= BSF_RELC;
 
   /* Then wrap that in a "symbol expr" for good measure.  */
   new_exp = XNEW (expressionS);
@@ -900,13 +907,15 @@ gas_cgen_md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  {
 	    CGEN_INSN_INT insn_value =
 	      cgen_get_insn_value (cd, (unsigned char *) where,
-				   CGEN_INSN_BITSIZE (insn));
+				   CGEN_INSN_BITSIZE (insn),
+                                   cd->insn_endian);
 
 	    /* ??? 0 is passed for `pc'.  */
 	    errmsg = CGEN_CPU_INSERT_OPERAND (cd) (cd, opindex, fields,
 						   &insn_value, (bfd_vma) 0);
 	    cgen_put_insn_value (cd, (unsigned char *) where,
-				 CGEN_INSN_BITSIZE (insn), insn_value);
+				 CGEN_INSN_BITSIZE (insn), insn_value,
+                                 cd->insn_endian);
 	  }
 #else
 	  /* ??? 0 is passed for `pc'.  */

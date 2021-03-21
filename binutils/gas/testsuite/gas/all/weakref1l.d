@@ -2,8 +2,8 @@
 #name: weakref tests, local syms
 #source: weakref1.s
 # aix drops local symbols
-# see weakref1.d for comments on the other not-targets
-#not-target: *-*-aix* alpha*-*-osf* *-*-ecoff pdp11-*-aout
+# see weakref1.d for comments on the other notargets
+#notarget: [is_xcoff_format] alpha*-*-osf* *-*-ecoff pdp11-*-aout
 
 # the rest of this file is generated with the following script:
 # # script begin

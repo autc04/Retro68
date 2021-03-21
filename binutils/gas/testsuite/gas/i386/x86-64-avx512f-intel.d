@@ -2709,9 +2709,9 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 03 fd 4f 3b ee ab 	vextracti64x4 ymm30\{k7\},zmm29,0xab
 [ 	]*[a-f0-9]+:	62 03 fd cf 3b ee ab 	vextracti64x4 ymm30\{k7\}\{z\},zmm29,0xab
 [ 	]*[a-f0-9]+:	62 03 fd 4f 3b ee 7b 	vextracti64x4 ymm30\{k7\},zmm29,0x7b
-[ 	]*[a-f0-9]+:	62 63 fd 08 17 e8 ab 	vextractps rax,xmm29,0xab
-[ 	]*[a-f0-9]+:	62 63 fd 08 17 e8 7b 	vextractps rax,xmm29,0x7b
-[ 	]*[a-f0-9]+:	62 43 fd 08 17 e8 7b 	vextractps r8,xmm29,0x7b
+[ 	]*[a-f0-9]+:	62 63 7d 08 17 e8 ab 	vextractps eax,xmm29,0xab
+[ 	]*[a-f0-9]+:	62 63 7d 08 17 e8 7b 	vextractps eax,xmm29,0x7b
+[ 	]*[a-f0-9]+:	62 43 7d 08 17 e8 7b 	vextractps r8d,xmm29,0x7b
 [ 	]*[a-f0-9]+:	62 63 7d 08 17 29 7b 	vextractps DWORD PTR \[rcx\],xmm29,0x7b
 [ 	]*[a-f0-9]+:	62 23 7d 08 17 ac f0 23 01 00 00 7b 	vextractps DWORD PTR \[rax\+r14\*8\+0x123\],xmm29,0x7b
 [ 	]*[a-f0-9]+:	62 63 7d 08 17 6a 7f 7b 	vextractps DWORD PTR \[rdx\+0x1fc\],xmm29,0x7b
@@ -9730,9 +9730,9 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 03 fd 4f 3b ee ab 	vextracti64x4 ymm30\{k7\},zmm29,0xab
 [ 	]*[a-f0-9]+:	62 03 fd cf 3b ee ab 	vextracti64x4 ymm30\{k7\}\{z\},zmm29,0xab
 [ 	]*[a-f0-9]+:	62 03 fd 4f 3b ee 7b 	vextracti64x4 ymm30\{k7\},zmm29,0x7b
-[ 	]*[a-f0-9]+:	62 63 fd 08 17 e8 ab 	vextractps rax,xmm29,0xab
-[ 	]*[a-f0-9]+:	62 63 fd 08 17 e8 7b 	vextractps rax,xmm29,0x7b
-[ 	]*[a-f0-9]+:	62 43 fd 08 17 e8 7b 	vextractps r8,xmm29,0x7b
+[ 	]*[a-f0-9]+:	62 63 7d 08 17 e8 ab 	vextractps eax,xmm29,0xab
+[ 	]*[a-f0-9]+:	62 63 7d 08 17 e8 7b 	vextractps eax,xmm29,0x7b
+[ 	]*[a-f0-9]+:	62 43 7d 08 17 e8 7b 	vextractps r8d,xmm29,0x7b
 [ 	]*[a-f0-9]+:	62 63 7d 08 17 29 7b 	vextractps DWORD PTR \[rcx\],xmm29,0x7b
 [ 	]*[a-f0-9]+:	62 23 7d 08 17 ac f0 34 12 00 00 7b 	vextractps DWORD PTR \[rax\+r14\*8\+0x1234\],xmm29,0x7b
 [ 	]*[a-f0-9]+:	62 63 7d 08 17 6a 7f 7b 	vextractps DWORD PTR \[rdx\+0x1fc\],xmm29,0x7b

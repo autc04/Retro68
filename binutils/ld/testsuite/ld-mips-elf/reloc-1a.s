@@ -1,4 +1,5 @@
 	.globl	_start
+	.type	_start, @function
 	.globl	sdg
 	.set	noreorder
 	.ent	tstarta

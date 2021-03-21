@@ -30,6 +30,10 @@ func:
         dyadic_eq vadd
         dyadic_eq vsub
         
+	itblock 2 eq
+	vcvteq.f16.f32 d1, q1
+	vcvteq.f32.f16 q1, d1
+
 	.macro monadic_eq op eq="eq" f32=".f32"
 	itblock 2 eq
         \op\eq\f32 d0,d1

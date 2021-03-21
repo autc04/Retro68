@@ -1,7 +1,7 @@
 #source: ifunc-16.s
+#target: [check_shared_lib_support]
 #ld: -shared
 #readelf: -r --wide
-#target: aarch64*-*-*
 
 Relocation section '.rela.plt' at .*
 [ ]+Offset[ ]+Info[ ]+Type[ ]+.*

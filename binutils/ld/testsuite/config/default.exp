@@ -1,5 +1,5 @@
 # Basic expect script for LD Regression Tests
-#   Copyright (C) 1993-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -76,9 +76,6 @@ if {[file exists tmpdir/libpath.exp]} {
     }
 }
 
-# Many ELF testcases expect that "-z relro" is off.
-set ld_elf_shared_opt "-z norelro"
-
 # The "make check" target in the Makefile passes in
 # "CC=$(CC_FOR_TARGET)".  But, if the user invokes runtest directly
 # (as when testing an installed linker), these flags may not be set.  
@@ -93,6 +90,55 @@ if {![info exists CXX]} {
 }
 if {![info exists CXXFLAGS]} {
     set CXXFLAGS ""
+}
+
+# This allows us to run the linker testsuite with clang as the compilation
+# driver instead of gcc.  The syntax of the overrides are as follows, one
+# per line:
+#
+#  '#': Silence information about the changes to the command line arguments.
+#
+#  '^': Add FOO as a new argument at the beginning of the command line.
+#
+#  '+': Add FOO as a new argument at the end of the command line.
+#
+#  's/XXX/YYY/': Substitute the regular expression XXX with YYY in the command
+#  line.
+#
+#  'xOPTION': Removes all instances of the literal argument OPTION.
+#
+#  'XOPTION': Removes all instances of the literal argument OPTION,
+#  and the following argument.
+#
+#  'Ox': Removes all flags matching 'O' or 'O[sz0-9]' and adds 'Ox'
+#  at the end of the command line.
+#
+# \param OS - The stream to write edit information to.
+# \param Args - The vector of command line arguments.
+# \param Edit - The override command to perform.
+# \param SavedStrings - Set to use for storing string representations.
+
+# Only set up the environment variable if the user has not already provided one.
+if {! [info exists env(CCC_OVERRIDE_OPTIONS)]} {
+    set env(CCC_OVERRIDE_OPTIONS) "#\
+  +-Wno-unused-command-line-argument \
+  +-Wno-unknown-attributes \
+  +-Wno-tautological-compare \
+  +-Wno-ignored-optimization-argument \
+  +-Wno-deprecated \
+  +-fuse-ld=$ld \
+  x-Wa,--elf-stt-common=yes \
+  x-Wa,-mx86-used-note=no \
+  x-Wa,-mx86-used-note=yes \
+  x-Wa,-madd-bnd-prefix \
+  x-fno-early-inlining \
+  x-fno-toplevel-reorder \
+  x-flto-partition=none \
+  x-feliminate-dwarf2-dups \
+  s/-Wa,-mrelax-relocations=yes,-mx86-used-note=yes/-Wa,-mrelax-relocations=yes/ \
+  s/-Wa,--compress-debug-sections=zlib/-Wa,-compress-debug-sections=zlib/ \
+  s/-Wa,--compress-debug-sections=zlib-gabi/-Wa,-compress-debug-sections=zlib-gabi/ \
+"
 }
 
 # The mips64-*-linux-gnu compiler defaults to the N32 ABI after
@@ -243,6 +289,10 @@ if ![info exists READELFFLAGS] then {
     set READELFFLAGS {}
 }
 
+if ![info exists ELFEDIT] then {
+    set ELFEDIT [findfile $base_dir/../binutils/elfedit]
+}
+
 if ![info exists LD] then {
     set LD [findfile $base_dir/ld-new ./ld-new [transform ld]]
 }
@@ -265,7 +315,7 @@ if { ![info exists LD_CLASS] } then {
 # Set PLT_CFLAGS to "-fplt" if target compiler supports it.
 
 if { ![info exists PLT_CFLAGS] } then {
-    if { [which $CC] != 0 } {
+    if { [check_compiler_available] } {
 	# Check if gcc supports -fplt
 	set flags ""
 	if [board_info [target_info name] exists cflags] {
@@ -303,7 +353,7 @@ if { ![info exists PLT_CFLAGS] } then {
 # target compiler supports them.
 
 if { ![info exists NOPIE_CFLAGS] || ![info exists NOPIE_LDFLAGS] } then {
-    if { [which $CC] != 0 } {
+    if { [check_compiler_available] } {
 	# Check if gcc supports -fno-PIE -no-pie.
 	set flags ""
 	if [board_info [target_info name] exists cflags] {
@@ -340,10 +390,48 @@ if { ![info exists NOPIE_CFLAGS] || ![info exists NOPIE_LDFLAGS] } then {
     }
 }
 
+# Set NOCF_PROTECTION_CFLAGS to "-fcf-protection=none" if target compiler
+# supports it.
+
+if { ![info exists NOCF_PROTECTION_CFLAGS] } then {
+    if { [check_compiler_available] } {
+	# Check if gcc supports -fcf-protection=none.
+	set flags ""
+	if [board_info [target_info name] exists cflags] {
+	    append flags " [board_info [target_info name] cflags]"
+	}
+	if [board_info [target_info name] exists ldflags] {
+	    append flags " [board_info [target_info name] ldflags]"
+	}
+
+	set basename "tmpdir/available[pid]"
+	set src ${basename}.c
+	set output ${basename}
+	set f [open $src "w"]
+	puts $f "int main (void) { return 0; }"
+	close $f
+	if [is_remote host] {
+	    set src [remote_download host $src]
+	}
+	set available [run_host_cmd_yesno "$CC" "$flags -fcf-protection=none $src -o $output"]
+	remote_file host delete $src
+	remote_file host delete $output
+	file delete $src
+
+	if { $available == 1 } then {
+	    set NOCF_PROTECTION_CFLAGS "-fcf-protection=none"
+	} else {
+	    set NOCF_PROTECTION_CFLAGS ""
+	}
+    } else {
+	set NOCF_PROTECTION_CFLAGS ""
+    }
+}
+
 # Set GNU2_CFLAGS to "-mtls-dialect=gnu2" if target compiler supports it.
 
 if { ![info exists GNU2_CFLAGS] } then {
-    if { [which $CC] != 0 } {
+    if { [check_compiler_available] } {
 	# Check if gcc supports -mtls-dialect=gnu2
 	set flags ""
 	if [board_info [target_info name] exists cflags] {
@@ -380,7 +468,7 @@ if { ![info exists GNU2_CFLAGS] } then {
 # Set INT128_CFLAGS to "-DHAS_INT128" if target compiler supports __int128.
 
 if { ![info exists INT128_CFLAGS] } then {
-    if { [which $CC] != 0 } {
+    if { [check_compiler_available] } {
 	# Check if gcc supports __int128.
 	set flags ""
 	if [board_info [target_info name] exists cflags] {
@@ -417,7 +505,7 @@ if { ![info exists INT128_CFLAGS] } then {
 # Set STATIC_LDFLAGS to "-static" if target compiler supports it.
 
 if { ![info exists STATIC_LDFLAGS] } then {
-    if { [which $CC] != 0 } {
+    if { [check_compiler_available] } {
 	# Check if gcc supports -static.
 	set flags ""
 	if [board_info [target_info name] exists cflags] {
@@ -448,5 +536,80 @@ if { ![info exists STATIC_LDFLAGS] } then {
 	}
     } else {
 	set STATIC_LDFLAGS ""
+    }
+}
+
+# Set STATIC_PIE_LDFLAGS to "-static-pie" if target compiler supports it.
+
+if { ![info exists STATIC_PIE_LDFLAGS] } then {
+    if { [check_compiler_available] } {
+	# Check if gcc supports -static-pie.
+	set flags ""
+	if [board_info [target_info name] exists cflags] {
+	    append flags " [board_info [target_info name] cflags]"
+	}
+	if [board_info [target_info name] exists ldflags] {
+	    append flags " [board_info [target_info name] ldflags]"
+	}
+
+	set basename "tmpdir/static[pid]"
+	set src ${basename}.c
+	set output ${basename}
+	set f [open $src "w"]
+	puts $f "int main (void) { return 0; }"
+	close $f
+	if [is_remote host] {
+	    set src [remote_download host $src]
+	}
+	set static_available [run_host_cmd_yesno "$CC" "-static-pie $flags $src -o $output"]
+	remote_file host delete $src
+	remote_file host delete $output
+	file delete $src
+
+	if { $static_available == 1 } then {
+	    set STATIC_PIE_LDFLAGS "-static-pie"
+	} else {
+	    set STATIC_PIE_LDFLAGS ""
+	}
+    } else {
+	set STATIC_PIE_LDFLAGS ""
+    }
+}
+
+# Set NOSANITIZE_CFLAGS to "-fno-sanitize=all" if target compiler
+# supports it.
+
+if { ![info exists NOSANITIZE_CFLAGS] } then {
+    if { [check_compiler_available] } {
+	# Check if gcc supports -fno-sanitize=all.
+	set flags ""
+	if [board_info [target_info name] exists cflags] {
+	    append flags " [board_info [target_info name] cflags]"
+	}
+	if [board_info [target_info name] exists ldflags] {
+	    append flags " [board_info [target_info name] ldflags]"
+	}
+
+	set basename "tmpdir/available[pid]"
+	set src ${basename}.c
+	set output ${basename}
+	set f [open $src "w"]
+	puts $f "int main (void) { return 0; }"
+	close $f
+	if [is_remote host] {
+	    set src [remote_download host $src]
+	}
+	set available [run_host_cmd_yesno "$CC" "$flags -fno-sanitize=all $src -o $output"]
+	remote_file host delete $src
+	remote_file host delete $output
+	file delete $src
+
+	if { $available == 1 } then {
+	    set NOSANITIZE_CFLAGS "-fno-sanitize=all"
+	} else {
+	    set NOSANITIZE_CFLAGS ""
+	}
+    } else {
+	set NOSANITIZE_CFLAGS ""
     }
 }

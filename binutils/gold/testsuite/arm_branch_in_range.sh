@@ -3,7 +3,7 @@
 # arm_branch_in_range.sh -- test ARM/THUMB/THUMB branch instructions whose
 # targets are just within the branch range limits.
 
-# Copyright (C) 2010-2017 Free Software Foundation, Inc.
+# Copyright (C) 2010-2020 Free Software Foundation, Inc.
 # Written by Doug Kwan <dougkwan@google.com>
 
 # This file is part of gold.

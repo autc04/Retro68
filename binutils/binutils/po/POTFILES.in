@@ -37,6 +37,7 @@ not-strip.c
 objcopy.c
 objdump.c
 objdump.h
+od-elf32_avr.c
 od-macho.c
 od-xcoff.c
 prdbg.c

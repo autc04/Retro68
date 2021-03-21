@@ -1,6 +1,6 @@
 // x86_64.cc -- x86_64 target support for gold.
 
-// Copyright (C) 2006-2018 Free Software Foundation, Inc.
+// Copyright (C) 2006-2020 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -706,7 +706,8 @@ class Target_x86_64 : public Sized_target<size, false>
       rela_irelative_(NULL), copy_relocs_(elfcpp::R_X86_64_COPY),
       got_mod_index_offset_(-1U), tlsdesc_reloc_info_(),
       tls_base_symbol_defined_(false), isa_1_used_(0), isa_1_needed_(0),
-      feature_1_(0), object_feature_1_(0), seen_first_object_(false)
+      feature_1_(0), object_isa_1_used_(0), object_feature_1_(0),
+      seen_first_object_(false)
   { }
 
   // Hook for a new output section.
@@ -1307,7 +1308,8 @@ class Target_x86_64 : public Sized_target<size, false>
   // Record a target-specific program property in the .note.gnu.property
   // section.
   void
-  record_gnu_property(int, int, size_t, const unsigned char*, const Object*);
+  record_gnu_property(unsigned int, unsigned int, size_t,
+		      const unsigned char*, const Object*);
 
   // Merge the target-specific program properties from the current object.
   void
@@ -1381,6 +1383,11 @@ class Target_x86_64 : public Sized_target<size, false>
   uint32_t isa_1_needed_;
   uint32_t feature_1_;
   // Target-specific properties from the current object.
+  // These bits get ORed into ISA_1_USED_ after all properties for the object
+  // have been processed. But if either is all zeroes (as when the property
+  // is absent from an object), the result should be all zeroes.
+  // (See PR ld/23486.)
+  uint32_t object_isa_1_used_;
   // These bits get ANDed into FEATURE_1_ after all properties for the object
   // have been processed.
   uint32_t object_feature_1_;
@@ -1579,7 +1586,7 @@ Target_x86_64<size>::rela_irelative_section(Layout* layout)
 template<int size>
 void
 Target_x86_64<size>::record_gnu_property(
-    int, int pr_type,
+    unsigned int, unsigned int pr_type,
     size_t pr_datasz, const unsigned char* pr_data,
     const Object* object)
 {
@@ -1609,7 +1616,7 @@ Target_x86_64<size>::record_gnu_property(
   switch (pr_type)
     {
     case elfcpp::GNU_PROPERTY_X86_ISA_1_USED:
-      this->isa_1_used_ |= val;
+      this->object_isa_1_used_ |= val;
       break;
     case elfcpp::GNU_PROPERTY_X86_ISA_1_NEEDED:
       this->isa_1_needed_ |= val;
@@ -1627,12 +1634,22 @@ void
 Target_x86_64<size>::merge_gnu_properties(const Object*)
 {
   if (this->seen_first_object_)
-    this->feature_1_ &= this->object_feature_1_;
+    {
+      // If any object is missing the ISA_1_USED property, we must omit
+      // it from the output file.
+      if (this->object_isa_1_used_ == 0)
+	this->isa_1_used_ = 0;
+      else if (this->isa_1_used_ != 0)
+	this->isa_1_used_ |= this->object_isa_1_used_;
+      this->feature_1_ &= this->object_feature_1_;
+    }
   else
     {
+      this->isa_1_used_ = this->object_isa_1_used_;
       this->feature_1_ = this->object_feature_1_;
       this->seen_first_object_ = true;
     }
+  this->object_isa_1_used_ = 0;
   this->object_feature_1_ = 0;
 }
 
@@ -2069,7 +2086,12 @@ Output_data_plt_x86_64_bnd::do_address_for_local(const Relobj* object,
 						 unsigned int r_sym)
 {
   // Convert the PLT offset into an APLT offset.
-  unsigned int plt_offset = ((object->local_plt_offset(r_sym) - plt_entry_size)
+  const Sized_relobj_file<64, false>* sized_relobj =
+    static_cast<const Sized_relobj_file<64, false>*>(object);
+  const Symbol_value<64>* psymval = sized_relobj->local_symbol(r_sym);
+  unsigned int plt_offset = ((object->local_plt_offset(r_sym)
+			      - (psymval->is_ifunc_symbol()
+				 ? 0 : plt_entry_size))
 			     / (plt_entry_size / aplt_entry_size));
   return (this->address()
 	  + this->aplt_offset_
@@ -2243,7 +2265,12 @@ Output_data_plt_x86_64_ibt<size>::do_address_for_local(const Relobj* object,
 						 unsigned int r_sym)
 {
   // Convert the PLT offset into an APLT offset.
-  unsigned int plt_offset = ((object->local_plt_offset(r_sym) - plt_entry_size)
+  const Sized_relobj_file<size, false>* sized_relobj =
+    static_cast<const Sized_relobj_file<size, false>*>(object);
+  const Symbol_value<size>* psymval = sized_relobj->local_symbol(r_sym);
+  unsigned int plt_offset = ((object->local_plt_offset(r_sym)
+			      - (psymval->is_ifunc_symbol()
+				 ? 0 : plt_entry_size))
 			     / (plt_entry_size / aplt_entry_size));
   return (this->address()
 	  + this->aplt_offset_
@@ -2709,6 +2736,7 @@ Output_data_plt_x86_64_bnd::do_write(Output_file* of)
       this->fill_tlsdesc_entry(pov, got_address, plt_address, got_base,
 			       tlsdesc_got_offset, plt_offset);
       pov += this->get_plt_entry_size();
+      plt_offset += plt_entry_size;
     }
 
   // Write the additional PLT.
@@ -2804,6 +2832,7 @@ Output_data_plt_x86_64_ibt<size>::do_write(Output_file* of)
       this->fill_tlsdesc_entry(pov, got_address, plt_address, got_base,
 			       tlsdesc_got_offset, plt_offset);
       pov += this->get_plt_entry_size();
+      plt_offset += plt_entry_size;
     }
 
   // Write the additional PLT.
@@ -4835,10 +4864,9 @@ Target_x86_64<size>::Relocate::relocate(
 
     case elfcpp::R_X86_64_GOTOFF64:
       {
-	typename elfcpp::Elf_types<size>::Elf_Addr value;
-	value = (psymval->value(object, 0)
-		 - target->got_plt_section()->address());
-	Reloc_funcs::rela64(view, value, addend);
+	typename elfcpp::Elf_types<size>::Elf_Addr reladdr;
+	reladdr = target->got_plt_section()->address();
+	Reloc_funcs::pcrela64(view, object, psymval, addend, reladdr);
       }
       break;
 
@@ -5444,26 +5472,49 @@ Target_x86_64<size>::Relocate::tls_desc_gd_to_ie(
 {
   if (r_type == elfcpp::R_X86_64_GOTPC32_TLSDESC)
     {
-      // leaq foo@tlsdesc(%rip), %rax
-      // ==> movq foo@gottpoff(%rip), %rax
+      // LP64: leaq foo@tlsdesc(%rip), %rax
+      //       ==> movq foo@gottpoff(%rip), %rax
+      // X32:  rex leal foo@tlsdesc(%rip), %eax
+      //       ==> rex movl foo@gottpoff(%rip), %eax
       tls::check_range(relinfo, relnum, rela.get_r_offset(), view_size, -3);
       tls::check_range(relinfo, relnum, rela.get_r_offset(), view_size, 4);
       tls::check_tls(relinfo, relnum, rela.get_r_offset(),
-		     view[-3] == 0x48 && view[-2] == 0x8d && view[-1] == 0x05);
+		     (((view[-3] & 0xfb) == 0x48
+		       || (size == 32 && (view[-3] & 0xfb) == 0x40))
+		      && view[-2] == 0x8d
+		      && (view[-1] & 0xc7) == 0x05));
       view[-2] = 0x8b;
       const elfcpp::Elf_Xword addend = rela.get_r_addend();
       Relocate_functions<size, false>::pcrela32(view, value, addend, address);
     }
   else
     {
-      // call *foo@tlscall(%rax)
-      // ==> nop; nop
+      // LP64: call *foo@tlscall(%rax)
+      //       ==> xchg %ax, %ax
+      // X32:  call *foo@tlscall(%eax)
+      //       ==> nopl (%rax)
       gold_assert(r_type == elfcpp::R_X86_64_TLSDESC_CALL);
       tls::check_range(relinfo, relnum, rela.get_r_offset(), view_size, 2);
+      int prefix = 0;
+      if (size == 32 && view[0] == 0x67)
+	{
+	  tls::check_range(relinfo, relnum, rela.get_r_offset(),
+			   view_size, 3);
+	  prefix = 1;
+	}
       tls::check_tls(relinfo, relnum, rela.get_r_offset(),
-		     view[0] == 0xff && view[1] == 0x10);
-      view[0] = 0x66;
-      view[1] = 0x90;
+		     view[prefix] == 0xff && view[prefix + 1] == 0x10);
+      if (prefix)
+	{
+	  view[0] = 0x0f;
+	  view[1] = 0x1f;
+	  view[2] = 0x00;
+	}
+      else
+	{
+	  view[0] = 0x66;
+	  view[1] = 0x90;
+	}
     }
 }
 
@@ -5483,27 +5534,51 @@ Target_x86_64<size>::Relocate::tls_desc_gd_to_le(
 {
   if (r_type == elfcpp::R_X86_64_GOTPC32_TLSDESC)
     {
-      // leaq foo@tlsdesc(%rip), %rax
-      // ==> movq foo@tpoff, %rax
+      // LP64: leaq foo@tlsdesc(%rip), %rax
+      //       ==> movq foo@tpoff, %rax
+      // X32:  rex leal foo@tlsdesc(%rip), %eax
+      //       ==> rex movl foo@tpoff, %eax
       tls::check_range(relinfo, relnum, rela.get_r_offset(), view_size, -3);
       tls::check_range(relinfo, relnum, rela.get_r_offset(), view_size, 4);
       tls::check_tls(relinfo, relnum, rela.get_r_offset(),
-		     view[-3] == 0x48 && view[-2] == 0x8d && view[-1] == 0x05);
+		     (((view[-3] & 0xfb) == 0x48
+		       || (size == 32 && (view[-3] & 0xfb) == 0x40))
+		      && view[-2] == 0x8d
+		      && (view[-1] & 0xc7) == 0x05));
+      view[-3] = (view[-3] & 0x48) | ((view[-3] >> 2) & 1);
       view[-2] = 0xc7;
-      view[-1] = 0xc0;
+      view[-1] = 0xc0 | ((view[-1] >> 3) & 7);
       value -= tls_segment->memsz();
       Relocate_functions<size, false>::rela32(view, value, 0);
     }
   else
     {
-      // call *foo@tlscall(%rax)
-      // ==> nop; nop
+      // LP64: call *foo@tlscall(%rax)
+      //       ==> xchg %ax, %ax
+      // X32:  call *foo@tlscall(%eax)
+      //       ==> nopl (%rax)
       gold_assert(r_type == elfcpp::R_X86_64_TLSDESC_CALL);
       tls::check_range(relinfo, relnum, rela.get_r_offset(), view_size, 2);
+      int prefix = 0;
+      if (size == 32 && view[0] == 0x67)
+	{
+	  tls::check_range(relinfo, relnum, rela.get_r_offset(),
+			   view_size, 3);
+	  prefix = 1;
+	}
       tls::check_tls(relinfo, relnum, rela.get_r_offset(),
-		     view[0] == 0xff && view[1] == 0x10);
-      view[0] = 0x66;
-      view[1] = 0x90;
+		     view[prefix] == 0xff && view[prefix + 1] == 0x10);
+      if (prefix)
+	{
+	  view[0] = 0x0f;
+	  view[1] = 0x1f;
+	  view[2] = 0x00;
+	}
+      else
+	{
+	  view[0] = 0x66;
+	  view[1] = 0x90;
+	}
     }
 }
 

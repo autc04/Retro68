@@ -1,6 +1,6 @@
 /* Test view numbering forced reset after a zero-sized align.
 
-   Copyright (C) 2017-2018 Free Software Foundation, Inc.
+   Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,15 +17,15 @@
 
 	.file "dwarf2-14.c"
 	.text
-	.balign 4
+	.balign 8
 	.globl _start
 _start:
 	.file 1 "dwarf2-14.c"
 	.loc 1 1 view 0
-	.balign 4
+	.balign 8
 	.loc 1 2 view -0
 	.loc 1 3 view .L1
-	.dc.l 0
+	.quad 0
 	.size _start, .-_start
 
 	.section .rodata

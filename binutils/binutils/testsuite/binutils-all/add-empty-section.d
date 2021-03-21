@@ -1,7 +1,7 @@
 #PROG: objcopy
 #name: objcopy add-empty-section
 #source: empty.s
-#objcopy: --add-section NEW=$srcdir/empty-file
+#objcopy: --add-section NEW=$srcdir/$subdir/empty-file
 #readelf: -S --wide
 
 #...

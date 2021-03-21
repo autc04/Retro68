@@ -1,4 +1,5 @@
 #source: tls-large-ie.s
+#target: [check_shared_lib_support]
 #ld: -shared -T relocs.ld -e0
 #notarget: aarch64-*-*
 #objdump: -dr

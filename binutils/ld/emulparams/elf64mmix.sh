@@ -1,4 +1,4 @@
-TEMPLATE_NAME=elf32
+TEMPLATE_NAME=elf
 GENERATE_SHLIB_SCRIPT=yes
 ELFSIZE=64
 SCRIPT_NAME=elf
@@ -43,6 +43,10 @@ ${RELOCATING+
 	    : (DEFINED (Main) ? Main : (DEFINED (.text) ? .text : 0)));
  PROVIDE (Main = DEFINED (Main) ? Main : (DEFINED (_start) ? _start : _start.));
 }"
+
+# We need a symbol at the end of the read-only data, which is
+# colocated with the code.  We make __etext fit.
+ETEXT_LAST_IN_RODATA_SEGMENT=" "
 
 OTHER_SECTIONS='
  .MMIX.reg_contents :

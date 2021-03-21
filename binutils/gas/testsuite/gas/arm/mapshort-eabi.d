@@ -1,4 +1,5 @@
 #objdump: --syms --special-syms -d
+#as:  --generate-missing-build-notes=no
 #name: ARM Mapping Symbols for .short (EABI version)
 # This test is only valid on EABI based ports.
 #target: *-*-*eabi* *-*-symbianelf *-*-linux-* *-*-elf *-*-nacl*

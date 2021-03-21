@@ -1,5 +1,5 @@
 # Expect script for ld-sparc tests
-#   Copyright (C) 2002-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -33,7 +33,7 @@ if {[istarget "sparc-*-vxworks"]} {
 	{"VxWorks executable test 1 (dynamic)" \
 	 "tmpdir/libvxworks1.so -Tvxworks1.ld --hash-style=sysv -q --force-dynamic" ""
 	 "" {vxworks1.s}
-	 {{readelf --relocs vxworks1.rd} {objdump -dr vxworks1.dd}}
+	 {{readelf {--relocs --wide} vxworks1.rd} {objdump -dr vxworks1.dd}}
 	 "vxworks1"}
 	{"VxWorks executable test 2 (dynamic)" \
 	 "-Tvxworks1.ld --hash-style=sysv -q --force-dynamic" ""

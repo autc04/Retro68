@@ -1,6 +1,6 @@
 # Test EXTERN in a linker script.
 # By Nathan Sidwell, CodeSourcery LLC
-#   Copyright (C) 2007-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2007-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -28,10 +28,11 @@ if ![ld_assemble $as $srcdir/$subdir/extern.s tmpdir/extern.o] {
 
 if ![ld_link $ld tmpdir/extern "-T $srcdir/$subdir/extern.t tmpdir/extern.o"] {
     fail $testname
+    return
 }
 
 if ![ld_nm $nm "" tmpdir/extern] {
-    unresolved $testname
+    fail $testname
     return
 }
 

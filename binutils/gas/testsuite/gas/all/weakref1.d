@@ -4,7 +4,8 @@
 # pdp11 lacks .long
 # darwin (mach-o) reverses the order of relocs.
 # the following must be present in all weakref1*.d
-#not-target: alpha*-*-osf* *-*-ecoff pdp11-*-aout *-*-darwin*
+#notarget: alpha*-*-osf* *-*-ecoff pdp11-*-aout *-*-darwin*
+#xfail: nds32*-*-*
 
 #...
 RELOCATION RECORDS FOR \[(\.text|\$CODE\$)\]:
@@ -95,3 +96,4 @@ OFFSET +TYPE +VALUE *
 [0-9a-f]+ [^ ]*  +(ld8|\.text|\$CODE\$)(\+0x[0-9a-f]+)?
 [0-9a-f]+ [^ ]*  +(ld9|\.text|\$CODE\$)(\+0x[0-9a-f]+)?
 [0-9a-f]+ [^ ]*  +(ld9|\.text|\$CODE\$)(\+0x[0-9a-f]+)?
+#pass
