@@ -2,7 +2,6 @@
 #as: --32
 #ld: -m elf_i386 -z noseparate-code
 #objdump: -s -j .got
-#notarget: i?86-*-nacl* x86_64-*-nacl*
 
 .*: +file format .*
 

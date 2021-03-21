@@ -11,6 +11,6 @@ Disassembly of section .text:
 
 [0-9a-f]+ <__bar_from_thumb>:
  +[0-9a-f]+:	4778      	bx	pc
- +[0-9a-f]+:	46c0      	nop			; \(mov r8, r8\)
+ +[0-9a-f]+:	e7fd      	b.n	.+ <.+>
  +[0-9a-f]+:	eafffffc 	b	[0-9a-f]+ <bar>
 

@@ -9,7 +9,8 @@
 Disassembly of section .text:
 0+0000 <[^>]*> beqz	\$r0, 00000000 <foo>
 			0: R_NDS32_17_PCREL_RELA	.text
-			0: R_NDS32_RELAX_ENTRY	.text
+			0: R_NDS32_INSN16	\*ABS\*
+			0: R_NDS32_RELAX_ENTRY	\*ABS\*
 0+0004 <[^>]*> bgez	\$r0, 00000004 <foo\+0x4>
 			4: R_NDS32_17_PCREL_RELA	.text
 0+0008 <[^>]*> bgezal	\$r0, 00000008 <foo\+0x8>

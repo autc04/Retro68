@@ -130,17 +130,17 @@ Disassembly of section .text:
  198:	3d 83 ff 0f 	storb	\$0x3:s,0xfff:m\(r13\)
  19c:	3d 83 ff ff 	storb	\$0x3:s,0xffff:m\(r13\)
  1a0:	3c 83 43 23 	storb	\$0x3:s,0x2343:m\(r12\)
- 1a4:	12 00 32 01 	storb	\$0x3:s,0x2345:l\(r2\)
+ 1a4:	12 00 32 01 	storb	\$0x3:s,0x12345:l\(r2\)
  1a8:	45 23 
- 1aa:	12 00 38 04 	storb	\$0x3:s,0xabcd:l\(r8\)
+ 1aa:	12 00 38 04 	storb	\$0x3:s,0x4abcd:l\(r8\)
  1ae:	cd ab 
  1b0:	12 00 3d 1f 	storb	\$0x3:s,0xfabcd:l\(r13\)
  1b4:	cd ab 
- 1b6:	12 00 38 0f 	storb	\$0x3:s,0xabcd:l\(r8\)
+ 1b6:	12 00 38 0f 	storb	\$0x3:s,0xfabcd:l\(r8\)
  1ba:	cd ab 
- 1bc:	12 00 39 0f 	storb	\$0x3:s,0xabcd:l\(r9\)
+ 1bc:	12 00 39 0f 	storb	\$0x3:s,0xfabcd:l\(r9\)
  1c0:	cd ab 
- 1c2:	12 00 39 04 	storb	\$0x3:s,0xabcd:l\(r9\)
+ 1c2:	12 00 39 04 	storb	\$0x3:s,0x4abcd:l\(r9\)
  1c6:	cd ab 
  1c8:	31 82       	storb	\$0x3:s,0x0:s\(r2,r1\)
  1ca:	51 83 01 00 	storb	\$0x5:s,0x1:m\(r2,r1\)

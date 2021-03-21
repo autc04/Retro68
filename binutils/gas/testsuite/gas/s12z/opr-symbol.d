@@ -2,7 +2,7 @@
 #name:    OPR addressing mode: symbols in its direct submode
 #source:  opr-symbol.s
 
-dump.o:     file format elf32-s12z
+.*:     file format elf32-s12z
 
 SYMBOL TABLE:
 00000000 l    d  .text	00000000 .text

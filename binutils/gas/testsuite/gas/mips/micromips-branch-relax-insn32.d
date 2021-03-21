@@ -1,7 +1,7 @@
 #objdump: -dr --show-raw-insn
 #name: Relax microMIPS branches (insn32 mode)
 #as: -mips32r2 -32 -relax-branch -minsn32 --defsym insn32=1
-#stderr: micromips-branch-relax-insn32.l
+#warning_output: micromips-branch-relax-insn32.l
 #source: micromips-branch-relax.s
 
 .*: +file format .*mips.*

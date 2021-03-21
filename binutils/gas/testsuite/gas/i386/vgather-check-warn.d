@@ -1,5 +1,5 @@
 #source: vgather-check.s
-#stderr: vgather-check-warn.e
+#warning_output: vgather-check-warn.e
 #objdump: -dw
 #name: i386 vgather check (warning)
 

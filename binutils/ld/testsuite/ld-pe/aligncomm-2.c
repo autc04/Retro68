@@ -14,10 +14,10 @@ int main (int argc, const char **argv)
 
 void __main (void)
 {
-  asm (".section .drectve\n"
-	"  .ascii \" -aligncomm:_r,4\"\n"
-	"  .ascii \" -aligncomm:r,4\"\n"
-	"  .text");
+  __asm__ (".section .drectve\n"
+	   "  .ascii \" -aligncomm:_r,4\"\n"
+	   "  .ascii \" -aligncomm:r,4\"\n"
+	   "  .text");
 }
 
 #if defined (__CYGWIN__) || defined (__MINGW32__)

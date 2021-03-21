@@ -2,7 +2,7 @@
 
 # script_test_6.sh -- test for -Ttext, -Tdata and -Tbss with a script.
 
-# Copyright (C) 2009-2017 Free Software Foundation, Inc.
+# Copyright (C) 2009-2020 Free Software Foundation, Inc.
 # Written by Doug Kwan <dougkwan@google.com>.
 
 # This file is part of gold.

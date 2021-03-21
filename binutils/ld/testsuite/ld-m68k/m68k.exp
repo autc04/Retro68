@@ -1,5 +1,5 @@
 # Expect script for run_dump_test based ld-m68k tests.
-#   Copyright (C) 2006-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -92,3 +92,13 @@ if { [istarget m68k-*-linux*] } then {
 
     run_ld_link_tests $m68k_tls_tests
 }
+
+run_dump_test "attr-gnu-4-00"
+run_dump_test "attr-gnu-4-01"
+run_dump_test "attr-gnu-4-02"
+run_dump_test "attr-gnu-4-10"
+run_dump_test "attr-gnu-4-11"
+run_dump_test "attr-gnu-4-12"
+run_dump_test "attr-gnu-4-20"
+run_dump_test "attr-gnu-4-21"
+run_dump_test "attr-gnu-4-22"

@@ -155,3 +155,166 @@ _start:
 	vaddpd xmm2, xmm1, QWORD PTR [eax]{1to4}
 	vaddpd xmm2, xmm1, QWORD PTR [eax]{1to8}
 	vaddpd xmm2, xmm1, QWORD PTR [eax]{1to16}
+
+	vcvtps2qq xmm0, DWORD PTR [eax]
+
+	.att_syntax prefix
+	vcmppd $0, %zmm0, %zmm0, %k0{%k1}{z}
+	vcmpps $0, %zmm0, %zmm0, %k0{%k1}{z}
+	vcmpsd $0, %xmm0, %xmm0, %k0{%k1}{z}
+	vcmpss $0, %xmm0, %xmm0, %k0{%k1}{z}
+
+	vcompresspd %zmm0, (%eax){%k1}{z}
+	vcompressps %zmm0, (%eax){%k1}{z}
+
+	vcvtps2ph $0, %zmm0, (%eax){%k1}{z}
+
+	vextractf32x4 $0, %zmm0, (%eax){%k1}{z}
+	vextractf32x8 $0, %zmm0, (%eax){%k1}{z}
+	vextractf64x2 $0, %zmm0, (%eax){%k1}{z}
+	vextractf64x4 $0, %zmm0, (%eax){%k1}{z}
+
+	vextracti32x4 $0, %zmm0, (%eax){%k1}{z}
+	vextracti32x8 $0, %zmm0, (%eax){%k1}{z}
+	vextracti64x2 $0, %zmm0, (%eax){%k1}{z}
+	vextracti64x4 $0, %zmm0, (%eax){%k1}{z}
+
+	vfpclasspd $0, %zmm0, %k0{%k1}{z}
+	vfpclassps $0, %zmm0, %k0{%k1}{z}
+	vfpclasssd $0, %xmm0, %k0{%k1}{z}
+	vfpclassss $0, %xmm0, %k0{%k1}{z}
+
+	vgatherdpd (%eax,%ymm1), %zmm0{%k1}{z}
+	vgatherdps (%eax,%zmm1), %zmm0{%k1}{z}
+	vgatherqpd (%eax,%zmm1), %zmm0{%k1}{z}
+	vgatherqps (%eax,%zmm1), %ymm0{%k1}{z}
+
+	vgatherpf0dpd (%eax,%ymm1){%k1}{z}
+	vgatherpf0dps (%eax,%zmm1){%k1}{z}
+	vgatherpf0qpd (%eax,%zmm1){%k1}{z}
+	vgatherpf0qps (%eax,%zmm1){%k1}{z}
+
+	vgatherpf1dpd (%eax,%ymm1){%k1}{z}
+	vgatherpf1dps (%eax,%zmm1){%k1}{z}
+	vgatherpf1qpd (%eax,%zmm1){%k1}{z}
+	vgatherpf1qps (%eax,%zmm1){%k1}{z}
+
+	vmovapd %zmm0, (%eax){%k1}{z}
+	vmovaps %zmm0, (%eax){%k1}{z}
+
+	vmovdqa32 %zmm0, (%eax){%k1}{z}
+	vmovdqa64 %zmm0, (%eax){%k1}{z}
+
+	vmovdqu8 %zmm0, (%eax){%k1}{z}
+	vmovdqu16 %zmm0, (%eax){%k1}{z}
+	vmovdqu32 %zmm0, (%eax){%k1}{z}
+	vmovdqu64 %zmm0, (%eax){%k1}{z}
+
+	vmovsd %xmm0, (%eax){%k1}{z}
+	vmovss %xmm0, (%eax){%k1}{z}
+
+	vmovupd %zmm0, (%eax){%k1}{z}
+	vmovups %zmm0, (%eax){%k1}{z}
+
+	vpcmpb $0, %zmm0, %zmm0, %k0{%k1}{z}
+	vpcmpd $0, %zmm0, %zmm0, %k0{%k1}{z}
+	vpcmpq $0, %zmm0, %zmm0, %k0{%k1}{z}
+	vpcmpw $0, %zmm0, %zmm0, %k0{%k1}{z}
+
+	vpcmpeqb %zmm0, %zmm0, %k0{%k1}{z}
+	vpcmpeqd %zmm0, %zmm0, %k0{%k1}{z}
+	vpcmpeqq %zmm0, %zmm0, %k0{%k1}{z}
+	vpcmpeqw %zmm0, %zmm0, %k0{%k1}{z}
+
+	vpcmpgtb %zmm0, %zmm0, %k0{%k1}{z}
+	vpcmpgtd %zmm0, %zmm0, %k0{%k1}{z}
+	vpcmpgtq %zmm0, %zmm0, %k0{%k1}{z}
+	vpcmpgtw %zmm0, %zmm0, %k0{%k1}{z}
+
+	vpcmpub $0, %zmm0, %zmm0, %k0{%k1}{z}
+	vpcmpud $0, %zmm0, %zmm0, %k0{%k1}{z}
+	vpcmpuq $0, %zmm0, %zmm0, %k0{%k1}{z}
+	vpcmpuw $0, %zmm0, %zmm0, %k0{%k1}{z}
+
+	vpcompressb %zmm0, (%eax){%k1}{z}
+	vpcompressd %zmm0, (%eax){%k1}{z}
+	vpcompressq %zmm0, (%eax){%k1}{z}
+	vpcompressw %zmm0, (%eax){%k1}{z}
+
+	vpgatherdd (%eax,%zmm1), %zmm0{%k1}{z}
+	vpgatherdq (%eax,%ymm1), %zmm0{%k1}{z}
+	vpgatherqd (%eax,%zmm1), %ymm0{%k1}{z}
+	vpgatherqq (%eax,%zmm1), %zmm0{%k1}{z}
+
+	vpmovdb %zmm0, (%eax){%k1}{z}
+	vpmovdw %zmm0, (%eax){%k1}{z}
+
+	vpmovqb %zmm0, (%eax){%k1}{z}
+	vpmovqd %zmm0, (%eax){%k1}{z}
+	vpmovqw %zmm0, (%eax){%k1}{z}
+
+	vpmovsdb %zmm0, (%eax){%k1}{z}
+	vpmovsdw %zmm0, (%eax){%k1}{z}
+
+	vpmovsqb %zmm0, (%eax){%k1}{z}
+	vpmovsqd %zmm0, (%eax){%k1}{z}
+	vpmovsqw %zmm0, (%eax){%k1}{z}
+
+	vpmovswb %zmm0, (%eax){%k1}{z}
+
+	vpmovusdb %zmm0, (%eax){%k1}{z}
+	vpmovusdw %zmm0, (%eax){%k1}{z}
+
+	vpmovusqb %zmm0, (%eax){%k1}{z}
+	vpmovusqd %zmm0, (%eax){%k1}{z}
+	vpmovusqw %zmm0, (%eax){%k1}{z}
+
+	vpmovuswb %zmm0, (%eax){%k1}{z}
+
+	vpmovwb %zmm0, (%eax){%k1}{z}
+
+	vpscatterdd %zmm0, (%eax,%zmm1){%k1}{z}
+	vpscatterdq %zmm0, (%eax,%ymm1){%k1}{z}
+	vpscatterqd %ymm0, (%eax,%zmm1){%k1}{z}
+	vpscatterqq %zmm0, (%eax,%zmm1){%k1}{z}
+
+	vpshufbitqmb %zmm0, %zmm0, %k0{%k1}{z}
+
+	vptestmb %zmm0, %zmm0, %k0{%k1}{z}
+	vptestmd %zmm0, %zmm0, %k0{%k1}{z}
+	vptestmq %zmm0, %zmm0, %k0{%k1}{z}
+	vptestmw %zmm0, %zmm0, %k0{%k1}{z}
+
+	vptestnmb %zmm0, %zmm0, %k0{%k1}{z}
+	vptestnmd %zmm0, %zmm0, %k0{%k1}{z}
+	vptestnmq %zmm0, %zmm0, %k0{%k1}{z}
+	vptestnmw %zmm0, %zmm0, %k0{%k1}{z}
+
+	vscatterdpd %zmm0, (%eax,%ymm1){%k1}{z}
+	vscatterdps %zmm0, (%eax,%zmm1){%k1}{z}
+	vscatterqpd %zmm0, (%eax,%zmm1){%k1}{z}
+	vscatterqps %ymm0, (%eax,%zmm1){%k1}{z}
+
+	vscatterpf0dpd (%eax,%ymm1){%k1}{z}
+	vscatterpf0dps (%eax,%zmm1){%k1}{z}
+	vscatterpf0qpd (%eax,%zmm1){%k1}{z}
+	vscatterpf0qps (%eax,%zmm1){%k1}{z}
+
+	vscatterpf1dpd (%eax,%ymm1){%k1}{z}
+	vscatterpf1dps (%eax,%zmm1){%k1}{z}
+	vscatterpf1qpd (%eax,%zmm1){%k1}{z}
+	vscatterpf1qps (%eax,%zmm1){%k1}{z}
+
+	vdpbf16ps 8(%eax){1to8}, %zmm2, %zmm2
+	vcvtne2ps2bf16 8(%eax){1to8}, %zmm2, %zmm2
+
+	vcvtneps2bf16 (%eax){1to2}, %ymm1
+	vcvtneps2bf16 (%eax){1to4}, %ymm1
+	vcvtneps2bf16 (%eax){1to8}, %ymm1
+	vcvtneps2bf16 (%eax){1to16}, %ymm1
+
+	vcvtneps2bf16 (%eax){1to2}, %xmm1
+	vcvtneps2bf16 (%eax){1to4}, %xmm1
+	vcvtneps2bf16 (%eax){1to8}, %xmm1
+	vcvtneps2bf16 (%eax){1to16}, %xmm1
+	.p2align 4

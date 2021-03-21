@@ -111,7 +111,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* FUNC +GLOBAL +DEFAULT +8 _start
 .* TLS +GLOBAL +HIDDEN +9 sh4
 .* TLS +GLOBAL +DEFAULT +10 bg7
-.* FUNC +GLOBAL +DEFAULT +UND __tls_get_addr@@SUNWprivate_1.1
+.* FUNC +GLOBAL +DEFAULT +UND __tls_get_addr@SUNWprivate_1.1
 .* TLS +GLOBAL +HIDDEN +9 sh5
 .* NOTYPE +GLOBAL +DEFAULT +12 __bss_start
 .* TLS +GLOBAL +DEFAULT +UND sG6

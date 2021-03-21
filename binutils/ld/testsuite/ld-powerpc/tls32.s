@@ -62,7 +62,8 @@ _start:
 #LD
  addi 3,31,ld0@got@tlsld	#R_PPC_GOT_TLSLD16	ld0
  .ifdef TLSMARK
- bl __tls_get_addr+0x8000(ld0@tlsld)@plt #R_PPC_TLSLD	ld0
+#exercise saner new syntax with @plt before the arg
+ bl __tls_get_addr+0x8000@plt(ld0@tlsld) #R_PPC_TLSLD	ld0
 				#R_PPC_PLTREL24		__tls_get_addr+0x8000
  .else
  bl __tls_get_addr+0x8000@plt	#R_PPC_PLTREL24		__tls_get_addr+0x8000

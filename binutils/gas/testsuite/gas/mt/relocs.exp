@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Free Software Foundation, Inc.
+# Copyright (C) 2012-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,7 +35,6 @@ proc regexp_test { file1 file2 test } {
 }
 
 
-global srcdir subdir
 if [istarget mt-*] {
     gas_test "relocs1.s" {-o relocs1.o} {} {assembling relocs1}
 

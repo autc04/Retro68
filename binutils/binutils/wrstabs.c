@@ -1,5 +1,5 @@
 /* wrstabs.c -- Output stabs debugging information
-   Copyright (C) 1996-2018 Free Software Foundation, Inc.
+   Copyright (C) 1996-2020 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -437,7 +437,8 @@ stab_pop_type (struct stab_write_handle *info)
   char *ret;
 
   s = info->type_stack;
-  assert (s != NULL);
+  if (s == NULL)
+    return NULL;
 
   info->type_stack = s->next;
 
@@ -511,7 +512,8 @@ write_stabs_in_sections_debugging_info (bfd *abfd, void *dhandle,
   if (! debug_write (dhandle, &stab_fns, (void *) &info))
     return FALSE;
 
-  assert (info.pending_lbrac == (bfd_vma) -1);
+  if (info.pending_lbrac != (bfd_vma) -1)
+    return FALSE;
 
   /* Output a trailing N_SO.  */
   if (! stab_write_symbol (&info, N_SO, 0, info.last_text_address,
@@ -788,7 +790,8 @@ stab_enum_type (void *p, const char *tag, const char **names,
 
   if (names == NULL)
     {
-      assert (tag != NULL);
+      if (tag == NULL)
+	return FALSE;
 
       buf = (char *) xmalloc (10 + strlen (tag));
       sprintf (buf, "xe%s:", tag);
@@ -850,7 +853,8 @@ stab_modify_type (struct stab_write_handle *info, int mod,
   long tindex;
   char *s, *buf;
 
-  assert (info->type_stack != NULL);
+  if (info->type_stack == NULL)
+    return FALSE;
   targindex = info->type_stack->index;
 
   if (targindex <= 0
@@ -1220,8 +1224,7 @@ stab_method_type (void *p, bfd_boolean domainp, int argcount,
     }
   strcat (buf, ";");
 
-  if (args != NULL)
-    free (args);
+  free (args);
 
   if (! stab_push_string (info, buf, 0, definition, 0))
     return FALSE;
@@ -1360,8 +1363,9 @@ stab_struct_field (void *p, const char *name, bfd_vma bitpos,
 
   /* Add this field to the end of the current struct fields, which is
      currently on the top of the stack.  */
+  if (info->type_stack->fields == NULL)
+    return FALSE;
 
-  assert (info->type_stack->fields != NULL);
   n = (char *) xmalloc (strlen (info->type_stack->fields)
 			+ strlen (name)
 			+ strlen (s)
@@ -1416,7 +1420,8 @@ stab_end_struct_type (void *p)
   unsigned int size;
   char *fields, *first, *buf;
 
-  assert (info->type_stack != NULL && info->type_stack->fields != NULL);
+  if (info->type_stack == NULL || info->type_stack->fields == NULL)
+    return FALSE;
 
   definition = info->type_stack->definition;
   tindex = info->type_stack->index;
@@ -1440,18 +1445,15 @@ stab_end_struct_type (void *p)
 /* Start outputting a class.  */
 
 static bfd_boolean
-stab_start_class_type (void *p, const char *tag, unsigned int id, bfd_boolean structp, unsigned int size, bfd_boolean vptr, bfd_boolean ownvptr)
+stab_start_class_type (void *p, const char *tag, unsigned int id,
+		       bfd_boolean structp, unsigned int size,
+		       bfd_boolean vptr, bfd_boolean ownvptr)
 {
   struct stab_write_handle *info = (struct stab_write_handle *) p;
-  bfd_boolean definition;
-  char *vstring;
+  bfd_boolean definition = FALSE;
+  char *vstring = NULL;
 
-  if (! vptr || ownvptr)
-    {
-      definition = FALSE;
-      vstring = NULL;
-    }
-  else
+  if (vptr && !ownvptr)
     {
       definition = info->type_stack->definition;
       vstring = stab_pop_type (info);
@@ -1466,22 +1468,23 @@ stab_start_class_type (void *p, const char *tag, unsigned int id, bfd_boolean st
 
       if (ownvptr)
 	{
-	  assert (info->type_stack->index > 0);
+	  if (info->type_stack->index < 1)
+	    return FALSE;
 	  vtable = (char *) xmalloc (20);
 	  sprintf (vtable, "~%%%ld", info->type_stack->index);
 	}
       else
 	{
+	  if (vstring == NULL)
+	    return FALSE;
 	  vtable = (char *) xmalloc (strlen (vstring) + 3);
 	  sprintf (vtable, "~%%%s", vstring);
 	  free (vstring);
+	  if (definition)
+	    info->type_stack->definition = TRUE;
 	}
-
       info->type_stack->vtable = vtable;
     }
-
-  if (definition)
-    info->type_stack->definition = TRUE;
 
   return TRUE;
 }
@@ -1503,7 +1506,8 @@ stab_class_static_member (void *p, const char *name, const char *physname,
   /* Add this field to the end of the current struct fields, which is
      currently on the top of the stack.  */
 
-  assert (info->type_stack->fields != NULL);
+  if (info->type_stack->fields == NULL)
+    return FALSE;
   n = (char *) xmalloc (strlen (info->type_stack->fields)
 			+ strlen (name)
 			+ strlen (s)
@@ -1583,7 +1587,8 @@ stab_class_baseclass (void *p, bfd_vma bitpos, bfd_boolean is_virtual,
 
   /* Add the new baseclass to the existing ones.  */
 
-  assert (info->type_stack != NULL && info->type_stack->fields != NULL);
+  if (info->type_stack == NULL || info->type_stack->fields == NULL)
+    return FALSE;
 
   if (info->type_stack->baseclasses == NULL)
     c = 0;
@@ -1615,7 +1620,8 @@ stab_class_start_method (void *p, const char *name)
   struct stab_write_handle *info = (struct stab_write_handle *) p;
   char *m;
 
-  assert (info->type_stack != NULL && info->type_stack->fields != NULL);
+  if (info->type_stack == NULL || info->type_stack->fields == NULL)
+    return FALSE;
 
   if (info->type_stack->methods == NULL)
     {
@@ -1660,7 +1666,8 @@ stab_class_method_var (struct stab_write_handle *info, const char *physname,
       context = stab_pop_type (info);
     }
 
-  assert (info->type_stack != NULL && info->type_stack->methods != NULL);
+  if (info->type_stack == NULL || info->type_stack->methods == NULL)
+    return FALSE;
 
   switch (visibility)
     {
@@ -1761,7 +1768,8 @@ stab_class_end_method (void *p)
 {
   struct stab_write_handle *info = (struct stab_write_handle *) p;
 
-  assert (info->type_stack != NULL && info->type_stack->methods != NULL);
+  if (info->type_stack == NULL || info->type_stack->methods == NULL)
+    return FALSE;
 
   /* We allocated enough room on info->type_stack->methods to add the
      trailing semicolon.  */
@@ -1780,7 +1788,10 @@ stab_end_class_type (void *p)
   unsigned int i = 0;
   char *buf;
 
-  assert (info->type_stack != NULL && info->type_stack->fields != NULL);
+  if (info->type_stack == NULL
+      || info->type_stack->string == NULL
+      || info->type_stack->fields == NULL)
+    return FALSE;
 
   /* Work out the size we need to allocate for the class definition.  */
 
@@ -1853,7 +1864,8 @@ stab_typedef_type (void *p, const char *name)
   struct string_hash_entry *h;
 
   h = string_hash_lookup (&info->typedef_hash, name, FALSE, FALSE);
-  assert (h != NULL && h->index > 0);
+  if (h == NULL || h->index < 1)
+    return FALSE;
 
   return stab_push_defined_type (info, h->index, h->size);
 }
@@ -2085,7 +2097,8 @@ stab_start_function (void *p, const char *name, bfd_boolean globalp)
   struct stab_write_handle *info = (struct stab_write_handle *) p;
   char *rettype, *buf;
 
-  assert (info->nesting == 0 && info->fun_offset == -1);
+  if (info->nesting != 0 || info->fun_offset != -1)
+    return FALSE;
 
   rettype = stab_pop_type (info);
 
@@ -2227,7 +2240,8 @@ stab_end_block (void *p, bfd_vma addr)
       info->pending_lbrac = (bfd_vma) -1;
     }
 
-  assert (info->nesting > 0);
+  if (info->nesting < 1)
+    return FALSE;
 
   --info->nesting;
 
@@ -2254,7 +2268,8 @@ stab_lineno (void *p, const char *file, unsigned long lineno, bfd_vma addr)
 {
   struct stab_write_handle *info = (struct stab_write_handle *) p;
 
-  assert (info->lineno_filename != NULL);
+  if (info->lineno_filename == NULL)
+    return FALSE;
 
   if (addr > info->last_text_address)
     info->last_text_address = addr;

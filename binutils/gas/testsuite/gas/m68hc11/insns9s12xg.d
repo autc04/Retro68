@@ -2,7 +2,7 @@
 #as: -mm9s12xg
 #name: XGATE instruction set and all modes
 
-dump.o:     file format elf32-m68hc12
+.*:     file format elf32-m68hc12
 
 
 Disassembly of section .text:

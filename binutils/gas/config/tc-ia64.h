@@ -1,5 +1,5 @@
 /* tc-ia64.h -- Header file for tc-ia64.c.
-   Copyright (C) 1998-2018 Free Software Foundation, Inc.
+   Copyright (C) 1998-2020 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -166,7 +166,7 @@ void ia64_vms_note (void);
 
 /* Record if an alignment frag should end with a stop bit.  */
 #define TC_FRAG_TYPE			int
-#define TC_FRAG_INIT(FRAGP)		do {(FRAGP)->tc_frag_data = 0;}while (0)
+#define TC_FRAG_INIT(FRAGP, MAX_BYTES)	do {(FRAGP)->tc_frag_data = 0;}while (0)
 
 /* Give an error if a frag containing code is not aligned to a 16 byte
    boundary.  */
@@ -325,6 +325,5 @@ typedef struct unwind_record
 
 /* VMS backtraces expect dwarf version 3.  */
 #ifdef TE_VMS
-#define DWARF2_VERSION 3
-#define DWARF2_LINE_VERSION 3
+#define DWARF2_VERSION      (dwarf_level < 3 ? 3  : dwarf_level)
 #endif

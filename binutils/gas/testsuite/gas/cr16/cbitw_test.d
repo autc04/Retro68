@@ -95,17 +95,17 @@ Disassembly of section .text:
  136:	3d 69 ff 0f 	cbitw	\$0x3:s,0xfff:m\(r13\)
  13a:	3d 69 ff ff 	cbitw	\$0x3:s,0xffff:m\(r13\)
  13e:	3c 69 43 23 	cbitw	\$0x3:s,0x2343:m\(r12\)
- 142:	11 00 32 41 	cbitw	\$0x3:s,0x2345:l\(r2\)
+ 142:	11 00 32 41 	cbitw	\$0x3:s,0x12345:l\(r2\)
  146:	45 23 
- 148:	11 00 38 44 	cbitw	\$0x3:s,0xabcd:l\(r8\)
+ 148:	11 00 38 44 	cbitw	\$0x3:s,0x4abcd:l\(r8\)
  14c:	cd ab 
  14e:	11 00 3d 5f 	cbitw	\$0x3:s,0xfabcd:l\(r13\)
  152:	cd ab 
- 154:	11 00 38 4f 	cbitw	\$0x3:s,0xabcd:l\(r8\)
+ 154:	11 00 38 4f 	cbitw	\$0x3:s,0xfabcd:l\(r8\)
  158:	cd ab 
- 15a:	11 00 39 4f 	cbitw	\$0x3:s,0xabcd:l\(r9\)
+ 15a:	11 00 39 4f 	cbitw	\$0x3:s,0xfabcd:l\(r9\)
  15e:	cd ab 
- 160:	11 00 39 44 	cbitw	\$0x3:s,0xabcd:l\(r9\)
+ 160:	11 00 39 44 	cbitw	\$0x3:s,0x4abcd:l\(r9\)
  164:	cd ab 
  166:	11 00 f2 40 	cbitw	\$0xf:s,0x0:l\(r2\)
  16a:	00 00 
@@ -123,17 +123,17 @@ Disassembly of section .text:
  190:	dd 69 ff 0f 	cbitw	\$0xd:s,0xfff:m\(r13\)
  194:	dd 69 ff ff 	cbitw	\$0xd:s,0xffff:m\(r13\)
  198:	dc 69 43 23 	cbitw	\$0xd:s,0x2343:m\(r12\)
- 19c:	11 00 d2 41 	cbitw	\$0xd:s,0x2345:l\(r2\)
+ 19c:	11 00 d2 41 	cbitw	\$0xd:s,0x12345:l\(r2\)
  1a0:	45 23 
- 1a2:	11 00 d8 44 	cbitw	\$0xd:s,0xabcd:l\(r8\)
+ 1a2:	11 00 d8 44 	cbitw	\$0xd:s,0x4abcd:l\(r8\)
  1a6:	cd ab 
  1a8:	11 00 dd 5f 	cbitw	\$0xd:s,0xfabcd:l\(r13\)
  1ac:	cd ab 
- 1ae:	11 00 d8 4f 	cbitw	\$0xd:s,0xabcd:l\(r8\)
+ 1ae:	11 00 d8 4f 	cbitw	\$0xd:s,0xfabcd:l\(r8\)
  1b2:	cd ab 
- 1b4:	11 00 d9 4f 	cbitw	\$0xd:s,0xabcd:l\(r9\)
+ 1b4:	11 00 d9 4f 	cbitw	\$0xd:s,0xfabcd:l\(r9\)
  1b8:	cd ab 
- 1ba:	11 00 d9 44 	cbitw	\$0xd:s,0xabcd:l\(r9\)
+ 1ba:	11 00 d9 44 	cbitw	\$0xd:s,0x4abcd:l\(r9\)
  1be:	cd ab 
  1c0:	31 6e       	cbitw	\$0x3:s,0x0:s\(r2,r1\)
  1c2:	51 69 01 00 	cbitw	\$0x5:s,0x1:m\(r2,r1\)

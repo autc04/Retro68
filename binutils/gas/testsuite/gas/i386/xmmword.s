@@ -127,3 +127,20 @@ xmmword:
 	vpmovzxwq	xmm0{k7}, xmmword ptr [eax]
 	vpmovzxwq	ymm0, xmmword ptr [eax]
 	vpmovzxwq	ymm0{k7}, xmmword ptr [eax]
+
+	vcvtps2qq	xmm0, xmmword ptr [rax]
+	vcvtps2uqq	xmm0, xmmword ptr [rax]
+	vcvttps2qq	xmm0, xmmword ptr [rax]
+	vcvttps2uqq	xmm0, xmmword ptr [rax]
+
+	movq		xmm0, xmmword ptr [eax]
+	vmovq		xmm0, xmmword ptr [eax]
+	{evex} vmovq	xmm0, xmmword ptr [eax]
+
+	movq		xmmword ptr [eax], xmm0
+	vmovq		xmmword ptr [eax], xmm0
+	{evex} vmovq	xmmword ptr [eax], xmm0
+
+	cvtps2pi	mm0, xmmword ptr [eax]
+
+	cvttps2pi	mm0, xmmword ptr [eax]

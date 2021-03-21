@@ -1,5 +1,5 @@
 /* tc-v850.c -- Assembler code for the NEC V850
-   Copyright (C) 1996-2018 Free Software Foundation, Inc.
+   Copyright (C) 1996-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -229,7 +229,7 @@ do_v850_seg (int i, subsegT sub)
   else
     {
       seg->s = subseg_new (seg->name, sub);
-      bfd_set_section_flags (stdoutput, seg->s, seg->flags);
+      bfd_set_section_flags (seg->s, seg->flags);
       if ((seg->flags & SEC_LOAD) == 0)
 	seg_info (seg->s)->bss = 1;
     }
@@ -599,7 +599,7 @@ const pseudo_typeS md_pseudo_table[] =
 };
 
 /* Opcode hash table.  */
-static struct hash_control *v850_hash;
+static htab_t v850_hash;
 
 /* This table is sorted.  Suitable for searching by a binary search.  */
 static const struct reg_name pre_defined_registers[] =
@@ -1444,7 +1444,7 @@ parse_register_list (unsigned long *insn,
 	    {
 	      if (regs[i] == exp.X_add_number)
 		{
-		  *insn |= (1 << i);
+		  *insn |= 1u << i;
 		  break;
 		}
 	    }
@@ -1705,7 +1705,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
   else if (fragP->fr_subtype == SUBYPTE_LOOP_16_22 + 1)
     {
       unsigned char * buffer =
-	(unsigned char *) (fragP->fr_fix + fragP->fr_literal);
+	(unsigned char *) (fragP->fr_fix + &fragP->fr_literal[0]);
       int loop_reg = (buffer[0] & 0x1f);
 
       /* Add -1.reg.  */
@@ -1743,7 +1743,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 	   || fragP->fr_subtype == SUBYPTE_SA_9_17_22_32 + 1)
     {
       unsigned char *buffer =
-	(unsigned char *) (fragP->fr_fix + fragP->fr_literal);
+	(unsigned char *) (fragP->fr_fix + &fragP->fr_literal[0]);
 
       buffer[0] &= 0x0f;	/* Use condition.  */
       buffer[0] |= 0xe0;
@@ -1878,7 +1878,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 valueT
 md_section_align (asection *seg, valueT addr)
 {
-  int align = bfd_get_section_alignment (stdoutput, seg);
+  int align = bfd_section_alignment (seg);
   return ((addr + (1 << align) - 1) & -(1 << align));
 }
 
@@ -1952,7 +1952,7 @@ md_begin (void)
   if (soft_float == -1)
     soft_float = machine < bfd_mach_v850e2v3;
 
-  v850_hash = hash_new ();
+  v850_hash = str_htab_create ();
 
   /* Insert unique names into hash table.  The V850 instruction set
      has many identical opcode names that have different opcodes based
@@ -1964,7 +1964,7 @@ md_begin (void)
       if (strcmp (prev_name, op->name))
 	{
 	  prev_name = (char *) op->name;
-	  hash_insert (v850_hash, op->name, (char *) op);
+	  str_hash_insert (v850_hash, op->name, op, 0);
 	}
       op++;
     }
@@ -2321,7 +2321,7 @@ md_assemble (char *str)
     *s++ = '\0';
 
   /* Find the first opcode with the proper name.  */
-  opcode = (struct v850_opcode *) hash_find (v850_hash, str);
+  opcode = (struct v850_opcode *) str_hash_find (v850_hash, str);
   if (opcode == NULL)
     {
       /* xgettext:c-format  */
@@ -3740,8 +3740,8 @@ v850_md_end (void)
   enum v850_notes id;
 
   note_sec = subseg_new (V850_NOTE_SECNAME, 0);
-  bfd_set_section_flags (stdoutput, note_sec, SEC_HAS_CONTENTS | SEC_READONLY | SEC_MERGE);
-  bfd_set_section_alignment (stdoutput, note_sec, 2);
+  bfd_set_section_flags (note_sec, SEC_HAS_CONTENTS | SEC_READONLY | SEC_MERGE);
+  bfd_set_section_alignment (note_sec, 2);
 
   /* Provide default values for all of the notes.  */
   for (id = V850_NOTE_ALIGNMENT; id <= NUM_V850_NOTES; id++)

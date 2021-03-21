@@ -1,7 +1,6 @@
 #source: pic-and-nonpic-2a.s
 #source: pic-and-nonpic-2b.s
-#as: -32 -EB
-#ld: -melf32btsmip -Tpic-and-nonpic-1.ld
+#ld: -Tpic-and-nonpic-1.ld
 #objdump: -dr
 
 .*

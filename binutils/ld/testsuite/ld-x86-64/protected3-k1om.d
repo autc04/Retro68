@@ -2,6 +2,7 @@
 #as: --64 -march=k1om
 #ld: -shared -melf_k1om
 #readelf: -h
+#target: x86_64-*-linux*
 
 ELF Header:
   Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 

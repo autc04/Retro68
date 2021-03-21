@@ -1,6 +1,6 @@
 /* script_test_15b.t -- linker script test 15b for gold
 
-   Copyright (C) 2016-2017 Free Software Foundation, Inc.
+   Copyright (C) 2016-2020 Free Software Foundation, Inc.
    Written by Cary Coutant <ccoutant@google.com>.
 
    This file is part of gold.

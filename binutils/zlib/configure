@@ -3397,11 +3397,11 @@ done
 
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-
+#include <stdio.h>
 int
 main ()
 {
-
+printf ("hello world\n");
   ;
   return 0;
 }
@@ -12228,6 +12228,7 @@ CONFIG_SHELL=${CONFIG_SHELL-/bin/sh}
 CC="$CC"
 CXX="$CXX"
 GFORTRAN="$GFORTRAN"
+GDC="$GDC"
 AMDEP_TRUE="$AMDEP_TRUE" ac_aux_dir="$ac_aux_dir"
 
 

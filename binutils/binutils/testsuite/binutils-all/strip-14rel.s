@@ -2,7 +2,7 @@
 foo:
 	.dc.l    0x12345678
 
-	.section .rel.text
+	.section .rel.text,""
 	.ifdef	 ELF64
 
 	.dc.a	 0

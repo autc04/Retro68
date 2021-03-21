@@ -1,5 +1,5 @@
 /* elfcomm.h -- include file of common code for ELF format file.
-   Copyright (C) 2010-2018 Free Software Foundation, Inc.
+   Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
    Originally developed by Eric Youngdale <eric@andante.jic.com>
    Modifications by Nick Clifton <nickc@redhat.com>
@@ -26,8 +26,8 @@
 
 #include "aout/ar.h"
 
-void error (const char *, ...) ATTRIBUTE_PRINTF_1;
-void warn (const char *, ...) ATTRIBUTE_PRINTF_1;
+extern void error (const char *, ...) ATTRIBUTE_PRINTF_1;
+extern void warn (const char *, ...) ATTRIBUTE_PRINTF_1;
 
 typedef unsigned HOST_WIDEST_INT elf_vma;
 
@@ -64,8 +64,8 @@ struct archive_info
   unsigned long longnames_size;         /* Size of the long file names table.  */
   unsigned long nested_member_origin;   /* Origin in the nested archive of the current member.  */
   unsigned long next_arhdr_offset;      /* Offset of the next archive header.  */
-  bfd_boolean is_thin_archive;          /* TRUE if this is a thin archive.  */
-  bfd_boolean uses_64bit_indicies;      /* TRUE if the index table uses 64bit entries.  */
+  int is_thin_archive;                  /* 1 if this is a thin archive.  */
+  int uses_64bit_indices;               /* 1 if the index table uses 64bit entries.  */
   struct ar_hdr arhdr;                  /* Current archive header.  */
 };
 
@@ -74,7 +74,7 @@ extern char *adjust_relative_path (const char *, const char *, unsigned long);
 
 /* Read the symbol table and long-name table from an archive.  */
 extern int setup_archive (struct archive_info *, const char *, FILE *,
-			  bfd_boolean, bfd_boolean);
+			  off_t, int, int);
 
 /* Open and setup a nested archive, if not already open.  */
 extern int setup_nested_archive (struct archive_info *, const char *);

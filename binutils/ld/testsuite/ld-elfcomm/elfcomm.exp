@@ -1,5 +1,5 @@
 # Expect script for common symbol tests
-#   Copyright (C) 2003-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -59,7 +59,7 @@ proc test_sort_common {} {
     }
 
     if { ![ld_link $ld tmpdir/sort-common.dx "--sort-common=descending tmpdir/sort-common.o"] } {
-	fail "$test"
+	fail "$test (could not link)"
 	return 0
     }
 
@@ -73,7 +73,7 @@ proc test_sort_common {} {
     #  section and large commons in a .bss section.
     if {   ![regexp ".*var_16.*var_8.*var_4.*var_2.*var_1.*" $exec_output]
         && ![regexp ".*sbss.*var_8.*var_4.*var_2.*var_1.*bss.*var_16.*" $exec_output] } {      
-	fail $test
+	fail "$test (variables in wrong order)"
     } else {
 	pass $test
     }
@@ -83,7 +83,7 @@ proc test_sort_common {} {
     verbose "Check to see that --sort-common=ascending sorts in ascending alignment"
 
     if { ![ld_link $ld tmpdir/sort-common.ax "--sort-common=ascending tmpdir/sort-common.o"] } {
-	fail "$test"
+	fail "$test (could not link)"
 	return 0
     }
 
@@ -91,7 +91,7 @@ proc test_sort_common {} {
     set exec_output [run_host_cmd "$objdump" "--syms tmpdir/sort-common.ax | grep var | sort"]
 
     if {![regexp ".*var_1.*var_2.*var_4.*var_8.*var_16.*" $exec_output]} {      
-	fail $test
+	fail "$test (variables in wrong order)"
 	return 0
     }
 
@@ -107,7 +107,7 @@ set test1w2	"$test1 (warning 2)"
 set test1c1	"$test1 (change 1)"
 set test1c2	"$test1 (change 2)"
 
-if { ![is_remote host] && [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     untested $test1w1
     untested $test1w2
     untested $test1c1
@@ -169,16 +169,13 @@ if [istarget nios2*-*-*] {
 
 # Explicitly use "-fcommon" so that even if $CFLAGS includes
 # "-fno-common", these tests are compiled as expected.
-if {   ![ld_compile "$CC $CFLAGS -fcommon" $srcdir/$subdir/common1a.c tmpdir/common1a.o]
-    || ![ld_compile "$CC $CFLAGS -fcommon" $srcdir/$subdir/common1b.c tmpdir/common1b.o]
-    || ![ld_compile "$CC $CFLAGS -Wa,--elf-stt-common=yes -fcommon" $srcdir/$subdir/common1b.c tmpdir/common1c.o] } {
+if {   ![ld_compile "$CC $CFLAGS -fcommon $NOSANITIZE_CFLAGS" $srcdir/$subdir/common1a.c tmpdir/common1a.o]
+    || ![ld_compile "$CC $CFLAGS -fcommon $NOSANITIZE_CFLAGS" $srcdir/$subdir/common1b.c tmpdir/common1b.o]
+    || ![ld_compile "$CC $CFLAGS $NOSANITIZE_CFLAGS -Wa,--elf-stt-common=yes -fcommon" $srcdir/$subdir/common1b.c tmpdir/common1c.o] } {
     unresolved $test1
     unresolved $test1
     return
 }
-
-global ld
-global link_output
 
 set options "-r tmpdir/common1a.o tmpdir/common1b.o"
 

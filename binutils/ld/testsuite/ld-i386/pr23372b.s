@@ -8,7 +8,7 @@
 	.asciz "GNU"		/* vendor name.  */
 1:
 	.p2align 2
-	/* GNU_PROPERTY_X86_ISA_1_USED */
+	/* GNU_PROPERTY_X86_COMPAT_ISA_1_USED */
 	.long 0xc0000000	/* pr_type.  */
 	.long 3f - 2f		/* pr_datasz.  */
 2:

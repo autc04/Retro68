@@ -1,6 +1,6 @@
 #as: -mfpxx -32
 #source: empty.s
-#PROG: readelf
+#DUMPPROG: readelf
 #readelf: -A
 #name: MIPS infer fpabi (O32 fpxx)
 

@@ -58,7 +58,7 @@
 	and $3,%eax
 .endm
 .macro test_4
-	lock and $3,(%rax)
+	lock andl $3,(%rax)
 .endm
 .macro test_5
 	mov $0x11223344,%eax

@@ -1,5 +1,5 @@
 /* windres.c -- a program to manipulate Windows resources
-   Copyright (C) 1997-2018 Free Software Foundation, Inc.
+   Copyright (C) 1997-2020 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
    Rewritten by Kai Tietz, Onevision.
 
@@ -527,6 +527,8 @@ extended_menuitems (const rc_menuitem *menuitems)
 		| MENUITEM_HELP
 		| MENUITEM_INACTIVE
 		| MENUITEM_MENUBARBREAK
+		| MENUITEM_BITMAP
+		| MENUITEM_OWNERDRAW
 		| MENUITEM_MENUBREAK))
 	  != 0)
 	return 1;
@@ -704,8 +706,7 @@ quot (const char *string)
   if ((buflen < slen * 2 + 2) || ! buf)
     {
       buflen = slen * 2 + 2;
-      if (buf)
-	free (buf);
+      free (buf);
       buf = (char *) xmalloc (buflen);
     }
 
@@ -812,7 +813,8 @@ main (int argc, char **argv)
 
   expandargv (&argc, &argv);
 
-  bfd_init ();
+  if (bfd_init () != BFD_INIT_MAGIC)
+    fatal (_("fatal error: libbfd ABI mismatch"));
   set_default_bfd_target ();
 
   res_init ();

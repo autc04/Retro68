@@ -1,5 +1,5 @@
 /* tc-arc.c -- Assembler for the ARC
-   Copyright (C) 1994-2018 Free Software Foundation, Inc.
+   Copyright (C) 1994-2020 Free Software Foundation, Inc.
 
    Contributor: Claudiu Zissulescu <claziss@synopsys.com>
 
@@ -22,7 +22,6 @@
 
 #include "as.h"
 #include "subsegs.h"
-#include "struc-symbol.h"
 #include "dwarf2dbg.h"
 #include "dw2gencfi.h"
 #include "safe-ctype.h"
@@ -48,9 +47,6 @@
 #define SUB_OPCODE(x)	 (((x) & 0x003F0000) >> 16)
 #define LP_INSN(x)	 ((MAJOR_OPCODE (x) == 0x4) \
 			  && (SUB_OPCODE (x) == 0x28))
-
-/* Equal to MAX_PRECISION in atof-ieee.c.  */
-#define MAX_LITTLENUMS 6
 
 #ifndef TARGET_WITH_CPU
 #define TARGET_WITH_CPU "arc700"
@@ -432,16 +428,16 @@ enum mach_selection_type
 static enum mach_selection_type mach_selection_mode = MACH_SELECTION_NONE;
 
 /* The hash table of instruction opcodes.  */
-static struct hash_control *arc_opcode_hash;
+static htab_t arc_opcode_hash;
 
 /* The hash table of register symbols.  */
-static struct hash_control *arc_reg_hash;
+static htab_t arc_reg_hash;
 
 /* The hash table of aux register symbols.  */
-static struct hash_control *arc_aux_hash;
+static htab_t arc_aux_hash;
 
 /* The hash table of address types.  */
-static struct hash_control *arc_addrtype_hash;
+static htab_t arc_addrtype_hash;
 
 #define ARC_CPU_TYPE_A6xx(NAME,EXTRA)			\
   { #NAME, ARC_OPCODE_ARC600, bfd_mach_arc_arc600,	\
@@ -474,6 +470,9 @@ static const struct cpu_type
 
 /* Information about the cpu/variant we're assembling for.  */
 static struct cpu_type selected_cpu = { 0, 0, 0, E_ARC_OSABI_CURRENT, 0 };
+
+/* TRUE if current assembly code uses RF16 only registers.  */
+static bfd_boolean rf16_only = TRUE;
 
 /* MPY option.  */
 static unsigned mpy_option = 0;
@@ -705,7 +704,7 @@ arc_find_opcode (const char *name)
 {
   const struct arc_opcode_hash_entry *entry;
 
-  entry = hash_find (arc_opcode_hash, name);
+  entry = str_hash_find (arc_opcode_hash, name);
   return entry;
 }
 
@@ -755,28 +754,23 @@ arc_opcode_hash_entry_iterator_next (const struct arc_opcode_hash_entry *entry,
 static void
 arc_insert_opcode (const struct arc_opcode *opcode)
 {
-  const char *name, *retval;
+  const char *name;
   struct arc_opcode_hash_entry *entry;
   name = opcode->name;
 
-  entry = hash_find (arc_opcode_hash, name);
+  entry = str_hash_find (arc_opcode_hash, name);
   if (entry == NULL)
     {
       entry = XNEW (struct arc_opcode_hash_entry);
       entry->count = 0;
       entry->opcode = NULL;
 
-      retval = hash_insert (arc_opcode_hash, name, (void *) entry);
-      if (retval)
-	as_fatal (_("internal error: can't hash opcode '%s': %s"),
-		  name, retval);
+      if (str_hash_insert (arc_opcode_hash, name, entry, 0) != NULL)
+	as_fatal (_("duplicate %s"), name);
     }
 
   entry->opcode = XRESIZEVEC (const struct arc_opcode *, entry->opcode,
 			      entry->count + 1);
-
-  if (entry->opcode == NULL)
-    as_fatal (_("Virtual memory exhausted"));
 
   entry->opcode[entry->count] = opcode;
   entry->count++;
@@ -796,7 +790,7 @@ md_number_to_chars_midend (char *buf, unsigned long long val, int n)
       md_number_to_chars (buf, val, n);
       break;
     case 6:
-      md_number_to_chars (buf, (val & 0xffff00000000) >> 32, 2);
+      md_number_to_chars (buf, (val & 0xffff00000000ull) >> 32, 2);
       md_number_to_chars_midend (buf + 2, (val & 0xffffffff), 4);
       break;
     case 4:
@@ -804,7 +798,7 @@ md_number_to_chars_midend (char *buf, unsigned long long val, int n)
       md_number_to_chars (buf + 2, (val & 0xffff), 2);
       break;
     case 8:
-      md_number_to_chars_midend (buf, (val & 0xffffffff00000000) >> 32, 4);
+      md_number_to_chars_midend (buf, (val & 0xffffffff00000000ull) >> 32, 4);
       md_number_to_chars_midend (buf + 4, (val & 0xffffffff), 4);
       break;
     default:
@@ -842,6 +836,7 @@ static void
 arc_select_cpu (const char *arg, enum mach_selection_type sel)
 {
   int i;
+  static struct cpu_type old_cpu = { 0, 0, 0, E_ARC_OSABI_CURRENT, 0 };
 
   /* We should only set a default if we've not made a selection from some
      other source.  */
@@ -872,7 +867,6 @@ arc_select_cpu (const char *arg, enum mach_selection_type sel)
                 }
 	      return;
             }
-
 	  /* Initialise static global data about selected machine type.  */
 	  selected_cpu.flags = cpu_types[i].flags;
 	  selected_cpu.name = cpu_types[i].name;
@@ -890,7 +884,17 @@ arc_select_cpu (const char *arg, enum mach_selection_type sel)
   /* Check if set features are compatible with the chosen CPU.  */
   arc_check_feature ();
 
+  /* If we change the CPU, we need to re-init the bfd.  */
+  if (mach_selection_mode != MACH_SELECTION_NONE
+      && (old_cpu.mach != selected_cpu.mach))
+    {
+      bfd_find_target (arc_target_format, stdoutput);
+      if (! bfd_set_arch_mach (stdoutput, bfd_arch_arc, selected_cpu.mach))
+	as_warn (_("Could not set architecture and machine"));
+    }
+
   mach_selection_mode = sel;
+  old_cpu = selected_cpu;
 }
 
 /* Here ends all the ARCompact extension instruction assembling
@@ -1093,6 +1097,102 @@ debug_exp (expressionS *t)
   fflush (stderr);
 }
 
+/* Helper for parsing an argument, used for sorting out the relocation
+   type.  */
+
+static void
+parse_reloc_symbol (expressionS *resultP)
+{
+  char *reloc_name, c, *sym_name;
+  size_t len;
+  int i;
+  const struct arc_reloc_op_tag *r;
+  expressionS right;
+  symbolS *base;
+
+  /* A relocation operand has the following form
+     @identifier@relocation_type.  The identifier is already in
+     tok!  */
+  if (resultP->X_op != O_symbol)
+    {
+      as_bad (_("No valid label relocation operand"));
+      resultP->X_op = O_illegal;
+      return;
+    }
+
+  /* Parse @relocation_type.  */
+  input_line_pointer++;
+  c = get_symbol_name (&reloc_name);
+  len = input_line_pointer - reloc_name;
+  if (len == 0)
+    {
+      as_bad (_("No relocation operand"));
+      resultP->X_op = O_illegal;
+      return;
+    }
+
+  /* Go through known relocation and try to find a match.  */
+  r = &arc_reloc_op[0];
+  for (i = arc_num_reloc_op - 1; i >= 0; i--, r++)
+    if (len == r->length
+	&& memcmp (reloc_name, r->name, len) == 0)
+      break;
+  if (i < 0)
+    {
+      as_bad (_("Unknown relocation operand: @%s"), reloc_name);
+      resultP->X_op = O_illegal;
+      return;
+    }
+
+  *input_line_pointer = c;
+  SKIP_WHITESPACE_AFTER_NAME ();
+  /* Extra check for TLS: base.  */
+  if (*input_line_pointer == '@')
+    {
+      if (resultP->X_op_symbol != NULL
+	  || resultP->X_op != O_symbol)
+	{
+	  as_bad (_("Unable to parse TLS base: %s"),
+		  input_line_pointer);
+	  resultP->X_op = O_illegal;
+	  return;
+	}
+      input_line_pointer++;
+      c = get_symbol_name (&sym_name);
+      base = symbol_find_or_make (sym_name);
+      resultP->X_op = O_subtract;
+      resultP->X_op_symbol = base;
+      restore_line_pointer (c);
+      right.X_add_number = 0;
+    }
+
+  if ((*input_line_pointer != '+')
+      && (*input_line_pointer != '-'))
+    right.X_add_number = 0;
+  else
+    {
+      /* Parse the constant of a complex relocation expression
+	 like @identifier@reloc +/- const.  */
+      if (! r->complex_expr)
+	{
+	  as_bad (_("@%s is not a complex relocation."), r->name);
+	  resultP->X_op = O_illegal;
+	  return;
+	}
+      expression (&right);
+      if (right.X_op != O_constant)
+	{
+	  as_bad (_("Bad expression: @%s + %s."),
+		  r->name, input_line_pointer);
+	  resultP->X_op = O_illegal;
+	  return;
+	}
+    }
+
+  resultP->X_md = r->op;
+  resultP->X_add_number = right.X_add_number;
+}
+
 /* Parse the arguments to an opcode.  */
 
 static int
@@ -1105,11 +1205,6 @@ tokenize_arguments (char *str,
   bfd_boolean saw_arg = FALSE;
   int brk_lvl = 0;
   int num_args = 0;
-  int i;
-  size_t len;
-  const struct arc_reloc_op_tag *r;
-  expressionS tmpE;
-  char *reloc_name, c;
 
   memset (tok, 0, sizeof (*tok) * ntok);
 
@@ -1171,94 +1266,20 @@ tokenize_arguments (char *str,
 	    goto err;
 
 	  /* Parse @label.  */
+	  input_line_pointer++;
 	  tok->X_op = O_symbol;
 	  tok->X_md = O_absent;
 	  expression (tok);
-	  if (*input_line_pointer != '@')
-	    goto normalsymbol; /* This is not a relocation.  */
 
-	relocationsym:
-
-	  /* A relocation operand has the following form
-	     @identifier@relocation_type.  The identifier is already
-	     in tok!  */
-	  if (tok->X_op != O_symbol)
-	    {
-	      as_bad (_("No valid label relocation operand"));
-	      goto err;
-	    }
-
-	  /* Parse @relocation_type.  */
-	  input_line_pointer++;
-	  c = get_symbol_name (&reloc_name);
-	  len = input_line_pointer - reloc_name;
-	  if (len == 0)
-	    {
-	      as_bad (_("No relocation operand"));
-	      goto err;
-	    }
-
-	  /* Go through known relocation and try to find a match.  */
-	  r = &arc_reloc_op[0];
-	  for (i = arc_num_reloc_op - 1; i >= 0; i--, r++)
-	    if (len == r->length
-		&& memcmp (reloc_name, r->name, len) == 0)
-	      break;
-	  if (i < 0)
-	    {
-	      as_bad (_("Unknown relocation operand: @%s"), reloc_name);
-	      goto err;
-	    }
-
-	  *input_line_pointer = c;
-	  SKIP_WHITESPACE_AFTER_NAME ();
-	  /* Extra check for TLS: base.  */
 	  if (*input_line_pointer == '@')
-	    {
-	      symbolS *base;
-	      if (tok->X_op_symbol != NULL
-		  || tok->X_op != O_symbol)
-		{
-		  as_bad (_("Unable to parse TLS base: %s"),
-			  input_line_pointer);
-		  goto err;
-		}
-	      input_line_pointer++;
-	      char *sym_name;
-	      c = get_symbol_name (&sym_name);
-	      base = symbol_find_or_make (sym_name);
-	      tok->X_op = O_subtract;
-	      tok->X_op_symbol = base;
-	      restore_line_pointer (c);
-	      tmpE.X_add_number = 0;
-	    }
-	  if ((*input_line_pointer != '+')
-		   && (*input_line_pointer != '-'))
-	    {
-	      tmpE.X_add_number = 0;
-	    }
-	  else
-	    {
-	      /* Parse the constant of a complex relocation expression
-		 like @identifier@reloc +/- const.  */
-	      if (! r->complex_expr)
-		{
-		  as_bad (_("@%s is not a complex relocation."), r->name);
-		  goto err;
-		}
-	      expression (&tmpE);
-	      if (tmpE.X_op != O_constant)
-		{
-		  as_bad (_("Bad expression: @%s + %s."),
-			  r->name, input_line_pointer);
-		  goto err;
-		}
-	    }
-
-	  tok->X_md = r->op;
-	  tok->X_add_number = tmpE.X_add_number;
+	    parse_reloc_symbol (tok);
 
 	  debug_exp (tok);
+
+	  if (tok->X_op == O_illegal
+              || tok->X_op == O_absent
+              || num_args == ntok)
+	    goto err;
 
 	  saw_comma = FALSE;
 	  saw_arg = TRUE;
@@ -1283,9 +1304,8 @@ tokenize_arguments (char *str,
 	     identifier@relocation_type, if it is the case parse the
 	     relocation type as well.  */
 	  if (*input_line_pointer == '@')
-	    goto relocationsym;
+	    parse_reloc_symbol (tok);
 
-	normalsymbol:
 	  debug_exp (tok);
 
 	  if (tok->X_op == O_illegal
@@ -1733,8 +1753,9 @@ find_opcode_match (const struct arc_opcode_hash_entry *entry,
   int ntok = *pntok;
   int got_cpu_match = 0;
   expressionS bktok[MAX_INSN_ARGS];
-  int bkntok;
+  int bkntok, maxerridx = 0;
   expressionS emptyE;
+  const char *tmpmsg = NULL;
 
   arc_opcode_hash_entry_iterator_init (&iter);
   memset (&emptyE, 0, sizeof (emptyE));
@@ -1781,7 +1802,7 @@ find_opcode_match (const struct arc_opcode_hash_entry *entry,
 	    {
             case ARC_OPERAND_ADDRTYPE:
 	      {
-		*errmsg = NULL;
+		tmpmsg = NULL;
 
 		/* Check to be an address type.  */
 		if (tok[tokidx].X_op != O_addrtype)
@@ -1792,8 +1813,8 @@ find_opcode_match (const struct arc_opcode_hash_entry *entry,
 		   address type.  */
 		gas_assert (operand->insert != NULL);
 		(*operand->insert) (0, tok[tokidx].X_add_number,
-				    errmsg);
-		if (*errmsg != NULL)
+				    &tmpmsg);
+		if (tmpmsg != NULL)
 		  goto match_failed;
 	      }
               break;
@@ -1819,11 +1840,11 @@ find_opcode_match (const struct arc_opcode_hash_entry *entry,
 	      /* Special handling?  */
 	      if (operand->insert)
 		{
-		  *errmsg = NULL;
+		  tmpmsg = NULL;
 		  (*operand->insert)(0,
 				     regno (tok[tokidx].X_add_number),
-				     errmsg);
-		  if (*errmsg)
+				     &tmpmsg);
+		  if (tmpmsg)
 		    {
 		      if (operand->flags & ARC_OPERAND_IGNORE)
 			{
@@ -1882,13 +1903,20 @@ find_opcode_match (const struct arc_opcode_hash_entry *entry,
 		case O_symbol:
 		  {
 		    const char *p;
+		    char *tmpp, *pp;
 		    const struct arc_aux_reg *auxr;
 
 		    if (opcode->insn_class != AUXREG)
 		      goto de_fault;
 		    p = S_GET_NAME (tok[tokidx].X_add_symbol);
 
-		    auxr = hash_find (arc_aux_hash, p);
+		    /* For compatibility reasons, an aux register can
+		       be spelled with upper or lower case
+		       letters.  */
+		    tmpp = strdup (p);
+		    for (pp = tmpp; *pp; ++pp) *pp = TOLOWER (*pp);
+
+		    auxr = str_hash_find (arc_aux_hash, tmpp);
 		    if (auxr)
 		      {
 			/* We modify the token array here, safe in the
@@ -1899,6 +1927,7 @@ find_opcode_match (const struct arc_opcode_hash_entry *entry,
 			tok[tokidx].X_add_number = auxr->address;
 			ARC_SET_FLAG (tok[tokidx].X_add_symbol, ARC_FLAG_AUX);
 		      }
+		    free (tmpp);
 
 		    if (tok[tokidx].X_op != O_constant)
 		      goto de_fault;
@@ -1924,26 +1953,35 @@ find_opcode_match (const struct arc_opcode_hash_entry *entry,
 			}
 
 		      if (val < min || val > max)
-			goto match_failed;
+			{
+			  tmpmsg = _("immediate is out of bounds");
+			  goto match_failed;
+			}
 
 		      /* Check alignments.  */
 		      if ((operand->flags & ARC_OPERAND_ALIGNED32)
 			  && (val & 0x03))
-			goto match_failed;
+			{
+			  tmpmsg = _("immediate is not 32bit aligned");
+			  goto match_failed;
+			}
 
 		      if ((operand->flags & ARC_OPERAND_ALIGNED16)
 			  && (val & 0x01))
-			goto match_failed;
+			{
+			  tmpmsg = _("immediate is not 16bit aligned");
+			  goto match_failed;
+			}
 		    }
 		  else if (operand->flags & ARC_OPERAND_NCHK)
 		    {
 		      if (operand->insert)
 			{
-			  *errmsg = NULL;
+			  tmpmsg = NULL;
 			  (*operand->insert)(0,
 					     tok[tokidx].X_add_number,
-					     errmsg);
-			  if (*errmsg)
+					     &tmpmsg);
+			  if (tmpmsg)
 			    goto match_failed;
 			}
 		      else if (!(operand->flags & ARC_OPERAND_IGNORE))
@@ -1964,11 +2002,11 @@ find_opcode_match (const struct arc_opcode_hash_entry *entry,
 		      regs |= get_register (tok[tokidx].X_op_symbol);
 		      if (operand->insert)
 			{
-			  *errmsg = NULL;
+			  tmpmsg = NULL;
 			  (*operand->insert)(0,
 					     regs,
-					     errmsg);
-			  if (*errmsg)
+					     &tmpmsg);
+			  if (tmpmsg)
 			    goto match_failed;
 			}
 		      else
@@ -2011,7 +2049,11 @@ find_opcode_match (const struct arc_opcode_hash_entry *entry,
 		      || t->X_op == O_absent
 		      || t->X_op == O_register
 		      || (t->X_add_number != tok[tokidx].X_add_number))
-		    goto match_failed;
+		    {
+		      tmpmsg = _("operand is not duplicate of the "
+				 "previous one");
+		      goto match_failed;
+		    }
 		}
 	      t = &tok[tokidx];
 	      break;
@@ -2027,7 +2069,10 @@ find_opcode_match (const struct arc_opcode_hash_entry *entry,
 
       /* Setup ready for flag parsing.  */
       if (!parse_opcode_flags (opcode, nflgs, first_pflag))
-	goto match_failed;
+	{
+	  tmpmsg = _("flag mismatch");
+	  goto match_failed;
+	}
 
       pr_debug ("flg");
       /* Possible match -- did we use all of our input?  */
@@ -2037,12 +2082,19 @@ find_opcode_match (const struct arc_opcode_hash_entry *entry,
 	  pr_debug ("\n");
 	  return opcode;
 	}
+      tmpmsg = _("too many arguments");
 
     match_failed:;
       pr_debug ("\n");
       /* Restore the original parameters.  */
       memcpy (tok, bktok, MAX_INSN_ARGS * sizeof (*tok));
       ntok = bkntok;
+      if (tokidx >= maxerridx
+	  && tmpmsg)
+	{
+	  maxerridx = tokidx;
+	  *errmsg = tmpmsg;
+	}
     }
 
   if (*pcpumatch)
@@ -2375,6 +2427,17 @@ autodetect_attributes (const struct arc_opcode *opcode,
 	default:
 	  break;
 	}
+
+      switch (tok[i].X_op)
+	{
+	case O_register:
+	  if ((tok[i].X_add_number >= 4 && tok[i].X_add_number <= 9)
+	      || (tok[i].X_add_number >= 16 && tok[i].X_add_number <= 25))
+	    rf16_only = FALSE;
+	  break;
+	default:
+	  break;
+	}
     }
 }
 
@@ -2484,14 +2547,11 @@ md_assemble (char *str)
 static void
 declare_register (const char *name, int number)
 {
-  const char *err;
   symbolS *regS = symbol_create (name, reg_section,
-				 number, &zero_address_frag);
+				 &zero_address_frag, number);
 
-  err = hash_insert (arc_reg_hash, S_GET_NAME (regS), (void *) regS);
-  if (err)
-    as_fatal (_("Inserting \"%s\" into register table failed: %s"),
-	      name, err);
+  if (str_hash_insert (arc_reg_hash, S_GET_NAME (regS), regS, 0) != NULL)
+    as_fatal (_("duplicate %s"), name);
 }
 
 /* Construct symbols for each of the general registers.  */
@@ -2502,7 +2562,7 @@ declare_register_set (void)
   int i;
   for (i = 0; i < 64; ++i)
     {
-      char name[7];
+      char name[32];
 
       sprintf (name, "r%d", i);
       declare_register (name, i);
@@ -2519,15 +2579,11 @@ declare_register_set (void)
 static void
 declare_addrtype (const char *name, int number)
 {
-  const char *err;
   symbolS *addrtypeS = symbol_create (name, undefined_section,
-                                      number, &zero_address_frag);
+				      &zero_address_frag, number);
 
-  err = hash_insert (arc_addrtype_hash, S_GET_NAME (addrtypeS),
-                     (void *) addrtypeS);
-  if (err)
-    as_fatal (_("Inserting \"%s\" into address type table failed: %s"),
-              name, err);
+  if (str_hash_insert (arc_addrtype_hash, S_GET_NAME (addrtypeS), addrtypeS, 0))
+    as_fatal (_("duplicate %s"), name);
 }
 
 /* Port-specific assembler initialization.  This function is called
@@ -2551,9 +2607,7 @@ md_begin (void)
   bfd_set_private_flags (stdoutput, selected_cpu.eflags);
 
   /* Set up a hash table for the instructions.  */
-  arc_opcode_hash = hash_new ();
-  if (arc_opcode_hash == NULL)
-    as_fatal (_("Virtual memory exhausted"));
+  arc_opcode_hash = str_htab_create ();
 
   /* Initialize the hash table with the insns.  */
   do
@@ -2569,9 +2623,7 @@ md_begin (void)
     }while (opcode->name);
 
   /* Register declaration.  */
-  arc_reg_hash = hash_new ();
-  if (arc_reg_hash == NULL)
-    as_fatal (_("Virtual memory exhausted"));
+  arc_reg_hash = str_htab_create ();
 
   declare_register_set ();
   declare_register ("gp", 26);
@@ -2622,16 +2674,12 @@ md_begin (void)
   memset (&arc_last_insns[0], 0, sizeof (arc_last_insns));
 
   /* Aux register declaration.  */
-  arc_aux_hash = hash_new ();
-  if (arc_aux_hash == NULL)
-    as_fatal (_("Virtual memory exhausted"));
+  arc_aux_hash = str_htab_create ();
 
   const struct arc_aux_reg *auxr = &arc_aux_regs[0];
   unsigned int i;
   for (i = 0; i < arc_num_aux_regs; i++, auxr++)
     {
-      const char *retval;
-
       if (!(auxr->cpu & selected_cpu.flags))
 	continue;
 
@@ -2639,16 +2687,12 @@ md_begin (void)
 	  && !check_cpu_feature (auxr->subclass))
 	continue;
 
-      retval = hash_insert (arc_aux_hash, auxr->name, (void *) auxr);
-      if (retval)
-	as_fatal (_("internal error: can't hash aux register '%s': %s"),
-		  auxr->name, retval);
+      if (str_hash_insert (arc_aux_hash, auxr->name, auxr, 0) != 0)
+	as_fatal (_("duplicate %s"), auxr->name);
     }
 
   /* Address type declaration.  */
-  arc_addrtype_hash = hash_new ();
-  if (arc_addrtype_hash == NULL)
-    as_fatal (_("Virtual memory exhausted"));
+  arc_addrtype_hash = str_htab_create ();
 
   declare_addrtype ("bd", ARC_NPS400_ADDRTYPE_BD);
   declare_addrtype ("jid", ARC_NPS400_ADDRTYPE_JID);
@@ -2688,7 +2732,7 @@ valueT
 md_section_align (segT segment,
 		  valueT size)
 {
-  int align = bfd_get_section_alignment (stdoutput, segment);
+  int align = bfd_section_alignment (segment);
 
   return ((size + (1 << align) - 1) & (-((valueT) 1 << align)));
 }
@@ -3250,7 +3294,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
   int size, fix;
   struct arc_relax_type *relax_arg = &fragP->tc_frag_data;
 
-  fix = (fragP->fr_fix < 0 ? 0 : fragP->fr_fix);
+  fix = fragP->fr_fix;
   dest = fragP->fr_literal + fix;
   table_entry = TC_GENERIC_RELAX_TABLE + fragP->fr_subtype;
 
@@ -3298,7 +3342,7 @@ md_undefined_symbol (char *name)
 	    as_bad ("GOT already in symbol table");
 
 	  GOT_symbol = symbol_new (GLOBAL_OFFSET_TABLE_NAME, undefined_section,
-				   (valueT) 0, &zero_address_frag);
+				   &zero_address_frag, 0);
 	};
       return GOT_symbol;
     }
@@ -3318,16 +3362,18 @@ md_atof (int type, char *litP, int *sizeP)
 
 /* Called for any expression that can not be recognized.  When the
    function is called, `input_line_pointer' will point to the start of
-   the expression.  */
+   the expression.  We use it when we have complex operations like
+   @label1 - @label2.  */
 
 void
-md_operand (expressionS *expressionP ATTRIBUTE_UNUSED)
+md_operand (expressionS *expressionP)
 {
   char *p = input_line_pointer;
   if (*p == '@')
     {
       input_line_pointer++;
       expressionP->X_op = O_symbol;
+      expressionP->X_md = O_absent;
       expression (expressionP);
     }
 }
@@ -3346,10 +3392,11 @@ arc_parse_name (const char *name,
   if (!assembling_insn)
     return FALSE;
 
-  if (e->X_op == O_symbol)
+  if (e->X_op == O_symbol
+      && e->X_md == O_absent)
     return FALSE;
 
-  sym = hash_find (arc_reg_hash, name);
+  sym = str_hash_find (arc_reg_hash, name);
   if (sym)
     {
       e->X_op = O_register;
@@ -3357,7 +3404,7 @@ arc_parse_name (const char *name,
       return TRUE;
     }
 
-  sym = hash_find (arc_addrtype_hash, name);
+  sym = str_hash_find (arc_addrtype_hash, name);
   if (sym)
     {
       e->X_op = O_addrtype;
@@ -4189,7 +4236,7 @@ arc_check_reloc (expressionS *exp,
   if (*r_type_p == BFD_RELOC_32
       && exp->X_op == O_subtract
       && exp->X_op_symbol != NULL
-      && exp->X_op_symbol->bsym->section == now_seg)
+      && S_GET_SEGMENT (exp->X_op_symbol) == now_seg)
     *r_type_p = BFD_RELOC_ARC_32_PCREL;
 }
 
@@ -4322,7 +4369,7 @@ tc_arc_regname_to_dw2regnum (char *regname)
 {
   struct symbol *sym;
 
-  sym = hash_find (arc_reg_hash, regname);
+  sym = str_hash_find (arc_reg_hash, regname);
   if (sym)
     return S_GET_VALUE (sym);
 
@@ -4368,6 +4415,10 @@ tokenize_extinsn (extInstruction_t *einsn)
 
   insn_name = xstrdup (p);
   restore_line_pointer (c);
+
+  /* Convert to lower case.  */
+  for (p = insn_name; *p; ++p)
+    *p = TOLOWER (*p);
 
   /* 2nd: get major opcode.  */
   if (*input_line_pointer != ',')
@@ -4507,8 +4558,7 @@ arc_set_ext_seg (void)
   if (!arcext_section)
     {
       arcext_section = subseg_new (".arcextmap", 0);
-      bfd_set_section_flags (stdoutput, arcext_section,
-			     SEC_READONLY | SEC_HAS_CONTENTS);
+      bfd_set_section_flags (arcext_section, SEC_READONLY | SEC_HAS_CONTENTS);
     }
   else
     subseg_set (arcext_section, 0);
@@ -4809,7 +4859,6 @@ arc_extcorereg (int opertype)
 {
   extRegister_t ereg;
   struct arc_aux_reg *auxr;
-  const char *retval;
   struct arc_flag_operand *ccode;
 
   memset (&ereg, 0, sizeof (ereg));
@@ -4832,10 +4881,8 @@ arc_extcorereg (int opertype)
       auxr->cpu = selected_cpu.flags;
       auxr->subclass = NONE;
       auxr->address = ereg.number;
-      retval = hash_insert (arc_aux_hash, auxr->name, (void *) auxr);
-      if (retval)
-	as_fatal (_("internal error: can't hash aux register '%s': %s"),
-		  auxr->name, retval);
+      if (str_hash_insert (arc_aux_hash, auxr->name, auxr, 0) != NULL)
+	as_bad (_("duplicate aux register %s"), auxr->name);
       break;
     case EXT_COND_CODE:
       /* Condition code.  */
@@ -4846,8 +4893,6 @@ arc_extcorereg (int opertype)
       ext_condcode.arc_ext_condcode =
 	XRESIZEVEC (struct arc_flag_operand, ext_condcode.arc_ext_condcode,
 		    ext_condcode.size + 1);
-      if (ext_condcode.arc_ext_condcode == NULL)
-	as_fatal (_("Virtual memory exhausted"));
 
       ccode = ext_condcode.arc_ext_condcode + ext_condcode.size - 1;
       ccode->name   = ereg.name;
@@ -4913,8 +4958,6 @@ arc_stralloc (char * s1, const char * s2)
   len += strlen (s2) + 1;
 
   p = (char *) xmalloc (len);
-  if (p == NULL)
-    as_fatal (_("Virtual memory exhausted"));
 
   if (s1)
     {
@@ -5002,6 +5045,20 @@ arc_set_public_attributes (void)
 
   /* Tag_ARC_ABI_tls.  */
   arc_set_attribute_int (Tag_ARC_ABI_tls, tls_option);
+
+  /* Tag_ARC_ATR_version.  */
+  arc_set_attribute_int (Tag_ARC_ATR_version, 1);
+
+  /* Tag_ARC_ABI_rf16.  */
+  if (attributes_set_explicitly[Tag_ARC_ABI_rf16]
+      && bfd_elf_get_obj_attr_int (stdoutput, OBJ_ATTR_PROC,
+				   Tag_ARC_ABI_rf16)
+      && !rf16_only)
+    {
+      as_warn (_("Overwrite explicitly set Tag_ARC_ABI_rf16 to full "
+		 "register file"));
+      bfd_elf_add_proc_attr_int (stdoutput, Tag_ARC_ABI_rf16, 0);
+    }
 }
 
 /* Add the default contents for the .ARC.attributes section.  */
@@ -5046,7 +5103,8 @@ int arc_convert_symbolic_attribute (const char *name)
   T (Tag_ARC_ABI_double_size),
   T (Tag_ARC_ISA_config),
   T (Tag_ARC_ISA_apex),
-  T (Tag_ARC_ISA_mpy_option)
+  T (Tag_ARC_ISA_mpy_option),
+  T (Tag_ARC_ATR_version)
 #undef T
     };
   unsigned int i;

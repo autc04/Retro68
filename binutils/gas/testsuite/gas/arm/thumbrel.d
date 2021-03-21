@@ -1,4 +1,5 @@
 #objdump: -sr
+#as:  --generate-missing-build-notes=no
 # This test is only valid on EABI based ports.
 #target: *-*-*eabi* *-*-symbianelf *-*-nacl*
 

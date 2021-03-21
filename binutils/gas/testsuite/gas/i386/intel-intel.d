@@ -2,7 +2,7 @@
 #objdump: -dwMintel
 #name: i386 intel
 #source: intel.s
-#stderr: intel.e
+#warning_output: intel.e
 
 .*: +file format .*
 
@@ -260,9 +260,9 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 09 +	wbinvd *
 [ 	]*[a-f0-9]+:	0f 0b +	ud2 *
 [ 	]*[a-f0-9]+:	0f 20 d0 +	mov    eax,cr2
-[ 	]*[a-f0-9]+:	0f 21 d0 +	mov    eax,db2
+[ 	]*[a-f0-9]+:	0f 21 d0 +	mov    eax,dr2
 [ 	]*[a-f0-9]+:	0f 22 d0 +	mov    cr2,eax
-[ 	]*[a-f0-9]+:	0f 23 d0 +	mov    db2,eax
+[ 	]*[a-f0-9]+:	0f 23 d0 +	mov    dr2,eax
 [ 	]*[a-f0-9]+:	0f 24 d0 +	mov    eax,tr2
 [ 	]*[a-f0-9]+:	0f 26 d0 +	mov    tr2,eax
 [ 	]*[a-f0-9]+:	0f 30 +	wrmsr *

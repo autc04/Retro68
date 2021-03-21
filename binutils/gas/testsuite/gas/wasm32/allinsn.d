@@ -20,7 +20,7 @@ Disassembly of section .text:
   12:	8b          		f32.abs
   13:	92          		f32.add
   14:	8d          		f32.ceil
-  15:	43 d0 0f 49 		f32.const 3.141590118408203125
+  15:	43 d0 0f 49 		f32.const 3.14159012
   19:	40 
   1a:	b2          		f32.convert_s/i32
   1b:	b4          		f32.convert_s/i64
@@ -50,7 +50,7 @@ Disassembly of section .text:
   37:	99          		f64.abs
   38:	a0          		f64.add
   39:	9b          		f64.ceil
-  3a:	44 97 5f 4f 		f64.const 3.14158999999999976088e\+200
+  3a:	44 97 5f 4f 		f64.const 3.1415899999999998e\+200
   3e:	fd bc 6a 90 
   42:	69 
   43:	b7          		f64.convert_s/i32

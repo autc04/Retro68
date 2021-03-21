@@ -1,4 +1,4 @@
-#   Copyright (C) 2010-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,14 +14,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
-if {!([istarget "x86_64-*-linux*"]
-      || [istarget "x86_64-*-nacl*"])
-    || [is_remote host]} {
+if {![istarget "x86_64-*-linux*"] || [is_remote host]} {
     return
 }
 
-global tempfile
-global copyfile
 set tempfile tmpdir/x86-64temp.o
 set copyfile tmpdir/x86-64copy
 

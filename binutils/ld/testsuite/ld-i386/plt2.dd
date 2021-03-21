@@ -10,7 +10,7 @@
 Disassembly of section .plt:
 
 0+8048160 <.plt>:
- +[a-f0-9]+:	ff 35 40 92 04 08    	pushl  0x8049240
+ +[a-f0-9]+:	ff 35 40 92 04 08    	push   0x8049240
  +[a-f0-9]+:	ff 25 44 92 04 08    	jmp    \*0x8049244
  +[a-f0-9]+:	00 00                	add    %al,\(%eax\)
 	...

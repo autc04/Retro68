@@ -11,7 +11,12 @@ SECTIONS {
 	    . = . + SIZEOF(.text);
 	    data_end = .;
 	  }
-}	
+	.bss :
+	  {
+	    . = 8;
+	    *(.bss)
+	  }
+}
 
 sizeof_text = SIZEOF(.text);
 sizeof_data = SIZEOF(.data);

@@ -24,21 +24,21 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> f010 0a00 	la	v0,00008028 <bar\+0x8028>
 [0-9a-f]+ <[^>]*> f010 b200 	lw	v0,0000802c <bar\+0x802c>
 [0-9a-f]+ <[^>]*> f000 6a20 	lui	v0,0x0
-[ 	]*[0-9a-f]+: R_MIPS16_HI16	L0\001
+[ 	]*[0-9a-f]+: R_MIPS16_HI16	L0.*
 [0-9a-f]+ <[^>]*> f7ef 4a1f 	addiu	v0,32767
-[ 	]*[0-9a-f]+: R_MIPS16_LO16	L0\001
+[ 	]*[0-9a-f]+: R_MIPS16_LO16	L0.*
 [0-9a-f]+ <[^>]*> f000 6a20 	lui	v0,0x0
-[ 	]*[0-9a-f]+: R_MIPS16_HI16	L0\001
+[ 	]*[0-9a-f]+: R_MIPS16_HI16	L0.*
 [0-9a-f]+ <[^>]*> f7ef 9a5f 	lw	v0,32767\(v0\)
-[ 	]*[0-9a-f]+: R_MIPS16_LO16	L0\001
+[ 	]*[0-9a-f]+: R_MIPS16_LO16	L0.*
 [0-9a-f]+ <[^>]*> f7ff 6a3f 	lui	v0,0xffff
-[ 	]*[0-9a-f]+: R_MIPS16_HI16	L0\001
+[ 	]*[0-9a-f]+: R_MIPS16_HI16	L0.*
 [0-9a-f]+ <[^>]*> f7ef 4a1e 	addiu	v0,32766
-[ 	]*[0-9a-f]+: R_MIPS16_LO16	L0\001
+[ 	]*[0-9a-f]+: R_MIPS16_LO16	L0.*
 [0-9a-f]+ <[^>]*> f7ff 6a3f 	lui	v0,0xffff
-[ 	]*[0-9a-f]+: R_MIPS16_HI16	L0\001
+[ 	]*[0-9a-f]+: R_MIPS16_HI16	L0.*
 [0-9a-f]+ <[^>]*> f7ef 9a5e 	lw	v0,32766\(v0\)
-[ 	]*[0-9a-f]+: R_MIPS16_LO16	L0\001
+[ 	]*[0-9a-f]+: R_MIPS16_LO16	L0.*
 [0-9a-f]+ <[^>]*> 6500      	nop
 	\.\.\.
 	\.\.\.

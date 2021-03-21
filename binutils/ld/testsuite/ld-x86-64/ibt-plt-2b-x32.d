@@ -18,27 +18,21 @@ Contents of the .eh_frame section:
   DW_CFA_nop
   DW_CFA_nop
 
-0+18 00000014 0000001c FDE cie=00000000 pc=000001b0..000001c2
-  DW_CFA_advance_loc: 4 to 000001b4
+0+18 00000014 0000001c FDE cie=00000000 pc=00000190..000001a2
+  DW_CFA_advance_loc: 4 to 00000194
   DW_CFA_def_cfa_offset: 16
-  DW_CFA_advance_loc: 9 to 000001bd
+  DW_CFA_advance_loc: 9 to 0000019d
   DW_CFA_def_cfa_offset: 8
   DW_CFA_nop
 
-0+30 00000020 00000034 FDE cie=00000000 pc=00000160..00000190
+0+30 00000020 00000034 FDE cie=00000000 pc=00000140..00000170
   DW_CFA_def_cfa_offset: 16
-  DW_CFA_advance_loc: 6 to 00000166
+  DW_CFA_advance_loc: 6 to 00000146
   DW_CFA_def_cfa_offset: 24
-  DW_CFA_advance_loc: 10 to 00000170
+  DW_CFA_advance_loc: 10 to 00000150
   DW_CFA_def_cfa_expression \(DW_OP_breg7 \(rsp\): 8; DW_OP_breg16 \(rip\): 0; DW_OP_lit15; DW_OP_and; DW_OP_lit9; DW_OP_ge; DW_OP_lit3; DW_OP_shl; DW_OP_plus\)
 
-0+54 00000010 00000058 FDE cie=00000000 pc=00000190..000001b0
+0+54 00000010 00000058 FDE cie=00000000 pc=00000170..00000190
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
-
-
-Displaying notes found in: .note.gnu.property
-  Owner                 Data size	Description
-  GNU                  0x0000000c	NT_GNU_PROPERTY_TYPE_0
-      Properties: x86 feature: 

@@ -1,8 +1,8 @@
 #source: ifunc-19a.s
 #source: ifunc-19b.s
+#target: [check_shared_lib_support]
 #ld: -shared -z nocombreloc
 #readelf: -r --wide
-#target: aarch64*-*-*
 
 Relocation section '.rela.ifunc' at .*
 [ ]+Offset[ ]+Info[ ]+Type[ ]+.*

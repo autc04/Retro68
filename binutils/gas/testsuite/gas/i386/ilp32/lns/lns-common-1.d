@@ -1,6 +1,6 @@
 #source: ../../../lns/lns-common-1.s
 #readelf: -wl
-#name: lns-common-1
+#name: lns-common-1 (ILP32)
 Raw dump of debug contents of section \.z?debug_line:
 #...
   Initial value of 'is_stmt':  1

@@ -1,7 +1,6 @@
 #as: --32
 #ld: -pie -melf_i386 -z relro -z noseparate-code
 #objdump: -dw --sym
-#notarget: i?86-*-nacl* x86_64-*-nacl*
 
 .*: +file format .*
 

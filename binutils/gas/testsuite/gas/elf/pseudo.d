@@ -1,2 +1,2 @@
 #name: Ill-formed directives
-#error-output: pseudo.l
+#error_output: pseudo.l

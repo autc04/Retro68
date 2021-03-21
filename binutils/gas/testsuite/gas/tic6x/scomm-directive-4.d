@@ -1,7 +1,7 @@
 #name: C6X .scomm directive 4
 #as:
 #source: scomm-directive-4.s
-#readelf: -Ss
+#readelf: -Ss -T
 
 There are 8 section headers, starting at offset .*:
 

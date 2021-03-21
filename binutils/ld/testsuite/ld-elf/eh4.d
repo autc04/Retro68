@@ -34,6 +34,10 @@ Contents of the .eh_frame section:
   DW_CFA_def_cfa_offset: 24
   DW_CFA_advance_loc: [0-9a-f]+ to [0-9a-f]+
   DW_CFA_def_cfa_expression \(DW_OP_breg7 \(rsp\): 8; DW_OP_breg16 \(rip\): 0;.*
-#...
+#?  DW_CFA_nop
+#?  DW_CFA_nop
+#?  DW_CFA_nop
+#?  DW_CFA_nop
+
 [0-9a-f]+ ZERO terminator
 #pass

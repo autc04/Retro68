@@ -3,7 +3,7 @@
 .*:7: Error: .*
 .*:8: Error: .*
 .*:9: Error: .*
-.*:10: Error: .*
+.*:10: Warning: .*
 .*:11: Error: .*
 .*:12: Error: .*
 .*:13: Error: .*
@@ -27,7 +27,9 @@ GAS LISTING .*
 [ 	]*7[ 	]+crc32w \(%esi\), %ax
 [ 	]*8[ 	]+crc32 \(%esi\), %al
 [ 	]*9[ 	]+crc32 \(%esi\), %ax
-[ 	]*10[ 	]+crc32 \(%esi\), %eax
+[ 	]*10[ 	]+\?\?\?\? F20F38F1[ 	]+crc32 \(%esi\), %eax
+\*\*\*\*  Warning: .* `crc32'
+[ 	]*10[ 	]+06
 [ 	]*11[ 	]+crc32  %al, %al
 [ 	]*12[ 	]+crc32b  %al, %al
 [ 	]*13[ 	]+crc32  %ax, %ax
@@ -41,3 +43,5 @@ GAS LISTING .*
 [ 	]*21[ 	]+crc32  eax, \[esi\]
 [ 	]*22[ 	]+crc32  al,al
 [ 	]*23[ 	]+crc32  ax, ax
+[ 	]*24[ 	]*
+#pass

@@ -79,4 +79,4 @@ Disassembly of section .text:
 000000f6 <foo\+0xf6> bf00      	nop
 000000f8 <foo\+0xf8> bf00      	nop
 000000fa <foo\+0xfa> bf00      	nop
-
+#pass

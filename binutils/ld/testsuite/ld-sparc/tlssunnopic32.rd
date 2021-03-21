@@ -53,7 +53,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND *
 .* SECTION +LOCAL +DEFAULT +5 *
-.* SECTION +LOCAL +DEFAULT +6 *
 .* SECTION +LOCAL +DEFAULT +8 *
 .* FUNC +GLOBAL +DEFAULT +5 fn3
 .* TLS +GLOBAL +DEFAULT +UND sg1

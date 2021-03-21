@@ -9,14 +9,14 @@
 1:
 	.p2align 2
 	/* GNU_PROPERTY_X86_ISA_1_USED */
-	.long 0xc0000000	/* pr_type.  */
+	.long 0xc0010000	/* pr_type.  */
 	.long 5f - 4f		/* pr_datasz.  */
 4:
 	.long 0x3
 5:
 	.p2align 2
 	/* GNU_PROPERTY_X86_ISA_1_NEEDED */
-	.long 0xc0000001	/* pr_type.  */
+	.long 0xc0008000	/* pr_type.  */
 	.long 5f - 4f		/* pr_datasz.  */
 4:
 	.long 0xa

@@ -8,7 +8,7 @@ Disassembly of section .text:
 
 0+ <_start>:
 [ 	]*[a-f0-9]+:	48 0f c7 08          	cmpxchg16b \(%rax\)
-[ 	]*[a-f0-9]+:	f2 0f 38 f0 d9       	crc32b %cl,%ebx
+[ 	]*[a-f0-9]+:	f2 0f 38 f0 d9       	crc32  %cl,%ebx
 [ 	]*[a-f0-9]+:	66 0f 2d d3          	cvtpd2pi %xmm3,%mm2
 [ 	]*[a-f0-9]+:	66 0f 2a d3          	cvtpi2pd %mm3,%xmm2
 [ 	]*[a-f0-9]+:	0f 2a d3             	cvtpi2ps %mm3,%xmm2
@@ -16,18 +16,17 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	66 0f 2c dc          	cvttpd2pi %xmm4,%mm3
 [ 	]*[a-f0-9]+:	0f 2c dc             	cvttps2pi %xmm4,%mm3
 [ 	]*[a-f0-9]+:	df 08                	fisttps \(%rax\)
-[ 	]*[a-f0-9]+:	df 08                	fisttps \(%rax\)
 [ 	]*[a-f0-9]+:	db 08                	fisttpl \(%rax\)
 [ 	]*[a-f0-9]+:	dd 08                	fisttpll \(%rax\)
 [ 	]*[a-f0-9]+:	0f ae e8             	lfence 
 [ 	]*[a-f0-9]+:	0f f7 c7             	maskmovq %mm7,%mm0
 [ 	]*[a-f0-9]+:	0f ae f0             	mfence 
-[ 	]*[a-f0-9]+:	0f 01 c8             	monitor %rax,%rcx,%rdx
+[ 	]*[a-f0-9]+:	0f 01 c8             	monitor %rax,%ecx,%edx
 [ 	]*[a-f0-9]+:	f2 0f d6 c8          	movdq2q %xmm0,%mm1
 [ 	]*[a-f0-9]+:	0f c3 00             	movnti %eax,\(%rax\)
 [ 	]*[a-f0-9]+:	0f e7 10             	movntq %mm2,\(%rax\)
 [ 	]*[a-f0-9]+:	f3 0f d6 c8          	movq2dq %mm0,%xmm1
-[ 	]*[a-f0-9]+:	0f 01 c9             	mwait  %rax,%rcx
+[ 	]*[a-f0-9]+:	0f 01 c9             	mwait  %eax,%ecx
 [ 	]*[a-f0-9]+:	0f 38 1c c1          	pabsb  %mm1,%mm0
 [ 	]*[a-f0-9]+:	0f 38 1e c1          	pabsd  %mm1,%mm0
 [ 	]*[a-f0-9]+:	0f 38 1d c1          	pabsw  %mm1,%mm0

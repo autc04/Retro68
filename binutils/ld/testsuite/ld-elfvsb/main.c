@@ -96,7 +96,7 @@ main_visibility_checkvar (void)
 
 #ifndef PROTECTED_UNDEF_TEST
 int shared_data = 1;
-asm (".protected shared_data");
+__asm__ (".protected shared_data");
 
 int
 shared_func (void)
@@ -104,7 +104,7 @@ shared_func (void)
   return 1;
 }
 
-asm (".protected shared_func");
+__asm__ (".protected shared_func");
 
 extern int * shared_data_p ();
 typedef int (*func) ();
@@ -152,7 +152,7 @@ shlib_overriddencall2 (void)
 
 #ifdef HIDDEN_NORMAL_TEST
 int visibility_com;
-asm (".hidden visibility_com");
+__asm__ (".hidden visibility_com");
 
 int
 main_visibility_checkcom (void)
@@ -174,19 +174,19 @@ main_visibility_checkcom (void)
 
 #pragma weak visibility_undef_var_weak
 extern int visibility_undef_var_weak;
-asm (".hidden visibility_undef_var_weak");
+__asm__ (".hidden visibility_undef_var_weak");
 
 #pragma weak visibility_undef_func_weak
 extern int visibility_undef_func_weak ();
-asm (".hidden visibility_undef_func_weak");
+__asm__ (".hidden visibility_undef_func_weak");
 
 #pragma weak visibility_var_weak
 extern int visibility_var_weak;
-asm (".hidden visibility_var_weak");
+__asm__ (".hidden visibility_var_weak");
 
 #pragma weak visibility_func_weak
 extern int visibility_func_weak ();
-asm (".hidden visibility_func_weak");
+__asm__ (".hidden visibility_func_weak");
 
 int
 main_visibility_checkweak ()
@@ -198,9 +198,9 @@ main_visibility_checkweak ()
 }
 #elif defined (HIDDEN_UNDEF_TEST)
 extern int visibility_def;
-asm (".hidden visibility_def");
+__asm__ (".hidden visibility_def");
 extern int visibility_func ();
-asm (".hidden visibility_func");
+__asm__ (".hidden visibility_func");
 
 int
 main_visibility_checkcom (void)

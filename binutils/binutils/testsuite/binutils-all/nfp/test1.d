@@ -484,8 +484,20 @@ Disassembly of section \.text\.i32\.me0:
  ee0:	000000f0000c0300 	\.476  nop
  ee8:	000000f0000c0300 	\.477  nop
  ef0:	000000f0000c0300 	\.478  nop
- ef8:	000220e000020000 	\.479  ctx_arb\[bpt\]
- f00:	000420e000010000 	\.480  ctx_arb\[kill\]
+ ef8:	000060a900301340 	\.479  crc_be\[crc_ccitt, gprA_3, gprB_4\]
+ f00:	000000f0000c0300 	\.480  nop
+ f08:	000e20b9403d0004 	\.481  crc_be\[crc_ccitt, gprB_3, gprA_4\]
+ f10:	000000f0000c0300 	\.482  nop
+ f18:	000400a900301348 	\.483  crc_le\[crc_ccitt, gprA_3, gprB_4\]
+ f20:	000000f0000c0300 	\.484  nop
+ f28:	000400b9403d2004 	\.485  crc_le\[crc_ccitt, gprB_3, gprA_4\]
+ f30:	000000f0000c0300 	\.486  nop
+ f38:	0002e0b900301348 	\.487  crc_le\[crc_ccitt, gprB_3, gprB_4\]
+ f40:	000000f0000c0300 	\.488  nop
+ f48:	0002e0a9403d2004 	\.489  crc_le\[crc_ccitt, gprA_3, gprA_4\]
+ f50:	000000f0000c0300 	\.490  nop
+ f58:	000220e000020000 	\.491  ctx_arb\[bpt\]
+ f60:	000420e000010000 	\.492  ctx_arb\[kill\]
 
 Disassembly of section \.text\.i33\.me9:
 
@@ -969,5 +981,17 @@ Disassembly of section \.text\.i33\.me9:
  ee0:	000000f0000c0300 	\.476  nop
  ee8:	000000f0000c0300 	\.477  nop
  ef0:	000000f0000c0300 	\.478  nop
- ef8:	000220e000020000 	\.479  ctx_arb\[bpt\]
- f00:	000420e000010000 	\.480  ctx_arb\[kill\]
+ ef8:	000060a900301340 	\.479  crc_be\[crc_ccitt, gprA_3, gprB_4\]
+ f00:	000000f0000c0300 	\.480  nop
+ f08:	000e20b9403d0004 	\.481  crc_be\[crc_ccitt, gprB_3, gprA_4\]
+ f10:	000000f0000c0300 	\.482  nop
+ f18:	000400a900301348 	\.483  crc_le\[crc_ccitt, gprA_3, gprB_4\]
+ f20:	000000f0000c0300 	\.484  nop
+ f28:	000400b9403d2004 	\.485  crc_le\[crc_ccitt, gprB_3, gprA_4\]
+ f30:	000000f0000c0300 	\.486  nop
+ f38:	0002e0b900301348 	\.487  crc_le\[crc_ccitt, gprB_3, gprB_4\]
+ f40:	000000f0000c0300 	\.488  nop
+ f48:	0002e0a9403d2004 	\.489  crc_le\[crc_ccitt, gprA_3, gprA_4\]
+ f50:	000000f0000c0300 	\.490  nop
+ f58:	000220e000020000 	\.491  ctx_arb\[bpt\]
+ f60:	000420e000010000 	\.492  ctx_arb\[kill\]

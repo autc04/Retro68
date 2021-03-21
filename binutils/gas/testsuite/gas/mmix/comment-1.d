@@ -1,5 +1,5 @@
 #as: -no-expand
-#readelf: -Ssrx1 -x6
+#readelf: -Ssrx1 -T -x6
 There are 10 section headers, starting at offset 0x...:
 #...
  +\[ 5\] \.MMIX\.spec_data\.4 +PROGBITS +0+ +0+c4

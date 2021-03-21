@@ -47,15 +47,14 @@ test_gd:
 	movzbl	%al, %eax
 	ret
 	.size	test_gd, .-test_gd
-	.section	.text.unlikely
-	.section	.text.__x86.get_pc_thunk.bx,"axG",@progbits,__x86.get_pc_thunk.bx,comdat
+	.section .text,"axG",@progbits,__x86.get_pc_thunk.bx,comdat,unique,1
 	.globl	__x86.get_pc_thunk.bx
 	.hidden	__x86.get_pc_thunk.bx
 	.type	__x86.get_pc_thunk.bx, @function
 __x86.get_pc_thunk.bx:
 	movl	(%esp), %ebx
 	ret
-	.section	.text.__x86.get_pc_thunk.cx,"axG",@progbits,__x86.get_pc_thunk.cx,comdat
+	.section .text,"axG",@progbits,__x86.get_pc_thunk.cx,comdat,unique,2
 	.globl	__x86.get_pc_thunk.cx
 	.hidden	__x86.get_pc_thunk.cx
 	.type	__x86.get_pc_thunk.cx, @function

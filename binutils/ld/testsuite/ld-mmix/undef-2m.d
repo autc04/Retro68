@@ -2,4 +2,4 @@
 #source: start.s
 #as: -x
 #ld: -m mmo
-#error: undefined reference to `undefd'
+#error: \A[^\n\r]*undefined reference to `undefd'\Z

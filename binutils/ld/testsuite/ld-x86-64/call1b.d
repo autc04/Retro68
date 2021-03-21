@@ -9,5 +9,5 @@
 Disassembly of section .text:
 
 #...
-[ 	]*[a-f0-9]+:	67 e8 ([0-9a-f]{2} ){4} *	addr32 callq +[a-f0-9]+ <foo>
+[ 	]*[a-f0-9]+:	67 e8 ([0-9a-f]{2} ){4} *	addr32 call +[a-f0-9]+ <foo>
 #pass

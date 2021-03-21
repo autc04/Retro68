@@ -14,7 +14,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	66 0f be f0          	movsx  si,al
 [ 	]*[a-f0-9]+:	0f be f0             	movsx  esi,al
 [ 	]*[a-f0-9]+:	0f bf f0             	movsx  esi,ax
-[ 	]*[a-f0-9]+:	0f be 10             	movsx  edx,BYTE PTR \[eax\]
 [ 	]*[a-f0-9]+:	66 0f be 10          	movsx  dx,BYTE PTR \[eax\]
 [ 	]*[a-f0-9]+:	66 0f be 10          	movsx  dx,BYTE PTR \[eax\]
 [ 	]*[a-f0-9]+:	0f be 10             	movsx  edx,BYTE PTR \[eax\]
@@ -25,7 +24,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	66 0f b6 f0          	movzx  si,al
 [ 	]*[a-f0-9]+:	0f b6 f0             	movzx  esi,al
 [ 	]*[a-f0-9]+:	0f b7 f0             	movzx  esi,ax
-[ 	]*[a-f0-9]+:	0f b6 10             	movzx  edx,BYTE PTR \[eax\]
 [ 	]*[a-f0-9]+:	66 0f b6 10          	movzx  dx,BYTE PTR \[eax\]
 [ 	]*[a-f0-9]+:	66 0f b6 10          	movzx  dx,BYTE PTR \[eax\]
 [ 	]*[a-f0-9]+:	0f b6 10             	movzx  edx,BYTE PTR \[eax\]

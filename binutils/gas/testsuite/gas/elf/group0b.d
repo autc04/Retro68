@@ -1,10 +1,12 @@
 #readelf: -g
-#name: group section
+#name: group section (using readelf -g)
 #source: group0.s
 
 #...
-COMDAT group section \[    1\] `\.group' \[.foo_group\] contains 2 sections:
+COMDAT group section \[    1\] `\.group' \[.foo_group\] contains . sections:
 [ 	]+\[Index\][ 	]+Name
+#...
 [ 	]+\[.*\][ 	]+.foo
+#...
 [ 	]+\[.*\][ 	]+.bar
 #pass

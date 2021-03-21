@@ -1,6 +1,8 @@
 #as: -J
 #objdump: -dw
 #name: x86_64
+#warning_output: x86_64.e
+
 .*: +file format .*
 
 Disassembly of section .text:
@@ -51,7 +53,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	41 03 00             	add    \(%r8\),%eax
 [ 	]*[a-f0-9]+:	45 03 00             	add    \(%r8\),%r8d
 [ 	]*[a-f0-9]+:	49 03 00             	add    \(%r8\),%rax
-[ 	]*[a-f0-9]+:	03 05 22 22 22 22    	add    0x22222222\(%rip\),%eax        # 222222c7 <foo\+0x222220c4>
+[ 	]*[a-f0-9]+:	03 05 22 22 22 22    	add    0x22222222\(%rip\),%eax        # 2222[0-9a-f]* <foo\+0x2222[0-9a-f]*>
 [ 	]*[a-f0-9]+:	03 45 00             	add    0x0\(%rbp\),%eax
 [ 	]*[a-f0-9]+:	03 04 25 22 22 22 22 	add    0x22222222,%eax
 [ 	]*[a-f0-9]+:	41 03 45 00          	add    0x0\(%r13\),%eax
@@ -83,10 +85,10 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	83 04 81 11          	addl   \$0x11,\(%rcx,%rax,4\)
 [ 	]*[a-f0-9]+:	41 83 04 81 11       	addl   \$0x11,\(%r9,%rax,4\)
 [ 	]*[a-f0-9]+:	42 83 04 81 11       	addl   \$0x11,\(%rcx,%r8,4\)
-[ 	]*[a-f0-9]+:	83 05 22 22 22 22 33 	addl   \$0x33,0x22222222\(%rip\)        # 22222342 <foo\+0x2222213f>
-[ 	]*[a-f0-9]+:	48 83 05 22 22 22 22 33 	addq   \$0x33,0x22222222\(%rip\)        # 2222234a <foo\+0x22222147>
-[ 	]*[a-f0-9]+:	81 05 22 22 22 22 33 33 33 33 	addl   \$0x33333333,0x22222222\(%rip\)        # 22222354 <foo\+0x22222151>
-[ 	]*[a-f0-9]+:	48 81 05 22 22 22 22 33 33 33 33 	addq   \$0x33333333,0x22222222\(%rip\)        # 2222235f <foo\+0x2222215c>
+[ 	]*[a-f0-9]+:	83 05 22 22 22 22 33 	addl   \$0x33,0x22222222\(%rip\)        # 2222[0-9a-f]* <foo\+0x2222[0-9a-f]*>
+[ 	]*[a-f0-9]+:	48 83 05 22 22 22 22 33 	addq   \$0x33,0x22222222\(%rip\)        # 2222[0-9a-f]* <foo\+0x2222[0-9a-f]*>
+[ 	]*[a-f0-9]+:	81 05 22 22 22 22 33 33 33 33 	addl   \$0x33333333,0x22222222\(%rip\)        # 2222[0-9a-f]* <foo\+0x2222[0-9a-f]*>
+[ 	]*[a-f0-9]+:	48 81 05 22 22 22 22 33 33 33 33 	addq   \$0x33333333,0x22222222\(%rip\)        # 2222[0-9a-f]* <foo\+0x2222[0-9a-f]*>
 [ 	]*[a-f0-9]+:	83 04 c5 22 22 22 22 33 	addl   \$0x33,0x22222222\(,%rax,8\)
 [ 	]*[a-f0-9]+:	83 80 22 22 22 22 33 	addl   \$0x33,0x22222222\(%rax\)
 [ 	]*[a-f0-9]+:	83 80 22 22 22 22 33 	addl   \$0x33,0x22222222\(%rax\)
@@ -103,8 +105,16 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	48 63 c0             	movslq %eax,%rax
 [ 	]*[a-f0-9]+:	48 0f bf c0          	movswq %ax,%rax
 [ 	]*[a-f0-9]+:	48 0f be c0          	movsbq %al,%rax
+[ 	]*[a-f0-9]+:	cb                   	lret *
+[ 	]*[a-f0-9]+:	ca 10 00             	lret   \$0x10
+[ 	]*[a-f0-9]+:	66 cb                	lretw *
+[ 	]*[a-f0-9]+:	66 ca 02 00          	lretw  \$0x2
+[ 	]*[a-f0-9]+:	cb                   	lret *
+[ 	]*[a-f0-9]+:	ca 04 00             	lret   \$0x4
+[ 	]*[a-f0-9]+:	48 cb                	lretq *
+[ 	]*[a-f0-9]+:	48 ca 08 00          	lretq  \$0x8
 
-0+1a7 <bar>:
+[0-9a-f]+ <bar>:
 [ 	]*[a-f0-9]+:	b0 00                	mov    \$0x0,%al
 [ 	]*[a-f0-9]+:	66 b8 00 00          	mov    \$0x0,%ax
 [ 	]*[a-f0-9]+:	b8 00 00 00 00       	mov    \$0x0,%eax
@@ -112,7 +122,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	a1 00 00 00 00 00 00 00 00 	movabs 0x0,%eax
 [ 	]*[a-f0-9]+:	8b 04 25 00 00 00 00 	mov    0x0,%eax
 [ 	]*[a-f0-9]+:	8b 80 00 00 00 00    	mov    0x0\(%rax\),%eax
-[ 	]*[a-f0-9]+:	8b 05 00 00 00 00    	mov    0x0\(%rip\),%eax        # 1d5 <bar\+0x2e>
+[ 	]*[a-f0-9]+:	8b 05 00 00 00 00    	mov    0x0\(%rip\),%eax        # [0-9a-f]+ <bar\+0x[0-9a-f]+>
 [ 	]*[a-f0-9]+:	b0 00                	mov    \$0x0,%al
 [ 	]*[a-f0-9]+:	66 b8 00 00          	mov    \$0x0,%ax
 [ 	]*[a-f0-9]+:	b8 00 00 00 00       	mov    \$0x0,%eax
@@ -120,9 +130,9 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	a1 00 00 00 00 00 00 00 00 	movabs 0x0,%eax
 [ 	]*[a-f0-9]+:	8b 04 25 00 00 00 00 	mov    0x0,%eax
 [ 	]*[a-f0-9]+:	8b 80 00 00 00 00    	mov    0x0\(%rax\),%eax
-[ 	]*[a-f0-9]+:	8b 05 00 00 00 00    	mov    0x0\(%rip\),%eax        # 203 <foo>
+[ 	]*[a-f0-9]+:	8b 05 00 00 00 00    	mov    0x0\(%rip\),%eax        # [0-9a-f]+ <foo>
 
-0+203 <foo>:
+[0-9a-f]+ <foo>:
 [ 	]*[a-f0-9]+:	a0 11 22 33 44 55 66 77 88 	movabs 0x8877665544332211,%al
 [ 	]*[a-f0-9]+:	66 a1 11 22 33 44 55 66 77 88 	movabs 0x8877665544332211,%ax
 [ 	]*[a-f0-9]+:	a1 11 22 33 44 55 66 77 88 	movabs 0x8877665544332211,%eax
@@ -163,8 +173,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f bf f0             	movswl %ax,%esi
 [ 	]*[a-f0-9]+:	48 0f bf f0          	movswq %ax,%rsi
 [ 	]*[a-f0-9]+:	48 63 f0             	movslq %eax,%rsi
-[ 	]*[a-f0-9]+:	0f be 10             	movsbl \(%rax\),%edx
-[ 	]*[a-f0-9]+:	48 0f be 10          	movsbq \(%rax\),%rdx
 [ 	]*[a-f0-9]+:	66 0f be 10          	movsbw \(%rax\),%dx
 [ 	]*[a-f0-9]+:	0f be 10             	movsbl \(%rax\),%edx
 [ 	]*[a-f0-9]+:	48 0f be 10          	movsbq \(%rax\),%rdx
@@ -176,8 +184,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	48 0f b6 f0          	movzbq %al,%rsi
 [ 	]*[a-f0-9]+:	0f b7 f0             	movzwl %ax,%esi
 [ 	]*[a-f0-9]+:	48 0f b7 f0          	movzwq %ax,%rsi
-[ 	]*[a-f0-9]+:	0f b6 10             	movzbl \(%rax\),%edx
-[ 	]*[a-f0-9]+:	48 0f b6 10          	movzbq \(%rax\),%rdx
 [ 	]*[a-f0-9]+:	66 0f b6 10          	movzbw \(%rax\),%dx
 [ 	]*[a-f0-9]+:	0f b6 10             	movzbl \(%rax\),%edx
 [ 	]*[a-f0-9]+:	48 0f b6 10          	movzbq \(%rax\),%rdx
@@ -221,8 +227,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	9b df e0             	fstsw  %ax
 [ 	]*[a-f0-9]+:	9b df e0             	fstsw  %ax
 [ 	]*[a-f0-9]+:	66 0f be 00          	movsbw \(%rax\),%ax
-[ 	]*[a-f0-9]+:	0f be 00             	movsbl \(%rax\),%eax
-[ 	]*[a-f0-9]+:	48 0f be 00          	movsbq \(%rax\),%rax
 [ 	]*[a-f0-9]+:	66 0f be 10          	movsbw \(%rax\),%dx
 [ 	]*[a-f0-9]+:	0f be 10             	movsbl \(%rax\),%edx
 [ 	]*[a-f0-9]+:	48 0f be 10          	movsbq \(%rax\),%rdx
@@ -231,8 +235,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	48 63 10             	movslq \(%rax\),%rdx
 [ 	]*[a-f0-9]+:	48 63 00             	movslq \(%rax\),%rax
 [ 	]*[a-f0-9]+:	66 0f b6 00          	movzbw \(%rax\),%ax
-[ 	]*[a-f0-9]+:	0f b6 00             	movzbl \(%rax\),%eax
-[ 	]*[a-f0-9]+:	48 0f b6 00          	movzbq \(%rax\),%rax
 [ 	]*[a-f0-9]+:	66 0f b6 10          	movzbw \(%rax\),%dx
 [ 	]*[a-f0-9]+:	0f b6 10             	movzbl \(%rax\),%edx
 [ 	]*[a-f0-9]+:	48 0f b6 10          	movzbq \(%rax\),%rdx
@@ -254,4 +256,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	48 0f b7 00          	movzwq \(%rax\),%rax
 [ 	]*[a-f0-9]+:	0f c3 00             	movnti %eax,\(%rax\)
 [ 	]*[a-f0-9]+:	48 0f c3 00          	movnti %rax,\(%rax\)
+[ 	]*[a-f0-9]+:	8b 04 25 00 00 00 00 	mov    0x0,%eax
+[ 	]*[a-f0-9]+:	48 89 0c 25 00 00 00 00 	mov    %rcx,0x0
 #pass

@@ -1,5 +1,4 @@
 [^:]+: Assembler messages:
-^[^:]+:[0-9]+: Error: selected processor does not support `esb'
 ^[^:]+:[0-9]+: Error: selected processor does not support system register name 'erridr_el1'
 ^[^:]+:[0-9]+: Error: selected processor does not support system register name 'errselr_el1'
 ^[^:]+:[0-9]+: Error: selected processor does not support system register name 'errselr_el1'
@@ -18,7 +17,6 @@
 ^[^:]+:[0-9]+: Error: selected processor does not support system register name 'disr_el1'
 ^[^:]+:[0-9]+: Error: selected processor does not support system register name 'disr_el1'
 ^[^:]+:[0-9]+: Error: selected processor does not support system register name 'vdisr_el2'
-^[^:]+:[0-9]+: Error: selected processor does not support `esb'
 ^[^:]+:[0-9]+: Error: selected processor does not support system register name 'erridr_el1'
 ^[^:]+:[0-9]+: Error: selected processor does not support system register name 'errselr_el1'
 ^[^:]+:[0-9]+: Error: selected processor does not support system register name 'errselr_el1'

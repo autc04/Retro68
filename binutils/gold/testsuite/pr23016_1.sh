@@ -3,7 +3,7 @@
 # pr23016_1.sh -- check that .eh_frame sections and their relocations
 # are merged together even when mixing SHT_PROGBITS and SHT_X86_64_UNWIND.
 
-# Copyright (C) 2018 Free Software Foundation, Inc.
+# Copyright (C) 2018-2020 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@gmail.com>.
 
 # This file is part of gold.

@@ -1,6 +1,6 @@
 // exception_test_1.cc -- test exception handling for gold, file 1 of 2
 
-// Copyright (C) 2006-2017 Free Software Foundation, Inc.
+// Copyright (C) 2006-2020 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.

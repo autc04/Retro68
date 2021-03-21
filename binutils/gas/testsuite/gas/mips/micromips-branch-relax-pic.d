@@ -1,7 +1,7 @@
 #objdump: -dr --show-raw-insn
 #name: Relax microMIPS branches (pic)
 #as: -mips32r2 -32 -relax-branch -KPIC
-#stderr: micromips-branch-relax-pic.l
+#warning_output: micromips-branch-relax-pic.l
 #source: micromips-branch-relax.s
 
 .*: +file format .*mips.*

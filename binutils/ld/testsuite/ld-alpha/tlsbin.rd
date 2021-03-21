@@ -118,7 +118,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 [0-9 ]+: [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +11 bg7
 [0-9 ]+: [0-9a-f]+ +0 +TLS +GLOBAL +HIDDEN +10 sh5
 [0-9 ]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +13 __bss_start
-[0-9 ]+: [0-9a-f]+ +136 +FUNC +GLOBAL +DEFAULT +\[<other>: 88\] +8 fn2
+[0-9 ]+: [0-9a-f]+ +136 +FUNC +GLOBAL +DEFAULT +\[STD GPLOAD\] +8 fn2
 [0-9 ]+: [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +10 sg2
 [0-9 ]+: [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +UND sG1
 [0-9 ]+: [0-9a-f]+ +0 +TLS +GLOBAL +HIDDEN +10 sh1

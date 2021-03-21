@@ -1,4 +1,4 @@
-#   Copyright (C) 1993-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,6 +21,19 @@
 
 load_lib utils-lib.exp
 
+if ![info exists AS] then {
+    set AS [findfile $base_dir/../gas/as-new $base_dir/../gas/as-new [transform as]]
+}
+if ![info exists ASFLAGS] then {
+    set ASFLAGS ""
+}
+
+if ![info exists LD] then {
+    set LD [findfile $base_dir/../ld/ld-new $base_dir/../ld/ld-new [transform ld]]
+}
+if ![info exists LDFLAGS] then {
+    set LDFLAGS ""
+}
 if ![info exists NM] then {
     set NM [findfile $base_dir/nm-new $base_dir/nm-new [transform nm]]
 }
@@ -48,6 +61,12 @@ if ![info exists OBJCOPYFLAGS] then {
 if ![info exists AR] then {
     set AR [findfile $base_dir/ar]
 }
+if ![info exists STRINGS] then {
+    set STRINGS [findfile $base_dir/strings]
+}
+if ![info exists STRINGSFLAGS] then {
+    set STRINGSFLAGS ""
+}
 if ![info exists STRIP] then {
     set STRIP [findfile $base_dir/strip-new $base_dir/strip-new [transform strip]]
 }
@@ -71,6 +90,12 @@ if ![info exists WINDRES] then {
 }
 if ![info exists DLLTOOL] then {
     set DLLTOOL [findfile $base_dir/dlltool]
+}
+if ![info exists CXXFILT] then {
+    set CXXFILT [findfile $base_dir/cxxfilt]
+}
+if ![info exists CXXFILTFLAGS] then {
+    set CXXFILTFLAGS ""
 }
 
 if ![file isdirectory tmpdir] {catch "exec mkdir tmpdir" status}

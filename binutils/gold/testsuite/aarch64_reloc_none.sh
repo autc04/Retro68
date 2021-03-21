@@ -3,7 +3,7 @@
 # aarch64_reloc_none.sh -- test that R_AARCH64_NONE can be used
 # to prevent garbage collecting a section.
 
-# Copyright (C) 2010-2017 Free Software Foundation, Inc.
+# Copyright (C) 2010-2020 Free Software Foundation, Inc.
 # Written by Igor Kudrin <ikudrin@accesssoftek.com>.
 
 # This file is part of gold.

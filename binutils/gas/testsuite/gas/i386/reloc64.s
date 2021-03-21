@@ -224,3 +224,4 @@ bad	.byte	xtrn@gotplt
 	mov	xtrn(,%ebx), %eax
 	vgatherdps %xmm2, xtrn(,%xmm1), %xmm0
 	addr32 vgatherdps %xmm2, xtrn(,%xmm1), %xmm0
+bad	.long	xtrn@plt - .

@@ -82,20 +82,26 @@ _start:
 
 # Tests for op xmm/mem128, xmm[, xmm]
 	addpd %xmm4,%xmm6
+	addpd %xmm14,%xmm6
 	addpd (%rcx),%xmm6
 	addps %xmm4,%xmm6
+	addps %xmm14,%xmm6
 	addps (%rcx),%xmm6
 	addsubpd %xmm4,%xmm6
 	addsubpd (%rcx),%xmm6
 	addsubps %xmm4,%xmm6
 	addsubps (%rcx),%xmm6
 	andnpd %xmm4,%xmm6
+	andnpd %xmm14,%xmm6
 	andnpd (%rcx),%xmm6
 	andnps %xmm4,%xmm6
+	andnps %xmm14,%xmm6
 	andnps (%rcx),%xmm6
 	andpd %xmm4,%xmm6
+	andpd %xmm14,%xmm6
 	andpd (%rcx),%xmm6
 	andps %xmm4,%xmm6
+	andps %xmm14,%xmm6
 	andps (%rcx),%xmm6
 	divpd %xmm4,%xmm6
 	divpd (%rcx),%xmm6
@@ -110,20 +116,28 @@ _start:
 	hsubps %xmm4,%xmm6
 	hsubps (%rcx),%xmm6
 	maxpd %xmm4,%xmm6
+	maxpd %xmm14,%xmm6
 	maxpd (%rcx),%xmm6
 	maxps %xmm4,%xmm6
+	maxps %xmm14,%xmm6
 	maxps (%rcx),%xmm6
 	minpd %xmm4,%xmm6
+	minpd %xmm14,%xmm6
 	minpd (%rcx),%xmm6
 	minps %xmm4,%xmm6
+	minps %xmm14,%xmm6
 	minps (%rcx),%xmm6
 	mulpd %xmm4,%xmm6
+	mulpd %xmm14,%xmm6
 	mulpd (%rcx),%xmm6
 	mulps %xmm4,%xmm6
+	mulps %xmm14,%xmm6
 	mulps (%rcx),%xmm6
 	orpd %xmm4,%xmm6
+	orpd %xmm14,%xmm6
 	orpd (%rcx),%xmm6
 	orps %xmm4,%xmm6
+	orps %xmm14,%xmm6
 	orps (%rcx),%xmm6
 	packsswb %xmm4,%xmm6
 	packsswb (%rcx),%xmm6
@@ -134,28 +148,40 @@ _start:
 	packusdw %xmm4,%xmm6
 	packusdw (%rcx),%xmm6
 	paddb %xmm4,%xmm6
+	paddb %xmm14,%xmm6
 	paddb (%rcx),%xmm6
 	paddw %xmm4,%xmm6
+	paddw %xmm14,%xmm6
 	paddw (%rcx),%xmm6
 	paddd %xmm4,%xmm6
+	paddd %xmm14,%xmm6
 	paddd (%rcx),%xmm6
 	paddq %xmm4,%xmm6
+	paddq %xmm14,%xmm6
 	paddq (%rcx),%xmm6
 	paddsb %xmm4,%xmm6
+	paddsb %xmm14,%xmm6
 	paddsb (%rcx),%xmm6
 	paddsw %xmm4,%xmm6
+	paddsw %xmm14,%xmm6
 	paddsw (%rcx),%xmm6
 	paddusb %xmm4,%xmm6
+	paddusb %xmm14,%xmm6
 	paddusb (%rcx),%xmm6
 	paddusw %xmm4,%xmm6
+	paddusw %xmm14,%xmm6
 	paddusw (%rcx),%xmm6
 	pand %xmm4,%xmm6
+	pand %xmm14,%xmm6
 	pand (%rcx),%xmm6
 	pandn %xmm4,%xmm6
+	pandn %xmm14,%xmm6
 	pandn (%rcx),%xmm6
 	pavgb %xmm4,%xmm6
+	pavgb %xmm14,%xmm6
 	pavgb (%rcx),%xmm6
 	pavgw %xmm4,%xmm6
+	pavgw %xmm14,%xmm6
 	pavgw (%rcx),%xmm6
 	pclmullqlqdq %xmm4,%xmm6
 	pclmullqlqdq (%rcx),%xmm6
@@ -166,18 +192,24 @@ _start:
 	pclmulhqhqdq %xmm4,%xmm6
 	pclmulhqhqdq (%rcx),%xmm6
 	pcmpeqb %xmm4,%xmm6
+	pcmpeqb %xmm14,%xmm6
 	pcmpeqb (%rcx),%xmm6
 	pcmpeqw %xmm4,%xmm6
+	pcmpeqw %xmm14,%xmm6
 	pcmpeqw (%rcx),%xmm6
 	pcmpeqd %xmm4,%xmm6
+	pcmpeqd %xmm14,%xmm6
 	pcmpeqd (%rcx),%xmm6
 	pcmpeqq %xmm4,%xmm6
 	pcmpeqq (%rcx),%xmm6
 	pcmpgtb %xmm4,%xmm6
+	pcmpgtb %xmm14,%xmm6
 	pcmpgtb (%rcx),%xmm6
 	pcmpgtw %xmm4,%xmm6
+	pcmpgtw %xmm14,%xmm6
 	pcmpgtw (%rcx),%xmm6
 	pcmpgtd %xmm4,%xmm6
+	pcmpgtd %xmm14,%xmm6
 	pcmpgtd (%rcx),%xmm6
 	pcmpgtq %xmm4,%xmm6
 	pcmpgtq (%rcx),%xmm6
@@ -194,16 +226,19 @@ _start:
 	phsubsw %xmm4,%xmm6
 	phsubsw (%rcx),%xmm6
 	pmaddwd %xmm4,%xmm6
+	pmaddwd %xmm14,%xmm6
 	pmaddwd (%rcx),%xmm6
 	pmaddubsw %xmm4,%xmm6
 	pmaddubsw (%rcx),%xmm6
 	pmaxsb %xmm4,%xmm6
 	pmaxsb (%rcx),%xmm6
 	pmaxsw %xmm4,%xmm6
+	pmaxsw %xmm14,%xmm6
 	pmaxsw (%rcx),%xmm6
 	pmaxsd %xmm4,%xmm6
 	pmaxsd (%rcx),%xmm6
 	pmaxub %xmm4,%xmm6
+	pmaxub %xmm14,%xmm6
 	pmaxub (%rcx),%xmm6
 	pmaxuw %xmm4,%xmm6
 	pmaxuw (%rcx),%xmm6
@@ -212,30 +247,37 @@ _start:
 	pminsb %xmm4,%xmm6
 	pminsb (%rcx),%xmm6
 	pminsw %xmm4,%xmm6
+	pminsw %xmm14,%xmm6
 	pminsw (%rcx),%xmm6
 	pminsd %xmm4,%xmm6
 	pminsd (%rcx),%xmm6
 	pminub %xmm4,%xmm6
+	pminub %xmm14,%xmm6
 	pminub (%rcx),%xmm6
 	pminuw %xmm4,%xmm6
 	pminuw (%rcx),%xmm6
 	pminud %xmm4,%xmm6
 	pminud (%rcx),%xmm6
 	pmulhuw %xmm4,%xmm6
+	pmulhuw %xmm14,%xmm6
 	pmulhuw (%rcx),%xmm6
 	pmulhrsw %xmm4,%xmm6
 	pmulhrsw (%rcx),%xmm6
 	pmulhw %xmm4,%xmm6
+	pmulhw %xmm14,%xmm6
 	pmulhw (%rcx),%xmm6
 	pmullw %xmm4,%xmm6
+	pmullw %xmm14,%xmm6
 	pmullw (%rcx),%xmm6
 	pmulld %xmm4,%xmm6
 	pmulld (%rcx),%xmm6
 	pmuludq %xmm4,%xmm6
+	pmuludq %xmm14,%xmm6
 	pmuludq (%rcx),%xmm6
 	pmuldq %xmm4,%xmm6
 	pmuldq (%rcx),%xmm6
 	por %xmm4,%xmm6
+	por %xmm14,%xmm6
 	por (%rcx),%xmm6
 	psadbw %xmm4,%xmm6
 	psadbw (%rcx),%xmm6
@@ -296,6 +338,7 @@ _start:
 	punpcklqdq %xmm4,%xmm6
 	punpcklqdq (%rcx),%xmm6
 	pxor %xmm4,%xmm6
+	pxor %xmm14,%xmm6
 	pxor (%rcx),%xmm6
 	subpd %xmm4,%xmm6
 	subpd (%rcx),%xmm6
@@ -310,8 +353,10 @@ _start:
 	unpcklps %xmm4,%xmm6
 	unpcklps (%rcx),%xmm6
 	xorpd %xmm4,%xmm6
+	xorpd %xmm14,%xmm6
 	xorpd (%rcx),%xmm6
 	xorps %xmm4,%xmm6
+	xorps %xmm14,%xmm6
 	xorps (%rcx),%xmm6
 	aesenc %xmm4,%xmm6
 	aesenc (%rcx),%xmm6
@@ -322,36 +367,52 @@ _start:
 	aesdeclast %xmm4,%xmm6
 	aesdeclast (%rcx),%xmm6
 	cmpeqpd %xmm4,%xmm6
+	cmpeqpd %xmm14,%xmm6
 	cmpeqpd (%rcx),%xmm6
 	cmpeqps %xmm4,%xmm6
+	cmpeqps %xmm14,%xmm6
 	cmpeqps (%rcx),%xmm6
 	cmpltpd %xmm4,%xmm6
+	cmpltpd %xmm14,%xmm6
 	cmpltpd (%rcx),%xmm6
 	cmpltps %xmm4,%xmm6
+	cmpltps %xmm14,%xmm6
 	cmpltps (%rcx),%xmm6
 	cmplepd %xmm4,%xmm6
+	cmplepd %xmm14,%xmm6
 	cmplepd (%rcx),%xmm6
 	cmpleps %xmm4,%xmm6
+	cmpleps %xmm14,%xmm6
 	cmpleps (%rcx),%xmm6
 	cmpunordpd %xmm4,%xmm6
+	cmpunordpd %xmm14,%xmm6
 	cmpunordpd (%rcx),%xmm6
 	cmpunordps %xmm4,%xmm6
+	cmpunordps %xmm14,%xmm6
 	cmpunordps (%rcx),%xmm6
 	cmpneqpd %xmm4,%xmm6
+	cmpneqpd %xmm14,%xmm6
 	cmpneqpd (%rcx),%xmm6
 	cmpneqps %xmm4,%xmm6
+	cmpneqps %xmm14,%xmm6
 	cmpneqps (%rcx),%xmm6
 	cmpnltpd %xmm4,%xmm6
+	cmpnltpd %xmm14,%xmm6
 	cmpnltpd (%rcx),%xmm6
 	cmpnltps %xmm4,%xmm6
+	cmpnltps %xmm14,%xmm6
 	cmpnltps (%rcx),%xmm6
 	cmpnlepd %xmm4,%xmm6
+	cmpnlepd %xmm14,%xmm6
 	cmpnlepd (%rcx),%xmm6
 	cmpnleps %xmm4,%xmm6
+	cmpnleps %xmm14,%xmm6
 	cmpnleps (%rcx),%xmm6
 	cmpordpd %xmm4,%xmm6
+	cmpordpd %xmm14,%xmm6
 	cmpordpd (%rcx),%xmm6
 	cmpordps %xmm4,%xmm6
+	cmpordps %xmm14,%xmm6
 	cmpordps (%rcx),%xmm6
 
 # Tests for op imm8, xmm/mem128, xmm
@@ -386,8 +447,10 @@ _start:
 	blendps $100,%xmm4,%xmm6
 	blendps $100,(%rcx),%xmm6
 	cmppd $100,%xmm4,%xmm6
+	cmppd $100,%xmm14,%xmm6
 	cmppd $100,(%rcx),%xmm6
 	cmpps $100,%xmm4,%xmm6
+	cmpps $100,%xmm14,%xmm6
 	cmpps $100,(%rcx),%xmm6
 	dppd $100,%xmm4,%xmm6
 	dppd $100,(%rcx),%xmm6
@@ -422,6 +485,7 @@ _start:
 
 # Tests for op xmm/mem64, xmm
 	comisd %xmm4,%xmm6
+	comisd %xmm14,%xmm6
 	comisd (%rcx),%xmm4
 	cvtdq2pd %xmm4,%xmm6
 	cvtdq2pd (%rcx),%xmm4
@@ -442,6 +506,7 @@ _start:
 	pmovzxdq %xmm4,%xmm6
 	pmovzxdq (%rcx),%xmm4
 	ucomisd %xmm4,%xmm6
+	ucomisd %xmm14,%xmm6
 	ucomisd (%rcx),%xmm4
 
 # Tests for op mem64, xmm
@@ -497,56 +562,73 @@ _start:
 
 # Tests for op imm8, xmm/mem64, xmm[, xmm]
 	cmpsd $100,%xmm4,%xmm6
+	cmpsd $100,%xmm14,%xmm6
 	cmpsd $100,(%rcx),%xmm6
 	roundsd $100,%xmm4,%xmm6
 	roundsd $100,(%rcx),%xmm6
 
 # Tests for op xmm/mem64, xmm[, xmm]
 	addsd %xmm4,%xmm6
+	addsd %xmm14,%xmm6
 	addsd (%rcx),%xmm6
 	cvtsd2ss %xmm4,%xmm6
 	cvtsd2ss (%rcx),%xmm6
 	divsd %xmm4,%xmm6
 	divsd (%rcx),%xmm6
 	maxsd %xmm4,%xmm6
+	maxsd %xmm14,%xmm6
 	maxsd (%rcx),%xmm6
 	minsd %xmm4,%xmm6
+	minsd %xmm14,%xmm6
 	minsd (%rcx),%xmm6
 	mulsd %xmm4,%xmm6
+	mulsd %xmm14,%xmm6
 	mulsd (%rcx),%xmm6
 	sqrtsd %xmm4,%xmm6
 	sqrtsd (%rcx),%xmm6
 	subsd %xmm4,%xmm6
 	subsd (%rcx),%xmm6
 	cmpeqsd %xmm4,%xmm6
+	cmpeqsd %xmm14,%xmm6
 	cmpeqsd (%rcx),%xmm6
 	cmpltsd %xmm4,%xmm6
+	cmpltsd %xmm14,%xmm6
 	cmpltsd (%rcx),%xmm6
 	cmplesd %xmm4,%xmm6
+	cmplesd %xmm14,%xmm6
 	cmplesd (%rcx),%xmm6
 	cmpunordsd %xmm4,%xmm6
+	cmpunordsd %xmm14,%xmm6
 	cmpunordsd (%rcx),%xmm6
 	cmpneqsd %xmm4,%xmm6
+	cmpneqsd %xmm14,%xmm6
 	cmpneqsd (%rcx),%xmm6
 	cmpnltsd %xmm4,%xmm6
+	cmpnltsd %xmm14,%xmm6
 	cmpnltsd (%rcx),%xmm6
 	cmpnlesd %xmm4,%xmm6
+	cmpnlesd %xmm14,%xmm6
 	cmpnlesd (%rcx),%xmm6
 	cmpordsd %xmm4,%xmm6
+	cmpordsd %xmm14,%xmm6
 	cmpordsd (%rcx),%xmm6
 
 # Tests for op xmm/mem32, xmm[, xmm]
 	addss %xmm4,%xmm6
+	addss %xmm14,%xmm6
 	addss (%rcx),%xmm6
 	cvtss2sd %xmm4,%xmm6
 	cvtss2sd (%rcx),%xmm6
 	divss %xmm4,%xmm6
 	divss (%rcx),%xmm6
 	maxss %xmm4,%xmm6
+	maxss %xmm14,%xmm6
 	maxss (%rcx),%xmm6
 	minss %xmm4,%xmm6
+	minss %xmm14,%xmm6
 	minss (%rcx),%xmm6
 	mulss %xmm4,%xmm6
+	mulss %xmm14,%xmm6
 	mulss (%rcx),%xmm6
 	rcpss %xmm4,%xmm6
 	rcpss (%rcx),%xmm6
@@ -557,24 +639,33 @@ _start:
 	subss %xmm4,%xmm6
 	subss (%rcx),%xmm6
 	cmpeqss %xmm4,%xmm6
+	cmpeqss %xmm14,%xmm6
 	cmpeqss (%rcx),%xmm6
 	cmpltss %xmm4,%xmm6
+	cmpltss %xmm14,%xmm6
 	cmpltss (%rcx),%xmm6
 	cmpless %xmm4,%xmm6
+	cmpless %xmm14,%xmm6
 	cmpless (%rcx),%xmm6
 	cmpunordss %xmm4,%xmm6
+	cmpunordss %xmm14,%xmm6
 	cmpunordss (%rcx),%xmm6
 	cmpneqss %xmm4,%xmm6
+	cmpneqss %xmm14,%xmm6
 	cmpneqss (%rcx),%xmm6
 	cmpnltss %xmm4,%xmm6
+	cmpnltss %xmm14,%xmm6
 	cmpnltss (%rcx),%xmm6
 	cmpnless %xmm4,%xmm6
+	cmpnless %xmm14,%xmm6
 	cmpnless (%rcx),%xmm6
 	cmpordss %xmm4,%xmm6
+	cmpordss %xmm14,%xmm6
 	cmpordss (%rcx),%xmm6
 
 # Tests for op xmm/mem32, xmm
 	comiss %xmm4,%xmm6
+	comiss %xmm14,%xmm6
 	comiss (%rcx),%xmm4
 	pmovsxbd %xmm4,%xmm6
 	pmovsxbd (%rcx),%xmm4
@@ -585,6 +676,7 @@ _start:
 	pmovzxwq %xmm4,%xmm6
 	pmovzxwq (%rcx),%xmm4
 	ucomiss %xmm4,%xmm6
+	ucomiss %xmm14,%xmm6
 	ucomiss (%rcx),%xmm4
 
 # Tests for op mem32, xmm
@@ -628,12 +720,13 @@ _start:
 
 # Tests for op regl/mem32, xmm[, xmm]
 	cvtsi2sd %ecx,%xmm4
-	cvtsi2sd (%rcx),%xmm4
+	cvtsi2sdl (%rcx),%xmm4
 	cvtsi2ss %ecx,%xmm4
-	cvtsi2ss (%rcx),%xmm4
+	cvtsi2ssl (%rcx),%xmm4
 
 # Tests for op imm8, xmm/mem32, xmm[, xmm]
 	cmpss $100,%xmm4,%xmm6
+	cmpss $100,%xmm14,%xmm6
 	cmpss $100,(%rcx),%xmm6
 	insertps $100,%xmm4,%xmm6
 	insertps $100,(%rcx),%xmm6
@@ -708,6 +801,44 @@ _start:
 
 # Tests for op imm8, xmm, regl
 	pextrw $100,%xmm4,%ecx
+
+# Tests for REX prefix conversion
+	{rex} addps %xmm0, %xmm0
+	{rex} addps (%rax,%rax), %xmm0
+	rex addps %xmm0, %xmm0
+	rex addps (%rax,%rax), %xmm0
+	rexx addps %xmm0, %xmm0
+	rexx addps (%rax,%rax), %xmm0
+	rexy addps %xmm0, %xmm0
+	rexy addps (%rax,%rax), %xmm0
+	rexz addps %xmm0, %xmm0
+	rexz addps (%rax,%rax), %xmm0
+
+	{load} rexx movss %xmm0, %xmm0
+	{load} rexz movss %xmm0, %xmm0
+
+	{store} rexx movss %xmm0, %xmm0
+	{store} rexz movss %xmm0, %xmm0
+
+	rexz psllw $0, %xmm0
+
+	rexx pextrw $0, %xmm0, %eax
+	rexz pextrw $0, %xmm0, %eax
+
+	rexx pextrb $0, %xmm0, %eax
+	rexz pextrb $0, %xmm0, %eax
+
+	rexx blendvps %xmm0, %xmm0, %xmm0
+	rexz blendvps %xmm0, %xmm0, %xmm0
+
+	rexx blendvps %xmm0, %xmm0
+	rexz blendvps %xmm0, %xmm0
+
+	rex64 cvtsi2sd (%rax), %xmm0
+	rex64 cvtsi2ss (%rax), %xmm0
+
+	rex64 pcmpestri $0, %xmm0, %xmm0
+	rex64 pcmpestrm $0, %xmm0, %xmm0
 
 
 	.intel_syntax noprefix
@@ -1412,4 +1543,3 @@ _start:
 
 # Tests for op imm8, xmm, regl
 	pextrw ecx,xmm4,100
-

@@ -49,21 +49,21 @@ Contents of the .eh_frame section:
 Disassembly of section .plt:
 
 0+1b0 <.plt>:
- +[a-f0-9]+:	ff 35 52 0e 20 00    	pushq  0x200e52\(%rip\)        # 201008 <_GLOBAL_OFFSET_TABLE_\+0x8>
- +[a-f0-9]+:	f2 ff 25 53 0e 20 00 	bnd jmpq \*0x200e53\(%rip\)        # 201010 <_GLOBAL_OFFSET_TABLE_\+0x10>
+ +[a-f0-9]+:	ff 35 52 0e 20 00    	push   0x200e52\(%rip\)        # 201008 <_GLOBAL_OFFSET_TABLE_\+0x8>
+ +[a-f0-9]+:	f2 ff 25 53 0e 20 00 	bnd jmp \*0x200e53\(%rip\)        # 201010 <_GLOBAL_OFFSET_TABLE_\+0x10>
  +[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
- +[a-f0-9]+:	68 00 00 00 00       	pushq  \$0x0
- +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmpq 1b0 <.plt>
+ +[a-f0-9]+:	68 00 00 00 00       	push   \$0x0
+ +[a-f0-9]+:	f2 e9 e5 ff ff ff    	bnd jmp 1b0 <.plt>
  +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
 
 Disassembly of section .plt.sec:
 
 0+1d0 <func@plt>:
- +[a-f0-9]+:	f2 ff 25 41 0e 20 00 	bnd jmpq \*0x200e41\(%rip\)        # 201018 <func>
+ +[a-f0-9]+:	f2 ff 25 41 0e 20 00 	bnd jmp \*0x200e41\(%rip\)        # 201018 <func>
  +[a-f0-9]+:	90                   	nop
 
 Disassembly of section .text:
 
 0+1d8 <foo>:
- +[a-f0-9]+:	e8 f3 ff ff ff       	callq  1d0 <func@plt>
+ +[a-f0-9]+:	e8 f3 ff ff ff       	call   1d0 <func@plt>
 #pass

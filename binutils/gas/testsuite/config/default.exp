@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Free Software Foundation, Inc.
+# Copyright (C) 2012-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,15 +16,21 @@
 
 load_lib gas-defs.exp
 
-global AS
 if ![info exists AS] then {
     set AS [findfile $base_dir/../as-new "../as-new" [transform as]]
 }
 
-global ASFLAGS
 if ![info exists ASFLAGS] then {
     set ASFLAGS ""
 }
+
+if ![info exists LD] then {
+    set LD [findfile $base_dir/../../ld/ld-new $base_dir/../../ld/ld-new [transform ld]]
+}
+if ![info exists LDFLAGS] then {
+    set LDFLAGS ""
+}
+set ld_elf_shared_opt "-z norelro"
 
 if ![info exists OBJDUMP] then {
     set OBJDUMP [findfile $base_dir/../../binutils/objdump \
@@ -69,5 +75,7 @@ if ![info exists ADDR2LINE] then {
 if ![info exists ADDR2LINEFLAGS] then {
     set ADDR2LINEFLAGS {}
 }
+
+if ![file isdirectory tmpdir] {catch "exec mkdir tmpdir" status}
 
 gas_init

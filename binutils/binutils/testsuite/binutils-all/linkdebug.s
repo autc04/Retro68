@@ -1,7 +1,7 @@
 /* Assembler source used to create an object file for testing readelf's
    and objdump's ability to process separate debug information files.
 
-   Copyright (C) 2017-2018 Free Software Foundation, Inc.
+   Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,9 +18,22 @@
 	
 /* This is the separate debug info file.  */
 
-/* Create a .debug_abbrev section for use by the .debug_info section
+/* Create .note.gnu.build-id note for use by the .gnu_debugaltlink
    in the main object file.  */
-   
+
+	.section	.note.gnu.build-id,"a",%note
+	.balign	4
+	.dc.l	0x04	;# Name size
+	.dc.l	0x18	;# Description size
+	.dc.l	0x03	;# Type
+	.asciz	"GNU"	;# Name
+	.dc.b	0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77
+	.dc.b	0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff
+	.dc.b	0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef
+
+ /* Create a .debug_abbrev section for use by the .debug_info section
+   in the main object file.  */
+
 	.section	.debug_abbrev,"",%progbits
 abbrevs:
 	.uleb128 0x01	;# Abbrev code.
@@ -51,4 +64,3 @@ string3:
 	.asciz  "string-4"
 	.balign	2
 string_end:
-	

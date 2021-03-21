@@ -1,5 +1,5 @@
 #readelf: -S --wide
-#name: section flags
+#name: section flags (for GNU lto sections)
 
 #...
 [ 	]*\[.*\][ 	]+\.gnu\.lto_main[ 	]+PROGBITS.*[ 	]+E[   ]+.*

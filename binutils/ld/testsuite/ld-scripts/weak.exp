@@ -1,6 +1,6 @@
 # Test weak symbols.
 # By Ian Lance Taylor, Cygnus Solutions.
-#   Copyright (C) 1999-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -43,10 +43,9 @@ if {! [ld_assemble $as $srcdir/$subdir/weak1.s tmpdir/weak1.o]
     return
 }
 
-global LDFLAGS
 set saved_LDFLAGS "$LDFLAGS"
-if [istarget "x86_64-*-mingw*"] then {
-  set LDFLAGS "$LDFLAGS --image-base 0"
+if { [is_pecoff_format] } then {
+    set LDFLAGS "$LDFLAGS --image-base 0"
 }
 
 set weak_regexp_big \

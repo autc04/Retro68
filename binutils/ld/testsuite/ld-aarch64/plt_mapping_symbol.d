@@ -1,7 +1,8 @@
+#name: AArch64 mapping symbol for plt section test.
 #source: plt_mapping_symbol.s
+#target: [check_shared_lib_support]
 #ld: -shared -T relocs.ld -e0
 #objdump: --syms --special-syms
-#name: AArch64 mapping symbol for plt section test.
 #...
 
 SYMBOL TABLE:

@@ -12,7 +12,6 @@
 
 	/* ARMv8-A.  */
 	.arch armv8-a
-	esb
 	hint #0x10
 
 	rw_sys_reg sys_reg=erridr_el1 xreg=x5 r=1 w=0
@@ -33,7 +32,6 @@
 	/* ARMv8.1-A.  */
 
 	.arch armv8.1-a
-	esb
 	hint #0x10
 
 	rw_sys_reg sys_reg=erridr_el1 xreg=x5 r=1 w=0

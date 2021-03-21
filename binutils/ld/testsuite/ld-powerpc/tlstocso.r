@@ -68,7 +68,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND *
 .* SECTION +LOCAL +DEFAULT +6 *
-.* SECTION +LOCAL +DEFAULT +7 *
+.* SECTION +LOCAL +DEFAULT +10 *
 .* TLS +GLOBAL +DEFAULT +UND gd
 .* TLS +GLOBAL +DEFAULT +8 le0
 .* NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr

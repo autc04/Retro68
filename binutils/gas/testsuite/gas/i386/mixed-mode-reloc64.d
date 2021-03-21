@@ -1,6 +1,7 @@
 #objdump: -r
 #source: mixed-mode-reloc.s
 #name: x86 mixed mode relocs (64-bit object)
+#as: --generate-missing-build-notes=no
 
 .*: +file format .*x86-64.*
 

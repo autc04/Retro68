@@ -2,7 +2,7 @@
 #name: SH2a PIC relocations
 #as: -isa=sh2a
 
-dump.o:     file format elf32-sh.*
+.*:     file format elf32-sh.*
 
 Disassembly of section .text:
 0x00000000 01 00 00 00 	movi20	#0,r1

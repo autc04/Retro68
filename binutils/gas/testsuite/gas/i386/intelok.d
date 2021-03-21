@@ -1,7 +1,7 @@
 #as: -J --divide
 #objdump: -dwMintel
 #name: i386 intel-ok
-#stderr: intelok.e
+#warning_output: intelok.e
 
 .*: +file format .*
 
@@ -88,6 +88,8 @@ Disassembly of section .text:
 [ 	]*[0-9a-f]+:	0f bf 00[ 	]+movsx[ 	]+eax,WORD PTR \[eax\]
 [ 	]*[0-9a-f]+:	0f fc 00[ 	]+paddb[ 	]+mm0,(QWORD PTR )?\[eax\]
 [ 	]*[0-9a-f]+:	0f fc 00[ 	]+paddb[ 	]+mm0,(QWORD PTR )?\[eax\]
+[ 	]*[0-9a-f]+:	0f fc 00[ 	]+paddb[ 	]+mm0,(QWORD PTR )?\[eax\]
+[ 	]*[0-9a-f]+:	66 0f fc 00[ 	]+paddb[ 	]+xmm0,(XMMWORD PTR )?\[eax\]
 [ 	]*[0-9a-f]+:	66 0f fc 00[ 	]+paddb[ 	]+xmm0,(XMMWORD PTR )?\[eax\]
 [ 	]*[0-9a-f]+:	66 0f fc 00[ 	]+paddb[ 	]+xmm0,(XMMWORD PTR )?\[eax\]
 [ 	]*[0-9a-f]+:	0f c4 00 03[ 	]+pinsrw[ 	]+mm0,(WORD PTR )?\[eax\],0x3

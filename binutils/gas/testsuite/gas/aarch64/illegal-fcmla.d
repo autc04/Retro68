@@ -1,2 +1,2 @@
 #as: -march=armv8.3-a -mno-verbose-error
-#error-output: illegal-fcmla.l
+#error_output: illegal-fcmla.l

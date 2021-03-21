@@ -2,7 +2,7 @@
 .*:6: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
 .*:7: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
 .*:8: Error: `\(%rip\)' cannot be used here
-.*:9: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
+.*:9: Error: .*
 .*:12: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
 .*:13: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
 .*:15: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
@@ -23,16 +23,16 @@
 .*:38: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
 .*:39: Warning: register scaling is being ignored here
 .*:40: Error: `base\(%rip\)' cannot be used here
-.*:41: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
+.*:41: Error: .*
 .*:44: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
 .*:45: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
 .*:46: Warning: register scaling is being ignored here
 .*:47: Error: `base\(%rip\)' cannot be used here
-.*:48: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
+.*:48: Error: .*
 .*:51: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
 .*:52: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
 .*:53: Error: `\[rip\]' cannot be used here
-.*:54: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
+.*:54: Error: .*
 .*:55: Error: `\[rax\+rsp\]' is not a valid base/index expression
 .*:58: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
 .*:59: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
@@ -54,13 +54,13 @@
 .*:84: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
 .*:85: Warning: register scaling is being ignored here
 .*:86: Error: `\[rip\+base\]' cannot be used here
-.*:87: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
+.*:87: Error: .*
 .*:88: Error: `\[rax\+rsp\]' is not a valid base/index expression
 .*:91: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
 .*:92: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
 .*:93: Warning: register scaling is being ignored here
 .*:94: Error: `\[rip\+base\]' cannot be used here
-.*:95: Error: 32-bit address isn't allowed in 64-bit MPX instructions.
+.*:95: Error: .*
 .*:96: Error: `\[rax\+rsp\]' is not a valid base/index expression
 GAS LISTING .*
 
@@ -77,10 +77,7 @@ GAS LISTING .*
 .*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
 [ 	]*[1-9][0-9]*[ 	]+4C1903
 [ 	]*[1-9][0-9]*[ 	]+bndmk \(%rip\), %bnd3
-[ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 67F30F1B 		bndmk \(%eip\), %bnd2
-.*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
-[ 	]*[1-9][0-9]*[ 	]+15000000 
-[ 	]*[1-9][0-9]*[ 	]+00
+[ 	]*[1-9][0-9]*[ 	]+bndmk \(%eip\), %bnd2
 [ 	]*[1-9][0-9]*[ 	]+
 [ 	]*[1-9][0-9]*[ 	]+\#\#\# bndmov
 [ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 6766410F 		bndmov \(%r8d\), %bnd1
@@ -122,12 +119,12 @@ GAS LISTING .*
 .*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
 [ 	]*[1-9][0-9]*[ 	]+09
 [ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 67F20F1B 		bndcn 0x3\(%ecx,%eax,1\), %bnd1
-GAS LISTING .*
-
-
 .*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
 [ 	]*[1-9][0-9]*[ 	]+4C0103
 [ 	]*[1-9][0-9]*[ 	]+bndcn %ecx, %bnd1
+GAS LISTING .*
+
+
 [ 	]*[1-9][0-9]*[ 	]+bndcn %cx, %bnd1
 [ 	]*[1-9][0-9]*[ 	]+
 [ 	]*[1-9][0-9]*[ 	]+\#\#\# bndstx
@@ -141,9 +138,7 @@ GAS LISTING .*
 .*  Warning: register scaling is being ignored here
 [ 	]*[1-9][0-9]*[ 	]+47
 [ 	]*[1-9][0-9]*[ 	]+bndstx %bnd3, base\(%rip\)
-[ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 670F1B0D 		bndstx %bnd1, base\(%eip\)
-.*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
-[ 	]*[1-9][0-9]*[ 	]+[0-9A-F]+ 
+[ 	]*[1-9][0-9]*[ 	]+bndstx %bnd1, base\(%eip\)
 [ 	]*[1-9][0-9]*[ 	]+
 [ 	]*[1-9][0-9]*[ 	]+\#\#\# bndldx
 [ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 670F1A44 		bndldx 0x3\(%eax,%ebx,1\), %bnd0
@@ -156,9 +151,7 @@ GAS LISTING .*
 .*  Warning: register scaling is being ignored here
 [ 	]*[1-9][0-9]*[ 	]*B8
 [ 	]*[1-9][0-9]*[ 	]*bndldx base\(%rip\), %bnd1
-[ 	]*[1-9][0-9]*[ 	]*\?\?\?\? 670F1A1D 		bndldx base\(%eip\), %bnd3
-.*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
-[ 	]*[1-9][0-9]*[ 	]+[0-9A-F]+ 
+[ 	]*[1-9][0-9]*[ 	]*bndldx base\(%eip\), %bnd3
 [ 	]*[1-9][0-9]*[ 	]+
 [ 	]*[1-9][0-9]*[ 	]+\.intel_syntax noprefix
 [ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 67F30F1B 		bndmk bnd1, \[eax\]
@@ -168,10 +161,7 @@ GAS LISTING .*
 .*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
 [ 	]*[1-9][0-9]*[ 	]+4C0203
 [ 	]*[1-9][0-9]*[ 	]*bndmk bnd3, \[rip\]
-[ 	]*[1-9][0-9]*[ 	]*\?\?\?\? 67F30F1B 		bndmk bnd2, \[eip\]
-.*  Error: 32-bit address isn't allowed in 64-bit MPX instructions.
-[ 	]*[1-9][0-9]*[ 	]*15000000 
-[ 	]*[1-9][0-9]*[ 	]*00
+[ 	]*[1-9][0-9]*[ 	]*bndmk bnd2, \[eip\]
 [ 	]*[1-9][0-9]*[ 	]+bndmk bnd2, \[rax\+rsp\]
 [ 	]*[1-9][0-9]*[ 	]+
 [ 	]*[1-9][0-9]*[ 	]+\#\#\# bndmov
@@ -182,9 +172,6 @@ GAS LISTING .*
 .*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
 [ 	]*[1-9][0-9]*[ 	]+4C0203
 [ 	]*[1-9][0-9]*[ 	]+
-GAS LISTING .*
-
-
 [ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 67660F1B 		bndmov \[eax\], bnd1
 .*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
 [ 	]*[1-9][0-9]*[ 	]+08
@@ -195,6 +182,9 @@ GAS LISTING .*
 [ 	]*[1-9][0-9]*[ 	]+\#\#\# bndcl
 [ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 67F30F1A 		bndcl bnd1, \[eax\]
 .*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
+GAS LISTING .*
+
+
 [ 	]*[1-9][0-9]*[ 	]+08
 [ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 67F30F1A 		bndcl bnd1, \[edx\+1\*eax\+0x3\]
 .*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
@@ -234,17 +224,12 @@ GAS LISTING .*
 .*  Warning: register scaling is being ignored here
 [ 	]*[1-9][0-9]*[ 	]+B8
 [ 	]*[1-9][0-9]*[ 	]+bndstx \[rip\+base\], bnd1
-[ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 670F1B1D 		bndstx \[eip\+base\], bnd3
-.*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
-[ 	]*[1-9][0-9]*[ 	]+[0-9A-F]+ 
+[ 	]*[1-9][0-9]*[ 	]+bndstx \[eip\+base\], bnd3
 [ 	]*[1-9][0-9]*[ 	]+bndstx \[rax\+rsp\], bnd3
 [ 	]*[1-9][0-9]*[ 	]+
 [ 	]*[1-9][0-9]*[ 	]+\#\#\# bndldx
 [ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 670F1A44 		bndldx bnd0, \[eax\+ebx\*1\+0x3\]
 .*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
-GAS LISTING .*
-
-
 [ 	]*[1-9][0-9]*[ 	]+1803
 [ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 670F1A14 		bndldx bnd2, \[1\*ebx\+3\]
 .*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
@@ -254,8 +239,6 @@ GAS LISTING .*
 .*  Warning: register scaling is being ignored here
 [ 	]*[1-9][0-9]*[ 	]+C7
 [ 	]*[1-9][0-9]*[ 	]+bndldx bnd1, \[rip\+base\]
-[ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 670F1A1D 		bndldx bnd3, \[eip\+base\]
-.*  Error: 32-bit address isn't allowed in 64-bit MPX instructions\.
-[ 	]*[1-9][0-9]*[ 	]+[0-9A-F]+ 
+[ 	]*[1-9][0-9]*[ 	]+bndldx bnd3, \[eip\+base\]
 [ 	]*[1-9][0-9]*[ 	]+bndldx bnd3, \[rax\+rsp\]
 #pass

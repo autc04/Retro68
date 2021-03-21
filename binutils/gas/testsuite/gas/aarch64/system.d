@@ -30,7 +30,7 @@ Disassembly of section \.text:
 .*:	d50321ff 	hint	#0xf
 .*:	d503221f 	(hint	#0x10|esb)
 .*:	d503223f 	(hint	#0x11|psb	csync)
-.*:	d503225f 	hint	#0x12
+.*:	d503225f 	(hint	#0x12|tsb	csync)
 .*:	d503227f 	hint	#0x13
 .*:	d503229f 	(hint	#0x14|csdb)
 .*:	d50322bf 	hint	#0x15
@@ -44,13 +44,13 @@ Disassembly of section \.text:
 .*:	d50323bf 	(hint	#0x1d|autiasp)
 .*:	d50323df 	(hint	#0x1e|autibz)
 .*:	d50323ff 	(hint	#0x1f|autibsp)
-.*:	d503241f 	hint	#0x20
+.*:	d503241f 	(hint	#0x20|bti)
 .*:	d503243f 	hint	#0x21
-.*:	d503245f 	hint	#0x22
+.*:	d503245f 	(hint	#0x22|bti	c)
 .*:	d503247f 	hint	#0x23
-.*:	d503249f 	hint	#0x24
+.*:	d503249f 	(hint	#0x24|bti	j)
 .*:	d50324bf 	hint	#0x25
-.*:	d50324df 	hint	#0x26
+.*:	d50324df 	(hint	#0x26|bti	jc)
 .*:	d50324ff 	hint	#0x27
 .*:	d503251f 	hint	#0x28
 .*:	d503253f 	hint	#0x29

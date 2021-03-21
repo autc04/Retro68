@@ -1,3 +1,3 @@
 #name: Diagnostics Quality
 #source: diagnostic.s
-#error-output: diagnostic.l
+#error_output: diagnostic.l

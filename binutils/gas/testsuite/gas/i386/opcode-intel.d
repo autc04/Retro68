@@ -257,9 +257,9 @@ Disassembly of section .text:
  *[0-9a-f]+:	0f 09[ 	]+wbinvd[ 	]*
  *[0-9a-f]+:	0f 0b[ 	]+ud2[ 	]*
  *[0-9a-f]+:	0f 20 d0[ 	]+mov[ 	]+eax,cr2
- *[0-9a-f]+:	0f 21 d0[ 	]+mov[ 	]+eax,db2
+ *[0-9a-f]+:	0f 21 d0[ 	]+mov[ 	]+eax,dr2
  *[0-9a-f]+:	0f 22 d0[ 	]+mov[ 	]+cr2,eax
- *[0-9a-f]+:	0f 23 d0[ 	]+mov[ 	]+db2,eax
+ *[0-9a-f]+:	0f 23 d0[ 	]+mov[ 	]+dr2,eax
  *[0-9a-f]+:	0f 24 d0[ 	]+mov[ 	]+eax,tr2
  *[0-9a-f]+:	0f 26 d0[ 	]+mov[ 	]+tr2,eax
  *[0-9a-f]+:	0f 30[ 	]+wrmsr[ 	]*

@@ -182,3 +182,4 @@
 [^:]*:311: Warning: unpredictable: identical transfer and status registers --`stlxr w26,x26,\[x3\]'
 [^:]*:312: Warning: unpredictable: identical transfer and status registers --`ldxp x26,x26,\[x5\]'
 [^:]*:313: Warning: unpredictable: identical transfer and status registers --`ldxp x26,x1,\[x26\]'
+[^:]*:314: Error: expected element type rather than vector type at operand 1 -- `st4 {v0\.16b-v3\.16b}\[4\],\[x0\]'

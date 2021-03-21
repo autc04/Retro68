@@ -1,6 +1,6 @@
 /* BFD library -- caching of file descriptors.
 
-   Copyright (C) 1990-2018 Free Software Foundation, Inc.
+   Copyright (C) 1990-2020 Free Software Foundation, Inc.
 
    Hacked by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
@@ -44,7 +44,6 @@ SUBSECTION
 #include "bfd.h"
 #include "libbfd.h"
 #include "libiberty.h"
-#include "bfd_stdint.h"
 
 #ifdef HAVE_MMAP
 #include <sys/mman.h>
@@ -593,15 +592,17 @@ bfd_open_file (bfd *abfd)
     {
     case read_direction:
     case no_direction:
-      abfd->iostream = _bfd_real_fopen (abfd->filename, FOPEN_RB);
+      abfd->iostream = _bfd_real_fopen (bfd_get_filename (abfd), FOPEN_RB);
       break;
     case both_direction:
     case write_direction:
       if (abfd->opened_once)
 	{
-	  abfd->iostream = _bfd_real_fopen (abfd->filename, FOPEN_RUB);
+	  abfd->iostream = _bfd_real_fopen (bfd_get_filename (abfd),
+					    FOPEN_RUB);
 	  if (abfd->iostream == NULL)
-	    abfd->iostream = _bfd_real_fopen (abfd->filename, FOPEN_WUB);
+	    abfd->iostream = _bfd_real_fopen (bfd_get_filename (abfd),
+					      FOPEN_WUB);
 	}
       else
 	{
@@ -628,10 +629,11 @@ bfd_open_file (bfd *abfd)
 	     the --info option.  */
 	  struct stat s;
 
-	  if (stat (abfd->filename, &s) == 0 && s.st_size != 0)
-	    unlink_if_ordinary (abfd->filename);
+	  if (stat (bfd_get_filename (abfd), &s) == 0 && s.st_size != 0)
+	    unlink_if_ordinary (bfd_get_filename (abfd));
 #endif
-	  abfd->iostream = _bfd_real_fopen (abfd->filename, FOPEN_WUB);
+	  abfd->iostream = _bfd_real_fopen (bfd_get_filename (abfd),
+					    FOPEN_WUB);
 	  abfd->opened_once = TRUE;
 	}
       break;

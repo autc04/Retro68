@@ -3,6 +3,7 @@
 # ld: -T rgn-over4.t -Map tmpdir/rgn-over4.map
 # error: \A[^ \n]*?ld[^:\n]*?: [^:\n]*?section `\.text' will not fit in region `r1'\n[^ \n]*?ld[^:\n]*?: region `r1' overflowed by 16 bytes\Z
 
+#...
 Discarded input sections
 #...
 Memory\s+Configuration

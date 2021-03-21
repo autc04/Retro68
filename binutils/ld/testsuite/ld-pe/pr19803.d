@@ -1,6 +1,6 @@
 #ld: -shared --out-implib dx.dll.a --gc-sections
 #objdump: --syms
-#notarget: mcore-*
+#xfail: mcore-*
 #
 # The MCORE-PE target does not support -shared.
 #

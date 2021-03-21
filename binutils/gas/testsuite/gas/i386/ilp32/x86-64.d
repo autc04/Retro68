@@ -162,8 +162,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f bf f0             	movswl %ax,%esi
 [ 	]*[a-f0-9]+:	48 0f bf f0          	movswq %ax,%rsi
 [ 	]*[a-f0-9]+:	48 63 f0             	movslq %eax,%rsi
-[ 	]*[a-f0-9]+:	0f be 10             	movsbl \(%rax\),%edx
-[ 	]*[a-f0-9]+:	48 0f be 10          	movsbq \(%rax\),%rdx
 [ 	]*[a-f0-9]+:	66 0f be 10          	movsbw \(%rax\),%dx
 [ 	]*[a-f0-9]+:	0f be 10             	movsbl \(%rax\),%edx
 [ 	]*[a-f0-9]+:	48 0f be 10          	movsbq \(%rax\),%rdx
@@ -175,8 +173,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	48 0f b6 f0          	movzbq %al,%rsi
 [ 	]*[a-f0-9]+:	0f b7 f0             	movzwl %ax,%esi
 [ 	]*[a-f0-9]+:	48 0f b7 f0          	movzwq %ax,%rsi
-[ 	]*[a-f0-9]+:	0f b6 10             	movzbl \(%rax\),%edx
-[ 	]*[a-f0-9]+:	48 0f b6 10          	movzbq \(%rax\),%rdx
 [ 	]*[a-f0-9]+:	66 0f b6 10          	movzbw \(%rax\),%dx
 [ 	]*[a-f0-9]+:	0f b6 10             	movzbl \(%rax\),%edx
 [ 	]*[a-f0-9]+:	48 0f b6 10          	movzbq \(%rax\),%rdx
@@ -220,8 +216,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	9b df e0             	fstsw  %ax
 [ 	]*[a-f0-9]+:	9b df e0             	fstsw  %ax
 [ 	]*[a-f0-9]+:	66 0f be 00          	movsbw \(%rax\),%ax
-[ 	]*[a-f0-9]+:	0f be 00             	movsbl \(%rax\),%eax
-[ 	]*[a-f0-9]+:	48 0f be 00          	movsbq \(%rax\),%rax
 [ 	]*[a-f0-9]+:	66 0f be 10          	movsbw \(%rax\),%dx
 [ 	]*[a-f0-9]+:	0f be 10             	movsbl \(%rax\),%edx
 [ 	]*[a-f0-9]+:	48 0f be 10          	movsbq \(%rax\),%rdx
@@ -230,8 +224,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	48 63 10             	movslq \(%rax\),%rdx
 [ 	]*[a-f0-9]+:	48 63 00             	movslq \(%rax\),%rax
 [ 	]*[a-f0-9]+:	66 0f b6 00          	movzbw \(%rax\),%ax
-[ 	]*[a-f0-9]+:	0f b6 00             	movzbl \(%rax\),%eax
-[ 	]*[a-f0-9]+:	48 0f b6 00          	movzbq \(%rax\),%rax
 [ 	]*[a-f0-9]+:	66 0f b6 10          	movzbw \(%rax\),%dx
 [ 	]*[a-f0-9]+:	0f b6 10             	movzbl \(%rax\),%edx
 [ 	]*[a-f0-9]+:	48 0f b6 10          	movzbq \(%rax\),%rdx

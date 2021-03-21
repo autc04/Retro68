@@ -10,6 +10,12 @@ _start:
 	andq	$-((1<<31)), %rax
 	andq	$-((1<<31)), %rbx
 	andq	$-((1<<31)), %r14
+	andq	$((1<<7) - 1), %rax
+	andq	$((1<<7) - 1), %rbx
+	andq	$((1<<7) - 1), %r14
+	andq	$-((1<<7)), %rax
+	andq	$-((1<<7)), %rbx
+	andq	$-((1<<7)), %r14
 	testq	$((1<<31) - 1), %rax
 	testq	$((1<<31) - 1), %rbx
 	testq	$((1<<31) - 1), %r14

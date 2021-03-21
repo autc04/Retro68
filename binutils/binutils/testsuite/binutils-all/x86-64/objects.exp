@@ -1,5 +1,5 @@
 # Expect script for x86-64 object tests.
-#   Copyright (C) 2017-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2017-2020 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,15 +16,10 @@
 # Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
 # MA 02110-1301, USA.
 
-if {!([istarget "x86_64-*-linux*"]
-      || [istarget "x86_64-*-nacl*"])
-    || [is_remote host]} {
+if {![istarget "x86_64-*-linux*"] || [is_remote host]} {
     return
 }
 
-global OBJCOPY
-global OBJCOPYFLAGS
-global READELF
 set tempfile tmpdir/x86-64-object-temp.o
 set copyfile tmpdir/x86-64-object-copy.o
 

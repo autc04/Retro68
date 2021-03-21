@@ -461,8 +461,8 @@ Disassembly of section \.text:
  68c:	3a21 0cd0      	sinirb	@r13,@r2,r12
  690:	3a11 0ae0      	sinirb	@r14,@r1,r10
  694:	3a01 09f0      	sinirb	@r15,@r0,r9
- 698:	3b06 beee      	out	#0xbeee,r0
- 69c:	3a46 babe      	outb	#0xbabe,rh4
+ 698:	3b07 beee      	sout	#0xbeee,r0
+ 69c:	3a47 babe      	soutb	#0xbabe,rh4
  6a0:	3bfb 0808      	soutd	@r0,@r15,r8
  6a4:	3beb 0718      	soutd	@r1,@r14,r7
  6a8:	3bdb 0628      	soutd	@r2,@r13,r6

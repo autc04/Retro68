@@ -1,5 +1,5 @@
 /* Generic symbol-table support for the BFD library.
-   Copyright (C) 1990-2018 Free Software Foundation, Inc.
+   Copyright (C) 1990-2020 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -455,8 +455,8 @@ bfd_set_symtab (bfd *abfd, asymbol **location, unsigned int symcount)
       return FALSE;
     }
 
-  bfd_get_outsymbols (abfd) = location;
-  bfd_get_symcount (abfd) = symcount;
+  abfd->outsymbols = location;
+  abfd->symcount = symcount;
   return TRUE;
 }
 
@@ -538,7 +538,7 @@ DESCRIPTION
 asymbol *
 _bfd_generic_make_empty_symbol (bfd *abfd)
 {
-  bfd_size_type amt = sizeof (asymbol);
+  size_t amt = sizeof (asymbol);
   asymbol *new_symbol = (asymbol *) bfd_zalloc (abfd, amt);
   if (new_symbol)
     new_symbol->the_bfd = abfd;
@@ -565,38 +565,23 @@ struct section_to_type
   char type;
 };
 
-/* Map section names to POSIX/BSD single-character symbol types.
+/* Map special section names to POSIX/BSD single-character symbol types.
    This table is probably incomplete.  It is sorted for convenience of
    adding entries.  Since it is so short, a linear search is used.  */
 static const struct section_to_type stt[] =
 {
-  {".bss", 'b'},
-  {"code", 't'},		/* MRI .text */
-  {".data", 'd'},
-  {"*DEBUG*", 'N'},
-  {".debug", 'N'},		/* MSVC's .debug (non-standard debug syms) */
   {".drectve", 'i'},		/* MSVC's .drective section */
   {".edata", 'e'},		/* MSVC's .edata (export) section */
-  {".fini", 't'},		/* ELF fini section */
   {".idata", 'i'},		/* MSVC's .idata (import) section */
-  {".init", 't'},		/* ELF init section */
   {".pdata", 'p'},		/* MSVC's .pdata (stack unwind) section */
-  {".rdata", 'r'},		/* Read only data.  */
-  {".rodata", 'r'},		/* Read only data.  */
-  {".sbss", 's'},		/* Small BSS (uninitialized data).  */
-  {".scommon", 'c'},		/* Small common.  */
-  {".sdata", 'g'},		/* Small initialized data.  */
-  {".text", 't'},
-  {"vars", 'd'},		/* MRI .data */
-  {"zerovars", 'b'},		/* MRI .bss */
   {0, 0}
 };
 
 /* Return the single-character symbol type corresponding to
    section S, or '?' for an unknown COFF section.
 
-   Check for any leading string which matches, so .text5 returns
-   't' as well as .text */
+   Check for leading strings which match, followed by a number, '.',
+   or '$' so .idata5 matches the .idata entry.  */
 
 static char
 coff_section_type (const char *s)
@@ -604,8 +589,12 @@ coff_section_type (const char *s)
   const struct section_to_type *t;
 
   for (t = &stt[0]; t->section; t++)
-    if (!strncmp (s, t->section, strlen (t->section)))
-      return t->type;
+    {
+      size_t len = strlen (t->section);
+      if (strncmp (s, t->section, len) == 0
+	  && memchr (".$0123456789", s[len], 13) != 0)
+	return t->type;
+    }
 
   return '?';
 }
@@ -614,7 +603,7 @@ coff_section_type (const char *s)
    SECTION, or '?' for an unknown section.  This uses section flags to
    identify sections.
 
-   FIXME These types are unhandled: c, i, e, p.  If we handled these also,
+   FIXME These types are unhandled: e, i, p.  If we handled these also,
    we could perhaps obsolete coff_section_type.  */
 
 static char
@@ -663,7 +652,12 @@ bfd_decode_symclass (asymbol *symbol)
   char c;
 
   if (symbol->section && bfd_is_com_section (symbol->section))
-    return 'C';
+    {
+      if (symbol->section->flags & SEC_SMALL_DATA)
+	return 'c';
+      else
+	return 'C';
+    }
   if (bfd_is_und_section (symbol->section))
     {
       if (symbol->flags & BSF_WEAK)
@@ -822,15 +816,21 @@ _bfd_generic_read_minisymbols (bfd *abfd,
   if (symcount < 0)
     goto error_return;
 
-  *minisymsp = syms;
-  *sizep = sizeof (asymbol *);
-
+  if (symcount == 0)
+    /* We return 0 above when storage is 0.  Exit in the same state
+       here, so as to not complicate callers with having to deal with
+       freeing memory for zero symcount.  */
+    free (syms);
+  else
+    {
+      *minisymsp = syms;
+      *sizep = sizeof (asymbol *);
+    }
   return symcount;
 
  error_return:
   bfd_set_error (bfd_error_no_symbols);
-  if (syms != NULL)
-    free (syms);
+  free (syms);
   return -1;
 }
 
@@ -872,6 +872,7 @@ struct indexentry
   char *directory_name;
   char *file_name;
   char *function_name;
+  int idx;
 };
 
 /* Compare two indexentry structures.  This is called via qsort.  */
@@ -884,10 +885,9 @@ cmpindexentry (const void *a, const void *b)
 
   if (contestantA->val < contestantB->val)
     return -1;
-  else if (contestantA->val > contestantB->val)
+  if (contestantA->val > contestantB->val)
     return 1;
-  else
-    return 0;
+  return contestantA->idx - contestantB->idx;
 }
 
 /* A pointer to this structure is stored in *pinfo.  */
@@ -1035,6 +1035,10 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 					 0, strsize))
 	return FALSE;
 
+      /* Stab strings ought to be nul terminated.  Ensure the last one
+	 is, to prevent running off the end of the buffer.  */
+      info->strs[strsize - 1] = 0;
+
       /* If this is a relocatable object file, we have to relocate
 	 the entries in .stab.  This should always be simple 32 bit
 	 relocations against symbols defined in this object file, so
@@ -1049,8 +1053,7 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 					    symbols);
       if (reloc_count < 0)
 	{
-	  if (reloc_vector != NULL)
-	    free (reloc_vector);
+	  free (reloc_vector);
 	  return FALSE;
 	}
       if (reloc_count > 0)
@@ -1062,39 +1065,38 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 	      arelent *r;
 	      unsigned long val;
 	      asymbol *sym;
+	      bfd_size_type octets;
 
 	      r = *pr;
 	      /* Ignore R_*_NONE relocs.  */
 	      if (r->howto->dst_mask == 0)
 		continue;
 
+	      octets = r->address * bfd_octets_per_byte (abfd, NULL);
 	      if (r->howto->rightshift != 0
 		  || r->howto->size != 2
 		  || r->howto->bitsize != 32
 		  || r->howto->pc_relative
 		  || r->howto->bitpos != 0
-		  || r->howto->dst_mask != 0xffffffff)
+		  || r->howto->dst_mask != 0xffffffff
+		  || octets + 4 > stabsize)
 		{
 		  _bfd_error_handler
 		    (_("unsupported .stab relocation"));
 		  bfd_set_error (bfd_error_invalid_operation);
-		  if (reloc_vector != NULL)
-		    free (reloc_vector);
+		  free (reloc_vector);
 		  return FALSE;
 		}
 
-	      val = bfd_get_32 (abfd, info->stabs
-				+ r->address * bfd_octets_per_byte (abfd));
+	      val = bfd_get_32 (abfd, info->stabs + octets);
 	      val &= r->howto->src_mask;
 	      sym = *r->sym_ptr_ptr;
 	      val += sym->value + sym->section->vma + r->addend;
-	      bfd_put_32 (abfd, (bfd_vma) val, info->stabs
-			  + r->address * bfd_octets_per_byte (abfd));
+	      bfd_put_32 (abfd, (bfd_vma) val, info->stabs + octets);
 	    }
 	}
 
-      if (reloc_vector != NULL)
-	free (reloc_vector);
+      free (reloc_vector);
 
       /* First time through this function, build a table matching
 	 function VM addresses to stabs, then sort based on starting
@@ -1181,6 +1183,7 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 		  info->indextable[i].directory_name = directory_name;
 		  info->indextable[i].file_name = file_name;
 		  info->indextable[i].function_name = NULL;
+		  info->indextable[i].idx = i;
 		  ++i;
 		}
 
@@ -1195,7 +1198,8 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 		{
 		  nul_fun = stab;
 		  nul_str = str;
-		  if (file_name >= (char *) info->strs + strsize || file_name < (char *) str)
+		  if (file_name >= (char *) info->strs + strsize
+		      || file_name < (char *) str)
 		    file_name = NULL;
 		  if (stab + STABSIZE + TYPEOFF < info->stabs + stabsize
 		      && *(stab + STABSIZE + TYPEOFF) == (bfd_byte) N_SO)
@@ -1206,7 +1210,8 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 		      directory_name = file_name;
 		      file_name = ((char *) str
 				   + bfd_get_32 (abfd, stab + STRDXOFF));
-		      if (file_name >= (char *) info->strs + strsize || file_name < (char *) str)
+		      if (file_name >= (char *) info->strs + strsize
+			  || file_name < (char *) str)
 			file_name = NULL;
 		    }
 		}
@@ -1217,7 +1222,8 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 	      file_name = (char *) str + bfd_get_32 (abfd, stab + STRDXOFF);
 	      /* PR 17512: file: 0c680a1f.  */
 	      /* PR 17512: file: 5da8aec4.  */
-	      if (file_name >= (char *) info->strs + strsize || file_name < (char *) str)
+	      if (file_name >= (char *) info->strs + strsize
+		  || file_name < (char *) str)
 		file_name = NULL;
 	      break;
 
@@ -1226,7 +1232,8 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 	      function_name = (char *) str + bfd_get_32 (abfd, stab + STRDXOFF);
 	      if (function_name == (char *) str)
 		continue;
-	      if (function_name >= (char *) info->strs + strsize)
+	      if (function_name >= (char *) info->strs + strsize
+		  || function_name < (char *) str)
 		function_name = NULL;
 
 	      nul_fun = NULL;
@@ -1236,6 +1243,7 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 	      info->indextable[i].directory_name = directory_name;
 	      info->indextable[i].file_name = file_name;
 	      info->indextable[i].function_name = function_name;
+	      info->indextable[i].idx = i;
 	      ++i;
 	      break;
 	    }
@@ -1249,6 +1257,7 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 	  info->indextable[i].directory_name = directory_name;
 	  info->indextable[i].file_name = file_name;
 	  info->indextable[i].function_name = NULL;
+	  info->indextable[i].idx = i;
 	  ++i;
 	}
 
@@ -1258,6 +1267,7 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
       info->indextable[i].directory_name = NULL;
       info->indextable[i].file_name = NULL;
       info->indextable[i].function_name = NULL;
+      info->indextable[i].idx = i;
       ++i;
 
       info->indextablesize = i;
@@ -1269,7 +1279,7 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 
   /* We are passed a section relative offset.  The offsets in the
      stabs information are absolute.  */
-  offset += bfd_get_section_vma (abfd, section);
+  offset += bfd_section_vma (section);
 
 #ifdef ENABLE_CACHING
   if (info->cached_indexentry != NULL
@@ -1335,7 +1345,8 @@ _bfd_stab_section_find_nearest_line (bfd *abfd,
 	  if (val <= offset)
 	    {
 	      file_name = (char *) str + bfd_get_32 (abfd, stab + STRDXOFF);
-	      if (file_name >= (char *) info->strs + strsize || file_name < (char *) str)
+	      if (file_name >= (char *) info->strs + strsize
+		  || file_name < (char *) str)
 		file_name = NULL;
 	      *pline = 0;
 	    }
@@ -1453,6 +1464,7 @@ _bfd_nosymbols_get_symbol_info (bfd *abfd ATTRIBUTE_UNUSED,
 const char *
 _bfd_nosymbols_get_symbol_version_string (bfd *abfd,
 					  asymbol *symbol ATTRIBUTE_UNUSED,
+					  bfd_boolean base_p ATTRIBUTE_UNUSED,
 					  bfd_boolean *hidden ATTRIBUTE_UNUSED)
 {
   return (const char *) _bfd_ptr_bfd_null_error (abfd);

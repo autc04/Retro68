@@ -2,7 +2,7 @@
 #name: microMIPS fixed-size branch delay slots
 #as: -mmicromips
 #source: micromips-warn-branch-delay.s
-#stderr: micromips-warn-branch-delay.l
+#warning_output: micromips-warn-branch-delay.l
 
 .*: +file format .*mips.*
 

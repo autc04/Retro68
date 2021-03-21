@@ -2,7 +2,7 @@
 #source: ../ld-i386/abs.s
 #source: ../ld-i386/zero.s
 #as: --64 -march=l1om
-#ld: -m elf_l1om
+#ld: -m elf_l1om -z noseparate-code
 #objdump: -rs -j .text
 #target: x86_64-*-linux*
 

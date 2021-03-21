@@ -1,6 +1,5 @@
 #name: microMIPS link jump to unaligned symbol
-#as: -EB -n32 -march=from-abi
-#ld: -EB -Ttext 0x1c000000 -e 0x1c000000
+#ld: -Ttext 0x1c000000 -e 0x1c000000
 #source: ../../../gas/testsuite/gas/mips/unaligned-jump-micromips-2.s
 #error: \A[^\n]*: in function `foo':\n
 #error:   \(\.text\+0x1012\): unsupported jump between ISA modes; consider recompiling with interlinking enabled\n

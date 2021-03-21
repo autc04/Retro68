@@ -1,5 +1,5 @@
 /* tc-riscv.c -- RISC-V assembler
-   Copyright (C) 2011-2018 Free Software Foundation, Inc.
+   Copyright (C) 2011-2020 Free Software Foundation, Inc.
 
    Contributed by Andrew Waterman (andrew@sifive.com).
    Based on MIPS target.
@@ -28,8 +28,8 @@
 #include "itbl-ops.h"
 #include "dwarf2dbg.h"
 #include "dw2gencfi.h"
-#include "struc-symbol.h"
 
+#include "bfd/elfxx-riscv.h"
 #include "elf/riscv.h"
 #include "opcode/riscv.h"
 
@@ -59,7 +59,34 @@ struct riscv_cl_insn
 #define DEFAULT_ARCH "riscv64"
 #endif
 
+#ifndef DEFAULT_RISCV_ATTR
+#define DEFAULT_RISCV_ATTR 0
+#endif
+
+/* Let riscv_after_parse_args set the default value according to xlen.  */
+
+#ifndef DEFAULT_RISCV_ARCH_WITH_EXT
+#define DEFAULT_RISCV_ARCH_WITH_EXT NULL
+#endif
+
+/* The default ISA spec is set to 2.2 rather than the lastest version.
+   The reason is that compiler generates the ISA string with fixed 2p0
+   verisons only for the RISCV ELF architecture attributes, but not for
+   the -march option.  Therefore, we should update the compiler or linker
+   to resolve this problem.  */
+
+#ifndef DEFAULT_RISCV_ISA_SPEC
+#define DEFAULT_RISCV_ISA_SPEC "2.2"
+#endif
+
+#ifndef DEFAULT_RISCV_PRIV_SPEC
+#define DEFAULT_RISCV_PRIV_SPEC "1.11"
+#endif
+
 static const char default_arch[] = DEFAULT_ARCH;
+static const char *default_arch_with_ext = DEFAULT_RISCV_ARCH_WITH_EXT;
+static enum riscv_isa_spec_class default_isa_spec = ISA_SPEC_CLASS_NONE;
+static enum riscv_priv_spec_class default_priv_spec = PRIV_SPEC_CLASS_NONE;
 
 static unsigned xlen = 0; /* width of an x-register */
 static unsigned abi_xlen = 0; /* width of a pointer in the ABI */
@@ -70,6 +97,77 @@ static bfd_boolean rve_abi = FALSE;
 
 static unsigned elf_flags = 0;
 
+/* Set the default_isa_spec.  Return 0 if the input spec string isn't
+   supported.  Otherwise, return 1.  */
+
+static int
+riscv_set_default_isa_spec (const char *s)
+{
+  enum riscv_isa_spec_class class;
+  if (!riscv_get_isa_spec_class (s, &class))
+    {
+      as_bad ("Unknown default ISA spec `%s' set by "
+             "-misa-spec or --with-isa-spec", s);
+      return 0;
+    }
+  else
+    default_isa_spec = class;
+  return 1;
+}
+
+/* Set the default_priv_spec, assembler will find the suitable CSR address
+   according to default_priv_spec.  We will try to check priv attributes if
+   the input string is NULL.  Return 0 if the input priv spec string isn't
+   supported.  Otherwise, return 1.  */
+
+static int
+riscv_set_default_priv_spec (const char *s)
+{
+  enum riscv_priv_spec_class class;
+  unsigned major, minor, revision;
+  obj_attribute *attr;
+
+  /* Find the corresponding priv spec class.  */
+  if (riscv_get_priv_spec_class (s, &class))
+    {
+      default_priv_spec = class;
+      return 1;
+    }
+
+  if (s != NULL)
+    {
+      as_bad (_("Unknown default privilege spec `%s' set by "
+               "-mpriv-spec or --with-priv-spec"), s);
+      return 0;
+    }
+
+  /* Try to set the default_priv_spec according to the priv attributes.  */
+  attr = elf_known_obj_attributes_proc (stdoutput);
+  major = (unsigned) attr[Tag_RISCV_priv_spec].i;
+  minor = (unsigned) attr[Tag_RISCV_priv_spec_minor].i;
+  revision = (unsigned) attr[Tag_RISCV_priv_spec_revision].i;
+
+  if (riscv_get_priv_spec_class_from_numbers (major,
+					      minor,
+					      revision,
+					      &class))
+    {
+      /* The priv attributes setting 0.0.0 is meaningless.  We should have set
+	 the default_priv_spec by md_parse_option and riscv_after_parse_args,
+	 so just skip the following setting.  */
+      if (class == PRIV_SPEC_CLASS_NONE)
+	return 1;
+
+      default_priv_spec = class;
+      return 1;
+    }
+
+  /* Still can not find the priv spec class.  */
+  as_bad (_("Unknown default privilege spec `%d.%d.%d' set by "
+           "privilege attributes"),  major, minor, revision);
+  return 0;
+}
+
 /* This is the set of options which the .option pseudo-op may modify.  */
 
 struct riscv_set_options
@@ -78,6 +176,8 @@ struct riscv_set_options
   int rvc; /* Generate RVC code.  */
   int rve; /* Generate RVE code.  */
   int relax; /* Emit relocs the linker is allowed to relax.  */
+  int arch_attr; /* Emit arch attribute.  */
+  int csr_check; /* Enable the CSR checking.  */
 };
 
 static struct riscv_set_options riscv_opts =
@@ -86,6 +186,8 @@ static struct riscv_set_options riscv_opts =
   0,	/* rvc */
   0,	/* rve */
   1,	/* relax */
+  DEFAULT_RISCV_ATTR, /* arch_attr */
+  0.	/* csr_check */
 };
 
 static void
@@ -103,52 +205,92 @@ riscv_set_rve (bfd_boolean rve_value)
   riscv_opts.rve = rve_value;
 }
 
-struct riscv_subset
-{
-  const char *name;
-
-  struct riscv_subset *next;
-};
-
-static struct riscv_subset *riscv_subsets;
+static riscv_subset_list_t riscv_subsets;
 
 static bfd_boolean
 riscv_subset_supports (const char *feature)
 {
-  struct riscv_subset *s;
-  char *p;
-  unsigned xlen_required = strtoul (feature, &p, 10);
+  if (riscv_opts.rvc && (strcasecmp (feature, "c") == 0))
+    return TRUE;
 
-  if (xlen_required && xlen != xlen_required)
-    return FALSE;
-
-  for (s = riscv_subsets; s != NULL; s = s->next)
-    if (strcasecmp (s->name, p) == 0)
-      return TRUE;
-
-  return FALSE;
+  return riscv_lookup_subset (&riscv_subsets, feature) != NULL;
 }
 
-static void
-riscv_clear_subsets (void)
+static bfd_boolean
+riscv_multi_subset_supports (enum riscv_insn_class insn_class)
 {
-  while (riscv_subsets != NULL)
+  switch (insn_class)
     {
-      struct riscv_subset *next = riscv_subsets->next;
-      free ((void *) riscv_subsets->name);
-      free (riscv_subsets);
-      riscv_subsets = next;
+    case INSN_CLASS_I: return riscv_subset_supports ("i");
+    case INSN_CLASS_C: return riscv_subset_supports ("c");
+    case INSN_CLASS_A: return riscv_subset_supports ("a");
+    case INSN_CLASS_M: return riscv_subset_supports ("m");
+    case INSN_CLASS_F: return riscv_subset_supports ("f");
+    case INSN_CLASS_D: return riscv_subset_supports ("d");
+    case INSN_CLASS_D_AND_C:
+      return riscv_subset_supports ("d") && riscv_subset_supports ("c");
+
+    case INSN_CLASS_F_AND_C:
+      return riscv_subset_supports ("f") && riscv_subset_supports ("c");
+
+    case INSN_CLASS_Q: return riscv_subset_supports ("q");
+
+    default:
+      as_fatal ("Unreachable");
+      return FALSE;
     }
 }
 
-static void
-riscv_add_subset (const char *subset)
-{
-  struct riscv_subset *s = xmalloc (sizeof *s);
+/* Handle of the extension with version hash table.  */
+static htab_t ext_version_hash = NULL;
 
-  s->name = xstrdup (subset);
-  s->next = riscv_subsets;
-  riscv_subsets = s;
+static htab_t
+init_ext_version_hash (const struct riscv_ext_version *table)
+{
+  int i = 0;
+  htab_t hash = str_htab_create ();
+
+  while (table[i].name)
+    {
+      const char *name = table[i].name;
+      if (str_hash_insert (hash, name, &table[i], 0) != NULL)
+	as_fatal (_("duplicate %s"), name);
+
+      i++;
+      while (table[i].name
+            && strcmp (table[i].name, name) == 0)
+       i++;
+    }
+
+  return hash;
+}
+
+static void
+riscv_get_default_ext_version (const char *name,
+                              unsigned int *major_version,
+                              unsigned int *minor_version)
+{
+  struct riscv_ext_version *ext;
+
+  *major_version = 0;
+  *minor_version = 0;
+
+  if (name == NULL || default_isa_spec == ISA_SPEC_CLASS_NONE)
+    return;
+
+  ext = (struct riscv_ext_version *) str_hash_find (ext_version_hash, name);
+  while (ext
+        && ext->name
+        && strcmp (ext->name, name) == 0)
+    {
+      if (ext->isa_spec_class == default_isa_spec)
+       {
+         *major_version = ext->major_version;
+         *minor_version = ext->minor_version;
+         return;
+       }
+      ext++;
+    }
 }
 
 /* Set which ISA and extensions are available.  */
@@ -156,104 +298,24 @@ riscv_add_subset (const char *subset)
 static void
 riscv_set_arch (const char *s)
 {
-  const char *all_subsets = "imafdqc";
-  char *extension = NULL;
-  const char *p = s;
+  riscv_parse_subset_t rps;
+  rps.subset_list = &riscv_subsets;
+  rps.error_handler = as_fatal;
+  rps.xlen = &xlen;
+  rps.get_default_version = riscv_get_default_ext_version;
 
-  riscv_clear_subsets();
+  if (s == NULL)
+    return;
 
-  if (strncmp (p, "rv32", 4) == 0)
-    {
-      xlen = 32;
-      p += 4;
-    }
-  else if (strncmp (p, "rv64", 4) == 0)
-    {
-      xlen = 64;
-      p += 4;
-    }
-  else
-    as_fatal ("-march=%s: ISA string must begin with rv32 or rv64", s);
-
-  switch (*p)
-    {
-      case 'i':
-	break;
-
-      case 'e':
-	p++;
-	riscv_add_subset ("e");
-	riscv_add_subset ("i");
-
-	if (xlen > 32)
-	  as_fatal ("-march=%s: rv%de is not a valid base ISA", s, xlen);
-
-	break;
-
-      case 'g':
-	p++;
-	for ( ; *all_subsets != 'q'; all_subsets++)
-	  {
-	    const char subset[] = {*all_subsets, '\0'};
-	    riscv_add_subset (subset);
-	  }
-	break;
-
-      default:
-	as_fatal ("-march=%s: first ISA subset must be `e', `i' or `g'", s);
-    }
-
-  while (*p)
-    {
-      if (*p == 'x')
-	{
-	  char *subset = xstrdup (p);
-	  char *q = subset;
-
-	  while (*++q != '\0' && *q != '_')
-	    ;
-	  *q = '\0';
-
-	  if (extension)
-	    as_fatal ("-march=%s: only one non-standard extension is supported"
-		      " (found `%s' and `%s')", s, extension, subset);
-	  extension = subset;
-	  riscv_add_subset (subset);
-	  p += strlen (subset);
-	}
-      else if (*p == '_')
-	p++;
-      else if ((all_subsets = strchr (all_subsets, *p)) != NULL)
-	{
-	  const char subset[] = {*p, 0};
-	  riscv_add_subset (subset);
-	  all_subsets++;
-	  p++;
-	}
-      else
-	as_fatal ("-march=%s: unsupported ISA subset `%c'", s, *p);
-    }
-
-  if (riscv_subset_supports ("e") && riscv_subset_supports ("f"))
-    as_fatal ("-march=%s: rv32e does not support the `f' extension", s);
-
-  if (riscv_subset_supports ("d") && !riscv_subset_supports ("f"))
-    as_fatal ("-march=%s: `d' extension requires `f' extension", s);
-
-  if (riscv_subset_supports ("q") && !riscv_subset_supports ("d"))
-    as_fatal ("-march=%s: `q' extension requires `d' extension", s);
-
-  if (riscv_subset_supports ("q") && xlen < 64)
-    as_fatal ("-march=%s: rv32 does not support the `q' extension", s);
-
-  free (extension);
+  riscv_release_subset_list (&riscv_subsets);
+  riscv_parse_subset (&rps, s);
 }
 
 /* Handle of the OPCODE hash table.  */
-static struct hash_control *op_hash = NULL;
+static htab_t op_hash = NULL;
 
 /* Handle of the type of .insn hash table.  */
-static struct hash_control *insn_type_hash = NULL;
+static htab_t insn_type_hash = NULL;
 
 /* This array holds the chars that always start a comment.  If the
     pre-processor is disabled, these aren't very useful */
@@ -278,6 +340,15 @@ const char EXP_CHARS[] = "eE";
 /* As in 0f12.456 */
 /* or    0d1.2345e12 */
 const char FLT_CHARS[] = "rRsSfFdDxXpP";
+
+/* Indicate we are already assemble any instructions or not.  */
+static bfd_boolean start_assemble = FALSE;
+
+/* Indicate ELF attributes are explictly set.  */
+static bfd_boolean explicit_attr = FALSE;
+
+/* Indicate CSR or priv instructions are explictly used.  */
+static bfd_boolean explicit_priv_attr = FALSE;
 
 /* Macros for encoding relaxation state for RVC branches and far jumps.  */
 #define RELAX_BRANCH_ENCODE(uncond, rvc, length)	\
@@ -479,23 +550,17 @@ static const struct opcode_name_t opcode_name_list[] =
 };
 
 /* Hash table for lookup opcode name.  */
-static struct hash_control *opcode_names_hash = NULL;
+static htab_t opcode_names_hash = NULL;
 
 /* Initialization for hash table of opcode name.  */
 static void
 init_opcode_names_hash (void)
 {
-  const char *retval;
   const struct opcode_name_t *opcode;
 
   for (opcode = &opcode_name_list[0]; opcode->name != NULL; ++opcode)
-    {
-      retval = hash_insert (opcode_names_hash, opcode->name, (void *)opcode);
-
-      if (retval != NULL)
-	as_fatal (_("internal error: can't hash `%s': %s"),
-		  opcode->name, retval);
-    }
+    if (str_hash_insert (opcode_names_hash, opcode->name, opcode, 0) != NULL)
+      as_fatal (_("duplicate %s"), opcode->name);
 }
 
 /* Find `s` is a valid opcode name or not,
@@ -518,7 +583,7 @@ opcode_name_lookup (char **s)
   save_c = *e;
   *e = '\0';
 
-  o = (struct opcode_name_t *) hash_find (opcode_names_hash, *s);
+  o = (struct opcode_name_t *) str_hash_find (opcode_names_hash, *s);
 
   /* Advance to next token if one was recognized.  */
   if (o)
@@ -530,21 +595,17 @@ opcode_name_lookup (char **s)
   return o;
 }
 
-struct regname
-{
-  const char *name;
-  unsigned int num;
-};
-
 enum reg_class
 {
   RCLASS_GPR,
   RCLASS_FPR,
-  RCLASS_CSR,
-  RCLASS_MAX
+  RCLASS_MAX,
+
+  RCLASS_CSR
 };
 
-static struct hash_control *reg_names_hash = NULL;
+static htab_t reg_names_hash = NULL;
+static htab_t csr_extra_hash = NULL;
 
 #define ENCODE_REG_HASH(cls, n) \
   ((void *)(uintptr_t)((n) * RCLASS_MAX + (cls) + 1))
@@ -555,10 +616,8 @@ static void
 hash_reg_name (enum reg_class class, const char *name, unsigned n)
 {
   void *hash = ENCODE_REG_HASH (class, n);
-  const char *retval = hash_insert (reg_names_hash, name, hash);
-
-  if (retval != NULL)
-    as_fatal (_("internal error: can't hash `%s': %s"), name, retval);
+  if (str_hash_insert (reg_names_hash, name, hash, 0) != NULL)
+    as_fatal (_("duplicate %s"), name);
 }
 
 static void
@@ -570,11 +629,145 @@ hash_reg_names (enum reg_class class, const char * const names[], unsigned n)
     hash_reg_name (class, names[i], i);
 }
 
+/* Init hash table csr_extra_hash to handle CSR.  */
+static void
+riscv_init_csr_hash (const char *name,
+                    unsigned address,
+                    enum riscv_csr_class class,
+                    enum riscv_priv_spec_class define_version,
+                    enum riscv_priv_spec_class abort_version)
+{
+  struct riscv_csr_extra *entry, *pre_entry;
+  bfd_boolean need_enrty = TRUE;
+
+  pre_entry = NULL;
+  entry = (struct riscv_csr_extra *) str_hash_find (csr_extra_hash, name);
+  while (need_enrty && entry != NULL)
+    {
+      if (entry->csr_class == class
+         && entry->address == address
+         && entry->define_version == define_version
+         && entry->abort_version == abort_version)
+       need_enrty = FALSE;
+      pre_entry = entry;
+      entry = entry->next;
+    }
+ 
+  /* Duplicate setting for the CSR, just return and do nothing.  */
+  if (!need_enrty)
+    return;
+
+  entry = XNEW (struct riscv_csr_extra);
+  entry->csr_class = class;
+  entry->address = address;
+  entry->define_version = define_version;
+  entry->abort_version = abort_version;
+  entry->next = NULL;
+
+  /* If the CSR hasn't been inserted in the hash table, then insert it.
+     Otherwise, attach the extra information to the entry which is already
+     in the hash table.  */
+  if (pre_entry == NULL)
+    str_hash_insert (csr_extra_hash, name, entry, 0);
+  else
+    pre_entry->next = entry;
+}
+
+/* Return the suitable CSR address after checking the ISA dependency and
+   priv spec versions.  */
+
+static unsigned int
+riscv_csr_address (const char *csr_name,
+		   struct riscv_csr_extra *entry)
+{
+  struct riscv_csr_extra *saved_entry = entry;
+  enum riscv_csr_class csr_class = entry->csr_class;
+  bfd_boolean need_check_version = TRUE;
+  bfd_boolean result = TRUE;
+
+  switch (csr_class)
+    {
+    case CSR_CLASS_I:
+      result = riscv_subset_supports ("i");
+      break;
+    case CSR_CLASS_I_32:
+      result = (xlen == 32 && riscv_subset_supports ("i"));
+      break;
+    case CSR_CLASS_F:
+      result = riscv_subset_supports ("f");
+      need_check_version = FALSE;
+      break;
+    case CSR_CLASS_DEBUG:
+      need_check_version = FALSE;
+      break;
+    default:
+      as_bad (_("internal: bad RISC-V CSR class (0x%x)"), csr_class);
+    }
+
+  /* Don't report the ISA conflict when -mcsr-check isn't set.  */
+  if (riscv_opts.csr_check && !result)
+    as_warn (_("Invalid CSR `%s' for the current ISA"), csr_name);
+
+  while (entry != NULL)
+    {
+      if (!need_check_version
+	  || (default_priv_spec >= entry->define_version
+	      && default_priv_spec < entry->abort_version))
+       {
+         /* Find the suitable CSR according to the specific version.  */
+         return entry->address;
+       }
+      entry = entry->next;
+    }
+
+  /* We can not find the suitable CSR address according to the privilege
+     version.  Therefore, we use the last defined value.  Report the warning
+     only when the -mcsr-check is set.  Enable the -mcsr-check is recommended,
+     otherwise, you may get the unexpected CSR address.  */
+  if (riscv_opts.csr_check)
+    {
+      const char *priv_name = riscv_get_priv_spec_name (default_priv_spec);
+
+      if (priv_name != NULL)
+	as_warn (_("Invalid CSR `%s' for the privilege spec `%s'"),
+		 csr_name, priv_name);
+    }
+
+  return saved_entry->address;
+}
+
+/* Once the CSR is defined, including the old privilege spec, then we call
+   riscv_csr_class_check and riscv_csr_version_check to do the further checking
+   and get the corresponding address.  Return -1 if the CSR is never been
+   defined.  Otherwise, return the address.  */
+
+static unsigned int
+reg_csr_lookup_internal (const char *s)
+{
+  struct riscv_csr_extra *r =
+    (struct riscv_csr_extra *) str_hash_find (csr_extra_hash, s);
+
+  if (r == NULL)
+    return -1U;
+
+  /* We just report the warning when the CSR is invalid.  "Invalid CSR" means
+     the CSR was defined, but isn't allowed for the current ISA setting or
+     the privilege spec.  If the CSR is never been defined, then assembler
+     will regard it as a "Unknown CSR" and report error.  If user use number
+     to set the CSR, but over the range (> 0xfff), then assembler will report
+     "Improper CSR" error for it.  */
+  return riscv_csr_address (s, r);
+}
+
 static unsigned int
 reg_lookup_internal (const char *s, enum reg_class class)
 {
-  struct regname *r = (struct regname *) hash_find (reg_names_hash, s);
+  void *r;
 
+  if (class == RCLASS_CSR)
+    return reg_csr_lookup_internal (s);
+
+  r = str_hash_find (reg_names_hash, s);
   if (r == NULL || DECODE_REG_CLASS (r) != class)
     return -1;
 
@@ -617,6 +810,9 @@ arg_lookup (char **s, const char *const *array, size_t size, unsigned *regnop)
 {
   const char *p = strchr (*s, ',');
   size_t i, len = p ? (size_t)(p - *s) : strlen (*s);
+
+  if (len == 0)
+    return FALSE;
 
   for (i = 0; i < size; i++)
     if (array[i] != NULL && strncmp (array[i], *s, len) == 0)
@@ -680,6 +876,7 @@ validate_riscv_insn (const struct riscv_opcode *opc, int length)
 	  case 'v': used_bits |= ENCODE_RVC_IMM (-1U); break;
 	  case 'w': break; /* RS1S, constrained to equal RD */
 	  case 'x': break; /* RS2S, constrained to equal RD */
+	  case 'z': break; /* RS2S, contrained to be x0 */
 	  case 'K': used_bits |= ENCODE_RVC_ADDI4SPN_IMM (-1U); break;
 	  case 'L': used_bits |= ENCODE_RVC_ADDI16SP_IMM (-1U); break;
 	  case 'M': used_bits |= ENCODE_RVC_SWSP_IMM (-1U); break;
@@ -695,8 +892,10 @@ validate_riscv_insn (const struct riscv_opcode *opc, int length)
 	  case 'F': /* funct */
 	    switch (c = *p++)
 	      {
+		case '6': USE_BITS (OP_MASK_CFUNCT6, OP_SH_CFUNCT6); break;
 		case '4': USE_BITS (OP_MASK_CFUNCT4, OP_SH_CFUNCT4); break;
 		case '3': USE_BITS (OP_MASK_CFUNCT3, OP_SH_CFUNCT3); break;
+		case '2': USE_BITS (OP_MASK_CFUNCT2, OP_SH_CFUNCT2); break;
 		default:
 		  as_bad (_("internal: bad RISC-V opcode"
 			    " (unknown operand type `CF%c'): %s %s"),
@@ -741,6 +940,7 @@ validate_riscv_insn (const struct riscv_opcode *opc, int length)
       case '[': break;
       case ']': break;
       case '0': break;
+      case '1': break;
       case 'F': /* funct */
 	switch (c = *p++)
 	  {
@@ -791,26 +991,18 @@ struct percent_op_match
 
 /* Common hash table initialization function for
    instruction and .insn directive.  */
-static struct hash_control *
+static htab_t
 init_opcode_hash (const struct riscv_opcode *opcodes,
 		  bfd_boolean insn_directive_p)
 {
   int i = 0;
   int length;
-  struct hash_control *hash = hash_new ();
+  htab_t hash = str_htab_create ();
   while (opcodes[i].name)
     {
       const char *name = opcodes[i].name;
-      const char *hash_error =
-	hash_insert (hash, name, (void *) &opcodes[i]);
-
-      if (hash_error)
-	{
-	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
-		   opcodes[i].name, hash_error);
-	  /* Probably a memory allocation problem?  Give up now.  */
-	  as_fatal (_("Broken assembler.  No assembly attempted."));
-	}
+      if (str_hash_insert (hash, name, &opcodes[i], 0) != NULL)
+	as_fatal (_("duplicate %s"), name);
 
       do
 	{
@@ -847,19 +1039,25 @@ md_begin (void)
   op_hash = init_opcode_hash (riscv_opcodes, FALSE);
   insn_type_hash = init_opcode_hash (riscv_insn_types, TRUE);
 
-  reg_names_hash = hash_new ();
+  reg_names_hash = str_htab_create ();
   hash_reg_names (RCLASS_GPR, riscv_gpr_names_numeric, NGPR);
   hash_reg_names (RCLASS_GPR, riscv_gpr_names_abi, NGPR);
   hash_reg_names (RCLASS_FPR, riscv_fpr_names_numeric, NFPR);
   hash_reg_names (RCLASS_FPR, riscv_fpr_names_abi, NFPR);
+  /* Add "fp" as an alias for "s0".  */
+  hash_reg_name (RCLASS_GPR, "fp", 8);
 
-  opcode_names_hash = hash_new ();
-  init_opcode_names_hash ();
-
-#define DECLARE_CSR(name, num) hash_reg_name (RCLASS_CSR, #name, num);
-#define DECLARE_CSR_ALIAS(name, num) DECLARE_CSR(name, num);
+  /* Create and insert CSR hash tables.  */
+  csr_extra_hash = str_htab_create ();
+#define DECLARE_CSR(name, num, class, define_version, abort_version) \
+  riscv_init_csr_hash (#name, num, class, define_version, abort_version);
+#define DECLARE_CSR_ALIAS(name, num, class, define_version, abort_version) \
+  DECLARE_CSR(name, num, class, define_version, abort_version);
 #include "opcode/riscv-opc.h"
 #undef DECLARE_CSR
+
+  opcode_names_hash = str_htab_create ();
+  init_opcode_names_hash ();
 
   /* Set the default alignment for the text section.  */
   record_alignment (text_section, riscv_opts.rvc ? 1 : 2);
@@ -963,7 +1161,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
   va_start (args, fmt);
 
   r = BFD_RELOC_UNUSED;
-  mo = (struct riscv_opcode *) hash_find (op_hash, name);
+  mo = (struct riscv_opcode *) str_hash_find (op_hash, name);
   gas_assert (mo);
 
   /* Find a non-RVC variant of the instruction.  append_insn will compress
@@ -1015,6 +1213,29 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
   append_insn (&insn, ep, r);
 }
 
+/* Build an instruction created by a macro expansion.  Like md_assemble but
+   accept a printf-style format string and arguments.  */
+
+static void
+md_assemblef (const char *format, ...)
+{
+  char *buf = NULL;
+  va_list ap;
+  int r;
+
+  va_start (ap, format);
+
+  r = vasprintf (&buf, format, ap);
+
+  if (r < 0)
+    as_fatal (_("internal error: vasprintf failed"));
+
+  md_assemble (buf);
+  free(buf);
+
+  va_end (ap);
+}
+
 /* Sign-extend 32-bit mode constants that have bit 31 set and all higher bits
    unset.  */
 static void
@@ -1049,8 +1270,8 @@ check_absolute_expr (struct riscv_cl_insn *ip, expressionS *ex,
 static symbolS *
 make_internal_label (void)
 {
-  return (symbolS *) local_symbol_make (FAKE_LABEL_NAME, now_seg,
-					(valueT) frag_now_fix (), frag_now);
+  return (symbolS *) local_symbol_make (FAKE_LABEL_NAME, now_seg, frag_now,
+					frag_now_fix ());
 }
 
 /* Load an entry from the GOT.  */
@@ -1100,8 +1321,9 @@ static void
 load_const (int reg, expressionS *ep)
 {
   int shift = RISCV_IMM_BITS;
+  bfd_vma upper_imm, sign = (bfd_vma) 1 << (RISCV_IMM_BITS - 1);
   expressionS upper = *ep, lower = *ep;
-  lower.X_add_number = (int32_t) ep->X_add_number << (32-shift) >> (32-shift);
+  lower.X_add_number = ((ep->X_add_number & (sign + sign - 1)) ^ sign) - sign;
   upper.X_add_number -= lower.X_add_number;
 
   if (ep->X_op != O_constant)
@@ -1119,9 +1341,10 @@ load_const (int reg, expressionS *ep)
       upper.X_add_number = (int64_t) upper.X_add_number >> shift;
       load_const (reg, &upper);
 
-      macro_build (NULL, "slli", "d,s,>", reg, reg, shift);
+      md_assemblef ("slli x%d, x%d, 0x%x", reg, reg, shift);
       if (lower.X_add_number != 0)
-	macro_build (&lower, "addi", "d,s,j", reg, reg, BFD_RELOC_RISCV_LO12_I);
+	md_assemblef ("addi x%d, x%d, %" BFD_VMA_FMT "d", reg, reg,
+		      lower.X_add_number);
     }
   else
     {
@@ -1130,13 +1353,16 @@ load_const (int reg, expressionS *ep)
 
       if (upper.X_add_number != 0)
 	{
-	  macro_build (ep, "lui", "d,u", reg, BFD_RELOC_RISCV_HI20);
+	  /* Discard low part and zero-extend upper immediate.  */
+	  upper_imm = ((uint32_t)upper.X_add_number >> shift);
+
+	  md_assemblef ("lui x%d, 0x%" BFD_VMA_FMT "x", reg, upper_imm);
 	  hi_reg = reg;
 	}
 
       if (lower.X_add_number != 0 || hi_reg == 0)
-	macro_build (ep, ADD32_INSN, "d,s,j", reg, hi_reg,
-		     BFD_RELOC_RISCV_LO12_I);
+	md_assemblef ("%s x%d, x%d, %" BFD_VMA_FMT "d", ADD32_INSN, reg, hi_reg,
+		      lower.X_add_number);
     }
 }
 
@@ -1271,6 +1497,7 @@ static const struct percent_op_match percent_op_utype[] =
 {
   {"%tprel_hi", BFD_RELOC_RISCV_TPREL_HI20},
   {"%pcrel_hi", BFD_RELOC_RISCV_PCREL_HI20},
+  {"%got_pcrel_hi", BFD_RELOC_RISCV_GOT_HI20},
   {"%tls_ie_pcrel_hi", BFD_RELOC_RISCV_TLS_GOT_HI20},
   {"%tls_gd_pcrel_hi", BFD_RELOC_RISCV_TLS_GD_HI20},
   {"%hi", BFD_RELOC_RISCV_HI20},
@@ -1296,6 +1523,11 @@ static const struct percent_op_match percent_op_stype[] =
 static const struct percent_op_match percent_op_rtype[] =
 {
   {"%tprel_add", BFD_RELOC_RISCV_TPREL_ADD},
+  {0, 0}
+};
+
+static const struct percent_op_match percent_op_null[] =
+{
   {0, 0}
 };
 
@@ -1358,11 +1590,15 @@ my_getSmallExpression (expressionS *ep, bfd_reloc_code_real_type *reloc,
   unsigned crux_depth, str_depth, regno;
   char *crux;
 
-  /* First, check for integer registers.  */
+  /* First, check for integer registers.  No callers can accept a reg, but
+     we need to avoid accidentally creating a useless undefined symbol below,
+     if this is an instruction pattern that can't match.  A glibc build fails
+     if this is removed.  */
   if (reg_lookup (&str, RCLASS_GPR, &regno))
     {
       ep->X_op = O_register;
       ep->X_add_number = regno;
+      expr_end = str;
       return 0;
     }
 
@@ -1440,13 +1676,92 @@ riscv_handle_implicit_zero_offset (expressionS *ep, const char *s)
   return FALSE;
 }
 
+/* All RISC-V CSR instructions belong to one of these classes.  */
+
+enum csr_insn_type
+{
+  INSN_NOT_CSR,
+  INSN_CSRRW,
+  INSN_CSRRS,
+  INSN_CSRRC
+};
+
+/* Return which CSR instruction is checking.  */
+
+static enum csr_insn_type
+riscv_csr_insn_type (insn_t insn)
+{
+  if (((insn ^ MATCH_CSRRW) & MASK_CSRRW) == 0
+      || ((insn ^ MATCH_CSRRWI) & MASK_CSRRWI) == 0)
+    return INSN_CSRRW;
+  else if (((insn ^ MATCH_CSRRS) & MASK_CSRRS) == 0
+	   || ((insn ^ MATCH_CSRRSI) & MASK_CSRRSI) == 0)
+    return INSN_CSRRS;
+  else if (((insn ^ MATCH_CSRRC) & MASK_CSRRC) == 0
+	   || ((insn ^ MATCH_CSRRCI) & MASK_CSRRCI) == 0)
+    return INSN_CSRRC;
+  else
+    return INSN_NOT_CSR;
+}
+
+/* CSRRW and CSRRWI always write CSR.  CSRRS, CSRRC, CSRRSI and CSRRCI write
+   CSR when RS1 isn't zero.  The CSR is read only if the [11:10] bits of
+   CSR address is 0x3.  */
+
+static bfd_boolean
+riscv_csr_read_only_check (insn_t insn)
+{
+  int csr = (insn & (OP_MASK_CSR << OP_SH_CSR)) >> OP_SH_CSR;
+  int rs1 = (insn & (OP_MASK_RS1 << OP_SH_RS1)) >> OP_SH_RS1;
+  int readonly = (((csr & (0x3 << 10)) >> 10) == 0x3);
+  enum csr_insn_type csr_insn = riscv_csr_insn_type (insn);
+
+  if (readonly
+      && (((csr_insn == INSN_CSRRS
+	    || csr_insn == INSN_CSRRC)
+	   && rs1 != 0)
+	  || csr_insn == INSN_CSRRW))
+    return FALSE;
+
+  return TRUE;
+}
+
+/* Return True if it is a privileged instruction.  Otherwise, return FALSE.
+
+   uret is actually a N-ext instruction.  So it is better to regard it as
+   an user instruction rather than the priv instruction.
+
+   hret is used to return from traps in H-mode.  H-mode is removed since
+   the v1.10 priv spec, but probably be added in the new hypervisor spec.
+   Therefore, hret should be controlled by the hypervisor spec rather than
+   priv spec in the future.
+
+   dret is defined in the debug spec, so it should be checked in the future,
+   too.  */
+
+static bfd_boolean
+riscv_is_priv_insn (insn_t insn)
+{
+  return (((insn ^ MATCH_SRET) & MASK_SRET) == 0
+	  || ((insn ^ MATCH_MRET) & MASK_MRET) == 0
+	  || ((insn ^ MATCH_SFENCE_VMA) & MASK_SFENCE_VMA) == 0
+	  || ((insn ^ MATCH_WFI) & MASK_WFI) == 0
+  /* The sfence.vm is dropped in the v1.10 priv specs, but we still need to
+     check it here to keep the compatible.  Maybe we should issue warning
+     if sfence.vm is used, but the priv spec newer than v1.10 is chosen.
+     We already have a similar check for CSR, but not yet for instructions.
+     It would be good if we could check the spec versions both for CSR and
+     instructions, but not here.  */
+	  || ((insn ^ MATCH_SFENCE_VM) & MASK_SFENCE_VM) == 0);
+}
+
 /* This routine assembles an instruction into its binary format.  As a
    side effect, it sets the global variable imm_reloc to the type of
    relocation to do if one of the operands is an address expression.  */
 
 static const char *
 riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
-	  bfd_reloc_code_real_type *imm_reloc, struct hash_control *hash)
+	  bfd_reloc_code_real_type *imm_reloc, htab_t hash)
 {
   char *s;
   const char *args;
@@ -1458,9 +1773,11 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
   int argnum;
   const struct percent_op_match *p;
   const char *error = "unrecognized opcode";
+  /* Indicate we are assembling instruction with CSR.  */
+  bfd_boolean insn_with_csr = FALSE;
 
   /* Parse the name of the instruction.  Terminate the string if whitespace
-     is found so that hash_find only sees the name part of the string.  */
+     is found so that str_hash_find only sees the name part of the string.  */
   for (s = str; *s != '\0'; ++s)
     if (ISSPACE (*s))
       {
@@ -1469,12 +1786,15 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 	break;
       }
 
-  insn = (struct riscv_opcode *) hash_find (hash, str);
+  insn = (struct riscv_opcode *) str_hash_find (hash, str);
 
   argsStart = s;
   for ( ; insn && insn->name && strcmp (insn->name, str) == 0; insn++)
     {
-      if (!riscv_subset_supports (insn->subset))
+      if ((insn->xlen_requirement != 0) && (xlen != insn->xlen_requirement))
+	continue;
+
+      if (!riscv_multi_subset_supports (insn->insn_class))
 	continue;
 
       create_insn (ip, insn);
@@ -1501,11 +1821,29 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 					 : insn->match) == 2
 		      && !riscv_opts.rvc)
 		    break;
+
+		  if (riscv_is_priv_insn (ip->insn_opcode))
+		    explicit_priv_attr = TRUE;
+
+		  /* Check if we write a read-only CSR by the CSR
+		     instruction.  */
+		  if (insn_with_csr
+		      && riscv_opts.csr_check
+		      && !riscv_csr_read_only_check (ip->insn_opcode))
+		    {
+		      /* Restore the character in advance, since we want to
+			 report the detailed warning message here.  */
+		      if (save_c)
+			*(argsStart - 1) = save_c;
+		      as_warn (_("Read-only CSR is written `%s'"), str);
+		      insn_with_csr = FALSE;
+		    }
 		}
 	      if (*s != '\0')
 		break;
 	      /* Successful assembly.  */
 	      error = NULL;
+	      insn_with_csr = FALSE;
 	      goto out;
 
 	    case 'C': /* RVC */
@@ -1548,6 +1886,11 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		      || regno != X_SP)
 		    break;
 		  continue;
+		case 'z': /* RS2, contrained to equal x0.  */
+		  if (!reg_lookup (&s, RCLASS_GPR, &regno)
+		      || regno != 0)
+		    break;
+		  continue;
 		case '>':
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
@@ -1555,25 +1898,25 @@ riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 		      || imm_expr->X_add_number >= 64)
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_IMM (imm_expr->X_add_number);
-rvc_imm_done:
+		rvc_imm_done:
 		  s = expr_end;
 		  imm_expr->X_op = O_absent;
 		  continue;
 		case '<':
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_IMM (imm_expr->X_add_number)
 		      || imm_expr->X_add_number <= 0
-		      || imm_expr->X_add_number >= 32)
+		      || imm_expr->X_add_number >= 32
+		      || !VALID_RVC_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_IMM (imm_expr->X_add_number);
 		  goto rvc_imm_done;
 		case '8':
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_UIMM8 (imm_expr->X_add_number)
 		      || imm_expr->X_add_number < 0
-		      || imm_expr->X_add_number >= 256)
+		      || imm_expr->X_add_number >= 256
+		      || !VALID_RVC_UIMM8 ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_UIMM8 (imm_expr->X_add_number);
 		  goto rvc_imm_done;
@@ -1581,7 +1924,7 @@ rvc_imm_done:
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
 		      || imm_expr->X_add_number == 0
-		      || !VALID_RVC_SIMM3 (imm_expr->X_add_number))
+		      || !VALID_RVC_SIMM3 ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_SIMM3 (imm_expr->X_add_number);
 		  goto rvc_imm_done;
@@ -1589,7 +1932,7 @@ rvc_imm_done:
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
 		      || imm_expr->X_add_number == 0
-		      || !VALID_RVC_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_IMM (imm_expr->X_add_number);
 		  goto rvc_imm_done;
@@ -1598,7 +1941,7 @@ rvc_imm_done:
 		    continue;
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_LW_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_LW_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_LW_IMM (imm_expr->X_add_number);
 		  goto rvc_imm_done;
@@ -1607,7 +1950,7 @@ rvc_imm_done:
 		    continue;
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_LD_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_LD_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_LD_IMM (imm_expr->X_add_number);
 		  goto rvc_imm_done;
@@ -1616,7 +1959,7 @@ rvc_imm_done:
 		    continue;
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_LWSP_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_LWSP_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |=
 		    ENCODE_RVC_LWSP_IMM (imm_expr->X_add_number);
@@ -1626,7 +1969,7 @@ rvc_imm_done:
 		    continue;
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_LDSP_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_LDSP_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |=
 		    ENCODE_RVC_LDSP_IMM (imm_expr->X_add_number);
@@ -1637,15 +1980,15 @@ rvc_imm_done:
 		      /* C.addiw, c.li, and c.andi allow zero immediate.
 			 C.addi allows zero immediate as hint.  Otherwise this
 			 is same as 'j'.  */
-		      || !VALID_RVC_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_IMM (imm_expr->X_add_number);
 		  goto rvc_imm_done;
 		case 'K':
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_ADDI4SPN_IMM (imm_expr->X_add_number)
-		      || imm_expr->X_add_number == 0)
+		      || imm_expr->X_add_number == 0
+		      || !VALID_RVC_ADDI4SPN_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |=
 		    ENCODE_RVC_ADDI4SPN_IMM (imm_expr->X_add_number);
@@ -1653,8 +1996,8 @@ rvc_imm_done:
 		case 'L':
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_ADDI16SP_IMM (imm_expr->X_add_number)
-		      || imm_expr->X_add_number == 0)
+		      || imm_expr->X_add_number == 0
+		      || !VALID_RVC_ADDI16SP_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |=
 		    ENCODE_RVC_ADDI16SP_IMM (imm_expr->X_add_number);
@@ -1664,7 +2007,7 @@ rvc_imm_done:
 		    continue;
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_SWSP_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_SWSP_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |=
 		    ENCODE_RVC_SWSP_IMM (imm_expr->X_add_number);
@@ -1674,7 +2017,7 @@ rvc_imm_done:
 		    continue;
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 		      || imm_expr->X_op != O_constant
-		      || !VALID_RVC_SDSP_IMM (imm_expr->X_add_number))
+		      || !VALID_RVC_SDSP_IMM ((valueT) imm_expr->X_add_number))
 		    break;
 		  ip->insn_opcode |=
 		    ENCODE_RVC_SDSP_IMM (imm_expr->X_add_number);
@@ -1683,7 +2026,7 @@ rvc_imm_done:
 		  p = percent_op_utype;
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p))
 		    break;
-rvc_lui:
+		rvc_lui:
 		  if (imm_expr->X_op != O_constant
 		      || imm_expr->X_add_number <= 0
 		      || imm_expr->X_add_number >= RISCV_BIGIMM_REACH
@@ -1726,6 +2069,21 @@ rvc_lui:
 		case 'F':
 		  switch (*++args)
 		    {
+		      case '6':
+		        if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
+			    || imm_expr->X_op != O_constant
+			    || imm_expr->X_add_number < 0
+			    || imm_expr->X_add_number >= 64)
+			  {
+			    as_bad (_("bad value for funct6 field, "
+				      "value must be 0...64"));
+			    break;
+			  }
+
+			INSERT_OPERAND (CFUNCT6, *ip, imm_expr->X_add_number);
+			imm_expr->X_op = O_absent;
+			s = expr_end;
+			continue;
 		      case '4':
 		        if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
 			    || imm_expr->X_op != O_constant
@@ -1752,6 +2110,20 @@ rvc_lui:
 			    break;
 			  }
 			INSERT_OPERAND (CFUNCT3, *ip, imm_expr->X_add_number);
+			imm_expr->X_op = O_absent;
+			s = expr_end;
+			continue;
+		      case '2':
+			if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
+			    || imm_expr->X_op != O_constant
+			    || imm_expr->X_add_number < 0
+			    || imm_expr->X_add_number >= 4)
+			  {
+			    as_bad (_("bad value for funct2 field, "
+				      "value must be 0...3"));
+			    break;
+			  }
+			INSERT_OPERAND (CFUNCT2, *ip, imm_expr->X_add_number);
 			imm_expr->X_op = O_absent;
 			s = expr_end;
 			continue;
@@ -1816,6 +2188,8 @@ rvc_lui:
 	      continue;
 
 	    case 'E':		/* Control register.  */
+	      insn_with_csr = TRUE;
+	      explicit_priv_attr = TRUE;
 	      if (reg_lookup (&s, RCLASS_CSR, &regno))
 		INSERT_OPERAND (CSR, *ip, regno);
 	      else
@@ -1947,8 +2321,8 @@ rvc_lui:
 	      continue;
 
 	    case 'j': /* Sign-extended immediate.  */
-	      *imm_reloc = BFD_RELOC_RISCV_LO12_I;
 	      p = percent_op_itype;
+	      *imm_reloc = BFD_RELOC_RISCV_LO12_I;
 	      goto alu_op;
 	    case 'q': /* Store displacement.  */
 	      p = percent_op_stype;
@@ -1958,13 +2332,15 @@ rvc_lui:
 	      p = percent_op_itype;
 	      *imm_reloc = BFD_RELOC_RISCV_LO12_I;
 	      goto load_store;
-	    case '0': /* AMO "displacement," which must be zero.  */
+	    case '1': /* 4-operand add, must be %tprel_add.  */
 	      p = percent_op_rtype;
-	      *imm_reloc = BFD_RELOC_UNUSED;
-load_store:
+	      goto alu_op;
+	    case '0': /* AMO "displacement," which must be zero.  */
+	      p = percent_op_null;
+	    load_store:
 	      if (riscv_handle_implicit_zero_offset (imm_expr, s))
 		continue;
-alu_op:
+	    alu_op:
 	      /* If this value won't fit into a 16 bit offset, then go
 		 find a macro that will generate the 32 bit offset
 		 code pattern.  */
@@ -1973,6 +2349,7 @@ alu_op:
 		  normalize_constant_expr (imm_expr);
 		  if (imm_expr->X_op != O_constant
 		      || (*args == '0' && imm_expr->X_add_number != 0)
+		      || (*args == '1')
 		      || imm_expr->X_add_number >= (signed)RISCV_IMM_REACH/2
 		      || imm_expr->X_add_number < -(signed)RISCV_IMM_REACH/2)
 		    break;
@@ -1982,7 +2359,7 @@ alu_op:
 	      continue;
 
 	    case 'p':		/* PC-relative offset.  */
-branch:
+	    branch:
 	      *imm_reloc = BFD_RELOC_12_PCREL;
 	      my_getExpression (imm_expr, s);
 	      s = expr_end;
@@ -1990,9 +2367,11 @@ branch:
 
 	    case 'u':		/* Upper 20 bits.  */
 	      p = percent_op_utype;
-	      if (!my_getSmallExpression (imm_expr, imm_reloc, s, p)
-		  && imm_expr->X_op == O_constant)
+	      if (!my_getSmallExpression (imm_expr, imm_reloc, s, p))
 		{
+		  if (imm_expr->X_op != O_constant)
+		    break;
+
 		  if (imm_expr->X_add_number < 0
 		      || imm_expr->X_add_number >= (signed)RISCV_BIGIMM_REACH)
 		    as_bad (_("lui expression not in range 0..1048575"));
@@ -2004,7 +2383,7 @@ branch:
 	      continue;
 
 	    case 'a':		/* 20-bit PC-relative offset.  */
-jump:
+	    jump:
 	      my_getExpression (imm_expr, s);
 	      s = expr_end;
 	      *imm_reloc = BFD_RELOC_RISCV_JMP;
@@ -2131,9 +2510,10 @@ jump:
 	}
       s = argsStart;
       error = _("illegal operands");
+      insn_with_csr = FALSE;
     }
 
-out:
+ out:
   /* Restore the character we might have clobbered above.  */
   if (save_c)
     *(argsStart - 1) = save_c;
@@ -2147,6 +2527,16 @@ md_assemble (char *str)
   struct riscv_cl_insn insn;
   expressionS imm_expr;
   bfd_reloc_code_real_type imm_reloc = BFD_RELOC_UNUSED;
+
+  /* The arch and priv attributes should be set before assembling.  */
+  if (!start_assemble)
+    {
+      start_assemble = TRUE;
+
+      /* Set the default_priv_spec according to the priv attributes.  */
+      if (!riscv_set_default_priv_spec (NULL))
+       return;
+    }
 
   const char *error = riscv_ip (str, &insn, &imm_expr, &imm_reloc, op_hash);
 
@@ -2184,6 +2574,12 @@ enum options
   OPTION_MABI,
   OPTION_RELAX,
   OPTION_NO_RELAX,
+  OPTION_ARCH_ATTR,
+  OPTION_NO_ARCH_ATTR,
+  OPTION_CSR_CHECK,
+  OPTION_NO_CSR_CHECK,
+  OPTION_MISA_SPEC,
+  OPTION_MPRIV_SPEC,
   OPTION_END_OF_ENUM
 };
 
@@ -2196,6 +2592,12 @@ struct option md_longopts[] =
   {"mabi", required_argument, NULL, OPTION_MABI},
   {"mrelax", no_argument, NULL, OPTION_RELAX},
   {"mno-relax", no_argument, NULL, OPTION_NO_RELAX},
+  {"march-attr", no_argument, NULL, OPTION_ARCH_ATTR},
+  {"mno-arch-attr", no_argument, NULL, OPTION_NO_ARCH_ATTR},
+  {"mcsr-check", no_argument, NULL, OPTION_CSR_CHECK},
+  {"mno-csr-check", no_argument, NULL, OPTION_NO_CSR_CHECK},
+  {"misa-spec", required_argument, NULL, OPTION_MISA_SPEC},
+  {"mpriv-spec", required_argument, NULL, OPTION_MPRIV_SPEC},
 
   {NULL, no_argument, NULL, 0}
 };
@@ -2224,7 +2626,9 @@ md_parse_option (int c, const char *arg)
   switch (c)
     {
     case OPTION_MARCH:
-      riscv_set_arch (arg);
+      /* riscv_after_parse_args will call riscv_set_arch to parse
+        the architecture.  */
+      default_arch_with_ext = arg;
       break;
 
     case OPTION_NO_PIC:
@@ -2266,6 +2670,28 @@ md_parse_option (int c, const char *arg)
       riscv_opts.relax = FALSE;
       break;
 
+    case OPTION_ARCH_ATTR:
+      riscv_opts.arch_attr = TRUE;
+      break;
+
+    case OPTION_NO_ARCH_ATTR:
+      riscv_opts.arch_attr = FALSE;
+      break;
+
+    case OPTION_CSR_CHECK:
+      riscv_opts.csr_check = TRUE;
+      break;
+
+    case OPTION_NO_CSR_CHECK:
+      riscv_opts.csr_check = FALSE;
+      break;
+
+    case OPTION_MISA_SPEC:
+      return riscv_set_default_isa_spec (arg);
+
+    case OPTION_MPRIV_SPEC:
+      return riscv_set_default_priv_spec (arg);
+
     default:
       return 0;
     }
@@ -2276,6 +2702,10 @@ md_parse_option (int c, const char *arg)
 void
 riscv_after_parse_args (void)
 {
+  /* The --with-arch is optional for now, so we have to set the xlen
+     according to the default_arch, which is set by the --targte, first.
+     Then, we use the xlen to set the default_arch_with_ext if the
+     -march and --with-arch are not set.  */
   if (xlen == 0)
     {
       if (strcmp (default_arch, "riscv32") == 0)
@@ -2285,21 +2715,34 @@ riscv_after_parse_args (void)
       else
 	as_bad ("unknown default architecture `%s'", default_arch);
     }
+  if (default_arch_with_ext == NULL)
+    default_arch_with_ext = xlen == 64 ? "rv64g" : "rv32g";
 
-  if (riscv_subsets == NULL)
-    riscv_set_arch (xlen == 64 ? "rv64g" : "rv32g");
+  /* Initialize the hash table for extensions with default version.  */
+  ext_version_hash = init_ext_version_hash (riscv_ext_version_table);
+
+  /* If the -misa-spec isn't set, then we set the default ISA spec according
+     to DEFAULT_RISCV_ISA_SPEC.  */
+  if (default_isa_spec == ISA_SPEC_CLASS_NONE)
+    riscv_set_default_isa_spec (DEFAULT_RISCV_ISA_SPEC);
+
+  /* Set the architecture according to -march or or --with-arch.  */
+  riscv_set_arch (default_arch_with_ext);
 
   /* Add the RVC extension, regardless of -march, to support .option rvc.  */
   riscv_set_rvc (FALSE);
   if (riscv_subset_supports ("c"))
     riscv_set_rvc (TRUE);
-  else
-    riscv_add_subset ("c");
 
   /* Enable RVE if specified by the -march option.  */
   riscv_set_rve (FALSE);
   if (riscv_subset_supports ("e"))
     riscv_set_rve (TRUE);
+
+  /* If the -mpriv-spec isn't set, then we set the default privilege spec
+     according to DEFAULT_PRIV_SPEC.  */
+  if (default_priv_spec == PRIV_SPEC_CLASS_NONE)
+    riscv_set_default_priv_spec (DEFAULT_RISCV_PRIV_SPEC);
 
   /* Infer ABI from ISA if not specified on command line.  */
   if (abi_xlen == 0)
@@ -2311,12 +2754,12 @@ riscv_after_parse_args (void)
 
   if (float_abi == FLOAT_ABI_DEFAULT)
     {
-      struct riscv_subset *subset;
+      riscv_subset_t *subset;
 
       /* Assume soft-float unless D extension is present.  */
       float_abi = FLOAT_ABI_SOFT;
 
-      for (subset = riscv_subsets; subset != NULL; subset = subset->next)
+      for (subset = riscv_subsets.head; subset != NULL; subset = subset->next)
 	{
 	  if (strcasecmp (subset->name, "D") == 0)
 	    float_abi = FLOAT_ABI_DOUBLE;
@@ -2330,6 +2773,12 @@ riscv_after_parse_args (void)
 
   /* Insert float_abi into the EF_RISCV_FLOAT_ABI field of elf_flags.  */
   elf_flags |= float_abi * (EF_RISCV_FLOAT_ABI & ~(EF_RISCV_FLOAT_ABI << 1));
+
+  /* If the CIE to be produced has not been overridden on the command line,
+     then produce version 3 by default.  This allows us to use the full
+     range of registers in a .cfi_return_column directive.  */
+  if (flag_dwarf_cie_version == -1)
+    flag_dwarf_cie_version = 3;
 }
 
 long
@@ -2592,7 +3041,11 @@ void
 riscv_pre_output_hook (void)
 {
   const frchainS *frch;
-  const asection *s;
+  segT s;
+
+  /* Save the current segment info.  */
+  segT seg = now_seg;
+  subsegT subseg = now_subseg;
 
   for (s = stdoutput->sections; s; s = s->next)
     for (frch = seg_info (s)->frchainP; frch; frch = frch->frch_next)
@@ -2604,20 +3057,26 @@ riscv_pre_output_hook (void)
 	    if (frag->fr_type == rs_cfa)
 	      {
 		expressionS exp;
+		expressionS *symval;
 
-		symbolS *add_symbol = frag->fr_symbol->sy_value.X_add_symbol;
-		symbolS *op_symbol = frag->fr_symbol->sy_value.X_op_symbol;
-
+		symval = symbol_get_value_expression (frag->fr_symbol);
 		exp.X_op = O_subtract;
-		exp.X_add_symbol = add_symbol;
+		exp.X_add_symbol = symval->X_add_symbol;
 		exp.X_add_number = 0;
-		exp.X_op_symbol = op_symbol;
+		exp.X_op_symbol = symval->X_op_symbol;
+
+		/* We must set the segment before creating a frag after all
+		   frag chains have been chained together.  */
+		subseg_set (s, frch->frch_subseg);
 
 		fix_new_exp (frag, (int) frag->fr_offset, 1, &exp, 0,
 			     BFD_RELOC_RISCV_CFA);
 	      }
 	  }
       }
+
+  /* Restore the original segment info.  */
+  subseg_set (seg, subseg);
 }
 
 
@@ -2655,6 +3114,10 @@ s_riscv_option (int x ATTRIBUTE_UNUSED)
     riscv_opts.relax = TRUE;
   else if (strcmp (name, "norelax") == 0)
     riscv_opts.relax = FALSE;
+  else if (strcmp (name, "csr-check") == 0)
+    riscv_opts.csr_check = TRUE;
+  else if (strcmp (name, "no-csr-check") == 0)
+    riscv_opts.csr_check = FALSE;
   else if (strcmp (name, "push") == 0)
     {
       struct riscv_option_stack *s;
@@ -2952,7 +3415,7 @@ md_convert_frag_branch (fragS *fragp)
       md_number_to_chars ((char *) buf, insn, 4);
       buf += 4;
 
-jump:
+    jump:
       /* Jump to the target.  */
       fixp = fix_new_exp (fragp, buf - (bfd_byte *)fragp->fr_literal,
 			  4, &exp, FALSE, BFD_RELOC_RISCV_JMP);
@@ -2972,7 +3435,7 @@ jump:
       abort ();
     }
 
-done:
+ done:
   fixp->fx_file = fragp->fr_file;
   fixp->fx_line = fragp->fr_line;
 
@@ -2998,12 +3461,16 @@ md_show_usage (FILE *stream)
 {
   fprintf (stream, _("\
 RISC-V options:\n\
-  -fpic          generate position-independent code\n\
-  -fno-pic       don't generate position-independent code (default)\n\
-  -march=ISA     set the RISC-V architecture\n\
-  -mabi=ABI      set the RISC-V ABI\n\
-  -mrelax        enable relax (default)\n\
-  -mno-relax     disable relax\n\
+  -fpic                       generate position-independent code\n\
+  -fno-pic                    don't generate position-independent code (default)\n\
+  -march=ISA                  set the RISC-V architecture\n\
+  -misa-spec=ISAspec          set the RISC-V ISA spec (2.2, 20190608, 20191213)\n\
+  -mpriv-spec=PRIVspec        set the RISC-V privilege spec (1.9, 1.9.1, 1.10, 1.11)\n\
+  -mabi=ABI                   set the RISC-V ABI\n\
+  -mrelax                     enable relax (default)\n\
+  -mno-relax                  disable relax\n\
+  -march-attr                 generate RISC-V arch attribute\n\
+  -mno-arch-attr              don't generate RISC-V arch attribute\n\
 "));
 }
 
@@ -3024,6 +3491,10 @@ tc_riscv_regname_to_dw2regnum (char *regname)
 
   if ((reg = reg_lookup_internal (regname, RCLASS_FPR)) >= 0)
     return reg + 32;
+
+  /* CSRs are numbered 4096 -> 8191.  */
+  if ((reg = reg_lookup_internal (regname, RCLASS_CSR)) >= 0)
+    return reg + 4096;
 
   as_bad (_("unknown register `%s'"), regname);
   return -1;
@@ -3087,6 +3558,165 @@ s_riscv_insn (int x ATTRIBUTE_UNUSED)
   demand_empty_rest_of_line ();
 }
 
+/* Update arch and priv attributes.  If we don't set the corresponding ELF
+   attributes, then try to output the default ones.  */
+
+static void
+riscv_write_out_attrs (void)
+{
+  const char *arch_str, *priv_str, *p;
+  /* versions[0] is major, versions[1] is minor,
+     and versions[3] is revision.  */
+  unsigned versions[3] = {0}, number = 0;
+  unsigned int i;
+
+  /* Re-write arch attribute to normalize the arch string.  */
+  arch_str = riscv_arch_str (xlen, &riscv_subsets);
+  bfd_elf_add_proc_attr_string (stdoutput, Tag_RISCV_arch, arch_str);
+  xfree ((void *)arch_str);
+
+  /* For the file without any instruction, we don't set the default_priv_spec
+     according to the priv attributes since the md_assemble isn't called.
+     Call riscv_set_default_priv_spec here for the above case, although
+     it seems strange.  */
+  if (!start_assemble
+      && !riscv_set_default_priv_spec (NULL))
+    return;
+
+  /* If we already have set elf priv attributes, then no need to do anything,
+     assembler will generate them according to what you set.  Otherwise, don't
+     generate or update them when no CSR and priv instructions are used.
+     Generate the priv attributes according to default_priv_spec, which can be
+     set by -mpriv-spec and --with-priv-spec, and be updated by the original
+     priv attribute sets.  */
+  if (!explicit_priv_attr)
+    return;
+
+  /* Re-write priv attributes by default_priv_spec.  */
+  priv_str = riscv_get_priv_spec_name (default_priv_spec);
+  p = priv_str;
+  for (i = 0; *p; ++p)
+    {
+      if (*p == '.' && i < 3)
+       {
+         versions[i++] = number;
+         number = 0;
+       }
+      else if (ISDIGIT (*p))
+       number = (number * 10) + (*p - '0');
+      else
+       {
+         as_bad (_("internal: bad RISC-V priv spec string (%s)"), priv_str);
+         return;
+       }
+    }
+  versions[i] = number;
+
+  /* Set the priv attributes.  */
+  bfd_elf_add_proc_attr_int (stdoutput, Tag_RISCV_priv_spec, versions[0]);
+  bfd_elf_add_proc_attr_int (stdoutput, Tag_RISCV_priv_spec_minor, versions[1]);
+  bfd_elf_add_proc_attr_int (stdoutput, Tag_RISCV_priv_spec_revision, versions[2]);
+}
+
+/* Add the default contents for the .riscv.attributes section.  If any
+   ELF attribute or -march-attr options is set, call riscv_write_out_attrs
+   to update the arch and priv attributes.  */
+
+static void
+riscv_set_public_attributes (void)
+{
+  if (riscv_opts.arch_attr || explicit_attr)
+    riscv_write_out_attrs ();
+}
+
+/* Called after all assembly has been done.  */
+
+void
+riscv_md_end (void)
+{
+  riscv_set_public_attributes ();
+}
+
+/* Given a symbolic attribute NAME, return the proper integer value.
+   Returns -1 if the attribute is not known.  */
+
+int
+riscv_convert_symbolic_attribute (const char *name)
+{
+  static const struct
+  {
+    const char * name;
+    const int    tag;
+  }
+  attribute_table[] =
+    {
+      /* When you modify this table you should
+	 also modify the list in doc/c-riscv.texi.  */
+#define T(tag) {#tag, Tag_RISCV_##tag},  {"Tag_RISCV_" #tag, Tag_RISCV_##tag}
+      T(arch),
+      T(priv_spec),
+      T(priv_spec_minor),
+      T(priv_spec_revision),
+      T(unaligned_access),
+      T(stack_align),
+#undef T
+    };
+
+  unsigned int i;
+
+  if (name == NULL)
+    return -1;
+
+  for (i = 0; i < ARRAY_SIZE (attribute_table); i++)
+    if (strcmp (name, attribute_table[i].name) == 0)
+      return attribute_table[i].tag;
+
+  return -1;
+}
+
+/* Parse a .attribute directive.  */
+
+static void
+s_riscv_attribute (int ignored ATTRIBUTE_UNUSED)
+{
+  int tag = obj_elf_vendor_attribute (OBJ_ATTR_PROC);
+  unsigned old_xlen;
+  obj_attribute *attr;
+
+  explicit_attr = TRUE;
+  switch (tag)
+    {
+    case Tag_RISCV_arch:
+      old_xlen = xlen;
+      attr = elf_known_obj_attributes_proc (stdoutput);
+      if (!start_assemble)
+	riscv_set_arch (attr[Tag_RISCV_arch].s);
+      else
+	as_fatal (_(".attribute arch must set before any instructions"));
+
+      if (old_xlen != xlen)
+	{
+	  /* We must re-init bfd again if xlen is changed.  */
+	  unsigned long mach = xlen == 64 ? bfd_mach_riscv64 : bfd_mach_riscv32;
+	  bfd_find_target (riscv_target_format (), stdoutput);
+
+	  if (! bfd_set_arch_mach (stdoutput, bfd_arch_riscv, mach))
+	    as_warn (_("Could not set architecture and machine"));
+	}
+      break;
+
+    case Tag_RISCV_priv_spec:
+    case Tag_RISCV_priv_spec_minor:
+    case Tag_RISCV_priv_spec_revision:
+      if (start_assemble)
+       as_fatal (_(".attribute priv spec must set before any instructions"));
+      break;
+
+    default:
+      break;
+    }
+}
+
 /* Pseudo-op table.  */
 
 static const pseudo_typeS riscv_pseudo_table[] =
@@ -3102,6 +3732,7 @@ static const pseudo_typeS riscv_pseudo_table[] =
   {"uleb128", s_riscv_leb128, 0},
   {"sleb128", s_riscv_leb128, 1},
   {"insn", s_riscv_insn, 0},
+  {"attribute", s_riscv_attribute, 0},
 
   { NULL, NULL, 0 },
 };

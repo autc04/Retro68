@@ -3,7 +3,7 @@
 # weak_as_needed.sh -- a test case for version handling with weak symbols
 # and --as-needed libraries.
 
-# Copyright (C) 2018 Free Software Foundation, Inc.
+# Copyright (C) 2018-2020 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@gmail.com>.
 
 # This file is part of gold.

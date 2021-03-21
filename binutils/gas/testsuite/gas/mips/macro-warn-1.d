@@ -1,5 +1,5 @@
 #as: -32 -KPIC
 #source: macro-warn-1.s
-#stderr: macro-warn-1.l
+#warning_output: macro-warn-1.l
 #objdump: -p
 #pass

@@ -1,5 +1,5 @@
 /* tc-ip2k.c -- Assembler for the Scenix IP2xxx.
-   Copyright (C) 2000-2018 Free Software Foundation, Inc.
+   Copyright (C) 2000-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -160,6 +160,8 @@ md_begin (void)
 
   /* Set the machine type.  */
   bfd_default_set_arch_mach (stdoutput, bfd_arch_ip2k, ip2k_mach);
+
+  literal_prefix_dollar_hex = TRUE;
 }
 
 
@@ -211,7 +213,7 @@ md_assemble (char * str)
 valueT
 md_section_align (segT segment, valueT size)
 {
-  int align = bfd_get_section_alignment (stdoutput, segment);
+  int align = bfd_section_alignment (segment);
 
   return ((size + (1 << align) - 1) & -(1 << align));
 }
@@ -383,7 +385,8 @@ ip2k_apply_fix (fixS *fixP, valueT *valueP, segT seg)
       CGEN_CPU_DESC cd = gas_cgen_cpu_desc;
       CGEN_INSN_INT insn_value
 	= cgen_get_insn_value (cd, (unsigned char *) where,
-			       CGEN_INSN_BITSIZE (fixP->fx_cgen.insn));
+			       CGEN_INSN_BITSIZE (fixP->fx_cgen.insn),
+			       gas_cgen_cpu_desc->insn_endian);
       /* Preserve (DP) or (SP) specification.  */
       *valueP += (insn_value & 0x180);
     }

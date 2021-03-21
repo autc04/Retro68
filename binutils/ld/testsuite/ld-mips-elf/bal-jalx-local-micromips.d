@@ -1,7 +1,6 @@
 #name: microMIPS BAL to JALX conversion for local symbol
 #source: ../../../gas/testsuite/gas/mips/branch-local-7.s
-#as: -EB -32
-#ld: -EB -Ttext 0x1c000000 -e 0x1c000000
+#ld: -Ttext 0x1c000000 -e 0x1c000000
 #objdump: -dr --prefix-addresses --show-raw-insn
 
 .*: +file format .*mips.*

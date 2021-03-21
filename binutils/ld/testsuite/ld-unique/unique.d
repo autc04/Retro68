@@ -5,5 +5,5 @@
 #...
  *OS/ABI: +UNIX - GNU
 #...
- *[0-9]+: +[0-9a-f]+ +[0-9]+ +OBJECT +UNIQUE +DEFAULT +[0-9]+ a
+ *[0-9]+: +[0-9a-f]+ +[0-9]+ +OBJECT +UNIQUE +DEFAULT +[0-9]+ a_val
 #pass

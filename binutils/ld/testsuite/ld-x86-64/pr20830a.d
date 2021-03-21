@@ -50,19 +50,19 @@ Contents of the .eh_frame section:
 Disassembly of section .plt:
 
 0+1b0 <.plt>:
- +[a-f0-9]+:	ff 35 52 0e 20 00    	pushq  0x200e52\(%rip\)        # 201008 <_GLOBAL_OFFSET_TABLE_\+0x8>
- +[a-f0-9]+:	ff 25 54 0e 20 00    	jmpq   \*0x200e54\(%rip\)        # 201010 <_GLOBAL_OFFSET_TABLE_\+0x10>
+ +[a-f0-9]+:	ff 35 52 0e 20 00    	push   0x200e52\(%rip\)        # 201008 <_GLOBAL_OFFSET_TABLE_\+0x8>
+ +[a-f0-9]+:	ff 25 54 0e 20 00    	jmp    \*0x200e54\(%rip\)        # 201010 <_GLOBAL_OFFSET_TABLE_\+0x10>
  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
 
 Disassembly of section .plt.got:
 
 0+1c0 <func@plt>:
- +[a-f0-9]+:	ff 25 32 0e 20 00    	jmpq   \*0x200e32\(%rip\)        # 200ff8 <func>
+ +[a-f0-9]+:	ff 25 32 0e 20 00    	jmp    \*0x200e32\(%rip\)        # 200ff8 <func>
  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
 
 Disassembly of section .text:
 
 0+1c8 <foo>:
- +[a-f0-9]+:	e8 f3 ff ff ff       	callq  1c0 <func@plt>
+ +[a-f0-9]+:	e8 f3 ff ff ff       	call   1c0 <func@plt>
  +[a-f0-9]+:	48 8b 05 24 0e 20 00 	mov    0x200e24\(%rip\),%rax        # 200ff8 <func>
 #pass

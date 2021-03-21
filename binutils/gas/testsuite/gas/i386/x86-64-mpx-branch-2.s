@@ -2,6 +2,9 @@
 	call	0x100040
 	jmp	0x100040
 
+	data16 rex.w call	0x100040
+	data16 rex.w jmp	0x100040
+
 foo1:
 	jmp	foo1
 	jb	foo1

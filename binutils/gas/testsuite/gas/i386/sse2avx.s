@@ -7,6 +7,10 @@ _start:
 	ldmxcsr (%ecx)
 	stmxcsr (%ecx)
 
+# These should not be converted
+	data16 ldmxcsr (%ecx)
+	data16 stmxcsr (%ecx)
+
 # Tests for op xmm/mem128, xmm
 	cvtdq2ps %xmm4,%xmm6
 	cvtdq2ps (%ecx),%xmm4

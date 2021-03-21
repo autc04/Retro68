@@ -6,6 +6,6 @@ SECTIONS
   PROVIDE (baz = 3);
   .data 0x2000 :
   {
-    *(.data)
+    *(.data .rw)
   }
 }

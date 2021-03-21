@@ -36,9 +36,9 @@ start:
 	andis.	4,5,6
 	attn
 	ba      label_abs
-	bc      0,1,foo
-	bc-     0,1,foo
-	bc+     0,1,foo
+	bc      4,10,foo
+	bc-     4,10,foo
+	bc+     4,10,foo
 	bca     4,5,foo_abs
 	bca-    4,5,foo_abs
 	bca+    4,5,foo_abs
@@ -48,9 +48,9 @@ start:
 	bcctrl  4,6,1
 	bcctrl- 4,6
 	bcctrl+ 4,6
-	bcl     0,1,foo
-	bcl-    0,1,foo
-	bcl+    0,1,foo
+	bcl     4,10,foo
+	bcl-    4,10,foo
+	bcl+    4,10,foo
 	bcla    4,5,foo_abs
 	bcla-   4,5,foo_abs
 	bcla+   4,5,foo_abs
@@ -295,10 +295,6 @@ start:
 	lhzu	10,2(11)
 	lhzux	10,11,12
 	lhzx	10,11,12
-	lmw	20,16(10)
-	lswi	10,11,1
-	lswi	12,11,32
-	lswx	10,11,12
 	lwa	10,-4(11)
 	lwa	10,4(11)
 	lwarx	10,11,12,0
@@ -486,10 +482,6 @@ start:
 	sthu	10,2(11)
 	sthux	10,11,12
 	sthx	10,11,12
-	stmw	20,16(10)
-	stswi	10,11,1
-	stswi	10,11,32
-	stswx	10,11,12
 	stwbrx	10,11,12
 	stwcx.	10,11,12
 	stwepx	10,11,12

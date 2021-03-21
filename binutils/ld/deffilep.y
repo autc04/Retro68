@@ -1,6 +1,6 @@
 %{ /* deffilep.y - parser for .def files */
 
-/*   Copyright (C) 1995-2018 Free Software Foundation, Inc.
+/*   Copyright (C) 1995-2020 Free Software Foundation, Inc.
 
      This file is part of GNU Binutils.
 
@@ -23,6 +23,7 @@
 #include "libiberty.h"
 #include "safe-ctype.h"
 #include "bfd.h"
+#include "bfdlink.h"
 #include "ld.h"
 #include "ldmisc.h"
 #include "deffile.h"
@@ -433,19 +434,15 @@ def_file_free (def_file *fdef)
 
   if (!fdef)
     return;
-  if (fdef->name)
-    free (fdef->name);
-  if (fdef->description)
-    free (fdef->description);
+  free (fdef->name);
+  free (fdef->description);
 
   if (fdef->section_defs)
     {
       for (i = 0; i < fdef->num_section_defs; i++)
 	{
-	  if (fdef->section_defs[i].name)
-	    free (fdef->section_defs[i].name);
-	  if (fdef->section_defs[i].class)
-	    free (fdef->section_defs[i].class);
+	  free (fdef->section_defs[i].name);
+	  free (fdef->section_defs[i].class);
 	}
       free (fdef->section_defs);
     }
@@ -454,13 +451,10 @@ def_file_free (def_file *fdef)
     {
       for (i = 0; i < fdef->num_exports; i++)
 	{
-	  if (fdef->exports[i].internal_name
-	      && fdef->exports[i].internal_name != fdef->exports[i].name)
+	  if (fdef->exports[i].internal_name != fdef->exports[i].name)
 	    free (fdef->exports[i].internal_name);
-	  if (fdef->exports[i].name)
-	    free (fdef->exports[i].name);
-	  if (fdef->exports[i].its_name)
-	    free (fdef->exports[i].its_name);
+	  free (fdef->exports[i].name);
+	  free (fdef->exports[i].its_name);
 	}
       free (fdef->exports);
     }
@@ -469,13 +463,10 @@ def_file_free (def_file *fdef)
     {
       for (i = 0; i < fdef->num_imports; i++)
 	{
-	  if (fdef->imports[i].internal_name
-	      && fdef->imports[i].internal_name != fdef->imports[i].name)
+	  if (fdef->imports[i].internal_name != fdef->imports[i].name)
 	    free (fdef->imports[i].internal_name);
-	  if (fdef->imports[i].name)
-	    free (fdef->imports[i].name);
-	  if (fdef->imports[i].its_name)
-	    free (fdef->imports[i].its_name);
+	  free (fdef->imports[i].name);
+	  free (fdef->imports[i].its_name);
 	}
       free (fdef->imports);
     }
@@ -1048,8 +1039,7 @@ def_image_name (const char *name, bfd_vma base, int is_dll)
 	einfo ("%s:%d: Warning: path components stripped from %s, '%s'\n",
 	       def_filename, linenumber, is_dll ? "LIBRARY" : "NAME",
 	       name);
-      if (def->name)
-	free (def->name);
+      free (def->name);
       /* Append the default suffix, if none specified.  */
       if (strchr (image_name, '.') == 0)
 	{

@@ -114,3 +114,115 @@ _start:
 	vpsubq %ymm1, %ymm1, %ymm16
 	vpsubq %zmm17, %zmm17, %zmm1
 	vpsubq %ymm17, %ymm17, %ymm1
+
+	vmovdqa32	%xmm1, %xmm2
+	vmovdqa64	%xmm1, %xmm2
+	vmovdqu8	%xmm1, %xmm2
+	vmovdqu16	%xmm1, %xmm2
+	vmovdqu32	%xmm1, %xmm2
+	vmovdqu64	%xmm1, %xmm2
+
+	vmovdqa32	%xmm11, %xmm12
+	vmovdqa64	%xmm11, %xmm12
+	vmovdqu8	%xmm11, %xmm12
+	vmovdqu16	%xmm11, %xmm12
+	vmovdqu32	%xmm11, %xmm12
+	vmovdqu64	%xmm11, %xmm12
+
+	vmovdqa32	127(%rax), %xmm2
+	vmovdqa64	127(%rax), %xmm2
+	vmovdqu8	127(%rax), %xmm2
+	vmovdqu16	127(%rax), %xmm2
+	vmovdqu32	127(%rax), %xmm2
+	vmovdqu64	127(%rax), %xmm2
+
+	vmovdqa32	%xmm1, 128(%rax)
+	vmovdqa64	%xmm1, 128(%rax)
+	vmovdqu8	%xmm1, 128(%rax)
+	vmovdqu16	%xmm1, 128(%rax)
+	vmovdqu32	%xmm1, 128(%rax)
+	vmovdqu64	%xmm1, 128(%rax)
+
+	vmovdqa32	%ymm1, %ymm2
+	vmovdqa64	%ymm1, %ymm2
+	vmovdqu8	%ymm1, %ymm2
+	vmovdqu16	%ymm1, %ymm2
+	vmovdqu32	%ymm1, %ymm2
+	vmovdqu64	%ymm1, %ymm2
+
+	vmovdqa32	%ymm11, %ymm12
+	vmovdqa64	%ymm11, %ymm12
+	vmovdqu8	%ymm11, %ymm12
+	vmovdqu16	%ymm11, %ymm12
+	vmovdqu32	%ymm11, %ymm12
+	vmovdqu64	%ymm11, %ymm12
+
+	vmovdqa32	127(%rax), %ymm2
+	vmovdqa64	127(%rax), %ymm2
+	vmovdqu8	127(%rax), %ymm2
+	vmovdqu16	127(%rax), %ymm2
+	vmovdqu32	127(%rax), %ymm2
+	vmovdqu64	127(%rax), %ymm2
+
+	vmovdqa32	%ymm1, 128(%rax)
+	vmovdqa64	%ymm1, 128(%rax)
+	vmovdqu8	%ymm1, 128(%rax)
+	vmovdqu16	%ymm1, 128(%rax)
+	vmovdqu32	%ymm1, 128(%rax)
+	vmovdqu64	%ymm1, 128(%rax)
+
+	vmovdqa32	(%rax), %zmm2
+
+	vpandd		%xmm2, %xmm3, %xmm4
+	vpandq		%xmm12, %xmm3, %xmm4
+	vpandnd		%xmm2, %xmm13, %xmm4
+	vpandnq		%xmm2, %xmm3, %xmm14
+	vpord		%xmm2, %xmm3, %xmm4
+	vporq		%xmm12, %xmm3, %xmm4
+	vpxord		%xmm2, %xmm13, %xmm4
+	vpxorq		%xmm2, %xmm3, %xmm14
+
+	vpandd		%ymm2, %ymm3, %ymm4
+	vpandq		%ymm12, %ymm3, %ymm4
+	vpandnd		%ymm2, %ymm13, %ymm4
+	vpandnq		%ymm2, %ymm3, %ymm14
+	vpord		%ymm2, %ymm3, %ymm4
+	vporq		%ymm12, %ymm3, %ymm4
+	vpxord		%ymm2, %ymm13, %ymm4
+	vpxorq		%ymm2, %ymm3, %ymm14
+
+	vpandd		112(%rax), %xmm2, %xmm3
+	vpandq		112(%rax), %xmm2, %xmm3
+	vpandnd		112(%rax), %xmm2, %xmm3
+	vpandnq		112(%rax), %xmm2, %xmm3
+	vpord		112(%rax), %xmm2, %xmm3
+	vporq		112(%rax), %xmm2, %xmm3
+	vpxord		112(%rax), %xmm2, %xmm3
+	vpxorq		112(%rax), %xmm2, %xmm3
+
+	vpandd		128(%rax), %xmm2, %xmm3
+	vpandq		128(%rax), %xmm2, %xmm3
+	vpandnd		128(%rax), %xmm2, %xmm3
+	vpandnq		128(%rax), %xmm2, %xmm3
+	vpord		128(%rax), %xmm2, %xmm3
+	vporq		128(%rax), %xmm2, %xmm3
+	vpxord		128(%rax), %xmm2, %xmm3
+	vpxorq		128(%rax), %xmm2, %xmm3
+
+	vpandd		96(%rax), %ymm2, %ymm3
+	vpandq		96(%rax), %ymm2, %ymm3
+	vpandnd		96(%rax), %ymm2, %ymm3
+	vpandnq		96(%rax), %ymm2, %ymm3
+	vpord		96(%rax), %ymm2, %ymm3
+	vporq		96(%rax), %ymm2, %ymm3
+	vpxord		96(%rax), %ymm2, %ymm3
+	vpxorq		96(%rax), %ymm2, %ymm3
+
+	vpandd		128(%rax), %ymm2, %ymm3
+	vpandq		128(%rax), %ymm2, %ymm3
+	vpandnd		128(%rax), %ymm2, %ymm3
+	vpandnq		128(%rax), %ymm2, %ymm3
+	vpord		128(%rax), %ymm2, %ymm3
+	vporq		128(%rax), %ymm2, %ymm3
+	vpxord		128(%rax), %ymm2, %ymm3
+	vpxorq		128(%rax), %ymm2, %ymm3

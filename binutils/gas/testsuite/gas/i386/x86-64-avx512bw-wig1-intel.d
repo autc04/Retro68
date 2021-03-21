@@ -177,20 +177,20 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 91 fd 08 c5 c6 ab[ 	]*vpextrw rax,xmm30,0xab
 [ 	]*[a-f0-9]+:[ 	]*62 91 fd 08 c5 c6 7b[ 	]*vpextrw rax,xmm30,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 11 fd 08 c5 c6 7b[ 	]*vpextrw r8,xmm30,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f0 ab[ 	]*vpinsrb xmm30,xmm29,eax,0xab
-[ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f0 7b[ 	]*vpinsrb xmm30,xmm29,eax,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f5 7b[ 	]*vpinsrb xmm30,xmm29,ebp,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 43 95 00 20 f5 7b[ 	]*vpinsrb xmm30,xmm29,r13d,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f0 ab[ 	]*vpinsrb xmm30,xmm29,rax,0xab
+[ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f0 7b[ 	]*vpinsrb xmm30,xmm29,rax,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f5 7b[ 	]*vpinsrb xmm30,xmm29,rbp,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 43 95 00 20 f5 7b[ 	]*vpinsrb xmm30,xmm29,r13,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 31 7b[ 	]*vpinsrb xmm30,xmm29,BYTE PTR \[rcx\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 23 95 00 20 b4 f0 23 01 00 00 7b[ 	]*vpinsrb xmm30,xmm29,BYTE PTR \[rax\+r14\*8\+0x123\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 72 7f 7b[ 	]*vpinsrb xmm30,xmm29,BYTE PTR \[rdx\+0x7f\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 b2 80 00 00 00 7b[ 	]*vpinsrb xmm30,xmm29,BYTE PTR \[rdx\+0x80\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 72 80 7b[ 	]*vpinsrb xmm30,xmm29,BYTE PTR \[rdx-0x80\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 b2 7f ff ff ff 7b[ 	]*vpinsrb xmm30,xmm29,BYTE PTR \[rdx-0x81\],0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 f0 ab[ 	]*vpinsrw xmm30,xmm29,eax,0xab
-[ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 f0 7b[ 	]*vpinsrw xmm30,xmm29,eax,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 f5 7b[ 	]*vpinsrw xmm30,xmm29,ebp,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 41 95 00 c4 f5 7b[ 	]*vpinsrw xmm30,xmm29,r13d,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 f0 ab[ 	]*vpinsrw xmm30,xmm29,rax,0xab
+[ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 f0 7b[ 	]*vpinsrw xmm30,xmm29,rax,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 f5 7b[ 	]*vpinsrw xmm30,xmm29,rbp,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 41 95 00 c4 f5 7b[ 	]*vpinsrw xmm30,xmm29,r13,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 31 7b[ 	]*vpinsrw xmm30,xmm29,WORD PTR \[rcx\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 21 95 00 c4 b4 f0 23 01 00 00 7b[ 	]*vpinsrw xmm30,xmm29,WORD PTR \[rax\+r14\*8\+0x123\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 72 7f 7b[ 	]*vpinsrw xmm30,xmm29,WORD PTR \[rdx\+0xfe\],0x7b
@@ -708,20 +708,20 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 91 fd 08 c5 c6 ab[ 	]*vpextrw rax,xmm30,0xab
 [ 	]*[a-f0-9]+:[ 	]*62 91 fd 08 c5 c6 7b[ 	]*vpextrw rax,xmm30,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 11 fd 08 c5 c6 7b[ 	]*vpextrw r8,xmm30,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f0 ab[ 	]*vpinsrb xmm30,xmm29,eax,0xab
-[ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f0 7b[ 	]*vpinsrb xmm30,xmm29,eax,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f5 7b[ 	]*vpinsrb xmm30,xmm29,ebp,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 43 95 00 20 f5 7b[ 	]*vpinsrb xmm30,xmm29,r13d,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f0 ab[ 	]*vpinsrb xmm30,xmm29,rax,0xab
+[ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f0 7b[ 	]*vpinsrb xmm30,xmm29,rax,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 f5 7b[ 	]*vpinsrb xmm30,xmm29,rbp,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 43 95 00 20 f5 7b[ 	]*vpinsrb xmm30,xmm29,r13,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 31 7b[ 	]*vpinsrb xmm30,xmm29,BYTE PTR \[rcx\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 23 95 00 20 b4 f0 34 12 00 00 7b[ 	]*vpinsrb xmm30,xmm29,BYTE PTR \[rax\+r14\*8\+0x1234\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 72 7f 7b[ 	]*vpinsrb xmm30,xmm29,BYTE PTR \[rdx\+0x7f\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 b2 80 00 00 00 7b[ 	]*vpinsrb xmm30,xmm29,BYTE PTR \[rdx\+0x80\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 72 80 7b[ 	]*vpinsrb xmm30,xmm29,BYTE PTR \[rdx-0x80\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 63 95 00 20 b2 7f ff ff ff 7b[ 	]*vpinsrb xmm30,xmm29,BYTE PTR \[rdx-0x81\],0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 f0 ab[ 	]*vpinsrw xmm30,xmm29,eax,0xab
-[ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 f0 7b[ 	]*vpinsrw xmm30,xmm29,eax,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 f5 7b[ 	]*vpinsrw xmm30,xmm29,ebp,0x7b
-[ 	]*[a-f0-9]+:[ 	]*62 41 95 00 c4 f5 7b[ 	]*vpinsrw xmm30,xmm29,r13d,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 f0 ab[ 	]*vpinsrw xmm30,xmm29,rax,0xab
+[ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 f0 7b[ 	]*vpinsrw xmm30,xmm29,rax,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 f5 7b[ 	]*vpinsrw xmm30,xmm29,rbp,0x7b
+[ 	]*[a-f0-9]+:[ 	]*62 41 95 00 c4 f5 7b[ 	]*vpinsrw xmm30,xmm29,r13,0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 31 7b[ 	]*vpinsrw xmm30,xmm29,WORD PTR \[rcx\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 21 95 00 c4 b4 f0 34 12 00 00 7b[ 	]*vpinsrw xmm30,xmm29,WORD PTR \[rax\+r14\*8\+0x1234\],0x7b
 [ 	]*[a-f0-9]+:[ 	]*62 61 95 00 c4 72 7f 7b[ 	]*vpinsrw xmm30,xmm29,WORD PTR \[rdx\+0xfe\],0x7b

@@ -18,7 +18,7 @@ Section Headers:
  +\[[ 0-9]+\] \.tdata +PROGBITS .* 0+1c 0+ WAT +0 +0 +4
  +\[[ 0-9]+\] \.tbss +NOBITS .* 0+1c 0+ WAT +0 +0 +4
  +\[[ 0-9]+\] \.dynamic +DYNAMIC .* 08 +WA +3 +0 +4
- +\[[ 0-9]+\] \.got +PROGBITS .* 0+30 04 +WA +0 +0 +4
+ +\[[ 0-9]+\] \.got +PROGBITS .* 0+40 04 +WA +0 +0 +4
  +\[[ 0-9]+\] \.plt +PROGBITS .* 0+4 00 +WA +0 +0 +4
  +\[[ 0-9]+\] \.symtab +.*
  +\[[ 0-9]+\] \.strtab +.*
@@ -43,7 +43,7 @@ Program Headers:
  +02 +\.dynamic 
  +03 +\.tdata \.tbss 
 
-Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 18 entries:
+Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 20 entries:
  Offset +Info +Type +Sym\. Value +Symbol's Name \+ Addend
 [0-9a-f ]+R_PPC_REL24 +0+ +__tls_get_addr \+ 0
 [0-9a-f ]+R_PPC_REL24 +0+ +__tls_get_addr \+ 0
@@ -52,14 +52,16 @@ Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 18 entries:
 [0-9a-f ]+R_PPC_TPREL16 +0+30 +le0 \+ 0
 [0-9a-f ]+R_PPC_TPREL16_HA +0+34 +le1 \+ 0
 [0-9a-f ]+R_PPC_TPREL16_LO +0+34 +le1 \+ 0
-[0-9a-f ]+R_PPC_TPREL16 +0+103d0 +\.tdata \+ 103e4
-[0-9a-f ]+R_PPC_TPREL16_HA +0+103d0 +\.tdata \+ 103e8
-[0-9a-f ]+R_PPC_TPREL16_LO +0+103d0 +\.tdata \+ 103e8
+[0-9a-f ]+R_PPC_TPREL16 +14
+[0-9a-f ]+R_PPC_TPREL16_HA +18
+[0-9a-f ]+R_PPC_TPREL16_LO +18
 [0-9a-f ]+R_PPC_DTPMOD32 +0
 [0-9a-f ]+R_PPC_DTPREL32 +0
 [0-9a-f ]+R_PPC_DTPMOD32 +0
 [0-9a-f ]+R_PPC_DTPMOD32 +0+ +gd \+ 0
 [0-9a-f ]+R_PPC_DTPREL32 +0+ +gd \+ 0
+[0-9a-f ]+R_PPC_DTPMOD32 +0+20 +ld0 \+ 0
+[0-9a-f ]+R_PPC_DTPMOD32 +0+ +ld \+ 0
 [0-9a-f ]+R_PPC_DTPMOD32 +0+1c +gd0 \+ 0
 [0-9a-f ]+R_PPC_DTPREL32 +0+1c +gd0 \+ 0
 [0-9a-f ]+R_PPC_TPREL32 +0+2c +ie0 \+ 0
@@ -72,7 +74,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND 
 .* SECTION +LOCAL +DEFAULT +6 
-.* SECTION +LOCAL +DEFAULT +7 
 .* TLS +GLOBAL +DEFAULT +UND gd
 .* TLS +GLOBAL +DEFAULT +8 le0
 .* NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
@@ -100,6 +101,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* SECTION +LOCAL +DEFAULT +10 
 .* SECTION +LOCAL +DEFAULT +11 
 .* FILE +LOCAL +DEFAULT +ABS .*
+.* NOTYPE +LOCAL +DEFAULT +ABS TLSMARK
 .* TLS +LOCAL +DEFAULT +7 gd4
 .* TLS +LOCAL +DEFAULT +7 ld4
 .* TLS +LOCAL +DEFAULT +7 ld5

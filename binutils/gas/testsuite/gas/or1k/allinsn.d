@@ -679,11 +679,45 @@ Disassembly of section \.text:
 00000824 <l_hi>:
  824:	18 20 de ad 	l\.movhi r1,0xdead
 
-00000828 <l_mac>:
- 828:	c4 01 10 01 	l.mac r1,r2
+00000828 <l_ha>:
+ 828:	18 20 de ae 	l\.movhi r1,0xdeae
 
-0000082c <l_maci>:
- 82c:	4c 01 00 00 	l\.maci r1,0
- 830:	4c 02 ff ff 	l\.maci r2,-1
- 834:	4c 02 7f ff 	l\.maci r2,32767
- 838:	4c 02 80 00 	l\.maci r2,-32768
+0000082c <l_mac>:
+ 82c:	c4 01 10 01 	l.mac r1,r2
+
+00000830 <l_maci>:
+ 830:	4c 01 00 00 	l\.maci r1,0
+ 834:	4c 02 ff ff 	l\.maci r2,-1
+ 838:	4c 02 7f ff 	l\.maci r2,32767
+ 83c:	4c 02 80 00 	l\.maci r2,-32768
+
+00000840 <l_adrp>:
+ 840:	08 60 00 00 	l\.adrp r3,0 <localtext>
+			840: R_OR1K_PCREL_PG21	globaldata
+ 844:	08 60 00 00 	l\.adrp r3,0 <localtext>
+			844: R_OR1K_PCREL_PG21	\.data
+
+00000848 <l_muld>:
+ 848:	e0 00 03 07 	l\.muld r0,r0
+ 84c:	e0 1f fb 07 	l\.muld r31,r31
+ 850:	e0 03 23 07 	l\.muld r3,r4
+
+00000854 <l_muldu>:
+ 854:	e0 00 03 0d 	l\.muldu r0,r0
+ 858:	e0 1f fb 0d 	l\.muldu r31,r31
+ 85c:	e0 03 23 0d 	l\.muldu r3,r4
+
+00000860 <l_macu>:
+ 860:	c4 00 00 03 	l\.macu r0,r0
+ 864:	c4 1f f8 03 	l\.macu r31,r31
+ 868:	c4 03 20 03 	l\.macu r3,r4
+
+0000086c <l_msb>:
+ 86c:	c4 00 00 02 	l\.msb r0,r0
+ 870:	c4 1f f8 02 	l\.msb r31,r31
+ 874:	c4 03 20 02 	l\.msb r3,r4
+
+00000878 <l_msbu>:
+ 878:	c4 00 00 04 	l\.msbu r0,r0
+ 87c:	c4 1f f8 04 	l\.msbu r31,r31
+ 880:	c4 03 20 04 	l\.msbu r3,r4

@@ -1,3 +1,3 @@
 # name: PR 12854: Extraneous shifts
 # as:
-# error-output: shift-bad.l
+# error_output: shift-bad.l

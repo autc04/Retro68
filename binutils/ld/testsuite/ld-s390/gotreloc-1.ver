@@ -1,1 +1,1 @@
-{ local: bar; };
+{ local: bar; misaligned_sym; };

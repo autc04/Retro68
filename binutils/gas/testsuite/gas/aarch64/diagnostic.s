@@ -311,3 +311,4 @@
 	stlxr	w26, x26, [x3]
 	ldxp	x26, x26, [x5]
 	ldxp	x26, x1, [x26]
+	st4	{v0.16b-v3.16b}[4], [x0]

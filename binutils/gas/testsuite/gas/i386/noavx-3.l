@@ -11,6 +11,10 @@
 .*:37: Error: .*noavx.*
 .*:38: Error: .*noavx.*
 .*:39: Error: .*noavx.*
+.*:42: Error: .*noavx.*
+.*:43: Error: .*noavx.*
+.*:44: Error: .*noavx.*
+.*:45: Error: .*noavx.*
 GAS LISTING .*
 #...
 [ 	]*1[ 	]+\# Test \.arch \[\.avxX|\.noavxX\]
@@ -63,8 +67,8 @@ GAS LISTING .*
 [ 	]*39[ 	]+vfrczpd %xmm7,%xmm7
 [ 	]*40[ 	]+\?\?\?\? 0F77     		emms
 [ 	]*41[ 	]+\?\?\?\? 0FAEE8   		lfence
-[ 	]*42[ 	]+\?\?\?\? 8DB42600 		\.p2align 4
-[ 	]*42[ 	]+0000008D 
-[ 	]*42[ 	]+B6000000 
-[ 	]*42[ 	]+00
+[ 	]*42[ 	]+vaddps	%xmm6, %xmm5, %xmm4
+[ 	]*43[ 	]+vaddps	%ymm6, %ymm5, %ymm4
+[ 	]*44[ 	]+vaddps	%zmm6, %zmm5, %zmm4
+[ 	]*45[ 	]+vaddss	%xmm6, %xmm5, %xmm4
 #pass

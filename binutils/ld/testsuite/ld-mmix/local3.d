@@ -4,7 +4,7 @@
 #source: ext1.s
 #source: start.s
 #ld: -m elf64mmix
-#readelf: -Ssx1 -x2
+#readelf: -Ssx1 -T -x2
 
 # Like local1, but ext1 is here a constant, not a global register.
 

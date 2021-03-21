@@ -1,9 +1,9 @@
 # name: H8300 Relaxation Test 6
 # source: relax-6.s
-# ld: --relax -m h8300self
+# ld: --relax
 # objdump: -d --no-show-raw-insn
 
-.*:     file format .*-h8300
+.*:     file format .*
 Disassembly of section .text:
 
 00000100 <_start>:

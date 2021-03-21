@@ -11,4 +11,6 @@ SECTIONS
     *(.data)
     *(.rw)
   }
+
+  /DISCARD/ : { *(.note.gnu.property) }
 }

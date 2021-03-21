@@ -2,7 +2,7 @@
 #source: pcrel.s
 #objdump: -d -EB
 #name: PC-relative loads
-#stderr: pcrel.l
+#warning_output: pcrel.l
 
 .*:     file format .*sh.*
 

@@ -1,5 +1,5 @@
 /* tc-sparc.c -- Assemble for the SPARC
-   Copyright (C) 1989-2018 Free Software Foundation, Inc.
+   Copyright (C) 1989-2020 Free Software Foundation, Inc.
    This file is part of GAS, the GNU Assembler.
 
    GAS is free software; you can redistribute it and/or modify
@@ -126,7 +126,7 @@ int sparc_cie_data_alignment;
 #endif
 
 /* Handle of the OPCODE hash table.  */
-static struct hash_control *op_hash;
+static htab_t op_hash;
 
 static void s_data1 (void);
 static void s_seg (int);
@@ -941,7 +941,6 @@ cmp_perc_entry (const void *parg, const void *qarg)
 void
 md_begin (void)
 {
-  const char *retval = NULL;
   int lose = 0;
   unsigned int i = 0;
 
@@ -952,16 +951,14 @@ md_begin (void)
     init_default_arch ();
 
   sparc_cie_data_alignment = sparc_arch_size == 64 ? -8 : -4;
-  op_hash = hash_new ();
+  op_hash = str_htab_create ();
 
   while (i < (unsigned int) sparc_num_opcodes)
     {
       const char *name = sparc_opcodes[i].name;
-      retval = hash_insert (op_hash, name, (void *) &sparc_opcodes[i]);
-      if (retval != NULL)
+      if (str_hash_insert (op_hash, name, &sparc_opcodes[i], 0) != NULL)
 	{
-	  as_bad (_("Internal error: can't hash `%s': %s\n"),
-		  sparc_opcodes[i].name, retval);
+	  as_bad (_("duplicate %s"), name);
 	  lose = 1;
 	}
       do
@@ -984,23 +981,17 @@ md_begin (void)
       const char *name = ((sparc_arch_size == 32)
 		    ? native_op_table[i].name32
 		    : native_op_table[i].name64);
-      insn = (struct sparc_opcode *) hash_find (op_hash, name);
+      insn = (struct sparc_opcode *) str_hash_find (op_hash, name);
       if (insn == NULL)
 	{
 	  as_bad (_("Internal error: can't find opcode `%s' for `%s'\n"),
 		  name, native_op_table[i].name);
 	  lose = 1;
 	}
-      else
+      else if (str_hash_insert (op_hash, native_op_table[i].name, insn, 0))
 	{
-	  retval = hash_insert (op_hash, native_op_table[i].name,
-				(void *) insn);
-	  if (retval != NULL)
-	    {
-	      as_bad (_("Internal error: can't hash `%s': %s\n"),
-		      sparc_opcodes[i].name, retval);
-	      lose = 1;
-	    }
+	  as_bad (_("duplicate %s"), native_op_table[i].name);
+	  lose = 1;
 	}
     }
 
@@ -1152,7 +1143,7 @@ in_signed_range (bfd_signed_vma val, bfd_signed_vma max)
      0xffffffff is always considered -1 on sparc32.  */
   if (sparc_arch_size == 32)
     {
-      bfd_signed_vma sign = (bfd_signed_vma) 1 << 31;
+      bfd_vma sign = (bfd_vma) 1 << 31;
       val = ((val & U0xffffffff) ^ sign) - sign;
     }
   if (val > max)
@@ -1557,20 +1548,21 @@ md_assemble (char *str)
         as_warn (_("FP branch in delay slot"));
     }
 
-  /* SPARC before v9 requires a nop instruction between a floating
-     point instruction and a floating point branch.  We insert one
-     automatically, with a warning.  */
+  /* SPARC before v9 does not allow a floating point compare
+     directly before a floating point branch.  Insert a nop
+     instruction if needed, with a warning.  */
   if (max_architecture < SPARC_OPCODE_ARCH_V9
       && last_insn != NULL
       && (insn->flags & F_FBR) != 0
-      && (last_insn->flags & F_FLOAT) != 0)
+      && (last_insn->flags & F_FLOAT) != 0
+      && (last_insn->match & OP3 (0x35)) == OP3 (0x35))
     {
       struct sparc_it nop_insn;
 
       nop_insn.opcode = NOP_INSN;
       nop_insn.reloc = BFD_RELOC_NONE;
       output_insn (insn, &nop_insn);
-      as_warn (_("FP branch preceded by FP instruction; NOP inserted"));
+      as_warn (_("FP branch preceded by FP compare; NOP inserted"));
     }
 
   switch (special_case)
@@ -1758,7 +1750,7 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
       *pinsn = NULL;
       return special_case;
     }
-  insn = (struct sparc_opcode *) hash_find (op_hash, str);
+  insn = (struct sparc_opcode *) str_hash_find (op_hash, str);
   *pinsn = insn;
   if (insn == NULL)
     {
@@ -4000,7 +3992,7 @@ tc_gen_reloc (asection *section, fixS *fixp)
     }
 
   /* Nothing is aligned in DWARF debugging sections.  */
-  if (bfd_get_section_flags (stdoutput, section) & SEC_DEBUGGING)
+  if (bfd_section_flags (section) & SEC_DEBUGGING)
     switch (code)
       {
       case BFD_RELOC_16: code = BFD_RELOC_SPARC_UA16; break;

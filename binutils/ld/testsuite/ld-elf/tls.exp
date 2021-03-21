@@ -1,5 +1,5 @@
 # Expect script for TLS tests.
-#   Copyright (C) 2017-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2017-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -21,15 +21,15 @@
 
 # Make sure that binutils can correctly handle TLS.
 
-if { ![istarget *-*-linux*]
-     && ![istarget arm*-*-uclinuxfdpiceabi]
-     && ![istarget *-*-nacl*]
-     && ![istarget *-*-gnu*] } {
+if { !([istarget *-*-linux*]
+       || [istarget arm*-*-uclinuxfdpiceabi]
+       || [istarget *-*-nacl*]
+       || [istarget *-*-gnu*]) || [istarget *ecoff] } then {
     return
 }
 
 # Check to see if the C compiler works.
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     return
 }
 
@@ -48,6 +48,6 @@ run_ld_link_tests [list \
 	{ pr22263-1a.c pr22263-1b.c } \
 	{{readelf -r pr22263-1.rd}} \
 	"pr22263-1" \
-	"-fPIE -O2" \
+	"-fPIE -O2 $NOSANITIZE_CFLAGS" \
     ] \
 ]

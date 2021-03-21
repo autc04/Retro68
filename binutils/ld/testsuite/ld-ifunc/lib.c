@@ -20,7 +20,7 @@ extern __typeof (library_func2) library_func2 __asm__ ("__GI_library_func2");
 
 __asm__(".global __GI_library_func2");
 __asm__(".hidden __GI_library_func2");
-__asm__(".set __GI_library_func2, library_func2");
+__asm__("__GI_library_func2 = library_func2");
 
 int
 library_func (int x)

@@ -1,3 +1,3 @@
 # name: pc used in instructions with register-shifted register
 # as:
-# error-output: shift-bad-pc.l
+# warning_output: shift-bad-pc.l

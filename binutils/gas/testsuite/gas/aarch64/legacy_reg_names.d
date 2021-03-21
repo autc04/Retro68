@@ -1,2 +1,2 @@
 #name: Legacy register names errors
-#error-output: legacy_reg_names.l
+#error_output: legacy_reg_names.l

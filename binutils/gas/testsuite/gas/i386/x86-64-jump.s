@@ -29,9 +29,17 @@
 
 	.intel_syntax noprefix
 	call	word ptr [rbx]
+	call	dword ptr [rbx]
 	call	fword ptr [rbx]
+	call	qword ptr [rbx]
+	call	near ptr [rbx]
+	call	far ptr [rbx]
 	jmp	word ptr [rbx]
+	jmp	dword ptr [rbx]
 	jmp	fword ptr [rbx]
+	jmp	qword ptr [rbx]
+	jmp	near ptr [rbx]
+	jmp	far ptr [rbx]
 	jmp	$+2
 	nop
 	jecxz	3+$

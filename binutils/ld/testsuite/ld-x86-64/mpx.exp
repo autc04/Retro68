@@ -1,5 +1,5 @@
 # Expect script for ELF MPX tests.
-#   Copyright (C) 2013-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2013-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -32,12 +32,9 @@ if ![istarget "x86_64-*-linux*"] {
 }
 
 # Check to see if the C compiler works
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     return
 }
-
-# Add $PLT_CFLAGS if PLT is expected.
-global PLT_CFLAGS
 
 run_cc_link_tests [list \
     [list \
@@ -118,15 +115,15 @@ run_ld_link_tests {
     {"Build mpx4"
      "-m elf_x86_64 -z bndplt --hash-style=sysv tmpdir/libcall1.so \
       -z max-page-size=0x200000 -z noseparate-code" ""
-     "--64" {mpx4a.s} {{objdump -dw mpx4.dd}} "mpx4"}
+     "--64 -mx86-used-note=no" {mpx4a.s} {{objdump -dw mpx4.dd}} "mpx4"}
     {"Build mpx3 (-z now)"
      "-z now -m elf_x86_64 -z bndplt --hash-style=sysv tmpdir/libcall.so \
       -z max-page-size=0x200000 -z noseparate-code" ""
-     "--64" {mpx3a.s} {{objdump -dw mpx3n.dd}} "mpx3n"}
+     "--64 -mx86-used-note=no" {mpx3a.s} {{objdump -dw mpx3n.dd}} "mpx3n"}
     {"Build mpx4 (-z now)"
      "-z now -m elf_x86_64 -z bndplt --hash-style=sysv tmpdir/libcall1.so \
       -z max-page-size=0x200000 -z noseparate-code" ""
-     "--64" {mpx4a.s} {{objdump -dw mpx4n.dd}} "mpx4n"}
+     "--64 -mx86-used-note=no" {mpx4a.s} {{objdump -dw mpx4n.dd}} "mpx4n"}
 }
 
 run_ld_link_exec_tests $run_tests

@@ -3,7 +3,7 @@
 # script_test_9.sh -- Check that the script_test_9.t script has placed
 # .init and .text in the same segment.
 
-# Copyright (C) 2010-2018 Free Software Foundation, Inc.
+# Copyright (C) 2010-2020 Free Software Foundation, Inc.
 # Written by Rafael Avila de Espindola <espindola@google.com>.
 
 # This file is part of gold.
@@ -38,5 +38,6 @@ check()
 
 check script_test_9.stdout "LOAD .*R E "
 check script_test_9.stdout "LOAD .*RW "
-check script_test_9.stdout "00 .*\.text .init"
+check script_test_9.stdout "00 .*\.text"
+check script_test_9.stdout "00 .*\.init"
 check script_test_9.stdout "01 .*\.data "

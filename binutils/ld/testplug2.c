@@ -1,6 +1,6 @@
 /* Test plugin for the GNU linker.  Check non-object IR file as well as
    get_input_file, get_view and release_input_file interfaces.
-   Copyright (C) 2015-2018 Free Software Foundation, Inc.
+   Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -21,6 +21,7 @@
 
 #include "sysdep.h"
 #include "bfd.h"
+#if BFD_SUPPORTS_PLUGINS
 #include "plugin-api.h"
 #include "filenames.h"
 /* For ARRAY_SIZE macro only - we don't link the library itself.  */
@@ -218,12 +219,15 @@ parse_symdefstr (const char *str, struct ld_plugin_symbol *sym)
   /* Finally we'll use sscanf to parse the numeric fields, then
      we'll split out the strings which we need to allocate separate
      storage for anyway so that we can add nul termination.  */
-  n = sscanf (colon2 + 1, "%i:%i:%lli", &sym->def, &sym->visibility, &size);
+  n = sscanf (colon2 + 1, "%hhi:%i:%lli", &sym->def, &sym->visibility, &size);
   if (n != 3)
     return LDPS_ERR;
 
   /* Parsed successfully, so allocate strings and fill out fields.  */
   sym->size = size;
+  sym->unused = 0;
+  sym->section_kind = 0;
+  sym->symbol_type = 0;
   sym->resolution = LDPR_UNKNOWN;
   sym->name = malloc (colon1 - str + 1);
   if (!sym->name)
@@ -666,3 +670,4 @@ oncleanup (void)
   fflush (NULL);
   return cleanup_ret;
 }
+#endif /* BFD_SUPPORTS_PLUGINS */

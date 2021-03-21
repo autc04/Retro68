@@ -1,5 +1,5 @@
 # Expect script for ld-mn10300 tests
-#   Copyright (C) 2007-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2007-2020 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -134,7 +134,7 @@ proc i126256-test { } {
     set tmpdir tmpdir
     set testname "Seg fault whilst linking one shared library into another when relaxation is enabled."
 
-    if {![is_remote host] && [which $CC] == 0} then {
+    if { ![check_compiler_available] } then {
 	return
     }
 

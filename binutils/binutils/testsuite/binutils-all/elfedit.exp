@@ -1,4 +1,4 @@
-#   Copyright (C) 2010-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,14 +18,6 @@
 if ![is_elf_format] {
     verbose "$ELFEDIT is only intended for ELF targets" 2
     return
-}
-
-if ![is_remote host] {
-    set tempfile tmpdir/bintest.o
-    set copyfile tmpdir/bintest
-} else {
-    set tempfile [remote_download host tmpdir/bintest.o]
-    set copyfile bintest
 }
 
 run_dump_test "elfedit-1"

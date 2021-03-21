@@ -2,4 +2,4 @@
 # COFF and aout based ports, except Windows CE, 
 # use a different naming convention for local labels.
 #skip: *-unknown-pe *-*-vxworks
-#error-output: undefined.l
+#error_output: undefined.l

@@ -19,7 +19,7 @@ Disassembly of section .text:
     1018:	90040010 	adrp	x16, 8001000 <bar>
     101c:	91001210 	add	x16, x16, #0x4
     1020:	d61f0200 	br	x16
-    1024:	00000000 	.inst	0x00000000 ; undefined
+    1024:	00000000 	udf	#0
 
 .* <___veneer>:
     1028:	90040010 	adrp	x16, 8001000 <bar>

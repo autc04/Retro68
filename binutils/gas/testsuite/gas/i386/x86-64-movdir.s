@@ -8,6 +8,9 @@ _start:
 	movdir64b (%ecx),%eax
 
 	.intel_syntax noprefix
+	movdiri [rcx],eax
 	movdiri [rcx],rax
+	movdiri dword ptr [rcx],eax
+	movdiri qword ptr [rcx],rax
 	movdir64b rax,[rcx]
 	movdir64b eax,[ecx]

@@ -1,5 +1,5 @@
 /* arsup.c - Archive support for MRI compatibility
-   Copyright (C) 1992-2018 Free Software Foundation, Inc.
+   Copyright (C) 1992-2020 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -77,8 +77,8 @@ map_over_list (bfd *arch, void (*function) (bfd *, bfd *), struct list *list)
 
 	  for (head = arch->archive_next; head; head = head->archive_next)
 	    {
-	      if (head->filename != NULL
-		  && FILENAME_CMP (ptr->name, head->filename) == 0)
+	      if (bfd_get_filename (head) != NULL
+		  && FILENAME_CMP (ptr->name, bfd_get_filename (head)) == 0)
 		{
 		  found = TRUE;
 		  function (head, prev);
@@ -149,13 +149,20 @@ maybequit (void)
 void
 ar_open (char *name, int t)
 {
-  char *tname = (char *) xmalloc (strlen (name) + 10);
+  char *tname;
   const char *bname = lbasename (name);
   real_name = name;
 
   /* Prepend tmp- to the beginning, to avoid file-name clashes after
      truncation on filesystems with limited namespaces (DOS).  */
-  sprintf (tname, "%.*stmp-%s", (int) (bname - name), name, bname);
+  if (asprintf (&tname, "%.*stmp-%s", (int) (bname - name), name, bname) == -1)
+    {
+      fprintf (stderr, _("%s: Can't allocate memory for temp name (%s)\n"),
+	       program_name, strerror(errno));
+      maybequit ();
+      return;
+    }
+
   obfd = bfd_openw (tname, NULL);
 
   if (!obfd)
@@ -304,7 +311,7 @@ ar_delete (struct list *list)
 
 	  while (member)
 	    {
-	      if (FILENAME_CMP(member->filename, list->name) == 0)
+	      if (FILENAME_CMP (bfd_get_filename (member), list->name) == 0)
 		{
 		  *prev = member->archive_next;
 		  found = 1;
@@ -369,7 +376,7 @@ ar_replace (struct list *list)
 
 	  while (member)
 	    {
-	      if (FILENAME_CMP (member->filename, list->name) == 0)
+	      if (FILENAME_CMP (bfd_get_filename (member), list->name) == 0)
 		{
 		  /* Found the one to replace.  */
 		  bfd *abfd = bfd_openr (list->name, NULL);
@@ -467,7 +474,7 @@ ar_extract (struct list *list)
 
 	  while (member && !found)
 	    {
-	      if (FILENAME_CMP (member->filename, list->name) == 0)
+	      if (FILENAME_CMP (bfd_get_filename (member), list->name) == 0)
 		{
 		  extract_file (member);
 		  found = 1;

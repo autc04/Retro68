@@ -1,12 +1,13 @@
 .*: Assembler messages:
-.*:7: Warning: .*
-.*:7: Warning: .*
-.*:10: Warning: .*
-.*:16: Warning: .*
+.*:7: Error: .*
+.*:7: Error: .*
+.*:10: Error: .*
+.*:16: Error: .*
 .*:18: Warning: .*
 .*:20: Warning: .*
 .*:22: Warning: .*
 .*:24: Warning: .*
+4 errors, 4 warnings, generating bad object file
 .*GAS.*
 
 

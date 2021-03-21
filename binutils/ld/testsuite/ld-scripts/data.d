@@ -1,6 +1,7 @@
 #source: data.s
 #ld: -T data.t
 #objdump: -s -j .text
+#xfail: tic4x-*-* tic54x-*-*
 
 .*:     file format .*
 

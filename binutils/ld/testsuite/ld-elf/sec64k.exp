@@ -1,5 +1,5 @@
 # Expect script for tests for >64k sections
-#   Copyright (C) 2002-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -29,19 +29,15 @@ if ![is_elf_format] {
 
 # Targets using _bfd_generic_final_link don't sort section symbols
 # before local symbols, so don't bother testing them.
-if { [istarget "d30v-*-*"]
-     || [istarget "dlx-*-*"]
-     || [istarget "pj*-*-*"] } {
+if { [is_generic] } {
     return
 }
 
-# ft32, h8300, ip2k, m68hc11, m68hc12 and xgate run out of address space.
+# ft32, h8300, ip2k, m68hc11 and m68hc12 run out of address space.
 if {[istarget "ft32-*-*"]
     || [istarget "h8300-*-*"]
     || [istarget "ip2k-*-*"]
-    || [istarget "m68hc1*-*"]
-    || [istarget "s12z-*"]
-    || [istarget "xgate-*"] } {
+    || [istarget "m68hc1*-*"] } {
     return
 }
 
@@ -61,7 +57,7 @@ set sfiles {}
 set max_sec 66000
 set secs_per_file 1000
 for { set i 0 } { $i < $max_sec / $secs_per_file } { incr i } {
-    set sfile "$objdir/tmpdir/sec64-$i.s"
+    set sfile "./tmpdir/sec64-$i.s"
     lappend sfiles $sfile
     if [catch { set ofd [open $sfile w] } x] {
 	perror "$x"
@@ -79,6 +75,8 @@ for { set i 0 } { $i < $max_sec / $secs_per_file } { incr i } {
 	puts $ofd "__start:"
 	puts $ofd " .global main"
 	puts $ofd "main:"
+	puts $ofd " .global _main"
+	puts $ofd "_main:"
 	puts $ofd " .global foo_0"
 	puts $ofd "foo_0: .dc.a 0"
     }
@@ -132,6 +130,10 @@ if { ![istarget "m32r-*-*"] } then {
     foreach sfile [lrange $sfiles 0 [expr [llength $sfiles] / 2]] {
 	puts $ofd "#source: $sfile"
     }
+    #force z80 target to compile for eZ80 in ADL mode
+    if { [istarget "z80-*-*"] } then {
+	puts $ofd "#as: -ez80-adl"
+    }
     puts $ofd "#ld: -r"
     puts $ofd "#readelf: -W -Ss"
     puts $ofd "There are 680.. section headers.*:"
@@ -143,7 +145,7 @@ if { ![istarget "m32r-*-*"] } then {
     puts $ofd "  \\\[65279\\\] (.rel\[a\]?)?\\.foo\\.\[0-9\]+ .*"
     puts $ofd "  \\\[65280\\\] (.rel\[a\]?)?\\.foo\\.\[0-9\]+ .*"
     puts $ofd "#..."
-    puts $ofd " 340..: 0+\[ \]+0\[ \]+SECTION\[ \]+LOCAL\[ \]+DEFAULT\[ \]+68... "
+    puts $ofd " 340..: 0+\[ \]+0\[ \]+SECTION\[ \]+LOCAL\[ \]+DEFAULT\[ \]+68... .*"
     puts $ofd "#..."
     puts $ofd " 340..: 0+(2|4|8)\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+\[2-7\] bar_1$"
     puts $ofd "#..."
@@ -177,8 +179,14 @@ if { ![istarget "d10v-*-*"]
     foreach sfile $sfiles { puts $ofd "#source: $sfile" }
     if { [istarget spu*-*-*] } {
 	puts $ofd "#ld: --local-store 0:0"
+    } elseif { [istarget "i?86-*-linux*"] || [istarget "x86_64-*-linux*"] } {
+	puts $ofd "#ld: -z noseparate-code"
     } else {
 	puts $ofd "#ld:"
+    }
+    #force z80 target to compile for eZ80 in ADL mode
+    if { [istarget "z80-*-*"] } then {
+	puts $ofd "#as: -ez80-adl"
     }
     puts $ofd "#readelf: -W -Ss"
     puts $ofd "There are 660.. section headers.*:"

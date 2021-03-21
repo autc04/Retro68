@@ -2,7 +2,7 @@
 #name: microMIPS branch delay
 #as: -32 -march=mips64 -mmicromips
 #source: micromips-branch-delay.s
-#stderr: micromips-branch-delay.l
+#warning_output: micromips-branch-delay.l
 
 # Test microMIPS branch delay slots.
 

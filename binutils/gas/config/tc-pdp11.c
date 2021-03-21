@@ -1,5 +1,5 @@
 /* tc-pdp11.c - pdp11-specific -
-   Copyright (C) 2001-2018 Free Software Foundation, Inc.
+   Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -82,7 +82,7 @@ const pseudo_typeS md_pseudo_table[] =
   { 0, 0, 0 },
 };
 
-static struct hash_control *insn_hash = NULL;
+static htab_t insn_hash = NULL;
 
 static int
 set_option (const char *arg)
@@ -188,14 +188,12 @@ md_begin (void)
 
   init_defaults ();
 
-  insn_hash = hash_new ();
-  if (insn_hash == NULL)
-    as_fatal (_("Virtual memory exhausted"));
+  insn_hash = str_htab_create ();
 
   for (i = 0; i < pdp11_num_opcodes; i++)
-    hash_insert (insn_hash, pdp11_opcodes[i].name, (void *) (pdp11_opcodes + i));
+    str_hash_insert (insn_hash, pdp11_opcodes[i].name, pdp11_opcodes + i, 0);
   for (i = 0; i < pdp11_num_aliases; i++)
-    hash_insert (insn_hash, pdp11_aliases[i].name, (void *) (pdp11_aliases + i));
+    str_hash_insert (insn_hash, pdp11_aliases[i].name, pdp11_aliases + i, 0);
 }
 
 void
@@ -222,6 +220,18 @@ md_number_to_chars (char con[], valueT value, int nbytes)
       con[2] =  value        & 0xff;
       con[3] = (value >>  8) & 0xff;
       break;
+#ifdef BFD64
+    case 8:
+      con[0] = (value >> 48) & 0xff;
+      con[1] = (value >> 56) & 0xff;
+      con[2] = (value >> 32) & 0xff;
+      con[3] = (value >> 40) & 0xff;
+      con[4] = (value >> 16) & 0xff;
+      con[5] = (value >> 24) & 0xff;
+      con[6] =  value        & 0xff;
+      con[7] = (value >>  8) & 0xff;
+      break;
+#endif
     default:
       BAD_CASE (nbytes);
     }
@@ -248,9 +258,17 @@ md_apply_fix (fixS *fixP,
 
   switch (fixP->fx_r_type)
     {
+    case BFD_RELOC_8:
+      mask = 0xff;
+      shift = 0;
+      break;
     case BFD_RELOC_16:
     case BFD_RELOC_16_PCREL:
       mask = 0xffff;
+      shift = 0;
+      break;
+    case BFD_RELOC_32:
+      mask = 0xffffffff;
       shift = 0;
       break;
     case BFD_RELOC_PDP11_DISP_8_PCREL:
@@ -355,6 +373,12 @@ parse_reg (char *str, struct pdp11_code *operand)
       return str;
     }
 
+  if (ISALNUM (*str) || *str == '_' || *str == '.')
+    {
+      operand->error = _("Bad register name");
+      str -= 2;
+    }
+  
   return str;
 }
 
@@ -581,9 +605,34 @@ parse_op_noreg (char *str, struct pdp11_code *operand)
 
   if (*str == '@' || *str == '*')
     {
-      str = parse_op_no_deferred (str + 1, operand);
+      /* @(Rn) == @0(Rn): Mode 7, Indexed deferred.
+	 Check for auto-increment deferred.  */
+      if (str[1] == '('
+	  && str[2] != 0
+	  && str[3] != 0
+	  && str[4] != 0
+	  && str[5] != '+')
+        {
+	  /* Change implied to explicit index deferred.  */
+          *str = '0';
+          str = parse_op_no_deferred (str, operand);
+        }
+      else
+        {
+          /* @Rn == (Rn): Register deferred.  */
+          str = parse_reg (str + 1, operand);
+	  
+          /* Not @Rn */
+          if (operand->error)
+	    {
+	      operand->error = NULL;
+	      str = parse_op_no_deferred (str, operand);
+	    }
+        }
+
       if (operand->error)
 	return str;
+
       operand->code |= 010;
     }
   else
@@ -664,7 +713,7 @@ md_assemble (char *instruction_string)
 
   c = *p;
   *p = '\0';
-  op = (struct pdp11_opcode *)hash_find (insn_hash, str);
+  op = (struct pdp11_opcode *)str_hash_find (insn_hash, str);
   *p = c;
   if (op == 0)
     {
@@ -1393,22 +1442,22 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED,
   /* This is taken account for in md_apply_fix().  */
   reloc->addend = -symbol_get_bfdsym (fixp->fx_addsy)->section->vma;
 
-  switch (fixp->fx_r_type)
+  code = fixp->fx_r_type;
+  if (fixp->fx_pcrel)
     {
-    case BFD_RELOC_16:
-      if (fixp->fx_pcrel)
-	code = BFD_RELOC_16_PCREL;
-      else
-	code = BFD_RELOC_16;
-      break;
+      switch (code)
+	{
+	case BFD_RELOC_16:
+	  code = BFD_RELOC_16_PCREL;
+	  break;
 
-    case BFD_RELOC_16_PCREL:
-      code = BFD_RELOC_16_PCREL;
-      break;
+	case BFD_RELOC_16_PCREL:
+	  break;
 
-    default:
-      BAD_CASE (fixp->fx_r_type);
-      return NULL;
+	default:
+	  BAD_CASE (code);
+	  return NULL;
+	}
     }
 
   reloc->howto = bfd_reloc_type_lookup (stdoutput, code);

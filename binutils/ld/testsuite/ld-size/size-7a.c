@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-extern char size_of_bar asm ("bar@SIZE");
+extern char size_of_bar __asm__ ("bar@SIZE");
 
 int
 main ()

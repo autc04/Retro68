@@ -1,5 +1,5 @@
 /* tc-m68hc11.c -- Assembler code for the Motorola 68HC11 & 68HC12.
-   Copyright (C) 1999-2018 Free Software Foundation, Inc.
+   Copyright (C) 1999-2020 Free Software Foundation, Inc.
    Written by Stephane Carrez (stcarrez@nerim.fr)
    XGATE and S12X added by James Murray (jsm@jsm-net.demon.co.uk)
 
@@ -263,7 +263,7 @@ static short flag_print_insn_syntax = 0;
 static short flag_print_opcodes = 0;
 
 /* Opcode hash table.  */
-static struct hash_control *m68hc11_hash;
+static htab_t m68hc11_hash;
 
 /* Current cpu (either cpu6811 or cpu6812).  This is determined automagically
    by 'get_default_target' by looking at default BFD vector.  This is overridden
@@ -472,7 +472,7 @@ m68hc11_print_statistics (FILE *file)
   int i;
   struct m68hc11_opcode_def *opc;
 
-  hash_print_statistics (file, "opcode table", m68hc11_hash);
+  htab_print_statistics (file, "opcode table", m68hc11_hash);
 
   opc = m68hc11_opcode_defs;
   if (opc == 0 || m68hc11_nb_opcode_defs == 0)
@@ -583,7 +583,7 @@ md_atof (int type, char *litP, int *sizeP)
 valueT
 md_section_align (asection *seg, valueT addr)
 {
-  int align = bfd_get_section_alignment (stdoutput, seg);
+  int align = bfd_section_alignment (seg);
   return ((addr + (1 << align) - 1) & -(1 << align));
 }
 
@@ -610,7 +610,7 @@ md_begin (void)
 
   get_default_target ();
 
-  m68hc11_hash = hash_new ();
+  m68hc11_hash = str_htab_create ();
 
   /* Get a writable copy of the opcode table and sort it on the names.  */
   opcodes = XNEWVEC (struct m68hc11_opcode, m68hc11_num_opcodes);
@@ -664,7 +664,7 @@ md_begin (void)
 	  opc->nb_modes = 0;
 	  opc->opcode = opcodes;
 	  opc->used = 0;
-	  hash_insert (m68hc11_hash, opcodes->name, opc);
+	  str_hash_insert (m68hc11_hash, opcodes->name, opc, 0);
 	}
       opc->nb_modes++;
       opc->format |= opcodes->format;
@@ -1010,7 +1010,7 @@ print_insn_format (char *name)
   struct m68hc11_opcode *opcode;
   char buf[128];
 
-  opc = (struct m68hc11_opcode_def *) hash_find (m68hc11_hash, name);
+  opc = (struct m68hc11_opcode_def *) str_hash_find (m68hc11_hash, name);
   if (opc == NULL)
     {
       as_bad (_("Instruction `%s' is not recognized."), name);
@@ -2848,7 +2848,7 @@ md_assemble (char *str)
   if (current_architecture == cpuxgate)
     {
       /* Find the opcode definition given its name.  */
-      opc = (struct m68hc11_opcode_def *) hash_find (m68hc11_hash, name);
+      opc = (struct m68hc11_opcode_def *) str_hash_find (m68hc11_hash, name);
       if (opc == NULL)
         {
           as_bad (_("Opcode `%s' is not recognized."), name);
@@ -3469,7 +3469,7 @@ md_assemble (char *str)
     }
 
   /* Find the opcode definition given its name.  */
-  opc = (struct m68hc11_opcode_def *) hash_find (m68hc11_hash, name);
+  opc = (struct m68hc11_opcode_def *) str_hash_find (m68hc11_hash, name);
 
   /* If it's not recognized, look for 'jbsr' and 'jbxx'.  These are
      pseudo insns for relative branch.  For these branches, we always
@@ -3477,7 +3477,8 @@ md_assemble (char *str)
      is given.  */
   if (opc == NULL && name[0] == 'j' && name[1] == 'b')
     {
-      opc = (struct m68hc11_opcode_def *) hash_find (m68hc11_hash, &name[1]);
+      opc = (struct m68hc11_opcode_def *) str_hash_find (m68hc11_hash,
+							 &name[1]);
       if (opc
 	  && (!(opc->format & M6811_OP_JUMP_REL)
 	      || (opc->format & M6811_OP_BITMASK)))
@@ -3508,8 +3509,8 @@ md_assemble (char *str)
 	    {
 	      name[nlen++] = TOLOWER (*op_end++);
 	      name[nlen] = 0;
-	      opc = (struct m68hc11_opcode_def *) hash_find (m68hc11_hash,
-							     name);
+	      opc = (struct m68hc11_opcode_def *) str_hash_find (m68hc11_hash,
+								 name);
 	    }
 	}
     }

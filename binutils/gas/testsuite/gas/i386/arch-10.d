@@ -16,7 +16,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	66 0f d0 dc          	addsubpd %xmm4,%xmm3
 [ 	]*[a-f0-9]+:	66 0f 38 01 dc       	phaddw %xmm4,%xmm3
 [ 	]*[a-f0-9]+:	66 0f 38 41 d9       	phminposuw %xmm1,%xmm3
-[ 	]*[a-f0-9]+:	f2 0f 38 f1 d9       	crc32l %ecx,%ebx
+[ 	]*[a-f0-9]+:	f2 0f 38 f1 d9       	crc32  %ecx,%ebx
 [ 	]*[a-f0-9]+:	c5 fc 77             	vzeroall 
 [ 	]*[a-f0-9]+:	0f 01 c4             	vmxoff 
 [ 	]*[a-f0-9]+:	0f 37                	getsec 

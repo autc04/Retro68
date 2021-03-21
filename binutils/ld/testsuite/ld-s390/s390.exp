@@ -1,5 +1,5 @@
 # Expect script for ld-s390 tests
-#   Copyright (C) 2003-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -70,10 +70,15 @@ set s390xtests {
      {{readelf -WSsrl tlsbin_64.rd} {objdump -dzrj.text tlsbin_64.dd}
       {objdump -sj.got tlsbin_64.sd} {objdump -sj.tdata tlsbin_64.td}}
      "tlsbin_64"}
-    {"GOT: symbol address load from got to larl"
-     "-shared -melf64_s390 --hash-style=sysv --version-script=gotreloc-1.ver" ""
+    {"GOT: norelro symbol address load from got to larl"
+     "-shared -melf64_s390 -z norelro --hash-style=sysv --version-script=gotreloc-1.ver" ""
      "-m64" {gotreloc-1.s}
-     {{objdump -dzrj.text gotreloc_64-1.dd}}
+     {{objdump -dzrj.text gotreloc_64-norelro-1.dd}}
+     "gotreloc_64-1"}
+    {"GOT: relro symbol address load from got to larl"
+     "-shared -melf64_s390 -z relro --hash-style=sysv --version-script=gotreloc-1.ver" ""
+     "-m64" {gotreloc-1.s}
+     {{objdump -dzrj.text gotreloc_64-relro-1.dd}}
      "gotreloc_64-1"}
     {"PLT: offset test"
      "-shared -m elf64_s390 -dT pltoffset-1.ld" ""

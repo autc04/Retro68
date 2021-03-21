@@ -1,5 +1,5 @@
 /* TI C6X assembler.
-   Copyright (C) 2010-2018 Free Software Foundation, Inc.
+   Copyright (C) 2010-2020 Free Software Foundation, Inc.
    Contributed by Joseph Myers <joseph@codesourcery.com>
    		  Bernd Schmidt  <bernds@codesourcery.com>
 
@@ -742,7 +742,7 @@ const pseudo_typeS md_pseudo_table[] =
 /* Hash table of opcodes.  For each opcode name, this stores a pointer
    to a tic6x_opcode_list listing (in an arbitrary order) all opcode
    table entries with that name.  */
-static struct hash_control *opcode_hash;
+static htab_t opcode_hash;
 
 /* Initialize the assembler (called once at assembler startup).  */
 
@@ -757,17 +757,14 @@ md_begin (void)
   bfd_set_arch_mach (stdoutput, TARGET_ARCH, 0);
 
   /* Insert opcodes into the hash table.  */
-  opcode_hash = hash_new ();
+  opcode_hash = str_htab_create ();
   for (id = 0; id < tic6x_opcode_max; id++)
     {
-      const char *errmsg;
       tic6x_opcode_list *opc = XNEW (tic6x_opcode_list);
 
       opc->id = id;
-      opc->next = hash_find (opcode_hash, tic6x_opcode_table[id].name);
-      if ((errmsg = hash_jam (opcode_hash, tic6x_opcode_table[id].name, opc))
-	  != NULL)
-	as_fatal ("%s", _(errmsg));
+      opc->next = str_hash_find (opcode_hash, tic6x_opcode_table[id].name);
+      str_hash_insert (opcode_hash, tic6x_opcode_table[id].name, opc, 1);
     }
 
   /* Save the current subseg so we can restore it [it's the default one and
@@ -781,7 +778,7 @@ md_begin (void)
 
   /* This is copied from perform_an_assembly_pass.  */
   applicable = bfd_applicable_section_flags (stdoutput);
-  bfd_set_section_flags (stdoutput, sbss_section, applicable & SEC_ALLOC);
+  bfd_set_section_flags (sbss_section, applicable & SEC_ALLOC);
 
   subseg_set (seg, subseg);
 
@@ -3187,7 +3184,7 @@ md_assemble (char *str)
   this_insn_label_list = seginfo->tc_segment_info_data.label_list;
   seginfo->tc_segment_info_data.label_list = NULL;
 
-  opc_list = hash_find_n (opcode_hash, str, p - str);
+  opc_list = str_hash_find_n (opcode_hash, str, p - str);
   if (opc_list == NULL)
     {
       char c = *p;
@@ -3778,7 +3775,7 @@ md_assemble (char *str)
 void
 md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 {
-  offsetT value = *valP;
+  valueT value = *valP;
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
 
   value = SEXT (value);
@@ -3808,7 +3805,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_16:
       if (fixP->fx_done || !seg->use_rela_p)
 	{
-	  if (value < -0x8000 || value > 0xffff)
+	  if (value + 0x8000 > 0xffff + 0x8000)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("value too large for 2-byte field"));
 	  md_number_to_chars (buf, value, 2);
@@ -3818,7 +3815,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_8:
       if (fixP->fx_done || !seg->use_rela_p)
 	{
-	  if (value < -0x80 || value > 0xff)
+	  if (value + 0x80 > 0xff + 0x80)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("value too large for 1-byte field"));
 	  *buf = value;
@@ -3834,7 +3831,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_C6000_SBR_GOT_L16_W:
       if (fixP->fx_done || !seg->use_rela_p)
 	{
-	  offsetT newval = md_chars_to_number (buf, 4);
+	  valueT newval = md_chars_to_number (buf, 4);
 	  int shift;
 
 	  switch (fixP->fx_r_type)
@@ -3854,7 +3851,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	    }
 
 	  MODIFY_VALUE (newval, value, shift, 7, 16);
-	  if ((value < -0x8000 || value > 0x7fff)
+	  if ((value + 0x8000 > 0x7fff + 0x8000)
 	      && (fixP->fx_r_type == BFD_RELOC_C6000_ABS_S16
 		  || fixP->fx_r_type == BFD_RELOC_C6000_SBR_S16))
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
@@ -3875,7 +3872,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_C6000_SBR_GOT_H16_W:
       if (fixP->fx_done || !seg->use_rela_p)
 	{
-	  offsetT newval = md_chars_to_number (buf, 4);
+	  valueT newval = md_chars_to_number (buf, 4);
 	  int shift;
 
 	  switch (fixP->fx_r_type)
@@ -3906,7 +3903,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_C6000_PCR_L16:
       if (fixP->fx_done || !seg->use_rela_p)
 	{
-	  offsetT newval = md_chars_to_number (buf, 4);
+	  valueT newval = md_chars_to_number (buf, 4);
 	  int shift = fixP->fx_r_type == BFD_RELOC_C6000_PCR_H16 ? 16 : 0;
 
 	  MODIFY_VALUE (newval, value, shift, 7, 16);
@@ -3918,10 +3915,10 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_C6000_SBR_U15_B:
       if (fixP->fx_done || !seg->use_rela_p)
 	{
-	  offsetT newval = md_chars_to_number (buf, 4);
+	  valueT newval = md_chars_to_number (buf, 4);
 
 	  MODIFY_VALUE (newval, value, 0, 8, 15);
-	  if (value < 0 || value > 0x7fff)
+	  if (value > 0x7fff)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("immediate offset out of range"));
 
@@ -3932,7 +3929,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_C6000_SBR_U15_H:
       if (fixP->fx_done || !seg->use_rela_p)
 	{
-	  offsetT newval = md_chars_to_number (buf, 4);
+	  valueT newval = md_chars_to_number (buf, 4);
 
 	  /* Constant ADDA operands, processed as constant when the
 	     instruction is parsed, are encoded as-is rather than
@@ -3948,7 +3945,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  if (value & 1)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("immediate offset not 2-byte-aligned"));
-	  if (value < 0 || value > 0xfffe)
+	  if (value > 0xfffe)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("immediate offset out of range"));
 
@@ -3960,7 +3957,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_C6000_SBR_GOT_U15_W:
       if (fixP->fx_done || !seg->use_rela_p)
 	{
-	  offsetT newval = md_chars_to_number (buf, 4);
+	  valueT newval = md_chars_to_number (buf, 4);
 
 	  /* Constant ADDA operands, processed as constant when the
 	     instruction is parsed, are encoded as-is rather than
@@ -3976,7 +3973,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  if (value & 3)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("immediate offset not 4-byte-aligned"));
-	  if (value < 0 || value > 0x1fffc)
+	  if (value > 0x1fffc)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("immediate offset out of range"));
 
@@ -3997,14 +3994,14 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_C6000_PCR_S21:
       if (fixP->fx_done || !seg->use_rela_p)
 	{
-	  offsetT newval = md_chars_to_number (buf, 4);
+	  valueT newval = md_chars_to_number (buf, 4);
 
 	  MODIFY_VALUE (newval, value, 2, 7, 21);
 
 	  if (value & 3)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("PC-relative offset not 4-byte-aligned"));
-	  if (value < -0x400000 || value > 0x3ffffc)
+	  if (value + 0x400000 > 0x3ffffc + 0x400000)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("PC-relative offset out of range"));
 
@@ -4015,14 +4012,14 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_C6000_PCR_S12:
       if (fixP->fx_done || !seg->use_rela_p)
 	{
-	  offsetT newval = md_chars_to_number (buf, 4);
+	  valueT newval = md_chars_to_number (buf, 4);
 
 	  MODIFY_VALUE (newval, value, 2, 16, 12);
 
 	  if (value & 3)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("PC-relative offset not 4-byte-aligned"));
-	  if (value < -0x2000 || value > 0x1ffc)
+	  if (value + 0x2000 > 0x1ffc + 0x2000)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("PC-relative offset out of range"));
 
@@ -4033,14 +4030,14 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_C6000_PCR_S10:
       if (fixP->fx_done || !seg->use_rela_p)
 	{
-	  offsetT newval = md_chars_to_number (buf, 4);
+	  valueT newval = md_chars_to_number (buf, 4);
 
 	  MODIFY_VALUE (newval, value, 2, 13, 10);
 
 	  if (value & 3)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("PC-relative offset not 4-byte-aligned"));
-	  if (value < -0x800 || value > 0x7fc)
+	  if (value + 0x800 > 0x7fc + 0x800)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("PC-relative offset out of range"));
 
@@ -4051,14 +4048,14 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_C6000_PCR_S7:
       if (fixP->fx_done || !seg->use_rela_p)
 	{
-	  offsetT newval = md_chars_to_number (buf, 4);
+	  valueT newval = md_chars_to_number (buf, 4);
 
 	  MODIFY_VALUE (newval, value, 2, 16, 7);
 
 	  if (value & 3)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("PC-relative offset not 4-byte-aligned"));
-	  if (value < -0x100 || value > 0xfc)
+	  if (value + 0x100 > 0xfc + 0x100)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("PC-relative offset out of range"));
 
@@ -4483,7 +4480,7 @@ md_section_align (segT segment ATTRIBUTE_UNUSED,
 {
   /* Round up section sizes to ensure that text sections consist of
      whole fetch packets.  */
-  int align = bfd_get_section_alignment (stdoutput, segment);
+  int align = bfd_section_alignment (segment);
   return ((size + (1 << align) - 1) & (-((valueT) 1 << align)));
 }
 
@@ -4526,7 +4523,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
   if (reloc->howto->pcrel_offset && reloc->howto->partial_inplace)
     {
       reloc->addend += reloc->address;
-      if (!bfd_is_com_section (symbol))
+      if (!bfd_is_com_section (bfd_asymbol_section (symbol)))
 	reloc->addend -= symbol->value;
     }
   if (r_type == BFD_RELOC_C6000_PCR_H16
@@ -4606,7 +4603,7 @@ tic6x_start_unwind_section (const segT text_seg, int idx)
   const char * text_name;
   const char * prefix;
   const char * prefix_once;
-  const char * group_name;
+  struct elf_section_match match;
   size_t prefix_len;
   size_t text_len;
   char * sec_name;
@@ -4649,13 +4646,13 @@ tic6x_start_unwind_section (const segT text_seg, int idx)
 
   flags = SHF_ALLOC;
   linkonce = 0;
-  group_name = 0;
+  memset (&match, 0, sizeof (match));
 
   /* Handle COMDAT group.  */
   if (prefix != prefix_once && (text_seg->flags & SEC_LINK_ONCE) != 0)
     {
-      group_name = elf_group_name (text_seg);
-      if (group_name == NULL)
+      match.group_name = elf_group_name (text_seg);
+      if (match.group_name == NULL)
 	{
 	  as_bad (_("group section `%s' has no group signature"),
 		  segment_name (text_seg));
@@ -4666,7 +4663,7 @@ tic6x_start_unwind_section (const segT text_seg, int idx)
       linkonce = 1;
     }
 
-  obj_elf_change_section (sec_name, type, 0, flags, 0, group_name,
+  obj_elf_change_section (sec_name, type, flags, 0, &match,
 			  linkonce, 0);
 
   /* Set the section link for index tables.  */
@@ -5060,7 +5057,7 @@ tic6x_output_unwinding (bfd_boolean need_extab)
       if (unwind->personality_index == -1)
 	{
 	  tmp = md_chars_to_number (unwind->frag_start + 4, 4);
-	  tmp |= ((unwind->data_bytes - 8) >> 2) << 24;
+	  tmp |= (valueT) ((unwind->data_bytes - 8) >> 2) << 24;
 	  md_number_to_chars (unwind->frag_start + 4, tmp, 4);
 	}
       else if (unwind->personality_index == 1 || unwind->personality_index == 2)

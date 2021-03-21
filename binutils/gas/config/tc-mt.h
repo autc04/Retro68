@@ -1,5 +1,5 @@
 /* tc-mt.h -- Header file for tc-mt.c.
-   Copyright (C) 2005-2018 Free Software Foundation, Inc.
+   Copyright (C) 2005-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -41,7 +41,6 @@
 /* All mt instructions are multiples of 32 bits.  */
 #define DWARF2_LINE_MIN_INSN_LENGTH 4
 
-#define LITERAL_PREFIXDOLLAR_HEX
 #define LITERAL_PREFIXPERCENT_BIN
 
 #define md_apply_fix mt_apply_fix
@@ -49,7 +48,6 @@ extern void mt_apply_fix (struct fix *, valueT *, segT);
 
 /* Call md_pcrel_from_section(), not md_pcrel_from().  */
 #define MD_PCREL_FROM_SECTION(FIXP, SEC) md_pcrel_from_section (FIXP, SEC)
-extern long md_pcrel_from_section (struct fix *, segT);
 
 #define obj_fix_adjustable(fixP) iq2000_fix_adjustable (fixP)
 extern bfd_boolean mt_fix_adjustable (struct fix *);

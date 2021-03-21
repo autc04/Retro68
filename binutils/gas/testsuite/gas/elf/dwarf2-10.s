@@ -1,6 +1,6 @@
 /* Test view numbering zero-assert checking with zero-sized align.
 
-   Copyright (C) 2017-2018 Free Software Foundation, Inc.
+   Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,16 +17,16 @@
 
 	.file "dwarf2-10.c"
 	.text
-	.balign 4
+	.balign 8
 	.globl _start
 _start:
 	.file 1 "dwarf2-10.c"
 	.loc 1 1 view 0
-	.balign 4	/* No skip needed here...  */
+	.balign 8	/* No skip needed here...  */
 	.loc 1 2 view 0	/* so this zero-view check fails.  */
-	.int 0
+	.quad 0
 	.loc 1 3 view 0
-	.balign 8	/* Skip 4 more bytes after .int...  */
+	.balign 16	/* Skip 8 more bytes after .quad...  */
 	.loc 1 4 view 0	/* so this is a zero view indeed.  */
-	.int 0
+	.quad 0
 	.size _start, .-_start

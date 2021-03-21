@@ -1,5 +1,5 @@
 # Expect script for ld-gc tests
-#   Copyright (C) 2008-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2008-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -23,15 +23,12 @@ if ![check_gc_sections_available] {
     return
 }
 
-set cflags "-ffunction-sections -fdata-sections"
+set cflags "-ffunction-sections -fdata-sections $NOSANITIZE_CFLAGS"
 set objfile "tmpdir/gc.o"
 
-# Add $NOPIE_CFLAGS and $NOPIE_LDFLAGS if non-PIE is required.
-global NOPIE_CFLAGS NOPIE_LDFLAGS
-
-if [istarget powerpc64*-*-*] {
-    # otherwise with -mcmodel=medium gcc we get XPASSes.
-    set cflags "$cflags -mminimal-toc"
+if { [istarget powerpc*-*-*] && ![istarget powerpc64*-*-*] } {
+    # Avoid using .got2 for powerpc -m32
+    set cflags "$cflags $NOPIE_CFLAGS"
 }
 
 if { [istarget m681*-*-*] || [istarget m68hc1*-*-*] } {
@@ -39,7 +36,7 @@ if { [istarget m681*-*-*] || [istarget m68hc1*-*-*] } {
     set cflags "$cflags -fomit-frame-pointer -mshort"
 }
 
-if { [is_remote host] || [which $CC] != 0 } {
+if { [check_compiler_available] } {
     ld_compile "$CC -c $CFLAGS $cflags" $srcdir/$subdir/gc.c $objfile
 }
 
@@ -64,7 +61,7 @@ proc test_gc { testname filename linker ldflags} {
 	return
     }
     if ![ld_nm $nm "" $outfile] {
-	unresolved $testname
+	fail $testname
 	return
     }
     if {![info exists nm_output(used_func)] \
@@ -74,9 +71,6 @@ proc test_gc { testname filename linker ldflags} {
 	fail $testname
 	return
     }
-    #ppc64_elf_gc_mark_hook needs to be taught how to look through
-    #the .toc section to properly mark variable sections for gc.
-    setup_xfail "powerpc64*-*-*"
     if {[info exists nm_output(unused_func)] \
 	    || [info exists nm_output(unused_var)]} {
 	send_log "unused section still here\n"
@@ -130,7 +124,7 @@ if { [is_elf_format] && [check_shared_lib_support] } then {
     set LDFLAGS $old_ldflags
 }
 
-if { [is_remote host] || [which $CC] != 0 } {
+if { [check_compiler_available] } {
     if { [istarget "*-*-linux*"]
 	 || [istarget "*-*-nacl*"]
 	 || [istarget "*-*-gnu*"] } {
@@ -141,24 +135,29 @@ if { [is_remote host] || [which $CC] != 0 } {
     }
 }
 
-if { [is_remote host] || [which $CC] != 0 } {
+if { [check_compiler_available] } {
 	ld_compile "$CC $CFLAGS $cflags" $srcdir/$subdir/pr13683.c tmpdir/pr13683.o
 	run_dump_test "pr13683"
 }
 
-if { [is_remote host] || [which $CC] != 0 } {
+if { [check_compiler_available] } {
     ld_compile "$CC $CFLAGS $cflags $NOPIE_CFLAGS" $srcdir/$subdir/pr14265.c tmpdir/pr14265.o
     run_dump_test "pr14265"
 }
 
-if { [is_remote host] || [which $CC] != 0 } {
+if { [check_compiler_available] } {
     ld_compile "$CC $CFLAGS $cflags -O0" $srcdir/$subdir/pr19161-1.c tmpdir/pr19161-1.o
     ld_compile "$CC $CFLAGS $cflags -O0" $srcdir/$subdir/pr19161-2.c tmpdir/pr19161-2.o
+    set saved_LDFLAGS "$LDFLAGS"
+    if [istarget hppa*-*-linux*] {
+	set LDFLAGS "$LDFLAGS --defsym '\$\$dyncall=0'"
+    }
     run_dump_test "pr19161"
+    set LDFLAGS "$saved_LDFLAGS"
 }
 
 if { [is_elf_format] && [check_shared_lib_support] \
-     && ([is_remote host] || [which $CC] != 0) } {
+     && [check_compiler_available] } {
     run_cc_link_tests [list \
 	[list \
 	    "Build libpr20306.so" \
@@ -170,4 +169,8 @@ if { [is_elf_format] && [check_shared_lib_support] \
 	] \
     ]
     run_dump_test "pr20306"
+}
+
+if { [is_elf_format] } then {
+    run_dump_test "skip-map-discarded"
 }

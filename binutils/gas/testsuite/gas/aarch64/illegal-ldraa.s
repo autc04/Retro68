@@ -13,7 +13,6 @@
 	ldraa x0, [x1,#5555]
 	ldraa x0, [x1,#-4104]
 	ldraa x0, [xz]
-	ldraa x0, [x1]!
 	ldraa x0, [sp],
 	ldraa x0, [x1,#1]!
 	ldraa x0, [x1,#4]!
@@ -32,7 +31,6 @@
 	ldrab x0, [x1,#5555]
 	ldrab x0, [x1,#-4104]
 	ldrab x0, [xz]
-	ldrab x0, [x1]!
 	ldrab x0, [sp],
 	ldrab x0, [x1,#1]!
 	ldrab x0, [x1,#4]!

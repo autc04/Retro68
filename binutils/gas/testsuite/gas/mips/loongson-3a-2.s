@@ -1,11 +1,6 @@
 	.text
 	.set noreorder
 
-	campi		$2,$3
-	campv		$4,$5
-	camwi		$6,$7,$8
-	ramri		$9,$10
-
 	gsle		$11,$12
 	gsgt		$13,$14
 
@@ -26,18 +21,18 @@
 	gssdle		$20,$21,$22
 	gssdgt		$23,$24,$25
 
-	gslwlec1	$f0,$2,$3        
-	gslwgtc1	$f1,$4,$5  
-	gsldlec1	$f2,$6,$7  
-	gsldgtc1	$f3,$8,$9  
-	gsswlec1	$f4,$10,$11  
+	gslwlec1	$f0,$2,$3
+	gslwgtc1	$f1,$4,$5
+	gsldlec1	$f2,$6,$7
+	gsldgtc1	$f3,$8,$9
+	gsswlec1	$f4,$10,$11
 	gsswgtc1	$f5,$12,$13
 	gssdlec1	$f6,$14,$15
 	gssdgtc1	$f7,$16,$17
 
 	gslwlc1		$f8,0($18)
-	gslwrc1		$f9,1($19) 
-	gsldlc1		$f10,2($20) 
+	gslwrc1		$f9,1($19)
+	gsldlc1		$f10,2($20)
 	gsldrc1		$f11,3($21)
 	gsswlc1		$f12,4($22)
 	gsswrc1		$f13,5($23)
@@ -62,4 +57,3 @@
 	gssq		$13,$14,-4096($15)
 	gslqc1		$f20,$f21,4080($16)
 	gssqc1		$f22,$f23,-4096($17)
-

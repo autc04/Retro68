@@ -19,11 +19,19 @@ _start:
 	blendvpd %xmm0,%xmm1,%xmm0
 	pcmpgtq %xmm1,%xmm0
 
+# SSE4a instruction (no diagnostic)
+	extrq $0, $0, %xmm0
+
 # PCMUL instruction
 	pclmulqdq $-1,%xmm1,%xmm2
 
 # AES instructions
 	aesdec %xmm1,%xmm2
 
+# SHA instruction
+	sha1nexte %xmm0, %xmm0
+
 # GFNI instructions
 	gf2p8mulb %xmm1,%xmm2
+	vgf2p8mulb %xmm0, %xmm0, %xmm0{%k1}
+	vgf2p8mulb %zmm0, %zmm0, %zmm0
