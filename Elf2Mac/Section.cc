@@ -205,7 +205,7 @@ void Section::FixRelocs(bool allowDirectCodeRefs)
                                   << "(" << sym.name << ")"
                                   << "+" << rela.r_offset << std::endl;
                         std::cerr << "needsJT: " << (sym.needsJT ? "true" : "false") << std::endl;
-                        std::cerr << "from addr: " << rela.r_offset << ", exceptionInfoStart: " << exceptionInfoStart << std::endl;
+                        std::cerr << "from addr: " << std::hex << rela.r_offset << ", exceptionInfoStart: " << exceptionInfoStart << std::dec << std::endl;
 
                     }
                     assert(sym.section.get() == this);
