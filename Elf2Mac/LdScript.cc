@@ -261,6 +261,11 @@ void SegmentMap::CreateLdScript(std::ostream &out, string entryPoint, bool strip
         out << "\t.strippedmacsbugnames 0 (NOLOAD) : { *(.text.*.macsbug) }\n";
         out << "\t. = 0;\n";
     }
+
+    int maxId = std::max_element(segments.begin(), segments.end(), [](const auto& a, const auto& b) { return a.id < b.id; })->id;
+    for(int id = 1; id <= maxId; id++)
+        out << "\t.code" << id << " : {}\n";
+
     for(SegmentInfo& seg: segments)
     {
         seg.CreateLdScript(out, entryPoint);
