@@ -70,7 +70,7 @@ bool StreamBasedLauncher::Go(int timeout)
 
     while(!rStream->allDataArrived())
         stream->wait();
-    std::cerr << "Running Appliation..." << std::endl;
+    std::cerr << "Running Application..." << std::endl;
     read(&tmp, 4);
     uint32_t result = ntohl(tmp);
     std::cerr << "Finished (result = " << result << ")." << std::endl;
