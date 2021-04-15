@@ -412,11 +412,11 @@ case "${INTERFACES_KIND}" in
 esac
 
 if [ $BUILD_68K != false ]; then
-	echo "You will find 68K sample appliations in build-target/Samples/."
+	echo "You will find 68K sample applications in build-target/Samples/."
 fi
 if [ $BUILD_PPC != false ]; then
-	echo "You will find PowerPC sample appliations in build-target-ppc/Samples/."
+	echo "You will find PowerPC sample applications in build-target-ppc/Samples/."
 fi
 if [ $BUILD_CARBON != false ]; then
-	echo "You will find Carbon sample appliations in build-target-carbon/Samples/."
+	echo "You will find Carbon sample applications in build-target-carbon/Samples/."
 fi
