@@ -260,8 +260,8 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		# (Elf2Mac is built by cmake below)
 		mv $PREFIX/bin/m68k-apple-macos-ld $PREFIX/bin/m68k-apple-macos-ld.real
 		mv $PREFIX/m68k-apple-macos/bin/ld $PREFIX/m68k-apple-macos/bin/ld.real
-		ln -s $PREFIX/bin/Elf2Mac $PREFIX/bin/m68k-apple-macos-ld
-		ln -s $PREFIX/bin/Elf2Mac $PREFIX/m68k-apple-macos/bin/ld
+		ln -s Elf2Mac $PREFIX/bin/m68k-apple-macos-ld
+		ln -s ../../bin/Elf2Mac $PREFIX/m68k-apple-macos/bin/ld
 
 		if [ $CLEAN_AFTER_BUILD != false ]; then
 			rm -rf binutils-build
