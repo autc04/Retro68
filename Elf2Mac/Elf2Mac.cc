@@ -122,6 +122,10 @@ int main(int argc, char *argv[])
             {
                 elf2mac = true;
             }
+            else if(*p == "-no-elf2mac" || *p == "--no-elf2mac")
+            {
+                elf2mac = false;
+            }
             else if(*p == "-e")
             {
                 ++p;
@@ -207,7 +211,14 @@ int main(int argc, char *argv[])
         }
         else
         {
-            RealLD(args);
+            args2.clear();
+            for(auto a : args)
+            {
+                if(a != "-no-elf2mac" && a != "--no-elf2mac" && a != "-elf2mac" && a != "--elf2mac")
+                    args2.push_back(a);
+            }
+            
+            RealLD(args2);
         }
         return 0;
     }
