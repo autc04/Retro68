@@ -125,11 +125,12 @@ fi
 ##################### Sanity checks
 
 if [ `pwd -P` == "$SRC" ]; then
-	echo "Please do not invoke build-toolchain.sh from the source directory."
+	echo "Please do not invoke `basename $0` from the source directory."
 	echo "Instead, create a separate build directory:"
 	echo "    cd .."
 	echo "    mkdir Retro68-build"
-	echo "    ../`basename $SRC`/build-toolchain.sh"
+	echo "    cd Retro68-build"
+	echo "    ../`basename $SRC`/`basename $0`"
 	exit 1
 fi
 
