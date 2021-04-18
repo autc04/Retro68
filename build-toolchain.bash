@@ -160,7 +160,7 @@ if [ $SKIP_THIRDPARTY != false ]; then
 		if [ ! -d binutils-build-ppc ]; then MISSING=true; fi
 		if [ ! -d gcc-build-ppc ]; then MISSING=true; fi
 	fi
-	if [ $SKIP_HFSUTILS != false -a ! -d hfsutils ]; then MISSING=true; fi
+	if [ $SKIP_HFSUTILS = false -a ! -d hfsutils ]; then MISSING=true; fi
 
 	if [ $MISSING != false ]; then
 		echo "Not all third-party components have been built yet, ignoring --skip-thirdparty."
@@ -312,7 +312,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 	unset LDFLAGS
 
 	if [ $SKIP_HFSUTILS != false ]; then
-		# Build hfsutil
+		# Build hfsutils
 		mkdir -p $PREFIX/lib
 		mkdir -p $PREFIX/share/man/man1
 		mkdir -p hfsutils
