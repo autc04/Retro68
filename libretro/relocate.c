@@ -207,7 +207,6 @@ void Retro68Relocate()
     rState->hasStripAddr = hasStripAddr;
     rState->hasFlushCodeCache = hasFlushCodeCache;
 
-    // Locate the start of the FLT file header inside the code resource
     uint8_t *orig_stext, *orig_etext, *orig_sdata, *orig_edata, *orig_sbss, *orig_ebss;
     
     GET_VIRTUAL_ADDRESS(orig_stext, _stext);
