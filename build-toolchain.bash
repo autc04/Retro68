@@ -311,7 +311,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 	unset CPPFLAGS
 	unset LDFLAGS
 
-	if [ $SKIP_HFSUTILS != false ]; then
+	if [ $SKIP_HFSUTILS = false ]; then
 		# Build hfsutils
 		mkdir -p $PREFIX/lib
 		mkdir -p $PREFIX/share/man/man1
