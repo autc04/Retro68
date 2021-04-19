@@ -191,15 +191,15 @@ int main(int argc, char *argv[])
                     CreateFlatLdScript(out, entryPoint, stripMacsbug);
                 }
             }
+            if(saveLdScript)
+                std::cerr << "Ld Script at: " << tmpfile << std::endl;
 
             args2.push_back("-o");
             args2.push_back(outputFile + ".gdb");
             args2.push_back("-T");
             args2.push_back(tmpfile);
             RealLD(args2);
-            if(saveLdScript)
-                std::cerr << "Ld Script at: " << tmpfile << std::endl;
-            else
+            if(!saveLdScript)
                 unlink(tmpfile);
             Object theObject(outputFile + ".gdb");
             if(flatoutput)
