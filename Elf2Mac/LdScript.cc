@@ -29,6 +29,11 @@ using std::string;
 
 const char * scriptStart = R"ld(/* ld script for Elf2Mac */
 ENTRY( @entryPoint@ )
+PHDRS
+{
+    text PT_LOAD;
+    bss PT_LOAD;
+}
 SECTIONS
 {
 )ld";
@@ -83,7 +88,7 @@ const char * textSection = R"ld(/* ld script for Elf2Mac */
         */
         . = ALIGN(0x4) ;
         _etext = . ;
-    }
+    } : text
 )ld";
 
 const char * scriptEnd = R"ld(
@@ -120,7 +125,7 @@ const char * scriptEnd = R"ld(
 
         . = ALIGN(0x4);
         _edata = . ;
-    }
+    } : @data_segment@
     .bss ALIGN(0x4) : {
         _sbss = .;
         *(.dynsbss)
@@ -135,7 +140,7 @@ const char * scriptEnd = R"ld(
         *(COMMON)
         . = ALIGN(0x10) ;
         _ebss = . ;
-    }
+    } : @bss_segment@
     /* /DISCARD/ : { 
         *(.debug_info);
         *(.debug_abbrev);
@@ -158,7 +163,8 @@ void CreateFlatLdScript(std::ostream& out, string entryPoint, bool stripMacsbug)
         out << "\t.strippedmacsbugnames 0 (NOLOAD) : { *(.text.*.macsbug) }\n";
         out << "\t. = 0;\n";
     }
-    out << boost::replace_all_copy<string>(textSection, "@entryPoint@", entryPoint) << scriptEnd;
+    out << boost::replace_all_copy<string>(textSection, "@entryPoint@", entryPoint) << 
+        boost::replace_all_copy<string>(boost::replace_all_copy<string>(scriptEnd, "@data_segment@", "text"), "@bss_segment@", "bss");
 }
 
 
@@ -248,28 +254,38 @@ void SegmentInfo::CreateLdScript(std::ostream &out, string entryPoint)
 )ld", "@N@", boost::lexical_cast<string>(id));
     }
 
-    out << "\t}\n";
+    out << "\t} : code" << id << "\n";
 
 }
 
 void SegmentMap::CreateLdScript(std::ostream &out, string entryPoint, bool stripMacsbug)
 {
+    int maxId = std::max_element(segments.begin(), segments.end(), [](const auto& a, const auto& b) { return a.id < b.id; })->id;
+
+    out << "/* ld script for Elf2Mac */\n";
     out << "_MULTISEG_APP = 1;\n";
-    out << boost::replace_all_copy<string>(scriptStart, "@entryPoint@", entryPoint);
+    out << "ENTRY( " << entryPoint << " )\n";
+    out << "PHDRS\n{\n";
+    for(int id = 1; id <= maxId; id++)
+        out << "code" << id << " PT_LOAD" << ";\n";
+    out << "data" << " PT_LOAD" << ";\n";
+    out << "}\nSECTIONS\n{\n";
+
     if(stripMacsbug)
     {
         out << "\t.strippedmacsbugnames 0 (NOLOAD) : { *(.text.*.macsbug) }\n";
         out << "\t. = 0;\n";
     }
 
-    int maxId = std::max_element(segments.begin(), segments.end(), [](const auto& a, const auto& b) { return a.id < b.id; })->id;
     for(int id = 1; id <= maxId; id++)
-        out << "\t.code" << id << " : {}\n";
+        out << "\t.code" << id << " : {} :code" << id << "\n";
+    out << "\t.data" << " : {} :data" << "\n";
+    out << "\t.bss" << " : {} :data" << "\n";
 
     for(SegmentInfo& seg: segments)
     {
         seg.CreateLdScript(out, entryPoint);
     }
 
-    out << scriptEnd;
+    out << boost::replace_all_copy<string>(boost::replace_all_copy<string>(scriptEnd, "@data_segment@", "data"), "@bss_segment@", "data");
 }
