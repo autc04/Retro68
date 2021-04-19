@@ -285,6 +285,12 @@ init_objfile_sect_indices (struct objfile *objfile)
   sect = bfd_get_section_by_name (objfile->obfd, ".text");
   if (sect)
     objfile->sect_index_text = sect->index;
+  else
+  {
+    sect = bfd_get_section_by_name (objfile->obfd, ".code2");
+    if (sect)
+      objfile->sect_index_text = sect->index;
+  }
 
   sect = bfd_get_section_by_name (objfile->obfd, ".data");
   if (sect)
@@ -703,6 +709,21 @@ default_symfile_offsets (struct objfile *objfile,
 					offsets[cur_sec->index]);
 	      offsets[cur_sec->index] = 0;
 	    }
+	}
+    }
+  else
+    {
+      bfd *abfd = objfile->obfd;
+      section_offsets &offsets = objfile->section_offsets;
+      asection *cur_sec;
+
+      for (cur_sec = abfd->sections; cur_sec != NULL;
+	   cur_sec = cur_sec->next)
+	{
+	  if ((bfd_section_flags (cur_sec) & SEC_ALLOC) == 0)
+	    continue;
+	  uint32_t vma = cur_sec->vma;
+	  offsets[cur_sec->index] -= vma;
 	}
     }
 
