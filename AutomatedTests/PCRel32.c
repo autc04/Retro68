@@ -1,10 +1,13 @@
 #include "Test.h"
 #include <stdlib.h>
 
+#pragma GCC push_options
+#pragma GCC optimize ("O2", "omit-frame-pointer")
 __attribute__((noinline)) static void* foo(size_t x)
 {
     return malloc(x);  
 }
+#pragma GCC pop_options
 
 int main()
 {
