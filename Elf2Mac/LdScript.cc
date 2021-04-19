@@ -277,11 +277,6 @@ void SegmentMap::CreateLdScript(std::ostream &out, string entryPoint, bool strip
         out << "\t. = 0;\n";
     }
 
-    for(int id = 1; id <= maxId; id++)
-        out << "\t.code" << id << " : {} :code" << id << "\n";
-    out << "\t.data" << " : {} :data" << "\n";
-    out << "\t.bss" << " : {} :data" << "\n";
-
     for(SegmentInfo& seg: segments)
     {
         seg.CreateLdScript(out, entryPoint);
