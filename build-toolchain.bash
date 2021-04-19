@@ -113,15 +113,6 @@ for ARG in $*; do
 	esac
 done
 
-ARCHS=""
-if [ $BUILD_68K != false ]; then
-	ARCHS="$ARCHS m68k"
-fi
-if [ $BUILD_PPC != false ]; then
-	ARCHS="$ARCHS powerpc"
-fi
-
-
 ##################### Sanity checks
 
 if [ `pwd -P` == "$SRC" ]; then
