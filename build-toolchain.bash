@@ -204,7 +204,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 	if [ `uname` = Darwin ]; then
 			# present-day Mac users are likely to install dependencies
 			# via the homebrew package manager
-		if [ `uname -m` = arm64 ]; then
+		if [ "`uname -m`" = arm64 ]; then
 			export CPPFLAGS="-I/opt/homebrew/include"
 			export LDFLAGS="-L/opt/homebrew/lib"
 		else
