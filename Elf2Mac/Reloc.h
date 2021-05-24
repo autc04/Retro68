@@ -31,8 +31,7 @@ enum class RelocBase
     code = 0,
     data,
     bss,
-    jumptable,
-    code1
+    jumptable
 };
 
 class Reloc : public GElf_Rela
