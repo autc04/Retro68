@@ -3709,7 +3709,7 @@ symfile_map_offsets_to_segments (bfd *abfd,
       if (which > num_segment_bases)
         which = num_segment_bases;
 
-      offsets[i] = segment_bases[which - 1] - data->segments[which - 1].base;
+      offsets[i] = segment_bases[which - 1] - data->segments[which - 1].base + sect->vma;
     }
 
   return 1;
