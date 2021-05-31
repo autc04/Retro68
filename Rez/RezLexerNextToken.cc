@@ -2,6 +2,7 @@
 #include "RezLexerWaveToken.h"
 #include "RezParser.generated.hh"
 #include <unordered_map>
+#include <sstream>
 
 #include <boost/regex.hpp>
 
