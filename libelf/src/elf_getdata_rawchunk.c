@@ -41,7 +41,7 @@
 #include "common.h"
 
 Elf_Data *
-elf_getdata_rawchunk (Elf *elf, off_t offset, size_t size, Elf_Type type)
+elf_getdata_rawchunk (Elf *elf, int64_t offset, size_t size, Elf_Type type)
 {
   if (unlikely (elf == NULL))
     return NULL;
