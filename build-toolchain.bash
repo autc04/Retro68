@@ -163,7 +163,7 @@ if [ $SKIP_THIRDPARTY != false ]; then
 	if [ $WITH_SYSTEM_HFSUTILS = false -a ! -d hfsutils ]; then MISSING=true; fi
 
 	if [ $MISSING != false ]; then
-		echo "Not all third-party components have been built yet, ignoring --skip-thirdparty."
+		echo "Not all third-party components have been built yet; ignoring --skip-thirdparty and --with-system-hfsutils."
 		SKIP_THIRDPARTY=false
 	fi
 fi
