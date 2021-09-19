@@ -276,7 +276,12 @@ int _gettimeofday_r(struct _reent *reent, struct timeval *tp, void *__tz)
 
     if(tp)
     {
-        tp->tv_sec = secs - 86400 * (365 * 66 + 66/4);
+        const int epochDifferenceInYears = 1970 - 1904;
+        const int epochDifferenceInDays =
+            365 * epochDifferenceInYears
+            + (epochDifferenceInYears + 3)/ 4;  // round up for leap years
+
+        tp->tv_sec = secs - 86400 * epochDifferenceInDays;
         tp->tv_usec = (ticks - savedTicks) * 20000000 / 2003;
     }
 
