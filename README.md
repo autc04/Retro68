@@ -41,8 +41,7 @@ For Ubuntu Linux, the following should help a bit:
 
 On a Mac, get the homebrew package manager and:
 
-    brew install boost
-    brew install cmake gmp mpfr libmpc bison
+    brew install boost cmake gmp mpfr libmpc bison
 
 You can also run Retro68 on a PowerMac G4 or G5 running Mac OS 10.4 (Tiger).
 In that case, get the tigerbrew package manager and
@@ -115,8 +114,7 @@ Note that compilation via Cygwin is around 3X slower than other platforms.
 Once you have all the prerequisites, execute these commands from the top level
 of the Retro68 directory:
 
-    cd ..
-    mkdir Retro68-build
+    mkdir ../Retro68-build
     cd Retro68-build
     ../Retro68/build-toolchain.bash
 
