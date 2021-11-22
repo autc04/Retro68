@@ -24,7 +24,63 @@
           overlays = [ self.overlay ];
         });
 
+      retroSystems = {
+        m68k = {
+          system = "m68k-macos";
+          config = "m68k-apple-macos";
+          libc = "retro68";
+          parsed = {
+            cpu = {
+              name = "m68k";
+              bits = 32;
+              significantByte = { name = "bigEndian"; };
+              family = "m68k";
+            };
+            kernel = {
+              name = "macos";
+              execFormat = { name = "unknown"; };
+            };
+          };
+          bfdEmulation = "m68k";
+        };
+        powerpc = {
+          system = "powerpc-macos";
+          config = "powerpc-apple-macos";
+          libc = "newlib";
+          parsed = {
+            cpu = {
+              name = "powerpc";
+              bits = 32;
+              significantByte = { name = "bigEndian"; };
+              family = "power";
+            };
+            kernel = {
+              name = "macos";
+              execFormat = { name = "unknown"; };
+            };
+          };
+        };
+        carbon = {
+          system = "powerpc-carbon";
+          config = "powerpc-apple-carbon";
+          libc = "newlib";
+          parsed = {
+            cpu = {
+              name = "powerpc";
+              bits = 32;
+              significantByte = { name = "bigEndian"; };
+              family = "power";
+            };
+            kernel = {
+              name = "carbon";
+              execFormat = { name = "unknown"; };
+            };
+          };
+        };
+      };
+
     in {
+      inherit retroSystems;
 
       # A Nixpkgs overlay.
       overlay = pkgs: prev:
@@ -39,6 +95,17 @@
               configureFlags = [ "--target=m68k-apple-macos" "--disable-doc" ];
               enableParallelBuilding = true;
             };
+          retro68_binutils_m68k_wrapped = pkgs.wrapBintoolsWith { bintools = pkgs.retro68_binutils_m68k; noLibc = true; };
+
+          binutils = if pkgs.stdenv.targetPlatform.system == "m68k-macos" then
+              pkgs.wrapBintoolsWith { bintools = pkgs.retro68_binutils_m68k;  }
+            else prev.binutils;
+
+          gcc = if pkgs.stdenv.targetPlatform.system == "m68k-macos" then
+              pkgs.wrapCC pkgs.retro68_gcc_m68k
+            else prev.gcc;
+
+          libcCrossChooser = name: if name == "retro68" then null else prev.libcCrossChooser name;
 
           retro68_gcc_m68k = with pkgs;
             stdenv.mkDerivation {
@@ -102,18 +169,18 @@
             stdenv.mkDerivation {
               name = "retro68_tools";
               src = nix-gitignore.gitignoreSource [
-                  "/*"
-                  "!/CMakeLists.txt"
-                  "!/libelf"  # should perhaps use nixpkg's libelf instead?
-                  "!/cmake"
-                  "!/LaunchAPPL"
-                  "!/libretro"
-                  "!/PEFTools"
-                  "!/ResourceFiles"
-                  "!/Rez"
-                  "!/Elf2Mac"
-                  "!/ConvertObj"
-                  "!/ConvertDiskImage"
+                "/*"
+                "!/CMakeLists.txt"
+                "!/libelf" # should perhaps use nixpkg's libelf instead?
+                "!/cmake"
+                "!/LaunchAPPL"
+                "!/libretro"
+                "!/PEFTools"
+                "!/ResourceFiles"
+                "!/Rez"
+                "!/Elf2Mac"
+                "!/ConvertObj"
+                "!/ConvertDiskImage"
               ] self;
 
               nativeBuildInputs = [ cmake bison flex ];
@@ -170,6 +237,8 @@
               # '';
             };
 
+          newlib = null;
+
         };
 
       # Provide some binary packages for selected system types.
@@ -177,6 +246,31 @@
         inherit (nixpkgsFor.${system})
           retro68_binutils_m68k retro68_gcc_m68k multiversal hfsutils
           libretro_m68k retro68_tools;
+
+        crosstest = let pkgs =
+          import nixpkgs {
+            inherit system;
+            overlays = [ self.overlay ];
+            crossSystem = retroSystems.m68k;
+          };
+          in
+          pkgs.stdenv.mkDerivation {
+            #nativeBuildInputs = [pkgs.binutils]; # [nixpkgsFor.${system}.retro68_binutils_m68k_wrapped];
+            name = builtins.trace (pkgs.stdenvNoCC.targetPlatform) "crosstest";
+            meta = { platforms = [ "m68k-macos" ]; };
+          };
+
+        mingtest = let pkgs =
+          import nixpkgs {
+            inherit system;
+            overlays = [ self.overlay ];
+            crossSystem = { config = "x86_64-w64-mingw32"; };
+          };
+          in
+          pkgs.stdenv.mkDerivation {
+            name = "mingtest";
+            meta = { platforms = pkgs.lib.platforms.all; };
+          };
       });
 
       # The default package for 'nix build'. This makes sense if the
