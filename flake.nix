@@ -95,10 +95,6 @@
               configureFlags = [ "--target=m68k-apple-macos" "--disable-doc" ];
               enableParallelBuilding = true;
             };
-          retro68_binutils_m68k_wrapped = pkgs.wrapBintoolsWith {
-            bintools = pkgs.retro68_binutils_m68k;
-            noLibc = true;
-          };
 
           binutils = if pkgs.stdenv.targetPlatform.system == "m68k-macos" then
             pkgs.wrapBintoolsWith { bintools = pkgs.retro68_binutils_m68k; }
@@ -220,56 +216,6 @@
                 cmake --build . --target install
               '';
               meta = { platforms = [ "m68k-macos" ]; };
-            };
-
-          libretro_m68k = with pkgs;
-            let
-              #toolchainFile = retro68_gcc_m68k + "/m68k-apple-macos/cmake/retro68.toolchain.cmake";
-
-              toolchainFile = writeText "toolchain.cmake" ''
-                set( CMAKE_SYSTEM_NAME Retro68 )
-                set( CMAKE_SYSTEM_VERSION 1)
-
-                #set( REZ "@CMAKE_BINARY_DIR@/Rez/Rez" )
-                #set( REZ_INCLUDE_PATH "${retro68_gcc_m68k}/RIncludes" )
-
-                set( CMAKE_C_COMPILER "${retro68_gcc_m68k}/bin/m68k-apple-macos-gcc" )
-                set( CMAKE_CXX_COMPILER "${retro68_gcc_m68k}/bin/m68k-apple-macos-g++" )
-
-                set( CMAKE_C_STANDARD_INCLUDE_DIRECTORIES "${multiversal}/CIncludes" )
-                set( CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES "${multiversal}/CIncludes" )
-
-                list( APPEND CMAKE_MODULE_PATH "${self}/cmake" )
-
-              '';
-            in pkgs.stdenvNoCC.mkDerivation {
-              name = "libretro_m68k";
-              src = filterSrc (self + /libretro);
-
-              nativeBuildInputs = with pkgs; [
-                cmake
-                gnumake
-                retro68_gcc_m68k
-                retro68_binutils_m68k
-                multiversal
-              ];
-
-              buildCommand = ''
-                echo "Build command."
-                cmake $src \
-                        -DCMAKE_TOOLCHAIN_FILE=${toolchainFile} \
-                        -DCMAKE_INSTALL_PREFIX=$out \
-                        -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
-                        -DCMAKE_BUILD_TYPE=Release
-                cmake --build .
-                cmake --build . --target install
-              '';
-
-              # buildCommand = ''
-              #   echo "Hello, world."
-              #   #cmake $src -DCMAKE_MAKE_PROGRAM=${gnumake + "/bin/make"} -DCMAKE_TOOLCHAIN_FILE=${gcc_m68k + "/m68k-apple-macos/cmake/retro68.toolchain.cmake"}
-              #   cmake --build .
-              # '';
             };
         };
 
