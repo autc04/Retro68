@@ -42,11 +42,12 @@
             };
           };
           bfdEmulation = "m68k";
+          isStatic = true;
         };
         powerpc = {
           system = "powerpc-macos";
           config = "powerpc-apple-macos";
-          libc = "newlib";
+          libc = "retro68";
           parsed = {
             cpu = {
               name = "powerpc";
@@ -63,7 +64,7 @@
         carbon = {
           system = "powerpc-carbon";
           config = "powerpc-apple-carbon";
-          libc = "newlib";
+          libc = "retro68";
           parsed = {
             cpu = {
               name = "powerpc";
@@ -80,8 +81,6 @@
       };
 
     in {
-      inherit retroSystems;
-
       # A Nixpkgs overlay.
       overlay = pkgs: prev:
         let filterSrc = pkgs.nix-gitignore.gitignoreSource [ ];
@@ -96,8 +95,24 @@
               enableParallelBuilding = true;
             };
 
+          retro68_binutils_m68k_with_tools = with pkgs;
+            symlinkJoin {
+              name = "retro68_buinutils_m68k_with_tools";
+              paths = [ retro68_binutils_m68k buildPackages.retro68_tools ];
+
+              # Move the real linker aside and install symlinks to Elf2Mac
+              postBuild = ''
+                mv $out/bin/m68k-apple-macos-ld $out/bin/m68k-apple-macos-ld.real
+                mv $out/m68k-apple-macos/bin/ld $out/m68k-apple-macos/bin/ld.real
+                ln -s $out/bin/Elf2Mac $out/bin/m68k-apple-macos-ld
+                ln -s $out/bin/Elf2Mac $out/m68k-apple-macos/bin/ld
+              '';
+            };
+
           binutils = if pkgs.stdenv.targetPlatform.system == "m68k-macos" then
-            pkgs.wrapBintoolsWith { bintools = pkgs.retro68_binutils_m68k; }
+            pkgs.wrapBintoolsWith {
+              bintools = pkgs.retro68_binutils_m68k_with_tools;
+            }
           else
             prev.binutils;
 
@@ -107,6 +122,7 @@
               extraBuildCommands = ''
                 echo "" > $out/nix-support/add-hardening.sh
               '';
+              extraPackages = with pkgs.targetPackages; [ multiversal libretro ];
             }
           else
             prev.gcc;
@@ -118,7 +134,8 @@
             stdenv.mkDerivation {
               name = "retro68_gcc_m68k";
               src = filterSrc (self + /gcc);
-              buildInputs = [ retro68_binutils_m68k gmp mpfr libmpc ];
+              buildInputs =
+                [ retro68_binutils_m68k_with_tools gmp mpfr libmpc ];
               configureFlags = [
                 "--target=m68k-apple-macos"
                 "--enable-languages=c,c++"
@@ -133,7 +150,7 @@
               # nix does in-source builds by default, and something breaks
               buildCommand = ''
                 mkdir -p $out/m68k-apple-macos/bin
-                ln -s ${retro68_binutils_m68k}/m68k-apple-macos/bin/* $out/m68k-apple-macos/bin/
+                ln -s ${retro68_binutils_m68k_with_tools}/m68k-apple-macos/bin/* $out/m68k-apple-macos/bin/
 
                 export target_configargs="--disable-nls --enable-libstdcxx-dual-abi=no --disable-libstdcxx-verbose"
                 $src/configure "--target=m68k-apple-macos" "--enable-languages=c,c++" "--with-arch=m68k" "--with-cpu=m68000" "--disable-libssp" "MAKEINFO=missing" --prefix=$out
@@ -143,14 +160,10 @@
             };
 
           multiversal = with pkgs;
-            stdenvNoCC.mkDerivation {
+            (pkgs.stdenv.override { cc = stdenv.cc.override { extraPackages = []; }; }).mkDerivation {
               name = "multiversal";
               src = multiversal_src;
-              nativeBuildInputs = [
-                buildPackages.ruby
-                buildPackages.retro68_gcc_m68k
-                buildPackages.retro68_binutils_m68k
-              ];
+              nativeBuildInputs = [ buildPackages.ruby ];
               buildCommand = ''
                 echo $src
                 build=`pwd`
@@ -199,11 +212,11 @@
             };
 
           libretro = with pkgs;
-            pkgs.stdenv.mkDerivation {
+            (pkgs.stdenv.override { cc = stdenv.cc.override { extraPackages = []; }; }).mkDerivation {
               name = "libretro";
               src = filterSrc (self + /libretro);
 
-              nativeBuildInputs = with pkgs; [ buildPackages.cmake ];
+              nativeBuildInputs = [ buildPackages.cmake ];
               buildInputs = [ multiversal ];
 
               buildCommand = ''
@@ -220,20 +233,22 @@
         };
 
       # Provide some binary packages for selected system types.
-      packages = forAllSystems (system: {
+      packages = forAllSystems (system: rec {
         inherit (nixpkgsFor.${system})
           retro68_binutils_m68k retro68_gcc_m68k multiversal hfsutils
           libretro_m68k retro68_tools;
 
-        crosstest = let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [ self.overlay ];
-            crossSystem = retroSystems.m68k;
-          };
+        crossPkgs = (import nixpkgs { inherit system; }).lib.mapAttrs
+          (name: plat:
+            import nixpkgs {
+              inherit system;
+              overlays = [ self.overlay ];
+              crossSystem = plat;
+              config = { allowUnsupportedSystem = true; };
+            }) retroSystems;
+
+        crosstest = let pkgs = crossPkgs.m68k;
         in pkgs.stdenv.mkDerivation {
-          #nativeBuildInputs = [pkgs.binutils]; # [nixpkgsFor.${system}.retro68_binutils_m68k_wrapped];
-          buildInputs = [ pkgs.multiversal pkgs.libretro ];
           name = "crosstest";
           meta = { platforms = [ "m68k-macos" ]; };
         };
