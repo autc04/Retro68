@@ -122,7 +122,7 @@
                   ln -s $out/bin/Elf2Mac $out/m68k-apple-macos/bin/ld
                 '';
               }
-            else binutils1;
+            else retro68_binutils;
 
           binutils = if pkgs.stdenv.targetPlatform ? retro68 then
             pkgs.wrapBintoolsWith {
@@ -173,7 +173,7 @@
             };
 
           multiversal = with pkgs;
-            (pkgs.stdenv.override { cc = stdenv.cc.override { extraPackages = []; }; }).mkDerivation {
+            (stdenv.override { cc = stdenv.cc.override { extraPackages = []; }; }).mkDerivation {
               name = "multiversal";
               src = multiversal_src;
               nativeBuildInputs = [ buildPackages.ruby ];
@@ -183,8 +183,13 @@
                 (cd $src && ruby make-multiverse.rb -G CIncludes -o "$build")
                 mkdir $out
                 cp -r CIncludes $out/include
+              ''
+              + (if stdenv.targetPlatform.system == "m68k-macos" then
+              ''
                 cp -r lib68k $out/lib
-              '';
+              ''
+              else "")
+              ;
               meta = { platforms = [ "m68k-macos" ]; };
             };
 
