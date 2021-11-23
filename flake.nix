@@ -270,17 +270,6 @@
           name = "crosstest";
           meta = { platforms = [ "m68k-macos" ]; };
         };
-
-        mingtest = let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [ self.overlay ];
-            crossSystem = { config = "x86_64-w64-mingw32"; };
-          };
-        in pkgs.stdenv.mkDerivation {
-          name = "mingtest";
-          meta = { platforms = pkgs.lib.platforms.all; };
-        };
       });
 
       # The default package for 'nix build'. This makes sense if the
