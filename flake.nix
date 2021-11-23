@@ -64,6 +64,7 @@
             };
           };
 
+          isStatic = true;
           retro68BinutilsConfig = ["--disable-plugins"];
           retro68GccConfig = ["--disable-lto"];
           retro68 = true;
@@ -86,6 +87,7 @@
           };
         };
 
+        isStatic = true;
         retro68BinutilsConfig = ["--disable-plugins"];
         retro68GccConfig = ["--disable-lto"];
         retro68 = true;
@@ -188,7 +190,11 @@
               ''
                 cp -r lib68k $out/lib
               ''
-              else "")
+              else
+              ''
+                mkdir $out/lib
+                cp -r ${self + "/ImportLibraries/*.a"} $out/lib/
+              '')
               ;
               meta = { platforms = [ "m68k-macos" ]; };
             };
