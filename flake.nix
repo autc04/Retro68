@@ -43,6 +43,9 @@
           };
           bfdEmulation = "m68k";
           isStatic = true;
+
+          retro68GccConfig = ["--with-arch=m68k" "--with-cpu=m68000"];
+          retro68 = true;
         };
         powerpc = {
           system = "powerpc-macos";
@@ -60,6 +63,10 @@
               execFormat = { name = "unknown"; };
             };
           };
+
+          retro68BinutilsConfig = ["--disable-plugins"];
+          retro68GccConfig = ["--disable-lto"];
+          retro68 = true;
         };
         carbon = {
           system = "powerpc-carbon";
@@ -78,7 +85,12 @@
             };
           };
         };
+
+        retro68BinutilsConfig = ["--disable-plugins"];
+        retro68GccConfig = ["--disable-lto"];
+        retro68 = true;
       };
+
 
     in {
       # A Nixpkgs overlay.
@@ -86,39 +98,42 @@
         let filterSrc = pkgs.nix-gitignore.gitignoreSource [ ];
         in {
 
-          retro68_binutils_m68k = with pkgs;
+          retro68_binutils = with pkgs;
             stdenv.mkDerivation rec {
-              name = "retro68_binutils_m68k";
+              name = "retro68_binutils";
               src = filterSrc (self + /binutils);
 
-              configureFlags = [ "--target=m68k-apple-macos" "--disable-doc" ];
+              configureFlags = [ "--target=${stdenv.targetPlatform.config}" "--disable-doc" ]
+                ++ stdenv.targetPlatform.retro68BinutilsConfig or [];
               enableParallelBuilding = true;
             };
 
-          retro68_binutils_m68k_with_tools = with pkgs;
-            symlinkJoin {
-              name = "retro68_buinutils_m68k_with_tools";
-              paths = [ retro68_binutils_m68k buildPackages.retro68_tools ];
+          retro68_binutils_with_tools = with pkgs; if stdenv.targetPlatform.system == "m68k-macos"
+            then
+              symlinkJoin {
+                name = "retro68_binutils_with_tools";
+                paths = [ retro68_binutils buildPackages.retro68_tools ];
 
-              # Move the real linker aside and install symlinks to Elf2Mac
-              postBuild = ''
-                mv $out/bin/m68k-apple-macos-ld $out/bin/m68k-apple-macos-ld.real
-                mv $out/m68k-apple-macos/bin/ld $out/m68k-apple-macos/bin/ld.real
-                ln -s $out/bin/Elf2Mac $out/bin/m68k-apple-macos-ld
-                ln -s $out/bin/Elf2Mac $out/m68k-apple-macos/bin/ld
-              '';
-            };
+                # Move the real linker aside and install symlinks to Elf2Mac
+                postBuild = ''
+                  mv $out/bin/m68k-apple-macos-ld $out/bin/m68k-apple-macos-ld.real
+                  mv $out/m68k-apple-macos/bin/ld $out/m68k-apple-macos/bin/ld.real
+                  ln -s $out/bin/Elf2Mac $out/bin/m68k-apple-macos-ld
+                  ln -s $out/bin/Elf2Mac $out/m68k-apple-macos/bin/ld
+                '';
+              }
+            else binutils1;
 
-          binutils = if pkgs.stdenv.targetPlatform.system == "m68k-macos" then
+          binutils = if pkgs.stdenv.targetPlatform ? retro68 then
             pkgs.wrapBintoolsWith {
-              bintools = pkgs.retro68_binutils_m68k_with_tools;
+              bintools = pkgs.retro68_binutils_with_tools;
             }
           else
             prev.binutils;
 
-          gcc = if pkgs.stdenv.targetPlatform.system == "m68k-macos" then
+          gcc = if pkgs.stdenv.targetPlatform ? retro68 then
             pkgs.wrapCCWith {
-              cc = pkgs.retro68_gcc_m68k;
+              cc = pkgs.retro68_gcc;
               extraBuildCommands = ''
                 echo "" > $out/nix-support/add-hardening.sh
               '';
@@ -130,30 +145,28 @@
           libcCrossChooser = name:
             if name == "retro68" then null else prev.libcCrossChooser name;
 
-          retro68_gcc_m68k = with pkgs;
-            stdenv.mkDerivation {
-              name = "retro68_gcc_m68k";
+          retro68_gcc = with pkgs;
+            stdenv.mkDerivation rec {
+              name = "retro68_gcc";
               src = filterSrc (self + /gcc);
               buildInputs =
-                [ retro68_binutils_m68k_with_tools gmp mpfr libmpc ];
+                [ retro68_binutils_with_tools gmp mpfr libmpc ];
               configureFlags = [
-                "--target=m68k-apple-macos"
+                "--target=${stdenv.targetPlatform.config}"
                 "--enable-languages=c,c++"
-                "--with-arch=m68k"
-                "--with-cpu=m68000"
                 "--disable-libssp"
                 "MAKEINFO=missing"
-              ];
+              ]++ stdenv.targetPlatform.retro68GccConfig or [];
               hardeningDisable = [ "format" ];
               enableParallelBuilding = true;
 
               # nix does in-source builds by default, and something breaks
               buildCommand = ''
-                mkdir -p $out/m68k-apple-macos/bin
-                ln -s ${retro68_binutils_m68k_with_tools}/m68k-apple-macos/bin/* $out/m68k-apple-macos/bin/
+                mkdir -p $out/${stdenv.targetPlatform.config}/bin
+                ln -s ${retro68_binutils_with_tools}/${stdenv.targetPlatform.config}/bin/* $out/${stdenv.targetPlatform.config}/bin/
 
                 export target_configargs="--disable-nls --enable-libstdcxx-dual-abi=no --disable-libstdcxx-verbose"
-                $src/configure "--target=m68k-apple-macos" "--enable-languages=c,c++" "--with-arch=m68k" "--with-cpu=m68000" "--disable-libssp" "MAKEINFO=missing" --prefix=$out
+                $src/configure ${builtins.toString configureFlags} --prefix=$out
                 make -j$NIX_BUILD_CORES
                 make install
               '';
