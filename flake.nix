@@ -154,32 +154,29 @@
                 [ "--target=${stdenv.targetPlatform.config}" "--disable-doc" ]
                 ++ stdenv.targetPlatform.retro68BinutilsConfig or [ ];
               enableParallelBuilding = true;
+
+              postInstall = let
+                ld = "$out/bin/${stdenv.targetPlatform.config}-ld";
+                ld_real = "$out/bin/${stdenv.targetPlatform.config}-ld.real";
+
+              in ''
+                mv ${ld} ${ld_real}
+              
+                echo "#!${stdenv.shell}" > ${ld}
+                echo "exec \$'' + ''{RETRO68_LD_WRAPPER_${stdenv.targetPlatform.cmakeSystemName}-${ld_real}} \"\$@\"" >> ${ld}
+                chmod +x ${ld}
+
+                rm $out/${stdenv.targetPlatform.config}/bin/ld
+                ln -s ${ld} $out/${stdenv.targetPlatform.config}/bin/ld
+              '';
             };
-
-          # retro68_binutils_with_tools -- binutils with ld wrapped by retro68_tools.Elf2Mac
-          retro68_binutils_with_tools = with pkgs;
-            if stdenv.targetPlatform.system == "m68k-macos" then
-              symlinkJoin {
-                name = "retro68_binutils_with_tools";
-                paths = [ retro68_binutils buildPackages.retro68_tools ];
-
-                # Move the real linker aside and install symlinks to Elf2Mac
-                postBuild = ''
-                  mv $out/bin/m68k-apple-macos-ld $out/bin/m68k-apple-macos-ld.real
-                  mv $out/m68k-apple-macos/bin/ld $out/m68k-apple-macos/bin/ld.real
-                  ln -s $out/bin/Elf2Mac $out/bin/m68k-apple-macos-ld
-                  ln -s $out/bin/Elf2Mac $out/m68k-apple-macos/bin/ld
-                '';
-              }
-            else
-              retro68_binutils;
 
           # retro68_gcc -- gcc, without any wrappers
           retro68_gcc = with pkgs;
             stdenv.mkDerivation rec {
               name = "retro68_gcc";
               src = filterSrc (self + /gcc);
-              buildInputs = [ retro68_binutils_with_tools gmp mpfr libmpc ];
+              buildInputs = [ retro68_binutils gmp mpfr libmpc ];
               configureFlags = [
                 "--target=${stdenv.targetPlatform.config}"
                 "--enable-languages=c,c++"
@@ -192,7 +189,7 @@
               # nix does in-source builds by default, and something breaks
               buildCommand = ''
                 mkdir -p $out/${stdenv.targetPlatform.config}/bin
-                ln -s ${retro68_binutils_with_tools}/${stdenv.targetPlatform.config}/bin/* $out/${stdenv.targetPlatform.config}/bin/
+                ln -s ${retro68_binutils}/${stdenv.targetPlatform.config}/bin/* $out/${stdenv.targetPlatform.config}/bin/
 
                 export target_configargs="--disable-nls --enable-libstdcxx-dual-abi=no --disable-libstdcxx-verbose"
                 $src/configure ${builtins.toString configureFlags} --prefix=$out
@@ -206,7 +203,7 @@
           # binutils -- binutils with the wrappers provided by nixpkgs 
           binutils = if pkgs.stdenv.targetPlatform ? retro68 then
             pkgs.wrapBintoolsWith {
-              bintools = pkgs.retro68_binutils_with_tools;
+              bintools = pkgs.retro68_binutils;
             }
           else
             prev.binutils;
@@ -251,7 +248,12 @@
             };
             hook = pkgs.writeTextFile {
               name = "retro68_setup_hook";
-              text = "export CMAKE_TOOLCHAIN_FILE=${toolchain}";
+              text = ''
+                export CMAKE_TOOLCHAIN_FILE=${toolchain}
+              '' + (pkgs.lib.optionalString (systemName == "Retro68") ''
+                export RETRO68_LD_WRAPPER_Retro68="${pkgs.buildPackages.retro68_tools}/bin/Elf2Mac"
+                export RETRO68_REAL_LD="${pkgs.buildPackages.retro68_binutils}/bin/m68k-apple-macos-ld.real"
+              '');
             };
           in pkgs.makeSetupHook { } hook;
 
