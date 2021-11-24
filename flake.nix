@@ -2,7 +2,7 @@
   description = "Cross compilation toolchain for classic Macs";
 
   # Nixpkgs / NixOS version to use.
-  inputs.nixpkgs.url = "nixpkgs/nixos-21.05";
+  inputs.nixpkgs.url = "nixpkgs/nixos-unstable";
 
   inputs.multiversal_src.url = "github:autc04/multiversal";
   inputs.multiversal_src.flake = false;
@@ -46,6 +46,7 @@
 
           retro68GccConfig = [ "--with-arch=m68k" "--with-cpu=m68000" ];
           retro68 = true;
+          cmakeSystemName = "Retro68";
         };
         powerpc = {
           system = "powerpc-macos";
@@ -68,6 +69,7 @@
           retro68BinutilsConfig = [ "--disable-plugins" ];
           retro68GccConfig = [ "--disable-lto" ];
           retro68 = true;
+          cmakeSystemName = "RetroPPC";
         };
         carbon = {
           system = "powerpc-carbon";
@@ -85,6 +87,7 @@
               execFormat = { name = "unknown"; };
             };
           };
+          cmakeSystemName = "RetroCarbon";
         };
 
         isStatic = true;
@@ -213,7 +216,7 @@
             pkgs.wrapCCWith {
               cc = pkgs.retro68_gcc;
 
-                # don't allow nix to add options for hardening
+              # don't allow nix to add options for hardening
               extraBuildCommands = ''
                 echo "" > $out/nix-support/add-hardening.sh
               '';
@@ -221,6 +224,7 @@
               extraPackages = with pkgs.targetPackages; [
                 multiversal
                 libretro
+                retro68_setup_hook
               ];
             }
           else
@@ -229,6 +233,27 @@
           # no separate libc package for now
           libcCrossChooser = name:
             if name == "retro68" then null else prev.libcCrossChooser name;
+
+          retro68_setup_hook = let
+            systemName = pkgs.targetPlatform.cmakeSystemName;
+            toolchain = pkgs.writeTextFile {
+              name = "retro68-cmake-toolchain";
+              text = ''
+                set(CMAKE_SYSTEM_NAME ${systemName})
+                set(CMAKE_SYSTEM_VERSION 1)
+                set(CMAKE_CROSSCOMPILING TRUE)
+
+                set( REZ "${pkgs.buildPackages.retro68_tools}/bin/Rez" )
+                set( REZ_INCLUDE_PATH "${pkgs.multiversal}/RIncludes" )
+
+                include(${self + "/cmake/add_application.cmake"})
+              '';
+            };
+            hook = pkgs.writeTextFile {
+              name = "retro68_setup_hook";
+              text = "export CMAKE_TOOLCHAIN_FILE=${toolchain}";
+            };
+          in pkgs.makeSetupHook { } hook;
 
           # ----------- Retro68 core libraries -------------
 
@@ -264,7 +289,7 @@
               src = filterSrc (self + /libretro);
 
               nativeBuildInputs = [ buildPackages.cmake ];
-              buildInputs = [ multiversal ];
+              buildInputs = [ multiversal retro68_setup_hook ];
 
               buildCommand = ''
                 echo "Build command."
