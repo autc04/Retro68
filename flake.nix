@@ -241,7 +241,6 @@
                 set(CMAKE_CROSSCOMPILING TRUE)
 
                 set( REZ "${pkgs.buildPackages.retro68_tools}/bin/Rez" )
-                set( REZ_INCLUDE_PATH "${pkgs.multiversal}/RIncludes" )
 
                 include(${self + "/cmake/add_application.cmake"})
               '';
@@ -250,6 +249,25 @@
               name = "retro68_setup_hook";
               text = ''
                 export CMAKE_TOOLCHAIN_FILE=${toolchain}
+
+                retro68_addRIncludes() {
+                  echo "retro68_addRIncludes: $1 $depHostOffset"
+                  case $depHostOffset in
+                      -1) local role='BUILD_' ;;
+                      0)  local role="" ;;
+                      1)  local role='TARGET_' ;;
+                      *)  echo "retro68_addRIncludes: Error: Cannot be used with $depHostOffset-offset deps" >2;
+                          return 1 ;;
+                  esac
+
+                  if [[ -d "$1/RIncludes" ]]; then
+                      export REZ_INCLUDE_PATH+=":$1/RIncludes"
+                  fi
+                }
+
+                echo "targetOffset: $targetOffset"
+                addEnvHooks "$targetOffset" retro68_addRIncludes
+
               '' + (pkgs.lib.optionalString (systemName == "Retro68") ''
                 export RETRO68_LD_WRAPPER_Retro68="${pkgs.buildPackages.retro68_tools}/bin/Elf2Mac"
                 export RETRO68_REAL_LD="${pkgs.buildPackages.retro68_binutils}/bin/m68k-apple-macos-ld.real"
