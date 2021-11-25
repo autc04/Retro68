@@ -241,6 +241,7 @@
                 set(CMAKE_CROSSCOMPILING TRUE)
 
                 set( REZ "${pkgs.buildPackages.retro68_tools}/bin/Rez" )
+                set(REZ_TEMPLATES_PATH ${pkgs.libretro}/RIncludes)
 
                 include(${self + "/cmake/add_application.cmake"})
               '';
@@ -302,6 +303,17 @@
             };
 
           libretro = with pkgs;
+            let
+              systemName = pkgs.targetPlatform.cmakeSystemName;
+              toolchain = pkgs.writeTextFile {
+                name = "retro68-cmake-toolchain-bootstrap";
+                text = ''
+                  set(CMAKE_SYSTEM_NAME ${systemName})
+                  set(CMAKE_SYSTEM_VERSION 1)
+                  set(CMAKE_CROSSCOMPILING TRUE)
+                '';
+              };
+            in
             (pkgs.stdenv.override {
               cc = stdenv.cc.override { extraPackages = [ ]; };
             }).mkDerivation {
@@ -309,14 +321,15 @@
               src = filterSrc (self + /libretro);
 
               nativeBuildInputs = [ buildPackages.cmake ];
-              buildInputs = [ multiversal retro68_setup_hook ];
+              buildInputs = [ multiversal ];
 
               buildCommand = ''
                 echo "Build command."
                 cmake $src \
                         -DCMAKE_INSTALL_PREFIX=$out \
                         -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
-                        -DCMAKE_BUILD_TYPE=Release
+                        -DCMAKE_BUILD_TYPE=Release \
+                        -DCMAKE_TOOLCHAIN_FILE=${toolchain}
                 cmake --build .
                 cmake --build . --target install
               '';
