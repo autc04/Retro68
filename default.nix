@@ -74,7 +74,6 @@ let
     retro68 = true;
   };
 
-in rec {
   # A Nixpkgs overlay.
   overlay = pkgs: prev:
     {
@@ -228,7 +227,6 @@ in rec {
             export CMAKE_TOOLCHAIN_FILE=${toolchain}
 
             retro68_addRIncludes() {
-              echo "retro68_addRIncludes: $1 $depHostOffset"
               case $depHostOffset in
                   -1) local role='BUILD_' ;;
                   0)  local role="" ;;
@@ -242,7 +240,6 @@ in rec {
               fi
             }
 
-            echo "targetOffset: $targetOffset"
             addEnvHooks "$targetOffset" retro68_addRIncludes
 
           '' + (pkgs.lib.optionalString (systemName == "Retro68") ''
@@ -340,4 +337,7 @@ in rec {
       nativeBuildInputs =
         [ pkgs.hfsutils pkgs.retro68_tools pkgs.cmake pkgs.gnumake ];
     }) crossPkgs;
-}
+
+  in {
+    inherit overlay crossPkgs shell;
+  }
