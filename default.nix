@@ -65,6 +65,10 @@ let
           execFormat = { name = "unknown"; };
         };
       };
+      isStatic = true;
+      retro68BinutilsConfig = [ "--disable-plugins" ];
+      retro68GccConfig = [ "--disable-lto" ];
+      retro68 = true;
       cmakeSystemName = "RetroCarbon";
     };
 
@@ -336,8 +340,6 @@ let
     cross.mkShell {
       nativeBuildInputs =
         [ pkgs.hfsutils pkgs.retro68_tools pkgs.cmake pkgs.gnumake ];
-    }) crossPkgs;
+    } // cross) crossPkgs;
 
-  in {
-    inherit overlay crossPkgs shell;
-  }
+  in shell.m68k // shell // { inherit overlay; }
