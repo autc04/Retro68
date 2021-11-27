@@ -273,7 +273,6 @@ let
           cp -r lib68k $out/lib
         '' else
           "");
-        meta = { platforms = [ "m68k-macos" ]; };
       };
 
     import-libraries = with pkgs;
@@ -319,7 +318,6 @@ let
           cmake --build .
           cmake --build . --target install
         '';
-        meta = { platforms = [ "m68k-macos" ]; };
       };
   };
 
