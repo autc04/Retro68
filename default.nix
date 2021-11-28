@@ -2,7 +2,7 @@
 , ... }:
 
 let
-  retroSystems = {
+  retroPlatforms = {
     m68k = {
       system = "m68k-macos";
       config = "m68k-apple-macos";
@@ -82,6 +82,8 @@ let
   overlay = pkgs: prev:
     {
       retro68 = {
+        platforms = retroPlatforms;
+
         # ----------- Native Tools -------------
         # hfsutils -- Utilities for manipulating HFS volumes & disk images.
         hfsutils = with pkgs;
@@ -191,8 +193,10 @@ let
               set(CMAKE_SYSTEM_VERSION 1)
               set(CMAKE_CROSSCOMPILING TRUE)
 
-              set( REZ "${pkgs.buildPackages.retro68.tools}/bin/Rez" )
+              set(REZ "${pkgs.buildPackages.retro68.tools}/bin/Rez" )
               set(REZ_TEMPLATES_PATH ${pkgs.retro68.libretro}/RIncludes)
+
+              set(MAKE_PEF "${pkgs.buildPackages.retro68.tools}/bin/MakePEF" )
 
               include(${./cmake/add_application.cmake})
             '';
@@ -249,7 +253,7 @@ let
           };
 
         import_libraries = with pkgs;
-          if stdenvNoCC.targetPlatform != retroSystems.m68k then
+          if stdenvNoCC.targetPlatform != retroPlatforms.m68k then
             stdenvNoCC.mkDerivation {
               name = "retro68.import_libraries";
               src = ./ImportLibraries;
@@ -292,6 +296,14 @@ let
               cmake --build . --target install
             '';
           };
+
+          console = with pkgs;
+            stdenv.mkDerivation {
+              name = "retro68.console";
+              src = ./Console;
+
+              nativeBuildInputs = [ buildPackages.cmake ];
+            };
       };
     } // prev.lib.optionalAttrs (prev.targetPlatform ? retro68) {
 
@@ -335,7 +347,7 @@ let
       overlays = [ overlay ];
       crossSystem = plat;
       config = { allowUnsupportedSystem = true; };
-    }) retroSystems;
+    }) retroPlatforms;
 
   shell = pkgs.lib.mapAttrs (name: cross:
     cross.mkShell {
@@ -345,6 +357,7 @@ let
         cmake
         gnumake
       ];
+      buildInputs = [ cross.retro68.console ];
     } // cross) crossPkgs;
 
 in shell.m68k // shell // { inherit overlay; }
