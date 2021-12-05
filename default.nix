@@ -120,7 +120,8 @@ let
             ] ./.;
 
             nativeBuildInputs = [ cmake bison flex ];
-            buildInputs = [ boost zlib retro68.hfsutils ];
+            buildInputs = [ boost zlib retro68.hfsutils ]
+              ++ lib.optional hostPlatform.isDarwin darwin.apple_sdk.frameworks.ApplicationServices;
           };
 
       } // prev.lib.optionalAttrs (prev.targetPlatform ? retro68) {
