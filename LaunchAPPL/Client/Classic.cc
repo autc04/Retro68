@@ -1,11 +1,10 @@
-#define ResType MacResType
-#include <ApplicationServices/ApplicationServices.h>
-#undef ResType
-
-#if TARGET_CPU_PPC
+#ifdef __powerpc
 #include "Classic.h"
 #include "Launcher.h"
 
+#define ResType MacResType
+#include <ApplicationServices/ApplicationServices.h>
+#undef ResType
 
 namespace po = boost::program_options;
 

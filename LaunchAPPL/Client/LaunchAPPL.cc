@@ -9,10 +9,7 @@
 #include "Launcher.h"
 
 #if defined(__APPLE__)
-#    define ResType MacResType
-#    include <ApplicationServices/ApplicationServices.h>
-#    undef ResType
-#    if TARGET_CPU_PPC
+#    ifdef __powerpc
 #        include "Classic.h"
 #    endif
 #    include "Carbon.h"
