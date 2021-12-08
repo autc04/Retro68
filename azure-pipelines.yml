@@ -3,6 +3,7 @@ trigger:
 jobs:
 
 - job: Linux
+  condition: false
   pool:
     vmImage: 'ubuntu-20.04'
   steps:
@@ -35,6 +36,7 @@ jobs:
       buildPlatform: 'x86_64-linux'
 
 - job: macOS
+  condition: false
   pool:
     vmImage: 'macOS-10.14'
   steps:
