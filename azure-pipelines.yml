@@ -65,26 +65,27 @@ jobs:
 - job: nix_68k
   pool:
     vmImage: 'ubuntu-20.04'
-  container:
-    image: 'nixos/nix:latest'
   steps:
   - checkout: self
     submodules: true
   - script: |
-      nix-build m68k.retro68.samples
-  - publish: result/Applications
+      docker run --name nix nixos/nix:latest m68k.retro68.samples
+  - script: |
+      docker cp -L nix:result - | tar x --strip-components 1
+
+  - publish: Applications
     artifact: 68K Applications
     
 
 - job: nix_ppc
   pool:
     vmImage: 'ubuntu-20.04'
-  container:
-    image: 'nixos/nix:latest'
   steps:
   - checkout: self
     submodules: true
   - script: |
-      nix-build ppc.retro68.samples
-  - publish: result/Applications
+      docker run --name nix nixos/nix:latest ppc.retro68.samples
+  - script: |
+      docker cp -L nix:result - | tar x --strip-components 1
+  - publish: Applications
     artifact: PowerPC Applications
