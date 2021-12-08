@@ -88,9 +88,10 @@ let
           stdenv.mkDerivation {
             name = "retro68.monolithic";
             src = ./.;
-            nativeBuildInputs = [cmake bison flex ruby ninja bash];
-            buildInputs = [boost gmp mpfr libmpc zlib]
-              ++ lib.optional hostPlatform.isDarwin darwin.apple_sdk.frameworks.ApplicationServices;
+            nativeBuildInputs = [ cmake bison flex ruby ninja bash ];
+            buildInputs = [ boost gmp mpfr libmpc zlib ]
+              ++ lib.optional hostPlatform.isDarwin
+              darwin.apple_sdk.frameworks.ApplicationServices;
             buildCommand = ''
               bash $src/build-toolchain.bash --ninja --prefix=$out --no-carbon
             '';
@@ -134,7 +135,8 @@ let
 
             nativeBuildInputs = [ cmake bison flex ];
             buildInputs = [ boost zlib retro68.hfsutils ]
-              ++ lib.optional hostPlatform.isDarwin darwin.apple_sdk.frameworks.ApplicationServices;
+              ++ lib.optional hostPlatform.isDarwin
+              darwin.apple_sdk.frameworks.ApplicationServices;
           };
 
       } // prev.lib.optionalAttrs (prev.targetPlatform ? retro68) {
@@ -311,13 +313,63 @@ let
             '';
           };
 
-          console = with pkgs;
-            stdenv.mkDerivation {
-              name = "retro68.console";
-              src = ./Console;
+        console = with pkgs;
+          stdenv.mkDerivation {
+            name = "retro68.console";
+            src = ./Console;
 
-              nativeBuildInputs = [ buildPackages.cmake ];
-            };
+            nativeBuildInputs = [ buildPackages.cmake ];
+          };
+
+        samples = with pkgs;
+          let
+            individualSamples = lib.mapAttrs (key: path:
+              stdenv.mkDerivation {
+                name = "retro68.samples." + key;
+                src = path;
+                nativeBuildInputs = [ buildPackages.ninja buildPackages.cmake ];
+                buildInputs = [ retro68.console ];
+                buildCommand = ''
+                  mkdir build
+                  cd build
+                  cmake $src -G Ninja
+                  ninja
+                  mkdir -p $out/Applications
+                  mkdir -p $out/Applications/.finf
+                  mkdir -p $out/Applications/.rsrc
+
+                  cp *.APPL $out/Applications
+                  cp .finf/*.APPL $out/Applications/.finf
+                  cp .rsrc/*.APPL $out/Applications/.rsrc
+                  for f in *.APPL; do
+                    cp $'' + ''
+                    {f%.APPL}.bin $out/Applications
+                                      done
+                                    '';
+              }) ({
+                dialog = ./Samples/Dialog;
+                helloworld = ./Samples/HelloWorld;
+                mpwtool = ./Samples/MPWTool;
+                raytracer = ./Samples/Raytracer;
+                #systemextension = ./Samples/SystemExtension;
+                wdef = ./Samples/WDEF;
+              } // lib.optionalAttrs
+                (targetPlatform.cmakeSystemName != "Retro68") {
+                  sharedlibrary = ./Samples/SharedLibrary;
+                } // lib.optionalAttrs
+                (targetPlatform.cmakeSystemName == "Retro68") {
+                  launcher = ./Samples/Launcher;
+                });
+          in runCommand "retro68.samples" { } ''
+            mkdir -p $out/Applications
+            mkdir -p $out/Applications/.rsrc
+            mkdir -p $out/Applications/.finf
+
+            ${lib.concatMapStrings (x: ''
+              cp -r ${lib.escapeShellArg x}/Applications $out/
+            '') (builtins.attrValues individualSamples)}
+          '' // individualSamples;
+
       };
     } // prev.lib.optionalAttrs (prev.targetPlatform ? retro68) {
 
@@ -374,4 +426,7 @@ let
       buildInputs = [ cross.retro68.console ];
     } // cross) crossPkgs;
 
-in shell.m68k // shell // { inherit overlay; inherit (pkgs) retro68; }
+in shell.m68k // shell // {
+  inherit overlay;
+  inherit (pkgs) retro68;
+}
