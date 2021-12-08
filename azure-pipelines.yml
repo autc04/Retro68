@@ -61,3 +61,30 @@ jobs:
       testResultsFormat: 'CTest'
       testResultsFiles: build/Testing/**/*.xml
       buildPlatform: 'x86_64-macos'
+
+- job: nix-68k
+  pool:
+    vmImage: 'ubuntu-20.04'
+  container:
+    image: 'nixos/nix:latest'
+  steps:
+  - checkout: self
+    submodules: true
+  - script: |
+      nix-build m68k.retro68.samples
+  - publish: result/Applications
+    artifact: 68K Applications
+    
+
+- job: nix-ppc
+  pool:
+    vmImage: 'ubuntu-20.04'
+  container:
+    image: 'nixos/nix:latest'
+  steps:
+  - checkout: self
+    submodules: true
+  - script: |
+      nix-build ppc.retro68.samples
+  - publish: result/Applications
+    artifact: PowerPC Applications
