@@ -71,7 +71,7 @@ jobs:
   - checkout: self
     submodules: true
   - script: |
-      docker run --name nix nixos/nix:latest m68k.retro68.samples
+      docker run --name nix nixos/nix:latest nix-build -A m68k.retro68.samples
   - script: |
       docker cp -L nix:result - | tar x --strip-components 1
 
@@ -86,7 +86,7 @@ jobs:
   - checkout: self
     submodules: true
   - script: |
-      docker run --name nix nixos/nix:latest ppc.retro68.samples
+      docker run --name nix nixos/nix:latest nix-build -A ppc.retro68.samples
   - script: |
       docker cp -L nix:result - | tar x --strip-components 1
   - publish: Applications
