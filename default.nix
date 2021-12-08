@@ -87,13 +87,14 @@ let
         monolithic = with pkgs;
           stdenv.mkDerivation {
             name = "retro68.monolithic";
-            srcs = ./.;
-            nativeBuildInputs = [cmake bison flex ruby ninja];
+            src = ./.;
+            nativeBuildInputs = [cmake bison flex ruby ninja bash];
             buildInputs = [boost gmp mpfr libmpc zlib]
               ++ lib.optional hostPlatform.isDarwin darwin.apple_sdk.frameworks.ApplicationServices;
             buildCommand = ''
               bash $src/build-toolchain.bash --ninja --prefix=$out --no-carbon
             '';
+            hardeningDisable = [ "format" ];
           };
 
         # ----------- Native Tools -------------
