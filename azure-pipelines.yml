@@ -88,7 +88,7 @@ jobs:
   - checkout: self
     submodules: true
   - script: |
-      docker run --name nix -v`pwd`:/src nixos/nix:latest nix-build src-A ppc.retro68.samples
+      docker run --name nix -v`pwd`:/src nixos/nix:latest nix-build src -A ppc.retro68.samples
     displayName: Build inside nixos/nix docker
   - script: |
       docker cp -L nix:result - | tar x --strip-components 1
