@@ -62,7 +62,7 @@ jobs:
       testResultsFiles: build/Testing/**/*.xml
       buildPlatform: 'x86_64-macos'
 
-- job: nix-68k
+- job: nix_68k
   pool:
     vmImage: 'ubuntu-20.04'
   container:
@@ -76,7 +76,7 @@ jobs:
     artifact: 68K Applications
     
 
-- job: nix-ppc
+- job: nix_ppc
   pool:
     vmImage: 'ubuntu-20.04'
   container:
