@@ -84,6 +84,18 @@ let
       retro68 = {
         platforms = retroPlatforms;
 
+        monolithic = with pkgs;
+          stdenv.mkDerivation {
+            name = "retro68.monolithic";
+            srcs = ./.;
+            nativeBuildInputs = [cmake bison flex ruby ninja];
+            buildInputs = [boost gmp mpfr libmpc zlib]
+              ++ lib.optional hostPlatform.isDarwin darwin.apple_sdk.frameworks.ApplicationServices;
+            buildCommand = ''
+              bash $src/build-toolchain.bash --ninja --prefix=$out --no-carbon
+            '';
+          };
+
         # ----------- Native Tools -------------
         # hfsutils -- Utilities for manipulating HFS volumes & disk images.
         hfsutils = with pkgs;
@@ -361,4 +373,4 @@ let
       buildInputs = [ cross.retro68.console ];
     } // cross) crossPkgs;
 
-in shell.m68k // shell // { inherit overlay; }
+in shell.m68k // shell // { inherit overlay; inherit (pkgs) retro68; }
