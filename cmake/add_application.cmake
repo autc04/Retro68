@@ -93,7 +93,7 @@ function(add_application name)
             OUTPUT ${name}.bin ${name}.APPL ${name}.dsk ${name}.ad "%${name}.ad"
             COMMAND ${REZ} ${REZ_FLAGS}
                     ${REZ_TEMPLATES_PATH}/Retro68APPL.r
-                    -I${REZ_INCLUDE_PATH}
+                    ${rez_include_options}
                     --copy "${name}.code.bin"
                     -o "${name}.bin"
                     -t "${ARGS_TYPE}" -c "${ARGS_CREATOR}"
@@ -120,7 +120,7 @@ function(add_application name)
             COMMAND ${REZ} 
                     ${REZ_FLAGS}
                     ${REZ_TEMPLATE}
-                    -I${REZ_INCLUDE_PATH}
+                    ${rez_include_options}
                     -DCFRAG_NAME="\\"${name}\\""
                     -o "${name}.bin" --cc "${name}.dsk" --cc "${name}.APPL"
                     --cc "%${name}.ad"
