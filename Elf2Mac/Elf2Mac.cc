@@ -41,13 +41,12 @@ using std::string;
 using std::vector;
 using std::ofstream;
 
-string argvZero;
+string realLdPath;
 
 void RealLD(vector<string> args)
 {
     vector<const char*> argv;
-    string realLD = argvZero + ".real";
-    argv.push_back(realLD.c_str());
+    argv.push_back(realLdPath.c_str());
     for(string& s : args)
         argv.push_back(s.c_str());
     argv.push_back(NULL);
@@ -90,134 +89,132 @@ int main(int argc, char *argv[])
 {
     vector<string> args;
     std::copy(argv + 1, argv+argc, std::back_inserter(args));
-    argvZero = argv[0];
+    realLdPath = string(argv[0]) + ".real";
 
-    if(boost::algorithm::ends_with(argv[0], "ld"))
+    if (char *path = getenv("RETRO68_REAL_LD"))
+        realLdPath = path;
+
+    string outputFile = "a.out";
+    string entryPoint = "_start";
+    bool elf2mac = false;
+    bool flatoutput = false;
+    bool segments = true;
+    bool stripMacsbug = false;
+    bool saveLdScript = false;
+
+    SegmentMap segmentMap;
+
+    vector<string> args2;
+    for(auto p = args.begin(), e = args.end(); p != e; ++p)
     {
-        string outputFile = "a.out";
-        string entryPoint = "_start";
-        bool elf2mac = false;
-        bool flatoutput = false;
-        bool segments = true;
-        bool stripMacsbug = false;
-        bool saveLdScript = false;
-
-        SegmentMap segmentMap;
-
-        vector<string> args2;
-        for(auto p = args.begin(), e = args.end(); p != e; ++p)
+        if(*p == "--elf2mac-real-ld")
         {
-            if(*p == "-o")
-            {
-                ++p;
-                if(p == e)
-                    errx(EXIT_FAILURE, "-o missing argument");
-                outputFile = *p;
-            }
-            else if(boost::algorithm::starts_with(*p, "-o"))
-            {
-                outputFile = (*p).substr(2);
-            }
-            else if(*p == "-elf2mac" || *p == "--elf2mac")
-            {
-                elf2mac = true;
-            }
-            else if(*p == "-e")
-            {
-                ++p;
-                if(p == e)
-                    errx(EXIT_FAILURE, "-e missing argument");
-                entryPoint = *p;
-            }
-            else if(boost::algorithm::starts_with(*p, "-e"))
-            {
-                entryPoint = (*p).substr(2);
-            }
-            else if(*p == "--mac-flat")
-            {
-                elf2mac = true;
-                flatoutput = true;
-                segments = false;
-            }
-            else if(*p == "--mac-single")
-            {
-                elf2mac = true;
-                flatoutput = false;
-                segments = false;
-            }
-            else if(*p == "--mac-segments")
-            {
-                elf2mac = true;
-                if(flatoutput)
-                    errx(EXIT_FAILURE, "--mac-segments can't be used with --mac-flat");
-                ++p;
-                if(p == e)
-                    errx(EXIT_FAILURE, "--mac-segments missing argument");
-                segmentMap = SegmentMap(*p);
-            }
-            else if(*p == "--mac-strip-macsbug")
-            {
-                stripMacsbug = true;
-            }
-            else if(*p == "--mac-keep-ldscript")
-            {
-                saveLdScript = true;
-            }
-            else
-            {
-                args2.push_back(*p);
-            }
+            ++p;
+            if(p == e)
+                errx(EXIT_FAILURE, "--elf2mac-real-ld missing argument");
+            realLdPath = *p;
         }
-
-        if(elf2mac)
+        else if(*p == "-o")
         {
-            char tmpfile[] = "/tmp/ldscriptXXXXXX";
-            int fd = mkstemp(tmpfile);
-            if(fd < 0)
-                errx(EXIT_FAILURE, "can't create temp file");
-
-            {
-                ofstream out(tmpfile);
-                if(segments)
-                {
-                    segmentMap.CreateLdScript(out, entryPoint, stripMacsbug);
-                }
-                else
-                {
-                    CreateFlatLdScript(out, entryPoint, stripMacsbug);
-                }
-            }
-
-            args2.push_back("-o");
-            args2.push_back(outputFile + ".gdb");
-            args2.push_back("-T");
-            args2.push_back(tmpfile);
-            RealLD(args2);
-            if(saveLdScript)
-                std::cerr << "Ld Script at: " << tmpfile << std::endl;
-            else
-                unlink(tmpfile);
-            Object theObject(outputFile + ".gdb");
+            ++p;
+            if(p == e)
+                errx(EXIT_FAILURE, "-o missing argument");
+            outputFile = *p;
+        }
+        else if(boost::algorithm::starts_with(*p, "-o"))
+        {
+            outputFile = (*p).substr(2);
+        }
+        else if(*p == "-elf2mac" || *p == "--elf2mac")
+        {
+            elf2mac = true;
+        }
+        else if(*p == "-e")
+        {
+            ++p;
+            if(p == e)
+                errx(EXIT_FAILURE, "-e missing argument");
+            entryPoint = *p;
+        }
+        else if(boost::algorithm::starts_with(*p, "-e"))
+        {
+            entryPoint = (*p).substr(2);
+        }
+        else if(*p == "--mac-flat")
+        {
+            elf2mac = true;
+            flatoutput = true;
+            segments = false;
+        }
+        else if(*p == "--mac-single")
+        {
+            elf2mac = true;
+            flatoutput = false;
+            segments = false;
+        }
+        else if(*p == "--mac-segments")
+        {
+            elf2mac = true;
             if(flatoutput)
-                theObject.FlatCode(outputFile);
-            else if(segments)
-                theObject.MultiSegmentApp(outputFile, segmentMap);
-            else
-                theObject.SingleSegmentApp(outputFile);
+                errx(EXIT_FAILURE, "--mac-segments can't be used with --mac-flat");
+            ++p;
+            if(p == e)
+                errx(EXIT_FAILURE, "--mac-segments missing argument");
+            segmentMap = SegmentMap(*p);
+        }
+        else if(*p == "--mac-strip-macsbug")
+        {
+            stripMacsbug = true;
+        }
+        else if(*p == "--mac-keep-ldscript")
+        {
+            saveLdScript = true;
         }
         else
         {
-            RealLD(args);
+            args2.push_back(*p);
         }
-        return 0;
+    }
+
+    if(elf2mac)
+    {
+        char tmpfile[] = "/tmp/ldscriptXXXXXX";
+        int fd = mkstemp(tmpfile);
+        if(fd < 0)
+            errx(EXIT_FAILURE, "can't create temp file");
+
+        {
+            ofstream out(tmpfile);
+            if(segments)
+            {
+                segmentMap.CreateLdScript(out, entryPoint, stripMacsbug);
+            }
+            else
+            {
+                CreateFlatLdScript(out, entryPoint, stripMacsbug);
+            }
+        }
+
+        args2.push_back("-o");
+        args2.push_back(outputFile + ".gdb");
+        args2.push_back("-T");
+        args2.push_back(tmpfile);
+        RealLD(args2);
+        if(saveLdScript)
+            std::cerr << "Ld Script at: " << tmpfile << std::endl;
+        else
+            unlink(tmpfile);
+        Object theObject(outputFile + ".gdb");
+        if(flatoutput)
+            theObject.FlatCode(outputFile);
+        else if(segments)
+            theObject.MultiSegmentApp(outputFile, segmentMap);
+        else
+            theObject.SingleSegmentApp(outputFile);
     }
     else
     {
-        if(argc != 2)
-            errx(EXIT_FAILURE, "usage : %s file-name ", argv[0]);
-        Object theObject(argv[1]);
-        SegmentMap segmentMap;
-        theObject.MultiSegmentApp("out.bin", segmentMap);
+        RealLD(args);
     }
     return 0;
 }

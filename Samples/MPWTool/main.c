@@ -34,10 +34,13 @@
  */
 
 #include <MacTypes.h>
-#include <Retro68Runtime.h>
 #include <setjmp.h>
 #include <stdlib.h>
 #include <MixedMode.h>
+
+#if !TARGET_CPU_PPC
+#include <Retro68Runtime.h>
+#endif
 
 #pragma pack (push, 2)
 

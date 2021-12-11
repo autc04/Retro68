@@ -23,11 +23,15 @@ function(add_application name)
     set(files)
     set(rsrc_files)
     set(rez_files)
+
+    set(rez_include_options ${REZ_INCLUDE_PATH})
+    list(TRANSFORM rez_include_options PREPEND -I)
+
     foreach(f ${ARGS_FILES})
         if(${f} MATCHES "\\.r$")
             add_custom_command(
                 OUTPUT ${f}.rsrc.bin
-                COMMAND ${REZ} ${REZ_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/${f} -I ${REZ_INCLUDE_PATH} -o ${f}.rsrc.bin
+                COMMAND ${REZ} ${REZ_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/${f} ${rez_include_options} -o ${f}.rsrc.bin
                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${f})
             list(APPEND rsrc_files "${CMAKE_CURRENT_BINARY_DIR}/${f}.rsrc.bin")
             list(APPEND rez_files "${f}")

@@ -6,6 +6,9 @@ indent_style = space
 tab_width = 4
 charset = utf-8
 
+[*.nix]
+tab_width = 2
+
 [InterfacesAndLibraries/**/*]
 indent_style = tab
 

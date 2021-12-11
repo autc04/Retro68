@@ -136,6 +136,18 @@ int main(int argc, const char *argv[])
                         for(std::string path : options["include"].as<std::vector<std::string>>())
                             lexer.addIncludePath(path);
 
+                    if(const char *path = getenv("REZ_INCLUDE_PATH"))
+                    {
+                        while(const char* end = strchr(path, ':'))
+                        {
+                            if(end != path)
+                                lexer.addIncludePath(std::string(path, end));
+                            path = end + 1;
+                        }
+                        if(*path)
+                            lexer.addIncludePath(path);
+                    }
+
                     if(world.verboseFlag)
                     {
                         std::cerr << "Compiling " << fn << "...\n";
