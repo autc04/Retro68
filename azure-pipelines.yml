@@ -71,7 +71,11 @@ jobs:
   - checkout: self
     submodules: true
   - script: |
-      docker run --name nix -v`pwd`:/src nixos/nix:latest nix-build src -A m68k.retro68.samples
+      docker run -i --name nix -v`pwd`:/src nixos/nix:latest <<EOF
+        nix-channel --add https://nixos.org/channels/nixos-21.11 nixpkgs
+        nix-channel --update
+        nix-build src -A m68k.retro68.samples
+      EOF
     displayName: Build inside nixos/nix docker
   - script: |
       docker cp -L nix:result - | tar x --strip-components 1
@@ -88,7 +92,11 @@ jobs:
   - checkout: self
     submodules: true
   - script: |
-      docker run --name nix -v`pwd`:/src nixos/nix:latest nix-build src -A ppc.retro68.samples
+      docker run -i --name nix -v`pwd`:/src nixos/nix:latest <<EOF
+        nix-channel --add https://nixos.org/channels/nixos-21.11 nixpkgs
+        nix-channel --update
+        nix-build src -A powerpc.retro68.samples
+      EOF
     displayName: Build inside nixos/nix docker
   - script: |
       docker cp -L nix:result - | tar x --strip-components 1
