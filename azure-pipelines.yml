@@ -61,3 +61,43 @@ jobs:
       testResultsFormat: 'CTest'
       testResultsFiles: build/Testing/**/*.xml
       buildPlatform: 'x86_64-macos'
+
+- job: nix_68k
+  pool:
+    vmImage: 'ubuntu-20.04'
+  steps:
+  - checkout: self
+    submodules: true
+  - script: |
+      docker run -i --name nix -v`pwd`:/src nixos/nix:latest <<EOF
+        nix-channel --add https://nixos.org/channels/nixos-21.11 nixpkgs
+        nix-channel --update
+        nix-build src -A m68k.retro68.samples
+      EOF
+    displayName: Build inside nixos/nix docker
+  - script: |
+      docker cp -L nix:result - | tar x --strip-components 1
+    displayName: Copy result out of docker
+
+  - publish: Applications
+    artifact: 68K Applications
+    
+
+- job: nix_ppc
+  pool:
+    vmImage: 'ubuntu-20.04'
+  steps:
+  - checkout: self
+    submodules: true
+  - script: |
+      docker run -i --name nix -v`pwd`:/src nixos/nix:latest <<EOF
+        nix-channel --add https://nixos.org/channels/nixos-21.11 nixpkgs
+        nix-channel --update
+        nix-build src -A powerpc.retro68.samples
+      EOF
+    displayName: Build inside nixos/nix docker
+  - script: |
+      docker cp -L nix:result - | tar x --strip-components 1
+    displayName: Copy result out of docker
+  - publish: Applications
+    artifact: PowerPC Applications

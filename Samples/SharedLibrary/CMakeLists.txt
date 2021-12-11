@@ -52,12 +52,16 @@ add_custom_command(
 
 # Step 4: Combine the PEF data fork with a resource fork containing a cfrg resource:
 
+if (REZ_INCLUDE_PATH)
+    set(REZ_INCLUDE_FLAG -I${REZ_INCLUDE_PATH})
+endif()
+
 add_custom_command(
     OUTPUT Library.bin Library Library.dsk Library.ad "%Library.ad"
     COMMAND ${REZ} 
             ${REZ_FLAGS}
             ${CMAKE_CURRENT_SOURCE_DIR}/library.r
-            -I${REZ_INCLUDE_PATH}
+            ${REZ_INCLUDE_FLAG}
             -o "Library.bin" --cc "Library.dsk" --cc "Library"
             --cc "%Library.ad"
             -t "shlb" -c "????"
