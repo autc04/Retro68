@@ -117,7 +117,7 @@ Once you have all the prerequisites, execute these commands from the top level
 of the Retro68 directory:
 
     mkdir ../Retro68-build
-    cd Retro68-build
+    cd ../Retro68-build
     ../Retro68/build-toolchain.bash
 
 The toolchain will be installed in the "toolchain" directory inside
