@@ -403,6 +403,22 @@ let
             '') (builtins.attrValues individualSamples)}
           '' // individualSamples;
 
+        launchapplserver = with pkgs; stdenvUniversal.mkDerivation {
+          name = "retro68.launchapplserver";
+          src = ./LaunchAPPL;
+          nativeBuildInputs = [ buildPackages.ninja buildPackages.cmake ];
+          installPhase = ''
+            mkdir $out
+            mkdir -p $out/Applications
+            mkdir -p $out/Applications/.finf
+            mkdir -p $out/Applications/.rsrc
+
+            cp Server/LaunchAPPLServer.APPL $out/Applications
+            cp Server/.finf/LaunchAPPLServer.APPL $out/Applications/.finf
+            cp Server/.rsrc/LaunchAPPLServer.APPL $out/Applications/.rsrc
+            cp Server/LaunchAPPLServer.bin $out/Applications
+          '';
+        };
       };
     } // prev.lib.optionalAttrs (prev.targetPlatform ? retro68) {
 
@@ -427,6 +443,17 @@ let
           libretro
           setup_hook
         ];
+      };
+
+      stdenvUniversal = pkgs.stdenv.override {
+        cc = pkgs.stdenv.cc.override { 
+          extraPackages = with pkgs.retro68; [
+            universal
+            import_libraries
+            libretro
+            setup_hook
+          ];
+        };
       };
 
       # no separate libc package for now
