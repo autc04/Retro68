@@ -232,78 +232,90 @@ function unlinkInterfacesAndLibraries()
     rm -f "$PREFIX/powerpc-apple-macos/RIncludes"
 }
 
-function setUpInterfacesAndLibraries()
+function setup68KLibraries()
 {
-    rm -rf "$PREFIX/universal"
-    mkdir "$PREFIX/universal"
+    DEST=${1:-"$PREFIX/universal"}
+    echo "Converting 68K static libraries..."
+    mkdir -p "$DEST/lib68k"
+    for macobj in "${M68KLIBRARIES}/"*.o; do
+        if [ -r "$macobj" ]; then
+            libname=`basename "$macobj"`
+            libname=${libname%.o}
+            printf "    %30s => %-30s\n" ${libname}.o lib${libname}.a
+            asm="$DEST/lib68k/$libname.s"
+            obj="$DEST/lib68k/$libname.o"
+            lib="$DEST/lib68k/lib${libname}.a"
 
-    echo "Preparing CIncludes..."
-    mkdir "$PREFIX/universal/CIncludes"
-    sh "$SRC/prepare-headers.sh" "$CINCLUDES" "$PREFIX/universal/CIncludes"
+            rm -f $lib
 
-    echo "Preparing RIncludes..."
-    mkdir "$PREFIX/universal/RIncludes"
-    sh "$SRC/prepare-rincludes.sh" "$RINCLUDES" "$PREFIX/universal/RIncludes"
+            if ConvertObj "$macobj" > "$asm"; then
+                m68k-apple-macos-as "$asm" -o "$obj"
+                m68k-apple-macos-ar cqs "$lib" "$obj"
+            fi
+            rm -f "$asm"
+        fi
+    done
+}
 
-    if [ $BUILD_68K != false ]; then
-        echo "Converting 68K static libraries..."
-        mkdir -p "$PREFIX/universal/lib68k"
-        for macobj in "${M68KLIBRARIES}/"*.o; do
-            if [ -r "$macobj" ]; then
-                libname=`basename "$macobj"`
-                libname=${libname%.o}
-                printf "    %30s => %-30s\n" ${libname}.o lib${libname}.a
-                asm="$PREFIX/universal/lib68k/$libname.s"
-                obj="$PREFIX/universal/lib68k/$libname.o"
-                lib="$PREFIX/universal/lib68k/lib${libname}.a"
+function setupPPCLibraries()
+{
+    mkdir -p "$DEST/libppc"
+    case `ResInfo -n "$INTERFACELIB" 2> /dev/null || echo 0` in
+        0)
+            if [ -n "$INTERFACELIB" ]; then
+                echo "WARNING: Couldn't read resource fork for \"$INTERFACELIB\"."
+                echo "         Falling back to included import libraries."
+            fi
+            echo "Copying readymade PowerPC import libraries..."
+            cp $PREFIX/multiversal/libppc/*.a $DEST/libppc/
+            ;;
+        *)
+            echo "Building PowerPC import libraries..."
+            for shlib in "${SHAREDLIBRARIES}/"*; do
+                libname=`basename "$shlib"`
+                implib=lib${libname}.a
+                printf "    %30s => %-30s\n" ${libname} ${implib}
+                MakeImport "$shlib" "$DEST/libppc/$implib" || true
+            done
+            ;;
+    esac
 
-                rm -f $lib
-
-                if ConvertObj "$macobj" > "$asm"; then
-                    m68k-apple-macos-as "$asm" -o "$obj"
-                    m68k-apple-macos-ar cqs "$lib" "$obj"
-                fi
-                rm -f "$asm"
+    if [ -d "${PPCLIBRARIES}" ]; then
+        echo "Copying static PPC libraries"
+        for obj in "${PPCLIBRARIES}/"OpenT*.o "${PPCLIBRARIES}/CarbonAccessors.o" "${PPCLIBRARIES}/CursorDevicesGlue.o"; do
+            if [ -r "$obj" ]; then
+                # copy the library:
+                cp "$obj" "$DEST/libppc/"
+                basename=`basename "${obj%.o}"`
+                # and wrap it in a .a archive for convenience
+                lib="$PREFIX"/universal/libppc/lib$basename.a
+                rm -f "$lib"
+                powerpc-apple-macos-ar cqs "$lib" "$obj"
             fi
         done
     fi
+}
+
+function setUpInterfacesAndLibraries()
+{
+    DEST=${1:-"$PREFIX/universal"}
+    rm -rf "$DEST"
+    mkdir "$DEST"
+
+    echo "Preparing CIncludes..."
+    mkdir "$DEST/CIncludes"
+    sh "$SRC/prepare-headers.sh" "$CINCLUDES" "$DEST/CIncludes"
+
+    echo "Preparing RIncludes..."
+    mkdir "$DEST/RIncludes"
+    sh "$SRC/prepare-rincludes.sh" "$RINCLUDES" "$DEST/RIncludes"
+
+    if [ $BUILD_68K != false ]; then
+        setup68KLibraries "$DEST"
+    fi
 
     if [ $BUILD_PPC != false ]; then
-        mkdir -p "$PREFIX/universal/libppc"
-        case `ResInfo -n "$INTERFACELIB" 2> /dev/null || echo 0` in
-            0)
-                if [ -n "$INTERFACELIB" ]; then
-                    echo "WARNING: Couldn't read resource fork for \"$INTERFACELIB\"."
-                    echo "         Falling back to included import libraries."
-                fi
-                echo "Copying readymade PowerPC import libraries..."
-                cp $PREFIX/multiversal/libppc/*.a $PREFIX/universal/libppc/
-                ;;
-            *)
-                echo "Building PowerPC import libraries..."
-                for shlib in "${SHAREDLIBRARIES}/"*; do
-                    libname=`basename "$shlib"`
-                    implib=lib${libname}.a
-                    printf "    %30s => %-30s\n" ${libname} ${implib}
-                    MakeImport "$shlib" "$PREFIX/universal/libppc/$implib" || true
-                done
-                ;;
-        esac
-
-        if [ -d "${PPCLIBRARIES}" ]; then
-            echo "Copying static PPC libraries"
-            for obj in "${PPCLIBRARIES}/"OpenT*.o "${PPCLIBRARIES}/CarbonAccessors.o" "${PPCLIBRARIES}/CursorDevicesGlue.o"; do
-                if [ -r "$obj" ]; then
-                    # copy the library:
-                    cp "$obj" "$PREFIX/universal/libppc/"
-                    basename=`basename "${obj%.o}"`
-                    # and wrap it in a .a archive for convenience
-                    lib="$PREFIX"/universal/libppc/lib$basename.a
-                    rm -f "$lib"
-                    powerpc-apple-macos-ar cqs "$lib" "$obj"
-                fi
-            done
-        fi
+        setupPPCLibraries "$DEST"
     fi
 }
 
