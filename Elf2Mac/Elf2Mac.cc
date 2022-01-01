@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
         char tmpfile[] = "/tmp/ldscriptXXXXXX";
         int fd = mkstemp(tmpfile);
         if(fd < 0)
-            errx(EXIT_FAILURE, "can't create temp file");
+            err(EXIT_FAILURE, "can't create temp file");
 
         {
             ofstream out(tmpfile);
