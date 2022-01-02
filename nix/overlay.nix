@@ -1,3 +1,4 @@
+{ multiversal_src }:
 pkgs: prevPkgs:
 {
   retro68 = pkgs.lib.makeScope pkgs.newScope (self:
@@ -173,7 +174,7 @@ pkgs: prevPkgs:
           cc = stdenv.cc.override { extraPackages = [ ]; };
         }).mkDerivation {
           name = "retro68.multiversal";
-          src = ../multiversal;
+          src = multiversal_src;
           nativeBuildInputs = [ buildPackages.ruby ];
           buildCommand = ''
             echo $src

@@ -1,0 +1,38 @@
+{
+    "multiversal": {
+        "branch": "master",
+        "description": "Multiversal Interfaces for Classic MacOS",
+        "homepage": null,
+        "owner": "autc04",
+        "repo": "multiversal",
+        "rev": "ce33b1bada9b0acb14021c21ac916927c757d525",
+        "sha256": "1fsyjad4kwsqgr2mlx9dfl7z8z42cf2sgw1arqmci47zhaj8is1f",
+        "type": "tarball",
+        "url": "https://github.com/autc04/multiversal/archive/ce33b1bada9b0acb14021c21ac916927c757d525.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "niv": {
+        "branch": "master",
+        "description": "Easy dependency management for Nix projects",
+        "homepage": "https://github.com/nmattia/niv",
+        "owner": "nmattia",
+        "repo": "niv",
+        "rev": "5830a4dd348d77e39a0f3c4c762ff2663b602d4c",
+        "sha256": "1d3lsrqvci4qz2hwjrcnd8h5vfkg8aypq3sjd4g3izbc8frwz5sm",
+        "type": "tarball",
+        "url": "https://github.com/nmattia/niv/archive/5830a4dd348d77e39a0f3c4c762ff2663b602d4c.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "nixpkgs": {
+        "branch": "release-21.11",
+        "description": "Nix Packages collection",
+        "homepage": "",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "3d0bc509336104e1b3f56a045f5828964f2c3c19",
+        "sha256": "1mmsys6bfaxq9vqxijrzd693q0sgq7halxip7x246zwc8wrbx4p2",
+        "type": "tarball",
+        "url": "https://github.com/NixOS/nixpkgs/archive/3d0bc509336104e1b3f56a045f5828964f2c3c19.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    }
+}
