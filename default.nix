@@ -23,7 +23,7 @@ let
     overlays = [ overlay ];
   };
 
-  crossPkgs = overlaidPkgs.lib.mapAttrs (name: plat:
+  crossPkgs = lib.mapAttrs (name: plat:
     import nixpkgs {
       inherit system;
       overlays = [ overlay ];
@@ -31,7 +31,7 @@ let
       config = { allowUnsupportedSystem = true; };
     }) retroPlatforms;
 
-  shell = overlaidPkgs.lib.mapAttrs (name: cross:
+  shell = lib.mapAttrs (name: cross:
     cross.mkShell {
       nativeBuildInputs = with overlaidPkgs; [
         retro68.hfsutils
