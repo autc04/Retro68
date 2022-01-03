@@ -116,7 +116,7 @@ jobs:
         nix-env -iA cachix -f https://cachix.org/api/v1/install
         cd src
         nix-shell -A powerpc --command exit
-        nix-store -qR --include-outputs $(nix-instantiate default.nix -A powerpc) | cachix push $1
+        nix-store -qR --include-outputs $(nix-instantiate default.nix -A powerpc) | cachix push autc04
       EOF
     displayName: Push to Cachix
     env:
