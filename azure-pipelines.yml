@@ -7,7 +7,7 @@ variables:
 jobs:
 
 - job: Linux
-  enabled: false
+  condition: false
   pool:
     vmImage: 'ubuntu-20.04'
   steps:
@@ -40,7 +40,7 @@ jobs:
       buildPlatform: 'x86_64-linux'
 
 - job: macOS
-  enabled: false
+  condition: false
   pool:
     vmImage: 'macOS-10.15'
   steps:
@@ -69,7 +69,7 @@ jobs:
       buildPlatform: 'x86_64-macos'
 
 - job: nix_68k
-  enabled: false
+  condition: false
   pool:
     vmImage: 'ubuntu-20.04'
   steps:
