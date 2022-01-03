@@ -119,6 +119,6 @@ jobs:
   steps:
   - script: |
       echo Fooo
-      echo ${SECRETTEST}
+      echo $SECRETTEST
     env:
-      SECRETTEST: $[SecretTest]
+      SECRETTEST: $(SecretTest)
