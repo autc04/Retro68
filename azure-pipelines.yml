@@ -1,8 +1,13 @@
 trigger:
 - master
+
+variables:
+- group: cachix-write
+
 jobs:
 
 - job: Linux
+  enabled: false
   pool:
     vmImage: 'ubuntu-20.04'
   steps:
@@ -35,6 +40,7 @@ jobs:
       buildPlatform: 'x86_64-linux'
 
 - job: macOS
+  enabled: false
   pool:
     vmImage: 'macOS-10.15'
   steps:
@@ -63,6 +69,7 @@ jobs:
       buildPlatform: 'x86_64-macos'
 
 - job: nix_68k
+  enabled: false
   pool:
     vmImage: 'ubuntu-20.04'
   steps:
