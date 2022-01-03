@@ -98,9 +98,9 @@ jobs:
     submodules: true
   - script: |
       docker run -i --name nix -v`pwd`:/src nixos/nix:latest <<EOF
+        nix-env -iA cachix -f https://cachix.org/api/v1/install
+        cachix use autc04
         chmod 1777 /tmp
-        nix-channel --add https1://nixos.org/channels/nixos-21.11 nixpkgs
-        nix-channel --update
         nix-build src -A powerpc.retro68.samples
       EOF
     displayName: Build inside nixos/nix docker
@@ -113,7 +113,7 @@ jobs:
     artifact: PowerPC Samples
   - script: |
       docker start nix -i <<EOF
-        nix-env -iA cachix -f https://cachix.org/api/v1/install
+        export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
         cd src
         nix-shell -A powerpc --command exit
         nix-store -qR --include-outputs $(nix-instantiate default.nix -A powerpc) | cachix push autc04
