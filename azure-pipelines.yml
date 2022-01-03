@@ -77,12 +77,12 @@ jobs:
       EOF
     displayName: Build inside nixos/nix docker
   - script: |
-      mkdir Samples
-      cd Samples
+      mkdir CompiledSamples
+      cd CompiledSamples
       docker cp -L nix:result - | tar x --strip-components 1
     displayName: Copy result out of docker
 
-  - publish: Samples
+  - publish: CompiledSamples
     artifact: 68K Samples
     
 
@@ -101,9 +101,9 @@ jobs:
       EOF
     displayName: Build inside nixos/nix docker
   - script: |
-      mkdir Samples
-      cd Samples
+      mkdir CompiledSamples
+      cd CompiledSamples
       docker cp -L nix:result - | tar x --strip-components 1
     displayName: Copy result out of docker
-  - publish: Samples
+  - publish: CompiledSamples
     artifact: PowerPC Samples
