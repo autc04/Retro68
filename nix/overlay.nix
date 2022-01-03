@@ -136,7 +136,11 @@ pkgs: prevPkgs:
             set(MAKE_PEF "${pkgs.buildPackages.retro68.tools}/bin/MakePEF" )
 
             include(${../cmake/add_application.cmake})
-          '';
+          '' + (pkgs.lib.optionalString (systemName == "RetroCarbon") ''
+            set(CMAKE_EXE_LINKER_FLAGS_INIT "-carbon")
+            set(CMAKE_SHARED_LINKER_FLAGS_INIT "-carbon")
+            add_definitions( -DTARGET_API_MAC_CARBON=1 )
+          '');
         };
         hook = pkgs.writeTextFile {
           name = "retro68.setup_hook";

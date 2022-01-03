@@ -8,42 +8,28 @@ pkgs: prevPkgs: {
             src = path;
             nativeBuildInputs = [ buildPackages.ninja buildPackages.cmake ];
             buildInputs = [ retro68.console ];
-            buildCommand = ''
-              mkdir build
-              cd build
-              cmake $src -G Ninja
-              ninja
-              mkdir -p $out/Applications
-              mkdir -p $out/Applications/.finf
-              mkdir -p $out/Applications/.rsrc
-
-              cp *.APPL $out/Applications
-              cp .finf/*.APPL $out/Applications/.finf
-              cp .rsrc/*.APPL $out/Applications/.rsrc
-              for f in *.APPL; do
-                cp $'' + ''
-                {f%.APPL}.bin $out/Applications
-                                  done
-                                '';
+            installPhase = ''
+              mkdir $out
+              cp *.bin $out/
+            '';
           }) ({
             dialog = ../Samples/Dialog;
             helloworld = ../Samples/HelloWorld;
-            mpwtool = ../Samples/MPWTool;
             raytracer = ../Samples/Raytracer;
-            #systemextension = ../Samples/SystemExtension;
+          } // lib.optionalAttrs (targetPlatform.cmakeSystemName != "RetroCarbon") {
+            mpwtool = ../Samples/MPWTool;
             wdef = ../Samples/WDEF;
           } // lib.optionalAttrs (targetPlatform.cmakeSystemName != "Retro68") {
             sharedlibrary = ../Samples/SharedLibrary;
           } // lib.optionalAttrs (targetPlatform.cmakeSystemName == "Retro68") {
+            systemextension = ../Samples/SystemExtension;
             launcher = ../Samples/Launcher;
           });
       in runCommand "retro68.samples" { } ''
-        mkdir -p $out/Applications
-        mkdir -p $out/Applications/.rsrc
-        mkdir -p $out/Applications/.finf
+        mkdir -p $out/
 
         ${lib.concatMapStrings (x: ''
-          cp -r ${lib.escapeShellArg x}/Applications $out/
+          cp -r ${lib.escapeShellArg x}/*.bin $out/
         '') (builtins.attrValues individualSamples)}
       '' // individualSamples;
 
@@ -54,14 +40,7 @@ pkgs: prevPkgs: {
         nativeBuildInputs = [ buildPackages.ninja buildPackages.cmake ];
         installPhase = ''
           mkdir $out
-          mkdir -p $out/Applications
-          mkdir -p $out/Applications/.finf
-          mkdir -p $out/Applications/.rsrc
-
-          cp Server/LaunchAPPLServer.APPL $out/Applications
-          cp Server/.finf/LaunchAPPLServer.APPL $out/Applications/.finf
-          cp Server/.rsrc/LaunchAPPLServer.APPL $out/Applications/.rsrc
-          cp Server/LaunchAPPLServer.bin $out/Applications
+          cp *.bin $out/
         '';
       };
   });

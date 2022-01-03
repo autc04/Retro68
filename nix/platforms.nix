@@ -47,7 +47,7 @@
   };
   carbon = {
     system = "powerpc-carbon";
-    config = "powerpc-apple-carbon";
+    config = "powerpc-apple-macos";
     libc = "retro68";
     parsed = {
       cpu = {
