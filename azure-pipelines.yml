@@ -94,6 +94,7 @@ jobs:
     
 
 - job: nix_ppc
+  condition: false
   pool:
     vmImage: 'ubuntu-20.04'
   steps:
@@ -114,3 +115,13 @@ jobs:
     displayName: Copy result out of docker
   - publish: CompiledSamples
     artifact: PowerPC Samples
+
+-job: test
+  pool:
+    vmImage: 'ubuntu-20.04'
+  steps:
+  - script: |
+      echo Fooo
+      echo ${SECRETTEST}
+    env:
+      SECRETTEST: $[SecretTest]
