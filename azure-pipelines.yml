@@ -97,7 +97,7 @@ jobs:
   - checkout: self
     submodules: true
   - script: |
-      docker run -i --name nix -v`pwd`:/src nixos/nix:latest <<EOF
+      docker run -i --name nix -v`pwd`:/src nixos/nix:2.3.12 <<EOF
         nix-env -iA cachix -f https://cachix.org/api/v1/install
         cachix use autc04
         chmod 1777 /tmp
