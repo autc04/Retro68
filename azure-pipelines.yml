@@ -116,7 +116,7 @@ jobs:
   - publish: CompiledSamples
     artifact: PowerPC Samples
 
--job: test
+- job: test
   pool:
     vmImage: 'ubuntu-20.04'
   steps:
