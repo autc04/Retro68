@@ -1,9 +1,6 @@
 trigger:
 - master
 
-variables:
-- group: cachix-write
-
 jobs:
 
 - job: Linux
