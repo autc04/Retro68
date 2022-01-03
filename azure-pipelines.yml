@@ -91,7 +91,6 @@ jobs:
     
 
 - job: nix_ppc
-  condition: false
   pool:
     vmImage: 'ubuntu-20.04'
   steps:
@@ -112,13 +111,13 @@ jobs:
     displayName: Copy result out of docker
   - publish: CompiledSamples
     artifact: PowerPC Samples
-
-- job: test
-  pool:
-    vmImage: 'ubuntu-20.04'
-  steps:
   - script: |
-      echo Fooo
-      echo $SECRETTEST
+      docker start nix -i <<EOF
+        nix-env -iA cachix -f https://cachix.org/api/v1/install
+        cd src
+        nix-shell -A powerpc --command exit
+        nix-store -qR --include-outputs $(nix-instantiate default.nix -A powerpc) | cachix push $1
+      EOF
+    displayName: Push to Cachix
     env:
-      SECRETTEST: $(SecretTest)
+      CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)
