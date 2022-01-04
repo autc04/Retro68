@@ -66,17 +66,15 @@ jobs:
       buildPlatform: 'x86_64-macos'
 
 - job: nix_68k
-  condition: false
   pool:
     vmImage: 'ubuntu-20.04'
   steps:
   - checkout: self
     submodules: true
   - script: |
-      docker run -i --name nix -v`pwd`:/src nixos/nix:latest <<EOF
-        chmod 1777 /tmp
-        nix-channel --add https://nixos.org/channels/nixos-21.11 nixpkgs
-        nix-channel --update
+      docker run -i --name nix -v`pwd`:/src nixos/nix:2.3.12 <<EOF
+        nix-env -iA cachix -f https://cachix.org/api/v1/install
+        cachix use autc04
         nix-build src -A m68k.retro68.samples
       EOF
     displayName: Build inside nixos/nix docker
@@ -88,7 +86,19 @@ jobs:
 
   - publish: CompiledSamples
     artifact: 68K Samples
-    
+      - publish: CompiledSamples
+    artifact: PowerPC Samples
+  - script: |
+      docker start nix -i <<EOF
+        export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
+        cd src
+        nix-shell -A m68k --command exit
+        nix-store -qR --include-outputs \$(nix-instantiate default.nix -A m68k) | cachix push autc04
+      EOF
+    displayName: Push to Cachix
+    env:
+      CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)
+
 
 - job: nix_ppc
   pool:
