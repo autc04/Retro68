@@ -86,8 +86,6 @@ jobs:
 
   - publish: CompiledSamples
     artifact: 68K Samples
-      - publish: CompiledSamples
-    artifact: PowerPC Samples
   - script: |
       docker start nix -i <<EOF
         export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
