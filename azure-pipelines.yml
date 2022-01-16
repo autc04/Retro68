@@ -90,6 +90,7 @@ jobs:
       docker start nix -i <<EOF
         export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
         cd src
+        nix-build src -A m68k.retro68.samples | cachix push autc04
         nix-shell -A m68k --command exit
         nix-store -qR --include-outputs \$(nix-instantiate default.nix -A m68k) | cachix push autc04
       EOF
@@ -123,6 +124,7 @@ jobs:
       docker start nix -i <<EOF
         export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
         cd src
+        nix-build src -A powerpc.retro68.samples | cachix push autc04
         nix-shell -A powerpc --command exit
         nix-store -qR --include-outputs \$(nix-instantiate default.nix -A powerpc) | cachix push autc04
       EOF
