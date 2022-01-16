@@ -215,7 +215,13 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, fs::path dest, fs::path tmp
 bool MakeImportLibraryMulti(fs::path path, fs::path libname)
 {
     ResourceFile resFile;
-    assert(resFile.read(path.string()));
+    bool readSuccess = resFile.read(path.string());
+
+    if (!readSuccess)
+    {
+        std::cerr << "Could not read input file.\n";
+        return false;
+    }
 
     std::vector<char> data(resFile.data.begin(), resFile.data.end());
 
