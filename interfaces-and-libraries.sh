@@ -259,6 +259,7 @@ function setup68KLibraries()
 
 function setupPPCLibraries()
 {
+    DEST=${1:-"$PREFIX/universal"}
     mkdir -p "$DEST/libppc"
     case `ResInfo -n "$INTERFACELIB" 2> /dev/null || echo 0` in
         0)
@@ -273,7 +274,7 @@ function setupPPCLibraries()
             echo "Building PowerPC import libraries..."
             for shlib in "${SHAREDLIBRARIES}/"*; do
                 libname=`basename "$shlib"`
-                implib=lib${libname}.a
+                implib=lib${libname%.bin}.a
                 printf "    %30s => %-30s\n" ${libname} ${implib}
                 MakeImport "$shlib" "$DEST/libppc/$implib" || true
             done
@@ -288,7 +289,7 @@ function setupPPCLibraries()
                 cp "$obj" "$DEST/libppc/"
                 basename=`basename "${obj%.o}"`
                 # and wrap it in a .a archive for convenience
-                lib="$PREFIX"/universal/libppc/lib$basename.a
+                lib="$DEST"/libppc/lib$basename.a
                 rm -f "$lib"
                 powerpc-apple-macos-ar cqs "$lib" "$obj"
             fi
