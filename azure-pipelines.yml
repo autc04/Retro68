@@ -4,6 +4,7 @@ trigger:
 jobs:
 
 - job: Linux
+  condition: false
   pool:
     vmImage: 'ubuntu-20.04'
   timeoutInMinutes: 90
@@ -37,6 +38,7 @@ jobs:
       buildPlatform: 'x86_64-linux'
 
 - job: macOS
+  condition: false
   pool:
     vmImage: 'macOS-10.15'
   timeoutInMinutes: 90
@@ -131,3 +133,16 @@ jobs:
     displayName: Push to Cachix
     env:
       CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)
+
+- job: nix_mac
+  pool:
+    vmImage: 'macOS-11'
+  steps:
+  - script: |
+      sh <(curl -L https://nixos.org/nix/install)
+    displayName: Install nix
+  - checkout: self
+    submodules: false
+  - script: |
+      nix-build src -A powerpc.retro68.samples
+    displayName: build
