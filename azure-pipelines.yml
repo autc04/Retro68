@@ -141,6 +141,15 @@ jobs:
   - script: |
       sh <(curl -L https://nixos.org/nix/install)
     displayName: Install nix
+  - script: |
+      echo testing
+      file /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+      ls /nix/var/nix/profiles/default/etc/profile.d/
+      echo sourcing
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+      echo building
+      nix-build '<nixpkgs>' -A hello
+    displayName: try nix
   - checkout: self
     submodules: false
   - script: |
