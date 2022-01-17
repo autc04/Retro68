@@ -144,6 +144,6 @@ jobs:
   - checkout: self
     submodules: false
   - script: |
-      . ~/.nix-profile/etc/profile.d/nix.sh
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       nix-build src -A powerpc.retro68.samples
     displayName: build
