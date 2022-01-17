@@ -6,6 +6,7 @@ jobs:
 - job: Linux
   pool:
     vmImage: 'ubuntu-20.04'
+  timeoutInMinutes: 90
   steps:
   - checkout: self
     submodules: true
@@ -38,6 +39,7 @@ jobs:
 - job: macOS
   pool:
     vmImage: 'macOS-10.15'
+  timeoutInMinutes: 90
   steps:
   - checkout: self
     submodules: true
