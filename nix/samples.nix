@@ -11,6 +11,7 @@ pkgs: prevPkgs: {
             installPhase = ''
               mkdir $out
               cp *.bin $out/
+              rm -f $out/*.code.bin $out/*.rsrc.bin
             '';
           }) ({
             dialog = ../Samples/Dialog;
@@ -24,7 +25,7 @@ pkgs: prevPkgs: {
           } // lib.optionalAttrs (targetPlatform.cmakeSystemName == "Retro68") {
             systemextension = ../Samples/SystemExtension;
             launcher = ../Samples/Launcher;
-          });
+          }) // { launchapplserver =  self.launchapplserver; };
       in runCommand "retro68.samples" { } ''
         mkdir -p $out/
 
@@ -40,7 +41,8 @@ pkgs: prevPkgs: {
         nativeBuildInputs = [ buildPackages.ninja buildPackages.cmake ];
         installPhase = ''
           mkdir $out
-          cp *.bin $out/
+          cp Server/*.bin $out/
+          rm $out/*.code.bin $out/*.rsrc.bin
         '';
       };
   });

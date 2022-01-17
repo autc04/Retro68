@@ -1,10 +1,12 @@
 trigger:
 - master
+
 jobs:
 
 - job: Linux
   pool:
     vmImage: 'ubuntu-20.04'
+  timeoutInMinutes: 90
   steps:
   - checkout: self
     submodules: true
@@ -37,6 +39,7 @@ jobs:
 - job: macOS
   pool:
     vmImage: 'macOS-10.15'
+  timeoutInMinutes: 90
   steps:
   - checkout: self
     submodules: true
@@ -69,10 +72,9 @@ jobs:
   - checkout: self
     submodules: true
   - script: |
-      docker run -i --name nix -v`pwd`:/src nixos/nix:latest <<EOF
-        chmod 1777 /tmp
-        nix-channel --add https://nixos.org/channels/nixos-21.11 nixpkgs
-        nix-channel --update
+      docker run -i --name nix -v`pwd`:/src nixos/nix:2.3.12 <<EOF
+        nix-env -iA cachix -f https://cachix.org/api/v1/install
+        cachix use autc04
         nix-build src -A m68k.retro68.samples
       EOF
     displayName: Build inside nixos/nix docker
@@ -84,7 +86,18 @@ jobs:
 
   - publish: CompiledSamples
     artifact: 68K Samples
-    
+  - script: |
+      docker start nix -i <<EOF
+        export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
+        cd src
+        nix-build -A m68k.retro68.samples | cachix push autc04
+        nix-shell -A m68k --command exit
+        nix-store -qR --include-outputs \$(nix-instantiate default.nix -A m68k) | cachix push autc04
+      EOF
+    displayName: Push to Cachix
+    env:
+      CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)
+
 
 - job: nix_ppc
   pool:
@@ -93,10 +106,10 @@ jobs:
   - checkout: self
     submodules: true
   - script: |
-      docker run -i --name nix -v`pwd`:/src nixos/nix:latest <<EOF
+      docker run -i --name nix -v`pwd`:/src nixos/nix:2.3.12 <<EOF
+        nix-env -iA cachix -f https://cachix.org/api/v1/install
+        cachix use autc04
         chmod 1777 /tmp
-        nix-channel --add https1://nixos.org/channels/nixos-21.11 nixpkgs
-        nix-channel --update
         nix-build src -A powerpc.retro68.samples
       EOF
     displayName: Build inside nixos/nix docker
@@ -107,3 +120,14 @@ jobs:
     displayName: Copy result out of docker
   - publish: CompiledSamples
     artifact: PowerPC Samples
+  - script: |
+      docker start nix -i <<EOF
+        export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
+        cd src
+        nix-build -A powerpc.retro68.samples | cachix push autc04
+        nix-shell -A powerpc --command exit
+        nix-store -qR --include-outputs \$(nix-instantiate default.nix -A powerpc) | cachix push autc04
+      EOF
+    displayName: Push to Cachix
+    env:
+      CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)

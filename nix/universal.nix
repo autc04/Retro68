@@ -26,20 +26,31 @@ pkgs: prevPkgs:
             ConvertDiskImage $src decoded.dsk
             export HOME=.
             hmount decoded.dsk
-            mkdir -p CIncludes RIncludes lib68
+            mkdir -p CIncludes RIncludes
             hcopy -t 'MPW-GM:MPW-GM:Interfaces&Libraries:Interfaces:CIncludes:*.h' CIncludes/
             hcopy -t 'MPW-GM:MPW-GM:Interfaces&Libraries:Interfaces:RIncludes:*.r' RIncludes/
             mkdir -p $out/include $out/RIncludes
             bash ${../prepare-headers.sh} CIncludes $out/include
             bash ${../prepare-rincludes.sh} RIncludes $out/RIncludes
 
-            hcopy -r 'MPW-GM:MPW-GM:Interfaces&Libraries:Libraries:Libraries:*.o' lib68
-
             . ${../interfaces-and-libraries.sh}
+          '' + (pkgs.lib.optionalString (pkgs.targetPlatform.cmakeSystemName == "Retro68")  ''
+            mkdir -p lib68
+            hcopy -r 'MPW-GM:MPW-GM:Interfaces&Libraries:Libraries:Libraries:*.o' lib68
             M68KLIBRARIES=lib68
             setup68KLibraries $out/
             mv $out/lib68k $out/lib
-          '';
+          '') + (pkgs.lib.optionalString (pkgs.targetPlatform.cmakeSystemName != "Retro68")  ''
+            mkdir -p libppc peflibs
+            hcopy -r 'MPW-GM:MPW-GM:Interfaces&Libraries:Libraries:PPCLibraries:*.o' libppc
+            hcopy -m 'MPW-GM:MPW-GM:Interfaces&Libraries:Libraries:SharedLibraries:*' peflibs
+            PPCLIBRARIES=libppc
+            SHAREDLIBRARIES=peflibs
+            INTERFACELIB=peflibs/InterfaceLib.bin
+
+            setupPPCLibraries $out/
+            mv $out/libppc $out/lib
+          '');
         };
     });
 } // prevPkgs.lib.optionalAttrs (prevPkgs.targetPlatform ? retro68) {
