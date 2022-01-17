@@ -141,15 +141,22 @@ jobs:
   - script: |
       sh <(curl -L https://nixos.org/nix/install)
     displayName: Install nix
+  - script: |
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+      echo "trusted-users = root runner" | sudo tee -a /etc/nix/nix.conf && sudo pkill nix-daemon
+
+      nix-env -iA cachix -f https://cachix.org/api/v1/install
+      cachix use autc04
+    displayName: setup cachix
+
   - checkout: self
     submodules: false
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      nix-env -iA cachix -f https://cachix.org/api/v1/install
-      cachix use autc04
       nix-build -A powerpc.retro68.samples
     displayName: build
   - script: |
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
       nix-build -A powerpc.retro68.samples | cachix push autc04
       nix-shell -A powerpc --command exit
