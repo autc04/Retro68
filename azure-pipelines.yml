@@ -134,25 +134,26 @@ jobs:
     env:
       CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)
 
-- job: nix_mac
+- job: nix_mac_ppc
   pool:
     vmImage: 'macOS-11'
   steps:
   - script: |
       sh <(curl -L https://nixos.org/nix/install)
     displayName: Install nix
-  - script: |
-      echo testing
-      file /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      ls /nix/var/nix/profiles/default/etc/profile.d/
-      echo sourcing
-      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      echo building
-      nix-build '<nixpkgs>' -A hello
-    displayName: try nix
   - checkout: self
     submodules: false
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      nix-build src -A powerpc.retro68.samples
+      nix-env -iA cachix -f https://cachix.org/api/v1/install
+      cachix use autc04
+      nix-build -A powerpc.retro68.samples
     displayName: build
+  - script: |
+      export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
+      nix-build -A powerpc.retro68.samples | cachix push autc04
+      nix-shell -A powerpc --command exit
+      nix-store -qR --include-outputs \$(nix-instantiate default.nix -A powerpc) | cachix push autc04
+    displayName: Push to Cachix
+    env:
+      CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)
