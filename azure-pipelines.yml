@@ -67,7 +67,12 @@ jobs:
       testResultsFiles: build/Testing/**/*.xml
       buildPlatform: 'x86_64-macos'
 
-- job: nix_68k
+- job: Nix-Linux
+  matrix:
+    M68K:
+      TARGET: m68k
+    PowerPC:
+      TARGET: powerpc
   pool:
     vmImage: 'ubuntu-20.04'
   steps:
@@ -77,7 +82,7 @@ jobs:
       docker run -i --name nix -v`pwd`:/src nixos/nix:2.3.12 <<EOF
         nix-env -iA cachix -f https://cachix.org/api/v1/install
         cachix use autc04
-        nix-build src -A m68k.retro68.samples
+        nix-build src -A ${TARGET}.retro68.samples
       EOF
     displayName: Build inside nixos/nix docker
   - script: |
@@ -87,68 +92,35 @@ jobs:
     displayName: Copy result out of docker
 
   - publish: CompiledSamples
-    artifact: 68K Samples
+    artifact: Samples ($(TARGET))
   - script: |
       docker start nix -i <<EOF
         export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
         cd src
-        nix-build -A m68k.retro68.samples | cachix push autc04
-        nix-shell -A m68k --command exit
-        nix-store -qR --include-outputs \$(nix-instantiate default.nix -A m68k) | cachix push autc04
+        nix-build -A ${TARGET}.retro68.samples | cachix push autc04
+        nix-shell -A ${TARGET} --command exit
+        nix-store -qR --include-outputs \$(nix-instantiate default.nix -A ${TARGET}) | cachix push autc04
       EOF
     displayName: Push to Cachix
     env:
       CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)
 
 
-- job: nix_ppc
-  pool:
-    vmImage: 'ubuntu-20.04'
-  steps:
-  - checkout: self
-    submodules: true
-  - script: |
-      docker run -i --name nix -v`pwd`:/src nixos/nix:2.3.12 <<EOF
-        nix-env -iA cachix -f https://cachix.org/api/v1/install
-        cachix use autc04
-        chmod 1777 /tmp
-        nix-build src -A powerpc.retro68.samples
-      EOF
-    displayName: Build inside nixos/nix docker
-  - script: |
-      mkdir CompiledSamples
-      cd CompiledSamples
-      docker cp -L nix:result - | tar x --strip-components 1
-    displayName: Copy result out of docker
-  - publish: CompiledSamples
-    artifact: PowerPC Samples
-  - script: |
-      docker start nix -i <<EOF
-        export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
-        cd src
-        nix-build -A powerpc.retro68.samples | cachix push autc04
-        nix-shell -A powerpc --command exit
-        nix-store -qR --include-outputs \$(nix-instantiate default.nix -A powerpc) | cachix push autc04
-      EOF
-    displayName: Push to Cachix
-    env:
-      CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)
-
-- job: nix_mac_ppc
+- job: Nix-Mac
+  matrix:
+    M68K:
+      TARGET: m68k
+    PowerPC:
+      TARGET: powerpc
   pool:
     vmImage: 'macOS-11'
   steps:
   - script: |
       export NIX_EXTRA_CONF="trusted-users = root runner"
       sh <(curl -L https://nixos.org/nix/install)
-      echo ============
-      cat /etc/nix/nix.conf
-      echo ============
     displayName: Install nix
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      # echo "trusted-users = root runner" | sudo tee -a /etc/nix/nix.conf 
-      
       nix-env -iA cachix -f https://cachix.org/api/v1/install
       cachix use autc04
     displayName: setup cachix
@@ -157,14 +129,14 @@ jobs:
     submodules: false
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      nix-build -A powerpc.retro68.samples
+      nix-build -A $(TARGET).retro68.samples
     displayName: build
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
-      nix-build -A powerpc.retro68.samples | cachix push autc04
-      nix-shell -A powerpc --command exit
-      nix-store -qR --include-outputs `nix-instantiate default.nix -A powerpc` | cachix push autc04
+      nix-build -A $(TARGET).retro68.samples | cachix push autc04
+      nix-shell -A $(TARGET) --command exit
+      nix-store -qR --include-outputs `nix-instantiate default.nix -A $(TARGET)` | cachix push autc04
     displayName: Push to Cachix
     env:
       CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)
