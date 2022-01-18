@@ -143,8 +143,9 @@ jobs:
     displayName: Install nix
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      echo "trusted-users = root runner" | sudo tee -a /etc/nix/nix.conf && sudo pkill nix-daemon
-
+      echo "trusted-users = root runner" | sudo tee -a /etc/nix/nix.conf 
+      sudo launchctl stop org.nixos.nix-daemon
+      sudo launchctl start org.nixos.nix-daemon
       nix-env -iA cachix -f https://cachix.org/api/v1/install
       cachix use autc04
     displayName: setup cachix
