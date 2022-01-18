@@ -164,7 +164,7 @@ jobs:
       export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
       nix-build -A powerpc.retro68.samples | cachix push autc04
       nix-shell -A powerpc --command exit
-      nix-store -qR --include-outputs \$(nix-instantiate default.nix -A powerpc) | cachix push autc04
+      nix-store -qR --include-outputs `nix-instantiate default.nix -A powerpc` | cachix push autc04
     displayName: Push to Cachix
     env:
       CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)
