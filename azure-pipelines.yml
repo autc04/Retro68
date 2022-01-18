@@ -144,8 +144,18 @@ jobs:
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       echo "trusted-users = root runner" | sudo tee -a /etc/nix/nix.conf 
+      echo "nix: `pgrep nix-daemon`"
+      sudo launchctl status org.nixos.nix-daemon
       sudo launchctl stop org.nixos.nix-daemon
+      echo "nix: `pgrep nix-daemon`"
+      sudo launchctl status org.nixos.nix-daemon
       sudo launchctl start org.nixos.nix-daemon
+      echo "nix: `pgrep nix-daemon`"
+      sudo launchctl status org.nixos.nix-daemon
+      sleep 5
+      echo "nix: `pgrep nix-daemon`"
+      sudo launchctl status org.nixos.nix-daemon
+      
       nix-env -iA cachix -f https://cachix.org/api/v1/install
       cachix use autc04
     displayName: setup cachix
