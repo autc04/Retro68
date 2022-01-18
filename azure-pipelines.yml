@@ -68,11 +68,12 @@ jobs:
       buildPlatform: 'x86_64-macos'
 
 - job: Nix-Linux
-  matrix:
-    M68K:
-      TARGET: m68k
-    PowerPC:
-      TARGET: powerpc
+  strategy:
+    matrix:
+      M68K:
+        TARGET: m68k
+      PowerPC:
+        TARGET: powerpc
   pool:
     vmImage: 'ubuntu-20.04'
   steps:
@@ -107,11 +108,12 @@ jobs:
 
 
 - job: Nix-Mac
-  matrix:
-    M68K:
-      TARGET: m68k
-    PowerPC:
-      TARGET: powerpc
+  strategy:
+    matrix:
+      M68K:
+        TARGET: m68k
+      PowerPC:
+        TARGET: powerpc
   pool:
     vmImage: 'macOS-11'
   steps:
