@@ -67,7 +67,7 @@ jobs:
       testResultsFiles: build/Testing/**/*.xml
       buildPlatform: 'x86_64-macos'
 
-- job: Nix-Linux
+- job: NixLinux
   strategy:
     matrix:
       M68K:
@@ -107,7 +107,7 @@ jobs:
       CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)
 
 
-- job: Nix-Mac
+- job: NixMac
   strategy:
     matrix:
       M68K:
