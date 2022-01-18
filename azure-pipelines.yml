@@ -139,7 +139,7 @@ jobs:
     vmImage: 'macOS-11'
   steps:
   - script: |
-      NIX_EXTRA_CONF="trusted-users = root runner"
+      export NIX_EXTRA_CONF="trusted-users = root runner"
       sh <(curl -L https://nixos.org/nix/install)
       echo ============
       cat /etc/nix/nix.conf
