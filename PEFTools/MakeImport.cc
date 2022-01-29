@@ -181,27 +181,27 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, fs::path dest, fs::path tmp
             {
                 expFile << sym << endl;
                 sFile << ".text" << endl;
-                sFile << "\t.globl " << sym << endl;
-                sFile << "\t.globl ." << sym << endl;
-                sFile << "\t.csect " << sym << "[DS]" << endl;
-                sFile << sym << ':' << endl;
-                sFile << ".long ." << sym << ", TOC[tc0], 0" << endl;
+                sFile << "\t.globl " << '"' << sym << '"' << endl;
+                sFile << "\t.globl " << '"' << '.' << sym << '"' << endl;
+                sFile << "\t.csect " << '"' << sym << "[DS]" << '"' << endl;
+                sFile << '"' << sym << '"' << ':' << endl;
+                sFile << ".long " << '"' << '.' << sym << '"' << ", TOC[tc0], 0" << endl;
                 sFile << ".text" << endl;
-                sFile << '.' << sym << ':' << endl;
+                sFile << '"' << '.' << sym << '"' << ':' << endl;
                 sFile << "\tblr" << endl;
             }
             else if(exportedSymbols[i].second == kPEFDataSymbol)
             {
                 expFile << sym << endl;
-                sFile << "\t.globl " << sym << endl;
+                sFile << "\t.globl " << '"' << sym << '"' << endl;
                 sFile << "\t.csect .data[RW],3" << endl;
                 sFile << "\t.align 2" << endl;
-                sFile << sym << ':' << endl;
+                sFile << '"' << sym << '"' << ':' << endl;
                 sFile << "\t.long\t42" << endl;
             }
         }
         
-        //cerr << "Generating: " << name << " -> " << libname << endl;
+        //cerr << "Generating: " << stub_s.string() << " -> " << stub_o.string() << endl;
         RunCommand("powerpc-apple-macos-as", std::vector<std::string> {
                        stub_s.string(), "-o", stub_o.string()
                    });
