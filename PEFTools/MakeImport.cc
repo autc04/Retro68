@@ -212,6 +212,35 @@ void MakeImportLibrary(char *pefptr, size_t pefsize, fs::path dest, fs::path tmp
     }
 }
 
+bool MakeImportLibraryPlainPEF(fs::path path, fs::path libname)
+{
+    ResourceFile resFile;
+    bool readSuccess = resFile.read(path.string());
+
+    if (!readSuccess)
+    {
+        std::cerr << "Could not read input file.\n";
+        return false;
+    }
+
+    std::vector<char> data(resFile.data.begin(), resFile.data.end());
+
+    fs::path tmpdir = libname.parent_path() / fs::unique_path("makeimport-tmp-%%%%-%%%%-%%%%-%%%%");
+    fs::create_directory(tmpdir);
+
+    try
+    {
+        MakeImportLibrary(data.data(), data.size(), libname, tmpdir);
+    }
+    catch(...)
+    {
+        fs::remove_all(tmpdir);
+        throw;
+    }
+    fs::remove_all(tmpdir);
+    return true;
+}
+
 bool MakeImportLibraryMulti(fs::path path, fs::path libname)
 {
     ResourceFile resFile;
@@ -351,10 +380,9 @@ bool MakeImportLibraryMulti(fs::path path, fs::path libname)
 
 int main (int argc, char * const argv[])
 {
-    //printf("%d\n",argc);
-    if(argc != 3)
+    if(argc != 3 && argc != 4 || (argc == 4 && argv[3] != std::string("--no-cfrg")))
     {
-        cerr << "Usage: makeimport <peflib> <libname>" << endl;
+        cerr << "Usage: makeimport <peflib> <libname> [--no-cfrg]" << endl;
         return 1;
     }
     
@@ -364,9 +392,17 @@ int main (int argc, char * const argv[])
         perror(argv[1]);
         return 1;
     }
-    
-    if(!MakeImportLibraryMulti(argv[1], argv[2]))
-        return 1;
+
+    if (argc == 4)
+    {
+        if(!MakeImportLibraryPlainPEF(argv[1], argv[2]))
+            return 1;
+    }
+    else
+    {
+        if(!MakeImportLibraryMulti(argv[1], argv[2]))
+            return 1;
+    }
 
     close(fd);
     return 0;
