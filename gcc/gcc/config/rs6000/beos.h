@@ -37,17 +37,17 @@
   while (0)
 
 /* --no-check-sections  :   sections overlap on purpose!
-   -undefined=_consolewrite : hack to allow easy configuration of console output             
 */
 
 #define LINK_SPEC "%{!r:-btextro} -bhalt:4 -bnodelcsect \
---no-check-sections -undefined=_consolewrite \
+--no-check-sections \
 %{shared:-bM:SRE}"
 
+/* TODO: add libroot to some of these, maybe replace -lc */
 #define LIB_SPEC "-lc"
-#define LIBGCC_SPEC "-lgcc %{carbon: -lretrocrt-carbon} %{!carbon: -lretrocrt} -lgcc %{carbon: -lCarbonLib} %{!carbon: -lInterfaceLib}"
+#define LIBGCC_SPEC "-lgcc"
+#define LINK_GCC_C_SEQUENCE_SPEC "--start-group -lgcc -lc --end-group"
 
-#define LINK_GCC_C_SEQUENCE_SPEC "--start-group -lgcc -lc %{carbon: -lretrocrt-carbon} %{!carbon: -lretrocrt} %{carbon: -lCarbonLib} %{!carbon: -lInterfaceLib} --end-group"
-
+/* TODO: we'll need a startfile... */
 #undef STARTFILE_SPEC
 #define STARTFILE_SPEC ""

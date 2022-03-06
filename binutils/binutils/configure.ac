@@ -318,7 +318,7 @@ changequote([,])dnl
 changequote(,)dnl
 	powerpc*-aix[5-9].* \
 changequote([,])dnl
-	| powerpc-*-macos)
+	| powerpc-*-macos | powerpc-*-beos)
 	  OBJDUMP_DEFS="-DAIX_WEAK_SUPPORT"
 	  ;;
 	powerpc*-*-pe* | powerpc*-*-cygwin*)

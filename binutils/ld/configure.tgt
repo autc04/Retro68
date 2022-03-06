@@ -620,13 +620,12 @@ powerpc*-*-elf* | powerpc*-*-eabi* | powerpc*-*-sysv* \
 powerpc-*-nto*)		targ_emul=elf32ppcnto ;;
 powerpcle-*-nto*)	targ_emul=elf32lppcnto ;;
 powerpc-*-macos*)	targ_emul=ppcmacos ;;
+powerpc-*-beos*)	targ_emul=ppcmacos ;;
 powerpcle-*-pe | powerpcle-*-winnt* | powerpcle-*-cygwin*)
 			targ_emul=ppcpe
 			targ_extra_ofiles="deffilep.o pe-dll.o" ;;
 powerpc-*-aix[5-9]*)	targ_emul=aix5ppc ;;
 powerpc-*-aix*)		targ_emul=aixppc ;;
-powerpc-*-beos*)	targ_emul=aixppc ;;
-powerpc-*-macos*)	targ_emul=aixppc ;;
 powerpc-*-windiss*)	targ_emul=elf32ppcwindiss ;;
 powerpc-*-lynxos*)	targ_emul=ppclynx ;;
 pru*-*-*)		targ_emul=pruelf ;;

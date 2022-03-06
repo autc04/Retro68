@@ -1081,7 +1081,7 @@ case "${targ}" in
     ;;
 #endif
 
-  powerpc-*-aix* | powerpc-*-beos* | rs6000-*-*)
+  powerpc-*-aix* | rs6000-*-*)
     targ_defvec=rs6000_xcoff_vec
     targ64_selvecs=rs6000_xcoff64_vec
     case "${targ}" in
@@ -1139,6 +1139,14 @@ case "${targ}" in
     ;;
   powerpc-*-macos*)
     targ_cflags=-DAIX_WEAK_SUPPORT
+    targ_selvecs=powerpc_xcoff_vec
+    targ_defvec=powerpc_xcoff_vec
+    ;;
+  powerpc-*-beos*)
+    targ_cflags=-DAIX_WEAK_SUPPORT
+    # or maybe also: targ_cflags=-DSMALL_ARCHIVE
+    # 	this might affect compatibility with pre-built static .a libraries
+    
     targ_selvecs=powerpc_xcoff_vec
     targ_defvec=powerpc_xcoff_vec
     ;;
