@@ -379,7 +379,7 @@ LaunchAPPL and the Test Suite
 -----------------------------
 
 `LaunchAPPL` is a tool included with Retro68 intended to make launching the
-compiled Mac applications easier. It's use is optional, so you may skip reading
+compiled Mac applications easier. Its use is optional, so you may skip reading
 this section.
 
 Currently, LaunchAPPL supports the following methods for launching Mac applications:
