@@ -1254,6 +1254,9 @@ fabi-compat-version=
 C++ ObjC++ Joined RejectNegative UInteger Var(flag_abi_compat_version) Init(-1)
 The version of the C++ ABI used for -Wabi warnings and link compatibility aliases.
 
+fmetrowerks-abi
+C++ ObjC++ Var(flag_metrowerks_abi)
+
 faccess-control
 C++ ObjC++ Var(flag_access_control) Init(1)
 Enforce class member access control semantics.

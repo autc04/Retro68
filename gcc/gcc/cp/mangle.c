@@ -785,7 +785,8 @@ write_mangled_name (const tree decl, bool top_level)
     }
   else
     {
-      write_string ("_Z");
+      if (!flag_metrowerks_abi)
+	write_string ("_Z");
       write_encoding (decl);
     }
 }
