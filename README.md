@@ -41,6 +41,10 @@ For Ubuntu Linux, the following should help a bit:
 
     sudo apt-get install cmake libgmp-dev libmpfr-dev libmpc-dev libboost-all-dev bison flex texinfo ruby
 
+For Arch Linux, this should do the trick:
+
+    sudo pacman -S --needed cmake gmp mpfr libmpc boost bison flex texinfo ruby
+
 On a Mac, get the homebrew package manager and:
 
     brew install boost cmake gmp mpfr libmpc bison
