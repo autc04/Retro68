@@ -171,21 +171,21 @@ You can use the `nix-shell` command to invoke various useful shell environments:
 |-------------------------------------|----------------------------------------------|
 | `nix-shell`                         | 68K development environment                  |
 | `nix-shell -A m68k`                 | 68K development environment                  |
-| `nix-shell -A ppc`                  | PowerPC development environment              |
+| `nix-shell -A powerpc`              | PowerPC development environment              |
 | `nix-shell -A retro68.monolithic`   | Shell for running `build-toolchain.bash`     |
 
 You can also use the `nix-build` command to build packages. As always with `nix`,
 the result will be somewhere in a subdirectory of `/nix/store`, with a symlink
 named `result` placed in your Retro68 directory.
 
-| Command                             | What                                         |
-|-------------------------------------|----------------------------------------------|
-| `nix-build -A m68k.retro68.samples` | Sample programs for 68K                      |
-| `nix-build -A ppc.retro68.samples`  | Sample programs for PowerPC                  |
-| `nix-build -A retro68.monolithic`   | Result of `build-toolchain.bash --no-carbon` |
-| `nix-build -A m68k.zlib`            | zlib library, cross-compiled for 68K Macs    |
-| `nix-build -A m68k.`*packagename*   | cross-compile *packagename* to 68K           |
-| `nix-build -A ppc.`*packagename*    | cross-compile *packagename* to PowerPC       |
+| Command                                | What                                         |
+|----------------------------------------|----------------------------------------------|
+| `nix-build -A m68k.retro68.samples`    | Sample programs for 68K                      |
+| `nix-build -A powerpc.retro68.samples` | Sample programs for PowerPC                  |
+| `nix-build -A retro68.monolithic`      | Result of `build-toolchain.bash --no-carbon` |
+| `nix-build -A m68k.zlib`               | zlib library, cross-compiled for 68K Macs    |
+| `nix-build -A m68k.`*packagename*      | cross-compile *packagename* to 68K           |
+| `nix-build -A powerpc.`*packagename*   | cross-compile *packagename* to PowerPC       |
 
 You can attempt to cross-compile *any* package from the `nixpkgs` collection. Unless the
 package contains a very portable library, the command will of course fail. Please don't
