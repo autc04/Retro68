@@ -70,6 +70,9 @@ class MiniVMacLauncher : public Launcher
     fs::path systemImage;
     fs::path vmacDir;
     fs::path vmacPath;
+#ifdef __APPLE__
+    bool vmacIsAppBundle;
+#endif
 
     hfsvol *sysvol;
     hfsvol *vol;
@@ -164,9 +167,22 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     : Launcher(options),
       sysvol(NULL), vol(NULL)
 {
-    imagePath = tempDir / "disk1.dsk";
     vmacDir = fs::absolute( options["minivmac-dir"].as<std::string>() );
     vmacPath = fs::absolute( options["minivmac-path"].as<std::string>(), vmacDir );
+
+    fs::path dataDir;
+#ifdef __APPLE__
+    vmacIsAppBundle = vmacPath.extension().string() == ".app";
+    if(vmacIsAppBundle)
+    {
+        dataDir = tempDir / "minivmac.app" / "Contents" / "mnvm_dat";
+    }
+    else
+#endif
+    {
+        dataDir = tempDir;
+    }
+    imagePath = dataDir / "disk1.dsk";
 
     systemImage = fs::absolute(options["system-image"].as<std::string>(), vmacDir);
     systemImage = ConvertImage(systemImage);
@@ -196,8 +212,35 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     }
 
     fs::path autoquitImage = fs::absolute(options[optionsKey].as<std::string>(), vmacDir);
-
     autoquitImage = ConvertImage(autoquitImage);
+
+    /*
+        Copy over the entire Mini vMac program.
+        Mini vMac looks for ROM (vMac.ROM) and disk images (disk1.dsk)
+        in the directory next to its binary or in the case of the Mac
+        version in the mnvm_dat directory in the Contents directory in
+        the app bundle.
+        The Mac version also ignores command line arguments.
+        Having our own copy in our temp directory is just simpler.
+        It is five times smaller than System 6, so this really does not
+        matter.
+    */
+    fs::path vmacCopy;
+#ifdef __APPLE__
+    if(vmacIsAppBundle)
+    {
+        vmacCopy = tempDir / "minivmac.app";
+        copyDirectoryRecursively(vmacPath, vmacCopy);
+        vmacPath = vmacCopy;
+        boost::filesystem::create_directories(dataDir);
+    }
+    else
+#endif
+    {
+        vmacCopy = tempDir / "minivmac";
+        fs::copy(vmacPath, vmacCopy);
+        vmacPath = vmacCopy;
+    }
 
     int size = 5000*1024;
 
@@ -275,85 +318,22 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     
     fs::create_symlink(
         romFile,
-        tempDir / romFile.filename() );
+        dataDir / romFile.filename() );
 
     if(romFile.filename() != "vMac.ROM")
     {
         // If the ROM file is not named vMac.ROM, this might be for two different
         // reasons.
         // 1. The user didn't bother to rename it to the correct "vMac.ROM"
-        // 2. The user is using a MacII version of Mini vMac and has named the
-        //    ROM file MacII.ROM on purpose.
+        // 2. The user is using a version of Mini vMac that is not emulating
+        //    a Macintosh Plus and has named the ROM file accordingly.
     
         // To be on the safe side, provide both the user-specified name and
         // the standard vMac.ROM.
     
         fs::create_symlink(
             romFile,
-            tempDir / "vMac.ROM" );
-    }
-
-    /*
-        Finally, we copy over the entire Mini vMac binary.
-        Mini vMac looks for ROM (vMac.ROM) and disk images (disk1.dsk)
-        in the directory next to its binary.
-        The Mac version also ignores command line arguments.
-        Having our own copy in our temp directory is just simpler.
-        It is five times smaller than System 6, so this really does not
-        matter.
-    */
-#ifdef __APPLE__
-    /*
-        A special case for the Mac:
-        We are probably dealing with an entire application bundle.
-    */
-    if(vmacPath.extension().string() == ".app")
-    {
-        fs::path appPath = tempDir / "minivmac.app";
-        
-        copyDirectoryRecursively( vmacPath, appPath );
-        
-        // The following 30 lines of code should rather be written as:
-        //   vmacPath = appPath / "Contents" / "MacOS" / Bundle(appPath).getExecutablePath();
-        // But this is CoreFoundation, so it's a tiny little bit more verbose:
-        
-        CFStringRef appPathCF
-            = CFStringCreateWithCString(
-                kCFAllocatorDefault, appPath.string().c_str(), kCFStringEncodingUTF8);
-        CFURLRef bundleURL = CFURLCreateWithFileSystemPath(
-            kCFAllocatorDefault, appPathCF, kCFURLPOSIXPathStyle, true);
-        
-        CFBundleRef bundle = CFBundleCreate( kCFAllocatorDefault, bundleURL );
-        
-        CFURLRef executableURL = CFBundleCopyExecutableURL(bundle);
-        
-        CFStringRef executablePath = CFURLCopyFileSystemPath(executableURL, kCFURLPOSIXPathStyle);
-        
-        if(const char *ptr = CFStringGetCStringPtr(executablePath, kCFURLPOSIXPathStyle))
-        {
-            vmacPath = string(ptr);
-        }
-        else
-        {
-            vector<char> buffer(
-                CFStringGetMaximumSizeForEncoding(
-                    CFStringGetLength(executablePath), kCFStringEncodingUTF8) + 1);
-            CFStringGetCString(executablePath, buffer.data(), buffer.size(), kCFStringEncodingUTF8);
-            vmacPath = string(buffer.data());
-        }
-        vmacPath = appPath / "Contents" / "MacOS" / vmacPath;
-        
-        CFRelease(appPathCF);
-        CFRelease(bundleURL);
-        CFRelease(bundle);
-        CFRelease(executableURL);
-        CFRelease(executablePath);
-    }
-    else
-#endif
-    {
-        fs::copy(vmacPath, tempDir / "minivmac");
-        vmacPath = tempDir / "minivmac";
+            dataDir / "vMac.ROM" );
     }
 }
 
@@ -445,6 +425,10 @@ uint16_t MiniVMacLauncher::GetSystemVersion(const std::string& systemFileName)
 bool MiniVMacLauncher::Go(int timeout)
 {
     fs::current_path(tempDir);
+#ifdef __APPLE__
+    if(vmacIsAppBundle)
+        return ChildProcess("open", {"-nWa", vmacPath.string()}, timeout) == 0;
+#endif
     return ChildProcess(vmacPath.string(), {}, timeout) == 0;
 }
 
