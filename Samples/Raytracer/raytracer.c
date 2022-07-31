@@ -41,7 +41,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-pascal /* <- pascal calling convention, for no reason in particular except to test the comppiler */
+pascal /* <- pascal calling convention, for no reason in particular except to test the compiler */
 bool hitSphere(float x0, float y0, float z0, float dx, float dy, float dz, float *t)
 {
     const float xc = 0.0f, yc = 0.0f, zc = -6.0f, r = 1.0f;
