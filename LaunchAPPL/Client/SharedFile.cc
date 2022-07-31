@@ -6,6 +6,7 @@
 #include <chrono>
 #include <iostream>
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 
 namespace fs = boost::filesystem;
 namespace po = boost::program_options;
