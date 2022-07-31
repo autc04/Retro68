@@ -97,15 +97,13 @@ jobs:
     artifact: Samples ($(TARGET))
   - script: |
       docker start nix -i <<EOF
-          export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
+          export CACHIX_AUTH_TOKEN=$(CACHIX_AUTH_TOKEN)
           cd src
           nix-build -A ${TARGET}.retro68.samples | cachix push autc04
           nix-shell -A ${TARGET} --command exit
           nix-store -qR --include-outputs \$(nix-instantiate default.nix -A ${TARGET}) | cachix push autc04
       EOF
     displayName: Push to Cachix
-    env:
-      CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)
     condition: ne(variables['CACHIX_AUTH_TOKEN'], '')
 
 
@@ -140,12 +138,10 @@ jobs:
     displayName: build
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      export CACHIX_AUTH_TOKEN=$CACHIX_AUTH_TOKEN
+      export CACHIX_AUTH_TOKEN=$(CACHIX_AUTH_TOKEN)
       nix-build -A $(TARGET).retro68.samples | cachix push autc04
       nix-shell -A $(TARGET) --command exit
       nix-store -qR --include-outputs `nix-instantiate default.nix -A $(TARGET)` | cachix push autc04
     displayName: Push to Cachix
-    env:
-      CACHIX_AUTH_TOKEN: $(CACHIX_AUTH_TOKEN)
     condition: ne(variables['CACHIX_AUTH_TOKEN'], '')
 
