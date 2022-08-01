@@ -96,16 +96,18 @@ jobs:
   - publish: CompiledSamples
     artifact: Samples ($(TARGET))
   - script: |
+      if [ -z "$[CACHIX_AUTH_TOKEN]" ]; then
+        echo "Token for cachix access not available, skipping."
+        exit
+      fi
       docker start nix -i <<EOF
-          export CACHIX_AUTH_TOKEN=$(CACHIX_AUTH_TOKEN)
+          export CACHIX_AUTH_TOKEN=$[CACHIX_AUTH_TOKEN]
           cd src
           nix-build -A ${TARGET}.retro68.samples | cachix push autc04
           nix-shell -A ${TARGET} --command exit
           nix-store -qR --include-outputs \$(nix-instantiate default.nix -A ${TARGET}) | cachix push autc04
       EOF
     displayName: Push to Cachix
-    condition: ne(variables['CACHIX_AUTH_TOKEN'], '')
-
 
 - job: NixMac
   strategy:
@@ -137,11 +139,13 @@ jobs:
       nix-build -A $(TARGET).retro68.samples
     displayName: build
   - script: |
+      if [ -z "$[CACHIX_AUTH_TOKEN]" ]; then
+        echo "Token for cachix access not available, skipping."
+        exit
+      fi
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      export CACHIX_AUTH_TOKEN=$(CACHIX_AUTH_TOKEN)
+      export CACHIX_AUTH_TOKEN=$[CACHIX_AUTH_TOKEN]
       nix-build -A $(TARGET).retro68.samples | cachix push autc04
       nix-shell -A $(TARGET) --command exit
       nix-store -qR --include-outputs `nix-instantiate default.nix -A $(TARGET)` | cachix push autc04
     displayName: Push to Cachix
-    condition: ne(variables['CACHIX_AUTH_TOKEN'], '')
-
