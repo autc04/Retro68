@@ -152,7 +152,7 @@ so you can also `cd` to one of these and run `make` separately if you've made ch
 Using Retro68 with Nix
 ----------------------
 
-If you are not using the [Nix Package Manager](www.nixos.org), please skip this section. But maybe you should be using it ;-).
+If you are not using the [Nix Package Manager](https://www.nixos.org), please skip this section. But maybe you should be using it ;-).
 
 Nix is a package manager that runs on Linux and macOS, and NixOS is a Linux distribution based on it.
 
