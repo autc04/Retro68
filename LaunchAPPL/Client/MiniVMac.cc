@@ -274,6 +274,24 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     if (usesAutQuit7)
     {
         CopySystemFile("Finder", true);
+        CopySystemFile("System 7.5 Update", false);
+        if(hfs_chdir(sysvol, "Extensions") != -1)
+        {
+            hfs_mkdir(vol, "Extensions");
+            if(hfs_chdir(vol, "Extensions") != -1)
+            {
+                CopySystemFile("Appearance Extension", false);
+                CopySystemFile("System 7 Tuner", false);
+                CopySystemFile("System Update", false);
+                hfs_chdir(vol, "::");
+            }
+            hfs_chdir(sysvol, "::");
+        }
+    }
+    else
+    {
+        CopySystemFile("32-Bit QuickDraw", false);
+        CopySystemFile("TrueType\xaa 1.0", false);
     }
 
     {
