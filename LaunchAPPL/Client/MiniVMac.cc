@@ -81,6 +81,7 @@ class MiniVMacLauncher : public Launcher
     void CopySystemFile(const std::string& fn, bool required);
     void ReadSystemResources(const std::string& systemFileName);
     uint16_t GetSystemVersion();
+    std::string FindFolder(const std::string& folderType);
     void MakeAlias(const std::string& dest, const std::string& src);
     fs::path ConvertImage(const fs::path& path);
 public:
@@ -278,10 +279,11 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     {
         CopySystemFile("Finder", true);
         CopySystemFile("System 7.5 Update", false);
-        if(hfs_chdir(sysvol, "Extensions") != -1)
+        std::string extensionsFolderName = FindFolder("extn");
+        if(hfs_chdir(sysvol, extensionsFolderName.c_str()) != -1)
         {
-            hfs_mkdir(vol, "Extensions");
-            if(hfs_chdir(vol, "Extensions") != -1)
+            hfs_mkdir(vol, extensionsFolderName.c_str());
+            if(hfs_chdir(vol, extensionsFolderName.c_str()) != -1)
             {
                 CopySystemFile("Appearance Extension", false);
                 CopySystemFile("System 7 Tuner", false);
@@ -320,8 +322,9 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     {
         CopySystemFile("AutQuit7", true);
         MakeAlias("AutQuit7 alias", "AutQuit7");
-        hfs_mkdir(vol, "Startup Items");
-        hfs_rename(vol, "AutQuit7 alias", "Startup Items");
+        std::string startupItemsFolderName = FindFolder("strt");
+        hfs_mkdir(vol, startupItemsFolderName.c_str());
+        hfs_rename(vol, "AutQuit7 alias", startupItemsFolderName.c_str());
     }
     else
     {
@@ -445,6 +448,21 @@ uint16_t MiniVMacLauncher::GetSystemVersion()
 {
     Resource vers = systemRes->resources[ResRef('vers', 1)];
     return (uint16_t)vers.getData()[0] << 8 | vers.getData()[1];
+}
+
+
+std::string MiniVMacLauncher::FindFolder(const std::string& folderType)
+{
+    Resource fld = systemRes->resources[ResRef('fld#', 0)];
+    size_t i = 0;
+    while (i < fld.getData().size())
+    {
+        unsigned char len = fld.getData()[i + 7];
+        if (fld.getData().substr(i, 4) == folderType)
+            return fld.getData().substr(i + 8, len);
+        i += 8 + len + len % 2;
+    }
+    return "unknown";
 }
 
 
