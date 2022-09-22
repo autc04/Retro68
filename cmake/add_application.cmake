@@ -28,21 +28,21 @@ function(add_application name)
     list(TRANSFORM rez_include_options PREPEND -I)
 
     foreach(f ${ARGS_FILES})
+        get_filename_component(abspath "${f}" ABSOLUTE)
         if(${f} MATCHES "\\.r$")
+            get_filename_component(rsrc_file "${f}" NAME)
+            set(rsrc_file "${CMAKE_CURRENT_BINARY_DIR}/${rsrc_file}.rsrc.bin")
             add_custom_command(
-                OUTPUT ${f}.rsrc.bin
-                COMMAND ${REZ} ${REZ_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/${f} ${rez_include_options} -o ${f}.rsrc.bin
-                DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${f})
-            list(APPEND rsrc_files "${CMAKE_CURRENT_BINARY_DIR}/${f}.rsrc.bin")
-            list(APPEND rez_files "${f}")
+                OUTPUT ${rsrc_file}
+                COMMAND ${REZ} ${REZ_FLAGS} ${abspath} ${rez_include_options} -o ${rsrc_file}
+                DEPENDS ${abspath})
+            list(APPEND rsrc_files "${rsrc_file}")
+            list(APPEND rez_files "${abspath}")
         elseif(${f} MATCHES "\\.rsrc$")
-            get_filename_component(abspath "${f}" ABSOLUTE)
             list(APPEND rsrc_files "${abspath}")
         elseif(${f} MATCHES "\\.rsrc.bin$")
-            get_filename_component(abspath "${f}" ABSOLUTE)
             list(APPEND rsrc_files "${abspath}")
         else()
-            get_filename_component(abspath "${f}" ABSOLUTE)
             list(APPEND files "${abspath}")
         endif()
     endforeach()
