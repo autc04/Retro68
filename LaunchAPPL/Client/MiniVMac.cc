@@ -76,9 +76,11 @@ class MiniVMacLauncher : public Launcher
 
     hfsvol *sysvol;
     hfsvol *vol;
+    std::unique_ptr<Resources> systemRes;
 
     void CopySystemFile(const std::string& fn, bool required);
-    uint16_t GetSystemVersion(const std::string& systemFileName);
+    void ReadSystemResources(const std::string& systemFileName);
+    uint16_t GetSystemVersion();
     void MakeAlias(const std::string& dest, const std::string& src);
     fs::path ConvertImage(const fs::path& path);
 public:
@@ -200,7 +202,8 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     hfs_setcwd(sysvol, ent.blessed);
 
     string systemFileName(bootblock1.begin() + 0xB, bootblock1.begin() + 0xB + bootblock1[0xA]);
-    uint16_t sysver = GetSystemVersion(systemFileName);
+    ReadSystemResources(systemFileName);
+    uint16_t sysver = GetSystemVersion();
 
     bool usesAutQuit7 = (sysver >= 0x700);
     std::string optionsKey = usesAutQuit7 ? "autquit7-image" : "autoquit-image";
@@ -424,7 +427,7 @@ void MiniVMacLauncher::MakeAlias(const std::string& dest, const std::string& src
 }
 
 
-uint16_t MiniVMacLauncher::GetSystemVersion(const std::string& systemFileName)
+void MiniVMacLauncher::ReadSystemResources(const std::string& systemFileName)
 {
     hfsdirent fileent;
     hfs_stat(sysvol, systemFileName.c_str(), &fileent);
@@ -434,8 +437,13 @@ uint16_t MiniVMacLauncher::GetSystemVersion(const std::string& systemFileName)
     hfs_read(system, buffer.data(), fileent.u.file.rsize);
     hfs_close(system);
     std::istringstream systemResStream(std::string((char*)buffer.data(), buffer.size()));
-    Resources systemRes(systemResStream);
-    Resource vers = systemRes.resources[ResRef('vers', 1)];
+    systemRes = std::make_unique<Resources>(systemResStream);
+}
+
+
+uint16_t MiniVMacLauncher::GetSystemVersion()
+{
+    Resource vers = systemRes->resources[ResRef('vers', 1)];
     return (uint16_t)vers.getData()[0] << 8 | vers.getData()[1];
 }
 
