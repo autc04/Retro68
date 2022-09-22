@@ -68,10 +68,15 @@
 # ########### Mini vMac (old 68K Macs)
 
     # To use Mini vMac with LaunchAPPL, you need to supply the ROM file,
-    # a system disk image, and a download of autoquit from the minivmac web
-    # site, currently at
-    #    http://www.gryphel.com/c/minivmac/extras/autoquit/index.html
-    # LaunchAPPL does not currently support MultiFinder or System 7.
+    # a system disk image, and, for System 6 or earlier, a download of
+    # AutoQuit from the Mini vMac web site, currently at:
+    #   https://www.gryphel.com/c/minivmac/extras/autoquit/
+    # or, for System 7 or later, a download of AutQuit7:
+    #   https://www.gryphel.com/c/minivmac/extras/autquit7/
+    # Currently, only the System file, Finder (for System 7 or later),
+    # MacsBug (if present), and certain vital system extensions (if
+    # present) will be copied from the system disk image. For System 6
+    # or earlier, MultiFinder will not be used.
 
 # Fill in the information below and uncomment the lines:
 
@@ -88,11 +93,13 @@
     # A ROM file:
 # minivmac-rom = ./vMac.ROM
 
-    # Next, a system disk image (System 6 or earlier)
+    # Next, an HFS disk image containing System 7.5.5 or earlier:
 # system-image = ./System.dsk
 
-    # And finally, autoquit:
+    # And finally, if the system disk contains System 6 or earlier, AutoQuit:
 # autoquit-image = ./autoquit-1.1.1.dsk
+    # Or, for System 7 or later, AutQuit7:
+# autquit7-image = ./autquit7-1.4.1.dsk
 
 # ########### Executor
 
