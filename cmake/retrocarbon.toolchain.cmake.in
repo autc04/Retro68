@@ -25,7 +25,7 @@ set( CMAKE_SYSTEM_PREFIX_PATH "${RETRO68_ROOT}/powerpc-apple-macos/" )
 set( MAKE_PEF "${RETRO68_ROOT}/bin/MakePEF" )
 set( MAKE_IMPORT "${RETRO68_ROOT}/bin/MakeImport" )
 set( REZ "${RETRO68_ROOT}/bin/Rez" )
-set( REZ_INCLUDE_PATH "${RETRO68_ROOT}/m68k-apple-macos/RIncludes" )
+set( REZ_INCLUDE_PATH "${RETRO68_ROOT}/powerpc-apple-macos/RIncludes" )
 
 set( CMAKE_C_COMPILER "${RETRO68_ROOT}/bin/powerpc-apple-macos-gcc" )
 set( CMAKE_CXX_COMPILER "${RETRO68_ROOT}/bin/powerpc-apple-macos-g++" )
@@ -35,5 +35,5 @@ set( REZ_TEMPLATES_PATH ${REZ_INCLUDE_PATH})
 
 add_definitions( -DTARGET_API_MAC_CARBON=1 )
 
-list( APPEND CMAKE_MODULE_PATH "${RETRO68_ROOT}/m68k-apple-macos/cmake" )
+list( APPEND CMAKE_MODULE_PATH "${RETRO68_ROOT}/powerpc-apple-macos/cmake" )
 include(add_application)
