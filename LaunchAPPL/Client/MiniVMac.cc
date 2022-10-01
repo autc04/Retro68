@@ -6,6 +6,11 @@
 
 extern "C" {
 #include "hfs.h"
+#include <arpa/inet.h>
+#define HAVE_MKTIME
+#ifdef HAVE_MKTIME
+#include <time.h>
+#endif
 }
 
 #include <iostream>
@@ -29,39 +34,100 @@ namespace fs = boost::filesystem;
 /* Adapted from http://sebastien.kirche.free.fr/python_stuff/MacOS-aliases.txt */
 typedef struct
 {
-    int16_t type;                           /* type of data */
-    int16_t size;                           /* length of variable length data */
+    uint16_t type;                          /* type of data */
+    uint16_t size;                          /* length of variable-length data */
     char data[];                            /* actual data */
 } VarData;
 
+#pragma pack(push,1)
 typedef struct
 {
     /* Type Code: alis */
     char userType[4] = {0, 0, 0, 0};        /* for application use, can be zeros */
-    uint16_t size;                          /* alias record size, including variable length data */
-    int16_t version = 2;                    /* alias version, current 2 */
-    int16_t type = 0;                       /* file = 0, directory = 1 */
-    char volumeNameSize;
-    char volumeName[27];                    /* volume name */
+    uint16_t size;                          /* alias record size, including variable-length data */
+    int16_t version = htons(2);             /* alias version, current 2 */
+    int16_t type = htons(0);                /* file = 0, directory = 1 */
+    char volumeNameSize;                    /* length of volume name */
+    char volumeName[27];                    /* volume name padded with null bytes */
     uint32_t volumeCreationDate;            /* volume creation date, seconds since 1904 */
-    uint16_t volumeSig = 0x4244; /*BD*/     /* volume signature MFS = RW, HFS = BD */
-    int16_t volumeType = 5;                 /* [HD] = 0, Foreign = 1, Floppy: 400K, 800K, 1400K = 2-4, OtherEjectable = 5 */
+    uint16_t volumeSig = htons(0x4244);     /* volume signature MFS = RW, HFS = BD */
+    int16_t volumeType = htons(5);          /* [HD] = 0, Foreign = 1, Floppy: 400K, 800K, 1400K = 2-4, OtherEjectable = 5 */
     int32_t parentDirID;                    /* parent directory ID, 0 for relative searches */
-    char fileNameSize;
-    char fileName[63];                      /* file or directory name */
+    char fileNameSize;                      /* length of file or directory name */
+    char fileName[63];                      /* file or directory name padded with null bytes */
     int32_t fileNum;                        /* file number or directory ID */
     uint32_t fileCreationDate;              /* file or directory creation date, seconds since 1904 */
     char typeCode[4];                       /* file type */
     char creatorCode[4];                    /* file's creator */
-    int16_t nlvlFrom = 0;                   /* next level up from alias, used in relative searches */
-    int16_t nlvlTo = 0;                     /* next level down to target, ditto */
-    uint32_t volumeAttr = 0;                /* various flags (locked, ejectable), see link above */
-    int16_t volumeFSID = 0;                 /* file system ID for the volume, 0 for MFS, HFS */
-    int16_t unused = 0;
-    uint32_t unused1 = 0;
-    uint32_t unused2 = 0;
-    VarData vdata[];                        /* variable length data, see link above */
+    int16_t nlvlFrom = htons(0);            /* next level up from alias, used in relative searches */
+    int16_t nlvlTo = htons(0);              /* next level down to target, ditto */
+    uint32_t volumeAttr = htonl(0);         /* various flags (locked, ejectable), see link above */
+    int16_t volumeFSID = htons(0);          /* file system ID for the volume, 0 for MFS, HFS */
+    int16_t unused = htons(0);
+    uint32_t unused1 = htonl(0);
+    uint32_t unused2 = htonl(0);
+    VarData vdata[1] = {                    /* variable-length data, see link above */
+        {htons(0xFFFF), htons(0)}           /* end of variable-length data marker, length 0 */
+    };
 } AliasData;
+#pragma pack(pop)
+
+
+/* Begin code copied from libhfs/data.c */
+
+# define TIMEDIFF  2082844800UL
+
+static
+time_t tzdiff = -1;
+
+/*
+ * NAME:	calctzdiff()
+ * DESCRIPTION:	calculate the timezone difference between local time and UTC
+ */
+static
+void calctzdiff(void)
+{
+# ifdef HAVE_MKTIME
+
+  time_t t;
+  int isdst;
+  struct tm tm;
+  const struct tm *tmp;
+
+  time(&t);
+  isdst = localtime(&t)->tm_isdst;
+
+  tmp = gmtime(&t);
+  if (tmp)
+    {
+      tm = *tmp;
+      tm.tm_isdst = isdst;
+
+      tzdiff = t - mktime(&tm);
+    }
+  else
+    tzdiff = 0;
+
+# else
+
+  tzdiff = 0;
+
+# endif
+}
+
+/*
+ * NAME:	data->mtime()
+ * DESCRIPTION:	convert local time to MacOS time
+ */
+unsigned long d_mtime(time_t ltime)
+{
+  if (tzdiff == -1)
+    calctzdiff();
+
+  return (unsigned long) (ltime + tzdiff) + TIMEDIFF;
+}
+
+/* End code copied from libhfs/data.c */
 
 
 class MiniVMacLauncher : public Launcher
@@ -399,15 +465,17 @@ void MiniVMacLauncher::MakeAlias(const std::string& dest, const std::string& src
     hfs_vstat(vol, &vent);
 
     AliasData alias;
-    alias.size = sizeof(AliasData);
-    memcpy(&(alias.volumeName), vent.name, 27);
+    alias.size = htons(sizeof(AliasData));
     alias.volumeNameSize = strlen(vent.name);
-    alias.volumeCreationDate = vent.crdate;
-    alias.parentDirID = ent.parid;
-    memcpy(&(alias.fileName), ent.name, 63);
+    memcpy(&(alias.volumeName), vent.name, alias.volumeNameSize);
+    memset(&(alias.volumeName[0]) + alias.volumeNameSize, 0, 27 - alias.volumeNameSize);
+    alias.volumeCreationDate = htonl(d_mtime(vent.crdate));
+    alias.parentDirID = htonl(ent.parid);
     alias.fileNameSize = strlen(ent.name);
-    alias.fileNum = ent.cnid;
-    alias.fileCreationDate = ent.crdate;
+    memcpy(&(alias.fileName), ent.name, alias.fileNameSize);
+    memset(&(alias.fileName[0]) + alias.fileNameSize, 0, 63 - alias.fileNameSize);
+    alias.fileNum = htonl(ent.cnid);
+    alias.fileCreationDate = htonl(d_mtime(ent.crdate));
     memcpy(&(alias.typeCode), ent.u.file.type, 4);
     memcpy(&(alias.creatorCode), ent.u.file.creator, 4);
 
@@ -420,6 +488,9 @@ void MiniVMacLauncher::MakeAlias(const std::string& dest, const std::string& src
     hfsfile *falias = hfs_create(vol, dest.c_str(), "adrp", ent.u.file.creator);
     hfs_setfork(falias, 1);
     hfs_write(falias, ralias.data(), ralias.size());
+    hfs_fstat(falias, &ent);
+    ent.fdflags |= HFS_FNDR_ISALIAS;
+    hfs_fsetattr(falias, &ent);
     hfs_close(falias);
 }
 
