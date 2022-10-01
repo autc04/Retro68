@@ -335,11 +335,13 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
 
 
     CopySystemFile(systemFileName, true);
-    CopySystemFile("MacsBug", false);
+    string debuggerFileName(bootblock1.begin() + 0x2B, bootblock1.begin() + 0x2B + bootblock1[0x2A]);
+    CopySystemFile(debuggerFileName, false);
 
     if (usesAutQuit7)
     {
-        CopySystemFile("Finder", true);
+        string finderFileName(bootblock1.begin() + 0x1B, bootblock1.begin() + 0x1B + bootblock1[0x1A]);
+        CopySystemFile(finderFileName, true);
         CopySystemFile("System 7.5 Update", false);
         if(hfs_chdir(sysvol, "Extensions") != -1)
         {
