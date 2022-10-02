@@ -38,7 +38,7 @@
 
 # ########### A real Mac running Mac OS X
 
-    # Prerequisites
+    # Prerequisites:
     # - A Mac running Mac OS X that is reachable via ssh
     # - LaunchAPPL compiled for that Mac
 
@@ -47,16 +47,16 @@
     # Prerequisites:
     # - An old Mac connected to your local TCP/IP network
     # - System Software that supports MacTCP or OpenTransport
-    # - LanchAPPLServer compiled by Retro68 for your old Mac
+    # - LaunchAPPLServer compiled by Retro68 for your old Mac
     # - A firewall that protects your Mac from the open internet
     #       (LaunchAPPLServer opens an unsecured TCP port and executes any application it receives there!)
 
 # emulator = tcp
-# tcp-address = 192.168.0.42        # IP address of your mac
+# tcp-address = 192.168.0.42        # IP address of your old Mac
 
 # ########### A real Mac or emulator that can access a shared volume
 
-    # Prerequisited:
+    # Prerequisites:
     # - LaunchAPPLServer compiled by Retro68 for your Mac or emulator
     # - A volume or folder shared between your classic Mac/emulator and the computer you're running LaunchAPPL on
 
