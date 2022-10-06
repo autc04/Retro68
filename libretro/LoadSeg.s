@@ -14,9 +14,9 @@ PATCHEDLOADSEG:
 # Stack now:
 #   (arguments for function)
 #   (return address)
-#   (don't care any more -- address in jt entry)
+#   (don't care anymore -- address in jt entry)
 #   (saved registers)
-#   (4 bvtes of space for return value)
+#   (4 bytes of space for return value)
 #   (address in jt entry)
 
     jsr RETRO68LOADSEGMENT
