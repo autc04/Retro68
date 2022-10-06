@@ -460,6 +460,8 @@ void MiniVMacLauncher::CopySystemFile(const std::string &fn, bool required)
     hfs_setfork(out, 1);
     hfs_read(in, buffer.data(), fileent.u.file.rsize);
     hfs_write(out, buffer.data(), fileent.u.file.rsize);
+    fileent.fdflags &= ~HFS_FNDR_HASBEENINITED;
+    hfs_fsetattr(out, &fileent);
     hfs_close(in);
     hfs_close(out);
 }
