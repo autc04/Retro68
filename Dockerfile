@@ -9,6 +9,10 @@ RUN apt-get update && \
         libboost-all-dev bison texinfo \
         ruby flex curl g++ git
 
+# Add toolchain to default PATH
+ENV PATH=/Retro68-build/toolchain/bin:$PATH
+WORKDIR /root
+
 # Build image
 FROM base AS build
 
