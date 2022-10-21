@@ -17,6 +17,13 @@ jobs:
       tags: latest
       arguments: --target build
     displayName: 'Build'
+  - task: Docker@2
+    inputs:
+      command: build
+      repository: ghcr.io/mcayland/retro68
+      tags: latest
+      arguments: --target release
+    displayName: 'Build release'
   - script: |
       docker run --name retro68-build --rm -i -d ghcr.io/mcayland/retro68-build:latest
       docker exec -i retro68-build /bin/bash <<"EOF"
@@ -35,3 +42,15 @@ jobs:
       testResultsFormat: 'CTest'
       testResultsFiles: build/Testing/**/*.xml
       buildPlatform: 'x86_64-linux'
+  - task: Docker@2
+    inputs:
+      command: login
+      containerRegistry: mcayland-github-docker
+    displayName: Login to GHCR
+  - task: Docker@2
+    inputs:
+      containerRegistry: mcayland-github-docker
+      repository: mcayland/retro68
+      command: push
+      tags: latest
+    displayName: 'Push release to GHCR'
