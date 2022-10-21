@@ -5,34 +5,33 @@ jobs:
 
 - job: Linux
   pool:
-    vmImage: 'ubuntu-20.04'
+    vmImage: 'ubuntu-latest'
   timeoutInMinutes: 90
   steps:
   - checkout: self
     submodules: true
-  - script: |
-      sudo apt-get update
-      DEBIAN_FRONTEND=noninteractive sudo apt-get install -y \
-        cmake libgmp-dev libmpfr-dev libmpc-dev \
-        libboost-all-dev bison texinfo \
-        ruby flex curl
-    displayName: 'Install prerequisites'
-  - script: |
-      mkdir build
-      cd build
-      ../build-toolchain.bash
+  - task: Docker@2
+    inputs:
+      command: build
+      repository: ghcr.io/mcayland/retro68-build
+      tags: latest
+      arguments: --target build
     displayName: 'Build'
   - script: |
-      cd build
-      curl -L -O https://github.com/autc04/executor/releases/download/v0.1.0/Executor2000-0.1.0-Linux.tar.bz2
-      tar xfvj Executor2000-0.1.0-Linux.tar.bz2 Executor2000-0.1.0-Linux/bin/executor-headless
-      echo "executor-path=`pwd`/Executor2000-0.1.0-Linux/bin/executor-headless" > ~/.LaunchAPPL.cfg
-      echo "emulator=executor" >> ~/.LaunchAPPL.cfg
-      ctest --no-compress-output -T test -E Carbon || true
+      docker run --name retro68-build --rm -i -d ghcr.io/mcayland/retro68-build:latest
+      docker exec -i retro68-build /bin/bash <<"EOF"
+        cd /Retro68-build
+        curl -L -O https://github.com/autc04/executor/releases/download/v0.1.0/Executor2000-0.1.0-Linux.tar.bz2
+        tar xfvj Executor2000-0.1.0-Linux.tar.bz2 Executor2000-0.1.0-Linux/bin/executor-headless
+        echo "executor-path=`pwd`/Executor2000-0.1.0-Linux/bin/executor-headless" > ~/.LaunchAPPL.cfg
+        echo "emulator=executor" >> ~/.LaunchAPPL.cfg
+        ctest --no-compress-output -T test -E Carbon || true
+      EOF
+      mkdir build && docker cp retro68-build:/Retro68-build/Testing build
+      docker stop retro68-build
     displayName: Run Tests using Executor 2000
   - task: PublishTestResults@2
     inputs:
       testResultsFormat: 'CTest'
       testResultsFiles: build/Testing/**/*.xml
       buildPlatform: 'x86_64-linux'
-
