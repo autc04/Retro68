@@ -2,7 +2,7 @@
 
 # script_test_7.sh -- test for SEGMENT_START expressions.
 
-# Copyright (C) 2009-2017 Free Software Foundation, Inc.
+# Copyright (C) 2009-2022 Free Software Foundation, Inc.
 # Written by Doug Kwan <dougkwan@google.com>.
 
 # This file is part of gold.
@@ -40,4 +40,4 @@ check()
 
 check script_test_7.stdout "\\.interp[ 	]*PROGBITS[ 	]*0*10000100"
 check script_test_7.stdout "\\.data[ 	]*PROGBITS[ 	]*0*10200000"
-check script_test_7.stdout "\\.bss[ 	]*NOBITS[ 	]*0*10400..."
+check script_test_7.stdout "\\.bss[ 	]*NOBITS[ 	]*0*1040...."

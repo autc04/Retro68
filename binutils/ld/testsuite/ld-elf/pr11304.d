@@ -2,6 +2,8 @@
 #source: pr11304b.s
 #ld: -e 0 --section-start .zzz=0x800000
 #readelf: -S --wide
+# Address 0x800000 overlaps with .heap section on tic6x-*-elf.
+#notarget: tic6x-*-elf
 
 #failif
 #...

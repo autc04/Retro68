@@ -170,3 +170,15 @@ start:
 #XXX?	movzx	eax, byte ptr [1]
 
 	mov	eax, 3:5
+
+	lds	eax, byte ptr [eax]
+	les	eax, word ptr [eax]
+	lfs	eax, dword ptr [eax]
+	lgs	eax, qword ptr [eax]
+	lss	eax, tbyte ptr [eax]
+
+	fld	near ptr [ebx]
+	fst	far ptr [ebx]
+
+	fild	far ptr [ebx]
+	fist	near ptr [ebx]

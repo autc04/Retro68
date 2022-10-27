@@ -70,18 +70,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND *
-.* SECTION +LOCAL +DEFAULT +1 *
-.* SECTION +LOCAL +DEFAULT +2 *
-.* SECTION +LOCAL +DEFAULT +3 *
-.* SECTION +LOCAL +DEFAULT +4 *
-.* SECTION +LOCAL +DEFAULT +5 *
-.* SECTION +LOCAL +DEFAULT +6 *
-.* SECTION +LOCAL +DEFAULT +7 *
-.* SECTION +LOCAL +DEFAULT +8 *
-.* SECTION +LOCAL +DEFAULT +9 *
-.* SECTION +LOCAL +DEFAULT +10 *
-.* SECTION +LOCAL +DEFAULT +11 *
-.* FILE +LOCAL +DEFAULT +ABS tmpdir/tlsbinpic2.o
+.* FILE +LOCAL +DEFAULT +ABS .*tlsbinpic2.o
 .* TLS +LOCAL +DEFAULT +7 sl1
 .* TLS +LOCAL +DEFAULT +7 sl2
 .* TLS +LOCAL +DEFAULT +7 sl3
@@ -90,7 +79,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +LOCAL +DEFAULT +7 sl6
 .* TLS +LOCAL +DEFAULT +7 sl7
 .* TLS +LOCAL +DEFAULT +7 sl8
-.* FILE +LOCAL +DEFAULT +ABS tmpdir/tlsbin.o
+.* FILE +LOCAL +DEFAULT +ABS .*tlsbin.o
 .* TLS +LOCAL +DEFAULT +8 bl1
 .* TLS +LOCAL +DEFAULT +8 bl2
 .* TLS +LOCAL +DEFAULT +8 bl3

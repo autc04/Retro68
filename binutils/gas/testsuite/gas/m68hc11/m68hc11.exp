@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Free Software Foundation, Inc.
+# Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -51,35 +51,31 @@ gas_m68hc11_opcode_list "-mm9s12xg" 74
 
 # Test for a message produced when assembling a file
 proc gas_m68hc11_message { kind options line expect } {
-    global srcdir
-    global subdir
+    global AS
+    global ASFLAGS
 
     regsub -all "\n" "$line: $expect" " " title
 
     # Make a file containing the instructions to assemble.
-    set fd [open "$srcdir/$subdir/tst-m68hc1x.s" "w"]
+    set fd [open "tst-m68hc1x.s" "w"]
     puts -nonewline $fd "$line"
     close $fd
 
     verbose -log "Test: $title"
-    gas_start "tst-m68hc1x.s" "$options"
+    set status [gas_host_run "$AS $ASFLAGS $options tst-m68hc1x.s" ">&gas.out"]
     set ok 0
-    while 1 {
-	expect {
-	    -re ".*: Assembler messages:\n" { }
-	    -re ".*1: $kind: $expect" { incr ok; break }
-	    timeout       { perror "timeout\n"; break }
-	    eof		  { verbose "EOF from gas"; break }
+    set fd [open "gas.out" r]
+    while { [gets $fd outline] != -1 } {
+	if { [regexp ".*1: $kind: $expect" $outline] } {
+	    incr ok
 	}
     }
-    #sleep 1 # Uncomment this line when using gcov
-    gas_finish
     if { $ok > 0 } then {
 	pass $title
     } else {
 	fail $title
     }
-    catch "exec rm -f $srcdir/$subdir/tst-m68hc1x.s"
+    catch "exec rm -f tst-m68hc1x.s gas.out"
 }
 
 # Test for an error message produced by gas

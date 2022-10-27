@@ -1,7 +1,7 @@
 #PROG: objcopy
 #objdump: -d --prefix-addresses --show-raw-insn
 #name: MIPS16 extensible and non-extensible instruction disassembly
-#as: -32 -mips64
+#as: -mips64
 
 # Verify interpreted and separate respectively EXTEND prefix disassembly
 # for extensible and non-extensible instructions.

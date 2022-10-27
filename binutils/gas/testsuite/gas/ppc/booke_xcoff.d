@@ -22,4 +22,4 @@ Disassembly of section .text:
   30:	7d 10 6b 86 	mtdcr   432,r8
   34:	7c 00 04 ac 	msync
   38:	7c 09 55 ec 	dcba    r9,r10
-  3c:	7c 00 06 ac 	mbar    
+  3c:	7c 00 06 ac 	mbar

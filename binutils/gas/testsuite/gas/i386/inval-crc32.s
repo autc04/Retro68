@@ -21,3 +21,5 @@ crc32  ax, [esi]
 crc32  eax, [esi]
 crc32  al,al
 crc32  ax, ax
+
+.p2align 4

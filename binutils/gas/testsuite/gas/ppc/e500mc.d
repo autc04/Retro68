@@ -14,8 +14,8 @@ Disassembly of section \.text:
   10:	(7c 09 57 be|be 57 09 7c) 	icbiep  r9,r10
   14:	(7c 00 69 dc|dc 69 00 7c) 	msgclr  r13
   18:	(7c 00 71 9c|9c 71 00 7c) 	msgsnd  r14
-  1c:	(7c 00 00 7c|7c 00 00 7c) 	wait    
-  20:	(7c 00 00 7c|7c 00 00 7c) 	wait    
+  1c:	(7c 00 00 7c|7c 00 00 7c) 	wait
+  20:	(7c 00 00 7c|7c 00 00 7c) 	wait
   24:	(7c 20 00 7c|7c 00 20 7c) 	waitrsv
   28:	(7c 20 00 7c|7c 00 20 7c) 	waitrsv
   2c:	(7c 40 00 7c|7c 00 40 7c) 	waitimpl

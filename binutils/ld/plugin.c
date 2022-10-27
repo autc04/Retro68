@@ -1,5 +1,5 @@
 /* Plugin control for the GNU linker.
-   Copyright (C) 2010-2018 Free Software Foundation, Inc.
+   Copyright (C) 2010-2022 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -21,8 +21,10 @@
 #include "sysdep.h"
 #include "libiberty.h"
 #include "bfd.h"
+#if BFD_SUPPORTS_PLUGINS
 #include "bfdlink.h"
 #include "bfdver.h"
+#include "ctf-api.h"
 #include "ld.h"
 #include "ldmain.h"
 #include "ldmisc.h"
@@ -54,7 +56,7 @@ extern int errno;
 #endif
 
 /* Report plugin symbols.  */
-bfd_boolean report_plugin_symbols;
+bool report_plugin_symbols;
 
 /* The suffix to append to the name of the real (claimed) object file
    when generating a dummy BFD to hold the IR symbols sent from the
@@ -86,7 +88,7 @@ typedef struct plugin
   ld_plugin_all_symbols_read_handler all_symbols_read_handler;
   ld_plugin_cleanup_handler cleanup_handler;
   /* TRUE if the cleanup handlers have been called.  */
-  bfd_boolean cleanup_done;
+  bool cleanup_done;
 } plugin_t;
 
 typedef struct view_buffer
@@ -100,11 +102,14 @@ typedef struct view_buffer
    pointer.  */
 typedef struct plugin_input_file
 {
+  /* The dummy BFD.  */
   bfd *abfd;
+  /* The original input BFD.  Non-NULL if it is an archive member.  */
+  bfd *ibfd;
   view_buffer_t view_buffer;
   char *name;
   int fd;
-  bfd_boolean use_mmap;
+  bool use_mmap;
   off_t offset;
   off_t filesize;
 } plugin_input_file_t;
@@ -128,7 +133,7 @@ static plugin_t *called_plugin = NULL;
 static const char *error_plugin = NULL;
 
 /* State of linker "notice" interface before we poked at it.  */
-static bfd_boolean orig_notice_all;
+static bool orig_notice_all;
 
 /* Original linker callbacks, and the plugin version.  */
 static const struct bfd_link_callbacks *orig_callbacks;
@@ -136,7 +141,7 @@ static struct bfd_link_callbacks plugin_callbacks;
 
 /* Set at all symbols read time, to avoid recursively offering the plugin
    its own newly-added input files and libs to claim.  */
-bfd_boolean no_more_claiming = FALSE;
+bool no_more_claiming = false;
 
 #if HAVE_MMAP && HAVE_GETPAGESIZE
 /* Page size used by mmap.  */
@@ -169,12 +174,12 @@ static const enum ld_plugin_tag tv_header_tags[] =
 static const size_t tv_header_size = ARRAY_SIZE (tv_header_tags);
 
 /* Forward references.  */
-static bfd_boolean plugin_notice (struct bfd_link_info *,
-				  struct bfd_link_hash_entry *,
-				  struct bfd_link_hash_entry *,
-				  bfd *, asection *, bfd_vma, flagword);
+static bool plugin_notice (struct bfd_link_info *,
+			   struct bfd_link_hash_entry *,
+			   struct bfd_link_hash_entry *,
+			   bfd *, asection *, bfd_vma, flagword);
 
-static const bfd_target * plugin_object_p (bfd *);
+static bfd_cleanup plugin_object_p (bfd *);
 
 #if !defined (HAVE_DLFCN_H) && defined (HAVE_WINDOWS_H)
 
@@ -218,7 +223,7 @@ set_plugin_error (const char *plugin)
 }
 
 /* Test if an error occurred.  */
-static bfd_boolean
+static bool
 plugin_error_p (void)
 {
   return error_plugin != NULL;
@@ -307,7 +312,7 @@ static bfd *
 plugin_get_ir_dummy_bfd (const char *name, bfd *srctemplate)
 {
   bfd *abfd;
-  bfd_boolean bfd_plugin_target;
+  bool bfd_plugin_target;
 
   bfd_use_reserved_id = 1;
   bfd_plugin_target = bfd_plugin_target_p (srctemplate->xvec);
@@ -335,13 +340,13 @@ plugin_get_ir_dummy_bfd (const char *name, bfd *srctemplate)
 	    return abfd;
 	}
     }
-report_error:
+ report_error:
   einfo (_("%F%P: could not create dummy IR bfd: %E\n"));
   return NULL;
 }
 
 /* Check if the BFD passed in is an IR dummy object file.  */
-static inline bfd_boolean
+static inline bool
 is_ir_dummy_bfd (const bfd *abfd)
 {
   /* ABFD can sometimes legitimately be NULL, e.g. when called from one
@@ -403,12 +408,6 @@ asymbol_from_plugin_symbol (bfd *abfd, asymbol *asym,
       flags = BSF_GLOBAL;
       section = bfd_com_section_ptr;
       asym->value = ldsym->size;
-      /* For ELF targets, set alignment of common symbol to 1.  */
-      if (bfd_get_flavour (abfd) == bfd_target_elf_flavour)
-	{
-	  ((elf_symbol_type *) asym)->internal_elf_sym.st_shndx = SHN_COMMON;
-	  ((elf_symbol_type *) asym)->internal_elf_sym.st_value = 1;
-	}
       break;
 
     default:
@@ -417,14 +416,20 @@ asymbol_from_plugin_symbol (bfd *abfd, asymbol *asym,
   asym->flags = flags;
   asym->section = section;
 
-  /* Visibility only applies on ELF targets.  */
   if (bfd_get_flavour (abfd) == bfd_target_elf_flavour)
     {
-      elf_symbol_type *elfsym = elf_symbol_from (abfd, asym);
+      elf_symbol_type *elfsym = elf_symbol_from (asym);
       unsigned char visibility;
 
       if (!elfsym)
 	einfo (_("%F%P: %s: non-ELF symbol in ELF BFD!\n"), asym->name);
+
+      if (ldsym->def == LDPK_COMMON)
+	{
+	  elfsym->internal_elf_sym.st_shndx = SHN_COMMON;
+	  elfsym->internal_elf_sym.st_value = 1;
+	}
+
       switch (ldsym->visibility)
 	{
 	default:
@@ -445,9 +450,7 @@ asymbol_from_plugin_symbol (bfd *abfd, asymbol *asym,
 	  visibility = STV_HIDDEN;
 	  break;
 	}
-      elfsym->internal_elf_sym.st_other
-	= (visibility | (elfsym->internal_elf_sym.st_other
-			 & ~ELF_ST_VISIBILITY (-1)));
+      elfsym->internal_elf_sym.st_other |= visibility;
     }
 
   return LDPS_OK;
@@ -563,7 +566,7 @@ get_view (const void *handle, const void **viewp)
   buffer = mmap (NULL, size, PROT_READ, MAP_PRIVATE, input->fd, offset);
   if (buffer != MAP_FAILED)
     {
-      input->use_mmap = TRUE;
+      input->use_mmap = true;
 # if HAVE_GETPAGESIZE
       buffer += bias;
 # endif
@@ -573,7 +576,7 @@ get_view (const void *handle, const void **viewp)
     {
       char *p;
 
-      input->use_mmap = FALSE;
+      input->use_mmap = false;
 
       if (lseek (input->fd, offset, SEEK_SET) < 0)
 	return LDPS_ERR;
@@ -605,28 +608,36 @@ get_view (const void *handle, const void **viewp)
   return LDPS_OK;
 }
 
+/* Release plugin file descriptor.  */
+
+static void
+release_plugin_file_descriptor (plugin_input_file_t *input)
+{
+  if (input->fd != -1)
+    {
+      bfd_plugin_close_file_descriptor (input->ibfd, input->fd);
+      input->fd = -1;
+    }
+}
+
 /* Release the input file.  */
 static enum ld_plugin_status
 release_input_file (const void *handle)
 {
   plugin_input_file_t *input = (plugin_input_file_t *) handle;
   ASSERT (called_plugin);
-  if (input->fd != -1)
-    {
-      close (input->fd);
-      input->fd = -1;
-    }
+  release_plugin_file_descriptor (input);
   return LDPS_OK;
 }
 
 /* Return TRUE if a defined symbol might be reachable from outside the
    universe of claimed objects.  */
-static inline bfd_boolean
+static inline bool
 is_visible_from_outside (struct ld_plugin_symbol *lsym,
 			 struct bfd_link_hash_entry *blhe)
 {
   if (bfd_link_relocatable (&link_info))
-    return TRUE;
+    return true;
   if (blhe->non_ir_ref_dynamic
       || link_info.export_dynamic
       || bfd_link_dll (&link_info))
@@ -634,9 +645,9 @@ is_visible_from_outside (struct ld_plugin_symbol *lsym,
       /* Check if symbol is hidden by version script.  */
       if (bfd_hide_sym_by_version (link_info.version_info,
 				   blhe->root.string))
-	return FALSE;
+	return false;
       /* Only ELF symbols really have visibility.  */
-      if (bfd_get_flavour (link_info.output_bfd) == bfd_target_elf_flavour)
+      if (is_elf_hash_table (link_info.hash))
 	{
 	  struct elf_link_hash_entry *el = (struct elf_link_hash_entry *)blhe;
 	  int vis = ELF_ST_VISIBILITY (el->other);
@@ -656,7 +667,74 @@ is_visible_from_outside (struct ld_plugin_symbol *lsym,
 	      || lsym->visibility == LDPV_PROTECTED);
     }
 
-  return FALSE;
+  return false;
+}
+
+/* Return LTO kind string name that corresponds to IDX enum value.  */
+static const char *
+get_lto_kind (unsigned int idx)
+{
+  static char buffer[64];
+  const char *lto_kind_str[5] =
+  {
+    "DEF",
+    "WEAKDEF",
+    "UNDEF",
+    "WEAKUNDEF",
+    "COMMON"
+  };
+
+  if (idx < ARRAY_SIZE (lto_kind_str))
+    return lto_kind_str [idx];
+
+  sprintf (buffer, _("unknown LTO kind value %x"), idx);
+  return buffer;
+}
+
+/* Return LTO resolution string name that corresponds to IDX enum value.  */
+static const char *
+get_lto_resolution (unsigned int idx)
+{
+  static char buffer[64];
+  static const char *lto_resolution_str[10] =
+  {
+    "UNKNOWN",
+    "UNDEF",
+    "PREVAILING_DEF",
+    "PREVAILING_DEF_IRONLY",
+    "PREEMPTED_REG",
+    "PREEMPTED_IR",
+    "RESOLVED_IR",
+    "RESOLVED_EXEC",
+    "RESOLVED_DYN",
+    "PREVAILING_DEF_IRONLY_EXP",
+  };
+
+  if (idx < ARRAY_SIZE (lto_resolution_str))
+    return lto_resolution_str [idx];
+
+  sprintf (buffer, _("unknown LTO resolution value %x"), idx);
+  return buffer;
+}
+
+/* Return LTO visibility string name that corresponds to IDX enum value.  */
+static const char *
+get_lto_visibility (unsigned int idx)
+{
+  static char buffer[64];
+  const char *lto_visibility_str[4] =
+  {
+    "DEFAULT",
+    "PROTECTED",
+    "INTERNAL",
+    "HIDDEN"
+  };
+
+  if (idx < ARRAY_SIZE (lto_visibility_str))
+    return lto_visibility_str [idx];
+
+  sprintf (buffer, _("unknown LTO visibility value %x"), idx);
+  return buffer;
 }
 
 /* Get the symbol resolution info for a plugin-claimed input file.  */
@@ -674,13 +752,32 @@ get_symbols (const void *handle, int nsyms, struct ld_plugin_symbol *syms,
       struct bfd_link_hash_entry *blhe;
       asection *owner_sec;
       int res;
+      struct bfd_link_hash_entry *h
+	= bfd_link_hash_lookup (link_info.hash, syms[n].name,
+				false, false, true);
+      enum { wrap_none, wrapper, wrapped } wrap_status = wrap_none;
 
-      if (syms[n].def != LDPK_UNDEF)
-	blhe = bfd_link_hash_lookup (link_info.hash, syms[n].name,
-				     FALSE, FALSE, TRUE);
+      if (syms[n].def != LDPK_UNDEF && syms[n].def != LDPK_WEAKUNDEF)
+	{
+	  blhe = h;
+	  if (blhe && link_info.wrap_hash != NULL)
+	    {
+	      /* Check if a symbol is a wrapper symbol.  */
+	      struct bfd_link_hash_entry *unwrap
+		= unwrap_hash_lookup (&link_info, (bfd *) abfd, blhe);
+	      if (unwrap && unwrap != h)
+		wrap_status = wrapper;
+	     }
+	}
       else
-	blhe = bfd_wrapped_link_hash_lookup (link_info.output_bfd, &link_info,
-					     syms[n].name, FALSE, FALSE, TRUE);
+	{
+	  blhe = bfd_wrapped_link_hash_lookup (link_info.output_bfd,
+					       &link_info, syms[n].name,
+					       false, false, true);
+	  /* Check if a symbol is a wrapped symbol.  */
+	  if (blhe && blhe != h)
+	    wrap_status = wrapped;
+	}
       if (!blhe)
 	{
 	  /* The plugin is called to claim symbols in an archive element
@@ -766,9 +863,14 @@ get_symbols (const void *handle, int nsyms, struct ld_plugin_symbol *syms,
 	  /* We need to know if the sym is referenced from non-IR files.  Or
 	     even potentially-referenced, perhaps in a future final link if
 	     this is a partial one, perhaps dynamically at load-time if the
-	     symbol is externally visible.  */
-	  if (blhe->non_ir_ref_regular)
+	     symbol is externally visible.  Also check for __real_SYM
+	     reference and wrapper symbol.  */
+	  if (blhe->non_ir_ref_regular
+	      || blhe->ref_real
+	      || wrap_status == wrapper)
 	    res = LDPR_PREVAILING_DEF;
+	  else if (wrap_status == wrapped)
+	    res = LDPR_RESOLVED_IR;
 	  else if (is_visible_from_outside (&syms[n], blhe))
 	    res = def_ironly_exp;
 	}
@@ -777,9 +879,11 @@ get_symbols (const void *handle, int nsyms, struct ld_plugin_symbol *syms,
       syms[n].resolution = res;
       if (report_plugin_symbols)
 	einfo (_("%P: %pB: symbol `%s' "
-		 "definition: %d, visibility: %d, resolution: %d\n"),
+		 "definition: %s, visibility: %s, resolution: %s\n"),
 	       abfd, syms[n].name,
-	       syms[n].def, syms[n].visibility, res);
+	       get_lto_kind (syms[n].def),
+	       get_lto_visibility (syms[n].visibility),
+	       get_lto_resolution (res));
     }
   return LDPS_OK;
 }
@@ -832,7 +936,7 @@ static enum ld_plugin_status
 set_extra_library_path (const char *path)
 {
   ASSERT (called_plugin);
-  ldfile_add_library_path (xstrdup (path), FALSE);
+  ldfile_add_library_path (xstrdup (path), false);
   return LDPS_OK;
 }
 
@@ -846,14 +950,14 @@ message (int level, const char *format, ...)
   switch (level)
     {
     case LDPL_INFO:
-      vfinfo (stdout, format, args, FALSE);
+      vfinfo (stdout, format, args, false);
       putchar ('\n');
       break;
     case LDPL_WARNING:
       {
 	char *newfmt = concat (_("%P: warning: "), format, "\n",
 			       (const char *) NULL);
-	vfinfo (stdout, newfmt, args, TRUE);
+	vfinfo (stdout, newfmt, args, true);
 	free (newfmt);
       }
       break;
@@ -865,7 +969,7 @@ message (int level, const char *format, ...)
 			       _("%P: error: "), format, "\n",
 			       (const char *) NULL);
 	fflush (stdout);
-	vfinfo (stderr, newfmt, args, TRUE);
+	vfinfo (stderr, newfmt, args, true);
 	fflush (stderr);
 	free (newfmt);
       }
@@ -1025,8 +1129,8 @@ plugin_load_plugins (void)
   orig_callbacks = link_info.callbacks;
   plugin_callbacks = *orig_callbacks;
   plugin_callbacks.notice = &plugin_notice;
-  link_info.notice_all = TRUE;
-  link_info.lto_plugin_active = TRUE;
+  link_info.notice_all = true;
+  link_info.lto_plugin_active = true;
   link_info.callbacks = &plugin_callbacks;
 
   register_ld_plugin_object_p (plugin_object_p);
@@ -1041,7 +1145,7 @@ static int
 plugin_call_claim_file (const struct ld_plugin_input_file *file, int *claimed)
 {
   plugin_t *curplug = plugins_list;
-  *claimed = FALSE;
+  *claimed = false;
   while (curplug && !*claimed)
     {
       if (curplug->claim_file_handler)
@@ -1075,7 +1179,12 @@ plugin_strdup (bfd *abfd, const char *str)
   return copy;
 }
 
-static const bfd_target *
+static void
+plugin_cleanup (bfd *abfd ATTRIBUTE_UNUSED)
+{
+}
+
+static bfd_cleanup
 plugin_object_p (bfd *ibfd)
 {
   int claimed;
@@ -1090,14 +1199,14 @@ plugin_object_p (bfd *ibfd)
   if (ibfd->plugin_format != bfd_plugin_unknown)
     {
       if (ibfd->plugin_format == bfd_plugin_yes)
-	return ibfd->plugin_dummy_bfd->xvec;
+	return plugin_cleanup;
       else
 	return NULL;
     }
 
   /* We create a dummy BFD, initially empty, to house whatever symbols
      the plugin may want to add.  */
-  abfd = plugin_get_ir_dummy_bfd (ibfd->filename, ibfd);
+  abfd = plugin_get_ir_dummy_bfd (bfd_get_filename (ibfd), ibfd);
 
   input = bfd_alloc (abfd, sizeof (*input));
   if (input == NULL)
@@ -1107,7 +1216,7 @@ plugin_object_p (bfd *ibfd)
   if (!bfd_plugin_open_input (ibfd, &file))
     return NULL;
 
-  if (file.name == ibfd->filename)
+  if (file.name == bfd_get_filename (ibfd))
     {
       /* We must copy filename attached to ibfd if it is not an archive
 	 member since it may be freed by bfd_close below.  */
@@ -1116,14 +1225,15 @@ plugin_object_p (bfd *ibfd)
 
   file.handle = input;
   input->abfd = abfd;
+  input->ibfd = ibfd->my_archive != NULL ? ibfd : NULL;
   input->view_buffer.addr = NULL;
   input->view_buffer.filesize = 0;
   input->view_buffer.offset = 0;
   input->fd = file.fd;
-  input->use_mmap = FALSE;
+  input->use_mmap = false;
   input->offset = file.offset;
   input->filesize = file.filesize;
-  input->name = plugin_strdup (abfd, ibfd->filename);
+  input->name = plugin_strdup (abfd, bfd_get_filename (ibfd));
 
   claimed = 0;
 
@@ -1131,7 +1241,8 @@ plugin_object_p (bfd *ibfd)
     einfo (_("%F%P: %s: plugin reported error claiming file\n"),
 	   plugin_error_plugin ());
 
-  if (input->fd != -1 && !bfd_plugin_target_p (ibfd->xvec))
+  if (input->fd != -1
+      && (!claimed || !bfd_plugin_target_p (ibfd->xvec)))
     {
       /* FIXME: fd belongs to us, not the plugin.  GCC plugin, which
 	 doesn't need fd after plugin_call_claim_file, doesn't use
@@ -1141,8 +1252,7 @@ plugin_object_p (bfd *ibfd)
 	 release_input_file after it is done, uses BFD plugin target
 	 vector.  This scheme doesn't work when a plugin needs fd and
 	 doesn't use BFD plugin target vector neither.  */
-      close (input->fd);
-      input->fd = -1;
+      release_plugin_file_descriptor (input);
     }
 
   if (claimed)
@@ -1150,7 +1260,8 @@ plugin_object_p (bfd *ibfd)
       ibfd->plugin_format = bfd_plugin_yes;
       ibfd->plugin_dummy_bfd = abfd;
       bfd_make_readable (abfd);
-      return abfd->xvec;
+      abfd->no_export = ibfd->no_export;
+      return plugin_cleanup;
     }
   else
     {
@@ -1205,7 +1316,7 @@ plugin_call_all_symbols_read (void)
   plugin_t *curplug = plugins_list;
 
   /* Disable any further file-claiming.  */
-  no_more_claiming = TRUE;
+  no_more_claiming = true;
 
   while (curplug)
     {
@@ -1233,7 +1344,7 @@ plugin_call_cleanup (void)
       if (curplug->cleanup_handler && !curplug->cleanup_done)
 	{
 	  enum ld_plugin_status rv;
-	  curplug->cleanup_done = TRUE;
+	  curplug->cleanup_done = true;
 	  called_plugin = curplug;
 	  rv = (*curplug->cleanup_handler) ();
 	  called_plugin = NULL;
@@ -1253,7 +1364,7 @@ plugin_call_cleanup (void)
    non_ir_ref_dynamic as appropriate.  We have to notice_all symbols,
    because we won't necessarily know until later which ones will be
    contributed by IR files.  */
-static bfd_boolean
+static bool
 plugin_notice (struct bfd_link_info *info,
 	       struct bfd_link_hash_entry *h,
 	       struct bfd_link_hash_entry *inh,
@@ -1267,7 +1378,7 @@ plugin_notice (struct bfd_link_info *info,
   if (h != NULL)
     {
       bfd *sym_bfd;
-      bfd_boolean ref = FALSE;
+      bool ref = false;
 
       if (h->type == bfd_link_hash_warning)
 	h = h->u.i.link;
@@ -1287,13 +1398,13 @@ plugin_notice (struct bfd_link_info *info,
 	      || inh->type == bfd_link_hash_new)
 	    {
 	      if ((abfd->flags & DYNAMIC) == 0)
-		inh->non_ir_ref_regular = TRUE;
+		inh->non_ir_ref_regular = true;
 	      else
-		inh->non_ir_ref_dynamic = TRUE;
+		inh->non_ir_ref_dynamic = true;
 	    }
 
 	  if (h->type != bfd_link_hash_new)
-	    ref = TRUE;
+	    ref = true;
 	}
 
       /* Nothing to do here for warning symbols.  */
@@ -1313,41 +1424,53 @@ plugin_notice (struct bfd_link_info *info,
 	       && (h->u.undef.abfd == NULL
 		   || (h->u.undef.abfd->flags & BFD_PLUGIN) != 0))
 	     h->u.undef.abfd = abfd;
-	  ref = TRUE;
+	  ref = true;
 	}
 
-      /* Otherwise, it must be a new def.  */
-      else
+
+      /* A common symbol should be merged with other commons or
+	 defs with the same name.  In particular, a common ought
+	 to be overridden by a def in a -flto object.  In that
+	 sense a common is also a ref.  */
+      else if (bfd_is_com_section (section))
 	{
-	  /* Ensure any symbol defined in an IR dummy BFD takes on a
-	     new value from a real BFD.  Weak symbols are not normally
-	     overridden by a new weak definition, and strong symbols
-	     will normally cause multiple definition errors.  Avoid
-	     this by making the symbol appear to be undefined.  */
-	  if (((h->type == bfd_link_hash_defweak
-		|| h->type == bfd_link_hash_defined)
-	       && is_ir_dummy_bfd (sym_bfd = h->u.def.section->owner))
-	      || (h->type == bfd_link_hash_common
-		  && is_ir_dummy_bfd (sym_bfd = h->u.c.p->section->owner)))
+	  if (h->type == bfd_link_hash_common
+	      && is_ir_dummy_bfd (sym_bfd = h->u.c.p->section->owner))
 	    {
 	      h->type = bfd_link_hash_undefweak;
 	      h->u.undef.abfd = sym_bfd;
 	    }
+	  ref = true;
+	}
 
-	  /* A common symbol should be merged with other commons or
-	     defs with the same name.  In particular, a common ought
-	     to be overridden by a def in a -flto object.  In that
-	     sense a common is also a ref.  */
-	  if (bfd_is_com_section (section))
-	    ref = TRUE;
+      /* Otherwise, it must be a new def.
+	 Ensure any symbol defined in an IR dummy BFD takes on a
+	 new value from a real BFD.  Weak symbols are not normally
+	 overridden by a new weak definition, and strong symbols
+	 will normally cause multiple definition errors.  Avoid
+	 this by making the symbol appear to be undefined.
+
+	 NB: We change the previous definition in the IR object to
+	 undefweak only after all LTO symbols have been read or for
+	 non-ELF targets.  */
+      else if ((info->lto_all_symbols_read
+		|| bfd_get_flavour (abfd) != bfd_target_elf_flavour)
+	       && (((h->type == bfd_link_hash_defweak
+		     || h->type == bfd_link_hash_defined)
+		    && is_ir_dummy_bfd (sym_bfd = h->u.def.section->owner))
+		   || (h->type == bfd_link_hash_common
+		       && is_ir_dummy_bfd (sym_bfd = h->u.c.p->section->owner))))
+	{
+	  h->type = bfd_link_hash_undefweak;
+	  h->u.undef.abfd = sym_bfd;
 	}
 
       if (ref)
 	{
 	  if ((abfd->flags & DYNAMIC) == 0)
-	    h->non_ir_ref_regular = TRUE;
+	    h->non_ir_ref_regular = true;
 	  else
-	    h->non_ir_ref_dynamic = TRUE;
+	    h->non_ir_ref_dynamic = true;
 	}
     }
 
@@ -1356,8 +1479,9 @@ plugin_notice (struct bfd_link_info *info,
       || orig_notice_all
       || (info->notice_hash != NULL
 	  && bfd_hash_lookup (info->notice_hash, orig_h->root.string,
-			      FALSE, FALSE) != NULL))
+			      false, false) != NULL))
     return (*orig_callbacks->notice) (info, orig_h, inh,
 				      abfd, section, value, flags);
-  return TRUE;
+  return true;
 }
+#endif /* BFD_SUPPORTS_PLUGINS */

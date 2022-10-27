@@ -7,5 +7,5 @@
 Disassembly of section .text:
 
 0+ <start>:
- +[a-f0-9]+:	dd f0                	\(bad\)  
+ +[a-f0-9]+:	dd f0                	\(bad\)
 #pass

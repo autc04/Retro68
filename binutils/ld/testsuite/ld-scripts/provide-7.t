@@ -2,7 +2,7 @@ SECTIONS
 {
   .data 0x1000 :
   {
-    *(.data)
+    *(.data .rw)
   }
 
   foo = 0x10;

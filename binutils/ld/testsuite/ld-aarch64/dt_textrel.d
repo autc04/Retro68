@@ -1,5 +1,6 @@
 #source: dt_textrel.s
-#ld: -shared
+#target: [check_shared_lib_support]
+#ld: -shared -z notext
 #readelf: -d
 #...
 .*TEXTREL.*

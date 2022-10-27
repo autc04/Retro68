@@ -2,7 +2,7 @@
 #name: MIPS1 branch relaxation with swapping
 #as: -32 -mips1 -KPIC -relax-branch
 #source: relax-swap1.s
-#stderr: relax-swap1.l
+#warning_output: relax-swap1.l
 
 .*: +file format .*mips.*
 
@@ -240,10 +240,10 @@ Disassembly of section \.text:
 [ 	]*2f0: R_MIPS_LO16	\.text
 0+02f4 <[^>]*> jr	at
 0+02f8 <[^>]*> nop
-0+02fc <[^>]*> cfc1	v0,\$31
+0+02fc <[^>]*> cfc1	v0,c1_fcsr
 0+0300 <[^>]*> b	00000000 <foo>
 0+0304 <[^>]*> nop
-0+0308 <[^>]*> cfc1	v0,\$31
+0+0308 <[^>]*> cfc1	v0,c1_fcsr
 0+030c <[^>]*> lw	at,2\(gp\)
 [ 	]*30c: R_MIPS_GOT16	\.text
 0+0310 <[^>]*> nop
@@ -251,10 +251,10 @@ Disassembly of section \.text:
 [ 	]*314: R_MIPS_LO16	\.text
 0+0318 <[^>]*> jr	at
 0+031c <[^>]*> nop
-0+0320 <[^>]*> ctc1	v0,\$31
+0+0320 <[^>]*> ctc1	v0,c1_fcsr
 0+0324 <[^>]*> b	00000000 <foo>
 0+0328 <[^>]*> nop
-0+032c <[^>]*> ctc1	v0,\$31
+0+032c <[^>]*> ctc1	v0,c1_fcsr
 0+0330 <[^>]*> lw	at,2\(gp\)
 [ 	]*330: R_MIPS_GOT16	\.text
 0+0334 <[^>]*> nop

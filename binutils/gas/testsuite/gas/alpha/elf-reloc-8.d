@@ -4,7 +4,7 @@
 .*:     file format elf64-alpha.*
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET *TYPE *VALUE 
+OFFSET +TYPE +VALUE
 0*0000000 GPDISP            \.text\+0x0*0000004
 0*0000014 GPRELHIGH         \.bss\+0x0*0000040
 0*0000018 ELF_LITERAL       ROOT_DEV
@@ -57,7 +57,7 @@ OFFSET *TYPE *VALUE
 
 
 RELOCATION RECORDS FOR \[\.init\.text\]:
-OFFSET *TYPE *VALUE 
+OFFSET +TYPE +VALUE
 0*0000000 GPDISP            \.init\.text\+0x0*0000004
 0*0000008 ELF_LITERAL       simple_strtol
 0*000001c LITUSE            \.init\.text\+0x0*0000003
@@ -294,7 +294,7 @@ OFFSET *TYPE *VALUE
 
 
 RELOCATION RECORDS FOR \[\.init\.setup\]:
-OFFSET *TYPE *VALUE 
+OFFSET +TYPE +VALUE
 0*0000000 REFQUAD           \.init\.data\+0x0*0000004
 0*0000008 REFQUAD           \.init\.text
 0*0000010 REFQUAD           \.init\.data\+0x0*0000012
@@ -310,7 +310,7 @@ OFFSET *TYPE *VALUE
 
 
 RELOCATION RECORDS FOR \[\.eh_frame\]:
-OFFSET *TYPE *VALUE 
+OFFSET +TYPE +VALUE
 0*000001c SREL32            \.init\.text
 0*0000034 SREL32            \.init\.text\+0x0*0000050
 0*0000048 SREL32            \.init\.text\+0x0*0000080

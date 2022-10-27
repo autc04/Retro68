@@ -2,7 +2,7 @@
 
 # aarch64_relocs.sh -- test AArch64 relocations.
 
-# Copyright (C) 2016-2017 Free Software Foundation, Inc.
+# Copyright (C) 2016-2022 Free Software Foundation, Inc.
 # Written by Igor Kudrin <ikudrin@accesssoftek.com>
 
 # This file is part of gold.

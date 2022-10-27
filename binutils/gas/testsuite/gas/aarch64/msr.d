@@ -24,5 +24,4 @@ Disassembly of section \.text:
   3c:	d5300040 	mrs	x0, osdtrrx_el1
   40:	d5100340 	msr	osdtrtx_el1, x0
   44:	d5300340 	mrs	x0, osdtrtx_el1
-  48:	d51899e0 	msr	pmsidr_el1, x0
-  4c:	d53899e0 	mrs	x0, pmsidr_el1
+  48:	d53899e0 	mrs	x0, pmsidr_el1

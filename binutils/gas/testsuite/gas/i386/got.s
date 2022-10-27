@@ -8,10 +8,23 @@ _start:
 	addl	foo@GOT, %eax
 	addl	foo@GOT(%eax), %eax
 
+	testl	$foo@GOT, %eax
+	testl	foo@GOT, %eax
+	testl	foo@GOT(%eax), %eax
+
 	call	*foo@GOT
 	call	*foo@GOT(%eax)
 	jmp	*foo@GOT
 	jmp	*foo@GOT(%eax)
+
+	lsll	foo@GOT, %eax
+	lsll	foo@GOT(%eax), %eax
+
+	bndcn	foo@GOT, %bnd0
+	bndcn	foo@GOT(%eax), %bnd0
+
+	movlps	%xmm0, foo@GOT
+	movlps	%xmm0, foo@GOT(%eax)
 
 	.intel_syntax noprefix
 

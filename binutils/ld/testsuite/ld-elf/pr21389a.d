@@ -2,6 +2,7 @@
 #ld: -shared --version-script pr21389.map -soname=pr21389.so
 #objdump: -p
 #target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
+#xfail: ![check_shared_lib_support] 
 
 #...
 Version definitions:

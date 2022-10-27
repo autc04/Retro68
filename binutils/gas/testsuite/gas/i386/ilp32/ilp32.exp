@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Free Software Foundation, Inc.
+# Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ if [expr ([istarget "i*86-*-*"] || [istarget "x86_64-*-*"]) && [gas_x32_check] &
     }
 
     run_list_test "reloc64" "--defsym _bad_=1"
+    run_list_test "reloc-2"
 
     set ASFLAGS "$old_ASFLAGS"
 }

@@ -19,6 +19,8 @@ libz_a_SOURCES = $(ZLIB_SOURCES)
 libz_a_CFLAGS = $(AM_CFLAGS) $(PICFLAG)
 endif
 
+AM_CFLAGS = $(CET_FLAGS)
+
 # Work around what appears to be a GNU make bug handling MAKEFLAGS
 # values defined in terms of make variables, as is the case for CC and
 # friends when we are called from the top level Makefile.
@@ -59,3 +61,5 @@ AM_MAKEFLAGS = \
 	"PICFLAG=$(PICFLAG)" \
 	"RANLIB=$(RANLIB)" \
 	"DESTDIR=$(DESTDIR)"
+
+include $(top_srcdir)/../multilib.am

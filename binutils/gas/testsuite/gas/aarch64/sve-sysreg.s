@@ -20,6 +20,3 @@
 	mrs	X27, zcr_el3
 	msr	ZCR_EL3, X0
 	msr	zcr_el3, x26
-
-	mrs	x0, ZIDR_EL1
-	mrs	X27, zidr_el1

@@ -16,4 +16,8 @@ SECTIONS
   . = 0x12340000;
   .far : { *(.far) }
   .ARM.attributes 0 : { *(.ARM.atttributes) }
+  /* Providing a .data section triggers a non-executable segment to be
+     generated, which gives somewhere else for the linker to put the TLS
+     segment without creating a RWX permissioned one. */
+  .data : { *(.data) }
 }

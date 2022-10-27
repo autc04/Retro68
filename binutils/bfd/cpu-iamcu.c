@@ -1,5 +1,5 @@
 /* BFD support for the Intel MCU architecture.
-   Copyright (C) 2015-2018 Free Software Foundation, Inc.
+   Copyright (C) 2015-2022 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -22,39 +22,16 @@
 #include "bfd.h"
 #include "libbfd.h"
 
-extern void * bfd_arch_i386_short_nop_fill (bfd_size_type, bfd_boolean,
-					    bfd_boolean);
+extern void *bfd_arch_i386_short_nop_fill (bfd_size_type, bool, bool);
+
+#define N(number, name, print, next)			     \
+  { 32, 32, 8, bfd_arch_iamcu, number, name, print, 3, true, \
+    bfd_default_compatible, bfd_default_scan,		     \
+    bfd_arch_i386_short_nop_fill, next, 0 }
 
 static const bfd_arch_info_type bfd_iamcu_arch_intel_syntax =
-{
-  32, /* 32 bits in a word */
-  32, /* 32 bits in an address */
-  8,  /* 8 bits in a byte */
-  bfd_arch_iamcu,
-  bfd_mach_i386_iamcu_intel_syntax,
-  "iamcu:intel",
-  "iamcu:intel",
-  3,
-  TRUE,
-  bfd_default_compatible,
-  bfd_default_scan,
-  bfd_arch_i386_short_nop_fill,
-  0
-};
+  N (bfd_mach_i386_iamcu_intel_syntax, "iamcu:intel", "iamcu:intel", NULL);
 
 const bfd_arch_info_type bfd_iamcu_arch =
-{
-  32, /* 32 bits in a word */
-  32, /* 32 bits in an address */
-  8,  /* 8 bits in a byte */
-  bfd_arch_iamcu,
-  bfd_mach_i386_iamcu,
-  "iamcu",
-  "iamcu",
-  3,
-  TRUE,
-  bfd_default_compatible,
-  bfd_default_scan,
-  bfd_arch_i386_short_nop_fill,
-  &bfd_iamcu_arch_intel_syntax
-};
+  N (bfd_mach_i386_iamcu, "iamcu", "iamcu", &bfd_iamcu_arch_intel_syntax);
+

@@ -14,6 +14,19 @@ _start:
 	vextractps	$123, %xmm29, -512(%rdx)	 # AVX512 Disp8
 	vextractps	$123, %xmm29, -516(%rdx)	 # AVX512
 
+	{evex} vpextrb $0, %xmm0, %eax
+	{evex} vpextrb $0, %xmm0, (%rax)
+
+	{evex} vpextrw $0, %xmm0, %eax
+	{evex} {store} vpextrw $0, %xmm0, %eax
+	{evex} vpextrw $0, %xmm0, (%rax)
+
+	{evex} vpinsrb $0, %eax, %xmm0, %xmm0
+	{evex} vpinsrb $0, (%rax), %xmm0, %xmm0
+
+	{evex} vpinsrw $0, %eax, %xmm0, %xmm0
+	{evex} vpinsrw $0, (%rax), %xmm0, %xmm0
+
 	vpmovsxbd	%xmm29, %zmm30{%k7}	 # AVX512
 	vpmovsxbd	%xmm29, %zmm30{%k7}{z}	 # AVX512
 	vpmovsxbd	(%rcx), %zmm30{%k7}	 # AVX512

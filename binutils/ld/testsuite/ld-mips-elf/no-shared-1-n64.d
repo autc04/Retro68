@@ -1,5 +1,4 @@
-#as: -march=from-abi -mabi=64 -EB
-#ld: -melf64btsmip -T no-shared-1.ld
+#ld: -T no-shared-1.ld
 #objdump: -dr -j.text -j.data -j.got
 
 .*

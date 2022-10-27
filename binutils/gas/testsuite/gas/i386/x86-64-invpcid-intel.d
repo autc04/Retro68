@@ -1,4 +1,4 @@
-#as: 
+#as:
 #objdump: -dwMintel
 #name: x86-64 INVPCID insns (Intel disassembly)
 #source: x86-64-invpcid.s

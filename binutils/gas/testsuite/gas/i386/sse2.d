@@ -8,9 +8,9 @@ Disassembly of section .text:
 
 0+ <foo>:
 [ 	]*[a-f0-9]+:	0f c3 00             	movnti %eax,\(%eax\)
-[ 	]*[a-f0-9]+:	0f ae f8             	sfence 
-[ 	]*[a-f0-9]+:	0f ae e8             	lfence 
-[ 	]*[a-f0-9]+:	0f ae f0             	mfence 
+[ 	]*[a-f0-9]+:	0f ae f8             	sfence
+[ 	]*[a-f0-9]+:	0f ae e8             	lfence
+[ 	]*[a-f0-9]+:	0f ae f0             	mfence
 [ 	]*[a-f0-9]+:	66 0f 58 01          	addpd  \(%ecx\),%xmm0
 [ 	]*[a-f0-9]+:	66 0f 58 ca          	addpd  %xmm2,%xmm1
 [ 	]*[a-f0-9]+:	f2 0f 58 13          	addsd  \(%ebx\),%xmm2
@@ -64,7 +64,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	66 0f 2a d3          	cvtpi2pd %mm3,%xmm2
 [ 	]*[a-f0-9]+:	66 0f 2a 1c 24       	cvtpi2pd \(%esp\),%xmm3
 [ 	]*[a-f0-9]+:	f2 0f 2a e5          	cvtsi2sd %ebp,%xmm4
-[ 	]*[a-f0-9]+:	f2 0f 2a 2e          	cvtsi2sdl \(%esi\),%xmm5
+[ 	]*[a-f0-9]+:	f2 0f 2a 2e          	cvtsi2sd \(%esi\),%xmm5
 [ 	]*[a-f0-9]+:	66 0f 2d f7          	cvtpd2pi %xmm7,%mm6
 [ 	]*[a-f0-9]+:	66 0f 2d 38          	cvtpd2pi \(%eax\),%mm7
 [ 	]*[a-f0-9]+:	f2 0f 2d 01          	cvtsd2si \(%ecx\),%eax
@@ -79,7 +79,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f2 0f 5e 1c 24       	divsd  \(%esp\),%xmm3
 [ 	]*[a-f0-9]+:	0f ae 55 00          	ldmxcsr 0x0\(%ebp\)
 [ 	]*[a-f0-9]+:	0f ae 1e             	stmxcsr \(%esi\)
-[ 	]*[a-f0-9]+:	0f ae f8             	sfence 
+[ 	]*[a-f0-9]+:	0f ae f8             	sfence
 [ 	]*[a-f0-9]+:	66 0f 5f c1          	maxpd  %xmm1,%xmm0
 [ 	]*[a-f0-9]+:	66 0f 5f 0a          	maxpd  \(%edx\),%xmm1
 [ 	]*[a-f0-9]+:	f2 0f 5f d3          	maxsd  %xmm3,%xmm2

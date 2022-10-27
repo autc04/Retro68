@@ -1,7 +1,6 @@
 #objdump: -dr --prefix-addresses --show-raw-insn -M cp0-names=mips32
 #name: MIPS MT ASE for MIPS32
 #as: -mmt -mips32r2 -32
-#stderr: mips32-mt.l
 
 # Check MIPS MT ASE for MIPS32 Instruction Assembly
 

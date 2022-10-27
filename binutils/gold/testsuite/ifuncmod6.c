@@ -5,9 +5,9 @@ extern int foo (void);
 typedef int (*foo_p) (void);
 
 extern foo_p get_foo_p (void);
-extern foo_p get_foo (void);
+extern int call_foo (void);
 
-foo_p foo_ptr = foo;
+extern foo_p foo_ptr;
 
 foo_p
 get_foo_p (void)
@@ -15,8 +15,8 @@ get_foo_p (void)
   return foo_ptr;
 }
 
-foo_p
-get_foo (void)
+int
+call_foo (void)
 {
-  return foo;
+  return foo ();
 }

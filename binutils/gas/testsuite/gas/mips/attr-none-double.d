@@ -1,4 +1,4 @@
-#PROG: readelf
+#DUMPPROG: readelf
 #source: empty.s
 #readelf: -A
 #name: MIPS infer fpabi (double-precision)

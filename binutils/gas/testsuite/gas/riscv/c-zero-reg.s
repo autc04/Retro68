@@ -1,4 +1,4 @@
-	.option rvc
+	.option arch, +c
 	# These are hints.
 	c.li x0, 1
 	c.lui x0, 2

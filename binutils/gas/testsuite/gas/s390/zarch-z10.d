@@ -362,11 +362,13 @@ Disassembly of section .text:
 .*:	ec 67 d2 dc e6 54 [	 ]*rnsbg	%r6,%r7,210,220,230
 .*:	ec 67 d2 dc e6 57 [	 ]*rxsbg	%r6,%r7,210,220,230
 .*:	ec 67 d2 dc e6 56 [	 ]*rosbg	%r6,%r7,210,220,230
-.*:	ec 67 d2 dc e6 55 [	 ]*risbg	%r6,%r7,210,220,230
-.*:	c4 6f 00 00 00 00 [	 ]*strl	%r6,7f6 <foo\+0x7f6>
-.*:	c4 6b 00 00 00 00 [	 ]*stgrl	%r6,7fc <foo\+0x7fc>
-.*:	c4 67 00 00 00 00 [	 ]*sthrl	%r6,802 <foo\+0x802>
-.*:	c6 60 00 00 00 00 [	 ]*exrl	%r6,808 <foo\+0x808>
+.*:	ec 67 d2 14 e6 55 [	 ]*risbg	%r6,%r7,210,20,230
+.*:	ec 67 d2 bc e6 55 [	 ]*risbgz	%r6,%r7,210,60,230
+.*:	ec 67 d2 94 e6 55 [	 ]*risbgz	%r6,%r7,210,20,230
+.*:	c4 6f 00 00 00 00 [	 ]*strl	%r6,802 <foo\+0x802>
+.*:	c4 6b 00 00 00 00 [	 ]*stgrl	%r6,808 <foo\+0x808>
+.*:	c4 67 00 00 00 00 [	 ]*sthrl	%r6,80e <foo\+0x80e>
+.*:	c6 60 00 00 00 00 [	 ]*exrl	%r6,814 <foo\+0x814>
 .*:	af ee 6d 05 [	 ]*mc	3333\(%r6\),238
 .*:	b9 a2 00 60 [	 ]*ptf	%r6
 .*:	b9 af 00 67 [	 ]*pfmf	%r6,%r7

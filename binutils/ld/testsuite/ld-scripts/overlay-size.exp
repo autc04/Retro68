@@ -1,5 +1,5 @@
 # Test the OVERLAY statement.
-# Copyright (C) 2002-2018 Free Software Foundation, Inc.
+# Copyright (C) 2002-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -22,4 +22,12 @@ if ![is_elf_format] {
     return
 }
 
+set saved_ASFLAGS "$ASFLAGS"
+if { [is_elf_format] \
+     && ([istarget "i?86-*-*"] || [istarget "x86_64-*-*"]) } {
+    set ASFLAGS "$ASFLAGS -mx86-used-note=no"
+}
+
 run_dump_test overlay-size
+
+set ASFLAGS "$saved_ASFLAGS"

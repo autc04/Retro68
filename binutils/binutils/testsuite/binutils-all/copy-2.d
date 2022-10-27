@@ -3,10 +3,9 @@
 #objcopy: --set-section-flags foo=contents,alloc,load,code
 #name: copy with setting section flags 2
 #source: copytest.s
-#not-target: *-*-*aout *-*-aix* h8300-*-* hppa*-*-hpux* mips-*-ultrix* mips-*-osf* mips-*-ecoff* mips-*-irix mips-*-irix[2-4] mips-*-riscos* ns32k-*-netbsd
-# Note - we use copytest.s and a section named "foo" rather
-# than .text because for some file formats (eg PE) the .text
-# section has a fixed set of flags and these cannot be changed.
+# Many formats do not allow arbitrary section flags, just run for ELF and PE.
+#target: [is_elf_format] [is_pecoff_format]
+#xfail: h8300-*-*
 
 .*: +file format .*
 

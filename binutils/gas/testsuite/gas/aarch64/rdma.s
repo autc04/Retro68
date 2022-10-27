@@ -1,6 +1,6 @@
 /* rdma.s Test file for AArch64 v8.1 Advanced-SIMD instructions.
 
-   Copyright (C) 2012-2018 Free Software Foundation, Inc.  Contributed by ARM Ltd.
+   Copyright (C) 2012-2022 Free Software Foundation, Inc.  Contributed by ARM Ltd.
 
    This file is part of GAS.
 

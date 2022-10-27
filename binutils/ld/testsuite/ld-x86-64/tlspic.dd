@@ -20,7 +20,7 @@ Disassembly of section .text:
  +1008:	66 48 8d 3d ([0-9a-f]{2} ){3}[ 	]+data16 lea 0x[0-9a-f]+\(%rip\),%rdi +# [0-9a-f]+ <.*>
  +100f:	[0-9a-f 	]+
 #				-> R_X86_64_DTPMOD64	sg1
- +1010:	66 66 48 e8 [0-9a-f 	]+data16 data16 rex.W callq [0-9a-f]+ <.*>
+ +1010:	66 66 48 e8 [0-9a-f 	]+data16 data16 rex\.W call [0-9a-f]+ <.*>
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +1017:	[0-9a-f 	]+
  +1018:	90[ 	]+nop *
@@ -40,7 +40,7 @@ Disassembly of section .text:
  +1030:	66 48 8d 3d ([0-9a-f]{2} ){3}[ 	]+data16 lea 0x[0-9a-f]+\(%rip\),%rdi +# [0-9a-f]+ <.*>
  +1037:	[0-9a-f 	]+
 #				-> R_X86_64_DTPMOD64	[0 0x2000000000000000]
- +1038:	66 66 48 e8 [0-9a-f 	]+data16 data16 rex.W callq [0-9a-f]+ <.*>
+ +1038:	66 66 48 e8 [0-9a-f 	]+data16 data16 rex\.W call [0-9a-f]+ <.*>
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +103f:	[0-9a-f 	]+
  +1040:	90[ 	]+nop *
@@ -60,7 +60,7 @@ Disassembly of section .text:
  +1058:	66 48 8d 3d ([0-9a-f]{2} ){3}[ 	]+data16 lea 0x[0-9a-f]+\(%rip\),%rdi +# [0-9a-f]+ <.*>
  +105f:	[0-9a-f 	]+
 #				-> R_X86_64_DTPMOD64	[0 0x4000000000000000]
- +1060:	66 66 48 e8 [0-9a-f 	]+data16 data16 rex.W callq [0-9a-f]+ <.*>
+ +1060:	66 66 48 e8 [0-9a-f 	]+data16 data16 rex\.W call [0-9a-f]+ <.*>
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +1067:	[0-9a-f 	]+
  +1068:	90[ 	]+nop *
@@ -80,7 +80,7 @@ Disassembly of section .text:
  +1080:	66 48 8d 3d ([0-9a-f]{2} ){3}[ 	]+data16 lea 0x[0-9a-f]+\(%rip\),%rdi +# [0-9a-f]+ <.*>
  +1087:	[0-9a-f 	]+
 #				-> R_X86_64_DTPMOD64	[0 0x6000000000000000]
- +1088:	66 66 48 e8 [0-9a-f 	]+data16 data16 rex.W callq [0-9a-f]+ <.*>
+ +1088:	66 66 48 e8 [0-9a-f 	]+data16 data16 rex\.W call [0-9a-f]+ <.*>
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +108f:	[0-9a-f 	]+
  +1090:	90[ 	]+nop *
@@ -99,7 +99,7 @@ Disassembly of section .text:
 #  LD
  +10a8:	48 8d 3d ([0-9a-f]{2} ){4}[ 	]+lea    0x[0-9a-f]+\(%rip\),%rdi +# [0-9a-f]+ <.*>
 #				-> R_X86_64_DTPMOD64	[0 0x000000000000000]
- +10af:	e8 [0-9a-f 	]+callq  [0-9a-f]+ <.*>
+ +10af:	e8 [0-9a-f 	]+call   [0-9a-f]+ <.*>
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +10b4:	90[ 	]+nop *
  +10b5:	90[ 	]+nop *
@@ -114,7 +114,7 @@ Disassembly of section .text:
 #  LD against hidden and local variables
  +10ca:	48 8d 3d ([0-9a-f]{2} ){4}[ 	]+lea    0x[0-9a-f]+\(%rip\),%rdi +# [0-9a-f]+ <.*>
 #				-> R_X86_64_DTPMOD64	[0 0x000000000000000]
- +10d1:	e8 [0-9a-f 	]+callq  [0-9a-f]+ <.*>
+ +10d1:	e8 [0-9a-f 	]+call   [0-9a-f]+ <.*>
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +10d6:	90[ 	]+nop *
  +10d7:	90[ 	]+nop *
@@ -129,7 +129,7 @@ Disassembly of section .text:
 #  LD against hidden but not local variables
  +10ec:	48 8d 3d ([0-9a-f]{2} ){4}[ 	]+lea    0x[0-9a-f]+\(%rip\),%rdi +# [0-9a-f]+ <.*>
 #				-> R_X86_64_DTPMOD64	[0 0x000000000000000]
- +10f3:	e8 [0-9a-f 	]+callq  [0-9a-f]+ <.*>
+ +10f3:	e8 [0-9a-f 	]+call   [0-9a-f]+ <.*>
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +10f8:	90[ 	]+nop *
  +10f9:	90[ 	]+nop *
@@ -243,7 +243,7 @@ Disassembly of section .text:
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +11d0:	([0-9a-f]{2} ){3}
  +11d3:	48 01 d8[ 	]+add    %rbx,%rax
- +11d6:	ff d0[ 	]+callq  \*%rax
+ +11d6:	ff d0[ 	]+call   \*%rax
  +11d8:	90[ 	]+nop *
  +11d9:	90[ 	]+nop *
  +11da:	90[ 	]+nop *
@@ -266,7 +266,7 @@ Disassembly of section .text:
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +1204:	([0-9a-f]{2} ){3}
  +1207:	48 01 d8[ 	]+add    %rbx,%rax
- +120a:	ff d0[ 	]+callq  \*%rax
+ +120a:	ff d0[ 	]+call   \*%rax
  +120c:	90[ 	]+nop *
  +120d:	90[ 	]+nop *
  +120e:	90[ 	]+nop *
@@ -288,7 +288,7 @@ Disassembly of section .text:
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +1238:	([0-9a-f]{2} ){3}
  +123b:	48 01 d8[ 	]+add    %rbx,%rax
- +123e:	ff d0[ 	]+callq  \*%rax
+ +123e:	ff d0[ 	]+call   \*%rax
  +1240:	90[ 	]+nop *
  +1241:	90[ 	]+nop *
  +1242:	90[ 	]+nop *
@@ -310,7 +310,7 @@ Disassembly of section .text:
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +126c:	([0-9a-f]{2} ){3}
  +126f:	48 01 d8[ 	]+add    %rbx,%rax
- +1272:	ff d0[ 	]+callq  \*%rax
+ +1272:	ff d0[ 	]+call   \*%rax
  +1274:	90[ 	]+nop *
  +1275:	90[ 	]+nop *
  +1276:	90[ 	]+nop *
@@ -332,7 +332,7 @@ Disassembly of section .text:
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +12a0:	([0-9a-f]{2} ){3}
  +12a3:	48 01 d8[ 	]+add    %rbx,%rax
- +12a6:	ff d0[ 	]+callq  \*%rax
+ +12a6:	ff d0[ 	]+call   \*%rax
  +12a8:	90[ 	]+nop *
  +12a9:	90[ 	]+nop *
  +12aa:	48 8d 90 20 00 00 00[ 	]+lea    0x20\(%rax\),%rdx
@@ -350,7 +350,7 @@ Disassembly of section .text:
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +12cc:	([0-9a-f]{2} ){3}
  +12cf:	48 01 d8[ 	]+add    %rbx,%rax
- +12d2:	ff d0[ 	]+callq  \*%rax
+ +12d2:	ff d0[ 	]+call   \*%rax
  +12d4:	90[ 	]+nop *
  +12d5:	90[ 	]+nop *
  +12d6:	48 8d 90 40 00 00 00[ 	]+lea    0x40\(%rax\),%rdx
@@ -368,7 +368,7 @@ Disassembly of section .text:
 #				-> R_X86_64_JUMP_SLOT	__tls_get_addr
  +12f8:	([0-9a-f]{2} ){3}
  +12fb:	48 01 d8[ 	]+add    %rbx,%rax
- +12fe:	ff d0[ 	]+callq  \*%rax
+ +12fe:	ff d0[ 	]+call   \*%rax
  +1300:	90[ 	]+nop *
  +1301:	90[ 	]+nop *
  +1302:	4c 8d a0 60 00 00 00[ 	]+lea    0x60\(%rax\),%r12
@@ -381,5 +381,5 @@ Disassembly of section .text:
  +1315:	90[ 	]+nop *
  +1316:	5b[ 	]+pop    %rbx
  +1317:	5b[ 	]+pop    %rbx
- +1318:	c9[ 	]+leaveq 
- +1319:	c3[ 	]+retq   
+ +1318:	c9[ 	]+leave *
+ +1319:	c3[ 	]+ret *

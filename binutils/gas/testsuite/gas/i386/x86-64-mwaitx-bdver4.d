@@ -9,9 +9,9 @@
 Disassembly of section \.text:
 
 0000000000000000 <_start>:
-[ 	]*[a-f0-9]+:	0f 01 fa             	monitorx %rax,%rcx,%rdx
-[ 	]*[a-f0-9]+:	67 0f 01 fa          	monitorx %eax,%rcx,%rdx
-[ 	]*[a-f0-9]+:	0f 01 fa             	monitorx %rax,%rcx,%rdx
-[ 	]*[a-f0-9]+:	0f 01 fb             	mwaitx %rax,%rcx,%rbx
-[ 	]*[a-f0-9]+:	0f 01 fb             	mwaitx %rax,%rcx,%rbx
+[ 	]*[a-f0-9]+:	0f 01 fa             	monitorx %rax,%ecx,%edx
+[ 	]*[a-f0-9]+:	67 0f 01 fa          	monitorx %eax,%ecx,%edx
+[ 	]*[a-f0-9]+:	0f 01 fa             	monitorx %rax,%ecx,%edx
+[ 	]*[a-f0-9]+:	0f 01 fb             	mwaitx %eax,%ecx,%ebx
+[ 	]*[a-f0-9]+:	0f 01 fb             	mwaitx %eax,%ecx,%ebx
 #pass

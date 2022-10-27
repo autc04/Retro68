@@ -25,5 +25,3 @@ Disassembly of section .*:
 .*:	d53e121b 	mrs	x27, zcr_el3
 .*:	d51e1200 	msr	zcr_el3, x0
 .*:	d51e121a 	msr	zcr_el3, x26
-.*:	d53800e0 	mrs	x0, zidr_el1
-.*:	d53800fb 	mrs	x27, zidr_el1

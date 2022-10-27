@@ -1,5 +1,5 @@
 #as: -no-expand
-#readelf: -Ssrx1 -x6
+#readelf: -Ssrx1 -T -x6
 There are 10 section headers, starting at offset 0x...:
 #...
  +\[ 5\] \.MMIX\.spec_data\.4 +PROGBITS +0+ +0+c4
@@ -18,13 +18,13 @@ Relocation section '\.rela\.text' at offset 0x... contains 5 entries:
 Symbol table '\.symtab' contains 12 entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
  +0: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND 
- +1: 0+ +0 +SECTION +LOCAL +DEFAULT +1 
- +2: 0+ +0 +SECTION +LOCAL +DEFAULT +3 
- +3: 0+ +0 +SECTION +LOCAL +DEFAULT +4 
+ +1: 0+ +0 +SECTION +LOCAL +DEFAULT +1.*
+ +2: 0+ +0 +SECTION +LOCAL +DEFAULT +3.*
+ +3: 0+ +0 +SECTION +LOCAL +DEFAULT +4.*
  +4: 0+18 +0 +NOTYPE +LOCAL +DEFAULT +ABS z
  +5: 0+80 +0 +NOTYPE +LOCAL +DEFAULT +1 x
- +6: 0+ +0 +SECTION +LOCAL +DEFAULT +5 
- +7: 0+ +0 +SECTION +LOCAL +DEFAULT +6 
+ +6: 0+ +0 +SECTION +LOCAL +DEFAULT +5.*
+ +7: 0+ +0 +SECTION +LOCAL +DEFAULT +6.*
  +8: 0+ +0 +FUNC +GLOBAL +DEFAULT +1 Main
  +9: 0+ +0 +NOTYPE +GLOBAL +DEFAULT +UND target
  +10: 0+ +0 +NOTYPE +GLOBAL +DEFAULT +UND target2

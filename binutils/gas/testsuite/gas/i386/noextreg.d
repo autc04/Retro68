@@ -1,3 +1,4 @@
+#as: -O0
 #objdump: -dw
 #name: ix86 no extended registers
 
@@ -12,14 +13,14 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 f1 7d 08 db c0    	vpandd %xmm0,%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	62 d1 7d 08 db c0    	vpandd %xmm0,%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	62 f1 3d 08 db c0    	vpandd %xmm0,%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	62 f1 7d 00 db c0    	vpandd %xmm0,%xmm0,%xmm0
+[ 	]*[a-f0-9]+:	62 f1 7d 00 db c0    	vpandd %xmm0,\(bad\),%xmm0
 [ 	]*[a-f0-9]+:	c4 e3 79 4c c0 00    	vpblendvb %xmm0,%xmm0,%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	c4 c3 79 4c c0 00    	vpblendvb %xmm0,%xmm0,%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	c4 e3 39 4c c0 00    	vpblendvb %xmm0,%xmm0,%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	c4 e3 79 4c c0 80    	vpblendvb %xmm0,%xmm0,%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	62 f2 7d 0f 90 0c 00 	vpgatherdd \(%eax,%xmm0,1\),%xmm1\{%k7\}
 [ 	]*[a-f0-9]+:	62 d2 7d 0f 90 0c 00 	vpgatherdd \(%eax,%xmm0,1\),%xmm1\{%k7\}
-[ 	]*[a-f0-9]+:	62 f2 7d 07 90 0c 00 	vpgatherdd \(%eax,%xmm0,1\),%xmm1\{%k7\}
+[ 	]*[a-f0-9]+:	62 f2 7d 07 90 0c 00 	vpgatherdd \(%eax,\(bad\),1\),%xmm1\{%k7\}
 [ 	]*[a-f0-9]+:	c4 e2 78 f2 00       	andn   \(%eax\),%eax,%eax
 [ 	]*[a-f0-9]+:	c4 e2 38 f2 00       	andn   \(%eax\),%eax,%eax
 [ 	]*[a-f0-9]+:	c4 c2 78 f2 00       	andn   \(%eax\),%eax,%eax
@@ -49,5 +50,5 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c4 e3 79 48 00 00    	vpermil2ps \$0x0,%xmm0,\(%eax\),%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	c4 e3 39 48 00 00    	vpermil2ps \$0x0,%xmm0,\(%eax\),%xmm0,%xmm0
 [ 	]*[a-f0-9]+:	c4 e3 79 48 00 80    	vpermil2ps \$0x0,%xmm0,\(%eax\),%xmm0,%xmm0
-[ 	]*[a-f0-9]+:	c3                   	ret[ 	]*
+[ 	]*[a-f0-9]+:	c3                   	ret
 #pass

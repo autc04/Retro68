@@ -1,3 +1,4 @@
-	.type b, %gnu_unique_object
-b:	.long 0
-	.size b, .-b
+	.type b_val, %gnu_unique_object
+b_val:	.long 0
+	.size b_val, .-b_val
+	.section	.note.GNU-stack

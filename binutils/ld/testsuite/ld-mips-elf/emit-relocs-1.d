@@ -1,13 +1,13 @@
 #name: Emit relocs 1
-#source: emit-relocs-1a.s -march=from-abi -mabi=n32 -EB
-#source: emit-relocs-1b.s -march=from-abi -mabi=n32 -EB
-#ld: -q -T emit-relocs-1.ld -melf32btsmipn32
+#source: emit-relocs-1a.s
+#source: emit-relocs-1b.s
+#ld: -q -T emit-relocs-1.ld
 #objdump: -sr
 
 .*:     file format .*
 
 RELOCATION RECORDS FOR \[\.data\]:
-OFFSET   TYPE              VALUE *
+OFFSET +TYPE +VALUE
 00000000 R_MIPS_32         \.data
 00000004 R_MIPS_32         \.data\+0x00001000
 00000008 R_MIPS_32         \.merge1\+0x00000002

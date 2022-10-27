@@ -1,6 +1,7 @@
 #source: provide-1.s
 #ld: -T provide-1.t
 #objdump: -s -j .data
+#xfail: tic54x-*-*
 
 .*:     file format .*
 

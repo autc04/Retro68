@@ -2,7 +2,7 @@
 
 # plugin_test_12.sh -- a test case for the plugin API.
 
-# Copyright (C) 2017 onwards Free Software Foundation, Inc.
+# Copyright (C) 2017-2022 Free Software Foundation, Inc.
 # Written by Teresa Johnson <tejohnson@google.com>.
 
 # This file is part of gold.

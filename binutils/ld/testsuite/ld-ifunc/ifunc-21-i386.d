@@ -2,7 +2,7 @@
 #as: --32 -mrelax-relocations=yes
 #objdump: -dw
 #target: x86_64-*-* i?86-*-*
-#notarget: x86_64-*-nacl* i?86-*-nacl*
+#notarget: *-*-lynxos *-*-nto*
 
 .*: +file format .*
 
@@ -18,8 +18,8 @@ Disassembly of section .text:
  +[a-f0-9]+:	c7 c0 a1 80 04 08    	mov    \$0x80480a1,%eax
 
 0+80480a0 <foo>:
- +[a-f0-9]+:	c3                   	ret    
+ +[a-f0-9]+:	c3                   	ret
 
 0+80480a1 <bar>:
- +[a-f0-9]+:	c3                   	ret    
+ +[a-f0-9]+:	c3                   	ret
 #pass

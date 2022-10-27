@@ -1,6 +1,6 @@
 #source: undefweak.s
 #as: --32
-#ld: -pie -melf_i386
+#ld: -pie -melf_i386 -z notext
 #readelf: -r --wide -x .data.rel.ro
 
 Relocation section '.rel.dyn' at offset 0x[0-9a-f]+ contains 1 entry:

@@ -1,5 +1,5 @@
 # Test address printed by --print-map
-# Copyright (C) 2002-2018 Free Software Foundation, Inc.
+# Copyright (C) 2002-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -22,13 +22,19 @@ set testname "map addresses"
 
 # The source file doesn't matter.  Pinch one from the sizeof test.
 if {![ld_assemble $as $srcdir/$subdir/sizeof.s tmpdir/map-address.o]} {
-    unresolved $testname
+    unsupported $testname
     return
 }
 
+if { [is_pecoff_format] } then {
+    set IMAGE_BASE "--image-base 0"
+} else {
+    set IMAGE_BASE ""
+}
+
 if {![ld_link $ld tmpdir/map-address \
-	 "-T $srcdir/$subdir/map-address.t \
-	  tmpdir/map-address.o \
+	 "$LDFLAGS -T $srcdir/$subdir/map-address.t \
+	  $IMAGE_BASE tmpdir/map-address.o \
 	  -Map tmpdir/map-address.map"]} {
     fail $testname
     return
@@ -40,6 +46,75 @@ if [is_remote host] then {
 
 if {[regexp_diff \
 	       "tmpdir/map-address.map" \
+	       "$srcdir/$subdir/map-address.d"]} {
+    fail $testname
+} else {
+    pass $testname
+}
+
+
+set testname "map to directory"
+
+if {![ld_link $ld tmpdir/map-address \
+	 "$LDFLAGS -T $srcdir/$subdir/map-address.t \
+	  $IMAGE_BASE tmpdir/map-address.o \
+	  -Map tmpdir --output fred"]} {
+    fail $testname
+    return
+}
+
+if [is_remote host] then {
+    remote_upload host "tmpdir/fred.map"
+}
+
+if {[regexp_diff \
+	       "tmpdir/fred.map" \
+	       "$srcdir/$subdir/map-address.d"]} {
+    fail $testname
+} else {
+    pass $testname
+}
+
+
+set testname "map to % directory"
+
+if {![ld_link $ld tmpdir/map-address \
+	 "$LDFLAGS -T $srcdir/$subdir/map-address.t \
+	  $IMAGE_BASE tmpdir/map-address.o \
+	  -Map=tmpdir/% --output fred"]} {
+    fail $testname
+    return
+}
+
+if [is_remote host] then {
+    remote_upload host "tmpdir/fred.map"
+}
+
+if {[regexp_diff \
+	       "tmpdir/fred.map" \
+	       "$srcdir/$subdir/map-address.d"]} {
+    fail $testname
+} else {
+    pass $testname
+}
+
+
+set testname "map to %.foo directory"
+
+if {![ld_link $ld tmpdir/map-address \
+	 "$LDFLAGS -T $srcdir/$subdir/map-address.t \
+	  $IMAGE_BASE tmpdir/map-address.o \
+	  -Map=tmpdir/%.foo --output fred"]} {
+    fail $testname
+    return
+}
+
+if [is_remote host] then {
+    remote_upload host "tmpdir/fred.foo"
+}
+
+if {[regexp_diff \
+	       "tmpdir/fred.foo" \
 	       "$srcdir/$subdir/map-address.d"]} {
     fail $testname
 } else {

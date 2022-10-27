@@ -29,7 +29,7 @@ Key to Flags:
 #...
 
 Elf file type is DYN \(Shared object file\)
-Entry point 0x1000
+Entry point 0x[0-9a-f]+
 There are [0-9]+ program headers, starting at offset [0-9]+
 
 Program Headers:
@@ -100,19 +100,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +11 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +12 *
-.* FILE +LOCAL +DEFAULT +ABS tmpdir/tlsdesc.o
+.* FILE +LOCAL +DEFAULT +ABS .*tlsdesc.o
  +[0-9]+: 0+20 +0 +TLS +LOCAL +DEFAULT +8 sl1
  +[0-9]+: 0+24 +0 +TLS +LOCAL +DEFAULT +8 sl2
  +[0-9]+: 0+28 +0 +TLS +LOCAL +DEFAULT +8 sl3

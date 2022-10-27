@@ -10,7 +10,7 @@ start:
 	bndmk 0x3(%rax), %bnd1
 	bndmk 0x3(,%r12,1), %bnd1
 	bndmk (%rax,%rcx), %bnd1
-	bndmk 0x3(%r11,%rax,1), %bnd1
+	bndmk 0x3(%r11,%rax,2), %bnd1
 	bndmk 0x3(%rbx,%r9,1), %bnd1
 
 	### bndmov
@@ -19,9 +19,10 @@ start:
 	bndmov (0x399), %bnd1
 	bndmov 0x3(%r9), %bnd2
 	bndmov 0x3(%rax), %bnd2
+	bndmov 0x3333(%rip), %bnd2
 	bndmov 0x3(,%r12,1), %bnd0
 	bndmov (%rax,%rdx), %bnd2
-	bndmov 0x3(%r11,%rax,1), %bnd1
+	bndmov 0x3(%r11,%rax,2), %bnd1
 	bndmov 0x3(%rbx,%r9,1), %bnd1
 	bndmov %bnd2, %bnd0
 
@@ -30,9 +31,10 @@ start:
 	bndmov %bnd1, (0x399)
 	bndmov %bnd2, 0x3(%r9)
 	bndmov %bnd2, 0x3(%rax)
+	bndmov %bnd2, 0x3333(%rip)
 	bndmov %bnd0, 0x3(,%r12,1)
 	bndmov %bnd2, (%rax,%rdx)
-	bndmov %bnd1, 0x3(%r11,%rax,1)
+	bndmov %bnd1, 0x3(%r11,%rax,2)
 	bndmov %bnd1, 0x3(%rbx,%r9,1)
 	bndmov %bnd0, %bnd2
 
@@ -44,9 +46,10 @@ start:
 	bndcl (0x399), %bnd1
 	bndcl 0x3(%r9), %bnd2
 	bndcl 0x3(%rax), %bnd2
+	bndcl 0x3333(%rip), %bnd2
 	bndcl 0x3(,%r12,1), %bnd0
 	bndcl (%rax,%rdx), %bnd2
-	bndcl 0x3(%r11,%rax,1), %bnd1
+	bndcl 0x3(%r11,%rax,2), %bnd1
 	bndcl 0x3(%rbx,%r9,1), %bnd1
 
 	### bndcu
@@ -57,9 +60,10 @@ start:
 	bndcu (0x399), %bnd1
 	bndcu 0x3(%r9), %bnd2
 	bndcu 0x3(%rax), %bnd2
+	bndcu 0x3333(%rip), %bnd2
 	bndcu 0x3(,%r12,1), %bnd0
 	bndcu (%rax,%rdx), %bnd2
-	bndcu 0x3(%r11,%rax,1), %bnd1
+	bndcu 0x3(%r11,%rax,2), %bnd1
 	bndcu 0x3(%rbx,%r9,1), %bnd1
 
 	### bndcn
@@ -70,9 +74,10 @@ start:
 	bndcn (0x399), %bnd1
 	bndcn 0x3(%r9), %bnd2
 	bndcn 0x3(%rax), %bnd2
+	bndcn 0x3333(%rip), %bnd2
 	bndcn 0x3(,%r12,1), %bnd0
 	bndcn (%rax,%rdx), %bnd2
-	bndcn 0x3(%r11,%rax,1), %bnd1
+	bndcn 0x3(%r11,%rax,2), %bnd1
 	bndcn 0x3(%rbx,%r9,1), %bnd1
 
 	### bndstx
@@ -221,3 +226,24 @@ bad:
 	.byte 0x0f
 	.byte 0x1a
 	.byte 0xc4
+
+	# bndmov with REX.B set
+	.byte 0x66
+	.byte 0x41
+	.byte 0x0f
+	.byte 0x1a
+	.byte 0xc0
+
+	# bndmov with REX.R set
+	.byte 0x66
+	.byte 0x44
+	.byte 0x0f
+	.byte 0x1a
+	.byte 0xc0
+
+	# bndmk (bad),%bnd0
+	.byte 0xf3
+	.byte 0x0f
+	.byte 0x1b
+	.byte 0x05
+	.long 0x90909090

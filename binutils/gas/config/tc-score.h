@@ -1,5 +1,5 @@
 /* tc-score.h -- Score specific file for assembler
-   Copyright (C) 2006-2018 Free Software Foundation, Inc.
+   Copyright (C) 2006-2022 Free Software Foundation, Inc.
    Contributed by:
    Brain.lin (brain.lin@sunplusct.com)
    Mei Ligang (ligang@sunnorth.com.cn)
@@ -49,7 +49,7 @@ extern void score_validate_fix (struct fix *);
 extern int score_force_relocation (struct fix *);
 
 #define tc_fix_adjustable(fixp)  score_fix_adjustable (fixp)
-extern bfd_boolean score_fix_adjustable (struct fix *);
+extern bool score_fix_adjustable (struct fix *);
 
 #define elf_tc_final_processing  score_elf_final_processing
 extern void score_elf_final_processing (void);
@@ -62,7 +62,7 @@ struct score_tc_frag_data
 
 #define TC_FRAG_TYPE struct score_tc_frag_data
 
-#define TC_FRAG_INIT(FRAGP) \
+#define TC_FRAG_INIT(FRAGP, MAX_BYTES) \
   do \
     { \
       (FRAGP)->tc_frag_data.is_insn = (((FRAGP)->fr_type == rs_machine_dependent) ? 1 : 0); \

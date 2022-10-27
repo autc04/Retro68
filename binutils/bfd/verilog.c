@@ -1,5 +1,5 @@
 /* BFD back-end for verilog hex memory dump files.
-   Copyright (C) 2009-2018 Free Software Foundation, Inc.
+   Copyright (C) 2009-2022 Free Software Foundation, Inc.
    Written by Anthony Green <green@moxielogic.com>
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -58,12 +58,16 @@
 #include "libiberty.h"
 #include "safe-ctype.h"
 
+/* Modified by obcopy.c
+   Data width in bytes.  */
+unsigned int VerilogDataWidth = 1;
+
 /* Macros for converting between hex and binary.  */
 
 static const char digs[] = "0123456789ABCDEF";
 
-#define NIBBLE(x)    hex_value(x)
-#define HEX(buffer) ((NIBBLE ((buffer)[0])<<4) + NIBBLE ((buffer)[1]))
+#define NIBBLE(x)    hex_value (x)
+#define HEX(buffer) ((NIBBLE ((buffer)[0]) << 4) + NIBBLE ((buffer)[1]))
 #define TOHEX(d, x) \
 	d[1] = digs[(x) & 0xf]; \
 	d[0] = digs[((x) >> 4) & 0xf];
@@ -91,19 +95,19 @@ typedef struct verilog_data_struct
 }
 tdata_type;
 
-static bfd_boolean
+static bool
 verilog_set_arch_mach (bfd *abfd, enum bfd_architecture arch, unsigned long mach)
 {
   if (arch != bfd_arch_unknown)
     return bfd_default_set_arch_mach (abfd, arch, mach);
 
   abfd->arch_info = & bfd_default_arch_struct;
-  return TRUE;
+  return true;
 }
 
 /* We have to save up all the outpu for a splurge before output.  */
 
-static bfd_boolean
+static bool
 verilog_set_section_contents (bfd *abfd,
 			      sec_ptr section,
 			      const void * location,
@@ -115,7 +119,7 @@ verilog_set_section_contents (bfd *abfd,
 
   entry = (verilog_data_list_type *) bfd_alloc (abfd, sizeof (* entry));
   if (entry == NULL)
-    return FALSE;
+    return false;
 
   if (bytes_to_do
       && (section->flags & SEC_ALLOC)
@@ -125,7 +129,7 @@ verilog_set_section_contents (bfd *abfd,
 
       data = (bfd_byte *) bfd_alloc (abfd, bytes_to_do);
       if (data == NULL)
-	return FALSE;
+	return false;
       memcpy ((void *) data, location, (size_t) bytes_to_do);
 
       entry->data = data;
@@ -155,18 +159,31 @@ verilog_set_section_contents (bfd *abfd,
 	    tdata->tail = entry;
 	}
     }
-  return TRUE;
+  return true;
 }
 
-static bfd_boolean
+static bool
 verilog_write_address (bfd *abfd, bfd_vma address)
 {
-  char buffer[12];
+  char buffer[20];
   char *dst = buffer;
   bfd_size_type wrlen;
 
   /* Write the address.  */
   *dst++ = '@';
+#ifdef BFD64
+  if (address >= (bfd_vma)1 << 32)
+    {
+      TOHEX (dst, (address >> 56));
+      dst += 2;
+      TOHEX (dst, (address >> 48));
+      dst += 2;
+      TOHEX (dst, (address >> 40));
+      dst += 2;
+      TOHEX (dst, (address >> 32));
+      dst += 2;
+    }
+#endif
   TOHEX (dst, (address >> 24));
   dst += 2;
   TOHEX (dst, (address >> 16));
@@ -183,26 +200,82 @@ verilog_write_address (bfd *abfd, bfd_vma address)
 }
 
 /* Write a record of type, of the supplied number of bytes. The
-   supplied bytes and length don't have a checksum. That's worked out
-   here.  */
+   supplied bytes and length don't have a checksum.  That's worked
+   out here.  */
 
-static bfd_boolean
+static bool
 verilog_write_record (bfd *abfd,
 		      const bfd_byte *data,
 		      const bfd_byte *end)
 {
-  char buffer[50];
+  char buffer[52];
   const bfd_byte *src = data;
   char *dst = buffer;
   bfd_size_type wrlen;
 
-  /* Write the data.  */
-  for (src = data; src < end; src++)
+  /* Paranoia - check that we will not overflow "buffer".  */
+  if (((end - data) * 2) /* Number of hex characters we want to emit.  */
+      + ((end - data) / VerilogDataWidth) /* Number of spaces we want to emit.  */
+      + 2 /* The carriage return & line feed characters.  */
+      > (long) sizeof (buffer))
     {
-      TOHEX (dst, *src);
-      dst += 2;
-      *dst++ = ' ';
+      /* FIXME: Should we generate an error message ?  */
+      return false;
     }
+
+  /* Write the data.
+     FIXME: Under some circumstances we can emit a space at the end of
+     the line.  This is not really necessary, but catching these cases
+     would make the code more complicated.  */
+  if (VerilogDataWidth == 1)
+    {
+      for (src = data; src < end;)
+	{
+	  TOHEX (dst, *src);
+	  dst += 2;
+	  src ++;
+	  if (src < end)
+	    *dst++ = ' ';
+	}
+    }
+  else if (bfd_little_endian (abfd))
+    {
+      /* If the input byte stream contains:
+	   05 04 03 02 01 00
+	 and VerilogDataWidth is 4 then we want to emit:
+           02030405 0001  */
+      int i;
+
+      for (src = data; src < (end - VerilogDataWidth); src += VerilogDataWidth)
+	{
+	  for (i = VerilogDataWidth - 1; i >= 0; i--)
+	    {
+	      TOHEX (dst, src[i]);
+	      dst += 2;
+	    }
+	  *dst++ = ' ';
+	}
+
+      /* Emit any remaining bytes.  Be careful not to read beyond "end".  */
+      while (end > src)
+	{
+	  -- end;
+	  TOHEX (dst, *end);
+	  dst += 2;
+	}
+    }
+  else
+    {
+      for (src = data; src < end;)
+	{
+	  TOHEX (dst, *src);
+	  dst += 2;
+	  ++ src;
+	  if ((src - data) % VerilogDataWidth == 0)
+	    *dst++ = ' ';
+	}
+    }
+
   *dst++ = '\r';
   *dst++ = '\n';
   wrlen = dst - buffer;
@@ -210,7 +283,7 @@ verilog_write_record (bfd *abfd,
   return bfd_bwrite ((void *) buffer, wrlen, abfd) == wrlen;
 }
 
-static bfd_boolean
+static bool
 verilog_write_section (bfd *abfd,
 		       tdata_type *tdata ATTRIBUTE_UNUSED,
 		       verilog_data_list_type *list)
@@ -229,16 +302,16 @@ verilog_write_section (bfd *abfd,
       if (! verilog_write_record (abfd,
 				  location,
 				  location + octets_this_chunk))
-	return FALSE;
+	return false;
 
       octets_written += octets_this_chunk;
       location += octets_this_chunk;
     }
 
-  return TRUE;
+  return true;
 }
 
-static bfd_boolean
+static bool
 verilog_write_object_contents (bfd *abfd)
 {
   tdata_type *tdata = abfd->tdata.verilog_data;
@@ -250,10 +323,10 @@ verilog_write_object_contents (bfd *abfd)
   while (list != (verilog_data_list_type *) NULL)
     {
       if (! verilog_write_section (abfd, tdata, list))
-	return FALSE;
+	return false;
       list = list->next;
     }
-  return TRUE;
+  return true;
 }
 
 /* Initialize by filling in the hex conversion array.  */
@@ -261,18 +334,18 @@ verilog_write_object_contents (bfd *abfd)
 static void
 verilog_init (void)
 {
-  static bfd_boolean inited = FALSE;
+  static bool inited = false;
 
   if (! inited)
     {
-      inited = TRUE;
+      inited = true;
       hex_init ();
     }
 }
 
 /* Set up the verilog tdata information.  */
 
-static bfd_boolean
+static bool
 verilog_mkobject (bfd *abfd)
 {
   tdata_type *tdata;
@@ -281,13 +354,13 @@ verilog_mkobject (bfd *abfd)
 
   tdata = (tdata_type *) bfd_alloc (abfd, sizeof (tdata_type));
   if (tdata == NULL)
-    return FALSE;
+    return false;
 
   abfd->tdata.verilog_data = tdata;
   tdata->head = NULL;
   tdata->tail = NULL;
 
-  return TRUE;
+  return true;
 }
 
 #define verilog_close_and_cleanup		     _bfd_generic_close_and_cleanup
@@ -308,6 +381,7 @@ verilog_mkobject (bfd *abfd)
 #define verilog_bfd_gc_sections			     bfd_generic_gc_sections
 #define verilog_bfd_merge_sections		     bfd_generic_merge_sections
 #define verilog_bfd_is_group_section		     bfd_generic_is_group_section
+#define verilog_bfd_group_name			     bfd_generic_group_name
 #define verilog_bfd_discard_group		     bfd_generic_discard_group
 #define verilog_section_already_linked		     _bfd_generic_section_already_linked
 #define verilog_bfd_link_hash_table_create	     _bfd_generic_link_hash_table_create
@@ -331,6 +405,7 @@ const bfd_target verilog_vec =
   ' ',				/* AR_pad_char.  */
   16,				/* AR_max_namelen.  */
   0,				/* match priority.  */
+  TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */

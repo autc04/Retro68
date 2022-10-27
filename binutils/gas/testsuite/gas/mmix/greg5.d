@@ -18,7 +18,7 @@ SYMBOL TABLE:
 2000000000000008 g       \*ABS\*	0+ __\.MMIX\.start\.\.data
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+2 R_MMIX_REG        \.MMIX\.reg_contents
 
 Contents of section \.text:

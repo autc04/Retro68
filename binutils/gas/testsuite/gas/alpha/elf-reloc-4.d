@@ -4,7 +4,7 @@
 .*:     file format elf64-alpha.*
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0*0000000 ELF_LITERAL       a
 0*0000004 LITUSE            \.text\+0x0*0000001
 0*0000008 LITUSE            \.text\+0x0*0000002

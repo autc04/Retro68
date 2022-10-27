@@ -1,6 +1,7 @@
 	.text
 	.align	4
 	.globl	_start
+	.type	_start, @function
 _start:
 	jr	$31
 

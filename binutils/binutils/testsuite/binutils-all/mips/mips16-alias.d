@@ -1,7 +1,7 @@
 #PROG: objcopy
 #objdump: -d --prefix-addresses --show-raw-insn
 #name: MIPS16 instruction alias disassembly
-#as: -32 -mips3
+#as: -mips3
 
 .*: +file format .*mips.*
 

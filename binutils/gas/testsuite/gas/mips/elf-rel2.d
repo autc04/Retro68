@@ -9,7 +9,7 @@
 .*:     file format .*
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET [ ]+ TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+0000000 R_MIPS_LITERAL    \.lit8
 0+0000004 R_MIPS_LITERAL    \.lit8
 0+0000008 R_MIPS_LITERAL    \.lit8

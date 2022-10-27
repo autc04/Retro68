@@ -3,7 +3,7 @@ dnl
 dnl And be careful when changing it!  If you must add tests with square
 dnl brackets, be sure changequote invocations surround it.
 dnl
-dnl   Copyright (C) 2012-2018 Free Software Foundation, Inc.
+dnl   Copyright (C) 2012-2022 Free Software Foundation, Inc.
 dnl
 dnl This file is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
@@ -29,9 +29,9 @@ dnl we specify this explicitly, automake-1.7 will assume that ylwrap is in
 dnl gas/ instead of gas/../.
 AC_CONFIG_AUX_DIR(..)
 AC_CANONICAL_TARGET
-AC_ISC_POSIX
 
 AM_INIT_AUTOMAKE
+AM_SILENT_RULES([yes])
 
 AC_PROG_CC
 AC_GNU_SOURCE
@@ -50,10 +50,9 @@ AC_ARG_ENABLE(targets,
   *)	    enable_targets=$enableval ;;
 esac])dnl
 
-ac_checking=yes
-if grep '^RELEASE=y' ${srcdir}/../bfd/Makefile.am >/dev/null 2>/dev/null ; then
-  ac_checking=
-fi
+ac_checking=
+. ${srcdir}/../bfd/development.sh
+test "$development" = true && ac_checking=yes
 AC_ARG_ENABLE(checking,
 [  --enable-checking       enable run-time checks],
 [case "${enableval}" in
@@ -112,6 +111,40 @@ AC_ARG_ENABLE(generate_build_notes,
   no)   ac_default_generate_build_notes=0 ;;
 esac])dnl
 
+# Decide if the MIPS assembler should default to enable MIPS fix Loongson3
+# LLSC errata.
+ac_default_mips_fix_loongson3_llsc=unset
+# Provide a configuration option to override the default.
+AC_ARG_ENABLE(mips-fix-loongson3-llsc,
+             AS_HELP_STRING([--enable-mips-fix-loongson3-llsc],
+             [enable MIPS fix Loongson3 LLSC errata]),
+[case "${enableval}" in
+  yes)  ac_default_mips_fix_loongson3_llsc=1 ;;
+  no)   ac_default_mips_fix_loongson3_llsc=0 ;;
+esac])dnl
+
+# Decide if the x86 ELF assembler should default to generating GNU x86
+# used ISA and feature properties.
+ac_default_generate_x86_used_note=unset
+# Provide a configuration option to override the default.
+AC_ARG_ENABLE(x86-used-note,
+	      AS_HELP_STRING([--enable-x86-used-note],
+	      [generate GNU x86 used ISA and feature properties]),
+[case "${enableval}" in
+  yes)  ac_default_generate_x86_used_note=1 ;;
+  no)   ac_default_generate_x86_used_note=0 ;;
+esac])dnl
+
+# Decide if the RISC-V ELF assembler should default to generating attribute.
+ac_default_generate_riscv_attr=unset
+# Provide a configuration option to override the default.
+AC_ARG_ENABLE(default-riscv-attribute,
+	      AS_HELP_STRING([--enable-default-riscv-attribute],
+	      [generate RISC-V arch attribute by default]),
+[case "${enableval}" in
+  yes)  ac_default_generate_riscv_attr=1 ;;
+  no)   ac_default_generate_riscv_attr=0 ;;
+esac])dnl
 
 using_cgen=no
 
@@ -207,6 +240,13 @@ for this_target in $target $canon_targets ; do
       | i386-*-go32* \
       | i386-go32-rtems*)
 	AC_DEFINE(STRICTCOFF, 1, [Using strict COFF?])
+	;;
+
+      i386-*-linux-* | x86_64-*-linux-*)
+	if test ${this_target} = $target \
+	   && test ${ac_default_generate_x86_used_note} = unset; then
+	  ac_default_generate_x86_used_note=1
+	fi
 	;;
 
       i386-*-solaris2 \
@@ -389,7 +429,7 @@ changequote([,])dnl
     case ${cpu_type} in
 
       bfin)
-	for f in bfin-parse.o bfin-lex-wrapper.o; do
+	for f in config/bfin-parse.o config/bfin-lex-wrapper.o; do
 	  case " $extra_objects " in
 	    *" $f "*) ;;
 	    *) extra_objects="$extra_objects $f" ;;
@@ -397,8 +437,27 @@ changequote([,])dnl
 	done
 	;;
 
+      bpf)
+      	if test $this_target = $target ; then
+	  AC_DEFINE_UNQUOTED(DEFAULT_ARCH, "${arch}", [Default architecture.])
+	fi
+        using_cgen=yes
+        ;;
       epiphany | fr30 | ip2k | iq2000 | lm32 | m32r | or1k)
 	using_cgen=yes
+	;;
+
+      loongarch)
+	for f in config/loongarch-parse.o config/loongarch-lex-wrapper.o; do
+	  case " $extra_objects " in
+	    *" $f "*) ;;
+	    *) extra_objects="$extra_objects $f" ;;
+	  esac
+	done
+        # --target=loongarch[32|64]-*-*.  */
+        if test $this_target = $target ; then
+          AC_DEFINE_UNQUOTED(DEFAULT_ARCH, "${arch}", [Default architecture.])
+        fi
 	;;
 
       m32c)
@@ -408,7 +467,7 @@ changequote([,])dnl
 	using_cgen=yes
 	;;
       m68k)
-	f=m68k-parse.o
+	f=config/m68k-parse.o
 	case " $extra_objects " in
 	  *" $f "*) ;;
 	  *) extra_objects="$extra_objects $f" ;;
@@ -433,6 +492,15 @@ changequote([,])dnl
 	;;
 
       nds32)
+	# setup NDS32_LINUX_TOOLCHAIN definition
+	if test "linux" = $em; then
+	  AC_DEFINE(NDS32_LINUX_TOOLCHAIN, 1,
+	    [Define value for nds32_linux_toolchain])
+	else
+	  AC_DEFINE(NDS32_LINUX_TOOLCHAIN, 0,
+	    [Define default value for nds32_linux_toolchain])
+	fi
+
 	# Decide BASELINE, REDUCED_REGS, FPU_DP_EXT, FPU_SP_EXT features
 	# based on arch_name.
 	AC_MSG_CHECKING(for default configuration of --with-arch)
@@ -499,16 +567,67 @@ changequote([,])dnl
 		    [Define default value for nds32_audio_ext])
 	fi
 	AC_MSG_RESULT($enable_audio_ext)
+
+	AC_MSG_CHECKING(for default configuration of --enable-dsp-ext)
+	if test "x${enable_dsp_ext}" = xno; then
+	  AC_DEFINE(NDS32_DEFAULT_DSP_EXT, 0,
+		    [Define value for nds32_dsp_ext])
+	else
+	  AC_DEFINE(NDS32_DEFAULT_DSP_EXT, 1,
+		    [Define default value for nds32_dsp_ext])
+	fi
+	AC_MSG_RESULT($enable_dsp_ext)
+
+	AC_MSG_CHECKING(for default configuration of --enable-zol-ext)
+	if test "x${enable_zol_ext}" = xno; then
+	  AC_DEFINE(NDS32_DEFAULT_ZOL_EXT, 0,
+		    [Define value for nds32_zol_ext])
+	else
+	  AC_DEFINE(NDS32_DEFAULT_ZOL_EXT, 1,
+		    [Define default value for nds32_zol_ext])
+	fi
+	AC_MSG_RESULT($enable_zol_ext)
 	;;
 
-      aarch64 | i386 | riscv | s390 | sparc)
+      aarch64 | i386 | s390 | sparc)
 	if test $this_target = $target ; then
 	  AC_DEFINE_UNQUOTED(DEFAULT_ARCH, "${arch}", [Default architecture.])
 	fi
 	;;
 
+      riscv)
+        # --target=riscv[32|64]-*-*.  */
+        if test $this_target = $target ; then
+          AC_DEFINE_UNQUOTED(DEFAULT_ARCH, "${arch}", [Default architecture.])
+        fi
+
+        # --with-arch=<value>.  The syntax of <value> is same as Gas option -march.
+        AC_MSG_CHECKING(for default configuration of --with-arch)
+        if test "x${with_arch}" != x; then
+        AC_DEFINE_UNQUOTED(DEFAULT_RISCV_ARCH_WITH_EXT, "$with_arch",
+                           [Define default value for RISC-V -march.])
+        fi
+        AC_MSG_RESULT($with_arch)
+
+        # --with-isa-spec=[2.2|20190608|20191213].
+        AC_MSG_CHECKING(for default configuration of --with-isa-spec)
+        if test "x${with_isa_spec}" != x; then
+          AC_DEFINE_UNQUOTED(DEFAULT_RISCV_ISA_SPEC, "$with_isa_spec",
+                             [Define default value for RISC-V -misa-spec.])
+        fi
+        AC_MSG_RESULT($with_isa_spec)
+
+        # --with-priv-spec=[1.9.1|1.10|1.11|1.12].
+        AC_MSG_CHECKING(for default configuration of --with-priv-spec)
+        if test "x${with_priv_spec}" != x; then
+          AC_DEFINE_UNQUOTED(DEFAULT_RISCV_PRIV_SPEC, "$with_priv_spec",
+                             [Define default value for RISC-V -mpriv-spec])
+        fi
+        AC_MSG_RESULT($with_priv_spec)
+        ;;
+
       rl78)
-	f=rl78-parse.o
+	f=config/rl78-parse.o
 	case " $extra_objects " in
 	  *" $f "*) ;;
 	  *) extra_objects="$extra_objects $f" ;;
@@ -516,7 +635,7 @@ changequote([,])dnl
 	;;
 
       rx)
-	f=rx-parse.o
+	f=config/rx-parse.o
 	case " $extra_objects " in
 	  *" $f "*) ;;
 	  *) extra_objects="$extra_objects $f" ;;
@@ -524,10 +643,6 @@ changequote([,])dnl
 	;;
 
       xstormy16)
-	using_cgen=yes
-	;;
-
-      xc16x)
 	using_cgen=yes
 	;;
 
@@ -612,6 +727,29 @@ AC_DEFINE_UNQUOTED(DEFAULT_GENERATE_BUILD_NOTES,
   $ac_default_generate_build_notes,
   [Define to 1 if you want to generate GNU Build attribute notes
    by default, if none are contained in the input.])
+
+if test ${ac_default_generate_x86_used_note} = unset; then
+  ac_default_generate_x86_used_note=0
+fi
+AC_DEFINE_UNQUOTED(DEFAULT_X86_USED_NOTE,
+  $ac_default_generate_x86_used_note,
+  [Define to 1 if you want to generate GNU x86 used ISA and feature
+   properties by default.])
+
+if test ${ac_default_generate_riscv_attr} = unset; then
+  ac_default_generate_riscv_attr=1
+fi
+
+AC_DEFINE_UNQUOTED(DEFAULT_RISCV_ATTR,
+  $ac_default_generate_riscv_attr,
+  [Define to 1 if you want to generate RISC-V arch attribute by default.])
+
+if test ${ac_default_mips_fix_loongson3_llsc} = unset; then
+  ac_default_mips_fix_loongson3_llsc=0
+fi
+AC_DEFINE_UNQUOTED(DEFAULT_MIPS_FIX_LOONGSON3_LLSC,
+  $ac_default_mips_fix_loongson3_llsc,
+  [Define to 1 if you want to fix Loongson3 LLSC Errata by default.])
 
 if test x$ac_default_compressed_debug_sections = xyes ; then
   AC_DEFINE(DEFAULT_FLAG_COMPRESS_DEBUG, 1, [Define if you want compressed debug sections by default.])
@@ -805,8 +943,7 @@ AM_MAINTAINER_MODE
 AM_CONDITIONAL(GENINSRC_NEVER, false)
 AC_EXEEXT
 
-AC_CHECK_HEADERS(string.h stdlib.h memory.h strings.h unistd.h errno.h sys/types.h limits.h locale.h time.h sys/stat.h)
-ACX_HEADER_STRING
+AC_CHECK_HEADERS(memory.h sys/stat.h sys/types.h unistd.h)
 
 # Put this here so that autoconf's "cross-compiling" message doesn't confuse
 # people who are not cross-compiling but are compiling cross-assemblers.
@@ -819,14 +956,6 @@ else
 fi
 AC_MSG_RESULT($cross_gas)
 
-dnl ansidecl.h will deal with const
-dnl AC_C_CONST
-AC_FUNC_ALLOCA
-AC_C_INLINE
-
-# VMS doesn't have unlink.
-AC_CHECK_FUNCS(unlink remove, break)
-AC_CHECK_FUNCS(sbrk setlocale)
 AC_CHECK_FUNCS(strsignal)
 
 AM_LC_MESSAGES
@@ -851,28 +980,12 @@ gas_test_headers="
 #ifdef HAVE_MEMORY_H
 #include <memory.h>
 #endif
-#ifdef HAVE_STRING_H
 #include <string.h>
-#else
-#ifdef HAVE_STRINGS_H
-#include <strings.h>
-#endif
-#endif
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 "
-
-# Does errno.h declare errno, or do we have to add a separate declaration
-# for it?
-GAS_CHECK_DECL_NEEDED(errno, f, int f, [
-#ifdef HAVE_ERRNO_H
-#include <errno.h>
-#endif
-])
 
 AC_MSG_CHECKING(for a known getopt prototype in unistd.h)
 AC_CACHE_VAL(gas_cv_decl_getopt_unistd_h,
@@ -886,12 +999,8 @@ fi
 
 GAS_CHECK_DECL_NEEDED(environ, f, char **f, $gas_test_headers)
 GAS_CHECK_DECL_NEEDED(ffs, f, int (*f)(int), $gas_test_headers)
-GAS_CHECK_DECL_NEEDED(free, f, void (*f)(), $gas_test_headers)
-GAS_CHECK_DECL_NEEDED(malloc, f, char *(*f)(), $gas_test_headers)
-GAS_CHECK_DECL_NEEDED(sbrk, f, char *(*f)(), $gas_test_headers)
-GAS_CHECK_DECL_NEEDED(strstr, f, char *(*f)(), $gas_test_headers)
 
-AC_CHECK_DECLS([free, getenv, malloc, mempcpy, realloc, stpcpy, strstr, vsnprintf, asprintf])
+AC_CHECK_DECLS([asprintf, mempcpy, stpcpy])
 
 BFD_BINARY_FOPEN
 
@@ -924,7 +1033,7 @@ dnl the build directory which include the right .h file.  Make sure
 dnl the old symlinks don't exist, so that a reconfigure in an existing
 dnl directory behaves reasonably.
 
-AC_CONFIG_FILES(Makefile doc/Makefile po/Makefile.in:po/Make-in)
+AC_CONFIG_FILES(Makefile po/Makefile.in:po/Make-in)
 AC_CONFIG_COMMANDS([default],
 [rm -f targ-cpu.c targ-cpu.h obj-format.h obj-format.c targ-env.h atof-targ.c itbl-cpu.h
  echo '#include "tc-'"${target_cpu_type}"'.h"' > targ-cpu.h
@@ -940,3 +1049,5 @@ AC_CONFIG_COMMANDS([default],
  te_file=${te_file}])
 
 AC_OUTPUT
+
+GNU_MAKE_JOBSERVER

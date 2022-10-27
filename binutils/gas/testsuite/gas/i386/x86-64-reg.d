@@ -25,10 +25,10 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 73 f6 02          	psllq  \$0x2,%mm6
 [ 	]*[a-f0-9]+:	66 41 0f 73 f2 02    	psllq  \$0x2,%xmm10
 [ 	]*[a-f0-9]+:	66 41 0f 73 fa 02    	pslldq \$0x2,%xmm10
-[ 	]*[a-f0-9]+:	40 80 c0 01[ 	]+add    \$0x1,%al
-[ 	]*[a-f0-9]+:	40 80 c1 01[ 	]+add    \$0x1,%cl
-[ 	]*[a-f0-9]+:	40 80 c2 01[ 	]+add    \$0x1,%dl
-[ 	]*[a-f0-9]+:	40 80 c3 01[ 	]+add    \$0x1,%bl
+[ 	]*[a-f0-9]+:	40 80 c0 01[ 	]+rex add \$0x1,%al
+[ 	]*[a-f0-9]+:	40 80 c1 01[ 	]+rex add \$0x1,%cl
+[ 	]*[a-f0-9]+:	40 80 c2 01[ 	]+rex add \$0x1,%dl
+[ 	]*[a-f0-9]+:	40 80 c3 01[ 	]+rex add \$0x1,%bl
 [ 	]*[a-f0-9]+:	40 80 c4 01[ 	]+add    \$0x1,%spl
 [ 	]*[a-f0-9]+:	40 80 c5 01[ 	]+add    \$0x1,%bpl
 [ 	]*[a-f0-9]+:	40 80 c6 01[ 	]+add    \$0x1,%sil

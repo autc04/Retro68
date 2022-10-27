@@ -27,7 +27,7 @@ Disassembly of section .text:
     2028:	f07ffff0 	adrp	x16, 100001000 <bar1\+0x1000>
     202c:	91002210 	add	x16, x16, #0x8
     2030:	d61f0200 	br	x16
-    2034:	00000000 	.inst	0x00000000 ; undefined
+    2034:	00000000 	udf	#0
 
 0000000000002038 <__bar3_veneer>:
     2038:	58000090 	ldr	x16, 2048 <__bar3_veneer\+0x10>

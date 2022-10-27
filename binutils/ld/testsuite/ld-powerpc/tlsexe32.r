@@ -22,9 +22,6 @@ Section Headers:
  +\[[ 0-9]+\] \.dynamic +DYNAMIC +[0-9a-f]+ [0-9a-f]+ [0-9a-f]+ 08 +WA +4 +0 +4
  +\[[ 0-9]+\] \.got +PROGBITS +[0-9a-f]+ [0-9a-f]+ 000018 04 +WA +0 +0 +4
  +\[[ 0-9]+\] \.plt +PROGBITS +[0-9a-f]+ [0-9a-f]+ 000004 00 +WA +0 +0 +4
- +\[[ 0-9]+\] \.symtab +SYMTAB +.*
- +\[[ 0-9]+\] \.strtab +STRTAB +.*
- +\[[ 0-9]+\] \.shstrtab +STRTAB +.*
 #...
 
 Elf file type is EXEC \(Executable file\)
@@ -69,19 +66,21 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND 
-.* SECTION +LOCAL +DEFAULT +1 
-.* SECTION +LOCAL +DEFAULT +2 
-.* SECTION +LOCAL +DEFAULT +3 
-.* SECTION +LOCAL +DEFAULT +4 
-.* SECTION +LOCAL +DEFAULT +5 
-.* SECTION +LOCAL +DEFAULT +6 
-.* SECTION +LOCAL +DEFAULT +7 
-.* SECTION +LOCAL +DEFAULT +8 
-.* SECTION +LOCAL +DEFAULT +9 
-.* SECTION +LOCAL +DEFAULT +10 
-.* SECTION +LOCAL +DEFAULT +11 
-.* SECTION +LOCAL +DEFAULT +12 
+.* SECTION +LOCAL +DEFAULT +1 \.interp
+.* SECTION +LOCAL +DEFAULT +2 \.hash
+.* SECTION +LOCAL +DEFAULT +3 \.dynsym
+.* SECTION +LOCAL +DEFAULT +4 \.dynstr
+.* SECTION +LOCAL +DEFAULT +5 \.rela\.dyn
+.* SECTION +LOCAL +DEFAULT +6 \.rela\.plt
+.* SECTION +LOCAL +DEFAULT +7 \.text
+.* SECTION +LOCAL +DEFAULT +8 \.tdata
+.* SECTION +LOCAL +DEFAULT +9 \.tbss
+.* SECTION +LOCAL +DEFAULT +10 \.dynamic
+.* SECTION +LOCAL +DEFAULT +11 \.got
+.* SECTION +LOCAL +DEFAULT +12 \.plt
+#...
 .* FILE +LOCAL +DEFAULT +ABS .*
+.* NOTYPE +LOCAL +DEFAULT +ABS TLSMARK
 .* TLS +LOCAL +DEFAULT +8 gd4
 .* TLS +LOCAL +DEFAULT +8 ld4
 .* TLS +LOCAL +DEFAULT +8 ld5
@@ -98,12 +97,12 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +GLOBAL +DEFAULT +9 le1
 .* TLS +GLOBAL +DEFAULT +UND ld
 .* NOTYPE +GLOBAL +DEFAULT +7 _start
-.* NOTYPE +GLOBAL +DEFAULT +12 __end
+.* NOTYPE +GLOBAL +DEFAULT +1[23] __end
 .* TLS +GLOBAL +DEFAULT +9 ld2
 .* TLS +GLOBAL +DEFAULT +9 ld1
-.* NOTYPE +GLOBAL +DEFAULT +12 __bss_start
+.* NOTYPE +GLOBAL +DEFAULT +1[23] __bss_start
 .* FUNC +GLOBAL +DEFAULT +UND __tls_get_addr_opt
-.* NOTYPE +GLOBAL +DEFAULT +12 _edata
-.* NOTYPE +GLOBAL +DEFAULT +12 _end
+.* NOTYPE +GLOBAL +DEFAULT +1[23] _edata
+.* NOTYPE +GLOBAL +DEFAULT +1[23] _end
 .* TLS +GLOBAL +DEFAULT +9 gd0
 .* TLS +GLOBAL +DEFAULT +9 ie0

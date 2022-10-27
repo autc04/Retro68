@@ -1,6 +1,6 @@
 # Test weak symbols.
 # By Ian Lance Taylor, Cygnus Solutions.
-#   Copyright (C) 1999-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -39,14 +39,13 @@ setup_xfail hppa64-*-*
 if {! [ld_assemble $as $srcdir/$subdir/weak1.s tmpdir/weak1.o]
     || ! [ld_assemble $as $srcdir/$subdir/weak2.s tmpdir/weak2.o]} then {
     # It's OK if .weak doesn't work on this target.
-    unresolved $testname
+    unsupported $testname
     return
 }
 
-global LDFLAGS
 set saved_LDFLAGS "$LDFLAGS"
-if [istarget "x86_64-*-mingw*"] then {
-  set LDFLAGS "$LDFLAGS --image-base 0"
+if { [is_pecoff_format] } then {
+    set LDFLAGS "$LDFLAGS --image-base 0"
 }
 
 set weak_regexp_big \
@@ -58,12 +57,6 @@ set weak_regexp_little \
 if {! [ld_link $ld tmpdir/weak "$flags -T $srcdir/$subdir/weak.t tmpdir/weak1.o tmpdir/weak2.o"] } then {
     fail $testname
 } else {
-    if {![is_remote host] && [which $objdump] == 0} then {
-	unresolved $testname
-	set LDFLAGS "$saved_LDFLAGS"
-	return
-    }
-
     set exec_output [run_host_cmd "$objdump" "-s tmpdir/weak"]
     set exec_output [prune_warnings $exec_output]
     verbose -log $exec_output

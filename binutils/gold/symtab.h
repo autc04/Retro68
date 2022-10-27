@@ -1,6 +1,6 @@
 // symtab.h -- the gold symbol table   -*- C++ -*-
 
-// Copyright (C) 2006-2018 Free Software Foundation, Inc.
+// Copyright (C) 2006-2022 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -428,22 +428,23 @@ class Symbol
   // Return whether this symbol has an entry in the GOT section.
   // For a TLS symbol, this GOT entry will hold its tp-relative offset.
   bool
-  has_got_offset(unsigned int got_type) const
-  { return this->got_offsets_.get_offset(got_type) != -1U; }
+  has_got_offset(unsigned int got_type, uint64_t addend = 0) const
+  { return this->got_offsets_.get_offset(got_type, addend) != -1U; }
 
   // Return the offset into the GOT section of this symbol.
   unsigned int
-  got_offset(unsigned int got_type) const
+  got_offset(unsigned int got_type, uint64_t addend = 0) const
   {
-    unsigned int got_offset = this->got_offsets_.get_offset(got_type);
+    unsigned int got_offset = this->got_offsets_.get_offset(got_type, addend);
     gold_assert(got_offset != -1U);
     return got_offset;
   }
 
   // Set the GOT offset of this symbol.
   void
-  set_got_offset(unsigned int got_type, unsigned int got_offset)
-  { this->got_offsets_.set_offset(got_type, got_offset); }
+  set_got_offset(unsigned int got_type, unsigned int got_offset,
+		 uint64_t addend = 0)
+  { this->got_offsets_.set_offset(got_type, got_offset, addend); }
 
   // Return the GOT offset list.
   const Got_offset_list*
@@ -914,7 +915,7 @@ class Symbol
   // Instances of this class should always be created at a specific
   // size.
   Symbol()
-  { memset(this, 0, sizeof *this); }
+  { memset(static_cast<void*>(this), 0, sizeof *this); }
 
   // Initialize the general fields.
   void
@@ -1580,6 +1581,10 @@ class Symbol_table
   saw_undefined() const
   { return this->saw_undefined_; }
 
+  void
+  set_has_gnu_output()
+  { this->has_gnu_output_ = true; }
+
   // Allocate the common symbols
   void
   allocate_commons(Layout*, Mapfile*);
@@ -1981,6 +1986,8 @@ class Symbol_table
   // The number of global dynamic symbols (including forced-local symbols),
   // or 0 if none.
   unsigned int dynamic_count_;
+  // Set if a STT_GNU_IFUNC or STB_GNU_UNIQUE symbol will be output.
+  bool has_gnu_output_;
   // The symbol hash table.
   Symbol_table_type table_;
   // A pool of symbol names.  This is used for all global symbols.

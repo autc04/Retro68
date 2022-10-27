@@ -1,6 +1,6 @@
 /* corefile.c
 
-   Copyright (C) 1999-2018 Free Software Foundation, Inc.
+   Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -45,7 +45,7 @@ unsigned int symbol_map_count;
 
 static void read_function_mappings (const char *);
 static int core_sym_class (asymbol *);
-static bfd_boolean get_src_info
+static bool get_src_info
   (bfd_vma, const char **, const char **, int *);
 
 extern void i386_find_call  (Sym *, bfd_vma, bfd_vma);
@@ -186,6 +186,8 @@ core_init (const char * aout_name)
       done (1);
     }
 
+  core_bfd->flags |= BFD_DECOMPRESS;
+
   if (!bfd_check_format (core_bfd, bfd_object))
     {
       fprintf (stderr, _("%s: %s: not in executable format\n"), whoami, aout_name);
@@ -269,17 +271,17 @@ core_init (const char * aout_name)
 void
 core_get_text_space (bfd *cbfd)
 {
-  core_text_space = malloc (bfd_get_section_size (core_text_sect));
+  core_text_space = malloc (bfd_section_size (core_text_sect));
 
   if (!core_text_space)
     {
       fprintf (stderr, _("%s: ran out room for %lu bytes of text space\n"),
-	       whoami, (unsigned long) bfd_get_section_size (core_text_sect));
+	       whoami, (unsigned long) bfd_section_size (core_text_sect));
       done (1);
     }
 
   if (!bfd_get_section_contents (cbfd, core_text_sect, core_text_space,
-				 0, bfd_get_section_size (core_text_sect)))
+				 0, bfd_section_size (core_text_sect)))
     {
       bfd_perror ("bfd_get_section_contents");
       free (core_text_space);
@@ -330,7 +332,7 @@ find_call (Sym *parent, bfd_vma p_lowpc, bfd_vma p_highpc)
 	       whoami, bfd_printable_name(core_bfd));
 
       /* Don't give the error more than once.  */
-      ignore_direct_calls = FALSE;
+      ignore_direct_calls = false;
     }
 }
 
@@ -451,8 +453,9 @@ core_sym_class (asymbol *sym)
 
 /* Get whatever source info we can get regarding address ADDR.  */
 
-static bfd_boolean
-get_src_info (bfd_vma addr, const char **filename, const char **name, int *line_num)
+static bool
+get_src_info (bfd_vma addr, const char **filename, const char **name,
+	      int *line_num)
 {
   const char *fname = 0, *func_name = 0;
   int l = 0;
@@ -467,7 +470,7 @@ get_src_info (bfd_vma addr, const char **filename, const char **name, int *line_
       *filename = fname;
       *name = func_name;
       *line_num = l;
-      return TRUE;
+      return true;
     }
   else
     {
@@ -475,7 +478,7 @@ get_src_info (bfd_vma addr, const char **filename, const char **name, int *line_
 			      (unsigned long) addr,
 			      fname ? fname : "<unknown>", l,
 			      func_name ? func_name : "<unknown>"));
-      return FALSE;
+      return false;
     }
 }
 
@@ -562,8 +565,8 @@ core_create_syms_from (const char * sym_table_file)
       symtab.limit->name = (char *) xmalloc (strlen (name) + 1);
       strcpy ((char *) symtab.limit->name, name);
       symtab.limit->mapped = 0;
-      symtab.limit->is_func = TRUE;
-      symtab.limit->is_bb_head = TRUE;
+      symtab.limit->is_func = true;
+      symtab.limit->is_bb_head = true;
       symtab.limit->is_static = (type == 't');
       min_vma = MIN (symtab.limit->addr, min_vma);
       max_vma = MAX (symtab.limit->addr, max_vma);
@@ -673,7 +676,7 @@ core_create_function_syms (void)
       sym_sec = core_syms[i]->section;
       symtab.limit->addr = core_syms[i]->value;
       if (sym_sec)
-	symtab.limit->addr += bfd_get_section_vma (sym_sec->owner, sym_sec);
+	symtab.limit->addr += bfd_section_vma (sym_sec);
 
       if (found)
 	{
@@ -722,18 +725,18 @@ core_create_function_syms (void)
 
       symtab.limit->is_func = (!core_has_func_syms
 			       || (core_syms[i]->flags & BSF_FUNCTION) != 0);
-      symtab.limit->is_bb_head = TRUE;
+      symtab.limit->is_bb_head = true;
 
       if (cxxclass == 't')
-	symtab.limit->is_static = TRUE;
+	symtab.limit->is_static = true;
 
       /* Keep track of the minimum and maximum vma addresses used by all
 	 symbols.  When computing the max_vma, use the ending address of the
 	 section containing the symbol, if available.  */
       min_vma = MIN (symtab.limit->addr, min_vma);
       if (sym_sec)
-	max_vma = MAX (bfd_get_section_vma (sym_sec->owner, sym_sec)
-		       + bfd_section_size (sym_sec->owner, sym_sec) - 1,
+	max_vma = MAX (bfd_section_vma (sym_sec)
+		       + bfd_section_size (sym_sec) - 1,
 		       max_vma);
       else
 	max_vma = MAX (symtab.limit->addr, max_vma);
@@ -778,14 +781,14 @@ core_create_line_syms (void)
 
      Of course, this is rather slow and it would be better if
      BFD would provide an iterator for enumerating all line infos.  */
-  prev_name_len = PATH_MAX;
-  prev_filename_len = PATH_MAX;
+  prev_name_len = 1024;
+  prev_filename_len = 1024;
   prev_name = (char *) xmalloc (prev_name_len);
   prev_filename = (char *) xmalloc (prev_filename_len);
   ltab.len = 0;
   prev_line_num = 0;
 
-  vma_high = core_text_sect->vma + bfd_get_section_size (core_text_sect);
+  vma_high = core_text_sect->vma + bfd_section_size (core_text_sect);
   for (vma = core_text_sect->vma; vma < vma_high; vma += min_insn_size)
     {
       unsigned int len;

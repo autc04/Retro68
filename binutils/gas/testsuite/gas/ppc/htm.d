@@ -12,10 +12,10 @@ Disassembly of section \.text:
    8:	(7e 8b 56 5d|5d 56 8b 7e) 	tabortdc\. 20,r11,r10
    c:	(7e 2a 9e 9d|9d 9e 2a 7e) 	tabortwci\. 17,r10,-13
   10:	(7f a3 de dd|dd de a3 7f) 	tabortdci\. 29,r3,-5
-  14:	(7c 00 05 1d|1d 05 00 7c) 	tbegin\. 
+  14:	(7c 00 05 1d|1d 05 00 7c) 	tbegin\.
   18:	(7f 80 05 9c|9c 05 80 7f) 	tcheck  cr7
-  1c:	(7c 00 05 5d|5d 05 00 7c) 	tend\.   
-  20:	(7c 00 05 5d|5d 05 00 7c) 	tend\.   
+  1c:	(7c 00 05 5d|5d 05 00 7c) 	tend\.
+  20:	(7c 00 05 5d|5d 05 00 7c) 	tend\.
   24:	(7e 00 05 5d|5d 05 00 7e) 	tendall\.
   28:	(7e 00 05 5d|5d 05 00 7e) 	tendall\.
   2c:	(7c 18 07 5d|5d 07 18 7c) 	treclaim\. r24

@@ -9,7 +9,7 @@ static int my_var __attribute__((used, section("__verbose"))) = 6;
 int
 bar (void)
 {
-  if (__start___verbose == __stop___verbose)
+  if (& __start___verbose[0] == & __stop___verbose[0])
     return -1;
 
   if (__start___verbose[0] != 6)

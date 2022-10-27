@@ -10,149 +10,149 @@ Disassembly of section .text:
 
 0+ <_start>:
 [ 	]*[a-f0-9]+:	00 d1                	add    cl,dl
-[ 	]*[a-f0-9]+:	02 ca                	add.s cl,dl
+[ 	]*[a-f0-9]+:	02 ca                	add.s  cl,dl
 [ 	]*[a-f0-9]+:	66 01 d1             	add    cx,dx
-[ 	]*[a-f0-9]+:	66 03 ca             	add.s cx,dx
+[ 	]*[a-f0-9]+:	66 03 ca             	add.s  cx,dx
 [ 	]*[a-f0-9]+:	01 d1                	add    ecx,edx
-[ 	]*[a-f0-9]+:	03 ca                	add.s ecx,edx
+[ 	]*[a-f0-9]+:	03 ca                	add.s  ecx,edx
 [ 	]*[a-f0-9]+:	00 d1                	add    cl,dl
-[ 	]*[a-f0-9]+:	02 ca                	add.s cl,dl
+[ 	]*[a-f0-9]+:	02 ca                	add.s  cl,dl
 [ 	]*[a-f0-9]+:	66 01 d1             	add    cx,dx
-[ 	]*[a-f0-9]+:	66 03 ca             	add.s cx,dx
+[ 	]*[a-f0-9]+:	66 03 ca             	add.s  cx,dx
 [ 	]*[a-f0-9]+:	01 d1                	add    ecx,edx
-[ 	]*[a-f0-9]+:	03 ca                	add.s ecx,edx
+[ 	]*[a-f0-9]+:	03 ca                	add.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 01 d1             	add    rcx,rdx
-[ 	]*[a-f0-9]+:	48 03 ca             	add.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 03 ca             	add.s  rcx,rdx
 [ 	]*[a-f0-9]+:	48 01 d1             	add    rcx,rdx
-[ 	]*[a-f0-9]+:	48 03 ca             	add.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 03 ca             	add.s  rcx,rdx
 [ 	]*[a-f0-9]+:	10 d1                	adc    cl,dl
-[ 	]*[a-f0-9]+:	12 ca                	adc.s cl,dl
+[ 	]*[a-f0-9]+:	12 ca                	adc.s  cl,dl
 [ 	]*[a-f0-9]+:	66 11 d1             	adc    cx,dx
-[ 	]*[a-f0-9]+:	66 13 ca             	adc.s cx,dx
+[ 	]*[a-f0-9]+:	66 13 ca             	adc.s  cx,dx
 [ 	]*[a-f0-9]+:	11 d1                	adc    ecx,edx
-[ 	]*[a-f0-9]+:	13 ca                	adc.s ecx,edx
+[ 	]*[a-f0-9]+:	13 ca                	adc.s  ecx,edx
 [ 	]*[a-f0-9]+:	10 d1                	adc    cl,dl
-[ 	]*[a-f0-9]+:	12 ca                	adc.s cl,dl
+[ 	]*[a-f0-9]+:	12 ca                	adc.s  cl,dl
 [ 	]*[a-f0-9]+:	66 11 d1             	adc    cx,dx
-[ 	]*[a-f0-9]+:	66 13 ca             	adc.s cx,dx
+[ 	]*[a-f0-9]+:	66 13 ca             	adc.s  cx,dx
 [ 	]*[a-f0-9]+:	11 d1                	adc    ecx,edx
-[ 	]*[a-f0-9]+:	13 ca                	adc.s ecx,edx
+[ 	]*[a-f0-9]+:	13 ca                	adc.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 11 d1             	adc    rcx,rdx
-[ 	]*[a-f0-9]+:	48 13 ca             	adc.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 13 ca             	adc.s  rcx,rdx
 [ 	]*[a-f0-9]+:	48 11 d1             	adc    rcx,rdx
-[ 	]*[a-f0-9]+:	48 13 ca             	adc.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 13 ca             	adc.s  rcx,rdx
 [ 	]*[a-f0-9]+:	20 d1                	and    cl,dl
-[ 	]*[a-f0-9]+:	22 ca                	and.s cl,dl
+[ 	]*[a-f0-9]+:	22 ca                	and.s  cl,dl
 [ 	]*[a-f0-9]+:	66 21 d1             	and    cx,dx
-[ 	]*[a-f0-9]+:	66 23 ca             	and.s cx,dx
+[ 	]*[a-f0-9]+:	66 23 ca             	and.s  cx,dx
 [ 	]*[a-f0-9]+:	21 d1                	and    ecx,edx
-[ 	]*[a-f0-9]+:	23 ca                	and.s ecx,edx
+[ 	]*[a-f0-9]+:	23 ca                	and.s  ecx,edx
 [ 	]*[a-f0-9]+:	20 d1                	and    cl,dl
-[ 	]*[a-f0-9]+:	22 ca                	and.s cl,dl
+[ 	]*[a-f0-9]+:	22 ca                	and.s  cl,dl
 [ 	]*[a-f0-9]+:	66 21 d1             	and    cx,dx
-[ 	]*[a-f0-9]+:	66 23 ca             	and.s cx,dx
+[ 	]*[a-f0-9]+:	66 23 ca             	and.s  cx,dx
 [ 	]*[a-f0-9]+:	21 d1                	and    ecx,edx
-[ 	]*[a-f0-9]+:	23 ca                	and.s ecx,edx
+[ 	]*[a-f0-9]+:	23 ca                	and.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 21 d1             	and    rcx,rdx
-[ 	]*[a-f0-9]+:	48 23 ca             	and.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 23 ca             	and.s  rcx,rdx
 [ 	]*[a-f0-9]+:	48 21 d1             	and    rcx,rdx
-[ 	]*[a-f0-9]+:	48 23 ca             	and.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 23 ca             	and.s  rcx,rdx
 [ 	]*[a-f0-9]+:	38 d1                	cmp    cl,dl
-[ 	]*[a-f0-9]+:	3a ca                	cmp.s cl,dl
+[ 	]*[a-f0-9]+:	3a ca                	cmp.s  cl,dl
 [ 	]*[a-f0-9]+:	66 39 d1             	cmp    cx,dx
-[ 	]*[a-f0-9]+:	66 3b ca             	cmp.s cx,dx
+[ 	]*[a-f0-9]+:	66 3b ca             	cmp.s  cx,dx
 [ 	]*[a-f0-9]+:	39 d1                	cmp    ecx,edx
-[ 	]*[a-f0-9]+:	3b ca                	cmp.s ecx,edx
+[ 	]*[a-f0-9]+:	3b ca                	cmp.s  ecx,edx
 [ 	]*[a-f0-9]+:	38 d1                	cmp    cl,dl
-[ 	]*[a-f0-9]+:	3a ca                	cmp.s cl,dl
+[ 	]*[a-f0-9]+:	3a ca                	cmp.s  cl,dl
 [ 	]*[a-f0-9]+:	66 39 d1             	cmp    cx,dx
-[ 	]*[a-f0-9]+:	66 3b ca             	cmp.s cx,dx
+[ 	]*[a-f0-9]+:	66 3b ca             	cmp.s  cx,dx
 [ 	]*[a-f0-9]+:	39 d1                	cmp    ecx,edx
-[ 	]*[a-f0-9]+:	3b ca                	cmp.s ecx,edx
+[ 	]*[a-f0-9]+:	3b ca                	cmp.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 39 d1             	cmp    rcx,rdx
-[ 	]*[a-f0-9]+:	48 3b ca             	cmp.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 3b ca             	cmp.s  rcx,rdx
 [ 	]*[a-f0-9]+:	48 39 d1             	cmp    rcx,rdx
-[ 	]*[a-f0-9]+:	48 3b ca             	cmp.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 3b ca             	cmp.s  rcx,rdx
 [ 	]*[a-f0-9]+:	88 d1                	mov    cl,dl
-[ 	]*[a-f0-9]+:	8a ca                	mov.s cl,dl
+[ 	]*[a-f0-9]+:	8a ca                	mov.s  cl,dl
 [ 	]*[a-f0-9]+:	66 89 d1             	mov    cx,dx
-[ 	]*[a-f0-9]+:	66 8b ca             	mov.s cx,dx
+[ 	]*[a-f0-9]+:	66 8b ca             	mov.s  cx,dx
 [ 	]*[a-f0-9]+:	89 d1                	mov    ecx,edx
-[ 	]*[a-f0-9]+:	8b ca                	mov.s ecx,edx
+[ 	]*[a-f0-9]+:	8b ca                	mov.s  ecx,edx
 [ 	]*[a-f0-9]+:	88 d1                	mov    cl,dl
-[ 	]*[a-f0-9]+:	8a ca                	mov.s cl,dl
+[ 	]*[a-f0-9]+:	8a ca                	mov.s  cl,dl
 [ 	]*[a-f0-9]+:	66 89 d1             	mov    cx,dx
-[ 	]*[a-f0-9]+:	66 8b ca             	mov.s cx,dx
+[ 	]*[a-f0-9]+:	66 8b ca             	mov.s  cx,dx
 [ 	]*[a-f0-9]+:	89 d1                	mov    ecx,edx
-[ 	]*[a-f0-9]+:	8b ca                	mov.s ecx,edx
+[ 	]*[a-f0-9]+:	8b ca                	mov.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 89 d1             	mov    rcx,rdx
-[ 	]*[a-f0-9]+:	48 8b ca             	mov.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 8b ca             	mov.s  rcx,rdx
 [ 	]*[a-f0-9]+:	48 89 d1             	mov    rcx,rdx
-[ 	]*[a-f0-9]+:	48 8b ca             	mov.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 8b ca             	mov.s  rcx,rdx
 [ 	]*[a-f0-9]+:	08 d1                	or     cl,dl
-[ 	]*[a-f0-9]+:	0a ca                	or.s cl,dl
+[ 	]*[a-f0-9]+:	0a ca                	or.s   cl,dl
 [ 	]*[a-f0-9]+:	66 09 d1             	or     cx,dx
-[ 	]*[a-f0-9]+:	66 0b ca             	or.s cx,dx
+[ 	]*[a-f0-9]+:	66 0b ca             	or.s   cx,dx
 [ 	]*[a-f0-9]+:	09 d1                	or     ecx,edx
-[ 	]*[a-f0-9]+:	0b ca                	or.s ecx,edx
+[ 	]*[a-f0-9]+:	0b ca                	or.s   ecx,edx
 [ 	]*[a-f0-9]+:	08 d1                	or     cl,dl
-[ 	]*[a-f0-9]+:	0a ca                	or.s cl,dl
+[ 	]*[a-f0-9]+:	0a ca                	or.s   cl,dl
 [ 	]*[a-f0-9]+:	66 09 d1             	or     cx,dx
-[ 	]*[a-f0-9]+:	66 0b ca             	or.s cx,dx
+[ 	]*[a-f0-9]+:	66 0b ca             	or.s   cx,dx
 [ 	]*[a-f0-9]+:	09 d1                	or     ecx,edx
-[ 	]*[a-f0-9]+:	0b ca                	or.s ecx,edx
+[ 	]*[a-f0-9]+:	0b ca                	or.s   ecx,edx
 [ 	]*[a-f0-9]+:	48 09 d1             	or     rcx,rdx
-[ 	]*[a-f0-9]+:	48 0b ca             	or.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 0b ca             	or.s   rcx,rdx
 [ 	]*[a-f0-9]+:	48 09 d1             	or     rcx,rdx
-[ 	]*[a-f0-9]+:	48 0b ca             	or.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 0b ca             	or.s   rcx,rdx
 [ 	]*[a-f0-9]+:	18 d1                	sbb    cl,dl
-[ 	]*[a-f0-9]+:	1a ca                	sbb.s cl,dl
+[ 	]*[a-f0-9]+:	1a ca                	sbb.s  cl,dl
 [ 	]*[a-f0-9]+:	66 19 d1             	sbb    cx,dx
-[ 	]*[a-f0-9]+:	66 1b ca             	sbb.s cx,dx
+[ 	]*[a-f0-9]+:	66 1b ca             	sbb.s  cx,dx
 [ 	]*[a-f0-9]+:	19 d1                	sbb    ecx,edx
-[ 	]*[a-f0-9]+:	1b ca                	sbb.s ecx,edx
+[ 	]*[a-f0-9]+:	1b ca                	sbb.s  ecx,edx
 [ 	]*[a-f0-9]+:	18 d1                	sbb    cl,dl
-[ 	]*[a-f0-9]+:	1a ca                	sbb.s cl,dl
+[ 	]*[a-f0-9]+:	1a ca                	sbb.s  cl,dl
 [ 	]*[a-f0-9]+:	66 19 d1             	sbb    cx,dx
-[ 	]*[a-f0-9]+:	66 1b ca             	sbb.s cx,dx
+[ 	]*[a-f0-9]+:	66 1b ca             	sbb.s  cx,dx
 [ 	]*[a-f0-9]+:	19 d1                	sbb    ecx,edx
-[ 	]*[a-f0-9]+:	1b ca                	sbb.s ecx,edx
+[ 	]*[a-f0-9]+:	1b ca                	sbb.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 19 d1             	sbb    rcx,rdx
-[ 	]*[a-f0-9]+:	48 1b ca             	sbb.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 1b ca             	sbb.s  rcx,rdx
 [ 	]*[a-f0-9]+:	48 19 d1             	sbb    rcx,rdx
-[ 	]*[a-f0-9]+:	48 1b ca             	sbb.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 1b ca             	sbb.s  rcx,rdx
 [ 	]*[a-f0-9]+:	28 d1                	sub    cl,dl
-[ 	]*[a-f0-9]+:	2a ca                	sub.s cl,dl
+[ 	]*[a-f0-9]+:	2a ca                	sub.s  cl,dl
 [ 	]*[a-f0-9]+:	66 29 d1             	sub    cx,dx
-[ 	]*[a-f0-9]+:	66 2b ca             	sub.s cx,dx
+[ 	]*[a-f0-9]+:	66 2b ca             	sub.s  cx,dx
 [ 	]*[a-f0-9]+:	29 d1                	sub    ecx,edx
-[ 	]*[a-f0-9]+:	2b ca                	sub.s ecx,edx
+[ 	]*[a-f0-9]+:	2b ca                	sub.s  ecx,edx
 [ 	]*[a-f0-9]+:	28 d1                	sub    cl,dl
-[ 	]*[a-f0-9]+:	2a ca                	sub.s cl,dl
+[ 	]*[a-f0-9]+:	2a ca                	sub.s  cl,dl
 [ 	]*[a-f0-9]+:	66 29 d1             	sub    cx,dx
-[ 	]*[a-f0-9]+:	66 2b ca             	sub.s cx,dx
+[ 	]*[a-f0-9]+:	66 2b ca             	sub.s  cx,dx
 [ 	]*[a-f0-9]+:	29 d1                	sub    ecx,edx
-[ 	]*[a-f0-9]+:	2b ca                	sub.s ecx,edx
+[ 	]*[a-f0-9]+:	2b ca                	sub.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 29 d1             	sub    rcx,rdx
-[ 	]*[a-f0-9]+:	48 2b ca             	sub.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 2b ca             	sub.s  rcx,rdx
 [ 	]*[a-f0-9]+:	48 29 d1             	sub    rcx,rdx
-[ 	]*[a-f0-9]+:	48 2b ca             	sub.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 2b ca             	sub.s  rcx,rdx
 [ 	]*[a-f0-9]+:	30 d1                	xor    cl,dl
-[ 	]*[a-f0-9]+:	32 ca                	xor.s cl,dl
+[ 	]*[a-f0-9]+:	32 ca                	xor.s  cl,dl
 [ 	]*[a-f0-9]+:	66 31 d1             	xor    cx,dx
-[ 	]*[a-f0-9]+:	66 33 ca             	xor.s cx,dx
+[ 	]*[a-f0-9]+:	66 33 ca             	xor.s  cx,dx
 [ 	]*[a-f0-9]+:	31 d1                	xor    ecx,edx
-[ 	]*[a-f0-9]+:	33 ca                	xor.s ecx,edx
+[ 	]*[a-f0-9]+:	33 ca                	xor.s  ecx,edx
 [ 	]*[a-f0-9]+:	30 d1                	xor    cl,dl
-[ 	]*[a-f0-9]+:	32 ca                	xor.s cl,dl
+[ 	]*[a-f0-9]+:	32 ca                	xor.s  cl,dl
 [ 	]*[a-f0-9]+:	66 31 d1             	xor    cx,dx
-[ 	]*[a-f0-9]+:	66 33 ca             	xor.s cx,dx
+[ 	]*[a-f0-9]+:	66 33 ca             	xor.s  cx,dx
 [ 	]*[a-f0-9]+:	31 d1                	xor    ecx,edx
-[ 	]*[a-f0-9]+:	33 ca                	xor.s ecx,edx
+[ 	]*[a-f0-9]+:	33 ca                	xor.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 31 d1             	xor    rcx,rdx
-[ 	]*[a-f0-9]+:	48 33 ca             	xor.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 33 ca             	xor.s  rcx,rdx
 [ 	]*[a-f0-9]+:	48 31 d1             	xor    rcx,rdx
-[ 	]*[a-f0-9]+:	48 33 ca             	xor.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 33 ca             	xor.s  rcx,rdx
 [ 	]*[a-f0-9]+:	c5 fd 28 f4          	vmovapd ymm6,ymm4
 [ 	]*[a-f0-9]+:	c5 fd 29 e6          	vmovapd.s ymm6,ymm4
 [ 	]*[a-f0-9]+:	c5 fc 28 f4          	vmovaps ymm6,ymm4
@@ -204,77 +204,77 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 6f e0             	movq   mm4,mm0
 [ 	]*[a-f0-9]+:	0f 7f c4             	movq.s mm4,mm0
 [ 	]*[a-f0-9]+:	00 d1                	add    cl,dl
-[ 	]*[a-f0-9]+:	02 ca                	add.s cl,dl
+[ 	]*[a-f0-9]+:	02 ca                	add.s  cl,dl
 [ 	]*[a-f0-9]+:	66 01 d1             	add    cx,dx
-[ 	]*[a-f0-9]+:	66 03 ca             	add.s cx,dx
+[ 	]*[a-f0-9]+:	66 03 ca             	add.s  cx,dx
 [ 	]*[a-f0-9]+:	01 d1                	add    ecx,edx
-[ 	]*[a-f0-9]+:	03 ca                	add.s ecx,edx
+[ 	]*[a-f0-9]+:	03 ca                	add.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 01 d1             	add    rcx,rdx
-[ 	]*[a-f0-9]+:	48 03 ca             	add.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 03 ca             	add.s  rcx,rdx
 [ 	]*[a-f0-9]+:	10 d1                	adc    cl,dl
-[ 	]*[a-f0-9]+:	12 ca                	adc.s cl,dl
+[ 	]*[a-f0-9]+:	12 ca                	adc.s  cl,dl
 [ 	]*[a-f0-9]+:	66 11 d1             	adc    cx,dx
-[ 	]*[a-f0-9]+:	66 13 ca             	adc.s cx,dx
+[ 	]*[a-f0-9]+:	66 13 ca             	adc.s  cx,dx
 [ 	]*[a-f0-9]+:	11 d1                	adc    ecx,edx
-[ 	]*[a-f0-9]+:	13 ca                	adc.s ecx,edx
+[ 	]*[a-f0-9]+:	13 ca                	adc.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 11 d1             	adc    rcx,rdx
-[ 	]*[a-f0-9]+:	48 13 ca             	adc.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 13 ca             	adc.s  rcx,rdx
 [ 	]*[a-f0-9]+:	20 d1                	and    cl,dl
-[ 	]*[a-f0-9]+:	22 ca                	and.s cl,dl
+[ 	]*[a-f0-9]+:	22 ca                	and.s  cl,dl
 [ 	]*[a-f0-9]+:	66 21 d1             	and    cx,dx
-[ 	]*[a-f0-9]+:	66 23 ca             	and.s cx,dx
+[ 	]*[a-f0-9]+:	66 23 ca             	and.s  cx,dx
 [ 	]*[a-f0-9]+:	21 d1                	and    ecx,edx
-[ 	]*[a-f0-9]+:	23 ca                	and.s ecx,edx
+[ 	]*[a-f0-9]+:	23 ca                	and.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 21 d1             	and    rcx,rdx
-[ 	]*[a-f0-9]+:	48 23 ca             	and.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 23 ca             	and.s  rcx,rdx
 [ 	]*[a-f0-9]+:	38 d1                	cmp    cl,dl
-[ 	]*[a-f0-9]+:	3a ca                	cmp.s cl,dl
+[ 	]*[a-f0-9]+:	3a ca                	cmp.s  cl,dl
 [ 	]*[a-f0-9]+:	66 39 d1             	cmp    cx,dx
-[ 	]*[a-f0-9]+:	66 3b ca             	cmp.s cx,dx
+[ 	]*[a-f0-9]+:	66 3b ca             	cmp.s  cx,dx
 [ 	]*[a-f0-9]+:	39 d1                	cmp    ecx,edx
-[ 	]*[a-f0-9]+:	3b ca                	cmp.s ecx,edx
+[ 	]*[a-f0-9]+:	3b ca                	cmp.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 39 d1             	cmp    rcx,rdx
-[ 	]*[a-f0-9]+:	48 3b ca             	cmp.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 3b ca             	cmp.s  rcx,rdx
 [ 	]*[a-f0-9]+:	88 d1                	mov    cl,dl
-[ 	]*[a-f0-9]+:	8a ca                	mov.s cl,dl
+[ 	]*[a-f0-9]+:	8a ca                	mov.s  cl,dl
 [ 	]*[a-f0-9]+:	66 89 d1             	mov    cx,dx
-[ 	]*[a-f0-9]+:	66 8b ca             	mov.s cx,dx
+[ 	]*[a-f0-9]+:	66 8b ca             	mov.s  cx,dx
 [ 	]*[a-f0-9]+:	89 d1                	mov    ecx,edx
-[ 	]*[a-f0-9]+:	8b ca                	mov.s ecx,edx
+[ 	]*[a-f0-9]+:	8b ca                	mov.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 89 d1             	mov    rcx,rdx
-[ 	]*[a-f0-9]+:	48 8b ca             	mov.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 8b ca             	mov.s  rcx,rdx
 [ 	]*[a-f0-9]+:	08 d1                	or     cl,dl
-[ 	]*[a-f0-9]+:	0a ca                	or.s cl,dl
+[ 	]*[a-f0-9]+:	0a ca                	or.s   cl,dl
 [ 	]*[a-f0-9]+:	66 09 d1             	or     cx,dx
-[ 	]*[a-f0-9]+:	66 0b ca             	or.s cx,dx
+[ 	]*[a-f0-9]+:	66 0b ca             	or.s   cx,dx
 [ 	]*[a-f0-9]+:	09 d1                	or     ecx,edx
-[ 	]*[a-f0-9]+:	0b ca                	or.s ecx,edx
+[ 	]*[a-f0-9]+:	0b ca                	or.s   ecx,edx
 [ 	]*[a-f0-9]+:	48 09 d1             	or     rcx,rdx
-[ 	]*[a-f0-9]+:	48 0b ca             	or.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 0b ca             	or.s   rcx,rdx
 [ 	]*[a-f0-9]+:	18 d1                	sbb    cl,dl
-[ 	]*[a-f0-9]+:	1a ca                	sbb.s cl,dl
+[ 	]*[a-f0-9]+:	1a ca                	sbb.s  cl,dl
 [ 	]*[a-f0-9]+:	66 19 d1             	sbb    cx,dx
-[ 	]*[a-f0-9]+:	66 1b ca             	sbb.s cx,dx
+[ 	]*[a-f0-9]+:	66 1b ca             	sbb.s  cx,dx
 [ 	]*[a-f0-9]+:	19 d1                	sbb    ecx,edx
-[ 	]*[a-f0-9]+:	1b ca                	sbb.s ecx,edx
+[ 	]*[a-f0-9]+:	1b ca                	sbb.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 19 d1             	sbb    rcx,rdx
-[ 	]*[a-f0-9]+:	48 1b ca             	sbb.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 1b ca             	sbb.s  rcx,rdx
 [ 	]*[a-f0-9]+:	28 d1                	sub    cl,dl
-[ 	]*[a-f0-9]+:	2a ca                	sub.s cl,dl
+[ 	]*[a-f0-9]+:	2a ca                	sub.s  cl,dl
 [ 	]*[a-f0-9]+:	66 29 d1             	sub    cx,dx
-[ 	]*[a-f0-9]+:	66 2b ca             	sub.s cx,dx
+[ 	]*[a-f0-9]+:	66 2b ca             	sub.s  cx,dx
 [ 	]*[a-f0-9]+:	29 d1                	sub    ecx,edx
-[ 	]*[a-f0-9]+:	2b ca                	sub.s ecx,edx
+[ 	]*[a-f0-9]+:	2b ca                	sub.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 29 d1             	sub    rcx,rdx
-[ 	]*[a-f0-9]+:	48 2b ca             	sub.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 2b ca             	sub.s  rcx,rdx
 [ 	]*[a-f0-9]+:	30 d1                	xor    cl,dl
-[ 	]*[a-f0-9]+:	32 ca                	xor.s cl,dl
+[ 	]*[a-f0-9]+:	32 ca                	xor.s  cl,dl
 [ 	]*[a-f0-9]+:	66 31 d1             	xor    cx,dx
-[ 	]*[a-f0-9]+:	66 33 ca             	xor.s cx,dx
+[ 	]*[a-f0-9]+:	66 33 ca             	xor.s  cx,dx
 [ 	]*[a-f0-9]+:	31 d1                	xor    ecx,edx
-[ 	]*[a-f0-9]+:	33 ca                	xor.s ecx,edx
+[ 	]*[a-f0-9]+:	33 ca                	xor.s  ecx,edx
 [ 	]*[a-f0-9]+:	48 31 d1             	xor    rcx,rdx
-[ 	]*[a-f0-9]+:	48 33 ca             	xor.s rcx,rdx
+[ 	]*[a-f0-9]+:	48 33 ca             	xor.s  rcx,rdx
 [ 	]*[a-f0-9]+:	c5 fd 28 f4          	vmovapd ymm6,ymm4
 [ 	]*[a-f0-9]+:	c5 fd 29 e6          	vmovapd.s ymm6,ymm4
 [ 	]*[a-f0-9]+:	c5 fc 28 f4          	vmovaps ymm6,ymm4

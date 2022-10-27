@@ -14,7 +14,7 @@ SYMBOL TABLE:
 
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+ R_MMIX_JMP        \*ABS\*
 0+14 R_MMIX_GETA       \*ABS\*
 0+24 R_MMIX_PUSHJ      \*ABS\*

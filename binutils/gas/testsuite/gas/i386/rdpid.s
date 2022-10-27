@@ -3,3 +3,6 @@
 	.text
 _start:
 	rdpid %eax
+
+	.code16
+	rdpid %ecx

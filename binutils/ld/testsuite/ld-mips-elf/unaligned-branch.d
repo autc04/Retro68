@@ -1,8 +1,8 @@
 #name: MIPS branch to unaligned symbol
 #source: unaligned-branch.s
 #source: unaligned-text.s
-#as: -EB -32 -mips32r6
-#ld: -EB -Ttext 0x10000000 -e 0x10000000
+#as: -mips32r6
+#ld: -Ttext 0x10000000 -e 0x10000000
 #error: \A[^\n]*: in function `foo':\n
 #error:   \(\.text\+0x14\): branch to a non-instruction-aligned address\n
 #error:   \(\.text\+0x1c\): branch to a non-instruction-aligned address\n

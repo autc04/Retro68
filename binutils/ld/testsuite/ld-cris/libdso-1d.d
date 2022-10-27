@@ -14,10 +14,10 @@
 DYNAMIC SYMBOL TABLE:
 #...
 0+1a6  w   DF .text	0+2 expfn
-0+2254  w   DO .data	0+4 expobj
+0+223c  w   DO .data	0+4 expobj
 #...
 Contents of section .rela.dyn:
- 0138 4c220000 0a020000 00000000 50220000  .*
+ 0138 34220000 0a020000 00000000 38220000  .*
  0148 0a030000 00000000                    .*
 Contents of section .plt:
  0150 fce17e7e 0401307a 08013009 00000000  .*
@@ -30,7 +30,7 @@ Contents of section .text:
 Contents of section .dynamic:
 #...
 Contents of section .got:
- 2240 a8210000 00000000 00000000 00000000  .*
- 2250 00000000                             .*
+ 2228 a8210000 00000000 00000000 00000000  .*
+ 2238 00000000                             .*
 Contents of section .data:
- 2254 00000000                             .*
+ 223c 00000000                             .*

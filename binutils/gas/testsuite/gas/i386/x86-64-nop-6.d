@@ -1,5 +1,6 @@
 #source: nop-6.s
 #objdump: -drw
+#as: --generate-missing-build-notes=no
 #name: x86-64 .nops 6
 
 .*: +file format .*

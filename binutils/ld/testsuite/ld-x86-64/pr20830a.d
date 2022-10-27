@@ -1,12 +1,13 @@
 #name: PR ld/20830 (.plt.got)
 #source: pr20830.s
 #as: --64
-#ld: -melf_x86_64 -shared -z relro --ld-generated-unwind-info --hash-style=sysv -z max-page-size=0x200000 -z noseparate-code
+#ld: -melf_x86_64 -shared -z relro --ld-generated-unwind-info --hash-style=sysv -z max-page-size=0x200000 -z noseparate-code $NO_DT_RELR_LDFLAGS
 #objdump: -dw -Wf
 
 .*: +file format .*
 
 Contents of the .eh_frame section:
+
 
 0+ 0000000000000014 00000000 CIE
   Version:               1
@@ -15,7 +16,6 @@ Contents of the .eh_frame section:
   Data alignment factor: -8
   Return address column: 16
   Augmentation data:     1b
-
   DW_CFA_def_cfa: r7 \(rsp\) ofs 8
   DW_CFA_offset: r16 \(rip\) at cfa-8
   DW_CFA_nop
@@ -50,19 +50,19 @@ Contents of the .eh_frame section:
 Disassembly of section .plt:
 
 0+1b0 <.plt>:
- +[a-f0-9]+:	ff 35 52 0e 20 00    	pushq  0x200e52\(%rip\)        # 201008 <_GLOBAL_OFFSET_TABLE_\+0x8>
- +[a-f0-9]+:	ff 25 54 0e 20 00    	jmpq   \*0x200e54\(%rip\)        # 201010 <_GLOBAL_OFFSET_TABLE_\+0x10>
+ +[a-f0-9]+:	ff 35 3a fe 3f 00    	push   0x3ffe3a\(%rip\)        # 3ffff0 <_GLOBAL_OFFSET_TABLE_\+0x8>
+ +[a-f0-9]+:	ff 25 3c fe 3f 00    	jmp    \*0x3ffe3c\(%rip\)        # 3ffff8 <_GLOBAL_OFFSET_TABLE_\+0x10>
  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
 
 Disassembly of section .plt.got:
 
 0+1c0 <func@plt>:
- +[a-f0-9]+:	ff 25 32 0e 20 00    	jmpq   \*0x200e32\(%rip\)        # 200ff8 <func>
+ +[a-f0-9]+:	ff 25 1a fe 3f 00    	jmp    \*0x3ffe1a\(%rip\)        # 3fffe0 <func>
  +[a-f0-9]+:	66 90                	xchg   %ax,%ax
 
 Disassembly of section .text:
 
 0+1c8 <foo>:
- +[a-f0-9]+:	e8 f3 ff ff ff       	callq  1c0 <func@plt>
- +[a-f0-9]+:	48 8b 05 24 0e 20 00 	mov    0x200e24\(%rip\),%rax        # 200ff8 <func>
+ +[a-f0-9]+:	e8 f3 ff ff ff       	call   1c0 <func@plt>
+ +[a-f0-9]+:	48 8b 05 0c fe 3f 00 	mov    0x3ffe0c\(%rip\),%rax        # 3fffe0 <func>
 #pass

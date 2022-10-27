@@ -27,7 +27,7 @@ sam1f:	.ascii "<"
 	.byte 0x11
 	.secrel32 pre16
 	.byte 0x11
-	.secrel32 pre1f
+	.long pre1f@secrel32
 	.byte 0x11
 	.ascii "<<<<<<<<"
 
@@ -36,7 +36,7 @@ sam1f:	.ascii "<"
 	.byte 0x11
 	.secrel32 sam0d
 	.byte 0x11
-	.secrel32 sam16
+	.long sam16@secrel32
 	.byte 0x11
 	.secrel32 sam1f
 	.byte 0x11
@@ -45,7 +45,7 @@ sam1f:	.ascii "<"
 	.ascii ">>>>"
 	.secrel32 nex04
 	.byte 0x11
-	.secrel32 nex0d
+	.long nex0d@secrel32
 	.byte 0x11
 	.secrel32 nex16
 	.byte 0x11
@@ -54,7 +54,7 @@ sam1f:	.ascii "<"
 	.ascii "<<<<<<<<"
 
 	.ascii ">>>>"
-	.secrel32 ext24
+	.long ext24@secrel32
 	.byte 0x11
 	.secrel32 ext2d
 	.byte 0x11
@@ -64,8 +64,11 @@ sam1f:	.ascii "<"
 	.byte 0x11
 	.ascii "<<<<<<<<"
 
+	.long pre0d@secrel32+3
+	.long pre16@secrel32+six
+
 	leal	bar@SECREL32+44(%eax), %edx
-	
+
 .section .rdata
 
 	.ascii ">>>>"
@@ -79,3 +82,4 @@ nex1f:	.ascii "<"
 	.ascii ">>>>"
 
 	.p2align 4,0
+	.equ six,6

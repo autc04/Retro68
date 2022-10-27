@@ -1,8 +1,8 @@
 #name: MIPS multi-got-no-shared
-#as: -EB -32 -KPIC -mno-shared
+#as: -KPIC -mno-shared
 #source: multi-got-no-shared-1.s
 #source: multi-got-no-shared-2.s
-#ld: -melf32btsmip --entry func1
+#ld: --entry func1
 #objdump: -D -j .text --prefix-addresses --show-raw-insn
 
 .*: +file format.*

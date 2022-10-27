@@ -67,7 +67,7 @@ SECTIONS
     *(.text)
     *(.text.*)
     *(.stub)
-    /* .gnu.warning sections are handled specially by elf32.em.  */
+    /* .gnu.warning sections are handled specially by elf.em.  */
     *(.gnu.warning)
     *(.gnu.linkonce.t*)
   }

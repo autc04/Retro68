@@ -1,8 +1,8 @@
 # name: H8300 Relaxation Test 4
-# ld: --relax -m h8300self
+# ld: --relax
 # objdump: -d --no-show-raw-insn
 
-.*:     file format .*-h8300
+.*:     file format .*
 
 Disassembly of section .text:
 

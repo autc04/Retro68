@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 1991-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1991-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -19,7 +19,7 @@
 # MA 02110-1301, USA.
 #
 
-# This file is sourced from elf32.em, and defines extra arm-elf
+# This file is sourced from elf.em, and defines extra arm-elf
 # specific routines.
 #
 test -z "$TARGET2_TYPE" && TARGET2_TYPE="rel"
@@ -27,6 +27,7 @@ fragment <<EOF
 
 #include "ldctor.h"
 #include "elf/arm.h"
+#include "elf32-arm.h"
 
 static struct elf32_arm_params params =
 {
@@ -55,11 +56,21 @@ gld${EMULATION_NAME}_before_parse (void)
 #ifndef TARGET_			/* I.e., if not generic.  */
   ldfile_set_output_arch ("`echo ${ARCH}`", bfd_arch_unknown);
 #endif /* not TARGET_ */
-  input_flags.dynamic = ${DYNAMIC_LINK-TRUE};
-  config.has_shared = `if test -n "$GENERATE_SHLIB_SCRIPT" ; then echo TRUE ; else echo FALSE ; fi`;
-  config.separate_code = `if test "x${SEPARATE_CODE}" = xyes ; then echo TRUE ; else echo FALSE ; fi`;
-  link_info.check_relocs_after_open_input = TRUE;
+  input_flags.dynamic = ${DYNAMIC_LINK-true};
+  config.has_shared = `if test -n "$GENERATE_SHLIB_SCRIPT" ; then echo true ; else echo false ; fi`;
+  config.separate_code = `if test "x${SEPARATE_CODE}" = xyes ; then echo true ; else echo false ; fi`;
+  link_info.check_relocs_after_open_input = true;
+EOF
+if test -n "$COMMONPAGESIZE"; then
+fragment <<EOF
   link_info.relro = DEFAULT_LD_Z_RELRO;
+EOF
+fi
+fragment <<EOF
+  link_info.separate_code = DEFAULT_LD_Z_SEPARATE_CODE;
+  link_info.warn_execstack = DEFAULT_LD_WARN_EXECSTACK;
+  link_info.no_warn_rwx_segments = ! DEFAULT_LD_WARN_RWX_SEGMENTS;
+  link_info.default_execstack = DEFAULT_LD_EXECSTACK;
 }
 
 static void
@@ -142,11 +153,11 @@ struct hook_stub_info
 
 /* Traverse the linker tree to find the spot where the stub goes.  */
 
-static bfd_boolean
+static bool
 hook_in_stub (struct hook_stub_info *info, lang_statement_union_type **lp)
 {
   lang_statement_union_type *l;
-  bfd_boolean ret;
+  bool ret;
 
   for (; (l = *lp) != NULL; lp = &l->header.next)
     {
@@ -184,7 +195,7 @@ hook_in_stub (struct hook_stub_info *info, lang_statement_union_type **lp)
 		 after its associated input section.  */
 	      *(info->add.tail) = l->header.next;
 	      l->header.next = info->add.head;
-	      return TRUE;
+	      return true;
 	    }
 	  break;
 
@@ -205,7 +216,7 @@ hook_in_stub (struct hook_stub_info *info, lang_statement_union_type **lp)
 	  break;
 	}
     }
-  return FALSE;
+  return false;
 }
 
 
@@ -226,19 +237,20 @@ elf32_arm_add_stub_section (const char * stub_sec_name,
   struct hook_stub_info info;
 
   flags = (SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_CODE
-	   | SEC_HAS_CONTENTS | SEC_RELOC | SEC_IN_MEMORY | SEC_KEEP);
+	   | SEC_HAS_CONTENTS | SEC_RELOC | SEC_IN_MEMORY | SEC_KEEP
+	   | SEC_LINKER_CREATED);
   stub_sec = bfd_make_section_anyway_with_flags (stub_file->the_bfd,
 						 stub_sec_name, flags);
   if (stub_sec == NULL)
     goto err_ret;
 
-  bfd_set_section_alignment (stub_file->the_bfd, stub_sec, alignment_power);
+  bfd_set_section_alignment (stub_sec, alignment_power);
 
   os = lang_output_section_get (output_section);
 
   info.input_section = after_input_section;
   lang_list_init (&info.add);
-  lang_add_section (&info.add, stub_sec, NULL, os);
+  lang_add_section (&info.add, stub_sec, NULL, NULL, os);
 
   if (info.add.head == NULL)
     goto err_ret;
@@ -276,7 +288,7 @@ gldarm_layout_sections_again (void)
   /* If we have changed sizes of the stub sections, then we need
      to recalculate all the section offsets.  This may mean we need to
      add even more stubs.  */
-  gld${EMULATION_NAME}_map_segments (TRUE);
+  ldelf_map_segments (true);
   need_laying_out = -1;
 }
 
@@ -413,7 +425,7 @@ gld${EMULATION_NAME}_after_allocation (void)
     }
 
   if (need_laying_out != -1)
-    gld${EMULATION_NAME}_map_segments (need_laying_out);
+    ldelf_map_segments (need_laying_out);
 }
 
 static void
@@ -449,17 +461,17 @@ gld${EMULATION_NAME}_finish (void)
   if (params.thumb_entry_symbol)
     {
       h = bfd_link_hash_lookup (link_info.hash, params.thumb_entry_symbol,
-				FALSE, FALSE, TRUE);
+				false, false, true);
     }
   else
     {
       struct elf_link_hash_entry * eh;
 
-      if (!entry_symbol.name)
+      if (!entry_symbol.name || !is_elf_hash_table (link_info.hash))
 	return;
 
       h = bfd_link_hash_lookup (link_info.hash, entry_symbol.name,
-				FALSE, FALSE, TRUE);
+				false, false, true);
       eh = (struct elf_link_hash_entry *)h;
       if (!h || ARM_GET_SYM_BRANCH_TYPE (eh->target_internal)
 		!= ST_BRANCH_TO_THUMB)
@@ -478,8 +490,7 @@ gld${EMULATION_NAME}_finish (void)
       /* Special procesing is required for a Thumb entry symbol.  The
 	 bottom bit of its address must be set.  */
       val = (h->u.def.value
-	     + bfd_get_section_vma (link_info.output_bfd,
-				    h->u.def.section->output_section)
+	     + bfd_section_vma (h->u.def.section->output_section)
 	     + h->u.def.section->output_offset);
 
       val |= 1;
@@ -499,7 +510,7 @@ gld${EMULATION_NAME}_finish (void)
     }
   else
     einfo (_("%P: warning: cannot find thumb start symbol %s\n"),
-	   params.thumb_entry_symbol);
+	   h->root.string);
 }
 
 /* This is a convenient point to tell BFD about target specific flags.
@@ -552,26 +563,6 @@ arm_elf_create_output_section_statements (void)
   bfd_elf32_arm_add_glue_sections_to_bfd (stub_file->the_bfd, &link_info);
   bfd_elf32_arm_get_bfd_for_interworking (stub_file->the_bfd, &link_info);
 }
-
-/* Avoid processing the fake stub_file in vercheck, stat_needed and
-   check_needed routines.  */
-
-static void (*real_func) (lang_input_statement_type *);
-
-static void arm_for_each_input_file_wrapper (lang_input_statement_type *l)
-{
-  if (l != stub_file)
-    (*real_func) (l);
-}
-
-static void
-arm_lang_for_each_input_file (void (*func) (lang_input_statement_type *))
-{
-  real_func = func;
-  lang_for_each_input_file (&arm_for_each_input_file_wrapper);
-}
-
-#define lang_for_each_input_file arm_lang_for_each_input_file
 
 EOF
 

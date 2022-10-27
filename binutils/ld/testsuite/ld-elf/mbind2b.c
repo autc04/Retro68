@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <bfd_stdint.h>
+#include <stdint.h>
 
 extern char bss_in_mbind0;
 extern char data_in_mbind3;

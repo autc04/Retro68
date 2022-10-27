@@ -4,7 +4,6 @@
 #ld: -shared -melf_x86_64 -z nocombreloc
 #readelf: -r --wide
 #target: x86_64-*-*
-#notarget: x86_64-*-nacl*
 
 Relocation section '.rela.ifunc' at .*
 [ ]+Offset[ ]+Info[ ]+Type[ ]+.*

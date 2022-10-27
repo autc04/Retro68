@@ -13,4 +13,6 @@ Disassembly of section .text:
 
 0+004 <LABEL>:
    4:	000a.*
+
+0+005 <SYMTAB>:
    5:	0035.*

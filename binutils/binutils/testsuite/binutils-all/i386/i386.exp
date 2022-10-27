@@ -1,4 +1,4 @@
-#   Copyright (C) 2010-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2010-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,16 +16,12 @@
 
 if {!([istarget "i*86-*-linux*"]
       || [istarget "i*86-*-gnu*"]
-      || [istarget "i*86-*-nacl*"]
-      || [istarget "x86_64-*-linux*"]
-      || [istarget "x86_64-*-nacl*"])
+      || [istarget "x86_64-*-linux*"])
     || ![is_elf_format]
     || [is_remote host]} then {
     return
 }
 
-global tempfile
-global copyfile
 set tempfile tmpdir/i386temp.o
 set copyfile tmpdir/i386copy
 

@@ -64,19 +64,19 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 [0-9 ]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND 
-[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 
-[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 
-[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 
-[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 
-[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 
-[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 
-[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 
-[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 
-[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 
-[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10 
-[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +11 
-[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +12 
-[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +13 
+[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1.*
+[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2.*
+[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3.*
+[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4.*
+[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5.*
+[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6.*
+[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7.*
+[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8.*
+[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9.*
+[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10.*
+[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +11.*
+[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +12.*
+[0-9 ]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +13.*
 .* FILE +LOCAL +DEFAULT +ABS .*
 [0-9 ]+: [0-9a-f]+ +0 +TLS +LOCAL +DEFAULT +10 sl1
 [0-9 ]+: [0-9a-f]+ +0 +TLS +LOCAL +DEFAULT +10 sl2
@@ -118,7 +118,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 [0-9 ]+: [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +11 bg7
 [0-9 ]+: [0-9a-f]+ +0 +TLS +GLOBAL +HIDDEN +10 sh5
 [0-9 ]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +13 __bss_start
-[0-9 ]+: [0-9a-f]+ +136 +FUNC +GLOBAL +DEFAULT +\[<other>: 88\] +8 fn2
+[0-9 ]+: [0-9a-f]+ +136 +FUNC +GLOBAL +DEFAULT +\[STD GPLOAD\] +8 fn2
 [0-9 ]+: [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +10 sg2
 [0-9 ]+: [0-9a-f]+ +0 +TLS +GLOBAL +DEFAULT +UND sG1
 [0-9 ]+: [0-9a-f]+ +0 +TLS +GLOBAL +HIDDEN +10 sh1

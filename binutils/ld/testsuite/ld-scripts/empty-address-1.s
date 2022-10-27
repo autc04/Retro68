@@ -1,5 +1,5 @@
 	.text
 	.global _start
 _start:
-	.long __data_start
-	.long __data_end
+	.dc.a __data_start
+	.dc.a __data_end

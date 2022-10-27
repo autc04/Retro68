@@ -1,5 +1,5 @@
 /* Freescale S12Z-specific support for 32-bit ELF
-   Copyright (C) 1999-2018 Free Software Foundation, Inc.
+   Copyright (C) 1999-2022 Free Software Foundation, Inc.
    (Heavily copied from the D10V port by Martin Hunt (hunt@cygnus.com))
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -27,11 +27,47 @@
 
 #include "elf/s12z.h"
 
+/* All users of this file have bfd_octets_per_byte (abfd, sec) == 1.  */
+#define OCTETS_PER_BYTE(ABFD, SEC) 1
+
 /* Relocation functions.  */
 static reloc_howto_type *bfd_elf32_bfd_reloc_type_lookup
   (bfd *, bfd_reloc_code_real_type);
-static bfd_boolean s12z_info_to_howto_rel
+static bool s12z_info_to_howto_rel
   (bfd *, arelent *, Elf_Internal_Rela *);
+
+static bfd_reloc_status_type
+opru18_reloc (bfd *abfd, arelent *reloc_entry, struct bfd_symbol *symbol,
+		    void *data, asection *input_section ATTRIBUTE_UNUSED,
+		    bfd *output ATTRIBUTE_UNUSED, char **msg ATTRIBUTE_UNUSED)
+{
+  /* This reloc is used for 18 bit General Operand Addressing Postbyte in the
+     INST opru18 form.  This is an 18 bit reloc, but the most significant bit
+     is shifted one place to the left of where it would normally be.  See
+     Appendix A.4 of the S12Z reference manual.  */
+
+  bfd_size_type octets = (reloc_entry->address
+			  * OCTETS_PER_BYTE (abfd, input_section));
+  bfd_vma result = bfd_get_24 (abfd, (unsigned char *) data + octets);
+  bfd_vma val = bfd_asymbol_value (symbol);
+
+  /* Keep the wanted bits and discard the rest.  */
+  result &= 0xFA0000;
+
+  val += symbol->section->output_section->vma;
+  val += symbol->section->output_offset;
+
+  /* The lowest 17 bits are copied verbatim.  */
+  result |= val & 0x1FFFF;
+
+  /* The 18th bit is put into the 19th position.  */
+  result |= (val & 0x020000) << 1;
+
+  bfd_put_24 (abfd, result, (unsigned char *) data + octets);
+
+  return bfd_reloc_ok;
+}
+
 
 static bfd_reloc_status_type
 shift_addend_reloc (bfd *abfd, arelent *reloc_entry, struct bfd_symbol *symbol ATTRIBUTE_UNUSED,
@@ -64,107 +100,130 @@ static reloc_howto_type elf_s12z_howto_table[] =
   /* This reloc does nothing.  */
   HOWTO (R_S12Z_NONE,	/* type */
 	 0,			/* rightshift */
-	 3,			/* size (0 = byte, 1 = short, 2 = long) */
+	 0,			/* size */
 	 0,			/* bitsize */
-	 FALSE,			/* pc_relative */
+	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont,/* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_S12Z_NONE",	/* name */
-	 FALSE,			/* partial_inplace */
+	 false,			/* partial_inplace */
 	 0,			/* src_mask */
 	 0,			/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+	 false),		/* pcrel_offset */
 
   /* A 24 bit absolute relocation emitted by the OPR mode operands  */
   HOWTO (R_S12Z_OPR,        /* type */
 	 0,			/* rightshift */
-	 5,			/* size (0 = byte, 1 = short, 2 = long) */
+	 3,			/* size */
 	 24,			/* bitsize */
-	 FALSE,			/* pc_relative */
+	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_bitfield,	/* complain_on_overflow */
 	 shift_addend_reloc,
 	 "R_S12Z_OPR",	/* name */
-	 FALSE,			/* partial_inplace */
+	 false,			/* partial_inplace */
 	 0x00ffffff,            /* src_mask */
 	 0x00ffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+	 false),		/* pcrel_offset */
 
   /* The purpose of this reloc is not known */
   HOWTO (R_S12Z_UKNWN_2,	/* type */
 	 0,			/* rightshift */
-	 3,			/* size (0 = byte, 1 = short, 2 = long) */
+	 0,			/* size */
 	 0,			/* bitsize */
-	 FALSE,			/* pc_relative */
+	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont,/* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_S12Z_UKNWN_2",	/* name */
-	 FALSE,			/* partial_inplace */
+	 false,			/* partial_inplace */
 	 0,			/* src_mask */
 	 0,			/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+	 false),		/* pcrel_offset */
 
   /* A 15 bit PC-rel relocation */
   HOWTO (R_S12Z_PCREL_7_15,	/* type */
 	 0,			/* rightshift */
-	 1,			/* size (0 = byte, 1 = short, 2 = long) */
+	 2,			/* size */
 	 15,			/* bitsize */
-	 TRUE,			/* pc_relative */
+	 true,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_bitfield,	/* complain_on_overflow */
 	 shift_addend_reloc,
 	 "R_S12Z_PCREL_7_15",	/* name */
-	 FALSE,			/* partial_inplace */
+	 false,			/* partial_inplace */
 	 0x00,                  /* src_mask */
 	 0x007fff,		/* dst_mask */
-	 TRUE),		/* pcrel_offset */
+	 true),			/* pcrel_offset */
 
   /* A 24 bit absolute relocation emitted by EXT24 mode operands */
   HOWTO (R_S12Z_EXT24,        /* type */
 	 0,			/* rightshift */
-	 5,			/* size (0 = byte, 1 = short, 2 = long) */
+	 3,			/* size */
 	 24,			/* bitsize */
-	 FALSE,			/* pc_relative */
+	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_bitfield,	/* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_S12Z_EXT24",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0x00ffffff,            /* src_mask */
+	 false,			/* partial_inplace */
+	 0x00000000,            /* src_mask */
 	 0x00ffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+	 false),		/* pcrel_offset */
 
-  /* The purpose of this reloc is not known */
-  HOWTO (R_S12Z_UKNWN_3,	/* type */
+  /* An 18 bit absolute relocation */
+  HOWTO (R_S12Z_EXT18,        /* type */
 	 0,			/* rightshift */
-	 3,			/* size (0 = byte, 1 = short, 2 = long) */
-	 0,			/* bitsize */
-	 FALSE,			/* pc_relative */
+	 3,			/* size */
+	 18,			/* bitsize */
+	 false,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_dont,/* complain_on_overflow */
+	 complain_overflow_bitfield,	/* complain_on_overflow */
+	 opru18_reloc,	        /* special_function */
+	 "R_S12Z_EXT18",	/* name */
+	 false,			/* partial_inplace */
+	 0x00000000,            /* src_mask */
+	 0x0005ffff,		/* dst_mask */
+	 false),		/* pcrel_offset */
+
+  /* A 32 bit absolute relocation.   This kind of relocation is
+     schizophrenic - Although they appear in sections named .rela.debug.*
+     in some sections they behave as RELA relocs, but in others they have
+     an added of zero and behave as REL.
+
+     It is not recommended that new code  emits this reloc.   It is here
+     only to support existing elf files generated by third party
+     applications.  */
+
+  HOWTO (R_S12Z_CW32,        /* type */
+	 0,			/* rightshift */
+	 4,			/* size */
+	 32,			/* bitsize */
+	 false,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_bitfield,	/* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
-	 "R_S12Z_UKNWN_3",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0,			/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+	 "R_S12Z_CW32",	/* name */
+	 false,			/* partial_inplace */
+	 0xffffffff,            /* src_mask */
+	 0xffffffff,		/* dst_mask */
+	 false),		/* pcrel_offset */
 
   /* A 32 bit absolute relocation  */
   HOWTO (R_S12Z_EXT32,        /* type */
 	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 4,			/* size */
 	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
+	 false,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_bitfield,	/* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_S12Z_EXT32",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0xffffffff,            /* src_mask */
+	 false,			/* partial_inplace */
+	 0x00000000,            /* src_mask */
 	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+	 false),		/* pcrel_offset */
 };
 
 /* Map BFD reloc types to S12Z ELF reloc types.  */
@@ -177,11 +236,12 @@ struct s12z_reloc_map
 
 static const struct s12z_reloc_map s12z_reloc_map[] =
 {
-  /* bfd reloc val */ /* elf reloc val */
-  {BFD_RELOC_NONE, R_S12Z_NONE},
-  {BFD_RELOC_32, R_S12Z_EXT32},
-  {BFD_RELOC_24, R_S12Z_EXT24},
-  {BFD_RELOC_16_PCREL, R_S12Z_PCREL_7_15}
+  /* bfd reloc val */  /* elf reloc val */
+  {BFD_RELOC_NONE,     R_S12Z_NONE},
+  {BFD_RELOC_32,       R_S12Z_EXT32},
+  {BFD_RELOC_24,       R_S12Z_EXT24},
+  {BFD_RELOC_16_PCREL, R_S12Z_PCREL_7_15},
+  {BFD_RELOC_S12Z_OPR, R_S12Z_OPR}
 };
 
 static reloc_howto_type *
@@ -211,8 +271,6 @@ bfd_elf32_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 {
   unsigned int i;
 
-  printf ("%s:%d Looking up %s\n", __FILE__, __LINE__, r_name);
-
   for (i = 0;
        i < (sizeof (elf_s12z_howto_table)
 	    / sizeof (elf_s12z_howto_table[0]));
@@ -226,7 +284,7 @@ bfd_elf32_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 
 /* Set the howto pointer for an S12Z ELF reloc.  */
 
-static bfd_boolean
+static bool
 s12z_info_to_howto_rel (bfd *abfd,
 			  arelent *cache_ptr, Elf_Internal_Rela *dst)
 {
@@ -238,23 +296,22 @@ s12z_info_to_howto_rel (bfd *abfd,
       _bfd_error_handler (_("%pB: unsupported relocation type %#x"),
 			  abfd, r_type);
       bfd_set_error (bfd_error_bad_value);
-      return FALSE;
+      return false;
     }
 
   cache_ptr->howto = &elf_s12z_howto_table[r_type];
-  return TRUE;
+  return true;
 }
 
-static bfd_boolean
+static bool
 s12z_elf_set_mach_from_flags (bfd *abfd)
 {
-  bfd_default_set_arch_mach (abfd, bfd_arch_s12z, 0); // bfd_mach_s12z);
+  bfd_default_set_arch_mach (abfd, bfd_arch_s12z, 0);
 
-  return TRUE;
+  return true;
 }
 
 #define ELF_ARCH		bfd_arch_s12z
-#define ELF_TARGET_ID		0
 #define ELF_MACHINE_CODE	EM_S12Z
 #define ELF_MAXPAGESIZE		0x1000
 
@@ -264,7 +321,5 @@ s12z_elf_set_mach_from_flags (bfd *abfd)
 #define elf_info_to_howto			NULL
 #define elf_info_to_howto_rel			s12z_info_to_howto_rel
 #define elf_backend_object_p			s12z_elf_set_mach_from_flags
-#define elf_backend_final_write_processing	NULL
-#define elf_backend_can_gc_sections		1
 
 #include "elf32-target.h"

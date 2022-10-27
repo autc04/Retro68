@@ -5,7 +5,7 @@
 .*: +file format .*
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0*000 R_XSTORMY16_16    global
 0*002 R_XSTORMY16_16    global\+0x00000003
 0*004 R_XSTORMY16_PC16  global-0x00000004

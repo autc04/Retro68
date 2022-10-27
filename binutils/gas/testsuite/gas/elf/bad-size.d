@@ -1,2 +1,2 @@
 #name: Check bad size directive
-#error-output: bad-size.err
+#error_output: bad-size.err

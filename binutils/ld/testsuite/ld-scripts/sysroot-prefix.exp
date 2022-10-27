@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2018 Free Software Foundation, Inc.
+# Copyright (C) 2014-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -16,6 +16,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
 # MA 02110-1301, USA.
+
+# Don't run on alpha-vms which requires linking with other libraries,
+# or on targets that complain about relocations in read-only sections.
+if { [istarget *-*-vms]
+     || [istarget bfin-*-*]
+     || [istarget frv-*-*]
+     || [istarget lm32-*-*] } then {
+    return
+}
 
 # Check that scripts using the "=" sysroot-prefix work, for both
 # toolchains with and without --sysroot support.
@@ -164,7 +173,7 @@ proc single_sysroot_prefix_test { type xtestname finalscript ldopt errstr } {
 
     puts $ofd "$finalscript"
     close $ofd
-    verbose -log "script: $finalscript"
+    verbose -log "script $scriptname: $finalscript"
 
     set res [ld_link $ld tmpdir/output "$ldopt tmpdir/main.o -Ltmpdir -lsysroottest"]
     set ld_output "$exec_output"

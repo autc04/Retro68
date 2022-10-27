@@ -83,3 +83,5 @@ _start:
 	sethi.p	#gottlsoffhi(0), gr14
 	setlo	#gottlsofflo(0), gr14
 	ld	#tlsoff(0)@(gr15, gr14), gr9
+
+	.section	.note.GNU-stack

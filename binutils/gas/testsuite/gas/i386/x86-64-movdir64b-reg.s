@@ -4,7 +4,9 @@
 	.text
 _start:
 	movdir64b (%esi),%rax
+	movdir64b (%eip),%rax
 	movdir64b (%rsi),%eax
+	movdir64b (%rip),%eax
 
 	.intel_syntax noprefix
 	movdir64b rax,[esi]

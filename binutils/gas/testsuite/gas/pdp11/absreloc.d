@@ -1,7 +1,7 @@
 #name: pdp11 absreloc
 #objdump: -drw
 
-dump.o:     file format .*
+.*:     file format .*
 
 
 Disassembly of section .text:

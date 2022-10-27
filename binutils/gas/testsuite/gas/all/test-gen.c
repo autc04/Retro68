@@ -1,7 +1,7 @@
 #ifndef TEST_GEN_C
 #define TEST_GEN_C 1
 
-/* Copyright (C) 2000-2018 Free Software Foundation, Inc.
+/* Copyright (C) 2000-2022 Free Software Foundation, Inc.
    Contributed by Alexandre Oliva <aoliva@cygnus.com>
 
    This file is free software; you can redistribute it and/or modify it
@@ -711,10 +711,8 @@ output_insns (func **insn, FILE *as_in, FILE *dis_out)
 	  for (; part-- > 0;)
 	    {
 	    skip:
-	      if (data[part].as_in)
-		free (data[part].as_in);
-	      if (data[part].dis_out
-		  && data[part].dis_out != data[part].as_in)
+	      free (data[part].as_in);
+	      if (data[part].dis_out != data[part].as_in)
 		free (data[part].dis_out);
 	    }
 

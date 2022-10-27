@@ -6,8 +6,8 @@
 Disassembly of section .text:
 
 0+ <_start>:
-[ 	]*[a-f0-9]+:	0f 01 d0             	xgetbv 
-[ 	]*[a-f0-9]+:	0f 01 d1             	xsetbv 
+[ 	]*[a-f0-9]+:	0f 01 d0             	xgetbv
+[ 	]*[a-f0-9]+:	0f 01 d1             	xsetbv
 [ 	]*[a-f0-9]+:	0f ae 20             	xsave  \(%rax\)
 [ 	]*[a-f0-9]+:	41 0f ae 20          	xsave  \(%r8\)
 [ 	]*[a-f0-9]+:	41 0f ae 24 00       	xsave  \(%r8,%rax,1\)

@@ -1,5 +1,6 @@
 #name: rela-abs-relative
 #source: rela-abs-relative.s
+#target: [check_shared_lib_support]
 #ld: -shared -Ttext-segment=0x100000 -Tdata=0x200000 -Trelocs.ld
 #notarget: aarch64_be-*-*
 #objdump: -dR -j .data

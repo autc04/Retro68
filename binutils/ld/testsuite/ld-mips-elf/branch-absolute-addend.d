@@ -1,8 +1,7 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: MIPS link branch to absolute expression with addend
 #source: ../../../gas/testsuite/gas/mips/branch-absolute-addend.s
-#as: -EB -32
-#ld: -EB -Ttext 0x12340000 -e foo
+#ld: -Ttext 0x12340000 -e foo
 
 .*: +file format .*mips.*
 

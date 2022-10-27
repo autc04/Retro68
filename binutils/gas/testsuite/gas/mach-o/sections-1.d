@@ -1,4 +1,4 @@
-#objdump: -P section
+#objdump: -P section -WN
 .*: +file format mach-o.*
 #...
  Section: __text           __TEXT           \(bfdname: .text\)

@@ -16,13 +16,15 @@ _start:
  .space 0x1bf0000
 
  .section .text.far,"ax"
+ .globl far
 far:
  blr
 
  .section .text.pad2,"ax"
- .space 0x40ffe0
+ .space 0x40fff0
 
  .section .text.far2far,"ax"
+ .globl far2far
 far2far:
  blr
 
@@ -30,5 +32,6 @@ far2far:
  .space 0x1bf0000
 
  .section .text.huge,"ax"
+ .globl huge
 huge:
  blr

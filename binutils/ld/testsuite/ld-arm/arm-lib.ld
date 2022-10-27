@@ -53,7 +53,7 @@ SECTIONS
   {
     *(.text .stub .text.* .gnu.linkonce.t.*)
     KEEP (*(.text.*personality*))
-    /* .gnu.warning sections are handled specially by elf32.em.  */
+    /* .gnu.warning sections are handled specially by elf.em.  */
     *(.gnu.warning)
     *(.glue_7t) *(.glue_7)
   } =0

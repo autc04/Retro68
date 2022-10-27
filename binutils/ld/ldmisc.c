@@ -1,5 +1,5 @@
 /* ldmisc.c
-   Copyright (C) 1991-2018 Free Software Foundation, Inc.
+   Copyright (C) 1991-2022 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support.
 
    This file is part of the GNU Binutils.
@@ -23,6 +23,7 @@
 #include "bfd.h"
 #include "bfdlink.h"
 #include "libiberty.h"
+#include "ctf-api.h"
 #include "safe-ctype.h"
 #include "filenames.h"
 #include "demangle.h"
@@ -35,8 +36,6 @@
 #include "ldlex.h"
 #include "ldmain.h"
 #include "ldfile.h"
-#include "elf-bfd.h"
-#include "coff-bfd.h"
 
 /*
  %% literal %
@@ -60,15 +59,16 @@
  %pR info about a relent
  %pS print script file and linenumber from etree_type.
  %pT symbol name
+ %pU print script file without linenumber from etree_type.
  %s arbitrary string, like printf
  %u integer, like printf
  %v hex bfd_vma, no leading zeros
 */
 
 void
-vfinfo (FILE *fp, const char *fmt, va_list ap, bfd_boolean is_warning)
+vfinfo (FILE *fp, const char *fmt, va_list ap, bool is_warning)
 {
-  bfd_boolean fatal = FALSE;
+  bool fatal = false;
   const char *scan;
   int arg_type;
   unsigned int arg_count = 0;
@@ -235,7 +235,7 @@ vfinfo (FILE *fp, const char *fmt, va_list ap, bfd_boolean is_warning)
 
 	    case 'X':
 	      /* no object output, fail return */
-	      config.make_executable = FALSE;
+	      config.make_executable = false;
 	      break;
 
 	    case 'V':
@@ -291,7 +291,7 @@ vfinfo (FILE *fp, const char *fmt, va_list ap, bfd_boolean is_warning)
 
 	    case 'F':
 	      /* Error is fatal.  */
-	      fatal = TRUE;
+	      fatal = true;
 	      break;
 
 	    case 'P':
@@ -321,8 +321,9 @@ vfinfo (FILE *fp, const char *fmt, va_list ap, bfd_boolean is_warning)
 		const char *filename;
 		const char *functionname;
 		unsigned int linenumber;
-		bfd_boolean discard_last;
-		bfd_boolean done;
+		bool discard_last;
+		bool done;
+		bfd_error_type last_bfd_error = bfd_get_error ();
 
 		abfd = args[arg_no].reladdr.abfd;
 		section = args[arg_no].reladdr.sec;
@@ -345,7 +346,7 @@ vfinfo (FILE *fp, const char *fmt, va_list ap, bfd_boolean is_warning)
 		   We do not always have a line number available so if
 		   we cannot find them we print out the section name and
 		   offset instead.  */
-		discard_last = TRUE;
+		discard_last = true;
 		if (abfd != NULL
 		    && bfd_find_nearest_line (abfd, section, asymbols, offset,
 					      &filename, &functionname,
@@ -375,16 +376,14 @@ vfinfo (FILE *fp, const char *fmt, va_list ap, bfd_boolean is_warning)
 				    abfd, functionname);
 
 			    last_bfd = abfd;
-			    if (last_file != NULL)
-			      free (last_file);
+			    free (last_file);
 			    last_file = NULL;
 			    if (filename)
 			      last_file = xstrdup (filename);
-			    if (last_function != NULL)
-			      free (last_function);
+			    free (last_function);
 			    last_function = xstrdup (functionname);
 			  }
-			discard_last = FALSE;
+			discard_last = false;
 		      }
 		    else
 		      lfinfo (fp, "%pB:", abfd);
@@ -398,29 +397,24 @@ vfinfo (FILE *fp, const char *fmt, va_list ap, bfd_boolean is_warning)
 		    else if (filename != NULL && linenumber != 0)
 		      fprintf (fp, "%u%s", linenumber, done ? "" : ":");
 		    else
-		      done = FALSE;
+		      done = false;
 		  }
 		else
 		  {
 		    lfinfo (fp, "%pB:", abfd);
-		    done = FALSE;
+		    done = false;
 		  }
 		if (!done)
 		  lfinfo (fp, "(%pA+0x%v)", section, offset);
+		bfd_set_error (last_bfd_error);
 
 		if (discard_last)
 		  {
 		    last_bfd = NULL;
-		    if (last_file != NULL)
-		      {
-			free (last_file);
-			last_file = NULL;
-		      }
-		    if (last_function != NULL)
-		      {
-			free (last_function);
-			last_function = NULL;
-		      }
+		    free (last_file);
+		    last_file = NULL;
+		    free (last_function);
+		    last_function = NULL;
 		  }
 	      }
 	      break;
@@ -431,26 +425,18 @@ vfinfo (FILE *fp, const char *fmt, va_list ap, bfd_boolean is_warning)
 		  /* section name from a section */
 		  asection *sec;
 		  bfd *abfd;
-		  const char *group = NULL;
-		  struct coff_comdat_info *ci;
 
 		  fmt++;
 		  sec = (asection *) args[arg_no].p;
 		  ++arg_count;
-		  abfd = sec->owner;
 		  fprintf (fp, "%s", sec->name);
-		  if (abfd != NULL
-		      && bfd_get_flavour (abfd) == bfd_target_elf_flavour
-		      && elf_next_in_group (sec) != NULL
-		      && (sec->flags & SEC_GROUP) == 0)
-		    group = elf_group_name (sec);
-		  else if (abfd != NULL
-			   && bfd_get_flavour (abfd) == bfd_target_coff_flavour
-			   && (ci = bfd_coff_get_comdat_section (sec->owner,
-								 sec)) != NULL)
-		    group = ci->name;
-		  if (group != NULL)
-		    fprintf (fp, "[%s]", group);
+		  abfd = sec->owner;
+		  if (abfd != NULL)
+		    {
+		      const char *group = bfd_group_name (abfd, sec);
+		      if (group != NULL)
+			fprintf (fp, "[%s]", group);
+		    }
 		}
 	      else if (*fmt == 'B')
 		{
@@ -463,10 +449,11 @@ vfinfo (FILE *fp, const char *fmt, va_list ap, bfd_boolean is_warning)
 		    fprintf (fp, "%s generated", program_name);
 		  else if (abfd->my_archive != NULL
 			   && !bfd_is_thin_archive (abfd->my_archive))
-		    fprintf (fp, "%s(%s)", abfd->my_archive->filename,
-			     abfd->filename);
+		    fprintf (fp, "%s(%s)",
+			     bfd_get_filename (abfd->my_archive),
+			     bfd_get_filename (abfd));
 		  else
-		    fprintf (fp, "%s", abfd->filename);
+		    fprintf (fp, "%s", bfd_get_filename (abfd));
 		}
 	      else if (*fmt == 'I')
 		{
@@ -476,15 +463,14 @@ vfinfo (FILE *fp, const char *fmt, va_list ap, bfd_boolean is_warning)
 		  fmt++;
 		  i = (lang_input_statement_type *) args[arg_no].p;
 		  ++arg_count;
-		  if (i->the_bfd->my_archive != NULL
+		  if (i->the_bfd != NULL
+		      && i->the_bfd->my_archive != NULL
 		      && !bfd_is_thin_archive (i->the_bfd->my_archive))
-		    fprintf (fp, "(%s)",
-			     bfd_get_filename (i->the_bfd->my_archive));
-		  fprintf (fp, "%s", i->local_sym_name);
-		  if ((i->the_bfd->my_archive == NULL
-		       || bfd_is_thin_archive (i->the_bfd->my_archive))
-		      && filename_cmp (i->local_sym_name, i->filename) != 0)
-		    fprintf (fp, " (%s)", i->filename);
+		    fprintf (fp, "(%s)%s",
+			     bfd_get_filename (i->the_bfd->my_archive),
+			     i->local_sym_name);
+		  else
+		    fprintf (fp, "%s", i->filename);
 		}
 	      else if (*fmt == 'R')
 		{
@@ -498,9 +484,9 @@ vfinfo (FILE *fp, const char *fmt, va_list ap, bfd_boolean is_warning)
 			  relent->addend,
 			  relent->howto->name);
 		}
-	      else if (*fmt == 'S')
+	      else if (*fmt == 'S' || *fmt == 'U')
 		{
-		  /* Print script file and linenumber.  */
+		  /* Print script file and perhaps the associated linenumber.  */
 		  etree_type node;
 		  etree_type *tp = (etree_type *) args[arg_no].p;
 
@@ -512,8 +498,10 @@ vfinfo (FILE *fp, const char *fmt, va_list ap, bfd_boolean is_warning)
 		      tp->type.filename = ldlex_filename ();
 		      tp->type.lineno = lineno;
 		    }
-		  if (tp->type.filename != NULL)
+		  if (tp->type.filename != NULL && fmt[-1] == 'S')
 		    fprintf (fp, "%s:%u", tp->type.filename, tp->type.lineno);
+		  else if (tp->type.filename != NULL && fmt[-1] == 'U')
+		    fprintf (fp, "%s", tp->type.filename);
 		}
 	      else if (*fmt == 'T')
 		{
@@ -593,7 +581,7 @@ vfinfo (FILE *fp, const char *fmt, va_list ap, bfd_boolean is_warning)
     }
 
   if (is_warning && config.fatal_warnings)
-    config.make_executable = FALSE;
+    config.make_executable = false;
 
   if (fatal)
     xexit (1);
@@ -610,7 +598,7 @@ info_msg (const char *fmt, ...)
   va_list arg;
 
   va_start (arg, fmt);
-  vfinfo (stdout, fmt, arg, FALSE);
+  vfinfo (stdout, fmt, arg, false);
   va_end (arg);
 }
 
@@ -623,7 +611,7 @@ einfo (const char *fmt, ...)
 
   fflush (stdout);
   va_start (arg, fmt);
-  vfinfo (stderr, fmt, arg, TRUE);
+  vfinfo (stderr, fmt, arg, true);
   va_end (arg);
   fflush (stderr);
 }
@@ -659,7 +647,7 @@ minfo (const char *fmt, ...)
 	  asneeded_list_tail = &m->next;
 	}
       else
-	vfinfo (config.map_file, fmt, arg, FALSE);
+	vfinfo (config.map_file, fmt, arg, false);
       va_end (arg);
     }
 }
@@ -670,7 +658,7 @@ lfinfo (FILE *file, const char *fmt, ...)
   va_list arg;
 
   va_start (arg, fmt);
-  vfinfo (file, fmt, arg, FALSE);
+  vfinfo (file, fmt, arg, false);
   va_end (arg);
 }
 

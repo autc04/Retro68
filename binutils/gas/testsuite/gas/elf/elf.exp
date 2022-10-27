@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Free Software Foundation, Inc.
+# Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -54,15 +54,45 @@ proc run_elf_list_test { name suffix opts readelf_opts readelf_pipe } {
 
 # We're testing bits in obj-elf -- don't run on anything else.
 if { [is_elf_format] } then {
-    set target_machine ""
+    if { [is_elf_unused_section_symbols ] } {
+	set target_machine -unused
+    } else {
+	set target_machine ""
+    }
+    set dump_opts ""
+    if {[istarget "arc*-*-*"]} {
+	set target_machine -arc
+    }
+    if {[istarget "arm*-*-*"]} {
+	set target_machine -arm
+    }
+    if {[istarget "avr*-*-*"]} {
+	set dump_opts {{as -mno-link-relax}}
+    }
+    if {[istarget "csky*-*-*"]} {
+	set target_machine -csky
+    }
+    if {[istarget "m32r*-*-*"]} then {
+	set target_machine -m32r
+    }
     if {[istarget "mips*-*-*"]} then {
 	set target_machine -mips
     }
-    if {[istarget m32r*-*-*]} then {
-	set target_machine -m32r
-    }
     if {[istarget "msp430-*-*"]} then {
 	set target_machine -msp430
+    }
+    if {[istarget "pru-*-*"]} {
+	set dump_opts {{as -mno-link-relax}}
+    }
+    if {[istarget "riscv*-*-*"]} then {
+	set target_machine -riscv
+	set dump_opts {{as -mno-relax}}
+    }
+    if {[istarget "rl78-*-*"]} then {
+	set target_machine -rl78
+    }
+    if {[istarget "rx-*-*"]} then {
+	set target_machine -rx
     }
     if {[istarget "score-*-*"]} then {
 	set target_machine -score
@@ -70,23 +100,12 @@ if { [is_elf_format] } then {
     if {[istarget "tic6x-*-*"]} then {
 	set target_machine -tic6x
     }
-    if {[istarget "xtensa*-*-*"]} then {
-	set target_machine -xtensa
-    }
-    if {[istarget "rx-*-*"]} then {
-	set target_machine -rx
-    }
     if {[istarget "v850*-*-*"]} then {
 	set target_machine -v850
     }
-    if {[istarget "rl78-*-*"]} then {
-	set target_machine -rl78
-    }
-    if {[istarget "arm*-*-*"]} {
-	set target_machine -arm
-    }
-    if {[istarget "arc*-*-*"]} {
-	set target_machine -arc
+    if {[istarget "xtensa*-*-*"]} then {
+	set target_machine -xtensa
+	set dump_opts {{as --no-link-relax}}
     }
 
     # The MN10300 and Xtensa ports disable the assembler's call frame
@@ -100,14 +119,15 @@ if { [is_elf_format] } then {
 	&& ![istarget "am3*-*-*"]} then {
       run_dump_test "ehopt0"
     }
-    case $target_triplet in {
-	{ m68k-*-* m68[03]??-*-* } {
+    switch -glob $target_triplet {
+	m68k-*-* -
+	m68[03]??-*-* {
 	    run_dump_test "file" { { as "--defsym m68k=1" } }
 	}
-	{ mmix-*-* } {
+	mmix-*-* {
 	    run_dump_test "file" { { as "--defsym mmix=1" } }
 	}
-	{ xtensa*-*-* } {
+	xtensa*-*-* {
 	    run_dump_test "file" { { as "--rename-section file.s=file.c" } }
 	}
 	default {
@@ -123,43 +143,48 @@ if { [is_elf_format] } then {
     run_dump_test "group1b"
     run_dump_test "group2"
     run_dump_test "group3"
-    case $target_triplet in {
-	{ hppa64*-*-hpux* } { }
-	{ riscv*-*-* } { }
+
+    run_dump_test "attach-1"
+    run_dump_test "attach-err"
+
+    switch -glob $target_triplet {
+	hppa64*-*-hpux* { }
+	riscv*-*-* { }
 	default {
 	    run_dump_test "groupautoa"
 	}
     }
-    case $target_triplet in {
-	{ hppa64*-*-hpux* } { }
-	{ riscv*-*-* } { }
-	{ xtensa*-*-* } { }
+    switch -glob $target_triplet {
+	hppa64*-*-hpux* { }
+	riscv*-*-* { }
+	xtensa*-*-* { }
 	default {
 	    run_dump_test "groupautob"
 	}
     }
-    case $target_triplet in {
-	{ alpha*-*-* } { }
-	{ am3*-*-* } { }
-	{ *c54x*-*-* } { }
-	{ cr16*-*-* } { }
-	{ crx*-*-* } { }
-	{ h8300-*-* } { }
-	{ hppa*-*-* } { }
-	{ iq2000*-*-* } { }
-	{ mips*-*-* } { }
-	{ mn10200-*-* } { }
-	{ mn10300-*-* } { }
-	{ msp43*-*-* } { }
-	{ rl78-*-* } { }
-	{ riscv*-*-* } { }
-	{ rx-*-* } { }
+    switch -glob $target_triplet {
+	alpha*-*-* { }
+	am3*-*-* { }
+	*c54x*-*-* { }
+	cr16*-*-* { }
+	crx*-*-* { }
+	h8300-*-* { }
+	hppa*-*-* { }
+	iq2000*-*-* { }
+	mips*-*-* { }
+	mn10200-*-* { }
+	mn10300-*-* { }
+	msp43*-*-* { }
+	rl78-*-* { }
+	riscv*-*-* { }
+	rx-*-* { }
+	loongarch*-*-* { }
 	default {
 	    # The next test can fail if the target does not convert fixups
 	    # against ordinary symbols into relocations against section symbols.
 	    # This is usually revealed by the error message:
 	    #  symbol `sym' required but not present
-	    setup_xfail "m681*-*-*" "m68hc*-*-*" "xgate-*-*" "vax-*-*"
+	    setup_xfail "m681*-*-*" "m68hc*-*-*" "xgate-*-*" "vax-*-*" "avr-*-*"
 	    run_dump_test redef
 	    run_dump_test equ-reloc
 	}
@@ -167,10 +192,20 @@ if { [is_elf_format] } then {
     run_dump_test "pseudo"
     run_dump_test "section0"
     run_dump_test "section1"
+    # The h8300 port issues a warning message for
+    # new sections created without atrributes.
     if {! [istarget "h8300-*-*"]} then {
-	# The h8300 port issues a warning message for
-	# new sections created without atrributes.
-	run_elf_list_test "section2" "$target_machine" "-al" "-s" ""
+	set as_flags "-al --generate-missing-build-notes=no"
+	switch -glob $target_triplet {
+	    i*86-*-* -
+	    x86_64-*-* {
+		set as_flags "$as_flags -mx86-used-note=no"
+	    }
+	    riscv*-*-* {
+		set as_flags "$as_flags -march-attr"
+	    }
+	}
+	run_elf_list_test "section2" "$target_machine" "$as_flags" "-s" ""
     }
     run_dump_test "section3"
     run_dump_test "section4"
@@ -179,7 +214,7 @@ if { [is_elf_format] } then {
 	# new sections created without atrributes.
 	# The RX port does not complain about changing the attributes of the
 	# .data and .bss sections since it does not use those names.
-	run_elf_list_test "section5" "" "-al" "-SW" "| grep \" \\\\.test\\\[0-9\\\]\""
+	run_elf_list_test "section5" "" "-al -Z" "-SW" "| grep \" \\\\.test\\\[0-9\\\]\""
     }
     run_dump_test "struct"
     if { ![istarget "alpha*-*-*"] } then {
@@ -188,6 +223,7 @@ if { [is_elf_format] } then {
     }
     run_dump_test "symver"
     run_dump_test "pr21661"
+    run_dump_test "pr14891"
 
     # No indirect functions on non-GNU targets.
     # The Visium and MSP set the ELF header's OSABI field to ELFOSABI_STANDALONE.
@@ -196,8 +232,9 @@ if { [is_elf_format] } then {
     # in the symbol type test.
     # We also need to exclude targets that do not support unique objects.
     if {    [istarget "*-*-hpux*"]
-	 || [istarget "arm*-*-*"]
-	 || [istarget "msp*-*-*"]
+	 || [istarget "arm*-*-*"]	
+         || [istarget "mips*-*-*"]
+         || [istarget "msp*-*-*"]
 	 || [istarget "visium-*-*"]
 	 || ![supports_gnu_unique]
      } then {
@@ -208,6 +245,7 @@ if { [is_elf_format] } then {
     } else {
 	run_dump_test ifunc-1
 	run_elf_list_test "type" "" "" "-s" "| grep \"1 *\\\[FIONTCU\\\]\""
+	run_elf_list_test "type-2" "" "--warn" "-s" "| grep \"0 *\\\[FIONT\\\]\""
     }
 
     run_dump_test "section6"
@@ -219,36 +257,89 @@ if { [is_elf_format] } then {
     run_dump_test "section12a"
     run_dump_test "section12b"
     run_dump_test "section13"
-    run_dump_test "dwarf2-1"
-    run_dump_test "dwarf2-2"
-    run_dump_test "dwarf2-3"
-    run_dump_test "dwarf2-4"
-    run_dump_test "dwarf2-5"
-    run_dump_test "dwarf2-6"
-    run_dump_test "dwarf2-7"
-    run_dump_test "dwarf2-8"
-    run_dump_test "dwarf2-9"
-    run_dump_test "dwarf2-10"
-    run_dump_test "dwarf2-11"
-    run_dump_test "dwarf2-12"
-    run_dump_test "dwarf2-13"
-    run_dump_test "dwarf2-14"
-    run_dump_test "dwarf2-15"
-    run_dump_test "dwarf2-16"
-    run_dump_test "dwarf2-17"
-    run_dump_test "dwarf2-18"
+    run_dump_test "section14"
+    run_dump_test "section15"
+    run_dump_test "section16a"
+    run_dump_test "section16b"
+    run_dump_test "section17"
+    run_dump_test "section18"
+    run_dump_test "section19"
+    run_dump_test "section20"
+    run_dump_test "section21"
+    run_dump_test "section22"
+    run_dump_test "section23a"
+    run_dump_test "section23b"
+    run_dump_test "section24a"
+    run_dump_test "section24b"
+    run_dump_test "section25"
+    run_dump_test "section26"
+    run_dump_test "section27"
+    run_dump_test "section28"
+    run_dump_test "section29"
+    run_dump_test "sh-link-zero"
+    run_dump_test "size"
+    run_dump_test "dwarf2-1" $dump_opts
+    run_dump_test "dwarf2-2" $dump_opts
+    run_dump_test "dwarf2-3" $dump_opts
+    run_dump_test "dwarf2-4" $dump_opts
+    run_dump_test "dwarf2-5" $dump_opts
+    run_dump_test "dwarf2-6" $dump_opts
+    run_dump_test "dwarf2-7" $dump_opts
+    run_dump_test "dwarf2-8" $dump_opts
+    run_dump_test "dwarf2-9" $dump_opts
+    run_dump_test "dwarf2-10" $dump_opts
+    run_dump_test "dwarf2-11" $dump_opts
+    run_dump_test "dwarf2-12" $dump_opts
+    run_dump_test "dwarf2-13" $dump_opts
+    run_dump_test "dwarf2-14" $dump_opts
+    run_dump_test "dwarf2-15" $dump_opts
+    run_dump_test "dwarf2-16" $dump_opts
+    run_dump_test "dwarf2-17" $dump_opts
+    run_dump_test "dwarf2-18" $dump_opts
+    run_dump_test "dwarf2-19" $dump_opts
+    run_dump_test "dwarf2-20" $dump_opts
+    run_dump_test "dwarf2-21" $dump_opts
+    run_dump_test "dwarf-5-file0" $dump_opts
+    run_dump_test "dwarf-5-file0-2" $dump_opts
+    run_dump_test "dwarf-5-file0-3" $dump_opts
+    run_dump_test "dwarf-5-dir0" $dump_opts
+    run_dump_test "dwarf-5-loc0" $dump_opts
+    run_dump_test "dwarf-4-cu" $dump_opts
+    run_dump_test "dwarf-5-cu" $dump_opts
+    run_dump_test "dwarf-5-nop-for-line-table" $dump_opts
+    run_dump_test "dwarf-5-irp" $dump_opts
+    run_dump_test "dwarf-3-func" $dump_opts
+    run_dump_test "dwarf-5-func" $dump_opts
+    run_dump_test "dwarf-5-func-global" $dump_opts
+    run_dump_test "dwarf-5-func-local" $dump_opts
+
+    # Exclude targets defining ONLY_STANDARD_ESCAPES. It's not clear how these
+    # are supposed to reference macro arguments in double-quoted strings.
+    if { ![istarget "avr-*-*"]
+	 && ![istarget "cris*-*-*"]
+	 && ![istarget "msp430-*-*"]
+	 && ![istarget "z80-*-*"] } then {
+	run_list_test line
+    }
+
+    run_dump_test "pr25917"
     run_dump_test "bss"
     run_dump_test "bad-bss"
     run_dump_test "bad-section-flag"
     run_dump_test "bad-size"
     run_dump_test "bad-group"
+    run_dump_test "pr27355"
 
     run_dump_test "syms"
+    run_dump_test "startof"
+
+    run_dump_test "missing-build-notes"
     
+    run_dump_test "common1"
+    run_dump_test "common2"
+
     # hpux has a non-standard common directive.
     if { ![istarget "*-*-hpux*"] } then {
-	run_dump_test "common1"
-	run_dump_test "common2"
 	run_dump_test "common3a"
 	run_dump_test "common3b"
 	run_dump_test "common4a"
@@ -262,9 +353,6 @@ if { [is_elf_format] } then {
     run_dump_test "strtab"
 
     run_dump_test "bignums"
-    
-    load_lib gas-dg.exp
-    dg-init
-    dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/err-*.s $srcdir/$subdir/warn-*.s]] "" ""
-    dg-finish
+    run_dump_test "section-symbol-redef"
+    run_dump_test "pr27228"
 }

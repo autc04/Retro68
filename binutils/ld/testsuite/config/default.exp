@@ -1,5 +1,5 @@
 # Basic expect script for LD Regression Tests
-#   Copyright (C) 1993-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -76,23 +76,72 @@ if {[file exists tmpdir/libpath.exp]} {
     }
 }
 
-# Many ELF testcases expect that "-z relro" is off.
-set ld_elf_shared_opt "-z norelro"
-
-# The "make check" target in the Makefile passes in
-# "CC=$(CC_FOR_TARGET)".  But, if the user invokes runtest directly
-# (as when testing an installed linker), these flags may not be set.  
 if {![info exists CC]} {
-    set CC [find_gcc]
+    set CC gcc
 }
 if {![info exists CFLAGS]} {
     set CFLAGS "-g -O2"
 }
-if {![info exists CXX]} {
-    set CXX [find_g++]
+if {![info exists CC_FOR_TARGET]} {
+    set CC_FOR_TARGET [find_gcc]
 }
-if {![info exists CXXFLAGS]} {
-    set CXXFLAGS ""
+if {![info exists CFLAGS_FOR_TARGET]} {
+    set CFLAGS_FOR_TARGET "-g -O2"
+}
+if {![info exists CXX_FOR_TARGET]} {
+    set CXX_FOR_TARGET [find_g++]
+}
+if {![info exists CXXFLAGS_FOR_TARGET]} {
+    set CXXFLAGS_FOR_TARGET ""
+}
+
+# This allows us to run the linker testsuite with clang as the compilation
+# driver instead of gcc.  The syntax of the overrides are as follows, one
+# per line:
+#
+#  '#': Silence information about the changes to the command line arguments.
+#
+#  '^': Add FOO as a new argument at the beginning of the command line.
+#
+#  '+': Add FOO as a new argument at the end of the command line.
+#
+#  's/XXX/YYY/': Substitute the regular expression XXX with YYY in the command
+#  line.
+#
+#  'xOPTION': Removes all instances of the literal argument OPTION.
+#
+#  'XOPTION': Removes all instances of the literal argument OPTION,
+#  and the following argument.
+#
+#  'Ox': Removes all flags matching 'O' or 'O[sz0-9]' and adds 'Ox'
+#  at the end of the command line.
+#
+# \param OS - The stream to write edit information to.
+# \param Args - The vector of command line arguments.
+# \param Edit - The override command to perform.
+# \param SavedStrings - Set to use for storing string representations.
+
+# Only set up the environment variable if the user has not already provided one.
+if {! [info exists env(CCC_OVERRIDE_OPTIONS)]} {
+    set env(CCC_OVERRIDE_OPTIONS) "#\
+  +-Wno-unused-command-line-argument \
+  +-Wno-unknown-attributes \
+  +-Wno-tautological-compare \
+  +-Wno-ignored-optimization-argument \
+  +-Wno-deprecated \
+  +-fuse-ld=$ld \
+  x-Wa,--elf-stt-common=yes \
+  x-Wa,-mx86-used-note=no \
+  x-Wa,-mx86-used-note=yes \
+  x-Wa,-madd-bnd-prefix \
+  x-fno-early-inlining \
+  x-fno-toplevel-reorder \
+  x-flto-partition=none \
+  x-feliminate-dwarf2-dups \
+  s/-Wa,-mrelax-relocations=yes,-mx86-used-note=yes/-Wa,-mrelax-relocations=yes/ \
+  s/-Wa,--compress-debug-sections=zlib/-Wa,-compress-debug-sections=zlib/ \
+  s/-Wa,--compress-debug-sections=zlib-gabi/-Wa,-compress-debug-sections=zlib-gabi/ \
+"
 }
 
 # The mips64-*-linux-gnu compiler defaults to the N32 ABI after
@@ -109,6 +158,11 @@ if {[istarget mips64*-*-linux*] &&
 if { [istarget rx-*-*] } {
     global ASFLAGS
     set ASFLAGS "-muse-conventional-section-names"
+}
+
+# Blackfin ELF targets require selection of an explicit CPU.  Use the sim.
+if {[istarget bfin*-elf*]} {
+    append gcc_B_opt " -msim"
 }
 
 # load the utility procedures
@@ -235,6 +289,10 @@ if ![info exists OBJCOPYFLAGS] then {
     set OBJCOPYFLAGS {}
 }
 
+if ![info exists RANLIB] then {
+    set RANLIB [findfile $base_dir/../binutils/ranlib]
+}
+
 if ![info exists READELF] then {
     set READELF [findfile $base_dir/../binutils/readelf]
 }
@@ -243,12 +301,56 @@ if ![info exists READELFFLAGS] then {
     set READELFFLAGS {}
 }
 
+if ![info exists SIZE] then {
+    set SIZE [findfile $base_dir/../binutils/size]
+}
+
+if ![info exists SIZEFLAGS] then {
+    set SIZEFLAGS ""
+}
+
+if ![info exists ELFEDIT] then {
+    set ELFEDIT [findfile $base_dir/../binutils/elfedit]
+}
+
 if ![info exists LD] then {
     set LD [findfile $base_dir/ld-new ./ld-new [transform ld]]
 }
 
 if ![info exists LDFLAGS] then {
     set LDFLAGS {}
+}
+
+if { ![info exists DT_RELR_LDFLAGS] } then {
+    if { [supports_dt_relr] } then {
+	set DT_RELR_LDFLAGS "-z pack-relative-relocs"
+    } else {
+	set DT_RELR_LDFLAGS {}
+    }
+}
+
+if { ![info exists DT_RELR_CC_LDFLAGS] } then {
+    if { [supports_dt_relr] } then {
+	set DT_RELR_CC_LDFLAGS "-Wl,-z,pack-relative-relocs"
+    } else {
+	set DT_RELR_CC_LDFLAGS {}
+    }
+}
+
+if { ![info exists NO_DT_RELR_LDFLAGS] } then {
+    if { [supports_dt_relr] } then {
+	set NO_DT_RELR_LDFLAGS "-z nopack-relative-relocs"
+    } else {
+	set NO_DT_RELR_LDFLAGS {}
+    }
+}
+
+if { ![info exists NO_DT_RELR_CC_LDFLAGS] } then {
+    if { [supports_dt_relr] } then {
+	set NO_DT_RELR_CC_LDFLAGS "-Wl,-z,nopack-relative-relocs"
+    } else {
+	set NO_DT_RELR_CC_LDFLAGS {}
+    }
 }
 
 # Set LD_CLASS to "64bit" for a 64-bit *host* linker.
@@ -262,191 +364,142 @@ if { ![info exists LD_CLASS] } then {
     }
 }
 
-# Set PLT_CFLAGS to "-fplt" if target compiler supports it.
+# Compiler tests
+proc compiler_supports { flag args } {
+    if { [check_compiler_available] } {
+	global CC_FOR_TARGET
+	set flags ""
+	if [board_info [target_info name] exists cflags] {
+	    append flags " [board_info [target_info name] cflags]"
+	}
+	if [board_info [target_info name] exists ldflags] {
+	    append flags " [board_info [target_info name] ldflags]"
+	}
+	set fn "cs[pid].c"
+	set f [open $fn "w"]
+	if { [llength $args] > 0 } {
+	    puts $f [lindex $args 0]
+	} else {
+	    puts $f "int main (void) { return 0; }"
+	}
+	close $f
+	set rfn [remote_download host $fn]
+	set avail [run_host_cmd_yesno "$CC_FOR_TARGET" "$flags $flag $rfn -o /dev/null"]
+	remote_file host delete $rfn
+	file delete $fn
+	return $avail
+    }
+    return 0
+}
 
 if { ![info exists PLT_CFLAGS] } then {
-    if { [which $CC] != 0 } {
-	# Check if gcc supports -fplt
-	set flags ""
-	if [board_info [target_info name] exists cflags] {
-	    append flags " [board_info [target_info name] cflags]"
-	}
-	if [board_info [target_info name] exists ldflags] {
-	    append flags " [board_info [target_info name] ldflags]"
-	}
-
-	set basename "tmpdir/plt[pid]"
-	set src ${basename}.c
-	set output ${basename}.o
-	set f [open $src "w"]
-	puts $f ""
-	close $f
-	if [is_remote host] {
-	    set src [remote_download host $src]
-	}
-	set plt_available [run_host_cmd_yesno "$CC" "$flags -c -fplt $src -o $output"]
-	remote_file host delete $src
-	remote_file host delete $output
-	file delete $src
-
-	if { $plt_available == 1 } then {
-	    set PLT_CFLAGS "-fplt"
-	} else {
-	    set PLT_CFLAGS ""
-	}
-    } else {
-	set PLT_CFLAGS ""
+    set PLT_CFLAGS ""
+    if [compiler_supports "-c -fplt"] {
+	set PLT_CFLAGS "-fplt"
     }
 }
-
-# Set NOPIE_CFLAGS to "-fno-PIE" and NOPIE_LDFLAGS to "-no-pie" if
-# target compiler supports them.
 
 if { ![info exists NOPIE_CFLAGS] || ![info exists NOPIE_LDFLAGS] } then {
-    if { [which $CC] != 0 } {
-	# Check if gcc supports -fno-PIE -no-pie.
-	set flags ""
-	if [board_info [target_info name] exists cflags] {
-	    append flags " [board_info [target_info name] cflags]"
-	}
-	if [board_info [target_info name] exists ldflags] {
-	    append flags " [board_info [target_info name] ldflags]"
-	}
-
-	set basename "tmpdir/nopie[pid]"
-	set src ${basename}.c
-	set output ${basename}
-	set f [open $src "w"]
-	puts $f "int main (void) { return 0; }"
-	close $f
-	if [is_remote host] {
-	    set src [remote_download host $src]
-	}
-	set nopie_available [run_host_cmd_yesno "$CC" "$flags -fno-PIE -no-pie $src -o $output"]
-	remote_file host delete $src
-	remote_file host delete $output
-	file delete $src
-
-	if { $nopie_available == 1 } then {
-	    set NOPIE_CFLAGS "-fno-PIE"
-	    set NOPIE_LDFLAGS "-no-pie"
-	} else {
-	    set NOPIE_CFLAGS ""
-	    set NOPIE_LDFLAGS ""
-	}
-    } else {
-	set NOPIE_CFLAGS ""
-	set NOPIE_LDFLAGS ""
+    set NOPIE_CFLAGS ""
+    set NOPIE_LDFLAGS ""
+    if [compiler_supports "-fno-PIE -no-pie"] {
+	set NOPIE_CFLAGS "-fno-PIE"
+	set NOPIE_LDFLAGS "-no-pie"
     }
 }
 
-# Set GNU2_CFLAGS to "-mtls-dialect=gnu2" if target compiler supports it.
+if { ![info exists NOCF_PROTECTION_CFLAGS] } then {
+    set NOCF_PROTECTION_CFLAGS ""
+    if [compiler_supports "-fcf-protection=none"] {
+	set NOCF_PROTECTION_CFLAGS "-fcf-protection=none"
+    }
+}
 
 if { ![info exists GNU2_CFLAGS] } then {
-    if { [which $CC] != 0 } {
-	# Check if gcc supports -mtls-dialect=gnu2
-	set flags ""
-	if [board_info [target_info name] exists cflags] {
-	    append flags " [board_info [target_info name] cflags]"
-	}
-	if [board_info [target_info name] exists ldflags] {
-	    append flags " [board_info [target_info name] ldflags]"
-	}
-
-	set basename "tmpdir/gnu2[pid]"
-	set src ${basename}.c
-	set output ${basename}.o
-	set f [open $src "w"]
-	puts $f "__thread int yyy = 100;"
-	close $f
-	if [is_remote host] {
-	    set src [remote_download host $src]
-	}
-	set gnu2_available [run_host_cmd_yesno "$CC" "$flags -c -mtls-dialect=gnu2 $src -o $output"]
-	remote_file host delete $src
-	remote_file host delete $output
-	file delete $src
-
-	if { $gnu2_available == 1 } then {
-	    set GNU2_CFLAGS "-mtls-dialect=gnu2"
-	} else {
-	    set GNU2_CFLAGS ""
-	}
-    } else {
-	set GNU2_CFLAGS ""
+    set GNU2_CFLAGS ""
+    if [compiler_supports "-c -mtls-dialect=gnu2" "__thread int y = 1;"] {
+	set GNU2_CFLAGS "-mtls-dialect=gnu2"
     }
 }
-
-# Set INT128_CFLAGS to "-DHAS_INT128" if target compiler supports __int128.
 
 if { ![info exists INT128_CFLAGS] } then {
-    if { [which $CC] != 0 } {
-	# Check if gcc supports __int128.
-	set flags ""
-	if [board_info [target_info name] exists cflags] {
-	    append flags " [board_info [target_info name] cflags]"
-	}
-	if [board_info [target_info name] exists ldflags] {
-	    append flags " [board_info [target_info name] ldflags]"
-	}
-
-	set basename "tmpdir/int128[pid]"
-	set src ${basename}.c
-	set output ${basename}.o
-	set f [open $src "w"]
-	puts $f "__int128 a = 42;"
-	close $f
-	if [is_remote host] {
-	    set src [remote_download host $src]
-	}
-	set int128_available [run_host_cmd_yesno "$CC" "$flags -c $src -o $output"]
-	remote_file host delete $src
-	remote_file host delete $output
-	file delete $src
-
-	if { $int128_available == 1 } then {
-	    set INT128_CFLAGS "-DHAS_INT128"
-	} else {
-	    set INT128_CFLAGS ""
-	}
-    } else {
-	set INT128_CFLAGS ""
+    set INT128_CFLAGS ""
+    if [compiler_supports "-c" "__int128 a = 42;"] {
+	set INT128_CFLAGS "-DHAS_INT128"
     }
 }
 
-# Set STATIC_LDFLAGS to "-static" if target compiler supports it.
-
 if { ![info exists STATIC_LDFLAGS] } then {
-    if { [which $CC] != 0 } {
-	# Check if gcc supports -static.
-	set flags ""
-	if [board_info [target_info name] exists cflags] {
-	    append flags " [board_info [target_info name] cflags]"
-	}
-	if [board_info [target_info name] exists ldflags] {
-	    append flags " [board_info [target_info name] ldflags]"
-	}
-
-	set basename "tmpdir/static[pid]"
-	set src ${basename}.c
-	set output ${basename}
-	set f [open $src "w"]
-	puts $f "int main (void) { return 0; }"
-	close $f
-	if [is_remote host] {
-	    set src [remote_download host $src]
-	}
-	set static_available [run_host_cmd_yesno "$CC" "-static $flags $src -o $output"]
-	remote_file host delete $src
-	remote_file host delete $output
-	file delete $src
-
-	if { $static_available == 1 } then {
-	    set STATIC_LDFLAGS "-static"
-	} else {
-	    set STATIC_LDFLAGS ""
-	}
-    } else {
-	set STATIC_LDFLAGS ""
+    set STATIC_LDFLAGS ""
+    if [compiler_supports "-static"] {
+	set STATIC_LDFLAGS "-static"
     }
+}
+
+if { ![info exists STATIC_PIE_LDFLAGS] } then {
+    set STATIC_PIE_LDFLAGS ""
+    if [compiler_supports "-static-pie"] {
+	set STATIC_PIE_LDFLAGS "-static-pie"
+    }
+}
+
+if { ![info exists NOSANITIZE_CFLAGS] } then {
+    set NOSANITIZE_CFLAGS ""
+    if [compiler_supports "-fno-sanitize=all"] {
+	set NOSANITIZE_CFLAGS "-fno-sanitize=all"
+    }
+}
+
+if { ![info exists NOLTO_CFLAGS] } then {
+    set NOLTO_CFLAGS ""
+    if [compiler_supports "-fno-lto"] {
+	set NOLTO_CFLAGS "-fno-lto"
+    }
+}
+
+# Provide dummy libraries that alpha-vms-ld always loads
+if { [istarget alpha*-*-*vms*] } {
+    set src tmpdir/empty.s
+    set f [open $src "w"]
+    close $f
+    if { [ld_assemble $as $src tmpdir/empty.o]
+	 && ![ld_link $LD tmpdir/empty tmpdir/empty.o]
+	 && [regsub -all {[^\n]*: cannot find -l([^\n]*)} $exec_output {tmpdir/lib\1.a } missing_libs] } {
+	regsub -all {\$} $missing_libs {\\\$} missing_libs
+	for { set i 0 } { $i < [llength $missing_libs] } { incr i } {
+	    set f [lindex $missing_libs $i]
+	    verbose -log "creating dummy $f"
+	    ar_simple_create $ar {} $f tmpdir/empty.o
+	}
+	append LDFLAGS " -Ltmpdir"
+	unset i missing_libs
+    }
+    unset f src
+}
+
+set plug_opt ""
+if { [check_compiler_available] } {
+    set plugin_names {
+	liblto_plugin.so
+	liblto_plugin-0.dll
+	cyglto_plugin-0.dll
+    }
+    foreach plug $plugin_names {
+	set plug_so [run_host_cmd $CC_FOR_TARGET "--print-prog-name $plug"]
+	if { $plug_so eq $plug } then {
+	    set plug_so [run_host_cmd $CC_FOR_TARGET "--print-file-name $plug"]
+	}
+	if { $plug_so ne $plug } then {
+	    set plug_opt "--plugin $plug_so"
+	    break
+	}
+    }
+}
+
+if {[file exists .libs/libdep.so]} {
+  set dep_plug_opt "--plugin .libs/libdep.so"
+} elseif {[file exists .libs/libdep.dll]} {
+  set dep_plug_opt "--plugin .libs/libdep.dll"
+} else {
+    set dep_plug_opt ""
 }

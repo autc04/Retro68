@@ -23,8 +23,8 @@ label:
 	wfi
 	yield
 	# ARMV6Z instructions
-	smc 0xec31
-	smcne 0x13ce
+	smc 0x1
+	smcne 0xe
 
 	# Ensure output is 32-byte aligned as required for arm-aout.
 	.p2align 5

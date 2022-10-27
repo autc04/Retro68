@@ -6,5 +6,5 @@
 Disassembly of section .text:
 
 0+ <.text>:
-[ 	]*[a-f0-9]+:	0f a7 c0             	xstore-rng 
+[ 	]*[a-f0-9]+:	0f a7 c0             	xstore-rng
 #pass

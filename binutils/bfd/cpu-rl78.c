@@ -1,5 +1,5 @@
 /* BFD support for the RL78 processor.
-   Copyright (C) 2011-2018 Free Software Foundation, Inc.
+   Copyright (C) 2011-2022 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -32,9 +32,10 @@ const bfd_arch_info_type bfd_rl78_arch =
   "rl78",			/* Architecture name.  */
   "rl78",			/* Printable name.  */
   4,				/* Section align power.  */
-  TRUE,				/* The default ?  */
+  true,				/* The default ?  */
   bfd_default_compatible,	/* Architecture comparison fn.  */
   bfd_default_scan,		/* String to architecture convert fn.  */
   bfd_arch_default_fill,	/* Default fill.  */
-  NULL				/* Next in list.  */
+  NULL,				/* Next in list.  */
+  0 /* Maximum offset of a reloc from the start of an insn.  */
 };

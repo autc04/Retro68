@@ -7,10 +7,10 @@
 .*:     file format elf32-avr
 
 RELOCATION RECORDS FOR \[.text\]:
-OFFSET   TYPE              VALUE 
-00000000 R_AVR_CALL        .text
+OFFSET +TYPE +VALUE
+00000000 R_AVR_CALL        L1
 
 
 RELOCATION RECORDS FOR \[.data\]:
-OFFSET   TYPE              VALUE 
-00000000 R_AVR_DIFF16      .text\+0x00000004
+OFFSET +TYPE +VALUE
+00000000 R_AVR_DIFF16      L2

@@ -4,7 +4,7 @@
 #objdump: -sj.debug_foobar
 #target: sparc*-*-*
 
-.*: +file format elf32-sparc
+.*: +file format elf32-sparc.*
 
 Contents of section .debug_foobar:
  0+ 0+18  .*

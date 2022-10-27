@@ -7,7 +7,7 @@
 .*: +file format .*
 
 DYNAMIC RELOCATION RECORDS
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 [[:xdigit:]]+ R_X86_64_SIZE32   xxx
 [[:xdigit:]]+ R_X86_64_SIZE32   xxx-0x000000000000001e
 [[:xdigit:]]+ R_X86_64_SIZE32   xxx\+0x000000000000001e

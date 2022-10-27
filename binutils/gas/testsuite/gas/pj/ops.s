@@ -226,8 +226,8 @@ foo19:
 	if_acmpeq .L7
 	if_acmpne .L8
 	goto .L6
-	jsr
-	ret
+	jsr .L1
+	ret 0
 .Lt:	tableswitch
 
 	.align 2
@@ -254,14 +254,14 @@ foo19:
 	dreturn
 	areturn
 	return
-	getstatic
-	putstatic
-	getfield
-	putfield
-	invokevirtual
-	invokespecial
-	invokestatic
-	invokeinterface
+	getstatic 0x1234
+	putstatic 0x1234
+	getfield 0x1234
+	putfield 0x1234
+	invokevirtual 0x1234
+	invokespecial 0x1234
+	invokestatic 0x1234
+	invokeinterface 0x1234,1
 	new
 	newarray
 	anewarray
@@ -275,15 +275,9 @@ foo19:
 	multianewarray
 	ifnull
 	ifnonnull
-	goto_w
-	jsr_w
+	goto_w .L2
+	jsr_w .L2
 	breakpoint
-	bytecode
-	try
-	endtry
-	catch
-	var
-	endvar
 	sethi -20317
 	load_word_index 90, -91
 	load_short_index 93, -123
@@ -391,7 +385,3 @@ foo19:
 	write_global1
 	write_global2
 	write_global3
-	tm_putchar
-	tm_exit
-	tm_trap
-	tm_minfo

@@ -1,3 +1,3 @@
 #name: Invalid relocations
-#error-output: reloc-bad.l
-#not-target: *-*-vxworks
+#error_output: reloc-bad.l
+#notarget: *-*-vxworks

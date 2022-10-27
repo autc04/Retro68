@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2003-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2003-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -19,7 +19,7 @@
 # MA 02110-1301, USA.
 #
 
-# This file is sourced from elf32.em, and defines extra powerpc32-elf
+# This file is sourced from elf.em, and defines extra powerpc32-elf
 # specific routines.
 #
 fragment <<EOF
@@ -51,7 +51,7 @@ ppc_after_open_output (void)
     params.emit_stub_syms = (link_info.emitrelocations
 			     || bfd_link_pic (&link_info));
   if (params.pagesize == 0)
-    params.pagesize = config.commonpagesize;
+    params.pagesize = link_info.commonpagesize;
   ppc_elf_link_params (&link_info, &params);
 }
 
@@ -79,7 +79,7 @@ ppc_after_check_relocs (void)
 
       num_got = 0;
       num_plt = 0;
-      for (os = &lang_output_section_statement.head->output_section_statement;
+      for (os = (void *) lang_os_list.head;
 	   os != NULL;
 	   os = os->next)
 	{
@@ -125,7 +125,7 @@ prelim_size_sections (void)
     {
       expld.phase = lang_mark_phase_enum;
       expld.dataseg.phase = exp_seg_none;
-      one_lang_size_sections_pass (NULL, FALSE);
+      one_lang_size_sections_pass (NULL, false);
       /* We must not cache anything from the preliminary sizing.  */
       lang_reset_memory_regions ();
     }
@@ -171,7 +171,12 @@ ppc_before_allocation (void)
       bfd_vma high = 0;
       asection *o;
 
-      /* Run lang_size_sections (if not already done).  */
+      /* Run lang_size_sections even if already done, so as to pick
+	 up gld${EMULATION_NAME}_before_allocation sizing.  This
+	 matters when we have an executable bss plt which will
+	 typically be laid out near the end of the image, ie. worst
+	 case for branches at the start of .text.  */
+      expld.phase = lang_first_phase_enum;
       prelim_size_sections ();
 
       for (o = link_info.output_bfd->sections; o != NULL; o = o->next)
@@ -241,16 +246,15 @@ EOF
 if grep -q 'ld_elf32_spu_emulation' ldemul-list.h; then
   fragment <<EOF
 /* Special handling for embedded SPU executables.  */
-extern bfd_boolean embedded_spu_file (lang_input_statement_type *, const char *);
-static bfd_boolean gld${EMULATION_NAME}_load_symbols (lang_input_statement_type *);
+extern bool embedded_spu_file (lang_input_statement_type *, const char *);
 
-static bfd_boolean
+static bool
 ppc_recognized_file (lang_input_statement_type *entry)
 {
   if (embedded_spu_file (entry, "-m32"))
-    return TRUE;
+    return true;
 
-  return gld${EMULATION_NAME}_load_symbols (entry);
+  return ldelf_load_symbols (entry);
 }
 
 EOF
@@ -404,7 +408,7 @@ PARSE_AND_LIST_ARGS_CASES=${PARSE_AND_LIST_ARGS_CASES}'
     case OPTION_TRADITIONAL_FORMAT:
       notlsopt = 1;
       params.no_tls_get_addr_opt = 1;
-      return FALSE;
+      return false;
 
     case OPTION_PPC476_WORKAROUND:
       params.ppc476_workaround = 1;

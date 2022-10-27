@@ -38,7 +38,7 @@ Disassembly of section .text:
 
 000081a0 <__unnamed_veneer>:
 .*:	4778      	bx	pc
-.*:	46c0      	nop			; .*
+.*:	e7fd      	b.n	.+ <.+>
 .*:	e59f1000 	ldr	r1, \[pc\]	; .*
 .*:	e081f00f 	add	pc, r1, pc
 .*:	ffffffa0 	.word	0xffffffa0
@@ -67,7 +67,7 @@ Disassembly of section .foo:
 
 0400103c <__unnamed_veneer>:
 .*:	4778      	bx	pc
-.*:	46c0      	nop			; .*
+.*:	e7fd      	b.n	.+ <.+>
 .*:	e59f1000 	ldr	r1, \[pc\]	; .*
 .*:	e081f00f 	add	pc, r1, pc
 .*:	fc007104 	.word	0xfc007104

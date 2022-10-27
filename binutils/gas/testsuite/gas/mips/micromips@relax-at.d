@@ -1,7 +1,7 @@
 #as: -KPIC -32 -relax-branch --defsym atk0=1
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: MIPS relax with .set at
-#stderr: relax.l
+#warning_output: relax.l
 #source: relax.s
 
 # Test relaxation with .set at (microMIPS).

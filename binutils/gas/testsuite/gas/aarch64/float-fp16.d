@@ -6,12 +6,12 @@
 Disassembly of section \.text:
 
 0+ <.*>:
-   [0-9a-f]+:	1e200400 	fccmp	s0, s0, #0x0, eq  // eq = none
-   [0-9a-f]+:	1ee00400 	fccmp	h0, h0, #0x0, eq  // eq = none
+   [0-9a-f]+:	1e200400 	fccmp	s0, s0, #0x0, eq	// eq = none
+   [0-9a-f]+:	1ee00400 	fccmp	h0, h0, #0x0, eq	// eq = none
    [0-9a-f]+:	1e22d420 	fccmp	s1, s2, #0x0, le
    [0-9a-f]+:	1ee2d420 	fccmp	h1, h2, #0x0, le
-  [0-9a-f]+:	1e200410 	fccmpe	s0, s0, #0x0, eq  // eq = none
-  [0-9a-f]+:	1ee00410 	fccmpe	h0, h0, #0x0, eq  // eq = none
+  [0-9a-f]+:	1e200410 	fccmpe	s0, s0, #0x0, eq	// eq = none
+  [0-9a-f]+:	1ee00410 	fccmpe	h0, h0, #0x0, eq	// eq = none
   [0-9a-f]+:	1e22d430 	fccmpe	s1, s2, #0x0, le
   [0-9a-f]+:	1ee2d430 	fccmpe	h1, h2, #0x0, le
   [0-9a-f]+:	1e202000 	fcmp	s0, s0
@@ -26,8 +26,8 @@ Disassembly of section \.text:
   [0-9a-f]+:	1ee02008 	fcmp	h0, #0\.0
   [0-9a-f]+:	1e202018 	fcmpe	s0, #0\.0
   [0-9a-f]+:	1ee02018 	fcmpe	h0, #0\.0
-  [0-9a-f]+:	1e210c00 	fcsel	s0, s0, s1, eq  // eq = none
-  [0-9a-f]+:	1ee10c00 	fcsel	h0, h0, h1, eq  // eq = none
+  [0-9a-f]+:	1e210c00 	fcsel	s0, s0, s1, eq	// eq = none
+  [0-9a-f]+:	1ee10c00 	fcsel	h0, h0, h1, eq	// eq = none
   [0-9a-f]+:	9ee60000 	fmov	x0, h0
   [0-9a-f]+:	1ee60000 	fmov	w0, h0
   [0-9a-f]+:	9ee70001 	fmov	h1, x0

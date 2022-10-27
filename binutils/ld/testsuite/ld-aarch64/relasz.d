@@ -1,4 +1,5 @@
 #source: relasz.s
+#target: [check_shared_lib_support]
 #ld: -shared --hash-style=sysv -Taarch64.ld
 #readelf: -d
 # Check that the RELASZ section has the correct size even if we are

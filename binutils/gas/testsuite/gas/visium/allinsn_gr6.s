@@ -93,11 +93,10 @@ sreg:
 	asr.w	r6,r5,1
 	asr.b	r8,r7,31
 
-	bra	eq,r9,r10
 	rflag	r0
-	bra	ne,r7,r1
-
+	bra	eq,r9,r10
 	eamread	r11,0
+	bra	ne,r7,r1
 	eamread	r12,31
 
 	extb.l	r12,r13
@@ -151,8 +150,8 @@ sreg:
 	moviq	r6,1
 	subi	r7,65535
 
-	bra	tr,r6,r0
 	add.l	r0,r0,r0
+	bra	tr,r6,r0
 
 
 	fpinst	10,f1,f3,f5

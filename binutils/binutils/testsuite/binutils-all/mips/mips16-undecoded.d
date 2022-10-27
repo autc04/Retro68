@@ -1,7 +1,7 @@
 #PROG: objcopy
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: MIPS16 undecoded extended instruction field disassembly
-#as: -32 -mips3
+#as: -mips3
 
 .*: +file format .*mips.*
 

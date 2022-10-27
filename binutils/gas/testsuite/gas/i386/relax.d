@@ -1,3 +1,4 @@
+#as: -mx86-used-note=no --generate-missing-build-notes=no
 #name: i386 relax
 #objdump: -s
 

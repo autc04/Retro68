@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Free Software Foundation, Inc.
+# Copyright (C) 2018-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -75,6 +75,7 @@ run_dump_test mac
 run_dump_test min-max
 run_dump_test mod
 run_dump_test mov
+run_dump_test mov-imm-reloc
 run_dump_test p2-mul
 run_dump_test mul-imm
 run_dump_test mul-opr-opr
@@ -90,6 +91,8 @@ run_dump_test opr-idx3-reg
 run_dump_test opr-idx3-xysp-24
 run_dump_test or-imm
 run_dump_test or-opr
+run_dump_test pc-rel-bad
+run_dump_test pc-rel-good
 run_dump_test page2-inh
 run_dump_test psh-pul
 run_dump_test qmul
@@ -113,11 +116,14 @@ run_dump_test ld-immu18
 run_dump_test lea-immu18
 run_dump_test ext24-ld-xy
 run_dump_test st-xy
+run_dump_test bit-manip-invalid
+run_dump_test truncated
 
 # Symbol related tests
 run_dump_test opr-symbol
 run_dump_test brclr-symbols
 run_dump_test dbCC
+run_dump_test labels
 
 # Expression related tests
 run_dump_test opr-expr
@@ -130,3 +136,10 @@ run_dump_test ld-large-direct
 run_dump_test ld-small-direct
 run_dump_test st-large-direct
 run_dump_test st-small-direct
+
+run_dump_test imm-dest
+
+# Miscellaneous
+
+run_dump_test reg-prefix
+run_dump_test dollar-hex

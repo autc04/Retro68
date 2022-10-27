@@ -1,6 +1,6 @@
 # Test PROVIDE in a linker script.
 # By Nathan Sidwell, CodeSourcery LLC
-#   Copyright (C) 2004-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -19,21 +19,21 @@
 # Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
 # MA 02110-1301, USA.
 
-# AIX maps .text and .data to other sections.
 # a.out objdump displays the file header inside the text segment,
 # confusing run_dump_test.
 
-if {[istarget "powerpc*-*-aix*"] || [istarget "rs6000-*-aix*"] || [is_aout_format]} {
+if { [is_aout_format] } {
     unsupported provide-1
     unsupported provide-2
     unsupported provide-3
     return
 }
 
-global LDFLAGS
 set saved_LDFLAGS "$LDFLAGS"
-if [istarget "x86_64-*-mingw*"] then {
-  set LDFLAGS "$LDFLAGS --image-base 0"
+if { [is_pecoff_format] } then {
+    set LDFLAGS "$LDFLAGS --image-base 0"
+} elseif { [is_xcoff_format] } then {
+    set LDFLAGS "$LDFLAGS -bnogc"
 }
 
 set test_list [lsort [glob -nocomplain $srcdir/$subdir/provide-*.d]]

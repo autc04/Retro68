@@ -72,6 +72,7 @@ _start:
 	vmovups	%zmm29, %zmm30{%k7}	 # AVX512F
 	vmovups.s	%zmm29, %zmm30{%k7}{z}	 # AVX512F
 	vmovups	%zmm29, %zmm30{%k7}{z}	 # AVX512F
+
 	.intel_syntax noprefix
 	vmovapd.s	zmm30, zmm29	 # AVX512F
 	vmovapd	zmm30, zmm29	 # AVX512F

@@ -15,12 +15,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 fd 2e 21          	vucomisd xmm4,QWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 ff 10 21          	vmovsd xmm4,QWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 ff 11 21          	vmovsd QWORD PTR \[rcx\],xmm4
-[ 	]*[a-f0-9]+:	c4 e1 fd 7e e1       	vmovq  rcx,xmm4
-[ 	]*[a-f0-9]+:	c4 e1 fd 6e e1       	vmovq  xmm4,rcx
-[ 	]*[a-f0-9]+:	c4 e1 fd 7e e1       	vmovq  rcx,xmm4
-[ 	]*[a-f0-9]+:	c4 e1 fd 6e e1       	vmovq  xmm4,rcx
-[ 	]*[a-f0-9]+:	c5 fd d6 21          	vmovq  QWORD PTR \[rcx\],xmm4
-[ 	]*[a-f0-9]+:	c5 fe 7e 21          	vmovq  xmm4,QWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 ff 2d cc          	vcvtsd2si ecx,xmm4
 [ 	]*[a-f0-9]+:	c5 ff 2d 09          	vcvtsd2si ecx,QWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 ff 2c cc          	vcvttsd2si ecx,xmm4
@@ -207,10 +201,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 fc 2e 21          	vucomiss xmm4,DWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 fe 10 21          	vmovss xmm4,DWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 fe 11 21          	vmovss DWORD PTR \[rcx\],xmm4
-[ 	]*[a-f0-9]+:	c5 fd 7e e1          	vmovd  ecx,xmm4
-[ 	]*[a-f0-9]+:	c5 fd 7e 21          	vmovd  DWORD PTR \[rcx\],xmm4
-[ 	]*[a-f0-9]+:	c5 fd 6e e1          	vmovd  xmm4,ecx
-[ 	]*[a-f0-9]+:	c5 fd 6e 21          	vmovd  xmm4,DWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 fe 2d cc          	vcvtss2si ecx,xmm4
 [ 	]*[a-f0-9]+:	c5 fe 2d 09          	vcvtss2si ecx,DWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 fe 2c cc          	vcvttss2si ecx,xmm4
@@ -227,42 +217,24 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 ce c2 11 07       	vcmpordss xmm2,xmm6,DWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c4 e3 4d 0a d4 07    	vroundss xmm2,xmm6,xmm4,0x7
 [ 	]*[a-f0-9]+:	c4 e3 4d 0a 11 07    	vroundss xmm2,xmm6,DWORD PTR \[rcx\],0x7
-[ 	]*[a-f0-9]+:	c5 fe 7e f4          	vmovq  xmm6,xmm4
 [ 	]*[a-f0-9]+:	c5 cf 10 d4          	vmovsd xmm2,xmm6,xmm4
 [ 	]*[a-f0-9]+:	c5 ce 10 d4          	vmovss xmm2,xmm6,xmm4
-[ 	]*[a-f0-9]+:	c5 7d 7e 04 25 78 56 34 12 	vmovd  DWORD PTR ds:0x12345678,xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a 3c 25 78 56 34 12 	vcvtsi2sd xmm15,xmm8,DWORD PTR ds:0x12345678
-[ 	]*[a-f0-9]+:	c5 7d 7e 45 00       	vmovd  DWORD PTR \[rbp\+0x0\],xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a 7d 00       	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rbp\+0x0\]
-[ 	]*[a-f0-9]+:	c5 7d 7e 04 24       	vmovd  DWORD PTR \[rsp\],xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a 3c 24       	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rsp\]
-[ 	]*[a-f0-9]+:	c5 7d 7e 85 99 00 00 00 	vmovd  DWORD PTR \[rbp\+0x99\],xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a bd 99 00 00 00 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rbp\+0x99\]
-[ 	]*[a-f0-9]+:	c4 41 7d 7e 87 99 00 00 00 	vmovd  DWORD PTR \[r15\+0x99\],xmm8
 [ 	]*[a-f0-9]+:	c4 41 3f 2a bf 99 00 00 00 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[r15\+0x99\]
-[ 	]*[a-f0-9]+:	c5 7d 7e 05 99 00 00 00 	vmovd  DWORD PTR \[rip\+0x99\],xmm8        # 4f9 <_start\+0x4f9>
-[ 	]*[a-f0-9]+:	c5 3f 2a 3d 99 00 00 00 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rip\+0x99\]        # 501 <_start\+0x501>
-[ 	]*[a-f0-9]+:	c5 7d 7e 84 24 99 00 00 00 	vmovd  DWORD PTR \[rsp\+0x99\],xmm8
+[ 	]*[a-f0-9]+:	c5 3f 2a 3d 99 00 00 00 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rip\+0x99\]        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
 [ 	]*[a-f0-9]+:	c5 3f 2a bc 24 99 00 00 00 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rsp\+0x99\]
-[ 	]*[a-f0-9]+:	c4 41 7d 7e 84 24 99 00 00 00 	vmovd  DWORD PTR \[r12\+0x99\],xmm8
 [ 	]*[a-f0-9]+:	c4 41 3f 2a bc 24 99 00 00 00 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[r12\+0x99\]
-[ 	]*[a-f0-9]+:	c5 7d 7e 04 25 67 ff ff ff 	vmovd  DWORD PTR ds:0xffffffffffffff67,xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a 3c 25 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR ds:0xffffffffffffff67
-[ 	]*[a-f0-9]+:	c5 7d 7e 04 65 67 ff ff ff 	vmovd  DWORD PTR \[riz\*2-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a 3c 65 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[riz\*2-0x99\]
-[ 	]*[a-f0-9]+:	c5 7d 7e 84 23 67 ff ff ff 	vmovd  DWORD PTR \[rbx\+riz\*1-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a bc 23 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rbx\+riz\*1-0x99\]
-[ 	]*[a-f0-9]+:	c5 7d 7e 84 63 67 ff ff ff 	vmovd  DWORD PTR \[rbx\+riz\*2-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a bc 63 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rbx\+riz\*2-0x99\]
-[ 	]*[a-f0-9]+:	c4 01 7d 7e 84 bc 67 ff ff ff 	vmovd  DWORD PTR \[r12\+r15\*4-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c4 01 3f 2a bc bc 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[r12\+r15\*4-0x99\]
-[ 	]*[a-f0-9]+:	c4 01 7d 7e 84 f8 67 ff ff ff 	vmovd  DWORD PTR \[r8\+r15\*8-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c4 01 3f 2a bc f8 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[r8\+r15\*8-0x99\]
-[ 	]*[a-f0-9]+:	c4 21 7d 7e 84 ad 67 ff ff ff 	vmovd  DWORD PTR \[rbp\+r13\*4-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c4 21 3f 2a bc ad 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rbp\+r13\*4-0x99\]
-[ 	]*[a-f0-9]+:	c4 21 7d 7e 84 24 67 ff ff ff 	vmovd  DWORD PTR \[rsp\+r12\*1-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c4 21 3f 2a bc 24 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rsp\+r12\*1-0x99\]
-[ 	]*[a-f0-9]+:	c4 41 7d 7e c0       	vmovd  r8d,xmm8
 [ 	]*[a-f0-9]+:	c4 41 7f 2d c0       	vcvtsd2si r8d,xmm8
 [ 	]*[a-f0-9]+:	c4 41 3f 2a f8       	vcvtsi2sd xmm15,xmm8,r8d
 [ 	]*[a-f0-9]+:	c4 61 ff 2d 01       	vcvtsd2si r8,QWORD PTR \[rcx\]
@@ -277,16 +249,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 ff 10 21          	vmovsd xmm4,QWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 ff 11 21          	vmovsd QWORD PTR \[rcx\],xmm4
 [ 	]*[a-f0-9]+:	c5 ff 11 21          	vmovsd QWORD PTR \[rcx\],xmm4
-[ 	]*[a-f0-9]+:	c4 e1 fd 7e e1       	vmovq  rcx,xmm4
-[ 	]*[a-f0-9]+:	c4 e1 fd 6e e1       	vmovq  xmm4,rcx
-[ 	]*[a-f0-9]+:	c5 fd 7e 21          	vmovd  DWORD PTR \[rcx\],xmm4
-[ 	]*[a-f0-9]+:	c5 fd 6e 21          	vmovd  xmm4,DWORD PTR \[rcx\]
-[ 	]*[a-f0-9]+:	c4 e1 fd 7e e1       	vmovq  rcx,xmm4
-[ 	]*[a-f0-9]+:	c4 e1 fd 6e e1       	vmovq  xmm4,rcx
-[ 	]*[a-f0-9]+:	c5 fd d6 21          	vmovq  QWORD PTR \[rcx\],xmm4
-[ 	]*[a-f0-9]+:	c5 fe 7e 21          	vmovq  xmm4,QWORD PTR \[rcx\]
-[ 	]*[a-f0-9]+:	c5 fd d6 21          	vmovq  QWORD PTR \[rcx\],xmm4
-[ 	]*[a-f0-9]+:	c5 fe 7e 21          	vmovq  xmm4,QWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 ff 2d cc          	vcvtsd2si ecx,xmm4
 [ 	]*[a-f0-9]+:	c5 ff 2d 09          	vcvtsd2si ecx,QWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 ff 2d 09          	vcvtsd2si ecx,QWORD PTR \[rcx\]
@@ -567,12 +529,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c5 fe 10 21          	vmovss xmm4,DWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 fe 11 21          	vmovss DWORD PTR \[rcx\],xmm4
 [ 	]*[a-f0-9]+:	c5 fe 11 21          	vmovss DWORD PTR \[rcx\],xmm4
-[ 	]*[a-f0-9]+:	c5 fd 7e e1          	vmovd  ecx,xmm4
-[ 	]*[a-f0-9]+:	c5 fd 7e 21          	vmovd  DWORD PTR \[rcx\],xmm4
-[ 	]*[a-f0-9]+:	c5 fd 6e e1          	vmovd  xmm4,ecx
-[ 	]*[a-f0-9]+:	c5 fd 6e 21          	vmovd  xmm4,DWORD PTR \[rcx\]
-[ 	]*[a-f0-9]+:	c5 fd 7e 21          	vmovd  DWORD PTR \[rcx\],xmm4
-[ 	]*[a-f0-9]+:	c5 fd 6e 21          	vmovd  xmm4,DWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 fe 2d cc          	vcvtss2si ecx,xmm4
 [ 	]*[a-f0-9]+:	c5 fe 2d 09          	vcvtss2si ecx,DWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 fe 2d 09          	vcvtss2si ecx,DWORD PTR \[rcx\]
@@ -595,40 +551,23 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c4 e3 4d 0a d4 07    	vroundss xmm2,xmm6,xmm4,0x7
 [ 	]*[a-f0-9]+:	c4 e3 4d 0a 11 07    	vroundss xmm2,xmm6,DWORD PTR \[rcx\],0x7
 [ 	]*[a-f0-9]+:	c4 e3 4d 0a 11 07    	vroundss xmm2,xmm6,DWORD PTR \[rcx\],0x7
-[ 	]*[a-f0-9]+:	c5 fe 7e f4          	vmovq  xmm6,xmm4
 [ 	]*[a-f0-9]+:	c5 cf 10 d4          	vmovsd xmm2,xmm6,xmm4
 [ 	]*[a-f0-9]+:	c5 ce 10 d4          	vmovss xmm2,xmm6,xmm4
-[ 	]*[a-f0-9]+:	c5 7d 7e 04 25 78 56 34 12 	vmovd  DWORD PTR ds:0x12345678,xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a 3c 25 78 56 34 12 	vcvtsi2sd xmm15,xmm8,DWORD PTR ds:0x12345678
-[ 	]*[a-f0-9]+:	c5 7d 7e 45 00       	vmovd  DWORD PTR \[rbp\+0x0\],xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a 7d 00       	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rbp\+0x0\]
-[ 	]*[a-f0-9]+:	c5 7d 7e 85 99 00 00 00 	vmovd  DWORD PTR \[rbp\+0x99\],xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a bd 99 00 00 00 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rbp\+0x99\]
-[ 	]*[a-f0-9]+:	c4 41 7d 7e 87 99 00 00 00 	vmovd  DWORD PTR \[r15\+0x99\],xmm8
 [ 	]*[a-f0-9]+:	c4 41 3f 2a bf 99 00 00 00 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[r15\+0x99\]
-[ 	]*[a-f0-9]+:	c5 7d 7e 05 99 00 00 00 	vmovd  DWORD PTR \[rip\+0x99\],xmm8        # c32 <_start\+0xc32>
-[ 	]*[a-f0-9]+:	c5 3f 2a 3d 99 00 00 00 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rip\+0x99\]        # c3a <_start\+0xc3a>
-[ 	]*[a-f0-9]+:	c5 7d 7e 84 24 99 00 00 00 	vmovd  DWORD PTR \[rsp\+0x99\],xmm8
+[ 	]*[a-f0-9]+:	c5 3f 2a 3d 99 00 00 00 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rip\+0x99\]        # [a-f0-9]+ <_start\+0x[a-f0-9]+>
 [ 	]*[a-f0-9]+:	c5 3f 2a bc 24 99 00 00 00 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rsp\+0x99\]
-[ 	]*[a-f0-9]+:	c4 41 7d 7e 84 24 99 00 00 00 	vmovd  DWORD PTR \[r12\+0x99\],xmm8
 [ 	]*[a-f0-9]+:	c4 41 3f 2a bc 24 99 00 00 00 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[r12\+0x99\]
-[ 	]*[a-f0-9]+:	c5 7d 7e 04 25 67 ff ff ff 	vmovd  DWORD PTR ds:0xffffffffffffff67,xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a 3c 25 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR ds:0xffffffffffffff67
-[ 	]*[a-f0-9]+:	c5 7d 7e 04 65 67 ff ff ff 	vmovd  DWORD PTR \[riz\*2-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a 3c 65 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[riz\*2-0x99\]
-[ 	]*[a-f0-9]+:	c5 7d 7e 84 23 67 ff ff ff 	vmovd  DWORD PTR \[rbx\+riz\*1-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a bc 23 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rbx\+riz\*1-0x99\]
-[ 	]*[a-f0-9]+:	c5 7d 7e 84 63 67 ff ff ff 	vmovd  DWORD PTR \[rbx\+riz\*2-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c5 3f 2a bc 63 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rbx\+riz\*2-0x99\]
-[ 	]*[a-f0-9]+:	c4 01 7d 7e 84 bc 67 ff ff ff 	vmovd  DWORD PTR \[r12\+r15\*4-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c4 01 3f 2a bc bc 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[r12\+r15\*4-0x99\]
-[ 	]*[a-f0-9]+:	c4 01 7d 7e 84 f8 67 ff ff ff 	vmovd  DWORD PTR \[r8\+r15\*8-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c4 01 3f 2a bc f8 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[r8\+r15\*8-0x99\]
-[ 	]*[a-f0-9]+:	c4 21 7d 7e 84 a5 67 ff ff ff 	vmovd  DWORD PTR \[rbp\+r12\*4-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c4 21 3f 2a bc a5 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rbp\+r12\*4-0x99\]
-[ 	]*[a-f0-9]+:	c4 21 7d 7e 84 2c 67 ff ff ff 	vmovd  DWORD PTR \[rsp\+r13\*1-0x99\],xmm8
 [ 	]*[a-f0-9]+:	c4 21 3f 2a bc 2c 67 ff ff ff 	vcvtsi2sd xmm15,xmm8,DWORD PTR \[rsp\+r13\*1-0x99\]
-[ 	]*[a-f0-9]+:	c4 41 7d 7e c0       	vmovd  r8d,xmm8
 [ 	]*[a-f0-9]+:	c4 41 7f 2d c0       	vcvtsd2si r8d,xmm8
 [ 	]*[a-f0-9]+:	c4 41 3f 2a f8       	vcvtsi2sd xmm15,xmm8,r8d
 [ 	]*[a-f0-9]+:	c4 61 ff 2d 01       	vcvtsd2si r8,QWORD PTR \[rcx\]

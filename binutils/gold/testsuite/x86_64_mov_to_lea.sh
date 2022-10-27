@@ -2,7 +2,7 @@
 
 # x86_64_mov_to_lea.sh -- a test for mov2lea conversion.
 
-# Copyright (C) 2010-2018 Free Software Foundation, Inc.
+# Copyright (C) 2010-2022 Free Software Foundation, Inc.
 # Written by Tocar Ilya <ilya.tocar@intel.com>
 
 # This file is part of gold.
@@ -38,5 +38,7 @@ grep -q "mov    0x[a-f0-9]\+(%rip),%rax" x86_64_mov_to_lea11.stdout
 grep -q "mov    0x[a-f0-9]\+(%rip),%rax" x86_64_mov_to_lea12.stdout
 grep -q "lea    -0x[a-f0-9]\+(%rip),%rax" x86_64_mov_to_lea13.stdout
 grep -q "lea    -0x[a-f0-9]\+(%rip),%rax" x86_64_mov_to_lea14.stdout
+grep -q "mov    0x[a-f0-9]\+(%rip),%eax" x86_64_mov_to_lea15.stdout
+grep -q "mov    0x[a-f0-9]\+(%rip),%eax" x86_64_mov_to_lea16.stdout
 
 exit 0

@@ -1,6 +1,6 @@
 # Expect script for complex PE tests that require a C compiler
 # in addition to the just-built binutils.
-#   Copyright (C) 2009-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -26,7 +26,7 @@ if {![is_pecoff_format]} {
 }
 
 # No compiler, no test.
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     untested "PE version scripts"
     untested "aligned common tests"
     # Add more "untested" directives here when adding more tests below.
@@ -34,13 +34,12 @@ if { [which $CC] == 0 } {
 }
 
 proc build_basefile1_o {} {
-    global CC
-    global CFLAGS
+    global CC_FOR_TARGET
     global srcdir
     global subdir
 
     # Compile the object file.
-    if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/basefile1.s tmpdir/basefile1.o] {
+    if ![ld_compile $CC_FOR_TARGET $srcdir/$subdir/basefile1.s tmpdir/basefile1.o] {
 	fail "compiling basefile1 object"
     }
 }
@@ -75,24 +74,23 @@ proc run_basefile_test { testname } {
 }
 
 proc build_vers_script_dll_o {} {
-    global CC
-    global CFLAGS
+    global CC_FOR_TARGET
     global srcdir
     global subdir
 
     # Compile the object file.
-    if ![ld_compile "$CC $CFLAGS -shared" $srcdir/$subdir/vers-script-dll.c tmpdir/vers-script-dll.o] {
+    if ![ld_compile "$CC_FOR_TARGET -shared" $srcdir/$subdir/vers-script-dll.c tmpdir/vers-script-dll.o] {
 	fail "compiling shared lib object"
     }
 }
 
 proc run_ver_script_test { testname } {
-    global CC
+    global CC_FOR_TARGET
     global srcdir
     global subdir
     global verbose
 
-    if ![ld_link "$CC -shared \
+    if ![ld_link "$CC_FOR_TARGET -shared \
 	    -Wl,--version-script,$srcdir/$subdir/$testname.ver \
 	    -Wl,--output-def,tmpdir/$testname.def" tmpdir/$testname.dll \
 	    "tmpdir/vers-script-dll.o"] {

@@ -1,6 +1,6 @@
 // weak_alias_test_5.cc -- test versioned weak aliases for gold
 
-// Copyright (C) 2011-2017 Free Software Foundation, Inc.
+// Copyright (C) 2011-2022 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.

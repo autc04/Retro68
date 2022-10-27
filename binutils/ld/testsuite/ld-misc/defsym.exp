@@ -1,5 +1,5 @@
 # Test handling of --defsym
-#   Copyright (C) 2011-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2011-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -20,17 +20,17 @@
 #
 
 if ![ld_assemble $as $srcdir/$subdir/start.s tmpdir/start.o] { 
-    unresolved "Build start.o"
+    unsupported "Build start.o"
     return
 }
 
 if ![ld_assemble $as $srcdir/$subdir/foo.s tmpdir/foo.o] { 
-    unresolved "Build foo.o"
+    unsupported "Build foo.o"
     return
 }
 
 if { ![ar_simple_create $ar "" tmpdir/libfoo.a tmpdir/foo.o] } {
-    unresolved "Build libfoo.a"
+    fail "Build libfoo.a"
     return
 }
 

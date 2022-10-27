@@ -1,2 +1,2 @@
-	.section .mbind.data,"dw",@nobits
+	.section .mbind.data,"dw",%nobits
 	.byte 0

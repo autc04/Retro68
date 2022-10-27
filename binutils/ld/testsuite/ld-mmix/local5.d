@@ -5,7 +5,7 @@
 #source: regext1.s
 #source: start.s
 #ld: -m elf64mmix
-#readelf: -Ssx1 -x2
+#readelf: -Ssx1 -T -x2
 
 # Like local1, but with two checks for a local register.
 
@@ -32,8 +32,8 @@ Key to Flags:
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND 
-.* 0+ +0 +SECTION +LOCAL +DEFAULT +1 
-.* 0+7e8 +0 +SECTION +LOCAL +DEFAULT +2 
+.* 0+ +0 +SECTION +LOCAL +DEFAULT +1.*
+.* 0+7e8 +0 +SECTION +LOCAL +DEFAULT +2.*
 .* 0+ +0 +FILE +LOCAL +DEFAULT +ABS .*
 .* 0+fd +0 +NOTYPE +LOCAL +DEFAULT +PRC\[0xff00\] lsym
 .* 0+ +0 +FILE +LOCAL +DEFAULT +ABS .*

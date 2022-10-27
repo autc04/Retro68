@@ -6,7 +6,7 @@
 .*:     file format .*
 
 RELOCATION RECORDS FOR \[\.data\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+000 R_MIPS_PC32       foo
 0+000 R_MIPS_NONE       \*ABS\*
 0+000 R_MIPS_NONE       \*ABS\*

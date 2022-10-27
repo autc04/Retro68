@@ -1,2 +1,2 @@
 #as: -mcpu=arcem
-#error-output: asm-errors-2.err
+#error_output: asm-errors-2.err

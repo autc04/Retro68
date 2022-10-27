@@ -1,6 +1,6 @@
 // gc.h -- garbage collection of unused sections
 
-// Copyright (C) 2009-2018 Free Software Foundation, Inc.
+// Copyright (C) 2009-2022 Free Software Foundation, Inc.
 // Written by Sriraman Tallam <tmsriram@google.com>.
 
 // This file is part of gold.
@@ -200,7 +200,8 @@ gc_process_relocs(
   bool check_section_for_function_pointers = false;
 
   if (parameters->options().icf_enabled()
-      && is_section_foldable_candidate(src_section_name.c_str()))
+      && (is_section_foldable_candidate(src_section_name)
+          || is_prefix_of(".eh_frame", src_section_name.c_str())))
     {
       is_icf_tracked = true;
       Section_id src_id(src_obj, src_indx);
@@ -246,7 +247,7 @@ gc_process_relocs(
 	      if (is_ordinary) 
 		(*secvec).push_back(Section_id(src_obj, dst_indx));
 	      else
-                (*secvec).push_back(Section_id(NULL, 0));
+		(*secvec).push_back(Section_id(static_cast<Relobj*>(NULL), 0));
               // If the target of the relocation is an STT_SECTION symbol,
               // make a note of that by storing -1 in the symbol vector.
               if (lsym.get_st_type() == elfcpp::STT_SECTION)
@@ -328,7 +329,7 @@ gc_process_relocs(
               if (is_ordinary && dst_obj != NULL)
 		(*secvec).push_back(Section_id(dst_obj, dst_indx));
 	      else
-                (*secvec).push_back(Section_id(NULL, 0));
+		(*secvec).push_back(Section_id(static_cast<Relobj*>(NULL), 0));
               (*symvec).push_back(gsym);
 	      (*addendvec).push_back(std::make_pair(
 					static_cast<long long>(symvalue),

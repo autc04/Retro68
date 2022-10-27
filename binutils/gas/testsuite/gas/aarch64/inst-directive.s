@@ -3,3 +3,4 @@
 
 .text
 	.inst	0x3619194c
+	.inst	0xd503201f, 0xd503201f, 0xd503201f

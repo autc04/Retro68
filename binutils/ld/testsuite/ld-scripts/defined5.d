@@ -1,9 +1,9 @@
 #ld: -Tdefined5.t
+#warning: .*multiple definition of `defined'.*
 #nm: -B
-#source: defined5.s
-#xfail: powerpc*-*-aix* rs6000-*-aix*
 
-# Check that arithmetic on DEFINED works.
+# Check that a script can override an object file symbol, if multiple
+# definitions are allowed.  See pr12356.
 #...
 0+1000 D defined
 #pass

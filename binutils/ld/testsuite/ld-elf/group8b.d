@@ -1,13 +1,10 @@
 #source: group8.s
 #ld: -r --gc-sections --entry bar
 #readelf: -g --wide
-#xfail: d30v-*-* dlx-*-* pj*-*-* pru-*-*
-#xfail: hppa64-*-* mep-*-* mn10200-*-*
-#xfail: cr16-*-* crx-*-*
 # generic linker targets don't support --gc-sections, nor do a bunch of others
-# cr16 and crx use non-standard scripts with memory regions, which don't play
-# well with unique group sections under ld -r.
+#xfail: [is_generic] hppa64-*-* mep-*-* mn10200-*-*
 
-COMDAT group section \[[ 0-9]+\] `.group' \[bar\] contains 1 sections:
+COMDAT group section \[[ 0-9]+\] `.group' \[bar\] contains . sections:
    \[Index\]    Name
    \[[ 0-9]+\]   .text.bar
+#pass

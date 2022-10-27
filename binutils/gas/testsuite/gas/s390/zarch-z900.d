@@ -20,8 +20,11 @@ Disassembly of section .text:
 .*:	e3 95 af ff 00 46 [ 	]*bctg	%r9,4095\(%r5,%r10\)
 .*:	b9 46 00 96 [ 	]*bctgr	%r9,%r6
 .*:	a7 97 00 00 [	 ]*brctg	%r9,40 \<foo\+0x40\>
-.*:	ec 96 00 00 00 44 [ 	]*brxhg	%r9,%r6,44 <foo\+0x44>
-.*:	ec 96 00 00 00 45 [ 	]*brxlg	%r9,%r6,4a <foo\+0x4a>
+.*:	a7 67 00 00 [	 ]*brctg	%r6,44 <foo\+0x44>
+.*:	ec 96 00 00 00 44 [ 	]*brxhg	%r9,%r6,48 <foo\+0x48>
+.*:	ec 69 00 00 00 44 [	 ]*brxhg	%r6,%r9,4e <foo\+0x4e>
+.*:	ec 96 00 00 00 45 [ 	]*brxlg	%r9,%r6,54 <foo\+0x54>
+.*:	ec 69 00 00 00 45 [	 ]*brxlg	%r6,%r9,5a <foo\+0x5a>
 .*:	eb 96 5f ff 00 44 [ 	]*bxhg	%r9,%r6,4095\(%r5\)
 .*:	eb 96 5f ff 00 45 [ 	]*bxleg	%r9,%r6,4095\(%r5\)
 .*:	b3 a5 00 96 [ 	]*cdgbr	%f9,%r6

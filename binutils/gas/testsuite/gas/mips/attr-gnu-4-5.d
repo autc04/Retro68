@@ -1,6 +1,6 @@
 #as: -32 -mfpxx
 #source: attr-gnu-4-5.s
-#PROG: readelf
+#DUMPPROG: readelf
 #readelf: -A
 #name: MIPS gnu_attribute 4,5 (-mfpxx)
 

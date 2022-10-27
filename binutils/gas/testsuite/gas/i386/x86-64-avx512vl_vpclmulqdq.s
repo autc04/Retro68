@@ -17,6 +17,16 @@ _start:
 	{evex} vpclmulqdq	$123, 0x123(%rax,%r14,8), %ymm18, %ymm29	 # AVX512VL,VPCLMULQDQ
 	{evex} vpclmulqdq	$123, 4064(%rdx), %ymm18, %ymm29	 # AVX512VL,VPCLMULQDQ Disp8
 
+	vpclmulhqhqdq	%xmm20, %xmm21, %xmm22
+	vpclmulhqlqdq	%xmm21, %xmm22, %xmm23
+	vpclmullqhqdq	%xmm22, %xmm23, %xmm24
+	vpclmullqlqdq	%xmm23, %xmm24, %xmm25
+
+	vpclmulhqhqdq	%ymm20, %ymm21, %ymm22
+	vpclmulhqlqdq	%ymm21, %ymm22, %ymm23
+	vpclmullqhqdq	%ymm22, %ymm23, %ymm24
+	vpclmullqlqdq	%ymm23, %ymm24, %ymm25
+
 	.intel_syntax noprefix
 	vpclmulqdq	xmm19, xmm26, xmm20, 0xab	 # AVX512VL,VPCLMULQDQ
 	vpclmulqdq	xmm19, xmm26, XMMWORD PTR [rax+r14*8+0x1234], 123	 # AVX512VL,VPCLMULQDQ

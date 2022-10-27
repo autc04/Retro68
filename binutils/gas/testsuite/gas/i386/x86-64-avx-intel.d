@@ -7,8 +7,8 @@
 Disassembly of section .text:
 
 0+ <_start>:
-[ 	]*[a-f0-9]+:	c5 fc 77             	vzeroall 
-[ 	]*[a-f0-9]+:	c5 f8 77             	vzeroupper 
+[ 	]*[a-f0-9]+:	c5 fc 77             	vzeroall
+[ 	]*[a-f0-9]+:	c5 f8 77             	vzeroupper
 [ 	]*[a-f0-9]+:	c5 f8 ae 11          	vldmxcsr DWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c5 f8 ae 19          	vstmxcsr DWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:	c4 e2 5d 2d 31       	vmaskmovpd ymm6,ymm4,YMMWORD PTR \[rcx\]
@@ -781,11 +781,11 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	c4 e3 79 df 31 07    	vaeskeygenassist xmm6,XMMWORD PTR \[rcx\],0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 61 f4 07    	vpcmpestri xmm6,xmm4,0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 61 31 07    	vpcmpestri xmm6,XMMWORD PTR \[rcx\],0x7
-[ 	]*[a-f0-9]+:	c4 e3 f9 61 f4 07    	vpcmpestri xmm6,xmm4,0x7
+[ 	]*[a-f0-9]+:	c4 e3 f9 61 f4 07    	vpcmpestriq xmm6,xmm4,0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 61 31 07    	vpcmpestri xmm6,XMMWORD PTR \[rcx\],0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 60 f4 07    	vpcmpestrm xmm6,xmm4,0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 60 31 07    	vpcmpestrm xmm6,XMMWORD PTR \[rcx\],0x7
-[ 	]*[a-f0-9]+:	c4 e3 f9 60 f4 07    	vpcmpestrm xmm6,xmm4,0x7
+[ 	]*[a-f0-9]+:	c4 e3 f9 60 f4 07    	vpcmpestrmq xmm6,xmm4,0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 60 31 07    	vpcmpestrm xmm6,XMMWORD PTR \[rcx\],0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 63 f4 07    	vpcmpistri xmm6,xmm4,0x7
 [ 	]*[a-f0-9]+:	c4 e3 79 63 31 07    	vpcmpistri xmm6,XMMWORD PTR \[rcx\],0x7

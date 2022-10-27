@@ -79,3 +79,4 @@ GD3:
 GD4:
 	.picptr funcdesc(GFb)
 	.word	GFb
+	.section	.note.GNU-stack

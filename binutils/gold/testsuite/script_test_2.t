@@ -1,6 +1,6 @@
 /* script_test_2.t -- linker script test 2 for gold
 
-   Copyright (C) 2008-2017 Free Software Foundation, Inc.
+   Copyright (C) 2008-2022 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <iant@google.com>.
 
    This file is part of gold.

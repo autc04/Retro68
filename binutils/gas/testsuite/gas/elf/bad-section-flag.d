@@ -1,2 +1,2 @@
 #name: Check bad section flag
-#error-output: bad-section-flag.err
+#error_output: bad-section-flag.err

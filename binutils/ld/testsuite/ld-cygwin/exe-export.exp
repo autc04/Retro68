@@ -1,5 +1,5 @@
 # Expect script for export table in executables tests
-#   Copyright (C) 2003-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2003-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -29,7 +29,7 @@ if {![istarget *-pc-cygwin]} {
 }
 
 # No compiler, no test.
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     untested "Exe export test (no compiler available)"
     return
 }
@@ -113,23 +113,23 @@ if ![run_dlltool $tmpdir/testdll.lib $srcdir/$subdir/testdll.def] {
 } 
 
 # Compile the executable.
-if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/testexe.c $tmpdir/testexe.o] {
+if ![ld_compile $CC_FOR_TARGET $srcdir/$subdir/testexe.c $tmpdir/testexe.o] {
     fail "compiling executable"
     return
 }
 
-if ![ld_special_link "$CC $LDFLAGS $MYLDFLAGS -e _testexe_main@16" $tmpdir/testexe.exe "$tmpdir/testexe.o $srcdir/$subdir/testexe.def $tmpdir/testdll.lib -lkernel32"] {
+if ![ld_special_link "$CC_FOR_TARGET $LDFLAGS $MYLDFLAGS -e _testexe_main@16" $tmpdir/testexe.exe "$tmpdir/testexe.o $srcdir/$subdir/testexe.def $tmpdir/testdll.lib -lkernel32"] {
     fail "linking executable"
     return
 } 
 
 # Compile the dll.
-if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/testdll.c $tmpdir/testdll.o] {
+if ![ld_compile $CC_FOR_TARGET $srcdir/$subdir/testdll.c $tmpdir/testdll.o] {
     fail "compiling shared lib"
     return
 }
 
-if ![ld_special_link "$CC $LDFLAGS -nostartfiles -nostdlib -e _testdll_main@12" $tmpdir/testdll.dll "$tmpdir/testdll.o $srcdir/$subdir/testdll.def $tmpdir/testexe.lib"] {
+if ![ld_special_link "$CC_FOR_TARGET $LDFLAGS -nostartfiles -nostdlib -e _testdll_main@12" $tmpdir/testdll.dll "$tmpdir/testdll.o $srcdir/$subdir/testdll.def $tmpdir/testexe.lib"] {
     fail "linking shared lib"
     return
 } 

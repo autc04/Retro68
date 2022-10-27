@@ -12,8 +12,9 @@
 #...
   \[[ 0-9]+\] \.data.*[ \t]+PROGBITS[ \t0-9a-f]+WAG.*
 #...
-COMDAT group section \[[ 0-9]+\] `\.group' \[foo_group\] contains 2 sections:
+COMDAT group section \[[ 0-9]+\] `\.group' \[foo_group\] contains . sections:
    \[Index\]    Name
    \[[ 0-9]+\]   .text.*
+#...
    \[[ 0-9]+\]   .data.*
 #pass

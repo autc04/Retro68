@@ -15,3 +15,4 @@ main:
 	popq	%r15
 	ret
 	.size	main, .-main
+	.section	.note.GNU-stack

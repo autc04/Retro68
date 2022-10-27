@@ -1,7 +1,7 @@
 # Test that the linker reports undefined symbol errors correctly.
 # By Ian Lance Taylor, Cygnus Support
 #
-#   Copyright (C) 1995-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1995-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -24,25 +24,30 @@ set testund "undefined"
 set testfn "undefined function"
 set testline "undefined line"
 
-if { ![is_remote host] && [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     verbose "Could not find C compiler!" 1
     untested $testund
     untested $testfn
     untested $testline
-} elseif { ![ld_compile "$CC -g" $srcdir/$subdir/undefined.c tmpdir/undefined.o] } {
+} elseif { ![ld_compile "$CC_FOR_TARGET -g $NOLTO_CFLAGS" $srcdir/$subdir/undefined.c tmpdir/undefined.o] } {
     verbose "Unable to compile test file!" 1
-    unresolved $testund
-    unresolved $testfn
-    unresolved $testline
+    unsupported $testund
+    unsupported $testfn
+    unsupported $testline
 } else {
     remote_file host delete "tmpdir/undefined"
 
     set flags [big_or_little_endian]
 
     # Using -e start prevents the SunOS linker from trying to build a
-    # shared library.
-    send_log "$ld -e start $flags -o tmpdir/undefined tmpdir/undefined.o\n"
-    set exec_output [run_host_cmd "$ld" "-e start $flags -o tmpdir/undefined tmpdir/undefined.o"]
+    # shared library.  But don't use an entry point in BPF targets.
+    switch -glob $target_triplet {
+        bpf-*-* { set entry "" }
+        * { set entry "-e start" }
+    }
+
+    send_log "$ld $entry $flags -o tmpdir/undefined tmpdir/undefined.o\n"
+    set exec_output [run_host_cmd "$ld" "$entry $flags -o tmpdir/undefined tmpdir/undefined.o"]
 
     send_log "$exec_output\n"
     verbose "$exec_output"
@@ -142,6 +147,9 @@ if { ![is_remote host] && [which $CC] == 0 } {
     setup_xfail xtensa*-*-linux*
     setup_xfail hppa*64*-*-*
 
+    # eBPF doesn't support dwarf yet.
+    setup_xfail bpf-*-*
+
     checkund $ml $testline
 }
 
@@ -169,58 +177,50 @@ if { ![is_elf_format] || ![check_shared_lib_support]} then {
     setup_xfail tic6x-*-*
     fail $testname
 } else {
-    if {![is_remote host] && [which $nm] == 0} then {
-	unresolved "$testname (dyn sym)"
-    } else {
-	set exec_output [run_host_cmd "$nm" "-D tmpdir/fundef.so"]
-	set exec_output [prune_warnings $exec_output]
+    set exec_output [run_host_cmd "$nm" "-D tmpdir/fundef.so"]
+    set exec_output [prune_warnings $exec_output]
 
-	if { ($asflags == ""
-	      || ([regexp ".* undef_fun_typed.*" $exec_output]
-		  && [regexp ".* undef_fun_notype.*" $exec_output]))
-	     && [regexp ".* undef_data.*" $exec_output]
-	     && [regexp ".* undef_pfun.*" $exec_output]
-	     && [regexp ".* undef_notype.*" $exec_output]} then {
-	    pass "$testname (dyn sym)"
-	} else {
-	    fail "$testname (dyn sym)"
-	}
+    if { ($asflags == ""
+	  || ([regexp ".* undef_fun_typed.*" $exec_output]
+	      && [regexp ".* undef_fun_notype.*" $exec_output]))
+	 && [regexp ".* undef_data.*" $exec_output]
+	 && [regexp ".* undef_pfun.*" $exec_output]
+	 && [regexp ".* undef_notype.*" $exec_output]} then {
+	pass "$testname (dyn sym)"
+    } else {
+	fail "$testname (dyn sym)"
     }
 
     global READELF
-    if {![is_remote host] && [which $READELF] == 0} then {
-	unresolved "$testname (dyn reloc)"
+    set exec_output [run_host_cmd "$READELF" "-r tmpdir/fundef.so"]
+    set exec_output [prune_warnings $exec_output]
+
+    # We ought to get two .rel{a}.plt and three .rel{a}.dyn relocs,
+    # except for MIPS targets whose psABI mandates an extra
+    # R_MIPS_NONE relocation, also used to pad n64 relocation
+    # triplets, and S+core targets using an extra R_SCORE_NONE
+    # relocation, so adjust for that.
+    switch -glob $target_triplet {
+	"mips64*-*-openbsd*" {
+	    set none_count 6
+	    set reloc_count 4
+	}
+	"mips*" -
+	"score*" {
+	    set none_count 1
+	    set reloc_count 4
+	}
+	"*" {
+	    set none_count 0
+	    set reloc_count 3
+	}
+    }
+
+    if { ($asflags == "" || [regexp ".* contains 2 .*" $exec_output])
+	 && [regexp ".* contains $reloc_count .*" $exec_output]
+	 && [regexp -all "_NONE" $exec_output] == $none_count } then {
+	pass "$testname (dyn reloc)"
     } else {
-	set exec_output [run_host_cmd "$READELF" "-r tmpdir/fundef.so"]
-	set exec_output [prune_warnings $exec_output]
-
-	# We ought to get two .rel{a}.plt and three .rel{a}.dyn relocs,
-	# except for MIPS targets whose psABI mandates an extra
-	# R_MIPS_NONE relocation, also used to pad n64 relocation
-	# triplets, and S+core targets using an extra R_SCORE_NONE
-	# relocation, so adjust for that.
-	switch -glob $target_triplet {
-	    "mips64*-*-openbsd*" {
-		set none_count 6
-		set reloc_count 4
-	    }
-	    "mips*" -
-	    "score*" {
-		set none_count 1
-		set reloc_count 4
-	    }
-	    "*" {
-		set none_count 0
-		set reloc_count 3
-	    }
-	}
-
-	if { ($asflags == "" || [regexp ".* contains 2 .*" $exec_output])
-	     && [regexp ".* contains $reloc_count .*" $exec_output]
-	     && [regexp -all "_NONE" $exec_output] == $none_count } then {
-	    pass "$testname (dyn reloc)"
-	} else {
-	    fail "$testname (dyn reloc)"
-	}
+	fail "$testname (dyn reloc)"
     }
 }

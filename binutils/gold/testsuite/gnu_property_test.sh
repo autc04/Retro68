@@ -2,7 +2,7 @@
 
 # gnu_property_test.sh -- test .note.gnu.property section.
 
-# Copyright (C) 2018 Free Software Foundation, Inc.
+# Copyright (C) 2018-2022 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@gmail.com>.
 
 # This file is part of gold.
@@ -53,12 +53,32 @@ check_count()
     fi
 }
 
+check_alignment ()
+{
+    if egrep -q "Class:[ \t]+ELF64" "$1"
+    then
+	align=8
+    else
+	align=4
+    fi
+    if ! egrep -q ".note.gnu.property[ \t]+NOTE.*$align$" "$1"
+    then
+	echo "Wrong .note.gnu.property alignment in $1:"
+	egrep ".note.gnu.property[ \t]+NOTE.*$align" "$1"
+	exit 1
+    fi
+}
+
+check_alignment gnu_property_test.stdout
+
 check_count gnu_property_test.stdout "GNU\s*0x[0-9a-f]*\s*NT_GNU_PROPERTY_TYPE_0" 1
+
+check_count gnu_property_test.stdout "^  NOTE" 2
 
 check gnu_property_test.stdout "stack size: 0x111100"
 check gnu_property_test.stdout "no copy on protected"
-check gnu_property_test.stdout "x86 ISA used: i486, SSE2, SSE4_2, AVX512CD"
-check gnu_property_test.stdout "x86 ISA needed: i486, SSE2, SSE4_2, AVX512CD"
+check gnu_property_test.stdout "x86 ISA used: x86-64-baseline, <unknown: 10>, <unknown: 100>, <unknown: 1000>"
+check gnu_property_test.stdout "x86 ISA needed: x86-64-baseline, <unknown: 10>, <unknown: 100>, <unknown: 1000>"
 check gnu_property_test.stdout "x86 feature: IBT"
 
 exit 0

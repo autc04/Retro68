@@ -29,3 +29,4 @@ b:
 w:
 	.long	g1
 	.long	g2
+	.section	.note.GNU-stack

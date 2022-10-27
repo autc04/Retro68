@@ -2,4 +2,4 @@
 #as: -32
 #name: MIPS16 macros
 #source: mips16-macro.s
-#error-output: mips16e-32@mips16-macro.l
+#error_output: mips16e-32@mips16-macro.l

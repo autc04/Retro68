@@ -68,18 +68,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +1 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +2 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +3 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +4 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +5 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +8 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +9 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +10 *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +11 *
-.* FILE +LOCAL +DEFAULT +ABS tmpdir/tlsbindesc.o
+.* FILE +LOCAL +DEFAULT +ABS .*tlsbindesc.o
  +[0-9]+: 0+20 +0 +TLS +LOCAL +DEFAULT +7 sl1
  +[0-9]+: 0+24 +0 +TLS +LOCAL +DEFAULT +7 sl2
  +[0-9]+: 0+28 +0 +TLS +LOCAL +DEFAULT +7 sl3
@@ -88,7 +77,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
  +[0-9]+: 0+34 +0 +TLS +LOCAL +DEFAULT +7 sl6
  +[0-9]+: 0+38 +0 +TLS +LOCAL +DEFAULT +7 sl7
  +[0-9]+: 0+3c +0 +TLS +LOCAL +DEFAULT +7 sl8
-.* FILE +LOCAL +DEFAULT +ABS tmpdir/tlsbin.o
+.* FILE +LOCAL +DEFAULT +ABS .*tlsbin.o
  +[0-9]+: 0+80 +0 +TLS +LOCAL +DEFAULT +8 bl1
  +[0-9]+: 0+84 +0 +TLS +LOCAL +DEFAULT +8 bl2
  +[0-9]+: 0+88 +0 +TLS +LOCAL +DEFAULT +8 bl3

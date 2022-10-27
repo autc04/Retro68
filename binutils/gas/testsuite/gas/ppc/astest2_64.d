@@ -1,4 +1,5 @@
 #objdump: -Dr
+#as:  --generate-missing-build-notes=no
 #name: PowerPC 64-bit test 2
 
 .*

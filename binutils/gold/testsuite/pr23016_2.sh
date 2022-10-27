@@ -3,7 +3,7 @@
 # pr23016_2.sh -- check that relocations get written to separate sections
 # when data sections of the same name are not merged.
 
-# Copyright (C) 2018 Free Software Foundation, Inc.
+# Copyright (C) 2018-2022 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@gmail.com>.
 
 # This file is part of gold.

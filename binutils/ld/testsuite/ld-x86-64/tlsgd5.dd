@@ -2,7 +2,7 @@
 #as: --64
 #ld: -melf_x86_64 tmpdir/tlsgd5
 #objdump: -drw
-#target: x86_64-*-linux* x86_64-*-nacl*
+#target: x86_64-*-linux*
 
 .*: +file format .*
 

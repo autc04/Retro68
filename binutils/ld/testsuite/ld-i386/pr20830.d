@@ -1,6 +1,6 @@
 #name: PR ld/20830 (.plt.got)
 #as: --32
-#ld: -melf_i386 -shared -z relro --ld-generated-unwind-info --hash-style=sysv -z noseparate-code
+#ld: -melf_i386 -shared -z relro --ld-generated-unwind-info --hash-style=sysv -z noseparate-code $NO_DT_RELR_LDFLAGS
 #objdump: -dw -Wf
 
 .*: +file format .*
@@ -41,7 +41,7 @@ Contents of the .eh_frame section:
 Disassembly of section .plt:
 
 0+110 <.plt>:
- +[a-f0-9]+:	ff b3 04 00 00 00    	pushl  0x4\(%ebx\)
+ +[a-f0-9]+:	ff b3 04 00 00 00    	push   0x4\(%ebx\)
  +[a-f0-9]+:	ff a3 08 00 00 00    	jmp    \*0x8\(%ebx\)
  +[a-f0-9]+:	00 00                	add    %al,\(%eax\)
 	...

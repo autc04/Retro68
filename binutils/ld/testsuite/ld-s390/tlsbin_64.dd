@@ -87,26 +87,26 @@ Disassembly of section .text:
  +[0-9a-f]+:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
 # GD -> LE with global variable defined in executable
  +[0-9a-f]+:	e3 20 d0 10 00 04 	lg	%r2,16\(%r13\)
- +[0-9a-f]+:	c0 04 00 00 00 00 	brcl	0,[0-9a-f]+ <fn2\+0xca>
+ +[0-9a-f]+:	c0 04 00 00 00 00 	jgnop	[0-9a-f]+ <fn2\+0xca>
  +[0-9a-f]+:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
 # GD -> LE with local variable defined in executable
  +[0-9a-f]+:	e3 20 d0 18 00 04 	lg	%r2,24\(%r13\)
- +[0-9a-f]+:	c0 04 00 00 00 00 	brcl	0,[0-9a-f]+ <fn2\+0xda>
+ +[0-9a-f]+:	c0 04 00 00 00 00 	jgnop	[0-9a-f]+ <fn2\+0xda>
  +[0-9a-f]+:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
 # GD -> LE with hidden variable defined in executable
  +[0-9a-f]+:	e3 20 d0 20 00 04 	lg	%r2,32\(%r13\)
- +[0-9a-f]+:	c0 04 00 00 00 00 	brcl	0,[0-9a-f]+ <fn2\+0xea>
+ +[0-9a-f]+:	c0 04 00 00 00 00 	jgnop	[0-9a-f]+ <fn2\+0xea>
  +[0-9a-f]+:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
 # LD -> LE
  +[0-9a-f]+:	e3 20 d0 28 00 04 	lg	%r2,40\(%r13\)
- +[0-9a-f]+:	c0 04 00 00 00 00 	brcl	0,[0-9a-f]+ <fn2\+0xfa>
+ +[0-9a-f]+:	c0 04 00 00 00 00 	jgnop	[0-9a-f]+ <fn2\+0xfa>
  +[0-9a-f]+:	41 32 90 00       	la	%r3,0\(%r2,%r9\)
  +[0-9a-f]+:	e3 40 d0 30 00 04 	lg	%r4,48\(%r13\)
  +[0-9a-f]+:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
  +[0-9a-f]+:	e3 40 d0 38 00 04 	lg	%r4,56\(%r13\)
  +[0-9a-f]+:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
  +[0-9a-f]+:	e3 20 d0 40 00 04 	lg	%r2,64\(%r13\)
- +[0-9a-f]+:	c0 04 00 00 00 00 	brcl	0,[0-9a-f]+ <fn2\+0x11e>
+ +[0-9a-f]+:	c0 04 00 00 00 00 	jgnop	[0-9a-f]+ <fn2\+0x11e>
  +[0-9a-f]+:	41 32 90 00       	la	%r3,0\(%r2,%r9\)
  +[0-9a-f]+:	e3 40 d0 48 00 04 	lg	%r4,72\(%r13\)
  +[0-9a-f]+:	41 54 30 00       	la	%r5,0\(%r4,%r3\)

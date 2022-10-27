@@ -16,7 +16,7 @@ Disassembly of section \.data:
 .*	\.long 0x28000
 .*	\.long 0x0
 .*	\.long 0x38000
-.*	\.long 0x0
+#...
 .*	\.long 0x38000
 .*	\.long 0x0
 .*	\.long 0x28000

@@ -59,11 +59,10 @@
 .*:63: Error: .*
 .*:64: Error: .*
 .*:65: Error: .*
-.*:68: Error: .*
-.*:69: Error: .*
-.*:70: Error: .*
-.*:71: Error: .*
-.*:72: Error: .*
+.*:67: Error: .*mov.*
+.*:68: Error: .*mov.*
+.*:69: Error: .*mov.*
+.*:70: Error: .*mov.*
 .*:73: Error: .*
 .*:74: Error: .*
 .*:75: Error: .*
@@ -75,14 +74,29 @@
 .*:81: Error: .*
 .*:82: Error: .*
 .*:83: Error: .*
+.*:84: Error: .*
 .*:85: Error: .*
 .*:86: Error: .*
 .*:87: Error: .*
 .*:88: Error: .*
 .*:90: Error: .*
-.*:92: Error: .*shl.*
-.*:93: Error: .*rol.*
-.*:94: Error: .*rcl.*
+.*:91: Error: .*
+.*:92: Error: .*
+.*:93: Error: .*
+.*:95: Error: .*
+.*:97: Error: .*shl.*
+.*:98: Error: .*rol.*
+.*:99: Error: .*rcl.*
+.*:102: Error: .*
+.*:104: Error: .*
+.*:105: Error: .*
+.*:106: Error: .*
+.*:108: Error: .*
+.*:109: Error: .*
+.*:110: Error: .*
+.*:112: Error: .*
+.*:113: Error: .*
+.*:114: Error: .*
 GAS LISTING .*
 
 
@@ -155,31 +169,54 @@ GAS LISTING .*
 [ 	]*64[ 	]+add \(%eiz\), %eax
 [ 	]*65[ 	]+add \(%eax\), %eiz
 [ 	]*66[ 	]+
-[ 	]*67[ 	]+\.intel_syntax noprefix
-[ 	]*68[ 	]+cvtsi2ss xmm1,QWORD PTR \[eax\]
-[ 	]*69[ 	]+cvtsi2sd xmm1,QWORD PTR \[eax\]
-[ 	]*70[ 	]+cvtsi2ssq xmm1,QWORD PTR \[eax\]
-[ 	]*71[ 	]+cvtsi2sdq xmm1,QWORD PTR \[eax\]
-[ 	]*72[ 	]+movq xmm1, XMMWORD PTR \[esp\]
-[ 	]*73[ 	]+movq xmm1, DWORD PTR \[esp\]
-[ 	]*74[ 	]+movq xmm1, WORD PTR \[esp\]
-[ 	]*75[ 	]+movq xmm1, BYTE PTR \[esp\]
-[ 	]*76[ 	]+movq XMMWORD PTR \[esp\],xmm1
-[ 	]*77[ 	]+movq DWORD PTR \[esp\],xmm1
-[ 	]*78[ 	]+movq WORD PTR \[esp\],xmm1
-[ 	]*79[ 	]+movq BYTE PTR \[esp\],xmm1
-[ 	]*80[ 	]+fnstsw eax
-[ 	]*81[ 	]+fnstsw al
-[ 	]*82[ 	]+fstsw eax
-[ 	]*83[ 	]+fstsw al
-[ 	]*84[ 	]+
-[ 	]*85[ 	]+movsx ax, \[eax\]
-[ 	]*86[ 	]+movsx eax, \[eax\]
-[ 	]*87[ 	]+movzx ax, \[eax\]
-[ 	]*88[ 	]+movzx eax, \[eax\]
-[ 	]*89[ 	]+
-[ 	]*90[ 	]+movnti word ptr \[eax\], ax
+[ 	]*[1-9][0-9]*[ 	]+mov %cr0, %di
+[ 	]*[1-9][0-9]*[ 	]+mov %ax, %cr7
+[ 	]*[1-9][0-9]*[ 	]+mov %cr0, %bh
+[ 	]*[1-9][0-9]*[ 	]+mov %al, %cr7
+[ 	]*[1-9][0-9]*[ 	]+
+[ 	]*[1-9][0-9]*[ 	]+\.intel_syntax noprefix
+[ 	]*[1-9][0-9]*[ 	]+cvtsi2ss xmm1,QWORD PTR \[eax\]
+[ 	]*[1-9][0-9]*[ 	]+cvtsi2sd xmm1,QWORD PTR \[eax\]
+[ 	]*[1-9][0-9]*[ 	]+cvtsi2ssq xmm1,QWORD PTR \[eax\]
+[ 	]*[1-9][0-9]*[ 	]+cvtsi2sdq xmm1,QWORD PTR \[eax\]
+[ 	]*[1-9][0-9]*[ 	]+movq xmm1, XMMWORD PTR \[esp\]
+[ 	]*[1-9][0-9]*[ 	]+movq xmm1, DWORD PTR \[esp\]
+[ 	]*[1-9][0-9]*[ 	]+movq xmm1, WORD PTR \[esp\]
+[ 	]*[1-9][0-9]*[ 	]+movq xmm1, BYTE PTR \[esp\]
+[ 	]*[1-9][0-9]*[ 	]+movq XMMWORD PTR \[esp\],xmm1
+[ 	]*[1-9][0-9]*[ 	]+movq DWORD PTR \[esp\],xmm1
+[ 	]*[1-9][0-9]*[ 	]+movq WORD PTR \[esp\],xmm1
+[ 	]*[1-9][0-9]*[ 	]+movq BYTE PTR \[esp\],xmm1
+[ 	]*[1-9][0-9]*[ 	]+fnstsw eax
+[ 	]*[1-9][0-9]*[ 	]+fnstsw al
+[ 	]*[1-9][0-9]*[ 	]+fstsw eax
+[ 	]*[1-9][0-9]*[ 	]+fstsw al
+[ 	]*[1-9][0-9]*[ 	]+
+[ 	]*[1-9][0-9]*[ 	]+movsx ax, \[eax\]
+[ 	]*[1-9][0-9]*[ 	]+movsx eax, \[eax\]
+[ 	]*[1-9][0-9]*[ 	]+movzx ax, \[eax\]
+[ 	]*[1-9][0-9]*[ 	]+movzx eax, \[eax\]
+[ 	]*[1-9][0-9]*[ 	]+
+[ 	]*[1-9][0-9]*[ 	]+movnti word ptr \[eax\], ax
 [ 	]*[1-9][0-9]*[ 	]+
 [ 	]*[1-9][0-9]*[ 	]+shl \[eax\], 1
 [ 	]*[1-9][0-9]*[ 	]+rol \[ecx\], 2
 [ 	]*[1-9][0-9]*[ 	]+rcl \[edx\], cl
+[ 	]*[1-9][0-9]*[ 	]+
+[ 	]*[1-9][0-9]*[ 	]+\.att_syntax prefix
+[ 	]*[1-9][0-9]*[ 	]+movsd \(%esi\), %ss:\(%edi\), %ss:\(%eax\)
+[ 	]*[1-9][0-9]*[ 	]+
+[ 	]*[1-9][0-9]*[ 	]+movl	%ds, %ax
+[ 	]*[1-9][0-9]*[ 	]+movl	%ax, %ds
+[ 	]*[1-9][0-9]*[ 	]+movl	%ax, %bx
+[ 	]*[1-9][0-9]*[ 	]+
+[ 	]*[1-9][0-9]*[ 	]+movw	%ds, %eax
+[ 	]*[1-9][0-9]*[ 	]+movw	%eax, %ds
+[ 	]*[1-9][0-9]*[ 	]+movw	%eax, %ebx
+[ 	]*[1-9][0-9]*[ 	]+
+[ 	]*[1-9][0-9]*[ 	]+inb	%dx, %ax
+[ 	]*[1-9][0-9]*[ 	]+outb	%ax, %dx
+[ 	]*[1-9][0-9]*[ 	]+movb	%ax, %bx
+GAS LISTING .*
+
+

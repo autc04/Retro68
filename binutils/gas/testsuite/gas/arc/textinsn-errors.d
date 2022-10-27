@@ -1,1 +1,1 @@
-#error-output: textinsn-errors.err
+#warning_output: textinsn-errors.err

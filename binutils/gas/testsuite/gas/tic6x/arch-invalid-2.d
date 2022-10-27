@@ -1,2 +1,2 @@
 #name: C6X invalid .arch
-#error-output: arch-invalid-2.l
+#error_output: arch-invalid-2.l

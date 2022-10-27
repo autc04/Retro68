@@ -1,5 +1,5 @@
 /* IBM S/390-specific support for ELF 32 and 64 bit functions
-   Copyright (C) 2000-2018 Free Software Foundation, Inc.
+   Copyright (C) 2000-2022 Free Software Foundation, Inc.
    Contributed by Andreas Krebbel.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -23,16 +23,97 @@
 /* Return TRUE if H is an IFUNC symbol.  Simply checking for the
    symbol type might not be enough since it might get changed to
    STT_FUNC for pointer equality reasons.  */
-static inline bfd_boolean
+static inline bool
 s390_is_ifunc_symbol_p (struct elf_link_hash_entry *h)
 {
   struct elf_s390_link_hash_entry *eh = (struct elf_s390_link_hash_entry*)h;
   return h->type == STT_GNU_IFUNC || eh->ifunc_resolver_address != 0;
 }
 
+/* Return true if .got.plt is supposed to be emitted after .got.  */
+
+static inline bool
+s390_gotplt_after_got_p (struct bfd_link_info *info)
+{
+  struct elf_s390_link_hash_table *htab = elf_s390_hash_table (info);
+
+  if (!htab->elf.sgot || !htab->elf.sgotplt)
+    return true;
+
+  if (htab->elf.sgot->output_section == htab->elf.sgotplt->output_section)
+    {
+      if (htab->elf.sgot->output_offset < htab->elf.sgotplt->output_offset)
+	return true;
+    }
+  else
+    {
+      if (htab->elf.sgot->output_section->vma
+	  <= htab->elf.sgotplt->output_section->vma)
+	return true;
+    }
+  return false;
+}
+
+/* Return the value of the _GLOBAL_OFFSET_TABLE_ symbol.  */
+
+static inline bfd_vma
+s390_got_pointer (struct bfd_link_info *info)
+{
+  struct elf_s390_link_hash_table *htab = elf_s390_hash_table (info);
+  bfd_vma got_pointer;
+
+  BFD_ASSERT (htab && htab->elf.hgot);
+
+  got_pointer = (htab->elf.hgot->root.u.def.section->output_section->vma
+		 + htab->elf.hgot->root.u.def.section->output_offset);
+  /* Our ABI requires the GOT pointer to point at the very beginning
+     of the global offset table.  */
+  BFD_ASSERT (got_pointer
+	      <= (htab->elf.sgot->output_section->vma
+		  + htab->elf.sgot->output_offset));
+  BFD_ASSERT (got_pointer
+	      <= (htab->elf.sgotplt->output_section->vma
+		  + htab->elf.sgotplt->output_offset));
+
+  return got_pointer;
+}
+
+
+/* Return the offset of the .got versus _GLOBAL_OFFSET_TABLE_.  */
+
+static inline bfd_vma
+s390_got_offset (struct bfd_link_info *info)
+{
+  struct elf_s390_link_hash_table *htab = elf_s390_hash_table (info);
+
+  /* The absolute address of the .got in the target image.  */
+  bfd_vma got_address = (htab->elf.sgot->output_section->vma
+			 + htab->elf.sgot->output_offset);
+
+  /* GOT offset must not be negative.  */
+  BFD_ASSERT (s390_got_pointer (info) <= got_address);
+  return got_address - s390_got_pointer (info);
+}
+
+/* Return the offset of the .got.plt versus _GLOBAL_OFFSET_TABLE_.  */
+
+static inline bfd_vma
+s390_gotplt_offset (struct bfd_link_info *info)
+{
+  struct elf_s390_link_hash_table *htab = elf_s390_hash_table (info);
+
+  /* The absolute address of the .got.plt in the target image.  */
+  bfd_vma gotplt_address = (htab->elf.sgotplt->output_section->vma
+			    + htab->elf.sgotplt->output_offset);
+
+  /* GOT offset must not be negative.  */
+  BFD_ASSERT (s390_got_pointer (info) <= gotplt_address);
+  return gotplt_address - s390_got_pointer (info);
+}
+
 /* Create sections needed by STT_GNU_IFUNC symbol.  */
 
-static bfd_boolean
+static bool
 s390_elf_create_ifunc_sections (bfd *abfd, struct bfd_link_info *info)
 {
   flagword flags;
@@ -41,7 +122,7 @@ s390_elf_create_ifunc_sections (bfd *abfd, struct bfd_link_info *info)
   struct elf_link_hash_table *htab = elf_hash_table (info);
 
   if (htab->iplt != NULL)
-    return TRUE;
+    return true;
 
   flags = bed->dynamic_sec_flags;
 
@@ -50,9 +131,8 @@ s390_elf_create_ifunc_sections (bfd *abfd, struct bfd_link_info *info)
       s = bfd_make_section_with_flags (abfd, ".rela.ifunc",
 				       flags | SEC_READONLY);
       if (s == NULL
-	  || ! bfd_set_section_alignment (abfd, s,
-					  bed->s->log_file_align))
-	return FALSE;
+	  || !bfd_set_section_alignment (s, bed->s->log_file_align))
+	return false;
       htab->irelifunc = s;
     }
 
@@ -60,39 +140,37 @@ s390_elf_create_ifunc_sections (bfd *abfd, struct bfd_link_info *info)
   s = bfd_make_section_with_flags (abfd, ".iplt",
 				   flags | SEC_CODE | SEC_READONLY);
   if (s == NULL
-      || ! bfd_set_section_alignment (abfd, s, bed->plt_alignment))
-    return FALSE;
+      || !bfd_set_section_alignment (s, bed->plt_alignment))
+    return false;
   htab->iplt = s;
 
   s = bfd_make_section_with_flags (abfd, ".rela.iplt", flags | SEC_READONLY);
   if (s == NULL
-      || ! bfd_set_section_alignment (abfd, s,
-				      bed->s->log_file_align))
-    return FALSE;
+      || !bfd_set_section_alignment (s, bed->s->log_file_align))
+    return false;
   htab->irelplt = s;
 
   s = bfd_make_section_with_flags (abfd, ".igot.plt", flags);
   if (s == NULL
-      || !bfd_set_section_alignment (abfd, s,
-				     bed->s->log_file_align))
-    return FALSE;
+      || !bfd_set_section_alignment (s, bed->s->log_file_align))
+    return false;
   htab->igotplt = s;
 
-  return TRUE;
+  return true;
 }
 
 
 /* Allocate space in .plt, .got and associated reloc sections for
    dynamic relocs against a STT_GNU_IFUNC symbol definition.  */
 
-static bfd_boolean
+static bool
 s390_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
 				    struct elf_link_hash_entry *h)
 {
   struct elf_dyn_relocs *p;
   struct elf_link_hash_table *htab;
   struct elf_s390_link_hash_entry *eh = (struct elf_s390_link_hash_entry*)h;
-  struct elf_dyn_relocs **head = &eh->dyn_relocs;
+  struct elf_dyn_relocs **head = &h->dyn_relocs;
 
   htab = elf_hash_table (info);
   eh->ifunc_resolver_address = h->root.u.def.value;
@@ -118,7 +196,7 @@ s390_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
       h->got = htab->init_got_offset;
       h->plt = htab->init_plt_offset;
       *head = NULL;
-      return TRUE;
+      return true;
     }
 
   /* Return and discard space for dynamic relocations against it if
@@ -131,10 +209,10 @@ s390_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
       h->got = htab->init_got_offset;
       h->plt = htab->init_plt_offset;
       *head = NULL;
-      return TRUE;
+      return true;
     }
 
-keep:
+ keep:
   /* Without checking h->plt.refcount here we allocate a PLT slot.
      When setting plt.refcount in check_relocs it might not have been
      known that this will be an IFUNC symol.  */
@@ -198,10 +276,10 @@ keep:
 	htab->srelgot->size += RELA_ENTRY_SIZE;
     }
 
-  return TRUE;
+  return true;
 }
 
-static bfd_boolean
+static bool
 elf_s390_allocate_local_syminfo (bfd *abfd, Elf_Internal_Shdr *symtab_hdr)
 {
   bfd_size_type size;
@@ -213,14 +291,14 @@ elf_s390_allocate_local_syminfo (bfd *abfd, Elf_Internal_Shdr *symtab_hdr)
   elf_local_got_refcounts (abfd) = ((bfd_signed_vma *)
 				    bfd_zalloc (abfd, size));
   if (elf_local_got_refcounts (abfd) == NULL)
-    return FALSE;
+    return false;
   elf_s390_local_plt (abfd)
     = (struct plt_entry*)(elf_local_got_refcounts (abfd)
 			  + symtab_hdr->sh_info);
   elf_s390_local_got_tls_type (abfd)
     = (char *) (elf_s390_local_plt (abfd) + symtab_hdr->sh_info);
 
-  return TRUE;
+  return true;
 }
 
 /* Whether to sort relocs output by ld -r or ld --emit-relocs, by
@@ -229,7 +307,7 @@ elf_s390_allocate_local_syminfo (bfd *abfd, Elf_Internal_Shdr *symtab_hdr)
    hand, elf-eh-frame.c processing requires .eh_frame relocs to be
    sorted.  */
 
-static bfd_boolean
+static bool
 elf_s390_elf_sort_relocs_p (asection *sec)
 {
   return (sec->flags & SEC_CODE) == 0;
@@ -237,7 +315,7 @@ elf_s390_elf_sort_relocs_p (asection *sec)
 
 /* Merge object attributes from IBFD into OBFD.  Raise an error if
    there are conflicting attributes.  */
-static bfd_boolean
+static bool
 elf_s390_merge_obj_attributes (bfd *ibfd, struct bfd_link_info *info)
 {
   bfd *obfd = info->output_bfd;
@@ -253,7 +331,7 @@ elf_s390_merge_obj_attributes (bfd *ibfd, struct bfd_link_info *info)
 	 initialized.  */
       elf_known_obj_attributes_proc (obfd)[0].i = 1;
 
-      return TRUE;
+      return true;
     }
 
   in_attrs = elf_known_obj_attributes (ibfd)[OBJ_ATTR_GNU];
@@ -294,5 +372,5 @@ elf_s390_merge_obj_attributes (bfd *ibfd, struct bfd_link_info *info)
   /* Merge Tag_compatibility attributes and any common GNU ones.  */
   _bfd_elf_merge_object_attributes (ibfd, info);
 
-  return TRUE;
+  return true;
 }

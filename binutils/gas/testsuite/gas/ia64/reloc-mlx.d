@@ -5,4 +5,4 @@
 
 RELOCATION RECORDS FOR \[\.text\]:
 OFFSET[[:space:]]+TYPE[[:space:]]+VALUE[[:space:]]*
-0+1[[:space:]]+PCREL60B[[:space:]]+bar
+0+[12][[:space:]]+PCREL60B[[:space:]]+bar

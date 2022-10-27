@@ -3,9 +3,9 @@
 ; { dg-do assemble { target arc*-*-* } }
 
 	b.d foo
-	mov r0,256	
+	mov r0,256
 
-	j.d foo		; { dg-warning "inappropriate arguments for opcode" "inappropriate arguments for opcode" }
+	j.d foo		; { dg-error "Error: flag mismatch for instruction 'j'" }
 	mov r0,r1
 
 foo:

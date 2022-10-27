@@ -1,9 +1,8 @@
 #name: --gc-sections with __start_
 #ld: --gc-sections -e _start
 #nm: -n
-#target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
-#notarget: frv-*-linux* metag-*-linux*
+#xfail: bfin-*-*linux* frv-*-*linux* lm32-*-*linux*
 
 #...
-[0-9a-f]+ D +__start__foo
+[0-9a-f]+ D +_?__start__foo
 #...

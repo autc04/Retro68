@@ -1,3 +1,4 @@
+#as: -O0
 #objdump: -drw
 #name: i386 AT&T register names
 

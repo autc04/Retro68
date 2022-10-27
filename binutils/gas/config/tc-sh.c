@@ -1,5 +1,5 @@
 /* tc-sh.c -- Assemble code for the Renesas / SuperH SH
-   Copyright (C) 1993-2018 Free Software Foundation, Inc.
+   Copyright (C) 1993-2022 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -25,7 +25,6 @@
 #define DEFINE_TABLE
 #include "opcodes/sh-opc.h"
 #include "safe-ctype.h"
-#include "struc-symbol.h"
 
 #ifdef OBJ_ELF
 #include "elf/sh.h"
@@ -241,7 +240,7 @@ const relax_typeS md_relax_table[C (END, 0)] = {
 
 #undef EMPTY
 
-static struct hash_control *opcode_hash_control;	/* Opcode mnemonics */
+static htab_t opcode_hash_control;	/* Opcode mnemonics */
 
 
 #ifdef OBJ_ELF
@@ -462,7 +461,7 @@ sh_elf_cons (int nbytes)
 /* The regular frag_offset_fixed_p doesn't work for rs_align_test
    frags.  */
 
-static bfd_boolean
+static bool
 align_test_frag_offset_fixed_p (const fragS *frag1, const fragS *frag2,
 				bfd_vma *offset)
 {
@@ -475,7 +474,7 @@ align_test_frag_offset_fixed_p (const fragS *frag1, const fragS *frag2,
   if (frag1 == frag2)
     {
       *offset = off;
-      return TRUE;
+      return true;
     }
 
   /* Maybe frag2 is after frag1.  */
@@ -493,7 +492,7 @@ align_test_frag_offset_fixed_p (const fragS *frag1, const fragS *frag2,
       if (frag == frag2)
 	{
 	  *offset = off;
-	  return TRUE;
+	  return true;
 	}
     }
 
@@ -513,11 +512,11 @@ align_test_frag_offset_fixed_p (const fragS *frag1, const fragS *frag2,
       if (frag == frag1)
 	{
 	  *offset = off;
-	  return TRUE;
+	  return true;
 	}
     }
 
-  return FALSE;
+  return false;
 }
 
 /* Optimize a difference of symbols which have rs_align_test frag if
@@ -565,7 +564,7 @@ md_begin (void)
     = preset_target_arch ? preset_target_arch : arch_sh_up & ~arch_sh_has_dsp;
   valid_arch = target_arch;
 
-  opcode_hash_control = hash_new ();
+  opcode_hash_control = str_htab_create ();
 
   /* Insert unique names into hash table.  */
   for (opcode = sh_table; opcode->name; opcode++)
@@ -575,7 +574,7 @@ md_begin (void)
 	  if (!SH_MERGE_ARCH_SET_VALID (opcode->arch, target_arch))
 	    continue;
 	  prev_name = opcode->name;
-	  hash_insert (opcode_hash_control, opcode->name, (char *) opcode);
+	  str_hash_insert (opcode_hash_control, opcode->name, opcode, 0);
 	}
     }
 }
@@ -1911,6 +1910,7 @@ insert_loop_bounds (char *output, sh_operand_info *operand)
     {
       static int count = 0;
       char name[11];
+      expressionS *symval;
 
       /* If the last loop insn is a two-byte-insn, it is in danger of being
 	 swapped with the insn after it.  To prevent this, create a new
@@ -1920,14 +1920,15 @@ insert_loop_bounds (char *output, sh_operand_info *operand)
       /* A REPEAT takes 6 bytes.  The SH has a 32 bit address space.
 	 Hence a 9 digit number should be enough to count all REPEATs.  */
       sprintf (name, "_R%x", count++ & 0x3fffffff);
-      end_sym = symbol_new (name, undefined_section, 0, &zero_address_frag);
+      end_sym = symbol_new (name, undefined_section, &zero_address_frag, 0);
       /* Make this a local symbol.  */
 #ifdef OBJ_COFF
       SF_SET_LOCAL (end_sym);
 #endif /* OBJ_COFF */
       symbol_table_insert (end_sym);
-      end_sym->sy_value = operand[1].immediate;
-      end_sym->sy_value.X_add_number += 2;
+      symval = symbol_get_value_expression (end_sym);
+      *symval = operand[1].immediate;
+      symval->X_add_number += 2;
       fix_new (frag_now, frag_now_fix (), 2, end_sym, 0, 1, BFD_RELOC_SH_LABEL);
     }
 
@@ -2090,7 +2091,8 @@ build_Mytes (sh_opcode_info *opcode, sh_operand_info *operand)
 	    case IMM0_8BY2:
 	      insert (output + low_byte, BFD_RELOC_SH_IMM8BY2, 0, operand);
 	      break;
-	    case IMM0_8:
+	    case IMM0_8U:
+	    case IMM0_8S:
 	      insert (output + low_byte, BFD_RELOC_SH_IMM8, 0, operand);
 	      break;
 	    case IMM1_8BY4:
@@ -2194,7 +2196,7 @@ find_cooked_opcode (char **str_p)
   if (nlen == 0)
     as_bad (_("can't find opcode "));
 
-  return (sh_opcode_info *) hash_find (opcode_hash_control, name);
+  return (sh_opcode_info *) str_hash_find (opcode_hash_control, name);
 }
 
 /* Assemble a parallel processing insn.  */
@@ -2203,12 +2205,12 @@ find_cooked_opcode (char **str_p)
 static unsigned int
 assemble_ppi (char *op_end, sh_opcode_info *opcode)
 {
-  int movx = 0;
-  int movy = 0;
-  int cond = 0;
-  int field_b = 0;
+  unsigned int movx = 0;
+  unsigned int movy = 0;
+  unsigned int cond = 0;
+  unsigned int field_b = 0;
   char *output;
-  int move_code;
+  unsigned int move_code;
   unsigned int size;
 
   for (;;)
@@ -2462,7 +2464,7 @@ assemble_ppi (char *op_end, sh_opcode_info *opcode)
   if (field_b)
     {
       /* Parallel processing insn.  */
-      unsigned long ppi_code = (movx | movy | 0xf800) << 16 | field_b;
+      unsigned int ppi_code = (movx | movy | 0xf800) << 16 | field_b;
 
       output = frag_more (4);
       size = 4;
@@ -2524,37 +2526,31 @@ md_assemble (char *str)
       char *name = initial_str;
       int name_length = 0;
       const sh_opcode_info *op;
-      int found = 0;
+      bool found = false;
 
-      /* identify opcode in string */
+      /* Identify opcode in string.  */
       while (ISSPACE (*name))
-	{
-	  name++;
-	}
-      while (!ISSPACE (name[name_length]))
-	{
-	  name_length++;
-	}
+	name++;
 
-      /* search for opcode in full list */
+      while (name[name_length] != '\0' && !ISSPACE (name[name_length]))
+	name_length++;
+
+      /* Search for opcode in full list.  */
       for (op = sh_table; op->name; op++)
 	{
 	  if (strncasecmp (op->name, name, name_length) == 0
 	      && op->name[name_length] == '\0')
 	    {
-	      found = 1;
+	      found = true;
 	      break;
 	    }
 	}
 
-      if ( found )
-	{
-	  as_bad (_("opcode not valid for this cpu variant"));
-	}
+      if (found)
+	as_bad (_("opcode not valid for this cpu variant"));
       else
-	{
-	  as_bad (_("unknown opcode"));
-	}
+	as_bad (_("unknown opcode"));
+
       return;
     }
 
@@ -2828,7 +2824,7 @@ md_parse_option (int c, const char *arg ATTRIBUTE_UNUSED)
 
 #ifdef OBJ_ELF
     case OPTION_FDPIC:
-      sh_fdpic = TRUE;
+      sh_fdpic = true;
       break;
 #endif /* OBJ_ELF */
 
@@ -2922,21 +2918,6 @@ sh_frob_section (bfd *abfd ATTRIBUTE_UNUSED, segT sec,
   seginfo = seg_info (sec);
   if (seginfo == NULL)
     return;
-
-  for (fix = seginfo->fix_root; fix != NULL; fix = fix->fx_next)
-    {
-      symbolS *sym;
-
-      sym = fix->fx_addsy;
-      /* Check for a local_symbol.  */
-      if (sym && sym->bsym == NULL)
-	{
-	  struct local_symbol *ls = (struct local_symbol *)sym;
-	  /* See if it's been converted.  If so, canonicalize.  */
-	  if (local_symbol_converted_p (ls))
-	    fix->fx_addsy = local_symbol_get_real_symbol (ls);
-	}
-    }
 
   for (fix = seginfo->fix_root; fix != NULL; fix = fix->fx_next)
     {
@@ -3100,7 +3081,7 @@ md_convert_frag (bfd *headers ATTRIBUTE_UNUSED, segT seg, fragS *fragP)
 	 differently from ones without delay slots.  */
       {
 	unsigned char *buffer =
-	  (unsigned char *) (fragP->fr_fix + fragP->fr_literal);
+	  (unsigned char *) (fragP->fr_fix + &fragP->fr_literal[0]);
 	int highbyte = target_big_endian ? 0 : 1;
 	int lowbyte = target_big_endian ? 1 : 0;
 	int delay = fragP->fr_subtype == C (COND_JUMP_DELAY, COND12);
@@ -3182,8 +3163,8 @@ md_section_align (segT seg ATTRIBUTE_UNUSED, valueT size)
 #ifdef OBJ_ELF
   return size;
 #else /* ! OBJ_ELF */
-  return ((size + (1 << bfd_get_section_alignment (stdoutput, seg)) - 1)
-	  & -(1 << bfd_get_section_alignment (stdoutput, seg)));
+  return ((size + (1 << bfd_section_alignment (seg)) - 1)
+	  & -(1 << bfd_section_alignment (seg)));
 #endif /* ! OBJ_ELF */
 }
 
@@ -3297,7 +3278,7 @@ sh_handle_align (fragS *frag)
 
 /* See whether the relocation should be resolved locally.  */
 
-static bfd_boolean
+static bool
 sh_local_pcrel (fixS *fix)
 {
   return (! sh_relax
@@ -3346,7 +3327,7 @@ sh_force_relocation (fixS *fix)
 }
 
 #ifdef OBJ_ELF
-bfd_boolean
+bool
 sh_fix_adjustable (fixS *fixP)
 {
   if (fixP->fx_r_type == BFD_RELOC_32_PLT_PCREL

@@ -1,4 +1,5 @@
 #source: tls-desc-ie.s
+#target: [check_shared_lib_support]
 #as: -mabi=ilp32
 #ld: -shared -m [aarch64_choose_ilp32_emul] -T relocs-ilp32.ld -e0
 #objdump: -dr

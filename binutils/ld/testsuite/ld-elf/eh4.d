@@ -1,7 +1,7 @@
 #source: eh4.s
 #source: eh4a.s
 #as: --64
-#ld: -melf_x86_64 -shared -Ttext 0x400 -z max-page-size=0x200000 -z noseparate-code
+#ld: -melf_x86_64 -shared -Ttext 0x400 -z max-page-size=0x200000 -z noseparate-code -z noexecstack
 #readelf: -wf
 #target: x86_64-*-*
 
@@ -34,6 +34,10 @@ Contents of the .eh_frame section:
   DW_CFA_def_cfa_offset: 24
   DW_CFA_advance_loc: [0-9a-f]+ to [0-9a-f]+
   DW_CFA_def_cfa_expression \(DW_OP_breg7 \(rsp\): 8; DW_OP_breg16 \(rip\): 0;.*
-#...
+#?  DW_CFA_nop
+#?  DW_CFA_nop
+#?  DW_CFA_nop
+#?  DW_CFA_nop
+
 [0-9a-f]+ ZERO terminator
 #pass

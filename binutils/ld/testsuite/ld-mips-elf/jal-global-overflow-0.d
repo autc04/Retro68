@@ -1,7 +1,6 @@
 #name: MIPS JAL to global symbol overflow 0
 #source: jal-global-overflow.s
-#as: -EB -32
-#ld: -EB -Ttext 0x20000000 -e 0x20000000
+#ld: -Ttext 0x20000000 -e 0x20000000
 #objdump: -dr --prefix-addresses --show-raw-insn
 
 .*: +file format .*mips.*

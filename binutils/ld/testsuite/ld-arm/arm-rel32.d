@@ -2,7 +2,7 @@
 .*:     file format .*
 
 DYNAMIC RELOCATION RECORDS
-OFFSET +TYPE +VALUE 
+OFFSET +TYPE +VALUE
 [^ ]+ R_ARM_REL32 +foo
 [^ ]+ R_ARM_REL32 +foo
 [^ ]+ R_ARM_JUMP_SLOT +foo

@@ -10,20 +10,20 @@ Disassembly of section .text:
 
 0+ <nop15>:
 [ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 nopw %cs:0x0\(%rax,%rax,1\)
+[ 	]*[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 cs nopw 0x0\(%rax,%rax,1\)
 [ 	]*[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
 
 0+10 <nop14>:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 nopw %cs:0x0\(%rax,%rax,1\)
+[ 	]*[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 cs nopw 0x0\(%rax,%rax,1\)
 [ 	]*[a-f0-9]+:	0f 1f 00             	nopl   \(%rax\)
 
 0+20 <nop13>:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 nopw %cs:0x0\(%rax,%rax,1\)
+[ 	]*[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 cs nopw 0x0\(%rax,%rax,1\)
 [ 	]*[a-f0-9]+:	66 90                	xchg   %ax,%ax
 
 0+30 <nop12>:
@@ -31,7 +31,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 nopw %cs:0x0\(%rax,%rax,1\)
+[ 	]*[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 cs nopw 0x0\(%rax,%rax,1\)
 [ 	]*[a-f0-9]+:	90                   	nop
 
 0+40 <nop11>:
@@ -40,7 +40,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 nopw %cs:0x0\(%rax,%rax,1\)
+[ 	]*[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 cs nopw 0x0\(%rax,%rax,1\)
 
 0+50 <nop10>:
 [ 	]*[a-f0-9]+:	90                   	nop
@@ -49,7 +49,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
 [ 	]*[a-f0-9]+:	90                   	nop
-[ 	]*[a-f0-9]+:	66 2e 0f 1f 84 00 00 00 00 00 	nopw   %cs:0x0\(%rax,%rax,1\)
+[ 	]*[a-f0-9]+:	66 2e 0f 1f 84 00 00 00 00 00 	cs nopw 0x0\(%rax,%rax,1\)
 
 0+60 <nop9>:
 [ 	]*[a-f0-9]+:	90                   	nop

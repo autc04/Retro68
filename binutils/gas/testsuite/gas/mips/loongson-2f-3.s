@@ -13,7 +13,7 @@
 
 	.set	noat
 	jr	$1	# jr with at register and .set annotation
- 	 nop
+	 nop
 	.set	at
 
 	j	external_label	# j with label

@@ -83,9 +83,11 @@ start:
 	movsx	eax, byte ptr [eax]
 	movsx	eax, word ptr [eax]
 	paddb	mm0, [eax]
+	paddb	mm0, mmword ptr [eax]
 	paddb	mm0, qword ptr [eax]
 	paddb	xmm0, [eax]
 	paddb	xmm0, xmmword ptr [eax]
+	paddb	xmm0, oword ptr [eax]
 	pinsrw	mm0, word ptr [eax], 3
 	pinsrw	xmm0, word ptr [eax], 7
 	push	dword ptr [eax]

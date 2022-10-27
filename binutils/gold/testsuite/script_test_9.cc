@@ -1,6 +1,6 @@
 // script_test_9.cc -- a test case for gold
 
-// Copyright (C) 2010-2017 Free Software Foundation, Inc.
+// Copyright (C) 2010-2022 Free Software Foundation, Inc.
 // Written by Rafael Avila de Espindola <espindola@google.com>.
 
 // This file is part of gold.

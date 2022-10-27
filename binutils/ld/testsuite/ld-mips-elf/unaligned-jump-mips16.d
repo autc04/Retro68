@@ -1,6 +1,5 @@
 #name: MIPS16 link jump to unaligned symbol
-#as: -EB -n32 -march=from-abi
-#ld: -EB -Ttext 0x1c000000 -e 0x1c000000
+#ld: -Ttext 0x1c000000 -e 0x1c000000
 #source: ../../../gas/testsuite/gas/mips/unaligned-jump-mips16-2.s
 #error: \A[^\n]*: in function `foo':\n
 #error:   \(\.text\+0x100e\): cannot convert a jump to JALX for a non-word-aligned address\n

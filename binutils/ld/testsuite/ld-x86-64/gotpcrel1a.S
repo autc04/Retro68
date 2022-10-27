@@ -16,3 +16,4 @@ main:
 	addq	$8, %rsp
 	jmp	*myexit@GOTPCREL(%rip)
 	.size	main, .-main
+	.section	.note.GNU-stack

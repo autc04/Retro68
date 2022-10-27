@@ -1,2 +1,2 @@
 # name: PR 22773: Invalid immediate constants produce incorrect instruction
-# error-output: pr22773.l
+# error_output: pr22773.l
