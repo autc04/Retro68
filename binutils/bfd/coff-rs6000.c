@@ -498,12 +498,12 @@ _bfd_xcoff_swap_aux_in (bfd *abfd, void * ext1, int type ATTRIBUTE_UNUSED,
 	  if (numaux > 1)
 	    {
 	      if (indx == 0)
-		memcpy (in->x_file.x_fname, ext->x_file.x_n.x_fname,
+		memcpy (in->x_file.x_n.x_fname, ext->x_file.x_n.x_fname,
 			numaux * sizeof (AUXENT));
 	    }
 	  else
 	    {
-	      memcpy (in->x_file.x_fname, ext->x_file.x_n.x_fname, FILNMLEN);
+	      memcpy (in->x_file.x_n.x_fname, ext->x_file.x_n.x_fname, FILNMLEN);
 	    }
 	}
       in->x_file.x_ftype = H_GET_8 (abfd, ext->x_file.x_ftype);
@@ -1563,7 +1563,7 @@ _bfd_xcoff_archive_p (bfd *abfd)
 	  goto error_ret;
 	}
 
-      GET_VALUE_IN_FIELD (bfd_ardata (abfd)->first_file_filepos, 10,
+      GET_VALUE_IN_FIELD (bfd_ardata (abfd)->first_file_filepos,
 			  hdr.firstmemoff, 10);
 
       amt = SIZEOF_AR_FILE_HDR;

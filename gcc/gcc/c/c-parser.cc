@@ -1620,7 +1620,6 @@ static bool c_parser_objc_diagnose_bad_element_prefix
 static location_t c_parser_parse_rtl_body (c_parser *, char *);
 
 static tree c_parser_inline_opcodes(c_parser *);
-static void c_parser_parse_rtl_body (c_parser *parser, char *start_with_pass);
 
 /* Parse a translation unit (C90 6.7, C99 6.9, C11 6.9).
 

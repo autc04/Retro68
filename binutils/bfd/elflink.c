@@ -13801,7 +13801,7 @@ _bfd_elf_gc_mark (struct bfd_link_info *info,
         if(*p == 0 && strcmp(q, ".macsbug") == 0)
           if(!next_sec->gc_mark)
             if (!_bfd_elf_gc_mark (info, next_sec, gc_mark_hook))
-              return FALSE;
+              return false;
 
       }
   }

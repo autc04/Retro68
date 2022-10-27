@@ -2489,17 +2489,17 @@ coff_print_aux (bfd *abfd ATTRIBUTE_UNUSED,
 #ifdef RS6000COFF_C
   if (symbol->u.syment.n_sclass == C_FILE)
     {
-      if (aux->u.auxent.x_file.x_n.x_zeroes)
+      if (aux->u.auxent.x_file.x_n.x_n.x_zeroes)
         {
-      	  fprintf (file, "File \"%s\"", aux->u.auxent.x_file.x_fname);
+      	  fprintf (file, "File \"%s\"", aux->u.auxent.x_file.x_n.x_fname);
 	}
       else
         {
 	  const char * string_table = obj_coff_strings(abfd);
 
-          fprintf (file, "File \"%s\"", string_table + aux->u.auxent.x_file.x_n.x_offset);
+          fprintf (file, "File \"%s\"", string_table + aux->u.auxent.x_file.x_n.x_n.x_offset);
 	}
-      return TRUE;
+      return true;
     }
 
   if (CSECT_SYM_P (symbol->u.syment.n_sclass)

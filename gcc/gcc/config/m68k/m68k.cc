@@ -1564,14 +1564,14 @@ m68k_is_pascal_func(tree fntype, tree fndecl)
 }
 
 static rtx
-m68k_function_arg (cumulative_args_t cum_v, const function_arg_info &)
+m68k_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
 {
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
   if(!cum->regparam)
     return NULL_RTX;
 
   if(cum->index < cum->total_count)
-    return gen_rtx_REG (mode, cum->arg_regs[cum->index+1]);
+    return gen_rtx_REG (arg.mode, cum->arg_regs[cum->index+1]);
   else
   return NULL_RTX;
 }
@@ -1582,9 +1582,7 @@ m68k_function_arg_advance (cumulative_args_t cum_v,
 {
   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
 
-  cum->bytes += (mode != BLKmode
-	   ? (GET_MODE_SIZE (mode) + 1) & ~1
-	   : (int_size_in_bytes (type) + 1) & ~1);
+  cum->bytes += (arg.type_size_in_bytes() + 1) & ~1;
   cum->index ++;
 }
 
