@@ -11,19 +11,35 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net"
 	"net/http"
+	"net/http/internal/ascii"
+	"net/textproto"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
-	"internal/x/net/http/httpguts"
+	"golang.org/x/net/http/httpguts"
 )
 
 // ReverseProxy is an HTTP Handler that takes an incoming request and
 // sends it to another server, proxying the response back to the
 // client.
+//
+// ReverseProxy by default sets the client IP as the value of the
+// X-Forwarded-For header.
+//
+// If an X-Forwarded-For header already exists, the client IP is
+// appended to the existing values. As a special case, if the header
+// exists in the Request.Header map but has a nil value (such as when
+// set by the Director func), the X-Forwarded-For header is
+// not modified.
+//
+// To prevent IP spoofing, be sure to delete any pre-existing
+// X-Forwarded-For header coming from the client or
+// an untrusted proxy.
 type ReverseProxy struct {
 	// Director must be a function which modifies
 	// the request into a new request to be sent
@@ -44,15 +60,14 @@ type ReverseProxy struct {
 	// A negative value means to flush immediately
 	// after each write to the client.
 	// The FlushInterval is ignored when ReverseProxy
-	// recognizes a response as a streaming response;
-	// for such responses, writes are flushed to the client
-	// immediately.
+	// recognizes a response as a streaming response, or
+	// if its ContentLength is -1; for such responses, writes
+	// are flushed to the client immediately.
 	FlushInterval time.Duration
 
 	// ErrorLog specifies an optional logger for errors
 	// that occur when attempting to proxy the request.
-	// If nil, logging goes to os.Stderr via the log package's
-	// standard logger.
+	// If nil, logging is done via the log package's standard logger.
 	ErrorLog *log.Logger
 
 	// BufferPool optionally specifies a buffer pool to
@@ -98,6 +113,27 @@ func singleJoiningSlash(a, b string) string {
 	return a + b
 }
 
+func joinURLPath(a, b *url.URL) (path, rawpath string) {
+	if a.RawPath == "" && b.RawPath == "" {
+		return singleJoiningSlash(a.Path, b.Path), ""
+	}
+	// Same as singleJoiningSlash, but uses EscapedPath to determine
+	// whether a slash should be added
+	apath := a.EscapedPath()
+	bpath := b.EscapedPath()
+
+	aslash := strings.HasSuffix(apath, "/")
+	bslash := strings.HasPrefix(bpath, "/")
+
+	switch {
+	case aslash && bslash:
+		return a.Path + b.Path[1:], apath + bpath[1:]
+	case !aslash && !bslash:
+		return a.Path + "/" + b.Path, apath + "/" + bpath
+	}
+	return a.Path + b.Path, apath + bpath
+}
+
 // NewSingleHostReverseProxy returns a new ReverseProxy that routes
 // URLs to the scheme, host, and base path provided in target. If the
 // target's path is "/base" and the incoming request was for "/dir",
@@ -110,7 +146,7 @@ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
 	director := func(req *http.Request) {
 		req.URL.Scheme = target.Scheme
 		req.URL.Host = target.Host
-		req.URL.Path = singleJoiningSlash(target.Path, req.URL.Path)
+		req.URL.Path, req.URL.RawPath = joinURLPath(target, req.URL)
 		if targetQuery == "" || req.URL.RawQuery == "" {
 			req.URL.RawQuery = targetQuery + req.URL.RawQuery
 		} else {
@@ -130,16 +166,6 @@ func copyHeader(dst, src http.Header) {
 			dst.Add(k, v)
 		}
 	}
-}
-
-func cloneHeader(h http.Header) http.Header {
-	h2 := make(http.Header, len(h))
-	for k, vv := range h {
-		vv2 := make([]string, len(vv))
-		copy(vv2, vv)
-		h2[k] = vv2
-	}
-	return h2
 }
 
 // Hop-by-hop headers. These are removed when sent to the backend.
@@ -206,37 +232,47 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}()
 	}
 
-	outreq := req.WithContext(ctx) // includes shallow copies of maps, but okay
+	outreq := req.Clone(ctx)
 	if req.ContentLength == 0 {
 		outreq.Body = nil // Issue 16036: nil Body for http.Transport retries
 	}
-
-	outreq.Header = cloneHeader(req.Header)
+	if outreq.Body != nil {
+		// Reading from the request body after returning from a handler is not
+		// allowed, and the RoundTrip goroutine that reads the Body can outlive
+		// this handler. This can lead to a crash if the handler panics (see
+		// Issue 46866). Although calling Close doesn't guarantee there isn't
+		// any Read in flight after the handle returns, in practice it's safe to
+		// read after closing it.
+		defer outreq.Body.Close()
+	}
+	if outreq.Header == nil {
+		outreq.Header = make(http.Header) // Issue 33142: historical behavior was to always allocate
+	}
 
 	p.Director(outreq)
 	outreq.Close = false
 
 	reqUpType := upgradeType(outreq.Header)
+	if !ascii.IsPrint(reqUpType) {
+		p.getErrorHandler()(rw, req, fmt.Errorf("client tried to switch to invalid protocol %q", reqUpType))
+		return
+	}
 	removeConnectionHeaders(outreq.Header)
 
 	// Remove hop-by-hop headers to the backend. Especially
 	// important is "Connection" because we want a persistent
 	// connection, regardless of what the client sent to us.
 	for _, h := range hopHeaders {
-		hv := outreq.Header.Get(h)
-		if hv == "" {
-			continue
-		}
-		if h == "Te" && hv == "trailers" {
-			// Issue 21096: tell backend applications that
-			// care about trailer support that we support
-			// trailers. (We do, but we don't go out of
-			// our way to advertise that unless the
-			// incoming client request thought it was
-			// worth mentioning)
-			continue
-		}
 		outreq.Header.Del(h)
+	}
+
+	// Issue 21096: tell backend applications that care about trailer support
+	// that we support trailers. (We do, but we don't go out of our way to
+	// advertise that unless the incoming client request thought it was worth
+	// mentioning.) Note that we look at req.Header, not outreq.Header, since
+	// the latter has passed through removeConnectionHeaders.
+	if httpguts.HeaderValuesContainsToken(req.Header["Te"], "trailers") {
+		outreq.Header.Set("Te", "trailers")
 	}
 
 	// After stripping all the hop-by-hop connection headers above, add back any
@@ -250,10 +286,14 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		// If we aren't the first proxy retain prior
 		// X-Forwarded-For information as a comma+space
 		// separated list and fold multiple headers into one.
-		if prior, ok := outreq.Header["X-Forwarded-For"]; ok {
+		prior, ok := outreq.Header["X-Forwarded-For"]
+		omit := ok && prior == nil // Issue 38079: nil now means don't populate the header
+		if len(prior) > 0 {
 			clientIP = strings.Join(prior, ", ") + ", " + clientIP
 		}
-		outreq.Header.Set("X-Forwarded-For", clientIP)
+		if !omit {
+			outreq.Header.Set("X-Forwarded-For", clientIP)
+		}
 	}
 
 	res, err := transport.RoundTrip(outreq)
@@ -296,7 +336,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	rw.WriteHeader(res.StatusCode)
 
-	err = p.copyResponse(rw, res.Body, p.flushInterval(req, res))
+	err = p.copyResponse(rw, res.Body, p.flushInterval(res))
 	if err != nil {
 		defer res.Body.Close()
 		// Since we're streaming the response, if we run into an error all we can do
@@ -357,10 +397,10 @@ func shouldPanicOnCopyError(req *http.Request) bool {
 // removeConnectionHeaders removes hop-by-hop headers listed in the "Connection" header of h.
 // See RFC 7230, section 6.1
 func removeConnectionHeaders(h http.Header) {
-	if c := h.Get("Connection"); c != "" {
-		for _, f := range strings.Split(c, ",") {
-			if f = strings.TrimSpace(f); f != "" {
-				h.Del(f)
+	for _, f := range h["Connection"] {
+		for _, sf := range strings.Split(f, ",") {
+			if sf = textproto.TrimString(sf); sf != "" {
+				h.Del(sf)
 			}
 		}
 	}
@@ -368,16 +408,20 @@ func removeConnectionHeaders(h http.Header) {
 
 // flushInterval returns the p.FlushInterval value, conditionally
 // overriding its value for a specific request/response.
-func (p *ReverseProxy) flushInterval(req *http.Request, res *http.Response) time.Duration {
+func (p *ReverseProxy) flushInterval(res *http.Response) time.Duration {
 	resCT := res.Header.Get("Content-Type")
 
 	// For Server-Sent Events responses, flush immediately.
 	// The MIME type is defined in https://www.w3.org/TR/eventsource/#text-event-stream
-	if resCT == "text/event-stream" {
+	if baseCT, _, _ := mime.ParseMediaType(resCT); baseCT == "text/event-stream" {
 		return -1 // negative means immediately
 	}
 
-	// TODO: more specific cases? e.g. res.ContentLength == -1?
+	// We might have the case of streaming for which Content-Length might be unset.
+	if res.ContentLength == -1 {
+		return -1
+	}
+
 	return p.FlushInterval
 }
 
@@ -440,7 +484,7 @@ func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
 	}
 }
 
-func (p *ReverseProxy) logf(format string, args ...interface{}) {
+func (p *ReverseProxy) logf(format string, args ...any) {
 	if p.ErrorLog != nil {
 		p.ErrorLog.Printf(format, args...)
 	} else {
@@ -505,18 +549,19 @@ func upgradeType(h http.Header) string {
 	if !httpguts.HeaderValuesContainsToken(h["Connection"], "Upgrade") {
 		return ""
 	}
-	return strings.ToLower(h.Get("Upgrade"))
+	return h.Get("Upgrade")
 }
 
 func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.Request, res *http.Response) {
 	reqUpType := upgradeType(req.Header)
 	resUpType := upgradeType(res.Header)
-	if reqUpType != resUpType {
+	if !ascii.IsPrint(resUpType) { // We know reqUpType is ASCII, it's checked by the caller.
+		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch to invalid protocol %q", resUpType))
+	}
+	if !ascii.EqualFold(reqUpType, resUpType) {
 		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch protocol %q when %q was requested", resUpType, reqUpType))
 		return
 	}
-
-	copyHeader(res.Header, rw.Header())
 
 	hj, ok := rw.(http.Hijacker)
 	if !ok {
@@ -528,13 +573,30 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 		p.getErrorHandler()(rw, req, fmt.Errorf("internal error: 101 switching protocols response with non-writable body"))
 		return
 	}
-	defer backConn.Close()
+
+	backConnCloseCh := make(chan bool)
+	go func() {
+		// Ensure that the cancellation of a request closes the backend.
+		// See issue https://golang.org/issue/35559.
+		select {
+		case <-req.Context().Done():
+		case <-backConnCloseCh:
+		}
+		backConn.Close()
+	}()
+
+	defer close(backConnCloseCh)
+
 	conn, brw, err := hj.Hijack()
 	if err != nil {
 		p.getErrorHandler()(rw, req, fmt.Errorf("Hijack failed on protocol switch: %v", err))
 		return
 	}
 	defer conn.Close()
+
+	copyHeader(rw.Header(), res.Header)
+
+	res.Header = rw.Header()
 	res.Body = nil // so res.Write only writes the headers; we have res.Body in backConn above
 	if err := res.Write(brw); err != nil {
 		p.getErrorHandler()(rw, req, fmt.Errorf("response write: %v", err))

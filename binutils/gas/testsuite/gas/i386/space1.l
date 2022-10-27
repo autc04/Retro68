@@ -1,9 +1,9 @@
 .*: Assembler messages:
-.*:2: Error: .space specifies non-absolute value
-.*:3: Error: .space specifies non-absolute value
-.*:4: Error: .space specifies non-absolute value
-.*:5: Error: .space specifies non-absolute value
-.*:6: Error: .space specifies non-absolute value
+.*:2: Error: .space, .nops or .fill specifies non-absolute value
+.*:3: Error: .space, .nops or .fill specifies non-absolute value
+.*:4: Error: .space, .nops or .fill specifies non-absolute value
+.*:5: Error: .space, .nops or .fill specifies non-absolute value
+.*:6: Error: .space, .nops or .fill specifies non-absolute value
 GAS LISTING .*
 
 

@@ -30,15 +30,30 @@ int main ()
   int ix;
   int exit = 0;
   int ondev = 0;
+  int workersize, vectorsize;
 
   for (ix = 0; ix < N;ix++)
     ary[ix] = -1;
   
-#pragma acc parallel num_workers(32) vector_length(32) copy(ary) copy(ondev)
+#define NW 32
+#define VL 32
+#pragma acc parallel num_workers(NW) vector_length(VL) \
+	    copy(ary) copy(ondev)
   {
     ondev = acc_on_device (acc_device_not_host);
     worker (ary);
   }
+  workersize = NW;
+  vectorsize = VL;
+#ifdef ACC_DEVICE_TYPE_radeon
+  /* AMD GCN has an upper limit of 'num_workers(16)'.  */
+  if (workersize > 16)
+    workersize = 16;
+  /* AMD GCN uses the autovectorizer for the vector dimension: the use
+     of a function call in vector-partitioned code in this test is not
+     currently supported.  */
+  vectorsize = 1;
+#endif
 
   for (ix = 0; ix < N; ix++)
     {
@@ -46,8 +61,8 @@ int main ()
       if(ondev)
 	{
 	  int g = 0;
-	  int w = (ix / 32) % 32;
-	  int v = ix % 32;
+	  int w = (ix / vectorsize) % workersize;
+	  int v = ix % vectorsize;
 
 	  expected = (g << 16) | (w << 8) | v;
 	}

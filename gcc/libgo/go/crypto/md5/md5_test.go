@@ -157,7 +157,7 @@ func TestBlockGeneric(t *testing.T) {
 // Tests for unmarshaling hashes that have hashed a large amount of data
 // The initial hash generation is omitted from the test, because it takes a long time.
 // The test contains some already-generated states, and their expected sums
-// Tests a problem that is outlined in Github issue #29541
+// Tests a problem that is outlined in GitHub issue #29541
 // The problem is triggered when an amount of data has been hashed for which
 // the data length has a 1 in the 32nd bit. When casted to int, this changes
 // the sign of the value, and causes the modulus operation to return a
@@ -169,12 +169,12 @@ type unmarshalTest struct {
 
 var largeUnmarshalTests = []unmarshalTest{
 	// Data length: 7_102_415_735
-	unmarshalTest{
+	{
 		state: "md5\x01\xa5\xf7\xf0=\xd6S\x85\xd9M\n}\xc3\u0601\x89\xe7@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuv\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\xa7VCw",
 		sum:   "cddefcf74ffec709a0b45a6a987564d5",
 	},
 	// Data length: 6_565_544_823
-	unmarshalTest{
+	{
 		state: "md5\x01{\xda\x1a\xc7\xc9'?\x83EX\xe0\x88q\xfeG\x18@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuv\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x87VCw",
 		sum:   "fd9f41874ab240698e7bc9c3ae70c8e4",
 	},
@@ -211,8 +211,22 @@ func TestLargeHashes(t *testing.T) {
 	}
 }
 
+func TestAllocations(t *testing.T) {
+	in := []byte("hello, world!")
+	out := make([]byte, 0, Size)
+	h := New()
+	n := int(testing.AllocsPerRun(10, func() {
+		h.Reset()
+		h.Write(in)
+		out = h.Sum(out[:0])
+	}))
+	if n > 0 {
+		t.Errorf("allocs = %d, want 0", n)
+	}
+}
+
 var bench = New()
-var buf = make([]byte, 8192+1)
+var buf = make([]byte, 1024*1024*8+1)
 var sum = make([]byte, bench.Size())
 
 func benchmarkSize(b *testing.B, size int, unaligned bool) {
@@ -235,12 +249,36 @@ func BenchmarkHash8Bytes(b *testing.B) {
 	benchmarkSize(b, 8, false)
 }
 
+func BenchmarkHash64(b *testing.B) {
+	benchmarkSize(b, 64, false)
+}
+
+func BenchmarkHash128(b *testing.B) {
+	benchmarkSize(b, 128, false)
+}
+
+func BenchmarkHash256(b *testing.B) {
+	benchmarkSize(b, 256, false)
+}
+
+func BenchmarkHash512(b *testing.B) {
+	benchmarkSize(b, 512, false)
+}
+
 func BenchmarkHash1K(b *testing.B) {
 	benchmarkSize(b, 1024, false)
 }
 
 func BenchmarkHash8K(b *testing.B) {
 	benchmarkSize(b, 8192, false)
+}
+
+func BenchmarkHash1M(b *testing.B) {
+	benchmarkSize(b, 1024*1024, false)
+}
+
+func BenchmarkHash8M(b *testing.B) {
+	benchmarkSize(b, 8*1024*1024, false)
 }
 
 func BenchmarkHash8BytesUnaligned(b *testing.B) {

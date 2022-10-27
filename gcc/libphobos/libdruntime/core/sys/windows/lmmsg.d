@@ -4,13 +4,14 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_lmmsg.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_lmmsg.d)
  */
 module core.sys.windows.lmmsg;
 version (Windows):
+@system:
 pragma(lib, "netapi32");
 
-private import core.sys.windows.lmcons, core.sys.windows.windef, core.sys.windows.w32api;
+import core.sys.windows.lmcons, core.sys.windows.windef, core.sys.windows.w32api;
 
 static assert (_WIN32_WINNT >= 0x501,
     "core.sys.windows.lmmsg is available only if version WindowsXP, Windows2003 "

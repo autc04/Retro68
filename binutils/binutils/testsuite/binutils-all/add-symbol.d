@@ -3,6 +3,7 @@
 #source: symbols.s
 #objcopy: --add-symbol NEW=0x1234 --add-symbol NEW_DATA=.data:0x4321,local
 #objdump: --syms
+#section_subst: no
 
 .*: +file format .*
 

@@ -1,8 +1,8 @@
 #nm: --undefined-only
 #name: weakref tests, weak undefined syms
 #source: weakref1.s
-# see weakref1.d for comments on the not-targets
-#not-target: alpha*-*-osf* *-*-ecoff pdp11-*-aout
+# see weakref1.d for comments on the notargets
+#notarget: alpha*-*-osf* *-*-ecoff pdp11-*-aout
 
 # the rest of this file is generated with the following script:
 # # script begin

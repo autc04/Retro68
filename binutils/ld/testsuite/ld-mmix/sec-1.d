@@ -24,7 +24,7 @@ Idx Name          Size      VMA               LMA               File off  Algn
 
 SYMBOL TABLE:
 #...
-0+1d g +\*ABS\* _etext
+0+30 g +\*ABS\* _etext
 #...
 2000000000000013 g +\*ABS\* __bss_start
 2000000000000013 g +\*ABS\* _edata

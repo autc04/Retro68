@@ -9,3 +9,4 @@ foo:
 	.align 8
 	.long	4660
 	.long	22136
+	.section	.note.GNU-stack

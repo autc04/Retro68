@@ -25,7 +25,7 @@ SYMBOL TABLE:
 0+         \*UND\*	0+ aprefix:d
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+ R_MMIX_32         b
 0+4 R_MMIX_32         \.text\+0x0+24
 0+8 R_MMIX_32         preb

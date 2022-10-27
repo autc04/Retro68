@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -48,10 +48,9 @@ package Sprint is
 
    --    Allocator                           new xxx [storage_pool = xxx]
    --    Cleanup action                      at end procedure name;
-   --    Conversion wi Float_Truncate        target^(source)
    --    Convert wi Conversion_OK            target?(source)
+   --    Convert wi Float_Truncate           target^(source)
    --    Convert wi Rounded_Result           target@(source)
-   --    Divide wi Treat_Fixed_As_Integer    x #/ y
    --    Divide wi Rounded_Result            x @/ y
    --    Expression with actions             do action; .. action; in expr end
    --    Expression with range check         {expression}
@@ -66,18 +65,15 @@ package Sprint is
    --    Itype declaration                   [(sub)type declaration without ;]
    --    Itype reference                     reference itype
    --    Label declaration                   labelname : label
-   --    Mod wi Treat_Fixed_As_Integer       x #mod y
    --    Multiple concatenation              expr && expr && expr ... && expr
-   --    Multiply wi Treat_Fixed_As_Integer  x #* y
    --    Multiply wi Rounded_Result          x @* y
-   --    Operator with range check           {operator} (e.g. {+})
+   --    Operator with overflow check        {operator} (e.g. {+})
    --    Others choice for cleanup           when all others
    --    Pop exception label                 %pop_xxx_exception_label
    --    Push exception label                %push_xxx_exception_label (label)
    --    Raise xxx error                     [xxx_error [when cond]]
    --    Raise xxx error with msg            [xxx_error [when cond], "msg"]
    --    Rational literal                    [expression]
-   --    Rem wi Treat_Fixed_As_Integer       x #rem y
    --    Reference                           expression'reference
    --    Shift nodes                         shift_name!(expr, count)
    --    Static declaration                  name : static xxx
@@ -101,7 +97,7 @@ package Sprint is
    --    -dg  print source from tree, including only the generated code
    --    -do  print source from tree, including only the original code
    --    -df  modify the above to include all units, not just the main unit
-   --    -sz  print source from tree for package Standard
+   --    -dz  print source from tree for package Standard
 
    procedure Sprint_Comma_List (List : List_Id);
    --  Prints the nodes in a list, with separating commas. If the list is empty

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2011-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2011-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -41,7 +41,9 @@ generic
    Default_Capacity : Count_Type;
    Default_Ceiling  : System.Any_Priority := System.Priority'Last;
 
-package Ada.Containers.Bounded_Synchronized_Queues is
+package Ada.Containers.Bounded_Synchronized_Queues with
+  SPARK_Mode => Off
+is
    pragma Annotate (CodePeer, Skip_Analysis);
    pragma Preelaborate;
 
@@ -68,6 +70,14 @@ package Ada.Containers.Bounded_Synchronized_Queues is
    private
 
       --  Need proper heap data structure here ???
+
+      --  We suppress warnings here, which might otherwise be triggered
+      --  by the box initialization of the Elements array below. This
+      --  initialization is needed to preserve constraints, such as
+      --  discriminant values, that the actual for Element_Type might
+      --  carry.
+
+      pragma Warnings (Off);
 
       type Element_Array is
         array (Count_Type range <>) of Queue_Interfaces.Element_Type;

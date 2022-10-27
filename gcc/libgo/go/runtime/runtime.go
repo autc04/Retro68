@@ -14,10 +14,9 @@ import (
 //go:generate go run mkfastlog2table.go
 
 // For gccgo, while we still have C runtime code, use go:linkname to
-// rename some functions to themselves, so that the compiler will
-// export them.
+// export some functions.
 //
-//go:linkname tickspersecond runtime.tickspersecond
+//go:linkname tickspersecond
 
 var ticksLock mutex
 var ticksVal uint64
@@ -52,13 +51,13 @@ func tickspersecond() int64 {
 var envs []string
 var argslice []string
 
-//go:linkname syscall_runtime_envs syscall.runtime_envs
+//go:linkname syscall_runtime_envs syscall.runtime__envs
 func syscall_runtime_envs() []string { return append([]string{}, envs...) }
 
 //go:linkname syscall_Getpagesize syscall.Getpagesize
 func syscall_Getpagesize() int { return int(physPageSize) }
 
-//go:linkname os_runtime_args os.runtime_args
+//go:linkname os_runtime_args os.runtime__args
 func os_runtime_args() []string { return append([]string{}, argslice...) }
 
 //go:linkname syscall_Exit syscall.Exit

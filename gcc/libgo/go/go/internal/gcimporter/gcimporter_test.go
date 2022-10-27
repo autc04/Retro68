@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gcimporter
+package gcimporter_test
 
 import (
 	"bytes"
 	"fmt"
+	"internal/goexperiment"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,8 +17,13 @@ import (
 	"testing"
 	"time"
 
+	"go/ast"
+	"go/importer"
+	"go/parser"
 	"go/token"
 	"go/types"
+
+	. "go/internal/gcimporter"
 )
 
 // skipSpecialPlatforms causes the test to be skipped for platforms where
@@ -26,11 +31,7 @@ import (
 // import.
 func skipSpecialPlatforms(t *testing.T) {
 	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
-	case "nacl-amd64p32",
-		"nacl-386",
-		"nacl-arm",
-		"darwin-arm",
-		"darwin-arm64":
+	case "darwin-arm64":
 		t.Skipf("no compiled packages available for import on %s", platform)
 	}
 }
@@ -68,9 +69,11 @@ func testPath(t *testing.T, path, srcDir string) *types.Package {
 
 const maxTime = 30 * time.Second
 
+var pkgExts = [...]string{".a", ".o"} // keep in sync with gcimporter.go
+
 func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
 	dirname := filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
-	list, err := ioutil.ReadDir(dirname)
+	list, err := os.ReadDir(dirname)
 	if err != nil {
 		t.Fatalf("testDir(%s): %s", dirname, err)
 	}
@@ -98,7 +101,7 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
 }
 
 func mktmpdir(t *testing.T) string {
-	tmpdir, err := ioutil.TempDir("", "gcimporter_test")
+	tmpdir, err := os.MkdirTemp("", "gcimporter_test")
 	if err != nil {
 		t.Fatal("mktmpdir:", err)
 	}
@@ -115,32 +118,157 @@ func TestImportTestdata(t *testing.T) {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 	}
 
-	tmpdir := mktmpdir(t)
-	defer os.RemoveAll(tmpdir)
+	testfiles := map[string][]string{
+		"exports.go": {"go/ast", "go/token"},
+	}
+	if !goexperiment.Unified {
+		testfiles["generics.go"] = nil
+	}
 
-	compile(t, "testdata", "exports.go", filepath.Join(tmpdir, "testdata"))
+	for testfile, wantImports := range testfiles {
+		tmpdir := mktmpdir(t)
+		defer os.RemoveAll(tmpdir)
 
-	if pkg := testPath(t, "./testdata/exports", tmpdir); pkg != nil {
-		// The package's Imports list must include all packages
-		// explicitly imported by exports.go, plus all packages
-		// referenced indirectly via exported objects in exports.go.
-		// With the textual export format, the list may also include
-		// additional packages that are not strictly required for
-		// import processing alone (they are exported to err "on
-		// the safe side").
-		// TODO(gri) update the want list to be precise, now that
-		// the textual export data is gone.
-		got := fmt.Sprint(pkg.Imports())
-		for _, want := range []string{"go/ast", "go/token"} {
-			if !strings.Contains(got, want) {
-				t.Errorf(`Package("exports").Imports() = %s, does not contain %s`, got, want)
+		compile(t, "testdata", testfile, filepath.Join(tmpdir, "testdata"))
+		path := "./testdata/" + strings.TrimSuffix(testfile, ".go")
+
+		if pkg := testPath(t, path, tmpdir); pkg != nil {
+			// The package's Imports list must include all packages
+			// explicitly imported by testfile, plus all packages
+			// referenced indirectly via exported objects in testfile.
+			got := fmt.Sprint(pkg.Imports())
+			for _, want := range wantImports {
+				if !strings.Contains(got, want) {
+					t.Errorf(`Package("exports").Imports() = %s, does not contain %s`, got, want)
+				}
 			}
 		}
 	}
 }
 
+func TestImportTypeparamTests(t *testing.T) {
+	// This test doesn't yet work with the unified export format.
+	if goexperiment.Unified {
+		t.Skip("unified export data format is currently unsupported")
+	}
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+	}
+
+	tmpdir := mktmpdir(t)
+	defer os.RemoveAll(tmpdir)
+
+	// Check go files in test/typeparam, except those that fail for a known
+	// reason.
+	rootDir := filepath.Join(runtime.GOROOT(), "test", "typeparam")
+	list, err := os.ReadDir(rootDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	skip := map[string]string{
+		"equal.go":      "inconsistent embedded sorting", // TODO(rfindley): investigate this.
+		"nested.go":     "fails to compile",              // TODO(rfindley): investigate this.
+		"issue50417.go": "inconsistent interface member sorting",
+	}
+
+	for _, entry := range list {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
+			// For now, only consider standalone go files.
+			continue
+		}
+
+		t.Run(entry.Name(), func(t *testing.T) {
+			if reason, ok := skip[entry.Name()]; ok {
+				t.Skip(reason)
+			}
+
+			filename := filepath.Join(rootDir, entry.Name())
+			src, err := os.ReadFile(filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.HasPrefix(src, []byte("// run")) && !bytes.HasPrefix(src, []byte("// compile")) {
+				// We're bypassing the logic of run.go here, so be conservative about
+				// the files we consider in an attempt to make this test more robust to
+				// changes in test/typeparams.
+				t.Skipf("not detected as a run test")
+			}
+
+			// Compile and import, and compare the resulting package with the package
+			// that was type-checked directly.
+			compile(t, rootDir, entry.Name(), filepath.Join(tmpdir, "testdata"))
+			pkgName := strings.TrimSuffix(entry.Name(), ".go")
+			imported := importPkg(t, "./testdata/"+pkgName, tmpdir)
+			checked := checkFile(t, filename, src)
+
+			seen := make(map[string]bool)
+			for _, name := range imported.Scope().Names() {
+				if !token.IsExported(name) {
+					continue // ignore synthetic names like .inittask and .dict.*
+				}
+				seen[name] = true
+
+				importedObj := imported.Scope().Lookup(name)
+				got := types.ObjectString(importedObj, types.RelativeTo(imported))
+				got = sanitizeObjectString(got)
+
+				checkedObj := checked.Scope().Lookup(name)
+				if checkedObj == nil {
+					t.Fatalf("imported object %q was not type-checked", name)
+				}
+				want := types.ObjectString(checkedObj, types.RelativeTo(checked))
+				want = sanitizeObjectString(want)
+
+				if got != want {
+					t.Errorf("imported %q as %q, want %q", name, got, want)
+				}
+			}
+
+			for _, name := range checked.Scope().Names() {
+				if !token.IsExported(name) || seen[name] {
+					continue
+				}
+				t.Errorf("did not import object %q", name)
+			}
+		})
+	}
+}
+
+// sanitizeObjectString removes type parameter debugging markers from an object
+// string, to normalize it for comparison.
+// TODO(rfindley): this should not be necessary.
+func sanitizeObjectString(s string) string {
+	var runes []rune
+	for _, r := range s {
+		if '₀' <= r && r < '₀'+10 {
+			continue // trim type parameter subscripts
+		}
+		runes = append(runes, r)
+	}
+	return string(runes)
+}
+
+func checkFile(t *testing.T, filename string, src []byte) *types.Package {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, filename, src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := types.Config{
+		Importer: importer.Default(),
+	}
+	pkg, err := config.Check("", fset, []*ast.File{f}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pkg
+}
+
 func TestVersionHandling(t *testing.T) {
-	skipSpecialPlatforms(t) // we really only need to exclude nacl platforms, but this is fine
+	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -148,7 +276,7 @@ func TestVersionHandling(t *testing.T) {
 	}
 
 	const dir = "./testdata/versions"
-	list, err := ioutil.ReadDir(dir)
+	list, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,10 +307,20 @@ func TestVersionHandling(t *testing.T) {
 		// test that export data can be imported
 		_, err := Import(fset, make(map[string]*types.Package), pkgpath, dir, nil)
 		if err != nil {
+			// ok to fail if it fails with a no longer supported error for select files
+			if strings.Contains(err.Error(), "no longer supported") {
+				switch name {
+				case "test_go1.7_0.a", "test_go1.7_1.a",
+					"test_go1.8_4.a", "test_go1.8_5.a",
+					"test_go1.11_6b.a", "test_go1.11_999b.a":
+					continue
+				}
+				// fall through
+			}
 			// ok to fail if it fails with a newer version error for select files
 			if strings.Contains(err.Error(), "newer version") {
 				switch name {
-				case "test_go1.11_999b.a", "test_go1.11_999i.a":
+				case "test_go1.11_999i.a":
 					continue
 				}
 				// fall through
@@ -193,7 +331,7 @@ func TestVersionHandling(t *testing.T) {
 
 		// create file with corrupted export data
 		// 1) read file
-		data, err := ioutil.ReadFile(filepath.Join(dir, name))
+		data, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -210,7 +348,7 @@ func TestVersionHandling(t *testing.T) {
 		// 4) write the file
 		pkgpath += "_corrupted"
 		filename := filepath.Join(corruptdir, pkgpath) + ".a"
-		ioutil.WriteFile(filename, data, 0666)
+		os.WriteFile(filename, data, 0666)
 
 		// test that importing the corrupted file results in an error
 		_, err = Import(fset, make(map[string]*types.Package), pkgpath, corruptdir, nil)
@@ -250,10 +388,10 @@ var importedObjectTests = []struct {
 	{"math.Pi", "const Pi untyped float"},
 	{"math.Sin", "func Sin(x float64) float64"},
 	{"go/ast.NotNilFilter", "func NotNilFilter(_ string, v reflect.Value) bool"},
-	{"go/internal/gcimporter.BImportData", "func BImportData(fset *go/token.FileSet, imports map[string]*go/types.Package, data []byte, path string) (_ int, pkg *go/types.Package, err error)"},
+	{"go/internal/gcimporter.FindPkg", "func FindPkg(path string, srcDir string) (filename string, id string)"},
 
 	// interfaces
-	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key interface{}) interface{}}"},
+	{"context.Context", "type Context interface{Deadline() (deadline time.Time, ok bool); Done() <-chan struct{}; Err() error; Value(key any) any}"},
 	{"crypto.Decrypter", "type Decrypter interface{Decrypt(rand io.Reader, msg []byte, opts DecrypterOpts) (plaintext []byte, err error); Public() PublicKey}"},
 	{"encoding.BinaryMarshaler", "type BinaryMarshaler interface{MarshalBinary() (data []byte, err error)}"},
 	{"io.Reader", "type Reader interface{Read(p []byte) (n int, err error)}"},

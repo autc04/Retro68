@@ -1,5 +1,5 @@
 #objdump: -P section
-#not-target: x86_64-*-darwin*
+#notarget: x86_64-*-darwin*
 .*: +file format mach-o.*
 #...
  Section: __symbol_stub    __TEXT.*\(bfdname: .symbol_stub\)

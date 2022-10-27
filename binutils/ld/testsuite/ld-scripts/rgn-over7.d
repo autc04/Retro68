@@ -3,6 +3,7 @@
 # ld: -T rgn-over7.t -Map tmpdir/rgn-over7.map
 # error: \A[^ \n]*?ld[^:\n]*?: [^\n]*?section `\.text' will not fit in region `r1'\n[^ \n]*?ld[^:\n]*?: section \.data LMA \[0+1008,0+1013\] overlaps section \.text LMA \[0+1000,0+100b\]\n[^ \n]*?ld[^:\n]*?: region `r1' overflowed by 4 bytes\Z
 
+#...
 Discarded input sections
 #...
 Memory\s+Configuration

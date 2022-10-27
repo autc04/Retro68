@@ -81,23 +81,23 @@ _start:
 	vpopcntd	xmm6{k7}, XMMWORD PTR [esp+esi*8-123456]	 # AVX512{BITALG,VL}
 	vpopcntd	xmm6{k7}, XMMWORD PTR [edx+2032]	 # AVX512{BITALG,VL} Disp8
 	vpopcntd	xmm6{k7}, [edx+508]{1to4}	 # AVX512{BITALG,VL} Disp8
-	vpopcntd	xmm6{k7}, DWORD PTR [edx]{1to4}	 # AVX512{BITALG,VL}
+	vpopcntd	xmm6{k7}, DWORD BCST [edx]	 # AVX512{BITALG,VL}
 	vpopcntd	ymm6{k7}, ymm5	 # AVX512{BITALG,VL}
 	vpopcntd	ymm6{k7}{z}, ymm5	 # AVX512{BITALG,VL}
 	vpopcntd	ymm6{k7}, YMMWORD PTR [esp+esi*8-123456]	 # AVX512{BITALG,VL}
 	vpopcntd	ymm6{k7}, YMMWORD PTR [edx+4064]	 # AVX512{BITALG,VL} Disp8
 	vpopcntd	ymm6{k7}, [edx+508]{1to8}	 # AVX512{BITALG,VL} Disp8
-	vpopcntd	ymm6{k7}, DWORD PTR [edx]{1to8}	 # AVX512{BITALG,VL}
+	vpopcntd	ymm6{k7}, DWORD BCST [edx]	 # AVX512{BITALG,VL}
 
 	vpopcntq	xmm6{k7}, xmm5	 # AVX512{BITALG,VL}
 	vpopcntq	xmm6{k7}{z}, xmm5	 # AVX512{BITALG,VL}
 	vpopcntq	xmm6{k7}, XMMWORD PTR [esp+esi*8-123456]	 # AVX512{BITALG,VL}
 	vpopcntq	xmm6{k7}, XMMWORD PTR [edx+2032]	 # AVX512{BITALG,VL} Disp8
 	vpopcntq	xmm6{k7}, [edx+1016]{1to2}	 # AVX512{BITALG,VL} Disp8
-	vpopcntq	xmm6{k7}, QWORD PTR [edx]{1to2}	 # AVX512{BITALG,VL}
+	vpopcntq	xmm6{k7}, QWORD BCST [edx]	 # AVX512{BITALG,VL}
 	vpopcntq	ymm6{k7}, ymm5	 # AVX512{BITALG,VL}
 	vpopcntq	ymm6{k7}{z}, ymm5	 # AVX512{BITALG,VL}
 	vpopcntq	ymm6{k7}, YMMWORD PTR [esp+esi*8-123456]	 # AVX512{BITALG,VL}
 	vpopcntq	ymm6{k7}, YMMWORD PTR [edx+4064]	 # AVX512{BITALG,VL} Disp8
 	vpopcntq	ymm6{k7}, [edx+1016]{1to4}	 # AVX512{BITALG,VL} Disp8
-	vpopcntq	ymm6{k7}, QWORD PTR [edx]{1to4}	 # AVX512{BITALG,VL
+	vpopcntq	ymm6{k7}, QWORD BCST [edx]	 # AVX512{BITALG,VL

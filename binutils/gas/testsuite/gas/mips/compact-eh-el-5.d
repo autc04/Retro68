@@ -6,17 +6,17 @@
 .*:     file format.*
 
 RELOCATION RECORDS FOR \[.data.DW.ref.__gnu_compact_pr2\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 00000000 R_MIPS_32         __gnu_compact_pr2
 
 
 RELOCATION RECORDS FOR \[.gnu_extab\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 00000001 R_MIPS_PC32       DW.ref.__gnu_compact_pr2
 
 
 RELOCATION RECORDS FOR \[.eh_frame_entry\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 00000000 R_MIPS_PC32       .text.*
 00000004 R_MIPS_PC32       .gnu_extab
 

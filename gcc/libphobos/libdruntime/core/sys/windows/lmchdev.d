@@ -4,14 +4,15 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_lmchdev.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_lmchdev.d)
  */
 module core.sys.windows.lmchdev;
 version (Windows):
+@system:
 
 // COMMENT: This file might be deprecated.
 
-private import core.sys.windows.lmcons, core.sys.windows.windef;
+import core.sys.windows.lmcons, core.sys.windows.windef;
 
 enum CHARDEVQ_NO_REQUESTS  = -1;
 enum CHARDEV_CLOSE         = 0;

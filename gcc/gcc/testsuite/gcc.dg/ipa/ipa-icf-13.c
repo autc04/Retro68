@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -fdump-ipa-icf"  } */
+/* { dg-options "-O2 -fdump-ipa-icf-optimized-all-all"  } */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -187,7 +187,7 @@ int main(int argc, char **argv)
   printf("Test2: %d, %d, gdc: %d\n", a, b, nsd(a, b));
 }
 
-/* { dg-final { scan-ipa-dump "Semantic equality hit:s1->s2" "icf"  } } */
-/* { dg-final { scan-ipa-dump "Semantic equality hit:nsd_different_result->nsd_different_result2" "icf"  } } */
-/* { dg-final { scan-ipa-dump "Semantic equality hit:gcd->nsd" "icf"  } } */
+/* { dg-final { scan-ipa-dump "Semantic equality hit:s1/\[0-9+\]+->s2/\[0-9+\]+" "icf"  } } */
+/* { dg-final { scan-ipa-dump "Semantic equality hit:nsd_different_result/\[0-9+\]+->nsd_different_result2/\[0-9+\]+" "icf"  } } */
+/* { dg-final { scan-ipa-dump "Semantic equality hit:gcd/\[0-9+\]+->nsd/\[0-9+\]+" "icf"  } } */
 /* { dg-final { scan-ipa-dump "Equal symbols: 3" "icf"  } } */

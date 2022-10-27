@@ -1,7 +1,7 @@
 // -*- C++ -*-
 // Utility subroutines for the C++ library testsuite.
 //
-// Copyright (C) 2000-2019 Free Software Foundation, Inc.
+// Copyright (C) 2000-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -64,6 +64,11 @@ void operator delete(void* p) throw()
   if (p)
     std::free(p);
 }
+
+#if __cpp_sized_deallocation
+void operator delete(void* p, std::size_t) throw()
+{ ::operator delete(p); }
+#endif
 
 void operator delete(void* p, const std::nothrow_t&) throw()
 {

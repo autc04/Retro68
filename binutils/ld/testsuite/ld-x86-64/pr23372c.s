@@ -16,7 +16,7 @@
 .else
 	.p2align 2
 .endif
-	/* GNU_PROPERTY_X86_ISA_1_NEEDED */
+	/* GNU_PROPERTY_X86_COMPAT_ISA_1_NEEDED */
 	.long 0xc0000001	/* pr_type.  */
 	.long 3f - 2f		/* pr_datasz.  */
 2:

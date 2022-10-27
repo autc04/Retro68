@@ -1,5 +1,5 @@
 # Expect script for ld-plugin LTO tests
-#   Copyright (C) 2011-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2011-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -19,7 +19,7 @@
 # MA 02110-1301, USA.
 
 # Check to see if the C and C++ compilers work
-if { [which $CC] == 0 || [which $CXX] == 0 } {
+if { ![check_compiler_available] || [which $CXX_FOR_TARGET] == 0 } {
     return
 }
 
@@ -29,43 +29,26 @@ if { ![check_plugin_api_available]
     return
 }
 
-global INT128_CFLAGS
-
-global CFLAGS
-global CXXFLAGS
-set saved_CFLAGS "$CFLAGS"
-set saved_CXXFLAGS "$CXXFLAGS"
-regsub -all "(\\-Wp,)?-D_FORTIFY_SOURCE=\[0-9\]+" $CFLAGS "" CFLAGS
-regsub -all "(\\-Wp,)?-D_FORTIFY_SOURCE=\[0-9\]+" $CXXFLAGS "" CXXFLAGS
+set saved_CFLAGS "$CFLAGS_FOR_TARGET"
+set saved_CXXFLAGS "$CXXFLAGS_FOR_TARGET"
+regsub -all "(\\-Wp,)?-D_FORTIFY_SOURCE=\[0-9\]+" $CFLAGS_FOR_TARGET "" CFLAGS_FOR_TARGET
+regsub -all "(\\-Wp,)?-D_FORTIFY_SOURCE=\[0-9\]+" $CXXFLAGS_FOR_TARGET "" CXXFLAGS_FOR_TARGET
 
 proc restore_notify { } {
   global saved_CFLAGS
   global saved_CXXFLAGS
-  set CFLAGS "$saved_CFLAGS"
-  set CXXFLAGS "$saved_CXXFLAGS"
+  global CFLAGS_FOR_TARGET
+  global CXXFLAGS_FOR_TARGET
+  set CFLAGS_FOR_TARGET "$saved_CFLAGS"
+  set CXXFLAGS_FOR_TARGET "$saved_CXXFLAGS"
 }
 
-set plugin_names {
-    liblto_plugin.so
-    liblto_plugin-0.dll
-    cyglto_plugin-0.dll
-}
-set plug_opt ""
-foreach plug $plugin_names {
-    set plug_so [run_host_cmd $CC "--print-prog-name $plug"]
-    if { $plug_so eq $plug } then {
-	set plug_so [run_host_cmd $CC "--print-file-name $plug"]
-    }
-    if { $plug_so ne $plug } then {
-	set plug_opt "--plugin $plug_so"
-	break
-    }
-}
 set lto_fat ""
 set lto_no_fat ""
 if { [check_lto_fat_available] } {
   set lto_fat "-ffat-lto-objects"
   set lto_no_fat "-fno-fat-lto-objects"
+  set no_lto "-fno-lto"
 }
 
 # Simple LTO tests and generate input files for complex LTO tests.
@@ -74,10 +57,11 @@ set lto_link_tests [list \
    "-O2 -flto -fuse-linker-plugin" "-flto -fuse-linker-plugin" \
    {lto-1a.c lto-1b.c} {} "lto-1.exe"] \
   [list "Compile 2" \
-   "" "-O2 -flto -fuse-linker-plugin" \
+   "" "-O2 -flto -fuse-linker-plugin $NOSANITIZE_CFLAGS" \
    {lto-2.c} {} ""] \
   [list "LTO 2" \
-   "-static -O2 -flto -fuse-linker-plugin tmpdir/lto-2.o -lm" "" \
+   "-static -O2 -flto -fuse-linker-plugin tmpdir/lto-2.o -lm" \
+   "$NOSANITIZE_CFLAGS" \
    {dummy.c} {} "lto-2.exe"] \
   [list "Compile 3a" \
    "" "-flto" \
@@ -94,9 +78,6 @@ set lto_link_tests [list \
   [list "Compile 5b" \
    "" "-flto $lto_fat" \
    {lto-5b.c} {} ""] \
-  [list "LTO 6" \
-   "-O2 -flto -fuse-linker-plugin" "" \
-   {lto-6.c} {} "lto-6.exe" "c"] \
   [list "Compile PR ld/12365" \
    "" "-flto -O2 $lto_fat" \
    {pr12365a.c pr12365b.c pr12365c.c} {} ""] \
@@ -143,21 +124,12 @@ set lto_link_tests [list \
    "" "" \
    {pr12758a.s} {} ""] \
   [list "Build libpr12758.a" \
-   "" "-flto -O2 $lto_fat" \
+   "" "-flto -O2 $lto_fat $NOSANITIZE_CFLAGS" \
    {pr12758b.c} {} "libpr12758.a"] \
   [list "PR ld/12758" \
-   "-O2 -Wl,-e,foo -nostdlib -flto -fuse-linker-plugin tmpdir/pr12758a.o -Wl,--start-group tmpdir/libpr12758.a -Wl,--end-group" "" \
+   "$NOPIE_LDFLAGS $NOSANITIZE_CFLAGS -O2 -Wl,-e,foo -nostdlib -flto -fuse-linker-plugin tmpdir/pr12758a.o -Wl,--start-group tmpdir/libpr12758.a -Wl,--end-group" \
+   "$NOSANITIZE_CFLAGS" \
    {dummy.c} {} "pr12758.exe"] \
-  [list "Compile PR ld/12760" \
-   "" "-g -O0" \
-   {pr12760a.c} {} ""] \
-  [list "Build libpr12760.a" \
-   "" "-flto -O2 $lto_fat" \
-   {pr12760b.c} {} "libpr12760.a"] \
-  [list "PR ld/12760" \
-   "-O2 -Wl,-e,foo -nostdlib -flto -fuse-linker-plugin tmpdir/pr12760a.o -Wl,--start-group tmpdir/libpr12760.a -Wl,--end-group" "" \
-   {dummy.c} {{warning "pr12760a.c:6: warning: Bad \\.?bar"}} \
-   "pr12760.exe" "c"] \
   [list "Build libpr13183.a" \
    "-T" "-flto -O2 $lto_fat" \
    {pr13183a.c} {} "libpr13183.a"] \
@@ -192,19 +164,19 @@ set lto_link_tests [list \
    "$plug_opt" "-flto $lto_no_fat" \
    {pr19317.c} {} "libpr19317.a"] \
   [list "Build pr20276a.o" \
-   "" "-fno-lto" \
+   "" "-fno-lto -fcommon" \
    {pr20276a.c}] \
   [list "Build pr20276b.o" \
-   "$plug_opt" "-flto $lto_no_fat" \
+   "$plug_opt" "-flto $lto_no_fat -fcommon" \
    {pr20276b.c}] \
   [list "Build pr20267a.o" \
-   "" "" \
+   "" "-fcommon" \
    {pr20267a.c}] \
   [list "Build libpr20267a.a" \
-   "$plug_opt" "-flto $lto_fat" \
+   "$plug_opt" "-flto $lto_fat -fcommon" \
    {pr20267b.c} {} "libpr20267a.a"] \
   [list "Build libpr20267b.a" \
-   "$plug_opt" "-flto $lto_no_fat" \
+   "$plug_opt" "-flto $lto_no_fat -fcommon" \
    {pr20267b.c} {} "libpr20267b.a"] \
   [list "Build pr20321" \
    "-flto -Wl,-plugin,$plug_so" "-flto" \
@@ -219,7 +191,66 @@ set lto_link_tests [list \
   [list "Build pr22751.a" \
    "$plug_opt" "-flto $lto_no_fat $INT128_CFLAGS" \
    {pr22751.c} {} "pr22751.a"] \
+  [list "Build pr24406-2b.o" \
+   "" "-O2 -fno-lto" \
+   {pr24406-2b.c}] \
+  [list "Build pr26163a.o" \
+   "" "-O2 -fno-lto" \
+   {pr26163a.c}] \
+  [list "Build pr26262b.o" \
+   "" "-O2" \
+   {pr26262b.c} {} "" "c"] \
+  [list "Build pr26262c.o" \
+   "" "-O2" \
+   {pr26262c.c} {} "" "c"] \
+  [list "Build pr26267a.o" \
+   "" "-O2 -flto $lto_no_fat" \
+   {pr26267a.c} {} "" "c"] \
+  [list "Build pr26267b.o" \
+   "" "-O2" \
+   {pr26267b.c} {} "" "c"] \
+  [list "Build pr26267c.o" \
+   "" "-O2" \
+   {pr26267c.c} {} "" "c"] \
+  [list "Build pr26267a" \
+   "" "-O2" \
+   {pr26267a.c} {} "" "c"] \
+  [list "Build pr26267a" \
+   "-flto tmpdir/pr26267a.o tmpdir/pr26267b.o tmpdir/pr26267c.o" \
+   "-flto $lto_no_fat" \
+   {dummy.c} \
+   {{error_output "pr26267.err"}} \
+   "pr26267a"] \
+  [list "Build pr26267b" \
+   "-flto tmpdir/pr26267b.o tmpdir/pr26267c.o tmpdir/pr26267a.o" \
+   "-flto $lto_no_fat" \
+   {dummy.c} \
+   {{error_output "pr26267.err"}} \
+   "pr26267b"] \
+  [list "Build pr26389.o" \
+   "$plug_opt" "-flto $lto_no_fat -fcommon" \
+   {pr26389.c} \
+   [list [list "nm" "$plug_opt" "pr26389.d"]]] \
 ]
+
+if { [at_least_gcc_version 10 0] && [check_lto_shared_available] } {
+    set lto_link_tests [concat $lto_link_tests [list \
+	[list "pr25355.o" \
+	 "" \
+	 "-flto -fno-common $lto_no_fat" \
+	 {pr25355.c} \
+	 [list [list "nm" "$plug_opt" "pr25355.d"]]] \
+	[list "pr28264.so" \
+	 "-shared -Wl,--version-script=pr28264.ver" \
+	 "-flto $lto_no_fat -fPIC" \
+	 {pr28264.c} \
+	 {{readelf {--dyn-syms --wide} pr28264-1.d} \
+	  {readelf {--dyn-syms --wide} pr28264-2.d} \
+	  {readelf {--dyn-syms --wide} pr28264-3.d} \
+	  {readelf {--dyn-syms --wide} pr28264-4.d}} \
+	 {pr28264.so}] \
+    ]]
+}
 
 if { [at_least_gcc_version 4 7] } {
     set lto_link_tests [concat $lto_link_tests [list \
@@ -250,6 +281,9 @@ set lto_compile_elf_tests [list \
 
 # Generate input files for complex LTO tests for ELF.
 set lto_link_elf_tests [list \
+  [list "LTO 6" \
+   "-O2 -flto -fuse-linker-plugin" "" \
+   {lto-6.c} {} "lto-6.exe" "c"] \
   [list "Build liblto-7.so" \
    "-shared" "-O2 -fpic" \
    {lto-7d.c} {} "liblto-7.so" "c"] \
@@ -262,9 +296,16 @@ set lto_link_elf_tests [list \
   [list "Build liblto-17b.so 2" \
    "-shared -O2 -fpic -flto -fuse-linker-plugin tmpdir/lto-17a.o" "-O2 -fpic -flto" \
    {lto-17b.c} {{"nm" {} "lto-17b-2.d"}} "liblto-17b.so"] \
-  [list "PR ld/12982" \
-   "-O2 -flto -fuse-linker-plugin" "-O2 -flto" \
-   {pr12982.c} {{"readelf" {-l --wide} "pr12982.d"}} "pr12982.exe"] \
+  [list "Compile PR ld/12760" \
+   "" "-g -O0" \
+   {pr12760a.c} {} ""] \
+  [list "Build libpr12760.a" \
+   "" "-flto -O2 $lto_fat" \
+   {pr12760b.c} {} "libpr12760.a"] \
+  [list "PR ld/12760" \
+   "-O2 -Wl,-e,foo -nostdlib -flto -fuse-linker-plugin tmpdir/pr12760a.o -Wl,--start-group tmpdir/libpr12760.a -Wl,--end-group" "" \
+   {dummy.c} {{warning "pr12760a.c:6: warning: Bad \\.?bar"}} \
+   "pr12760.exe" "c"] \
   [list "PR ld/12975" \
    "-shared -O2 -fPIC -flto -fuse-linker-plugin -nostdlib -Wl,-version-script,pr12975.t" "-O2 -flto" \
    {pr12975.c} {{"readelf" {-s --wide} "pr12975.d"}} "pr12975.so" "c"] \
@@ -281,7 +322,7 @@ set lto_link_elf_tests [list \
    "-shared" "-O2 -fpic" \
    {pr15146b.c} {} "pr15146b.so" "c"] \
   [list "Build pr15146c.so" \
-   "-shared -Wl,--no-as-needed tmpdir/pr15146b.so" "-O2 -fpic" \
+   "-shared -Wl,--no-as-needed tmpdir/pr15146b.so" "-O2 -fpic $no_lto" \
    {pr15146c.c} {} "pr15146c.so" "c"] \
   [list "PR ld/15146 (1)" \
    "-O2 -flto -fuse-linker-plugin -Wl,-rpath-link,. -Wl,--no-copy-dt-needed-entries -Wl,--no-as-needed tmpdir/pr15146a.o tmpdir/pr15146c.so" "" \
@@ -313,6 +354,182 @@ set lto_link_elf_tests [list \
   [list {Build pr22220main.o} \
    {} {-flto} \
    {pr22220main.cc} {} {} {c++}] \
+  [list "Build libpr23818.so" \
+   "-shared -flto -g -Wl,-version-script,pr23818.t" \
+   "-g -flto $lto_fat" \
+   {pr23818a.c pr23818b.c} \
+   {{"readelf" {-s --wide} "pr23818.d"}} \
+   "libpr23818.so"] \
+  [list "Build libpr23958.so" \
+   "-shared -flto -Wl,-version-script,pr23958.t" \
+   "-g -flto $lto_fat" \
+   {pr23958.c} \
+   "" \
+   "libpr23958.so"] \
+  [list "Build pr24486a.o" \
+   "$plug_opt" "-flto -O2" \
+   {pr24486a.c} {} "" "c"] \
+  [list "Build pr24486b.so" \
+   "-shared" "-O2 -fpic" \
+   {pr24486b.c} {} "pr24486b.so" "c"] \
+  [list "Build pr24486c.so" \
+   "-shared -Wl,--no-as-needed tmpdir/pr24486b.so" "-O2 -fpic" \
+   {pr24486c.c} {} "pr24486c.so" "c"] \
+  [list "PR ld/24486" \
+   "-O2 -flto tmpdir/pr24486a.o tmpdir/pr24486c.so -Wl,--as-needed tmpdir/pr24486b.so" "" \
+   {dummy.c} {} "pr24486.exe"] \
+  [list "Build pr25593a-1.o" \
+   "$plug_opt" "-flto -O2" \
+   {pr25593a-1.c} {} "" "c"] \
+  [list "Build pr25593a-2.o" \
+   "" "-O2" \
+   {pr25593a-2.c} {} "" "c"] \
+  [list "Build pr25593b.o" \
+   "" "-O2" \
+   {pr25593b.c} {} "" "c"] \
+  [list "Build pr25593c.so" \
+   "-shared" "-O2 -fpic" \
+   {pr25593c.c} {} "pr25593c.so" "c"] \
+  [list "Build pr25593d.so" \
+   "-shared" "-O2 -fpic" \
+   {pr25593d.c} {} "pr25593d.so" "c"] \
+  [list "Build pr25593e.so" \
+   "-shared" "-O2 -fpic" \
+   {pr25593e.c} {} "pr25593e.so" "c"] \
+  [list "PR ld/r25593 (LTO)" \
+   "-O2 -flto -Wl,--as-needed tmpdir/pr25593a-1.o tmpdir/pr25593b.o \
+    tmpdir/pr25593c.so tmpdir/pr25593d.so tmpdir/pr25593e.so" "" \
+   {dummy.c} {{readelf {-d --wide} pr25593.d}} "pr25593a.exe"] \
+  [list "PR ld/r25593" \
+   "-O2 -flto -Wl,--as-needed tmpdir/pr25593a-2.o tmpdir/pr25593b.o \
+    tmpdir/pr25593c.so tmpdir/pr25593d.so tmpdir/pr25593e.so" "" \
+   {dummy.c} {{readelf {-d --wide} pr25593.d}} "pr25593b.exe"] \
+  [list "Build pr25618a.o" \
+   "$plug_opt" "-O2 -flto -fpic" \
+   {pr25618a.cc} {} "" "c++"] \
+  [list "Build pr25618.a" \
+   "$plug_opt" "-O2 -flto -fpic" \
+   {pr25618b.cc} {} "pr25618.a" "c++"] \
+  [list "Build pr25618.so" \
+   "-shared -Wl,--exclude-libs,ALL tmpdir/pr25618a.o tmpdir/pr25618.a" \
+   "-fpic" \
+   {dummy.c} {{readelf {--dyn-syms --wide} pr25618.d}} "pr25618.so" "c++"] \
+  [list {liblto-18b.so} \
+   {-shared} {-O2 -fpic} \
+   {lto-18b.c} {} {liblto-18b.so}] \
+  [list {liblto-18b.a} \
+   "$plug_opt" {-flto -O2} \
+   {lto-18b.c} {} {liblto-18b.a}] \
+  [list {liblto-18c.so} \
+   {-shared} {-O2 -fpic} \
+   {lto-18c.c} {} {liblto-18c.so}] \
+  [list {liblto-18c.a} \
+   "$plug_opt" {-flto -O2} \
+   {lto-18c.c} {} {liblto-18c.a}] \
+  [list {lto-18d.o} \
+   {} {-flto -O2} \
+   {lto-18d.c} {} {}] \
+  [list {liblto-19.a} \
+   "$plug_opt" {-flto -O2 -fPIC} \
+   {lto-19a.c} {} {liblto-19.a}] \
+  [list {compile lto-19b.c} \
+   "$plug_opt" {-flto -O2 -fPIC} \
+   {lto-19b.c} {} {} {c}] \
+  [list {liblto-19.so} \
+   {-shared tmpdir/lto-19b.o tmpdir/liblto-19.a} {-O2 -fPIC} \
+   {dummy.c} {} {liblto-19.so}] \
+  [list {pr26806.so} \
+   {-shared} {-fpic -O2 -flto} \
+   {pr26806.c} {{nm {-D} pr26806.d}} {pr26806.so}] \
+  [list {pr27311a.so} \
+   {-shared -Wl,--version-script=pr27311.ver} {-fPIC} \
+   {pr27311a.c} {} {pr27311a.so}] \
+  [list {pr27311b.so} \
+   {-shared -Wl,--no-as-needed tmpdir/pr27311a.so} {-fPIC} \
+   {pr27311b.c} {} {pr27311b.so}] \
+  [list {pr27311c.o} \
+   {} {-flto} \
+   {pr27311c.c} {} {} {c}] \
+  [list {pr27311d.o} \
+   {} {-flto} \
+   {pr27311d.c} {} {} {c}] \
+  [list {pr27311-1} \
+   {tmpdir/pr27311c.o -Wl,--no-as-needed,--rpath-link=. tmpdir/pr27311b.so} {} \
+   {dummy.c} {{readelf {--dyn-syms --wide} pr27311.d}} {pr27311-1}] \
+  [list {pr27311-2} \
+   {tmpdir/pr27311d.o -Wl,--no-as-needed,--rpath-link=. tmpdir/pr27311b.so} {} \
+   {dummy.c} {{readelf {--dyn-syms --wide} pr27311.d}} {pr27311-2}] \
+  [list {pr27441a.so} \
+   {-shared} {-fPIC} \
+   {pr27441a.c} {} {pr27441a.so}] \
+  [list {pr27441b.so} \
+   {-shared} {-fPIC} \
+   {pr27441b.c} {} {pr27441b.so}] \
+  [list {pr27441c.o} \
+   {} {-fPIC -flto} \
+   {pr27441c.c} {} {}] \
+  [list {pr27441c.so} \
+   {-shared -fPIC -Wl,--as-needed tmpdir/pr27441c.o tmpdir/pr27441b.so tmpdir/pr27441a.so} {-fPIC} \
+   {dummy.c} {{readelf {-dW} pr27441c.d}} {pr27441c.so}] \
+  [list \
+   "Build libpr28879a.so" \
+   "-shared" \
+   "-O0 -fpic" \
+   {pr28879a.cc} \
+   {} \
+   "libpr28879a.so" \
+   "c++" \
+  ] \
+  [list \
+   "Build libpr28879b.so" \
+   "-shared -Wl,--no-as-needed tmpdir/libpr28879a.so" \
+   "-O2 -fpic" \
+   {dummy.c} \
+   {} \
+   "libpr28879b.so" \
+  ] \
+  [list \
+   "Build pr28879" \
+   "-Wl,--no-as-needed tmpdir/libpr28879b.so -Wl,-rpath-link,." \
+   "-O0 -flto -D_GLIBCXX_ASSERTIONS" \
+   {pr28879b.cc} \
+   {} \
+   "pr28879" \
+   "c++" \
+  ] \
+  [list \
+   "Build libpr28849a.so" \
+   "-shared" \
+   "-fPIC" \
+   {pr28849a.c} \
+   "" \
+   "libpr28849a.so" \
+  ] \
+  [list \
+   "Build libpr28849b.so" \
+   "-shared -Wl,--no-as-needed,tmpdir/libpr28849a.so" \
+   "" \
+   {dummy.c} \
+   "" \
+   "libpr28849b.so" \
+  ] \
+  [list \
+   "Build pr28849" \
+   "-Wl,--no-as-needed,--copy-dt-needed-entries,-rpath-link,. \
+    tmpdir/libpr28849b.so" \
+   "-O2 -flto" \
+   {pr28849b.c} \
+   {{"nm" {-D} "pr28849.d"}} \
+   "pr28849" \
+  ] \
+  [list \
+   "PR ld/pr29086" \
+   "-Wl,--wrap=foo" \
+   "-O0 -flto" \
+   {pr29086.c} \
+   {} \
+   "pr29086" \
+  ] \
 ]
 
 # PR 14918 checks that libgcc is not spuriously included in a shared link of
@@ -321,11 +538,21 @@ set lto_link_elf_tests [list \
 # __aeabi_unwind_cpp_pr0@@GCC_3.5 which is provided by libgcc_s.so.1, so the
 # test fails.  Hence this code to skip the test.
 if { ! [istarget "arm*-*-*"] } {
-    set lto_link_elf_tests [concat $lto_link_elf_tests [list \
+    lappend lto_link_elf_tests \
   [list "PR ld/14918" \
    "-flto" "-flto" \
-   {pr14918.c} {{"readelf" {-d --wide} "pr14918.d"}} "pr14918.exe" "c"] \
-  ]]
+   {pr14918.c} {{"readelf" {-d --wide} "pr14918.d"}} "pr14918.exe" "c"]
+}
+
+# PR 12982 checks that an executable stack is not created by default
+# when using the LTO plugin.  The HPPA target however requires an
+# executable stack for syscall restarts and signal returns, so we
+# skip this test for that target.
+if { ! [istarget "hppa*-*-*"] } {
+    lappend lto_link_elf_tests \
+  [list "PR ld/12982" \
+   "-O2 -flto -fuse-linker-plugin" "-O2 -flto" \
+   {pr12982.c} {{"readelf" {-l --wide} "pr12982.d"}} "pr12982.exe"]
 }
 
 # Check final symbols in executables.
@@ -340,10 +567,12 @@ set lto_link_symbol_tests [list \
    "-O2 -flto -fuse-linker-plugin tmpdir/lto-9.o" "" \
    {dummy.c} {{"nm" {-C} "lto-9.d"}} "lto-9.exe" "c++"] \
   [list "LTO 16a symbol" \
-   "-O2 -Wl,-e,foo -nostdlib -flto -fuse-linker-plugin" "-flto" \
+   "-O2 $NOSANITIZE_CFLAGS -Wl,-e,foo -nostdlib -flto -fuse-linker-plugin" \
+   "-flto $NOSANITIZE_CFLAGS" \
    {lto-16a.c} {{"nm" {} "lto-16a.d"}} "lto-16.exe" "c"] \
   [list "LTO 16b symbol" \
-   "-O2 -Wl,-e,foo -u bar -nostdlib -flto -fuse-linker-plugin" "-flto" \
+   "-O2 $NOSANITIZE_CFLAGS -Wl,-e,foo -u bar -nostdlib -flto -fuse-linker-plugin" \
+   "-flto $NOSANITIZE_CFLAGS" \
    {lto-16a.c lto-16b.c} {{"nm" {} "lto-16b.d"}} "lto-16b.exe" "c"] \
   [list "PR ld/13183" \
    "-O2 -flto -fuse-linker-plugin tmpdir/pr13183b.o tmpdir/libpr13183.a" "" \
@@ -401,18 +630,42 @@ set lto_run_tests [list \
    "-O2 -flto tmpdir/pr20276a.o tmpdir/pr20276b.o" "" \
    {dummy.c} "pr20276" "pass.out" "-flto -O2" "c"] \
   [list "Run pr20267a" \
-   "-O2 -flto tmpdir/pr20267a.o tmpdir/libpr20267a.a" "" \
-   {dummy.c} "pr20267a" "pass.out" "-flto -O2" "c"] \
+   "-O2 -flto -fcommon tmpdir/pr20267a.o tmpdir/libpr20267a.a" "" \
+   {dummy.c} "pr20267a" "pass.out" "-flto -O2 -fcommon" "c"] \
   [list "Run pr20267b" \
-   "-O2 -flto tmpdir/pr20267a.o tmpdir/libpr20267b.a" "" \
-   {dummy.c} "pr20267b" "pass.out" "-flto -O2" "c"] \
+   "-O2 -flto -fcommon tmpdir/pr20267a.o tmpdir/libpr20267b.a" "" \
+   {dummy.c} "pr20267b" "pass.out" "-flto -O2 -fcommon" "c"] \
   [list "Run pr22502" \
    "-O2 -flto tmpdir/pr22502a.o tmpdir/pr22502b.o" "" \
-   {dummy.c} "pr20267" "pass.out" "-flto -O2" "c"] \
+   {dummy.c} "pr20267" "pass.out" "-flto -O2 -fcommon" "c"] \
   [list "Run pr22751" \
    "-O2 -flto" "" \
    {dummy.c} "pr22751" "pass.out" "-flto -O2" "c" "" \
    "-Wl,--whole-archive tmpdir/pr22751.a -Wl,--no-whole-archive"] \
+  [list "Run pr24406-1" \
+   "-O2 -flto" "" \
+   {pr24406-1.c} "pr24406-1" "pass.out" "-flto -O2" "c" "" \
+   "-Wl,--wrap=read"] \
+  [list "Run pr24406-2" \
+   "-O2 -flto" "" \
+   {pr24406-2a.c} "pr24406-2" "pass.out" \
+   "-flto -O2" "c" "" \
+   "tmpdir/pr24406-2b.o -Wl,--wrap=cook"] \
+  [list "Run pr26163" \
+   "-O2 -flto" "" \
+   {pr26163b.c} "pr24406-2" "pass.out" \
+   "-flto -O2" "c" "" \
+   "tmpdir/pr26163a.o -Wl,--defsym,g=real_g"] \
+  [list "Run pr26262a" \
+   "-O2 -flto" "" \
+   {pr26262a.c} "pr26262a" "pass.out" \
+   "-flto -O2" "c" "" \
+   "tmpdir/pr26262b.o tmpdir/pr26262c.o"] \
+  [list "Run pr26262b" \
+   "-flto -O2 tmpdir/pr26262b.o tmpdir/pr26262c.o" "" \
+   {pr26262a.c} "pr26262b" "pass.out" \
+   "-flto -O2" "c" "" \
+   ""] \
 ]
 
 if { [at_least_gcc_version 4 7] } {
@@ -440,6 +693,26 @@ set lto_run_elf_shared_tests [list \
   [list {pr22220b} \
    {-flto -fuse-linker-plugin -Wl,--no-as-needed tmpdir/pr22220lib.so tmpdir/pr22220main.o} {} \
    {dummy.c} {pr22220b.exe} {pass.out} {} {c++}] \
+  [list {lto-18 (1)} \
+   {-flto -fuse-linker-plugin} {} \
+   {lto-18a.c} {lto-18-1.exe} {lto-18.out} {-flto -O2} {c} {} \
+   {tmpdir/lto-18d.o -Wl,--as-needed,-R,tmpdir -Ltmpdir -llto-18b -llto-18c}] \
+  [list {lto-18 (2)} \
+   {-flto -fuse-linker-plugin} {} \
+   {lto-18a.c} {lto-18-2.exe} {lto-18.out} {-flto -O2} {c} {} \
+   {-Wl,--as-needed,-R,tmpdir -Ltmpdir -llto-18b -llto-18c tmpdir/lto-18d.o}] \
+  [list {lto-18 (3)} \
+   {-static -flto -fuse-linker-plugin} {} \
+   {lto-18a.c} {lto-18-3.exe} {lto-18.out} {-flto -O2} {c} {} \
+   {tmpdir/lto-18d.o -Ltmpdir -llto-18b -llto-18c}] \
+  [list {lto-18 (4)} \
+   {-static -flto -fuse-linker-plugin} {} \
+   {lto-18a.c} {lto-18-4.exe} {lto-18.out} {-flto -O2} {c} {} \
+   { -Ltmpdir -llto-18b -llto-18c tmpdir/lto-18d.o}] \
+  [list {lto-19} \
+   {-Wl,--as-needed,-R,tmpdir} {} \
+   {lto-19c.c} {lto-19.exe} {pass.out} {-flto -O2} {c} {} \
+   {tmpdir/liblto-19.so tmpdir/liblto-19.a}] \
 ]
 
 # LTO run-time tests for ELF
@@ -462,21 +735,21 @@ run_cc_link_tests $lto_compile_elf_tests
 if { [is_elf_format] && [check_lto_shared_available] } {
     run_cc_link_tests $lto_link_elf_tests
     set testname "PR ld/15146 (2)"
-    set exec_output [run_host_cmd "$CC" "-O2 -flto -fuse-linker-plugin -Wl,-rpath-link,. -Wl,--no-copy-dt-needed-entries -Wl,--no-as-needed tmpdir/pr15146d.o tmpdir/pr15146c.so"]
+    set exec_output [run_host_cmd "$CC_FOR_TARGET" "-O2 -flto -fuse-linker-plugin -Wl,-rpath-link,. -Wl,--no-copy-dt-needed-entries -Wl,--no-as-needed tmpdir/pr15146d.o tmpdir/pr15146c.so"]
     if { [ regexp "undefined reference to symbol '\\.?xxx'" $exec_output ] } {
 	pass $testname
     } {
 	fail $testname
     }
     set testname "PR ld/16746 (3)"
-    set exec_output [run_host_cmd "$CC" "-O2 -flto -fuse-linker-plugin tmpdir/pr16746b.o tmpdir/pr16746d.o"]
+    set exec_output [run_host_cmd "$CC_FOR_TARGET" "-O2 -flto -fuse-linker-plugin tmpdir/pr16746b.o tmpdir/pr16746d.o"]
     if { [ regexp "warning: \\.?foobar" $exec_output ] && ![ regexp "symbol from plugin" $exec_output ] } {
 	pass $testname
     } {
 	fail $testname
     }
     set testname "PR ld/16746 (4)"
-    set exec_output [run_host_cmd "$CC" "-O2 -flto -fuse-linker-plugin tmpdir/pr16746d.o tmpdir/pr16746b.o"]
+    set exec_output [run_host_cmd "$CC_FOR_TARGET" "-O2 -flto -fuse-linker-plugin tmpdir/pr16746d.o tmpdir/pr16746b.o"]
     if { [ regexp "warning: \\.?foobar" $exec_output ] && ![ regexp "symbol from plugin" $exec_output ] } {
 	pass $testname
     } {
@@ -484,11 +757,45 @@ if { [is_elf_format] && [check_lto_shared_available] } {
     }
 }
 
+run_cc_link_tests [list \
+    [list \
+	"Build pr28138.a" \
+	"-T" "" \
+	{pr28138-1.c pr28138-2.c pr28138-3.c pr28138-4.c pr28138-5.c \
+	 pr28138-6.c pr28138-7.c} {} "pr28138.a" \
+    ] \
+    [list \
+	"Build pr28138.o" \
+	"" "" \
+	{pr28138.c} {} \
+    ] \
+]
+
+set exec_output [run_host_cmd "sh" \
+			      "-c \"ulimit -n 20; \
+			      $CC_FOR_TARGET -Btmpdir/ld -o tmpdir/pr28138 \
+			      tmpdir/pr28138.o tmpdir/pr28138.a\""]
+set exec_output [prune_warnings $exec_output]
+if [string match "" $exec_output] then {
+    if { [isnative] } {
+	set exec_output [run_host_cmd "tmpdir/pr28138" ""]
+	if [string match "PASS" $exec_output] then {
+	    pass "PR ld/28138 (build & run)"
+	} else {
+	    fail "PR ld/28138 (built ok, run failed)"
+	}
+    } else {
+	pass "PR ld/28138 (build only)"
+    }
+} else {
+    fail "PR ld/28138 (build only)"
+}
+
 set testname "Build liblto-11.a"
 remote_file host delete "tmpdir/liblto-11.a"
 set catch_output [run_host_cmd "$ar" "rc $plug_opt tmpdir/liblto-11.a tmpdir/lto-11a.o tmpdir/lto-11b.o tmpdir/lto-11c.o"]
 if {![string match "" $catch_output]} {
-    unresolved $testname
+    fail $testname
     restore_notify
     return
 }
@@ -500,12 +807,11 @@ if { [at_least_gcc_version 4 7] } {
     if { ([istarget "i?86-*-elf*"]
 	   || [istarget "i?86-*-linux*"]
 	   || [istarget "i?86-*-gnu*"]
-	   || [istarget "i?86-*-nacl*"]
-	   || [istarget "x86_64-*-nacl*"]
 	   || [istarget "x86_64-*-linux*"]
 	   || [istarget "amd64-*-linux*"]) } {
 	set testname "PR ld/12365"
-	set exec_output [run_host_cmd "$CC" "-O2 -flto -flto-partition=none -fuse-linker-plugin -o tmpdir/pr12365 tmpdir/pr12365a.o tmpdir/pr12365b.o tmpdir/pr12365c.o"]
+	set exec_output [run_host_cmd "$CC_FOR_TARGET" "-O2 -flto -flto-partition=none -fuse-linker-plugin -o tmpdir/pr12365 tmpdir/pr12365a.o tmpdir/pr12365b.o tmpdir/pr12365c.o"]
+	set exec_output [prune_warnings $exec_output]
 	if { [ regexp "undefined reference to `my_bcopy'" $exec_output ] } {
 	    # Linker should catch the reference to undefined `my_bcopy'
 	    # error caused by a GCC bug.
@@ -526,7 +832,8 @@ if { [at_least_gcc_version 4 7] } {
 	run_cc_link_tests [list \
 	    [list \
 		"Build pr22721a.so" \
-		"-shared -nostdlib -nostartfiles -Wl,-version-script,pr22721.t" \
+		"-shared $NOSANITIZE_CFLAGS -nostdlib -nostartfiles \
+		 -Wl,-version-script,pr22721.t" \
 		"" \
 		{pr22721a.s} \
 		{} \
@@ -534,15 +841,16 @@ if { [at_least_gcc_version 4 7] } {
 	    ] \
 	    [list \
 		"Build pr22721b.o" \
-		"$plug_opt" \
+		"$plug_opt $NOSANITIZE_CFLAGS" \
 		"-O2 -fPIC -flto $lto_no_fat" \
 		{pr22721b.c} \
 	    ] \
 	    [list \
 		"Build PR ld/pr22721" \
 		"-O2 -flto -fuse-linker-plugin -nostdlib -nostartfiles \
-		-Wl,-e,_start tmpdir/pr22721b.o tmpdir/pr22721a.so" \
-		"" \
+		 $NOSANITIZE_CFLAGS \
+		 -Wl,-e,_start tmpdir/pr22721b.o tmpdir/pr22721a.so" \
+		"$NOSANITIZE_CFLAGS" \
 		{dummy.c} \
 		{} \
 		"pr22721.exe"
@@ -550,11 +858,44 @@ if { [at_least_gcc_version 4 7] } {
 	]
     }
     set testname "PR ld/12942 (3)"
-    set exec_output [run_host_cmd "$CXX" "-O2 -flto -fuse-linker-plugin tmpdir/pr12942b.o tmpdir/pr12942a.o"]
+    set exec_output [run_host_cmd "$CXX_FOR_TARGET" "-O2 -flto -fuse-linker-plugin tmpdir/pr12942b.o tmpdir/pr12942a.o"]
     if { [ regexp "undefined reference to `\\.?link_error\\(\\)'" $exec_output ] } {
         pass $testname
     } {
         fail $testname
+    }
+
+    run_cc_link_tests [list \
+	[list \
+	    "Build pr23460*.o" \
+	    "$plug_opt" \
+	    "-O2 -fPIC -flto $lto_no_fat" \
+	    {pr23460a.c pr23460b.c pr23460c.c \
+	     pr23460d.c pr23460e.c pr23460f.c} \
+	] \
+    ]
+    set exec_output [run_host_cmd "sh" \
+				  "-c \"ulimit -n 20; \
+				   $ar -rc $plug_opt \
+				   tmpdir/libpr23460.a \
+				   tmpdir/pr23460a.o \
+				   tmpdir/pr23460b.o \
+				   tmpdir/pr23460c.o \
+				   tmpdir/pr23460d.o \
+				   tmpdir/pr23460e.o \
+				   tmpdir/pr23460f.o\""]
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+	pass "PR binutils/23460"
+    } else {
+	fail "PR binutils/23460"
+    }
+    set exec_output [run_host_cmd "$RANLIB" "$plug_opt tmpdir/libpr23460.a"]
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+	pass "PR binutils/23460"
+    } else {
+	fail "PR binutils/23460"
     }
 }
 
@@ -609,10 +950,10 @@ if { [is_elf_format] && [check_lto_shared_available] } {
 }
 
 proc pr20103 {cflags libs} {
-    global CC
+    global CC_FOR_TARGET
 
     set testname "PR ld/20103 ($cflags $libs)"
-    set exec_output [run_host_cmd "$CC" "$cflags $libs"]
+    set exec_output [run_host_cmd "$CC_FOR_TARGET" "$cflags $libs"]
     if { [ regexp "undefined reference to `\\.?dead'" $exec_output ] } {
         pass "$testname (1)"
     } {

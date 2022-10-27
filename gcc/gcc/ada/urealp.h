@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *            Copyright (C) 1992-2019, Free Software Foundation, Inc.       *
+ *            Copyright (C) 1992-2022, Free Software Foundation, Inc.       *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -23,8 +23,9 @@
  *                                                                          *
  ****************************************************************************/
 
-/* This file corresponds to the Ada package specification Urealp.  It was
-   created manually from the files urealp.ads and urealp.adb.  */
+/* This is the C header that corresponds to the Ada package specification for
+   Urealp.  It was created manually from urealp.ads and must be kept
+   synchronized with changes in this file.  */
 
 #ifdef __cplusplus
 extern "C" {

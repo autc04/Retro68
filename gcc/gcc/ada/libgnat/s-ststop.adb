@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2008-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2008-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,13 +29,10 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-pragma Compiler_Unit_Warning;
-
+with Ada.IO_Exceptions;        use Ada.IO_Exceptions;
 with Ada.Streams;              use Ada.Streams;
-with Ada.Streams.Stream_IO;    use Ada.Streams.Stream_IO;
 with Ada.Unchecked_Conversion;
 
-with System;                   use System;
 with System.Storage_Elements;  use System.Storage_Elements;
 with System.Stream_Attributes;
 
@@ -216,21 +213,25 @@ package body System.Strings.Stream_Ops is
             declare
                --  Determine the size in BITS of the block necessary to contain
                --  the whole string.
+               --  Since we are dealing with strings indexed by natural, there
+               --  is no risk of overflow when using a Long_Long_Integer.
 
-               Block_Size : constant Natural :=
-                              Integer (Item'Last - Item'First + 1) * ET_Size;
+               Block_Size : constant Long_Long_Integer :=
+                 Item'Length * Long_Long_Integer (ET_Size);
 
                --  Item can be larger than what the default block can store,
-               --  determine the number of whole reads necessary to read the
+               --  determine the number of whole writes necessary to output the
                --  string.
 
-               Blocks : constant Natural := Block_Size / Default_Block_Size;
+               Blocks : constant Natural :=
+                 Natural (Block_Size / Long_Long_Integer (Default_Block_Size));
 
                --  The size of Item may not be a multiple of the default block
-               --  size, determine the size of the remaining chunk in BITS.
+               --  size, determine the size of the remaining chunk.
 
                Rem_Size : constant Natural :=
-                            Block_Size mod Default_Block_Size;
+                 Natural
+                   (Block_Size mod Long_Long_Integer (Default_Block_Size));
 
                --  String indexes
 
@@ -337,20 +338,25 @@ package body System.Strings.Stream_Ops is
             declare
                --  Determine the size in BITS of the block necessary to contain
                --  the whole string.
+               --  Since we are dealing with strings indexed by natural, there
+               --  is no risk of overflow when using a Long_Long_Integer.
 
-               Block_Size : constant Natural := Item'Length * ET_Size;
+               Block_Size : constant Long_Long_Integer :=
+                 Item'Length * Long_Long_Integer (ET_Size);
 
                --  Item can be larger than what the default block can store,
                --  determine the number of whole writes necessary to output the
                --  string.
 
-               Blocks : constant Natural := Block_Size / Default_Block_Size;
+               Blocks : constant Natural :=
+                 Natural (Block_Size / Long_Long_Integer (Default_Block_Size));
 
                --  The size of Item may not be a multiple of the default block
                --  size, determine the size of the remaining chunk.
 
                Rem_Size : constant Natural :=
-                            Block_Size mod Default_Block_Size;
+                 Natural
+                   (Block_Size mod Long_Long_Integer (Default_Block_Size));
 
                --  String indexes
 

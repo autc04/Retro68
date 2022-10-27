@@ -4,7 +4,7 @@
 .*:     file format .*-cris
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET[	 ]+TYPE[	 ]+VALUE 
+OFFSET +TYPE +VALUE
 0+70 (R_CRIS_)?16[ 	]+externalsym
 0+284 (R_CRIS_)?32[ 	]+externalsym
 0+28c (R_CRIS_)?32[ 	]+\.text

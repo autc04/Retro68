@@ -26,5 +26,5 @@ Disassembly of section .text:
   33:	03 8b 00 00 00 00 [ 	]*add    0x0\(%ebx\),%ecx
 [ 	]+35: R_386_TLS_GOTIE	foo
   39:	8b 5d fc [ 	]*mov    -0x4\(%ebp\),%ebx
-  3c:	c9 [ 	]*leave[ 	]*
-  3d:	c3 [ 	]*ret[ 	]*
+  3c:	c9 [ 	]*leave
+  3d:	c3 [ 	]*ret

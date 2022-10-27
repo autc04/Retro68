@@ -1,4 +1,4 @@
-#   Copyright (C) 1993-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,7 +50,9 @@ if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
 
     # This test does not work correctly on XCOFF targets, because XCOFF
     # does not enter static symbols in the symbol table.
-    setup_xfail "*-*-aix*"
+    if [is_xcoff_format] {
+	setup_xfail *-*-*
+    }
 
     set got [binutils_run $NM "$NMFLAGS $tempfile"]
 
@@ -108,7 +110,9 @@ if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
 
     # This test does not work correctly on XCOFF targets, because XCOFF
     # does not enter static symbols in the symbol table.
-    setup_xfail "*-*-aix*"
+    if [is_xcoff_format] {
+	setup_xfail *-*-*
+    }
 
     set got [binutils_run $NM "$NMFLAGS -P $tempfile"]
 
@@ -118,6 +122,24 @@ if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
 	pass "nm -P"
     } else {
 	fail "nm -P"
+    }
+
+    # Test nm -t d
+    # Look for leading zeroes and only the digits 0..9 in the actual value.
+    set got [binutils_run $NM "$NMFLAGS -t d $tempfile"]
+    if [regexp "0+\[1-9\]\[0-9\]* T text_symbol3" $got] then {
+	pass "nm -t d"
+    } else {
+	fail "nm -t d"
+    }
+
+    # Test nm --format=posix
+    # ref: PR 24507 - no leading zeros.
+    set got [binutils_run $NM "$NMFLAGS --format=posix $tempfile"]
+    if [regexp "text_symbol3 T \[1-9a-f\]\[0-9a-f\]*" $got] then {
+	pass "nm --format posix"
+    } else {
+	fail "nm --format posix"
     }
 }
 
@@ -134,6 +156,7 @@ if {   [is_elf_format]
     || [istarget *-*-*elf]
     || [istarget *-*-freebsd*]
     || [istarget *-*-lynxos*]
+    || [istarget *-*-moss*]
     || [istarget "mmix-knuth-mmixware"]
     || [istarget *-*-nto*]
     || [istarget *-*-rdos*]
@@ -141,7 +164,8 @@ if {   [is_elf_format]
     || [istarget *-*-uclinux*]
     || [istarget ia64-*-*vms*]
     || [istarget *-*-vxworks*]
-    || [istarget wasm32-*-*] } {
+    || [istarget wasm32-*-*]
+    || [istarget bpf-*-*]} {
     set nm_1_src "nm-elf-1.s"
 } else {
     set nm_1_src "nm-1.s"
@@ -227,6 +251,126 @@ if [is_elf_format] {
 	    remote_file host delete "tmpdir/nm-ver.o"
 	}
     }
+
+    # PR binutils/25676
+    # Test nm --line-numbers on DWARF-4 debug info.    
+    set testname "nm --line-numbers on DWARF-4 debug info"
+
+    # The RISCV target does not (currently) support .uleb128.
+    setup_xfail "riscv*-*-*"
+    # The SH targets complain that the pseudo-ops used to construct
+    # the DWARF data are misaligned.
+    setup_xfail "sh*-*-*"
+    # The pre-compiled dwarf info in dw4.s is not compatible with the
+    # ALPHA, HPPA, IA64 and MIPS targets.
+    setup_xfail "alpha*-*-*" "hppa*-*-*" "ia64*-*-*" "mips*-*-*"
+    # Assembling the source file triggers an ICE in the FT32 assembler.
+    # FIXME: Fix the ICE...
+    setup_xfail "ft32-*-*"
+    # The AVR, MSP430, NDS32, PRU and XTENSA targets do not assemble the
+    # (64-bit) source file.
+    setup_xfail "avr-*-*" "msp430-*-*" "nds32*-*-*" "pru-*-*" "xtensa-*-*"
+    
+    if {![binutils_assemble $srcdir/$subdir/dw4.s tmpdir/dw4.o]} then {
+	fail "$testname (assembly)"
+    } else {
+	# The test source is only intended for 64-bit targets.
+	# FIXME: Create a 32-bit version of this test.
+	if {! [is_elf64 tmpdir/dw4.o]} {
+	    unsupported "$testname (needs a 64-bit target)"
+	} else {
+	    if [is_remote host] {
+		set tmpfile [remote_download host tmpdir/dw4r.o]
+	    } else {
+		set tmpfile tmpdir/dw4.o
+	    }
+
+	    set got [binutils_run $NM "$NMFLAGS --line-numbers $tmpfile"]
+
+	    if {! [regexp "g_my_externd_global.*tests/main.c:3" $got]} then {
+		fail "$testname (grep for externd global file/line)"
+	    } else {
+		pass $testname
+	    }
+	}
+
+	if { $verbose < 1 } {
+	    remote_file host delete $tmpfile
+	}
+    }
+
+    # PR 22967
+    # Test nm --ifunc-chars on a indirect symbols.
+    
+    # The following targets are known to not support ifuncs.
+    setup_xfail "alpha*-*-*"
+    setup_xfail "arm*-elf" "arm*-*-nto*" "arm*-*-netbsd*"
+    setup_xfail "*-*-hpux*"
+    setup_xfail "mips*-*-*" "tx39*-*-*"
+    setup_xfail "msp430*-*-*"
+    setup_xfail "visium*-*-*"
+    setup_xfail "x86_64-*-cloudabi*"
+
+    set testname "nm --ifunc-chars"
+    if {![binutils_assemble $srcdir/$subdir/ifunc.s tmpdir/ifunc.o]} then {
+	fail "$testname (assembly)"
+    } else {
+	if [is_remote host] {
+	    set tmpfile [remote_download host tmpdir/ifunc.o]
+	} else {
+	    set tmpfile tmpdir/ifunc.o
+	}
+
+	set got [binutils_run $NM "$NMFLAGS --ifunc-chars=Ff $tmpfile"]
+
+	if [regexp "F global_foo" $got] then {
+	    pass "$testname (global ifunc)"
+	} else {
+	    fail "$testname (global ifunc)"
+	}
+
+	if [regexp "f local_foo" $got] then {
+	    pass "$testname (local ifunc)"
+	} else {
+	    fail "$testname (local ifunc)"
+	}
+
+	if { $verbose < 1 } {
+	    remote_file host delete "tmpdir/ifunc.o"
+	}
+    }
+
+    set testname "nm --no-weak"
+    if {![binutils_assemble $srcdir/$subdir/no-weak.s tmpdir/no-weak.o]} then {
+	fail "$testname (assembly)"
+    } else {
+	if [is_remote host] {
+	    set tmpfile [remote_download host tmpdir/no-weak.o]
+	} else {
+	    set tmpfile tmpdir/no-weak.o
+	}
+
+	set got [binutils_run $NM "$NMFLAGS --no-weak $tmpfile"]
+
+	if [regexp "weak_with_default_value" $got] then {
+	    fail "$testname (weak symbol with default value)"
+	} else {
+	    pass "$testname (weak symbol with default value)"
+	}
+
+	if [regexp "weak_without_default_value" $got] then {
+	    fail "$testname (weak symbol without default value)"
+	} else {
+	    pass "$testname (weak symbol without default value)"
+	}
+
+	# FIXME: We should re run this test without the --no-weak option
+	# and verify that the expected symbol names *are* shown...
+
+	if { $verbose < 1 } {
+	    remote_file host delete "tmpdir/no0weak.o"
+	}
+    }    
 }
 
 # There are certainly other tests that could be run.

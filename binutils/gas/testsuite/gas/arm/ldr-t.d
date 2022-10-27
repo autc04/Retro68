@@ -34,4 +34,4 @@ Disassembly of section [^>]+:
 0+4e <[^>]+> f8c1 100a 	str.w	r1, \[r1, #10\]
 0+52 <[^>]+> f842 1f0a 	str.w	r1, \[r2, #10\]!
 0+56 <[^>]+> 50d1      	str	r1, \[r2, r3\]
-
+#pass

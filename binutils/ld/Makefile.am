@@ -1,6 +1,6 @@
 ## Process this file with automake to generate Makefile.in
 #
-#   Copyright (C) 2012-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2012-2022 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,25 +34,18 @@ LEX = `if [ -f ../flex/flex ]; then echo ../flex/flex; else echo @LEX@; fi`
 am__skiplex =
 am__skipyacc =
 
+# This is where we get zlib from.  zlibdir is -L../zlib and zlibinc is
+# -I../zlib, unless we were configured with --with-system-zlib, in which
+# case both are empty.
+ZLIB = @zlibdir@ -lz
+ZLIBINC = @zlibinc@
+
 ELF_CLFAGS=-DELF_LIST_OPTIONS=@elf_list_options@ \
 	   -DELF_SHLIB_LIST_OPTIONS=@elf_shlib_list_options@ \
 	   -DELF_PLT_UNWIND_LIST_OPTIONS=@elf_plt_unwind_list_options@
 WARN_CFLAGS = @WARN_CFLAGS@
 NO_WERROR = @NO_WERROR@
-AM_CFLAGS = $(WARN_CFLAGS) $(ELF_CLFAGS)
-
-# Conditionally enable the plugin interface.
-if ENABLE_PLUGINS
-PLUGIN_C = plugin.c
-PLUGIN_H = plugin.h
-PLUGIN_OBJECT = plugin.@OBJEXT@
-PLUGIN_CFLAGS = -DENABLE_PLUGINS
-else
-PLUGIN_C =
-PLUGIN_H =
-PLUGIN_OBJECT =
-PLUGIN_CFLAGS =
-endif
+AM_CFLAGS = $(WARN_CFLAGS) $(ELF_CLFAGS) $(JANSSON_CFLAGS)
 
 # We put the scripts in the directory $(scriptdir)/ldscripts.
 # We can't put the scripts in $(datadir) because the SEARCH_DIR
@@ -130,8 +123,8 @@ CXX_FOR_TARGET = ` \
   fi`
 
 # Strip out sanitization options as we want to test building binaries without any extra paraphernalia
-CFLAGS_FOR_TARGET = `echo $(CFLAGS) | sed -e 's/-fsanitize=address//g' -e 's/-fsanitize=undefined//g'`
-CXXFLAGS_FOR_TARGET = `echo $(CXXFLAGS) | sed -e 's/-fsanitize=address//g' -e 's/-fsanitize=undefined//g'`
+CFLAGS_FOR_TARGET = `echo $(CFLAGS) | sed -e 's/-fsanitize=[^ ]*//g'`
+CXXFLAGS_FOR_TARGET = `echo $(CXXFLAGS) | sed -e 's/-fsanitize=[^ ]*//g'`
 
 transform = s/^ld-new$$/$(installed_linker)/;@program_transform_name@
 bin_PROGRAMS = ld-new
@@ -141,17 +134,23 @@ noinst_TEXINFOS = ldint.texi
 man_MANS = ld.1
 
 AM_MAKEINFOFLAGS = -I $(srcdir) -I $(BFDDIR)/doc -I ../bfd/doc \
-		   -I $(top_srcdir)/../libiberty
+		   -I $(top_srcdir)/../libiberty --no-split
 TEXI2DVI = texi2dvi -I $(srcdir) -I $(BFDDIR)/doc -I ../bfd/doc \
 		    -I $(top_srcdir)/../libiberty
 
-AM_CPPFLAGS = -I. -I$(srcdir) -I../bfd -I$(BFDDIR) -I$(INCDIR) \
-	@INCINTL@ $(HDEFINES) $(CFLAGS) $(PLUGIN_CFLAGS) \
+AM_CPPFLAGS = -I. -I$(srcdir) -I../bfd -I$(BFDDIR) -I$(INCDIR) @zlibinc@ \
+	@INCINTL@ $(HDEFINES) $(CFLAGS) @LARGEFILE_CPPFLAGS@ \
 	-DLOCALEDIR="\"$(datadir)/locale\""
 
 BFDLIB = ../bfd/libbfd.la
 LIBIBERTY = ../libiberty/libiberty.a
+if ENABLE_LIBCTF
+LIBCTF = ../libctf/libctf.la
+else
+LIBCTF =
+endif
 
+# These all start with e so 'make clean' can find them.
 ALL_EMULATION_SOURCES = \
 	eaix5ppc.c \
 	eaix5rs6.c \
@@ -159,17 +158,16 @@ ALL_EMULATION_SOURCES = \
 	eaixrs6.c \
 	ealpha.c \
 	ealphavms.c \
-	earcv2elf.c \
-	earcv2elfx.c \
 	earcelf.c \
-	earcelf_prof.c \
 	earclinux.c \
 	earclinux_nps.c \
-	earclinux_prof.c \
+	earcv2elf.c \
+	earcv2elfx.c \
 	earm_wince_pe.c \
 	earmelf.c \
 	earmelf_fbsd.c \
 	earmelf_fuchsia.c \
+	earmelf_haiku.c \
 	earmelf_linux.c \
 	earmelf_linux_eabi.c \
 	earmelf_linux_fdpiceabi.c \
@@ -187,7 +185,6 @@ ALL_EMULATION_SOURCES = \
 	earmelfb_nbsd.c \
 	earmnto.c \
 	earmpe.c \
-	earmsymbian.c \
 	eavr1.c \
 	eavr2.c \
 	eavr25.c \
@@ -198,6 +195,7 @@ ALL_EMULATION_SOURCES = \
 	eavr5.c \
 	eavr51.c \
 	eavr6.c \
+	eavrtiny.c   \
 	eavrxmega1.c \
 	eavrxmega2.c \
 	eavrxmega3.c \
@@ -205,10 +203,11 @@ ALL_EMULATION_SOURCES = \
 	eavrxmega5.c \
 	eavrxmega6.c \
 	eavrxmega7.c \
-	eavrtiny.c   \
 	ecrisaout.c \
 	ecriself.c \
 	ecrislinux.c \
+	ecskyelf.c \
+	ecskyelf_linux.c \
 	ed10velf.c \
 	ed30v_e.c \
 	ed30v_o.c \
@@ -219,16 +218,15 @@ ALL_EMULATION_SOURCES = \
 	eelf32_sparc_vxworks.c \
 	eelf32_spu.c \
 	eelf32_tic6x_be.c \
+	eelf32_tic6x_elf_be.c \
+	eelf32_tic6x_elf_le.c \
 	eelf32_tic6x_le.c \
 	eelf32_tic6x_linux_be.c \
 	eelf32_tic6x_linux_le.c \
-	eelf32_tic6x_elf_be.c \
-	eelf32_tic6x_elf_le.c \
 	eelf32am33lin.c \
 	eelf32bfin.c \
 	eelf32bfinfd.c \
 	eelf32cr16.c \
-	eelf32cr16c.c \
 	eelf32crx.c \
 	eelf32epiphany.c \
 	eelf32epiphany_4x4.c \
@@ -251,41 +249,36 @@ ALL_EMULATION_SOURCES = \
 	eelf32mcore.c \
 	eelf32mep.c \
 	eelf32metag.c \
-	eelf32microblazeel.c \
 	eelf32microblaze.c \
+	eelf32microblazeel.c \
 	eelf32moxie.c \
-	emoxiebox.c \
 	eelf32mt.c \
 	eelf32or1k.c \
 	eelf32or1k_linux.c \
 	eelf32ppc.c \
 	eelf32ppc_fbsd.c \
+	eelf32ppchaiku.c \
 	eelf32ppclinux.c \
 	eelf32ppcnto.c \
 	eelf32ppcsim.c \
 	eelf32ppcvxworks.c \
 	eelf32ppcwindiss.c \
-	eelf32lriscv.c \
-	eelf32lriscv_ilp32f.c \
-	eelf32lriscv_ilp32.c \
 	eelf32rl78.c \
 	eelf32rx.c \
+	eelf32rx_linux.c \
 	eelf32tilegx.c \
 	eelf32tilegx_be.c \
 	eelf32tilepro.c \
 	eelf32vax.c \
 	eelf32visium.c \
-	eelf32xc16x.c \
-	eelf32xc16xl.c \
-	eelf32xc16xs.c \
 	eelf32xstormy16.c \
 	eelf32xtensa.c \
+	eelf32z80.c \
 	eelf_i386.c \
 	eelf_i386_be.c \
-	eelf_i386_chaos.c \
 	eelf_i386_fbsd.c \
+	eelf_i386_haiku.c \
 	eelf_i386_ldso.c \
-	eelf_i386_nacl.c \
 	eelf_i386_sol2.c \
 	eelf_i386_vxworks.c \
 	eelf_iamcu.c \
@@ -305,6 +298,7 @@ ALL_EMULATION_SOURCES = \
 	ehppalinux.c \
 	ehppanbsd.c \
 	ehppaobsd.c \
+	ei386aout.c \
 	ei386beos.c \
 	ei386bsd.c \
 	ei386go32.c \
@@ -328,24 +322,23 @@ ALL_EMULATION_SOURCES = \
 	emcorepe.c \
 	emn10200.c \
 	emn10300.c \
-	emsp430elf.c \
+	emoxiebox.c \
 	emsp430X.c \
-	ends32elf.c \
-	ends32elf16m.c \
-	ends32elf_linux.c \
+	emsp430elf.c \
 	ends32belf.c \
 	ends32belf16m.c \
 	ends32belf_linux.c \
-	ens32knbsd.c \
+	ends32elf.c \
+	ends32elf16m.c \
+	ends32elf_linux.c \
 	enios2elf.c \
 	enios2linux.c \
+	ens32knbsd.c \
 	epc532macha.c \
 	epdp11.c \
 	epjelf.c \
 	epjlelf.c \
-	eppclynx.c \
 	eppcmacos.c \
-	eppcpe.c \
 	epruelf.c \
 	escore3_elf.c \
 	escore7_elf.c \
@@ -365,13 +358,11 @@ ALL_EMULATION_SOURCES = \
 	eshlelf_nto.c \
 	eshlelf_vxworks.c \
 	eshpe.c \
-	etic30aout.c \
 	etic30coff.c \
 	etic3xcoff.c \
 	etic3xcoff_onchip.c \
 	etic4xcoff.c \
 	etic54xcoff.c \
-	etic80coff.c \
 	ev850.c \
 	ev850_rh850.c \
 	evanilla.c \
@@ -384,23 +375,26 @@ ALL_EMULATION_SOURCES = \
 ALL_EMULATIONS = $(ALL_EMULATION_SOURCES:.c=.@OBJEXT@)
 
 ALL_64_EMULATION_SOURCES = \
-	eaarch64elf.c \
-	eaarch64elf32.c \
-	eaarch64elfb.c \
-	eaarch64elf32b.c \
 	eaarch64cloudabi.c \
 	eaarch64cloudabib.c \
+	eaarch64elf.c \
+	eaarch64elf32.c \
+	eaarch64elf32b.c \
+	eaarch64elfb.c \
 	eaarch64fbsd.c \
 	eaarch64fbsdb.c \
+	eaarch64haiku.c \
 	eaarch64linux.c \
-	eaarch64linuxb.c \
 	eaarch64linux32.c \
 	eaarch64linux32b.c \
+	eaarch64linuxb.c \
 	eelf32_x86_64.c \
-	eelf32_x86_64_nacl.c \
 	eelf32b4300.c \
 	eelf32bmip.c \
 	eelf32bmipn32.c \
+	eelf32briscv.c \
+	eelf32briscv_ilp32.c \
+	eelf32briscv_ilp32f.c \
 	eelf32bsmip.c \
 	eelf32btsmip.c \
 	eelf32btsmip_fbsd.c \
@@ -412,8 +406,12 @@ ALL_64_EMULATION_SOURCES = \
 	eelf32elmipvxworks.c \
 	eelf32l4300.c \
 	eelf32lmip.c \
+	eelf32loongarch.c \
 	eelf32lr5900.c \
 	eelf32lr5900n32.c \
+	eelf32lriscv.c \
+	eelf32lriscv_ilp32.c \
+	eelf32lriscv_ilp32f.c \
 	eelf32lsmip.c \
 	eelf32ltsmip.c \
 	eelf32ltsmip_fbsd.c \
@@ -432,13 +430,19 @@ ALL_64_EMULATION_SOURCES = \
 	eelf64alpha_fbsd.c \
 	eelf64alpha_nbsd.c \
 	eelf64bmip.c \
+	eelf64bpf.c \
+	eelf64briscv.c \
+	eelf64briscv_lp64.c \
+	eelf64briscv_lp64f.c \
 	eelf64btsmip.c \
 	eelf64btsmip_fbsd.c \
 	eelf64hppa.c \
+	eelf64loongarch.c \
 	eelf64lppc.c \
+	eelf64lppc_fbsd.c \
 	eelf64lriscv.c \
-	eelf64lriscv_lp64f.c \
 	eelf64lriscv_lp64.c \
+	eelf64lriscv_lp64f.c \
 	eelf64ltsmip.c \
 	eelf64ltsmip_fbsd.c \
 	eelf64mmix.c \
@@ -447,14 +451,11 @@ ALL_64_EMULATION_SOURCES = \
 	eelf64rdos.c \
 	eelf64tilegx.c \
 	eelf64tilegx_be.c \
-	eelf_l1om.c \
-	eelf_l1om_fbsd.c \
-	eelf_k1om.c \
-	eelf_k1om_fbsd.c \
+	eelf_mipsel_haiku.c \
 	eelf_x86_64.c \
 	eelf_x86_64_cloudabi.c \
 	eelf_x86_64_fbsd.c \
-	eelf_x86_64_nacl.c \
+	eelf_x86_64_haiku.c \
 	eelf_x86_64_sol2.c \
 	ehppa64linux.c \
 	ei386pep.c \
@@ -464,7 +465,9 @@ ALL_64_EMULATIONS = $(ALL_64_EMULATION_SOURCES:.c=.@OBJEXT@)
 
 ALL_EMUL_EXTRA_OFILES = \
 	deffilep.@OBJEXT@ \
-	pe-dll.@OBJEXT@
+	pe-dll.@OBJEXT@ \
+	ldelf.@OBJEXT@ \
+	ldelfgen.@OBJEXT@
 
 ALL_64_EMUL_EXTRA_OFILES = \
 	pep-dll.@OBJEXT@
@@ -472,12 +475,12 @@ ALL_64_EMUL_EXTRA_OFILES = \
 CFILES = ldctor.c ldemul.c ldexp.c ldfile.c ldlang.c \
 	ldmain.c ldmisc.c ldver.c ldwrite.c lexsup.c \
 	mri.c ldcref.c pe-dll.c pep-dll.c ldlex-wrapper.c \
-	$(PLUGIN_C) ldbuildid.c
+	plugin.c ldbuildid.c ldelf.c ldelfgen.c
 
 HFILES = ld.h ldctor.h ldemul.h ldexp.h ldfile.h \
 	ldlang.h ldlex.h ldmain.h ldmisc.h ldver.h \
 	ldwrite.h mri.h deffile.h pe-dll.h pep-dll.h \
-	elf-hints-local.h $(PLUGIN_H) ldbuildid.h
+	elf-hints-local.h plugin.h ldbuildid.h ldelf.h ldelfgen.h
 
 GENERATED_CFILES = ldgram.c ldlex.c deffilep.c
 GENERATED_HFILES = ldgram.h ldemul-list.h deffilep.h
@@ -487,7 +490,7 @@ GENERATED_HFILES = ldgram.h ldemul-list.h deffilep.h
 BUILT_SOURCES = $(GENERATED_HFILES)
 
 OFILES = ldgram.@OBJEXT@ ldlex-wrapper.@OBJEXT@ lexsup.@OBJEXT@ ldlang.@OBJEXT@ \
-	mri.@OBJEXT@ ldctor.@OBJEXT@ ldmain.@OBJEXT@ $(PLUGIN_OBJECT) \
+	mri.@OBJEXT@ ldctor.@OBJEXT@ ldmain.@OBJEXT@ plugin.@OBJEXT@ \
 	ldwrite.@OBJEXT@ ldexp.@OBJEXT@  ldemul.@OBJEXT@ ldver.@OBJEXT@ ldmisc.@OBJEXT@ \
 	ldfile.@OBJEXT@ ldcref.@OBJEXT@ ${EMULATION_OFILES} ${EMUL_EXTRA_OFILES} \
 	ldbuildid.@OBJEXT@
@@ -498,38 +501,38 @@ STAGESTUFF = *.@OBJEXT@ ldscripts/* e*.c
 # yacc will produce working code which contain compile time warnings.
 ldgram.@OBJEXT@: ldgram.c
 if am__fastdepCC
-	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `test -f ldgram.c || echo $(srcdir)/`ldgram.c $(NO_WERROR)
-	mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `test -f ldgram.c || echo $(srcdir)/`ldgram.c $(NO_WERROR)
+	$(AM_V_at)mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
 else
 if AMDEP
 	source='ldgram.c' object='$@' libtool=no @AMDEPBACKSLASH@
 	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 endif
-	$(COMPILE) -c `test -f ldgram.c || echo $(srcdir)/`ldgram.c $(NO_WERROR)
+	$(AM_V_CC)$(COMPILE) -c `test -f ldgram.c || echo $(srcdir)/`ldgram.c $(NO_WERROR)
 endif
 
 ldlex-wrapper.@OBJEXT@: ldlex-wrapper.c ldlex.c
 if am__fastdepCC
-	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $(srcdir)/ldlex-wrapper.c $(NO_WERROR)
-	mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $(srcdir)/ldlex-wrapper.c $(NO_WERROR)
+	$(AM_V_at)mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
 else
 if AMDEP
 	source='ldlex-wrapper.c' object='$@' libtool=no @AMDEPBACKSLASH@
 	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 endif
-	$(COMPILE) -c $(srcdir)/ldlex-wrapper.c $(NO_WERROR)
+	$(AM_V_CC)$(COMPILE) -c $(srcdir)/ldlex-wrapper.c $(NO_WERROR)
 endif
 
 deffilep.@OBJEXT@: deffilep.c
 if am__fastdepCC
-	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `test -f deffilep.c || echo $(srcdir)/`deffilep.c $(NO_WERROR)
-	mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `test -f deffilep.c || echo $(srcdir)/`deffilep.c $(NO_WERROR)
+	$(AM_V_at)mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
 else
 if AMDEP
 	source='deffilep.c' object='$@' libtool=no @AMDEPBACKSLASH@
 	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 endif
-	$(COMPILE) -c `test -f deffilep.c || echo $(srcdir)/`deffilep.c $(NO_WERROR)
+	$(AM_V_CC)$(COMPILE) -c `test -f deffilep.c || echo $(srcdir)/`deffilep.c $(NO_WERROR)
 endif
 
 SRC_POTFILES = $(CFILES) $(HFILES)
@@ -545,18 +548,18 @@ po/BLD-POTFILES.in: @MAINT@ Makefile $(BLD_POTFILES)
 
 ldmain.@OBJEXT@: ldmain.c config.status
 if am__fastdepCC
-	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ \
+	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ \
 	  -DDEFAULT_EMULATION='"$(EMUL)"' \
 	  -DBINDIR='"$(bindir)"' -DTOOLBINDIR='"$(tooldir)/bin"' \
 	  -DTARGET='"@target@"' @TARGET_SYSTEM_ROOT_DEFINE@ \
 	  $(srcdir)/ldmain.c
-	mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+	$(AM_V_at)mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
 else
 if AMDEP
 	source='ldmain.c' object='$@' libtool=no @AMDEPBACKSLASH@
 	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 endif
-	$(COMPILE) -c -DDEFAULT_EMULATION='"$(EMUL)"' \
+	$(AM_V_CC)$(COMPILE) -c -DDEFAULT_EMULATION='"$(EMUL)"' \
 	  -DBINDIR='"$(bindir)"' -DTOOLBINDIR='"$(tooldir)/bin"' \
 	  -DTARGET='"@target@"' @TARGET_SYSTEM_ROOT_DEFINE@ \
 	  $(srcdir)/ldmain.c
@@ -564,31 +567,31 @@ endif
 
 ldfile.@OBJEXT@: ldfile.c config.status
 if am__fastdepCC
-	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ \
+	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ \
 	-DSCRIPTDIR='"$(scriptdir)"' -DBINDIR='"$(bindir)"' -DTOOLBINDIR='"$(tooldir)/bin"' \
 	 $(srcdir)/ldfile.c
-	mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+	$(AM_V_at)mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
 else
 if AMDEP
 	source='ldfile.c' object='$@' libtool=no @AMDEPBACKSLASH@
 	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 endif
-	$(COMPILE) -c -DSCRIPTDIR='"$(scriptdir)"' -DBINDIR='"$(bindir)"' \
+	$(AM_V_CC)$(COMPILE) -c -DSCRIPTDIR='"$(scriptdir)"' -DBINDIR='"$(bindir)"' \
 	  -DTOOLBINDIR='"$(tooldir)/bin"' \
 	  $(srcdir)/ldfile.c
 endif
 
 eelf32_spu.@OBJEXT@: eelf32_spu.c
 if am__fastdepCC
-	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ \
+	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ \
 	  -DEMBEDSPU="\"`echo embedspu | sed '$(transform)'`\"" eelf32_spu.c
-	mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+	$(AM_V_at)mv -f $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
 else
 if AMDEP
 	source='eelf32_spu.c' object='$@' libtool=no @AMDEPBACKSLASH@
 	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 endif
-	$(COMPILE) -c -DEMBEDSPU="\"`echo embedspu | sed '$(transform)'`\"" \
+	$(AM_V_CC)$(COMPILE) -c -DEMBEDSPU="\"`echo embedspu | sed '$(transform)'`\"" \
 	  eelf32_spu.c
 endif
 
@@ -608,20 +611,15 @@ ldemul-list.h: Makefile
 	mv ldemul-tmp.h ldemul-list.h
 
 stringify.sed: ${srcdir}/emultempl/$(STRINGIFY)
-	  cp ${srcdir}/emultempl/$(STRINGIFY) stringify.sed
+	  $(AM_V_GEN)cp ${srcdir}/emultempl/$(STRINGIFY) stringify.sed
 
-# These all start with e so 'make clean' can find them.
-
-GENSCRIPTS = LIB_PATH='${LIB_PATH}' $(SHELL) $(srcdir)/genscripts.sh "${srcdir}" "${libdir}" "${prefix}" "${exec_prefix}" @host@ @target@ @target_alias@ "@EMULATION_LIBPATH@" "@NATIVE_LIB_DIRS@" @use_sysroot@ @enable_initfini_array@
+if AMDEP
+  GENDEPDIR=$(DEPDIR)
+else
+  GENDEPDIR=
+endif
+GENSCRIPTS = $(SHELL) $(srcdir)/genscripts.sh "${srcdir}" "${libdir}" "${prefix}" "${exec_prefix}" @host@ @target@ @target_alias@ "$(GENDEPDIR)" "${LIB_PATH}" "@EMULATION_LIBPATH@" "@NATIVE_LIB_DIRS@" @use_sysroot@ @enable_initfini_array@
 GEN_DEPENDS = $(srcdir)/genscripts.sh stringify.sed
-ELF_DEPS = $(srcdir)/emultempl/elf32.em $(srcdir)/emultempl/elf-generic.em $(srcdir)/scripttempl/DWARF.sc
-ELF_GEN_DEPS = $(srcdir)/emultempl/generic.em $(srcdir)/emultempl/elf-generic.em $(srcdir)/emultempl/genelf.em $(srcdir)/scripttempl/DWARF.sc
-ELF_X86_DEPS = $(ELF_DEPS) $(srcdir)/emulparams/plt_unwind.sh \
-	       $(srcdir)/emulparams/extern_protected_data.sh \
-	       $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-	       $(srcdir)/emulparams/reloc_overflow.sh \
-	       $(srcdir)/emulparams/call_nop.sh \
-	       $(srcdir)/emulparams/cet.sh
 
 @TDIRS@
 
@@ -631,1255 +629,347 @@ ELF_X86_DEPS = $(ELF_DEPS) $(srcdir)/emulparams/plt_unwind.sh \
 # (The recursive variable expansion is portable.)
 
 run-genscripts:
-	${GENSCRIPTS} $(script_target) "$($(script_tdirname))"
+	$(AM_V_at)${GENSCRIPTS} $(script_target) "$($(script_tdirname))"
 
 .PHONY: run-genscripts
 
-$(ALL_EMULATION_SOURCES) $(ALL_64_EMULATION_SOURCES):
-	base=`echo $@ | sed -e 's,e\(.*\).c,\1,'`; \
+$(ALL_EMULATION_SOURCES) $(ALL_64_EMULATION_SOURCES): $(GEN_DEPENDS)
+	$(AM_V_GEN)base=`echo $@ | sed -e 's,e\(.*\).c,\1,'`; \
 	$(MAKE) run-genscripts "script_target=$$base" "script_tdirname=tdir_$$base"
 
-eaix5ppc.c: $(srcdir)/emulparams/aix5ppc.sh \
-  $(srcdir)/emultempl/aix.em $(srcdir)/scripttempl/aix.sc ${GEN_DEPENDS}
-
-eaix5rs6.c: $(srcdir)/emulparams/aix5rs6.sh \
-  $(srcdir)/emultempl/aix.em $(srcdir)/scripttempl/aix.sc ${GEN_DEPENDS}
-
-eaixppc.c: $(srcdir)/emulparams/aixppc.sh \
-  $(srcdir)/emultempl/aix.em $(srcdir)/scripttempl/aix.sc ${GEN_DEPENDS}
-
-eaixrs6.c: $(srcdir)/emulparams/aixrs6.sh \
-  $(srcdir)/emultempl/aix.em $(srcdir)/scripttempl/aix.sc ${GEN_DEPENDS}
-
-ealpha.c: $(srcdir)/emulparams/alpha.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/alpha.sc ${GEN_DEPENDS}
-
-ealphavms.c: $(srcdir)/emulparams/alphavms.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/emultempl/vms.em \
-  $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/alphavms.sc ${GEN_DEPENDS}
-
-earcv2elf.c: $(srcdir)/emulparams/arcv2elf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elfarcv2.sc ${GEN_DEPENDS}
-
-earcv2elfx.c: $(srcdir)/emulparams/arcv2elfx.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elfarcv2.sc ${GEN_DEPENDS}
-
-earcelf.c: $(srcdir)/emulparams/arcelf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elfarc.sc ${GEN_DEPENDS}
-
-earcelf_prof.c: $(srcdir)/emulparams/arcelf_prof.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elfarc.sc ${GEN_DEPENDS}
-
-#for linux on arc
-earclinux.c: $(srcdir)/emulparams/arclinux.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/arclinux.em \
-  $(srcdir)/scripttempl/arclinux.sc ${GEN_DEPENDS}
-
-earclinux_nps.c: $(srcdir)/emulparams/arclinux_nps.sh \
-  $(srcdir)/emulparams/arc-nps.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/arclinux.em \
-  $(srcdir)/scripttempl/arclinux.sc ${GEN_DEPENDS}
-
-earclinux_prof.c: $(srcdir)/emulparams/arclinux_prof.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/arclinux.em \
-  $(srcdir)/scripttempl/arclinux.sc ${GEN_DEPENDS}
-
-earm_wince_pe.c: $(srcdir)/emulparams/arm_wince_pe.sh \
-  $(srcdir)/emultempl/pe.em $(srcdir)/scripttempl/pe.sc ${GEN_DEPENDS}
-
-earmelf.c: $(srcdir)/emulparams/armelf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelf_fbsd.c: $(srcdir)/emulparams/armelf_fbsd.sh \
-  $(srcdir)/emulparams/armelf.sh $(srcdir)/emulparams/elf_fbsd.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelf_fuchsia.c: $(srcdir)/emulparams/armelf_fuchsia.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelf_linux.c: $(srcdir)/emulparams/armelf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelf_linux_eabi.c: $(srcdir)/emulparams/armelf_linux_eabi.sh \
-  $(srcdir)/emulparams/armelf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelf_linux_fdpiceabi.c: $(srcdir)/emulparams/armelf_linux_fdpiceabi.sh \
-  $(srcdir)/emulparams/armelf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelf_nacl.c: $(srcdir)/emulparams/armelf_nacl.sh \
-  $(srcdir)/emulparams/armelf_linux_eabi.sh \
-  $(srcdir)/emulparams/armelf_linux.sh \
-  $(srcdir)/emulparams/elf_nacl.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelf_nbsd.c: $(srcdir)/emulparams/armelf_nbsd.sh \
-  $(srcdir)/emulparams/armelf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelf_phoenix.c: $(srcdir)/emulparams/armelf_phoenix.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelf_vxworks.c: $(srcdir)/emulparams/armelf_vxworks.sh \
-  $(srcdir)/emulparams/vxworks.sh $(srcdir)/emulparams/armelf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/vxworks.em \
-  $(srcdir)/emultempl/armelf.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-earmelfb.c: $(srcdir)/emulparams/armelfb.sh $(srcdir)/emulparams/armelf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelfb_fbsd.c: $(srcdir)/emulparams/armelfb_fbsd.sh \
-  $(srcdir)/emulparams/armelf_fbsd.sh \
-  $(srcdir)/emulparams/armelf.sh $(srcdir)/emulparams/elf_fbsd.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelfb_fuchsia.c: $(srcdir)/emulparams/armelfb_fuchsia.sh \
-  $(srcdir)/emulparams/armelf_fuchsia.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelfb_linux.c: $(srcdir)/emulparams/armelfb_linux.sh \
-  $(srcdir)/emulparams/armelf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelfb_linux_eabi.c: $(srcdir)/emulparams/armelfb_linux_eabi.sh \
-  $(srcdir)/emulparams/armelf_linux_eabi.sh \
-  $(srcdir)/emulparams/armelf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelfb_linux_fdpiceabi.c: $(srcdir)/emulparams/armelfb_linux_fdpiceabi.sh \
-  $(srcdir)/emulparams/armelf_linux_fdpiceabi.sh \
-  $(srcdir)/emulparams/armelf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelfb_nacl.c: $(srcdir)/emulparams/armelfb_nacl.sh \
-  $(srcdir)/emulparams/armelf_nacl.sh \
-  $(srcdir)/emulparams/armelf_linux_eabi.sh \
-  $(srcdir)/emulparams/armelf_linux.sh \
-  $(srcdir)/emulparams/elf_nacl.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmelfb_nbsd.c: $(srcdir)/emulparams/armelfb_nbsd.sh \
-  $(srcdir)/emulparams/armelf_nbsd.sh \
-  $(srcdir)/emulparams/armelf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmnto.c: $(srcdir)/emulparams/armnto.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-earmpe.c: $(srcdir)/emulparams/armpe.sh \
-  $(srcdir)/emultempl/pe.em $(srcdir)/scripttempl/pe.sc ${GEN_DEPENDS}
-
-earmsymbian.c: $(srcdir)/emulparams/armsymbian.sh \
-  $(srcdir)/emulparams/armelf.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/armelf.em $(srcdir)/scripttempl/armbpabi.sc \
-  ${GEN_DEPENDS}
-
-eavr1.c: $(srcdir)/emulparams/avr1.sh $(srcdir)/emultempl/avrelf.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavr2.c: $(srcdir)/emulparams/avr2.sh $(srcdir)/emultempl/avrelf.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavr25.c: $(srcdir)/emulparams/avr25.sh $(srcdir)/emultempl/avrelf.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavr3.c: $(srcdir)/emulparams/avr3.sh $(srcdir)/emultempl/avrelf.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavr31.c: $(srcdir)/emulparams/avr31.sh $(srcdir)/emultempl/avrelf.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavr35.c: $(srcdir)/emulparams/avr35.sh $(srcdir)/emultempl/avrelf.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavr4.c: $(srcdir)/emulparams/avr4.sh $(srcdir)/emultempl/avrelf.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavr5.c: $(srcdir)/emulparams/avr5.sh $(srcdir)/emultempl/avrelf.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavr51.c: $(srcdir)/emulparams/avr51.sh $(srcdir)/emultempl/avrelf.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavr6.c: $(srcdir)/emulparams/avr6.sh $(srcdir)/emultempl/avrelf.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavrxmega1.c: $(srcdir)/emulparams/avrxmega1.sh \
-  $(srcdir)/emultempl/avrelf.em $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavrxmega2.c: $(srcdir)/emulparams/avrxmega2.sh \
-  $(srcdir)/emultempl/avrelf.em $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavrxmega3.c: $(srcdir)/emulparams/avrxmega3.sh \
-  $(srcdir)/emultempl/avrelf.em $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavrxmega4.c: $(srcdir)/emulparams/avrxmega4.sh \
-  $(srcdir)/emultempl/avrelf.em $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavrxmega5.c: $(srcdir)/emulparams/avrxmega5.sh \
-  $(srcdir)/emultempl/avrelf.em $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavrxmega6.c: $(srcdir)/emulparams/avrxmega6.sh \
-  $(srcdir)/emultempl/avrelf.em $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavrxmega7.c: $(srcdir)/emulparams/avrxmega7.sh \
-  $(srcdir)/emultempl/avrelf.em $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-eavrtiny.c: $(srcdir)/emulparams/avrtiny.sh \
-  $(srcdir)/emultempl/avrelf.em $(ELF_DEPS) $(srcdir)/scripttempl/avr.sc \
-  ${GEN_DEPENDS}
-
-ecrisaout.c: $(srcdir)/emulparams/crisaout.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/crisaout.sc ${GEN_DEPENDS}
-
-ecriself.c: $(srcdir)/emulparams/criself.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-ecrislinux.c: $(srcdir)/emulparams/crislinux.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-ed10velf.c: $(srcdir)/emulparams/d10velf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elfd10v.sc ${GEN_DEPENDS}
-
-ed30v_e.c: $(srcdir)/emulparams/d30v_e.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elfd30v.sc ${GEN_DEPENDS}
-
-ed30v_o.c: $(srcdir)/emulparams/d30v_o.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elfd30v.sc ${GEN_DEPENDS}
-
-ed30velf.c: $(srcdir)/emulparams/d30velf.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elfd30v.sc ${GEN_DEPENDS}
-
-eelf32_dlx.c: $(srcdir)/emulparams/elf32_dlx.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/dlx.sc ${GEN_DEPENDS}
-
-eelf32_sparc.c: $(srcdir)/emulparams/elf32_sparc.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32_sparc_sol2.c: $(srcdir)/emulparams/elf32_sparc_sol2.sh \
-  $(srcdir)/emulparams/elf32_sparc.sh \
-  $(srcdir)/emulparams/solaris2.sh \
-  $(srcdir)/emultempl/solaris2.em $(ELF_DEPS) \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32_sparc_vxworks.c: $(srcdir)/emulparams/elf32_sparc_vxworks.sh \
-  $(srcdir)/emulparams/vxworks.sh $(srcdir)/emulparams/elf32_sparc.sh \
-  $(srcdir)/emultempl/vxworks.em $(ELF_DEPS) \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32_spu.c: $(srcdir)/emulparams/elf32_spu.sh $(srcdir)/emultempl/spuelf.em \
-  $(srcdir)/emultempl/spu_ovl.@OBJEXT@_c $(srcdir)/emultempl/spu_icache.@OBJEXT@_c \
-  ldemul-list.h \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-$(srcdir)/emultempl/spu_ovl.@OBJEXT@_c: @MAINT@ $(srcdir)/emultempl/spu_ovl.S
-	if ../gas/as-new --version \
-		| grep 'target.*spu' >/dev/null 2>/dev/null; then \
-	  cpp -DOVLY_IRQ_SAVE $(srcdir)/emultempl/spu_ovl.S spu_ovl.s; \
-	  ../gas/as-new -o spu_ovl.@OBJEXT@ spu_ovl.s; \
-	  ../binutils/bin2c <spu_ovl.@OBJEXT@ >$@; \
-	fi
-$(srcdir)/emultempl/spu_icache.@OBJEXT@_c: @MAINT@ $(srcdir)/emultempl/spu_icache.S
-	if ../gas/as-new --version \
-		| grep 'target.*spu' >/dev/null 2>/dev/null; then \
-	  cpp -DOVLY_IRQ_SAVE $(srcdir)/emultempl/spu_icache.S spu_icache.s; \
-	  ../gas/as-new -o spu_icache.@OBJEXT@ spu_icache.s; \
-	  ../binutils/bin2c <spu_icache.@OBJEXT@ >$@; \
-	fi
-eelf32_tic6x_be.c: $(srcdir)/emulparams/elf32_tic6x_be.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc $(srcdir)/emultempl/tic6xdsbt.em \
-  ${GEN_DEPENDS}
-
-eelf32_tic6x_elf_be.c: $(srcdir)/emulparams/elf32_tic6x_elf_be.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc  $(srcdir)/emultempl/tic6xdsbt.em \
-  ${GEN_DEPENDS}
-
-eelf32_tic6x_elf_le.c: $(srcdir)/emulparams/elf32_tic6x_elf_le.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc  $(srcdir)/emultempl/tic6xdsbt.em \
-  ${GEN_DEPENDS}
-
-eelf32_tic6x_le.c: $(srcdir)/emulparams/elf32_tic6x_le.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc $(srcdir)/emultempl/tic6xdsbt.em \
-  ${GEN_DEPENDS}
-
-eelf32_tic6x_linux_be.c: $(srcdir)/emulparams/elf32_tic6x_linux_be.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc  $(srcdir)/emultempl/tic6xdsbt.em \
-  ${GEN_DEPENDS}
-
-eelf32_tic6x_linux_le.c: $(srcdir)/emulparams/elf32_tic6x_linux_le.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc  $(srcdir)/emultempl/tic6xdsbt.em \
-  ${GEN_DEPENDS}
-
-eelf32am33lin.c: $(srcdir)/emulparams/elf32am33lin.sh \
-  $(srcdir)/emulparams/elf32am33lin.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32b4300.c: $(srcdir)/emulparams/elf32b4300.sh \
-  $(srcdir)/emulparams/elf32bmip.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32bfin.c: $(srcdir)/emulparams/elf32bfin.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/bfin.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32bfinfd.c: $(srcdir)/emulparams/elf32bfinfd.sh \
-  $(srcdir)/emulparams/elf32bfin.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/bfin.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32bmip.c: $(srcdir)/emulparams/elf32bmip.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32bmipn32.c: $(srcdir)/emulparams/elf32bmipn32.sh \
-  $(srcdir)/emulparams/elf32bmipn32-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/irix.em $(srcdir)/emultempl/mipself.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32bsmip.c: $(srcdir)/emulparams/elf32bsmip.sh \
-  $(srcdir)/emulparams/elf32bmip.sh $(ELF_DEPS) $(srcdir)/emultempl/irix.em \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32btsmip.c: $(srcdir)/emulparams/elf32btsmip.sh \
-  $(srcdir)/emulparams/elf32bmip.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32btsmip_fbsd.c: $(srcdir)/emulparams/elf32btsmip_fbsd.sh \
-  $(srcdir)/emulparams/elf32bmip.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32btsmipn32.c: $(srcdir)/emulparams/elf32btsmipn32.sh \
-  $(srcdir)/emulparams/elf32bmipn32-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32btsmipn32_fbsd.c: $(srcdir)/emulparams/elf32btsmipn32_fbsd.sh \
-  $(srcdir)/emulparams/elf32bmipn32-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32cr16.c: $(srcdir)/emulparams/elf32cr16.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/cr16elf.em \
-  $(srcdir)/scripttempl/elf32cr16.sc ${GEN_DEPENDS}
-
-eelf32cr16c.c: $(srcdir)/emulparams/elf32cr16c.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf32cr16c.sc ${GEN_DEPENDS}
-
-eelf32crx.c: $(srcdir)/emulparams/elf32crx.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/crxelf.em \
-  $(srcdir)/scripttempl/elf32crx.sc ${GEN_DEPENDS}
-
-eelf32ebmip.c: $(srcdir)/emulparams/elf32ebmip.sh \
-  $(srcdir)/emulparams/elf32bmip.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32ebmipvxworks.c: $(srcdir)/emulparams/elf32ebmipvxworks.sh \
-  $(srcdir)/emulparams/elf32bmip.sh $(srcdir)/emulparams/vxworks.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/generic.em $(srcdir)/emultempl/mipself.em \
-  $(srcdir)/emultempl/vxworks.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32elmip.c: $(srcdir)/emulparams/elf32elmip.sh \
-  $(srcdir)/emulparams/elf32lmip.sh $(srcdir)/emulparams/elf32bmip.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-eelf32elmipvxworks.c: $(srcdir)/emulparams/elf32elmipvxworks.sh \
-  $(srcdir)/emulparams/elf32bmip.sh $(srcdir)/emulparams/vxworks.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/generic.em $(srcdir)/emultempl/mipself.em \
-  $(srcdir)/emultempl/vxworks.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32lr5900.c: $(srcdir)/emulparams/elf32lr5900.sh \
-  $(srcdir)/emulparams/elf32bmip.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-eelf32lr5900n32.c: $(srcdir)/emulparams/elf32lr5900n32.sh \
-  $(srcdir)/emulparams/elf32bmipn32-defs.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-eelf32epiphany.c: $(srcdir)/emulparams/elf32epiphany.sh \
-  $(ELF_DEPS) ${GEN_DEPENDS}
-
-eelf32epiphany_4x4.c: $(srcdir)/emulparams/elf32epiphany_4x4.sh \
-  $(srcdir)/emultempl/elf32.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/epiphany_4x4.sc ${GEN_DEPENDS}
-
-eelf32fr30.c: $(srcdir)/emulparams/elf32fr30.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32frv.c: $(srcdir)/emulparams/elf32frv.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32frvfd.c: $(srcdir)/emulparams/elf32frvfd.sh \
-  $(srcdir)/emulparams/elf32frv.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32ft32.c: $(srcdir)/emulparams/elf32ft32.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32ip2k.c: $(srcdir)/emulparams/elf32ip2k.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32iq10.c: $(srcdir)/emulparams/elf32iq10.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/iq2000.sc ${GEN_DEPENDS}
-
-eelf32iq2000.c: $(srcdir)/emulparams/elf32iq2000.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/iq2000.sc ${GEN_DEPENDS}
-
-eelf32l4300.c: $(srcdir)/emulparams/elf32l4300.sh \
-  $(srcdir)/emulparams/elf32b4300.sh $(srcdir)/emulparams/elf32bmip.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-eelf32lm32.c: $(srcdir)/emulparams/elf32lm32.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32lm32fd.c: $(srcdir)/emulparams/elf32lm32fd.sh \
-  $(srcdir)/emulparams/elf32lm32.sh $(ELF_DEPS) \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32lmip.c: $(srcdir)/emulparams/elf32lmip.sh \
-  $(srcdir)/emulparams/elf32bmip.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32lppc.c: $(srcdir)/emulparams/elf32lppc.sh \
-  $(srcdir)/emulparams/elf32ppccommon.sh \
-  $(srcdir)/emulparams/elf32ppc.sh \
-  $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-  $(srcdir)/emultempl/ppc32elf.em ldemul-list.h \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32lppclinux.c: $(srcdir)/emulparams/elf32lppclinux.sh \
-  $(srcdir)/emulparams/elf32lppc.sh $(srcdir)/emulparams/elf32ppc.sh \
-  $(srcdir)/emulparams/elf32ppccommon.sh \
-  $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-  $(srcdir)/emultempl/ppc32elf.em ldemul-list.h \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32lppcnto.c: $(srcdir)/emulparams/elf32lppcnto.sh \
-  $(srcdir)/emulparams/elf32ppc.sh $(srcdir)/emulparams/elf32ppccommon.sh \
-  $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-  $(srcdir)/emultempl/ppc32elf.em ldemul-list.h \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32lppcsim.c: $(srcdir)/emulparams/elf32lppcsim.sh \
-  $(srcdir)/emulparams/elf32lppc.sh $(srcdir)/emulparams/elf32ppc.sh \
-  $(srcdir)/emulparams/elf32ppccommon.sh \
-  $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-  $(srcdir)/emultempl/ppc32elf.em ldemul-list.h \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32lriscv.c: $(srcdir)/emulparams/elf32lriscv.sh \
-  $(srcdir)/emulparams/elf32lriscv-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/riscvelf.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-eelf32lriscv_ilp32f.c: $(srcdir)/emulparams/elf32lriscv_ilp32f.sh \
-  $(srcdir)/emulparams/elf32lriscv-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/riscvelf.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-eelf32lriscv_ilp32.c: $(srcdir)/emulparams/elf32lriscv_ilp32.sh \
-  $(srcdir)/emulparams/elf32lriscv-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/riscvelf.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-eelf32lsmip.c: $(srcdir)/emulparams/elf32lsmip.sh \
-  $(srcdir)/emulparams/elf32lmip.sh $(srcdir)/emulparams/elf32bmip.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-eelf32ltsmip.c: $(srcdir)/emulparams/elf32ltsmip.sh \
-  $(srcdir)/emulparams/elf32btsmip.sh $(srcdir)/emulparams/elf32bmip.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-eelf32ltsmip_fbsd.c: $(srcdir)/emulparams/elf32ltsmip_fbsd.sh \
-  $(srcdir)/emulparams/elf32btsmip.sh $(srcdir)/emulparams/elf32bmip.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-eelf32ltsmipn32.c: $(srcdir)/emulparams/elf32ltsmipn32.sh \
-  $(srcdir)/emulparams/elf32btsmipn32.sh \
-  $(srcdir)/emulparams/elf32bmipn32-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32ltsmipn32_fbsd.c: $(srcdir)/emulparams/elf32ltsmipn32_fbsd.sh \
-  $(srcdir)/emulparams/elf32btsmipn32.sh \
-  $(srcdir)/emulparams/elf32bmipn32-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32m32c.c: $(srcdir)/emulparams/elf32m32c.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32mbel_linux.c: $(srcdir)/emulparams/elf32mbel_linux.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32mb_linux.c: $(srcdir)/emulparams/elf32mb_linux.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32mcore.c: $(srcdir)/emulparams/elf32mcore.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32mep.c: $(srcdir)/emulparams/elf32mep.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/mep.sc ${GEN_DEPENDS}
-
-eelf32metag.c: $(srcdir)/emulparams/elf32metag.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/metagelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32microblazeel.c: $(srcdir)/emulparams/elf32microblazeel.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elfmicroblaze.sc ${GEN_DEPENDS}
-
-eelf32microblaze.c: $(srcdir)/emulparams/elf32microblaze.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elfmicroblaze.sc ${GEN_DEPENDS}
-
-eelf32mipswindiss.c: $(srcdir)/emulparams/elf32mipswindiss.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32moxie.c: $(srcdir)/emulparams/elf32moxie.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-emoxiebox.c: $(srcdir)/emulparams/moxiebox.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32mt.c: $(srcdir)/emulparams/elf32mt.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32or1k.c: $(srcdir)/emulparams/elf32or1k.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32or1k_linux.c: $(srcdir)/emulparams/elf32or1k_linux.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32ppc.c: $(srcdir)/emulparams/elf32ppc.sh \
-  $(srcdir)/emulparams/elf32ppccommon.sh \
-  $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-  $(srcdir)/emultempl/ppc32elf.em ldemul-list.h \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32ppc_fbsd.c: $(srcdir)/emulparams/elf32ppc_fbsd.sh \
-  $(srcdir)/emulparams/elf32ppc.sh $(srcdir)/emulparams/elf32ppccommon.sh \
-  $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-  $(srcdir)/emultempl/ppc32elf.em ldemul-list.h \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32ppclinux.c: $(srcdir)/emulparams/elf32ppclinux.sh \
-  $(srcdir)/emulparams/elf32ppc.sh $(srcdir)/emulparams/elf32ppccommon.sh \
-  $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-  $(srcdir)/emultempl/ppc32elf.em ldemul-list.h \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32ppcnto.c: $(srcdir)/emulparams/elf32ppcnto.sh \
-  $(srcdir)/emulparams/elf32ppc.sh $(srcdir)/emulparams/elf32ppccommon.sh \
-  $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-  $(srcdir)/emultempl/ppc32elf.em ldemul-list.h \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32ppcsim.c: $(srcdir)/emulparams/elf32ppcsim.sh \
-  $(srcdir)/emulparams/elf32ppc.sh $(srcdir)/emulparams/elf32ppccommon.sh \
-  $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-  $(srcdir)/emultempl/ppc32elf.em ldemul-list.h \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32ppcvxworks.c: $(srcdir)/emulparams/elf32ppcvxworks.sh \
-  $(srcdir)/emulparams/elf32ppccommon.sh $(srcdir)/emulparams/vxworks.sh \
-  $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-  $(srcdir)/emultempl/ppc32elf.em ldemul-list.h \
-  $(srcdir)/emultempl/vxworks.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32ppcwindiss.c: $(srcdir)/emulparams/elf32ppcwindiss.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32rl78.c: $(srcdir)/emulparams/elf32rl78.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32rx.c: $(srcdir)/emulparams/elf32rx.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32tilegx.c: $(srcdir)/emulparams/elf32tilegx.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32tilegx_be.c: $(srcdir)/emulparams/elf32tilegx_be.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32tilepro.c: $(srcdir)/emulparams/elf32tilepro.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32vax.c: $(srcdir)/emulparams/elf32vax.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32visium.c: $(srcdir)/emulparams/elf32visium.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/visium.sc ${GEN_DEPENDS}
-
-eelf32xc16x.c: $(srcdir)/emulparams/elf32xc16x.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32xc16xl.c: $(srcdir)/emulparams/elf32xc16xl.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32xc16xs.c: $(srcdir)/emulparams/elf32xc16xs.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32xstormy16.c: $(srcdir)/emulparams/elf32xstormy16.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/xstormy16.sc ${GEN_DEPENDS}
-
-eelf32xtensa.c: $(srcdir)/emulparams/elf32xtensa.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/xtensaelf.em $(INCDIR)/xtensa-config.h \
-  $(BFDDIR)/elf-bfd.h $(INCDIR)/elf/xtensa.h \
-  $(srcdir)/scripttempl/elfxtensa.sc ${GEN_DEPENDS}
-
-eelf_i386.c: $(srcdir)/emulparams/elf_i386.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_i386_be.c: $(srcdir)/emulparams/elf_i386_be.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_i386_chaos.c: $(srcdir)/emulparams/elf_i386_chaos.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf_chaos.sc ${GEN_DEPENDS}
-
-eelf_i386_fbsd.c: $(srcdir)/emulparams/elf_i386_fbsd.sh \
-  $(srcdir)/emulparams/elf_i386.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_i386_ldso.c: $(srcdir)/emulparams/elf_i386_ldso.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_i386_nacl.c: $(srcdir)/emulparams/elf_i386_nacl.sh \
-  $(srcdir)/emulparams/elf_i386.sh \
-  $(srcdir)/emulparams/elf_nacl.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_i386_sol2.c: $(srcdir)/emulparams/elf_i386_sol2.sh \
-  $(srcdir)/emulparams/solaris2.sh \
-  $(srcdir)/emultempl/solaris2.em \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_i386_vxworks.c: $(srcdir)/emulparams/elf_i386_vxworks.sh \
-  $(srcdir)/emulparams/vxworks.sh $(srcdir)/emultempl/vxworks.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_iamcu.c: $(srcdir)/emulparams/elf_iamcu.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_s390.c: $(srcdir)/emulparams/elf_s390.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eh8300elf.c: $(srcdir)/emulparams/h8300elf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eh8300elf_linux.c: $(srcdir)/emulparams/h8300elf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eh8300helf.c: $(srcdir)/emulparams/h8300helf.sh \
-  $(srcdir)/emulparams/h8300elf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eh8300helf_linux.c: $(srcdir)/emulparams/h8300helf_linux.sh \
-  $(srcdir)/emulparams/h8300elf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eh8300hnelf.c: $(srcdir)/emulparams/h8300hnelf.sh \
-  $(srcdir)/emulparams/h8300elf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eh8300self.c: $(srcdir)/emulparams/h8300self.sh \
-  $(srcdir)/emulparams/h8300elf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eh8300self_linux.c: $(srcdir)/emulparams/h8300self_linux.sh \
-  $(srcdir)/emulparams/h8300elf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eh8300snelf.c: $(srcdir)/emulparams/h8300snelf.sh \
-  $(srcdir)/emulparams/h8300elf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eh8300sxelf.c: $(srcdir)/emulparams/h8300sxelf.sh \
-  $(srcdir)/emulparams/h8300elf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eh8300sxelf_linux.c: $(srcdir)/emulparams/h8300sxelf_linux.sh \
-  $(srcdir)/emulparams/h8300elf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eh8300sxnelf.c: $(srcdir)/emulparams/h8300sxnelf.sh \
-  $(srcdir)/emulparams/h8300elf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-ehppaelf.c: $(srcdir)/emulparams/hppaelf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/hppaelf.em \
-  $(srcdir)/scripttempl/hppaelf.sc ${GEN_DEPENDS}
-
-ehppalinux.c: $(srcdir)/emulparams/hppalinux.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/hppaelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-ehppanbsd.c: $(srcdir)/emulparams/hppanbsd.sh \
-  $(srcdir)/emulparams/hppaelf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/hppaelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-ehppaobsd.c: $(srcdir)/emulparams/hppaobsd.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/hppaelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-ei386beos.c: $(srcdir)/emulparams/i386beos.sh \
-  $(srcdir)/emultempl/beos.em $(srcdir)/scripttempl/i386beos.sc ${GEN_DEPENDS}
-
-ei386bsd.c: $(srcdir)/emulparams/i386bsd.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/aout.sc ${GEN_DEPENDS}
-
-ei386go32.c: $(srcdir)/emulparams/i386go32.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/i386go32.sc ${GEN_DEPENDS}
-
-ei386lynx.c: $(srcdir)/emulparams/i386lynx.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-ei386moss.c: $(srcdir)/emulparams/i386moss.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-ei386msdos.c: $(srcdir)/emulparams/i386msdos.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/i386msdos.sc ${GEN_DEPENDS}
-
-ei386nto.c:	$(srcdir)/emulparams/i386nto.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-ei386pe.c: $(srcdir)/emulparams/i386pe.sh \
-  $(srcdir)/emultempl/pe.em $(srcdir)/scripttempl/pe.sc ${GEN_DEPENDS}
-
-ei386pe_posix.c: $(srcdir)/emulparams/i386pe_posix.sh \
-  $(srcdir)/emultempl/pe.em $(srcdir)/scripttempl/pe.sc ${GEN_DEPENDS}
-
-ei386pep.c: $(srcdir)/emulparams/i386pep.sh \
-  $(srcdir)/emultempl/pep.em $(srcdir)/scripttempl/pep.sc ${GEN_DEPENDS}
-
-em32relf.c: $(srcdir)/emulparams/m32relf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-em32relf_linux.c: $(srcdir)/emulparams/m32relf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-em32rlelf.c: $(srcdir)/emulparams/m32rlelf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-em32rlelf_linux.c: $(srcdir)/emulparams/m32rlelf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-em68hc11elf.c: $(srcdir)/emulparams/m68hc11elf.sh \
-  $(srcdir)/emultempl/m68hc1xelf.em $(ELF_DEPS) \
-  $(srcdir)/scripttempl/elfm68hc11.sc ${GEN_DEPENDS}
-
-em68hc11elfb.c: $(srcdir)/emulparams/m68hc11elfb.sh \
-  $(srcdir)/emultempl/m68hc1xelf.em $(ELF_DEPS) \
-  $(srcdir)/scripttempl/elfm68hc11.sc ${GEN_DEPENDS}
-
-em68hc12elf.c: $(srcdir)/emulparams/m68hc12elf.sh \
-  $(srcdir)/emultempl/m68hc1xelf.em $(ELF_DEPS) \
-  $(srcdir)/scripttempl/elfm68hc12.sc ${GEN_DEPENDS}
-
-em68hc12elfb.c: $(srcdir)/emulparams/m68hc12elfb.sh \
-  $(srcdir)/emultempl/m68hc1xelf.em $(ELF_DEPS) \
-  $(srcdir)/scripttempl/elfm68hc12.sc ${GEN_DEPENDS}
-
-em68kelf.c: $(srcdir)/emulparams/m68kelf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/m68kelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-em68kelfnbsd.c: $(srcdir)/emulparams/m68kelfnbsd.sh \
-  $(srcdir)/emulparams/m68kelf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/m68kelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-em9s12zelf.c: $(srcdir)/emulparams/m9s12zelf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/generic.em \
-  $(srcdir)/scripttempl/elfm9s12z.sc ${GEN_DEPENDS}
-
-emcorepe.c: $(srcdir)/emulparams/mcorepe.sh \
-  $(srcdir)/emultempl/pe.em $(srcdir)/scripttempl/pe.sc ${GEN_DEPENDS}
-
-emn10200.c: $(srcdir)/emulparams/mn10200.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-emn10300.c: $(srcdir)/emulparams/mn10300.sh \
-  $(srcdir)/emulparams/mn10200.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-emsp430elf.c: $(srcdir)/emulparams/msp430elf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/msp430.em \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc ${GEN_DEPENDS}
-
-emsp430X.c: $(srcdir)/emulparams/msp430elf.sh $(srcdir)/emulparams/msp430X.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/msp430.em \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc ${GEN_DEPENDS}
-
-ends32elf.c: $(srcdir)/emulparams/nds32elf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/nds32elf.em \
-  $(srcdir)/scripttempl/nds32elf.sc ${GEN_DEPENDS}
-
-ends32elf16m.c: $(srcdir)/emulparams/nds32elf16m.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/nds32elf.em \
-  $(srcdir)/scripttempl/nds32elf.sc ${GEN_DEPENDS}
-
-ends32belf.c: $(srcdir)/emulparams/nds32belf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/nds32elf.em \
-  $(srcdir)/scripttempl/nds32elf.sc ${GEN_DEPENDS}
-
-ends32belf16m.c: $(srcdir)/emulparams/nds32belf16m.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/nds32elf.em \
-  $(srcdir)/scripttempl/nds32elf.sc ${GEN_DEPENDS}
-
-ends32elf_linux.c: $(srcdir)/emulparams/nds32elf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/nds32elf.em \
-  $(srcdir)/scripttempl/nds32elf.sc ${GEN_DEPENDS}
-
-ends32belf_linux.c: $(srcdir)/emulparams/nds32belf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/nds32elf.em \
-  $(srcdir)/scripttempl/nds32elf.sc ${GEN_DEPENDS}
-
-enios2elf.c: $(srcdir)/emulparams/nios2elf.sh \
-  $(srcdir)/emultempl/elf32.em $(srcdir)/emultempl/nios2elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-enios2linux.c: $(srcdir)/emulparams/nios2linux.sh \
-  $(srcdir)/emultempl/elf32.em $(srcdir)/emultempl/nios2elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-ens32knbsd.c:	$(srcdir)/emulparams/ns32knbsd.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/emultempl/netbsd.em \
-  $(srcdir)/scripttempl/aout.sc ${GEN_DEPENDS}
-
-eaarch64elf.c: $(srcdir)/emulparams/aarch64elf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eaarch64elf32.c: $(srcdir)/emulparams/aarch64elf32.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eaarch64elfb.c: $(srcdir)/emulparams/aarch64elfb.sh $(srcdir)/emulparams/aarch64elf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eaarch64elf32b.c: $(srcdir)/emulparams/aarch64elf32b.sh $(srcdir)/emulparams/aarch64elf32.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eaarch64cloudabi.c: $(srcdir)/emulparams/aarch64cloudabi.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eaarch64cloudabib.c: $(srcdir)/emulparams/aarch64cloudabib.sh $(srcdir)/emulparams/aarch64cloudabi.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eaarch64fbsd.c: $(srcdir)/emulparams/aarch64fbsd.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eaarch64fbsdb.c: $(srcdir)/emulparams/aarch64fbsdb.sh $(srcdir)/emulparams/aarch64fbsd.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eaarch64linux.c: $(srcdir)/emulparams/aarch64linux.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eaarch64linuxb.c: $(srcdir)/emulparams/aarch64linuxb.sh $(srcdir)/emulparams/aarch64linux.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eaarch64linux32.c: $(srcdir)/emulparams/aarch64linux32.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eaarch64linux32b.c: $(srcdir)/emulparams/aarch64linux32b.sh $(srcdir)/emulparams/aarch64linux32.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-epc532macha.c: $(srcdir)/emulparams/pc532macha.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/aout.sc ${GEN_DEPENDS}
-
-epdp11.c: $(srcdir)/emulparams/pdp11.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/aout.sc ${GEN_DEPENDS}
-
-epjelf.c: $(srcdir)/emulparams/pjelf.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-epjlelf.c: $(srcdir)/emulparams/pjlelf.sh $(srcdir)/emulparams/pjelf.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eppclynx.c: $(srcdir)/emulparams/ppclynx.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eppcmacos.c:	$(srcdir)/emulparams/ppcmacos.sh \
-  $(srcdir)/emultempl/aix.em $(srcdir)/scripttempl/aix.sc ${GEN_DEPENDS}
-
-eppcpe.c: $(srcdir)/emulparams/ppcpe.sh \
-  $(srcdir)/emultempl/pe.em $(srcdir)/scripttempl/ppcpe.sc ${GEN_DEPENDS}
-
-epruelf.c: $(srcdir)/emulparams/pruelf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/pru.sc \
-  $(srcdir)/emultempl/pruelf.em ${GEN_DEPENDS}
-
-escore3_elf.c: $(srcdir)/emulparams/score3_elf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/scoreelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-escore7_elf.c: $(srcdir)/emulparams/score3_elf.sh \
-  $(srcdir)/emulparams/score7_elf.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/scoreelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-esh.c: $(srcdir)/emulparams/sh.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/sh.sc ${GEN_DEPENDS}
-
-eshelf.c: $(srcdir)/emulparams/shelf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eshelf_fd.c: $(srcdir)/emulparams/shelf_fd.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eshelf_linux.c: $(srcdir)/emulparams/shelf_linux.sh \
-  $(srcdir)/emulparams/shlelf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eshelf_nbsd.c: $(srcdir)/emulparams/shelf_nbsd.sh \
-  $(srcdir)/emulparams/shelf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eshelf_nto.c: $(srcdir)/emulparams/shelf_nto.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eshelf_uclinux.c: $(srcdir)/emulparams/shelf_uclinux.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eshelf_vxworks.c: $(srcdir)/emulparams/shelf_vxworks.sh \
-  $(srcdir)/emulparams/vxworks.sh $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc \
-  $(srcdir)/emultempl/vxworks.em ${GEN_DEPENDS}
-
-eshl.c: $(srcdir)/emulparams/shl.sh \
-  $(srcdir)/emulparams/sh.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/sh.sc ${GEN_DEPENDS}
-
-eshlelf.c: $(srcdir)/emulparams/shlelf.sh \
-  $(srcdir)/emulparams/shelf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eshlelf_fd.c: $(srcdir)/emulparams/shlelf_fd.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eshlelf_linux.c: $(srcdir)/emulparams/shlelf_linux.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eshlelf_nbsd.c: $(srcdir)/emulparams/shlelf_nbsd.sh \
-  $(srcdir)/emulparams/shelf_nbsd.sh \
-  $(srcdir)/emulparams/shelf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eshlelf_nto.c: $(srcdir)/emulparams/shlelf_nto.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eshlelf_vxworks.c: $(srcdir)/emulparams/shlelf_vxworks.sh \
-  $(srcdir)/emulparams/shelf_vxworks.sh $(srcdir)/emulparams/vxworks.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc $(srcdir)/emultempl/vxworks.em \
-  ${GEN_DEPENDS}
-
-eshpe.c: $(srcdir)/emulparams/shpe.sh \
-  $(srcdir)/emultempl/pe.em $(srcdir)/scripttempl/pe.sc ${GEN_DEPENDS}
-
-etic30aout.c: $(srcdir)/emulparams/tic30aout.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/tic30aout.sc ${GEN_DEPENDS}
-
-etic30coff.c: $(srcdir)/emulparams/tic30coff.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/tic30coff.sc ${GEN_DEPENDS}
-
-etic3xcoff.c: $(srcdir)/emulparams/tic3xcoff.sh \
-  $(srcdir)/emultempl/ticoff.em $(srcdir)/scripttempl/tic4xcoff.sc ${GEN_DEPENDS}
-
-etic3xcoff_onchip.c: $(srcdir)/emulparams/tic3xcoff_onchip.sh \
-  $(srcdir)/emultempl/ticoff.em $(srcdir)/scripttempl/tic4xcoff.sc ${GEN_DEPENDS}
-
-etic4xcoff.c: $(srcdir)/emulparams/tic4xcoff.sh \
-  $(srcdir)/emultempl/ticoff.em $(srcdir)/scripttempl/tic4xcoff.sc ${GEN_DEPENDS}
-
-etic54xcoff.c: $(srcdir)/emulparams/tic54xcoff.sh \
-  $(srcdir)/emultempl/ticoff.em $(srcdir)/scripttempl/tic54xcoff.sc ${GEN_DEPENDS}
-
-etic80coff.c: $(srcdir)/emulparams/tic80coff.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/tic80coff.sc ${GEN_DEPENDS}
-
-ev850.c: $(srcdir)/emulparams/v850.sh $(srcdir)/emultempl/v850elf.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/v850.sc ${GEN_DEPENDS}
-
-ev850_rh850.c: $(srcdir)/emulparams/v850_rh850.sh $(srcdir)/emultempl/v850elf.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/v850_rh850.sc ${GEN_DEPENDS}
-
-evanilla.c: $(srcdir)/emulparams/vanilla.sh \
-  $(srcdir)/emultempl/vanilla.em $(srcdir)/scripttempl/vanilla.sc ${GEN_DEPENDS}
-
-evaxnbsd.c: $(srcdir)/emulparams/vaxnbsd.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/aout.sc ${GEN_DEPENDS}
-
-exgateelf.c: $(srcdir)/emulparams/xgateelf.sh \
-  $(srcdir)/emultempl/generic.em $(ELF_DEPS) \
-  $(srcdir)/scripttempl/elfxgate.sc ${GEN_DEPENDS}
-
-ez80.c: $(srcdir)/emulparams/z80.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/emultempl/z80.em \
-  $(srcdir)/scripttempl/z80.sc ${GEN_DEPENDS}
-
-ez8001.c: $(srcdir)/emulparams/z8001.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/z8000.sc ${GEN_DEPENDS}
-
-ez8002.c: $(srcdir)/emulparams/z8002.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/z8000.sc ${GEN_DEPENDS}
-
-eelf32_x86_64.c: $(srcdir)/emulparams/elf32_x86_64.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf32_x86_64_nacl.c: $(srcdir)/emulparams/elf32_x86_64_nacl.sh \
-  $(srcdir)/emulparams/elf32_x86_64.sh \
-  $(srcdir)/emulparams/elf_nacl.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64_aix.c: $(srcdir)/emulparams/elf64_aix.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64_ia64.c: $(srcdir)/emulparams/elf64_ia64.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/ia64elf.em \
-  $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64_ia64_fbsd.c: $(srcdir)/emulparams/elf64_ia64_fbsd.sh \
-  $(srcdir)/emulparams/elf64_ia64.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/ia64elf.em \
-  $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64_ia64_vms.c: $(srcdir)/emulparams/elf64_ia64_vms.sh \
-  $(srcdir)/emultempl/generic.em $(srcdir)/emultempl/vms.em \
-  $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/ia64vms.sc ${GEN_DEPENDS}
-
-eelf64_s390.c: $(srcdir)/emulparams/elf64_s390.sh \
-  $(srcdir)/emultempl/s390.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64_sparc.c: $(srcdir)/emulparams/elf64_sparc.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64_sparc_fbsd.c: $(srcdir)/emulparams/elf64_sparc_fbsd.sh \
-  $(srcdir)/emulparams/elf64_sparc.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64_sparc_sol2.c: $(srcdir)/emulparams/elf64_sparc_sol2.sh \
-  $(srcdir)/emulparams/elf64_sparc.sh \
-  $(srcdir)/emulparams/solaris2.sh \
-  $(srcdir)/emultempl/solaris2.em \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64alpha.c: $(srcdir)/emulparams/elf64alpha.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/alphaelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64alpha_fbsd.c: $(srcdir)/emulparams/elf64alpha_fbsd.sh \
-  $(srcdir)/emulparams/elf64alpha.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/alphaelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64alpha_nbsd.c: $(srcdir)/emulparams/elf64alpha_nbsd.sh \
-  $(srcdir)/emulparams/elf64alpha.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/alphaelf.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64bmip.c: $(srcdir)/emulparams/elf64bmip.sh \
-  $(srcdir)/emulparams/elf64bmip-defs.sh \
-  $(srcdir)/emulparams/elf32bmipn32-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/irix.em $(srcdir)/emultempl/mipself.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64btsmip.c: $(srcdir)/emulparams/elf64btsmip.sh \
-  $(srcdir)/emulparams/elf64bmip-defs.sh \
-  $(srcdir)/emulparams/elf32bmipn32-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64btsmip_fbsd.c: $(srcdir)/emulparams/elf64btsmip_fbsd.sh \
-  $(srcdir)/emulparams/elf64bmip-defs.sh \
-  $(srcdir)/emulparams/elf32bmipn32-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64hppa.c: $(srcdir)/emulparams/elf64hppa.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf64hppa.sc ${GEN_DEPENDS}
-
-eelf64lppc.c: $(srcdir)/emulparams/elf64lppc.sh \
-  $(srcdir)/emulparams/elf64ppc.sh \
-  $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-  $(srcdir)/emultempl/ppc64elf.em ldemul-list.h \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64lriscv.c: $(srcdir)/emulparams/elf64lriscv.sh \
-  $(srcdir)/emulparams/elf64lriscv-defs.sh \
-  $(srcdir)/emulparams/elf32lriscv-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/riscvelf.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-eelf64lriscv_lp64f.c: $(srcdir)/emulparams/elf64lriscv_lp64f.sh \
-  $(srcdir)/emulparams/elf64lriscv-defs.sh \
-  $(srcdir)/emulparams/elf32lriscv-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/riscvelf.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-eelf64lriscv_lp64.c: $(srcdir)/emulparams/elf64lriscv_lp64.sh \
-  $(srcdir)/emulparams/elf64lriscv-defs.sh \
-  $(srcdir)/emulparams/elf32lriscv-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/riscvelf.em $(srcdir)/scripttempl/elf.sc \
-  ${GEN_DEPENDS}
-
-eelf64ltsmip.c: $(srcdir)/emulparams/elf64ltsmip.sh \
-  $(srcdir)/emulparams/elf64btsmip.sh $(srcdir)/emulparams/elf64bmip-defs.sh \
-  $(srcdir)/emulparams/elf32bmipn32-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64ltsmip_fbsd.c: $(srcdir)/emulparams/elf64ltsmip_fbsd.sh \
-  $(srcdir)/emulparams/elf64btsmip_fbsd.sh $(srcdir)/emulparams/elf64bmip-defs.sh \
-  $(srcdir)/emulparams/elf32bmipn32-defs.sh $(ELF_DEPS) \
-  $(srcdir)/emultempl/mipself.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64mmix.c: $(srcdir)/emulparams/elf64mmix.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/mmix-elfnmmo.em \
-  $(srcdir)/emultempl/mmixelf.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64ppc.c: $(srcdir)/emulparams/elf64ppc.sh \
-  $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-  $(srcdir)/emultempl/ppc64elf.em ldemul-list.h \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64ppc_fbsd.c: $(srcdir)/emulparams/elf64ppc_fbsd.sh \
-  $(srcdir)/emulparams/dynamic_undefined_weak.sh \
-  $(srcdir)/emultempl/ppc64elf.em ldemul-list.h \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64rdos.c: $(srcdir)/emulparams/elf64rdos.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64tilegx.c: $(srcdir)/emulparams/elf64tilegx.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf64tilegx_be.c: $(srcdir)/emulparams/elf64tilegx_be.sh \
-  $(ELF_DEPS) $(srcdir)/emultempl/needrelax.em \
-  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_l1om.c: $(srcdir)/emulparams/elf_l1om.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_l1om_fbsd.c: $(srcdir)/emulparams/elf_l1om_fbsd.sh \
-  $(srcdir)/emulparams/elf_l1om.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_k1om.c: $(srcdir)/emulparams/elf_k1om.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_k1om_fbsd.c: $(srcdir)/emulparams/elf_k1om_fbsd.sh \
-  $(srcdir)/emulparams/elf_k1om.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_x86_64.c: $(srcdir)/emulparams/elf_x86_64.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_x86_64_cloudabi.c: $(srcdir)/emulparams/elf_x86_64_cloudabi.sh \
-  $(srcdir)/emulparams/elf_x86_64.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_x86_64_fbsd.c: $(srcdir)/emulparams/elf_x86_64_fbsd.sh \
-  $(srcdir)/emulparams/elf_x86_64.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_x86_64_nacl.c: $(srcdir)/emulparams/elf_x86_64_nacl.sh \
-  $(srcdir)/emulparams/elf_x86_64.sh \
-  $(srcdir)/emulparams/elf_nacl.sh \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-eelf_x86_64_sol2.c: $(srcdir)/emulparams/elf_x86_64_sol2.sh \
-  $(srcdir)/emulparams/elf_x86_64.sh \
-  $(srcdir)/emulparams/solaris2.sh \
-  $(srcdir)/emultempl/solaris2.em \
-  $(ELF_X86_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-ehppa64linux.c: $(srcdir)/emulparams/hppa64linux.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
-
-emmo.c: $(srcdir)/emulparams/mmo.sh $(srcdir)/emultempl/mmix-elfnmmo.em \
-  $(srcdir)/emultempl/generic.em $(srcdir)/emultempl/elf-generic.em \
-  $(srcdir)/emultempl/mmo.em $(srcdir)/scripttempl/DWARF.sc \
-  $(srcdir)/scripttempl/mmo.sc ${GEN_DEPENDS}
-
+# It's a pity we can't generate these include "./deps/e*.Pc" lines
+# from ALL_EMULATION_SOURCES and ALL_64_EMULATION_SOURCES, but that isn't
+# so easy to do.  What we'd like to do is have automake generate these
+# lines in Makefile.in, but I can't see a way of doing that.  Generating
+# the includes at configure time is possible but then we'd need to
+# duplicate autoconf/automake handling of dependency files.
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaix5ppc.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaix5rs6.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaixppc.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaixrs6.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ealpha.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ealphavms.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earcelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earclinux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earclinux_nps.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earcv2elf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earcv2elfx.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earm_wince_pe.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_fuchsia.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_haiku.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_linux_eabi.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_linux_fdpiceabi.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_nacl.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_nbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_phoenix.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_vxworks.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelfb.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelfb_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelfb_fuchsia.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelfb_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelfb_linux_eabi.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelfb_linux_fdpiceabi.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelfb_nacl.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelfb_nbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmnto.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmpe.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavr1.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavr2.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavr25.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavr3.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavr31.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavr35.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavr4.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavr5.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavr51.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavr6.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavrtiny.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavrxmega1.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavrxmega2.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavrxmega3.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavrxmega4.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavrxmega5.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavrxmega6.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eavrxmega7.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ecrisaout.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ecriself.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ecrislinux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ecskyelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ecskyelf_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ed10velf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ed30v_e.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ed30v_o.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ed30velf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_dlx.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_sparc.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_sparc_sol2.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_sparc_vxworks.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_spu.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_tic6x_be.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_tic6x_elf_be.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_tic6x_elf_le.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_tic6x_le.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_tic6x_linux_be.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_tic6x_linux_le.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32am33lin.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32bfin.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32bfinfd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32cr16.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32crx.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32epiphany.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32epiphany_4x4.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32fr30.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32frv.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32frvfd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ft32.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ip2k.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32iq10.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32iq2000.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32lm32.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32lm32fd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32lppc.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32lppclinux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32lppcnto.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32lppcsim.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32m32c.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32mb_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32mbel_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32mcore.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32mep.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32metag.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32microblaze.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32microblazeel.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32moxie.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32mt.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32or1k.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32or1k_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ppc.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ppc_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ppchaiku.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ppclinux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ppcnto.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ppcsim.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ppcvxworks.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ppcwindiss.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32rl78.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32rx.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32rx_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32tilegx.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32tilegx_be.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32tilepro.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32vax.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32visium.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32xstormy16.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32xtensa.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32z80.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_be.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_haiku.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_ldso.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_sol2.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_vxworks.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_iamcu.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_s390.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300elf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300elf_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300helf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300helf_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300hnelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300self.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300self_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300snelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300sxelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300sxelf_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300sxnelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ehppaelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ehppalinux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ehppanbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ehppaobsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386aout.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386beos.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386bsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386go32.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386lynx.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386moss.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386msdos.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386nto.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386pe.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386pe_posix.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/em32relf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/em32relf_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/em32rlelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/em32rlelf_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/em68hc11elf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/em68hc11elfb.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/em68hc12elf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/em68hc12elfb.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/em68kelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/em68kelfnbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/em9s12zelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emcorepe.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emn10200.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emn10300.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emoxiebox.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emsp430X.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emsp430elf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ends32belf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ends32belf16m.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ends32belf_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ends32elf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ends32elf16m.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ends32elf_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/enios2elf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/enios2linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ens32knbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/epc532macha.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/epdp11.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/epjelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/epjlelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eppcmacos.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/epruelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/escore3_elf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/escore7_elf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/esh.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshelf_fd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshelf_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshelf_nbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshelf_nto.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshelf_uclinux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshelf_vxworks.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshl.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshlelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshlelf_fd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshlelf_linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshlelf_nbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshlelf_nto.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshlelf_vxworks.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eshpe.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/etic30coff.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/etic3xcoff.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/etic3xcoff_onchip.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/etic4xcoff.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/etic54xcoff.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ev850.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ev850_rh850.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/evanilla.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/evaxnbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/exgateelf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ez80.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ez8001.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ez8002.Pc@am__quote@
+
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64cloudabi.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64cloudabib.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64elf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64elf32.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64elf32b.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64elfb.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64fbsdb.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64haiku.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linux32.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linux32b.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linuxb.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_x86_64.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32b4300.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32bmip.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32bmipn32.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32briscv.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32briscv_ilp32.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32briscv_ilp32f.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32bsmip.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32btsmip.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32btsmip_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32btsmipn32.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32btsmipn32_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ebmip.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ebmipvxworks.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32elmip.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32elmipvxworks.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32l4300.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32loongarch.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32lmip.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32lr5900.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32lr5900n32.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32lriscv.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32lriscv_ilp32.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32lriscv_ilp32f.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32lsmip.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ltsmip.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ltsmip_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ltsmipn32.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32ltsmipn32_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32mipswindiss.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_aix.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_ia64.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_ia64_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_ia64_vms.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_s390.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_sparc.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_sparc_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_sparc_sol2.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64alpha.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64alpha_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64alpha_nbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64bmip.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64bpf.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64briscv.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64briscv_lp64.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64briscv_lp64f.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64btsmip.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64btsmip_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64hppa.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64lppc.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64lppc_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64loongarch.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64lriscv.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64lriscv_lp64.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64lriscv_lp64f.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64ltsmip.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64ltsmip_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64mmix.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64ppc.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64ppc_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64rdos.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64tilegx.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64tilegx_be.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_mipsel_haiku.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_cloudabi.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_fbsd.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_haiku.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_sol2.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ehppa64linux.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386pep.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emmo.Pc@am__quote@
 
 # We need this for automake to use YLWRAP.
 EXTRA_ld_new_SOURCES = deffilep.y ldlex.l
 # Allow dependency tracking to work for these files, too.
-EXTRA_ld_new_SOURCES += pep-dll.c pe-dll.c
+EXTRA_ld_new_SOURCES += pep-dll.c pe-dll.c ldelf.c ldelfgen.c
 
 ld_new_SOURCES = ldgram.y ldlex-wrapper.c lexsup.c ldlang.c mri.c ldctor.c ldmain.c \
-	ldwrite.c ldexp.c ldemul.c ldver.c ldmisc.c ldfile.c ldcref.c $(PLUGIN_C) \
+	ldwrite.c ldexp.c ldemul.c ldver.c ldmisc.c ldfile.c ldcref.c plugin.c \
 	ldbuildid.c
 ld_new_DEPENDENCIES = $(EMULATION_OFILES) $(EMUL_EXTRA_OFILES) \
-		      $(BFDLIB) $(LIBIBERTY) $(LIBINTL_DEP)
-ld_new_LDADD = $(EMULATION_OFILES) $(EMUL_EXTRA_OFILES) $(BFDLIB) $(LIBIBERTY) $(LIBINTL)
+		      $(BFDLIB) $(LIBCTF) $(LIBIBERTY) $(LIBINTL_DEP) $(JANSSON_LIBS)
+ld_new_LDADD = $(EMULATION_OFILES) $(EMUL_EXTRA_OFILES) $(BFDLIB) $(LIBCTF) $(LIBIBERTY) $(LIBINTL) $(ZLIB) $(JANSSON_LIBS)
 
 # Dependency tracking for the generated emulation files.
 EXTRA_ld_new_SOURCES += $(ALL_EMULATION_SOURCES) $(ALL_64_EMULATION_SOURCES)
 
-# This is the real libbfd.a created by libtool.
+# This is the real libbfd.a and libctf.a created by libtool.
 TESTBFDLIB = @TESTBFDLIB@
+TESTCTFLIB = @TESTCTFLIB@
 
 check-DEJAGNU: site.exp
+	(cd .libs; test -e ldscripts || test ! -e ld-new || $(LN_S) ../ldscripts .)
 	srcroot=`cd $(srcdir) && pwd`; export srcroot; \
 	r=`pwd`; export r; \
 	LC_ALL=C; export LC_ALL; \
@@ -1887,20 +977,29 @@ check-DEJAGNU: site.exp
 	runtest=$(RUNTEST); \
 	if $(SHELL) -c "$$runtest --version" > /dev/null 2>&1; then \
 	  $$runtest --tool $(DEJATOOL) --srcdir $${srcroot}/testsuite \
-		CC="$(CC_FOR_TARGET)" CFLAGS="$(CFLAGS_FOR_TARGET)" \
-		CXX="$(CXX_FOR_TARGET)" CXXFLAGS="$(CXXFLAGS_FOR_TARGET)" \
-		CC_FOR_HOST="$(CC)" CFLAGS_FOR_HOST="$(CFLAGS)" \
-		OFILES="$(OFILES)" BFDLIB="$(TESTBFDLIB)" \
+		CC="$(CC)" CFLAGS="$(CFLAGS)" \
+		CXX="$(CXX)" CXXFLAGS="$(CXXFLAGS)" \
+		CC_FOR_TARGET="$(CC_FOR_TARGET)" \
+		CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" \
+		CXX_FOR_TARGET="$(CXX_FOR_TARGET)" \
+		CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET)" \
+		OFILES="$(OFILES)" BFDLIB="$(TESTBFDLIB)" CTFLIB="$(TESTCTFLIB) $(ZLIB)" \
 		LIBIBERTY="$(LIBIBERTY) $(LIBINTL)" LIBS="$(LIBS)" \
 		DO_COMPARE="`echo '$(do_compare)' | sed -e 's,\\$$,,g'`" \
 		$(RUNTESTFLAGS); \
 	else echo "WARNING: could not find \`runtest'" 1>&2; :;\
 	fi
 
+development.exp: $(BFDDIR)/development.sh
+	$(AM_V_GEN)$(EGREP) "(development|experimental)=" $(BFDDIR)/development.sh  \
+	  | $(AWK) -F= '{ print "set " $$1 " " $$2 }' > $@
+
+enablings.exp:
+	$(AM_V_GEN)echo "set enable_libctf ${enable_libctf}" >> $@
+#
 #
 # Build a dummy plugin using libtool.
 #
-if ENABLE_PLUGINS
 noinst_LTLIBRARIES = libldtestplug.la libldtestplug2.la \
 		     libldtestplug3.la libldtestplug4.la
 libldtestplug_la_SOURCES = testplug.c
@@ -1915,27 +1014,35 @@ libldtestplug3_la_LDFLAGS = -no-undefined -rpath /nowhere
 libldtestplug4_la_SOURCES = testplug4.c
 libldtestplug4_la_CFLAGS= -g -O2
 libldtestplug4_la_LDFLAGS = -no-undefined -rpath /nowhere
-endif
+
+bfdplugindir = $(libdir)/bfd-plugins
+bfdplugin_LTLIBRARIES = libdep.la
+libdep_la_SOURCES = libdep_plugin.c
+libdep_la_LDFLAGS = -no-undefined -rpath /nowhere -module -avoid-version
+libdep_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	--tag=disable-static \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(libdep_la_LDFLAGS) $(LDFLAGS) -o $@
 
 # DOCUMENTATION TARGETS
 # Manual configuration file; not usually attached to normal configuration,
 # because almost all configs use "gen" version of manual.
 #  Set DOCVER above to change.
 configdoc.texi:	${DOCVER}-doc.texi
-	cp ${srcdir}/${DOCVER}-doc.texi ./configdoc.texi
-	chmod u+w ./configdoc.texi
+	$(AM_V_GEN)cp ${srcdir}/${DOCVER}-doc.texi ./configdoc.texi
+	$(AM_V_at)chmod u+w ./configdoc.texi
 
 # Build the man page from the texinfo file
 # The sed command removes the no-adjust Nroff command so that
 # the man output looks standard.
 ld.1: $(srcdir)/ld.texi configdoc.texi
-	touch $@
-	-$(TEXI2POD) $(MANCONF) < $(srcdir)/ld.texi > ld.pod
-	-($(POD2MAN) ld.pod | \
+	$(AM_V_GEN)touch $@
+	$(AM_V_at)-$(TEXI2POD) $(MANCONF) < $(srcdir)/ld.texi > ld.pod
+	$(AM_V_at)-($(POD2MAN) ld.pod | \
 		sed -e '/^.if n .na/d' > $@.T$$$$ && \
 		mv -f $@.T$$$$ $@) || \
 		(rm -f $@.T$$$$ && exit 1)
-	rm -f ld.pod
+	$(AM_V_at)rm -f ld.pod
 
 MAINTAINERCLEANFILES = configdoc.texi ld.1
 
@@ -1943,6 +1050,8 @@ MAINTAINERCLEANFILES = configdoc.texi ld.1
 # development.sh is used to determine -Werror default.
 CONFIG_STATUS_DEPENDENCIES = $(srcdir)/configure.host $(srcdir)/configure.tgt \
 	$(BFDDIR)/development.sh
+
+EXTRA_DEJAGNU_SITE_CONFIG = development.exp enablings.exp
 
 MOSTLYCLEANFILES = $(STAGESTUFF) ld1$(EXEEXT) ld2$(EXEEXT) ld3$(EXEEXT) \
 	ldemul-list.h crtbegin.@OBJEXT@ crtend.@OBJEXT@ ld.log ld.sum
@@ -1972,11 +1081,13 @@ install-exec-local: ld-new$(EXEEXT) install-binPROGRAMS
 	  fi; \
 	fi
 
-install-data-local:
+install-data-local: install-bfdpluginLTLIBRARIES
 	$(mkinstalldirs) $(DESTDIR)$(scriptdir)/ldscripts
 	for f in ldscripts/* ; do \
 	  $(INSTALL_DATA) $$f $(DESTDIR)$(scriptdir)/$$f ; \
 	done
+	rm -f $(DESTDIR)$(bfdplugindir)/libdep.la
+	rm -f $(DESTDIR)$(bfdplugindir)/libdep.dll.a
 
 # Stuff that should be included in a distribution.  The diststuff
 # target is run by the taz target in ../Makefile.in.
@@ -1989,7 +1100,13 @@ diststuff: info $(EXTRA_DIST)
 # ld.1 to support parallel build.
 info-recursive: ld.1
 
-DISTCLEANFILES = tdirs site.exp site.bak stringify.sed
+html-local: doc/ld/index.html
+doc/ld/index.html: ld.texi $(ld_TEXINFOS)
+	$(AM_V_at)$(MKDIR_P) doc
+	$(AM_V_GEN)$(MAKEINFOHTML) $(AM_MAKEINFOHTMLFLAGS) $(MAKEINFOFLAGS) \
+	  --split=node -I$(srcdir) $(srcdir)/ld.texi -o doc/ld
+
+DISTCLEANFILES = site.exp development.exp enablings.exp site.bak stringify.sed
 distclean-local:
 	rm -rf ldscripts
 

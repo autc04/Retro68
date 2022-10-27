@@ -57,12 +57,12 @@ Disassembly of section .text:
 0+00b8 <[^>]*> 4682081b 	cmp.sne.s	\$f0,\$f1,\$f2
 0+00bc <[^>]*> 46a2081b 	cmp.sne.d	\$f0,\$f1,\$f2
 0+00c0 <[^>]*> 45200000 	bc1eqz	\$f0,0+00c4 <[^>]*>
-[	]*c0: R_MIPS_PC16	.L1.1-0x4
+[	]*c0: R_MIPS_PC16	.L1.*1-0x4
 [	]*c0: R_MIPS_NONE	\*ABS\*-0x4
 [	]*c0: R_MIPS_NONE	\*ABS\*-0x4
 0+00c4 <[^>]*> 00000000 	nop
 0+00c8 <[^>]*> 453f0000 	bc1eqz	\$f31,0+00cc <[^>]*>
-[	]*c8: R_MIPS_PC16	.L1.1-0x4
+[	]*c8: R_MIPS_PC16	.L1.*1-0x4
 [	]*c8: R_MIPS_NONE	\*ABS\*-0x4
 [	]*c8: R_MIPS_NONE	\*ABS\*-0x4
 0+00cc <[^>]*> 00000000 	nop
@@ -77,12 +77,12 @@ Disassembly of section .text:
 [	]*d8: R_MIPS_NONE	\*ABS\*-0x4
 0+00dc <[^>]*> 00000000 	nop
 0+00e0 <[^>]*> 45a00000 	bc1nez	\$f0,0+00e4 <[^>]*>
-[	]*e0: R_MIPS_PC16	.L1.1-0x4
+[	]*e0: R_MIPS_PC16	.L1.*1-0x4
 [	]*e0: R_MIPS_NONE	\*ABS\*-0x4
 [	]*e0: R_MIPS_NONE	\*ABS\*-0x4
 0+00e4 <[^>]*> 00000000 	nop
 0+00e8 <[^>]*> 45bf0000 	bc1nez	\$f31,0+00ec <[^>]*>
-[	]*e8: R_MIPS_PC16	.L1.1-0x4
+[	]*e8: R_MIPS_PC16	.L1.*1-0x4
 [	]*e8: R_MIPS_NONE	\*ABS\*-0x4
 [	]*e8: R_MIPS_NONE	\*ABS\*-0x4
 0+00ec <[^>]*> 00000000 	nop
@@ -97,12 +97,12 @@ Disassembly of section .text:
 [	]*f8: R_MIPS_NONE	\*ABS\*-0x4
 0+00fc <[^>]*> 00000000 	nop
 0+0100 <[^>]*> 49200000 	bc2eqz	\$0,0+0104 <[^>]*>
-[	]*100: R_MIPS_PC16	.L1.1-0x4
+[	]*100: R_MIPS_PC16	.L1.*1-0x4
 [	]*100: R_MIPS_NONE	\*ABS\*-0x4
 [	]*100: R_MIPS_NONE	\*ABS\*-0x4
 0+0104 <[^>]*> 00000000 	nop
 0+0108 <[^>]*> 493f0000 	bc2eqz	\$31,0+010c <[^>]*>
-[	]*108: R_MIPS_PC16	.L1.1-0x4
+[	]*108: R_MIPS_PC16	.L1.*1-0x4
 [	]*108: R_MIPS_NONE	\*ABS\*-0x4
 [	]*108: R_MIPS_NONE	\*ABS\*-0x4
 0+010c <[^>]*> 00000000 	nop
@@ -117,12 +117,12 @@ Disassembly of section .text:
 [	]*118: R_MIPS_NONE	\*ABS\*-0x4
 0+011c <[^>]*> 00000000 	nop
 0+0120 <[^>]*> 49a00000 	bc2nez	\$0,0+0124 <[^>]*>
-[	]*120: R_MIPS_PC16	.L1.1-0x4
+[	]*120: R_MIPS_PC16	.L1.*1-0x4
 [	]*120: R_MIPS_NONE	\*ABS\*-0x4
 [	]*120: R_MIPS_NONE	\*ABS\*-0x4
 0+0124 <[^>]*> 00000000 	nop
 0+0128 <[^>]*> 49bf0000 	bc2nez	\$31,0+012c <[^>]*>
-[	]*128: R_MIPS_PC16	.L1.1-0x4
+[	]*128: R_MIPS_PC16	.L1.*1-0x4
 [	]*128: R_MIPS_NONE	\*ABS\*-0x4
 [	]*128: R_MIPS_NONE	\*ABS\*-0x4
 0+012c <[^>]*> 00000000 	nop
@@ -212,17 +212,17 @@ Disassembly of section .text:
 [	]*228: R_MIPS_NONE	\*ABS\*-0x4
 0+022c <[^>]*> 00000000 	nop
 0+0230 <[^>]*> 20820000 	bovc	a0,v0,0+0234 <[^>]*>
-[	]*230: R_MIPS_PC16	L0.-0x20000
+[	]*230: R_MIPS_PC16	L0.*-0x20000
 [	]*230: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*230: R_MIPS_NONE	\*ABS\*-0x20000
 0+0234 <[^>]*> 00000000 	nop
 0+0238 <[^>]*> 20820000 	bovc	a0,v0,0+023c <[^>]*>
-[	]*238: R_MIPS_PC16	L0.\+0x1fffc
+[	]*238: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*238: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*238: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+023c <[^>]*> 00000000 	nop
 0+0240 <[^>]*> 20820000 	bovc	a0,v0,0+0244 <[^>]*>
-[	]*240: R_MIPS_PC16	.L1.2-0x4
+[	]*240: R_MIPS_PC16	.L1.*2-0x4
 [	]*240: R_MIPS_NONE	\*ABS\*-0x4
 [	]*240: R_MIPS_NONE	\*ABS\*-0x4
 0+0244 <[^>]*> 00000000 	nop
@@ -232,7 +232,7 @@ Disassembly of section .text:
 [	]*248: R_MIPS_NONE	\*ABS\*-0x4
 0+024c <[^>]*> 00000000 	nop
 0+0250 <[^>]*> 20420000 	bovc	v0,v0,0+0254 <[^>]*>
-[	]*250: R_MIPS_PC16	L0.-0x20000
+[	]*250: R_MIPS_PC16	L0.*-0x20000
 [	]*250: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*250: R_MIPS_NONE	\*ABS\*-0x20000
 0+0254 <[^>]*> 00000000 	nop
@@ -242,17 +242,17 @@ Disassembly of section .text:
 [	]*258: R_MIPS_NONE	\*ABS\*-0x4
 0+025c <[^>]*> 00000000 	nop
 0+0260 <[^>]*> 20020000 	beqzalc	v0,0+0264 <[^>]*>
-[	]*260: R_MIPS_PC16	L0.-0x20000
+[	]*260: R_MIPS_PC16	L0.*-0x20000
 [	]*260: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*260: R_MIPS_NONE	\*ABS\*-0x20000
 0+0264 <[^>]*> 00000000 	nop
 0+0268 <[^>]*> 20020000 	beqzalc	v0,0+026c <[^>]*>
-[	]*268: R_MIPS_PC16	L0.\+0x1fffc
+[	]*268: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*268: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*268: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+026c <[^>]*> 00000000 	nop
 0+0270 <[^>]*> 20020000 	beqzalc	v0,0+0274 <[^>]*>
-[	]*270: R_MIPS_PC16	.L1.2-0x4
+[	]*270: R_MIPS_PC16	.L1.*2-0x4
 [	]*270: R_MIPS_NONE	\*ABS\*-0x4
 [	]*270: R_MIPS_NONE	\*ABS\*-0x4
 0+0274 <[^>]*> 00000000 	nop
@@ -267,17 +267,17 @@ Disassembly of section .text:
 [	]*280: R_MIPS_NONE	\*ABS\*-0x4
 0+0284 <[^>]*> 00000000 	nop
 0+0288 <[^>]*> 20430000 	beqc	v0,v1,0+028c <[^>]*>
-[	]*288: R_MIPS_PC16	L0.-0x20000
+[	]*288: R_MIPS_PC16	L0.*-0x20000
 [	]*288: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*288: R_MIPS_NONE	\*ABS\*-0x20000
 0+028c <[^>]*> 00000000 	nop
 0+0290 <[^>]*> 20430000 	beqc	v0,v1,0+0294 <[^>]*>
-[	]*290: R_MIPS_PC16	L0.\+0x1fffc
+[	]*290: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*290: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*290: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+0294 <[^>]*> 00000000 	nop
 0+0298 <[^>]*> 20430000 	beqc	v0,v1,0+029c <[^>]*>
-[	]*298: R_MIPS_PC16	.L1.2-0x4
+[	]*298: R_MIPS_PC16	.L1.*2-0x4
 [	]*298: R_MIPS_NONE	\*ABS\*-0x4
 [	]*298: R_MIPS_NONE	\*ABS\*-0x4
 0+029c <[^>]*> 00000000 	nop
@@ -307,17 +307,17 @@ Disassembly of section .text:
 [	]*2c0: R_MIPS_NONE	\*ABS\*-0x4
 0+02c4 <[^>]*> 00000000 	nop
 0+02c8 <[^>]*> 60820000 	bnvc	a0,v0,0+02cc <[^>]*>
-[	]*2c8: R_MIPS_PC16	L0.-0x20000
+[	]*2c8: R_MIPS_PC16	L0.*-0x20000
 [	]*2c8: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*2c8: R_MIPS_NONE	\*ABS\*-0x20000
 0+02cc <[^>]*> 00000000 	nop
 0+02d0 <[^>]*> 60820000 	bnvc	a0,v0,0+02d4 <[^>]*>
-[	]*2d0: R_MIPS_PC16	L0.\+0x1fffc
+[	]*2d0: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*2d0: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*2d0: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+02d4 <[^>]*> 00000000 	nop
 0+02d8 <[^>]*> 60820000 	bnvc	a0,v0,0+02dc <[^>]*>
-[	]*2d8: R_MIPS_PC16	.L1.2-0x4
+[	]*2d8: R_MIPS_PC16	.L1.*2-0x4
 [	]*2d8: R_MIPS_NONE	\*ABS\*-0x4
 [	]*2d8: R_MIPS_NONE	\*ABS\*-0x4
 0+02dc <[^>]*> 00000000 	nop
@@ -327,7 +327,7 @@ Disassembly of section .text:
 [	]*2e0: R_MIPS_NONE	\*ABS\*-0x4
 0+02e4 <[^>]*> 00000000 	nop
 0+02e8 <[^>]*> 60420000 	bnvc	v0,v0,0+02ec <[^>]*>
-[	]*2e8: R_MIPS_PC16	L0.-0x20000
+[	]*2e8: R_MIPS_PC16	L0.*-0x20000
 [	]*2e8: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*2e8: R_MIPS_NONE	\*ABS\*-0x20000
 0+02ec <[^>]*> 00000000 	nop
@@ -337,17 +337,17 @@ Disassembly of section .text:
 [	]*2f0: R_MIPS_NONE	\*ABS\*-0x4
 0+02f4 <[^>]*> 00000000 	nop
 0+02f8 <[^>]*> 60020000 	bnezalc	v0,0+02fc <[^>]*>
-[	]*2f8: R_MIPS_PC16	L0.-0x20000
+[	]*2f8: R_MIPS_PC16	L0.*-0x20000
 [	]*2f8: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*2f8: R_MIPS_NONE	\*ABS\*-0x20000
 0+02fc <[^>]*> 00000000 	nop
 0+0300 <[^>]*> 60020000 	bnezalc	v0,0+0304 <[^>]*>
-[	]*300: R_MIPS_PC16	L0.\+0x1fffc
+[	]*300: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*300: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*300: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+0304 <[^>]*> 00000000 	nop
 0+0308 <[^>]*> 60020000 	bnezalc	v0,0+030c <[^>]*>
-[	]*308: R_MIPS_PC16	.L1.2-0x4
+[	]*308: R_MIPS_PC16	.L1.*2-0x4
 [	]*308: R_MIPS_NONE	\*ABS\*-0x4
 [	]*308: R_MIPS_NONE	\*ABS\*-0x4
 0+030c <[^>]*> 00000000 	nop
@@ -362,17 +362,17 @@ Disassembly of section .text:
 [	]*318: R_MIPS_NONE	\*ABS\*-0x4
 0+031c <[^>]*> 00000000 	nop
 0+0320 <[^>]*> 60430000 	bnec	v0,v1,0+0324 <[^>]*>
-[	]*320: R_MIPS_PC16	L0.-0x20000
+[	]*320: R_MIPS_PC16	L0.*-0x20000
 [	]*320: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*320: R_MIPS_NONE	\*ABS\*-0x20000
 0+0324 <[^>]*> 00000000 	nop
 0+0328 <[^>]*> 60430000 	bnec	v0,v1,0+032c <[^>]*>
-[	]*328: R_MIPS_PC16	L0.\+0x1fffc
+[	]*328: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*328: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*328: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+032c <[^>]*> 00000000 	nop
 0+0330 <[^>]*> 60430000 	bnec	v0,v1,0+0334 <[^>]*>
-[	]*330: R_MIPS_PC16	.L1.2-0x4
+[	]*330: R_MIPS_PC16	.L1.*2-0x4
 [	]*330: R_MIPS_NONE	\*ABS\*-0x4
 [	]*330: R_MIPS_NONE	\*ABS\*-0x4
 0+0334 <[^>]*> 00000000 	nop
@@ -382,17 +382,17 @@ Disassembly of section .text:
 [	]*338: R_MIPS_NONE	\*ABS\*-0x4
 0+033c <[^>]*> 00000000 	nop
 0+0340 <[^>]*> 58020000 	blezc	v0,0+0344 <[^>]*>
-[	]*340: R_MIPS_PC16	L0.-0x20000
+[	]*340: R_MIPS_PC16	L0.*-0x20000
 [	]*340: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*340: R_MIPS_NONE	\*ABS\*-0x20000
 0+0344 <[^>]*> 00000000 	nop
 0+0348 <[^>]*> 58020000 	blezc	v0,0+034c <[^>]*>
-[	]*348: R_MIPS_PC16	L0.\+0x1fffc
+[	]*348: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*348: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*348: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+034c <[^>]*> 00000000 	nop
 0+0350 <[^>]*> 58020000 	blezc	v0,0+0354 <[^>]*>
-[	]*350: R_MIPS_PC16	.L1.2-0x4
+[	]*350: R_MIPS_PC16	.L1.*2-0x4
 [	]*350: R_MIPS_NONE	\*ABS\*-0x4
 [	]*350: R_MIPS_NONE	\*ABS\*-0x4
 0+0354 <[^>]*> 00000000 	nop
@@ -402,17 +402,17 @@ Disassembly of section .text:
 [	]*358: R_MIPS_NONE	\*ABS\*-0x4
 0+035c <[^>]*> 00000000 	nop
 0+0360 <[^>]*> 58420000 	bgezc	v0,0+0364 <[^>]*>
-[	]*360: R_MIPS_PC16	L0.-0x20000
+[	]*360: R_MIPS_PC16	L0.*-0x20000
 [	]*360: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*360: R_MIPS_NONE	\*ABS\*-0x20000
 0+0364 <[^>]*> 00000000 	nop
 0+0368 <[^>]*> 58420000 	bgezc	v0,0+036c <[^>]*>
-[	]*368: R_MIPS_PC16	L0.\+0x1fffc
+[	]*368: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*368: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*368: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+036c <[^>]*> 00000000 	nop
 0+0370 <[^>]*> 58420000 	bgezc	v0,0+0374 <[^>]*>
-[	]*370: R_MIPS_PC16	.L1.2-0x4
+[	]*370: R_MIPS_PC16	.L1.*2-0x4
 [	]*370: R_MIPS_NONE	\*ABS\*-0x4
 [	]*370: R_MIPS_NONE	\*ABS\*-0x4
 0+0374 <[^>]*> 00000000 	nop
@@ -422,22 +422,22 @@ Disassembly of section .text:
 [	]*378: R_MIPS_NONE	\*ABS\*-0x4
 0+037c <[^>]*> 00000000 	nop
 0+0380 <[^>]*> 58430000 	bgec	v0,v1,0+0384 <[^>]*>
-[	]*380: R_MIPS_PC16	L0.-0x20000
+[	]*380: R_MIPS_PC16	L0.*-0x20000
 [	]*380: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*380: R_MIPS_NONE	\*ABS\*-0x20000
 0+0384 <[^>]*> 00000000 	nop
 0+0388 <[^>]*> 58430000 	bgec	v0,v1,0+038c <[^>]*>
-[	]*388: R_MIPS_PC16	L0.\+0x1fffc
+[	]*388: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*388: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*388: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+038c <[^>]*> 00000000 	nop
 0+0390 <[^>]*> 58430000 	bgec	v0,v1,0+0394 <[^>]*>
-[	]*390: R_MIPS_PC16	.L1.2-0x4
+[	]*390: R_MIPS_PC16	.L1.*2-0x4
 [	]*390: R_MIPS_NONE	\*ABS\*-0x4
 [	]*390: R_MIPS_NONE	\*ABS\*-0x4
 0+0394 <[^>]*> 00000000 	nop
 0+0398 <[^>]*> 58620000 	bgec	v1,v0,0+039c <[^>]*>
-[	]*398: R_MIPS_PC16	.L1.2-0x4
+[	]*398: R_MIPS_PC16	.L1.*2-0x4
 [	]*398: R_MIPS_NONE	\*ABS\*-0x4
 [	]*398: R_MIPS_NONE	\*ABS\*-0x4
 0+039c <[^>]*> 00000000 	nop
@@ -447,17 +447,17 @@ Disassembly of section .text:
 [	]*3a0: R_MIPS_NONE	\*ABS\*-0x4
 0+03a4 <[^>]*> 00000000 	nop
 0+03a8 <[^>]*> 5c020000 	bgtzc	v0,0+03ac <[^>]*>
-[	]*3a8: R_MIPS_PC16	L0.-0x20000
+[	]*3a8: R_MIPS_PC16	L0.*-0x20000
 [	]*3a8: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*3a8: R_MIPS_NONE	\*ABS\*-0x20000
 0+03ac <[^>]*> 00000000 	nop
 0+03b0 <[^>]*> 5c020000 	bgtzc	v0,0+03b4 <[^>]*>
-[	]*3b0: R_MIPS_PC16	L0.\+0x1fffc
+[	]*3b0: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*3b0: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*3b0: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+03b4 <[^>]*> 00000000 	nop
 0+03b8 <[^>]*> 5c020000 	bgtzc	v0,0+03bc <[^>]*>
-[	]*3b8: R_MIPS_PC16	.L1.2-0x4
+[	]*3b8: R_MIPS_PC16	.L1.*2-0x4
 [	]*3b8: R_MIPS_NONE	\*ABS\*-0x4
 [	]*3b8: R_MIPS_NONE	\*ABS\*-0x4
 0+03bc <[^>]*> 00000000 	nop
@@ -467,17 +467,17 @@ Disassembly of section .text:
 [	]*3c0: R_MIPS_NONE	\*ABS\*-0x4
 0+03c4 <[^>]*> 00000000 	nop
 0+03c8 <[^>]*> 5c420000 	bltzc	v0,0+03cc <[^>]*>
-[	]*3c8: R_MIPS_PC16	L0.-0x20000
+[	]*3c8: R_MIPS_PC16	L0.*-0x20000
 [	]*3c8: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*3c8: R_MIPS_NONE	\*ABS\*-0x20000
 0+03cc <[^>]*> 00000000 	nop
 0+03d0 <[^>]*> 5c420000 	bltzc	v0,0+03d4 <[^>]*>
-[	]*3d0: R_MIPS_PC16	L0.\+0x1fffc
+[	]*3d0: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*3d0: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*3d0: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+03d4 <[^>]*> 00000000 	nop
 0+03d8 <[^>]*> 5c420000 	bltzc	v0,0+03dc <[^>]*>
-[	]*3d8: R_MIPS_PC16	.L1.2-0x4
+[	]*3d8: R_MIPS_PC16	.L1.*2-0x4
 [	]*3d8: R_MIPS_NONE	\*ABS\*-0x4
 [	]*3d8: R_MIPS_NONE	\*ABS\*-0x4
 0+03dc <[^>]*> 00000000 	nop
@@ -487,22 +487,22 @@ Disassembly of section .text:
 [	]*3e0: R_MIPS_NONE	\*ABS\*-0x4
 0+03e4 <[^>]*> 00000000 	nop
 0+03e8 <[^>]*> 5c430000 	bltc	v0,v1,0+03ec <[^>]*>
-[	]*3e8: R_MIPS_PC16	L0.-0x20000
+[	]*3e8: R_MIPS_PC16	L0.*-0x20000
 [	]*3e8: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*3e8: R_MIPS_NONE	\*ABS\*-0x20000
 0+03ec <[^>]*> 00000000 	nop
 0+03f0 <[^>]*> 5c430000 	bltc	v0,v1,0+03f4 <[^>]*>
-[	]*3f0: R_MIPS_PC16	L0.\+0x1fffc
+[	]*3f0: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*3f0: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*3f0: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+03f4 <[^>]*> 00000000 	nop
 0+03f8 <[^>]*> 5c430000 	bltc	v0,v1,0+03fc <[^>]*>
-[	]*3f8: R_MIPS_PC16	.L1.2-0x4
+[	]*3f8: R_MIPS_PC16	.L1.*2-0x4
 [	]*3f8: R_MIPS_NONE	\*ABS\*-0x4
 [	]*3f8: R_MIPS_NONE	\*ABS\*-0x4
 0+03fc <[^>]*> 00000000 	nop
 0+0400 <[^>]*> 5c620000 	bltc	v1,v0,0+0404 <[^>]*>
-[	]*400: R_MIPS_PC16	.L1.2-0x4
+[	]*400: R_MIPS_PC16	.L1.*2-0x4
 [	]*400: R_MIPS_NONE	\*ABS\*-0x4
 [	]*400: R_MIPS_NONE	\*ABS\*-0x4
 0+0404 <[^>]*> 00000000 	nop
@@ -512,17 +512,17 @@ Disassembly of section .text:
 [	]*408: R_MIPS_NONE	\*ABS\*-0x4
 0+040c <[^>]*> 00000000 	nop
 0+0410 <[^>]*> 18020000 	blezalc	v0,0+0414 <[^>]*>
-[	]*410: R_MIPS_PC16	L0.-0x20000
+[	]*410: R_MIPS_PC16	L0.*-0x20000
 [	]*410: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*410: R_MIPS_NONE	\*ABS\*-0x20000
 0+0414 <[^>]*> 00000000 	nop
 0+0418 <[^>]*> 18020000 	blezalc	v0,0+041c <[^>]*>
-[	]*418: R_MIPS_PC16	L0.\+0x1fffc
+[	]*418: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*418: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*418: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+041c <[^>]*> 00000000 	nop
 0+0420 <[^>]*> 18020000 	blezalc	v0,0+0424 <[^>]*>
-[	]*420: R_MIPS_PC16	.L1.2-0x4
+[	]*420: R_MIPS_PC16	.L1.*2-0x4
 [	]*420: R_MIPS_NONE	\*ABS\*-0x4
 [	]*420: R_MIPS_NONE	\*ABS\*-0x4
 0+0424 <[^>]*> 00000000 	nop
@@ -532,17 +532,17 @@ Disassembly of section .text:
 [	]*428: R_MIPS_NONE	\*ABS\*-0x4
 0+042c <[^>]*> 00000000 	nop
 0+0430 <[^>]*> 18420000 	bgezalc	v0,0+0434 <[^>]*>
-[	]*430: R_MIPS_PC16	L0.-0x20000
+[	]*430: R_MIPS_PC16	L0.*-0x20000
 [	]*430: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*430: R_MIPS_NONE	\*ABS\*-0x20000
 0+0434 <[^>]*> 00000000 	nop
 0+0438 <[^>]*> 18420000 	bgezalc	v0,0+043c <[^>]*>
-[	]*438: R_MIPS_PC16	L0.\+0x1fffc
+[	]*438: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*438: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*438: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+043c <[^>]*> 00000000 	nop
 0+0440 <[^>]*> 18420000 	bgezalc	v0,0+0444 <[^>]*>
-[	]*440: R_MIPS_PC16	.L1.2-0x4
+[	]*440: R_MIPS_PC16	.L1.*2-0x4
 [	]*440: R_MIPS_NONE	\*ABS\*-0x4
 [	]*440: R_MIPS_NONE	\*ABS\*-0x4
 0+0444 <[^>]*> 00000000 	nop
@@ -552,22 +552,22 @@ Disassembly of section .text:
 [	]*448: R_MIPS_NONE	\*ABS\*-0x4
 0+044c <[^>]*> 00000000 	nop
 0+0450 <[^>]*> 18430000 	bgeuc	v0,v1,0+0454 <[^>]*>
-[	]*450: R_MIPS_PC16	L0.-0x20000
+[	]*450: R_MIPS_PC16	L0.*-0x20000
 [	]*450: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*450: R_MIPS_NONE	\*ABS\*-0x20000
 0+0454 <[^>]*> 00000000 	nop
 0+0458 <[^>]*> 18430000 	bgeuc	v0,v1,0+045c <[^>]*>
-[	]*458: R_MIPS_PC16	L0.\+0x1fffc
+[	]*458: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*458: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*458: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+045c <[^>]*> 00000000 	nop
 0+0460 <[^>]*> 18430000 	bgeuc	v0,v1,0+0464 <[^>]*>
-[	]*460: R_MIPS_PC16	.L1.2-0x4
+[	]*460: R_MIPS_PC16	.L1.*2-0x4
 [	]*460: R_MIPS_NONE	\*ABS\*-0x4
 [	]*460: R_MIPS_NONE	\*ABS\*-0x4
 0+0464 <[^>]*> 00000000 	nop
 0+0468 <[^>]*> 18620000 	bgeuc	v1,v0,0+046c <[^>]*>
-[	]*468: R_MIPS_PC16	.L1.2-0x4
+[	]*468: R_MIPS_PC16	.L1.*2-0x4
 [	]*468: R_MIPS_NONE	\*ABS\*-0x4
 [	]*468: R_MIPS_NONE	\*ABS\*-0x4
 0+046c <[^>]*> 00000000 	nop
@@ -577,17 +577,17 @@ Disassembly of section .text:
 [	]*470: R_MIPS_NONE	\*ABS\*-0x4
 0+0474 <[^>]*> 00000000 	nop
 0+0478 <[^>]*> 1c020000 	bgtzalc	v0,0+047c <[^>]*>
-[	]*478: R_MIPS_PC16	L0.-0x20000
+[	]*478: R_MIPS_PC16	L0.*-0x20000
 [	]*478: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*478: R_MIPS_NONE	\*ABS\*-0x20000
 0+047c <[^>]*> 00000000 	nop
 0+0480 <[^>]*> 1c020000 	bgtzalc	v0,0+0484 <[^>]*>
-[	]*480: R_MIPS_PC16	L0.\+0x1fffc
+[	]*480: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*480: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*480: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+0484 <[^>]*> 00000000 	nop
 0+0488 <[^>]*> 1c020000 	bgtzalc	v0,0+048c <[^>]*>
-[	]*488: R_MIPS_PC16	.L1.2-0x4
+[	]*488: R_MIPS_PC16	.L1.*2-0x4
 [	]*488: R_MIPS_NONE	\*ABS\*-0x4
 [	]*488: R_MIPS_NONE	\*ABS\*-0x4
 0+048c <[^>]*> 00000000 	nop
@@ -597,17 +597,17 @@ Disassembly of section .text:
 [	]*490: R_MIPS_NONE	\*ABS\*-0x4
 0+0494 <[^>]*> 00000000 	nop
 0+0498 <[^>]*> 1c420000 	bltzalc	v0,0+049c <[^>]*>
-[	]*498: R_MIPS_PC16	L0.-0x20000
+[	]*498: R_MIPS_PC16	L0.*-0x20000
 [	]*498: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*498: R_MIPS_NONE	\*ABS\*-0x20000
 0+049c <[^>]*> 00000000 	nop
 0+04a0 <[^>]*> 1c420000 	bltzalc	v0,0+04a4 <[^>]*>
-[	]*4a0: R_MIPS_PC16	L0.\+0x1fffc
+[	]*4a0: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*4a0: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*4a0: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+04a4 <[^>]*> 00000000 	nop
 0+04a8 <[^>]*> 1c420000 	bltzalc	v0,0+04ac <[^>]*>
-[	]*4a8: R_MIPS_PC16	.L1.2-0x4
+[	]*4a8: R_MIPS_PC16	.L1.*2-0x4
 [	]*4a8: R_MIPS_NONE	\*ABS\*-0x4
 [	]*4a8: R_MIPS_NONE	\*ABS\*-0x4
 0+04ac <[^>]*> 00000000 	nop
@@ -617,22 +617,22 @@ Disassembly of section .text:
 [	]*4b0: R_MIPS_NONE	\*ABS\*-0x4
 0+04b4 <[^>]*> 00000000 	nop
 0+04b8 <[^>]*> 1c430000 	bltuc	v0,v1,0+04bc <[^>]*>
-[	]*4b8: R_MIPS_PC16	L0.-0x20000
+[	]*4b8: R_MIPS_PC16	L0.*-0x20000
 [	]*4b8: R_MIPS_NONE	\*ABS\*-0x20000
 [	]*4b8: R_MIPS_NONE	\*ABS\*-0x20000
 0+04bc <[^>]*> 00000000 	nop
 0+04c0 <[^>]*> 1c430000 	bltuc	v0,v1,0+04c4 <[^>]*>
-[	]*4c0: R_MIPS_PC16	L0.\+0x1fffc
+[	]*4c0: R_MIPS_PC16	L0.*\+0x1fffc
 [	]*4c0: R_MIPS_NONE	\*ABS\*\+0x1fffc
 [	]*4c0: R_MIPS_NONE	\*ABS\*\+0x1fffc
 0+04c4 <[^>]*> 00000000 	nop
 0+04c8 <[^>]*> 1c430000 	bltuc	v0,v1,0+04cc <[^>]*>
-[	]*4c8: R_MIPS_PC16	.L1.2-0x4
+[	]*4c8: R_MIPS_PC16	.L1.*2-0x4
 [	]*4c8: R_MIPS_NONE	\*ABS\*-0x4
 [	]*4c8: R_MIPS_NONE	\*ABS\*-0x4
 0+04cc <[^>]*> 00000000 	nop
 0+04d0 <[^>]*> 1c620000 	bltuc	v1,v0,0+04d4 <[^>]*>
-[	]*4d0: R_MIPS_PC16	.L1.2-0x4
+[	]*4d0: R_MIPS_PC16	.L1.*2-0x4
 [	]*4d0: R_MIPS_NONE	\*ABS\*-0x4
 [	]*4d0: R_MIPS_NONE	\*ABS\*-0x4
 0+04d4 <[^>]*> 00000000 	nop
@@ -641,15 +641,15 @@ Disassembly of section .text:
 [	]*4d8: R_MIPS_NONE	\*ABS\*-0x4
 [	]*4d8: R_MIPS_NONE	\*ABS\*-0x4
 0+04dc <[^>]*> c8000000 	bc	0+04e0 <[^>]*>
-[	]*4dc: R_MIPS_PC26_S2	L0.-0x8000000
+[	]*4dc: R_MIPS_PC26_S2	L0.*-0x8000000
 [	]*4dc: R_MIPS_NONE	\*ABS\*-0x8000000
 [	]*4dc: R_MIPS_NONE	\*ABS\*-0x8000000
 0+04e0 <[^>]*> c8000000 	bc	0+04e4 <[^>]*>
-[	]*4e0: R_MIPS_PC26_S2	L0.\+0x7fffffc
+[	]*4e0: R_MIPS_PC26_S2	L0.*\+0x7fffffc
 [	]*4e0: R_MIPS_NONE	\*ABS\*\+0x7fffffc
 [	]*4e0: R_MIPS_NONE	\*ABS\*\+0x7fffffc
 0+04e4 <[^>]*> c8000000 	bc	0+04e8 <[^>]*>
-[	]*4e4: R_MIPS_PC26_S2	.L1.2-0x4
+[	]*4e4: R_MIPS_PC26_S2	.L1.*2-0x4
 [	]*4e4: R_MIPS_NONE	\*ABS\*-0x4
 [	]*4e4: R_MIPS_NONE	\*ABS\*-0x4
 0+04e8 <[^>]*> e8000000 	balc	0+04ec <[^>]*>
@@ -657,15 +657,15 @@ Disassembly of section .text:
 [	]*4e8: R_MIPS_NONE	\*ABS\*-0x4
 [	]*4e8: R_MIPS_NONE	\*ABS\*-0x4
 0+04ec <[^>]*> e8000000 	balc	0+04f0 <[^>]*>
-[	]*4ec: R_MIPS_PC26_S2	L0.-0x8000000
+[	]*4ec: R_MIPS_PC26_S2	L0.*-0x8000000
 [	]*4ec: R_MIPS_NONE	\*ABS\*-0x8000000
 [	]*4ec: R_MIPS_NONE	\*ABS\*-0x8000000
 0+04f0 <[^>]*> e8000000 	balc	0+04f4 <[^>]*>
-[	]*4f0: R_MIPS_PC26_S2	L0.\+0x7fffffc
+[	]*4f0: R_MIPS_PC26_S2	L0.*\+0x7fffffc
 [	]*4f0: R_MIPS_NONE	\*ABS\*\+0x7fffffc
 [	]*4f0: R_MIPS_NONE	\*ABS\*\+0x7fffffc
 0+04f4 <[^>]*> e8000000 	balc	0+04f8 <[^>]*>
-[	]*4f4: R_MIPS_PC26_S2	.L1.2-0x4
+[	]*4f4: R_MIPS_PC26_S2	.L1.*2-0x4
 [	]*4f4: R_MIPS_NONE	\*ABS\*-0x4
 [	]*4f4: R_MIPS_NONE	\*ABS\*-0x4
 0+04f8 <[^>]*> d8400000 	beqzc	v0,0+04fc <[^>]*>
@@ -674,17 +674,17 @@ Disassembly of section .text:
 [	]*4f8: R_MIPS_NONE	\*ABS\*-0x4
 0+04fc <[^>]*> 00000000 	nop
 0+0500 <[^>]*> d8400000 	beqzc	v0,0+0504 <[^>]*>
-[	]*500: R_MIPS_PC21_S2	L0.-0x400000
+[	]*500: R_MIPS_PC21_S2	L0.*-0x400000
 [	]*500: R_MIPS_NONE	\*ABS\*-0x400000
 [	]*500: R_MIPS_NONE	\*ABS\*-0x400000
 0+0504 <[^>]*> 00000000 	nop
 0+0508 <[^>]*> d8400000 	beqzc	v0,0+050c <[^>]*>
-[	]*508: R_MIPS_PC21_S2	L0.\+0x3ffffc
+[	]*508: R_MIPS_PC21_S2	L0.*\+0x3ffffc
 [	]*508: R_MIPS_NONE	\*ABS\*\+0x3ffffc
 [	]*508: R_MIPS_NONE	\*ABS\*\+0x3ffffc
 0+050c <[^>]*> 00000000 	nop
 0+0510 <[^>]*> d8400000 	beqzc	v0,0+0514 <[^>]*>
-[	]*510: R_MIPS_PC21_S2	.L1.2-0x4
+[	]*510: R_MIPS_PC21_S2	.L1.*2-0x4
 [	]*510: R_MIPS_NONE	\*ABS\*-0x4
 [	]*510: R_MIPS_NONE	\*ABS\*-0x4
 0+0514 <[^>]*> 00000000 	nop
@@ -697,17 +697,17 @@ Disassembly of section .text:
 [	]*524: R_MIPS_NONE	\*ABS\*-0x4
 0+0528 <[^>]*> 00000000 	nop
 0+052c <[^>]*> f8400000 	bnezc	v0,0+0530 <[^>]*>
-[	]*52c: R_MIPS_PC21_S2	L0.-0x400000
+[	]*52c: R_MIPS_PC21_S2	L0.*-0x400000
 [	]*52c: R_MIPS_NONE	\*ABS\*-0x400000
 [	]*52c: R_MIPS_NONE	\*ABS\*-0x400000
 0+0530 <[^>]*> 00000000 	nop
 0+0534 <[^>]*> f8400000 	bnezc	v0,0+0538 <[^>]*>
-[	]*534: R_MIPS_PC21_S2	L0.\+0x3ffffc
+[	]*534: R_MIPS_PC21_S2	L0.*\+0x3ffffc
 [	]*534: R_MIPS_NONE	\*ABS\*\+0x3ffffc
 [	]*534: R_MIPS_NONE	\*ABS\*\+0x3ffffc
 0+0538 <[^>]*> 00000000 	nop
 0+053c <[^>]*> f8400000 	bnezc	v0,0+0540 <[^>]*>
-[	]*53c: R_MIPS_PC21_S2	.L1.2-0x4
+[	]*53c: R_MIPS_PC21_S2	.L1.*2-0x4
 [	]*53c: R_MIPS_NONE	\*ABS\*-0x4
 [	]*53c: R_MIPS_NONE	\*ABS\*-0x4
 0+0540 <[^>]*> 00000000 	nop
@@ -715,15 +715,15 @@ Disassembly of section .text:
 0+0548 <[^>]*> f8037fff 	jialc	v1,32767
 0+054c <[^>]*> 3c43ffff 	aui	v1,v0,0xffff
 0+0550 <[^>]*> ec600000 	lapc	v1,0+0550 <[^>]*>
-[	]*550: R_MIPS_PC19_S2	.L1.2
+[	]*550: R_MIPS_PC19_S2	.L1.*2
 [	]*550: R_MIPS_NONE	\*ABS\*
 [	]*550: R_MIPS_NONE	\*ABS\*
 0+0554 <[^>]*> ec800000 	lapc	a0,0+0554 <[^>]*>
-[	]*554: R_MIPS_PC19_S2	L0.-0x100000
+[	]*554: R_MIPS_PC19_S2	L0.*-0x100000
 [	]*554: R_MIPS_NONE	\*ABS\*-0x100000
 [	]*554: R_MIPS_NONE	\*ABS\*-0x100000
 0+0558 <[^>]*> ec800000 	lapc	a0,0+0558 <[^>]*>
-[	]*558: R_MIPS_PC19_S2	L0.\+0xffffc
+[	]*558: R_MIPS_PC19_S2	L0.*\+0xffffc
 [	]*558: R_MIPS_NONE	\*ABS\*\+0xffffc
 [	]*558: R_MIPS_NONE	\*ABS\*\+0xffffc
 0+055c <[^>]*> ec840000 	lapc	a0,f+ffff0055c <[^>]*>
@@ -731,15 +731,15 @@ Disassembly of section .text:
 0+0564 <[^>]*> ec7effff 	auipc	v1,0xffff
 0+0568 <[^>]*> ec7fffff 	aluipc	v1,0xffff
 0+056c <[^>]*> ec880000 	lwpc	a0,0+056c <[^>]*>
-[	]*56c: R_MIPS_PC19_S2	.L1.2
+[	]*56c: R_MIPS_PC19_S2	.L1.*2
 [	]*56c: R_MIPS_NONE	\*ABS\*
 [	]*56c: R_MIPS_NONE	\*ABS\*
 0+0570 <[^>]*> ec880000 	lwpc	a0,0+0570 <[^>]*>
-[	]*570: R_MIPS_PC19_S2	L0.-0x100000
+[	]*570: R_MIPS_PC19_S2	L0.*-0x100000
 [	]*570: R_MIPS_NONE	\*ABS\*-0x100000
 [	]*570: R_MIPS_NONE	\*ABS\*-0x100000
 0+0574 <[^>]*> ec880000 	lwpc	a0,0+0574 <[^>]*>
-[	]*574: R_MIPS_PC19_S2	L0.\+0xffffc
+[	]*574: R_MIPS_PC19_S2	L0.*\+0xffffc
 [	]*574: R_MIPS_NONE	\*ABS\*\+0xffffc
 [	]*574: R_MIPS_NONE	\*ABS\*\+0xffffc
 0+0578 <[^>]*> ec8c0000 	lwpc	a0,f+ffff00578 <[^>]*>
@@ -755,4 +755,6 @@ Disassembly of section .text:
 0+05a0 <[^>]*> 41620024 	dvp	v0
 0+05a4 <[^>]*> 04170000 	sigrie	0x0
 0+05a8 <[^>]*> 0417ffff 	sigrie	0xffff
+0+05ac <[^>]*> 7cc52076 	llwp	a1,a0,a2
+0+05b0 <[^>]*> 7cc52066 	scwp	a1,a0,a2
 	\.\.\.

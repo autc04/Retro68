@@ -25,3 +25,5 @@ Disassembly of section \.text:
 0x0000001e 05 d3       	prefi	@r5
 0x00000020 0a d3       	prefi	@r10
 0x00000022 00 ab       	synco	
+0x00000024 c8 80[ 	]+tst[ 	]+#128,r0
+#pass

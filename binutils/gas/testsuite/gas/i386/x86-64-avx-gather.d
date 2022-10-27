@@ -1,4 +1,4 @@
-#as: 
+#as:
 #objdump: -dw
 #name: x86-64 AVX GATHER insns
 

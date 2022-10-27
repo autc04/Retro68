@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *            Copyright (C) 1992-2019, Free Software Foundation, Inc.       *
+ *            Copyright (C) 1992-2022, Free Software Foundation, Inc.       *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -23,9 +23,9 @@
  *                                                                          *
  ****************************************************************************/
 
-/* This is the C header corresponding to the Ada package specification for
-   Elists. It also contains the implementations of inlined functions from the
-   package body for Elists.  It was generated manually from elists.ads and
+/* This is the C header that corresponds to the Ada package specification for
+   Elists.  It also contains the implementation of inlined functions from the
+   package body for Elists.  It was created manually from elists.ads and
    elists.adb and must be kept synchronized with changes in these files.
 
    Note that only routines for reading the tree are included, since the

@@ -19,7 +19,7 @@ Disassembly of section .text:
 #  GD
  +[0-9a-f]+:	48 8d 05 ([0-9a-f]{2} ){4}[ 	]+lea    0x[0-9a-f]+\(%rip\),%rax +# [0-9a-f]+ <.*>
 #				-> R_X86_64_TLSDESC	sg1
- +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
+ +[0-9a-f]+:	ff 10[ 	]+call   \*\(%rax\)
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -35,7 +35,7 @@ Disassembly of section .text:
 #  GD against local variable
  +[0-9a-f]+:	48 8d 05 ([0-9a-f]{2} ){4}[ 	]+lea    0x[0-9a-f]+\(%rip\),%rax +# [0-9a-f]+ <_GLOBAL_OFFSET_TABLE_\+0x18>
 #				-> R_X86_64_TLSDESC	[0 0x2000000000000000]
- +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
+ +[0-9a-f]+:	ff 10[ 	]+call   \*\(%rax\)
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -51,7 +51,7 @@ Disassembly of section .text:
 #  GD against hidden and local variable
  +[0-9a-f]+:	48 8d 05 ([0-9a-f]{2} ){4}[ 	]+lea    0x[0-9a-f]+\(%rip\),%rax +# [0-9a-f]+ <_GLOBAL_OFFSET_TABLE_\+0x58>
 #				-> R_X86_64_TLSDESC	[0 0x4000000000000000]
- +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
+ +[0-9a-f]+:	ff 10[ 	]+call   \*\(%rax\)
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -67,7 +67,7 @@ Disassembly of section .text:
 #  GD against hidden but not local variable
  +[0-9a-f]+:	48 8d 05 ([0-9a-f]{2} ){4}[ 	]+lea    0x[0-9a-f]+\(%rip\),%rax +# [0-9a-f]+ <_GLOBAL_OFFSET_TABLE_\+0x28>
 #				-> R_X86_64_TLSDESC	[0 0x6000000000000000]
- +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
+ +[0-9a-f]+:	ff 10[ 	]+call   \*\(%rax\)
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -83,7 +83,7 @@ Disassembly of section .text:
 #  LD
  +[0-9a-f]+:	48 8d 05 ([0-9a-f]{2} ){4}[ 	]+lea    0x[0-9a-f]+\(%rip\),%rax +# [0-9a-f]+ <_GLOBAL_OFFSET_TABLE_\+0x38>
 #				-> R_X86_64_TLSDESC	[0 0x000000000000000]
- +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
+ +[0-9a-f]+:	ff 10[ 	]+call   \*\(%rax\)
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	48 8d 90 20 00 00 00[ 	]+lea    0x20\(%rax\),%rdx
@@ -195,5 +195,5 @@ Disassembly of section .text:
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	c9[ 	]+leaveq *
- +[0-9a-f]+:	c3[ 	]+retq *
+ +[0-9a-f]+:	c9[ 	]+leave *
+ +[0-9a-f]+:	c3[ 	]+ret *

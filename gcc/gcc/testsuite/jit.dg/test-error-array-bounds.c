@@ -20,9 +20,10 @@ create_code (gcc_jit_context *ctxt, void *user_data)
   gcc_jit_context_add_command_line_option (ctxt, "-Warray-bounds");
   gcc_jit_context_add_command_line_option (ctxt, "-ftree-vrp");
 
-  /* Ensure that the error message doesn't contain colorization codes,
-     even if run at a TTY.  */
+  /* Ensure that the error message doesn't contain colorization codes
+     or escaped URLs, even if run at a TTY.  */
   gcc_jit_context_add_command_line_option (ctxt, "-fdiagnostics-color=never");
+  gcc_jit_context_add_command_line_option (ctxt, "-fdiagnostics-urls=never");
 
   gcc_jit_type *char_type =
     gcc_jit_context_get_type (ctxt, GCC_JIT_TYPE_CHAR);
@@ -69,5 +70,5 @@ verify_code (gcc_jit_context *ctxt, gcc_jit_result *result)
   /* ...and that the message was captured by the API.  */
   CHECK_STRING_VALUE (gcc_jit_context_get_first_error (ctxt),
 		      "array subscript 10 is above array bounds of"
-		      " 'unsigned char[10]' [-Warray-bounds]");
+		      " 'char[10]' [-Warray-bounds]");
 }

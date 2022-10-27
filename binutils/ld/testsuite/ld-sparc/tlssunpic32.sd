@@ -5,7 +5,7 @@
 #objdump: -sj.got
 #target: sparc*-*-*
 
-.*: +file format elf32-sparc
+.*: +file format elf32-sparc.*
 
 Contents of section .got:
  120f8 00012060 00000000 00000020 00000000  .*

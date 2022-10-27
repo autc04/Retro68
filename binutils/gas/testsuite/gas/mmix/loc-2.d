@@ -27,9 +27,9 @@ There are no relocations in this file\.
 Symbol table '\.symtab' contains 6 entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
  +0: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND 
- +1: 0+ +0 +SECTION +LOCAL +DEFAULT +1 
- +2: 0+ +0 +SECTION +LOCAL +DEFAULT +2 
- +3: 0+ +0 +SECTION +LOCAL +DEFAULT +3 
+ +1: 0+ +0 +SECTION +LOCAL +DEFAULT +1.*
+ +2: 0+ +0 +SECTION +LOCAL +DEFAULT +2.*
+ +3: 0+ +0 +SECTION +LOCAL +DEFAULT +3.*
  +4: 0+4 +0 +FUNC +GLOBAL +DEFAULT +1 Main
  +5: 0+100 +0 +NOTYPE +GLOBAL +DEFAULT +ABS __\.MMIX\.start\.\.text
 

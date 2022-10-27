@@ -17,3 +17,4 @@ fish:
 	.size	b, 4
 b:
 	.long	0x12345678
+	.section	.note.GNU-stack

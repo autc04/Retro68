@@ -4,7 +4,7 @@ SECTIONS
   {
     LONG (foo)
     LONG (bar)
-    *(.data)
+    *(.data .rw)
   }
   foo = .;
   bar = .;

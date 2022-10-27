@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms are permitted
  * provided that the above copyright notice and this paragraph are
  * duplicated in all such forms and that any documentation,
- * advertising materials, and other materials related to such
+ * and/or other materials related to such
  * distribution and use acknowledge that the software was developed
  * by the University of California, Berkeley.  The name of the
  * University may not be used to endorse or promote products derived
@@ -197,7 +197,7 @@ extern _READ_WRITE_RETURN_TYPE __swrite64 (struct _reent *, void *,
 
 /* Called by the main entry point fns to ensure stdio has been initialized.  */
 
-#ifdef _REENT_SMALL
+#if defined(_REENT_SMALL) && !defined(_REENT_GLOBAL_STDIO_STREAMS)
 #define CHECK_INIT(ptr, fp) \
   do								\
     {								\
@@ -212,7 +212,7 @@ extern _READ_WRITE_RETURN_TYPE __swrite64 (struct _reent *, void *,
 	(fp) = _stderr_r(_check_init_ptr);			\
     }								\
   while (0)
-#else /* !_REENT_SMALL   */
+#else /* !_REENT_SMALL || _REENT_GLOBAL_STDIO_STREAMS */
 #define CHECK_INIT(ptr, fp) \
   do								\
     {								\
@@ -221,7 +221,7 @@ extern _READ_WRITE_RETURN_TYPE __swrite64 (struct _reent *, void *,
 	__sinit (_check_init_ptr);				\
     }								\
   while (0)
-#endif /* !_REENT_SMALL  */
+#endif /* !_REENT_SMALL || _REENT_GLOBAL_STDIO_STREAMS */
 
 #define CHECK_STD_INIT(ptr) \
   do								\

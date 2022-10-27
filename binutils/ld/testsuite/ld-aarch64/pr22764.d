@@ -1,5 +1,6 @@
 #source: pr22764.s
-#ld: -shared -T relocs.ld -defsym sym_abs1=0x1 -defsym sym_abs2=0x2 -defsym sym_abs3=0x3 -e0 --emit-relocs
+#target: [check_shared_lib_support]
+#ld: -shared -T relocs.ld -defsym sym_abs1=0x1 -defsym sym_abs2=0x2 -defsym sym_abs3=0x3 -e0 --emit-relocs -z notext
 #notarget: aarch64_be-*-*
 #objdump: -dr
 #...

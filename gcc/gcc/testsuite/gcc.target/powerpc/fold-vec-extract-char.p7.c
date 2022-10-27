@@ -1,7 +1,7 @@
 /* Verify that overloaded built-ins for vec_extract() with char
    inputs produce the right code with a power7 (BE) target.  */
 
-/* { dg-do compile { target { powerpc*-*-linux* } } } */
+/* { dg-do compile } */
 /* { dg-require-effective-target powerpc_vsx_ok } */
 /* { dg-options "-mdejagnu-cpu=power7 -O2" } */
 
@@ -11,7 +11,7 @@
 /* one extsb (extend sign-bit) instruction generated for each test against
    unsigned types */
 
-/* { dg-final { scan-assembler-times {\maddi\M} 6 } } */
+/* { dg-final { scan-assembler-times {\maddi\M} 9 } } */
 /* { dg-final { scan-assembler-times {\mli\M} 6 } } */
 /* { dg-final { scan-assembler-times {\mstxvw4x\M|\mstvx\M|\mstxv\M} 6 } } */
 /* -m32 target uses rlwinm in place of rldicl. */

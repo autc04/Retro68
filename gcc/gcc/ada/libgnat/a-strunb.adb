@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -35,6 +35,19 @@ with Ada.Unchecked_Deallocation;
 
 package body Ada.Strings.Unbounded is
 
+   function Sum (Left : Natural; Right : Integer) return Natural with Inline;
+   --  Returns summary of Left and Right, raise Constraint_Error on overflow
+
+   function Mul (Left, Right : Natural) return Natural with Inline;
+   --  Returns multiplication of Left and Right, raise Constraint_Error on
+   --  overflow.
+
+   function Saturated_Sum (Left : Natural; Right : Integer) return Natural;
+   --  Returns summary of Left and Right or Natural'Last on overflow
+
+   function Saturated_Mul (Left, Right : Natural) return Natural;
+   --  Returns multiplication of Left and Right or Natural'Last on overflow
+
    ---------
    -- "&" --
    ---------
@@ -48,7 +61,7 @@ package body Ada.Strings.Unbounded is
       Result   : Unbounded_String;
 
    begin
-      Result.Last := L_Length + R_Length;
+      Result.Last := Sum (L_Length, R_Length);
 
       Result.Reference := new String (1 .. Result.Last);
 
@@ -68,7 +81,7 @@ package body Ada.Strings.Unbounded is
       Result   : Unbounded_String;
 
    begin
-      Result.Last := L_Length + Right'Length;
+      Result.Last := Sum (L_Length, Right'Length);
 
       Result.Reference := new String (1 .. Result.Last);
 
@@ -86,7 +99,7 @@ package body Ada.Strings.Unbounded is
       Result   : Unbounded_String;
 
    begin
-      Result.Last := Left'Length + R_Length;
+      Result.Last := Sum (Left'Length, R_Length);
 
       Result.Reference := new String (1 .. Result.Last);
 
@@ -104,7 +117,7 @@ package body Ada.Strings.Unbounded is
       Result : Unbounded_String;
 
    begin
-      Result.Last := Left.Last + 1;
+      Result.Last := Sum (Left.Last, 1);
 
       Result.Reference := new String (1 .. Result.Last);
 
@@ -122,7 +135,7 @@ package body Ada.Strings.Unbounded is
       Result : Unbounded_String;
 
    begin
-      Result.Last := Right.Last + 1;
+      Result.Last := Sum (Right.Last, 1);
 
       Result.Reference := new String (1 .. Result.Last);
       Result.Reference (1) := Left;
@@ -142,7 +155,7 @@ package body Ada.Strings.Unbounded is
       Result : Unbounded_String;
 
    begin
-      Result.Last   := Left;
+      Result.Last := Left;
 
       Result.Reference := new String (1 .. Left);
       for J in Result.Reference'Range loop
@@ -161,7 +174,7 @@ package body Ada.Strings.Unbounded is
       Result : Unbounded_String;
 
    begin
-      Result.Last := Left * Len;
+      Result.Last := Mul (Left, Len);
 
       Result.Reference := new String (1 .. Result.Last);
 
@@ -183,7 +196,7 @@ package body Ada.Strings.Unbounded is
       Result : Unbounded_String;
 
    begin
-      Result.Last := Left * Len;
+      Result.Last := Mul (Left, Len);
 
       Result.Reference := new String (1 .. Result.Last);
 
@@ -492,8 +505,14 @@ package body Ada.Strings.Unbounded is
       --  Note: Don't try to free statically allocated null string
 
       if Object.Reference /= Null_String'Access then
-         Deallocate (Object.Reference);
-         Object.Reference := Null_Unbounded_String.Reference;
+         declare
+            Old : String_Access := Object.Reference;
+            --  The original reference cannot be null, so we must create a
+            --  copy which will become null when deallocated.
+         begin
+            Deallocate (Old);
+            Object.Reference := Null_Unbounded_String.Reference;
+         end;
          Object.Last := 0;
       end if;
    end Finalize;
@@ -718,6 +737,16 @@ package body Ada.Strings.Unbounded is
       return Source.Last;
    end Length;
 
+   ---------
+   -- Mul --
+   ---------
+
+   function Mul (Left, Right : Natural) return Natural is
+      pragma Unsuppress (Overflow_Check);
+   begin
+      return Left * Right;
+   end Mul;
+
    ---------------
    -- Overwrite --
    ---------------
@@ -755,6 +784,17 @@ package body Ada.Strings.Unbounded is
       end if;
    end Overwrite;
 
+   ---------------
+   -- Put_Image --
+   ---------------
+
+   procedure Put_Image
+     (S : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class;
+      V : Unbounded_String) is
+   begin
+      String'Put_Image (S, To_String (V));
+   end Put_Image;
+
    -----------------------
    -- Realloc_For_Chunk --
    -----------------------
@@ -783,17 +823,23 @@ package body Ada.Strings.Unbounded is
       if Chunk_Size > S_Length - Source.Last then
          declare
             New_Size : constant Positive :=
-              S_Length + Chunk_Size + (S_Length / Growth_Factor);
+              Saturated_Sum
+                (Sum (S_Length, Chunk_Size), S_Length / Growth_Factor);
 
             New_Rounded_Up_Size : constant Positive :=
-              ((New_Size - 1) / Min_Mul_Alloc + 1) * Min_Mul_Alloc;
+              Saturated_Mul
+                ((New_Size - 1) / Min_Mul_Alloc + 1, Min_Mul_Alloc);
 
             Tmp : constant String_Access :=
               new String (1 .. New_Rounded_Up_Size);
 
+            Old : String_Access := Source.Reference;
+            --  The original reference cannot be null, so we must create a copy
+            --  which will become null when deallocated.
+
          begin
             Tmp (1 .. Source.Last) := Source.Reference (1 .. Source.Last);
-            Free (Source.Reference);
+            Free (Old);
             Source.Reference := Tmp;
          end;
       end if;
@@ -847,6 +893,30 @@ package body Ada.Strings.Unbounded is
       Free (Old);
    end Replace_Slice;
 
+   -------------------
+   -- Saturated_Mul --
+   -------------------
+
+   function Saturated_Mul (Left, Right : Natural) return Natural is
+   begin
+      return Mul (Left, Right);
+   exception
+      when Constraint_Error =>
+         return Natural'Last;
+   end Saturated_Mul;
+
+   -----------------
+   -- Saturated_Sum --
+   -----------------
+
+   function Saturated_Sum (Left : Natural; Right : Integer) return Natural is
+   begin
+      return Sum (Left, Right);
+   exception
+      when Constraint_Error =>
+         return Natural'Last;
+   end Saturated_Sum;
+
    --------------------------
    -- Set_Unbounded_String --
    --------------------------
@@ -881,6 +951,16 @@ package body Ada.Strings.Unbounded is
          return Source.Reference (Low .. High);
       end if;
    end Slice;
+
+   ---------
+   -- Sum --
+   ---------
+
+   function Sum (Left : Natural; Right : Integer) return Natural is
+      pragma Unsuppress (Overflow_Check);
+   begin
+      return Left + Right;
+   end Sum;
 
    ----------
    -- Tail --
@@ -1047,7 +1127,7 @@ package body Ada.Strings.Unbounded is
       High   : Natural) return Unbounded_String
    is
    begin
-      if Low > Source.Last + 1 or else High > Source.Last then
+      if Low - 1 > Source.Last or else High > Source.Last then
          raise Index_Error;
       else
          return To_Unbounded_String (Source.Reference.all (Low .. High));
@@ -1061,7 +1141,7 @@ package body Ada.Strings.Unbounded is
       High   : Natural)
    is
    begin
-      if Low > Source.Last + 1 or else High > Source.Last then
+      if Low - 1 > Source.Last or else High > Source.Last then
          raise Index_Error;
       else
          Target := To_Unbounded_String (Source.Reference.all (Low .. High));

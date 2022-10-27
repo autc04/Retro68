@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2006-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2006-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -35,6 +35,17 @@
 --  addition, some platforms lacked suitable compilers to compile the reference
 --  BLAS/LAPACK implementation. Finally, on some platforms there are more
 --  floating point types than supported by BLAS/LAPACK.
+
+--  Preconditions, postconditions, ghost code, loop invariants and assertions
+--  in this unit are meant for analysis only, not for run-time checking, as it
+--  would be too costly otherwise. This is enforced by setting the assertion
+--  policy to Ignore.
+
+pragma Assertion_Policy (Pre            => Ignore,
+                         Post           => Ignore,
+                         Ghost          => Ignore,
+                         Loop_Invariant => Ignore,
+                         Assert         => Ignore);
 
 with Ada.Containers.Generic_Anonymous_Array_Sort; use Ada.Containers;
 
@@ -560,6 +571,8 @@ package body Ada.Numerics.Generic_Real_Arrays is
       function Compute_Tan (P, H : Real) return Real is
          (if Is_Tiny (P, Compared_To => H) then P / H
           else Compute_Tan (Theta => H / (2.0 * P)));
+      pragma Annotate
+        (CodePeer, False_Positive, "divide by zero", "H, P /= 0");
 
       function Sum_Strict_Upper (M : Square_Matrix) return Real;
       --  Return the sum of all elements in the strict upper triangle of M
@@ -612,7 +625,7 @@ package body Ada.Numerics.Generic_Real_Arrays is
       --        different bounds, so take care indexing elements. Assignment
       --        as a whole is fine as sliding is automatic in that case.
 
-      Vectors := (if not Compute_Vectors then (1 .. 0 => (1 .. 0 => 0.0))
+      Vectors := (if not Compute_Vectors then [1 .. 0 => [1 .. 0 => 0.0]]
                   else Unit_Matrix (Vectors'Length (1), Vectors'Length (2)));
       Values := Diagonal (M);
 
@@ -635,7 +648,7 @@ package body Ada.Numerics.Generic_Real_Arrays is
          --  an absolute value that exceeds the threshold.
 
          Diag := Values;
-         Diag_Adj := (others => 0.0); -- Accumulates adjustments to Diag
+         Diag_Adj := [others => 0.0]; -- Accumulates adjustments to Diag
 
          for Row in 1 .. N - 1 loop
             for Col in Row + 1 .. N loop

@@ -14,7 +14,7 @@
  */
 module core.sys.posix.sys.shm;
 
-private import core.sys.posix.config;
+import core.sys.posix.config;
 public import core.sys.posix.sys.types; // for pid_t, time_t, key_t
 public import core.sys.posix.sys.ipc;
 
@@ -29,6 +29,7 @@ else version (WatchOS)
 
 version (Posix):
 extern (C) nothrow @nogc:
+@system:
 
 //
 // XOpen (XSI)
@@ -36,8 +37,6 @@ extern (C) nothrow @nogc:
 /*
 SHM_RDONLY
 SHM_RND
-
-SHMLBA
 
 shmatt_t
 
@@ -52,20 +51,13 @@ struct shmid_ds
     time_t      shm_dtime;
     time_t      shm_ctime;
 }
-
-void* shmat(int, in void*, int);
-int   shmctl(int, int, shmid_ds*);
-int   shmdt(in void*);
-int   shmget(key_t, size_t, int);
 */
 
-version (CRuntime_Glibc)
+version (linux)
 {
     enum SHM_RDONLY     = 0x01000; // 010000
     enum SHM_RND        = 0x02000; // 020000
-
-    int   __getpagesize();
-    alias __getpagesize SHMLBA;
+    enum SHM_REMAP      = 0x4000; // 040000
 
     alias c_ulong   shmatt_t;
 
@@ -86,17 +78,11 @@ version (CRuntime_Glibc)
         c_ulong     __unused4;
         c_ulong     __unused5;
     }
-
-    void* shmat(int, in void*, int);
-    int   shmctl(int, int, shmid_ds*);
-    int   shmdt(in void*);
-    int   shmget(key_t, size_t, int);
 }
 else version (FreeBSD)
 {
     enum SHM_RDONLY     = 0x01000; // 010000
     enum SHM_RND        = 0x02000; // 020000
-    enum SHMLBA         = 1 << 12; // PAGE_SIZE = (1<<PAGE_SHIFT)
 
     alias c_ulong   shmatt_t;
 
@@ -124,17 +110,11 @@ else version (FreeBSD)
          time_t      shm_dtime;
          time_t      shm_ctime;
     }
-
-    void* shmat(int, in void*, int);
-    int   shmctl(int, int, shmid_ds*);
-    int   shmdt(in void*);
-    int   shmget(key_t, size_t, int);
 }
 else version (NetBSD)
 {
     enum SHM_RDONLY     = 0x01000; // 010000
     enum SHM_RND        = 0x02000; // 020000
-    enum SHMLBA         = 1 << 12; // PAGE_SIZE = (1<<PAGE_SHIFT)
 
     alias c_ulong   shmatt_t;
 
@@ -150,17 +130,34 @@ else version (NetBSD)
         time_t          shm_ctime;
         void*           shm_internal;
     }
+}
+else version (OpenBSD)
+{
+    enum SHM_RDONLY     = 0x01000; // 010000
+    enum SHM_RND        = 0x02000; // 020000
 
-    void* shmat(int, in void*, int);
-    int   shmctl(int, int, shmid_ds*);
-    int   shmdt(in void*);
-    int   shmget(key_t, size_t, int);
+    alias short shmatt_t;
+
+    struct shmid_ds
+    {
+        ipc_perm   shm_perm;
+        int        shm_segsz;
+        pid_t      shm_lpid;
+        pid_t      shm_cpid;
+        shmatt_t   shm_nattch;
+        time_t     shm_atime;
+        c_long   __shm_atimensec;
+        time_t     shm_dtime;
+        c_long   __shm_dtimensec;
+        time_t     shm_ctime;
+        c_long   __shm_ctimensec;
+        void*      shm_internal;
+    }
 }
 else version (DragonFlyBSD)
 {
     enum SHM_RDONLY     = 0x01000; // 010000
     enum SHM_RND        = 0x02000; // 020000
-    enum SHMLBA         = 1 << 12; // PAGE_SIZE = (1<<PAGE_SHIFT)
 
     alias c_ulong   shmatt_t;
 
@@ -176,76 +173,115 @@ else version (DragonFlyBSD)
          time_t         shm_ctime;
          private void*  shm_internal;
     }
+}
+else version (Darwin)
+{
 
-    void* shmat(int, in void*, int);
+}
+else version (Solaris)
+{
+
+}
+else
+{
+    static assert(false, "Unsupported platform");
+}
+
+/*
+SHMLBA
+
+void* shmat(int, const scope void*, int);
+int   shmctl(int, int, shmid_ds*);
+int   shmdt(const scope void*);
+int   shmget(key_t, size_t, int);
+*/
+
+version (CRuntime_Glibc)
+{
+    int   __getpagesize();
+    alias __getpagesize SHMLBA;
+
+    void* shmat(int, const scope void*, int);
     int   shmctl(int, int, shmid_ds*);
-    int   shmdt(in void*);
+    int   shmdt(const scope void*);
+    int   shmget(key_t, size_t, int);
+}
+else version (FreeBSD)
+{
+    enum SHMLBA = 1 << 12; // PAGE_SIZE = (1<<PAGE_SHIFT)
+
+    void* shmat(int, const scope void*, int);
+    int   shmctl(int, int, shmid_ds*);
+    int   shmdt(const scope void*);
+    int   shmget(key_t, size_t, int);
+}
+else version (NetBSD)
+{
+    enum SHMLBA = 1 << 12; // PAGE_SIZE = (1<<PAGE_SHIFT)
+
+    void* shmat(int, const scope void*, int);
+    int   shmctl(int, int, shmid_ds*);
+    int   shmdt(const scope void*);
+    int   shmget(key_t, size_t, int);
+}
+else version (OpenBSD)
+{
+    enum SHMLBA = 1 << _MAX_PAGE_SHIFT;
+
+    void* shmat(int, const scope void*, int);
+    int   shmctl(int, int, shmid_ds*);
+    int   shmdt(const scope void*);
+    int   shmget(key_t, size_t, int);
+}
+else version (DragonFlyBSD)
+{
+    enum SHMLBA = 1 << 12; // PAGE_SIZE = (1<<PAGE_SHIFT)
+
+    void* shmat(int, const scope void*, int);
+    int   shmctl(int, int, shmid_ds*);
+    int   shmdt(const scope void*);
     int   shmget(key_t, size_t, int);
 }
 else version (Darwin)
 {
 
 }
+else version (Solaris)
+{
+
+}
+else version (CRuntime_Musl)
+{
+    enum SHMLBA = 4096;
+
+    void* shmat(int, const scope void*, int);
+    int   shmctl(int, int, shmid_ds*);
+    int   shmdt(const scope void*);
+    int   shmget(key_t, size_t, int);
+}
+else version (CRuntime_Bionic)
+{
+    enum SHMLBA = 4096;
+
+    deprecated("Not useful on Android because it's disallowed by SELinux")
+    {
+        void* shmat(int, const scope void*, int);
+        int   shmctl(int, int, shmid_ds*);
+        int   shmdt(const scope void*);
+        int   shmget(key_t, size_t, int);
+    }
+}
 else version (CRuntime_UClibc)
 {
-    enum SHM_RDONLY     = 0x1000; // 010000
-    enum SHM_RND        = 0x2000; // 020000
-    enum SHM_REMAP      = 0x4000; // 040000
-
     int   __getpagesize();
     alias __getpagesize SHMLBA;
 
-    alias c_ulong   shmatt_t;
-
-    version (X86_64)
-        enum includeUnused  = false;
-    else version (MIPS32)
-        enum includeUnused  = false;
-    else
-        enum includeUnused  = true;
-
-    struct shmid_ds
-    {
-        ipc_perm    shm_perm;
-        size_t      shm_segsz;
-        time_t      shm_atime;
-        static if (includeUnused) c_ulong     __unused1;
-        time_t      shm_dtime;
-        static if (includeUnused) c_ulong     __unused2;
-        time_t      shm_ctime;
-        static if (includeUnused) c_ulong     __unused3;
-        pid_t       shm_cpid;
-        pid_t       shm_lpid;
-        shmatt_t    shm_nattch;
-        c_ulong     __unused4;
-        c_ulong     __unused5;
-    }
-
-    struct shminfo
-    {
-        c_ulong shmmax;
-        c_ulong shmmin;
-        c_ulong shmmni;
-        c_ulong shmseg;
-        c_ulong shmall;
-        c_ulong __unused1;
-        c_ulong __unused2;
-        c_ulong __unused3;
-        c_ulong __unused4;
-    }
-
-    struct shm_info
-    {
-        int used_ids;
-        c_ulong shm_tot;
-        c_ulong shm_rss;
-        c_ulong shm_swp;
-        c_ulong swap_attempts;
-        c_ulong swap_successes;
-    }
-
-    void* shmat(int, in void*, int);
+    void* shmat(int, const scope void*, int);
     int   shmctl(int, int, shmid_ds*);
-    int   shmdt(in void*);
+    int   shmdt(const scope void*);
     int   shmget(key_t, size_t, int);
+}
+else
+{
+    static assert(false, "Unsupported platform");
 }

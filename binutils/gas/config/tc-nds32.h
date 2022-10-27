@@ -1,5 +1,5 @@
 /* tc-nds32.h -- Header file for tc-nds32.c.
-   Copyright (C) 2012-2018 Free Software Foundation, Inc.
+   Copyright (C) 2012-2022 Free Software Foundation, Inc.
    Contributed by Andes Technology Corporation.
 
    This file is part of GAS.
@@ -22,7 +22,22 @@
 #ifndef TC_NDS32
 #define TC_NDS32
 
-#include "bfd_stdint.h"
+#include <stdint.h>
+
+/* Enum mapping symbol.  */
+enum mstate
+{
+  MAP_UNDEFINED = 0,	/* Must be zero, for seginfo in new sections.  */
+  MAP_DATA,
+  MAP_CODE,
+};
+#define TC_SEGMENT_INFO_TYPE struct nds32_segment_info_type
+
+/* For mapping symbol.  */
+struct nds32_segment_info_type
+{
+  enum mstate mapstate;
+};
 
 #define LISTING_HEADER \
   (target_big_endian ? "NDS32 GAS" : "NDS32 GAS Little Endian")
@@ -56,7 +71,7 @@ extern const char * nds32_target_format (void);
 
 /* expr.c */
 extern int nds32_parse_name (char const *, expressionS *, enum expr_mode, char *);
-extern bfd_boolean nds32_allow_local_subtract (expressionS *, expressionS *, segT);
+extern bool nds32_allow_local_subtract (expressionS *, expressionS *, segT);
 #define md_parse_name(name, exprP, mode, nextcharP) \
 	nds32_parse_name (name, exprP, mode, nextcharP)
 #define md_allow_local_subtract(lhs,rhs,sect)	nds32_allow_local_subtract (lhs, rhs, sect)
@@ -66,14 +81,13 @@ extern bfd_boolean nds32_allow_local_subtract (expressionS *, expressionS *, seg
 
 /* write.c.  */
 extern long nds32_pcrel_from_section (struct fix *, segT);
-extern bfd_boolean nds32_fix_adjustable (struct fix *);
+extern bool nds32_fix_adjustable (struct fix *);
 extern void nds32_frob_file (void);
 extern void nds32_post_relax_hook (void);
 extern void nds32_frob_file_before_fix (void);
 extern void elf_nds32_final_processing (void);
 extern int nds32_validate_fix_sub (struct fix *, segT);
 extern int nds32_force_relocation (struct fix *);
-extern void nds32_set_section_relocs (asection *, arelent ** , unsigned int);
 
 /* Fill in rs_align_code fragments.  TODO: Review this.  */
 extern void nds32_handle_align (fragS *);
@@ -95,7 +109,7 @@ extern void tc_nds32_frame_initial_instructions (void);
    || TC_FORCE_RELOCATION (FIX))
 #define TC_FORCE_RELOCATION(fix)		nds32_force_relocation (fix)
 #define TC_VALIDATE_FIX_SUB(FIX,SEG)		nds32_validate_fix_sub (FIX,SEG)
-#define SET_SECTION_RELOCS(sec, relocs, n)	nds32_set_section_relocs (sec, relocs, n)
+#define GAS_SORT_RELOCS				1
 /* Values passed to md_apply_fix don't include the symbol value.  */
 #define MD_APPLY_SYM_VALUE(FIX)			0
 #define HANDLE_ALIGN(f)				nds32_handle_align (f)
@@ -143,7 +157,7 @@ extern void nds32_do_align (int);
 #define md_do_align(N, FILL, LEN, MAX, LABEL)	\
   nds32_pre_do_align (N, FILL, LEN, MAX);	\
   if ((N) > 1 && (subseg_text_p (now_seg)	\
-      || strncmp (now_seg->name, ".gcc_except_table", sizeof(".gcc_except_table") - 1) == 0)) \
+      || startswith (now_seg->name, ".gcc_except_table"))) \
     nds32_do_align (N);				\
   goto LABEL;
 #define md_elf_section_change_hook()		nds32_elf_section_change_hook ()
@@ -176,7 +190,7 @@ struct nds32_frag_type
 extern void nds32_frag_init (fragS *);
 
 #define TC_FRAG_TYPE				struct nds32_frag_type
-#define TC_FRAG_INIT(fragP)			nds32_frag_init (fragP)
+#define TC_FRAG_INIT(fragP, max_bytes)		nds32_frag_init (fragP)
 
 /* CFI directive.  */
 extern void nds32_elf_frame_initial_instructions (void);
@@ -199,9 +213,6 @@ extern int tc_nds32_regname_to_dw2regnum (char *);
 	&& S_IS_DEFINED ((FIX)->fx_addsy)			\
 	&& ! S_IS_COMMON ((FIX)->fx_addsy)))
 #define TC_HANDLES_FX_DONE
-/* This arranges for gas/write.c to not apply a relocation if
-   obj_fix_adjustable() says it is not adjustable.  */
-#define TC_FIX_ADJUSTABLE(fixP) obj_fix_adjustable (fixP)
 #endif
 
 /* Because linker may relax the code, assemble-time expression
@@ -231,7 +242,11 @@ enum nds32_ramp
   NDS32_FIX = (1 << 7),
   NDS32_ADDEND = (1 << 8),
   NDS32_SYM = (1 << 9),
-  NDS32_PCREL = (1 << 10)
+  NDS32_PCREL = (1 << 10),
+  NDS32_PTR_PATTERN = (1 << 11),
+  NDS32_PTR_MULTIPLE = (1 << 12),
+  NDS32_GROUP = (1 << 13),
+  NDS32_SYM_DESC_MEM = (1 << 14)
 };
 
 typedef struct nds32_relax_fixup_info
@@ -248,14 +263,14 @@ typedef struct nds32_cond_field
   int offset;
   int bitpos; /* Register position.  */
   int bitmask; /* Number of register bits.  */
-  bfd_boolean signed_extend;
+  bool signed_extend;
 } nds32_cond_field_t;
 
 /* The max relaxation pattern is 20-bytes including the nop.  */
 #define NDS32_MAXCHAR 20
 /* In current, the max extended number of instruction for one pseudo instruction
-   is 4, but its number of relocation may be 12.  */
-#define MAX_RELAX_NUM 4
+   is 6, but its number of relocation may be 12.  */
+#define MAX_RELAX_NUM 6
 #define MAX_RELAX_FIX 12
 
 typedef struct nds32_relax_info
@@ -275,8 +290,17 @@ typedef struct nds32_relax_info
 enum nds32_relax_hint_type
 {
   NDS32_RELAX_HINT_NONE = 0,
-  NDS32_RELAX_HINT_LA,
-  NDS32_RELAX_HINT_LS
+  NDS32_RELAX_HINT_LA_FLSI,
+  NDS32_RELAX_HINT_LALS,
+  NDS32_RELAX_HINT_LA_PLT,
+  NDS32_RELAX_HINT_LA_GOT,
+  NDS32_RELAX_HINT_LA_GOTOFF,
+  NDS32_RELAX_HINT_TLS_START = 0x100,
+  NDS32_RELAX_HINT_TLS_LE_LS,
+  NDS32_RELAX_HINT_TLS_IE_LS,
+  NDS32_RELAX_HINT_TLS_IE_LA,
+  NDS32_RELAX_HINT_TLS_IEGP_LA,
+  NDS32_RELAX_HINT_TLS_DESC_LS,
 };
 
 struct nds32_relax_hint_table

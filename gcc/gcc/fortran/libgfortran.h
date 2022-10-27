@@ -1,5 +1,5 @@
 /* Header file to the Fortran front-end and runtime library
-   Copyright (C) 2007-2019 Free Software Foundation, Inc.
+   Copyright (C) 2007-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -73,9 +73,11 @@ along with GCC; see the file COPYING3.  If not see
 #define GFC_RTCHECK_DO          (1<<3)
 #define GFC_RTCHECK_POINTER     (1<<4)
 #define GFC_RTCHECK_MEM         (1<<5)
+#define GFC_RTCHECK_BITS        (1<<6)
 #define GFC_RTCHECK_ALL        (GFC_RTCHECK_BOUNDS | GFC_RTCHECK_ARRAY_TEMPS \
 				| GFC_RTCHECK_RECURSION | GFC_RTCHECK_DO \
-				| GFC_RTCHECK_POINTER | GFC_RTCHECK_MEM)
+				| GFC_RTCHECK_POINTER | GFC_RTCHECK_MEM \
+				| GFC_RTCHECK_BITS)
 
 /* Special unit numbers used to convey certain conditions.  Numbers -4
    thru -9 available.  NEWUNIT values start at -10.  */
@@ -84,14 +86,22 @@ along with GCC; see the file COPYING3.  If not see
 #define GFC_INVALID_UNIT   -3
 
 /* Possible values for the CONVERT I/O specifier.  */
-/* Keep in sync with GFC_FLAG_CONVERT_* in gcc/flags.h.  */
+/* Keep in sync with GFC_FLAG_CONVERT_* in gcc/flag-types.h.  */
 typedef enum
 {
   GFC_CONVERT_NONE = -1,
   GFC_CONVERT_NATIVE = 0,
   GFC_CONVERT_SWAP,
   GFC_CONVERT_BIG,
-  GFC_CONVERT_LITTLE
+  GFC_CONVERT_LITTLE,
+  GFC_CONVERT_R16_IEEE = 4,
+  GFC_CONVERT_R16_IEEE_SWAP,
+  GFC_CONVERT_R16_IEEE_BIG,
+  GFC_CONVERT_R16_IEEE_LITTLE,
+  GFC_CONVERT_R16_IBM = 8,
+  GFC_CONVERT_R16_IBM_SWAP,
+  GFC_CONVERT_R16_IBM_BIG,
+  GFC_CONVERT_R16_IBM_LITTLE,
 }
 unit_convert;
 
@@ -122,6 +132,7 @@ typedef enum
   LIBERROR_SHORT_RECORD,
   LIBERROR_CORRUPT_FILE,
   LIBERROR_INQUIRE_INTERNAL_UNIT, /* Must be different from STAT_STOPPED_IMAGE.  */
+  LIBERROR_BAD_WAIT_ID,
   LIBERROR_LAST			/* Not a real error, the last error # + 1.  */
 }
 libgfortran_error_codes;
@@ -158,7 +169,7 @@ typedef enum
 #define GFC_STDOUT_UNIT_NUMBER 6
 #define GFC_STDERR_UNIT_NUMBER 0
 
-/* F2003 onward. For std < F2003, error caught in array.c(gfc_match_array_ref).  */
+/* F2003 onward. For std < F2003, error caught in array.cc(gfc_match_array_ref).  */
 #define GFC_MAX_DIMENSIONS 15
 
 #define GFC_DTYPE_RANK_MASK 0x0F
@@ -172,6 +183,6 @@ typedef enum
 typedef enum
 { BT_UNKNOWN = 0, BT_INTEGER, BT_LOGICAL, BT_REAL, BT_COMPLEX,
   BT_DERIVED, BT_CHARACTER, BT_CLASS, BT_PROCEDURE, BT_HOLLERITH, BT_VOID,
-  BT_ASSUMED, BT_UNION
+  BT_ASSUMED, BT_UNION, BT_BOZ
 }
 bt;

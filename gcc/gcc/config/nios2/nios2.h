@@ -1,5 +1,5 @@
 /* Definitions of target machine for Altera Nios II.
-   Copyright (C) 2012-2019 Free Software Foundation, Inc.
+   Copyright (C) 2012-2022 Free Software Foundation, Inc.
    Contributed by Jonah Graham (jgraham@altera.com), 
    Will Reece (wreece@altera.com), and Jeff DaSilva (jdasilva@altera.com).
    Contributed by Mentor Graphics, Inc.
@@ -297,7 +297,6 @@ typedef struct nios2_args
   ((REGNO) >= FIRST_ARG_REGNO && (REGNO) <= LAST_ARG_REGNO)
 
 /* Passing function arguments on stack.  */
-#define PUSH_ARGS 0
 #define ACCUMULATE_OUTGOING_ARGS 1
 
 /* We define TARGET_RETURN_IN_MEMORY, so set to zero.  */
@@ -467,10 +466,10 @@ while (0)
    the linker seems to want the alignment of data objects
    to depend on their types.  We do exactly that here.  */
 
-#undef  ASM_OUTPUT_ALIGNED_LOCAL
-#define ASM_OUTPUT_ALIGNED_LOCAL(FILE, NAME, SIZE, ALIGN)               \
+#undef  ASM_OUTPUT_ALIGNED_DECL_LOCAL
+#define ASM_OUTPUT_ALIGNED_DECL_LOCAL(FILE, DECL, NAME, SIZE, ALIGN)	\
 do {                                                                    \
-  if ((SIZE) <= nios2_section_threshold)                                \
+ if (targetm.in_small_data_p (DECL))					\
     switch_to_section (sbss_section);					\
   else                                                                  \
     switch_to_section (bss_section);					\
@@ -494,14 +493,40 @@ do {                                                                    \
 #define EH_RETURN_DATA_REGNO(N) ((N) <= (LAST_ARG_REGNO - FIRST_ARG_REGNO) \
 				 ? (N) + FIRST_ARG_REGNO : INVALID_REGNUM)
 
-/* Nios II has no appropriate relocations for a 32-bit PC-relative or
-   section-relative pointer encoding.  This therefore always chooses an
-   absolute representation for pointers.  An unfortunate consequence of
-   this is that ld complains about the absolute fde encoding when linking
-   with -shared or -fpie, but the warning is harmless and there seems to
-   be no good way to suppress it.  */
+/* For PIC, use indirect for global references; it'll end up using a dynamic
+   relocation, which we want to keep out of read-only EH sections.
+   For local references, we want to use GOT-relative offsets provided
+   the assembler supports them.  For non-PIC, use an absolute encoding.  */
+#ifdef HAVE_AS_NIOS2_GOTOFF_RELOCATION
 #define ASM_PREFERRED_EH_DATA_FORMAT(CODE, GLOBAL)		\
-  (flag_pic ? DW_EH_PE_aligned : DW_EH_PE_sdata4)
+  (flag_pic							\
+   ? ((GLOBAL)							\
+      ? DW_EH_PE_indirect | DW_EH_PE_absptr			\
+      : DW_EH_PE_datarel | DW_EH_PE_sdata4)			\
+   : DW_EH_PE_absptr)
+
+#define ASM_MAYBE_OUTPUT_ENCODED_ADDR_RTX(FILE, ENCODING, SIZE, ADDR, DONE) \
+  do {									\
+      if (((ENCODING) & 0xf0) == DW_EH_PE_datarel)			\
+      {									\
+	fputs ("\t.4byte %gotoff(", FILE);				\
+	output_addr_const (FILE, ADDR);					\
+	fputs (")", FILE);						\
+	goto DONE;							\
+      }									\
+  } while (0)
+
+#else
+/* We don't have %gotoff support in the assembler.  Fall back to the encoding
+   it used to use instead before the assembler was fixed.  This has known
+   bugs but mostly works.  */
+#define ASM_PREFERRED_EH_DATA_FORMAT(CODE, GLOBAL)		\
+  (flag_pic							\
+   ? ((GLOBAL)							\
+      ? DW_EH_PE_indirect | DW_EH_PE_absptr			\
+      : DW_EH_PE_aligned)					\
+   : DW_EH_PE_absptr)
+#endif
 
 /* Misc. parameters.  */
 

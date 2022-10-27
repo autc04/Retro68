@@ -13,7 +13,7 @@ SYMBOL TABLE:
 0+4 g       \.text	0+ main
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+18 R_MMIX_64         foo
 0+4 R_MMIX_PUSHJ      foo
 

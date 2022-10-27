@@ -1,5 +1,5 @@
 /* Functions to support a pool of allocatable objects
-   Copyright (C) 1997-2019 Free Software Foundation, Inc.
+   Copyright (C) 1997-2022 Free Software Foundation, Inc.
    Contributed by Daniel Berlin <dan@cgsoftware.com>
 
 This file is part of GCC.
@@ -34,8 +34,9 @@ typedef unsigned long ALLOC_POOL_ID_TYPE;
 extern ALLOC_POOL_ID_TYPE last_id;
 
 /* Pool allocator memory usage.  */
-struct pool_usage: public mem_usage
+class pool_usage: public mem_usage
 {
+public:
   /* Default contructor.  */
   pool_usage (): m_element_size (0), m_pool_name ("") {}
   /* Constructor.  */
@@ -59,7 +60,7 @@ struct pool_usage: public mem_usage
 
   /* Dump usage coupled to LOC location, where TOTAL is sum of all rows.  */
   inline void
-  dump (mem_location *loc, mem_usage &total) const
+  dump (mem_location *loc, const mem_usage &total) const
   {
     char *location_string = loc->to_string ();
 
@@ -520,6 +521,12 @@ public:
     /* Call destructor.  */
     object->~T ();
 
+    m_allocator.remove (object);
+  }
+
+  inline void
+  remove_raw (void *object)
+  {
     m_allocator.remove (object);
   }
 

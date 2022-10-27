@@ -1,7 +1,7 @@
 #source: ifunc-7.s
+#target: [check_shared_lib_support]
 #ld: -shared
 #objdump: -dr -j .text
-#target: aarch64*-*-*
 
 # Check if adrp and ldr have been relocated correctly.
 

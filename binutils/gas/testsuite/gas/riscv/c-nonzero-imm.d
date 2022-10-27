@@ -1,3 +1,3 @@
 #as:
 #objdump: -dr
-#error-output: c-nonzero-imm.l
+#error_output: c-nonzero-imm.l

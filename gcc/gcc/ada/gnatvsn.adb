@@ -6,23 +6,17 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -54,12 +48,11 @@ package body Gnatvsn is
    end Gnat_Free_Software;
 
    type char_array is array (Natural range <>) of aliased Character;
-   Version_String : char_array (0 .. Ver_Len_Max - 1);
-   --  Import the C string defined in the (language-independent) source file
-   --  version.c using the zero-based convention of the C language.
-   --  The size is not the real one, which does not matter since we will
-   --  check for the nul character in Gnat_Version_String.
-   pragma Import (C, Version_String, "version_string");
+   C_Version_String : char_array (0 .. Ver_Len_Max - 1);
+   pragma Import (C, C_Version_String, "gnat_version_string");
+   --  Import the C string defined in the source file version.c using the
+   --  zero-based convention of the C language.  The size is not the real
+   --  one, which does not matter since we will check for the nul character.
 
    -------------------------
    -- Gnat_Version_String --
@@ -70,9 +63,9 @@ package body Gnatvsn is
       Pos : Natural := 0;
    begin
       loop
-         exit when Version_String (Pos) = ASCII.NUL;
+         exit when C_Version_String (Pos) = ASCII.NUL;
 
-         S (Pos + 1) := Version_String (Pos);
+         S (Pos + 1) := C_Version_String (Pos);
          Pos := Pos + 1;
 
          exit when Pos = Ver_Len_Max;

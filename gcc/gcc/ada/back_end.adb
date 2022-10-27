@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -25,23 +25,24 @@
 
 --  This is the version of the Back_End package for GCC back ends
 
-with Atree;    use Atree;
-with Debug;    use Debug;
-with Elists;   use Elists;
-with Errout;   use Errout;
-with Lib;      use Lib;
-with Osint;    use Osint;
-with Opt;      use Opt;
-with Osint.C;  use Osint.C;
-with Namet;    use Namet;
-with Nlists;   use Nlists;
-with Stand;    use Stand;
-with Sinput;   use Sinput;
-with Stringt;  use Stringt;
-with Switch;   use Switch;
-with Switch.C; use Switch.C;
-with System;   use System;
-with Types;    use Types;
+with Atree;         use Atree;
+with Backend_Utils; use Backend_Utils;
+with Debug;         use Debug;
+with Elists;        use Elists;
+with Errout;        use Errout;
+with Lib;           use Lib;
+with Osint;         use Osint;
+with Opt;           use Opt;
+with Osint.C;       use Osint.C;
+with Namet;         use Namet;
+with Nlists;        use Nlists;
+with Stand;         use Stand;
+with Sinput;        use Sinput;
+with Stringt;       use Stringt;
+with Switch;        use Switch;
+with Switch.C;      use Switch.C;
+with System;        use System;
+with Types;         use Types;
 
 with System.OS_Lib; use System.OS_Lib;
 
@@ -88,8 +89,8 @@ package body Back_End is
         (gnat_root                     : Int;
          max_gnat_node                 : Int;
          number_name                   : Nat;
-         nodes_ptr                     : Address;
-         flags_ptr                     : Address;
+         node_offsets_ptr              : Address;
+         slots_ptr                     : Address;
 
          next_node_ptr                 : Address;
          prev_node_ptr                 : Address;
@@ -156,8 +157,8 @@ package body Back_End is
         (gnat_root          => Int (Cunit (Main_Unit)),
          max_gnat_node      => Int (Last_Node_Id - First_Node_Id + 1),
          number_name        => Name_Entries_Count,
-         nodes_ptr          => Nodes_Address,
-         flags_ptr          => Flags_Address,
+         node_offsets_ptr   => Node_Offsets_Address,
+         slots_ptr          => Slots_Address,
 
          next_node_ptr      => Next_Node_Address,
          prev_node_ptr      => Prev_Node_Address,
@@ -266,44 +267,20 @@ package body Back_End is
          --  specific switches that the Ada front-end knows about.
 
          else
-            Store_Compilation_Switch (Switch_Chars);
 
-            --  For gcc back ends, -fno-inline disables Inline pragmas only,
-            --  not Inline_Always to remain consistent with the always_inline
-            --  attribute behavior.
+            if not Scan_Common_Back_End_Switch (Switch_Chars) then
 
-            if Switch_Chars (First .. Last) = "fno-inline" then
-               Opt.Disable_FE_Inline := True;
+               --  Store compilation switch, as Scan_Common_Back_End_Switch
+               --  only stores switches it recognizes.
 
-            --  Back end switch -fpreserve-control-flow also sets the front end
-            --  flag that inhibits improper control flow transformations.
+               Store_Compilation_Switch (Switch_Chars);
 
-            elsif Switch_Chars (First .. Last) = "fpreserve-control-flow" then
-               Opt.Suppress_Control_Flow_Optimizations := True;
+               --  Back end switch -fdump-scos, which exists primarily for C,
+               --  is also accepted for Ada as a synonym of -gnateS.
 
-            --  Back end switch -fdump-scos, which exists primarily for C, is
-            --  also accepted for Ada as a synonym of -gnateS.
-
-            elsif Switch_Chars (First .. Last) = "fdump-scos" then
-               Opt.Generate_SCO := True;
-               Opt.Generate_SCO_Instance_Table := True;
-
-            elsif Switch_Chars (First) = 'g' then
-               Debugger_Level := 2;
-
-               if First < Last then
-                  case Switch_Chars (First + 1) is
-                     when '0' =>
-                        Debugger_Level := 0;
-                     when '1' =>
-                        Debugger_Level := 1;
-                     when '2' =>
-                        Debugger_Level := 2;
-                     when '3' =>
-                        Debugger_Level := 3;
-                     when others =>
-                        null;
-                  end case;
+               if Switch_Chars (First .. Last) = "fdump-scos" then
+                  Opt.Generate_SCO := True;
+                  Opt.Generate_SCO_Instance_Table := True;
                end if;
             end if;
          end if;
@@ -384,9 +361,6 @@ package body Back_End is
 
             elsif Is_Front_End_Switch (Argv) then
                Scan_Front_End_Switches (Argv, Args, Next_Arg);
-
-            elsif Argv (Argv'First + 1 .. Argv'Last) = "fopenacc" then
-               Opt.OpenAcc_Enabled := True;
 
             --  All non-front-end switches are back-end switches
 

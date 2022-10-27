@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  S p e c                                 --
 --                                                                          --
---            Copyright (C) 2014-2019, Free Software Foundation, Inc.       --
+--            Copyright (C) 2014-2022, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,6 +36,7 @@ with Ada.Unchecked_Conversion;
 package System.Tasking.Task_Attributes is
 
    type Deallocator is access procedure (Ptr : Atomic_Address);
+   pragma Favor_Top_Level (Deallocator);
 
    type Attribute_Record is record
       Free : Deallocator;

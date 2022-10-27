@@ -27,10 +27,15 @@
 #   newlib_io_c99_formats --enable-newlib-io-c99-formats ("yes", "no", "")
 #   newlib_io_long_long --enable-newlib-io-long-long ("yes", "no", "")
 #   newlib_io_long_double --enable-newlib-io-long-double ("yes", "no", "")
+#   newlib_global_stdio_streams --enable-global-stdio-streams ("yes", "no, "")
+#   newlib_fno_builtin  --disable-newlib-fno-builtin ("yes", "no, "")
+#   newlib_reent_check_verify  --enable-newlib-reent-check-verify ("yes", "no, "")
 
 # It sets the following shell variables:
 #   newlib_cflags	Special CFLAGS to use when building
 #   machine_dir		Subdirectory of libc/machine to configure
+#   shared_machine_dir	Subdirectory of libc/machine for files shared
+#			between specific architectures, optional
 #   sys_dir		Subdirectory of libc/sys to configure
 #   have_sys_mach_dir	Is there a machine subdirectory in sys subdirectory
 #   posix_dir		"posix" to build libc/posix, "" otherwise
@@ -46,11 +51,13 @@
 #   crt1_dir            directory where crt1 object is found
 #   have_crt0		"yes"/"no" if crt0 is/isn't provided.
 #			"" if crt0 is provided when sys_dir is set
+#   have_init_fini	have init/fini ("yes" or "no", set to "yes" by default)
 #   noinclude		list of include files to not install
 
-newlib_cflags=
+newlib_cflags="-D_LIBC"
 libm_machine_dir=
 machine_dir=
+shared_machine_dir=
 sys_dir=
 posix_dir=
 signal_dir=signal
@@ -64,6 +71,7 @@ mach_add_setjmp=
 crt1=
 crt1_dir=
 have_crt0=
+have_init_fini=yes
 use_libtool=no
 have_sys_mach_dir=no
 default_newlib_io_c99_formats=no
@@ -72,18 +80,33 @@ default_newlib_io_long_double=no
 default_newlib_io_pos_args=no
 default_newlib_atexit_dynamic_alloc=yes
 default_newlib_nano_malloc=no
+default_newlib_reent_check_verify=yes
 aext=a
 oext=o
 lpfx="lib_a-"
+newlib_msg_warn=
 
 case "${target_optspace}:${host}" in
   yes:*)
     newlib_cflags="${newlib_cflags} -Os"
     ;;
-  :m32r-* | :d10v-* | :d30v-* | :avr-* | :m32c-* | :msp430*-* | :nds32* | :rl78-* )
+  :m32r-* | :d10v-* | :d30v-* | :avr-* | :m32c-* | :msp430*-* | :nds32* | :pru-* | :rl78-* )
     newlib_cflags="${newlib_cflags} -Os"
     ;;
   no:* | :*)
+    ;;
+esac
+
+case "${newlib_fno_builtin}:${host}" in
+  yes:*)
+    newlib_cflags="${newlib_cflags} -fno-builtin"
+    ;;
+  no:*)
+    newlib_cflags="${newlib_cflags}"
+    ;;
+  *:*)
+    # For now, all targets default to using -fno-builtin until tested without
+    newlib_cflags="${newlib_cflags} -fno-builtin"
     ;;
 esac
 
@@ -99,6 +122,11 @@ case "${host_cpu}" in
   aarch64*)
 	machine_dir=aarch64
 	libm_machine_dir=aarch64
+	;;
+  amdgcn*)
+	newlib_cflags="${newlib_cflags} -D__DYNAMIC_REENT__"
+	machine_dir=amdgcn
+	libc_cv_initfinit_array=yes
 	;;
   arc*)
 	machine_dir=arc
@@ -117,10 +145,20 @@ case "${host_cpu}" in
 	machine_dir=cr16
        ;;
   cris | crisv32)
+	# The size of the (kernel_)time_t passed from or to a
+	# simulator or a Linux kernel is mandated by the
+	# gettimeofday and time system calls and fixed to 32 bits, the
+	# size of a long.  Instead of churning as 64 bits what is anyway
+	# 32 bits, it makes more sense to default to long.
+	test -z "${enable_newlib_long_time_t}" && newlib_long_time_t=yes
 	machine_dir=cris
 	;;
   crx*)
 	machine_dir=crx
+	;;
+  csky*)
+	machine_dir=csky
+	default_newlib_atexit_dynamic_alloc="no"
 	;;
   d10v*)
 	machine_dir=d10v
@@ -158,15 +196,14 @@ case "${host_cpu}" in
 	machine_dir=i960
 	;;
   i[34567]86)
+	libm_machine_dir=i386
+	machine_dir=i386
+	shared_machine_dir=shared_x86
 	# Don't use for these since they provide their own setjmp.
 	case ${host} in
 	*-*-sco* | *-*-cygwin*) 
-		libm_machine_dir=i386
-		machine_dir=i386
 		;;
 	*) 
-		libm_machine_dir=i386
-		machine_dir=i386
 		mach_add_setjmp=true
 		;;
 	esac
@@ -216,6 +253,7 @@ case "${host_cpu}" in
 	;;
   mips*)
 	machine_dir=mips
+	libm_machine_dir=mips
 	;;
   mmix)
 	;;
@@ -249,17 +287,34 @@ case "${host_cpu}" in
   nios2*)
 	machine_dir=nios2
 	;;
+  nvptx*)
+	machine_dir=nvptx
+	newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED"
+	;;
   or1k*|or1knd*)
 	machine_dir=or1k
+	have_init_fini=no
 	;;
   powerpc*)
 	machine_dir=powerpc
+	libm_machine_dir=powerpc
+	;;
+  pru*)
+	newlib_cflags="${newlib_cflags} -DPREFER_SIZE_OVER_SPEED"
+	newlib_cflags="${newlib_cflags} -DNO_EXEC"
+	newlib_cflags="${newlib_cflags} -DSMALL_MEMORY"
+	newlib_cflags="${newlib_cflags} -ffunction-sections -fdata-sections "
+	default_newlib_nano_malloc="yes"
+	default_newlib_atexit_dynamic_alloc="no"
+	machine_dir=pru
+	libm_machine_dir=pru
 	;;
   riscv*)
 	libm_machine_dir=riscv
 	machine_dir=riscv
 	newlib_cflags="${newlib_cflags} -DHAVE_NANOSLEEP"
 	default_newlib_atexit_dynamic_alloc="no"
+	have_init_fini=no
 	;;
   rl78)
 	machine_dir=rl78
@@ -275,6 +330,7 @@ case "${host_cpu}" in
 	machine_dir=sh
 	;;
   sparc*)
+	libm_machine_dir=sparc
 	machine_dir=sparc
 	# FIXME: Might wish to make MALLOC_ALIGNMENT more generic.
 	newlib_cflags="${newlib_cflags} -DMALLOC_ALIGNMENT=8"
@@ -304,6 +360,8 @@ case "${host_cpu}" in
 	;;
   x86_64)
 	machine_dir=x86_64
+	libm_machine_dir=x86_64
+	shared_machine_dir=shared_x86
 	;;
   xc16x*)
         machine_dir=xc16x
@@ -408,6 +466,10 @@ case "${host}" in
   a29k-*-*)
 	sys_dir=a29khif
 	signal_dir=
+	;;
+  amdgcn*)
+	sys_dir=amdgcn
+	have_crt0="no"
 	;;
   arm*-*-*)
 	sys_dir=arm
@@ -586,11 +648,11 @@ case "${host}" in
 	default_newlib_io_long_double="yes"
 	default_newlib_io_pos_args="yes"
 	CC="${CC} -I${cygwin_srcdir}/include"
-	newlib_cflags="${newlib_cflags} -DHAVE_OPENDIR -DHAVE_RENAME -DGETREENT_PROVIDED -DSIGNAL_PROVIDED -D_COMPILING_NEWLIB -DHAVE_BLKSIZE -DHAVE_FCNTL -DMALLOC_PROVIDED"
+	newlib_cflags="${newlib_cflags} -DHAVE_OPENDIR -DHAVE_RENAME -DGETREENT_PROVIDED -DSIGNAL_PROVIDED -DHAVE_BLKSIZE -DHAVE_FCNTL -DMALLOC_PROVIDED"
 	syscall_dir=syscalls
 	;;
   *-*-phoenix*)
-	newlib_cflags="${newlib_cflags} -DMISSING_SYSCALL_NAMES -D_COMPILING_NEWLIB -DHAVE_BLKSIZE -DHAVE_NANOSLEEP"
+	newlib_cflags="${newlib_cflags} -DMISSING_SYSCALL_NAMES -DHAVE_BLKSIZE -DHAVE_NANOSLEEP"
 	default_newlib_io_long_long="yes"
 	syscall_dir=
 	;;
@@ -604,7 +666,7 @@ case "${host}" in
   *-*-rtems*)
 	default_newlib_io_long_long="yes"
 	default_newlib_io_c99_formats="yes"
-	newlib_cflags="${newlib_cflags} -D_COMPILING_NEWLIB"
+	newlib_cflags="${newlib_cflags} -ffunction-sections -fdata-sections "
 newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVIDED -DSIGNAL_PROVIDED -DGETREENT_PROVIDED -DREENTRANT_SYSCALLS_PROVIDED -DHAVE_NANOSLEEP -DHAVE_BLKSIZE -DHAVE_FCNTL -DHAVE_ASSERT_FUNC"
         # turn off unsupported items in posix directory 
 	newlib_cflags="${newlib_cflags} -D_NO_GETLOGIN -D_NO_GETPWENT -D_NO_GETUT -D_NO_GETPASS -D_NO_SIGSET -D_NO_WORDEXP -D_NO_POPEN -D_NO_POSIX_SPAWN"
@@ -664,6 +726,10 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
 	;;
   crx-*-*)
 	newlib_cflags="${newlib_cflags} -DHAVE_RENAME -DMISSING_SYSCALL_NAMES"
+	syscall_dir=
+	;;
+  csky*)
+	newlib_cflags="${newlib_cflags} -DHAVE_RENAME -DHAVE_SYSTEM -DMISSING_SYSCALL_NAMES"
 	syscall_dir=
 	;;
   d10v*)
@@ -815,6 +881,10 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
 	newlib_cflags="${newlib_cflags} -DHAVE_OPENDIR -DHAVE_RENAME -DHAVE_FCNTL -D_NO_POSIX_SPAWN"
 	syscall_dir=syscalls
 	;;
+  pru*)
+	syscall_dir=syscalls
+	newlib_cflags="${newlib_cflags} -DSMALL_MEMORY -D_REENT_SMALL"
+	;;
   riscv*-*-*)
 	syscall_dir=syscalls
 	;;
@@ -918,11 +988,37 @@ if [ "x${newlib_nano_malloc}" = "x" ]; then
 	fi
 fi
 
+# Enable _REENT_CHECK macro memory allocation verification.
+if [ "x${newlib_reent_check_verify}" = "x" ]; then
+	if [ ${default_newlib_reent_check_verify} = "yes" ]; then
+		newlib_reent_check_verify="yes";
+	fi
+fi
+
 # Remove rpc headers if xdr_dir not specified
 if [ "x${xdr_dir}" = "x" ]; then
 	noinclude="${noinclude} rpc/types.h rpc/xdr.h"
 fi
 
+# Have init/finit if not explicitly specified otherwise
+if [ "x${have_init_fini}" != "xno" ]; then
+	newlib_cflags="${newlib_cflags} -DHAVE_INIT_FINI"
+fi
+
 if test -z "${have_crt0}" && test -n "${sys_dir}"; then
   have_crt0="yes"
 fi
+
+# Target-specific defaults
+case "${host_cpu}" in
+  nvptx*)
+	if [ "x${newlib_elix_level}" = "x0" ]; then
+		newlib_elix_level=1;
+	elif [ "x${newlib_elix_level}" != "x1" ]; then
+		newlib_msg_warn="nvptx does not support elix level > 1";
+	fi
+	if [[ -z ${newlib_global_stdio_streams} ]]; then
+		newlib_global_stdio_streams="yes";
+	fi
+	;;
+esac

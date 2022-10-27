@@ -67,8 +67,8 @@ Relocation section '\.rela\.plt' at offset .* contains 1 entry:
 Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND *
-.* SECTION +LOCAL +DEFAULT +6 *
-.* SECTION +LOCAL +DEFAULT +7 *
+.* SECTION +LOCAL +DEFAULT +6.*
+.* SECTION +LOCAL +DEFAULT +10.*
 .* TLS +GLOBAL +DEFAULT +UND gd
 .* TLS +GLOBAL +DEFAULT +8 le0
 .* NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
@@ -84,18 +84,18 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND *
-.* SECTION +LOCAL +DEFAULT +1 *
-.* SECTION +LOCAL +DEFAULT +2 *
-.* SECTION +LOCAL +DEFAULT +3 *
-.* SECTION +LOCAL +DEFAULT +4 *
-.* SECTION +LOCAL +DEFAULT +5 *
-.* SECTION +LOCAL +DEFAULT +6 *
-.* SECTION +LOCAL +DEFAULT +7 *
-.* SECTION +LOCAL +DEFAULT +8 *
-.* SECTION +LOCAL +DEFAULT +9 *
-.* SECTION +LOCAL +DEFAULT +10 *
-.* SECTION +LOCAL +DEFAULT +11 *
-.* SECTION +LOCAL +DEFAULT +12 *
+.* SECTION +LOCAL +DEFAULT +1 \.hash
+.* SECTION +LOCAL +DEFAULT +2 \.dynsym
+.* SECTION +LOCAL +DEFAULT +3 \.dynstr
+.* SECTION +LOCAL +DEFAULT +4 \.rela\.dyn
+.* SECTION +LOCAL +DEFAULT +5 \.rela\.plt
+.* SECTION +LOCAL +DEFAULT +6 \.text
+.* SECTION +LOCAL +DEFAULT +7 \.tdata
+.* SECTION +LOCAL +DEFAULT +8 \.tbss
+.* SECTION +LOCAL +DEFAULT +9 \.dynamic
+.* SECTION +LOCAL +DEFAULT +10 \.opd
+.* SECTION +LOCAL +DEFAULT +11 \.got
+.* SECTION +LOCAL +DEFAULT +12 \.plt
 .* FILE +LOCAL +DEFAULT +ABS .*
 .* TLS +LOCAL +DEFAULT +7 gd4
 .* TLS +LOCAL +DEFAULT +7 ld4

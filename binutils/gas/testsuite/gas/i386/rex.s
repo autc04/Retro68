@@ -20,6 +20,12 @@ _start:
 	rex.b add	(%rax,%rax), %r8d
 	rex.x add	(%rax,%rax), %rax
 
+	rex nop
+	rex.w nop
+	rex.r nop
+	rex.x nop
+	rex.b nop
+
 	.byte 0x41,0x9b,0xdd,0x30
 	fsave (%r8)
 

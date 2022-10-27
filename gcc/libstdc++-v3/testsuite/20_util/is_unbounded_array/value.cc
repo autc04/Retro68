@@ -1,7 +1,7 @@
 // { dg-options "-std=gnu++2a" }
 // { dg-do compile { target c++2a } }
 
-// Copyright (C) 2019 Free Software Foundation, Inc.
+// Copyright (C) 2019-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -44,6 +44,8 @@ void test01()
   static_assert(test_category<is_unbounded_array, ClassType[]>(true), "");
   static_assert(test_category<is_unbounded_array, ClassType[2][3]>(false), "");
   static_assert(test_category<is_unbounded_array, ClassType[][3]>(true), "");
+  static_assert(test_category<is_unbounded_array, IncompleteClass[2][3]>(false), "");
+  static_assert(test_category<is_unbounded_array, IncompleteClass[][3]>(true), "");
   static_assert(test_category<is_unbounded_array, int(*)[2]>(false), "");
   static_assert(test_category<is_unbounded_array, int(*)[]>(false), "");
   static_assert(test_category<is_unbounded_array, int(&)[2]>(false), "");
@@ -51,6 +53,8 @@ void test01()
 
   // Sanity check.
   static_assert(test_category<is_unbounded_array, ClassType>(false), "");
+  static_assert(test_category<is_unbounded_array, IncompleteClass>(false), "");
+  static_assert(test_category<is_unbounded_array, IncompleteUnion>(false), "");
 }
 
 template <class... T> void pos()

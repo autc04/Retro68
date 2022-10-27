@@ -185,6 +185,7 @@ var parseTests = []parseTest{
 	{`(?-s).`, `dnl{}`},
 	{`(?:(?:^).)`, `cat{bol{}dot{}}`},
 	{`(?-s)(?:(?:^).)`, `cat{bol{}dnl{}}`},
+	{`[\s\S]a`, `cat{cc{0x0-0x10ffff}lit{a}}`},
 
 	// RE2 prefix_tests
 	{`abc|abd`, `cat{str{ab}cc{0x63-0x64}}`},
@@ -206,6 +207,11 @@ var parseTests = []parseTest{
 	// Valid repetitions.
 	{`((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}))`, ``},
 	{`((((((((((x{1}){2}){2}){2}){2}){2}){2}){2}){2}){2})`, ``},
+
+	// Valid nesting.
+	{strings.Repeat("(", 999) + strings.Repeat(")", 999), ``},
+	{strings.Repeat("(?:", 999) + strings.Repeat(")*", 999), ``},
+	{"(" + strings.Repeat("|", 12345) + ")", ``}, // not nested at all
 }
 
 const testFlags = MatchNL | PerlX | UnicodeGroups
@@ -481,6 +487,8 @@ var invalidRegexps = []string{
 	`a{100000}`,
 	`a{100000,}`,
 	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",
+	strings.Repeat("(", 1000) + strings.Repeat(")", 1000),
+	strings.Repeat("(?:", 1000) + strings.Repeat(")*", 1000),
 	`\Q\E*`,
 }
 

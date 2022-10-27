@@ -5,14 +5,15 @@
  *
  * Authors: Stewart Gordon
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_powrprof.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_powrprof.d)
  */
 module core.sys.windows.powrprof;
 version (Windows):
+@system:
 pragma(lib, "powrprof");
 
-private import core.sys.windows.windef;
-private import core.sys.windows.ntdef;
+import core.sys.windows.windef;
+import core.sys.windows.ntdef;
 
 // FIXME: look up Windows version support
 

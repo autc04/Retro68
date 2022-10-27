@@ -1,6 +1,6 @@
 # Expect script for ld-tic6x tests
 #
-#   Copyright (C) 2012-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2012-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -130,6 +130,11 @@ set shlibtests {
       {objdump -sj.got static-app-1rb.sd}
       {objdump -R static-app-1rb.od}}
      "static-app-1rb"}
+
+    {"C6X shared library with --export-dynamic"
+     "-shared --export-dynamic -Tdsbt.ld --dsbt-size=3 --hash-style=sysv" ""
+     "-mdsbt -mpic -mpid=near" {shlib-1.s shlib-2.s}
+     {} "pr27271.so"}
 }
 
 run_ld_link_tests $shlibtests
@@ -154,7 +159,7 @@ if { ![ld_assemble_flags $as "-mpic -mpid=near" $srcdir/$subdir/shlib-1.s tmpdir
      || ![ld_link $ld tmpdir/shlibb.o "-r -EB tmpdir/shlib-1b.o tmpdir/shlib-2b.o"]
      || ![ld_link $ld tmpdir/dynapp-1 "tmpdir/libtest.so tmpdir/shlib-app-1.o"]
      || ![ld_link $ld tmpdir/dynapp-1b "-EB tmpdir/libtestb.so tmpdir/shlib-app-1b.o"] } {
-    unresolved "TIC6X OSABI tests"
+    fail "TIC6X OSABI tests"
     return
 }
 
@@ -170,7 +175,7 @@ proc check_osabi_tic6x { test_name binary_file } {
 
     if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
 	send_log "$got\n"
-	unresolved "$test_name"
+	fail "$test_name"
 	remote_file build delete "dump.out"
 	return
     }
@@ -179,7 +184,7 @@ proc check_osabi_tic6x { test_name binary_file } {
     if { ![regexp "\n\[ \]*OS/ABI:\[ \]*(.+)\n\[ \]*ABI" \
 	   [file_contents dump.out] nil osabi] } {
 	verbose "proc check_osabi_tic6x: Readelf failed to extract an ELF header from $binary_file"
-	unresolved "$test_name"
+	fail "$test_name"
     } elseif { $osabi == $expected_osabi } {
 	pass "$test_name"
     } else {

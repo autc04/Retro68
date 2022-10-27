@@ -1,7 +1,7 @@
 #as: -march=rv32i -mabi=ilp32
 #objdump: -dr
 
-.*:     file format elf32-littleriscv
+.*:     file format elf32-(little|big)riscv
 
 
 Disassembly of section .text:

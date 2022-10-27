@@ -17,5 +17,3 @@
 .*:20: Error: selected processor does not support system register name 'zcr_el3'
 .*:21: Error: selected processor does not support system register name 'zcr_el3'
 .*:22: Error: selected processor does not support system register name 'zcr_el3'
-.*:24: Error: selected processor does not support system register name 'zidr_el1'
-.*:25: Error: selected processor does not support system register name 'zidr_el1'

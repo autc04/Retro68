@@ -65,6 +65,8 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 f1 7c 4f 10 f5    	vmovups zmm6\{k7\},zmm5
 [ 	]*[a-f0-9]+:	62 f1 7c cf 11 ee    	vmovups.s zmm6\{k7\}\{z\},zmm5
 [ 	]*[a-f0-9]+:	62 f1 7c cf 10 f5    	vmovups zmm6\{k7\}\{z\},zmm5
+[ 	]*[a-f0-9]+:	62 f1 fd 08 d6 ee    	vmovq\.s xmm6,xmm5
+[ 	]*[a-f0-9]+:	62 f1 fe 08 7e f5    	vmovq  xmm6,xmm5
 [ 	]*[a-f0-9]+:	62 f1 fd 48 29 ee    	vmovapd.s zmm6,zmm5
 [ 	]*[a-f0-9]+:	62 f1 fd 48 28 f5    	vmovapd zmm6,zmm5
 [ 	]*[a-f0-9]+:	62 f1 fd 4f 29 ee    	vmovapd.s zmm6\{k7\},zmm5

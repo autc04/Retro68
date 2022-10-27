@@ -1,9 +1,7 @@
 # name: 32-bit Thumb instructions
 # as: -march=armv6zkt2
 # objdump: -dr --prefix-addresses --show-raw-insn
-# The arm-aout and arm-pe ports do not support Thumb branch relocations.
-# not-target: *-*-pe
-# stderr: thumb32.l
+# warning_output: thumb32.l
 
 .*: +file format .*arm.*
 
@@ -846,7 +844,7 @@ Disassembly of section .text:
 0[0-9a-f]+ <[^>]+> ea4f 0132 	mov.w	r1, r2, rrx
 0[0-9a-f]+ <[^>]+> ea5f 0334 	movs.w	r3, r4, rrx
 0[0-9a-f]+ <[^>]+> f7f0 8000 	smc	#0
-0[0-9a-f]+ <[^>]+> f7fd 8bca 	smc	#43981	; 0xabcd
+0[0-9a-f]+ <[^>]+> f7fd 8000 	smc	#13
 0[0-9a-f]+ <[^>]+> fb10 0000 	smlabb	r0, r0, r0, r0
 0[0-9a-f]+ <[^>]+> fb10 0900 	smlabb	r9, r0, r0, r0
 0[0-9a-f]+ <[^>]+> fb19 0000 	smlabb	r0, r9, r0, r0

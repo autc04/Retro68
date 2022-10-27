@@ -1,5 +1,5 @@
 /* MD reader definitions.
-   Copyright (C) 1987-2019 Free Software Foundation, Inc.
+   Copyright (C) 1987-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -23,7 +23,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "obstack.h"
 
 /* Records a position in the file.  */
-struct file_location {
+class file_location {
+public:
   file_location () {}
   file_location (const char *, int, int);
 
@@ -135,7 +136,7 @@ struct mapping;
 
 /* A class for reading .md files and RTL dump files.
 
-   Implemented in read-md.c.
+   Implemented in read-md.cc.
 
    This class has responsibility for reading chars from input files, and
    for certain common top-level directives including the "include"
@@ -143,11 +144,18 @@ struct mapping;
 
    It does not handle parsing the hierarchically-nested expressions of
    rtl.def; for that see the rtx_reader subclass below (implemented in
-   read-rtl.c).  */
+   read-rtl.cc).  */
 
 class md_reader
 {
  public:
+  /* Associates PTR (which can be a string, etc.) with the file location
+     specified by LOC.  */
+  struct ptr_loc {
+    const void *ptr;
+    file_location loc;
+  };
+
   md_reader (bool compact);
   virtual ~md_reader ();
 
@@ -167,7 +175,7 @@ class md_reader
 
   bool is_compact () const { return m_compact; }
 
-  /* Defined in read-md.c.  */
+  /* Defined in read-md.cc.  */
   int read_char (void);
   void unread_char (int ch);
   file_location read_name (struct md_name *name);
@@ -182,7 +190,7 @@ class md_reader
   void require_word_ws (const char *expected);
   int peek_char (void);
 
-  void set_md_ptr_loc (const void *ptr, const char *filename, int lineno);
+  void set_md_ptr_loc (const void *ptr, file_location);
   const struct ptr_loc *get_md_ptr_loc (const void *ptr);
   void copy_md_ptr_loc (const void *new_ptr, const void *old_ptr);
   void fprint_md_ptr_loc (FILE *outf, const void *ptr);
@@ -199,13 +207,13 @@ class md_reader
   void fprint_c_condition (FILE *outf, const char *cond);
   void print_c_condition (const char *cond);
 
-  /* Defined in read-rtl.c.  */
+  /* Defined in read-rtl.cc.  */
   const char *apply_iterator_to_string (const char *string);
   rtx copy_rtx_for_iterators (rtx original);
   void read_conditions ();
   void record_potential_iterator_use (struct iterator_group *group,
-				      rtx x, unsigned int index,
-				      const char *name);
+				      file_location loc, rtx x,
+				      unsigned int index, const char *name);
   struct mapping *read_mapping (struct iterator_group *group, htab_t table);
   overloaded_name *handle_overloaded_name (rtx, vec<mapping *> *);
 
@@ -328,7 +336,7 @@ class noop_reader : public md_reader
 /* An md_reader subclass that actually handles full hierarchical
    rtx expressions.
 
-   Implemented in read-rtl.c.  */
+   Implemented in read-rtl.cc.  */
 
 class rtx_reader : public md_reader
 {
@@ -337,6 +345,7 @@ class rtx_reader : public md_reader
   ~rtx_reader ();
 
   bool read_rtx (const char *rtx_name, vec<rtx> *rtxen);
+  rtx rtx_alloc_for_name (const char *);
   rtx read_rtx_code (const char *code_name);
   virtual rtx read_rtx_operand (rtx return_rtx, int idx);
   rtx read_nested_rtx ();

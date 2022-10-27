@@ -1,7 +1,6 @@
-// { dg-options "-std=gnu++17" }
 // { dg-do run { target c++17 } }
 
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -28,7 +27,7 @@ using __gnu_test::compare_paths;
 void
 test01()
 {
-  for (const path& p : __gnu_test::test_paths)
+  for (const path p : __gnu_test::test_paths)
   {
     path copy;
     copy = p;
@@ -39,7 +38,7 @@ test01()
 void
 test02()
 {
-  for (const path& p : __gnu_test::test_paths)
+  for (const path p : __gnu_test::test_paths)
   {
     path copy = p;
     path move;
@@ -64,10 +63,25 @@ test03()
   VERIFY( ptr2 == p.begin()->c_str() );
 }
 
+void
+test04()
+{
+  // PR libstdc++/90557
+  path p1 = "a/b/c";
+  const path p2 = "d/e";
+  const path p3 = p2;
+  p1.clear();
+  p1 = p2;
+  __gnu_test::compare_paths(p1, p2);
+  __gnu_test::compare_paths(p1, p3);
+  __gnu_test::compare_paths(p2, p3);
+}
+
 int
 main()
 {
   test01();
   test02();
   test03();
+  test04();
 }

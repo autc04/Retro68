@@ -5,7 +5,7 @@
 # Based on the test case reported by Kazu Hirata:
 # http://sources.redhat.com/ml/binutils/2002-11/msg00301.html
 
-.*:     file format .*-h8300
+.*:     file format .*
 
 Disassembly of section .text:
 

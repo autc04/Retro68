@@ -1,5 +1,5 @@
 /* A self-testing framework, for use by -fself-test.
-   Copyright (C) 2015-2019 Free Software Foundation, Inc.
+   Copyright (C) 2015-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -30,8 +30,9 @@ namespace selftest {
 /* A struct describing the source-location of a selftest, to make it
    easier to track down failing tests.  */
 
-struct location
+class location
 {
+public:
   location (const char *file, int line, const char *function)
     : m_file (file), m_line (line), m_function (function) {}
 
@@ -111,6 +112,8 @@ class temp_source_file : public named_temp_file
  public:
   temp_source_file (const location &loc, const char *suffix,
 		    const char *content);
+  temp_source_file (const location &loc, const char *suffix,
+		    const char *content, size_t sz);
 };
 
 /* RAII-style class for avoiding introducing locale-specific differences
@@ -140,8 +143,8 @@ class auto_fix_quotes
    of situations:
    - line_table->default_range_bits: some frontends use a non-zero value
    and others use zero
-   - the fallback modes within line-map.c: there are various threshold
-   values for location_t beyond line-map.c changes
+   - the fallback modes within line-map.cc: there are various threshold
+   values for location_t beyond line-map.cc changes
    behavior (disabling of the range-packing optimization, disabling
    of column-tracking).  We can exercise these by starting the line_table
    at interesting values at or near these thresholds.
@@ -149,7 +152,7 @@ class auto_fix_quotes
    The following struct describes a particular case within our test
    matrix.  */
 
-struct line_table_case;
+class line_table_case;
 
 /* A class for overriding the global "line_table" within a selftest,
    restoring its value afterwards.  At most one instance of this
@@ -170,6 +173,13 @@ class line_table_test
   ~line_table_test ();
 };
 
+/* Helper function for selftests that need a function decl.  */
+
+extern tree make_fndecl (tree return_type,
+			 const char *name,
+			 vec <tree> &param_types,
+			 bool is_variadic = false);
+
 /* Run TESTCASE multiple times, once for each case in our test matrix.  */
 
 extern void
@@ -181,11 +191,6 @@ for_each_line_table_case (void (*testcase) (const line_table_case &));
    location of the failure.  */
 
 extern char *read_file (const location &loc, const char *path);
-
-/* A helper function for writing tests that interact with the
-   garbage collector.  */
-
-extern void forcibly_ggc_collect ();
 
 /* Convert a path relative to SRCDIR/gcc/testsuite/selftests
    to a real path (either absolute, or relative to pwd).
@@ -213,45 +218,54 @@ class test_runner
 
 /* Declarations for specific families of tests (by source file), in
    alphabetical order.  */
-extern void attribute_c_tests ();
-extern void bitmap_c_tests ();
-extern void cgraph_c_tests ();
-extern void convert_c_tests ();
-extern void diagnostic_c_tests ();
-extern void diagnostic_show_locus_c_tests ();
-extern void dumpfile_c_tests ();
-extern void edit_context_c_tests ();
-extern void et_forest_c_tests ();
-extern void fibonacci_heap_c_tests ();
-extern void fold_const_c_tests ();
-extern void function_tests_c_tests ();
-extern void ggc_tests_c_tests ();
-extern void gimple_c_tests ();
-extern void hash_map_tests_c_tests ();
-extern void hash_set_tests_c_tests ();
-extern void input_c_tests ();
+extern void attribs_cc_tests ();
+extern void bitmap_cc_tests ();
+extern void cgraph_cc_tests ();
+extern void convert_cc_tests ();
+extern void diagnostic_format_json_cc_tests ();
+extern void diagnostic_show_locus_cc_tests ();
+extern void digraph_cc_tests ();
+extern void dumpfile_cc_tests ();
+extern void edit_context_cc_tests ();
+extern void et_forest_cc_tests ();
+extern void fibonacci_heap_cc_tests ();
+extern void fold_const_cc_tests ();
+extern void function_tests_cc_tests ();
+extern void ggc_tests_cc_tests ();
+extern void gimple_cc_tests ();
+extern void hash_map_tests_cc_tests ();
+extern void hash_set_tests_cc_tests ();
+extern void input_cc_tests ();
 extern void json_cc_tests ();
-extern void opt_problem_cc_tests ();
 extern void optinfo_emit_json_cc_tests ();
-extern void predict_c_tests ();
-extern void pretty_print_c_tests ();
-extern void read_rtl_function_c_tests ();
-extern void rtl_tests_c_tests ();
-extern void sbitmap_c_tests ();
-extern void selftest_c_tests ();
-extern void simplify_rtx_c_tests ();
-extern void spellcheck_c_tests ();
-extern void spellcheck_tree_c_tests ();
-extern void sreal_c_tests ();
-extern void store_merging_c_tests ();
-extern void tree_c_tests ();
-extern void tree_cfg_c_tests ();
-extern void typed_splay_tree_c_tests ();
-extern void unique_ptr_tests_cc_tests ();
-extern void vec_c_tests ();
-extern void vec_perm_indices_c_tests ();
+extern void opts_cc_tests ();
+extern void ordered_hash_map_tests_cc_tests ();
+extern void predict_cc_tests ();
+extern void pretty_print_cc_tests ();
+extern void range_tests ();
+extern void range_op_tests ();
+extern void gimple_range_tests ();
+extern void read_rtl_function_cc_tests ();
+extern void rtl_tests_cc_tests ();
+extern void sbitmap_cc_tests ();
+extern void selftest_cc_tests ();
+extern void simplify_rtx_cc_tests ();
+extern void spellcheck_cc_tests ();
+extern void spellcheck_tree_cc_tests ();
+extern void splay_tree_cc_tests ();
+extern void sreal_cc_tests ();
+extern void store_merging_cc_tests ();
+extern void tree_cc_tests ();
+extern void tree_cfg_cc_tests ();
+extern void tree_diagnostic_path_cc_tests ();
+extern void tristate_cc_tests ();
+extern void typed_splay_tree_cc_tests ();
+extern void vec_cc_tests ();
+extern void vec_perm_indices_cc_tests ();
 extern void wide_int_cc_tests ();
-extern void opt_proposer_c_tests ();
+extern void opt_suggestions_cc_tests ();
+extern void dbgcnt_cc_tests ();
+extern void ipa_modref_tree_cc_tests ();
 
 extern int num_passes;
 

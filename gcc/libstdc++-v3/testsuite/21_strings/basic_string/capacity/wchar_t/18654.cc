@@ -1,6 +1,6 @@
 // 2004-11-29  Paolo Carlini  <pcarlini@suse.de>
 
-// Copyright (C) 2004-2019 Free Software Foundation, Inc.
+// Copyright (C) 2004-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -47,11 +47,17 @@ void test01()
     {
       wstring str(i, L'x');
       str.reserve(3 * i);
+      const size_type cap = str.capacity();
+      VERIFY( cap >= 3 * i );
 
       str.reserve(2 * i);
-      VERIFY( str.capacity() == 2 * i );
+      VERIFY( str.capacity() == cap );
 
+#if __cplusplus <= 201703L
       str.reserve();
+#else
+      str.shrink_to_fit(); // reserve is deprecated in C++20
+#endif
       VERIFY( str.capacity() == i );
     }
 }

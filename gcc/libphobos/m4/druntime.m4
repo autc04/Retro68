@@ -80,6 +80,8 @@ AC_DEFUN([DRUNTIME_INSTALL_DIRECTORIES],
     [version_specific_libs=no])
   AC_MSG_RESULT($version_specific_libs)
 
+  GCC_WITH_TOOLEXECLIBDIR
+
   # Version-specific runtime libs processing.
   if test $version_specific_libs = yes; then
     libphobos_toolexecdir='${libdir}/gcc/${host_alias}'
@@ -89,7 +91,14 @@ AC_DEFUN([DRUNTIME_INSTALL_DIRECTORIES],
     # Install a library built with a cross compiler in tooldir, not libdir.
     if test -n "$with_cross_host" && test x"$with_cross_host" != x"no"; then
       libphobos_toolexecdir='${exec_prefix}/${host_alias}'
-      libphobos_toolexeclibdir='${toolexecdir}/lib'
+      case ${with_toolexeclibdir} in
+	no)
+	  libphobos_toolexeclibdir='${toolexecdir}/lib'
+	  ;;
+	*)
+	  libphobos_toolexeclibdir=${with_toolexeclibdir}
+	  ;;
+      esac
     else
       libphobos_toolexecdir='${libdir}/gcc/${host_alias}'
       libphobos_toolexeclibdir='${libdir}'
@@ -108,18 +117,21 @@ AC_DEFUN([DRUNTIME_INSTALL_DIRECTORIES],
   AC_SUBST(gdc_include_dir)
 ])
 
-
-# DRUNTIME_GC
-# -----------
-# Add the --enable-druntime-gc option and create the
-# DRUNTIME_GC_ENABLE conditional
-AC_DEFUN([DRUNTIME_GC],
+# DRUNTIME_SECTION_FLAGS
+# ----------------------
+# Check for -ffunction-sections nad -fdata-sections.
+AC_DEFUN([DRUNTIME_SECTION_FLAGS],
 [
-  dnl switch between gc and gcstub
-  AC_ARG_ENABLE(druntime-gc,
-    AC_HELP_STRING([--enable-druntime-gc],
-                   [enable D runtime garbage collector (default: yes)]),
-    [enable_druntime_gc=no],[enable_druntime_gc=yes])
-
-  AM_CONDITIONAL([DRUNTIME_GC_ENABLE], [test "$enable_druntime_gc" = "yes"])
+  WITH_LOCAL_DRUNTIME([
+    AC_LANG_PUSH([D])
+    GDCFLAGS="$GDCFLAGS -g -Werror -ffunction-sections -fdata-sections"
+    AC_TRY_COMPILE([int foo; void bar() { }],[return 0;],
+		   [ac_fdsections=yes], [ac_fdsections=no])
+    if test "x$ac_fdsections" = "xyes"; then
+      SECTION_FLAGS='-ffunction-sections -fdata-sections'
+    fi
+    AC_MSG_RESULT($ac_fdsections)
+    AC_LANG_POP([D])
+  ], [-nophoboslib])
+  AC_SUBST(SECTION_FLAGS)
 ])

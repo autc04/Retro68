@@ -1,6 +1,6 @@
 #source: pr19807-2.s
 #as: --x32
-#ld: -pie -melf32_x86_64
+#ld: -pie -melf32_x86_64 -z notext
 #objdump: -dw
 
 .*: +file format .*

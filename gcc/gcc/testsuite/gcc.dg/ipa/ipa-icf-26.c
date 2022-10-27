@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -fdump-ipa-icf"  } */
+/* { dg-options "-O2 -fdump-ipa-icf-optimized"  } */
 
 void destroy (void)
 {
@@ -38,5 +38,5 @@ int main()
   return 0;
 }
 
-/* { dg-final { scan-ipa-dump "Semantic equality hit:destroy->remove" "icf"  } } */
+/* { dg-final { scan-ipa-dump "Semantic equality hit:destroy/\[0-9+\]+->remove/\[0-9+\]+" "icf"  } } */
 /* { dg-final { scan-ipa-dump "Equal symbols: 1" "icf"  } } */

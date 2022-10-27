@@ -5,7 +5,7 @@
  * Redistribution and use in source and binary forms are permitted
  * provided that the above copyright notice and this paragraph are
  * duplicated in all such forms and that any documentation,
- * advertising materials, and other materials related to such
+ * and/or other materials related to such
  * distribution and use acknowledge that the software was developed
  * by the University of California, Berkeley.  The name of the
  * University may not be used to endorse or promote products derived
@@ -272,49 +272,15 @@ _sungetwc_r (struct _reent *data,
   /* After ungetc, we won't be at eof anymore */
   fp->_flags &= ~__SEOF;
 
-  /*
-   * If we are in the middle of ungetwc'ing, just continue.
-   * This may require expanding the current ungetc buffer.
+  /* All ungetwc usage in scanf un-gets the current character, so
+   * just back up over the string if we aren't at the start
    */
-
-  if (HASUB (fp))
-    {
-      if (fp->_r >= fp->_ub._size && __submore (data, fp))
-        {
-          return EOF;
-        }
-      fp->_p -= sizeof (wchar_t);
-      *fp->_p = (wchar_t) wc;
-      fp->_r += sizeof (wchar_t);
-      return wc;
-    }
-
-  /*
-   * If we can handle this by simply backing up, do so,
-   * but never replace the original character.
-   * (This makes swscanf() work when scanning `const' data.)
-   */
-
-  if (fp->_bf._base != NULL && fp->_p > fp->_bf._base
-      && ((wchar_t *)fp->_p)[-1] == wc)
+  if (fp->_bf._base != NULL && fp->_p > fp->_bf._base)
     {
       fp->_p -= sizeof (wchar_t);
       fp->_r += sizeof (wchar_t);
-      return wc;
     }
 
-  /*
-   * Create an ungetc buffer.
-   * Initially, we will use the `reserve' buffer.
-   */
-
-  fp->_ur = fp->_r;
-  fp->_up = fp->_p;
-  fp->_ub._base = fp->_ubuf;
-  fp->_ub._size = sizeof (fp->_ubuf);
-  fp->_p = &fp->_ubuf[sizeof (fp->_ubuf) - sizeof (wchar_t)];
-  *(wchar_t *) fp->_p = wc;
-  fp->_r = 2;
   return wc;
 }
 
@@ -602,6 +568,7 @@ __SVFWSCANF_R (struct _reent *rptr,
 	case L'*':
 	  if ((flags & (CHAR | SHORT | LONG | LONGDBL | SUPPRESS | MALLOC))
 	      || width)
+	    goto match_failure;
 	  flags |= SUPPRESS;
 	  goto again;
 	case L'l':
@@ -1636,7 +1603,7 @@ __SVFWSCANF_R (struct _reent *rptr,
 		{
 		  flp = GET_ARG (N, ap, float *);
 		  if (isnan (res))
-		    *flp = nanf (NULL);
+		    *flp = nanf ("");
 		  else
 		    *flp = res;
 		}

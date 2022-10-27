@@ -70,17 +70,17 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	89 d1                	movl   %edx,%ecx
 [ 	]*[a-f0-9]+:	8b ca                	movl.s %edx,%ecx
 [ 	]*[a-f0-9]+:	08 d1                	orb    %dl,%cl
-[ 	]*[a-f0-9]+:	0a ca                	orb.s %dl,%cl
+[ 	]*[a-f0-9]+:	0a ca                	orb.s  %dl,%cl
 [ 	]*[a-f0-9]+:	66 09 d1             	orw    %dx,%cx
-[ 	]*[a-f0-9]+:	66 0b ca             	orw.s %dx,%cx
+[ 	]*[a-f0-9]+:	66 0b ca             	orw.s  %dx,%cx
 [ 	]*[a-f0-9]+:	09 d1                	orl    %edx,%ecx
-[ 	]*[a-f0-9]+:	0b ca                	orl.s %edx,%ecx
+[ 	]*[a-f0-9]+:	0b ca                	orl.s  %edx,%ecx
 [ 	]*[a-f0-9]+:	08 d1                	orb    %dl,%cl
-[ 	]*[a-f0-9]+:	0a ca                	orb.s %dl,%cl
+[ 	]*[a-f0-9]+:	0a ca                	orb.s  %dl,%cl
 [ 	]*[a-f0-9]+:	66 09 d1             	orw    %dx,%cx
-[ 	]*[a-f0-9]+:	66 0b ca             	orw.s %dx,%cx
+[ 	]*[a-f0-9]+:	66 0b ca             	orw.s  %dx,%cx
 [ 	]*[a-f0-9]+:	09 d1                	orl    %edx,%ecx
-[ 	]*[a-f0-9]+:	0b ca                	orl.s %edx,%ecx
+[ 	]*[a-f0-9]+:	0b ca                	orl.s  %edx,%ecx
 [ 	]*[a-f0-9]+:	18 d1                	sbbb   %dl,%cl
 [ 	]*[a-f0-9]+:	1a ca                	sbbb.s %dl,%cl
 [ 	]*[a-f0-9]+:	66 19 d1             	sbbw   %dx,%cx
@@ -200,11 +200,11 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	89 d1                	movl   %edx,%ecx
 [ 	]*[a-f0-9]+:	8b ca                	movl.s %edx,%ecx
 [ 	]*[a-f0-9]+:	08 d1                	orb    %dl,%cl
-[ 	]*[a-f0-9]+:	0a ca                	orb.s %dl,%cl
+[ 	]*[a-f0-9]+:	0a ca                	orb.s  %dl,%cl
 [ 	]*[a-f0-9]+:	66 09 d1             	orw    %dx,%cx
-[ 	]*[a-f0-9]+:	66 0b ca             	orw.s %dx,%cx
+[ 	]*[a-f0-9]+:	66 0b ca             	orw.s  %dx,%cx
 [ 	]*[a-f0-9]+:	09 d1                	orl    %edx,%ecx
-[ 	]*[a-f0-9]+:	0b ca                	orl.s %edx,%ecx
+[ 	]*[a-f0-9]+:	0b ca                	orl.s  %edx,%ecx
 [ 	]*[a-f0-9]+:	18 d1                	sbbb   %dl,%cl
 [ 	]*[a-f0-9]+:	1a ca                	sbbb.s %dl,%cl
 [ 	]*[a-f0-9]+:	66 19 d1             	sbbw   %dx,%cx

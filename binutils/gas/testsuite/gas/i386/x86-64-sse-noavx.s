@@ -10,7 +10,6 @@ _start:
  cvtps2pi	%xmm7,%mm6
  cvttpd2pi	%xmm4,%mm3
  cvttps2pi	%xmm4,%mm3
- fisttp (%rax)
  fisttps (%rax)
  fisttpl (%rax)
  fisttpll (%rax)

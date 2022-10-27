@@ -1,6 +1,5 @@
 #as: -J -march=iamcu
 #objdump: -dw
-#not-target: *-*-nacl*
 
 .*: +file format elf32-iamcu.*
 
@@ -10,7 +9,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	66 0f be f0          	movsbw %al,%si
 [ 	]*[a-f0-9]+:	0f be f0             	movsbl %al,%esi
 [ 	]*[a-f0-9]+:	0f bf f0             	movswl %ax,%esi
-[ 	]*[a-f0-9]+:	0f be 10             	movsbl \(%eax\),%edx
 [ 	]*[a-f0-9]+:	66 0f be 10          	movsbw \(%eax\),%dx
 [ 	]*[a-f0-9]+:	66 0f be 10          	movsbw \(%eax\),%dx
 [ 	]*[a-f0-9]+:	0f be 10             	movsbl \(%eax\),%edx
@@ -21,7 +19,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	66 0f b6 f0          	movzbw %al,%si
 [ 	]*[a-f0-9]+:	0f b6 f0             	movzbl %al,%esi
 [ 	]*[a-f0-9]+:	0f b7 f0             	movzwl %ax,%esi
-[ 	]*[a-f0-9]+:	0f b6 10             	movzbl \(%eax\),%edx
 [ 	]*[a-f0-9]+:	66 0f b6 10          	movzbw \(%eax\),%dx
 [ 	]*[a-f0-9]+:	66 0f b6 10          	movzbw \(%eax\),%dx
 [ 	]*[a-f0-9]+:	0f b6 10             	movzbl \(%eax\),%edx

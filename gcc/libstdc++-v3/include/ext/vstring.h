@@ -1,6 +1,6 @@
 // Versatile string -*- C++ -*-
 
-// Copyright (C) 2005-2019 Free Software Foundation, Inc.
+// Copyright (C) 2005-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -38,6 +38,7 @@
 #include <ext/vstring_util.h>
 #include <ext/rc_string_base.h>
 #include <ext/sso_string_base.h>
+#include <bits/stl_algobase.h> // std::min
 
 namespace __gnu_cxx _GLIBCXX_VISIBILITY(default)
 {
@@ -58,6 +59,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
       typedef _Base<_CharT, _Traits, _Alloc>                __vstring_base;    
       typedef typename __vstring_base::_CharT_alloc_type    _CharT_alloc_type;
+      typedef __alloc_traits<_CharT_alloc_type> _CharT_alloc_traits;
 
       // Types:
     public:
@@ -68,8 +70,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef typename _CharT_alloc_type::difference_type   difference_type;
       typedef value_type&               	            reference;
       typedef const value_type&                             const_reference;
-      typedef typename _CharT_alloc_type::pointer	    pointer;
-      typedef typename _CharT_alloc_type::const_pointer	    const_pointer;
+      typedef typename _CharT_alloc_traits::pointer	    pointer;
+      typedef typename _CharT_alloc_traits::const_pointer   const_pointer;
       typedef __gnu_cxx::__normal_iterator<pointer, __versa_string>  iterator;
       typedef __gnu_cxx::__normal_iterator<const_pointer, __versa_string>
                                                             const_iterator;
@@ -2920,7 +2922,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       { return std::_Hash_impl::hash(__s.data(), __s.length()); }
     };
 
-#ifdef _GLIBCXX_USE_WCHAR_T
   /// std::hash specialization for __wvstring.
   template<>
     struct hash<__gnu_cxx::__wvstring>
@@ -2931,7 +2932,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       { return std::_Hash_impl::hash(__s.data(),
                                      __s.length() * sizeof(wchar_t)); }
     };
-#endif
 
   /// std::hash specialization for __u16vstring.
   template<>

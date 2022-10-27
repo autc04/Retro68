@@ -4,10 +4,11 @@
  * Translated from Windows SDK Headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_winhttp.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_winhttp.d)
  */
 module core.sys.windows.winhttp;
 version (Windows):
+@system:
 pragma(lib, "winhttp");
 // FIXME: Grouping of constants. Windows SDK doesn't make this entirely clear
 // FIXME: Verify WINHTTP_STATUS_CALLBACK function declaration works correctly

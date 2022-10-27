@@ -7,52 +7,50 @@
                      __FILE__, __LINE__, STR(exp)), \
                       __builtin_abort ()))
 
-struct Ax { int n, a[]; };
-struct AAx { int i; Ax ax; };
+typedef int int32_t __attribute__((mode (__SI__)));
 
-int i = 12345678;
+struct Ax { int32_t n, a[]; };
+struct AAx { int32_t i; Ax ax; };
+
+int32_t i = 12345678;
 
 int main ()
 {
   {
+    // OK.  Does not assign any elements to flexible array.
     Ax s = { 0 };
     ASSERT (s.n == 0);
   }
   {
-    static Ax s =
-      { 0, { } };   // dg-warning "initialization of a flexible array member" }
+    // OK only for statically allocated objects, otherwise error.
+    static Ax s = { 0, { } };
     ASSERT (s.n == 0);
   }
   {
-    static Ax s =
-      { 1, { 2 } };   // dg-warning "initialization of a flexible array member" }
+    static Ax s = { 1, { 2 } };
     ASSERT (s.n == 1 && s.a [0] == 2);
   }
   {
-    static Ax s =
-      { 2, { 3, 4 } }; // dg-warning "initialization of a flexible array member" }
+    static Ax s = { 2, { 3, 4 } };
     ASSERT (s.n = 2 && s.a [0] == 3 && s.a [1] == 4);
   }
   {
-    static Ax s =
-      { 123, i };   // dg-warning "initialization of a flexible array member" }
+    static Ax s = { 123, i };
     ASSERT (s.n == 123 && s.a [0] == i);
   }
   {
-    static Ax s =
-      { 456, { i } }; // dg-warning "initialization of a flexible array member" }
+    static Ax s = { 456, { i } };
     ASSERT (s.n == 456 && s.a [0] == i);
   }
   {
-    int j = i + 1, k = j + 1;
-    static Ax s =
-      { 3, { i, j, k } }; // dg-warning "initialization of a flexible array member" }
+    int32_t j = i + 1, k = j + 1;
+    static Ax s = { 3, { i, j, k } };
     ASSERT (s.n == 3 && s.a [0] == i && s.a [1] == j && s.a [2] == k);
   }
 
   {
-    AAx s =
-      { 1, { 2 } };   // dg-warning "initialization of a flexible array member" }
+    // OK.  Does not assign any elements to flexible array.
+    AAx s = { 1, { 2 } };
     ASSERT (s.i == 1 && s.ax.n == 2);
   }
 }

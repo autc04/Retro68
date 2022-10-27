@@ -14,8 +14,8 @@
  */
 module core.sys.posix.unistd;
 
-private import core.sys.posix.config;
-private import core.stdc.stddef;
+import core.sys.posix.config;
+import core.stdc.stddef;
 public import core.sys.posix.inttypes;  // for intptr_t
 public import core.sys.posix.sys.types; // for ssize_t, uid_t, gid_t, off_t, pid_t, useconds_t
 
@@ -32,6 +32,7 @@ version (Posix):
 extern (C):
 nothrow:
 @nogc:
+@system:
 
 enum STDIN_FILENO  = 0;
 enum STDOUT_FILENO = 1;
@@ -42,20 +43,20 @@ extern __gshared int     optind;
 extern __gshared int     opterr;
 extern __gshared int     optopt;
 
-int     access(in char*, int);
+int     access(const scope char*, int);
 uint    alarm(uint) @trusted;
-int     chdir(in char*);
-int     chown(in char*, uid_t, gid_t);
+int     chdir(const scope char*);
+int     chown(const scope char*, uid_t, gid_t);
 int     close(int) @trusted;
 size_t  confstr(int, char*, size_t);
 int     dup(int) @trusted;
 int     dup2(int, int) @trusted;
-int     execl(in char*, in char*, ...);
-int     execle(in char*, in char*, ...);
-int     execlp(in char*, in char*, ...);
-int     execv(in char*, in char**);
-int     execve(in char*, in char**, in char**);
-int     execvp(in char*, in char**);
+int     execl(const scope char*, const scope char*, ...);
+int     execle(const scope char*, const scope char*, ...);
+int     execlp(const scope char*, const scope char*, ...);
+int     execv(const scope char*, const scope char**);
+int     execve(const scope char*, const scope char**, const scope char**);
+int     execvp(const scope char*, const scope char**);
 void    _exit(int) @trusted;
 int     fchown(int, uid_t, gid_t) @trusted;
 pid_t   fork() @trusted;
@@ -69,36 +70,36 @@ int     getgroups(int, gid_t *);
 int     gethostname(char*, size_t);
 char*   getlogin() @trusted;
 int     getlogin_r(char*, size_t);
-int     getopt(int, in char**, in char*);
+int     getopt(int, const scope char**, const scope char*);
 pid_t   getpgrp() @trusted;
 pid_t   getpid() @trusted;
 pid_t   getppid() @trusted;
 uid_t   getuid() @trusted;
 int     isatty(int) @trusted;
-int     link(in char*, in char*);
+int     link(const scope char*, const scope char*);
 //off_t   lseek(int, off_t, int);
-c_long  pathconf(in char*, int);
+c_long  pathconf(const scope char*, int);
 int     pause() @trusted;
 int     pipe(ref int[2]) @trusted;
 ssize_t read(int, void*, size_t);
-ssize_t readlink(in char*, char*, size_t);
-int     rmdir(in char*);
+ssize_t readlink(const scope char*, char*, size_t);
+int     rmdir(const scope char*);
 int     setegid(gid_t) @trusted;
 int     seteuid(uid_t) @trusted;
 int     setgid(gid_t) @trusted;
-int     setgroups(size_t, in gid_t*) @trusted;
+int     setgroups(size_t, const scope gid_t*) @trusted;
 int     setpgid(pid_t, pid_t) @trusted;
 pid_t   setsid() @trusted;
 int     setuid(uid_t) @trusted;
 uint    sleep(uint) @trusted;
-int     symlink(in char*, in char*);
+int     symlink(const scope char*, const scope char*);
 c_long  sysconf(int) @trusted;
 pid_t   tcgetpgrp(int) @trusted;
 int     tcsetpgrp(int, pid_t) @trusted;
 char*   ttyname(int) @trusted;
 int     ttyname_r(int, char*, size_t);
-int     unlink(in char*);
-ssize_t write(int, in void*, size_t);
+int     unlink(const scope char*);
+ssize_t write(int, const scope void*, size_t);
 
 version (CRuntime_Glibc)
 {
@@ -127,6 +128,11 @@ else version (FreeBSD)
     int   ftruncate(int, off_t) @trusted;
 }
 else version (NetBSD)
+{
+    off_t lseek(int, off_t, int) @trusted;
+    int   ftruncate(int, off_t) @trusted;
+}
+else version (OpenBSD)
 {
     off_t lseek(int, off_t, int) @trusted;
     int   ftruncate(int, off_t) @trusted;
@@ -993,6 +999,188 @@ else version (NetBSD)
         _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS =  14,
     }
 }
+else version (OpenBSD)
+{
+    enum F_OK       = 0;
+    enum R_OK       = 0x04;
+    enum W_OK       = 0x02;
+    enum X_OK       = 0x01;
+
+    enum F_ULOCK    = 0;
+    enum F_LOCK     = 1;
+    enum F_TLOCK    = 2;
+    enum F_TEST     = 3;
+
+    enum
+    {
+        _SC_ARG_MAX                      =  1,
+        _SC_CHILD_MAX                    =  2,
+        _O_SC_CLK_TCK                    =  3,
+        _SC_NGROUPS_MAX                  =  4,
+        _SC_OPEN_MAX                     =  5,
+        _SC_JOB_CONTROL                  =  6,
+        _SC_SAVED_IDS                    =  7,
+        _SC_VERSION                      =  8,
+        _SC_BC_BASE_MAX                  =  9,
+        _SC_BC_DIM_MAX                   = 10,
+        _SC_BC_SCALE_MAX                 = 11,
+        _SC_BC_STRING_MAX                = 12,
+        _SC_COLL_WEIGHTS_MAX             = 13,
+        _SC_EXPR_NEST_MAX                = 14,
+        _SC_LINE_MAX                     = 15,
+        _SC_RE_DUP_MAX                   = 16,
+        _SC_2_VERSION                    = 17,
+        _SC_2_C_BIND                     = 18,
+        _SC_2_C_DEV                      = 19,
+        _SC_2_CHAR_TERM                  = 20,
+        _SC_2_FORT_DEV                   = 21,
+        _SC_2_FORT_RUN                   = 22,
+        _SC_2_LOCALEDEF                  = 23,
+        _SC_2_SW_DEV                     = 24,
+        _SC_2_UPE                        = 25,
+        _SC_STREAM_MAX                   = 26,
+        _SC_TZNAME_MAX                   = 27,
+        _SC_PAGESIZE                     = 28,
+        _SC_FSYNC                        = 29,
+        _SC_XOPEN_SHM                    = 30,
+        _SC_SEM_NSEMS_MAX                = 31,
+        _SC_SEM_VALUE_MAX                = 32,
+        _SC_HOST_NAME_MAX                = 33,
+        _SC_MONOTONIC_CLOCK              = 34,
+        _SC_2_PBS                        = 35,
+        _SC_2_PBS_ACCOUNTING             = 36,
+        _SC_2_PBS_CHECKPOINT             = 37,
+        _SC_2_PBS_LOCATE                 = 38,
+        _SC_2_PBS_MESSAGE                = 39,
+        _SC_2_PBS_TRACK                  = 40,
+        _SC_ADVISORY_INFO                = 41,
+        _SC_AIO_LISTIO_MAX               = 42,
+        _SC_AIO_MAX                      = 43,
+        _SC_AIO_PRIO_DELTA_MAX           = 44,
+        _SC_ASYNCHRONOUS_IO              = 45,
+        _SC_ATEXIT_MAX                   = 46,
+        _SC_BARRIERS                     = 47,
+        _SC_CLOCK_SELECTION              = 48,
+        _SC_CPUTIME                      = 49,
+        _SC_DELAYTIMER_MAX               = 50,
+        _SC_IOV_MAX                      = 51,
+        _SC_IPV6                         = 52,
+        _SC_MAPPED_FILES                 = 53,
+        _SC_MEMLOCK                      = 54,
+        _SC_MEMLOCK_RANGE                = 55,
+        _SC_MEMORY_PROTECTION            = 56,
+        _SC_MESSAGE_PASSING              = 57,
+        _SC_MQ_OPEN_MAX                  = 58,
+        _SC_MQ_PRIO_MAX                  = 59,
+        _SC_PRIORITIZED_IO               = 60,
+        _SC_PRIORITY_SCHEDULING          = 61,
+        _SC_RAW_SOCKETS                  = 62,
+        _SC_READER_WRITER_LOCKS          = 63,
+        _SC_REALTIME_SIGNALS             = 64,
+        _SC_REGEXP                       = 65,
+        _SC_RTSIG_MAX                    = 66,
+        _SC_SEMAPHORES                   = 67,
+        _SC_SHARED_MEMORY_OBJECTS        = 68,
+        _SC_SHELL                        = 69,
+        _SC_SIGQUEUE_MAX                 = 70,
+        _SC_SPAWN                        = 71,
+        _SC_SPIN_LOCKS                   = 72,
+        _SC_SPORADIC_SERVER              = 73,
+        _SC_SS_REPL_MAX                  = 74,
+        _SC_SYNCHRONIZED_IO              = 75,
+        _SC_SYMLOOP_MAX                  = 76,
+        _SC_THREAD_ATTR_STACKADDR        = 77,
+        _SC_THREAD_ATTR_STACKSIZE        = 78,
+        _SC_THREAD_CPUTIME               = 79,
+        _SC_THREAD_DESTRUCTOR_ITERATIONS = 80,
+        _SC_THREAD_KEYS_MAX              = 81,
+        _SC_THREAD_PRIO_INHERIT          = 82,
+        _SC_THREAD_PRIO_PROTECT          = 83,
+        _SC_THREAD_PRIORITY_SCHEDULING   = 84,
+        _SC_THREAD_PROCESS_SHARED        = 85,
+        _SC_THREAD_ROBUST_PRIO_INHERIT   = 86,
+        _SC_THREAD_ROBUST_PRIO_PROTECT   = 87,
+        _SC_THREAD_SPORADIC_SERVER       = 88,
+        _SC_THREAD_STACK_MIN             = 89,
+        _SC_THREAD_THREADS_MAX           = 90,
+        _SC_THREADS                      = 91,
+        _SC_TIMEOUTS                     = 92,
+        _SC_TIMER_MAX                    = 93,
+        _SC_TIMERS                       = 94,
+        _SC_TRACE                        = 95,
+        _SC_TRACE_EVENT_FILTER           = 96,
+        _SC_TRACE_EVENT_NAME_MAX         = 97,
+        _SC_TRACE_INHERIT                = 98,
+        _SC_TRACE_LOG                    = 99,
+        _SC_GETGR_R_SIZE_MAX             = 100,
+        _SC_GETPW_R_SIZE_MAX             = 101,
+        _SC_LOGIN_NAME_MAX               = 102,
+        _SC_THREAD_SAFE_FUNCTIONS        = 103,
+        _SC_TRACE_NAME_MAX               = 104,
+        _SC_TRACE_SYS_MAX                = 105,
+        _SC_TRACE_USER_EVENT_MAX         = 106,
+        _SC_TTY_NAME_MAX                 = 107,
+        _SC_TYPED_MEMORY_OBJECTS         = 108,
+        _SC_V6_ILP32_OFF32               = 109,
+        _SC_V6_ILP32_OFFBIG              = 110,
+        _SC_V6_LP64_OFF64                = 111,
+        _SC_V6_LPBIG_OFFBIG              = 112,
+        _SC_V7_ILP32_OFF32               = 113,
+        _SC_V7_ILP32_OFFBIG              = 114,
+        _SC_V7_LP64_OFF64                = 115,
+        _SC_V7_LPBIG_OFFBIG              = 116,
+        _SC_XOPEN_CRYPT                  = 117,
+        _SC_XOPEN_ENH_I18N               = 118,
+        _SC_XOPEN_LEGACY                 = 119,
+        _SC_XOPEN_REALTIME               = 120,
+        _SC_XOPEN_REALTIME_THREADS       = 121,
+        _SC_XOPEN_STREAMS                = 122,
+        _SC_XOPEN_UNIX                   = 123,
+        _SC_XOPEN_UUCP                   = 124,
+        _SC_XOPEN_VERSION                = 125,
+        _SC_PHYS_PAGES                   = 500,
+        _SC_AVPHYS_PAGES                 = 501,
+        _SC_NPROCESSORS_CONF             = 502,
+        _SC_NPROCESSORS_ONLN             = 503,
+    }
+
+    enum _SC_PAGE_SIZE = _SC_PAGESIZE;
+
+    enum
+    {
+        _CS_PATH                           = 1,
+        _CS_POSIX_V6_ILP32_OFF32_CFLAGS    = 2,
+        _CS_POSIX_V6_ILP32_OFF32_LDFLAGS   = 3,
+        _CS_POSIX_V6_ILP32_OFF32_LIBS      = 4,
+        _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS   = 5,
+        _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS  = 6,
+        _CS_POSIX_V6_ILP32_OFFBIG_LIBS     = 7,
+        _CS_POSIX_V6_LP64_OFF64_CFLAGS     = 8,
+        _CS_POSIX_V6_LP64_OFF64_LDFLAGS    = 9,
+        _CS_POSIX_V6_LP64_OFF64_LIBS       = 10,
+        _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS   = 11,
+        _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS  = 12,
+        _CS_POSIX_V6_LPBIG_OFFBIG_LIBS     = 13,
+        _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS = 14,
+        _CS_V6_ENV                         = 15,
+        _CS_POSIX_V7_ILP32_OFF32_CFLAGS    = 16,
+        _CS_POSIX_V7_ILP32_OFF32_LDFLAGS   = 17,
+        _CS_POSIX_V7_ILP32_OFF32_LIBS      = 18,
+        _CS_POSIX_V7_ILP32_OFFBIG_CFLAGS   = 19,
+        _CS_POSIX_V7_ILP32_OFFBIG_LDFLAGS  = 20,
+        _CS_POSIX_V7_ILP32_OFFBIG_LIBS     = 21,
+        _CS_POSIX_V7_LP64_OFF64_CFLAGS     = 22,
+        _CS_POSIX_V7_LP64_OFF64_LDFLAGS    = 23,
+        _CS_POSIX_V7_LP64_OFF64_LIBS       = 24,
+        _CS_POSIX_V7_LPBIG_OFFBIG_CFLAGS   = 25,
+        _CS_POSIX_V7_LPBIG_OFFBIG_LDFLAGS  = 26,
+        _CS_POSIX_V7_LPBIG_OFFBIG_LIBS     = 27,
+        _CS_POSIX_V7_THREADS_CFLAGS        = 28,
+        _CS_POSIX_V7_THREADS_LDFLAGS       = 29,
+        _CS_POSIX_V7_WIDTH_RESTRICTED_ENVS = 30,
+        _CS_V7_ENV                         = 31,
+    }
+}
 else version (DragonFlyBSD)
 {
     enum F_OK       = 0;
@@ -1155,9 +1343,162 @@ else version (CRuntime_Bionic)
     enum W_OK       = 2;
     enum X_OK       = 1;
 
-    enum _SC_PAGESIZE         = 0x0027;
-    enum _SC_NPROCESSORS_ONLN = 0x0061;
-    enum _SC_THREAD_STACK_MIN = 0x004c;
+    enum
+    {
+        _SC_ARG_MAX             = 0x0000,
+        _SC_BC_BASE_MAX         = 0x0001,
+        _SC_BC_DIM_MAX          = 0x0002,
+        _SC_BC_SCALE_MAX        = 0x0003,
+        _SC_BC_STRING_MAX       = 0x0004,
+        _SC_CHILD_MAX           = 0x0005,
+        _SC_CLK_TCK             = 0x0006,
+        _SC_COLL_WEIGHTS_MAX    = 0x0007,
+        _SC_EXPR_NEST_MAX       = 0x0008,
+        _SC_LINE_MAX            = 0x0009,
+        _SC_NGROUPS_MAX         = 0x000a,
+        _SC_OPEN_MAX            = 0x000b,
+        _SC_PASS_MAX            = 0x000c,
+        _SC_2_C_BIND            = 0x000d,
+        _SC_2_C_DEV             = 0x000e,
+        _SC_2_C_VERSION         = 0x000f,
+        _SC_2_CHAR_TERM         = 0x0010,
+        _SC_2_FORT_DEV          = 0x0011,
+        _SC_2_FORT_RUN          = 0x0012,
+        _SC_2_LOCALEDEF         = 0x0013,
+        _SC_2_SW_DEV            = 0x0014,
+        _SC_2_UPE               = 0x0015,
+        _SC_2_VERSION           = 0x0016,
+        _SC_JOB_CONTROL         = 0x0017,
+        _SC_SAVED_IDS           = 0x0018,
+        _SC_VERSION             = 0x0019,
+        _SC_RE_DUP_MAX          = 0x001a,
+        _SC_STREAM_MAX          = 0x001b,
+        _SC_TZNAME_MAX          = 0x001c,
+        _SC_XOPEN_CRYPT         = 0x001d,
+        _SC_XOPEN_ENH_I18N      = 0x001e,
+        _SC_XOPEN_SHM           = 0x001f,
+        _SC_XOPEN_VERSION       = 0x0020,
+        _SC_XOPEN_XCU_VERSION   = 0x0021,
+        _SC_XOPEN_REALTIME      = 0x0022,
+        _SC_XOPEN_REALTIME_THREADS = 0x0023,
+        _SC_XOPEN_LEGACY        = 0x0024,
+        _SC_ATEXIT_MAX          = 0x0025,
+        _SC_IOV_MAX             = 0x0026,
+        _SC_UIO_MAXIOV          = _SC_IOV_MAX,
+        _SC_PAGESIZE            = 0x0027,
+        _SC_PAGE_SIZE           = 0x0028,
+        _SC_XOPEN_UNIX          = 0x0029,
+        _SC_XBS5_ILP32_OFF32    = 0x002a,
+        _SC_XBS5_ILP32_OFFBIG   = 0x002b,
+        _SC_XBS5_LP64_OFF64     = 0x002c,
+        _SC_XBS5_LPBIG_OFFBIG   = 0x002d,
+        _SC_AIO_LISTIO_MAX      = 0x002e,
+        _SC_AIO_MAX             = 0x002f,
+        _SC_AIO_PRIO_DELTA_MAX  = 0x0030,
+        _SC_DELAYTIMER_MAX      = 0x0031,
+        _SC_MQ_OPEN_MAX         = 0x0032,
+        _SC_MQ_PRIO_MAX         = 0x0033,
+        _SC_RTSIG_MAX           = 0x0034,
+        _SC_SEM_NSEMS_MAX       = 0x0035,
+        _SC_SEM_VALUE_MAX       = 0x0036,
+        _SC_SIGQUEUE_MAX        = 0x0037,
+        _SC_TIMER_MAX           = 0x0038,
+        _SC_ASYNCHRONOUS_IO     = 0x0039,
+        _SC_FSYNC               = 0x003a,
+        _SC_MAPPED_FILES        = 0x003b,
+        _SC_MEMLOCK             = 0x003c,
+        _SC_MEMLOCK_RANGE       = 0x003d,
+        _SC_MEMORY_PROTECTION   = 0x003e,
+        _SC_MESSAGE_PASSING     = 0x003f,
+        _SC_PRIORITIZED_IO      = 0x0040,
+        _SC_PRIORITY_SCHEDULING = 0x0041,
+        _SC_REALTIME_SIGNALS    = 0x0042,
+        _SC_SEMAPHORES          = 0x0043,
+        _SC_SHARED_MEMORY_OBJECTS = 0x0044,
+        _SC_SYNCHRONIZED_IO     = 0x0045,
+        _SC_TIMERS              = 0x0046,
+        _SC_GETGR_R_SIZE_MAX    = 0x0047,
+        _SC_GETPW_R_SIZE_MAX    = 0x0048,
+        _SC_LOGIN_NAME_MAX      = 0x0049,
+        _SC_THREAD_DESTRUCTOR_ITERATIONS = 0x004a,
+        _SC_THREAD_KEYS_MAX     = 0x004b,
+        _SC_THREAD_STACK_MIN    = 0x004c,
+        _SC_THREAD_THREADS_MAX  = 0x004d,
+        _SC_TTY_NAME_MAX        = 0x004e,
+
+        _SC_THREADS                    = 0x004f,
+        _SC_THREAD_ATTR_STACKADDR      = 0x0050,
+        _SC_THREAD_ATTR_STACKSIZE      = 0x0051,
+        _SC_THREAD_PRIORITY_SCHEDULING = 0x0052,
+        _SC_THREAD_PRIO_INHERIT        = 0x0053,
+        _SC_THREAD_PRIO_PROTECT        = 0x0054,
+        _SC_THREAD_SAFE_FUNCTIONS      = 0x0055,
+
+        _SC_NPROCESSORS_CONF           = 0x0060,
+        _SC_NPROCESSORS_ONLN           = 0x0061,
+        _SC_PHYS_PAGES                 = 0x0062,
+        _SC_AVPHYS_PAGES               = 0x0063,
+        _SC_MONOTONIC_CLOCK            = 0x0064,
+
+        _SC_2_PBS               = 0x0065,
+        _SC_2_PBS_ACCOUNTING    = 0x0066,
+        _SC_2_PBS_CHECKPOINT    = 0x0067,
+        _SC_2_PBS_LOCATE        = 0x0068,
+        _SC_2_PBS_MESSAGE       = 0x0069,
+        _SC_2_PBS_TRACK         = 0x006a,
+        _SC_ADVISORY_INFO       = 0x006b,
+        _SC_BARRIERS            = 0x006c,
+        _SC_CLOCK_SELECTION     = 0x006d,
+        _SC_CPUTIME             = 0x006e,
+        _SC_HOST_NAME_MAX       = 0x006f,
+        _SC_IPV6                = 0x0070,
+        _SC_RAW_SOCKETS         = 0x0071,
+        _SC_READER_WRITER_LOCKS = 0x0072,
+        _SC_REGEXP              = 0x0073,
+        _SC_SHELL               = 0x0074,
+        _SC_SPAWN               = 0x0075,
+        _SC_SPIN_LOCKS          = 0x0076,
+        _SC_SPORADIC_SERVER     = 0x0077,
+        _SC_SS_REPL_MAX         = 0x0078,
+        _SC_SYMLOOP_MAX         = 0x0079,
+        _SC_THREAD_CPUTIME      = 0x007a,
+        _SC_THREAD_PROCESS_SHARED      = 0x007b,
+        _SC_THREAD_ROBUST_PRIO_INHERIT = 0x007c,
+        _SC_THREAD_ROBUST_PRIO_PROTECT = 0x007d,
+        _SC_THREAD_SPORADIC_SERVER     = 0x007e,
+        _SC_TIMEOUTS            = 0x007f,
+        _SC_TRACE               = 0x0080,
+        _SC_TRACE_EVENT_FILTER  = 0x0081,
+        _SC_TRACE_EVENT_NAME_MAX = 0x0082,
+        _SC_TRACE_INHERIT       = 0x0083,
+        _SC_TRACE_LOG           = 0x0084,
+        _SC_TRACE_NAME_MAX      = 0x0085,
+        _SC_TRACE_SYS_MAX       = 0x0086,
+        _SC_TRACE_USER_EVENT_MAX = 0x0087,
+        _SC_TYPED_MEMORY_OBJECTS = 0x0088,
+        _SC_V7_ILP32_OFF32      = 0x0089,
+        _SC_V7_ILP32_OFFBIG     = 0x008a,
+        _SC_V7_LP64_OFF64       = 0x008b,
+        _SC_V7_LPBIG_OFFBIG     = 0x008c,
+        _SC_XOPEN_STREAMS       = 0x008d,
+        _SC_XOPEN_UUCP          = 0x008e,
+
+        _SC_LEVEL1_ICACHE_SIZE     = 0x008f,
+        _SC_LEVEL1_ICACHE_ASSOC    = 0x0090,
+        _SC_LEVEL1_ICACHE_LINESIZE = 0x0091,
+        _SC_LEVEL1_DCACHE_SIZE     = 0x0092,
+        _SC_LEVEL1_DCACHE_ASSOC    = 0x0093,
+        _SC_LEVEL1_DCACHE_LINESIZE = 0x0094,
+        _SC_LEVEL2_CACHE_SIZE      = 0x0095,
+        _SC_LEVEL2_CACHE_ASSOC     = 0x0096,
+        _SC_LEVEL2_CACHE_LINESIZE  = 0x0097,
+        _SC_LEVEL3_CACHE_SIZE      = 0x0098,
+        _SC_LEVEL3_CACHE_ASSOC     = 0x0099,
+        _SC_LEVEL3_CACHE_LINESIZE  = 0x009a,
+        _SC_LEVEL4_CACHE_SIZE      = 0x009b,
+        _SC_LEVEL4_CACHE_ASSOC     = 0x009c,
+        _SC_LEVEL4_CACHE_LINESIZE  = 0x009d,
+    }
 }
 else version (Solaris)
 {
@@ -2007,6 +2348,10 @@ else version (NetBSD)
 {
     int fsync(int) @trusted;
 }
+else version (OpenBSD)
+{
+    int fsync(int) @trusted;
+}
 else version (DragonFlyBSD)
 {
     int fsync(int) @trusted;
@@ -2056,7 +2401,7 @@ else version (CRuntime_UClibc)
 // XOpen (XSI)
 //
 /*
-char*      crypt(in char*, in char*);
+char*      crypt(const scope char*, const scope char*);
 char*      ctermid(char*);
 void       encrypt(ref char[64], int);
 int        fchdir(int);
@@ -2064,17 +2409,17 @@ c_long     gethostid();
 pid_t      getpgid(pid_t);
 pid_t      getsid(pid_t);
 char*      getwd(char*); // LEGACY
-int        lchown(in char*, uid_t, gid_t);
+int        lchown(const scope char*, uid_t, gid_t);
 int        lockf(int, int, off_t);
 int        nice(int);
 ssize_t    pread(int, void*, size_t, off_t);
-ssize_t    pwrite(int, in void*, size_t, off_t);
+ssize_t    pwrite(int, const scope void*, size_t, off_t);
 pid_t      setpgrp();
 int        setregid(gid_t, gid_t);
 int        setreuid(uid_t, uid_t);
-void       swab(in void*, void*, ssize_t);
+void       swab(const scope void*, void*, ssize_t);
 void       sync();
-int        truncate(in char*, off_t);
+int        truncate(const scope char*, off_t);
 useconds_t ualarm(useconds_t, useconds_t);
 int        usleep(useconds_t);
 pid_t      vfork();
@@ -2082,7 +2427,7 @@ pid_t      vfork();
 
 version (CRuntime_Glibc)
 {
-    char*      crypt(in char*, in char*);
+    char*      crypt(const scope char*, const scope char*);
     char*      ctermid(char*);
     void       encrypt(ref char[64], int) @trusted;
     int        fchdir(int) @trusted;
@@ -2090,17 +2435,17 @@ version (CRuntime_Glibc)
     pid_t      getpgid(pid_t) @trusted;
     pid_t      getsid(pid_t) @trusted;
     char*      getwd(char*); // LEGACY
-    int        lchown(in char*, uid_t, gid_t);
+    int        lchown(const scope char*, uid_t, gid_t);
     //int        lockf(int, int, off_t);
     int        nice(int) @trusted;
     //ssize_t    pread(int, void*, size_t, off_t);
-    //ssize_t    pwrite(int, in void*, size_t, off_t);
+    //ssize_t    pwrite(int, const scope void*, size_t, off_t);
     pid_t      setpgrp() @trusted;
     int        setregid(gid_t, gid_t) @trusted;
     int        setreuid(uid_t, uid_t) @trusted;
-    void       swab(in void*, void*, ssize_t);
+    void       swab(const scope void*, void*, ssize_t);
     void       sync() @trusted;
-    //int        truncate(in char*, off_t);
+    //int        truncate(const scope char*, off_t);
     useconds_t ualarm(useconds_t, useconds_t) @trusted;
     int        usleep(useconds_t) @trusted;
     pid_t      vfork();
@@ -2113,18 +2458,18 @@ version (CRuntime_Glibc)
     ssize_t    pread64(int, void*, size_t, off_t);
     alias      pread64 pread;
 
-    ssize_t    pwrite64(int, in void*, size_t, off_t);
+    ssize_t    pwrite64(int, const scope void*, size_t, off_t);
     alias      pwrite64 pwrite;
 
-    int        truncate64(in char*, off_t);
+    int        truncate64(const scope char*, off_t);
     alias      truncate64 truncate;
   }
   else
   {
     int        lockf(int, int, off_t) @trusted;
     ssize_t    pread(int, void*, size_t, off_t);
-    ssize_t    pwrite(int, in void*, size_t, off_t);
-    int        truncate(in char*, off_t);
+    ssize_t    pwrite(int, const scope void*, size_t, off_t);
+    int        truncate(const scope char*, off_t);
   }
 }
 else version (CRuntime_Musl)
@@ -2135,7 +2480,7 @@ else version (CRuntime_Musl)
 }
 else version (Darwin)
 {
-    char*      crypt(in char*, in char*);
+    char*      crypt(const scope char*, const scope char*);
     char*      ctermid(char*);
     void       encrypt(ref char[64], int) @trusted;
     int        fchdir(int) @trusted;
@@ -2143,24 +2488,24 @@ else version (Darwin)
     pid_t      getpgid(pid_t) @trusted;
     pid_t      getsid(pid_t) @trusted;
     char*      getwd(char*); // LEGACY
-    int        lchown(in char*, uid_t, gid_t);
+    int        lchown(const scope char*, uid_t, gid_t);
     int        lockf(int, int, off_t) @trusted;
     int        nice(int) @trusted;
     ssize_t    pread(int, void*, size_t, off_t);
-    ssize_t    pwrite(int, in void*, size_t, off_t);
+    ssize_t    pwrite(int, const scope void*, size_t, off_t);
     pid_t      setpgrp() @trusted;
     int        setregid(gid_t, gid_t) @trusted;
     int        setreuid(uid_t, uid_t) @trusted;
-    void       swab(in void*, void*, ssize_t);
+    void       swab(const scope void*, void*, ssize_t);
     void       sync() @trusted;
-    int        truncate(in char*, off_t);
+    int        truncate(const scope char*, off_t);
     useconds_t ualarm(useconds_t, useconds_t) @trusted;
     int        usleep(useconds_t) @trusted;
     pid_t      vfork();
 }
 else version (FreeBSD)
 {
-    char*      crypt(in char*, in char*);
+    char*      crypt(const scope char*, const scope char*);
     //char*      ctermid(char*);
     void       encrypt(ref char[64], int) @trusted;
     int        fchdir(int) @trusted;
@@ -2168,24 +2513,24 @@ else version (FreeBSD)
     int        getpgid(pid_t) @trusted;
     int        getsid(pid_t) @trusted;
     char*      getwd(char*); // LEGACY
-    int        lchown(in char*, uid_t, gid_t);
+    int        lchown(const scope char*, uid_t, gid_t);
     int        lockf(int, int, off_t) @trusted;
     int        nice(int) @trusted;
     ssize_t    pread(int, void*, size_t, off_t);
-    ssize_t    pwrite(int, in void*, size_t, off_t);
+    ssize_t    pwrite(int, const scope void*, size_t, off_t);
     int        setpgrp(pid_t, pid_t) @trusted;
     int        setregid(gid_t, gid_t) @trusted;
     int        setreuid(uid_t, uid_t) @trusted;
-    void       swab(in void*, void*, ssize_t);
+    void       swab(const scope void*, void*, ssize_t);
     void       sync() @trusted;
-    int        truncate(in char*, off_t);
+    int        truncate(const scope char*, off_t);
     useconds_t ualarm(useconds_t, useconds_t) @trusted;
     int        usleep(useconds_t) @trusted;
     pid_t      vfork();
 }
 else version (NetBSD)
 {
-    char*      crypt(in char*, in char*);
+    char*      crypt(const scope char*, const scope char*);
     //char*      ctermid(char*);
     void       encrypt(ref char[64], int) @trusted;
     int        fchdir(int) @trusted;
@@ -2193,24 +2538,49 @@ else version (NetBSD)
     int        getpgid(pid_t) @trusted;
     int        getsid(pid_t) @trusted;
     char*      getwd(char*); // LEGACY
-    int        lchown(in char*, uid_t, gid_t);
+    int        lchown(const scope char*, uid_t, gid_t);
     int        lockf(int, int, off_t) @trusted;
     int        nice(int) @trusted;
     ssize_t    pread(int, void*, size_t, off_t);
-    ssize_t    pwrite(int, in void*, size_t, off_t);
+    ssize_t    pwrite(int, const scope void*, size_t, off_t);
     int        setpgrp(pid_t, pid_t) @trusted;
     int        setregid(gid_t, gid_t) @trusted;
     int        setreuid(uid_t, uid_t) @trusted;
-    void       swab(in void*, void*, ssize_t);
+    void       swab(const scope void*, void*, ssize_t);
     void       sync() @trusted;
-    int        truncate(in char*, off_t);
+    int        truncate(const scope char*, off_t);
+    useconds_t ualarm(useconds_t, useconds_t) @trusted;
+    int        usleep(useconds_t) @trusted;
+    pid_t      vfork();
+}
+else version (OpenBSD)
+{
+    char*      crypt(const scope char*, const scope char*);
+    //char*      ctermid(char*);
+    //void       encrypt(ref char[64], int) @trusted;
+    int        fchdir(int) @trusted;
+    c_long     gethostid() @trusted;
+    pid_t      getpgid(pid_t) @trusted;
+    pid_t      getsid(pid_t) @trusted;
+    char*      getwd(char*);
+    int        lchown(const scope char*, uid_t, gid_t);
+    int        lockf(int, int, off_t) @trusted;
+    int        nice(int) @trusted;
+    ssize_t    pread(int, void*, size_t, off_t);
+    ssize_t    pwrite(int, const scope void*, size_t, off_t);
+    int        setpgrp(pid_t, pid_t) @trusted;
+    int        setregid(gid_t, gid_t) @trusted;
+    int        setreuid(uid_t, uid_t) @trusted;
+    void       swab(const scope void*, void*, ssize_t);
+    void       sync() @trusted;
+    int        truncate(const scope char*, off_t);
     useconds_t ualarm(useconds_t, useconds_t) @trusted;
     int        usleep(useconds_t) @trusted;
     pid_t      vfork();
 }
 else version (DragonFlyBSD)
 {
-    char*      crypt(in char*, in char*);
+    char*      crypt(const scope char*, const scope char*);
     //char*      ctermid(char*);
     void       encrypt(ref char[64], int) @trusted;
     int        fchdir(int) @trusted;
@@ -2218,17 +2588,17 @@ else version (DragonFlyBSD)
     int        getpgid(pid_t) @trusted;
     int        getsid(pid_t) @trusted;
     char*      getwd(char*); // LEGACY
-    int        lchown(in char*, uid_t, gid_t);
+    int        lchown(const scope char*, uid_t, gid_t);
     int        lockf(int, int, off_t) @trusted;
     int        nice(int) @trusted;
     ssize_t    pread(int, void*, size_t, off_t);
-    ssize_t    pwrite(int, in void*, size_t, off_t);
+    ssize_t    pwrite(int, const scope void*, size_t, off_t);
     int        setpgrp(pid_t, pid_t) @trusted;
     int        setregid(gid_t, gid_t) @trusted;
     int        setreuid(uid_t, uid_t) @trusted;
-    void       swab(in void*, void*, ssize_t);
+    void       swab(const scope void*, void*, ssize_t);
     void       sync() @trusted;
-    int        truncate(in char*, off_t);
+    int        truncate(const scope char*, off_t);
     useconds_t ualarm(useconds_t, useconds_t) @trusted;
     int        usleep(useconds_t) @trusted;
     pid_t      vfork();
@@ -2237,21 +2607,21 @@ else version (CRuntime_Bionic)
 {
     int        fchdir(int) @trusted;
     pid_t      getpgid(pid_t) @trusted;
-    int        lchown(in char*, uid_t, gid_t);
+    int        lchown(const scope char*, uid_t, gid_t);
     int        nice(int) @trusted;
     ssize_t    pread(int, void*, size_t, off_t);
-    ssize_t    pwrite(int, in void*, size_t, off_t);
+    ssize_t    pwrite(int, const scope void*, size_t, off_t);
     int        setpgrp() @trusted;
     int        setregid(gid_t, gid_t) @trusted;
     int        setreuid(uid_t, uid_t) @trusted;
     int        sync() @trusted;
-    int        truncate(in char*, off_t);
+    int        truncate(const scope char*, off_t);
     int        usleep(c_ulong) @trusted;
     pid_t      vfork();
 }
 else version (Solaris)
 {
-    char*      crypt(in char*, in char*);
+    char*      crypt(const scope char*, const scope char*);
     char*      ctermid(char*);
     void       encrypt(ref char[64], int);
     int        fchdir(int);
@@ -2259,12 +2629,12 @@ else version (Solaris)
     pid_t      getpgid(pid_t);
     pid_t      getsid(pid_t);
     char*      getwd(char*); // LEGACY
-    int        lchown(in char*, uid_t, gid_t);
+    int        lchown(const scope char*, uid_t, gid_t);
     int        nice(int);
     pid_t      setpgrp();
     int        setregid(gid_t, gid_t);
     int        setreuid(uid_t, uid_t);
-    void       swab(in void*, void*, ssize_t);
+    void       swab(const scope void*, void*, ssize_t);
     void       sync();
     useconds_t ualarm(useconds_t, useconds_t);
     int        usleep(useconds_t);
@@ -2278,10 +2648,10 @@ else version (Solaris)
         ssize_t     pread(int, void*, size_t, off_t);
         alias       pread pread64;
 
-        ssize_t     pwrite(int, in void*, size_t, off_t);
+        ssize_t     pwrite(int, const scope void*, size_t, off_t);
         alias       pwrite pwrite64;
 
-        int         truncate(in char*, off_t);
+        int         truncate(const scope char*, off_t);
         alias       truncate truncate64;
     }
     else
@@ -2294,24 +2664,24 @@ else version (Solaris)
             ssize_t    pread64(int, void*, size_t, off64_t);
             alias      pread64 pread;
 
-            ssize_t    pwrite64(int, in void*, size_t, off_t);
+            ssize_t    pwrite64(int, const scope void*, size_t, off_t);
             alias      pwrite64 pwrite;
 
-            int        truncate64(in char*, off_t);
+            int        truncate64(const scope char*, off_t);
             alias      truncate64 truncate;
         }
         else
         {
             int        lockf(int, int, off_t);
             ssize_t    pread(int, void*, size_t, off_t);
-            ssize_t    pwrite(int, in void*, size_t, off_t);
-            int        truncate(in char*, off_t);
+            ssize_t    pwrite(int, const scope void*, size_t, off_t);
+            int        truncate(const scope char*, off_t);
         }
     }
 }
 else version (CRuntime_UClibc)
 {
-    char*      crypt(in char*, in char*);
+    char*      crypt(const scope char*, const scope char*);
     char*      ctermid(char*);
     void       encrypt(ref char[64], int) @trusted;
     int        fchdir(int) @trusted;
@@ -2319,12 +2689,12 @@ else version (CRuntime_UClibc)
     pid_t      getpgid(pid_t) @trusted;
     pid_t      getsid(pid_t) @trusted;
     char*      getwd(char*); // LEGACY
-    int        lchown(in char*, uid_t, gid_t);
+    int        lchown(const scope char*, uid_t, gid_t);
     int        nice(int) @trusted;
     pid_t      setpgrp() @trusted;
     int        setregid(gid_t, gid_t) @trusted;
     int        setreuid(uid_t, uid_t) @trusted;
-    void       swab(in void*, void*, ssize_t);
+    void       swab(const scope void*, void*, ssize_t);
     void       sync() @trusted;
     useconds_t ualarm(useconds_t, useconds_t) @trusted;
     int        usleep(useconds_t) @trusted;
@@ -2338,17 +2708,65 @@ else version (CRuntime_UClibc)
     ssize_t    pread64(int, void*, size_t, off_t);
     alias      pread64 pread;
 
-    ssize_t    pwrite64(int, in void*, size_t, off_t);
+    ssize_t    pwrite64(int, const scope void*, size_t, off_t);
     alias      pwrite64 pwrite;
 
-    int        truncate64(in char*, off_t);
+    int        truncate64(const scope char*, off_t);
     alias      truncate64 truncate;
   }
   else
   {
     int        lockf(int, int, off_t) @trusted;
     ssize_t    pread(int, void*, size_t, off_t);
-    ssize_t    pwrite(int, in void*, size_t, off_t);
-    int        truncate(in char*, off_t);
+    ssize_t    pwrite(int, const scope void*, size_t, off_t);
+    int        truncate(const scope char*, off_t);
   }
+}
+
+// Non-standard definition to access user process environment
+version (CRuntime_Glibc)
+{
+    extern __gshared const char** environ;
+}
+else version (Darwin)
+{
+    extern (D) @property const(char**) environ()()
+    {
+        pragma (inline, true);
+        import core.sys.darwin.crt_externs : _NSGetEnviron;
+        return *_NSGetEnviron();
+    }
+}
+else version (FreeBSD)
+{
+    extern __gshared const char** environ;
+}
+else version (NetBSD)
+{
+    extern __gshared const char** environ;
+}
+else version (OpenBSD)
+{
+    extern __gshared const char** environ;
+}
+else version (DragonFlyBSD)
+{
+    extern __gshared const char** environ;
+}
+else version (CRuntime_Bionic)
+{
+    extern __gshared const char** environ;
+}
+else version (CRuntime_Musl)
+{
+    extern __gshared const char** environ;
+}
+else version (Solaris)
+{
+    extern __gshared const char** environ;
+}
+else version (CRuntime_UClibc)
+{
+    extern __gshared const char** __environ;
+    alias environ = __environ;
 }

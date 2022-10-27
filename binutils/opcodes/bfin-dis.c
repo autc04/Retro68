@@ -1,5 +1,5 @@
 /* Disassemble ADI Blackfin Instructions.
-   Copyright (C) 2005-2018 Free Software Foundation, Inc.
+   Copyright (C) 2005-2022 Free Software Foundation, Inc.
 
    This file is part of libopcodes.
 
@@ -33,10 +33,9 @@
 
 typedef long TIword;
 
-#define HOST_LONG_WORD_SIZE (sizeof (long) * 8)
-#define XFIELD(w,p,s)       (((w) & ((1 << (s)) - 1) << (p)) >> (p))
-#define SIGNEXTEND(v, n)    ((v << (HOST_LONG_WORD_SIZE - (n))) >> (HOST_LONG_WORD_SIZE - (n)))
-#define MASKBITS(val, bits) (val & ((1 << bits) - 1))
+#define SIGNBIT(bits)       (1ul << ((bits) - 1))
+#define MASKBITS(val, bits) ((val) & ((SIGNBIT (bits) << 1) - 1))
+#define SIGNEXTEND(v, n)    ((MASKBITS (v, n) ^ SIGNBIT (n)) - SIGNBIT (n))
 
 #include "disassemble.h"
 
@@ -45,7 +44,7 @@ typedef unsigned int bu32;
 struct private
 {
   TIword iw0;
-  bfd_boolean comment, parallel;
+  bool comment, parallel;
 };
 
 typedef enum
@@ -125,8 +124,12 @@ fmtconst (const_forms_t cf, TIword x, bfd_vma pc, disassemble_info *outf)
 
   if (constant_formats[cf].reloc)
     {
-      bfd_vma ea = (((constant_formats[cf].pcrel ? SIGNEXTEND (x, constant_formats[cf].nbits)
-		      : x) + constant_formats[cf].offset) << constant_formats[cf].scale);
+      bfd_vma ea;
+
+      if (constant_formats[cf].pcrel)
+	x = SIGNEXTEND (x, constant_formats[cf].nbits);
+      ea = x + constant_formats[cf].offset;
+      ea = ea << constant_formats[cf].scale;
       if (constant_formats[cf].pcrel)
 	ea += pc;
 
@@ -150,17 +153,14 @@ fmtconst (const_forms_t cf, TIword x, bfd_vma pc, disassemble_info *outf)
     {
       int nb = constant_formats[cf].nbits + 1;
 
-      x = x | (1 << constant_formats[cf].nbits);
+      x = x | (1ul << constant_formats[cf].nbits);
       x = SIGNEXTEND (x, nb);
     }
-  else
-    x = constant_formats[cf].issigned ? SIGNEXTEND (x, constant_formats[cf].nbits) : x;
+  else if (constant_formats[cf].issigned)
+    x = SIGNEXTEND (x, constant_formats[cf].nbits);
 
-  if (constant_formats[cf].offset)
-    x += constant_formats[cf].offset;
-
-  if (constant_formats[cf].scale)
-    x <<= constant_formats[cf].scale;
+  x += constant_formats[cf].offset;
+  x = (unsigned long) x << constant_formats[cf].scale;
 
   if (constant_formats[cf].decimal)
     sprintf (buf, "%*li", constant_formats[cf].leading, x);
@@ -180,10 +180,12 @@ fmtconst_val (const_forms_t cf, unsigned int x, unsigned int pc)
 {
   if (0 && constant_formats[cf].reloc)
     {
-      bu32 ea = (((constant_formats[cf].pcrel
-		   ? SIGNEXTEND (x, constant_formats[cf].nbits)
-		   : x) + constant_formats[cf].offset)
-		 << constant_formats[cf].scale);
+      bu32 ea;
+
+      if (constant_formats[cf].pcrel)
+	x = SIGNEXTEND (x, constant_formats[cf].nbits);
+      ea = x + constant_formats[cf].offset;
+      ea = ea << constant_formats[cf].scale;
       if (constant_formats[cf].pcrel)
 	ea += pc;
 
@@ -194,7 +196,7 @@ fmtconst_val (const_forms_t cf, unsigned int x, unsigned int pc)
   if (constant_formats[cf].negative)
     {
       int nb = constant_formats[cf].nbits + 1;
-      x = x | (1 << constant_formats[cf].nbits);
+      x = x | (1ul << constant_formats[cf].nbits);
       x = SIGNEXTEND (x, nb);
     }
   else if (constant_formats[cf].issigned)
@@ -1569,7 +1571,7 @@ decode_LOGI2op_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, ");\t\t/* bit");
       OUTS (outf, imm7d (src));
       OUTS (outf, " */");
-      priv->comment = TRUE;
+      priv->comment = true;
     }
   else if (opc == 1)
     {
@@ -1580,7 +1582,7 @@ decode_LOGI2op_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, ");\t\t/* bit");
       OUTS (outf, imm7d (src));
       OUTS (outf, " */");
-      priv->comment = TRUE;
+      priv->comment = true;
     }
   else if (opc == 2)
     {
@@ -1591,7 +1593,7 @@ decode_LOGI2op_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, ");\t\t/* bit");
       OUTS (outf, imm7d (src));
       OUTS (outf, " */");
-      priv->comment = TRUE;
+      priv->comment = true;
     }
   else if (opc == 3)
     {
@@ -1602,7 +1604,7 @@ decode_LOGI2op_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, ");\t\t/* bit");
       OUTS (outf, imm7d (src));
       OUTS (outf, " */");
-      priv->comment = TRUE;
+      priv->comment = true;
     }
   else if (opc == 4)
     {
@@ -1613,7 +1615,7 @@ decode_LOGI2op_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, ");\t\t/* bit");
       OUTS (outf, imm7d (src));
       OUTS (outf, " */");
-      priv->comment = TRUE;
+      priv->comment = true;
     }
   else if (opc == 5)
     {
@@ -1771,7 +1773,7 @@ decode_COMPI2opD_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, "(");
       OUTS (outf, imm32 (*pval));
       OUTS (outf, ") */");
-      priv->comment = TRUE;
+      priv->comment = true;
     }
   else if (op == 1)
     {
@@ -1781,7 +1783,7 @@ decode_COMPI2opD_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, ";\t\t/* (");
       OUTS (outf, imm7d (src));
       OUTS (outf, ") */");
-      priv->comment = TRUE;
+      priv->comment = true;
     }
   else
     return 0;
@@ -1827,7 +1829,7 @@ decode_COMPI2opP_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, "(");
       OUTS (outf, imm32 (*pval));
       OUTS (outf, ") */");
-      priv->comment = TRUE;
+      priv->comment = true;
     }
   else if (op == 1)
     {
@@ -1837,7 +1839,7 @@ decode_COMPI2opP_0 (TIword iw0, disassemble_info *outf)
       OUTS (outf, ";\t\t/* (");
       OUTS (outf, imm7d (src));
       OUTS (outf, ") */");
-      priv->comment = TRUE;
+      priv->comment = true;
     }
   else
     return 0;
@@ -2043,7 +2045,7 @@ decode_dagMODik_0 (TIword iw0, disassemble_info *outf)
       else if (op == 2 || op == 3)
 	OUTS (outf, "4");
       OUTS (outf, ") */");
-      priv->comment = TRUE;
+      priv->comment = true;
     }
 
   return 2;
@@ -2743,7 +2745,7 @@ decode_LDIMMhalf_0 (TIword iw0, TIword iw1, disassemble_info *outf)
 	}
 
       OUTS (outf, " */");
-      priv->comment = TRUE;
+      priv->comment = true;
     }
   if (S == 1 || Z == 1)
     {
@@ -2754,7 +2756,7 @@ decode_LDIMMhalf_0 (TIword iw0, TIword iw1, disassemble_info *outf)
       OUTS (outf, "(");
       OUTS (outf, imm32 (*pval));
       OUTS (outf, ") */");
-      priv->comment = TRUE;
+      priv->comment = true;
     }
   return 4;
 }
@@ -2919,7 +2921,7 @@ decode_linkage_0 (TIword iw0, TIword iw1, disassemble_info *outf)
       OUTS (outf, ";\t\t/* (");
       OUTS (outf, uimm16s4d (framesize));
       OUTS (outf, ") */");
-      priv->comment = TRUE;
+      priv->comment = true;
     }
   else if (R == 1)
     OUTS (outf, "UNLINK");
@@ -4771,8 +4773,8 @@ print_insn_bfin (bfd_vma pc, disassemble_info *outf)
   struct private priv;
   int count;
 
-  priv.parallel = FALSE;
-  priv.comment = FALSE;
+  priv.parallel = false;
+  priv.comment = false;
   outf->private_data = &priv;
 
   count = _print_insn_bfin (pc, outf);
@@ -4784,29 +4786,29 @@ print_insn_bfin (bfd_vma pc, disassemble_info *outf)
   if (count == 4 && (priv.iw0 & 0xc000) == 0xc000 && (priv.iw0 & BIT_MULTI_INS)
       && ((priv.iw0 & 0xe800) != 0xe800 /* Not Linkage.  */ ))
     {
-      bfd_boolean legal = TRUE;
+      bool legal = true;
       int len;
 
-      priv.parallel = TRUE;
+      priv.parallel = true;
       OUTS (outf, " || ");
       len = _print_insn_bfin (pc + 4, outf);
       if (len == -1)
 	return -1;
       OUTS (outf, " || ");
       if (len != 2)
-	legal = FALSE;
+	legal = false;
       len = _print_insn_bfin (pc + 6, outf);
       if (len == -1)
 	return -1;
       if (len != 2)
-	legal = FALSE;
+	legal = false;
 
       if (legal)
 	count = 8;
       else
 	{
 	  OUTS (outf, ";\t\t/* ILLEGAL PARALLEL INSTRUCTION */");
-	  priv.comment = TRUE;
+	  priv.comment = true;
 	  count = 0;
 	}
     }

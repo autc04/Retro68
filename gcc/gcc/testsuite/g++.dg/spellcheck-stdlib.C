@@ -138,6 +138,53 @@ void test_cstdlib (void *q)
   // { dg-message "'#include <cstdlib>'" "" { target *-*-* } .-1 }
   q = realloc (q, 1024); // { dg-error "was not declared" }
   // { dg-message "'#include <cstdlib>'" "" { target *-*-* } .-1 }
+  q = calloc (8, 8); // { dg-error "was not declared" }
+  // { dg-message "'#include <cstdlib>'" "" { target *-*-* } .-1 }
+
+  void callback ();
+  atexit (callback); // { dg-error "was not declared" }
+  // { dg-message "'#include <cstdlib>'" "" { target *-*-* } .-1 }
+  int i;
+  i = EXIT_SUCCESS; // { dg-error "was not declared" }
+  // { dg-message "'#include <cstdlib>'" "" { target *-*-* } .-1 }
+  i = EXIT_FAILURE; // { dg-error "was not declared" }
+  // { dg-message "'#include <cstdlib>'" "" { target *-*-* } .-1 }
+  exit (i); // { dg-error "was not declared" }
+  // { dg-message "'#include <cstdlib>'" "" { target *-*-* } .-1 }
+  abort (); // { dg-error "was not declared" }
+  // { dg-message "'#include <cstdlib>'" "" { target *-*-* } .-1 }
+
+  getenv ("foo"); // { dg-error "was not declared" }
+  // { dg-message "'#include <cstdlib>'" "" { target *-*-* } .-1 }
+}
+
+/* Missing <ctime>.  */
+
+void test_ctime (void *q, long s, double d)
+{
+  clock_t c; // { dg-error "was not declared" }
+  // { dg-message "'#include <ctime>'" "" { target *-*-* } .-1 }
+  time_t t; // { dg-error "was not declared" }
+  // { dg-message "'#include <ctime>'" "" { target *-*-* } .-1 }
+  tm t2; // { dg-error "was not declared" }
+  // { dg-message "'#include <ctime>'" "" { target *-*-* } .-1 }
+  d = difftime (0, 0); // { dg-error "was not declared" }
+  // { dg-message "'#include <ctime>'" "" { target *-*-* } .-1 }
+  s = mktime (q); // { dg-error "was not declared" }
+  // { dg-message "'#include <ctime>'" "" { target *-*-* } .-1 }
+  s = time (0); // { dg-error "was not declared" }
+  // { dg-message "'#include <ctime>'" "" { target *-*-* } .-1 }
+  q = asctime (0); // { dg-error "was not declared" }
+  // { dg-message "'#include <ctime>'" "" { target *-*-* } .-1 }
+  q = ctime (0); // { dg-error "was not declared" }
+  // { dg-message "'#include <ctime>'" "" { target *-*-* } .-1 }
+  q = gmtime (0); // { dg-error "was not declared" }
+  // { dg-message "'#include <ctime>'" "" { target *-*-* } .-1 }
+  q = localtime (0); // { dg-error "was not declared" }
+  // { dg-message "'#include <ctime>'" "" { target *-*-* } .-1 }
+  char c[2];
+  strftime (c, 2, "", 0); // { dg-error "was not declared" }
+  // { dg-message "'#include <ctime>'" "" { target *-*-* } .-1 }
 }
 
 /* Verify that we don't offer suggestions to stdlib globals names when

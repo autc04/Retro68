@@ -10,20 +10,23 @@ import (
 	"bufio"
 	"bytes"
 	"container/heap"
+	"context"
 	"debug/elf"
 	"encoding/json"
 	"fmt"
 	"internal/xcoff"
-	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/trace"
 	"cmd/internal/buildid"
 )
 
@@ -35,12 +38,12 @@ type Builder struct {
 	actionCache map[cacheKey]*Action // a cache of already-constructed actions
 	mkdirCache  map[string]bool      // a cache of created directories
 	flagCache   map[[2]string]bool   // a cache of supported compiler flags
-	Print       func(args ...interface{}) (int, error)
+	Print       func(args ...any) (int, error)
 
 	IsCmdList           bool // running as part of go list; set p.Stale and additional fields below
 	NeedError           bool // list needs p.Error
 	NeedExport          bool // list needs p.Export
-	NeedCompiledGoFiles bool // list needs p.CompiledGoFIles
+	NeedCompiledGoFiles bool // list needs p.CompiledGoFiles
 
 	objdirSeq int // counter for NewObjdir
 	pkgSeq    int
@@ -62,13 +65,13 @@ type Builder struct {
 
 // An Action represents a single action in the action graph.
 type Action struct {
-	Mode       string                        // description of action operation
-	Package    *load.Package                 // the package this action works on
-	Deps       []*Action                     // actions that must happen before this one
-	Func       func(*Builder, *Action) error // the action itself (nil = no-op)
-	IgnoreFail bool                          // whether to run f even if dependencies fail
-	TestOutput *bytes.Buffer                 // test output buffer
-	Args       []string                      // additional args for runProgram
+	Mode       string                                         // description of action operation
+	Package    *load.Package                                  // the package this action works on
+	Deps       []*Action                                      // actions that must happen before this one
+	Func       func(*Builder, context.Context, *Action) error // the action itself (nil = no-op)
+	IgnoreFail bool                                           // whether to run f even if dependencies fail
+	TestOutput *bytes.Buffer                                  // test output buffer
+	Args       []string                                       // additional args for runProgram
 
 	triggers []*Action // inverse of deps
 
@@ -83,15 +86,19 @@ type Action struct {
 	actionID cache.ActionID // cache ID of action input
 	buildID  string         // build ID of action output
 
-	VetxOnly bool       // Mode=="vet": only being called to supply info about dependencies
-	needVet  bool       // Mode=="build": need to fill in vet config
-	vetCfg   *vetConfig // vet config
-	output   []byte     // output redirect buffer (nil means use b.Print)
+	VetxOnly  bool       // Mode=="vet": only being called to supply info about dependencies
+	needVet   bool       // Mode=="build": need to fill in vet config
+	needBuild bool       // Mode=="build": need to do actual build (can be false if needVet is true)
+	vetCfg    *vetConfig // vet config
+	output    []byte     // output redirect buffer (nil means use b.Print)
 
 	// Execution state.
-	pending  int  // number of deps yet to complete
-	priority int  // relative execution priority
-	Failed   bool // whether the action failed
+	pending      int               // number of deps yet to complete
+	priority     int               // relative execution priority
+	Failed       bool              // whether the action failed
+	json         *actionJSON       // action graph information
+	nonGoOverlay map[string]string // map from non-.go source files to copied files in objdir. Nil if no overlay is used.
+	traceSpan    *trace.Span
 }
 
 // BuildActionID returns the action ID section of a's build ID.
@@ -114,8 +121,8 @@ type actionQueue []*Action
 func (q *actionQueue) Len() int           { return len(*q) }
 func (q *actionQueue) Swap(i, j int)      { (*q)[i], (*q)[j] = (*q)[j], (*q)[i] }
 func (q *actionQueue) Less(i, j int) bool { return (*q)[i].priority < (*q)[j].priority }
-func (q *actionQueue) Push(x interface{}) { *q = append(*q, x.(*Action)) }
-func (q *actionQueue) Pop() interface{} {
+func (q *actionQueue) Push(x any)         { *q = append(*q, x.(*Action)) }
+func (q *actionQueue) Pop() any {
 	n := len(*q) - 1
 	x := (*q)[n]
 	*q = (*q)[:n]
@@ -123,6 +130,9 @@ func (q *actionQueue) Pop() interface{} {
 }
 
 func (q *actionQueue) push(a *Action) {
+	if a.json != nil {
+		a.json.TimeReady = time.Now()
+	}
 	heap.Push(q, a)
 }
 
@@ -134,16 +144,28 @@ type actionJSON struct {
 	ID         int
 	Mode       string
 	Package    string
-	Deps       []int    `json:",omitempty"`
-	IgnoreFail bool     `json:",omitempty"`
-	Args       []string `json:",omitempty"`
-	Link       bool     `json:",omitempty"`
-	Objdir     string   `json:",omitempty"`
-	Target     string   `json:",omitempty"`
-	Priority   int      `json:",omitempty"`
-	Failed     bool     `json:",omitempty"`
-	Built      string   `json:",omitempty"`
-	VetxOnly   bool     `json:",omitempty"`
+	Deps       []int     `json:",omitempty"`
+	IgnoreFail bool      `json:",omitempty"`
+	Args       []string  `json:",omitempty"`
+	Link       bool      `json:",omitempty"`
+	Objdir     string    `json:",omitempty"`
+	Target     string    `json:",omitempty"`
+	Priority   int       `json:",omitempty"`
+	Failed     bool      `json:",omitempty"`
+	Built      string    `json:",omitempty"`
+	VetxOnly   bool      `json:",omitempty"`
+	NeedVet    bool      `json:",omitempty"`
+	NeedBuild  bool      `json:",omitempty"`
+	ActionID   string    `json:",omitempty"`
+	BuildID    string    `json:",omitempty"`
+	TimeReady  time.Time `json:",omitempty"`
+	TimeStart  time.Time `json:",omitempty"`
+	TimeDone   time.Time `json:",omitempty"`
+
+	Cmd     []string      // `json:",omitempty"`
+	CmdReal time.Duration `json:",omitempty"`
+	CmdUser time.Duration `json:",omitempty"`
+	CmdSys  time.Duration `json:",omitempty"`
 }
 
 // cacheKey is the key for the action cache.
@@ -173,26 +195,30 @@ func actionGraphJSON(a *Action) string {
 
 	var list []*actionJSON
 	for id, a := range workq {
-		aj := &actionJSON{
-			Mode:       a.Mode,
-			ID:         id,
-			IgnoreFail: a.IgnoreFail,
-			Args:       a.Args,
-			Objdir:     a.Objdir,
-			Target:     a.Target,
-			Failed:     a.Failed,
-			Priority:   a.priority,
-			Built:      a.built,
-			VetxOnly:   a.VetxOnly,
+		if a.json == nil {
+			a.json = &actionJSON{
+				Mode:       a.Mode,
+				ID:         id,
+				IgnoreFail: a.IgnoreFail,
+				Args:       a.Args,
+				Objdir:     a.Objdir,
+				Target:     a.Target,
+				Failed:     a.Failed,
+				Priority:   a.priority,
+				Built:      a.built,
+				VetxOnly:   a.VetxOnly,
+				NeedBuild:  a.needBuild,
+				NeedVet:    a.needVet,
+			}
+			if a.Package != nil {
+				// TODO(rsc): Make this a unique key for a.Package somehow.
+				a.json.Package = a.Package.ImportPath
+			}
+			for _, a1 := range a.Deps {
+				a.json.Deps = append(a.json.Deps, inWorkq[a1])
+			}
 		}
-		if a.Package != nil {
-			// TODO(rsc): Make this a unique key for a.Package somehow.
-			aj.Package = a.Package.ImportPath
-		}
-		for _, a1 := range a.Deps {
-			aj.Deps = append(aj.Deps, inWorkq[a1])
-		}
-		list = append(list, aj)
+		list = append(list, a.json)
 	}
 
 	js, err := json.MarshalIndent(list, "", "\t")
@@ -211,10 +237,12 @@ const (
 	ModeBuild BuildMode = iota
 	ModeInstall
 	ModeBuggyInstall
+
+	ModeVetOnly = 1 << 8
 )
 
 func (b *Builder) Init() {
-	b.Print = func(a ...interface{}) (int, error) {
+	b.Print = func(a ...any) (int, error) {
 		return fmt.Fprint(os.Stderr, a...)
 	}
 	b.actionCache = make(map[cacheKey]*Action)
@@ -225,7 +253,7 @@ func (b *Builder) Init() {
 	if cfg.BuildN {
 		b.WorkDir = "$WORK"
 	} else {
-		tmp, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-build")
+		tmp, err := os.MkdirTemp(cfg.Getenv("GOTMPDIR"), "go-build")
 		if err != nil {
 			base.Fatalf("go: creating work dir: %v", err)
 		}
@@ -243,22 +271,49 @@ func (b *Builder) Init() {
 		}
 		if !cfg.BuildWork {
 			workdir := b.WorkDir
-			base.AtExit(func() { os.RemoveAll(workdir) })
+			base.AtExit(func() {
+				start := time.Now()
+				for {
+					err := os.RemoveAll(workdir)
+					if err == nil {
+						return
+					}
+
+					// On some configurations of Windows, directories containing executable
+					// files may be locked for a while after the executable exits (perhaps
+					// due to antivirus scans?). It's probably worth a little extra latency
+					// on exit to avoid filling up the user's temporary directory with leaked
+					// files. (See golang.org/issue/30789.)
+					if runtime.GOOS != "windows" || time.Since(start) >= 500*time.Millisecond {
+						fmt.Fprintf(os.Stderr, "go: failed to remove work dir: %s\n", err)
+						return
+					}
+					time.Sleep(5 * time.Millisecond)
+				}
+			})
 		}
 	}
 
-	if _, ok := cfg.OSArchSupportsCgo[cfg.Goos+"/"+cfg.Goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
-		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", cfg.Goos, cfg.Goarch)
+	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
+		fmt.Fprintf(os.Stderr, "go: %v\n", err)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
+
 	for _, tag := range cfg.BuildContext.BuildTags {
 		if strings.Contains(tag, ",") {
-			fmt.Fprintf(os.Stderr, "cmd/go: -tags space-separated list contains comma\n")
+			fmt.Fprintf(os.Stderr, "go: -tags space-separated list contains comma\n")
 			base.SetExitStatus(2)
 			base.Exit()
 		}
 	}
+}
+
+func CheckGOOSARCHPair(goos, goarch string) error {
+	if _, ok := cfg.OSArchSupportsCgo[goos+"/"+goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
+		return fmt.Errorf("unsupported GOOS/GOARCH pair %s/%s", goos, goarch)
+	}
+	return nil
 }
 
 // NewObjdir returns the name of a fresh object directory under b.WorkDir.
@@ -294,7 +349,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 			if strings.HasPrefix(t, "pkgpath ") {
 				t = strings.TrimPrefix(t, "pkgpath ")
 				t = strings.TrimSuffix(t, ";")
-				pkgs = append(pkgs, load.LoadPackage(t, &stk))
+				pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd(), nil, &stk, nil, 0))
 			}
 		}
 	} else {
@@ -305,7 +360,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 		scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
 		for scanner.Scan() {
 			t := scanner.Text()
-			pkgs = append(pkgs, load.LoadPackage(t, &stk))
+			pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd(), nil, &stk, nil, 0))
 		}
 	}
 	return
@@ -338,6 +393,9 @@ func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
 // depMode is the action (build or install) to use when building dependencies.
 // To turn package main into an executable, call b.Link instead.
 func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Action {
+	vetOnly := mode&ModeVetOnly != 0
+	mode &^= ModeVetOnly
+
 	if mode != ModeBuild && (p.Internal.Local || p.Module != nil) && p.Target == "" {
 		// Imported via local path or using modules. No permanent target.
 		mode = ModeBuild
@@ -384,6 +442,19 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 		return a
 	})
 
+	// Find the build action; the cache entry may have been replaced
+	// by the install action during (*Builder).installAction.
+	buildAction := a
+	switch buildAction.Mode {
+	case "build", "built-in package", "gccgo stdlib":
+		// ok
+	case "build-install":
+		buildAction = a.Deps[0]
+	default:
+		panic("lost build action: " + buildAction.Mode)
+	}
+	buildAction.needBuild = buildAction.needBuild || !vetOnly
+
 	// Construct install action.
 	if mode == ModeInstall || mode == ModeBuggyInstall {
 		a = b.installAction(a, mode)
@@ -405,12 +476,12 @@ func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
 func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 	// Construct vet action.
 	a := b.cacheAction("vet", p, func() *Action {
-		a1 := b.CompileAction(mode, depMode, p)
+		a1 := b.CompileAction(mode|ModeVetOnly, depMode, p)
 
 		// vet expects to be able to import "fmt".
 		var stk load.ImportStack
 		stk.Push("vet")
-		p1 := load.LoadPackage("fmt", &stk)
+		p1 := load.LoadImportWithFlags("fmt", p.Dir, p, &stk, nil, 0)
 		stk.Pop()
 		aFmt := b.CompileAction(ModeBuild, depMode, p1)
 
@@ -424,7 +495,7 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 		} else {
 			deps = []*Action{a1, aFmt}
 		}
-		for _, p1 := range load.PackageList(p.Internal.Imports) {
+		for _, p1 := range p.Internal.Imports {
 			deps = append(deps, b.vetAction(mode, depMode, p1))
 		}
 
@@ -647,7 +718,7 @@ func (b *Builder) addInstallHeaderAction(a *Action) {
 }
 
 // buildmodeShared takes the "go build" action a1 into the building of a shared library of a1.Deps.
-// That is, the input a1 represents "go build pkgs" and the result represents "go build -buidmode=shared pkgs".
+// That is, the input a1 represents "go build pkgs" and the result represents "go build -buildmode=shared pkgs".
 func (b *Builder) buildmodeShared(mode, depMode BuildMode, args []string, pkgs []*load.Package, a1 *Action) *Action {
 	name, err := libname(args, pkgs)
 	if err != nil {
@@ -710,7 +781,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 					}
 				}
 				var stk load.ImportStack
-				p := load.LoadPackage(pkg, &stk)
+				p := load.LoadImportWithFlags(pkg, base.Cwd(), nil, &stk, nil, 0)
 				if p.Error != nil {
 					base.Fatalf("load %s: %v", pkg, p.Error)
 				}

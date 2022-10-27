@@ -129,13 +129,13 @@ import (
 // A missing element or empty attribute value will be unmarshaled as a zero value.
 // If the field is a slice, a zero value will be appended to the field. Otherwise, the
 // field will be set to its zero value.
-func Unmarshal(data []byte, v interface{}) error {
+func Unmarshal(data []byte, v any) error {
 	return NewDecoder(bytes.NewReader(data)).Decode(v)
 }
 
 // Decode works like Unmarshal, except it reads the decoder
 // stream to find the start element.
-func (d *Decoder) Decode(v interface{}) error {
+func (d *Decoder) Decode(v any) error {
 	return d.DecodeElement(v, nil)
 }
 
@@ -143,9 +143,9 @@ func (d *Decoder) Decode(v interface{}) error {
 // a pointer to the start XML element to decode into v.
 // It is useful when a client reads some raw XML tokens itself
 // but also wants to defer to Unmarshal for some elements.
-func (d *Decoder) DecodeElement(v interface{}, start *StartElement) error {
+func (d *Decoder) DecodeElement(v any, start *StartElement) error {
 	val := reflect.ValueOf(v)
-	if val.Kind() != reflect.Ptr {
+	if val.Kind() != reflect.Pointer {
 		return errors.New("non-pointer passed to Unmarshal")
 	}
 	return d.unmarshal(val.Elem(), start)
@@ -188,7 +188,7 @@ type UnmarshalerAttr interface {
 }
 
 // receiverType returns the receiver type to use in an expression like "%s.MethodName".
-func receiverType(val interface{}) string {
+func receiverType(val any) string {
 	t := reflect.TypeOf(val)
 	if t.Name() != "" {
 		return t.String()
@@ -244,7 +244,7 @@ func (d *Decoder) unmarshalTextInterface(val encoding.TextUnmarshaler) error {
 
 // unmarshalAttr unmarshals a single XML attribute into val.
 func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			val.Set(reflect.New(val.Type().Elem()))
 		}
@@ -324,12 +324,12 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 	// usefully addressable.
 	if val.Kind() == reflect.Interface && !val.IsNil() {
 		e := val.Elem()
-		if e.Kind() == reflect.Ptr && !e.IsNil() {
+		if e.Kind() == reflect.Pointer && !e.IsNil() {
 			val = e
 		}
 	}
 
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			val.Set(reflect.New(val.Type().Elem()))
 		}
@@ -435,7 +435,7 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 				}
 				return UnmarshalError(e)
 			}
-			fv := finfo.value(sv)
+			fv := finfo.value(sv, initNilPointers)
 			if _, ok := fv.Interface().(Name); ok {
 				fv.Set(reflect.ValueOf(start.Name))
 			}
@@ -449,7 +449,7 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 				finfo := &tinfo.fields[i]
 				switch finfo.flags & fMode {
 				case fAttr:
-					strv := finfo.value(sv)
+					strv := finfo.value(sv, initNilPointers)
 					if a.Name.Local == finfo.name && (finfo.xmlns == "" || finfo.xmlns == a.Name.Space) {
 						if err := d.unmarshalAttr(strv, a); err != nil {
 							return err
@@ -465,7 +465,7 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 			}
 			if !handled && any >= 0 {
 				finfo := &tinfo.fields[any]
-				strv := finfo.value(sv)
+				strv := finfo.value(sv, initNilPointers)
 				if err := d.unmarshalAttr(strv, a); err != nil {
 					return err
 				}
@@ -478,22 +478,22 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 			switch finfo.flags & fMode {
 			case fCDATA, fCharData:
 				if !saveData.IsValid() {
-					saveData = finfo.value(sv)
+					saveData = finfo.value(sv, initNilPointers)
 				}
 
 			case fComment:
 				if !saveComment.IsValid() {
-					saveComment = finfo.value(sv)
+					saveComment = finfo.value(sv, initNilPointers)
 				}
 
 			case fAny, fAny | fElement:
 				if !saveAny.IsValid() {
-					saveAny = finfo.value(sv)
+					saveAny = finfo.value(sv, initNilPointers)
 				}
 
-			case fInnerXml:
+			case fInnerXML:
 				if !saveXML.IsValid() {
-					saveXML = finfo.value(sv)
+					saveXML = finfo.value(sv, initNilPointers)
 					if d.saved == nil {
 						saveXMLIndex = 0
 						d.saved = new(bytes.Buffer)
@@ -602,7 +602,7 @@ Loop:
 func copyValue(dst reflect.Value, src []byte) (err error) {
 	dst0 := dst
 
-	if dst.Kind() == reflect.Ptr {
+	if dst.Kind() == reflect.Pointer {
 		if dst.IsNil() {
 			dst.Set(reflect.New(dst.Type().Elem()))
 		}
@@ -687,7 +687,7 @@ Loop:
 		}
 		if len(finfo.parents) == len(parents) && finfo.name == start.Name.Local {
 			// It's a perfect match, unmarshal the field.
-			return true, d.unmarshal(finfo.value(sv), start)
+			return true, d.unmarshal(finfo.value(sv, initNilPointers), start)
 		}
 		if len(finfo.parents) > len(parents) && finfo.parents[len(parents)] == start.Name.Local {
 			// It's a prefix for the field. Break and recurse

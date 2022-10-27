@@ -57,6 +57,116 @@ class Node;
 // This file declares the basic classes used to hold the internal
 // representation of Go which is built by the parser.
 
+// The name of some backend object.  Backend objects have a
+// user-visible name and an assembler name.  The user visible name
+// might include arbitrary Unicode characters.  The assembler name
+// will not.
+
+class Backend_name
+{
+ public:
+  Backend_name()
+    : prefix_(NULL), components_(), count_(0), suffix_(),
+      is_asm_name_(false), is_non_identifier_(false)
+  {}
+
+  // Set the prefix.  Prefixes are always constant strings.
+  void
+  set_prefix(const char* p)
+  {
+    go_assert(this->prefix_ == NULL && !this->is_asm_name_);
+    this->prefix_ = p;
+  }
+
+  // Set the suffix.
+  void
+  set_suffix(const std::string& s)
+  {
+    go_assert(this->suffix_.empty() && !this->is_asm_name_);
+    this->suffix_ = s;
+  }
+
+  // Append to the suffix.
+  void
+  append_suffix(const std::string& s)
+  {
+    if (this->is_asm_name_)
+      this->components_[0].append(s);
+    else
+      this->suffix_.append(s);
+  }
+
+  // Add a component.
+  void
+  add(const std::string& c)
+  {
+    go_assert(this->count_ < Backend_name::max_components
+	      && !this->is_asm_name_);
+    this->components_[this->count_] = c;
+    ++this->count_;
+  }
+
+  // Set an assembler name specified by the user.  This overrides both
+  // the user-visible name and the assembler name.  No further
+  // encoding is applied.
+  void
+  set_asm_name(const std::string& n)
+  {
+    go_assert(this->prefix_ == NULL
+	      && this->count_ == 0
+	      && this->suffix_.empty()
+	      && !this->is_asm_name_);
+    this->components_[0] = n;
+    this->is_asm_name_ = true;
+  }
+
+  // Whether some component includes some characters that can't appear
+  // in an identifier.
+  bool
+  is_non_identifier() const
+  { return this->is_non_identifier_; }
+
+  // Record that some component includes some character that can't
+  // appear in an identifier.
+  void
+  set_is_non_identifier()
+  { this->is_non_identifier_ = true; }
+
+  // Get the user visible name.
+  std::string
+  name() const;
+
+  // Get the assembler name.  This may be the same as the user visible
+  // name.
+  std::string
+  asm_name() const;
+
+  // Get an optional assembler name: if it would be the same as the
+  // user visible name, this returns the empty string.
+  std::string
+  optional_asm_name() const;
+
+ private:
+  // The maximum number of components.
+  static const int max_components = 4;
+
+  // An optional prefix that does not require encoding.
+  const char *prefix_;
+  // Up to four components.  The name will include these components
+  // separated by dots.  Each component will be underscore-encoded
+  // (see the long comment near the top of names.cc).
+  std::string components_[Backend_name::max_components];
+  // Number of components.
+  int count_;
+  // An optional suffix that does not require encoding.
+  std::string suffix_;
+  // True if components_[0] is an assembler name specified by the user.
+  bool is_asm_name_;
+  // True if some component includes some character that can't
+  // normally appear in an identifier.
+  bool is_non_identifier_;
+};
+
 // An initialization function for an imported package.  This is a
 // magic function which initializes variables and runs the "init"
 // function.
@@ -102,6 +212,11 @@ class Import_init
   const std::set<std::string>&
   precursors() const
   { return this->precursor_functions_; }
+
+  // Whether this is a dummy init, which is used only to record transitive import.
+  bool
+  is_dummy() const
+  { return this->init_name_[0] == '~'; }
 
  private:
   // The name of the package being imported.
@@ -217,7 +332,9 @@ class Gogo
   {
     return (name[0] == '.'
 	    && name[name.length() - 1] == '_'
-	    && name[name.length() - 2] == '.');
+	    && name[name.length() - 2] == '.')
+        || (name[0] == '_'
+            && name.length() == 1);
   }
 
   // Helper used when adding parameters (including receiver param) to the
@@ -276,6 +393,14 @@ class Gogo
   set_c_header(const std::string& s)
   { this->c_header_ = s; }
 
+  // Read an embedcfg file.
+  void
+  read_embedcfg(const char* filename);
+
+  // Build an initializer for a variable with a go:embed directive.
+  Expression*
+  initializer_for_embeds(Type*, const std::vector<std::string>*, Location);
+
   // Return whether to check for division by zero in binary operations.
   bool
   check_divide_by_zero() const
@@ -326,6 +451,19 @@ class Gogo
   set_debug_escape_hash(const std::string& s)
   { this->debug_escape_hash_ = s; }
 
+  // Return whether to output optimization diagnostics.
+  bool
+  debug_optimization() const
+  { return this->debug_optimization_; }
+
+  // Set the option to output optimization diagnostics.
+  void
+  set_debug_optimization(bool b)
+  { this->debug_optimization_ = b; }
+
+  // Dump to stderr for debugging
+  void debug_dump();
+
   // Return the size threshold used to determine whether to issue
   // a nil-check for a given pointer dereference. A threshold of -1
   // implies that all potentially faulting dereference ops should
@@ -339,6 +477,17 @@ class Gogo
   void
   set_nil_check_size_threshold(int64_t bytes)
   { this->nil_check_size_threshold_ = bytes; }
+
+  // Return whether runtime.eqtype calls are needed when comparing
+  // type descriptors.
+  bool
+  need_eqtype() const
+  { return this->need_eqtype_; }
+
+  // Set if calls to runtime.eqtype are needed.
+  void
+  set_need_eqtype(bool b)
+  { this->need_eqtype_ = b; }
 
   // Import a package.  FILENAME is the file name argument, LOCAL_NAME
   // is the local name to give to the package.  If LOCAL_NAME is empty
@@ -383,6 +532,10 @@ class Gogo
   Package*
   register_package(const std::string& pkgpath,
 		   const std::string& pkgpath_symbol, Location);
+
+  // Add the unsafe bindings to the unsafe package.
+  void
+  add_unsafe_bindings(Package*);
 
   // Look up a package by pkgpath, and return its pkgpath_symbol.
   std::string
@@ -529,7 +682,9 @@ class Gogo
   { this->file_block_names_[name] = location; }
 
   // Add a linkname, from the go:linkname compiler directive.  This
-  // changes the externally visible name of go_name to be ext_name.
+  // changes the externally visible name of GO_NAME to be EXT_NAME.
+  // If EXT_NAME is the empty string, GO_NAME is unchanged, but the
+  // symbol is made publicly visible.
   void
   add_linkname(const std::string& go_name, bool is_exported,
 	       const std::string& ext_name, Location location);
@@ -554,6 +709,11 @@ class Gogo
   current_file_imported_unsafe() const
   { return this->current_file_imported_unsafe_; }
 
+  // Return whether the current file imported the embed package.
+  bool
+  current_file_imported_embed() const
+  { return this->current_file_imported_embed_; }
+
   // Clear out all names in file scope.  This is called when we start
   // parsing a new file.
   void
@@ -576,15 +736,19 @@ class Gogo
     return p != this->var_deps_.end() ? p->second : NULL;
   }
 
-  // Queue up a type-specific function to be written out.  This is
-  // used when a type-specific function is needed when not at the top
-  // level.
+  // Queue up a type-specific hash function to be written out.  This
+  // is used when a type-specific hash function is needed when not at
+  // top level.
   void
-  queue_specific_type_function(Type* type, Named_type* name, int64_t size,
-			       const std::string& hash_name,
-			       Function_type* hash_fntype,
-			       const std::string& equal_name,
-			       Function_type* equal_fntype);
+  queue_hash_function(Type* type, int64_t size, Backend_name*,
+		      Function_type* hash_fntype);
+
+  // Queue up a type-specific equal function to be written out.  This
+  // is used when a type-specific equal function is needed when not at
+  // top level.
+  void
+  queue_equal_function(Type* type, Named_type* name, int64_t size,
+		       Backend_name*, Function_type* equal_fntype);
 
   // Write out queued specific type functions.
   void
@@ -606,6 +770,11 @@ class Gogo
     this->set_need_init_fn();
     this->gc_roots_.push_back(expr);
   }
+
+  // Add a type to the descriptor list.
+  void
+  add_type_descriptor(Type* type)
+  { this->type_descriptors_.push_back(type); }
 
   // Traverse the tree.  See the Traverse class.
   void
@@ -673,6 +842,18 @@ class Gogo
   void
   check_return_statements();
 
+  // Remove deadcode.
+  void
+  remove_deadcode();
+
+  // Make implicit type conversions explicit.
+  void
+  add_conversions();
+
+  // Make implicit type conversions explicit in a block.
+  void
+  add_conversions_in_block(Block*);
+
   // Analyze the program flow for escape information.
   void
   analyze_escape();
@@ -717,9 +898,17 @@ class Gogo
   void
   remove_shortcuts();
 
+  // Turn short-cut operators into explicit if statements in a block.
+  void
+  remove_shortcuts_in_block(Block*);
+
   // Use temporary variables to force order of evaluation.
   void
   order_evaluations();
+
+  // Order evaluations in a block.
+  void
+  order_block(Block*);
 
   // Add write barriers as needed.
   void
@@ -728,7 +917,14 @@ class Gogo
   // Return whether an assignment that sets LHS to RHS needs a write
   // barrier.
   bool
-  assign_needs_write_barrier(Expression* lhs);
+  assign_needs_write_barrier(Expression* lhs,
+                             Unordered_set(const Named_object*)*);
+
+  // Return whether EXPR is the address of a variable that can be set
+  // without a write barrier.  That is, if this returns true, then an
+  // assignment to *EXPR does not require a write barrier.
+  bool
+  is_nonwb_pointer(Expression* expr, Unordered_set(const Named_object*)*);
 
   // Return an assignment that sets LHS to RHS using a write barrier.
   // This returns an if statement that checks whether write barriers
@@ -738,6 +934,12 @@ class Gogo
   assign_with_write_barrier(Function*, Block*, Statement_inserter*,
 			    Expression* lhs, Expression* rhs, Location);
 
+  // Return a statement that tests whether write barriers are enabled
+  // and executes either the efficient code (WITHOUT) or the write
+  // barrier function call (WITH), depending.
+  Statement*
+  check_write_barrier(Block*, Statement* without, Statement* with);
+
   // Flatten parse tree.
   void
   flatten();
@@ -745,11 +947,6 @@ class Gogo
   // Build thunks for functions which call recover.
   void
   build_recover_thunks();
-
-  // Return a declaration for __builtin_return_address or
-  // __builtin_dwarf_cfa.
-  static Named_object*
-  declare_builtin_rf_address(const char* name, bool hasarg);
 
   // Simplify statements which might use thunks: go and defer
   // statements.
@@ -790,10 +987,6 @@ class Gogo
   void
   write_globals();
 
-  // Build a call to the runtime error function.
-  Expression*
-  runtime_error(int code, Location);
-
   // Build required interface method tables.
   void
   build_interface_method_tables();
@@ -802,29 +995,32 @@ class Gogo
   Expression*
   allocate_memory(Type *type, Location);
 
-  // Return the assembler name to use for an exported function, a
-  // method, or a function/method declaration.
-  std::string
-  function_asm_name(const std::string& go_name, const Package*,
-		    const Type* receiver);
+  // Get the backend name to use for an exported function, a method,
+  // or a function/method declaration.
+  void
+  function_backend_name(const std::string& go_name, const Package*,
+			const Type* receiver, Backend_name*);
 
   // Return the name to use for a function descriptor.
-  std::string
-  function_descriptor_name(Named_object*);
+  void
+  function_descriptor_backend_name(Named_object*, Backend_name*);
 
   // Return the name to use for a generated stub method.
   std::string
   stub_method_name(const Package*, const std::string& method_name);
 
-  // Return the names of the hash and equality functions for TYPE.
+  // Get the backend name of the hash function for TYPE.
   void
-  specific_type_function_names(const Type*, const Named_type*,
-			       std::string* hash_name,
-			       std::string* equal_name);
+  hash_function_name(const Type*, Backend_name*);
 
-  // Return the assembler name to use for a global variable.
-  std::string
-  global_var_asm_name(const std::string& go_name, const Package*);
+  // Get the backend name of the equal function for TYPE.
+  void
+  equal_function_name(const Type*, const Named_type*, Backend_name*);
+
+  // Get the backend name to use for a global variable.
+  void
+  global_var_backend_name(const std::string& go_name, const Package*,
+			  Backend_name*);
 
   // Return a name to use for an error case.  This should only be used
   // after reporting an error, and is used to avoid useless knockon
@@ -884,9 +1080,28 @@ class Gogo
   const std::string&
   get_init_fn_name();
 
-  // Return the name for a type descriptor symbol.
+  // Return the name for a dummy init function, which is not a real
+  // function but only for tracking transitive import.
   std::string
-  type_descriptor_name(Type*, Named_type*);
+  dummy_init_fn_name();
+
+  // Return the package path symbol from an init function name, which
+  // can be a real init function or a dummy one.
+  std::string
+  pkgpath_symbol_from_init_fn_name(std::string);
+
+  // Get the backend name for a type descriptor symbol.
+  void
+  type_descriptor_backend_name(const Type*, Named_type*, Backend_name*);
+
+  // Return the name of the type descriptor list symbol of a package.
+  // The argument is an encoded pkgpath, as with pkgpath_symbol.
+  std::string
+  type_descriptor_list_symbol(const std::string&);
+
+  // Return the name of the list of all type descriptor lists.
+  std::string
+  typelists_symbol();
 
   // Return the assembler name for the GC symbol for a type.
   std::string
@@ -900,11 +1115,11 @@ class Gogo
   std::string
   interface_method_table_name(Interface_type*, Type*, bool is_pointer);
 
-  // Return whether NAME is a special name that can not be passed to
-  // unpack_hidden_name.  This is needed because various special names
-  // use "..SUFFIX", but unpack_hidden_name just looks for '.'.
-  static bool
-  is_special_name(const std::string& name);
+  // If NAME is a special name used as a Go identifier, return the
+  // position within the string where the special part of the name
+  // occurs.
+  static size_t
+  special_name_pos(const std::string& name);
 
  private:
   // During parsing, we keep a stack of functions.  Each function on
@@ -954,14 +1169,29 @@ class Gogo
                    std::vector<Bstatement*>&,
                    Bfunction* init_bfunction);
 
+  // Build the list of type descriptors.
+  void
+  build_type_descriptor_list();
+
+  // Register the type descriptors with the runtime.
+  void
+  register_type_descriptors(std::vector<Bstatement*>&,
+                            Bfunction* init_bfunction);
+
   void
   propagate_writebarrierrec();
 
   Named_object*
   write_barrier_variable();
 
-  Statement*
-  check_write_barrier(Block*, Statement*, Statement*);
+  static bool
+  is_digits(const std::string&);
+
+  // Type used to map go:embed patterns to a list of files.
+  typedef Unordered_map(std::string, std::vector<std::string>) Embed_patterns;
+
+  // Type used to map go:embed file names to their full path.
+  typedef Unordered_map(std::string, std::string) Embed_files;
 
   // Type used to map import names to packages.
   typedef std::map<std::string, Package*> Imports;
@@ -980,22 +1210,21 @@ class Gogo
   // Type used to queue writing a type specific function.
   struct Specific_type_function
   {
+    enum Specific_type_function_kind { SPECIFIC_HASH, SPECIFIC_EQUAL };
+
     Type* type;
     Named_type* name;
     int64_t size;
-    std::string hash_name;
-    Function_type* hash_fntype;
-    std::string equal_name;
-    Function_type* equal_fntype;
+    Specific_type_function_kind kind;
+    Backend_name bname;
+    Function_type* fntype;
 
     Specific_type_function(Type* atype, Named_type* aname, int64_t asize,
-			   const std::string& ahash_name,
-			   Function_type* ahash_fntype,
-			   const std::string& aequal_name,
-			   Function_type* aequal_fntype)
-      : type(atype), name(aname), size(asize), hash_name(ahash_name),
-	hash_fntype(ahash_fntype), equal_name(aequal_name),
-	equal_fntype(aequal_fntype)
+			   Specific_type_function_kind akind,
+			   Backend_name* abname,
+			   Function_type* afntype)
+      : type(atype), name(aname), size(asize), kind(akind),
+	bname(*abname), fntype(afntype)
     { }
   };
 
@@ -1027,6 +1256,8 @@ class Gogo
   bool imported_unsafe_;
   // Whether the magic unsafe package was imported by the current file.
   bool current_file_imported_unsafe_;
+  // Whether the embed package was imported by the current file.
+  bool current_file_imported_embed_;
   // Mapping from package names we have seen to packages.  This does
   // not include the package we are compiling.
   Packages packages_;
@@ -1059,6 +1290,10 @@ class Gogo
   std::string relative_import_path_;
   // The C header file to write, from the -fgo-c-header option.
   std::string c_header_;
+  // Patterns from an embedcfg file.
+  Embed_patterns embed_patterns_;
+  // Mapping from file to full path from an embedcfg file.
+  Embed_files embed_files_;
   // Whether or not to check for division by zero, from the
   // -fgo-check-divide-zero option.
   bool check_divide_by_zero_;
@@ -1075,8 +1310,14 @@ class Gogo
   // -fgo-debug-escape-hash option. The analysis is run only on
   // functions with names that hash to the matching value.
   std::string debug_escape_hash_;
+  // Whether to output optimization diagnostics, from the
+  // -fgo-debug-optimization option.
+  bool debug_optimization_;
   // Nil-check size threshhold.
   int64_t nil_check_size_threshold_;
+  // Whether runtime.eqtype calls are needed when comparing type
+  // descriptors.
+  bool need_eqtype_;
   // A list of types to verify.
   std::vector<Type*> verify_types_;
   // A list of interface types defined while parsing.
@@ -1092,6 +1333,8 @@ class Gogo
   std::vector<Analysis_set> analysis_sets_;
   // A list of objects to add to the GC roots.
   std::vector<Expression*> gc_roots_;
+  // A list of type descriptors that we need to register.
+  std::vector<Type*> type_descriptors_;
   // A list of function declarations with imported bodies that we may
   // want to inline.
   std::vector<Named_object*> imported_inlinable_functions_;
@@ -1278,6 +1521,11 @@ class Function
   void
   set_asm_name(const std::string& asm_name)
   { this->asm_name_ = asm_name; }
+
+  // Mark this symbol as exported by a linkname directive.
+  void
+  set_is_exported_by_linkname()
+  { this->is_exported_by_linkname_ = true; }
 
   // Return the pragmas for this function.
   unsigned int
@@ -1470,6 +1718,20 @@ class Function
   set_is_inline_only()
   { this->is_inline_only_ = true; }
 
+  // Report whether the function is referenced by an inline body.
+  bool
+  is_referenced_by_inline() const
+  { return this->is_referenced_by_inline_; }
+
+  // Mark the function as referenced by an inline body.
+  void
+  set_is_referenced_by_inline()
+  { this->is_referenced_by_inline_ = true; }
+
+  // Set the receiver type.  This is used to remove aliases.
+  void
+  set_receiver_type(Type* rtype);
+
   // Swap with another function.  Used only for the thunk which calls
   // recover.
   void
@@ -1516,26 +1778,31 @@ class Function
   Bstatement*
   return_value(Gogo*, Named_object*, Location) const;
 
+  // Get the backend name of this function.
+  void
+  backend_name(Gogo*, Named_object*, Backend_name*);
+
   // Get an expression for the variable holding the defer stack.
   Expression*
   defer_stack(Location);
 
   // Export the function.
   void
-  export_func(Export*, const std::string& name) const;
+  export_func(Export*, const Named_object*) const;
 
   // Export a function with a type.
   static void
-  export_func_with_type(Export*, const std::string& name,
+  export_func_with_type(Export*, const Named_object*,
 			const Function_type*, Results*, bool nointerface,
-			Block* block, Location);
+			const std::string& asm_name, Block* block, Location);
 
-  // Import a function.
-  static void
-  import_func(Import*, std::string* pname, Typed_identifier** receiver,
+  // Import a function.  Reports whether the import succeeded.
+  static bool
+  import_func(Import*, std::string* pname, Package** pkg,
+	      bool* is_exported, Typed_identifier** receiver,
 	      Typed_identifier_list** pparameters,
 	      Typed_identifier_list** presults, bool* is_varargs,
-	      bool* nointerface, std::string* body);
+	      bool* nointerface, std::string* asm_name, std::string* body);
 
  private:
   // Type for mapping from label names to Label objects.
@@ -1612,6 +1879,12 @@ class Function
   // True if this function is inline only: if it should not be emitted
   // if it is not inlined.
   bool is_inline_only_ : 1;
+  // True if this function is referenced from an inlined body that
+  // will be put into the export data.
+  bool is_referenced_by_inline_ : 1;
+  // True if we should make this function visible to other packages
+  // because of a go:linkname directive.
+  bool is_exported_by_linkname_ : 1;
 };
 
 // A snapshot of the current binding state.
@@ -1725,6 +1998,10 @@ class Function_declaration
   set_is_on_inlinable_list()
   { this->is_on_inlinable_list_ = true; }
 
+  // Set the receiver type.  This is used to remove aliases.
+  void
+  set_receiver_type(Type* rtype);
+
   // Import the function body, creating a function.
   void
   import_function_body(Gogo*, Named_object*);
@@ -1750,13 +2027,17 @@ class Function_declaration
   void
   build_backend_descriptor(Gogo*);
 
+  // Get the backend name of this function declaration.
+  void
+  backend_name(Gogo*, Named_object*, Backend_name*);
+
   // Export a function declaration.
   void
-  export_func(Export* exp, const std::string& name) const
+  export_func(Export* exp, const Named_object* no) const
   {
-    Function::export_func_with_type(exp, name, this->fntype_, NULL,
+    Function::export_func_with_type(exp, no, this->fntype_, NULL,
 				    this->is_method() && this->nointerface(),
-				    NULL, this->location_);
+				    this->asm_name_, NULL, this->location_);
   }
 
   // Check that the types used in this declaration's signature are defined.
@@ -1868,6 +2149,20 @@ class Variable
   bool
   is_varargs_parameter() const
   { return this->is_varargs_parameter_; }
+
+  // Return whether this is a global sink variable, created only to
+  // run an initializer.
+  bool
+  is_global_sink() const
+  { return this->is_global_sink_; }
+
+  // Record that this is a global sink variable.
+  void
+  set_is_global_sink()
+  {
+    go_assert(this->is_global_);
+    this->is_global_sink_ = true;
+  }
 
   // Whether this variable's address is taken.
   bool
@@ -2006,6 +2301,24 @@ class Variable
     this->in_unique_section_ = true;
   }
 
+  // Mark the variable as referenced by an inline body.
+  void
+  set_is_referenced_by_inline()
+  {
+    go_assert(this->is_global_);
+    this->is_referenced_by_inline_ = true;
+  }
+
+  // Attach any go:embed comments for this variable.
+  void
+  set_embeds(std::vector<std::string>* embeds)
+  {
+    go_assert(this->is_global_
+	      && this->init_ == NULL
+	      && this->preinit_ == NULL);
+    this->embeds_ = embeds;
+  }
+
   // Return the top-level declaration for this variable.
   Statement*
   toplevel_decl()
@@ -2046,11 +2359,12 @@ class Variable
 
   // Export the variable.
   void
-  export_var(Export*, const std::string& name) const;
+  export_var(Export*, const Named_object*) const;
 
-  // Import a variable.
-  static void
-  import_var(Import*, std::string* pname, Type** ptype);
+  // Import a variable.  Reports whether the import succeeded.
+  static bool
+  import_var(Import*, std::string* pname, Package** pkg, bool* is_exported,
+	     Type** ptype);
 
  private:
   // The type of a tuple.
@@ -2075,6 +2389,8 @@ class Variable
   Block* preinit_;
   // Location of variable definition.
   Location location_;
+  // Any associated go:embed comments.
+  std::vector<std::string>* embeds_;
   // Backend representation.
   Bvariable* backend_;
   // Whether this is a global variable.
@@ -2087,6 +2403,9 @@ class Variable
   bool is_receiver_ : 1;
   // Whether this is the varargs parameter of a function.
   bool is_varargs_parameter_ : 1;
+  // Whether this is a global sink variable created to run an
+  // initializer.
+  bool is_global_sink_ : 1;
   // Whether this variable is ever referenced.
   bool is_used_ : 1;
   // Whether something takes the address of this variable.  For a
@@ -2117,6 +2436,9 @@ class Variable
   // True if this variable should be put in a unique section.  This is
   // used for field tracking.
   bool in_unique_section_ : 1;
+  // True if this variable is referenced from an inlined body that
+  // will be put into the export data.
+  bool is_referenced_by_inline_ : 1;
   // The top-level declaration for this variable. Only used for local
   // variables. Must be a Temporary_statement if not NULL.
   Statement* toplevel_decl_;
@@ -2725,13 +3047,13 @@ class Named_object
   Location
   location() const;
 
+  // Traverse a Named_object.
+  int
+  traverse(Traverse*, bool is_global);
+
   // Convert a variable to the backend representation.
   Bvariable*
   get_backend_variable(Gogo*, Named_object* function);
-
-  // Return the external identifier for this object.
-  std::string
-  get_id(Gogo*);
 
   // Get the backend representation of this object.
   void
@@ -2976,6 +3298,9 @@ class Bindings
   Named_object*
   first_declaration()
   { return this->bindings_.empty() ? NULL : this->bindings_.begin()->second; }
+
+  // Dump to stderr for debugging
+  void debug_dump();
 
  private:
   Named_object*
@@ -3473,6 +3798,24 @@ class Traverse
   Expressions_seen* expressions_seen_;
 };
 
+// This class looks for interface types to finalize methods of inherited
+// interfaces.
+
+class Finalize_methods : public Traverse
+{
+ public:
+  Finalize_methods(Gogo* gogo)
+    : Traverse(traverse_types),
+      gogo_(gogo)
+  { }
+
+  int
+  type(Type*);
+
+ private:
+  Gogo* gogo_;
+};
+
 // A class which makes it easier to insert new statements before the
 // current statement during a traversal.
 
@@ -3582,56 +3925,17 @@ class Translate_context
   bool is_const_;
 };
 
-// Runtime error codes.  These must match the values in
-// libgo/runtime/go-runtime-error.c.
-
-// Slice index out of bounds: negative or larger than the length of
-// the slice.
-static const int RUNTIME_ERROR_SLICE_INDEX_OUT_OF_BOUNDS = 0;
-
-// Array index out of bounds.
-static const int RUNTIME_ERROR_ARRAY_INDEX_OUT_OF_BOUNDS = 1;
-
-// String index out of bounds.
-static const int RUNTIME_ERROR_STRING_INDEX_OUT_OF_BOUNDS = 2;
-
-// Slice slice out of bounds: negative or larger than the length of
-// the slice or high bound less than low bound.
-static const int RUNTIME_ERROR_SLICE_SLICE_OUT_OF_BOUNDS = 3;
-
-// Array slice out of bounds.
-static const int RUNTIME_ERROR_ARRAY_SLICE_OUT_OF_BOUNDS = 4;
-
-// String slice out of bounds.
-static const int RUNTIME_ERROR_STRING_SLICE_OUT_OF_BOUNDS = 5;
-
-// Dereference of nil pointer.  This is used when there is a
-// dereference of a pointer to a very large struct or array, to ensure
-// that a gigantic array is not used a proxy to access random memory
-// locations.
-static const int RUNTIME_ERROR_NIL_DEREFERENCE = 6;
-
-// Slice length or capacity out of bounds in make: negative or
-// overflow or length greater than capacity.
-static const int RUNTIME_ERROR_MAKE_SLICE_OUT_OF_BOUNDS = 7;
-
-// Map capacity out of bounds in make: negative or overflow.
-static const int RUNTIME_ERROR_MAKE_MAP_OUT_OF_BOUNDS = 8;
-
-// Channel capacity out of bounds in make: negative or overflow.
-static const int RUNTIME_ERROR_MAKE_CHAN_OUT_OF_BOUNDS = 9;
-
-// Division by zero.
-static const int RUNTIME_ERROR_DIVISION_BY_ZERO = 10;
-
-// Go statement with nil function.
-static const int RUNTIME_ERROR_GO_NIL = 11;
-
 // This is used by some of the langhooks.
 extern Gogo* go_get_gogo();
 
 // Whether we have seen any errors.  FIXME: Replace with a backend
 // interface.
 extern bool saw_errors();
+
+// For use in the debugger
+extern void debug_go_gogo(Gogo*);
+extern void debug_go_named_object(Named_object*);
+extern void debug_go_bindings(Bindings*);
+
 
 #endif // !defined(GO_GOGO_H)

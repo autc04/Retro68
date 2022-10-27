@@ -294,7 +294,7 @@ locale, hard-coding the "C" locale settings.
 #  define CHAR		char		/* string type basis */
 #  define CQ(a)		a		/* character constant qualifier */
 #  define SFLG				/* %s flag (null for normal char) */
-#  define _ctloc(x) (ctloclen = strlen (ctloc = _CurrentTimeLocale->x), ctloc)
+#  define _ctloc(x)     (ctloclen = strlen (ctloc = _CurrentTimeLocale->x))
 #  define snprintf	sniprintf	/* avoid to pull in FP functions. */
 #  define TOLOWER(c)	tolower((int)(unsigned char)(c))
 #  define STRTOUL(c,p,b) strtoul((c),(p),(b))
@@ -315,8 +315,7 @@ locale, hard-coding the "C" locale settings.
 #  define STRLEN(a)	wcslen(a)
 #  define SFLG		"l"		/* %s flag (l for wide char) */
 #  ifdef __HAVE_LOCALE_INFO_EXTENDED__
-#   define _ctloc(x) (ctloclen = wcslen (ctloc = _CurrentTimeLocale->w##x), \
-		      ctloc)
+#   define _ctloc(x)    (ctloclen = wcslen (ctloc = _CurrentTimeLocale->w##x))
 #  else
 #   define CTLOCBUFLEN   256		/* Arbitrary big buffer size */
     const wchar_t *
@@ -328,8 +327,8 @@ locale, hard-coding the "C" locale settings.
 	*len_ret = 0;
       return buf;
     }
-#   define _ctloc(x) (ctloc = __ctloc (ctlocbuf, _CurrentTimeLocale->x, \
-		      &ctloclen))
+#   define _ctloc(x)    (ctloc = __ctloc (ctlocbuf, _CurrentTimeLocale->x, \
+					  &ctloclen))
 #  endif
 #endif  /* MAKE_WCSFTIME */
 
@@ -340,9 +339,6 @@ locale, hard-coding the "C" locale settings.
 #if YEAR_BASE < 0
 #  error "YEAR_BASE < 0"
 #endif
-
-static const int dname_len[7] =
-{6, 6, 7, 9, 8, 6, 8};
 
 /* Using the tm_year, tm_wday, and tm_yday components of TIM_P, return
    -1, 0, or 1 as the adjustment to add to the year for the ISO week

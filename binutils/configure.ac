@@ -1,6 +1,6 @@
 #   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
 #   2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012,
-#   2014, 2015, 2016 Free Software Foundation, Inc.
+#   2014, 2015, 2016, 2019, 2020 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ m4_include(config/acx.m4)
 m4_include(config/override.m4)
 m4_include(config/proginstall.m4)
 m4_include(config/elf.m4)
+m4_include(config/gcc-plugin.m4)
 m4_include([libtool.m4])
 m4_include([ltoptions.m4])
 m4_include([ltsugar.m4])
@@ -131,7 +132,7 @@ build_tools="build-texinfo build-flex build-bison build-m4 build-fixincludes"
 
 # these libraries are used by various programs built for the host environment
 #f
-host_libs="intl libiberty opcodes bfd readline tcl tk itcl libgui zlib libbacktrace libcpp libdecnumber gmp mpfr mpc isl libelf libiconv"
+host_libs="intl libiberty opcodes bfd readline tcl tk itcl libgui zlib libbacktrace libcpp libdecnumber gmp mpfr mpc isl libelf libiconv libctf"
 
 # these tools are built for the host environment
 # Note, the powerpc-eabi build depends on sim occurring before gdb in order to
@@ -139,7 +140,7 @@ host_libs="intl libiberty opcodes bfd readline tcl tk itcl libgui zlib libbacktr
 # binutils, gas and ld appear in that order because it makes sense to run
 # "make check" in that particular order.
 # If --enable-gold is used, "gold" may replace "ld".
-host_tools="flex bison binutils gas ld fixincludes gcc cgen sid sim gdb gprof etc expect dejagnu m4 utils guile fastjar gnattools libcc1 gotools"
+host_tools="flex bison binutils gas ld fixincludes gcc cgen sid sim gdb gdbserver gprof etc expect dejagnu m4 utils guile fastjar gnattools libcc1 gotools"
 
 # these libraries are built for the target environment, and are built after
 # the host libraries and the host tools (which may be a cross compiler)
@@ -245,6 +246,12 @@ if test x$with_system_zlib = xyes ; then
   noconfigdirs="$noconfigdirs zlib"
 fi
 
+# Don't compile the bundled readline/libreadline.a if --with-system-readline
+# is provided.
+if test x$with_system_readline = xyes ; then
+  noconfigdirs="$noconfigdirs readline"
+fi
+
 # some tools are so dependent upon X11 that if we're not building with X, 
 # it's not even worth trying to configure, much less build, that tool.
 
@@ -329,7 +336,7 @@ case "${ENABLE_GOLD}" in
       *-*-elf* | *-*-sysv4* | *-*-unixware* | *-*-eabi* | hppa*64*-*-hpux* \
       | *-*-linux* | *-*-gnu* | frv-*-uclinux* | *-*-irix5* | *-*-irix6* \
       | *-*-netbsd* | *-*-openbsd* | *-*-freebsd* | *-*-dragonfly* \
-      | *-*-solaris2* | *-*-nto* | *-*-nacl*)
+      | *-*-solaris2* | *-*-nto* | *-*-nacl* | *-*-haiku*)
         case "${target}" in
           *-*-linux*aout* | *-*-linux*oldld*)
             ;;
@@ -384,6 +391,20 @@ case "${ENABLE_LD}" in
     AC_MSG_ERROR([invalid --enable-ld argument])
     ;;
 esac
+
+AC_ARG_ENABLE(gprofng,
+[AS_HELP_STRING([[--enable-gprofng[=ARG]]],
+		[build gprofng @<:@ARG={yes,no}@:>@])],
+enable_gprofng=$enableval,
+enable_gprofng=yes)
+if test "$enable_gprofng" = "yes"; then
+  case "${target}" in
+    x86_64-*-linux* | i?86-*-linux* | aarch64-*-linux*)
+    configdirs="$configdirs gprofng"
+    ;;
+  esac
+fi
+
 
 # PR gas/19109
 # Decide the default method for compressing debug sections.
@@ -721,9 +742,6 @@ case "${target}" in
   arm-wince-pe)
     noconfigdirs="$noconfigdirs target-libffi"
     ;;
-  arm*-*-symbianelf*)
-    noconfigdirs="$noconfigdirs target-libffi"
-    ;;
   cris-*-* | crisv32-*-*)
     case "${target}" in
       *-*-linux*)
@@ -774,6 +792,22 @@ case "${target}" in
     unsupported_languages="$unsupported_languages go"
     ;;
 esac
+
+# Only allow gdbserver on some systems.
+if test -d ${srcdir}/gdbserver; then
+    if test x$enable_gdbserver = x; then
+	AC_MSG_CHECKING([for gdbserver support])
+	if (srcdir=${srcdir}/gdbserver; \
+		. ${srcdir}/configure.srv; \
+		test -n "$UNSUPPORTED")
+	then
+	    AC_MSG_RESULT([no])
+	    noconfigdirs="$noconfigdirs gdbserver"
+	else
+	    AC_MSG_RESULT([yes])
+	fi
+    fi
+fi
 
 # Disable libgo for some systems where it is known to not work.
 # For testing, you can easily override this with --enable-libgo.
@@ -1094,6 +1128,9 @@ case "${target}" in
     noconfigdirs="$noconfigdirs ld gas gdb gprof sim"
     noconfigdirs="$noconfigdirs $target_libraries"
     ;;
+  pdp11-*-*)
+    noconfigdirs="$noconfigdirs gdb gprof"
+    ;;
   powerpc-*-aix*)
     # copied from rs6000-*-* entry
     noconfigdirs="$noconfigdirs gprof"
@@ -1255,7 +1292,7 @@ else
   WINDMC_FOR_BUILD="\$(WINDMC)"
 fi
 
-AC_PROG_CC
+AC_PROG_CC_C99
 AC_PROG_CXX
 
 # We must set the default linker to the linker used by gcc for the correct
@@ -1348,6 +1385,65 @@ esac
 if test "$enable_bootstrap:$GXX" = "yes:yes"; then
   CXX="$CXX -std=gnu++98"
 fi
+
+AC_ARG_ENABLE([pgo-build],
+[AS_HELP_STRING([--enable-pgo-build[[=lto]]],
+		[enable the PGO build])],
+[enable_pgo_build=$enableval],
+[enable_pgo_build=no])
+
+# Issue errors and warnings for invalid/strange PGO build combinations.
+case "$have_compiler:$host:$target:$enable_pgo_build" in
+  *:*:*:no) ;;
+
+  # Allow the PGO build only if we aren't building a compiler and
+  # we are in a native configuration.
+  no:$build:$build:yes | no:$build:$build:lto) ;;
+
+  # Disallow the PGO bootstrap if we are building a compiler.
+  yes:*:*:yes | yes:*:*:lto)
+    AC_MSG_ERROR([cannot perform the PGO bootstrap when building a compiler]) ;;
+
+  *)
+    AC_MSG_ERROR([invalid option for --enable-pgo-build])
+    ;;
+esac
+
+if test "$enable_pgo_build" != "no"; then
+  AC_MSG_CHECKING([whether the compiler supports -fprofile-generate])
+  old_CFLAGS="$CFLAGS"
+  PGO_BUILD_GEN_CFLAGS="-fprofile-generate"
+  CFLAGS="$CFLAGS $PGO_BUILD_CFLAGS"
+  AC_COMPILE_IFELSE([AC_LANG_SOURCE([int foo;])],,
+		    [PGO_BUILD_GEN_CFLAGS=])
+  CFLAGS="$old_CFLAGS"
+  if test -n "$PGO_BUILD_GEN_CFLAGS"; then
+    AC_MSG_RESULT([yes])
+    PGO_BUILD_USE_CFLAGS="-fprofile-use"
+  else
+    AC_MSG_RESULT([no])
+    AC_MSG_ERROR([cannot perform the PGO build without -fprofile-generate])
+  fi
+
+  if test "$enable_pgo_build" = "lto"; then
+    AC_MSG_CHECKING([whether the compiler supports -flto=jobserver -ffat-lto-objects])
+    old_CFLAGS="$CFLAGS"
+    PGO_BUILD_LTO_CFLAGS="-flto=jobserver -ffat-lto-objects"
+    CFLAGS="$CFLAGS $PGO_BUILD_LTO_CFLAGS"
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([int foo;])],,
+		      [PGO_BUILD_LTO_CFLAGS=])
+    CFLAGS="$old_CFLAGS"
+    if test -n "$PGO_BUILD_LTO_CFLAGS"; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no])
+      AC_MSG_WARN([LTO is disabled for the PGO build])
+    fi
+  fi
+fi
+AC_SUBST(PGO_BUILD_GEN_CFLAGS)
+AC_SUBST(PGO_BUILD_USE_CFLAGS)
+AC_SUBST(PGO_BUILD_LTO_CFLAGS)
 
 # Used for setting $lt_cv_objdir
 _LT_CHECK_OBJDIR
@@ -1596,6 +1692,19 @@ AC_ARG_WITH(stage1-libs,
 [stage1_libs=])
 AC_SUBST(stage1_libs)
 
+# Whether or not to use -static-libstdc++ and -static-libgcc.  The
+# default is yes if gcc is being built; no otherwise.  The reason for
+# this default is that gdb is sometimes linked against GNU Source
+# Highlight, which is a shared library that uses C++ exceptions.  In
+# this case, -static-libstdc++ will cause crashes.
+AC_ARG_WITH(static-standard-libraries,
+[AS_HELP_STRING([--with-static-standard-libraries],
+                [use -static-libstdc++ and -static-libgcc (default=auto)])],
+[], [with_static_standard_libraries=auto])
+if test "$with_static_standard_libraries" = auto; then
+  with_static_standard_libraries=$have_compiler
+fi
+
 # Linker flags to use for stage1 or when not bootstrapping.
 AC_ARG_WITH(stage1-ldflags,
 [AS_HELP_STRING([--with-stage1-ldflags=FLAGS], [linker flags for stage1])],
@@ -1608,7 +1717,8 @@ AC_ARG_WITH(stage1-ldflags,
  # In stage 1, default to linking libstdc++ and libgcc statically with GCC
  # if supported.  But if the user explicitly specified the libraries to use,
  # trust that they are doing what they want.
- if test "$stage1_libs" = "" -a "$have_static_libs" = yes; then
+ if test "$with_static_standard_libraries" = yes -a "$stage1_libs" = "" \
+     -a "$have_static_libs" = yes; then
    stage1_ldflags="-static-libstdc++ -static-libgcc"
  fi])
 AC_SUBST(stage1_ldflags)
@@ -2137,6 +2247,16 @@ case ,${enable_languages}, in
     ;;
 esac
 
+# If gcc/ is not in the source tree then we'll not be building a
+# target compiler, assume in that case we don't want to build any
+# target libraries or tools.
+#
+# This was added primarily for the benefit for binutils-gdb who reuse
+# this configure script, but don't always have target tools available.
+if test ! -d ${srcdir}/gcc; then
+   skipdirs="${skipdirs} ${target_configdirs}"
+fi
+
 # Remove the entries in $skipdirs and $noconfigdirs from $configdirs,
 # $build_configdirs and $target_configdirs.
 # If we have the source for $noconfigdirs entries, add them to $notsupp.
@@ -2222,13 +2342,18 @@ fi
 
 # Sometimes we have special requirements for the host libiberty.
 extra_host_libiberty_configure_flags=
-extra_host_zlib_configure_flags=
 case " $configdirs " in
-  *" lto-plugin "* | *" libcc1 "*)
+  *" lto-plugin "* | *" libcc1 "* | *" gdbserver "*)
     # When these are to be built as shared libraries, the same applies to
     # libiberty.
     extra_host_libiberty_configure_flags=--enable-shared
     ;;
+esac
+AC_SUBST(extra_host_libiberty_configure_flags)
+
+# Sometimes we have special requirements for the host zlib.
+extra_host_zlib_configure_flags=
+case " $configdirs " in
   *" bfd "*)
     # When bfd is to be built as a shared library, the same applies to
     # zlib.
@@ -2237,7 +2362,6 @@ case " $configdirs " in
     fi
     ;;
 esac
-AC_SUBST(extra_host_libiberty_configure_flags)
 AC_SUBST(extra_host_zlib_configure_flags)
 
 # Produce a warning message for the subdirs we can't configure.
@@ -2706,6 +2830,21 @@ esac
 CONFIGURE_GDB_TK=`echo ${GDB_TK} | sed s/-all-/-configure-/g`
 INSTALL_GDB_TK=`echo ${GDB_TK} | sed s/-all-/-install-/g`
 
+# gdb and gdbserver depend on gnulib and gdbsupport, but as nothing
+# else does, only include them if one of these is built.  The Makefile
+# provides the ordering, so it's enough here to add to the list.
+case " ${configdirs} " in
+  *\ gdb\ *)
+    configdirs="${configdirs} gnulib gdbsupport"
+    ;;
+  *\ gdbserver\ *)
+    configdirs="${configdirs} gnulib gdbsupport"
+    ;;
+  *\ sim\ *)
+    configdirs="${configdirs} gnulib"
+    ;;
+esac
+
 # Strip out unwanted targets.
 
 # While at that, we remove Makefiles if we were started for recursive
@@ -2718,7 +2857,9 @@ INSTALL_GDB_TK=`echo ${GDB_TK} | sed s/-all-/-install-/g`
 # extrasub-{build,host,target} not because there is any reason to split
 # the substitutions up that way, but only to remain below the limit of
 # 99 commands in a script, for HP-UX sed.
-# Do not nest @if/@endif pairs, because configure will not warn you at all.
+
+# Do not nest @if/@endif or @unless/@endunless pairs, because
+# configure will not warn you at all.
 
 case "$enable_bootstrap:$ENABLE_GOLD: $configdirs :,$stage1_languages," in
   yes:yes:*\ gold\ *:*,c++,*) ;;
@@ -2737,8 +2878,10 @@ for module in ${build_configdirs} ; do
   extrasub_build="$extrasub_build
 /^@if build-$module\$/d
 /^@endif build-$module\$/d
+/^@unless build-$module\$/,/^@endunless build-$module\$/d
 /^@if build-$module-$bootstrap_suffix\$/d
-/^@endif build-$module-$bootstrap_suffix\$/d"
+/^@endif build-$module-$bootstrap_suffix\$/d
+/^@unless build-$module-$bootstrap_suffix\$/,/^@endunless build-$module-$bootstrap_suffix\$/d"
 done
 extrasub_host=
 for module in ${configdirs} ; do
@@ -2757,8 +2900,10 @@ for module in ${configdirs} ; do
   extrasub_host="$extrasub_host
 /^@if $module\$/d
 /^@endif $module\$/d
+/^@unless $module\$/,/^@endunless $module\$/d
 /^@if $module-$host_bootstrap_suffix\$/d
-/^@endif $module-$host_bootstrap_suffix\$/d"
+/^@endif $module-$host_bootstrap_suffix\$/d
+/^@unless $module-$host_bootstrap_suffix\$/,/^@endunless $module-$host_bootstrap_suffix\$/d"
 done
 extrasub_target=
 for module in ${target_configdirs} ; do
@@ -2777,13 +2922,23 @@ for module in ${target_configdirs} ; do
   extrasub_target="$extrasub_target
 /^@if target-$module\$/d
 /^@endif target-$module\$/d
+/^@unless target-$module\$/,/^@endunless target-$module\$/d
 /^@if target-$module-$target_bootstrap_suffix\$/d
-/^@endif target-$module-$target_bootstrap_suffix\$/d"
+/^@endif target-$module-$target_bootstrap_suffix\$/d
+/^@unless target-$module-$target_bootstrap_suffix\$/,/^@endunless target-$module-$target_bootstrap_suffix\$/d"
 done
 
 # Do the final fixup along with target modules.
 extrasub_target="$extrasub_target
-/^@if /,/^@endif /d"
+/^@if /,/^@endif /d
+/^@unless /d
+/^@endunless /d"
+
+if test "$enable_pgo_build" != "no"; then
+  extrasub_build="$extrasub_build
+/^@if pgo-build\$/d
+/^@endif pgo-build\$/d"
+fi
 
 # Create the serialization dependencies.  This uses a temporary file.
 
@@ -3314,6 +3469,25 @@ AC_SUBST(CC)
 AC_SUBST(CXX)
 AC_SUBST(CFLAGS)
 AC_SUBST(CXXFLAGS)
+AC_SUBST(PKG_CONFIG_PATH)
+
+GCC_PLUGIN_OPTION(PLUGIN_OPTION)
+AR_PLUGIN_OPTION=
+RANLIB_PLUGIN_OPTION=
+if test -n "$PLUGIN_OPTION"; then
+  if $AR --help 2>&1 | grep -q "\--plugin"; then
+    AR_PLUGIN_OPTION="$PLUGIN_OPTION"
+  fi
+  if $RANLIB --help 2>&1 | grep -q "\--plugin"; then
+    RANLIB_PLUGIN_OPTION="$PLUGIN_OPTION"
+  fi
+else
+  if test "$enable_pgo_build" != "no"; then
+    AC_MSG_ERROR([AR with --plugin and rc is required for LTO build])
+  fi
+fi
+AC_SUBST(AR_PLUGIN_OPTION)
+AC_SUBST(RANLIB_PLUGIN_OPTION)
 
 # Target tools.
 AC_ARG_WITH([build-time-tools], 

@@ -1,5 +1,5 @@
 /* Opcode printing code for the WebAssembly target
-   Copyright (C) 2017-2018 Free Software Foundation, Inc.
+   Copyright (C) 2017-2022 Free Software Foundation, Inc.
 
    This file is part of libopcodes.
 
@@ -28,6 +28,11 @@
 #include "elf/internal.h"
 #include "elf/wasm32.h"
 #include <stdint.h>
+
+#include <limits.h>
+#ifndef CHAR_BIT
+#define CHAR_BIT 8
+#endif
 
 /* Type names for blocks and signatures.  */
 #define BLOCK_TYPE_NONE              0x40
@@ -70,8 +75,8 @@ enum wasm_class
 
 struct wasm32_private_data
 {
-  bfd_boolean print_registers;
-  bfd_boolean print_well_known_globals;
+  bool print_registers;
+  bool print_well_known_globals;
 
   /* Limit valid symbols to those with a given prefix.  */
   const char *section_prefix;
@@ -113,10 +118,10 @@ parse_wasm32_disassembler_options (struct disassemble_info *info,
 
   while (opts != NULL)
     {
-      if (CONST_STRNEQ (opts, "registers"))
-        private->print_registers = TRUE;
-      else if (CONST_STRNEQ (opts, "globals"))
-        private->print_well_known_globals = TRUE;
+      if (startswith (opts, "registers"))
+        private->print_registers = true;
+      else if (startswith (opts, "globals"))
+        private->print_well_known_globals = true;
 
       opts = strchr (opts, ',');
       if (opts)
@@ -128,24 +133,24 @@ parse_wasm32_disassembler_options (struct disassemble_info *info,
    are unhelpful to print, and arguments to a "call" insn, which we
    want to be in a section matching a given prefix.  */
 
-static bfd_boolean
+static bool
 wasm32_symbol_is_valid (asymbol *sym,
                         struct disassemble_info *info)
 {
   struct wasm32_private_data *private_data = info->private_data;
 
   if (sym == NULL)
-    return FALSE;
+    return false;
 
   if (strcmp(sym->section->name, "*ABS*") == 0)
-    return FALSE;
+    return false;
 
   if (private_data && private_data->section_prefix != NULL
       && strncmp (sym->section->name, private_data->section_prefix,
                   strlen (private_data->section_prefix)))
-    return FALSE;
+    return false;
 
-  return TRUE;
+  return true;
 }
 
 /* Initialize the disassembler structures for INFO.  */
@@ -157,8 +162,8 @@ disassemble_init_wasm32 (struct disassemble_info *info)
     {
       static struct wasm32_private_data private;
 
-      private.print_registers = FALSE;
-      private.print_well_known_globals = FALSE;
+      private.print_registers = false;
+      private.print_well_known_globals = false;
       private.section_prefix = NULL;
 
       info->private_data = &private;
@@ -182,39 +187,53 @@ disassemble_init_wasm32 (struct disassemble_info *info)
    wasm_read_leb128 ().  */
 
 static uint64_t
-wasm_read_leb128 (bfd_vma                   pc,
-                  struct disassemble_info * info,
-                  bfd_boolean *             error_return,
-                  unsigned int *            length_return,
-                  bfd_boolean               sign)
+wasm_read_leb128 (bfd_vma pc,
+                  struct disassemble_info *info,
+                  bool *error_return,
+                  unsigned int *length_return,
+                  bool sign)
 {
   uint64_t result = 0;
   unsigned int num_read = 0;
   unsigned int shift = 0;
   unsigned char byte = 0;
-  bfd_boolean success = FALSE;
+  unsigned char lost, mask;
+  int status = 1;
 
   while (info->read_memory_func (pc + num_read, &byte, 1, info) == 0)
     {
       num_read++;
 
-      result |= ((bfd_vma) (byte & 0x7f)) << shift;
+      if (shift < CHAR_BIT * sizeof (result))
+	{
+	  result |= ((uint64_t) (byte & 0x7f)) << shift;
+	  /* These bits overflowed.  */
+	  lost = byte ^ (result >> shift);
+	  /* And this is the mask of possible overflow bits.  */
+	  mask = 0x7f ^ ((uint64_t) 0x7f << shift >> shift);
+	  shift += 7;
+	}
+      else
+	{
+	  lost = byte;
+	  mask = 0x7f;
+	}
+      if ((lost & mask) != (sign && (int64_t) result < 0 ? mask : 0))
+	status |= 2;
 
-      shift += 7;
       if ((byte & 0x80) == 0)
-        {
-          success = TRUE;
-          break;
-        }
+	{
+	  status &= ~1;
+	  if (sign && shift < CHAR_BIT * sizeof (result) && (byte & 0x40))
+	    result |= -((uint64_t) 1 << shift);
+	  break;
+	}
     }
 
   if (length_return != NULL)
     *length_return = num_read;
   if (error_return != NULL)
-    *error_return = ! success;
-
-  if (sign && (shift < 8 * sizeof (result)) && (byte & 0x40))
-    result |= -((uint64_t) 1 << shift);
+    *error_return = status != 0;
 
   return result;
 }
@@ -264,33 +283,10 @@ print_insn_wasm32 (bfd_vma pc, struct disassemble_info *info)
   void *stream = info->stream;
   fprintf_ftype prin = info->fprintf_func;
   struct wasm32_private_data *private_data = info->private_data;
-  long long constant = 0;
-  double fconstant = 0.0;
-  long flags = 0;
-  long offset = 0;
-  long depth = 0;
-  long function_index = 0;
-  long target_count = 0;
-  long block_type = 0;
-  int len = 1;
-  int ret = 0;
-  unsigned int bytes_read = 0;
-  int i;
-  const char *locals[] =
-    {
-      "$dpc", "$sp1", "$r0", "$r1", "$rpc", "$pc0",
-      "$rp", "$fp", "$sp",
-      "$r2", "$r3", "$r4", "$r5", "$r6", "$r7",
-      "$i0", "$i1", "$i2", "$i3", "$i4", "$i5", "$i6", "$i7",
-      "$f0", "$f1", "$f2", "$f3", "$f4", "$f5", "$f6", "$f7",
-    };
-  int nlocals = ARRAY_SIZE (locals);
-  const char *globals[] =
-    {
-      "$got", "$plt", "$gpo"
-    };
-  int nglobals = ARRAY_SIZE (globals);
-  bfd_boolean error = FALSE;
+  uint64_t val;
+  int len;
+  unsigned int bytes_read;
+  bool error;
 
   if (info->read_memory_func (pc, buffer, 1, info))
     return -1;
@@ -306,189 +302,239 @@ print_insn_wasm32 (bfd_vma pc, struct disassemble_info *info)
       prin (stream, "\t.byte 0x%02x\n", buffer[0]);
       return 1;
     }
-  else
+
+  len = 1;
+
+  prin (stream, "\t");
+  prin (stream, "%s", op->name);
+
+  if (op->clas == wasm_typed)
     {
-      len = 1;
+      val = wasm_read_leb128 (pc + len, info, &error, &bytes_read, false);
+      if (error)
+	return -1;
+      len += bytes_read;
+      switch (val)
+	{
+	case BLOCK_TYPE_NONE:
+	  prin (stream, "[]");
+	  break;
+	case BLOCK_TYPE_I32:
+	  prin (stream, "[i]");
+	  break;
+	case BLOCK_TYPE_I64:
+	  prin (stream, "[l]");
+	  break;
+	case BLOCK_TYPE_F32:
+	  prin (stream, "[f]");
+	  break;
+	case BLOCK_TYPE_F64:
+	  prin (stream, "[d]");
+	  break;
+	default:
+	  return -1;
+	}
+    }
 
-      prin (stream, "\t");
-      prin (stream, "%s", op->name);
+  switch (op->clas)
+    {
+    case wasm_special:
+    case wasm_eqz:
+    case wasm_binary:
+    case wasm_unary:
+    case wasm_conv:
+    case wasm_relational:
+    case wasm_drop:
+    case wasm_signature:
+    case wasm_call_import:
+    case wasm_typed:
+    case wasm_select:
+      break;
 
-      if (op->clas == wasm_typed)
-        {
-          block_type = wasm_read_leb128
-            (pc + len, info, &error, &bytes_read, FALSE);
-          if (error)
-            return -1;
-          len += bytes_read;
-          switch (block_type)
-            {
-            case BLOCK_TYPE_NONE:
-              prin (stream, "[]");
-              break;
-            case BLOCK_TYPE_I32:
-              prin (stream, "[i]");
-              break;
-            case BLOCK_TYPE_I64:
-              prin (stream, "[l]");
-              break;
-            case BLOCK_TYPE_F32:
-              prin (stream, "[f]");
-              break;
-            case BLOCK_TYPE_F64:
-              prin (stream, "[d]");
-              break;
-            }
-        }
+    case wasm_break_table:
+      {
+	uint32_t target_count, i;
+	val = wasm_read_leb128 (pc + len, info, &error, &bytes_read,
+				false);
+	target_count = val;
+	if (error || target_count != val || target_count == (uint32_t) -1)
+	  return -1;
+	len += bytes_read;
+	prin (stream, " %u", target_count);
+	for (i = 0; i < target_count + 1; i++)
+	  {
+	    uint32_t target;
+	    val = wasm_read_leb128 (pc + len, info, &error, &bytes_read,
+				    false);
+	    target = val;
+	    if (error || target != val)
+	      return -1;
+	    len += bytes_read;
+	    prin (stream, " %u", target);
+	  }
+      }
+      break;
 
-      switch (op->clas)
-        {
-        case wasm_special:
-        case wasm_eqz:
-        case wasm_binary:
-        case wasm_unary:
-        case wasm_conv:
-        case wasm_relational:
-        case wasm_drop:
-        case wasm_signature:
-        case wasm_call_import:
-        case wasm_typed:
-        case wasm_select:
-          break;
+    case wasm_break:
+    case wasm_break_if:
+      {
+	uint32_t depth;
+	val = wasm_read_leb128 (pc + len, info, &error, &bytes_read,
+				false);
+	depth = val;
+	if (error || depth != val)
+	  return -1;
+	len += bytes_read;
+	prin (stream, " %u", depth);
+      }
+      break;
 
-        case wasm_break_table:
-          target_count = wasm_read_leb128
-            (pc + len, info, &error, &bytes_read, FALSE);
-          if (error)
-            return -1;
-          len += bytes_read;
-          prin (stream, " %ld", target_count);
-          for (i = 0; i < target_count + 1; i++)
-            {
-              long target = 0;
-              target = wasm_read_leb128
-                (pc + len, info, &error, &bytes_read, FALSE);
-              if (error)
-                return -1;
-              len += bytes_read;
-              prin (stream, " %ld", target);
-            }
-          break;
+    case wasm_return:
+      break;
 
-        case wasm_break:
-        case wasm_break_if:
-          depth = wasm_read_leb128
-            (pc + len, info, &error, &bytes_read, FALSE);
-          if (error)
-            return -1;
-          len += bytes_read;
-          prin (stream, " %ld", depth);
-          break;
+    case wasm_constant_i32:
+    case wasm_constant_i64:
+      val = wasm_read_leb128 (pc + len, info, &error, &bytes_read, true);
+      if (error)
+	return -1;
+      len += bytes_read;
+      prin (stream, " %" PRId64, val);
+      break;
 
-        case wasm_return:
-          break;
+    case wasm_constant_f32:
+      {
+	double fconstant;
+	int ret;
+	/* This appears to be the best we can do, even though we're
+	   using host doubles for WebAssembly floats.  */
+	ret = read_f32 (&fconstant, pc + len, info);
+	if (ret < 0)
+	  return -1;
+	len += ret;
+	prin (stream, " %.9g", fconstant);
+      }
+      break;
 
-        case wasm_constant_i32:
-        case wasm_constant_i64:
-          constant = wasm_read_leb128
-            (pc + len, info, &error, &bytes_read, TRUE);
-          if (error)
-            return -1;
-          len += bytes_read;
-          prin (stream, " %lld", constant);
-          break;
+    case wasm_constant_f64:
+      {
+	double fconstant;
+	int ret;
+	ret = read_f64 (&fconstant, pc + len, info);
+	if (ret < 0)
+	  return -1;
+	len += ret;
+	prin (stream, " %.17g", fconstant);
+      }
+      break;
 
-        case wasm_constant_f32:
-          /* This appears to be the best we can do, even though we're
-             using host doubles for WebAssembly floats.  */
-          ret = read_f32 (&fconstant, pc + len, info);
-          if (ret < 0)
-            return -1;
-          len += ret;
-	  prin (stream, " %.9g", fconstant);
-          break;
+    case wasm_call:
+      {
+	uint32_t function_index;
+	val = wasm_read_leb128 (pc + len, info, &error, &bytes_read,
+				false);
+	function_index = val;
+	if (error || function_index != val)
+	  return -1;
+	len += bytes_read;
+	prin (stream, " ");
+	private_data->section_prefix = ".space.function_index";
+	(*info->print_address_func) ((bfd_vma) function_index, info);
+	private_data->section_prefix = NULL;
+      }
+      break;
 
-        case wasm_constant_f64:
-          ret = read_f64 (&fconstant, pc + len, info);
-          if (ret < 0)
-            return -1;
-          len += ret;
-	  prin (stream, " %.17g", fconstant);
-          break;
+    case wasm_call_indirect:
+      {
+	uint32_t type_index, xtra_index;
+	val = wasm_read_leb128 (pc + len, info, &error, &bytes_read,
+				false);
+	type_index = val;
+	if (error || type_index != val)
+	  return -1;
+	len += bytes_read;
+	prin (stream, " %u", type_index);
+	val = wasm_read_leb128 (pc + len, info, &error, &bytes_read,
+				false);
+	xtra_index = val;
+	if (error || xtra_index != val)
+	  return -1;
+	len += bytes_read;
+	prin (stream, " %u", xtra_index);
+      }
+      break;
 
-        case wasm_call:
-          function_index = wasm_read_leb128
-            (pc + len, info, &error, &bytes_read, FALSE);
-          if (error)
-            return -1;
-          len += bytes_read;
-          prin (stream, " ");
-          private_data->section_prefix = ".space.function_index";
-          (*info->print_address_func) ((bfd_vma) function_index, info);
-          private_data->section_prefix = NULL;
-          break;
+    case wasm_get_local:
+    case wasm_set_local:
+    case wasm_tee_local:
+      {
+	uint32_t local_index;
+	val = wasm_read_leb128 (pc + len, info, &error, &bytes_read,
+				false);
+	local_index = val;
+	if (error || local_index != val)
+	  return -1;
+	len += bytes_read;
+	prin (stream, " %u", local_index);
+	if (strcmp (op->name + 4, "local") == 0)
+	  {
+	    static const char *locals[] =
+	      {
+		"$dpc", "$sp1", "$r0", "$r1", "$rpc", "$pc0",
+		"$rp", "$fp", "$sp",
+		"$r2", "$r3", "$r4", "$r5", "$r6", "$r7",
+		"$i0", "$i1", "$i2", "$i3", "$i4", "$i5", "$i6", "$i7",
+		"$f0", "$f1", "$f2", "$f3", "$f4", "$f5", "$f6", "$f7",
+	      };
+	    if (private_data->print_registers
+		&& local_index < ARRAY_SIZE (locals))
+	      prin (stream, " <%s>", locals[local_index]);
+	  }
+	else
+	  {
+	    static const char *globals[] =
+	      {
+		"$got", "$plt", "$gpo"
+	      };
+	    if (private_data->print_well_known_globals
+		&& local_index < ARRAY_SIZE (globals))
+	      prin (stream, " <%s>", globals[local_index]);
+	  }
+      }
+      break;
 
-        case wasm_call_indirect:
-          constant = wasm_read_leb128
-            (pc + len, info, &error, &bytes_read, FALSE);
-          if (error)
-            return -1;
-          len += bytes_read;
-          prin (stream, " %lld", constant);
-          constant = wasm_read_leb128
-            (pc + len, info, &error, &bytes_read, FALSE);
-          if (error)
-            return -1;
-          len += bytes_read;
-          prin (stream, " %lld", constant);
-          break;
+    case wasm_grow_memory:
+    case wasm_current_memory:
+      {
+	uint32_t reserved_size;
+	val = wasm_read_leb128 (pc + len, info, &error, &bytes_read,
+				false);
+	reserved_size = val;
+	if (error || reserved_size != val)
+	  return -1;
+	len += bytes_read;
+	prin (stream, " %u", reserved_size);
+      }
+      break;
 
-        case wasm_get_local:
-        case wasm_set_local:
-        case wasm_tee_local:
-          constant = wasm_read_leb128
-            (pc + len, info, &error, &bytes_read, FALSE);
-          if (error)
-            return -1;
-          len += bytes_read;
-          prin (stream, " %lld", constant);
-          if (strcmp (op->name + 4, "local") == 0)
-            {
-              if (private_data->print_registers
-                  && constant >= 0 && constant < nlocals)
-                prin (stream, " <%s>", locals[constant]);
-            }
-          else
-            {
-              if (private_data->print_well_known_globals
-                  && constant >= 0 && constant < nglobals)
-                prin (stream, " <%s>", globals[constant]);
-            }
-          break;
-
-        case wasm_grow_memory:
-        case wasm_current_memory:
-          constant = wasm_read_leb128
-            (pc + len, info, &error, &bytes_read, FALSE);
-          if (error)
-            return -1;
-          len += bytes_read;
-          prin (stream, " %lld", constant);
-          break;
-
-        case wasm_load:
-        case wasm_store:
-          flags = wasm_read_leb128
-            (pc + len, info, &error, &bytes_read, FALSE);
-          if (error)
-            return -1;
-          len += bytes_read;
-          offset = wasm_read_leb128
-            (pc + len, info, &error, &bytes_read, FALSE);
-          if (error)
-            return -1;
-          len += bytes_read;
-          prin (stream, " a=%ld %ld", flags, offset);
-        }
+    case wasm_load:
+    case wasm_store:
+      {
+	uint32_t flags, offset;
+	val = wasm_read_leb128 (pc + len, info, &error, &bytes_read,
+				false);
+	flags = val;
+	if (error || flags != val)
+	  return -1;
+	len += bytes_read;
+	val = wasm_read_leb128 (pc + len, info, &error, &bytes_read,
+				false);
+	offset = val;
+	if (error || offset != val)
+	  return -1;
+	len += bytes_read;
+	prin (stream, " a=%u %u", flags, offset);
+      }
+      break;
     }
   return len;
 }

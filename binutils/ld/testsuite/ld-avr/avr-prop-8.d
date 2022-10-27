@@ -9,5 +9,6 @@
 00000000 <__ctors_end>:
    0:	ff cf       	rjmp	.-2      	; 0x0 <__ctors_end>
    2:	fe df       	rcall	.-4      	; 0x0 <__ctors_end>
-   4:	f8 f7       	brcc	.-2      	; 0x4 <__ctors_end\+0x4>
+#...
+   4:	f8 f7       	brcc	.-2      	; 0x4 <.*>
 #...

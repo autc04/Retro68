@@ -24,12 +24,12 @@ Disassembly of section .text:
  +[a-f0-9]+:	68 ([0-9a-f]{2} ){4}[ 	]+push +\$0x[0-9a-f]+
  +[a-f0-9]+:	ff 15 ([0-9a-f]{2} ){4}[ 	]+call +\*0x[0-9a-f]+
  +[a-f0-9]+:	83 c4 1c             	add    \$0x1c,%esp
- +[a-f0-9]+:	c3                   	ret    
+ +[a-f0-9]+:	c3                   	ret
  +[a-f0-9]+:	ff 15 ([0-9a-f]{2} ){4}[ 	]+call +\*0x[0-9a-f]+
 #...
 [0-9a-f]+ <get_func>:
  +[a-f0-9]+:	c7 c0 ([0-9a-f]{2} ){4}[ 	]+mov +\$0x[a-f0-9]+,%eax
- +[a-f0-9]+:	c3                   	ret    
+ +[a-f0-9]+:	c3                   	ret
 #...
 [0-9a-f]+ <call_func>:
  +[a-f0-9]+:	e9 ([0-9a-f]{2} ){4}[ 	]+jmp +[0-9a-f]+ <func>

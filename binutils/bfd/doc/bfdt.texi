@@ -60,14 +60,8 @@ struct bfd
   /* A unique identifier of the BFD  */
   unsigned int id;
 
-  /* The format which belongs to the BFD. (object, core, etc.)  */
-  ENUM_BITFIELD (bfd_format) format : 3;
-
-  /* The direction with which the BFD was opened.  */
-  ENUM_BITFIELD (bfd_direction) direction : 2;
-
   /* Format_specific flags.  */
-  flagword flags : 20;
+  flagword flags;
 
   /* Values that may appear in the flags field of a BFD.  These also
      appear in the object_flags field of the bfd_target structure, where
@@ -154,6 +148,9 @@ struct bfd
   /* Use the ELF STT_COMMON type in this BFD.  */
 #define BFD_USE_ELF_STT_COMMON  0x80000
 
+  /* Put pathnames into archives (non-POSIX).  */
+#define BFD_ARCHIVE_FULL_PATH  0x100000
+
   /* Flags bits to be saved in bfd_preserve_save.  */
 #define BFD_FLAGS_SAVED \
   (BFD_IN_MEMORY | BFD_COMPRESS | BFD_DECOMPRESS | BFD_LINKER_CREATED \
@@ -165,6 +162,12 @@ struct bfd
   (BFD_IN_MEMORY | BFD_COMPRESS | BFD_DECOMPRESS | BFD_LINKER_CREATED \
    | BFD_PLUGIN | BFD_TRADITIONAL_FORMAT | BFD_DETERMINISTIC_OUTPUT \
    | BFD_COMPRESS_GABI | BFD_CONVERT_ELF_COMMON | BFD_USE_ELF_STT_COMMON)
+
+  /* The format which belongs to the BFD. (object, core, etc.)  */
+  ENUM_BITFIELD (bfd_format) format : 3;
+
+  /* The direction with which the BFD was opened.  */
+  ENUM_BITFIELD (bfd_direction) direction : 2;
 
   /* Is the file descriptor being cached?  That is, can it be closed as
      needed, and re-opened when accessed later?  */
@@ -195,6 +198,9 @@ struct bfd
   /* Set if this is a thin archive.  */
   unsigned int is_thin_archive : 1;
 
+  /* Set if this archive should not cache element positions.  */
+  unsigned int no_element_cache : 1;
+
   /* Set if only required symbols should be added in the link hash table for
      this object.  Used by VMS linkers.  */
   unsigned int selective_search : 1;
@@ -211,13 +217,19 @@ struct bfd
   /* Set if this is a plugin output file.  */
   unsigned int lto_output : 1;
 
+  /* Set if this is a slim LTO object not loaded with a compiler plugin.  */
+  unsigned int lto_slim_object : 1;
+
+  /* Do not attempt to modify this file.  Set when detecting errors
+     that BFD is not prepared to handle for objcopy/strip.  */
+  unsigned int read_only : 1;
+
   /* Set to dummy BFD created when claimed by a compiler plug-in
      library.  */
   bfd *plugin_dummy_bfd;
 
-  /* Currently my_archive is tested before adding origin to
-     anything. I believe that this can become always an add of
-     origin, with origin set to 0 for non archive files.  */
+  /* The offset of this bfd in the file, typically 0 if it is not
+     contained in an archive.  */
   ufile_ptr origin;
 
   /* The origin in the archive of the proxy entry.  This will
@@ -239,9 +251,18 @@ struct bfd
   /* The number of sections.  */
   unsigned int section_count;
 
+  /* The archive plugin file descriptor.  */
+  int archive_plugin_fd;
+
+  /* The number of opens on the archive plugin file descriptor.  */
+  unsigned int archive_plugin_fd_open_count;
+
   /* A field used by _bfd_generic_link_add_archive_symbols.  This will
      be used only for archive elements.  */
   int archive_pass;
+
+  /* The total size of memory from bfd_alloc.  */
+  bfd_size_type alloc_size;
 
   /* Stuff only useful for object files:
      The start address.  */
@@ -249,7 +270,7 @@ struct bfd
 
   /* Symbol table for output BFD (with symcount entries).
      Also used by the linker to cache input BFD symbols.  */
-  struct bfd_symbol  **outsymbols;
+  struct bfd_symbol **outsymbols;
 
   /* Used for input and output.  */
   unsigned int symcount;
@@ -259,6 +280,11 @@ struct bfd
 
   /* Pointer to structure which contains architecture information.  */
   const struct bfd_arch_info *arch_info;
+
+  /* Cached length of file for bfd_get_size.  0 until bfd_get_size is
+     called, 1 if stat returns an error or the file size is too large to
+     return in ufile_ptr.  Both 0 and 1 should be treated as "unknown".  */
+  ufile_ptr size;
 
   /* Stuff only useful for archives.  */
   void *arelt_data;
@@ -324,12 +350,226 @@ struct bfd
   const struct bfd_build_id *build_id;
 @};
 
+static inline const char *
+bfd_get_filename (const bfd *abfd)
+@{
+  return abfd->filename;
+@}
+
+static inline bool
+bfd_get_cacheable (const bfd *abfd)
+@{
+  return abfd->cacheable;
+@}
+
+static inline enum bfd_format
+bfd_get_format (const bfd *abfd)
+@{
+  return abfd->format;
+@}
+
+static inline flagword
+bfd_get_file_flags (const bfd *abfd)
+@{
+  return abfd->flags;
+@}
+
+static inline bfd_vma
+bfd_get_start_address (const bfd *abfd)
+@{
+  return abfd->start_address;
+@}
+
+static inline unsigned int
+bfd_get_symcount (const bfd *abfd)
+@{
+  return abfd->symcount;
+@}
+
+static inline unsigned int
+bfd_get_dynamic_symcount (const bfd *abfd)
+@{
+  return abfd->dynsymcount;
+@}
+
+static inline struct bfd_symbol **
+bfd_get_outsymbols (const bfd *abfd)
+@{
+  return abfd->outsymbols;
+@}
+
+static inline unsigned int
+bfd_count_sections (const bfd *abfd)
+@{
+  return abfd->section_count;
+@}
+
+static inline bool
+bfd_has_map (const bfd *abfd)
+@{
+  return abfd->has_armap;
+@}
+
+static inline bool
+bfd_is_thin_archive (const bfd *abfd)
+@{
+  return abfd->is_thin_archive;
+@}
+
+static inline void *
+bfd_usrdata (const bfd *abfd)
+@{
+  return abfd->usrdata;
+@}
+
 /* See note beside bfd_set_section_userdata.  */
-static inline bfd_boolean
-bfd_set_cacheable (bfd * abfd, bfd_boolean val)
+static inline bool
+bfd_set_cacheable (bfd * abfd, bool val)
 @{
   abfd->cacheable = val;
-  return TRUE;
+  return true;
+@}
+
+static inline void
+bfd_set_thin_archive (bfd *abfd, bool val)
+@{
+  abfd->is_thin_archive = val;
+@}
+
+static inline void
+bfd_set_usrdata (bfd *abfd, void *val)
+@{
+  abfd->usrdata = val;
+@}
+
+static inline asection *
+bfd_asymbol_section (const asymbol *sy)
+@{
+  return sy->section;
+@}
+
+static inline bfd_vma
+bfd_asymbol_value (const asymbol *sy)
+@{
+  return sy->section->vma + sy->value;
+@}
+
+static inline const char *
+bfd_asymbol_name (const asymbol *sy)
+@{
+  return sy->name;
+@}
+
+static inline struct bfd *
+bfd_asymbol_bfd (const asymbol *sy)
+@{
+  return sy->the_bfd;
+@}
+
+static inline void
+bfd_set_asymbol_name (asymbol *sy, const char *name)
+@{
+  sy->name = name;
+@}
+
+static inline bfd_size_type
+bfd_get_section_limit_octets (const bfd *abfd, const asection *sec)
+@{
+  if (abfd->direction != write_direction && sec->rawsize != 0)
+    return sec->rawsize;
+  return sec->size;
+@}
+
+/* Find the address one past the end of SEC.  */
+static inline bfd_size_type
+bfd_get_section_limit (const bfd *abfd, const asection *sec)
+@{
+  return (bfd_get_section_limit_octets (abfd, sec)
+          / bfd_octets_per_byte (abfd, sec));
+@}
+
+/* Functions to handle insertion and deletion of a bfd's sections.  These
+   only handle the list pointers, ie. do not adjust section_count,
+   target_index etc.  */
+static inline void
+bfd_section_list_remove (bfd *abfd, asection *s)
+@{
+  asection *next = s->next;
+  asection *prev = s->prev;
+  if (prev)
+    prev->next = next;
+  else
+    abfd->sections = next;
+  if (next)
+    next->prev = prev;
+  else
+    abfd->section_last = prev;
+@}
+
+static inline void
+bfd_section_list_append (bfd *abfd, asection *s)
+@{
+  s->next = 0;
+  if (abfd->section_last)
+    @{
+      s->prev = abfd->section_last;
+      abfd->section_last->next = s;
+    @}
+  else
+    @{
+      s->prev = 0;
+      abfd->sections = s;
+    @}
+  abfd->section_last = s;
+@}
+
+static inline void
+bfd_section_list_prepend (bfd *abfd, asection *s)
+@{
+  s->prev = 0;
+  if (abfd->sections)
+    @{
+      s->next = abfd->sections;
+      abfd->sections->prev = s;
+    @}
+  else
+    @{
+      s->next = 0;
+      abfd->section_last = s;
+    @}
+  abfd->sections = s;
+@}
+
+static inline void
+bfd_section_list_insert_after (bfd *abfd, asection *a, asection *s)
+@{
+  asection *next = a->next;
+  s->next = next;
+  s->prev = a;
+  a->next = s;
+  if (next)
+    next->prev = s;
+  else
+    abfd->section_last = s;
+@}
+
+static inline void
+bfd_section_list_insert_before (bfd *abfd, asection *b, asection *s)
+@{
+  asection *prev = b->prev;
+  s->prev = prev;
+  s->next = b;
+  b->prev = s;
+  if (prev)
+    prev->next = s;
+  else
+    abfd->sections = s;
+@}
+
+static inline bool
+bfd_section_removed_from_list (const bfd *abfd, const asection *s)
+@{
+  return s->next ? s->next->prev != s : abfd->section_last != s;
 @}
 
 @end example
@@ -374,6 +614,7 @@ typedef enum bfd_error
   bfd_error_bad_value,
   bfd_error_file_truncated,
   bfd_error_file_too_big,
+  bfd_error_sorry,
   bfd_error_on_input,
   bfd_error_invalid_error_code
 @}
@@ -573,7 +814,7 @@ The argument @var{abfd} is ignored.
 @subsubsection @code{bfd_set_file_flags}
 @strong{Synopsis}
 @example
-bfd_boolean bfd_set_file_flags (bfd *abfd, flagword flags);
+bool bfd_set_file_flags (bfd *abfd, flagword flags);
 @end example
 @strong{Description}@*
 Set the flag word in the BFD @var{abfd} to the value @var{flags}.
@@ -631,7 +872,7 @@ not sign extend addresses, and @code{-1} otherwise.
 @subsubsection @code{bfd_set_start_address}
 @strong{Synopsis}
 @example
-bfd_boolean bfd_set_start_address (bfd *abfd, bfd_vma vma);
+bool bfd_set_start_address (bfd *abfd, bfd_vma vma);
 @end example
 @strong{Description}@*
 Make @var{vma} the entry point of output BFD @var{abfd}.
@@ -661,6 +902,16 @@ Set the maximum size of objects to be optimized using the GP
 register under ECOFF or MIPS ELF.  This is typically set by
 the @code{-G} argument to the compiler, assembler or linker.
 
+@findex bfd_set_gp_value
+@subsubsection @code{bfd_set_gp_value}
+@strong{Synopsis}
+@example
+void bfd_set_gp_value (bfd *abfd, bfd_vma v);
+@end example
+@strong{Description}@*
+Allow external access to the fucntion to set the GP value.
+This is specifically added for gdb-compile support.
+
 @findex bfd_scan_vma
 @subsubsection @code{bfd_scan_vma}
 @strong{Synopsis}
@@ -684,7 +935,7 @@ returned.
 @subsubsection @code{bfd_copy_private_header_data}
 @strong{Synopsis}
 @example
-bfd_boolean bfd_copy_private_header_data (bfd *ibfd, bfd *obfd);
+bool bfd_copy_private_header_data (bfd *ibfd, bfd *obfd);
 @end example
 @strong{Description}@*
 Copy private BFD header information from the BFD @var{ibfd} to the
@@ -709,7 +960,7 @@ Not enough memory exists to create private data for @var{obfd}.
 @subsubsection @code{bfd_copy_private_bfd_data}
 @strong{Synopsis}
 @example
-bfd_boolean bfd_copy_private_bfd_data (bfd *ibfd, bfd *obfd);
+bool bfd_copy_private_bfd_data (bfd *ibfd, bfd *obfd);
 @end example
 @strong{Description}@*
 Copy private BFD information from the BFD @var{ibfd} to the
@@ -732,7 +983,7 @@ Not enough memory exists to create private data for @var{obfd}.
 @subsubsection @code{bfd_set_private_flags}
 @strong{Synopsis}
 @example
-bfd_boolean bfd_set_private_flags (bfd *abfd, flagword flags);
+bool bfd_set_private_flags (bfd *abfd, flagword flags);
 @end example
 @strong{Description}@*
 Set private BFD flag information in the BFD @var{abfd}.
@@ -785,7 +1036,8 @@ The following functions exist but have not yet been documented.
        BFD_SEND (abfd, _bfd_debug_info_accumulate, (abfd, section))
 
 #define bfd_stat_arch_elt(abfd, stat) \
-       BFD_SEND (abfd, _bfd_stat_arch_elt,(abfd, stat))
+       BFD_SEND (abfd->my_archive ? abfd->my_archive : abfd, \
+                 _bfd_stat_arch_elt, (abfd, stat))
 
 #define bfd_update_armap_timestamp(abfd) \
        BFD_SEND (abfd, _bfd_update_armap_timestamp, (abfd))
@@ -807,6 +1059,9 @@ The following functions exist but have not yet been documented.
 
 #define bfd_is_group_section(abfd, sec) \
        BFD_SEND (abfd, _bfd_is_group_section, (abfd, sec))
+
+#define bfd_group_name(abfd, sec) \
+       BFD_SEND (abfd, _bfd_group_name, (abfd, sec))
 
 #define bfd_discard_group(abfd, sec) \
        BFD_SEND (abfd, _bfd_discard_group, (abfd, sec))
@@ -847,7 +1102,7 @@ The following functions exist but have not yet been documented.
 
 extern bfd_byte *bfd_get_relocated_section_contents
   (bfd *, struct bfd_link_info *, struct bfd_link_order *, bfd_byte *,
-   bfd_boolean, asymbol **);
+   bool, asymbol **);
 
 @end example
 
@@ -855,7 +1110,7 @@ extern bfd_byte *bfd_get_relocated_section_contents
 @subsubsection @code{bfd_alt_mach_code}
 @strong{Synopsis}
 @example
-bfd_boolean bfd_alt_mach_code (bfd *abfd, int alternative);
+bool bfd_alt_mach_code (bfd *abfd, int alternative);
 @end example
 @strong{Description}@*
 When more than one machine code number is available for the
@@ -877,21 +1132,11 @@ emulation.
 @strong{Returns}@*
 Returns the maximum page size in bytes for ELF, 0 otherwise.
 
-@findex bfd_emul_set_maxpagesize
-@subsubsection @code{bfd_emul_set_maxpagesize}
-@strong{Synopsis}
-@example
-void bfd_emul_set_maxpagesize (const char *, bfd_vma);
-@end example
-@strong{Description}@*
-For ELF, set the maximum page size for the emulation.  It is
-a no-op for other formats.
-
 @findex bfd_emul_get_commonpagesize
 @subsubsection @code{bfd_emul_get_commonpagesize}
 @strong{Synopsis}
 @example
-bfd_vma bfd_emul_get_commonpagesize (const char *, bfd_boolean);
+bfd_vma bfd_emul_get_commonpagesize (const char *);
 @end example
 @strong{Description}@*
 Returns the common page size, in bytes, as determined by
@@ -899,16 +1144,6 @@ emulation.
 
 @strong{Returns}@*
 Returns the common page size in bytes for ELF, 0 otherwise.
-
-@findex bfd_emul_set_commonpagesize
-@subsubsection @code{bfd_emul_set_commonpagesize}
-@strong{Synopsis}
-@example
-void bfd_emul_set_commonpagesize (const char *, bfd_vma);
-@end example
-@strong{Description}@*
-For ELF, set the common page size for the emulation.  It is
-a no-op for other formats.
 
 @findex bfd_demangle
 @subsubsection @code{bfd_demangle}
@@ -938,14 +1173,16 @@ elf_section_flags for compression.
 @subsubsection @code{bfd_check_compression_header}
 @strong{Synopsis}
 @example
-bfd_boolean bfd_check_compression_header
+bool bfd_check_compression_header
    (bfd *abfd, bfd_byte *contents, asection *sec,
-    bfd_size_type *uncompressed_size);
+    bfd_size_type *uncompressed_size,
+    unsigned int *uncompressed_alignment_power);
 @end example
 @strong{Description}@*
 Check the compression header at CONTENTS of SEC in ABFD and
-store the uncompressed size in UNCOMPRESSED_SIZE if the
-compression header is valid.
+store the uncompressed size in UNCOMPRESSED_SIZE and the
+uncompressed data alignment in UNCOMPRESSED_ALIGNMENT_POWER
+if the compression header is valid.
 
 @strong{Returns}@*
 Return TRUE if the compression header is valid.
@@ -977,7 +1214,7 @@ BFD @var{ibfd} to the section size in output BFD @var{obfd}.
 @subsubsection @code{bfd_convert_section_contents}
 @strong{Synopsis}
 @example
-bfd_boolean bfd_convert_section_contents
+bool bfd_convert_section_contents
    (bfd *ibfd, asection *isec, bfd *obfd,
     bfd_byte **ptr, bfd_size_type *ptr_size);
 @end example

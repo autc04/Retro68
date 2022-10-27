@@ -42,25 +42,25 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 02 7d 8f 55 f5[ 	]*vpopcntd xmm30\{k7\}\{z\},xmm29
 [ 	]*[a-f0-9]+:[ 	]*62 22 7d 08 55 b4 f0 23 01 00 00[ 	]*vpopcntd xmm30,XMMWORD PTR \[rax\+r14\*8\+0x123\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 7d 08 55 72 7f[ 	]*vpopcntd xmm30,XMMWORD PTR \[rdx\+0x7f0\]
-[ 	]*[a-f0-9]+:[ 	]*62 62 7d 18 55 72 7f[ 	]*vpopcntd xmm30,DWORD PTR \[rdx\+0x1fc\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 62 7d 18 55 72 7f[ 	]*vpopcntd xmm30,DWORD BCST \[rdx\+0x1fc\]
 [ 	]*[a-f0-9]+:[ 	]*62 02 7d 28 55 f5[ 	]*vpopcntd ymm30,ymm29
 [ 	]*[a-f0-9]+:[ 	]*62 02 7d 2f 55 f5[ 	]*vpopcntd ymm30\{k7\},ymm29
 [ 	]*[a-f0-9]+:[ 	]*62 02 7d af 55 f5[ 	]*vpopcntd ymm30\{k7\}\{z\},ymm29
 [ 	]*[a-f0-9]+:[ 	]*62 22 7d 28 55 b4 f0 23 01 00 00[ 	]*vpopcntd ymm30,YMMWORD PTR \[rax\+r14\*8\+0x123\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 7d 28 55 72 7f[ 	]*vpopcntd ymm30,YMMWORD PTR \[rdx\+0xfe0\]
-[ 	]*[a-f0-9]+:[ 	]*62 62 7d 38 55 72 7f[ 	]*vpopcntd ymm30,DWORD PTR \[rdx\+0x1fc\]\{1to8\}
+[ 	]*[a-f0-9]+:[ 	]*62 62 7d 38 55 72 7f[ 	]*vpopcntd ymm30,DWORD BCST \[rdx\+0x1fc\]
 [ 	]*[a-f0-9]+:[ 	]*62 02 fd 08 55 f5[ 	]*vpopcntq xmm30,xmm29
 [ 	]*[a-f0-9]+:[ 	]*62 02 fd 0f 55 f5[ 	]*vpopcntq xmm30\{k7\},xmm29
 [ 	]*[a-f0-9]+:[ 	]*62 02 fd 8f 55 f5[ 	]*vpopcntq xmm30\{k7\}\{z\},xmm29
 [ 	]*[a-f0-9]+:[ 	]*62 22 fd 08 55 b4 f0 23 01 00 00[ 	]*vpopcntq xmm30,XMMWORD PTR \[rax\+r14\*8\+0x123\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 fd 08 55 72 7f[ 	]*vpopcntq xmm30,XMMWORD PTR \[rdx\+0x7f0\]
-[ 	]*[a-f0-9]+:[ 	]*62 62 fd 18 55 72 7f[ 	]*vpopcntq xmm30,QWORD PTR \[rdx\+0x3f8\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 62 fd 18 55 72 7f[ 	]*vpopcntq xmm30,QWORD BCST \[rdx\+0x3f8\]
 [ 	]*[a-f0-9]+:[ 	]*62 02 fd 28 55 f5[ 	]*vpopcntq ymm30,ymm29
 [ 	]*[a-f0-9]+:[ 	]*62 02 fd 2f 55 f5[ 	]*vpopcntq ymm30\{k7\},ymm29
 [ 	]*[a-f0-9]+:[ 	]*62 02 fd af 55 f5[ 	]*vpopcntq ymm30\{k7\}\{z\},ymm29
 [ 	]*[a-f0-9]+:[ 	]*62 22 fd 28 55 b4 f0 23 01 00 00[ 	]*vpopcntq ymm30,YMMWORD PTR \[rax\+r14\*8\+0x123\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 fd 28 55 72 7f[ 	]*vpopcntq ymm30,YMMWORD PTR \[rdx\+0xfe0\]
-[ 	]*[a-f0-9]+:[ 	]*62 62 fd 38 55 72 7f[ 	]*vpopcntq ymm30,QWORD PTR \[rdx\+0x3f8\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 62 fd 38 55 72 7f[ 	]*vpopcntq ymm30,QWORD BCST \[rdx\+0x3f8\]
 [ 	]*[a-f0-9]+:[ 	]*62 92 15 00 8f ec[ 	]*vpshufbitqmb k5,xmm29,xmm28
 [ 	]*[a-f0-9]+:[ 	]*62 92 15 07 8f ec[ 	]*vpshufbitqmb k5\{k7\},xmm29,xmm28
 [ 	]*[a-f0-9]+:[ 	]*62 b2 15 00 8f ac f0 34 12 00 00[ 	]*vpshufbitqmb k5,xmm29,XMMWORD PTR \[rax\+r14\*8\+0x1234\]
@@ -94,23 +94,23 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 02 7d 8f 55 f5[ 	]*vpopcntd xmm30\{k7\}\{z\},xmm29
 [ 	]*[a-f0-9]+:[ 	]*62 22 7d 08 55 b4 f0 34 12 00 00[ 	]*vpopcntd xmm30,XMMWORD PTR \[rax\+r14\*8\+0x1234\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 7d 08 55 72 7f[ 	]*vpopcntd xmm30,XMMWORD PTR \[rdx\+0x7f0\]
-[ 	]*[a-f0-9]+:[ 	]*62 62 7d 18 55 72 7f[ 	]*vpopcntd xmm30,DWORD PTR \[rdx\+0x1fc\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 62 7d 18 55 72 7f[ 	]*vpopcntd xmm30,DWORD BCST \[rdx\+0x1fc\]
 [ 	]*[a-f0-9]+:[ 	]*62 02 7d 28 55 f5[ 	]*vpopcntd ymm30,ymm29
 [ 	]*[a-f0-9]+:[ 	]*62 02 7d 2f 55 f5[ 	]*vpopcntd ymm30\{k7\},ymm29
 [ 	]*[a-f0-9]+:[ 	]*62 02 7d af 55 f5[ 	]*vpopcntd ymm30\{k7\}\{z\},ymm29
 [ 	]*[a-f0-9]+:[ 	]*62 22 7d 28 55 b4 f0 34 12 00 00[ 	]*vpopcntd ymm30,YMMWORD PTR \[rax\+r14\*8\+0x1234\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 7d 28 55 72 7f[ 	]*vpopcntd ymm30,YMMWORD PTR \[rdx\+0xfe0\]
-[ 	]*[a-f0-9]+:[ 	]*62 62 7d 38 55 72 7f[ 	]*vpopcntd ymm30,DWORD PTR \[rdx\+0x1fc\]\{1to8\}
+[ 	]*[a-f0-9]+:[ 	]*62 62 7d 38 55 72 7f[ 	]*vpopcntd ymm30,DWORD BCST \[rdx\+0x1fc\]
 [ 	]*[a-f0-9]+:[ 	]*62 02 fd 08 55 f5[ 	]*vpopcntq xmm30,xmm29
 [ 	]*[a-f0-9]+:[ 	]*62 02 fd 0f 55 f5[ 	]*vpopcntq xmm30\{k7\},xmm29
 [ 	]*[a-f0-9]+:[ 	]*62 02 fd 8f 55 f5[ 	]*vpopcntq xmm30\{k7\}\{z\},xmm29
 [ 	]*[a-f0-9]+:[ 	]*62 22 fd 08 55 b4 f0 34 12 00 00[ 	]*vpopcntq xmm30,XMMWORD PTR \[rax\+r14\*8\+0x1234\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 fd 08 55 72 7f[ 	]*vpopcntq xmm30,XMMWORD PTR \[rdx\+0x7f0\]
-[ 	]*[a-f0-9]+:[ 	]*62 62 fd 18 55 72 7f[ 	]*vpopcntq xmm30,QWORD PTR \[rdx\+0x3f8\]\{1to2\}
+[ 	]*[a-f0-9]+:[ 	]*62 62 fd 18 55 72 7f[ 	]*vpopcntq xmm30,QWORD BCST \[rdx\+0x3f8\]
 [ 	]*[a-f0-9]+:[ 	]*62 02 fd 28 55 f5[ 	]*vpopcntq ymm30,ymm29
 [ 	]*[a-f0-9]+:[ 	]*62 02 fd 2f 55 f5[ 	]*vpopcntq ymm30\{k7\},ymm29
 [ 	]*[a-f0-9]+:[ 	]*62 02 fd af 55 f5[ 	]*vpopcntq ymm30\{k7\}\{z\},ymm29
 [ 	]*[a-f0-9]+:[ 	]*62 22 fd 28 55 b4 f0 34 12 00 00[ 	]*vpopcntq ymm30,YMMWORD PTR \[rax\+r14\*8\+0x1234\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 fd 28 55 72 7f[ 	]*vpopcntq ymm30,YMMWORD PTR \[rdx\+0xfe0\]
-[ 	]*[a-f0-9]+:[ 	]*62 62 fd 38 55 72 7f[ 	]*vpopcntq ymm30,QWORD PTR \[rdx\+0x3f8\]\{1to4\}
+[ 	]*[a-f0-9]+:[ 	]*62 62 fd 38 55 72 7f[ 	]*vpopcntq ymm30,QWORD BCST \[rdx\+0x3f8\]
 #pass

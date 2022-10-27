@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1996-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -44,13 +44,12 @@
 --    till the freeze point in this case.
 
 --    3. Set the Others_Discrete_Choices list for an others choice. This is
---    used in various ways, e.g. to construct the disriminant checking function
---    for the case of a variant with an others choice.
+--    used in various ways, e.g. to construct the discriminant checking
+--    function for the case of a variant with an others choice.
 
 --    4. In the case of static predicates, we need to expand out choices that
 --    correspond to the predicate for the back end. This expansion destroys
---    the list of choices, so it should be delayed to expansion time. We do
---    not want to mess up the -gnatct ASIS tree, which needs to be able to
+--    the list of choices, so it should be delayed to expansion time.
 
 --  Step 1 is performed by the generic procedure Analyze_Choices, which is
 --  called when the variant record or case statement/expression is first
@@ -66,12 +65,9 @@
 --  for predicated subtypes to accurately construct this.
 
 --  Step 4 is performed by the procedure Expand_Static_Predicates_In_Choices.
---  For case statements, this call only happens during expansion, so the tree
---  generated for ASIS does not have this expansion. For the Variant case, the
---  expansion is done in the ASIS -gnatct case, but with a proper Rewrite call
---  on the N_Variant node, so ASIS can retrieve the original. The reason we do
---  the expansion unconditionally for variants is that other processing, for
---  example for aggregates, relies on having a complete list of choices.
+--  For case statements, this call only happens during expansion. The reason
+--  we do the expansion unconditionally for variants is that other processing,
+--  for example for aggregates, relies on having a complete list of choices.
 
 --  Historical note: We used to perform all four of these functions at once in
 --  a single procedure called Analyze_Choices. This routine was called at the
@@ -129,10 +125,10 @@ package Sem_Case is
    package Generic_Check_Choices is
 
       procedure Check_Choices
-        (N                        : Node_Id;
-         Alternatives             : List_Id;
-         Subtyp                   : Entity_Id;
-         Others_Present           : out Boolean);
+        (N              : Node_Id;
+         Alternatives   : List_Id;
+         Subtyp         : Entity_Id;
+         Others_Present : out Boolean);
       --  From a case expression, case statement, or record variant N, this
       --  routine analyzes the corresponding list of discrete choices which
       --  appear in each element of the list Alternatives (for the variant
@@ -151,4 +147,10 @@ package Sem_Case is
       --  the parent node (N_Variant, N_Case_Expression/Statement_Alternative).
 
    end Generic_Check_Choices;
+
+   function Is_Case_Choice_Pattern (Expr : Node_Id) return Boolean;
+   --  GNAT language extensions allow casing on a non-discrete value, with
+   --  patterns as case choices. Return True iff Expr is such a pattern, or
+   --  a subexpression thereof.
+
 end Sem_Case;

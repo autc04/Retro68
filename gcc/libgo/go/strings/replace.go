@@ -25,7 +25,10 @@ type replacer interface {
 
 // NewReplacer returns a new Replacer from a list of old, new string
 // pairs. Replacements are performed in the order they appear in the
-// target string, without overlapping matches.
+// target string, without overlapping matches. The old string
+// comparisons are done in argument order.
+//
+// NewReplacer panics if given an odd number of arguments.
 func NewReplacer(oldnew ...string) *Replacer {
 	if len(oldnew)%2 == 1 {
 		panic("strings.NewReplacer: odd argument count")
@@ -384,7 +387,7 @@ func makeSingleStringReplacer(pattern string, value string) *singleStringReplace
 }
 
 func (r *singleStringReplacer) Replace(s string) string {
-	var buf []byte
+	var buf Builder
 	i, matched := 0, false
 	for {
 		match := r.finder.next(s[i:])
@@ -392,15 +395,16 @@ func (r *singleStringReplacer) Replace(s string) string {
 			break
 		}
 		matched = true
-		buf = append(buf, s[i:i+match]...)
-		buf = append(buf, r.value...)
+		buf.Grow(match + len(r.value))
+		buf.WriteString(s[i : i+match])
+		buf.WriteString(r.value)
 		i += match + len(r.finder.pattern)
 	}
 	if !matched {
 		return s
 	}
-	buf = append(buf, s[i:]...)
-	return string(buf)
+	buf.WriteString(s[i:])
+	return buf.String()
 }
 
 func (r *singleStringReplacer) WriteString(w io.Writer, s string) (n int, err error) {

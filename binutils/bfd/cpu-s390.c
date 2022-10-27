@@ -1,5 +1,5 @@
 /* BFD support for the s390 processor.
-   Copyright (C) 2000-2018 Free Software Foundation, Inc.
+   Copyright (C) 2000-2022 Free Software Foundation, Inc.
    Contributed by Carl B. Pedersen and Martin Schwidefsky.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -25,29 +25,30 @@
 
 #define N(bits, number, print, is_default, next)	\
   {							\
-    bits,	       /* bits in a word */		\
-    bits,	       /* bits in an address */		\
-    8,		       /* bits in a byte */		\
+    bits,	       /* Bits in a word.  */		\
+    bits,	       /* Bits in an address.  */	\
+    8,		       /* Bits in a byte.  */		\
     bfd_arch_s390,					\
     number,						\
     "s390",						\
     print,						\
-    3,		       /* section alignment power */	\
+    3,		       /* Section alignment power */	\
     is_default,						\
     bfd_default_compatible,				\
     bfd_default_scan,					\
     bfd_arch_default_fill,				\
-    next						\
+    next,						\
+    0 /* Maximum offset of a reloc from the start of an insn.  */ \
   }
 
 #if BFD_DEFAULT_TARGET_SIZE == 64
 static const bfd_arch_info_type bfd_s390_31_arch =
-  N (32, bfd_mach_s390_31, "s390:31-bit", FALSE, NULL);
+  N (32, bfd_mach_s390_31, "s390:31-bit", false, NULL);
 const bfd_arch_info_type bfd_s390_arch =
-  N (64, bfd_mach_s390_64, "s390:64-bit", TRUE, &bfd_s390_31_arch);
+  N (64, bfd_mach_s390_64, "s390:64-bit", true, &bfd_s390_31_arch);
 #else
 static const bfd_arch_info_type bfd_s390_64_arch =
-  N (64, bfd_mach_s390_64, "s390:64-bit", FALSE, NULL);
+  N (64, bfd_mach_s390_64, "s390:64-bit", false, NULL);
 const bfd_arch_info_type bfd_s390_arch =
-  N (32, bfd_mach_s390_31, "s390:31-bit", TRUE, &bfd_s390_64_arch);
+  N (32, bfd_mach_s390_31, "s390:31-bit", true, &bfd_s390_64_arch);
 #endif

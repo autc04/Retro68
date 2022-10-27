@@ -1,2 +1,2 @@
 #as: 
-#error-output: misalign.l
+#error_output: misalign.l

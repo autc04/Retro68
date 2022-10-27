@@ -1,4 +1,15 @@
-import std.stdio;
+/*
+TEST_OUTPUT:
+---
+This actually gets evaluated!
+()
+(bool)
+(bool, short)
+(bool, short, int)
+Alias Test instantiated
+Alias Test instantiated
+---
+*/
 import core.stdc.stdio;
 
 /*********************************************************/
@@ -234,31 +245,6 @@ void test6()
 
 /*********************************************************/
 
-template factorial7(float n, cdouble c, string sss, string ttt)
-{
-    static if (n == 1)
-        const float factorial7 = 1;
-    else
-        const float factorial7 = n * 2;
-}
-
-template bar7(wstring abc, dstring def)
-{
-    const int x = 3;
-}
-
-void test7()
-{
-    float f = factorial7!(4.25, 6.8+3i, "hello", null);
-    printf("%g\n", f);
-    assert(f == 8.5);
-    int i = bar7!("abc"w, "def"d).x;
-    printf("%d\n", i);
-    assert(i == 3);
-}
-
-/*********************************************************/
-
 template whale(string walrus)
 {
     const char [] whale = walrus;
@@ -437,20 +423,15 @@ template horse(string w)
 void test14()
 {
     bool lion = zebra!("a");
-    writeln(lion);
     assert(!lion);
     lion = zebra!("aqb");
-    writeln(lion);
     assert(lion);
 
     lion = horse!("a");
-    writeln(lion);
     assert(lion);
     lion = horse!("aqb");
-    writeln(lion);
     assert(lion);
     lion = horse!("ab");
-    writeln(lion);
     assert(!lion);
 }
 
@@ -517,7 +498,7 @@ void test16()
 {
     for (int i=0; i<smallfactorials.length; ++i)
     {
-        writefln("%d  %d", i, smallfactorials[i]);
+        printf("%d  %d\n", i, smallfactorials[i]);
         assert(smallfactorials[i] == testtable[i]);
     }
 }
@@ -609,7 +590,7 @@ template sqrt(real x, real root = x/2, int ntries = 0)
 void test20()
 {
     real x = sqrt!(2);
-    writefln("%.20g", x); // 1.4142135623730950487
+    printf("%.20Lg\n", x); // 1.4142135623730950487
 }
 
 /*********************************************************/
@@ -630,7 +611,7 @@ uint foo21()
 void test21()
 {
     auto i = foo21();
-    writeln(i);
+    printf("%d\n", i);
     assert(i == 1871483972);
 }
 
@@ -814,10 +795,14 @@ void test31()
     i2s[1] = "Hello";
     i2s[5] = "There";
 
-    writeln( i2s.get31(1, "yeh") );
-    writeln( i2s.get31(2, "default") );
-    writeln( i2s.get31(1) );
-    writeln( i2s.get31(2) );
+    auto result = i2s.get31(1, "yeh");
+    printf("%.*s\n", cast(int)result.length, result.ptr);
+    result = i2s.get31(2, "default");
+    printf("%.*s\n", cast(int)result.length, result.ptr);
+    result = i2s.get31(1);
+    printf("%.*s\n", cast(int)result.length, result.ptr);
+    result = i2s.get31(2);
+    printf("%.*s\n", cast(int)result.length, result.ptr);
 }
 
 /*********************************************************/
@@ -848,7 +833,7 @@ struct Composer(T) {
         }
         return result;
     }
-    public void opAddAssign(Fun f) {
+    public void opOpAssign(string op)(Fun f) if (op == "+") {
         funs ~= f;
     }
 }
@@ -892,14 +877,14 @@ void test33() {
     comp += delegate double (double x) { return x/3.0;};
     comp += delegate double (double x) { return x*x;};
     comp += (double x) => x + 1.0;
-    writefln("%f", comp(2.0));
+    printf("%f\n", comp(2.0));
 
     // Try function objects
     Composer!(double) comp2;
     comp2 += tofp!(div3!(double))();
     comp2 += tofp!(square!(double))();
     comp2 += tofp!(plus1!(double))();
-    writefln("%f", comp2( 2.0));
+    printf("%f\n", comp2( 2.0));
 }
 
 /*********************************************************/
@@ -1023,7 +1008,7 @@ void instantiate4652()
 }
 
 /*********************************************************/
-// 7589
+// https://issues.dlang.org/show_bug.cgi?id=7589
 
 struct T7589(T)
 {
@@ -1050,7 +1035,7 @@ void test39()
 }
 
 /*********************************************************/
-// 6701
+// https://issues.dlang.org/show_bug.cgi?id=6701
 
 uint foo_6701(uint v:0)() { return 1; }
 uint foo_6701(uint v)() { return 0; }
@@ -1064,7 +1049,7 @@ void test6701()
 }
 
 /******************************************/
-// 7469
+// https://issues.dlang.org/show_bug.cgi?id=7469
 
 struct Foo7469a(int x) { }
 struct Foo7469b(int x) { }
@@ -1073,22 +1058,27 @@ struct Foo7469d(T...) { }
 struct Foo7469e(int a, T...) { }
 struct Foo7469f(T, int k=1) { }
 struct Foo7469g(T, int k=1) { }
+struct Foo7469h(uint x) { }
+
+import core.demangle : demangleType;
 
 void test7469()
 {
-    static assert(Foo7469a!(3 )    .mangleof[$-28 .. $] == "17__T8Foo7469aVii3Z8Foo7469a");
-    static assert(Foo7469a!(3u)    .mangleof[$-28 .. $] == "17__T8Foo7469aVii3Z8Foo7469a");
-    static assert(Foo7469b!(3u)    .mangleof[$-28 .. $] == "17__T8Foo7469bVii3Z8Foo7469b");
-    static assert(Foo7469b!(3 )    .mangleof[$-28 .. $] == "17__T8Foo7469bVii3Z8Foo7469b");
-    static assert(Foo7469c!(3 )    .mangleof[$-28 .. $] == "17__T8Foo7469cVii3Z8Foo7469c");
-    static assert(Foo7469c!(3u)    .mangleof[$-28 .. $] == "17__T8Foo7469cVki3Z8Foo7469c");
-    static assert(Foo7469d!(3 )    .mangleof[$-28 .. $] == "17__T8Foo7469dVii3Z8Foo7469d");
-    static assert(Foo7469d!(3u)    .mangleof[$-28 .. $] == "17__T8Foo7469dVki3Z8Foo7469d");
-    static assert(Foo7469e!(3u, 5u).mangleof[$-32 .. $] == "21__T8Foo7469eVii3Vki5Z8Foo7469e");
-    static assert(Foo7469f!(int, 1).mangleof[$-30 .. $] == "19__T8Foo7469fTiVii1Z8Foo7469f");
-    static assert(Foo7469f!(int)   .mangleof[$-30 .. $] == "19__T8Foo7469fTiVii1Z8Foo7469f");
-    static assert(Foo7469g!(int)   .mangleof[$-30 .. $] == "19__T8Foo7469gTiVii1Z8Foo7469g");
-    static assert(Foo7469g!(int, 1).mangleof[$-30 .. $] == "19__T8Foo7469gTiVii1Z8Foo7469g");
+    static assert(demangleType(Foo7469a!(3 )    .mangleof) == "template4.Foo7469a!(3).Foo7469a");
+    static assert(demangleType(Foo7469a!(3u)    .mangleof) == "template4.Foo7469a!(3).Foo7469a");
+    static assert(demangleType(Foo7469b!(3u)    .mangleof) == "template4.Foo7469b!(3).Foo7469b");
+    static assert(demangleType(Foo7469b!(3 )    .mangleof) == "template4.Foo7469b!(3).Foo7469b");
+    static assert(demangleType(Foo7469c!(3 )    .mangleof) == "template4.Foo7469c!(3).Foo7469c");
+    static assert(demangleType(Foo7469c!(3u)    .mangleof) == "template4.Foo7469c!(3u).Foo7469c");
+    static assert(demangleType(Foo7469d!(3 )    .mangleof) == "template4.Foo7469d!(3).Foo7469d");
+    static assert(demangleType(Foo7469d!(3u)    .mangleof) == "template4.Foo7469d!(3u).Foo7469d");
+    static assert(demangleType(Foo7469e!(3u, 5u).mangleof) == "template4.Foo7469e!(3, 5u).Foo7469e");
+    static assert(demangleType(Foo7469f!(int, 1).mangleof) == "template4.Foo7469f!(int, 1).Foo7469f");
+    static assert(demangleType(Foo7469f!(int)   .mangleof) == "template4.Foo7469f!(int, 1).Foo7469f");
+    static assert(demangleType(Foo7469g!(int)   .mangleof) == "template4.Foo7469g!(int, 1).Foo7469g");
+    static assert(demangleType(Foo7469g!(int, 1).mangleof) == "template4.Foo7469g!(int, 1).Foo7469g");
+    static assert(demangleType(Foo7469h!(3 )    .mangleof) == "template4.Foo7469h!(3u).Foo7469h");
+    static assert(demangleType(Foo7469h!(3u)    .mangleof) == "template4.Foo7469h!(3u).Foo7469h");
 }
 
 /******************************************/
@@ -1125,7 +1115,6 @@ int main()
     test4();
     test5();
     test6();
-    test7();
     test8();
     test9();
     test10();

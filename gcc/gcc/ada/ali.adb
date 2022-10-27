@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,38 +29,586 @@ with Fname;  use Fname;
 with Opt;    use Opt;
 with Osint;  use Osint;
 with Output; use Output;
+with Snames; use Snames;
+
+with GNAT;                 use GNAT;
+with GNAT.Dynamic_HTables; use GNAT.Dynamic_HTables;
 
 package body ALI is
 
    use ASCII;
    --  Make control characters visible
 
+   -----------
+   -- Types --
+   -----------
+
+   --  The following type represents an invocation construct
+
+   type Invocation_Construct_Record is record
+      Body_Placement : Declaration_Placement_Kind := No_Declaration_Placement;
+      --  The location of the invocation construct's body with respect to the
+      --  unit where it is declared.
+
+      Kind : Invocation_Construct_Kind := Regular_Construct;
+      --  The nature of the invocation construct
+
+      Signature : Invocation_Signature_Id := No_Invocation_Signature;
+      --  The invocation signature that uniquely identifies the invocation
+      --  construct in the ALI space.
+
+      Spec_Placement : Declaration_Placement_Kind := No_Declaration_Placement;
+      --  The location of the invocation construct's spec with respect to the
+      --  unit where it is declared.
+   end record;
+
+   --  The following type represents an invocation relation. It associates an
+   --  invoker that activates/calls/instantiates with a target.
+
+   type Invocation_Relation_Record is record
+      Extra : Name_Id := No_Name;
+      --  The name of an additional entity used in error diagnostics
+
+      Invoker : Invocation_Signature_Id := No_Invocation_Signature;
+      --  The invocation signature that uniquely identifies the invoker within
+      --  the ALI space.
+
+      Kind : Invocation_Kind := No_Invocation;
+      --  The nature of the invocation
+
+      Target : Invocation_Signature_Id := No_Invocation_Signature;
+      --  The invocation signature that uniquely identifies the target within
+      --  the ALI space.
+   end record;
+
+   --  The following type represents an invocation signature. Its purpose is
+   --  to uniquely identify an invocation construct within the ALI space. The
+   --  signature comprises several pieces, some of which are used in error
+   --  diagnostics by the binder. Identification issues are resolved as
+   --  follows:
+   --
+   --    * The Column, Line, and Locations attributes together differentiate
+   --      between homonyms. In most cases, the Column and Line are sufficient
+   --      except when generic instantiations are involved. Together, the three
+   --      attributes offer a sequence of column-line pairs that eventually
+   --      reflect the location within the generic template.
+   --
+   --    * The Name attribute differentiates between invocation constructs at
+   --      the scope level. Since it is illegal for two entities with the same
+   --      name to coexist in the same scope, the Name attribute is sufficient
+   --      to distinguish them. Overloaded entities are already handled by the
+   --      Column, Line, and Locations attributes.
+   --
+   --    * The Scope attribute differentiates between invocation constructs at
+   --      various levels of nesting.
+
+   type Invocation_Signature_Record is record
+      Column : Nat := 0;
+      --  The column number where the invocation construct is declared
+
+      Line : Nat := 0;
+      --  The line number where the invocation construct is declared
+
+      Locations : Name_Id := No_Name;
+      --  Sequence of column and line numbers within nested instantiations
+
+      Name : Name_Id := No_Name;
+      --  The name of the invocation construct
+
+      Scope : Name_Id := No_Name;
+      --  The qualified name of the scope where the invocation construct is
+      --  declared.
+   end record;
+
+   ---------------------
+   -- Data structures --
+   ---------------------
+
+   package Invocation_Constructs is new Table.Table
+     (Table_Index_Type     => Invocation_Construct_Id,
+      Table_Component_Type => Invocation_Construct_Record,
+      Table_Low_Bound      => First_Invocation_Construct,
+      Table_Initial        => 2500,
+      Table_Increment      => 200,
+      Table_Name           => "Invocation_Constructs");
+
+   package Invocation_Relations is new Table.Table
+     (Table_Index_Type     => Invocation_Relation_Id,
+      Table_Component_Type => Invocation_Relation_Record,
+      Table_Low_Bound      => First_Invocation_Relation,
+      Table_Initial        => 2500,
+      Table_Increment      => 200,
+      Table_Name           => "Invocation_Relation");
+
+   package Invocation_Signatures is new Table.Table
+     (Table_Index_Type     => Invocation_Signature_Id,
+      Table_Component_Type => Invocation_Signature_Record,
+      Table_Low_Bound      => First_Invocation_Signature,
+      Table_Initial        => 2500,
+      Table_Increment      => 200,
+      Table_Name           => "Invocation_Signatures");
+
+   procedure Destroy (IS_Id : in out Invocation_Signature_Id);
+   --  Destroy an invocation signature with id IS_Id
+
+   function Hash
+     (IS_Rec : Invocation_Signature_Record) return Bucket_Range_Type;
+   --  Obtain the hash of key IS_Rec
+
+   package Sig_Map is new Dynamic_Hash_Tables
+     (Key_Type              => Invocation_Signature_Record,
+      Value_Type            => Invocation_Signature_Id,
+      No_Value              => No_Invocation_Signature,
+      Expansion_Threshold   => 1.5,
+      Expansion_Factor      => 2,
+      Compression_Threshold => 0.3,
+      Compression_Factor    => 2,
+      "="                   => "=",
+      Destroy_Value         => Destroy,
+      Hash                  => Hash);
+
+   --  The following map relates invocation signature records to invocation
+   --  signature ids.
+
+   Sig_To_Sig_Map : constant Sig_Map.Dynamic_Hash_Table :=
+                      Sig_Map.Create (500);
+
+   --  The folowing table maps declaration placement kinds to character codes
+   --  for invocation construct encoding in ALI files.
+
+   Declaration_Placement_Codes :
+     constant array (Declaration_Placement_Kind) of Character :=
+       (In_Body                  => 'b',
+        In_Spec                  => 's',
+        No_Declaration_Placement => 'Z');
+
+   Compile_Time_Invocation_Graph_Encoding : Invocation_Graph_Encoding_Kind :=
+                                              No_Encoding;
+   --  The invocation-graph encoding format as specified at compile time. Do
+   --  not manipulate this value directly.
+
+   --  The following table maps invocation kinds to character codes for
+   --  invocation relation encoding in ALI files.
+
+   Invocation_Codes :
+     constant array (Invocation_Kind) of Character :=
+       (Accept_Alternative                     => 'a',
+        Access_Taken                           => 'b',
+        Call                                   => 'c',
+        Controlled_Adjustment                  => 'd',
+        Controlled_Finalization                => 'e',
+        Controlled_Initialization              => 'f',
+        Default_Initial_Condition_Verification => 'g',
+        Initial_Condition_Verification         => 'h',
+        Instantiation                          => 'i',
+        Internal_Controlled_Adjustment         => 'j',
+        Internal_Controlled_Finalization       => 'k',
+        Internal_Controlled_Initialization     => 'l',
+        Invariant_Verification                 => 'm',
+        Postcondition_Verification             => 'n',
+        Protected_Entry_Call                   => 'o',
+        Protected_Subprogram_Call              => 'p',
+        Task_Activation                        => 'q',
+        Task_Entry_Call                        => 'r',
+        Type_Initialization                    => 's',
+        No_Invocation                          => 'Z');
+
+   --  The following table maps invocation construct kinds to character codes
+   --  for invocation construct encoding in ALI files.
+
+   Invocation_Construct_Codes :
+     constant array (Invocation_Construct_Kind) of Character :=
+       (Elaborate_Body_Procedure => 'b',
+        Elaborate_Spec_Procedure => 's',
+        Regular_Construct        => 'Z');
+
+   --  The following table maps invocation-graph encoding kinds to character
+   --  codes for invocation-graph encoding in ALI files.
+
+   Invocation_Graph_Encoding_Codes :
+     constant array (Invocation_Graph_Encoding_Kind) of Character :=
+       (Full_Path_Encoding => 'f',
+        Endpoints_Encoding => 'e',
+        No_Encoding        => 'Z');
+
+   --  The following table maps invocation-graph line kinds to character codes
+   --  used in ALI files.
+
+   Invocation_Graph_Line_Codes :
+     constant array (Invocation_Graph_Line_Kind) of Character :=
+       (Invocation_Construct_Line        => 'c',
+        Invocation_Graph_Attributes_Line => 'a',
+        Invocation_Relation_Line         => 'r');
+
    --  The following variable records which characters currently are used as
    --  line type markers in the ALI file. This is used in Scan_ALI to detect
-   --  (or skip) invalid lines. The following letters are still available:
-   --
-   --    B F G H J K O Q Z
+   --  (or skip) invalid lines.
 
    Known_ALI_Lines : constant array (Character range 'A' .. 'Z') of Boolean :=
-     ('V'    => True,   -- version
-      'M'    => True,   -- main program
-      'A'    => True,   -- argument
-      'P'    => True,   -- program
-      'R'    => True,   -- restriction
-      'I'    => True,   -- interrupt
-      'U'    => True,   -- unit
-      'W'    => True,   -- with
-      'L'    => True,   -- linker option
-      'N'    => True,   -- notes
-      'E'    => True,   -- external
-      'D'    => True,   -- dependency
-      'X'    => True,   -- xref
-      'S'    => True,   -- specific dispatching
-      'Y'    => True,   -- limited_with
-      'Z'    => True,   -- implicit with from instantiation
-      'C'    => True,   -- SCO information
-      'T'    => True,   -- task stack information
-      others => False);
+     ('A' | --  argument
+      'C' | --  SCO information
+      'D' | --  dependency
+      'E' | --  external
+      'G' | --  invocation graph
+      'I' | --  interrupt
+      'L' | --  linker option
+      'M' | --  main program
+      'N' | --  notes
+      'P' | --  program
+      'R' | --  restriction
+      'S' | --  specific dispatching
+      'T' | --  task stack information
+      'U' | --  unit
+      'V' | --  version
+      'W' | --  with
+      'X' | --  xref
+      'Y' | --  limited_with
+      'Z'   --  implicit with from instantiation
+          => True,
+
+      --  Still available:
+
+      'B' | 'F' | 'H' | 'J' | 'K' | 'O' | 'Q' => False);
+
+   ------------------------------
+   -- Add_Invocation_Construct --
+   ------------------------------
+
+   procedure Add_Invocation_Construct
+     (Body_Placement : Declaration_Placement_Kind;
+      Kind           : Invocation_Construct_Kind;
+      Signature      : Invocation_Signature_Id;
+      Spec_Placement : Declaration_Placement_Kind;
+      Update_Units   : Boolean := True)
+   is
+   begin
+      pragma Assert (Present (Signature));
+
+      --  Create a invocation construct from the scanned attributes
+
+      Invocation_Constructs.Append
+        ((Body_Placement => Body_Placement,
+          Kind           => Kind,
+          Signature      => Signature,
+          Spec_Placement => Spec_Placement));
+
+      --  Update the invocation construct counter of the current unit only when
+      --  requested by the caller.
+
+      if Update_Units then
+         declare
+            Curr_Unit : Unit_Record renames Units.Table (Units.Last);
+
+         begin
+            Curr_Unit.Last_Invocation_Construct := Invocation_Constructs.Last;
+         end;
+      end if;
+   end Add_Invocation_Construct;
+
+   -----------------------------
+   -- Add_Invocation_Relation --
+   -----------------------------
+
+   procedure Add_Invocation_Relation
+     (Extra        : Name_Id;
+      Invoker      : Invocation_Signature_Id;
+      Kind         : Invocation_Kind;
+      Target       : Invocation_Signature_Id;
+      Update_Units : Boolean := True)
+   is
+   begin
+      pragma Assert (Present (Invoker));
+      pragma Assert (Kind /= No_Invocation);
+      pragma Assert (Present (Target));
+
+      --  Create an invocation relation from the scanned attributes
+
+      Invocation_Relations.Append
+        ((Extra   => Extra,
+          Invoker => Invoker,
+          Kind    => Kind,
+          Target  => Target));
+
+      --  Update the invocation relation counter of the current unit only when
+      --  requested by the caller.
+
+      if Update_Units then
+         declare
+            Curr_Unit : Unit_Record renames Units.Table (Units.Last);
+
+         begin
+            Curr_Unit.Last_Invocation_Relation := Invocation_Relations.Last;
+         end;
+      end if;
+   end Add_Invocation_Relation;
+
+   --------------------
+   -- Body_Placement --
+   --------------------
+
+   function Body_Placement
+     (IC_Id : Invocation_Construct_Id) return Declaration_Placement_Kind
+   is
+   begin
+      pragma Assert (Present (IC_Id));
+      return Invocation_Constructs.Table (IC_Id).Body_Placement;
+   end Body_Placement;
+
+   ----------------------------------------
+   -- Code_To_Declaration_Placement_Kind --
+   ----------------------------------------
+
+   function Code_To_Declaration_Placement_Kind
+     (Code : Character) return Declaration_Placement_Kind
+   is
+   begin
+      --  Determine which placement kind corresponds to the character code by
+      --  traversing the contents of the mapping table.
+
+      for Kind in Declaration_Placement_Kind loop
+         if Declaration_Placement_Codes (Kind) = Code then
+            return Kind;
+         end if;
+      end loop;
+
+      raise Program_Error;
+   end Code_To_Declaration_Placement_Kind;
+
+   ---------------------------------------
+   -- Code_To_Invocation_Construct_Kind --
+   ---------------------------------------
+
+   function Code_To_Invocation_Construct_Kind
+     (Code : Character) return Invocation_Construct_Kind
+   is
+   begin
+      --  Determine which invocation construct kind matches the character code
+      --  by traversing the contents of the mapping table.
+
+      for Kind in Invocation_Construct_Kind loop
+         if Invocation_Construct_Codes (Kind) = Code then
+            return Kind;
+         end if;
+      end loop;
+
+      raise Program_Error;
+   end Code_To_Invocation_Construct_Kind;
+
+   --------------------------------------------
+   -- Code_To_Invocation_Graph_Encoding_Kind --
+   --------------------------------------------
+
+   function Code_To_Invocation_Graph_Encoding_Kind
+     (Code : Character) return Invocation_Graph_Encoding_Kind
+   is
+   begin
+      --  Determine which invocation-graph encoding kind matches the character
+      --  code by traversing the contents of the mapping table.
+
+      for Kind in Invocation_Graph_Encoding_Kind loop
+         if Invocation_Graph_Encoding_Codes (Kind) = Code then
+            return Kind;
+         end if;
+      end loop;
+
+      raise Program_Error;
+   end Code_To_Invocation_Graph_Encoding_Kind;
+
+   -----------------------------
+   -- Code_To_Invocation_Kind --
+   -----------------------------
+
+   function Code_To_Invocation_Kind
+     (Code : Character) return Invocation_Kind
+   is
+   begin
+      --  Determine which invocation kind corresponds to the character code by
+      --  traversing the contents of the mapping table.
+
+      for Kind in Invocation_Kind loop
+         if Invocation_Codes (Kind) = Code then
+            return Kind;
+         end if;
+      end loop;
+
+      raise Program_Error;
+   end Code_To_Invocation_Kind;
+
+   ----------------------------------------
+   -- Code_To_Invocation_Graph_Line_Kind --
+   ----------------------------------------
+
+   function Code_To_Invocation_Graph_Line_Kind
+     (Code : Character) return Invocation_Graph_Line_Kind
+   is
+   begin
+      --  Determine which invocation-graph line kind matches the character
+      --  code by traversing the contents of the mapping table.
+
+      for Kind in Invocation_Graph_Line_Kind loop
+         if Invocation_Graph_Line_Codes (Kind) = Code then
+            return Kind;
+         end if;
+      end loop;
+
+      raise Program_Error;
+   end Code_To_Invocation_Graph_Line_Kind;
+
+   ------------
+   -- Column --
+   ------------
+
+   function Column (IS_Id : Invocation_Signature_Id) return Nat is
+   begin
+      pragma Assert (Present (IS_Id));
+      return Invocation_Signatures.Table (IS_Id).Column;
+   end Column;
+
+   ----------------------------------------
+   -- Declaration_Placement_Kind_To_Code --
+   ----------------------------------------
+
+   function Declaration_Placement_Kind_To_Code
+     (Kind : Declaration_Placement_Kind) return Character
+   is
+   begin
+      return Declaration_Placement_Codes (Kind);
+   end Declaration_Placement_Kind_To_Code;
+
+   -------------
+   -- Destroy --
+   -------------
+
+   procedure Destroy (IS_Id : in out Invocation_Signature_Id) is
+      pragma Unreferenced (IS_Id);
+   begin
+      null;
+   end Destroy;
+
+   -----------
+   -- Extra --
+   -----------
+
+   function Extra (IR_Id : Invocation_Relation_Id) return Name_Id is
+   begin
+      pragma Assert (Present (IR_Id));
+      return Invocation_Relations.Table (IR_Id).Extra;
+   end Extra;
+
+   -----------------------------------
+   -- For_Each_Invocation_Construct --
+   -----------------------------------
+
+   procedure For_Each_Invocation_Construct
+     (Processor : Invocation_Construct_Processor_Ptr)
+   is
+   begin
+      pragma Assert (Processor /= null);
+
+      for IC_Id in Invocation_Constructs.First ..
+                   Invocation_Constructs.Last
+      loop
+         Processor.all (IC_Id);
+      end loop;
+   end For_Each_Invocation_Construct;
+
+   -----------------------------------
+   -- For_Each_Invocation_Construct --
+   -----------------------------------
+
+   procedure For_Each_Invocation_Construct
+     (U_Id      : Unit_Id;
+      Processor : Invocation_Construct_Processor_Ptr)
+   is
+      pragma Assert (Present (U_Id));
+      pragma Assert (Processor /= null);
+
+      U_Rec : Unit_Record renames Units.Table (U_Id);
+
+   begin
+      for IC_Id in U_Rec.First_Invocation_Construct ..
+                   U_Rec.Last_Invocation_Construct
+      loop
+         Processor.all (IC_Id);
+      end loop;
+   end For_Each_Invocation_Construct;
+
+   ----------------------------------
+   -- For_Each_Invocation_Relation --
+   ----------------------------------
+
+   procedure For_Each_Invocation_Relation
+     (Processor : Invocation_Relation_Processor_Ptr)
+   is
+   begin
+      pragma Assert (Processor /= null);
+
+      for IR_Id in Invocation_Relations.First ..
+                   Invocation_Relations.Last
+      loop
+         Processor.all (IR_Id);
+      end loop;
+   end For_Each_Invocation_Relation;
+
+   ----------------------------------
+   -- For_Each_Invocation_Relation --
+   ----------------------------------
+
+   procedure For_Each_Invocation_Relation
+     (U_Id      : Unit_Id;
+      Processor : Invocation_Relation_Processor_Ptr)
+   is
+      pragma Assert (Present (U_Id));
+      pragma Assert (Processor /= null);
+
+      U_Rec : Unit_Record renames Units.Table (U_Id);
+
+   begin
+      for IR_Id in U_Rec.First_Invocation_Relation ..
+                   U_Rec.Last_Invocation_Relation
+      loop
+         Processor.all (IR_Id);
+      end loop;
+   end For_Each_Invocation_Relation;
+
+   ----------
+   -- Hash --
+   ----------
+
+   function Hash
+     (IS_Rec : Invocation_Signature_Record) return Bucket_Range_Type
+   is
+      Buffer : Bounded_String (2052);
+      IS_Nam : Name_Id;
+
+   begin
+      --  The hash is obtained in the following manner:
+      --
+      --    * A String signature based on the scope, name, line number, column
+      --      number, and locations, in the following format:
+      --
+      --         scope__name__line_column__locations
+      --
+      --    * The String is converted into a Name_Id
+      --
+      --    * The absolute value of the Name_Id is used as the hash
+
+      Append (Buffer, IS_Rec.Scope);
+      Append (Buffer, "__");
+      Append (Buffer, IS_Rec.Name);
+      Append (Buffer, "__");
+      Append (Buffer, IS_Rec.Line);
+      Append (Buffer, '_');
+      Append (Buffer, IS_Rec.Column);
+
+      if IS_Rec.Locations /= No_Name then
+         Append (Buffer, "__");
+         Append (Buffer, IS_Rec.Locations);
+      end if;
+
+      IS_Nam := Name_Find (Buffer);
+      return Bucket_Range_Type (abs IS_Nam);
+   end Hash;
 
    --------------------
    -- Initialize_ALI --
@@ -90,18 +638,21 @@ package body ALI is
       --  Initialize all tables
 
       ALIs.Init;
-      No_Deps.Init;
-      Units.Init;
-      Withs.Init;
-      Sdep.Init;
+      Invocation_Constructs.Init;
+      Invocation_Relations.Init;
+      Invocation_Signatures.Init;
       Linker_Options.Init;
+      No_Deps.Init;
       Notes.Init;
-      Xref_Section.Init;
+      Sdep.Init;
+      Units.Init;
+      Version_Ref.Reset;
+      Withs.Init;
       Xref_Entity.Init;
       Xref.Init;
-      Version_Ref.Reset;
+      Xref_Section.Init;
 
-      --  Add dummy zero'th item in Linker_Options and Notes for sort calls
+      --  Add dummy zeroth item in Linker_Options and Notes for sort calls
 
       Linker_Options.Increment_Last;
       Notes.Increment_Last;
@@ -125,6 +676,215 @@ package body ALI is
       Zero_Cost_Exceptions_Specified         := False;
    end Initialize_ALI;
 
+   ---------------------------------------
+   -- Invocation_Construct_Kind_To_Code --
+   ---------------------------------------
+
+   function Invocation_Construct_Kind_To_Code
+     (Kind : Invocation_Construct_Kind) return Character
+   is
+   begin
+      return Invocation_Construct_Codes (Kind);
+   end Invocation_Construct_Kind_To_Code;
+
+   -------------------------------
+   -- Invocation_Graph_Encoding --
+   -------------------------------
+
+   function Invocation_Graph_Encoding return Invocation_Graph_Encoding_Kind is
+   begin
+      return Compile_Time_Invocation_Graph_Encoding;
+   end Invocation_Graph_Encoding;
+
+   --------------------------------------------
+   -- Invocation_Graph_Encoding_Kind_To_Code --
+   --------------------------------------------
+
+   function Invocation_Graph_Encoding_Kind_To_Code
+     (Kind : Invocation_Graph_Encoding_Kind) return Character
+   is
+   begin
+      return Invocation_Graph_Encoding_Codes (Kind);
+   end Invocation_Graph_Encoding_Kind_To_Code;
+
+   ----------------------------------------
+   -- Invocation_Graph_Line_Kind_To_Code --
+   ----------------------------------------
+
+   function Invocation_Graph_Line_Kind_To_Code
+     (Kind : Invocation_Graph_Line_Kind) return Character
+   is
+   begin
+      return Invocation_Graph_Line_Codes (Kind);
+   end Invocation_Graph_Line_Kind_To_Code;
+
+   -----------------------------
+   -- Invocation_Kind_To_Code --
+   -----------------------------
+
+   function Invocation_Kind_To_Code
+     (Kind : Invocation_Kind) return Character
+   is
+   begin
+      return Invocation_Codes (Kind);
+   end Invocation_Kind_To_Code;
+
+   -----------------------------
+   -- Invocation_Signature_Of --
+   -----------------------------
+
+   function Invocation_Signature_Of
+     (Column    : Nat;
+      Line      : Nat;
+      Locations : Name_Id;
+      Name      : Name_Id;
+      Scope     : Name_Id) return Invocation_Signature_Id
+   is
+      IS_Rec : constant Invocation_Signature_Record :=
+                 (Column    => Column,
+                  Line      => Line,
+                  Locations => Locations,
+                  Name      => Name,
+                  Scope     => Scope);
+      IS_Id  : Invocation_Signature_Id;
+
+   begin
+      IS_Id := Sig_Map.Get (Sig_To_Sig_Map, IS_Rec);
+
+      --  The invocation signature lacks an id. This indicates that it
+      --  is encountered for the first time during the construction of
+      --  the graph.
+
+      if not Present (IS_Id) then
+         Invocation_Signatures.Append (IS_Rec);
+         IS_Id := Invocation_Signatures.Last;
+
+         --  Map the invocation signature record to its corresponding id
+
+         Sig_Map.Put (Sig_To_Sig_Map, IS_Rec, IS_Id);
+      end if;
+
+      return IS_Id;
+   end Invocation_Signature_Of;
+
+   -------------
+   -- Invoker --
+   -------------
+
+   function Invoker
+     (IR_Id : Invocation_Relation_Id) return Invocation_Signature_Id
+   is
+   begin
+      pragma Assert (Present (IR_Id));
+      return Invocation_Relations.Table (IR_Id).Invoker;
+   end Invoker;
+
+   ----------
+   -- Kind --
+   ----------
+
+   function Kind
+     (IC_Id : Invocation_Construct_Id) return Invocation_Construct_Kind
+   is
+   begin
+      pragma Assert (Present (IC_Id));
+      return Invocation_Constructs.Table (IC_Id).Kind;
+   end Kind;
+
+   ----------
+   -- Kind --
+   ----------
+
+   function Kind (IR_Id : Invocation_Relation_Id) return Invocation_Kind is
+   begin
+      pragma Assert (Present (IR_Id));
+      return Invocation_Relations.Table (IR_Id).Kind;
+   end Kind;
+
+   ----------
+   -- Line --
+   ----------
+
+   function Line (IS_Id : Invocation_Signature_Id) return Nat is
+   begin
+      pragma Assert (Present (IS_Id));
+      return Invocation_Signatures.Table (IS_Id).Line;
+   end Line;
+
+   ---------------
+   -- Locations --
+   ---------------
+
+   function Locations (IS_Id : Invocation_Signature_Id) return Name_Id is
+   begin
+      pragma Assert (Present (IS_Id));
+      return Invocation_Signatures.Table (IS_Id).Locations;
+   end Locations;
+
+   ----------
+   -- Name --
+   ----------
+
+   function Name (IS_Id : Invocation_Signature_Id) return Name_Id is
+   begin
+      pragma Assert (Present (IS_Id));
+      return Invocation_Signatures.Table (IS_Id).Name;
+   end Name;
+
+   -------------
+   -- Present --
+   -------------
+
+   function Present (IC_Id : Invocation_Construct_Id) return Boolean is
+   begin
+      return IC_Id /= No_Invocation_Construct;
+   end Present;
+
+   -------------
+   -- Present --
+   -------------
+
+   function Present (IR_Id : Invocation_Relation_Id) return Boolean is
+   begin
+      return IR_Id /= No_Invocation_Relation;
+   end Present;
+
+   -------------
+   -- Present --
+   -------------
+
+   function Present (IS_Id : Invocation_Signature_Id) return Boolean is
+   begin
+      return IS_Id /= No_Invocation_Signature;
+   end Present;
+
+   -------------
+   -- Present --
+   -------------
+
+   function Present (Dep : Sdep_Id) return Boolean is
+   begin
+      return Dep /= No_Sdep_Id;
+   end Present;
+
+   -------------
+   -- Present --
+   -------------
+
+   function Present (U_Id : Unit_Id) return Boolean is
+   begin
+      return U_Id /= No_Unit_Id;
+   end Present;
+
+   -------------
+   -- Present --
+   -------------
+
+   function Present (W_Id : With_Id) return Boolean is
+   begin
+      return W_Id /= No_With_Id;
+   end Present;
+
    --------------
    -- Scan_ALI --
    --------------
@@ -132,10 +892,7 @@ package body ALI is
    function Scan_ALI
      (F                : File_Name_Type;
       T                : Text_Buffer_Ptr;
-      Ignore_ED        : Boolean;
       Err              : Boolean;
-      Read_Xref        : Boolean := False;
-      Read_Lines       : String  := "";
       Ignore_Lines     : String  := "X";
       Ignore_Errors    : Boolean := False;
       Directly_Scanned : Boolean := False) return ALI_Id
@@ -147,7 +904,8 @@ package body ALI is
       NS_Found  : Boolean;
       First_Arg : Arg_Id;
 
-      Ignore : array (Character range 'A' .. 'Z') of Boolean;
+      Ignore : array (Character range 'A' .. 'Z') of Boolean :=
+                 (others => False);
       --  Ignore (X) is set to True if lines starting with X are to
       --  be ignored by Scan_ALI and skipped, and False if the lines
       --  are to be read and processed.
@@ -205,30 +963,28 @@ package body ALI is
       --  special characters are included in the returned name.
 
       function Get_Name
-        (Ignore_Spaces  : Boolean := False;
-         Ignore_Special : Boolean := False;
+        (Ignore_Special : Boolean := False;
          May_Be_Quoted  : Boolean := False) return Name_Id;
       --  Skip blanks, then scan out a name (name is left in Name_Buffer with
       --  length in Name_Len, as well as being returned in Name_Id form).
       --  If Lower is set to True then the Name_Buffer will be converted to
       --  all lower case, for systems where file names are not case sensitive.
       --  This ensures that gnatbind works correctly regardless of the case
-      --  of the file name on all systems. The termination condition depends
-      --  on the settings of Ignore_Spaces and Ignore_Special:
+      --  of the file name on all systems.
       --
-      --    If Ignore_Spaces is False (normal case), then scan is terminated
-      --    by the normal end of field condition (EOL, space, horizontal tab)
+      --  The scan is terminated by the normal end of field condition
+      --  (EOL, space, horizontal tab). Furthermore, the termination condition
+      --  depends on the setting of Ignore_Special:
       --
       --    If Ignore_Special is False (normal case), the scan is terminated by
       --    a typeref bracket or an equal sign except for the special case of
-      --    an operator name starting with a double quote which is terminated
+      --    an operator name starting with a double quote that is terminated
       --    by another double quote.
       --
       --    If May_Be_Quoted is True and the first non blank character is '"'
       --    the name is 'unquoted'. In this case Ignore_Special is ignored and
       --    assumed to be True.
       --
-      --  It is an error to set both Ignore_Spaces and Ignore_Special to True.
       --  This function handles wide characters properly.
 
       function Get_Nat return Nat;
@@ -246,15 +1002,8 @@ package body ALI is
       function Nextc return Character;
       --  Return current character without modifying pointer P
 
-      procedure Get_Typeref
-        (Current_File_Num : Sdep_Id;
-         Ref             : out Tref_Kind;
-         File_Num        : out Sdep_Id;
-         Line            : out Nat;
-         Ref_Type        : out Character;
-         Col             : out Nat;
-         Standard_Entity : out Name_Id);
-      --  Parse the definition of a typeref (<...>, {...} or (...))
+      procedure Scan_Invocation_Graph_Line;
+      --  Parse a single line that encodes a piece of the invocation graph
 
       procedure Skip_Eol;
       --  Skip past spaces, then skip past end of line (fatal error if not
@@ -489,8 +1238,7 @@ package body ALI is
       --------------
 
       function Get_Name
-        (Ignore_Spaces  : Boolean := False;
-         Ignore_Special : Boolean := False;
+        (Ignore_Special : Boolean := False;
          May_Be_Quoted  : Boolean := False) return Name_Id
       is
          Char : Character;
@@ -547,7 +1295,7 @@ package body ALI is
             loop
                Add_Char_To_Name_Buffer (Getc);
 
-               exit when At_End_Of_Field and then not Ignore_Spaces;
+               exit when At_End_Of_Field;
 
                if not Ignore_Special then
                   if Name_Buffer (1) = '"' then
@@ -567,8 +1315,7 @@ package body ALI is
                      exit when Nextc = ',';
 
                      --  Terminate if left bracket not part of wide char
-                     --  sequence Note that we only recognize brackets
-                     --  notation so far ???
+                     --  sequence.
 
                      exit when Nextc = '[' and then T (P + 1) /= '"';
 
@@ -660,94 +1407,6 @@ package body ALI is
          return T;
       end Get_Stamp;
 
-      -----------------
-      -- Get_Typeref --
-      -----------------
-
-      procedure Get_Typeref
-        (Current_File_Num : Sdep_Id;
-         Ref              : out Tref_Kind;
-         File_Num         : out Sdep_Id;
-         Line             : out Nat;
-         Ref_Type         : out Character;
-         Col              : out Nat;
-         Standard_Entity  : out Name_Id)
-      is
-         N : Nat;
-      begin
-         case Nextc is
-            when '<'    => Ref := Tref_Derived;
-            when '('    => Ref := Tref_Access;
-            when '{'    => Ref := Tref_Type;
-            when others => Ref := Tref_None;
-         end case;
-
-         --  Case of typeref field present
-
-         if Ref /= Tref_None then
-            P := P + 1; -- skip opening bracket
-
-            if Nextc in 'a' .. 'z' then
-               File_Num        := No_Sdep_Id;
-               Line            := 0;
-               Ref_Type        := ' ';
-               Col             := 0;
-               Standard_Entity := Get_Name (Ignore_Spaces => True);
-            else
-               N := Get_Nat;
-
-               if Nextc = '|' then
-                  File_Num := Sdep_Id (N + Nat (First_Sdep_Entry) - 1);
-                  P := P + 1;
-                  N := Get_Nat;
-               else
-                  File_Num := Current_File_Num;
-               end if;
-
-               Line            := N;
-               Ref_Type        := Getc;
-               Col             := Get_Nat;
-               Standard_Entity := No_Name;
-            end if;
-
-            --  ??? Temporary workaround for nested generics case:
-            --     4i4 Directories{1|4I9[4|6[3|3]]}
-            --  See C918-002
-
-            declare
-               Nested_Brackets : Natural := 0;
-
-            begin
-               loop
-                  case Nextc is
-                     when '[' =>
-                        Nested_Brackets := Nested_Brackets + 1;
-                     when ']' =>
-                        Nested_Brackets := Nested_Brackets - 1;
-                     when others =>
-                        if Nested_Brackets = 0 then
-                           exit;
-                        end if;
-                  end case;
-
-                  Skipc;
-               end loop;
-            end;
-
-            P := P + 1; -- skip closing bracket
-            Skip_Space;
-
-         --  No typeref entry present
-
-         else
-            File_Num        := No_Sdep_Id;
-            Line            := 0;
-            Ref_Type        := ' ';
-            Col             := 0;
-            Standard_Entity := No_Name;
-         end if;
-      end Get_Typeref;
-
       ----------
       -- Getc --
       ----------
@@ -770,6 +1429,239 @@ package body ALI is
       begin
          return T (P);
       end Nextc;
+
+      --------------------------------
+      -- Scan_Invocation_Graph_Line --
+      --------------------------------
+
+      procedure Scan_Invocation_Graph_Line is
+         procedure Scan_Invocation_Construct_Line;
+         pragma Inline (Scan_Invocation_Construct_Line);
+         --  Parse an invocation construct line and construct the corresponding
+         --  construct. The following data structures are updated:
+         --
+         --    * Invocation_Constructs
+         --    * Units
+
+         procedure Scan_Invocation_Graph_Attributes_Line;
+         pragma Inline (Scan_Invocation_Graph_Attributes_Line);
+         --  Parse an invocation-graph attributes line. The following data
+         --  structures are updated:
+         --
+         --    * Units
+
+         procedure Scan_Invocation_Relation_Line;
+         pragma Inline (Scan_Invocation_Relation_Line);
+         --  Parse an invocation relation line and construct the corresponding
+         --  relation. The following data structures are updated:
+         --
+         --    * Invocation_Relations
+         --    * Units
+
+         function Scan_Invocation_Signature return Invocation_Signature_Id;
+         pragma Inline (Scan_Invocation_Signature);
+         --  Parse a single invocation signature while populating the following
+         --  data structures:
+         --
+         --    * Invocation_Signatures
+         --    * Sig_To_Sig_Map
+
+         ------------------------------------
+         -- Scan_Invocation_Construct_Line --
+         ------------------------------------
+
+         procedure Scan_Invocation_Construct_Line is
+            Body_Placement : Declaration_Placement_Kind;
+            Kind           : Invocation_Construct_Kind;
+            Signature      : Invocation_Signature_Id;
+            Spec_Placement : Declaration_Placement_Kind;
+
+         begin
+            --  construct-kind
+
+            Kind := Code_To_Invocation_Construct_Kind (Getc);
+            Checkc (' ');
+            Skip_Space;
+
+            --  construct-spec-placement
+
+            Spec_Placement := Code_To_Declaration_Placement_Kind (Getc);
+            Checkc (' ');
+            Skip_Space;
+
+            --  construct-body-placement
+
+            Body_Placement := Code_To_Declaration_Placement_Kind (Getc);
+            Checkc (' ');
+            Skip_Space;
+
+            --  construct-signature
+
+            Signature := Scan_Invocation_Signature;
+            Skip_Eol;
+
+            Add_Invocation_Construct
+              (Body_Placement => Body_Placement,
+               Kind           => Kind,
+               Signature      => Signature,
+               Spec_Placement => Spec_Placement);
+         end Scan_Invocation_Construct_Line;
+
+         -------------------------------------------
+         -- Scan_Invocation_Graph_Attributes_Line --
+         -------------------------------------------
+
+         procedure Scan_Invocation_Graph_Attributes_Line is
+         begin
+            --  encoding-kind
+
+            Set_Invocation_Graph_Encoding
+              (Code_To_Invocation_Graph_Encoding_Kind (Getc));
+            Skip_Eol;
+         end Scan_Invocation_Graph_Attributes_Line;
+
+         -----------------------------------
+         -- Scan_Invocation_Relation_Line --
+         -----------------------------------
+
+         procedure Scan_Invocation_Relation_Line is
+            Extra   : Name_Id;
+            Invoker : Invocation_Signature_Id;
+            Kind    : Invocation_Kind;
+            Target  : Invocation_Signature_Id;
+
+         begin
+            --  relation-kind
+
+            Kind := Code_To_Invocation_Kind (Getc);
+            Checkc (' ');
+            Skip_Space;
+
+            --  (extra-name | "none")
+
+            Extra := Get_Name;
+
+            if Extra = Name_None then
+               Extra := No_Name;
+            end if;
+
+            Checkc (' ');
+            Skip_Space;
+
+            --  invoker-signature
+
+            Invoker := Scan_Invocation_Signature;
+            Checkc (' ');
+            Skip_Space;
+
+            --  target-signature
+
+            Target := Scan_Invocation_Signature;
+            Skip_Eol;
+
+            Add_Invocation_Relation
+              (Extra   => Extra,
+               Invoker => Invoker,
+               Kind    => Kind,
+               Target  => Target);
+         end Scan_Invocation_Relation_Line;
+
+         -------------------------------
+         -- Scan_Invocation_Signature --
+         -------------------------------
+
+         function Scan_Invocation_Signature return Invocation_Signature_Id is
+            Column    : Nat;
+            Line      : Nat;
+            Locations : Name_Id;
+            Name      : Name_Id;
+            Scope     : Name_Id;
+
+         begin
+            --  [
+
+            Checkc ('[');
+
+            --  name
+
+            Name := Get_Name;
+            Checkc (' ');
+            Skip_Space;
+
+            --  scope
+
+            Scope := Get_Name;
+            Checkc (' ');
+            Skip_Space;
+
+            --  line
+
+            Line := Get_Nat;
+            Checkc (' ');
+            Skip_Space;
+
+            --  column
+
+            Column := Get_Nat;
+            Checkc (' ');
+            Skip_Space;
+
+            --  (locations | "none")
+
+            Locations := Get_Name;
+
+            if Locations = Name_None then
+               Locations := No_Name;
+            end if;
+
+            --  ]
+
+            Checkc (']');
+
+            --  Create an invocation signature from the scanned attributes
+
+            return
+              Invocation_Signature_Of
+                (Column    => Column,
+                 Line      => Line,
+                 Locations => Locations,
+                 Name      => Name,
+                 Scope     => Scope);
+         end Scan_Invocation_Signature;
+
+         --  Local variables
+
+         Line : Invocation_Graph_Line_Kind;
+
+      --  Start of processing for Scan_Invocation_Graph_Line
+
+      begin
+         if Ignore ('G') then
+            return;
+         end if;
+
+         Checkc (' ');
+         Skip_Space;
+
+         --  line-kind
+
+         Line := Code_To_Invocation_Graph_Line_Kind (Getc);
+         Checkc (' ');
+         Skip_Space;
+
+         --  line-attributes
+
+         case Line is
+            when Invocation_Construct_Line =>
+               Scan_Invocation_Construct_Line;
+
+            when Invocation_Graph_Attributes_Line =>
+               Scan_Invocation_Graph_Attributes_Line;
+
+            when Invocation_Relation_Line =>
+               Scan_Invocation_Relation_Line;
+         end case;
+      end Scan_Invocation_Graph_Line;
 
       --------------
       -- Skip_Eol --
@@ -840,31 +1732,10 @@ package body ALI is
    begin
       First_Sdep_Entry := Sdep.Last + 1;
 
-      --  Acquire lines to be ignored
-
-      if Read_Xref then
-         Ignore :=
-           ('T' | 'U' | 'W' | 'Y' | 'Z' | 'D' | 'X' => False, others => True);
-
-      --  Read_Lines parameter given
-
-      elsif Read_Lines /= "" then
-         Ignore := ('U' => False, others => True);
-
-         for J in Read_Lines'Range loop
-            Ignore (Read_Lines (J)) := False;
-         end loop;
-
-      --  Process Ignore_Lines parameter
-
-      else
-         Ignore := (others => False);
-
-         for J in Ignore_Lines'Range loop
-            pragma Assert (Ignore_Lines (J) /= 'U');
-            Ignore (Ignore_Lines (J)) := True;
-         end loop;
-      end if;
+      for J in Ignore_Lines'Range loop
+         pragma Assert (Ignore_Lines (J) /= 'U');
+         Ignore (Ignore_Lines (J)) := True;
+      end loop;
 
       --  Setup ALI Table entry with appropriate defaults
 
@@ -880,6 +1751,7 @@ package body ALI is
         First_Specific_Dispatching   => Specific_Dispatching.Last + 1,
         First_Unit                   => No_Unit_Id,
         GNATprove_Mode               => False,
+        Invocation_Graph_Encoding    => No_Encoding,
         Last_Interrupt_State         => Interrupt_States.Last,
         Last_Sdep                    => No_Sdep_Id,
         Last_Specific_Dispatching    => Specific_Dispatching.Last,
@@ -1716,38 +2588,42 @@ package body ALI is
             UL : Unit_Record renames Units.Table (Units.Last);
 
          begin
-            UL.Uname                    := Get_Unit_Name;
-            UL.Predefined               := Is_Predefined_Unit;
-            UL.Internal                 := Is_Internal_Unit;
-            UL.My_ALI                   := Id;
-            UL.Sfile                    := Get_File_Name (Lower => True);
-            UL.Pure                     := False;
-            UL.Preelab                  := False;
-            UL.No_Elab                  := False;
-            UL.Shared_Passive           := False;
-            UL.RCI                      := False;
-            UL.Remote_Types             := False;
-            UL.Serious_Errors           := False;
-            UL.Has_RACW                 := False;
-            UL.Init_Scalars             := False;
-            UL.Is_Generic               := False;
-            UL.Icasing                  := Mixed_Case;
-            UL.Kcasing                  := All_Lower_Case;
-            UL.Dynamic_Elab             := False;
-            UL.Elaborate_Body           := False;
-            UL.Set_Elab_Entity          := False;
-            UL.Version                  := "00000000";
-            UL.First_With               := Withs.Last + 1;
-            UL.First_Arg                := First_Arg;
-            UL.Elab_Position            := 0;
-            UL.SAL_Interface            := ALIs.Table (Id).SAL_Interface;
-            UL.Directly_Scanned         := Directly_Scanned;
-            UL.Body_Needed_For_SAL      := False;
-            UL.Elaborate_Body_Desirable := False;
-            UL.Optimize_Alignment       := 'O';
-            UL.Has_Finalizer            := False;
-            UL.Primary_Stack_Count      := 0;
-            UL.Sec_Stack_Count          := 0;
+            UL.Uname                      := Get_Unit_Name;
+            UL.Predefined                 := Is_Predefined_Unit;
+            UL.Internal                   := Is_Internal_Unit;
+            UL.My_ALI                     := Id;
+            UL.Sfile                      := Get_File_Name (Lower => True);
+            UL.Pure                       := False;
+            UL.Preelab                    := False;
+            UL.No_Elab                    := False;
+            UL.Shared_Passive             := False;
+            UL.RCI                        := False;
+            UL.Remote_Types               := False;
+            UL.Serious_Errors             := False;
+            UL.Has_RACW                   := False;
+            UL.Init_Scalars               := False;
+            UL.Is_Generic                 := False;
+            UL.Icasing                    := Mixed_Case;
+            UL.Kcasing                    := All_Lower_Case;
+            UL.Dynamic_Elab               := False;
+            UL.Elaborate_Body             := False;
+            UL.Set_Elab_Entity            := False;
+            UL.Version                    := "00000000";
+            UL.First_With                 := Withs.Last + 1;
+            UL.First_Arg                  := First_Arg;
+            UL.First_Invocation_Construct := Invocation_Constructs.Last + 1;
+            UL.Last_Invocation_Construct  := No_Invocation_Construct;
+            UL.First_Invocation_Relation  := Invocation_Relations.Last + 1;
+            UL.Last_Invocation_Relation   := No_Invocation_Relation;
+            UL.Elab_Position              := 0;
+            UL.SAL_Interface              := ALIs.Table (Id).SAL_Interface;
+            UL.Directly_Scanned           := Directly_Scanned;
+            UL.Body_Needed_For_SAL        := False;
+            UL.Elaborate_Body_Desirable   := False;
+            UL.Optimize_Alignment         := 'O';
+            UL.Has_Finalizer              := False;
+            UL.Primary_Stack_Count        := 0;
+            UL.Sec_Stack_Count            := 0;
 
             if Debug_Flag_U then
                Write_Str (" ----> reading unit ");
@@ -2057,9 +2933,7 @@ package body ALI is
 
                         --  Store AD indication unless ignore required
 
-                        if not Ignore_ED then
-                           Withs.Table (Withs.Last).Elab_All_Desirable := True;
-                        end if;
+                        Withs.Table (Withs.Last).Elab_All_Desirable := True;
 
                      elsif Nextc = 'E' then
                         P := P + 1;
@@ -2076,12 +2950,9 @@ package body ALI is
                            Checkc ('D');
                            Check_At_End_Of_Field;
 
-                           --  Store ED indication unless ignore required
+                           --  Store ED indication
 
-                           if not Ignore_ED then
-                              Withs.Table (Withs.Last).Elab_Desirable :=
-                                True;
-                           end if;
+                           Withs.Table (Withs.Last).Elab_Desirable := True;
                         end if;
 
                      else
@@ -2206,9 +3077,6 @@ package body ALI is
 
             Linker_Options.Table (Linker_Options.Last).Internal_File :=
               Is_Internal_File_Name (F);
-
-            Linker_Options.Table (Linker_Options.Last).Original_Pos :=
-              Linker_Options.Last;
          end if;
 
          --  If there are notes present, scan them
@@ -2335,13 +3203,10 @@ package body ALI is
             Skip_Space;
             Sdep.Increment_Last;
 
-            --  In the following call, Lower is not set to True, this is either
-            --  a bug, or it deserves a special comment as to why this is so???
-
             --  The file/path name may be quoted
 
             Sdep.Table (Sdep.Last).Sfile :=
-              Get_File_Name (May_Be_Quoted => True);
+              Get_File_Name (Lower => True, May_Be_Quoted => True);
 
             Sdep.Table (Sdep.Last).Stamp := Get_Stamp;
             Sdep.Table (Sdep.Last).Dummy_Entry :=
@@ -2444,6 +3309,17 @@ package body ALI is
 
       ALIs.Table (Id).Last_Sdep := Sdep.Last;
 
+      --  Loop through invocation-graph lines
+
+      G_Loop : loop
+         Check_Unknown_Line;
+         exit G_Loop when C /= 'G';
+
+         Scan_Invocation_Graph_Line;
+
+         C := Getc;
+      end loop G_Loop;
+
       --  We must at this stage be at an Xref line or the end of file
 
       if C = EOF then
@@ -2456,348 +3332,7 @@ package body ALI is
          Fatal_Error;
       end if;
 
-      --  If we are ignoring Xref sections we are done (we ignore all
-      --  remaining lines since only xref related lines follow X).
-
-      if Ignore ('X') and then not Debug_Flag_X then
-         return Id;
-      end if;
-
-      --  Loop through Xref sections
-
-      X_Loop : loop
-         Check_Unknown_Line;
-         exit X_Loop when C /= 'X';
-
-         --  Make new entry in section table
-
-         Xref_Section.Increment_Last;
-
-         Read_Refs_For_One_File : declare
-            XS : Xref_Section_Record renames
-                   Xref_Section.Table (Xref_Section.Last);
-
-            Current_File_Num : Sdep_Id;
-            --  Keeps track of the current file number (changed by nn|)
-
-         begin
-            XS.File_Num     := Sdep_Id (Get_Nat + Nat (First_Sdep_Entry) - 1);
-            XS.File_Name    := Get_File_Name;
-            XS.First_Entity := Xref_Entity.Last + 1;
-
-            Current_File_Num := XS.File_Num;
-
-            Skip_Space;
-
-            Skip_Eol;
-            C := Nextc;
-
-            --  Loop through Xref entities
-
-            while C /= 'X' and then C /= EOF loop
-               Xref_Entity.Increment_Last;
-
-               Read_Refs_For_One_Entity : declare
-                  XE : Xref_Entity_Record renames
-                         Xref_Entity.Table (Xref_Entity.Last);
-                  N  : Nat;
-
-                  procedure Read_Instantiation_Reference;
-                  --  Acquire instantiation reference. Caller has checked
-                  --  that current character is '[' and on return the cursor
-                  --  is skipped past the corresponding closing ']'.
-
-                  ----------------------------------
-                  -- Read_Instantiation_Reference --
-                  ----------------------------------
-
-                  procedure Read_Instantiation_Reference is
-                     Local_File_Num : Sdep_Id := Current_File_Num;
-
-                  begin
-                     Xref.Increment_Last;
-
-                     declare
-                        XR : Xref_Record renames Xref.Table (Xref.Last);
-
-                     begin
-                        P := P + 1; -- skip [
-                        N := Get_Nat;
-
-                        if Nextc = '|' then
-                           XR.File_Num :=
-                             Sdep_Id (N + Nat (First_Sdep_Entry) - 1);
-                           Local_File_Num := XR.File_Num;
-                           P := P + 1;
-                           N := Get_Nat;
-
-                        else
-                           XR.File_Num := Local_File_Num;
-                        end if;
-
-                        XR.Line  := N;
-                        XR.Rtype := ' ';
-                        XR.Col   := 0;
-
-                        --  Recursive call for next reference
-
-                        if Nextc = '[' then
-                           pragma Warnings (Off); -- kill recursion warning
-                           Read_Instantiation_Reference;
-                           pragma Warnings (On);
-                        end if;
-
-                        --  Skip closing bracket after recursive call
-
-                        P := P + 1;
-                     end;
-                  end Read_Instantiation_Reference;
-
-               --  Start of processing for Read_Refs_For_One_Entity
-
-               begin
-                  XE.Line  := Get_Nat;
-                  XE.Etype := Getc;
-                  XE.Col   := Get_Nat;
-
-                  case Getc is
-                     when '*' =>
-                        XE.Visibility := Global;
-                     when '+' =>
-                        XE.Visibility := Static;
-                     when others =>
-                        XE.Visibility := Other;
-                  end case;
-
-                  XE.Entity := Get_Name;
-
-                  --  Handle the information about generic instantiations
-
-                  if Nextc = '[' then
-                     Skipc; --  Opening '['
-                     N := Get_Nat;
-
-                     if Nextc /= '|' then
-                        XE.Iref_File_Num := Current_File_Num;
-                        XE.Iref_Line     := N;
-                     else
-                        XE.Iref_File_Num :=
-                          Sdep_Id (N + Nat (First_Sdep_Entry) - 1);
-                        Skipc;
-                        XE.Iref_Line := Get_Nat;
-                     end if;
-
-                     if Getc /= ']' then
-                        Fatal_Error;
-                     end if;
-
-                  else
-                     XE.Iref_File_Num := No_Sdep_Id;
-                     XE.Iref_Line     := 0;
-                  end if;
-
-                  Current_File_Num := XS.File_Num;
-
-                  --  Renaming reference is present
-
-                  if Nextc = '=' then
-                     P := P + 1;
-                     XE.Rref_Line := Get_Nat;
-
-                     if Getc /= ':' then
-                        Fatal_Error;
-                     end if;
-
-                     XE.Rref_Col := Get_Nat;
-
-                  --  No renaming reference present
-
-                  else
-                     XE.Rref_Line := 0;
-                     XE.Rref_Col  := 0;
-                  end if;
-
-                  Skip_Space;
-
-                  XE.Oref_File_Num := No_Sdep_Id;
-                  XE.Tref_File_Num := No_Sdep_Id;
-                  XE.Tref          := Tref_None;
-                  XE.First_Xref    := Xref.Last + 1;
-
-                  --  Loop to check for additional info present
-
-                  loop
-                     declare
-                        Ref  : Tref_Kind;
-                        File : Sdep_Id;
-                        Line : Nat;
-                        Typ  : Character;
-                        Col  : Nat;
-                        Std  : Name_Id;
-
-                     begin
-                        Get_Typeref
-                          (Current_File_Num, Ref, File, Line, Typ, Col, Std);
-                        exit when Ref = Tref_None;
-
-                        --  Do we have an overriding procedure?
-
-                        if Ref = Tref_Derived and then Typ = 'p' then
-                           XE.Oref_File_Num := File;
-                           XE.Oref_Line     := Line;
-                           XE.Oref_Col      := Col;
-
-                        --  Arrays never override anything, and <> points to
-                        --  the index types instead
-
-                        elsif Ref = Tref_Derived and then XE.Etype = 'A' then
-
-                           --  Index types are stored in the list of references
-
-                           Xref.Increment_Last;
-
-                           declare
-                              XR : Xref_Record renames Xref.Table (Xref.Last);
-                           begin
-                              XR.File_Num := File;
-                              XR.Line     := Line;
-                              XR.Rtype    := Array_Index_Reference;
-                              XR.Col      := Col;
-                              XR.Name     := Std;
-                           end;
-
-                        --  Interfaces are stored in the list of references,
-                        --  although the parent type itself is stored in XE.
-                        --  The first interface (when there are only
-                        --  interfaces) is stored in XE.Tref*)
-
-                        elsif Ref = Tref_Derived
-                          and then Typ = 'R'
-                          and then XE.Tref_File_Num /= No_Sdep_Id
-                        then
-                           Xref.Increment_Last;
-
-                           declare
-                              XR : Xref_Record renames Xref.Table (Xref.Last);
-                           begin
-                              XR.File_Num := File;
-                              XR.Line     := Line;
-                              XR.Rtype    := Interface_Reference;
-                              XR.Col      := Col;
-                              XR.Name     := Std;
-                           end;
-
-                        else
-                           XE.Tref                 := Ref;
-                           XE.Tref_File_Num        := File;
-                           XE.Tref_Line            := Line;
-                           XE.Tref_Type            := Typ;
-                           XE.Tref_Col             := Col;
-                           XE.Tref_Standard_Entity := Std;
-                        end if;
-                     end;
-                  end loop;
-
-                  --  Loop through cross-references for this entity
-
-                  loop
-                     Skip_Space;
-
-                     if At_Eol then
-                        Skip_Eol;
-                        exit when Nextc /= '.';
-                        P := P + 1;
-                     end if;
-
-                     Xref.Increment_Last;
-
-                     declare
-                        XR : Xref_Record renames Xref.Table (Xref.Last);
-
-                     begin
-                        N := Get_Nat;
-
-                        if Nextc = '|' then
-                           XR.File_Num :=
-                             Sdep_Id (N + Nat (First_Sdep_Entry) - 1);
-                           Current_File_Num := XR.File_Num;
-                           P := P + 1;
-                           N := Get_Nat;
-                        else
-                           XR.File_Num := Current_File_Num;
-                        end if;
-
-                        XR.Line  := N;
-                        XR.Rtype := Getc;
-
-                        --  Imported entities reference as in:
-                        --    494b<c,__gnat_copy_attribs>25
-
-                        if Nextc = '<' then
-                           Skipc;
-                           XR.Imported_Lang := Get_Name;
-
-                           pragma Assert (Nextc = ',');
-                           Skipc;
-
-                           XR.Imported_Name := Get_Name;
-
-                           pragma Assert (Nextc = '>');
-                           Skipc;
-
-                        else
-                           XR.Imported_Lang := No_Name;
-                           XR.Imported_Name := No_Name;
-                        end if;
-
-                        XR.Col   := Get_Nat;
-
-                        if Nextc = '[' then
-                           Read_Instantiation_Reference;
-                        end if;
-                     end;
-                  end loop;
-
-                  --  Record last cross-reference
-
-                  XE.Last_Xref := Xref.Last;
-                  C := Nextc;
-
-               exception
-                  when Bad_ALI_Format =>
-
-                     --  If ignoring errors, then we skip a line with an
-                     --  unexpected error, and try to continue subsequent
-                     --  xref lines.
-
-                     if Ignore_Errors then
-                        Xref_Entity.Decrement_Last;
-                        Skip_Line;
-                        C := Nextc;
-
-                     --  Otherwise, we reraise the fatal exception
-
-                     else
-                        raise;
-                     end if;
-               end Read_Refs_For_One_Entity;
-            end loop;
-
-            --  Record last entity
-
-            XS.Last_Entity := Xref_Entity.Last;
-
-         end Read_Refs_For_One_File;
-
-         C := Getc;
-      end loop X_Loop;
-
-      --  Here after dealing with xref sections
-
-      --  Ignore remaining lines, which belong to an additional section of the
-      --  ALI file not considered here (like SCO or SPARK information).
-
-      Check_Unknown_Line;
+      --  This ALI parser does not care about Xref lines.
 
       return Id;
 
@@ -2805,6 +3340,16 @@ package body ALI is
       when Bad_ALI_Format =>
          return No_ALI_Id;
    end Scan_ALI;
+
+   --------------
+   -- IS_Scope --
+   --------------
+
+   function IS_Scope (IS_Id : Invocation_Signature_Id) return Name_Id is
+   begin
+      pragma Assert (Present (IS_Id));
+      return Invocation_Signatures.Table (IS_Id).Scope;
+   end IS_Scope;
 
    ---------
    -- SEq --
@@ -2814,6 +3359,31 @@ package body ALI is
    begin
       return F1.all = F2.all;
    end SEq;
+
+   -----------------------------------
+   -- Set_Invocation_Graph_Encoding --
+   -----------------------------------
+
+   procedure Set_Invocation_Graph_Encoding
+     (Kind         : Invocation_Graph_Encoding_Kind;
+      Update_Units : Boolean := True)
+   is
+   begin
+      Compile_Time_Invocation_Graph_Encoding := Kind;
+
+      --  Update the invocation-graph encoding of the current unit only when
+      --  requested by the caller.
+
+      if Update_Units then
+         declare
+            Curr_Unit : Unit_Record renames Units.Table (Units.Last);
+            Curr_ALI  : ALIs_Record renames ALIs.Table  (Curr_Unit.My_ALI);
+
+         begin
+            Curr_ALI.Invocation_Graph_Encoding := Kind;
+         end;
+      end if;
+   end Set_Invocation_Graph_Encoding;
 
    -----------
    -- SHash --
@@ -2830,5 +3400,41 @@ package body ALI is
 
       return Vindex (Vindex'First + Vindex (H mod Vindex'Range_Length));
    end SHash;
+
+   ---------------
+   -- Signature --
+   ---------------
+
+   function Signature
+     (IC_Id : Invocation_Construct_Id) return Invocation_Signature_Id
+   is
+   begin
+      pragma Assert (Present (IC_Id));
+      return Invocation_Constructs.Table (IC_Id).Signature;
+   end Signature;
+
+   --------------------
+   -- Spec_Placement --
+   --------------------
+
+   function Spec_Placement
+     (IC_Id : Invocation_Construct_Id) return Declaration_Placement_Kind
+   is
+   begin
+      pragma Assert (Present (IC_Id));
+      return Invocation_Constructs.Table (IC_Id).Spec_Placement;
+   end Spec_Placement;
+
+   ------------
+   -- Target --
+   ------------
+
+   function Target
+     (IR_Id : Invocation_Relation_Id) return Invocation_Signature_Id
+   is
+   begin
+      pragma Assert (Present (IR_Id));
+      return Invocation_Relations.Table (IR_Id).Target;
+   end Target;
 
 end ALI;

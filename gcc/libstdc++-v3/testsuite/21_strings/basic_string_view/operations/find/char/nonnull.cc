@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Free Software Foundation, Inc.
+// Copyright (C) 2018-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++17 -Wnonnull" }
+// { dg-options "-Wnonnull" }
 // { dg-do compile { target c++17 } }
 
 #include <string_view>
@@ -24,10 +24,13 @@ int
 test01()
 {
   std::string_view s = "abcd";
-  return s.find((const char*)nullptr);		// { dg-warning "null arg" }
-  return s.find((const char*)nullptr, 1);	// { dg-warning "null arg" }
-  return s.find_first_of((const char*)nullptr);	// { dg-warning "null arg" }
-  return s.find_first_of((const char*)nullptr, 1); // { dg-warning "null arg" }
-  return s.find_first_not_of((const char*)nullptr); // { dg-warning "null arg" }
-  return s.find_first_not_of((const char*)nullptr, 1); // { dg-warning "null arg" }
+  return s.find((const char*)nullptr);		// { dg-warning "\\\[-Wnonnull" }
+  return s.find((const char*)nullptr, 1);	// { dg-warning "\\\[-Wnonnull" }
+  return s.find_first_of((const char*)nullptr);	// { dg-warning "\\\[-Wnonnull" }
+  return s.find_first_of((const char*)nullptr, 1); // { dg-warning "\\\[-Wnonnull" }
+  return s.find_first_not_of((const char*)nullptr); // { dg-warning "\\\[-Wnonnull" }
+  return s.find_first_not_of((const char*)nullptr, 1); // { dg-warning "\\\[-Wnonnull" }
 }
+
+// Ignore additional diagnostic given with -Wsystem-headers:
+// { dg-prune-output "argument . null where non-null expected" }

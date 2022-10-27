@@ -14,7 +14,7 @@ ALLSPHINXOPTS   = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) \
 		  -c $(SOURCEDIR)/share \
 		  -d $(BUILDDIR)/$*/doctrees \
 		  $(SOURCEDIR)
-DOC_LIST=gnat_rm gnat_ugn
+DOC_LIST=gnat_rm gnat_ugn gnat-style
 FMT_LIST=html pdf txt info
 
 .PHONY: help clean
@@ -42,22 +42,26 @@ help:
 clean:
 	-rm -rf $(BUILDDIR)
 
-%.html:
+.PHONY: mk_empty_dirs
+mk_empty_dirs:
+	mkdir -p share/_static
+
+%.html: mk_empty_dirs
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/$*/html
 
-%.pdf:
+%.pdf: mk_empty_dirs
 	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/$*/pdf
 	$(MAKE) -C $(BUILDDIR)/$*/pdf all-pdf LATEXOPTS="-interaction=nonstopmode"
 
-%.txt:
+%.txt: mk_empty_dirs
 	$(SPHINXBUILD) -b texinfo $(ALLSPHINXOPTS) $(BUILDDIR)/$*/txt
 	$(MAKE) -C $(BUILDDIR)/$*/txt plaintext
 
-%.info:
+%.info: mk_empty_dirs
 	$(SPHINXBUILD) -b texinfo $(ALLSPHINXOPTS) $(BUILDDIR)/$*/info
 	$(MAKE) -C $(BUILDDIR)/$*/info info
 
-%.texinfo:
+%.texinfo: mk_empty_dirs
 	$(SPHINXBUILD) -b texinfo $(ALLSPHINXOPTS) $(BUILDDIR)/$*/texinfo
 	sed -e 's/^@dircategory/@dircategory GNU Ada Tools/g' < $(BUILDDIR)/$*/texinfo/$*.texi > $(BUILDDIR)/../../$*.texi
 

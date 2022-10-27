@@ -6,7 +6,7 @@
 --                                                                          --
 --                                B o d y                                   --
 --                                                                          --
---          Copyright (C) 2002-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2002-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -53,6 +53,7 @@ begin
 
    Local_ATCB.Common.LL.Thread := Thread;
    Local_ATCB.Common.Current_Priority := System.Priority'First;
+   Local_ATCB.Common.Global_Task_Lock_Nesting := 0;
    Specific.Set (Local_ATCB'Unchecked_Access);
 
    --  It is now safe to use an allocator

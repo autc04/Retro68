@@ -1,3 +1,3 @@
 #include "vers.h"
 void foo () {}
-asm (".hidden " SYMPFX(foo));
+__asm__ (".hidden " SYMPFX(foo));

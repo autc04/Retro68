@@ -15,8 +15,8 @@ Section Headers:
   \[10\] \.bss              NOBITS          100000ec 0020ec 000004 00  WA  0   0  4
   \[11\] \.c6xabi\.attributes C6000_ATTRIBUTES 00000000 0020ec 000019 00      0   0  1
   \[12\] \.symtab           SYMTAB          00000000 002108 0001b0 10     13  21  4
-  \[13\] \.strtab           STRTAB          00000000 0022b8 000077 00      0   0  1
-  \[14\] \.shstrtab         STRTAB          00000000 00232f 000071 00      0   0  1
+  \[13\] \.strtab           STRTAB .*
+  \[14\] \.shstrtab         STRTAB .*
 Key to Flags:
 #...
 
@@ -29,7 +29,7 @@ Program Headers:
   LOAD           0x001000 0x00008000 0x00008000 0x001a0 0x001a0 RW  0x1000
   LOAD           0x002000 0x10000000 0x10000000 0x000ec 0x000f0 RWE 0x1000
   DYNAMIC        0x001110 0x00008110 0x00008110 0x00090 0x00090 RW  0x4
-  GNU_STACK      0x000000 0x00000000 0x00000000 0x00000 0x20000 RWE 0x8
+  GNU_STACK      0x000000 0x00000000 0x00000000 0x00000 0x20000 RW  0x8
 
  Section to Segment mapping:
   Segment Sections\.\.\.
@@ -46,12 +46,12 @@ Dynamic section at offset 0x1110 contains 13 entries:
  0x0000000a \(STRSZ\)                      10 \(bytes\)
  0x0000000b \(SYMENT\)                     16 \(bytes\)
  0x00000015 \(DEBUG\)                      0x0
- 0x70000000 \(C6000_DSBT_BASE\)            0x100000c0
- 0x70000001 \(C6000_DSBT_SIZE\)            0x3
- 0x70000003 \(C6000_DSBT_INDEX\)           0x0
  0x00000007 \(RELA\)                       0x80d4
  0x00000008 \(RELASZ\)                     60 \(bytes\)
  0x00000009 \(RELAENT\)                    12 \(bytes\)
+ 0x70000000 \(C6000_DSBT_BASE\)            0x100000c0
+ 0x70000001 \(C6000_DSBT_SIZE\)            0x3
+ 0x70000003 \(C6000_DSBT_INDEX\)           0x0
  0x00000000 \(NULL\)                       0x0
 
 Relocation section '\.rela\.got' at offset 0x10d4 contains 3 entries:
@@ -68,10 +68,10 @@ Relocation section '\.rela\.neardata' at offset 0x10f8 contains 2 entries:
 Symbol table '\.dynsym' contains 9 entries:
    Num:    Value  Size Type    Bind   Vis      Ndx Name
      0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
-     1: 10000000     0 SECTION LOCAL  DEFAULT    7 
-     2: 100000c0     0 SECTION LOCAL  DEFAULT    8 
-     3: 100000e0     0 SECTION LOCAL  DEFAULT    9 
-     4: 100000ec     0 SECTION LOCAL  DEFAULT   10 
+     1: 10000000     0 SECTION LOCAL  DEFAULT    7.*
+     2: 100000c0     0 SECTION LOCAL  DEFAULT    8.*
+     3: 100000e0     0 SECTION LOCAL  DEFAULT    9.*
+     4: 100000ec     0 SECTION LOCAL  DEFAULT   10.*
      5: 100000ec     4 OBJECT  LOCAL  DEFAULT   10 c
      6: 100000e8     4 OBJECT  GLOBAL DEFAULT    9 b
      7: 00000000     0 NOTYPE  WEAK   DEFAULT  UND g1
@@ -80,20 +80,20 @@ Symbol table '\.dynsym' contains 9 entries:
 Symbol table '\.symtab' contains 27 entries:
    Num:    Value  Size Type    Bind   Vis      Ndx Name
      0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
-     1: 00008000     0 SECTION LOCAL  DEFAULT    1 
-     2: 00008038     0 SECTION LOCAL  DEFAULT    2 
-     3: 000080c8     0 SECTION LOCAL  DEFAULT    3 
-     4: 000080d4     0 SECTION LOCAL  DEFAULT    4 
-     5: 000080f8     0 SECTION LOCAL  DEFAULT    5 
-     6: 00008110     0 SECTION LOCAL  DEFAULT    6 
-     7: 10000000     0 SECTION LOCAL  DEFAULT    7 
-     8: 100000c0     0 SECTION LOCAL  DEFAULT    8 
-     9: 100000e0     0 SECTION LOCAL  DEFAULT    9 
-    10: 100000ec     0 SECTION LOCAL  DEFAULT   10 
-    11: 00000000     0 SECTION LOCAL  DEFAULT   11 
-    12: 00000000     0 FILE    LOCAL  DEFAULT  ABS tmpdir/shlib-1\.o
+     1: 00008000     0 SECTION LOCAL  DEFAULT    1.*
+     2: 00008038     0 SECTION LOCAL  DEFAULT    2.*
+     3: 000080c8     0 SECTION LOCAL  DEFAULT    3.*
+     4: 000080d4     0 SECTION LOCAL  DEFAULT    4.*
+     5: 000080f8     0 SECTION LOCAL  DEFAULT    5.*
+     6: 00008110     0 SECTION LOCAL  DEFAULT    6.*
+     7: 10000000     0 SECTION LOCAL  DEFAULT    7.*
+     8: 100000c0     0 SECTION LOCAL  DEFAULT    8.*
+     9: 100000e0     0 SECTION LOCAL  DEFAULT    9.*
+    10: 100000ec     0 SECTION LOCAL  DEFAULT   10.*
+    11: 00000000     0 SECTION LOCAL  DEFAULT   11.*
+    12: 00000000     0 FILE    LOCAL  DEFAULT  ABS .*shlib-1\.o
     13: 10000000     0 FUNC    LOCAL  HIDDEN     7 sub1
-    14: 00000000     0 FILE    LOCAL  DEFAULT  ABS tmpdir/shlib-app-1r\.o
+    14: 00000000     0 FILE    LOCAL  DEFAULT  ABS .*shlib-app-1r\.o
     15: 10000080     0 NOTYPE  LOCAL  DEFAULT    7 fish
     16: 00000000     0 FILE    LOCAL  DEFAULT  ABS 
     17: 00008110     0 OBJECT  LOCAL  DEFAULT    6 _DYNAMIC

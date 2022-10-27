@@ -24,3 +24,4 @@ __FUNCTION__.2219:
 	.size	__FUNCTION__.2215, 4
 __FUNCTION__.2215:
 	.string	"bar"
+	.section	.note.GNU-stack

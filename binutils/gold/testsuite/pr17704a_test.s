@@ -14,10 +14,10 @@ _start:
 	leaq	bar(%rip), %rsi
 	testb	$1, %sil
 	je	.L9
-	mov $1, %eax
-	mov $1, %ebx
-	int $0x80
+	mov $60, %eax
+	mov $1, %rdi
+	syscall
 .L9:
-	mov $1, %eax
-	mov $0, %ebx
-	int $0x80
+	mov $60, %eax
+	mov $0, %rdi
+	syscall

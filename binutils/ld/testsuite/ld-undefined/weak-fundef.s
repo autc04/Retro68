@@ -5,6 +5,9 @@
 	bl undef_weak_fun
 	nop
  .endif
+ .ifdef BLPLT
+	bl undef_weak_fun@plt
+ .endif
  .ifdef CALLPLT
 	call undef_weak_fun@plt
  .endif

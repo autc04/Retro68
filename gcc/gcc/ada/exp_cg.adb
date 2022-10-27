@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2010-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2010-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,25 +23,29 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Atree;    use Atree;
-with Einfo;    use Einfo;
-with Elists;   use Elists;
-with Exp_Dbug; use Exp_Dbug;
-with Exp_Tss;  use Exp_Tss;
-with Lib;      use Lib;
-with Namet;    use Namet;
-with Opt;      use Opt;
-with Output;   use Output;
-with Sem_Aux;  use Sem_Aux;
-with Sem_Disp; use Sem_Disp;
-with Sem_Type; use Sem_Type;
-with Sem_Util; use Sem_Util;
-with Sinfo;    use Sinfo;
-with Sinput;   use Sinput;
-with Snames;   use Snames;
-with System;   use System;
+with Atree;          use Atree;
+with Einfo;          use Einfo;
+with Einfo.Entities; use Einfo.Entities;
+with Einfo.Utils;    use Einfo.Utils;
+with Elists;         use Elists;
+with Exp_Dbug;       use Exp_Dbug;
+with Exp_Tss;        use Exp_Tss;
+with Lib;            use Lib;
+with Namet;          use Namet;
+with Opt;            use Opt;
+with Output;         use Output;
+with Sem_Aux;        use Sem_Aux;
+with Sem_Disp;       use Sem_Disp;
+with Sem_Type;       use Sem_Type;
+with Sem_Util;       use Sem_Util;
+with Sinfo;          use Sinfo;
+with Sinfo.Nodes;    use Sinfo.Nodes;
+with Sinfo.Utils;    use Sinfo.Utils;
+with Sinput;         use Sinput;
+with Snames;         use Snames;
+with System;         use System;
 with Table;
-with Uintp;    use Uintp;
+with Uintp;          use Uintp;
 
 package body Exp_CG is
 
@@ -81,7 +85,7 @@ package body Exp_CG is
    --  Determines if E is a predefined primitive operation.
    --  Note: This routine should replace the routine with the same name that is
    --  currently available in exp_disp because it extends its functionality to
-   --  handle fully qualified names ???
+   --  handle fully qualified names. It's actually in Sem_Util. ???
 
    function Slot_Number (Prim : Entity_Id) return Uint;
    --  Returns the slot number associated with Prim. For predefined primitives
@@ -261,13 +265,14 @@ package body Exp_CG is
            or else TSS_Name = TSS_Stream_Write
            or else TSS_Name = TSS_Stream_Input
            or else TSS_Name = TSS_Stream_Output
+           or else TSS_Name = TSS_Put_Image
            or else TSS_Name = TSS_Deep_Adjust
            or else TSS_Name = TSS_Deep_Finalize
          then
             return True;
 
          elsif not Has_Fully_Qualified_Name (E) then
-            if Nam_In (Chars (E), Name_uSize, Name_uAlignment, Name_uAssign)
+            if Chars (E) in Name_uSize | Name_uAlignment | Name_uAssign
               or else
                 (Chars (E) = Name_Op_Eq
                   and then Etype (First_Formal (E)) = Etype (Last_Formal (E)))
@@ -375,7 +380,14 @@ package body Exp_CG is
                  and then Nkind (Parent (Par)) /= N_Compilation_Unit
                loop
                   Par := Parent (Par);
-                  pragma Assert (Present (Par));
+
+                  --  Par can legitimately be empty inside a class-wide
+                  --  precondition; the "real" call will be found inside the
+                  --  generated pragma.
+
+                  if No (Par) then
+                     return;
+                  end if;
                end loop;
 
                Set_Parent (Copy, Par);
@@ -428,7 +440,7 @@ package body Exp_CG is
    procedure Write_Call_Info (Call : Node_Id) is
       Ctrl_Arg : constant Node_Id   := Controlling_Argument (Call);
       Ctrl_Typ : constant Entity_Id := Base_Type (Etype (Ctrl_Arg));
-      Prim     : constant Entity_Id := Entity (Sinfo.Name (Call));
+      Prim     : constant Entity_Id := Entity (Sinfo.Nodes.Name (Call));
       P        : constant Node_Id   := Parent (Call);
 
    begin
@@ -558,13 +570,13 @@ package body Exp_CG is
          Write_Char ('"');
          Write_Name (Chars (Parent_Typ));
 
-         --  Note: Einfo prefix not needed if this routine is moved to
+         --  Note: Einfo.Entities prefix not needed if this routine is moved to
          --  exp_disp???
 
-         if Present (Einfo.Interfaces (Typ))
-           and then not Is_Empty_Elmt_List (Einfo.Interfaces (Typ))
+         if Present (Einfo.Entities.Interfaces (Typ))
+           and then not Is_Empty_Elmt_List (Einfo.Entities.Interfaces (Typ))
          then
-            Elmt := First_Elmt (Einfo.Interfaces (Typ));
+            Elmt := First_Elmt (Einfo.Entities.Interfaces (Typ));
             while Present (Elmt) loop
                Write_Str  (", ");
                Write_Name (Chars (Node (Elmt)));

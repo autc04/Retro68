@@ -1,7 +1,5 @@
 ## Process this file with automake to generate Makefile.in
 
-AUTOMAKE_OPTIONS = cygnus
-
 INCLUDES = $(NEWLIB_CFLAGS) $(CROSS_CFLAGS) $(TARGET_CFLAGS)
 
 GENERAL_SOURCES = \
@@ -9,6 +7,7 @@ GENERAL_SOURCES = \
 	db_local.h \
 	extern.h \
 	hash.h \
+	ndbm.c \
 	page.h \
 	qsort.c
 

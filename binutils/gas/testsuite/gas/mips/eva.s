@@ -615,3 +615,16 @@ test_eva:
 	prefe	11,($12)
 	prefe	13,MYDATA
 	prefe	5,%lo(foo)($6)
+
+	.ifdef r6
+	llwpe $2, $3, 0x1234
+	llwpe $2, $0, 0xabcd($0)
+	llwpe $0, $3, %lo(sync_mem)
+	llwpe $2, $2, 0xffffffff01234567($0)
+	llwpe $0, $0, sync_mem
+	scwpe $2, $3, 0x1234
+	scwpe $2, $0, 0xabcd($0)
+	scwpe $0, $3, %lo(sync_mem)
+	scwpe $2, $2, 0xffffffff01234567($0)
+	scwpe $0, $0, sync_mem
+	.endif

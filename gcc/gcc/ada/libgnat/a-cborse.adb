@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -41,8 +41,11 @@ pragma Elaborate_All
   (Ada.Containers.Red_Black_Trees.Generic_Bounded_Set_Operations);
 
 with System; use type System.Address;
+with System.Put_Images;
 
-package body Ada.Containers.Bounded_Ordered_Sets is
+package body Ada.Containers.Bounded_Ordered_Sets with
+  SPARK_Mode => Off
+is
 
    pragma Warnings (Off, "variable ""Busy*"" is not referenced");
    pragma Warnings (Off, "variable ""Lock*"" is not referenced");
@@ -374,7 +377,9 @@ package body Ada.Containers.Bounded_Ordered_Sets is
 
    procedure Clear (Container : in out Set) is
    begin
-      Tree_Operations.Clear_Tree (Container);
+      while not Container.Is_Empty loop
+         Container.Delete_Last;
+      end loop;
    end Clear;
 
    -----------
@@ -415,10 +420,10 @@ package body Ada.Containers.Bounded_Ordered_Sets is
            Container.TC'Unrestricted_Access;
       begin
          return R : constant Constant_Reference_Type :=
-           (Element => N.Element'Access,
+           (Element => N.Element'Unchecked_Access,
             Control => (Controlled with TC))
          do
-            Lock (TC.all);
+            Busy (TC.all);
          end return;
       end;
    end Constant_Reference;
@@ -440,15 +445,12 @@ package body Ada.Containers.Bounded_Ordered_Sets is
    ----------
 
    function Copy (Source : Set; Capacity : Count_Type := 0) return Set is
-      C : Count_Type;
-
+      C : constant Count_Type :=
+        (if Capacity = 0 then Source.Length
+         else Capacity);
    begin
-      if Capacity = 0 then
-         C := Source.Length;
-      elsif Capacity >= Source.Length then
-         C := Capacity;
-      elsif Checks then
-         raise Capacity_Error with "Capacity value too small";
+      if Checks and then C < Source.Length then
+         raise Capacity_Error with "Capacity too small";
       end if;
 
       return Target : Set (Capacity => C) do
@@ -462,6 +464,8 @@ package body Ada.Containers.Bounded_Ordered_Sets is
 
    procedure Delete (Container : in out Set; Position : in out Cursor) is
    begin
+      TC_Check (Container.TC);
+
       if Checks and then Position.Node = 0 then
          raise Constraint_Error with "Position cursor equals No_Element";
       end if;
@@ -470,8 +474,6 @@ package body Ada.Containers.Bounded_Ordered_Sets is
       then
          raise Program_Error with "Position cursor designates wrong set";
       end if;
-
-      TC_Check (Container.TC);
 
       pragma Assert (Vet (Container, Position.Node),
                      "bad cursor in Delete");
@@ -546,6 +548,17 @@ package body Ada.Containers.Bounded_Ordered_Sets is
 
       return Position.Container.Nodes (Position.Node).Element;
    end Element;
+
+   -----------
+   -- Empty --
+   -----------
+
+   function Empty (Capacity : Count_Type := 10) return Set is
+   begin
+      return Result : Set (Capacity) do
+         null;
+      end return;
+   end Empty;
 
    -------------------------
    -- Equivalent_Elements --
@@ -726,25 +739,14 @@ package body Ada.Containers.Bounded_Ordered_Sets is
         (Container : aliased Set;
          Key       : Key_Type) return Constant_Reference_Type
       is
-         Node : constant Count_Type := Key_Keys.Find (Container, Key);
+         Position : constant Cursor := Find (Container, Key);
 
       begin
-         if Checks and then Node = 0 then
+         if Checks and then Position = No_Element then
             raise Constraint_Error with "key not in set";
          end if;
 
-         declare
-            N : Node_Type renames Container.Nodes (Node);
-            TC : constant Tamper_Counts_Access :=
-              Container.TC'Unrestricted_Access;
-         begin
-            return R : constant Constant_Reference_Type :=
-              (Element => N.Element'Access,
-               Control => (Controlled with TC))
-            do
-               Lock (TC.all);
-            end return;
-         end;
+         return Constant_Reference (Container, Position);
       end Constant_Reference;
 
       --------------
@@ -895,7 +897,7 @@ package body Ada.Containers.Bounded_Ordered_Sets is
       -- Read --
       ----------
 
-      procedure  Read
+      procedure Read
         (Stream : not null access Root_Stream_Type'Class;
          Item   : out Reference_Type)
       is
@@ -930,15 +932,15 @@ package body Ada.Containers.Bounded_Ordered_Sets is
             N : Node_Type renames Container.Nodes (Position.Node);
          begin
             return R : constant Reference_Type :=
-                         (Element => N.Element'Access,
+                         (Element => N.Element'Unchecked_Access,
                           Control =>
                             (Controlled with
                               Container.TC'Unrestricted_Access,
-                              Container => Container'Access,
+                              Container => Container'Unchecked_Access,
                               Pos       => Position,
                               Old_Key   => new Key_Type'(Key (Position))))
             do
-               Lock (Container.TC);
+               Busy (Container.TC);
             end return;
          end;
       end Reference_Preserving_Key;
@@ -947,28 +949,14 @@ package body Ada.Containers.Bounded_Ordered_Sets is
         (Container : aliased in out Set;
          Key       : Key_Type) return Reference_Type
       is
-         Node : constant Count_Type := Key_Keys.Find (Container, Key);
+         Position : constant Cursor := Find (Container, Key);
 
       begin
-         if Checks and then Node = 0 then
+         if Checks and then Position = No_Element then
             raise Constraint_Error with "key not in set";
          end if;
 
-         declare
-            N : Node_Type renames Container.Nodes (Node);
-         begin
-            return R : constant Reference_Type :=
-                         (Element => N.Element'Access,
-                          Control =>
-                            (Controlled with
-                              Container.TC'Unrestricted_Access,
-                              Container => Container'Access,
-                               Pos      => Find (Container, Key),
-                               Old_Key  => new Key_Type'(Key)))
-            do
-               Lock (Container.TC);
-            end return;
-         end;
+         return Reference_Preserving_Key (Container, Position);
       end Reference_Preserving_Key;
 
       -------------
@@ -1111,8 +1099,6 @@ package body Ada.Containers.Bounded_Ordered_Sets is
       New_Item  : Element_Type)
    is
       Position : Cursor;
-      pragma Unreferenced (Position);
-
       Inserted : Boolean;
 
    begin
@@ -1192,7 +1178,6 @@ package body Ada.Containers.Bounded_Ordered_Sets is
       Dst_Node : out Count_Type)
    is
       Success : Boolean;
-      pragma Unreferenced (Success);
 
       procedure Set_Element (Node : in out Node_Type);
       pragma Inline (Set_Element);
@@ -1599,7 +1584,7 @@ package body Ada.Containers.Bounded_Ordered_Sets is
         Container.TC'Unrestricted_Access;
    begin
       return R : constant Reference_Control_Type := (Controlled with TC) do
-         Lock (TC.all);
+         Busy (TC.all);
       end return;
    end Pseudo_Reference;
 
@@ -1626,6 +1611,31 @@ package body Ada.Containers.Bounded_Ordered_Sets is
          Process (S.Nodes (Position.Node).Element);
       end;
    end Query_Element;
+
+   ---------------
+   -- Put_Image --
+   ---------------
+
+   procedure Put_Image
+     (S : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class; V : Set)
+   is
+      First_Time : Boolean := True;
+      use System.Put_Images;
+   begin
+      Array_Before (S);
+
+      for X of V loop
+         if First_Time then
+            First_Time := False;
+         else
+            Simple_Array_Between (S);
+         end if;
+
+         Element_Type'Put_Image (S, X);
+      end loop;
+
+      Array_After (S);
+   end Put_Image;
 
    ----------
    -- Read --
@@ -1683,12 +1693,12 @@ package body Ada.Containers.Bounded_Ordered_Sets is
       Node : constant Count_Type := Element_Keys.Find (Container, New_Item);
 
    begin
+      TE_Check (Container.TC);
+
       if Checks and then Node = 0 then
          raise Constraint_Error with
            "attempt to replace element not in set";
       end if;
-
-      TE_Check (Container.TC);
 
       Container.Nodes (Node).Element := New_Item;
    end Replace;
@@ -1974,6 +1984,7 @@ package body Ada.Containers.Bounded_Ordered_Sets is
    function To_Set (New_Item : Element_Type) return Set is
       Node     : Count_Type;
       Inserted : Boolean;
+
    begin
       return S : Set (1) do
          Insert_Sans_Hint (S, New_Item, Node, Inserted);

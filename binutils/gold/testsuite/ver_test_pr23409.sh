@@ -2,7 +2,7 @@
 
 # ver_test_pr23409.sh -- a test case for version scripts
 
-# Copyright (C) 2018 Free Software Foundation, Inc.
+# Copyright (C) 2018-2022 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@gmail.com>.
 
 # This file is part of gold.

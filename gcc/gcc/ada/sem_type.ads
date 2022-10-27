@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -85,7 +85,7 @@ package Sem_Type is
    --  with the appropriate use clause. The global variable Candidate_Type is
    --  set in Add_One_Interp whenever an interpretation might be legal for an
    --  operator if the type were directly visible. This variable is used in
-   --  sem_ch4 when no legal interpretation is found.
+   --  Sem_Ch4 when no legal interpretation is found.
 
    Candidate_Type : Entity_Id;
 
@@ -94,7 +94,7 @@ package Sem_Type is
    -----------------
 
    procedure Init_Interp_Tables;
-   --  Invoked by gnatf when processing multiple files
+   --  Initialize data structures for overload resolution
 
    procedure Collect_Interps (N : Node_Id);
    --  Invoked when the name N has more than one visible interpretation. This
@@ -129,9 +129,6 @@ package Sem_Type is
    --  of T and its scope. If the operator is an equality or comparison, T is
    --  always Boolean, and we use Opnd_Type, which is a candidate type for one
    --  of the operands of N, to check visibility.
-
-   procedure End_Interp_List;
-   --  End the list of interpretations of current node
 
    procedure Get_First_Interp
      (N  : Node_Id;
@@ -189,14 +186,20 @@ package Sem_Type is
    --  right operand, which has one interpretation compatible with that of L.
    --  Return the type intersection of the two.
 
-   function Has_Compatible_Type (N : Node_Id; Typ : Entity_Id) return Boolean;
+   function Has_Compatible_Type
+     (N              : Node_Id;
+      Typ            : Entity_Id;
+      For_Comparison : Boolean := False) return Boolean;
    --  Verify that some interpretation of the node N has a type compatible with
    --  Typ. If N is not overloaded, then its unique type must be compatible
    --  with Typ. Otherwise iterate through the interpretations of N looking for
-   --  a compatible one.
+   --  a compatible one. If For_Comparison is true, the function is invoked for
+   --  a comparison (or equality) operator and also needs to verify the reverse
+   --  compatibility, because the implementation of type resolution for these
+   --  operators is not fully symmetrical.
 
    function Hides_Op (F : Entity_Id; Op : Entity_Id) return Boolean;
-   --  A user-defined function hides a predefined operator if it is matches the
+   --  A user-defined function hides a predefined operator if it matches the
    --  signature of the operator, and is declared in an open scope, or in the
    --  scope of the result type.
 
@@ -246,8 +249,7 @@ package Sem_Type is
    --  in the signature of an inherited operation must carry the derived type.
 
    function Is_Subtype_Of (T1 : Entity_Id; T2 : Entity_Id) return Boolean;
-   --  Checks whether T1 is any subtype of T2 directly or indirectly. Applies
-   --  only to scalar subtypes???
+   --  Checks whether T1 is any subtype of T2 directly or indirectly
 
    function Operator_Matches_Spec (Op, New_S : Entity_Id) return Boolean;
    --  Used to resolve subprograms renaming operators, and calls to user
@@ -267,10 +269,6 @@ package Sem_Type is
 
    procedure Write_Interp (It : Interp);
    --  Debugging procedure to display an Interp
-
-   procedure Write_Interp_Ref (Map_Ptr : Int);
-   --  Debugging procedure to display entry in Interp_Map. Would not be needed
-   --  if it were possible to debug instantiations of Table.
 
    procedure Write_Overloads (N : Node_Id);
    --  Debugging procedure to output info on possibly overloaded entities for

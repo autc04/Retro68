@@ -1,2 +1,2 @@
 #name: C6X junk after directives
-#error-output: dir-junk.l
+#error_output: dir-junk.l

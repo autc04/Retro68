@@ -2,7 +2,7 @@
 #objdump: -drw --prefix-addresses --show-raw-insn
 #target: *-*-*eabi* *-*-nacl*
 #as:
-# stderr: blx-local.l
+#warning_output: blx-local.l
 # Test assembler resolution of blx and bl instructions in ARM mode.
 .*: +file format .*arm.*
 

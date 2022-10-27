@@ -24,7 +24,8 @@ x6:
  .text
 _start:
 # no need for got entry, optimise to nop,addi
-# note: ld doesn't yet do got optimisation, so we get nop,ld
+# note that due to unexpected toc/got insns the full optimisation is
+# not done.  see tocopt5 for test without unexpected insns.
  addis 9,2,x1@got@ha
  ld 9,x1@got@l(9)
 # must keep got entry, optimise to nop,addi,ld

@@ -2,8 +2,8 @@
 Symbol table '.symtab' contains 30 entries:
    Num:    Value  Size Type    Bind   Vis      Ndx Name
      0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
-     1: 00000050     0 SECTION LOCAL  DEFAULT    1 
-     2: 00000060     0 SECTION LOCAL  DEFAULT    2 
+     1: 00000050     0 SECTION LOCAL  DEFAULT    1.*
+     2: 00000060     0 SECTION LOCAL  DEFAULT    2.*
      3: 00000000     0 FILE    LOCAL  DEFAULT  ABS relax_size2.o
      4: 00000050     4 NOTYPE  LOCAL  DEFAULT    1 func
      5: 00000054     0 NOTYPE  LOCAL  DEFAULT    1 label

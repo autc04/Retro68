@@ -93,8 +93,8 @@ Attribute Bit
 ``obj'Bit``, where ``obj`` is any object, yields the bit
 offset within the storage unit (byte) that contains the first bit of
 storage allocated for the object.  The value of this attribute is of the
-type *universal_integer*, and is always a non-negative number not
-exceeding the value of ``System.Storage_Unit``.
+type *universal_integer* and is always a nonnegative number smaller
+than ``System.Storage_Unit``.
 
 For an object that is a variable or a constant allocated in a register,
 the value is zero.  (The use of this attribute does not force the
@@ -196,7 +196,7 @@ Attribute Default_Bit_Order
 .. index:: Default_Bit_Order
 
 ``Standard'Default_Bit_Order`` (``Standard`` is the only
-permissible prefix), provides the value ``System.Default_Bit_Order``
+allowed prefix), provides the value ``System.Default_Bit_Order``
 as a ``Pos`` value (0 for ``High_Order_First``, 1 for
 ``Low_Order_First``).  This is used to construct the definition of
 ``Default_Bit_Order`` in package ``System``.
@@ -210,7 +210,7 @@ Attribute Default_Scalar_Storage_Order
 .. index:: Default_Scalar_Storage_Order
 
 ``Standard'Default_Scalar_Storage_Order`` (``Standard`` is the only
-permissible prefix), provides the current value of the default scalar storage
+allowed prefix), provides the current value of the default scalar storage
 order (as specified using pragma ``Default_Scalar_Storage_Order``, or
 equal to ``Default_Bit_Order`` if unspecified) as a
 ``System.Bit_Order`` value. This is a static attribute.
@@ -241,14 +241,16 @@ the first element of the array.
 
 .. code-block:: ada
 
-  type Unconstr_Array is array (Positive range <>) of Boolean;
+  type Unconstr_Array is array (Short_Short_Integer range <>) of Positive;
   Put_Line ("Descriptor size = " & Unconstr_Array'Descriptor_Size'Img);
 
 
-The attribute takes into account any additional padding due to type alignment.
-In the example above, the descriptor contains two values of type
-``Positive`` representing the low and high bound.  Since ``Positive`` has
-a size of 31 bits and an alignment of 4, the descriptor size is ``2 * Positive'Size + 2`` or 64 bits.
+The attribute takes into account any padding due to the alignment of the
+component type. In the example above, the descriptor contains two values
+of type ``Short_Short_Integer`` representing the low and high bound. But,
+since ``Positive`` has an alignment of 4, the size of the descriptor is
+``2 * Short_Short_Integer'Size`` rounded up to the next multiple of 32,
+which yields a size of 32 bits, i.e. including 16 bits of padding.
 
 Attribute Elaborated
 ====================
@@ -336,6 +338,9 @@ Attribute Enum_Rep
 
 .. index:: Enum_Rep
 
+Note that this attribute is now standard in Ada 202x and is available
+as an implementation defined attribute for earlier Ada versions.
+
 For every enumeration subtype ``S``, ``S'Enum_Rep`` denotes a
 function with the following spec:
 
@@ -353,7 +358,7 @@ enumeration literal or object.
 The function returns the representation value for the given enumeration
 value.  This will be equal to value of the ``Pos`` attribute in the
 absence of an enumeration representation clause.  This is a static
-attribute (i.e.,:the result is static if the argument is static).
+attribute (i.e., the result is static if the argument is static).
 
 ``S'Enum_Rep`` can also be used with integer types and objects,
 in which case it simply returns the integer value.  The reason for this
@@ -370,6 +375,9 @@ Attribute Enum_Val
 .. index:: Representation of enums
 
 .. index:: Enum_Val
+
+Note that this attribute is now standard in Ada 202x and is available
+as an implementation defined attribute for earlier Ada versions.
 
 For every enumeration subtype ``S``, ``S'Enum_Val`` denotes a
 function with the following spec:
@@ -475,21 +483,34 @@ otherwise.  The intended use of this attribute is in conjunction with generic
 definitions.  If the attribute is applied to a generic private type, it
 indicates whether or not the corresponding actual type has discriminants.
 
+Attribute Has_Tagged_Values
+===========================
+.. index:: Tagged values, testing for
+
+.. index:: Has_Tagged_Values
+
+The prefix of the ``Has_Tagged_Values`` attribute is a type. The result is a
+Boolean value which is True if the type is a composite type (array or record)
+that is either a tagged type or has a subcomponent that is tagged, and is False
+otherwise. The intended use of this attribute is in conjunction with generic
+definitions. If the attribute is applied to a generic private type, it
+indicates whether or not the corresponding actual type has access values.
+
 Attribute Img
 =============
 .. index:: Img
 
-The ``Img`` attribute differs from ``Image`` in that it is applied
-directly to an object, and yields the same result as
-``Image`` for the subtype of the object.  This is convenient for
-debugging:
+The ``Img`` attribute differs from ``Image`` in that, while both can be
+applied directly to an object, ``Img`` cannot be applied to types.
+
+Example usage of the attribute:
 
 .. code-block:: ada
 
   Put_Line ("X = " & X'Img);
 
 
-has the same meaning as the more verbose:
+which has the same meaning as the more verbose:
 
 .. code-block:: ada
 
@@ -502,6 +523,13 @@ Note that technically, in analogy to ``Image``,
 that returns the appropriate string when called. This means that
 ``X'Img`` can be renamed as a function-returning-string, or used
 in an instantiation as a function parameter.
+
+Attribute Initialized
+=====================
+.. index:: Initialized
+
+For the syntax and semantics of this attribute, see the SPARK 2014 Reference
+Manual, section 6.10.
 
 Attribute Integer_Value
 =======================
@@ -637,10 +665,18 @@ Attribute Maximum_Alignment
 .. index:: Maximum_Alignment
 
 ``Standard'Maximum_Alignment`` (``Standard`` is the only
-permissible prefix) provides the maximum useful alignment value for the
+allowed prefix) provides the maximum useful alignment value for the
 target.  This is a static value that can be used to specify the alignment
 for an object, guaranteeing that it is properly aligned in all
 cases.
+
+Attribute Max_Integer_Size
+==========================
+.. index:: Max_Integer_Size
+
+``Standard'Max_Integer_Size`` (``Standard`` is the only allowed
+prefix) provides the size of the largest supported integer type for
+the target. The result is a static constant.
 
 Attribute Mechanism_Code
 ========================
@@ -781,8 +817,6 @@ and is static.  For non-scalar types, the result is nonstatic.
 
 Attribute Pool_Address
 ======================
-.. index:: Parameters, when passed by reference
-
 .. index:: Pool_Address
 
 ``X'Pool_Address`` for any object ``X`` returns the address
@@ -967,8 +1001,8 @@ of the use of this feature:
      --  the former is used.
 
 
-Other properties are as for standard representation attribute ``Bit_Order``,
-as defined by Ada RM 13.5.3(4). The default is ``System.Default_Bit_Order``.
+Other properties are as for the standard representation attribute ``Bit_Order``
+defined by Ada RM 13.5.3(4). The default is ``System.Default_Bit_Order``.
 
 For a record type ``T``, if ``T'Scalar_Storage_Order`` is
 specified explicitly, it shall be equal to ``T'Bit_Order``. Note:
@@ -978,8 +1012,8 @@ specified explicitly and set to the same value.
 
 Derived types inherit an explicitly set scalar storage order from their parent
 types. This may be overridden for the derived type by giving an explicit scalar
-storage order for the derived type. For a record extension, the derived type
-must have the same scalar storage order as the parent type.
+storage order for it. However, for a record extension, the derived type must
+have the same scalar storage order as the parent type.
 
 A component of a record type that is itself a record or an array and that does
 not start and end on a byte boundary must have have the same scalar storage
@@ -1018,14 +1052,57 @@ inheritance in the case of a derived type), then the default is normally
 the native ordering of the target, but this default can be overridden using
 pragma ``Default_Scalar_Storage_Order``.
 
-Note that if a component of ``T`` is itself of a record or array type,
-the specfied ``Scalar_Storage_Order`` does *not* apply to that nested type:
-an explicit attribute definition clause must be provided for the component
-type as well if desired.
+If a component of ``T`` is itself of a record or array type, the specfied
+``Scalar_Storage_Order`` does *not* apply to that nested type: an explicit
+attribute definition clause must be provided for the component type as well
+if desired.
+
+Representation changes that explicitly or implicitly toggle the scalar storage
+order are not supported and may result in erroneous execution of the program,
+except when performed by means of an instance of ``Ada.Unchecked_Conversion``.
+
+In particular, overlays are not supported and a warning is given for them:
+
+.. code-block:: ada
+
+     type Rec_LE is record
+        I : Integer;
+     end record;
+
+     for Rec_LE use record
+        I at 0 range 0 .. 31;
+     end record;
+
+     for Rec_LE'Bit_Order use System.Low_Order_First;
+     for Rec_LE'Scalar_Storage_Order use System.Low_Order_First;
+
+     type Rec_BE is record
+        I : Integer;
+     end record;
+
+     for Rec_BE use record
+        I at 0 range 0 .. 31;
+     end record;
+
+     for Rec_BE'Bit_Order use System.High_Order_First;
+     for Rec_BE'Scalar_Storage_Order use System.High_Order_First;
+
+     R_LE : Rec_LE;
+
+     R_BE : Rec_BE;
+     for R_BE'Address use R_LE'Address;
+
+``warning: overlay changes scalar storage order [enabled by default]``
+
+In most cases, such representation changes ought to be replaced by an
+instantiation of a function or procedure provided by ``GNAT.Byte_Swapping``.
 
 Note that the scalar storage order only affects the in-memory data
 representation. It has no effect on the representation used by stream
 attributes.
+
+Note that debuggers may be unable to display the correct value of scalar
+components of a type for which the opposite storage order is specified.
 
 .. _Attribute_Simple_Storage_Pool:
 
@@ -1103,11 +1180,31 @@ for compatibility with Ada 83.  See
 the Ada 83 reference manual for an exact description of the semantics of
 this attribute when applied to floating-point types.
 
+Attribute Small_Denominator
+===========================
+.. index:: Small
+
+.. index:: Small_Denominator
+
+``typ'Small_Denominator`` for any fixed-point subtype `typ` yields the
+denominator in the representation of ``typ'Small`` as a rational number
+with coprime factors (i.e. as an irreducible fraction).
+
+Attribute Small_Numerator
+=========================
+.. index:: Small
+
+.. index:: Small_Numerator
+
+``typ'Small_Numerator`` for any fixed-point subtype `typ` yields the
+numerator in the representation of ``typ'Small`` as a rational number
+with coprime factors (i.e. as an irreducible fraction).
+
 Attribute Storage_Unit
 ======================
 .. index:: Storage_Unit
 
-``Standard'Storage_Unit`` (``Standard`` is the only permissible
+``Standard'Storage_Unit`` (``Standard`` is the only allowed
 prefix) provides the same value as ``System.Storage_Unit``.
 
 Attribute Stub_Type
@@ -1138,7 +1235,7 @@ Attribute System_Allocator_Alignment
 .. index:: System_Allocator_Alignment
 
 ``Standard'System_Allocator_Alignment`` (``Standard`` is the only
-permissible prefix) provides the observable guaranted to be honored by
+allowed prefix) provides the observable guaranted to be honored by
 the system allocator (malloc). This is a static value that can be used
 in user storage pools based on malloc either to reject allocation
 with alignment too large or to enable a realignment circuitry if the
@@ -1148,7 +1245,7 @@ Attribute Target_Name
 =====================
 .. index:: Target_Name
 
-``Standard'Target_Name`` (``Standard`` is the only permissible
+``Standard'Target_Name`` (``Standard`` is the only allowed
 prefix) provides a static string value that identifies the target
 for the current compilation. For GCC implementations, this is the
 standard gcc target name without the terminating slash (for
@@ -1159,7 +1256,7 @@ Attribute To_Address
 .. index:: To_Address
 
 The ``System'To_Address``
-(``System`` is the only permissible prefix)
+(``System`` is the only allowed prefix)
 denotes a function identical to
 ``System.Storage_Elements.To_Address`` except that
 it is a static attribute.  This means that if its argument is
@@ -1530,6 +1627,15 @@ Multi-dimensional arrays can be modified, as shown by this example:
 
 which changes element (1,2) to 20 and (3,4) to 30.
 
+Attribute Valid_Image
+=======================
+.. index:: Valid_Image
+
+The ``'Valid_Image`` attribute is defined for enumeration types other than
+those in package Standard. This attribute is a function that takes
+a String, and returns Boolean. ``T'Valid_Image (S)`` returns True
+if and only if ``T'Value (S)`` would not raise Constraint_Error.
+
 Attribute Valid_Scalars
 =======================
 .. index:: Valid_Scalars
@@ -1593,7 +1699,7 @@ Attribute Wchar_T_Size
 ======================
 .. index:: Wchar_T_Size
 
-``Standard'Wchar_T_Size`` (``Standard`` is the only permissible
+``Standard'Wchar_T_Size`` (``Standard`` is the only allowed
 prefix) provides the size in bits of the C ``wchar_t`` type
 primarily for constructing the definition of this type in
 package ``Interfaces.C``. The result is a static constant.
@@ -1602,7 +1708,6 @@ Attribute Word_Size
 ===================
 .. index:: Word_Size
 
-``Standard'Word_Size`` (``Standard`` is the only permissible
+``Standard'Word_Size`` (``Standard`` is the only allowed
 prefix) provides the value ``System.Word_Size``. The result is
 a static constant.
-

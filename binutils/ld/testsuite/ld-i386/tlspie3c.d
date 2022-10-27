@@ -9,7 +9,7 @@
 Disassembly of section .text:
 
 [0-9a-f]+ <___tls_get_addr>:
-[ 	]*[a-f0-9]+:	c3                   	ret    
+[ 	]*[a-f0-9]+:	c3                   	ret
 
 [0-9a-f]+ <_start>:
 [ 	]*[a-f0-9]+:	55                   	push   %ebp
@@ -32,6 +32,6 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	89 f0                	mov    %esi,%eax
 [ 	]*[a-f0-9]+:	5b                   	pop    %ebx
 [ 	]*[a-f0-9]+:	5e                   	pop    %esi
-[ 	]*[a-f0-9]+:	c9                   	leave  
-[ 	]*[a-f0-9]+:	c3                   	ret    
+[ 	]*[a-f0-9]+:	c9                   	leave
+[ 	]*[a-f0-9]+:	c3                   	ret
 #pass

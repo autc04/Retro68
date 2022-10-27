@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Free Software Foundation, Inc.
+// Copyright (C) 2018-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,6 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++17" }
 // { dg-do run { target c++17 } }
 
 #include <memory_resource>
@@ -189,7 +188,16 @@ test06()
       if (bytes < expected_size)
 	throw bad_size();
       else if (align != expected_alignment)
-	throw bad_alignment();
+      {
+	if (bytes == std::numeric_limits<std::size_t>::max()
+	    && align == (1 + std::numeric_limits<std::size_t>::max() / 2))
+	{
+	  // Pool resources request bytes=SIZE_MAX && align=bit_floor(SIZE_MAX)
+	  // when they are unable to meet an allocation request.
+	}
+	else
+	  throw bad_alignment();
+      }
       // Else just throw, don't really try to allocate:
       throw std::bad_alloc();
     }
@@ -197,7 +205,7 @@ test06()
     void do_deallocate(void* p, std::size_t bytes, std::size_t align)
     { std::pmr::new_delete_resource()->deallocate(p, bytes, align); }
 
-    bool do_is_equal(const memory_resource& r) const noexcept
+    bool do_is_equal(const memory_resource&) const noexcept
     { return false; }
   };
 
@@ -239,6 +247,80 @@ test06()
   }
 }
 
+void
+test07()
+{
+  // Custom exception thrown on expected allocation failure.
+  struct very_bad_alloc : std::bad_alloc { };
+
+  struct careful_resource : __gnu_test::memory_resource
+  {
+    void* do_allocate(std::size_t bytes, std::size_t alignment)
+    {
+      // Need to allow normal allocations for the pool resource's internal
+      // data structures:
+      if (alignment < 1024)
+	return __gnu_test::memory_resource::do_allocate(bytes, alignment);
+
+      // pmr::unsynchronized_pool_resource::do_allocate is not allowed to
+      // throw an exception when asked for an allocation it can't satisfy.
+      // The libstdc++ implementation will ask upstream to allocate
+      // bytes=SIZE_MAX and alignment=bit_floor(SIZE_MAX) instead of throwing.
+      // Verify that we got those values:
+      if (bytes != std::numeric_limits<size_t>::max())
+	VERIFY( !"upstream allocation should request SIZE_MAX bytes" );
+      if (alignment != (1 + std::numeric_limits<size_t>::max() / 2))
+	VERIFY( !"upstream allocation should request SIZE_MAX/2 alignment" );
+
+      // A successful failure:
+      throw very_bad_alloc();
+    }
+  };
+
+  careful_resource cr;
+  std::pmr::unsynchronized_pool_resource upr(&cr);
+  try
+  {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Walloc-size-larger-than="
+    // Try to allocate a ridiculous size (and use a large extended alignment
+    // so that careful_resource::do_allocate can distinguish this allocation
+    // from any required for the pool resource's internal data structures):
+    void* p = upr.allocate(std::size_t(-2), 1024);
+#pragma GCC diagnostic pop
+    // Should not reach here!
+    VERIFY( !"attempt to allocate SIZE_MAX-1 should not have succeeded" );
+    throw p;
+  }
+  catch (const very_bad_alloc&)
+  {
+    // Should catch this exception from careful_resource::do_allocate
+  }
+  catch (const std::bad_alloc&)
+  {
+    VERIFY( !"unsynchronized_pool_resource::do_allocate is not allowed to throw" );
+  }
+}
+
+void
+test08()
+{
+  std::pmr::pool_options opts;
+  opts.largest_required_pool_block = 64;
+
+  // PR libstdc++/94160
+  // max_blocks_per_chunk=1 causes pool resources to return null pointers
+  for (int i = 0; i < 8; ++i)
+  {
+    opts.max_blocks_per_chunk = i;
+    std::pmr::unsynchronized_pool_resource upr(opts);
+    auto* p = (int*)upr.allocate(4);
+    VERIFY( p != nullptr );
+    *p = i;
+    upr.deallocate(p, 4);
+  }
+}
+
 int
 main()
 {
@@ -248,4 +330,6 @@ main()
   test04();
   test05();
   test06();
+  test07();
+  test08();
 }

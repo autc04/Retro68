@@ -2,7 +2,7 @@
 #name: MIPS relaxed branch to a different section
 #as: -32 --relax-branch
 #source: branch-section.s
-#stderr: branch-section.l
+#warning_output: branch-section.l
 
 .*: +file format .*mips.*
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2019 Free Software Foundation, Inc.
+/* Copyright (C) 2007-2022 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -206,6 +206,12 @@ extern __inline __m128i __attribute__((__gnu_inline__, __always_inline__, __arti
 _mm_cmov_si128(__m128i __A, __m128i __B, __m128i __C)
 {
   return  (__m128i) __builtin_ia32_vpcmov (__A, __B, __C);
+}
+
+extern __inline __m256i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm256_cmov_si256(__m256i __A, __m256i __B, __m256i __C)
+{
+  return  (__m256i) __builtin_ia32_vpcmov256 (__A, __B, __C);
 }
 
 extern __inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
@@ -814,25 +820,25 @@ _mm256_permute2_ps (__m256 __X, __m256 __Y, __m256i __C, const int __I)
 #define _mm_permute2_pd(X, Y, C, I)					\
   ((__m128d) __builtin_ia32_vpermil2pd ((__v2df)(__m128d)(X),		\
 					(__v2df)(__m128d)(Y),		\
-					(__v2di)(__m128d)(C),		\
+					(__v2di)(__m128i)(C),		\
 					(int)(I)))
 
 #define _mm256_permute2_pd(X, Y, C, I)					\
   ((__m256d) __builtin_ia32_vpermil2pd256 ((__v4df)(__m256d)(X),	\
 					   (__v4df)(__m256d)(Y),	\
-					   (__v4di)(__m256d)(C),	\
+					   (__v4di)(__m256i)(C),	\
 					   (int)(I)))
 
 #define _mm_permute2_ps(X, Y, C, I)					\
   ((__m128) __builtin_ia32_vpermil2ps ((__v4sf)(__m128)(X),		\
 				       (__v4sf)(__m128)(Y),		\
-				       (__v4si)(__m128)(C),		\
+				       (__v4si)(__m128i)(C),		\
 				       (int)(I)))
 
 #define _mm256_permute2_ps(X, Y, C, I)					\
   ((__m256) __builtin_ia32_vpermil2ps256 ((__v8sf)(__m256)(X),		\
 					  (__v8sf)(__m256)(Y),  	\
-					  (__v8si)(__m256)(C),		\
+					  (__v8si)(__m256i)(C),		\
  					  (int)(I)))
 #endif /* __OPTIMIZE__ */
 

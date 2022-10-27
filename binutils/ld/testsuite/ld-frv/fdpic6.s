@@ -53,3 +53,4 @@ D6:
 	
 	.picptr funcdesc(WFb)
 	.word	WFb
+	.section	.note.GNU-stack

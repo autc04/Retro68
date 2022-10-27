@@ -1,5 +1,5 @@
 #source: arclinux-nps.s
-#as: -mnps400
+#as: -mcpu=arc700 -mnps400
 #ld: -marclinux_nps
 #objdump: -dr
 

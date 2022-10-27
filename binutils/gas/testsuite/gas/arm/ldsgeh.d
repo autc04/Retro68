@@ -1,2 +1,2 @@
 # name: Accept lds<cc>sh mnemonics
-# error-output: ldsgeh.l
+# warning_output: ldsgeh.l

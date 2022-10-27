@@ -44,8 +44,24 @@
 	all_barriers	op=isb, from=0, to=15
 
 	isb
+	isb sy
 	ssbb
 	pssbb
+
+	dsb oshld
+	dsb oshst
+	dsb osh
+	dsb nshld
+	dsb nshst
+	dsb nsh
+	dsb #0x08
+	dsb ishld
+	dsb ishst
+	dsb ish
+	dsb #0x0c
+	dsb ld
+	dsb st
+	dsb sy
 
 	//
 	// PREFETCHS

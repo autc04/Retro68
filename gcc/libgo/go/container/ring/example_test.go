@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
-
 package ring_test
 
 import (
@@ -90,7 +88,7 @@ func ExampleRing_Do() {
 	}
 
 	// Iterate through the ring and print its contents
-	r.Do(func(p interface{}) {
+	r.Do(func(p any) {
 		fmt.Println(p.(int))
 	})
 
@@ -119,7 +117,7 @@ func ExampleRing_Move() {
 	r = r.Move(3)
 
 	// Iterate through the ring and print its contents
-	r.Do(func(p interface{}) {
+	r.Do(func(p any) {
 		fmt.Println(p.(int))
 	})
 
@@ -156,7 +154,7 @@ func ExampleRing_Link() {
 	rs := r.Link(s)
 
 	// Iterate through the combined ring and print its contents
-	rs.Do(func(p interface{}) {
+	rs.Do(func(p any) {
 		fmt.Println(p.(int))
 	})
 
@@ -184,7 +182,7 @@ func ExampleRing_Unlink() {
 	r.Unlink(3)
 
 	// Iterate through the remaining ring and print its contents
-	r.Do(func(p interface{}) {
+	r.Do(func(p any) {
 		fmt.Println(p.(int))
 	})
 

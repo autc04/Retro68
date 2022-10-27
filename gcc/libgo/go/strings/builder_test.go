@@ -9,6 +9,7 @@ import (
 	"runtime"
 	. "strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func check(t *testing.T, b *Builder, want string) {
@@ -185,21 +186,6 @@ func TestBuilderAllocs(t *testing.T) {
 	if runtime.Compiler == "gccgo" {
 		t.Skip("skip for gccgo until escape analysis improves")
 	}
-	var b Builder
-	const msg = "hello"
-	b.Grow(len(msg) * 2) // because AllocsPerRun does an extra "warm-up" iteration
-	var s string
-	allocs := int(testing.AllocsPerRun(1, func() {
-		b.WriteString("hello")
-		s = b.String()
-	}))
-	if want := msg + msg; s != want {
-		t.Errorf("String: got %#q; want %#q", s, want)
-	}
-	if allocs > 0 {
-		t.Fatalf("got %d alloc(s); want 0", allocs)
-	}
-
 	// Issue 23382; verify that copyCheck doesn't force the
 	// Builder to escape and be heap allocated.
 	n := testing.AllocsPerRun(10000, func() {
@@ -320,6 +306,16 @@ func TestBuilderCopyPanic(t *testing.T) {
 		if got := <-didPanic; got != tt.wantPanic {
 			t.Errorf("%s: panicked = %v; want %v", tt.name, got, tt.wantPanic)
 		}
+	}
+}
+
+func TestBuilderWriteInvalidRune(t *testing.T) {
+	// Invalid runes, including negative ones, should be written as
+	// utf8.RuneError.
+	for _, r := range []rune{-1, utf8.MaxRune + 1} {
+		var b Builder
+		b.WriteRune(r)
+		check(t, &b, "\uFFFD")
 	}
 }
 

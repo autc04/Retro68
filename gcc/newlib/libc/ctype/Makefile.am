@@ -1,7 +1,5 @@
 ## Process this file with automake to generate Makefile.in
 
-AUTOMAKE_OPTIONS = cygnus
-
 INCLUDES = $(NEWLIB_CFLAGS) $(CROSS_CFLAGS) $(TARGET_CFLAGS)
 
 GENERAL_SOURCES = 	\
@@ -24,6 +22,7 @@ if ELIX_LEVEL_1
 ELIX_SOURCES =
 else
 ELIX_SOURCES = \
+	categories.c	\
 	isalnum_l.c	\
 	isalpha_l.c	\
 	isascii.c 	\

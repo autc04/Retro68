@@ -2,7 +2,7 @@
 #name: microMIPS relaxed branch to a different section
 #as: -32 -mmicromips --relax-branch
 #source: branch-section.s
-#stderr: branch-section.l
+#warning_output: branch-section.l
 
 .*: +file format .*mips.*
 

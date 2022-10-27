@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2013-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2013-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -25,7 +25,7 @@
 
 --  This package handles setting target dependent parameters. If the -gnatet
 --  switch is not set, then these values are taken from the back end (via the
---  routines in Get_Targ, and the enumerate_modes routine in misc.c). If the
+--  routines in Get_Targ, and the enumerate_modes routine in misc.cc). If the
 --  switch is set, then the values are read from the target.atp file in the
 --  current directory (usually written with the Write_Target_Dependent_Values
 --  procedure defined in this package).
@@ -36,7 +36,6 @@
 --  of Wide_Character_Type uses twice the size of a C char, instead of the
 --  size of wchar_t, since this corresponds to expected Ada usage.
 
-with Einfo; use Einfo;
 with Stand; use Stand;
 with Types; use Types;
 
@@ -71,6 +70,7 @@ package Set_Targ is
    Float_Words_BE             : Nat; -- Float words stored big-endian?
    Int_Size                   : Pos; -- Standard.Integer'Size
    Long_Double_Size           : Pos; -- Standard.Long_Long_Float'Size
+   Long_Long_Long_Size        : Pos; -- Standard.Long_Long_Long_Integer'Size
    Long_Long_Size             : Pos; -- Standard.Long_Long_Integer'Size
    Long_Size                  : Pos; -- Standard.Long_Integer'Size
    Maximum_Alignment          : Pos; -- Maximum permitted alignment
@@ -88,7 +88,7 @@ package Set_Targ is
    -------------------------------------
 
    --  This table contains the list of modes supported by the back-end as
-   --  provided by the back end routine enumerate_modes in misc.c. Note that
+   --  provided by the back end routine enumerate_modes in misc.cc. Note that
    --  we only store floating-point modes (see Register_Float_Type).
 
    type FPT_Mode_Entry is record
@@ -143,12 +143,14 @@ package Set_Targ is
    --
    --       name  digs float_rep precision alignment
    --
-   --     where name is the string name of the type (which can have single
-   --     spaces embedded in the name (e.g. long double). The name is followed
-   --     by at least two blanks. The following fields are as described above
-   --     for a Mode_Entry (where float_rep is I/V/A for IEEE-754-Binary,
-   --     Vax_Native, AAMP), fields are separated by at least one blank, and
-   --     a LF character immediately follows the alignment field.
+   --     where name is the string name of the type (which can have
+   --     single spaces embedded in the name (e.g. long double). The
+   --     name is followed by at least two blanks. The following fields
+   --     are as described above for a Mode_Entry (where float_rep is
+   --     I for IEEE-754-Binary, which is the only Float_Rep_Kind
+   --     currently supported), fields are separated by at least one
+   --     blank, and a LF character immediately follows the alignment
+   --     field.
    --
    --     ??? We do not write the size for backward compatibility reasons,
    --     which means that target.atp will not be a complete description for

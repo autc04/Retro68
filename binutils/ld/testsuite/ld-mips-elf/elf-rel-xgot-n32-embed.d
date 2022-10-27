@@ -1,5 +1,5 @@
 #name: MIPS ELF xgot reloc n32
-#as: -march=from-abi -EB -n32 -KPIC -xgot
+#as: -KPIC -xgot
 #objcopy_objects: -R .MIPS.abiflags -K __start
 #source: ../../../gas/testsuite/gas/mips/elf-rel-got-n32.s RUN_OBJCOPY
 #ld:

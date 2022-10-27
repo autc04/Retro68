@@ -1,5 +1,5 @@
 /* tc-fr30.c -- Assembler for the Fujitsu FR30.
-   Copyright (C) 1998-2018 Free Software Foundation, Inc.
+   Copyright (C) 1998-2022 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -154,7 +154,7 @@ md_operand (expressionS * expressionP)
 valueT
 md_section_align (segT segment, valueT size)
 {
-  int align = bfd_get_section_alignment (stdoutput, segment);
+  int align = bfd_section_alignment (segment);
 
   return ((size + (1 << align) - 1) & -(1 << align));
 }
@@ -320,7 +320,7 @@ md_number_to_chars (char * buf, valueT val, int n)
 const char *
 md_atof (int type, char * litP, int * sizeP)
 {
-  return ieee_md_atof (type, litP, sizeP, TRUE);
+  return ieee_md_atof (type, litP, sizeP, true);
 }
 
 /* Worker function for fr30_is_colon_insn().  */
@@ -409,7 +409,7 @@ fr30_is_colon_insn (char *start, char *nul_char)
   return 0;
 }
 
-bfd_boolean
+bool
 fr30_fix_adjustable (fixS * fixP)
 {
   /* We need the symbol name for the VTABLE entries.  */

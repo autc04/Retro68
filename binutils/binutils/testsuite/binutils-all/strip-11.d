@@ -4,7 +4,7 @@
 #readelf: -S --wide
 #name: strip -g empty file
 # The RL78 linker scripts always PROVIDE a __rl78_abs__ symbol so the stripped symbol table is never empty.
-#not-target: rl78-*-*
+#notarget: rl78-*-*
 
 #...
   \[ 0\] +NULL +0+ .*

@@ -252,9 +252,9 @@ foo:
  wbinvd
  ud2a
  mov    eax, cr2
- mov    eax, db2
+ mov    eax, dr2
  mov    cr2, eax
- mov    db2, eax
+ mov    dr2, eax
  mov    eax, tr2
  mov    tr2, eax
  wrmsr

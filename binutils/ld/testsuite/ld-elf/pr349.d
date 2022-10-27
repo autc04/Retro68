@@ -2,9 +2,8 @@
 #source: pr349-2.s
 #ld: -r
 #readelf: -S
-#xfail: d30v-*-* dlx-*-* fr30-*-* frv-*-elf ft32-*-*
-#xfail: iq*-*-* mn10200-*-* moxie-*-* msp*-*-* mt-*-* pj*-*-*
-# if not using elf32.em, you don't get fancy section handling
+#xfail: [uses_genelf]
+# if not using elf.em, you don't get fancy section handling
 
 #...
 .* .abcxyz .*

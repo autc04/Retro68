@@ -1,6 +1,7 @@
 /* Contributed by Nicola Pero <nicola.pero@meta-innovation.com>, November 2010.  */
 /* { dg-options "-fobjc-exceptions" } */
 /* { dg-do compile } */
+/* { dg-additional-options "-Wno-objc-root-class" } */
 
 /* Test warnings when parsing syntax errors in @catch().  */
 
@@ -44,7 +45,7 @@ int test (id object)
       dummy++;
     }
   @catch (id <MyProtocol x) /* { dg-error "expected ... before .x." } */
-    {                       /* { dg-error "@catch parameter cannot be protocol-qualified" "" { target *-*-* } .-1 } */
+    {                       /* { dg-error "'@catch' parameter cannot be protocol-qualified" "" { target *-*-* } .-1 } */
       dummy++;
     }
   @catch MyObject *x       /* { dg-error "expected ... before .MyObject." } */

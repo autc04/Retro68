@@ -1,4 +1,4 @@
-#objdump: -S
+#objdump: -S -WN
 #as: -gdwarf2
 #name: Dwarf2 test on insns.s
 #source: insns.s

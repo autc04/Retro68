@@ -1,11 +1,12 @@
 #objdump: -sr
+#as:  --generate-missing-build-notes=no
 # This test is only valid on EABI based ports.
-#target: *-*-*eabi* *-*-symbianelf *-*-nacl*
+#target: *-*-*eabi* *-*-nacl*
 
 .*:     file format.*
 
 RELOCATION RECORDS FOR \[.text\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 00000004 R_ARM_REL32       b
 
 Contents of section .text:

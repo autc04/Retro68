@@ -7,6 +7,7 @@ package template
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -154,9 +155,9 @@ func isCSSSpace(b byte) bool {
 }
 
 // cssEscaper escapes HTML and CSS special characters using \<hex>+ escapes.
-func cssEscaper(args ...interface{}) string {
+func cssEscaper(args ...any) string {
 	s, _ := stringify(args...)
-	var b bytes.Buffer
+	var b strings.Builder
 	r, w, written := rune(0), 0, 0
 	for i := 0; i < len(s); i += w {
 		// See comment in htmlEscaper.
@@ -167,6 +168,9 @@ func cssEscaper(args ...interface{}) string {
 			repl = cssReplacementTable[r]
 		default:
 			continue
+		}
+		if written == 0 {
+			b.Grow(len(s))
 		}
 		b.WriteString(s[written:i])
 		b.WriteString(repl)
@@ -214,7 +218,7 @@ var mozBindingBytes = []byte("mozbinding")
 // (inherit, blue), and colors (#888).
 // It filters out unsafe values, such as those that affect token boundaries,
 // and anything that might execute scripts.
-func cssValueFilter(args ...interface{}) string {
+func cssValueFilter(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeCSS {
 		return s

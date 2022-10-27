@@ -6,3 +6,5 @@ _start:
 	.globl foo
 foo:
 	.byte 0
+
+	.section	.note.GNU-stack

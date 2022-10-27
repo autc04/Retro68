@@ -1,6 +1,6 @@
 #objdump: -dw
 #name: x86-64 manual rex prefix use
-#not-target: x86_64-*-elf*
+#notarget: x86_64-*-elf*
 
 .*: +file format .*
 
@@ -23,6 +23,11 @@ Disassembly of section .text:
 [	 ]*[0-9a-f]+:[	 ]+46 03 04 00[	 ]+add[	 ]+\(%rax,%r8(,1)?\),%r8d
 [	 ]*[0-9a-f]+:[	 ]+45 03 04 00[	 ]+add[	 ]+\(%r8,%rax(,1)?\),%r8d
 [	 ]*[0-9a-f]+:[	 ]+4a 03 04 00[	 ]+add[	 ]+\(%rax,%r8(,1)?\),%rax
+[	 ]*[0-9a-f]+:[	 ]+40 90[	 ]+rex nop
+[	 ]*[0-9a-f]+:[	 ]+48 90[	 ]+rex\.W nop
+[	 ]*[0-9a-f]+:[	 ]+44 90[	 ]+rex\.R nop
+[	 ]*[0-9a-f]+:[	 ]+42 90[	 ]+rex\.X nop
+[	 ]*[0-9a-f]+:[	 ]+41 90[	 ]+xchg[	 ]+%eax,%r8d
 [	 ]*[0-9a-f]+:[	 ]+41\s+rex\.B
 [	 ]*[0-9a-f]+:[	 ]+9b dd 30\s+fsave\s+\(%rax\)
 [	 ]*[0-9a-f]+:[	 ]+9b 41 dd 30\s+fsave\s+\(%r8\)

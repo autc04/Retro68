@@ -12,7 +12,7 @@
 .*:     file format elf32-cris
 
 DYNAMIC RELOCATION RECORDS
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 000021e8 R_CRIS_GLOB_DAT   dsofn
 
 Contents of section .*

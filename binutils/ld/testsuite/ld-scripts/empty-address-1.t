@@ -1,11 +1,12 @@
 SECTIONS
 {
-  .text 0x0000000: { *(.text) }
-  .data 0x2000000:
+  .text 0: { *(.text .pr) }
+  .data 0x200:
   {
     __data_start = . ;
     *(.data)
   }
   __data_end = .;
+  .bss : { *(.bss) }
   /DISCARD/ : { *(.*) }
 }

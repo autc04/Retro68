@@ -1,5 +1,5 @@
 # Expect script for binutils tests
-#   Copyright (C) 2009-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -27,8 +27,6 @@
 if { !([istarget "i?86-*-elf*"]
        || [istarget "i?86-*-linux*"]
        || [istarget "i?86-*-gnu*"]
-       || [istarget "i?86-*-nacl*"]
-       || [istarget "x86_64-*-nacl*"]
        || [istarget "x86_64-*-linux*"]
        || [istarget "amd64-*-linux*"]) } {
     return
@@ -48,7 +46,7 @@ proc binutils_test { prog_name ld_options test } {
     set test_name "$prog_name $ld_options ($test)"
 
     if { ![ld_assemble $as $srcdir/$subdir/$test.s tmpdir/$test.o ] } {
-	unresolved "$test_name"
+	unsupported "$test_name"
 	return
     }
 
@@ -57,7 +55,7 @@ proc binutils_test { prog_name ld_options test } {
 	     || [string match "*unrecognized option*" $link_output] } {
 	    unsupported "$ld_options is not supported by this target"
 	} else {
-	    unresolved "$test_name"
+	    fail "$test_name"
 	}
 	return
     }
@@ -66,7 +64,7 @@ proc binutils_test { prog_name ld_options test } {
     set got [remote_exec host "$READELF -l --wide tmpdir/$test" "" "/dev/null" "tmpdir/$test.exp"]
     if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
 	send_log "$got\n"
-	unresolved "$test_name"
+	fail "$test_name"
 	return
     }
 
@@ -82,7 +80,7 @@ proc binutils_test { prog_name ld_options test } {
     set got [remote_exec host "$READELF -l --wide tmpdir/$test" "" "/dev/null" "tmpdir/$test.out"]
     if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
 	send_log "$got\n"
-	unresolved "$test_name"
+	fail "$test_name"
 	return
     }
 

@@ -1,7 +1,7 @@
 #as: -big
 #objdump: -d
 #name: PC-relative loads
-#stderr: pcrel.l
+#warning_output: pcrel.l
 
 .*:     file format .*sh.*
 

@@ -9,6 +9,9 @@
 	movl	$zzz@SIZE, %eax
 	movl	$zzz@SIZE - 32, %eax
 	movl	$zzz@SIZE + 32, %eax
+	movl	$.text@SIZE, %eax
+	movl	$.data@SIZE + 4, %eax
+	movl	$.bss@SIZE - 0x10000000, %eax
 	.local	zzz
 	.comm	zzz,429496720,32
 	.bss

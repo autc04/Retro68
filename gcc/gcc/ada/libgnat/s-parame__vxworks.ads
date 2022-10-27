@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -100,6 +100,21 @@ package System.Parameters is
    --  Indicates if secondary stacks can grow and shrink at run-time. If False,
    --  the size of a secondary stack is fixed at the point of its creation.
 
+   ------------------------------------
+   -- Characteristics of time_t type --
+   ------------------------------------
+
+   --  IMPORTANT NOTE:
+   --  Select the appropriate time_t_bits for the VSB in use, then rebuild
+   --  the runtime using instructions in adainclude/libada.gpr.
+
+   --  time_t_bits : constant := Long_Integer'Size;
+   --  Number of bits in type time_t for SR0650 and before and SR0660 with
+   --  non-default configuration.
+
+   time_t_bits : constant := Long_Long_Integer'Size;
+   --  Number of bits in type time_t for SR0660 with default configuration.
+
    ----------------------------------------------
    -- Characteristics of types in Interfaces.C --
    ----------------------------------------------
@@ -146,19 +161,6 @@ package System.Parameters is
    --  In the following sections, constant parameters are defined to
    --  allow some optimizations and fine tuning within the tasking run time
    --  based on restrictions on the tasking features.
-
-   ----------------------
-   -- Locking Strategy --
-   ----------------------
-
-   Single_Lock : constant Boolean := False;
-   --  Indicates whether a single lock should be used within the tasking
-   --  run-time to protect internal structures. If True, a single lock
-   --  will be used, meaning less locking/unlocking operations, but also
-   --  more global contention. In general, Single_Lock should be set to
-   --  True on single processor machines, and to False to multi-processor
-   --  systems, but this can vary from application to application and also
-   --  depends on the scheduling policy.
 
    -------------------
    -- Task Abortion --

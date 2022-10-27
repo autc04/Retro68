@@ -1,6 +1,6 @@
 /* common_test_1_v2.c -- test common symbol sorting
 
-   Copyright (C) 2008-2017 Free Software Foundation, Inc.
+   Copyright (C) 2008-2022 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <iant@google.com>
 
    This file is part of gold.
@@ -55,14 +55,14 @@ main (int argc __attribute__ ((unused)), char** argv __attribute__ ((unused)))
 {
   // After an incremental update, all guarantees about ordering
   // are null.
-  assert (c5 != c4);
-  assert (c4 != c3);
-  assert (c3 != c2);
-  assert (c2 != c1);
-  assert (c1 != c6);
-  assert (c6 != c7);
-  assert (c7 != c8);
-  assert (c8 != c9);
+  assert (&c5[0] != &c4[0]);
+  assert (&c4[0] != &c3[0]);
+  assert (&c3[0] != &c2[0]);
+  assert (&c2[0] != &c1[0]);
+  assert (&c1[0] != &c6[0]);
+  assert (&c6[0] != &c7[0]);
+  assert (&c7[0] != &c8[0]);
+  assert (&c8[0] != &c9[0]);
 
   assert (&a1 != &a2);
   assert (&a2 != &a3);

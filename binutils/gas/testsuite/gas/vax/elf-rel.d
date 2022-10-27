@@ -7,7 +7,7 @@
 .*:     file format elf32-vax
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET [ ]+ TYPE              VALUE 
+OFFSET +TYPE +VALUE
 00000015 R_VAX_PLT32       text_vax_plt32
 00000028 R_VAX_GOT32       text_vax_got32
 0000003b R_VAX_GOT32       text_vax_got32\+0x00000020
@@ -23,7 +23,7 @@ OFFSET [ ]+ TYPE              VALUE
 
 
 RELOCATION RECORDS FOR \[\.data\]:
-OFFSET [ ]+ TYPE              VALUE 
+OFFSET +TYPE +VALUE
 00000000 R_VAX_8           data_vax_8
 00000001 R_VAX_16          data_vax_16
 00000003 R_VAX_32          data_vax_32

@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, Synopsys DesignWare ARC cpu.
-   Copyright (C) 1994-2019 Free Software Foundation, Inc.
+   Copyright (C) 1994-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -34,7 +34,7 @@ along with GCC; see the file COPYING3.  If not see
 #define SYMBOL_FLAG_CMEM	(SYMBOL_FLAG_MACH_DEP << 3)
 
 #ifndef TARGET_CPU_DEFAULT
-#define TARGET_CPU_DEFAULT	PROCESSOR_arc700
+#define TARGET_CPU_DEFAULT	PROCESSOR_hs38_linux
 #endif
 
 /* Check if this symbol has a long_call attribute in its declaration */
@@ -97,9 +97,14 @@ extern const char *arc_cpu_to_as (int argc, const char **argv);
 
 #undef ASM_SPEC
 #define ASM_SPEC  "%{mbig-endian|EB:-EB} %{EL} "			\
-  "%:cpu_to_as(%{mcpu=*:%*}) %{mspfp*} %{mdpfp*} %{mfpu=fpuda*:-mfpuda}"
+  "%:cpu_to_as(%{mcpu=*:%*}) %{mspfp*} %{mdpfp*} "                      \
+  "%{mfpu=fpuda*:-mfpuda} %{mcode-density}"
 
+/* Support for a compile-time default CPU and FPU.  The rules are:
+   --with-cpu is ignored if -mcpu, mARC*, marc*, mA7, mA6 are specified.
+   --with-fpu is ignored if -mfpu is specified.  */
 #define OPTION_DEFAULT_SPECS						\
+  {"fpu", "%{!mfpu=*:-mfpu=%(VALUE)}"},					\
   {"cpu", "%{!mcpu=*:%{!mARC*:%{!marc*:%{!mA7:%{!mA6:-mcpu=%(VALUE)}}}}}" }
 
 #ifndef DRIVER_ENDIAN_SELF_SPECS
@@ -113,8 +118,6 @@ extern const char *arc_cpu_to_as (int argc, const char **argv);
   "%{mEA: -mea %<mEA}"
 
 /* Run-time compilation parameters selecting different hardware subsets.  */
-
-#define TARGET_MIXED_CODE (TARGET_MIXED_CODE_SET)
 
 #define TARGET_SPFP (TARGET_SPFP_FAST_SET || TARGET_SPFP_COMPACT_SET)
 #define TARGET_DPFP (TARGET_DPFP_FAST_SET || TARGET_DPFP_COMPACT_SET	\
@@ -570,7 +573,7 @@ extern enum reg_class arc_regno_reg_class[];
    a scale factor or added to another register (as well as added to a
    displacement).  */
 
-#define INDEX_REG_CLASS (TARGET_MIXED_CODE ? ARCOMPACT16_REGS : GENERAL_REGS)
+#define INDEX_REG_CLASS GENERAL_REGS
 
 /* The class value for valid base registers. A base register is one used in
    an address which is the register value plus a displacement.  */
@@ -587,7 +590,7 @@ extern enum reg_class arc_regno_reg_class[];
    || ((REGNO) == ARG_POINTER_REGNUM)					\
    || ((REGNO) == FRAME_POINTER_REGNUM)					\
    || ((REGNO) == PCL_REG)						\
-   || ((unsigned) reg_renumber[REGNO] < 29)				\
+   || (reg_renumber && ((unsigned) reg_renumber[REGNO] < 29))		\
    || ((unsigned) (REGNO) == (unsigned) arc_tp_regno)			\
    || (fixed_regs[REGNO] == 0 && IN_RANGE (REGNO, 32, 59))		\
    || (fixed_regs[REGNO] == 0 && (REGNO) == R30_REG))
@@ -1135,9 +1138,9 @@ do {							\
 /* Store in OUTPUT a string (made with alloca) containing
    an assembler-name for a local static variable named NAME.
    LABELNO is an integer which is different for each call.  */
-#define ASM_FORMAT_PRIVATE_NAME(OUTPUT, NAME, LABELNO) \
-( (OUTPUT) = (char *) alloca (strlen ((NAME)) + 10),	\
-  sprintf ((OUTPUT), "%s.%d", (NAME), (LABELNO)))
+#define ASM_FORMAT_PRIVATE_NAME(OUTPUT, NAME, LABELNO)			\
+  ((OUTPUT) = (char *) alloca (strlen ((NAME)) + 10),			\
+   sprintf ((OUTPUT), "%s.%u", (NAME), (unsigned int)(LABELNO)))
 
 /* The following macro defines the format used to output the second
    operand of the .type assembler directive.  Different svr4 assemblers
@@ -1192,6 +1195,8 @@ extern char rname56[], rname57[], rname58[], rname59[];
 
 #define ADDITIONAL_REGISTER_NAMES		\
 {						\
+  {"r26",    26},				\
+  {"r27",    27},				\
   {"ilink",  29},				\
   {"r29",    29},				\
   {"r30",    30},				\
@@ -1341,22 +1346,38 @@ do { \
 #define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
 
 /* How to renumber registers for dbx and gdb.  */
-#define DBX_REGISTER_NUMBER(REGNO) \
+#define DBX_REGISTER_NUMBER(REGNO)				\
   ((TARGET_MULMAC_32BY16_SET && (REGNO) >= 56 && (REGNO) <= 57) \
-   ? ((REGNO) ^ !TARGET_BIG_ENDIAN) \
-   : (TARGET_MUL64_SET && (REGNO) >= 57 && (REGNO) <= 59) \
-   ? ((REGNO) == 57 \
-      ? 58 /* MMED */ \
-      : ((REGNO) & 1) ^ TARGET_BIG_ENDIAN \
-      ? 59 /* MHI */ \
-      : 57 + !!TARGET_MULMAC_32BY16_SET) /* MLO */ \
+   ? ((REGNO) ^ !TARGET_BIG_ENDIAN)				\
+   : (TARGET_MUL64_SET && (REGNO) >= 57 && (REGNO) <= 58)	\
+   ? (((REGNO) == 57)						\
+      ? 58 /* MMED */						\
+      : 57 + !!TARGET_MULMAC_32BY16_SET) /* MLO */		\
    : (REGNO))
 
-#define DWARF_FRAME_REGNUM(REG) (REG)
+/* Use gcc hard register numbering for eh_frame.  */
+#define DWARF_FRAME_REGNUM(REG) ((REG) < 144 ? REG : INVALID_REGNUM)
 
-#define DWARF_FRAME_RETURN_COLUMN 	DWARF_FRAME_REGNUM (31)
+/* Map register numbers held in the call frame info that gcc has
+   collected using DWARF_FRAME_REGNUM to those that should be output
+   in .debug_frame and .eh_frame.  */
+#define DWARF2_FRAME_REG_OUT(REGNO, FOR_EH)			\
+  ((TARGET_MULMAC_32BY16_SET && (REGNO) >= 56 && (REGNO) <= 57) \
+   ? ((REGNO) ^ !TARGET_BIG_ENDIAN)				\
+   : (TARGET_MUL64_SET && (REGNO) >= 57 && (REGNO) <= 58)	\
+   ? (((REGNO) == 57)						\
+      ? 58 /* MMED */						\
+      : 57 + !!TARGET_MULMAC_32BY16_SET) /* MLO */		\
+   : (REGNO))
 
-#define INCOMING_RETURN_ADDR_RTX  gen_rtx_REG (Pmode, 31)
+/* The DWARF 2 CFA column which tracks the return address.  */
+#define DWARF_FRAME_RETURN_COLUMN RETURN_ADDR_REGNUM
+#define INCOMING_RETURN_ADDR_RTX gen_rtx_REG (Pmode, RETURN_ADDR_REGNUM)
+
+/* The DWARF 2 CFA column which tracks the return address from a signal handler
+   context.  This value must not correspond to a hard register and must be out
+   of the range of DWARF_FRAME_REGNUM().  */
+#define DWARF_ALT_FRAME_RETURN_COLUMN 144
 
 /* Frame info.  */
 
@@ -1423,13 +1444,19 @@ do { \
    in one reasonably fast instruction.  */
 #define MOVE_MAX 4
 
-/* Undo the effects of the movmem pattern presence on STORE_BY_PIECES_P .  */
+/* Undo the effects of the cpymem pattern presence on STORE_BY_PIECES_P .  */
 #define MOVE_RATIO(SPEED) ((SPEED) ? 15 : 3)
 
 /* Define this to be nonzero if shift instructions ignore all but the
    low-order few bits.
 */
 #define SHIFT_COUNT_TRUNCATED 1
+
+/* Defines if the CLZ result is undefined or has a useful value.  */
+#define CLZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE)  ((VALUE) = 31, 2)
+
+/* Defines if the CTZ result is undefined or has a useful value.  */
+#define CTZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE)  ((VALUE) = 31, 2)
 
 /* We assume that the store-condition-codes instructions store 0 for false
    and some other value for true.  This is the value stored for true.  */
@@ -1530,7 +1557,7 @@ enum arc_function_type {
   (((MODE) == CC_FP_GTmode || (MODE) == CC_FP_GEmode		 \
     || (MODE) == CC_FP_UNEQmode || (MODE) == CC_FP_ORDmode	 \
     || (MODE) == CC_FPXmode || (MODE) == CC_FPU_UNEQmode	 \
-    || (MODE) == CC_FPUmode)					 \
+    || (MODE) == CC_FPUmode || (MODE) == CC_FPUEmode)		 \
    ? reverse_condition_maybe_unordered ((CODE))			 \
    : reverse_condition ((CODE)))
 

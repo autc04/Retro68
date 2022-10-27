@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2019 Free Software Foundation, Inc.
+// Copyright (C) 2015-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,9 +29,9 @@ void
 test01()
 {
   std::error_code ec;
-  size_t size = fs::file_size(".", ec);
+  auto size = fs::file_size(".", ec);
   VERIFY( ec == std::errc::is_a_directory );
-  VERIFY( size == -1 );
+  VERIFY( size == (std::uintmax_t)-1 );
 
   try {
     size = fs::file_size(".");
@@ -40,7 +40,7 @@ test01()
     ec = e.code();
   }
   VERIFY( ec == std::errc::is_a_directory );
-  VERIFY( size == -1 );
+  VERIFY( size == (std::uintmax_t)-1 );
 }
 
 void
@@ -49,9 +49,9 @@ test02()
   fs::path p = __gnu_test::nonexistent_path();
 
   std::error_code ec;
-  size_t size = fs::file_size(p, ec);
+  auto size = fs::file_size(p, ec);
   VERIFY( ec );
-  VERIFY( size == -1 );
+  VERIFY( size == (std::uintmax_t)-1 );
 
   try {
     size = fs::file_size(p);
@@ -60,7 +60,7 @@ test02()
     ec = e.code();
   }
   VERIFY( ec );
-  VERIFY( size == -1 );
+  VERIFY( size == (std::uintmax_t)-1 );
 }
 
 int

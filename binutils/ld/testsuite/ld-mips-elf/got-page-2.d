@@ -1,7 +1,6 @@
 #name: GOT page test 2
 #source: got-page-2.s
-#as: -march=from-abi -EB -n32
-#ld: -T got-page-1.ld -shared -melf32btsmipn32
+#ld: -T got-page-1.ld -shared
 #readelf: -d
 #
 # There should be 10 page entries and 2 reserved entries

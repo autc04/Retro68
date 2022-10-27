@@ -1,7 +1,6 @@
 /* { dg-do compile } */
 /* { dg-skip-if "" { *-*-* } { "-O0" } { "" } } */
-/* { dg-options "-ffat-lto-objects" } */
-/* { dg-additional-options "-Wno-return-type" } */
+/* { dg-options "-ffat-lto-objects -Wno-return-type -Wno-attribute-warning" } */
 
 typedef unsigned char uint8_t;
 typedef unsigned int uint32_t;
@@ -13,7 +12,8 @@ extern "C" {
     extern __inline __attribute__ ((__always_inline__)) __attribute__ ((__gnu_inline__, __artificial__))
     void * memset (void *__dest, int __ch, size_t __len) throw () {
 	if (__builtin_constant_p (__len) && __len == 0)
-	    __warn_memset_zero_len ();
+	  __warn_memset_zero_len ();
+	return __dest;
     }
 }
 inline void clear_mem(void* ptr, u32bit n)    {

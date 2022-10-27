@@ -12,11 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,23 +39,12 @@ static char sccsid[] = "@(#)opendir.c	5.11 (Berkeley) 2/23/91";
 #include <unistd.h>
 #include <sys/lock.h>
 
-/*
- * open a directory.
- */
-DIR *
-opendir (const char *name)
+static DIR *
+_opendir_common(int fd)
 {
-	register DIR *dirp;
-	register int fd;
-	int rc = 0;
+	DIR *dirp;
 
-	if ((fd = open(name, 0)) == -1)
-		return NULL;
-#ifdef HAVE_FCNTL
-	rc = fcntl(fd, F_SETFD, 1);
-#endif
-	if (rc == -1 ||
-	    (dirp = (DIR *)malloc(sizeof(DIR))) == NULL) {
+	if ((dirp = (DIR *)malloc(sizeof(DIR))) == NULL) {
 		close (fd);
 		return NULL;
 	}
@@ -90,6 +75,25 @@ opendir (const char *name)
 #endif
 
 	return dirp;
+}
+
+DIR *
+opendir(const char *name)
+{
+	int fd;
+
+	if ((fd = open(name, O_RDONLY | O_DIRECTORY | O_CLOEXEC)) == -1)
+		return (NULL);
+	return (_opendir_common(fd));
+}
+
+DIR *
+fdopendir(int fd)
+{
+
+	if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+		return (NULL);
+	return (_opendir_common(fd));
 }
 
 #endif /* ! HAVE_OPENDIR */

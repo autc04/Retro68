@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---                     Copyright (C) 2001-2019, AdaCore                     --
+--                     Copyright (C) 2001-2022, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -98,7 +98,7 @@ package GNAT.Sockets.Thin is
 
    function C_Gethostname
      (Name    : System.Address;
-      Namelen : C.int) return C.int;
+      Namelen : C.size_t) return C.int;
 
    function C_Getpeername
      (S       : C.int;
@@ -129,13 +129,13 @@ package GNAT.Sockets.Thin is
    function C_Recv
      (S     : C.int;
       Msg   : System.Address;
-      Len   : C.int;
+      Len   : C.size_t;
       Flags : C.int) return C.int;
 
    function C_Recvfrom
      (S       : C.int;
       Msg     : System.Address;
-      Len     : C.int;
+      Len     : C.size_t;
       Flags   : C.int;
       From    : System.Address;
       Fromlen : not null access C.int) return C.int;
@@ -160,7 +160,7 @@ package GNAT.Sockets.Thin is
    function C_Sendto
      (S     : C.int;
       Msg   : System.Address;
-      Len   : C.int;
+      Len   : C.size_t;
       Flags : C.int;
       To    : System.Address;
       Tolen : C.int) return C.int;
@@ -183,6 +183,16 @@ package GNAT.Sockets.Thin is
 
    function C_System
      (Command : System.Address) return C.int;
+
+   Default_Socket_Pair_Family : constant := SOSC.AF_UNIX;
+   --  UNIX has socketpair system call and AF_UNIX family is widely supported
+
+   function C_Socketpair
+     (Domain   : C.int;
+      Typ      : C.int;
+      Protocol : C.int;
+      Fds      : not null access Fd_Pair) return C.int;
+   --  Creates pair of connected sockets
 
    -------------------------------------------------------
    -- Signalling file descriptors for selector abortion --
@@ -249,6 +259,7 @@ private
    pragma Import (C, C_Select, "select");
    pragma Import (C, C_Setsockopt, "setsockopt");
    pragma Import (C, C_Shutdown, "shutdown");
+   pragma Import (C, C_Socketpair, "socketpair");
    pragma Import (C, C_System, "system");
 
    pragma Import (C, Nonreentrant_Gethostbyname, "gethostbyname");

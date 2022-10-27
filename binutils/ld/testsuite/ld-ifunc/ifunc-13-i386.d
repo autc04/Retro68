@@ -4,7 +4,7 @@
 #as: --32 -mrelax-relocations=yes
 #readelf: -r --wide
 #target: x86_64-*-* i?86-*-*
-#notarget: x86_64-*-nacl* i?86-*-nacl*
+#notarget: *-*-lynxos *-*-nto*
 
 Relocation section '.rel.ifunc' at offset 0x[0-9a-f]+ contains 1 entry:
 [ ]+Offset[ ]+Info[ ]+Type[ ]+.*

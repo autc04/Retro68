@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -28,19 +28,17 @@ namespace __gnu_test
   // It is undefined behaviour to swap() containers with unequal allocators
   // if the allocator doesn't propagate, so ensure the allocators compare
   // equal, while still being able to test propagation via get_personality().
-  bool
-  operator==(const propagating_allocator<T, false>&,
-	     const propagating_allocator<T, false>&)
-  {
-    return true;
-  }
+  template<typename Type>
+    bool
+    operator==(const propagating_allocator<Type, false>&,
+	       const propagating_allocator<Type, false>&)
+    { return true; }
 
-  bool
-  operator!=(const propagating_allocator<T, false>&,
-	     const propagating_allocator<T, false>&)
-  {
-    return false;
-  }
+  template<typename Type>
+    bool
+    operator!=(const propagating_allocator<Type, false>&,
+	       const propagating_allocator<Type, false>&)
+    { return false; }
 }
 
 using __gnu_test::propagating_allocator;

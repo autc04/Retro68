@@ -1,7 +1,7 @@
 // { dg-options "-std=gnu++2a" }
 // { dg-do run { target c++2a } }
 
-// Copyright (C) 2018-2019 Free Software Foundation, Inc.
+// Copyright (C) 2018-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,6 +20,12 @@
 
 #include <string>
 #include <testsuite_hooks.h>
+
+#ifndef __cpp_lib_erase_if
+# error "Feature-test macro for erase_if missing in <string>"
+#elif __cpp_lib_erase_if < 202002
+# error "Feature-test macro for erase_if has wrong value in <string>"
+#endif
 
 void
 test01()

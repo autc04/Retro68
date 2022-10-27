@@ -2,7 +2,7 @@
 
 # icf_safe_so_test.sh -- test --icf=safe
 
-# Copyright (C) 2010-2017 Free Software Foundation, Inc.
+# Copyright (C) 2010-2022 Free Software Foundation, Inc.
 # Written by Sriraman Tallam <tmsriram@google.com>.
 
 # This file is part of gold.
@@ -59,45 +59,51 @@ check_nofold()
 
 check_fold()
 {
-    if ! is_symbol_present $1 $2
-    then
-      return 0
-    fi
-
-    if ! is_symbol_present $1 $3
-    then
-      return 0
-    fi
-
+    map=$1
+    shift
+    num_syms=$#
+    save_IFS="$IFS"
+    IFS='|'
+    sym_patt="$*"
+    IFS="$save_IFS"
     awk "
 BEGIN { discard = 0; }
 /^Discarded input/ { discard = 1; }
 /^Memory map/ { discard = 0; }
-/.*\\.text\\..*($2|$3).*/ { act[discard] = act[discard] \" \" \$0; }
+/.*\\.text\\..*($sym_patt).*/ { act[discard] = act[discard] \" \" \$0; cnt[discard] = cnt[discard] + 1 }
 END {
-      # printf \"kept\" act[0] \"\\nfolded\" act[1] \"\\n\";
-      if (length(act[0]) == 0 || length(act[1]) == 0)
+      printf \"kept\" act[0] \"\\nfolded\" act[1] \"\\n\";
+      if (cnt[0] != 1 || cnt[1] != $num_syms - 1)
 	{
-	  printf \"Safe Identical Code Folding did not fold $2 and $3\\n\"
+	  printf \"Safe Identical Code Folding failed\\n\"
 	  exit 1;
 	}
-    }" $4
+    }" $map
 }
 
 arch_specific_safe_fold()
 {
-    if grep -q -e "Intel 80386" -e "ARM" -e "PowerPC" $1;
+    if grep -q -e "Advanced Micro Devices X86-64" -e "Intel 80386" -e "ARM" -e "PowerPC" $1;
     then
-      check_fold $2 $4 $5 $3
+	shift
+	shift
+	#echo check_fold $*
+	check_fold $*
     else
-      check_nofold $2 $4 $5
+	shift
+	nm_output=$1
+	shift
+	shift
+	while test $# -gt 1; do
+	    sym1=$1
+	    shift
+	    for sym2 in $*; do
+		#echo check_nofold $nm_output $sym1 $sym2
+		check_nofold $nm_output $sym1 $sym2
+	    done
+	done
     fi
 }
 
-arch_specific_safe_fold icf_safe_so_test_2.stdout icf_safe_so_test_1.stdout icf_safe_so_test.map "foo_prot" "foo_hidden"
-arch_specific_safe_fold icf_safe_so_test_2.stdout icf_safe_so_test_1.stdout icf_safe_so_test.map "foo_prot" "foo_internal"
-arch_specific_safe_fold icf_safe_so_test_2.stdout icf_safe_so_test_1.stdout icf_safe_so_test.map "foo_prot" "foo_static"
-arch_specific_safe_fold icf_safe_so_test_2.stdout icf_safe_so_test_1.stdout icf_safe_so_test.map "foo_hidden" "foo_internal"
-arch_specific_safe_fold icf_safe_so_test_2.stdout icf_safe_so_test_1.stdout icf_safe_so_test.map "foo_hidden" "foo_static"
-arch_specific_safe_fold icf_safe_so_test_2.stdout icf_safe_so_test_1.stdout icf_safe_so_test.map "foo_internal" "foo_static"
-check_nofold icf_safe_so_test_1.stdout "foo_glob" "bar_glob"
+arch_specific_safe_fold icf_safe_so_test_2.stdout icf_safe_so_test_1.stdout icf_safe_so_test.map foo_prot foo_hidden foo_internal foo_static
+check_nofold icf_safe_so_test_1.stdout foo_glob bar_glob

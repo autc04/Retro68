@@ -19,18 +19,18 @@ constexpr int *p0 = &i;
 constexpr bool b0  = p0;        // { dg-warning "address of .A::i." }
 constexpr bool b1  = p0 == 0;   // { dg-warning "address of .A::i." }
 constexpr bool b2  = p0 != 0;   // { dg-warning "address of .A::i." }
-constexpr bool b3  = p0 <  0;   // { dg-warning "ordered comparison" }
-constexpr bool b4  = p0 <= 0;   // { dg-warning "ordered comparison" }
-constexpr bool b5  = p0 >  0;   // { dg-warning "ordered comparison" }
-constexpr bool b6  = p0 >= 0;   // { dg-warning "ordered comparison" }
+constexpr bool b3  = p0 <  0;   // { dg-error "25:ordered comparison" }
+constexpr bool b4  = p0 <= 0;   // { dg-error "25:ordered comparison" }
+constexpr bool b5  = p0 >  0;   // { dg-error "25:ordered comparison" }
+constexpr bool b6  = p0 >= 0;   // { dg-error "25:ordered comparison" }
 
 constexpr bool b7  = !p0;       // { dg-warning "address of .A::i." }
 constexpr bool b8  = 0 == p0;   // { dg-warning "address of .A::i." }
 constexpr bool b9  = 0 != p0;   // { dg-warning "address of .A::i." }
-constexpr bool b10 = 0 <  p0;   // { dg-warning "ordered comparison" }
-constexpr bool b11 = 0 <= p0;   // { dg-warning "ordered comparison" }
-constexpr bool b12 = 0 >  p0;   // { dg-warning "ordered comparison" }
-constexpr bool b13 = 0 >= p0;   // { dg-warning "ordered comparison" }
+constexpr bool b10 = 0 <  p0;   // { dg-error "24:ordered comparison" }
+constexpr bool b11 = 0 <= p0;   // { dg-error "24:ordered comparison" }
+constexpr bool b12 = 0 >  p0;   // { dg-error "24:ordered comparison" }
+constexpr bool b13 = 0 >= p0;   // { dg-error "24:ordered comparison" }
 
 }
 
@@ -60,20 +60,19 @@ constexpr int *p0 = &i;
 constexpr bool b0  = p0;        // { dg-error "not a constant expression" }
 constexpr bool b1  = p0 == 0;   // { dg-error "not a constant expression" }
 constexpr bool b2  = p0 != 0;   // { dg-error "not a constant expression" }
-constexpr bool b4  = p0 <= 0;   // { dg-error "not a constant expression" }
-constexpr bool b5  = p0 >  0;   // { dg-error "not a constant expression" }
+constexpr bool b4  = p0 <= 0;   // { dg-error "ordered comparison" }
+constexpr bool b5  = p0 >  0;   // { dg-error "ordered comparison" }
 
 constexpr bool b7  = !p0;       // { dg-error "not a constant expression" }
 constexpr bool b8  = 0 == p0;   // { dg-error "not a constant expression" }
 constexpr bool b9  = 0 != p0;   // { dg-error "not a constant expression" }
-constexpr bool b10 = 0 <  p0;   // { dg-error "not a constant expression" }
-constexpr bool b13 = 0 >= p0;   // { dg-error "not a constant expression" }
+constexpr bool b10 = 0 <  p0;   // { dg-error "ordered comparison" }
+constexpr bool b13 = 0 >= p0;   // { dg-error "ordered comparison" }
 
-// The following are accepted as constant expressions due to bug c++/70196.
-constexpr bool b3  = p0 <  0;
-constexpr bool b6  = p0 >= 0;
-constexpr bool b11 = 0 <= p0;
-constexpr bool b12 = 0 >  p0;
+constexpr bool b3  = p0 <  0; // { dg-error "ordered comparison" }
+constexpr bool b6  = p0 >= 0; // { dg-error "ordered comparison" }
+constexpr bool b11 = 0 <= p0; // { dg-error "ordered comparison" }
+constexpr bool b12 = 0 >  p0; // { dg-error "ordered comparison" }
 
 #pragma GCC diagnostic pop
 
@@ -86,20 +85,23 @@ extern __attribute__ ((weak)) int i;
 constexpr int *p1 = &i + 1;
 
 #pragma GCC diagnostic push
+// Suppress warning: ordered comparison of pointer with integer zero.
 #pragma GCC diagnostic ignored "-Wextra"
-// Suppress warning: ordered comparison of pointer with integer zero
+// Also suppress -Waddress for comparisons of constant addresses to
+// to null.
+#pragma GCC diagnostic ignored "-Waddress"
 
 constexpr bool b0  = p1;        // { dg-error "not a constant expression" }
 constexpr bool b1  = p1 == 0;   // { dg-error "not a constant expression" }
 constexpr bool b2  = p1 != 0;   // { dg-error "not a constant expression" }
-constexpr bool b4  = p1 <= 0;   // { dg-error "not a constant expression" }
-constexpr bool b5  = p1 >  0;   // { dg-error "not a constant expression" }
+constexpr bool b4  = p1 <= 0;   // { dg-error "ordered comparison" }
+constexpr bool b5  = p1 >  0;   // { dg-error "ordered comparison" }
 
 constexpr bool b7  = !p1;       // { dg-error "not a constant expression" }
 constexpr bool b8  = 0 == p1;   // { dg-error "not a constant expression" }
 constexpr bool b9  = 0 != p1;   // { dg-error "not a constant expression" }
-constexpr bool b10 = 0 <  p1;   // { dg-error "not a constant expression" }
-constexpr bool b13 = 0 >= p1;   // { dg-error "not a constant expression" }
+constexpr bool b10 = 0 <  p1;   // { dg-error "ordered comparison" }
+constexpr bool b13 = 0 >= p1;   // { dg-error "ordered comparison" }
 
 // The following are accepted as constant expressions due to bug c++/70196.
 // constexpr bool b3  = p1 <  0;

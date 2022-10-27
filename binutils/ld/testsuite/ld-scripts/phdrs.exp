@@ -1,6 +1,6 @@
 # Test PHDRS in a linker script.
 # By Ian Lance Taylor, Cygnus Support.
-#   Copyright (C) 1999-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -34,7 +34,7 @@ if { [istarget spu*-*-*] } {
 }
 
 if ![ld_assemble $as $srcdir/$subdir/phdrs.s tmpdir/phdrs.o] {
-    unresolved $testname
+    unsupported $testname
     return
 }
 
@@ -51,10 +51,6 @@ set ldopt "$ldopt -T $srcdir/$subdir/phdrs.t tmpdir/phdrs.o"
 if ![ld_link $ld tmpdir/phdrs $ldopt] {
     fail $testname
 } else {
-    if {![is_remote host] && [which $objdump] == 0} {
-	unresolved $testname
-	return
-    }
     set exec_output [run_host_cmd "$objdump" "--private-headers tmpdir/phdrs"]
     set exec_output [prune_warnings $exec_output]
     verbose -log $exec_output

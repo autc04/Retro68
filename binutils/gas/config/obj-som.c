@@ -1,5 +1,5 @@
 /* SOM object file format.
-   Copyright (C) 1993-2018 Free Software Foundation, Inc.
+   Copyright (C) 1993-2022 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -211,8 +211,12 @@ obj_som_init_stab_section (segT seg)
   segT space;
   subsegT saved_subseg = now_subseg;
   char *p;
- const char * file;
+  const char * file;
   unsigned int stroff;
+
+  /* Nothing to do if the section has already been created.  */
+  if (bfd_get_section_by_name (stdoutput, "$GDB_DEBUG$"))
+    return;
 
   /* Make the space which will contain the debug subspaces.  */
   space = bfd_make_section_old_way (stdoutput, "$GDB_DEBUG$");
@@ -224,14 +228,14 @@ obj_som_init_stab_section (segT seg)
      of the various stabs spaces/subspaces need to be "small".  We
      reserve range 72/73 which appear to work well.  */
   obj_set_section_attributes (space, 1, 1, 72, 2);
-  bfd_set_section_alignment (stdoutput, space, 2);
+  bfd_set_section_alignment (space, 2);
 
   /* Set the containing space for both stab sections to be $GDB_DEBUG$
      (just created above).  Also set some attributes which BFD does
      not understand.  In particular, access bits, sort keys, and load
      quadrant.  */
   obj_set_subsection_attributes (seg, space, 0x1f, 73, 0, 0, 0, 0);
-  bfd_set_section_alignment (stdoutput, seg, 2);
+  bfd_set_section_alignment (seg, 2);
 
   /* Make some space for the first special stab entry and zero the memory.
      It contains information about the length of this file's
@@ -243,7 +247,7 @@ obj_som_init_stab_section (segT seg)
   p = frag_more (12);
   memset (p, 0, 12);
   file = as_where ((unsigned int *) NULL);
-  stroff = get_stab_string_offset (file, "$GDB_STRINGS$");
+  stroff = get_stab_string_offset (file, "$GDB_STRINGS$", false);
   know (stroff == 1);
   md_number_to_chars (p, stroff, 4);
   seg_info (seg)->stabu.p = p;
@@ -254,7 +258,7 @@ obj_som_init_stab_section (segT seg)
      quadrant.  */
   seg = bfd_get_section_by_name (stdoutput, "$GDB_STRINGS$");
   obj_set_subsection_attributes (seg, space, 0x1f, 72, 0, 0, 0, 0);
-  bfd_set_section_alignment (stdoutput, seg, 2);
+  bfd_set_section_alignment (seg, 2);
 
   subseg_set (saved_seg, saved_subseg);
 }
@@ -273,10 +277,10 @@ adjust_stab_sections (bfd *abfd, asection *sec, void *xxx ATTRIBUTE_UNUSED)
 
   strsec = bfd_get_section_by_name (abfd, "$GDB_STRINGS$");
   if (strsec)
-    strsz = bfd_section_size (abfd, strsec);
+    strsz = bfd_section_size (strsec);
   else
     strsz = 0;
-  nsyms = bfd_section_size (abfd, sec) / 12 - 1;
+  nsyms = bfd_section_size (sec) / 12 - 1;
 
   p = seg_info (sec)->stabu.p;
   gas_assert (p != 0);

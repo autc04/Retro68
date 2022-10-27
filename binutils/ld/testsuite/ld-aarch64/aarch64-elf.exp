@@ -1,5 +1,5 @@
 # Expect script for various AARCH64 ELF tests.
-# Copyright (C) 2009-2018 Free Software Foundation, Inc.
+# Copyright (C) 2009-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -37,11 +37,14 @@ set aarch64elftests {
      "--fix-cortex-a53-835769" "" "" {erratum835769.s}
      {{objdump -dr erratum835769.d}}
      "erratum835769"}
+}
+set tmp {
     {"Erratum 835769 dump test -shared"
      "--fix-cortex-a53-835769 -shared" "" "" {erratum835769.s}
      {{objdump -dr erratum835769.d}}
      "erratum835769"}
 }
+if [check_shared_lib_support] { append aarch64elftests $tmp }
 
 proc aarch64_choose_ilp32_emul {} {
     if [istarget *linux*] then {
@@ -86,9 +89,19 @@ run_ld_link_tests $aarch64elftests
 run_ld_link_tests eh-frame-merge-lp64
 
 run_dump_test "erratum843419"
+run_dump_test "erratum843419_tls_ie"
+run_dump_test "erratum843419-adr"
+run_dump_test "erratum843419-adrp"
+run_dump_test "erratum843419-far-adr"
+run_dump_test "erratum843419-far-full"
+run_dump_test "erratum843419-full"
+run_dump_test "erratum843419-no-args"
+run_dump_test "erratum835769-843419"
 
 # Relocation Tests
 run_dump_test_lp64 "weak-undefined"
+run_dump_test "emit-relocs-22"
+run_dump_test "emit-relocs-23"
 run_dump_test "emit-relocs-28"
 run_dump_test "emit-relocs-86"
 run_dump_test "emit-relocs-86-overflow"
@@ -223,6 +236,7 @@ run_dump_test_lp64 "emit-relocs-557"
 run_dump_test_lp64 "emit-relocs-558"
 run_dump_test_lp64 "emit-relocs-558-overflow"
 run_dump_test_lp64 "emit-relocs-559"
+run_dump_test_lp64 "emit-relocs-560"
 
 run_dump_test "reloc-overflow-bad"
 
@@ -234,6 +248,7 @@ run_dump_test_lp64 "local-addend-r"
 # test error handling on pcrel relocation for shared libraries.
 run_dump_test_lp64 "pcrel_pic_undefined"
 run_dump_test_lp64 "pcrel_pic_defined"
+run_dump_test_lp64 "pcrel_pic_protected"
 
 run_dump_test "limit-b"
 run_dump_test "limit-bl"
@@ -249,12 +264,14 @@ run_dump_test "farcall-b-none-function"
 run_dump_test "farcall-bl-none-function"
 run_dump_test "farcall-b-section"
 run_dump_test "farcall-bl-section"
+run_dump_test "farcall-group"
 
 run_dump_test "tls-relax-all"
 run_dump_test "tls-relax-all-ilp32"
 run_dump_test "tls-relax-gd-le"
 run_dump_test "tls-relax-gd-le-ilp32"
 run_dump_test "tls-relax-gdesc-le"
+run_dump_test "tls-relax-gdesc-le-now"
 run_dump_test "tls-relax-gdesc-le-ilp32"
 run_dump_test "tls-relax-gd-ie"
 run_dump_test "tls-relax-gd-ie-ilp32"
@@ -370,6 +387,18 @@ run_dump_test_lp64 "rela-abs-relative-opt"
 
 run_dump_test_lp64 "pie-bind-locally"
 
+run_dump_test "property-bti-pac1"
+run_dump_test "property-bti-pac2"
+run_dump_test "property-bti-pac3"
+run_dump_test "property-bti-pac4-a"
+run_dump_test "property-bti-pac4-b"
+run_dump_test "bti-plt-1"
+run_dump_test "bti-plt-2"
+
+run_dump_test_lp64 "variant_pcs-r"
+run_dump_test_lp64 "variant_pcs-shared"
+run_dump_test_lp64 "variant_pcs-now"
+
 set aarch64elflinktests {
   {"ld-aarch64/so with global symbol" "-shared" "" "" {copy-reloc-so.s}
     {} "copy-reloc-so.so"}
@@ -379,11 +408,39 @@ set aarch64elflinktests {
     {copy-reloc-exe-2.s} {{objdump -R copy-reloc-2.d}} "copy-reloc-2"}
   {"ld-aarch64/exe with copy relocation elimination" "-e0 tmpdir/copy-reloc-so.so" "" ""
     {copy-reloc-exe-eliminate.s} {{objdump -R copy-reloc-eliminate.d}} "copy-reloc-elimination"}
+  {"Build .so with protected data" "-shared" "" "" {protected.s}
+    {} "protected.so"}
   {"ld-aarch64/so with global func" "-shared" "" "" {func-in-so.s}
     {} "func-in-so.so"}
   {"ld-aarch64/func sym hash opt for exe"
    "-e0 --hash-style=gnu tmpdir/func-in-so.so" "" ""
     {func-sym-hash-opt.s} {{readelf --dyn-sym func-sym-hash-opt.d}} "hash-opt"}
+  {"Build bti-plt-so for PLT tests" "-shared" "" "" {bti-plt-so.s}
+    {} "libbti-plt-so.so"}
 }
 
-run_ld_link_tests $aarch64elflinktests
+set aarch64elfcclinktests [list \
+  [list "copy relocation on protected data" \
+    "-no-pie tmpdir/copy-reloc-exe.o tmpdir/protected.so" "" \
+    {} {{error_output copy-reloc-protected.d}} "copy-reloc-protected"]
+]
+
+if [check_shared_lib_support] {
+    run_ld_link_tests $aarch64elflinktests
+    run_cc_link_tests $aarch64elfcclinktests
+}
+
+run_dump_test "bti-plt-3"
+run_dump_test "bti-plt-4"
+run_dump_test "bti-plt-5"
+run_dump_test "bti-plt-6"
+run_dump_test "bti-plt-7"
+
+run_dump_test "pac-plt-1"
+run_dump_test "pac-plt-2"
+run_dump_test "bti-pac-plt-1"
+run_dump_test "bti-pac-plt-2"
+
+run_dump_test "bti-warn"
+run_dump_test "weak-tls"
+run_dump_test "undef-tls"

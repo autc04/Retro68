@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,27 +23,30 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Atree;    use Atree;
-with Debug;    use Debug;
-with Einfo;    use Einfo;
-with Errout;   use Errout;
-with Fname;    use Fname;
-with Fname.UF; use Fname.UF;
-with Nlists;   use Nlists;
-with Nmake;    use Nmake;
-with Opt;      use Opt;
-with Osint;    use Osint;
-with Osint.C;  use Osint.C;
-with Output;   use Output;
+with Atree;          use Atree;
+with Debug;          use Debug;
+with Einfo;          use Einfo;
+with Einfo.Entities; use Einfo.Entities;
+with Errout;         use Errout;
+with Fname;          use Fname;
+with Fname.UF;       use Fname.UF;
+with Nlists;         use Nlists;
+with Nmake;          use Nmake;
+with Opt;            use Opt;
+with Osint;          use Osint;
+with Osint.C;        use Osint.C;
+with Output;         use Output;
 with Par;
-with Restrict; use Restrict;
-with Scn;      use Scn;
-with Sinfo;    use Sinfo;
-with Sinput;   use Sinput;
-with Sinput.L; use Sinput.L;
-with Stand;    use Stand;
-with Tbuild;   use Tbuild;
-with Uname;    use Uname;
+with Restrict;       use Restrict;
+with Scn;            use Scn;
+with Sinfo;          use Sinfo;
+with Sinfo.Nodes;    use Sinfo.Nodes;
+with Sinfo.Utils;    use Sinfo.Utils;
+with Sinput;         use Sinput;
+with Sinput.L;       use Sinput.L;
+with Stand;          use Stand;
+with Tbuild;         use Tbuild;
+with Uname;          use Uname;
 
 package body Lib.Load is
 
@@ -85,7 +88,7 @@ package body Lib.Load is
 
       --  Note: for the following we should really generalize and consult the
       --  file name pattern data, but for now we just deal with the common
-      --  naming cases, which is probably good enough in practice ???
+      --  naming cases, which is good enough in practice.
 
       --  Change .adb to .ads
 
@@ -245,6 +248,8 @@ package body Lib.Load is
          Version                => 0,
          OA_Setting             => 'O');
 
+      Init_Unit_Name (Unum, Spec_Name);
+
       Set_Comes_From_Source_Default (Save_CS);
       Set_Error_Posted (Cunit_Entity);
       Set_Error_Posted (Cunit);
@@ -359,7 +364,7 @@ package body Lib.Load is
             Error_Location         => No_Location,
             Expected_Unit          => No_Unit_Name,
             Fatal_Error            => None,
-            Generate_Code          => False,
+            Generate_Code          => True,
             Has_RACW               => False,
             Filler                 => False,
             Ident_String           => Empty,
@@ -391,14 +396,14 @@ package body Lib.Load is
    ---------------
 
    function Load_Unit
-     (Load_Name         : Unit_Name_Type;
-      Required          : Boolean;
-      Error_Node        : Node_Id;
-      Subunit           : Boolean;
-      Corr_Body         : Unit_Number_Type := No_Unit;
-      Renamings         : Boolean          := False;
-      With_Node         : Node_Id          := Empty;
-      PMES              : Boolean          := False) return Unit_Number_Type
+     (Load_Name  : Unit_Name_Type;
+      Required   : Boolean;
+      Error_Node : Node_Id;
+      Subunit    : Boolean;
+      Corr_Body  : Unit_Number_Type := No_Unit;
+      Renamings  : Boolean          := False;
+      With_Node  : Node_Id          := Empty;
+      PMES       : Boolean          := False) return Unit_Number_Type
    is
       Calling_Unit : Unit_Number_Type;
       Uname_Actual : Unit_Name_Type;
@@ -422,7 +427,7 @@ package body Lib.Load is
       --  it is part of the main extended source, otherwise reset them.
 
       --  Note: it's a bit odd but PMES is False for subunits, which is why
-      --  we have the OR here. Should be investigated some time???
+      --  we have the OR here.
 
       if PMES or Subunit then
          Restore_Config_Cunit_Boolean_Restrictions;
@@ -446,8 +451,8 @@ package body Lib.Load is
               With_Node  => With_Node);
 
          if Unump = No_Unit then
-            Parsing_Main_Extended_Source := Save_PMES;
-            return No_Unit;
+            Unum := No_Unit;
+            goto Done;
          end if;
 
          --  If parent is a renaming, then we use the renamed package as
@@ -476,7 +481,7 @@ package body Lib.Load is
             --  installing the context. The implicit with is on this entity,
             --  not on the package it renames. This is somewhat redundant given
             --  the with_clause just created, but it simplifies subsequent
-            --  expansion of the current with_clause. Optimizable ???
+            --  expansion of the current with_clause.
 
             if Nkind (Error_Node) = N_With_Clause
               and then Nkind (Name (Error_Node)) = N_Selected_Component
@@ -549,7 +554,7 @@ package body Lib.Load is
       --  Note: Unit_Name (Main_Unit) is not set if we are parsing gnat.adc.
 
       if Present (Error_Node)
-        and then Unit_Name (Main_Unit) /= No_Unit_Name
+        and then Present (Unit_Name (Main_Unit))
       then
          --  It seems like In_Extended_Main_Source_Unit (Error_Node) would
          --  do the trick here, but that's wrong, it is much too early to
@@ -607,11 +612,10 @@ package body Lib.Load is
 
       --  See if we already have an entry for this unit
 
-      Unum := Main_Unit;
-      while Unum <= Units.Last loop
-         exit when Uname_Actual = Units.Table (Unum).Unit_Name;
-         Unum := Unum + 1;
-      end loop;
+      Unum := Unit_Names.Get (Uname_Actual);
+      if Unum = No_Unit then
+         Unum := Units.Last + 1;
+      end if;
 
       --  Whether or not the entry was found, Unum is now the right value,
       --  since it is one more than Units.Last (i.e. the index of the new
@@ -645,7 +649,7 @@ package body Lib.Load is
                   else
                      Error_Msg_File_1 := Fname;
                      Error_Msg_Unit_1 := Uname_Actual;
-                     Error_Msg ("File{ does not contain unit$", Load_Msg_Sloc);
+                     Error_Msg ("file{ does not contain unit$", Load_Msg_Sloc);
                   end if;
 
                   Write_Dependency_Chain;
@@ -727,7 +731,7 @@ package body Lib.Load is
          --  found case to print the dependency chain including the last entry
 
          Units.Increment_Last;
-         Units.Table (Unum).Unit_Name := Uname_Actual;
+         Init_Unit_Name (Unum, Uname_Actual);
 
          --  File was found
 
@@ -819,7 +823,7 @@ package body Lib.Load is
                      Units.Table (Calling_Unit).Fatal_Error := Error_Detected;
 
                   --  If with'ed unit had an ignored error, then propagate it
-                  --  but do not overide an existring setting.
+                  --  but do not overide an existing setting.
 
                   when Error_Ignored =>
                      if Units.Table (Calling_Unit).Fatal_Error = None then
@@ -893,14 +897,14 @@ package body Lib.Load is
                --  subsequent missing files.
 
                Load_Stack.Decrement_Last;
-               Units.Decrement_Last;
+               Remove_Unit (Unum);
 
             --  If unit not required, remove load stack entry and the junk
-            --  file table entry, and return No_Unit to indicate not found,
+            --  file table entry, and return No_Unit to indicate not found.
 
             else
                Load_Stack.Decrement_Last;
-               Units.Decrement_Last;
+               Remove_Unit (Unum);
             end if;
 
             Unum := No_Unit;
@@ -921,17 +925,17 @@ package body Lib.Load is
    --------------------------
 
    procedure Make_Child_Decl_Unit (N : Node_Id) is
-      Unit_Decl : constant Node_Id := Library_Unit (N);
+      Unit_Decl : constant Node_Id          := Library_Unit (N);
+      Unit_Num  : constant Unit_Number_Type := Get_Cunit_Unit_Number (N);
 
    begin
       Units.Increment_Last;
-      Units.Table (Units.Last) := Units.Table (Get_Cunit_Unit_Number (N));
-      Units.Table (Units.Last).Unit_Name :=
-        Get_Spec_Name (Unit_Name (Get_Cunit_Unit_Number (N)));
+      Units.Table (Units.Last) := Units.Table (Unit_Num);
       Units.Table (Units.Last).Cunit := Unit_Decl;
       Units.Table (Units.Last).Cunit_Entity  :=
         Defining_Identifier
           (Defining_Unit_Name (Specification (Unit (Unit_Decl))));
+      Init_Unit_Name (Units.Last, Get_Spec_Name (Unit_Name (Unit_Num)));
 
       --  The library unit created for of a child subprogram unit plays no
       --  role in code generation and binding, so label it accordingly.
@@ -954,20 +958,21 @@ package body Lib.Load is
    --  code will have to be generated for it.
 
    procedure Make_Instance_Unit (N : Node_Id; In_Main : Boolean) is
-      Sind  : constant Source_File_Index := Source_Index (Main_Unit);
+      Sind : constant Source_File_Index := Source_Index (Main_Unit);
 
    begin
       Units.Increment_Last;
 
       if In_Main then
-         Units.Table (Units.Last)               := Units.Table (Main_Unit);
-         Units.Table (Units.Last).Cunit         := Library_Unit (N);
-         Units.Table (Units.Last).Generate_Code := True;
-         Units.Table (Main_Unit).Cunit          := N;
-         Units.Table (Main_Unit).Unit_Name      :=
+         Units.Table (Units.Last)        := Units.Table (Main_Unit);
+         Units.Table (Units.Last).Cunit  := Library_Unit (N);
+         Init_Unit_Name (Units.Last, Unit_Name (Main_Unit));
+
+         Units.Table (Main_Unit).Cunit   := N;
+         Units.Table (Main_Unit).Version := Source_Checksum (Sind);
+         Init_Unit_Name (Main_Unit,
            Get_Body_Name
-             (Unit_Name (Get_Cunit_Unit_Number (Library_Unit (N))));
-         Units.Table (Main_Unit).Version        := Source_Checksum (Sind);
+             (Unit_Name (Get_Cunit_Unit_Number (Library_Unit (N)))));
 
       else
          --  Duplicate information from instance unit, for the body. The unit

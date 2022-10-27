@@ -1,7 +1,7 @@
-#source: reloc-2a.s -EB -mabi=32
-#source: reloc-2b.s -EB -mabi=32
+#source: reloc-2a.s
+#source: reloc-2b.s
 #ld: --oformat=srec -Treloc-2.ld
-#objdump: -D -mmips:4000 --endian=big
+#objdump: -D -mmips:4000
 
 .*:     file format .*
 

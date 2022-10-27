@@ -1,4 +1,4 @@
-/* Copyright (C) 1991-2019 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -123,8 +123,9 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 # define ULONG_LONG_MAX (LONG_LONG_MAX * 2ULL + 1ULL)
 #endif
 
-#ifdef __STDC_WANT_IEC_60559_BFP_EXT__
-/* TS 18661-1 widths of integer types.  */
+#if (defined __STDC_WANT_IEC_60559_BFP_EXT__ \
+     || (defined (__STDC_VERSION__) && __STDC_VERSION__ > 201710L))
+/* TS 18661-1 / C2X widths of integer types.  */
 # undef CHAR_WIDTH
 # define CHAR_WIDTH __SCHAR_WIDTH__
 # undef SCHAR_WIDTH
@@ -147,6 +148,14 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 # define LLONG_WIDTH __LONG_LONG_WIDTH__
 # undef ULLONG_WIDTH
 # define ULLONG_WIDTH __LONG_LONG_WIDTH__
+#endif
+
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ > 201710L
+/* C2X width and limit of _Bool.  */
+# undef BOOL_MAX
+# define BOOL_MAX 1
+# undef BOOL_WIDTH
+# define BOOL_WIDTH 1
 #endif
 
 #endif /* _LIMITS_H___ */

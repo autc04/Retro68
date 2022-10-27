@@ -2,7 +2,7 @@
 #name: microMIPS instruction size 1
 #as: -32 -march=mips64 -mmicromips
 #source: micromips-size-1.s
-#stderr: micromips-size-1.l
+#warning_output: micromips-size-1.l
 
 # Test microMIPS instruction size overrides (#1).
 

@@ -1,7 +1,8 @@
 // -*- C++ -*-
-// { dg-options "-std=gnu++17 -ltbb" }
+// { dg-options "-ltbb" }
 // { dg-do run { target c++17 } }
-// { dg-require-effective-target tbb-backend }
+// { dg-timeout-factor 3 }
+// { dg-require-effective-target tbb_backend }
 
 //===-- any_of.pass.cpp ---------------------------------------------------===//
 //
@@ -99,7 +100,7 @@ main()
     test<int32_t>(8 * sizeof(int32_t));
     test<uint16_t>(8 * sizeof(uint16_t));
     test<float64_t>(53);
-#if !__PSTL_ICC_16_17_TEST_REDUCTION_BOOL_TYPE_RELEASE_64_BROKEN
+#if !_PSTL_ICC_16_17_TEST_REDUCTION_BOOL_TYPE_RELEASE_64_BROKEN
     test<bool>(1);
 #endif
 

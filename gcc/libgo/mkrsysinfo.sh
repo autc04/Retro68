@@ -24,22 +24,33 @@ grep -v '^// ' gen-sysinfo.go | \
   grep -v '^type _timespec ' | \
   grep -v '^type _epoll_' | \
   grep -v '^type _*locale[_ ]' | \
-  grep -v 'in6_addr' | \
+  grep -v '^type _in6_addr' | \
   grep -v 'sockaddr_in6' | \
+  egrep -v '^const _*FLT(64|128)_(NORM_)?MAX' | \
   sed -e 's/\([^a-zA-Z0-9_]\)_timeval\([^a-zA-Z0-9_]\)/\1timeval\2/g' \
+      -e 's/\([^a-zA-Z0-9_]\)_timeval$/\1timeval/g' \
       -e 's/\([^a-zA-Z0-9_]\)_timespec_t\([^a-zA-Z0-9_]\)/\1timespec\2/g' \
+      -e 's/\([^a-zA-Z0-9_]\)_timespec_t$/\1timespec_t/g' \
       -e 's/\([^a-zA-Z0-9_]\)_timespec\([^a-zA-Z0-9_]\)/\1timespec\2/g' \
+      -e 's/\([^a-zA-Z0-9_]\)_timespec$/\1timespec/g' \
+      -e 's/\([^a-zA-Z0-9_]\)_in6_addr\([^a-zA-Z0-9_]\)/\1[16]byte\2/g' \
+      -e 's/\([^a-zA-Z0-9_]\)_in6_addr$/\1[16]byte/g' \
+      -e 's/\([^a-zA-Z0-9_]\)_in6_addr_t\([^a-zA-Z0-9_]\)/\1[16]byte\2/g' \
+      -e 's/\([^a-zA-Z0-9_]\)_in6_addr_t$/\1[16]byte/g' \
     >> ${OUT}
 
-# On AIX, the _arpcom struct, is filtered by the above grep sequence, as it as
-# a field of type _in6_addr, but other types depend on _arpcom, so we need to
-# put it back.
-grep '^type _arpcom ' gen-sysinfo.go | \
-  sed -e 's/_in6_addr/[16]byte/' >> ${OUT}
-
-# Same on Solaris for _mld_hdr_t.
-grep '^type _mld_hdr_t ' gen-sysinfo.go | \
-  sed -e 's/_in6_addr/[16]byte/' >> ${OUT}
+# The C long type, needed because that is the type that ptrace returns.
+sizeof_long=`grep '^const ___SIZEOF_LONG__ = ' gen-sysinfo.go | sed -e 's/.*= //'`
+if test "$sizeof_long" = "4"; then
+  echo "type _C_long int32" >> ${OUT}
+  echo "type _C_ulong uint32" >> ${OUT}
+elif test "$sizeof_long" = "8"; then
+  echo "type _C_long int64" >> ${OUT}
+  echo "type _C_ulong uint64" >> ${OUT}
+else
+  echo 1>&2 "mkrsysinfo.sh: could not determine size of long (got $sizeof_long)"
+  exit 1
+fi
 
 # The time structures need special handling: we need to name the
 # types, so that we can cast integers to the right types when
@@ -73,13 +84,11 @@ echo $timespec | \
       -e 's/tv_sec *[a-zA-Z0-9_]*/tv_sec timespec_sec_t/' \
       -e 's/tv_nsec *[a-zA-Z0-9_]*/tv_nsec timespec_nsec_t/' >> ${OUT}
 echo >> ${OUT}
-echo "func (ts *timespec) set_sec(x int64) {" >> ${OUT}
-echo "	ts.tv_sec = timespec_sec_t(x)" >> ${OUT}
+echo "func (ts *timespec) setNsec(ns int64) {" >> ${OUT}
+echo "	ts.tv_sec = timespec_sec_t(ns / 1e9)" >> ${OUT}
+echo "	ts.tv_nsec = timespec_nsec_t(ns % 1e9)" >> ${OUT}
 echo "}" >> ${OUT}
 echo >> ${OUT}
-echo "func (ts *timespec) set_nsec(x int32) {" >> ${OUT}
-echo "	ts.tv_nsec = timespec_nsec_t(x)" >> ${OUT}
-echo "}" >> ${OUT}
 
 # Define the epollevent struct.  This needs special attention because
 # the C definition uses a union and is sometimes packed.
@@ -89,7 +98,7 @@ if grep '^const _epoll_data_offset ' ${OUT} >/dev/null 2>&1; then
       echo 'type epollevent struct { events uint32; data [8]byte }' >> ${OUT}
   elif test "$val" = "8"; then
       if test "$GOARCH" = "sparc64" -a "$GOOS" = "linux"; then
-          echo 'type epollevent struct { events uint32; pad [4]byte; data [8]byte; _align [0]int64 }' >> ${OUT}
+          echo 'type epollevent struct { events uint32; pad [4]byte; data [8]byte; _ [0]int64 }' >> ${OUT}
       else
           echo 'type epollevent struct { events uint32; pad [4]byte; data [8]byte }' >> ${OUT}
       fi
@@ -154,40 +163,6 @@ fi
 grep '^type _sem_t ' gen-sysinfo.go | \
     sed -e 's/_sem_t/semt/' >> ${OUT}
 
-# Solaris 2 needs _u?pad128_t, but its default definition in terms of long
-# double is commented by -fdump-go-spec.
-if grep "^// type _pad128_t" gen-sysinfo.go > /dev/null 2>&1; then
-  echo "type _pad128_t struct { _l [4]int32; }" >> ${OUT}
-fi
-if grep "^// type _upad128_t" gen-sysinfo.go > /dev/null 2>&1; then
-  echo "type _upad128_t struct { _l [4]uint32; }" >> ${OUT}
-fi
-
-# The Solaris 11 Update 1 _zone_net_addr_t struct.
-grep '^type _zone_net_addr_t ' gen-sysinfo.go | \
-    sed -e 's/_in6_addr/[16]byte/' \
-    >> ${OUT}
-
-# The Solaris 11.4 _flow_arp_desc_t struct.
-grep '^type _flow_arp_desc_t ' gen-sysinfo.go | \
-    sed -e 's/_in6_addr_t/[16]byte/g' \
-    >> ${OUT}
-
-# The Solaris 11.4 _flow_l3_desc_t struct.
-grep '^type _flow_l3_desc_t ' gen-sysinfo.go | \
-    sed -e 's/_in6_addr_t/[16]byte/g' \
-    >> ${OUT}
-
-# The Solaris 11.3 _mac_ipaddr_t struct.
-grep '^type _mac_ipaddr_t ' gen-sysinfo.go | \
-    sed -e 's/_in6_addr_t/[16]byte/g' \
-    >> ${OUT}
-
-# The Solaris 11.3 _mactun_info_t struct.
-grep '^type _mactun_info_t ' gen-sysinfo.go | \
-    sed -e 's/_in6_addr_t/[16]byte/g' \
-    >> ${OUT}
-
 # The Solaris port_event_t struct.
 grep '^type _port_event_t ' gen-sysinfo.go | \
     sed -e s'/_port_event_t/portevent/' \
@@ -198,3 +173,9 @@ grep '^type _kevent ' gen-sysinfo.go | \
     sed -e s'/_kevent/keventt/' \
       -e 's/ udata [^;}]*/ udata *byte/' \
     >> ${OUT}
+
+# Type 'uint128' is needed in a couple of type definitions on arm64,such
+# as _user_fpsimd_struct, _elf_fpregset_t, etc.
+if ! grep '^type uint128' ${OUT} > /dev/null 2>&1; then
+    echo "type uint128 [16]byte" >> ${OUT}
+fi

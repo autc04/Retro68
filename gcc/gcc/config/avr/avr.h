@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler,
    for ATMEL AVR at90s8515, ATmega103/103L, ATmega603/603L microcontrollers.
-   Copyright (C) 1998-2019 Free Software Foundation, Inc.
+   Copyright (C) 1998-2022 Free Software Foundation, Inc.
    Contributed by Denis Chertykov (chertykov@gmail.com)
 
 This file is part of GCC.
@@ -107,6 +107,9 @@ FIXME: DRIVER_SELF_SPECS has changed.
 #define BYTES_BIG_ENDIAN 0
 #define WORDS_BIG_ENDIAN 0
 
+#define FLOAT_LIB_COMPARE_RETURNS_BOOL(mode, comparison) \
+  avr_float_lib_compare_returns_bool (mode, comparison)
+
 #ifdef IN_LIBGCC2
 /* This is to get correct SI and DI modes in libgcc2.c (32 and 64 bits).  */
 #define UNITS_PER_WORD 4
@@ -140,8 +143,9 @@ FIXME: DRIVER_SELF_SPECS has changed.
 #define LONG_TYPE_SIZE (INT_TYPE_SIZE == 8 ? 16 : 32)
 #define LONG_LONG_TYPE_SIZE (INT_TYPE_SIZE == 8 ? 32 : 64)
 #define FLOAT_TYPE_SIZE 32
-#define DOUBLE_TYPE_SIZE 32
-#define LONG_DOUBLE_TYPE_SIZE 32
+#define DOUBLE_TYPE_SIZE (avr_double)
+#define LONG_DOUBLE_TYPE_SIZE (avr_long_double)
+
 #define LONG_LONG_ACCUM_TYPE_SIZE 64
 
 #define DEFAULT_SIGNED_CHAR 1
@@ -151,7 +155,7 @@ FIXME: DRIVER_SELF_SPECS has changed.
 
 #define WCHAR_TYPE_SIZE 16
 
-#define FIRST_PSEUDO_REGISTER 36
+#define FIRST_PSEUDO_REGISTER 37
 
 #define GENERAL_REGNO_P(N)	IN_RANGE (N, 2, 31)
 #define GENERAL_REG_P(X)	(REG_P (X) && GENERAL_REGNO_P (REGNO (X)))
@@ -174,7 +178,8 @@ FIXME: DRIVER_SELF_SPECS has changed.
   0,0,/* r28 r29 */\
   0,0,/* r30 r31 */\
   1,1,/*  STACK */\
-  1,1 /* arg pointer */  }
+  1,1, /* arg pointer */						\
+  1 /* CC */ }
 
 #define CALL_USED_REGISTERS {			\
   1,1,/* r0 r1 */				\
@@ -194,7 +199,8 @@ FIXME: DRIVER_SELF_SPECS has changed.
     0,0,/* r28 r29 */				\
     1,1,/* r30 r31 */				\
     1,1,/*  STACK */				\
-    1,1 /* arg pointer */  }
+    1,1, /* arg pointer */			\
+    1 /* CC */ }
 
 #define REG_ALLOC_ORDER {			\
     24,25,					\
@@ -206,7 +212,7 @@ FIXME: DRIVER_SELF_SPECS has changed.
     28,29,					\
     17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,	\
     0,1,					\
-    32,33,34,35					\
+    32,33,34,35,36			\
     }
 
 #define ADJUST_REG_ALLOC_ORDER avr_adjust_reg_alloc_order()
@@ -226,6 +232,7 @@ enum reg_class {
   LD_REGS,			/* r16 - r31 */
   NO_LD_REGS,			/* r0 - r15 */
   GENERAL_REGS,			/* r0 - r31 */
+  CC_REG,			/* CC */
   ALL_REGS, LIM_REG_CLASSES
 };
 
@@ -246,6 +253,7 @@ enum reg_class {
 		   "LD_REGS",	/* r16 - r31 */			\
                    "NO_LD_REGS", /* r0 - r15 */                 \
 		   "GENERAL_REGS", /* r0 - r31 */		\
+		   "CC_REG", /* CC */		\
 		   "ALL_REGS" }
 
 #define REG_CLASS_CONTENTS {						\
@@ -266,7 +274,8 @@ enum reg_class {
      0x00000000},	/* LD_REGS, r16 - r31 */			\
   {0x0000ffff,0x00000000},	/* NO_LD_REGS  r0 - r15 */              \
   {0xffffffff,0x00000000},	/* GENERAL_REGS, r0 - r31 */		\
-  {0xffffffff,0x00000003}	/* ALL_REGS */				\
+  {0x00000000,0x00000010},	/* CC */				\
+  {0xffffffff,0x00000013}	/* ALL_REGS */				\
 }
 
 #define REGNO_REG_CLASS(R) avr_regno_reg_class(R)
@@ -312,7 +321,7 @@ enum reg_class {
 
 #define RETURN_ADDR_RTX(count, tem) avr_return_addr_rtx (count, tem)
 
-/* Don't use Push rounding. expr.c: emit_single_push_insn is broken 
+/* Don't use Push rounding. expr.cc: emit_single_push_insn is broken 
    for POST_DEC targets (PR27386).  */
 /*#define PUSH_ROUNDING(NPUSHED) (NPUSHED)*/
 
@@ -390,7 +399,7 @@ typedef struct avr_args
 #define SUPPORTS_INIT_PRIORITY 0
 
 /* We pretend jump tables are in text section because otherwise,
-   final.c will switch to .rodata before jump tables and thereby
+   final.cc will switch to .rodata before jump tables and thereby
    triggers __do_copy_data.  As we implement ASM_OUTPUT_ADDR_VEC,
    we still have full control over the jump tables themselves.  */
 #define JUMP_TABLES_IN_TEXT_SECTION 1
@@ -425,7 +434,7 @@ typedef struct avr_args
     "r8","r9","r10","r11","r12","r13","r14","r15",	\
     "r16","r17","r18","r19","r20","r21","r22","r23",	\
     "r24","r25","r26","r27","r28","r29","r30","r31",	\
-    "__SP_L__","__SP_H__","argL","argH"}
+    "__SP_L__","__SP_H__","argL","argH", "cc"}
 
 #define FINAL_PRESCAN_INSN(insn, operand, nop)  \
   avr_final_prescan_insn (insn, operand,nop)
@@ -480,23 +489,6 @@ typedef struct avr_args
 
 #define TRAMPOLINE_SIZE 4
 
-/* Store in cc_status the expressions
-   that the condition codes will describe
-   after execution of an instruction whose pattern is EXP.
-   Do not alter them if the instruction would not alter the cc's.  */
-
-#define NOTICE_UPDATE_CC(EXP, INSN) avr_notice_update_cc (EXP, INSN)
-
-/* The add insns don't set overflow in a usable way.  */
-#define CC_OVERFLOW_UNUSABLE 01000
-/* The mov,and,or,xor insns don't set carry.  That's ok though as the
-   Z bit is all we need when doing unsigned comparisons on the result of
-   these insns (since they're always with 0).  However, conditions.h has
-   CC_NO_OVERFLOW defined for this purpose.  Rename it to something more
-   understandable.  */
-#define CC_NO_CARRY CC_NO_OVERFLOW
-
-
 /* Output assembler code to FILE to increment profiler label # LABELNO
    for profiling a function entry.  */
 
@@ -507,8 +499,10 @@ typedef struct avr_args
     (LENGTH = avr_adjust_insn_length (INSN, LENGTH))
 
 extern const char *avr_devicespecs_file (int, const char**);
+extern const char *avr_double_lib (int, const char**);
 
-#define EXTRA_SPEC_FUNCTIONS                                   \
+#define EXTRA_SPEC_FUNCTIONS                            \
+  { "double-lib", avr_double_lib },                     \
   { "device-specs-file", avr_devicespecs_file },
 
 /* Driver self specs has lmited functionality w.r.t. '%s' for dynamic specs.
@@ -516,7 +510,8 @@ extern const char *avr_devicespecs_file (int, const char**);
    is used to diagnose problems with reading the specs file.  */
 
 #undef  DRIVER_SELF_SPECS
-#define DRIVER_SELF_SPECS                       \
+#define DRIVER_SELF_SPECS                               \
+  " %:double-lib(%{m*:m%*})"                            \
   " %:device-specs-file(device-specs%s %{mmcu=*:%*})"
 
 /* No libstdc++ for now.  Empty string doesn't work.  */

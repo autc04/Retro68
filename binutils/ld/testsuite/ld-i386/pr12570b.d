@@ -2,7 +2,6 @@
 #as: --32
 #ld: -melf_i386 -shared
 #readelf: -wf --wide
-#notarget: i?86-*-nacl* x86_64-*-nacl*
 
 #failif
 #...

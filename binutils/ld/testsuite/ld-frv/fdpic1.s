@@ -62,3 +62,4 @@ D1:
 .D4:
 	.picptr funcdesc(.Fb)
 	.word	.Fb
+	.section	.note.GNU-stack

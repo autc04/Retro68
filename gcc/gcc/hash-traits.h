@@ -1,5 +1,5 @@
 /* Traits for hashable types.
-   Copyright (C) 2014-2019 Free Software Foundation, Inc.
+   Copyright (C) 2014-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -28,6 +28,11 @@ struct typed_free_remove
   static inline void remove (Type *p);
 };
 
+template <typename Type>
+struct typed_const_free_remove
+{
+  static inline void remove (const Type *p);
+};
 
 /* Remove with free.  */
 
@@ -36,6 +41,13 @@ inline void
 typed_free_remove <Type>::remove (Type *p)
 {
   free (p);
+}
+
+template <typename Type>
+inline void
+typed_const_free_remove <Type>::remove (const Type *p)
+{
+  free (const_cast <Type *> (p));
 }
 
 /* Helpful type for removing with delete.  */
@@ -88,6 +100,7 @@ struct int_hash : typed_noop_remove <Type>
   static inline hashval_t hash (value_type);
   static inline bool equal (value_type existing, value_type candidate);
   static inline void mark_deleted (Type &);
+  static const bool empty_zero_p = Empty == 0;
   static inline void mark_empty (Type &);
   static inline bool is_deleted (Type);
   static inline bool is_empty (Type);
@@ -150,6 +163,7 @@ struct pointer_hash
   static inline bool equal (const value_type &existing,
 			    const compare_type &candidate);
   static inline void mark_deleted (Type *&);
+  static const bool empty_zero_p = true;
   static inline void mark_empty (Type *&);
   static inline bool is_deleted (Type *);
   static inline bool is_empty (Type *);
@@ -252,7 +266,7 @@ struct ggc_remove
   static void
   pch_nx (T &p, gt_pointer_operator op, void *cookie)
   {
-    op (&p, cookie);
+    op (&p, NULL, cookie);
   }
 };
 
@@ -303,6 +317,11 @@ struct ggc_ptr_hash : pointer_hash <T>, ggc_remove <T *> {};
 template <typename T>
 struct ggc_cache_ptr_hash : pointer_hash <T>, ggc_cache_remove <T *> {};
 
+/* Traits for string elements that should be freed when an element is
+   deleted.  */
+
+struct free_string_hash : string_hash, typed_const_free_remove <char> {};
+
 /* Traits for string elements that should not be freed when an element
    is deleted.  */
 
@@ -323,6 +342,7 @@ struct pair_hash
   static inline bool equal (const value_type &, const compare_type &);
   static inline void remove (value_type &);
   static inline void mark_deleted (value_type &);
+  static const bool empty_zero_p = T1::empty_zero_p;
   static inline void mark_empty (value_type &);
   static inline bool is_deleted (const value_type &);
   static inline bool is_empty (const value_type &);

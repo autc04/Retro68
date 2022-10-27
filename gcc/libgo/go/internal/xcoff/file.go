@@ -334,8 +334,8 @@ func NewFile(r io.ReaderAt) (*File, error) {
 
 		// If this symbol is a function, it must retrieve its size from
 		// its AUX_FCN entry.
-		// It can happend that a function symbol doesn't have any AUX_FCN.
-		// In this case, needAuxFcn is false and their size will be set to 0
+		// It can happen that a function symbol doesn't have any AUX_FCN.
+		// In this case, needAuxFcn is false and their size will be set to 0.
 		if needAuxFcn {
 			switch f.TargetMachine {
 			case U802TOCMAGIC:
@@ -412,10 +412,10 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				sect.Relocs[i].Type = rel.Rtype
 				sect.Relocs[i].Length = rel.Rsize&0x3F + 1
 
-				if rel.Rsize&0x80 == 1 {
+				if rel.Rsize&0x80 != 0 {
 					sect.Relocs[i].Signed = true
 				}
-				if rel.Rsize&0x40 == 1 {
+				if rel.Rsize&0x40 != 0 {
 					sect.Relocs[i].InstructionFixed = true
 				}
 
@@ -428,10 +428,10 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				sect.Relocs[i].Symbol = idxToSym[int(rel.Rsymndx)]
 				sect.Relocs[i].Type = rel.Rtype
 				sect.Relocs[i].Length = rel.Rsize&0x3F + 1
-				if rel.Rsize&0x80 == 1 {
+				if rel.Rsize&0x80 != 0 {
 					sect.Relocs[i].Signed = true
 				}
-				if rel.Rsize&0x40 == 1 {
+				if rel.Rsize&0x40 != 0 {
 					sect.Relocs[i].InstructionFixed = true
 				}
 			}

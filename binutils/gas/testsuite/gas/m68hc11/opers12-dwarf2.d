@@ -214,13 +214,13 @@ t2:
 	leas	min9b,pc
  107:	1b fa ff 00 	leas	0xff00,PC \{0xb <L1\+0x2>\}
 	leas	max9b,pc
- 10b:	1b f8 ff    	leas	0xff,PC \{0x20d <L0\+0xd9>\}
+ 10b:	1b f8 ff    	leas	0xff,PC \{0x20d <L0\^A\+0xd9>\}
 
 ;;
 ;; Disassembler bug with movb
 ;;
 	movb	#23,0x2345
- 10e:	18 0b 17 23 	movb	#0x17, 0x2345 <L0\+0x2211>
+ 10e:	18 0b 17 23 	movb	#0x17, 0x2345 <L0\^A\+0x2211>
  112:	45 
 	movb	#40,12,sp
  113:	18 08 8c 28 	movb	#0x28, 0xc,SP
@@ -238,5 +238,5 @@ t2:
  12a:	18 00 a2 39 	movw	#0x3900 <bb\+0x1100>, 3,\+SP
  12e:	00 
 	movw	#0x2000,14,sp
- 12f:	18 00 8e 20 	movw	#0x2000 <L0\+0x1ecc>, 0xe,SP
+ 12f:	18 00 8e 20 	movw	#0x2000 <L0\^A\+0x1ecc>, 0xe,SP
  133:	00 

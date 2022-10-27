@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -396,8 +396,8 @@ func checkMarks(t *testing.T, report bool) {
 // Assumes that each node name is unique. Good enough for a test.
 // If clear is true, any incoming error is cleared before return. The errors
 // are always accumulated, though.
-func mark(info os.FileInfo, err error, errors *[]error, clear bool) error {
-	name := info.Name()
+func mark(d fs.DirEntry, err error, errors *[]error, clear bool) error {
+	name := d.Name()
 	walkTree(tree, tree.name, func(path string, n *Node) {
 		if n.name == name {
 			n.mark++
@@ -413,12 +413,31 @@ func mark(info os.FileInfo, err error, errors *[]error, clear bool) error {
 	return nil
 }
 
+// chdir changes the current working directory to the named directory,
+// and then restore the original working directory at the end of the test.
+func chdir(t *testing.T, dir string) {
+	olddir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd %s: %v", dir, err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir %s: %v", dir, err)
+	}
+
+	t.Cleanup(func() {
+		if err := os.Chdir(olddir); err != nil {
+			t.Errorf("restore original working directory %s: %v", olddir, err)
+			os.Exit(1)
+		}
+	})
+}
+
 func chtmpdir(t *testing.T) (restore func()) {
 	oldwd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("chtmpdir: %v", err)
 	}
-	d, err := ioutil.TempDir("", "test")
+	d, err := os.MkdirTemp("", "test")
 	if err != nil {
 		t.Fatalf("chtmpdir: %v", err)
 	}
@@ -433,20 +452,48 @@ func chtmpdir(t *testing.T) (restore func()) {
 	}
 }
 
-func TestWalk(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			restore := chtmpdir(t)
-			defer restore()
-		}
+// tempDirCanonical returns a temporary directory for the test to use, ensuring
+// that the returned path does not contain symlinks.
+func tempDirCanonical(t *testing.T) string {
+	dir := t.TempDir()
+
+	cdir, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Errorf("tempDirCanonical: %v", err)
 	}
 
-	tmpDir, err := ioutil.TempDir("", "TestWalk")
-	if err != nil {
-		t.Fatal("creating temp dir:", err)
+	return cdir
+}
+
+func TestWalk(t *testing.T) {
+	walk := func(root string, fn fs.WalkDirFunc) error {
+		return filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+			return fn(path, &statDirEntry{info}, err)
+		})
 	}
-	defer os.RemoveAll(tmpDir)
+	testWalk(t, walk, 1)
+}
+
+type statDirEntry struct {
+	info fs.FileInfo
+}
+
+func (d *statDirEntry) Name() string               { return d.info.Name() }
+func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
+func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
+func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
+
+func TestWalkDir(t *testing.T) {
+	testWalk(t, filepath.WalkDir, 2)
+}
+
+func testWalk(t *testing.T, walk func(string, fs.WalkDirFunc) error, errVisit int) {
+	if runtime.GOOS == "ios" {
+		restore := chtmpdir(t)
+		defer restore()
+	}
+
+	tmpDir := t.TempDir()
 
 	origDir, err := os.Getwd()
 	if err != nil {
@@ -460,11 +507,11 @@ func TestWalk(t *testing.T) {
 	makeTree(t)
 	errors := make([]error, 0, 10)
 	clear := true
-	markFn := func(path string, info os.FileInfo, err error) error {
-		return mark(info, err, &errors, clear)
+	markFn := func(path string, d fs.DirEntry, err error) error {
+		return mark(d, err, &errors, clear)
 	}
 	// Expect no errors.
-	err = filepath.Walk(tree.name, markFn)
+	err = walk(tree.name, markFn)
 	if err != nil {
 		t.Fatalf("no error expected, found: %s", err)
 	}
@@ -474,10 +521,20 @@ func TestWalk(t *testing.T) {
 	checkMarks(t, true)
 	errors = errors[0:0]
 
-	// Test permission errors. Only possible if we're not root
-	// and only on some file systems (AFS, FAT).  To avoid errors during
-	// all.bash on those file systems, skip during go test -short.
-	if os.Getuid() > 0 && !testing.Short() {
+	t.Run("PermErr", func(t *testing.T) {
+		// Test permission errors. Only possible if we're not root
+		// and only on some file systems (AFS, FAT).  To avoid errors during
+		// all.bash on those file systems, skip during go test -short.
+		if runtime.GOOS == "windows" {
+			t.Skip("skipping on Windows")
+		}
+		if os.Getuid() == 0 {
+			t.Skip("skipping as root")
+		}
+		if testing.Short() {
+			t.Skip("skipping in short mode")
+		}
+
 		// introduce 2 errors: chmod top-level directories to 0
 		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0)
 		os.Chmod(filepath.Join(tree.name, tree.entries[3].name), 0)
@@ -487,9 +544,9 @@ func TestWalk(t *testing.T) {
 		markTree(tree.entries[1])
 		markTree(tree.entries[3])
 		// correct double-marking of directory itself
-		tree.entries[1].mark--
-		tree.entries[3].mark--
-		err := filepath.Walk(tree.name, markFn)
+		tree.entries[1].mark -= errVisit
+		tree.entries[3].mark -= errVisit
+		err := walk(tree.name, markFn)
 		if err != nil {
 			t.Fatalf("expected no error return from Walk, got %s", err)
 		}
@@ -505,10 +562,10 @@ func TestWalk(t *testing.T) {
 		markTree(tree.entries[1])
 		markTree(tree.entries[3])
 		// correct double-marking of directory itself
-		tree.entries[1].mark--
-		tree.entries[3].mark--
+		tree.entries[1].mark -= errVisit
+		tree.entries[3].mark -= errVisit
 		clear = false // error will stop processing
-		err = filepath.Walk(tree.name, markFn)
+		err = walk(tree.name, markFn)
 		if err == nil {
 			t.Fatalf("expected error return from Walk")
 		}
@@ -522,7 +579,7 @@ func TestWalk(t *testing.T) {
 		// restore permissions
 		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0770)
 		os.Chmod(filepath.Join(tree.name, tree.entries[3].name), 0770)
-	}
+	})
 }
 
 func touch(t *testing.T, name string) {
@@ -536,11 +593,7 @@ func touch(t *testing.T, name string) {
 }
 
 func TestWalkSkipDirOnFile(t *testing.T) {
-	td, err := ioutil.TempDir("", "walktest")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(td)
+	td := t.TempDir()
 
 	if err := os.MkdirAll(filepath.Join(td, "dir"), 0755); err != nil {
 		t.Fatal(err)
@@ -549,7 +602,7 @@ func TestWalkSkipDirOnFile(t *testing.T) {
 	touch(t, filepath.Join(td, "dir/foo2"))
 
 	sawFoo2 := false
-	walker := func(path string, info os.FileInfo, err error) error {
+	walker := func(path string) error {
 		if strings.HasSuffix(path, "foo2") {
 			sawFoo2 = true
 		}
@@ -558,30 +611,35 @@ func TestWalkSkipDirOnFile(t *testing.T) {
 		}
 		return nil
 	}
+	walkFn := func(path string, _ fs.FileInfo, _ error) error { return walker(path) }
+	walkDirFn := func(path string, _ fs.DirEntry, _ error) error { return walker(path) }
 
-	err = filepath.Walk(td, walker)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sawFoo2 {
-		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
+	check := func(t *testing.T, walk func(root string) error, root string) {
+		t.Helper()
+		sawFoo2 = false
+		err := walk(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if sawFoo2 {
+			t.Errorf("SkipDir on file foo1 did not block processing of foo2")
+		}
 	}
 
-	err = filepath.Walk(filepath.Join(td, "dir"), walker)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sawFoo2 {
-		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
-	}
+	t.Run("Walk", func(t *testing.T) {
+		Walk := func(root string) error { return filepath.Walk(td, walkFn) }
+		check(t, Walk, td)
+		check(t, Walk, filepath.Join(td, "dir"))
+	})
+	t.Run("WalkDir", func(t *testing.T) {
+		WalkDir := func(root string) error { return filepath.WalkDir(td, walkDirFn) }
+		check(t, WalkDir, td)
+		check(t, WalkDir, filepath.Join(td, "dir"))
+	})
 }
 
 func TestWalkFileError(t *testing.T) {
-	td, err := ioutil.TempDir("", "walktest")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(td)
+	td := t.TempDir()
 
 	touch(t, filepath.Join(td, "foo"))
 	touch(t, filepath.Join(td, "bar"))
@@ -595,14 +653,14 @@ func TestWalkFileError(t *testing.T) {
 		*filepath.LstatP = os.Lstat
 	}()
 	statErr := errors.New("some stat error")
-	*filepath.LstatP = func(path string) (os.FileInfo, error) {
+	*filepath.LstatP = func(path string) (fs.FileInfo, error) {
 		if strings.HasSuffix(path, "stat-error") {
 			return nil, statErr
 		}
 		return os.Lstat(path)
 	}
 	got := map[string]error{}
-	err = filepath.Walk(td, func(path string, fi os.FileInfo, err error) error {
+	err := filepath.Walk(td, func(path string, fi fs.FileInfo, err error) error {
 		rel, _ := filepath.Rel(td, path)
 		got[filepath.ToSlash(rel)] = err
 		return nil
@@ -736,6 +794,8 @@ var winisabstests = []IsAbsTest{
 	{`c:a\b`, false},
 	{`c:\a\b`, true},
 	{`c:/a/b`, true},
+	{`\\host\share`, true},
+	{`\\host\share\`, true},
 	{`\\host\share\foo`, true},
 	{`//host/share/foo/bar`, true},
 }
@@ -856,14 +916,11 @@ func testEvalSymlinksAfterChdir(t *testing.T, wd, path, want string) {
 func TestEvalSymlinks(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "evalsymlink")
-	if err != nil {
-		t.Fatal("creating temp dir:", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	// /tmp may itself be a symlink! Avoid the confusion, although
 	// it means trusting the thing we're testing.
+	var err error
 	tmpDir, err = filepath.EvalSymlinks(tmpDir)
 	if err != nil {
 		t.Fatal("eval symlink for tmp dir:", err)
@@ -942,14 +999,10 @@ func TestEvalSymlinksIsNotExist(t *testing.T) {
 func TestIssue13582(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "issue13582")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	dir := filepath.Join(tmpDir, "dir")
-	err = os.Mkdir(dir, 0755)
+	err := os.Mkdir(dir, 0755)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -959,7 +1012,7 @@ func TestIssue13582(t *testing.T) {
 		t.Fatal(err)
 	}
 	file := filepath.Join(linkToDir, "file")
-	err = ioutil.WriteFile(file, nil, 0644)
+	err = os.WriteFile(file, nil, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1029,12 +1082,7 @@ var absTests = []string{
 }
 
 func TestAbs(t *testing.T) {
-	root, err := ioutil.TempDir("", "TestAbs")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(root)
-
+	root := t.TempDir()
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatal("getwd failed: ", err)
@@ -1100,11 +1148,7 @@ func TestAbs(t *testing.T) {
 // We test it separately from all other absTests because the empty string is not
 // a valid path, so it can't be used with os.Stat.
 func TestAbsEmptyString(t *testing.T) {
-	root, err := ioutil.TempDir("", "TestAbsEmptyString")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(root)
+	root := t.TempDir()
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -1192,6 +1236,7 @@ var winreltests = []RelTests{
 	{`C:\Projects`, `c:\projects\src`, `src`},
 	{`C:\Projects`, `c:\projects`, `.`},
 	{`C:\Projects\a\..`, `c:\projects`, `.`},
+	{`\\host\share`, `\\host\share\file.txt`, `file.txt`},
 }
 
 func TestRel(t *testing.T) {
@@ -1285,11 +1330,8 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
 
 func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 	t.Skip("skipping test because gccgo sources are arranged differently.")
-	if runtime.GOOS == "darwin" {
-		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
-		}
+	if runtime.GOOS == "ios" {
+		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")
 	if err != nil {
@@ -1299,7 +1341,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 	ken := filepath.Join(root, "ken")
 	seenBugs := false
 	seenKen := false
-	err = filepath.Walk(root, func(pth string, info os.FileInfo, err error) error {
+	err = filepath.Walk(root, func(pth string, info fs.FileInfo, err error) error {
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1325,11 +1367,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 }
 
 func testWalkSymlink(t *testing.T, mklink func(target, link string) error) {
-	tmpdir, err := ioutil.TempDir("", "testWalkSymlink")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -1348,7 +1386,7 @@ func testWalkSymlink(t *testing.T, mklink func(target, link string) error) {
 	}
 
 	var visited []string
-	err = filepath.Walk(tmpdir, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(tmpdir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1375,24 +1413,10 @@ func TestWalkSymlink(t *testing.T) {
 }
 
 func TestIssue29372(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "TestIssue29372")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	if runtime.GOOS == "windows" {
-		// This test is broken on windows, if temporary directory
-		// is a symlink. See issue 29746.
-		// TODO(brainman): Remove this hack once issue #29746 is fixed.
-		tmpDir, err = filepath.EvalSymlinks(tmpDir)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
+	tmpDir := t.TempDir()
 
 	path := filepath.Join(tmpDir, "file.txt")
-	err = ioutil.WriteFile(path, nil, 0644)
+	err := os.WriteFile(path, nil, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1421,11 +1445,7 @@ func TestEvalSymlinksAboveRoot(t *testing.T) {
 
 	t.Parallel()
 
-	tmpDir, err := ioutil.TempDir("", "TestEvalSymlinksAboveRoot")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	evalTmpDir, err := filepath.EvalSymlinks(tmpDir)
 	if err != nil {
@@ -1438,7 +1458,7 @@ func TestEvalSymlinksAboveRoot(t *testing.T) {
 	if err := os.Symlink(filepath.Join(evalTmpDir, "a"), filepath.Join(evalTmpDir, "b")); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(evalTmpDir, "a", "file"), nil, 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(evalTmpDir, "a", "file"), nil, 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1455,11 +1475,16 @@ func TestEvalSymlinksAboveRoot(t *testing.T) {
 	// Try different numbers of "..".
 	for _, i := range []int{c, c + 1, c + 2} {
 		check := strings.Join([]string{evalTmpDir, strings.Join(dd[:i], string(os.PathSeparator)), evalTmpDir[len(vol)+1:], "b", "file"}, string(os.PathSeparator))
-		if resolved, err := filepath.EvalSymlinks(check); err != nil {
+		resolved, err := filepath.EvalSymlinks(check)
+		switch {
+		case runtime.GOOS == "darwin" && errors.Is(err, fs.ErrNotExist):
+			// On darwin, the temp dir is sometimes cleaned up mid-test (issue 37910).
+			testenv.SkipFlaky(t, 37910)
+		case err != nil:
 			t.Errorf("EvalSymlinks(%q) failed: %v", check, err)
-		} else if !strings.HasSuffix(resolved, wantSuffix) {
+		case !strings.HasSuffix(resolved, wantSuffix):
 			t.Errorf("EvalSymlinks(%q) = %q does not end with %q", check, resolved, wantSuffix)
-		} else {
+		default:
 			t.Logf("EvalSymlinks(%q) = %q", check, resolved)
 		}
 	}
@@ -1469,21 +1494,12 @@ func TestEvalSymlinksAboveRoot(t *testing.T) {
 func TestEvalSymlinksAboveRootChdir(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := ioutil.TempDir("", "TestEvalSymlinksAboveRootChdir")
+	tmpDir, err := os.MkdirTemp("", "TestEvalSymlinksAboveRootChdir")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(wd)
-
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatal(err)
-	}
+	chdir(t, tmpDir)
 
 	subdir := filepath.Join("a", "b")
 	if err := os.MkdirAll(subdir, 0777); err != nil {
@@ -1492,7 +1508,7 @@ func TestEvalSymlinksAboveRootChdir(t *testing.T) {
 	if err := os.Symlink(subdir, "c"); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(subdir, "file"), nil, 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(subdir, "file"), nil, 0666); err != nil {
 		t.Fatal(err)
 	}
 

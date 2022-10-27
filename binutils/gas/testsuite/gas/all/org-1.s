@@ -9,6 +9,8 @@
 	mov	g0, g0
 	.elseif	nop_type == 5
 	set	$0, $0
+        .elseif nop_type == 6
+        mov	%r1,%r1
 	.else
 	nop
 	.endif

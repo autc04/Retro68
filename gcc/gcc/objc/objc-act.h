@@ -1,5 +1,5 @@
-/* Declarations for objc-act.c.
-   Copyright (C) 1990-2019 Free Software Foundation, Inc.
+/* Declarations for objc-act.cc.
+   Copyright (C) 1990-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -29,7 +29,7 @@ int objc_gimplify_expr (tree *, gimple_seq *, gimple_seq *);
 void objc_common_init_ts (void);
 
 /* NB: The remaining public functions are prototyped in c-common.h, for the
-   benefit of stub-objc.c and objc-act.c.  */
+   benefit of stub-objc.cc and objc-act.cc.  */
 
 /* Objective-C structures */
 
@@ -136,6 +136,20 @@ enum objc_property_assign_semantics {
    1.  */
 #define PROPERTY_OPTIONAL(DECL) \
   DECL_LANG_FLAG_5 (PROPERTY_DECL_CHECK (DECL))
+
+/* PROPERTY_CLASS can be 0 or 1.  */
+#define PROPERTY_CLASS(DECL) \
+   DECL_LANG_FLAG_6 (PROPERTY_DECL_CHECK (DECL))
+
+/* PROPERTY_NULLABILITY attributes added to the decl attributes.
+   effectively, __attribute__((objc_nullability(kind))),   */
+enum objc_property_nullability {
+  OBJC_PROPERTY_NULL_UNSPECIFIED = 0,
+  OBJC_PROPERTY_NULLABLE,
+  OBJC_PROPERTY_NONNULL,
+  OBJC_PROPERTY_NULL_RESETTABLE,
+  OBJC_PROPERTY_NULL_UNSET
+};
 
 /* PROPERTY_REF.  A PROPERTY_REF represents an 'object.property'
    expression.  It is normally used for property access, but when
@@ -313,6 +327,7 @@ enum objc_tree_index
     OCTI_SUPER_TYPE,
     OCTI_SEL_TYPE,
     OCTI_ID_TYPE,
+    OCTI_INSTANCE_TYPE,
     OCTI_CLS_TYPE,
     OCTI_NST_TYPE,
     OCTI_PROTO_TYPE,
@@ -368,7 +383,9 @@ enum objc_tree_index
     OCTI_OBJ_ID,
     OCTI_CLS_ID,
     OCTI_ID_NAME,
+    OCTI_INSTANCETYPE_NAME,
     OCTI_CLASS_NAME,
+    OCTI_SEL_NAME,
     OCTI_CNST_STR_ID,
     OCTI_CNST_STR_TYPE,
     OCTI_CNST_STR_GLOB_ID,
@@ -443,6 +460,7 @@ extern GTY(()) tree objc_global_trees[OCTI_MAX];
 #define objc_super_type		objc_global_trees[OCTI_SUPER_TYPE]
 #define objc_selector_type		objc_global_trees[OCTI_SEL_TYPE]
 #define objc_object_type	objc_global_trees[OCTI_ID_TYPE]
+#define objc_instancetype_type	objc_global_trees[OCTI_INSTANCE_TYPE]
 #define objc_class_type		objc_global_trees[OCTI_CLS_TYPE]
 #define objc_instance_type	objc_global_trees[OCTI_NST_TYPE]
 #define objc_protocol_type	objc_global_trees[OCTI_PROTO_TYPE]
@@ -570,8 +588,10 @@ extern GTY(()) tree objc_global_trees[OCTI_MAX];
 
 #define objc_object_id		objc_global_trees[OCTI_OBJ_ID]
 #define objc_class_id		objc_global_trees[OCTI_CLS_ID]
-#define objc_object_name		objc_global_trees[OCTI_ID_NAME]
+#define objc_object_name        objc_global_trees[OCTI_ID_NAME]
+#define objc_instancetype_name	objc_global_trees[OCTI_INSTANCETYPE_NAME]
 #define objc_class_name		objc_global_trees[OCTI_CLASS_NAME]
+#define objc_selector_name	objc_global_trees[OCTI_SEL_NAME]
 
 /* Constant string classes.  */
 #define constant_string_id	objc_global_trees[OCTI_CNST_STR_ID]
@@ -608,7 +628,9 @@ extern GTY(()) tree objc_global_trees[OCTI_MAX];
 /* Reserved tag definitions.  */
 
 #define OBJECT_TYPEDEF_NAME		"id"
+#define INSTANCE_TYPEDEF_NAME		"instancetype"
 #define CLASS_TYPEDEF_NAME		"Class"
+#define SEL_TYPEDEF_NAME		"SEL"
 
 #define TAG_OBJECT			"objc_object"
 #define TAG_CLASS			"objc_class"

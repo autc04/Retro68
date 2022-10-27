@@ -1,12 +1,13 @@
+#as: --gdwarf-3
 #readelf: -wl
 #name: DWARF2 3
-#not-target: ft32*-* ia64-*-* h8300-*-*
+#xfail: ft32*-* h8300-*-*
 
 Raw dump of debug contents of section \.z?debug_line:
 
   Offset:                      0x0
   Length:                      41
-  DWARF Version:               2
+  DWARF Version:               3
   Prologue Length:             35
   Minimum Instruction Length:  [0-9]*
   Initial value of 'is_stmt':  1

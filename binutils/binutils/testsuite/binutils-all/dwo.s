@@ -1,7 +1,7 @@
 /* Assembler source used to create an object file for testing readelf's
    and objdump's ability to process separate dwarf object files.
 
-   Copyright (C) 2017-2018 Free Software Foundation, Inc.
+   Copyright (C) 2017-2022 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,8 +34,8 @@ string_end:
 	/* Create a .debug_info section that contains the dwo links.  */
 
 	.section	.debug_info,"",%progbits
-	.4byte	debugE - debugS	;# Length of Compilation Unit Info
-debugS:
+	.4byte	debugE1 - debugS1	;# Length of Compilation Unit Info
+debugS1:
 	.short	0x4	;# DWARF version number.
 	.4byte	0x0	;# Offset into .debug_abbrev section.
 	.byte	0x4	;# Pointer Size (in bytes).
@@ -43,6 +43,13 @@ debugS:
 	.uleb128 0x1	;# Use abbrev #1.  This needs strings from the .debug_str section.
 	.4byte	string1
 	.4byte  string2
+debugE1:
+
+	.4byte	debugE2 - debugS2	;# Length of Compilation Unit Info
+debugS2:
+	.short	0x4	;# DWARF version number.
+	.4byte	0x0	;# Offset into .debug_abbrev section.
+	.byte	0x4	;# Pointer Size (in bytes).
 
 	.uleb128 0x2	;# Use abbrev #2.
 	.asciz   "file.dwo"
@@ -52,7 +59,7 @@ debugS:
 	;# Minimal section alignment on alpha-* is 2, so ensure no new invalid CU
 	;# will be started.
 	.balign	2, 0
-debugE:
+debugE2:
 
 	.section	.debug_abbrev,"",%progbits
 

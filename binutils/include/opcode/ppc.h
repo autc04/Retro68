@@ -1,5 +1,5 @@
 /* ppc.h -- Header file for PowerPC opcode table
-   Copyright (C) 1994-2018 Free Software Foundation, Inc.
+   Copyright (C) 1994-2022 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support
 
    This file is part of GDB, GAS, and the GNU binutils.
@@ -22,21 +22,19 @@
 #ifndef PPC_H
 #define PPC_H
 
-#include "bfd_stdint.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef uint64_t ppc_cpu_t;
+typedef uint16_t ppc_opindex_t;
 
-#if BFD_HOST_64BIT_LONG
-# define PPC_INT_FMT "l"
-#elif defined (__MSVCRT__)
-# define PPC_INT_FMT "I64"
-#else
-# define PPC_INT_FMT "ll"
-#endif
+/* Smaller of ppc_opindex_t and fx_pcrel_adjust maximum.  Note that
+   values extracted from fx_pcrel_adjust are masked with this constant,
+   effectively making the field unsigned.  */
+#define PPC_OPINDEX_MAX 0xffff
 
 /* The opcode table is an array of struct powerpc_opcode.  */
 
@@ -68,7 +66,7 @@ struct powerpc_opcode
   /* An array of operand codes.  Each code is an index into the
      operand table.  They appear in the order which the operands must
      appear in assembly code, and are terminated by a zero.  */
-  unsigned char operands[8];
+  ppc_opindex_t operands[8];
 };
 
 /* The table itself is sorted by major opcode number, and is otherwise
@@ -76,6 +74,8 @@ struct powerpc_opcode
    instructions.  */
 extern const struct powerpc_opcode powerpc_opcodes[];
 extern const unsigned int powerpc_num_opcodes;
+extern const struct powerpc_opcode prefix_opcodes[];
+extern const unsigned int prefix_num_opcodes;
 extern const struct powerpc_opcode vle_opcodes[];
 extern const unsigned int vle_num_opcodes;
 extern const struct powerpc_opcode spe2_opcodes[];
@@ -204,7 +204,7 @@ extern const unsigned int spe2_num_opcodes;
 /* Opcode is only supported by Power8 architecture.  */
 #define PPC_OPCODE_POWER8     0x1000000000ull
 
-/* Opcode is supported by ppc750cl.  */
+/* Opcode is supported by ppc750cl/Gekko/Broadway.  */
 #define PPC_OPCODE_750	      0x2000000000ull
 
 /* Opcode is supported by ppc7450.  */
@@ -234,6 +234,9 @@ extern const unsigned int spe2_num_opcodes;
 /* Opcode is supported by EFS2.  */
 #define PPC_OPCODE_EFS2	    0x200000000000ull
 
+/* Opcode is only supported by power10 architecture.  */
+#define PPC_OPCODE_POWER10  0x400000000000ull
+
 /* A macro to extract the major opcode from an instruction.  */
 #define PPC_OP(i) (((i) >> 26) & 0x3f)
 
@@ -251,6 +254,19 @@ extern const unsigned int spe2_num_opcodes;
 
 /* A macro to convert a SPE2 extended opcode to a SPE2 xopcode segment.  */
 #define SPE2_XOP_TO_SEG(i) ((i) >> 7)
+
+/* A macro to extract the prefix word from an 8-byte PREFIX instruction.  */
+#define PPC_GET_PREFIX(i) (((i) >> 32) & ((1LL << 32) - 1))
+
+/* A macro to extract the suffix word from an 8-byte PREFIX instruction.  */
+#define PPC_GET_SUFFIX(i) ((i) & ((1LL << 32) - 1))
+
+/* A macro to determine whether insn I is an 8-byte prefix instruction.  */
+#define PPC_PREFIX_P(i) (PPC_OP (PPC_GET_PREFIX (i)) == 0x1)
+
+/* A macro used to hash 8-byte PREFIX instructions.  */
+#define PPC_PREFIX_SEG(i) (PPC_OP (i) >> 1)
+
 
 /* The operands table is an array of struct powerpc_operand.  */
 
@@ -280,11 +296,10 @@ struct powerpc_operand
 
      If this field is not NULL, then simply call it with the
      instruction and the operand value.  It will return the new value
-     of the instruction.  If the ERRMSG argument is not NULL, then if
-     the operand value is illegal, *ERRMSG will be set to a warning
-     string (the operand will be inserted in any case).  If the
-     operand value is legal, *ERRMSG will be unchanged (most operands
-     can accept any value).  */
+     of the instruction.  If the operand value is illegal, *ERRMSG
+     will be set to a warning string (the operand will be inserted in
+     any case).  If the operand value is legal, *ERRMSG will be
+     unchanged (most operands can accept any value).  */
   uint64_t (*insert)
     (uint64_t instruction, int64_t op, ppc_cpu_t dialect, const char **errmsg);
 
@@ -302,11 +317,18 @@ struct powerpc_operand
      is the result).
 
      If this field is not NULL, then simply call it with the
-     instruction value.  It will return the value of the operand.  If
-     the INVALID argument is not NULL, *INVALID will be set to
-     non-zero if this operand type can not actually be extracted from
-     this operand (i.e., the instruction does not match).  If the
-     operand is valid, *INVALID will not be changed.  */
+     instruction value.  It will return the value of the operand.
+     *INVALID will be set to one by the extraction function if this
+     operand type can not be extracted from this operand (i.e., the
+     instruction does not match).  If the operand is valid, *INVALID
+     will not be changed.  *INVALID will always be non-negative when
+     used to extract a field from an instruction.
+
+     The extraction function is also called by both the assembler and
+     disassembler if an operand is optional, in which case the
+     function should return the default value of the operand.
+     *INVALID is negative in this case, and is the negative count of
+     omitted optional operands up to and including this operand.  */
   int64_t (*extract) (uint64_t instruction, ppc_cpu_t dialect, int *invalid);
 
   /* One bit syntax flags.  */
@@ -320,9 +342,11 @@ extern const struct powerpc_operand powerpc_operands[];
 extern const unsigned int num_powerpc_operands;
 
 /* Use with the shift field of a struct powerpc_operand to indicate
-     that BITM and SHIFT cannot be used to determine where the operand
-     goes in the insn.  */
-#define PPC_OPSHIFT_INV (-1U << 31)
+   that BITM and SHIFT cannot be used to determine where the operand
+   goes in the insn.  */
+#define PPC_OPSHIFT_INV (1U << 30)
+/* A special case, 6-bit SH field.  */
+#define PPC_OPSHIFT_SH6 (2U << 30)
 
 /* Values defined for the flags field of a struct powerpc_operand.
    Keep the register bits low:  They need to fit in an unsigned short.  */
@@ -346,6 +370,9 @@ extern const unsigned int num_powerpc_operands;
    prints these with a leading 'vs'.  */
 #define PPC_OPERAND_VSR (0x10)
 
+/* This operand names a VSX accumulator.  */
+#define PPC_OPERAND_ACC (0x20)
+
 /* This operand may use the symbolic names for the CR fields (even
    without -mregnames), which are
        lt  0	gt  1	eq  2	so  3	un  3
@@ -353,57 +380,60 @@ extern const unsigned int num_powerpc_operands;
        cr4 4	cr5 5	cr6 6	cr7 7
    These may be combined arithmetically, as in cr2*4+gt.  These are
    only supported on the PowerPC, not the POWER.  */
-#define PPC_OPERAND_CR_BIT (0x20)
+#define PPC_OPERAND_CR_BIT (0x40)
 
 /* This is a CR FIELD that does not use symbolic names (unless
-   -mregnames is in effect).  */
-#define PPC_OPERAND_CR_REG (0x40)
+   -mregnames is in effect).  If both PPC_OPERAND_CR_BIT and
+   PPC_OPERAND_CR_REG are set then treat the field as per
+   PPC_OPERAND_CR_BIT for assembly, but as if neither of these
+   bits are set for disassembly.  */
+#define PPC_OPERAND_CR_REG (0x80)
 
 /* This operand names a special purpose register.  */
-#define PPC_OPERAND_SPR (0x80)
+#define PPC_OPERAND_SPR (0x100)
 
 /* This operand names a paired-single graphics quantization register.  */
-#define PPC_OPERAND_GQR (0x100)
+#define PPC_OPERAND_GQR (0x200)
 
 /* This operand is a relative branch displacement.  The disassembler
    prints these symbolically if possible.  */
-#define PPC_OPERAND_RELATIVE (0x200)
+#define PPC_OPERAND_RELATIVE (0x400)
 
 /* This operand is an absolute branch address.  The disassembler
    prints these symbolically if possible.  */
-#define PPC_OPERAND_ABSOLUTE (0x400)
+#define PPC_OPERAND_ABSOLUTE (0x800)
 
 /* This operand takes signed values.  */
-#define PPC_OPERAND_SIGNED (0x800)
+#define PPC_OPERAND_SIGNED (0x1000)
 
 /* This operand takes signed values, but also accepts a full positive
    range of values when running in 32 bit mode.  That is, if bits is
    16, it takes any value from -0x8000 to 0xffff.  In 64 bit mode,
    this flag is ignored.  */
-#define PPC_OPERAND_SIGNOPT (0x1000)
+#define PPC_OPERAND_SIGNOPT (0x2000)
 
 /* The next operand should be wrapped in parentheses rather than
    separated from this one by a comma.  This is used for the load and
    store instructions which want their operands to look like
        reg,displacement(reg)
    */
-#define PPC_OPERAND_PARENS (0x2000)
+#define PPC_OPERAND_PARENS (0x4000)
 
 /* This operand is for the DS field in a DS form instruction.  */
-#define PPC_OPERAND_DS (0x4000)
+#define PPC_OPERAND_DS (0x8000)
 
 /* This operand is for the DQ field in a DQ form instruction.  */
-#define PPC_OPERAND_DQ (0x8000)
+#define PPC_OPERAND_DQ (0x10000)
 
 /* This operand should be regarded as a negative number for the
    purposes of overflow checking (i.e., the normal most negative
    number is disallowed and one more than the normal most positive
    number is allowed).  This flag will only be set for a signed
    operand.  */
-#define PPC_OPERAND_NEGATIVE (0x10000)
+#define PPC_OPERAND_NEGATIVE (0x20000)
 
 /* Valid range of operand is 0..n rather than 0..n-1.  */
-#define PPC_OPERAND_PLUS1 (0x20000)
+#define PPC_OPERAND_PLUS1 (0x40000)
 
 /* This operand is optional, and is zero if omitted.  This is used for
    example, in the optional BF field in the comparison instructions.  The
@@ -421,11 +451,6 @@ extern const unsigned int num_powerpc_operands;
    out regardless of the PPC_OPERAND_OPTIONAL field.  */
 #define PPC_OPERAND_NEXT (0x100000)
 
-/* This flag is only used with PPC_OPERAND_OPTIONAL.  If this operand
-   is omitted, then the value it should use for the operand is stored
-   in the SHIFT field of the immediatly following operand field.  */
-#define PPC_OPERAND_OPTIONAL_VALUE (0x200000)
-
 /* This flag is only used with PPC_OPERAND_OPTIONAL.  The operand is
    only optional when generating 32-bit code.  */
 #define PPC_OPERAND_OPTIONAL32 (0x400000)
@@ -434,44 +459,23 @@ extern const unsigned int num_powerpc_operands;
 #define PPC_OPERAND_FSL (0x800000)
 #define PPC_OPERAND_FCR (0x1000000)
 #define PPC_OPERAND_UDI (0x2000000)
-
-/* The POWER and PowerPC assemblers use a few macros.  We keep them
-   with the operands table for simplicity.  The macro table is an
-   array of struct powerpc_macro.  */
-
-struct powerpc_macro
-{
-  /* The macro name.  */
-  const char *name;
-
-  /* The number of operands the macro takes.  */
-  unsigned int operands;
-
-  /* One bit flags for the opcode.  These are used to indicate which
-     specific processors support the instructions.  The values are the
-     same as those for the struct powerpc_opcode flags field.  */
-  ppc_cpu_t flags;
-
-  /* A format string to turn the macro into a normal instruction.
-     Each %N in the string is replaced with operand number N (zero
-     based).  */
-  const char *format;
-};
-
-extern const struct powerpc_macro powerpc_macros[];
-extern const int powerpc_num_macros;
 
 extern ppc_cpu_t ppc_parse_cpu (ppc_cpu_t, ppc_cpu_t *, const char *);
 
 static inline int64_t
-ppc_optional_operand_value (const struct powerpc_operand *operand)
+ppc_optional_operand_value (const struct powerpc_operand *operand,
+			    uint64_t insn,
+			    ppc_cpu_t dialect,
+			    int num_optional)
 {
-  if ((operand->flags & PPC_OPERAND_OPTIONAL_VALUE) != 0)
-    return (operand+1)->shift;
+  if (operand->extract)
+    return (*operand->extract) (insn, dialect, &num_optional);
   return 0;
 }
 
 /* PowerPC VLE insns.  */
+#define E_OPCODE_MASK		0xfc00f800
+
 /* Form I16L, uses 16A relocs.  */
 #define E_OR2I_INSN		0x7000C000
 #define E_AND2I_DOT_INSN	0x7000C800
@@ -487,6 +491,9 @@ ppc_optional_operand_value (const struct powerpc_operand *operand)
 #define E_CMPL16I_INSN		0x7000A800
 #define E_CMPH16I_INSN		0x7000B000
 #define E_CMPHL16I_INSN		0x7000B800
+
+#define E_LI_INSN		0x70000000
+#define E_LI_MASK		0xfc008000
 
 #ifdef __cplusplus
 }

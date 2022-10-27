@@ -1,7 +1,7 @@
 #source: pr13082-2.s
 #name: PR ld/13082-2 (b)
 #as: --x32
-#ld: -pie -melf32_x86_64
+#ld: -pie -melf32_x86_64 $NO_DT_RELR_LDFLAGS
 #readelf: -r --wide
 
 Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 1 entry:

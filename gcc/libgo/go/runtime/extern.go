@@ -78,39 +78,56 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	If the line ends with "(forced)", this GC was forced by a
 	runtime.GC() call.
 
-	Setting gctrace to any value > 0 also causes the garbage collector
-	to emit a summary when memory is released back to the system.
-	This process of returning memory to the system is called scavenging.
-	The format of this summary is subject to change.
-	Currently it is:
-		scvg#: # MB released  printed only if non-zero
-		scvg#: inuse: # idle: # sys: # released: # consumed: # (MB)
-	where the fields are as follows:
-		scvg#        the scavenge cycle number, incremented at each scavenge
-		inuse: #     MB used or partially used spans
-		idle: #      MB spans pending scavenging
-		sys: #       MB mapped from the system
-		released: #  MB released to the system
-		consumed: #  MB allocated from the system
+	harddecommit: setting harddecommit=1 causes memory that is returned to the OS to
+	also have protections removed on it. This is the only mode of operation on Windows,
+	but is helpful in debugging scavenger-related issues on other platforms. Currently,
+	only supported on Linux.
 
-	madvdontneed: setting madvdontneed=1 will use MADV_DONTNEED
-	instead of MADV_FREE on Linux when returning memory to the
-	kernel. This is less efficient, but causes RSS numbers to drop
-	more quickly.
+	inittrace: setting inittrace=1 causes the runtime to emit a single line to standard
+	error for each package with init work, summarizing the execution time and memory
+	allocation. No information is printed for inits executed as part of plugin loading
+	and for packages without both user defined and compiler generated init work.
+	The format of this line is subject to change. Currently, it is:
+		init # @#ms, # ms clock, # bytes, # allocs
+	where the fields are as follows:
+		init #      the package name
+		@# ms       time in milliseconds when the init started since program start
+		# clock     wall-clock time for package initialization work
+		# bytes     memory allocated on the heap
+		# allocs    number of heap allocations
+
+	madvdontneed: setting madvdontneed=0 will use MADV_FREE
+	instead of MADV_DONTNEED on Linux when returning memory to the
+	kernel. This is more efficient, but means RSS numbers will
+	drop only when the OS is under memory pressure.
 
 	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
 	When set to 0 memory profiling is disabled.  Refer to the description of
 	MemProfileRate for the default value.
 
-	memprofilerate:  setting memprofilerate=X changes the setting for
-	runtime.MemProfileRate.  Refer to the description of this variable for how
-	it is used and its default value.
+	invalidptr: invalidptr=1 (the default) causes the garbage collector and stack
+	copier to crash the program if an invalid pointer value (for example, 1)
+	is found in a pointer-typed location. Setting invalidptr=0 disables this check.
+	This should only be used as a temporary workaround to diagnose buggy code.
+	The real fix is to not store integers in pointer-typed locations.
 
 	sbrk: setting sbrk=1 replaces the memory allocator and garbage collector
 	with a trivial allocator that obtains memory from the operating system and
 	never reclaims any memory.
 
-	scavenge: scavenge=1 enables debugging mode of heap scavenger.
+	scavtrace: setting scavtrace=1 causes the runtime to emit a single line to standard
+	error, roughly once per GC cycle, summarizing the amount of work done by the
+	scavenger as well as the total amount of memory returned to the operating system
+	and an estimate of physical memory utilization. The format of this line is subject
+	to change, but currently it is:
+		scav # # KiB work, # KiB total, #% util
+	where the fields are as follows:
+		scav #       the scavenge cycle number
+		# KiB work   the amount of memory returned to the OS since the last line
+		# KiB total  the total amount of memory returned to the OS
+		#% util      the fraction of all unscavenged memory which is in-use
+	If the line ends with "(forced)", then scavenging was forced by a
+	debug.FreeOSMemory() call.
 
 	scheddetail: setting schedtrace=X and scheddetail=1 causes the scheduler to emit
 	detailed multiline info every X milliseconds, describing state of the scheduler,
@@ -125,7 +142,14 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	IDs will refer to the ID of the goroutine at the time of creation; it's possible for this
 	ID to be reused for another goroutine. Setting N to 0 will report no ancestry information.
 
-The net, net/http, and crypto/tls packages also refer to debugging variables in GODEBUG.
+	asyncpreemptoff: asyncpreemptoff=1 disables signal-based
+	asynchronous goroutine preemption. This makes some loops
+	non-preemptible for long periods, which may delay GC and
+	goroutine scheduling. This is useful for debugging GC issues
+	because it also disables the conservative stack scanning used
+	for asynchronously preempted goroutines.
+
+The net and net/http packages also refer to debugging variables in GODEBUG.
 See the documentation for those packages for details.
 
 The GOMAXPROCS variable limits the number of operating system threads that
@@ -133,6 +157,9 @@ can execute user-level Go code simultaneously. There is no limit to the number o
 that can be blocked in system calls on behalf of Go code; those do not count against
 the GOMAXPROCS limit. This package's GOMAXPROCS function queries and changes
 the limit.
+
+The GORACE variable configures the race detector, for programs built using -race.
+See https://golang.org/doc/articles/race_detector.html for details.
 
 The GOTRACEBACK variable controls the amount of output generated when a Go
 program fails due to an unrecovered panic or an unexpected runtime condition.
@@ -164,7 +191,11 @@ of the run-time system.
 */
 package runtime
 
-import "runtime/internal/sys"
+import (
+	"internal/goarch"
+	"internal/goos"
+	"runtime/internal/sys"
+)
 
 // Caller reports file and line number information about function invocations on
 // the calling goroutine's stack. The argument skip is the number of stack frames
@@ -197,24 +228,34 @@ func GOROOT() string {
 	if s != "" {
 		return s
 	}
-	return sys.DefaultGoroot
+	return defaultGOROOT
 }
+
+// buildVersion is the Go tree's version string at build time.
+//
+// If any GOEXPERIMENTs are set to non-default values, it will include
+// "X:<GOEXPERIMENT>".
+//
+// This is set by the linker.
+//
+// This is accessed by "go version <binary>".
+var buildVersion string
 
 // Version returns the Go tree's version string.
 // It is either the commit hash and date at the time of the build or,
 // when possible, a release tag like "go1.3".
 func Version() string {
-	return sys.TheVersion
+	return buildVersion
 }
 
 // GOOS is the running program's operating system target:
 // one of darwin, freebsd, linux, and so on.
 // To view possible combinations of GOOS and GOARCH, run "go tool dist list".
-const GOOS string = sys.GOOS
+const GOOS string = goos.GOOS
 
 // GOARCH is the running program's architecture target:
 // one of 386, amd64, arm, s390x, and so on.
-const GOARCH string = sys.GOARCH
+const GOARCH string = goarch.GOARCH
 
 // GCCGOTOOLDIR is the Tool Dir for the gccgo build
 const GCCGOTOOLDIR string = sys.GccgoToolDir

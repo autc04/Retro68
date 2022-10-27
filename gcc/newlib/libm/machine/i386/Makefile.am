@@ -1,7 +1,5 @@
 ## Process this file with automake to generate Makefile.in
 
-AUTOMAKE_OPTIONS = cygnus
-
 INCLUDES = -I $(newlib_basedir)/../newlib/libm/common $(NEWLIB_CFLAGS) $(CROSS_CFLAGS) $(TARGET_CFLAGS)
 
 AM_CCASFLAGS = $(INCLUDES)
@@ -12,8 +10,10 @@ LIB_SOURCES = \
 	f_log.S f_logf.S f_log10.S f_log10f.S \
 	f_ldexp.S f_ldexpf.S f_lrint.c f_lrintf.c f_lrintl.c \
 	f_pow.c f_powf.c f_rint.c f_rintf.c f_rintl.c \
-	f_tan.S f_tanf.S f_math.h \
-	i386mach.h 
+	f_tan.S f_tanf.S f_math.h i386mach.h \
+	fenv.c feclearexcept.c fegetenv.c fegetexceptflag.c \
+	fegetround.c feholdexcept.c feraiseexcept.c fesetenv.c \
+	fesetexceptflag.c fesetround.c fetestexcept.c feupdateenv.c
 
 libi386_la_LDFLAGS = -Xcompiler -nostdlib
 

@@ -1,5 +1,5 @@
 /* An expandable hash tables datatype.  
-   Copyright (C) 1999-2019 Free Software Foundation, Inc.
+   Copyright (C) 1999-2022 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov (vmakarov@cygnus.com).
 
 This file is part of the libiberty library.
@@ -709,7 +709,7 @@ htab_find_slot (htab_t htab, const PTR element, enum insert_option insert)
    element in the hash table, this function does nothing.  */
 
 void
-htab_remove_elt (htab_t htab, PTR element)
+htab_remove_elt (htab_t htab, const PTR element)
 {
   htab_remove_elt_with_hash (htab, element, (*htab->hash_f) (element));
 }
@@ -720,7 +720,7 @@ htab_remove_elt (htab_t htab, PTR element)
    function does nothing.  */
 
 void
-htab_remove_elt_with_hash (htab_t htab, PTR element, hashval_t hash)
+htab_remove_elt_with_hash (htab_t htab, const PTR element, hashval_t hash)
 {
   PTR *slot;
 
@@ -839,6 +839,13 @@ htab_hash_string (const PTR p)
     r = r * 67 + c - 113;
 
   return r;
+}
+
+/* An equality function for null-terminated strings.  */
+int
+htab_eq_string (const void *a, const void *b)
+{
+  return strcmp ((const char *) a, (const char *) b) == 0;
 }
 
 /* DERIVED FROM:

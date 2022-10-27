@@ -1,6 +1,403 @@
-2019-05-03  Release Manager
+2022-08-19  Release Manager
 
-	* GCC 9.1.0 released.
+	* GCC 12.2.0 released.
+
+2022-05-06  Release Manager
+
+	* GCC 12.1.0 released.
+
+2022-01-17  Martin Liska  <mliska@suse.cz>
+
+	* Make-lang.in: Rename .c names to .cc.
+	* config-lang.in: Likewise.
+	* lang-specs.h: Likewise.
+	* objc-act.cc (objc_build_component_ref): Likewise.
+	(objc_copy_binfo): Likewise.
+	(lookup_method_in_hash_lists): Likewise.
+	(objc_finish_foreach_loop): Likewise.
+	* objc-act.h (objc_common_init_ts): Likewise.
+	* objc-gnu-runtime-abi-01.cc: Likewise.
+	* objc-lang.cc (struct lang_hooks): Likewise.
+	* objc-map.cc: Likewise.
+	* objc-next-runtime-abi-01.cc (generate_objc_symtab_decl): Likewise.
+	* objc-runtime-shared-support.cc: Likewise.
+	* objc-runtime-shared-support.h (build_protocol_initializer): Likewise.
+
+2022-01-17  Martin Liska  <mliska@suse.cz>
+
+	* objc-act.c: Moved to...
+	* objc-act.cc: ...here.
+	* objc-encoding.c: Moved to...
+	* objc-encoding.cc: ...here.
+	* objc-gnu-runtime-abi-01.c: Moved to...
+	* objc-gnu-runtime-abi-01.cc: ...here.
+	* objc-lang.c: Moved to...
+	* objc-lang.cc: ...here.
+	* objc-map.c: Moved to...
+	* objc-map.cc: ...here.
+	* objc-next-runtime-abi-01.c: Moved to...
+	* objc-next-runtime-abi-01.cc: ...here.
+	* objc-next-runtime-abi-02.c: Moved to...
+	* objc-next-runtime-abi-02.cc: ...here.
+	* objc-runtime-shared-support.c: Moved to...
+	* objc-runtime-shared-support.cc: ...here.
+
+2022-01-11  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/101597
+	* objc-act.c (objc_rewrite_function_call): Build OBJ_TYPE_REF
+	with INTEGER_CST OBJ_TYPE_REF_TOKEN with type equal to
+	OBJ_TYPE_REF_OBJECT type.
+	* objc-next-runtime-abi-01.c (build_objc_method_call): Likewise.
+	* objc-gnu-runtime-abi-01.c (build_objc_method_call): Likewise.
+	* objc-next-runtime-abi-02.c (build_v2_objc_method_fixup_call,
+	build_v2_build_objc_method_call): Likewise.
+
+2021-12-05  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-next-metadata-tags.h (objc_rt_trees): Declare here.
+	* objc-next-runtime-abi-01.c: Remove from here.
+	* objc-next-runtime-abi-02.c: Likewise.
+	* objc-runtime-shared-support.c: Reorder headers, provide
+	a GTY declaration the definition of objc_rt_trees.
+
+2021-11-30  Richard Biener  <rguenther@suse.de>
+
+	* objc-act.c (objc_build_setter_call): Remove unreachable
+	return.
+
+2021-11-29  Eric Gallager  <egallager@gcc.gnu.org>
+
+	PR other/103021
+	* Make-lang.in: Use ETAGS variable in TAGS target.
+
+2021-10-22  Eric Gallager  <egallager@gcc.gnu.org>
+
+	PR other/102663
+	* Make-lang.in: Add dummy objc.install-dvi target.
+
+2021-10-08  Martin Liska  <mliska@suse.cz>
+
+	* objc-next-runtime-abi-01.c: Add missing include.
+	* objc-next-runtime-abi-02.c: Likewise.
+
+2021-10-08  Martin Liska  <mliska@suse.cz>
+
+	* objc-next-runtime-abi-01.c: Use new macro
+	OPTION_SET_P.
+	* objc-next-runtime-abi-02.c (objc_next_runtime_abi_02_init): Likewise.
+
+2021-09-01  Iain Sandoe  <iain@sandoe.co.uk>
+
+	PR objc/101718
+	* objc-next-runtime-abi-02.c (build_v2_build_objc_method_call):
+	Revise for cases where scalar objects use an sret parameter.
+	(next_runtime_abi_02_build_objc_method_call): Likwise.
+
+2021-09-01  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-act.c (objc_add_property_declaration): Register unavailable
+	attribute.
+	(maybe_make_artificial_property_decl): Set available.
+	(objc_maybe_build_component_ref): Generalise to the method prototype
+	to count availability.
+	(objc_build_class_component_ref): Likewise.
+	(build_private_template): Likewise.
+	(objc_decl_method_attributes): Handle unavailable attribute.
+	(lookup_method_in_hash_lists): Amend comments.
+	(objc_finish_message_expr): Handle unavailability in addition to
+	deprecation.
+	(start_class): Likewise.
+	(finish_class): Likewise.
+	(lookup_protocol): Likewise.
+	(objc_declare_protocol): Likewise.
+	(start_protocol): Register unavailable attribute.
+	(really_start_method): Likewise.
+	(objc_gimplify_property_ref): Emit error on encountering an
+	unavailable entity (and a warning for a deprecated one).
+
+2021-08-19  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-next-runtime-abi-02.c (objc_next_runtime_abi_02_init):
+	Default receiver nilchecks on.
+
+2021-08-18  Iain Sandoe  <iain@sandoe.co.uk>
+	    Matt Jacobson   <mhjacobson@me.com>
+
+	PR objc/101666
+	* objc-act.c (objc_build_constructor): Handle empty constructor
+	lists.
+	* objc-next-runtime-abi-02.c (build_v2_objc_method_fixup_call):
+	Handle nil receivers.
+	(build_v2_build_objc_method_call): Likewise.
+
+2021-08-17  Matt Jacobson  <mhjacobson@me.com>
+
+	* objc-next-runtime-abi-02.c
+	(objc_next_runtime_abi_02_init): Warn about and reset
+	flag_objc_sjlj_exceptions regardless of flag_objc_exceptions.
+	(next_runtime_02_initialize): Use a checking assert that
+	flag_objc_sjlj_exceptions is off.
+
+2021-06-28  Martin Sebor  <msebor@redhat.com>
+
+	* objc-act.c (objc_maybe_build_modify_expr): Replace direct uses
+	of TREE_NO_WARNING with warning_suppressed_p, and suppress_warning.
+	(objc_build_incr_expr_for_property_ref): Same.
+	(objc_build_struct): Same.
+	(synth_module_prologue): Same.
+	* objc-gnu-runtime-abi-01.c (gnu_runtime_01_initialize): Same.
+	* objc-next-runtime-abi-01.c (next_runtime_01_initialize): Same.
+	* objc-next-runtime-abi-02.c (next_runtime_02_initialize): Same.
+
+2021-06-08  Bernd Edlinger  <bernd.edlinger@hotmail.de>
+
+	* Make-lang.in (cc1-obj-checksum.c): Check previous
+	stage checksum exists.
+
+2021-06-07  Bernd Edlinger  <bernd.edlinger@hotmail.de>
+
+	* Make-lang.in (cc1obj-checksum.c): For stage-final re-use
+	the checksum from the previous stage.
+
+2021-05-20  Indu Bhagat  <indu.bhagat@oracle.com>
+
+	* objc-act.c (synth_module_prologue): Use uint32_t instead of enum
+	debug_info_type.
+
+2021-05-10  Martin Liska  <mliska@suse.cz>
+
+	* objc-act.c (objc_string_ref_type_p): Use startswith
+	function instead of strncmp.
+	* objc-encoding.c (encode_type): Likewise.
+	* objc-next-runtime-abi-02.c (has_load_impl): Likewise.
+
+2020-11-20  Jakub Jelinek  <jakub@redhat.com>
+
+	PR other/97911
+	* Make-lang.in (objc.serial): Change from goal to a variable.
+	(.PHONY): Drop objc.serial and objc.prev.
+	(cc1obj$(exeext)): Depend on $(objc.serial) rather than objc.serial.
+
+2020-11-18  Jakub Jelinek  <jakub@redhat.com>
+
+	* Make-lang.in (objc.serial): New goal.
+	(.PHONY): Add objc.serial objc.prev.
+	(cc1obj$(exeext)): Depend on objc.prev.  Call LINK_PROGRESS.
+
+2020-11-13  Iain Sandoe  <iain@sandoe.co.uk>
+
+	PR objc/90707
+	* objc-act.c (objc_prop_attr_kind_for_rid): Handle nullability.
+	(objc_add_property_declaration): Handle nullability attributes.
+	Check that these are applicable to the property type.
+	* objc-act.h (enum objc_property_nullability): New.
+
+2020-11-13  Iain Sandoe  <iain@sandoe.co.uk>
+
+	PR objc/77404
+	* objc-act.c (objc_start_class_interface): Accept the location
+	of the class name, use it in existing diagnostic.
+	(start_class): Accept obj_root_class type attributes.  Warn when
+	the interface for an implementation does not contain a super
+	class (unless the diagnostic is suppressed by the the command
+	line flag or the objc_root_class type attribute).
+
+2020-11-08  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-act.c (objc_prop_attr_kind_for_rid): Handle class
+	attribute.
+	(objc_add_property_declaration): Likewise.
+	* objc-act.h (PROPERTY_CLASS): Record class attribute state.
+
+2020-11-07  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-act.c (objc_prop_attr_kind_for_rid): Handle
+	RID_PROPATOMIC.
+
+2020-11-07  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-act.c (objc_compare_types): Handle NSObject type
+	attributes.
+	(objc_type_valid_for_messaging): Likewise.
+
+2020-11-06  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-act.c (start_class): Accept visibility attributes
+	without warning.
+
+2020-11-06  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-act.c (objc_prop_attr_kind_for_rid): New.
+	(objc_add_property_declaration): Adjust to consume the
+	parser output using a vector of parsed attributes.
+
+2020-11-04  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-act.c (objc_non_constant_expr_p): New.
+
+2020-11-01  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-act.c (synth_module_prologue): Get the SEL identifier.
+	* objc-act.h (enum objc_tree_index): Add OCTI_SEL_NAME.
+	(objc_selector_name): New.
+	(SEL_TYPEDEF_NAME): New.
+	* objc-gnu-runtime-abi-01.c
+	(gnu_runtime_01_initialize): Initialize SEL typedef.
+	* objc-next-runtime-abi-01.c
+	(next_runtime_01_initialize): Likewise.
+	* objc-next-runtime-abi-02.c
+
+2020-10-11  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-next-runtime-abi-02.c
+	(create_global_decl): Update to allow the caller to
+	specify declaration or definition.
+	(create_hidden_decl): Likewise.
+	(next_runtime_abi_02_protocol_decl): Make the symbol
+	weak and hidden for later OS runtime versions.
+	(build_v2_protocol_list_address_table): Likewise.
+
+2020-10-11  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-next-runtime-abi-02.c (objc_v2_build_ivar_ref): Test
+	DECL_C_BIT_FIELD to detect that an ivar is a bitfield.
+
+2020-10-11  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-next-runtime-abi-02.c (FIXUP_NEEDED): Rename ...
+	(USE_FIXUP_BEFORE): ... to this.
+	(next_runtime_02_initialize): Likewise.
+	(next_runtime_abi_02_get_arg_type_list_base): Likewise.
+	(next_runtime_abi_02_build_objc_method_call): Likewise.
+
+2020-10-11  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-next-runtime-abi-02.c (TAG_MSGSENDSUPER): Revised
+	spelling.
+	(TAG_MSGSENDID): Likewise.
+	(TAG_MSGSENDSUPER_STRET): Likewise.
+	(TAG_MSGSENDID_STRET): Likewise.
+	(FIXUP_NEEDED): Likewise.
+	(TAG_FIXUP): New.
+	(next_runtime_02_initialize): Adjust message calls to use
+	fixup variants only when required.
+	(next_runtime_abi_02_get_arg_type_list_base): Correct
+	indent.
+	(build_v2_build_objc_method_call): New.
+	(build_v2_objc_method_fixup_call): Split out from ...
+	(next_runtime_abi_02_build_objc_method_call): ... here.
+	Arrange to adjust the call on the basis of the target
+	runtime.
+
+2020-10-11  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-runtime-shared-support.c (start_var_decl): Make the
+	decl_assembler_name follow the metadata name for C++ on NeXT
+	runtime platforms.
+
+2020-10-11  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-next-runtime-abi-02.c
+	(next_runtime_abi_02_category_decl): Adjust category
+	superclass name ordering.
+
+2020-10-11  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-next-runtime-abi-02.c (build_v2_super_template): Add new
+	fields to the template.
+	(build_v2_protocol_template): Build new field entries.
+	(generate_v2_meth_descriptor_table): Adjust to allow recording all
+	method types.
+	(generate_v2_meth_type_list): New.
+	(build_v2_protocol_initializer): Initialize the additional fields.
+	(generate_v2_protocols): Record method types for all entries and
+	generate the additional method type table.
+
+2020-10-10  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-next-runtime-abi-02.c
+	(objc_get_superclass_ref_decl): Split this code out.
+	(next_runtime_abi_02_get_class_super_ref): Compute
+	super refs using the objc_get_superclass_ref_decl().
+	(next_runtime_abi_02_get_category_super_ref): Likewise.
+
+2020-10-10  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-next-runtime-abi-02.c
+	(next_runtime_abi_02_init_metadata_attributes): Make protocol
+	refs a distinct section.
+
+2020-10-10  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-next-runtime-abi-02.c
+	(next_runtime_abi_02_init_metadata_attributes): Attach metadata
+	for the special string sections to class, method and method type
+	string sections.
+
+2020-10-10  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-gnu-runtime-abi-01.c
+	(build_shared_structure_initializer): Remove references to
+	the NeXT runtime.
+	(generate_static_references): Likewise.
+
+2020-09-19  Sandra Loosemore  <sandra@codesourcery.com>
+
+	* objc-act.c (objc_start_method_definition): Update to reflect
+	changes to break/continue state bookkeeping in C front end.
+
+2020-09-17  Patrick Palka  <ppalka@redhat.com>
+
+	PR c/80076
+	* objc-gnu-runtime-abi-01.c
+	(gnu_runtime_abi_01_get_class_super_ref): Reduce indentation of
+	misleadingly indented return statements.
+	* objc-next-runtime-abi-01.c
+	(next_runtime_abi_01_get_class_super_ref): Likewise.
+
+2020-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+2019-10-10  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-next-metadata-tags.h (OCTI_RT_META_IVAR_REF): New.
+	(meta_ivar_ref): New.
+	* objc-next-runtime-abi-02.c
+	(next_runtime_abi_02_init_metadata_attributes): Create the
+	IVAR ref metadata identifier.
+	(ivar_offset_ref): Tag IVAR refs with specific metadata.
+
+2019-06-05  Martin Sebor  <msebor@redhat.com>
+
+	* objc-act.c (objc_build_setter_call): Adjust quoting and hyphenation.
+	* objc-encoding.c (encode_gnu_bitfield): Same.
+
+2019-05-18  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* objc-act.h (OCTI_INSTANCE_TYPE, OCTI_INSTANCETYPE_NAME): New.
+	(objc_global_trees): Add instance type and name.
+	(INSTANCE_TYPEDEF_NAME): New.
+	* objc-act.c (synth_module_prologue): Build decls for
+	objc_instancetype_type and objc_instancetype_name.
+
+2019-05-16  Martin Sebor  <msebor@redhat.com>
+
+	* objc-act.c (objc_begin_catch_clause): Quote keywords and options
+	in diagnostics.
+	(objc_build_throw_stmt): Same.
+	(objc_finish_message_expr): Same.
+	(get_super_receiver): Same.
+	* objc-next-runtime-abi-01.c (objc_next_runtime_abi_01_init): Spell
+	out "less than" in English./
+	* objc-next-runtime-abi-02.c (objc_next_runtime_abi_02_init): Spell
+	out "greater" in English.
+
+2019-05-10  Jakub Jelinek  <jakub@redhat.com>
+
+	PR pch/90326
+	* config-lang.in (gtfiles): Add c-family/c-format.c.
 
 2019-04-05  Martin Liska  <mliska@suse.cz>
 
@@ -396,7 +793,7 @@
 
 2013-11-22  Andrew MacLeod  <amacleod@redhat.com>
 
-	* objc/objc-act.c: Add required include files from gimple.h.
+	* objc-act.c: Add required include files from gimple.h.
 
 2013-11-18  Richard Sandiford  <rdsandiford@googlemail.com>
 
@@ -509,7 +906,7 @@
 	Include c-family/c-target.h.
 	(handle_next_class_ref): Rewrite to emit top-level asm statements.
 	(handle_next_impent): Likewise.
-	* objc/Make-lang.in: Fix dependencies for objc-next-runtime-abi-01.o.
+	* Make-lang.in: Fix dependencies for objc-next-runtime-abi-01.o.
 
 2012-05-31  Steven Bosscher  <steven@gcc.gnu.org>
 
@@ -1173,7 +1570,7 @@
 
 2010-12-18  Iain Sandoe  <iains@gcc.gnu.org>
 
-	* objc/objc-act.c (objc_eh_personality): Select personality name on
+	* objc-act.c (objc_eh_personality): Select personality name on
 	runtime.
 	(objc_init_exceptions): New.
 	(objc_begin_try_stmt): Use objc_init_exceptions.
@@ -1747,7 +2144,7 @@
 
 	Based on the CFString implementation in FSF apple/trunk branch.
 
-	* objc/objc-act.c (objc_build_string_object): Handle CFStrings.
+	* objc-act.c (objc_build_string_object): Handle CFStrings.
 
 2010-10-21  Nicola Pero  <nicola.pero@meta-innovation.com>
 
@@ -1799,10 +2196,10 @@
 	to gcc_alloc_xxx calls in hash_init and hash_class_name_enter to
 	get it to compile in the current trunk.
 
-	2006-01-27 Fariborz Jahanian  <fjahanian@apple.com>
+	2006-01-27  Fariborz Jahanian  <fjahanian@apple.com>
 
 	Radar 4345837
-	* objc/objc-act.c (hash_class_name_enter): New.
+	* objc-act.c (hash_class_name_enter): New.
 	(hash_class_name_lookup): New.
 	(objc_declare_alias): Enter alias name into hash table.
 	(objc_declare_class): Enter class name into hash table.
@@ -1841,7 +2238,7 @@
 	2006-03-10  Fariborz Jahanian  <fjahanian@apple.com>
 
 	Radar 4407151
-	* objc/objc-act.c (objc_is_class_name): template parameter is not
+	* objc-act.c (objc_is_class_name): template parameter is not
 	an objective class name.
 	(objc_generate_cxx_cdtors): Check for the null
 	objc_implementation_context.
@@ -1853,7 +2250,7 @@
 	2005-11-08  Fariborz Jahanian  <fjahanian@apple.com>
 
 	Radar 4330422
-	* objc/objc-act.c (objc_non_volatilized_type): New
+	* objc-act.c (objc_non_volatilized_type): New
 
 	2005-10-07  Fariborz Jahanian  <fjahanian@apple.com>
 
@@ -1869,7 +2266,7 @@
 
 	Merge from 'apple/trunk' branch on FSF servers.
 
-	2006-03-27 Fariborz Jahanian  <fjahanian@apple.com>
+	2006-03-27  Fariborz Jahanian  <fjahanian@apple.com>
 
 	Radar 4133425
 	* objc-act.c (objc_diagnose_private_ivar): New.
@@ -1940,10 +2337,10 @@
 
 	merge from FSF apple 'trunk' branch.
 
-	2006-04-26 Fariborz Jahanian  <fjahanian@apple.com>
+	2006-04-26  Fariborz Jahanian  <fjahanian@apple.com>
 	Radar 3803157 (method attributes)
-	* objc/objc-act.h (METHOD_TYPE_ATTRIBUTES): New macro.
-	* objc/objc-act.c (objc_decl_method_attributes): New.
+	* objc-act.h (METHOD_TYPE_ATTRIBUTES): New macro.
+	* objc-act.c (objc_decl_method_attributes): New.
 	(objc_add_method_declaration): Process method's attribute.
 	(objc_start_method_definition): Ditto.
 	(build_objc_method_call): Inject method attribute into
@@ -1971,7 +2368,7 @@
 
 2010-10-07  Iain Sandoe  <iains@gcc.gnu.org>
 
-	* objc-act.c (objc_build_message_expr):  Call mark_exp_read () to
+	* objc-act.c (objc_build_message_expr): Call mark_exp_read () to
 	signal that the receiver has been used.
 
 2010-10-06  Nicola Pero  <nicola.pero@meta-innovation.com>
@@ -1998,7 +2395,7 @@
 
 	Merge from 'apple/trunk' branch on FSF servers.
 
-	2006-04-12 Fariborz Jahanian  <fjahanian@apple.com>
+	2006-04-12  Fariborz Jahanian  <fjahanian@apple.com>
 
 	Radar 4507230
 	* objc-act.c (objc_type_valid_for_messaging): New routine to check
@@ -2026,14 +2423,14 @@
 	2006-01-30  Fariborz Jahanian  <fjahanian@apple.com>
 
 	Radar 4386773
-	* objc/objc-act.c (objc_set_method_opt): New function.
+	* objc-act.c (objc_set_method_opt): New function.
 	(objc_start_protocol, objc_finish_interface): Reset
 	objc_method_optional_flag flag.
 	(objc_add_method_declaration): Pass on the new
 	flag to objc_add_method.
 	(objc_add_method): Add optional methods to new chain in
 	the protocol class.
-	* objc/objc-act.h (CLASS_OPTIONAL_CLS_METHODS)
+	* objc-act.h (CLASS_OPTIONAL_CLS_METHODS)
 	(CLASS_OPTIONAL_NST_METHODS): New macros accessing a protocol
 	class's optional method chains.
 
@@ -2204,16 +2601,16 @@
 
 	Merge from 'apple/trunk' branch on FSF servers.
 
-	2006-03-09 Fariborz Jahanian  <fjahanian@apple.com>
+	2006-03-09  Fariborz Jahanian  <fjahanian@apple.com>
 
 	Radar 4457381
-	* objc/objc-act.c (objc_finish_message_expr): Look for message in
+	* objc-act.c (objc_finish_message_expr): Look for message in
 	@class's protocol list.
 
 	2006-02-07  Fariborz Jahanian  <fjahanian@apple.com>
 
 	Radar 4219590
-	* objc/objc-act.c (objc_start_method_definition): Initialize
+	* objc-act.c (objc_start_method_definition): Initialize
 	break/continue labels.
 
 	2005-08-22  Ziemowit Laski  <zlaski@apple.com>
@@ -2233,7 +2630,7 @@
 
 2010-09-10  Nicola Pero  <nicola.pero@meta-innovation.com>
 
-	* objc/objc-act.c (objc_begin_try_stmt): Generate an error if
+	* objc-act.c (objc_begin_try_stmt): Generate an error if
 	-fobjc-exceptions was not used.  (objc_build_throw_stmt): Same
 	change.
 
@@ -2267,7 +2664,7 @@
 	to be extracted within the routine.  Do not start new vars,
 	but finish the ones collcted during parsing.
 	(generate_shared_structures): Likewise.
-	(finish_objc):  Reorder code so that we finish variables before
+	(finish_objc): Reorder code so that we finish variables before
 	referencing them.  Save the global data before calling meta-data
 	creation routines, and pass the current reference to the two
 	main routines.  Only call generate_objc_image_info () for the
@@ -2445,7 +2842,7 @@
 	(objc_build_exc_ptr): Use __builtin_eh_pointer.
 
 2009-09-13  Richard Guenther  <rguenther@suse.de>
-	Rafael Avila de Espindola  <espindola@google.com>
+	    Rafael Avila de Espindola  <espindola@google.com>
 
 	* objc-act.c (objc_eh_runtime_type): Export.
 	(objc_init_exceptions): Remove.  Move warning code ...
@@ -2626,8 +3023,8 @@
 
 2009-04-21  Taras Glek  <tglek@mozilla.com>
 
-	* objc-act.c: Update GTY annotations to new syntax
-	* objc-act.h: Likewise
+	* objc-act.c: Update GTY annotations to new syntax.
+	* objc-act.h: Likewise.
 
 2009-04-21  Joseph Myers  <joseph@codesourcery.com>
 
@@ -2702,7 +3099,7 @@
 2008-09-17  Jan Hubicka  <jh@suse.cz>
 
 	PR c++/18071
-	* objc/objc-act.c (objc_finish_method_definition): Do not set
+	* objc-act.c (objc_finish_method_definition): Do not set
 	DECL_INLINE.
 
 2008-09-01  Aldy Hernandez  <aldyh@redhat.com>
@@ -2840,7 +3237,7 @@
 2007-04-04  Stuart Hastings  <stuart@apple.com>
 
 	PR 31281
-	* objc/objc-act.c (next_sjlj_build_catch_list): Delete volatile from rethrow decl.
+	* objc-act.c (next_sjlj_build_catch_list): Delete volatile from rethrow decl.
 
 2007-03-01  Brooks Moses  <brooks.moses@codesourcery.com>
 
@@ -2848,7 +3245,7 @@
 
 2007-02-18  Kazu Hirata  <kazu@codesourcery.com>
 
-	* objc/objc-act.c: Fix comment typos.
+	* objc-act.c: Fix comment typos.
 
 2007-02-15  Sandra Loosemore  <sandra@codesourcery.com>
 	    Brooks Moses  <brooks.moses@codesourcery.com>
@@ -2882,7 +3279,7 @@
 	* objc-act.c (objc_finish_file): Remove ifdef clause for OBJCPLUS and
 	content where we called cp_finish_file.
 
-2006-10-23 Rafael Ávila de Espíndola  <rafael.espindola@gmail.com>
+2006-10-23  Rafael Ávila de Espíndola  <rafael.espindola@gmail.com>
 
 	* objc-act.c (synth_module_prologue): Replace calls to
 	builtin_function with add_builtin_function.
@@ -2929,7 +3326,7 @@
 	PR objc/27240
 	* objc-act.c (objc_is_public): Return early on invalid type.
 
-2006-03-02 Fariborz Jahanian  <fjahanian@apple.com>
+2006-03-02  Fariborz Jahanian  <fjahanian@apple.com>
 
 	* objc-act.c (init_module_descriptor): Remove file name from
 	module descriptor.
@@ -2937,15 +3334,15 @@
 
 2006-02-20  Rafael Ávila de Espíndola  <rafael.espindola@gmail.com>
 
-	* Make-lang.in (OBJC): Remove
-	(OBJECTIVE-C): Remove
-	(objective-c): Remove
-	(.PHONY): Remove objective-c and ObjC
+	* Make-lang.in (OBJC): Remove.
+	(OBJECTIVE-C): Remove.
+	(objective-c): Remove.
+	(.PHONY): Remove objective-c and ObjC.
 
 2005-12-14  Andrew Pinski  <pinskia@physics.uc.edu>
 
 	PR objc/25360
-	* objc/objc-act.c (encode_type): Encode Complex types as 'j' followed
+	* objc-act.c (encode_type): Encode Complex types as 'j' followed
 	by the inner type.
 
 2005-12-12  Andrew Pinski  <pinskia@physics.uc.edu>
@@ -3296,7 +3693,7 @@
 2005-02-25  Joseph S. Myers  <joseph@codesourcery.com>
 
 	* Make-lang.in (objc/objc-parse.o-warn, objc/objc-parse.o,
-	objc/objc-parse.c, objc/objc-parse.y): Remove
+	objc/objc-parse.c, objc/objc-parse.y): Remove.
 	(OBJC_OBJS, objc.srcextra, objc.tags, objc.mostlyclean,
 	objc.distclean, objc.maintainer-clean): Update for new parser.
 	* config-lang.in (gtfiles): Update for new parser.
@@ -3829,7 +4226,7 @@
 	Move to c-objc-common.h.
 
 
-Copyright (C) 2004-2019 Free Software Foundation, Inc.
+Copyright (C) 2004-2022 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

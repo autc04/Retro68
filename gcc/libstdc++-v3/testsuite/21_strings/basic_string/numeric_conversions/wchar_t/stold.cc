@@ -4,7 +4,7 @@
 
 // 2008-06-15  Paolo Carlini  <paolo.carlini@oracle.com>
 
-// Copyright (C) 2008-2019 Free Software Foundation, Inc.
+// Copyright (C) 2008-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -39,9 +39,9 @@ test01()
   try
     {
       wstring one;
-      stold(one);      
+      stold(one);
     }
-  catch(std::invalid_argument)
+  catch(const std::invalid_argument&)
     {
       test = true;
     }
@@ -54,9 +54,9 @@ test01()
   try
     {
       wstring one(L"a");
-      stold(one);      
+      stold(one);
     }
-  catch(std::invalid_argument)
+  catch(const std::invalid_argument&)
     {
       test = true;
     }
@@ -70,7 +70,7 @@ test01()
   try
     {
       wstring one(L"2.0a");
-      ld1 = stold(one, &idx1);      
+      ld1 = stold(one, &idx1);
     }
   catch(...)
     {
@@ -87,7 +87,7 @@ test01()
       one.append(2 * numeric_limits<long double>::max_exponent10, L'9');
       ld1 = stold(one);
     }
-  catch(std::out_of_range)
+  catch(const std::out_of_range&)
     {
       test = true;
     }

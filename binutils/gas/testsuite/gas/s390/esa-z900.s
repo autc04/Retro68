@@ -1,6 +1,7 @@
 .text
 foo:
 	brcl	15,.
+	jgnop	.
 	jgo	.
 	jgh	.
 	jgp	.
@@ -22,7 +23,33 @@ foo:
 	jgnp	.
 	jgno	.
 	jg	.
+	brol	.
+	brhl	.
+	brpl	.
+	brnlel	.
+	brll	.
+	brml	.
+	brnhel	.
+	brlhl	.
+	brnel	.
+	brnzl	.
+	brel	.
+	brzl	.
+	brnlhl	.
+	brhel	.
+	brnll	.
+	brnml	.
+	brlel	.
+	brnhl	.
+	brnpl	.
+	brnol	.
+	brul	.
 	brasl	%r6,.
+	jasl	%r6,.
+	brasl	%r6,.-0x100000000
+	jasl	%r6,.-0x100000000
+	brasl	%r6,.+0xfffffffe
+	jasl	%r6,.+0xfffffffe
 	tam
 	sam24
 	sam31

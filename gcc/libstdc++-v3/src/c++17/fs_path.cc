@@ -1,6 +1,6 @@
 // Class filesystem::path -*- C++ -*-
 
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,6 +33,7 @@
 
 #include <filesystem>
 #include <algorithm>
+#include <array>
 #include <bits/stl_uninitialized.h>
 
 namespace fs = std::filesystem;
@@ -46,6 +47,13 @@ static inline bool is_dir_sep(path::value_type ch)
     return ch == '/';
 #endif
 }
+
+#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+static inline bool is_disk_designator(std::wstring_view s)
+{
+  return s.length() == 2 && s[1] == L':';
+}
+#endif
 
 struct path::_Parser
 {
@@ -74,7 +82,7 @@ struct path::_Parser
     const size_t len = input.size();
 
     // look for root name or root directory
-    if (is_dir_sep(input[0]))
+    if (len && is_dir_sep(input[0]))
       {
 #if SLASHSLASH_IS_ROOTNAME
 	// look for root name, such as "//foo"
@@ -117,7 +125,7 @@ struct path::_Parser
 	  ++pos;
       }
 #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
-    else if (len > 1 && input[1] == L':')
+    else if (is_disk_designator(input.substr(0, 2)))
       {
 	// got disk designator
 	root.first.str = input.substr(0, 2);
@@ -278,8 +286,8 @@ path::_List::operator=(const _List& other)
 	    to[i]._M_pathname.reserve(from[i]._M_pathname.length());
 	  if (newsize > oldsize)
 	    {
-	      std::uninitialized_copy_n(to + oldsize, newsize - oldsize,
-					from + oldsize);
+	      std::uninitialized_copy_n(from + oldsize, newsize - oldsize,
+					to + oldsize);
 	      impl->_M_size = newsize;
 	    }
 	  else if (newsize < oldsize)
@@ -845,6 +853,26 @@ path::operator+=(const path& p)
       return *this;
     }
 
+#if _GLIBCXX_FILESYSTEM_IS_WINDOWS
+  if (_M_type() == _Type::_Root_name
+      || (_M_type() == _Type::_Filename && _M_pathname.size() == 1))
+    {
+      // Handle path("C") += path(":") and path("C:") += path("/x")
+      // FIXME: do this more efficiently
+      *this = path(_M_pathname + p._M_pathname);
+      return *this;
+    }
+#endif
+#if SLASHSLASH_IS_ROOTNAME
+  if (_M_type() == _Type::_Root_dir)
+    {
+      // Handle path("/") += path("/x") and path("//") += path("x")
+      // FIXME: do this more efficiently
+      *this = path(_M_pathname + p._M_pathname);
+      return *this;
+    }
+#endif
+
   const auto orig_pathlen = _M_pathname.length();
   const auto orig_type = _M_type();
   const auto orig_size = _M_cmpts.size();
@@ -968,16 +996,7 @@ path::operator+=(const path& p)
 	}
 
       if (it != last && it->_M_type() == _Type::_Root_dir)
-	{
-	  ++it;
-	  if (it == last)
-	    {
-	      // This root-dir becomes a trailing slash
-	      auto pos = _M_pathname.length() + p._M_pathname.length();
-	      ::new(output++) _Cmpt({}, _Type::_Filename, pos);
-	      ++_M_cmpts._M_impl->_M_size;
-	    }
-	}
+	++it;
 
       while (it != last)
 	{
@@ -1039,6 +1058,26 @@ path::_M_concat(basic_string_view<value_type> s)
       operator=(s);
       return;
     }
+
+#if _GLIBCXX_FILESYSTEM_IS_WINDOWS
+  if (_M_type() == _Type::_Root_name
+      || (_M_type() == _Type::_Filename && _M_pathname.size() == 1))
+    {
+      // Handle path("C") += ":" and path("C:") += "/x"
+      // FIXME: do this more efficiently
+      *this = path(_M_pathname + string_type(s));
+      return;
+    }
+#endif
+#if SLASHSLASH_IS_ROOTNAME
+  if (_M_type() == _Type::_Root_dir)
+    {
+      // Handle path("/") += "/x" and path("//") += "x"
+      // FIXME: do this more efficiently
+      *this = path(_M_pathname + string_type(s));
+      return;
+    }
+#endif
 
   const auto orig_pathlen = _M_pathname.length();
   const auto orig_type = _M_type();
@@ -1523,11 +1562,9 @@ path::parent_path() const
     __ret = *this;
   else if (_M_cmpts.size() >= 2)
     {
-      for (auto __it = _M_cmpts.begin(), __end = std::prev(_M_cmpts.end());
-	   __it != __end; ++__it)
-	{
-	  __ret /= *__it;
-	}
+      const auto parent = std::prev(_M_cmpts.end(), 2);
+      const auto len = parent->_M_pos + parent->_M_pathname.length();
+      __ret.assign(_M_pathname.substr(0, len));
     }
   return __ret;
 }
@@ -1749,6 +1786,19 @@ path::lexically_relative(const path& base) const
   if (!has_root_directory() && base.has_root_directory())
     return ret;
   auto [a, b] = std::mismatch(begin(), end(), base.begin(), base.end());
+#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // 3070. path::lexically_relative causes surprising results if a filename
+  // can also be a root-name
+  if (!empty())
+    for (auto& p : _M_cmpts)
+      if (p._M_type() == _Type::_Filename && is_disk_designator(p.native()))
+	return ret;
+  if (!base.empty())
+    for (auto i = b, end = base.end(); i != end; ++i)
+      if (i->_M_type() == _Type::_Filename && is_disk_designator(i->native()))
+	return ret;
+#endif
   if (a == end() && b == base.end())
     ret = ".";
   else
@@ -1823,11 +1873,6 @@ path::_M_split_cmpts()
       _M_cmpts.type(_Type::_Filename);
       return;
     }
-  if (_M_pathname.length() == 1 && _M_pathname[0] == preferred_separator)
-    {
-      _M_cmpts.type(_Type::_Root_dir);
-      return;
-    }
 
   _Parser parser(_M_pathname);
 
@@ -1858,10 +1903,9 @@ path::_M_split_cmpts()
 	  _M_cmpts.type(_Type::_Multi);
 	  _M_cmpts.reserve(_M_cmpts.size() + buf.size());
 	  auto output = _M_cmpts._M_impl->end();
-	  for (auto& c : buf)
+	  for (const auto& c : buf)
 	    {
-	      auto pos = c.str.data() - _M_pathname.data();
-	      ::new(output++) _Cmpt(c.str, c.type, pos);
+	      ::new(output++) _Cmpt(c.str, c.type, parser.offset(c));
 	      ++_M_cmpts._M_impl->_M_size;
 	    }
 	  next = buf.begin();
@@ -1881,9 +1925,8 @@ path::_M_split_cmpts()
       auto output = _M_cmpts._M_impl->end();
       for (int i = 0; i < n; ++i)
 	{
-	  auto c = buf[i];
-	  auto pos = c.str.data() - _M_pathname.data();
-	  ::new(output++) _Cmpt(c.str, c.type, pos);
+	  const auto& c = buf[i];
+	  ::new(output++) _Cmpt(c.str, c.type, parser.offset(c));
 	  ++_M_cmpts._M_impl->_M_size;
 	}
     }
@@ -1896,15 +1939,11 @@ path::_S_convert_loc(const char* __first, const char* __last,
 #if _GLIBCXX_USE_WCHAR_T
   auto& __cvt = std::use_facet<codecvt<wchar_t, char, mbstate_t>>(__loc);
   basic_string<wchar_t> __ws;
-  if (!__str_codecvt_in(__first, __last, __ws, __cvt))
+  if (!__str_codecvt_in_all(__first, __last, __ws, __cvt))
     _GLIBCXX_THROW_OR_ABORT(filesystem_error(
 	  "Cannot convert character sequence",
 	  std::make_error_code(errc::illegal_byte_sequence)));
-#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
-  return __ws;
-#else
-  return _Cvt<wchar_t>::_S_convert(__ws.data(), __ws.data() + __ws.size());
-#endif
+  return _S_convert(std::move(__ws));
 #else
   return {__first, __last};
 #endif
@@ -1930,20 +1969,20 @@ fs::hash_value(const path& p) noexcept
 
 struct fs::filesystem_error::_Impl
 {
-  _Impl(const string& what_arg, const path& p1, const path& p2)
+  _Impl(string_view what_arg, const path& p1, const path& p2)
   : path1(p1), path2(p2), what(make_what(what_arg, &p1, &p2))
   { }
 
-  _Impl(const string& what_arg, const path& p1)
+  _Impl(string_view what_arg, const path& p1)
   : path1(p1), path2(), what(make_what(what_arg, &p1, nullptr))
   { }
 
-  _Impl(const string& what_arg)
+  _Impl(string_view what_arg)
   : what(make_what(what_arg, nullptr, nullptr))
   { }
 
   static std::string
-  make_what(const std::string& s, const path* p1, const path* p2)
+  make_what(string_view s, const path* p1, const path* p2)
   {
     const std::string pstr1 = p1 ? p1->u8string() : std::string{};
     const std::string pstr2 = p2 ? p2->u8string() : std::string{};
@@ -1979,20 +2018,20 @@ template class std::__shared_ptr<const fs::filesystem_error::_Impl>;
 fs::filesystem_error::
 filesystem_error(const string& what_arg, error_code ec)
 : system_error(ec, what_arg),
-  _M_impl(std::__make_shared<_Impl>(what_arg))
+  _M_impl(std::__make_shared<_Impl>(system_error::what()))
 { }
 
 fs::filesystem_error::
 filesystem_error(const string& what_arg, const path& p1, error_code ec)
 : system_error(ec, what_arg),
-  _M_impl(std::__make_shared<_Impl>(what_arg, p1))
+  _M_impl(std::__make_shared<_Impl>(system_error::what(), p1))
 { }
 
 fs::filesystem_error::
 filesystem_error(const string& what_arg, const path& p1, const path& p2,
 		 error_code ec)
 : system_error(ec, what_arg),
-  _M_impl(std::__make_shared<_Impl>(what_arg, p1, p2))
+  _M_impl(std::__make_shared<_Impl>(system_error::what(), p1, p2))
 { }
 
 fs::filesystem_error::~filesystem_error() = default;

@@ -1,6 +1,6 @@
 // This file is compiled and linked into the S-record format.
 
-#define FOO_MSG_LEN 80
+#define FOO_MSG_LEN 4
 
 class Foo {
     static int foos;

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2011-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2011-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -32,8 +32,6 @@
 with Ada.Finalization;
 with System.Storage_Elements;
 with System.Storage_Pools;
-
-pragma Compiler_Unit_Warning;
 
 package System.Finalization_Masters is
    pragma Preelaborate;
@@ -74,7 +72,7 @@ package System.Finalization_Masters is
    for Finalization_Master_Ptr'Storage_Size use 0;
 
    procedure Attach (N : not null FM_Node_Ptr; L : not null FM_Node_Ptr);
-   --  Compiler interface, do not call from withing the run-time. Prepend a
+   --  Compiler interface, do not call from within the run-time. Prepend a
    --  node to a specific finalization master.
 
    procedure Attach_Unprotected
@@ -85,10 +83,6 @@ package System.Finalization_Masters is
    procedure Delete_Finalize_Address_Unprotected (Obj : System.Address);
    --  Destroy the relation pair object - Finalize_Address from the internal
    --  hash table.
-
-   procedure Detach (N : not null FM_Node_Ptr);
-   --  Compiler interface, do not call from within the run-time. Remove a node
-   --  from an arbitrary finalization master.
 
    procedure Detach_Unprotected (N : not null FM_Node_Ptr);
    --  Remove a node from an arbitrary finalization master

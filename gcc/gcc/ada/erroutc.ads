@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -51,6 +51,14 @@ package Erroutc is
    --  Set true to indicate that the current message contains the insertion
    --  sequence !! (force warnings even in non-main unit source files).
 
+   Has_Insertion_Line : Boolean := False;
+   --  Set True to indicate that the current message contains the insertion
+   --  character # (insert line number reference).
+
+   Is_Compile_Time_Msg : Boolean := False;
+   --  Set true to indicate that the current message originates from a
+   --  Compile_Time_Warning or Compile_Time_Error pragma.
+
    Is_Serious_Error : Boolean := False;
    --  Set True for a serious error (i.e. any message that is not a warning
    --  or style message, and that does not contain a | insertion character).
@@ -61,7 +69,12 @@ package Erroutc is
 
    Is_Warning_Msg : Boolean := False;
    --  Set True to indicate if current message is warning message (contains ?
-   --  or contains < and Error_Msg_Warn is True.
+   --  or contains < and Error_Msg_Warn is True).
+
+   Is_Runtime_Raise : Boolean := False;
+   --  Set to True to indicate that the current message is a warning about a
+   --  constraint error that will be raised at runtime (contains [ and switch
+   --  -gnatwE was given).
 
    Is_Info_Msg : Boolean := False;
    --  Set True to indicate that the current message starts with the characters
@@ -72,14 +85,14 @@ package Erroutc is
    --  Set True to indicate that the current message starts with one of
    --  "high: ", "medium: ", "low: " and is to be treated as a check message.
 
-   Warning_Msg_Char : Character;
-   --  Warning character, valid only if Is_Warning_Msg is True
-   --    ' '      -- ?   or <   appeared on its own in message
-   --    '?'      -- ??  or <<  appeared in message
-   --    'x'      -- ?x? or <x< appeared in message (x = a .. z)
-   --    'X'      -- ?X? or <X< appeared in message (X = A .. Z)
-   --    '*'      -- ?*? or <*< appeared in message
-   --    '$'      -- ?$? or <$< appeared in message
+   Warning_Msg_Char : String (1 .. 2);
+   --  Warning switch, valid only if Is_Warning_Msg is True
+   --    "  "      -- ?   or <   appeared on its own in message
+   --    "? "      -- ??  or <<  appeared in message
+   --    "x "      -- ?x? or <x< appeared in message
+   --              -- (x = a .. z | A .. Z | * | $)
+   --    ".x"      -- ?.x? appeared in message (x = a .. z | A .. Z)
+   --    "_x"      -- ?_x? appeared in message (x = a .. z | A .. Z)
    --  In the case of the < sequences, this is set only if the message is
    --  actually a warning, i.e. if Error_Msg_Warn is True
 
@@ -189,7 +202,7 @@ package Erroutc is
       --  refers to a template, always references the original template
       --  not an instantiation copy.
 
-      Sptr : Source_Ptr;
+      Sptr : Source_Span;
       --  Flag pointer. In the case of an error that refers to a template,
       --  always references the original template, not an instantiation copy.
       --  This value is the actual place in the source that the error message
@@ -205,11 +218,18 @@ package Erroutc is
       --  instantiation copy corresponding to the instantiation referenced by
       --  Sptr).
 
+      Insertion_Sloc : Source_Ptr;
+      --  Location in message for insertion character # when used
+
       Line : Physical_Line_Number;
       --  Line number for error message
 
       Col : Column_Number;
       --  Column number for error message
+
+      Compile_Time_Pragma : Boolean;
+      --  True if the message originates from a Compile_Time_Warning or
+      --  Compile_Time_Error pragma
 
       Warn : Boolean;
       --  True if warning message
@@ -224,16 +244,12 @@ package Erroutc is
       --  True if this is a warning message which is to be treated as an error
       --  as a result of a match with a Warning_As_Error pragma.
 
-      Warn_Chr : Character;
-      --  Warning character (note: set even if Warning_Doc_Switch is False)
-      --    ' '      -- ?   or <   appeared on its own in message
-      --    '?'      -- ??  or <<  appeared in message
-      --    'x'      -- ?x? or <x< appeared in message (x = a .. z)
-      --    'X'      -- ?X? or <X< appeared in message (X = A .. Z)
-      --    '*'      -- ?*? or <*< appeared in message
-      --    '$'      -- ?$? or <$< appeared in message
-      --  In the case of the < sequences, this is set only if the message is
-      --  actually a warning, i.e. if Error_Msg_Warn is True
+      Warn_Runtime_Raise : Boolean;
+      --  True if this a warning about a constraint error that will be raised
+      --  at runtime.
+
+      Warn_Chr : String (1 .. 2);
+      --  See Warning_Msg_Char
 
       Style : Boolean;
       --  True if style message (starts with "(style)")
@@ -375,6 +391,66 @@ package Erroutc is
    --  find such an On entry, we cancel the indication of it being the
    --  configuration case. This seems to handle all cases we run into ok.
 
+   -------------------
+   -- Color Control --
+   -------------------
+
+   Use_SGR_Control : Boolean := False;
+   --  Set to True for enabling colored output. This should only be done when
+   --  outputting messages to a terminal that supports it.
+
+   --  Colors in messages output to a terminal are controlled using SGR
+   --  (Select Graphic Rendition).
+
+   Color_Separator  : constant String := ";";
+   Color_None       : constant String := "00";
+   Color_Bold       : constant String := "01";
+   Color_Underscore : constant String := "04";
+   Color_Blink      : constant String := "05";
+   Color_Reverse    : constant String := "07";
+   Color_Fg_Black   : constant String := "30";
+   Color_Fg_Red     : constant String := "31";
+   Color_Fg_Green   : constant String := "32";
+   Color_Fg_Yellow  : constant String := "33";
+   Color_Fg_Blue    : constant String := "34";
+   Color_Fg_Magenta : constant String := "35";
+   Color_Fg_Cyan    : constant String := "36";
+   Color_Fg_White   : constant String := "37";
+   Color_Bg_Black   : constant String := "40";
+   Color_Bg_Red     : constant String := "41";
+   Color_Bg_Green   : constant String := "42";
+   Color_Bg_Yellow  : constant String := "43";
+   Color_Bg_Blue    : constant String := "44";
+   Color_Bg_Magenta : constant String := "45";
+   Color_Bg_Cyan    : constant String := "46";
+   Color_Bg_White   : constant String := "47";
+
+   SGR_Start        : constant String := ASCII.ESC & "[";
+   SGR_End          : constant String := "m" & ASCII.ESC & "[K";
+
+   function SGR_Seq (Str : String) return String is
+     (if Use_SGR_Control then SGR_Start & Str & SGR_End else "");
+   --  Return the SGR control string for the commands in Str. It returns the
+   --  empty string if Use_SGR_Control is False, so that we can insert this
+   --  string unconditionally.
+
+   function SGR_Reset return String is (SGR_Seq (""));
+   --  This ends the current section of colored output
+
+   --  We're using the same colors as gcc/g++ for errors/warnings/notes/locus.
+   --  More colors are defined in gcc/g++ for other features of diagnostic
+   --  messages (e.g. inline types, fixit) and could be used in GNAT in the
+   --  future. The following functions start a section of colored output.
+
+   function SGR_Error return String is
+     (SGR_Seq (Color_Bold & Color_Separator & Color_Fg_Red));
+   function SGR_Warning return String is
+     (SGR_Seq (Color_Bold & Color_Separator & Color_Fg_Magenta));
+   function SGR_Note return String is
+     (SGR_Seq (Color_Bold & Color_Separator & Color_Fg_Cyan));
+   function SGR_Locus return String is
+     (SGR_Seq (Color_Bold));
+
    -----------------
    -- Subprograms --
    -----------------
@@ -413,9 +489,18 @@ package Erroutc is
    --  redundant. If so, the message to be deleted and all its continuations
    --  are marked with the Deleted flag set to True.
 
+   function Count_Compile_Time_Pragma_Warnings return Int;
+   --  Returns the number of warnings in the Errors table that were triggered
+   --  by a Compile_Time_Warning pragma.
+
    function Get_Warning_Tag (Id : Error_Msg_Id) return String;
    --  Given an error message ID, return tag showing warning message class, or
    --  the null string if this option is not enabled or this is not a warning.
+
+   function Matches (S : String; P : String) return Boolean;
+   --  Returns true if the String S matches the pattern P, which can contain
+   --  wildcard chars (*). The entire pattern must match the entire string.
+   --  Case is ignored in the comparison (so X matches x).
 
    procedure Output_Error_Msgs (E : in out Error_Msg_Id);
    --  Output source line, error flag, and text of stored error message and all
@@ -458,11 +543,15 @@ package Erroutc is
    --    Has_Double_Exclam is set True if the message contains the sequence !!
    --    and is otherwise set False.
    --
+   --    Has_Insertion_Line is set True if the message contains the character #
+   --    and is otherwise set False.
+   --
    --  We need to know right away these aspects of a message, since we will
    --  test these values before doing the full error scan.
    --
    --  Note that the call has no effect for continuation messages (those whose
-   --  first character is '\'), and all variables are left unchanged.
+   --  first character is '\'), and all variables are left unchanged, unless
+   --  -gnatdF is set.
 
    procedure Purge_Messages (From : Source_Ptr; To : Source_Ptr);
    --  All error messages whose location is in the range From .. To (not
@@ -612,7 +701,7 @@ package Erroutc is
    function Warning_Treated_As_Error (Msg : String) return Boolean;
    --  Returns True if the warning message Msg matches any of the strings
    --  given by Warning_As_Error pragmas, as stored in the Warnings_As_Errors
-   --  table by Set_Warning_As_Error.
+   --  table.
 
    type Error_Msg_Proc is
      access procedure (Msg : String; Flag_Location : Source_Ptr);

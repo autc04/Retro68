@@ -2,7 +2,7 @@
 #as: --compress-debug-sections
 #ld: -e func_cu2
 #readelf: -S --wide
-#notarget: alpha-*
+#xfail: alpha-*-*ecoff
 
 #failif
 #...

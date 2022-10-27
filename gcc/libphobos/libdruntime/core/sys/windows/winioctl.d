@@ -5,14 +5,15 @@
  *
  * Authors: Stewart Gordon
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_winioctl.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_winioctl.d)
  */
 module core.sys.windows.winioctl;
 version (Windows):
+@system:
 
 // FIXME: check types of some constants
 
-private import core.sys.windows.basetyps, core.sys.windows.windef;
+import core.sys.windows.basetyps, core.sys.windows.windef;
 
 enum size_t
     HIST_NO_OF_BUCKETS = 24,

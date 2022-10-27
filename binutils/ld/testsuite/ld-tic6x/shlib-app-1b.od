@@ -2,7 +2,7 @@
 tmpdir/shlib-dynapp-1b:     file format elf32-tic6x-be
 
 DYNAMIC RELOCATION RECORDS
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 100000b8 R_C6000_ABS32     b
 100000bc R_C6000_ABS32     a
 100000c4 R_C6000_ABS32     g1

@@ -1,2 +1,2 @@
 #name: Invalid UDF operands
-#error-output: udf-bad.l
+#error_output: udf-bad.l

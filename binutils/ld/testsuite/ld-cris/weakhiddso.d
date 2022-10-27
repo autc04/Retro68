@@ -16,7 +16,7 @@ DYNAMIC SYMBOL TABLE:
 
 
 DYNAMIC RELOCATION RECORDS
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+21b8 R_CRIS_32         xweakobj
 0+21bc R_CRIS_32         xregobj
 

@@ -1,7 +1,7 @@
 // { dg-options "-lsupc++ -fvtable-verify=none" }
 // { dg-do run { target c++11 } }
 
-// Copyright (C) 2010-2019 Free Software Foundation, Inc.
+// Copyright (C) 2010-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -52,7 +52,7 @@ int main()
   std::initializer_list<int> ilisti __attribute__((unused));
 
 #if __cplusplus > 201703L
-  static_assert( std::ispow2(256u) );
+  static_assert( std::has_single_bit(256u) );
   static_assert( __cpp_lib_void_t >= 201411L );
 #endif
 

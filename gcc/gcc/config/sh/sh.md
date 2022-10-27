@@ -1,5 +1,5 @@
 ;;- Machine description for Renesas / SuperH SH.
-;;  Copyright (C) 1993-2019 Free Software Foundation, Inc.
+;;  Copyright (C) 1993-2022 Free Software Foundation, Inc.
 ;;  Contributed by Steve Chamberlain (sac@cygnus.com).
 ;;  Improved by Jim Wilson (wilson@cygnus.com).
 
@@ -6067,8 +6067,7 @@
    && (arith_reg_operand (operands[0], SFmode)
        || fpul_operand (operands[0], SFmode)
        || arith_reg_operand (operands[1], SFmode)
-       || fpul_operand (operands[1], SFmode)
-       || arith_reg_operand (operands[2], SImode))"
+       || fpul_operand (operands[1], SFmode))"
   "@
 	fmov	%1,%0
 	mov	%1,%0
@@ -6425,7 +6424,7 @@
    (clobber (reg:SI T_REG))]
   "TARGET_SH2"
   "#"
-  ""
+  "&& 1"
   [(parallel [(set (reg:SI T_REG)
 		   (eq:SI (match_dup 2) (const_int 1)))
 	      (set (match_dup 0) (plus:SI (match_dup 2) (const_int -1)))])
@@ -8395,9 +8394,15 @@
 ;; Store (negated) T bit as all zeros or ones in a reg.
 ;;	subc	Rn,Rn	! Rn = Rn - Rn - T; T = T
 ;;	not	Rn,Rn	! Rn = 0 - Rn
+;;
+;; Note the call to sh_split_treg_set_expr may clobber
+;; the T reg.  We must express this, even though it's
+;; not immediately obvious this pattern changes the
+;; T register.
 (define_insn_and_split "mov_neg_si_t"
   [(set (match_operand:SI 0 "arith_reg_dest" "=r")
-	(neg:SI (match_operand 1 "treg_set_expr")))]
+	(neg:SI (match_operand 1 "treg_set_expr")))
+   (clobber (reg:SI T_REG))]
   "TARGET_SH1"
 {
   gcc_assert (t_reg_operand (operands[1], VOIDmode));
@@ -8906,7 +8911,7 @@
 
 ;; String/block move insn.
 
-(define_expand "movmemsi"
+(define_expand "cpymemsi"
   [(parallel [(set (mem:BLK (match_operand:BLK 0))
 		   (mem:BLK (match_operand:BLK 1)))
 	      (use (match_operand:SI 2 "nonmemory_operand"))
@@ -9163,7 +9168,7 @@
 	(xor:SI (reg:SI FPSCR_REG) (const_int FPSCR_PR)))
    (set (reg:SI FPSCR_MODES_REG)
 	(unspec_volatile:SI [(const_int 0)] UNSPECV_FPSCR_MODES))]
-  "TARGET_SH4A_FP"
+  "TARGET_SH4A_FP || TARGET_FPU_SH4_300"
   "fpchg"
   [(set_attr "type" "fpscr_toggle")])
 
@@ -9391,14 +9396,30 @@
 (define_expand "negsf2"
   [(set (match_operand:SF 0 "fp_arith_reg_operand")
 	(neg:SF (match_operand:SF 1 "fp_arith_reg_operand")))]
-  "TARGET_SH2E")
+  "TARGET_FPU_ANY"
+{
+  if (TARGET_FPU_SH4_300)
+    emit_insn (gen_negsf2_fpscr (operands[0], operands[1]));
+  else
+    emit_insn (gen_negsf2_no_fpscr (operands[0], operands[1]));
+  DONE;
+})
 
-(define_insn "*negsf2_i"
+(define_insn "negsf2_no_fpscr"
   [(set (match_operand:SF 0 "fp_arith_reg_operand" "=f")
 	(neg:SF (match_operand:SF 1 "fp_arith_reg_operand" "0")))]
-  "TARGET_SH2E"
+  "TARGET_FPU_ANY && !TARGET_FPU_SH4_300"
   "fneg	%0"
   [(set_attr "type" "fmove")])
+
+(define_insn "negsf2_fpscr"
+  [(set (match_operand:SF 0 "fp_arith_reg_operand" "=f")
+	(neg:SF (match_operand:SF 1 "fp_arith_reg_operand" "0")))
+   (use (reg:SI FPSCR_MODES_REG))]
+  "TARGET_FPU_SH4_300"
+  "fneg	%0"
+  [(set_attr "type" "fmove")
+   (set_attr "fp_mode" "single")])
 
 (define_expand "sqrtsf2"
   [(set (match_operand:SF 0 "fp_arith_reg_operand" "")
@@ -9489,14 +9510,30 @@
 (define_expand "abssf2"
   [(set (match_operand:SF 0 "fp_arith_reg_operand")
 	(abs:SF (match_operand:SF 1 "fp_arith_reg_operand")))]
-  "TARGET_SH2E")
+  "TARGET_FPU_ANY"
+{
+  if (TARGET_FPU_SH4_300)
+    emit_insn (gen_abssf2_fpscr (operands[0], operands[1]));
+  else
+    emit_insn (gen_abssf2_no_fpscr (operands[0], operands[1]));
+  DONE;
+})
 
-(define_insn "*abssf2_i"
+(define_insn "abssf2_no_fpscr"
   [(set (match_operand:SF 0 "fp_arith_reg_operand" "=f")
 	(abs:SF (match_operand:SF 1 "fp_arith_reg_operand" "0")))]
-  "TARGET_SH2E"
+  "TARGET_FPU_ANY && !TARGET_FPU_SH4_300"
   "fabs	%0"
   [(set_attr "type" "fmove")])
+
+(define_insn "abssf2_fpscr"
+  [(set (match_operand:SF 0 "fp_arith_reg_operand" "=f")
+	(abs:SF (match_operand:SF 1 "fp_arith_reg_operand" "0")))
+   (use (reg:SI FPSCR_MODES_REG))]
+  "TARGET_FPU_SH4_300"
+  "fabs	%0"
+  [(set_attr "type" "fmove")
+   (set_attr "fp_mode" "single")])
 
 (define_expand "adddf3"
   [(set (match_operand:DF 0 "fp_arith_reg_operand" "")
@@ -9673,12 +9710,28 @@
 (define_expand "negdf2"
   [(set (match_operand:DF 0 "fp_arith_reg_operand")
 	(neg:DF (match_operand:DF 1 "fp_arith_reg_operand")))]
-  "TARGET_FPU_DOUBLE")
+  "TARGET_FPU_DOUBLE"
+{
+  if (TARGET_FPU_SH4_300)
+    emit_insn (gen_negdf2_fpscr (operands[0], operands[1]));
+  else
+    emit_insn (gen_negdf2_no_fpscr (operands[0], operands[1]));
+  DONE;
+})
 
-(define_insn "*negdf2_i"
+(define_insn "negdf2_fpscr"
+  [(set (match_operand:DF 0 "fp_arith_reg_operand" "=f")
+	(neg:DF (match_operand:DF 1 "fp_arith_reg_operand" "0")))
+   (use (reg:SI FPSCR_MODES_REG))]
+  "TARGET_FPU_SH4_300"
+  "fneg	%0"
+  [(set_attr "type" "fmove")
+   (set_attr "fp_mode" "double")])
+
+(define_insn "negdf2_no_fpscr"
   [(set (match_operand:DF 0 "fp_arith_reg_operand" "=f")
 	(neg:DF (match_operand:DF 1 "fp_arith_reg_operand" "0")))]
-  "TARGET_FPU_DOUBLE"
+  "TARGET_FPU_DOUBLE && !TARGET_FPU_SH4_300"
   "fneg	%0"
   [(set_attr "type" "fmove")])
 
@@ -9704,14 +9757,30 @@
 (define_expand "absdf2"
   [(set (match_operand:DF 0 "fp_arith_reg_operand")
 	(abs:DF (match_operand:DF 1 "fp_arith_reg_operand")))]
-  "TARGET_FPU_DOUBLE")
+  "TARGET_FPU_DOUBLE"
+{
+  if (TARGET_FPU_SH4_300)
+    emit_insn (gen_absdf2_fpscr (operands[0], operands[1]));
+  else
+    emit_insn (gen_absdf2_no_fpscr (operands[0], operands[1]));
+  DONE;
+})
 
-(define_insn "*absdf2_i"
+(define_insn "absdf2_no_fpscr"
   [(set (match_operand:DF 0 "fp_arith_reg_operand" "=f")
 	(abs:DF (match_operand:DF 1 "fp_arith_reg_operand" "0")))]
-  "TARGET_FPU_DOUBLE"
+  "TARGET_FPU_DOUBLE && !TARGET_FPU_SH4_300"
   "fabs	%0"
   [(set_attr "type" "fmove")])
+
+(define_insn "absdf2_fpscr"
+  [(set (match_operand:DF 0 "fp_arith_reg_operand" "=f")
+	(abs:DF (match_operand:DF 1 "fp_arith_reg_operand" "0")))
+   (use (reg:SI FPSCR_MODES_REG))]
+  "TARGET_FPU_SH4_300"
+  "fabs	%0"
+  [(set_attr "type" "fmove")
+   (set_attr "fp_mode" "double")])
 
 (define_expand "extendsfdf2"
   [(set (match_operand:DF 0 "fp_arith_reg_operand" "")

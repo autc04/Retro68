@@ -3,7 +3,7 @@
 .*: +file format .*
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0*0004 R_BFIN_PCREL24    _call_data1
 0*0008 R_BFIN_RIMM16     .data
 0*000a R_BFIN_PCREL12_JUMP_S  .text\+0x00000018
@@ -14,7 +14,7 @@ OFFSET   TYPE              VALUE
 
 
 RELOCATION RECORDS FOR \[\.data\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0*0006 R_BFIN_BYTE_DATA  load_extern1
 
 

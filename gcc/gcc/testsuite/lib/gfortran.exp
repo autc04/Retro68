@@ -1,4 +1,4 @@
-# Copyright (C) 2003-2019 Free Software Foundation, Inc.
+# Copyright (C) 2003-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -151,6 +151,7 @@ proc gfortran_init { args } {
     global gcc_warning_prefix
     global gcc_error_prefix
     global TEST_ALWAYS_FLAGS
+    global gfortran_init_set_GFORTRAN_UNDER_TEST
 
     # We set LC_ALL and LANG to C so that we get the same error messages as expected.
     setenv LC_ALL C
@@ -166,7 +167,11 @@ proc gfortran_init { args } {
       setenv LANG C.ASCII
     }
 
-    if ![info exists GFORTRAN_UNDER_TEST] then {
+    # GFORTRAN_UNDER_TEST as set below contains $specpath, which depends on
+    # the used multilib config. Thus, its value may need to be reset;
+    # that's tracked via gfortran_init_set_GFORTRAN_UNDER_TEST.
+    if { ![info exists GFORTRAN_UNDER_TEST]
+	 || [info exists gfortran_init_set_GFORTRAN_UNDER_TEST] } then {
 	if [info exists TOOL_EXECUTABLE] {
 	    set GFORTRAN_UNDER_TEST $TOOL_EXECUTABLE
 	} else {
@@ -178,6 +183,7 @@ proc gfortran_init { args } {
 		} else {
 		    set specpath [get_multilibs]
 		}
+		set gfortran_init_set_GFORTRAN_UNDER_TEST 1
 		set GFORTRAN_UNDER_TEST [findfile $base_dir/../../gfortran "$base_dir/../../gfortran -B$base_dir/../../ -B$specpath/libgfortran/" [findfile $base_dir/gfortran "$base_dir/gfortran -B$base_dir/" [transform gfortran]]]
 	    }
 	}
@@ -220,13 +226,6 @@ proc gfortran_init { args } {
 	lappend ALWAYS_GFORTRANFLAGS "additional_flags=$TOOL_OPTIONS"
     }
 
-    # On the SPU, most of the fortran test cases exceed local store size.
-    # Use automatic overlay support to make them fit.
-    if { [check_effective_target_spu_auto_overlay] } {
-	lappend ALWAYS_GFORTRANFLAGS "ldflags=-Wl,--auto-overlay"
-	lappend ALWAYS_GFORTRANFLAGS "ldflags=-Wl,--reserved-space=131072"
-    }
-
     verbose -log "ALWAYS_GFORTRANFLAGS set to $ALWAYS_GFORTRANFLAGS"
 
     verbose "gfortran is initialized" 3
@@ -241,12 +240,20 @@ proc gfortran_target_compile { source dest type options } {
     global gluefile wrap_flags
     global ALWAYS_GFORTRANFLAGS
     global GFORTRAN_UNDER_TEST
+    global TEST_ALWAYS_FLAGS
     global flags_to_postpone
     global board_info
 
     if { [target_info needs_status_wrapper] != "" && [info exists gluefile] } {
 	lappend options "libs=${gluefile}"
 	lappend options "ldflags=${wrap_flags}"
+    }
+
+    # TEST_ALWAYS_FLAGS are flags that should be passed to every
+    # compilation.  They are passed first to allow individual
+    # tests to override them.
+    if [info exists TEST_ALWAYS_FLAGS] {
+	set options [concat "{additional_flags=$TEST_ALWAYS_FLAGS}" $options]
     }
 
     # bind_pic_locally adds -fpie/-fPIE flags to flags_to_postpone and it is

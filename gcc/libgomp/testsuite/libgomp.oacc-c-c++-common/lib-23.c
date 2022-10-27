@@ -1,6 +1,6 @@
-/* Exercise acc_copyin and acc_copyout on nvidia targets.  */
+/* Exercise acc_copyin and acc_copyout.  */
 
-/* { dg-do run { target openacc_nvidia_accel_selected } } */
+/* { dg-skip-if "" { *-*-* } { "*" } { "-DACC_MEM_SHARED=0" } } */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,5 +41,5 @@ main (int argc, char **argv)
 }
 
 /* { dg-output "CheCKpOInT(\n|\r\n|\r).*" } */
-/* { dg-output "\\\[\[0-9a-fA-FxX\]+,256\\\] surrounds2 \\\[\[0-9a-fA-FxX\]+,\\\+512\\\]" } */
+/* { dg-output "\\\[\[0-9a-fA-FxX\]+,\\\+512\\\] outside mapped block \\\[\[0-9a-fA-FxX\]+,\\\+256\\\]" } */
 /* { dg-shouldfail "" } */

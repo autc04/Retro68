@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---                     Copyright (C) 1997-2019, AdaCore                     --
+--                     Copyright (C) 1997-2022, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -48,7 +48,7 @@
 --       matching with the restriction that it matches entire strings. It
 --       is particularly useful for file name matching, and in particular
 --       it provides "globbing patterns" that are useful in implementing
---       unix or DOS style wild card matching for file names.
+--       unix or DOS style wildcard matching for file names.
 
 --     GNAT.Regpat (files g-regpat.ads/g-regpat.adb)
 --       This is a more complete implementation of Unix-style regular
@@ -654,19 +654,19 @@ package GNAT.Spitbol.Patterns is
    --  operations for constructing patterns that can be used in the pattern
    --  matching operations provided.
 
-   type Boolean_Func is access function return Boolean;
+   type Boolean_Func is access function return Boolean with Favor_Top_Level;
    --  General Boolean function type. When this type is used as a formal
    --  parameter type in this package, it indicates a deferred predicate
    --  pattern. The function will be called when the pattern element is
    --  matched and failure signalled if False is returned.
 
-   type Natural_Func is access function return Natural;
+   type Natural_Func is access function return Natural with Favor_Top_Level;
    --  General Natural function type. When this type is used as a formal
    --  parameter type in this package, it indicates a deferred pattern.
    --  The function will be called when the pattern element is matched
    --  to obtain the currently referenced Natural value.
 
-   type VString_Func is access function return VString;
+   type VString_Func is access function return VString with Favor_Top_Level;
    --  General VString function type. When this type is used as a formal
    --  parameter type in this package, it indicates a deferred pattern.
    --  The function will be called when the pattern element is matched

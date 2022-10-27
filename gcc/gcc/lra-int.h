@@ -1,5 +1,5 @@
 /* Local Register Allocator (LRA) intercommunication header file.
-   Copyright (C) 2010-2019 Free Software Foundation, Inc.
+   Copyright (C) 2010-2022 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov <vmakarov@redhat.com>.
 
 This file is part of GCC.
@@ -64,18 +64,18 @@ struct lra_copy
 };
 
 /* Common info about a register (pseudo or hard register).  */
-struct lra_reg
+class lra_reg
 {
+public:
   /* Bitmap of UIDs of insns (including debug insns) referring the
      reg.  */
   bitmap_head insn_bitmap;
   /* The following fields are defined only for pseudos.	 */
   /* Hard registers with which the pseudo conflicts.  */
   HARD_REG_SET conflict_hard_regs;
-  /* Call used registers with which the pseudo conflicts, taking into account
-     the registers used by functions called from calls which cross the
-     pseudo.  */
-  HARD_REG_SET actual_call_used_reg_set;
+  /* Pseudo allocno class hard registers which cannot be a start hard register
+     of the pseudo.  */
+  HARD_REG_SET exclude_start_hard_regs;
   /* We assign hard registers to reload pseudos which can occur in few
      places.  So two hard register preferences are enough for them.
      The following fields define the preferred hard registers.	If
@@ -103,28 +103,26 @@ struct lra_reg
   int val;
   /* Offset from relative eliminate register to pesudo reg.  */
   poly_int64 offset;
-  /* Call instruction, if any, that may affect this psuedo reg.  */
-  rtx_insn *call_insn;
-  /* These members are set up in lra-lives.c and updated in
-     lra-coalesce.c.  */
+  /* These members are set up in lra-lives.cc and updated in
+     lra-coalesce.cc.  */
   /* The biggest size mode in which each pseudo reg is referred in
      whole function (possibly via subreg).  */
   machine_mode biggest_mode;
   /* Live ranges of the pseudo.	 */
   lra_live_range_t live_ranges;
-  /* This member is set up in lra-lives.c for subsequent
+  /* This member is set up in lra-lives.cc for subsequent
      assignments.  */
   lra_copy_t copies;
 };
 
 /* References to the common info about each register.  */
-extern struct lra_reg *lra_reg_info;
+extern class lra_reg *lra_reg_info;
 
 extern HARD_REG_SET hard_regs_spilled_into;
 
 /* Static info about each insn operand (common for all insns with the
    same ICODE).	 Warning: if the structure definition is changed, the
-   initializer for debug_operand_data in lra.c should be changed
+   initializer for debug_operand_data in lra.cc should be changed
    too.	 */
 struct lra_operand_data
 {
@@ -141,10 +139,6 @@ struct lra_operand_data
   unsigned int strict_low : 1;
   /* True if the operand is an operator.  */
   unsigned int is_operator : 1;
-  /* True if there is an early clobber alternative for this operand.
-     This field is set up every time when corresponding
-     operand_alternative in lra_static_insn_data is set up.  */
-  unsigned int early_clobber : 1;
   /* True if the operand is an address.  */
   unsigned int is_address : 1;
 };
@@ -163,11 +157,6 @@ struct lra_insn_reg
   /* True if the reg is accessed through a subreg and the subreg is
      just a part of the register.  */
   unsigned int subreg_p : 1;
-  /* True if there is an early clobber alternative for this
-     operand.  */
-  unsigned int early_clobber : 1;
-  /* True if the reg is clobber highed by the operand.  */
-  unsigned int clobber_high : 1;
   /* The corresponding regno of the register.  */
   int regno;
   /* Next reg info of the same insn.  */
@@ -178,7 +167,7 @@ struct lra_insn_reg
    internal insn info. It exists in at most one exemplar for each
    non-negative ICODE. There is only one exception. Each asm insn has
    own structure.  Warning: if the structure definition is changed,
-   the initializer for debug_insn_static_data in lra.c should be
+   the initializer for debug_insn_static_data in lra.cc should be
    changed too.  */
 struct lra_static_insn_data
 {
@@ -210,8 +199,9 @@ struct lra_static_insn_data
 
 /* LRA internal info about an insn (LRA internal insn
    representation).  */
-struct lra_insn_recog_data
+class lra_insn_recog_data
 {
+public:
   /* The insn code.  */
   int icode;
   /* The alternative should be used for the insn, LRA_UNKNOWN_ALT if
@@ -242,7 +232,7 @@ struct lra_insn_recog_data
   struct lra_insn_reg *regs;
 };
 
-typedef struct lra_insn_recog_data *lra_insn_recog_data_t;
+typedef class lra_insn_recog_data *lra_insn_recog_data_t;
 
 /* Whether the clobber is used temporary in LRA.  */
 #define LRA_TEMP_CLOBBER_P(x) \
@@ -282,10 +272,11 @@ typedef struct lra_insn_recog_data *lra_insn_recog_data_t;
 #error wrong LRA_MAX_REMATERIALIZATION_PASSES value
 #endif
 
-/* lra.c: */
+/* lra.cc: */
 
 extern FILE *lra_dump_file;
 
+extern bool lra_hard_reg_split_p;
 extern bool lra_asm_error_p;
 extern bool lra_reg_spill_p;
 
@@ -304,8 +295,11 @@ extern void lra_push_insn_and_update_insn_regno_info (rtx_insn *);
 extern rtx_insn *lra_pop_insn (void);
 extern unsigned int lra_insn_stack_length (void);
 
+extern rtx lra_create_new_reg (machine_mode, rtx, enum reg_class, HARD_REG_SET *,
+			       const char *);
 extern rtx lra_create_new_reg_with_unique_value (machine_mode, rtx,
-						 enum reg_class, const char *);
+						 enum reg_class, HARD_REG_SET *,
+						 const char *);
 extern void lra_set_regno_unique_value (int);
 extern void lra_invalidate_insn_data (rtx_insn *);
 extern void lra_set_insn_deleted (rtx_insn *);
@@ -332,25 +326,23 @@ extern struct lra_insn_reg *lra_get_insn_regs (int);
 extern void lra_free_copies (void);
 extern void lra_create_copy (int, int, int);
 extern lra_copy_t lra_get_copy (int);
-extern bool lra_former_scratch_p (int);
-extern bool lra_former_scratch_operand_p (rtx_insn *, int);
-extern void lra_register_new_scratch_op (rtx_insn *, int, int);
 
 extern int lra_new_regno_start;
 extern int lra_constraint_new_regno_start;
 extern int lra_bad_spill_regno_start;
+extern rtx lra_pmode_pseudo;
 extern bitmap_head lra_inheritance_pseudos;
 extern bitmap_head lra_split_regs;
 extern bitmap_head lra_subreg_reload_pseudos;
 extern bitmap_head lra_optional_reload_pseudos;
 
-/* lra-constraints.c: */
+/* lra-constraints.cc: */
 
 extern void lra_init_equiv (void);
 extern int lra_constraint_offset (int, machine_mode);
 
 extern int lra_constraint_iter;
-extern bool lra_risky_transformations_p;
+extern bool check_and_force_assignment_correctness_p;
 extern int lra_inheritance_iter;
 extern int lra_undo_inheritance_iter;
 extern bool lra_constrain_insn (rtx_insn *);
@@ -361,7 +353,7 @@ extern bool spill_hard_reg_in_range (int, enum reg_class, rtx_insn *, rtx_insn *
 extern void lra_inheritance (void);
 extern bool lra_undo_inheritance (void);
 
-/* lra-lives.c: */
+/* lra-lives.cc: */
 
 extern int lra_live_max_point;
 extern int *lra_point_freq;
@@ -386,7 +378,7 @@ extern void lra_live_ranges_init (void);
 extern void lra_live_ranges_finish (void);
 extern void lra_setup_reload_pseudo_preferenced_hard_reg (int, int, int);
 
-/* lra-assigns.c: */
+/* lra-assigns.cc: */
 
 extern int lra_assignment_iter;
 extern int lra_assignment_iter_after_spill;
@@ -394,18 +386,19 @@ extern void lra_setup_reg_renumber (int, int, bool);
 extern bool lra_assign (bool &);
 extern bool lra_split_hard_reg_for (void);
 
-/* lra-coalesce.c: */
+/* lra-coalesce.cc: */
 
 extern int lra_coalesce_iter;
 extern bool lra_coalesce (void);
 
-/* lra-spills.c:  */
+/* lra-spills.cc:  */
 
+extern bool lra_need_for_scratch_reg_p (void);
 extern bool lra_need_for_spills_p (void);
 extern void lra_spill (void);
 extern void lra_final_code_change (void);
 
-/* lra-remat.c:  */
+/* lra-remat.cc:  */
 
 extern int lra_rematerialization_iter;
 extern bool lra_remat (void);

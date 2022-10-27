@@ -46,7 +46,7 @@ func (dec *Decoder) DisallowUnknownFields() { dec.d.disallowUnknownFields = true
 //
 // See the documentation for Unmarshal for details about
 // the conversion of JSON into a Go value.
-func (dec *Decoder) Decode(v interface{}) error {
+func (dec *Decoder) Decode(v any) error {
 	if dec.err != nil {
 		return dec.err
 	}
@@ -56,7 +56,7 @@ func (dec *Decoder) Decode(v interface{}) error {
 	}
 
 	if !dec.tokenValueAllowed() {
-		return &SyntaxError{msg: "not at beginning of value", Offset: dec.offset()}
+		return &SyntaxError{msg: "not at beginning of value", Offset: dec.InputOffset()}
 	}
 
 	// Read whole value into buffer.
@@ -92,20 +92,27 @@ func (dec *Decoder) readValue() (int, error) {
 	scanp := dec.scanp
 	var err error
 Input:
-	for {
+	// help the compiler see that scanp is never negative, so it can remove
+	// some bounds checks below.
+	for scanp >= 0 {
+
 		// Look in the buffer for a new value.
-		for i, c := range dec.buf[scanp:] {
+		for ; scanp < len(dec.buf); scanp++ {
+			c := dec.buf[scanp]
 			dec.scan.bytes++
 			switch dec.scan.step(&dec.scan, c) {
 			case scanEnd:
-				scanp += i
+				// scanEnd is delayed one byte so we decrement
+				// the scanner bytes count by 1 to ensure that
+				// this value is correct in the next call of Decode.
+				dec.scan.bytes--
 				break Input
 			case scanEndObject, scanEndArray:
 				// scanEnd is delayed one byte.
 				// We might block trying to get that byte from src,
 				// so instead invent a space byte.
 				if stateEndValue(&dec.scan, ' ') == scanEnd {
-					scanp += i + 1
+					scanp++
 					break Input
 				}
 			case scanError:
@@ -113,7 +120,6 @@ Input:
 				return 0, dec.scan.err
 			}
 		}
-		scanp = len(dec.buf)
 
 		// Did the last read have an error?
 		// Delayed until now to allow buffer scan.
@@ -192,7 +198,7 @@ func NewEncoder(w io.Writer) *Encoder {
 //
 // See the documentation for Marshal for details about the
 // conversion of Go values to JSON.
-func (enc *Encoder) Encode(v interface{}) error {
+func (enc *Encoder) Encode(v any) error {
 	if enc.err != nil {
 		return enc.err
 	}
@@ -282,7 +288,7 @@ var _ Unmarshaler = (*RawMessage)(nil)
 //	string, for JSON string literals
 //	nil, for JSON null
 //
-type Token interface{}
+type Token any
 
 const (
 	tokenTopValue = iota
@@ -308,7 +314,7 @@ func (dec *Decoder) tokenPrepareForDecode() error {
 			return err
 		}
 		if c != ',' {
-			return &SyntaxError{"expected comma after array element", dec.offset()}
+			return &SyntaxError{"expected comma after array element", dec.InputOffset()}
 		}
 		dec.scanp++
 		dec.tokenState = tokenArrayValue
@@ -318,7 +324,7 @@ func (dec *Decoder) tokenPrepareForDecode() error {
 			return err
 		}
 		if c != ':' {
-			return &SyntaxError{"expected colon after object key", dec.offset()}
+			return &SyntaxError{"expected colon after object key", dec.InputOffset()}
 		}
 		dec.scanp++
 		dec.tokenState = tokenObjectValue
@@ -446,7 +452,7 @@ func (dec *Decoder) Token() (Token, error) {
 			if !dec.tokenValueAllowed() {
 				return dec.tokenError(c)
 			}
-			var x interface{}
+			var x any
 			if err := dec.Decode(&x); err != nil {
 				return nil, err
 			}
@@ -471,7 +477,7 @@ func (dec *Decoder) tokenError(c byte) (Token, error) {
 	case tokenObjectComma:
 		context = " after object key:value pair"
 	}
-	return nil, &SyntaxError{"invalid character " + quoteChar(c) + context, dec.offset()}
+	return nil, &SyntaxError{"invalid character " + quoteChar(c) + context, dec.InputOffset()}
 }
 
 // More reports whether there is another element in the
@@ -500,6 +506,9 @@ func (dec *Decoder) peek() (byte, error) {
 	}
 }
 
-func (dec *Decoder) offset() int64 {
+// InputOffset returns the input stream byte offset of the current decoder position.
+// The offset gives the location of the end of the most recently returned token
+// and the beginning of the next token.
+func (dec *Decoder) InputOffset() int64 {
 	return dec.scanned + int64(dec.scanp)
 }

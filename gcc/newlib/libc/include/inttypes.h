@@ -22,7 +22,7 @@
 #include <stddef.h>
 
 #if __BSD_VISIBLE
-#include <xlocale.h>
+#include <sys/_locale.h>
 #endif
 
 #define __STRINGIFY(a) #a
@@ -320,8 +320,8 @@ struct _reent;
 extern "C" {
 #endif
 
-extern intmax_t  imaxabs(intmax_t j);
-extern imaxdiv_t imaxdiv(intmax_t numer, intmax_t denomer);
+extern intmax_t  imaxabs(intmax_t);
+extern imaxdiv_t imaxdiv(intmax_t __numer, intmax_t __denomer);
 extern intmax_t  strtoimax(const char *__restrict, char **__restrict, int);
 extern intmax_t  _strtoimax_r(struct _reent *, const char *__restrict, char **__restrict, int);
 extern uintmax_t strtoumax(const char *__restrict, char **__restrict, int);

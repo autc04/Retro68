@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2019 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2022 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    Namelist output contributed by Paul Thomas
    F2003 I/O support contributed by Jerry DeLisle
@@ -30,7 +30,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #include "unix.h"
 #include <assert.h>
 #include <string.h>
-#include <ctype.h>
 
 #define star_fill(p, n) memset(p, '*', n)
 
@@ -649,6 +648,15 @@ extract_uint (const void *p, int len)
 	i = (GFC_UINTEGER_16) tmp;
       }
       break;
+# ifdef HAVE_GFC_REAL_17
+    case 17:
+      {
+	GFC_INTEGER_16 tmp = 0;
+	memcpy ((void *) &tmp, p, 16);
+	i = (GFC_UINTEGER_16) tmp;
+      }
+      break;
+# endif
 #endif
     default:
       internal_error (NULL, "bad integer kind");
@@ -685,9 +693,8 @@ write_l (st_parameter_dt *dtp, const fnode *f, char *source, int len)
   p[wlen - 1] = (n) ? 'T' : 'F';
 }
 
-
 static void
-write_boz (st_parameter_dt *dtp, const fnode *f, const char *q, int n)
+write_boz (st_parameter_dt *dtp, const fnode *f, const char *q, int n, int len)
 {
   int w, m, digits, nzero, nblank;
   char *p;
@@ -719,6 +726,9 @@ write_boz (st_parameter_dt *dtp, const fnode *f, const char *q, int n)
 
   /* Select a width if none was specified.  The idea here is to always
      print something.  */
+
+  if (w == DEFAULT_WIDTH)
+    w = default_width_for_integer (len);
 
   if (w == 0)
     w = ((digits < m) ? m : digits);
@@ -794,10 +804,10 @@ write_boz (st_parameter_dt *dtp, const fnode *f, const char *q, int n)
 
 static void
 write_decimal (st_parameter_dt *dtp, const fnode *f, const char *source,
-	       int len,
-               const char *(*conv) (GFC_INTEGER_LARGEST, char *, size_t))
+	       int len)
 {
   GFC_INTEGER_LARGEST n = 0;
+  GFC_UINTEGER_LARGEST absn;
   int w, m, digits, nsign, nzero, nblank;
   char *p;
   const char *q;
@@ -830,22 +840,20 @@ write_decimal (st_parameter_dt *dtp, const fnode *f, const char *source,
 
   sign = calculate_sign (dtp, n < 0);
   if (n < 0)
-    n = -n;
+    /* Use unsigned to protect from overflow. */
+    absn = -(GFC_UINTEGER_LARGEST) n;
+  else
+    absn = n;
   nsign = sign == S_NONE ? 0 : 1;
 
-  /* conv calls itoa which sets the negative sign needed
-     by write_integer. The sign '+' or '-' is set below based on sign
-     calculated above, so we just point past the sign in the string
-     before proceeding to avoid double signs in corner cases.
-     (see PR38504)  */
-  q = conv (n, itoa_buf, sizeof (itoa_buf));
-  if (*q == '-')
-    q++;
-
+  /* gfc_itoa() converts the nonnegative value to decimal representation.  */
+  q = gfc_itoa (absn, itoa_buf, sizeof (itoa_buf));
   digits = strlen (q);
 
   /* Select a width if none was specified.  The idea here is to always
      print something.  */
+  if (w == DEFAULT_WIDTH)
+    w = default_width_for_integer (len);
 
   if (w == 0)
     w = ((digits < m) ? m : digits) + nsign;
@@ -942,7 +950,37 @@ write_decimal (st_parameter_dt *dtp, const fnode *f, const char *source,
 }
 
 
-/* Convert unsigned octal to ascii.  */
+/* Convert hexadecimal to ASCII.  */
+
+static const char *
+xtoa (GFC_UINTEGER_LARGEST n, char *buffer, size_t len)
+{
+  int digit;
+  char *p;
+
+  assert (len >= GFC_XTOA_BUF_SIZE);
+
+  if (n == 0)
+    return "0";
+
+  p = buffer + GFC_XTOA_BUF_SIZE - 1;
+  *p = '\0';
+
+  while (n != 0)
+    {
+      digit = n & 0xF;
+      if (digit > 9)
+	digit += 'A' - '0' - 10;
+
+      *--p = '0' + digit;
+      n >>= 4;
+    }
+
+  return p;
+}
+
+
+/* Convert unsigned octal to ASCII.  */
 
 static const char *
 otoa (GFC_UINTEGER_LARGEST n, char *buffer, size_t len)
@@ -967,7 +1005,7 @@ otoa (GFC_UINTEGER_LARGEST n, char *buffer, size_t len)
 }
 
 
-/* Convert unsigned binary to ascii.  */
+/* Convert unsigned binary to ASCII.  */
 
 static const char *
 btoa (GFC_UINTEGER_LARGEST n, char *buffer, size_t len)
@@ -991,7 +1029,7 @@ btoa (GFC_UINTEGER_LARGEST n, char *buffer, size_t len)
   return p;
 }
 
-/* The following three functions, btoa_big, otoa_big, and ztoa_big, are needed
+/* The following three functions, btoa_big, otoa_big, and xtoa_big, are needed
    to convert large reals with kind sizes that exceed the largest integer type
    available on certain platforms.  In these cases, byte by byte conversion is
    performed. Endianess is taken into account.  */
@@ -1043,8 +1081,6 @@ btoa_big (const char *s, char *buffer, int len, GFC_UINTEGER_LARGEST *n)
 	  p--;
 	}
     }
-
-  *q = '\0';
 
   if (*n == 0)
     return "0";
@@ -1131,10 +1167,10 @@ otoa_big (const char *s, char *buffer, int len, GFC_UINTEGER_LARGEST *n)
   return q;
 }
 
-/* Conversion to hexidecimal.  */
+/* Conversion to hexadecimal.  */
 
 static const char *
-ztoa_big (const char *s, char *buffer, int len, GFC_UINTEGER_LARGEST *n)
+xtoa_big (const char *s, char *buffer, int len, GFC_UINTEGER_LARGEST *n)
 {
   static char a[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
     '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
@@ -1176,7 +1212,15 @@ ztoa_big (const char *s, char *buffer, int len, GFC_UINTEGER_LARGEST *n)
 	}
     }
 
+  /* write_z, which calls xtoa_big, is called from transfer.c,
+     formatted_transfer_scalar_write.  There it is passed the kind as
+     argument, which means a maximum of 16.  The buffer is large
+     enough, but the compiler does not know that, so shut up the
+     warning here.  */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
   *q = '\0';
+#pragma GCC diagnostic pop
 
   if (*n == 0)
     return "0";
@@ -1192,7 +1236,7 @@ ztoa_big (const char *s, char *buffer, int len, GFC_UINTEGER_LARGEST *n)
 void
 write_i (st_parameter_dt *dtp, const fnode *f, const char *p, int len)
 {
-  write_decimal (dtp, f, p, len, (void *) gfc_itoa);
+  write_decimal (dtp, f, p, len);
 }
 
 
@@ -1203,16 +1247,19 @@ write_b (st_parameter_dt *dtp, const fnode *f, const char *source, int len)
   char itoa_buf[GFC_BTOA_BUF_SIZE];
   GFC_UINTEGER_LARGEST n = 0;
 
+  /* Ensure we end up with a null terminated string.  */
+  memset(itoa_buf, '\0', GFC_BTOA_BUF_SIZE);
+
   if (len > (int) sizeof (GFC_UINTEGER_LARGEST))
     {
       p = btoa_big (source, itoa_buf, len, &n);
-      write_boz (dtp, f, p, n);
+      write_boz (dtp, f, p, n, len);
     }
   else
     {
       n = extract_uint (source, len);
       p = btoa (n, itoa_buf, sizeof (itoa_buf));
-      write_boz (dtp, f, p, n);
+      write_boz (dtp, f, p, n, len);
     }
 }
 
@@ -1227,13 +1274,13 @@ write_o (st_parameter_dt *dtp, const fnode *f, const char *source, int len)
   if (len > (int) sizeof (GFC_UINTEGER_LARGEST))
     {
       p = otoa_big (source, itoa_buf, len, &n);
-      write_boz (dtp, f, p, n);
+      write_boz (dtp, f, p, n, len);
     }
   else
     {
       n = extract_uint (source, len);
       p = otoa (n, itoa_buf, sizeof (itoa_buf));
-      write_boz (dtp, f, p, n);
+      write_boz (dtp, f, p, n, len);
     }
 }
 
@@ -1246,14 +1293,14 @@ write_z (st_parameter_dt *dtp, const fnode *f, const char *source, int len)
 
   if (len > (int) sizeof (GFC_UINTEGER_LARGEST))
     {
-      p = ztoa_big (source, itoa_buf, len, &n);
-      write_boz (dtp, f, p, n);
+      p = xtoa_big (source, itoa_buf, len, &n);
+      write_boz (dtp, f, p, n, len);
     }
   else
     {
       n = extract_uint (source, len);
-      p = gfc_xtoa (n, itoa_buf, sizeof (itoa_buf));
-      write_boz (dtp, f, p, n);
+      p = xtoa (n, itoa_buf, sizeof (itoa_buf));
+      write_boz (dtp, f, p, n, len);
     }
 }
 
@@ -1353,7 +1400,7 @@ write_integer (st_parameter_dt *dtp, const char *source, int kind)
   f.u.integer.w = width;
   f.u.integer.m = -1;
   f.format = FMT_NONE;
-  write_decimal (dtp, &f, source, kind, (void *) gfc_itoa);
+  write_decimal (dtp, &f, source, kind);
 }
 
 
@@ -1491,7 +1538,7 @@ size_from_kind (st_parameter_dt *dtp, const fnode *f, int kind)
 {
   int size;
 
-  if (f->format == FMT_F && f->u.real.w == 0)
+  if ((f->format == FMT_F && f->u.real.w == 0) || f->u.real.w == DEFAULT_WIDTH)
     {
       switch (kind)
       {
@@ -1505,6 +1552,9 @@ size_from_kind (st_parameter_dt *dtp, const fnode *f, int kind)
 	  size = 4932 + 3;
 	  break;
 	case 16:
+#ifdef HAVE_GFC_REAL_17
+	case 17:
+#endif
 	  size = 4932 + 3;
 	  break;
 	default:
@@ -1661,6 +1711,13 @@ set_fnode_default (st_parameter_dt *dtp, fnode *f, int length)
       f->u.real.e = 4;
 #endif
       break;
+#ifdef HAVE_GFC_REAL_17
+    case 17:
+      f->u.real.w = 45;
+      f->u.real.d = 36;
+      f->u.real.e = 4;
+      break;
+#endif
     default:
       internal_error (&dtp->common, "bad real kind");
       break;
@@ -1715,37 +1772,48 @@ write_real (st_parameter_dt *dtp, const char *source, int kind)
    compensate for the extra digit.  */
 
 void
-write_real_g0 (st_parameter_dt *dtp, const char *source, int kind, int d)
+write_real_w0 (st_parameter_dt *dtp, const char *source, int kind,
+	       const fnode* f)
 {
-  fnode f;
+  fnode ff;
   char buf_stack[BUF_STACK_SZ];
   char str_buf[BUF_STACK_SZ];
   char *buffer, *result;
   size_t buf_size, res_len, flt_str_len;
-  int comp_d;
-  set_fnode_default (dtp, &f, kind);
+  int comp_d = 0;
 
-  if (d > 0)
-    f.u.real.d = d;
+  set_fnode_default (dtp, &ff, kind);
 
-  /* Compensate for extra digits when using scale factor, d is not
-     specified, and the magnitude is such that E editing is used.  */
-  if (dtp->u.p.scale_factor > 0 && d == 0)
-    comp_d = 1;
-  else
-    comp_d = 0;
+  if (f->u.real.d > 0)
+    ff.u.real.d = f->u.real.d;
+  ff.format = f->format;
+
+  /* For FMT_G, Compensate for extra digits when using scale factor, d
+     is not specified, and the magnitude is such that E editing
+     is used.  */
+  if (f->format == FMT_G)
+    {
+      if (dtp->u.p.scale_factor > 0 && f->u.real.d == 0)
+	comp_d = 1;
+      else
+	comp_d = 0;
+    }
+
+  if (f->u.real.e >= 0)
+    ff.u.real.e = f->u.real.e;
+
   dtp->u.p.g0_no_blanks = 1;
 
   /* Precision for snprintf call.  */
-  int precision = get_precision (dtp, &f, source, kind);
+  int precision = get_precision (dtp, &ff, source, kind);
 
   /* String buffer to hold final result.  */
-  result = select_string (dtp, &f, str_buf, &res_len, kind);
+  result = select_string (dtp, &ff, str_buf, &res_len, kind);
 
-  buffer = select_buffer (dtp, &f, precision, buf_stack, &buf_size, kind);
+  buffer = select_buffer (dtp, &ff, precision, buf_stack, &buf_size, kind);
 
-  get_float_string (dtp, &f, source , kind, comp_d, buffer,
-                           precision, buf_size, result, &flt_str_len);
+  get_float_string (dtp, &ff, source , kind, comp_d, buffer,
+		    precision, buf_size, result, &flt_str_len);
   write_float_string (dtp, result, flt_str_len);
 
   dtp->u.p.g0_no_blanks = 0;
@@ -2077,14 +2145,14 @@ nml_write_obj (st_parameter_dt *dtp, namelist_info *obj, index_type offset,
 	  base_name_len = strlen (base_name);
 	  for (dim_i = 0; dim_i < base_name_len; dim_i++)
             {
-	      cup = toupper ((int) base_name[dim_i]);
+	      cup = safe_toupper (base_name[dim_i]);
 	      write_character (dtp, &cup, 1, 1, NODELIM);
             }
 	}
       clen = strlen (obj->var_name);
       for (dim_i = len; dim_i < clen; dim_i++)
 	{
-	  cup = toupper ((int) obj->var_name[dim_i]);
+	  cup = safe_toupper (obj->var_name[dim_i]);
 	  if (cup == '+')
 	    cup = '%';
 	  write_character (dtp, &cup, 1, 1, NODELIM);
@@ -2402,7 +2470,7 @@ namelist_write (st_parameter_dt *dtp)
   /* Write namelist name in upper case - f95 std.  */
   for (gfc_charlen_type i = 0; i < dtp->namelist_name_len; i++ )
     {
-      c = toupper ((int) dtp->namelist_name[i]);
+      c = safe_toupper (dtp->namelist_name[i]);
       write_character (dtp, &c, 1 ,1, NODELIM);
     }
 

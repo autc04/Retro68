@@ -41,25 +41,27 @@ main ()
   printf ("mainvar == %d\n", mainvar);
   printf ("overriddenvar == %d\n", overriddenvar);
   printf ("shlibvar1 == %d\n", shlibvar1);
-#ifndef XCOFF_TEST
+#ifndef SYMBOLIC_TEST
   printf ("shlib_mainvar () == %d\n", shlib_mainvar ());
+#ifndef XCOFF_TEST
   printf ("shlib_overriddenvar () == %d\n", shlib_overriddenvar ());
+#endif
 #endif
   printf ("shlib_shlibvar1 () == %d\n", shlib_shlibvar1 ());
   printf ("shlib_shlibvar2 () == %d\n", shlib_shlibvar2 ());
   printf ("shlib_shlibcall () == %d\n", shlib_shlibcall ());
+#ifndef SYMBOLIC_TEST
 #ifndef XCOFF_TEST
   printf ("shlib_shlibcall2 () == %d\n", shlib_shlibcall2 ());
+#endif
   printf ("shlib_maincall () == %d\n", shlib_maincall ());
 #endif
   printf ("main_called () == %d\n", main_called ());
 #ifndef SYMBOLIC_TEST
   printf ("shlib_checkfunptr1 (shlib_shlibvar1) == %d\n",
 	  shlib_checkfunptr1 (shlib_shlibvar1));
-#ifndef XCOFF_TEST
   printf ("shlib_checkfunptr2 (main_called) == %d\n",
 	  shlib_checkfunptr2 (main_called));
-#endif
   {
     int (*p) ();
 
@@ -71,7 +73,6 @@ main ()
       printf ("!=");
     printf (" shlib_shlibvar1\n");
   }
-#ifndef XCOFF_TEST
   {
     int (*p) ();
 
@@ -83,7 +84,6 @@ main ()
       printf ("!=");
     printf (" main_called\n");
   }
-#endif
 #endif
   printf ("shlib_check () == %d\n", shlib_check ());
   return 0;

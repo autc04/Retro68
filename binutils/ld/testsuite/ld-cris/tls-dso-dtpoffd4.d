@@ -23,13 +23,13 @@ SYMBOL TABLE:
 0+80 g       .tbss	0+4 x
 #...
 Contents of section .rela.dyn:
- 0154 64220000 17030000 00000000           .*
+ 0140 50220000 17020000 00000000           .*
 Contents of section .text:
- 0160 41b20000 5fae0c00                    .*
+ 014c 41b20000 5fae0c00                    .*
 #...
 Contents of section .got:
- 2258 e8210000 00000000 00000000 00000000  .*
- 2268 00000000                             .*
+ 2244 d4210000 00000000 00000000 00000000  .*
+ 2254 00000000                             .*
 Contents of section .debug_info:
  0000 80000000                             .*
 #...

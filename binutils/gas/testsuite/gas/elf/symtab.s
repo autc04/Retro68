@@ -1,4 +1,4 @@
-.text
+	.text
 	.global foo
 foo:
 	.set	shift, 32

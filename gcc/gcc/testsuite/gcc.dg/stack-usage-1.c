@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-fstack-usage" } */
+/* { dg-options "-fstack-usage -fno-stack-protector" } */
 /* nvptx doesn't have a reg allocator, and hence no stack usage data.  */
 /* { dg-skip-if "" { nvptx-*-* } } */
 
@@ -79,8 +79,6 @@
 #  define SIZE 96  /* 256 - 160 bytes for register save area */
 #elif defined (__s390__)
 #  define SIZE 160 /* 256 -  96 bytes for register save area */
-#elif defined (__SPU__)
-#  define SIZE 224
 #elif defined (__epiphany__)
 #  define SIZE (256 - __EPIPHANY_STACK_OFFSET__)
 #elif defined (__RL78__)
@@ -93,6 +91,8 @@
 #  define SIZE 254
 #elif defined (__nios2__)
 #  define SIZE 252
+#elif defined (__PRU__)
+#  define SIZE 252
 #elif defined (__v850__)
 #define SIZE 260
 #elif defined (__mn10300__)
@@ -103,6 +103,10 @@
 #define SIZE 252
 #elif defined (__csky__)
 #  define SIZE 252
+#elif defined (__CRIS__)
+#  define SIZE 252
+#elif defined (__loongarch_lp64)
+#  define SIZE 240   /* 256 - 8 bytes for $fp, and 8 bytes for a temp value */
 #else
 #  define SIZE 256
 #endif

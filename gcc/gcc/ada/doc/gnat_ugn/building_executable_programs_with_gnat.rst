@@ -1233,6 +1233,13 @@ Alphabetical List of All Switches
   marker is specified, the callgraph is decorated with information about
   dynamically allocated objects.
 
+.. index:: -fdiagnostics-format   (gcc)
+
+:switch:`-fdiagnostics-format=json`
+  Makes GNAT emit warning and error messages as JSON. Inhibits printing of
+  text warning and errors messages except if :switch:`-gnatv` or
+  :switch:`-gnatl` are present.
+
 
 .. index:: -fdump-scos  (gcc)
 
@@ -1380,6 +1387,12 @@ Alphabetical List of All Switches
   Allow full Ada 2012 features (same as :switch:`-gnat12`)
 
 
+.. index:: -gnat2022  (gcc)
+
+:switch:`-gnat2022`
+  Allow full Ada 2022 features
+
+
 :switch:`-gnat83`
   Enforce Ada 83 restrictions.
 
@@ -1463,9 +1476,9 @@ Alphabetical List of All Switches
 
 :switch:`-gnatd`
   Specify debug options for the compiler. The string of characters after
-  the :switch:`-gnatd` specify the specific debug options. The possible
-  characters are 0-9, a-z, A-Z, optionally preceded by a dot. See
-  compiler source file :file:`debug.adb` for details of the implemented
+  the :switch:`-gnatd` specifies the specific debug options. The possible
+  characters are 0-9, a-z, A-Z, optionally preceded by a dot or underscore.
+  See compiler source file :file:`debug.adb` for details of the implemented
   debug options. Certain debug options are relevant to applications
   programmers, and these are documented at appropriate points in this
   users guide.
@@ -1484,9 +1497,10 @@ Alphabetical List of All Switches
 
 :switch:`-gnateA`
   Check that the actual parameters of a subprogram call are not aliases of one
-  another. To qualify as aliasing, the actuals must denote objects of a composite
-  type, their memory locations must be identical or overlapping, and at least one
-  of the corresponding formal parameters must be of mode OUT or IN OUT.
+  another. To qualify as aliasing, their memory locations must be identical or
+  overlapping, at least one of the corresponding formal parameters must be of
+  mode OUT or IN OUT, and at least one of the corresponding formal parameters
+  must have its parameter passing mechanism not specified.
 
 
   .. code-block:: ada
@@ -1517,6 +1531,13 @@ Alphabetical List of All Switches
   an exception because ``Self(Obj)`` produces an anonymous object which does
   not share the memory location of ``Obj``.
 
+.. index:: -gnateb  (gcc)
+
+:switch:`-gnateb`
+  Store configuration files by their basename in ALI files. This switch is
+  used for instance by gprbuild for distributed builds in order to prevent
+  issues where machine-specific absolute paths could end up being stored in
+  ALI files.
 
 .. index:: -gnatec  (gcc)
 
@@ -1714,11 +1735,13 @@ Alphabetical List of All Switches
   GCC macro ``BITS_PER_WORD`` documented as follows: `Number of bits in a word;
   normally 32.`
 
-  ``Double_Scalar_Alignment`` is the alignment for a scalar whose size is two
-  machine words. It should be the same as the alignment for C ``long_long`` on
-  most targets.
+  ``Double_Float_Alignment``, if not zero, is the maximum alignment that the
+  compiler can choose by default for a 64-bit floating-point type or object.
 
-  ``Maximum_Alignment`` is the maximum alignment that the compiler might choose
+  ``Double_Scalar_Alignment``, if not zero, is the maximum alignment that the
+  compiler can choose by default for a 64-bit or larger scalar type or object.
+
+  ``Maximum_Alignment`` is the maximum alignment that the compiler can choose
   by default for a type or object, which is also the maximum alignment that can
   be specified in GNAT. It is computed for GCC backends as ``BIGGEST_ALIGNMENT
   / BITS_PER_UNIT`` where GCC macro ``BIGGEST_ALIGNMENT`` is documented as
@@ -1726,8 +1749,7 @@ Alphabetical List of All Switches
   in bits.`
 
   ``Max_Unaligned_Field`` is the maximum size for unaligned bit field, which is
-  64 for the majority of GCC targets (but can be different on some targets like
-  AAMP).
+  64 for the majority of GCC targets (but can be different on some targets).
 
   ``Strict_Alignment`` is the equivalent of GCC macro ``STRICT_ALIGNMENT``
   documented as follows: `Define this macro to be the value 1 if instructions
@@ -1766,8 +1788,9 @@ Alphabetical List of All Switches
   where ``name`` is the string name of the type (which can have
   single spaces embedded in the name (e.g. long double), ``digs`` is
   the number of digits for the floating-point type, ``float_rep`` is
-  the float representation (I/V/A for IEEE-754-Binary, Vax_Native,
-  AAMP), ``size`` is the size in bits, ``alignment`` is the
+  the float representation (I for IEEE-754-Binary, which is
+  the only one supported at this time),
+  ``size`` is the size in bits, ``alignment`` is the
   alignment in bits. The name is followed by at least two blanks, fields
   are separated by at least one blank, and a LF character immediately
   follows the alignment field.
@@ -1836,7 +1859,8 @@ Alphabetical List of All Switches
 .. index:: -gnatE  (gcc)
 
 :switch:`-gnatE`
-  Full dynamic elaboration checks.
+  Dynamic elaboration checking mode enabled. For further details see
+  :ref:`Elaboration_Order_Handling_in_GNAT`.
 
 
 .. index:: -gnatf  (gcc)
@@ -1878,14 +1902,15 @@ Alphabetical List of All Switches
 .. index:: -gnatH  (gcc)
 
 :switch:`-gnatH`
-  Legacy elaboration-checking mode enabled. When this switch is in effect, the
-  pre-18.x access-before-elaboration model becomes the de facto model.
+  Legacy elaboration-checking mode enabled. When this switch is in effect,
+  the pre-18.x access-before-elaboration model becomes the de facto model.
+  For further details see :ref:`Elaboration_Order_Handling_in_GNAT`.
 
 
 .. index:: -gnati  (gcc)
 
 :switch:`-gnati{c}`
-  Identifier character set (``c`` = 1/2/3/4/8/9/p/f/n/w).
+  Identifier character set (``c`` = 1/2/3/4/5/9/p/8/f/n/w).
   For details of the possible selections for ``c``,
   see :ref:`Character_Set_Control`.
 
@@ -1905,10 +1930,6 @@ Alphabetical List of All Switches
   and Value_Size. Pragma Default_Scalar_Storage_Order is also ignored.
   Note that this option should be used only for compiling -- the
   code is likely to malfunction at run time.
-
-  Note that when :switch:`-gnatct` is used to generate trees for input
-  into ASIS tools, these representation clauses are removed
-  from the tree and ignored. This means that the tool will not see them.
 
 
 .. index:: -gnatjnn  (gcc)
@@ -1935,7 +1956,8 @@ Alphabetical List of All Switches
   - Select statements
   - Synchronous task suspension
 
-  and does not emit compile-time diagnostics or run-time checks.
+  and does not emit compile-time diagnostics or run-time checks. For further
+  details see :ref:`Elaboration_Order_Handling_in_GNAT`.
 
 
 .. index:: -gnatk  (gcc)
@@ -1989,8 +2011,7 @@ Alphabetical List of All Switches
   by the front end and will be visible in the
   :switch:`-gnatG` output.
 
-  When using a gcc-based back end (in practice this means using any version
-  of GNAT other than the JGNAT, .NET or GNAAMP versions), then the use of
+  When using a gcc-based back end, then the use of
   :switch:`-gnatN` is deprecated, and the use of :switch:`-gnatn` is preferred.
   Historically front end inlining was more extensive than the gcc back end
   inlining, but that is no longer the case.
@@ -2057,15 +2078,6 @@ Alphabetical List of All Switches
   Cancel effect of previous :switch:`-gnatp` switch.
 
 
-.. index:: -gnatP  (gcc)
-
-:switch:`-gnatP`
-  Enable polling. This is required on some systems (notably Windows NT) to
-  obtain asynchronous abort and asynchronous transfer of control capability.
-  See ``Pragma_Polling`` in the :title:`GNAT_Reference_Manual` for full
-  details.
-
-
 .. index:: -gnatq  (gcc)
 
 :switch:`-gnatq`
@@ -2105,12 +2117,6 @@ Alphabetical List of All Switches
 
 :switch:`-gnatS`
   Print package Standard.
-
-
-.. index:: -gnatt  (gcc)
-
-:switch:`-gnatt`
-  Generate tree output file.
 
 
 .. index:: -gnatT  (gcc)
@@ -2372,7 +2378,7 @@ file) and have the following form:
 
 The first integer after the file name is the line number in the file,
 and the second integer is the column number within the line.
-``GPS`` can parse the error messages
+``GNAT Studio`` can parse the error messages
 and point to the referenced character.
 The following switches provide control over the error message
 format:
@@ -2595,14 +2601,6 @@ format:
   implies :switch:`-gnatq`, since the semantic phase must be run to get a
   meaningful ALI file.
 
-  In addition, if :switch:`-gnatt` is also specified, then the tree file is
-  generated even if there are illegalities. It may be useful in this case
-  to also specify :switch:`-gnatq` to ensure that full semantic processing
-  occurs. The resulting tree file can be processed by ASIS, for the purpose
-  of providing partial information about illegal units, but if the error
-  causes the tree to be badly malformed, then ASIS may crash during the
-  analysis.
-
   When :switch:`-gnatQ` is used and the generated :file:`ALI` file is marked as
   being in error, ``gnatmake`` will attempt to recompile the source when it
   finds such an :file:`ALI` file, including with switch :switch:`-gnatc`.
@@ -2755,7 +2753,7 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 :switch:`-gnatwa`
   *Activate most optional warnings.*
 
-  This switch activates most optional warning messages.  See the remaining list
+  This switch activates most optional warning messages. See the remaining list
   in this section for details on optional warning messages that can be
   individually controlled.  The warnings that are not turned on by this
   switch are:
@@ -2784,6 +2782,8 @@ of the pragma in the :title:`GNAT_Reference_manual`).
   * :switch:`-gnatw.o` (values set by out parameters ignored)
 
   * :switch:`-gnatw.q` (questionable layout of record types)
+
+  * :switch:`-gnatw_r` (out-of-order record representation clauses)
 
   * :switch:`-gnatw.s` (overridden size clause)
 
@@ -2837,6 +2837,29 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 
   This switch suppresses warnings for assertions where the compiler can tell at
   compile time that the assertion will fail.
+
+
+.. index:: -gnatw_a
+
+:switch:`-gnatw_a`
+  *Activate warnings on anonymous allocators.*
+
+  .. index:: Anonymous allocators
+
+  This switch activates warnings for allocators of anonymous access types,
+  which can involve run-time accessibility checks and lead to unexpected
+  accessibility violations. For more details on the rules involved, see
+  RM 3.10.2 (14).
+
+
+.. index:: -gnatw_A
+
+:switch:`-gnatw_A`
+  *Supress warnings on anonymous allocators.*
+
+  .. index:: Anonymous allocators
+
+  This switch suppresses warnings for anonymous access type allocators.
 
 
 .. index:: -gnatwb  (gcc)
@@ -2944,13 +2967,37 @@ of the pragma in the :title:`GNAT_Reference_manual`).
   component for which no component clause is present.
 
 
-.. index:: -gnatwC  (gcc)
+.. index:: -gnatw.C  (gcc)
 
 :switch:`-gnatw.C`
   *Suppress warnings on missing component clauses.*
 
   This switch suppresses warnings for record components that are
   missing a component clause in the situation described above.
+
+
+.. index:: -gnatw_c  (gcc)
+
+:switch:`-gnatw_c`
+  *Activate warnings on unknown condition in Compile_Time_Warning.*
+
+  .. index:: Compile_Time_Warning
+  .. index:: Compile_Time_Error
+
+  This switch activates warnings on a pragma Compile_Time_Warning
+  or Compile_Time_Error whose condition has a value that is not
+  known at compile time.
+  The default is that such warnings are generated.
+
+
+.. index:: -gnatw_C  (gcc)
+
+:switch:`-gnatw_C`
+  *Suppress warnings on unknown condition in Compile_Time_Warning.*
+
+  This switch supresses warnings on a pragma Compile_Time_Warning
+  or Compile_Time_Error whose condition has a value that is not
+  known at compile time.
 
 
 .. index:: -gnatwd  (gcc)
@@ -3213,7 +3260,7 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 :switch:`-gnatw.I`
   *Disable warnings on overlapping actuals.*
 
-  This switch disables warnings on overlapping actuals in a call..
+  This switch disables warnings on overlapping actuals in a call.
 
 
 .. index:: -gnatwj  (gcc)
@@ -3310,7 +3357,7 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 :switch:`-gnatw.K`
   *Suppress warnings on redefinition of names in standard.*
 
-  This switch activates warnings for declarations that declare a name that
+  This switch disables warnings for declarations that declare a name that
   is defined in package Standard.
 
 
@@ -3390,7 +3437,10 @@ of the pragma in the :title:`GNAT_Reference_manual`).
   with no size clause. The guess in both cases is that 2**x was intended
   rather than x. In addition expressions of the form 2*x for small x
   generate a warning (the almost certainly accurate guess being that
-  2**x was intended). The default is that these warnings are given.
+  2**x was intended). This switch also activates warnings for negative
+  literal values of a modular type, which are interpreted as large positive
+  integers after wrap-around. The default is that these warnings are given.
+
 
 
 .. index:: -gnatw.M  (gcc)
@@ -3532,6 +3582,25 @@ of the pragma in the :title:`GNAT_Reference_manual`).
   ordering.
 
 
+.. index:: -gnatw_p  (gcc)
+
+:switch:`-gnatw_p`
+  *Activate warnings for pedantic checks.*
+
+  This switch activates warnings for the failure of certain pedantic checks.
+  The only case currently supported is a check that the subtype_marks given
+  for corresponding formal parameter and function results in a subprogram
+  declaration and its body denote the same subtype declaration. The default
+  is that such warnings are not given.
+
+.. index:: -gnatw_P  (gcc)
+
+:switch:`-gnatw_P`
+  *Suppress warnings for pedantic checks.*
+
+  This switch suppresses warnings on violations of pedantic checks.
+
+
 .. index:: -gnatwq  (gcc)
 .. index:: Parentheses, warnings
 
@@ -3634,6 +3703,8 @@ of the pragma in the :title:`GNAT_Reference_manual`).
   * Comparison of an object or (unary or binary) operation of boolean type to
     an explicit True value.
 
+  * Import of parent package.
+
   The default is that warnings for redundant constructs are not given.
 
 
@@ -3656,12 +3727,29 @@ of the pragma in the :title:`GNAT_Reference_manual`).
   warnings are given.
 
 
-.. index:: -gnatwT  (gcc)
+.. index:: -gnatw.R  (gcc)
 
 :switch:`-gnatw.R`
   *Suppress warnings for object renaming function.*
 
   This switch suppresses warnings for object renaming function.
+
+
+.. index:: -gnatw_r  (gcc)
+
+:switch:`-gnatw_r`
+  *Activate warnings for out-of-order record representation clauses.*
+
+  This switch activates warnings for record representation clauses,
+  if the order of component declarations, component clauses,
+  and bit-level layout do not all agree.
+  The default is that these warnings are not given.
+
+
+.. index:: -gnatw_R  (gcc)
+
+:switch:`-gnatw_R`
+  *Suppress warnings for out-of-order record representation clauses.*
 
 
 .. index:: -gnatws  (gcc)
@@ -3821,8 +3909,14 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 
   This switch activates warnings for access to variables which
   may not be properly initialized. The default is that
-  such warnings are generated.
+  such warnings are generated. This switch will also be emitted when
+  initializing an array or record object via the following aggregate:
 
+  .. code-block:: ada
+
+       Array_Or_Record : XXX := (others => <>);
+
+  unless the relevant type fully initializes all components.
 
 .. index:: -gnatwV  (gcc)
 
@@ -3831,17 +3925,6 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 
   This switch suppresses warnings for access to variables which
   may not be properly initialized.
-  For variables of a composite type, the warning can also be suppressed in
-  Ada 2005 by using a default initialization with a box. For example, if
-  Table is an array of records whose components are only partially uninitialized,
-  then the following code:
-
-  .. code-block:: ada
-
-       Tab : Table := (others => <>);
-
-  will suppress warnings on subsequent statements that access components
-  of variable Tab.
 
 
 .. index:: -gnatw.v  (gcc)
@@ -4045,8 +4128,8 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 :switch:`-gnatw.z`
   *Activate warnings for size not a multiple of alignment.*
 
-  This switch activates warnings for cases of record types with
-  specified ``Size`` and ``Alignment`` attributes where the
+  This switch activates warnings for cases of array and record types
+  with specified ``Size`` and ``Alignment`` attributes where the
   size is not a multiple of the alignment, resulting in an object
   size that is greater than the specified size. The default
   is that such warnings are generated.
@@ -4058,12 +4141,11 @@ of the pragma in the :title:`GNAT_Reference_manual`).
 :switch:`-gnatw.Z`
   *Suppress warnings for size not a multiple of alignment.*
 
-  This switch suppresses warnings for cases of record types with
-  specified ``Size`` and ``Alignment`` attributes where the
+  This switch suppresses warnings for cases of array and record types
+  with specified ``Size`` and ``Alignment`` attributes where the
   size is not a multiple of the alignment, resulting in an object
-  size that is greater than the specified size.
-  The warning can also be
-  suppressed by giving an explicit ``Object_Size`` value.
+  size that is greater than the specified size. The warning can also
+  be suppressed by giving an explicit ``Object_Size`` value.
 
 
 .. index:: -Wunused (gcc)
@@ -4097,16 +4179,16 @@ of the pragma in the :title:`GNAT_Reference_manual`).
   This switch enables most warnings from the GCC back end.
   The code generator detects a number of warning situations that are missed
   by the GNAT front end, and this switch can be used to activate them.
-  The use of this switch also sets the default front end warning mode to
-  :switch:`-gnatwa`, that is, most front end warnings activated as well.
+  The use of this switch also sets the default front-end warning mode to
+  :switch:`-gnatwa`, that is, most front-end warnings are activated as well.
 
 
 .. index:: -w (gcc)
 
 :switch:`-w`
   Conversely, this switch suppresses warnings from the GCC back end.
-  The use of this switch also sets the default front end warning mode to
-  :switch:`-gnatws`, that is, front end warnings suppressed as well.
+  The use of this switch also sets the default front-end warning mode to
+  :switch:`-gnatws`, that is, front-end warnings are suppressed as well.
 
 
 .. index:: -Werror (gcc)
@@ -4115,6 +4197,9 @@ of the pragma in the :title:`GNAT_Reference_manual`).
   This switch causes warnings from the GCC back end to be treated as
   errors.  The warning string still appears, but the warning messages are
   counted as errors, and prevent the generation of an object file.
+  The use of this switch also sets the default front-end warning mode to
+  :switch:`-gnatwe`, that is, front-end warning messages and style check
+  messages are treated as errors as well.
 
 
 A string of warning parameters can be used in the same parameter. For example::
@@ -4351,7 +4436,7 @@ to the default checks required by Ada as described above.
 
   All validity checks are turned on.
   That is, :switch:`-gnatVa` is
-  equivalent to ``gnatVcdfimorst``.
+  equivalent to ``gnatVcdfimoprst``.
 
 
 .. index:: -gnatVc  (gcc)
@@ -4575,8 +4660,18 @@ checks to be performed. The following checks are defined:
   in the string after :switch:`-gnaty`
   then proper indentation is checked, with the digit indicating the
   indentation level required. A value of zero turns off this style check.
-  The general style of required indentation is as specified by
-  the examples in the Ada Reference Manual. Full line comments must be
+  The rule checks that the following constructs start on a column that is
+  a multiple of the alignment level:
+
+  * beginnings of declarations (except record component declarations)
+    and statements;
+
+  * beginnings of the structural components of compound statements;
+
+  * ``end`` keyword that completes the declaration of a program unit declaration
+    or body or that completes a compound statement.
+
+  Full line comments must be
   aligned with the ``--`` starting on a column that is a multiple of
   the alignment level, or they may be aligned the same way as the following
   non-blank line (this is useful when full line comments appear in the middle
@@ -4691,6 +4786,16 @@ checks to be performed. The following checks are defined:
   allowed).
 
 
+.. index:: -gnatyD (gcc)
+
+:switch:`-gnatyD`
+  *Check declared identifiers in mixed case.*
+
+  Declared identifiers must be in mixed case, as in
+  This_Is_An_Identifier. Use -gnatyr in addition to ensure
+  that references match declarations.
+
+
 .. index:: -gnatye (gcc)
 
 :switch:`-gnatye`
@@ -4716,7 +4821,7 @@ checks to be performed. The following checks are defined:
 
   The set of style check switches is set to match that used by the GNAT sources.
   This may be useful when developing code that is eventually intended to be
-  incorporated into GNAT. Currently this is equivalent to :switch:`-gnatwydISux`)
+  incorporated into GNAT. Currently this is equivalent to :switch:`-gnatyydISux`)
   but additional style switches may be added to this set in the future without
   advance notice.
 
@@ -4759,7 +4864,8 @@ checks to be performed. The following checks are defined:
 
   All keywords must be in lower case (with the exception of keywords
   such as ``digits`` used as attribute names to which this check
-  does not apply).
+  does not apply). A single error is reported for each line breaking
+  this rule even if multiple casing issues exist on a same line.
 
 
 .. index:: -gnatyl (gcc)
@@ -5059,7 +5165,7 @@ checks to be performed. The following checks are defined:
 
 
 .. end of switch description (leave this comment to ease automatic parsing for
-.. GPS
+.. GNAT Studio
 
 In the above rules, appearing in column one is always permitted, that is,
 counts as meeting either a requirement for a required preceding space,
@@ -5281,7 +5387,7 @@ Using ``gcc`` for Syntax Checking
 
   compiles file :file:`x.adb` in syntax-check-only mode. You can check a
   series of files in a single command
-  , and can use wild cards to specify such a group of files.
+  , and can use wildcards to specify such a group of files.
   Note that you must specify the :switch:`-c` (compile
   only) flag in addition to the :switch:`-gnats` flag.
 
@@ -5443,15 +5549,23 @@ indicate Ada 83 compatibility mode.
   for further information).
 
 
+.. index:: -gnat2022  (gcc)
+.. index:: Ada 2022 mode
+
+:switch:`-gnat2022` (Ada 2022 mode)
+  This switch directs the compiler to implement the Ada 2022 version of the
+  language.
+
+
 .. index:: -gnatX  (gcc)
 .. index:: Ada language extensions
 .. index:: GNAT extensions
 
 :switch:`-gnatX` (Enable GNAT Extensions)
   This switch directs the compiler to implement the latest version of the
-  language (currently Ada 2012) and also to enable certain GNAT implementation
+  language (currently Ada 2022) and also to enable certain GNAT implementation
   extensions that are not part of any Ada standard. For a full list of these
-  extensions, see the GNAT reference manual.
+  extensions, see the GNAT reference manual, ``Pragma Extensions_Allowed``.
 
 
 .. _Character_Set_Control:
@@ -5604,8 +5718,7 @@ Subprogram Inlining Control
   This switch activates front-end inlining which also
   generates additional dependencies.
 
-  When using a gcc-based back end (in practice this means using any version
-  of GNAT other than the JGNAT, .NET or GNAAMP versions), then the use of
+  When using a gcc-based back end, then the use of
   :switch:`-gnatN` is deprecated, and the use of :switch:`-gnatn` is preferred.
   Historically front end inlining was more extensive than the gcc back end
   inlining, but that is no longer the case.
@@ -5614,21 +5727,6 @@ Subprogram Inlining Control
 
 Auxiliary Output Control
 ------------------------
-
-.. index:: -gnatt  (gcc)
-.. index:: Writing internal trees
-.. index:: Internal trees, writing to file
-
-:switch:`-gnatt`
-  Causes GNAT to write the internal tree for a unit to a file (with the
-  extension :file:`.adt`.
-  This not normally required, but is used by separate analysis tools.
-  Typically
-  these tools do the necessary compilations automatically, so you should
-  not have to specify this switch in normal operation.
-  Note that the combination of switches :switch:`-gnatct`
-  generates a tree in the form required by ASIS applications.
-
 
 .. index:: -gnatu  (gcc)
 
@@ -5889,8 +5987,8 @@ Debugging Control
   compiler sources.
 
   If the switch is followed by an ``s`` (e.g., :switch:`-gnatR3s`), then
-  the output is to a file with the name :file:`file.rep` where file is
-  the name of the corresponding source file, except if `j`` is also
+  the output is to a file with the name :file:`file.rep` where ``file`` is
+  the name of the corresponding source file, except if ``j`` is also
   specified, in which case the file name is :file:`file.json`.
 
   Note that it is possible for record components to have zero size. In
@@ -6359,7 +6457,9 @@ be presented in subsequent sections.
 .. index:: -f  (gnatbind)
 
 :switch:`-f{elab-order}`
-  Force elaboration order.
+  Force elaboration order. For further details see :ref:`Elaboration_Control`
+  and :ref:`Elaboration_Order_Handling_in_GNAT`.
+
 
 .. index:: -F  (gnatbind)
 
@@ -6379,15 +6479,22 @@ be presented in subsequent sections.
   Output usage (help) information.
 
 
-  .. index:: -H32  (gnatbind)
+.. index:: -H  (gnatbind)
+
+:switch:`-H`
+  Legacy elaboration order model enabled. For further details see
+  :ref:`Elaboration_Order_Handling_in_GNAT`.
+
+
+.. index:: -H32  (gnatbind)
 
 :switch:`-H32`
   Use 32-bit allocations for ``__gnat_malloc`` (and thus for access types).
   For further details see :ref:`Dynamic_Allocation_Control`.
 
 
-  .. index:: -H64  (gnatbind)
-  .. index:: __gnat_malloc
+.. index:: -H64  (gnatbind)
+.. index:: __gnat_malloc
 
 :switch:`-H64`
   Use 64-bit allocations for ``__gnat_malloc`` (and thus for access types).
@@ -6431,7 +6538,6 @@ be presented in subsequent sections.
   Rename generated main program from main to xyz. This option is
   supported on cross environments only.
 
-
   .. index:: -m  (gnatbind)
 
 :switch:`-m{n}`
@@ -6444,6 +6550,19 @@ be presented in subsequent sections.
   A value of zero means that no limit is enforced. The equal
   sign is optional.
 
+  .. index:: -minimal  (gnatbind)
+
+:switch:`-minimal`
+  Generate a binder file suitable for space-constrained applications. When
+  active, binder-generated objects not required for program operation are no
+  longer generated. **Warning:** this option comes with the following
+  limitations:
+
+  * Starting the program's execution in the debugger will cause it to
+    stop at the start of the ``main`` function instead of the main subprogram.
+    This can be worked around by manually inserting a breakpoint on that
+    subprogram and resuming the program's execution until reaching that breakpoint.
+  * Programs using GNAT.Compiler_Version will not link.
 
   .. index:: -n  (gnatbind)
 
@@ -6643,6 +6762,17 @@ be presented in subsequent sections.
   Exclude source files (check object consistency only).
 
 
+  .. index:: -xdr  (gnatbind)
+
+:switch:`-xdr`
+  Use the target-independent XDR protocol for stream oriented attributes
+  instead of the default implementation which is based on direct binary
+  representations and is therefore target-and endianness-dependent.
+  However it does not support 128-bit integer types and the exception
+  ``Ada.IO_Exceptions.Device_Error`` is raised if any attempt is made
+  at streaming 128-bit integer types with it.
+
+
   .. index:: -Xnnn  (gnatbind)
 
 :switch:`-X{nnn}`
@@ -6807,7 +6937,7 @@ Elaboration Control
 ^^^^^^^^^^^^^^^^^^^
 
 The following switches provide additional control over the elaboration
-order. For full details see :ref:`Elaboration_Order_Handling_in_GNAT`.
+order. For further details see :ref:`Elaboration_Order_Handling_in_GNAT`.
 
 
 .. index:: -f  (gnatbind)
@@ -6851,28 +6981,32 @@ order. For full details see :ref:`Elaboration_Order_Handling_in_GNAT`.
   ignored.
 
 
-  .. index:: -p  (gnatbind)
+.. index:: -p  (gnatbind)
 
 :switch:`-p`
-  Normally the binder attempts to choose an elaboration order that is
-  likely to minimize the likelihood of an elaboration order error resulting
-  in raising a ``Program_Error`` exception. This switch reverses the
-  action of the binder, and requests that it deliberately choose an order
-  that is likely to maximize the likelihood of an elaboration error.
-  This is useful in ensuring portability and avoiding dependence on
-  accidental fortuitous elaboration ordering.
+  Pessimistic elaboration order
 
-  Normally it only makes sense to use the :switch:`-p`
-  switch if dynamic
+  This switch is only applicable to the pre-20.x legacy elaboration models.
+  The post-20.x elaboration model uses a more informed approach of ordering
+  the units.
+
+  Normally the binder attempts to choose an elaboration order that is likely to
+  minimize the likelihood of an elaboration order error resulting in raising a
+  ``Program_Error`` exception. This switch reverses the action of the binder,
+  and requests that it deliberately choose an order that is likely to maximize
+  the likelihood of an elaboration error. This is useful in ensuring
+  portability and avoiding dependence on accidental fortuitous elaboration
+  ordering.
+
+  Normally it only makes sense to use the :switch:`-p` switch if dynamic
   elaboration checking is used (:switch:`-gnatE` switch used for compilation).
   This is because in the default static elaboration mode, all necessary
   ``Elaborate`` and ``Elaborate_All`` pragmas are implicitly inserted.
-  These implicit pragmas are still respected by the binder in
-  :switch:`-p` mode, so a
-  safe elaboration order is assured.
+  These implicit pragmas are still respected by the binder in :switch:`-p`
+  mode, so a safe elaboration order is assured.
 
-  Note that :switch:`-p` is not intended for
-  production use; it is more for debugging/experimental use.
+  Note that :switch:`-p` is not intended for production use; it is more for
+  debugging/experimental use.
 
 .. _Output_Control:
 

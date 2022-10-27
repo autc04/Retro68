@@ -4,13 +4,14 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_lmrepl.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_lmrepl.d)
  */
 module core.sys.windows.lmrepl;
 version (Windows):
+@system:
 pragma(lib, "netapi32");
 
-private import core.sys.windows.lmcons, core.sys.windows.windef;
+import core.sys.windows.lmcons, core.sys.windows.windef;
 
 enum REPL_ROLE_EXPORT=1;
 enum REPL_ROLE_IMPORT=2;

@@ -1,7 +1,6 @@
-// { dg-options "-std=gnu++17" }
-// { dg-do compile }
+// { dg-do compile { target c++17 } }
 
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -26,20 +25,22 @@ using std::any_cast;
 void test01()
 {
   const any y(1);
-  any_cast<int&>(y); // { dg-error "invalid static_cast" "" { target { *-*-* } } 461 }
-  // { dg-error "Template argument must be constructible from a const value" "" { target { *-*-* } } 457 }
+  any_cast<int&>(y); // { dg-error "here" }
+  // { dg-error "Template argument must be constructible from a const value" "" { target { *-*-* } } 0 }
 }
 
 void test02()
 {
   any y(1);
-  any_cast<int&&>(y);
-  // { dg-error "Template argument must be constructible from an lvalue" "" { target { *-*-* } } 483 }
+  any_cast<int&&>(y); // { dg-error "here" }
+  // { dg-error "Template argument must be constructible from an lvalue" "" { target { *-*-* } } 0 }
 }
 
 void test03()
 {
   any y(1);
-  any_cast<int&>(std::move(y));  // { dg-error "invalid static_cast" "" { target { *-*-* } } 501 }
-  // { dg-error "Template argument must be constructible from an rvalue" "" { target { *-*-* } } 497 }
+  any_cast<int&>(std::move(y)); // { dg-error "here" }
+  // { dg-error "Template argument must be constructible from an rvalue" "" { target { *-*-* } } 0 }
 }
+
+// { dg-prune-output "invalid 'static_cast'" }

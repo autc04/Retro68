@@ -28,7 +28,7 @@ contains
   !$acc enter data
   !$acc enter data if (.false.)
   !$acc enter data if (l)
-  !$acc enter data if (.false.) if (l) ! { dg-error "Unclassifiable" }
+  !$acc enter data if (.false.) if (l) ! { dg-error "Duplicated 'if' clause" }
   !$acc enter data if (i) ! { dg-error "LOGICAL" }
   !$acc enter data if (1) ! { dg-error "LOGICAL" }
   !$acc enter data if (a) ! { dg-error "LOGICAL" }
@@ -44,14 +44,14 @@ contains
   !$acc enter data wait (i, 1) 
   !$acc enter data wait (a) ! { dg-error "INTEGER" }
   !$acc enter data wait (b(5:6)) ! { dg-error "INTEGER" }
-  !$acc enter data copyin (tip) ! { dg-error "POINTER" }
-  !$acc enter data copyin (tia) ! { dg-error "ALLOCATABLE" }
-  !$acc enter data create (tip) ! { dg-error "POINTER" }
-  !$acc enter data create (tia) ! { dg-error "ALLOCATABLE" }
-  !$acc enter data present_or_copyin (tip) ! { dg-error "POINTER" }
-  !$acc enter data present_or_copyin (tia) ! { dg-error "ALLOCATABLE" }
-  !$acc enter data present_or_create (tip) ! { dg-error "POINTER" }
-  !$acc enter data present_or_create (tia) ! { dg-error "ALLOCATABLE" }
+  !$acc enter data copyin (tip)
+  !$acc enter data copyin (tia)
+  !$acc enter data create (tip)
+  !$acc enter data create (tia)
+  !$acc enter data present_or_copyin (tip)
+  !$acc enter data present_or_copyin (tia)
+  !$acc enter data present_or_create (tip)
+  !$acc enter data present_or_create (tia)
   !$acc enter data copyin (i) create (i) ! { dg-error "multiple clauses" }
   !$acc enter data copyin (i) present_or_copyin (i) ! { dg-error "multiple clauses" }
   !$acc enter data create (i) present_or_copyin (i) ! { dg-error "multiple clauses" }
@@ -63,7 +63,7 @@ contains
   !$acc exit data
   !$acc exit data if (.false.)
   !$acc exit data if (l)
-  !$acc exit data if (.false.) if (l) ! { dg-error "Unclassifiable" }
+  !$acc exit data if (.false.) if (l) ! { dg-error "Duplicated 'if' clause" }
   !$acc exit data if (i) ! { dg-error "LOGICAL" }
   !$acc exit data if (1) ! { dg-error "LOGICAL" }
   !$acc exit data if (a) ! { dg-error "LOGICAL" }
@@ -79,10 +79,10 @@ contains
   !$acc exit data wait (i, 1) 
   !$acc exit data wait (a) ! { dg-error "INTEGER" }
   !$acc exit data wait (b(5:6)) ! { dg-error "INTEGER" }
-  !$acc exit data copyout (tip) ! { dg-error "POINTER" }
-  !$acc exit data copyout (tia) ! { dg-error "ALLOCATABLE" }
-  !$acc exit data delete (tip) ! { dg-error "POINTER" }
-  !$acc exit data delete (tia) ! { dg-error "ALLOCATABLE" }
+  !$acc exit data copyout (tip)
+  !$acc exit data copyout (tia)
+  !$acc exit data delete (tip)
+  !$acc exit data delete (tia)
   !$acc exit data copyout (i) delete (i) ! { dg-error "multiple clauses" }
   !$acc exit data finalize
   !$acc exit data finalize copyout (i)

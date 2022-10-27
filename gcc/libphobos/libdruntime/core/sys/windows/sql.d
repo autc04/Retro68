@@ -4,13 +4,14 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_sql.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_sql.d)
  */
 module core.sys.windows.sql;
 version (Windows):
+@system:
 
 public import core.sys.windows.sqltypes;
-private import core.sys.windows.windef;
+import core.sys.windows.windef;
 
 enum ODBCVER = 0x0351;
 

@@ -1,9 +1,9 @@
 #name: MIPS eh-frame 1, n32
 #source: eh-frame1.s
 #source: eh-frame1.s
-#as: -march=from-abi -EB -n32 --defsym alignment=2 --defsym fill=0x40
+#as: --defsym alignment=2 --defsym fill=0x40
 #readelf: --relocs -wf
-#ld: -shared -melf32btsmipn32 -Teh-frame1.ld
+#ld: -shared --eh-frame-hdr -Teh-frame1.ld
 #warning: FDE encoding in.*prevents \.eh_frame_hdr table being created.
 
 Relocation section '\.rel\.dyn' .*:

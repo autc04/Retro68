@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,19 +29,28 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  This package contains the routine used for Width attribute for all
---  non-static unsigned integer (modular integer) subtypes. Note we only
---  have one routine, since this seems a fairly marginal function.
+--  Width attribute for modular integers larger than Integer
 
+--  Preconditions in this unit are meant for analysis only, not for run-time
+--  checking, so that the expected exceptions are raised. This is enforced by
+--  setting the corresponding assertion policy to Ignore. Postconditions and
+--  contract cases should not be executed at runtime as well, in order not to
+--  slow down the execution of these functions.
+
+pragma Assertion_Policy (Pre            => Ignore,
+                         Post           => Ignore,
+                         Contract_Cases => Ignore,
+                         Ghost          => Ignore);
+
+with System.Width_U;
 with System.Unsigned_Types;
 
-package System.Wid_LLU is
-   pragma Pure;
+package System.Wid_LLU
+  with SPARK_Mode
+is
+   subtype Long_Long_Unsigned is Unsigned_Types.Long_Long_Unsigned;
 
-   function Width_Long_Long_Unsigned
-     (Lo, Hi : System.Unsigned_Types.Long_Long_Unsigned)
-      return   Natural;
-   --  Compute Width attribute for non-static type derived from a modular
-   --  integer type. The arguments Lo, Hi are the bounds of the type.
+   function Width_Long_Long_Unsigned is new Width_U (Long_Long_Unsigned);
+   pragma Pure_Function (Width_Long_Long_Unsigned);
 
 end System.Wid_LLU;

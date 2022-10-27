@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2009-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2009-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,13 +23,16 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Einfo;   use Einfo;
-with Nlists;  use Nlists;
-with Rtsfind; use Rtsfind;
-with Sem_Aux; use Sem_Aux;
-with Sinfo;   use Sinfo;
-with Stand;   use Stand;
-with SCIL_LL; use SCIL_LL;
+with Einfo;          use Einfo;
+with Einfo.Entities; use Einfo.Entities;
+with Einfo.Utils;    use Einfo.Utils;
+with Nlists;         use Nlists;
+with Rtsfind;        use Rtsfind;
+with Sem_Aux;        use Sem_Aux;
+with Sinfo;          use Sinfo;
+with Sinfo.Nodes;    use Sinfo.Nodes;
+with Stand;          use Stand;
+with SCIL_LL;        use SCIL_LL;
 
 package body Sem_SCIL is
 
@@ -71,13 +74,12 @@ package body Sem_SCIL is
                --  Interface types are unsupported
 
                if Is_Interface (Ctrl_Typ)
-                 or else (RTE_Available (RE_Interface_Tag)
-                            and then Ctrl_Typ = RTE (RE_Interface_Tag))
+                 or else Is_RTE (Ctrl_Typ, RE_Interface_Tag)
                then
                   null;
 
                else
-                  pragma Assert (Ctrl_Typ = RTE (RE_Tag));
+                  pragma Assert (Is_RTE (Ctrl_Typ, RE_Tag));
                   null;
                end if;
 
@@ -86,16 +88,15 @@ package body Sem_SCIL is
             --  object or parameter declaration. Interface types are still
             --  unsupported.
 
-            elsif Nkind_In (Ctrl_Tag, N_Object_Declaration,
-                                      N_Parameter_Specification)
+            elsif Nkind (Ctrl_Tag) in
+                    N_Object_Declaration | N_Parameter_Specification
             then
                Ctrl_Typ := Etype (Defining_Identifier (Ctrl_Tag));
 
                --  Interface types are unsupported.
 
                if Is_Interface (Ctrl_Typ)
-                 or else (RTE_Available (RE_Interface_Tag)
-                           and then Ctrl_Typ = RTE (RE_Interface_Tag))
+                 or else Is_RTE (Ctrl_Typ, RE_Interface_Tag)
                  or else (Is_Access_Type (Ctrl_Typ)
                            and then
                              Is_Interface
@@ -106,12 +107,14 @@ package body Sem_SCIL is
 
                else
                   pragma Assert
-                    (Ctrl_Typ = RTE (RE_Tag)
+                    (Is_RTE (Ctrl_Typ, RE_Tag)
                        or else
                          (Is_Access_Type (Ctrl_Typ)
-                           and then Available_View
-                                      (Base_Type (Designated_Type (Ctrl_Typ)))
-                                        = RTE (RE_Tag)));
+                            and then
+                          Is_RTE
+                            (Available_View
+                               (Base_Type (Designated_Type (Ctrl_Typ))),
+                             RE_Tag)));
                   null;
                end if;
 
@@ -132,10 +135,10 @@ package body Sem_SCIL is
             --  Check contents of the boolean expression associated with the
             --  membership test.
 
-            pragma Assert (Nkind_In (N, N_Identifier,
-                                        N_And_Then,
-                                        N_Or_Else,
-                                        N_Expression_With_Actions)
+            pragma Assert
+              (Nkind (N) in
+                 N_Identifier | N_And_Then | N_Or_Else |
+                 N_Expression_With_Actions | N_Function_Call
               and then Etype (N) = Standard_Boolean);
 
             --  Check the entity identifier of the associated tagged type (that
@@ -167,7 +170,7 @@ package body Sem_SCIL is
                --  tag of the tested object (i.e. Obj.Tag).
 
                when N_Selected_Component =>
-                  pragma Assert (Etype (Ctrl_Tag) = RTE (RE_Tag));
+                  pragma Assert (Is_RTE (Etype (Ctrl_Tag), RE_Tag));
                   null;
 
                when others =>

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008, Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
@@ -26,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: head/sys/sys/_bitset.h 299184 2016-05-06 16:41:23Z royger $
+ * $FreeBSD: head/sys/sys/_bitset.h 331723 2018-03-29 02:54:50Z jeff $
  */
 
 #ifndef _SYS__BITSET_H_
@@ -54,5 +56,11 @@ struct t {								\
  * the only member of the struct and the compiler complains.
  */
 #define BITSET_DEFINE_VAR(t)	BITSET_DEFINE(t, 1)
+
+/*
+ * Define a default type that can be used while manually specifying size
+ * to every call.
+ */
+BITSET_DEFINE(bitset, 1);
 
 #endif /* !_SYS__BITSET_H_ */

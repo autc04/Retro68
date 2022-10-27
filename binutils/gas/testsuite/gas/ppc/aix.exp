@@ -1,4 +1,4 @@
-# Copyright (C) 2001-2018 Free Software Foundation, Inc.
+# Copyright (C) 2001-2022 Free Software Foundation, Inc.
 # Contributed by Red Hat
 
 # This program is free software; you can redistribute it and/or modify
@@ -73,4 +73,23 @@ if { [istarget "powerpc*-*-aix*"] || [istarget "rs6000-*-aix*"] } then {
 
     run_dump_test "xcoff-dwsect-1-32"
     run_dump_test "xcoff-dwsect-1-64"
+    run_dump_test "xcoff-dwsect-2-32"
+    run_dump_test "xcoff-dwsect-2-64"
+
+    run_dump_test "xcoff-function-1-32"
+    run_dump_test "xcoff-function-1-64"
+
+    run_dump_test "xcoff-tls-32"
+    run_dump_test "xcoff-tls-64"
+
+    run_dump_test "xcoff-stsym-32"
+    run_dump_test "xcoff-stsym-64"
+
+    run_dump_test "xcoff-file-32"
+    run_dump_test "xcoff-file-64"
+
+    run_dump_test "xcoff-visibility-1-32"
+    run_dump_test "xcoff-visibility-1-64"
+    run_dump_test "xcoff-visibility-2-32"
+    run_dump_test "xcoff-visibility-2-64"
 }

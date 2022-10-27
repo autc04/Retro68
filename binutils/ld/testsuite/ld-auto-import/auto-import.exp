@@ -1,5 +1,5 @@
 # Expect script for ld-auto-import tests
-#   Copyright (C) 2002-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -67,7 +67,7 @@ if [istarget *-pc-mingw*] {
 }
 
 # No compiler, no test.
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     untested "Auto import test (compiler not found)"
     return
 }
@@ -118,7 +118,7 @@ if [istarget *-pc-cygwin] {
     set MYLIBS "-L/usr/lib -lcygwin -L/usr/lib/w32api -lkernel32"
     
     # Compile the dll.
-    if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/dll.c $tmpdir/dll.o] {
+    if ![ld_compile "$CC_FOR_TARGET $SHCFLAG" $srcdir/$subdir/dll.c $tmpdir/dll.o] {
 	fail "compiling shared lib"
     }
     if ![ld_special_link "$ld -shared --enable-auto-import -e __cygwin_dll_entry@12 --out-implib=$tmpdir/libstandard.dll.a" $tmpdir/dll.dll "$tmpdir/dll.o $MYLIBS"] {
@@ -129,7 +129,7 @@ if [istarget *-pc-cygwin] {
     catch "exec ln -fs dll.dll $tmpdir/libsymlinked_dll.dll.a" ln_catch
 
     # Compile and link the client program.
-    if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/client.c $tmpdir/client.o] {
+    if ![ld_compile "$CC_FOR_TARGET $SHCFLAG" $srcdir/$subdir/client.c $tmpdir/client.o] {
         fail "compiling client"
     }
 

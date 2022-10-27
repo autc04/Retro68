@@ -1,6 +1,6 @@
 // Multimap implementation -*- C++ -*-
 
-// Copyright (C) 2001-2019 Free Software Foundation, Inc.
+// Copyright (C) 2001-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -117,12 +117,16 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       __glibcxx_class_requires2(value_type, _Alloc_value_type, _SameTypeConcept)
 #endif
 
-#if __cplusplus >= 201103L && defined(__STRICT_ANSI__)
+#if __cplusplus >= 201103L
+#if __cplusplus > 201703L || defined __STRICT_ANSI__
       static_assert(is_same<typename _Alloc::value_type, value_type>::value,
 	  "std::multimap must have the same value_type as its allocator");
 #endif
+#endif
 
     public:
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
       class value_compare
       : public std::binary_function<value_type, value_type, bool>
       {
@@ -137,6 +141,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	bool operator()(const value_type& __x, const value_type& __y) const
 	{ return comp(__x.first, __y.first); }
       };
+#pragma GCC diagnostic pop
 
     private:
       /// This turns a red-black tree into a [multi]map.
@@ -232,11 +237,12 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       : _M_t(_Pair_alloc_type(__a)) { }
 
       /// Allocator-extended copy constructor.
-      multimap(const multimap& __m, const allocator_type& __a)
+      multimap(const multimap& __m,
+	       const __type_identity_t<allocator_type>& __a)
       : _M_t(__m._M_t, _Pair_alloc_type(__a)) { }
 
       /// Allocator-extended move constructor.
-      multimap(multimap&& __m, const allocator_type& __a)
+      multimap(multimap&& __m, const __type_identity_t<allocator_type>& __a)
       noexcept(is_nothrow_copy_constructible<_Compare>::value
 	       && _Alloc_traits::_S_always_equal())
       : _M_t(std::move(__m._M_t), _Pair_alloc_type(__a)) { }
@@ -549,7 +555,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	insert(_Pair&& __x)
 	{ return _M_t._M_emplace_equal(std::forward<_Pair>(__x)); }
 #endif
-      // @}
+      /// @}
 
       /**
        *  @brief Inserts a std::pair into the %multimap.
@@ -595,7 +601,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 					    std::forward<_Pair>(__x));
 	}
 #endif
-      // @}
+      /// @}
 
       /**
        *  @brief A template function that attempts to insert a range
@@ -649,32 +655,32 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       { return _M_t._M_reinsert_node_hint_equal(__hint, std::move(__nh)); }
 
       template<typename, typename>
-	friend class std::_Rb_tree_merge_helper;
+	friend struct std::_Rb_tree_merge_helper;
 
-      template<typename _C2>
+      template<typename _Cmp2>
 	void
-	merge(multimap<_Key, _Tp, _C2, _Alloc>& __source)
+	merge(multimap<_Key, _Tp, _Cmp2, _Alloc>& __source)
 	{
-	  using _Merge_helper = _Rb_tree_merge_helper<multimap, _C2>;
+	  using _Merge_helper = _Rb_tree_merge_helper<multimap, _Cmp2>;
 	  _M_t._M_merge_equal(_Merge_helper::_S_get_tree(__source));
 	}
 
-      template<typename _C2>
+      template<typename _Cmp2>
 	void
-	merge(multimap<_Key, _Tp, _C2, _Alloc>&& __source)
+	merge(multimap<_Key, _Tp, _Cmp2, _Alloc>&& __source)
 	{ merge(__source); }
 
-      template<typename _C2>
+      template<typename _Cmp2>
 	void
-	merge(map<_Key, _Tp, _C2, _Alloc>& __source)
+	merge(map<_Key, _Tp, _Cmp2, _Alloc>& __source)
 	{
-	  using _Merge_helper = _Rb_tree_merge_helper<multimap, _C2>;
+	  using _Merge_helper = _Rb_tree_merge_helper<multimap, _Cmp2>;
 	  _M_t._M_merge_equal(_Merge_helper::_S_get_tree(__source));
 	}
 
-      template<typename _C2>
+      template<typename _Cmp2>
 	void
-	merge(map<_Key, _Tp, _C2, _Alloc>&& __source)
+	merge(map<_Key, _Tp, _Cmp2, _Alloc>&& __source)
 	{ merge(__source); }
 #endif // C++17
 
@@ -705,7 +711,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       iterator
       erase(iterator __position)
       { return _M_t.erase(__position); }
-      // @}
+      /// @}
 #else
       /**
        *  @brief Erases an element from a %multimap.
@@ -825,7 +831,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 
       // multimap operations
 
-      //@{
+      ///@{
       /**
        *  @brief Tries to locate an element in a %multimap.
        *  @param  __x  Key of (key, value) pair to be located.
@@ -847,9 +853,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	find(const _Kt& __x) -> decltype(_M_t._M_find_tr(__x))
 	{ return _M_t._M_find_tr(__x); }
 #endif
-      //@}
+      ///@}
 
-      //@{
+      ///@{
       /**
        *  @brief Tries to locate an element in a %multimap.
        *  @param  __x  Key of (key, value) pair to be located.
@@ -871,9 +877,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	find(const _Kt& __x) const -> decltype(_M_t._M_find_tr(__x))
 	{ return _M_t._M_find_tr(__x); }
 #endif
-      //@}
+      ///@}
 
-      //@{
+      ///@{
       /**
        *  @brief Finds the number of elements with given key.
        *  @param  __x  Key of (key, value) pairs to be located.
@@ -889,10 +895,10 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	count(const _Kt& __x) const -> decltype(_M_t._M_count_tr(__x))
 	{ return _M_t._M_count_tr(__x); }
 #endif
-      //@}
+      ///@}
 
 #if __cplusplus > 201703L
-      //@{
+      ///@{
       /**
        *  @brief  Finds whether an element with the given key exists.
        *  @param  __x  Key of (key, value) pairs to be located.
@@ -907,10 +913,10 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	contains(const _Kt& __x) const
 	-> decltype(_M_t._M_find_tr(__x), void(), true)
 	{ return _M_t._M_find_tr(__x) != _M_t.end(); }
-      //@}
+      ///@}
 #endif
 
-      //@{
+      ///@{
       /**
        *  @brief Finds the beginning of a subsequence matching given key.
        *  @param  __x  Key of (key, value) pair to be located.
@@ -933,9 +939,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	-> decltype(iterator(_M_t._M_lower_bound_tr(__x)))
 	{ return iterator(_M_t._M_lower_bound_tr(__x)); }
 #endif
-      //@}
+      ///@}
 
-      //@{
+      ///@{
       /**
        *  @brief Finds the beginning of a subsequence matching given key.
        *  @param  __x  Key of (key, value) pair to be located.
@@ -958,9 +964,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	-> decltype(const_iterator(_M_t._M_lower_bound_tr(__x)))
 	{ return const_iterator(_M_t._M_lower_bound_tr(__x)); }
 #endif
-      //@}
+      ///@}
 
-      //@{
+      ///@{
       /**
        *  @brief Finds the end of a subsequence matching given key.
        *  @param  __x  Key of (key, value) pair to be located.
@@ -978,9 +984,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	-> decltype(iterator(_M_t._M_upper_bound_tr(__x)))
 	{ return iterator(_M_t._M_upper_bound_tr(__x)); }
 #endif
-      //@}
+      ///@}
 
-      //@{
+      ///@{
       /**
        *  @brief Finds the end of a subsequence matching given key.
        *  @param  __x  Key of (key, value) pair to be located.
@@ -998,9 +1004,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	-> decltype(const_iterator(_M_t._M_upper_bound_tr(__x)))
 	{ return const_iterator(_M_t._M_upper_bound_tr(__x)); }
 #endif
-      //@}
+      ///@}
 
-      //@{
+      ///@{
       /**
        *  @brief Finds a subsequence matching given key.
        *  @param  __x  Key of (key, value) pairs to be located.
@@ -1025,9 +1031,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	-> decltype(pair<iterator, iterator>(_M_t._M_equal_range_tr(__x)))
 	{ return pair<iterator, iterator>(_M_t._M_equal_range_tr(__x)); }
 #endif
-      //@}
+      ///@}
 
-      //@{
+      ///@{
       /**
        *  @brief Finds a subsequence matching given key.
        *  @param  __x  Key of (key, value) pairs to be located.
@@ -1056,17 +1062,24 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	      _M_t._M_equal_range_tr(__x));
 	}
 #endif
-      //@}
+      ///@}
 
       template<typename _K1, typename _T1, typename _C1, typename _A1>
 	friend bool
 	operator==(const multimap<_K1, _T1, _C1, _A1>&,
 		   const multimap<_K1, _T1, _C1, _A1>&);
 
+#if __cpp_lib_three_way_comparison
+      template<typename _K1, typename _T1, typename _C1, typename _A1>
+	friend __detail::__synth3way_t<pair<const _K1, _T1>>
+	operator<=>(const multimap<_K1, _T1, _C1, _A1>&,
+		    const multimap<_K1, _T1, _C1, _A1>&);
+#else
       template<typename _K1, typename _T1, typename _C1, typename _A1>
 	friend bool
 	operator<(const multimap<_K1, _T1, _C1, _A1>&,
 		  const multimap<_K1, _T1, _C1, _A1>&);
+#endif
   };
 
 #if __cpp_deduction_guides >= 201606
@@ -1102,7 +1115,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
     multimap(initializer_list<pair<_Key, _Tp>>, _Allocator)
     -> multimap<_Key, _Tp, less<_Key>, _Allocator>;
 
-#endif
+#endif // deduction guides
 
   /**
    *  @brief  Multimap equality comparison.
@@ -1120,6 +1133,27 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	       const multimap<_Key, _Tp, _Compare, _Alloc>& __y)
     { return __x._M_t == __y._M_t; }
 
+#if __cpp_lib_three_way_comparison
+  /**
+   *  @brief  Multimap ordering relation.
+   *  @param  __x  A `multimap`.
+   *  @param  __y  A `multimap` of the same type as `x`.
+   *  @return  A value indicating whether `__x` is less than, equal to,
+   *           greater than, or incomparable with `__y`.
+   *
+   *  This is a total ordering relation.  It is linear in the size of the
+   *  maps.  The elements must be comparable with @c <.
+   *
+   *  See `std::lexicographical_compare_three_way()` for how the determination
+   *  is made. This operator is used to synthesize relational operators like
+   *  `<` and `>=` etc.
+  */
+  template<typename _Key, typename _Tp, typename _Compare, typename _Alloc>
+    inline __detail::__synth3way_t<pair<const _Key, _Tp>>
+    operator<=>(const multimap<_Key, _Tp, _Compare, _Alloc>& __x,
+		const multimap<_Key, _Tp, _Compare, _Alloc>& __y)
+    { return __x._M_t <=> __y._M_t; }
+#else
   /**
    *  @brief  Multimap ordering relation.
    *  @param  __x  A %multimap.
@@ -1164,6 +1198,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
     operator>=(const multimap<_Key, _Tp, _Compare, _Alloc>& __x,
 	       const multimap<_Key, _Tp, _Compare, _Alloc>& __y)
     { return !(__x < __y); }
+#endif // three-way comparison
 
   /// See std::multimap::swap().
   template<typename _Key, typename _Tp, typename _Compare, typename _Alloc>

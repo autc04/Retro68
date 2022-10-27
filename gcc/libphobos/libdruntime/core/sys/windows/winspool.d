@@ -4,16 +4,17 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_winspool.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_winspool.d)
  */
 module core.sys.windows.winspool;
 version (Windows):
+@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "winspool");
 
-private import core.sys.windows.w32api, core.sys.windows.windef, core.sys.windows.wingdi;
-private import core.sys.windows.winbase; // for SYSTEMTIME
+import core.sys.windows.w32api, core.sys.windows.windef, core.sys.windows.wingdi;
+import core.sys.windows.winbase; // for SYSTEMTIME
 
 // FIXME: clean up Windows version support
 

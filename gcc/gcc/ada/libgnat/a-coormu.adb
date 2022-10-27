@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -39,8 +39,11 @@ with Ada.Containers.Red_Black_Trees.Generic_Set_Operations;
 pragma Elaborate_All (Ada.Containers.Red_Black_Trees.Generic_Set_Operations);
 
 with System; use type System.Address;
+with System.Put_Images;
 
-package body Ada.Containers.Ordered_Multisets is
+package body Ada.Containers.Ordered_Multisets with
+  SPARK_Mode => Off
+is
 
    pragma Warnings (Off, "variable ""Busy*"" is not referenced");
    pragma Warnings (Off, "variable ""Lock*"" is not referenced");
@@ -1050,7 +1053,6 @@ package body Ada.Containers.Ordered_Multisets is
 
    procedure Insert (Container : in out Set; New_Item : Element_Type) is
       Position : Cursor;
-      pragma Unreferenced (Position);
    begin
       Insert (Container, New_Item, Position);
    end Insert;
@@ -1563,6 +1565,31 @@ package body Ada.Containers.Ordered_Multisets is
       end;
    end Query_Element;
 
+   ---------------
+   -- Put_Image --
+   ---------------
+
+   procedure Put_Image
+     (S : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class; V : Set)
+   is
+      First_Time : Boolean := True;
+      use System.Put_Images;
+   begin
+      Array_Before (S);
+
+      for X of V loop
+         if First_Time then
+            First_Time := False;
+         else
+            Simple_Array_Between (S);
+         end if;
+
+         Element_Type'Put_Image (S, X);
+      end loop;
+
+      Array_After (S);
+   end Put_Image;
+
    ----------
    -- Read --
    ----------
@@ -1830,7 +1857,6 @@ package body Ada.Containers.Ordered_Multisets is
    function To_Set (New_Item : Element_Type) return Set is
       Tree : Tree_Type;
       Node : Node_Access;
-      pragma Unreferenced (Node);
    begin
       Insert_Sans_Hint (Tree, New_Item, Node);
       return Set'(Controlled with Tree);

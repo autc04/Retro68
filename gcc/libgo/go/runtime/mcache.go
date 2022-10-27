@@ -10,6 +10,7 @@ import (
 )
 
 // Per-thread (in Go, per-P) cache for small objects.
+// This includes a small object cache and local allocation stats.
 // No locking needed because it is per-thread (per-P).
 //
 // mcaches are allocated from non-GC'd memory, so any heap pointers
@@ -19,8 +20,8 @@ import (
 type mcache struct {
 	// The following members are accessed on every malloc,
 	// so they are grouped here for better caching.
-	next_sample int32   // trigger heap sample after allocating this many bytes
-	local_scan  uintptr // bytes of scannable heap allocated
+	nextSample uintptr // trigger heap sample after allocating this many bytes
+	scanAlloc  uintptr // bytes of scannable heap allocated
 
 	// Allocator cache for tiny objects w/o pointers.
 	// See "Tiny allocator" comment in malloc.go.
@@ -31,18 +32,16 @@ type mcache struct {
 	// tiny is a heap pointer. Since mcache is in non-GC'd memory,
 	// we handle it by clearing it in releaseAll during mark
 	// termination.
-	tiny             uintptr
-	tinyoffset       uintptr
-	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
+	//
+	// tinyAllocs is the number of tiny allocations performed
+	// by the P that owns this mcache.
+	tiny       uintptr
+	tinyoffset uintptr
+	tinyAllocs uintptr
 
 	// The rest is not accessed on every malloc.
 
 	alloc [numSpanClasses]*mspan // spans to allocate from, indexed by spanClass
-
-	// Local allocator stats, flushed during GC.
-	local_largefree  uintptr                  // bytes freed for large objects (>maxsmallsize)
-	local_nlargefree uintptr                  // number of frees for large objects (>maxsmallsize)
-	local_nsmallfree [_NumSizeClasses]uintptr // number of frees for small objects (<=maxsmallsize)
 
 	// flushGen indicates the sweepgen during which this mcache
 	// was last flushed. If flushGen != mheap_.sweepgen, the spans
@@ -76,17 +75,26 @@ func (p gclinkptr) ptr() *gclink {
 var emptymspan mspan
 
 func allocmcache() *mcache {
-	lock(&mheap_.lock)
-	c := (*mcache)(mheap_.cachealloc.alloc())
-	c.flushGen = mheap_.sweepgen
-	unlock(&mheap_.lock)
+	var c *mcache
+	systemstack(func() {
+		lock(&mheap_.lock)
+		c = (*mcache)(mheap_.cachealloc.alloc())
+		c.flushGen = mheap_.sweepgen
+		unlock(&mheap_.lock)
+	})
 	for i := range c.alloc {
 		c.alloc[i] = &emptymspan
 	}
-	c.next_sample = nextSample()
+	c.nextSample = nextSample()
 	return c
 }
 
+// freemcache releases resources associated with this
+// mcache and puts the object onto a free list.
+//
+// In some cases there is no way to simply release
+// resources, such as statistics, so donate them to
+// a different mcache (the recipient).
 func freemcache(c *mcache) {
 	systemstack(func() {
 		c.releaseAll()
@@ -97,10 +105,29 @@ func freemcache(c *mcache) {
 		// gcworkbuffree(c.gcworkbuf)
 
 		lock(&mheap_.lock)
-		purgecachedstats(c)
 		mheap_.cachealloc.free(unsafe.Pointer(c))
 		unlock(&mheap_.lock)
 	})
+}
+
+// getMCache is a convenience function which tries to obtain an mcache.
+//
+// Returns nil if we're not bootstrapping or we don't have a P. The caller's
+// P must not change, so we must be in a non-preemptible state.
+func getMCache(mp *m) *mcache {
+	// Grab the mcache, since that's where stats live.
+	pp := mp.p.ptr()
+	var c *mcache
+	if pp == nil {
+		// We will be called without a P while bootstrapping,
+		// in which case we use mcache0, which is set in mallocinit.
+		// mcache0 is cleared when bootstrapping is complete,
+		// by procresize.
+		c = mcache0
+	} else {
+		c = pp.mcache
+	}
+	return c
 }
 
 // refill acquires a new span of span class spc for c. This span will
@@ -120,7 +147,7 @@ func (c *mcache) refill(spc spanClass) {
 		if s.sweepgen != mheap_.sweepgen+3 {
 			throw("bad sweepgen in refill")
 		}
-		atomic.Store(&s.sweepgen, mheap_.sweepgen)
+		mheap_.central[spc].mcentral.uncacheSpan(s)
 	}
 
 	// Get a new cached span from the central lists.
@@ -137,13 +164,90 @@ func (c *mcache) refill(spc spanClass) {
 	// sweeping in the next sweep phase.
 	s.sweepgen = mheap_.sweepgen + 3
 
+	// Assume all objects from this span will be allocated in the
+	// mcache. If it gets uncached, we'll adjust this.
+	stats := memstats.heapStats.acquire()
+	atomic.Xadduintptr(&stats.smallAllocCount[spc.sizeclass()], uintptr(s.nelems)-uintptr(s.allocCount))
+
+	// Flush tinyAllocs.
+	if spc == tinySpanClass {
+		atomic.Xadduintptr(&stats.tinyAllocCount, c.tinyAllocs)
+		c.tinyAllocs = 0
+	}
+	memstats.heapStats.release()
+
+	// Update heapLive with the same assumption.
+	// While we're here, flush scanAlloc, since we have to call
+	// revise anyway.
+	usedBytes := uintptr(s.allocCount) * s.elemsize
+	gcController.update(int64(s.npages*pageSize)-int64(usedBytes), int64(c.scanAlloc))
+	c.scanAlloc = 0
+
 	c.alloc[spc] = s
 }
 
+// allocLarge allocates a span for a large object.
+func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
+	if size+_PageSize < size {
+		throw("out of memory")
+	}
+	npages := size >> _PageShift
+	if size&_PageMask != 0 {
+		npages++
+	}
+
+	// Deduct credit for this span allocation and sweep if
+	// necessary. mHeap_Alloc will also sweep npages, so this only
+	// pays the debt down to npage pages.
+	deductSweepCredit(npages*_PageSize, npages)
+
+	spc := makeSpanClass(0, noscan)
+	s := mheap_.alloc(npages, spc)
+	if s == nil {
+		throw("out of memory")
+	}
+	stats := memstats.heapStats.acquire()
+	atomic.Xadduintptr(&stats.largeAlloc, npages*pageSize)
+	atomic.Xadduintptr(&stats.largeAllocCount, 1)
+	memstats.heapStats.release()
+
+	// Update heapLive.
+	gcController.update(int64(s.npages*pageSize), 0)
+
+	// Put the large span in the mcentral swept list so that it's
+	// visible to the background sweeper.
+	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
+	s.limit = s.base() + size
+	heapBitsForAddr(s.base()).initSpan(s)
+	return s
+}
+
 func (c *mcache) releaseAll() {
+	// Take this opportunity to flush scanAlloc.
+	scanAlloc := int64(c.scanAlloc)
+	c.scanAlloc = 0
+
+	sg := mheap_.sweepgen
+	dHeapLive := int64(0)
 	for i := range c.alloc {
 		s := c.alloc[i]
 		if s != &emptymspan {
+			// Adjust nsmallalloc in case the span wasn't fully allocated.
+			n := uintptr(s.nelems) - uintptr(s.allocCount)
+			stats := memstats.heapStats.acquire()
+			atomic.Xadduintptr(&stats.smallAllocCount[spanClass(i).sizeclass()], -n)
+			memstats.heapStats.release()
+			if s.sweepgen != sg+1 {
+				// refill conservatively counted unallocated slots in gcController.heapLive.
+				// Undo this.
+				//
+				// If this span was cached before sweep, then
+				// gcController.heapLive was totally recomputed since
+				// caching this span, so we don't do this for
+				// stale spans.
+				dHeapLive -= int64(n) * int64(s.elemsize)
+			}
+			// Release the span to the mcentral.
 			mheap_.central[i].mcentral.uncacheSpan(s)
 			c.alloc[i] = &emptymspan
 		}
@@ -151,6 +255,15 @@ func (c *mcache) releaseAll() {
 	// Clear tinyalloc pool.
 	c.tiny = 0
 	c.tinyoffset = 0
+
+	// Flush tinyAllocs.
+	stats := memstats.heapStats.acquire()
+	atomic.Xadduintptr(&stats.tinyAllocCount, c.tinyAllocs)
+	c.tinyAllocs = 0
+	memstats.heapStats.release()
+
+	// Updated heapScan and heapLive.
+	gcController.update(dHeapLive, scanAlloc)
 }
 
 // prepareForSweep flushes c if the system has entered a new sweep phase

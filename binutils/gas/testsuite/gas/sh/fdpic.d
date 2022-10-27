@@ -1,7 +1,7 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: FDPIC relocations
 
-dump.o:     file format elf32-sh.*
+.*:     file format elf32-sh.*
 
 Disassembly of section .text:
 	\.\.\.

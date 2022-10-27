@@ -1,22 +1,22 @@
-# Spanish message for gprof 2.28.90
-# Copyright (C) 2002 - 2018 Free Software Foundation, Inc.
+# Spanish translation for gprof.
+# Copyright (C) 2002 - 2020 Free Software Foundation, Inc.
 # This file is distributed under the same license as the binutils package.
 # Cristian Othón Martínez Vera <cfuga@cfuga.mx>, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012.
+# Antonio Ceballos Roa <aceballos@gmail.com>, 2020
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: gprof 2.28.90\n"
+"Project-Id-Version: gprof 2.33.90\n"
 "Report-Msgid-Bugs-To: bug-binutils@gnu.org\n"
-"POT-Creation-Date: 2017-07-03 16:56+0200\n"
-"PO-Revision-Date: 2018-04-15 21:57+0200\n"
-"Last-Translator: Francisco Javier Serrador <fserrador@gmail.com>\n"
+"POT-Creation-Date: 2020-01-18 14:04+0000\n"
+"PO-Revision-Date: 2020-05-15 09:01+0200\n"
+"Last-Translator: Antonio Ceballos Roa <aceballos@gmail.com>\n"
 "Language-Team: Spanish <es@tp.org.es>\n"
 "Language: es\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Bugs: Report translation errors to the Language-Team address.\n"
-"X-Generator: Poedit 2.0.4\n"
 
 #: alpha.c:102 mips.c:54
 msgid "<indirect child>"
@@ -69,9 +69,9 @@ msgid ""
 msgstr ""
 "\n"
 "\n"
-"%d Líneas Principales:\n"
+"%d Líneas Superiores:\n"
 "\n"
-"     Línea     Cuenta\n"
+"     Línea     Cantidad\n"
 "\n"
 
 #: basic_blocks.c:567
@@ -82,7 +82,7 @@ msgid ""
 "\n"
 msgstr ""
 "\n"
-"Resumen de Ejecución:\n"
+"Resumen de ejecución:\n"
 "\n"
 
 #: basic_blocks.c:568
@@ -235,22 +235,22 @@ msgstr ""
 msgid "<cycle %d>"
 msgstr "<ciclo %d>"
 
-#: corefile.c:62
+#: corefile.c:61
 #, c-format
 msgid "%s: unable to parse mapping file %s.\n"
-msgstr "%s: incapaz de interpretar distribución del fichero %s.\n"
+msgstr "%s: no se puede analizar el fichero de asociaciones %s.\n"
 
-#: corefile.c:90 corefile.c:527
+#: corefile.c:89 corefile.c:523
 #, c-format
 msgid "%s: could not open %s.\n"
 msgstr "%s: no se puede abrir %s.\n"
 
-#: corefile.c:192
+#: corefile.c:193
 #, c-format
 msgid "%s: %s: not in executable format\n"
 msgstr "%s: %s: no está en formato ejecutable\n"
 
-#: corefile.c:203
+#: corefile.c:204
 #, c-format
 msgid "%s: can't find .text section in %s\n"
 msgstr "%s: no se puede encontrar la sección .text en %s\n"
@@ -265,22 +265,22 @@ msgstr "%s: se terminó el espacio para %lu bytes de espacio textual\n"
 msgid "%s: can't do -c\n"
 msgstr "%s: no se puede hacer -c\n"
 
-#: corefile.c:335
+#: corefile.c:331
 #, c-format
 msgid "%s: -c not supported on architecture %s\n"
 msgstr "%s: -c no se admite en la arquitectura %s\n"
 
-#: corefile.c:536 corefile.c:642
+#: corefile.c:532 corefile.c:637
 #, c-format
 msgid "%s: file `%s' has no symbols\n"
 msgstr "%s: el fichero `%s' no tiene símbolos\n"
 
-#: corefile.c:541
+#: corefile.c:537
 #, c-format
 msgid "%s: file `%s' has too many symbols\n"
 msgstr "%s: el fichero `%s' tiene demasiados símbolos\n"
 
-#: corefile.c:909
+#: corefile.c:904
 #, c-format
 msgid "%s: somebody miscounted: ltab.len=%d instead of %ld\n"
 msgstr "%s: alguien contó mal: ltab.len=%d en lugar de %ld\n"
@@ -328,7 +328,7 @@ msgstr "%s: el fichero '%s' no parece estar en el formato gmon.out\n"
 #: gmon_io.c:530
 #, c-format
 msgid "%s: unexpected EOF after reading %d/%d bins\n"
-msgstr "%s: FDF inesperado tras leer %d/%d binarios\n"
+msgstr "%s: EOF inesperado tras leer %d/%d binarios\n"
 
 #: gmon_io.c:562
 #, c-format
@@ -338,7 +338,7 @@ msgstr "el tiempo está en tics, no en segundos\n"
 #: gmon_io.c:568 gmon_io.c:748
 #, c-format
 msgid "%s: don't know how to deal with file format %d\n"
-msgstr "%s: se desconoce cómo tratar con el fichero de formato %d\n"
+msgstr "%s: se desconoce cómo tratar el formato de fichero %d\n"
 
 #: gmon_io.c:578
 #, c-format
@@ -378,7 +378,7 @@ msgstr "\t%d registros de cuentas de bloques básicos\n"
 #: gprof.c:162
 #, c-format
 msgid ""
-"Usage: %s [-[abcDhilLsTvwxyz]] [-[ACeEfFJnNOpPqSQZ][name]] [-I dirs]\n"
+"Usage: %s [-[abcDhilLrsTvwxyz]] [-[ACeEfFJnNOpPqQRStZ][name]] [-I dirs]\n"
 "\t[-d[num]] [-k from/to] [-m min-count] [-t table-length]\n"
 "\t[--[no-]annotated-source[=name]] [--[no-]exec-counts[=name]]\n"
 "\t[--[no-]flat-profile[=name]] [--[no-]graph[=name]]\n"
@@ -392,7 +392,7 @@ msgid ""
 "\t[--demangle[=STYLE]] [--no-demangle] [--external-symbol-table=name] [@FILE]\n"
 "\t[image-file] [profile-file...]\n"
 msgstr ""
-"Modo de empleo: %s [-[abcDhilLsTvwxyz]] [-[ACeEfFJnNOpPqQZ][nombre]] [-I dirs]\n"
+"Modo de empleo: %s [-[abcDhilLrsTvwxyz]] [-[ACeEfFJnNOpPqQRStZ][nombre]] [-I dirs]\n"
 "\t[-d[num]] [-k origen/destino] [-m cuenta-min] [-t longitud-tabla]\n"
 "\t[--[no-]annotated-source[=nombre]] [--[no-]exec-counts[=nombre]]\n"
 "\t[--[no-]flat-profile[=nombre]] [--[no-]graph[=nombre]]\n"
@@ -404,7 +404,7 @@ msgstr ""
 "\t[--static-call-graph] [--sum] [--table-length=long] [--traditional]\n"
 "\t[--version] [--width=n] [--ignore-non-functions]\n"
 "\t[--demangle[=ESTILO]] [--no-demangle] [--external-symbol-table=nombre] [@FICHERO]\n"
-"\t[fichero-imagen] [fichero-perfil…]\n"
+"\t[fichero-imagen] [fichero-perfil...]\n"
 
 #: gprof.c:178
 #, c-format
@@ -416,48 +416,48 @@ msgstr "Comunicar defectos a %s\n"
 msgid "%s: debugging not supported; -d ignored\n"
 msgstr "%s: no se admite la depuración; se descarta -d\n"
 
-#: gprof.c:336
+#: gprof.c:340
 #, c-format
 msgid "%s: unknown file format %s\n"
 msgstr "%s: formato de fichero %s desconocido\n"
 
 #. This output is intended to follow the GNU standards document.
-#: gprof.c:424
+#: gprof.c:428
 #, c-format
 msgid "GNU gprof %s\n"
 msgstr "GNU gprof %s\n"
 
-#: gprof.c:425
+#: gprof.c:429
 #, c-format
 msgid "Based on BSD gprof, copyright 1983 Regents of the University of California.\n"
 msgstr "Basado en gprof de BSD, © 1983 Regents of the University of California.\n"
 
-#: gprof.c:426
+#: gprof.c:430
 #, c-format
 msgid "This program is free software.  This program has absolutely no warranty.\n"
-msgstr "Este programa es software libre.  Este programa no tiene ninguna garantía en lo absoluto.\n"
+msgstr "Este programa es software libre.  Este programa no tiene ninguna garantía en absoluto.\n"
 
-#: gprof.c:467
+#: gprof.c:471
 #, c-format
 msgid "%s: unknown demangling style `%s'\n"
 msgstr "%s: estilo de desenredo desconocido `%s'\n"
 
-#: gprof.c:490
+#: gprof.c:494
 #, c-format
 msgid "%s: Only one of --function-ordering and --file-ordering may be specified.\n"
-msgstr "%s: Solo uno de --function-ordering y --file-ordering quizá está especificado.\n"
+msgstr "%s: Solo puede especificarse una de las opciones --function-ordering y --file-ordering.\n"
 
-#: gprof.c:542
+#: gprof.c:546
 #, c-format
 msgid "%s: sorry, file format `prof' is not yet supported\n"
 msgstr "%s: disculpe, el formato de fichero `prof' aún no está admitido\n"
 
-#: gprof.c:596
+#: gprof.c:600
 #, c-format
 msgid "%s: gmon.out file is missing histogram\n"
 msgstr "%s: falta el histograma en el fichero gmon.out\n"
 
-#: gprof.c:603
+#: gprof.c:607
 #, c-format
 msgid "%s: gmon.out file is missing call-graph data\n"
 msgstr "%s: faltan los datos del gráfico de llamadas en el fichero gmon.out\n"
@@ -469,7 +469,7 @@ msgid ""
 "%s: from '%s'\n"
 "%s: to '%s'\n"
 msgstr ""
-"%s: modificó la unidad dimensional entre registros histogramáticos\n"
+"%s: unidad de las dimensiones cambiada entre registros de histograma\n"
 "%s: desde '%s'\n"
 "%s: hasta '%s'\n"
 
@@ -480,19 +480,19 @@ msgid ""
 "%s: from '%c'\n"
 "%s: to '%c'\n"
 msgstr ""
-"%s: modificó la abreviación de dimensión entre los registros histogramáticos\n"
+"%s: abreviatura de las dimensiones cambiada entre registros de histograma\n"
 "%s: desde '%c'\n"
 "%s: hasta '%c'\n"
 
 #: hist.c:158
 #, c-format
 msgid "%s: different scales in histogram records"
-msgstr "%s: escalas diferentes en los registros histogramáticos"
+msgstr "%s: escalas diferentes en los registros de histograma"
 
 #: hist.c:195
 #, c-format
 msgid "%s: overlapping histogram records\n"
-msgstr "%s: registros de histogramas superpuestos\n"
+msgstr "%s: registros de histograma superpuestos\n"
 
 #: hist.c:229
 #, c-format

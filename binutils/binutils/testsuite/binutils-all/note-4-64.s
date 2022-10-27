@@ -22,8 +22,8 @@ note_4.s_end:
 	.dc.l 16
 	.dc.l 0x100
 	.asciz "GA$3p3"
-	.8byte note_4.s - 2
-	.8byte note_4.s_end
+	.8byte 0x100 /* note_4.s - 2 */
+	.8byte 0x120 /* note_4.s_end */
 
 	.dc.l 23
 	.dc.l 0
@@ -68,11 +68,17 @@ note_4.s_end:
 	.dc.b 0, 0, 0
 
 	.dc.l 6
+	.dc.l 0
+	.dc.l 0x100
+	.dc.b 0x47, 0x41, 0x2a, 0x7, 0x2, 0
+	.dc.b 0, 0
+
+	.dc.l 6
 	.dc.l 16
 	.dc.l 0x101
 	.dc.b 0x47, 0x41, 0x2a, 0x2, 0x3, 0
 	.dc.b 0, 0
-	.8byte bar
-	.8byte bar_end
+	.8byte 0x110 /* bar */
+	.8byte 0x120 /* bar_end */
 	
 	.popsection

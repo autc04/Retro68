@@ -1,7 +1,8 @@
 // -*- C++ -*-
-// { dg-options "-std=gnu++17 -ltbb" }
+// { dg-options "-ltbb" }
 // { dg-do run { target c++17 } }
-// { dg-require-effective-target tbb-backend }
+// { dg-timeout-factor 4 }
+// { dg-require-effective-target tbb_backend }
 
 //===-- find_end.pass.cpp -------------------------------------------------===//
 //
@@ -27,8 +28,8 @@ using namespace TestUtils;
 
 struct test_one_policy
 {
-#if __PSTL_ICC_17_VC141_TEST_SIMD_LAMBDA_DEBUG_32_BROKEN ||                                                            \
-    __PSTL_ICC_16_VC14_TEST_SIMD_LAMBDA_DEBUG_32_BROKEN //dummy specialization by policy type, in case of broken configuration
+#if _PSTL_ICC_17_VC141_TEST_SIMD_LAMBDA_DEBUG_32_BROKEN ||                                                            \
+    _PSTL_ICC_16_VC14_TEST_SIMD_LAMBDA_DEBUG_32_BROKEN //dummy specialization by policy type, in case of broken configuration
     template <typename Iterator1, typename Iterator2, typename Predicate>
     void
     operator()(pstl::execution::unsequenced_policy, Iterator1 b, Iterator1 e, Iterator2 bsub, Iterator2 esub,
@@ -77,8 +78,8 @@ test(const std::size_t bits)
 
     const std::size_t max_n1 = 1000;
     const std::size_t max_n2 = (max_n1 * 10) / 8;
-    Sequence<T> in(max_n1, [max_n1, bits](std::size_t k) { return T(2 * HashBits(max_n1, bits - 1) ^ 1); });
-    Sequence<T> sub(max_n2, [max_n1, bits](std::size_t k) { return T(2 * HashBits(max_n1, bits - 1)); });
+    Sequence<T> in(max_n1, [max_n1, bits](std::size_t) { return T(2 * HashBits(max_n1, bits - 1) ^ 1); });
+    Sequence<T> sub(max_n2, [max_n1, bits](std::size_t) { return T(2 * HashBits(max_n1, bits - 1)); });
     for (std::size_t n1 = 0; n1 <= max_n1; n1 = n1 <= 16 ? n1 + 1 : size_t(3.1415 * n1))
     {
         std::size_t sub_n[] = {0, 1, 3, n1, (n1 * 10) / 8};
@@ -88,7 +89,7 @@ test(const std::size_t bits)
             for (auto r : res)
             {
                 std::size_t i = r, isub = 0;
-                for (; i < n1 & isub < n2; ++i, ++isub)
+                for (; i < n1 && isub < n2; ++i, ++isub)
                     in[i] = sub[isub];
                 invoke_on_all_policies(test_one_policy(), in.begin(), in.begin() + n1, sub.begin(), sub.begin() + n2,
                                        std::equal_to<T>());
@@ -119,7 +120,7 @@ main()
     test<int32_t>(8 * sizeof(int32_t));
     test<uint16_t>(8 * sizeof(uint16_t));
     test<float64_t>(53);
-#if !__PSTL_ICC_16_17_TEST_REDUCTION_BOOL_TYPE_RELEASE_64_BROKEN
+#if !_PSTL_ICC_16_17_TEST_REDUCTION_BOOL_TYPE_RELEASE_64_BROKEN
     test<bool>(1);
 #endif
 

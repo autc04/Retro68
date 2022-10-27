@@ -4,10 +4,11 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_sqltypes.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_sqltypes.d)
  */
 module core.sys.windows.sqltypes;
 version (Windows):
+@system:
 
 version (ANSI) {} else version = Unicode;
 
@@ -15,8 +16,8 @@ version (ANSI) {} else version = Unicode;
   It's assumed that ODBC >= 0x0300.
 */
 
-private import core.sys.windows.windef;
-private import core.sys.windows.basetyps; // for GUID
+import core.sys.windows.windef;
+import core.sys.windows.basetyps; // for GUID
 
 alias byte SCHAR, SQLSCHAR;
 alias int SDWORD, SLONG, SQLINTEGER;

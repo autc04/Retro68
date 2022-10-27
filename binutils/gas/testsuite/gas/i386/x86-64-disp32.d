@@ -1,4 +1,4 @@
-#as:
+#as: -O0
 #objdump: -drw
 #name: x86-64 32bit displacement
 
@@ -18,7 +18,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 f1 fe 08 6f 98 c0 ff ff ff 	vmovdqu64 -0x40\(%rax\),%xmm3
 [ 	]*[a-f0-9]+:	eb 07                	jmp    30 <foo>
 [ 	]*[a-f0-9]+:	eb 05                	jmp    30 <foo>
-[ 	]*[a-f0-9]+:	e9 00 00 00 00       	jmpq   30 <foo>
+[ 	]*[a-f0-9]+:	e9 00 00 00 00       	jmp    30 <foo>
 
 0+30 <foo>:
 [ 	]*[a-f0-9]+:	89 18                	mov    %ebx,\(%rax\)

@@ -59,7 +59,7 @@ Disassembly of section .text:
   da:	0f 2a d3 [ 	]*cvtpi2ps %mm3,%xmm2
   dd:	0f 2a 1c 24 [ 	]*cvtpi2ps \(%esp\),%xmm3
   e1:	f3 0f 2a e5 [ 	]*cvtsi2ss %ebp,%xmm4
-  e5:	f3 0f 2a 2e [ 	]*cvtsi2ssl \(%esi\),%xmm5
+  e5:	f3 0f 2a 2e [ 	]*cvtsi2ss \(%esi\),%xmm5
   e9:	0f 2d f7 [ 	]*cvtps2pi %xmm7,%mm6
   ec:	0f 2d 38 [ 	]*cvtps2pi \(%eax\),%mm7
   ef:	f3 0f 2d 01 [ 	]*cvtss2si \(%ecx\),%eax
@@ -74,7 +74,7 @@ Disassembly of section .text:
  110:	f3 0f 5e 1c 24 [ 	]*divss  \(%esp\),%xmm3
  115:	0f ae 55 00 [ 	]*ldmxcsr 0x0\(%ebp\)
  119:	0f ae 1e [ 	]*stmxcsr \(%esi\)
- 11c:	0f ae f8 [ 	]*sfence 
+ 11c:	0f ae f8 [ 	]*sfence
  11f:	0f 5f c1 [ 	]*maxps  %xmm1,%xmm0
  122:	0f 5f 0a [ 	]*maxps  \(%edx\),%xmm1
  125:	f3 0f 5f d3 [ 	]*maxss  %xmm3,%xmm2

@@ -1,6 +1,6 @@
 #objdump: -s -j .text
 #name: PowerPC .machine test
-#not-target: *-*-pe *-*-winnt* *-*-cygwin*
+#notarget: *-*-pe *-*-winnt* *-*-cygwin*
 
 .*
 

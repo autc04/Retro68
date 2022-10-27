@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2011-2018 Free Software Foundation, Inc.
+   Copyright (C) 2011-2022 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.
@@ -47,5 +47,4 @@ func:
 	msr osdtrtx_el1, x0
 	mrs x0, osdtrtx_el1
 
-	msr pmsidr_el1, x0
 	mrs x0, pmsidr_el1

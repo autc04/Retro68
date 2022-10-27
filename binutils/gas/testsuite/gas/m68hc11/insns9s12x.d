@@ -2,7 +2,7 @@
 #as: -mm9s12x
 #name: 9s12x specific instructions (insns9s12x)
 
-dump.o:     file format elf32-m68hc12
+.*:     file format elf32-m68hc12
 
 
 Disassembly of section .text:

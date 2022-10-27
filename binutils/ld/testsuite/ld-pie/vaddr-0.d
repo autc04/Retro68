@@ -5,5 +5,5 @@
 
 ELF Header:
 #...
-  Type:                              DYN \(Shared object file\)
+  Type:                              DYN \(Position-Independent Executable file\)
 #pass

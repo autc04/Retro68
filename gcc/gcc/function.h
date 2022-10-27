@@ -1,5 +1,5 @@
 /* Structure for saving state for a nested function.
-   Copyright (C) 1989-2019 Free Software Foundation, Inc.
+   Copyright (C) 1989-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -157,6 +157,7 @@ struct GTY(()) rtl_eh {
 struct gimple_df;
 struct call_site_record_d;
 struct dw_fde_node;
+class range_query;
 
 struct GTY(()) varasm_status {
   /* If we're using a per-function constant pool, this is it.  */
@@ -183,16 +184,32 @@ struct GTY(()) function_subsections {
 /* Describe an empty area of space in the stack frame.  These can be chained
    into a list; this is used to keep track of space wasted for alignment
    reasons.  */
-struct GTY(()) frame_space
+class GTY(()) frame_space
 {
-  struct frame_space *next;
+public:
+  class frame_space *next;
 
   poly_int64 start;
   poly_int64 length;
 };
 
-struct GTY(()) stack_usage
+/* Describe emitted calls for -fcallgraph-info.  */
+struct GTY(()) callinfo_callee
 {
+  location_t location;
+  tree decl;
+};
+
+/* Describe dynamic allocation for -fcallgraph-info=da.  */
+struct GTY(()) callinfo_dalloc
+{
+  location_t location;
+  char const *name;
+};
+
+class GTY(()) stack_usage
+{
+public:
   /* # of bytes of static stack space allocated by the function.  */
   HOST_WIDE_INT static_stack_size;
 
@@ -208,6 +225,13 @@ struct GTY(()) stack_usage
   /* Nonzero if the amount of stack space allocated dynamically cannot
      be bounded at compile-time.  */
   unsigned int has_unbounded_dynamic_stack_size : 1;
+
+  /* Functions called within the function, if callgraph is enabled.  */
+  vec<callinfo_callee, va_gc> *callees;
+
+  /* Dynamic allocations encountered within the function, if callgraph
+     da is enabled.  */
+  vec<callinfo_dalloc, va_gc> *dallocs;
 };
 
 #define current_function_static_stack_size (cfun->su->static_stack_size)
@@ -241,12 +265,12 @@ struct GTY(()) function {
   char *pass_startwith;
 
   /* The stack usage of this function.  */
-  struct stack_usage *su;
+  class stack_usage *su;
 
   /* Value histograms attached to particular statements.  */
   htab_t GTY((skip)) value_histograms;
 
-  /* For function.c.  */
+  /* For function.cc.  */
 
   /* Points to the FUNCTION_DECL of this function.  */
   tree decl;
@@ -279,6 +303,12 @@ struct GTY(()) function {
      debugging is enabled.  */
   struct dw_fde_node *fde;
 
+  /* Range query mechanism for functions.  The default is to pick up
+     global ranges.  If a pass wants on-demand ranges OTOH, it must
+     call enable/disable_ranger().  The pointer is never null.  It
+     should be queried by calling get_range_query().  */
+  range_query * GTY ((skip)) x_range_query;
+
   /* Last statement uid.  */
   int last_stmt_uid;
 
@@ -300,6 +330,13 @@ struct GTY(()) function {
   /* Properties used by the pass manager.  */
   unsigned int curr_properties;
   unsigned int last_verified;
+
+  /* Different from normal TODO_flags which are handled right at the
+     beginning or the end of one pass execution, the pending_TODOs
+     are passed down in the pipeline until one of its consumers can
+     perform the requested action.  Consumers should then clear the
+     flags for the actions that they have taken.  */
+  unsigned int pending_TODOs;
 
   /* Non-null if the function does something that would prevent it from
      being copied; this applies to both versioning and inlining.  Set to
@@ -326,6 +363,9 @@ struct GTY(()) function {
   /* Nonzero if function being compiled can call alloca,
      either as a subroutine or builtin.  */
   unsigned int calls_alloca : 1;
+
+  /* Nonzero if function being compiled can call __builtin_eh_return.  */
+  unsigned int calls_eh_return : 1;
 
   /* Nonzero if function being compiled receives nonlocal gotos
      from nested functions.  */
@@ -392,6 +432,12 @@ struct GTY(()) function {
   /* Set when the function was compiled with generation of debug
      (begin stmt, inline entry, ...) markers enabled.  */
   unsigned int debug_nonbind_markers : 1;
+
+  /* Set if this is a coroutine-related function.  */
+  unsigned int coroutine_component : 1;
+
+  /* Set if there are any OMP_TARGET regions in the function.  */
+  unsigned int has_omp_target : 1;
 };
 
 /* Add the decl D to the local_decls list of FUN.  */
@@ -400,6 +446,12 @@ void add_local_decl (struct function *fun, tree d);
 
 #define FOR_EACH_LOCAL_DECL(FUN, I, D)		\
   FOR_EACH_VEC_SAFE_ELT_REVERSE ((FUN)->local_decls, I, D)
+
+/* Record a final call to CALLEE at LOCATION.  */
+void record_final_call (tree callee, location_t location);
+
+/* Record a dynamic allocation made for DECL_OR_EXP.  */
+void record_dynamic_alloc (tree decl_or_exp);
 
 /* If va_list_[gf]pr_size is set to this, it means we don't know how
    many units need to be saved.  */

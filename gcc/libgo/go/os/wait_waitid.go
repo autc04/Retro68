@@ -5,7 +5,7 @@
 // We used to used this code for Darwin, but according to issue #19314
 // waitid returns if the process is stopped, even when using WEXITED.
 
-// +build linux
+//go:build linux
 
 package os
 
@@ -22,13 +22,19 @@ const _P_PID = 1
 // It does not actually call p.Wait.
 func (p *Process) blockUntilWaitable() (bool, error) {
 	// The waitid system call expects a pointer to a siginfo_t,
-	// which is 128 bytes on all GNU/Linux systems.
-	// On Darwin, it requires greater than or equal to 64 bytes
-	// for darwin/{386,arm} and 104 bytes for darwin/amd64.
+	// which is 128 bytes on all Linux systems.
+	// On darwin/amd64, it requires 104 bytes.
 	// We don't care about the values it returns.
 	var siginfo [16]uint64
 	psig := &siginfo[0]
-	r, _, e := syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
+	var r uintptr
+	var e syscall.Errno
+	for {
+		r, _, e = syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
+		if e != syscall.EINTR {
+			break
+		}
+	}
 	runtime.KeepAlive(p)
 	// Check r as well as e because syscall.Syscall6 currently
 	// just returns errno, and the SIGCHLD signal handler may

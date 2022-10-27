@@ -1,5 +1,5 @@
 /* symbols.h -
-   Copyright (C) 1987-2018 Free Software Foundation, Inc.
+   Copyright (C) 1987-2022 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -45,18 +45,16 @@ symbolS *symbol_find_exact (const char *name);
 symbolS *symbol_find_exact_noref (const char *name, int noref);
 symbolS *symbol_find_or_make (const char *name);
 symbolS *symbol_make (const char *name);
-symbolS *symbol_new (const char *name, segT segment, valueT value,
-		     fragS * frag);
-symbolS *symbol_create (const char *name, segT segment, valueT value,
-			fragS * frag);
-struct local_symbol *local_symbol_make (const char *name, segT section,
-					valueT val, fragS *frag);
+symbolS *symbol_new (const char *, segT, fragS *, valueT);
+symbolS *symbol_create (const char *, segT, fragS *, valueT);
+struct local_symbol *local_symbol_make (const char *, segT, fragS *, valueT);
 symbolS *symbol_clone (symbolS *, int);
 #undef symbol_clone_if_forward_ref
 symbolS *symbol_clone_if_forward_ref (symbolS *, int);
 #define symbol_clone_if_forward_ref(s) symbol_clone_if_forward_ref (s, 0)
-symbolS *symbol_temp_new (segT, valueT, fragS *);
+symbolS *symbol_temp_new (segT, fragS *, valueT);
 symbolS *symbol_temp_new_now (void);
+symbolS *symbol_temp_new_now_octets (void);
 symbolS *symbol_temp_make (void);
 
 symbolS *colon (const char *sym_name);
@@ -74,13 +72,13 @@ void print_expr (expressionS *);
 void print_expr_1 (FILE *, expressionS *);
 void print_symbol_value_1 (FILE *, symbolS *);
 
-int dollar_label_defined (long l);
+int dollar_label_defined (unsigned int);
 void dollar_label_clear (void);
-void define_dollar_label (long l);
-char *dollar_label_name (long l, int augend);
+void define_dollar_label (unsigned int);
+char *dollar_label_name (unsigned int, unsigned int);
 
-void fb_label_instance_inc (long label);
-char *fb_label_name (long n, long augend);
+void fb_label_instance_inc (unsigned int);
+char *fb_label_name (unsigned int, unsigned int);
 
 extern void copy_symbol_attributes (symbolS *, symbolS *);
 
@@ -168,6 +166,8 @@ void symbol_remove (symbolS * symbolP, symbolS ** rootP,
 
 extern symbolS *symbol_previous (symbolS *);
 
+extern int symbol_on_chain (symbolS *s, symbolS *rootPP, symbolS *lastPP);
+
 void verify_symbol_chain (symbolS * rootP, symbolS * lastP);
 
 void symbol_append (symbolS * addme, symbolS * target,
@@ -193,6 +193,8 @@ extern int symbol_mri_common_p (symbolS *);
 extern void symbol_mark_written (symbolS *);
 extern void symbol_clear_written (symbolS *);
 extern int symbol_written_p (symbolS *);
+extern void symbol_mark_removed (symbolS *);
+extern int symbol_removed_p (symbolS *);
 extern void symbol_mark_resolved (symbolS *);
 extern int symbol_resolved_p (symbolS *);
 extern int symbol_section_p (symbolS *);
@@ -200,6 +202,7 @@ extern int symbol_equated_p (symbolS *);
 extern int symbol_equated_reloc_p (symbolS *);
 extern int symbol_constant_p (symbolS *);
 extern int symbol_shadow_p (symbolS *);
+extern symbolS *symbol_symbolS (symbolS *);
 extern asymbol *symbol_get_bfdsym (symbolS *);
 extern void symbol_set_bfdsym (symbolS *, asymbol *);
 extern int symbol_same_p (symbolS *, symbolS *);

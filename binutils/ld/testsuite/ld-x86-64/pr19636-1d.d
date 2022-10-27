@@ -1,6 +1,6 @@
 #source: pr19636-1.s
 #as: --64
-#ld: -shared -m elf_x86_64
+#ld: -shared -m elf_x86_64 -z notext
 #readelf : -r --wide --dyn-syms
 
 Relocation section '\.rela?\..*' at offset 0x[0-9a-f]+ contains [0-9]+ entr(y|ies):

@@ -1,7 +1,7 @@
 /* illegal.s Test file for AArch64 instructions that should be rejected
    by the assembler.
 
-   Copyright (C) 2011-2018 Free Software Foundation, Inc.  Contributed by ARM Ltd.
+   Copyright (C) 2011-2022 Free Software Foundation, Inc.  Contributed by ARM Ltd.
 
    This file is part of GAS.
 
@@ -588,5 +588,10 @@ one_label:
 	# to 64 bits and vice versa are illegal.
 	fmov 	s9, x0
 	fmov	d7, w1
+
+	st1 {v0.16b}[0],[x0]
+	st2 {v0.16b-v1.16b}[1],[x0]
+	st3 {v0.16b-v2.16b}[2],[x0]
+	st4 {v0.8b-v3.8b}[4],[x0]
 
 	// End (for errors during literal pool generation)

@@ -1,19 +1,20 @@
 #objdump: -sr
+#as:  --generate-missing-build-notes=no
 #name: Unwind table generation
 # This test is only valid on ELF based ports.
-#not-target: *-*-pe *-*-wince
+#notarget: *-*-pe *-*-wince
 # VxWorks needs a special variant of this file.
 #skip: *-*-vxworks*
 
 .*:     file format.*
 
 RELOCATION RECORDS FOR \[.ARM.extab\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0000000c R_ARM_PREL31      .text
 
 
 RELOCATION RECORDS FOR \[.ARM.exidx\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 00000000 R_ARM_PREL31      .text
 00000000 R_ARM_NONE        __aeabi_unwind_cpp_pr0
 00000008 R_ARM_PREL31      .text.*

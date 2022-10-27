@@ -41,15 +41,15 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 02 95 c7 83 f4[ 	]*vpmultishiftqb zmm30\{k7\}\{z\},zmm29,zmm28
 [ 	]*[a-f0-9]+:[ 	]*62 62 95 40 83 31[ 	]*vpmultishiftqb zmm30,zmm29,ZMMWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:[ 	]*62 22 95 40 83 b4 f0 23 01 00 00[ 	]*vpmultishiftqb zmm30,zmm29,ZMMWORD PTR \[rax\+r14\*8\+0x123\]
-[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 31[ 	]*vpmultishiftqb zmm30,zmm29,QWORD PTR \[rcx\]\{1to8\}
+[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 31[ 	]*vpmultishiftqb zmm30,zmm29,QWORD BCST \[rcx\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 95 40 83 72 7f[ 	]*vpmultishiftqb zmm30,zmm29,ZMMWORD PTR \[rdx\+0x1fc0\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 95 40 83 b2 00 20 00 00[ 	]*vpmultishiftqb zmm30,zmm29,ZMMWORD PTR \[rdx\+0x2000\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 95 40 83 72 80[ 	]*vpmultishiftqb zmm30,zmm29,ZMMWORD PTR \[rdx-0x2000\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 95 40 83 b2 c0 df ff ff[ 	]*vpmultishiftqb zmm30,zmm29,ZMMWORD PTR \[rdx-0x2040\]
-[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 72 7f[ 	]*vpmultishiftqb zmm30,zmm29,QWORD PTR \[rdx\+0x3f8\]\{1to8\}
-[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 b2 00 04 00 00[ 	]*vpmultishiftqb zmm30,zmm29,QWORD PTR \[rdx\+0x400\]\{1to8\}
-[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 72 80[ 	]*vpmultishiftqb zmm30,zmm29,QWORD PTR \[rdx-0x400\]\{1to8\}
-[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 b2 f8 fb ff ff[ 	]*vpmultishiftqb zmm30,zmm29,QWORD PTR \[rdx-0x408\]\{1to8\}
+[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 72 7f[ 	]*vpmultishiftqb zmm30,zmm29,QWORD BCST \[rdx\+0x3f8\]
+[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 b2 00 04 00 00[ 	]*vpmultishiftqb zmm30,zmm29,QWORD BCST \[rdx\+0x400\]
+[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 72 80[ 	]*vpmultishiftqb zmm30,zmm29,QWORD BCST \[rdx-0x400\]
+[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 b2 f8 fb ff ff[ 	]*vpmultishiftqb zmm30,zmm29,QWORD BCST \[rdx-0x408\]
 [ 	]*[a-f0-9]+:[ 	]*62 02 15 40 8d f4[ 	]*vpermb zmm30,zmm29,zmm28
 [ 	]*[a-f0-9]+:[ 	]*62 02 15 47 8d f4[ 	]*vpermb zmm30\{k7\},zmm29,zmm28
 [ 	]*[a-f0-9]+:[ 	]*62 02 15 c7 8d f4[ 	]*vpermb zmm30\{k7\}\{z\},zmm29,zmm28
@@ -82,13 +82,13 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 02 95 c7 83 f4[ 	]*vpmultishiftqb zmm30\{k7\}\{z\},zmm29,zmm28
 [ 	]*[a-f0-9]+:[ 	]*62 62 95 40 83 31[ 	]*vpmultishiftqb zmm30,zmm29,ZMMWORD PTR \[rcx\]
 [ 	]*[a-f0-9]+:[ 	]*62 22 95 40 83 b4 f0 34 12 00 00[ 	]*vpmultishiftqb zmm30,zmm29,ZMMWORD PTR \[rax\+r14\*8\+0x1234\]
-[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 31[ 	]*vpmultishiftqb zmm30,zmm29,QWORD PTR \[rcx\]\{1to8\}
+[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 31[ 	]*vpmultishiftqb zmm30,zmm29,QWORD BCST \[rcx\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 95 40 83 72 7f[ 	]*vpmultishiftqb zmm30,zmm29,ZMMWORD PTR \[rdx\+0x1fc0\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 95 40 83 b2 00 20 00 00[ 	]*vpmultishiftqb zmm30,zmm29,ZMMWORD PTR \[rdx\+0x2000\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 95 40 83 72 80[ 	]*vpmultishiftqb zmm30,zmm29,ZMMWORD PTR \[rdx-0x2000\]
 [ 	]*[a-f0-9]+:[ 	]*62 62 95 40 83 b2 c0 df ff ff[ 	]*vpmultishiftqb zmm30,zmm29,ZMMWORD PTR \[rdx-0x2040\]
-[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 72 7f[ 	]*vpmultishiftqb zmm30,zmm29,QWORD PTR \[rdx\+0x3f8\]\{1to8\}
-[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 b2 00 04 00 00[ 	]*vpmultishiftqb zmm30,zmm29,QWORD PTR \[rdx\+0x400\]\{1to8\}
-[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 72 80[ 	]*vpmultishiftqb zmm30,zmm29,QWORD PTR \[rdx-0x400\]\{1to8\}
-[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 b2 f8 fb ff ff[ 	]*vpmultishiftqb zmm30,zmm29,QWORD PTR \[rdx-0x408\]\{1to8\}
+[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 72 7f[ 	]*vpmultishiftqb zmm30,zmm29,QWORD BCST \[rdx\+0x3f8\]
+[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 b2 00 04 00 00[ 	]*vpmultishiftqb zmm30,zmm29,QWORD BCST \[rdx\+0x400\]
+[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 72 80[ 	]*vpmultishiftqb zmm30,zmm29,QWORD BCST \[rdx-0x400\]
+[ 	]*[a-f0-9]+:[ 	]*62 62 95 50 83 b2 f8 fb ff ff[ 	]*vpmultishiftqb zmm30,zmm29,QWORD BCST \[rdx-0x408\]
 #pass

@@ -6,7 +6,7 @@ SECTIONS
   PROVIDE (baz = 3);
   .data 0x2000 :
   {
-    *(.data)
+    *(.data .rw)
 
     PROVIDE (loc1 = ALIGN (., 0x10));
     PROVIDE (loc2 = ALIGN (., 0x10));

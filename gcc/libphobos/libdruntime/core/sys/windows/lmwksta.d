@@ -4,14 +4,15 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_lmwksta.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_lmwksta.d)
  */
 module core.sys.windows.lmwksta;
 version (Windows):
+@system:
 pragma(lib, "netapi32");
 
 import core.sys.windows.lmuseflg;
-private import core.sys.windows.lmcons, core.sys.windows.windef;
+import core.sys.windows.lmcons, core.sys.windows.windef;
 
 pragma(lib, "Netapi32");
 

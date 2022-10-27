@@ -1,5 +1,5 @@
 /* rddbg.c -- Read debugging information into a generic form.
-   Copyright (C) 1995-2018 Free Software Foundation, Inc.
+   Copyright (C) 1995-2022 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -31,10 +31,10 @@
 #include "debug.h"
 #include "budbg.h"
 
-static bfd_boolean read_section_stabs_debugging_info
-  (bfd *, asymbol **, long, void *, bfd_boolean *);
-static bfd_boolean read_symbol_stabs_debugging_info
-  (bfd *, asymbol **, long, void *, bfd_boolean *);
+static bool read_section_stabs_debugging_info
+  (bfd *, asymbol **, long, void *, bool *);
+static bool read_symbol_stabs_debugging_info
+  (bfd *, asymbol **, long, void *, bool *);
 static void save_stab (int, int, bfd_vma, const char *);
 static void stab_context (void);
 static void free_saved_stabs (void);
@@ -43,10 +43,11 @@ static void free_saved_stabs (void);
    pointer.  */
 
 void *
-read_debugging_info (bfd *abfd, asymbol **syms, long symcount, bfd_boolean no_messages)
+read_debugging_info (bfd *abfd, asymbol **syms, long symcount,
+		     bool no_messages)
 {
   void *dhandle;
-  bfd_boolean found;
+  bool found;
 
   dhandle = debug_init ();
   if (dhandle == NULL)
@@ -54,13 +55,13 @@ read_debugging_info (bfd *abfd, asymbol **syms, long symcount, bfd_boolean no_me
 
   if (! read_section_stabs_debugging_info (abfd, syms, symcount, dhandle,
 					   &found))
-    return NULL;
+    goto err_exit;
 
   if (bfd_get_flavour (abfd) == bfd_target_aout_flavour)
     {
       if (! read_symbol_stabs_debugging_info (abfd, syms, symcount, dhandle,
 					      &found))
-	return NULL;
+	goto err_exit;
     }
 
   /* Try reading the COFF symbols if we didn't find any stabs in COFF
@@ -70,8 +71,8 @@ read_debugging_info (bfd *abfd, asymbol **syms, long symcount, bfd_boolean no_me
       && symcount > 0)
     {
       if (! parse_coff (abfd, syms, symcount, dhandle))
-	return NULL;
-      found = TRUE;
+	goto err_exit;
+      found = true;
     }
 
   if (! found)
@@ -79,6 +80,8 @@ read_debugging_info (bfd *abfd, asymbol **syms, long symcount, bfd_boolean no_me
       if (! no_messages)
 	non_fatal (_("%s: no recognized debugging information"),
 		   bfd_get_filename (abfd));
+    err_exit:
+      free (dhandle);
       return NULL;
     }
 
@@ -87,9 +90,9 @@ read_debugging_info (bfd *abfd, asymbol **syms, long symcount, bfd_boolean no_me
 
 /* Read stabs in sections debugging information from a BFD.  */
 
-static bfd_boolean
+static bool
 read_section_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
-				   void *dhandle, bfd_boolean *pfound)
+				   void *dhandle, bool *pfound)
 {
   static struct
     {
@@ -105,7 +108,7 @@ read_section_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
   unsigned int i;
   void *shandle;
 
-  *pfound = FALSE;
+  *pfound = false;
   shandle = NULL;
 
   for (i = 0; i < sizeof names / sizeof names[0]; i++)
@@ -121,35 +124,44 @@ read_section_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
 	  bfd_byte *stab;
 	  bfd_size_type stroff, next_stroff;
 
-	  stabsize = bfd_section_size (abfd, sec);
+	  stabsize = bfd_section_size (sec);
 	  stabs = (bfd_byte *) xmalloc (stabsize);
 	  if (! bfd_get_section_contents (abfd, sec, stabs, 0, stabsize))
 	    {
 	      fprintf (stderr, "%s: %s: %s\n",
 		       bfd_get_filename (abfd), names[i].secname,
 		       bfd_errmsg (bfd_get_error ()));
-	      return FALSE;
+	      free (shandle);
+	      free (stabs);
+	      return false;
 	    }
 
-	  strsize = bfd_section_size (abfd, strsec);
+	  strsize = bfd_section_size (strsec);
 	  strings = (bfd_byte *) xmalloc (strsize + 1);
 	  if (! bfd_get_section_contents (abfd, strsec, strings, 0, strsize))
 	    {
 	      fprintf (stderr, "%s: %s: %s\n",
 		       bfd_get_filename (abfd), names[i].strsecname,
 		       bfd_errmsg (bfd_get_error ()));
-	      return FALSE;
+	      free (shandle);
+	      free (strings);
+	      free (stabs);
+	      return false;
 	    }
 	  /* Zero terminate the strings table, just in case.  */
 	  strings [strsize] = 0;
 	  if (shandle == NULL)
 	    {
-	      shandle = start_stab (dhandle, abfd, TRUE, syms, symcount);
+	      shandle = start_stab (dhandle, abfd, true, syms, symcount);
 	      if (shandle == NULL)
-		return FALSE;
+		{
+		  free (strings);
+		  free (stabs);
+		  return false;
+		}
 	    }
 
-	  *pfound = TRUE;
+	  *pfound = true;
 
 	  stroff = 0;
 	  next_stroff = 0;
@@ -198,7 +210,7 @@ read_section_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
 		     an attempt to read the byte before 'strings' would occur.  */
 		  while ((len = strlen (s)) > 0
 			 && s[len  - 1] == '\\'
-			 && stab + 12 < stabs + stabsize)
+			 && stab + 16 <= stabs + stabsize)
 		    {
 		      char *p;
 
@@ -213,17 +225,16 @@ read_section_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
 				   (long) (stab - stabs) / 12);
 			  break;
 			}
-		      else
-			s = concat (s, (char *) strings + strx,
-				    (const char *) NULL);
+
+		      s = concat (s, (char *) strings + strx,
+				  (const char *) NULL);
 
 		      /* We have to restore the backslash, because, if
 			 the linker is hashing stabs strings, we may
 			 see the same string more than once.  */
 		      *p = '\\';
 
-		      if (f != NULL)
-			free (f);
+		      free (f);
 		      f = s;
 		    }
 
@@ -233,7 +244,11 @@ read_section_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
 		    {
 		      stab_context ();
 		      free_saved_stabs ();
-		      return FALSE;
+		      free (f);
+		      free (shandle);
+		      free (stabs);
+		      free (strings);
+		      return false;
 		    }
 
 		  /* Don't free f, since I think the stabs code
@@ -254,17 +269,17 @@ read_section_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
   if (shandle != NULL)
     {
       if (! finish_stab (dhandle, shandle))
-	return FALSE;
+	return false;
     }
 
-  return TRUE;
+  return true;
 }
 
 /* Read stabs in the symbol table.  */
 
-static bfd_boolean
+static bool
 read_symbol_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
-				  void *dhandle, bfd_boolean *pfound)
+				  void *dhandle, bool *pfound)
 {
   void *shandle;
   asymbol **ps, **symend;
@@ -284,16 +299,16 @@ read_symbol_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
 
 	  if (shandle == NULL)
 	    {
-	      shandle = start_stab (dhandle, abfd, FALSE, syms, symcount);
+	      shandle = start_stab (dhandle, abfd, false, syms, symcount);
 	      if (shandle == NULL)
-		return FALSE;
+		return false;
 	    }
 
-	  *pfound = TRUE;
+	  *pfound = true;
 
 	  s = i.name;
 	  if (s == NULL || strlen (s) < 1)
-	    return FALSE;
+	    return false;
 	  f = NULL;
 
 	  while (strlen (s) > 0
@@ -307,8 +322,7 @@ read_symbol_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
 	      sc[strlen (sc) - 1] = '\0';
 	      n = concat (sc, bfd_asymbol_name (*ps), (const char *) NULL);
 	      free (sc);
-	      if (f != NULL)
-		free (f);
+	      free (f);
 	      f = n;
 	      s = n;
 	    }
@@ -320,7 +334,7 @@ read_symbol_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
 	    {
 	      stab_context ();
 	      free_saved_stabs ();
-	      return FALSE;
+	      return false;
 	    }
 
 	  /* Don't free f, since I think the stabs code expects
@@ -334,10 +348,10 @@ read_symbol_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
   if (shandle != NULL)
     {
       if (! finish_stab (dhandle, shandle))
-	return FALSE;
+	return false;
     }
 
-  return TRUE;
+  return true;
 }
 
 /* Record stabs strings, so that we can give some context for errors.  */
@@ -360,8 +374,7 @@ static int saved_stabs_index;
 static void
 save_stab (int type, int desc, bfd_vma value, const char *string)
 {
-  if (saved_stabs[saved_stabs_index].string != NULL)
-    free (saved_stabs[saved_stabs_index].string);
+  free (saved_stabs[saved_stabs_index].string);
   saved_stabs[saved_stabs_index].type = type;
   saved_stabs[saved_stabs_index].desc = desc;
   saved_stabs[saved_stabs_index].value = value;
@@ -416,11 +429,8 @@ free_saved_stabs (void)
 
   for (i = 0; i < SAVE_STABS_COUNT; i++)
     {
-      if (saved_stabs[i].string != NULL)
-	{
-	  free (saved_stabs[i].string);
-	  saved_stabs[i].string = NULL;
-	}
+      free (saved_stabs[i].string);
+      saved_stabs[i].string = NULL;
     }
 
   saved_stabs_index = 0;

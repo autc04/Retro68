@@ -3,18 +3,17 @@
  * This module provides functions to converting different values to const(ubyte)[]
  *
  * Copyright: Copyright Igor Stepanov 2013-2013.
- * License:   $(WEB www.boost.org/LICENSE_1_0.txt, Boost License 1.0).
+ * License:   $(HTTP www.boost.org/LICENSE_1_0.txt, Boost License 1.0).
  * Authors:   Igor Stepanov
  * Source: $(DRUNTIMESRC core/internal/_convert.d)
  */
 module core.internal.convert;
-import core.internal.traits : Unqual;
 
 /+
 A @nogc function can allocate memory during CTFE.
 +/
 @nogc nothrow pure @trusted
-private ubyte[] ctfe_alloc()(size_t n)
+private ubyte[] ctfe_alloc(size_t n)
 {
     if (!__ctfe)
     {
@@ -34,78 +33,145 @@ private ubyte[] ctfe_alloc()(size_t n)
 }
 
 @trusted pure nothrow @nogc
-const(ubyte)[] toUbyte(T)(const ref T val) if (is(Unqual!T == float) || is(Unqual!T == double) || is(Unqual!T == real) ||
-                                        is(Unqual!T == ifloat) || is(Unqual!T == idouble) || is(Unqual!T == ireal))
+const(ubyte)[] toUbyte(T)(const scope ref T val) if (__traits(isFloating, T) && (is(T : real) || is(T : ireal)))
 {
-    static const(ubyte)[] reverse_(const(ubyte)[] arr)
-    {
-        ubyte[] buff = ctfe_alloc(arr.length);
-        foreach (k, v; arr)
-        {
-            buff[$-k-1] = v;
-        }
-        return buff;
-    }
     if (__ctfe)
     {
-        auto parsed = parse(val);
-
-        ulong mantissa = parsed.mantissa;
-        uint exp = parsed.exponent;
-        uint sign = parsed.sign;
-
-        ubyte[] buff = ctfe_alloc(T.sizeof);
-        size_t off_bytes = 0;
-        size_t off_bits  = 0;
-        // Quadruples won't fit in one ulong, so check for that.
-        enum mantissaMax = FloatTraits!T.MANTISSA < ulong.sizeof*8 ?
-                           FloatTraits!T.MANTISSA : ulong.sizeof*8;
-
-        for (; off_bytes < mantissaMax/8; ++off_bytes)
+        static if (floatFormat!T == FloatFormat.Float || floatFormat!T == FloatFormat.Double)
         {
-            buff[off_bytes] = cast(ubyte)mantissa;
-            mantissa >>= 8;
-        }
-
-        static if (floatFormat!T == FloatFormat.Quadruple)
-        {
-            ulong mantissa2 = parsed.mantissa2;
-            off_bytes--; // go back one, since mantissa only stored data in 56
-                         // bits, ie 7 bytes
-            for (; off_bytes < FloatTraits!T.MANTISSA/8; ++off_bytes)
+            static if (is(T : ireal)) // https://issues.dlang.org/show_bug.cgi?id=19932
+                const f = val.im;
+            else
+                alias f = val;
+            static if (T.sizeof == uint.sizeof)
+                uint bits = *cast(const uint*) &f;
+            else static if (T.sizeof == ulong.sizeof)
+                ulong bits = *cast(const ulong*) &f;
+            ubyte[] result = ctfe_alloc(T.sizeof);
+            version (BigEndian)
             {
-                buff[off_bytes] = cast(ubyte)mantissa2;
-                mantissa2 >>= 8;
+                foreach_reverse (ref b; result)
+                {
+                    b = cast(ubyte) bits;
+                    bits >>= 8;
+                }
             }
+            else
+            {
+                foreach (ref b; result)
+                {
+                    b = cast(ubyte) bits;
+                    bits >>= 8;
+                }
+            }
+            return result;
         }
-        else
+        else static if (floatFormat!T == FloatFormat.DoubleDouble)
         {
-            off_bits = FloatTraits!T.MANTISSA%8;
-            buff[off_bytes] = cast(ubyte)mantissa;
-        }
+            // Parse DoubleDoubles as a pair of doubles.
+            // The layout of the type is:
+            //
+            //   [1|    11    |       52      ][1|    11    |       52       ]
+            //   [S| Exponent | Fraction (hi) ][S| Exponent | Fraction (low) ]
+            //
+            // We can get the least significant bits by subtracting the IEEE
+            // double precision portion from the real value.
 
-        for (size_t i=0; i<FloatTraits!T.EXPONENT/8; ++i)
-        {
-            ubyte cur_exp = cast(ubyte)exp;
-            exp >>= 8;
-            buff[off_bytes] |= (cur_exp << off_bits);
-            ++off_bytes;
-            buff[off_bytes] |= cur_exp >> 8 - off_bits;
-        }
+            import core.math : toPrec;
 
+            ubyte[] buff = ctfe_alloc(T.sizeof);
+            enum msbSize = double.sizeof;
 
-        exp <<= 8 - FloatTraits!T.EXPONENT%8 - 1;
-        buff[off_bytes] |= exp;
-        sign <<= 7;
-        buff[off_bytes] |= sign;
+            static if (is(T : ireal))
+                double hi = toPrec!double(val.im);
+            else
+                double hi = toPrec!double(val);
+            buff[0 .. msbSize] = toUbyte(hi)[];
 
-        version (LittleEndian)
-        {
+            if (val is cast(T)0.0 || val is cast(T)-0.0 ||
+                val is T.nan || val is -T.nan ||
+                val is T.infinity || val > T.max ||
+                val is -T.infinity || val < -T.max)
+            {
+                // Zero, NaN, and Inf are all representable as doubles, so the
+                // least significant part can be 0.0.
+                buff[msbSize .. $] = 0;
+            }
+            else
+            {
+                static if (is(T : ireal))
+                    double low = toPrec!double(val.im - hi);
+                else
+                    double low = toPrec!double(val - hi);
+                buff[msbSize .. $] = toUbyte(low)[];
+            }
+
+            // Arrays don't index differently between little and big-endian targets.
             return buff;
         }
         else
         {
-            return reverse_(buff);
+            auto parsed = parse(val);
+
+            ulong mantissa = parsed.mantissa;
+            uint exp = parsed.exponent;
+            uint sign = parsed.sign;
+
+            ubyte[] buff = ctfe_alloc(T.sizeof);
+            size_t off_bytes = 0;
+            size_t off_bits  = 0;
+            // Quadruples won't fit in one ulong, so check for that.
+            enum mantissaMax = FloatTraits!T.MANTISSA < ulong.sizeof*8 ?
+                               FloatTraits!T.MANTISSA : ulong.sizeof*8;
+
+            for (; off_bytes < mantissaMax/8; ++off_bytes)
+            {
+                buff[off_bytes] = cast(ubyte)mantissa;
+                mantissa >>= 8;
+            }
+
+            static if (floatFormat!T == FloatFormat.Quadruple)
+            {
+                ulong mantissa2 = parsed.mantissa2;
+                off_bytes--; // go back one, since mantissa only stored data in 56
+                             // bits, ie 7 bytes
+                for (; off_bytes < FloatTraits!T.MANTISSA/8; ++off_bytes)
+                {
+                    buff[off_bytes] = cast(ubyte)mantissa2;
+                    mantissa2 >>= 8;
+                }
+            }
+            else
+            {
+                off_bits = FloatTraits!T.MANTISSA%8;
+                buff[off_bytes] = cast(ubyte)mantissa;
+            }
+
+            for (size_t i=0; i<FloatTraits!T.EXPONENT/8; ++i)
+            {
+                ubyte cur_exp = cast(ubyte)exp;
+                exp >>= 8;
+                buff[off_bytes] |= (cur_exp << off_bits);
+                ++off_bytes;
+                buff[off_bytes] |= cur_exp >> 8 - off_bits;
+            }
+
+
+            exp <<= 8 - FloatTraits!T.EXPONENT%8 - 1;
+            buff[off_bytes] |= exp;
+            sign <<= 7;
+            buff[off_bytes] |= sign;
+
+            version (BigEndian)
+            {
+                for (size_t left = 0, right = buff.length - 1; left < right; left++, right--)
+                {
+                    const swap = buff[left];
+                    buff[left] = buff[right];
+                    buff[right] = swap;
+                }
+            }
+            return buff;
         }
     }
     else
@@ -115,7 +181,7 @@ const(ubyte)[] toUbyte(T)(const ref T val) if (is(Unqual!T == float) || is(Unqua
 }
 
 @safe pure nothrow @nogc
-private Float parse(bool is_denormalized = false, T)(T x) if (is(Unqual!T == ifloat) || is(Unqual!T == idouble) || is(Unqual!T == ireal))
+private Float parse(bool is_denormalized = false, T:ireal)(T x)
 {
     return parse(x.im);
 }
@@ -123,6 +189,7 @@ private Float parse(bool is_denormalized = false, T)(T x) if (is(Unqual!T == ifl
 @safe pure nothrow @nogc
 private Float parse(bool is_denormalized = false, T:real)(T x_) if (floatFormat!T != FloatFormat.Real80)
 {
+    import core.internal.traits : Unqual;
     Unqual!T x = x_;
     static assert(floatFormat!T != FloatFormat.DoubleDouble,
            "doubledouble float format not supported in CTFE");
@@ -181,6 +248,7 @@ private Float parse(bool is_denormalized = false, T:real)(T x_) if (floatFormat!
 @safe pure nothrow @nogc
 private Float parse(bool _ = false, T:real)(T x_) if (floatFormat!T == FloatFormat.Real80)
 {
+    import core.internal.traits : Unqual;
     Unqual!T x = x_;
     //HACK @@@3632@@@
 
@@ -404,14 +472,14 @@ private Float denormalizedMantissa(T)(T x, uint sign) if (floatFormat!T == Float
         return Float(fl.mantissa2 & 0x00FFFFFFFFFFFFFFUL , 0, sign, 1);
 }
 
-version (unittest)
+@system unittest
 {
-    private const(ubyte)[] toUbyte2(T)(T val)
+    static const(ubyte)[] toUbyte2(T)(T val)
     {
         return toUbyte(val).dup;
     }
 
-    private void testNumberConvert(string v)()
+    static void testNumberConvert(string v)()
     {
         enum ctval = mixin(v);
 
@@ -427,7 +495,7 @@ version (unittest)
         assert(rtbytes[0..testsize] == ctbytes[0..testsize]);
     }
 
-    private void testConvert()
+    static void testConvert()
     {
         /**Test special values*/
         testNumberConvert!("-float.infinity");
@@ -504,11 +572,6 @@ version (unittest)
         testNumberConvert!("real.min_normal/19");
         testNumberConvert!("real.min_normal/17");
 
-        /**Test imaginary values: convert algorithm is same with real values*/
-        testNumberConvert!("0.0Fi");
-        testNumberConvert!("0.0i");
-        testNumberConvert!("0.0Li");
-
         /**True random values*/
         testNumberConvert!("-0x9.0f7ee55df77618fp-13829L");
         testNumberConvert!("0x7.36e6e2640120d28p+8797L");
@@ -537,11 +600,7 @@ version (unittest)
         testNumberConvert!("cast(float)0x9.54bb0d88806f714p-7088L");
     }
 
-
-    unittest
-    {
-        testConvert();
-    }
+    testConvert();
 }
 
 
@@ -560,7 +619,14 @@ template floatFormat(T) if (is(T:real) || is(T:ireal))
     static if (T.mant_dig == 24)
         enum floatFormat = FloatFormat.Float;
     else static if (T.mant_dig == 53)
-        enum floatFormat = FloatFormat.Double;
+    {
+        // Double precision, or real == double
+        static if (T.sizeof == double.sizeof)
+            enum floatFormat = FloatFormat.Double;
+        // 80-bit real with rounding precision set to 53 bits.
+        else static if (T.sizeof == real.sizeof)
+            enum floatFormat = FloatFormat.Real80;
+    }
     else static if (T.mant_dig == 64)
         enum floatFormat = FloatFormat.Real80;
     else static if (T.mant_dig == 106)
@@ -579,13 +645,13 @@ package template floatSize(T) if (is(T:real) || is(T:ireal))
 
 //  all toUbyte functions must be evaluable at compile time
 @trusted pure nothrow @nogc
-const(ubyte)[] toUbyte(T)(const T[] arr) if (T.sizeof == 1)
+const(ubyte)[] toUbyte(T)(return scope const T[] arr) if (T.sizeof == 1)
 {
     return cast(const(ubyte)[])arr;
 }
 
 @trusted pure nothrow @nogc
-const(ubyte)[] toUbyte(T)(const T[] arr) if (T.sizeof > 1)
+const(ubyte)[] toUbyte(T)(return scope const T[] arr) if (T.sizeof > 1)
 {
     if (__ctfe)
     {
@@ -617,7 +683,7 @@ const(ubyte)[] toUbyte(T)(const T[] arr) if (T.sizeof > 1)
 }
 
 @trusted pure nothrow @nogc
-const(ubyte)[] toUbyte(T)(const ref T val) if (__traits(isIntegral, T) && !is(T == enum) && !is(T == __vector))
+const(ubyte)[] toUbyte(T)(const ref scope T val) if (__traits(isIntegral, T) && !is(T == enum) && !is(T == __vector))
 {
     static if (T.sizeof == 1)
     {
@@ -634,6 +700,7 @@ const(ubyte)[] toUbyte(T)(const ref T val) if (__traits(isIntegral, T) && !is(T 
     }
     else if (__ctfe)
     {
+        import core.internal.traits : Unqual;
         ubyte[] tmp = ctfe_alloc(T.sizeof);
         Unqual!T val_ = val;
         for (size_t i = 0; i < T.sizeof; ++i)
@@ -653,7 +720,7 @@ const(ubyte)[] toUbyte(T)(const ref T val) if (__traits(isIntegral, T) && !is(T 
 }
 
 @trusted pure nothrow @nogc
-const(ubyte)[] toUbyte(T)(const ref T val) if (is(T == __vector))
+const(ubyte)[] toUbyte(T)(const ref scope T val) if (is(T == __vector))
 {
     if (!__ctfe)
         return (cast(const ubyte*) &val)[0 .. T.sizeof];
@@ -675,32 +742,12 @@ const(ubyte)[] toUbyte(T)(const ref T val) if (is(T == __vector))
 }
 
 @trusted pure nothrow @nogc
-const(ubyte)[] toUbyte(T)(const ref T val) if (is(Unqual!T == cfloat) || is(Unqual!T == cdouble) ||is(Unqual!T == creal))
-{
-    if (__ctfe)
-    {
-        auto re = val.re;
-        auto im = val.im;
-        auto a = re.toUbyte();
-        auto b = im.toUbyte();
-        ubyte[] result = ctfe_alloc(a.length + b.length);
-        result[0 .. a.length] = a[0 .. a.length];
-        result[a.length .. $] = b[0 .. b.length];
-        return result;
-    }
-    else
-    {
-        return (cast(const(ubyte)*)&val)[0 .. T.sizeof];
-    }
-}
-
-@trusted pure nothrow @nogc
-const(ubyte)[] toUbyte(T)(const ref T val) if (is(T == enum))
+const(ubyte)[] toUbyte(T)(const ref return scope T val) if (is(T == enum))
 {
     if (__ctfe)
     {
         static if (is(T V == enum)){}
-        return toUbyte(cast(const V) val);
+        return toUbyte(*cast(const V*) &val);
     }
     else
     {
@@ -714,7 +761,7 @@ nothrow pure @safe unittest
     enum Month : uint { jan = 1}
     Month m = Month.jan;
     const bytes = toUbyte(m);
-    enum ctfe_works = (() => { Month x = Month.jan; return toUbyte(x).length > 0; })();
+    enum ctfe_works = (() { Month x = Month.jan; return toUbyte(x).length > 0; })();
 }
 
 @trusted pure nothrow @nogc
@@ -732,7 +779,7 @@ const(ubyte)[] toUbyte(T)(const ref T val) if (is(T == delegate) || is(T : V*, V
 }
 
 @trusted pure nothrow @nogc
-const(ubyte)[] toUbyte(T)(const ref T val) if (is(T == struct) || is(T == union))
+const(ubyte)[] toUbyte(T)(const return ref scope T val) if (is(T == struct) || is(T == union))
 {
     if (__ctfe)
     {
@@ -757,7 +804,11 @@ const(ubyte)[] toUbyte(T)(const ref T val) if (is(T == struct) || is(T == union)
     }
     else
     {
-        return (cast(const(ubyte)*)&val)[0 .. T.sizeof];
+        // We're escaping a reference to `val` here because we cannot express
+        // ref return + scope, it's currently seen as ref + return scope
+        // https://issues.dlang.org/show_bug.cgi?id=22541
+        // Once fixed, the @system lambda should be removed
+        return (() @system => (cast(const(ubyte)*)&val)[0 .. T.sizeof])();
     }
 }
 

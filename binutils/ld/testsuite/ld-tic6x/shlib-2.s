@@ -21,3 +21,4 @@ sub:
 		ldw .d2t2 *+B14(c), B9
 		nop	1
 	.size	sub, .-sub
+	.section	.note.GNU-stack

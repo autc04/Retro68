@@ -22,7 +22,7 @@ SYMBOL TABLE:
 
 
 RELOCATION RECORDS FOR \[\.MMIX\.reg_contents\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+ R_MMIX_64         \.text\+0x0+8
 0+10 R_MMIX_64         \.text\+0x0+8
 0+18 R_MMIX_64         \.text\+0x0+8

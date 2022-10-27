@@ -24,7 +24,8 @@
 
 	.p2align 4, 0xcc
 
-	.byte	byte, word, dword, fword, qword, tbyte, oword, xmmword, ymmword
+	.byte	byte, word, dword, fword, qword, mmword, tbyte
+	.byte	oword, xmmword, ymmword, zmmword
 
 	.p2align 4, 0xcc
 

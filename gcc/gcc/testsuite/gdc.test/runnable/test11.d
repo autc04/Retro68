@@ -1,4 +1,5 @@
 // REQUIRED_ARGS:
+// EXTRA_SOURCES: imports/std11file.d
 
 extern(C) int printf(const char*, ...);
 extern(C) size_t strlen(const char*);
@@ -530,14 +531,14 @@ struct NODE27 {
     shared(NODE27) *next;
 }
 
-static shared NODE27 nodetbl[3] =
+static shared NODE27[3] nodetbl =
 [
     {   0,cast(shared(NODE27)*)nodetbl + 1},
     {   0,cast(shared(NODE27)*)nodetbl + 2},
     {   0,null}
 ];
 
-static shared NODE27 nodetbl2[3] = [
+static shared NODE27[3] nodetbl2 = [
     {   0,&nodetbl2[1]},
     {   0,&nodetbl2[2]},
     {   0,null}
@@ -681,7 +682,7 @@ void test35()
  try {
   alias Foo35!( Bar35 ) filter;
  } catch (Exception e) {
-  printf( "Exception %.*s", e.msg.length, e.msg.ptr );
+  printf( "Exception %.*s", cast(int)e.msg.length, e.msg.ptr );
  } finally {
   printf( "Done0." );
  }
@@ -885,7 +886,7 @@ void test45()
     char[5] foo;
 
     foo[] = "hello";
-    printf("'%.*s'\n", foo.length, foo.ptr);
+    printf("'%.*s'\n", cast(int)foo.length, foo.ptr);
     func45(cast(string)foo);
 }
 
@@ -1181,15 +1182,15 @@ void test62()
 
 class A63
 {
-     private import std.file;
-     alias std.file.getcwd getcwd;
+     private import imports.std11file;
+     alias imports.std11file.getcwd getcwd;
 }
 
 void test63()
 {
      A63 f = new A63();
      auto s = f.getcwd();
-     printf("%.*s\n", s.length, s.ptr);
+     printf("%.*s\n", cast(int)s.length, s.ptr);
 }
 
 
@@ -1228,7 +1229,7 @@ void test65()
 }
 
 /**************************************/
-// 8809
+// https://issues.dlang.org/show_bug.cgi?id=8809
 
 void test8809()
 {
@@ -1297,7 +1298,7 @@ void test8809()
 }
 
 /**************************************/
-// 9734
+// https://issues.dlang.org/show_bug.cgi?id=9734
 
 void test9734()
 {
@@ -1388,5 +1389,3 @@ int main(string[] argv)
     printf("Success\n");
     return 0;
 }
-
-

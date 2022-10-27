@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1999-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -385,10 +385,25 @@ package body GNAT.Command_Line is
    ------------------
 
    function Get_Argument
-     (Do_Expansion : Boolean    := False;
+     (Do_Expansion : Boolean := False;
       Parser       : Opt_Parser := Command_Line_Parser) return String
    is
+      End_Of_Args : Boolean;
    begin
+      return Get_Argument (Do_Expansion, Parser, End_Of_Args);
+   end Get_Argument;
+
+   ------------------
+   -- Get_Argument --
+   ------------------
+
+   function Get_Argument
+     (Do_Expansion     : Boolean    := False;
+      Parser           : Opt_Parser := Command_Line_Parser;
+      End_Of_Arguments : out Boolean) return String is
+   begin
+      End_Of_Arguments := False;
+
       if Parser.In_Expansion then
          declare
             S : constant String := Expansion (Parser.Expansion_It);
@@ -415,6 +430,7 @@ package body GNAT.Command_Line is
             end loop;
 
          else
+            End_Of_Arguments := True;
             return String'(1 .. 0 => ' ');
          end if;
 
@@ -436,28 +452,27 @@ package body GNAT.Command_Line is
       end loop;
 
       if Parser.Current_Argument > Parser.Arg_Count then
+         End_Of_Arguments := True;
          return String'(1 .. 0 => ' ');
+
       elsif Parser.Section (Parser.Current_Argument) = 0 then
-         return Get_Argument (Do_Expansion);
+         return Get_Argument (Do_Expansion, Parser, End_Of_Arguments);
       end if;
 
       Parser.Current_Argument := Parser.Current_Argument + 1;
 
-      --  Could it be a file name with wild cards to expand?
+      --  Could it be a file name with wildcards to expand?
 
       if Do_Expansion then
          declare
-            Arg   : constant String :=
-                      Argument (Parser, Parser.Current_Argument - 1);
+            Arg : constant String :=
+                    Argument (Parser, Parser.Current_Argument - 1);
          begin
             for Index in Arg'Range loop
-               if Arg (Index) = '*'
-                 or else Arg (Index) = '?'
-                 or else Arg (Index) = '['
-               then
+               if Arg (Index) in '*' | '?' | '[' then
                   Parser.In_Expansion := True;
                   Start_Expansion (Parser.Expansion_It, Arg);
-                  return Get_Argument (Do_Expansion, Parser);
+                  return Get_Argument (Do_Expansion, Parser, End_Of_Arguments);
                end if;
             end loop;
          end;
@@ -522,6 +537,7 @@ package body GNAT.Command_Line is
       P      : Switch_Parameter_Type;
 
    begin
+      Param             := Parameter_None;
       Index_In_Switches := 0;
       Switch_Length     := 0;
 
@@ -753,7 +769,8 @@ package body GNAT.Command_Line is
 
             Parser.Current_Index := End_Index + 1;
 
-            raise Invalid_Switch;
+            raise Invalid_Switch with
+              "Unrecognized option '" & Full_Switch (Parser) & ''';
          end if;
 
          End_Index := Parser.Current_Index + Max_Length - 1;
@@ -883,7 +900,8 @@ package body GNAT.Command_Line is
                      Last    => Arg'Last,
                      Extra   => Parser.Switch_Character);
                   Parser.Current_Index := Arg'Last + 1;
-                  raise Invalid_Switch;
+                  raise Invalid_Switch with
+                    "Unrecognized option '" & Full_Switch (Parser) & ''';
                end if;
          end case;
 
@@ -1045,7 +1063,7 @@ package body GNAT.Command_Line is
       Parser.In_Expansion     := False;
       Parser.Switch_Character := Switch_Char;
       Parser.Stop_At_First    := Stop_At_First_Non_Switch;
-      Parser.Section          := (others => 1);
+      Parser.Section          := [others => 1];
 
       --  If we are using sections, we have to preprocess the command line to
       --  delimit them. A section can be repeated, so we just give each item
@@ -1239,7 +1257,7 @@ package body GNAT.Command_Line is
       Expanded : String;
       Section  : String := "")
    is
-      Def    : Alias_Definition;
+      Def : Alias_Definition;
 
    begin
       if Config = null then
@@ -2217,7 +2235,6 @@ package body GNAT.Command_Line is
       Add_Before : Boolean   := False)
    is
       Success : Boolean;
-      pragma Unreferenced (Success);
    begin
       Add_Switch (Cmd, Switch, Parameter, Separator,
                   Section, Add_Before, Success);
@@ -2435,7 +2452,6 @@ package body GNAT.Command_Line is
       Section       : String := "")
    is
       Success : Boolean;
-      pragma Unreferenced (Success);
    begin
       Remove_Switch (Cmd, Switch, Remove_All, Has_Parameter, Section, Success);
    end Remove_Switch;
@@ -3207,7 +3223,7 @@ package body GNAT.Command_Line is
                if N /= "" then
                   Put (" ");
                   Put (N);
-                  Put ((1 .. Max_Len - N'Length + 1 => ' '));
+                  Put ([1 .. Max_Len - N'Length + 1 => ' ']);
 
                   if Config.Switches (S).Help /= null then
                      Put (Config.Switches (S).Help.all);
@@ -3225,8 +3241,8 @@ package body GNAT.Command_Line is
                if Config.Aliases (A).Section.all = Section then
                   Put (" ");
                   Put (Config.Aliases (A).Alias.all);
-                  Put ((1 .. Max_Len - Config.Aliases (A).Alias'Length + 1
-                       => ' '));
+                  Put ([1 .. Max_Len - Config.Aliases (A).Alias'Length + 1
+                       => ' ']);
                   Put ("Equivalent to " & Config.Aliases (A).Expansion.all);
                   New_Line;
                end if;
@@ -3365,7 +3381,8 @@ package body GNAT.Command_Line is
      (Config      : Command_Line_Configuration;
       Callback    : Switch_Handler := null;
       Parser      : Opt_Parser := Command_Line_Parser;
-      Concatenate : Boolean := True)
+      Concatenate : Boolean := True;
+      Quiet       : Boolean := False)
    is
       Local_Config    : Command_Line_Configuration := Config;
       Getopt_Switches : String_Access;
@@ -3575,12 +3592,14 @@ package body GNAT.Command_Line is
 
          --  Message inspired by "ls" on Unix
 
-         Put_Line (Standard_Error,
-                   Base_Name (Ada.Command_Line.Command_Name)
-                   & ": unrecognized option '"
-                   & Full_Switch (Parser)
-                   & "'");
-         Try_Help;
+         if not Quiet then
+            Put_Line (Standard_Error,
+                      Base_Name (Ada.Command_Line.Command_Name)
+                      & ": unrecognized option '"
+                      & Full_Switch (Parser)
+                      & "'");
+            Try_Help;
+         end if;
 
          raise;
 

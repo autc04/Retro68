@@ -1,6 +1,6 @@
 // { dg-do compile { target c++11 } }
 //
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,8 +20,6 @@
 // libstdc++/60497
 
 #include <array>
-#include <debug/array>
-#include <profile/array>
 #include <memory>
 
 struct A;
@@ -29,9 +27,3 @@ template<typename T> struct B { T t; };
 
 std::array<B<A>*, 1> a;
 auto b = std::get<0>(std::move(a));
-
-std::__debug::array<B<A>*, 1> c;
-auto d = std::__debug::get<0>(std::move(c));
-
-std::__profile::array<B<A>*, 1> e;
-auto f = std::__profile::get<0>(std::move(e));

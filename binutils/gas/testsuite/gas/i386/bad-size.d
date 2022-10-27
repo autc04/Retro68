@@ -1,7 +1,7 @@
 #as: --size-check=warning
 #objdump: -dw
 #name: Check bad size directive
-#error-output: bad-size.warn
+#warning_output: bad-size.warn
 
 .*: +file format .*
 

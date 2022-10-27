@@ -78,4 +78,3 @@ int main()
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 13 "vect" { target vect_hw_misalign } } } */
-/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 2 "vect" { target { ! vect_hw_misalign } } } } */

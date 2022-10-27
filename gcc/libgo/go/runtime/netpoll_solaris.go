@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 // Solaris runtime-integrated network poller.
 //
@@ -67,14 +70,6 @@ import "unsafe"
 // again we know for sure we are always talking about the same file
 // descriptor and can safely access the data we want (the event set).
 
-//extern __go_fcntl_uintptr
-func fcntlUintptr(fd, cmd, arg uintptr) (uintptr, uintptr)
-
-func fcntl(fd, cmd int32, arg uintptr) int32 {
-	r, _ := fcntlUintptr(uintptr(fd), uintptr(cmd), arg)
-	return int32(r)
-}
-
 //extern port_create
 func port_create() int32
 
@@ -88,12 +83,19 @@ func port_dissociate(port, source int32, object uintptr) int32
 //extern port_getn
 func port_getn(port int32, evs *portevent, max uint32, nget *uint32, timeout *timespec) int32
 
+//extern port_alert
+func port_alert(port int32, flags, events uint32, user uintptr) int32
+
+var (
+	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
+)
+
 var portfd int32 = -1
 
 func netpollinit() {
 	portfd = port_create()
 	if portfd >= 0 {
-		fcntl(portfd, _F_SETFD, _FD_CLOEXEC)
+		closeonexec(portfd)
 		return
 	}
 
@@ -101,8 +103,8 @@ func netpollinit() {
 	throw("runtime: netpollinit failed")
 }
 
-func netpolldescriptor() uintptr {
-	return uintptr(portfd)
+func netpollIsPollDescriptor(fd uintptr) bool {
+	return fd == uintptr(portfd)
 }
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
@@ -133,7 +135,7 @@ func netpollclose(fd uintptr) int32 {
 // this call, port_getn will return one and only one event for that
 // particular descriptor, so this function needs to be called again.
 func netpollupdate(pd *pollDesc, set, clear uint32) {
-	if pd.closing {
+	if pd.info().closing() {
 		return
 	}
 
@@ -164,26 +166,69 @@ func netpollarm(pd *pollDesc, mode int) {
 	unlock(&pd.lock)
 }
 
-// polls for ready network connections
-// returns list of goroutines that become runnable
-func netpoll(block bool) gList {
+// netpollBreak interrupts a port_getn wait.
+func netpollBreak() {
+	if atomic.Cas(&netpollWakeSig, 0, 1) {
+		// Use port_alert to put portfd into alert mode.
+		// This will wake up all threads sleeping in port_getn on portfd,
+		// and cause their calls to port_getn to return immediately.
+		// Further, until portfd is taken out of alert mode,
+		// all calls to port_getn will return immediately.
+		if port_alert(portfd, _PORT_ALERT_UPDATE, _POLLHUP, uintptr(unsafe.Pointer(&portfd))) < 0 {
+			if e := errno(); e != _EBUSY {
+				println("runtime: port_alert failed with", e)
+				throw("runtime: netpoll: port_alert failed")
+			}
+		}
+	}
+}
+
+// netpoll checks for ready network connections.
+// Returns list of goroutines that become runnable.
+// delay < 0: blocks indefinitely
+// delay == 0: does not block, just polls
+// delay > 0: block for up to that many nanoseconds
+func netpoll(delay int64) gList {
 	if portfd == -1 {
 		return gList{}
 	}
 
 	var wait *timespec
-	var zero timespec
-	if !block {
-		wait = &zero
+	var ts timespec
+	if delay < 0 {
+		wait = nil
+	} else if delay == 0 {
+		wait = &ts
+	} else {
+		ts.setNsec(delay)
+		if ts.tv_sec > 1e6 {
+			// An arbitrary cap on how long to wait for a timer.
+			// 1e6 s == ~11.5 days.
+			ts.tv_sec = 1e6
+		}
+		wait = &ts
 	}
 
 	var events [128]portevent
 retry:
 	var n uint32 = 1
-	if port_getn(portfd, &events[0], uint32(len(events)), &n, wait) < 0 {
-		if e := errno(); e != _EINTR {
+	r := port_getn(portfd, &events[0], uint32(len(events)), &n, wait)
+	e := errno()
+	if r < 0 && e == _ETIME && n > 0 {
+		// As per port_getn(3C), an ETIME failure does not preclude the
+		// delivery of some number of events.  Treat a timeout failure
+		// with delivered events as a success.
+		r = 0
+	}
+	if r < 0 {
+		if e != _EINTR && e != _ETIME {
 			print("runtime: port_getn on fd ", portfd, " failed (errno=", e, ")\n")
 			throw("runtime: netpoll failed")
+		}
+		// If a timed sleep was interrupted and there are no events,
+		// just return to recalculate how long we should sleep now.
+		if delay > 0 {
+			return gList{}
 		}
 		goto retry
 	}
@@ -191,6 +236,25 @@ retry:
 	var toRun gList
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
+
+		if ev.portev_source == _PORT_SOURCE_ALERT {
+			if ev.portev_events != _POLLHUP || unsafe.Pointer(ev.portev_user) != unsafe.Pointer(&portfd) {
+				throw("runtime: netpoll: bad port_alert wakeup")
+			}
+			if delay != 0 {
+				// Now that a blocking call to netpoll
+				// has seen the alert, take portfd
+				// back out of alert mode.
+				// See the comment in netpollBreak.
+				if port_alert(portfd, 0, 0, 0) < 0 {
+					e := errno()
+					println("runtime: port_alert failed with", e)
+					throw("runtime: netpoll: port_alert failed")
+				}
+				atomic.Store(&netpollWakeSig, 0)
+			}
+			continue
+		}
 
 		if ev.portev_events == 0 {
 			continue
@@ -219,12 +283,14 @@ retry:
 		}
 
 		if mode != 0 {
+			// TODO(mikio): Consider implementing event
+			// scanning error reporting once we are sure
+			// about the event port on SmartOS.
+			//
+			// See golang.org/x/issue/30840.
 			netpollready(&toRun, pd, mode)
 		}
 	}
 
-	if block && toRun.empty() {
-		goto retry
-	}
 	return toRun
 }

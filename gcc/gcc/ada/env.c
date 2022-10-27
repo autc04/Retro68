@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *            Copyright (C) 2005-2019, Free Software Foundation, Inc.       *
+ *            Copyright (C) 2005-2022, Free Software Foundation, Inc.       *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -30,15 +30,11 @@
  ****************************************************************************/
 
 #ifdef IN_RTS
-# include "tconfig.h"
-# include "tsystem.h"
+# include "runtime.h"
+# include <stdio.h>
+# include <stdlib.h>
+# include <string.h>
 
-# include <sys/stat.h>
-# include <fcntl.h>
-# include <time.h>
-# ifdef VMS
-#  include <unixio.h>
-# endif
 /* We don't have libiberty, so use malloc.  */
 # define xmalloc(S) malloc (S)
 #else /* IN_RTS */
@@ -60,6 +56,9 @@
 #endif
 
 #if defined (__vxworks)
+  #include <vxWorks.h>
+  #include <version.h>
+
   #if defined (__RTP__)
     /* On VxWorks 6 Real-Time process mode, environ is defined in unistd.h.  */
     #include <unistd.h>
@@ -70,13 +69,8 @@
     #include <vThreadsData.h>
     #include <envLib.h>
   #else
-    /* This should work for kernel mode on both VxWorks 5 and VxWorks 6.  */
+    /* Kernel mode */
     #include <envLib.h>
-
-    /* In that mode environ is a macro which reference the following symbol.
-       As the symbol is not defined in any VxWorks include files we declare
-       it as extern.  */
-    extern char** ppGlobalEnviron;
   #endif
 #endif
 
@@ -102,89 +96,11 @@ __gnat_getenv (char *name, int *len, char **value)
   return;
 }
 
-/* VMS specific declarations for set_env_value.  */
-
-#ifdef VMS
-
-typedef struct _ile3
-{
-  unsigned short len, code;
-  __char_ptr32 adr;
-  __char_ptr32 retlen_adr;
-} ile_s;
-
-#endif
-
 void
 __gnat_setenv (char *name, char *value)
 {
-#if defined (VMS)
-  struct dsc$descriptor_s name_desc;
-  $DESCRIPTOR (table_desc, "LNM$PROCESS");
-  char *host_pathspec = value;
-  char *copy_pathspec;
-  int num_dirs_in_pathspec = 1;
-  char *ptr;
-  long status;
-
-  name_desc.dsc$w_length = strlen (name);
-  name_desc.dsc$b_dtype = DSC$K_DTYPE_T;
-  name_desc.dsc$b_class = DSC$K_CLASS_S;
-  name_desc.dsc$a_pointer = name; /* ??? Danger, not 64bit safe.  */
-
-  if (*host_pathspec == 0)
-    /* deassign */
-    {
-      status = LIB$DELETE_LOGICAL (&name_desc, &table_desc);
-      /* no need to check status; if the logical name is not
-         defined, that's fine. */
-      return;
-    }
-
-  ptr = host_pathspec;
-  while (*ptr++)
-    if (*ptr == ',')
-      num_dirs_in_pathspec++;
-
-  {
-    int i, status;
-    /* Alloca is guaranteed to be 32bit.  */
-    ile_s *ile_array = alloca (sizeof (ile_s) * (num_dirs_in_pathspec + 1));
-    char *copy_pathspec = alloca (strlen (host_pathspec) + 1);
-    char *curr, *next;
-
-    strcpy (copy_pathspec, host_pathspec);
-    curr = copy_pathspec;
-    for (i = 0; i < num_dirs_in_pathspec; i++)
-      {
-	next = strchr (curr, ',');
-	if (next == 0)
-	  next = strchr (curr, 0);
-
-	*next = 0;
-	ile_array[i].len = strlen (curr);
-
-	/* Code 2 from lnmdef.h means it's a string.  */
-	ile_array[i].code = 2;
-	ile_array[i].adr = curr;
-
-	/* retlen_adr is ignored.  */
-	ile_array[i].retlen_adr = 0;
-	curr = next + 1;
-      }
-
-    /* Terminating item must be zero.  */
-    ile_array[i].len = 0;
-    ile_array[i].code = 0;
-    ile_array[i].adr = 0;
-    ile_array[i].retlen_adr = 0;
-
-    status = LIB$SET_LOGICAL (&name_desc, 0, &table_desc, 0, ile_array);
-    if ((status & 1) != 1)
-      LIB$SIGNAL (status);
-  }
-
-#elif (defined (__vxworks) && defined (__RTP__)) || defined (__APPLE__)
+#if (defined (__vxworks) && (defined (__RTP__) || _WRS_VXWORKS_MAJOR >= 7)) \
+    || defined (__APPLE__)
   setenv (name, value, 1);
 
 #else
@@ -195,9 +111,9 @@ __gnat_setenv (char *name, char *value)
 
   sprintf (expression, "%s=%s", name, value);
   putenv (expression);
-#if defined (__MINGW32__) || (defined (__vxworks) && ! defined (__RTP__))
-  /* On some systems like MacOS X and Windows, putenv is making a copy of the
-     expression string so we can free it after the call to putenv */
+#if defined (__MINGW32__) || defined (__vxworks)
+  /* putenv for Windows and VxWorks 6 kernel modules makes a copy of the
+     expression string, so we need to free it after the call to putenv. */
   free (expression);
 #endif
 #endif
@@ -206,10 +122,7 @@ __gnat_setenv (char *name, char *value)
 char **
 __gnat_environ (void)
 {
-#if defined (VMS) || defined (RTX)
-  /* Not implemented */
-  return NULL;
-#elif defined (__MINGW32__)
+#if defined (__MINGW32__)
   return _environ;
 #elif defined (__sun__)
   extern char **_environ;
@@ -223,17 +136,25 @@ __gnat_environ (void)
   extern char **environ;
   return environ;
 #else
-  return environ;
+  #if defined (__RTP__) || defined (VTHREADS)
+    return environ;
+  #else
+    /* For VxWorks kernel modules use envGet to get the task's environment
+       (either the task's private environment if it has one or the global
+       environment otherwise). taskId parameter of 0 refers to the current
+       task (the VxWorks documentation says to use NULL but the compiler
+       complains that taskId is an int rather than a pointer. Internally,
+       VxWorks uses 0 as well). */
+    return envGet (0);
+  #endif
 #endif
 }
 
 void __gnat_unsetenv (char *name)
 {
-#if defined (VMS)
-  /* Not implemented */
-  return;
-#elif defined (__hpux__) || defined (__sun__) \
-     || (defined (__vxworks) && ! defined (__RTP__)) \
+#if defined (__hpux__) || defined (__sun__) \
+     || (defined (__vxworks) && ! defined (__RTP__) \
+          && _WRS_VXWORKS_MAJOR <= 6) \
      || defined (_AIX) || defined (__Lynx__)
 
   /* On Solaris and HP-UX there is no function to clear an environment
@@ -256,7 +177,7 @@ void __gnat_unsetenv (char *name)
      if (strlen (env[index]) > size) {
        if (strstr (env[index], name) == env[index] &&
 	   env[index][size] == '=') {
-#if defined (__vxworks) && ! defined (__RTP__)
+#if defined (__vxworks)
          /* on Vxworks we are sure that the string has been allocated using
             malloc */
          free (env[index]);
@@ -288,13 +209,11 @@ void __gnat_unsetenv (char *name)
 
 void __gnat_clearenv (void)
 {
-#if defined (VMS)
-  /* not implemented */
-  return;
-#elif defined (__sun__) \
-  || (defined (__vxworks) && ! defined (__RTP__)) || defined (__Lynx__) \
+#if defined (__sun__) \
+  || (defined (__vxworks) && !defined (__RTP__) && _WRS_VXWORKS_MAJOR <= 6) \
+  || defined (__Lynx__) \
   || defined (__PikeOS__)
-  /* On Solaris, VxWorks (not RTPs), and Lynx there is no system
+  /* On Solaris, VxWorks kernel pre 7, and Lynx there is no system
      call to unset a variable or to clear the environment so set all
      the entries in the environ table to NULL (see comment in
      __gnat_unsetenv for more explanation). */
@@ -306,7 +225,8 @@ void __gnat_clearenv (void)
     index++;
   }
 #elif defined (__MINGW32__) || defined (__FreeBSD__) || defined (__APPLE__) \
-   || (defined (__vxworks) && defined (__RTP__)) || defined (__CYGWIN__) \
+   || (defined (__vxworks) && defined (__RTP__) || _WRS_VXWORKS_MAJOR >= 7) \
+   || defined (__CYGWIN__) \
    || defined (__NetBSD__) || defined (__OpenBSD__) || defined (__rtems__) \
    || defined (__DragonFly__) || defined (__DJGPP__)
   /* On Windows, FreeBSD and MacOS there is no function to clean all the

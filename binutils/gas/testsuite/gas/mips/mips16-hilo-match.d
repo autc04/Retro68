@@ -5,7 +5,7 @@
 .*: +file format .*mips.*
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 00000010 R_MIPS_HI16       var4
 00000018 R_MIPS_LO16       var4
 00000008 R_MIPS_HI16       __var1
@@ -34,7 +34,7 @@ OFFSET   TYPE              VALUE
 
 
 RELOCATION RECORDS FOR \[\.pdr\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 00000000 R_MIPS_32         _pinit
 00000020 R_MIPS_32         pdelt
 

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,21 +30,40 @@
 ------------------------------------------------------------------------------
 
 with Ada.Wide_Wide_Text_IO.Integer_Aux;
+with System.Img_BIU; use System.Img_BIU;
+with System.Img_Int; use System.Img_Int;
+with System.Img_LLB; use System.Img_LLB;
+with System.Img_LLI; use System.Img_LLI;
+with System.Img_LLW; use System.Img_LLW;
+with System.Img_WIU; use System.Img_WIU;
+with System.Val_Int; use System.Val_Int;
+with System.Val_LLI; use System.Val_LLI;
 with System.WCh_Con; use System.WCh_Con;
 with System.WCh_WtS; use System.WCh_WtS;
 
 package body Ada.Wide_Wide_Text_IO.Integer_IO is
+
+   package Aux_Int is new
+     Ada.Wide_Wide_Text_IO.Integer_Aux
+       (Integer,
+        Scan_Integer,
+        Set_Image_Integer,
+        Set_Image_Width_Integer,
+        Set_Image_Based_Integer);
+
+   package Aux_LLI is new
+     Ada.Wide_Wide_Text_IO.Integer_Aux
+       (Long_Long_Integer,
+        Scan_Long_Long_Integer,
+        Set_Image_Long_Long_Integer,
+        Set_Image_Width_Long_Long_Integer,
+        Set_Image_Based_Long_Long_Integer);
 
    Need_LLI : constant Boolean := Num'Base'Size > Integer'Size;
    --  Throughout this generic body, we distinguish between the case where type
    --  Integer is acceptable, and where a Long_Long_Integer is needed. This
    --  Boolean is used to test for these cases and since it is a constant, only
    --  code for the relevant case will be included in the instance.
-
-   subtype TFT is Ada.Wide_Wide_Text_IO.File_Type;
-   --  File type required for calls to routines in Aux
-
-   package Aux renames Ada.Wide_Wide_Text_IO.Integer_Aux;
 
    ---------
    -- Get --
@@ -55,11 +74,16 @@ package body Ada.Wide_Wide_Text_IO.Integer_IO is
       Item  : out Num;
       Width : Field := 0)
    is
+      --  We depend on a range check to get Data_Error
+
+      pragma Unsuppress (Range_Check);
+      pragma Unsuppress (Overflow_Check);
+
    begin
       if Need_LLI then
-         Aux.Get_LLI (TFT (File), Long_Long_Integer (Item), Width);
+         Aux_LLI.Get (File, Long_Long_Integer (Item), Width);
       else
-         Aux.Get_Int (TFT (File), Integer (Item), Width);
+         Aux_Int.Get (File, Integer (Item), Width);
       end if;
 
    exception
@@ -71,7 +95,7 @@ package body Ada.Wide_Wide_Text_IO.Integer_IO is
       Width : Field := 0)
    is
    begin
-      Get (Current_Input, Item, Width);
+      Get (Current_In, Item, Width);
    end Get;
 
    procedure Get
@@ -79,6 +103,11 @@ package body Ada.Wide_Wide_Text_IO.Integer_IO is
       Item : out Num;
       Last : out Positive)
    is
+      --  We depend on a range check to get Data_Error
+
+      pragma Unsuppress (Range_Check);
+      pragma Unsuppress (Overflow_Check);
+
       S : constant String := Wide_Wide_String_To_String (From, WCEM_Upper);
       --  String on which we do the actual conversion. Note that the method
       --  used for wide character encoding is irrelevant, since if there is
@@ -87,9 +116,9 @@ package body Ada.Wide_Wide_Text_IO.Integer_IO is
 
    begin
       if Need_LLI then
-         Aux.Gets_LLI (S, Long_Long_Integer (Item), Last);
+         Aux_LLI.Gets (S, Long_Long_Integer (Item), Last);
       else
-         Aux.Gets_Int (S, Integer (Item), Last);
+         Aux_Int.Gets (S, Integer (Item), Last);
       end if;
 
    exception
@@ -108,9 +137,9 @@ package body Ada.Wide_Wide_Text_IO.Integer_IO is
    is
    begin
       if Need_LLI then
-         Aux.Put_LLI (TFT (File), Long_Long_Integer (Item), Width, Base);
+         Aux_LLI.Put (File, Long_Long_Integer (Item), Width, Base);
       else
-         Aux.Put_Int (TFT (File), Integer (Item), Width, Base);
+         Aux_Int.Put (File, Integer (Item), Width, Base);
       end if;
    end Put;
 
@@ -120,7 +149,7 @@ package body Ada.Wide_Wide_Text_IO.Integer_IO is
       Base  : Number_Base := Default_Base)
    is
    begin
-      Put (Current_Output, Item, Width, Base);
+      Put (Current_Out, Item, Width, Base);
    end Put;
 
    procedure Put
@@ -132,9 +161,9 @@ package body Ada.Wide_Wide_Text_IO.Integer_IO is
 
    begin
       if Need_LLI then
-         Aux.Puts_LLI (S, Long_Long_Integer (Item), Base);
+         Aux_LLI.Puts (S, Long_Long_Integer (Item), Base);
       else
-         Aux.Puts_Int (S, Integer (Item), Base);
+         Aux_Int.Puts (S, Integer (Item), Base);
       end if;
 
       for J in S'Range loop

@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 const Doc = `check for useless comparisons between functions and nil
@@ -59,6 +60,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			obj = pass.TypesInfo.Uses[v]
 		case *ast.SelectorExpr:
 			obj = pass.TypesInfo.Uses[v.Sel]
+		case *ast.IndexExpr, *typeparams.IndexListExpr:
+			// Check generic functions such as "f[T1,T2]".
+			x, _, _, _ := typeparams.UnpackIndexExpr(v)
+			if id, ok := x.(*ast.Ident); ok {
+				obj = pass.TypesInfo.Uses[id]
+			}
 		default:
 			return
 		}
@@ -68,7 +75,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
-		pass.Reportf(e.Pos(), "comparison of function %v %v nil is always %v", obj.Name(), e.Op, e.Op == token.NEQ)
+		pass.ReportRangef(e, "comparison of function %v %v nil is always %v", obj.Name(), e.Op, e.Op == token.NEQ)
 	})
 	return nil, nil
 }

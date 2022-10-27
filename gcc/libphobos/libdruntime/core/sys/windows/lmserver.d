@@ -4,13 +4,14 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_lmserver.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_lmserver.d)
  */
 module core.sys.windows.lmserver;
 version (Windows):
+@system:
 
 import core.sys.windows.winsvc;
-private import core.sys.windows.lmcons, core.sys.windows.windef;
+import core.sys.windows.lmcons, core.sys.windows.windef;
 
 struct SERVER_INFO_100 {
     DWORD  sv100_platform_id;

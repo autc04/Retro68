@@ -1,5 +1,5 @@
 # Process this file with autoreconf to produce a configure script.
-#   Copyright (C) 2011-2019 Free Software Foundation, Inc.
+#   Copyright (C) 2011-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -78,6 +78,8 @@ target_alias=${target_alias-$host_alias}
 AM_INIT_AUTOMAKE([1.9.0 foreign no-dist -Wall -Wno-portability -Wno-override])
 AM_ENABLE_MULTILIB(, ..)
 
+GCC_WITH_TOOLEXECLIBDIR
+
 # Calculate toolexeclibdir
 # Also toolexecdir, though it's only used in toolexeclibdir
 case ${enable_version_specific_runtime_libs} in
@@ -93,7 +95,14 @@ case ${enable_version_specific_runtime_libs} in
        test x"$with_cross_host" != x"no"; then
       # Install a library built with a cross compiler in tooldir, not libdir.
       toolexecdir='$(exec_prefix)/$(target_alias)'
-      toolexeclibdir='$(toolexecdir)/lib'
+      case ${with_toolexeclibdir} in
+	no)
+	  toolexeclibdir='$(toolexecdir)/lib'
+	  ;;
+	*)
+	  toolexeclibdir=${with_toolexeclibdir}
+	  ;;
+      esac
     else
       toolexecdir='$(libdir)/gcc-lib/$(target_alias)'
       toolexeclibdir='$(libdir)'
@@ -252,10 +261,13 @@ GCC_CHECK_ELF_STYLE_WEAKREF
 CFLAGS="$save_CFLAGS"
 AC_CACHE_SAVE
 
+AC_ARG_ENABLE([werror],
+  [AS_HELP_STRING([--disable-werror], [disable building with -Werror])])
 # Add -Wall -Werror if we are using GCC.
-if test "x$GCC" = "xyes"; then
-  XCFLAGS="$XCFLAGS -Wall -Werror"
-fi
+AS_IF([test "x$GCC" = "xyes"],
+  [XCFLAGS="$XCFLAGS -Wall"])
+AS_IF([test "x$enable_werror" != "xno" && test "x$GCC" = "xyes"],
+  [XCFLAGS="$XCFLAGS -Werror"])
 
 XCFLAGS="$XCFLAGS $XPCFLAGS"
 

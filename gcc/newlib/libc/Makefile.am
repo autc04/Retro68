@@ -1,7 +1,5 @@
 ## Process this file with automake to generate Makefile.in
 
-AUTOMAKE_OPTIONS = cygnus
-
 if HAVE_POSIX_DIR
 POSIX_SUBDIR = posix
 endif
@@ -224,6 +222,7 @@ targetdep.tex: stmp-targetdep ; @true
 
 $(SUBDEFS): stmp-targetdep ; @true
 
+TEXINFO_TEX = ../../texinfo/texinfo.tex
 info_TEXINFOS = libc.texinfo
 libc_TEXINFOS = sigset.texi extra.texi posix.texi stdio64.texi iconvset.texi \
 	targetdep.tex $(SUBDEFS)

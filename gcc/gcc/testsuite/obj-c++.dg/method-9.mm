@@ -1,6 +1,7 @@
 /* Test for lookup of class (factory) methods.  */
 /* Author: Ziemowit Laski <zlaski@apple.com>.  */
 /* { dg-do compile } */
+// { dg-additional-options "-Wno-objc-root-class" }
 
 @interface MyBase 
 - (void) rootInstanceMethod;
@@ -27,7 +28,4 @@
 }
 @end
 
-/* { dg-warning "Messages without a matching method signature" "" { target *-*-* } 0 } */
-/* { dg-warning "will be assumed to return .id. and accept" "" { target *-*-* } 0 } */
-/* { dg-warning ".\.\.\.. as arguments" "" { target *-*-* } 0 } */
-
+/* { dg-warning "messages without a matching method signature will be assumed to return .id. and accept .\.\.\.. as arguments" "" { target *-*-* } 0 } */

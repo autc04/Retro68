@@ -142,18 +142,22 @@ Node::ast_format(Gogo* gogo) const
   else if (this->expr() != NULL)
     {
       Expression* e = this->expr();
+
       bool is_call = e->call_expression() != NULL;
       if (is_call)
-	e->call_expression()->fn();
+	e = e->call_expression()->fn();
       Func_expression* fe = e->func_expression();;
-
-      bool is_closure = fe != NULL && fe->closure() != NULL;
-      if (is_closure)
+      if (fe != NULL)
 	{
-	  if (is_call)
-	    return "(func literal)()";
-	  return "func literal";
+	  Named_object* no = fe->named_object();
+	  if (no->is_function() && no->func_value()->enclosing() != NULL)
+	    {
+	      if (is_call)
+		return "(func literal)()";
+	      return "func literal";
+	    }
 	}
+
       Ast_dump_context::dump_to_stream(this->expr(), &ss);
     }
   else if (this->statement() != NULL)
@@ -359,8 +363,6 @@ Node::op_format() const
 		  op << "append";
 		  break;
 
-		case Runtime::SLICECOPY:
-		case Runtime::SLICESTRINGCOPY:
 		case Runtime::TYPEDSLICECOPY:
 		  op << "copy";
 		  break;
@@ -511,16 +513,28 @@ Node::is_big(Escape_context* context) const
       || t->is_abstract())
     return false;
 
-  int64_t size;
-  bool ok = t->backend_type_size(context->gogo(), &size);
-  bool big = ok && (size < 0 || size > 10 * 1024 * 1024);
+  bool big = false;
+  if (t->struct_type() != NULL
+      || (t->array_type() != NULL && !t->is_slice_type()))
+    {
+      int64_t size;
+      bool ok = t->backend_type_size(context->gogo(), &size);
+      big = ok && (size < 0 || size > 10 * 1024 * 1024);
+    }
 
   if (this->expr() != NULL)
     {
       if (this->expr()->allocation_expression() != NULL)
 	{
-	  ok = t->deref()->backend_type_size(context->gogo(), &size);
-	  big = big || size <= 0 || size >= (1 << 16);
+	  Type* pt = t->deref();
+	  if (pt->struct_type() != NULL
+	      || (pt->array_type() != NULL && !pt->is_slice_type()))
+	    {
+	      int64_t size;
+	      bool ok = pt->backend_type_size(context->gogo(), &size);
+	      if (ok)
+		big = big || size <= 0 || size >= (1 << 16);
+	    }
 	}
       else if (this->expr()->call_expression() != NULL)
 	{
@@ -567,9 +581,9 @@ Node::is_sink() const
   return false;
 }
 
-std::map<Named_object*, Node*> Node::objects;
-std::map<Expression*, Node*> Node::expressions;
-std::map<Statement*, Node*> Node::statements;
+Unordered_map(Named_object*, Node*) Node::objects;
+Unordered_map(Expression*, Node*) Node::expressions;
+Unordered_map(Statement*, Node*) Node::statements;
 std::vector<Node*> Node::indirects;
 
 // Make a object node or return a cached node for this object.
@@ -577,13 +591,12 @@ std::vector<Node*> Node::indirects;
 Node*
 Node::make_node(Named_object* no)
 {
-  if (Node::objects.find(no) != Node::objects.end())
-    return Node::objects[no];
-
-  Node* n = new Node(no);
-  std::pair<Named_object*, Node*> val(no, n);
-  Node::objects.insert(val);
-  return n;
+  std::pair<Named_object*, Node*> val(no, NULL);
+  std::pair<Unordered_map(Named_object*, Node*)::iterator, bool> ins =
+    Node::objects.insert(val);
+  if (ins.second)
+    ins.first->second = new Node(no);
+  return ins.first->second;
 }
 
 // Make an expression node or return a cached node for this expression.
@@ -591,13 +604,12 @@ Node::make_node(Named_object* no)
 Node*
 Node::make_node(Expression* e)
 {
-  if (Node::expressions.find(e) != Node::expressions.end())
-    return Node::expressions[e];
-
-  Node* n = new Node(e);
-  std::pair<Expression*, Node*> val(e, n);
-  Node::expressions.insert(val);
-  return n;
+  std::pair<Expression*, Node*> val(e, NULL);
+  std::pair<Unordered_map(Expression*, Node*)::iterator, bool> ins =
+    Node::expressions.insert(val);
+  if (ins.second)
+    ins.first->second = new Node(e);
+  return ins.first->second;
 }
 
 // Make a statement node or return a cached node for this statement.
@@ -605,13 +617,12 @@ Node::make_node(Expression* e)
 Node*
 Node::make_node(Statement* s)
 {
-  if (Node::statements.find(s) != Node::statements.end())
-    return Node::statements[s];
-
-  Node* n = new Node(s);
-  std::pair<Statement*, Node*> val(s, n);
-  Node::statements.insert(val);
-  return n;
+  std::pair<Statement*, Node*> val(s, NULL);
+  std::pair<Unordered_map(Statement*, Node*)::iterator, bool> ins =
+    Node::statements.insert(val);
+  if (ins.second)
+    ins.first->second = new Node(s);
+  return ins.first->second;
 }
 
 // Make an indirect node with given child.
@@ -964,9 +975,9 @@ Gogo::analyze_escape()
                 {
                   done = false;
                   if (this->debug_escape_level() > 2)
-                    go_inform((*n)->location(), "Reflooding %s %s",
-                              debug_function_name((*n)->state(context, NULL)->fn).c_str(),
-                              (*n)->ast_format(this).c_str());
+                    go_debug((*n)->location(), "Reflooding %s %s",
+			     debug_function_name((*n)->state(context, NULL)->fn).c_str(),
+			     (*n)->ast_format(this).c_str());
                   escapes[*n] = (*n)->encoding();
                   this->propagate_escape(context, *n);
                 }
@@ -990,9 +1001,9 @@ Gogo::analyze_escape()
 	    {
 	      Node::Escape_state* state = (*n)->state(context, NULL);
 	      if ((*n)->encoding() == Node::ESCAPE_NONE)
-		go_inform((*n)->location(), "%s %s does not escape",
-			  strip_packed_prefix(this, debug_function_name(state->fn)).c_str(),
-			  (*n)->ast_format(this).c_str());
+		go_debug((*n)->location(), "%s %s does not escape",
+			 strip_packed_prefix(this, debug_function_name(state->fn)).c_str(),
+			 (*n)->ast_format(this).c_str());
 	    }
 	}
       delete context;
@@ -1163,11 +1174,14 @@ Escape_discover_expr::expression(Expression** pexpr)
       // Method call or function call.
       fn = e->call_expression()->fn()->func_expression()->named_object();
     }
-  else if (e->func_expression() != NULL
-           && e->func_expression()->closure() != NULL)
+  else if (e->func_expression() != NULL)
     {
-      // Closure.
-      fn = e->func_expression()->named_object();
+      Named_object* no = e->func_expression()->named_object();
+      if (no->is_function() && no->func_value()->enclosing() != NULL)
+	{
+	  // Nested function.
+	  fn = no;
+	}
     }
 
   if (fn != NULL)
@@ -1333,9 +1347,9 @@ Escape_analysis_assign::statement(Block*, size_t*, Statement* s)
     {
       Node* n = Node::make_node(s);
       std::string fn_name = this->context_->current_function_name();
-      go_inform(s->location(), "[%d] %s esc: %s",
-	        this->context_->loop_depth(), fn_name.c_str(),
-	        n->ast_format(gogo).c_str());
+      go_debug(s->location(), "[%d] %s esc: %s",
+	       this->context_->loop_depth(), fn_name.c_str(),
+	       n->ast_format(gogo).c_str());
     }
 
   switch (s->classification())
@@ -1495,9 +1509,9 @@ move_to_heap(Gogo* gogo, Expression *expr)
     {
       Node* n = Node::make_node(expr);
       if (gogo->debug_escape_level() != 0)
-        go_inform(n->definition_location(),
-                  "moved to heap: %s",
-                  n->ast_format(gogo).c_str());
+        go_debug(n->definition_location(),
+		 "moved to heap: %s",
+		 n->ast_format(gogo).c_str());
       if (gogo->compiling_runtime() && gogo->package_name() == "runtime")
         go_error_at(expr->location(),
                     "%s escapes to heap, not allowed in runtime",
@@ -1519,8 +1533,8 @@ Escape_analysis_assign::expression(Expression** pexpr)
       && n->is_big(this->context_))
     {
       if (debug_level > 1)
-	go_inform((*pexpr)->location(), "%s too large for stack",
-                  n->ast_format(gogo).c_str());
+	go_debug((*pexpr)->location(), "%s too large for stack",
+		 n->ast_format(gogo).c_str());
       move_to_heap(gogo, *pexpr);
       n->set_encoding(Node::ESCAPE_HEAP);
       (*pexpr)->address_taken(true);
@@ -1532,11 +1546,10 @@ Escape_analysis_assign::expression(Expression** pexpr)
 
   if (debug_level > 1)
     {
-      Node* n = Node::make_node(*pexpr);
       std::string fn_name = this->context_->current_function_name();
-      go_inform((*pexpr)->location(), "[%d] %s esc: %s",
-		this->context_->loop_depth(), fn_name.c_str(),
-		n->ast_format(gogo).c_str());
+      go_debug((*pexpr)->location(), "[%d] %s esc: %s",
+	       this->context_->loop_depth(), fn_name.c_str(),
+	       n->ast_format(gogo).c_str());
     }
 
   switch ((*pexpr)->classification())
@@ -1566,8 +1579,8 @@ Escape_analysis_assign::expression(Expression** pexpr)
                       Node* appended = Node::make_node(call->args()->back());
                       this->assign_deref(this->context_->sink(), appended);
                       if (debug_level > 2)
-                        go_inform((*pexpr)->location(),
-                                  "special treatment of append(slice1, slice2...)");
+                        go_debug((*pexpr)->location(),
+				 "special treatment of append(slice1, slice2...)");
                     }
                   else
                     {
@@ -1595,8 +1608,33 @@ Escape_analysis_assign::expression(Expression** pexpr)
                 }
                 break;
 
-              default:
+              case Builtin_call_expression::BUILTIN_CLOSE:
+              case Builtin_call_expression::BUILTIN_DELETE:
+              case Builtin_call_expression::BUILTIN_PRINT:
+              case Builtin_call_expression::BUILTIN_PRINTLN:
+              case Builtin_call_expression::BUILTIN_LEN:
+              case Builtin_call_expression::BUILTIN_CAP:
+              case Builtin_call_expression::BUILTIN_COMPLEX:
+              case Builtin_call_expression::BUILTIN_REAL:
+              case Builtin_call_expression::BUILTIN_IMAG:
+              case Builtin_call_expression::BUILTIN_RECOVER:
+              case Builtin_call_expression::BUILTIN_ALIGNOF:
+              case Builtin_call_expression::BUILTIN_OFFSETOF:
+              case Builtin_call_expression::BUILTIN_SIZEOF:
+                // these do not escape.
                 break;
+
+              case Builtin_call_expression::BUILTIN_ADD:
+              case Builtin_call_expression::BUILTIN_SLICE:
+                // handled in ::assign.
+                break;
+
+              case Builtin_call_expression::BUILTIN_MAKE:
+              case Builtin_call_expression::BUILTIN_NEW:
+                // should have been lowered to runtime calls at this point.
+                // fallthrough
+              default:
+                go_unreachable();
               }
             break;
           }
@@ -1608,6 +1646,7 @@ Escape_analysis_assign::expression(Expression** pexpr)
 	      case Runtime::MAKECHAN:
 	      case Runtime::MAKECHAN64:
 	      case Runtime::MAKEMAP:
+	      case Runtime::MAKEMAP64:
 	      case Runtime::MAKESLICE:
 	      case Runtime::MAKESLICE64:
                 this->context_->track(n);
@@ -1619,6 +1658,16 @@ Escape_analysis_assign::expression(Expression** pexpr)
                   // of the key.
                   Node* key_node = Node::make_node(call->args()->back());
                   this->assign_deref(this->context_->sink(), key_node);
+                }
+                break;
+
+              case Runtime::MAPASSIGN_FAST32PTR:
+              case Runtime::MAPASSIGN_FAST64PTR:
+              case Runtime::MAPASSIGN_FASTSTR:
+                {
+                  // Map key escapes. The last argument is the key.
+                  Node* key_node = Node::make_node(call->args()->back());
+                  this->assign(this->context_->sink(), key_node);
                 }
                 break;
 
@@ -1657,8 +1706,52 @@ Escape_analysis_assign::expression(Expression** pexpr)
                 }
                 break;
 
+              case Runtime::MEMCMP:
+              case Runtime::DECODERUNE:
+              case Runtime::INTSTRING:
+              case Runtime::MAKEMAP_SMALL:
+              case Runtime::MAPACCESS1:
+              case Runtime::MAPACCESS1_FAST32:
+              case Runtime::MAPACCESS1_FAST64:
+              case Runtime::MAPACCESS1_FASTSTR:
+              case Runtime::MAPACCESS1_FAT:
+              case Runtime::MAPACCESS2:
+              case Runtime::MAPACCESS2_FAST32:
+              case Runtime::MAPACCESS2_FAST64:
+              case Runtime::MAPACCESS2_FASTSTR:
+              case Runtime::MAPACCESS2_FAT:
+              case Runtime::MAPASSIGN_FAST32:
+              case Runtime::MAPASSIGN_FAST64:
+              case Runtime::MAPITERINIT:
+              case Runtime::MAPITERNEXT:
+              case Runtime::MAPCLEAR:
+              case Runtime::CHANRECV2:
+              case Runtime::SELECTGO:
+              case Runtime::SELECTNBSEND:
+              case Runtime::SELECTNBRECV:
+              case Runtime::BLOCK:
+              case Runtime::IFACET2IP:
+              case Runtime::EQTYPE:
+              case Runtime::MEMCLRHASPTR:
+              case Runtime::FIELDTRACK:
+              case Runtime::BUILTIN_MEMSET:
+              case Runtime::PANIC_SLICE_CONVERT:
+                // these do not escape.
+                break;
+
+              case Runtime::IFACEE2E2:
+              case Runtime::IFACEI2E2:
+              case Runtime::IFACEE2I2:
+              case Runtime::IFACEI2I2:
+              case Runtime::IFACEE2T2P:
+              case Runtime::IFACEI2T2P:
+                // handled in ::assign.
+                break;
+
 	      default:
-		break;
+                // should not see other runtime calls. they are not yet
+                // lowered to runtime calls at this point.
+                go_unreachable();
 	      }
 	  }
         else
@@ -1693,6 +1786,15 @@ Escape_analysis_assign::expression(Expression** pexpr)
 	this->context_->track(tce_node);
 
 	this->assign(tce_node, converted);
+      }
+      break;
+
+    case Expression::EXPRESSION_UNSAFE_CONVERSION:
+      {
+        Unsafe_type_conversion_expression* uce =
+          (*pexpr)->unsafe_conversion_expression();
+        Node* expr_node = Node::make_node(uce->expr());
+        this->assign(n, expr_node);
       }
       break;
 
@@ -1879,7 +1981,8 @@ Escape_analysis_assign::expression(Expression** pexpr)
             this->context_->track(addr_node);
 
             Node::Escape_state* addr_state = addr_node->state(this->context_, NULL);
-            addr_state->loop_depth = array_state->loop_depth;
+            if (array_state->loop_depth != 0)
+              addr_state->loop_depth = array_state->loop_depth;
           }
       }
       break;
@@ -1950,9 +2053,9 @@ Escape_analysis_assign::call(Call_expression* call)
            ++p)
 	{
 	  if (debug_level > 2)
-	    go_inform(call->location(),
-		      "esccall:: indirect call <- %s, untracked",
-		      (*p)->ast_format(gogo).c_str());
+	    go_debug(call->location(),
+		     "esccall:: indirect call <- %s, untracked",
+		     (*p)->ast_format(gogo).c_str());
 	  this->assign(this->context_->sink(), *p);
 	}
 
@@ -1977,8 +2080,8 @@ Escape_analysis_assign::call(Call_expression* call)
       && !fntype->is_tagged())
     {
       if (debug_level > 2)
-	go_inform(call->location(), "esccall:: %s in recursive group",
-		  call_node->ast_format(gogo).c_str());
+	go_debug(call->location(), "esccall:: %s in recursive group",
+		 call_node->ast_format(gogo).c_str());
 
       Function* f = fn->named_object()->func_value();
       const Bindings* callee_bindings = f->block()->bindings();
@@ -2049,8 +2152,8 @@ Escape_analysis_assign::call(Call_expression* call)
 	  for (; p != arg_nodes.end(); ++p)
 	    {
 	      if (debug_level > 2)
-		go_inform(call->location(), "esccall:: ... <- %s, untracked",
-			  (*p)->ast_format(gogo).c_str());
+		go_debug(call->location(), "esccall:: ... <- %s, untracked",
+			 (*p)->ast_format(gogo).c_str());
 	      this->assign(this->context_->sink(), *p);
 	    }
 	}
@@ -2059,8 +2162,8 @@ Escape_analysis_assign::call(Call_expression* call)
     }
 
   if (debug_level > 2)
-    go_inform(call->location(), "esccall:: %s not recursive",
-	      call_node->ast_format(gogo).c_str());
+    go_debug(call->location(), "esccall:: %s not recursive",
+	     call_node->ast_format(gogo).c_str());
 
   Node::Escape_state* call_state = call_node->state(this->context_, NULL);
   if (!call_state->retvals.empty())
@@ -2136,8 +2239,8 @@ Escape_analysis_assign::call(Call_expression* call)
       for (; p != arg_nodes.end(); ++p)
 	{
 	  if (debug_level > 2)
-	    go_inform(call->location(), "esccall:: ... <- %s, untracked",
-                      (*p)->ast_format(gogo).c_str());
+	    go_debug(call->location(), "esccall:: ... <- %s, untracked",
+		     (*p)->ast_format(gogo).c_str());
 	  this->assign(this->context_->sink(), *p);
 	}
     }
@@ -2155,13 +2258,13 @@ Escape_analysis_assign::assign(Node* dst, Node* src)
   Gogo* gogo = this->context_->gogo();
   int debug_level = gogo->debug_escape_level();
   if (debug_level > 1)
-    go_inform(dst->location(), "[%d] %s escassign: %s(%s)[%s] = %s(%s)[%s]",
-	      this->context_->loop_depth(),
-	      strip_packed_prefix(gogo, this->context_->current_function_name()).c_str(),
-	      dst->ast_format(gogo).c_str(), dst->details().c_str(),
-	      dst->op_format().c_str(),
-	      src->ast_format(gogo).c_str(), src->details().c_str(),
-	      src->op_format().c_str());
+    go_debug(dst->location(), "[%d] %s escassign: %s(%s)[%s] = %s(%s)[%s]",
+	     this->context_->loop_depth(),
+	     strip_packed_prefix(gogo, this->context_->current_function_name()).c_str(),
+	     dst->ast_format(gogo).c_str(), dst->details().c_str(),
+	     dst->op_format().c_str(),
+	     src->ast_format(gogo).c_str(), src->details().c_str(),
+	     src->op_format().c_str());
 
   if (dst->is_indirect())
     // Lose track of the dereference.
@@ -2292,19 +2395,82 @@ Escape_analysis_assign::assign(Node* dst, Node* src)
 	  }
 	  break;
 
+        case Expression::EXPRESSION_SLICE_INFO:
+          {
+            Slice_info_expression* sie = e->slice_info_expression();
+            if (sie->info() == Expression::SLICE_INFO_VALUE_POINTER)
+              {
+                Node* slice = Node::make_node(sie->slice());
+                this->assign(dst, slice);
+              }
+          }
+          break;
+
 	case Expression::EXPRESSION_CALL:
 	  {
 	    Call_expression* call = e->call_expression();
             if (call->is_builtin())
               {
                 Builtin_call_expression* bce = call->builtin_call_expression();
-                if (bce->code() == Builtin_call_expression::BUILTIN_APPEND)
+                switch (bce->code())
                   {
-                    // Append returns the first argument.
-                    // The subsequent arguments are already leaked because
-                    // they are operands to append.
-                    Node* appendee = Node::make_node(call->args()->front());
-                    this->assign(dst, appendee);
+                  case Builtin_call_expression::BUILTIN_APPEND:
+                    {
+                      // Append returns the first argument.
+                      // The subsequent arguments are already leaked because
+                      // they are operands to append.
+                      Node* appendee = Node::make_node(call->args()->front());
+                      this->assign(dst, appendee);
+                    }
+                    break;
+
+                  case Builtin_call_expression::BUILTIN_ADD:
+                    {
+                      // unsafe.Add(p, off).
+                      // Flow p to result.
+                      Node* arg = Node::make_node(call->args()->front());
+                      this->assign(dst, arg);
+                    }
+                    break;
+
+                  case Builtin_call_expression::BUILTIN_SLICE:
+                    {
+                      // unsafe.Slice(p, len).
+                      // The resulting slice has the same backing store as p. Flow p to result.
+                      Node* arg = Node::make_node(call->args()->front());
+                      this->assign(dst, arg);
+                    }
+                    break;
+
+                  case Builtin_call_expression::BUILTIN_LEN:
+                  case Builtin_call_expression::BUILTIN_CAP:
+                  case Builtin_call_expression::BUILTIN_COMPLEX:
+                  case Builtin_call_expression::BUILTIN_REAL:
+                  case Builtin_call_expression::BUILTIN_IMAG:
+                  case Builtin_call_expression::BUILTIN_RECOVER:
+                  case Builtin_call_expression::BUILTIN_ALIGNOF:
+                  case Builtin_call_expression::BUILTIN_OFFSETOF:
+                  case Builtin_call_expression::BUILTIN_SIZEOF:
+                    // these do not escape.
+                    break;
+
+                  case Builtin_call_expression::BUILTIN_COPY:
+                    // handled in ::expression.
+                    break;
+
+                  case Builtin_call_expression::BUILTIN_CLOSE:
+                  case Builtin_call_expression::BUILTIN_DELETE:
+                  case Builtin_call_expression::BUILTIN_PRINT:
+                  case Builtin_call_expression::BUILTIN_PRINTLN:
+                  case Builtin_call_expression::BUILTIN_PANIC:
+                    // these do not have result.
+                    // fallthrough
+                  case Builtin_call_expression::BUILTIN_MAKE:
+                  case Builtin_call_expression::BUILTIN_NEW:
+                    // should have been lowered to runtime calls at this point.
+                    // fallthrough
+                  default:
+                    go_unreachable();
                   }
                 break;
               }
@@ -2407,9 +2573,11 @@ Escape_analysis_assign::assign(Node* dst, Node* src)
             Type* tt = tce->type();
             if ((ft->is_string_type() && tt->is_slice_type())
                 || (ft->is_slice_type() && tt->is_string_type())
-                || (ft->integer_type() != NULL && tt->is_string_type()))
+                || (ft->integer_type() != NULL && tt->is_string_type())
+                || tt->interface_type() != NULL)
               {
-                // string([]byte), string([]rune), []byte(string), []rune(string), string(rune)
+                // string([]byte), string([]rune), []byte(string), []rune(string), string(rune),
+                // interface(T)
                 this->flows(dst, src);
                 break;
               }
@@ -2557,6 +2725,21 @@ Escape_analysis_assign::assign(Node* dst, Node* src)
 	  }
 	  break;
 
+        case Expression::EXPRESSION_CONDITIONAL:
+          {
+            Conditional_expression* ce = e->conditional_expression();
+            this->assign(dst, Node::make_node(ce->then_expr()));
+            this->assign(dst, Node::make_node(ce->else_expr()));
+          }
+          break;
+
+        case Expression::EXPRESSION_COMPOUND:
+          {
+            Compound_expression* ce = e->compound_expression();
+            this->assign(dst, Node::make_node(ce->expr()));
+          }
+          break;
+
 	default:
 	  // TODO(cmang): Add debug info here; this should not be reachable.
 	  // For now, just to be conservative, we'll just say dst flows to src.
@@ -2625,9 +2808,9 @@ Escape_analysis_assign::assign_from_note(std::string* note,
     }
 
   if (this->context_->gogo()->debug_escape_level() > 2)
-    go_inform(src->location(), "assignfromtag:: src=%s em=%s",
-              src->ast_format(context_->gogo()).c_str(),
-	      Escape_note::make_tag(enc).c_str());
+    go_debug(src->location(), "assignfromtag:: src=%s em=%s",
+	     src->ast_format(context_->gogo()).c_str(),
+	     Escape_note::make_tag(enc).c_str());
 
   if (enc == Node::ESCAPE_UNKNOWN)
     {
@@ -2695,8 +2878,8 @@ Escape_analysis_assign::flows(Node* dst, Node* src)
 
   Gogo* gogo = this->context_->gogo();
   if (gogo->debug_escape_level() > 2)
-    go_inform(Linemap::unknown_location(), "flows:: %s <- %s",
-              dst->ast_format(gogo).c_str(), src->ast_format(gogo).c_str());
+    go_debug(Linemap::unknown_location(), "flows:: %s <- %s",
+	     dst->ast_format(gogo).c_str(), src->ast_format(gogo).c_str());
 
   if (dst_state->flows.empty())
     this->context_->add_dst(dst);
@@ -2761,15 +2944,8 @@ Gogo::assign_connectivity(Escape_context* context, Named_object* fn)
       if (!p->type()->has_pointer())
         continue;
 
-      // External function?  Parameters must escape unless //go:noescape is set.
-      // TODO(cmang): Implement //go:noescape directive.
-      if (fn->package() != NULL)
-	param_node->set_encoding(Node::ESCAPE_HEAP);
-      else
-        {
-          param_node->set_encoding(Node::ESCAPE_NONE);
-          context->track(param_node);
-        }
+      param_node->set_encoding(Node::ESCAPE_NONE);
+      context->track(param_node);
     }
 
   Escape_analysis_loop el;
@@ -2859,18 +3035,18 @@ Escape_analysis_flood::flood(Level level, Node* dst, Node* src,
   Gogo* gogo = this->context_->gogo();
   int debug_level = gogo->debug_escape_level();
   if (debug_level > 1)
-    go_inform(Linemap::unknown_location(),
-	      "escwalk: level:{%d %d} depth:%d "
-	      "op=%s %s(%s) "
-	      "scope:%s[%d] "
-	      "extraloopdepth=%d",
-	      level.value(), level.suffix_value(), this->context_->pdepth(),
-	      src->op_format().c_str(),
-	      src->ast_format(gogo).c_str(),
-	      src->details().c_str(),
-	      debug_function_name(src_state->fn).c_str(),
-	      src_state->loop_depth,
-	      extra_loop_depth);
+    go_debug(Linemap::unknown_location(),
+	     "escwalk: level:{%d %d} depth:%d "
+	     "op=%s %s(%s) "
+	     "scope:%s[%d] "
+	     "extraloopdepth=%d",
+	     level.value(), level.suffix_value(), this->context_->pdepth(),
+	     src->op_format().c_str(),
+	     src->ast_format(gogo).c_str(),
+	     src->details().c_str(),
+	     debug_function_name(src_state->fn).c_str(),
+	     src_state->loop_depth,
+	     extra_loop_depth);
 
   this->context_->increase_pdepth();
 
@@ -2906,17 +3082,17 @@ Escape_analysis_flood::flood(Level level, Node* dst, Node* src,
       if (debug_level != 0)
 	{
 	  if (debug_level == 1)
-	    go_inform(src->definition_location(),
-		      "leaking param: %s to result %s level=%d",
-		      src->ast_format(gogo).c_str(),
-		      dst->ast_format(gogo).c_str(),
-		      level.value());
+	    go_debug(src->definition_location(),
+		     "leaking param: %s to result %s level=%d",
+		     src->ast_format(gogo).c_str(),
+		     dst->ast_format(gogo).c_str(),
+		     level.value());
 	  else
-	    go_inform(src->definition_location(),
-		      "leaking param: %s to result %s level={%d %d}",
-		      src->ast_format(gogo).c_str(),
-		      dst->ast_format(gogo).c_str(),
-		      level.value(), level.suffix_value());
+	    go_debug(src->definition_location(),
+		     "leaking param: %s to result %s level={%d %d}",
+		     src->ast_format(gogo).c_str(),
+		     dst->ast_format(gogo).c_str(),
+		     level.value(), level.suffix_value());
 	}
 
       if ((src->encoding() & ESCAPE_MASK) != Node::ESCAPE_RETURN)
@@ -2954,8 +3130,8 @@ Escape_analysis_flood::flood(Level level, Node* dst, Node* src,
 			   Node::ESCAPE_NONE);
       src->set_encoding(enc);
       if (debug_level != 0)
-	go_inform(src->definition_location(), "mark escaped content: %s",
-		  src->ast_format(gogo).c_str());
+	go_debug(src->definition_location(), "mark escaped content: %s",
+		 src->ast_format(gogo).c_str());
     }
 
   // A src object leaks if its value or address is assigned to a dst object
@@ -2979,14 +3155,14 @@ Escape_analysis_flood::flood(Level level, Node* dst, Node* src,
 			       Node::ESCAPE_NONE);
 	  src->set_encoding(enc);
 	  if (debug_level != 0 && osrcesc != src->encoding())
-	    go_inform(src->definition_location(), "leaking param content: %s",
-		      src->ast_format(gogo).c_str());
+	    go_debug(src->definition_location(), "leaking param content: %s",
+		     src->ast_format(gogo).c_str());
 	}
       else
 	{
 	  if (debug_level != 0)
-	    go_inform(src->definition_location(), "leaking param: %s",
-                      src->ast_format(gogo).c_str());
+	    go_debug(src->definition_location(), "leaking param: %s",
+		     src->ast_format(gogo).c_str());
 	  src->set_encoding(Node::ESCAPE_HEAP);
 	}
     }
@@ -2996,8 +3172,8 @@ Escape_analysis_flood::flood(Level level, Node* dst, Node* src,
       if (e->enclosed_var_expression() != NULL)
 	{
 	  if (src_leaks && debug_level != 0)
-	    go_inform(src->location(), "leaking closure reference %s",
-		      src->ast_format(gogo).c_str());
+	    go_debug(src->location(), "leaking closure reference %s",
+		     src->ast_format(gogo).c_str());
 
 	  Node* enclosed_node =
 	    Node::make_node(e->enclosed_var_expression()->variable());
@@ -3025,15 +3201,15 @@ Escape_analysis_flood::flood(Level level, Node* dst, Node* src,
                 {
                   move_to_heap(gogo, underlying);
                   if (debug_level > 1)
-                    go_inform(src->location(),
-                              "%s escapes to heap, level={%d %d}, "
-                              "dst.eld=%d, src.eld=%d",
-                              src->ast_format(gogo).c_str(), level.value(),
-                              level.suffix_value(), dst_state->loop_depth,
-                              mod_loop_depth);
+                    go_debug(src->location(),
+			     "%s escapes to heap, level={%d %d}, "
+			     "dst.eld=%d, src.eld=%d",
+			     src->ast_format(gogo).c_str(), level.value(),
+			     level.suffix_value(), dst_state->loop_depth,
+			     mod_loop_depth);
                   else if (debug_level > 0)
-                    go_inform(src->location(), "%s escapes to heap",
-                              src->ast_format(gogo).c_str());
+                    go_debug(src->location(), "%s escapes to heap",
+			     src->ast_format(gogo).c_str());
                 }
 
 	      this->flood(level.decrease(), dst,
@@ -3063,8 +3239,8 @@ Escape_analysis_flood::flood(Level level, Node* dst, Node* src,
 	    {
 	      src->set_encoding(Node::ESCAPE_HEAP);
 	      if (debug_level != 0 && osrcesc != src->encoding())
-		go_inform(src->location(), "%s escapes to heap",
-			  src->ast_format(gogo).c_str());
+		go_debug(src->location(), "%s escapes to heap",
+			 src->ast_format(gogo).c_str());
 	      extra_loop_depth = mod_loop_depth;
 	    }
 	}
@@ -3095,8 +3271,8 @@ Escape_analysis_flood::flood(Level level, Node* dst, Node* src,
                     {
                       src->set_encoding(Node::ESCAPE_HEAP);
                       if (debug_level != 0 && osrcesc != src->encoding())
-                        go_inform(src->location(), "%s escapes to heap",
-                                  src->ast_format(gogo).c_str());
+                        go_debug(src->location(), "%s escapes to heap",
+				 src->ast_format(gogo).c_str());
                       extra_loop_depth = mod_loop_depth;
                     }
                   break;
@@ -3114,11 +3290,11 @@ Escape_analysis_flood::flood(Level level, Node* dst, Node* src,
               // This can only happen with functions returning a single result.
               go_assert(src_state->retvals.size() == 1);
               if (debug_level > 2)
-                go_inform(src->location(), "[%d] dst %s escwalk replace src: %s with %s",
-                          this->context_->loop_depth(),
-                          dst->ast_format(gogo).c_str(),
-                          src->ast_format(gogo).c_str(),
-                          src_state->retvals[0]->ast_format(gogo).c_str());
+                go_debug(src->location(), "[%d] dst %s escwalk replace src: %s with %s",
+			 this->context_->loop_depth(),
+			 dst->ast_format(gogo).c_str(),
+			 src->ast_format(gogo).c_str(),
+			 src_state->retvals[0]->ast_format(gogo).c_str());
               src = src_state->retvals[0];
               src_state = src->state(this->context_, NULL);
             }
@@ -3128,8 +3304,8 @@ Escape_analysis_flood::flood(Level level, Node* dst, Node* src,
 	  // Calls to Runtime::NEW get lowered into an allocation expression.
 	  src->set_encoding(Node::ESCAPE_HEAP);
 	  if (debug_level != 0 && osrcesc != src->encoding())
-	    go_inform(src->location(), "%s escapes to heap",
-                      src->ast_format(gogo).c_str());
+	    go_debug(src->location(), "%s escapes to heap",
+		     src->ast_format(gogo).c_str());
           extra_loop_depth = mod_loop_depth;
 	}
       else if ((e->map_literal() != NULL
@@ -3140,8 +3316,8 @@ Escape_analysis_flood::flood(Level level, Node* dst, Node* src,
         {
           src->set_encoding(Node::ESCAPE_HEAP);
           if (debug_level != 0 && osrcesc != src->encoding())
-            go_inform(src->location(), "%s escapes to heap",
-                      src->ast_format(gogo).c_str());
+            go_debug(src->location(), "%s escapes to heap",
+		     src->ast_format(gogo).c_str());
           extra_loop_depth = mod_loop_depth;
         }
       else if (e->conversion_expression() != NULL && src_leaks)
@@ -3151,14 +3327,24 @@ Escape_analysis_flood::flood(Level level, Node* dst, Node* src,
           Type* tt = tce->type();
           if ((ft->is_string_type() && tt->is_slice_type())
               || (ft->is_slice_type() && tt->is_string_type())
-              || (ft->integer_type() != NULL && tt->is_string_type()))
+              || (ft->integer_type() != NULL && tt->is_string_type())
+              || tt->interface_type() != NULL)
             {
-              // string([]byte), string([]rune), []byte(string), []rune(string), string(rune)
+              // string([]byte), string([]rune), []byte(string), []rune(string), string(rune),
+              // interface(T)
               src->set_encoding(Node::ESCAPE_HEAP);
               if (debug_level != 0 && osrcesc != src->encoding())
-                go_inform(src->location(), "%s escapes to heap",
-                          src->ast_format(gogo).c_str());
+                go_debug(src->location(), "%s escapes to heap",
+			 src->ast_format(gogo).c_str());
               extra_loop_depth = mod_loop_depth;
+              if (tt->interface_type() != NULL
+                  && ft->has_pointer()
+                  && !ft->is_direct_iface_type())
+                // We're converting from a non-direct interface type.
+                // The interface will hold a heap copy of the data
+                // Flow the data to heap. See issue 29353.
+                this->flood(level, this->context_->sink(),
+                            Node::make_node(tce->expr()), -1);
             }
         }
       else if (e->array_index_expression() != NULL
@@ -3261,10 +3447,10 @@ Gogo::propagate_escape(Escape_context* context, Node* dst)
   Node::Escape_state* state = dst->state(context, NULL);
   Gogo* gogo = context->gogo();
   if (gogo->debug_escape_level() > 1)
-    go_inform(Linemap::unknown_location(), "escflood:%d: dst %s scope:%s[%d]",
-	      context->flood_id(), dst->ast_format(gogo).c_str(),
-	      debug_function_name(state->fn).c_str(),
-	      state->loop_depth);
+    go_debug(Linemap::unknown_location(), "escflood:%d: dst %s scope:%s[%d]",
+	     context->flood_id(), dst->ast_format(gogo).c_str(),
+	     debug_function_name(state->fn).c_str(),
+	     state->loop_depth);
 
   Escape_analysis_flood eaf(context);
   for (std::set<Node*>::const_iterator p = state->flows.begin();
@@ -3297,9 +3483,6 @@ Escape_analysis_tag::tag(Named_object* fn)
 {
   // External functions are assumed unsafe
   // unless //go:noescape is given before the declaration.
-  if (fn->package() != NULL)
-    return;
-
   if (fn->is_function_declaration())
     {
       Function_declaration* fdcl = fn->func_declaration_value();
@@ -3414,19 +3597,22 @@ Gogo::reclaim_escape_nodes()
 void
 Node::reclaim_nodes()
 {
-  for (std::map<Named_object*, Node*>::iterator p = Node::objects.begin();
+  for (Unordered_map(Named_object*, Node*)::iterator p =
+	 Node::objects.begin();
        p != Node::objects.end();
        ++p)
     delete p->second;
   Node::objects.clear();
 
-  for (std::map<Expression*, Node*>::iterator p = Node::expressions.begin();
+  for (Unordered_map(Expression*, Node*)::iterator p =
+	 Node::expressions.begin();
        p != Node::expressions.end();
        ++p)
     delete p->second;
   Node::expressions.clear();
 
-  for (std::map<Statement*, Node*>::iterator p = Node::statements.begin();
+  for (Unordered_map(Statement*, Node*)::iterator p =
+	 Node::statements.begin();
        p != Node::statements.end();
        ++p)
     delete p->second;

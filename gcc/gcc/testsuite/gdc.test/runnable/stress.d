@@ -1,3 +1,4 @@
+// RUNNABLE_PHOBOS_TEST
 // PERMUTE_ARGS:
 
 import core.stdc.stdio : printf;
@@ -82,14 +83,14 @@ void MDCHAR()
         str[idx] = str[idx] ~ "TEST LINE\n";
     }
 
-    if(str.length != ITERS) printf("Length Error: %d\n",str.length);
-    if(str[0].length != 10) printf("Length Error: %d\n",str[0].length);
-    if(str[ITERS-1].sizeof != (typ[]).sizeof) printf("Size Error: %d\n",str[ITERS-1].sizeof);
-    if(str[ITERS-1][0].sizeof != (typ).sizeof) printf("Size Error: %d\n",str[ITERS-1][0].sizeof);
+    if(str.length != ITERS) printf("Length Error: %zd\n",str.length);
+    if(str[0].length != 10) printf("Length Error: %zd\n",str[0].length);
+    if(str[ITERS-1].sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",str[ITERS-1].sizeof);
+    if(str[ITERS-1][0].sizeof != (typ).sizeof) printf("Size Error: %zd\n",str[ITERS-1][0].sizeof);
 
     foreach(s; str) {
-        int lstart;
-        foreach(int idx, char c; s) {
+        size_t lstart;
+        foreach(size_t idx, char c; s) {
             if(c == '\n') {
                 typ[] t = s[lstart..idx];
                 if(t != "TEST LINE") {
@@ -107,8 +108,8 @@ void MDCHAR()
     }
 
     foreach(s; splitLines(cast(string)tmp)) {
-        int lstart;
-        foreach(int idx, char c; s) {
+        size_t lstart;
+        foreach(size_t idx, char c; s) {
             if(c == '\n') {
                 if(s[lstart..idx] != "TEST LINE") {
                     printf("Error testing character array\n");
@@ -130,11 +131,11 @@ void CHAR()
         str = str ~ "TEST LINE\n";
     }
 
-    if(str.length != (ITERS * 10)) printf("Length Error: %d\n",str.length);
-    if(str.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",str.sizeof);
+    if(str.length != (ITERS * 10)) printf("Length Error: %zd\n",str.length);
+    if(str.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",str.sizeof);
 
-    int lstart;
-    foreach(int idx, char c; str) {
+    size_t lstart;
+    foreach(size_t idx, char c; str) {
         if(c == '\n') {
             if(str[lstart..idx] != "TEST LINE") {
                 printf("Error testing character array\n");
@@ -155,11 +156,11 @@ void WCHAR()
         str = str ~ toUTF16(cast(char[])"TEST LINE\n");
     }
 
-    if(str.length != (ITERS * 10)) printf("Length Error: %d\n",str.length);
-    if(str.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",str.sizeof);
+    if(str.length != (ITERS * 10)) printf("Length Error: %zd\n",str.length);
+    if(str.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",str.sizeof);
 
-    int lstart;
-    foreach(int idx, char c; str) {
+    size_t lstart;
+    foreach(size_t idx, char c; str) {
         if(c == '\n') {
             if(str[lstart..idx] != toUTF16(cast(char[])"TEST LINE")) {
                 printf("Error testing character array\n");
@@ -180,11 +181,11 @@ void DCHAR()
         str = str ~ toUTF32(cast(char[])"TEST LINE\n");
     }
 
-    if(str.length != (ITERS * 10)) printf("Length Error: %d\n",str.length);
-    if(str.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",str.sizeof);
+    if(str.length != (ITERS * 10)) printf("Length Error: %zd\n",str.length);
+    if(str.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",str.sizeof);
 
-    int lstart;
-    foreach(int idx, char c; str) {
+    size_t lstart;
+    foreach(size_t idx, char c; str) {
         if(c == '\n') {
             if(str[lstart..idx] != toUTF32(cast(char[])"TEST LINE")) {
                 printf("Error testing character array\n");
@@ -205,8 +206,8 @@ void BYTE()
         a ~= idx;
     }
 
-    if(a.length != ITERS) printf("Length Error: %d\n",a.length);
-    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",a.sizeof);
+    if(a.length != ITERS) printf("Length Error: %zd\n",a.length);
+    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",a.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(a[idx] != idx) {
             printf("a Data Error: %d\n",a[idx]);
@@ -217,8 +218,8 @@ void BYTE()
 
     typ[] b = a[];
 
-    if(b.length != ITERS) printf("Length Error: %d\n",b.length);
-    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",b.sizeof);
+    if(b.length != ITERS) printf("Length Error: %zd\n",b.length);
+    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",b.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(b[idx] != idx) {
             printf("b Data Error: %d\n",b[idx]);
@@ -229,8 +230,8 @@ void BYTE()
     c = a[0..ITERS/2] ~ b[ITERS/2..$];
 
 
-    if(c.length != ITERS) printf("Length Error: %d\n",c.length);
-    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",c.sizeof);
+    if(c.length != ITERS) printf("Length Error: %zd\n",c.length);
+    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",c.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(c[idx] != idx) {
             printf("c Data Error: %d\n",c[idx]);
@@ -249,8 +250,8 @@ void UBYTE()
         a ~= idx;
     }
 
-    if(a.length != ITERS) printf("Length Error: %d\n",a.length);
-    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",a.sizeof);
+    if(a.length != ITERS) printf("Length Error: %zd\n",a.length);
+    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",a.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(a[idx] != idx) {
             printf("a Data Error: %d\n",a[idx]);
@@ -261,8 +262,8 @@ void UBYTE()
 
     typ[] b = a[];
 
-    if(b.length != ITERS) printf("Length Error: %d\n",b.length);
-    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",b.sizeof);
+    if(b.length != ITERS) printf("Length Error: %zd\n",b.length);
+    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",b.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(b[idx] != idx) {
             printf("b Data Error: %d\n",b[idx]);
@@ -274,8 +275,8 @@ void UBYTE()
     c = a[0..ITERS/2] ~ b[ITERS/2..$];
 
 
-    if(c.length != ITERS) printf("Length Error: %d\n",c.length);
-    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",c.sizeof);
+    if(c.length != ITERS) printf("Length Error: %zd\n",c.length);
+    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",c.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(c[idx] != idx) {
             printf("c Data Error: %d\n",c[idx]);
@@ -294,8 +295,8 @@ void SHORT()
         a ~= idx;
     }
 
-    if(a.length != ITERS) printf("Length Error: %d\n",a.length);
-    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",a.sizeof);
+    if(a.length != ITERS) printf("Length Error: %zd\n",a.length);
+    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",a.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(a[idx] != idx) {
             printf("a Data Error: %d\n",a[idx]);
@@ -305,8 +306,8 @@ void SHORT()
 
     typ[] b = a[];
 
-    if(b.length != ITERS) printf("Length Error: %d\n",b.length);
-    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",b.sizeof);
+    if(b.length != ITERS) printf("Length Error: %zd\n",b.length);
+    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",b.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(b[idx] != idx) {
             printf("b Data Error: %d\n",b[idx]);
@@ -318,8 +319,8 @@ void SHORT()
     c = a[0..ITERS/2] ~ b[ITERS/2..$];
 
 
-    if(c.length != ITERS) printf("Length Error: %d\n",c.length);
-    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",c.sizeof);
+    if(c.length != ITERS) printf("Length Error: %zd\n",c.length);
+    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",c.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(c[idx] != idx) {
             printf("c Data Error: %d\n",c[idx]);
@@ -338,8 +339,8 @@ void USHORT()
         a ~= idx;
     }
 
-    if(a.length != ITERS) printf("Length Error: %d\n",a.length);
-    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",a.sizeof);
+    if(a.length != ITERS) printf("Length Error: %zd\n",a.length);
+    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",a.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(a[idx] != idx) {
             printf("a Data Error: %d\n",a[idx]);
@@ -349,8 +350,8 @@ void USHORT()
 
     typ[] b = a[];
 
-    if(b.length != ITERS) printf("Length Error: %d\n",b.length);
-    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",b.sizeof);
+    if(b.length != ITERS) printf("Length Error: %zd\n",b.length);
+    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",b.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(b[idx] != idx) {
             printf("b Data Error: %d\n",b[idx]);
@@ -362,8 +363,8 @@ void USHORT()
     c = a[0..ITERS/2] ~ b[ITERS/2..$];
 
 
-    if(c.length != ITERS) printf("Length Error: %d\n",c.length);
-    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",c.sizeof);
+    if(c.length != ITERS) printf("Length Error: %zd\n",c.length);
+    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",c.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(c[idx] != idx) {
             printf("c Data Error: %d\n",c[idx]);
@@ -382,8 +383,8 @@ void INT()
         a ~= idx;
     }
 
-    if(a.length != ITERS) printf("Length Error: %d\n",a.length);
-    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",a.sizeof);
+    if(a.length != ITERS) printf("Length Error: %zd\n",a.length);
+    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",a.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(a[idx] != idx) {
             printf("a Data Error: %d\n",a[idx]);
@@ -394,8 +395,8 @@ void INT()
 
     typ[] b = a[];
 
-    if(b.length != ITERS) printf("Length Error: %d\n",b.length);
-    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",b.sizeof);
+    if(b.length != ITERS) printf("Length Error: %zd\n",b.length);
+    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",b.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(b[idx] != idx) {
             printf("b Data Error: %d\n",b[idx]);
@@ -407,8 +408,8 @@ void INT()
     c = a[0..ITERS/2] ~ b[ITERS/2..$];
 
 
-    if(c.length != ITERS) printf("Length Error: %d\n",c.length);
-    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",c.sizeof);
+    if(c.length != ITERS) printf("Length Error: %zd\n",c.length);
+    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",c.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(c[idx] != idx) {
             printf("c Data Error: %d\n",c[idx]);
@@ -427,8 +428,8 @@ void UINT()
         a ~= idx;
     }
 
-    if(a.length != ITERS) printf("Length Error: %d\n",a.length);
-    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",a.sizeof);
+    if(a.length != ITERS) printf("Length Error: %zd\n",a.length);
+    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",a.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(a[idx] != idx) {
             printf("a Data Error: %d\n",a[idx]);
@@ -439,8 +440,8 @@ void UINT()
 
     typ[] b = a[];
 
-    if(b.length != ITERS) printf("Length Error: %d\n",b.length);
-    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",b.sizeof);
+    if(b.length != ITERS) printf("Length Error: %zd\n",b.length);
+    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",b.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(b[idx] != idx) {
             printf("b Data Error: %d\n",b[idx]);
@@ -452,8 +453,8 @@ void UINT()
     c = a[0..ITERS/2] ~ b[ITERS/2..$];
 
 
-    if(c.length != ITERS) printf("Length Error: %d\n",c.length);
-    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",c.sizeof);
+    if(c.length != ITERS) printf("Length Error: %zd\n",c.length);
+    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",c.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(c[idx] != idx) {
             printf("c Data Error: %d\n",c[idx]);
@@ -472,22 +473,22 @@ void LONG()
         a ~= idx;
     }
 
-    if(a.length != ITERS) printf("Length Error: %d\n",a.length);
-    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",a.sizeof);
+    if(a.length != ITERS) printf("Length Error: %zd\n",a.length);
+    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",a.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(a[idx] != idx) {
-            printf("a Data Error: %d\n",a[idx]);
+            printf("a Data Error: %lld\n",a[idx]);
             break;
         }
     }
 
     typ[] b = a[];
 
-    if(b.length != ITERS) printf("Length Error: %d\n",b.length);
-    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",b.sizeof);
+    if(b.length != ITERS) printf("Length Error: %zd\n",b.length);
+    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",b.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(b[idx] != idx) {
-            printf("b Data Error: %d\n",b[idx]);
+            printf("b Data Error: %lld\n",b[idx]);
             break;
         }
     }
@@ -496,11 +497,11 @@ void LONG()
     c = a[0..ITERS/2] ~ b[ITERS/2..$];
 
 
-    if(c.length != ITERS) printf("Length Error: %d\n",c.length);
-    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",c.sizeof);
+    if(c.length != ITERS) printf("Length Error: %zd\n",c.length);
+    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",c.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(c[idx] != idx) {
-            printf("c Data Error: %d\n",c[idx]);
+            printf("c Data Error: %lld\n",c[idx]);
             break;
         }
     }
@@ -516,22 +517,22 @@ void ULONG()
         a ~= idx;
     }
 
-    if(a.length != ITERS) printf("Length Error: %d\n",a.length);
-    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",a.sizeof);
+    if(a.length != ITERS) printf("Length Error: %zd\n",a.length);
+    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",a.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(a[idx] != idx) {
-            printf("a Data Error: %d\n",a[idx]);
+            printf("a Data Error: %lld\n",a[idx]);
             break;
         }
     }
 
     typ[] b = a[];
 
-    if(b.length != ITERS) printf("Length Error: %d\n",b.length);
-    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",b.sizeof);
+    if(b.length != ITERS) printf("Length Error: %zd\n",b.length);
+    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",b.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(b[idx] != idx) {
-            printf("b Data Error: %d\n",b[idx]);
+            printf("b Data Error: %lld\n",b[idx]);
             break;
         }
     }
@@ -540,11 +541,11 @@ void ULONG()
     c = a[0..ITERS/2] ~ b[ITERS/2..$];
 
 
-    if(c.length != ITERS) printf("Length Error: %d\n",c.length);
-    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",c.sizeof);
+    if(c.length != ITERS) printf("Length Error: %zd\n",c.length);
+    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",c.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(c[idx] != idx) {
-            printf("c Data Error: %d\n",c[idx]);
+            printf("c Data Error: %lld\n",c[idx]);
             break;
         }
     }
@@ -560,22 +561,22 @@ void FLOAT()
         a ~= idx;
     }
 
-    if(a.length != ITERS) printf("Length Error: %d\n",a.length);
-    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",a.sizeof);
+    if(a.length != ITERS) printf("Length Error: %zd\n",a.length);
+    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",a.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(a[idx] != idx) {
-            printf("a Data Error: %d\n",a[idx]);
+            printf("a Data Error: %g\n",a[idx]);
             break;
         }
     }
 
     typ[] b = a[];
 
-    if(b.length != ITERS) printf("Length Error: %d\n",b.length);
-    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",b.sizeof);
+    if(b.length != ITERS) printf("Length Error: %zd\n",b.length);
+    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",b.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(b[idx] != idx) {
-            printf("b Data Error: %d\n",b[idx]);
+            printf("b Data Error: %g\n",b[idx]);
             break;
         }
     }
@@ -584,11 +585,11 @@ void FLOAT()
     c = a[0..ITERS/2] ~ b[ITERS/2..$];
 
 
-    if(c.length != ITERS) printf("Length Error: %d\n",c.length);
-    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",c.sizeof);
+    if(c.length != ITERS) printf("Length Error: %zd\n",c.length);
+    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",c.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(c[idx] != idx) {
-            printf("c Data Error: %d\n",c[idx]);
+            printf("c Data Error: %g\n",c[idx]);
             break;
         }
     }
@@ -604,22 +605,22 @@ void DOUBLE()
         a ~= idx;
     }
 
-    if(a.length != ITERS) printf("Length Error: %d\n",a.length);
-    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",a.sizeof);
+    if(a.length != ITERS) printf("Length Error: %zd\n",a.length);
+    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",a.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(a[idx] != idx) {
-            printf("a Data Error: %d\n",a[idx]);
+            printf("a Data Error: %g\n",a[idx]);
             break;
         }
     }
 
     typ[] b = a[];
 
-    if(b.length != ITERS) printf("Length Error: %d\n",b.length);
-    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",b.sizeof);
+    if(b.length != ITERS) printf("Length Error: %zd\n",b.length);
+    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",b.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(b[idx] != idx) {
-            printf("b Data Error: %d\n",b[idx]);
+            printf("b Data Error: %g\n",b[idx]);
             break;
         }
     }
@@ -628,11 +629,11 @@ void DOUBLE()
     c = a[0..ITERS/2] ~ b[ITERS/2..$];
 
 
-    if(c.length != ITERS) printf("Length Error: %d\n",c.length);
-    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",c.sizeof);
+    if(c.length != ITERS) printf("Length Error: %zd\n",c.length);
+    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",c.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(c[idx] != idx) {
-            printf("c Data Error: %d\n",c[idx]);
+            printf("c Data Error: %g\n",c[idx]);
             break;
         }
     }
@@ -648,22 +649,22 @@ void REAL()
         a ~= idx;
     }
 
-    if(a.length != ITERS) printf("Length Error: %d\n",a.length);
-    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",a.sizeof);
+    if(a.length != ITERS) printf("Length Error: %zd\n",a.length);
+    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",a.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(a[idx] != idx) {
-            printf("a Data Error: %d\n",a[idx]);
+            printf("a Data Error: %Lg\n",a[idx]);
             break;
         }
     }
 
     typ[] b = a[];
 
-    if(b.length != ITERS) printf("Length Error: %d\n",b.length);
-    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",b.sizeof);
+    if(b.length != ITERS) printf("Length Error: %zd\n",b.length);
+    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",b.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(b[idx] != idx) {
-            printf("b Data Error: %d\n",b[idx]);
+            printf("b Data Error: %Lg\n",b[idx]);
             break;
         }
     }
@@ -672,11 +673,11 @@ void REAL()
     c = a[0..ITERS/2] ~ b[ITERS/2..$];
 
 
-    if(c.length != ITERS) printf("Length Error: %d\n",c.length);
-    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",c.sizeof);
+    if(c.length != ITERS) printf("Length Error: %zd\n",c.length);
+    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",c.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(c[idx] != idx) {
-            printf("c Data Error: %d\n",c[idx]);
+            printf("c Data Error: %Lg\n",c[idx]);
             break;
         }
     }
@@ -693,8 +694,8 @@ void CLASS()
         a ~= tc;
     }
 
-    if(a.length != ITERS) printf("Length Error: %d\n",a.length);
-    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",a.sizeof);
+    if(a.length != ITERS) printf("Length Error: %zd\n",a.length);
+    if(a.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",a.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(a[idx].i != idx) {
             printf("a Data Error: %d\n",a[idx].i);
@@ -704,8 +705,8 @@ void CLASS()
 
     typ[] b = a[];
 
-    if(b.length != ITERS) printf("Length Error: %d\n",b.length);
-    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",b.sizeof);
+    if(b.length != ITERS) printf("Length Error: %zd\n",b.length);
+    if(b.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",b.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(b[idx].i != idx) {
             printf("b Data Error: %d\n",b[idx].i);
@@ -716,8 +717,8 @@ void CLASS()
     typ[] c;
     c = a[0..ITERS/2] ~ b[ITERS/2..$];
 
-    if(c.length != ITERS) printf("Length Error: %d\n",c.length);
-    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %d\n",c.sizeof);
+    if(c.length != ITERS) printf("Length Error: %zd\n",c.length);
+    if(c.sizeof != (typ[]).sizeof) printf("Size Error: %zd\n",c.sizeof);
     for(int idx = 0; idx < ITERS; idx++) {
         if(c[idx].i != idx) {
             printf("c Data Error: %d\n",c[idx].i);

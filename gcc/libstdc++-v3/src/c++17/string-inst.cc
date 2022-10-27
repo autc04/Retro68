@@ -1,6 +1,6 @@
 // string instantiations for C++17 -*- C++ -*-
 
-// Copyright (C) 2019 Free Software Foundation, Inc.
+// Copyright (C) 2019-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -25,6 +25,12 @@
 //
 // ISO C++ 14882:2017 24  Strings library
 //
+
+#ifndef _GLIBCXX_USE_CXX11_ABI
+// Instantiations in this file use the new SSO std::string ABI unless included
+// by another file which defines _GLIBCXX_USE_CXX11_ABI=0.
+# define _GLIBCXX_USE_CXX11_ABI 1
+#endif
 
 #include <string>
 

@@ -59,8 +59,8 @@ Disassembly of section \.text:
   c4:	(7c 00 16 0a|0a 16 00 7c) 	lvsm    v0,0,r2
   c8:	(7c 01 16 0a|0a 16 01 7c) 	lvsm    v0,r1,r2
   cc:	(7f 5a d3 78|78 d3 5a 7f) 	miso
-  d0:	(7c 00 04 ac|ac 04 00 7c) 	sync    
-  d4:	(7c 00 04 ac|ac 04 00 7c) 	sync    
+  d0:	(7c 00 04 ac|ac 04 00 7c) 	sync
+  d4:	(7c 00 04 ac|ac 04 00 7c) 	sync
   d8:	(7c 20 04 ac|ac 04 20 7c) 	lwsync
   dc:	(7c 21 04 ac|ac 04 21 7c) 	sync    1,1
   e0:	(7c 07 04 ac|ac 04 07 7c) 	sync    0,7

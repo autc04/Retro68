@@ -1,6 +1,6 @@
 // Filesystem operations -*- C++ -*-
 
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,7 +27,12 @@
 # define NEED_DO_COPY_FILE
 # define NEED_DO_SPACE
 #endif
+#ifndef _GNU_SOURCE
+// Cygwin needs this for secure_getenv
+# define _GNU_SOURCE 1
+#endif
 
+#include <bits/largefile-config.h>
 #include <filesystem>
 #include <functional>
 #include <ostream>
@@ -64,16 +69,12 @@ namespace posix = std::filesystem::__gnu_posix;
 fs::path
 fs::absolute(const path& p)
 {
-#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
   error_code ec;
   path ret = absolute(p, ec);
   if (ec)
     _GLIBCXX_THROW_OR_ABORT(filesystem_error("cannot make absolute path", p,
 					     ec));
   return ret;
-#else
-  return current_path() / p;
-#endif
 }
 
 fs::path
@@ -82,7 +83,7 @@ fs::absolute(const path& p, error_code& ec)
   path ret;
   if (p.empty())
     {
-      ec = make_error_code(std::errc::no_such_file_or_directory);
+      ec = make_error_code(std::errc::invalid_argument);
       return ret;
     }
   ec.clear();
@@ -93,6 +94,7 @@ fs::absolute(const path& p, error_code& ec)
     }
 
 #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+  // s must remain null-terminated
   wstring_view s = p.native();
 
   if (p.has_root_directory()) // implies !p.has_root_name()
@@ -105,9 +107,6 @@ fs::absolute(const path& p, error_code& ec)
       s.remove_prefix(std::min(s.length(), pos) - 1);
     }
 
-  // s must be null-terminated
-  __glibcxx_assert(!s.empty() && s.back() == 0);
-
   uint32_t len = 1024;
   wstring buf;
   do
@@ -118,7 +117,7 @@ fs::absolute(const path& p, error_code& ec)
   while (len > buf.size());
 
   if (len == 0)
-    ec.assign((int)GetLastError(), std::system_category());
+    ec = __last_system_error();
   else
     {
       buf.resize(len);
@@ -358,7 +357,7 @@ fs::copy(const path& from, const path& to, copy_options options,
     }
   if (is_other(f) || is_other(t))
     {
-      ec = std::make_error_code(std::errc::not_supported);
+      ec = std::make_error_code(std::errc::invalid_argument);
       return;
     }
   if (is_directory(f) && is_regular_file(t))
@@ -409,15 +408,19 @@ fs::copy(const path& from, const path& to, copy_options options,
       // set an unused bit in options to disable further recursion
       if (!is_set(options, copy_options::recursive))
 	options |= static_cast<copy_options>(4096);
-      for (const directory_entry& x : directory_iterator(from))
-	copy(x.path(), to/x.path().filename(), options, ec);
+      for (const directory_entry& x : directory_iterator(from, ec))
+	{
+	  copy(x.path(), to/x.path().filename(), options, ec);
+	  if (ec)
+	    return;
+	}
     }
   // _GLIBCXX_RESOLVE_LIB_DEFECTS
   // 2683. filesystem::copy() says "no effects"
   else
     ec.clear();
 #else
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
 #endif
 }
 
@@ -440,7 +443,7 @@ fs::copy_file(const path& from, const path& to, copy_options options,
   return do_copy_file(from.c_str(), to.c_str(), copy_file_options(options),
 		      nullptr, nullptr, ec);
 #else
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
   return false;
 #endif
 }
@@ -494,7 +497,7 @@ fs::create_directories(const path& p, error_code& ec)
       return false;
     }
 
-  file_status st = symlink_status(p, ec);
+  file_status st = status(p, ec);
   if (is_directory(st))
     return false;
   else if (ec && !status_known(st))
@@ -575,8 +578,7 @@ namespace
   {
     bool created = false;
 #ifdef _GLIBCXX_HAVE_SYS_STAT_H
-    posix::mode_t mode
-      = static_cast<std::underlying_type_t<fs::perms>>(perm);
+    posix::mode_t mode = static_cast<std::underlying_type_t<fs::perms>>(perm);
     if (posix::mkdir(p.c_str(), mode))
       {
 	const int err = errno;
@@ -589,7 +591,7 @@ namespace
 	created = true;
       }
 #else
-    ec = std::make_error_code(std::errc::not_supported);
+    ec = std::make_error_code(std::errc::function_not_supported);
 #endif
     return created;
   }
@@ -637,7 +639,7 @@ fs::create_directory(const path& p, const path& attributes,
     }
   return create_dir(p, static_cast<perms>(st.st_mode), ec);
 #else
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
   return false;
 #endif
 }
@@ -658,7 +660,7 @@ fs::create_directory_symlink(const path& to, const path& new_symlink,
 			     error_code& ec) noexcept
 {
 #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
 #else
   create_symlink(to, new_symlink, ec);
 #endif
@@ -688,9 +690,9 @@ fs::create_hard_link(const path& to, const path& new_hard_link,
   if (CreateHardLinkW(new_hard_link.c_str(), to.c_str(), NULL))
     ec.clear();
   else
-    ec.assign((int)GetLastError(), generic_category());
+    ec = __last_system_error();
 #else
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
 #endif
 }
 
@@ -714,7 +716,7 @@ fs::create_symlink(const path& to, const path& new_symlink,
   else
     ec.clear();
 #else
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
 #endif
 }
 
@@ -782,7 +784,7 @@ fs::current_path(error_code& ec)
     }
 #endif  // __GLIBC__
 #else   // _GLIBCXX_HAVE_UNISTD_H
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
 #endif
   return p;
 }
@@ -805,7 +807,7 @@ fs::current_path(const path& p, error_code& ec) noexcept
   else
     ec.clear();
 #else
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
 #endif
 }
 
@@ -845,7 +847,7 @@ fs::equivalent(const path& p1, const path& p2, error_code& ec) noexcept
     {
       if (is_other(s1) && is_other(s2))
 	{
-	  ec = std::make_error_code(std::errc::not_supported);
+	  ec = std::__unsupported();
 	  return false;
 	}
       ec.clear();
@@ -880,12 +882,12 @@ fs::equivalent(const path& p1, const path& p2, error_code& ec) noexcept
       if (!h1 || !h2)
 	{
 	  if (!h1 && !h2)
-	    ec.assign((int)GetLastError(), generic_category());
+	    ec = __last_system_error();
 	  return false;
 	}
       if (!h1.get_info() || !h2.get_info())
 	{
-	  ec.assign((int)GetLastError(), generic_category());
+	  ec = __last_system_error();
 	  return false;
 	}
       return h1.info.dwVolumeSerialNumber == h2.info.dwVolumeSerialNumber
@@ -903,7 +905,7 @@ fs::equivalent(const path& p1, const path& p2, error_code& ec) noexcept
     ec.clear();
   return false;
 #else
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
 #endif
   return false;
 }
@@ -934,7 +936,7 @@ namespace
       ec.clear();
       return f(st);
 #else
-      ec = std::make_error_code(std::errc::not_supported);
+      ec = std::make_error_code(std::errc::function_not_supported);
       return deflt;
 #endif
     }
@@ -949,7 +951,7 @@ fs::file_size(const path& p, error_code& ec) noexcept
     S(const stat_type& st) : type(make_file_type(st)), size(st.st_size) { }
     S() : type(file_type::not_found) { }
     file_type type;
-    size_t size;
+    uintmax_t size;
   };
   auto s = do_stat(p, ec, [](const auto& st) { return S{st}; }, S{});
   if (s.type == file_type::regular)
@@ -959,10 +961,10 @@ fs::file_size(const path& p, error_code& ec) noexcept
       if (s.type == file_type::directory)
 	ec = std::make_error_code(std::errc::is_a_directory);
       else
-	ec = std::make_error_code(std::errc::not_supported);
+	ec = std::__unsupported();
     }
 #else
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
 #endif
   return -1;
 }
@@ -984,7 +986,7 @@ fs::hard_link_count(const path& p, error_code& ec) noexcept
   return do_stat(p, ec, std::mem_fn(&stat_type::st_nlink),
 		 static_cast<uintmax_t>(-1));
 #else
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
   return static_cast<uintmax_t>(-1);
 #endif
 }
@@ -1032,7 +1034,7 @@ fs::last_write_time(const path& p, error_code& ec) noexcept
 		 },
 		 file_time_type::min());
 #else
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
   return file_time_type::min();
 #endif
 }
@@ -1078,7 +1080,7 @@ fs::last_write_time(const path& p,
   else
     ec.clear();
 #else
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
 #endif
 }
 
@@ -1127,8 +1129,8 @@ fs::permissions(const path& p, perms prms, perm_options opts,
     err = errno;
 #else
   if (nofollow && is_symlink(st))
-    ec = std::make_error_code(std::errc::not_supported);
-  else if (posix::chmod(p.c_str(), static_cast<mode_t>(prms)))
+    ec = std::__unsupported();
+  else if (posix::chmod(p.c_str(), static_cast<posix::mode_t>(prms)))
     err = errno;
 #endif
 
@@ -1173,11 +1175,17 @@ fs::path fs::read_symlink(const path& p, error_code& ec)
   path result;
 #if defined(_GLIBCXX_HAVE_READLINK) && defined(_GLIBCXX_HAVE_SYS_STAT_H)
   stat_type st;
-  if (::lstat(p.c_str(), &st))
+  if (posix::lstat(p.c_str(), &st))
     {
       ec.assign(errno, std::generic_category());
       return result;
     }
+  else if (!fs::is_symlink(make_file_status(st)))
+    {
+      ec.assign(EINVAL, std::generic_category());
+      return result;
+    }
+
   std::string buf(st.st_size ? st.st_size + 1 : 128, '\0');
   do
     {
@@ -1206,7 +1214,7 @@ fs::path fs::read_symlink(const path& p, error_code& ec)
     }
   while (true);
 #else
-  ec = std::make_error_code(std::errc::not_supported);
+  ec = std::make_error_code(std::errc::function_not_supported);
 #endif
   return result;
 }
@@ -1255,7 +1263,7 @@ fs::remove(const path& p, error_code& ec) noexcept
 	  return true;
 	}
       else if (!ec)
-	ec.assign((int)GetLastError(), generic_category());
+	ec = __last_system_error();
     }
   else if (status_known(st))
     ec.clear();
@@ -1273,42 +1281,80 @@ fs::remove(const path& p, error_code& ec) noexcept
   return false;
 }
 
-
 std::uintmax_t
 fs::remove_all(const path& p)
 {
   error_code ec;
-  const auto result = remove_all(p, ec);
-  if (ec)
+  uintmax_t count = 0;
+  recursive_directory_iterator dir(p, directory_options{64|128}, ec);
+  switch (ec.value()) // N.B. assumes ec.category() == std::generic_category()
+  {
+  case 0:
+    // Iterate over the directory removing everything.
+    {
+      const recursive_directory_iterator end;
+      while (dir != end)
+	{
+	  dir.__erase(); // throws on error
+	  ++count;
+	}
+    }
+    // Directory is empty now, will remove it below.
+    break;
+  case ENOENT:
+    // Our work here is done.
+    return 0;
+  case ENOTDIR:
+  case ELOOP:
+    // Not a directory, will remove below.
+    break;
+  default:
+    // An error occurred.
     _GLIBCXX_THROW_OR_ABORT(filesystem_error("cannot remove all", p, ec));
-  return result;
+  }
+
+  // Remove p itself, which is either a non-directory or is now empty.
+  return count + fs::remove(p);
 }
 
 std::uintmax_t
 fs::remove_all(const path& p, error_code& ec)
 {
-  const auto s = symlink_status(p, ec);
-  if (!status_known(s))
-    return -1;
-
-  ec.clear();
-  if (s.type() == file_type::not_found)
-    return 0;
-
   uintmax_t count = 0;
-  if (s.type() == file_type::directory)
+  recursive_directory_iterator dir(p, directory_options{64|128}, ec);
+  switch (ec.value()) // N.B. assumes ec.category() == std::generic_category()
+  {
+  case 0:
+    // Iterate over the directory removing everything.
     {
-      for (directory_iterator d(p, ec), end; !ec && d != end; d.increment(ec))
-	count += fs::remove_all(d->path(), ec);
-      if (ec.value() == ENOENT)
-	ec.clear();
-      else if (ec)
-	return -1;
+      const recursive_directory_iterator end;
+      while (dir != end)
+	{
+	  dir.__erase(&ec);
+	  if (ec)
+	    return -1;
+	  ++count;
+	}
     }
+    // Directory is empty now, will remove it below.
+    break;
+  case ENOENT:
+    // Our work here is done.
+    ec.clear();
+    return 0;
+  case ENOTDIR:
+  case ELOOP:
+    // Not a directory, will remove below.
+    break;
+  default:
+    // An error occurred.
+    return -1;
+  }
 
-  if (fs::remove(p, ec))
-    ++count;
-  return ec ? -1 : count;
+  // Remove p itself, which is either a non-directory or is now empty.
+  if (int last = fs::remove(p, ec); !ec)
+    return count + last;
+  return -1;
 }
 
 void
@@ -1323,6 +1369,36 @@ fs::rename(const path& from, const path& to)
 void
 fs::rename(const path& from, const path& to, error_code& ec) noexcept
 {
+#if _GLIBCXX_FILESYSTEM_IS_WINDOWS
+  const auto to_status = fs::status(to, ec);
+  if (to_status.type() == file_type::not_found)
+    ec.clear();
+  else if (ec)
+    return;
+
+  if (fs::exists(to_status))
+  {
+    const auto from_status = fs::status(from, ec);
+    if (ec)
+      return;
+
+    if (fs::is_directory(to_status))
+    {
+      if (!fs::is_directory(from_status))
+      {
+	// Cannot rename a non-directory over an existing directory.
+	ec = std::make_error_code(std::errc::is_a_directory);
+	return;
+      }
+    }
+    else if (fs::is_directory(from_status))
+    {
+      // Cannot rename a directory over an existing non-directory.
+      ec = std::make_error_code(std::errc::not_a_directory);
+      return;
+    }
+  }
+#endif
   if (posix::rename(from.c_str(), to.c_str()))
     ec.assign(errno, std::generic_category());
   else
@@ -1341,7 +1417,7 @@ fs::resize_file(const path& p, uintmax_t size)
 void
 fs::resize_file(const path& p, uintmax_t size, error_code& ec) noexcept
 {
-  if (size > static_cast<uintmax_t>(std::numeric_limits<off_t>::max()))
+  if (size > static_cast<uintmax_t>(std::numeric_limits<posix::off_t>::max()))
     ec.assign(EINVAL, std::generic_category());
   else if (posix::truncate(p.c_str(), size))
     ec.assign(errno, std::generic_category());
@@ -1391,28 +1467,22 @@ fs::status(const fs::path& p, error_code& ec) noexcept
   auto str = p.c_str();
 
 #if _GLIBCXX_FILESYSTEM_IS_WINDOWS
-#if ! defined __MINGW64_VERSION_MAJOR || __MINGW64_VERSION_MAJOR < 6
   // stat() fails if there's a trailing slash (PR 88881)
   path p2;
-  if (p.has_relative_path())
+  if (p.has_relative_path() && !p.has_filename())
     {
-      wstring_view s = p.native();
-      const auto len = s.find_last_not_of(L"/\\") + wstring_view::size_type(1);
-      if (len != 0 && len != s.length())
+      __try
 	{
-	  __try
-	    {
-	      p2.assign(s.substr(0, len));
-	    }
-	  __catch(const bad_alloc&)
-	    {
-	      ec = std::make_error_code(std::errc::not_enough_memory);
-	      return status;
-	    }
+	  p2 = p.parent_path();
 	  str = p2.c_str();
 	}
+      __catch(const bad_alloc&)
+	{
+	  ec = std::make_error_code(std::errc::not_enough_memory);
+	  return status;
+	}
+      str = p2.c_str();
     }
-#endif
 #endif
 
   stat_type st;
@@ -1439,8 +1509,29 @@ fs::file_status
 fs::symlink_status(const fs::path& p, std::error_code& ec) noexcept
 {
   file_status status;
+  auto str = p.c_str();
+
+#if _GLIBCXX_FILESYSTEM_IS_WINDOWS
+  // stat() fails if there's a trailing slash (PR 88881)
+  path p2;
+  if (p.has_relative_path() && !p.has_filename())
+    {
+      __try
+	{
+	  p2 = p.parent_path();
+	  str = p2.c_str();
+	}
+      __catch(const bad_alloc&)
+	{
+	  ec = std::make_error_code(std::errc::not_enough_memory);
+	  return status;
+	}
+      str = p2.c_str();
+    }
+#endif
+
   stat_type st;
-  if (posix::lstat(p.c_str(), &st))
+  if (posix::lstat(str, &st))
     {
       int err = errno;
       ec.assign(err, std::generic_category());
@@ -1476,7 +1567,8 @@ fs::symlink_status(const fs::path& p)
   return result;
 }
 
-fs::path fs::temp_directory_path()
+fs::path
+fs::temp_directory_path()
 {
   error_code ec;
   path tmp = temp_directory_path(ec);
@@ -1485,32 +1577,12 @@ fs::path fs::temp_directory_path()
   return tmp;
 }
 
-fs::path fs::temp_directory_path(error_code& ec)
+fs::path
+fs::temp_directory_path(error_code& ec)
 {
-  path p;
-#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
-  unsigned len = 1024;
-  std::wstring buf;
-  do
-    {
-      buf.resize(len);
-      len = GetTempPathW(buf.size(), buf.data());
-    } while (len > buf.size());
-
-  if (len == 0)
-    {
-      ec.assign((int)GetLastError(), std::system_category());
-      return p;
-    }
-  buf.resize(len);
-  p = std::move(buf);
-#else
-  const char* tmpdir = nullptr;
-  const char* env[] = { "TMPDIR", "TMP", "TEMP", "TEMPDIR", nullptr };
-  for (auto e = env; tmpdir == nullptr && *e != nullptr; ++e)
-    tmpdir = ::getenv(*e);
-  p = tmpdir ? tmpdir : "/tmp";
-#endif
+  path p = fs::get_temp_directory_from_env(ec);
+  if (ec)
+    return p;
   auto st = status(p, ec);
   if (ec)
     p.clear();

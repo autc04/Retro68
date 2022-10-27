@@ -1,10 +1,10 @@
 /* { dg-do compile } */
-/* { dg-options "-fgnu-tm -O1" } */
+/* { dg-options "-fgnu-tm -O1 -fno-ipa-modref -fno-ipa-pure-const" } */
 
 static inline void
 inline_death ()
 {
-  __asm__ ("");			/* { dg-error "asm not allowed" } */
+  __asm__ ("");			/* { dg-error "'asm' not allowed" } */
 }
 
 void

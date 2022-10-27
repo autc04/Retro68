@@ -63,7 +63,7 @@ Raw dump of debug contents of section .debug_line:
 
   Offset:                      0x0
   Length:                      62
-  DWARF Version:               2
+  DWARF Version:               .
   Prologue Length:             35
   Minimum Instruction Length:  1
   Initial value of 'is_stmt':  1

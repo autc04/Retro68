@@ -1,7 +1,6 @@
-// { dg-options "-std=gnu++17" }
-// { dg-do run }
+// { dg-do run { target c++17 } }
 
-// Copyright (C) 2016-2019 Free Software Foundation, Inc.
+// Copyright (C) 2016-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -102,6 +101,57 @@ void arbitrary_ctor()
   variant<int, string> v("a");
   VERIFY(holds_alternative<string>(v));
   VERIFY(get<1>(v) == "a");
+
+  {
+    // P0608R3
+    variant<string, bool> x = "abc";
+    VERIFY(x.index() == 0);
+  }
+
+  {
+    // P0608R3
+    struct U {
+      U(char16_t c) : c(c) { }
+      char16_t c;
+    };
+    variant<char, U> x = u'\u2043';
+    VERIFY(x.index() == 1);
+    VERIFY(std::get<1>(x).c == u'\u2043');
+
+    struct Double {
+      Double(double& d) : d(d) { }
+      double& d;
+    };
+    double d = 3.14;
+    variant<int, Double> y = d;
+    VERIFY(y.index() == 1);
+    VERIFY(std::get<1>(y).d == d);
+  }
+
+  {
+    // P0608R3
+    variant<float, int> v1 = 'a';
+    VERIFY(std::get<1>(v1) == int('a'));
+    variant<float, long> v2 = 0;
+    VERIFY(std::get<1>(v2) == 0L);
+    struct big_int { big_int(int) { } };
+    variant<float, big_int> v3 = 0;
+    VERIFY(v3.index() == 1);
+  }
+
+  {
+    // P1957R2 Converting from T* to bool should be considered narrowing
+    struct ConvertibleToBool
+    {
+      operator bool() const { return true; }
+    };
+    variant<bool> v1 = ConvertibleToBool();
+    VERIFY(std::get<0>(v1) == true);
+    variant<bool, int> v2 = ConvertibleToBool();
+    VERIFY(std::get<0>(v2) == true);
+    variant<int, bool> v3 = ConvertibleToBool();
+    VERIFY(std::get<1>(v3) == true);
+  }
 }
 
 struct ThrowingMoveCtorThrowsCopyCtor
@@ -168,6 +218,44 @@ void arbitrary_assign()
 
   VERIFY(holds_alternative<string>(variant<int, string>("a")));
   VERIFY(get<1>(v) == "a");
+
+  {
+    // P0608R3
+    using T1 = variant<float, int>;
+    T1 v1;
+    v1 = 0;
+    VERIFY(v1.index() == 1);
+
+    using T2 = variant<float, long>;
+    T2 v2;
+    v2 = 0;
+    VERIFY(v2.index() == 1);
+
+    struct big_int {
+      big_int(int) { }
+    };
+    using T3 = variant<float, big_int>;
+    T3 v3;
+    v3 = 0;
+    VERIFY(v3.index() == 1);
+  }
+
+  {
+    // P1957R2 Converting from T* to bool should be considered narrowing
+    struct ConvertibleToBool
+    {
+      operator bool() const { return true; }
+    };
+    variant<bool> v1;
+    v1 = ConvertibleToBool();
+    VERIFY(std::get<0>(v1) == true);
+    variant<bool, int> v2;
+    v2 = ConvertibleToBool();
+    VERIFY(std::get<0>(v2) == true);
+    variant<int, bool> v3;
+    v3 = ConvertibleToBool();
+    VERIFY(std::get<1>(v3) == true);
+  }
 }
 
 void dtor()

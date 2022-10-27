@@ -4,7 +4,7 @@
 .*: +file format .*
 
 RELOCATION RECORDS FOR \[.foo\]:
-OFFSET[ 	]+TYPE[ 	]+VALUE 
+OFFSET +TYPE +VALUE
 0+00008 DIR64MSB          foo
 0+00018 DIR64MSB          foo
 0+00028 DIR64LSB          foo
@@ -12,7 +12,7 @@ OFFSET[ 	]+TYPE[ 	]+VALUE
 
 
 RELOCATION RECORDS FOR \[.bar\]:
-OFFSET[ 	]+TYPE[ 	]+VALUE 
+OFFSET +TYPE +VALUE
 0+00010 DIR64LSB          foo
 0+00040 DIR64LSB          foo
 0+00058 DIR64MSB          foo

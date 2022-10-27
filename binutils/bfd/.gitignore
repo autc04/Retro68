@@ -1,6 +1,5 @@
 /bfd-in3.h
 /bfd.h
-/bfd_stdint.h
 /bfdver.h
 /elf32-ia64.c
 /elf32-target.h
@@ -11,6 +10,7 @@
 /peigen.c
 /pepigen.c
 /pex64igen.c
+/pe-aarch64igen.c
 /stmp-bfd-h
 /targmatch.h
 
@@ -24,7 +24,7 @@
 /doc/cache.texi
 /doc/chew
 /doc/coffcode.texi
-/doc/core.texi
+/doc/corefile.texi
 /doc/elf.texi
 /doc/elfcode.texi
 /doc/format.texi

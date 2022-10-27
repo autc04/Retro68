@@ -1,5 +1,5 @@
 /* Definitions for RISC-V GNU/Linux systems with ELF format.
-   Copyright (C) 1998-2019 Free Software Foundation, Inc.
+   Copyright (C) 1998-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -58,8 +58,10 @@ along with GCC; see the file COPYING3.  If not see
   "%{mabi=ilp32:_ilp32}"
 
 #define LINK_SPEC "\
--melf" XLEN_SPEC "lriscv" LD_EMUL_SUFFIX " \
+-melf" XLEN_SPEC DEFAULT_ENDIAN_SPEC "riscv" LD_EMUL_SUFFIX " \
 %{mno-relax:--no-relax} \
+%{mbig-endian:-EB} \
+%{mlittle-endian:-EL} \
 %{shared} \
   %{!shared: \
     %{!static: \
@@ -68,3 +70,9 @@ along with GCC; see the file COPYING3.  If not see
     %{static:-static}}"
 
 #define TARGET_ASM_FILE_END file_end_indicate_exec_stack
+
+#define STARTFILE_PREFIX_SPEC 			\
+   "/lib" XLEN_SPEC "/" ABI_SPEC "/ "		\
+   "/usr/lib" XLEN_SPEC "/" ABI_SPEC "/ "	\
+   "/lib/ "					\
+   "/usr/lib/ "

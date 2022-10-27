@@ -320,7 +320,8 @@ extern "C" {
 #endif
 
 #if _FORTIFY_SOURCE > 0 && !defined(__cplusplus) && !defined(__lint__) && \
-   (__OPTIMIZE__ > 0 || defined(__clang__)) && __GNUC_PREREQ__(4, 1)
+   (__OPTIMIZE__ > 0 || defined(__clang__)) && __GNUC_PREREQ__(4, 1) && \
+   !defined(_LIBC)
 #  if _FORTIFY_SOURCE > 1
 #    define __SSP_FORTIFY_LEVEL 2
 #  else
@@ -425,7 +426,7 @@ extern "C" {
 #endif
 
 #define _POSIX_ADVISORY_INFO			200809L
-/* #define _POSIX_ASYNCHRONOUS_IO		    -1 */
+#define _POSIX_ASYNCHRONOUS_IO			200809L
 #define _POSIX_BARRIERS				200809L
 #define _POSIX_CHOWN_RESTRICTED			     1
 #define _POSIX_CLOCK_SELECTION			200809L
@@ -521,9 +522,13 @@ extern "C" {
 /* #define _XOPEN_UNIX				    -1 */
 #endif /* __XSI_VISIBLE */
 
-/* The value corresponds to UNICODE version 5.2, which is the current
-   state of newlib's wide char conversion functions. */
-#define __STDC_ISO_10646__ 200910L
+/*
+ * newlib's wide char conversion functions were updated on
+ *	2019-01-12
+ * to UNICODE version:
+ *	11.0.0 released 2018-06-05
+ */
+#define __STDC_ISO_10646__ 201806L
 
 #endif /* __CYGWIN__ */
 

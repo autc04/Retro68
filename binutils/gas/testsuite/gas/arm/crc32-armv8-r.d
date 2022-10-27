@@ -2,7 +2,7 @@
 #name: ARMv8-R CRC32 instructions
 #source: crc32-armv8-ar.s
 #as: -march=armv8-r+crc
-#not-target: *-*-pe *-*-wince
+#notarget: *-*-pe *-*-wince
 
 .*: *file format .*arm.*
 

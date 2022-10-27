@@ -1,4 +1,4 @@
 SECTIONS
 {
-  foo = ~0xFF;
+  foo = ~~0xFF;
 }

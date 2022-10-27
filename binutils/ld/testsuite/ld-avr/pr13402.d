@@ -8,9 +8,11 @@
 #...
 main:
 call a
-   0:	02 d0       	rcall	.+4      	; 0x6 <_etext>
 call b
-   2:	01 d0       	rcall	.+2      	; 0x6 <_etext>
+   0:	02 d0       	rcall	.+4      	; 0x6 <_etext>
+#...
 call c
+   2:	01 d0       	rcall	.+2      	; 0x6 <_etext>
+#...
    4:	00 d0       	rcall	.+0      	; 0x6 <_etext>
 #...

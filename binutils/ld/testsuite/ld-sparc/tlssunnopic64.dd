@@ -5,7 +5,7 @@
 #objdump: -drj.text
 #target: sparc*-*-*
 
-.*: +file format elf64-sparc
+.*: +file format elf64-sparc.*
 
 Disassembly of section .text:
 

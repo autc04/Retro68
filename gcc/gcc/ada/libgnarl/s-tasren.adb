@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---         Copyright (C) 1992-2019, Free Software Foundation, Inc.          --
+--         Copyright (C) 1992-2022, Free Software Foundation, Inc.          --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -37,7 +37,6 @@ with System.Tasking.Utilities;
 with System.Tasking.Protected_Objects.Operations;
 with System.Tasking.Debug;
 with System.Restrictions;
-with System.Parameters;
 
 package body System.Tasking.Rendezvous is
 
@@ -45,7 +44,6 @@ package body System.Tasking.Rendezvous is
    package POO renames Protected_Objects.Operations;
    package POE renames Protected_Objects.Entries;
 
-   use Parameters;
    use Task_Primitives.Operations;
 
    type Select_Treatment is (
@@ -61,28 +59,28 @@ package body System.Tasking.Rendezvous is
    ----------------
 
    Default_Treatment : constant array (Select_Modes) of Select_Treatment :=
-     (Simple_Mode         => No_Alternative_Open,
+     [Simple_Mode         => No_Alternative_Open,
       Else_Mode           => Else_Selected,
       Terminate_Mode      => Terminate_Selected,
-      Delay_Mode          => No_Alternative_Open);
+      Delay_Mode          => No_Alternative_Open];
 
    New_State : constant array (Boolean, Entry_Call_State)
      of Entry_Call_State :=
-       (True =>
-         (Never_Abortable   => Never_Abortable,
+       [True =>
+         [Never_Abortable   => Never_Abortable,
           Not_Yet_Abortable => Now_Abortable,
           Was_Abortable     => Now_Abortable,
           Now_Abortable     => Now_Abortable,
           Done              => Done,
-          Cancelled         => Cancelled),
+          Cancelled         => Cancelled],
         False =>
-         (Never_Abortable   => Never_Abortable,
+         [Never_Abortable   => Never_Abortable,
           Not_Yet_Abortable => Not_Yet_Abortable,
           Was_Abortable     => Was_Abortable,
           Now_Abortable     => Now_Abortable,
           Done              => Done,
-          Cancelled         => Cancelled)
-       );
+          Cancelled         => Cancelled]
+       ];
 
    -----------------------
    -- Local Subprograms --
@@ -155,11 +153,6 @@ package body System.Tasking.Rendezvous is
 
    begin
       Initialization.Defer_Abort (Self_Id);
-
-      if Single_Lock then
-         Lock_RTS;
-      end if;
-
       STPO.Write_Lock (Self_Id);
 
       if not Self_Id.Callable then
@@ -168,16 +161,11 @@ package body System.Tasking.Rendezvous is
          pragma Assert (Self_Id.Pending_Action);
 
          STPO.Unlock (Self_Id);
-
-         if Single_Lock then
-            Unlock_RTS;
-         end if;
-
          Initialization.Undefer_Abort (Self_Id);
 
          --  Should never get here ???
 
-         pragma Assert (False);
+         pragma Assert (Standard.False);
          raise Standard'Abort_Signal;
       end if;
 
@@ -221,13 +209,7 @@ package body System.Tasking.Rendezvous is
       --  return, we will start the rendezvous.
 
       STPO.Unlock (Self_Id);
-
-      if Single_Lock then
-         Unlock_RTS;
-      end if;
-
       Initialization.Undefer_Abort (Self_Id);
-
    end Accept_Call;
 
    --------------------
@@ -242,11 +224,6 @@ package body System.Tasking.Rendezvous is
 
    begin
       Initialization.Defer_Abort_Nestable (Self_Id);
-
-      if Single_Lock then
-         Lock_RTS;
-      end if;
-
       STPO.Write_Lock (Self_Id);
 
       if not Self_Id.Callable then
@@ -255,16 +232,11 @@ package body System.Tasking.Rendezvous is
          pragma Assert (Self_Id.Pending_Action);
 
          STPO.Unlock (Self_Id);
-
-         if Single_Lock then
-            Unlock_RTS;
-         end if;
-
          Initialization.Undefer_Abort_Nestable (Self_Id);
 
          --  Should never get here ???
 
-         pragma Assert (False);
+         pragma Assert (Standard.False);
          raise Standard'Abort_Signal;
       end if;
 
@@ -303,10 +275,6 @@ package body System.Tasking.Rendezvous is
          STPO.Unlock (Caller);
       end if;
 
-      if Single_Lock then
-         Unlock_RTS;
-      end if;
-
       Initialization.Undefer_Abort_Nestable (Self_Id);
    end Accept_Trivial;
 
@@ -337,7 +305,6 @@ package body System.Tasking.Rendezvous is
       Uninterpreted_Data : System.Address)
    is
       Rendezvous_Successful : Boolean;
-      pragma Unreferenced (Rendezvous_Successful);
 
    begin
       --  If pragma Detect_Blocking is active then Program_Error must be
@@ -401,20 +368,12 @@ package body System.Tasking.Rendezvous is
 
       --  Note: the caller will undefer abort on return (see WARNING above)
 
-      if Single_Lock then
-         Lock_RTS;
-      end if;
-
       if not Task_Do_Or_Queue (Self_Id, Entry_Call) then
          STPO.Write_Lock (Self_Id);
          Utilities.Exit_One_ATC_Level (Self_Id);
          STPO.Unlock (Self_Id);
-
-         if Single_Lock then
-            Unlock_RTS;
-         end if;
-
          Local_Undefer_Abort (Self_Id);
+
          raise Tasking_Error;
       end if;
 
@@ -426,11 +385,6 @@ package body System.Tasking.Rendezvous is
         (Debug.Trace (Self_Id, "Call_Synchronous: done waiting", 'R'));
       Rendezvous_Successful := Entry_Call.State = Done;
       STPO.Unlock (Self_Id);
-
-      if Single_Lock then
-         Unlock_RTS;
-      end if;
-
       Local_Undefer_Abort (Self_Id);
       Entry_Calls.Check_Exception (Self_Id, Entry_Call);
    end Call_Synchronous;
@@ -445,20 +399,11 @@ package body System.Tasking.Rendezvous is
 
    begin
       Initialization.Defer_Abort_Nestable (Self_Id);
-
-      if Single_Lock then
-         Lock_RTS;
-      end if;
-
       STPO.Write_Lock (T);
       Result := T.Callable;
       STPO.Unlock (T);
-
-      if Single_Lock then
-         Unlock_RTS;
-      end if;
-
       Initialization.Undefer_Abort_Nestable (Self_Id);
+
       return Result;
    end Callable;
 
@@ -527,28 +472,12 @@ package body System.Tasking.Rendezvous is
       pragma Debug
         (Debug.Trace (Self_Id, "Local_Complete_Rendezvous", 'R'));
 
-      if Ex = Ada.Exceptions.Null_Id then
-
-         --  The call came from normal end-of-rendezvous, so abort is not yet
-         --  deferred.
-
-         Initialization.Defer_Abort (Self_Id);
-
-      elsif ZCX_By_Default then
-
-         --  With ZCX, aborts are not automatically deferred in handlers
-
-         Initialization.Defer_Abort (Self_Id);
-      end if;
+      Initialization.Defer_Abort (Self_Id);
 
       --  We need to clean up any accepts which Self may have been serving when
       --  it was aborted.
 
       if Ex = Standard'Abort_Signal'Identity then
-         if Single_Lock then
-            Lock_RTS;
-         end if;
-
          while Entry_Call /= null loop
             Entry_Call.Exception_To_Raise := Tasking_Error'Identity;
 
@@ -568,11 +497,6 @@ package body System.Tasking.Rendezvous is
             STPO.Unlock (Caller);
             Entry_Call := Entry_Call.Acceptor_Prev_Call;
          end loop;
-
-         if Single_Lock then
-            Unlock_RTS;
-         end if;
-
       else
          Caller := Entry_Call.Self;
 
@@ -588,23 +512,10 @@ package body System.Tasking.Rendezvous is
 
                --  Requeue to another task entry
 
-               if Single_Lock then
-                  Lock_RTS;
-               end if;
-
                if not Task_Do_Or_Queue (Self_Id, Entry_Call) then
-                  if Single_Lock then
-                     Unlock_RTS;
-                  end if;
-
                   Initialization.Undefer_Abort (Self_Id);
                   raise Tasking_Error;
                end if;
-
-               if Single_Lock then
-                  Unlock_RTS;
-               end if;
-
             else
                --  Requeue to a protected entry
 
@@ -614,19 +525,10 @@ package body System.Tasking.Rendezvous is
                if Ceiling_Violation then
                   pragma Assert (Ex = Ada.Exceptions.Null_Id);
                   Entry_Call.Exception_To_Raise := Program_Error'Identity;
-
-                  if Single_Lock then
-                     Lock_RTS;
-                  end if;
-
                   STPO.Write_Lock (Caller);
                   Initialization.Wakeup_Entry_Caller
                     (Self_Id, Entry_Call, Done);
                   STPO.Unlock (Caller);
-
-                  if Single_Lock then
-                     Unlock_RTS;
-                  end if;
 
                else
                   POO.PO_Do_Or_Queue (Self_Id, Called_PO, Entry_Call);
@@ -642,11 +544,6 @@ package body System.Tasking.Rendezvous is
 
             Self_Id.Common.Call := Entry_Call.Acceptor_Prev_Call;
             Entry_Call.Exception_To_Raise := Ex;
-
-            if Single_Lock then
-               Lock_RTS;
-            end if;
-
             STPO.Write_Lock (Caller);
 
             --  Done with Caller locked to make sure that Wakeup is not lost
@@ -661,11 +558,6 @@ package body System.Tasking.Rendezvous is
             Initialization.Wakeup_Entry_Caller (Self_Id, Entry_Call, Done);
 
             STPO.Unlock (Caller);
-
-            if Single_Lock then
-               Unlock_RTS;
-            end if;
-
             Entry_Calls.Reset_Priority (Self_Id, Acceptor_Prev_Priority);
          end if;
       end if;
@@ -733,11 +625,6 @@ package body System.Tasking.Rendezvous is
 
    begin
       Initialization.Defer_Abort (Self_Id);
-
-      if Single_Lock then
-         Lock_RTS;
-      end if;
-
       STPO.Write_Lock (Self_Id);
 
       if not Self_Id.Callable then
@@ -746,10 +633,6 @@ package body System.Tasking.Rendezvous is
          pragma Assert (Self_Id.Pending_Action);
 
          STPO.Unlock (Self_Id);
-
-         if Single_Lock then
-            Unlock_RTS;
-         end if;
 
          --  ??? In some cases abort is deferred more than once. Need to
          --  figure out why this happens.
@@ -762,7 +645,7 @@ package body System.Tasking.Rendezvous is
 
          --  Should never get here ???
 
-         pragma Assert (False);
+         pragma Assert (Standard.False);
          raise Standard'Abort_Signal;
       end if;
 
@@ -902,10 +785,6 @@ package body System.Tasking.Rendezvous is
 
                STPO.Unlock (Self_Id);
 
-               if Single_Lock then
-                  Unlock_RTS;
-               end if;
-
                Index := Self_Id.Chosen_Index;
                Initialization.Undefer_Abort_Nestable (Self_Id);
 
@@ -961,20 +840,10 @@ package body System.Tasking.Rendezvous is
 
             else
                STPO.Unlock (Self_Id);
-
-               if Single_Lock then
-                  Unlock_RTS;
-               end if;
-
                Initialization.Undefer_Abort (Self_Id);
-               raise Program_Error with
-                 "entry call not a delay mode";
+               raise Program_Error with "entry call not a delay mode";
             end if;
       end case;
-
-      if Single_Lock then
-         Unlock_RTS;
-      end if;
 
       --  Caller has been chosen
 
@@ -1018,19 +887,9 @@ package body System.Tasking.Rendezvous is
 
    begin
       Initialization.Defer_Abort (Self_Id);
-
-      if Single_Lock then
-         Lock_RTS;
-      end if;
-
       STPO.Write_Lock (Self_Id);
       Return_Count := Queuing.Count_Waiting (Self_Id.Entry_Queues (E));
       STPO.Unlock (Self_Id);
-
-      if Single_Lock then
-         Unlock_RTS;
-      end if;
-
       Initialization.Undefer_Abort (Self_Id);
 
       return Return_Count;
@@ -1306,19 +1165,10 @@ package body System.Tasking.Rendezvous is
          Entry_Call.Exception_To_Raise := Ada.Exceptions.Null_Id;
          Entry_Call.With_Abort := True;
 
-         if Single_Lock then
-            Lock_RTS;
-         end if;
-
          if not Task_Do_Or_Queue (Self_Id, Entry_Call) then
             STPO.Write_Lock (Self_Id);
             Utilities.Exit_One_ATC_Level (Self_Id);
             STPO.Unlock (Self_Id);
-
-            if Single_Lock then
-               Unlock_RTS;
-            end if;
-
             Initialization.Undefer_Abort (Self_Id);
 
             raise Tasking_Error;
@@ -1333,10 +1183,6 @@ package body System.Tasking.Rendezvous is
 
          if Entry_Call.State < Was_Abortable then
             Entry_Calls.Wait_Until_Abortable (Self_Id, Entry_Call);
-         end if;
-
-         if Single_Lock then
-            Unlock_RTS;
          end if;
 
          --  Note: following assignment needs to be atomic
@@ -1392,10 +1238,6 @@ package body System.Tasking.Rendezvous is
 
       --  If we are aborted here, the effect will be pending
 
-      if Single_Lock then
-         Lock_RTS;
-      end if;
-
       STPO.Write_Lock (Self_Id);
 
       if not Self_Id.Callable then
@@ -1404,16 +1246,11 @@ package body System.Tasking.Rendezvous is
          pragma Assert (Self_Id.Pending_Action);
 
          STPO.Unlock (Self_Id);
-
-         if Single_Lock then
-            Unlock_RTS;
-         end if;
-
          Initialization.Undefer_Abort (Self_Id);
 
          --  Should never get here ???
 
-         pragma Assert (False);
+         pragma Assert (Standard.False);
          raise Standard'Abort_Signal;
       end if;
 
@@ -1484,21 +1321,13 @@ package body System.Tasking.Rendezvous is
             --  caller a chance of getting ready immediately, using Unlock
             --  Yield. See similar action in Wait_For_Completion/Wait_For_Call.
 
-            if Single_Lock then
-               Unlock_RTS;
-            else
-               Unlock (Self_Id);
-            end if;
+            Unlock (Self_Id);
 
             if Self_Id.Open_Accepts /= null then
                Yield;
             end if;
 
-            if Single_Lock then
-               Lock_RTS;
-            else
-               Write_Lock (Self_Id);
-            end if;
+            Write_Lock (Self_Id);
 
             --  Check if this task has been aborted while the lock was released
 
@@ -1570,13 +1399,9 @@ package body System.Tasking.Rendezvous is
 
             --  Should never get here
 
-            pragma Assert (False);
+            pragma Assert (Standard.False);
             null;
       end case;
-
-      if Single_Lock then
-         Unlock_RTS;
-      end if;
 
       if not Yielded then
          Yield;
@@ -1612,7 +1437,6 @@ package body System.Tasking.Rendezvous is
       Entry_Call : Entry_Call_Link;
 
       Yielded : Boolean;
-      pragma Unreferenced (Yielded);
 
    begin
       --  If pragma Detect_Blocking is active then Program_Error must be
@@ -1626,7 +1450,7 @@ package body System.Tasking.Rendezvous is
            "potentially blocking operation";
       end if;
 
-      Initialization.Defer_Abort (Self_Id);
+      Initialization.Defer_Abort_Nestable (Self_Id);
       Self_Id.ATC_Nesting_Level := Self_Id.ATC_Nesting_Level + 1;
 
       pragma Debug
@@ -1657,20 +1481,11 @@ package body System.Tasking.Rendezvous is
 
       --  Note: the caller will undefer abort on return (see WARNING above)
 
-      if Single_Lock then
-         Lock_RTS;
-      end if;
-
       if not Task_Do_Or_Queue (Self_Id, Entry_Call) then
          STPO.Write_Lock (Self_Id);
          Utilities.Exit_One_ATC_Level (Self_Id);
          STPO.Unlock (Self_Id);
-
-         if Single_Lock then
-            Unlock_RTS;
-         end if;
-
-         Initialization.Undefer_Abort (Self_Id);
+         Initialization.Undefer_Abort_Nestable (Self_Id);
 
          raise Tasking_Error;
       end if;
@@ -1680,14 +1495,10 @@ package body System.Tasking.Rendezvous is
         (Entry_Call, Timeout, Mode, Yielded);
       Unlock (Self_Id);
 
-      if Single_Lock then
-         Unlock_RTS;
-      end if;
-
       --  ??? Do we need to yield in case Yielded is False
 
       Rendezvous_Successful := Entry_Call.State = Done;
-      Initialization.Undefer_Abort (Self_Id);
+      Initialization.Undefer_Abort_Nestable (Self_Id);
       Entry_Calls.Check_Exception (Self_Id, Entry_Call);
    end Timed_Task_Entry_Call;
 
@@ -1703,21 +1514,13 @@ package body System.Tasking.Rendezvous is
       --  a chance of getting ready immediately, using Unlock & Yield.
       --  See similar action in Wait_For_Completion & Timed_Selective_Wait.
 
-      if Single_Lock then
-         Unlock_RTS;
-      else
-         Unlock (Self_Id);
-      end if;
+      Unlock (Self_Id);
 
       if Self_Id.Open_Accepts /= null then
          Yield;
       end if;
 
-      if Single_Lock then
-         Lock_RTS;
-      else
-         Write_Lock (Self_Id);
-      end if;
+      Write_Lock (Self_Id);
 
       --  Check if this task has been aborted while the lock was released
 

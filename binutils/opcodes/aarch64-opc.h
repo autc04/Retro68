@@ -1,5 +1,5 @@
 /* aarch64-opc.h -- Header file for aarch64-opc.c and aarch64-opc-2.c.
-   Copyright (C) 2012-2018 Free Software Foundation, Inc.
+   Copyright (C) 2012-2022 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of the GNU opcodes library.
@@ -70,6 +70,8 @@ enum aarch64_field_kind
   FLD_imm6_2,
   FLD_imm4,
   FLD_imm4_2,
+  FLD_imm4_3,
+  FLD_imm4_5,
   FLD_imm5,
   FLD_imm7,
   FLD_imm8,
@@ -77,6 +79,7 @@ enum aarch64_field_kind
   FLD_imm12,
   FLD_imm14,
   FLD_imm16,
+  FLD_imm16_2,
   FLD_imm26,
   FLD_imms,
   FLD_immr,
@@ -120,6 +123,9 @@ enum aarch64_field_kind
   FLD_SVE_Zt,
   FLD_SVE_i1,
   FLD_SVE_i3h,
+  FLD_SVE_i3l,
+  FLD_SVE_i3h2,
+  FLD_SVE_i2h,
   FLD_SVE_imm3,
   FLD_SVE_imm4,
   FLD_SVE_imm5,
@@ -135,17 +141,34 @@ enum aarch64_field_kind
   FLD_SVE_prfop,
   FLD_SVE_rot1,
   FLD_SVE_rot2,
+  FLD_SVE_rot3,
   FLD_SVE_sz,
+  FLD_SVE_size,
+  FLD_SVE_sz2,
   FLD_SVE_tsz,
   FLD_SVE_tszh,
   FLD_SVE_tszl_8,
   FLD_SVE_tszl_19,
   FLD_SVE_xs_14,
   FLD_SVE_xs_22,
+  FLD_SME_ZAda_2b,
+  FLD_SME_ZAda_3b,
+  FLD_SME_size_10,
+  FLD_SME_Q,
+  FLD_SME_V,
+  FLD_SME_Rv,
+  FLD_SME_Pm,
+  FLD_SME_zero_mask,
+  FLD_SME_Rm,
+  FLD_SME_i1,
+  FLD_SME_tszh,
+  FLD_SME_tszl,
   FLD_rotate1,
   FLD_rotate2,
   FLD_rotate3,
-  FLD_SM3_imm2
+  FLD_SM3_imm2,
+  FLD_sz,
+  FLD_CRm_dsb_nxs
 };
 
 /* Field description.  */
@@ -173,7 +196,7 @@ struct aarch64_operand
 
   /* The associated instruction bit-fields; no operand has more than 4
      bit-fields */
-  enum aarch64_field_kind fields[4];
+  enum aarch64_field_kind fields[5];
 
   /* Brief description */
   const char *desc;
@@ -182,6 +205,10 @@ struct aarch64_operand
 typedef struct aarch64_operand aarch64_operand;
 
 extern const aarch64_operand aarch64_operands[];
+
+enum err_type
+verify_constraints (const struct aarch64_inst *, const aarch64_insn, bfd_vma,
+		    bool, aarch64_operand_error *, aarch64_instr_sequence*);
 
 /* Operand flags.  */
 
@@ -195,6 +222,10 @@ extern const aarch64_operand aarch64_operands[];
 #define OPD_F_OD_MASK		0x000000e0	/* Operand-dependent data.  */
 #define OPD_F_OD_LSB		5
 #define OPD_F_NO_ZR		0x00000100	/* ZR index not allowed.  */
+#define OPD_F_SHIFT_BY_4	0x00000200	/* Need to left shift the field
+						   value by 4 to get the value
+						   of an immediate operand.  */
+
 
 /* Register flags.  */
 
@@ -216,34 +247,78 @@ extern const aarch64_operand aarch64_operands[];
 #define F_REG_WRITE	(1 << 4)  /* Register can only be written to but not
 				     read from.  */
 
-static inline bfd_boolean
+#undef F_REG_IN_CRM
+#define F_REG_IN_CRM	(1 << 5)  /* Register extra encoding in CRm.  */
+
+/* PSTATE field name for the MSR instruction this is encoded in "op1:op2:CRm".
+   Part of CRm can be used to encode <pstatefield>. E.g. CRm[3:1] for SME.
+   In order to set/get full PSTATE field name use flag F_REG_IN_CRM and below
+   macros to encode and decode CRm encoding.
+*/
+#define PSTATE_ENCODE_CRM(val) (val << 6)
+#define PSTATE_DECODE_CRM(flags) ((flags >> 6) & 0x0f)
+
+#undef F_IMM_IN_CRM
+#define F_IMM_IN_CRM	(1 << 10)  /* Immediate extra encoding in CRm.  */
+
+/* Also CRm may contain, in addition to <pstatefield> immediate.
+   E.g. CRm[0] <imm1> at bit 0 for SME. Use below macros to encode and decode
+   immediate mask.
+*/
+#define PSTATE_ENCODE_CRM_IMM(mask) (mask << 11)
+#define PSTATE_DECODE_CRM_IMM(mask) ((mask >> 11) & 0x0f)
+
+/* Helper macro to ENCODE CRm and its immediate.  */
+#define PSTATE_ENCODE_CRM_AND_IMM(CVAL,IMASK) \
+        (F_REG_IN_CRM | PSTATE_ENCODE_CRM(CVAL) \
+         | F_IMM_IN_CRM | PSTATE_ENCODE_CRM_IMM(IMASK))
+
+/* Bits [15, 18] contain the maximum value for an immediate MSR.  */
+#define F_REG_MAX_VALUE(X) ((X) << 15)
+#define F_GET_REG_MAX_VALUE(X) (((X) >> 15) & 0x0f)
+
+/* HINT operand flags.  */
+#define HINT_OPD_F_NOPRINT	(1 << 0)  /* Should not be printed.  */
+
+/* Encode 7-bit HINT #imm in the lower 8 bits.  Use higher bits for flags.  */
+#define HINT_ENCODE(flag, val) ((flag << 8) | val)
+#define HINT_FLAG(val) (val >> 8)
+#define HINT_VAL(val) (val & 0xff)
+
+static inline bool
 operand_has_inserter (const aarch64_operand *operand)
 {
-  return (operand->flags & OPD_F_HAS_INSERTER) ? TRUE : FALSE;
+  return (operand->flags & OPD_F_HAS_INSERTER) != 0;
 }
 
-static inline bfd_boolean
+static inline bool
 operand_has_extractor (const aarch64_operand *operand)
 {
-  return (operand->flags & OPD_F_HAS_EXTRACTOR) ? TRUE : FALSE;
+  return (operand->flags & OPD_F_HAS_EXTRACTOR) != 0;
 }
 
-static inline bfd_boolean
+static inline bool
 operand_need_sign_extension (const aarch64_operand *operand)
 {
-  return (operand->flags & OPD_F_SEXT) ? TRUE : FALSE;
+  return (operand->flags & OPD_F_SEXT) != 0;
 }
 
-static inline bfd_boolean
+static inline bool
 operand_need_shift_by_two (const aarch64_operand *operand)
 {
-  return (operand->flags & OPD_F_SHIFT_BY_2) ? TRUE : FALSE;
+  return (operand->flags & OPD_F_SHIFT_BY_2) != 0;
 }
 
-static inline bfd_boolean
+static inline bool
+operand_need_shift_by_four (const aarch64_operand *operand)
+{
+  return (operand->flags & OPD_F_SHIFT_BY_4) != 0;
+}
+
+static inline bool
 operand_maybe_stack_pointer (const aarch64_operand *operand)
 {
-  return (operand->flags & OPD_F_MAYBE_SP) ? TRUE : FALSE;
+  return (operand->flags & OPD_F_MAYBE_SP) != 0;
 }
 
 /* Return the value of the operand-specific data field (OPD_F_OD_MASK).  */
@@ -452,11 +527,11 @@ int aarch64_select_operand_for_sizeq_field_coding (const aarch64_opcode *);
 
 aarch64_insn aarch64_get_operand_modifier_value (enum aarch64_modifier_kind);
 enum aarch64_modifier_kind
-aarch64_get_operand_modifier_from_value (aarch64_insn, bfd_boolean);
+aarch64_get_operand_modifier_from_value (aarch64_insn, bool);
 
 
-bfd_boolean aarch64_wide_constant_p (int64_t, int, unsigned int *);
-bfd_boolean aarch64_logical_immediate_p (uint64_t, int, aarch64_insn *);
+bool aarch64_wide_constant_p (uint64_t, int, unsigned int *);
+bool aarch64_logical_immediate_p (uint64_t, int, aarch64_insn *);
 int aarch64_shrink_expanded_imm8 (uint64_t);
 
 /* Copy the content of INST->OPERANDS[SRC] to INST->OPERANDS[DST].  */

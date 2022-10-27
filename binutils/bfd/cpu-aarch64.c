@@ -1,5 +1,5 @@
 /* BFD support for AArch64.
-   Copyright (C) 2009-2018 Free Software Foundation, Inc.
+   Copyright (C) 2009-2022 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -22,6 +22,7 @@
 #include "bfd.h"
 #include "libbfd.h"
 #include "libiberty.h"
+#include "cpu-aarch64.h"
 
 /* This routine is provided two arch_infos and works out which Aarch64
    machine which would be compatible with both and returns a pointer
@@ -68,20 +69,21 @@ static struct
 }
 processors[] =
 {
-  /* These two are example CPUs supported in GCC, once we have real
-     CPUs they will be removed.  */
-  { bfd_mach_aarch64, "example-1" },
-  { bfd_mach_aarch64, "example-2" }
+  { bfd_mach_aarch64,	  "cortex-a34"	    },
+  { bfd_mach_aarch64,	  "cortex-a65"	    },
+  { bfd_mach_aarch64,	  "cortex-a65ae"    },
+  { bfd_mach_aarch64,	  "cortex-a76ae"    },
+  { bfd_mach_aarch64,	  "cortex-a77"	    }
 };
 
-static bfd_boolean
+static bool
 scan (const struct bfd_arch_info *info, const char *string)
 {
   int i;
 
   /* First test for an exact match.  */
   if (strcasecmp (string, info->printable_name) == 0)
-    return TRUE;
+    return true;
 
   /* Next check for a processor name instead of an Architecture name.  */
   for (i = sizeof (processors) / sizeof (processors[0]); i--;)
@@ -91,37 +93,41 @@ scan (const struct bfd_arch_info *info, const char *string)
     }
 
   if (i != -1 && info->mach == processors[i].mach)
-    return TRUE;
+    return true;
 
   /* Finally check for the default architecture.  */
   if (strcasecmp (string, "aarch64") == 0)
     return info->the_default;
 
-  return FALSE;
+  return false;
 }
 
 #define N(NUMBER, PRINT, WORDSIZE, DEFAULT, NEXT)		\
   { WORDSIZE, WORDSIZE, 8, bfd_arch_aarch64, NUMBER,		\
     "aarch64", PRINT, 4, DEFAULT, compatible, scan,		\
-    bfd_arch_default_fill, NEXT }
+      bfd_arch_default_fill, NEXT, 0 }
+
+static const bfd_arch_info_type bfd_aarch64_arch_v8_r =
+  N (bfd_mach_aarch64_8R, "aarch64:armv8-r", 64, false, NULL);
 
 static const bfd_arch_info_type bfd_aarch64_arch_ilp32 =
-  N (bfd_mach_aarch64_ilp32, "aarch64:ilp32", 32, FALSE, NULL);
+  N (bfd_mach_aarch64_ilp32, "aarch64:ilp32", 32, false,
+     &bfd_aarch64_arch_v8_r);
 
 const bfd_arch_info_type bfd_aarch64_arch =
-  N (0, "aarch64", 64, TRUE, &bfd_aarch64_arch_ilp32);
+  N (0, "aarch64", 64, true, &bfd_aarch64_arch_ilp32);
 
-bfd_boolean
+bool
 bfd_is_aarch64_special_symbol_name (const char *name, int type)
 {
   if (!name || name[0] != '$')
-    return FALSE;
+    return false;
   if (name[1] == 'x' || name[1] == 'd')
     type &= BFD_AARCH64_SPECIAL_SYM_TYPE_MAP;
   else if (name[1] == 'm' || name[1] == 'f' || name[1] == 'p')
     type &= BFD_AARCH64_SPECIAL_SYM_TYPE_TAG;
   else
-    return FALSE;
+    return false;
 
   return (type != 0 && (name[2] == 0 || name[2] == '.'));
 }

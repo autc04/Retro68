@@ -1,8 +1,8 @@
-#as: -EL
+#as: -EL --generate-missing-build-notes=no
 #objdump: --syms --special-syms -d
 #name: ARM Mapping Symbols with multiple sections
 # This test is only valid on EABI based ports.
-#target: *-*-*eabi* *-*-symbianelf *-*-linux-* *-*-elf *-*-nacl*
+#target: *-*-*eabi* *-*-linux-* *-*-elf *-*-nacl*
 #source: mapsecs.s
 
 

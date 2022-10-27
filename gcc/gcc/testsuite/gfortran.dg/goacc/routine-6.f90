@@ -108,7 +108,7 @@ subroutine subr4 (x)
 end subroutine subr4
 
 subroutine subr10 (x)
-  !$acc routine (subr10) device ! { dg-error "Unclassifiable OpenACC directive" }
+  !$acc routine (subr10) device ! { dg-error "Failed to match clause" }
   integer, intent(inout) :: x
   if (x < 1) then
      x = 1
@@ -116,3 +116,13 @@ subroutine subr10 (x)
      x = x * x - 1
   end if
 end subroutine subr10
+
+subroutine subr20 (x)
+  !$acc routine (subr20) nohost nohost ! { dg-error "Duplicated 'nohost' clause" }
+  integer, intent(inout) :: x
+  if (x < 1) then
+     x = 1
+  else
+     x = x * x - 1
+  end if
+end subroutine subr20

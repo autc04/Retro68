@@ -1,4 +1,4 @@
-#readelf: -Sr -x1 -x4
+#readelf: -Sr -T -x1 -x4
 There are 11 section headers, starting at offset .*:
 #...
   \[ 4\] \.MMIX\.spec_data\.2 PROGBITS         0+  0+48

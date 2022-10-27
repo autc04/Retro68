@@ -1,6 +1,62 @@
-2019-05-03  Release Manager
+2022-08-19  Release Manager
 
-	* GCC 9.1.0 released.
+	* GCC 12.2.0 released.
+
+2022-05-06  Release Manager
+
+	* GCC 12.1.0 released.
+
+2021-10-22  Eric Gallager  <egallager@gcc.gnu.org>
+
+	PR other/102663
+	* Makefile.in: Add dummy install-dvi target.
+
+2021-05-03  H.J. Lu  <hjl.tools@gmail.com>
+
+	PR bootstrap/99703
+	* configure: Regenerated.
+
+2020-07-30  H.J. Lu  <hjl.tools@gmail.com>
+
+	PR bootstrap/96202
+	* configure: Regenerated.
+
+2020-05-29  H.J. Lu  <hjl.tools@gmail.com>
+
+	PR bootstrap/95413
+	* configure: Regenerated.
+
+2020-05-23  David Edelsohn  <dje.gcc@gmail.com>
+
+	* Makefile.in (AR): Substitute @AR@.
+	* configure.ac (CHECK_PROG AR): New.
+	* configure: Regenerate.
+
+2020-05-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* configure: Regenerated.
+
+2020-05-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* Makefile.in (CET_HOST_FLAGS): New.
+	(COMPILER): Add $(CET_HOST_FLAGS).
+	* configure.ac: Add GCC_CET_HOST_FLAGS(CET_HOST_FLAGS) and
+	AC_SUBST(CET_HOST_FLAGS).  Clear CET_HOST_FLAGS if jit isn't
+	enabled.
+	* aclocal.m4: Regenerated.
+	* configure: Likewise.
+
+2020-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+2019-12-09  Joseph Myers  <joseph@codesourcery.com>
+
+	PR middle-end/91226
+	* bid/bid2dpd_dpd2bid.c (_bid_to_dpd64): Handle non-canonical
+	significands.
+	(_bid_to_dpd128): Likewise.  Check for case where combination
+	field starts 1100, 1101 or 1110.
 
 2019-01-01  Jakub Jelinek  <jakub@redhat.com>
 
@@ -706,7 +762,7 @@
 	* decDPD.h: Likewise.
 	* decLibrary.c, decRound.c: Likewise.
 
-Copyright (C) 2005-2019 Free Software Foundation, Inc.
+Copyright (C) 2005-2022 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

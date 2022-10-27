@@ -1,5 +1,5 @@
  	jsr d2
-	jsr (2, y)
+	jsr (2,y)
 	jsr (+y)
 	jsr (-y)
 	jsr (y+)
@@ -18,3 +18,4 @@
 	jsr 4021
 	jsr 114321
 	jsr [492134]
+	jsr (0,x)

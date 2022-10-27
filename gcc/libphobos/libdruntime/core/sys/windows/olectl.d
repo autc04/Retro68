@@ -4,20 +4,21 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_olectl.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_olectl.d)
  */
 module core.sys.windows.olectl;
 version (Windows):
+@system:
 
 // In conversion from MinGW, the following was deleted:
 //#define FONTSIZE(n) {n##0000, 0}
 
 import core.sys.windows.ocidl, core.sys.windows.olectlid;
-private import core.sys.windows.basetyps, core.sys.windows.oaidl, core.sys.windows.oleauto, core.sys.windows.unknwn,
+import core.sys.windows.basetyps, core.sys.windows.oaidl, core.sys.windows.oleauto, core.sys.windows.unknwn,
   core.sys.windows.windef, core.sys.windows.wingdi, core.sys.windows.winuser, core.sys.windows.wtypes;
-private import core.sys.windows.ntdef;     // for NTSTATUS
-private import core.sys.windows.objfwd;    // for LPSTREAM
-private import core.sys.windows.winerror;  // for SCODE
+import core.sys.windows.ntdef;     // for NTSTATUS
+import core.sys.windows.objfwd;    // for LPSTREAM
+import core.sys.windows.winerror;  // for SCODE
 
 
 private {

@@ -1,3 +1,3 @@
 #name: MIPS assembled .reginfo section size
 #as: -32
-#error-output: reginfo-2.l
+#error_output: reginfo-2.l

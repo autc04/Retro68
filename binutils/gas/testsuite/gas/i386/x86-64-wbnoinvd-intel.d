@@ -7,5 +7,5 @@
 Disassembly of section .text:
 
 0+ <_start>:
-[ 	]*[a-f0-9]+:[ 	]*f3 0f 09[ 	]*wbnoinvd[ 	]*
+[ 	]*[a-f0-9]+:[ 	]*f3 0f 09[ 	]*wbnoinvd
 #pass

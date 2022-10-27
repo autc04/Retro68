@@ -5,11 +5,26 @@
 package net
 
 import (
-	"math/rand"
+	"internal/bytealg"
+	"internal/itoa"
 	"sort"
 
-	"internal/x/net/dns/dnsmessage"
+	"golang.org/x/net/dns/dnsmessage"
 )
+
+// provided by runtime
+func fastrand() uint32
+
+func randInt() int {
+	x, y := fastrand(), fastrand()    // 32-bit halves
+	u := uint(x)<<31 ^ uint(int32(y)) // full uint, even on 64-bit systems; avoid 32-bit shift on 32-bit systems
+	i := int(u >> 1)                  // clear sign bit, even on 32-bit systems
+	return i
+}
+
+func randIntn(n int) int {
+	return randInt() % n
+}
 
 // reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
 // address addr suitable for rDNS (PTR) record lookup or an error if it fails
@@ -20,7 +35,7 @@ func reverseaddr(addr string) (arpa string, err error) {
 		return "", &DNSError{Err: "unrecognized address", Name: addr}
 	}
 	if ip.To4() != nil {
-		return uitoa(uint(ip[15])) + "." + uitoa(uint(ip[14])) + "." + uitoa(uint(ip[13])) + "." + uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
+		return itoa.Uitoa(uint(ip[15])) + "." + itoa.Uitoa(uint(ip[14])) + "." + itoa.Uitoa(uint(ip[13])) + "." + itoa.Uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
 	}
 	// Must be IPv6
 	buf := make([]byte, 0, len(ip)*4+len("ip6.arpa."))
@@ -61,6 +76,11 @@ func equalASCIIName(x, y dnsmessage.Name) bool {
 // (currently restricted to hostname-compatible "preferred name" LDH labels and
 // SRV-like "underscore labels"; see golang.org/issue/12421).
 func isDomainName(s string) bool {
+	// The root domain name is valid. See golang.org/issue/45715.
+	if s == "." {
+		return true
+	}
+
 	// See RFC 1035, RFC 3696.
 	// Presentation format has dots before every label except the first, and the
 	// terminal empty label is optional here because we assume fully-qualified
@@ -122,18 +142,11 @@ func isDomainName(s string) bool {
 // It's hard to tell so we settle on the heuristic that names without dots
 // (like "localhost" or "myhost") do not get trailing dots, but any other
 // names do.
-func absDomainName(b []byte) string {
-	hasDots := false
-	for _, x := range b {
-		if x == '.' {
-			hasDots = true
-			break
-		}
+func absDomainName(s string) string {
+	if bytealg.IndexByteString(s, '.') != -1 && s[len(s)-1] != '.' {
+		s += "."
 	}
-	if hasDots && b[len(b)-1] != '.' {
-		b = append(b, '.')
-	}
-	return string(b)
+	return s
 }
 
 // An SRV represents a single DNS SRV record.
@@ -162,7 +175,7 @@ func (addrs byPriorityWeight) shuffleByWeight() {
 	}
 	for sum > 0 && len(addrs) > 1 {
 		s := 0
-		n := rand.Intn(sum)
+		n := randIntn(sum)
 		for i := range addrs {
 			s += int(addrs[i].Weight)
 			if s > n {
@@ -206,7 +219,7 @@ func (s byPref) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 // sort reorders MX records as specified in RFC 5321.
 func (s byPref) sort() {
 	for i := range s {
-		j := rand.Intn(i + 1)
+		j := randIntn(i + 1)
 		s[i], s[j] = s[j], s[i]
 	}
 	sort.Sort(s)

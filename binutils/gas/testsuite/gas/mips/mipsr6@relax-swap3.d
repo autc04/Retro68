@@ -17,6 +17,6 @@ Disassembly of section \.text:
 [0-9a-f]+ <[^>]*> 24420000 	addiu	v0,v0,0
 [ 	]*[0-9a-f]+: R_MIPS_LO16	bar
 [0-9a-f]+ <[^>]*> 1060ffff 	beqz	v1,[0-9a-f]+ <[^>]*>
-[ 	]*[0-9a-f]+: R_MIPS_PC16	.L.1
+[ 	]*[0-9a-f]+: R_MIPS_PC16	.L.*1
 [0-9a-f]+ <[^>]*> 00000000 	nop
 	\.\.\.

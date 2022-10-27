@@ -1,13 +1,15 @@
 /*
 TEST_OUTPUT:
 ---
-fail_compilation/fail117.d(35): Error: expression has no value
-fail_compilation/fail117.d(36): Error: expression has no value
+fail_compilation/fail117.d(37): Error: expression `foo.mixin MGettor!(a) geta;
+` is `void` and has no value
+fail_compilation/fail117.d(38): Error: expression `foo.mixin MGettor!(b) getb;
+` is `void` and has no value
 ---
 */
 
-// Issue 420 - mixin make dmd break
-
+// https://issues.dlang.org/show_bug.cgi?id=420
+// mixin make dmd break
 //import std.stdio;
 
 template MGettor(alias Fld)

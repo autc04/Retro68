@@ -1,2 +1,2 @@
 #as:
-#error-output: asm-errors-3.err
+#error_output: asm-errors-3.err

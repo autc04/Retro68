@@ -4,7 +4,6 @@
 	movsx	%al, %si
 	movsx	%al, %esi
 	movsx	%ax, %esi
-	movsx	(%eax), %edx
 	movsx	(%eax), %dx
 	movsxb	(%eax), %dx
 	movsxb	(%eax), %edx
@@ -16,7 +15,6 @@
 	movzx	%al, %si
 	movzx	%al, %esi
 	movzx	%ax, %esi
-	movzx	(%eax), %edx
 	movzx	(%eax), %dx
 	movzxb	(%eax), %dx
 	movzxb	(%eax), %edx

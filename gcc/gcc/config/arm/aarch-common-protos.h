@@ -1,6 +1,6 @@
 /* Functions and structures shared between arm and aarch64.
 
-   Copyright (C) 1991-2019 Free Software Foundation, Inc.
+   Copyright (C) 1991-2022 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GCC.
@@ -23,8 +23,9 @@
 #ifndef GCC_AARCH_COMMON_PROTOS_H
 #define GCC_AARCH_COMMON_PROTOS_H
 
+#include "hard-reg-set.h"
+
 extern int aarch_accumulator_forwarding (rtx_insn *, rtx_insn *);
-extern int aarch_crypto_can_dual_issue (rtx_insn *, rtx_insn *);
 extern bool aarch_rev16_p (rtx);
 extern bool aarch_rev16_shleft_mask_imm_p (rtx, machine_mode);
 extern bool aarch_rev16_shright_mask_imm_p (rtx, machine_mode);
@@ -131,6 +132,10 @@ struct fp_cost_table
 struct vector_cost_table
 {
   const int alu;
+  const int mult;
+  const int movi;
+  const int dup;
+  const int extract;
 };
 
 struct cpu_cost_table
@@ -142,5 +147,10 @@ struct cpu_cost_table
   const struct vector_cost_table vect;
 };
 
+rtx_insn *arm_md_asm_adjust (vec<rtx> &outputs, vec<rtx> & /*inputs*/,
+			     vec<machine_mode> & /*input_modes*/,
+			     vec<const char *> &constraints,
+			     vec<rtx> &clobbers, HARD_REG_SET &clobbered_regs,
+			     location_t loc);
 
 #endif /* GCC_AARCH_COMMON_PROTOS_H */

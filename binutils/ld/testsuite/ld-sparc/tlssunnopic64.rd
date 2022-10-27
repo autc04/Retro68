@@ -23,7 +23,7 @@ Section Headers:
  +\[[ 0-9]+\] .shstrtab +.*
 #...
 Elf file type is DYN \(Shared object file\)
-Entry point 0x1000
+Entry point 0x[0-9a-f]+
 There are [0-9]+ program headers, starting at offset [0-9]+
 
 Program Headers:
@@ -54,9 +54,8 @@ Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 14 entries:
 Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND *
-.* SECTION +LOCAL +DEFAULT +5 *
-.* SECTION +LOCAL +DEFAULT +6 *
-.* SECTION +LOCAL +DEFAULT +8 *
+.* SECTION +LOCAL +DEFAULT +5.*
+.* SECTION +LOCAL +DEFAULT +8.*
 .* FUNC +GLOBAL +DEFAULT +5 fn3
 .* TLS +GLOBAL +DEFAULT +UND sg1
 .* TLS +GLOBAL +DEFAULT +UND sg2
@@ -64,14 +63,14 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND *
-.* SECTION +LOCAL +DEFAULT +1 *
-.* SECTION +LOCAL +DEFAULT +2 *
-.* SECTION +LOCAL +DEFAULT +3 *
-.* SECTION +LOCAL +DEFAULT +4 *
-.* SECTION +LOCAL +DEFAULT +5 *
-.* SECTION +LOCAL +DEFAULT +6 *
-.* SECTION +LOCAL +DEFAULT +7 *
-.* SECTION +LOCAL +DEFAULT +8 *
+.* SECTION +LOCAL +DEFAULT +1.*
+.* SECTION +LOCAL +DEFAULT +2.*
+.* SECTION +LOCAL +DEFAULT +3.*
+.* SECTION +LOCAL +DEFAULT +4.*
+.* SECTION +LOCAL +DEFAULT +5.*
+.* SECTION +LOCAL +DEFAULT +6.*
+.* SECTION +LOCAL +DEFAULT +7.*
+.* SECTION +LOCAL +DEFAULT +8.*
 .* FILE +LOCAL +DEFAULT +ABS .*
 .* TLS +LOCAL +DEFAULT +6 bl1
 .* TLS +LOCAL +DEFAULT +6 bl2

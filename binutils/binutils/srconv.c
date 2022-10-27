@@ -1,5 +1,5 @@
 /* srconv.c -- Sysroff conversion program
-   Copyright (C) 1994-2018 Free Software Foundation, Inc.
+   Copyright (C) 1994-2022 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -316,6 +316,7 @@ wr_hd (struct coff_ofile *p)
   struct IT_hd hd;
 
   hd.spare1 = 0;
+  hd.spare2 = 0;
   if (bfd_get_file_flags (abfd) & EXEC_P)
     hd.mt = MTYPE_ABS_LM;
   else
@@ -419,14 +420,14 @@ wr_ob (struct coff_ofile *p ATTRIBUTE_UNUSED, struct coff_section *section)
   unsigned char stuff[200];
 
   i = 0;
-  while (i < bfd_get_section_size (section->bfd_section))
+  while (i < bfd_section_size (section->bfd_section))
     {
       struct IT_ob ob;
       int todo = 200;		/* Copy in 200 byte lumps.  */
 
       ob.spare = 0;
-      if (i + todo > bfd_get_section_size (section->bfd_section))
-	todo = bfd_get_section_size (section->bfd_section) - i;
+      if (i + todo > bfd_section_size (section->bfd_section))
+	todo = bfd_section_size (section->bfd_section) - i;
 
       if (first)
 	{
@@ -1687,8 +1688,6 @@ prescan (struct coff_ofile *otree)
     }
 }
 
-char *program_name;
-
 ATTRIBUTE_NORETURN static void
 show_usage (FILE *ffile, int status)
 {
@@ -1724,12 +1723,10 @@ main (int ac, char **av)
   char *input_file;
   char *output_file;
 
-#if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
+#ifdef HAVE_LC_MESSAGES
   setlocale (LC_MESSAGES, "");
 #endif
-#if defined (HAVE_SETLOCALE)
   setlocale (LC_CTYPE, "");
-#endif
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
 
@@ -1831,10 +1828,7 @@ main (int ac, char **av)
       bfd_nonfatal (input_file);
 
       if (bfd_get_error () == bfd_error_file_ambiguously_recognized)
-	{
-	  list_matching_formats (matching);
-	  free (matching);
-	}
+	list_matching_formats (matching);
       exit (1);
     }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2019 Free Software Foundation, Inc.
+// Copyright (C) 2017-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++17" }
+// { dg-additional-options "-Wno-deprecated" { target c++2a } }
 // { dg-do compile { target c++17 } }
 
 // PR libstdc++/78939
@@ -36,7 +36,7 @@ int
 test02()
 {
   A a{};
-  volatile auto [i, j] = a;
+  volatile auto [i, j] = a; // deprecated in C++20
   return i + j;
 }
 
@@ -44,6 +44,6 @@ int
 test03()
 {
   A a{};
-  const volatile auto [i, j] = a;
+  const volatile auto [i, j] = a; // deprecated in C++20
   return i + j;
 }

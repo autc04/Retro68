@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -16,14 +16,15 @@
 // <http://www.gnu.org/licenses/>.
 
 // { dg-do run { target c++11 } }
-// { dg-require-effective-target cxx11-abi }
 
 #include <ios>
 #include <testsuite_hooks.h>
 
 using test_type = std::ios_base::failure;
 
+#if _GLIBCXX_USE_CXX11_ABI
 static_assert( std::is_base_of<std::system_error, test_type>::value, "base" );
+#endif
 
 void
 test01()

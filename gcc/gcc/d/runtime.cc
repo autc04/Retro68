@@ -1,5 +1,5 @@
 /* runtime.cc -- D runtime functions called by generated code.
-   Copyright (C) 2006-2019 Free Software Foundation, Inc.
+   Copyright (C) 2006-2022 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ along with GCC; see the file COPYING3.  If not see
    We represent them in the frontend here, however there's no guarantee that
    the compiler implementation actually matches the actual implementation.  */
 
-enum libcall_type
+enum d_libcall_type
 {
   LCT_VOID,		    /* void		    */
   LCT_BYTE,		    /* byte		    */
@@ -51,6 +51,7 @@ enum libcall_type
   LCT_ARRAY_VOID,	    /* void[]		    */
   LCT_ARRAY_SIZE_T,	    /* size_t[]		    */
   LCT_ARRAY_BYTE,	    /* byte[]		    */
+  LCT_IMMUTABLE_CHARPTR,    /* immutable(char*)	    */
   LCT_ARRAY_STRING,	    /* string[]		    */
   LCT_ARRAY_WSTRING,	    /* wstring[]	    */
   LCT_ARRAY_DSTRING,	    /* dstring[]	    */
@@ -81,7 +82,7 @@ static tree libcall_decls[LIBCALL_LAST];
    arrayOf() will return cached types if they have been requested before.  */
 
 static Type *
-get_libcall_type (libcall_type type)
+get_libcall_type (d_libcall_type type)
 {
   if (libcall_types[type])
     return libcall_types[type];
@@ -200,6 +201,10 @@ get_libcall_type (libcall_type type)
       libcall_types[type] = Type::tint8->arrayOf ()->pointerTo ();
       break;
 
+    case LCT_IMMUTABLE_CHARPTR:
+      libcall_types[type] = Type::tchar->pointerTo ()->immutableOf ();
+      break;
+
     default:
       gcc_unreachable ();
     }
@@ -212,21 +217,21 @@ get_libcall_type (libcall_type type)
    the number of arguments, the types of which are provided in `...'.  */
 
 static tree
-build_libcall_decl (const char *name, libcall_type return_type,
+build_libcall_decl (const char *name, d_libcall_type return_type,
 		    int flags, int nparams, ...)
 {
   tree *args = XALLOCAVEC (tree, nparams);
   bool varargs = false;
   tree fntype;
 
-  /* Add parameter types, using 'void' as the last parameter type
+  /* Add parameter types, using `void' as the last parameter type
      to mean this function accepts a variable list of arguments.  */
   va_list ap;
   va_start (ap, nparams);
 
   for (int i = 0; i < nparams; i++)
     {
-      libcall_type ptype = (libcall_type) va_arg (ap, int);
+      d_libcall_type ptype = (d_libcall_type) va_arg (ap, int);
       Type *type = get_libcall_type (ptype);
 
       if (type == Type::tvoid)

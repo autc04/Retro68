@@ -23,7 +23,7 @@ Key to Flags:
 Symbol table '\.symtab' contains 8 entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
  +0: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND 
- +1: 0+ +0 +SECTION +LOCAL +DEFAULT +1 
+ +1: 0+ +0 +SECTION +LOCAL +DEFAULT +1.*
 [ 	]+2: 0+[ 	]+0[ 	]+NOTYPE[ 	]+GLOBAL[ 	]+DEFAULT[ 	]+UND[ 	]+undefd
  +3: 0+ +0 +NOTYPE +GLOBAL +DEFAULT +1 _start
  +4: 2000000000000000 +0 +NOTYPE +GLOBAL +DEFAULT +1 __bss_start

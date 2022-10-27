@@ -1,6 +1,6 @@
 # Test the assigment of sections to segments.
 #
-# Copyright (C) 2008-2018 Free Software Foundation, Inc.
+# Copyright (C) 2008-2022 Free Software Foundation, Inc.
 # Contributed by Red Hat.
 #
 # This file is part of the GNU Binutils.
@@ -29,7 +29,7 @@ if {! [is_elf_format] } {
 
 if {   ! [ld_assemble $as $srcdir/$subdir/sec-to-seg1.s tmpdir/sec-to-seg1.o]
     || ! [ld_assemble $as $srcdir/$subdir/sec-to-seg2.s tmpdir/sec-to-seg2.o]} then {
-    unresolved $testname
+    unsupported $testname
     return
 }
 

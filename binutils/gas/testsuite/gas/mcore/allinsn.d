@@ -199,7 +199,7 @@ Disassembly of section \.text:
   7e:	0041      	ldq	r4-r7, \(r1\)
 
 0+080 <loopt>:
-  80:	048e      	loopt	r8, 0x64
+  80:	048e      	loopt	r8, 0x7e
 
 0+082 <LRW>:
   82:	7901      	lrw	r9, 0x3C0C1BBA

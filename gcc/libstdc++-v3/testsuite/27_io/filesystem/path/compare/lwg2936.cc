@@ -1,7 +1,6 @@
-// { dg-options "-std=gnu++17" }
 // { dg-do run { target c++17 } }
 
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -18,7 +17,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// 8.4.8 path compare [path.compare]
+// C++17 30.10.8.4.8 path compare [fs.path.compare]
 
 #include <filesystem>
 #include <testsuite_hooks.h>
@@ -59,7 +58,7 @@ test01()
   check("c:", "d:", -1);
   check("c:", "c:/", -1);
   check("d:", "c:/", +1);
-#if defined(__MING32__) || defined(__MINGW64__)
+#if defined(__MINGW32__) || defined(__MINGW64__)
   check("c:/a/b", "c:a/b", +1);
 #else
   check("c:/a/b", "c:a/b", -1);

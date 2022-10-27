@@ -1,6 +1,7 @@
 #source: main.s
 #source: gcdfn.s
 #source: hidfn.s
+#target: [check_shared_lib_support]
 #ld: --gc-sections --shared --version-script hideall.ld
 #objdump: -dRT
 # This test is only valid on ELF based ports.

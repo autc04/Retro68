@@ -4,7 +4,7 @@
 #objdump: -drj.text
 #target: sparc*-*-*
 
-.*: +file format elf64-sparc
+.*: +file format elf64-sparc.*
 
 Disassembly of section .text:
 0000000000001000 <foo-0x8>:

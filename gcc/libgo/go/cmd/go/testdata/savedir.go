@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // Savedir archives a directory tree as a txtar archive printed to standard output.
@@ -17,14 +18,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
 
-	"../internal/txtar"
+	"golang.org/x/tools/txtar"
 )
 
 func usage() {
@@ -48,7 +49,7 @@ func main() {
 
 	a := new(txtar.Archive)
 	dir = filepath.Clean(dir)
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	filepath.WalkDir(dir, func(path string, info fs.DirEntry, err error) error {
 		if path == dir {
 			return nil
 		}
@@ -59,10 +60,10 @@ func main() {
 			}
 			return nil
 		}
-		if !info.Mode().IsRegular() {
+		if !info.Type().IsRegular() {
 			return nil
 		}
-		data, err := ioutil.ReadFile(path)
+		data, err := os.ReadFile(path)
 		if err != nil {
 			log.Fatal(err)
 		}

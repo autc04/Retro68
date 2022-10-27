@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Free Software Foundation, Inc.
+# Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,8 +19,9 @@
 #
 
 if [expr [istarget "pdp11-*-*"]]  then {
-
     run_dump_test "opcode"
     run_dump_test "absreloc"
-
+    run_dump_test "pr14480"
+    run_dump_test "pr23481"
+    run_dump_test "pr26001"
 }

@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2004-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -18,6 +18,15 @@
 # Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
 # MA 02110-1301, USA.
 
+case ${target} in
+  *-*-*gnu*)
+    gnu_target=true
+    ;;
+  *)
+    gnu_target=false
+    ;;
+esac
+
 fragment <<EOF
 
 #include "ldctor.h"
@@ -33,23 +42,9 @@ fragment <<EOF
 static lang_input_statement_type *stub_file;
 static bfd *stub_bfd;
 
-static bfd_boolean insn32;
-static bfd_boolean ignore_branch_isa;
-
-static void
-mips_after_parse (void)
-{
-  /* .gnu.hash and the MIPS ABI require .dynsym to be sorted in different
-     ways.  .gnu.hash needs symbols to be grouped by hash code whereas the
-     MIPS ABI requires a mapping between the GOT and the symbol table.  */
-  if (link_info.emit_gnu_hash)
-    {
-      einfo (_("%X%P: .gnu.hash is incompatible with the MIPS ABI\n"));
-      link_info.emit_hash = TRUE;
-      link_info.emit_gnu_hash = FALSE;
-    }
-  gld${EMULATION_NAME}_after_parse ();
-}
+static bool insn32;
+static bool ignore_branch_isa;
+static bool compact_branches;
 
 struct hook_stub_info
 {
@@ -59,11 +54,11 @@ struct hook_stub_info
 
 /* Traverse the linker tree to find the spot where the stub goes.  */
 
-static bfd_boolean
+static bool
 hook_in_stub (struct hook_stub_info *info, lang_statement_union_type **lp)
 {
   lang_statement_union_type *l;
-  bfd_boolean ret;
+  bool ret;
 
   for (; (l = *lp) != NULL; lp = &l->header.next)
     {
@@ -102,7 +97,7 @@ hook_in_stub (struct hook_stub_info *info, lang_statement_union_type **lp)
 		 before its associated input section.  */
 	      *lp = info->add.head;
 	      *(info->add.tail) = l;
-	      return TRUE;
+	      return true;
 	    }
 	  break;
 
@@ -123,7 +118,7 @@ hook_in_stub (struct hook_stub_info *info, lang_statement_union_type **lp)
 	  break;
 	}
     }
-  return FALSE;
+  return false;
 }
 
 /* Create a new stub section called STUB_SEC_NAME and arrange for it to
@@ -173,14 +168,14 @@ mips_add_stub_section (const char *stub_sec_name, asection *input_section,
   /* Set the flags.  */
   flags = (SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_CODE
 	   | SEC_HAS_CONTENTS | SEC_IN_MEMORY | SEC_KEEP);
-  if (!bfd_set_section_flags (stub_bfd, stub_sec, flags))
+  if (!bfd_set_section_flags (stub_sec, flags))
     goto err_ret;
 
   os = lang_output_section_get (output_section);
 
   /* Initialize a statement list that contains only the new statement.  */
   lang_list_init (&info.add);
-  lang_add_section (&info.add, stub_sec, NULL, os);
+  lang_add_section (&info.add, stub_sec, NULL, NULL, os);
   if (info.add.head == NULL)
     goto err_ret;
 
@@ -202,11 +197,15 @@ mips_create_output_section_statements (void)
   struct elf_link_hash_table *htab;
 
   htab = elf_hash_table (&link_info);
-  if (is_elf_hash_table (htab) && is_mips_elf (link_info.output_bfd))
-    _bfd_mips_elf_linker_flags (&link_info, insn32, ignore_branch_isa);
+  if (is_elf_hash_table (&htab->root) && is_mips_elf (link_info.output_bfd))
+    _bfd_mips_elf_linker_flags (&link_info, insn32, ignore_branch_isa,
+				${gnu_target});
 
   if (is_mips_elf (link_info.output_bfd))
-    _bfd_mips_elf_init_stubs (&link_info, mips_add_stub_section);
+    {
+      _bfd_mips_elf_compact_branches (&link_info, compact_branches);
+      _bfd_mips_elf_init_stubs (&link_info, mips_add_stub_section);
+    }
 }
 
 /* This is called after we have merged the private data of the input bfds.  */
@@ -228,26 +227,6 @@ mips_before_allocation (void)
   gld${EMULATION_NAME}_before_allocation ();
 }
 
-/* Avoid processing the fake stub_file in vercheck, stat_needed and
-   check_needed routines.  */
-
-static void (*real_func) (lang_input_statement_type *);
-
-static void mips_for_each_input_file_wrapper (lang_input_statement_type *l)
-{
-  if (l != stub_file)
-    (*real_func) (l);
-}
-
-static void
-mips_lang_for_each_input_file (void (*func) (lang_input_statement_type *))
-{
-  real_func = func;
-  lang_for_each_input_file (&mips_for_each_input_file_wrapper);
-}
-
-#define lang_for_each_input_file mips_lang_for_each_input_file
-
 EOF
 
 # Define some shell vars to insert bits of code into the standard elf
@@ -259,7 +238,9 @@ enum
     OPTION_INSN32 = 301,
     OPTION_NO_INSN32,
     OPTION_IGNORE_BRANCH_ISA,
-    OPTION_NO_IGNORE_BRANCH_ISA
+    OPTION_NO_IGNORE_BRANCH_ISA,
+    OPTION_COMPACT_BRANCHES,
+    OPTION_NO_COMPACT_BRANCHES
   };
 '
 
@@ -268,6 +249,8 @@ PARSE_AND_LIST_LONGOPTS='
   { "no-insn32", no_argument, NULL, OPTION_NO_INSN32 },
   { "ignore-branch-isa", no_argument, NULL, OPTION_IGNORE_BRANCH_ISA },
   { "no-ignore-branch-isa", no_argument, NULL, OPTION_NO_IGNORE_BRANCH_ISA },
+  { "compact-branches", no_argument, NULL, OPTION_COMPACT_BRANCHES },
+  { "no-compact-branches", no_argument, NULL, OPTION_NO_COMPACT_BRANCHES },
 '
 
 PARSE_AND_LIST_OPTIONS='
@@ -285,26 +268,39 @@ PARSE_AND_LIST_OPTIONS='
   --no-ignore-branch-isa      Reject invalid branch relocations requiring\n\
                               an ISA mode switch\n"
 		   ));
+  fprintf (file, _("\
+  --compact-branches          Generate compact branches/jumps for MIPS R6\n"
+		   ));
+  fprintf (file, _("\
+  --no-compact-branches       Generate delay slot branches/jumps for MIPS R6\n"
+		   ));
 '
 
 PARSE_AND_LIST_ARGS_CASES='
     case OPTION_INSN32:
-      insn32 = TRUE;
+      insn32 = true;
       break;
 
     case OPTION_NO_INSN32:
-      insn32 = FALSE;
+      insn32 = false;
       break;
 
     case OPTION_IGNORE_BRANCH_ISA:
-      ignore_branch_isa = TRUE;
+      ignore_branch_isa = true;
       break;
 
     case OPTION_NO_IGNORE_BRANCH_ISA:
-      ignore_branch_isa = FALSE;
+      ignore_branch_isa = false;
+      break;
+
+    case OPTION_COMPACT_BRANCHES:
+      compact_branches = true;
+      break;
+
+    case OPTION_NO_COMPACT_BRANCHES:
+      compact_branches = false;
       break;
 '
 
-LDEMUL_AFTER_PARSE=mips_after_parse
 LDEMUL_BEFORE_ALLOCATION=mips_before_allocation
 LDEMUL_CREATE_OUTPUT_SECTION_STATEMENTS=mips_create_output_section_statements

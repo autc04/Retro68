@@ -5,12 +5,14 @@
 
 #...
 RELOCATION RECORDS FOR \[\.ARM\.exidx\]:
-OFFSET   TYPE              VALUE 
+OFFSET +TYPE +VALUE
 00000000 R_ARM_PREL31      \.text
 00000000 R_ARM_NONE        __aeabi_unwind_cpp_pr0
 00000008 R_ARM_PREL31      \.text
 00000008 R_ARM_NONE        __aeabi_unwind_cpp_pr1
 0000000c R_ARM_PREL31      \.text
+00000010 R_ARM_PREL31      \.text
+00000010 R_ARM_NONE        __aeabi_unwind_cpp_pr0
 00000010 R_ARM_PREL31      \.text
 00000010 R_ARM_NONE        __aeabi_unwind_cpp_pr0
 00000018 R_ARM_PREL31      \.text

@@ -14,7 +14,7 @@
  */
 module core.sys.posix.netdb;
 
-private import core.sys.posix.config;
+import core.sys.posix.config;
 public import core.stdc.inttypes;         // for uint32_t
 public import core.sys.posix.netinet.in_; // for in_port_t, in_addr_t
 public import core.sys.posix.sys.types;   // for ino_t
@@ -33,6 +33,7 @@ version (Posix):
 extern (C):
 nothrow:
 @nogc:
+@system:
 
 //
 // Required
@@ -566,6 +567,7 @@ else version (OpenBSD)
     enum AI_NUMERICHOST     = 0x4;
     enum AI_EXT             = 0x8;
     enum AI_NUMERICSERV     = 0x10;
+    enum AI_V4MAPPED        = 0; // Not supported
     enum AI_FQDN            = 0x20;
     enum AI_ADDRCONFIG      = 0x40;
     enum AI_MASK            = AI_PASSIVE | AI_CANONNAME | AI_NUMERICHOST | AI_NUMERICSERV | AI_FQDN | AI_ADDRCONFIG;
@@ -743,9 +745,7 @@ else version (Solaris)
         int ai_socktype;
         int ai_protocol;
 
-        version (SPARC)
-            int _ai_pad;
-        else version (SPARC64)
+        version (SPARC64)
             int _ai_pad;
 
         socklen_t ai_addrlen;

@@ -8,7 +8,7 @@ foo:
 	.mask	0x00000000, 0
 	.fmask	0x00000000, 0
 	.cpload	$25
-	lw	$2, %got(bar)($28)
+	lwl	$2, %got(bar)($28)
 	jr	$31
 	 addiu	$2, $2, 4
 	.end	foo

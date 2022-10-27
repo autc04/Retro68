@@ -4,14 +4,15 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_lmconfig.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_lmconfig.d)
  */
 module core.sys.windows.lmconfig;
 version (Windows):
+@system:
 
 // All functions in this file are deprecated!
 
-private import core.sys.windows.lmcons, core.sys.windows.windef;
+import core.sys.windows.lmcons, core.sys.windows.windef;
 
 deprecated {
     struct CONFIG_INFO_0 {

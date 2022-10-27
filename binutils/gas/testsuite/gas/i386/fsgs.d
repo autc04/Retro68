@@ -15,4 +15,12 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f3 0f ae cb          	rdgsbase %ebx
 [ 	]*[a-f0-9]+:	f3 0f ae d3          	wrfsbase %ebx
 [ 	]*[a-f0-9]+:	f3 0f ae db          	wrgsbase %ebx
+[ 	]*[a-f0-9]+:	f3 0f ae c3          	rdfsbase %ebx
+[ 	]*[a-f0-9]+:	f3 0f ae cb          	rdgsbase %ebx
+[ 	]*[a-f0-9]+:	f3 0f ae d3          	wrfsbase %ebx
+[ 	]*[a-f0-9]+:	f3 0f ae db          	wrgsbase %ebx
+[ 	]*[a-f0-9]+:	f3 0f ae c3          	rdfsbase %ebx
+[ 	]*[a-f0-9]+:	f3 0f ae cb          	rdgsbase %ebx
+[ 	]*[a-f0-9]+:	f3 0f ae d3          	wrfsbase %ebx
+[ 	]*[a-f0-9]+:	f3 0f ae db          	wrgsbase %ebx
 #pass

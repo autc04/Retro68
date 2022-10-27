@@ -1,7 +1,7 @@
 // -*- C++ -*-
 // Filesystem utils for the C++ library testsuite.
 //
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,11 +30,17 @@ namespace test_fs = std::filesystem;
 #include <experimental/filesystem>
 namespace test_fs = std::experimental::filesystem;
 #endif
+#include <algorithm>
 #include <fstream>
 #include <string>
 #include <cstdio>
-#include <stdlib.h>
-#include <unistd.h>
+#include <unistd.h> // unlink, close, getpid, geteuid
+
+#if defined(_GNU_SOURCE) || _XOPEN_SOURCE >= 500 || _POSIX_C_SOURCE >= 200112L
+#include <stdlib.h> // mkstemp
+#else
+#include <random>   // std::random_device
+#endif
 
 namespace __gnu_test
 {
@@ -62,10 +68,15 @@ namespace __gnu_test
     PATH_CHK( p1, p2, is_relative );
     auto d1 = std::distance(p1.begin(), p1.end());
     auto d2 = std::distance(p2.begin(), p2.end());
-    if( d1 != d2 )
+    if (d1 != d2)
       throw test_fs::filesystem_error(
-	  "distance(begin, end)", p1, p2,
+	  "distance(begin1, end1) != distance(begin2, end2)", p1, p2,
 	  std::make_error_code(std::errc::invalid_argument) );
+    if (!std::equal(p1.begin(), p1.end(), p2.begin()))
+      throw test_fs::filesystem_error(
+	  "!equal(begin1, end1, begin2)", p1, p2,
+	  std::make_error_code(std::errc::invalid_argument) );
+
   }
 
   const std::string test_paths[] = {
@@ -76,7 +87,7 @@ namespace __gnu_test
   test_fs::path
   root_path()
   {
-#if defined(__MING32__) || defined(__MINGW64__)
+#if defined(__MINGW32__) || defined(__MINGW64__)
     return L"c:/";
 #else
     return "/";
@@ -115,13 +126,13 @@ namespace __gnu_test
     if (file.length() > 64)
       file.resize(64);
     char buf[128];
-    static int counter;
+    static unsigned counter = std::random_device{}();
 #if _GLIBCXX_USE_C99_STDIO
     std::snprintf(buf, 128,
 #else
     std::sprintf(buf,
 #endif
-      "filesystem-test.%d.%lu-%s", counter++, (unsigned long) ::getpid(),
+      "filesystem-test.%u.%lu-%s", counter++, (unsigned long) ::getpid(),
       file.c_str());
     p = buf;
 #endif
@@ -148,6 +159,22 @@ namespace __gnu_test
 
     path_type path;
   };
+
+  inline bool
+  permissions_are_testable(bool print_msg = true)
+  {
+    bool testable = false;
+#if !(defined __MINGW32__ || defined __MINGW64__)
+    if (geteuid() != 0)
+      testable = true;
+    // XXX on Linux the CAP_DAC_OVERRIDE and CAP_DAC_READ_SEARCH capabilities
+    // can give normal users extra permissions for files and directories.
+    // We ignore that possibility here.
+#endif
+    if (print_msg && !testable)
+      std::puts("Skipping tests that depend on filesystem permissions");
+    return testable;
+  }
 
 } // namespace __gnu_test
 #endif

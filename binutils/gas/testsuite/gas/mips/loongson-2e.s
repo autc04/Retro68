@@ -1,4 +1,4 @@
-        .text
+	.text
 	.set noreorder
 
 movz_insns:
@@ -122,7 +122,7 @@ mips5_ps_insns:
 	abs.ps		$f0, $f2
 	add.ps		$f2, $f4, $f6
 	c.eq.ps		$f8, $f10
-	c.f.ps	    	$f8, $f10
+	c.f.ps		$f8, $f10
 	c.le.ps		$f8, $f10
 	c.lt.ps		$f8, $f10
 	c.nge.ps	$f8, $f10
@@ -141,4 +141,3 @@ mips5_ps_insns:
 	mul.ps		$f2, $f4, $f6
 	neg.ps		$f6, $f8
 	sub.ps		$f22, $f24, $f26
-

@@ -1,5 +1,6 @@
 /* { dg-additional-options "-O3" } */
 /* { dg-require-effective-target vect_double } */
+/* { dg-additional-options "-mprefer-vector-width=128" { target x86_64-*-* i?86-*-* } } */
 
 #include "tree-vect.h"
 
@@ -59,4 +60,8 @@ int main()
 
 /* We should also be able to use 2-lane SLP to initialize the real and
    imaginary components in the first loop of main.  */
-/* { dg-final { scan-tree-dump-times "basic block vectorized" 2 "slp1" } } */
+/* { dg-final { scan-tree-dump-times "optimized: basic block" 10 "slp1" } } */
+/* We should see the s->phase[dir] operand splatted and no other operand built
+   from scalars.  See PR97334.  */
+/* { dg-final { scan-tree-dump "Using a splat" "slp1" } } */
+/* { dg-final { scan-tree-dump-times "Building vector operands from scalars" 0 "slp1" } } */

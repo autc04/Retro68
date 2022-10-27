@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2016-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2016-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -38,6 +38,7 @@ generic
    --  should have at least one more element at the low end than Index_Type.
 
    type Element_Type (<>) is private;
+   with function "=" (Left, Right : Element_Type) return Boolean is <>;
 
 package Ada.Containers.Functional_Vectors with SPARK_Mode is
 
@@ -91,7 +92,8 @@ package Ada.Containers.Functional_Vectors with SPARK_Mode is
            Length (Container));
    pragma Annotate (GNATprove, Inline_For_Proof, Last);
 
-   function First return Extended_Index is (Index_Type'First);
+   function First return Extended_Index is (Index_Type'First) with
+     Global => null;
    --  First index of a sequence
 
    ------------------------
@@ -301,7 +303,7 @@ package Ada.Containers.Functional_Vectors with SPARK_Mode is
          and then Get (Add'Result, Position) = New_Item
          and then Range_Equal
                     (Left  => Container,
-                     Right =>  Add'Result,
+                     Right => Add'Result,
                      Fst   => Index_Type'First,
                      Lst   => Index_Type'Pred (Position))
          and then Range_Shifted
@@ -333,6 +335,13 @@ package Ada.Containers.Functional_Vectors with SPARK_Mode is
                      Fst    => Position,
                      Lst    => Last (Remove'Result),
                      Offset => 1);
+
+   function Copy_Element (Item : Element_Type) return Element_Type is (Item);
+   --  Elements of containers are copied by numerous primitives in this
+   --  package. This function causes GNATprove to verify that such a copy is
+   --  valid (in particular, it does not break the ownership policy of SPARK,
+   --  i.e. it does not contain pointers that could be used to alias mutable
+   --  data).
 
    ---------------------------
    --  Iteration Primitives --

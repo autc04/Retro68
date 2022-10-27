@@ -1,4 +1,4 @@
-#readelf: -Sg
+#readelf: -Sg -T
 #as: -x
 #name: ia64 unwind group
 

@@ -7,7 +7,7 @@
 --                                 S p e c                                  --
 --                            (Windows Version)                             --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -48,16 +48,16 @@ package System is
 
    --  System-Dependent Named Numbers
 
-   Min_Int               : constant := Long_Long_Integer'First;
-   Max_Int               : constant := Long_Long_Integer'Last;
+   Min_Int             : constant := -2 ** (Standard'Max_Integer_Size - 1);
+   Max_Int             : constant :=  2 ** (Standard'Max_Integer_Size - 1) - 1;
 
-   Max_Binary_Modulus    : constant := 2 ** Long_Long_Integer'Size;
+   Max_Binary_Modulus    : constant := 2 ** Standard'Max_Integer_Size;
    Max_Nonbinary_Modulus : constant := 2 ** Integer'Size - 1;
 
    Max_Base_Digits       : constant := Long_Long_Float'Digits;
    Max_Digits            : constant := Long_Long_Float'Digits;
 
-   Max_Mantissa          : constant := 63;
+   Max_Mantissa          : constant := Standard'Max_Integer_Size - 1;
    Fine_Delta            : constant := 2.0 ** (-Max_Mantissa);
 
    Tick                  : constant := 0.01;
@@ -125,8 +125,6 @@ private
    Denorm                    : constant Boolean := True;
    Duration_32_Bits          : constant Boolean := False;
    Exit_Status_Supported     : constant Boolean := True;
-   Fractional_Fixed_Ops      : constant Boolean := False;
-   Frontend_Layout           : constant Boolean := False;
    Machine_Overflows         : constant Boolean := False;
    Machine_Rounds            : constant Boolean := True;
    Preallocated_Stacks       : constant Boolean := False;
@@ -184,11 +182,6 @@ private
    --  The default mapping preserves the standard 31 priorities of the Ada
    --  model, but maps them using compression onto the 7 priority levels
    --  available in NT and on the 16 priority levels available in 2000/XP.
-
-   --  To replace the default values of the Underlying_Priorities mapping,
-   --  copy this source file into your build directory, edit the file to
-   --  reflect your desired behavior, and recompile using Makefile.adalib
-   --  which can be found under the adalib directory of your gnat installation
 
    pragma Linker_Options ("-Wl,--stack=0x2000000");
    --  This is used to change the default stack (32 MB) size for non tasking

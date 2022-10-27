@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2007-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2007-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -57,6 +57,8 @@
 
 with Interfaces;
 
+private with Ada.Strings.Text_Buffers;
+
 package System.Random_Numbers with
   SPARK_Mode => Off
 is
@@ -74,6 +76,7 @@ is
 
    function Random (Gen : Generator) return Interfaces.Unsigned_32;
    function Random (Gen : Generator) return Interfaces.Unsigned_64;
+   function Random (Gen : Generator) return Interfaces.Unsigned_128;
    --  Return pseudo-random numbers uniformly distributed on T'First .. T'Last
    --  for builtin integer types.
 
@@ -142,7 +145,10 @@ private
    --  Feedback distance from the current position
 
    subtype State_Val is Interfaces.Unsigned_32;
-   type State is array (0 .. N - 1) of State_Val;
+   type State is array (0 .. N - 1) of State_Val with Put_Image => Put_Image;
+
+   procedure Put_Image
+     (S : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class; V : State);
 
    type Writable_Access (Self : access Generator) is limited null record;
    --  Auxiliary type to make Generator a self-referential type
@@ -151,12 +157,14 @@ private
       Writable  : Writable_Access (Generator'Access);
       --  This self reference allows functions to modify Generator arguments
 
-      S : State := (others => 0);
+      S : State := [others => 0];
       --  The shift register, a circular buffer
 
       I : Integer := N;
       --  Current starting position in shift register S (N means uninitialized)
-      --  We should avoid using the identifier I here ???
+      --  Naming exception: I is fine to use here as it is the name used in the
+      --  original paper describing the Mersenne Twister and in common
+      --  descriptions of the algorithm.
    end record;
 
 end System.Random_Numbers;

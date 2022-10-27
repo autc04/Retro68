@@ -2,6 +2,7 @@
 #source: gc-plt-main.s
 #source: gc-plt-hidden.s
 #source: gc-plt2.s
+#target: [check_shared_lib_support]
 #ld: --gc-sections -T aarch64.ld --shared --hash-style=sysv
 #objdump: -dT
 

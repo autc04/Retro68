@@ -4,7 +4,7 @@
 #objdump: -sj.data
 #target: sparc*-*-*
 
-.*: +file format elf32-sparc
+.*: +file format elf32-sparc.*
 
 Contents of section .data:
  13000 12345678 deadbeef                    .*

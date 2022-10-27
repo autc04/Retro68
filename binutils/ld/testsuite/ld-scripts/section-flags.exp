@@ -2,7 +2,7 @@
 #
 # This file is part of the GNU Binutils.
 #
-# Copyright (C) 2012-2018 Free Software Foundation, Inc.
+# Copyright (C) 2012-2022 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ if { [istarget spu*-*-*] } {
 
 foreach test {"section-flags-1" "section-flags-2"} {
     if ![ld_assemble $as $srcdir/$subdir/$test.s tmpdir/$test.o] {
-	unresolved $test
+	unsupported $test
     } else {
 	if ![ld_link $ldcmd tmpdir/$test \
 		"-T $srcdir/$subdir/$test.t tmpdir/$test.o"] {

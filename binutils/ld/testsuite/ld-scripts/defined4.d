@@ -1,10 +1,9 @@
 #ld: -Tdefined4.t
 #nm: -B
 #source: defined4.s
-#xfail: powerpc*-*-aix* rs6000-*-aix*
-#notarget: mips*-*-* mmix-*-*
+#xfail: mips*-*-*
 # We check that defined and defined1 have the same address.  MIPS targets
-# use different address. MMIX puts defined and defined1 in text section.
+# use different address.
 
 # Check that arithmetic on DEFINED works.
 #...

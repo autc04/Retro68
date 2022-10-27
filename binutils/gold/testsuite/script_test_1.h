@@ -1,6 +1,6 @@
 // script_test_1.h -- linker script test 1 for gold  -*- C++ -*-
 
-// Copyright (C) 2015-2017 Free Software Foundation, Inc.
+// Copyright (C) 2015-2022 Free Software Foundation, Inc.
 
 // This file is part of gold.
 

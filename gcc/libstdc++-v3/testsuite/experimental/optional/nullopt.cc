@@ -1,6 +1,6 @@
 // { dg-do run { target c++14 } }
 
-// Copyright (C) 2013-2019 Free Software Foundation, Inc.
+// Copyright (C) 2013-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -25,7 +25,7 @@ int main()
   // [20.5.6] Disengaged state indicator
   static_assert( std::is_same<decltype(std::experimental::nullopt), const std::experimental::nullopt_t>(), "" );
   static_assert( std::is_empty<std::experimental::nullopt_t>(), "" );
-  static_assert( std::is_literal_type<std::experimental::nullopt_t>(), "" );
+  static_assert( __is_literal_type(std::experimental::nullopt_t), "" );
   static_assert( !std::is_default_constructible<std::experimental::nullopt_t>(), "" );
 
   {

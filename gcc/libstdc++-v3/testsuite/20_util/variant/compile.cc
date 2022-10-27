@@ -1,7 +1,6 @@
-// { dg-options "-std=gnu++17" }
-// { dg-do compile }
+// { dg-do compile { target c++17 } }
 
-// Copyright (C) 2016-2019 Free Software Foundation, Inc.
+// Copyright (C) 2016-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -84,6 +83,10 @@ struct nonliteral
   bool operator>(const nonliteral&) const;
 };
 
+struct virtual_default_dtor {
+   virtual ~virtual_default_dtor() = default;
+};
+
 void default_ctor()
 {
   static_assert(is_default_constructible_v<variant<int, string>>);
@@ -95,6 +98,9 @@ void default_ctor()
   static_assert(noexcept(variant<int>()));
   static_assert(!noexcept(variant<Empty>()));
   static_assert(noexcept(variant<DefaultNoexcept>()));
+  {
+    variant<virtual_default_dtor> a;
+  }
 }
 
 void copy_ctor()
@@ -142,17 +148,38 @@ void arbitrary_ctor()
   static_assert(noexcept(variant<int, DefaultNoexcept>(int{})));
   static_assert(!noexcept(variant<int, Empty>(Empty{})));
   static_assert(noexcept(variant<int, DefaultNoexcept>(DefaultNoexcept{})));
+
+  // P0608R3 disallow narrowing conversions and boolean conversions
+  static_assert(!is_constructible_v<variant<float>, int>);
+  static_assert(!is_constructible_v<variant<float, vector<int>>, int>);
+  static_assert(is_constructible_v<variant<float, int>, char>);
+  static_assert(!is_constructible_v<variant<float, char>, int>);
+  static_assert(is_constructible_v<variant<float, long>, int>);
+  struct big_int { big_int(int) { } };
+  static_assert(is_constructible_v<variant<float, big_int>, int>);
+
+  static_assert(!is_constructible_v<variant<int>, unsigned>);
+  static_assert(!is_constructible_v<variant<bool>, int>);
+  static_assert(!is_constructible_v<variant<bool>, void*>);
+
+  // P1957R2 Converting from T* to bool should be considered narrowing
+  struct ConvertibleToBool
+  {
+    operator bool() const { return true; }
+  };
+  static_assert(is_constructible_v<variant<bool>, ConvertibleToBool>);
+  static_assert(is_constructible_v<variant<bool, int>, ConvertibleToBool>);
 }
 
-struct none { none() = delete; };
-struct any { template <typename T> any(T&&) {} };
+struct None { None() = delete; };
+struct Any { template <typename T> Any(T&&) {} };
 
 void in_place_index_ctor()
 {
   variant<string, string> a(in_place_index<0>, "a");
   variant<string, string> b(in_place_index<1>, {'a'});
 
-  static_assert(!is_constructible_v<variant<none, any>, std::in_place_index_t<0>>, "PR libstdc++/90165");
+  static_assert(!is_constructible_v<variant<None, Any>, std::in_place_index_t<0>>, "PR libstdc++/90165");
 }
 
 void in_place_type_ctor()
@@ -160,7 +187,7 @@ void in_place_type_ctor()
   variant<int, string, int> a(in_place_type<string>, "a");
   variant<int, string, int> b(in_place_type<string>, {'a'});
   static_assert(!is_constructible_v<variant<string, string>, in_place_type_t<string>, const char*>);
-  static_assert(!is_constructible_v<variant<none, any>, std::in_place_type_t<none>>, "PR libstdc++/90165");
+  static_assert(!is_constructible_v<variant<None, Any>, std::in_place_type_t<None>>, "PR libstdc++/90165");
 }
 
 void dtor()

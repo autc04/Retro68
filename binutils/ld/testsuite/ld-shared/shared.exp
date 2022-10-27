@@ -1,5 +1,5 @@
 # Expect script for ld-shared tests
-#   Copyright (C) 1994-2018 Free Software Foundation, Inc.
+#   Copyright (C) 1994-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -26,7 +26,7 @@
 # bootstrap test.
 
 # Check to see if the C compiler works
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     return
 }
 
@@ -53,8 +53,7 @@ if { ![istarget hppa*64*-*-hpux*] \
      && ![istarget sparc*-*-linux*] \
      && ![istarget arm*-*-linux*] \
      && ![istarget alpha*-*-linux*] \
-     && ![istarget rs6000*-*-aix*] \
-     && ![istarget powerpc*-*-aix*] \
+     && ![is_xcoff_format] \
      && ![istarget s390*-*-linux*] \
      && ![istarget aarch64*-*-linux*] \
      && ![istarget x86_64-*-linux*] } {
@@ -65,33 +64,26 @@ set tmpdir tmpdir
 set SHCFLAG ""
 set shared_needs_pic "no"
 
-if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+# Disable all sanitizers.
+set old_CFLAGS "$CFLAGS_FOR_TARGET"
+append CFLAGS_FOR_TARGET " $NOSANITIZE_CFLAGS"
 
-    # AIX shared libraries do not seem to support useful features,
-    # like overriding the shared library function or letting the
-    # shared library refer to objects defined in the main program.  We
-    # avoid testing those features.
+if { [is_xcoff_format] } {
+    # Not all the useful features are available with AIX shared
+    # libraries by default.
+    # We can manage to simulate some of them with export/import
+    # files but the overriding of shared library functions or
+    # variables by the main program doesn't seem possible.
+    # We avoid testing those features.
     set SHCFLAG "-DXCOFF_TEST"
 
-    # The AIX 3.2.5 loader appears to randomly fail when loading
-    # shared libraries from NSF mounted partitions, so we avoid any
-    # potential problems by using a local directory.
-    catch {exec /bin/sh -c "echo $$"} pid
-    set tmpdir /usr/tmp/ld.$pid
-    catch "exec mkdir $tmpdir" exec_status
-
-    # On AIX, we need to explicitly export the symbols the shared
-    # library is going to provide, and need.
-    set file [open $tmpdir/xcoff.exp w]
-    puts $file shlibvar1
-    puts $file shlibvar2
-    puts $file shlib_shlibvar1
-    puts $file shlib_shlibvar2
-    puts $file shlib_shlibcall
-    puts $file shlib_shlibcalled
-    puts $file shlib_checkfunptr1
-    puts $file shlib_getfunptr1
-    puts $file shlib_check
+    # In order to avoid listing every symbols in an export file,
+    # the export will be done with -bexpall flag.
+    # However for imports, we must create the import file.
+    set file [open $tmpdir/xcoff-shared.imp w]
+    puts $file "#! ."
+    puts $file mainvar
+    puts $file main_called
     close $file
 }
 
@@ -110,7 +102,7 @@ if [istarget arm*-*-linux*] {
 	set file [open $tmpdir/movw-detect.c w]
 	puts $file "void foo(void) { __asm (\"movw r0, #0\"); }"
 	close $file
-	if [run_host_cmd_yesno "$CC" "$CFLAGS -c $tmpdir/movw-detect.c -o $tmpdir/movw-detect.o"] {
+	if [run_host_cmd_yesno "$CC_FOR_TARGET" "$CFLAGS_FOR_TARGET -c $tmpdir/movw-detect.c -o $tmpdir/movw-detect.o"] {
 	    set shared_needs_pic "yes"
 	}
     }
@@ -118,7 +110,7 @@ if [istarget arm*-*-linux*] {
 
 # The test procedure.
 proc shared_test { progname testname main sh1 sh2 dat args } {
-    global CC
+    global CC_FOR_TARGET
     global srcdir
     global subdir
     global exec_output
@@ -128,12 +120,15 @@ proc shared_test { progname testname main sh1 sh2 dat args } {
     if [llength $args] { set shldflags [lindex $args 0] } else { set shldflags "" }
 
     # Build the shared library.
-    # On AIX, we need to use an export file.
     set shared -shared
-    if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
-	set shared "-bM:SRE -bE:$tmpdir/xcoff.exp"
+    if { [is_xcoff_format] } {
+	# On AIX, setup imports and exports.
+	append shared " -Wl,-bexpall -Wl,-bI:$tmpdir/xcoff-shared.imp"
     }
-    if {![ld_link $CC $tmpdir/$progname.so "$shared $shldflags $tmpdir/$sh1 $tmpdir/$sh2"]} {
+    if { [is_elf_format] && [check_shared_lib_support] } {
+	append shared " -Wl,-z,notext"
+    }
+    if {![ld_link $CC_FOR_TARGET $tmpdir/$progname.so "$shared $shldflags $tmpdir/$sh1 $tmpdir/$sh2"]} {
         fail "$testname"
     	return
     }
@@ -143,10 +138,12 @@ proc shared_test { progname testname main sh1 sh2 dat args } {
     # On AIX, we must include /lib in -rpath, as otherwise the loader
     # can not find -lc.
     set rpath $tmpdir
-    if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+    set exportflag ""
+    if { [is_xcoff_format] } {
 	set rpath /lib:$tmpdir
+	set exportflag " -Wl,-bexpall"
     }
-    if ![ld_link $CC $tmpdir/$progname "-Wl,-rpath,$rpath $tmpdir/$main $tmpdir/$progname.so"] {
+    if ![ld_link $CC_FOR_TARGET $tmpdir/$progname "-Wl,-rpath,$rpath $tmpdir/$main $tmpdir/$progname.so $exportflag"] {
     	fail "$testname"
     	return
     }
@@ -190,9 +187,9 @@ if { [istarget mips*-*-*] && ! [at_least_gcc_version 4 3] } then {
     # Unfortunately, the gcc argument is -fpic and the cc argument is
     # -KPIC.  We have to try both.
     set picflag "-fpic"
-    send_log "$CC $picflag\n"
-    verbose "$CC $picflag"
-    catch "exec $CC $picflag" exec_output
+    send_log "$CC_FOR_TARGET $picflag\n"
+    verbose "$CC_FOR_TARGET $picflag"
+    catch "exec $CC_FOR_TARGET $picflag" exec_output
     send_log "$exec_output\n"
     verbose "--" "$exec_output"
     if { [string match "*illegal option*" $exec_output] \
@@ -205,9 +202,9 @@ if { [istarget mips*-*-*] && ! [at_least_gcc_version 4 3] } then {
 verbose "Using $picflag to compile PIC code"
 
 # Compile the main program.
-if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o] {
-    unresolved "shared (non PIC)"
-    unresolved "shared"
+if ![ld_compile "$CC_FOR_TARGET $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o] {
+    unsupported "shared (non PIC)"
+    unsupported "shared"
 } else {
     # The shared library is composed of two files.  First compile them
     # without using -fpic.  That should work on an ELF system,
@@ -216,14 +213,14 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o] 
     # using -fpic will cause some of the tests to return different
     # results.  Make sure that PLT is used since PLT is expected.
     global PLT_CFLAGS NOPIE_CFLAGS
-    if { ![ld_compile "$CC $PLT_CFLAGS $NOPIE_CFLAGS $CFLAGS $SHCFLAG" $srcdir/$subdir/sh1.c $tmpdir/sh1np.o]
-	 || ![ld_compile "$CC $PLT_CFLAGS $CFLAGS $SHCFLAG" $srcdir/$subdir/sh2.c $tmpdir/sh2np.o] } {
-	unresolved "shared (non PIC)"
-    } else { if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+    if { ![ld_compile "$CC_FOR_TARGET $PLT_CFLAGS $NOPIE_CFLAGS $SHCFLAG" $srcdir/$subdir/sh1.c $tmpdir/sh1np.o]
+	 || ![ld_compile "$CC_FOR_TARGET $PLT_CFLAGS $SHCFLAG" $srcdir/$subdir/sh2.c $tmpdir/sh2np.o] } {
+	unsupported "shared (non PIC)"
+    } else { if { [is_xcoff_format] } {
 	shared_test shnp "shared (nonPIC)" mainnp.o sh1np.o sh2np.o xcoff
     } else {
-	# SunOS non PIC shared libraries don't permit some cases of
-	# overriding.
+	# Solaris defaults to -z text.
+	setup_xfail "*-*-solaris2*"
 	setup_xfail "ia64-*-linux*"
 	setup_xfail "alpha*-*-linux*"
 	setup_xfail "powerpc64*-*-*"
@@ -268,6 +265,8 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o] 
 	    setup_xfail "arm*-*-linux*"
 	}
 	setup_xfail "aarch64*-*-linux*"
+	# Solaris defaults to -z text.
+	setup_xfail "*-*-solaris2*"
 	shared_test shnp "shared (non PIC, load offset)" \
 		mainnp.o sh1np.o sh2np.o shared \
 		"-Wl,-T,$srcdir/$subdir/elf-offset.ld,--hash-style=sysv"
@@ -275,34 +274,34 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o] 
 
     # Now compile the code using -fpic.
 
-    if { ![ld_compile "$CC $CFLAGS $SHCFLAG $picflag" $srcdir/$subdir/sh1.c $tmpdir/sh1p.o]
-	 || ![ld_compile "$CC $CFLAGS $SHCFLAG $picflag" $srcdir/$subdir/sh2.c $tmpdir/sh2p.o] } {
-	unresolved "shared"
+    if { ![ld_compile "$CC_FOR_TARGET $SHCFLAG $picflag" $srcdir/$subdir/sh1.c $tmpdir/sh1p.o]
+	 || ![ld_compile "$CC_FOR_TARGET $SHCFLAG $picflag" $srcdir/$subdir/sh2.c $tmpdir/sh2p.o] } {
+	unsupported "shared"
     } else {
-	if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+	if { [is_xcoff_format] } {
 	    shared_test shp "shared" mainnp.o sh1p.o sh2p.o xcoff
 	} else {
 	    shared_test shp "shared" mainnp.o sh1p.o sh2p.o shared
-	    ld_compile "$CC $CFLAGS -DSYMBOLIC_TEST -DXCOFF_TEST $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o
-	    ld_compile "$CC $CFLAGS -DSYMBOLIC_TEST -DXCOFF_TEST $SHCFLAG $picflag" $srcdir/$subdir/sh1.c $tmpdir/sh1p.o
+	    ld_compile "$CC_FOR_TARGET -DSYMBOLIC_TEST $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o
+	    ld_compile "$CC_FOR_TARGET -DSYMBOLIC_TEST $SHCFLAG $picflag" $srcdir/$subdir/sh1.c $tmpdir/sh1p.o
 	    shared_test shp "shared -Bsymbolic" mainnp.o sh1p.o sh2p.o symbolic "-Bsymbolic"
-	    ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o
-	    ld_compile "$CC $CFLAGS $SHCFLAG $picflag" $srcdir/$subdir/sh1.c $tmpdir/sh1p.o
+	    ld_compile "$CC_FOR_TARGET $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o
+	    ld_compile "$CC_FOR_TARGET $SHCFLAG $picflag" $srcdir/$subdir/sh1.c $tmpdir/sh1p.o
 	}
     }
 }
 
 # Now do the same tests again, but this time compile main.c PIC.
-if ![ld_compile "$CC $CFLAGS $SHCFLAG $picflag" $srcdir/$subdir/main.c $tmpdir/mainp.o] {
-    unresolved "shared (PIC main, non PIC so)"
-    unresolved "shared (PIC main)"
+if ![ld_compile "$CC_FOR_TARGET $SHCFLAG $picflag" $srcdir/$subdir/main.c $tmpdir/mainp.o] {
+    unsupported "shared (PIC main, non PIC so)"
+    unsupported "shared (PIC main)"
 } else {
     if { [file exists $tmpdir/sh1np.o ] && [ file exists $tmpdir/sh2np.o ] } {
-        if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+        if { [is_xcoff_format] } {
 	    shared_test shmpnp "shared (PIC main, non PIC so)" mainp.o sh1np.o sh2np.o xcoff
 	} else {
-	    # SunOS non PIC shared libraries don't permit some cases of
-	    # overriding.
+	    # Solaris defaults to -z text.
+	    setup_xfail "*-*-solaris2*"
 	    setup_xfail "ia64-*-linux*"
 	    setup_xfail "alpha*-*-linux*"
 	    setup_xfail "powerpc64*-*-*"
@@ -324,21 +323,18 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG $picflag" $srcdir/$subdir/main.c $tmpdir/m
 	    shared_test shmpnp "shared (PIC main, non PIC so)" mainp.o sh1np.o sh2np.o shared
 	}
     } else {
-	unresolved "shared (PIC main, non PIC so)"
+	unsupported "shared (PIC main, non PIC so)"
     }
 
     if { [file exists $tmpdir/sh1p.o ] && [ file exists $tmpdir/sh2p.o ] } {
-        if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+        if { [is_xcoff_format] } {
 	    shared_test shmpp "shared (PIC main)" mainp.o sh1p.o sh2p.o xcoff
 	} else {
 	    shared_test shmpp "shared (PIC main)" mainp.o sh1p.o sh2p.o shared
 	}
     } else {
-	unresolved "shared (PIC main)"
+	unsupported "shared (PIC main)"
     }
 }
 
-if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
-    # Remove the temporary directory.
-    catch "exec rm -rf $tmpdir" exec_status
-}
+set CFLAGS_FOR_TARGET "$old_CFLAGS"

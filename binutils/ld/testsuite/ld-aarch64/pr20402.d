@@ -1,4 +1,5 @@
-#ld: -pie -defsym foo=0x1 -defsym bar=0x2
+#target: [check_shared_lib_support]
+#ld: -pie -defsym foo=0x1 -defsym bar=0x2 -z notext
 #readelf: -r
 
 Relocation section '\.rela\.dyn' at offset .* contains 2 entries:

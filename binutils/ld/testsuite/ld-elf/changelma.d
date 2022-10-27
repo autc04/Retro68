@@ -1,5 +1,5 @@
 #name: changelma (pr20659)
-#ld: -T changelma.lnk
+#ld: -T changelma.lnk --no-warn-rwx-segments
 #objcopy_linked_file: --change-section-lma .dynamic+0x80000000
 #readelf: -l --wide
 #xfail: rx-*-*

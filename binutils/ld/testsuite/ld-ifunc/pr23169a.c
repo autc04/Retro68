@@ -4,6 +4,6 @@ extern int func (void);
 void
 foo (void)
 {
-  if (func_p != &func || func_p () != 0xbadbeef)
+  if (func () != 0xbadbeef || func_p () != 0xbadbeef)
     __builtin_abort ();
 }

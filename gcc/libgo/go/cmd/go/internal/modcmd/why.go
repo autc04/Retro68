@@ -5,11 +5,13 @@
 package modcmd
 
 import (
-	"cmd/go/internal/base"
-	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
+	"context"
 	"fmt"
 	"strings"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/imports"
+	"cmd/go/internal/modload"
 )
 
 var cmdWhy = &base.Command{
@@ -44,6 +46,8 @@ For example:
 	# golang.org/x/text/encoding
 	(main module does not need package golang.org/x/text/encoding)
 	$
+
+See https://golang.org/ref/mod#go-mod-why for more about 'go mod why'.
 	`,
 }
 
@@ -54,34 +58,48 @@ var (
 
 func init() {
 	cmdWhy.Run = runWhy // break init cycle
+	base.AddModCommonFlags(&cmdWhy.Flag)
 }
 
-func runWhy(cmd *base.Command, args []string) {
-	loadALL := modload.LoadALL
-	if *whyVendor {
-		loadALL = modload.LoadVendor
+func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+	modload.ForceUseModules = true
+	modload.RootMode = modload.NeedRoot
+	modload.ExplicitWriteGoMod = true // don't write go.mod in ListModules
+
+	loadOpts := modload.PackageOpts{
+		Tags:                     imports.AnyTags(),
+		VendorModulesInGOROOTSrc: true,
+		LoadTests:                !*whyVendor,
+		SilencePackageErrors:     true,
+		UseVendorAll:             *whyVendor,
 	}
+
 	if *whyM {
-		listU := false
-		listVersions := false
 		for _, arg := range args {
 			if strings.Contains(arg, "@") {
-				base.Fatalf("go mod why: module query not allowed")
+				base.Fatalf("go: %s: 'go mod why' requires a module path, not a version query", arg)
 			}
 		}
-		mods := modload.ListModules(args, listU, listVersions)
-		byModule := make(map[module.Version][]string)
-		for _, path := range loadALL() {
+
+		mods, err := modload.ListModules(ctx, args, 0)
+		if err != nil {
+			base.Fatalf("go: %v", err)
+		}
+
+		byModule := make(map[string][]string)
+		_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
+		for _, path := range pkgs {
 			m := modload.PackageModule(path)
 			if m.Path != "" {
-				byModule[m] = append(byModule[m], path)
+				byModule[m.Path] = append(byModule[m.Path], path)
 			}
 		}
 		sep := ""
 		for _, m := range mods {
 			best := ""
 			bestDepth := 1000000000
-			for _, path := range byModule[module.Version{Path: m.Path, Version: m.Version}] {
+			for _, path := range byModule[m.Path] {
 				d := modload.WhyDepth(path)
 				if d > 0 && d < bestDepth {
 					best = path
@@ -100,8 +118,11 @@ func runWhy(cmd *base.Command, args []string) {
 			sep = "\n"
 		}
 	} else {
-		matches := modload.ImportPaths(args) // resolve to packages
-		loadALL()                            // rebuild graph, from main module (not from named packages)
+		// Resolve to packages.
+		matches, _ := modload.LoadPackages(ctx, loadOpts, args...)
+
+		modload.LoadPackages(ctx, loadOpts, "all") // rebuild graph, from main module (not from named packages)
+
 		sep := ""
 		for _, m := range matches {
 			for _, path := range m.Pkgs {

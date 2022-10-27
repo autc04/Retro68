@@ -86,10 +86,10 @@ Disassembly of section .text:
  120:	06 a5 1a 02 	asr.w   r6,r5,0
  124:	86 a5 1a 12 	asr.w   r6,r5,1
  128:	86 a7 23 f1 	asr.b   r8,r7,31
- 12c:	0f 89 28 04 	bra     eq,r9,r10
- 130:	07 a0 00 04 	rflag   r0
- 134:	af 87 04 04 	bra     ne,r7,r1
- 138:	07 e0 ae 04 	readmda r11
+ 12c:	07 a0 00 04 	rflag   r0
+ 130:	0f 89 28 04 	bra     eq,r9,r10
+ 134:	07 e0 ae 04 	readmda r11
+ 138:	af 87 04 04 	bra     ne,r7,r1
  13c:	07 e0 b3 f4 	eamread r12,31
  140:	87 cd 30 04 	extb.l  r12,r13
  144:	87 cf 38 02 	extb.w  r14,r15
@@ -130,8 +130,8 @@ Disassembly of section .text:
  1d0:	84 a7 7f ff 	moviu   r7,0x7FFF
  1d4:	04 c6 00 01 	moviq   r6,1
  1d8:	84 47 ff ff 	subi    r7,65535
- 1dc:	ff 86 00 04 	bra     tr,r6,r0
- 1e0:	86 00 00 04 	add.l   r0,r0,r0
+ 1dc:	86 00 00 04 	add.l   r0,r0,r0
+ 1e0:	ff 86 00 04 	bra     tr,r6,r0
  1e4:	d3 e3 84 5c 	fpinst  10,f1,f3,f5
  1e8:	db e4 88 6c 	fpinst  11,f2,f4,f6
  1ec:	7b ed ac fc 	fpinst  15,f11,f13,f15

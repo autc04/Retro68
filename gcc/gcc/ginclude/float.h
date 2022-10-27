@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2019 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -210,7 +210,8 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #endif /* C99 */
 
-#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#if (defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) \
+     || (defined (__cplusplus) && __cplusplus >= 201703L)
 /* Versions of DECIMAL_DIG for each floating-point type.  */
 #undef FLT_DECIMAL_DIG
 #undef DBL_DECIMAL_DIG
@@ -237,7 +238,55 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #endif /* C11 */
 
-#ifdef __STDC_WANT_IEC_60559_BFP_EXT__
+#if defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L
+/* Maximum finite positive value with MANT_DIG digits in the
+   significand taking their maximum value.  */
+#undef FLT_NORM_MAX
+#undef DBL_NORM_MAX
+#undef LDBL_NORM_MAX
+#define FLT_NORM_MAX	__FLT_NORM_MAX__
+#define DBL_NORM_MAX	__DBL_NORM_MAX__
+#define LDBL_NORM_MAX	__LDBL_NORM_MAX__
+
+/* Whether each type matches an IEC 60559 format (1 for format, 2 for
+   format and operations).  */
+#undef FLT_IS_IEC_60559
+#undef DBL_IS_IEC_60559
+#undef LDBL_IS_IEC_60559
+#define FLT_IS_IEC_60559	__FLT_IS_IEC_60559__
+#define DBL_IS_IEC_60559	__DBL_IS_IEC_60559__
+#define LDBL_IS_IEC_60559	__LDBL_IS_IEC_60559__
+
+/* Infinity in type float, or overflow if infinity not supported.  */
+#undef INFINITY
+#define INFINITY	(__builtin_inff ())
+
+/* Quiet NaN, if supported for float.  */
+#if __FLT_HAS_QUIET_NAN__
+#undef NAN
+#define NAN		(__builtin_nanf (""))
+#endif
+
+/* Signaling NaN, if supported for each type.  All formats supported
+   by GCC support either both quiet and signaling NaNs, or neither
+   kind of NaN.  */
+#if __FLT_HAS_QUIET_NAN__
+#undef FLT_SNAN
+#define FLT_SNAN	(__builtin_nansf (""))
+#endif
+#if __DBL_HAS_QUIET_NAN__
+#undef DBL_SNAN
+#define DBL_SNAN	(__builtin_nans (""))
+#endif
+#if __LDBL_HAS_QUIET_NAN__
+#undef LDBL_SNAN
+#define LDBL_SNAN	(__builtin_nansl (""))
+#endif
+
+#endif /* C2X */
+
+#if (defined __STDC_WANT_IEC_60559_BFP_EXT__ \
+     || defined __STDC_WANT_IEC_60559_EXT__)
 /* Number of decimal digits for which conversions between decimal
    character strings and binary formats, in both directions, are
    correctly rounded.  */
@@ -271,6 +320,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define FLT16_DECIMAL_DIG	__FLT16_DECIMAL_DIG__
 #undef FLT16_TRUE_MIN
 #define FLT16_TRUE_MIN		__FLT16_DENORM_MIN__
+#if defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L
+#undef FLT16_SNAN
+#define FLT16_SNAN	(__builtin_nansf16 (""))
+#endif /* C2X */
 #endif /* __FLT16_MANT_DIG__.  */
 
 #ifdef __FLT32_MANT_DIG__
@@ -296,6 +349,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define FLT32_DECIMAL_DIG	__FLT32_DECIMAL_DIG__
 #undef FLT32_TRUE_MIN
 #define FLT32_TRUE_MIN		__FLT32_DENORM_MIN__
+#if defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L
+#undef FLT32_SNAN
+#define FLT32_SNAN	(__builtin_nansf32 (""))
+#endif /* C2X */
 #endif /* __FLT32_MANT_DIG__.  */
 
 #ifdef __FLT64_MANT_DIG__
@@ -321,6 +378,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define FLT64_DECIMAL_DIG	__FLT64_DECIMAL_DIG__
 #undef FLT64_TRUE_MIN
 #define FLT64_TRUE_MIN		__FLT64_DENORM_MIN__
+#if defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L
+#undef FLT64_SNAN
+#define FLT64_SNAN	(__builtin_nansf64 (""))
+#endif /* C2X */
 #endif /* __FLT64_MANT_DIG__.  */
 
 #ifdef __FLT128_MANT_DIG__
@@ -346,6 +407,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define FLT128_DECIMAL_DIG	__FLT128_DECIMAL_DIG__
 #undef FLT128_TRUE_MIN
 #define FLT128_TRUE_MIN		__FLT128_DENORM_MIN__
+#if defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L
+#undef FLT128_SNAN
+#define FLT128_SNAN	(__builtin_nansf128 (""))
+#endif /* C2X */
 #endif /* __FLT128_MANT_DIG__.  */
 
 #ifdef __FLT32X_MANT_DIG__
@@ -371,6 +436,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define FLT32X_DECIMAL_DIG	__FLT32X_DECIMAL_DIG__
 #undef FLT32X_TRUE_MIN
 #define FLT32X_TRUE_MIN		__FLT32X_DENORM_MIN__
+#if defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L
+#undef FLT32X_SNAN
+#define FLT32X_SNAN	(__builtin_nansf32x (""))
+#endif /* C2X */
 #endif /* __FLT32X_MANT_DIG__.  */
 
 #ifdef __FLT64X_MANT_DIG__
@@ -396,6 +465,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define FLT64X_DECIMAL_DIG	__FLT64X_DECIMAL_DIG__
 #undef FLT64X_TRUE_MIN
 #define FLT64X_TRUE_MIN		__FLT64X_DENORM_MIN__
+#if defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L
+#undef FLT64X_SNAN
+#define FLT64X_SNAN	(__builtin_nansf64x (""))
+#endif /* C2X */
 #endif /* __FLT64X_MANT_DIG__.  */
 
 #ifdef __FLT128X_MANT_DIG__
@@ -421,13 +494,21 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define FLT128X_DECIMAL_DIG	__FLT128X_DECIMAL_DIG__
 #undef FLT128X_TRUE_MIN
 #define FLT128X_TRUE_MIN	__FLT128X_DENORM_MIN__
+#if defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L
+#undef FLT128X_SNAN
+#define FLT128X_SNAN	(__builtin_nansf128x (""))
+#endif /* C2X */
 #endif /* __FLT128X_MANT_DIG__.  */
 
 #endif /* __STDC_WANT_IEC_60559_TYPES_EXT__.  */
 
-#ifdef __STDC_WANT_DEC_FP__
-/* Draft Technical Report 24732, extension for decimal floating-point
-   arithmetic: Characteristic of decimal floating types <float.h>.  */
+#ifdef __DEC32_MANT_DIG__
+#if (defined __STDC_WANT_DEC_FP__ \
+     || defined __STDC_WANT_IEC_60559_DFP_EXT__ \
+     || (defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L))
+/* C2X; formerly Technical Report 24732, extension for decimal
+   floating-point arithmetic: Characteristic of decimal floating types
+   <float.h>, and TS 18661-2.  */
 
 /* Number of base-FLT_RADIX digits in the significand, p.  */
 #undef DEC32_MANT_DIG
@@ -479,14 +560,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define DEC64_MIN	__DEC64_MIN__
 #define DEC128_MIN	__DEC128_MIN__
 
-/* Minimum subnormal positive floating-point number. */
-#undef DEC32_SUBNORMAL_MIN
-#undef DEC64_SUBNORMAL_MIN
-#undef DEC128_SUBNORMAL_MIN
-#define DEC32_SUBNORMAL_MIN       __DEC32_SUBNORMAL_MIN__
-#define DEC64_SUBNORMAL_MIN       __DEC64_SUBNORMAL_MIN__
-#define DEC128_SUBNORMAL_MIN      __DEC128_SUBNORMAL_MIN__
-
 /* The floating-point expression evaluation method.
          -1  indeterminate
          0  evaluate all operations and constants just to the range and
@@ -501,6 +574,53 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #undef DEC_EVAL_METHOD
 #define DEC_EVAL_METHOD	__DEC_EVAL_METHOD__
 
-#endif /* __STDC_WANT_DEC_FP__ */
+#endif /* __STDC_WANT_DEC_FP__ || __STDC_WANT_IEC_60559_DFP_EXT__ || C2X.  */
+
+#ifdef __STDC_WANT_DEC_FP__
+
+/* Minimum subnormal positive floating-point number. */
+#undef DEC32_SUBNORMAL_MIN
+#undef DEC64_SUBNORMAL_MIN
+#undef DEC128_SUBNORMAL_MIN
+#define DEC32_SUBNORMAL_MIN       __DEC32_SUBNORMAL_MIN__
+#define DEC64_SUBNORMAL_MIN       __DEC64_SUBNORMAL_MIN__
+#define DEC128_SUBNORMAL_MIN      __DEC128_SUBNORMAL_MIN__
+
+#endif /* __STDC_WANT_DEC_FP__.  */
+
+#if (defined __STDC_WANT_IEC_60559_DFP_EXT__ \
+     || (defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L))
+
+/* Minimum subnormal positive floating-point number. */
+#undef DEC32_TRUE_MIN
+#undef DEC64_TRUE_MIN
+#undef DEC128_TRUE_MIN
+#define DEC32_TRUE_MIN       __DEC32_SUBNORMAL_MIN__
+#define DEC64_TRUE_MIN       __DEC64_SUBNORMAL_MIN__
+#define DEC128_TRUE_MIN      __DEC128_SUBNORMAL_MIN__
+
+#endif /* __STDC_WANT_IEC_60559_DFP_EXT__ || C2X.  */
+
+#if defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L
+
+/* Infinity in type _Decimal32.  */
+#undef DEC_INFINITY
+#define DEC_INFINITY	(__builtin_infd32 ())
+
+/* Quiet NaN in type _Decimal32.  */
+#undef DEC_NAN
+#define DEC_NAN		(__builtin_nand32 (""))
+
+/* Signaling NaN in each decimal floating-point type.  */
+#undef DEC32_SNAN
+#define DEC32_SNAN	(__builtin_nansd32 (""))
+#undef DEC64_SNAN
+#define DEC64_SNAN	(__builtin_nansd64 (""))
+#undef DEC128_SNAN
+#define DEC128_SNAN	(__builtin_nansd128 (""))
+
+#endif /* C2X */
+
+#endif /* __DEC32_MANT_DIG__ */
 
 #endif /* _FLOAT_H___ */

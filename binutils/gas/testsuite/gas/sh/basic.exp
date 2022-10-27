@@ -1,4 +1,4 @@
-# Copyright (C) 1995-2018 Free Software Foundation, Inc.
+# Copyright (C) 1995-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 
 # Written by Cygnus Support.
 
-if {[istarget "sh*-*-linux-*"] || [istarget "sh*l*-*-netbsdelf*"]} then {
+if {[istarget "sh*-*-linux-*"] || [istarget "sh*l*-*-netbsd*"]} then {
     global ASFLAGS
     set ASFLAGS "$ASFLAGS -big"
 }

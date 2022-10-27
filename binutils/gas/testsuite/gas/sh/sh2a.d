@@ -2,7 +2,7 @@
 #name: SH2a new instructions
 #as: -isa=sh2a
 
-dump.o:     file format elf32-sh.*
+.*:     file format elf32-sh.*
 
 Disassembly of section .text:
 0x00000000 33 79 4f ff 	band.b	#7,@\(4095,r3\)

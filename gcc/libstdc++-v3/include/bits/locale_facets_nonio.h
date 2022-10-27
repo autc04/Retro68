@@ -1,6 +1,6 @@
 // Locale support -*- C++ -*-
 
-// Copyright (C) 2007-2019 Free Software Foundation, Inc.
+// Copyright (C) 2007-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -243,6 +243,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif
 
       void
+      _M_am_pm_format(const _CharT** __ampm_format) const
+      {
+	__ampm_format[0] = _M_data->_M_am_pm_format;
+      }
+
+      void
       _M_am_pm(const _CharT** __ampm) const
       {
 	__ampm[0] = _M_data->_M_am;
@@ -349,6 +355,30 @@ namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
+  struct __time_get_state
+  {
+    // Finalize state.
+    void
+    _M_finalize_state(tm* __tm);
+
+    unsigned int _M_have_I : 1;
+    unsigned int _M_have_wday : 1;
+    unsigned int _M_have_yday : 1;
+    unsigned int _M_have_mon : 1;
+    unsigned int _M_have_mday : 1;
+    unsigned int _M_have_uweek : 1;
+    unsigned int _M_have_wweek : 1;
+    unsigned int _M_have_century : 1;
+    unsigned int _M_is_pm : 1;
+    unsigned int _M_want_century : 1;
+    unsigned int _M_want_xday : 1;
+    unsigned int _M_pad1 : 5;
+    unsigned int _M_week_no : 6;
+    unsigned int _M_pad2 : 10;
+    int _M_century;
+    int _M_pad3;
+  };
+
 _GLIBCXX_BEGIN_NAMESPACE_CXX11
 
   /**
@@ -369,11 +399,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
     {
     public:
       // Types:
-      //@{
+      ///@{
       /// Public typedefs
       typedef _CharT			char_type;
       typedef _InIter			iter_type;
-      //@}
+      ///@}
 
       /// Numpunct facet id.
       static locale::id			id;
@@ -750,6 +780,14 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       _M_extract_via_format(iter_type __beg, iter_type __end, ios_base& __io,
 			    ios_base::iostate& __err, tm* __tm,
 			    const _CharT* __format) const;
+
+      // Extract on a component-by-component basis, via __format argument, with
+      // state.
+      iter_type
+      _M_extract_via_format(iter_type __beg, iter_type __end, ios_base& __io,
+			    ios_base::iostate& __err, tm* __tm,
+			    const _CharT* __format,
+			    __time_get_state &__state) const;
     };
 
   template<typename _CharT, typename _InIter>
@@ -798,11 +836,11 @@ _GLIBCXX_END_NAMESPACE_CXX11
     {
     public:
       // Types:
-      //@{
+      ///@{
       /// Public typedefs
       typedef _CharT			char_type;
       typedef _OutIter			iter_type;
-      //@}
+      ///@}
 
       /// Numpunct facet id.
       static locale::id			id;
@@ -1025,11 +1063,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
     {
     public:
       // Types:
-      //@{
+      ///@{
       /// Public typedefs
       typedef _CharT			char_type;
       typedef basic_string<_CharT>	string_type;
-      //@}
+      ///@}
       typedef __moneypunct_cache<_CharT, _Intl>     __cache_type;
 
     private:
@@ -1201,7 +1239,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       frac_digits() const
       { return this->do_frac_digits(); }
 
-      //@{
+      ///@{
       /**
        *  @brief  Return pattern for money values.
        *
@@ -1240,7 +1278,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
       pattern
       neg_format() const
       { return this->do_neg_format(); }
-      //@}
+      ///@}
 
     protected:
       /// Destructor.
@@ -1469,12 +1507,12 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL_OR_CXX11
     {
     public:
       // Types:
-      //@{
+      ///@{
       /// Public typedefs
       typedef _CharT			char_type;
       typedef _InIter			iter_type;
       typedef basic_string<_CharT>	string_type;
-      //@}
+      ///@}
 
       /// Numpunct facet id.
       static locale::id			id;
@@ -1566,7 +1604,7 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL_OR_CXX11
        */
       // XXX GLIBCXX_ABI Deprecated
 #if defined _GLIBCXX_LONG_DOUBLE_COMPAT && defined __LONG_DOUBLE_128__ \
-      && _GLIBCXX_USE_CXX11_ABI == 0
+      && (_GLIBCXX_USE_CXX11_ABI == 0 || defined __LONG_DOUBLE_IEEE128__)
       virtual iter_type
       __do_get(iter_type __s, iter_type __end, bool __intl, ios_base& __io,
 	       ios_base::iostate& __err, double& __units) const;
@@ -1588,8 +1626,16 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL_OR_CXX11
 	     ios_base::iostate& __err, string_type& __digits) const;
 
       // XXX GLIBCXX_ABI Deprecated
+#if defined _GLIBCXX_LONG_DOUBLE_ALT128_COMPAT \
+      && defined __LONG_DOUBLE_IEEE128__
+      virtual iter_type
+      __do_get(iter_type __s, iter_type __end, bool __intl, ios_base& __io,
+	       ios_base::iostate& __err, __ibm128& __units) const;
+#endif
+
+      // XXX GLIBCXX_ABI Deprecated
 #if defined _GLIBCXX_LONG_DOUBLE_COMPAT && defined __LONG_DOUBLE_128__ \
-      && _GLIBCXX_USE_CXX11_ABI == 0
+      && (_GLIBCXX_USE_CXX11_ABI == 0 || defined __LONG_DOUBLE_IEEE128__)
       virtual iter_type
       do_get(iter_type __s, iter_type __end, bool __intl, ios_base& __io,
 	     ios_base::iostate& __err, long double& __units) const;
@@ -1621,12 +1667,12 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL_OR_CXX11
     class money_put : public locale::facet
     {
     public:
-      //@{
+      ///@{
       /// Public typedefs
       typedef _CharT			char_type;
       typedef _OutIter			iter_type;
       typedef basic_string<_CharT>	string_type;
-      //@}
+      ///@}
 
       /// Numpunct facet id.
       static locale::id			id;
@@ -1711,7 +1757,7 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL_OR_CXX11
        */
       // XXX GLIBCXX_ABI Deprecated
 #if defined _GLIBCXX_LONG_DOUBLE_COMPAT && defined __LONG_DOUBLE_128__ \
-      && _GLIBCXX_USE_CXX11_ABI == 0
+      && (_GLIBCXX_USE_CXX11_ABI == 0 || defined __LONG_DOUBLE_IEEE128__)
       virtual iter_type
       __do_put(iter_type __s, bool __intl, ios_base& __io, char_type __fill,
 	       double __units) const;
@@ -1745,8 +1791,16 @@ _GLIBCXX_BEGIN_NAMESPACE_LDBL_OR_CXX11
 	     const string_type& __digits) const;
 
       // XXX GLIBCXX_ABI Deprecated
+#if defined _GLIBCXX_LONG_DOUBLE_ALT128_COMPAT \
+      && defined __LONG_DOUBLE_IEEE128__
+      virtual iter_type
+      __do_put(iter_type __s, bool __intl, ios_base& __io, char_type __fill,
+	       __ibm128 __units) const;
+#endif
+
+      // XXX GLIBCXX_ABI Deprecated
 #if defined _GLIBCXX_LONG_DOUBLE_COMPAT && defined __LONG_DOUBLE_128__ \
-      && _GLIBCXX_USE_CXX11_ABI == 0
+      && (_GLIBCXX_USE_CXX11_ABI == 0 || defined __LONG_DOUBLE_IEEE128__)
       virtual iter_type
       do_put(iter_type __s, bool __intl, ios_base& __io, char_type __fill,
 	     long double __units) const;
@@ -1800,11 +1854,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
     {
     public:
       // Types:
-      //@{
+      ///@{
       /// Public typedefs
       typedef _CharT			char_type;
       typedef basic_string<_CharT>	string_type;
-      //@}
+      ///@}
 
     protected:
       // Underlying "C" library locale information saved from

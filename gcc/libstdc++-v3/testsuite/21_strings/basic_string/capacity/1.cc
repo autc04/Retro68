@@ -1,6 +1,6 @@
 // 1999-05-11 bkoz
 
-// Copyright (C) 1999-2019 Free Software Foundation, Inc.
+// Copyright (C) 1999-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
+
+// { dg-options "-Wno-stringop-overflow -Wno-stringop-overread" }
 
 // 21.3.3 string capacity
 
@@ -136,13 +138,19 @@ void test01()
   sz04 = str02.capacity();
   VERIFY( sz04 >= sz03 );
   VERIFY( sz04 >= 100 );
+#if __cplusplus <= 201703L
   str02.reserve();
-  sz03 = str02.capacity();
-#if _GLIBCXX_USE_CXX11_ABI
-  VERIFY( sz03 < 100);
 #else
-  VERIFY( sz03 == 0 );
+  str02.shrink_to_fit(); // reserve is deprecated in C++20
 #endif
+  sz03 = str02.capacity();
+  VERIFY( sz03 < sz04 );
+
+  // P0966: reserve should not shrink
+  str02.reserve(100);
+  sz03 = str02.capacity();
+  str02.reserve(sz03 - 1);
+  VERIFY( str02.capacity() == sz03 );
 
   sz03 = str02.size() + 5;
   str02.resize(sz03);

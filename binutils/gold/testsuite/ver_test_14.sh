@@ -2,7 +2,7 @@
 
 # ver_test_14.sh -- a test case for version scripts
 
-# Copyright (C) 2018 Free Software Foundation, Inc.
+# Copyright (C) 2018-2022 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@gmail.com>.
 
 # This file is part of gold.
@@ -35,9 +35,9 @@ check()
     fi
 }
 
-check ver_test_14.syms "V1  *t2()$"
-check ver_test_14.syms "V1  *t3()$"
-check ver_test_14.syms "V1  *t4()$"
-check ver_test_14.syms "Base  *t4_2a$"
+check ver_test_14.syms "V1 *\(0x[0-9a-f][048c]\)\? t2()$"
+check ver_test_14.syms "V1 *\(0x[0-9a-f][048c]\)\? t3()$"
+check ver_test_14.syms "V1 *\(0x[0-9a-f][048c]\)\? t4()$"
+check ver_test_14.syms "Base *\(0x[0-9a-f][048c]\)\? t4_2a$"
 
 exit 0

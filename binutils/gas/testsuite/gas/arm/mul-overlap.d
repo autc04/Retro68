@@ -1,2 +1,2 @@
 # name: Overlapping multiplication operands without architecture specification
-# error-output: mul-overlap.l
+# warning_output: mul-overlap.l

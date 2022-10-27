@@ -1,5 +1,5 @@
 # Expect script for various DWARF tests.
-#   Copyright (C) 2006-2018 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2022 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -36,12 +36,12 @@ if ![check_shared_lib_support] {
 }
 
 # Check if compiler works
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     return
 }
 
 # Skip if -feliminate-dwarf2-dups isn't supported.
-if ![ld_compile "$CC -g -feliminate-dwarf2-dups" $srcdir/$subdir/dummy.c tmpdir/dummy.o] {
+if ![ld_compile "$CC_FOR_TARGET -g -feliminate-dwarf2-dups" $srcdir/$subdir/dummy.c tmpdir/dummy.o] {
     return
 }
 
@@ -68,8 +68,12 @@ set run_tests {
      "-g -feliminate-dwarf2-dups"}
 }
 
+# Disable all sanitizers.
+set old_CFLAGS "$CFLAGS_FOR_TARGET"
+append CFLAGS_FOR_TARGET " $NOSANITIZE_CFLAGS"
 run_cc_link_tests $build_tests
 run_ld_link_exec_tests $run_tests
+set CFLAGS_FOR_TARGET "$old_CFLAGS"
 
 proc strip_test {} {
     global ld
@@ -81,7 +85,7 @@ proc strip_test {} {
     set prog $strip
 
     if ![ld_link $ld tmpdir/$test "-shared tmpdir/dwarf1.o"] {
-	unresolved "$test_name"
+	fail "$test_name"
 	return
     }
 
@@ -89,7 +93,7 @@ proc strip_test {} {
     catch "exec $NM -D tmpdir/$test > tmpdir/$test.exp" got
     if ![string match "" $got] then {
 	send_log "$got\n"
-	unresolved "$test_name"
+	fail "$test_name"
 	return
     }
 
@@ -105,7 +109,7 @@ proc strip_test {} {
     catch "exec $NM -D tmpdir/$test > tmpdir/$test.out" got
     if ![string match "" $got] then {
 	send_log "$got\n"
-	unresolved "$test_name"
+	fail "$test_name"
  	return
     }
 

@@ -8,14 +8,13 @@
  */
 module core.sys.posix.sys.select;
 
-private import core.sys.posix.config;
+import core.sys.posix.config;
 public import core.stdc.time;           // for timespec
 public import core.sys.posix.sys.time;  // for timeval
 public import core.sys.posix.sys.types; // for time_t
 public import core.sys.posix.signal;    // for sigset_t
 
 //debug=select;  // uncomment to turn on debugging printf's
-version (unittest) import core.stdc.stdio: printf;
 
 version (OSX)
     version = Darwin;
@@ -28,6 +27,7 @@ else version (WatchOS)
 
 version (Posix):
 extern (C) nothrow @nogc:
+@system:
 
 //
 // Required
@@ -47,7 +47,7 @@ void FD_ZERO(fd_set* fdset);
 
 FD_SETSIZE
 
-int  pselect(int, fd_set*, fd_set*, fd_set*, in timespec*, in sigset_t*);
+int  pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
 int  select(int, fd_set*, fd_set*, fd_set*, timeval*);
 */
 
@@ -131,7 +131,7 @@ version (CRuntime_Glibc)
          __result; }))
      +/
 
-    int pselect(int, fd_set*, fd_set*, fd_set*, in timespec*, in sigset_t*);
+    int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
     int select(int, fd_set*, fd_set*, fd_set*, timeval*);
 }
 else version (Darwin)
@@ -169,7 +169,7 @@ else version (Darwin)
         fdset.fds_bits[0 .. $] = 0;
     }
 
-    int pselect(int, fd_set*, fd_set*, fd_set*, in timespec*, in sigset_t*);
+    int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
     int select(int, fd_set*, fd_set*, fd_set*, timeval*);
 }
 else version (FreeBSD)
@@ -218,7 +218,7 @@ else version (FreeBSD)
             _p.__fds_bits[--_n] = 0;
     }
 
-    int pselect(int, fd_set*, fd_set*, fd_set*, in timespec*, in sigset_t*);
+    int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
     int select(int, fd_set*, fd_set*, fd_set*, timeval*);
 }
 else version (NetBSD)
@@ -267,7 +267,54 @@ else version (NetBSD)
             _p.__fds_bits[--_n] = 0;
     }
 
-    int pselect(int, fd_set*, fd_set*, fd_set*, in timespec*, in sigset_t*);
+    int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
+    int select(int, fd_set*, fd_set*, fd_set*, timeval*);
+}
+else version (OpenBSD)
+{
+    private
+    {
+        alias uint __fd_mask;
+        enum _NFDBITS = __fd_mask.sizeof * 8;
+    }
+
+    enum uint FD_SETSIZE = 1024;
+
+    struct fd_set
+    {
+        __fd_mask[(FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS] __fds_bits;
+    }
+
+    extern (D) __fd_mask __fdset_mask(uint n) pure
+    {
+        return cast(__fd_mask) 1 << (n % _NFDBITS);
+    }
+
+    extern (D) void FD_CLR(int n, fd_set* p) pure
+    {
+        p.__fds_bits[n / _NFDBITS] &= ~__fdset_mask(n);
+    }
+
+    extern (D) bool FD_ISSET(int n, const(fd_set)* p) pure
+    {
+        return (p.__fds_bits[n / _NFDBITS] & __fdset_mask(n)) != 0;
+    }
+
+    extern (D) void FD_SET(int n, fd_set* p) pure
+    {
+        p.__fds_bits[n / _NFDBITS] |= __fdset_mask(n);
+    }
+
+    extern (D) void FD_ZERO(fd_set* p) pure
+    {
+        fd_set *_p = p;
+        size_t _n = (FD_SETSIZE + (_NFDBITS - 1)) / _NFDBITS;
+
+        while (_n > 0)
+            _p.__fds_bits[--_n] = 0;
+    }
+
+    int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
     int select(int, fd_set*, fd_set*, fd_set*, timeval*);
 }
 else version (DragonFlyBSD)
@@ -316,7 +363,7 @@ else version (DragonFlyBSD)
             _p.__fds_bits[--_n] = 0;
     }
 
-    int pselect(int, fd_set*, fd_set*, fd_set*, in timespec*, in sigset_t*);
+    int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
     int select(int, fd_set*, fd_set*, fd_set*, timeval*);
 }
 else version (Solaris)
@@ -360,7 +407,7 @@ else version (Solaris)
     }
 
     int select(int, fd_set*, fd_set*, fd_set*, timeval*);
-    int pselect(int, fd_set*, fd_set*, fd_set*, in timespec*, in sigset_t*);
+    int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
 }
 else version (CRuntime_Bionic)
 {
@@ -408,7 +455,7 @@ else version (CRuntime_Bionic)
         fdset.fds_bits[0 .. $] = 0;
     }
 
-    int pselect(int, fd_set*, fd_set*, fd_set*, in timespec*, in sigset_t*);
+    int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
     int select(int, fd_set*, fd_set*, fd_set*, timeval*);
 }
 else version (CRuntime_Musl)
@@ -455,7 +502,7 @@ else version (CRuntime_Musl)
     {
         fdset.fds_bits[0 .. $] = 0;
     }
-    int pselect(int, fd_set*, fd_set*, fd_set*, in timespec*, in sigset_t*);
+    int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
     int select(int, fd_set*, fd_set*, fd_set*, timeval*);
 }
 else version (CRuntime_UClibc)
@@ -503,7 +550,7 @@ else version (CRuntime_UClibc)
         fdset.fds_bits[0 .. $] = 0;
     }
 
-    int pselect(int, fd_set*, fd_set*, fd_set*, in timespec*, in sigset_t*);
+    int pselect(int, fd_set*, fd_set*, fd_set*, const scope timespec*, const scope sigset_t*);
     int select(int, fd_set*, fd_set*, fd_set*, timeval*);
 }
 else
@@ -513,6 +560,8 @@ else
 
 pure unittest
 {
+    import core.stdc.stdio: printf;
+
     debug(select) printf("core.sys.posix.sys.select unittest\n");
 
     fd_set fd;

@@ -1,6 +1,85 @@
-2019-05-03  Release Manager
+2022-08-19  Release Manager
 
-	* GCC 9.1.0 released.
+	* GCC 12.2.0 released.
+
+2022-05-06  Release Manager
+
+	* GCC 12.1.0 released.
+
+2022-01-11  Jakub Jelinek  <jakub@redhat.com>
+
+	* configure.ac: Set XCFLAGS to -mno-gnu-attribute on
+	powerpc64le*-linux*.
+	* configure: Regenerated.
+
+2022-01-03  Jakub Jelinek  <jakub@redhat.com>
+
+	* libquadmath.texi: Bump @copying's copyright year.
+
+2021-06-08  Martin Liska  <mliska@suse.cz>
+
+	* libquadmath.texi: Fix typo.
+
+2021-01-05  Samuel Thibault  <samuel.thibault@ens-lyon.org>
+
+	* configure: Re-generate.
+
+2021-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* libquadmath.texi: Bump @copying's copyright year.
+
+2020-12-05  Iain Sandoe  <iain@sandoe.co.uk>
+
+	PR target/97865
+	* configure: Regenerate.
+
+2020-11-29  John David Anglin  <danglin@gcc.gnu.org>
+
+	* configure: Regenerate.
+
+2020-05-29  H.J. Lu  <hjl.tools@gmail.com>
+
+	PR bootstrap/95413
+	* configure: Regenerated.
+
+2020-05-15  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR bootstrap/95147
+	* configure: Regenerated.
+
+2020-05-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* configure: Regenerated.
+
+2020-02-12  Sandra Loosemore  <sandra@codesourcery.com>
+
+	PR libstdc++/79193
+	PR libstdc++/88999
+
+	* configure: Regenerated.
+
+2020-01-24  Maciej W. Rozycki  <macro@wdc.com>
+
+	* configure.ac: Handle `--with-toolexeclibdir='.
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2020-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+	* libquadmath.texi: Bump @copying's copyright year.
+
+2019-09-27  Maciej W. Rozycki  <macro@wdc.com>
+
+	* configure: Regenerate.
+
+2019-08-02  Jakub Jelinek  <jakub@redhat.com>
+
+	* quadmath.h (M_Eq, M_LOG2Eq, M_LOG10Eq, M_LN2q, M_LN10q, M_PIq,
+	M_PI_2q, M_PI_4q, M_1_PIq, M_2_PIq, M_2_SQRTPIq, M_SQRT2q,
+	M_SQRT1_2q): Use two more decimal places.
 
 2019-01-01  Jakub Jelinek  <jakub@redhat.com>
 

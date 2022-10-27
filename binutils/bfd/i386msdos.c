@@ -1,5 +1,5 @@
 /* BFD back-end for MS-DOS executables.
-   Copyright (C) 1990-2018 Free Software Foundation, Inc.
+   Copyright (C) 1990-2022 Free Software Foundation, Inc.
    Written by Bryan Ford of the University of Utah.
 
    Contributed by the Center for Software Science at the
@@ -33,7 +33,7 @@
 #define EXE_LOAD_LOW	0xffff
 #define EXE_PAGE_SIZE	512
 
-static bfd_boolean
+static bool
 msdos_mkobject (bfd *abfd)
 {
   bfd_default_set_arch_mach (abfd, bfd_arch_i386, bfd_mach_i386_i8086);
@@ -41,16 +41,16 @@ msdos_mkobject (bfd *abfd)
   return aout_32_mkobject (abfd);
 }
 
-static const bfd_target *
+static bfd_cleanup
 msdos_object_p (bfd *abfd)
 {
   struct external_DOS_hdr hdr;
   bfd_byte buffer[2];
   asection *section;
-  unsigned int size;
+  bfd_size_type size;
 
   if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0
-      || bfd_bread (&hdr, (bfd_size_type) sizeof (hdr), abfd) < DOS_HDR_SIZE)
+      || (size = bfd_bread (&hdr, sizeof (hdr), abfd)) + 1 < DOS_HDR_SIZE + 1)
     {
       if (bfd_get_error () != bfd_error_system_call)
 	bfd_set_error (bfd_error_wrong_format);
@@ -67,9 +67,11 @@ msdos_object_p (bfd *abfd)
      e_lfanew field will be valid and point to a header beginning with one of
      the relevant signatures.  If not, e_lfanew might point to anything, so
      don't bail if we can't read there.  */
-  if (H_GET_16 (abfd, hdr.e_cparhdr) < 4
-      || bfd_seek (abfd, (file_ptr) H_GET_32 (abfd, hdr.e_lfanew), SEEK_SET) != 0
-      || bfd_bread (buffer, (bfd_size_type) 2, abfd) != 2)
+  if (size < offsetof (struct external_DOS_hdr, e_lfanew) + 4
+      || H_GET_16 (abfd, hdr.e_cparhdr) < 4)
+    ;
+  else if (bfd_seek (abfd, H_GET_32 (abfd, hdr.e_lfanew), SEEK_SET) != 0
+	   || bfd_bread (buffer, (bfd_size_type) 2, abfd) != 2)
     {
       if (bfd_get_error () == bfd_error_system_call)
 	return NULL;
@@ -102,17 +104,17 @@ msdos_object_p (bfd *abfd)
   size += H_GET_16 (abfd, hdr.e_cblp);
 
   /* Check that the size is valid.  */
-  if (bfd_seek (abfd, (file_ptr) (section->filepos + size), SEEK_SET) != 0)
+  if (bfd_seek (abfd, section->filepos + size, SEEK_SET) != 0)
     {
       if (bfd_get_error () != bfd_error_system_call)
 	bfd_set_error (bfd_error_wrong_format);
       return NULL;
     }
 
-  bfd_set_section_size (abfd, section, size);
+  bfd_set_section_size (section, size);
   section->alignment_power = 4;
 
-  return abfd->xvec;
+  return _bfd_no_cleanup;
 }
 
 static int
@@ -122,7 +124,7 @@ msdos_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
   return 0;
 }
 
-static bfd_boolean
+static bool
 msdos_write_object_contents (bfd *abfd)
 {
   static char hdr[EXE_PAGE_SIZE];
@@ -135,16 +137,16 @@ msdos_write_object_contents (bfd *abfd)
     {
       if (sec->size == 0)
 	continue;
-      if (bfd_get_section_flags (abfd, sec) & SEC_ALLOC)
+      if (bfd_section_flags (sec) & SEC_ALLOC)
 	{
-	  bfd_vma sec_vma = bfd_get_section_vma (abfd, sec) + sec->size;
+	  bfd_vma sec_vma = bfd_section_vma (sec) + sec->size;
 	  if (sec_vma > high_vma)
 	    high_vma = sec_vma;
 	}
-      if (bfd_get_section_flags (abfd, sec) & SEC_LOAD)
+      if (bfd_section_flags (sec) & SEC_LOAD)
 	{
 	  file_ptr sec_end = (sizeof (hdr)
-			      + bfd_get_section_vma (abfd, sec)
+			      + bfd_section_vma (sec)
 			      + sec->size);
 	  if (sec_end > outfile_size)
 	    outfile_size = sec_end;
@@ -155,7 +157,7 @@ msdos_write_object_contents (bfd *abfd)
   if (high_vma > (bfd_vma)0xffff)
     {
       bfd_set_error(bfd_error_file_too_big);
-      return FALSE;
+      return false;
     }
 
   /* Constants.  */
@@ -179,12 +181,12 @@ msdos_write_object_contents (bfd *abfd)
 
   if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0
       || bfd_bwrite (hdr, (bfd_size_type) sizeof(hdr), abfd) != sizeof(hdr))
-    return FALSE;
+    return false;
 
-  return TRUE;
+  return true;
 }
 
-static bfd_boolean
+static bool
 msdos_set_section_contents (bfd *abfd,
 			    sec_ptr section,
 			    const void *location,
@@ -193,18 +195,18 @@ msdos_set_section_contents (bfd *abfd,
 {
 
   if (count == 0)
-    return TRUE;
+    return true;
 
-  section->filepos = EXE_PAGE_SIZE + bfd_get_section_vma (abfd, section);
+  section->filepos = EXE_PAGE_SIZE + bfd_section_vma (section);
 
-  if (bfd_get_section_flags (abfd, section) & SEC_LOAD)
+  if (bfd_section_flags (section) & SEC_LOAD)
     {
       if (bfd_seek (abfd, section->filepos + offset, SEEK_SET) != 0
 	  || bfd_bwrite (location, count, abfd) != count)
-	return FALSE;
+	return false;
     }
 
-  return TRUE;
+  return true;
 }
 
 
@@ -226,6 +228,7 @@ msdos_set_section_contents (bfd *abfd,
 #define msdos_bfd_lookup_section_flags bfd_generic_lookup_section_flags
 #define msdos_bfd_merge_sections bfd_generic_merge_sections
 #define msdos_bfd_is_group_section bfd_generic_is_group_section
+#define msdos_bfd_group_name bfd_generic_group_name
 #define msdos_bfd_discard_group bfd_generic_discard_group
 #define msdos_section_already_linked \
   _bfd_generic_section_already_linked
@@ -276,6 +279,7 @@ const bfd_target i386_msdos_vec =
     ' ',				/* ar_pad_char */
     16,				/* ar_max_namelen */
     0,				/* match priority.  */
+    TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
     bfd_getl64, bfd_getl_signed_64, bfd_putl64,
     bfd_getl32, bfd_getl_signed_32, bfd_putl32,
     bfd_getl16, bfd_getl_signed_16, bfd_putl16,	/* data */

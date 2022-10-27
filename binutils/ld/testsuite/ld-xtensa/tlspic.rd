@@ -100,7 +100,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
  +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +11 *
  +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +12 *
  +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +13 *
- +[0-9]+: [0-9a-f]+ +0 +FILE +LOCAL +DEFAULT +ABS +tmpdir/tlspic1.o
+ +[0-9]+: [0-9a-f]+ +0 +FILE +LOCAL +DEFAULT +ABS .*tlspic1.o
  +[0-9]+: 0+20 +0 +TLS +LOCAL +DEFAULT +7 sl1
  +[0-9]+: 0+24 +0 +TLS +LOCAL +DEFAULT +7 sl2
  +[0-9]+: 0+28 +0 +TLS +LOCAL +DEFAULT +7 sl3

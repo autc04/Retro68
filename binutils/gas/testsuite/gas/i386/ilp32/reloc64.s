@@ -178,7 +178,8 @@ bad	.byte	xtrn@tpoff
 
 	.text
 	mov	xtrn@tpoff (%rbx), %eax
-	movabsq	$xtrn - 4294967295, %rbp
+	movabsq	$xtrn + 0x7fffffff, %rbx
+	movabsq	$xtrn - 0x80000000, %rbp
 
 	.data
 	.quad	xtrn
@@ -186,3 +187,19 @@ bad	.byte	xtrn@tpoff
 	.quad	xtrn - 0x80000000
 	.long	xtrn@got - 4
 	.long	xtrn@got + 4
+bad	.long	xtrn@plt - .
+
+	.text
+bad	add	$x+0x123456789, %rax
+bad	add	$x+0x123456789, %eax
+bad	add	x+0x123456789, %eax
+bad	add	x+0x123456789(%eax), %eax
+bad	enter	$x+0x123456789, $x+0x123456789
+bad	enter	$x+0x12345, $x+0x123
+
+	.data
+bad	.long x+0x123456789
+bad	.word x+0x123456789
+bad	.word x+0x12345
+bad	.byte x+0x123456789
+bad	.byte x+0x123

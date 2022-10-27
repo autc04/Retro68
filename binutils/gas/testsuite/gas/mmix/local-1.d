@@ -24,7 +24,7 @@ SYMBOL TABLE:
 
 
 RELOCATION RECORDS FOR \[\.text\]:
-OFFSET           TYPE              VALUE 
+OFFSET +TYPE +VALUE
 0+ R_MMIX_LOCAL      extreg
 0+ R_MMIX_LOCAL      reghere
 0+ R_MMIX_LOCAL      consthere

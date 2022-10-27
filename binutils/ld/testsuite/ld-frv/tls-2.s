@@ -181,3 +181,5 @@ _start:
 	setlo	#gottlsofflo(i+1+4096), gr8
 	ld	#tlsoff(i+1+4096)@(gr15, gr8), gr9
 .endif
+
+	.section	.note.GNU-stack

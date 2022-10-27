@@ -17,7 +17,7 @@ Disassembly of section .text:
   1e:	2d 00 00 00 00 [ 	]*sub    \$0x0,%eax
 [ 	]+1f: R_386_TLS_LE_32	bar
   23:	65 8b 0d 00 00 00 00 [ 	]*mov    %gs:0x0,%ecx
-  2a:	90 [ 	]*nop[ 	]*
+  2a:	90 [ 	]*nop
   2b:	81 e9 00 00 00 00 [ 	]*sub    \$0x0,%ecx
 [ 	]+2d: R_386_TLS_LE_32	baz
   31:	65 8b 0d 00 00 00 00 [ 	]*mov    %gs:0x0,%ecx
@@ -34,4 +34,4 @@ Disassembly of section .text:
   4f:	65 a1 00 00 00 00 [ 	]*mov    %gs:0x0,%eax
   55:	03 05 00 00 00 00 [ 	]*add    0x0,%eax
 			57: R_386_TLS_IE	foo
-  5b:	c3 [ 	]*ret[ 	]*
+  5b:	c3 [ 	]*ret

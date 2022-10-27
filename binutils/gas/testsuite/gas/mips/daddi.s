@@ -5,7 +5,7 @@
 
 	.text
 text_label:
-
+	.ifndef r6
 	daddi	$3, $2, 511
 	daddi	$5, $4, -512
 
@@ -17,6 +17,7 @@ text_label:
 	daddi	$9, $8, -513
 	daddi	$11, $10, 32767
 	daddi	$13, $12, -32768
+	.endif
 
 	# 16 bits accepted for standard MIPS code.
 	.ifndef	micromips

@@ -10,7 +10,7 @@ Disassembly of section destsect:
 Disassembly of section .text:
 
 000080.. <[^>]*>:
-    80..:	(8002f040|f0408002) 	.word	0x(8002f040|f0408002)
+    80..:	f040 8002 	bne.w	8008 <__dest_veneer>
     80..:	0000      	movs	r0, r0
 	...
 
