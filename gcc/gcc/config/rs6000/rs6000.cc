@@ -21627,8 +21627,9 @@ rs6000_xcoff_declare_object_name (FILE *file, const char *name, tree decl)
 {
   struct declare_alias_data data = {file, false};
   ASM_OUTPUT_LABEL (file, name);
-  symtab_node::get_create (decl)->call_for_symbol_and_aliases (rs6000_declare_alias,
-							       &data, true);
+  if (symtab_node::get (decl))
+    symtab_node::get (decl)->call_for_symbol_and_aliases (rs6000_declare_alias,
+							  &data, true);
 }
 
 /* Overide the default 'SYMBOL-.' syntax with AIX compatible 'SYMBOL-$'. */
