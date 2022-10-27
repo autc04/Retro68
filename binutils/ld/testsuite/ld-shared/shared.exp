@@ -1,5 +1,5 @@
 # Expect script for ld-shared tests
-#   Copyright (C) 1994-2020 Free Software Foundation, Inc.
+#   Copyright (C) 1994-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -26,7 +26,7 @@
 # bootstrap test.
 
 # Check to see if the C compiler works
-if { ![check_compiler_available] } {
+if { [which $CC] == 0 } {
     return
 }
 
@@ -64,10 +64,6 @@ if { ![istarget hppa*64*-*-hpux*] \
 set tmpdir tmpdir
 set SHCFLAG ""
 set shared_needs_pic "no"
-
-# Disable all sanitizers.
-set old_CFLAGS "$CFLAGS"
-append CFLAGS " $NOSANITIZE_CFLAGS"
 
 if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
 
@@ -136,9 +132,6 @@ proc shared_test { progname testname main sh1 sh2 dat args } {
     set shared -shared
     if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
 	set shared "-bM:SRE -bE:$tmpdir/xcoff.exp"
-    }
-    if { [is_elf_format] && [check_shared_lib_support] } {
-	append shared " -Wl,-z,notext"
     }
     if {![ld_link $CC $tmpdir/$progname.so "$shared $shldflags $tmpdir/$sh1 $tmpdir/$sh2"]} {
         fail "$testname"
@@ -229,8 +222,8 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o] 
     } else { if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
 	shared_test shnp "shared (nonPIC)" mainnp.o sh1np.o sh2np.o xcoff
     } else {
-	# Solaris defaults to -z text.
-	setup_xfail "*-*-solaris2*"
+	# SunOS non PIC shared libraries don't permit some cases of
+	# overriding.
 	setup_xfail "ia64-*-linux*"
 	setup_xfail "alpha*-*-linux*"
 	setup_xfail "powerpc64*-*-*"
@@ -275,8 +268,6 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o] 
 	    setup_xfail "arm*-*-linux*"
 	}
 	setup_xfail "aarch64*-*-linux*"
-	# Solaris defaults to -z text.
-	setup_xfail "*-*-solaris2*"
 	shared_test shnp "shared (non PIC, load offset)" \
 		mainnp.o sh1np.o sh2np.o shared \
 		"-Wl,-T,$srcdir/$subdir/elf-offset.ld,--hash-style=sysv"
@@ -310,8 +301,8 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG $picflag" $srcdir/$subdir/main.c $tmpdir/m
         if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
 	    shared_test shmpnp "shared (PIC main, non PIC so)" mainp.o sh1np.o sh2np.o xcoff
 	} else {
-	    # Solaris defaults to -z text.
-	    setup_xfail "*-*-solaris2*"
+	    # SunOS non PIC shared libraries don't permit some cases of
+	    # overriding.
 	    setup_xfail "ia64-*-linux*"
 	    setup_xfail "alpha*-*-linux*"
 	    setup_xfail "powerpc64*-*-*"
@@ -346,8 +337,6 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG $picflag" $srcdir/$subdir/main.c $tmpdir/m
 	unresolved "shared (PIC main)"
     }
 }
-
-set CFLAGS "$old_CFLAGS"
 
 if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
     # Remove the temporary directory.

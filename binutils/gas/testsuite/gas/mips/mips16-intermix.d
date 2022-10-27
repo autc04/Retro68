@@ -1,4 +1,4 @@
-#DUMPPROG: nm
+#PROG: nm
 #as: -mips32r2 -32
 #name: MIPS16 intermix
 

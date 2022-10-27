@@ -1,5 +1,6 @@
 #name: MIPSr6 link branch to unaligned symbol 1 (ignore branch ISA)
-#ld: -Ttext 0x1c000000 -e 0x1c000000 --ignore-branch-isa
+#as: -EB -n32 -march=from-abi
+#ld: -EB -Ttext 0x1c000000 -e 0x1c000000 --ignore-branch-isa
 #source: ../../../gas/testsuite/gas/mips/unaligned-branch-r6-3.s
 #error: \A[^\n]*: in function `foo':\n
 #error:   \(\.text\+0x101c\): branch to a non-instruction-aligned address\n

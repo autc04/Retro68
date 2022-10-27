@@ -1,4 +1,4 @@
 #name: Deprecated Support
 #source: deprecated.s
-#warning_output: deprecated.l
+#error-output: deprecated.l
 #as: --warn

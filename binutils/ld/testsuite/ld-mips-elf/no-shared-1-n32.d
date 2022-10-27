@@ -1,5 +1,6 @@
+#as: -march=from-abi -mabi=n32 -EB
 #source: no-shared-1-o32.s
-#ld: -T no-shared-1.ld
+#ld: -melf32btsmipn32 -T no-shared-1.ld
 #objdump: -dr -j.text -j.data -j.got
 
 .*

@@ -1,7 +1,8 @@
 #ld: --gc-sections -shared -version-script pr12975.t
 #readelf: -s --wide
 #target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
-#xfail: [is_generic] hppa64-*-* mep-*-* mn10200-*-* ![check_shared_lib_support] 
+#xfail: d30v-*-* dlx-*-* pj*-*-*
+#xfail: hppa64-*-* mep-*-* mn10200-*-*
 # generic linker targets don't support --gc-sections, nor do a bunch of others
 
 #failif

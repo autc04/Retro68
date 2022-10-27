@@ -26,5 +26,3 @@
 	prefi	@r10
 
 	synco
-
-	tst #128,r0

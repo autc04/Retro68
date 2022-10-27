@@ -1,8 +1,8 @@
 # The PLT-agnostic parts of a generic 32-bit ELF PowerPC target.  Included by:
 # elf32ppc.sh elf32ppcvxworks.sh elf64ppc.sh
-source_sh ${srcdir}/emulparams/dynamic_undefined_weak.sh
+. ${srcdir}/emulparams/dynamic_undefined_weak.sh
 
-TEMPLATE_NAME=elf
+TEMPLATE_NAME=elf32
 GENERATE_SHLIB_SCRIPT=yes
 GENERATE_PIE_SCRIPT=yes
 SCRIPT_NAME=elf

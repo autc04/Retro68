@@ -14,8 +14,6 @@ L4:	bcs L2
 	blt L4
 	bgt L3
 	ble L1
-	bhs L2
-	blo L2
 
 	bra *+2
 	bra *-4

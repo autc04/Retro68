@@ -1,7 +1,7 @@
 #name: GOT dump (readelf -A) test 2
 #source: got-dump-2.s
-#as: -mips3
-#ld: -Tgot-dump-2.ld -shared
+#as: -mips3 -EB -64
+#ld: -Tgot-dump-2.ld -shared -melf64btsmip
 #readelf: -A
 
 Primary GOT:

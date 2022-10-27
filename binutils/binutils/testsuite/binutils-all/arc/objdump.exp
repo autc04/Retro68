@@ -1,4 +1,4 @@
-#   Copyright (C) 2016-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2016-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -72,9 +72,6 @@ proc check_assembly { testname objfile expected { disas_flags "" } } {
 # disassembler has had to guess as the instruction class in use).
 set want "Warning: disassembly.*vmac2hnfr\[ \t\]*r0,r2,r4.*dmulh12.f\[ \t\]*r0,r2,r4.*dmulh11.f"
 check_assembly "Warning test" [do_objfile dsp.s] $want
-set warn_double_reg "Warning: illegal use of double register pair."
-check_assembly "Warning faulty double regs" [do_objfile double_regs.s] \
-    $warn_double_reg
 
 set double_store_hs_expected {std\s*r0r1,\[r3\]}
 set objfile [do_objfile double_store.s]

@@ -1,1 +1,1 @@
-#error_output: relocs-errors.err
+#error-output: relocs-errors.err

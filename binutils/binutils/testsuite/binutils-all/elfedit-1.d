@@ -4,7 +4,7 @@
 #readelf: -h
 #name: Update ELF header 1
 #target: x86_64-*-*
-#notarget: x86_64-*-gnux32
+#not-target: x86_64-*-gnux32 x86_64-*-nacl*
 
 #...
 ELF Header:

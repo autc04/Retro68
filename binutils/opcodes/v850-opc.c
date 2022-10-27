@@ -1,5 +1,5 @@
 /* Assemble V850 instructions.
-   Copyright (C) 1996-2020 Free Software Foundation, Inc.
+   Copyright (C) 1996-2018 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -75,7 +75,7 @@ v850_msg_is_out_of_range (const char* msg)
 }
 
 static unsigned long
-insert_i5div1 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_i5div1 (unsigned long insn, long value, const char ** errmsg)
 {
   if (value > 30 || value < 2)
     {
@@ -104,7 +104,7 @@ extract_i5div1 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_i5div2 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_i5div2 (unsigned long insn, long value, const char ** errmsg)
 {
   if (value > 30 || value < 4)
     {
@@ -133,7 +133,7 @@ extract_i5div2 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_i5div3 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_i5div3 (unsigned long insn, long value, const char ** errmsg)
 {
   if (value > 32 || value < 2)
     {
@@ -162,9 +162,9 @@ extract_i5div3 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_d5_4 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_d5_4 (unsigned long insn, long value, const char ** errmsg)
 {
-  if (value > 0x1f)
+  if (value > 0x1f || value < 0)
     {
       if (value & 1)
 	* errmsg = _(not_valid);
@@ -192,9 +192,9 @@ extract_d5_4 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_d8_6 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_d8_6 (unsigned long insn, long value, const char ** errmsg)
 {
-  if (value > 0xff)
+  if (value > 0xff || value < 0)
     {
       if ((value % 4) != 0)
 	* errmsg = _(not_valid);
@@ -222,9 +222,9 @@ extract_d8_6 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_d8_7 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_d8_7 (unsigned long insn, long value, const char ** errmsg)
 {
-  if (value > 0xff)
+  if (value > 0xff || value < 0)
     {
       if ((value % 2) != 0)
 	* errmsg = _(not_valid);
@@ -252,9 +252,9 @@ extract_d8_7 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_v8 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_v8 (unsigned long insn, long value, const char ** errmsg)
 {
-  if (value > 0xff)
+  if (value > 0xff || value < 0)
     * errmsg = _(immediate_out_of_range);
 
   return insn | (value & 0x1f) | ((value & 0xe0) << (27-5));
@@ -271,9 +271,9 @@ extract_v8 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_d9 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_d9 (unsigned long insn, long value, const char ** errmsg)
 {
-  if (value + 0x100 > 0x1ff)
+  if (value > 0xff || value < -0x100)
     {
       if ((value % 2) != 0)
 	* errmsg = branch_out_of_range_and_odd_offset;
@@ -289,7 +289,7 @@ insert_d9 (unsigned long insn, unsigned long value, const char ** errmsg)
 static unsigned long
 extract_d9 (unsigned long insn, int * invalid)
 {
-  unsigned long ret = ((insn >> 7) & 0x1f0) | ((insn >> 3) & 0x0e);
+  signed long ret = ((insn >> 7) & 0x1f0) | ((insn >> 3) & 0x0e);
 
   ret = (ret ^ 0x100) - 0x100;
 
@@ -299,11 +299,11 @@ extract_d9 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_u16_loop (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_u16_loop (unsigned long insn, long value, const char ** errmsg)
 {
   /* Loop displacement is encoded as a positive value,
      even though the instruction branches backwards.  */
-  if (value > 0xffff)
+  if (value < 0 || value > 0xffff)
     {
       if ((value % 2) != 0)
 	* errmsg = branch_out_of_range_and_odd_offset;
@@ -327,9 +327,9 @@ extract_u16_loop (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_d16_15 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_d16_15 (unsigned long insn, long value, const char ** errmsg)
 {
-  if (value + 0x8000 > 0xffff)
+  if (value > 0x7fff || value < -0x8000)
     {
       if ((value % 2) != 0)
 	* errmsg = _(not_valid);
@@ -345,7 +345,7 @@ insert_d16_15 (unsigned long insn, unsigned long value, const char ** errmsg)
 static unsigned long
 extract_d16_15 (unsigned long insn, int * invalid)
 {
-  unsigned long ret = (insn >> 16) & 0xfffe;
+  signed long ret = (insn >> 16) & 0xfffe;
 
   ret = (ret ^ 0x8000) - 0x8000;
 
@@ -355,9 +355,9 @@ extract_d16_15 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_d16_16 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_d16_16 (unsigned long insn, signed long value, const char ** errmsg)
 {
-  if (value + 0x8000 > 0xffff)
+  if (value > 0x7fff || value < -0x8000)
     * errmsg = _(out_of_range);
 
   return insn | ((value & 0xfffe) << 16) | ((value & 1) << 5);
@@ -366,7 +366,7 @@ insert_d16_16 (unsigned long insn, unsigned long value, const char ** errmsg)
 static unsigned long
 extract_d16_16 (unsigned long insn, int * invalid)
 {
-  unsigned long ret = ((insn >> 16) & 0xfffe) | ((insn >> 5) & 1);
+  signed long ret = ((insn >> 16) & 0xfffe) | ((insn >> 5) & 1);
 
   ret = (ret ^ 0x8000) - 0x8000;
 
@@ -376,9 +376,9 @@ extract_d16_16 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_d17_16 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_d17_16 (unsigned long insn, long value, const char ** errmsg)
 {
-  if (value + 0x10000 > 0x1ffff)
+  if (value > 0xffff || value < -0x10000)
     * errmsg = _(out_of_range);
 
   return insn | ((value & 0xfffe) << 16) | ((value & 0x10000) >> (16 - 4));
@@ -387,19 +387,19 @@ insert_d17_16 (unsigned long insn, unsigned long value, const char ** errmsg)
 static unsigned long
 extract_d17_16 (unsigned long insn, int * invalid)
 {
-  unsigned long ret = ((insn >> 16) & 0xfffe) | ((insn << (16 - 4)) & 0x10000);
+  signed long ret = ((insn >> 16) & 0xfffe) | ((insn << (16 - 4)) & 0x10000);
 
   ret = (ret ^ 0x10000) - 0x10000;
 
   if (invalid != 0)
     *invalid = 0;
-  return ret;
+  return (unsigned long)ret;
 }
 
 static unsigned long
-insert_d22 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_d22 (unsigned long insn, long value, const char ** errmsg)
 {
-  if (value + 0x200000 > 0x3fffff)
+  if (value > 0x1fffff || value < -0x200000)
     {
       if ((value % 2) != 0)
 	* errmsg = branch_out_of_range_and_odd_offset;
@@ -415,28 +415,28 @@ insert_d22 (unsigned long insn, unsigned long value, const char ** errmsg)
 static unsigned long
 extract_d22 (unsigned long insn, int * invalid)
 {
-  unsigned long ret = ((insn >> 16) & 0xfffe) | ((insn << 16) & 0x3f0000);
+  signed long ret = ((insn >> 16) & 0xfffe) | ((insn << 16) & 0x3f0000);
 
   ret = (ret ^ 0x200000) - 0x200000;
 
   if (invalid != 0)
     *invalid = 0;
-  return ret;
+  return (unsigned long) ret;
 }
 
 static unsigned long
-insert_d23 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_d23 (unsigned long insn, long value, const char ** errmsg)
 {
-  if (value + 0x400000 > 0x7fffff)
+  if (value > 0x3fffff || value < -0x400000)
     * errmsg = out_of_range;
 
   return insn | ((value & 0x7f) << 4) | ((value & 0x7fff80) << (16-7));
 }
 
 static unsigned long
-insert_d23_align1 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_d23_align1 (unsigned long insn, long value, const char ** errmsg)
 {
-  if (value + 0x400000 > 0x7fffff)
+  if (value > 0x3fffff || value < -0x400000)
     {
       if (value & 0x1)
 	* errmsg = _(not_valid);
@@ -452,19 +452,19 @@ insert_d23_align1 (unsigned long insn, unsigned long value, const char ** errmsg
 static unsigned long
 extract_d23 (unsigned long insn, int * invalid)
 {
-  unsigned long ret = ((insn >> 4) & 0x7f) | ((insn >> (16-7)) & 0x7fff80);
+  signed long ret = ((insn >> 4) & 0x7f) | ((insn >> (16-7)) & 0x7fff80);
 
   ret = (ret ^ 0x400000) - 0x400000;
 
   if (invalid != 0)
     *invalid = 0;
-  return ret;
+  return (unsigned long) ret;
 }
 
 static unsigned long
-insert_i9 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_i9 (unsigned long insn, signed long value, const char ** errmsg)
 {
-  if (value + 0x100 > 0x1ff)
+  if (value > 0xff || value < -0x100)
     * errmsg = _(immediate_out_of_range);
 
   return insn | ((value & 0x1e0) << 13) | (value & 0x1f);
@@ -473,7 +473,7 @@ insert_i9 (unsigned long insn, unsigned long value, const char ** errmsg)
 static unsigned long
 extract_i9 (unsigned long insn, int * invalid)
 {
-  unsigned long ret = ((insn >> 13) & 0x1e0) | (insn & 0x1f);
+  signed long ret = ((insn >> 13) & 0x1e0) | (insn & 0x1f);
 
   ret = (ret ^ 0x100) - 0x100;
 
@@ -483,8 +483,10 @@ extract_i9 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_u9 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_u9 (unsigned long insn, long v, const char ** errmsg)
 {
+  unsigned long value = (unsigned long) v;
+
   if (value > 0x1ff)
     * errmsg = _(immediate_out_of_range);
 
@@ -502,8 +504,10 @@ extract_u9 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_spe (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_spe (unsigned long insn, long v, const char ** errmsg)
 {
+  unsigned long value = (unsigned long) v;
+
   if (value != 3)
     * errmsg = _("invalid register for stack adjustment");
 
@@ -520,8 +524,10 @@ extract_spe (unsigned long insn ATTRIBUTE_UNUSED, int * invalid)
 }
 
 static unsigned long
-insert_r4 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_r4 (unsigned long insn, long v, const char ** errmsg)
 {
+  unsigned long value = (unsigned long) v;
+
   if (value >= 32)
     * errmsg = _("invalid register name");
 
@@ -546,12 +552,12 @@ extract_r4 (unsigned long insn, int * invalid)
 static unsigned long G_pos;
 
 static unsigned long
-insert_POS (unsigned long insn, unsigned long pos, const char ** errmsg)
+insert_POS (unsigned long insn, long pos, const char ** errmsg)
 {
-  if (pos > 0x1f)
+  if (pos > 0x1f || pos < 0)
     * errmsg = _(pos_out_of_range);
 
-  G_pos = pos;
+  G_pos = (unsigned long) pos;
 
   return insn; /* Not an oparaton until WIDTH.  */
 }
@@ -592,17 +598,17 @@ extract_POS_L (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_WIDTH (unsigned long insn, unsigned long width, const char ** errmsg)
+insert_WIDTH (unsigned long insn, long width, const char ** errmsg)
 {
   unsigned long msb, lsb, opc, ret;
   unsigned long msb_expand, lsb_expand;
 
-  msb = width + G_pos - 1;
+  msb = (unsigned long)width + G_pos - 1;
   lsb = G_pos;
   opc = 0;
   G_pos = 0;
 
-  if (width > 0x20)
+  if (width > 0x20 || width < 0)
     * errmsg = _(width_out_of_range);
 
   if ((msb >= 16) && (lsb >= 16))
@@ -685,12 +691,16 @@ extract_WIDTH_L (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_SELID (unsigned long insn, unsigned long selid, const char ** errmsg)
+insert_SELID (unsigned long insn, long selid, const char ** errmsg)
 {
-  if (selid > 0x1f)
+  unsigned long ret;
+
+  if (selid > 0x1f || selid < 0)
     * errmsg = _(selid_out_of_range);
 
-  return insn | ((selid & 0x1fUL) << 27);
+  ret = (insn | ((selid & 0x1f) << 27));
+
+  return ret;
 }
 
 static unsigned long
@@ -710,12 +720,12 @@ extract_SELID (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_VECTOR8 (unsigned long insn, unsigned long vector8, const char ** errmsg)
+insert_VECTOR8 (unsigned long insn, long vector8, const char ** errmsg)
 {
   unsigned long ret;
-  unsigned long VVV, vvvvv;
+  unsigned long VVV,vvvvv;
 
-  if (vector8 > 0xff)
+  if (vector8 > 0xff || vector8 < 0)
     * errmsg = _(vector8_out_of_range);
 
   VVV   = (vector8 & 0xe0) >> 5;
@@ -745,12 +755,12 @@ extract_VECTOR8 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_VECTOR5 (unsigned long insn, unsigned long vector5, const char ** errmsg)
+insert_VECTOR5 (unsigned long insn, long vector5, const char ** errmsg)
 {
   unsigned long ret;
   unsigned long vvvvv;
 
-  if (vector5 > 0x1f)
+  if (vector5 > 0x1f || vector5 < 0)
     * errmsg = _(vector5_out_of_range);
 
   vvvvv = (vector5 & 0x1f);
@@ -774,10 +784,10 @@ extract_VECTOR5 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_CACHEOP (unsigned long insn, unsigned long cacheop, const char ** errmsg ATTRIBUTE_UNUSED)
+insert_CACHEOP (unsigned long insn, long cacheop, const char ** errmsg ATTRIBUTE_UNUSED)
 {
   unsigned long ret;
-  unsigned long pp, PPPPP;
+  unsigned long pp,PPPPP;
 
   pp    = (cacheop & 0x60) >> 5;
   PPPPP = (cacheop & 0x1f);
@@ -791,7 +801,7 @@ static unsigned long
 extract_CACHEOP (unsigned long insn, int * invalid)
 {
   unsigned long ret;
-  unsigned long pp, PPPPP;
+  unsigned long pp,PPPPP;
   unsigned long insn2;
 
   insn2 = insn >> 16;
@@ -808,7 +818,7 @@ extract_CACHEOP (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_PREFOP (unsigned long insn, unsigned long prefop, const char ** errmsg ATTRIBUTE_UNUSED)
+insert_PREFOP (unsigned long insn, long prefop, const char ** errmsg ATTRIBUTE_UNUSED)
 {
   unsigned long ret;
   unsigned long PPPPP;
@@ -840,15 +850,15 @@ extract_PREFOP (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_IMM10U (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_IMM10U (unsigned long insn, long value, const char ** errmsg)
 {
   unsigned long imm10, ret;
   unsigned long iiiii,IIIII;
 
-  if (value > 0x3ff)
+  if (value > 0x3ff || value < 0)
     * errmsg = _(imm10_out_of_range);
 
-  imm10 = value & 0x3ff;
+  imm10 = ((unsigned long) value) & 0x3ff;
   IIIII = (imm10 >> 5) & 0x1f;
   iiiii =  imm10       & 0x1f;
 
@@ -877,15 +887,15 @@ extract_IMM10U (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_SRSEL1 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_SRSEL1 (unsigned long insn, long value, const char ** errmsg)
 {
   unsigned long imm10, ret;
   unsigned long sr,selid;
 
-  if (value > 0x3ff)
+  if (value > 0x3ff || value < 0)
     * errmsg = _(sr_selid_out_of_range);
 
-  imm10 = value;
+  imm10 = (unsigned long) value;
   selid = (imm10 & 0x3e0) >> 5;
   sr    =  imm10 & 0x1f;
 
@@ -915,15 +925,15 @@ extract_SRSEL1 (unsigned long insn, int * invalid)
 }
 
 static unsigned long
-insert_SRSEL2 (unsigned long insn, unsigned long value, const char ** errmsg)
+insert_SRSEL2 (unsigned long insn, long value, const char ** errmsg)
 {
   unsigned long imm10, ret;
   unsigned long sr, selid;
 
-  if (value > 0x3ff)
+  if (value > 0x3ff || value < 0)
     * errmsg = _(sr_selid_out_of_range);
 
-  imm10 = value;
+  imm10 = (unsigned long) value;
   selid = (imm10 & 0x3e0) >> 5;
   sr    =  imm10 & 0x1f;
 

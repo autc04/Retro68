@@ -1,6 +1,6 @@
 // layout.cc -- lay out output file sections for gold
 
-// Copyright (C) 2006-2020 Free Software Foundation, Inc.
+// Copyright (C) 2006-2018 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -466,7 +466,6 @@ Layout::Layout(int number_of_input_files, Script_options* script_options)
     unique_segment_for_sections_specified_(false),
     incremental_inputs_(NULL),
     record_output_section_data_from_script_(false),
-    lto_slim_object_(false),
     script_output_section_data_list_(),
     segment_states_(NULL),
     relaxation_debug_check_(NULL),
@@ -1129,8 +1128,7 @@ Layout::special_ordering_of_input_section(const char* name)
     ".text.unlikely",
     ".text.exit",
     ".text.startup",
-    ".text.hot",
-    ".text.sorted"
+    ".text.hot"
   };
 
   for (size_t i = 0;
@@ -1183,11 +1181,11 @@ Layout::layout(Sized_relobj_file<size, big_endian>* object, unsigned int shndx,
       // All ".text.unlikely.*" sections can be moved to a unique
       // segment with --text-unlikely-segment option.
       bool text_unlikely_segment
-	  = (parameters->options().text_unlikely_segment()
-	     && is_prefix_of(".text.unlikely",
-			     object->section_name(shndx).c_str()));
+          = (parameters->options().text_unlikely_segment()
+             && is_prefix_of(".text.unlikely",
+                             object->section_name(shndx).c_str()));
       if (text_unlikely_segment)
-	{
+        {
 	  elfcpp::Elf_Xword flags
 	    = this->get_output_section_flags(shdr.get_sh_flags());
 
@@ -1196,11 +1194,11 @@ Layout::layout(Sized_relobj_file<size, big_endian>* object, unsigned int shndx,
 						    &name_key);
 	  os = this->get_output_section(os_name, name_key, sh_type, flags,
 					ORDER_INVALID, false);
-	  // Map this output section to a unique segment.  This is done to
-	  // separate "text" that is not likely to be executed from "text"
-	  // that is likely executed.
+          // Map this output section to a unique segment.  This is done to
+          // separate "text" that is not likely to be executed from "text"
+          // that is likely executed.
 	  os->set_is_unique_segment();
-	}
+        }
       else
 	{
 	  // Plugins can choose to place one or more subsets of sections in
@@ -1221,7 +1219,7 @@ Layout::layout(Sized_relobj_file<size, big_endian>* object, unsigned int shndx,
 	      // We know the name of the output section, directly call
 	      // get_output_section here by-passing choose_output_section.
 	      elfcpp::Elf_Xword flags
-		= this->get_output_section_flags(shdr.get_sh_flags());
+	        = this->get_output_section_flags(shdr.get_sh_flags());
 
 	      const char* os_name = it->second->name;
 	      Stringpool::Key name_key;
@@ -1229,11 +1227,11 @@ Layout::layout(Sized_relobj_file<size, big_endian>* object, unsigned int shndx,
 	      os = this->get_output_section(os_name, name_key, sh_type, flags,
 					ORDER_INVALID, false);
 	      if (!os->is_unique_segment())
-		{
-		  os->set_is_unique_segment();
-		  os->set_extra_segment_flags(it->second->flags);
-		  os->set_segment_alignment(it->second->align);
-		}
+	        {
+	          os->set_is_unique_segment();
+	          os->set_extra_segment_flags(it->second->flags);
+	          os->set_segment_alignment(it->second->align);
+	        }
 	    }
 	  }
       if (os == NULL)
@@ -1606,18 +1604,21 @@ Layout::add_eh_frame_for_plt(Output_data* plt, const unsigned char* cie_data,
     }
 }
 
-// Remove all post-map .eh_frame information for a PLT.
+// Remove .eh_frame information for a PLT.  FDEs using the CIE must
+// be removed in reverse order to the order they were added.
 
 void
 Layout::remove_eh_frame_for_plt(Output_data* plt, const unsigned char* cie_data,
-				size_t cie_length)
+				size_t cie_length, const unsigned char* fde_data,
+				size_t fde_length)
 {
   if (parameters->incremental())
     {
       // FIXME: Maybe this could work some day....
       return;
     }
-  this->eh_frame_data_->remove_ehframe_for_plt(plt, cie_data, cie_length);
+  this->eh_frame_data_->remove_ehframe_for_plt(plt, cie_data, cie_length,
+					       fde_data, fde_length);
 }
 
 // Scan a .debug_info or .debug_types section, and add summary
@@ -2268,9 +2269,9 @@ Layout::layout_gnu_property(unsigned int note_type,
       const int size = parameters->target().get_size();
       const bool is_big_endian = parameters->target().is_big_endian();
       if (size == 32)
-	{
-	  if (is_big_endian)
-	    {
+        {
+          if (is_big_endian)
+            {
 #ifdef HAVE_TARGET_32_BIG
 	      parameters->sized_target<32, true>()->
 		  record_gnu_property(note_type, pr_type, pr_datasz, pr_data,
@@ -2278,9 +2279,9 @@ Layout::layout_gnu_property(unsigned int note_type,
 #else
 	      gold_unreachable();
 #endif
-	    }
-	  else
-	    {
+            }
+          else
+            {
 #ifdef HAVE_TARGET_32_LITTLE
 	      parameters->sized_target<32, false>()->
 		  record_gnu_property(note_type, pr_type, pr_datasz, pr_data,
@@ -2288,12 +2289,12 @@ Layout::layout_gnu_property(unsigned int note_type,
 #else
 	      gold_unreachable();
 #endif
-	    }
-	}
+            }
+        }
       else if (size == 64)
-	{
-	  if (is_big_endian)
-	    {
+        {
+          if (is_big_endian)
+            {
 #ifdef HAVE_TARGET_64_BIG
 	      parameters->sized_target<64, true>()->
 		  record_gnu_property(note_type, pr_type, pr_datasz, pr_data,
@@ -2301,9 +2302,9 @@ Layout::layout_gnu_property(unsigned int note_type,
 #else
 	      gold_unreachable();
 #endif
-	    }
-	  else
-	    {
+            }
+          else
+            {
 #ifdef HAVE_TARGET_64_LITTLE
 	      parameters->sized_target<64, false>()->
 		  record_gnu_property(note_type, pr_type, pr_datasz, pr_data,
@@ -2311,10 +2312,10 @@ Layout::layout_gnu_property(unsigned int note_type,
 #else
 	      gold_unreachable();
 #endif
-	    }
-	}
+            }
+        }
       else
-	gold_unreachable();
+        gold_unreachable();
       return;
     }
 
@@ -2474,7 +2475,6 @@ Layout::create_initial_dynamic_sections(Symbol_table* symtab)
 void
 Layout::define_section_symbols(Symbol_table* symtab)
 {
-  const elfcpp::STV visibility = parameters->options().start_stop_visibility_enum();
   for (Section_list::const_iterator p = this->section_list_.begin();
        p != this->section_list_.end();
        ++p)
@@ -2496,7 +2496,7 @@ Layout::define_section_symbols(Symbol_table* symtab)
 					0, // symsize
 					elfcpp::STT_NOTYPE,
 					elfcpp::STB_GLOBAL,
-					visibility,
+					elfcpp::STV_PROTECTED,
 					0, // nonvis
 					false, // offset_is_from_end
 					true); // only_if_ref
@@ -2509,7 +2509,7 @@ Layout::define_section_symbols(Symbol_table* symtab)
 					0, // symsize
 					elfcpp::STT_NOTYPE,
 					elfcpp::STB_GLOBAL,
-					visibility,
+					elfcpp::STV_PROTECTED,
 					0, // nonvis
 					true, // offset_is_from_end
 					true); // only_if_ref
@@ -2922,8 +2922,6 @@ Layout::read_layout_from_file()
     gold_fatal(_("unable to open --section-ordering-file file %s: %s"),
 	       filename, strerror(errno));
 
-  File_read::record_file_read(filename);
-
   std::getline(in, line);   // this chops off the trailing \n, if any
   unsigned int position = 1;
   this->set_section_ordering_specified();
@@ -3301,7 +3299,7 @@ Layout::create_gnu_properties_note()
       write_sized_value(datasz, 4, p + 4, is_big_endian);
       memcpy(p + 8, prop->second.pr_data, datasz);
       if (aligned_datasz > datasz)
-	memset(p + 8 + datasz, 0, aligned_datasz - datasz);
+        memset(p + 8 + datasz, 0, aligned_datasz - datasz);
       p += 8 + aligned_datasz;
     }
   Output_section_data* posd = new Output_data_const(desc, descsz, 4);
@@ -5354,8 +5352,6 @@ Layout::finish_dynamic_section(const Input_objects* input_objects,
     flags |= elfcpp::DF_1_NOW;
   if (parameters->options().Bgroup())
     flags |= elfcpp::DF_1_GROUP;
-  if (parameters->options().pie())
-    flags |= elfcpp::DF_1_PIE;
   if (flags != 0)
     odyn->add_constant(elfcpp::DT_FLAGS_1, flags);
 }
@@ -5433,7 +5429,6 @@ const Layout::Section_name_mapping Layout::section_name_mapping[] =
   MAPPING_INIT(".gnu.linkonce.armextab.", ".ARM.extab"),
   MAPPING_INIT(".ARM.exidx", ".ARM.exidx"),
   MAPPING_INIT(".gnu.linkonce.armexidx.", ".ARM.exidx"),
-  MAPPING_INIT(".gnu.build.attributes.", ".gnu.build.attributes"),
 };
 
 // Mapping for ".text" section prefixes with -z,keep-text-section-prefix.
@@ -6157,10 +6152,6 @@ Close_task_runner::run(Workqueue*, const Task*)
   // If we've been asked to create a binary file, we do so here.
   if (this->options_->oformat_enum() != General_options::OBJECT_FORMAT_ELF)
     this->layout_->write_binary(this->of_);
-
-  if (this->options_->dependency_file())
-    File_read::write_dependency_file(this->options_->dependency_file(),
-				     this->options_->output_file_name());
 
   this->of_->close();
 }

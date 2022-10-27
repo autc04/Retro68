@@ -2,7 +2,7 @@
 
 # bnd_ifunc_1.sh -- test -z bndplt for x86_64
 
-# Copyright (C) 2016-2020 Free Software Foundation, Inc.
+# Copyright (C) 2016-2018 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@gmail.com>.
 
 # This file is part of gold.
@@ -30,7 +30,7 @@ match()
   fi
 }
 
-match '[0-9a-f]*:.*bnd jmp \*0x[0-9a-f]*\(%rip\) *# [0-9a-f]* <_GLOBAL_OFFSET_TABLE_\+0x18>' bnd_ifunc_1.stdout
-APLT_ADDR=$(egrep '[0-9a-f]*:.*bnd jmp \*0x[0-9a-f]*\(%rip\) *# [0-9a-f]* <_GLOBAL_OFFSET_TABLE_\+0x18>' bnd_ifunc_1.stdout |
+match '[0-9a-f]*:.*bnd jmpq \*0x[0-9a-f]*\(%rip\) *# [0-9a-f]* <_GLOBAL_OFFSET_TABLE_\+0x18>' bnd_ifunc_1.stdout
+APLT_ADDR=$(egrep '[0-9a-f]*:.*bnd jmpq \*0x[0-9a-f]*\(%rip\) *# [0-9a-f]* <_GLOBAL_OFFSET_TABLE_\+0x18>' bnd_ifunc_1.stdout |
   sed -e 's/ *\([0-9a-f]*\):.*/\1/')
-match "bnd call $APLT_ADDR" bnd_ifunc_1.stdout
+match "bnd callq $APLT_ADDR" bnd_ifunc_1.stdout

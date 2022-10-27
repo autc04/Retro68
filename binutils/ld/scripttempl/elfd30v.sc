@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2020 Free Software Foundation, Inc.
+# Copyright (C) 2014-2018 Free Software Foundation, Inc.
 #
 # Copying and distribution of this file, with or without modification,
 # are permitted in any medium without royalty provided the copyright
@@ -43,7 +43,7 @@ DTOR="  .dtors	${CONSTRUCTING-0} :
   } ${RELOCATING+ > ${DATA_MEMORY}}"
 
 cat <<EOF
-/* Copyright (C) 2014-2020 Free Software Foundation, Inc.
+/* Copyright (C) 2014-2018 Free Software Foundation, Inc.
 
    Copying and distribution of this script, with or without modification,
    are permitted in any medium without royalty provided the copyright
@@ -52,9 +52,6 @@ cat <<EOF
 OUTPUT_FORMAT("${OUTPUT_FORMAT}")
 OUTPUT_ARCH(${ARCH})
 
-EOF
-
-test -n "${RELOCATING}" && cat <<EOF
 MEMORY
 {
   text ${TEXT_DEF_SECTION} : ORIGIN = ${TEXT_START_ADDR}, LENGTH = ${TEXT_SIZE}
@@ -63,9 +60,6 @@ MEMORY
   eit			   : ORIGIN = ${EIT_START_ADDR},  LENGTH = ${EIT_SIZE}
 }
 
-EOF
-
-cat <<EOF
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
@@ -77,12 +71,12 @@ SECTIONS
   .gnu.version_d	${RELOCATING-0} : { *(.gnu.version_d) }
   .gnu.version_r	${RELOCATING-0} : { *(.gnu.version_r) }
 
-  .rel.text		${RELOCATING-0} : { *(.rel.text${RELOCATING+ .rel.gnu.linkonce.t*}) }
-  .rela.text		${RELOCATING-0} : { *(.rela.text${RELOCATING+ .rela.gnu.linkonce.t*}) }
-  .rel.data		${RELOCATING-0} : { *(.rel.data${RELOCATING+ .rel.gnu.linkonce.d*}) }
-  .rela.data		${RELOCATING-0} : { *(.rela.data${RELOCATING+ .rela.gnu.linkonce.d*}) }
-  .rel.rodata		${RELOCATING-0} : { *(.rel.rodata${RELOCATING+ .rel.gnu.linkonce.r*}) }
-  .rela.rodata		${RELOCATING-0} : { *(.rela.rodata${RELOCATING+ .rela.gnu.linkonce.r*}) }
+  .rel.text		${RELOCATING-0} : { *(.rel.text) *(.rel.gnu.linkonce.t*) }
+  .rela.text		${RELOCATING-0} : { *(.rela.text) *(.rela.gnu.linkonce.t*) }
+  .rel.data		${RELOCATING-0} : { *(.rel.data) *(.rel.gnu.linkonce.d*) }
+  .rela.data		${RELOCATING-0} : { *(.rela.data) *(.rela.gnu.linkonce.d*) }
+  .rel.rodata		${RELOCATING-0} : { *(.rel.rodata) *(.rel.gnu.linkonce.r*) }
+  .rela.rodata		${RELOCATING-0} : { *(.rela.rodata) *(.rela.gnu.linkonce.r*) }
   .rel.stext		${RELOCATING-0} : { *(.rel.stest) }
   .rela.stext		${RELOCATING-0} : { *(.rela.stest) }
   .rel.etext		${RELOCATING-0} : { *(.rel.etest) }
@@ -116,7 +110,7 @@ SECTIONS
   .rel.plt		${RELOCATING-0} : { *(.rel.plt) }
   .rela.plt		${RELOCATING-0} : { *(.rela.plt) }
 
-  .init			${RELOCATING-0} : { KEEP (*(SORT_NONE(.init))) } =${NOP-0}
+  .init			${RELOCATING-0} : { *(.init) } =${NOP-0}
   ${DATA_PLT-${PLT}}
 
   /* Internal text space */
@@ -126,9 +120,10 @@ SECTIONS
   .text :
   {
     *(.text)
-    ${RELOCATING+*(.gnu.linkonce.t*)
-    KEEP (*(SORT_NONE(.fini)))
-    _etext = . ;}
+    *(.gnu.linkonce.t*)
+    *(SORT_NONE(.init))
+    *(SORT_NONE(.fini))
+    ${RELOCATING+ _etext = . ; }
   } ${RELOCATING+ > ${TEXT_MEMORY}}
 
   /* Internal data space */
@@ -151,7 +146,7 @@ SECTIONS
   .data		${RELOCATING-0} :
   {
     *(.data)
-    ${RELOCATING+*(.gnu.linkonce.d*)}
+    *(.gnu.linkonce.d*)
     ${CONSTRUCTING+CONSTRUCTORS}
     ${RELOCATING+ _edata = . ; }
   } ${RELOCATING+ > ${DATA_MEMORY}}
@@ -185,7 +180,7 @@ SECTIONS
   {
     ${RELOCATING+ PROVIDE (__bss_start = .) ; }
     *(.bss)
-    ${RELOCATING+*(COMMON)}
+    *(COMMON)
     ${RELOCATING+ PROVIDE (__bss_end = .) ; }
     ${RELOCATING+ _end = . ;  }
   } ${RELOCATING+ > ${DATA_MEMORY}}
@@ -212,9 +207,10 @@ EOF
 . $srcdir/scripttempl/DWARF.sc
 
 cat <<EOF
-  ${RELOCATING+PROVIDE (__stack = ${STACK_START_ADDR});}
+  PROVIDE (__stack = ${STACK_START_ADDR});
 }
 EOF
+
 
 
 

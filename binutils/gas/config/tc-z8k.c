@@ -1,5 +1,5 @@
 /* tc-z8k.c -- Assemble code for the Zilog Z800n
-   Copyright (C) 1992-2020 Free Software Foundation, Inc.
+   Copyright (C) 1992-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -137,21 +137,21 @@ const char EXP_CHARS[] = "eE";
 const char FLT_CHARS[] = "rRsSfFdDxXpP";
 
 /* Opcode mnemonics.  */
-static htab_t opcode_hash_control;
+static struct hash_control *opcode_hash_control;
 
 void
 md_begin (void)
 {
   const opcode_entry_type *opcode;
-  unsigned int idx = -1u;
+  int idx = -1;
 
-  opcode_hash_control = str_htab_create ();
+  opcode_hash_control = hash_new ();
 
   for (opcode = z8k_table; opcode->name; opcode++)
     {
       /* Only enter unique codes into the table.  */
       if (idx != opcode->idx)
-	str_hash_insert (opcode_hash_control, opcode->name, opcode, 0);
+	hash_insert (opcode_hash_control, opcode->name, (char *) opcode);
       idx = opcode->idx;
     }
 
@@ -166,7 +166,7 @@ md_begin (void)
       fake_opcode->name = md_pseudo_table[idx].poc_name;
       fake_opcode->func = (void *) (md_pseudo_table + idx);
       fake_opcode->opcode = 250;
-      str_hash_insert (opcode_hash_control, fake_opcode->name, fake_opcode, 0);
+      hash_insert (opcode_hash_control, fake_opcode->name, fake_opcode);
     }
 }
 
@@ -861,7 +861,7 @@ get_specific (opcode_entry_type *opcode, op_type *operands)
   int found = 0;
   unsigned int noperands = opcode->noperands;
 
-  unsigned int this_index = opcode->idx;
+  int this_index = opcode->idx;
 
   while (this_index == opcode->idx && !found)
     {
@@ -953,7 +953,7 @@ get_specific (opcode_entry_type *opcode, op_type *operands)
     return 0;
 }
 
-static unsigned char buffer[20];
+static char buffer[20];
 
 static void
 newfix (int ptr, bfd_reloc_code_real_type type, int size, expressionS *operand)
@@ -984,9 +984,9 @@ newfix (int ptr, bfd_reloc_code_real_type type, int size, expressionS *operand)
     }
 }
 
-static unsigned char *
-apply_fix (unsigned char *ptr, bfd_reloc_code_real_type type,
-	   expressionS *operand, int size)
+static char *
+apply_fix (char *ptr, bfd_reloc_code_real_type type, expressionS *operand,
+	   int size)
 {
   long n = operand->X_add_number;
 
@@ -1020,7 +1020,7 @@ apply_fix (unsigned char *ptr, bfd_reloc_code_real_type type,
 static void
 build_bytes (opcode_entry_type *this_try, struct z8k_op *operand ATTRIBUTE_UNUSED)
 {
-  unsigned char *output_ptr = buffer;
+  char *output_ptr = buffer;
   int c;
   int nibble;
   unsigned int *class_ptr;
@@ -1183,12 +1183,12 @@ build_bytes (opcode_entry_type *this_try, struct z8k_op *operand ATTRIBUTE_UNUSE
   /* Copy from the nibble buffer into the frag.  */
   {
     int length = (output_ptr - buffer) / 2;
-    unsigned char *src = buffer;
-    unsigned char *fragp = (unsigned char *) frag_more (length);
+    char *src = buffer;
+    char *fragp = frag_more (length);
 
     while (src < output_ptr)
       {
-	*fragp = ((src[0] & 0xf) << 4) | (src[1] & 0xf);
+	*fragp = (src[0] << 4) | src[1];
 	src += 2;
 	fragp++;
       }
@@ -1224,9 +1224,9 @@ md_assemble (char *str)
     }
   c = *op_end;
 
-  *op_end = 0;  /* Zero-terminate op code string for str_hash_find() call.  */
+  *op_end = 0;  /* Zero-terminate op code string for hash_find() call.  */
 
-  opcode = (opcode_entry_type *) str_hash_find (opcode_hash_control, op_start);
+  opcode = (opcode_entry_type *) hash_find (opcode_hash_control, op_start);
 
   if (opcode == NULL)
     {
@@ -1385,7 +1385,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED,
 valueT
 md_section_align (segT seg, valueT size)
 {
-  int align = bfd_section_alignment (seg);
+  int align = bfd_get_section_alignment (stdoutput, seg);
   valueT mask = ((valueT) 1 << align) - 1;
 
   return (size + mask) & ~mask;

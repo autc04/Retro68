@@ -2,7 +2,7 @@
 #name: ARM WinCE basic tests
 #as: -mcpu=arm7m -EL -mccs
 #source: wince.s
-#noskip: *-wince-*
+#not-skip: *-wince-*
 
 # Some WinCE specific tests.
 

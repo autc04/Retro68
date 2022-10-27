@@ -1,8 +1,9 @@
 #name: R_MIPS16_HI16 and R_MIPS16_LO16 relocs n32
 #source: ../../../gas/testsuite/gas/mips/mips16-hilo.s
 #source: mips16-hilo.s
+#as: -march=mips64 -mabi=n32 -EB
 #objdump: -mmips:16 --prefix-addresses -tdr --show-raw-insn
-#ld: -Tmips16-hilo.ld -e 0x500000 -N
+#ld: -Tmips16-hilo.ld -e 0x500000 -N -melf32btsmipn32
 
 .*:     file format elf.*mips.*
 

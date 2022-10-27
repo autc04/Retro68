@@ -3,10 +3,9 @@
 #objcopy: --set-section-flags .text=alloc,data
 #name: copy with setting section flags 3
 #source: bintest.s
-# The .text section in most formats has a fixed set of flags which
-# cannot be changed, just run for ELF.
-#target: [is_elf_format]
-#xfail: rx-*-*
+#not-target: *-*-*aout *-*-*coff *-*-cygwin* *-*-darwin *-*-mingw* *-*-go32 *-*-*pe hppa*-*-hpux* ns32k-*-netbsd powerpc-*-aix* rs6000-*-* rx-*-*
+# The .text # section in PE/COFF has a fixed set of flags and these
+# cannot be changed.  We skip it for them.
 
 .*: +file format .*
 

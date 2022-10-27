@@ -186,4 +186,3 @@ bad	.byte	xtrn@tpoff
 	.quad	xtrn - 0x80000000
 	.long	xtrn@got - 4
 	.long	xtrn@got + 4
-bad	.long	xtrn@plt - .

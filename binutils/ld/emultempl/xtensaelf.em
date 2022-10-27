@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2003-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2003-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -19,7 +19,7 @@
 # MA 02110-1301, USA.
 #
 
-# This file is sourced from elf.em, and defines extra xtensa-elf
+# This file is sourced from elf32.em, and defines extra xtensa-elf
 # specific routines.
 #
 fragment <<EOF
@@ -30,16 +30,8 @@ fragment <<EOF
 #include "bfd.h"
 
 /* Provide default values for new configuration settings.  */
-#ifndef XTHAL_ABI_UNDEFINED
-#define XTHAL_ABI_UNDEFINED -1
-#endif
-
-#ifndef XTHAL_ABI_WINDOWED
-#define XTHAL_ABI_WINDOWED 0
-#endif
-
-#ifndef XTHAL_ABI_CALL0
-#define XTHAL_ABI_CALL0 1
+#ifndef XSHAL_ABI
+#define XSHAL_ABI 0
 #endif
 
 static void xtensa_wild_group_interleave (lang_statement_union_type *);
@@ -56,10 +48,6 @@ static bfd_vma xtensa_page_power = 12; /* 4K pages.  */
 static bfd_boolean xtensa_use_literal_pages = FALSE;
 
 #define EXTRA_VALIDATION 0
-
-/* Xtensa ABI.
-   This option is defined in BDF library.  */
-extern int elf32xtensa_abi;
 
 
 static char *
@@ -139,9 +127,9 @@ replace_insn_sec_with_prop_sec (bfd *abfd,
   /* Create a property table section for it.  */
   prop_sec_name = strdup (prop_sec_name);
   prop_sec = bfd_make_section_with_flags
-    (abfd, prop_sec_name, bfd_section_flags (insn_sec));
+    (abfd, prop_sec_name, bfd_get_section_flags (abfd, insn_sec));
   if (prop_sec == NULL
-      || !bfd_set_section_alignment (prop_sec, 2))
+      || ! bfd_set_section_alignment (abfd, prop_sec, 2))
     {
       *error_message = _("could not create new section");
       goto cleanup;
@@ -228,15 +216,18 @@ replace_insn_sec_with_prop_sec (bfd *abfd,
 
   remove_section (abfd, insn_sec);
 
-  free (insn_contents);
+  if (insn_contents)
+    free (insn_contents);
 
   return TRUE;
 
  cleanup:
   if (prop_sec && prop_sec->owner)
     remove_section (abfd, prop_sec);
-  free (insn_contents);
-  free (internal_relocs);
+  if (insn_contents)
+    free (insn_contents);
+  if (internal_relocs)
+    free (internal_relocs);
 
   return FALSE;
 }
@@ -256,7 +247,7 @@ replace_instruction_table_sections (bfd *abfd, asection *sec)
   char *owned_prop_sec_name = NULL;
   const char *sec_name;
 
-  sec_name = bfd_section_name (sec);
+  sec_name = bfd_get_section_name (abfd, sec);
   if (strcmp (sec_name, INSN_SEC_BASE_NAME) == 0)
     {
       insn_sec_name = INSN_SEC_BASE_NAME;
@@ -280,7 +271,8 @@ replace_instruction_table_sections (bfd *abfd, asection *sec)
 		 insn_sec_name, abfd, message);
 	}
     }
-  free (owned_prop_sec_name);
+  if (owned_prop_sec_name)
+    free (owned_prop_sec_name);
 }
 
 
@@ -318,7 +310,7 @@ xt_config_info_unpack_and_check (char *data,
 				 char **pmsg)
 {
   char *d, *key;
-  int num;
+  unsigned num;
 
   *pmismatch = FALSE;
 
@@ -353,11 +345,7 @@ xt_config_info_unpack_and_check (char *data,
 
 	  if (! strcmp (key, "ABI"))
 	    {
-	      if (elf32xtensa_abi == XTHAL_ABI_UNDEFINED)
-		{
-		  elf32xtensa_abi = num;
-		}
-	      else if (num != elf32xtensa_abi)
+	      if (num != XSHAL_ABI)
 		{
 		  *pmismatch = TRUE;
 		  *pmsg = "ABI does not match";
@@ -505,7 +493,7 @@ elf_xtensa_before_allocation (void)
 
       data = xmalloc (100);
       sprintf (data, "USE_ABSOLUTE_LITERALS=%d\nABI=%d\n",
-	       XSHAL_USE_ABSOLUTE_LITERALS, xtensa_abi_choice ());
+	       XSHAL_USE_ABSOLUTE_LITERALS, XSHAL_ABI);
       xtensa_info_size = strlen (data) + 1;
 
       /* Add enough null terminators to pad to a word boundary.  */
@@ -608,12 +596,8 @@ xtensa_get_section_deps (const reloc_deps_graph *deps ATTRIBUTE_UNUSED,
   /* We have a separate function for this so that
      we could in the future keep a completely independent
      structure that maps a section to its dependence edges.
-     For now, we place these in the sec->userdata field.
-     This doesn't clash with ldlang.c use of userdata for output
-     sections, and during map output for input sections, since the
-     xtensa use is only for input sections and only extant in
-     before_allocation.  */
-  reloc_deps_section *sec_deps = bfd_section_userdata (sec);
+     For now, we place these in the sec->userdata field.  */
+  reloc_deps_section *sec_deps = sec->userdata;
   return sec_deps;
 }
 
@@ -622,7 +606,7 @@ xtensa_set_section_deps (const reloc_deps_graph *deps ATTRIBUTE_UNUSED,
 			 asection *sec,
 			 reloc_deps_section *deps_section)
 {
-  bfd_set_section_userdata (sec, deps_section);
+  sec->userdata = deps_section;
 }
 
 
@@ -648,7 +632,8 @@ xtensa_append_section_deps (reloc_deps_graph *deps, asection *sec)
 	{
 	  new_sections[i] = deps->sections[i];
 	}
-      free (deps->sections);
+      if (deps->sections != NULL)
+	free (deps->sections);
       deps->sections = new_sections;
       deps->size = new_size;
     }
@@ -686,7 +671,9 @@ free_reloc_deps_graph (reloc_deps_graph *deps)
 	}
       xtensa_set_section_deps (deps, sec, NULL);
     }
-  free (deps->sections);
+  if (deps->sections)
+    free (deps->sections);
+
   free (deps);
 }
 
@@ -1233,10 +1220,6 @@ ld_build_required_section_dependence (lang_statement_union_type *s)
     {
       lang_statement_union_type *l = iter_stack_current (&stack);
 
-      if (l == NULL && link_info.non_contiguous_regions)
-	einfo (_("%F%P: Relaxation not supported with "
-		 "--enable-non-contiguous-regions.\n"));
-
       if (l->header.type == lang_input_section_enum)
 	{
 	  lang_input_section_type *input;
@@ -1310,10 +1293,10 @@ static bfd_boolean
 is_inconsistent_linkonce_section (asection *sec)
 {
   bfd *abfd = sec->owner;
-  const char *sec_name = bfd_section_name (sec);
+  const char *sec_name = bfd_get_section_name (abfd, sec);
   const char *name;
 
-  if ((bfd_section_flags (sec) & SEC_LINK_ONCE) == 0
+  if ((bfd_get_section_flags (abfd, sec) & SEC_LINK_ONCE) == 0
       || strncmp (sec_name, ".gnu.linkonce.", linkonce_len) != 0)
     return FALSE;
 
@@ -1936,29 +1919,20 @@ PARSE_AND_LIST_PROLOGUE='
 #define OPTION_OPT_SIZEOPT              (300)
 #define OPTION_LITERAL_MOVEMENT		(OPTION_OPT_SIZEOPT + 1)
 #define OPTION_NO_LITERAL_MOVEMENT	(OPTION_LITERAL_MOVEMENT + 1)
-#define OPTION_ABI_WINDOWED		(OPTION_NO_LITERAL_MOVEMENT + 1)
-#define OPTION_ABI_CALL0		(OPTION_ABI_WINDOWED + 1)
 extern int elf32xtensa_size_opt;
 extern int elf32xtensa_no_literal_movement;
-extern int elf32xtensa_abi;
 '
 
 PARSE_AND_LIST_LONGOPTS='
   { "size-opt", no_argument, NULL, OPTION_OPT_SIZEOPT},
   { "literal-movement", no_argument, NULL, OPTION_LITERAL_MOVEMENT},
   { "no-literal-movement", no_argument, NULL, OPTION_NO_LITERAL_MOVEMENT},
-  { "abi-windowed", no_argument, NULL, OPTION_ABI_WINDOWED},
-  { "abi-call0", no_argument, NULL, OPTION_ABI_CALL0},
 '
 
 PARSE_AND_LIST_OPTIONS='
   fprintf (file, _("\
   --size-opt                  When relaxing longcalls, prefer size\n\
                                 optimization over branch target alignment\n"));
-  fprintf (file, _("\
-  --abi-windowed              Choose windowed ABI for the output object\n"));
-  fprintf (file, _("\
-  --abi-call0                 Choose call0 ABI for the output object\n"));
 '
 
 PARSE_AND_LIST_ARGS_CASES='
@@ -1970,12 +1944,6 @@ PARSE_AND_LIST_ARGS_CASES='
       break;
     case OPTION_NO_LITERAL_MOVEMENT:
       elf32xtensa_no_literal_movement = 1;
-      break;
-    case OPTION_ABI_WINDOWED:
-      elf32xtensa_abi = XTHAL_ABI_WINDOWED;
-      break;
-    case OPTION_ABI_CALL0:
-      elf32xtensa_abi = XTHAL_ABI_CALL0;
       break;
 '
 

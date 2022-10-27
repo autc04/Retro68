@@ -1,4 +1,4 @@
-#   Copyright (C) 1999-2020 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,13 +40,13 @@ proc file_contents { filename } {
 # Find out the size by reading the output of the EI_CLASS field.
 # Similar to the test for readelf -h, but we're just looking for the
 # EI_CLASS line here.
-proc readelf_find_size { binary_file test_iteration } {
+proc readelf_find_size { binary_file } {
     global READELF
     global READELFFLAGS
     global readelf_size
 
     set readelf_size ""
-    set testname "finding out ELF size with readelf -h ($test_iteration)"
+    set testname "finding out ELF size with readelf -h"
     set got [remote_exec host "$READELF $READELFFLAGS -h $binary_file" "" "/dev/null" "readelf.out"]
     if [is_remote host] then {
         remote_upload host "readelf.out"
@@ -188,7 +188,7 @@ proc readelf_wi_test {} {
 	".*DW_TAG_subprogram.*"
 	".*DW_TAG_base_type.*"
 	".*DW_AT_producer.*(GNU C|indirect string).*"
-	".*DW_AT_language.*(ANSI C|C11).*"
+	".*DW_AT_language.*ANSI C.*"
 	".*DW_AT_name.*(testprog.c|indirect string).*"
 	".*DW_AT_name.*fn.*"
 	".*DW_AT_name.*(main|indirect string).*"
@@ -335,7 +335,7 @@ if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
     }
 
     # First, determine the size, so specific output matchers can be used.
-    readelf_find_size $tempfile 1
+    readelf_find_size $tempfile
 
     # Run the tests.
     readelf_test -h $tempfile readelf.h  {}
@@ -345,27 +345,10 @@ if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
     readelf_test -r $tempfile readelf.r  {}
 }
 
-# Test demangling symbol names.
-if {![binutils_assemble $srcdir/$subdir/mangled.s tmpdir/mangled.o]} then {
-    unresolved "readelf -s -C bintest (failed to assemble)"
-} else {
-
-    if ![is_remote host] {
-	set tempfile tmpdir/mangled.o
-    } else {
-	set tempfile [remote_download host tmpdir/mangled.o]
-    }
-
-    # Run the test.
-    readelf_test {--syms --demangle --wide} $tempfile readelf.demangled {}
-}
-
 readelf_wi_test
 readelf_compressed_wa_test
 
 readelf_dump_test
-run_dump_test "pr25543"
-
 
 # PR 13482 - Check for off-by-one errors when dumping .note sections.
 if {![binutils_assemble $srcdir/$subdir/version.s tmpdir/version.o]} then {
@@ -461,10 +444,10 @@ if ![istarget "riscv*-*-*"] then {
 	}
 
 	# First, determine the size, so specific output matchers can be used.
-	readelf_find_size $tempfile 2
+	readelf_find_size $tempfile
 
 	# Make sure that readelf can decode the contents.
-	readelf_test -wiaoRlL $tempfile dw5.W {}
+	readelf_test -wiaoRlL $tempfile dw5.W { nds32*-elf }
     }
 }
 
@@ -480,7 +463,7 @@ if {![binutils_assemble_flags $srcdir/$subdir/dwarf-attributes.S tmpdir/dwarf-at
     }
 
     # First, determine the size, so specific output matchers can be used.
-    readelf_find_size $tempfile 3
+    readelf_find_size $tempfile
 
     # Make sure that readelf can decode the contents.
     readelf_test -wi $tempfile dwarf-attributes.W {}
@@ -506,7 +489,7 @@ if {![binutils_assemble $srcdir/$subdir/debuglink.s tmpdir/debuglink.o]} then {
 	    set tempfile2 [remote_download host tmpdir/linkdebug.debug]
 	}
 
-	readelf_test {-wKis} $tempfile readelf.wKis  {}
+	readelf_test {-wKis} $tempfile objdump.WK2  {}
     }
 }
 
@@ -522,28 +505,4 @@ if {![binutils_assemble $srcdir/$subdir/dwo.s tmpdir/dwo.o]} then {
     readelf_test {--debug-dump=links} $tempfile readelf.k2  {}
 }
 
-if {![binutils_assemble $srcdir/$subdir/zero-sec.s tmpdir/zero-sec.o]} then {
-    unresolved "readelf --enable-checks (failed to assemble zero-sec.s)"
-} else {
-    if ![is_remote host] {
-	set tempfile tmpdir/zero-sec.o
-    } else {
-	set tempfile [remote_download host tmpdir/zero-sec.o]
-    }
 
-    readelf_test {--enable-checks --sections --wide} $tempfile zero-sec.r {}
-}
-
-if ![is_remote host] {
-    set test $srcdir/$subdir/pr26112.o.bz2
-    # We need to strip the ".bz2", but can leave the dirname.
-    set t $subdir/[file tail $test]
-    set testname [file rootname $t]
-    verbose $testname
-    set tempfile tmpdir/pr26112.o
-    if {[catch "system \"bzip2 -dc $test > $tempfile\""] != 0} {
-	untested "bzip2 -dc ($testname)"
-    } else {
-	readelf_test {--debug-dump=macro} $tempfile pr26112.r {}
-    }
-}

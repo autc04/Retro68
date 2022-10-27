@@ -2,7 +2,7 @@
 #as: -mm9s12x
 #name: verify hex prefixes present and not duplicated (hexprefix)
 
-.*:     file format elf32-m68hc12
+dump.o:     file format elf32-m68hc12
 
 
 Disassembly of section .text:

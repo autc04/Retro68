@@ -1,7 +1,7 @@
 #as: -J
 #objdump: -dw -mi386
 #name: string insn operands
-#warning_output: string-ok.e
+#stderr: string-ok.e
 .*: +file format .*
 
 Disassembly of section .text:

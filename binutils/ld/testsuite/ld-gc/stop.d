@@ -2,6 +2,7 @@
 #ld: --gc-sections -e _start
 #nm: -n
 #target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
+#notarget: frv-*-linux* metag-*-linux*
 
 #failif
 #...

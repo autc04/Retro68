@@ -1,4 +1,4 @@
-source_sh ${srcdir}/emulparams/h8300elf.sh
+. ${srcdir}/emulparams/h8300elf.sh
 ARCH="h8300:h8300sx"
 STACK_ADDR=0x2fefc
 TINY_READONLY_SECTION=".tinyrodata :

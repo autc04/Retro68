@@ -1,6 +1,6 @@
 /* discard_locals_test.c -- test --discard-locals option.
 
-   Copyright (C) 2009-2020 Free Software Foundation, Inc.
+   Copyright (C) 2009-2017 Free Software Foundation, Inc.
    Doug Kwan <dougkwan@google.com>.
 
    This file is part of gold.
@@ -25,11 +25,11 @@
    main program should override the shared library symbol.  */
 
 /* Local symbol format for generic ELF target. */
-__asm__ (".Lshould_be_discarded:");
+asm (".Lshould_be_discarded:");
 
 #ifdef __i386__
 /* Additional local symbol format for the i386 target. */
-__asm__ (".Xshould_be_discarded:");
+asm (".Xshould_be_discarded:");
 #endif
 
 int
@@ -37,3 +37,4 @@ main (void)
 {
   return 0;
 }
+

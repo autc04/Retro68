@@ -1,6 +1,6 @@
 MACHINE=
 SCRIPT_NAME=xstormy16
-TEMPLATE_NAME=elf
+TEMPLATE_NAME=elf32
 EXTRA_EM_FILE=needrelax
 OUTPUT_FORMAT="elf32-xstormy16"
 # See also `include/elf/xstormy16.h'

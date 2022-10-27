@@ -3,7 +3,7 @@
 # source: vldm.s
 # objdump: -dr --prefix-addresses --show-raw-insn
 # This test is only valid on ELF based ports.
-#notarget: *-*-pe *-*-wince
+#not-target: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

@@ -3,7 +3,7 @@
 #source:  bit-manip.s
 
 
-.*:     file format elf32-s12z
+dump.o:     file format elf32-s12z
 
 
 Disassembly of section .text:

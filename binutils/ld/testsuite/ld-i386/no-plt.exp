@@ -1,5 +1,5 @@
 # Expect script for i386 no-PLT tests.
-#   Copyright (C) 2016-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2016-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -35,29 +35,32 @@ if ![istarget "i?86-*-*"] {
 }
 
 # Check to see if the C compiler works
-if { ![check_compiler_available] } {
+if { [which $CC] == 0 } {
     return
 }
+
+# Add $NOPIE_CFLAGS and $NOPIE_LDFLAGS if non-PIE is required.
+global NOPIE_CFLAGS NOPIE_LDFLAGS
 
 run_cc_link_tests [list \
     [list \
 	"Build no-plt-func1.o no-plt-main1.o" \
 	"" \
-	"-fPIE -Wa,-mx86-used-note=yes" \
+	"-fPIE" \
 	{no-plt-func1.c no-plt-main1.c} \
     ] \
     [list \
 	"Build no-plt-check1a.o no-plt-extern1a.o \
 	 no-plt-check1b.o no-plt-extern1b.o" \
 	"" \
-	"-Wa,-mrelax-relocations=yes,-mx86-used-note=yes" \
+	"-Wa,-mrelax-relocations=yes" \
 	{no-plt-check1a.S no-plt-extern1a.S \
 	 no-plt-check1b.S no-plt-extern1b.S } \
     ] \
     [list \
 	"Build libno-plt-1a.so" \
 	"-shared tmpdir/no-plt-func1.o" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{dummy.s} \
 	{} \
 	"libno-plt-1a.so" \
@@ -65,7 +68,7 @@ run_cc_link_tests [list \
     [list \
 	"Build libno-plt-1b.so" \
 	"-shared tmpdir/no-plt-extern1a.o" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{dummy.s} \
 	{{readelf -Wr libno-plt-1b.rd} \
 	 {objdump -dwrj.text libno-plt-1b.dd}} \
@@ -75,7 +78,7 @@ run_cc_link_tests [list \
 	"No PLT (dynamic 1a)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{dummy.s} \
 	{{readelf -Wr no-plt-1a.rd} {objdump -dwrj.text no-plt-1a.dd}} \
 	"no-plt-1a" \
@@ -84,7 +87,7 @@ run_cc_link_tests [list \
 	"No PLT (dynamic 1b)" \
 	"tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/libno-plt-1a.so tmpdir/libno-plt-1b.so" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{dummy.s} \
 	{{readelf -Wr no-plt-1b.rd} {objdump -dwrj.text no-plt-1b.dd}} \
 	"no-plt-1b" \
@@ -93,7 +96,7 @@ run_cc_link_tests [list \
 	"No PLT (dynamic 1c)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{dummy.s} \
 	{{readelf -Wr no-plt-1c.rd} {objdump -dwrj.text no-plt-1c.dd}} \
 	"no-plt-1c" \
@@ -102,7 +105,7 @@ run_cc_link_tests [list \
 	"No PLT (static 1d)" \
 	"-static tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{dummy.s} \
 	{{readelf -Wr no-plt-1d.rd} {objdump -dwrj.text no-plt-1d.dd}} \
 	"no-plt-1d" \
@@ -111,7 +114,7 @@ run_cc_link_tests [list \
 	"No PLT (PIE 1e)" \
 	"-pie tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{dummy.s} \
 	{{readelf -Wr no-plt-1e.rd} {objdump -dwrj.text no-plt-1e.dd}} \
 	"no-plt-1e" \
@@ -120,7 +123,7 @@ run_cc_link_tests [list \
 	"No PLT (PIE 1f)" \
 	"-pie tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/libno-plt-1a.so tmpdir/libno-plt-1b.so" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{ dummy.s } \
 	{{readelf -Wr no-plt-1f.rd} {objdump -dwrj.text no-plt-1f.dd}} \
 	"no-plt-1f" \
@@ -129,7 +132,7 @@ run_cc_link_tests [list \
 	"No PLT (PIE 1g)" \
 	"-pie tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{ dummy.s } \
 	{{readelf -Wr no-plt-1g.rd} {objdump -dwrj.text no-plt-1g.dd}} \
 	"no-plt-1g" \
@@ -138,7 +141,7 @@ run_cc_link_tests [list \
 	"No PLT (dynamic 1h)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1b.o" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{dummy.s} \
 	{{readelf -Wr no-plt-1h.rd} {objdump -dwrj.text no-plt-1h.dd}} \
 	"no-plt-1h" \
@@ -147,7 +150,7 @@ run_cc_link_tests [list \
 	"No PLT (dynamic 1i)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-extern1b.o tmpdir/libno-plt-1a.so" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{dummy.s} \
 	{{readelf -Wr no-plt-1i.rd} {objdump -dwrj.text no-plt-1i.dd}} \
 	"no-plt-1i" \
@@ -156,7 +159,7 @@ run_cc_link_tests [list \
 	"No PLT (static 1j)" \
 	"-static tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1b.o" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{dummy.s} \
 	{{readelf -Wr no-plt-1j.rd} {objdump -dwrj.text no-plt-1j.dd}} \
 	"no-plt-1j" \
@@ -168,7 +171,7 @@ run_ld_link_exec_tests [list \
 	"No PLT (dynamic 1a)" \
 	"tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{ dummy.s } \
 	"no-plt-1a" \
 	"pass.out" \
@@ -177,7 +180,7 @@ run_ld_link_exec_tests [list \
 	"No PLT (dynamic 1b)" \
 	"tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/libno-plt-1a.so tmpdir/libno-plt-1b.so" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{ dummy.s } \
 	"no-plt-1b" \
 	"pass.out" \
@@ -186,7 +189,7 @@ run_ld_link_exec_tests [list \
 	"No PLT (dynamic 1c)" \
 	"tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{ dummy.s } \
 	"no-plt-1c" \
 	"pass.out" \
@@ -195,7 +198,7 @@ run_ld_link_exec_tests [list \
 	"No PLT (static 1d)" \
 	"-static tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{ dummy.s } \
 	"no-plt-1d" \
 	"pass.out" \
@@ -204,7 +207,7 @@ run_ld_link_exec_tests [list \
 	"No PLT (PIE 1e)" \
 	"-pie tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1a.o" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{ dummy.s } \
 	"no-plt-1e" \
 	"pass.out" \
@@ -213,7 +216,7 @@ run_ld_link_exec_tests [list \
 	"No PLT (PIE 1f)" \
 	"-pie tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/libno-plt-1a.so tmpdir/libno-plt-1b.so" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{ dummy.s } \
 	"no-plt-1f" \
 	"pass.out" \
@@ -222,7 +225,7 @@ run_ld_link_exec_tests [list \
 	"No PLT (PIE 1g)" \
 	"-pie tmpdir/no-plt-check1a.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{ dummy.s } \
 	"no-plt-1g" \
 	"pass.out" \
@@ -231,7 +234,7 @@ run_ld_link_exec_tests [list \
 	"No PLT (dynamic 1h)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1b.o" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{dummy.s} \
 	"no-plt-1h" \
 	"pass.out" \
@@ -240,7 +243,7 @@ run_ld_link_exec_tests [list \
 	"No PLT (dynamic 1i)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-extern1b.o tmpdir/libno-plt-1a.so" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{dummy.s} \
 	"no-plt-1i" \
 	"pass.out" \
@@ -249,7 +252,7 @@ run_ld_link_exec_tests [list \
 	"No PLT (static 1j)" \
 	"-static tmpdir/no-plt-check1b.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1b.o" \
-	"-Wa,-mx86-used-note=yes" \
+	"" \
 	{dummy.s} \
 	"no-plt-1j" \
 	"pass.out" \
@@ -262,27 +265,27 @@ if { [check_ifunc_available] } {
 	[list \
 	    "Build pr20244-3a.o pr20244-3b.o pr20244-3c.o pr20244-3d.o" \
 	    "" \
-	    "-fPIC -O2 -g -Wa,-mx86-used-note=yes" \
+	    "-fPIC -O2 -g" \
 	    { pr20244-3a.c pr20244-3b.S pr20244-3c.S pr20244-3d.S } \
 	] \
 	[list \
 	    "Build pr20253-1a.o pr20253-1b.o pr20253-1c.o pr20253-1d.o" \
 	    "" \
-	    "-fPIE -O2 -g -Wa,-mx86-used-note=yes" \
+	    "-fPIE -O2 -g" \
 	    { pr20253-1a.c pr20253-1b.S pr20253-1c.S pr20253-1d.S } \
 	] \
 	[list \
 	    "Build libpr20253-1a.so" \
 	    "-shared tmpdir/pr20253-1b.o \
 	     tmpdir/pr20253-1c.o tmpdir/pr20253-1d.o" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { dummy.s } \
 	    {} \
 	    "libpr20253-1a.so" \
 	] \
 	[list \
 	    "Build pr20253-2a.o pr20253-2b.o pr20253-2c.o pr20253-2d.o" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    "-fPIE -O2 -g" \
 	    { pr20253-2a.c pr20253-2b.S pr20253-2c.S pr20253-2d.S } \
 	] \
@@ -293,7 +296,7 @@ if { [check_ifunc_available] } {
 	    "Run pr20244-3a" \
 	    "$NOPIE_LDFLAGS tmpdir/pr20244-3a.o tmpdir/pr20244-3b.o \
 	     tmpdir/pr20244-3c.o tmpdir/pr20244-3d.o" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { dummy.c } \
 	    "pr20244-3a" \
 	    "pass.out" \
@@ -302,7 +305,7 @@ if { [check_ifunc_available] } {
 	    "Run pr20244-3b" \
 	    "--static tmpdir/pr20244-3a.o tmpdir/pr20244-3b.o \
 	    tmpdir/pr20244-3c.o tmpdir/pr20244-3d.o" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { dummy.c } \
 	    "pr20244-3b" \
 	    "pass.out" \
@@ -311,7 +314,7 @@ if { [check_ifunc_available] } {
 	    "Run pr20253-1a" \
 	    "tmpdir/pr20253-1a.o tmpdir/pr20253-1b.o \
 	     tmpdir/pr20253-1c.o tmpdir/pr20253-1d.o" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { dummy.s } \
 	    "pr20253-1a" \
 	    "pass.out" \
@@ -320,7 +323,7 @@ if { [check_ifunc_available] } {
 	    "Run pr20253-1b" \
 	    "--static tmpdir/pr20253-1a.o tmpdir/pr20253-1b.o \
 	    tmpdir/pr20253-1c.o tmpdir/pr20253-1d.o" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { dummy.s } \
 	    "pr20253-1b" \
 	    "pass.out" \
@@ -329,7 +332,7 @@ if { [check_ifunc_available] } {
 	    "Run pr20253-1c" \
 	    "-pie tmpdir/pr20253-1a.o tmpdir/pr20253-1b.o \
 	    tmpdir/pr20253-1c.o tmpdir/pr20253-1d.o" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { dummy.s } \
 	    "pr20253-1c" \
 	    "pass.out" \
@@ -337,7 +340,7 @@ if { [check_ifunc_available] } {
 	[list \
 	    "Run pr20253-1d" \
 	    "tmpdir/pr20253-1a.o tmpdir/libpr20253-1a.so" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { dummy.s } \
 	    "pr20253-1d" \
 	    "pass.out" \
@@ -345,7 +348,7 @@ if { [check_ifunc_available] } {
 	[list \
 	    "Run pr20253-1e" \
 	    "-pie tmpdir/pr20253-1a.o tmpdir/libpr20253-1a.so" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { dummy.s } \
 	    "pr20253-1e" \
 	    "pass.out" \
@@ -353,7 +356,7 @@ if { [check_ifunc_available] } {
 	[list \
 	    "Run pr20253-1f" \
 	    "$NOPIE_LDFLAGS tmpdir/pr20253-1a.o" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { pr20253-1b.S pr20253-1c.S pr20253-1d.S } \
 	    "pr20253-1f" \
 	    "pass.out" \
@@ -362,7 +365,7 @@ if { [check_ifunc_available] } {
 	[list \
 	    "Run pr20253-1g" \
 	    "--static tmpdir/pr20253-1a.o" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { pr20253-1b.S pr20253-1c.S pr20253-1d.S } \
 	    "pr20253-1g" \
 	    "pass.out" \
@@ -372,7 +375,7 @@ if { [check_ifunc_available] } {
 	    "Run pr20253-2a" \
 	    "$NOPIE_LDFLAGS tmpdir/pr20253-2a.o tmpdir/pr20253-2b.o \
 	     tmpdir/pr20253-2c.o tmpdir/pr20253-2d.o" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { dummy.s } \
 	    "pr20253-2a" \
 	    "pass.out" \
@@ -381,7 +384,7 @@ if { [check_ifunc_available] } {
 	    "Run pr20253-2b" \
 	    "--static tmpdir/pr20253-2a.o tmpdir/pr20253-2b.o \
 	    tmpdir/pr20253-2c.o tmpdir/pr20253-2d.o" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { dummy.s } \
 	    "pr20253-2b" \
 	    "pass.out" \
@@ -389,7 +392,7 @@ if { [check_ifunc_available] } {
 	[list \
 	    "Run pr20253-2c" \
 	    "$NOPIE_LDFLAGS tmpdir/pr20253-2a.o" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { pr20253-2b.S pr20253-2c.S pr20253-2d.S } \
 	    "pr20253-2c" \
 	    "pass.out" \
@@ -398,7 +401,7 @@ if { [check_ifunc_available] } {
 	[list \
 	    "Run pr20253-2d" \
 	    "--static tmpdir/pr20253-2a.o" \
-	    "-Wa,-mx86-used-note=yes" \
+	    "" \
 	    { pr20253-2b.S pr20253-2c.S pr20253-2d.S } \
 	    "pr20253-2d" \
 	    "pass.out" \

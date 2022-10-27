@@ -1,5 +1,5 @@
 /* TI PRU assembler.
-   Copyright (C) 2014-2020 Free Software Foundation, Inc.
+   Copyright (C) 2014-2018 Free Software Foundation, Inc.
    Contributed by Dimitar Dimitrov <dimitar@dinux.eu>
    Based on tc-nios2.c
 
@@ -132,14 +132,14 @@ typedef struct pru_insn_info
 } pru_insn_infoS;
 
 /* Opcode hash table.  */
-static htab_t pru_opcode_hash = NULL;
+static struct hash_control *pru_opcode_hash = NULL;
 #define pru_opcode_lookup(NAME) \
-  ((struct pru_opcode *) str_hash_find (pru_opcode_hash, (NAME)))
+  ((struct pru_opcode *) hash_find (pru_opcode_hash, (NAME)))
 
 /* Register hash table.  */
-static htab_t pru_reg_hash = NULL;
+static struct hash_control *pru_reg_hash = NULL;
 #define pru_reg_lookup(NAME) \
-  ((struct pru_reg *) str_hash_find (pru_reg_hash, (NAME)))
+  ((struct pru_reg *) hash_find (pru_reg_hash, (NAME)))
 
 /* The known current alignment of the current section.  */
 static int pru_current_align;
@@ -642,6 +642,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 {
   unsigned char *where;
   valueT value = *valP;
+  long n;
 
   /* Assert that the fixup is one we can handle.  */
   gas_assert (fixP != NULL && valP != NULL
@@ -800,13 +801,11 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	    pru_diagnose_overflow (fixup, howto, fixP, insn);
 
 	  /* Apply the right shift.  */
-	  fixup = (offsetT) fixup >> howto->rightshift;
+	  fixup = ((offsetT)fixup) >> howto->rightshift;
 
 	  /* Truncate the fixup to right size.  */
-	  if (howto->bitsize == 0)
-	    fixup = 0;
-	  else
-	    fixup &= ((valueT) 2 << (howto->bitsize - 1)) - 1;
+	  n = sizeof (fixup) * 8 - howto->bitsize;
+	  fixup = (fixup << n) >> n;
 
 	  /* Fix up the instruction.  Non-contiguous bitfields need
 	     special handling.  */
@@ -1557,20 +1556,41 @@ void
 md_begin (void)
 {
   int i;
+  const char *inserted;
 
   /* Create and fill a hashtable for the PRU opcodes, registers and
      arguments.  */
-  pru_opcode_hash = str_htab_create ();
-  pru_reg_hash = str_htab_create ();
+  pru_opcode_hash = hash_new ();
+  pru_reg_hash = hash_new ();
 
   for (i = 0; i < NUMOPCODES; ++i)
-    if (str_hash_insert (pru_opcode_hash, pru_opcodes[i].name,
-			 &pru_opcodes[i], 0) != NULL)
-      as_fatal (_("duplicate %s"), pru_opcodes[i].name);
+    {
+      inserted
+	= hash_insert (pru_opcode_hash, pru_opcodes[i].name,
+		       (PTR) & pru_opcodes[i]);
+      if (inserted != NULL)
+	{
+	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
+		   pru_opcodes[i].name, inserted);
+	  /* Probably a memory allocation problem?  Give up now.  */
+	  as_fatal (_("Broken assembler.  No assembly attempted."));
+	}
+    }
 
   for (i = 0; i < pru_num_regs; ++i)
-    if (str_hash_insert (pru_reg_hash, pru_regs[i].name, &pru_regs[i], 0))
-      as_fatal (_("duplicate %s"), pru_regs[i].name);
+    {
+      inserted
+	= hash_insert (pru_reg_hash, pru_regs[i].name,
+		       (PTR) & pru_regs[i]);
+      if (inserted != NULL)
+	{
+	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
+		   pru_regs[i].name, inserted);
+	  /* Probably a memory allocation problem?  Give up now.  */
+	  as_fatal (_("Broken assembler.  No assembly attempted."));
+	}
+
+    }
 
   linkrelax = pru_opt.link_relax;
   /* Initialize the alignment data.  */
@@ -1725,7 +1745,7 @@ md_assemble (char *op_str)
 valueT
 md_section_align (asection *seg, valueT addr)
 {
-  int align = bfd_section_alignment (seg);
+  int align = bfd_get_section_alignment (stdoutput, seg);
   return ((addr + (1 << align) - 1) & (-((valueT) 1 << align)));
 }
 
@@ -1790,8 +1810,8 @@ md_pcrel_from (fixS *fixP ATTRIBUTE_UNUSED)
 void
 md_end (void)
 {
-  htab_delete (pru_opcode_hash);
-  htab_delete (pru_reg_hash);
+  hash_die (pru_opcode_hash);
+  hash_die (pru_reg_hash);
 }
 
 symbolS *
@@ -1900,28 +1920,14 @@ pru_cons_fix_new (fragS *frag, int where, unsigned int nbytes,
 }
 
 /* Implement tc_regname_to_dw2regnum, to convert REGNAME to a DWARF-2
-   register number.  Return the starting HW byte-register number.  */
-
+   register number.  */
 int
 pru_regname_to_dw2regnum (char *regname)
 {
-  static const unsigned int regstart[RSEL_NUM_ITEMS] =
-    {
-     [RSEL_7_0]	  = 0,
-     [RSEL_15_8]  = 1,
-     [RSEL_23_16] = 2,
-     [RSEL_31_24] = 3,
-     [RSEL_15_0]  = 0,
-     [RSEL_23_8]  = 1,
-     [RSEL_31_16] = 2,
-     [RSEL_31_0]  = 0,
-    };
-
   struct pru_reg *r = pru_reg_lookup (regname);
-
-  if (r == NULL || r->regsel >= RSEL_NUM_ITEMS)
+  if (r == NULL)
     return -1;
-  return r->index * 4 + regstart[r->regsel];
+  return r->index;
 }
 
 /* Implement tc_cfi_frame_initial_instructions, to initialize the DWARF-2
@@ -1929,7 +1935,7 @@ pru_regname_to_dw2regnum (char *regname)
 void
 pru_frame_initial_instructions (void)
 {
-  const unsigned fp_regno = 4 * 4;
+  const unsigned fp_regno = 4;
   cfi_add_CFA_def_cfa (fp_regno, 0);
 }
 

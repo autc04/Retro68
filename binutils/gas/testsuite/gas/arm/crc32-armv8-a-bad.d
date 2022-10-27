@@ -2,8 +2,8 @@
 #name: Unpredictable ARMv8-A CRC32 instructions.
 #source: crc32-armv8-ar-bad.s
 #as: -march=armv8-a+crc
-#warning_output: crc32-bad.l
-#notarget: *-*-pe *-*-wince
+#stderr: crc32-bad.l
+#not-target: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

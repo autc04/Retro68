@@ -1,7 +1,7 @@
 %option noyywrap
 
 /* bfin-lex.l  ADI Blackfin lexer
-   Copyright (C) 2005-2020 Free Software Foundation, Inc.
+   Copyright (C) 2005-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -344,7 +344,7 @@ static long parse_int (char **end)
   int not_done = 1;
   int shiftvalue = 0;
   char * char_bag;
-  unsigned long value = 0;
+  long value = 0;
   char *arg = *end;
 
   while (*arg && *arg == ' ')

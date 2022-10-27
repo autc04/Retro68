@@ -1,13 +1,13 @@
 #NO_APP
  .text
  .macro foo
- .globl label_a
-label_a:
+ .globl a
+a:
  .long 42
  .endm
 #APP
  foo
- .globl label_b
-label_b:
+ .globl b
+b:
  .long 56
 #NO_APP

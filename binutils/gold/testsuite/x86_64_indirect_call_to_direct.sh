@@ -3,7 +3,7 @@
 # x86_64_indirect_call_to_direct.sh -- a test for indirect call(jump) to direct
 # conversion.
 
-# Copyright (C) 2016-2020 Free Software Foundation, Inc.
+# Copyright (C) 2016-2017 Free Software Foundation, Inc.
 # Written by Sriraman Tallam <tmsriram@google.com>
 
 # This file is part of gold.
@@ -25,5 +25,5 @@
 
 set -e
 
-grep -q "call[ ]\+[a-f0-9]\+ <foo>" x86_64_indirect_call_to_direct1.stdout
-grep -q "jmp[ ]\+[a-f0-9]\+ <foo>" x86_64_indirect_jump_to_direct1.stdout
+grep -q "callq[ ]\+[a-f0-9]\+ <foo>" x86_64_indirect_call_to_direct1.stdout
+grep -q "jmpq[ ]\+[a-f0-9]\+ <foo>" x86_64_indirect_jump_to_direct1.stdout

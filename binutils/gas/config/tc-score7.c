@@ -1,5 +1,5 @@
 /* tc-score7.c -- Assembler for Score7
-   Copyright (C) 2009-2020 Free Software Foundation, Inc.
+   Copyright (C) 2009-2018 Free Software Foundation, Inc.
    Contributed by:
    Brain.lin (brain.lin@sunplusct.com)
    Mei Ligang (ligang@sunnorth.com.cn)
@@ -27,6 +27,7 @@
 #include "subsegs.h"
 #include "safe-ctype.h"
 #include "opcode/score-inst.h"
+#include "struc-symbol.h"
 #include "libiberty.h"
 
 #ifdef OBJ_ELF
@@ -142,6 +143,7 @@ static void s7_do_lw_pic (char *);
 #define s7_GET_INSN_SIZE(type) ((s7_GET_INSN_CLASS (type) == INSN_CLASS_16) \
                              ? s7_INSN16_SIZE : s7_INSN_SIZE)
 
+#define s7_MAX_LITTLENUMS 6
 #define s7_INSN_NAME_LEN 16
 
 /* Relax will need some padding for alignment.  */
@@ -520,7 +522,7 @@ struct s7_reg_map
 {
   const struct s7_reg_entry *names;
   int max_regno;
-  htab_t htab;
+  struct hash_control *htab;
   const char *expected;
 };
 
@@ -531,8 +533,8 @@ static struct s7_reg_map s7_all_reg_maps[] =
   {s7_score_crn_table, 31, NULL, N_("S+core co-processor register expected")},
 };
 
-static htab_t s7_score_ops_hsh = NULL;
-static htab_t s7_dependency_insn_hsh = NULL;
+static struct hash_control *s7_score_ops_hsh = NULL;
+static struct hash_control *s7_dependency_insn_hsh = NULL;
 
 
 struct s7_datafield_range
@@ -1112,7 +1114,7 @@ s7_end_of_line (char *str)
 }
 
 static int
-s7_score_reg_parse (char **ccp, htab_t htab)
+s7_score_reg_parse (char **ccp, struct hash_control *htab)
 {
   char *start = *ccp;
   char c;
@@ -1129,7 +1131,7 @@ s7_score_reg_parse (char **ccp, htab_t htab)
     c = *p++;
 
   *--p = 0;
-  reg = (struct s7_reg_entry *) str_hash_find (htab, start);
+  reg = (struct s7_reg_entry *) hash_find (htab, start);
   *p = c;
 
   if (reg)
@@ -2321,8 +2323,7 @@ s7_dependency_type_from_insn (char *insn_name)
   const struct s7_insn_to_dependency *tmp;
 
   strcpy (name, insn_name);
-  tmp = (const struct s7_insn_to_dependency *)
-    str_hash_find (s7_dependency_insn_hsh, name);
+  tmp = (const struct s7_insn_to_dependency *) hash_find (s7_dependency_insn_hsh, name);
 
   if (tmp)
     return tmp->type;
@@ -2790,8 +2791,7 @@ s7_parse_16_32_inst (char *insnstr, bfd_boolean gen_frag_p)
   c = *p;
   *p = '\0';
 
-  opcode = (const struct s7_asm_opcode *) str_hash_find (s7_score_ops_hsh,
-							 operator);
+  opcode = (const struct s7_asm_opcode *) hash_find (s7_score_ops_hsh, operator);
   *p = c;
 
   memset (&s7_inst, '\0', sizeof (s7_inst));
@@ -4200,7 +4200,7 @@ s7_build_la_pic (int reg_rd, expressionS exp)
       /* Fix part
          For an external symbol: lw rD, <sym>($gp)
                                  (BFD_RELOC_SCORE_GOT15 or BFD_RELOC_SCORE_CALL15)  */
-      sprintf (tmp, "lw_pic r%d, %s", reg_rd, S_GET_NAME (add_symbol));
+      sprintf (tmp, "lw_pic r%d, %s", reg_rd, add_symbol->bsym->name);
       if (s7_append_insn (tmp, FALSE) == (int) s7_FAIL)
 	return;
 
@@ -4214,7 +4214,7 @@ s7_build_la_pic (int reg_rd, expressionS exp)
 	 addi rD, <sym>       (BFD_RELOC_GOT_LO16) */
       s7_inst.reloc.type = BFD_RELOC_SCORE_GOT15;
       memcpy (&var_insts[0], &s7_inst, sizeof (struct s7_score_it));
-      sprintf (tmp, "addi_s_pic r%d, %s", reg_rd, S_GET_NAME (add_symbol));
+      sprintf (tmp, "addi_s_pic r%d, %s", reg_rd, add_symbol->bsym->name);
       if (s7_append_insn (tmp, FALSE) == (int) s7_FAIL)
 	return;
 
@@ -4224,7 +4224,7 @@ s7_build_la_pic (int reg_rd, expressionS exp)
   else if (add_number >= -0x8000 && add_number <= 0x7fff)
     {
       /* Insn 1: lw rD, <sym>($gp)    (BFD_RELOC_SCORE_GOT15)  */
-      sprintf (tmp, "lw_pic r%d, %s", reg_rd, S_GET_NAME (add_symbol));
+      sprintf (tmp, "lw_pic r%d, %s", reg_rd, add_symbol->bsym->name);
       if (s7_append_insn (tmp, TRUE) == (int) s7_FAIL)
 	return;
 
@@ -4241,8 +4241,7 @@ s7_build_la_pic (int reg_rd, expressionS exp)
 
       /* Var part
  	 For a local symbol: addi rD, <sym>+<constant>    (BFD_RELOC_GOT_LO16)  */
-      sprintf (tmp, "addi_s_pic r%d, %s + %d", reg_rd,
-	       S_GET_NAME (add_symbol), (int) add_number);
+      sprintf (tmp, "addi_s_pic r%d, %s + %d", reg_rd, add_symbol->bsym->name, (int) add_number);
       if (s7_append_insn (tmp, FALSE) == (int) s7_FAIL)
 	return;
 
@@ -4255,7 +4254,7 @@ s7_build_la_pic (int reg_rd, expressionS exp)
       int lo = add_number & 0x0000FFFF;
 
       /* Insn 1: lw rD, <sym>($gp)    (BFD_RELOC_SCORE_GOT15)  */
-      sprintf (tmp, "lw_pic r%d, %s", reg_rd, S_GET_NAME (add_symbol));
+      sprintf (tmp, "lw_pic r%d, %s", reg_rd, add_symbol->bsym->name);
       if (s7_append_insn (tmp, TRUE) == (int) s7_FAIL)
 	return;
 
@@ -4297,7 +4296,7 @@ s7_build_la_pic (int reg_rd, expressionS exp)
 
       /* Var part
   	 For a local symbol: addi r1, <sym>+LO%<constant>    (BFD_RELOC_GOT_LO16)  */
-      sprintf (tmp, "addi_u_pic r1, %s + %d", S_GET_NAME (add_symbol), lo);
+      sprintf (tmp, "addi_u_pic r1, %s + %d", add_symbol->bsym->name, lo);
       if (s7_append_insn (tmp, FALSE) == (int) s7_FAIL)
 	return;
 
@@ -4662,7 +4661,7 @@ s7_build_lwst_pic (int reg_rd, expressionS exp, const char *insn_name)
       /* Fix part
          For an external symbol: lw rD, <sym>($gp)
                                  (BFD_RELOC_SCORE_GOT15)  */
-      sprintf (tmp, "lw_pic r1, %s", S_GET_NAME (add_symbol));
+      sprintf (tmp, "lw_pic r1, %s", add_symbol->bsym->name);
       if (s7_append_insn (tmp, FALSE) == (int) s7_FAIL)
         return;
 
@@ -4674,7 +4673,7 @@ s7_build_lwst_pic (int reg_rd, expressionS exp, const char *insn_name)
 	 addi rD, <sym>       (BFD_RELOC_GOT_LO16) */
       s7_inst.reloc.type = BFD_RELOC_SCORE_GOT15;
       memcpy (&var_insts[0], &s7_inst, sizeof (struct s7_score_it));
-      sprintf (tmp, "addi_s_pic r1, %s", S_GET_NAME (add_symbol));
+      sprintf (tmp, "addi_s_pic r1, %s", add_symbol->bsym->name);
       if (s7_append_insn (tmp, FALSE) == (int) s7_FAIL)
         return;
 
@@ -5105,8 +5104,8 @@ s7_build_score_ops_hsh (void)
       new_opcode->relax_value = insn->relax_value;
       new_opcode->type = insn->type;
       new_opcode->bitmask = insn->bitmask;
-      str_hash_insert (s7_score_ops_hsh, new_opcode->template_name,
-		       new_opcode, 0);
+      hash_insert (s7_score_ops_hsh, new_opcode->template_name,
+                   (void *) new_opcode);
     }
 }
 
@@ -5132,7 +5131,8 @@ s7_build_dependency_insn_hsh (void)
       strcpy (insn_name, tmp->insn_name);
       new_i2d->insn_name = insn_name;
       new_i2d->type = tmp->type;
-      str_hash_insert (s7_dependency_insn_hsh, new_i2d->insn_name, new_i2d, 0);
+      hash_insert (s7_dependency_insn_hsh, new_i2d->insn_name,
+                   (void *) new_i2d);
     }
 }
 
@@ -5189,7 +5189,7 @@ s7_pic_need_relax (symbolS *sym, asection *segtype)
   linkonce = FALSE;
   if (symsec != segtype && ! S_IS_LOCAL (sym))
     {
-      if ((bfd_section_flags (symsec) & SEC_LINK_ONCE) != 0)
+      if ((bfd_get_section_flags (stdoutput, symsec) & SEC_LINK_ONCE) != 0)
 	linkonce = TRUE;
 
       /* The GNU toolchain uses an extension for ELF: a section
@@ -5263,7 +5263,10 @@ s7_b32_relax_to_b16 (fragS * fragp)
   if (s == NULL)
     frag_addr = 0;
   else
-    symbol_address = (addressT) symbol_get_frag (s)->fr_address;
+    {
+      if (s->bsym != NULL)
+	symbol_address = (addressT) symbol_get_frag (s)->fr_address;
+    }
 
   value = s7_md_chars_to_number (fragp->fr_literal, s7_INSN_SIZE);
 
@@ -5277,7 +5280,7 @@ s7_b32_relax_to_b16 (fragS * fragp)
     abs_value = 0xffffffff - abs_value + 1;
 
   /* Relax branch 32 to branch 16.  */
-  if (relaxable_p && ((abs_value & 0xffffff00) == 0)
+  if (relaxable_p && (s->bsym != NULL) && ((abs_value & 0xffffff00) == 0)
       && (S_IS_DEFINED (s) && !S_IS_COMMON (s) && !S_IS_EXTERNAL (s)))
     {
       /* do nothing.  */
@@ -5346,7 +5349,7 @@ s7_parse_pce_inst (char *insnstr)
 
 
 static void
-s7_insert_reg (const struct s7_reg_entry *r, htab_t htab)
+s7_insert_reg (const struct s7_reg_entry *r, struct hash_control *htab)
 {
   int i = 0;
   int len = strlen (r->name) + 2;
@@ -5360,8 +5363,8 @@ s7_insert_reg (const struct s7_reg_entry *r, htab_t htab)
     }
   buf2[i] = '\0';
 
-  str_hash_insert (htab, buf, r, 0);
-  str_hash_insert (htab, buf2, r, 0);
+  hash_insert (htab, buf, (void *) r);
+  hash_insert (htab, buf2, (void *) r);
 }
 
 static void
@@ -5369,9 +5372,14 @@ s7_build_reg_hsh (struct s7_reg_map *map)
 {
   const struct s7_reg_entry *r;
 
-  map->htab = str_htab_create ();
+  if ((map->htab = hash_new ()) == NULL)
+    {
+      as_fatal (_("virtual memory exhausted"));
+    }
   for (r = map->names; r->name != NULL; r++)
-    s7_insert_reg (r, map->htab);
+    {
+      s7_insert_reg (r, map->htab);
+    }
 }
 
 
@@ -5395,7 +5403,7 @@ static void
 s7_s_section (int ignore)
 {
   obj_elf_section (ignore);
-  if ((bfd_section_flags (now_seg) & SEC_CODE) != 0)
+  if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
     record_alignment (now_seg, 2);
 
 }
@@ -5418,16 +5426,14 @@ s7_s_change_sec (int sec)
     {
     case 'r':
       seg = subseg_new (s7_RDATA_SECTION_NAME, (subsegT) get_absolute_expression ());
-      bfd_set_section_flags (seg, (SEC_ALLOC | SEC_LOAD | SEC_READONLY
-				   | SEC_RELOC | SEC_DATA));
+      bfd_set_section_flags (stdoutput, seg, (SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_RELOC | SEC_DATA));
       if (strcmp (TARGET_OS, "elf") != 0)
         record_alignment (seg, 4);
       demand_empty_rest_of_line ();
       break;
     case 's':
       seg = subseg_new (".sdata", (subsegT) get_absolute_expression ());
-      bfd_set_section_flags (seg, (SEC_ALLOC | SEC_LOAD | SEC_RELOC
-				   | SEC_DATA | SEC_SMALL_DATA));
+      bfd_set_section_flags (stdoutput, seg, SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_DATA);
       if (strcmp (TARGET_OS, "elf") != 0)
         record_alignment (seg, 4);
       demand_empty_rest_of_line ();
@@ -5537,10 +5543,17 @@ s7_s_score_ent (int aent)
   if (ISDIGIT (*input_line_pointer) || *input_line_pointer == '-')
     s7_get_number ();
 
-  if ((bfd_section_flags (now_seg) & SEC_CODE) != 0)
+#ifdef BFD_ASSEMBLER
+  if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
     maybe_text = 1;
   else
     maybe_text = 0;
+#else
+  if (now_seg != data_section && now_seg != bss_section)
+    maybe_text = 1;
+  else
+    maybe_text = 0;
+#endif
   if (!maybe_text)
     as_warn (_(".ent or .aent not in text section."));
   if (!aent && s7_cur_proc_ptr)
@@ -5640,10 +5653,17 @@ s7_s_score_end (int x ATTRIBUTE_UNUSED)
   else
     p = NULL;
 
-  if ((bfd_section_flags (now_seg) & SEC_CODE) != 0)
+#ifdef BFD_ASSEMBLER
+  if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
     maybe_text = 1;
   else
     maybe_text = 0;
+#else
+  if (now_seg != data_section && now_seg != bss_section)
+    maybe_text = 1;
+  else
+    maybe_text = 0;
+#endif
 
   if (!maybe_text)
     as_warn (_(".end not in text section"));
@@ -5973,13 +5993,14 @@ s7_s_score_lcomm (int bytes_p)
     {
       /* For Score and Alpha ECOFF or ELF, small objects are put in .sbss.  */
       if ((unsigned) temp <= bfd_get_gp_size (stdoutput))
-	{
-	  bss_seg = subseg_new (".sbss", 1);
-	  seg_info (bss_seg)->bss = 1;
-	  if (!bfd_set_section_flags (bss_seg, SEC_ALLOC | SEC_SMALL_DATA))
-	    as_warn (_("error setting flags for \".sbss\": %s"),
-		     bfd_errmsg (bfd_get_error ()));
-	}
+        {
+          bss_seg = subseg_new (".sbss", 1);
+          seg_info (bss_seg)->bss = 1;
+#ifdef BFD_ASSEMBLER
+          if (!bfd_set_section_flags (stdoutput, bss_seg, SEC_ALLOC))
+            as_warn (_("error setting flags for \".sbss\": %s"), bfd_errmsg (bfd_get_error ()));
+#endif
+        }
     }
 #endif
 
@@ -6057,8 +6078,12 @@ s7_s_score_lcomm (int bytes_p)
 
   if (
 #if (defined (OBJ_AOUT) || defined (OBJ_MAYBE_AOUT))
+#ifdef BFD_ASSEMBLER
        (OUTPUT_FLAVOR != bfd_target_aout_flavour
         || (S_GET_OTHER (symbolP) == 0 && S_GET_DESC (symbolP) == 0)) &&
+#else
+       (S_GET_OTHER (symbolP) == 0 && S_GET_DESC (symbolP) == 0) &&
+#endif
 #endif
        (S_GET_SEGMENT (symbolP) == bss_seg || (!S_IS_DEFINED (symbolP) && S_GET_VALUE (symbolP) == 0)))
     {
@@ -6111,11 +6136,13 @@ s7_begin (void)
   segT seg;
   subsegT subseg;
 
-  s7_score_ops_hsh = str_htab_create ();
+  if ((s7_score_ops_hsh = hash_new ()) == NULL)
+    as_fatal (_("virtual memory exhausted"));
 
   s7_build_score_ops_hsh ();
 
-  s7_dependency_insn_hsh = str_htab_create ();
+  if ((s7_dependency_insn_hsh = hash_new ()) == NULL)
+    as_fatal (_("virtual memory exhausted"));
 
   s7_build_dependency_insn_hsh ();
 
@@ -6129,8 +6156,8 @@ s7_begin (void)
   seg = now_seg;
   subseg = now_subseg;
   s7_pdr_seg = subseg_new (".pdr", (subsegT) 0);
-  bfd_set_section_flags (s7_pdr_seg, SEC_READONLY | SEC_RELOC | SEC_DEBUGGING);
-  bfd_set_section_alignment (s7_pdr_seg, 2);
+  (void) bfd_set_section_flags (stdoutput, s7_pdr_seg, SEC_READONLY | SEC_RELOC | SEC_DEBUGGING);
+  (void) bfd_set_section_alignment (stdoutput, s7_pdr_seg, 2);
   subseg_set (seg, subseg);
 
   if (s7_USE_GLOBAL_POINTER_OPT)
@@ -6185,7 +6212,7 @@ static const char *
 s7_atof (int type, char *litP, int *sizeP)
 {
   int prec;
-  LITTLENUM_TYPE words[MAX_LITTLENUMS];
+  LITTLENUM_TYPE words[s7_MAX_LITTLENUMS];
   char *t;
   int i;
 
@@ -6538,8 +6565,8 @@ s7_convert_frag (bfd * abfd ATTRIBUTE_UNUSED,
 		 segT sec ATTRIBUTE_UNUSED,
 		 fragS * fragp)
 {
-  unsigned int r_old;
-  unsigned int r_new;
+  int r_old;
+  int r_new;
   char backup[20];
   fixS *fixp;
 
@@ -6605,7 +6632,7 @@ s7_pcrel_from (fixS * fixP)
 static valueT
 s7_section_align (segT segment, valueT size)
 {
-  int align = bfd_section_alignment (segment);
+  int align = bfd_get_section_alignment (stdoutput, segment);
 
   return ((size + (1 << align) - 1) & -(1 << align));
 }
@@ -6613,11 +6640,11 @@ s7_section_align (segT segment, valueT size)
 static void
 s7_apply_fix (fixS *fixP, valueT *valP, segT seg)
 {
-  valueT value = *valP;
-  valueT abs_value = 0;
-  valueT newval;
-  valueT content;
-  valueT HI, LO;
+  offsetT value = *valP;
+  offsetT abs_value = 0;
+  offsetT newval;
+  offsetT content;
+  unsigned short HI, LO;
 
   char *buf = fixP->fx_frag->fr_literal + fixP->fx_where;
 
@@ -6648,7 +6675,7 @@ s7_apply_fix (fixS *fixP, valueT *valP, segT seg)
       if (fixP->fx_done)
         {                       /* For la rd, imm32.  */
           newval = s7_md_chars_to_number (buf, s7_INSN_SIZE);
-          HI = value >> 16;   /* mul to 2, then take the hi 16 bit.  */
+          HI = (value) >> 16;   /* mul to 2, then take the hi 16 bit.  */
           newval |= (HI & 0x3fff) << 1;
           newval |= ((HI >> 14) & 0x3) << 16;
           s7_number_to_chars (buf, newval, s7_INSN_SIZE);
@@ -6658,7 +6685,7 @@ s7_apply_fix (fixS *fixP, valueT *valP, segT seg)
       if (fixP->fx_done)        /* For la rd, imm32.  */
         {
           newval = s7_md_chars_to_number (buf, s7_INSN_SIZE);
-          LO = value & 0xffff;
+          LO = (value) & 0xffff;
           newval |= (LO & 0x3fff) << 1; /* 16 bit: imm -> 14 bit in lo, 2 bit in hi.  */
           newval |= ((LO >> 14) & 0x3) << 16;
           s7_number_to_chars (buf, newval, s7_INSN_SIZE);
@@ -6668,7 +6695,7 @@ s7_apply_fix (fixS *fixP, valueT *valP, segT seg)
       {
         content = s7_md_chars_to_number (buf, s7_INSN_SIZE);
         value = fixP->fx_offset;
-        if (value > 0x1ffffff)
+        if (!(value >= 0 && value <= 0x1ffffff))
           {
             as_bad_where (fixP->fx_file, fixP->fx_line,
                           _("j or jl truncate (0x%x)  [0 ~ 2^25-1]"), (unsigned int) value);
@@ -6723,7 +6750,7 @@ s7_apply_fix (fixS *fixP, valueT *valP, segT seg)
       content = s7_md_chars_to_number (buf, s7_INSN16_SIZE);
       content &= 0xf001;
       value = fixP->fx_offset;
-      if (value > 0xfff)
+      if (!(value >= 0 && value <= 0xfff))
         {
           as_bad_where (fixP->fx_file, fixP->fx_line,
                         _("j! or jl! truncate (0x%x)  [0 ~ 2^12-1]"), (unsigned int) value);

@@ -59,7 +59,7 @@ Disassembly of section .text:
   da:	0f 2a d3 [ 	]*cvtpi2ps %mm3,%xmm2
   dd:	0f 2a 1c 24 [ 	]*cvtpi2ps \(%esp\),%xmm3
   e1:	f3 0f 2a e5 [ 	]*cvtsi2ss %ebp,%xmm4
-  e5:	f3 0f 2a 2e [ 	]*cvtsi2ss \(%esi\),%xmm5
+  e5:	f3 0f 2a 2e [ 	]*cvtsi2ssl \(%esi\),%xmm5
   e9:	0f 2d f7 [ 	]*cvtps2pi %xmm7,%mm6
   ec:	0f 2d 38 [ 	]*cvtps2pi \(%eax\),%mm7
   ef:	f3 0f 2d 01 [ 	]*cvtss2si \(%ecx\),%eax

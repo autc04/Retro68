@@ -1,5 +1,5 @@
 # Expect script for run_dump_test based ld-sh tests.
-#   Copyright (C) 2001-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2001-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -31,6 +31,8 @@ if ![istarget sh*-*-*] {
     return
 }
 
+global ASFLAGS
+global LDFLAGS
 set asflags_save "$ASFLAGS"
 set ldflags_save "$LDFLAGS"
 

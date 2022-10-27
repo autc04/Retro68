@@ -1,5 +1,5 @@
 # Expect script for the linker's -l command line option
-#   Copyright (C) 2007-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2007-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -18,13 +18,6 @@
 # Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
 # MA 02110-1301, USA.
 #
-
-if { [istarget sh*-*-pe]
-     || [istarget tic30-*-*]
-     || [istarget tic54x-*-*] } {
-    # These all complain about a zero vma .text and other sections
-    return
-}
 
 file mkdir tmpdir/libtmp
 

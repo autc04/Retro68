@@ -1,5 +1,5 @@
 /* Intel i386 Mach-O support for BFD.
-   Copyright (C) 2009-2020 Free Software Foundation, Inc.
+   Copyright (C) 2009-2018 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -19,23 +19,23 @@
    MA 02110-1301, USA.  */
 
 #include "sysdep.h"
+#include "mach-o.h"
 #include "bfd.h"
 #include "libbfd.h"
 #include "libiberty.h"
-#include "mach-o.h"
 #include "mach-o/reloc.h"
 
 #define bfd_mach_o_object_p bfd_mach_o_i386_object_p
 #define bfd_mach_o_core_p bfd_mach_o_i386_core_p
 #define bfd_mach_o_mkobject bfd_mach_o_i386_mkobject
 
-static bfd_cleanup
+static const bfd_target *
 bfd_mach_o_i386_object_p (bfd *abfd)
 {
   return bfd_mach_o_header_p (abfd, 0, 0, BFD_MACH_O_CPU_TYPE_I386);
 }
 
-static bfd_cleanup
+static const bfd_target *
 bfd_mach_o_i386_core_p (bfd *abfd)
 {
   return bfd_mach_o_header_p (abfd, 0,

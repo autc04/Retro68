@@ -1,5 +1,6 @@
 #as: -J -march=iamcu
 #objdump: -dw
+#not-target: *-*-nacl*
 
 .*: +file format elf32-iamcu.*
 

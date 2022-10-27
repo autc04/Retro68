@@ -2202,4 +2202,3 @@ Disassembly of section \.text:
 [^:]+:\s+998033fe 	ldapursw	x30, \[sp, #3\]
 [^:]+:\s+998523fe 	ldapursw	x30, \[sp, #82\]
 [^:]+:\s+9980d3fe 	ldapursw	x30, \[sp, #13\]
-[^:]+:\s+d500401f 	cfinv

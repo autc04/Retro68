@@ -1,6 +1,6 @@
 #source: pr19807-1.s
 #as: --64
-#ld: -pie -melf_x86_64 -z noreloc-overflow -z notext
+#ld: -pie -melf_x86_64 -z noreloc-overflow
 #objdump: -dw
 
 .*: +file format .*

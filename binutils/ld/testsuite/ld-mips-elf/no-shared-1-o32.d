@@ -1,4 +1,5 @@
-#ld: -T no-shared-1.ld
+#as: -mabi=32 -EB
+#ld: -melf32btsmip -T no-shared-1.ld
 #objdump: -dr -j.text -j.data -j.got
 
 .*

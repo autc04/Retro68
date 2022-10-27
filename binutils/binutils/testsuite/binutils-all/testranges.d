@@ -2,7 +2,7 @@
 #source: testranges.s
 #readelf: -wR --wide
 #name: unordered .debug_info references to .debug_ranges
-#notarget: ia64-*-*
+#not-target: ia64-*-*
 
 Contents of the \.z?debug_ranges section:
 

@@ -1,5 +1,5 @@
 /* tc-arc.h - Macros and type defines for the ARC.
-   Copyright (C) 2014-2020 Free Software Foundation, Inc.
+   Copyright (C) 2014-2018 Free Software Foundation, Inc.
 
    Contributed by Claudiu Zissulescu (claziss@synopsys.com)
 
@@ -20,14 +20,13 @@
    Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-#ifndef TC_ARC
+#include "opcode/arc.h"
+
 /* By convention, you should define this macro in the `.h' file.  For
    example, `tc-m68k.h' defines `TC_M68K'.  You might have to use this
    if it is necessary to add CPU specific code to the object format
    file.  */
 #define TC_ARC
-
-#include "opcode/arc.h"
 
 /* We want local label support.  */
 #define LOCAL_LABELS_FB 1
@@ -101,6 +100,7 @@ extern const char *arc_target_format;
    instruction, plus the address of the PC relative fixup.  The latter
    can be calculated as fixp->fx_where +
    fixp->fx_frag->fr_address.  */
+extern long md_pcrel_from_section (struct fix *, segT);
 #define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section (FIX, SEC)
 
 /* [ ] is index operator.  */
@@ -267,5 +267,3 @@ struct arc_relax_type
   /* Number of flags.  Used for re-assembling in md_convert_frag.  */
   int nflg;
 };
-
-#endif

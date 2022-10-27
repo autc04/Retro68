@@ -2167,52 +2167,6 @@ fi
 
 } # ac_fn_cxx_check_header_mongrel
 
-# ac_fn_cxx_check_decl LINENO SYMBOL VAR INCLUDES
-# -----------------------------------------------
-# Tests whether SYMBOL is declared in INCLUDES, setting cache variable VAR
-# accordingly.
-ac_fn_cxx_check_decl ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  as_decl_name=`echo $2|sed 's/ *(.*//'`
-  as_decl_use=`echo $2|sed -e 's/(/((/' -e 's/)/) 0&/' -e 's/,/) 0& (/g'`
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $as_decl_name is declared" >&5
-$as_echo_n "checking whether $as_decl_name is declared... " >&6; }
-if eval \${$3+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$4
-int
-main ()
-{
-#ifndef $as_decl_name
-#ifdef __cplusplus
-  (void) $as_decl_use;
-#else
-  (void) $as_decl_name;
-#endif
-#endif
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_compile "$LINENO"; then :
-  eval "$3=yes"
-else
-  eval "$3=no"
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-eval ac_res=\$$3
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-
-} # ac_fn_cxx_check_decl
-
 # ac_fn_cxx_try_link LINENO
 # -------------------------
 # Try to link conftest.$ac_ext, and return whether this succeeded.
@@ -2325,6 +2279,52 @@ $as_echo "$ac_res" >&6; }
   eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
 
 } # ac_fn_cxx_check_func
+
+# ac_fn_cxx_check_decl LINENO SYMBOL VAR INCLUDES
+# -----------------------------------------------
+# Tests whether SYMBOL is declared in INCLUDES, setting cache variable VAR
+# accordingly.
+ac_fn_cxx_check_decl ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  as_decl_name=`echo $2|sed 's/ *(.*//'`
+  as_decl_use=`echo $2|sed -e 's/(/((/' -e 's/)/) 0&/' -e 's/,/) 0& (/g'`
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $as_decl_name is declared" >&5
+$as_echo_n "checking whether $as_decl_name is declared... " >&6; }
+if eval \${$3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+int
+main ()
+{
+#ifndef $as_decl_name
+#ifdef __cplusplus
+  (void) $as_decl_use;
+#else
+  (void) $as_decl_name;
+#endif
+#endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"; then :
+  eval "$3=yes"
+else
+  eval "$3=no"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+eval ac_res=\$$3
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+
+} # ac_fn_cxx_check_decl
 cat >config.log <<_ACEOF
 This file contains any messages produced by compilers while
 running configure, to aid debugging if configure makes a mistake.
@@ -7795,7 +7795,7 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 __GNUC__
 _ACEOF
 if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "(^[0-3]$|^__GNUC__$)" >/dev/null 2>&1; then :
+  $EGREP "^[0-3]$" >/dev/null 2>&1; then :
 
 else
   GCC_WARN_CFLAGS="$GCC_WARN_CFLAGS -Wshadow"
@@ -7809,7 +7809,7 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 __GNUC__
 _ACEOF
 if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "(^[0-4]$|^__GNUC__$)" >/dev/null 2>&1; then :
+  $EGREP "^[0-4]$" >/dev/null 2>&1; then :
 
 else
   GCC_WARN_CFLAGS="$GCC_WARN_CFLAGS -Wstack-usage=262144"
@@ -7824,7 +7824,7 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 __GNUC__
 _ACEOF
 if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "(^[0-3]$|^__GNUC__$)" >/dev/null 2>&1; then :
+  $EGREP "^[0-3]$" >/dev/null 2>&1; then :
 
 else
   WARN_WRITE_STRINGS="-Wwrite-strings"
@@ -7840,7 +7840,7 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 __GNUC__
 _ACEOF
 if (eval "$ac_cpp_for_build conftest.$ac_ext") 2>&5 |
-  $EGREP "(^[0-3]$|^__GNUC__$)" >/dev/null 2>&1; then :
+  $EGREP "^[0-3]$" >/dev/null 2>&1; then :
 
 else
   GCC_WARN_CFLAGS_FOR_BUILD="$GCC_WARN_CFLAGS_FOR_BUILD -Wshadow"
@@ -7854,7 +7854,7 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 __GNUC__
 _ACEOF
 if (eval "$ac_cpp_for_build conftest.$ac_ext") 2>&5 |
-  $EGREP "(^[0-4]$|^__GNUC__$)" >/dev/null 2>&1; then :
+  $EGREP "^[0-4]$" >/dev/null 2>&1; then :
 
 else
   GCC_WARN_CFLAGS_FOR_BUILD="$GCC_WARN_CFLAGS_FOR_BUILD -Wstack-usage=262144"
@@ -7977,7 +7977,7 @@ fi
 
 done
 
-for ac_func in chsize mmap link
+for ac_func in chsize mmap
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -9780,41 +9780,6 @@ fi
 done
 
 
-ac_fn_cxx_check_decl "$LINENO" "bswap_16" "ac_cv_have_decl_bswap_16" "#include <byteswap.h>
-"
-if test "x$ac_cv_have_decl_bswap_16" = xyes; then :
-  ac_have_decl=1
-else
-  ac_have_decl=0
-fi
-
-cat >>confdefs.h <<_ACEOF
-#define HAVE_DECL_BSWAP_16 $ac_have_decl
-_ACEOF
-ac_fn_cxx_check_decl "$LINENO" "bswap_32" "ac_cv_have_decl_bswap_32" "#include <byteswap.h>
-"
-if test "x$ac_cv_have_decl_bswap_32" = xyes; then :
-  ac_have_decl=1
-else
-  ac_have_decl=0
-fi
-
-cat >>confdefs.h <<_ACEOF
-#define HAVE_DECL_BSWAP_32 $ac_have_decl
-_ACEOF
-ac_fn_cxx_check_decl "$LINENO" "bswap_64" "ac_cv_have_decl_bswap_64" "#include <byteswap.h>
-"
-if test "x$ac_cv_have_decl_bswap_64" = xyes; then :
-  ac_have_decl=1
-else
-  ac_have_decl=0
-fi
-
-cat >>confdefs.h <<_ACEOF
-#define HAVE_DECL_BSWAP_64 $ac_have_decl
-_ACEOF
-
-
 for ac_header in windows.h
 do :
   ac_fn_cxx_check_header_mongrel "$LINENO" "windows.h" "ac_cv_header_windows_h" "$ac_includes_default"
@@ -9901,7 +9866,7 @@ case "$ac_cv_search_dlopen" in
 esac
 
 
-for ac_func in mallinfo posix_fallocate fallocate readv sysconf times mkdtemp
+for ac_func in mallinfo posix_fallocate fallocate readv sysconf times
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_cxx_check_func "$LINENO" "$ac_func" "$as_ac_var"

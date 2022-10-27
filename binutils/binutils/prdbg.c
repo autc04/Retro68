@@ -1,5 +1,5 @@
 /* prdbg.c -- Print out generic debugging information.
-   Copyright (C) 1995-2020 Free Software Foundation, Inc.
+   Copyright (C) 1995-2018 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
    Tags style generation written by Salvador E. Tropea <set@computer.org>.
 
@@ -286,8 +286,6 @@ static const struct debug_write_fns tg_fns =
   pr_end_function,		/* Same, does nothing.  */
   tg_lineno
 };
-
-static int demangle_flags = DMGL_ANSI | DMGL_PARAMS;
 
 /* Print out the generic debugging information recorded in dhandle.  */
 
@@ -1624,7 +1622,7 @@ pr_tag_type (void *p, const char *name, unsigned int id,
       t = "union class ";
       break;
     default:
-      /* PR 25625: Corrupt input can trigger this case.  */
+      abort ();
       return FALSE;
     }
 
@@ -1930,14 +1928,14 @@ find_address_in_section (bfd *abfd, asection *section, void *data)
   if (found)
     return;
 
-  if ((bfd_section_flags (section) & SEC_ALLOC) == 0)
+  if ((bfd_get_section_flags (abfd, section) & SEC_ALLOC) == 0)
     return;
 
-  vma = bfd_section_vma (section);
+  vma = bfd_get_section_vma (abfd, section);
   if (pc < vma)
     return;
 
-  size = bfd_section_size (section);
+  size = bfd_get_section_size (section);
   if (pc >= vma + size)
     return;
 
@@ -2117,7 +2115,6 @@ tg_start_class_type (void *p, const char *tag, unsigned int id,
   struct pr_handle *info = (struct pr_handle *) p;
   char *tv = NULL;
   const char *name;
-  char idbuf[20];
 
   info->indent += 2;
 
@@ -2132,6 +2129,8 @@ tg_start_class_type (void *p, const char *tag, unsigned int id,
     name = tag;
   else
     {
+      char idbuf[20];
+
       sprintf (idbuf, "%%anon%u", id);
       name = idbuf;
     }
@@ -2601,7 +2600,7 @@ tg_variable (void *p, const char *name, enum debug_var_kind kind,
 
   dname = NULL;
   if (info->demangler)
-    dname = info->demangler (info->abfd, name, demangle_flags);
+    dname = info->demangler (info->abfd, name, DMGL_ANSI | DMGL_PARAMS);
 
   from_class = NULL;
   if (dname != NULL)
@@ -2662,7 +2661,7 @@ tg_start_function (void *p, const char *name, bfd_boolean global)
 
   dname = NULL;
   if (info->demangler)
-    dname = info->demangler (info->abfd, name, demangle_flags);
+    dname = info->demangler (info->abfd, name, DMGL_ANSI | DMGL_PARAMS);
 
   if (! substitute_type (info, dname ? dname : name))
     return FALSE;

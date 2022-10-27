@@ -1,15 +1,12 @@
 SECTIONS
 {
   .text : {
-    SORT_NONE (*) (.text .text.* .pr)
+    SORT_NONE (*) (.text .text.*)
   }
 
   .data : {
-    SORT_NONE (*) (.data .data.* .rw)
+    SORT_NONE (*) (.data .data.*)
     foo = .;
-  }
-  .bss : {
-    SORT_NONE (*) (.bss)
   }
   /DISCARD/ : {*(*)}
 }

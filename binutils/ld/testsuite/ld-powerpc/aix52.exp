@@ -1,5 +1,5 @@
 # Expect script for AIX 5.2+ tests
-#   Copyright (C) 2009-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -19,8 +19,8 @@
 # MA 02110-1301, USA.
 #
 
-if { ![istarget "powerpc*-*-aix\[5-9\]*"] && ![istarget "rs6000-*-aix\[5-9\]*"]
-     || [istarget "*-*-aix5.\[01\]*"] } {
+if { ![istarget "powerpc*-*-aix\[5-9\]*"]
+     || [istarget "powerpc*-*-aix5.\[01\]*"] } {
     return
 }
 
@@ -72,14 +72,13 @@ set aix52tests {
     {"Absolute branch test 1"
      "-shared -bI:aix-abs-branch-1.im -bE:aix-abs-branch-1.ex"
      "" {aix-abs-branch-1.s}
-     {{objdump {-dR} aix-abs-branch-1.dd} {nm {} aix-abs-branch-1-SIZE.nd}}
+     {{objdump {-dR} aix-abs-branch-1.dd} {nm {} aix-abs-branch-1.nd}}
      "aix-abs-branch-1.so"}
 
     {"Relocations against absolute symbols 1"
      "-shared -bI:aix-abs-reloc-1.im -bE:aix-abs-reloc-1.ex"
      {} {aix-abs-reloc-1.s}
-     {{objdump -sRj.data aix-abs-reloc-1-SIZE.od}
-      {nm {} aix-abs-reloc-1-SIZE.nd}}
+     {{objdump -sRj.data aix-abs-reloc-1.od} {nm {} aix-abs-reloc-1.nd}}
      "aix-abs-reloc-1.so"}
 
     {"Core sections test 1" "-shared -bE:aix-core-sec-1.ex"
@@ -105,10 +104,8 @@ set aix52tests {
     {"Duplicate symbol check 1 (shared)"
      "-shared --allow-multiple-definition -bI:aix-no-dup-syms-1.im -bE:aix-no-dup-syms-1.ex"
      "" {aix-no-dup-syms-1a.s aix-no-dup-syms-1b.s}
-     {{nm {} aix-no-dup-syms-1-dso-SIZE.nd}
-      {objdump -r aix-no-dup-syms-1-dso-SIZE.rd}
-      {nm -D aix-no-dup-syms-1-dso-SIZE.dnd}
-      {objdump -R aix-no-dup-syms-1-dso-SIZE.drd}}
+     {{nm {} aix-no-dup-syms-1-dso.nd} {objdump -r aix-no-dup-syms-1-dso.rd}
+      {nm -D aix-no-dup-syms-1-dso.dnd} {objdump -R aix-no-dup-syms-1-dso.drd}}
      "aix-no-dup-syms-1.so"}
 
     {"Export test 1 (archive)" ""
@@ -122,24 +119,24 @@ set aix52tests {
     {"Export test 1 (-bexpall)"
      "-shared -bexpall tmpdir/aix-export-1.o -Ltmpdir -laix-export-1"
      "" {}
-     {{objdump -dj.data aix-export-1-all-SIZE.dd}}
+     {{objdump -dj.data aix-export-1-all.dd}}
      "aix-export-1-all.so"}
 
     {"Export test 1 (-bexpfull)"
      "-shared -bexpfull tmpdir/aix-export-1.o -Ltmpdir -laix-export-1"
      "" {}
-     {{objdump -dj.data aix-export-1-full-SIZE.dd}}
+     {{objdump -dj.data aix-export-1-full.dd}}
      "aix-export-1-full.so"}
 
     {"Export test 2" "-shared -bexpall"
      {} {aix-export-2.s}
-     {{nm -D aix-export-2-SIZE.nd}} "aix-export-2.so"}
+     {{nm -D aix-export-2.nd}} "aix-export-2.so"}
 
     {"Garbage collection test 1"
      "-shared -binitfini:init_function:fini_function -bE:aix-gc-1.ex"
      "" {aix-gc-1.s}
      {{objdump {-dz -j.text -j.data} aix-gc-1-SIZE.dd}
-      {nm {} aix-gc-1-SIZE.nd}}
+      {nm {} aix-gc-1.nd}}
      "aix-gc-1.so"}
 
     {"Glink test 1"
@@ -182,17 +179,17 @@ set aix52tests {
     {"Glink test 3 (main test)"
      "-bnoautoimp tmpdir/aix-glink-3b.so tmpdir/aix-glink-3a.so"
      "" {aix-glink-3.s}
-     {{objdump -d aix-glink-3-SIZE.dd}}
+     {{objdump -d aix-glink-3.dd}}
      "aix-glink-3"}
 
     {"Line number test 1 (no discards)" "-e.main"
      "" {aix-lineno-1.s}
-     {{objdump -dS aix-lineno-1a-SIZE.dd} {nm {} aix-lineno-1a-SIZE.nd}}
+     {{objdump -dS aix-lineno-1a.dd} {nm {} aix-lineno-1a.nd}}
      "aix-lineno-1a.exe"}
 
     {"Line number test 1 (discard locals)" "-e.main -x"
      "" {aix-lineno-1.s}
-     {{objdump -dS aix-lineno-1b-SIZE.dd} {nm {} aix-lineno-1b-SIZE.nd}}
+     {{objdump -dS aix-lineno-1b.dd} {nm {} aix-lineno-1b.nd}}
      "aix-lineno-1b.exe"}
 
     {"Relocatable test 1" "-r"
@@ -211,30 +208,30 @@ set aix52tests {
 
     {"Weak test 1 (shared, nogc)" "-shared -bE:aix-weak-1.ex -bnogc"
      "" {aix-weak-1a.s aix-weak-1b.s}
-     {{nm {} aix-weak-1-dso-SIZE.nd} {objdump -h aix-weak-1-dso-SIZE.hd}
-      {nm -D aix-weak-1-dso-SIZE.dnd}}
+     {{nm {} aix-weak-1-dso.nd} {objdump -h aix-weak-1-dso.hd}
+      {nm -D aix-weak-1-dso.dnd}}
      "aix-weak-1-nogc.so"}
 
     {"Weak test 1 (shared, gc)" "-shared -bE:aix-weak-1.ex"
      "" {aix-weak-1a.s aix-weak-1b.s}
-     {{nm {} aix-weak-1-gcdso-SIZE.nd} {objdump -h aix-weak-1-gcdso-SIZE.hd}
-      {nm -D aix-weak-1-gcdso-SIZE.dnd}}
+     {{nm {} aix-weak-1-gcdso.nd} {objdump -h aix-weak-1-gcdso.hd}
+      {nm -D aix-weak-1-gcdso.dnd}}
      "aix-weak-1-gc.so"}
 
     {"Weak test 2 (library 1)" "-shared -bE:aix-weak-2a.ex"
      "" {aix-weak-2a.s}
-     {{nm -D aix-weak-2a-SIZE.nd}}
+     {{nm -D aix-weak-2a.nd}}
      "aix-weak-2a.so"}
 
     {"Weak test 2 (library 2)" "-shared -bE:aix-weak-2a.ex"
      "" {aix-weak-2b.s}
-     {{nm -D aix-weak-2b-SIZE.nd}}
+     {{nm -D aix-weak-2b.nd}}
      "aix-weak-2b.so"}
 
     {"Weak test 2 (main library)"
      "-shared -bE:aix-weak-2c.ex tmpdir/aix-weak-2a.so tmpdir/aix-weak-2b.so"
      "" {aix-weak-2c.s}
-     {{nm {} aix-weak-2c-SIZE.nd} {objdump {-sj.data -R} aix-weak-2c-SIZE.od}}
+     {{nm {} aix-weak-2c.nd} {objdump {-sj.data -R} aix-weak-2c.od}}
      "aix-weak-2c.so"}
 
     {"Weak test 3 (library)" "-shared -bE:aix-weak-3a.ex"

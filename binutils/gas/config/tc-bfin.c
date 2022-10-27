@@ -1,5 +1,5 @@
 /* tc-bfin.c -- Assembler for the ADI Blackfin.
-   Copyright (C) 2005-2020 Free Software Foundation, Inc.
+   Copyright (C) 2005-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -19,6 +19,7 @@
    02110-1301, USA.  */
 
 #include "as.h"
+#include "struc-symbol.h"
 #include "bfin-defs.h"
 #include "obstack.h"
 #include "safe-ctype.h"
@@ -789,7 +790,7 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
 valueT
 md_section_align (segT segment, valueT size)
 {
-  int boundary = bfd_section_alignment (segment);
+  int boundary = bfd_get_section_alignment (stdoutput, segment);
   return ((size + (1 << boundary) - 1) & -(1 << boundary));
 }
 
@@ -1929,7 +1930,7 @@ bfin_loop_beginend (Expr_Node *exp, int begin)
   /* LOOP_END follows the last instruction in the loop.
      Adjust label address.  */
   if (!begin)
-    *symbol_X_add_number (linelabel) -= last_insn_size;
+    ((struct local_symbol *) linelabel)->lsy_value -= last_insn_size;
 }
 
 bfd_boolean

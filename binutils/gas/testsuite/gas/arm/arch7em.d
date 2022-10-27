@@ -1,6 +1,7 @@
 # name: 32-bit Thumb DSP instructions
 # as: -march=armv7e-m
 # objdump: -dr --prefix-addresses --show-raw-insn
+#not-target: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

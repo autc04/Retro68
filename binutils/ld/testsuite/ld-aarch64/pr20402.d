@@ -1,4 +1,3 @@
-#target: [check_shared_lib_support]
 #ld: -pie -defsym foo=0x1 -defsym bar=0x2
 #readelf: -r
 

@@ -9,11 +9,10 @@ note_1.s:
 	.balign 4
 
 	.dc.l 8
-	.dc.l 16
+	.dc.l 8
 	.dc.l 0x100
-	.asciz "GA$3p1"
-	.8byte 0x100 /* note_1.s */
-	.8byte 0x122 /* note_1 end */
+	.asciz "GA$2p1"
+	.8byte note_1.s
 
 	.dc.l 23
 	.dc.l 0
@@ -56,11 +55,4 @@ note_1.s:
 	.dc.l 0x100
 	.dc.b 0x47, 0x41, 0x2a, 0x6, 0xf2, 0x3, 0x38, 0xee, 0xce, 0xfa, 0x5e, 0x3c, 0
 	.dc.b 0, 0, 0
-
-	.dc.l 6
-	.dc.l 0
-	.dc.l 0x100
-	.dc.b 0x47, 0x41, 0x2a, 0x7, 0x2, 0
-	.dc.b 0, 0
-
 	.popsection

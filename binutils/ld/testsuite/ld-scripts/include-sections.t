@@ -1,6 +1,5 @@
 SECTIONS {
-	 .text : { *(.text .pr) } >rom
+	 .text : { *(.text) } >rom
 	 INCLUDE include-data.t
-	 .bss : { *(.bss) }
 	 /DISCARD/ : { *(*) }
 }

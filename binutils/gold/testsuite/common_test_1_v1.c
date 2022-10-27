@@ -1,6 +1,6 @@
 /* common_test_1_v1.c -- test common symbol sorting
 
-   Copyright (C) 2008-2020 Free Software Foundation, Inc.
+   Copyright (C) 2008-2017 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <iant@google.com>
 
    This file is part of gold.

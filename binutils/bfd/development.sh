@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2020 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 #
 # This file is part of GDB.
 #
@@ -17,6 +17,3 @@
 
 # Controls whether to enable development-mode features by default.
 development=false
-
-# Indicate whether this is a release branch.
-experimental=true

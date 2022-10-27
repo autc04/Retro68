@@ -5,7 +5,7 @@ foo:
 	.byte 0
 	.section	.data.foo,"axG",%progbits,foo,comdat
 	.globl foo.data
-	.type	foo.data,%object
+	.type	foo,%object
 foo.data:
 	.byte 0
 	.section	.text.bar,"axG",%progbits,bar,comdat

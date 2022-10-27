@@ -1,7 +1,7 @@
 /* BFD back-end for AIX on PS/2 core files.
    This was based on trad-core.c, which was written by John Gilmore of
 	Cygnus Support.
-   Copyright (C) 1988-2020 Free Software Foundation, Inc.
+   Copyright (C) 1988-2018 Free Software Foundation, Inc.
    Written by Minh Tran-Le <TRANLE@INTELLICORP.COM>.
    Converted to back end form by Ian Lance Taylor <ian@cygnus.com>.
 
@@ -65,13 +65,13 @@ struct trad_core_struct
   asection *sections[MAX_CORE_SEGS];
 };
 
-static bfd_cleanup
+static const bfd_target *
 aix386_core_file_p (bfd *abfd)
 {
   int i, n;
   unsigned char longbuf[4];	/* Raw bytes of various header fields */
   bfd_size_type core_size = sizeof (struct corehdr);
-  size_t amt;
+  bfd_size_type amt;
   struct corehdr *core;
   struct mergem
   {
@@ -189,7 +189,7 @@ aix386_core_file_p (bfd *abfd)
       n++;
     }
 
-  return _bfd_no_cleanup;
+  return abfd->xvec;
 }
 
 static char *

@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl
-dnl   Copyright (C) 2012-2020 Free Software Foundation, Inc.
+dnl   Copyright (C) 2012-2018 Free Software Foundation, Inc.
 dnl
 dnl This file is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@ dnl <http://www.gnu.org/licenses/>.
 dnl
 
 m4_include([../bfd/version.m4])
-m4_include([../config/debuginfod.m4])
 AC_INIT([binutils], BFD_VERSION)
 AC_CONFIG_SRCDIR(ar.c)
 
@@ -64,16 +63,8 @@ else
   default_strings_all=1
 fi], [default_strings_all=1])
 
-AC_DEBUGINFOD
-
 AC_DEFINE_UNQUOTED(DEFAULT_STRINGS_ALL, $default_strings_all,
 		   [Should strings use -a behavior by default?])
-
-GCC_ENABLE([libctf], [yes], [], [Handle .ctf type-info sections])
-if test "${enable_libctf}" = yes; then
-    AC_DEFINE(ENABLE_LIBCTF, 1, [Handle .ctf type-info sections])
-fi
-AM_CONDITIONAL(ENABLE_LIBCTF, test "${enable_libctf}" = yes)
 
 AM_BINUTILS_WARNINGS
 
@@ -139,7 +130,6 @@ AC_CHECK_HEADERS(string.h strings.h stdlib.h unistd.h fcntl.h sys/file.h limits.
 AC_HEADER_SYS_WAIT
 ACX_HEADER_STRING
 AC_FUNC_ALLOCA
-AC_FUNC_MMAP
 AC_CHECK_FUNCS(sbrk utimes setmode getc_unlocked strcoll setlocale)
 AC_CHECK_FUNC([mkstemp],
 	      AC_DEFINE([HAVE_MKSTEMP], 1,
@@ -329,6 +319,15 @@ changequote(,)dnl
 	powerpc*-aix[5-9].*)
 changequote([,])dnl
 	  OBJDUMP_DEFS="-DAIX_WEAK_SUPPORT"
+	  ;;
+	powerpc*-*-pe* | powerpc*-*-cygwin*)
+  	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_PPC"
+	  fi
+	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_PPC"
+	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
 	  ;;
 	powerpc*-*-linux* | powerpc*-*-elf* | powerpc*-*-eabi*)
 	  case "$BUILD_INSTALL_MISC" in

@@ -3,6 +3,7 @@
 #ld: -r -melf_x86_64
 #readelf: -r --wide
 #target: x86_64-*-*
+#notarget: x86_64-*-nacl*
 
 Relocation section '.rela.text' at .*
 [ ]+Offset[ ]+Info[ ]+Type[ ]+.*

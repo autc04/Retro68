@@ -2,7 +2,7 @@
 
 # pr14265.sh -- test --gc-sections with KEEP
 
-# Copyright (C) 2012-2020 Free Software Foundation, Inc.
+# Copyright (C) 2012-2017 Free Software Foundation, Inc.
 # Written by Nick Clifton  <nickc@redhat.com>
 
 # This file is part of gold.

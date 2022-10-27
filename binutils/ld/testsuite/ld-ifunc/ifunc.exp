@@ -1,6 +1,6 @@
 # Expect script for linker support of IFUNC symbols and relocations.
 #
-#   Copyright (C) 2009-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2009-2018 Free Software Foundation, Inc.
 #   Contributed by Red Hat.
 #
 # This file is part of the GNU Binutils.
@@ -23,28 +23,18 @@
 # Written by Nick Clifton <nickc@redhat.com>
 
 
-if { ![is_elf_format] || ![supports_gnu_osabi]
-     || [istarget alpha-*-*]
-     || [istarget arc*-*-*]
-     || [istarget am33*-*-*]
-     || [istarget bfin-*-*]
-     || [istarget cris*-*-*]
-     || [istarget frv-*-*]
-     || [istarget lm32-*-*]
-     || [istarget m32r-*-*]
-     || [istarget m68k-*-*]
-     || [istarget microblaze-*-*]
-     || [istarget mips*-*-*]
-     || [istarget mn10300-*-*]
-     || [istarget nds32*-*-*]
-     || [istarget nios2-*-*]
-     || [istarget or1k-*-*]
-     || [istarget riscv*-*-*]
-     || [istarget score*-*-*]
-     || [istarget sh*-*-*]
-     || [istarget tic6x-*-*]
-     || [istarget tile*-*-*]
-     || [istarget vax-*-*] } {
+# IFUNC support has only been implemented for the ix86, x86_64, powerpc,
+# aarch64, sparc, and S/390 so far.
+if {!(([istarget "i?86-*-*"]
+       || [istarget "x86_64-*-*"]
+       || [istarget "powerpc*-*-*"]
+       || [istarget "aarch64*-*-*"]
+       || [istarget "sparc*-*-*"]
+       || [istarget "s390*-*-*"])
+      && ([istarget "*-*-elf*"]
+	  || [istarget "*-*-nacl*"]
+	  || [istarget "*-*-linux*"]
+	  || [istarget "*-*-gnu*"])) } {
     verbose "IFUNC tests not run - target does not support IFUNC"
     return
 }
@@ -53,11 +43,6 @@ if { ![is_elf_format] || ![supports_gnu_osabi]
 
 if ![check_shared_lib_support] {
     return
-}
-
-set saved_ASFLAGS "$ASFLAGS"
-if { [istarget "i?86-*-*"] || [istarget "x86_64-*-*"] } {
-    set ASFLAGS "$ASFLAGS -mx86-used-note=no"
 }
 
 # This test does not need a compiler...
@@ -72,7 +57,7 @@ foreach t $test_list {
 
 # We need a working compiler.  (Strictly speaking this is
 # not true, we could use target specific assembler files).
-if { ![check_compiler_available] } {
+if { [which $CC] == 0 } {
     verbose "IFUNC tests not run - no compiler available"
     return
 }
@@ -148,7 +133,7 @@ proc contains_irelative_reloc { binary_file } {
     #    080496f4  0000002a R_386_IRELATIVE
 
 
-    if { ![regexp "\[0-9a-f\]+\[ \]+\[0-9a-f\]+\[ \]+R_(\[_0-9A-Z\]+_IREL(|ATIVE)|PARISC_IPLT)\[ \]*\[0-9a-f\]*\n" [file_contents readelf.out]] } {
+    if { ![regexp "\[0-9a-f\]+\[ \]+\[0-9a-f\]+\[ \]+R_\[_0-9A-Z\]+_IREL(|ATIVE)\[ \]*\[0-9a-f\]*\n" [file_contents readelf.out]] } {
 	return 0
     }
 
@@ -182,30 +167,24 @@ proc contains_ifunc_reloc { binary_file } {
 
 set fails 0
 
-# Disable LTO for these tests.
-set cc_cmd "$CC"
-if {[check_lto_available]} {
-   append cc_cmd " -fno-lto"
-}
-
 # Create the object files, libraries and executables.
-if ![ld_compile "$cc_cmd -c -fPIC" "$srcdir/$subdir/prog.c" "tmpdir/shared_prog.o"] {
+if ![ld_compile "$CC -c -fPIC" "$srcdir/$subdir/prog.c" "tmpdir/shared_prog.o"] {
     fail "Could not create a PIC object file"
     set fails [expr $fails + 1]
 }
-if ![ld_compile "$cc_cmd -c $NOPIE_CFLAGS" "$srcdir/$subdir/prog.c" "tmpdir/static_prog.o"] {
+if ![ld_compile "$CC -c $NOPIE_CFLAGS" "$srcdir/$subdir/prog.c" "tmpdir/static_prog.o"] {
     fail "Could not create a non-PIC object file"
     set fails [expr $fails + 1]
 }
-if ![ld_compile "$cc_cmd -c -fPIC -DWITH_IFUNC" "$srcdir/$subdir/lib.c" "tmpdir/shared_ifunc.o"] {
+if ![ld_compile "$CC -c -fPIC -DWITH_IFUNC" "$srcdir/$subdir/lib.c" "tmpdir/shared_ifunc.o"] {
     fail "Could not create a PIC object file containing an IFUNC symbol"
     set fails [expr $fails + 1]
 }
-if ![ld_compile "$cc_cmd -c $NOPIE_CFLAGS -DWITH_IFUNC" "$srcdir/$subdir/lib.c" "tmpdir/static_ifunc.o"] {
+if ![ld_compile "$CC -c $NOPIE_CFLAGS -DWITH_IFUNC" "$srcdir/$subdir/lib.c" "tmpdir/static_ifunc.o"] {
     fail "Could not create a non-PIC object file containing an IFUNC symbol"
     set fails [expr $fails + 1]
 }
-if ![ld_compile "$cc_cmd -c -DWITHOUT_IFUNC" "$srcdir/$subdir/lib.c" "tmpdir/static_noifunc.o"] {
+if ![ld_compile "$CC -c -DWITHOUT_IFUNC" "$srcdir/$subdir/lib.c" "tmpdir/static_noifunc.o"] {
     fail "Could not create an ordinary non-PIC object file"
     set fails [expr $fails + 1]
 }
@@ -213,11 +192,11 @@ if ![ld_assemble $as "$srcdir/ld-elf/empty.s" "tmpdir/empty.o"] {
     fail "Could not create an empty object file"
     set fails [expr $fails + 1]
 }
-if ![ld_compile "$cc_cmd -c" "$srcdir/$subdir/test-1.c" "tmpdir/test-1.o"] {
+if ![ld_compile "$CC -c" "$srcdir/$subdir/test-1.c" "tmpdir/test-1.o"] {
     fail "Could not create test-1.o"
     set fails [expr $fails + 1]
 }
-if ![ld_compile "$cc_cmd -fPIC -c" "$srcdir/$subdir/test-2.c" "tmpdir/test-2.o"] {
+if ![ld_compile "$CC -fPIC -c" "$srcdir/$subdir/test-2.c" "tmpdir/test-2.o"] {
     fail "Could not create test-2.o"
     set fails [expr $fails + 1]
 }
@@ -252,10 +231,10 @@ if ![string match "" $STATIC_LDFLAGS] {
 	fail "Could not link a static executable"
 	set fails [expr $fails + 1]
     }
-}
-if ![ld_link $ld "tmpdir/static_nonifunc_prog" "-static tmpdir/empty.o"] {
-    fail "Could not link a non-ifunc using static executable"
-    set fails [expr $fails + 1]
+    if ![ld_link $ld "tmpdir/static_nonifunc_prog" "-static tmpdir/empty.o"] {
+	fail "Could not link a non-ifunc using static executable"
+	set fails [expr $fails + 1]
+    }
 }
 if ![ld_link $CC "tmpdir/test-1" "-Wl,--no-as-needed,-rpath=./tmpdir tmpdir/test-1.o tmpdir/libshared_ifunc.so"] {
     fail "Could not link test-1"
@@ -283,8 +262,8 @@ if { $fails == 0 } {
 # ifunc should have an OSABI field of GNU.  The linked non-ifunc using
 # executable should have an OSABI field of NONE (aka System V).
 
-switch -glob $target_triplet {
-    hppa*-*-linux* { set expected_none {UNIX - GNU} }
+case $target_triplet in {
+    { hppa*-*-linux* } { set expected_none {UNIX - GNU} }
     default { set expected_none {UNIX - System V} }
 }
 
@@ -565,7 +544,7 @@ run_cc_link_tests [list \
     [list \
 	"Build pr18841a.o" \
 	"" \
-	"$NOPIE_CFLAGS" \
+	"" \
 	{ pr18841a.c } \
 	"" \
 	"" \
@@ -693,32 +672,32 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run pr18841 with libpr18841b.so" \
-	"$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/pr18841a.o tmpdir/libpr18841b.so" \
-	"$NOPIE_CFLAGS" \
+	"-Wl,--no-as-needed tmpdir/pr18841a.o tmpdir/libpr18841b.so" \
+	"" \
 	{ dummy.c } \
 	"pr18841b" \
 	"pr18841.out" \
     ] \
     [list \
 	"Run pr18841 with libpr18841c.so" \
-	"$NOPIE_LDFLAGS -Wl,--as-needed tmpdir/pr18841a.o tmpdir/libpr18841c.so" \
-	"$NOPIE_CFLAGS" \
+	"-Wl,--as-needed tmpdir/pr18841a.o tmpdir/libpr18841c.so" \
+	"" \
 	{ dummy.c } \
 	"pr18841c" \
 	"pr18841.out" \
     ] \
     [list \
 	"Run pr18841 with libpr18841bn.so (-z now)" \
-	"$NOPIE_LDFLAGS -Wl,-z,now -Wl,--no-as-needed tmpdir/pr18841a.o tmpdir/libpr18841bn.so" \
-	"$NOPIE_CFLAGS" \
+	"-Wl,-z,now -Wl,--no-as-needed tmpdir/pr18841a.o tmpdir/libpr18841bn.so" \
+	"" \
 	{ dummy.c } \
 	"pr18841bn" \
 	"pr18841.out" \
     ] \
     [list \
 	"Run pr18841 with libpr18841cn.so (-z now)" \
-	"$NOPIE_LDFLAGS -Wl,-z,now -Wl,--as-needed tmpdir/pr18841a.o tmpdir/libpr18841cn.so" \
-	"$NOPIE_CFLAGS" \
+	"-Wl,-z,now -Wl,--as-needed tmpdir/pr18841a.o tmpdir/libpr18841cn.so" \
+	"" \
 	{ dummy.c } \
 	"pr18841cn" \
 	"pr18841.out" \
@@ -734,9 +713,7 @@ run_ld_link_exec_tests [list \
 # That does not happen for the pr23169 testcase where the resolver is
 # in the executable (which is relocated last by ld.so).
 if { [isnative]
-     && !([istarget "powerpc-*-*"]
-           || [istarget "aarch64*-*-*"]
-           || [istarget "sparc*-*-*"]) } {
+     && ![istarget "powerpc-*-*"] } {
 run_ld_link_exec_tests [list \
     [list \
 	"Run pr23169a" \
@@ -792,20 +769,4 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
 	"-fPIE -O2 -g" \
     ] \
-]
-if { $STATIC_PIE_LDFLAGS != "" } then {
-    run_ld_link_exec_tests [list \
-	[list \
-	    "Run pr23169g" \
-	    "$STATIC_PIE_LDFLAGS" \
-	    "" \
-	    { pr23169a.c pr23169b.c pr23169c.c } \
-	    "pr23169g" \
-	    "pass.out" \
-	    "-fPIE -O2 -g" \
-	] \
-]
-}
-}
-
-set ASFLAGS "$saved_ASFLAGS"
+]}

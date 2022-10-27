@@ -1,5 +1,5 @@
 /* Binutils emulation layer.
-   Copyright (C) 2002-2020 Free Software Foundation, Inc.
+   Copyright (C) 2002-2018 Free Software Foundation, Inc.
    Written by Tom Rix, Red Hat Inc.
 
    This file is part of GNU Binutils.
@@ -84,7 +84,7 @@ do_ar_emul_append (bfd **after_bfd, bfd *new_bfd,
   if (!check (new_bfd))
     return FALSE;
 
-  AR_EMUL_APPEND_PRINT_VERBOSE (verbose, bfd_get_filename (new_bfd));
+  AR_EMUL_APPEND_PRINT_VERBOSE (verbose, new_bfd->filename);
 
   new_bfd->archive_next = *after_bfd;
   *after_bfd = new_bfd;

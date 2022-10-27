@@ -1,78 +1,94 @@
-2020-07-30  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+2018-07-18  Nick Clifton  <nickc@redhat.com>
 
-	* Makefile.am (AM_CPPFLAGS): Add LARGEFILE_CPPFLAGS.
+	2.31.1 Release point.
+	* configure: Regenerate.
+
+2018-07-14  Nick Clifton  <nickc@redhat.com>
+
+	* configure: Regenerate.
+
+2018-07-14  Nick Clifton  <nickc@redhat.com>
+
+	2.31 Release point.
+	* configure: Regenerate.
+
+2018-06-24  Nick Clifton  <nickc@redhat.com>
+
+	* configure: Regenerate.
+	* po/gprof.pot: Regenerate.
+
+2018-06-24  Nick Clifton  <nickc@redhat.com>
+
+	2.31 branch created.
+
+2018-06-19  Simon Marchi  <simon.marchi@ericsson.com>
+
+	* configure.ac: Remove AC_PREREQ.
+	* Makefile.am: Remove DISTCLEANFILES hack.
+	(AUTOMAKE_OPTIONS): Remove 1.11, add info-in-builddir.
+	* Makefile.in: Re-generate.
+	* aclocal.m4: Re-generate.
+	* configure: Re-generate.
+	* gconfig.in: Re-generate.
+
+2018-06-05  Nick Clifton  <nickc@redhat.com>
+
+	* po/eo.po: Updated Esperanto translation.
+	* po/ms.po: Updated Malay translation.
+
+2018-06-01  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* configure: Regenerated.
+
+2018-04-18  Nick Clifton  <nickc@redhat.com>
+
+	* po/es.po: Updated Spanish translation.
+
+2018-04-16  Alan Modra  <amodra@gmail.com>
+
+	* corefile.c: Remove netware support.
+
+2018-04-16  Alan Modra  <amodra@gmail.com>
+
+	* Makefile.am: Remove tahoe support.
+	* corefile.c: Likewise.
+	* tahoe.c: Delete.
 	* Makefile.in: Regenerate.
+	* po/POTFILES.in: Regenerate.
+
+2018-04-05  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR gas/22318
+	* configure: Regenerated.
+
+2018-03-01  Alan Modra  <amodra@gmail.com>
+
+	* configure.ac (ALL_LINGUAS): Add it, ro, ru, uk.  Sort.
 	* configure: Regenerate.
 
-2020-07-09  Nick Clifton  <nickc@redhat.com>
+2018-02-05  Nick Clifton  <nickc@redhat.com>
 
-	* po/tr.po: Updated Turkish translation.
-
-2020-07-06  Nick Clifton  <nickc@redhat.com>
-
-	* po/bg.po: Updated Bulgarian translation.
-
-2020-07-04  Nick Clifton  <nickc@redhat.com>
-
-	* configure: Regenerate.
-
-2020-07-04  Nick Clifton  <nickc@redhat.com>
-
-	Binutils 2.35 branch created.
-
-2020-06-25  Nick Clifton  <nickc@redhat.com>
-
-	* po/sv.po: Updated Swedish translation.
-
-2020-05-21  Alan Modra  <amodra@gmail.com>
-
-	* utils.c (print_name_only): Free demangled without checking
-	first for non-NULL.
-
-2020-05-18  Nick Clifton  <nickc@redhat.com>
-
-	* po/es.po: Update Spanish translation.
-
-2020-05-07  Nick Clifton  <nickc@redhat.com>
-
-	* po/fr.po: Updated French translation.
-
-2020-04-01  Nick Clifton  <nickc@redhat.com>
-
-	* po/sr.po: Updated Serbian translation.
-
-2020-02-24  Nick Clifton  <nickc@redhat.com>
-
-	* po/ms.po: Update Malasian translation.
-
-2020-01-23  Nick Clifton  <nickc@redhat.com>
-
-	* po/es.po: Updated Esperanto translation.
-	* po/fi.po: Updated Finish translation.
-
-2020-01-20  Nick Clifton  <nickc@redhat.com>
-
-	* po/de.po: Updated German translation.
 	* po/pt_BR.po: Updated Brazilian Portuguese translation.
-	* po/ru.po: Updated Russian translation.
-	* po/tr.po: Updated Turkish translation.
-	* po/uk.po: Updated Ukranian translation.
 
-2020-01-18  Nick Clifton  <nickc@redhat.com>
+2018-01-13  Nick Clifton  <nickc@redhat.com>
+
+	* po/gprof.pot: Regenerated.
+
+2018-01-13  Nick Clifton  <nickc@redhat.com>
 
 	* configure: Regenerate.
 
-2020-01-18  Nick Clifton  <nickc@redhat.com>
+2018-01-13  Nick Clifton  <nickc@redhat.com>
 
-	Binutils 2.34 branch created.
+	2.30 branch created.
 
-2020-01-01  Alan Modra  <amodra@gmail.com>
+2018-01-03  Alan Modra  <amodra@gmail.com>
 
 	Update year range in copyright notice of all files.
 
-For older changes see ChangeLog-2019
+For older changes see ChangeLog-2017
 
-Copyright (C) 2020 Free Software Foundation, Inc.
+Copyright (C) 2018 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

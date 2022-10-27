@@ -1,5 +1,5 @@
 /* SEC_MERGE support.
-   Copyright (C) 2001-2020 Free Software Foundation, Inc.
+   Copyright (C) 2001-2018 Free Software Foundation, Inc.
    Written by Jakub Jelinek <jakub@redhat.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -24,7 +24,6 @@
    as used in ELF SHF_MERGE.  */
 
 #include "sysdep.h"
-#include <limits.h>
 #include "bfd.h"
 #include "elf-bfd.h"
 #include "libbfd.h"
@@ -292,9 +291,8 @@ sec_merge_emit (bfd *abfd, struct sec_merge_hash_entry *entry,
   asection *sec = secinfo->sec;
   char *pad = NULL;
   bfd_size_type off = 0;
-  unsigned int opb = bfd_octets_per_byte (abfd, sec);
-  int alignment_power = sec->output_section->alignment_power * opb;
-  bfd_size_type pad_len;  /* Octets.  */
+  int alignment_power = sec->output_section->alignment_power;
+  bfd_size_type pad_len;
 
   /* FIXME: If alignment_power is 0 then really we should scan the
      entry list for the largest required alignment and use that.  */
@@ -365,11 +363,9 @@ _bfd_add_merge_section (bfd *abfd, void **psinfo, asection *sec,
 {
   struct sec_merge_info *sinfo;
   struct sec_merge_sec_info *secinfo;
-  unsigned int alignment_power;  /* Octets.  */
-  unsigned int align;            /* Octets.  */
+  unsigned int align;
   bfd_size_type amt;
   bfd_byte *contents;
-  unsigned int opb = bfd_octets_per_byte (abfd, sec);
 
   if ((abfd->flags & DYNAMIC) != 0
       || (sec->flags & SEC_MERGE) == 0)
@@ -380,28 +376,18 @@ _bfd_add_merge_section (bfd *abfd, void **psinfo, asection *sec,
       || sec->entsize == 0)
     return TRUE;
 
-  if (sec->size % sec->entsize != 0)
-    return TRUE;
-
   if ((sec->flags & SEC_RELOC) != 0)
     {
       /* We aren't prepared to handle relocations in merged sections.  */
       return TRUE;
     }
 
-#ifndef CHAR_BIT
-#define CHAR_BIT 8
-#endif
-  alignment_power = sec->alignment_power * opb;
-  if (alignment_power >= sizeof (align) * CHAR_BIT)
-    return TRUE;
-
-  align = 1u << alignment_power;
-  if ((sec->entsize < align
+  align = sec->alignment_power;
+  if ((sec->entsize < (unsigned) 1 << align
        && ((sec->entsize & (sec->entsize - 1))
 	   || !(sec->flags & SEC_STRINGS)))
-      || (sec->entsize > align
-	  && (sec->entsize & (align - 1))))
+      || (sec->entsize > (unsigned) 1 << align
+	  && (sec->entsize & (((unsigned) 1 << align) - 1))))
     {
       /* Sanity check.  If string character size is smaller than
 	 alignment, then we require character size to be a power
@@ -553,14 +539,11 @@ record_section (struct sec_merge_info *sinfo,
 
   return TRUE;
 
- error_return:
+error_return:
   for (secinfo = sinfo->chain; secinfo; secinfo = secinfo->next)
     *secinfo->psecinfo = NULL;
   return FALSE;
 }
-
-/* qsort comparison function.  Won't ever return zero as all entries
-   differ, so there is no issue with qsort stability here.  */
 
 static int
 strrevcmp (const void *a, const void *b)
@@ -628,7 +611,7 @@ is_suffix (const struct sec_merge_hash_entry *A,
 
 /* This is a helper function for _bfd_merge_sections.  It attempts to
    merge strings matching suffixes of longer strings.  */
-static struct sec_merge_sec_info *
+static bfd_boolean
 merge_strings (struct sec_merge_info *sinfo)
 {
   struct sec_merge_hash_entry **array, **a, *e;
@@ -640,7 +623,7 @@ merge_strings (struct sec_merge_info *sinfo)
   amt = sinfo->htab->size * sizeof (struct sec_merge_hash_entry *);
   array = (struct sec_merge_hash_entry **) bfd_malloc (amt);
   if (array == NULL)
-    return NULL;
+    return FALSE;
 
   for (e = sinfo->htab->first, a = array; e; e = e->next)
     if (e->alignment)
@@ -710,6 +693,11 @@ merge_strings (struct sec_merge_info *sinfo)
 	}
     }
   secinfo->sec->size = size;
+  if (secinfo->sec->alignment_power != 0)
+    {
+      bfd_size_type align = (bfd_size_type) 1 << secinfo->sec->alignment_power;
+      secinfo->sec->size = (secinfo->sec->size + align - 1) & -align;
+    }
 
   /* And now adjust the rest, removing them from the chain (but not hashtable)
      at the same time.  */
@@ -726,7 +714,7 @@ merge_strings (struct sec_merge_info *sinfo)
 	    e->u.index = e->u.suffix->u.index + (e->u.suffix->len - e->len);
 	  }
       }
-  return secinfo;
+  return TRUE;
 }
 
 /* This function is called once after all SEC_MERGE sections are registered
@@ -742,8 +730,7 @@ _bfd_merge_sections (bfd *abfd,
 
   for (sinfo = (struct sec_merge_info *) xsinfo; sinfo; sinfo = sinfo->next)
     {
-      struct sec_merge_sec_info *secinfo;
-      bfd_size_type align;  /* Bytes.  */
+      struct sec_merge_sec_info * secinfo;
 
       if (! sinfo->chain)
 	continue;
@@ -754,7 +741,6 @@ _bfd_merge_sections (bfd *abfd,
       secinfo->next = NULL;
 
       /* Record the sections into the hash table.  */
-      align = 1;
       for (secinfo = sinfo->chain; secinfo; secinfo = secinfo->next)
 	if (secinfo->sec->flags & SEC_EXCLUDE)
 	  {
@@ -762,33 +748,24 @@ _bfd_merge_sections (bfd *abfd,
 	    if (remove_hook)
 	      (*remove_hook) (abfd, secinfo->sec);
 	  }
-	else
-	  {
-	    if (!record_section (sinfo, secinfo))
-	      return FALSE;
-	    if (align)
-	      {
-		unsigned int opb = bfd_octets_per_byte (abfd, secinfo->sec);
+	else if (! record_section (sinfo, secinfo))
+	  return FALSE;
 
-		align = (bfd_size_type) 1 << secinfo->sec->alignment_power;
-		if (((secinfo->sec->size / opb) & (align - 1)) != 0)
-		  align = 0;
-	      }
-	  }
+      if (secinfo)
+	continue;
 
       if (sinfo->htab->first == NULL)
 	continue;
 
       if (sinfo->htab->strings)
 	{
-	  secinfo = merge_strings (sinfo);
-	  if (!secinfo)
+	  if (!merge_strings (sinfo))
 	    return FALSE;
 	}
       else
 	{
 	  struct sec_merge_hash_entry *e;
-	  bfd_size_type size = 0;  /* Octets.  */
+	  bfd_size_type size = 0;
 
 	  /* Things are much simpler for non-strings.
 	     Just assign them slots in the section.  */
@@ -802,7 +779,8 @@ _bfd_merge_sections (bfd *abfd,
 		  e->secinfo->first_str = e;
 		  size = 0;
 		}
-	      size = (size + e->alignment - 1) & ~((bfd_vma) e->alignment - 1);
+	      size = (size + e->alignment - 1)
+		     & ~((bfd_vma) e->alignment - 1);
 	      e->u.index = size;
 	      size += e->len;
 	      secinfo = e->secinfo;
@@ -810,16 +788,11 @@ _bfd_merge_sections (bfd *abfd,
 	  secinfo->sec->size = size;
 	}
 
-      /* If the input sections were padded according to their alignments,
-	 then pad the output too.  */
-      if (align)
-	secinfo->sec->size = (secinfo->sec->size + align - 1) & -align;
-
-      /* Finally remove all input sections which have not made it into
-	 the hash table at all.  */
-      for (secinfo = sinfo->chain; secinfo; secinfo = secinfo->next)
-	if (secinfo->first_str == NULL)
-	  secinfo->sec->flags |= SEC_EXCLUDE | SEC_KEEP;
+	/* Finally remove all input sections which have not made it into
+	   the hash table at all.  */
+	for (secinfo = sinfo->chain; secinfo; secinfo = secinfo->next)
+	  if (secinfo->first_str == NULL)
+	    secinfo->sec->flags |= SEC_EXCLUDE | SEC_KEEP;
     }
 
   return TRUE;

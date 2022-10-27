@@ -1,5 +1,5 @@
 /* tc-cris.c -- Assembler code for the CRIS CPU core.
-   Copyright (C) 2000-2020 Free Software Foundation, Inc.
+   Copyright (C) 2000-2018 Free Software Foundation, Inc.
 
    Contributed by Axis Communications AB, Lund, Sweden.
    Originally written for GAS 1.38.1 by Mikael Asker.
@@ -160,7 +160,7 @@ static void cris_sym_no_leading_underscore (void);
 static char *cris_insn_first_word_frag (void);
 
 /* Handle to the opcode hash table.  */
-static htab_t op_hash = NULL;
+static struct hash_control *op_hash = NULL;
 
 /* If we target cris-axis-linux-gnu (as opposed to generic cris-axis-elf),
    we default to no underscore and required register-prefixes.  The
@@ -1186,27 +1186,30 @@ cris_insn_first_word_frag (void)
 void
 md_begin (void)
 {
+  const char *hashret = NULL;
   int i = 0;
 
   /* Set up a hash table for the instructions.  */
-  op_hash = str_htab_create ();
+  op_hash = hash_new ();
+  if (op_hash == NULL)
+    as_fatal (_("Virtual memory exhausted"));
 
   /* Enable use of ".if ..asm.arch.cris.v32"
      and ".if ..asm.arch.cris.common_v10_v32" and a few others.  */
   symbol_table_insert (symbol_new ("..asm.arch.cris.v32", absolute_section,
-				   &zero_address_frag,
-				   cris_arch == arch_crisv32));
+				   (cris_arch == arch_crisv32),
+				   &zero_address_frag));
   symbol_table_insert (symbol_new ("..asm.arch.cris.v10", absolute_section,
-				   &zero_address_frag,
-				   cris_arch == arch_crisv10));
+				   (cris_arch == arch_crisv10),
+				   &zero_address_frag));
   symbol_table_insert (symbol_new ("..asm.arch.cris.common_v10_v32",
 				   absolute_section,
-				   &zero_address_frag,
-				   cris_arch == arch_cris_common_v10_v32));
+				   (cris_arch == arch_cris_common_v10_v32),
+				   &zero_address_frag));
   symbol_table_insert (symbol_new ("..asm.arch.cris.any_v0_v10",
 				   absolute_section,
-				   &zero_address_frag,
-				   cris_arch == arch_cris_any_v0_v10));
+				   (cris_arch == arch_cris_any_v0_v10),
+				   &zero_address_frag));
 
   while (cris_opcodes[i].name != NULL)
     {
@@ -1219,9 +1222,12 @@ md_begin (void)
 	  continue;
 	}
 
-      if (str_hash_insert (op_hash, name, &cris_opcodes[i], 0) != NULL)
-	as_fatal (_("duplicate %s"), name);
+      /* Need to cast to get rid of "const".  FIXME: Fix hash_insert instead.  */
+      hashret = hash_insert (op_hash, name, (void *) &cris_opcodes[i]);
 
+      if (hashret != NULL && *hashret != '\0')
+	as_fatal (_("Can't hash `%s': %s\n"), cris_opcodes[i].name,
+		  *hashret == 0 ? _("(unknown reason)") : hashret);
       do
 	{
 	  if (cris_opcodes[i].match & cris_opcodes[i].lose)
@@ -1552,7 +1558,7 @@ cris_process_instruction (char *insn_text, struct cris_instruction *out_insnp,
     }
 
   /* Find the instruction.  */
-  instruction = (struct cris_opcode *) str_hash_find (op_hash, insn_text);
+  instruction = (struct cris_opcode *) hash_find (op_hash, insn_text);
   if (instruction == NULL)
     {
       as_bad (_("Unknown opcode: `%s'"), insn_text);
@@ -4048,15 +4054,23 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg)
   if (fixP->fx_addsy == 0 && !fixP->fx_pcrel)
     fixP->fx_done = 1;
 
-  /* We can't actually support subtracting a symbol.  */
-  if (fixP->fx_subsy != (symbolS *) NULL)
-    as_bad_where (fixP->fx_file, fixP->fx_line,
-		  _("expression too complex"));
+  if (fixP->fx_bit_fixP || fixP->fx_im_disp != 0)
+    {
+      as_bad_where (fixP->fx_file, fixP->fx_line, _("Invalid relocation"));
+      fixP->fx_done = 1;
+    }
+  else
+    {
+      /* We can't actually support subtracting a symbol.  */
+      if (fixP->fx_subsy != (symbolS *) NULL)
+	as_bad_where (fixP->fx_file, fixP->fx_line,
+		      _("expression too complex"));
 
-  /* This operand-type is scaled.  */
-  if (fixP->fx_r_type == BFD_RELOC_CRIS_LAPCQ_OFFSET)
-    val /= 2;
-  cris_number_to_imm (buf, val, fixP->fx_size, fixP, seg);
+      /* This operand-type is scaled.  */
+      if (fixP->fx_r_type == BFD_RELOC_CRIS_LAPCQ_OFFSET)
+	val /= 2;
+      cris_number_to_imm (buf, val, fixP->fx_size, fixP, seg);
+    }
 }
 
 /* All relocations are relative to the location just after the fixup;

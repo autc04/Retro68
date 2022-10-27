@@ -1,8 +1,8 @@
 #name: MIPS multi-got-hidden-1
-#as: -KPIC
+#as: -EB -32 -KPIC
 #source: multi-got-1-1.s
 #source: multi-got-1-2.s
 #source: multi-got-hidden-1.s
-#ld: -e 0
+#ld: -melf32btsmip -e 0
 #objdump: -dr
 #pass

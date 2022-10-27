@@ -4,7 +4,8 @@
 #ld: -T group.ld
 #warning: ^[^\n]*\): warning: witty one-liner$
 #readelf: -s
-#xfail: [is_generic]
+#notarget: "sparc64-*-solaris2*" "sparcv9-*-solaris2*"
+#xfail: "d30v-*-*" "dlx-*-*" "pj-*-*"
 
 # Check that warnings are generated for the .gnu.warning.SYMBOL
 # construct and that the symbol still appears as expected.

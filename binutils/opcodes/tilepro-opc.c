@@ -1,6 +1,6 @@
 /* TILEPro opcode information.
 
-   Copyright (C) 2011-2020 Free Software Foundation, Inc.
+   Copyright (C) 2011-2018 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10215,18 +10215,21 @@ parse_insn_tilepro (tilepro_bundle_bits bits,
 	{
 	  const struct tilepro_operand *op =
 	    &tilepro_operands[opc->operands[pipe][i]];
-	  unsigned int opval = op->extract (bits);
+	  int opval = op->extract (bits);
 
 	  if (op->is_signed)
 	    {
 	      /* Sign-extend the operand.  */
-	      unsigned int sign = 1u << (op->num_bits - 1);
-	      opval = ((opval & (sign + sign - 1)) ^ sign) - sign;
+	      int shift = (int)((sizeof(int) * 8) - op->num_bits);
+	      opval = (opval << shift) >> shift;
 	    }
 
 	  /* Adjust PC-relative scaled branch offsets.  */
 	  if (op->type == TILEPRO_OP_TYPE_ADDRESS)
-	    opval = opval * TILEPRO_BUNDLE_SIZE_IN_BYTES + pc;
+	    {
+	      opval *= TILEPRO_BUNDLE_SIZE_IN_BYTES;
+	      opval += (int)pc;
+	    }
 
 	  /* Record the final value.  */
 	  d->operands[i] = op;

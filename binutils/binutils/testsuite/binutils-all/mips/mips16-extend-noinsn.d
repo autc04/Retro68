@@ -1,6 +1,7 @@
 #PROG: objcopy
 #objdump: -d --prefix-addresses --show-raw-insn
 #name: MIPS16 unsupported EXTEND and undefined opcode disassembly
+#as: -32
 
 # Verify raw hexadecimal EXTEND and inexistent opcode disassembly.
 

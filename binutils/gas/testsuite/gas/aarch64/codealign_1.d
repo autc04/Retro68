@@ -1,5 +1,4 @@
 #objdump: --section-headers
-#as: --generate-missing-build-notes=no
 # Minimum code alignment should be set.
 
 .*: +file format.*aarch64.*

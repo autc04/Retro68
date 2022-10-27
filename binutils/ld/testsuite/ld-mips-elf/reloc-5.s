@@ -1,6 +1,5 @@
 	.text
 	.globl	_start
-	.type	_start, @function
 _start:
         lw	$2, %gp_rel(i)($28)
 

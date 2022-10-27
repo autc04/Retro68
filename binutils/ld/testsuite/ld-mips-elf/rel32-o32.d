@@ -1,8 +1,8 @@
 #name: MIPS rel32 o32
 #source: rel32.s
-#as: -KPIC
+#as: -KPIC -EB -32
 #readelf: -x .text -r
-#ld: -shared
+#ld: -shared -melf32btsmip
 
 Relocation section '.rel.dyn' at offset .* contains 2 entries:
  Offset     Info    Type            Sym.Value  Sym. Name

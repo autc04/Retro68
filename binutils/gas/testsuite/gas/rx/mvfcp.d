@@ -1,5 +1,4 @@
-#source: ./mvfcp.s
 #objdump: -dr
 
-.*:     file format .*
+dump\.o:     file format .*
 

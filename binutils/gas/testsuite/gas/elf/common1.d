@@ -1,2 +1,2 @@
 #name: weak and common directives
-#error_output: common1.l
+#error-output: common1.l

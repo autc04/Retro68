@@ -1,4 +1,3 @@
-if test -n "${RELOCATING}"; then
 OTHER_SECTIONS="
   /* Start of symbols and sections required to support CMEM instructions
      on NPS targets.  */
@@ -77,4 +76,3 @@ OTHER_SECTIONS="
   /* End of nps specific sections and symbols.  */
 
   ${OTHER_SECTIONS}"
-fi

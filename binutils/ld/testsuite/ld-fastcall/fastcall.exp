@@ -1,5 +1,5 @@
 # Test that the linker can handle fastcall symbols correctly.
-# Copyright (C) 2002-2020 Free Software Foundation, Inc.
+# Copyright (C) 2002-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -35,13 +35,13 @@ set ldflags ""
 
 if ![ld_assemble $as $srcdir/$subdir/export.s tmpdir/export.o] {
     verbose "Unable to assemble test file!" 1
-    fail $testname
+    unresolved $testname
     return
 }
 
 if ![ld_assemble $as $srcdir/$subdir/import.s tmpdir/import.o] {
     verbose "Unable to assemble test file!" 1
-    fail $testname
+    unresolved $testname
     return
 }
 

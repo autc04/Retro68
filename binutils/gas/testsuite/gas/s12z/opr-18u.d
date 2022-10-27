@@ -3,7 +3,7 @@
 #source:  opr-18u.s
 
 
-.*:     file format elf32-s12z
+dump.o:     file format elf32-s12z
 
 
 Disassembly of section .text:

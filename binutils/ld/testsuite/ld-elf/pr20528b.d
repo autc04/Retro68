@@ -2,7 +2,8 @@
 #source: pr20528a.s
 #ld: -r
 #readelf: -S --wide
-#xfail: [uses_genelf]
+#xfail: d30v-*-* dlx-*-* fr30-*-* frv-*-elf ft32-*-*
+#xfail: iq*-*-* mn10200-*-* moxie-*-* msp*-*-* mt-*-* pj*-*-*
 
 #...
 [ 	]*\[.*\][ 	]+\.text.startup[ 	]+PROGBITS.*[ 	]+AXE[   ]+.*

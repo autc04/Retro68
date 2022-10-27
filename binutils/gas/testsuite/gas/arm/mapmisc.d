@@ -1,4 +1,4 @@
-#as: -EL -I$srcdir/$subdir -mfpu=neon --generate-missing-build-notes=no
+#as: -EL -I$srcdir/$subdir -mfpu=neon
 #objdump: --syms --special-syms -d
 #name: ARM Mapping Symbols for miscellaneous directives
 # This test is only valid on EABI based ports.

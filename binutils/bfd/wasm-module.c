@@ -1,5 +1,5 @@
 /* BFD back-end for WebAssembly modules.
-   Copyright (C) 2017-2020 Free Software Foundation, Inc.
+   Copyright (C) 2017-2018 Free Software Foundation, Inc.
 
    Based on srec.c, mmo.c, and binary.c
 
@@ -28,7 +28,9 @@
 #include "sysdep.h"
 #include "alloca-conf.h"
 #include "bfd.h"
+#include "sysdep.h"
 #include <limits.h>
+#include "bfd_stdint.h"
 #include "libiberty.h"
 #include "libbfd.h"
 #include "wasm-module.h"
@@ -111,28 +113,18 @@ wasm_read_leb128 (bfd *		  abfd,
   unsigned int num_read = 0;
   unsigned int shift = 0;
   unsigned char byte = 0;
-  int status = 1;
+  bfd_boolean success = FALSE;
 
   while (bfd_bread (&byte, 1, abfd) == 1)
     {
       num_read++;
 
-      if (shift < sizeof (result) * 8)
-	{
-	  result |= ((bfd_vma) (byte & 0x7f)) << shift;
-	  if ((result >> shift) != (byte & 0x7f))
-	    /* Overflow.  */
-	    status |= 2;
-	  shift += 7;
-	}
-      else if ((byte & 0x7f) != 0)
-	status |= 2;
+      result |= ((bfd_vma) (byte & 0x7f)) << shift;
 
+      shift += 7;
       if ((byte & 0x80) == 0)
 	{
-	  status &= ~1;
-	  if (sign && (shift < 8 * sizeof (result)) && (byte & 0x40))
-	    result |= -((bfd_vma) 1 << shift);
+	  success = TRUE;
 	  break;
 	}
     }
@@ -140,7 +132,10 @@ wasm_read_leb128 (bfd *		  abfd,
   if (length_return != NULL)
     *length_return = num_read;
   if (error_return != NULL)
-    *error_return = status != 0;
+    *error_return = ! success;
+
+  if (sign && (shift < 8 * sizeof (result)) && (byte & 0x40))
+    result |= -((bfd_vma) 1 << shift);
 
   return result;
 }
@@ -245,12 +240,17 @@ wasm_scan_name_function_section (bfd *abfd, sec_ptr asect)
   tdata_type *tdata = abfd->tdata.any;
   asymbol *symbols = NULL;
   sec_ptr space_function_index;
-  size_t amt;
+
+  if (! asect)
+    return FALSE;
+
+  if (strcmp (asect->name, WASM_NAME_SECTION) != 0)
+    return FALSE;
 
   p = asect->contents;
   end = asect->contents + asect->size;
 
-  if (!p)
+  if (! p)
     return FALSE;
 
   while (p < end)
@@ -267,7 +267,7 @@ wasm_scan_name_function_section (bfd *abfd, sec_ptr asect)
 
       READ_LEB128 (payload_size, p, end);
 
-      if (payload_size > (size_t) (end - p))
+      if (p > p + payload_size)
 	return FALSE;
 
       p += payload_size;
@@ -278,7 +278,10 @@ wasm_scan_name_function_section (bfd *abfd, sec_ptr asect)
 
   READ_LEB128 (payload_size, p, end);
 
-  if (payload_size > (size_t) (end - p))
+  if (p > p + payload_size)
+    return FALSE;
+
+  if (p + payload_size > end)
     return FALSE;
 
   end = p + payload_size;
@@ -286,29 +289,22 @@ wasm_scan_name_function_section (bfd *abfd, sec_ptr asect)
   READ_LEB128 (symcount, p, end);
 
   /* Sanity check: each symbol has at least two bytes.  */
-  if (symcount > payload_size / 2)
+  if (symcount > payload_size/2)
     return FALSE;
 
   tdata->symcount = symcount;
 
-  space_function_index
-    = bfd_make_section_with_flags (abfd, WASM_SECTION_FUNCTION_INDEX,
-				   SEC_READONLY | SEC_CODE);
+  space_function_index = bfd_make_section_with_flags
+    (abfd, WASM_SECTION_FUNCTION_INDEX, SEC_READONLY | SEC_CODE);
 
-  if (!space_function_index)
-    space_function_index
-      = bfd_get_section_by_name (abfd, WASM_SECTION_FUNCTION_INDEX);
+  if (! space_function_index)
+    space_function_index = bfd_get_section_by_name (abfd, WASM_SECTION_FUNCTION_INDEX);
 
-  if (!space_function_index)
+  if (! space_function_index)
     return FALSE;
 
-  if (_bfd_mul_overflow (tdata->symcount, sizeof (asymbol), &amt))
-    {
-      bfd_set_error (bfd_error_file_too_big);
-      return FALSE;
-    }
-  symbols = bfd_alloc (abfd, amt);
-  if (!symbols)
+  symbols = bfd_zalloc (abfd, tdata->symcount * sizeof (asymbol));
+  if (! symbols)
     return FALSE;
 
   for (symcount = 0; p < end && symcount < tdata->symcount; symcount++)
@@ -321,15 +317,14 @@ wasm_scan_name_function_section (bfd *abfd, sec_ptr asect)
       READ_LEB128 (idx, p, end);
       READ_LEB128 (len, p, end);
 
-      if (len > (size_t) (end - p))
+      if (p + len < p || p + len > end)
 	goto error_return;
 
-      name = bfd_alloc (abfd, len + 1);
-      if (!name)
+      name = bfd_zalloc (abfd, len + 1);
+      if (! name)
 	goto error_return;
 
       memcpy (name, p, len);
-      name[len] = 0;
       p += len;
 
       sym = &symbols[symcount];
@@ -350,6 +345,8 @@ wasm_scan_name_function_section (bfd *abfd, sec_ptr asect)
   return TRUE;
 
  error_return:
+  while (symcount)
+    bfd_release (abfd, (void *)symbols[--symcount].name);
   bfd_release (abfd, symbols);
   return FALSE;
 }
@@ -384,12 +381,13 @@ wasm_scan (bfd *abfd)
   bfd_vma vma = 0x80000000;
   int section_code;
   unsigned int bytes_read;
+  char *name = NULL;
   asection *bfdsec;
 
   if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0)
     goto error_return;
 
-  if (!wasm_read_header (abfd, &error))
+  if (! wasm_read_header (abfd, &error))
     goto error_return;
 
   while ((section_code = wasm_read_byte (abfd, &error)) != EOF)
@@ -398,66 +396,69 @@ wasm_scan (bfd *abfd)
 	{
 	  const char *sname = wasm_section_code_to_name (section_code);
 
-	  if (!sname)
+	  if (! sname)
 	    goto error_return;
 
-	  bfdsec = bfd_make_section_anyway_with_flags (abfd, sname,
-						       SEC_HAS_CONTENTS);
+	  name = strdup (sname);
+	  bfdsec = bfd_make_section_anyway_with_flags (abfd, name, SEC_HAS_CONTENTS);
 	  if (bfdsec == NULL)
 	    goto error_return;
+	  name = NULL;
 
+	  bfdsec->vma = vma;
+	  bfdsec->lma = vma;
 	  bfdsec->size = wasm_read_leb128 (abfd, &error, &bytes_read, FALSE);
 	  if (error)
 	    goto error_return;
+	  bfdsec->filepos = bfd_tell (abfd);
+	  bfdsec->alignment_power = 0;
 	}
       else
 	{
 	  bfd_vma payload_len;
+	  file_ptr section_start;
 	  bfd_vma namelen;
-	  char *name;
 	  char *prefix = WASM_SECTION_PREFIX;
-	  size_t prefixlen = strlen (prefix);
-	  ufile_ptr filesize;
+	  char *p;
+	  int ret;
 
 	  payload_len = wasm_read_leb128 (abfd, &error, &bytes_read, FALSE);
 	  if (error)
 	    goto error_return;
+	  section_start = bfd_tell (abfd);
 	  namelen = wasm_read_leb128 (abfd, &error, &bytes_read, FALSE);
-	  if (error || bytes_read > payload_len
-	      || namelen > payload_len - bytes_read)
+	  if (error || namelen > payload_len)
 	    goto error_return;
-	  payload_len -= namelen + bytes_read;
-	  filesize = bfd_get_file_size (abfd);
-	  if (filesize != 0 && namelen > filesize)
-	    {
-	      bfd_set_error (bfd_error_file_truncated);
-	      return FALSE;
-	    }
-	  name = bfd_alloc (abfd, namelen + prefixlen + 1);
-	  if (!name)
+	  name = bfd_zmalloc (namelen + strlen (prefix) + 1);
+	  if (! name)
 	    goto error_return;
-	  memcpy (name, prefix, prefixlen);
-	  if (bfd_bread (name + prefixlen, namelen, abfd) != namelen)
+	  p = name;
+	  ret = sprintf (p, "%s", prefix);
+	  if (ret < 0 || (bfd_vma) ret != strlen (prefix))
 	    goto error_return;
-	  name[prefixlen + namelen] = 0;
+	  p += ret;
+	  if (bfd_bread (p, namelen, abfd) != namelen)
+	    goto error_return;
 
-	  bfdsec = bfd_make_section_anyway_with_flags (abfd, name,
-						       SEC_HAS_CONTENTS);
+	  bfdsec = bfd_make_section_anyway_with_flags (abfd, name, SEC_HAS_CONTENTS);
 	  if (bfdsec == NULL)
 	    goto error_return;
+	  name = NULL;
 
-	  bfdsec->size = payload_len;
+	  bfdsec->vma = vma;
+	  bfdsec->lma = vma;
+	  bfdsec->filepos = bfd_tell (abfd);
+	  bfdsec->size = section_start + payload_len - bfdsec->filepos;
+	  bfdsec->alignment_power = 0;
 	}
 
-      bfdsec->vma = vma;
-      bfdsec->lma = vma;
-      bfdsec->alignment_power = 0;
-      bfdsec->filepos = bfd_tell (abfd);
       if (bfdsec->size != 0)
 	{
-	  bfdsec->contents = _bfd_alloc_and_read (abfd, bfdsec->size,
-						  bfdsec->size);
-	  if (!bfdsec->contents)
+	  bfdsec->contents = bfd_zalloc (abfd, bfdsec->size);
+	  if (! bfdsec->contents)
+	    goto error_return;
+
+	  if (bfd_bread (bfdsec->contents, bfdsec->size, abfd) != bfdsec->size)
 	    goto error_return;
 	}
 
@@ -472,6 +473,12 @@ wasm_scan (bfd *abfd)
   return TRUE;
 
  error_return:
+  if (name)
+    free (name);
+
+  for (bfdsec = abfd->sections; bfdsec; bfdsec = bfdsec->next)
+    free ((void *) bfdsec->name);
+
   return FALSE;
 }
 
@@ -695,7 +702,7 @@ wasm_canonicalize_symtab (bfd *abfd, asymbol **alocation)
 static asymbol *
 wasm_make_empty_symbol (bfd *abfd)
 {
-  size_t amt = sizeof (asymbol);
+  bfd_size_type amt = sizeof (asymbol);
   asymbol *new_symbol = (asymbol *) bfd_zalloc (abfd, amt);
 
   if (! new_symbol)
@@ -734,37 +741,30 @@ wasm_get_symbol_info (bfd *abfd ATTRIBUTE_UNUSED,
 
 /* Check whether ABFD is a WebAssembly module; if so, scan it.  */
 
-static bfd_cleanup
+static const bfd_target *
 wasm_object_p (bfd *abfd)
 {
   bfd_boolean error;
-  asection *s;
 
   if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0)
     return NULL;
 
-  if (!wasm_read_header (abfd, &error))
+  if (! wasm_read_header (abfd, &error))
     {
       bfd_set_error (bfd_error_wrong_format);
       return NULL;
     }
 
-  if (!wasm_mkobject (abfd))
+  if (! wasm_mkobject (abfd) || ! wasm_scan (abfd))
     return NULL;
 
-  if (!wasm_scan (abfd)
-      || !bfd_default_set_arch_mach (abfd, bfd_arch_wasm32, 0))
-    {
-      bfd_release (abfd, abfd->tdata.any);
-      abfd->tdata.any = NULL;
-      return NULL;
-    }
+  if (! bfd_default_set_arch_mach (abfd, bfd_arch_wasm32, 0))
+    return NULL;
 
-  s = bfd_get_section_by_name (abfd, WASM_NAME_SECTION);
-  if (s != NULL && wasm_scan_name_function_section (abfd, s))
+  if (wasm_scan_name_function_section (abfd, bfd_get_section_by_name (abfd, WASM_NAME_SECTION)))
     abfd->flags |= HAS_SYMS;
 
-  return _bfd_no_cleanup;
+  return abfd->xvec;
 }
 
 /* BFD_JUMP_TABLE_WRITE */

@@ -1,3 +1,3 @@
 #name: .req errors
 #as: -mcpu=arm7m
-#error_output: req.l
+#error-output: req.l

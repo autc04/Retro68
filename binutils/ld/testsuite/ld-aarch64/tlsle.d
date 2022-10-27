@@ -1,5 +1,4 @@
 #source: tlsle.s
-#target: [check_shared_lib_support]
 #ld: -shared -T relocs.ld -e0
 #objdump: -dr
 

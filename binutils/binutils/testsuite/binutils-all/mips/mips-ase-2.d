@@ -1,6 +1,7 @@
 #PROG: objcopy
 #objdump: -dp --prefix-addresses --show-raw-insn
 #name: MIPS ELF file ASE information interpretation for disassembly 2
+#as: -32
 
 # Verify that in the presence of its ASE flag MDMX code is disassembled
 # with MIPS64r2, where MDMX presence is not implied.

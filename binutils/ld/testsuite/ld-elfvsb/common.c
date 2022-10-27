@@ -1,5 +1,5 @@
 int foo;
-__asm__ (".hidden foo");
+asm (".hidden foo");
 
 int
 _start (void)

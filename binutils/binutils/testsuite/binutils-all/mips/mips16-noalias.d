@@ -1,7 +1,7 @@
 #PROG: objcopy
 #objdump: -M no-aliases -d --prefix-addresses --show-raw-insn
 #name: MIPS16 canonical alias disassembly
-#as: -mips3
+#as: -32 -mips3
 #source: mips16-alias.s
 
 .*: +file format .*mips.*

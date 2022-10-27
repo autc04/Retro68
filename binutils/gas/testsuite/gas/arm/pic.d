@@ -1,7 +1,7 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: PIC
 # This test is only valid on ELF based ports.
-#notarget: *-*-pe *-*-wince
+#not-target: *-*-pe *-*-wince
 # VxWorks needs a special variant of this file.
 #skip: *-*-vxworks*
 

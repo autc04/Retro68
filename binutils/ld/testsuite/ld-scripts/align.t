@@ -1,6 +1,6 @@
 SECTIONS
 {
-  .text : {*(.text .pr)}
+  .text : {*(.text)}
   .data ALIGN(0x1000) : AT (ALIGN (LOADADDR (.text) + SIZEOF (.text), 0x80))
     {}
   ASSERT (LOADADDR(.data) == 0x80, "dyadic ALIGN broken")

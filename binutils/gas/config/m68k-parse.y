@@ -1,5 +1,5 @@
 /* m68k.y -- bison grammar for m68k operand parsing
-   Copyright (C) 1995-2020 Free Software Foundation, Inc.
+   Copyright (C) 1995-2018 Free Software Foundation, Inc.
    Written by Ken Raeburn and Ian Lance Taylor, Cygnus Support
 
    This file is part of GAS, the GNU Assembler.
@@ -754,6 +754,7 @@ yylex (void)
   int parens;
   int c = 0;
   int tail = 0;
+  char *hold;
 
   if (*str == ' ')
     ++str;
@@ -912,10 +913,11 @@ yylex (void)
 
 	  ++s;
 
-	  temp_ilp (s);
+	  hold = input_line_pointer;
+	  input_line_pointer = s;
 	  expression (&scale);
 	  s = input_line_pointer;
-	  restore_ilp ();
+	  input_line_pointer = hold;
 
 	  if (scale.X_op != O_constant)
 	    yyerror (_("scale specification must resolve to a number"));
@@ -1069,10 +1071,11 @@ yylex (void)
       s[-tail] = 0;
     }
 
-  temp_ilp (str);
+  hold = input_line_pointer;
+  input_line_pointer = str;
   expression (&yylval.exp.exp);
   str = input_line_pointer;
-  restore_ilp ();
+  input_line_pointer = hold;
 
   if (tail != 0)
     {

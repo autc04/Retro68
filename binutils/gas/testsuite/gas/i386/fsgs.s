@@ -2,7 +2,6 @@
 
 	.text
 foo:
-	.rept 2
 	rdfsbase %ebx
 	rdgsbase %ebx
 	wrfsbase %ebx
@@ -13,7 +12,3 @@ foo:
 	rdgsbase ebx
 	wrfsbase ebx
 	wrgsbase ebx
-
-	.att_syntax prefix
-	.code16
-	.endr

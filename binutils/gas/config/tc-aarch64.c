@@ -1,6 +1,6 @@
 /* tc-aarch64.c -- Assemble for the AArch64 ISA
 
-   Copyright (C) 2009-2020 Free Software Foundation, Inc.
+   Copyright (C) 2009-2018 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.
@@ -54,9 +54,6 @@ static const aarch64_feature_set *march_cpu_opt = NULL;
 
 /* Constants for known architecture features.  */
 static const aarch64_feature_set cpu_default = CPU_DEFAULT;
-
-/* Currently active instruction sequence.  */
-static aarch64_instr_sequence *insn_sequence = NULL;
 
 #ifdef OBJ_ELF
 /* Pre-defined "_GLOBAL_OFFSET_TABLE_"	*/
@@ -149,13 +146,6 @@ static aarch64_instruction inst;
 static bfd_boolean parse_operands (char *, const aarch64_opcode *);
 static bfd_boolean programmer_friendly_fixup (aarch64_instruction *);
 
-#ifdef OBJ_ELF
-#  define now_instr_sequence seg_info \
-		(now_seg)->tc_segment_info_data.insn_sequence
-#else
-static struct aarch64_instr_sequence now_instr_sequence;
-#endif
-
 /* Diagnostics inline function utilities.
 
    These are lightweight utilities which should only be called by parse_operands
@@ -238,6 +228,9 @@ set_fatal_syntax_error (const char *error)
   set_error (AARCH64_OPDE_FATAL_SYNTAX_ERROR, error);
 }
 
+/* Number of littlenums required to hold an extended precision number.  */
+#define MAX_LITTLENUMS 6
+
 /* Return value for certain parsers when the parsing fails; those parsers
    return the information of the parsed result, e.g. register number, on
    success.  */
@@ -446,26 +439,24 @@ get_reg_expected_msg (aarch64_reg_type reg_type)
 
 /* Some well known registers that we refer to directly elsewhere.  */
 #define REG_SP	31
-#define REG_ZR	31
 
 /* Instructions take 4 bytes in the object file.  */
 #define INSN_SIZE	4
 
-static htab_t aarch64_ops_hsh;
-static htab_t aarch64_cond_hsh;
-static htab_t aarch64_shift_hsh;
-static htab_t aarch64_sys_regs_hsh;
-static htab_t aarch64_pstatefield_hsh;
-static htab_t aarch64_sys_regs_ic_hsh;
-static htab_t aarch64_sys_regs_dc_hsh;
-static htab_t aarch64_sys_regs_at_hsh;
-static htab_t aarch64_sys_regs_tlbi_hsh;
-static htab_t aarch64_sys_regs_sr_hsh;
-static htab_t aarch64_reg_hsh;
-static htab_t aarch64_barrier_opt_hsh;
-static htab_t aarch64_nzcv_hsh;
-static htab_t aarch64_pldop_hsh;
-static htab_t aarch64_hint_opt_hsh;
+static struct hash_control *aarch64_ops_hsh;
+static struct hash_control *aarch64_cond_hsh;
+static struct hash_control *aarch64_shift_hsh;
+static struct hash_control *aarch64_sys_regs_hsh;
+static struct hash_control *aarch64_pstatefield_hsh;
+static struct hash_control *aarch64_sys_regs_ic_hsh;
+static struct hash_control *aarch64_sys_regs_dc_hsh;
+static struct hash_control *aarch64_sys_regs_at_hsh;
+static struct hash_control *aarch64_sys_regs_tlbi_hsh;
+static struct hash_control *aarch64_reg_hsh;
+static struct hash_control *aarch64_barrier_opt_hsh;
+static struct hash_control *aarch64_nzcv_hsh;
+static struct hash_control *aarch64_pldop_hsh;
+static struct hash_control *aarch64_hint_opt_hsh;
 
 /* Stuff needed to resolve the label ambiguity
    As:
@@ -529,7 +520,7 @@ const char EXP_CHARS[] = "eE";
 /* As in 0f12.456  */
 /* or	 0d1.2345e12  */
 
-const char FLT_CHARS[] = "rRsSfFdDxXeEpPhH";
+const char FLT_CHARS[] = "rRsSfFdDxXeEpP";
 
 /* Prefix character that indicates the start of an immediate value.  */
 #define is_immediate_prefix(C) ((C) == '#')
@@ -635,54 +626,6 @@ my_get_expression (expressionS * ep, char **str, int prefix_mode,
 const char *
 md_atof (int type, char *litP, int *sizeP)
 {
-  /* If this is a bfloat16 type, then parse it slightly differently -
-     as it does not follow the IEEE standard exactly.  */
-  if (type == 'b')
-    {
-      char * t;
-      LITTLENUM_TYPE words[MAX_LITTLENUMS];
-      FLONUM_TYPE generic_float;
-
-      t = atof_ieee_detail (input_line_pointer, 1, 8, words, &generic_float);
-
-      if (t)
-	input_line_pointer = t;
-      else
-	return _("invalid floating point number");
-
-      switch (generic_float.sign)
-	{
-	/* Is +Inf.  */
-	case 'P':
-	  words[0] = 0x7f80;
-	  break;
-
-	/* Is -Inf.  */
-	case 'N':
-	  words[0] = 0xff80;
-	  break;
-
-	/* Is NaN.  */
-	/* bfloat16 has two types of NaN - quiet and signalling.
-	   Quiet NaN has bit[6] == 1 && faction != 0, whereas
-	   signalling Nan's have bit[0] == 0 && fraction != 0.
-	   Chose this specific encoding as it is the same form
-	   as used by other IEEE 754 encodings in GAS.  */
-	case 0:
-	  words[0] = 0x7fff;
-	  break;
-
-	default:
-	  break;
-	}
-
-      *sizeP = 2;
-
-      md_number_to_chars (litP, (valueT) words[0], sizeof (LITTLENUM_TYPE));
-
-      return NULL;
-    }
-
   return ieee_md_atof (type, litP, sizeP, target_big_endian);
 }
 
@@ -764,7 +707,7 @@ parse_reg (char **ccp)
     p++;
   while (ISALPHA (*p) || ISDIGIT (*p) || *p == '_');
 
-  reg = (reg_entry *) str_hash_find_n (aarch64_reg_hsh, start, p - start);
+  reg = (reg_entry *) hash_find_n (aarch64_reg_hsh, start, p - start);
 
   if (!reg)
     return NULL;
@@ -883,7 +826,7 @@ parse_vector_type_for_operand (aarch64_reg_type reg_type,
       return FALSE;
     }
 
- elt_size:
+elt_size:
   switch (TOLOWER (*ptr))
     {
     case 'b':
@@ -1315,7 +1258,7 @@ insert_reg_alias (char *str, int number, aarch64_reg_type type)
   reg_entry *new;
   const char *name;
 
-  if ((new = str_hash_find (aarch64_reg_hsh, str)) != 0)
+  if ((new = hash_find (aarch64_reg_hsh, str)) != 0)
     {
       if (new->builtin)
 	as_warn (_("ignoring attempt to redefine built-in register '%s'"),
@@ -1337,7 +1280,8 @@ insert_reg_alias (char *str, int number, aarch64_reg_type type)
   new->type = type;
   new->builtin = FALSE;
 
-  str_hash_insert (aarch64_reg_hsh, name, new, 0);
+  if (hash_insert (aarch64_reg_hsh, name, (void *) new))
+    abort ();
 
   return new;
 }
@@ -1366,7 +1310,7 @@ create_register_alias (char *newname, char *p)
   if (*oldname == '\0')
     return FALSE;
 
-  old = str_hash_find (aarch64_reg_hsh, oldname);
+  old = hash_find (aarch64_reg_hsh, oldname);
   if (!old)
     {
       as_warn (_("unknown register '%s' -- .req ignored"), oldname);
@@ -1455,7 +1399,7 @@ s_unreq (int a ATTRIBUTE_UNUSED)
     as_bad (_("invalid syntax for .unreq directive"));
   else
     {
-      reg_entry *reg = str_hash_find (aarch64_reg_hsh, name);
+      reg_entry *reg = hash_find (aarch64_reg_hsh, name);
 
       if (!reg)
 	as_bad (_("unknown register alias '%s'"), name);
@@ -1467,7 +1411,7 @@ s_unreq (int a ATTRIBUTE_UNUSED)
 	  char *p;
 	  char *nbuf;
 
-	  str_hash_delete (aarch64_reg_hsh, name);
+	  hash_delete (aarch64_reg_hsh, name, FALSE);
 	  free ((char *) reg->name);
 	  free (reg);
 
@@ -1478,20 +1422,20 @@ s_unreq (int a ATTRIBUTE_UNUSED)
 	  nbuf = strdup (name);
 	  for (p = nbuf; *p; p++)
 	    *p = TOUPPER (*p);
-	  reg = str_hash_find (aarch64_reg_hsh, nbuf);
+	  reg = hash_find (aarch64_reg_hsh, nbuf);
 	  if (reg)
 	    {
-	      str_hash_delete (aarch64_reg_hsh, nbuf);
+	      hash_delete (aarch64_reg_hsh, nbuf, FALSE);
 	      free ((char *) reg->name);
 	      free (reg);
 	    }
 
 	  for (p = nbuf; *p; p++)
 	    *p = TOLOWER (*p);
-	  reg = str_hash_find (aarch64_reg_hsh, nbuf);
+	  reg = hash_find (aarch64_reg_hsh, nbuf);
 	  if (reg)
 	    {
-	      str_hash_delete (aarch64_reg_hsh, nbuf);
+	      hash_delete (aarch64_reg_hsh, nbuf, FALSE);
 	      free ((char *) reg->name);
 	      free (reg);
 	    }
@@ -1535,7 +1479,7 @@ make_mapping_symbol (enum mstate state, valueT value, fragS * frag)
       abort ();
     }
 
-  symbolP = symbol_new (symname, now_seg, frag, value);
+  symbolP = symbol_new (symname, now_seg, value, frag);
   symbol_get_bfdsym (symbolP)->flags |= type | BSF_LOCAL;
 
   /* Save the mapping symbols for future reference.  Also check that
@@ -1742,7 +1686,7 @@ find_or_make_literal_pool (int size)
   if (pool->symbol == NULL)
     {
       pool->symbol = symbol_create (FAKE_LABEL_NAME, undefined_section,
-				    &zero_address_frag, 0);
+				    (valueT) 0, &zero_address_frag);
       pool->id = latest_pool_num++;
     }
 
@@ -1983,28 +1927,6 @@ s_aarch64_elf_cons (int nbytes)
   demand_empty_rest_of_line ();
 }
 
-/* Mark symbol that it follows a variant PCS convention.  */
-
-static void
-s_variant_pcs (int ignored ATTRIBUTE_UNUSED)
-{
-  char *name;
-  char c;
-  symbolS *sym;
-  asymbol *bfdsym;
-  elf_symbol_type *elfsym;
-
-  c = get_symbol_name (&name);
-  if (!*name)
-    as_bad (_("Missing symbol name in directive"));
-  sym = symbol_find_or_make (name);
-  restore_line_pointer (c);
-  demand_empty_rest_of_line ();
-  bfdsym = symbol_get_bfdsym (sym);
-  elfsym = elf_symbol_from (bfd_asymbol_bfd (bfdsym), bfdsym);
-  gas_assert (elfsym);
-  elfsym->internal_elf_sym.st_other |= STO_AARCH64_VARIANT_PCS;
-}
 #endif /* OBJ_ELF */
 
 /* Output a 32-bit word, but mark as an instruction.  */
@@ -2058,14 +1980,6 @@ s_aarch64_inst (int ignored ATTRIBUTE_UNUSED)
   /* Put terminator back into stream.  */
   input_line_pointer--;
   demand_empty_rest_of_line ();
-}
-
-static void
-s_aarch64_cfi_b_key_frame (int ignored ATTRIBUTE_UNUSED)
-{
-  demand_empty_rest_of_line ();
-  struct fde_entry *fde = frchain_now->frch_cfi_data->cur_fde_data;
-  fde->pauth_key = AARCH64_PAUTH_KEY_B;
 }
 
 #ifdef OBJ_ELF
@@ -2142,7 +2056,6 @@ const pseudo_typeS md_pseudo_table[] = {
   {"arch", s_aarch64_arch, 0},
   {"arch_extension", s_aarch64_arch_extension, 0},
   {"inst", s_aarch64_inst, 0},
-  {"cfi_b_key_frame", s_aarch64_cfi_b_key_frame, 0},
 #ifdef OBJ_ELF
   {"tlsdescadd", s_tlsdescadd, 0},
   {"tlsdesccall", s_tlsdesccall, 0},
@@ -2151,10 +2064,7 @@ const pseudo_typeS md_pseudo_table[] = {
   {"long", s_aarch64_elf_cons, 4},
   {"xword", s_aarch64_elf_cons, 8},
   {"dword", s_aarch64_elf_cons, 8},
-  {"variant_pcs", s_variant_pcs, 0},
 #endif
-  {"float16", float_cons, 'h'},
-  {"bfloat16", float_cons, 'b'},
   {0, 0, 0}
 };
 
@@ -2189,7 +2099,7 @@ reg_name_p (char *str, aarch64_reg_type reg_type)
     return FALSE;
 
   skip_whitespace (str);
-  if (*str == ',' || is_end_of_line[(unsigned char) *str])
+  if (*str == ',' || is_end_of_line[(unsigned int) *str])
     return TRUE;
 
   return FALSE;
@@ -2423,7 +2333,7 @@ parse_aarch64_imm_float (char **ccp, int *immed, bfd_boolean dp_p,
   *ccp = str;
   return TRUE;
 
- invalid_fp:
+invalid_fp:
   set_fatal_syntax_error (_("invalid floating-point constant"));
   return FALSE;
 }
@@ -3121,7 +3031,7 @@ parse_shift (char **str, aarch64_opnd_info *operand, enum parse_shift_mode mode)
       return FALSE;
     }
 
-  shift_op = str_hash_find_n (aarch64_shift_hsh, *str, p - *str);
+  shift_op = hash_find_n (aarch64_shift_hsh, *str, p - *str);
 
   if (shift_op == NULL)
     {
@@ -3450,7 +3360,6 @@ parse_shifter_operand_reloc (char **str, aarch64_opnd_info *operand,
      [base,Xm,SXTX {#imm}]
      [base,Wm,(S|U)XTW {#imm}]
    Pre-indexed
-     [base]!                    // in ldraa/ldrab exclusive
      [base,#imm]!
    Post-indexed
      [base],#imm
@@ -3464,7 +3373,6 @@ parse_shifter_operand_reloc (char **str, aarch64_opnd_info *operand,
      [base,Zm.D,(S|U)XTW {#imm}] // ignores top 32 bits of Zm.D elements
      [Zn.S,#imm]
      [Zn.D,#imm]
-     [Zn.S{, Xm}]
      [Zn.S,Zm.S{,LSL #imm}]      // in ADR
      [Zn.D,Zm.D{,LSL #imm}]      // in ADR
      [Zn.D,Zm.D,(S|U)XTW {#imm}] // in ADR
@@ -3630,7 +3538,6 @@ parse_address_main (char **str, aarch64_opnd_info *operand,
 		return FALSE;
 	    }
 	  /* We only accept:
-	     [base,Xm]  # For vector plus scalar SVE2 indexing.
 	     [base,Xm{,LSL #imm}]
 	     [base,Xm,SXTX {#imm}]
 	     [base,Wm,(S|U)XTW {#imm}]  */
@@ -3644,10 +3551,7 @@ parse_address_main (char **str, aarch64_opnd_info *operand,
 		  return FALSE;
 		}
 	      if (aarch64_get_qualifier_esize (*base_qualifier)
-		  != aarch64_get_qualifier_esize (*offset_qualifier)
-		  && (operand->type != AARCH64_OPND_SVE_ADDR_ZX
-		      || *base_qualifier != AARCH64_OPND_QLF_S_S
-		      || *offset_qualifier != AARCH64_OPND_QLF_X))
+		  != aarch64_get_qualifier_esize (*offset_qualifier))
 		{
 		  set_syntax_error (_("offset has different size from base"));
 		  return FALSE;
@@ -3765,43 +3669,19 @@ parse_address_main (char **str, aarch64_opnd_info *operand,
     }
 
   /* If at this point neither .preind nor .postind is set, we have a
-     bare [Rn]{!}; only accept [Rn]! as a shorthand for [Rn,#0]! for ldraa and
-     ldrab, accept [Rn] as a shorthand for [Rn,#0].
-     For SVE2 vector plus scalar offsets, allow [Zn.<T>] as shorthand for
-     [Zn.<T>, xzr].  */
+     bare [Rn]{!}; reject [Rn]! but accept [Rn] as a shorthand for [Rn,#0].  */
   if (operand->addr.preind == 0 && operand->addr.postind == 0)
     {
       if (operand->addr.writeback)
 	{
-	  if (operand->type == AARCH64_OPND_ADDR_SIMM10)
-            {
-              /* Accept [Rn]! as a shorthand for [Rn,#0]!   */
-              operand->addr.offset.is_reg = 0;
-              operand->addr.offset.imm = 0;
-              operand->addr.preind = 1;
-            }
-          else
-           {
-	     /* Reject [Rn]!   */
-	     set_syntax_error (_("missing offset in the pre-indexed address"));
-	     return FALSE;
-	   }
+	  /* Reject [Rn]!   */
+	  set_syntax_error (_("missing offset in the pre-indexed address"));
+	  return FALSE;
 	}
-       else
-	{
-          operand->addr.preind = 1;
-          if (operand->type == AARCH64_OPND_SVE_ADDR_ZX)
-	   {
-	     operand->addr.offset.is_reg = 1;
-	     operand->addr.offset.regno = REG_ZR;
-	     *offset_qualifier = AARCH64_OPND_QLF_X;
- 	   }
-          else
-	   {
-	     inst.reloc.exp.X_op = O_constant;
-	     inst.reloc.exp.X_add_number = 0;
-	   }
-	}
+
+      operand->addr.preind = 1;
+      inst.reloc.exp.X_op = O_constant;
+      inst.reloc.exp.X_add_number = 0;
     }
 
   *str = p;
@@ -3978,7 +3858,7 @@ parse_pldop (char **str)
   while (ISALNUM (*q))
     q++;
 
-  o = str_hash_find_n (aarch64_pldop_hsh, p, q - p);
+  o = hash_find_n (aarch64_pldop_hsh, p, q - p);
   if (!o)
     return PARSE_FAIL;
 
@@ -3999,7 +3879,7 @@ parse_barrier (char **str)
   while (ISALPHA (*q))
     q++;
 
-  o = str_hash_find_n (aarch64_barrier_opt_hsh, p, q - p);
+  o = hash_find_n (aarch64_barrier_opt_hsh, p, q - p);
   if (!o)
     return PARSE_FAIL;
 
@@ -4021,11 +3901,11 @@ parse_barrier_psb (char **str,
   while (ISALPHA (*q))
     q++;
 
-  o = str_hash_find_n (aarch64_hint_opt_hsh, p, q - p);
+  o = hash_find_n (aarch64_hint_opt_hsh, p, q - p);
   if (!o)
     {
       set_fatal_syntax_error
-	( _("unknown or missing option to PSB/TSB"));
+	( _("unknown or missing option to PSB"));
       return PARSE_FAIL;
     }
 
@@ -4033,48 +3913,7 @@ parse_barrier_psb (char **str,
     {
       /* PSB only accepts option name 'CSYNC'.  */
       set_syntax_error
-	(_("the specified option is not accepted for PSB/TSB"));
-      return PARSE_FAIL;
-    }
-
-  *str = q;
-  *hint_opt = o;
-  return 0;
-}
-
-/* Parse an operand for BTI.  Set *HINT_OPT to the hint-option record
-   return 0 if successful.  Otherwise return PARSE_FAIL.  */
-
-static int
-parse_bti_operand (char **str,
-		   const struct aarch64_name_value_pair ** hint_opt)
-{
-  char *p, *q;
-  const struct aarch64_name_value_pair *o;
-
-  p = q = *str;
-  while (ISALPHA (*q))
-    q++;
-
-  o = str_hash_find_n (aarch64_hint_opt_hsh, p, q - p);
-  if (!o)
-    {
-      set_fatal_syntax_error
-	( _("unknown option to BTI"));
-      return PARSE_FAIL;
-    }
-
-  switch (o->value)
-    {
-    /* Valid BTI operands.  */
-    case HINT_OPD_C:
-    case HINT_OPD_J:
-    case HINT_OPD_JC:
-      break;
-
-    default:
-      set_syntax_error
-	(_("unknown option to BTI"));
+	(_("the specified option is not accepted for PSB"));
       return PARSE_FAIL;
     }
 
@@ -4094,28 +3933,24 @@ parse_bti_operand (char **str,
 */
 
 static int
-parse_sys_reg (char **str, htab_t sys_regs,
+parse_sys_reg (char **str, struct hash_control *sys_regs,
 	       int imple_defined_p, int pstatefield_p,
 	       uint32_t* flags)
 {
   char *p, *q;
-  char buf[AARCH64_MAX_SYSREG_NAME_LEN];
+  char buf[32];
   const aarch64_sys_reg *o;
   int value;
 
   p = buf;
   for (q = *str; ISALNUM (*q) || *q == '_'; q++)
-    if (p < buf + (sizeof (buf) - 1))
+    if (p < buf + 31)
       *p++ = TOLOWER (*q);
   *p = '\0';
+  /* Assert that BUF be large enough.  */
+  gas_assert (p - buf == q - *str);
 
-  /* If the name is longer than AARCH64_MAX_SYSREG_NAME_LEN then it cannot be a
-     valid system register.  This is enforced by construction of the hash
-     table.  */
-  if (p - buf != q - *str)
-    return PARSE_FAIL;
-
-  o = str_hash_find (sys_regs, buf);
+  o = hash_find (sys_regs, buf);
   if (!o)
     {
       if (!imple_defined_p)
@@ -4140,12 +3975,10 @@ parse_sys_reg (char **str, htab_t sys_regs,
       if (pstatefield_p && !aarch64_pstatefield_supported_p (cpu_variant, o))
 	as_bad (_("selected processor does not support PSTATE field "
 		  "name '%s'"), buf);
-      if (!pstatefield_p
-	  && !aarch64_sys_ins_reg_supported_p (cpu_variant, o->name,
-					       o->value, o->flags, o->features))
+      if (!pstatefield_p && !aarch64_sys_reg_supported_p (cpu_variant, o))
 	as_bad (_("selected processor does not support system register "
 		  "name '%s'"), buf);
-      if (aarch64_sys_reg_deprecated_p (o->flags))
+      if (aarch64_sys_reg_deprecated_p (o))
 	as_warn (_("system register name '%s' is deprecated and may be "
 		   "removed in a future release"), buf);
       value = o->value;
@@ -4161,35 +3994,25 @@ parse_sys_reg (char **str, htab_t sys_regs,
    for the option, or NULL.  */
 
 static const aarch64_sys_ins_reg *
-parse_sys_ins_reg (char **str, htab_t sys_ins_regs)
+parse_sys_ins_reg (char **str, struct hash_control *sys_ins_regs)
 {
   char *p, *q;
-  char buf[AARCH64_MAX_SYSREG_NAME_LEN];
+  char buf[32];
   const aarch64_sys_ins_reg *o;
 
   p = buf;
   for (q = *str; ISALNUM (*q) || *q == '_'; q++)
-    if (p < buf + (sizeof (buf) - 1))
+    if (p < buf + 31)
       *p++ = TOLOWER (*q);
   *p = '\0';
 
-  /* If the name is longer than AARCH64_MAX_SYSREG_NAME_LEN then it cannot be a
-     valid system register.  This is enforced by construction of the hash
-     table.  */
-  if (p - buf != q - *str)
-    return NULL;
-
-  o = str_hash_find (sys_ins_regs, buf);
+  o = hash_find (sys_ins_regs, buf);
   if (!o)
     return NULL;
 
-  if (!aarch64_sys_ins_reg_supported_p (cpu_variant,
-					o->name, o->value, o->flags, 0))
+  if (!aarch64_sys_ins_reg_supported_p (cpu_variant, o))
     as_bad (_("selected processor does not support system register "
 	      "name '%s'"), buf);
-  if (aarch64_sys_reg_deprecated_p (o->flags))
-    as_warn (_("system register name '%s' is deprecated and may be "
-          "removed in a future release"), buf);
 
   *str = q;
   return o;
@@ -4343,10 +4166,7 @@ reencode_movzn_to_movn (uint32_t opcode)
 static fixS *
 fix_new_aarch64 (fragS * frag,
 		 int where,
-		 short int size,
-		 expressionS * exp,
-		 int pc_rel,
-		 int reloc)
+		 short int size, expressionS * exp, int pc_rel, int reloc)
 {
   fixS *new_fix;
 
@@ -4716,7 +4536,7 @@ print_operands (char *buf, const aarch64_opcode *opcode,
 
       /* Generate the operand string in STR.  */
       aarch64_print_operand (str, sizeof (str), 0, opcode, opnds, i, NULL, NULL,
-			     NULL, cpu_variant);
+			     NULL);
 
       /* Delimiter.  */
       if (str[0] != '\0')
@@ -4841,7 +4661,7 @@ output_operand_error_record (const operand_error_record *record, char *str)
 	    && programmer_friendly_fixup (&inst);
 	  gas_assert (result);
 	  result = aarch64_opcode_encode (opcode, inst_base, &inst_base->value,
-					  NULL, NULL, insn_sequence);
+					  NULL, NULL);
 	  gas_assert (!result);
 
 	  /* Find the most matched qualifier sequence.  */
@@ -4977,12 +4797,10 @@ output_operand_error_report (char *str, bfd_boolean non_fatal_only)
     {
       gas_assert (curr->detail.kind != AARCH64_OPDE_NIL);
       DEBUG_TRACE ("\t%s", operand_mismatch_kind_names[curr->detail.kind]);
-      if (operand_error_higher_severity_p (curr->detail.kind, kind)
-	  && (!non_fatal_only || (non_fatal_only && curr->detail.non_fatal)))
+      if (operand_error_higher_severity_p (curr->detail.kind, kind))
 	kind = curr->detail.kind;
     }
-
-  gas_assert (kind != AARCH64_OPDE_NIL || non_fatal_only);
+  gas_assert (kind != AARCH64_OPDE_NIL);
 
   /* Pick up one of errors of KIND to report.  */
   largest_error_pos = -2; /* Index can be -1 which means unknown index.  */
@@ -4991,7 +4809,7 @@ output_operand_error_report (char *str, bfd_boolean non_fatal_only)
       /* If we don't want to print non-fatal errors then don't consider them
 	 at all.  */
       if (curr->detail.kind != kind
-	  || (non_fatal_only && !curr->detail.non_fatal))
+	  || (non_fatal_only && !head->detail.non_fatal))
 	continue;
       /* If there are multiple errors, pick up the one with the highest
 	 mismatching operand index.  In the case of multiple errors with
@@ -5042,8 +4860,7 @@ get_aarch64_insn (char *buf)
 {
   unsigned char *where = (unsigned char *) buf;
   uint32_t result;
-  result = ((where[0] | (where[1] << 8) | (where[2] << 16)
-	     | ((uint32_t) where[3] << 24)));
+  result = (where[0] | (where[1] << 8) | (where[2] << 16) | (where[3] << 24));
   return result;
 }
 
@@ -5096,7 +4913,7 @@ lookup_mnemonic (const char *start, int len)
 {
   templates *templ = NULL;
 
-  templ = str_hash_find_n (aarch64_ops_hsh, start, len);
+  templ = hash_find_n (aarch64_ops_hsh, start, len);
   return templ;
 }
 
@@ -5127,7 +4944,7 @@ opcode_lookup (char **str)
   /* Handle a possible condition.  */
   if (dot)
     {
-      cond = str_hash_find_n (aarch64_cond_hsh, dot + 1, end - dot - 1);
+      cond = hash_find_n (aarch64_cond_hsh, dot + 1, end - dot - 1);
       if (cond)
 	{
 	  inst.cond = cond->value;
@@ -5198,10 +5015,6 @@ vectype_to_qualifier (const struct vector_type_el *vectype)
       if (vectype->type == NT_b && vectype->width == 4)
 	return AARCH64_OPND_QLF_S_4B;
 
-      /* Special case S_2H.  */
-      if (vectype->type == NT_h && vectype->width == 2)
-	return AARCH64_OPND_QLF_S_2H;
-
       /* Vector element register.  */
       return AARCH64_OPND_QLF_S_B + vectype->type;
     }
@@ -5234,7 +5047,7 @@ vectype_to_qualifier (const struct vector_type_el *vectype)
       return offset;
     }
 
- vectype_conversion_fail:
+vectype_conversion_fail:
   first_error (_("bad vector arrangement type"));
   return AARCH64_OPND_QLF_NIL;
 }
@@ -5259,7 +5072,6 @@ process_omitted_operand (enum aarch64_opnd type, const aarch64_opcode *opcode,
     case AARCH64_OPND_Rm:
     case AARCH64_OPND_Rt:
     case AARCH64_OPND_Rt2:
-    case AARCH64_OPND_Rt_SP:
     case AARCH64_OPND_Rs:
     case AARCH64_OPND_Ra:
     case AARCH64_OPND_Rt_SYS:
@@ -5326,11 +5138,6 @@ process_omitted_operand (enum aarch64_opnd type, const aarch64_opcode *opcode,
 
     case AARCH64_OPND_BARRIER_ISB:
       operand->barrier = aarch64_barrier_options + default_value;
-      break;
-
-    case AARCH64_OPND_BTI_TARGET:
-      operand->hint_option = aarch64_hint_options + default_value;
-      break;
 
     default:
       break;
@@ -5636,7 +5443,6 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 
 	case AARCH64_OPND_Rd_SP:
 	case AARCH64_OPND_Rn_SP:
-	case AARCH64_OPND_Rt_SP:
 	case AARCH64_OPND_SVE_Rn_SP:
 	case AARCH64_OPND_Rm_SP:
 	  po_int_reg_or_fail (REG_TYPE_R_SP);
@@ -5761,8 +5567,6 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 
 	case AARCH64_OPND_SVE_Zm3_INDEX:
 	case AARCH64_OPND_SVE_Zm3_22_INDEX:
-	case AARCH64_OPND_SVE_Zm3_11_INDEX:
-	case AARCH64_OPND_SVE_Zm4_11_INDEX:
 	case AARCH64_OPND_SVE_Zm4_INDEX:
 	case AARCH64_OPND_SVE_Zn_INDEX:
 	  reg_type = REG_TYPE_ZN;
@@ -5820,20 +5624,11 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 	      val = parse_vector_reg_list (&str, reg_type, &vectype);
 	      if (val == PARSE_FAIL)
 		goto failure;
-
 	      if (! reg_list_valid_p (val, /* accept_alternate */ 0))
 		{
 		  set_fatal_syntax_error (_("invalid register list"));
 		  goto failure;
 		}
-
-	      if (vectype.width != 0 && *str != ',')
-		{
-		  set_fatal_syntax_error
-		    (_("expected element type rather than vector type"));
-		  goto failure;
-		}
-
 	      info->reglist.first_regno = (val >> 2) & 0x1f;
 	      info->reglist.num_regs = (val & 0x3) + 1;
 	    }
@@ -5887,10 +5682,7 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 	case AARCH64_OPND_CCMP_IMM:
 	case AARCH64_OPND_SIMM5:
 	case AARCH64_OPND_FBITS:
-	case AARCH64_OPND_TME_UIMM16:
 	case AARCH64_OPND_UIMM4:
-	case AARCH64_OPND_UIMM4_ADDG:
-	case AARCH64_OPND_UIMM10:
 	case AARCH64_OPND_UIMM3_OP1:
 	case AARCH64_OPND_UIMM3_OP2:
 	case AARCH64_OPND_IMM_VLSL:
@@ -5902,10 +5694,8 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 	case AARCH64_OPND_SVE_LIMM_MOV:
 	case AARCH64_OPND_SVE_SHLIMM_PRED:
 	case AARCH64_OPND_SVE_SHLIMM_UNPRED:
-	case AARCH64_OPND_SVE_SHLIMM_UNPRED_22:
 	case AARCH64_OPND_SVE_SHRIMM_PRED:
 	case AARCH64_OPND_SVE_SHRIMM_UNPRED:
-	case AARCH64_OPND_SVE_SHRIMM_UNPRED_22:
 	case AARCH64_OPND_SVE_SIMM5:
 	case AARCH64_OPND_SVE_SIMM5B:
 	case AARCH64_OPND_SVE_SIMM6:
@@ -5919,7 +5709,6 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 	case AARCH64_OPND_IMM_ROT3:
 	case AARCH64_OPND_SVE_IMM_ROT1:
 	case AARCH64_OPND_SVE_IMM_ROT2:
-	case AARCH64_OPND_SVE_IMM_ROT3:
 	  po_imm_nc_or_fail ();
 	  info->imm.value = val;
 	  break;
@@ -6167,7 +5956,6 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 	  break;
 
 	case AARCH64_OPND_EXCEPTION:
-	case AARCH64_OPND_UNDEFINED:
 	  po_misc_or_fail (parse_immediate_expression (&str, &inst.reloc.exp,
 						       imm_reg_type));
 	  assign_imm_if_const_or_fixup_later (&inst.reloc, info,
@@ -6178,7 +5966,7 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 
 	case AARCH64_OPND_NZCV:
 	  {
-	    const asm_nzcv *nzcv = str_hash_find_n (aarch64_nzcv_hsh, str, 4);
+	    const asm_nzcv *nzcv = hash_find_n (aarch64_nzcv_hsh, str, 4);
 	    if (nzcv != NULL)
 	      {
 		str += 4;
@@ -6197,7 +5985,7 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 	    do
 	      str++;
 	    while (ISALPHA (*str));
-	    info->cond = str_hash_find_n (aarch64_cond_hsh, start, str - start);
+	    info->cond = hash_find_n (aarch64_cond_hsh, start, str - start);
 	    if (info->cond == NULL)
 	      {
 		set_syntax_error (_("invalid condition"));
@@ -6365,8 +6153,6 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 
 	case AARCH64_OPND_ADDR_SIMM9:
 	case AARCH64_OPND_ADDR_SIMM9_2:
-	case AARCH64_OPND_ADDR_SIMM11:
-	case AARCH64_OPND_ADDR_SIMM13:
 	  po_misc_or_fail (parse_address (&str, info));
 	  if (info->addr.pcrel || info->addr.offset.is_reg
 	      || (!info->addr.preind && !info->addr.postind)
@@ -6453,7 +6239,6 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 	  break;
 
 	case AARCH64_OPND_SVE_ADDR_RI_S4x16:
-	case AARCH64_OPND_SVE_ADDR_RI_S4x32:
 	case AARCH64_OPND_SVE_ADDR_RI_S4xVL:
 	case AARCH64_OPND_SVE_ADDR_RI_S4x2xVL:
 	case AARCH64_OPND_SVE_ADDR_RI_S4x3xVL:
@@ -6557,33 +6342,6 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 	  info->qualifier = offset_qualifier;
 	  goto regoff_addr;
 
-	case AARCH64_OPND_SVE_ADDR_ZX:
-	  /* [Zn.<T>{, <Xm>}].  */
-	  po_misc_or_fail (parse_sve_address (&str, info, &base_qualifier,
-					      &offset_qualifier));
-	  /* Things to check:
-	      base_qualifier either S_S or S_D
-	      offset_qualifier must be X
-	      */
-	  if ((base_qualifier != AARCH64_OPND_QLF_S_S
-	       && base_qualifier != AARCH64_OPND_QLF_S_D)
-	      || offset_qualifier != AARCH64_OPND_QLF_X)
-	    {
-	      set_syntax_error (_("invalid addressing mode"));
-	      goto failure;
-	    }
-	  info->qualifier = base_qualifier;
-	  if (!info->addr.offset.is_reg || info->addr.pcrel
-	      || !info->addr.preind || info->addr.writeback
-	      || info->shifter.operator_present != 0)
-	    {
-	      set_syntax_error (_("invalid addressing mode"));
-	      goto failure;
-	    }
-	  info->shifter.kind = AARCH64_MOD_LSL;
-	  break;
-
-
 	case AARCH64_OPND_SVE_ADDR_ZI_U5:
 	case AARCH64_OPND_SVE_ADDR_ZI_U5x2:
 	case AARCH64_OPND_SVE_ADDR_ZI_U5x4:
@@ -6652,26 +6410,18 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 	  inst.base.operands[i].sysins_op =
 	    parse_sys_ins_reg (&str, aarch64_sys_regs_ic_hsh);
 	  goto sys_reg_ins;
-
 	case AARCH64_OPND_SYSREG_DC:
 	  inst.base.operands[i].sysins_op =
 	    parse_sys_ins_reg (&str, aarch64_sys_regs_dc_hsh);
 	  goto sys_reg_ins;
-
 	case AARCH64_OPND_SYSREG_AT:
 	  inst.base.operands[i].sysins_op =
 	    parse_sys_ins_reg (&str, aarch64_sys_regs_at_hsh);
 	  goto sys_reg_ins;
-
-	case AARCH64_OPND_SYSREG_SR:
-	  inst.base.operands[i].sysins_op =
-	    parse_sys_ins_reg (&str, aarch64_sys_regs_sr_hsh);
-	  goto sys_reg_ins;
-
 	case AARCH64_OPND_SYSREG_TLBI:
 	  inst.base.operands[i].sysins_op =
 	    parse_sys_ins_reg (&str, aarch64_sys_regs_tlbi_hsh);
-	sys_reg_ins:
+sys_reg_ins:
 	  if (inst.base.operands[i].sysins_op == NULL)
 	    {
 	      set_fatal_syntax_error ( _("unknown or missing operation name"));
@@ -6712,12 +6462,6 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 	    goto failure;
 	  break;
 
-	case AARCH64_OPND_BTI_TARGET:
-	  val = parse_bti_operand (&str, &(info->hint_option));
-	  if (val == PARSE_FAIL)
-	    goto failure;
-	  break;
-
 	default:
 	  as_fatal (_("unhandled operand code %d"), operands[i]);
 	}
@@ -6726,7 +6470,7 @@ parse_operands (char *str, const aarch64_opcode *opcode)
       inst.base.operands[i].present = 1;
       continue;
 
-    failure:
+failure:
       /* The parse routine should already have set the error, but in case
 	 not, set a default one here.  */
       if (! error_p ())
@@ -6792,7 +6536,7 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 	(_("unexpected characters following instruction"));
     }
 
- parse_operands_return:
+parse_operands_return:
 
   if (error_p ())
     {
@@ -6942,12 +6686,9 @@ warn_unpredictable_ldst (aarch64_instruction *instr, char *str)
 	   == AARCH64_OPND_CLASS_INT_REG)
 	  && opnds[0].reg.regno == opnds[1].addr.base_regno
 	  && opnds[1].addr.base_regno != REG_SP
-	  /* Exempt STG/STZG/ST2G/STZ2G.  */
-	  && !(opnds[1].type == AARCH64_OPND_ADDR_SIMM13)
 	  && opnds[1].addr.writeback)
 	as_warn (_("unpredictable transfer with writeback -- `%s'"), str);
       break;
-
     case ldstpair_off:
     case ldstnapair_offs:
     case ldstpair_indexed:
@@ -6957,8 +6698,6 @@ warn_unpredictable_ldst (aarch64_instruction *instr, char *str)
 	  && (opnds[0].reg.regno == opnds[2].addr.base_regno
 	    || opnds[1].reg.regno == opnds[2].addr.base_regno)
 	  && opnds[2].addr.base_regno != REG_SP
-	  /* Exempt STGP.  */
-	  && !(opnds[2].type == AARCH64_OPND_ADDR_SIMM11)
 	  && opnds[2].addr.writeback)
 	    as_warn (_("unpredictable transfer with writeback -- `%s'"), str);
       /* Load operations must load different registers.  */
@@ -6987,17 +6726,6 @@ warn_unpredictable_ldst (aarch64_instruction *instr, char *str)
     }
 }
 
-static void
-force_automatic_sequence_close (void)
-{
-  if (now_instr_sequence.instr)
-    {
-      as_warn (_("previous `%s' sequence has not been closed"),
-	       now_instr_sequence.instr->opcode->name);
-      init_insn_sequence (NULL, &now_instr_sequence);
-    }
-}
-
 /* A wrapper function to interface with libopcodes on encoding and
    record the error message if there is any.
 
@@ -7010,7 +6738,7 @@ do_encode (const aarch64_opcode *opcode, aarch64_inst *instr,
   aarch64_operand_error error_info;
   memset (&error_info, '\0', sizeof (error_info));
   error_info.kind = AARCH64_OPDE_NIL;
-  if (aarch64_opcode_encode (opcode, instr, code, NULL, &error_info, insn_sequence)
+  if (aarch64_opcode_encode (opcode, instr, code, NULL, &error_info)
       && !error_info.non_fatal)
     return TRUE;
 
@@ -7055,9 +6783,6 @@ md_assemble (char *str)
       S_SET_VALUE (last_label_seen, (valueT) frag_now_fix ());
       S_SET_SEGMENT (last_label_seen, now_seg);
     }
-
-  /* Update the current insn_sequence from the segment.  */
-  insn_sequence = &seg_info (now_seg)->tc_segment_info_data.insn_sequence;
 
   inst.reloc.type = BFD_RELOC_UNUSED;
 
@@ -7189,13 +6914,6 @@ aarch64_frob_label (symbolS * sym)
   last_label_seen = sym;
 
   dwarf2_emit_label (sym);
-}
-
-void
-aarch64_frob_section (asection *sec ATTRIBUTE_UNUSED)
-{
-  /* Check to see if we have a block to close.  */
-  force_automatic_sequence_close ();
 }
 
 int
@@ -7451,7 +7169,7 @@ aarch64_init_frag (fragS * fragP, int max_chars)
 
   /* PR 21809: Do not set a mapping state for debug sections
      - it just confuses other tools.  */
-  if (bfd_section_flags (now_seg) & SEC_DEBUGGING)
+  if (bfd_get_section_flags (NULL, now_seg) & SEC_DEBUGGING)
     return;
 
   switch (fragP->fr_type)
@@ -7563,7 +7281,7 @@ md_undefined_symbol (char *name ATTRIBUTE_UNUSED)
 	    as_bad (_("GOT already in the symbol table"));
 
 	  GOT_symbol = symbol_new (name, undefined_section,
-				   &zero_address_frag, 0);
+				   (valueT) 0, &zero_address_frag);
 	}
 
       return GOT_symbol;
@@ -7658,8 +7376,7 @@ try_to_encode_as_unscaled_ldst (aarch64_inst *instr)
 
   DEBUG_TRACE ("Found LDURB entry to encode programmer-friendly LDRB");
 
-  if (!aarch64_opcode_encode (instr->opcode, instr, &instr->value, NULL, NULL,
-			      insn_sequence))
+  if (!aarch64_opcode_encode (instr->opcode, instr, &instr->value, NULL, NULL))
     return FALSE;
 
   return TRUE;
@@ -7693,7 +7410,7 @@ fix_mov_imm_insn (fixS *fixP, char *buf, aarch64_inst *instr, offsetT value)
       opcode = aarch64_get_opcode (OP_MOV_IMM_WIDE);
       aarch64_replace_opcode (instr, opcode);
       if (aarch64_opcode_encode (instr->opcode, instr,
-				 &instr->value, NULL, NULL, insn_sequence))
+				 &instr->value, NULL, NULL))
 	{
 	  put_aarch64_insn (buf, instr->value);
 	  return;
@@ -7702,7 +7419,7 @@ fix_mov_imm_insn (fixS *fixP, char *buf, aarch64_inst *instr, offsetT value)
       opcode = aarch64_get_opcode (OP_MOV_IMM_WIDEN);
       aarch64_replace_opcode (instr, opcode);
       if (aarch64_opcode_encode (instr->opcode, instr,
-				 &instr->value, NULL, NULL, insn_sequence))
+				 &instr->value, NULL, NULL))
 	{
 	  put_aarch64_insn (buf, instr->value);
 	  return;
@@ -7715,7 +7432,7 @@ fix_mov_imm_insn (fixS *fixP, char *buf, aarch64_inst *instr, offsetT value)
       opcode = aarch64_get_opcode (OP_MOV_IMM_LOG);
       aarch64_replace_opcode (instr, opcode);
       if (aarch64_opcode_encode (instr->opcode, instr,
-				 &instr->value, NULL, NULL, insn_sequence))
+				 &instr->value, NULL, NULL))
 	{
 	  put_aarch64_insn (buf, instr->value);
 	  return;
@@ -7764,12 +7481,11 @@ fix_insn (fixS *fixP, uint32_t flags, offsetT value)
   switch (opnd)
     {
     case AARCH64_OPND_EXCEPTION:
-    case AARCH64_OPND_UNDEFINED:
       if (unsigned_overflow (value, 16))
 	as_bad_where (fixP->fx_file, fixP->fx_line,
 		      _("immediate out of range"));
       insn = get_aarch64_insn (buf);
-      insn |= (opnd == AARCH64_OPND_EXCEPTION) ? encode_svc_imm (value) : value;
+      insn |= encode_svc_imm (value);
       put_aarch64_insn (buf, insn);
       break;
 
@@ -7827,7 +7543,7 @@ fix_insn (fixS *fixP, uint32_t flags, offsetT value)
       idx = aarch64_operand_index (new_inst->opcode->operands, opnd);
       new_inst->operands[idx].imm.value = value;
       if (aarch64_opcode_encode (new_inst->opcode, new_inst,
-				 &new_inst->value, NULL, NULL, insn_sequence))
+				 &new_inst->value, NULL, NULL))
 	put_aarch64_insn (buf, new_inst->value);
       else
 	as_bad_where (fixP->fx_file, fixP->fx_line,
@@ -7861,8 +7577,6 @@ fix_insn (fixS *fixP, uint32_t flags, offsetT value)
     case AARCH64_OPND_ADDR_SIMM9_2:
     case AARCH64_OPND_ADDR_SIMM10:
     case AARCH64_OPND_ADDR_UIMM12:
-    case AARCH64_OPND_ADDR_SIMM11:
-    case AARCH64_OPND_ADDR_SIMM13:
       /* Immediate offset in an address.  */
       insn = get_aarch64_insn (buf);
 
@@ -7883,7 +7597,7 @@ fix_insn (fixS *fixP, uint32_t flags, offsetT value)
 
       /* Encode/fix-up.  */
       if (aarch64_opcode_encode (new_inst->opcode, new_inst,
-				 &new_inst->value, NULL, NULL, insn_sequence))
+				 &new_inst->value, NULL, NULL))
 	{
 	  put_aarch64_insn (buf, new_inst->value);
 	  break;
@@ -8283,11 +7997,12 @@ md_apply_fix (fixS * fixP, valueT * valP, segT seg)
       break;
     }
 
- apply_fix_return:
+apply_fix_return:
   /* Free the allocated the struct aarch64_inst.
      N.B. currently there are very limited number of fix-up types actually use
      this field, so the impact on the performance should be minimal .  */
-  free (fixP->tc_fix_data.inst);
+  if (fixP->tc_fix_data.inst != NULL)
+    free (fixP->tc_fix_data.inst);
 
   return;
 }
@@ -8501,18 +8216,15 @@ aarch64_after_parse_args (void)
 const char *
 elf64_aarch64_target_format (void)
 {
-#ifdef TE_CLOUDABI
-  /* FIXME: What to do for ilp32_p ?  */
-  if (target_big_endian)
-    return "elf64-bigaarch64-cloudabi";
-  else
-    return "elf64-littleaarch64-cloudabi";
-#else
+  if (strcmp (TARGET_OS, "cloudabi") == 0)
+    {
+      /* FIXME: What to do for ilp32_p ?  */
+      return target_big_endian ? "elf64-bigaarch64-cloudabi" : "elf64-littleaarch64-cloudabi";
+    }
   if (target_big_endian)
     return ilp32_p ? "elf32-bigaarch64" : "elf64-bigaarch64";
   else
     return ilp32_p ? "elf32-littleaarch64" : "elf64-littleaarch64";
-#endif
 }
 
 void
@@ -8621,16 +8333,13 @@ aarch64_adjust_symtab (void)
 }
 
 static void
-checked_hash_insert (htab_t table, const char *key, void *value)
+checked_hash_insert (struct hash_control *table, const char *key, void *value)
 {
-  str_hash_insert (table, key, value, 0);
-}
+  const char *hash_err;
 
-static void
-sysreg_hash_insert (htab_t table, const char *key, void *value)
-{
-  gas_assert (strlen (key) < AARCH64_MAX_SYSREG_NAME_LEN);
-  checked_hash_insert (table, key, value);
+  hash_err = hash_insert (table, key, value);
+  if (hash_err)
+    printf ("Internal Error:  Can't hash %s\n", key);
 }
 
 static void
@@ -8641,7 +8350,7 @@ fill_instruction_hash_table (void)
   while (opcode->name != NULL)
     {
       templates *templ, *new_templ;
-      templ = str_hash_find (aarch64_ops_hsh, opcode->name);
+      templ = hash_find (aarch64_ops_hsh, opcode->name);
 
       new_templ = XNEW (templates);
       new_templ->opcode = opcode;
@@ -8687,57 +8396,52 @@ md_begin (void)
   unsigned mach;
   unsigned int i;
 
-  aarch64_ops_hsh = str_htab_create ();
-  aarch64_cond_hsh = str_htab_create ();
-  aarch64_shift_hsh = str_htab_create ();
-  aarch64_sys_regs_hsh = str_htab_create ();
-  aarch64_pstatefield_hsh = str_htab_create ();
-  aarch64_sys_regs_ic_hsh = str_htab_create ();
-  aarch64_sys_regs_dc_hsh = str_htab_create ();
-  aarch64_sys_regs_at_hsh = str_htab_create ();
-  aarch64_sys_regs_tlbi_hsh = str_htab_create ();
-  aarch64_sys_regs_sr_hsh = str_htab_create ();
-  aarch64_reg_hsh = str_htab_create ();
-  aarch64_barrier_opt_hsh = str_htab_create ();
-  aarch64_nzcv_hsh = str_htab_create ();
-  aarch64_pldop_hsh = str_htab_create ();
-  aarch64_hint_opt_hsh = str_htab_create ();
+  if ((aarch64_ops_hsh = hash_new ()) == NULL
+      || (aarch64_cond_hsh = hash_new ()) == NULL
+      || (aarch64_shift_hsh = hash_new ()) == NULL
+      || (aarch64_sys_regs_hsh = hash_new ()) == NULL
+      || (aarch64_pstatefield_hsh = hash_new ()) == NULL
+      || (aarch64_sys_regs_ic_hsh = hash_new ()) == NULL
+      || (aarch64_sys_regs_dc_hsh = hash_new ()) == NULL
+      || (aarch64_sys_regs_at_hsh = hash_new ()) == NULL
+      || (aarch64_sys_regs_tlbi_hsh = hash_new ()) == NULL
+      || (aarch64_reg_hsh = hash_new ()) == NULL
+      || (aarch64_barrier_opt_hsh = hash_new ()) == NULL
+      || (aarch64_nzcv_hsh = hash_new ()) == NULL
+      || (aarch64_pldop_hsh = hash_new ()) == NULL
+      || (aarch64_hint_opt_hsh = hash_new ()) == NULL)
+    as_fatal (_("virtual memory exhausted"));
 
   fill_instruction_hash_table ();
 
   for (i = 0; aarch64_sys_regs[i].name != NULL; ++i)
-    sysreg_hash_insert (aarch64_sys_regs_hsh, aarch64_sys_regs[i].name,
+    checked_hash_insert (aarch64_sys_regs_hsh, aarch64_sys_regs[i].name,
 			 (void *) (aarch64_sys_regs + i));
 
   for (i = 0; aarch64_pstatefields[i].name != NULL; ++i)
-    sysreg_hash_insert (aarch64_pstatefield_hsh,
+    checked_hash_insert (aarch64_pstatefield_hsh,
 			 aarch64_pstatefields[i].name,
 			 (void *) (aarch64_pstatefields + i));
 
   for (i = 0; aarch64_sys_regs_ic[i].name != NULL; i++)
-    sysreg_hash_insert (aarch64_sys_regs_ic_hsh,
+    checked_hash_insert (aarch64_sys_regs_ic_hsh,
 			 aarch64_sys_regs_ic[i].name,
 			 (void *) (aarch64_sys_regs_ic + i));
 
   for (i = 0; aarch64_sys_regs_dc[i].name != NULL; i++)
-    sysreg_hash_insert (aarch64_sys_regs_dc_hsh,
+    checked_hash_insert (aarch64_sys_regs_dc_hsh,
 			 aarch64_sys_regs_dc[i].name,
 			 (void *) (aarch64_sys_regs_dc + i));
 
   for (i = 0; aarch64_sys_regs_at[i].name != NULL; i++)
-    sysreg_hash_insert (aarch64_sys_regs_at_hsh,
+    checked_hash_insert (aarch64_sys_regs_at_hsh,
 			 aarch64_sys_regs_at[i].name,
 			 (void *) (aarch64_sys_regs_at + i));
 
   for (i = 0; aarch64_sys_regs_tlbi[i].name != NULL; i++)
-    sysreg_hash_insert (aarch64_sys_regs_tlbi_hsh,
+    checked_hash_insert (aarch64_sys_regs_tlbi_hsh,
 			 aarch64_sys_regs_tlbi[i].name,
 			 (void *) (aarch64_sys_regs_tlbi + i));
-
-  for (i = 0; aarch64_sys_regs_sr[i].name != NULL; i++)
-    sysreg_hash_insert (aarch64_sys_regs_sr_hsh,
-			 aarch64_sys_regs_sr[i].name,
-			 (void *) (aarch64_sys_regs_sr + i));
 
   for (i = 0; i < ARRAY_SIZE (reg_names); i++)
     checked_hash_insert (aarch64_reg_hsh, reg_names[i].name,
@@ -8804,15 +8508,12 @@ md_begin (void)
   for (i = 0; aarch64_hint_options[i].name != NULL; i++)
     {
       const char* name = aarch64_hint_options[i].name;
-      const char* upper_name = get_upper_str(name);
 
       checked_hash_insert (aarch64_hint_opt_hsh, name,
 			   (void *) (aarch64_hint_options + i));
-
-      /* Also hash the name in the upper case if not the same.  */
-      if (strcmp (name, upper_name) != 0)
-	checked_hash_insert (aarch64_hint_opt_hsh, upper_name,
-			     (void *) (aarch64_hint_options + i));
+      /* Also hash the name in the upper case.  */
+      checked_hash_insert (aarch64_pldop_hsh, get_upper_str (name),
+			   (void *) (aarch64_hint_options + i));
     }
 
   /* Set the cpu variant based on the command-line options.  */
@@ -8893,8 +8594,6 @@ struct aarch64_cpu_option_table
    recognized by GCC.  */
 static const struct aarch64_cpu_option_table aarch64_cpus[] = {
   {"all", AARCH64_ANY, NULL},
-  {"cortex-a34", AARCH64_FEATURE (AARCH64_ARCH_V8,
-				  AARCH64_FEATURE_CRC), "Cortex-A34"},
   {"cortex-a35", AARCH64_FEATURE (AARCH64_ARCH_V8,
 				  AARCH64_FEATURE_CRC), "Cortex-A35"},
   {"cortex-a53", AARCH64_FEATURE (AARCH64_ARCH_V8,
@@ -8914,31 +8613,6 @@ static const struct aarch64_cpu_option_table aarch64_cpus[] = {
   {"cortex-a76", AARCH64_FEATURE (AARCH64_ARCH_V8_2,
 				  AARCH64_FEATURE_RCPC | AARCH64_FEATURE_F16 | AARCH64_FEATURE_DOTPROD),
 				  "Cortex-A76"},
-  {"cortex-a76ae", AARCH64_FEATURE (AARCH64_ARCH_V8_2,
-				    AARCH64_FEATURE_F16 | AARCH64_FEATURE_RCPC
-				    | AARCH64_FEATURE_DOTPROD
-				    | AARCH64_FEATURE_SSBS),
-				    "Cortex-A76AE"},
-  {"cortex-a77", AARCH64_FEATURE (AARCH64_ARCH_V8_2,
-				  AARCH64_FEATURE_F16 | AARCH64_FEATURE_RCPC
-				  | AARCH64_FEATURE_DOTPROD
-				  | AARCH64_FEATURE_SSBS),
-				  "Cortex-A77"},
-  {"cortex-a65", AARCH64_FEATURE (AARCH64_ARCH_V8_2,
-				  AARCH64_FEATURE_F16 | AARCH64_FEATURE_RCPC
-				  | AARCH64_FEATURE_DOTPROD
-				  | AARCH64_FEATURE_SSBS),
-				  "Cortex-A65"},
-  {"cortex-a65ae", AARCH64_FEATURE (AARCH64_ARCH_V8_2,
-				    AARCH64_FEATURE_F16 | AARCH64_FEATURE_RCPC
-				    | AARCH64_FEATURE_DOTPROD
-				    | AARCH64_FEATURE_SSBS),
-				    "Cortex-A65AE"},
-  {"ares", AARCH64_FEATURE (AARCH64_ARCH_V8_2,
-				  AARCH64_FEATURE_RCPC | AARCH64_FEATURE_F16
-				  | AARCH64_FEATURE_DOTPROD
-				  | AARCH64_FEATURE_PROFILE),
-				  "Ares"},
   {"exynos-m1", AARCH64_FEATURE (AARCH64_ARCH_V8,
 				 AARCH64_FEATURE_CRC | AARCH64_FEATURE_CRYPTO),
 				"Samsung Exynos M1"},
@@ -8946,16 +8620,6 @@ static const struct aarch64_cpu_option_table aarch64_cpus[] = {
 			      AARCH64_FEATURE_CRC | AARCH64_FEATURE_CRYPTO
 			      | AARCH64_FEATURE_RDMA),
    "Qualcomm Falkor"},
-  {"neoverse-e1", AARCH64_FEATURE (AARCH64_ARCH_V8_2,
-				  AARCH64_FEATURE_RCPC | AARCH64_FEATURE_F16
-				  | AARCH64_FEATURE_DOTPROD
-				  | AARCH64_FEATURE_SSBS),
-				  "Neoverse E1"},
-  {"neoverse-n1", AARCH64_FEATURE (AARCH64_ARCH_V8_2,
-				  AARCH64_FEATURE_RCPC | AARCH64_FEATURE_F16
-				  | AARCH64_FEATURE_DOTPROD
-				  | AARCH64_FEATURE_PROFILE),
-				  "Neoverse N1"},
   {"qdf24xx", AARCH64_FEATURE (AARCH64_ARCH_V8,
 			       AARCH64_FEATURE_CRC | AARCH64_FEATURE_CRYPTO
 			       | AARCH64_FEATURE_RDMA),
@@ -8976,7 +8640,6 @@ static const struct aarch64_cpu_option_table aarch64_cpus[] = {
   {"xgene1", AARCH64_ARCH_V8, "APM X-Gene 1"},
   {"xgene2", AARCH64_FEATURE (AARCH64_ARCH_V8,
 			      AARCH64_FEATURE_CRC), "APM X-Gene 2"},
-  {"cortex-r82", AARCH64_ARCH_V8_R, "Cortex-R82"},
   {"generic", AARCH64_ARCH_V8, NULL},
 
   {NULL, AARCH64_ARCH_NONE, NULL}
@@ -8997,9 +8660,6 @@ static const struct aarch64_arch_option_table aarch64_archs[] = {
   {"armv8.2-a", AARCH64_ARCH_V8_2},
   {"armv8.3-a", AARCH64_ARCH_V8_3},
   {"armv8.4-a", AARCH64_ARCH_V8_4},
-  {"armv8.5-a", AARCH64_ARCH_V8_5},
-  {"armv8.6-a", AARCH64_ARCH_V8_6},
-  {"armv8-r",	AARCH64_ARCH_V8_R},
   {NULL, AARCH64_ARCH_NONE}
 };
 
@@ -9014,7 +8674,9 @@ struct aarch64_option_cpu_value_table
 static const struct aarch64_option_cpu_value_table aarch64_features[] = {
   {"crc",		AARCH64_FEATURE (AARCH64_FEATURE_CRC, 0),
 			AARCH64_ARCH_NONE},
-  {"crypto",		AARCH64_FEATURE (AARCH64_FEATURE_CRYPTO, 0),
+  {"crypto",		AARCH64_FEATURE (AARCH64_FEATURE_CRYPTO
+					 | AARCH64_FEATURE_AES
+					 | AARCH64_FEATURE_SHA2, 0),
 			AARCH64_FEATURE (AARCH64_FEATURE_SIMD, 0)},
   {"fp",		AARCH64_FEATURE (AARCH64_FEATURE_FP, 0),
 			AARCH64_ARCH_NONE},
@@ -9041,8 +8703,6 @@ static const struct aarch64_option_cpu_value_table aarch64_features[] = {
 			AARCH64_FEATURE (AARCH64_FEATURE_F16
 					 | AARCH64_FEATURE_SIMD
 					 | AARCH64_FEATURE_COMPNUM, 0)},
-  {"tme",		AARCH64_FEATURE (AARCH64_FEATURE_TME, 0),
-			AARCH64_ARCH_NONE},
   {"compnum",		AARCH64_FEATURE (AARCH64_FEATURE_COMPNUM, 0),
 			AARCH64_FEATURE (AARCH64_FEATURE_F16
 					 | AARCH64_FEATURE_SIMD, 0)},
@@ -9052,43 +8712,13 @@ static const struct aarch64_option_cpu_value_table aarch64_features[] = {
 			AARCH64_ARCH_NONE},
   {"sha2",		AARCH64_FEATURE (AARCH64_FEATURE_SHA2, 0),
 			AARCH64_ARCH_NONE},
-  {"sb",		AARCH64_FEATURE (AARCH64_FEATURE_SB, 0),
-			AARCH64_ARCH_NONE},
-  {"predres",		AARCH64_FEATURE (AARCH64_FEATURE_PREDRES, 0),
-			AARCH64_ARCH_NONE},
   {"aes",		AARCH64_FEATURE (AARCH64_FEATURE_AES, 0),
 			AARCH64_ARCH_NONE},
   {"sm4",		AARCH64_FEATURE (AARCH64_FEATURE_SM4, 0),
 			AARCH64_ARCH_NONE},
-  {"sha3",		AARCH64_FEATURE (AARCH64_FEATURE_SHA3, 0),
-			AARCH64_FEATURE (AARCH64_FEATURE_SHA2, 0)},
-  {"rng",		AARCH64_FEATURE (AARCH64_FEATURE_RNG, 0),
+  {"sha3",		AARCH64_FEATURE (AARCH64_FEATURE_SHA2
+					 | AARCH64_FEATURE_SHA3, 0),
 			AARCH64_ARCH_NONE},
-  {"ssbs",		AARCH64_FEATURE (AARCH64_FEATURE_SSBS, 0),
-			AARCH64_ARCH_NONE},
-  {"memtag",		AARCH64_FEATURE (AARCH64_FEATURE_MEMTAG, 0),
-			AARCH64_ARCH_NONE},
-  {"sve2",		AARCH64_FEATURE (AARCH64_FEATURE_SVE2, 0),
-			AARCH64_FEATURE (AARCH64_FEATURE_SVE, 0)},
-  {"sve2-sm4",		AARCH64_FEATURE (AARCH64_FEATURE_SVE2_SM4, 0),
-			AARCH64_FEATURE (AARCH64_FEATURE_SVE2
-					 | AARCH64_FEATURE_SM4, 0)},
-  {"sve2-aes",		AARCH64_FEATURE (AARCH64_FEATURE_SVE2_AES, 0),
-			AARCH64_FEATURE (AARCH64_FEATURE_SVE2
-					 | AARCH64_FEATURE_AES, 0)},
-  {"sve2-sha3",		AARCH64_FEATURE (AARCH64_FEATURE_SVE2_SHA3, 0),
-			AARCH64_FEATURE (AARCH64_FEATURE_SVE2
-					 | AARCH64_FEATURE_SHA3, 0)},
-  {"sve2-bitperm",	AARCH64_FEATURE (AARCH64_FEATURE_SVE2_BITPERM, 0),
-			AARCH64_FEATURE (AARCH64_FEATURE_SVE2, 0)},
-  {"bf16",		AARCH64_FEATURE (AARCH64_FEATURE_BFLOAT16, 0),
-			AARCH64_ARCH_NONE},
-  {"i8mm",		AARCH64_FEATURE (AARCH64_FEATURE_I8MM, 0),
-			AARCH64_ARCH_NONE},
-  {"f32mm",		AARCH64_FEATURE (AARCH64_FEATURE_F32MM, 0),
-			AARCH64_FEATURE (AARCH64_FEATURE_SVE, 0)},
-  {"f64mm",		AARCH64_FEATURE (AARCH64_FEATURE_F64MM, 0),
-			AARCH64_FEATURE (AARCH64_FEATURE_SVE, 0)},
   {NULL,		AARCH64_ARCH_NONE, AARCH64_ARCH_NONE},
 };
 
@@ -9553,34 +9183,3 @@ aarch64_copy_symbol_attributes (symbolS * dest, symbolS * src)
 {
   AARCH64_GET_FLAG (dest) = AARCH64_GET_FLAG (src);
 }
-
-#ifdef OBJ_ELF
-/* Same as elf_copy_symbol_attributes, but without copying st_other.
-   This is needed so AArch64 specific st_other values can be independently
-   specified for an IFUNC resolver (that is called by the dynamic linker)
-   and the symbol it resolves (aliased to the resolver).  In particular,
-   if a function symbol has special st_other value set via directives,
-   then attaching an IFUNC resolver to that symbol should not override
-   the st_other setting.  Requiring the directive on the IFUNC resolver
-   symbol would be unexpected and problematic in C code, where the two
-   symbols appear as two independent function declarations.  */
-
-void
-aarch64_elf_copy_symbol_attributes (symbolS *dest, symbolS *src)
-{
-  struct elf_obj_sy *srcelf = symbol_get_obj (src);
-  struct elf_obj_sy *destelf = symbol_get_obj (dest);
-  if (srcelf->size)
-    {
-      if (destelf->size == NULL)
-	destelf->size = XNEW (expressionS);
-      *destelf->size = *srcelf->size;
-    }
-  else
-    {
-      free (destelf->size);
-      destelf->size = NULL;
-    }
-  S_SET_SIZE (dest, S_GET_SIZE (src));
-}
-#endif

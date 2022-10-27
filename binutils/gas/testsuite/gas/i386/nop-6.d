@@ -1,4 +1,4 @@
-#as: -march=i686+nop --generate-missing-build-notes=no
+#as: -march=i686+nop
 #objdump: -drw
 #name: i386 .nops 6
 

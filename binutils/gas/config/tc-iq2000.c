@@ -1,5 +1,5 @@
 /* tc-iq2000.c -- Assembler for the Sitera IQ2000.
-   Copyright (C) 2003-2020 Free Software Foundation, Inc.
+   Copyright (C) 2003-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -106,7 +106,7 @@ struct iq2000_hi_fixup
 static struct iq2000_hi_fixup * iq2000_hi_fixup_list;
 
 /* Macro hash table, which we will add to.  */
-extern struct htab *macro_hash;
+extern struct hash_control *macro_hash;
 
 const char *md_shortopts = "";
 struct option md_longopts[] =
@@ -246,10 +246,7 @@ iq2000_add_macro (const char *  name,
       formal_entry ** p = &macro->formals;
 
       macro->formal_count = 0;
-      macro->formal_hash = htab_create_alloc (7, hash_formal_entry,
-					      eq_formal_entry,
-					      NULL, xcalloc, free);
-
+      macro->formal_hash = hash_new ();
 
       while (*arguments != NULL)
 	{
@@ -275,10 +272,8 @@ iq2000_add_macro (const char *  name,
 	    sb_add_string (& formal->name, *arguments);
 
 	  /* Add to macro's hash table.  */
-	  htab_insert (macro->formal_hash,
-		       formal_entry_alloc (sb_terminate (& formal->name),
-					   formal),
-		       1);
+	  hash_jam (macro->formal_hash, sb_terminate (& formal->name), formal);
+
 	  formal->index = macro->formal_count;
 	  macro->formal_count++;
 	  *p = formal;
@@ -290,7 +285,7 @@ iq2000_add_macro (const char *  name,
 
   sb_add_string (&macro_name, name);
   namestr = sb_terminate (&macro_name);
-  htab_insert (macro_hash, macro_entry_alloc (namestr, macro), 1);
+  hash_jam (macro_hash, namestr, macro);
 
   macro_defined = 1;
 }
@@ -435,7 +430,7 @@ md_assemble (char * str)
 valueT
 md_section_align (segT segment, valueT size)
 {
-  int align = bfd_section_alignment (segment);
+  int align = bfd_get_section_alignment (stdoutput, segment);
   return ((size + (1 << align) - 1) & -(1 << align));
 }
 
@@ -822,7 +817,7 @@ s_iq2000_end (int x ATTRIBUTE_UNUSED)
   else
     p = NULL;
 
-  if ((bfd_section_flags (now_seg) & SEC_CODE) != 0)
+  if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
     maybe_text = 1;
   else
     maybe_text = 0;
@@ -921,7 +916,7 @@ s_iq2000_ent (int aent)
   if (ISDIGIT (*input_line_pointer) || *input_line_pointer == '-')
     get_number ();
 
-  if ((bfd_section_flags (now_seg) & SEC_CODE) != 0)
+  if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
     maybe_text = 1;
   else
     maybe_text = 0;

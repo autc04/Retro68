@@ -1,4 +1,3 @@
-#as: -mx86-used-note=no --generate-missing-build-notes=no
 #objdump: -sr
 #name: x86-64 (ILP32) quad
 

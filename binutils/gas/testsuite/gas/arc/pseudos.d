@@ -6,7 +6,7 @@
 
 Disassembly of section .text:
 
-[0]+ <.text>:
+00000000 <.text>:
    0:	1cfc b008           	st.aw	r0,\[sp,-4\]
    4:	1404 3401           	ld.ab	r1,\[sp,4\]
    8:	0901 0002           	brlt.*	r1,r0,0	;0x8

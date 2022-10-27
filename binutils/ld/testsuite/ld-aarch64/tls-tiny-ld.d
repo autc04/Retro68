@@ -1,5 +1,4 @@
 #source: tls-tiny-ld.s
-#target: [check_shared_lib_support]
 #ld: -T relocs.ld -shared --hash-style=sysv
 #readelf: -Wr
 

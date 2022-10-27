@@ -2,7 +2,7 @@
 #as: --32 -mrelax-relocations=yes
 #objdump: -dw
 #target: x86_64-*-* i?86-*-*
-#notarget: *-*-lynxos *-*-nto*
+#notarget: x86_64-*-nacl* i?86-*-nacl*
 
 .*: +file format .*
 

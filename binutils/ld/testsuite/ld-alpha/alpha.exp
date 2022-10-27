@@ -1,5 +1,5 @@
 # Expect script for ld-alpha tests
-#   Copyright (C) 2003-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2003-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -22,8 +22,8 @@
 # Test Alpha ELF linking; all types of relocs.  This tests the
 # assembler and tools like objdump as well as the linker.
 
-if { !([istarget alpha*-*-elf*]
-       || ([istarget alpha*-*-linux*] && ![istarget *ecoff])) } {
+if { !([istarget "alpha*-*-elf*"]
+       || [istarget "alpha*-*-linux*"]) } {
     return
 }
 

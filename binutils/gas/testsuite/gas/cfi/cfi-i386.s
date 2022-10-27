@@ -1,5 +1,4 @@
 	.text
-	.arch generic32
 
 #; func_locvars
 #; - function with a space on the stack 

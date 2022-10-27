@@ -1,5 +1,5 @@
 #source: x86-64-vgather-check.s
-#warning_output: x86-64-vgather-check-warn.e
+#stderr: x86-64-vgather-check-warn.e
 #objdump: -dw
 #name: x86-64 vgather check (warning)
 

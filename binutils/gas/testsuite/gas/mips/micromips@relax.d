@@ -1,7 +1,7 @@
 #as: -KPIC -32 -relax-branch
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: MIPS relax
-#warning_output: relax.l
+#stderr: relax.l
 #source: relax.s
 
 # Test relaxation (microMIPS).

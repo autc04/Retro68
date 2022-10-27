@@ -9,7 +9,7 @@ Disassembly of section .text:
 
 0+ <_start>:
  +[a-f0-9]+:	31 c0                	xor    %eax,%eax
- +[a-f0-9]+:	e9 f9 01 00 00       	jmp    200 <func1>
+ +[a-f0-9]+:	e9 f9 01 00 00       	jmpq   200 <func1>
  +[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 nopw %cs:0x0\(%rax,%rax,1\)
  +[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 nopw %cs:0x0\(%rax,%rax,1\)
  +[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 nopw %cs:0x0\(%rax,%rax,1\)
@@ -59,7 +59,7 @@ Disassembly of section .text:
 
 0+200 <func1>:
  +[a-f0-9]+:	31 db                	xor    %ebx,%ebx
- +[a-f0-9]+:	e9 f9 00 00 00       	jmp    300 <func2>
+ +[a-f0-9]+:	e9 f9 00 00 00       	jmpq   300 <func2>
  +[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 nopw %cs:0x0\(%rax,%rax,1\)
  +[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 nopw %cs:0x0\(%rax,%rax,1\)
  +[a-f0-9]+:	66 66 2e 0f 1f 84 00 00 00 00 00 	data16 nopw %cs:0x0\(%rax,%rax,1\)

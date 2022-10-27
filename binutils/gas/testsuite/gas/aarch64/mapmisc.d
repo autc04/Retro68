@@ -1,9 +1,9 @@
-#as: -EL -I$srcdir/$subdir --generate-missing-build-notes=no
+#as: -EL -I$srcdir/$subdir 
 #objdump: --syms --special-syms -d
 #name: AArch64 Mapping Symbols for miscellaneous directives
 #source: mapmisc.s
 # This test is only valid on ELF based ports.
-#notarget: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#not-target: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
 
 
 .*: +file format .*aarch64.*

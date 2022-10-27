@@ -1,3 +1,3 @@
 #name: iWMMXt errors
 #as: -mcpu=iwmmxt
-#error_output: iwmmxt-bad.l
+#error-output: iwmmxt-bad.l

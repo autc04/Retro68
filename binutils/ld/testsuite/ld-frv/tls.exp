@@ -1,5 +1,5 @@
 # Expect script for FRV FDPIC TLS linker tests
-#   Copyright (C) 2003-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2003-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -23,9 +23,11 @@ if {![istarget frv*-*-*] || ![is_elf_format]} {
     return
 }
 
+global ASFLAGS
 set saved_ASFLAGS "$ASFLAGS"
 set ASFLAGS "$ASFLAGS -mfdpic"
 
+global LDFLAGS
 set saved_LDFLAGS "$LDFLAGS"
 set LDFLAGS "$LDFLAGS -melf32frvfd"
 

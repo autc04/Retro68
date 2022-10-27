@@ -1,5 +1,5 @@
 /* expr.c -operands, expressions-
-   Copyright (C) 1987-2020 Free Software Foundation, Inc.
+   Copyright (C) 1987-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -34,8 +34,6 @@
 #ifndef CHAR_BIT
 #define CHAR_BIT 8
 #endif
-
-bfd_boolean literal_prefix_dollar_hex = FALSE;
 
 static void floating_constant (expressionS * expressionP);
 static valueT generic_bignum_to_int32 (void);
@@ -102,7 +100,7 @@ make_expr_symbol (expressionS *expressionP)
 			    : expressionP->X_op == O_register
 			      ? reg_section
 			      : expr_section),
-			   &zero_address_frag, 0);
+			   0, &zero_address_frag);
   symbol_set_value_expression (symbolP, expressionP);
 
   if (expressionP->X_op == O_constant)
@@ -224,8 +222,8 @@ static valueT
 generic_bignum_to_int32 (void)
 {
   valueT number =
-    ((((valueT) generic_bignum[1] & LITTLENUM_MASK) << LITTLENUM_NUMBER_OF_BITS)
-     | ((valueT) generic_bignum[0] & LITTLENUM_MASK));
+	   ((generic_bignum[1] & LITTLENUM_MASK) << LITTLENUM_NUMBER_OF_BITS)
+	   | (generic_bignum[0] & LITTLENUM_MASK);
   number &= 0xffffffff;
   return number;
 }
@@ -780,6 +778,15 @@ operand (expressionS *expressionP, enum expr_mode mode)
 			expressionP);
       break;
 
+#ifdef LITERAL_PREFIXDOLLAR_HEX
+    case '$':
+      /* $L is the start of a local label, not a hex constant.  */
+      if (* input_line_pointer == 'L')
+      goto isname;
+      integer_constant (16, expressionP);
+      break;
+#endif
+
 #ifdef LITERAL_PREFIXPERCENT_BIN
     case '%':
       integer_constant (2, expressionP);
@@ -1107,21 +1114,7 @@ operand (expressionS *expressionP, enum expr_mode mode)
       }
       break;
 
-#if !defined (DOLLAR_DOT) && !defined (TC_M68K)
-    case '$':
-      if (literal_prefix_dollar_hex)
-	{
-	  /* $L is the start of a local label, not a hex constant.  */
-	  if (* input_line_pointer == 'L')
-		goto isname;
-	  integer_constant (16, expressionP);
-	}
-      else
-	{
-	  goto isname;
-	}
-      break;
-#else
+#if defined (DOLLAR_DOT) || defined (TC_M68K)
     case '$':
       /* '$' is the program counter when in MRI mode, or when
 	 DOLLAR_DOT is defined.  */
@@ -1722,7 +1715,7 @@ add_to_result (expressionS *resultP, offsetT amount, int rhs_highbit)
   valueT ures = resultP->X_add_number;
   valueT uamount = amount;
 
-  resultP->X_add_number += uamount;
+  resultP->X_add_number += amount;
 
   resultP->X_extrabit ^= rhs_highbit;
 
@@ -1738,7 +1731,7 @@ subtract_from_result (expressionS *resultP, offsetT amount, int rhs_highbit)
   valueT ures = resultP->X_add_number;
   valueT uamount = amount;
 
-  resultP->X_add_number -= uamount;
+  resultP->X_add_number -= amount;
 
   resultP->X_extrabit ^= rhs_highbit;
 
@@ -1845,13 +1838,6 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 	  right.X_op_symbol = NULL;
 	}
 
-      if (mode == expr_defer
-	  && ((resultP->X_add_symbol != NULL
-	       && S_IS_FORWARD_REF (resultP->X_add_symbol))
-	      || (right.X_add_symbol != NULL
-		  && S_IS_FORWARD_REF (right.X_add_symbol))))
-	goto general;
-
       /* Optimize common cases.  */
 #ifdef md_optimize_expr
       if (md_optimize_expr (resultP, op_left, &right))
@@ -1933,21 +1919,12 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 	    case O_multiply:		resultP->X_add_number *= v; break;
 	    case O_divide:		resultP->X_add_number /= v; break;
 	    case O_modulus:		resultP->X_add_number %= v; break;
-	    case O_left_shift:
-	      /* We always use unsigned shifts.  According to the ISO
-		 C standard, left shift of a signed type having a
-		 negative value is undefined behaviour, and right
-		 shift of a signed type having negative value is
-		 implementation defined.  Left shift of a signed type
-		 when the result overflows is also undefined
-		 behaviour.  So don't trigger ubsan warnings or rely
-		 on characteristics of the compiler.  */
-	      resultP->X_add_number
-		= (valueT) resultP->X_add_number << (valueT) v;
-	      break;
+	    case O_left_shift:		resultP->X_add_number <<= v; break;
 	    case O_right_shift:
-	      resultP->X_add_number
-		= (valueT) resultP->X_add_number >> (valueT) v;
+	      /* We always use unsigned shifts, to avoid relying on
+		 characteristics of the compiler used to compile gas.  */
+	      resultP->X_add_number =
+		(offsetT) ((valueT) resultP->X_add_number >> (valueT) v);
 	      break;
 	    case O_bit_inclusive_or:	resultP->X_add_number |= v; break;
 	    case O_bit_or_not:		resultP->X_add_number |= ~v; break;
@@ -2195,10 +2172,7 @@ resolve_expression (expressionS *expressionP)
 		|| op == O_lt || op == O_le || op == O_ge || op == O_gt)
 	       && seg_left == seg_right
 	       && (finalize_syms
-		   || frag_offset_fixed_p (frag_left, frag_right, &frag_off)
-		   || (op == O_gt
-		       && frag_gtoffset_p (left, frag_left,
-					   right, frag_right, &frag_off)))
+		   || frag_offset_fixed_p (frag_left, frag_right, &frag_off))
 	       && (seg_left != reg_section || left == right)
 	       && (seg_left != undefined_section || add_symbol == op_symbol)))
 	{

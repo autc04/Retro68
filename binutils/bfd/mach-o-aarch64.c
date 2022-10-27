@@ -1,5 +1,5 @@
 /* AArch-64 Mach-O support for BFD.
-   Copyright (C) 2015-2020 Free Software Foundation, Inc.
+   Copyright (C) 2015-2018 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -19,10 +19,10 @@
    MA 02110-1301, USA.  */
 
 #include "sysdep.h"
+#include "mach-o.h"
 #include "bfd.h"
 #include "libbfd.h"
 #include "libiberty.h"
-#include "mach-o.h"
 #include "mach-o/arm64.h"
 
 #define bfd_mach_o_object_p bfd_mach_o_arm64_object_p
@@ -40,13 +40,13 @@
 #define bfd_mach_o_tgt_seg_table NULL
 #define bfd_mach_o_section_type_valid_for_tgt NULL
 
-static bfd_cleanup
+static const bfd_target *
 bfd_mach_o_arm64_object_p (bfd *abfd)
 {
   return bfd_mach_o_header_p (abfd, 0, 0, BFD_MACH_O_CPU_TYPE_ARM64);
 }
 
-static bfd_cleanup
+static const bfd_target *
 bfd_mach_o_arm64_core_p (bfd *abfd)
 {
   return bfd_mach_o_header_p (abfd, 0,

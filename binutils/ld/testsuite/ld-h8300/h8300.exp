@@ -1,5 +1,5 @@
 # Expect script for ld-h8300 tests
-# Copyright (C) 2002-2020 Free Software Foundation, Inc.
+# Copyright (C) 2002-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -27,16 +27,11 @@ if ![istarget h8300-*-*] {
     return
 }
 
-set emul elf
-if [istarget *-*-linux*] {
-    set emul elf_linux
-}
-
 run_dump_test relax
-run_dump_test relax-2 [list [list ld "-m h8300h$emul"]]
-run_dump_test relax-3 [list [list ld "-m h8300s$emul"]]
-run_dump_test relax-4 [list [list ld "-m h8300s$emul"]]
-run_dump_test relax-5 [list [list ld "-m h8300s$emul"]]
-run_dump_test relax-6 [list [list ld "-m h8300s$emul"]]
-run_dump_test relax-7 [list [list ld "-m h8300s$emul"]]
-run_dump_test gcsection	[list [list ld "-m h8300h$emul"]]
+run_dump_test relax-2
+run_dump_test relax-3
+run_dump_test relax-4
+run_dump_test relax-5
+run_dump_test relax-6
+run_dump_test relax-7
+run_dump_test gcsection	

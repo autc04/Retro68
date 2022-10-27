@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2010-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2010-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -85,7 +85,7 @@ gld${EMULATION_NAME}_find_potential_libraries
 }
 
 /* Place an orphan section.  We use this to put random OVR sections.
-   Much borrowed from elf.em.  */
+   Much borrowed from elf32.em.  */
 
 static lang_output_section_statement_type *
 vms_place_orphan (asection *s,
@@ -174,7 +174,6 @@ if test "$OUTPUT_FORMAT" = "elf64-ia64-vms"; then
 
 fragment <<EOF
 #include "elf-bfd.h"
-#include "ldelfgen.h"
 EOF
 
 source_em ${srcdir}/emultempl/elf-generic.em
@@ -213,7 +212,7 @@ gld${EMULATION_NAME}_after_allocation (void)
   if (need_layout < 0)
     einfo (_("%X%P: .eh_frame/.stab edit: %E\n"));
   else
-    ldelf_map_segments (need_layout);
+    gld${EMULATION_NAME}_map_segments (need_layout);
 }
 
 static void

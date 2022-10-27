@@ -2,6 +2,7 @@
 #objdump: -drw --prefix-addresses --show-raw-insn
 #target: *-*-*eabi* *-*-nacl*
 #as:
+# stderr: blx-local-thumb.l
 
 .*: +file format .*arm.*
 Disassembly of section .text:

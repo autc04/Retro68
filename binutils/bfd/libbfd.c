@@ -1,5 +1,5 @@
 /* Assorted BFD support routines, only used internally.
-   Copyright (C) 1990-2020 Free Software Foundation, Inc.
+   Copyright (C) 1990-2018 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -245,7 +245,7 @@ _bfd_nocore_core_file_pid (bfd *ignore_abfd ATTRIBUTE_UNUSED)
   return 0;
 }
 
-bfd_cleanup
+const bfd_target *
 _bfd_dummy_target (bfd *ignore_abfd ATTRIBUTE_UNUSED)
 {
   bfd_set_error (bfd_error_wrong_format);
@@ -253,10 +253,6 @@ _bfd_dummy_target (bfd *ignore_abfd ATTRIBUTE_UNUSED)
 }
 
 /* Allocate memory using malloc.  */
-
-#ifndef SSIZE_MAX
-#define SSIZE_MAX ((size_t) -1 >> 1)
-#endif
 
 void *
 bfd_malloc (bfd_size_type size)
@@ -266,7 +262,7 @@ bfd_malloc (bfd_size_type size)
 
   if (size != sz
       /* This is to pacify memory checkers like valgrind.  */
-      || sz > SSIZE_MAX)
+      || ((signed long) sz) < 0)
     {
       bfd_set_error (bfd_error_no_memory);
       return NULL;
@@ -279,6 +275,24 @@ bfd_malloc (bfd_size_type size)
   return ptr;
 }
 
+/* Allocate memory using malloc, nmemb * size with overflow checking.  */
+
+void *
+bfd_malloc2 (bfd_size_type nmemb, bfd_size_type size)
+{
+  if ((nmemb | size) >= HALF_BFD_SIZE_TYPE
+      && size != 0
+      && nmemb > ~(bfd_size_type) 0 / size)
+    {
+      bfd_set_error (bfd_error_no_memory);
+      return NULL;
+    }
+
+  return bfd_malloc (size * nmemb);
+}
+
+/* Reallocate memory using realloc.  */
+
 void *
 bfd_realloc (void *ptr, bfd_size_type size)
 {
@@ -290,7 +304,7 @@ bfd_realloc (void *ptr, bfd_size_type size)
 
   if (size != sz
       /* This is to pacify memory checkers like valgrind.  */
-      || sz > SSIZE_MAX)
+      || ((signed long) sz) < 0)
     {
       bfd_set_error (bfd_error_no_memory);
       return NULL;
@@ -304,6 +318,22 @@ bfd_realloc (void *ptr, bfd_size_type size)
   return ret;
 }
 
+/* Reallocate memory using realloc, nmemb * size with overflow checking.  */
+
+void *
+bfd_realloc2 (void *ptr, bfd_size_type nmemb, bfd_size_type size)
+{
+  if ((nmemb | size) >= HALF_BFD_SIZE_TYPE
+      && size != 0
+      && nmemb > ~(bfd_size_type) 0 / size)
+    {
+      bfd_set_error (bfd_error_no_memory);
+      return NULL;
+    }
+
+  return bfd_realloc (ptr, size * nmemb);
+}
+
 /* Reallocate memory using realloc.
    If this fails the pointer is freed before returning.  */
 
@@ -312,7 +342,7 @@ bfd_realloc_or_free (void *ptr, bfd_size_type size)
 {
   void *ret = bfd_realloc (ptr, size);
 
-  if (ret == NULL)
+  if (ret == NULL && ptr != NULL)
     free (ptr);
 
   return ret;
@@ -327,6 +357,25 @@ bfd_zmalloc (bfd_size_type size)
 
   if (ptr != NULL && size > 0)
     memset (ptr, 0, (size_t) size);
+
+  return ptr;
+}
+
+/* Allocate memory using malloc (nmemb * size) with overflow checking
+   and clear it.  */
+
+void *
+bfd_zmalloc2 (bfd_size_type nmemb, bfd_size_type size)
+{
+  void *ptr = bfd_malloc2 (nmemb, size);
+
+  if (ptr != NULL)
+    {
+      size_t sz = nmemb * size;
+
+      if (sz > 0)
+	memset (ptr, 0, sz);
+    }
 
   return ptr;
 }
@@ -396,9 +445,9 @@ DESCRIPTION
 .#define bfd_put_signed_8 \
 .  bfd_put_8
 .#define bfd_get_8(abfd, ptr) \
-.  ((bfd_vma) *(const unsigned char *) (ptr) & 0xff)
+.  (*(const unsigned char *) (ptr) & 0xff)
 .#define bfd_get_signed_8(abfd, ptr) \
-.  ((((bfd_signed_vma) *(const unsigned char *) (ptr) & 0xff) ^ 0x80) - 0x80)
+.  (((*(const unsigned char *) (ptr) & 0xff) ^ 0x80) - 0x80)
 .
 .#define bfd_put_16(abfd, val, ptr) \
 .  BFD_SEND (abfd, bfd_putx16, ((val),(ptr)))
@@ -408,20 +457,6 @@ DESCRIPTION
 .  BFD_SEND (abfd, bfd_getx16, (ptr))
 .#define bfd_get_signed_16(abfd, ptr) \
 .  BFD_SEND (abfd, bfd_getx_signed_16, (ptr))
-.
-.#define bfd_put_24(abfd, val, ptr) \
-.  do					\
-.    if (bfd_big_endian (abfd))		\
-.      bfd_putb24 ((val), (ptr));	\
-.    else				\
-.      bfd_putl24 ((val), (ptr));	\
-.  while (0)
-.
-.bfd_vma bfd_getb24 (const void *p);
-.bfd_vma bfd_getl24 (const void *p);
-.
-.#define bfd_get_24(abfd, ptr) \
-.  (bfd_big_endian (abfd) ? bfd_getb24 (ptr) : bfd_getl24 (ptr))
 .
 .#define bfd_put_32(abfd, val, ptr) \
 .  BFD_SEND (abfd, bfd_putx32, ((val),(ptr)))
@@ -442,7 +477,7 @@ DESCRIPTION
 .  BFD_SEND (abfd, bfd_getx_signed_64, (ptr))
 .
 .#define bfd_get(bits, abfd, ptr)			\
-.  ((bits) == 8 ? bfd_get_8 (abfd, ptr)			\
+.  ((bits) == 8 ? (bfd_vma) bfd_get_8 (abfd, ptr)	\
 .   : (bits) == 16 ? bfd_get_16 (abfd, ptr)		\
 .   : (bits) == 32 ? bfd_get_32 (abfd, ptr)		\
 .   : (bits) == 64 ? bfd_get_64 (abfd, ptr)		\
@@ -578,6 +613,7 @@ bfd_putl16 (bfd_vma data, void *p)
   addr[1] = (data >> 8) & 0xff;
 }
 
+
 void
 bfd_putb24 (bfd_vma data, void *p)
 {
@@ -586,6 +622,7 @@ bfd_putb24 (bfd_vma data, void *p)
   addr[1] = (data >> 8) & 0xff;
   addr[2] = data & 0xff;
 }
+
 
 void
 bfd_putl24 (bfd_vma data, void *p)
@@ -596,29 +633,6 @@ bfd_putl24 (bfd_vma data, void *p)
   addr[2] = (data >> 16) & 0xff;
 }
 
-bfd_vma
-bfd_getb24 (const void *p)
-{
-  const bfd_byte *addr = (const bfd_byte *) p;
-  unsigned long v;
-
-  v =  (unsigned long) addr[0] << 16;
-  v |= (unsigned long) addr[1] << 8;
-  v |= (unsigned long) addr[2];
-  return v;
-}
-
-bfd_vma
-bfd_getl24 (const void *p)
-{
-  const bfd_byte *addr = (const bfd_byte *) p;
-  unsigned long v;
-
-  v = (unsigned long) addr[0];
-  v |= (unsigned long) addr[1] << 8;
-  v |= (unsigned long) addr[2] << 16;
-  return v;
-}
 
 bfd_vma
 bfd_getb32 (const void *p)
@@ -1149,30 +1163,6 @@ _bfd_read_signed_leb128 (bfd *abfd ATTRIBUTE_UNUSED,
     result |= (((bfd_vma) -1) << shift);
   *bytes_read_ptr = num_read;
   return result;
-}
-
-/* Write VAL in uleb128 format to P.
-   END indicates the last byte of allocated space for the uleb128 value to fit
-   in.
-   Return a pointer to the byte following the last byte that was written, or
-   NULL if the uleb128 value does not fit in the allocated space between P and
-   END.  */
-bfd_byte *
-_bfd_write_unsigned_leb128 (bfd_byte *p, bfd_byte *end, bfd_vma val)
-{
-  bfd_byte c;
-  do
-    {
-      if (p > end)
-	return NULL;
-      c = val & 0x7f;
-      val >>= 7;
-      if (val)
-	c |= 0x80;
-      *(p++) = c;
-    }
-  while (val);
-  return p;
 }
 
 bfd_boolean

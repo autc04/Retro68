@@ -1,4 +1,4 @@
-#as: -EL -I$srcdir/$subdir --generate-missing-build-notes=no
+#as: -EL -I$srcdir/$subdir
 #objdump: --syms --special-syms -d
 #name: ARM Mapping Symbols for .arm/.thumb
 # This test is only valid on EABI based ports.

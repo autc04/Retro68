@@ -2,7 +2,7 @@
 
 # ver_test_8.sh -- check that __GLOBAL_OFFSET_TABLE__ is defined only once.
 
-# Copyright (C) 2016-2020 Free Software Foundation, Inc.
+# Copyright (C) 2016-2017 Free Software Foundation, Inc.
 # Written by Cary Coutant <ccoutant@gmail.com>.
 
 # This file is part of gold.

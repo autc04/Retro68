@@ -2,7 +2,8 @@
 #ld: -T discard.ld
 #error: .*data.* referenced in section `\.text' of tmpdir/extern.o: defined in discarded section `\.data\.exit' of tmpdir/extern.o
 #objdump: -p
-#xfail: [is_generic]
+#xfail: d30v-*-* dlx-*-* pj*-*-*
+#xfail: m68hc12-*-* m6812-*-*
 #pass
 # The expected warning used to start with "`data' referenced..." but
 # this has two problems: 1) It does not include the name of the linker

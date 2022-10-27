@@ -2,7 +2,7 @@
 #objdump: -d
 #name: csr
 
-.*:     file format elf32-lm32.*
+dump.o:     file format elf32-lm32.*
 
 Disassembly of section .text:
 

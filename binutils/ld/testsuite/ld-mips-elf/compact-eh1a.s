@@ -1,7 +1,6 @@
 	.cfi_sections .eh_frame_entry
 	.section .text.compact1a,"ax",@progbits
-	.globl	compact1a
-	.type	compact1a, @function
+	.globl compact1a
 	.cfi_startproc
 compact1a:
 	sw	$2,16($fp)

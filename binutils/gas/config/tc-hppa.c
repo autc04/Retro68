@@ -1,5 +1,5 @@
 /* tc-hppa.c -- Assemble for the PA
-   Copyright (C) 1989-2020 Free Software Foundation, Inc.
+   Copyright (C) 1989-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -550,7 +550,7 @@ static struct call_info *last_call_info;
 static struct call_desc last_call_desc;
 
 /* handle of the OPCODE hash table */
-static htab_t op_hash = NULL;
+static struct hash_control *op_hash = NULL;
 
 /* These characters can be suffixes of opcode names and they may be
    followed by meaningful whitespace.  We don't include `,' and `!'
@@ -1365,15 +1365,15 @@ tc_gen_reloc (asection *section, fixS *fixp)
   /* ??? It might be better to hide this +8 stuff in tc_cfi_emit_pcrel_expr,
      undefine DIFF_EXPR_OK, and let these sorts of complex expressions fail
      when R_HPPA_COMPLEX == R_PARISC_UNIMPLEMENTED.  */
-  if (fixp->fx_r_type == (int) R_HPPA_COMPLEX
+  if (fixp->fx_r_type == (bfd_reloc_code_real_type) R_HPPA_COMPLEX
       && fixp->fx_pcrel)
     {
-      fixp->fx_r_type = (int) R_HPPA_PCREL_CALL;
+      fixp->fx_r_type = R_HPPA_PCREL_CALL;
       fixp->fx_offset += 8;
     }
 
   codes = hppa_gen_reloc_type (stdoutput,
-			       (int) fixp->fx_r_type,
+			       fixp->fx_r_type,
 			       hppa_fixp->fx_r_format,
 			       hppa_fixp->fx_r_field,
 			       fixp->fx_subsy != NULL,
@@ -1608,7 +1608,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 valueT
 md_section_align (asection *segment, valueT size)
 {
-  int align = bfd_section_alignment (segment);
+  int align = bfd_get_section_alignment (stdoutput, segment);
   int align2 = (1 << align) - 1;
 
   return (size + align2) & ~align2;
@@ -3214,7 +3214,7 @@ pa_ip (char *str)
     }
 
   /* Look up the opcode in the hash table.  */
-  if ((insn = (struct pa_opcode *) str_hash_find (op_hash, str)) == NULL)
+  if ((insn = (struct pa_opcode *) hash_find (op_hash, str)) == NULL)
     {
       as_bad (_("Unknown opcode: `%s'"), str);
       return;
@@ -5787,7 +5787,7 @@ md_assemble (char *str)
   if (the_insn.reloc != R_HPPA_NONE)
     fix_new_hppa (frag_now, (to - frag_now->fr_literal), 4, NULL,
 		  (offsetT) 0, &the_insn.exp, the_insn.pcrel,
-		  (int) the_insn.reloc, the_insn.field_selector,
+		  the_insn.reloc, the_insn.field_selector,
 		  the_insn.format, the_insn.arg_reloc, 0);
 
 #ifdef OBJ_ELF
@@ -5962,7 +5962,7 @@ pa_build_unwind_subspace (struct call_info *call_info)
   char *name, *p;
   symbolS *symbolP;
 
-  if ((bfd_section_flags (now_seg)
+  if ((bfd_get_section_flags (stdoutput, now_seg)
        & (SEC_ALLOC | SEC_LOAD | SEC_READONLY))
       != (SEC_ALLOC | SEC_LOAD | SEC_READONLY))
     return;
@@ -5989,8 +5989,7 @@ pa_build_unwind_subspace (struct call_info *call_info)
   else
     {
       symbolP = symbol_new (name, now_seg,
-			    symbol_get_frag (call_info->start_symbol),
-			    S_GET_VALUE (call_info->start_symbol));
+			    S_GET_VALUE (call_info->start_symbol), frag_now);
       gas_assert (symbolP);
       S_CLEAR_EXTERNAL (symbolP);
       symbol_table_insert (symbolP);
@@ -6006,9 +6005,10 @@ pa_build_unwind_subspace (struct call_info *call_info)
   if (seg == ASEC_NULL)
     {
       seg = subseg_new (UNWIND_SECTION_NAME, 0);
-      bfd_set_section_flags (seg, (SEC_READONLY | SEC_HAS_CONTENTS | SEC_LOAD
-				   | SEC_RELOC | SEC_ALLOC | SEC_DATA));
-      bfd_set_section_alignment (seg, 2);
+      bfd_set_section_flags (stdoutput, seg,
+			     SEC_READONLY | SEC_HAS_CONTENTS
+			     | SEC_LOAD | SEC_RELOC | SEC_ALLOC | SEC_DATA);
+      bfd_set_section_alignment (stdoutput, seg, 2);
     }
 
   subseg_set (seg, 0);
@@ -6439,7 +6439,8 @@ hppa_elf_mark_end_of_function (void)
     {
       /* symbol value should be the offset of the
 	 last instruction of the function */
-      symbolP = symbol_new (name, now_seg, frag_now, frag_now_fix () - 4);
+      symbolP = symbol_new (name, now_seg, (valueT) (frag_now_fix () - 4),
+			    frag_now);
 
       gas_assert (symbolP);
       S_CLEAR_EXTERNAL (symbolP);
@@ -7531,13 +7532,14 @@ pa_subspace (int create_new)
 	seg_info (section)->bss = 1;
 
       /* Now set the flags.  */
-      bfd_set_section_flags (section, applicable);
+      bfd_set_section_flags (stdoutput, section, applicable);
 
       /* Record any alignment request for this section.  */
       record_alignment (section, exact_log2 (alignment));
 
       /* Set the starting offset for this section.  */
-      bfd_set_section_vma (section, pa_subspace_start (space, quadrant));
+      bfd_set_section_vma (stdoutput, section,
+			   pa_subspace_start (space, quadrant));
 
       /* Now that all the flags are set, update an existing subspace,
 	 or create a new one.  */
@@ -7611,7 +7613,7 @@ pa_spaces_begin (void)
 	{
 	  text_section = segment;
 	  applicable = bfd_applicable_section_flags (stdoutput);
-	  bfd_set_section_flags (segment,
+	  bfd_set_section_flags (stdoutput, segment,
 				 applicable & (SEC_ALLOC | SEC_LOAD
 					       | SEC_RELOC | SEC_CODE
 					       | SEC_READONLY
@@ -7621,7 +7623,7 @@ pa_spaces_begin (void)
 	{
 	  data_section = segment;
 	  applicable = bfd_applicable_section_flags (stdoutput);
-	  bfd_set_section_flags (segment,
+	  bfd_set_section_flags (stdoutput, segment,
 				 applicable & (SEC_ALLOC | SEC_LOAD
 					       | SEC_RELOC
 					       | SEC_HAS_CONTENTS));
@@ -7631,13 +7633,13 @@ pa_spaces_begin (void)
 	{
 	  bss_section = segment;
 	  applicable = bfd_applicable_section_flags (stdoutput);
-	  bfd_set_section_flags (segment,
+	  bfd_set_section_flags (stdoutput, segment,
 				 applicable & SEC_ALLOC);
 	}
       else if (!strcmp (pa_def_subspaces[i].name, "$LIT$"))
 	{
 	  applicable = bfd_applicable_section_flags (stdoutput);
-	  bfd_set_section_flags (segment,
+	  bfd_set_section_flags (stdoutput, segment,
 				 applicable & (SEC_ALLOC | SEC_LOAD
 					       | SEC_RELOC
 					       | SEC_READONLY
@@ -7646,7 +7648,7 @@ pa_spaces_begin (void)
       else if (!strcmp (pa_def_subspaces[i].name, "$MILLICODE$"))
 	{
 	  applicable = bfd_applicable_section_flags (stdoutput);
-	  bfd_set_section_flags (segment,
+	  bfd_set_section_flags (stdoutput, segment,
 				 applicable & (SEC_ALLOC | SEC_LOAD
 					       | SEC_RELOC
 					       | SEC_READONLY
@@ -7655,7 +7657,7 @@ pa_spaces_begin (void)
       else if (!strcmp (pa_def_subspaces[i].name, "$UNWIND$"))
 	{
 	  applicable = bfd_applicable_section_flags (stdoutput);
-	  bfd_set_section_flags (segment,
+	  bfd_set_section_flags (stdoutput, segment,
 				 applicable & (SEC_ALLOC | SEC_LOAD
 					       | SEC_RELOC
 					       | SEC_READONLY
@@ -8214,6 +8216,7 @@ pa_lsym (int unused ATTRIBUTE_UNUSED)
 void
 md_begin (void)
 {
+  const char *retval = NULL;
   int lose = 0;
   unsigned int i = 0;
 
@@ -8236,14 +8239,18 @@ md_begin (void)
   pa_spaces_begin ();
 #endif
 
-  op_hash = str_htab_create ();
+  op_hash = hash_new ();
 
   while (i < NUMOPCODES)
     {
       const char *name = pa_opcodes[i].name;
 
-      if (str_hash_insert (op_hash, name, &pa_opcodes[i], 0) != NULL)
-	as_fatal (_("duplicate %s"), name);
+      retval = hash_insert (op_hash, name, (struct pa_opcode *) &pa_opcodes[i]);
+      if (retval != NULL && *retval != '\0')
+	{
+	  as_fatal (_("Internal error: can't hash `%s': %s\n"), name, retval);
+	  lose = 1;
+	}
 
       do
 	{
@@ -8311,8 +8318,7 @@ hppa_fix_adjustable (fixS *fixp)
   /* LR/RR selectors are implicitly used for a number of different relocation
      types.  We must ensure that none of these types are adjusted (see below)
      even if they occur with a different selector.  */
-  code = elf_hppa_reloc_final_type (stdoutput,
-				    (int) fixp->fx_r_type,
+  code = elf_hppa_reloc_final_type (stdoutput, fixp->fx_r_type,
 		  		    hppa_fix->fx_r_format,
 				    hppa_fix->fx_r_field);
 

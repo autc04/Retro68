@@ -1,5 +1,5 @@
 /* dwarf2dbg.c - DWARF2 debug support
-   Copyright (C) 1999-2020 Free Software Foundation, Inc.
+   Copyright (C) 1999-2018 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -81,15 +81,15 @@
 #endif
 
 #ifndef DWARF2_FILE_TIME_NAME
-#define DWARF2_FILE_TIME_NAME(FILENAME,DIRNAME) -1
+#define DWARF2_FILE_TIME_NAME(FILENAME,DIRNAME) 0
 #endif
 
 #ifndef DWARF2_FILE_SIZE_NAME
-#define DWARF2_FILE_SIZE_NAME(FILENAME,DIRNAME) -1
+#define DWARF2_FILE_SIZE_NAME(FILENAME,DIRNAME) 0
 #endif
 
 #ifndef DWARF2_VERSION
-#define DWARF2_VERSION dwarf_level
+#define DWARF2_VERSION 2
 #endif
 
 /* The .debug_aranges version has been 2 in DWARF version 2, 3 and 4. */
@@ -97,14 +97,9 @@
 #define DWARF2_ARANGES_VERSION 2
 #endif
 
-/* This implementation outputs version 3 .debug_line information.  */
+/* This implementation output version 2 .debug_line information. */
 #ifndef DWARF2_LINE_VERSION
-#define DWARF2_LINE_VERSION (dwarf_level > 3 ? dwarf_level : 3)
-#endif
-
-/* The .debug_rnglists has only been in DWARF version 5. */
-#ifndef DWARF2_RNGLISTS_VERSION
-#define DWARF2_RNGLISTS_VERSION 5
+#define DWARF2_LINE_VERSION 2
 #endif
 
 #include "subsegs.h"
@@ -151,10 +146,6 @@
 
 /* Flag that indicates the initial value of the is_stmt_start flag.  */
 #define	DWARF2_LINE_DEFAULT_IS_STMT	1
-
-#ifndef DWARF2_LINE_MAX_OPS_PER_INSN
-#define DWARF2_LINE_MAX_OPS_PER_INSN	1
-#endif
 
 /* Given a special op, return the line skip amount.  */
 #define SPECIAL_LINE(op) \
@@ -205,14 +196,10 @@ struct line_seg
 static struct line_seg *all_segs;
 static struct line_seg **last_seg_ptr;
 
-#define NUM_MD5_BYTES       16
-
 struct file_entry
 {
-  const char *   filename;
-  unsigned int   dir;
-  bfd_boolean    auto_assigned;
-  unsigned char  md5[NUM_MD5_BYTES];
+  const char *filename;
+  unsigned int dir;
 };
 
 /* Table of files used by .debug_line.  */
@@ -221,19 +208,13 @@ static unsigned int files_in_use;
 static unsigned int files_allocated;
 
 /* Table of directories used by .debug_line.  */
-static char **       dirs = NULL;
-static unsigned int  dirs_in_use = 0;
-static unsigned int  dirs_allocated = 0;
+static char **dirs;
+static unsigned int dirs_in_use;
+static unsigned int dirs_allocated;
 
 /* TRUE when we've seen a .loc directive recently.  Used to avoid
-   doing work when there's nothing to do.  Will be reset by
-   dwarf2_consume_line_info.  */
+   doing work when there's nothing to do.  */
 bfd_boolean dwarf2_loc_directive_seen;
-
-/* TRUE when we've seen any .loc directive at any time during parsing.
-   Indicates the user wants us to generate a .debug_line section.
-   Used in dwarf2_finish as sanity check.  */
-static bfd_boolean dwarf2_any_loc_directive_seen;
 
 /* TRUE when we're supposed to set the basic block mark whenever a
    label is seen.  */
@@ -258,6 +239,8 @@ static symbolS *view_assert_failed;
 /* The size of an address on the target.  */
 static unsigned int sizeof_address;
 
+static unsigned int get_filenum (const char *, unsigned int);
+
 #ifndef TC_DWARF2_EMIT_OFFSET
 #define TC_DWARF2_EMIT_OFFSET  generic_dwarf2_emit_offset
 
@@ -268,7 +251,6 @@ generic_dwarf2_emit_offset (symbolS *symbol, unsigned int size)
 {
   expressionS exp;
 
-  memset (&exp, 0, sizeof exp);
   exp.X_op = O_symbol;
   exp.X_add_symbol = symbol;
   exp.X_add_number = 0;
@@ -297,7 +279,6 @@ get_line_subseg (segT seg, subsegT subseg, bfd_boolean create_p)
       last_seg_ptr = &s->next;
       seg_info (seg)->dwarf2_line_seg = s;
     }
-
   gas_assert (seg == s->seg);
 
   for (pss = &s->head; (lss = *pss) != NULL ; pss = &lss->next)
@@ -398,7 +379,6 @@ set_or_check_view (struct line_entry *e, struct line_entry *p,
 	  if (view_assert_failed)
 	    {
 	      expressionS chk;
-
 	      memset (&chk, 0, sizeof (chk));
 	      chk.X_unsigned = 1;
 	      chk.X_op = O_add;
@@ -444,7 +424,7 @@ set_or_check_view (struct line_entry *e, struct line_entry *p,
   if (!S_IS_DEFINED (e->loc.view))
     {
       symbol_set_value_expression (e->loc.view, &viewx);
-      S_SET_SEGMENT (e->loc.view, expr_section);
+      S_SET_SEGMENT (e->loc.view, absolute_section);
       symbol_set_frag (e->loc.view, &zero_address_frag);
     }
 
@@ -460,16 +440,7 @@ set_or_check_view (struct line_entry *e, struct line_entry *p,
       gas_assert (r == p);
       /* Set or check views until we find a defined or absent view.  */
       do
-	{
-	  /* Do not define the head of a (sub?)segment view while
-	     handling others.  It would be defined too early, without
-	     regard to the last view of other subsegments.
-	     set_or_check_view will be called for every head segment
-	     that needs it.  */
-	  if (r == h)
-	    break;
-	  set_or_check_view (r, r->next, NULL);
-	}
+	set_or_check_view (r, r->next, NULL);
       while (r->next && r->next->loc.view && !S_IS_DEFINED (r->next->loc.view)
 	     && (r = r->next));
 
@@ -481,11 +452,6 @@ set_or_check_view (struct line_entry *e, struct line_entry *p,
 	 simplify the view expressions, until we do so to P.  */
       do
 	{
-	  /* The head view of a subsegment may remain undefined while
-	     handling other elements, before it is linked to the last
-	     view of the previous subsegment.  */
-	  if (r == h)
-	    continue;
 	  gas_assert (S_IS_DEFINED (r->loc.view));
 	  resolve_expression (symbol_get_value_expression (r->loc.view));
 	}
@@ -512,11 +478,9 @@ dwarf2_gen_line_info_1 (symbolS *label, struct dwarf2_line_info *loc)
 
   lss = get_line_subseg (now_seg, now_subseg, TRUE);
 
-  /* Subseg heads are chained to previous subsegs in
-     dwarf2_finish.  */
-  if (loc->view && lss->head)
+  if (loc->view)
     set_or_check_view (e,
-		       (struct line_entry *)lss->ptail,
+		       !lss->head ? NULL : (struct line_entry *)lss->ptail,
 		       lss->head);
 
   *lss->ptail = e;
@@ -534,9 +498,7 @@ dwarf2_gen_line_info (addressT ofs, struct dwarf2_line_info *loc)
   symbolS *sym;
 
   /* Early out for as-yet incomplete location information.  */
-  if (loc->line == 0)
-    return;
-  if (loc->filenum == 0 && DWARF2_LINE_VERSION < 5)
+  if (loc->filenum == 0 || loc->line == 0)
     return;
 
   /* Don't emit sequences of line symbols for the same line when the
@@ -557,336 +519,11 @@ dwarf2_gen_line_info (addressT ofs, struct dwarf2_line_info *loc)
       /* Use a non-fake name for the line number location,
 	 so that it can be referred to by relocations.  */
       sprintf (name, ".Loc.%u.%u", line, filenum);
-      sym = symbol_new (name, now_seg, frag_now, ofs);
+      sym = symbol_new (name, now_seg, ofs, frag_now);
     }
   else
-    sym = symbol_temp_new (now_seg, frag_now, ofs);
+    sym = symbol_temp_new (now_seg, ofs, frag_now);
   dwarf2_gen_line_info_1 (sym, loc);
-}
-
-static const char *
-get_basename (const char * pathname)
-{
-  const char * file;
-
-  file = lbasename (pathname);
-  /* Don't make empty string from / or A: from A:/ .  */
-#ifdef HAVE_DOS_BASED_FILE_SYSTEM
-  if (file <= pathname + 3)
-    file = pathname;
-#else
-  if (file == pathname + 1)
-    file = pathname;
-#endif
-  return file;
-}
-
-static unsigned int
-get_directory_table_entry (const char *  dirname,
-			   size_t        dirlen,
-			   bfd_boolean   can_use_zero)
-{
-  unsigned int d;
-
-  if (dirlen == 0)
-    return 0;
-
-#ifndef DWARF2_DIR_SHOULD_END_WITH_SEPARATOR
-  if (IS_DIR_SEPARATOR (dirname[dirlen - 1]))
-    {
-      -- dirlen;
-      if (dirlen == 0)
-	return 0;
-    }
-#endif
-
-  for (d = 0; d < dirs_in_use; ++d)
-    {
-      if (dirs[d] != NULL
-	  && filename_ncmp (dirname, dirs[d], dirlen) == 0
-	  && dirs[d][dirlen] == '\0')
-	return d;
-    }
-
-  if (can_use_zero)
-    {
-      if (dirs == NULL || dirs[0] == NULL)
-	d = 0;
-    }
-  else if (d == 0)
-    d = 1;
-
-  if (d >= dirs_allocated)
-    {
-      unsigned int old = dirs_allocated;
-
-      dirs_allocated = d + 32;
-      dirs = XRESIZEVEC (char *, dirs, dirs_allocated);
-      memset (dirs + old, 0, (dirs_allocated - old) * sizeof (char *));
-    }
-
-  dirs[d] = xmemdup0 (dirname, dirlen);
-  if (dirs_in_use <= d)
-    dirs_in_use = d + 1;
-
-  return d;  
-}
-
-static bfd_boolean
-assign_file_to_slot (unsigned long i, const char *file, unsigned int dir, bfd_boolean auto_assign)
-{
-  if (i >= files_allocated)
-    {
-      unsigned int old = files_allocated;
-
-      files_allocated = i + 32;
-      /* Catch wraparound.  */
-      if (files_allocated <= old)
-	{
-	  as_bad (_("file number %lu is too big"), (unsigned long) i);
-	  return FALSE;
-	}
-
-      files = XRESIZEVEC (struct file_entry, files, files_allocated);
-      memset (files + old, 0, (i + 32 - old) * sizeof (struct file_entry));
-    }
-
-  files[i].filename = file;
-  files[i].dir = dir;
-  files[i].auto_assigned = auto_assign;
-  memset (files[i].md5, 0, NUM_MD5_BYTES);
-
-  if (files_in_use < i + 1)
-    files_in_use = i + 1;
-
-  return TRUE;
-}
-
-/* Get a .debug_line file number for PATHNAME.  If there is a
-   directory component to PATHNAME, then this will be stored
-   in the directory table, if it is not already present.
-   Returns the slot number allocated to that filename or -1
-   if there was a problem.  */
-
-static signed int
-allocate_filenum (const char * pathname)
-{
-  static signed int last_used = -1, last_used_dir_len = 0;
-  const char *file;
-  size_t dir_len;
-  unsigned int i, dir;
-
-  /* Short circuit the common case of adding the same pathname
-     as last time.  */
-  if (last_used != -1)
-    {
-      const char * dirname = NULL;
-
-      if (dirs != NULL)
-	dirname = dirs[files[last_used].dir];
-
-      if (dirname == NULL)
-	{
-	  if (filename_cmp (pathname, files[last_used].filename) == 0)
-	    return last_used;
-	}
-      else
-	{
-	  if (filename_ncmp (pathname, dirname, last_used_dir_len) == 0
-	      && IS_DIR_SEPARATOR (pathname [last_used_dir_len])
-	      && filename_cmp (pathname + last_used_dir_len + 1,
-			       files[last_used].filename) == 0)
-	    return last_used;
-	}
-    }
-
-  file = get_basename (pathname);
-  dir_len = file - pathname;
-
-  dir = get_directory_table_entry (pathname, dir_len, FALSE);
-
-  /* Do not use slot-0.  That is specifically reserved for use by
-     the '.file 0 "name"' directive.  */
-  for (i = 1; i < files_in_use; ++i)
-    if (files[i].dir == dir
-	&& files[i].filename
-	&& filename_cmp (file, files[i].filename) == 0)
-      {
-	last_used = i;
-	last_used_dir_len = dir_len;
-	return i;
-      }
-
-  if (!assign_file_to_slot (i, file, dir, TRUE))
-    return -1;
-
-  last_used = i;
-  last_used_dir_len = dir_len;
-
-  return i;
-}
-
-/* Allocate slot NUM in the .debug_line file table to FILENAME.
-   If DIRNAME is not NULL or there is a directory component to FILENAME
-   then this will be stored in the directory table, if not already present.
-   if WITH_MD5 is TRUE then there is a md5 value in generic_bignum.
-   Returns TRUE if allocation succeeded, FALSE otherwise.  */
-
-static bfd_boolean
-allocate_filename_to_slot (const char *  dirname,
-			   const char *  filename,
-			   unsigned int  num,
-			   bfd_boolean   with_md5)
-{
-  const char *file;
-  size_t dirlen;
-  unsigned int i, d;
-
-  /* Short circuit the common case of adding the same pathname
-     as last time.  */
-  if (num < files_allocated && files[num].filename != NULL)
-    {
-      const char * dir = NULL;
-
-      if (dirs)
-	dir = dirs[files[num].dir];
-
-      if (with_md5
-	  && memcmp (generic_bignum, files[num].md5, NUM_MD5_BYTES) != 0)
-	goto fail;
-
-      if (dirname != NULL)
-	{
-	  if (dir != NULL && filename_cmp (dir, dirname) != 0)
-	    goto fail;
-      
-	  if (filename_cmp (filename, files[num].filename) != 0)
-	    goto fail;
-
-	  /* If the filenames match, but the directory table entry was
-	     empty, then fill it with the provided directory name.  */
-	  if (dir == NULL)
-	    dirs[files[num].dir] = xmemdup0 (dirname, strlen (dirname));
-	    
-	  return TRUE;
-	}
-      else if (dir != NULL) 
-	{
-	  dirlen = strlen (dir);
-	  if (filename_ncmp (filename, dir, dirlen) == 0
-	      && IS_DIR_SEPARATOR (filename [dirlen])
-	      && filename_cmp (filename + dirlen + 1, files[num].filename) == 0)
-	    return TRUE;
-	}
-      else /* dir == NULL  */
-	{
-	  file = get_basename (filename);
-	  if (filename_cmp (file, files[num].filename) == 0)
-	    {
-	      if (file > filename)
-		/* The filenames match, but the directory table entry is empty.
-		   Fill it with the provided directory name.  */
-		dirs[files[num].dir] = xmemdup0 (filename, file - filename);
-	      return TRUE;
-	    }
-	}
-
-    fail:
-      /* If NUM was previously allocated automatically then
-	 choose another slot for it, so that we can reuse NUM.  */
-      if (files[num].auto_assigned)
-	{
-	  /* Find an unused slot.  */
-	  for (i = 1; i < files_in_use; ++i)
-	    if (files[i].filename == NULL)
-	      break;
-	  if (! assign_file_to_slot (i, files[num].filename, files[num].dir, TRUE))
-	    return FALSE;
-	  files[num].filename = NULL;
-	}
-      else
-	{
-	  as_bad (_("file table slot %u is already occupied by a different file (%s%s%s vs %s%s%s)"),
-		  num,
-		  dir == NULL ? "" : dir,
-		  dir == NULL ? "" : "/",
-		  files[num].filename,
-		  dirname == NULL ? "" : dirname,
-		  dirname == NULL ? "" : "/",
-		  filename);
-	  return FALSE;
-	}
-    }
-
-  if (dirname == NULL)
-    {
-      dirname = filename;
-      file = get_basename (filename);
-      dirlen = file - filename;
-    }
-  else
-    {
-      dirlen = strlen (dirname);
-      file = filename;
-    }
-  
-  d = get_directory_table_entry (dirname, dirlen, num == 0);
-  i = num;
-
-  if (! assign_file_to_slot (i, file, d, FALSE))
-    return FALSE;
-
-  if (with_md5)
-    {
-      if (target_big_endian)
-	{
-	  /* md5's are stored in litte endian format.  */
-	  unsigned int     bits_remaining = NUM_MD5_BYTES * BITS_PER_CHAR;
-	  unsigned int     byte = NUM_MD5_BYTES;
-	  unsigned int     bignum_index = 0;
-
-	  while (bits_remaining)
-	    {
-	      unsigned int bignum_bits_remaining = LITTLENUM_NUMBER_OF_BITS;
-	      valueT       bignum_value = generic_bignum [bignum_index];
-	      bignum_index ++;
-
-	      while (bignum_bits_remaining)
-		{
-		  files[i].md5[--byte] = bignum_value & 0xff;
-		  bignum_value >>= 8;
-		  bignum_bits_remaining -= 8;
-		  bits_remaining -= 8;
-		}
-	    }
-	}
-      else
-	{
-	  unsigned int     bits_remaining = NUM_MD5_BYTES * BITS_PER_CHAR;
-	  unsigned int     byte = 0;
-	  unsigned int     bignum_index = 0;
-
-	  while (bits_remaining)
-	    {
-	      unsigned int bignum_bits_remaining = LITTLENUM_NUMBER_OF_BITS;
-	      valueT       bignum_value = generic_bignum [bignum_index];
-
-	      bignum_index ++;
-
-	      while (bignum_bits_remaining)
-		{
-		  files[i].md5[byte++] = bignum_value & 0xff;
-		  bignum_value >>= 8;
-		  bignum_bits_remaining -= 8;
-		  bits_remaining -= 8;
-		}
-	    }
-	}
-    }
-  else
-    memset (files[i].md5, 0, NUM_MD5_BYTES);
-
-  return TRUE;
 }
 
 /* Returns the current source information.  If .file directives have
@@ -903,8 +540,7 @@ dwarf2_where (struct dwarf2_line_info *line)
 
       memset (line, 0, sizeof (*line));
       filename = as_where (&line->line);
-      line->filenum = allocate_filenum (filename);
-      /* FIXME: We should check the return value from allocate_filenum.  */
+      line->filenum = get_filenum (filename, 0);
       line->column = 0;
       line->flags = DWARF2_FLAG_IS_STMT;
       line->isa = current.isa;
@@ -941,7 +577,7 @@ dwarf2_emit_insn (int size)
 
   dwarf2_where (&loc);
 
-  dwarf2_gen_line_info ((frag_now_fix_octets () - size) / OCTETS_PER_BYTE, &loc);
+  dwarf2_gen_line_info (frag_now_fix () - size, &loc);
   dwarf2_consume_line_info ();
 }
 
@@ -1003,7 +639,7 @@ dwarf2_emit_label (symbolS *label)
     return;
   if (S_GET_SEGMENT (label) != now_seg)
     return;
-  if (!(bfd_section_flags (now_seg) & SEC_CODE))
+  if (!(bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE))
     return;
   if (files_in_use == 0 && debug_type != DEBUG_DWARF2)
     return;
@@ -1016,6 +652,102 @@ dwarf2_emit_label (symbolS *label)
   dwarf2_consume_line_info ();
 }
 
+/* Get a .debug_line file number for FILENAME.  If NUM is nonzero,
+   allocate it on that file table slot, otherwise return the first
+   empty one.  */
+
+static unsigned int
+get_filenum (const char *filename, unsigned int num)
+{
+  static unsigned int last_used, last_used_dir_len;
+  const char *file;
+  size_t dir_len;
+  unsigned int i, dir;
+
+  if (num == 0 && last_used)
+    {
+      if (! files[last_used].dir
+	  && filename_cmp (filename, files[last_used].filename) == 0)
+	return last_used;
+      if (files[last_used].dir
+	  && filename_ncmp (filename, dirs[files[last_used].dir],
+			    last_used_dir_len) == 0
+	  && IS_DIR_SEPARATOR (filename [last_used_dir_len])
+	  && filename_cmp (filename + last_used_dir_len + 1,
+			   files[last_used].filename) == 0)
+	return last_used;
+    }
+
+  file = lbasename (filename);
+  /* Don't make empty string from / or A: from A:/ .  */
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+  if (file <= filename + 3)
+    file = filename;
+#else
+  if (file == filename + 1)
+    file = filename;
+#endif
+  dir_len = file - filename;
+
+  dir = 0;
+  if (dir_len)
+    {
+#ifndef DWARF2_DIR_SHOULD_END_WITH_SEPARATOR
+      --dir_len;
+#endif
+      for (dir = 1; dir < dirs_in_use; ++dir)
+	if (filename_ncmp (filename, dirs[dir], dir_len) == 0
+	    && dirs[dir][dir_len] == '\0')
+	  break;
+
+      if (dir >= dirs_in_use)
+	{
+	  if (dir >= dirs_allocated)
+	    {
+	      dirs_allocated = dir + 32;
+	      dirs = XRESIZEVEC (char *, dirs, dirs_allocated);
+	    }
+
+	  dirs[dir] = xmemdup0 (filename, dir_len);
+	  dirs_in_use = dir + 1;
+	}
+    }
+
+  if (num == 0)
+    {
+      for (i = 1; i < files_in_use; ++i)
+	if (files[i].dir == dir
+	    && files[i].filename
+	    && filename_cmp (file, files[i].filename) == 0)
+	  {
+	    last_used = i;
+	    last_used_dir_len = dir_len;
+	    return i;
+	  }
+    }
+  else
+    i = num;
+
+  if (i >= files_allocated)
+    {
+      unsigned int old = files_allocated;
+
+      files_allocated = i + 32;
+      files = XRESIZEVEC (struct file_entry, files, files_allocated);
+
+      memset (files + old, 0, (i + 32 - old) * sizeof (struct file_entry));
+    }
+
+  files[i].filename = num ? file : xstrdup (file);
+  files[i].dir = dir;
+  if (files_in_use < i + 1)
+    files_in_use = i + 1;
+  last_used = i;
+  last_used_dir_len = dir_len;
+
+  return i;
+}
+
 /* Handle two forms of .file directive:
    - Pass .file "source.c" to s_app_file
    - Handle .file 1 "source.c" by adding an entry to the DWARF-2 file table
@@ -1025,10 +757,8 @@ dwarf2_emit_label (symbolS *label)
 char *
 dwarf2_directive_filename (void)
 {
-  bfd_boolean with_md5 = FALSE;
-  valueT num;
+  offsetT num;
   char *filename;
-  const char * dirname = NULL;
   int filename_len;
 
   /* Continue to accept a bare string and pass it off.  */
@@ -1040,65 +770,28 @@ dwarf2_directive_filename (void)
     }
 
   num = get_absolute_expression ();
-
-  if ((offsetT) num < 1 && DWARF2_LINE_VERSION < 5)
-    {
-      as_bad (_("file number less than one"));
-      ignore_rest_of_line ();
-      return NULL;
-    }
-
-  /* FIXME: Should we allow ".file <N>\n" as an expression meaning
-     "switch back to the already allocated file <N> as the current
-     file" ?  */
-
   filename = demand_copy_C_string (&filename_len);
   if (filename == NULL)
-    /* demand_copy_C_string will have already generated an error message.  */
     return NULL;
-
-  /* For DWARF-5 support we also accept:
-     .file <NUM> ["<dir>"] "<file>" [md5 <NUM>]  */
-  if (DWARF2_LINE_VERSION > 4)
-    {
-      SKIP_WHITESPACE ();
-      if (*input_line_pointer == '"')
-	{
-	  dirname = filename;
-	  filename = demand_copy_C_string (&filename_len);
-	  SKIP_WHITESPACE ();
-	}
-
-      if (strncmp (input_line_pointer, "md5", 3) == 0)
-	{
-	  input_line_pointer += 3;
-	  SKIP_WHITESPACE ();
-
-	  expressionS exp;
-	  expression_and_evaluate (& exp);
-	  if (exp.X_op != O_big)
-	    as_bad (_("md5 value too small or not a constant"));
-	  else
-	    with_md5 = TRUE;
-	}
-    }
-
   demand_empty_rest_of_line ();
+
+  if (num < 1)
+    {
+      as_bad (_("file number less than one"));
+      return NULL;
+    }
 
   /* A .file directive implies compiler generated debug information is
      being supplied.  Turn off gas generated debug info.  */
   debug_type = DEBUG_NONE;
 
-  if (num != (unsigned int) num
-      || num >= (size_t) -1 / sizeof (struct file_entry) - 32)
+  if (num < (int) files_in_use && files[num].filename != 0)
     {
-      as_bad (_("file number %lu is too big"), (unsigned long) num);
+      as_bad (_("file number %ld already allocated"), (long) num);
       return NULL;
     }
 
-  if (! allocate_filename_to_slot (dirname, filename, (unsigned int) num,
-				   with_md5))
-    return NULL;
+  get_filenum (filename, num);
 
   return filename;
 }
@@ -1128,14 +821,10 @@ dwarf2_directive_loc (int dummy ATTRIBUTE_UNUSED)
 
   if (filenum < 1)
     {
-      if (filenum != 0 || DWARF2_LINE_VERSION < 5)
-	{
-	  as_bad (_("file number less than one"));
-	  return;
-	}
+      as_bad (_("file number less than one"));
+      return;
     }
-
-  if (filenum >= (int) files_in_use || files[filenum].filename == NULL)
+  if (filenum >= (int) files_in_use || files[filenum].filename == 0)
     {
       as_bad (_("unassigned file number %ld"), (long) filenum);
       return;
@@ -1256,8 +945,8 @@ dwarf2_directive_loc (int dummy ATTRIBUTE_UNUSED)
 		sym = force_reset_view;
 	      else
 		{
-		  sym = symbol_temp_new (absolute_section, &zero_address_frag,
-					 value);
+		  sym = symbol_temp_new (absolute_section, value,
+					 &zero_address_frag);
 		  if (force_reset)
 		    force_reset_view = sym;
 		}
@@ -1269,19 +958,16 @@ dwarf2_directive_loc (int dummy ATTRIBUTE_UNUSED)
 	      if (!name)
 		return;
 	      sym = symbol_find_or_make (name);
-	      if (S_IS_DEFINED (sym) || symbol_equated_p (sym))
+	      if (S_IS_DEFINED (sym))
 		{
-		  if (S_IS_VOLATILE (sym))
+		  if (!S_CAN_BE_REDEFINED (sym))
+		    as_bad (_("symbol `%s' is already defined"), name);
+		  else
 		    sym = symbol_clone (sym, 1);
-		  else if (!S_CAN_BE_REDEFINED (sym))
-		    {
-		      as_bad (_("symbol `%s' is already defined"), name);
-		      return;
-		    }
+		  S_SET_SEGMENT (sym, undefined_section);
+		  S_SET_VALUE (sym, 0);
+		  symbol_set_frag (sym, &zero_address_frag);
 		}
-	      S_SET_SEGMENT (sym, undefined_section);
-	      S_SET_VALUE (sym, 0);
-	      symbol_set_frag (sym, &zero_address_frag);
 	    }
 	  current.view = sym;
 	}
@@ -1296,7 +982,7 @@ dwarf2_directive_loc (int dummy ATTRIBUTE_UNUSED)
     }
 
   demand_empty_rest_of_line ();
-  dwarf2_any_loc_directive_seen = dwarf2_loc_directive_seen = TRUE;
+  dwarf2_loc_directive_seen = TRUE;
   debug_type = DEBUG_NONE;
 
   /* If we were given a view id, emit the row right away.  */
@@ -1422,7 +1108,6 @@ out_set_addr (symbolS *sym)
 {
   expressionS exp;
 
-  memset (&exp, 0, sizeof exp);
   out_opcode (DW_LNS_extended_op);
   out_uleb128 (sizeof_address + 1);
 
@@ -1442,10 +1127,10 @@ scale_addr_delta (addressT *addr_delta)
   if (DWARF2_LINE_MIN_INSN_LENGTH > 1)
     {
       if (*addr_delta % DWARF2_LINE_MIN_INSN_LENGTH != 0  && !printed_this)
-	{
+        {
 	  as_bad("unaligned opcodes detected in executable segment");
-	  printed_this = 1;
-	}
+          printed_this = 1;
+        }
       *addr_delta /= DWARF2_LINE_MIN_INSN_LENGTH;
     }
 }
@@ -1473,7 +1158,7 @@ size_inc_line_addr (int line_delta, addressT addr_delta)
     {
       if (addr_delta == MAX_SPECIAL_ADDR_DELTA)
 	len = 1;
-      else if (addr_delta)
+      else
 	len = 1 + sizeof_leb128 (addr_delta, 0);
       return len + 3;
     }
@@ -1537,7 +1222,7 @@ emit_inc_line_addr (int line_delta, addressT addr_delta, char *p, int len)
     {
       if (addr_delta == MAX_SPECIAL_ADDR_DELTA)
 	*p++ = DW_LNS_const_add_pc;
-      else if (addr_delta)
+      else
 	{
 	  *p++ = DW_LNS_advance_pc;
 	  p += output_leb128 (p, addr_delta, 0);
@@ -1688,7 +1373,6 @@ emit_fixed_inc_line_addr (int line_delta, addressT addr_delta, fragS *frag,
       symbolS *to_sym;
       expressionS exp;
 
-      memset (&exp, 0, sizeof exp);
       gas_assert (pexp->X_op == O_subtract);
       to_sym = pexp->X_add_symbol;
 
@@ -1729,7 +1413,6 @@ relax_inc_line_addr (int line_delta, symbolS *to_sym, symbolS *from_sym)
   expressionS exp;
   int max_chars;
 
-  memset (&exp, 0, sizeof exp);
   exp.X_op = O_subtract;
   exp.X_add_symbol = to_sym;
   exp.X_op_symbol = from_sym;
@@ -1863,7 +1546,7 @@ process_entries (segT seg, struct line_entry *e)
 	 that all of the sub-sections are merged into a proper
 	 .debug_line section before a debugger sees them.  */
 
-      sec_name = bfd_section_name (seg);
+      sec_name = bfd_get_section_name (stdoutput, seg);
       if (strcmp (sec_name, ".text") != 0)
 	{
 	  name = concat (".debug_line", sec_name, (char *) NULL);
@@ -1973,252 +1656,61 @@ process_entries (segT seg, struct line_entry *e)
     out_inc_line_addr (INT_MAX, frag_ofs - last_frag_ofs);
   else
     {
-      lab = symbol_temp_new (seg, frag, frag_ofs);
+      lab = symbol_temp_new (seg, frag_ofs, frag);
       relax_inc_line_addr (INT_MAX, lab, last_lab);
     }
 }
 
-/* Switch to LINE_STR_SEG and output the given STR.  Return the
-   symbol pointing to the new string in the section.  */
-
-static symbolS *
-add_line_strp (segT line_str_seg, const char *str)
-{
-  char *cp;
-  size_t size;
-  symbolS *sym;
-
-  subseg_set (line_str_seg, 0);
-
-  sym = symbol_temp_new_now_octets ();
-
-  size = strlen (str) + 1;
-  cp = frag_more (size);
-  memcpy (cp, str, size);
-
-  return sym;
-}
-
-
 /* Emit the directory and file tables for .debug_line.  */
 
 static void
-out_dir_and_file_list (segT line_seg, int sizeof_offset)
+out_file_list (void)
 {
   size_t size;
   const char *dir;
   char *cp;
   unsigned int i;
-  bfd_boolean emit_md5 = FALSE;
-  bfd_boolean emit_timestamps = TRUE;
-  bfd_boolean emit_filesize = TRUE;
-  segT line_str_seg = NULL;
-  symbolS *line_strp;
 
-  /* Output the Directory Table.  */
-  if (DWARF2_LINE_VERSION >= 5)
-    {
-      /* We only have one column in the directory table.  */
-      out_byte (1);
-
-      /* Describe the purpose and format of the column.  */
-      out_uleb128 (DW_LNCT_path);
-      /* Store these strings in the .debug_line_str section so they
-	 can be shared.  */
-      out_uleb128 (DW_FORM_line_strp);
-
-      /* Now state how many rows there are in the table.  We need at
-	 least 1 if there is one or more file names to store the
-	 "working directory".  */
-      if (dirs_in_use == 0 && files_in_use > 0)
-	out_uleb128 (1);
-      else
-	out_uleb128 (dirs_in_use);
-    }
-      
   /* Emit directory list.  */
-  if (DWARF2_LINE_VERSION >= 5 && (dirs_in_use > 0 || files_in_use > 0))
-    {
-      line_str_seg = subseg_new (".debug_line_str", 0);
-      bfd_set_section_flags (line_str_seg,
-			     SEC_READONLY | SEC_DEBUGGING | SEC_OCTETS
-			     | SEC_MERGE | SEC_STRINGS);
-      line_str_seg->entsize = 1;
-
-      /* DWARF5 uses slot zero, but that is only set explicitly
-	 using a .file 0 directive.  If that isn't used, but dir
-	 one is used, then use that as main file directory.
-	 Otherwise use pwd as main file directory.  */
-      if (dirs_in_use > 0 && dirs != NULL && dirs[0] != NULL)
-	dir = remap_debug_filename (dirs[0]);
-      else if (dirs_in_use > 1 && dirs != NULL && dirs[1] != NULL)
-	dir = remap_debug_filename (dirs[1]);
-      else
-	dir = remap_debug_filename (getpwd ());
-
-      line_strp = add_line_strp (line_str_seg, dir);
-      subseg_set (line_seg, 0);
-      TC_DWARF2_EMIT_OFFSET (line_strp, sizeof_offset);
-    }
   for (i = 1; i < dirs_in_use; ++i)
     {
       dir = remap_debug_filename (dirs[i]);
-      if (DWARF2_LINE_VERSION < 5)
-	{
-	  size = strlen (dir) + 1;
-	  cp = frag_more (size);
-	  memcpy (cp, dir, size);
-	}
-      else
-	{
-	  line_strp = add_line_strp (line_str_seg, dir);
-	  subseg_set (line_seg, 0);
-	  TC_DWARF2_EMIT_OFFSET (line_strp, sizeof_offset);
-	}
+      size = strlen (dir) + 1;
+      cp = frag_more (size);
+      memcpy (cp, dir, size);
     }
+  /* Terminate it.  */
+  out_byte ('\0');
 
-  if (DWARF2_LINE_VERSION < 5)
-    /* Terminate it.  */
-    out_byte ('\0');
-
-  /* Output the File Name Table.  */
-  if (DWARF2_LINE_VERSION >= 5)
-    {
-      unsigned int columns = 4;
-
-      if (((unsigned long) DWARF2_FILE_TIME_NAME ("", "")) == -1UL)
-	{
-	  emit_timestamps = FALSE;
-	  -- columns;
-	}
-
-      if (DWARF2_FILE_SIZE_NAME ("", "") == -1)
-	{
-	  emit_filesize = FALSE;
-	  -- columns;
-	}
-
-      for (i = 0; i < files_in_use; ++i)
-	if (files[i].md5[0] != 0)
-	  break;
-      if (i < files_in_use)
-	{
-	  emit_md5 = TRUE;
-	  ++ columns;
-	}
-      
-      /* The number of format entries to follow.  */
-      out_byte (columns);
-      /* The format of the file name.  */
-      out_uleb128 (DW_LNCT_path);
-      /* Store these strings in the .debug_line_str section so they
-	 can be shared.  */
-      out_uleb128 (DW_FORM_line_strp);
-
-      /* The format of the directory index.  */
-      out_uleb128 (DW_LNCT_directory_index);
-      out_uleb128 (DW_FORM_udata);
-
-      if (emit_timestamps)
-	{
-	  /* The format of the timestamp.  */
-	  out_uleb128 (DW_LNCT_timestamp);
-	  out_uleb128 (DW_FORM_udata);
-	}
-
-      if (emit_filesize)
-	{
-	  /* The format of the file size.  */
-	  out_uleb128 (DW_LNCT_size);
-	  out_uleb128 (DW_FORM_udata);
-	}
-
-      if (emit_md5)
-	{
-	  /* The format of the MD5 sum.  */
-	  out_uleb128 (DW_LNCT_MD5);
-	  out_uleb128 (DW_FORM_data16);
-	}
-
-      /* The number of entries in the table.  */
-      out_uleb128 (files_in_use);
-   }
-      
-  for (i = DWARF2_LINE_VERSION > 4 ? 0 : 1; i < files_in_use; ++i)
+  for (i = 1; i < files_in_use; ++i)
     {
       const char *fullfilename;
 
       if (files[i].filename == NULL)
 	{
-	  /* Prevent a crash later, particularly for file 1.  DWARF5
-	     uses slot zero, but that is only set explicitly using a
-	     .file 0 directive.  If that isn't used, but file 1 is,
-	     then use that as main file name.  */
-	  if (DWARF2_LINE_VERSION >= 5 && i == 0 && files_in_use >= 1)
-	      files[0].filename = files[1].filename;
-	  else
-	    files[i].filename = "";
-	  if (DWARF2_LINE_VERSION < 5 || i != 0)
-	    {
-	      as_bad (_("unassigned file number %ld"), (long) i);
-	      continue;
-	    }
+	  as_bad (_("unassigned file number %ld"), (long) i);
+	  /* Prevent a crash later, particularly for file 1.  */
+	  files[i].filename = "";
+	  continue;
 	}
 
       fullfilename = DWARF2_FILE_NAME (files[i].filename,
 				       files[i].dir ? dirs [files [i].dir] : "");
-      if (DWARF2_LINE_VERSION < 5)
-	{
-	  size = strlen (fullfilename) + 1;
-	  cp = frag_more (size);
-	  memcpy (cp, fullfilename, size);
-	}
-      else
-	{
-	  line_strp = add_line_strp (line_str_seg, fullfilename);
-	  subseg_set (line_seg, 0);
-	  TC_DWARF2_EMIT_OFFSET (line_strp, sizeof_offset);
-	}
+      size = strlen (fullfilename) + 1;
+      cp = frag_more (size);
+      memcpy (cp, fullfilename, size);
 
-      /* Directory number.  */
-      out_uleb128 (files[i].dir);
-
+      out_uleb128 (files[i].dir);	/* directory number */
       /* Output the last modification timestamp.  */
-      if (emit_timestamps)
-	{
-	  offsetT timestamp;
-
-	  timestamp = DWARF2_FILE_TIME_NAME (files[i].filename,
-					     files[i].dir ? dirs [files [i].dir] : "");
-	  if (timestamp == -1)
-	    timestamp = 0;
-	  out_uleb128 (timestamp);
-	}
-
+      out_uleb128 (DWARF2_FILE_TIME_NAME (files[i].filename,
+				          files[i].dir ? dirs [files [i].dir] : ""));
       /* Output the filesize.  */
-      if (emit_filesize)
-	{
-	  offsetT filesize;
-	  filesize = DWARF2_FILE_SIZE_NAME (files[i].filename,
-					    files[i].dir ? dirs [files [i].dir] : "");
-	  if (filesize == -1)
-	    filesize = 0;
-	  out_uleb128 (filesize);
-	}
-
-      /* Output the md5 sum.  */
-      if (emit_md5)
-	{
-	  int b;
-
-	  for (b = 0; b < NUM_MD5_BYTES; b++)
-	    out_byte (files[i].md5[b]);
-	}
+      out_uleb128 (DWARF2_FILE_SIZE_NAME (files[i].filename,
+				          files[i].dir ? dirs [files [i].dir] : ""));
     }
 
-  if (DWARF2_LINE_VERSION < 5)
-    /* Terminate filename list.  */
-    out_byte (0);
+  /* Terminate filename list.  */
+  out_byte (0);
 }
 
 /* Switch to SEC and output a header length field.  Return the size of
@@ -2245,7 +1737,7 @@ out_header (asection *sec, expressionS *exp)
     }
   else
     {
-      start_sym = symbol_temp_new_now_octets ();
+      start_sym = symbol_temp_new_now ();
       end_sym = symbol_temp_make ();
     }
 
@@ -2288,18 +1780,12 @@ out_debug_line (segT line_seg)
   struct line_seg *s;
   int sizeof_offset;
 
-  memset (&exp, 0, sizeof exp);
   sizeof_offset = out_header (line_seg, &exp);
   line_end = exp.X_add_symbol;
 
   /* Version.  */
   out_two (DWARF2_LINE_VERSION);
 
-  if (DWARF2_LINE_VERSION >= 5)
-    {
-      out_byte (sizeof_address);
-      out_byte (0); /* Segment Selector size.  */
-    }
   /* Length of the prologue following this length.  */
   prologue_start = symbol_temp_make ();
   prologue_end = symbol_temp_make ();
@@ -2312,8 +1798,6 @@ out_debug_line (segT line_seg)
 
   /* Parameters of the state machine.  */
   out_byte (DWARF2_LINE_MIN_INSN_LENGTH);
-  if (DWARF2_LINE_VERSION >= 4)
-    out_byte (DWARF2_LINE_MAX_OPS_PER_INSN);
   out_byte (DWARF2_LINE_DEFAULT_IS_STMT);
   out_byte (DWARF2_LINE_BASE);
   out_byte (DWARF2_LINE_RANGE);
@@ -2332,11 +1816,8 @@ out_debug_line (segT line_seg)
   out_byte (0);			/* DW_LNS_set_prologue_end */
   out_byte (0);			/* DW_LNS_set_epilogue_begin */
   out_byte (1);			/* DW_LNS_set_isa */
-  /* We have emitted 12 opcode lengths, so make that this
-     matches up to the opcode base value we have been using.  */
-  gas_assert (DWARF2_LINE_OPCODE_BASE == 13);
 
-  out_dir_and_file_list (line_seg, sizeof_offset);
+  out_file_list ();
 
   symbol_set_value_now (prologue_end);
 
@@ -2362,19 +1843,14 @@ out_debug_line (segT line_seg)
 }
 
 static void
-out_debug_ranges (segT ranges_seg, symbolS **ranges_sym)
+out_debug_ranges (segT ranges_seg)
 {
   unsigned int addr_size = sizeof_address;
   struct line_seg *s;
   expressionS exp;
   unsigned int i;
 
-  memset (&exp, 0, sizeof exp);
   subseg_set (ranges_seg, 0);
-
-  /* For DW_AT_ranges to point at (there is no header, so really start
-     of section, but see out_debug_rnglists).  */
-  *ranges_sym = symbol_temp_new_now_octets ();
 
   /* Base Address Entry.  */
   for (i = 0; i < addr_size; i++)
@@ -2389,11 +1865,11 @@ out_debug_ranges (segT ranges_seg, symbolS **ranges_sym)
       symbolS *beg, *end;
 
       frag = first_frag_for_seg (s->seg);
-      beg = symbol_temp_new (s->seg, frag, 0);
+      beg = symbol_temp_new (s->seg, 0, frag);
       s->text_start = beg;
 
       frag = last_frag_for_seg (s->seg);
-      end = symbol_temp_new (s->seg, frag, get_frag_fix (frag, s->seg));
+      end = symbol_temp_new (s->seg, get_frag_fix (frag, s->seg), frag);
       s->text_end = end;
 
       exp.X_op = O_symbol;
@@ -2414,57 +1890,6 @@ out_debug_ranges (segT ranges_seg, symbolS **ranges_sym)
     out_byte (0);
 }
 
-static void
-out_debug_rnglists (segT ranges_seg, symbolS **ranges_sym)
-{
-  expressionS exp;
-  symbolS *ranges_end;
-  struct line_seg *s;
-
-  /* Unit length.  */
-  memset (&exp, 0, sizeof exp);
-  out_header (ranges_seg, &exp);
-  ranges_end = exp.X_add_symbol;
-
-  out_two (DWARF2_RNGLISTS_VERSION);
-  out_byte (sizeof_address);
-  out_byte (0); /* Segment Selector size.  */
-  out_four (0); /* Offset entry count.  */
-
-  /* For DW_AT_ranges to point at (must be after the header).   */
-  *ranges_sym = symbol_temp_new_now_octets ();
-
-  for (s = all_segs; s; s = s->next)
-    {
-      fragS *frag;
-      symbolS *beg, *end;
-
-      out_byte (DW_RLE_start_length);
-
-      frag = first_frag_for_seg (s->seg);
-      beg = symbol_temp_new (s->seg, frag, 0);
-      s->text_start = beg;
-
-      frag = last_frag_for_seg (s->seg);
-      end = symbol_temp_new (s->seg, frag, get_frag_fix (frag, s->seg));
-      s->text_end = end;
-
-      exp.X_op = O_symbol;
-      exp.X_add_symbol = beg;
-      exp.X_add_number = 0;
-      emit_expr (&exp, sizeof_address);
-
-      exp.X_op = O_symbol;
-      exp.X_add_symbol = end;
-      exp.X_add_number = 0;
-      emit_leb128_expr (&exp, 0);
-    }
-
-  out_byte (DW_RLE_end_of_list);
-
-  symbol_set_value_now (ranges_end);
-}
-
 /* Emit data for .debug_aranges.  */
 
 static void
@@ -2478,7 +1903,6 @@ out_debug_aranges (segT aranges_seg, segT info_seg)
   char *p;
   int sizeof_offset;
 
-  memset (&exp, 0, sizeof exp);
   sizeof_offset = out_header (aranges_seg, &exp);
   aranges_end = exp.X_add_symbol;
   size = -exp.X_add_number;
@@ -2509,11 +1933,11 @@ out_debug_aranges (segT aranges_seg, segT info_seg)
       symbolS *beg, *end;
 
       frag = first_frag_for_seg (s->seg);
-      beg = symbol_temp_new (s->seg, frag, 0);
+      beg = symbol_temp_new (s->seg, 0, frag);
       s->text_start = beg;
 
       frag = last_frag_for_seg (s->seg);
-      end = symbol_temp_new (s->seg, frag, get_frag_fix (frag, s->seg));
+      end = symbol_temp_new (s->seg, get_frag_fix (frag, s->seg), frag);
       s->text_end = end;
 
       exp.X_op = O_symbol;
@@ -2543,32 +1967,31 @@ out_debug_abbrev (segT abbrev_seg,
 		  segT info_seg ATTRIBUTE_UNUSED,
 		  segT line_seg ATTRIBUTE_UNUSED)
 {
-  int secoff_form;
   subseg_set (abbrev_seg, 0);
 
   out_uleb128 (1);
   out_uleb128 (DW_TAG_compile_unit);
   out_byte (DW_CHILDREN_no);
-  if (DWARF2_VERSION < 4)
-    {
-      if (DWARF2_FORMAT (line_seg) == dwarf2_format_32bit)
-	secoff_form = DW_FORM_data4;
-      else
-	secoff_form = DW_FORM_data8;
-    }
+  if (DWARF2_FORMAT (line_seg) == dwarf2_format_32bit)
+    out_abbrev (DW_AT_stmt_list, DW_FORM_data4);
   else
-    secoff_form = DW_FORM_sec_offset;
-  out_abbrev (DW_AT_stmt_list, secoff_form);
+    out_abbrev (DW_AT_stmt_list, DW_FORM_data8);
   if (all_segs->next == NULL)
     {
       out_abbrev (DW_AT_low_pc, DW_FORM_addr);
       if (DWARF2_VERSION < 4)
 	out_abbrev (DW_AT_high_pc, DW_FORM_addr);
       else
-	out_abbrev (DW_AT_high_pc, DW_FORM_udata);
+	out_abbrev (DW_AT_high_pc, (sizeof_address == 4
+				    ? DW_FORM_data4 : DW_FORM_data8));
     }
   else
-    out_abbrev (DW_AT_ranges, secoff_form);
+    {
+      if (DWARF2_FORMAT (info_seg) == dwarf2_format_32bit)
+	out_abbrev (DW_AT_ranges, DW_FORM_data4);
+      else
+	out_abbrev (DW_AT_ranges, DW_FORM_data8);
+    }
   out_abbrev (DW_AT_name, DW_FORM_strp);
   out_abbrev (DW_AT_comp_dir, DW_FORM_strp);
   out_abbrev (DW_AT_producer, DW_FORM_strp);
@@ -2582,40 +2005,24 @@ out_debug_abbrev (segT abbrev_seg,
 /* Emit a description of this compilation unit for .debug_info.  */
 
 static void
-out_debug_info (segT info_seg, segT abbrev_seg, segT line_seg,
-		symbolS *ranges_sym, symbolS *name_sym,
-		symbolS *comp_dir_sym, symbolS *producer_sym)
+out_debug_info (segT info_seg, segT abbrev_seg, segT line_seg, segT ranges_seg,
+		symbolS *name_sym, symbolS *comp_dir_sym, symbolS *producer_sym)
 {
   expressionS exp;
   symbolS *info_end;
   int sizeof_offset;
 
-  memset (&exp, 0, sizeof exp);
   sizeof_offset = out_header (info_seg, &exp);
   info_end = exp.X_add_symbol;
 
   /* DWARF version.  */
   out_two (DWARF2_VERSION);
 
-  if (DWARF2_VERSION < 5)
-    {
-      /* .debug_abbrev offset */
-      TC_DWARF2_EMIT_OFFSET (section_symbol (abbrev_seg), sizeof_offset);
-    }
-  else
-    {
-      /* unit (header) type */
-      out_byte (DW_UT_compile);
-    }
+  /* .debug_abbrev offset */
+  TC_DWARF2_EMIT_OFFSET (section_symbol (abbrev_seg), sizeof_offset);
 
   /* Target address size.  */
   out_byte (sizeof_address);
-
-  if (DWARF2_VERSION >= 5)
-    {
-      /* .debug_abbrev offset */
-      TC_DWARF2_EMIT_OFFSET (section_symbol (abbrev_seg), sizeof_offset);
-    }
 
   /* DW_TAG_compile_unit DIE abbrev */
   out_uleb128 (1);
@@ -2644,16 +2051,13 @@ out_debug_info (segT info_seg, segT abbrev_seg, segT line_seg,
 	}
       exp.X_add_symbol = all_segs->text_end;
       exp.X_add_number = 0;
-      if (DWARF2_VERSION < 4)
-	emit_expr (&exp, sizeof_address);
-      else
-	emit_leb128_expr (&exp, 0);
+      emit_expr (&exp, sizeof_address);
     }
   else
     {
       /* This attribute is emitted if the code is disjoint.  */
       /* DW_AT_ranges.  */
-      TC_DWARF2_EMIT_OFFSET (ranges_sym, sizeof_offset);
+      TC_DWARF2_EMIT_OFFSET (section_symbol (ranges_seg), sizeof_offset);
     }
 
   /* DW_AT_name, DW_AT_comp_dir and DW_AT_producer.  Symbols in .debug_str
@@ -2680,20 +2084,19 @@ out_debug_str (segT str_seg, symbolS **name_sym, symbolS **comp_dir_sym,
   const char *dirname;
   char *p;
   int len;
-  int first_file = DWARF2_LINE_VERSION > 4 ? 0 : 1;
 
   subseg_set (str_seg, 0);
 
   /* DW_AT_name.  We don't have the actual file name that was present
-     on the command line, so assume files[first_file] is the main input file.
+     on the command line, so assume files[1] is the main input file.
      We're not supposed to get called unless at least one line number
      entry was emitted, so this should always be defined.  */
-  *name_sym = symbol_temp_new_now_octets ();
+  *name_sym = symbol_temp_new_now ();
   if (files_in_use == 0)
     abort ();
-  if (files[first_file].dir)
+  if (files[1].dir)
     {
-      dirname = remap_debug_filename (dirs[files[first_file].dir]);
+      dirname = remap_debug_filename (dirs[files[1].dir]);
       len = strlen (dirname);
 #ifdef TE_VMS
       /* Already has trailing slash.  */
@@ -2705,19 +2108,19 @@ out_debug_str (segT str_seg, symbolS **name_sym, symbolS **comp_dir_sym,
       INSERT_DIR_SEPARATOR (p, len);
 #endif
     }
-  len = strlen (files[first_file].filename) + 1;
+  len = strlen (files[1].filename) + 1;
   p = frag_more (len);
-  memcpy (p, files[first_file].filename, len);
+  memcpy (p, files[1].filename, len);
 
   /* DW_AT_comp_dir */
-  *comp_dir_sym = symbol_temp_new_now_octets ();
+  *comp_dir_sym = symbol_temp_new_now ();
   comp_dir = remap_debug_filename (getpwd ());
   len = strlen (comp_dir) + 1;
   p = frag_more (len);
   memcpy (p, comp_dir, len);
 
   /* DW_AT_producer */
-  *producer_sym = symbol_temp_new_now_octets ();
+  *producer_sym = symbol_temp_new_now ();
   sprintf (producer, "GNU AS %s", VERSION);
   len = strlen (producer) + 1;
   p = frag_more (len);
@@ -2728,22 +2131,11 @@ void
 dwarf2_init (void)
 {
   last_seg_ptr = &all_segs;
-
-  /* Select the default CIE version to produce here.  The global
-     starts with a value of -1 and will be modified to a valid value
-     either by the user providing a command line option, or some
-     targets will select their own default in md_after_parse_args.  If
-     we get here and the global still contains -1 then it is up to us
-     to pick a sane default.  The default we choose is 1, this is the
-     CIE version gas has produced for a long time, and there seems no
-     reason to change it yet.  */
-  if (flag_dwarf_cie_version == -1)
-    flag_dwarf_cie_version = 1;
 }
 
 
 /* Finish the dwarf2 debug sections.  We emit .debug.line if there
-   were any .file/.loc directives, or --gdwarf2 was given, and if the
+   were any .file/.loc directives, or --gdwarf2 was given, or if the
    file has a non-empty .debug_info section and an empty .debug_line
    section.  If we emit .debug_line, and the .debug_info section is
    empty, we also emit .debug_info, .debug_aranges and .debug_abbrev.
@@ -2767,10 +2159,8 @@ dwarf2_finish (void)
   empty_debug_line = line_seg == NULL || !seg_not_empty_p (line_seg);
 
   /* We can't construct a new debug_line section if we already have one.
-     Give an error if we have seen any .loc, otherwise trust the user
-     knows what they are doing and want to generate the .debug_line
-     (and all other debug sections) themselves.  */
-  if (all_segs && !empty_debug_line && dwarf2_any_loc_directive_seen)
+     Give an error.  */
+  if (all_segs && !empty_debug_line)
     as_fatal ("duplicate .debug_line sections");
 
   if ((!all_segs && emit_other_sections)
@@ -2784,12 +2174,8 @@ dwarf2_finish (void)
   sizeof_address = DWARF2_ADDR_SIZE (stdoutput);
 
   /* Create and switch to the line number section.  */
-  if (empty_debug_line)
-    {
-      line_seg = subseg_new (".debug_line", 0);
-      bfd_set_section_flags (line_seg,
-			     SEC_READONLY | SEC_DEBUGGING | SEC_OCTETS);
-    }
+  line_seg = subseg_new (".debug_line", 0);
+  bfd_set_section_flags (stdoutput, line_seg, SEC_READONLY | SEC_DEBUGGING);
 
   /* For each subsection, chain the debug entries together.  */
   for (s = all_segs; s; s = s->next)
@@ -2797,26 +2183,14 @@ dwarf2_finish (void)
       struct line_subseg *lss = s->head;
       struct line_entry **ptail = lss->ptail;
 
-      /* Reset the initial view of the first subsection of the
-	 section.  */
-      if (lss->head && lss->head->loc.view)
-	set_or_check_view (lss->head, NULL, NULL);
-
       while ((lss = lss->next) != NULL)
 	{
-	  /* Link the first view of subsequent subsections to the
-	     previous view.  */
-	  if (lss->head && lss->head->loc.view)
-	    set_or_check_view (lss->head,
-			       !s->head ? NULL : (struct line_entry *)ptail,
-			       s->head ? s->head->head : NULL);
 	  *ptail = lss->head;
 	  ptail = lss->ptail;
 	}
     }
 
-  if (empty_debug_line)
-    out_debug_line (line_seg);
+  out_debug_line (line_seg);
 
   /* If this is assembler generated line info, and there is no
      debug_info already, we need .debug_info, .debug_abbrev and
@@ -2825,8 +2199,9 @@ dwarf2_finish (void)
     {
       segT abbrev_seg;
       segT aranges_seg;
+      segT ranges_seg;
       segT str_seg;
-      symbolS *name_sym, *comp_dir_sym, *producer_sym, *ranges_sym;
+      symbolS *name_sym, *comp_dir_sym, *producer_sym;
 
       gas_assert (all_segs);
 
@@ -2835,46 +2210,34 @@ dwarf2_finish (void)
       aranges_seg = subseg_new (".debug_aranges", 0);
       str_seg = subseg_new (".debug_str", 0);
 
-      bfd_set_section_flags (info_seg,
-			      SEC_READONLY | SEC_DEBUGGING | SEC_OCTETS);
-      bfd_set_section_flags (abbrev_seg,
-			      SEC_READONLY | SEC_DEBUGGING | SEC_OCTETS);
-      bfd_set_section_flags (aranges_seg,
-			      SEC_READONLY | SEC_DEBUGGING | SEC_OCTETS);
-      bfd_set_section_flags (str_seg,
-			      SEC_READONLY | SEC_DEBUGGING | SEC_OCTETS
-				       | SEC_MERGE | SEC_STRINGS);
+      bfd_set_section_flags (stdoutput, info_seg,
+			     SEC_READONLY | SEC_DEBUGGING);
+      bfd_set_section_flags (stdoutput, abbrev_seg,
+			     SEC_READONLY | SEC_DEBUGGING);
+      bfd_set_section_flags (stdoutput, aranges_seg,
+			     SEC_READONLY | SEC_DEBUGGING);
+      bfd_set_section_flags (stdoutput, str_seg,
+			     (SEC_READONLY | SEC_DEBUGGING
+			      | SEC_MERGE | SEC_STRINGS));
       str_seg->entsize = 1;
 
       record_alignment (aranges_seg, ffs (2 * sizeof_address) - 1);
 
       if (all_segs->next == NULL)
-	ranges_sym = NULL;
+	ranges_seg = NULL;
       else
 	{
-	  if (DWARF2_VERSION < 5)
-	    {
-	      segT ranges_seg = subseg_new (".debug_ranges", 0);
-	      bfd_set_section_flags (ranges_seg, (SEC_READONLY
-						  | SEC_DEBUGGING
-						  | SEC_OCTETS));
-	      record_alignment (ranges_seg, ffs (2 * sizeof_address) - 1);
-	      out_debug_ranges (ranges_seg, &ranges_sym);
-	    }
-	  else
-	    {
-	      segT rnglists_seg = subseg_new (".debug_rnglists", 0);
-	      bfd_set_section_flags (rnglists_seg, (SEC_READONLY
-						    | SEC_DEBUGGING
-						    | SEC_OCTETS));
-	      out_debug_rnglists (rnglists_seg, &ranges_sym);
-	    }
+	  ranges_seg = subseg_new (".debug_ranges", 0);
+	  bfd_set_section_flags (stdoutput, ranges_seg,
+				 SEC_READONLY | SEC_DEBUGGING);
+	  record_alignment (ranges_seg, ffs (2 * sizeof_address) - 1);
+	  out_debug_ranges (ranges_seg);
 	}
 
       out_debug_aranges (aranges_seg, info_seg);
       out_debug_abbrev (abbrev_seg, info_seg, line_seg);
       out_debug_str (str_seg, &name_sym, &comp_dir_sym, &producer_sym);
-      out_debug_info (info_seg, abbrev_seg, line_seg, ranges_sym,
+      out_debug_info (info_seg, abbrev_seg, line_seg, ranges_seg,
 		      name_sym, comp_dir_sym, producer_sym);
     }
 }

@@ -1,5 +1,5 @@
-	.globl	us .text
-	.globl	gs .text
+	.globl	us
+	.globl	gs
 us:
 gs:
 ls:

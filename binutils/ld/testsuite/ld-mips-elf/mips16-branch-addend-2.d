@@ -1,7 +1,8 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: MIPS16 link branch addend 2
 #source: ../../../gas/testsuite/gas/mips/mips16-branch-addend-2.s
-#ld: -Ttext 0x1c000000 -e bar
+#as: -EB -32
+#ld: -EB -Ttext 0x1c000000 -e bar
 
 .*: +file format .*mips.*
 

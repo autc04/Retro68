@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2020 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,13 +46,8 @@ if { [is_elf_format] } then {
       return
     }
 
-    set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
-    foreach t $test_list {
-	# We need to strip the ".d", but can leave the dirname.
-	verbose [file rootname $t]
-	run_dump_test [file rootname $t]
-    }
-
+    run_dump_test "symver0" 
+    run_dump_test "symver1" 
     run_error_test "symver2" ""
     run_error_test "symver3" ""
     # We have to comment out symver4 and symver5, which check the
@@ -61,6 +56,5 @@ if { [is_elf_format] } then {
     # version name.
 #    run_error_test "symver4" ""
 #    run_error_test "symver5" ""
-    run_error_test "symver14" ""
-    run_error_test "symver15" ""
+    run_error_test "symver6" ""
 }

@@ -1,7 +1,7 @@
 #objdump: --syms --special-syms
 #name: ARM Mapping Symbols
 # This test is only valid on ELF based ports.
-#notarget: *-*-pe *-*-wince
+#not-target: *-*-pe *-*-wince
 
 # Test the generation of ARM ELF Mapping Symbols
 

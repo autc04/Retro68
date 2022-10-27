@@ -1,5 +1,5 @@
 /* windmc.c -- a program to compile Windows message files.
-   Copyright (C) 2007-2020 Free Software Foundation, Inc.
+   Copyright (C) 2007-2018 Free Software Foundation, Inc.
    Written by Kai Tietz, Onevision.
 
    This file is part of GNU Binutils.
@@ -698,7 +698,7 @@ windmc_write_bin (const char *filename, mc_node_lang **nl, int elems)
       dta_off += mi[i].res_len;
     }
   sec_length = (dta_off + 3) & ~3;
-  if (!bfd_set_section_size (mc_bfd.sec, sec_length))
+  if (! bfd_set_section_size (mc_bfd.abfd, mc_bfd.sec, sec_length))
     bfd_fatal ("bfd_set_section_size");
   /* Make sure we write the complete block.  */
   set_windmc_bfd_content ("\0", sec_length - 1, 1);
@@ -821,7 +821,7 @@ write_dbg (FILE *fp)
   while (h != NULL)
     {
       if (h->symbol)
-	write_dbg_define (fp, h->symbol, h->id_typecast);
+	write_dbg_define (fp, h->symbol, mcset_msg_id_typedef);
       h = h->next;
     }
   fprintf (fp, "  { (");
@@ -908,7 +908,7 @@ write_header (FILE *fp)
 	    fprintf (fp, "%s", s);
 	}
       if (h->symbol)
-	write_header_define (fp, h->symbol, h->vid, h->id_typecast, h->sub);
+	write_header_define (fp, h->symbol, h->vid, mcset_msg_id_typedef, h->sub);
       h = h->next;
     }
 }
@@ -956,8 +956,7 @@ main (int argc, char **argv)
 
   expandargv (&argc, &argv);
 
-  if (bfd_init () != BFD_INIT_MAGIC)
-    fatal (_("fatal error: libbfd ABI mismatch"));
+  bfd_init ();
   set_default_bfd_target ();
 
   target = NULL;
@@ -1161,9 +1160,12 @@ main (int argc, char **argv)
     }
   write_bin ();
 
-  free (mc_nodes_lang);
-  free (mc_severity_codes);
-  free (mc_facility_codes);
+  if (mc_nodes_lang)
+    free (mc_nodes_lang);
+  if (mc_severity_codes)
+    free (mc_severity_codes);
+  if (mc_facility_codes)
+    free (mc_facility_codes);
 
   xexit (0);
   return 0;

@@ -1,5 +1,5 @@
 #...
-Disassembly of section .plt.(sec|got):
+Disassembly of section .plt.got:
 
 [a-f0-9]+ <[_a-z]+@plt>:
 [ 	]*[a-f0-9]+:	f3 0f 1e fb          	endbr32 

@@ -1,2 +1,2 @@
 # name: SRS instruction in ARM mode
-# error_output: srs-arm.l
+# error-output: srs-arm.l

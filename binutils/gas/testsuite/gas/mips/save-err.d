@@ -1,3 +1,3 @@
 #name: SAVE/RESTORE instruction errors
 #as: -32
-#error_output: save-err.l
+#error-output: save-err.l

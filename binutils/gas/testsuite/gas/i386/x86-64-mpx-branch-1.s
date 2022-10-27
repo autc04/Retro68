@@ -2,9 +2,6 @@
 	bnd call	0x100040
 	bnd jmp		0x100040
 
-	bnd data16 rex.w call	0x100040
-	bnd data16 rex.w jmp	0x100040
-
 foo1:
 	bnd jmp		foo1
 	bnd jb		foo1

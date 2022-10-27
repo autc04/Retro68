@@ -1,5 +1,5 @@
 /* tc-s390.c -- Assemble for the S390
-   Copyright (C) 2000-2020 Free Software Foundation, Inc.
+   Copyright (C) 2000-2018 Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
 
    This file is part of GAS, the GNU Assembler.
@@ -22,6 +22,7 @@
 #include "as.h"
 #include "safe-ctype.h"
 #include "subsegs.h"
+#include "struc-symbol.h"
 #include "dwarf2dbg.h"
 #include "dw2gencfi.h"
 
@@ -197,10 +198,10 @@ register_name (expressionS *expressionP)
 /* Local variables.  */
 
 /* Opformat hash table.  */
-static htab_t s390_opformat_hash;
+static struct hash_control *s390_opformat_hash;
 
 /* Opcode hash table.  */
-static htab_t s390_opcode_hash = NULL;
+static struct hash_control *s390_opcode_hash = NULL;
 
 /* Flags to set in the elf header */
 static flagword s390_flags = 0;
@@ -290,8 +291,6 @@ s390_parse_cpu (const char *         arg,
     { STRING_COMMA_LEN ("z13"), STRING_COMMA_LEN ("arch11"),
       S390_INSTR_FLAG_HTM | S390_INSTR_FLAG_VX },
     { STRING_COMMA_LEN ("z14"), STRING_COMMA_LEN ("arch12"),
-      S390_INSTR_FLAG_HTM | S390_INSTR_FLAG_VX },
-    { STRING_COMMA_LEN ("z15"), STRING_COMMA_LEN ("arch13"),
       S390_INSTR_FLAG_HTM | S390_INSTR_FLAG_VX }
   };
   static struct
@@ -494,12 +493,13 @@ s390_setup_opcodes (void)
   const struct s390_opcode *op;
   const struct s390_opcode *op_end;
   bfd_boolean dup_insn = FALSE;
+  const char *retval;
 
   if (s390_opcode_hash != NULL)
-    htab_delete (s390_opcode_hash);
+    hash_die (s390_opcode_hash);
 
   /* Insert the opcodes into a hash table.  */
-  s390_opcode_hash = str_htab_create ();
+  s390_opcode_hash = hash_new ();
 
   op_end = s390_opcodes + s390_num_opcodes;
   for (op = s390_opcodes; op < op_end; op++)
@@ -530,11 +530,15 @@ s390_setup_opcodes (void)
 	  f = (op->flags & S390_INSTR_FLAG_FACILITY_MASK);
 	  use_opcode = ((f & current_flags) == f);
 	}
-      if (use_opcode
-	  && str_hash_insert (s390_opcode_hash, op->name, op, 0) != NULL)
+      if (use_opcode)
 	{
-	  as_bad (_("duplicate %s"), op->name);
-	  dup_insn = TRUE;
+	  retval = hash_insert (s390_opcode_hash, op->name, (void *) op);
+	  if (retval != (const char *) NULL)
+	    {
+	      as_bad (_("Internal assembler error for instruction %s"),
+		      op->name);
+	      dup_insn = TRUE;
+	    }
 	}
 
       while (op < op_end - 1 && strcmp (op->name, op[1].name) == 0)
@@ -554,6 +558,7 @@ md_begin (void)
 {
   const struct s390_opcode *op;
   const struct s390_opcode *op_end;
+  const char *retval;
 
   /* Give a warning if the combination -m64-bit and -Aesa is used.  */
   if (s390_arch_size == 64 && current_cpu < S390_OPCODE_Z900)
@@ -566,12 +571,16 @@ md_begin (void)
     bfd_set_private_flags (stdoutput, s390_flags);
 
   /* Insert the opcode formats into a hash table.  */
-  s390_opformat_hash = str_htab_create ();
+  s390_opformat_hash = hash_new ();
 
   op_end = s390_opformats + s390_num_opformats;
   for (op = s390_opformats; op < op_end; op++)
-    if (str_hash_insert (s390_opformat_hash, op->name, op, 0) != NULL)
-      as_fatal (_("duplicate %s"), op->name);
+    {
+      retval = hash_insert (s390_opformat_hash, op->name, (void *) op);
+      if (retval != (const char *) NULL)
+	as_bad (_("Internal assembler error for instruction format %s"),
+		op->name);
+    }
 
   s390_setup_opcodes ();
 
@@ -886,7 +895,7 @@ s390_elf_suffix (char **str_p, expressionS *exp_p)
 	return ptr->suffix;
       }
 
-  return ELF_SUFFIX_NONE;
+  return BFD_RELOC_UNUSED;
 }
 
 /* Structure used to hold a literal pool entry.  */
@@ -1220,24 +1229,6 @@ s390_elf_cons (int nbytes /* 1=.byte, 2=.word, 4=.long */)
   demand_empty_rest_of_line ();
 }
 
-/* Return true if all remaining operands in the opcode with
-   OPCODE_FLAGS can be skipped.  */
-static bfd_boolean
-skip_optargs_p (unsigned int opcode_flags, const unsigned char *opindex_ptr)
-{
-  if ((opcode_flags & (S390_INSTR_FLAG_OPTPARM | S390_INSTR_FLAG_OPTPARM2))
-      && opindex_ptr[0] != '\0'
-      && opindex_ptr[1] == '\0')
-    return TRUE;
-
-  if ((opcode_flags & S390_INSTR_FLAG_OPTPARM2)
-      && opindex_ptr[0] != '\0'
-      && opindex_ptr[1] != '\0'
-      && opindex_ptr[2] == '\0')
-    return TRUE;
-  return FALSE;
-}
-
 /* We need to keep a list of fixups.  We can't simply generate them as
    we go, because that would require us to first create the frag, and
    that would screw up references to ``.''.  */
@@ -1477,9 +1468,6 @@ md_gather_operands (char *str,
 	      while (!(operand->flags & S390_OPERAND_BASE))
 		operand = s390_operands + *(++opindex_ptr);
 
-	      if (*str == '\0' && skip_optargs_p (opcode->flags, &opindex_ptr[1]))
-		continue;
-
 	      /* If there is a next operand it must be separated by a comma.  */
 	      if (opindex_ptr[1] != '\0')
 		{
@@ -1522,10 +1510,6 @@ md_gather_operands (char *str,
 	  if (*str++ != ')')
 	    as_bad (_("syntax error; missing ')' after base register"));
 	  skip_optional = 0;
-
-	  if (*str == '\0' && skip_optargs_p (opcode->flags, &opindex_ptr[1]))
-	    continue;
-
 	  /* If there is a next operand it must be separated by a comma.  */
 	  if (opindex_ptr[1] != '\0')
 	    {
@@ -1555,7 +1539,18 @@ md_gather_operands (char *str,
 	      str++;
 	    }
 
-	  if (*str == '\0' && skip_optargs_p (opcode->flags, &opindex_ptr[1]))
+	  if ((opcode->flags & (S390_INSTR_FLAG_OPTPARM
+				| S390_INSTR_FLAG_OPTPARM2))
+	      && opindex_ptr[1] != '\0'
+	      && opindex_ptr[2] == '\0'
+	      && *str == '\0')
+	    continue;
+
+	  if ((opcode->flags & S390_INSTR_FLAG_OPTPARM2)
+	      && opindex_ptr[1] != '\0'
+	      && opindex_ptr[2] != '\0'
+	      && opindex_ptr[3] == '\0'
+	      && *str == '\0')
 	    continue;
 
 	  /* If there is a next operand it must be separated by a comma.  */
@@ -1683,7 +1678,7 @@ md_assemble (char *str)
     *s++ = '\0';
 
   /* Look up the opcode in the hash table.  */
-  opcode = (struct s390_opcode *) str_hash_find (s390_opcode_hash, str);
+  opcode = (struct s390_opcode *) hash_find (s390_opcode_hash, str);
   if (opcode == (const struct s390_opcode *) NULL)
     {
       as_bad (_("Unrecognized opcode: `%s'"), str);
@@ -1751,7 +1746,7 @@ s390_insn (int ignore ATTRIBUTE_UNUSED)
 
   /* Look up the opcode in the hash table.  */
   opformat = (struct s390_opcode *)
-    str_hash_find (s390_opformat_hash, input_line_pointer);
+    hash_find (s390_opformat_hash, input_line_pointer);
   if (opformat == (const struct s390_opcode *) NULL)
     {
       as_bad (_("Unrecognized opcode format: `%s'"), input_line_pointer);
@@ -1848,7 +1843,7 @@ s390_literals (int ignore ATTRIBUTE_UNUSED)
   /* Emit symbol for start of literal pool.  */
   S_SET_SEGMENT (lp_sym, now_seg);
   S_SET_VALUE (lp_sym, (valueT) frag_now_fix ());
-  symbol_set_frag (lp_sym, frag_now);
+  lp_sym->sy_frag = frag_now;
 
   while (lpe_list)
     {
@@ -1856,7 +1851,7 @@ s390_literals (int ignore ATTRIBUTE_UNUSED)
       lpe_list = lpe_list->next;
       S_SET_SEGMENT (lpe->sym, now_seg);
       S_SET_VALUE (lpe->sym, (valueT) frag_now_fix ());
-      symbol_set_frag (lpe->sym, frag_now);
+      lpe->sym->sy_frag = frag_now;
 
       /* Emit literal pool entry.  */
       if (lpe->reloc != BFD_RELOC_UNUSED)
@@ -2074,7 +2069,7 @@ md_atof (int type, char *litp, int *sizep)
 valueT
 md_section_align (asection *seg, valueT addr)
 {
-  int align = bfd_section_alignment (seg);
+  int align = bfd_get_section_alignment (stdoutput, seg);
 
   return ((addr + (1 << align) - 1) & -(1 << align));
 }
@@ -2110,7 +2105,7 @@ md_undefined_symbol (char *name)
 	  if (symbol_find (name))
 	    as_bad (_("GOT already in symbol table"));
 	  GOT_symbol = symbol_new (name, undefined_section,
-				   &zero_address_frag, 0);
+				   (valueT) 0, &zero_address_frag);
 	}
       return GOT_symbol;
     }
@@ -2299,7 +2294,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	}
       else if (operand->bits == 20 && operand->shift == 20)
 	{
-	  fixP->fx_size = 4;
+	  fixP->fx_size = 2;
 	  fixP->fx_where += 2;
 	  fixP->fx_r_type = BFD_RELOC_390_20;
 	}

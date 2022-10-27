@@ -1,5 +1,5 @@
 /* Plugin control for the GNU linker.
-   Copyright (C) 2010-2020 Free Software Foundation, Inc.
+   Copyright (C) 2010-2018 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -21,10 +21,8 @@
 #include "sysdep.h"
 #include "libiberty.h"
 #include "bfd.h"
-#if BFD_SUPPORTS_PLUGINS
 #include "bfdlink.h"
 #include "bfdver.h"
-#include "ctf-api.h"
 #include "ld.h"
 #include "ldmain.h"
 #include "ldmisc.h"
@@ -176,7 +174,7 @@ static bfd_boolean plugin_notice (struct bfd_link_info *,
 				  struct bfd_link_hash_entry *,
 				  bfd *, asection *, bfd_vma, flagword);
 
-static bfd_cleanup plugin_object_p (bfd *);
+static const bfd_target * plugin_object_p (bfd *);
 
 #if !defined (HAVE_DLFCN_H) && defined (HAVE_WINDOWS_H)
 
@@ -337,7 +335,7 @@ plugin_get_ir_dummy_bfd (const char *name, bfd *srctemplate)
 	    return abfd;
 	}
     }
- report_error:
+report_error:
   einfo (_("%F%P: could not create dummy IR bfd: %E\n"));
   return NULL;
 }
@@ -405,6 +403,12 @@ asymbol_from_plugin_symbol (bfd *abfd, asymbol *asym,
       flags = BSF_GLOBAL;
       section = bfd_com_section_ptr;
       asym->value = ldsym->size;
+      /* For ELF targets, set alignment of common symbol to 1.  */
+      if (bfd_get_flavour (abfd) == bfd_target_elf_flavour)
+	{
+	  ((elf_symbol_type *) asym)->internal_elf_sym.st_shndx = SHN_COMMON;
+	  ((elf_symbol_type *) asym)->internal_elf_sym.st_value = 1;
+	}
       break;
 
     default:
@@ -413,6 +417,7 @@ asymbol_from_plugin_symbol (bfd *abfd, asymbol *asym,
   asym->flags = flags;
   asym->section = section;
 
+  /* Visibility only applies on ELF targets.  */
   if (bfd_get_flavour (abfd) == bfd_target_elf_flavour)
     {
       elf_symbol_type *elfsym = elf_symbol_from (abfd, asym);
@@ -420,13 +425,6 @@ asymbol_from_plugin_symbol (bfd *abfd, asymbol *asym,
 
       if (!elfsym)
 	einfo (_("%F%P: %s: non-ELF symbol in ELF BFD!\n"), asym->name);
-
-      if (ldsym->def == LDPK_COMMON)
-	{
-	  elfsym->internal_elf_sym.st_shndx = SHN_COMMON;
-	  elfsym->internal_elf_sym.st_value = 1;
-	}
-
       switch (ldsym->visibility)
 	{
 	default:
@@ -447,7 +445,9 @@ asymbol_from_plugin_symbol (bfd *abfd, asymbol *asym,
 	  visibility = STV_HIDDEN;
 	  break;
 	}
-      elfsym->internal_elf_sym.st_other |= visibility;
+      elfsym->internal_elf_sym.st_other
+	= (visibility | (elfsym->internal_elf_sym.st_other
+			 & ~ELF_ST_VISIBILITY (-1)));
     }
 
   return LDPS_OK;
@@ -659,73 +659,6 @@ is_visible_from_outside (struct ld_plugin_symbol *lsym,
   return FALSE;
 }
 
-/* Return LTO kind string name that corresponds to IDX enum value.  */
-static const char *
-get_lto_kind (unsigned int idx)
-{
-  static char buffer[64];
-  const char *lto_kind_str[5] =
-  {
-    "DEF",
-    "WEAKDEF",
-    "UNDEF",
-    "WEAKUNDEF",
-    "COMMON"
-  };
-
-  if (idx < ARRAY_SIZE (lto_kind_str))
-    return lto_kind_str [idx];
-
-  sprintf (buffer, _("unknown LTO kind value %x"), idx);
-  return buffer;
-}
-
-/* Return LTO resolution string name that corresponds to IDX enum value.  */
-static const char *
-get_lto_resolution (unsigned int idx)
-{
-  static char buffer[64];
-  static const char *lto_resolution_str[10] =
-  {
-    "UNKNOWN",
-    "UNDEF",
-    "PREVAILING_DEF",
-    "PREVAILING_DEF_IRONLY",
-    "PREEMPTED_REG",
-    "PREEMPTED_IR",
-    "RESOLVED_IR",
-    "RESOLVED_EXEC",
-    "RESOLVED_DYN",
-    "PREVAILING_DEF_IRONLY_EXP",
-  };
-
-  if (idx < ARRAY_SIZE (lto_resolution_str))
-    return lto_resolution_str [idx];
-
-  sprintf (buffer, _("unknown LTO resolution value %x"), idx);
-  return buffer;
-}
-
-/* Return LTO visibility string name that corresponds to IDX enum value.  */
-static const char *
-get_lto_visibility (unsigned int idx)
-{
-  static char buffer[64];
-  const char *lto_visibility_str[4] =
-  {
-    "DEFAULT",
-    "PROTECTED",
-    "INTERNAL",
-    "HIDDEN"
-  };
-
-  if (idx < ARRAY_SIZE (lto_visibility_str))
-    return lto_visibility_str [idx];
-
-  sprintf (buffer, _("unknown LTO visibility value %x"), idx);
-  return buffer;
-}
-
 /* Get the symbol resolution info for a plugin-claimed input file.  */
 static enum ld_plugin_status
 get_symbols (const void *handle, int nsyms, struct ld_plugin_symbol *syms,
@@ -741,32 +674,13 @@ get_symbols (const void *handle, int nsyms, struct ld_plugin_symbol *syms,
       struct bfd_link_hash_entry *blhe;
       asection *owner_sec;
       int res;
-      struct bfd_link_hash_entry *h
-	= bfd_link_hash_lookup (link_info.hash, syms[n].name,
-				FALSE, FALSE, TRUE);
-      enum { wrap_none, wrapper, wrapped } wrap_status = wrap_none;
 
-      if (syms[n].def != LDPK_UNDEF && syms[n].def != LDPK_WEAKUNDEF)
-	{
-	  blhe = h;
-	  if (blhe && link_info.wrap_hash != NULL)
-	    {
-	      /* Check if a symbol is a wrapper symbol.  */
-	      struct bfd_link_hash_entry *unwrap
-		= unwrap_hash_lookup (&link_info, (bfd *) abfd, blhe);
-	      if (unwrap && unwrap != h)
-		wrap_status = wrapper;
-	     }
-	}
+      if (syms[n].def != LDPK_UNDEF)
+	blhe = bfd_link_hash_lookup (link_info.hash, syms[n].name,
+				     FALSE, FALSE, TRUE);
       else
-	{
-	  blhe = bfd_wrapped_link_hash_lookup (link_info.output_bfd,
-					       &link_info, syms[n].name,
-					       FALSE, FALSE, TRUE);
-	  /* Check if a symbol is a wrapped symbol.  */
-	  if (blhe && blhe != h)
-	    wrap_status = wrapped;
-	}
+	blhe = bfd_wrapped_link_hash_lookup (link_info.output_bfd, &link_info,
+					     syms[n].name, FALSE, FALSE, TRUE);
       if (!blhe)
 	{
 	  /* The plugin is called to claim symbols in an archive element
@@ -852,11 +766,9 @@ get_symbols (const void *handle, int nsyms, struct ld_plugin_symbol *syms,
 	  /* We need to know if the sym is referenced from non-IR files.  Or
 	     even potentially-referenced, perhaps in a future final link if
 	     this is a partial one, perhaps dynamically at load-time if the
-	     symbol is externally visible.  Also check for wrapper symbol.  */
-	  if (blhe->non_ir_ref_regular || wrap_status == wrapper)
+	     symbol is externally visible.  */
+	  if (blhe->non_ir_ref_regular)
 	    res = LDPR_PREVAILING_DEF;
-	  else if (wrap_status == wrapped)
-	    res = LDPR_RESOLVED_IR;
 	  else if (is_visible_from_outside (&syms[n], blhe))
 	    res = def_ironly_exp;
 	}
@@ -865,11 +777,9 @@ get_symbols (const void *handle, int nsyms, struct ld_plugin_symbol *syms,
       syms[n].resolution = res;
       if (report_plugin_symbols)
 	einfo (_("%P: %pB: symbol `%s' "
-		 "definition: %s, visibility: %s, resolution: %s\n"),
+		 "definition: %d, visibility: %d, resolution: %d\n"),
 	       abfd, syms[n].name,
-	       get_lto_kind (syms[n].def),
-	       get_lto_visibility (syms[n].visibility),
-	       get_lto_resolution (res));
+	       syms[n].def, syms[n].visibility, res);
     }
   return LDPS_OK;
 }
@@ -1165,12 +1075,7 @@ plugin_strdup (bfd *abfd, const char *str)
   return copy;
 }
 
-static void
-plugin_cleanup (bfd *abfd ATTRIBUTE_UNUSED)
-{
-}
-
-static bfd_cleanup
+static const bfd_target *
 plugin_object_p (bfd *ibfd)
 {
   int claimed;
@@ -1185,14 +1090,14 @@ plugin_object_p (bfd *ibfd)
   if (ibfd->plugin_format != bfd_plugin_unknown)
     {
       if (ibfd->plugin_format == bfd_plugin_yes)
-	return plugin_cleanup;
+	return ibfd->plugin_dummy_bfd->xvec;
       else
 	return NULL;
     }
 
   /* We create a dummy BFD, initially empty, to house whatever symbols
      the plugin may want to add.  */
-  abfd = plugin_get_ir_dummy_bfd (bfd_get_filename (ibfd), ibfd);
+  abfd = plugin_get_ir_dummy_bfd (ibfd->filename, ibfd);
 
   input = bfd_alloc (abfd, sizeof (*input));
   if (input == NULL)
@@ -1202,7 +1107,7 @@ plugin_object_p (bfd *ibfd)
   if (!bfd_plugin_open_input (ibfd, &file))
     return NULL;
 
-  if (file.name == bfd_get_filename (ibfd))
+  if (file.name == ibfd->filename)
     {
       /* We must copy filename attached to ibfd if it is not an archive
 	 member since it may be freed by bfd_close below.  */
@@ -1218,7 +1123,7 @@ plugin_object_p (bfd *ibfd)
   input->use_mmap = FALSE;
   input->offset = file.offset;
   input->filesize = file.filesize;
-  input->name = plugin_strdup (abfd, bfd_get_filename (ibfd));
+  input->name = plugin_strdup (abfd, ibfd->filename);
 
   claimed = 0;
 
@@ -1245,8 +1150,7 @@ plugin_object_p (bfd *ibfd)
       ibfd->plugin_format = bfd_plugin_yes;
       ibfd->plugin_dummy_bfd = abfd;
       bfd_make_readable (abfd);
-      abfd->no_export = ibfd->no_export;
-      return plugin_cleanup;
+      return abfd->xvec;
     }
   else
     {
@@ -1412,40 +1316,30 @@ plugin_notice (struct bfd_link_info *info,
 	  ref = TRUE;
 	}
 
-
-      /* A common symbol should be merged with other commons or
-	 defs with the same name.  In particular, a common ought
-	 to be overridden by a def in a -flto object.  In that
-	 sense a common is also a ref.  */
-      else if (bfd_is_com_section (section))
+      /* Otherwise, it must be a new def.  */
+      else
 	{
-	  if (h->type == bfd_link_hash_common
-	      && is_ir_dummy_bfd (sym_bfd = h->u.c.p->section->owner))
+	  /* Ensure any symbol defined in an IR dummy BFD takes on a
+	     new value from a real BFD.  Weak symbols are not normally
+	     overridden by a new weak definition, and strong symbols
+	     will normally cause multiple definition errors.  Avoid
+	     this by making the symbol appear to be undefined.  */
+	  if (((h->type == bfd_link_hash_defweak
+		|| h->type == bfd_link_hash_defined)
+	       && is_ir_dummy_bfd (sym_bfd = h->u.def.section->owner))
+	      || (h->type == bfd_link_hash_common
+		  && is_ir_dummy_bfd (sym_bfd = h->u.c.p->section->owner)))
 	    {
 	      h->type = bfd_link_hash_undefweak;
 	      h->u.undef.abfd = sym_bfd;
 	    }
-	  ref = TRUE;
-	}
 
-      /* Otherwise, it must be a new def.
-	 Ensure any symbol defined in an IR dummy BFD takes on a
-	 new value from a real BFD.  Weak symbols are not normally
-	 overridden by a new weak definition, and strong symbols
-	 will normally cause multiple definition errors.  Avoid
-	 this by making the symbol appear to be undefined.
-
-	 NB: We change the previous definition in the IR object to
-	 undefweak only after all LTO symbols have been read.  */
-      else if (info->lto_all_symbols_read
-	       && (((h->type == bfd_link_hash_defweak
-		     || h->type == bfd_link_hash_defined)
-		    && is_ir_dummy_bfd (sym_bfd = h->u.def.section->owner))
-		   || (h->type == bfd_link_hash_common
-		       && is_ir_dummy_bfd (sym_bfd = h->u.c.p->section->owner))))
-	{
-	  h->type = bfd_link_hash_undefweak;
-	  h->u.undef.abfd = sym_bfd;
+	  /* A common symbol should be merged with other commons or
+	     defs with the same name.  In particular, a common ought
+	     to be overridden by a def in a -flto object.  In that
+	     sense a common is also a ref.  */
+	  if (bfd_is_com_section (section))
+	    ref = TRUE;
 	}
 
       if (ref)
@@ -1467,4 +1361,3 @@ plugin_notice (struct bfd_link_info *info,
 				      abfd, section, value, flags);
   return TRUE;
 }
-#endif /* BFD_SUPPORTS_PLUGINS */

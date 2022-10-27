@@ -1,5 +1,5 @@
 /* Target definitions for NN-bit ELF
-   Copyright (C) 1993-2020 Free Software Foundation, Inc.
+   Copyright (C) 1993-2018 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -192,10 +192,6 @@
 #define bfd_elfNN_bfd_is_group_section bfd_elf_is_group_section
 #endif
 
-#ifndef bfd_elfNN_bfd_group_name
-#define bfd_elfNN_bfd_group_name bfd_elf_group_name
-#endif
-
 #ifndef bfd_elfNN_bfd_discard_group
 #define bfd_elfNN_bfd_discard_group bfd_generic_discard_group
 #endif
@@ -362,10 +358,6 @@
 #define ELF_TARGET_ID	GENERIC_ELF_DATA
 #endif
 
-#ifndef ELF_TARGET_OS
-#define ELF_TARGET_OS	is_normal
-#endif
-
 #ifndef ELF_OSABI
 #define ELF_OSABI ELFOSABI_NONE
 #endif
@@ -489,9 +481,6 @@
 #ifndef elf_backend_size_dynamic_sections
 #define elf_backend_size_dynamic_sections 0
 #endif
-#ifndef elf_backend_strip_zero_sized_dynamic_sections
-#define elf_backend_strip_zero_sized_dynamic_sections 0
-#endif
 #ifndef elf_backend_init_index_section
 #define elf_backend_init_index_section _bfd_void_bfd_link
 #endif
@@ -508,7 +497,7 @@
 #define elf_backend_begin_write_processing	0
 #endif
 #ifndef elf_backend_final_write_processing
-#define elf_backend_final_write_processing	_bfd_elf_final_write_processing
+#define elf_backend_final_write_processing	0
 #endif
 #ifndef elf_backend_additional_program_headers
 #define elf_backend_additional_program_headers	0
@@ -516,8 +505,8 @@
 #ifndef elf_backend_modify_segment_map
 #define elf_backend_modify_segment_map	0
 #endif
-#ifndef elf_backend_modify_headers
-#define elf_backend_modify_headers		_bfd_elf_modify_headers
+#ifndef elf_backend_modify_program_headers
+#define elf_backend_modify_program_headers	0
 #endif
 #ifndef elf_backend_allow_non_load_phdr
 #define elf_backend_allow_non_load_phdr	0
@@ -527,9 +516,6 @@
 #endif
 #ifndef elf_backend_bfd_from_remote_memory
 #define elf_backend_bfd_from_remote_memory _bfd_elfNN_bfd_from_remote_memory
-#endif
-#ifndef elf_backend_core_find_build_id
-#define elf_backend_core_find_build_id _bfd_elfNN_core_find_build_id
 #endif
 #ifndef elf_backend_got_header_size
 #define elf_backend_got_header_size	0
@@ -564,14 +550,11 @@
 #ifndef elf_backend_setup_gnu_properties
 #define elf_backend_setup_gnu_properties	_bfd_elf_link_setup_gnu_properties
 #endif
-#ifndef elf_backend_fixup_gnu_properties
-#define elf_backend_fixup_gnu_properties	NULL
-#endif
 #ifndef elf_backend_static_tls_alignment
 #define elf_backend_static_tls_alignment	1
 #endif
-#ifndef elf_backend_init_file_header
-#define elf_backend_init_file_header		_bfd_elf_init_file_header
+#ifndef elf_backend_post_process_headers
+#define elf_backend_post_process_headers	_bfd_elf_post_process_headers
 #endif
 #ifndef elf_backend_print_symbol_all
 #define elf_backend_print_symbol_all		NULL
@@ -659,9 +642,6 @@
 #endif
 #ifndef elf_backend_write_section
 #define elf_backend_write_section		NULL
-#endif
-#ifndef elf_backend_elfsym_local_is_section
-#define elf_backend_elfsym_local_is_section	NULL
 #endif
 #ifndef elf_backend_mips_irix_compat
 #define elf_backend_mips_irix_compat		NULL
@@ -751,10 +731,6 @@
 #define elf_backend_hash_symbol _bfd_elf_hash_symbol
 #endif
 
-#ifndef elf_backend_record_xhash_symbol
-#define elf_backend_record_xhash_symbol NULL
-#endif
-
 #ifndef elf_backend_is_function_type
 #define elf_backend_is_function_type _bfd_elf_is_function_type
 #endif
@@ -768,7 +744,7 @@
 #endif
 
 #ifndef elf_backend_copy_special_section_fields
-#define elf_backend_copy_special_section_fields _bfd_elf_copy_special_section_fields
+#define elf_backend_copy_special_section_fields NULL
 #endif
 
 #ifndef elf_backend_compact_eh_encoding
@@ -776,25 +752,9 @@
 #endif
 
 #ifndef elf_backend_cant_unwind_opcode
-#define elf_backend_cant_unwind_opcode NULL
+#define elf_backend_cant_unwind_opcode 0
 #endif
 
-#ifndef elf_backend_init_secondary_reloc_section
-#define elf_backend_init_secondary_reloc_section _bfd_elf_init_secondary_reloc_section
-#endif
-
-#ifndef elf_backend_slurp_secondary_reloc_section
-#define elf_backend_slurp_secondary_reloc_section _bfd_elf_slurp_secondary_reloc_section
-#endif
-
-#ifndef elf_backend_write_secondary_reloc_section
-#define elf_backend_write_secondary_reloc_section _bfd_elf_write_secondary_reloc_section
-#endif
-
-#ifndef elf_backend_symbol_section_index
-#define elf_backend_symbol_section_index NULL
-#endif
- 
 #ifndef elf_match_priority
 #define elf_match_priority \
   (ELF_ARCH == bfd_arch_unknown ? 2 : ELF_OSABI == ELFOSABI_NONE ? 1 : 0)
@@ -806,7 +766,6 @@ static struct elf_backend_data elfNN_bed =
 {
   ELF_ARCH,			/* arch */
   ELF_TARGET_ID,		/* target_id */
-  ELF_TARGET_OS,		/* target_os */
   ELF_MACHINE_CODE,		/* elf_machine_code */
   ELF_OSABI,			/* elf_osabi  */
   ELF_MAXPAGESIZE,		/* maxpagesize */
@@ -842,7 +801,6 @@ static struct elf_backend_data elfNN_bed =
   elf_backend_adjust_dynamic_symbol,
   elf_backend_always_size_sections,
   elf_backend_size_dynamic_sections,
-  elf_backend_strip_zero_sized_dynamic_sections,
   elf_backend_init_index_section,
   elf_backend_relocate_section,
   elf_backend_finish_dynamic_symbol,
@@ -851,13 +809,13 @@ static struct elf_backend_data elfNN_bed =
   elf_backend_final_write_processing,
   elf_backend_additional_program_headers,
   elf_backend_modify_segment_map,
-  elf_backend_modify_headers,
+  elf_backend_modify_program_headers,
   elf_backend_allow_non_load_phdr,
   elf_backend_gc_keep,
   elf_backend_gc_mark_dynamic_ref,
   elf_backend_gc_mark_hook,
   elf_backend_gc_mark_extra_sections,
-  elf_backend_init_file_header,
+  elf_backend_post_process_headers,
   elf_backend_print_symbol_all,
   elf_backend_output_arch_local_syms,
   elf_backend_output_arch_syms,
@@ -887,19 +845,16 @@ static struct elf_backend_data elfNN_bed =
   elf_backend_can_make_lsda_relative_eh_frame,
   elf_backend_encode_eh_address,
   elf_backend_write_section,
-  elf_backend_elfsym_local_is_section,
   elf_backend_mips_irix_compat,
   elf_backend_mips_rtype_to_howto,
   elf_backend_ecoff_debug_swap,
   elf_backend_bfd_from_remote_memory,
-  elf_backend_core_find_build_id,
   elf_backend_plt_sym_val,
   elf_backend_common_definition,
   elf_backend_common_section_index,
   elf_backend_common_section,
   elf_backend_merge_symbol,
   elf_backend_hash_symbol,
-  elf_backend_record_xhash_symbol,
   elf_backend_is_function_type,
   elf_backend_maybe_function_sym,
   elf_backend_get_reloc_section,
@@ -921,13 +876,8 @@ static struct elf_backend_data elfNN_bed =
   elf_backend_parse_gnu_properties,
   elf_backend_merge_gnu_properties,
   elf_backend_setup_gnu_properties,
-  elf_backend_fixup_gnu_properties,
   elf_backend_compact_eh_encoding,
   elf_backend_cant_unwind_opcode,
-  elf_backend_symbol_section_index,
-  elf_backend_init_secondary_reloc_section,
-  elf_backend_slurp_secondary_reloc_section,
-  elf_backend_write_secondary_reloc_section,
   elf_backend_static_tls_alignment,
   elf_backend_stack_align,
   elf_backend_strtab_flags,

@@ -1,5 +1,5 @@
 # Expect script for various DWARF tests.
-#   Copyright (C) 2006-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -36,7 +36,7 @@ if ![check_shared_lib_support] {
 }
 
 # Check if compiler works
-if { ![check_compiler_available] } {
+if { [which $CC] == 0 } {
     return
 }
 
@@ -68,12 +68,8 @@ set run_tests {
      "-g -feliminate-dwarf2-dups"}
 }
 
-# Disable all sanitizers.
-set old_CFLAGS "$CFLAGS"
-append CFLAGS " $NOSANITIZE_CFLAGS"
 run_cc_link_tests $build_tests
 run_ld_link_exec_tests $run_tests
-set CFLAGS "$old_CFLAGS"
 
 proc strip_test {} {
     global ld

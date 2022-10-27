@@ -19,5 +19,5 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	8b 80 fc ff ff ff    	mov    -0x4\(%rax\),%eax
 [ 	]*[a-f0-9]+:	41 5f                	pop    %r15
 [ 	]*[a-f0-9]+:	41 5f                	pop    %r15
-[ 	]*[a-f0-9]+:	c3                   	ret *
+[ 	]*[a-f0-9]+:	c3                   	retq   
 #pass

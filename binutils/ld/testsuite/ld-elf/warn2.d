@@ -4,8 +4,10 @@
 #ld: -T group.ld
 #warning: ^[^\n]*\.[obj]+: warning: function 'Foo' used$
 #readelf: -s
-# if not using elf.em, you don't get fancy section handling
-#xfail: [uses_genelf]
+#notarget: "sparc64-*-solaris2*" "sparcv9-*-solaris2*"
+#xfail: d30v-*-* dlx-*-* fr30-*-* frv-*-elf ft32-*-*
+#xfail: iq*-*-* mn10200-*-* moxie-*-* msp*-*-* mt-*-* pj*-*-*
+# if not using elf32.em, you don't get fancy section handling
 
 # Check that warnings are generated for the symbols in .gnu.warning
 # construct and that the symbol still appears as expected.

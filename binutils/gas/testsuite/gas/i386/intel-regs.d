@@ -1,4 +1,3 @@
-#as: -O0
 #objdump: -drw
 #name: i386 Intel register names
 
@@ -6,7 +5,6 @@
 
 Disassembly of section \.text:
 0+0 <.*>:
-.*[ 	]+R_386_32[ 	]+tmm1
 .*[ 	]+R_386_16[ 	]+eax
 .*[ 	]+R_386_16[ 	]+rax
 .*[ 	]+R_386_16[ 	]+axl
@@ -54,7 +52,4 @@ Disassembly of section \.text:
 
 .* <ymm8>:
 .*[ 	]+<ymm8>
-
-.* <tmm0>:
-.*[ 	]+<tmm0>
 #pass

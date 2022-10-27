@@ -1,6 +1,6 @@
 /* Test view numbering zero-assert checking, different frag.
 
-   Copyright (C) 2017-2020 Free Software Foundation, Inc.
+   Copyright (C) 2017-2018 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,5 +28,5 @@ _start:
 
 	.text
 	.loc 1 2 view 0
-	.quad 0
+	.int 0
 	.size _start, .-_start

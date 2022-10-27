@@ -1,6 +1,5 @@
 #source: pie-bind-locally-a.s
 #source: pie-bind-locally-b.s
-#target: [check_shared_lib_support]
 #ld: -pie
 #readelf: -Wr
 

@@ -1,5 +1,6 @@
 #name: MIPS16 link branch to unaligned symbol
-#ld: -Ttext 0x1c000000 -e 0x1c000000
+#as: -EB -n32 -march=from-abi
+#ld: -EB -Ttext 0x1c000000 -e 0x1c000000
 #source: ../../../gas/testsuite/gas/mips/unaligned-branch-mips16-2.s
 #error: \A[^\n]*: in function `foo':\n
 #error:   \(\.text\+0x1002\): unsupported branch between ISA modes\n

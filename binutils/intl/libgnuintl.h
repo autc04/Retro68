@@ -115,7 +115,7 @@ extern "C" {
 /* _INTL_MAY_RETURN_STRING_ARG(n) declares that the given function may return
    its n-th argument literally.  This enables GCC to warn for example about
    printf (gettext ("foo %y")).  */
-#if defined __GNUC__ && __GNUC__ >= 3 && !(defined __APPLE_CC__ && __APPLE_CC__ > 1 && !(defined __clang__ && __clang__ && __clang_major__ >= 3) && defined __cplusplus)
+#if __GNUC__ >= 3 && !(__APPLE_CC__ > 1 && defined __cplusplus)
 # define _INTL_MAY_RETURN_STRING_ARG(n) __attribute__ ((__format_arg__ (n)))
 #else
 # define _INTL_MAY_RETURN_STRING_ARG(n)
@@ -127,9 +127,7 @@ extern "C" {
 #ifdef _INTL_REDIRECT_INLINE
 extern char *libintl_gettext (const char *__msgid)
        _INTL_MAY_RETURN_STRING_ARG (1);
-static inline
-_INTL_MAY_RETURN_STRING_ARG (1)
-char *gettext (const char *__msgid)
+static inline char *gettext (const char *__msgid)
 {
   return libintl_gettext (__msgid);
 }
@@ -147,9 +145,7 @@ extern char *gettext _INTL_PARAMS ((const char *__msgid))
 #ifdef _INTL_REDIRECT_INLINE
 extern char *libintl_dgettext (const char *__domainname, const char *__msgid)
        _INTL_MAY_RETURN_STRING_ARG (2);
-static inline
-_INTL_MAY_RETURN_STRING_ARG (2)
-char *dgettext (const char *__domainname, const char *__msgid)
+static inline char *dgettext (const char *__domainname, const char *__msgid)
 {
   return libintl_dgettext (__domainname, __msgid);
 }
@@ -169,9 +165,8 @@ extern char *dgettext _INTL_PARAMS ((const char *__domainname,
 extern char *libintl_dcgettext (const char *__domainname, const char *__msgid,
 				int __category)
        _INTL_MAY_RETURN_STRING_ARG (2);
-static inline
-_INTL_MAY_RETURN_STRING_ARG (2)
-char *dcgettext (const char *__domainname, const char *__msgid, int __category)
+static inline char *dcgettext (const char *__domainname, const char *__msgid,
+			       int __category)
 {
   return libintl_dcgettext (__domainname, __msgid, __category);
 }
@@ -193,10 +188,8 @@ extern char *dcgettext _INTL_PARAMS ((const char *__domainname,
 extern char *libintl_ngettext (const char *__msgid1, const char *__msgid2,
 			       unsigned long int __n)
        _INTL_MAY_RETURN_STRING_ARG (1) _INTL_MAY_RETURN_STRING_ARG (2);
-static inline
-_INTL_MAY_RETURN_STRING_ARG (1) _INTL_MAY_RETURN_STRING_ARG (2)
-char *ngettext (const char *__msgid1, const char *__msgid2,
-		unsigned long int __n)
+static inline char *ngettext (const char *__msgid1, const char *__msgid2,
+			      unsigned long int __n)
 {
   return libintl_ngettext (__msgid1, __msgid2, __n);
 }
@@ -217,10 +210,8 @@ extern char *ngettext _INTL_PARAMS ((const char *__msgid1,
 extern char *libintl_dngettext (const char *__domainname, const char *__msgid1,
 				const char *__msgid2, unsigned long int __n)
        _INTL_MAY_RETURN_STRING_ARG (2) _INTL_MAY_RETURN_STRING_ARG (3);
-static inline
-_INTL_MAY_RETURN_STRING_ARG (2) _INTL_MAY_RETURN_STRING_ARG (3)
-char *dngettext (const char *__domainname, const char *__msgid1,
-		 const char *__msgid2, unsigned long int __n)
+static inline char *dngettext (const char *__domainname, const char *__msgid1,
+			       const char *__msgid2, unsigned long int __n)
 {
   return libintl_dngettext (__domainname, __msgid1, __msgid2, __n);
 }
@@ -243,11 +234,9 @@ extern char *libintl_dcngettext (const char *__domainname,
 				 const char *__msgid1, const char *__msgid2,
 				 unsigned long int __n, int __category)
        _INTL_MAY_RETURN_STRING_ARG (2) _INTL_MAY_RETURN_STRING_ARG (3);
-static inline
-_INTL_MAY_RETURN_STRING_ARG (2) _INTL_MAY_RETURN_STRING_ARG (3)
-char *dcngettext (const char *__domainname,
-		  const char *__msgid1, const char *__msgid2,
-		  unsigned long int __n, int __category)
+static inline char *dcngettext (const char *__domainname,
+				const char *__msgid1, const char *__msgid2,
+				unsigned long int __n, int __category)
 {
   return libintl_dcngettext (__domainname, __msgid1, __msgid2, __n, __category);
 }

@@ -1,7 +1,7 @@
 #name: pdp11 opcode
 #objdump: -drw
 
-.*: +file format .*
+dump.o: +file format .*
 
 Disassembly of section .text:
 

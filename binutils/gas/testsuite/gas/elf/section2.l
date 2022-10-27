@@ -3,6 +3,6 @@
 .*GAS.*
 
 
-[ 	]+1[ 	]+.section AAA
-[ 	]+2[ 	]+.global AAA
+[ 	]+1[ 	]+.section A
+[ 	]+2[ 	]+.global A
 [ 	]+3 0000 31[ 	]+.byte 49

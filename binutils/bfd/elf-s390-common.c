@@ -1,5 +1,5 @@
 /* IBM S/390-specific support for ELF 32 and 64 bit functions
-   Copyright (C) 2000-2020 Free Software Foundation, Inc.
+   Copyright (C) 2000-2018 Free Software Foundation, Inc.
    Contributed by Andreas Krebbel.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -30,87 +30,6 @@ s390_is_ifunc_symbol_p (struct elf_link_hash_entry *h)
   return h->type == STT_GNU_IFUNC || eh->ifunc_resolver_address != 0;
 }
 
-/* Return true if .got.plt is supposed to be emitted after .got.  */
-
-static inline bfd_boolean
-s390_gotplt_after_got_p (struct bfd_link_info *info)
-{
-  struct elf_s390_link_hash_table *htab = elf_s390_hash_table (info);
-
-  if (!htab->elf.sgot || !htab->elf.sgotplt)
-    return TRUE;
-
-  if (htab->elf.sgot->output_section == htab->elf.sgotplt->output_section)
-    {
-      if (htab->elf.sgot->output_offset < htab->elf.sgotplt->output_offset)
-	return TRUE;
-    }
-  else
-    {
-      if (htab->elf.sgot->output_section->vma
-	  <= htab->elf.sgotplt->output_section->vma)
-	return TRUE;
-    }
-  return FALSE;
-}
-
-/* Return the value of the _GLOBAL_OFFSET_TABLE_ symbol.  */
-
-static inline bfd_vma
-s390_got_pointer (struct bfd_link_info *info)
-{
-  struct elf_s390_link_hash_table *htab = elf_s390_hash_table (info);
-  bfd_vma got_pointer;
-
-  BFD_ASSERT (htab && htab->elf.hgot);
-
-  got_pointer = (htab->elf.hgot->root.u.def.section->output_section->vma
-		 + htab->elf.hgot->root.u.def.section->output_offset);
-  /* Our ABI requires the GOT pointer to point at the very beginning
-     of the global offset table.  */
-  BFD_ASSERT (got_pointer
-	      <= (htab->elf.sgot->output_section->vma
-		  + htab->elf.sgot->output_offset));
-  BFD_ASSERT (got_pointer
-	      <= (htab->elf.sgotplt->output_section->vma
-		  + htab->elf.sgotplt->output_offset));
-
-  return got_pointer;
-}
-
-
-/* Return the offset of the .got versus _GLOBAL_OFFSET_TABLE_.  */
-
-static inline bfd_vma
-s390_got_offset (struct bfd_link_info *info)
-{
-  struct elf_s390_link_hash_table *htab = elf_s390_hash_table (info);
-
-  /* The absolute address of the .got in the target image.  */
-  bfd_vma got_address = (htab->elf.sgot->output_section->vma
-			 + htab->elf.sgot->output_offset);
-
-  /* GOT offset must not be negative.  */
-  BFD_ASSERT (s390_got_pointer (info) <= got_address);
-  return got_address - s390_got_pointer (info);
-}
-
-/* Return the offset of the .got.plt versus _GLOBAL_OFFSET_TABLE_.  */
-
-static inline bfd_vma
-s390_gotplt_offset (struct bfd_link_info *info)
-{
-  struct elf_s390_link_hash_table *htab = elf_s390_hash_table (info);
-
-  /* The absolute address of the .got.plt in the target image.  */
-  bfd_vma gotplt_address = (htab->elf.sgotplt->output_section->vma
-			    + htab->elf.sgotplt->output_offset);
-
-  /* GOT offset must not be negative.  */
-  BFD_ASSERT (s390_got_pointer (info) <= gotplt_address);
-  return gotplt_address - s390_got_pointer (info);
-}
-
 /* Create sections needed by STT_GNU_IFUNC symbol.  */
 
 static bfd_boolean
@@ -131,7 +50,8 @@ s390_elf_create_ifunc_sections (bfd *abfd, struct bfd_link_info *info)
       s = bfd_make_section_with_flags (abfd, ".rela.ifunc",
 				       flags | SEC_READONLY);
       if (s == NULL
-	  || !bfd_set_section_alignment (s, bed->s->log_file_align))
+	  || ! bfd_set_section_alignment (abfd, s,
+					  bed->s->log_file_align))
 	return FALSE;
       htab->irelifunc = s;
     }
@@ -140,19 +60,21 @@ s390_elf_create_ifunc_sections (bfd *abfd, struct bfd_link_info *info)
   s = bfd_make_section_with_flags (abfd, ".iplt",
 				   flags | SEC_CODE | SEC_READONLY);
   if (s == NULL
-      || !bfd_set_section_alignment (s, bed->plt_alignment))
+      || ! bfd_set_section_alignment (abfd, s, bed->plt_alignment))
     return FALSE;
   htab->iplt = s;
 
   s = bfd_make_section_with_flags (abfd, ".rela.iplt", flags | SEC_READONLY);
   if (s == NULL
-      || !bfd_set_section_alignment (s, bed->s->log_file_align))
+      || ! bfd_set_section_alignment (abfd, s,
+				      bed->s->log_file_align))
     return FALSE;
   htab->irelplt = s;
 
   s = bfd_make_section_with_flags (abfd, ".igot.plt", flags);
   if (s == NULL
-      || !bfd_set_section_alignment (s, bed->s->log_file_align))
+      || !bfd_set_section_alignment (abfd, s,
+				     bed->s->log_file_align))
     return FALSE;
   htab->igotplt = s;
 
@@ -170,7 +92,7 @@ s390_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
   struct elf_dyn_relocs *p;
   struct elf_link_hash_table *htab;
   struct elf_s390_link_hash_entry *eh = (struct elf_s390_link_hash_entry*)h;
-  struct elf_dyn_relocs **head = &h->dyn_relocs;
+  struct elf_dyn_relocs **head = &eh->dyn_relocs;
 
   htab = elf_hash_table (info);
   eh->ifunc_resolver_address = h->root.u.def.value;
@@ -212,7 +134,7 @@ s390_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
       return TRUE;
     }
 
- keep:
+keep:
   /* Without checking h->plt.refcount here we allocate a PLT slot.
      When setting plt.refcount in check_relocs it might not have been
      known that this will be an IFUNC symol.  */

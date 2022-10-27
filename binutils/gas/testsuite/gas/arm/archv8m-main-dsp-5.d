@@ -2,6 +2,7 @@
 #source: arch7em.s
 #as: -march=armv8-m.main+dsp
 #objdump: -dr --prefix-addresses --show-raw-insn
+#not-target: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

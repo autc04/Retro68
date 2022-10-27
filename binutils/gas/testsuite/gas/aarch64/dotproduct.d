@@ -1,5 +1,4 @@
 #as: -march=armv8.2-a+dotprod
-#as: -march=armv8.4-a
 #objdump: -dr
 
 .*:     file format .*

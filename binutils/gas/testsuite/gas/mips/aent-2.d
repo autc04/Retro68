@@ -1,4 +1,4 @@
-#DUMPPROG: readelf
+#PROG: readelf
 #readelf: -s
 #name: MIPS .aent directive 2
 #as: -32

@@ -1,8 +1,8 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: MIPS16 link PC-relative operations 1
 #source: ../../../gas/testsuite/gas/mips/mips16-pcrel-1.s
-#as: -mips3
-#ld: -Ttext 0 -e 0
+#as: -EB -32 -mips3
+#ld: -EB -Ttext 0 -e 0
 
 .*: +file format .*mips.*
 

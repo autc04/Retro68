@@ -1,5 +1,5 @@
 /* tc-tilepro.c -- Assemble for a TILEPro chip.
-   Copyright (C) 2011-2020 Free Software Foundation, Inc.
+   Copyright (C) 2011-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -19,6 +19,7 @@
    MA 02110-1301, USA.  */
 
 #include "as.h"
+#include "struc-symbol.h"
 #include "subsegs.h"
 
 #include "elf/tilepro.h"
@@ -126,13 +127,13 @@ md_show_usage (FILE *stream)
 #define O_tls_gd_add  O_md22
 #define O_tls_ie_load O_md23
 
-static htab_t special_operator_hash;
+static struct hash_control *special_operator_hash;
 
 /* Hash tables for instruction mnemonic lookup.  */
-static htab_t op_hash;
+static struct hash_control *op_hash;
 
 /* Hash table for spr lookup.  */
-static htab_t spr_hash;
+static struct hash_control *spr_hash;
 
 /* True temporarily while parsing an SPR expression. This changes the
  * namespace to include SPR names.  */
@@ -181,7 +182,7 @@ static int allow_suspicious_bundles;
    for that register (e.g. r63 instead of zero), so we should generate
    a warning. The attempted register number can be found by clearing
    NONCANONICAL_REG_NAME_FLAG.  */
-static htab_t main_reg_hash;
+static struct hash_control *main_reg_hash;
 
 
 /* We cannot unambiguously store a 0 in a hash table and look it up,
@@ -207,7 +208,7 @@ md_begin (void)
   int i;
 
   /* Guarantee text section is aligned.  */
-  bfd_set_section_alignment (text_section,
+  bfd_set_section_alignment (stdoutput, text_section,
                              TILEPRO_LOG2_BUNDLE_ALIGNMENT_IN_BYTES);
 
   require_canonical_reg_names = 1;
@@ -216,9 +217,9 @@ md_begin (void)
   inside_bundle = 0;
 
   /* Initialize special operator hash table.  */
-  special_operator_hash = str_htab_create ();
+  special_operator_hash = hash_new ();
 #define INSERT_SPECIAL_OP(name)					\
-  str_hash_insert (special_operator_hash, #name, (void *) O_##name, 0)
+  hash_insert (special_operator_hash, #name, (void *)O_##name)
 
   INSERT_SPECIAL_OP(lo16);
   INSERT_SPECIAL_OP(hi16);
@@ -246,48 +247,55 @@ md_begin (void)
 #undef INSERT_SPECIAL_OP
 
   /* Initialize op_hash hash table.  */
-  op_hash = str_htab_create ();
+  op_hash = hash_new ();
   for (op = &tilepro_opcodes[0]; op->name != NULL; op++)
-    if (str_hash_insert (op_hash, op->name, op, 0) != NULL)
-      as_fatal (_("duplicate %s"), op->name);
+    {
+      const char *hash_err = hash_insert (op_hash, op->name, (void *)op);
+      if (hash_err != NULL)
+	{
+	  as_fatal (_("Internal Error:  Can't hash %s: %s"),
+		    op->name, hash_err);
+	}
+    }
 
   /* Initialize the spr hash table.  */
   parsing_spr = 0;
-  spr_hash = str_htab_create ();
+  spr_hash = hash_new ();
   for (i = 0; i < tilepro_num_sprs; i++)
-    str_hash_insert (spr_hash, tilepro_sprs[i].name, &tilepro_sprs[i], 0);
+    hash_insert (spr_hash, tilepro_sprs[i].name,
+                 (void *) &tilepro_sprs[i]);
 
   /* Set up the main_reg_hash table. We use this instead of
    * creating a symbol in the register section to avoid ambiguities
    * with labels that have the same names as registers.  */
-  main_reg_hash = str_htab_create ();
+  main_reg_hash = hash_new ();
   for (i = 0; i < TILEPRO_NUM_REGISTERS; i++)
     {
       char buf[64];
 
-      str_hash_insert (main_reg_hash, tilepro_register_names[i],
-		       (void *) (long) (i | CANONICAL_REG_NAME_FLAG), 0);
+      hash_insert (main_reg_hash, tilepro_register_names[i],
+		   (void *) (long)(i | CANONICAL_REG_NAME_FLAG));
 
       /* See if we should insert a noncanonical alias, like r63.  */
       sprintf (buf, "r%d", i);
       if (strcmp (buf, tilepro_register_names[i]) != 0)
-	str_hash_insert (main_reg_hash, xstrdup (buf),
-			 (void *) (long) (i | NONCANONICAL_REG_NAME_FLAG), 0);
+	hash_insert (main_reg_hash, xstrdup (buf),
+		     (void *) (long)(i | NONCANONICAL_REG_NAME_FLAG));
     }
 
   /* Insert obsolete backwards-compatibility register names.  */
-  str_hash_insert (main_reg_hash, "io0",
-		   (void *) (long) (TREG_IDN0 | CANONICAL_REG_NAME_FLAG), 0);
-  str_hash_insert (main_reg_hash, "io1",
-		   (void *) (long) (TREG_IDN1 | CANONICAL_REG_NAME_FLAG), 0);
-  str_hash_insert (main_reg_hash, "us0",
-		   (void *) (long) (TREG_UDN0 | CANONICAL_REG_NAME_FLAG), 0);
-  str_hash_insert (main_reg_hash, "us1",
-		   (void *) (long) (TREG_UDN1 | CANONICAL_REG_NAME_FLAG), 0);
-  str_hash_insert (main_reg_hash, "us2",
-		   (void *) (long) (TREG_UDN2 | CANONICAL_REG_NAME_FLAG), 0);
-  str_hash_insert (main_reg_hash, "us3",
-		   (void *) (long) (TREG_UDN3 | CANONICAL_REG_NAME_FLAG), 0);
+  hash_insert (main_reg_hash, "io0",
+               (void *) (long) (TREG_IDN0 | CANONICAL_REG_NAME_FLAG));
+  hash_insert (main_reg_hash, "io1",
+               (void *) (long) (TREG_IDN1 | CANONICAL_REG_NAME_FLAG));
+  hash_insert (main_reg_hash, "us0",
+               (void *) (long) (TREG_UDN0 | CANONICAL_REG_NAME_FLAG));
+  hash_insert (main_reg_hash, "us1",
+               (void *) (long) (TREG_UDN1 | CANONICAL_REG_NAME_FLAG));
+  hash_insert (main_reg_hash, "us2",
+               (void *) (long) (TREG_UDN2 | CANONICAL_REG_NAME_FLAG));
+  hash_insert (main_reg_hash, "us3",
+               (void *) (long) (TREG_UDN3 | CANONICAL_REG_NAME_FLAG));
 
 }
 
@@ -620,18 +628,16 @@ emit_tilepro_instruction (tilepro_bundle_bits bits,
 	    }
 	  else if (use_subexp)
 	    {
-	      expressionS *sval = NULL;
 	      /* Now that we've changed the reloc, change ha16(x) into x,
 		 etc.  */
 
-	      if (symbol_symbolS (operand_exp->X_add_symbol))
-		sval = symbol_get_value_expression (operand_exp->X_add_symbol);
-	      if (sval && sval->X_md)
+	      if (!operand_exp->X_add_symbol->sy_flags.sy_local_symbol
+                  && operand_exp->X_add_symbol->sy_value.X_md)
 		{
 		  /* HACK: We used X_md to mark this symbol as a fake wrapper
 		     around a real expression. To unwrap it, we just grab its
 		     value here.  */
-		  operand_exp = sval;
+		  operand_exp = &operand_exp->X_add_symbol->sy_value;
 
 		  if (require_symbol)
 		    {
@@ -831,8 +837,8 @@ tilepro_flush_bundle (void)
 
   /* If the section seems to have no alignment set yet, go ahead and
      make it large enough to hold code.  */
-  if (bfd_section_alignment (now_seg) == 0)
-    bfd_set_section_alignment (now_seg,
+  if (bfd_get_section_alignment (stdoutput, now_seg) == 0)
+    bfd_set_section_alignment (stdoutput, now_seg,
                                TILEPRO_LOG2_BUNDLE_ALIGNMENT_IN_BYTES);
 
   for (j = 0; j < current_bundle_index; j++)
@@ -896,7 +902,7 @@ tilepro_parse_name (char *name, expressionS *e, char *nextcharP)
 
   if (parsing_spr)
     {
-      void *val = str_hash_find (spr_hash, name);
+      void *val = hash_find (spr_hash, name);
       if (val == NULL)
 	return 0;
 
@@ -915,7 +921,7 @@ tilepro_parse_name (char *name, expressionS *e, char *nextcharP)
   else
     {
       /* Look up the operator in our table.  */
-      void *val = str_hash_find (special_operator_hash, name);
+      void *val = hash_find (special_operator_hash, name);
       if (val == 0)
 	return 0;
       op = (operatorT)(long)val;
@@ -952,7 +958,7 @@ tilepro_parse_name (char *name, expressionS *e, char *nextcharP)
 	  /* HACK: mark this symbol as a temporary wrapper around a proper
 	     expression, so we can unwrap it later once we have communicated
 	     the relocation type.  */
-	  symbol_get_value_expression (sym)->X_md = 1;
+	  sym->sy_value.X_md = 1;
 	}
 
       memset (e, 0, sizeof *e);
@@ -977,7 +983,7 @@ parse_reg_expression (expressionS* expression)
   char *regname;
   char terminating_char = get_symbol_name (&regname);
 
-  void* pval = str_hash_find (main_reg_hash, regname);
+  void* pval = hash_find (main_reg_hash, regname);
 
   if (pval == NULL)
     as_bad (_("Expected register, got '%s'."), regname);
@@ -1121,7 +1127,7 @@ md_assemble (char *str)
   old_char = str[opname_len];
   str[opname_len] = '\0';
 
-  op = str_hash_find (op_hash, str);
+  op = hash_find(op_hash, str);
   str[opname_len] = old_char;
   if (op == NULL)
     {
@@ -1190,6 +1196,9 @@ const pseudo_typeS md_pseudo_table[] =
   {"no_allow_suspicious_bundles", s_allow_suspicious_bundles, 0 },
   { NULL, 0, 0 }
 };
+
+/* Equal to MAX_PRECISION in atof-ieee.c  */
+#define MAX_LITTLENUMS 6
 
 /* Turn the string pointed to by litP into a floating point constant
    of type TYPE, and emit the appropriate bytes.  The number of

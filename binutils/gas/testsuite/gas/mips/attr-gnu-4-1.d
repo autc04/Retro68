@@ -1,5 +1,5 @@
 #source: attr-gnu-4-1.s
-#DUMPPROG: readelf
+#PROG: readelf
 #readelf: -A
 #name: MIPS gnu_attribute 4,1 (double precision)
 

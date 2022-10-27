@@ -1,8 +1,7 @@
 #objdump: -sr
-#as:  --generate-missing-build-notes=no
 #name: Unwind table generation
 # This test is only valid on ELF based ports.
-#notarget: *-*-pe *-*-wince
+#not-target: *-*-pe *-*-wince
 # VxWorks needs a special variant of this file.
 #skip: *-*-vxworks*
 

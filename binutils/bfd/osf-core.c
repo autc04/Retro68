@@ -1,5 +1,5 @@
 /* BFD back-end for OSF/1 core files.
-   Copyright (C) 1993-2020 Free Software Foundation, Inc.
+   Copyright (C) 1993-2018 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -70,14 +70,14 @@ make_bfd_asection (bfd *abfd,
   return asect;
 }
 
-static bfd_cleanup
+static const bfd_target *
 osf_core_core_file_p (bfd *abfd)
 {
   int val;
   int i;
   char *secname;
   struct core_filehdr core_header;
-  size_t amt;
+  bfd_size_type amt;
 
   amt = sizeof core_header;
   val = bfd_bread (& core_header, amt, abfd);
@@ -138,7 +138,7 @@ osf_core_core_file_p (bfd *abfd)
 
   /* OK, we believe you.  You're a core file (sure, sure).  */
 
-  return _bfd_no_cleanup;
+  return abfd->xvec;
 
  fail:
   bfd_release (abfd, core_hdr (abfd));

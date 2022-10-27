@@ -1,6 +1,6 @@
 #objdump: -dr
 
-.*:     file format elf32-rx-(le|linux)
+dump.o:     file format elf32-rx-le
 
 
 Disassembly of section .*:

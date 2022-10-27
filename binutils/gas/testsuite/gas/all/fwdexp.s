@@ -1,6 +1,6 @@
  .data
-label_i:
+i:
 
  .text
- .dc.a label_i + (. - .L1)
+ .dc.a i + (. - .L1)
 .L1:

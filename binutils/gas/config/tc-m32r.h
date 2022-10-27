@@ -1,5 +1,5 @@
 /* tc-m32r.h -- Header file for tc-m32r.c.
-   Copyright (C) 1996-2020 Free Software Foundation, Inc.
+   Copyright (C) 1996-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -37,6 +37,7 @@ extern const char *m32r_target_format (void);
 #endif
 
 /* Call md_pcrel_from_section, not md_pcrel_from.  */
+long md_pcrel_from_section (struct fix *, segT);
 #define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section(FIX, SEC)
 
 /* Permit temporary numeric labels.  */

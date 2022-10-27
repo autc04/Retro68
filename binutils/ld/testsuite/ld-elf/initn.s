@@ -1,5 +1,5 @@
 	.section .init, "a"
-	.p2align 5
+	.p2align 8
 	.type	last,%function
 last:
 	.dc.a	0x0

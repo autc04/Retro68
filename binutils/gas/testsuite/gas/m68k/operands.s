@@ -270,18 +270,3 @@ foo:
 	addiw	&1,%d0
 	addil	&1,%d0
 	addqb	&1,%d0
-
-	| cmpi
-	cmpib	&1,%d0
-	cmpib	&1,0(%pc)
-	cmpiw	&1,%d0
-	cmpiw	&1,0(%pc)
-	cmpil	&1,%d0
-	cmpil	&1,0(%pc)
-	cmpb	&1,%d0
-	cmpb	&1,0(%pc)
-	cmpw	&1,%d0
-	cmpw	&1,0(%pc)
-	cmpl	&1,%d0
-	cmpl	&1,0(%pc)
-

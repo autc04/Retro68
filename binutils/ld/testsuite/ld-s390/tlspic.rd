@@ -70,6 +70,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND 
 .* SECTION +LOCAL +DEFAULT +7 
+.* SECTION +LOCAL +DEFAULT +8 
 .* TLS +GLOBAL +DEFAULT +8 sg8
 .* TLS +GLOBAL +DEFAULT +8 sg3
 .* TLS +GLOBAL +DEFAULT +8 sg4

@@ -1,5 +1,5 @@
 /* MIPS-specific support for 32-bit ELF
-   Copyright (C) 1993-2020 Free Software Foundation, Inc.
+   Copyright (C) 1993-2018 Free Software Foundation, Inc.
 
    Most of the information added by Ian Lance Taylor, Cygnus Support,
    <ian@cygnus.com>.
@@ -63,8 +63,6 @@ static bfd_boolean mips_info_to_howto_rela
   (bfd *, arelent *, Elf_Internal_Rela *);
 static bfd_boolean mips_elf_sym_is_global
   (bfd *, asymbol *);
-static bfd_boolean mips_elf32_elfsym_local_is_section
-  (bfd *);
 static bfd_boolean mips_elf32_object_p
   (bfd *);
 static bfd_boolean mips_elf_is_local_label_name
@@ -2283,16 +2281,8 @@ mips_elf_sym_is_global (bfd *abfd ATTRIBUTE_UNUSED, asymbol *sym)
     return (sym->flags & BSF_SECTION_SYM) == 0;
   else
     return ((sym->flags & (BSF_GLOBAL | BSF_WEAK | BSF_GNU_UNIQUE)) != 0
-	    || bfd_is_und_section (bfd_asymbol_section (sym))
-	    || bfd_is_com_section (bfd_asymbol_section (sym)));
-}
-
-/* Likewise, return TRUE if the symbol table split overall must be
-   between section symbols and all other symbols.  */
-static bfd_boolean
-mips_elf32_elfsym_local_is_section (bfd *abfd)
-{
-  return SGI_COMPAT (abfd);
+	    || bfd_is_und_section (bfd_get_section (sym))
+	    || bfd_is_com_section (bfd_get_section (sym)));
 }
 
 /* Set the right machine number for a MIPS ELF file.  */
@@ -2544,7 +2534,6 @@ static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
 #define elf_backend_gc_mark_hook	_bfd_mips_elf_gc_mark_hook
 #define elf_backend_copy_indirect_symbol \
 					_bfd_mips_elf_copy_indirect_symbol
-#define elf_backend_hide_symbol		_bfd_mips_elf_hide_symbol
 #define elf_backend_fixup_symbol	elf32_mips_fixup_symbol
 #define elf_backend_grok_prstatus	elf32_mips_grok_prstatus
 #define elf_backend_grok_psinfo		elf32_mips_grok_psinfo
@@ -2562,8 +2551,6 @@ static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
 #define elf_backend_ignore_discarded_relocs \
 					_bfd_mips_elf_ignore_discarded_relocs
 #define elf_backend_write_section	_bfd_mips_elf_write_section
-#define elf_backend_elfsym_local_is_section \
-					mips_elf32_elfsym_local_is_section
 #define elf_backend_mips_irix_compat	elf32_mips_irix_compat
 #define elf_backend_mips_rtype_to_howto	mips_elf32_rtype_to_howto
 #define elf_backend_sort_relocs_p	_bfd_mips_elf_sort_relocs_p
@@ -2655,11 +2642,11 @@ static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
 #include "elf32-target.h"
 /* Implement elf_backend_final_write_processing for VxWorks.  */
 
-static bfd_boolean
-mips_vxworks_final_write_processing (bfd *abfd)
+static void
+mips_vxworks_final_write_processing (bfd *abfd, bfd_boolean linker)
 {
-  _bfd_mips_final_write_processing (abfd);
-  return elf_vxworks_final_write_processing (abfd);
+  _bfd_mips_elf_final_write_processing (abfd, linker);
+  elf_vxworks_final_write_processing (abfd, linker);
 }
 
 #undef TARGET_LITTLE_SYM
@@ -2681,9 +2668,6 @@ mips_vxworks_final_write_processing (bfd *abfd)
 
 #define ELF_MAXPAGESIZE			0x1000
 #define ELF_COMMONPAGESIZE		0x1000
-
-#undef ELF_TARGET_OS
-#define ELF_TARGET_OS			is_vxworks
 
 #undef elf_backend_want_got_plt
 #define elf_backend_want_got_plt		1

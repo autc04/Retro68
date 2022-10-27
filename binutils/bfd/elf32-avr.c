@@ -1,5 +1,5 @@
 /* AVR-specific support for 32-bit ELF
-   Copyright (C) 1999-2020 Free Software Foundation, Inc.
+   Copyright (C) 1999-2018 Free Software Foundation, Inc.
    Contributed by Denis Chertykov <denisc@overta.ru>
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -25,6 +25,7 @@
 #include "elf-bfd.h"
 #include "elf/avr.h"
 #include "elf32-avr.h"
+#include "bfd_stdint.h"
 
 /* Enable debugging printout at stdout with this variable.  */
 static bfd_boolean debug_relax = FALSE;
@@ -106,9 +107,9 @@ struct elf32_avr_link_hash_table
 
 /* Various hash macros and functions.  */
 #define avr_link_hash_table(p) \
-  ((is_elf_hash_table ((p)->hash)					\
-    && elf_hash_table_id (elf_hash_table (p)) == AVR_ELF_DATA)		\
-   ? (struct elf32_avr_link_hash_table *) (p)->hash : NULL)
+  /* PR 3874: Check that we have an AVR style hash table before using it.  */\
+  (elf_hash_table_id ((struct elf_link_hash_table *) ((p)->hash)) \
+  == AVR_ELF_DATA ? ((struct elf32_avr_link_hash_table *) ((p)->hash)) : NULL)
 
 #define avr_stub_hash_entry(ent) \
   ((struct elf32_avr_stub_hash_entry *)(ent))
@@ -707,12 +708,6 @@ static const struct avr_reloc_map avr_reloc_map[] =
   { BFD_RELOC_32_PCREL,		    R_AVR_32_PCREL}
 };
 
-static const struct bfd_elf_special_section elf_avr_special_sections[] =
-{
-  { STRING_COMMA_LEN (".noinit"), 0, SHT_NOBITS,   SHF_ALLOC + SHF_WRITE },
-  { NULL, 0,			  0, 0,		   0 }
-};
-
 /* Meant to be filled one day with the wrap around address for the
    specific device.  I.e. should get the value 0x4000 for 16k devices,
    0x8000 for 32k devices and so on.
@@ -767,7 +762,7 @@ elf_avr_new_section_hook (bfd *abfd, asection *sec)
   if (!sec->used_by_bfd)
     {
       struct elf_avr_section_data *sdata;
-      size_t amt = sizeof (*sdata);
+      bfd_size_type amt = sizeof (*sdata);
 
       sdata = bfd_zalloc (abfd, amt);
       if (sdata == NULL)
@@ -858,8 +853,10 @@ elf32_avr_link_hash_table_free (bfd *obfd)
     = (struct elf32_avr_link_hash_table *) obfd->link.hash;
 
   /* Free the address mapping table.  */
-  free (htab->amt_stub_offsets);
-  free (htab->amt_destination_addr);
+  if (htab->amt_stub_offsets != NULL)
+    free (htab->amt_stub_offsets);
+  if (htab->amt_destination_addr != NULL)
+    free (htab->amt_destination_addr);
 
   bfd_hash_table_free (&htab->bstab);
   _bfd_elf_link_hash_table_free (obfd);
@@ -873,7 +870,7 @@ static struct bfd_link_hash_table *
 elf32_avr_link_hash_table_create (bfd *abfd)
 {
   struct elf32_avr_link_hash_table *htab;
-  size_t amt = sizeof (*htab);
+  bfd_size_type amt = sizeof (*htab);
 
   htab = bfd_zmalloc (amt);
   if (htab == NULL)
@@ -908,7 +905,7 @@ avr_relative_distance_considering_wrap_around (unsigned int distance)
   unsigned int wrap_around_mask = avr_pc_wrap_around - 1;
   int dist_with_wrap_around = distance & wrap_around_mask;
 
-  if (dist_with_wrap_around >= ((int) (avr_pc_wrap_around >> 1)))
+  if (dist_with_wrap_around > ((int) (avr_pc_wrap_around >> 1)))
     dist_with_wrap_around -= avr_pc_wrap_around;
 
   return dist_with_wrap_around;
@@ -1052,7 +1049,7 @@ avr_final_link_relocate (reloc_howto_type *		    howto,
       if (srel > ((1 << 7) - 1) || (srel < - (1 << 7)))
 	return bfd_reloc_overflow;
       x = bfd_get_16 (input_bfd, contents);
-      x = (x & 0xfc07) | (((srel >> 1) * 8) & 0x3f8);
+      x = (x & 0xfc07) | (((srel >> 1) << 3) & 0x3f8);
       bfd_put_16 (input_bfd, x, contents);
       break;
 
@@ -1463,7 +1460,7 @@ elf32_avr_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 
 	  name = bfd_elf_string_from_elf_section
 	    (input_bfd, symtab_hdr->sh_link, sym->st_name);
-	  name = name == NULL ? bfd_section_name (sec) : name;
+	  name = (name == NULL) ? bfd_section_name (input_bfd, sec) : name;
 	}
       else
 	{
@@ -1534,8 +1531,9 @@ elf32_avr_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
    file.  This gets the AVR architecture right based on the machine
    number.  */
 
-static bfd_boolean
-bfd_elf_avr_final_write_processing (bfd *abfd)
+static void
+bfd_elf_avr_final_write_processing (bfd *abfd,
+				    bfd_boolean linker ATTRIBUTE_UNUSED)
 {
   unsigned long val;
 
@@ -1618,7 +1616,6 @@ bfd_elf_avr_final_write_processing (bfd *abfd)
   elf_elfheader (abfd)->e_machine = EM_AVR;
   elf_elfheader (abfd)->e_flags &= ~ EF_AVR_MACH;
   elf_elfheader (abfd)->e_flags |= val;
-  return _bfd_elf_final_write_processing (abfd);
 }
 
 /* Set the right machine number.  */
@@ -2352,7 +2349,8 @@ avr_property_record_compare (const void *ap, const void *bp)
     return (a->offset - b->offset);
 
   if (a->section != b->section)
-    return bfd_section_vma (a->section) - bfd_section_vma (b->section);
+    return (bfd_get_section_vma (a->section->owner, a->section)
+	    - bfd_get_section_vma (b->section->owner, b->section));
 
   return (a->type - b->type);
 }
@@ -2640,28 +2638,16 @@ elf32_avr_relax_section (bfd *abfd,
 	    /* Compute the distance from this insn to the branch target.  */
 	    gap = value - dot;
 
-	    /* The ISA manual states that addressable range is PC - 2k + 1 to
-	       PC + 2k. In bytes, that would be -4094 <= PC <= 4096. The range
-	       is shifted one word to the right, because pc-relative instructions
-	       implicitly add one word i.e. rjmp 0 jumps to next insn, not the
-	       current one.
-	       Therefore, for the !shrinkable case, the range is as above.
-	       If shrinkable, then the current code only deletes bytes 3 and
-	       4 of the absolute call/jmp, so the forward jump range increases
-	       by 2 bytes, but the backward (negative) jump range remains
-	       the same. */
-
-
 	    /* Check if the gap falls in the range that can be accommodated
 	       in 13bits signed (It is 12bits when encoded, as we deal with
 	       word addressing). */
-	    if (!shrinkable && ((int) gap >= -4094 && (int) gap <= 4096))
+	    if (!shrinkable && ((int) gap >= -4096 && (int) gap <= 4095))
 	      distance_short_enough = 1;
 	    /* If shrinkable, then we can check for a range of distance which
-	       is two bytes farther on the positive direction because the call
+	       is two bytes farther on both the directions because the call
 	       or jump target will be closer by two bytes after the
 	       relaxation. */
-	    else if (shrinkable && ((int) gap >= -4094 && (int) gap <= 4098))
+	    else if (shrinkable && ((int) gap >= -4094 && (int) gap <= 4097))
 	      distance_short_enough = 1;
 
 	    /* Here we handle the wrap-around case.  E.g. for a 16k device
@@ -3164,17 +3150,21 @@ elf32_avr_relax_section (bfd *abfd,
 	}
     }
 
-  if (elf_section_data (sec)->relocs != internal_relocs)
+  if (internal_relocs != NULL
+      && elf_section_data (sec)->relocs != internal_relocs)
     free (internal_relocs);
 
   return TRUE;
 
  error_return:
-  if (symtab_hdr->contents != (unsigned char *) isymbuf)
+  if (isymbuf != NULL
+      && symtab_hdr->contents != (unsigned char *) isymbuf)
     free (isymbuf);
-  if (elf_section_data (sec)->this_hdr.contents != contents)
+  if (contents != NULL
+      && elf_section_data (sec)->this_hdr.contents != contents)
     free (contents);
-  if (elf_section_data (sec)->relocs != internal_relocs)
+  if (internal_relocs != NULL
+      && elf_section_data (sec)->relocs != internal_relocs)
     free (internal_relocs);
 
   return FALSE;
@@ -3267,8 +3257,10 @@ elf32_avr_get_relocated_section_contents (bfd *output_bfd,
 					isymbuf, sections))
 	goto error_return;
 
-      free (sections);
-      if (symtab_hdr->contents != (unsigned char *) isymbuf)
+      if (sections != NULL)
+	free (sections);
+      if (isymbuf != NULL
+	  && symtab_hdr->contents != (unsigned char *) isymbuf)
 	free (isymbuf);
       if (elf_section_data (input_section)->relocs != internal_relocs)
 	free (internal_relocs);
@@ -3277,10 +3269,13 @@ elf32_avr_get_relocated_section_contents (bfd *output_bfd,
   return data;
 
  error_return:
-  free (sections);
-  if (symtab_hdr->contents != (unsigned char *) isymbuf)
+  if (sections != NULL)
+    free (sections);
+  if (isymbuf != NULL
+      && symtab_hdr->contents != (unsigned char *) isymbuf)
     free (isymbuf);
-  if (elf_section_data (input_section)->relocs != internal_relocs)
+  if (internal_relocs != NULL
+      && elf_section_data (input_section)->relocs != internal_relocs)
     free (internal_relocs);
   return NULL;
 }
@@ -3300,10 +3295,10 @@ avr_stub_name (const asection *symbol_section,
 
   len = 8 + 1 + 8 + 1 + 1;
   stub_name = bfd_malloc (len);
-  if (stub_name != NULL)
-    sprintf (stub_name, "%08x+%08x",
-	     symbol_section->id & 0xffffffff,
-	     (unsigned int) ((rela->r_addend & 0xffffffff) + symbol_offset));
+
+  sprintf (stub_name, "%08x+%08x",
+	   symbol_section->id & 0xffffffff,
+	   (unsigned int) ((rela->r_addend & 0xffffffff) + symbol_offset));
 
   return stub_name;
 }
@@ -3483,7 +3478,7 @@ elf32_avr_setup_section_lists (bfd *output_bfd,
   unsigned int top_id, top_index;
   asection *section;
   asection **input_list, **list;
-  size_t amt;
+  bfd_size_type amt;
   struct elf32_avr_link_hash_table *htab = avr_link_hash_table (info);
 
   if (htab == NULL || htab->no_stubs)
@@ -3547,7 +3542,7 @@ get_local_syms (bfd *input_bfd, struct bfd_link_info *info)
   unsigned int bfd_indx;
   Elf_Internal_Sym *local_syms, **all_local_syms;
   struct elf32_avr_link_hash_table *htab = avr_link_hash_table (info);
-  size_t amt;
+  bfd_size_type amt;
 
   if (htab == NULL)
     return -1;
@@ -3936,12 +3931,12 @@ internal_reloc_compare (const void *ap, const void *bp)
 /* Return true if ADDRESS is within the vma range of SECTION from ABFD.  */
 
 static bfd_boolean
-avr_is_section_for_address (asection *section, bfd_vma address)
+avr_is_section_for_address (bfd *abfd, asection *section, bfd_vma address)
 {
   bfd_vma vma;
   bfd_size_type size;
 
-  vma = bfd_section_vma (section);
+  vma = bfd_get_section_vma (abfd, section);
   if (address < vma)
     return FALSE;
 
@@ -3973,7 +3968,7 @@ struct avr_find_section_data
    perform any checks, and just returns.  */
 
 static void
-avr_find_section_for_address (bfd *abfd ATTRIBUTE_UNUSED,
+avr_find_section_for_address (bfd *abfd,
 			      asection *section, void *data)
 {
   struct avr_find_section_data *fs_data
@@ -3984,11 +3979,11 @@ avr_find_section_for_address (bfd *abfd ATTRIBUTE_UNUSED,
     return;
 
   /* If this section isn't part of the addressable code content, skip it.  */
-  if ((bfd_section_flags (section) & SEC_ALLOC) == 0
-      && (bfd_section_flags (section) & SEC_CODE) == 0)
+  if ((bfd_get_section_flags (abfd, section) & SEC_ALLOC) == 0
+      && (bfd_get_section_flags (abfd, section) & SEC_CODE) == 0)
     return;
 
-  if (avr_is_section_for_address (section, fs_data->address))
+  if (avr_is_section_for_address (abfd, section, fs_data->address))
     fs_data->section = section;
 }
 
@@ -4011,7 +4006,7 @@ avr_elf32_load_records_from_section (bfd *abfd, asection *sec)
 
   fs_data.section = NULL;
 
-  size = bfd_section_size (sec);
+  size = bfd_get_section_size (sec);
   contents = bfd_malloc (size);
   bfd_get_section_contents (abfd, sec, contents, 0, size);
   ptr = contents;
@@ -4039,7 +4034,7 @@ avr_elf32_load_records_from_section (bfd *abfd, asection *sec)
   ptr++;
   flags = *((bfd_byte *) ptr);
   ptr++;
-  record_count = bfd_get_16 (abfd, ptr);
+  record_count = *((uint16_t *) ptr);
   ptr+=2;
   BFD_ASSERT (ptr - contents == AVR_PROPERTY_SECTION_HEADER_SIZE);
 
@@ -4106,7 +4101,7 @@ avr_elf32_load_records_from_section (bfd *abfd, asection *sec)
 	    }
 	}
 
-      address = bfd_get_32 (abfd, ptr);
+      address = *((uint32_t *) ptr);
       ptr += 4;
       size -= 4;
 
@@ -4114,7 +4109,8 @@ avr_elf32_load_records_from_section (bfd *abfd, asection *sec)
 	{
 	  /* Try to find section and offset from address.  */
 	  if (fs_data.section != NULL
-	      && !avr_is_section_for_address (fs_data.section, address))
+	      && !avr_is_section_for_address (abfd, fs_data.section,
+					      address))
 	    fs_data.section = NULL;
 
 	  if (fs_data.section == NULL)
@@ -4132,7 +4128,7 @@ avr_elf32_load_records_from_section (bfd *abfd, asection *sec)
 
 	  r_list->records [i].section = fs_data.section;
 	  r_list->records [i].offset
-	    = address - bfd_section_vma (fs_data.section);
+	    = address - bfd_get_section_vma (abfd, fs_data.section);
 	}
 
       r_list->records [i].type = *((bfd_byte *) ptr);
@@ -4148,7 +4144,7 @@ avr_elf32_load_records_from_section (bfd *abfd, asection *sec)
 	  /* Just a 4-byte fill to load.  */
 	  if (size < 4)
 	    goto load_failed;
-	  r_list->records [i].data.org.fill = bfd_get_32 (abfd, ptr);
+	  r_list->records [i].data.org.fill = *((uint32_t *) ptr);
 	  ptr += 4;
 	  size -= 4;
 	  break;
@@ -4156,7 +4152,7 @@ avr_elf32_load_records_from_section (bfd *abfd, asection *sec)
 	  /* Just a 4-byte alignment to load.  */
 	  if (size < 4)
 	    goto load_failed;
-	  r_list->records [i].data.align.bytes = bfd_get_32 (abfd, ptr);
+	  r_list->records [i].data.align.bytes = *((uint32_t *) ptr);
 	  ptr += 4;
 	  size -= 4;
 	  /* Just initialise PRECEDING_DELETED field, this field is
@@ -4167,9 +4163,9 @@ avr_elf32_load_records_from_section (bfd *abfd, asection *sec)
 	  /* A 4-byte alignment, and a 4-byte fill to load.  */
 	  if (size < 8)
 	    goto load_failed;
-	  r_list->records [i].data.align.bytes = bfd_get_32 (abfd, ptr);
+	  r_list->records [i].data.align.bytes = *((uint32_t *) ptr);
 	  ptr += 4;
-	  r_list->records [i].data.align.fill = bfd_get_32 (abfd, ptr);
+	  r_list->records [i].data.align.fill = *((uint32_t *) ptr);
 	  ptr += 4;
 	  size -= 8;
 	  /* Just initialise PRECEDING_DELETED field, this field is
@@ -4260,6 +4256,5 @@ avr_elf32_property_record_name (struct avr_property_record *rec)
 #define bfd_elf32_bfd_get_relocated_section_contents \
 					elf32_avr_get_relocated_section_contents
 #define bfd_elf32_new_section_hook	elf_avr_new_section_hook
-#define elf_backend_special_sections	elf_avr_special_sections
 
 #include "elf32-target.h"

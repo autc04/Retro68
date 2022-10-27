@@ -1,6 +1,5 @@
 #name: aarch64-farcall-bl-plt
 #source: farcall-bl-plt.s
-#target: [check_shared_lib_support]
 #as:
 #ld: -shared
 #objdump: -dr

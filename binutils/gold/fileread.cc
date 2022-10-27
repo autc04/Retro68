@@ -1,6 +1,6 @@
 // fileread.cc -- read files for gold
 
-// Copyright (C) 2006-2020 Free Software Foundation, Inc.
+// Copyright (C) 2006-2018 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -124,7 +124,6 @@ static Initialize_lock file_counts_initialize_lock(&file_counts_lock);
 unsigned long long File_read::total_mapped_bytes;
 unsigned long long File_read::current_mapped_bytes;
 unsigned long long File_read::maximum_mapped_bytes;
-std::vector<std::string> File_read::files_read;
 
 // Class File_read::View.
 
@@ -212,8 +211,6 @@ File_read::open(const Task* task, const std::string& name)
       gold_debug(DEBUG_FILES, "Attempt to open %s succeeded",
 		 this->name_.c_str());
       this->token_.add_writer(task);
-      Hold_optional_lock hl(file_counts_lock);
-      record_file_read(this->name_);
     }
 
   return this->descriptor_ >= 0;
@@ -1139,33 +1136,6 @@ Input_file::open_binary(const Task* task, const std::string& name)
     return false;
   return this->file_.open(task, name, binary_to_elf.converted_data_leak(),
 			  binary_to_elf.converted_size());
-}
-
-void
-File_read::record_file_read(const std::string& name)
-{
-  File_read::files_read.push_back(name);
-}
-
-void
-File_read::write_dependency_file(const char* dependency_file_name,
-				 const char* output_file_name)
-{
-  FILE *depfile = fopen(dependency_file_name, "w");
-
-  fprintf(depfile, "%s:", output_file_name);
-  for (std::vector<std::string>::const_iterator it = files_read.begin();
-       it != files_read.end();
-       ++it)
-    fprintf(depfile, " \\\n  %s", it->c_str());
-  fprintf(depfile, "\n");
-
-  for (std::vector<std::string>::const_iterator it = files_read.begin();
-       it != files_read.end();
-       ++it)
-    fprintf(depfile, "\n%s:\n", it->c_str());
-
-  fclose(depfile);
 }
 
 } // End namespace gold.

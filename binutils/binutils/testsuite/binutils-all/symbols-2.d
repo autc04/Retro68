@@ -1,7 +1,8 @@
 #name: weaken 'fo*' but not 'foo'
 #PROG: objcopy
-#objcopy: -w -W \!foo -W fo\*
+#objcopy: -w -W !foo -W fo*
 #source: symbols.s
+#DUMPPROG: nm
 #nm: -n
 
 #...

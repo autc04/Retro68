@@ -1,7 +1,6 @@
 #name: CSDB
 #source: csdb.s
 #objdump: -dr --prefix-addresses --show-raw-insn
-#skip: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

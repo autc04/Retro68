@@ -1,6 +1,6 @@
 #PROG: objcopy
 #source: compressed-1.s
-#as: --64 --compress-debug-sections --gdwarf-3
+#as: --64 --compress-debug-sections
 #objcopy:
 #readelf: -w
 #name: objcopy on compressed debug sections
@@ -64,7 +64,7 @@ Raw dump of debug contents of section .[z]?debug_line:
 
   Offset:                      0x0
   Length:                      67
-  DWARF Version:               .
+  DWARF Version:               2
   Prologue Length:             37
   Minimum Instruction Length:  1
   Initial value of 'is_stmt':  1

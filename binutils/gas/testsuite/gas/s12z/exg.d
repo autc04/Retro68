@@ -1,10 +1,9 @@
 #objdump: -d
 #name:    
 #source:  exg.s
-#warning_output: exg.l
 
 
-.*:     file format elf32-s12z
+dump.o:     file format elf32-s12z
 
 
 Disassembly of section .text:

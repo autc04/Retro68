@@ -1,6 +1,8 @@
 # name: bignums
 # as:
 # objdump: --full-contents
+# This test is only valid on ELF based ports.
+#not-target: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

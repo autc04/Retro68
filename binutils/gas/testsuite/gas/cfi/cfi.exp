@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2020 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -48,7 +48,6 @@ if  { [istarget "i*86-*-*"] || [istarget "x86_64-*-*"] } then {
     if { [gas_x86_32_check] }  then {
 	set ASFLAGS "$ASFLAGS --32"
 	run_dump_test "cfi-i386"
-	run_dump_test "cfi-i386-2"
 	set ASFLAGS "$old_ASFLAGS"
     }
 
@@ -127,16 +126,11 @@ if { ![istarget "hppa64*-*"] } then {
     run_dump_test "cfi-common-5"
   }
   # Some targets don't support PC relative cfi directives
-  if { ![istarget "mips*-*"] } then {
+  if { ![istarget "mips*-*"] &&
+       !([istarget powerpc*-*-*] && [is_pecoff_format]) } then {
     run_dump_test "cfi-common-6"
   }
   run_dump_test "cfi-common-7"
   run_dump_test "cfi-common-8"
   run_dump_test "cfi-common-9"
-
-  run_dump_test "cie-version-0"
-  run_dump_test "cie-version-1"
-  run_dump_test "cie-version-2"
-  run_dump_test "cie-version-3"
-  run_dump_test "cie-version-4"
 }

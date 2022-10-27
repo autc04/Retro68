@@ -1,5 +1,5 @@
 /* BFD back end for NetBSD style core files
-   Copyright (C) 1988-2020 Free Software Foundation, Inc.
+   Copyright (C) 1988-2018 Free Software Foundation, Inc.
    Written by Paul Kranenburg, EUR
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -51,7 +51,7 @@ struct netbsd_core_struct
 
 /* Handle NetBSD-style core dump file.  */
 
-static bfd_cleanup
+static const bfd_target *
 netbsd_core_file_p (bfd *abfd)
 {
   int val;
@@ -60,7 +60,7 @@ netbsd_core_file_p (bfd *abfd)
   asection *asect;
   struct core core;
   struct coreseg coreseg;
-  size_t amt = sizeof core;
+  bfd_size_type amt = sizeof core;
 
   val = bfd_bread (&core, amt, abfd);
   if (val != sizeof core)
@@ -222,7 +222,7 @@ netbsd_core_file_p (bfd *abfd)
     }
 
   /* OK, we believe you.  You're a core file (sure, sure).  */
-  return _bfd_no_cleanup;
+  return abfd->xvec;
 
  punt:
   bfd_release (abfd, abfd->tdata.any);

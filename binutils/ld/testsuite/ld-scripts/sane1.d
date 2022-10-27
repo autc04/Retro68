@@ -1,8 +1,9 @@
 # source: data.s
 # ld: -T sane1.t
 # nm: -B -n
-# notarget: mmix-* pdp11-*
+# notarget: mmix-* pdp11-* powerpc*-*-aix* rs6000-*-aix* tic30-*-aout
 # mmix symbol sections are wrong, pdp sign extends 16-bit addresses
+# rs6000-aix and tic30 don't like empty .text
 
 #...
 0+0004 A s5

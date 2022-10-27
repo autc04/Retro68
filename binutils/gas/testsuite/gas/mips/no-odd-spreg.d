@@ -1,4 +1,4 @@
-#DUMPPROG: readelf
+#PROG: readelf
 #source: empty.s
 #as: -32 -mno-odd-spreg
 #readelf: -A

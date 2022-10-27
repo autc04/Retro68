@@ -1,5 +1,5 @@
 /* Matsushita 10200 specific support for 32-bit ELF
-   Copyright (C) 1996-2020 Free Software Foundation, Inc.
+   Copyright (C) 1996-2018 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -228,7 +228,7 @@ mn10200_info_to_howto (bfd *abfd,
       bfd_set_error (bfd_error_bad_value);
       return FALSE;
     }
-
+  
   cache_ptr->howto = &elf_mn10200_howto_table[r_type];
   return cache_ptr->howto != NULL;
 }
@@ -413,7 +413,7 @@ mn10200_elf_relocate_section (bfd *output_bfd,
 	      name = (bfd_elf_string_from_elf_section
 		      (input_bfd, symtab_hdr->sh_link, sym->st_name));
 	      if (name == NULL || *name == '\0')
-		name = bfd_section_name (sec);
+		name = bfd_section_name (input_bfd, sec);
 	    }
 
 	  switch (r)
@@ -1207,17 +1207,21 @@ mn10200_elf_relax_section (bfd *abfd,
 	}
     }
 
-  if (elf_section_data (sec)->relocs != internal_relocs)
+  if (internal_relocs != NULL
+      && elf_section_data (sec)->relocs != internal_relocs)
     free (internal_relocs);
 
   return TRUE;
 
  error_return:
-  if (symtab_hdr->contents != (unsigned char *) isymbuf)
+  if (isymbuf != NULL
+      && symtab_hdr->contents != (unsigned char *) isymbuf)
     free (isymbuf);
-  if (elf_section_data (sec)->this_hdr.contents != contents)
+  if (contents != NULL
+      && elf_section_data (sec)->this_hdr.contents != contents)
     free (contents);
-  if (elf_section_data (sec)->relocs != internal_relocs)
+  if (internal_relocs != NULL
+      && elf_section_data (sec)->relocs != internal_relocs)
     free (internal_relocs);
 
   return FALSE;
@@ -1351,8 +1355,10 @@ mn10200_elf_get_relocated_section_contents (bfd *output_bfd,
 				     isymbuf, sections))
 	goto error_return;
 
-      free (sections);
-      if (symtab_hdr->contents != (unsigned char *) isymbuf)
+      if (sections != NULL)
+	free (sections);
+      if (isymbuf != NULL
+	  && symtab_hdr->contents != (unsigned char *) isymbuf)
 	free (isymbuf);
       if (elf_section_data (input_section)->relocs != internal_relocs)
 	free (internal_relocs);
@@ -1361,10 +1367,13 @@ mn10200_elf_get_relocated_section_contents (bfd *output_bfd,
   return data;
 
  error_return:
-  free (sections);
-  if (symtab_hdr->contents != (unsigned char *) isymbuf)
+  if (sections != NULL)
+    free (sections);
+  if (isymbuf != NULL
+      && symtab_hdr->contents != (unsigned char *) isymbuf)
     free (isymbuf);
-  if (elf_section_data (input_section)->relocs != internal_relocs)
+  if (internal_relocs != NULL
+      && elf_section_data (input_section)->relocs != internal_relocs)
     free (internal_relocs);
   return NULL;
 }

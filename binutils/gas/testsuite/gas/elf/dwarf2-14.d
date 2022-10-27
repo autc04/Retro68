@@ -1,8 +1,10 @@
 #as:
 #readelf: -x.rodata -wL
 #name: DWARF2 14
+# The am33 avr cr16 crx mn10 ft32 msp430 nds32 pru rl78 and xtensa targets do not evaluate the subtraction of symbols at assembly time
 # The riscv targets do not support the subtraction of symbols.
-#xfail: riscv*-*
+# The tile targets require 8-byte instructions, but the test only simulates 4-byte instructions.
+#not-target: am3*-* avr-* cr16-* crx-* ft32*-* mn10*-* msp430-* nds32*-* pru-* riscv*-* rl78-* tile*-* xtensa-*
 
 Hex dump of section '\.rodata':
   0x00000000 01 *.*
@@ -10,8 +12,8 @@ Hex dump of section '\.rodata':
 Contents of the \.debug_line section:
 
 CU: dwarf2-14\.c:
-File name +Line number +Starting address +View +Stmt
-dwarf2-14\.c +1 +0 +x
-dwarf2-14\.c +2 +0 +x
-dwarf2-14\.c +3 +0 +1 +x
-dwarf2-14\.c +- +0x8
+File name  *Line number  *Starting address  *View
+dwarf2-14\.c  *1  *0
+dwarf2-14\.c  *2  *0
+dwarf2-14\.c  *3  *0  *1
+dwarf2-14\.c  *3  *0x4

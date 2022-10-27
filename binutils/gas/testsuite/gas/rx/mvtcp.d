@@ -1,5 +1,4 @@
-#source: ./mvtcp.s
 #objdump: -dr
 
-.*:     file format .*
+dump\.o:     file format .*
 

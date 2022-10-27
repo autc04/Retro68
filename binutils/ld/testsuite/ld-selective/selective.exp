@@ -1,5 +1,5 @@
 # Expect script for LD selective linking tests
-#   Copyright (C) 1998-2020 Free Software Foundation, Inc.
+#   Copyright (C) 1998-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -46,8 +46,8 @@ set seltests {
     {A::foo() B::foo() dropme1() dropme2()} {*-*-*}}
 }
 
-set cflags "-w -O -ffunction-sections -fdata-sections $NOSANITIZE_CFLAGS"
-set cxxflags "-fno-exceptions -fno-rtti $NOSANITIZE_CFLAGS"
+set cflags "-w -O -ffunction-sections -fdata-sections"
+set cxxflags "-fno-exceptions -fno-rtti"
 set ldflags "--gc-sections -Bstatic"
 
 if [istarget mips*-*] {
@@ -151,7 +151,7 @@ foreach testitem $seltests {
     }
 
     if ![ld_nm $nm --demangle $ldfile] {
-	fail $testname
+	unresolved $testname
 	continue
     }
 

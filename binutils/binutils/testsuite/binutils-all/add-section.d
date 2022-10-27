@@ -1,7 +1,7 @@
 #PROG: objcopy
 #name: objcopy add-section
 #source: empty.s
-#objcopy: --add-section NEW=$srcdir/$subdir/empty.s
+#objcopy: --add-section NEW=$srcdir/empty.s
 #objdump: -s -j NEW
 
 .*: +file format .*

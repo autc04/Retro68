@@ -2,5 +2,5 @@
 	.data
 	.byte 0
 	.text
-	.byte 0
 defined:
+	.byte 0

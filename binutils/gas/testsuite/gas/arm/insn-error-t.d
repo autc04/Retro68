@@ -3,4 +3,4 @@
 #name: invalid instruction recovery test - Thumb version
 #objdump: -d --prefix-addresses --show-raw-insn
 #skip: *-*-pe *-*-wince
-#error_output: insn-error-t.l
+#error-output: insn-error-t.l

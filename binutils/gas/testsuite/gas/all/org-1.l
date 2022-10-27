@@ -1,2 +1,2 @@
 .*: Assembler messages:
-.*:24: Error: attempt to move \.org backwards
+.*:22: Error: attempt to move \.org backwards

@@ -1,5 +1,4 @@
-#source: ./opecp.s
 #objdump: -dr
 
-.*:     file format .*
+dump\.o:     file format .*
 

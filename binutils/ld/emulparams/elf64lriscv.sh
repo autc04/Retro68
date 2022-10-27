@@ -1,6 +1,6 @@
 # RV64 code using LP64D ABI.
 # ABI not in emulation name to avoid breaking backward compatibility.
-source_sh ${srcdir}/emulparams/elf64lriscv-defs.sh
+. ${srcdir}/emulparams/elf64lriscv-defs.sh
 OUTPUT_FORMAT="elf64-littleriscv"
 
 # On Linux, first look for 64 bit LP64D target libraries in /lib64/lp64d as per

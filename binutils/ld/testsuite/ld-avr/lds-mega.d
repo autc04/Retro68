@@ -11,7 +11,7 @@
 Disassembly of section .text:
 
 00000000 <main>:
-   0:	80 91 00 01 	lds	r24, 0x0100	; 0x800100 <myvar1>
+   0:	80 91 00 01 	lds	r24, 0x0100	; 0x800100 <_edata>
    4:	08 2e       	mov	r0, r24
    6:	00 0c       	add	r0, r0
    8:	99 0b       	sbc	r25, r25

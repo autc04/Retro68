@@ -3,5 +3,5 @@
 #nm: -p
 
 #...
-[0-9a-f]+ [TD] _?foo
+[0-9a-f]+ C _?__gnu_lto_v.*
 #pass

@@ -1,2 +1,2 @@
 #as: -mcpu=arc700
-#error_output: asm-errors.err
+#error-output: asm-errors.err

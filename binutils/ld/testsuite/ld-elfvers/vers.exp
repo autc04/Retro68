@@ -1,5 +1,5 @@
 # Expect script for ld-version tests
-#   Copyright (C) 1997-2020 Free Software Foundation, Inc.
+#   Copyright (C) 1997-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -23,7 +23,7 @@
 #
 
 # Check to see if the C compiler works
-if { ![check_compiler_available] } {
+if { [which $CC] == 0 } {
     return
 }
 
@@ -37,6 +37,7 @@ if { ![istarget hppa*64*-*-hpux*]
      && ![istarget i?86-*-elf*]
      && ![istarget i?86-*-linux*]
      && ![istarget i?86-*-gnu*]
+     && ![istarget i?86-*-nacl*]
      && ![istarget ia64-*-elf*]
      && ![istarget ia64-*-linux*]
      && ![istarget m68k-*-linux*]
@@ -53,7 +54,12 @@ if { ![istarget hppa*64*-*-hpux*]
      && ![istarget alpha*-*-linux*]
      && ![istarget s390*-*-linux*]
      && ![istarget sh\[34\]*-*-linux*]
-     && ![istarget x86_64-*-linux*] } {
+     && ![istarget x86_64-*-linux*]
+     && ![istarget x86_64-*-nacl*] } {
+    return
+}
+
+if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
     return
 }
 
@@ -86,9 +92,9 @@ if { [istarget mips*-*-*] && ! [at_least_gcc_version 4 3] } then {
     }
 }
 
-switch -glob $target_triplet {
-    ia64-*-* { set as_options "-x" }
-    sparc-*-* { set as_options "-Av9a" }
+case $target_triplet in {
+    { ia64-*-* } { set as_options "-x" }
+    { sparc-*-* } { set as_options "-Av9a" }
     default { set as_options "" }
 }
 
@@ -261,8 +267,7 @@ proc objdump_symstuff { objdump object expectfile } {
 	verbose "# Diff'ing: $expectfile $tmpdir/objdump.out" 2
 
 	set eof -1
-	set list_a {}
-	set list_b {}
+	set differences 0
 
 	while { [gets $file_a line] != $eof } {
 	    if [regexp "^#.*$" $line] then {
@@ -287,6 +292,7 @@ proc objdump_symstuff { objdump object expectfile } {
 	    set line_a [lindex $list_a $i]
 	    set line_b [lindex $list_b $i]
 
+
 	    verbose "\t$expectfile: $i: $line_a" 3
 	    verbose "\t/tmp/objdump.out: $i: $line_b" 3
 	    if [regexp $line_a $line_b] then {
@@ -303,12 +309,17 @@ proc objdump_symstuff { objdump object expectfile } {
 	    verbose -log "Line count"
 	    return 0
 	}
-	return 1
 
+	if $differences<1 then {
+	    return 1
+	}
+
+	return 0
     } else {
 	verbose -log "$exec_output"
 	return 0
     }
+
 }
 
 #
@@ -352,8 +363,7 @@ proc objdump_dynsymstuff { objdump object expectfile } {
 	verbose "# Diff'ing: $expectfile $tmpdir/objdump.out" 2
 
 	set eof -1
-	set list_a {}
-	set list_b {}
+	set differences 0
 
 	while { [gets $file_a line] != $eof } {
 	    if [regexp "^#.*$" $line] then {
@@ -373,6 +383,15 @@ proc objdump_dynsymstuff { objdump object expectfile } {
 	    }
 	}
 	close $file_b
+
+	# Support empty files.
+	if { ![info exists list_a] } then {
+	    if { ![info exists list_b] } then {
+		return 1
+	    }
+	    verbose -log "\t$tmpdir/objdump.out: $list_b"
+	    return 0
+	}
 
 	for { set i 0 } { $i < [llength $list_b] } { incr i } {
 	    set line_b [lindex $list_b $i]
@@ -410,12 +429,17 @@ proc objdump_dynsymstuff { objdump object expectfile } {
 	    verbose -log "Line count"
 	    return 0
 	}
-	return 1
 
+	if $differences<1 then {
+	    return 1
+	}
+
+	return 0
     } else {
 	verbose -log "$exec_output"
 	return 0
     }
+
 }
 
 #
@@ -489,9 +513,8 @@ proc build_binary { shared pic test source libname other mapfile verexp versymex
     global CC
     global CFLAGS
     global script
-    global NOSANITIZE_CFLAGS
 
-    if ![ld_compile "$CC -S $pic $CFLAGS $NOSANITIZE_CFLAGS" $srcdir/$subdir/$source $tmpdir/$libname.s]     {
+    if ![ld_compile "$CC -S $pic $CFLAGS" $srcdir/$subdir/$source $tmpdir/$libname.s]     {
 	unresolved "$test"
 	return
     }
@@ -553,7 +576,7 @@ proc build_vers_lib_no_pic { test source libname other mapfile verexp versymexp 
   global shared
   # Make sure that PLT is used since PLT is expected.
   global PLT_CFLAGS
-  build_binary "$shared -z notext" $PLT_CFLAGS $test $source $libname $other $mapfile $verexp $versymexp $symexp ""
+  build_binary $shared $PLT_CFLAGS $test $source $libname $other $mapfile $verexp $versymexp $symexp ""
 }
 
 proc build_vers_lib_pic { test source libname other mapfile verexp versymexp symexp } {
@@ -645,10 +668,6 @@ proc test_strip_vers_lib { test srclib libname verexp versymexp } {
     global tmpdir
     global objdump
 
-    if {! [file exists $tmpdir/$srclib] } then {
-	fail "$test ($tmpdir/$srclib does not exist)"
-	return	
-    }
     verbose -log "cp $tmpdir/$srclib $tmpdir/$libname.so"
     exec cp $tmpdir/$srclib $tmpdir/$libname.so
 
@@ -688,21 +707,10 @@ proc build_exec { test source execname flags solibname verexp versymexp symexp }
     global objdump
     global CC
     global CFLAGS
-    global NOSANITIZE_CFLAGS
 
     set shared "--shared --no-undefined-version"
     set script --version-script
-
-    # Disable LTO for these tests.
-    set cc_cmd "$CC -S $CFLAGS"
-    if {[check_lto_available]} {
-	append cc_cmd " -fno-lto"
-    }
-
-    # Disable all sanitizers.
-    append cc_cmd " $NOSANITIZE_CFLAGS"
-
-    if ![ld_compile $cc_cmd $srcdir/$subdir/$source $tmpdir/$execname.s]     {
+    if ![ld_compile "$CC -S $CFLAGS" $srcdir/$subdir/$source $tmpdir/$execname.s]     {
 	unresolved "$test"
 	return
     }
@@ -895,12 +903,8 @@ build_vers_lib_pic "vers18" vers18.c vers18 vers17.so vers18.map vers18.ver vers
 build_exec "vers19" vers19.c vers19 "-Wl,--no-as-needed,-rpath,.,-rpath-link,." vers18.so vers19.ver vers19.dsym ""
 
 build_vers_lib_no_pic "vers20a" vers20.c vers20a "" vers20.map vers20a.ver vers20.dsym ""
-if {! [file exists $tmpdir/vers20a.so] } then {
-    fail "Building vers20a.so"
-} else {
-    exec cp $tmpdir/vers20a.so $tmpdir/vers20b.so
-    build_vers_lib_no_pic "vers20" vers20.c vers20 "vers20a.so vers20b.so" vers20.map vers20.ver vers20.dsym ""
-}
+exec cp $tmpdir/vers20a.so $tmpdir/vers20b.so
+build_vers_lib_no_pic "vers20" vers20.c vers20 "vers20a.so vers20b.so" vers20.map vers20.ver vers20.dsym ""
 
 # Test .symver override.
 build_vers_lib_pic "vers21" vers21.c vers21 "" vers21.map vers21.ver vers21.dsym vers21.sym
@@ -980,7 +984,7 @@ if [string match "yes" $pic] then {
     build_vers_lib_no_pic "vers27c1" vers27c.c vers27c1 "vers27b.o vers27a.so" "" vers27c.ver vers27c.dsym ""
     build_vers_lib_no_pic "vers27c2" vers27c.c vers27c2 "vers27a.so vers27b.o" "" vers27c.ver vers27c.dsym ""
     build_vers_lib_pic "vers27d1" vers27d1.c vers27d1 "" vers27a.map vers27d.ver vers27d.dsym vers27d.sym
-    build_vers_lib_pic "vers27d2" vers27d2.c vers27d2 "" "" vers27b.ver vers27b.dsym ""
+   build_vers_lib_pic "vers27d2" vers27d2.c vers27d2 "" "" vers27b.ver vers27b.dsym ""
     build_executable "vers27d3" vers27d3.c vers27d3 "vers27b.o vers27d2.so vers27d1.so" "" vers27b.ver vers27b.dsym ""
     build_vers_lib_pic "vers27d4" vers27d2.c vers27d4 "vers27a.so" "" vers27d4.ver vers27d4.dsym ""
     build_executable "vers27d5" vers27d3.c vers27d5 "vers27d4.so vers27b.o vers27a.so" "" vers27b.ver vers27b.dsym ""

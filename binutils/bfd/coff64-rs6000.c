@@ -1,5 +1,5 @@
 /* BFD back-end for IBM RS/6000 "XCOFF64" files.
-   Copyright (C) 2000-2020 Free Software Foundation, Inc.
+   Copyright (C) 2000-2018 Free Software Foundation, Inc.
    Written Clinton Popetz.
    Contributed by Cygnus Support.
 
@@ -155,7 +155,7 @@ static bfd_boolean xcoff64_ppc_relocate_section
    asection **);
 static bfd_boolean xcoff64_slurp_armap
   (bfd *);
-static bfd_cleanup xcoff64_archive_p
+static const bfd_target *xcoff64_archive_p
   (bfd *);
 static bfd *xcoff64_openr_next_archived_file
   (bfd *, bfd *);
@@ -238,7 +238,7 @@ bfd_boolean (*xcoff64_calculate_relocation[XCOFF_MAX_CALCULATE_RELOCATION])
 #define coff_bfd_reloc_type_lookup xcoff64_reloc_type_lookup
 #define coff_bfd_reloc_name_lookup xcoff64_reloc_name_lookup
 #ifdef AIX_CORE
-extern bfd_cleanup rs6000coff_core_p
+extern const bfd_target * rs6000coff_core_p
   (bfd *abfd);
 extern bfd_boolean rs6000coff_core_file_matches_executable_p
   (bfd *cbfd, bfd *ebfd);
@@ -278,6 +278,7 @@ extern int rs6000coff_core_file_failing_signal
 #define bfd_pe_print_pdata	NULL
 #endif
 
+#include <stdint.h>
 #include "coffcode.h"
 
 /* For XCOFF64, the effective width of symndx changes depending on
@@ -959,7 +960,7 @@ xcoff64_write_object_contents (bfd *abfd)
       if (text_sec != NULL)
 	{
 	  internal_a.o_sntext = text_sec->target_index;
-	  internal_a.o_algntext = bfd_section_alignment (text_sec);
+	  internal_a.o_algntext = bfd_get_section_alignment (abfd, text_sec);
 	}
       else
 	{
@@ -970,7 +971,7 @@ xcoff64_write_object_contents (bfd *abfd)
       if (data_sec != NULL)
 	{
 	  internal_a.o_sndata = data_sec->target_index;
-	  internal_a.o_algndata = bfd_section_alignment (data_sec);
+	  internal_a.o_algndata = bfd_get_section_alignment (abfd, data_sec);
 	}
       else
 	{
@@ -1249,11 +1250,10 @@ xcoff64_ppc_relocate_section (bfd *output_bfd,
 	    {
 	      if (info->unresolved_syms_in_objects != RM_IGNORE
 		  && (h->flags & XCOFF_WAS_UNDEFINED) != 0)
-                info->callbacks->undefined_symbol
+		(*info->callbacks->undefined_symbol)
 		  (info, h->root.root.string, input_bfd, input_section,
 		   rel->r_vaddr - input_section->vma,
-		   info->unresolved_syms_in_objects == RM_DIAGNOSE
-		   && !info->warn_unresolved_syms);
+		   info->unresolved_syms_in_objects == RM_GENERATE_ERROR);
 
 	      if (h->root.type == bfd_link_hash_defined
 		  || h->root.type == bfd_link_hash_defweak)
@@ -1305,6 +1305,10 @@ xcoff64_ppc_relocate_section (bfd *output_bfd,
 	 which we don't check for.  We must either check at every single
 	 operation, which would be tedious, or we must do the computations
 	 in a type larger than bfd_vma, which would be inefficient.  */
+
+      if ((unsigned int) howto.complain_on_overflow
+	  >= XCOFF_MAX_COMPLAIN_OVERFLOW)
+	abort ();
 
       if (((*xcoff_complain_overflow[howto.complain_on_overflow])
 	   (input_bfd, value_to_relocate, relocation, &howto)))
@@ -1879,13 +1883,13 @@ _bfd_strntoll (const char * nptr, int base, unsigned int maxlen)
 }
 
 /* Macro to read an ASCII value stored in an archive header field.  */
-#define GET_VALUE_IN_FIELD(VAR, FIELD, BASE)			\
-  do								\
-    {								\
-      (VAR) = (sizeof (VAR) > sizeof (long)			\
-	       ? _bfd_strntoll (FIELD, BASE, sizeof FIELD)	\
-	       : _bfd_strntol (FIELD, BASE, sizeof FIELD));	\
-    }								\
+#define GET_VALUE_IN_FIELD(VAR, FIELD)		  \
+  do						  \
+    {						  \
+      (VAR) = sizeof (VAR) > sizeof (long)	  \
+	? _bfd_strntoll (FIELD, 10, sizeof FIELD) \
+	: _bfd_strntol (FIELD, 10, sizeof FIELD); \
+    }						  \
   while (0)
 
 /* Read in the armap of an XCOFF archive.  */
@@ -1907,7 +1911,7 @@ xcoff64_slurp_armap (bfd *abfd)
 
   if (xcoff_ardata (abfd) == NULL)
     {
-      abfd->has_armap = FALSE;
+      bfd_has_map (abfd) = FALSE;
       return TRUE;
     }
 
@@ -1915,7 +1919,7 @@ xcoff64_slurp_armap (bfd *abfd)
 		      (const char **) NULL, 10);
   if (off == 0)
     {
-      abfd->has_armap = FALSE;
+      bfd_has_map (abfd) = FALSE;
       return TRUE;
     }
 
@@ -1928,31 +1932,24 @@ xcoff64_slurp_armap (bfd *abfd)
     return FALSE;
 
   /* Skip the name (normally empty).  */
-  GET_VALUE_IN_FIELD (namlen, hdr.namlen, 10);
+  GET_VALUE_IN_FIELD (namlen, hdr.namlen);
   pos = ((namlen + 1) & ~(size_t) 1) + SXCOFFARFMAG;
   if (bfd_seek (abfd, pos, SEEK_CUR) != 0)
     return FALSE;
 
   sz = bfd_scan_vma (hdr.size, (const char **) NULL, 10);
-  if (sz + 1 < 9)
-    {
-      bfd_set_error (bfd_error_bad_value);
-      return FALSE;
-    }
 
   /* Read in the entire symbol table.  */
-  contents = (bfd_byte *) _bfd_alloc_and_read (abfd, sz + 1, sz);
+  contents = (bfd_byte *) bfd_alloc (abfd, sz);
   if (contents == NULL)
     return FALSE;
-
-  /* Ensure strings are NULL terminated so we don't wander off the end
-     of the buffer.  */
-  contents[sz] = 0;
+  if (bfd_bread (contents, sz, abfd) != sz)
+    return FALSE;
 
   /* The symbol table starts with an eight byte count.  */
   c = H_GET_64 (abfd, contents);
 
-  if (c >= sz / 8)
+  if (c * 8 >= sz)
     {
       bfd_set_error (bfd_error_bad_value);
       return FALSE;
@@ -1984,7 +1981,7 @@ xcoff64_slurp_armap (bfd *abfd)
     }
 
   bfd_ardata (abfd)->symdef_count = c;
-  abfd->has_armap = TRUE;
+  bfd_has_map (abfd) = TRUE;
 
   return TRUE;
 }
@@ -1992,14 +1989,14 @@ xcoff64_slurp_armap (bfd *abfd)
 
 /* See if this is an NEW XCOFF archive.  */
 
-static bfd_cleanup
+static const bfd_target *
 xcoff64_archive_p (bfd *abfd)
 {
   struct artdata *tdata_hold;
   char magic[SXCOFFARMAG];
   /* This is the new format.  */
   struct xcoff_ar_file_hdr_big hdr;
-  size_t amt = SXCOFFARMAG;
+  bfd_size_type amt = SXCOFFARMAG;
 
   if (bfd_bread (magic, amt, abfd) != amt)
     {
@@ -2059,7 +2056,7 @@ xcoff64_archive_p (bfd *abfd)
       return NULL;
     }
 
-  return _bfd_no_cleanup;
+  return abfd->xvec;
 }
 
 
@@ -2786,7 +2783,6 @@ const bfd_target rs6000_xcoff64_vec =
     bfd_generic_lookup_section_flags,
     bfd_generic_merge_sections,
     bfd_generic_is_group_section,
-    bfd_generic_group_name,
     bfd_generic_discard_group,
     _bfd_generic_section_already_linked,
     _bfd_xcoff_define_common_symbol,
@@ -2806,7 +2802,7 @@ const bfd_target rs6000_xcoff64_vec =
     &bfd_xcoff_backend_data,
   };
 
-extern bfd_cleanup xcoff64_core_p
+extern const bfd_target *xcoff64_core_p
   (bfd *);
 extern bfd_boolean xcoff64_core_file_matches_executable_p
   (bfd *, bfd *);
@@ -3049,7 +3045,6 @@ const bfd_target rs6000_xcoff64_aix_vec =
     bfd_generic_lookup_section_flags,
     bfd_generic_merge_sections,
     bfd_generic_is_group_section,
-    bfd_generic_group_name,
     bfd_generic_discard_group,
     _bfd_generic_section_already_linked,
     _bfd_xcoff_define_common_symbol,

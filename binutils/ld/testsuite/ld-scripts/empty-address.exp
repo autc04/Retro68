@@ -1,6 +1,6 @@
 # Make sure that "dot" is updated for empty sections if their addresses
 # are set.
-#   Copyright (C) 2006-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -19,11 +19,8 @@
 # Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
 # MA 02110-1301, USA.
 
-set old_LDFLAGS $LDFLAGS
-if { [is_pecoff_format] } then {
-    set LDFLAGS "$LDFLAGS --image-base 0"
-} elseif { [is_xcoff_format] } then {
-    set LDFLAGS "$LDFLAGS -bnogc"
+if [istarget "x86_64-*-mingw*"] then {
+  set LDFLAGS "$LDFLAGS --image-base 0"
 }
 
 run_dump_test empty-address-1
@@ -32,5 +29,3 @@ run_dump_test empty-address-2b
 run_dump_test empty-address-3a
 run_dump_test empty-address-3b
 run_dump_test empty-address-3c
-
-set LDFLAGS $old_LDFLAGS

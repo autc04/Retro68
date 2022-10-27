@@ -1,7 +1,7 @@
 .*: Assembler messages:
 .*:2: Error: file number less than one
 .*:3: Error: missing string
-.*:4: Error: file table slot 1 is already occupied.*
+.*:4: Error: file number 1 already allocated
 .*:8: Error: unassigned file number 3
 .*:9: Error: junk at end of line, first unrecognized character is `1'
 .*:12: Error: junk at end of line, first unrecognized character is `0'

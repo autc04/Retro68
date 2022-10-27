@@ -1,7 +1,7 @@
 #objdump: -dr --prefix-addresses --show-raw-insn -Mmsa
 #name: MSA relax
 #as: -32 -mmsa -relax-branch
-#warning_output: msa-relax.l
+#stderr: msa-relax.l
 
 .*: +file format .*mips.*
 

@@ -18,7 +18,7 @@ esac
 rm -f e${EMULATION_NAME}.c
 (echo;echo;echo;echo;echo)>e${EMULATION_NAME}.c # there, now line numbers match ;-)
 fragment <<EOF
-/* Copyright (C) 2006-2020 Free Software Foundation, Inc.
+/* Copyright (C) 2006-2018 Free Software Foundation, Inc.
    Written by Kai Tietz, OneVision Software GmbH&CoKg.
 
    This file is part of the GNU Binutils.
@@ -51,7 +51,6 @@ fragment <<EOF
 #include "sysdep.h"
 #include "bfd.h"
 #include "bfdlink.h"
-#include "ctf-api.h"
 #include "getopt.h"
 #include "libiberty.h"
 #include "filenames.h"
@@ -99,28 +98,24 @@ fragment <<EOF
 #define DLL_SUPPORT
 #endif
 
-#define DEFAULT_DLL_CHARACTERISTICS	(IMAGE_DLL_CHARACTERISTICS_DYNAMIC_BASE \
-					 | IMAGE_DLL_CHARACTERISTICS_HIGH_ENTROPY_VA \
-					 | IMAGE_DLL_CHARACTERISTICS_NX_COMPAT)
-
 #if defined(TARGET_IS_i386pep) || ! defined(DLL_SUPPORT)
 #define	PE_DEF_SUBSYSTEM		3
 #undef NT_EXE_IMAGE_BASE
 #define NT_EXE_IMAGE_BASE \
   ((bfd_vma) (${move_default_addr_high} ? 0x100400000LL \
-					: 0x140000000LL))
+					: 0x400000LL))
 #undef NT_DLL_IMAGE_BASE
 #define NT_DLL_IMAGE_BASE \
   ((bfd_vma) (${move_default_addr_high} ? 0x400000000LL \
-					: 0x180000000LL))
+					: 0x10000000LL))
 #undef NT_DLL_AUTO_IMAGE_BASE
 #define NT_DLL_AUTO_IMAGE_BASE \
   ((bfd_vma) (${move_default_addr_high} ? 0x400000000LL \
-					: 0x1C0000000LL))
+					: 0x61300000LL))
 #undef NT_DLL_AUTO_IMAGE_MASK
 #define NT_DLL_AUTO_IMAGE_MASK \
   ((bfd_vma) (${move_default_addr_high} ? 0x1ffff0000LL \
-					: 0x1ffff0000LL))
+					: 0x0ffc0000LL))
 #else
 #undef  NT_EXE_IMAGE_BASE
 #define NT_EXE_IMAGE_BASE \
@@ -151,7 +146,7 @@ static int pep_subsystem = ${SUBSYSTEM};
 static flagword real_flags = IMAGE_FILE_LARGE_ADDRESS_AWARE;
 static int support_old_code = 0;
 static lang_assignment_statement_type *image_base_statement = 0;
-static unsigned short pe_dll_characteristics = DEFAULT_DLL_CHARACTERISTICS;
+static unsigned short pe_dll_characteristics = 0;
 static bfd_boolean insert_timestamp = TRUE;
 static const char *emit_build_id;
 
@@ -251,18 +246,7 @@ enum options
   OPTION_INSERT_TIMESTAMP,
   OPTION_NO_INSERT_TIMESTAMP,
   OPTION_TERMINAL_SERVER_AWARE,
-  OPTION_BUILD_ID,
-  OPTION_ENABLE_RELOC_SECTION,
-  OPTION_DISABLE_RELOC_SECTION,
-  OPTION_DISABLE_HIGH_ENTROPY_VA,
-  OPTION_DISABLE_DYNAMIC_BASE,
-  OPTION_DISABLE_FORCE_INTEGRITY,
-  OPTION_DISABLE_NX_COMPAT,
-  OPTION_DISABLE_NO_ISOLATION,
-  OPTION_DISABLE_NO_SEH,
-  OPTION_DISABLE_NO_BIND,
-  OPTION_DISABLE_WDM_DRIVER,
-  OPTION_DISABLE_TERMINAL_SERVER_AWARE
+  OPTION_BUILD_ID
 };
 
 static void
@@ -340,17 +324,6 @@ gld${EMULATION_NAME}_add_options
     {"insert-timestamp", no_argument, NULL, OPTION_INSERT_TIMESTAMP},
     {"no-insert-timestamp", no_argument, NULL, OPTION_NO_INSERT_TIMESTAMP},
     {"build-id", optional_argument, NULL, OPTION_BUILD_ID},
-    {"enable-reloc-section", no_argument, NULL, OPTION_ENABLE_RELOC_SECTION},
-    {"disable-reloc-section", no_argument, NULL, OPTION_DISABLE_RELOC_SECTION},
-    {"disable-high-entropy-va", no_argument, NULL, OPTION_DISABLE_HIGH_ENTROPY_VA},
-    {"disable-dynamicbase",no_argument, NULL, OPTION_DISABLE_DYNAMIC_BASE},
-    {"disable-forceinteg", no_argument, NULL, OPTION_DISABLE_FORCE_INTEGRITY},
-    {"disable-nxcompat", no_argument, NULL, OPTION_DISABLE_NX_COMPAT},
-    {"disable-no-isolation", no_argument, NULL, OPTION_DISABLE_NO_ISOLATION},
-    {"disable-no-seh", no_argument, NULL, OPTION_DISABLE_NO_SEH},
-    {"disable-no-bind", no_argument, NULL, OPTION_DISABLE_NO_BIND},
-    {"disable-wdmdriver", no_argument, NULL, OPTION_DISABLE_WDM_DRIVER},
-    {"disable-tsaware", no_argument, NULL, OPTION_DISABLE_TERMINAL_SERVER_AWARE},
     {NULL, no_argument, NULL, 0}
   };
 
@@ -408,7 +381,7 @@ static definfo init[] =
   D(SizeOfHeapReserve,"__size_of_heap_reserve__", 0x100000, FALSE),
   D(SizeOfHeapCommit,"__size_of_heap_commit__", 0x1000, FALSE),
   D(LoaderFlags,"__loader_flags__", 0x0, FALSE),
-  D(DllCharacteristics, "__dll_characteristics__", DEFAULT_DLL_CHARACTERISTICS, FALSE),
+  D(DllCharacteristics, "__dll_characteristics__", 0x0, FALSE),
   { NULL, 0, 0, NULL, 0, FALSE}
 };
 
@@ -470,23 +443,19 @@ gld_${EMULATION_NAME}_list_options (FILE *file)
                                        executable image files\n"));
   fprintf (file, _("  --disable-long-section-names       Never use long COFF section names, even\n\
                                        in object files\n"));
-  fprintf (file, _("  --[disable-]high-entropy-va        Image is compatible with 64-bit address space\n\
+  fprintf (file, _("  --high-entropy-va                  Image is compatible with 64-bit address space\n\
                                        layout randomization (ASLR)\n"));
-  fprintf (file, _("  --[disable-]dynamicbase            Image base address may be relocated using\n\
+  fprintf (file, _("  --dynamicbase                      Image base address may be relocated using\n\
                                        address space layout randomization (ASLR)\n"));
-  fprintf (file, _("  --enable-reloc-section             Create the base relocation table\n"));
-  fprintf (file, _("  --disable-reloc-section            Do not create the base relocation table\n"));
-  fprintf (file, _("  --[disable-]forceinteg             Code integrity checks are enforced\n"));
-  fprintf (file, _("  --[disable-]nxcompat               Image is compatible with data execution\n\
-                                       prevention\n"));
-  fprintf (file, _("  --[disable-]no-isolation           Image understands isolation but do not\n\
-                                       isolate the image\n"));
-  fprintf (file, _("  --[disable-]no-seh                 Image does not use SEH; no SE handler may\n\
+  fprintf (file, _("  --forceinteg               Code integrity checks are enforced\n"));
+  fprintf (file, _("  --nxcompat                 Image is compatible with data execution prevention\n"));
+  fprintf (file, _("  --no-isolation             Image understands isolation but do not isolate the image\n"));
+  fprintf (file, _("  --no-seh                   Image does not use SEH; no SE handler may\n\
                                        be called in this image\n"));
-  fprintf (file, _("  --[disable-]no-bind                Do not bind this image\n"));
-  fprintf (file, _("  --[disable-]wdmdriver              Driver uses the WDM model\n"));
-  fprintf (file, _("  --[disable-]tsaware                Image is Terminal Server aware\n"));
-  fprintf (file, _("  --build-id[=STYLE]                 Generate build ID\n"));
+  fprintf (file, _("  --no-bind                  Do not bind this image\n"));
+  fprintf (file, _("  --wdmdriver                Driver uses the WDM model\n"));
+  fprintf (file, _("  --tsaware                  Image is Terminal Server aware\n"));
+  fprintf (file, _("  --build-id[=STYLE]         Generate build ID\n"));
 #endif
 }
 
@@ -829,67 +798,37 @@ gld${EMULATION_NAME}_handle_option (int optc)
     /*  Get DLLCharacteristics bits  */
     case OPTION_HIGH_ENTROPY_VA:
       pe_dll_characteristics |= IMAGE_DLL_CHARACTERISTICS_HIGH_ENTROPY_VA;
-      /* fall through */
+      break;
     case OPTION_DYNAMIC_BASE:
       pe_dll_characteristics |= IMAGE_DLL_CHARACTERISTICS_DYNAMIC_BASE;
-      /* fall through */
-    case OPTION_ENABLE_RELOC_SECTION:
-      pep_dll_enable_reloc_section = 1;
-      break;
-    case OPTION_DISABLE_RELOC_SECTION:
-      pep_dll_enable_reloc_section = 0;
-      /* fall through */
-    case OPTION_DISABLE_DYNAMIC_BASE:
-      pe_dll_characteristics &= ~ IMAGE_DLL_CHARACTERISTICS_DYNAMIC_BASE;
-      /* fall through */
-    case OPTION_DISABLE_HIGH_ENTROPY_VA:
-      pe_dll_characteristics &= ~ IMAGE_DLL_CHARACTERISTICS_HIGH_ENTROPY_VA;
       break;
     case OPTION_FORCE_INTEGRITY:
       pe_dll_characteristics |= IMAGE_DLL_CHARACTERISTICS_FORCE_INTEGRITY;
       break;
-    case OPTION_DISABLE_FORCE_INTEGRITY:
-      pe_dll_characteristics &= ~ IMAGE_DLL_CHARACTERISTICS_FORCE_INTEGRITY;
-      break;
     case OPTION_NX_COMPAT:
       pe_dll_characteristics |= IMAGE_DLL_CHARACTERISTICS_NX_COMPAT;
-      break;
-    case OPTION_DISABLE_NX_COMPAT:
-      pe_dll_characteristics &= ~ IMAGE_DLL_CHARACTERISTICS_NX_COMPAT;
       break;
     case OPTION_NO_ISOLATION:
       pe_dll_characteristics |= IMAGE_DLLCHARACTERISTICS_NO_ISOLATION;
       break;
-    case OPTION_DISABLE_NO_ISOLATION:
-      pe_dll_characteristics &= ~ IMAGE_DLLCHARACTERISTICS_NO_ISOLATION;
-      break;
     case OPTION_NO_SEH:
       pe_dll_characteristics |= IMAGE_DLLCHARACTERISTICS_NO_SEH;
-      break;
-    case OPTION_DISABLE_NO_SEH:
-      pe_dll_characteristics &= ~ IMAGE_DLLCHARACTERISTICS_NO_SEH;
       break;
     case OPTION_NO_BIND:
       pe_dll_characteristics |= IMAGE_DLLCHARACTERISTICS_NO_BIND;
       break;
-    case OPTION_DISABLE_NO_BIND:
-      pe_dll_characteristics &= ~ IMAGE_DLLCHARACTERISTICS_NO_BIND;
-      break;
     case OPTION_WDM_DRIVER:
       pe_dll_characteristics |= IMAGE_DLLCHARACTERISTICS_WDM_DRIVER;
-      break;
-    case OPTION_DISABLE_WDM_DRIVER:
-      pe_dll_characteristics &= ~ IMAGE_DLLCHARACTERISTICS_WDM_DRIVER;
       break;
     case OPTION_TERMINAL_SERVER_AWARE:
       pe_dll_characteristics |= IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE;
       break;
-    case OPTION_DISABLE_TERMINAL_SERVER_AWARE:
-      pe_dll_characteristics &= ~ IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE;
-      break;
     case OPTION_BUILD_ID:
-      free ((char *) emit_build_id);
-      emit_build_id = NULL;
+      if (emit_build_id != NULL)
+	{
+	  free ((char *) emit_build_id);
+	  emit_build_id = NULL;
+	}
       if (optarg == NULL)
 	optarg = DEFAULT_BUILD_ID_STYLE;
       if (strcmp (optarg, "none"))
@@ -1381,7 +1320,7 @@ gld_${EMULATION_NAME}_after_open (void)
       bfd_hash_traverse (&link_info.hash->table, pr_sym, NULL);
 
       for (a = link_info.input_bfds; a; a = a->link.next)
-	printf ("*%s\n", bfd_get_filename (a));
+	printf ("*%s\n",a->filename);
     }
 #endif
 
@@ -1409,8 +1348,7 @@ gld_${EMULATION_NAME}_after_open (void)
      FIXME: This should be done via a function, rather than by
      including an internal BFD header.  */
 
-  if (bfd_get_flavour (link_info.output_bfd) != bfd_target_coff_flavour
-      || coff_data (link_info.output_bfd) == NULL
+  if (coff_data (link_info.output_bfd) == NULL
       || coff_data (link_info.output_bfd)->pe == 0)
     einfo (_("%F%P: cannot perform PE operations on non PE output file '%pB'\n"),
 	   link_info.output_bfd);
@@ -1418,10 +1356,7 @@ gld_${EMULATION_NAME}_after_open (void)
   pe_data (link_info.output_bfd)->pe_opthdr = pep;
   pe_data (link_info.output_bfd)->dll = init[DLLOFF].value;
   pe_data (link_info.output_bfd)->real_flags |= real_flags;
-  if (insert_timestamp)
-    pe_data (link_info.output_bfd)->timestamp = -1;
-  else
-    pe_data (link_info.output_bfd)->timestamp = 0;
+  pe_data (link_info.output_bfd)->insert_timestamp = insert_timestamp;
 
   /* At this point we must decide whether to use long section names
      in the output or not.  If the user hasn't explicitly specified
@@ -1544,7 +1479,8 @@ gld_${EMULATION_NAME}_after_open (void)
 		      {
 			struct bfd_symbol *s;
 			struct bfd_link_hash_entry * blhe;
-			const char *other_bfd_filename;
+			char *other_bfd_filename;
+			char *n;
 
 			s = (relocs[i]->sym_ptr_ptr)[0];
 
@@ -1571,9 +1507,9 @@ gld_${EMULATION_NAME}_after_open (void)
 			  continue;
 
 			/* Rename this implib to match the other one.  */
-			if (!bfd_set_filename (is->the_bfd->my_archive,
-					       other_bfd_filename))
-			  einfo ("%F%P: %pB: %E\n", is->the_bfd);
+			n = xmalloc (strlen (other_bfd_filename) + 1);
+			strcpy (n, other_bfd_filename);
+			is->the_bfd->my_archive->filename = n;
 		      }
 
 		    free (relocs);
@@ -1620,7 +1556,7 @@ gld_${EMULATION_NAME}_after_open (void)
 		       members, so look for the first element with a .dll
 		       extension, and use that for the remainder of the
 		       comparisons.  */
-		    pnt = strrchr (bfd_get_filename (is3->the_bfd), '.');
+		    pnt = strrchr (is3->the_bfd->filename, '.');
 		    if (pnt != NULL && filename_cmp (pnt, ".dll") == 0)
 		      break;
 		  }
@@ -1637,12 +1573,12 @@ gld_${EMULATION_NAME}_after_open (void)
 		      {
 			/* Skip static members, ie anything with a .obj
 			   extension.  */
-			pnt = strrchr (bfd_get_filename (is2->the_bfd), '.');
+			pnt = strrchr (is2->the_bfd->filename, '.');
 			if (pnt != NULL && filename_cmp (pnt, ".obj") == 0)
 			  continue;
 
-			if (filename_cmp (bfd_get_filename (is3->the_bfd),
-					  bfd_get_filename (is2->the_bfd)))
+			if (filename_cmp (is3->the_bfd->filename,
+					  is2->the_bfd->filename))
 			  {
 			    is_ms_arch = 0;
 			    break;
@@ -1654,7 +1590,7 @@ gld_${EMULATION_NAME}_after_open (void)
 	    /* This fragment might have come from an .obj file in a Microsoft
 	       import, and not an actual import record. If this is the case,
 	       then leave the filename alone.  */
-	    pnt = strrchr (bfd_get_filename (is->the_bfd), '.');
+	    pnt = strrchr (is->the_bfd->filename, '.');
 
 	    if (is_ms_arch && (filename_cmp (pnt, ".dll") == 0))
 	      {
@@ -1676,14 +1612,13 @@ gld_${EMULATION_NAME}_after_open (void)
 		else /* sentinel */
 		  seq = 'c';
 
-		new_name
-		  = xmalloc (strlen (bfd_get_filename (is->the_bfd)) + 3);
-		sprintf (new_name, "%s.%c",
-			 bfd_get_filename (is->the_bfd), seq);
-		is->filename = bfd_set_filename (is->the_bfd, new_name);
-		free (new_name);
-		if (!is->filename)
-		  einfo ("%F%P: %pB: %E\n", is->the_bfd);
+		new_name = xmalloc (strlen (is->the_bfd->filename) + 3);
+		sprintf (new_name, "%s.%c", is->the_bfd->filename, seq);
+		is->the_bfd->filename = new_name;
+
+		new_name = xmalloc (strlen (is->filename) + 3);
+		sprintf (new_name, "%s.%c", is->filename, seq);
+		is->filename = new_name;
 	      }
 	  }
       }
@@ -1818,13 +1753,11 @@ gld_${EMULATION_NAME}_finish (void)
 
 #ifdef DLL_SUPPORT
   if (bfd_link_pic (&link_info)
-      || pep_dll_enable_reloc_section
       || (!bfd_link_relocatable (&link_info)
 	  && pep_def_file->num_exports != 0))
     {
       pep_dll_fill_sections (link_info.output_bfd, &link_info);
-      if (command_line.out_implib_filename
-          && pep_def_file->num_exports != 0)
+      if (command_line.out_implib_filename)
 	pep_dll_generate_implib (pep_def_file,
 				 command_line.out_implib_filename, &link_info);
     }
@@ -1980,7 +1913,9 @@ gld_${EMULATION_NAME}_place_orphan (asection *s,
 		&& (nexts->flags & SEC_EXCLUDE) == 0
 		&& ((nexts->flags ^ flags) & (SEC_LOAD | SEC_ALLOC)) == 0
 		&& (nexts->owner->flags & DYNAMIC) == 0
-		&& !bfd_input_just_syms (nexts->owner))
+		&& nexts->owner->usrdata != NULL
+		&& !(((lang_input_statement_type *) nexts->owner->usrdata)
+		     ->flags.just_syms))
 	      flags = (((flags ^ SEC_READONLY)
 			| (nexts->flags ^ SEC_READONLY))
 		       ^ SEC_READONLY);
@@ -2015,7 +1950,8 @@ gld_${EMULATION_NAME}_place_orphan (asection *s,
 						       NULL);
 	  if (after == NULL)
 	    /* *ABS* is always the first output section statement.  */
-	    after = (void *) lang_os_list.head;
+	    after = (&lang_output_section_statement.head
+		     ->output_section_statement);
 	}
 
       /* All sections in an executable must be aligned to a page boundary.
@@ -2026,7 +1962,7 @@ gld_${EMULATION_NAME}_place_orphan (asection *s,
 			       &add_child);
       if (bfd_link_relocatable (&link_info))
 	{
-	  os->section_alignment = exp_intop (1U << s->alignment_power);
+	  os->section_alignment = s->alignment_power;
 	  os->bfd_section->alignment_power = s->alignment_power;
 	}
     }
@@ -2043,7 +1979,7 @@ gld_${EMULATION_NAME}_place_orphan (asection *s,
 
       ls = &(*pl)->input_section;
 
-      lname = bfd_section_name (ls->section);
+      lname = bfd_get_section_name (ls->section->owner, ls->section);
       if (strchr (lname, '\$') != NULL
 	  && (dollar == NULL || strcmp (orig_secname, lname) < 0))
 	break;
@@ -2211,7 +2147,6 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   gld_${EMULATION_NAME}_after_parse,
   gld_${EMULATION_NAME}_after_open,
   after_check_relocs_default,
-  before_place_orphans_default,
   after_allocation_default,
   set_output_arch_default,
   ldemul_default_target,
@@ -2232,9 +2167,6 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   gld_${EMULATION_NAME}_recognized_file,
   gld_${EMULATION_NAME}_find_potential_libraries,
   NULL,	/* new_vers_pattern.  */
-  NULL,	/* extra_map_file_text */
-  ${LDEMUL_EMIT_CTF_EARLY-NULL},
-  ${LDEMUL_EXAMINE_STRTAB_FOR_CTF-NULL},
-  ${LDEMUL_PRINT_SYMBOL-NULL}
+  NULL	/* extra_map_file_text */
 };
 EOF

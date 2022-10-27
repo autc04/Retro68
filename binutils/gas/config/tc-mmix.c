@@ -1,5 +1,5 @@
 /* tc-mmix.c -- Assembler for Don Knuth's MMIX.
-   Copyright (C) 2001-2020 Free Software Foundation, Inc.
+   Copyright (C) 2001-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -217,7 +217,7 @@ struct option md_longopts[] =
 
 size_t md_longopts_size = sizeof (md_longopts);
 
-static htab_t mmix_opcode_hash;
+static struct hash_control *mmix_opcode_hash;
 
 /* We use these when implementing the PREFIX pseudo.  */
 char *mmix_current_prefix;
@@ -769,24 +769,24 @@ mmix_md_begin (void)
      only way to make ':' part of a name, and a name beginner.  */
   lex_type[':'] = (LEX_NAME | LEX_BEGIN_NAME);
 
-  mmix_opcode_hash = str_htab_create ();
+  mmix_opcode_hash = hash_new ();
 
   real_reg_section
     = bfd_make_section_old_way (stdoutput, MMIX_REG_SECTION_NAME);
 
   for (opcode = mmix_opcodes; opcode->name; opcode++)
-    str_hash_insert (mmix_opcode_hash, opcode->name, opcode, 0);
+    hash_insert (mmix_opcode_hash, opcode->name, (char *) opcode);
 
   /* We always insert the ordinary registers 0..255 as registers.  */
   for (i = 0; i < 256; i++)
     {
-      char buf[16];
+      char buf[5];
 
       /* Alternatively, we could diddle with '$' and the following number,
 	 but keeping the registers as symbols helps keep parsing simple.  */
       sprintf (buf, "$%d", i);
-      symbol_table_insert (symbol_new (buf, reg_section,
-				       &zero_address_frag, i));
+      symbol_table_insert (symbol_new (buf, reg_section, i,
+				       &zero_address_frag));
     }
 
   /* Insert mmixal built-in names if allowed.  */
@@ -795,21 +795,21 @@ mmix_md_begin (void)
       for (i = 0; mmix_spec_regs[i].name != NULL; i++)
 	symbol_table_insert (symbol_new (mmix_spec_regs[i].name,
 					 reg_section,
-					 &zero_address_frag,
-					 mmix_spec_regs[i].number + 256));
+					 mmix_spec_regs[i].number + 256,
+					 &zero_address_frag));
 
       /* FIXME: Perhaps these should be recognized as specials; as field
 	 names for those instructions.  */
-      symbol_table_insert (symbol_new ("ROUND_CURRENT", reg_section,
-				       &zero_address_frag, 512));
-      symbol_table_insert (symbol_new ("ROUND_OFF", reg_section,
-				       &zero_address_frag, 512 + 1));
-      symbol_table_insert (symbol_new ("ROUND_UP", reg_section,
-				       &zero_address_frag, 512 + 2));
-      symbol_table_insert (symbol_new ("ROUND_DOWN", reg_section,
-				       &zero_address_frag, 512 + 3));
-      symbol_table_insert (symbol_new ("ROUND_NEAR", reg_section,
-				       &zero_address_frag, 512 + 4));
+      symbol_table_insert (symbol_new ("ROUND_CURRENT", reg_section, 512,
+				       &zero_address_frag));
+      symbol_table_insert (symbol_new ("ROUND_OFF", reg_section, 512 + 1,
+				       &zero_address_frag));
+      symbol_table_insert (symbol_new ("ROUND_UP", reg_section, 512 + 2,
+				       &zero_address_frag));
+      symbol_table_insert (symbol_new ("ROUND_DOWN", reg_section, 512 + 3,
+				       &zero_address_frag));
+      symbol_table_insert (symbol_new ("ROUND_NEAR", reg_section, 512 + 4,
+				       &zero_address_frag));
     }
 }
 
@@ -843,7 +843,7 @@ md_assemble (char *str)
       *operands++ = '\0';
     }
 
-  instruction = (struct mmix_opcode *) str_hash_find (mmix_opcode_hash, str);
+  instruction = (struct mmix_opcode *) hash_find (mmix_opcode_hash, str);
   if (instruction == NULL)
     {
       as_bad (_("unknown opcode: `%s'"), str);
@@ -1332,7 +1332,6 @@ md_assemble (char *str)
       if (n_operands == 2)
 	{
 	  symbolS *sym;
-	  fixS *tmpfixP;
 
 	  /* The last operand is immediate whenever we see just two
 	     operands.  */
@@ -1381,13 +1380,8 @@ md_assemble (char *str)
 	  /* Now we know it can be a "base address plus offset".  Add
 	     proper fixup types so we can handle this later, when we've
 	     parsed everything.  */
-	  tmpfixP
-	    = fix_new (opc_fragP, opcodep - opc_fragP->fr_literal + 2,
-		       1, sym, 0, 0, BFD_RELOC_MMIX_BASE_PLUS_OFFSET);
-	  /* This is a non-trivial fixup: the ->fx_offset will not
-	     reflect the stored value, so the generic overflow test
-	     doesn't apply. */
-	  tmpfixP->fx_no_overflow = 1;
+	  fix_new (opc_fragP, opcodep - opc_fragP->fr_literal + 2,
+		   8, sym, 0, 0, BFD_RELOC_MMIX_BASE_PLUS_OFFSET);
 	  break;
 	}
 
@@ -2136,8 +2130,9 @@ s_bspec (int unused ATTRIBUTE_UNUSED)
       if (sec == NULL)
 	as_fatal (_("can't create section %s"), newsecname);
 
-      if (!bfd_set_section_flags (sec,
-				  bfd_section_flags (sec) | SEC_READONLY))
+      if (!bfd_set_section_flags (stdoutput, sec,
+				  bfd_get_section_flags (stdoutput, sec)
+				  | SEC_READONLY))
 	as_fatal (_("can't set section flags for section %s"), newsecname);
     }
 
@@ -2338,18 +2333,11 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, segT sec ATTRIBUTE_UNUSED,
     case ENCODE_RELAX (STATE_PUSHJSTUB, STATE_ZERO):
       /* Setting the unknown bits to 0 seems the most appropriate.  */
       mmix_set_geta_branch_offset (opcodep, 0);
-      tmpfixP = fix_new (opc_fragP, opcodep - opc_fragP->fr_literal, 4,
+      tmpfixP = fix_new (opc_fragP, opcodep - opc_fragP->fr_literal, 8,
 			 fragP->fr_symbol, fragP->fr_offset, 1,
 			 BFD_RELOC_MMIX_PUSHJ_STUBBABLE);
       COPY_FR_WHERE_TO_FX (fragP, tmpfixP);
       var_part_size = 0;
-
-      /* This is a non-trivial fixup; we'll be calling a generated
-	 stub, whose address fits into the fixup.  The actual target,
-	 as reflected by the fixup value, is further away than fits
-	 into the fixup, so the generic overflow test doesn't
-	 apply. */
-      tmpfixP->fx_no_overflow = 1;
       break;
 
     case ENCODE_RELAX (STATE_GETA, STATE_ZERO):
@@ -2650,7 +2638,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixP)
      than just helping the user around this limitation here; hopefully the
      code using the local expression is around.  Putting the LOCAL
      semantics in a relocation still seems right; a section didn't do.  */
-  if (bfd_section_size (section) == 0)
+  if (bfd_section_size (section->owner, section) == 0)
     as_bad_where
       (fixP->fx_file, fixP->fx_line,
        fixP->fx_r_type == BFD_RELOC_MMIX_LOCAL
@@ -2720,7 +2708,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixP)
 	 resolve the relocation here.  */
       if (addsy != NULL
 	  && (bfd_is_und_section (addsec)
-	      || strcmp (bfd_section_name (addsec),
+	      || strcmp (bfd_get_section_name (addsec->owner, addsec),
 			 MMIX_REG_CONTENTS_SECTION_NAME) == 0))
 	{
 	  code = fixP->fx_r_type;
@@ -2747,7 +2735,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixP)
 
     case BFD_RELOC_MMIX_BASE_PLUS_OFFSET:
       if (addsy != NULL
-	  && strcmp (bfd_section_name (addsec),
+	  && strcmp (bfd_get_section_name (addsec->owner, addsec),
 		     MMIX_REG_CONTENTS_SECTION_NAME) == 0)
 	{
 	  /* This changed into a register; the relocation is for the
@@ -2850,7 +2838,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixP)
     case BFD_RELOC_MMIX_REG:
       if (addsy != NULL
 	  && (bfd_is_und_section (addsec)
-	      || strcmp (bfd_section_name (addsec),
+	      || strcmp (bfd_get_section_name (addsec->owner, addsec),
 			 MMIX_REG_CONTENTS_SECTION_NAME) == 0))
 	{
 	  code = fixP->fx_r_type;
@@ -3520,8 +3508,8 @@ mmix_md_end (void)
       sprintf (locsymbol, ":%s%s", MMIX_LOC_SECTION_START_SYMBOL_PREFIX,
 	       ".text");
       symbolP
-	= symbol_new (locsymbol, absolute_section, &zero_address_frag,
-		      lowest_text_loc);
+	= symbol_new (locsymbol, absolute_section, lowest_text_loc,
+		      &zero_address_frag);
       S_SET_EXTERNAL (symbolP);
     }
 
@@ -3536,8 +3524,8 @@ mmix_md_end (void)
       sprintf (locsymbol, ":%s%s", MMIX_LOC_SECTION_START_SYMBOL_PREFIX,
 	       ".data");
       symbolP
-	= symbol_new (locsymbol, absolute_section, &zero_address_frag,
-		      lowest_data_loc);
+	= symbol_new (locsymbol, absolute_section, lowest_data_loc,
+		      &zero_address_frag);
       S_SET_EXTERNAL (symbolP);
     }
 
@@ -3806,7 +3794,7 @@ mmix_frob_file (void)
   if (real_reg_section != NULL)
     {
       /* FIXME: Pass error state gracefully.  */
-      if (bfd_section_flags (real_reg_section) & SEC_HAS_CONTENTS)
+      if (bfd_get_section_flags (stdoutput, real_reg_section) & SEC_HAS_CONTENTS)
 	as_fatal (_("register section has contents\n"));
 
       bfd_section_list_remove (stdoutput, real_reg_section);
@@ -3845,8 +3833,9 @@ mmix_parse_predefined_name (char *name, expressionS *expP)
 	 script.  */
       symp = symbol_find (name);
       if (symp == NULL)
-	symp = symbol_new (name, text_section, &zero_address_frag,
-			   0x10 * (handler_charp + 1 - handler_chars));
+	symp = symbol_new (name, text_section,
+			   0x10 * (handler_charp + 1 - handler_chars),
+			   &zero_address_frag);
     }
   else
     {
@@ -3905,8 +3894,8 @@ mmix_parse_predefined_name (char *name, expressionS *expP)
 	  {
 	    symbol_table_insert (symbol_new (predefined_abs_syms[i].name,
 					     absolute_section,
-					     &zero_address_frag,
-					     predefined_abs_syms[i].val));
+					     predefined_abs_syms[i].val,
+					     &zero_address_frag));
 
 	    /* Let gas find the symbol we just created, through its
                ordinary lookup.  */
@@ -3935,7 +3924,7 @@ mmix_md_elf_section_change_hook (void)
   if (doing_bspec)
     as_bad (_("section change from within a BSPEC/ESPEC pair is not supported"));
 
-  last_alignment = bfd_section_alignment (now_seg);
+  last_alignment = bfd_get_section_alignment (now_seg->owner, now_seg);
   want_unaligned = 0;
 }
 

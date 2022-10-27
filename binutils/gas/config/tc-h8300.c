@@ -1,5 +1,5 @@
 /* tc-h8300.c -- Assemble code for the Renesas H8/300
-   Copyright (C) 1991-2020 Free Software Foundation, Inc.
+   Copyright (C) 1991-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -224,7 +224,7 @@ const char EXP_CHARS[] = "eE";
    or    0d1.2345e12.  */
 const char FLT_CHARS[] = "rRsSfFdDxXpP";
 
-static htab_t opcode_hash_control;	/* Opcode mnemonics.  */
+static struct hash_control *opcode_hash_control;	/* Opcode mnemonics.  */
 
 /* This function is called once, at assembler startup time.  This
    should set up all the tables, etc. that the MD part of the assembler
@@ -242,7 +242,7 @@ md_begin (void)
   if (!bfd_set_arch_mach (stdoutput, bfd_arch_h8300, default_mach))
     as_warn (_("could not set architecture and machine"));
 
-  opcode_hash_control = str_htab_create ();
+  opcode_hash_control = hash_new ();
   prev_buffer[0] = 0;
 
   nopcodes = sizeof (h8_opcodes) / sizeof (struct h8_opcode);
@@ -283,7 +283,7 @@ md_begin (void)
       len = dst - buffer;
       if (cmplen == 0)
 	cmplen = len;
-      str_hash_insert (opcode_hash_control, buffer, pi, 0);
+      hash_insert (opcode_hash_control, buffer, (char *) pi);
       strcpy (prev_buffer, buffer);
       idx++;
 
@@ -1940,7 +1940,7 @@ md_assemble (char *str)
       *slash = TOLOWER (*slash);
 
   instruction = (const struct h8_instruction *)
-    str_hash_find (opcode_hash_control, op_start);
+    hash_find (opcode_hash_control, op_start);
 
   if (instruction == NULL)
     {
@@ -2225,7 +2225,7 @@ md_convert_frag (bfd *headers ATTRIBUTE_UNUSED,
 valueT
 md_section_align (segT segment, valueT size)
 {
-  int align = bfd_section_alignment (segment);
+  int align = bfd_get_section_alignment (stdoutput, segment);
   return ((size + (1 << align) - 1) & (-1U << align));
 }
 

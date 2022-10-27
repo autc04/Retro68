@@ -1,5 +1,5 @@
 #objdump: -dr
-#noskip: *-vxworks
+#not-skip: *-vxworks
 
 .*:     file format .*
 

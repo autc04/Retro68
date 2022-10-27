@@ -1,6 +1,6 @@
 # Expect script for linker support of size relocations.
 #
-#   Copyright (C) 2013-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2013-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -48,10 +48,13 @@ foreach t $test_list {
 }
 
 # We need a working compiler.
-if { ![check_compiler_available] } {
+if { [which $CC] == 0 } {
     verbose "Native size relocation tests not run - no compiler available"
     return
 }
+
+# Add $NOPIE_CFLAGS and $NOPIE_LDFLAGS if non-PIE is required.
+global NOPIE_CFLAGS NOPIE_LDFLAGS
 
 run_cc_link_tests [list \
     [list \
@@ -111,7 +114,7 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"Build size-7" \
-	"$NOPIE_LDFLAGS -Wl,--no-as-needed,-z,notext tmpdir/libsize-7.so" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/libsize-7.so" \
 	"$NOPIE_CFLAGS" \
 	{size-7a.c} \
 	{{readelf -rW size-7.rd}} \
@@ -126,7 +129,7 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"Build size-8" \
-	"$NOPIE_LDFLAGS -Wl,--no-as-needed,-z,notext tmpdir/libsize-8.so" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/libsize-8.so" \
 	"$NOPIE_CFLAGS" \
 	{size-8a.c} \
 	{{readelf -rW size-8.rd}} \
@@ -134,8 +137,8 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"Build libsize-9.so" \
-	"-shared $NOSANITIZE_CFLAGS" \
-	"-fPIC $NOSANITIZE_CFLAGS" \
+	"-shared" \
+	"-fPIC" \
 	{size-9b.c} \
 	{{readelf -rW size-9.rd}} \
 	"libsize-9.so" \
@@ -223,9 +226,9 @@ run_ld_link_exec_tests [list \
 	"size-3.out" \
     ] \
     [list \
-    {"Run size-3e" \
-     "-Wl,--no-as-needed tmpdir/libsize-3c.so" "" \
-     {size-3.c} "size-3e" "size-3.out"} \
+    {"Run size-3e"
+     "-Wl,--no-as-needed tmpdir/libsize-3c.so" ""
+     {size-3.c} "size-3e" "size-3.out"}
     ] \
     [list \
 	"Run size-4a" \
@@ -274,7 +277,7 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run size-8" \
-	"$NOPIE_LDFLAGS -Wl,--no-as-needed,--hash-styl=gnu,-z,notext \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed,--hash-styl=gnu \
 	 tmpdir/libsize-8.so" \
 	"" \
 	{size-8a.c} \
@@ -284,12 +287,11 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run size-9" \
-	"-Wl,--no-as-needed tmpdir/libsize-9.so $NOSANITIZE_CFLAGS" \
+	"-Wl,--no-as-needed tmpdir/libsize-9.so" \
 	"" \
 	{size-9a.c} \
 	"size-9" \
 	"size-9.out" \
-	"$NOSANITIZE_CFLAGS" \
     ] \
     [list \
 	"Run size-10" \

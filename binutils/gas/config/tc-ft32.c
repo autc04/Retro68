@@ -1,5 +1,5 @@
 /* tc-ft32.c -- Assemble code for ft32
-   Copyright (C) 2008-2020 Free Software Foundation, Inc.
+   Copyright (C) 2008-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -34,7 +34,7 @@ const char line_separator_chars[] = ";";
 const char line_comment_chars[]   = "#";
 
 static int pending_reloc;
-static htab_t opcode_hash_control;
+static struct hash_control *opcode_hash_control;
 
 static valueT md_chars_to_number (char * buf, int n);
 
@@ -54,11 +54,11 @@ void
 md_begin (void)
 {
   const ft32_opc_info_t *opcode;
-  opcode_hash_control = str_htab_create ();
+  opcode_hash_control = hash_new ();
 
   /* Insert names into hash table.  */
   for (opcode = ft32_opc_info; opcode->name; opcode++)
-    str_hash_insert (opcode_hash_control, opcode->name, opcode, 0);
+    hash_insert (opcode_hash_control, opcode->name, (char *) opcode);
 
   bfd_set_arch_mach (stdoutput, TARGET_ARCH, 0);
   if (!norelax)
@@ -231,7 +231,7 @@ md_assemble (char *str)
   if (nlen == 0)
     as_bad (_("can't find opcode "));
 
-  opcode = (ft32_opc_info_t *) str_hash_find (opcode_hash_control, op_start);
+  opcode = (ft32_opc_info_t *) hash_find (opcode_hash_control, op_start);
   *op_end = pend;
 
   if (opcode == NULL)

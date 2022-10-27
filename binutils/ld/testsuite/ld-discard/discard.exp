@@ -1,5 +1,5 @@
 # Expect script for ld discard tests
-#   Copyright (C) 2001-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2001-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -25,9 +25,16 @@
 # Test for ELF here, so we don't have to qualify on ELF specifically
 # in every .d-file.
 
-if {  ![is_elf_format] } {
+if { ![istarget *-*-linux*]
+     && ![istarget *-*-gnu*]
+     && ![istarget *-*-nacl*]
+     && ![istarget hppa*64*-*-hpux*]
+     && ![istarget arm*-*-uclinuxfdpiceabi]
+     && ![istarget *-*-elf] } {
     return
 }
+
+load_lib ld-lib.exp
 
 set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
 for { set i 0 } { $i < [llength $test_list] } { incr i } {

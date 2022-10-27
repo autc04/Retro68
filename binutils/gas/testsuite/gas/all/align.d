@@ -4,7 +4,7 @@
 # even if the user requested that they filled with zeros.
 # RISC-V handles alignment via relaxation and therefor won't have object files
 # with the expected alignment.
-#notarget: riscv*-* rx-*
+#not-target: m32c-* riscv*-* rx-*
 
 # Test the alignment pseudo-op.
 

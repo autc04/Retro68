@@ -1,6 +1,6 @@
 /* Low-level I/O routines for BFDs.
 
-   Copyright (C) 1990-2020 Free Software Foundation, Inc.
+   Copyright (C) 1990-2018 Free Software Foundation, Inc.
 
    Written by Cygnus Support.
 
@@ -25,10 +25,6 @@
 #include <limits.h>
 #include "bfd.h"
 #include "libbfd.h"
-#include "aout/ar.h"
-#if defined (_WIN32)
-#include <windows.h>
-#endif
 
 #ifndef S_IXUSR
 #define S_IXUSR 0100    /* Execute by owner.  */
@@ -96,7 +92,12 @@ _bfd_real_fopen (const char *filename, const char *modes)
      In fopen-vms.h, they are separated from the mode with a comma.
      Split here.  */
   vms_attr = strchr (modes, ',');
-  if (vms_attr != NULL)
+  if (vms_attr == NULL)
+    {
+      /* No attributes.  */
+      return close_on_exec (fopen (filename, modes));
+    }
+  else
     {
       /* Attributes found.  Split.  */
       size_t modes_len = strlen (modes) + 1;
@@ -114,38 +115,13 @@ _bfd_real_fopen (const char *filename, const char *modes)
 	}
       return close_on_exec (fopen (filename, at[0], at[1], at[2]));
     }
-
-#elif defined (_WIN32)
-  size_t filelen = strlen (filename) + 1;
-
-  if (filelen > MAX_PATH - 1)
-    {
-      FILE * file;
-      char * fullpath = (char *) malloc (filelen + 8);
-      int    i;
-
-      /* Add a Microsoft recommended prefix that
-	 will allow the extra-long path to work.  */
-      strcpy (fullpath, "\\\\?\\");
-      strcat (fullpath, filename);
-
-      /* Convert any UNIX style path separators into the DOS form.  */
-      for (i = 0; fullpath[i]; i++)
-        {
-          if (IS_UNIX_DIR_SEPARATOR (fullpath[i]))
-	    fullpath[i] = '\\';
-        }
-
-      file = close_on_exec (fopen (fullpath, modes));
-      free (fullpath);
-      return file;
-    }
-
-#elif defined (HAVE_FOPEN64)
+#else /* !VMS */
+#if defined (HAVE_FOPEN64)
   return close_on_exec (fopen64 (filename, modes));
-#endif
-
+#else
   return close_on_exec (fopen (filename, modes));
+#endif
+#endif /* !VMS */
 }
 
 /*
@@ -210,7 +186,6 @@ bfd_bread (void *ptr, bfd_size_type size, bfd *abfd)
       offset += abfd->origin;
       abfd = abfd->my_archive;
     }
-  offset += abfd->origin;
 
   /* If this is an archive element, don't read past the end of
      this element.  */
@@ -280,7 +255,6 @@ bfd_tell (bfd *abfd)
       offset += abfd->origin;
       abfd = abfd->my_archive;
     }
-  offset += abfd->origin;
 
   if (abfd->iovec == NULL)
     return 0;
@@ -341,7 +315,6 @@ bfd_seek (bfd *abfd, file_ptr position, int direction)
       offset += abfd->origin;
       abfd = abfd->my_archive;
     }
-  offset += abfd->origin;
 
   if (abfd->iovec == NULL)
     {
@@ -442,32 +415,17 @@ DESCRIPTION
 	of space for the 15 bazillon byte table it is about to read.
 	This function at least allows us to answer the question, "is the
 	size reasonable?".
-
-	A return value of zero indicates the file size is unknown.
 */
 
 ufile_ptr
 bfd_get_size (bfd *abfd)
 {
-  /* A size of 0 means we haven't yet called bfd_stat.  A size of 1
-     means we have a cached value of 0, ie. unknown.  */
-  if (abfd->size <= 1 || bfd_write_p (abfd))
-    {
-      struct stat buf;
+  struct stat buf;
 
-      if (abfd->size == 1 && !bfd_write_p (abfd))
-	return 0;
+  if (bfd_stat (abfd, &buf) != 0)
+    return 0;
 
-      if (bfd_stat (abfd, &buf) != 0
-	  || buf.st_size == 0
-	  || buf.st_size - (ufile_ptr) buf.st_size != 0)
-	{
-	  abfd->size = 1;
-	  return 0;
-	}
-      abfd->size = buf.st_size;
-    }
-  return abfd->size;
+  return buf.st_size;
 }
 
 /*
@@ -487,29 +445,11 @@ DESCRIPTION
 ufile_ptr
 bfd_get_file_size (bfd *abfd)
 {
-  ufile_ptr file_size, archive_size = (ufile_ptr) -1;
-
   if (abfd->my_archive != NULL
       && !bfd_is_thin_archive (abfd->my_archive))
-    {
-      struct areltdata *adata = (struct areltdata *) abfd->arelt_data;
-      if (adata != NULL)
-	{
-	  archive_size = adata->parsed_size;
-	  /* If the archive is compressed we can't compare against
-	     file size.  */
-	  if (adata->arch_header != NULL
-	      && memcmp (((struct ar_hdr *) adata->arch_header)->ar_fmag,
-			 "Z\012", 2) == 0)
-	    return archive_size;
-	  abfd = abfd->my_archive;
-	}
-    }
+    return arelt_size (abfd);
 
-  file_size = bfd_get_size (abfd);
-  if (archive_size < file_size)
-    return archive_size;
-  return file_size;
+  return bfd_get_size (abfd);
 }
 
 /*
@@ -539,7 +479,6 @@ bfd_mmap (bfd *abfd, void *addr, bfd_size_type len,
       offset += abfd->origin;
       abfd = abfd->my_archive;
     }
-  offset += abfd->origin;
 
   if (abfd->iovec == NULL)
     {
@@ -667,7 +606,8 @@ memory_bclose (struct bfd *abfd)
 {
   struct bfd_in_memory *bim = (struct bfd_in_memory *) abfd->iostream;
 
-  free (bim->buffer);
+  if (bim->buffer != NULL)
+    free (bim->buffer);
   free (bim);
   abfd->iostream = NULL;
 

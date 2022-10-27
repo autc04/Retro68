@@ -2,8 +2,8 @@
 # elf32lppcnto.sh elf32lppc.sh elf32ppclinux.sh elf32ppcnto.sh
 # elf32ppcsim.sh
 
-source_sh ${srcdir}/emulparams/elf32ppccommon.sh
-source_sh ${srcdir}/emulparams/plt_unwind.sh
+. ${srcdir}/emulparams/elf32ppccommon.sh
+. ${srcdir}/emulparams/plt_unwind.sh
 # Yes, we want duplicate .got and .plt sections.  The linker chooses the
 # appropriate one magically in ppc_after_open
 DATA_GOT=

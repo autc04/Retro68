@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2006-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2006-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -19,7 +19,7 @@
 # MA 02110-1301, USA.
 #
 
-# This file is sourced from elf.em, and defines extra spu specific
+# This file is sourced from elf32.em, and defines extra spu specific
 # features.
 #
 fragment <<EOF
@@ -142,7 +142,7 @@ spu_place_special_section (asection *s, asection *o, const char *output_name)
     os = lang_output_section_find (output_name);
   if (os == NULL)
     {
-      os = ldelf_place_orphan (s, output_name, 0);
+      os = gld${EMULATION_NAME}_place_orphan (s, output_name, 0);
       os->addr_tree = NULL;
     }
   else if (params.ovly_flavour != ovly_soft_icache
@@ -290,7 +290,7 @@ spu_before_allocation (void)
 	    }
 
 	  /* Ensure alignment of overlay sections is sufficient.  */
-	  for (os = (void *) lang_os_list.head;
+	  for (os = &lang_output_section_statement.head->output_section_statement;
 	       os != NULL;
 	       os = os->next)
 	    if (os->bfd_section != NULL
@@ -395,7 +395,7 @@ spu_elf_relink (void)
 
   memcpy (argv, my_argv, my_argc * sizeof (*argv));
   argv[my_argc++] = "--no-auto-overlay";
-  if (tmp_file_list != NULL && tmp_file_list->name == auto_overlay_file)
+  if (tmp_file_list->name == auto_overlay_file)
     argv[my_argc - 1] = concat (argv[my_argc - 1], "=",
 				auto_overlay_file, (const char *) NULL);
   argv[my_argc++] = "-T";
@@ -500,7 +500,7 @@ embedded_spu_file (lang_input_statement_type *entry, const char *flags)
     return FALSE;
 
   /* Use the filename as the symbol marking the program handle struct.  */
-  sym = base_name (bfd_get_filename (entry->the_bfd));
+  sym = base_name (entry->the_bfd->filename);
 
   handle = xstrdup (sym);
   for (p = handle; *p; ++p)
@@ -512,9 +512,9 @@ embedded_spu_file (lang_input_statement_type *entry, const char *flags)
     return FALSE;
   close (fd);
 
-  for (search = (void *) input_file_chain.head;
+  for (search = (lang_input_statement_type *) input_file_chain.head;
        search != NULL;
-       search = search->next_real_file)
+       search = (lang_input_statement_type *) search->next_real_file)
     if (search->filename != NULL)
       {
 	const char *infile = base_name (search->filename);
@@ -532,7 +532,7 @@ embedded_spu_file (lang_input_statement_type *entry, const char *flags)
   cmd[0] = EMBEDSPU;
   cmd[1] = flags;
   cmd[2] = handle;
-  cmd[3] = bfd_get_filename (entry->the_bfd);
+  cmd[3] = entry->the_bfd->filename;
   cmd[4] = oname;
   cmd[5] = NULL;
   if (verbose)
@@ -575,7 +575,7 @@ embedded_spu_file (lang_input_statement_type *entry, const char *flags)
   new_ent->header.next = entry->header.next;
   entry->header.next = new_ent;
   new_ent->input_statement.next_real_file = entry->next_real_file;
-  entry->next_real_file = &new_ent->input_statement;
+  entry->next_real_file = new_ent;
 
   /* Ensure bfd sections are excluded from the output.  */
   bfd_section_list_clear (entry->the_bfd);

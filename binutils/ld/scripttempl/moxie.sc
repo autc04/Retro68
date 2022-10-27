@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2020 Free Software Foundation, Inc.
+# Copyright (C) 2014-2018 Free Software Foundation, Inc.
 #
 # Copying and distribution of this file, with or without modification,
 # are permitted in any medium without royalty provided the copyright
@@ -15,7 +15,7 @@ TORS=".tors :
   } > ram"
 
 cat <<EOF
-/* Copyright (C) 2014-2020 Free Software Foundation, Inc.
+/* Copyright (C) 2014-2018 Free Software Foundation, Inc.
 
    Copying and distribution of this script, with or without modification,
    are permitted in any medium without royalty provided the copyright
@@ -29,10 +29,10 @@ SECTIONS
   .text :
   {
     *(.text)
-    ${RELOCATING+KEEP (*(SORT_NONE(.init)))
-    KEEP (*(SORT_NONE(.fini)))
+      .init : { KEEP (*(.init)) } =0
+      .fini : { KEEP (*(.fini)) } =0
     *(.strings)
-    _etext = . ; }
+    ${RELOCATING+ _etext = . ; }
   } ${RELOCATING+ > ram}
   ${CONSTRUCTING+${TORS}}
   .data :

@@ -1,6 +1,6 @@
 // object.h -- support for an object file for linking in gold  -*- C++ -*-
 
-// Copyright (C) 2006-2020 Free Software Foundation, Inc.
+// Copyright (C) 2006-2018 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -373,7 +373,6 @@ struct Compressed_section_info
 {
   section_size_type size;
   elfcpp::Elf_Xword flag;
-  uint64_t addralign;
   const unsigned char* contents;
 };
 typedef std::map<unsigned int, Compressed_section_info> Compressed_section_map;
@@ -809,8 +808,7 @@ class Object
 
   bool
   section_is_compressed(unsigned int shndx,
-			section_size_type* uncompressed_size,
-			elfcpp::Elf_Xword* palign = NULL) const
+			section_size_type* uncompressed_size) const
   {
     if (this->compressed_sections_ == NULL)
       return false;
@@ -820,8 +818,6 @@ class Object
       {
 	if (uncompressed_size != NULL)
 	  *uncompressed_size = p->second.size;
-	if (palign != NULL)
-	  *palign = p->second.addralign;
 	return true;
       }
     return false;
@@ -832,7 +828,7 @@ class Object
   // by the caller.
   const unsigned char*
   decompressed_section_contents(unsigned int shndx, section_size_type* plen,
-				bool* is_cached, uint64_t* palign = NULL);
+				bool* is_cached);
 
   // Discard any buffers of decompressed sections.  This is done
   // at the end of the Add_symbols task.

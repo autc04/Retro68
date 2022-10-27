@@ -7,4 +7,4 @@ _start:
 __start:
 	.global main	/* Used by HPPA targets.  */
 main:
-	.dc.a foo
+	.long foo

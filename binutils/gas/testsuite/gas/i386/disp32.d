@@ -1,4 +1,4 @@
-#as: -O0
+#as:
 #objdump: -drw
 #name: i386 32bit displacement
 

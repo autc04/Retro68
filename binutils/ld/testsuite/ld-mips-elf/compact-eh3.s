@@ -6,7 +6,6 @@
 	.cfi_personality_id 0x2
 	.cfi_lsda 0x1b,.LLSDA3
 	.global main
-	.type	main, @function
 main:
 .LEHB0 = .
 	move	$4,$2

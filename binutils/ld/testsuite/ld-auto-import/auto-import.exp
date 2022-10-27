@@ -1,5 +1,5 @@
 # Expect script for ld-auto-import tests
-#   Copyright (C) 2002-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -67,7 +67,7 @@ if [istarget *-pc-mingw*] {
 }
 
 # No compiler, no test.
-if { ![check_compiler_available] } {
+if { [which $CC] == 0 } {
     untested "Auto import test (compiler not found)"
     return
 }

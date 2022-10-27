@@ -1,4 +1,4 @@
-source_sh ${srcdir}/emulparams/elf32bmip.sh
+. ${srcdir}/emulparams/elf32bmip.sh
 
 OUTPUT_FORMAT="elf32-littlemips"
 BIG_OUTPUT_FORMAT="elf32-bigmips"

@@ -1,20 +1,18 @@
  .ifdef HPUX
-v_i .comm 4
+i .comm 4
  .else
-  .comm v_i,4,4
+  .comm i,4,4
  .endif
 
  .section .rodata,"a",%progbits
- .dc.a v_i
+ .dc.a i
 
  .globl main
- .globl _main
  .globl start
  .globl _start
  .globl __start
  .text
 main:
-_main:
 start:
 _start:
 __start:

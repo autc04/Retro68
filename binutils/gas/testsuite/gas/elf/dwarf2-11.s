@@ -1,6 +1,6 @@
 /* Test view numbering zero-assert checking with nonzero-sized align.
 
-   Copyright (C) 2017-2020 Free Software Foundation, Inc.
+   Copyright (C) 2017-2018 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,12 +17,12 @@
 
 	.file "dwarf2-11.c"
 	.text
-	.balign 16
+	.balign 8
 	.globl _start
 _start:
 	.file 1 "dwarf2-11.c"
-	.quad 0
+	.dc.l 0
 	.loc 1 1 view 0
-	.balign 16
+	.balign 8
 	.loc 1 2 view 0
 	.size _start, .-_start

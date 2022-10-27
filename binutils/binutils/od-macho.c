@@ -1,5 +1,5 @@
 /* od-macho.c -- dump information about an Mach-O object file.
-   Copyright (C) 2011-2020 Free Software Foundation, Inc.
+   Copyright (C) 2011-2018 Free Software Foundation, Inc.
    Written by Tristan Gingold, Adacore.
 
    This file is part of GNU Binutils.
@@ -26,7 +26,6 @@
 #include "bfd.h"
 #include "objdump.h"
 #include "bucomm.h"
-#include "elfcomm.h"
 #include "dwarf.h"
 #include "bfdlink.h"
 #include "mach-o.h"
@@ -210,12 +209,6 @@ static const bfd_mach_o_xlat_name bfd_mach_o_load_command_name[] =
   { "encryption_info_64", BFD_MACH_O_LC_ENCRYPTION_INFO_64},
   { "linker_options", BFD_MACH_O_LC_LINKER_OPTIONS},
   { "linker_optimization_hint", BFD_MACH_O_LC_LINKER_OPTIMIZATION_HINT},
-  { "version_min_tvos", BFD_MACH_O_LC_VERSION_MIN_TVOS},
-  { "version_min_watchos", BFD_MACH_O_LC_VERSION_MIN_WATCHOS},
-  { "note", BFD_MACH_O_LC_NOTE},
-  { "build_version", BFD_MACH_O_LC_BUILD_VERSION},
-  { "exports_trie", BFD_MACH_O_LC_DYLD_EXPORTS_TRIE},
-  { "chained_fixups", BFD_MACH_O_LC_DYLD_CHAINED_FIXUPS},
   { NULL, 0}
 };
 
@@ -236,25 +229,7 @@ static const bfd_mach_o_xlat_name bfd_mach_o_thread_x86_name[] =
   { "state_none", BFD_MACH_O_x86_THREAD_STATE_NONE},
   { NULL, 0 }
 };
-
-static const bfd_mach_o_xlat_name bfd_mach_o_platform_name[] =
-{
-  { "macos", BFD_MACH_O_PLATFORM_MACOS},
-  { "ios", BFD_MACH_O_PLATFORM_IOS},
-  { "tvos", BFD_MACH_O_PLATFORM_TVOS},
-  { "watchos", BFD_MACH_O_PLATFORM_WATCHOS},
-  { "bridgeos", BFD_MACH_O_PLATFORM_BRIDGEOS},
-  { NULL, 0 }
-};
-
-static const bfd_mach_o_xlat_name bfd_mach_o_tool_name[] =
-{
-  { "clang", BFD_MACH_O_TOOL_CLANG},
-  { "swift", BFD_MACH_O_TOOL_SWIFT},
-  { "ld", BFD_MACH_O_TOOL_LD},
-  { NULL, 0 }
-};
-
+
 static void
 bfd_mach_o_print_flags (const bfd_mach_o_xlat_name *table,
                         unsigned long val)
@@ -712,13 +687,13 @@ dump_dyld_info_rebase (bfd *abfd, unsigned char *buf, unsigned int len,
 		  bfd_mach_o_get_name (bfd_mach_o_dyld_rebase_type_name, imm));
 	  break;
 	case BFD_MACH_O_REBASE_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB:
-	  leb = read_leb128 (buf + i, buf + len, 0, &leblen, NULL);
+	  leb = read_leb128 (buf + i, &leblen, 0, buf + len);
 	  printf ("set segment: %u and offset: 0x%08x\n",
 		  imm, (unsigned) leb);
 	  i += leblen;
 	  break;
 	case BFD_MACH_O_REBASE_OPCODE_ADD_ADDR_ULEB:
-	  leb = read_leb128 (buf + i, buf + len, 0, &leblen, NULL);
+	  leb = read_leb128 (buf + i, &leblen, 0, buf + len);
 	  printf ("add addr uleb: 0x%08x\n", (unsigned) leb);
 	  i += leblen;
 	  break;
@@ -729,20 +704,20 @@ dump_dyld_info_rebase (bfd *abfd, unsigned char *buf, unsigned int len,
 	  printf ("rebase imm times: %u\n", imm);
 	  break;
 	case BFD_MACH_O_REBASE_OPCODE_DO_REBASE_ULEB_TIMES:
-	  leb = read_leb128 (buf + i, buf + len, 0, &leblen, NULL);
+	  leb = read_leb128 (buf + i, &leblen, 0, buf + len);
 	  printf ("rebase uleb times: %u\n", (unsigned) leb);
 	  i += leblen;
 	  break;
 	case BFD_MACH_O_REBASE_OPCODE_DO_REBASE_ADD_ADDR_ULEB:
-	  leb = read_leb128 (buf + i, buf + len, 0, &leblen, NULL);
+	  leb = read_leb128 (buf + i, &leblen, 0, buf + len);
 	  printf ("rebase add addr uleb: %u\n", (unsigned) leb);
 	  i += leblen;
 	  break;
 	case BFD_MACH_O_REBASE_OPCODE_DO_REBASE_ULEB_TIMES_SKIPPING_ULEB:
-	  leb = read_leb128 (buf + i, buf + len, 0, &leblen, NULL);
+	  leb = read_leb128 (buf + i, &leblen, 0, buf + len);
 	  printf ("rebase uleb times (%u)", (unsigned) leb);
 	  i += leblen;
-	  leb = read_leb128 (buf + i, buf + len, 0, &leblen, NULL);
+	  leb = read_leb128 (buf + i, &leblen, 0, buf + len);
 	  printf (" skipping uleb (%u)\n", (unsigned) leb);
 	  i += leblen;
 	  break;
@@ -779,7 +754,7 @@ dump_dyld_info_bind (bfd *abfd, unsigned char *buf, unsigned int len,
 	  printf ("set dylib ordinal imm: %u\n", imm);
 	  break;
 	case BFD_MACH_O_BIND_OPCODE_SET_DYLIB_ORDINAL_ULEB:
-	  leb = read_leb128 (buf + i, buf + len, 0, &leblen, NULL);
+	  leb = read_leb128 (buf + i, &leblen, 0, buf + len);
 	  printf ("set dylib ordinal uleb: %u\n", imm);
 	  i += leblen;
 	  break;
@@ -802,19 +777,19 @@ dump_dyld_info_bind (bfd *abfd, unsigned char *buf, unsigned int len,
 	case BFD_MACH_O_BIND_OPCODE_SET_ADDEND_SLEB:
 	  {
 	    bfd_signed_vma svma;
-	    svma = read_leb128 (buf + i, buf + len, 0, &leblen, NULL);
+	    svma = read_leb128 (buf + i, &leblen, 0, buf + len);
 	    printf ("set addend sleb: 0x%08x\n", (unsigned) svma);
 	    i += leblen;
 	  }
 	  break;
 	case BFD_MACH_O_BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB:
-	  leb = read_leb128 (buf + i, buf + len, 0, &leblen, NULL);
+	  leb = read_leb128 (buf + i, &leblen, 0, buf + len);
 	  printf ("set segment: %u and offset: 0x%08x\n",
 		  imm, (unsigned) leb);
 	  i += leblen;
 	  break;
 	case BFD_MACH_O_BIND_OPCODE_ADD_ADDR_ULEB:
-	  leb = read_leb128 (buf + i, buf + len, 0, &leblen, NULL);
+	  leb = read_leb128 (buf + i, &leblen, 0, buf + len);
 	  printf ("add addr uleb: 0x%08x\n", (unsigned) leb);
 	  i += leblen;
 	  break;
@@ -822,7 +797,7 @@ dump_dyld_info_bind (bfd *abfd, unsigned char *buf, unsigned int len,
 	  printf ("do bind\n");
 	  break;
 	case BFD_MACH_O_BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB:
-	  leb = read_leb128 (buf + i, buf + len, 0, &leblen, NULL);
+	  leb = read_leb128 (buf + i, &leblen, 0, buf + len);
 	  printf ("do bind add addr uleb: 0x%08x\n", (unsigned) leb);
 	  i += leblen;
 	  break;
@@ -830,10 +805,10 @@ dump_dyld_info_bind (bfd *abfd, unsigned char *buf, unsigned int len,
 	  printf ("do bind add addr imm scaled: %u\n", imm * ptrsize);
 	  break;
 	case BFD_MACH_O_BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB:
-	  leb = read_leb128 (buf + i, buf + len, 0, &leblen, NULL);
+	  leb = read_leb128 (buf + i, &leblen, 0, buf + len);
 	  printf ("do bind uleb times (%u)", (unsigned) leb);
 	  i += leblen;
-	  leb = read_leb128 (buf + i, buf + len, 0, &leblen, NULL);
+	  leb = read_leb128 (buf + i, &leblen, 0, buf + len);
 	  printf (" skipping uleb (%u)\n", (unsigned) leb);
 	  i += leblen;
 	  break;
@@ -861,7 +836,7 @@ dump_dyld_info_export_1 (bfd *abfd, unsigned char *buf, unsigned int len,
   unsigned int child_count;
   unsigned int i;
 
-  size = read_leb128 (buf + off, buf + len, 0, &leblen, NULL);
+  size = read_leb128 (buf + off, &leblen, 0, buf + len);
   off += leblen;
 
   if (size != 0)
@@ -869,7 +844,7 @@ dump_dyld_info_export_1 (bfd *abfd, unsigned char *buf, unsigned int len,
       bfd_vma flags;
       struct export_info_data *d;
 
-      flags = read_leb128 (buf + off, buf + len, 0, &leblen, NULL);
+      flags = read_leb128 (buf + off, &leblen, 0, buf + len);
       off += leblen;
 
       fputs ("   ", stdout);
@@ -892,7 +867,7 @@ dump_dyld_info_export_1 (bfd *abfd, unsigned char *buf, unsigned int len,
 	{
 	  bfd_vma lib;
 
-	  lib = read_leb128 (buf + off, buf + len, 0, &leblen, NULL);
+	  lib = read_leb128 (buf + off, &leblen, 0, buf + len);
 	  off += leblen;
 
 	  fputs (" [reexport] ", stdout);
@@ -914,12 +889,12 @@ dump_dyld_info_export_1 (bfd *abfd, unsigned char *buf, unsigned int len,
 	  bfd_vma offset;
 	  bfd_vma resolv = 0;
 
-	  offset = read_leb128 (buf + off, buf + len, 0, &leblen, NULL);
+	  offset = read_leb128 (buf + off, &leblen, 0, buf + len);
 	  off += leblen;
 
 	  if (flags & BFD_MACH_O_EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER)
 	    {
-	      resolv = read_leb128 (buf + off, buf + len, 0, &leblen, NULL);
+	      resolv = read_leb128 (buf + off, &leblen, 0, buf + len);
 	      off += leblen;
 	    }
 
@@ -932,7 +907,7 @@ dump_dyld_info_export_1 (bfd *abfd, unsigned char *buf, unsigned int len,
 	}
     }
 
-  child_count = read_leb128 (buf + off, buf + len, 0, &leblen, NULL);
+  child_count = read_leb128 (buf + off, &leblen, 0, buf + len);
   off += leblen;
 
   for (i = 0; i < child_count; i++)
@@ -946,7 +921,7 @@ dump_dyld_info_export_1 (bfd *abfd, unsigned char *buf, unsigned int len,
 
       off += strlen ((const char *)buf + off) + 1;
 
-      sub_off = read_leb128 (buf + off, buf + len, 0, &leblen, NULL);
+      sub_off = read_leb128 (buf + off, &leblen, 0, buf + len);
       off += leblen;
 
       dump_dyld_info_export_1 (abfd, buf, len, sub_off, &sub_data, base);
@@ -1314,7 +1289,7 @@ dump_segment_split_info (bfd *abfd, bfd_mach_o_linkedit_command *cmd)
     }
   for (p = buf + 1; *p != 0; p += len)
     {
-      addr += read_leb128 (p, buf + cmd->datasize, 0, &len, NULL);
+      addr += read_leb128 (p, &len, 0, buf + cmd->datasize);
       fputs ("    ", stdout);
       bfd_printf_vma (abfd, addr);
       putchar ('\n');
@@ -1464,68 +1439,6 @@ dump_twolevel_hints (bfd *abfd, bfd_mach_o_twolevel_hints_command *cmd)
 }
 
 static void
-printf_version (uint32_t version)
-{
-  uint32_t maj, min, upd;
-
-  maj = (version >> 16) & 0xffff;
-  min = (version >> 8) & 0xff;
-  upd = version & 0xff;
-
-  printf ("%u.%u.%u", maj, min, upd);
-}
-
-static void
-dump_build_version (bfd *abfd, bfd_mach_o_load_command *cmd)
-{
-  const char *platform_name;
-  size_t tools_len, tools_offset;
-  bfd_mach_o_build_version_tool *tools, *tool;
-  bfd_mach_o_build_version_command *ver = &cmd->command.build_version;
-  uint32_t i;
-
-  platform_name = bfd_mach_o_get_name_or_null
-    (bfd_mach_o_platform_name, ver->platform);
-  if (platform_name == NULL)
-    printf ("   platform: 0x%08x\n", ver->platform);
-  else
-    printf ("   platform: %s\n", platform_name);
-  printf ("   os:       ");
-  printf_version (ver->minos);
-  printf ("\n   sdk:      ");
-  printf_version (ver->sdk);
-  printf ("\n   ntools:   %u\n", ver->ntools);
-
-  tools_len = sizeof (bfd_mach_o_build_version_tool) * ver->ntools;
-  tools_offset = cmd->offset + cmd->len - tools_len;
-
-  tools = xmalloc (tools_len);
-  if (bfd_seek (abfd, tools_offset, SEEK_SET) != 0
-      || bfd_bread (tools, tools_len, abfd) != tools_len)
-    {
-      non_fatal (_("cannot read build tools"));
-      free (tools);
-      return;
-    }
-
-  for (i = 0, tool = tools; i < ver->ntools; i++, tool++)
-    {
-      const char * tool_name;
-
-      tool_name = bfd_mach_o_get_name_or_null
-	(bfd_mach_o_tool_name, tool->tool);
-      if (tool_name == NULL)
-	printf ("   tool:     0x%08x\n", tool->tool);
-      else
-	printf ("   tool:     %s\n", tool_name);
-      printf ("   version:  ");
-      printf_version (tool->version);
-      printf ("\n");
-    }
-  free (tools);
-}
-
-static void
 dump_load_command (bfd *abfd, bfd_mach_o_load_command *cmd,
                    unsigned int idx, bfd_boolean verbose)
 {
@@ -1612,8 +1525,6 @@ dump_load_command (bfd *abfd, bfd_mach_o_load_command *cmd,
     case BFD_MACH_O_LC_FUNCTION_STARTS:
     case BFD_MACH_O_LC_DATA_IN_CODE:
     case BFD_MACH_O_LC_DYLIB_CODE_SIGN_DRS:
-    case BFD_MACH_O_LC_DYLD_EXPORTS_TRIE:
-    case BFD_MACH_O_LC_DYLD_CHAINED_FIXUPS:
       {
         bfd_mach_o_linkedit_command *linkedit = &cmd->command.linkedit;
         printf
@@ -1671,16 +1582,10 @@ dump_load_command (bfd *abfd, bfd_mach_o_load_command *cmd,
       break;
     case BFD_MACH_O_LC_VERSION_MIN_MACOSX:
     case BFD_MACH_O_LC_VERSION_MIN_IPHONEOS:
-    case BFD_MACH_O_LC_VERSION_MIN_WATCHOS:
-    case BFD_MACH_O_LC_VERSION_MIN_TVOS:
       {
         bfd_mach_o_version_min_command *ver = &cmd->command.version_min;
 
-        printf ("   os: ");
-        printf_version (ver->version);
-        printf ("\n   sdk: ");
-        printf_version (ver->sdk);
-        printf ("\n");
+        printf ("    %u.%u.%u\n", ver->rel, ver->maj, ver->min);
       }
       break;
     case BFD_MACH_O_LC_SOURCE_VERSION:
@@ -1738,21 +1643,6 @@ dump_load_command (bfd *abfd, bfd_mach_o_load_command *cmd,
 	printf ("\n");
         break;
       }
-    case BFD_MACH_O_LC_NOTE:
-      {
-        bfd_mach_o_note_command *note = &cmd->command.note;
-        printf ("   data owner: %.16s\n", note->data_owner);
-        printf ("   offset:     ");
-	printf_uint64 (note->offset);
-        printf ("\n"
-                "   size:       ");
-	printf_uint64 (note->size);
-	printf ("\n");
-        break;
-      }
-    case BFD_MACH_O_LC_BUILD_VERSION:
-      dump_build_version (abfd, cmd);
-      break;
     default:
       break;
     }
@@ -2015,7 +1905,7 @@ dump_obj_compact_unwind (bfd *abfd,
 
 	  putchar (' ');
 	  printf_uint64 (bfd_get_64 (abfd, e->start));
-	  printf (" %08lx", (unsigned long)bfd_get_32 (abfd, e->length));
+	  printf (" %08lx", bfd_get_32 (abfd, e->length));
 	  putchar (' ');
 	  printf_uint64 (bfd_get_64 (abfd, e->personality));
 	  putchar (' ');
@@ -2264,7 +2154,7 @@ dump_section_content (bfd *abfd,
 		asection *bfdsec = sec->bfdsection;
 		unsigned char *content;
 
-		size = bfd_section_size (bfdsec);
+		size = bfd_get_section_size (bfdsec);
 		content = (unsigned char *) xmalloc (size);
 		bfd_get_section_contents (abfd, bfdsec, content, 0, size);
 
@@ -2315,9 +2205,9 @@ mach_o_dump (bfd *abfd)
 /* Vector for Mach-O.  */
 
 const struct objdump_private_desc objdump_private_desc_mach_o =
-{
- mach_o_help,
- mach_o_filter,
- mach_o_dump,
- options
-};
+  {
+    mach_o_help,
+    mach_o_filter,
+    mach_o_dump,
+    options
+  };

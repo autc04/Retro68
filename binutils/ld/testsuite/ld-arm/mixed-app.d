@@ -14,7 +14,7 @@ Disassembly of section .plt:
  .*:	.*
 .* <lib_func2@plt>:
  .*:	4778      	bx	pc
- .*:	e7fd      	b.n	.+ <.+>
+ .*:	46c0      	nop			; \(mov r8, r8\)
  .*:	e28fc6.* 	add	ip, pc, #.*
  .*:	e28cca.* 	add	ip, ip, #.*	; 0x.*
  .*:	e5bcf.* 	ldr	pc, \[ip, #.*\]!.*

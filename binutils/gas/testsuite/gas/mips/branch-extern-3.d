@@ -2,7 +2,7 @@
 #name: MIPS relaxed branch to an external symbol
 #as: -32 -KPIC -mips1 --relax-branch
 #source: branch-extern.s
-#warning_output: branch-extern.l
+#stderr: branch-extern.l
 
 .*: +file format .*mips.*
 

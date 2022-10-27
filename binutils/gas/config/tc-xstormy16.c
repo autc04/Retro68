@@ -1,5 +1,5 @@
 /* tc-xstormy16.c -- Assembler for the Sanyo XSTORMY16.
-   Copyright (C) 2000-2020 Free Software Foundation, Inc.
+   Copyright (C) 2000-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -277,7 +277,7 @@ xstormy16_cgen_record_fixup_exp (fragS *              frag,
 valueT
 md_section_align (segT segment, valueT size)
 {
-  int align = bfd_section_alignment (segment);
+  int align = bfd_get_section_alignment (stdoutput, segment);
 
   return ((size + (1 << align) - 1) & -(1 << align));
 }
@@ -502,15 +502,13 @@ xstormy16_md_apply_fix (fixS *   fixP,
 	  {
 	    CGEN_INSN_INT insn_value =
 	      cgen_get_insn_value (cd, (unsigned char *) where,
-				   CGEN_INSN_BITSIZE (insn),
-				   gas_cgen_cpu_desc->insn_endian);
+				   CGEN_INSN_BITSIZE (insn));
 
 	    /* ??? 0 is passed for `pc'.  */
 	    errmsg = CGEN_CPU_INSERT_OPERAND (cd) (cd, opindex, fields,
 						   &insn_value, (bfd_vma) 0);
 	    cgen_put_insn_value (cd, (unsigned char *) where,
-				 CGEN_INSN_BITSIZE (insn), insn_value,
-				 gas_cgen_cpu_desc->insn_endian);
+				 CGEN_INSN_BITSIZE (insn), insn_value);
 	  }
 #else
 	  /* ??? 0 is passed for `pc'.  */

@@ -1,5 +1,5 @@
 # Expect script for ELF compressed debug section tests.
-#   Copyright (C) 2010-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2010-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -32,10 +32,11 @@ if ![check_shared_lib_support] {
 }
 
 # Check if compiler works
-if { ![check_compiler_available] } {
+if { [which $CC] == 0 } {
     return
 }
 
+global as
 if { ![ld_assemble $as "--compress-debug-sections $srcdir/$subdir/empty.s" tmpdir/empty.o ] } {
     fail "linker compressed debug sections"
 }
@@ -123,6 +124,8 @@ if { [catch {exec cmp tmpdir/libfoo.so tmpdir/libfoozlib.so}] } then {
     pass "$test_name"
 }
 
+global READELF
+
 set test_name "Link -r with zlib compressed debug output"
 set test zlibbegin
 send_log "$READELF -S -W tmpdir/$test.o > tmpdir/$test.out\n"
@@ -165,7 +168,7 @@ if { [regexp_diff tmpdir/$test.out $srcdir/$subdir/$test.rt] } then {
     pass "$test_name"
 }
 
-set test_name "Link with zlib compressed debug output 1"
+set test_name "Link with zlib compressed debug output"
 set test normal
 send_log "$READELF -w tmpdir/$test > tmpdir/$test.out\n"
 set got [remote_exec host [concat sh -c [list "$READELF -w tmpdir/$test > tmpdir/$test.out"]] "" "/dev/null"]
@@ -174,7 +177,7 @@ if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
     unresolved "$test_name"
 }
 
-set test_name "Link with zlib compressed debug output 2"
+set test_name "Link with zlib compressed debug output"
 set test zlibnormal
 send_log "$READELF -w tmpdir/$test | sed -e \"s/.zdebug_/.debug_/\" > tmpdir/$test.out\n"
 set got [remote_exec host [concat sh -c [list "$READELF -w tmpdir/$test | sed -e \"s/.zdebug_/.debug_/\" > tmpdir/$test.out"]] "" "/dev/null"]
@@ -188,7 +191,6 @@ if { [catch {exec cmp tmpdir/normal.out tmpdir/$test.out}] } then {
 } else {
     pass "$test_name"
 }
-set test_name "Link with zlib compressed debug output 3"
 send_log "$READELF -S -W tmpdir/$test' > tmpdir/$test.out\n"
 set got [remote_exec host "$READELF -S -W tmpdir/$test" "" "/dev/null" "tmpdir/$test.out"]
 if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
@@ -201,7 +203,7 @@ if { [regexp_diff tmpdir/$test.out $srcdir/$subdir/$test.rS] } then {
     pass "$test_name"
 }
 
-set test_name "Link with zlib-gnu compressed debug output 1"
+set test_name "Link with zlib-gnu compressed debug output"
 set test gnunormal
 send_log "$READELF -w tmpdir/$test | sed -e \"s/.zdebug_/.debug_/\" > tmpdir/$test.out\n"
 set got [remote_exec host [concat sh -c [list "$READELF -w tmpdir/$test | sed -e \"s/.zdebug_/.debug_/\" > tmpdir/$test.out"]] "" "/dev/null"]
@@ -215,7 +217,6 @@ if { [catch {exec cmp tmpdir/normal.out tmpdir/$test.out}] } then {
 } else {
     pass "$test_name"
 }
-set test_name "Link with zlib-gnu compressed debug output 2"
 send_log "$READELF -S -W tmpdir/$test' > tmpdir/$test.out\n"
 set got [remote_exec host "$READELF -S -W tmpdir/$test" "" "/dev/null" "tmpdir/$test.out"]
 if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
@@ -229,7 +230,7 @@ if { [regexp_diff tmpdir/$test.out $srcdir/$subdir/$test.rS] } then {
 }
 
 set test gabinormal
-set test_name "Link with zlib-gabi compressed debug output 1"
+set test_name "Link with zlib-gabi compressed debug output"
 send_log "$READELF -w tmpdir/$test > tmpdir/$test.out\n"
 set got [remote_exec host [concat sh -c [list "$READELF -w tmpdir/$test > tmpdir/$test.out"]] "" "/dev/null"]
 if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {
@@ -242,7 +243,6 @@ if { [catch {exec cmp tmpdir/normal.out tmpdir/$test.out}] } then {
 } else {
     pass "$test_name"
 }
-set test_name "Link with zlib-gabi compressed debug output 2"
 send_log "$READELF -t -W tmpdir/$test > tmpdir/$test.out\n"
 set got [remote_exec host "$READELF -t -W tmpdir/$test" "" "/dev/null" "tmpdir/$test.out"]
 if { [lindex $got 0] != 0 || ![string match "" [lindex $got 1]] } then {

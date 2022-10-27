@@ -9,4 +9,3 @@ File Attributes
   Tag_ARC_CPU_name: "em4_fpuda"
   Tag_ARC_ABI_osver: v4
   Tag_ARC_ISA_config: "CD,FPUDA"
-  Tag_ARC_ATR_version: 1

@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2020 Free Software Foundation, Inc.
+# Copyright (C) 2014-2018 Free Software Foundation, Inc.
 #
 # Copying and distribution of this file, with or without modification,
 # are permitted in any medium without royalty provided the copyright
@@ -61,7 +61,7 @@ else
 fi
 
 cat <<EOF
-/* Copyright (C) 2014-2020 Free Software Foundation, Inc.
+/* Copyright (C) 2014-2018 Free Software Foundation, Inc.
 
    Copying and distribution of this script, with or without modification,
    are permitted in any medium without royalty provided the copyright
@@ -70,15 +70,12 @@ cat <<EOF
 OUTPUT_FORMAT("${OUTPUT_FORMAT}", "${BIG_OUTPUT_FORMAT}",
 	      "${LITTLE_OUTPUT_FORMAT}")
 OUTPUT_ARCH(${OUTPUT_ARCH})
-EOF
+${RELOCATING+ENTRY(${ENTRY})}
 
-test -n "${RELOCATING}" && cat <<EOF
-ENTRY(${ENTRY})
-
-${LIB_SEARCH_DIRS}
-/* Do we need any of these for elf?
-   __DYNAMIC = 0; ${STACKZERO+${STACKZERO}} ${SHLIB_PATH+${SHLIB_PATH}}  */
-${EXECUTABLE_SYMBOLS}
+${RELOCATING+${LIB_SEARCH_DIRS}}
+${RELOCATING+/* Do we need any of these for elf?
+   __DYNAMIC = 0; ${STACKZERO+${STACKZERO}} ${SHLIB_PATH+${SHLIB_PATH}}  */}
+${RELOCATING+${EXECUTABLE_SYMBOLS}}
 
 MEMORY
 {
@@ -97,50 +94,47 @@ MEMORY
   STACK      : org = 0x0200BFFC, len = 4
 }
 
-EOF
-
-cat <<EOF
 SECTIONS
 {
   .text ${RELOCATING+${TEXT_START_ADDR}} :
   {
-    ${RELOCATING+${TEXT_START_SYMBOLS}
+    ${RELOCATING+${TEXT_START_SYMBOLS}}
     KEEP (*(SORT_NONE(.init)))
     KEEP (*(SORT_NONE(.init.*)))
     KEEP (*(SORT_NONE(.fini)))
-    KEEP (*(SORT_NONE(.fini.*)))}
+    KEEP (*(SORT_NONE(.fini.*)))
     *(.text)
-    ${RELOCATING+*(.text.*)}
-    /* .gnu.warning sections are handled specially by elf.em.  */
+    *(.text.*)
+    /* .gnu.warning sections are handled specially by elf32.em.  */
     *(.gnu.warning)
-    ${RELOCATING+*(.gnu.linkonce.t*)
-    _etext = .;
-    PROVIDE (etext = .);}
+    *(.gnu.linkonce.t*)
+    ${RELOCATING+_etext = .;}
+    ${RELOCATING+PROVIDE (etext = .);}
   } ${RELOCATING+ >INSN} =${NOP-0}
 
   .rodata ${RELOCATING+${READONLY_START_ADDR}} : {
     *(.rodata)
-    ${RELOCATING+*(.gnu.linkonce.r*)
-    *(.rodata.*)}
+    *(.gnu.linkonce.r*)
+    *(.rodata.*)
   } ${RELOCATING+ >DATA}
 
   .rodata1 ${RELOCATING-0} : {
     *(.rodata1)
-    ${RELOCATING+*(.rodata1.*)}
+    *(.rodata1.*)
    } ${RELOCATING+ >DATA}
 
   .data  ${RELOCATING-0} :
   {
     ${RELOCATING+${DATA_START_SYMBOLS}}
     *(.data)
-    ${RELOCATING+*(.data.*)
-    *(.gnu.linkonce.d*)}
+    *(.data.*)
+    *(.gnu.linkonce.d*)
     ${CONSTRUCTING+CONSTRUCTORS}
   } ${RELOCATING+ >DATA}
 
   .data1 ${RELOCATING-0} : {
     *(.data1)
-    ${RELOCATING+*(.data1.*)}
+    *(.data1.*)
   } ${RELOCATING+ >DATA}
 
   ${RELOCATING+${CTOR} >DATA}
@@ -151,20 +145,20 @@ SECTIONS
      we can shorten the on-disk segment size.  */
   .sdata   ${RELOCATING-0} : {
     *(.sdata)
-    ${RELOCATING+*(.sdata.*)}
+    *(.sdata.*)
   } ${RELOCATING+ >DATA}
 
   ${RELOCATING+_edata = .;}
   ${RELOCATING+PROVIDE (edata = .);}
   ${RELOCATING+__bss_start = .;}
-  .sbss    ${RELOCATING-0} : { *(.sbss)${RELOCATING+ *(.scommon)} } ${RELOCATING+ >DATA}
+  .sbss    ${RELOCATING-0} : { *(.sbss) *(.scommon) } ${RELOCATING+ >DATA}
   .bss     ${RELOCATING-0} :
   {
-   ${RELOCATING+*(.dynbss)
-   *(.dynbss.*)}
+   *(.dynbss)
+   *(.dynbss.*)
    *(.bss)
-   ${RELOCATING+*(.bss.*)
-   *(COMMON)}
+   *(.bss.*)
+   *(COMMON)
   } ${RELOCATING+ >DATA}
 
   ${RELOCATING+_end = . ;}

@@ -46,12 +46,12 @@ Dynamic section at offset 0x1128 contains 13 entries:
  0x0000000a \(STRSZ\)                      10 \(bytes\)
  0x0000000b \(SYMENT\)                     16 \(bytes\)
  0x00000015 \(DEBUG\)                      0x0
- 0x00000007 \(RELA\)                       0x80d4
- 0x00000008 \(RELASZ\)                     84 \(bytes\)
- 0x00000009 \(RELAENT\)                    12 \(bytes\)
  0x70000000 \(C6000_DSBT_BASE\)            0x100000c0
  0x70000001 \(C6000_DSBT_SIZE\)            0x3
  0x70000003 \(C6000_DSBT_INDEX\)           0x0
+ 0x00000007 \(RELA\)                       0x80d4
+ 0x00000008 \(RELASZ\)                     84 \(bytes\)
+ 0x00000009 \(RELAENT\)                    12 \(bytes\)
  0x00000000 \(NULL\)                       0x0
 
 Relocation section '\.rela\.got' at offset 0x10d4 contains 3 entries:

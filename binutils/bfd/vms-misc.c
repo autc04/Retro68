@@ -1,6 +1,6 @@
 /* vms-misc.c -- BFD back-end for VMS/VAX (openVMS/VAX) and
    EVAX (openVMS/Alpha) files.
-   Copyright (C) 1996-2020 Free Software Foundation, Inc.
+   Copyright (C) 1996-2018 Free Software Foundation, Inc.
 
    Miscellaneous functions.
 
@@ -139,19 +139,13 @@ _bfd_hexdump (int level, unsigned char *ptr, int size, int offset)
    Size is string size (size of record).  */
 
 char *
-_bfd_vms_save_sized_string (bfd *abfd, unsigned char *str, size_t size)
+_bfd_vms_save_sized_string (unsigned char *str, unsigned int size)
 {
-  char *newstr;
+  char *newstr = bfd_malloc ((bfd_size_type) size + 1);
 
-  if (size == (size_t) -1)
-    {
-      bfd_set_error (bfd_error_no_memory);
-      return NULL;
-    }
-  newstr = bfd_alloc (abfd, size + 1);
   if (newstr == NULL)
     return NULL;
-  memcpy (newstr, str, size);
+  memcpy (newstr, (char *) str, (size_t) size);
   newstr[size] = 0;
 
   return newstr;
@@ -161,13 +155,13 @@ _bfd_vms_save_sized_string (bfd *abfd, unsigned char *str, size_t size)
    PTR points to size byte on entry.  */
 
 char *
-_bfd_vms_save_counted_string (bfd *abfd, unsigned char *ptr, size_t maxlen)
+_bfd_vms_save_counted_string (unsigned char *ptr, unsigned int maxlen)
 {
   unsigned int len = *ptr++;
 
   if (len > maxlen)
     return NULL;
-  return _bfd_vms_save_sized_string (abfd, ptr, len);
+  return _bfd_vms_save_sized_string (ptr, len);
 }
 
 /* Object output routines.   */
@@ -592,8 +586,8 @@ vms_time_to_time_t (unsigned int hi, unsigned int lo)
 void
 vms_time_t_to_vms_time (time_t ut, unsigned int *hi, unsigned int *lo)
 {
-  unsigned int val[4];
-  unsigned int tmp[4];
+  unsigned short val[4];
+  unsigned short tmp[4];
   unsigned int carry;
   int i;
 

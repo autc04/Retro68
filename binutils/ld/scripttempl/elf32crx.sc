@@ -1,14 +1,10 @@
 # Linker Script for National Semiconductor's CRX-ELF32.
 #
-# Copyright (C) 2014-2020 Free Software Foundation, Inc.
+# Copyright (C) 2014-2018 Free Software Foundation, Inc.
 #
 # Copying and distribution of this file, with or without modification,
 # are permitted in any medium without royalty provided the copyright
 # notice and this notice are preserved.
-
-# Using an empty script for ld -r is better than mashing together
-# sections.  This hack likely leaves ld -Ur broken.
-test -n "${RELOCATING}" || exit 0
 
 # The next line should be uncommented if it is desired to link
 # without libstart.o and directly enter main.
@@ -20,7 +16,7 @@ cat <<EOF
 
 /* Example Linker Script for linking NS CRX elf32 files.
 
-   Copyright (C) 2014-2020 Free Software Foundation, Inc.
+   Copyright (C) 2014-2018 Free Software Foundation, Inc.
 
    Copying and distribution of this script, with or without modification,
    are permitted in any medium without royalty provided the copyright
@@ -58,14 +54,14 @@ SECTIONS
   .init :
   {
     __INIT_START = .;
-    KEEP (*(SORT_NONE(.init)))
+    KEEP (*(.init))
     __INIT_END = .;
   } > rom
 
   .fini :
   {
     __FINI_START = .;
-    KEEP (*(SORT_NONE(.fini)))
+    KEEP (*(.fini))
     __FINI_END = .;
   } > rom
 

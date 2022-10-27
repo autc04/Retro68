@@ -1,8 +1,7 @@
 #ld: -Tdefined5.t
 #nm: -B
 #source: defined5.s
-#xfail: [is_xcoff_format]
-# xcoff outputs value of "defined" from the object file
+#xfail: powerpc*-*-aix* rs6000-*-aix*
 
 # Check that arithmetic on DEFINED works.
 #...

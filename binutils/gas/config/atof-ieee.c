@@ -1,5 +1,5 @@
 /* atof_ieee.c - turn a Flonum into an IEEE floating point number
-   Copyright (C) 1987-2020 Free Software Foundation, Inc.
+   Copyright (C) 1987-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -26,7 +26,6 @@ extern FLONUM_TYPE generic_floating_point_number;
 /* Precision in LittleNums.  */
 /* Don't count the gap in the m68k extended precision format.  */
 #define MAX_PRECISION  5
-#define H_PRECISION    1
 #define F_PRECISION    2
 #define D_PRECISION    4
 #define X_PRECISION    5
@@ -146,30 +145,29 @@ make_invalid_floating_point_number (LITTLENUM_TYPE *words)
   words[4] = (LITTLENUM_TYPE) -1;
   words[5] = (LITTLENUM_TYPE) -1;
 }
+
+/* Warning: This returns 16-bit LITTLENUMs.  It is up to the caller to
+   figure out any alignment problems and to conspire for the
+   bytes/word to be emitted in the right order.  Bigendians beware!  */
 
-/* Build a floating point constant at str into a IEEE floating
-   point number.  This function does the same thing as atof_ieee
-   however it allows more control over the exact format, i.e.
-   explicitly specifying the precision and number of exponent bits
-   instead of relying on this infomation being deduced from a given type.
+/* Note that atof-ieee always has X and P precisions enabled.  it is up
+   to md_atof to filter them out if the target machine does not support
+   them.  */
 
-   If generic_float_info is not NULL then it will be set to contain generic
-   infomation about the parsed floating point number.
+/* Returns pointer past text consumed.  */
 
-   Returns pointer past text consumed. */
 char *
-atof_ieee_detail (char * str,
-		  int precision,
-		  int exponent_bits,
-		  LITTLENUM_TYPE * words,
-		  FLONUM_TYPE * generic_float_info)
+atof_ieee (char *str,			/* Text to convert to binary.  */
+	   int what_kind,		/* 'd', 'f', 'x', 'p'.  */
+	   LITTLENUM_TYPE *words)	/* Build the binary here.  */
 {
   /* Extra bits for zeroed low-order bits.
      The 1st MAX_PRECISION are zeroed, the last contain flonum bits.  */
   static LITTLENUM_TYPE bits[MAX_PRECISION + MAX_PRECISION + GUARD];
   char *return_value;
-
   /* Number of 16-bit words in the format.  */
+  int precision;
+  long exponent_bits;
   FLONUM_TYPE save_gen_flonum;
 
   /* We have to save the generic_floating_point_number because it
@@ -190,53 +188,8 @@ atof_ieee_detail (char * str,
 
   memset (bits, '\0', sizeof (LITTLENUM_TYPE) * MAX_PRECISION);
 
-  generic_floating_point_number.high
-    = generic_floating_point_number.low + precision - 1 + GUARD;
-
-  if (atof_generic (&return_value, ".", EXP_CHARS,
-		    &generic_floating_point_number))
-    {
-      make_invalid_floating_point_number (words);
-      return NULL;
-    }
-
-  if (generic_float_info)
-    *generic_float_info = generic_floating_point_number;
-
-  gen_to_words (words, precision, exponent_bits);
-
-  /* Restore the generic_floating_point_number's storage alloc (and
-     everything else).  */
-  generic_floating_point_number = save_gen_flonum;
-
-  return return_value;
-}
-
-/* Warning: This returns 16-bit LITTLENUMs.  It is up to the caller to
-   figure out any alignment problems and to conspire for the
-   bytes/word to be emitted in the right order.  Bigendians beware!  */
-
-/* Note that atof-ieee always has X and P precisions enabled.  it is up
-   to md_atof to filter them out if the target machine does not support
-   them.  */
-
-/* Returns pointer past text consumed.  */
-char *
-atof_ieee (char *str,			/* Text to convert to binary.  */
-	   int what_kind,		/* 'd', 'f', 'x', 'p'.  */
-	   LITTLENUM_TYPE *words)	/* Build the binary here.  */
-{
-  int precision;
-  long exponent_bits;
-
   switch (what_kind)
     {
-    case 'h':
-    case 'H':
-      precision = H_PRECISION;
-      exponent_bits = 5;
-      break;
-
     case 'f':
     case 'F':
     case 's':
@@ -272,7 +225,22 @@ atof_ieee (char *str,			/* Text to convert to binary.  */
       return (NULL);
     }
 
-  return atof_ieee_detail (str, precision, exponent_bits, words, NULL);
+  generic_floating_point_number.high
+    = generic_floating_point_number.low + precision - 1 + GUARD;
+
+  if (atof_generic (&return_value, ".", EXP_CHARS,
+		    &generic_floating_point_number))
+    {
+      make_invalid_floating_point_number (words);
+      return NULL;
+    }
+  gen_to_words (words, precision, exponent_bits);
+
+  /* Restore the generic_floating_point_number's storage alloc (and
+     everything else).  */
+  generic_floating_point_number = save_gen_flonum;
+
+  return return_value;
 }
 
 /* Turn generic_floating_point_number into a real float/double/extended.  */
@@ -315,13 +283,8 @@ gen_to_words (LITTLENUM_TYPE *words, int precision, long exponent_bits)
   if (generic_floating_point_number.sign == 0)
     {
       if (TC_LARGEST_EXPONENT_IS_NORMAL (precision))
-	as_warn (_("NaNs are not supported by this target"));
-
-      if (precision == H_PRECISION)
-	{
-	  words[0] = 0x7fff;
-	}
-      else if (precision == F_PRECISION)
+	as_warn (_("NaNs are not supported by this target\n"));
+      if (precision == F_PRECISION)
 	{
 	  words[0] = 0x7fff;
 	  words[1] = 0xffff;
@@ -359,14 +322,10 @@ gen_to_words (LITTLENUM_TYPE *words, int precision, long exponent_bits)
   else if (generic_floating_point_number.sign == 'P')
     {
       if (TC_LARGEST_EXPONENT_IS_NORMAL (precision))
-	as_warn (_("Infinities are not supported by this target"));
+	as_warn (_("Infinities are not supported by this target\n"));
 
       /* +INF:  Do the right thing.  */
-      if (precision == H_PRECISION)
-	{
-	  words[0] = 0x7c00;
-	}
-      else if (precision == F_PRECISION)
+      if (precision == F_PRECISION)
 	{
 	  words[0] = 0x7f80;
 	  words[1] = 0;
@@ -404,14 +363,10 @@ gen_to_words (LITTLENUM_TYPE *words, int precision, long exponent_bits)
   else if (generic_floating_point_number.sign == 'N')
     {
       if (TC_LARGEST_EXPONENT_IS_NORMAL (precision))
-	as_warn (_("Infinities are not supported by this target"));
+	as_warn (_("Infinities are not supported by this target\n"));
 
       /* Negative INF.  */
-      if (precision == H_PRECISION)
-	{
-	  words[0] = 0xfc00;
-	}
-      else if (precision == F_PRECISION)
+      if (precision == F_PRECISION)
 	{
 	  words[0] = 0xff80;
 	  words[1] = 0x0;
@@ -740,6 +695,8 @@ print_gen (gen)
 }
 #endif
 
+#define MAX_LITTLENUMS 6
+
 /* This is a utility function called from various tc-*.c files.  It
    is here in order to reduce code duplication.
 
@@ -766,11 +723,6 @@ ieee_md_atof (int type,
     {
       switch (type)
 	{
-	case 'H':
-	case 'h':
-	  prec = H_PRECISION;
-	  break;
-
 	case 'f':
 	case 'F':
 	case 's':

@@ -1,4 +1,4 @@
-source_sh ${srcdir}/emulparams/elf32ppc.sh
+. ${srcdir}/emulparams/elf32ppc.sh
 TEXT_START_ADDR=0x10000000
 unset EXECUTABLE_SYMBOLS
 unset OTHER_END_SYMBOLS

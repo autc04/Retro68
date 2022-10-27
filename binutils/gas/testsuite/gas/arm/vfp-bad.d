@@ -1,3 +1,3 @@
 #name: VFP errors
 #as: -mfpu=vfp
-#error_output: vfp-bad.l
+#error-output: vfp-bad.l

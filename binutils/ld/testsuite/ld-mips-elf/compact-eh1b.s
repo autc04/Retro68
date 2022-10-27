@@ -1,7 +1,6 @@
 	.cfi_sections .eh_frame_entry
 	.section	.text.compact1b,"ax",@progbits
 	.globl	compact1b
-	.type	compact1b, @function
 	.cfi_startproc
 compact1b:
 	lw	$31,44($sp)

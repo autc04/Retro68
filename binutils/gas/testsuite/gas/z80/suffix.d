@@ -6,7 +6,7 @@
 RELOCATION RECORDS FOR \[.data\]:
 OFFSET[ 	]+TYPE[ 	]+VALUE[ 	]*
 00000002[ 	]+r_imm16[ 	]+.data[ 	]*
-00000014[ 	]+r_imm16[ 	]+.data(\+0x00000016)?[ 	]*
+00000014[ 	]+r_imm16[ 	]+.data[ 	]*
 
 
 Contents of section .data:

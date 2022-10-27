@@ -1,11 +1,11 @@
-# Copyright (C) 2014-2020 Free Software Foundation, Inc.
+# Copyright (C) 2014-2018 Free Software Foundation, Inc.
 #
 # Copying and distribution of this file, with or without modification,
 # are permitted in any medium without royalty provided the copyright
 # notice and this notice are preserved.
 
 cat <<EOF
-/* Copyright (C) 2014-2020 Free Software Foundation, Inc.
+/* Copyright (C) 2014-2018 Free Software Foundation, Inc.
 
    Copying and distribution of this script, with or without modification,
    are permitted in any medium without royalty provided the copyright
@@ -13,10 +13,7 @@ cat <<EOF
 
 OUTPUT_FORMAT("${OUTPUT_FORMAT}")
 OUTPUT_ARCH(${ARCH})
-EOF
-
-test -n "${RELOCATING}" && cat <<EOF
-ENTRY ("_start")
+${RELOCATING+ENTRY ("_start")}
 MEMORY
 {
 	vectarea : o =0xc00000, l = 0x0300
@@ -29,9 +26,6 @@ MEMORY
 
 	ldata	: o =0x4000 ,l = 0x0200
 }
-EOF
-
-cat <<EOF
 SECTIONS
 {
 /*.vects :
@@ -40,21 +34,20 @@ SECTIONS
 	} ${RELOCATING+ > vectarea} */
 .init :
 	{
-	  KEEP (*(SORT_NONE(.init)))
-	  ${RELOCATING+KEEP (*(SORT_NONE(.fini)))}
+	  *(.init)
 	} ${RELOCATING+ >introm}
 
 .text :
 	{
-	  ${RELOCATING+*(.rodata)}
-	  ${RELOCATING+*(.text.*)}
+	  *(.rodata)
+	  *(.text.*)
 	  *(.text)
 	  ${RELOCATING+ _etext = . ; }
 	} ${RELOCATING+ > introm}
 .data :
 	{
 	  *(.data)
-	  ${RELOCATING+*(.data.*)}
+	  *(.data.*)
 
 	  ${RELOCATING+ _edata = . ; }
 	} ${RELOCATING+ > dram}
@@ -63,7 +56,7 @@ SECTIONS
 	{
 	  ${RELOCATING+ _bss_start = . ;}
 	  *(.bss)
-	  ${RELOCATING+*(COMMON)}
+	  *(COMMON)
 	  ${RELOCATING+ _end = . ;  }
 	} ${RELOCATING+ > dram}
 

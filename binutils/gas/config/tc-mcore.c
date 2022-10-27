@@ -1,5 +1,5 @@
 /* tc-mcore.c -- Assemble code for M*Core
-   Copyright (C) 1999-2020 Free Software Foundation, Inc.
+   Copyright (C) 1999-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -135,7 +135,7 @@ static unsigned long poolspan;
 #define SPANEXIT	(600)
 static symbolS * poolsym;		/* Label for current pool.  */
 static char poolname[8];
-static htab_t  opcode_hash_control;	/* Opcode mnemonics.  */
+static struct hash_control * opcode_hash_control;	/* Opcode mnemonics.  */
 
 #define POOL_END_LABEL   ".LE"
 #define POOL_START_LABEL ".LS"
@@ -457,7 +457,7 @@ md_begin (void)
   const char * prev_name = "";
   unsigned int i;
 
-  opcode_hash_control = str_htab_create ();
+  opcode_hash_control = hash_new ();
 
   /* Insert unique names into hash table.  */
   for (i = 0; i < ARRAY_SIZE (mcore_table); i++)
@@ -465,8 +465,7 @@ md_begin (void)
       if (! streq (prev_name, mcore_table[i].name))
 	{
 	  prev_name = mcore_table[i].name;
-	  str_hash_insert (opcode_hash_control, mcore_table[i].name,
-			   &mcore_table[i], 0);
+	  hash_insert (opcode_hash_control, mcore_table[i].name, (char *) &mcore_table[i]);
 	}
     }
 }
@@ -882,7 +881,7 @@ md_assemble (char * str)
       return;
     }
 
-  opcode = (mcore_opcode_info *) str_hash_find (opcode_hash_control, name);
+  opcode = (mcore_opcode_info *) hash_find (opcode_hash_control, name);
   if (opcode == NULL)
     {
       as_bad (_("unknown opcode \"%s\""), name);
@@ -1089,7 +1088,7 @@ md_assemble (char * str)
 
       if (* op_end == ',')
 	{
-	  op_end = parse_imm (op_end + 1, & reg, 1, 1u << 31);
+	  op_end = parse_imm (op_end + 1, & reg, 1, 1 << 31);
 	  /* Further restrict the immediate to a power of two.  */
 	  if ((reg & (reg - 1)) == 0)
 	    reg = mylog2 (reg);
@@ -1145,7 +1144,7 @@ md_assemble (char * str)
 
       if (* op_end == ',')
 	{
-	  op_end = parse_imm (op_end + 1, & reg, 1, 1u << 31);
+	  op_end = parse_imm (op_end + 1, & reg, 1, 1 << 31);
 
 	  /* Further restrict the immediate to a power of two.  */
 	  if ((reg & (reg - 1)) == 0)
@@ -1726,7 +1725,7 @@ md_convert_frag (bfd * abfd ATTRIBUTE_UNUSED,
   char *buffer;
   int targ_addr = S_GET_VALUE (fragP->fr_symbol) + fragP->fr_offset;
 
-  buffer = fragP->fr_fix + &fragP->fr_literal[0];
+  buffer = fragP->fr_fix + fragP->fr_literal;
 
   switch (fragP->fr_subtype)
     {

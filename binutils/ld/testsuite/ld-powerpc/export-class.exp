@@ -1,6 +1,6 @@
 # Expect script for symbol export classes, PowerPC variation.
 #
-# Copyright (C) 2012-2020 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -87,6 +87,7 @@ proc powerpc_export_class_test { abi endian emul } {
 
 set abis { 32 be elf32ppclinux 32 le elf32lppclinux 64 be elf64ppc 64 le elf64lppc }
 
+global ld
 catch "exec $ld --help | grep emulations" ldemul
 
 foreach { abi endian emul } $abis {

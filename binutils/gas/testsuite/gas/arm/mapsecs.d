@@ -1,4 +1,4 @@
-#as: -EL --generate-missing-build-notes=no
+#as: -EL
 #objdump: --syms --special-syms -d
 #name: ARM Mapping Symbols with multiple sections
 # This test is only valid on EABI based ports.

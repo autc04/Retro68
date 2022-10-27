@@ -10,15 +10,7 @@
 	.p2align 2
 	.word 0
 
-	.globl main
-	.globl start
-	.globl _start
-	.globl __start
-	.globl foo
 	.text
-main:
-start:
-_start:
-__start:
+	.globl foo
 foo:
 	.word 0

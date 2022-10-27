@@ -7,10 +7,9 @@
 #nm: -n
 
 #...
-[0-9a-f]+ [TD] foo
-[0-9a-f]+ [td] foo1
-#...
-[0-9a-f]+ [td] foo2
-[0-9a-f]+ [td] foo3
-[0-9a-f]+ [td] last
+[0-9a-f]+ T foo
+[0-9a-f]+ t foo1
+[0-9a-f]+ t foo2
+[0-9a-f]+ t foo3
+[0-9a-f]+ t last
 #pass

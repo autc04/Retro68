@@ -1,4 +1,3 @@
-#as: -O0
 #objdump: -dw
 #name: ix86 no extended registers
 

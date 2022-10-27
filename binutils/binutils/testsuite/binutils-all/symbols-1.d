@@ -1,7 +1,8 @@
 #name: localize 'fo*' but not 'foo'
 #PROG: objcopy
-#objcopy: -w -L \!foo -L fo\*
+#objcopy: -w -L !foo -L fo*
 #source: symbols.s
+#DUMPPROG: nm
 #nm: -n
 
 #...

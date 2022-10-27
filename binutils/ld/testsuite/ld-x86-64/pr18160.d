@@ -1,6 +1,7 @@
 #as: --64
 #ld: --gc-sections -melf_x86_64 -T pr18160.t
 #objdump: -dw
+#notarget: x86_64-*-nacl*
 
 .*: +file format elf32-i386
 

@@ -1,4 +1,4 @@
-source_sh ${srcdir}/emulparams/armelf.sh
+. ${srcdir}/emulparams/armelf.sh
 SCRIPT_NAME="armbpabi"
 GENERATE_COMBRELOC_SCRIPT=1
 OUTPUT_FORMAT="elf32-littlearm-symbian"
@@ -13,13 +13,10 @@ EMBEDDED=yes
 # .ARM.exidx$${Base,Limit} symbols.
 OTHER_READONLY_SECTIONS="
   .ARM.extab ${RELOCATING-0} : { *(.ARM.extab${RELOCATING+* .gnu.linkonce.armextab.*}) }
-  .ARM.exidx ${RELOCATING-0} :
-    {
-      ${RELOCATING+PROVIDE_HIDDEN (.ARM.exidx\$\$Base = .);}
-      ${RELOCATING+PROVIDE_HIDDEN (__exidx_start = .);}
-      *(.ARM.exidx${RELOCATING+* .gnu.linkonce.armexidx.*})
-      ${RELOCATING+PROVIDE_HIDDEN (__exidx_end = .);}
-      ${RELOCATING+PROVIDE_HIDDEN (.ARM.exidx\$\$Limit = .);}
-    }"
+  ${RELOCATING+ PROVIDE_HIDDEN (.ARM.exidx\$\$Base = .); }
+  ${RELOCATING+ PROVIDE_HIDDEN (__exidx_start = .); }
+  .ARM.exidx ${RELOCATING-0} : { *(.ARM.exidx${RELOCATING+* .gnu.linkonce.armexidx.*}) }
+  ${RELOCATING+ PROVIDE_HIDDEN (__exidx_end = .); }
+  ${RELOCATING+ PROVIDE_HIDDEN (.ARM.exidx\$\$Limit = .); }"
 
 MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"

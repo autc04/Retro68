@@ -1,7 +1,8 @@
 #source: pr19636-2.s
 #as: --32 -mrelax-relocations=no
-#ld: -pie -m elf_i386 -z notext
+#ld: -pie -m elf_i386
 #objdump: -dw
+#notarget: i?86-*-nacl* x86_64-*-nacl*
 
 .*: +file format .*
 
@@ -9,7 +10,7 @@
 Disassembly of section .plt:
 
 .* <.plt>:
-[ 	]*[a-f0-9]+:	ff b3 04 00 00 00    	push   0x4\(%ebx\)
+[ 	]*[a-f0-9]+:	ff b3 04 00 00 00    	pushl  0x4\(%ebx\)
 [ 	]*[a-f0-9]+:	ff a3 08 00 00 00    	jmp    \*0x8\(%ebx\)
 [ 	]*[a-f0-9]+:	00 00                	add    %al,\(%eax\)
 [ 	]*[a-f0-9]+:	00 00                	add    %al,\(%eax\)

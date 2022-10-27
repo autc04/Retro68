@@ -1,5 +1,5 @@
 /* seh pdata/xdata coff object file format
-   Copyright (C) 2009-2020 Free Software Foundation, Inc.
+   Copyright (C) 2009-2018 Free Software Foundation, Inc.
 
    This file is part of GAS.
 
@@ -31,7 +31,7 @@ struct seh_seg_list {
 /* Local data.  */
 static seh_context *seh_ctx_cur = NULL;
 
-static htab_t seh_hash;
+static struct hash_control *seh_hash;
 
 static struct seh_seg_list *x_segcur = NULL;
 static struct seh_seg_list *p_segcur = NULL;
@@ -48,7 +48,7 @@ get_pxdata_name (segT seg, const char *base_name)
   const char *name,*dollar, *dot;
   char *sname;
 
-  name = bfd_section_name (seg);
+  name = bfd_get_section_name (stdoutput, seg);
 
   dollar = strchr (name, '$');
   dot = strchr (name + 1, '.');
@@ -95,16 +95,16 @@ make_pxdata_seg (segT cseg, char *name)
 
   r = subseg_new (name, 0);
   /* Check if code segment is marked as linked once.  */
-  flags = (bfd_section_flags (cseg)
-	   & (SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD
-	      | SEC_LINK_DUPLICATES_ONE_ONLY | SEC_LINK_DUPLICATES_SAME_SIZE
-	      | SEC_LINK_DUPLICATES_SAME_CONTENTS));
+  flags = bfd_get_section_flags (stdoutput, cseg)
+    & (SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD
+       | SEC_LINK_DUPLICATES_ONE_ONLY | SEC_LINK_DUPLICATES_SAME_SIZE
+       | SEC_LINK_DUPLICATES_SAME_CONTENTS);
 
   /* Add standard section flags.  */
   flags |= SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_DATA;
 
   /* Apply possibly linked once flags to new generated segment, too.  */
-  if (!bfd_set_section_flags (r, flags))
+  if (!bfd_set_section_flags (stdoutput, r, flags))
     as_bad (_("bfd_set_section_flags: %s"),
 	    bfd_errmsg (bfd_get_error ()));
 
@@ -116,13 +116,17 @@ make_pxdata_seg (segT cseg, char *name)
 static void
 seh_hash_insert (const char *name, struct seh_seg_list *item)
 {
-  str_hash_insert (seh_hash, name, item, 1);
+  const char *error_string;
+
+  if ((error_string = hash_jam (seh_hash, name, (char *) item)))
+    as_fatal (_("Inserting \"%s\" into structure table failed: %s"),
+	      name, error_string);
 }
 
 static struct seh_seg_list *
 seh_hash_find (char *name)
 {
-  return (struct seh_seg_list *) str_hash_find (seh_hash, name);
+  return (struct seh_seg_list *) hash_find (seh_hash, name);
 }
 
 static struct seh_seg_list *
@@ -133,7 +137,7 @@ seh_hash_find_or_make (segT cseg, const char *base_name)
 
   /* Initialize seh_hash once.  */
   if (!seh_hash)
-    seh_hash = str_htab_create ();
+    seh_hash = hash_new ();
 
   name = get_pxdata_name (cseg, base_name);
 
@@ -157,8 +161,8 @@ seh_validate_seg (const char *directive)
   const char *cseg_name, *nseg_name;
   if (seh_ctx_cur->code_seg == now_seg)
     return 1;
-  cseg_name = bfd_section_name (seh_ctx_cur->code_seg);
-  nseg_name = bfd_section_name (now_seg);
+  cseg_name = bfd_get_section_name (stdoutput, seh_ctx_cur->code_seg);
+  nseg_name = bfd_get_section_name (stdoutput, now_seg);
   as_bad (_("%s used in segment '%s' instead of expected '%s'"),
   	  directive, nseg_name, cseg_name);
   ignore_rest_of_line ();

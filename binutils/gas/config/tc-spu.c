@@ -1,6 +1,6 @@
 /* spu.c -- Assembler for the IBM Synergistic Processing Unit (SPU)
 
-   Copyright (C) 2006-2020 Free Software Foundation, Inc.
+   Copyright (C) 2006-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -57,7 +57,7 @@ static void spu_brinfo (int);
 static void spu_cons (int);
 
 extern char *myname;
-static htab_t op_hash = NULL;
+static struct hash_control *op_hash = NULL;
 
 /* These bits should be turned off in the first address of every segment */
 int md_seg_align = 7;
@@ -110,14 +110,26 @@ unsigned int brinfo;
 void
 md_begin (void)
 {
+  const char *retval = NULL;
   int i;
 
-  op_hash = str_htab_create ();
+  /* initialize hash table */
 
-  /* Hash each mnemonic and record its position.  There are
-     duplicates, keep just the first.  */
+  op_hash = hash_new ();
+
+  /* loop until you see the end of the list */
+
   for (i = 0; i < spu_num_opcodes; i++)
-    str_hash_insert (op_hash, spu_opcodes[i].mnemonic, &spu_opcodes[i], 0);
+    {
+      /* hash each mnemonic and record its position */
+
+      retval = hash_insert (op_hash, spu_opcodes[i].mnemonic,
+			    (void *) &spu_opcodes[i]);
+
+      if (retval != NULL && strcmp (retval, "exists") != 0)
+	as_fatal (_("Can't hash instruction '%s':%s"),
+		  spu_opcodes[i].mnemonic, retval);
+    }
 }
 
 const char *md_shortopts = "";
@@ -273,7 +285,7 @@ md_assemble (char *op)
 
   /* try to find the instruction in the hash table */
 
-  if ((format = (struct spu_opcode *) str_hash_find (op_hash, op)) == NULL)
+  if ((format = (struct spu_opcode *) hash_find (op_hash, op)) == NULL)
     {
       as_bad (_("Invalid mnemonic '%s'"), op);
       return;
@@ -803,11 +815,6 @@ spu_cons (int nbytes)
 
   do
     {
-      char *save = input_line_pointer;
-
-      /* Use deferred_expression here so that an expression involving
-	 a symbol that happens to be defined already as an spu symbol,
-	 is not resolved.  */
       deferred_expression (&exp);
       if ((exp.X_op == O_symbol
 	   || exp.X_op == O_constant)
@@ -822,12 +829,9 @@ spu_cons (int nbytes)
 	    {
 	      expressionS new_exp;
 
-	      save = input_line_pointer;
 	      expression (&new_exp);
 	      if (new_exp.X_op == O_constant)
 		exp.X_add_number += new_exp.X_add_number;
-	      else
-		input_line_pointer = save;
 	    }
 
 	  reloc = nbytes == 4 ? BFD_RELOC_SPU_PPU32 : BFD_RELOC_SPU_PPU64;
@@ -835,14 +839,7 @@ spu_cons (int nbytes)
 		       &exp, 0, reloc);
 	}
       else
-	{
-	  /* Don't use deferred_expression for anything else.
-	     deferred_expression won't evaulate dot at the point it is
-	     used.  */
-	  input_line_pointer = save;
-	  expression (&exp);
-	  emit_expr (&exp, nbytes);
-	}
+	emit_expr (&exp, nbytes);
     }
   while (*input_line_pointer++ == ',');
 
@@ -892,7 +889,7 @@ tc_gen_reloc (asection *seg ATTRIBUTE_UNUSED, fixS *fixp)
 valueT
 md_section_align (segT seg, valueT size)
 {
-  int align = bfd_section_alignment (seg);
+  int align = bfd_get_section_alignment (stdoutput, seg);
   valueT mask = ((valueT) 1 << align) - 1;
 
   return (size + mask) & ~mask;

@@ -1,7 +1,6 @@
-#source: ./bra.s
 #objdump: -dr
 
-.*:     file format .*
+dump\.o:     file format .*
 
 
 Disassembly of section \.text:

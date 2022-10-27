@@ -1,5 +1,5 @@
 /* BFD library support routines for architectures.
-   Copyright (C) 1990-2020 Free Software Foundation, Inc.
+   Copyright (C) 1990-2018 Free Software Foundation, Inc.
    Hacked by Steve Chamberlain of Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -23,7 +23,6 @@
 #include "bfd.h"
 #include "libbfd.h"
 #include "opcode/m68k.h"
-#include "cpu-m68k.h"
 
 static const bfd_arch_info_type *
 bfd_m68k_compatible (const bfd_arch_info_type *a,
@@ -31,7 +30,7 @@ bfd_m68k_compatible (const bfd_arch_info_type *a,
 
 #define N(name, print,d,next)  \
 {  32, 32, 8, bfd_arch_m68k, name, "m68k",print,2,d,bfd_m68k_compatible, \
-   bfd_default_scan, bfd_arch_default_fill, next, 0 }
+   bfd_default_scan, bfd_arch_default_fill, next, }
 
 static const bfd_arch_info_type arch_info_struct[] =
   {

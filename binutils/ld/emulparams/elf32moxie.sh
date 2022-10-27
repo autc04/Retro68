@@ -1,5 +1,6 @@
 SCRIPT_NAME=elf
-TEMPLATE_NAME=elf
+TEMPLATE_NAME=generic
+EXTRA_EM_FILE=genelf
 OUTPUT_FORMAT="elf32-bigmoxie"
 BIG_OUTPUT_FORMAT="elf32-bigmoxie"
 LITTLE_OUTPUT_FORMAT="elf32-littlemoxie"

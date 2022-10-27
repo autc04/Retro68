@@ -3,7 +3,6 @@
 
 	.module mips64r6
 	.globl	start
-	.type	start, @function
 	.weak	foo
 start:
 	.set noreorder
@@ -14,6 +13,8 @@ start:
 	lwpc	$2, foo
 	ldpc	$2, foo
 	bc	foo
+	auipc	$4, %pcrel_hi(foo)
+	addiu	$4, $4, %pcrel_lo(foo+4)
 
 	b	foo
 	nop

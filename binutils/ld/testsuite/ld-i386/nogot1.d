@@ -1,4 +1,4 @@
-#ld: --shared -melf_i386 -z notext
+#ld: --shared -melf_i386
 #readelf: -S --wide
 #as: --32
 

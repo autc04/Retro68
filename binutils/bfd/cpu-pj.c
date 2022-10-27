@@ -1,5 +1,5 @@
 /* BFD library support routines for the Pico Java architecture.
-   Copyright (C) 1999-2020 Free Software Foundation, Inc.
+   Copyright (C) 1999-2018 Free Software Foundation, Inc.
    Hacked by Steve Chamberlain of Transmeta. sac@pobox.com
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -25,18 +25,17 @@
 
 const bfd_arch_info_type bfd_pj_arch =
 {
-  32,				/* Bits in a word.  */
-  32,				/* Bits in an address.  */
-  8,				/* Bits in a byte.  */
+  32,				/* 32 bits in a word */
+  32,				/* 32 bits in an address */
+  8,				/* 8 bits in a byte */
   bfd_arch_pj,
   0,
-  "pj",				/* Arch_name.  */
-  "pj",				/* Printable name.  */
+  "pj",				/* arch_name  */
+  "pj",				/* printable name */
   1,
-  TRUE,				/* The default machine.  */
+  TRUE,				/* the default machine */
   bfd_default_compatible,
   bfd_default_scan,
   bfd_arch_default_fill,
-  NULL,
-  0 /* Maximum offset of a reloc from the start of an insn.  */
+  0
 };

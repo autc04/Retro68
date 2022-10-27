@@ -15,13 +15,13 @@ Program Header:
 #...
 DYNAMIC RELOCATION RECORDS
 OFFSET   TYPE              VALUE 
-00002218 R_CRIS_DTP        \*ABS\*\+0x0000002a
+0000222c R_CRIS_DTP        \*ABS\*\+0x0000002a
 
 Contents of section .hash:
 #...
 Contents of section \.text:
- 0114 6fae0c00 00000000                    .*
+ 0128 6fae0c00 00000000                    .*
 #...
 Contents of section \.got:
- 220c 9c210000 0+ 0+ 0+  .*
- 221c 0+                             .*
+ 2220 b0210000 0+ 0+ 0+  .*
+ 2230 0+                             .*

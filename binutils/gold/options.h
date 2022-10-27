@@ -1,6 +1,6 @@
 // options.h -- handle command line options for gold  -*- C++ -*-
 
-// Copyright (C) 2006-2020 Free Software Foundation, Inc.
+// Copyright (C) 2006-2018 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -472,7 +472,7 @@ struct Struct_special : public Struct_var
   options::String_set::const_iterator					  \
   varname__##_end() const						  \
   { return this->varname__##_.value.end(); }                              \
-									  \
+                                                                          \
   options::String_set::size_type                                          \
   varname__##_size() const                                                \
   { return this->varname__##_.value.size(); }                             \
@@ -481,9 +481,9 @@ struct Struct_special : public Struct_var
 // After helparg__ should come an initializer list, like
 //   {"foo", "bar", "baz"}
 #define DEFINE_enum(varname__, dashes__, shortname__, default_value__,   \
-		    helpstring__, helparg__, optional_arg__, ...)        \
+		    helpstring__, helparg__, ...)                        \
   DEFINE_var(varname__, dashes__, shortname__, default_value__,          \
-	     default_value__, helpstring__, helparg__, optional_arg__,   \
+	     default_value__, helpstring__, helparg__, false,		 \
 	     const char*, const char*, parse_choices_##varname__, false) \
  private:                                                                \
   static void parse_choices_##varname__(const char* option_name,         \
@@ -703,7 +703,7 @@ class General_options
 	      N_("Use DT_NEEDED for all shared libraries"));
 
   DEFINE_enum(assert, options::ONE_DASH, '\0', NULL,
-	      N_("Ignored"), N_("[ignored]"), false,
+	      N_("Ignored"), N_("[ignored]"),
 	      {"definitions", "nodefinitions", "nosymbolic", "pure-text"});
 
   // b
@@ -761,7 +761,7 @@ class General_options
 
   DEFINE_enum(compress_debug_sections, options::TWO_DASHES, '\0', "none",
 	      N_("Compress .debug_* sections in the output file"),
-	      ("[none,zlib,zlib-gnu,zlib-gabi]"), false,
+	      ("[none,zlib,zlib-gnu,zlib-gabi]"),
 	      {"none", "zlib", "zlib-gnu", "zlib-gabi"});
 
   DEFINE_bool(copy_dt_needed_entries, options::TWO_DASHES, '\0', false,
@@ -799,10 +799,6 @@ class General_options
   DEFINE_bool(no_demangle, options::TWO_DASHES, '\0', false,
 	      N_("Do not demangle C++ symbols in log messages"),
 	      NULL);
-
-  DEFINE_string(dependency_file, options::TWO_DASHES, '\0', NULL,
-		N_("Write a dependency file listing all files read"),
-		N_("FILE"));
 
   DEFINE_bool(detect_odr_violations, options::TWO_DASHES, '\0', false,
 	      N_("Look for violations of the C++ One Definition Rule"),
@@ -934,7 +930,7 @@ class General_options
 		N_("FRACTION"));
 
   DEFINE_enum(hash_style, options::TWO_DASHES, '\0', DEFAULT_HASH_STYLE,
-	      N_("Dynamic hash style"), N_("[sysv,gnu,both]"), false,
+	      N_("Dynamic hash style"), N_("[sysv,gnu,both]"),
 	      {"sysv", "gnu", "both"});
 
   // i
@@ -946,11 +942,11 @@ class General_options
 	      N_("Identical Code Folding. "
 		 "\'--icf=safe\' Folds ctors, dtors and functions whose"
 		 " pointers are definitely not taken"),
-	      ("[none,all,safe]"), false,
+	      ("[none,all,safe]"),
 	      {"none", "all", "safe"});
 
   DEFINE_uint(icf_iterations, options::TWO_DASHES , '\0', 0,
-	      N_("Number of iterations of ICF (default 3)"), N_("COUNT"));
+	      N_("Number of iterations of ICF (default 2)"), N_("COUNT"));
 
   DEFINE_special(incremental, options::TWO_DASHES, '\0',
 		 N_("Do an incremental link if possible; "
@@ -1086,7 +1082,7 @@ class General_options
 
   DEFINE_enum(orphan_handling, options::TWO_DASHES, '\0', "place",
 	      N_("Orphan section handling"), N_("[place,discard,warn,error]"),
-	      false, {"place", "discard", "warn", "error"});
+	      {"place", "discard", "warn", "error"});
 
   // p
 
@@ -1141,12 +1137,6 @@ class General_options
 	      N_("Use posix_fallocate to reserve space in the output file"),
 	      N_("Use fallocate or ftruncate to reserve space"));
 
-  DEFINE_enum(power10_stubs, options::TWO_DASHES, '\0', "yes",
-	     N_("(PowerPC64 only) stubs use power10 insns"),
-	     N_("[=auto,no,yes]"), true, {"auto", "no", "yes"});
-  DEFINE_special(no_power10_stubs, options::TWO_DASHES, '\0',
-		 N_("(PowerPC64 only) stubs do not use power10 insns"), NULL);
-
   DEFINE_bool(preread_archive_symbols, options::TWO_DASHES, '\0', false,
 	      N_("Preread archive symbols when multi-threaded"), NULL);
 
@@ -1192,7 +1182,7 @@ class General_options
 
   DEFINE_bool(rosegment, options::TWO_DASHES, '\0', false,
 	      N_("Put read-only non-executable sections in their own segment"),
-	      N_("Do not put read-only non-executable sections in their own segment"));
+	      NULL);
 
   DEFINE_uint64(rosegment_gap, options::TWO_DASHES, '\0', -1U,
 		N_("Set offset between executable and read-only segments"),
@@ -1242,7 +1232,7 @@ class General_options
   DEFINE_enum(sort_section, options::TWO_DASHES, '\0', "none",
 	      N_("Sort sections by name.  \'--no-text-reorder\'"
 		 " will override \'--sort-section=name\' for .text"),
-	      N_("[none,name]"), false,
+	      N_("[none,name]"),
 	      {"none", "name"});
 
   DEFINE_uint(spare_dynamic_tags, options::TWO_DASHES, '\0', 5,
@@ -1293,7 +1283,7 @@ class General_options
 	      NULL);
   DEFINE_enum(target2, options::TWO_DASHES, '\0', NULL,
 	      N_("(ARM only) Set R_ARM_TARGET2 relocation type"),
-	      N_("[rel, abs, got-rel"), false,
+	      N_("[rel, abs, got-rel"),
 	      {"rel", "abs", "got-rel"});
 
   DEFINE_bool(text_reorder, options::TWO_DASHES, '\0', true,
@@ -1350,7 +1340,7 @@ class General_options
   DEFINE_enum(unresolved_symbols, options::TWO_DASHES, '\0', NULL,
 	      N_("How to handle unresolved symbols"),
 	      ("ignore-all,report-all,ignore-in-object-files,"
-	       "ignore-in-shared-libs"), false,
+	       "ignore-in-shared-libs"),
 	      {"ignore-all", "report-all", "ignore-in-object-files",
 		  "ignore-in-shared-libs"});
 
@@ -1370,10 +1360,6 @@ class General_options
 
   DEFINE_bool_ignore(warn_constructors, options::TWO_DASHES, '\0',
 		     N_("Ignored"), N_("Ignored"));
-
-  DEFINE_bool(warn_drop_version, options::TWO_DASHES, '\0', false,
-	      N_("Warn when discarding version information"),
-	      N_("Do not warn when discarding version information"));
 
   DEFINE_bool(warn_execstack, options::TWO_DASHES, '\0', false,
 	      N_("Warn if the stack is executable"),
@@ -1510,11 +1496,6 @@ class General_options
 	      N_("Don't mark variables read-only after relocation"));
   DEFINE_uint64(stack_size, options::DASH_Z, '\0', 0,
 		N_("Set PT_GNU_STACK segment p_memsz to SIZE"), N_("SIZE"));
-  DEFINE_enum(start_stop_visibility, options::DASH_Z, '\0', "protected",
-	      N_("ELF symbol visibility for synthesized "
-		 "__start_* and __stop_* symbols"),
-	      ("[default,internal,hidden,protected]"), false,
-	      {"default", "internal", "hidden", "protected"});
   DEFINE_bool(text, options::DASH_Z, '\0', false,
 	      N_("Do not permit relocations in read-only segments"),
 	      N_("Permit relocations in read-only segments"));
@@ -1765,24 +1746,6 @@ class General_options
   orphan_handling_enum() const
   { return this->orphan_handling_enum_; }
 
-  elfcpp::STV
-  start_stop_visibility_enum() const
-  { return this->start_stop_visibility_enum_; }
-
-  enum Power10_stubs
-  {
-    // Use Power10 insns on @notoc calls/branches, non-Power10 elsewhere.
-    POWER10_STUBS_AUTO,
-    // Don't use Power10 insns
-    POWER10_STUBS_NO,
-    // Always use Power10 insns
-    POWER10_STUBS_YES
-  };
-
-  Power10_stubs
-  power10_stubs_enum() const
-  { return this->power10_stubs_enum_; }
-
  private:
   // Don't copy this structure.
   General_options(const General_options&);
@@ -1841,14 +1804,6 @@ class General_options
   void
   set_orphan_handling_enum(Orphan_handling value)
   { this->orphan_handling_enum_ = value; }
-
-  void
-  set_start_stop_visibility_enum(elfcpp::STV value)
-  { this->start_stop_visibility_enum_ = value; }
-
-  void
-  set_power10_stubs_enum(Power10_stubs value)
-  { this->power10_stubs_enum_ = value; }
 
   // These are called by finalize() to set up the search-path correctly.
   void
@@ -1917,10 +1872,6 @@ class General_options
   std::vector<Position_dependent_options*> options_stack_;
   // Orphan handling option, decoded to an enum value.
   Orphan_handling orphan_handling_enum_;
-  // Symbol visibility for __start_* / __stop_* magic symbols.
-  elfcpp::STV start_stop_visibility_enum_;
-  // Power10 stubs option
-  Power10_stubs power10_stubs_enum_;
 };
 
 // The position-dependent options.  We use this to store the state of

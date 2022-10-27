@@ -1,5 +1,5 @@
 /* 32-bit ELF support for TI PRU.
-   Copyright (C) 2014-2020 Free Software Foundation, Inc.
+   Copyright (C) 2014-2018 Free Software Foundation, Inc.
    Contributed by Dimitar Dimitrov <dimitar@dinux.eu>
    Based on elf32-nios2.c
 
@@ -31,9 +31,6 @@
 #include "elf/pru.h"
 #include "opcode/pru.h"
 #include "libiberty.h"
-
-/* All users of this file have bfd_octets_per_byte (abfd, sec) == 1.  */
-#define OCTETS_PER_BYTE(ABFD, SEC) 1
 
 #define SWAP_VALS(A,B)		      \
   do {				      \
@@ -424,7 +421,7 @@ pru_elf32_info_to_howto (bfd *abfd, arelent *cache_ptr,
       bfd_set_error (bfd_error_bad_value);
       return FALSE;
     }
-
+    
   cache_ptr->howto = lookup_howto (r_type);
   return cache_ptr->howto != NULL;
 }
@@ -539,8 +536,8 @@ pru_elf32_do_ldi32_relocate (bfd *abfd, reloc_howto_type *howto,
 			     bfd_byte *data, bfd_vma offset,
 			     bfd_vma symbol_value, bfd_vma addend)
 {
-  bfd_vma relocation;
-  bfd_size_type octets = offset * OCTETS_PER_BYTE (abfd, input_section);
+  bfd_signed_vma relocation;
+  bfd_size_type octets = offset * bfd_octets_per_byte (abfd);
   bfd_byte *location;
   unsigned long in1, in2;
 
@@ -560,7 +557,7 @@ pru_elf32_do_ldi32_relocate (bfd *abfd, reloc_howto_type *howto,
   BFD_ASSERT (!howto->pc_relative);
 
   /* A hacked-up version of _bfd_relocate_contents() follows.  */
-  location = data + octets;
+  location = data + offset * bfd_octets_per_byte (abfd);
 
   BFD_ASSERT (!howto->pc_relative);
 
@@ -908,7 +905,7 @@ pru_elf32_relocate_section (bfd *output_bfd,
 						      symtab_hdr->sh_link,
 						      sym->st_name);
 	      if (name == NULL || *name == '\0')
-		name = bfd_section_name (sec);
+		name = bfd_section_name (input_bfd, sec);
 	    }
 
 	  switch (r)
@@ -1523,17 +1520,20 @@ pru_elf32_relax_section (bfd * abfd, asection * sec,
 	}
     }
 
-  if (elf_section_data (sec)->relocs != internal_relocs)
+  if (internal_relocs != NULL
+      && elf_section_data (sec)->relocs != internal_relocs)
     free (internal_relocs);
 
   return TRUE;
 
- error_return:
-  if (symtab_hdr->contents != (unsigned char *) isymbuf)
+error_return:
+  if (isymbuf != NULL && symtab_hdr->contents != (unsigned char *) isymbuf)
     free (isymbuf);
-  if (elf_section_data (sec)->this_hdr.contents != contents)
+  if (contents != NULL
+      && elf_section_data (sec)->this_hdr.contents != contents)
     free (contents);
-  if (elf_section_data (sec)->relocs != internal_relocs)
+  if (internal_relocs != NULL
+      && elf_section_data (sec)->relocs != internal_relocs)
     free (internal_relocs);
 
   return FALSE;
@@ -1551,7 +1551,7 @@ static struct bfd_link_hash_table *
 pru_elf32_link_hash_table_create (bfd *abfd)
 {
   struct elf_link_hash_table *ret;
-  size_t amt = sizeof (struct elf_link_hash_table);
+  bfd_size_type amt = sizeof (struct elf_link_hash_table);
 
   ret = bfd_zmalloc (amt);
   if (ret == NULL)

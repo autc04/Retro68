@@ -1,8 +1,6 @@
 #objdump: -s -j .data -j "\$DATA\$"
 #name: fill test with forward labels
-# The following targets do not define DIFF_EXPR_OK and so the
-# .fill expression cannot be calculated at assembly time:
-#notarget: tic4x-*-* tic54x-*-* mep-*-*
+#not-target: tic4x-*-* tic54x-*-*
 
 .*: +file format .*
 

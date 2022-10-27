@@ -1,5 +1,5 @@
 /* ECOFF object file format.
-   Copyright (C) 1993-2020 Free Software Foundation, Inc.
+   Copyright (C) 1993-2018 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    This file was put together by Ian Lance Taylor <ian@cygnus.com>.
 
@@ -25,7 +25,6 @@
 #include "coff/internal.h"
 #include "bfd/libcoff.h"
 #include "bfd/libecoff.h"
-#include "bfd/ecoff-bfd.h"
 
 /* Almost all of the ECOFF support is actually in ecoff.c in the main
    gas directory.  This file mostly just arranges to call that one at
@@ -91,15 +90,15 @@ ecoff_frob_file_before_fix (void)
 	  }
       if (i == n_names)
 	{
-	  bfd_set_section_vma (sec, addr);
-	  addr += bfd_section_size (sec);
+	  bfd_set_section_vma (stdoutput, sec, addr);
+	  addr += bfd_section_size (stdoutput, sec);
 	}
     }
   for (i = 0; i < n_names; i++)
     if (secs[i])
       {
-	bfd_set_section_vma (secs[i], addr);
-	addr += bfd_section_size (secs[i]);
+	bfd_set_section_vma (stdoutput, secs[i], addr);
+	addr += bfd_section_size (stdoutput, secs[i]);
       }
   for (i = n_names - 1; i >= 0; i--)
     if (secs[i])

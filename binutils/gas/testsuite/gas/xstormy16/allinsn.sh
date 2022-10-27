@@ -1,4 +1,4 @@
-#!/bin/bash
+#/bin/sh
 # Generate test result data for xstormy16 GAS testing.
 # This script is machine generated.
 # It is intended to be run in the testsuite source directory.

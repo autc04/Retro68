@@ -3,7 +3,7 @@
 #source: mask_1-armv8-ar.s
 #as: -march=armv8-a
 # This test is only valid on ELF based ports.
-#notarget: *-*-pe *-*-wince
+#not-target: *-*-pe *-*-wince
 
 # Test VFMA instruction disassembly
 

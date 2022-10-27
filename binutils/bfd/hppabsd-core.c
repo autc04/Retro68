@@ -1,5 +1,5 @@
 /* BFD back-end for HPPA BSD core files.
-   Copyright (C) 1993-2020 Free Software Foundation, Inc.
+   Copyright (C) 1993-2018 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -90,7 +90,7 @@ make_bfd_asection (bfd *abfd,
   return asect;
 }
 
-static bfd_cleanup
+static const bfd_target *
 hppabsd_core_core_file_p (bfd *abfd)
 {
   int val;
@@ -181,7 +181,7 @@ hppabsd_core_core_file_p (bfd *abfd)
 
   strncpy (core_command (abfd), u.u_comm, MAXCOMLEN + 1);
   core_signal (abfd) = u.u_code;
-  return _bfd_no_cleanup;
+  return abfd->xvec;
 
  fail:
   bfd_release (abfd, abfd->tdata.any);

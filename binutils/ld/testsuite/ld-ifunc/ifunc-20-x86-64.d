@@ -3,6 +3,7 @@
 #as: --64
 #readelf: -r --wide
 #target: x86_64-*-*
+#notarget: x86_64-*-nacl*
 
 Relocation section '.rela.ifunc' at offset 0x[0-9a-f]+ contains 1 entry:
 [ ]+Offset[ ]+Info[ ]+Type[ ]+.*

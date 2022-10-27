@@ -5,7 +5,7 @@ SECTIONS
     LONG (foo)
     LONG (bar)
     . = ALIGN (0x10);
-    *(.data .rw)
+    *(.data)
   }
   PROVIDE (foo = .);
   PROVIDE (bar = .);

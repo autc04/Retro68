@@ -1,8 +1,7 @@
 #objdump: --section-headers
-#as: --generate-missing-build-notes=no
 # Minimum code alignment should be set.
 # This test is only valid on ELF based ports.
-#notarget: *-*-pe *-*-wince
+#not-target: *-*-pe *-*-wince
 
 .*: +file format.*aarch64.*
 

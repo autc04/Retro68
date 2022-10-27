@@ -4,7 +4,7 @@
 
 
 
-.*:     file format elf32-s12z
+dump.o:     file format elf32-s12z
 
 
 Disassembly of section .text:
@@ -31,4 +31,3 @@ Disassembly of section .text:
   2a:	ab f9 be 91 	jsr 114321
   2e:	ab fe 07 82 	jsr \[492134\]
   32:	66 
-  33:	ab 40       	jsr \(0,x\)

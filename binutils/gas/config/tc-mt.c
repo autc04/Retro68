@@ -1,5 +1,5 @@
 /* tc-mt.c -- Assembler for the Morpho Technologies mt .
-   Copyright (C) 2005-2020 Free Software Foundation, Inc.
+   Copyright (C) 2005-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -178,8 +178,6 @@ md_begin (void)
 
   /* Set the machine type.  */
   bfd_default_set_arch_mach (stdoutput, bfd_arch_mt, mt_mach);
-
-  literal_prefix_dollar_hex = TRUE;
 }
 
 void
@@ -333,7 +331,7 @@ md_assemble (char * str)
 valueT
 md_section_align (segT segment, valueT size)
 {
-  int align = bfd_section_alignment (segment);
+  int align = bfd_get_section_alignment (stdoutput, segment);
 
   return ((size + (1 << align) - 1) & -(1 << align));
 }

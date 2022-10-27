@@ -1,11 +1,11 @@
  .text
  .macro foo
- .globl label_a
-label_a:
+ .globl a
+a:
  .long 42
  .endm
  .include "app4b.s"
  foo
- .globl label_b
-label_b:
+ .globl b
+b:
  .long 56

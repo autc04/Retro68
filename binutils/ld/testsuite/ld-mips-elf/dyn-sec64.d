@@ -1,7 +1,7 @@
 #name: objdump -p print 64-bit values
 #source: dyn-sec64.s
-#as: -mips3
-#ld: -Tdyn-sec64.ld -shared
+#as: -mips3 -EB -64
+#ld: -Tdyn-sec64.ld -shared -melf64btsmip
 #objdump: -p
 
 .*: .* file format .*

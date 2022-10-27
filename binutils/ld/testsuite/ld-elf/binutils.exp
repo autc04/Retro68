@@ -1,5 +1,5 @@
 # Expect script for binutils tests
-# Copyright (C) 2006-2020 Free Software Foundation, Inc.
+# Copyright (C) 2006-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -23,10 +23,10 @@
 
 # Make sure that binutils can correctly handle ld output in ELF.
 
-if { !([istarget *-*-linux*]
-       || [istarget arm*-*-uclinuxfdpiceabi]
-       || [istarget *-*-nacl*]
-       || [istarget *-*-gnu*]) || [istarget *ecoff] } then {
+if { ![istarget *-*-linux*]
+     && ![istarget arm*-*-uclinuxfdpiceabi]
+     && ![istarget *-*-nacl*]
+     && ![istarget *-*-gnu*]} {
     return
 }
 
@@ -165,7 +165,9 @@ if { ([istarget "i?86-*-elf*"]
       || [istarget "i?86-*-linux*"]
       || [istarget "i?86-*-gnu*"]
       || [istarget "x86_64-*-linux*"]
-      || [istarget "amd64-*-linux*"]) } {
+      || [istarget "amd64-*-linux*"]
+      || [istarget "i?86-*nacl*"]
+      || [istarget "x86_64-*nacl*"]) } {
     binutils_test strip "-z relro -shared" relro2
     binutils_test objcopy "-z relro -shared" relro2
 }

@@ -1,8 +1,7 @@
 # name: H8300 GCC section test case
-# ld: --gc-sections
+# ld: --gc-sections  -m h8300helf
 # objdump: -d --no-show-raw-insn
-
-.*:     file format .*
+.*:     file format .*-h8300
 
 Disassembly of section .text:
 

@@ -1,5 +1,5 @@
 /* coffgrok.c
-   Copyright (C) 1994-2020 Free Software Foundation, Inc.
+   Copyright (C) 1994-2018 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -145,7 +145,7 @@ do_sections_p1 (struct coff_ofile *head)
       if (strcmp (section->name, ".bss") == 0)
 	head->sections[i].data = 1;
       head->sections[i].address = section->lma;
-      head->sections[i].size = bfd_section_size (section);
+      head->sections[i].size = bfd_get_section_size (section);
       head->sections[i].number = idx;
       head->sections[i].nrelocs = section->reloc_count;
       head->sections[i].relocs =
@@ -890,12 +890,12 @@ coff_grok (bfd *inabfd)
   storage = bfd_get_symtab_upper_bound (abfd);
 
   if (storage < 0)
-    bfd_fatal (bfd_get_filename (abfd));
+    bfd_fatal (abfd->filename);
 
   syms = (asymbol **) xmalloc (storage);
   symcount = bfd_canonicalize_symtab (abfd, syms);
   if (symcount < 0)
-    bfd_fatal (bfd_get_filename (abfd));
+    bfd_fatal (abfd->filename);
   rawsyms = obj_raw_syments (abfd);
   rawcount = obj_raw_syment_count (abfd);
   tindex = (struct coff_symbol **) (xcalloc (sizeof (struct coff_symbol *), rawcount));

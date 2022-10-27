@@ -1,4 +1,3 @@
-#as: -mx86-used-note=no --generate-missing-build-notes=no
 #name: x32 size 1
 #source: ../size-1.s
 #readelf: -r

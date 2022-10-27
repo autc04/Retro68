@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2020 Free Software Foundation, Inc.
+# Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -575,7 +575,6 @@ if { [istarget mips*-*-vxworks*] } {
     } {
 	set el ""
     }
-    set imips [expr [istarget *-*-irix*] ? {"-irix"} : {""}]
 
     run_dump_test_arches "dot-1"	[mips_arch_list_matching mips1]
     run_dump_test_arches "abs"		[mips_arch_list_matching mips1]
@@ -763,11 +762,10 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test_arches "24k-triple-stores-11" \
 	    				[mips_arch_list_matching mips1]
 
-    run_dump_test_arches "jal-svr4pic${imips}" \
+    run_dump_test_arches "jal-svr4pic"	[mips_arch_list_matching mips1]
+    run_dump_test_arches "jal-svr4pic-noreorder" \
 					[mips_arch_list_matching mips1]
-    run_dump_test_arches "jal-svr4pic-noreorder${imips}" \
-					[mips_arch_list_matching mips1]
-    run_dump_test_arches "jal-svr4pic-local${imips}" \
+    run_dump_test_arches "jal-svr4pic-local" \
 					[mips_arch_list_matching mips1]
     if $has_newabi {
 	run_dump_test_arches "jal-svr4pic-local-n32" \
@@ -775,7 +773,7 @@ if { [istarget mips*-*-vxworks*] } {
 	run_dump_test_arches "jal-svr4pic-local-n64" \
 					[mips_arch_list_matching mips3]
     }
-    run_dump_test "jal-xgot${imips}"
+    run_dump_test "jal-xgot"
     run_list_test_arches "jal-range" "-32" [mips_arch_list_matching mips1]
     if $has_newabi { run_dump_test "jal-newabi" }
     run_dump_test "la"
@@ -1153,9 +1151,6 @@ if { [istarget mips*-*-vxworks*] } {
     # Verify that machine markings are handled properly.
     run_dump_test "elf_mach_5900"
     run_dump_test "elf_mach_interaptiv-mr2"
-    run_dump_test "elf_mach_p6600"
-    run_dump_test "elf_mach_i6400"
-    run_dump_test "elf_mach_i6500"
 
     run_dump_test "mips-gp32-fp32-pic"
     run_dump_test "mips-gp32-fp64-pic"
@@ -1164,7 +1159,7 @@ if { [istarget mips*-*-vxworks*] } {
 
     run_dump_test "mips-abi32"
     run_dump_test "mips-abi32-pic"
-    run_dump_test "mips-abi32-pic2${imips}"
+    run_dump_test "mips-abi32-pic2"
 
     run_dump_test "elf${el}-rel"
     run_dump_test_arches "elf${el}-rel2" \
@@ -1226,13 +1221,7 @@ if { [istarget mips*-*-vxworks*] } {
 
     if $has_newabi {
 	run_dump_test "elf-rel28-n32"
-	run_dump_test "elf-rel28-micromips-n32"
 	run_dump_test "elf-rel28-n64"
-	run_dump_test "elf-rel28-micromips-n64"
-	run_dump_test "elf-rel28-lldscd-n32"
-	run_dump_test "elf-rel28-lldscd-micromips-n32"
-	run_dump_test "elf-rel28-lldscd-n64"
-	run_dump_test "elf-rel28-lldscd-micromips-n64"
 	run_dump_test_arches "elf-rel29" [mips_arch_list_matching mips3]
     }
     run_list_test_arches "elf-rel30" "-32" [mips_arch_list_all]
@@ -1248,7 +1237,7 @@ if { [istarget mips*-*-vxworks*] } {
     run_list_test "tls-ill" "-32"
     run_dump_test "tls-o32"
     run_dump_test "tls-relw"
-    run_dump_test "jalr2${imips}"
+    run_dump_test "jalr2"
     run_dump_test_arches "jalr3"	[mips_arch_list_matching mips1 \
 					    !micromips]
     run_dump_test_arches "jalr4"	[mips_arch_list_matching mips1 \
@@ -1347,8 +1336,6 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "hwr-names-numeric"
     run_dump_test "hwr-names-mips32r2"
     run_dump_test "hwr-names-mips64r2"
-    run_dump_test_arches "hwr-names"	[mips_arch_list_matching mips32r6 \
-					    !micromipsr6]
 
     run_dump_test "ldstla-32"
     run_dump_test "ldstla-32-mips3"
@@ -1397,12 +1384,6 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "loongson-3a"
     run_dump_test "loongson-3a-2"
     run_dump_test "loongson-3a-3"
-
-    run_dump_test "loongson-2f-mmi"
-    run_dump_test "loongson-3a-mmi"
-
-    run_dump_test_arches "loongson-cam"		[mips_arch_list_matching gs464]
-    run_dump_test_arches "loongson-ext2"	[mips_arch_list_matching gs464]  
 
     if { $has_newabi } {
 	run_dump_test_arches "octeon"	[mips_arch_list_matching octeon]
@@ -1504,7 +1485,6 @@ if { [istarget mips*-*-vxworks*] } {
 					[mips_arch_list_matching mips32] ] ]
     run_dump_test_arches "daddi"	[mips_arch_list_matching mips3 \
 						!mips32r6]
-    run_dump_test_arches "dadd" 	[mips_arch_list_matching mips64r6]
     run_dump_test_arches "pref" [lsort -dictionary -unique [concat \
 					[mips_arch_list_matching mips4] \
 					[mips_arch_list_matching mips32] ] ]
@@ -1530,9 +1510,9 @@ if { [istarget mips*-*-vxworks*] } {
 	"-32 -march=mips64 -mmicromips" "microMIPS instruction size 0"
     run_dump_test "micromips-size-1"
     run_dump_test "micromips-branch-relax"
-    run_dump_test "micromips-branch-relax-pic${imips}"
+    run_dump_test "micromips-branch-relax-pic"
     run_dump_test "micromips-branch-relax-insn32"
-    run_dump_test "micromips-branch-relax-insn32-pic${imips}"
+    run_dump_test "micromips-branch-relax-insn32-pic"
     run_dump_test "micromips-branch-delay"
     run_dump_test "micromips-warn-branch-delay"
     run_dump_test "micromips-warn-branch-delay-1"
@@ -1568,8 +1548,6 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test_arches "break-error"	[mips_arch_list_all]
 
     run_dump_test "r5900"
-    run_dump_test "r5900-fix"
-    run_dump_test "r5900-no-fix"
     run_dump_test "r5900-full"
     run_list_test "r5900-nollsc" "-mabi=o64 -march=r5900"
     run_dump_test "r5900-vu0"
@@ -2076,7 +2054,7 @@ if { [istarget mips*-*-vxworks*] } {
     run_list_test_arches "r6-removed"	"-32" [mips_arch_list_matching mips32r6]
     run_list_test_arches "r6-64-removed"	[mips_arch_list_matching mips64r6]
 
-    run_list_test_arches "r6-reg-constraints"  "-32" \
+    run_list_test_arches "r6-branch-constraints"  "-32" \
 			[mips_arch_list_matching mips32r6]
 
     run_dump_test_arches "crc"		[mips_arch_list_matching mips32r6]
@@ -2086,19 +2064,4 @@ if { [istarget mips*-*-vxworks*] } {
 
     run_dump_test_arches "ginv"	[mips_arch_list_matching mips32r6]
     run_dump_test_arches "ginv-err"	[mips_arch_list_matching mips32r6]
-
-    run_dump_test_arches "llpscp-32" [mips_arch_list_matching mips32r6]
-    run_dump_test_arch "llpscp-64" "" mips64r6
-
-    run_dump_test "pr14798${imips}"
-    run_dump_test "insn-isa-mode"
-    run_dump_test "insn-isa-mode"
-    run_dump_test "global-local-symtab-o32${tmips}"
-    run_dump_test "global-local-symtab-sort-o32${tmips}"
-    if $has_newabi {
-	run_dump_test "global-local-symtab-n32${tmips}"
-	run_dump_test "global-local-symtab-n64"
-	run_dump_test "global-local-symtab-sort-n32${tmips}"
-	run_dump_test "global-local-symtab-sort-n64${tmips}"
-    }
 }

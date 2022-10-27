@@ -50,6 +50,9 @@ Dynamic section at offset 0x1150 contains 18 entries:
  0x0000000a \(STRSZ\)                      35 \(bytes\)
  0x0000000b \(SYMENT\)                     16 \(bytes\)
  0x00000015 \(DEBUG\)                      0x0
+ 0x70000000 \(C6000_DSBT_BASE\)            0x100000a0
+ 0x70000001 \(C6000_DSBT_SIZE\)            0x3
+ 0x70000003 \(C6000_DSBT_INDEX\)           0x0
  0x00000003 \(PLTGOT\)                     0x100000ac
  0x00000002 \(PLTRELSZ\)                   12 \(bytes\)
  0x00000014 \(PLTREL\)                     RELA
@@ -57,9 +60,6 @@ Dynamic section at offset 0x1150 contains 18 entries:
  0x00000007 \(RELA\)                       0x8114
  0x00000008 \(RELASZ\)                     72 \(bytes\)
  0x00000009 \(RELAENT\)                    12 \(bytes\)
- 0x70000000 \(C6000_DSBT_BASE\)            0x100000a0
- 0x70000001 \(C6000_DSBT_SIZE\)            0x3
- 0x70000003 \(C6000_DSBT_INDEX\)           0x0
  0x00000000 \(NULL\)                       0x0
 
 Relocation section '\.rela\.got' at offset 0x1114 contains 2 entries:

@@ -1,5 +1,5 @@
 /* tc-d30v.c -- Assembler code for the Mitsubishi D30V
-   Copyright (C) 1997-2020 Free Software Foundation, Inc.
+   Copyright (C) 1997-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -118,7 +118,7 @@ struct option md_longopts[] =
 size_t md_longopts_size = sizeof (md_longopts);
 
 /* Opcode hash table.  */
-static htab_t d30v_hash;
+static struct hash_control *d30v_hash;
 
 /* Do a binary search of the pre_defined_registers array to see if
    NAME is a valid register name.  Return the register number from the
@@ -302,7 +302,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 valueT
 md_section_align (asection *seg, valueT addr)
 {
-  int align = bfd_section_alignment (seg);
+  int align = bfd_get_section_alignment (stdoutput, seg);
   return ((addr + (1 << align) - 1) & -(1 << align));
 }
 
@@ -310,11 +310,11 @@ void
 md_begin (void)
 {
   struct d30v_opcode *opcode;
-  d30v_hash = str_htab_create ();
+  d30v_hash = hash_new ();
 
   /* Insert opcode names into a hash table.  */
   for (opcode = (struct d30v_opcode *) d30v_opcode_table; opcode->name; opcode++)
-      str_hash_insert (d30v_hash, opcode->name, opcode, 0);
+      hash_insert (d30v_hash, opcode->name, (char *) opcode);
 
   fixups = &FixUps[0];
   FixUps[0].next = &FixUps[1];
@@ -862,9 +862,9 @@ parallel_ok (struct d30v_insn *op1,
 		      for (r = regno; r <= regno + z; r++)
 			{
 			  if (r >= 32)
-			    used_reg[j][1] |= 1UL << (r - 32);
+			    used_reg[j][1] |= 1L << (r - 32);
 			  else
-			    used_reg[j][0] |= 1UL << r;
+			    used_reg[j][0] |= 1L << r;
 			}
 		    }
 		}
@@ -1390,7 +1390,7 @@ do_assemble (char *str,
     }
 
   /* Find the first opcode with the proper name.  */
-  opcode->op = (struct d30v_opcode *) str_hash_find (d30v_hash, name);
+  opcode->op = (struct d30v_opcode *) hash_find (d30v_hash, name);
   if (opcode->op == NULL)
     {
       as_bad (_("unknown opcode: %s"), name);
@@ -1490,7 +1490,7 @@ d30v_align (int n, char *pfill, symbolS *label)
   if (pfill == NULL)
     {
       if (n > 2
-	  && (bfd_section_flags (now_seg) & SEC_CODE) != 0)
+	  && (bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
 	{
 	  static char const nop[4] = { 0x00, 0xf0, 0x00, 0x00 };
 
@@ -1918,17 +1918,37 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 
   switch (fixP->fx_r_type)
     {
-    case BFD_RELOC_8:
-      *(unsigned char *) where = value;
+    case BFD_RELOC_8:  /* Check for a bad .byte directive.  */
+      if (fixP->fx_addsy != NULL)
+	as_bad (_("line %d: unable to place address of symbol '%s' into a byte"),
+		fixP->fx_line, S_GET_NAME (fixP->fx_addsy));
+      else if (((unsigned)value) > 0xff)
+	as_bad (_("line %d: unable to place value %lx into a byte"),
+		fixP->fx_line, value);
+      else
+	*(unsigned char *) where = value;
       break;
 
-    case BFD_RELOC_16:
-      bfd_putb16 ((bfd_vma) value, (unsigned char *) where);
+    case BFD_RELOC_16:  /* Check for a bad .short directive.  */
+      if (fixP->fx_addsy != NULL)
+	as_bad (_("line %d: unable to place address of symbol '%s' into a short"),
+		fixP->fx_line, S_GET_NAME (fixP->fx_addsy));
+      else if (((unsigned)value) > 0xffff)
+	as_bad (_("line %d: unable to place value %lx into a short"),
+		fixP->fx_line, value);
+      else
+	bfd_putb16 ((bfd_vma) value, (unsigned char *) where);
       break;
 
-    case BFD_RELOC_64:
-      bfd_putb32 ((bfd_vma) value, (unsigned char *) where);
-      bfd_putb32 (0, ((unsigned char *) where) + 4);
+    case BFD_RELOC_64:  /* Check for a bad .quad directive.  */
+      if (fixP->fx_addsy != NULL)
+	as_bad (_("line %d: unable to place address of symbol '%s' into a quad"),
+		fixP->fx_line, S_GET_NAME (fixP->fx_addsy));
+      else
+	{
+	  bfd_putb32 ((bfd_vma) value, (unsigned char *) where);
+	  bfd_putb32 (0, ((unsigned char *) where) + 4);
+	}
       break;
 
     case BFD_RELOC_D30V_6:

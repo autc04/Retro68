@@ -1,9 +1,9 @@
 #objdump: -d
-#name:    Tests for shift and rotate instructions
+#name:    
 #source:  shift.s
 
 
-.*:     file format elf32-s12z
+dump.o:     file format elf32-s12z
 
 
 Disassembly of section .text:
@@ -20,5 +20,3 @@ Disassembly of section .text:
   17:	10 3e 8e    	lsr.p \(d6,x\), #2
   1a:	10 f4 bf    	asl d7, #1
   1d:	10 bc bd    	asr d1, #2
-  20:	16 de 78    	asl d6, d6, #17
-  23:	16 d6 78    	asl d6, d6, #16

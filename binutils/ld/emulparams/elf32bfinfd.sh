@@ -1,12 +1,11 @@
-source_sh ${srcdir}/emulparams/elf32bfin.sh
+. ${srcdir}/emulparams/elf32bfin.sh
 unset STACK_ADDR
 OUTPUT_FORMAT="elf32-bfinfdpic"
 MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
-TEMPLATE_NAME=elf
+TEMPLATE_NAME=elf32
 GENERATE_SHLIB_SCRIPT=yes
 GENERATE_PIE_SCRIPT=yes
-# This gets us program headers mapped as part of the text segment.
-unset EMBEDDED
+EMBEDDED= # This gets us program headers mapped as part of the text segment.
 OTHER_GOT_SYMBOLS=
 OTHER_READONLY_SECTIONS="
   .rofixup        : {

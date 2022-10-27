@@ -3,6 +3,7 @@ OUTPUT_FORMAT="elf32-mcore-little"
 BIG_OUTPUT_FORMAT="elf32-mcore-big"
 LITTLE_OUTPUT_FORMAT="elf32-mcore-little"
 NO_REL_RELOCS=yes
+PAGE_SIZE=0x1000
 TARGET_PAGE_SIZE=0x400
 MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
 TEXT_START_ADDR=0
@@ -26,7 +27,7 @@ OTHER_BSS_END_SYMBOLS="${CREATE_SHLIB+PROVIDE (}__bss_end__ = .${CREATE_SHLIB+)}
 # This sets the stack to the top of the simulator memory (2^19 bytes).
 STACK_ADDR=0x80000
 
-TEMPLATE_NAME=elf
+TEMPLATE_NAME=elf32
 
 # This code gets inserted into the generic elf32.sc linker script
 # and allows us to define our own command line switches.

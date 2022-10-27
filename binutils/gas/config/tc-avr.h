@@ -1,5 +1,5 @@
 /* This file is tc-avr.h
-   Copyright (C) 1999-2020 Free Software Foundation, Inc.
+   Copyright (C) 1999-2018 Free Software Foundation, Inc.
 
    Contributed by Denis Chertykov <denisc@overta.ru>
 
@@ -136,6 +136,7 @@ extern int avr_force_relocation (struct fix *);
    of a PC relative instruction is the next instruction, so this
    macro would return the length of an instruction.  */
 #define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section (FIX, SEC)
+extern long md_pcrel_from_section (struct fix *, segT);
 
 /* The number of bytes to put into a word in a listing.  This affects
    the way the bytes are clumped together in the listing.  For
@@ -242,5 +243,5 @@ struct avr_frag_data
   unsigned int prev_opcode;
 };
 #define TC_FRAG_TYPE			struct avr_frag_data
-#define TC_FRAG_INIT(frag, max_bytes)	avr_frag_init (frag)
+#define TC_FRAG_INIT(frag)		avr_frag_init (frag)
 extern void avr_frag_init (fragS *);

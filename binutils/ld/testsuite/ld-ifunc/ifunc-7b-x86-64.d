@@ -3,6 +3,7 @@
 #ld: -melf_x86_64 -shared
 #readelf: -r --wide
 #target: x86_64-*-*
+#notarget: x86_64-*-nacl*
 
 Relocation section '.rela.plt' at .*
 [ ]+Offset[ ]+Info[ ]+Type[ ]+.*

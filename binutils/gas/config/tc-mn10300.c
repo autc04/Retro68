@@ -1,5 +1,5 @@
 /* tc-mn10300.c -- Assembler code for the Matsushita 10300
-   Copyright (C) 1996-2020 Free Software Foundation, Inc.
+   Copyright (C) 1996-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -121,7 +121,7 @@ size_t md_longopts_size = sizeof (md_longopts);
 #define HAVE_AM30   (current_machine == AM30)
 
 /* Opcode hash table.  */
-static htab_t mn10300_hash;
+static struct hash_control *mn10300_hash;
 
 /* This table is sorted. Suitable for searching by a binary search.  */
 static const struct reg_name data_registers[] =
@@ -520,7 +520,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
       /* Create a fixup for the reversed conditional branch.  */
       sprintf (buf, ".%s_%ld", FAKE_LABEL_NAME, label_count++);
       fix_new (fragP, fragP->fr_fix + 1, 1,
-	       symbol_new (buf, sec, fragP->fr_next, 0),
+	       symbol_new (buf, sec, 0, fragP->fr_next),
 	       fragP->fr_offset + 1, 1, BFD_RELOC_8_PCREL);
 
       /* Now create the unconditional branch + fixup to the
@@ -577,7 +577,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
       /* Create a fixup for the reversed conditional branch.  */
       sprintf (buf, ".%s_%ld", FAKE_LABEL_NAME, label_count++);
       fix_new (fragP, fragP->fr_fix + 1, 1,
-	       symbol_new (buf, sec, fragP->fr_next, 0),
+	       symbol_new (buf, sec, 0, fragP->fr_next),
 	       fragP->fr_offset + 1, 1, BFD_RELOC_8_PCREL);
 
       /* Now create the unconditional branch + fixup to the
@@ -623,7 +623,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
       /* Create a fixup for the reversed conditional branch.  */
       sprintf (buf, ".%s_%ld", FAKE_LABEL_NAME, label_count++);
       fix_new (fragP, fragP->fr_fix + 2, 1,
-	       symbol_new (buf, sec, fragP->fr_next, 0),
+	       symbol_new (buf, sec, 0, fragP->fr_next),
 	       fragP->fr_offset + 2, 1, BFD_RELOC_8_PCREL);
 
       /* Now create the unconditional branch + fixup to the
@@ -659,7 +659,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
       /* Create a fixup for the reversed conditional branch.  */
       sprintf (buf, ".%s_%ld", FAKE_LABEL_NAME, label_count++);
       fix_new (fragP, fragP->fr_fix + 2, 1,
-	       symbol_new (buf, sec, fragP->fr_next, 0),
+	       symbol_new (buf, sec, 0, fragP->fr_next),
 	       fragP->fr_offset + 2, 1, BFD_RELOC_8_PCREL);
 
       /* Now create the unconditional branch + fixup to the
@@ -813,7 +813,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
       /* Create a fixup for the reversed conditional branch.  */
       sprintf (buf, ".%s_%ld", FAKE_LABEL_NAME, label_count++);
       fix_new (fragP, fragP->fr_fix + 2, 1,
-	       symbol_new (buf, sec, fragP->fr_next, 0),
+	       symbol_new (buf, sec, 0, fragP->fr_next),
 	       fragP->fr_offset + 2, 1, BFD_RELOC_8_PCREL);
 
       /* Now create the unconditional branch + fixup to the
@@ -882,7 +882,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
       /* Create a fixup for the reversed conditional branch.  */
       sprintf (buf, ".%s_%ld", FAKE_LABEL_NAME, label_count++);
       fix_new (fragP, fragP->fr_fix + 2, 1,
-	       symbol_new (buf, sec, fragP->fr_next, 0),
+	       symbol_new (buf, sec, 0, fragP->fr_next),
 	       fragP->fr_offset + 2, 1, BFD_RELOC_8_PCREL);
 
       /* Now create the unconditional branch + fixup to the
@@ -900,7 +900,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
 valueT
 md_section_align (asection *seg, valueT addr)
 {
-  int align = bfd_section_alignment (seg);
+  int align = bfd_get_section_alignment (stdoutput, seg);
 
   return ((addr + (1 << align) - 1) & -(1 << align));
 }
@@ -911,7 +911,7 @@ md_begin (void)
   const char *prev_name = "";
   const struct mn10300_opcode *op;
 
-  mn10300_hash = str_htab_create ();
+  mn10300_hash = hash_new ();
 
   /* Insert unique names into hash table.  The MN10300 instruction set
      has many identical opcode names that have different opcodes based
@@ -924,7 +924,7 @@ md_begin (void)
       if (strcmp (prev_name, op->name))
 	{
 	  prev_name = (char *) op->name;
-	  str_hash_insert (mn10300_hash, op->name, op, 0);
+	  hash_insert (mn10300_hash, op->name, (char *) op);
 	}
       op++;
     }
@@ -1247,7 +1247,7 @@ md_assemble (char *str)
     *s++ = '\0';
 
   /* Find the first opcode with the proper name.  */
-  opcode = (struct mn10300_opcode *) str_hash_find (mn10300_hash, str);
+  opcode = (struct mn10300_opcode *) hash_find (mn10300_hash, str);
   if (opcode == NULL)
     {
       as_bad (_("Unrecognized opcode: `%s'"), str);
@@ -1759,7 +1759,7 @@ md_assemble (char *str)
 	      break;
 	    }
 
-	keep_going:
+keep_going:
 	  str = input_line_pointer;
 	  input_line_pointer = hold;
 
@@ -2616,7 +2616,7 @@ mn10300_handle_align (fragS *frag)
       && now_seg != bss_section
       /* Do not create relocs for the merging sections - such
 	 relocs will prevent the contents from being merged.  */
-      && (bfd_section_flags (now_seg) & SEC_MERGE) == 0)
+      && (bfd_get_section_flags (now_seg->owner, now_seg) & SEC_MERGE) == 0)
     /* Create a new fixup to record the alignment request.  The symbol is
        irrelevant but must be present so we use the absolute section symbol.
        The offset from the symbol is used to record the power-of-two alignment

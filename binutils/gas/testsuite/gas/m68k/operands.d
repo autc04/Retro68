@@ -240,15 +240,3 @@ Disassembly of section .text:
 0+508 <foo\+(0x|)508> addiw #1,%d0
 0+50c <foo\+(0x|)50c> addil #1,%d0
 0+512 <foo\+(0x|)512> addqb #1,%d0
-0+514 <foo\+(0x|)514> cmpib #1,%d0
-0+518 <foo\+(0x|)518> cmpib #1,%pc@\(0+51c <foo\+(0x|)51c>\)
-0+51e <foo\+(0x|)51e> cmpiw #1,%d0
-0+522 <foo\+(0x|)522> cmpiw #1,%pc@\(0+526 <foo\+(0x|)526>\)
-0+528 <foo\+(0x|)528> cmpil #1,%d0
-0+52e <foo\+(0x|)52e> cmpil #1,%pc@\(0+534 <foo\+(0x|)534>\)
-0+536 <foo\+(0x|)536> cmpib #1,%d0
-0+53a <foo\+(0x|)53a> cmpib #1,%pc@\(0+53e <foo\+(0x|)53e>\)
-0+540 <foo\+(0x|)540> cmpiw #1,%d0
-0+544 <foo\+(0x|)544> cmpiw #1,%pc@\(0+548 <foo\+(0x|)548>\)
-0+54a <foo\+(0x|)54a> cmpil #1,%d0
-0+550 <foo\+(0x|)550> cmpil #1,%pc@\(0+556 <foo\+(0x|)556>\)

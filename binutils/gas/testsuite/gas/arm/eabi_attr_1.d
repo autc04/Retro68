@@ -1,7 +1,7 @@
 # as: -meabi=4
 # readelf: -A
 # This test is only valid on ELF based ports.
-#notarget: *-*-pe *-*-wince
+#not-target: *-*-pe *-*-wince
 Attribute Section: aeabi
 File Attributes
   Tag_CPU_name: "ARM1136JF-S"

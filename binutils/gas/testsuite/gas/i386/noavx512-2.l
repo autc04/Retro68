@@ -1,12 +1,12 @@
 .*: Assembler messages:
-.*:26: Error: .*unsupported instruction.*
-.*:27: Error: .*unsupported instruction.*
+.*:26: Error: .*unsupported masking.*
+.*:27: Error: .*unsupported masking.*
 .*:29: Error: .*unsupported instruction.*
 .*:30: Error: .*unsupported instruction.*
 .*:32: Error: .*unsupported instruction.*
 .*:33: Error: .*unsupported instruction.*
-.*:36: Error: .*unsupported instruction.*
-.*:37: Error: .*unsupported instruction.*
+.*:36: Error: .*unsupported masking.*
+.*:37: Error: .*unsupported masking.*
 .*:39: Error: .*unsupported instruction.*
 .*:40: Error: .*unsupported instruction.*
 .*:43: Error: .*unsupported instruction.*
@@ -101,10 +101,5 @@ GAS LISTING .*
 [ 	]*50[ 	]+F5
 [ 	]*51[ 	]+\?\?\?\? 660F58F4 		addpd %xmm4, %xmm6
 [ 	]*52[ 	]+
-[ 	]*[1-9][0-9]*[ 	]+\.intel_syntax noprefix
-[ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 62F3FD48 		vfpclasspd k0, \[eax], 0
-[ 	]*[1-9][0-9]*[ 	]+660000
-[ 	]*[1-9][0-9]*[ 	]+\?\?\?\? 62F37D48 		vfpclassps k0, \[eax], 0
-[ 	]*[1-9][0-9]*[ 	]+660000
-[ 	]*[1-9][0-9]*[ 	]+
+[ 	]*53[ 	]+\?\?\?\? 0F1F00   		\.p2align 4
 #pass

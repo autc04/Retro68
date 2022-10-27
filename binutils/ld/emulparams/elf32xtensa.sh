@@ -1,5 +1,5 @@
 SCRIPT_NAME=elfxtensa
-TEMPLATE_NAME=elf
+TEMPLATE_NAME=elf32
 EXTRA_EM_FILE=xtensaelf
 OUTPUT_FORMAT=undefined
 BIG_OUTPUT_FORMAT="elf32-xtensa-be"

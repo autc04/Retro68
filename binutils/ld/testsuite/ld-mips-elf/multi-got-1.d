@@ -1,8 +1,8 @@
 #name: MIPS multi-got-1
-#as: -KPIC
+#as: -EB -32 -KPIC
 #source: multi-got-1-1.s
 #source: multi-got-1-2.s
-#ld: -shared
+#ld: -melf32btsmip -shared
 #readelf: -d -r
 
 Dynamic section at offset .* contains 17 entries:

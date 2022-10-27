@@ -1,5 +1,5 @@
 /* tc-dlx.c -- Assemble for the DLX
-   Copyright (C) 2002-2020 Free Software Foundation, Inc.
+   Copyright (C) 2002-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -43,7 +43,7 @@
 #define RELOC_DLX_VTENTRY   BFD_RELOC_VTABLE_ENTRY
 
 /* handle of the OPCODE hash table */
-static htab_t op_hash = NULL;
+static struct hash_control *op_hash = NULL;
 
 struct machine_it
 {
@@ -92,14 +92,14 @@ insert_sreg (const char *regname, int regnum)
   char buf[80];
   int i;
 
-  symbol_table_insert (symbol_new (regname, reg_section,
-				   &zero_address_frag, regnum));
+  symbol_table_insert (symbol_new (regname, reg_section, (valueT) regnum,
+				   &zero_address_frag));
   for (i = 0; regname[i]; i++)
     buf[i] = ISLOWER (regname[i]) ? TOUPPER (regname[i]) : regname[i];
   buf[i] = '\0';
 
-  symbol_table_insert (symbol_new (buf, reg_section,
-				   &zero_address_frag, regnum));
+  symbol_table_insert (symbol_new (buf, reg_section, (valueT) regnum,
+				   &zero_address_frag));
 }
 
 /* Install symbol definitions for assorted special registers.
@@ -276,18 +276,30 @@ s_proc (int end_p)
 void
 md_begin (void)
 {
+  const char *retval = NULL;
+  int lose = 0;
   unsigned int i;
 
   /* Create a new hash table.  */
-  op_hash = str_htab_create ();
+  op_hash = hash_new ();
 
   /* Hash up all the opcodes for fast use later.  */
   for (i = 0; i < num_dlx_opcodes; i++)
     {
       const char *name = machine_opcodes[i].name;
-      if (str_hash_insert (op_hash, name, &machine_opcodes[i], 0) != NULL)
-	as_fatal (_("duplicate %s"), name);
+
+      retval = hash_insert (op_hash, name, (void *) &machine_opcodes[i]);
+
+      if (retval != NULL)
+	{
+	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
+		   machine_opcodes[i].name, retval);
+	  lose = 1;
+	}
     }
+
+  if (lose)
+    as_fatal (_("Broken assembler.  No assembly attempted."));
 
   define_some_regs ();
 }
@@ -682,7 +694,7 @@ machine_ip (char *str)
     }
 
   /* Hash the opcode, insn will have the string from opcode table.  */
-  if ((insn = (struct machine_opcode *) str_hash_find (op_hash, str)) == NULL)
+  if ((insn = (struct machine_opcode *) hash_find (op_hash, str)) == NULL)
     {
       /* Handle the ret and return macro here.  */
       if ((strcmp (str, "ret") == 0) || (strcmp (str, "return") == 0))
@@ -1002,6 +1014,10 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  free (fixP->fx_bit_fixP);
 	  fixP->fx_bit_fixP = NULL;
 	}
+#ifdef DEBUG
+      else
+	know ((fixP->fx_bit_fixP != NULL));
+#endif
       break;
 
     case RELOC_DLX_HI16:
@@ -1011,6 +1027,10 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  free (fixP->fx_bit_fixP);
 	  fixP->fx_bit_fixP = NULL;
 	}
+#ifdef DEBUG
+      else
+	know ((fixP->fx_bit_fixP != NULL));
+#endif
       break;
 
     case RELOC_DLX_REL26:
@@ -1020,6 +1040,10 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  free (fixP->fx_bit_fixP);
 	  fixP->fx_bit_fixP = NULL;
 	}
+#ifdef DEBUG
+      else
+	know ((fixP->fx_bit_fixP != NULL));
+#endif
       break;
 
     case BFD_RELOC_VTABLE_INHERIT:
@@ -1042,8 +1066,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
   number_to_chars_bigendian (place, val, fixP->fx_size);
   if (fixP->fx_addsy == NULL)
     fixP->fx_done = 1;
-  if (fixP->fx_bit_fixP != NULL)
-    fixP->fx_no_overflow = 1;
 }
 
 const char *md_shortopts = "";

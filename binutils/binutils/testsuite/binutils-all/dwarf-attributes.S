@@ -1,4 +1,4 @@
-/* Copyright (C) 2017-2020 Free Software Foundation, Inc.
+/* Copyright (C) 2017-2018 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@
 	.byte  1	/* Inline: inlined.  */
 	.byte  1	/* Accessibility: public.  */
 	.byte  1	/* Calling convention: normal.  */
-	.byte  3,1,1,2	/* Discriminate list: range.  */
+	.byte  1	/* Discriminate list: range.  */
 	.byte  1	/* Encoding: address.  */
 	.byte  1	/* Identifier case: up.  */
 	.byte  1	/* Virtuality: virtual.  */
@@ -53,7 +53,7 @@
 	.byte  0	/* Inline: not.  */
 	.byte  2	/* Accessibility: protected.  */
 	.byte  5	/* Calling convention: pass by value.  */
-	.byte  2,0,1	/* Discriminate list: label.  */
+	.byte  0	/* Discriminate list: label.  */
 	.byte  0x12	/* Encoding: ASCII.  */
 	.byte  0	/* Identifier case: sensitive.  */
 	.byte  0	/* Virtuality: none.  */
@@ -68,7 +68,7 @@
 	.byte  3	/* Inline: declared.  */
 	.byte  3	/* Accessibility: private.  */
 	.byte  0x40	/* Calling convention: Renesas SH.  */
-	.byte  5,1,2,3,0,4	/* Discriminate list: range and label.  */
+	.byte  1	/* Discriminate list: range.  */
 	.byte  0x81	/* Encoding: user specified.  */
 	.byte  3	/* Identifier case: insensitive.  */
 	.byte  2	/* Virtuality: pure.  */
@@ -107,7 +107,7 @@
 	.uleb128 0x0b	/* (DW_FORM_data1) */
 	
 	.uleb128 0x3d	/* (DW_AT_discr_lists) */
-	.uleb128 0x0a	/* (DW_FORM_block1) */
+	.uleb128 0x0b	/* (DW_FORM_data1) */
 	
 	.uleb128 0x3e	/* (DW_AT_encoding) */
 	.uleb128 0x0b	/* (DW_FORM_data1) */

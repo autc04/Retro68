@@ -1,4 +1,4 @@
-source_sh ${srcdir}/emulparams/arc-endianness.sh
+. ${srcdir}/emulparams/arc-endianness.sh
 ARCH=arc
 SCRIPT_NAME=arclinux
 if [ "x${ARC_ENDIAN}" = "xbig" ]; then
@@ -12,7 +12,7 @@ TEXT_START_ADDR=0x10000
 MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
 COMMONPAGESIZE="CONSTANT (COMMONPAGESIZE)"
 ENTRY=__start
-TEMPLATE_NAME=elf
+TEMPLATE_NAME=elf32
 EXTRA_EM_FILE=arclinux
 GENERATE_SHLIB_SCRIPT=yes
 GENERATE_PIE_SCRIPT=yes

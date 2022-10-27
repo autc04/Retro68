@@ -1,6 +1,6 @@
 #as: -mfp64 -32
 #source: empty.s
-#DUMPPROG: readelf
+#PROG: readelf
 #readelf: -A
 #name: MIPS infer fpabi (O32 fp64)
 

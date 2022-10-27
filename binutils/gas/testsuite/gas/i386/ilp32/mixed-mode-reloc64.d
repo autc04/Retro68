@@ -1,7 +1,6 @@
 #source: ../mixed-mode-reloc.s
 #objdump: -r
 #name: x86-64 (ILP32) mixed mode relocs
-#as: --generate-missing-build-notes=no
 
 .*: +file format .*x86-64.*
 

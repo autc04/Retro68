@@ -1,4 +1,4 @@
-source_sh ${srcdir}/emulparams/elf32bmip.sh
+. ${srcdir}/emulparams/elf32bmip.sh
 
 OUTPUT_FORMAT="elf32-bigmips-vxworks"
 BIG_OUTPUT_FORMAT="elf32-bigmips-vxworks"
@@ -17,4 +17,4 @@ SHLIB_TEXT_START_ADDR=0
 unset TEXT_DYNAMIC
 unset DATA_ADDR
 
-source_sh ${srcdir}/emulparams/vxworks.sh
+. ${srcdir}/emulparams/vxworks.sh

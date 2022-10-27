@@ -30,8 +30,8 @@
 	.long	9
 	.endif
 
-	.comm	v_c, 1
-	.ifndef v_c
+	.comm	c, 1
+	.ifndef c
 	.err
 	.endif
 
@@ -50,18 +50,18 @@
 	.err
 	.endif
 
-	.equiv	v_a, y + 1
-	.equiv	v_b, z - 1
-	.if	v_a == x
+	.equiv	a, y + 1
+	.equiv	b, z - 1
+	.if	a == x
 	.err
 	.endif
-	.if	v_a - 1 <> x
+	.if	a - 1 <> x
 	.err
 	.endif
-	.if	v_a <> v_b + 2
+	.if	a <> b + 2
 	.err
 	.endif
-	.if	v_a - v_b <> 2
+	.if	a - b <> 2
 	.err
 	.endif
 

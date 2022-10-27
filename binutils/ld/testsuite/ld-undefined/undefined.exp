@@ -1,7 +1,7 @@
 # Test that the linker reports undefined symbol errors correctly.
 # By Ian Lance Taylor, Cygnus Support
 #
-#   Copyright (C) 1995-2020 Free Software Foundation, Inc.
+#   Copyright (C) 1995-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -24,7 +24,7 @@ set testund "undefined"
 set testfn "undefined function"
 set testline "undefined line"
 
-if { ![check_compiler_available] } {
+if { ![is_remote host] && [which $CC] == 0 } {
     verbose "Could not find C compiler!" 1
     untested $testund
     untested $testfn
@@ -40,14 +40,9 @@ if { ![check_compiler_available] } {
     set flags [big_or_little_endian]
 
     # Using -e start prevents the SunOS linker from trying to build a
-    # shared library.  But don't use an entry point in BPF targets.
-    switch -glob $target_triplet {
-        bpf-*-* { set entry "" }
-        * { set entry "-e start" }
-    }
-
-    send_log "$ld $entry $flags -o tmpdir/undefined tmpdir/undefined.o\n"
-    set exec_output [run_host_cmd "$ld" "$entry $flags -o tmpdir/undefined tmpdir/undefined.o"]
+    # shared library.
+    send_log "$ld -e start $flags -o tmpdir/undefined tmpdir/undefined.o\n"
+    set exec_output [run_host_cmd "$ld" "-e start $flags -o tmpdir/undefined tmpdir/undefined.o"]
 
     send_log "$exec_output\n"
     verbose "$exec_output"
@@ -146,9 +141,6 @@ if { ![check_compiler_available] } {
     # See comments above for Xtensa.
     setup_xfail xtensa*-*-linux*
     setup_xfail hppa*64*-*-*
-
-    # eBPF doesn't support dwarf yet.
-    setup_xfail bpf-*-*
 
     checkund $ml $testline
 }

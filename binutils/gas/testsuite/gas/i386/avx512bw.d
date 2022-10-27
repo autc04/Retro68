@@ -1,4 +1,4 @@
-#as: -O0
+#as:
 #objdump: -dw
 #name: i386 AVX512BW insns
 #source: avx512bw.s

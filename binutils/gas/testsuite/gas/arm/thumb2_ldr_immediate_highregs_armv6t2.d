@@ -1,7 +1,7 @@
 # name: Ldr small immediate high registers on armv6t2
 # as: -march=armv6t2
 # objdump: -dr --prefix-addresses --show-raw-insn
-# notarget: *-*-pe *-*-wince
+# not-target: *-*-pe *-*-wince
 
 .*: +file format .*arm.*
 

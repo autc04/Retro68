@@ -1,7 +1,7 @@
 #name: --gc-sections with multiple debug sections for a function section
 #as: -gdwarf-sections
 #ld: --gc-sections -e _start
-#nm: -B
+#PROG: nm
 
 #...
 [0-9a-f]+ N +debug_aranges_main

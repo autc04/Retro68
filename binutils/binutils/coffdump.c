@@ -1,5 +1,5 @@
 /* Coff file dumper.
-   Copyright (C) 1994-2020 Free Software Foundation, Inc.
+   Copyright (C) 1994-2018 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -455,6 +455,8 @@ coff_dump (struct coff_ofile *ptr)
   for (i = 0; i < ptr->nsections; i++)
     dump_coff_section (ptr->sections + i);
 }
+
+char * program_name;
 
 static void
 show_usage (FILE *file, int status)

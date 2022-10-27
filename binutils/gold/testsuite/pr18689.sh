@@ -2,7 +2,7 @@
 
 # pr18689.sh  -- a test case for compressed .debug_macro sections.
 
-# Copyright (C) 2015-2020 Free Software Foundation, Inc.
+# Copyright (C) 2015-2017 Free Software Foundation, Inc.
 
 # This file is part of gold.
 

@@ -1,6 +1,6 @@
 /* script_test_12.t -- linker script test 12 for gold
 
-   Copyright (C) 2008-2020 Free Software Foundation, Inc.
+   Copyright (C) 2008-2017 Free Software Foundation, Inc.
    Written by Cary Coutant <ccoutant@gmail.com>.
 
    This file is part of gold.

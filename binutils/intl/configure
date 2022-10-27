@@ -719,10 +719,8 @@ enable_nls
 with_gnu_ld
 enable_rpath
 with_libiconv_prefix
-with_libiconv_type
 with_included_gettext
 with_libintl_prefix
-with_libintl_type
 enable_maintainer_mode
 '
       ac_precious_vars='build_alias
@@ -1355,11 +1353,9 @@ Optional Packages:
   --with-gnu-ld           assume the C compiler uses GNU ld default=no
   --with-libiconv-prefix[=DIR]  search for libiconv in DIR/include and DIR/lib
   --without-libiconv-prefix     don't search for libiconv in includedir and libdir
-  --with-libiconv-type=TYPE     type of library to search for (auto/static/shared)
   --with-included-gettext use the GNU gettext library included here
   --with-libintl-prefix[=DIR]  search for libintl in DIR/include and DIR/lib
   --without-libintl-prefix     don't search for libintl in includedir and libdir
-  --with-libintl-type=TYPE     type of library to search for (auto/static/shared)
 
 Some influential environment variables:
   CC          C compiler command
@@ -5199,16 +5195,6 @@ if test "${with_libiconv_prefix+set}" = set; then :
 
 fi
 
-
-# Check whether --with-libiconv-type was given.
-if test "${with_libiconv_type+set}" = set; then :
-  withval=$with_libiconv_type;  with_libiconv_type=$withval
-else
-   with_libiconv_type=auto
-fi
-
-  lib_type=`eval echo \$with_libiconv_type`
-
       LIBICONV=
   LTLIBICONV=
   INCICONV=
@@ -5246,13 +5232,13 @@ fi
           found_so=
           found_a=
           if test $use_additional = yes; then
-            if test -n "$shlibext" && test -f "$additional_libdir/lib$name.$shlibext" && test x$lib_type != xstatic; then
+            if test -n "$shlibext" && test -f "$additional_libdir/lib$name.$shlibext"; then
               found_dir="$additional_libdir"
               found_so="$additional_libdir/lib$name.$shlibext"
               if test -f "$additional_libdir/lib$name.la"; then
                 found_la="$additional_libdir/lib$name.la"
               fi
-            elif test x$lib_type != xshared; then
+            else
               if test -f "$additional_libdir/lib$name.$libext"; then
                 found_dir="$additional_libdir"
                 found_a="$additional_libdir/lib$name.$libext"
@@ -5276,13 +5262,13 @@ fi
               case "$x" in
                 -L*)
                   dir=`echo "X$x" | sed -e 's/^X-L//'`
-                  if test -n "$shlibext" && test -f "$dir/lib$name.$shlibext" && test x$lib_type != xstatic; then
+                  if test -n "$shlibext" && test -f "$dir/lib$name.$shlibext"; then
                     found_dir="$dir"
                     found_so="$dir/lib$name.$shlibext"
                     if test -f "$dir/lib$name.la"; then
                       found_la="$dir/lib$name.la"
                     fi
-                  elif test x$lib_type != xshared; then
+                  else
                     if test -f "$dir/lib$name.$libext"; then
                       found_dir="$dir"
                       found_a="$dir/lib$name.$libext"
@@ -5510,13 +5496,8 @@ fi
               done
             fi
           else
-                                                            if test "x$lib_type" = "xauto" || test "x$lib_type" = "xshared"; then
-              LIBICONV="${LIBICONV}${LIBICONV:+ }-l$name"
-              LTLIBICONV="${LTLIBICONV}${LTLIBICONV:+ }-l$name"
-            else
-              LIBICONV="${LIBICONV}${LIBICONV:+ }-l:lib$name.$libext"
-              LTLIBICONV="${LTLIBICONV}${LTLIBICONV:+ }-l:lib$name.$libext"
-            fi
+                                                            LIBICONV="${LIBICONV}${LIBICONV:+ }-l$name"
+            LTLIBICONV="${LTLIBICONV}${LTLIBICONV:+ }-l$name"
           fi
         fi
       fi
@@ -5658,7 +5639,7 @@ rm -f core conftest.err conftest.$ac_objext \
     if test "$am_cv_func_iconv" != yes; then
       am_save_CPPFLAGS="$CPPFLAGS"
       am_save_LIBS="$LIBS"
-      CPPFLAGS="$CPPFLAGS $INCICONV"
+      CPPFLAGS="$LIBS $INCICONV"
       LIBS="$LIBS $LIBICONV"
       cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -6045,16 +6026,6 @@ if test "${with_libintl_prefix+set}" = set; then :
 
 fi
 
-
-# Check whether --with-libintl-type was given.
-if test "${with_libintl_type+set}" = set; then :
-  withval=$with_libintl_type;  with_libintl_type=$withval
-else
-   with_libintl_type=auto
-fi
-
-  lib_type=`eval echo \$with_libintl_type`
-
       LIBINTL=
   LTLIBINTL=
   INCINTL=
@@ -6092,13 +6063,13 @@ fi
           found_so=
           found_a=
           if test $use_additional = yes; then
-            if test -n "$shlibext" && test -f "$additional_libdir/lib$name.$shlibext" && test x$lib_type != xstatic; then
+            if test -n "$shlibext" && test -f "$additional_libdir/lib$name.$shlibext"; then
               found_dir="$additional_libdir"
               found_so="$additional_libdir/lib$name.$shlibext"
               if test -f "$additional_libdir/lib$name.la"; then
                 found_la="$additional_libdir/lib$name.la"
               fi
-            elif test x$lib_type != xshared; then
+            else
               if test -f "$additional_libdir/lib$name.$libext"; then
                 found_dir="$additional_libdir"
                 found_a="$additional_libdir/lib$name.$libext"
@@ -6122,13 +6093,13 @@ fi
               case "$x" in
                 -L*)
                   dir=`echo "X$x" | sed -e 's/^X-L//'`
-                  if test -n "$shlibext" && test -f "$dir/lib$name.$shlibext" && test x$lib_type != xstatic; then
+                  if test -n "$shlibext" && test -f "$dir/lib$name.$shlibext"; then
                     found_dir="$dir"
                     found_so="$dir/lib$name.$shlibext"
                     if test -f "$dir/lib$name.la"; then
                       found_la="$dir/lib$name.la"
                     fi
-                  elif test x$lib_type != xshared; then
+                  else
                     if test -f "$dir/lib$name.$libext"; then
                       found_dir="$dir"
                       found_a="$dir/lib$name.$libext"
@@ -6356,13 +6327,8 @@ fi
               done
             fi
           else
-                                                            if test "x$lib_type" = "xauto" || test "x$lib_type" = "xshared"; then
-              LIBINTL="${LIBINTL}${LIBINTL:+ }-l$name"
-              LTLIBINTL="${LTLIBINTL}${LTLIBINTL:+ }-l$name"
-            else
-              LIBINTL="${LIBINTL}${LIBINTL:+ }-l:lib$name.$libext"
-              LTLIBINTL="${LTLIBINTL}${LTLIBINTL:+ }-l:lib$name.$libext"
-            fi
+                                                            LIBINTL="${LIBINTL}${LIBINTL:+ }-l$name"
+            LTLIBINTL="${LTLIBINTL}${LTLIBINTL:+ }-l$name"
           fi
         fi
       fi

@@ -1,6 +1,6 @@
 # Test basic linker script functionality
 # By Ian Lance Taylor, Cygnus Support
-#   Copyright (C) 1999-2020 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -32,7 +32,7 @@ proc check_script { } {
     global nm_output
 
     if ![ld_nm $nm "" tmpdir/script] {
-	fail $testname
+	unresolved $testname
 	return
     } 
 
@@ -67,7 +67,7 @@ proc check_script { } {
     } 
 
     if {[info exists nm_output(tred)] \
-        && $nm_output(tred) != (0x100 + 0x4000)} {
+        && $nm_output(tred) != (0x100 + 0x8000)} {
 	send_log "tred == $nm_output(tred)\n"
 	verbose "tred == $nm_output(tred)"
 	set passes 0
@@ -87,7 +87,7 @@ proc check_script { } {
     } 
 
     if {[info exists nm_output(fred)] \
-        && $nm_output(fred) != (0x1000 + 0x1000)} {
+        && $nm_output(fred) != (0x1000 + 0x10000)} {
 	send_log "fred == $nm_output(fred)\n"
 	verbose "fred == $nm_output(fred)"
 	set passes 0
@@ -183,13 +183,13 @@ proc extract_symbol_test { testfile testname } {
 
 # PE targets need to set the image base to 0 to avoid complications from nm.
 set flags ""
-set old_LDFLAGS $LDFLAGS
-if { [is_pecoff_format] } then {
-    set flags "--image-base 0"
-    set LDFLAGS "$LDFLAGS --image-base 0"
-} elseif { [is_xcoff_format] } then {
-    set flags "-bnogc"
-    set LDFLAGS "$LDFLAGS -bnogc"
+if {[istarget "*-*-pe*"] \
+    || [istarget "*-*-cygwin*"] \
+    || [istarget "*-*-mingw*"] \
+    || [istarget "*-*-winnt*"] \
+    || [istarget "*-*-nt"] \
+    || [istarget "*-*-interix*"] } then {
+  set flags "--image-base 0"
 }
 
 if ![ld_link $ld tmpdir/script "$flags -T $srcdir/$subdir/script.t tmpdir/script.o"] {
@@ -215,7 +215,7 @@ if ![ld_link $ld tmpdir/script "$flags -T $srcdir/$subdir/memory.t tmpdir/script
 }
 
 set testname "MEMORY with symbols"
-if ![ld_link $ld tmpdir/script "$flags -defsym DATA_ORIGIN=0x1000 -defsym DATA_LENGTH=0x1000 -T $srcdir/$subdir/memory_sym.t tmpdir/script.o"] {
+if ![ld_link $ld tmpdir/script "$flags -defsym DATA_ORIGIN=0x1000 -defsym DATA_LENGTH=0x10000 -T $srcdir/$subdir/memory_sym.t tmpdir/script.o"] {
     fail $testname
     untested "extract symbols"
 } else {
@@ -231,9 +231,3 @@ foreach test_script $test_script_list {
 
 run_dump_test "align-with-input"
 run_dump_test "pr20302"
-
-run_dump_test "segment-start" {{name (default)}}
-run_dump_test "segment-start" {{name (overridden)} \
-			       {ld -Ttext-segment=0x10000000}}
-
-set LDFLAGS $old_LDFLAGS

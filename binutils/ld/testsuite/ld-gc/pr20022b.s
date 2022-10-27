@@ -1,4 +1,4 @@
-	.data
+	.text
 	.globl _start
 _start:
 	.dc.a	__start__foo

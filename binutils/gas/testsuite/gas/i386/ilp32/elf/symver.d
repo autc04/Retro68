@@ -6,7 +6,7 @@
 # some toolchains, eg the mips-elf port will add .reginfo and .ptrd
 # and the arm-elf toolchain will add $d.
 
-.*:     file format .*
+dump.o:     file format .*
 
 SYMBOL TABLE:
 

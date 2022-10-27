@@ -2,7 +2,7 @@ SECTIONS
 {
   .data 0x1000 :
   {
-    *(.data .rw)
+    *(.data)
   }
 
   foo = ADDR (.data);

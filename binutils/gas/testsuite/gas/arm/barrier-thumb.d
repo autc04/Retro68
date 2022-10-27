@@ -3,7 +3,7 @@
 #source: barrier.s
 #as: -mcpu=cortex-a8 -mthumb
 # This test is only valid on ELF based ports.
-#notarget: *-*-pe *-*-wince
+#not-target: *-*-pe *-*-wince
 
 # Test Barrier Instruction Operands
 

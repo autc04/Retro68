@@ -1,5 +1,6 @@
 #source: pie.s
-#ld: -pie
+#as: -march=from-abi -mabi=n32 -EB
+#ld: -melf32btsmipn32 -pie
 #readelf: -d
 
 Dynamic section at offset 0x180 contains 17 entries:

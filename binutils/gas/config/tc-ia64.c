@@ -1,5 +1,5 @@
 /* tc-ia64.c -- Assembler for the HP/Intel IA-64 architecture.
-   Copyright (C) 1998-2020 Free Software Foundation, Inc.
+   Copyright (C) 1998-2018 Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -185,10 +185,10 @@ static void ia64_float_to_chars_littleendian (char *, LITTLENUM_TYPE *, int);
 
 static void (*ia64_float_to_chars) (char *, LITTLENUM_TYPE *, int);
 
-static htab_t alias_hash;
-static htab_t alias_name_hash;
-static htab_t secalias_hash;
-static htab_t secalias_name_hash;
+static struct hash_control *alias_hash;
+static struct hash_control *alias_name_hash;
+static struct hash_control *secalias_hash;
+static struct hash_control *secalias_name_hash;
 
 /* List of chars besides those in app.c:symbol_chars that can start an
    operand.  Used to prevent the scrubber eating vital white-space.  */
@@ -228,11 +228,11 @@ size_t md_longopts_size = sizeof (md_longopts);
 
 static struct
   {
-    htab_t pseudo_hash;	/* pseudo opcode hash table */
-    htab_t reg_hash;	/* register name hash table */
-    htab_t dynreg_hash;	/* dynamic register hash table */
-    htab_t const_hash;	/* constant hash table */
-    htab_t entry_hash;    /* code entry hint hash table */
+    struct hash_control *pseudo_hash;	/* pseudo opcode hash table */
+    struct hash_control *reg_hash;	/* register name hash table */
+    struct hash_control *dynreg_hash;	/* dynamic register hash table */
+    struct hash_control *const_hash;	/* constant hash table */
+    struct hash_control *entry_hash;    /* code entry hint hash table */
 
     /* If X_op is != O_absent, the register name for the instruction's
        qualifying predicate.  If NULL, p0 is assumed for instructions
@@ -1139,7 +1139,7 @@ obj_elf_vms_common (int ignore ATTRIBUTE_UNUSED)
   demand_empty_rest_of_line ();
 
   obj_elf_change_section
-    (sec_name, SHT_NOBITS,
+    (sec_name, SHT_NOBITS, 0,
      SHF_ALLOC | SHF_WRITE | SHF_IA_64_VMS_OVERLAID | SHF_IA_64_VMS_GLOBAL,
      0, NULL, 1, 0);
 
@@ -1152,14 +1152,14 @@ obj_elf_vms_common (int ignore ATTRIBUTE_UNUSED)
 
   record_alignment (now_seg, log_align);
 
-  cur_size = bfd_section_size (now_seg);
+  cur_size = bfd_section_size (stdoutput, now_seg);
   if ((int) size > cur_size)
     {
       char *pfrag
         = frag_var (rs_fill, 1, 1, (relax_substateT)0, NULL,
                     (valueT)size - (valueT)cur_size, NULL);
       *pfrag = 0;
-      bfd_set_section_size (now_seg, size);
+      bfd_section_size (stdoutput, now_seg) = size;
     }
 
   /* Switch back to current segment.  */
@@ -3606,7 +3606,8 @@ start_unwind_section (const segT text_seg, int sec_index)
   else
     {
       set_section (sec_name);
-      bfd_set_section_flags (now_seg, SEC_LOAD | SEC_ALLOC | SEC_READONLY);
+      bfd_set_section_flags (stdoutput, now_seg,
+			     SEC_LOAD | SEC_ALLOC | SEC_READONLY);
     }
 
   elf_linked_to_section (now_seg) = text_seg;
@@ -4435,10 +4436,9 @@ dot_endp (int dummy ATTRIBUTE_UNUSED)
       e.X_add_number = 0;
       if (!S_IS_LOCAL (unwind.proc_pending.sym)
 	  && S_IS_DEFINED (unwind.proc_pending.sym))
-	e.X_add_symbol
-	  = symbol_temp_new (S_GET_SEGMENT (unwind.proc_pending.sym),
-			     symbol_get_frag (unwind.proc_pending.sym),
-			     S_GET_VALUE (unwind.proc_pending.sym));
+	e.X_add_symbol = symbol_temp_new (S_GET_SEGMENT (unwind.proc_pending.sym),
+					  S_GET_VALUE (unwind.proc_pending.sym),
+					  symbol_get_frag (unwind.proc_pending.sym));
       else
 	e.X_add_symbol = unwind.proc_pending.sym;
       ia64_cons_fix_new (frag_now, where, bytes_per_address, &e,
@@ -4488,7 +4488,7 @@ dot_endp (int dummy ATTRIBUTE_UNUSED)
 		      symbol_get_obj (sym)->size->X_op = O_subtract;
 		      symbol_get_obj (sym)->size->X_add_symbol
 			= symbol_new (FAKE_LABEL_NAME, now_seg,
-				      frag_now, frag_now_fix ());
+				      frag_now_fix (), frag_now);
 		      symbol_get_obj (sym)->size->X_op_symbol = sym;
 		      symbol_get_obj (sym)->size->X_add_number = 0;
 		    }
@@ -4603,7 +4603,7 @@ dot_rot (int type)
   /* First, remove existing names from hash table.  */
   for (dr = md.dynreg[type]; dr && dr->num_regs; dr = dr->next)
     {
-      str_hash_delete (md.dynreg_hash, dr->name);
+      hash_delete (md.dynreg_hash, dr->name, FALSE);
       /* FIXME: Free dr->name.  */
       dr->num_regs = 0;
     }
@@ -4684,7 +4684,7 @@ dot_rot (int type)
       drpp = &dr->next;
       base_reg += num_regs;
 
-      if (str_hash_insert (md.dynreg_hash, name, dr, 0) != NULL)
+      if (hash_insert (md.dynreg_hash, name, dr))
 	{
 	  as_bad (_("Attempt to redefine register set `%s'"), name);
 	  obstack_free (&notes, name);
@@ -5167,6 +5167,7 @@ dot_pred_rel (int type)
 static void
 dot_entry (int dummy ATTRIBUTE_UNUSED)
 {
+  const char *err;
   char *name;
   int c;
   symbolS *symbolP;
@@ -5176,8 +5177,10 @@ dot_entry (int dummy ATTRIBUTE_UNUSED)
       c = get_symbol_name (&name);
       symbolP = symbol_find_or_make (name);
 
-      if (str_hash_insert (md.entry_hash, S_GET_NAME (symbolP), symbolP, 0))
-	as_bad (_("duplicate entry hint %s"), name);
+      err = hash_insert (md.entry_hash, S_GET_NAME (symbolP), (void *) symbolP);
+      if (err)
+	as_fatal (_("Inserting \"%s\" into entry hint table failed: %s"),
+		  name, err);
 
       *input_line_pointer = c;
       SKIP_WHITESPACE_AFTER_NAME ();
@@ -5376,12 +5379,15 @@ pseudo_opcode[] =
 static symbolS *
 declare_register (const char *name, unsigned int regnum)
 {
+  const char *err;
   symbolS *sym;
 
-  sym = symbol_create (name, reg_section, &zero_address_frag, regnum);
+  sym = symbol_create (name, reg_section, regnum, &zero_address_frag);
 
-  if (str_hash_insert (md.reg_hash, S_GET_NAME (sym), sym, 0) != NULL)
-    as_fatal (_("duplicate %s"), name);
+  err = hash_insert (md.reg_hash, S_GET_NAME (sym), (void *) sym);
+  if (err)
+    as_fatal ("Inserting \"%s\" into register table failed: %s",
+	      name, err);
 
   return sym;
 }
@@ -5834,8 +5840,9 @@ operand_match (const struct ia64_opcode *idesc, int res_index, expressionS *e)
 	  /* Sign-extend 32-bit unsigned numbers, so that the following range
 	     checks will work.  */
 	  val = e->X_add_number;
-	  if ((val & (~(bfd_vma) 0 << 32)) == 0)
-	    val = (val ^ ((bfd_vma) 1 << 31)) - ((bfd_vma) 1 << 31);
+	  if (((val & (~(bfd_vma) 0 << 32)) == 0)
+	      && ((val & ((bfd_vma) 1 << 31)) != 0))
+	    val = ((val << 32) >> 32);
 
 	  /* Check for 0x100000000.  This is valid because
 	     0x100000000-1 is the same as ((uint32_t) -1).  */
@@ -5873,8 +5880,9 @@ operand_match (const struct ia64_opcode *idesc, int res_index, expressionS *e)
 	  /* Sign-extend 32-bit unsigned numbers, so that the following range
 	     checks will work.  */
 	  val = e->X_add_number;
-	  if ((val & (~(bfd_vma) 0 << 32)) == 0)
-	    val = (val ^ ((bfd_vma) 1 << 31)) - ((bfd_vma) 1 << 31);
+	  if (((val & (~(bfd_vma) 0 << 32)) == 0)
+	      && ((val & ((bfd_vma) 1 << 31)) != 0))
+	    val = ((val << 32) >> 32);
 	}
       else
 	val = e->X_add_number;
@@ -6098,10 +6106,8 @@ parse_operands (struct ia64_opcode *idesc)
     {
       if (i < NELEMS (CURR_SLOT.opnd))
 	{
-	  enum ia64_opnd op = IA64_OPND_NIL;
-	  if (i < NELEMS (idesc->operands))
-	    op = idesc->operands[i];
-	  sep = parse_operand_maybe_eval (CURR_SLOT.opnd + i, '=', op);
+	  sep = parse_operand_maybe_eval (CURR_SLOT.opnd + i, '=',
+					  idesc->operands[i]);
 	  if (CURR_SLOT.opnd[i].X_op == O_absent)
 	    break;
 	}
@@ -7238,93 +7244,95 @@ void
 md_begin (void)
 {
   int i, j, k, t, goodness, best, ok;
+  const char *err;
+  char name[8];
 
   md.auto_align = 1;
   md.explicit_mode = md.default_explicit_mode;
 
-  bfd_set_section_alignment (text_section, 4);
+  bfd_set_section_alignment (stdoutput, text_section, 4);
 
   /* Make sure function pointers get initialized.  */
   target_big_endian = -1;
   dot_byteorder (default_big_endian);
 
-  alias_hash = str_htab_create ();
-  alias_name_hash = str_htab_create ();
-  secalias_hash = str_htab_create ();
-  secalias_name_hash = str_htab_create ();
+  alias_hash = hash_new ();
+  alias_name_hash = hash_new ();
+  secalias_hash = hash_new ();
+  secalias_name_hash = hash_new ();
 
   pseudo_func[FUNC_DTP_MODULE].u.sym =
-    symbol_new (".<dtpmod>", undefined_section,
-		&zero_address_frag, FUNC_DTP_MODULE);
+    symbol_new (".<dtpmod>", undefined_section, FUNC_DTP_MODULE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_DTP_RELATIVE].u.sym =
-    symbol_new (".<dtprel>", undefined_section,
-		&zero_address_frag, FUNC_DTP_RELATIVE);
+    symbol_new (".<dtprel>", undefined_section, FUNC_DTP_RELATIVE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_FPTR_RELATIVE].u.sym =
-    symbol_new (".<fptr>", undefined_section,
-		&zero_address_frag, FUNC_FPTR_RELATIVE);
+    symbol_new (".<fptr>", undefined_section, FUNC_FPTR_RELATIVE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_GP_RELATIVE].u.sym =
-    symbol_new (".<gprel>", undefined_section,
-		&zero_address_frag, FUNC_GP_RELATIVE);
+    symbol_new (".<gprel>", undefined_section, FUNC_GP_RELATIVE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_LT_RELATIVE].u.sym =
-    symbol_new (".<ltoff>", undefined_section,
-		&zero_address_frag, FUNC_LT_RELATIVE);
+    symbol_new (".<ltoff>", undefined_section, FUNC_LT_RELATIVE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_LT_RELATIVE_X].u.sym =
-    symbol_new (".<ltoffx>", undefined_section,
-		&zero_address_frag, FUNC_LT_RELATIVE_X);
+    symbol_new (".<ltoffx>", undefined_section, FUNC_LT_RELATIVE_X,
+		&zero_address_frag);
 
   pseudo_func[FUNC_PC_RELATIVE].u.sym =
-    symbol_new (".<pcrel>", undefined_section,
-		&zero_address_frag, FUNC_PC_RELATIVE);
+    symbol_new (".<pcrel>", undefined_section, FUNC_PC_RELATIVE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_PLT_RELATIVE].u.sym =
-    symbol_new (".<pltoff>", undefined_section,
-		&zero_address_frag, FUNC_PLT_RELATIVE);
+    symbol_new (".<pltoff>", undefined_section, FUNC_PLT_RELATIVE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_SEC_RELATIVE].u.sym =
-    symbol_new (".<secrel>", undefined_section,
-		&zero_address_frag, FUNC_SEC_RELATIVE);
+    symbol_new (".<secrel>", undefined_section, FUNC_SEC_RELATIVE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_SEG_RELATIVE].u.sym =
-    symbol_new (".<segrel>", undefined_section,
-		&zero_address_frag, FUNC_SEG_RELATIVE);
+    symbol_new (".<segrel>", undefined_section, FUNC_SEG_RELATIVE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_TP_RELATIVE].u.sym =
-    symbol_new (".<tprel>", undefined_section,
-		&zero_address_frag, FUNC_TP_RELATIVE);
+    symbol_new (".<tprel>", undefined_section, FUNC_TP_RELATIVE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_LTV_RELATIVE].u.sym =
-    symbol_new (".<ltv>", undefined_section,
-		&zero_address_frag, FUNC_LTV_RELATIVE);
+    symbol_new (".<ltv>", undefined_section, FUNC_LTV_RELATIVE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_LT_FPTR_RELATIVE].u.sym =
-    symbol_new (".<ltoff.fptr>", undefined_section,
-		&zero_address_frag, FUNC_LT_FPTR_RELATIVE);
+    symbol_new (".<ltoff.fptr>", undefined_section, FUNC_LT_FPTR_RELATIVE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_LT_DTP_MODULE].u.sym =
-    symbol_new (".<ltoff.dtpmod>", undefined_section,
-		&zero_address_frag, FUNC_LT_DTP_MODULE);
+    symbol_new (".<ltoff.dtpmod>", undefined_section, FUNC_LT_DTP_MODULE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_LT_DTP_RELATIVE].u.sym =
-    symbol_new (".<ltoff.dptrel>", undefined_section,
-		&zero_address_frag, FUNC_LT_DTP_RELATIVE);
+    symbol_new (".<ltoff.dptrel>", undefined_section, FUNC_LT_DTP_RELATIVE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_LT_TP_RELATIVE].u.sym =
-    symbol_new (".<ltoff.tprel>", undefined_section,
-		&zero_address_frag, FUNC_LT_TP_RELATIVE);
+    symbol_new (".<ltoff.tprel>", undefined_section, FUNC_LT_TP_RELATIVE,
+		&zero_address_frag);
 
   pseudo_func[FUNC_IPLT_RELOC].u.sym =
-    symbol_new (".<iplt>", undefined_section,
-		&zero_address_frag, FUNC_IPLT_RELOC);
+    symbol_new (".<iplt>", undefined_section, FUNC_IPLT_RELOC,
+		&zero_address_frag);
 
 #ifdef TE_VMS
   pseudo_func[FUNC_SLOTCOUNT_RELOC].u.sym =
-    symbol_new (".<slotcount>", undefined_section,
-		&zero_address_frag, FUNC_SLOTCOUNT_RELOC);
+    symbol_new (".<slotcount>", undefined_section, FUNC_SLOTCOUNT_RELOC,
+		&zero_address_frag);
 #endif
 
  if (md.tune != itanium1)
@@ -7400,16 +7408,20 @@ md_begin (void)
   for (i = 0; i < NUM_SLOTS; ++i)
     md.slot[i].user_template = -1;
 
-  md.pseudo_hash = str_htab_create ();
+  md.pseudo_hash = hash_new ();
   for (i = 0; i < NELEMS (pseudo_opcode); ++i)
-    if (str_hash_insert (md.pseudo_hash, pseudo_opcode[i].name,
-			 pseudo_opcode + i, 0) != NULL)
-      as_fatal (_("duplicate %s"), pseudo_opcode[i].name);
+    {
+      err = hash_insert (md.pseudo_hash, pseudo_opcode[i].name,
+			 (void *) (pseudo_opcode + i));
+      if (err)
+	as_fatal (_("ia64.md_begin: can't hash `%s': %s"),
+		  pseudo_opcode[i].name, err);
+    }
 
-  md.reg_hash = str_htab_create ();
-  md.dynreg_hash = str_htab_create ();
-  md.const_hash = str_htab_create ();
-  md.entry_hash = str_htab_create ();
+  md.reg_hash = hash_new ();
+  md.dynreg_hash = hash_new ();
+  md.const_hash = hash_new ();
+  md.entry_hash = hash_new ();
 
   /* general registers:  */
   declare_register_set ("r", 128, REG_GR);
@@ -7462,8 +7474,13 @@ md_begin (void)
   declare_register ("psp", REG_PSP);
 
   for (i = 0; i < NELEMS (const_bits); ++i)
-    if (str_hash_insert (md.const_hash, const_bits[i].name, const_bits + i, 0))
-      as_fatal (_("duplicate %s"), const_bits[i].name);
+    {
+      err = hash_insert (md.const_hash, const_bits[i].name,
+			 (void *) (const_bits + i));
+      if (err)
+	as_fatal (_("Inserting \"%s\" into constant hash table failed: %s"),
+		  name, err);
+    }
 
   /* Set the architecture and machine depending on defaults and command line
      options.  */
@@ -7761,7 +7778,7 @@ ia64_frob_label (struct symbol *sym)
       return;
     }
 
-  if (bfd_section_flags (now_seg) & SEC_CODE)
+  if (bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE)
     {
       md.last_text_seg = now_seg;
       fix = XOBNEW (&notes, struct label_fix);
@@ -7801,7 +7818,7 @@ void
 ia64_flush_pending_output (void)
 {
   if (!md.keep_pending_output
-      && bfd_section_flags (now_seg) & SEC_CODE)
+      && bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE)
     {
       /* ??? This causes many unnecessary stop bits to be emitted.
 	 Unfortunately, it isn't clear if it is safe to remove this.  */
@@ -7966,7 +7983,7 @@ ia64_parse_name (char *name, expressionS *e, char *nextcharP)
     }
 
   /* first see if NAME is a known register name:  */
-  sym = str_hash_find (md.reg_hash, name);
+  sym = hash_find (md.reg_hash, name);
   if (sym)
     {
       e->X_op = O_register;
@@ -7974,7 +7991,7 @@ ia64_parse_name (char *name, expressionS *e, char *nextcharP)
       return 1;
     }
 
-  cdesc = str_hash_find (md.const_hash, name);
+  cdesc = hash_find (md.const_hash, name);
   if (cdesc)
     {
       e->X_op = O_constant;
@@ -8040,7 +8057,7 @@ ia64_parse_name (char *name, expressionS *e, char *nextcharP)
 
   end = xstrdup (name);
   name = ia64_canonicalize_symbol_name (end);
-  if ((dr = str_hash_find (md.dynreg_hash, name)))
+  if ((dr = hash_find (md.dynreg_hash, name)))
     {
       /* We've got ourselves the name of a rotating register set.
 	 Store the base register number in the low 16 bits of
@@ -10661,7 +10678,7 @@ md_assemble (char *str)
 
   ch = get_symbol_name (&temp);
   mnemonic = temp;
-  pdesc = (struct pseudo_opcode *) str_hash_find (md.pseudo_hash, mnemonic);
+  pdesc = (struct pseudo_opcode *) hash_find (md.pseudo_hash, mnemonic);
   if (pdesc)
     {
       (void) restore_line_pointer (ch);
@@ -10972,7 +10989,7 @@ ia64_pcrel_from_section (fixS *fix, segT sec)
 {
   unsigned long off = fix->fx_frag->fr_address + fix->fx_where;
 
-  if (bfd_section_flags (sec) & SEC_CODE)
+  if (bfd_get_section_flags (stdoutput, sec) & SEC_CODE)
     off &= ~0xfUL;
 
   return off;
@@ -11553,6 +11570,8 @@ tc_gen_reloc (asection *sec ATTRIBUTE_UNUSED, fixS *fixp)
    of LITTLENUMS emitted is stored in *SIZE.  An error message is
    returned, or NULL on OK.  */
 
+#define MAX_LITTLENUMS 5
+
 const char *
 md_atof (int type, char *lit, int *size)
 {
@@ -11736,9 +11755,10 @@ dot_alias (int section)
   char delim;
   char *end_name;
   int len;
+  const char *error_string;
   struct alias *h;
   const char *a;
-  htab_t ahash, nhash;
+  struct hash_control *ahash, *nhash;
   const char *kind;
 
   delim = get_symbol_name (&name);
@@ -11795,26 +11815,21 @@ dot_alias (int section)
     }
 
   /* Check if alias has been used before.  */
-
-  h = (struct alias *) str_hash_find (ahash, alias);
+  h = (struct alias *) hash_find (ahash, alias);
   if (h)
     {
       if (strcmp (h->name, name))
 	as_bad (_("`%s' is already the alias of %s `%s'"),
 		alias, kind, h->name);
-      obstack_free (&notes, name);
-      obstack_free (&notes, alias);
       goto out;
     }
 
   /* Check if name already has an alias.  */
-  a = (const char *) str_hash_find (nhash, name);
+  a = (const char *) hash_find (nhash, name);
   if (a)
     {
       if (strcmp (a, alias))
 	as_bad (_("%s `%s' already has an alias `%s'"), kind, name, a);
-      obstack_free (&notes, name);
-      obstack_free (&notes, alias);
       goto out;
     }
 
@@ -11822,19 +11837,32 @@ dot_alias (int section)
   h->file = as_where (&h->line);
   h->name = name;
 
-  str_hash_insert (ahash, alias, h, 0);
-  str_hash_insert (nhash, name, alias, 0);
+  error_string = hash_jam (ahash, alias, (void *) h);
+  if (error_string)
+    {
+      as_fatal (_("inserting \"%s\" into %s alias hash table failed: %s"),
+		alias, kind, error_string);
+      goto out;
+    }
 
+  error_string = hash_jam (nhash, name, (void *) alias);
+  if (error_string)
+    {
+      as_fatal (_("inserting \"%s\" into %s name hash table failed: %s"),
+		alias, kind, error_string);
 out:
+      obstack_free (&notes, name);
+      obstack_free (&notes, alias);
+    }
+
   demand_empty_rest_of_line ();
 }
 
 /* It renames the original symbol name to its alias.  */
-static int
-do_alias (void **slot, void *arg ATTRIBUTE_UNUSED)
+static void
+do_alias (const char *alias, void *value)
 {
-  string_tuple_t *tuple = *((string_tuple_t **) slot);
-  struct alias *h = (struct alias *) tuple->value;
+  struct alias *h = (struct alias *) value;
   symbolS *sym = symbol_find (h->name);
 
   if (sym == NULL)
@@ -11843,48 +11871,43 @@ do_alias (void **slot, void *arg ATTRIBUTE_UNUSED)
       /* Uses .alias extensively to alias CRTL functions to same with
 	 decc$ prefix. Sometimes function gets optimized away and a
 	 warning results, which should be suppressed.  */
-      if (strncmp (tuple->key, "decc$", 5) != 0)
+      if (strncmp (alias, "decc$", 5) != 0)
 #endif
 	as_warn_where (h->file, h->line,
 		       _("symbol `%s' aliased to `%s' is not used"),
-		       h->name, tuple->key);
+		       h->name, alias);
     }
     else
-      S_SET_NAME (sym, (char *) tuple->key);
-
-  return 1;
+      S_SET_NAME (sym, (char *) alias);
 }
 
 /* Called from write_object_file.  */
 void
 ia64_adjust_symtab (void)
 {
-  htab_traverse (alias_hash, do_alias, NULL);
+  hash_traverse (alias_hash, do_alias);
 }
 
 /* It renames the original section name to its alias.  */
-static int
-do_secalias (void **slot, void *arg ATTRIBUTE_UNUSED)
+static void
+do_secalias (const char *alias, void *value)
 {
-  string_tuple_t *tuple = *((string_tuple_t **) slot);
-  struct alias *h = (struct alias *) tuple->value;
+  struct alias *h = (struct alias *) value;
   segT sec = bfd_get_section_by_name (stdoutput, h->name);
 
   if (sec == NULL)
     as_warn_where (h->file, h->line,
 		   _("section `%s' aliased to `%s' is not used"),
-		   h->name, tuple->key);
+		   h->name, alias);
   else
-    sec->name = tuple->key;
-
-  return 1;
+    sec->name = alias;
 }
 
 /* Called from write_object_file.  */
 void
 ia64_frob_file (void)
 {
-  htab_traverse (secalias_hash, do_secalias, NULL);
+  hash_traverse (secalias_hash, do_secalias);
 }
 
 #ifdef TE_VMS
@@ -11925,7 +11948,9 @@ ia64_vms_note (void)
   /* Create the .note section.  */
 
   secp = subseg_new (".note", 0);
-  bfd_set_section_flags (secp, SEC_HAS_CONTENTS | SEC_READONLY);
+  bfd_set_section_flags (stdoutput,
+			 secp,
+			 SEC_HAS_CONTENTS | SEC_READONLY);
 
   /* Module header note (MHD).  */
   bname = xstrdup (lbasename (out_file_name));
@@ -11970,12 +11995,14 @@ ia64_vms_note (void)
   frag_align (3, 0, 0);
 
   secp = subseg_new (".vms_display_name_info", 0);
-  bfd_set_section_flags (secp, SEC_HAS_CONTENTS | SEC_READONLY);
+  bfd_set_section_flags (stdoutput,
+			 secp,
+			 SEC_HAS_CONTENTS | SEC_READONLY);
 
   /* This symbol should be passed on the command line and be variable
      according to language.  */
   sym = symbol_new ("__gnat_vms_display_name@gnat_demangler_rtl",
-		    absolute_section, &zero_address_frag, 0);
+		    absolute_section, 0, &zero_address_frag);
   symbol_table_insert (sym);
   symbol_get_bfdsym (sym)->flags |= BSF_DEBUGGING | BSF_DYNAMIC;
 

@@ -1,7 +1,7 @@
 #objdump: -drz --show-raw-insn
 #name: microMIPS for MIPS32r2 (insn32 mode)
 #as: -mips32r2 -32 -mfp64 -minsn32 -EB --defsym insn32=1
-#warning_output: micromips-warn.l
+#stderr: micromips-warn.l
 #source: micromips.s
 
 .*: +file format .*mips.*

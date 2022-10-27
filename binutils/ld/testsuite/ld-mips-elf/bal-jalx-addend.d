@@ -1,6 +1,7 @@
 #name: MIPS BAL/JALX addend calculation
 #source: ../../../gas/testsuite/gas/mips/branch-addend.s
-#ld: -Ttext 0x1c000000 -e 0x1c000000
+#as: -EB -32
+#ld: -EB -Ttext 0x1c000000 -e 0x1c000000
 #objdump: -dr --prefix-addresses --show-raw-insn
 
 .*: +file format .*mips.*

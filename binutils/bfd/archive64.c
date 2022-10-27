@@ -1,5 +1,5 @@
 /* Support for 64-bit archives.
-   Copyright (C) 1996-2020 Free Software Foundation, Inc.
+   Copyright (C) 1996-2018 Free Software Foundation, Inc.
    Ian Lance Taylor, Cygnus Support
    Linker support added by Mark Mitchell, CodeSourcery, LLC.
    <mark@codesourcery.com>
@@ -47,7 +47,6 @@ _bfd_archive_64_bit_slurp_armap (bfd *abfd)
   bfd_byte *raw_armap = NULL;
   carsym *carsyms;
   bfd_size_type amt;
-  ufile_ptr filesize;
 
   ardata->symdefs = NULL;
 
@@ -67,7 +66,7 @@ _bfd_archive_64_bit_slurp_armap (bfd *abfd)
 
   if (! CONST_STRNEQ (nextname, "/SYM64/         "))
     {
-      abfd->has_armap = FALSE;
+      bfd_has_map (abfd) = FALSE;
       return TRUE;
     }
 
@@ -76,13 +75,6 @@ _bfd_archive_64_bit_slurp_armap (bfd *abfd)
     return FALSE;
   parsed_size = mapdata->parsed_size;
   free (mapdata);
-
-  filesize = bfd_get_file_size (abfd);
-  if (filesize != 0 && parsed_size > filesize)
-    {
-      bfd_set_error (bfd_error_malformed_archive);
-      return FALSE;
-    }
 
   if (bfd_bread (int_buf, 8, abfd) != 8)
     {
@@ -98,56 +90,54 @@ _bfd_archive_64_bit_slurp_armap (bfd *abfd)
   ptrsize = 8 * nsymz;
 
   amt = carsym_size + stringsize + 1;
-  if (/* Catch overflow in stringsize (and ptrsize) expression.  */
-      nsymz >= (bfd_size_type) -1 / 8
-      || stringsize > parsed_size
-      /* Catch overflow in carsym_size expression.  */
-      || nsymz > (bfd_size_type) -1 / sizeof (carsym)
-      /* Catch overflow in amt expression.  */
-      || amt <= carsym_size
-      || amt <= stringsize)
+  if (carsym_size < nsymz || ptrsize < nsymz || amt < nsymz)
     {
       bfd_set_error (bfd_error_malformed_archive);
       return FALSE;
     }
-  ardata->symdefs = (struct carsym *) bfd_alloc (abfd, amt);
+  ardata->symdefs = (struct carsym *) bfd_zalloc (abfd, amt);
   if (ardata->symdefs == NULL)
     return FALSE;
   carsyms = ardata->symdefs;
   stringbase = ((char *) ardata->symdefs) + carsym_size;
+  stringbase[stringsize] = 0;
+  stringend = stringbase + stringsize;
 
-  raw_armap = (bfd_byte *) _bfd_alloc_and_read (abfd, ptrsize, ptrsize);
-  if (raw_armap == NULL
+  raw_armap = (bfd_byte *) bfd_alloc (abfd, ptrsize);
+  if (raw_armap == NULL)
+    goto release_symdefs;
+
+  if (bfd_bread (raw_armap, ptrsize, abfd) != ptrsize
       || bfd_bread (stringbase, stringsize, abfd) != stringsize)
     {
       if (bfd_get_error () != bfd_error_system_call)
 	bfd_set_error (bfd_error_malformed_archive);
-      goto release_symdefs;
+      goto release_raw_armap;
     }
 
-  stringend = stringbase + stringsize;
-  *stringend = 0;
   for (i = 0; i < nsymz; i++)
     {
       carsyms->file_offset = bfd_getb64 (raw_armap + i * 8);
       carsyms->name = stringbase;
-      stringbase += strlen (stringbase);
-      if (stringbase != stringend)
-	++stringbase;
+      if (stringbase < stringend)
+	stringbase += strlen (stringbase) + 1;
       ++carsyms;
     }
+  *stringbase = '\0';
 
   ardata->symdef_count = nsymz;
   ardata->first_file_filepos = bfd_tell (abfd);
   /* Pad to an even boundary if you have to.  */
   ardata->first_file_filepos += (ardata->first_file_filepos) % 2;
 
-  abfd->has_armap = TRUE;
+  bfd_has_map (abfd) = TRUE;
   bfd_release (abfd, raw_armap);
 
   return TRUE;
 
- release_symdefs:
+release_raw_armap:
+  bfd_release (abfd, raw_armap);
+release_symdefs:
   bfd_release (abfd, ardata->symdefs);
   return FALSE;
 }

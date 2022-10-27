@@ -1,8 +1,9 @@
 #source: orphan.s
 #ld: -T orphan.ld
 #readelf: -S --wide
-#xfail: [uses_genelf]
-# if not using elf.em, you don't get fancy orphan handling
+#xfail: d30v-*-* dlx-*-* fr30-*-* frv-*-elf ft32-*-*
+#xfail: iq*-*-* mn10200-*-* moxie-*-* msp*-*-* mt-*-* pj*-*-*
+# if not using elf32.em, you don't get fancy orphan handling
 
 #...
   \[[ 0-9]+\] \.(text|notbad)[ \t]+PROGBITS[ \t0-9a-f]+AX?.*

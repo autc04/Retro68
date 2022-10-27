@@ -1,6 +1,6 @@
 #objdump: -rs -j .data -j "\$DATA\$"
 #name: .equ redefinitions (2)
-#notarget: *-*-darwin*
+#not-target: *-*-darwin*
 
 .*: .*
 

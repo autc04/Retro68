@@ -1,8 +1,8 @@
-	.type a_val, %gnu_unique_object
-a_val:	.long 0
-	.size a_val, .-a_val
+	.type a, %gnu_unique_object
+a:	.long 0
+	.size a, .-a
 
         .type main,"function"
         .global main
 main:
-	.dc.a a_val
+        .dc.a a

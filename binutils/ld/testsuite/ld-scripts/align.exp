@@ -1,6 +1,6 @@
 # Test ALIGN in a linker script.
 # By Nathan Sidwell, CodeSourcery LLC
-#   Copyright (C) 2004-2020 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -19,6 +19,11 @@
 # Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
 # MA 02110-1301, USA.
 
+if {[istarget "powerpc*-*-aix*"] || [istarget "rs6000-*-aix*"]} {
+    # Target maps .text and .data to other sections.
+    return
+}
+
 set testname "align1"
 
 if ![ld_assemble $as $srcdir/$subdir/align.s tmpdir/align.o] {
@@ -26,12 +31,11 @@ if ![ld_assemble $as $srcdir/$subdir/align.s tmpdir/align.o] {
     return
 }
 
-# Avoid auto image-basing.
+# mingw on x86_64 targets need to set the image base to 0 to avoid auto image-basing.
+global LDFLAGS
 set saved_LDFLAGS "$LDFLAGS"
-if { [is_pecoff_format] } then {
-    set LDFLAGS "$LDFLAGS --image-base 0"
-} elseif { [is_xcoff_format] } then {
-    set LDFLAGS "$LDFLAGS -bnogc"
+if [istarget "x86_64-*-mingw*"] then {
+  set LDFLAGS "$LDFLAGS --image-base 0"
 }
 
 if ![ld_link $ld tmpdir/align "$LDFLAGS -T $srcdir/$subdir/align.t tmpdir/align.o"] {
@@ -49,7 +53,3 @@ if ![is_aout_format] {
 }
 run_dump_test align2c
 set LDFLAGS "$saved_LDFLAGS"
-
-if { [is_elf_format] && ![uses_genelf] } {
-    run_dump_test pr23571
-}

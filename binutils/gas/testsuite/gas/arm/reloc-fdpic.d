@@ -2,7 +2,7 @@
 #objdump: -dr --show-raw-insn
 #name: FDPIC relocations
 # This test is only valid on ELF based ports.
-#noskip: arm*-*-uclinuxfdpiceabi
+#not-skip: arm*-*-uclinuxfdpiceabi
 
 .*: +file format .*arm.*
 

@@ -1,6 +1,6 @@
 /* tc-microblaze.c -- Assemble code for Xilinx MicroBlaze
 
-   Copyright (C) 2009-2020 Free Software Foundation, Inc.
+   Copyright (C) 2009-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -114,7 +114,7 @@ const relax_typeS md_relax_table[] =
   { 0x7fffffff, 0x80000000, INST_WORD_SIZE*2, 0 }   /* 18: TEXT_PC_OFFSET.  */
 };
 
-static htab_t  opcode_hash_control;	/* Opcode mnemonics.  */
+static struct hash_control * opcode_hash_control;	/* Opcode mnemonics.  */
 
 static segT sbss_segment = 0; 	/* Small bss section.  */
 static segT sbss2_segment = 0; 	/* Section not used.  */
@@ -149,7 +149,7 @@ static void
 microblaze_s_data (int ignore ATTRIBUTE_UNUSED)
 {
 #ifdef OBJ_ELF
-  obj_elf_change_section (".data", SHT_PROGBITS, SHF_ALLOC+SHF_WRITE,
+  obj_elf_change_section (".data", SHT_PROGBITS, 0, SHF_ALLOC+SHF_WRITE,
 			  0, 0, 0, 0);
 #else
   s_data (ignore);
@@ -162,7 +162,7 @@ static void
 microblaze_s_sdata (int ignore ATTRIBUTE_UNUSED)
 {
 #ifdef OBJ_ELF
-  obj_elf_change_section (".sdata", SHT_PROGBITS, SHF_ALLOC+SHF_WRITE,
+  obj_elf_change_section (".sdata", SHT_PROGBITS, 0, SHF_ALLOC+SHF_WRITE,
 			  0, 0, 0, 0);
 #else
   s_data (ignore);
@@ -281,7 +281,7 @@ microblaze_s_rdata (int localvar)
   if (localvar == 0)
     {
       /* rodata.  */
-      obj_elf_change_section (".rodata", SHT_PROGBITS, SHF_ALLOC,
+      obj_elf_change_section (".rodata", SHT_PROGBITS, 0, SHF_ALLOC,
 			      0, 0, 0, 0);
       if (rodata_segment == 0)
 	rodata_segment = subseg_new (".rodata", 0);
@@ -289,7 +289,7 @@ microblaze_s_rdata (int localvar)
   else
     {
       /* 1 .sdata2.  */
-      obj_elf_change_section (".sdata2", SHT_PROGBITS, SHF_ALLOC,
+      obj_elf_change_section (".sdata2", SHT_PROGBITS, 0, SHF_ALLOC,
 			      0, 0, 0, 0);
     }
 #else
@@ -302,12 +302,12 @@ microblaze_s_bss (int localvar)
 {
 #ifdef OBJ_ELF
   if (localvar == 0) /* bss.  */
-    obj_elf_change_section (".bss", SHT_NOBITS, SHF_ALLOC+SHF_WRITE,
+    obj_elf_change_section (".bss", SHT_NOBITS, 0, SHF_ALLOC+SHF_WRITE,
 			    0, 0, 0, 0);
   else if (localvar == 1)
     {
       /* sbss.  */
-      obj_elf_change_section (".sbss", SHT_NOBITS, SHF_ALLOC+SHF_WRITE,
+      obj_elf_change_section (".sbss", SHT_NOBITS, 0, SHF_ALLOC+SHF_WRITE,
 			      0, 0, 0, 0);
       if (sbss_segment == 0)
 	sbss_segment = subseg_new (".sbss", 0);
@@ -413,11 +413,11 @@ md_begin (void)
 {
   struct op_code_struct * opcode;
 
-  opcode_hash_control = str_htab_create ();
+  opcode_hash_control = hash_new ();
 
   /* Insert unique names into hash table.  */
   for (opcode = opcodes; opcode->name; opcode ++)
-    str_hash_insert (opcode_hash_control, opcode->name, opcode, 0);
+    hash_insert (opcode_hash_control, opcode->name, (char *) opcode);
 }
 
 /* Try to parse a reg name.  */
@@ -942,7 +942,7 @@ md_assemble (char * str)
       return;
     }
 
-  opcode = (struct op_code_struct *) str_hash_find (opcode_hash_control, name);
+  opcode = (struct op_code_struct *) hash_find (opcode_hash_control, name);
   if (opcode == NULL)
     {
       as_bad (_("unknown opcode \"%s\""), name);
@@ -1072,13 +1072,9 @@ md_assemble (char * str)
 
           count = 32 - reg1;
           if (streq (name, "lmi"))
-	    opcode
-	      = (struct op_code_struct *) str_hash_find (opcode_hash_control,
-							 "lwi");
+            opcode = (struct op_code_struct *) hash_find (opcode_hash_control, "lwi");
           else
-	    opcode
-	      = (struct op_code_struct *) str_hash_find (opcode_hash_control,
-							 "swi");
+            opcode = (struct op_code_struct *) hash_find (opcode_hash_control, "swi");
           if (opcode == NULL)
             {
               as_bad (_("unknown opcode \"%s\""), "lwi");
@@ -1110,9 +1106,7 @@ md_assemble (char * str)
           if ((temp != 0) && (temp != 0xFFFF8000))
 	    {
               /* Needs an immediate inst.  */
-	      opcode1
-		= (struct op_code_struct *) str_hash_find (opcode_hash_control,
-							   "imm");
+              opcode1 = (struct op_code_struct *) hash_find (opcode_hash_control, "imm");
               if (opcode1 == NULL)
                 {
                   as_bad (_("unknown opcode \"%s\""), "imm");
@@ -1565,9 +1559,7 @@ md_assemble (char * str)
       if ((temp != 0) && (temp != 0xFFFF8000))
 	{
           /* Needs an immediate inst.  */
-	  opcode1
-	    = (struct op_code_struct *) str_hash_find (opcode_hash_control,
-						       "imm");
+          opcode1 = (struct op_code_struct *) hash_find (opcode_hash_control, "imm");
           if (opcode1 == NULL)
             {
               as_bad (_("unknown opcode \"%s\""), "imm");
@@ -1633,9 +1625,7 @@ md_assemble (char * str)
       if ((temp != 0) && (temp != 0xFFFF8000))
 	{
           /* Needs an immediate inst.  */
-          opcode1
-	    = (struct op_code_struct *) str_hash_find (opcode_hash_control,
-						       "imm");
+          opcode1 = (struct op_code_struct *) hash_find (opcode_hash_control, "imm");
           if (opcode1 == NULL)
             {
               as_bad (_("unknown opcode \"%s\""), "imm");
@@ -1708,9 +1698,7 @@ md_assemble (char * str)
       if ((temp != 0) && (temp != 0xFFFF8000))
 	{
           /* Needs an immediate inst.  */
-          opcode1
-	    = (struct op_code_struct *) str_hash_find (opcode_hash_control,
-						       "imm");
+          opcode1 = (struct op_code_struct *) hash_find (opcode_hash_control, "imm");
           if (opcode1 == NULL)
             {
               as_bad (_("unknown opcode \"%s\""), "imm");
@@ -1778,10 +1766,13 @@ md_undefined_symbol (char * name ATTRIBUTE_UNUSED)
   return NULL;
 }
 
+/* Various routines to kill one day.  */
+/* Equal to MAX_PRECISION in atof-ieee.c */
+#define MAX_LITTLENUMS 6
+
 /* Turn a string in input_line_pointer into a floating point constant of type
    type, and store the appropriate bytes in *litP.  The number of LITTLENUMS
    emitted is stored in *sizeP.  An error message is returned, or NULL on OK.*/
-
 const char *
 md_atof (int type, char * litP, int * sizeP)
 {
@@ -1995,7 +1986,7 @@ md_apply_fix (fixS *   fixP,
 	      valueT * valp,
 	      segT     segment)
 {
-  char *       buf  = fixP->fx_where + &fixP->fx_frag->fr_literal[0];
+  char *       buf  = fixP->fx_where + fixP->fx_frag->fr_literal;
   const char *       file = fixP->fx_file ? fixP->fx_file : _("unknown");
   const char * symname;
   /* Note: use offsetT because it is signed, valueT is unsigned.  */
@@ -2023,7 +2014,8 @@ md_apply_fix (fixS *   fixP,
     {
       if (S_IS_WEAK (fixP->fx_addsy)
 	  || (symbol_used_in_reloc_p (fixP->fx_addsy)
-	      && (((bfd_section_flags (S_GET_SEGMENT (fixP->fx_addsy))
+	      && (((bfd_get_section_flags (stdoutput,
+					   S_GET_SEGMENT (fixP->fx_addsy))
 		    & SEC_LINK_ONCE) != 0)
 		  || !strncmp (segment_name (S_GET_SEGMENT (fixP->fx_addsy)),
 			       ".gnu.linkonce",
@@ -2131,8 +2123,7 @@ md_apply_fix (fixS *   fixP,
 	buf[i + INST_WORD_SIZE] = buf[i];
 
       /* Generate the imm instruction.  */
-      opcode1
-	= (struct op_code_struct *) str_hash_find (opcode_hash_control, "imm");
+      opcode1 = (struct op_code_struct *) hash_find (opcode_hash_control, "imm");
       if (opcode1 == NULL)
 	{
 	  as_bad (_("unknown opcode \"%s\""), "imm");
@@ -2180,8 +2171,7 @@ md_apply_fix (fixS *   fixP,
 	buf[i + INST_WORD_SIZE] = buf[i];
 
       /* Generate the imm instruction.  */
-      opcode1
-	= (struct op_code_struct *) str_hash_find (opcode_hash_control, "imm");
+      opcode1 = (struct op_code_struct *) hash_find (opcode_hash_control, "imm");
       if (opcode1 == NULL)
 	{
 	  as_bad (_("unknown opcode \"%s\""), "imm");

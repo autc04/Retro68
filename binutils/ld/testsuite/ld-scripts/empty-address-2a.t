@@ -1,8 +1,7 @@
 SECTIONS
 {
-  .text : { *(.text .pr) }
+  .text : { *(.text) }
   .data : { *(.data) }
   __data_end = .;
-  .bss : { *(.bss) }
   /DISCARD/ : { *(.*) }
 }

@@ -3,7 +3,7 @@
 # script_test_13.sh -- test that internally created sections obey
 # the order from the linker script.
 
-# Copyright (C) 2016-2020 Free Software Foundation, Inc.
+# Copyright (C) 2016-2017 Free Software Foundation, Inc.
 # Written by Igor Kudrin <ikudrin@accesssoftek.com>.
 
 # This file is part of gold.

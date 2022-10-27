@@ -1,5 +1,5 @@
 /* Altera Nios II assembler.
-   Copyright (C) 2012-2020 Free Software Foundation, Inc.
+   Copyright (C) 2012-2018 Free Software Foundation, Inc.
    Contributed by Nigel Gray (ngray@altera.com).
    Contributed by Mentor Graphics, Inc.
 
@@ -184,20 +184,20 @@ typedef struct nios2_ps_insn_info
 } nios2_ps_insn_infoS;
 
 /* Opcode hash table.  */
-static htab_t nios2_opcode_hash = NULL;
+static struct hash_control *nios2_opcode_hash = NULL;
 #define nios2_opcode_lookup(NAME) \
-  ((struct nios2_opcode *) str_hash_find (nios2_opcode_hash, (NAME)))
+  ((struct nios2_opcode *) hash_find (nios2_opcode_hash, (NAME)))
 
 /* Register hash table.  */
-static htab_t nios2_reg_hash = NULL;
+static struct hash_control *nios2_reg_hash = NULL;
 #define nios2_reg_lookup(NAME) \
-  ((struct nios2_reg *) str_hash_find (nios2_reg_hash, (NAME)))
+  ((struct nios2_reg *) hash_find (nios2_reg_hash, (NAME)))
 
 
 /* Pseudo-op hash table.  */
-static htab_t nios2_ps_hash = NULL;
+static struct hash_control *nios2_ps_hash = NULL;
 #define nios2_ps_lookup(NAME) \
-  ((nios2_ps_insn_infoS *) str_hash_find (nios2_ps_hash, (NAME)))
+  ((nios2_ps_insn_infoS *) hash_find (nios2_ps_hash, (NAME)))
 
 /* The known current alignment of the current section.  */
 static int nios2_current_align;
@@ -238,10 +238,10 @@ md_chars_to_number (char *buf, int n)
   val = 0;
   if (target_big_endian)
     for (i = 0; i < n; ++i)
-      val = val | ((valueT) (buf[i] & 0xff) << 8 * (n - (i + 1)));
+      val = val | ((buf[i] & 0xff) << 8 * (n - (i + 1)));
   else
     for (i = 0; i < n; ++i)
-      val = val | ((valueT) (buf[i] & 0xff) << 8 * i);
+      val = val | ((buf[i] & 0xff) << 8 * i);
   return val;
 }
 
@@ -1384,7 +1384,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	    nios2_diagnose_overflow (fixup, howto, fixP, value);
 
 	  /* Apply the right shift.  */
-	  fixup = (offsetT) fixup >> howto->rightshift;
+	  fixup = ((signed)fixup) >> howto->rightshift;
 
 	  /* Truncate the fixup to right size.  */
 	  switch (fixP->fx_r_type)
@@ -1396,11 +1396,13 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	      fixup = fixup & 0xFFFF;
 	      break;
 	    case BFD_RELOC_NIOS2_HIADJ16:
-	      fixup = ((fixup + 0x8000) >> 16) & 0xFFFF;
+	      fixup = ((((fixup >> 16) & 0xFFFF) + ((fixup >> 15) & 0x01))
+		       & 0xFFFF);
 	      break;
 	    default:
 	      {
-		fixup &= ((valueT) 2 << (howto->bitsize - 1)) - 1;
+		int n = sizeof (fixup) * 8 - howto->bitsize;
+		fixup = (fixup << n) >> n;
 		break;
 	      }
 	    }
@@ -1631,7 +1633,7 @@ nios2_parse_reglist (char *token, const struct nios2_opcode *op)
 	    }
 	}
 
-      mask |= 1UL << regno;
+      mask |= 1 << regno;
       last = regno;
     }
 
@@ -2710,7 +2712,7 @@ nios2_assemble_arg_R (const char *token, nios2_insn_infoS *insn)
 	  mask = (reglist & 0x00ffc000) >> 14;
 	  if (reglist & (1 << 28))
 	    mask |= 1 << 10;
-	  if (reglist & (1u << 31))
+	  if (reglist & (1 << 31))
 	    mask |= 1 << 11;
 	}
       insn->insn_code |= SET_IW_F1X4L17_REGMASK (mask);
@@ -3230,8 +3232,11 @@ nios2_insert_arg (char **parsed_args, const char *insert, int num,
 static void
 nios2_free_arg (char **parsed_args, int num ATTRIBUTE_UNUSED, int start)
 {
-  free (parsed_args[start]);
-  parsed_args[start] = NULL;
+  if (parsed_args[start])
+    {
+      free (parsed_args[start]);
+      parsed_args[start] = NULL;
+    }
 }
 
 /* This function swaps the pseudo-op for a real op.  */
@@ -3603,6 +3608,7 @@ void
 md_begin (void)
 {
   int i;
+  const char *inserted;
 
   switch (nios2_architecture)
     {
@@ -3619,25 +3625,52 @@ md_begin (void)
 
   /* Create and fill a hashtable for the Nios II opcodes, registers and
      arguments.  */
-  nios2_opcode_hash = str_htab_create ();
-  nios2_reg_hash = str_htab_create ();
-  nios2_ps_hash = str_htab_create ();
+  nios2_opcode_hash = hash_new ();
+  nios2_reg_hash = hash_new ();
+  nios2_ps_hash = hash_new ();
 
   for (i = 0; i < nios2_num_opcodes; ++i)
-    if (str_hash_insert (nios2_opcode_hash, nios2_opcodes[i].name,
-			 &nios2_opcodes[i], 0) != NULL)
-      as_fatal (_("duplicate %s"), nios2_opcodes[i].name);
+    {
+      inserted
+	= hash_insert (nios2_opcode_hash, nios2_opcodes[i].name,
+		       (PTR) & nios2_opcodes[i]);
+      if (inserted != NULL)
+	{
+	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
+		   nios2_opcodes[i].name, inserted);
+	  /* Probably a memory allocation problem?  Give up now.  */
+	  as_fatal (_("Broken assembler.  No assembly attempted."));
+	}
+    }
 
   for (i = 0; i < nios2_num_regs; ++i)
-    if (str_hash_insert (nios2_reg_hash, nios2_regs[i].name,
-			 &nios2_regs[i], 0) != NULL)
-      as_fatal (_("duplicate %s"), nios2_regs[i].name);
+    {
+      inserted
+	= hash_insert (nios2_reg_hash, nios2_regs[i].name,
+		       (PTR) & nios2_regs[i]);
+      if (inserted != NULL)
+	{
+	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
+		   nios2_regs[i].name, inserted);
+	  /* Probably a memory allocation problem?  Give up now.  */
+	  as_fatal (_("Broken assembler.  No assembly attempted."));
+	}
+
+    }
 
   for (i = 0; i < nios2_num_ps_insn_info_structs; ++i)
-    if (str_hash_insert (nios2_ps_hash,
-			 nios2_ps_insn_info_structs[i].pseudo_insn,
-			 &nios2_ps_insn_info_structs[i], 0) != NULL)
-      as_fatal (_("duplicate %s"), nios2_ps_insn_info_structs[i].pseudo_insn);
+    {
+      inserted
+	= hash_insert (nios2_ps_hash, nios2_ps_insn_info_structs[i].pseudo_insn,
+		       (PTR) & nios2_ps_insn_info_structs[i]);
+      if (inserted != NULL)
+	{
+	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
+		   nios2_ps_insn_info_structs[i].pseudo_insn, inserted);
+	  /* Probably a memory allocation problem?  Give up now.  */
+	  as_fatal (_("Broken assembler.  No assembly attempted."));
+	}
+    }
 
   /* Assembler option defaults.  */
   nios2_as_options.noat = FALSE;
@@ -3911,7 +3944,7 @@ md_undefined_symbol (char *name ATTRIBUTE_UNUSED)
 	    as_bad ("GOT already in the symbol table");
 
 	  GOT_symbol = symbol_new (name, undefined_section,
-				   &zero_address_frag, 0);
+				   (valueT) 0, &zero_address_frag);
 	}
 
       return GOT_symbol;
@@ -3980,48 +4013,31 @@ nios2_elf_section_flags (flagword flags, int attr, int type ATTRIBUTE_UNUSED)
   return flags;
 }
 
-/* Implement TC_PARSE_CONS_EXPRESSION to handle %tls_ldo(...) and
-   %gotoff(...).  */
+/* Implement TC_PARSE_CONS_EXPRESSION to handle %tls_ldo(...) */
 bfd_reloc_code_real_type
 nios2_cons (expressionS *exp, int size)
 {
-  bfd_reloc_code_real_type explicit_reloc = BFD_RELOC_NONE;
-  const char *reloc_name = NULL;
+  bfd_reloc_code_real_type nios2_tls_ldo_reloc = BFD_RELOC_NONE;
 
   SKIP_WHITESPACE ();
   if (input_line_pointer[0] == '%')
     {
       if (strprefix (input_line_pointer + 1, "tls_ldo"))
 	{
-	  reloc_name = "%tls_ldo";
 	  if (size != 4)
 	    as_bad (_("Illegal operands: %%tls_ldo in %d-byte data field"),
 		    size);
 	  else
 	    {
 	      input_line_pointer += 8;
-	      explicit_reloc = BFD_RELOC_NIOS2_TLS_DTPREL;
+	      nios2_tls_ldo_reloc = BFD_RELOC_NIOS2_TLS_DTPREL;
 	    }
 	}
-      else if (strprefix (input_line_pointer + 1, "gotoff"))
-	{
-	  reloc_name = "%gotoff";
-	  if (size != 4)
-	    as_bad (_("Illegal operands: %%gotoff in %d-byte data field"),
-		    size);
-	  else
-	    {
-	      input_line_pointer += 7;
-	      explicit_reloc = BFD_RELOC_NIOS2_GOTOFF;
-	    }
-	}
-
-      if (explicit_reloc != BFD_RELOC_NONE)
+      if (nios2_tls_ldo_reloc != BFD_RELOC_NONE)
 	{
 	  SKIP_WHITESPACE ();
 	  if (input_line_pointer[0] != '(')
-	    as_bad (_("Illegal operands: %s requires arguments in ()"),
-		    reloc_name);
+	    as_bad (_("Illegal operands: %%tls_ldo requires arguments in ()"));
 	  else
 	    {
 	      int c;
@@ -4039,32 +4055,29 @@ nios2_cons (expressionS *exp, int size)
 		  }
 
 	      if (c != ')')
-		as_bad (_("Illegal operands: %s requires arguments in ()"),
-			reloc_name);
+		as_bad (_("Illegal operands: %%tls_ldo requires arguments in ()"));
 	      else
 		{
 		  *end = '\0';
 		  expression (exp);
 		  *end = c;
 		  if (input_line_pointer != end)
-		    as_bad (_("Illegal operands: %s requires arguments in ()"),
-			    reloc_name);
+		    as_bad (_("Illegal operands: %%tls_ldo requires arguments in ()"));
 		  else
 		    {
 		      input_line_pointer++;
 		      SKIP_WHITESPACE ();
 		      c = *input_line_pointer;
 		      if (! is_end_of_line[c] && c != ',')
-			as_bad (_("Illegal operands: garbage after %s()"),
-				reloc_name);
+			as_bad (_("Illegal operands: garbage after %%tls_ldo()"));
 		    }
 		}
 	    }
 	}
     }
-  if (explicit_reloc == BFD_RELOC_NONE)
+  if (nios2_tls_ldo_reloc == BFD_RELOC_NONE)
     expression (exp);
-  return explicit_reloc;
+  return nios2_tls_ldo_reloc;
 }
 
 /* Implement HANDLE_ALIGN.  */

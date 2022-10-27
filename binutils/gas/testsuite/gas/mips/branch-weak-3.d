@@ -2,7 +2,7 @@
 #name: MIPS relaxed branch to a weak symbol
 #as: -32 --relax-branch --defsym align=12
 #source: branch-weak.s
-#warning_output: branch-weak.l
+#stderr: branch-weak.l
 
 .*: +file format .*mips.*
 

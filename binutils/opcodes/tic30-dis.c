@@ -1,5 +1,5 @@
 /* Disassembly routines for TMS320C30 architecture
-   Copyright (C) 1998-2020 Free Software Foundation, Inc.
+   Copyright (C) 1998-2018 Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of the GNU opcodes library.
@@ -188,8 +188,6 @@ get_tic30_instruction (unsigned long insn_word, struct instruction *insn)
   return 1;
 }
 
-#define OPERAND_BUFFER_LEN 15
-
 static int
 get_register_operand (unsigned char fragment, char *buffer)
 {
@@ -201,8 +199,7 @@ get_register_operand (unsigned char fragment, char *buffer)
     {
       if ((fragment & 0x1F) == current_reg->opcode)
 	{
-	  strncpy (buffer, current_reg->name, OPERAND_BUFFER_LEN);
-	  buffer[OPERAND_BUFFER_LEN - 1] = 0;
+	  strcpy (buffer, current_reg->name);
 	  return 1;
 	}
     }
@@ -253,25 +250,16 @@ get_indirect_operand (unsigned short fragment,
 		int bufcnt;
 
 		len = strlen (current_ind->syntax);
-
 		for (i = 0, bufcnt = 0; i < len; i++, bufcnt++)
 		  {
 		    buffer[bufcnt] = current_ind->syntax[i];
-
-		    if (bufcnt > 0
-			&& bufcnt < OPERAND_BUFFER_LEN - 1
-			&& buffer[bufcnt - 1] == 'a'
-			&& buffer[bufcnt] == 'r')
+		    if (buffer[bufcnt - 1] == 'a' && buffer[bufcnt] == 'r')
 		      buffer[++bufcnt] = arnum + '0';
-		    
-		    if (bufcnt < OPERAND_BUFFER_LEN - 1
-			&& buffer[bufcnt] == '('
+		    if (buffer[bufcnt] == '('
 			&& current_ind->displacement == DISP_REQUIRED)
 		      {
-			snprintf (buffer + (bufcnt + 1),
-				 OPERAND_BUFFER_LEN - (bufcnt + 1),
-				 "%u", disp);
-			bufcnt += strlen (buffer + (bufcnt + 1));
+			sprintf (&buffer[bufcnt + 1], "%u", disp);
+			bufcnt += strlen (&buffer[bufcnt + 1]);
 		      }
 		  }
 		buffer[bufcnt + 1] = '\0';
@@ -352,7 +340,7 @@ print_two_operand (disassemble_info *info,
 		   struct instruction *insn)
 {
   char name[12];
-  char operand[2][OPERAND_BUFFER_LEN] =
+  char operand[2][13] =
   {
     {0},
     {0}
@@ -439,7 +427,7 @@ print_three_operand (disassemble_info *info,
 		     unsigned long insn_word,
 		     struct instruction *insn)
 {
-  char operand[3][OPERAND_BUFFER_LEN] =
+  char operand[3][13] =
   {
     {0},
     {0},
@@ -485,7 +473,7 @@ print_par_insn (disassemble_info *info,
 {
   size_t i, len;
   char *name1, *name2;
-  char operand[2][3][OPERAND_BUFFER_LEN] =
+  char operand[2][3][13] =
   {
     {
       {0},
@@ -607,7 +595,7 @@ print_branch (disassemble_info *info,
 	      unsigned long insn_word,
 	      struct instruction *insn)
 {
-  char operand[2][OPERAND_BUFFER_LEN] =
+  char operand[2][13] =
   {
     {0},
     {0}
@@ -696,10 +684,8 @@ print_insn_tic30 (bfd_vma pc, disassemble_info *info)
   bfd_vma bufaddr = pc - info->buffer_vma;
 
   /* Obtain the current instruction word from the buffer.  */
-  insn_word = (((unsigned) *(info->buffer + bufaddr) << 24)
-	       | (*(info->buffer + bufaddr + 1) << 16)
-	       | (*(info->buffer + bufaddr + 2) << 8)
-	       | *(info->buffer + bufaddr + 3));
+  insn_word = (*(info->buffer + bufaddr) << 24) | (*(info->buffer + bufaddr + 1) << 16) |
+    (*(info->buffer + bufaddr + 2) << 8) | *(info->buffer + bufaddr + 3);
   _pc = pc / 4;
   /* Get the instruction refered to by the current instruction word
      and print it out based on its type.  */

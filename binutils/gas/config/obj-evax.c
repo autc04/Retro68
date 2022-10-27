@@ -1,5 +1,5 @@
 /* obj-evax.c - EVAX (openVMS/Alpha) object file format.
-   Copyright (C) 1996-2020 Free Software Foundation, Inc.
+   Copyright (C) 1996-2018 Free Software Foundation, Inc.
    Contributed by Klaus Kämpf (kkaempf@progis.de) of
      proGIS Software, Aachen, Germany.
    Extensively enhanced by Douglas Rupp of AdaCore.
@@ -27,9 +27,14 @@
 #include "bfd.h"
 #include "vms.h"
 #include "subsegs.h"
+#include "struc-symbol.h"
 #include "safe-ctype.h"
 
 static void s_evax_weak (int);
+static unsigned int crc32 (unsigned char *, int);
+static char *encode_32 (unsigned int);
+static char *encode_16 (unsigned int);
+static int decode_16 (const char *);
 
 const pseudo_typeS obj_pseudo_table[] =
 {
@@ -334,16 +339,19 @@ evax_shorten_name (char *id)
 
 /* Table used to convert an integer into a string.  */
 
-static const unsigned char codings[] = {
+static const char codings[] = {
   'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
   'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
   'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
   '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_'};
 
+/* The number of codings in the above table.  */
+static const int number_of_codings = sizeof (codings) / sizeof (char);
+
 /* Table used by decode_16 () to convert an encoded string back into
    an integer.  */
-static unsigned char decodings[256];
+static char decodings[256];
 
 /* Table used by the crc32 function to calculate the checksum.  */
 static unsigned int crc32_table[256] = {0, 0};
@@ -360,7 +368,7 @@ crc32 (unsigned char *buf, int len)
   if (! crc32_table[1])
     {
       /* Initialize the CRC table and the decoding table. */
-      unsigned int i, j;
+      int i, j;
       unsigned int c;
 
       for (i = 0; i < 256; i++)
@@ -370,8 +378,8 @@ crc32 (unsigned char *buf, int len)
 	  crc32_table[i] = c;
 	  decodings[i] = 0;
 	}
-      for (i = 0; i < ARRAY_SIZE (codings); i++)
-	decodings[codings[i]] = i;
+      for (i = 0; i < number_of_codings; i++)
+	decodings[codings[i] & 255] = i;
     }
 
   while (len--)
@@ -384,34 +392,34 @@ crc32 (unsigned char *buf, int len)
 
 /* Encode the lower 32 bits of VALUE as a 5-character string.  */
 
-static unsigned char *
+static char *
 encode_32 (unsigned int value)
 {
-  static unsigned char res[6];
+  static char res[6];
   int x;
 
   res[5] = 0;
   for(x = 0; x < 5; x++)
     {
-      res[x] = codings[value % ARRAY_SIZE (codings)];
-      value = value / ARRAY_SIZE (codings);
+      res[x] = codings[value % number_of_codings];
+      value = value / number_of_codings;
     }
   return res;
 }
 
 /* Encode the lower 16 bits of VALUE as a 3-character string.  */
 
-static unsigned char *
+static char *
 encode_16 (unsigned int value)
 {
-  static unsigned char res[4];
+  static char res[4];
   int x;
 
   res[3] = 0;
   for(x = 0; x < 3; x++)
     {
-      res[x] = codings[value % ARRAY_SIZE (codings)];
-      value = value / ARRAY_SIZE (codings);
+      res[x] = codings[value % number_of_codings];
+      value = value / number_of_codings;
     }
   return res;
 }
@@ -420,11 +428,11 @@ encode_16 (unsigned int value)
    16-bit integer.  */
 
 static int
-decode_16 (const unsigned char *string)
+decode_16 (const char *string)
 {
-  return (decodings[string[2]] * ARRAY_SIZE (codings) * ARRAY_SIZE (codings)
-	  + decodings[string[1]] * ARRAY_SIZE (codings)
-	  + decodings[string[0]]);
+  return decodings[(int) string[2]] * number_of_codings * number_of_codings
+    + decodings[(int) string[1]] * number_of_codings
+    + decodings[(int) string[0]];
 }
 
 /* ID_SUFFIX_LENGTH is used to determine how many characters in the
@@ -445,14 +453,14 @@ static char *
 shorten_identifier (char *name)
 {
   int crc, len, sum, x, final_len;
-  unsigned char *crc_chars;
+  char *crc_chars;
   int suffix_length = ID_SUFFIX_LENGTH (name);
 
   if ((len = strlen (name)) <= MAX_LABEL_LENGTH)
     return name;
 
   final_len = MAX_LABEL_LENGTH - 2 - 5 - 3 - 3 - suffix_length;
-  crc = crc32 ((unsigned char *) name + final_len,
+  crc = crc32 ((unsigned char *)name + final_len,
 	       len - final_len - suffix_length);
   crc_chars = encode_32 (crc);
   sum = 0;
@@ -480,7 +488,7 @@ shorten_identifier (char *name)
 static int
 is_truncated_identifier (char *id)
 {
-  unsigned char *ptr;
+  char *ptr;
   int len = strlen (id);
   /* If it's not exactly MAX_LABEL_LENGTH characters long, it can't be
      a truncated identifier.  */
@@ -489,8 +497,8 @@ is_truncated_identifier (char *id)
 
   /* Start scanning backwards for a _h.  */
   len = len - 3 - 3 - 5 - 2;
-  ptr = (unsigned char *) id + len;
-  while (ptr >= (unsigned char *) id)
+  ptr = id + len;
+  while (ptr >= id)
     {
       if (ptr[0] == '_' && ptr[1] == 'h')
 	{

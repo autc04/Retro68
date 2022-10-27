@@ -1,4 +1,4 @@
-#readelf: -ST
+#readelf: -S
 #name: ia64 unwind section (ilp32)
 #as: -milp32
 #source: unwind.s

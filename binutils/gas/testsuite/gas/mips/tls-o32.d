@@ -2,7 +2,7 @@
 #objdump: -dr
 #name: MIPS ELF TLS o32
 
-.*:     file format .*
+dump.o:     file format .*
 
 Disassembly of section .text:
 

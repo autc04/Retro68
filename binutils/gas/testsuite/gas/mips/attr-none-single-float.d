@@ -1,5 +1,5 @@
 #as: -msingle-float
-#DUMPPROG: readelf
+#PROG: readelf
 #source: empty.s
 #readelf: -A
 #name: MIPS infer fpabi (single-precision)

@@ -1,2 +1,2 @@
-.*: Assembler messages:
-.*:1: Fatal error: .*
+.*bad-section-flag\.s: Assembler messages:
+.*bad-section-flag\.s:1: Fatal error: .*

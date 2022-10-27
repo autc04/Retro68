@@ -1,7 +1,7 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: PIC
 #source: pic.s
-#noskip: *-*-vxworks*
+#not-skip: *-*-vxworks*
 
 # Test generation of PIC
 

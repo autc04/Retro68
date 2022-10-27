@@ -1,6 +1,6 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: PR5712 - saving FP registers
-#notarget: *-*-pe *-*-wince
+#not-target: *-*-pe *-*-wince
 #as: -mfpu=fpa
 
 .*: *file format .*arm.*

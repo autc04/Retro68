@@ -1,4 +1,4 @@
-#   Copyright (C) 1995-2020 Free Software Foundation, Inc.
+#   Copyright (C) 1995-2018 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,9 +26,8 @@ if ![is_remote host] {
     }
 }
 
-set obj o
-if { [istarget "*-*-vms"] } then {
-    set obj obj
+if { [istarget "alpha-*-*"] && ![is_elf_format] } then {
+    return
 }
 
 # send_user "Version [binutil_version $AR]"
@@ -190,22 +189,21 @@ proc symbol_table { } {
     global NM
     global srcdir
     global subdir
-    global obj
 
     set testname "ar symbol table"
 
-    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.${obj}] {
+    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o] {
 	unresolved $testname
 	return
     }
 
     if [is_remote host] {
 	set archive artest.a
-	set objfile [remote_download host tmpdir/bintest.${obj}]
+	set objfile [remote_download host tmpdir/bintest.o]
 	remote_file host delete $archive
     } else {
 	set archive tmpdir/artest.a
-	set objfile tmpdir/bintest.${obj}
+	set objfile tmpdir/bintest.o
     }
 
     remote_file build delete tmpdir/artest.a
@@ -217,12 +215,12 @@ proc symbol_table { } {
     }
 
     set got [binutils_run $NM "--print-armap $archive"]
-    if { ![string match "*text_symbol in bintest.${obj}*" $got] \
-	 || ![string match "*data_symbol in bintest.${obj}*" $got] \
-	 || ![string match "*common_symbol in bintest.${obj}*" $got] \
-	 || [string match "*static_text_symbol in bintest.${obj}*" $got] \
-	 || [string match "*static_data_symbol in bintest.${obj}*" $got] \
-	 || [string match "*external_symbol in bintest.${obj}*" $got] } {
+    if { ![string match "*text_symbol in bintest.o*" $got] \
+	 || ![string match "*data_symbol in bintest.o*" $got] \
+	 || ![string match "*common_symbol in bintest.o*" $got] \
+	 || [string match "*static_text_symbol in bintest.o*" $got] \
+	 || [string match "*static_data_symbol in bintest.o*" $got] \
+	 || [string match "*external_symbol in bintest.o*" $got] } {
 	fail $testname
 	return
     }
@@ -239,22 +237,21 @@ proc thin_archive { bfdtests } {
     global srcdir
     global subdir
     global base_dir
-    global obj
 
     set testname "ar thin archive"
 
-    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.${obj}] {
+    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o] {
 	unresolved $testname
 	return
     }
 
     if [is_remote host] {
 	set archive artest.a
-	set objfile [remote_download host tmpdir/bintest.${obj}]
+	set objfile [remote_download host tmpdir/bintest.o]
 	remote_file host delete $archive
     } else {
 	set archive tmpdir/artest.a
-	set objfile tmpdir/bintest.${obj}
+	set objfile tmpdir/bintest.o
     }
 
     remote_file build delete tmpdir/artest.a
@@ -275,12 +272,12 @@ proc thin_archive { bfdtests } {
     }
 
     set got [binutils_run $NM "--print-armap $archive"]
-    if { ![string match "*text_symbol in *bintest.${obj}*" $got] \
-	 || ![string match "*data_symbol in *bintest.${obj}*" $got] \
-	 || ![string match "*common_symbol in *bintest.${obj}*" $got] \
-	 || [string match "*static_text_symbol in *bintest.${obj}*" $got] \
-	 || [string match "*static_data_symbol in *bintest.${obj}*" $got] \
-	 || [string match "*external_symbol in *bintest.${obj}*" $got] } {
+    if { ![string match "*text_symbol in *bintest.o*" $got] \
+	 || ![string match "*data_symbol in *bintest.o*" $got] \
+	 || ![string match "*common_symbol in *bintest.o*" $got] \
+	 || [string match "*static_text_symbol in *bintest.o*" $got] \
+	 || [string match "*static_data_symbol in *bintest.o*" $got] \
+	 || [string match "*external_symbol in *bintest.o*" $got] } {
 	fail $testname
 	return
     }
@@ -297,11 +294,10 @@ proc thin_archive_with_nested { bfdtests } {
     global srcdir
     global subdir
     global base_dir
-    global obj
 
     set testname "ar thin archive with nested archive"
 
-    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.${obj}] {
+    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o] {
 	unresolved $testname
 	return
     }
@@ -309,12 +305,12 @@ proc thin_archive_with_nested { bfdtests } {
     if [is_remote host] {
 	set archive artest.a
 	set archive2 artest2.a
-	set objfile [remote_download host tmpdir/bintest.${obj}]
+	set objfile [remote_download host tmpdir/bintest.o]
 	remote_file host delete $archive
     } else {
 	set archive tmpdir/artest.a
 	set archive2 tmpdir/artest2.a
-	set objfile tmpdir/bintest.${obj}
+	set objfile tmpdir/bintest.o
     }
 
     remote_file build delete tmpdir/artest.a
@@ -350,12 +346,12 @@ proc thin_archive_with_nested { bfdtests } {
     }
 
     set got [binutils_run $NM "--print-armap $archive"]
-    if { ![string match "*text_symbol in *bintest.${obj}*" $got] \
-	 || ![string match "*data_symbol in *bintest.${obj}*" $got] \
-	 || ![string match "*common_symbol in *bintest.${obj}*" $got] \
-	 || [string match "*static_text_symbol in *bintest.${obj}*" $got] \
-	 || [string match "*static_data_symbol in *bintest.${obj}*" $got] \
-	 || [string match "*external_symbol in *bintest.${obj}*" $got] } {
+    if { ![string match "*text_symbol in *bintest.o*" $got] \
+	 || ![string match "*data_symbol in *bintest.o*" $got] \
+	 || ![string match "*common_symbol in *bintest.o*" $got] \
+	 || [string match "*static_text_symbol in *bintest.o*" $got] \
+	 || [string match "*static_data_symbol in *bintest.o*" $got] \
+	 || [string match "*external_symbol in *bintest.o*" $got] } {
 	fail $testname
 	return
     }
@@ -370,22 +366,21 @@ proc argument_parsing { } {
     global AS
     global srcdir
     global subdir
-    global obj
 
     set testname "ar argument parsing"
 
-    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.${obj}] {
+    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o] {
 	unresolved $testname
 	return
     }
 
     if [is_remote host] {
 	set archive artest.a
-	set objfile [remote_download host tmpdir/bintest.${obj}]
+	set objfile [remote_download host tmpdir/bintest.o]
 	remote_file host delete $archive
     } else {
 	set archive tmpdir/artest.a
-	set objfile tmpdir/bintest.${obj}
+	set objfile tmpdir/bintest.o
     }
 
     remote_file build delete tmpdir/artest.a
@@ -407,22 +402,21 @@ proc deterministic_archive { } {
     global NM
     global srcdir
     global subdir
-    global obj
 
     set testname "ar deterministic archive"
 
-    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.${obj}] {
+    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o] {
 	unresolved $testname
 	return
     }
 
     if [is_remote host] {
 	set archive artest.a
-	set objfile [remote_download host tmpdir/bintest.${obj}]
+	set objfile [remote_download host tmpdir/bintest.o]
 	remote_file host delete $archive
     } else {
 	set archive tmpdir/artest.a
-	set objfile tmpdir/bintest.${obj}
+	set objfile tmpdir/bintest.o
     }
 
     remote_file build delete tmpdir/artest.a
@@ -436,13 +430,13 @@ proc deterministic_archive { } {
     set got [binutils_run $AR "tv $archive"]
     # This only checks the file mode and uid/gid.  We can't easily match
     # date because it's printed with the user's timezone.
-    if ![string match "rw-r--r-- 0/0 *bintest.${obj}*" $got] {
+    if ![string match "rw-r--r-- 0/0 *bintest.o*" $got] {
 	fail $testname
 	return
     }
 
     set got [binutils_run $AR "tvO $archive"]
-    if ![string match "rw-r--r-- 0/0 *bintest.${obj} 0x*" $got] {
+    if ![string match "rw-r--r-- 0/0 *bintest.o 0x*" $got] {
 	fail $testname
 	return
     }
@@ -456,22 +450,21 @@ proc unique_symbol { } {
     global NM
     global srcdir
     global subdir
-    global obj
 
     set testname "ar unique symbol in archive"
 
-    if ![binutils_assemble $srcdir/$subdir/unique.s tmpdir/unique.${obj}] {
+    if ![binutils_assemble $srcdir/$subdir/unique.s tmpdir/unique.o] {
 	unresolved $testname
 	return
     }
 
     if [is_remote host] {
 	set archive artest.a
-	set objfile [remote_download host tmpdir/unique.${obj}]
+	set objfile [remote_download host tmpdir/unique.o]
 	remote_file host delete $archive
     } else {
 	set archive tmpdir/artest.a
-	set objfile tmpdir/unique.${obj}
+	set objfile tmpdir/unique.o
     }
 
     remote_file build delete tmpdir/artest.a
@@ -483,7 +476,7 @@ proc unique_symbol { } {
     }
 
     set got [binutils_run $NM "--print-armap $archive"]
-    if ![string match "*foo in *unique.${obj}*" $got] {
+    if ![string match "*foo in *unique.o*" $got] {
 	fail $testname
 	return
     }
@@ -498,22 +491,21 @@ proc delete_an_element { } {
     global AS
     global srcdir
     global subdir
-    global obj
 
     set testname "ar deleting an element"
 
-    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.${obj}] {
+    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o] {
 	unresolved $testname
 	return
     }
 
     if [is_remote host] {
 	set archive artest.a
-	set objfile [remote_download host tmpdir/bintest.${obj}]
+	set objfile [remote_download host tmpdir/bintest.o]
 	remote_file host delete $archive
     } else {
 	set archive tmpdir/artest.a
-	set objfile tmpdir/bintest.${obj}
+	set objfile tmpdir/bintest.o
     }
 
     remote_file build delete tmpdir/artest.a
@@ -540,22 +532,21 @@ proc move_an_element { } {
     global AS
     global srcdir
     global subdir
-    global obj
 
     set testname "ar moving an element"
 
-    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.${obj}] {
+    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o] {
 	unresolved $testname
 	return
     }
 
     if [is_remote host] {
 	set archive artest.a
-	set objfile [remote_download host tmpdir/bintest.${obj}]
+	set objfile [remote_download host tmpdir/bintest.o]
 	remote_file host delete $archive
     } else {
 	set archive tmpdir/artest.a
-	set objfile tmpdir/bintest.${obj}
+	set objfile tmpdir/bintest.o
     }
 
     remote_file build delete tmpdir/artest.a
@@ -614,125 +605,18 @@ proc empty_archive { } {
     pass $testname
 }
 
-# Test extracting an element.
-
-proc extract_an_element { } {
-    global AR
-    global AS
-    global srcdir
-    global subdir
-    global obj
-
-    set testname "ar extracting an element"
-
-    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.${obj}] {
-	unresolved $testname
-	return
-    }
-
-    set archive artest.a
-
-    if [is_remote host] {
-	set objfile [remote_download host tmpdir/bintest.${obj}]
-	remote_file host delete $archive
-    } else {
-	set objfile tmpdir/bintest.${obj}
-    }
-
-    remote_file build delete $archive
-
-    set got [binutils_run $AR "-r -c $archive ${objfile}"]
-    if ![string match "" $got] {
-	fail $testname
-	return
-    }
-
-    set got [binutils_run $AR "--output=tmpdir -x $archive ${objfile}"]
-    if ![string match "" $got] {
-	fail $testname
-	return
-    }
-
-    remote_file build delete $archive
-    remote_file build delete tmpdir/$archive
-
-    pass $testname
-}
-
-proc many_files { } {
-    global AR
-    global AS
-    global srcdir
-    global subdir
-    global obj
-
-    set testname "ar many files"
-
-    set ofiles {}
-    set max_file 150
-    for { set i 0 } { $i < $max_file } { incr i } {
-	set sfile "tmpdir/d-$i.s"
-	if [catch { set ofd [open $sfile w] } x] {
-	    perror "$x"
-	    unresolved $testname
-	    return
-	}
-
-	puts $ofd " .globl data_sym$i"
-	puts $ofd " .data"
-	puts $ofd "data_sym$i:"
-	puts $ofd " .long $i"
-	close $ofd
-
-	set ofile "tmpdir/d-$i.${obj}"
-	if ![binutils_assemble $sfile $ofile] {
-	    unresolved $testname
-	    return
-	}
-
-	set objfile $ofile
-	if [is_remote host] {
-	    remote_file host delete $sfile
-	    set objfile [remote_download host $ofile]
-	    remote_file build delete $ofile
-	}
-	remote_file build delete $sfile
-	lappend ofiles $objfile
-    }
-
-    set archive tmpdir/many.a
-    remote_file host delete $archive
-
-    set got [binutils_run $AR "cr $archive $ofiles"]
-    if ![string match "" $got] {
-	fail $testname
-	return
-    }
-
-    remote_file host delete $archive
-    eval remote_file host delete $ofiles
-
-    pass $testname
-}
-
 # Run the tests.
 
 # Only run the bfdtest checks if the programs exist.  Since these
 # programs are built but not installed, running the testsuite on an
 # installed toolchain will produce ERRORs about missing bfdtest1 and
 # bfdtest2 executables.
-if { [file exists $base_dir/bfdtest1] && [file exists $base_dir/bfdtest2] } {
+if { ![istarget "tic30-*-*"] && [file exists $base_dir/bfdtest1] && [file exists $base_dir/bfdtest2] } {
     set bfdtests [list bfdtest1 bfdtest2]
 
     long_filenames $bfdtests
-
-    # xcoff, ecoff, and vms archive support doesn't handle thin archives
-    if { ![is_xcoff_format]
-	 && ![istarget "*-*-*ecoff"]
-	 && ![istarget "*-*-vms"] } {
-	thin_archive $bfdtests
-	thin_archive_with_nested $bfdtests
-    }
+    thin_archive $bfdtests
+    thin_archive_with_nested $bfdtests
 }
 
 symbol_table
@@ -741,8 +625,6 @@ deterministic_archive
 delete_an_element
 move_an_element
 empty_archive
-extract_an_element
-many_files
 
 if { [is_elf_format] && [supports_gnu_unique] } {
     unique_symbol

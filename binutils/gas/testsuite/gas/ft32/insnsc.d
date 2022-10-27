@@ -2,7 +2,7 @@
 #objdump: -dr
 #name: insnsc
 
-.*:     file format elf32-ft32
+dump.o:     file format elf32-ft32
 
 
 Disassembly of section .text:

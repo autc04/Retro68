@@ -1,7 +1,5 @@
 #objdump: -dr
 #as: -march=armv8.3-a
-#as: -march=armv8.2-a+rcpc
-#source: ldst-rcpc.s
 
 .*:     file format .*
 

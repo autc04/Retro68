@@ -1,5 +1,5 @@
 /* mclex.c -- lexer for Windows mc files parser.
-   Copyright (C) 2007-2020 Free Software Foundation, Inc.
+   Copyright (C) 2007-2018 Free Software Foundation, Inc.
 
    Written by Kai Tietz, Onevision.
 
@@ -323,24 +323,6 @@ mc_token (const unichar *t, size_t len)
   return -1;
 }
 
-/* Skip characters in input_stream_pos up to and including a newline
-   character.  Returns non-zero if the newline was found, zero otherwise.  */
-
-static int
-skip_until_eol (void)
-{
-  while (input_stream_pos[0] != 0 && input_stream_pos[0] != '\n')
-    ++input_stream_pos;
-  if (input_stream_pos[0] == 0)
-    return 0;
-  if (input_stream_pos[0] == '\n')
-    {
-      ++input_stream_pos;
-      input_line += 1;
-    }
-  return 1;
-}
-
 int
 yylex (void)
 {
@@ -352,28 +334,27 @@ yylex (void)
       fatal ("Input stream not setuped.\n");
       return -1;
     }
-
   if (mclex_want_line)
     {
       start_token = input_stream_pos;
-      if (input_stream_pos[0] == 0)
-	return -1;
-      /* PR 26082: Reject a period followed by EOF.  */
-      if (input_stream_pos[0] == '.' && input_stream_pos[1] == 0)
-	return -1;
       if (input_stream_pos[0] == '.'
 	  && (input_stream_pos[1] == '\n'
 	      || (input_stream_pos[1] == '\r' && input_stream_pos[2] == '\n')))
-	{
-	  mclex_want_line = FALSE;
-          return skip_until_eol () ? MCENDLINE : -1;
-	}
-      if (!skip_until_eol ())
-	return -1;
+      {
+	mclex_want_line = FALSE;
+	while (input_stream_pos[0] != 0 && input_stream_pos[0] != '\n')
+	  ++input_stream_pos;
+	if (input_stream_pos[0] == '\n')
+	  ++input_stream_pos;
+	return MCENDLINE;
+      }
+      while (input_stream_pos[0] != 0 && input_stream_pos[0] != '\n')
+	++input_stream_pos;
+      if (input_stream_pos[0] == '\n')
+	++input_stream_pos;
       yylval.ustr = get_diff (input_stream_pos, start_token);
       return MCLINE;
     }
-
   while ((ch = input_stream_pos[0]) <= 0x20)
     {
       if (ch == 0)
@@ -421,8 +402,10 @@ yylex (void)
   {
   case ';':
     ++start_token;
-    if (!skip_until_eol ())
-      return -1;
+    while (input_stream_pos[0] != '\n' && input_stream_pos[0] != 0)
+      ++input_stream_pos;
+    if (input_stream_pos[0] == '\n')
+      input_stream_pos++;
     yylval.ustr = get_diff (input_stream_pos, start_token);
     return MCCOMMENT;
   case '=':

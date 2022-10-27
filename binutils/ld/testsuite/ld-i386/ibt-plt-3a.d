@@ -9,7 +9,7 @@
 Disassembly of section .plt:
 
 0+140 <.plt>:
- +[a-f0-9]+:	ff b3 04 00 00 00    	push   0x4\(%ebx\)
+ +[a-f0-9]+:	ff b3 04 00 00 00    	pushl  0x4\(%ebx\)
  +[a-f0-9]+:	ff a3 08 00 00 00    	jmp    \*0x8\(%ebx\)
  +[a-f0-9]+:	0f 1f 40 00          	nopl   0x0\(%eax\)
  +[a-f0-9]+:	f3 0f 1e fb          	endbr32 

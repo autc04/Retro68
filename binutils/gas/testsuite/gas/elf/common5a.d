@@ -1,5 +1,5 @@
 #source: common5a.s
 #as: 
-#error_output: common5a.l
-#notarget: alpha-*-*
+#error-output: common5a.l
+#not-target: alpha-*-*
 # The Alpha target uses its own .set pseudo-insn.

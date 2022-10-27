@@ -637,7 +637,7 @@ rrx:
 	.arch_extension sec
 smc:
 	smc	#0
-	smc	#0xd
+	smc	#0xabcd
 
 smla:
 	smlabb	r0, r0, r0, r0

@@ -1,7 +1,7 @@
 # See genscripts.sh and ../scripttempl/elf.sc for the meaning of these.
 SCRIPT_NAME=elf
 ELFSIZE=64
-TEMPLATE_NAME=elf
+TEMPLATE_NAME=elf32
 EXTRA_EM_FILE=ia64elf
 OUTPUT_FORMAT="elf64-ia64-little"
 ARCH=ia64

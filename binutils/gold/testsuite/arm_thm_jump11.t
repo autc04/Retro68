@@ -1,6 +1,6 @@
 /* arm_thm_jump11.t -- linker script to test R_ARM_THM_JUMP11 relocation.
 
-   Copyright (C) 2011-2020 Free Software Foundation, Inc.
+   Copyright (C) 2011-2017 Free Software Foundation, Inc.
    Written by Doug Kwan <dougkwan@google.com>.
 
    This file is part of gold.

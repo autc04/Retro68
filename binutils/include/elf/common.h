@@ -1,5 +1,5 @@
 /* ELF support for BFD.
-   Copyright (C) 1991-2020 Free Software Foundation, Inc.
+   Copyright (C) 1991-2018 Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -91,9 +91,8 @@
 
 #define ET_NONE		0	/* No file type */
 #define ET_REL		1	/* Relocatable file */
-#define ET_EXEC		2	/* Position-dependent executable file */
-#define ET_DYN		3	/* Position-independent executable or
-				   shared object file */
+#define ET_EXEC		2	/* Executable file */
+#define ET_DYN		3	/* Shared object file */
 #define ET_CORE		4	/* Core file */
 #define ET_LOOS		0xFE00	/* Operating system-specific */
 #define ET_HIOS		0xFEFF	/* Operating system-specific */
@@ -341,7 +340,6 @@
 #define EM_LANAI	244	/* Lanai 32-bit processor.  */
 #define EM_BPF		247	/* Linux BPF – in-kernel virtual machine.  */
 #define EM_NFP		250	/* Netronome Flow Processor.  */
-#define EM_CSKY		252	/* C-SKY processor family.  */
 
 /* If it is necessary to assign new unofficial EM_* values, please pick large
    random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
@@ -437,10 +435,6 @@
 /* Old constant that might be in use by some software. */
 #define EM_OPENRISC		EM_OR1K
 
-/* C-SKY historically used 39, the same value as MCORE, from which the
-   architecture was derived.  */
-#define EM_CSKY_OLD		EM_MCORE
-
 /* See the above comment before you add a new EM_* value here.  */
 
 /* Values for e_version.  */
@@ -470,12 +464,6 @@
 #define PT_SUNW_EH_FRAME PT_GNU_EH_FRAME      /* Solaris uses the same value */
 #define PT_GNU_STACK	(PT_LOOS + 0x474e551) /* Stack flags */
 #define PT_GNU_RELRO	(PT_LOOS + 0x474e552) /* Read-only after relocation */
-#define PT_GNU_PROPERTY	(PT_LOOS + 0x474e553) /* GNU property */
-
-/* OpenBSD segment types.  */
-#define PT_OPENBSD_RANDOMIZE (PT_LOOS + 0x5a3dbe6)  /* Fill with random data.  */
-#define PT_OPENBSD_WXNEEDED  (PT_LOOS + 0x5a3dbe7)  /* Program does W^X violations.  */
-#define PT_OPENBSD_BOOTDATA  (PT_LOOS + 0x5a41be6)  /* Section for boot arguments.  */
 
 /* Mbind segments */
 #define PT_GNU_MBIND_NUM 4096
@@ -510,7 +498,7 @@
 #define SHT_FINI_ARRAY	  15		/* Array of ptrs to finish functions */
 #define SHT_PREINIT_ARRAY 16		/* Array of ptrs to pre-init funcs */
 #define SHT_GROUP	  17		/* Section contains a section group */
-#define SHT_SYMTAB_SHNDX  18		/* Indices for SHN_XINDEX entries */
+#define SHT_SYMTAB_SHNDX  18		/* Indicies for SHN_XINDEX entries */
 
 #define SHT_LOOS	0x60000000	/* First of OS specific semantics */
 #define SHT_HIOS	0x6fffffff	/* Last of OS specific semantics */
@@ -619,8 +607,6 @@
 					/*   note name must be "LINUX".  */
 #define NT_X86_XSTATE	0x202		/* x86 XSAVE extended state */
 					/*   note name must be "LINUX".  */
-#define NT_X86_CET	0x203		/* x86 CET state.  */
-					/*   note name must be "LINUX".  */
 #define NT_S390_HIGH_GPRS 0x300		/* S/390 upper halves of GPRs  */
 					/*   note name must be "LINUX".  */
 #define NT_S390_TIMER	0x301		/* S390 timer */
@@ -658,10 +644,6 @@
 					/*   note name must be "LINUX".  */
 #define NT_ARM_SVE	0x405		/* AArch SVE registers.  */
 					/*   note name must be "LINUX".  */
-#define NT_ARM_PAC_MASK	0x406		/* AArch pointer authentication code masks */
-					/*   note name must be "LINUX".  */
-#define NT_ARC_V2	0x600		/* ARC HS accumulator/extra registers.  */
-					/*   note name must be "LINUX".  */
 #define NT_SIGINFO	0x53494749	/* Fields of siginfo_t.  */
 #define NT_FILE		0x46494c45	/* Description of mapped files.  */
 
@@ -696,8 +678,6 @@
    must start with "NetBSD-CORE".  */
 
 #define NT_NETBSDCORE_PROCINFO	1	/* Has a struct procinfo */
-#define NT_NETBSDCORE_AUXV	2	/* Has auxv data */
-#define NT_NETBSDCORE_LWPSTATUS	24	/* Has LWPSTATUS data */
 #define NT_NETBSDCORE_FIRSTMACH	32	/* start of machdep note types */
 
 
@@ -763,103 +743,31 @@
 /* Application-specific semantics, hi */
 #define GNU_PROPERTY_HIUSER  0xffffffff
 
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_USED	0xc0000000
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_NEEDED	0xc0000001
+#define GNU_PROPERTY_X86_ISA_1_USED		0xc0000000
+#define GNU_PROPERTY_X86_ISA_1_NEEDED		0xc0000001
+#define GNU_PROPERTY_X86_FEATURE_1_AND		0xc0000002
 
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_486	(1U << 0)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_586	(1U << 1)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_686	(1U << 2)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_SSE	(1U << 3)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_SSE2	(1U << 4)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_SSE3	(1U << 5)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_SSSE3	(1U << 6)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_SSE4_1	(1U << 7)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_SSE4_2	(1U << 8)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_AVX	(1U << 9)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_AVX2	(1U << 10)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512F	(1U << 11)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512CD	(1U << 12)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512ER	(1U << 13)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512PF	(1U << 14)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512VL	(1U << 15)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512DQ	(1U << 16)
-#define GNU_PROPERTY_X86_COMPAT_ISA_1_AVX512BW	(1U << 17)
+#define GNU_PROPERTY_X86_ISA_1_486           (1U << 0)
+#define GNU_PROPERTY_X86_ISA_1_586           (1U << 1)
+#define GNU_PROPERTY_X86_ISA_1_686           (1U << 2)
+#define GNU_PROPERTY_X86_ISA_1_SSE           (1U << 3)
+#define GNU_PROPERTY_X86_ISA_1_SSE2          (1U << 4)
+#define GNU_PROPERTY_X86_ISA_1_SSE3          (1U << 5)
+#define GNU_PROPERTY_X86_ISA_1_SSSE3         (1U << 6)
+#define GNU_PROPERTY_X86_ISA_1_SSE4_1        (1U << 7)
+#define GNU_PROPERTY_X86_ISA_1_SSE4_2        (1U << 8)
+#define GNU_PROPERTY_X86_ISA_1_AVX           (1U << 9)
+#define GNU_PROPERTY_X86_ISA_1_AVX2          (1U << 10)
+#define GNU_PROPERTY_X86_ISA_1_AVX512F       (1U << 11)
+#define GNU_PROPERTY_X86_ISA_1_AVX512CD      (1U << 12)
+#define GNU_PROPERTY_X86_ISA_1_AVX512ER      (1U << 13)
+#define GNU_PROPERTY_X86_ISA_1_AVX512PF      (1U << 14)
+#define GNU_PROPERTY_X86_ISA_1_AVX512VL      (1U << 15)
+#define GNU_PROPERTY_X86_ISA_1_AVX512DQ      (1U << 16)
+#define GNU_PROPERTY_X86_ISA_1_AVX512BW      (1U << 17)
 
-/* A 4-byte unsigned integer property: A bit is set if it is set in all
-   relocatable inputs.  */
-#define GNU_PROPERTY_X86_UINT32_AND_LO		0xc0000002
-#define GNU_PROPERTY_X86_UINT32_AND_HI		0xc0007fff
-
-/* A 4-byte unsigned integer property: A bit is set if it is set in any
-   relocatable inputs.  */
-#define GNU_PROPERTY_X86_UINT32_OR_LO		0xc0008000
-#define GNU_PROPERTY_X86_UINT32_OR_HI		0xc000ffff
-
-/* A 4-byte unsigned integer property: A bit is set if it is set in any
-   relocatable inputs and the property is present in all relocatable
-   inputs.  */
-#define GNU_PROPERTY_X86_UINT32_OR_AND_LO	0xc0010000
-#define GNU_PROPERTY_X86_UINT32_OR_AND_HI	0xc0017fff
-
-#define GNU_PROPERTY_X86_FEATURE_1_AND \
-  (GNU_PROPERTY_X86_UINT32_AND_LO + 0)
-
-#define GNU_PROPERTY_X86_ISA_1_NEEDED \
-  (GNU_PROPERTY_X86_UINT32_OR_LO + 0)
-#define GNU_PROPERTY_X86_FEATURE_2_NEEDED \
-  (GNU_PROPERTY_X86_UINT32_OR_LO + 1)
-
-#define GNU_PROPERTY_X86_ISA_1_USED \
-  (GNU_PROPERTY_X86_UINT32_OR_AND_LO + 0)
-#define GNU_PROPERTY_X86_FEATURE_2_USED \
-  (GNU_PROPERTY_X86_UINT32_OR_AND_LO + 1)
-
-#define GNU_PROPERTY_X86_FEATURE_1_IBT		(1U << 0)
-#define GNU_PROPERTY_X86_FEATURE_1_SHSTK	(1U << 1)
-
-#define GNU_PROPERTY_X86_ISA_1_CMOV		(1U << 0)
-#define GNU_PROPERTY_X86_ISA_1_SSE		(1U << 1)
-#define GNU_PROPERTY_X86_ISA_1_SSE2		(1U << 2)
-#define GNU_PROPERTY_X86_ISA_1_SSE3		(1U << 3)
-#define GNU_PROPERTY_X86_ISA_1_SSSE3		(1U << 4)
-#define GNU_PROPERTY_X86_ISA_1_SSE4_1		(1U << 5)
-#define GNU_PROPERTY_X86_ISA_1_SSE4_2		(1U << 6)
-#define GNU_PROPERTY_X86_ISA_1_AVX		(1U << 7)
-#define GNU_PROPERTY_X86_ISA_1_AVX2		(1U << 8)
-#define GNU_PROPERTY_X86_ISA_1_FMA		(1U << 9)
-#define GNU_PROPERTY_X86_ISA_1_AVX512F		(1U << 10)
-#define GNU_PROPERTY_X86_ISA_1_AVX512CD		(1U << 11)
-#define GNU_PROPERTY_X86_ISA_1_AVX512ER		(1U << 12)
-#define GNU_PROPERTY_X86_ISA_1_AVX512PF		(1U << 13)
-#define GNU_PROPERTY_X86_ISA_1_AVX512VL		(1U << 14)
-#define GNU_PROPERTY_X86_ISA_1_AVX512DQ		(1U << 15)
-#define GNU_PROPERTY_X86_ISA_1_AVX512BW		(1U << 16)
-#define GNU_PROPERTY_X86_ISA_1_AVX512_4FMAPS	(1U << 17)
-#define GNU_PROPERTY_X86_ISA_1_AVX512_4VNNIW	(1U << 18)
-#define GNU_PROPERTY_X86_ISA_1_AVX512_BITALG	(1U << 19)
-#define GNU_PROPERTY_X86_ISA_1_AVX512_IFMA	(1U << 20)
-#define GNU_PROPERTY_X86_ISA_1_AVX512_VBMI	(1U << 21)
-#define GNU_PROPERTY_X86_ISA_1_AVX512_VBMI2	(1U << 22)
-#define GNU_PROPERTY_X86_ISA_1_AVX512_VNNI	(1U << 23)
-#define GNU_PROPERTY_X86_ISA_1_AVX512_BF16	(1U << 24)
-
-#define GNU_PROPERTY_X86_FEATURE_2_X86		(1U << 0)
-#define GNU_PROPERTY_X86_FEATURE_2_X87		(1U << 1)
-#define GNU_PROPERTY_X86_FEATURE_2_MMX		(1U << 2)
-#define GNU_PROPERTY_X86_FEATURE_2_XMM		(1U << 3)
-#define GNU_PROPERTY_X86_FEATURE_2_YMM		(1U << 4)
-#define GNU_PROPERTY_X86_FEATURE_2_ZMM		(1U << 5)
-#define GNU_PROPERTY_X86_FEATURE_2_FXSR		(1U << 6)
-#define GNU_PROPERTY_X86_FEATURE_2_XSAVE	(1U << 7)
-#define GNU_PROPERTY_X86_FEATURE_2_XSAVEOPT	(1U << 8)
-#define GNU_PROPERTY_X86_FEATURE_2_XSAVEC	(1U << 9)
-#define GNU_PROPERTY_X86_FEATURE_2_TMM		(1U << 10)
-
-/* AArch64 specific GNU PROPERTY.  */
-#define GNU_PROPERTY_AARCH64_FEATURE_1_AND	0xc0000000
-
-#define GNU_PROPERTY_AARCH64_FEATURE_1_BTI	(1U << 0)
-#define GNU_PROPERTY_AARCH64_FEATURE_1_PAC	(1U << 1)
+#define GNU_PROPERTY_X86_FEATURE_1_IBT       (1U << 0)
+#define GNU_PROPERTY_X86_FEATURE_1_SHSTK     (1U << 1)
 
 /* Values used in GNU .note.ABI-tag notes (NT_GNU_ABI_TAG).  */
 #define GNU_ABI_TAG_LINUX	0
@@ -949,7 +857,7 @@
 
 #define ELF32_R_SYM(i)		((i) >> 8)
 #define ELF32_R_TYPE(i)		((i) & 0xff)
-#define ELF32_R_INFO(s,t)	(((unsigned) (s) << 8) + ((t) & 0xff))
+#define ELF32_R_INFO(s,t)	(((s) << 8) + ((t) & 0xff))
 
 #define ELF64_R_SYM(i)		((i) >> 32)
 #define ELF64_R_TYPE(i)		((i) & 0xffffffff)
@@ -1235,21 +1143,6 @@
 #define AT_L2_CACHESHAPE  36
 #define AT_L3_CACHESHAPE  37
 
-/* Shapes of the caches, with more room to describe them.
-   *GEOMETRY are comprised of cache line size in bytes in the bottom 16 bits
-   and the cache associativity in the next 16 bits.  */
-#define AT_L1I_CACHESIZE	40
-#define AT_L1I_CACHEGEOMETRY	41
-#define AT_L1D_CACHESIZE	42
-#define AT_L1D_CACHEGEOMETRY	43
-#define AT_L2_CACHESIZE		44
-#define AT_L2_CACHEGEOMETRY	45
-#define AT_L3_CACHESIZE		46
-#define AT_L3_CACHEGEOMETRY	47
-
-#define AT_MINSIGSTKSZ		51 /* Stack needed for signal delivery
-				      (AArch64).  */
-
 #define AT_FREEBSD_EXECPATH     15      /* Path to the executable. */
 #define AT_FREEBSD_CANARY       16      /* Canary for SSP. */
 #define AT_FREEBSD_CANARYLEN    17      /* Length of the canary. */
@@ -1261,13 +1154,6 @@
 #define AT_FREEBSD_STACKPROT    23      /* Initial stack protection. */
 #define AT_FREEBSD_EHDRFLAGS    24      /* e_flags field from ELF header. */
 #define AT_FREEBSD_HWCAP        25      /* CPU feature flags. */
-#define AT_FREEBSD_HWCAP2       26      /* CPU feature flags 2. */
-#define AT_FREEBSD_BSDFLAGS     27      /* ELF BSD Flags. */
-#define AT_FREEBSD_ARGC         28      /* Argument count. */
-#define AT_FREEBSD_ARGV         29      /* Argument vector. */
-#define AT_FREEBSD_ENVC         30      /* Environment count. */
-#define AT_FREEBSD_ENVV         31      /* Environment vvector. */
-#define AT_FREEBSD_PS_STRINGS   32      /* struct ps_strings. */
 
 #define AT_SUN_UID      2000    /* Effective user ID.  */
 #define AT_SUN_RUID     2001    /* Real user ID.  */
@@ -1278,9 +1164,9 @@
 #define AT_SUN_LDNAME   2006    /* String giving name of dynamic linker.  */
 #define AT_SUN_LPAGESZ  2007    /* Large pagesize.   */
 #define AT_SUN_PLATFORM 2008    /* Platform name string.  */
-#define AT_SUN_CAP_HW1	2009	/* Machine dependent hints about
+#undef AT_SUN_HWCAP
+#define AT_SUN_HWCAP    2009	/* Machine dependent hints about
 				   processor capabilities.  */
-#define AT_SUN_HWCAP	AT_SUN_CAP_HW1 /* For backward compat only.  */
 #define AT_SUN_IFLUSH   2010    /* Should flush icache? */
 #define AT_SUN_CPU      2011    /* CPU name string.  */
 #define AT_SUN_EMUL_ENTRY 2012	/* COFF entry point address.  */
@@ -1289,12 +1175,6 @@
 #define AT_SUN_MMU      2015    /* String for name of MMU module.   */
 #define AT_SUN_LDDATA   2016    /* Dynamic linker's data segment address.  */
 #define AT_SUN_AUXFLAGS	2017	/* AF_SUN_ flags passed from the kernel.  */
-#define	AT_SUN_EMULATOR	2018	/* Name of emulation binary for runtime
-				   linker.  */
-#define	AT_SUN_BRANDNAME 2019	/* Name of brand library.  */
-#define	AT_SUN_BRAND_AUX1 2020	/* Aux vectors for brand modules.  */
-#define	AT_SUN_BRAND_AUX2 2021
-#define	AT_SUN_BRAND_AUX3 2022
-#define	AT_SUN_CAP_HW2	2023	/* Extension of AT_SUN_CAP_HW1.  */
+
 
 #endif /* _ELF_COMMON_H */

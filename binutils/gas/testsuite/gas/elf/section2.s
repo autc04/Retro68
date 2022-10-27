@@ -1,3 +1,3 @@
-          .section AAA
-          .global AAA
+          .section A
+          .global A
 	  .byte 49

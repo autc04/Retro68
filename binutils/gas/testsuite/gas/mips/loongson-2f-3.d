@@ -1,8 +1,9 @@
 #as: -mfix-loongson2f-jump
 #objdump: -M reg-names=numeric -dr
-#name: ST Microelectronics Loongson-2F workarounds of Jump Instruction issue
+#name: ST Microelectronics Loongson-2F workarounds of Jump Instruction issue 
 
 .*:     file format .*
+
 
 Disassembly of section .text:
 

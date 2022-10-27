@@ -3,8 +3,7 @@
 .text
 .thumb
 	.global foo
-foo:
-	.align 4
+foo:	
 @ Section A6.1.3 "Use of 0b1101 as a register specifier".
 
 @ R13 as the source or destination register of a mov instruction.

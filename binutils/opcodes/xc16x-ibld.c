@@ -4,7 +4,7 @@
    THIS FILE IS MACHINE GENERATED WITH CGEN: Cpu tools GENerator.
    - the resultant file is machine generated, cgen-ibld.in isn't
 
-   Copyright (C) 1996-2020 Free Software Foundation, Inc.
+   Copyright (C) 1996-2018 Free Software Foundation, Inc.
 
    This file is part of libopcodes.
 
@@ -85,20 +85,20 @@ insert_1 (CGEN_CPU_DESC cd,
 	  int word_length,
 	  unsigned char *bufp)
 {
-  unsigned long x, mask;
+  unsigned long x,mask;
   int shift;
 
-  x = cgen_get_insn_value (cd, bufp, word_length, cd->endian);
+  x = cgen_get_insn_value (cd, bufp, word_length);
 
   /* Written this way to avoid undefined behaviour.  */
-  mask = (1UL << (length - 1) << 1) - 1;
+  mask = (((1L << (length - 1)) - 1) << 1) | 1;
   if (CGEN_INSN_LSB0_P)
     shift = (start + 1) - length;
   else
     shift = (word_length - (start + length));
   x = (x & ~(mask << shift)) | ((value & mask) << shift);
 
-  cgen_put_insn_value (cd, bufp, word_length, (bfd_vma) x, cd->endian);
+  cgen_put_insn_value (cd, bufp, word_length, (bfd_vma) x);
 }
 
 #endif /* ! CGEN_INT_INSN_P */
@@ -131,14 +131,12 @@ insert_normal (CGEN_CPU_DESC cd,
 	       CGEN_INSN_BYTES_PTR buffer)
 {
   static char errbuf[100];
-  unsigned long mask;
+  /* Written this way to avoid undefined behaviour.  */
+  unsigned long mask = (((1L << (length - 1)) - 1) << 1) | 1;
 
   /* If LENGTH is zero, this operand doesn't contribute to the value.  */
   if (length == 0)
     return NULL;
-
-  /* Written this way to avoid undefined behaviour.  */
-  mask = (1UL << (length - 1) << 1) - 1;
 
   if (word_length > 8 * sizeof (CGEN_INSN_INT))
     abort ();
@@ -155,7 +153,7 @@ insert_normal (CGEN_CPU_DESC cd,
   /* Ensure VALUE will fit.  */
   if (CGEN_BOOL_ATTR (attrs, CGEN_IFLD_SIGN_OPT))
     {
-      long minval = - (1UL << (length - 1));
+      long minval = - (1L << (length - 1));
       unsigned long maxval = mask;
 
       if ((value > 0 && (unsigned long) value > maxval)
@@ -193,8 +191,8 @@ insert_normal (CGEN_CPU_DESC cd,
     {
       if (! cgen_signed_overflow_ok_p (cd))
 	{
-	  long minval = - (1UL << (length - 1));
-	  long maxval =   (1UL << (length - 1)) - 1;
+	  long minval = - (1L << (length - 1));
+	  long maxval =   (1L << (length - 1)) - 1;
 
 	  if (value < minval || value > maxval)
 	    {
@@ -271,8 +269,8 @@ insert_insn_normal (CGEN_CPU_DESC cd,
 #else
 
   cgen_put_insn_value (cd, buffer, min ((unsigned) cd->base_insn_bitsize,
-                                        (unsigned) CGEN_FIELDS_BITSIZE (fields)),
-		       value, cd->insn_endian);
+					(unsigned) CGEN_FIELDS_BITSIZE (fields)),
+		       value);
 
 #endif /* ! CGEN_INT_INSN_P */
 
@@ -316,7 +314,7 @@ put_insn_int_value (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
     {
       int shift = insn_length - length;
       /* Written this way to avoid undefined behaviour.  */
-      CGEN_INSN_INT mask = length == 0 ? 0 : (1UL << (length - 1) << 1) - 1;
+      CGEN_INSN_INT mask = (((1L << (length - 1)) - 1) << 1) | 1;
 
       *buf = (*buf & ~(mask << shift)) | ((value & mask) << shift);
     }
@@ -389,7 +387,7 @@ extract_1 (CGEN_CPU_DESC cd,
   unsigned long x;
   int shift;
 
-  x = cgen_get_insn_value (cd, bufp, word_length, cd->endian);
+  x = cgen_get_insn_value (cd, bufp, word_length);
 
   if (CGEN_INSN_LSB0_P)
     shift = (start + 1) - length;
@@ -482,10 +480,7 @@ extract_normal (CGEN_CPU_DESC cd,
 	abort ();
 
       if (fill_cache (cd, ex_info, word_offset / 8, word_length / 8, pc) == 0)
-	{
-	  *valuep = 0;
-	  return 0;
-	}
+	return 0;
 
       value = extract_1 (cd, ex_info, start, length, word_length, bufp, pc);
     }
@@ -493,12 +488,12 @@ extract_normal (CGEN_CPU_DESC cd,
 #endif /* ! CGEN_INT_INSN_P */
 
   /* Written this way to avoid undefined behaviour.  */
-  mask = (1UL << (length - 1) << 1) - 1;
+  mask = (((1L << (length - 1)) - 1) << 1) | 1;
 
   value &= mask;
   /* sign extend? */
   if (CGEN_BOOL_ATTR (attrs, CGEN_IFLD_SIGNED)
-      && (value & (1UL << (length - 1))))
+      && (value & (1L << (length - 1))))
     value |= ~mask;
 
   *valuep = value;

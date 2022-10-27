@@ -1,5 +1,5 @@
 # objdump: -fdrw --prefix-addresses --show-raw-insn
-# notarget: *-*-pe
+# not-target: *-*-pe
 
   .text
   .arch armv5t
