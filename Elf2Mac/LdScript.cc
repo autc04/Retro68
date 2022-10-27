@@ -20,10 +20,12 @@
 #include "Elf2Mac.h"
 #include "SegmentMap.h"
 
+#include <iomanip>
 #include <iostream>
-#include <boost/algorithm/string/replace.hpp>
-#include <boost/lexical_cast.hpp>
+#include <sstream>
 #include <string>
+
+#include <boost/algorithm/string/replace.hpp>
 
 using std::string;
 
@@ -214,7 +216,11 @@ void SegmentInfo::WriteFiltersKeep(std::ostream &out, string section)
 
 void SegmentInfo::CreateLdScript(std::ostream &out, string entryPoint)
 {
-    out << "\t.code" << id << " : {\n";
+    std::ostringstream ss;
+    ss << std::setw(5) << std::setfill('0') << id;
+    const std::string zero_padded_id = ss.str();
+
+    out << "\t.code" << zero_padded_id << " : {\n";
     out << "\t\tFILL(0x4E71);\n";
     if(id == 1)
     {
@@ -259,7 +265,7 @@ void SegmentInfo::CreateLdScript(std::ostream &out, string entryPoint)
     if(id == 1)
         out << "\t\t__EH_FRAME_BEGIN__" << " = .;\n";
     else
-        out << "\t\t__EH_FRAME_BEGIN__" << id << " = .;\n";
+        out << "\t\t__EH_FRAME_BEGIN__" << zero_padded_id << " = .;\n";
     WriteFiltersKeep(out, ".eh_frame");
     out << "\t\tLONG(0);\n";
     WriteFiltersKeep(out, ".gcc_except_table");
@@ -278,7 +284,7 @@ void SegmentInfo::CreateLdScript(std::ostream &out, string entryPoint)
         FILL(0);
         . += 32;
         LONG(__EH_FRAME_BEGIN__@N@ - .);
-)ld", "@N@", boost::lexical_cast<string>(id));
+)ld", "@N@", zero_padded_id);
     }
 
     out << "\t}\n";
