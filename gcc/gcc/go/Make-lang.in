@@ -1,6 +1,6 @@
 # Make-lang.in -- Top level -*- makefile -*- fragment for gcc Go frontend.
 
-# Copyright (C) 2009-2019 Free Software Foundation, Inc.
+# Copyright (C) 2009-2022 Free Software Foundation, Inc.
 
 # This file is part of GCC.
 
@@ -27,6 +27,7 @@ GCCGO_TARGET_INSTALL_NAME := $(target_noncanonical)-$(shell echo gccgo|sed '$(pr
 
 # The name for selecting go in LANGUAGES.
 go: go1$(exeext)
+go.serial = go1$(exeext)
 
 .PHONY: go
 
@@ -50,6 +51,7 @@ go-warn = $(STRICT_WARN)
 
 GO_OBJS = \
 	go/ast-dump.o \
+	go/embed.o \
 	go/escape.o \
 	go/export.o \
 	go/expressions.o \
@@ -78,9 +80,11 @@ GO_OBJS = \
 
 go_OBJS = $(GO_OBJS) go/gospec.o
 
-go1$(exeext): $(GO_OBJS) attribs.o $(BACKEND) $(LIBDEPS)
+go1$(exeext): $(GO_OBJS) attribs.o $(BACKEND) $(LIBDEPS) $(go.prev)
+	@$(call LINK_PROGRESS,$(INDEX.go),start)
 	+$(LLINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ \
 	      $(GO_OBJS) attribs.o $(BACKEND) $(LIBS) $(BACKENDLIBS)
+	@$(call LINK_PROGRESS,$(INDEX.go),end)
 
 # Documentation.
 
@@ -129,8 +133,8 @@ go.srcinfo: doc/gccgo.info
 go.srcextra:
 go.tags: force
 	cd $(srcdir)/go; \
-	etags -o TAGS.sub *.c *.h gofrontend/*.h gofrontend/*.cc; \
-	etags --include TAGS.sub --include ../TAGS.sub
+	$(ETAGS) -o TAGS.sub *.c *.h gofrontend/*.h gofrontend/*.cc; \
+	$(ETAGS) --include TAGS.sub --include ../TAGS.sub
 go.man: doc/gccgo.1
 go.srcman: doc/gccgo.1
 	-cp -p $^ $(srcdir)/doc

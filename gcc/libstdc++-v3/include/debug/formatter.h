@@ -1,6 +1,6 @@
 // Debug-mode error formatting implementation -*- C++ -*-
 
-// Copyright (C) 2003-2019 Free Software Foundation, Inc.
+// Copyright (C) 2003-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -72,7 +72,8 @@ namespace __gnu_debug
   using std::type_info;
 
   template<typename _Iterator>
-    bool __check_singular(const _Iterator&);
+    _GLIBCXX_CONSTEXPR
+    bool __check_singular(_Iterator const&);
 
   class _Safe_sequence_base;
 
@@ -143,7 +144,7 @@ namespace __gnu_debug
     // unordered container local iterators
     __msg_local_iter_compare_bad,
     __msg_non_empty_range,
-    // self move assign
+    // self move assign (no longer used)
     __msg_self_move_assign,
     // unordered container buckets
     __msg_bucket_index_oob,
@@ -201,9 +202,13 @@ namespace __gnu_debug
 	__iterator_value_type
       } _M_kind;
 
-      struct _Type
+      struct _Named
       {
 	const char*		_M_name;
+      };
+
+      struct _Type : _Named
+      {
 	const type_info*	_M_type;
       };
 
@@ -227,16 +232,14 @@ namespace __gnu_debug
 	_Instance _M_sequence;
 
 	// When _M_kind == __integer
-	struct
+	struct : _Named
 	{
-	  const char*		_M_name;
 	  long			_M_value;
 	} _M_integer;
 
 	// When _M_kind == __string
-	struct
+	struct : _Named
 	{
-	  const char*		_M_name;
 	  const char*		_M_value;
 	} _M_string;
 
@@ -299,7 +302,6 @@ namespace __gnu_debug
 	  _M_variant._M_iterator._M_name = __name;
 	  _M_variant._M_iterator._M_address = std::__addressof(__it);
 	  _M_variant._M_iterator._M_type = _GLIBCXX_TYPEID(_Iterator);
-	  _M_variant._M_iterator._M_constness =
 	  _M_variant._M_iterator._M_constness =
 	    __it._S_constant() ? __const_iterator : __mutable_iterator;
 	  _M_variant._M_iterator._M_sequence = __it._M_get_sequence();

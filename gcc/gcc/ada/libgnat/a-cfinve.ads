@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2014-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2014-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -38,6 +38,7 @@ with Ada.Containers.Functional_Vectors;
 generic
    type Index_Type is range <>;
    type Element_Type (<>) is private;
+   with function "=" (Left, Right : Element_Type) return Boolean is <>;
    Max_Size_In_Storage_Elements : Natural;
    --  Maximum size of Vector elements in bytes. This has the same meaning as
    --  in Ada.Containers.Bounded_Holders, with the same restrictions. Note that
@@ -54,6 +55,12 @@ generic
 package Ada.Containers.Formal_Indefinite_Vectors with
   SPARK_Mode => On
 is
+   --  Contracts in this unit are meant for analysis only, not for run-time
+   --  checking.
+
+   pragma Assertion_Policy (Pre => Ignore);
+   pragma Assertion_Policy (Post => Ignore);
+   pragma Assertion_Policy (Contract_Cases => Ignore);
    pragma Annotate (CodePeer, Skip_Analysis);
 
    subtype Extended_Index is Index_Type'Base
@@ -303,6 +310,48 @@ is
          and M.Equal_Except
                (Left     => Model (Container)'Old,
                 Right    => Model (Container),
+                Position => Index);
+
+   function At_End (E : access constant Vector) return access constant Vector
+   is (E)
+   with Ghost,
+     Annotate => (GNATprove, At_End_Borrow);
+
+   function At_End
+     (E : access constant Element_Type) return access constant Element_Type
+   is (E)
+   with Ghost,
+     Annotate => (GNATprove, At_End_Borrow);
+
+   function Constant_Reference
+     (Container : aliased Vector;
+      Index     : Index_Type) return not null access constant Element_Type
+   with
+     Global => null,
+     Pre    => Index in First_Index (Container) .. Last_Index (Container),
+     Post   =>
+         Constant_Reference'Result.all = Element (Model (Container), Index);
+
+   function Reference
+     (Container : not null access Vector;
+      Index     : Index_Type) return not null access Element_Type
+   with
+     Global => null,
+     Pre    =>
+      Index in First_Index (Container.all) .. Last_Index (Container.all),
+     Post   =>
+      Length (Container.all) = Length (At_End (Container).all)
+
+         --  Container will have Result.all at index Index
+
+         and At_End (Reference'Result).all =
+           Element (Model (At_End (Container).all), Index)
+
+         --  All other elements are preserved
+
+         and M.Equal_Except
+               (Left     => Model (Container.all),
+                Right    => Model (At_End (Container).all),
                 Position => Index);
 
    procedure Insert
@@ -903,7 +952,7 @@ private
    use Holders;
 
    subtype Array_Index is Capacity_Range range 1 .. Capacity_Range'Last;
-   type Elements_Array is array (Array_Index range <>) of Holder;
+   type Elements_Array is array (Array_Index range <>) of aliased Holder;
    function "=" (L, R : Elements_Array) return Boolean is abstract;
 
    type Elements_Array_Ptr is access all Elements_Array;

@@ -4,10 +4,12 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_lm.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_lm.d)
  */
 module core.sys.windows.lm;
 version (Windows):
+@system:
+
 /* removed - now supporting only Win2k up
 version (WindowsVista) {
     version = WIN32_WINNT_ONLY;

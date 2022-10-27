@@ -135,10 +135,12 @@ custom_diagnostic_finalizer (diagnostic_context *context,
   bool old_show_color = pp_show_color (context->printer);
   if (force_show_locus_color)
     pp_show_color (context->printer) = true;
+  char *saved_prefix = pp_take_prefix (context->printer);
+  pp_set_prefix (context->printer, NULL);
+  pp_newline (context->printer);
   diagnostic_show_locus (context, diagnostic->richloc, diagnostic->kind);
   pp_show_color (context->printer) = old_show_color;
-
-  pp_destroy_prefix (context->printer);
+  pp_set_prefix (context->printer, saved_prefix);
   pp_flush (context->printer);
 }
 
@@ -173,7 +175,7 @@ test_show_locus (function *fun)
 
   /* Hardcode the "terminal width", to verify the behavior of
      very wide lines.  */
-  global_dc->caret_max_width = 70;
+  global_dc->caret_max_width = 71;
 
   if (0 == strcmp (fnname, "test_simple"))
     {

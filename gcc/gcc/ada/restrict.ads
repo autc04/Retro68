@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -89,6 +89,7 @@ package Restrict is
      (No_Delay,                    "calendar"),
      (No_Dynamic_Priorities,       "a-dynpri"),
      (No_Finalization,             "a-finali"),
+     (No_IO,                       "a-direct"),
      (No_IO,                       "a-direio"),
      (No_IO,                       "directio"),
      (No_IO,                       "a-sequio"),
@@ -113,6 +114,7 @@ package Restrict is
       No_Default_Initialization          => True,
       No_Direct_Boolean_Operators        => True,
       No_Dispatching_Calls               => True,
+      No_Dynamic_Accessibility_Checks    => True,
       No_Dynamic_Attachment              => True,
       No_Elaboration_Code                => True,
       No_Enumeration_Maps                => True,
@@ -141,6 +143,7 @@ package Restrict is
       No_Standard_Storage_Pools          => True,
       No_Stream_Optimizations            => True,
       No_Streams                         => True,
+      No_Tagged_Type_Registration        => True,
       No_Task_Attributes_Package         => True,
       No_Task_Termination                => True,
       No_Tasking                         => True,
@@ -238,16 +241,6 @@ package Restrict is
    --  For abort to be allowed, either No_Abort_Statements must be False,
    --  or Max_Asynchronous_Select_Nesting must be non-zero.
 
-   procedure Check_Compiler_Unit (Feature : String; N : Node_Id);
-   --  If unit N is in a unit that has a pragma Compiler_Unit_Warning, then
-   --  a message is posted on node N noting use of the given feature is not
-   --  permitted in the compiler (bootstrap considerations).
-
-   procedure Check_Compiler_Unit (Feature : String; Loc : Source_Ptr);
-   --  If unit N is in a unit that has a pragma Compiler_Unit_Warning, then a
-   --  message is posted at location Loc noting use of the given feature is not
-   --  permitted in the compiler (bootstrap considerations).
-
    procedure Check_Restricted_Unit (U : Unit_Name_Type; N : Node_Id);
    --  Checks if loading of unit U is prohibited by the setting of some
    --  restriction (e.g. No_IO restricts the loading of unit Ada.Text_IO).
@@ -282,9 +275,10 @@ package Restrict is
    --  the node to which an error will be attached if necessary.
 
    procedure Check_Restriction_No_Specification_Of_Aspect (N : Node_Id);
-   --  N is the node id for an N_Aspect_Specification. An error message
-   --  (warning) will be issued if a restriction (warning) was previously set
-   --  for this aspect using Set_No_Specification_Of_Aspect.
+   --  N is the node id for an N_Aspect_Specification, an N_Pragma, or an
+   --  N_Attribute_Definition_Clause. An error message (warning) will be issued
+   --  if a restriction (warning) was previously set for this aspect using
+   --  Set_No_Specification_Of_Aspect.
 
    procedure Check_Restriction_No_Use_Of_Attribute (N : Node_Id);
    --  N denotes an attribute definition clause or an attribute reference. An
@@ -307,21 +301,7 @@ package Restrict is
    --  elaboration routine. If elaboration code is not allowed, an error
    --  message is posted on the node given as argument.
 
-   procedure Check_SPARK_05_Restriction
-     (Msg   : String;
-      N     : Node_Id;
-      Force : Boolean := False);
-   --  Node N represents a construct not allowed in SPARK_05 mode. If this is
-   --  a source node, or if the restriction is forced (Force = True), and
-   --  the SPARK_05 restriction is set, then an error is issued on N. Msg
-   --  is appended to the restriction failure message.
-
-   procedure Check_SPARK_05_Restriction
-     (Msg1 : String;
-      Msg2 : String;
-      N    : Node_Id);
-   --  Same as Check_SPARK_05_Restriction except there is a continuation
-   --  message Msg2 following the initial message Msg1.
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
    procedure Check_No_Implicit_Aliasing (Obj : Node_Id);
    --  Obj is a node for which Is_Aliased_View is True, which is being used in
@@ -337,18 +317,26 @@ package Restrict is
    --  that generates a trampoline. If not allowed, an error message is posted
    --  on the node given as argument.
 
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
+
    procedure Check_No_Implicit_Heap_Alloc (N : Node_Id);
    --  Equivalent to Check_Restriction (No_Implicit_Heap_Allocations, N).
    --  Provided for easy use by back end, which has to check this restriction.
 
-   procedure Check_No_Implicit_Task_Alloc (N : Node_Id);
-   --  Equivalent to Check_Restriction (No_Implicit_Task_Allocations, N).
-   --  Provided for easy use by back end, which has to check this restriction.
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
    procedure Check_No_Implicit_Protected_Alloc (N : Node_Id);
    --  Equivalent to:
    --    Check_Restriction (No_Implicit_Protected_Object_Allocations, N)
    --  Provided for easy use by back end, which has to check this restriction.
+
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
+
+   procedure Check_No_Implicit_Task_Alloc (N : Node_Id);
+   --  Equivalent to Check_Restriction (No_Implicit_Task_Allocations, N).
+   --  Provided for easy use by back end, which has to check this restriction.
+
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
    procedure Check_Obsolescent_2005_Entity (E : Entity_Id; N : Node_Id);
    --  This routine checks if the entity E is one of the obsolescent entries
@@ -381,9 +369,14 @@ package Restrict is
    --  pragma Restrictions_Warning, or attribute Restriction_Set. Returns
    --  True if N has the proper form for an entity name, False otherwise.
 
-   function Is_In_Hidden_Part_In_SPARK (Loc : Source_Ptr) return Boolean;
-   --  Determine if given location is covered by a hidden region range in the
-   --  SPARK hides table.
+   function No_Dynamic_Accessibility_Checks_Enabled
+     (N : Node_Id) return Boolean;
+   --  Test to see if the current restrictions settings specify that
+   --  No_Dynamic_Accessibility_Checks is activated.
+
+   --  N is currently unused, but is reserved for future use and debugging
+   --  purposes to provide more context on a node for which an accessibility
+   --  check is being performed or generated (e.g. is N in a predefined unit).
 
    function No_Exception_Handlers_Set return Boolean;
    --  Test to see if current restrictions settings specify that no exception
@@ -394,9 +387,13 @@ package Restrict is
    --  set. In the latter case, the source may contain handlers but they either
    --  get converted using the local goto transformation or deleted.
 
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
+
    function No_Exception_Propagation_Active return Boolean;
    --  Test to see if current restrictions settings specify that no
    --  exception propagation is activated.
+
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
    function Process_Restriction_Synonyms (N : Node_Id) return Name_Id;
    --  Id is a node whose Chars field contains the name of a restriction.
@@ -429,10 +426,9 @@ package Restrict is
    --  of individual Restrictions pragmas). Returns True only if all the
    --  required restrictions are set.
 
-   procedure Set_Hidden_Part_In_SPARK (Loc1, Loc2 : Source_Ptr);
-   --  Insert a new hidden region range in the SPARK hides table. The effect
-   --  is to hide any SPARK violation messages which are in the range Loc1 to
-   --  Loc2-1 (i.e. Loc2 is the first location for reenabling checks).
+   procedure Set_Global_No_Tasking;
+   --  Used in call from Sem_Prag when restriction No_Tasking is set in the
+   --  run-time package System or in a configuration pragmas file.
 
    procedure Set_Profile_Restrictions
      (P    : Profile_Name;
@@ -459,6 +455,20 @@ package Restrict is
    --  Similar to the above, except that this is used for the case of a
    --  parameter restriction, and the corresponding value V is given.
 
+   procedure Set_Restriction
+     (R    : All_Restrictions;
+      N    : Node_Id;
+      Warn : Boolean;
+      V    : Integer := Integer'First);
+   --  Same as above two, except also takes care of setting the
+   --  Restriction_Warnings flag. V is ignored for Boolean
+   --  restrictions.
+   --
+   --  If this is the first time we've seen this restriction, the warning flag
+   --  is set to Warn. If this is a second or subsequent time, Warn = False
+   --  wins; that is, errors always trump warnings. In that case, the warning
+   --  flag can be set to False, but never to True.
+
    procedure Set_Restriction_No_Dependence
      (Unit    : Node_Id;
       Warn    : Boolean;
@@ -470,8 +480,8 @@ package Restrict is
    --  No_Dependence restriction comes from a Profile pragma.
 
    procedure Set_Restriction_No_Specification_Of_Aspect
-     (N       : Node_Id;
-      Warning : Boolean);
+     (N    : Node_Id;
+      Warn : Boolean);
    --  N is the node id for an identifier from a pragma Restrictions for the
    --  No_Specification_Of_Aspect pragma. An error message will be issued if
    --  the identifier is not a valid aspect name. Warning is set True for the
@@ -482,8 +492,8 @@ package Restrict is
    --  Version used by Get_Target_Parameters (via Tbuild)
 
    procedure Set_Restriction_No_Use_Of_Attribute
-     (N       : Node_Id;
-      Warning : Boolean);
+     (N    : Node_Id;
+      Warn : Boolean);
    --  N is the node id for the identifier in a pragma Restrictions for
    --  No_Use_Of_Attribute. Caller has verified that this is a valid attribute
    --  designator.
@@ -493,7 +503,7 @@ package Restrict is
 
    procedure Set_Restriction_No_Use_Of_Entity
      (Entity  : Node_Id;
-      Warning : Boolean;
+      Warn    : Boolean;
       Profile : Profile_Name := No_Profile);
    --  Sets given No_Use_Of_Entity restriction in table if not there already.
    --  Warn is True if from Restriction_Warnings, or for Restrictions if the
@@ -504,8 +514,8 @@ package Restrict is
    --  the entity (to optimize table searches).
 
    procedure Set_Restriction_No_Use_Of_Pragma
-     (N       : Node_Id;
-      Warning : Boolean);
+     (N    : Node_Id;
+      Warn : Boolean);
    --  N is the node id for the identifier in a pragma Restrictions for
    --  No_Use_Of_Pragma. Caller has verified that this is a valid pragma id.
 
@@ -516,6 +526,10 @@ package Restrict is
    pragma Inline (Tasking_Allowed);
    --  Tests if tasking operations are allowed by the current restrictions
    --  settings. For tasking to be allowed Max_Tasks must be non-zero.
+
+   function Global_No_Tasking return Boolean;
+   --  Returns True if the restriction No_Tasking is set in the run-time
+   --  package System or in a configuration pragmas file.
 
    ----------------------------------------------
    -- Handling of Boolean Compilation Switches --

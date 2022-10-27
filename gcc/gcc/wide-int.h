@@ -1,5 +1,5 @@
 /* Operations with very long integers.  -*- C++ -*-
-   Copyright (C) 2012-2019 Free Software Foundation, Inc.
+   Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -329,7 +329,7 @@ typedef generic_wide_int < fixed_wide_int_storage <WIDE_INT_MAX_PRECISION * 2> >
 /* wi::storage_ref can be a reference to a primitive type,
    so this is the conservatively-correct setting.  */
 template <bool SE, bool HDP = true>
-struct wide_int_ref_storage;
+class wide_int_ref_storage;
 
 typedef generic_wide_int <wide_int_ref_storage <false> > wide_int_ref;
 
@@ -642,8 +642,9 @@ namespace wi
 {
   /* Contains the components of a decomposed integer for easy, direct
      access.  */
-  struct storage_ref
+  class storage_ref
   {
+  public:
     storage_ref () {}
     storage_ref (const HOST_WIDE_INT *, unsigned int, unsigned int);
 
@@ -729,6 +730,7 @@ public:
   /* Public accessors for the interior of a wide int.  */
   HOST_WIDE_INT sign_mask () const;
   HOST_WIDE_INT elt (unsigned int) const;
+  HOST_WIDE_INT sext_elt (unsigned int) const;
   unsigned HOST_WIDE_INT ulow () const;
   unsigned HOST_WIDE_INT uhigh () const;
   HOST_WIDE_INT slow () const;
@@ -850,6 +852,8 @@ inline HOST_WIDE_INT
 generic_wide_int <storage>::sign_mask () const
 {
   unsigned int len = this->get_len ();
+  gcc_assert (len > 0);
+
   unsigned HOST_WIDE_INT high = this->get_val ()[len - 1];
   if (!is_sign_extended)
     {
@@ -906,6 +910,23 @@ generic_wide_int <storage>::elt (unsigned int i) const
     return sign_mask ();
   else
     return this->get_val ()[i];
+}
+
+/* Like elt, but sign-extend beyond the upper bit, instead of returning
+   the raw encoding.  */
+template <typename storage>
+inline HOST_WIDE_INT
+generic_wide_int <storage>::sext_elt (unsigned int i) const
+{
+  HOST_WIDE_INT elt_i = elt (i);
+  if (!is_sign_extended)
+    {
+      unsigned int precision = this->get_precision ();
+      unsigned int lsb = i * HOST_BITS_PER_WIDE_INT;
+      if (precision - lsb < HOST_BITS_PER_WIDE_INT)
+	elt_i = sext_hwi (elt_i, precision - lsb);
+    }
+  return elt_i;
 }
 
 template <typename storage>
@@ -968,7 +989,7 @@ decompose (HOST_WIDE_INT *, unsigned int precision,
    wide_int, with the optimization that VAL is normally a pointer to
    another integer's storage, so that no array copy is needed.  */
 template <bool SE, bool HDP>
-struct wide_int_ref_storage : public wi::storage_ref
+class wide_int_ref_storage : public wi::storage_ref
 {
 private:
   /* Scratch space that can be used when decomposing the original integer.
@@ -1357,7 +1378,7 @@ namespace wi
    bytes beyond the sizeof need to be allocated.  Use set_precision
    to initialize the structure.  */
 template <int N>
-class GTY((user)) trailing_wide_ints
+struct GTY((user)) trailing_wide_ints
 {
 private:
   /* The shared precision of each number.  */
@@ -1366,8 +1387,10 @@ private:
   /* The shared maximum length of each number.  */
   unsigned char m_max_len;
 
-  /* The current length of each number.  */
-  unsigned char m_len[N];
+  /* The current length of each number.
+     Avoid char array so the whole structure is not a typeless storage
+     that will, in turn, turn off TBAA on gimple, trees and RTL.  */
+  struct {unsigned char len;} m_len[N];
 
   /* The variable-length part of the structure, which always contains
      at least one HWI.  Element I starts at index I * M_MAX_LEN.  */
@@ -1449,7 +1472,7 @@ template <int N>
 inline trailing_wide_int
 trailing_wide_ints <N>::operator [] (unsigned int index)
 {
-  return trailing_wide_int_storage (m_precision, &m_len[index],
+  return trailing_wide_int_storage (m_precision, &m_len[index].len,
 				    &m_val[index * m_max_len]);
 }
 
@@ -1458,7 +1481,7 @@ inline typename trailing_wide_ints <N>::const_reference
 trailing_wide_ints <N>::operator [] (unsigned int index) const
 {
   return wi::storage_ref (&m_val[index * m_max_len],
-			  m_len[index], m_precision);
+			  m_len[index].len, m_precision);
 }
 
 /* Return how many extra bytes need to be added to the end of the structure
@@ -1554,8 +1577,9 @@ namespace wi
 {
   /* Stores HWI-sized integer VAL, treating it as having signedness SGN
      and precision PRECISION.  */
-  struct hwi_with_prec
+  class hwi_with_prec
   {
+  public:
     hwi_with_prec () {}
     hwi_with_prec (HOST_WIDE_INT, unsigned int, signop);
     HOST_WIDE_INT val;
@@ -3032,8 +3056,7 @@ wi::lshift (const T1 &x, const T2 &y)
       if (STATIC_CONSTANT_P (xi.precision > HOST_BITS_PER_WIDE_INT)
 	  ? (STATIC_CONSTANT_P (shift < HOST_BITS_PER_WIDE_INT - 1)
 	     && xi.len == 1
-	     && xi.val[0] <= (HOST_WIDE_INT) ((unsigned HOST_WIDE_INT)
-					      HOST_WIDE_INT_MAX >> shift))
+	     && IN_RANGE (xi.val[0], 0, HOST_WIDE_INT_MAX >> shift))
 	  : precision <= HOST_BITS_PER_WIDE_INT)
 	{
 	  val[0] = xi.ulow () << shift;
@@ -3315,7 +3338,7 @@ gt_pch_nx (generic_wide_int <T> *)
 
 template<typename T>
 void
-gt_pch_nx (generic_wide_int <T> *, void (*) (void *, void *), void *)
+gt_pch_nx (generic_wide_int <T> *, gt_pointer_operator, void *)
 {
 }
 
@@ -3333,7 +3356,7 @@ gt_pch_nx (trailing_wide_ints <N> *)
 
 template<int N>
 void
-gt_pch_nx (trailing_wide_ints <N> *, void (*) (void *, void *), void *)
+gt_pch_nx (trailing_wide_ints <N> *, gt_pointer_operator, void *)
 {
 }
 
@@ -3367,6 +3390,8 @@ namespace wi
 		   unsigned int);
   wide_int round_down_for_mask (const wide_int &, const wide_int &);
   wide_int round_up_for_mask (const wide_int &, const wide_int &);
+
+  wide_int mod_inv (const wide_int &a, const wide_int &b);
 
   template <typename T>
   T mask (unsigned int, bool);

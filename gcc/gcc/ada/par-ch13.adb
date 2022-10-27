@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,6 +23,8 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Rident;    use Rident;
+with Restrict; use Restrict;
 pragma Style_Checks (All_Checks);
 --  Turn off subprogram body ordering check. Subprograms are in order
 --  by RM section rather than alphabetical
@@ -45,27 +47,9 @@ package body Ch13 is
       Scan_State : Saved_Scan_State;
       Result     : Boolean;
 
-      function Possible_Misspelled_Aspect return Boolean;
-      --  Returns True, if Token_Name is a misspelling of some aspect name
-
       function With_Present return Boolean;
       --  Returns True if WITH is present, indicating presence of aspect
       --  specifications. Also allows incorrect use of WHEN in place of WITH.
-
-      --------------------------------
-      -- Possible_Misspelled_Aspect --
-      --------------------------------
-
-      function Possible_Misspelled_Aspect return Boolean is
-      begin
-         for J in Aspect_Id_Exclude_No_Aspect loop
-            if Is_Bad_Spelling_Of (Token_Name, Aspect_Names (J)) then
-               return True;
-            end if;
-         end loop;
-
-         return False;
-      end Possible_Misspelled_Aspect;
 
       ------------------
       -- With_Present --
@@ -87,7 +71,7 @@ package body Ch13 is
                Scan; -- past WHEN
 
                if Token = Tok_Identifier
-                 and then Get_Aspect_Id (Token_Name) /= No_Aspect
+                 and then Is_Aspect_Id (Token_Name)
                then
                   Error_Msg_SC ("WHEN should be WITH");
                   Restore_Scan_State (Scan_State);
@@ -147,15 +131,14 @@ package body Ch13 is
       --  specification is ill-formed.
 
       elsif not Strict then
-         if Get_Aspect_Id (Token_Name) /= No_Aspect
-           or else Possible_Misspelled_Aspect
+         if Is_Aspect_Id (Token_Name)
+           or else Aspect_Spell_Check (Token_Name)
          then
             Result := True;
          else
             Scan; -- past identifier
-            Result := Token = Tok_Arrow or else
-                      Token = Tok_Comma or else
-                      Token = Tok_Semicolon;
+            Result := Token in
+              Tok_Arrow | Tok_Comma | Tok_Is | Tok_Semicolon | Tok_Right_Paren;
          end if;
 
       --  If earlier than Ada 2012, check for valid aspect identifier (possibly
@@ -163,7 +146,7 @@ package body Ch13 is
       --  is still an aspect specification so we give an appropriate message.
 
       else
-         if Get_Aspect_Id (Token_Name) = No_Aspect then
+         if not Is_Aspect_Id (Token_Name) then
             Result := False;
 
          else
@@ -178,7 +161,7 @@ package body Ch13 is
             --  defaulted True value. Further checks when analyzing aspect
             --  specification, which may include further aspects.
 
-            elsif Token = Tok_Comma or else Token = Tok_Semicolon then
+            elsif Token in Tok_Comma | Tok_Semicolon then
                Result := True;
 
             elsif Token = Tok_Apostrophe then
@@ -265,19 +248,17 @@ package body Ch13 is
          --  The aspect mark is not recognized
 
          if A_Id = No_Aspect then
-            Error_Msg_N ("& is not a valid aspect identifier", Token_Node);
-            OK := False;
+            declare
+               Msg_Issued : Boolean := False;
+            begin
+               Check_Restriction (Msg_Issued, No_Unrecognized_Aspects, Aspect);
+               if not Msg_Issued then
+                  Bad_Aspect (Token_Node, Token_Name, not Debug_Flag_2);
 
-            --  Check bad spelling
+                  OK := False;
 
-            for J in Aspect_Id_Exclude_No_Aspect loop
-               if Is_Bad_Spelling_Of (Token_Name, Aspect_Names (J)) then
-                  Error_Msg_Name_1 := Aspect_Names (J);
-                  Error_Msg_N -- CODEFIX
-                    ("\possible misspelling of%", Token_Node);
-                  exit;
                end if;
-            end loop;
+            end;
 
             Scan; -- past incorrect identifier
 
@@ -446,7 +427,7 @@ package body Ch13 is
                            --         Aspect => ...
 
                            if Token = Tok_Identifier
-                             and then Get_Aspect_Id (Token_Name) /= No_Aspect
+                             and then Is_Aspect_Id (Token_Name)
                            then
                               Restore_Scan_State (Scan_State);
 
@@ -528,7 +509,15 @@ package body Ch13 is
                   Inside_Depends := True;
                end if;
 
-               --  Parse the aspect definition depening on the expected
+               --  Note that we have seen an Import aspect specification.
+               --  This matters only while parsing a subprogram.
+
+               if A_Id = Aspect_Import then
+                  SIS_Aspect_Import_Seen := True;
+                  --  Should do it only for subprograms
+               end if;
+
+               --  Parse the aspect definition depending on the expected
                --  argument kind.
 
                if Aspect_Argument (A_Id) = Name
@@ -570,7 +559,7 @@ package body Ch13 is
          --  and proceed to the next aspect.
 
          elsif Token = Tok_Identifier
-           and then Get_Aspect_Id (Token_Name) /= No_Aspect
+           and then Is_Aspect_Id (Token_Name)
          then
             declare
                Scan_State : Saved_Scan_State;
@@ -608,7 +597,7 @@ package body Ch13 is
                Scan; -- past semicolon
 
                if Token = Tok_Identifier
-                 and then Get_Aspect_Id (Token_Name) /= No_Aspect
+                 and then Is_Aspect_Id (Token_Name)
                then
                   Scan; -- past identifier
 
@@ -826,9 +815,9 @@ package body Ch13 is
             Set_Identifier (Rep_Clause_Node, Identifier_Node);
 
             Push_Scope_Stack;
-            Scope.Table (Scope.Last).Etyp := E_Record;
-            Scope.Table (Scope.Last).Ecol := Start_Column;
-            Scope.Table (Scope.Last).Sloc := Token_Ptr;
+            Scopes (Scope.Last).Etyp := E_Record;
+            Scopes (Scope.Last).Ecol := Start_Column;
+            Scopes (Scope.Last).Sloc := Token_Ptr;
             Scan; -- past RECORD
             Record_Items := P_Pragmas_Opt;
 
@@ -948,7 +937,9 @@ package body Ch13 is
 
          --  If Decl is Error, we ignore the aspects, and issue a message
 
-         elsif Decl = Error then
+         elsif Decl = Error
+           or else not Permits_Aspect_Specifications (Decl)
+         then
             Error_Msg ("aspect specifications not allowed here", Ptr);
 
          --  Here aspects are allowed, and we store them

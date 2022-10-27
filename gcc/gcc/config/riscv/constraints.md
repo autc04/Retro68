@@ -1,5 +1,5 @@
 ;; Constraint definitions for RISC-V target.
-;; Copyright (C) 2011-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2022 Free Software Foundation, Inc.
 ;; Contributed by Andrew Waterman (andrew@sifive.com).
 ;; Based on MIPS target for GNU compiler.
 ;;
@@ -49,6 +49,11 @@
   (and (match_code "const_int")
        (match_test "IN_RANGE (ival, 0, 31)")))
 
+(define_constraint "L"
+  "A U-type 20-bit signed immediate."
+  (and (match_code "const_int")
+       (match_test "LUI_OPERAND (ival)")))
+
 ;; Floating-point constant +0.0, used for FCVT-based moves when FMV is
 ;; not available in RV32.
 (define_constraint "G"
@@ -62,8 +67,7 @@
        (match_test "GET_CODE(XEXP(op,0)) == REG")))
 
 (define_constraint "S"
-  "@internal
-   A constant call address."
+  "A constraint that matches an absolute symbolic address."
   (match_operand 0 "absolute_symbolic_operand"))
 
 (define_constraint "U"

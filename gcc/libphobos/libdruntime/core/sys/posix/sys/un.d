@@ -25,6 +25,7 @@ else version (WatchOS)
 
 version (Posix):
 extern(C):
+@system:
 
 public import core.sys.posix.sys.socket: sa_family_t;
 
@@ -70,6 +71,15 @@ else version (FreeBSD)
     }
 }
 else version (NetBSD)
+{
+    struct sockaddr_un
+    {
+        ubyte       sun_len;
+        sa_family_t sun_family;
+        byte[104]   sun_path;
+    }
+}
+else version (OpenBSD)
 {
     struct sockaddr_un
     {

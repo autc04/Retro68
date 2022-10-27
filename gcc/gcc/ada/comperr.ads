@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -49,6 +49,8 @@ package Comperr is
    --  explicit abort is achieved by pragma Assert (False). From_GCC is true
    --  for a GCC abort and false for a front end exception (with a possible
    --  message stored in TSD.Current_Excep).
+
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
    procedure Delete_SCIL_Files;
    --  Delete SCIL files associated with the main unit

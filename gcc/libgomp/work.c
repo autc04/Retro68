@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2019 Free Software Foundation, Inc.
+/* Copyright (C) 2005-2022 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@redhat.com>.
 
    This file is part of the GNU Offloading and Multi Processing Library
@@ -78,7 +78,7 @@ alloc_work_share (struct gomp_team *team)
   team->work_share_chunk *= 2;
   /* Allocating gomp_work_share structures aligned is just an
      optimization, don't do it when using the fallback method.  */
-#ifdef GOMP_HAVE_EFFICIENT_ALIGNED_ALLOC
+#ifdef GOMP_USE_ALIGNED_WORK_SHARES
   ws = gomp_aligned_alloc (__alignof (struct gomp_work_share),
 			   team->work_share_chunk
 			   * sizeof (struct gomp_work_share));
@@ -110,14 +110,19 @@ gomp_init_work_share (struct gomp_work_share *ws, size_t ordered,
 
       if (__builtin_expect (ordered != 1, 0))
 	{
-	  ordered += nthreads * sizeof (*ws->ordered_team_ids) - 1;
-	  ordered = ordered + __alignof__ (long long) - 1;
-	  ordered &= ~(__alignof__ (long long) - 1);
+	  size_t o = nthreads * sizeof (*ws->ordered_team_ids);
+	  o += __alignof__ (long long) - 1;
+	  if ((offsetof (struct gomp_work_share, inline_ordered_team_ids)
+	       & (__alignof__ (long long) - 1)) == 0
+	      && __alignof__ (struct gomp_work_share)
+		 >= __alignof__ (long long))
+	    o &= ~(__alignof__ (long long) - 1);
+	  ordered += o - 1;
 	}
       else
 	ordered = nthreads * sizeof (*ws->ordered_team_ids);
       if (ordered > INLINE_ORDERED_TEAM_IDS_SIZE)
-	ws->ordered_team_ids = gomp_malloc (ordered);
+	ws->ordered_team_ids = team_malloc (ordered);
       else
 	ws->ordered_team_ids = ws->inline_ordered_team_ids;
       memset (ws->ordered_team_ids, '\0', ordered);
@@ -139,7 +144,7 @@ gomp_fini_work_share (struct gomp_work_share *ws)
 {
   gomp_mutex_destroy (&ws->lock);
   if (ws->ordered_team_ids != ws->inline_ordered_team_ids)
-    free (ws->ordered_team_ids);
+    team_free (ws->ordered_team_ids);
   gomp_ptrlock_destroy (&ws->next_ws);
 }
 
@@ -188,7 +193,12 @@ gomp_work_share_start (size_t ordered)
   /* Work sharing constructs can be orphaned.  */
   if (team == NULL)
     {
+#ifdef GOMP_USE_ALIGNED_WORK_SHARES
+      ws = gomp_aligned_alloc (__alignof (struct gomp_work_share),
+			       sizeof (*ws));
+#else
       ws = gomp_malloc (sizeof (*ws));
+#endif
       gomp_init_work_share (ws, ordered, 1);
       thr->ts.work_share = ws;
       return true;

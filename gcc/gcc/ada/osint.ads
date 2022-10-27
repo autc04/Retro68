@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,11 +29,11 @@
 with Namet; use Namet;
 with Types; use Types;
 
-with System;                  use System;
+with System; use System;
 
 pragma Warnings (Off);
 --  This package is used also by gnatcoll
-with System.OS_Lib;           use System.OS_Lib;
+with System.OS_Lib; use System.OS_Lib;
 pragma Warnings (On);
 
 with System.Storage_Elements;
@@ -52,9 +52,16 @@ package Osint is
    Project_Include_Path_File : constant String := "ADA_PRJ_INCLUDE_FILE";
    Project_Objects_Path_File : constant String := "ADA_PRJ_OBJECTS_FILE";
 
+   Null_FD : constant File_Descriptor := -2;
+   --  Uninitialized file descriptor. Copied from System.OS_Lib for bootstrap
+   --  reasons.
+
    Output_FD : File_Descriptor;
    --  File descriptor for current library info, list, tree, C, H, or binder
    --  output. Only one of these is open at a time, so we need only one FD.
+
+   On_Windows : constant Boolean := Directory_Separator = '\';
+   --  True when on Windows
 
    procedure Initialize;
    --  Initialize internal tables
@@ -137,14 +144,12 @@ package Osint is
    --  path) in Name_Buffer, with the length in Name_Len.
 
    function Program_Name (Nam : String; Prog : String) return String_Access;
-   --  In the native compilation case, Create a string containing Nam. In the
+   --  In the native compilation case, creates a string containing Nam. In the
    --  cross compilation case, looks at the prefix of the current program being
-   --  run and prepend it to Nam. For instance if the program being run is
+   --  run and prepends it to Nam. For instance if the program being run is
    --  <target>-gnatmake and Nam is "gcc", the returned value will be a pointer
-   --  to "<target>-gcc". In the specific case where AAMP_On_Target is set, the
-   --  name "gcc" is mapped to "gnaamp", and names of the form "gnat*" are
-   --  mapped to "gnaamp*". This function clobbers Name_Buffer and Name_Len.
-   --  Also look at any suffix, e.g. gnatmake-4.1 -> "gcc-4.1". Prog is the
+   --  to "<target>-gcc". This function clobbers Name_Buffer and Name_Len.
+   --  Also looks at any suffix, e.g. gnatmake-4.1 -> "gcc-4.1". Prog is the
    --  default name of the current program being executed, e.g. "gnatmake",
    --  "gnatlink".
 
@@ -511,6 +516,9 @@ package Osint is
    procedure Dump_Command_Line_Source_File_Names;
    --  Prints out the names of all source files on the command-line
 
+   function Get_First_Main_File_Name return String;
+   --  Return the file name of the first main file
+
    -------------------------------------------
    -- Representation of Library Information --
    -------------------------------------------
@@ -712,9 +720,9 @@ private
    File_Names : File_Name_Array_Ptr :=
                   new File_Name_Array (1 .. Int (Argument_Count) + 2);
    --  As arguments are scanned, file names are stored in this array. The
-   --  strings do not have terminating NUL files. The array is extensible,
-   --  because when using project files, there may be more files than
-   --  arguments on the command line.
+   --  strings do not have terminating NULs. The array is extensible, because
+   --  when using project files, there may be more files than arguments on the
+   --  command line.
 
    type File_Index_Array is array (Int range <>) of Int;
    type File_Index_Array_Ptr is access File_Index_Array;
@@ -766,7 +774,7 @@ private
    procedure Write_Info (Info : String);
    --  Implements Write_Binder_Info, Write_Debug_Info, and Write_Library_Info
 
-   procedure Write_With_Check (A : Address; N  : Integer);
+   procedure Write_With_Check (A : Address; N : Integer);
    --  Writes N bytes from buffer starting at address A to file whose FD is
    --  stored in Output_FD, and whose file name is stored as a File_Name_Type
    --  in Output_File_Name. A check is made for disk full, and if this is

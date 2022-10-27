@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2019 Free Software Foundation, Inc.
+// Copyright (C) 2017-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -26,10 +26,11 @@ void
 test01()
 {
   FILE* f = std::fopen("79820.txt", "w");
-  std::fclose(f);
   errno = 127;
   __gnu_cxx::stdio_filebuf<char> b(f, std::ios::out, BUFSIZ);
   VERIFY(errno == 127); // PR libstdc++/79820
+  b.close();
+  std::fclose(f);
 }
 
 int

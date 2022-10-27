@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -51,7 +51,7 @@ package body Ada.Wide_Text_IO.Enumeration_IO is
 
    procedure Get (Item : out Enum) is
    begin
-      Get (Current_Input, Item);
+      Get (Current_In, Item);
    end Get;
 
    procedure Get
@@ -88,7 +88,7 @@ package body Ada.Wide_Text_IO.Enumeration_IO is
       Set   : Type_Set := Default_Setting)
    is
    begin
-      Put (Current_Output, Item, Width, Set);
+      Put (Current_Out, Item, Width, Set);
    end Put;
 
    procedure Put

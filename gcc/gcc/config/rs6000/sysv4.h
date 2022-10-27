@@ -1,5 +1,5 @@
 /* Target definitions for GNU compiler for PowerPC running System V.4
-   Copyright (C) 1995-2019 Free Software Foundation, Inc.
+   Copyright (C) 1995-2022 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
    This file is part of GCC.
@@ -39,9 +39,9 @@
 
 /* Override rs6000.h definition.  */
 #undef	ASM_DEFAULT_SPEC
-#define	ASM_DEFAULT_SPEC "-mppc"
+#define	ASM_DEFAULT_SPEC "-mppc%{m64:64}"
 
-#define	TARGET_TOC		(TARGET_64BIT				\
+#define	TARGET_HAS_TOC		(TARGET_64BIT				\
 				 || (TARGET_MINIMAL_TOC			\
 				     && flag_pic > 1)			\
 				 || DEFAULT_ABI != ABI_V4)
@@ -50,7 +50,6 @@
 #define	TARGET_BIG_ENDIAN	(! TARGET_LITTLE_ENDIAN)
 #define	TARGET_PROTOTYPE	target_prototype
 #define	TARGET_NO_PROTOTYPE	(! TARGET_PROTOTYPE)
-#define	TARGET_NO_TOC		(! TARGET_TOC)
 #define	TARGET_NO_EABI		(! TARGET_EABI)
 #define	TARGET_REGNAMES		rs6000_regnames
 
@@ -71,7 +70,7 @@
 
 #define SUBTARGET_OVERRIDE_OPTIONS					\
 do {									\
-  if (!global_options_set.x_g_switch_value)				\
+  if (!OPTION_SET_P (g_switch_value))				\
     g_switch_value = SDATA_DEFAULT_SIZE;				\
 									\
   if (rs6000_abi_name == NULL)						\
@@ -198,16 +197,16 @@ do {									\
     }									\
 									\
   if (TARGET_PLTSEQ != rs6000_pltseq					\
-      && global_options_set.x_rs6000_pltseq)				\
+      && OPTION_SET_P (rs6000_pltseq))				\
     {									\
       error ("%qs not supported by your assembler", "-mpltseq");	\
     }									\
 									\
   if (DEFAULT_ABI == ABI_V4 && TARGET_PLTSEQ && !TARGET_SECURE_PLT)	\
     {									\
-      if (global_options_set.x_rs6000_pltseq)				\
+      if (OPTION_SET_P (rs6000_pltseq))				\
 	{								\
-	  if (global_options_set.x_secure_plt)				\
+	  if (OPTION_SET_P (secure_plt))				\
 	    error ("%qs and %qs are incompatible",			\
 		   "-mpltseq", "-mbss-plt");				\
 	  else								\
@@ -310,7 +309,7 @@ do {									\
    in bits).  This macro must evaluate to a value equal to or larger
    than STACK_BOUNDARY.
    For the SYSV ABI and variants the alignment of the stack pointer
-   is usually controlled manually in rs6000.c. However, to maintain
+   is usually controlled manually in rs6000.cc. However, to maintain
    alignment across alloca () in all circumstances,
    PREFERRED_STACK_BOUNDARY needs to be set as well.
    This has the additional advantage of allowing a bigger maximum
@@ -326,8 +325,7 @@ do {									\
 /* An expression for the alignment of a structure field FIELD if the
    alignment computed in the usual way is COMPUTED.  */
 #define ADJUST_FIELD_ALIGN(FIELD, TYPE, COMPUTED)			      \
-	(rs6000_special_adjust_field_align_p ((TYPE), (COMPUTED))	      \
-	 ? 128 : COMPUTED)
+	(COMPUTED)
 
 #undef  BIGGEST_FIELD_ALIGNMENT
 

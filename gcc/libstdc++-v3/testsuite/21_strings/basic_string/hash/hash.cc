@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Free Software Foundation, Inc.
+// Copyright (C) 2019-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,6 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++17" }
 // { dg-do run { target c++17 } }
 
 #include <string>
@@ -41,9 +40,7 @@ test01()
   VERIFY( test(std::string("a narrow string")) );
   VERIFY( test(std::u16string(u"a utf-16 string")) );
   VERIFY( test(std::u32string(U"a utf-32 string")) );
-#if _GLIBCXX_USE_WCHAR_T
   VERIFY( test(std::wstring(L"a wide string")) );
-#endif
 }
 
 void
@@ -53,9 +50,7 @@ test02()
   VERIFY( test(std::pmr::string("a narrow string, but with PMR!")) );
   VERIFY( test(std::pmr::u16string(u"a utf-16 string, but with PMR!")) );
   VERIFY( test(std::pmr::u32string(U"a utf-32 string, but with PMR!")) );
-#if _GLIBCXX_USE_WCHAR_T
   VERIFY( test(std::pmr::wstring(L"a wide string, but with PMR!")) );
-#endif
 #endif
 }
 

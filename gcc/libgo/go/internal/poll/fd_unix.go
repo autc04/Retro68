@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd hurd js,wasm linux nacl netbsd openbsd solaris
+//go:build aix || darwin || dragonfly || freebsd || hurd || (js && wasm) || linux || netbsd || openbsd || solaris
 
 package poll
 
 import (
+	"internal/syscall/unix"
 	"io"
-	"runtime"
 	"sync/atomic"
 	"syscall"
 )
@@ -75,7 +75,14 @@ func (fd *FD) destroy() error {
 	// Poller may want to unregister fd in readiness notification mechanism,
 	// so this must be executed before CloseFunc.
 	fd.pd.close()
+
+	// We don't use ignoringEINTR here because POSIX does not define
+	// whether the descriptor is closed if close returns EINTR.
+	// If the descriptor is indeed closed, using a loop would race
+	// with some other goroutine opening a new descriptor.
+	// (The Linux kernel guarantees that it is closed on an EINTR error.)
 	err := CloseFunc(fd.Sysfd)
+
 	fd.Sysfd = -1
 	runtime_Semrelease(&fd.csema)
 	return err
@@ -110,15 +117,6 @@ func (fd *FD) Close() error {
 	}
 
 	return err
-}
-
-// Shutdown wraps the shutdown network call.
-func (fd *FD) Shutdown(how int) error {
-	if err := fd.incref(); err != nil {
-		return err
-	}
-	defer fd.decref()
-	return syscall.Shutdown(fd.Sysfd, how)
 }
 
 // SetBlocking puts the file into blocking mode.
@@ -162,19 +160,13 @@ func (fd *FD) Read(p []byte) (int, error) {
 		p = p[:maxRW]
 	}
 	for {
-		n, err := syscall.Read(fd.Sysfd, p)
+		n, err := ignoringEINTRIO(syscall.Read, fd.Sysfd, p)
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN && fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
 					continue
 				}
-			}
-
-			// On MacOS we can see EINTR here if the user
-			// pressed ^Z.  See issue #22838.
-			if runtime.GOOS == "darwin" && err == syscall.EINTR {
-				continue
 			}
 		}
 		err = fd.eofError(n, err)
@@ -193,7 +185,16 @@ func (fd *FD) Pread(p []byte, off int64) (int, error) {
 	if fd.IsStream && len(p) > maxRW {
 		p = p[:maxRW]
 	}
-	n, err := syscall.Pread(fd.Sysfd, p, off)
+	var (
+		n   int
+		err error
+	)
+	for {
+		n, err = syscall.Pread(fd.Sysfd, p, off)
+		if err != syscall.EINTR {
+			break
+		}
+	}
 	if err != nil {
 		n = 0
 	}
@@ -214,6 +215,9 @@ func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
 	for {
 		n, sa, err := syscall.Recvfrom(fd.Sysfd, p, 0)
 		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
 			n = 0
 			if err == syscall.EAGAIN && fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
@@ -226,8 +230,62 @@ func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
 	}
 }
 
+// ReadFromInet4 wraps the recvfrom network call for IPv4.
+func (fd *FD) ReadFromInet4(p []byte, from *syscall.SockaddrInet4) (int, error) {
+	if err := fd.readLock(); err != nil {
+		return 0, err
+	}
+	defer fd.readUnlock()
+	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+		return 0, err
+	}
+	for {
+		n, err := unix.RecvfromInet4(fd.Sysfd, p, 0, from)
+		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
+			n = 0
+			if err == syscall.EAGAIN && fd.pd.pollable() {
+				if err = fd.pd.waitRead(fd.isFile); err == nil {
+					continue
+				}
+			}
+		}
+		err = fd.eofError(n, err)
+		return n, err
+	}
+}
+
+// ReadFromInet6 wraps the recvfrom network call for IPv6.
+func (fd *FD) ReadFromInet6(p []byte, from *syscall.SockaddrInet6) (int, error) {
+	if err := fd.readLock(); err != nil {
+		return 0, err
+	}
+	defer fd.readUnlock()
+	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+		return 0, err
+	}
+	for {
+		n, err := unix.RecvfromInet6(fd.Sysfd, p, 0, from)
+		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
+			n = 0
+			if err == syscall.EAGAIN && fd.pd.pollable() {
+				if err = fd.pd.waitRead(fd.isFile); err == nil {
+					continue
+				}
+			}
+		}
+		err = fd.eofError(n, err)
+		return n, err
+	}
+}
+
 // ReadMsg wraps the recvmsg network call.
-func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, error) {
+func (fd *FD) ReadMsg(p []byte, oob []byte, flags int) (int, int, int, syscall.Sockaddr, error) {
 	if err := fd.readLock(); err != nil {
 		return 0, 0, 0, nil, err
 	}
@@ -236,8 +294,11 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
 		return 0, 0, 0, nil, err
 	}
 	for {
-		n, oobn, flags, sa, err := syscall.Recvmsg(fd.Sysfd, p, oob, 0)
+		n, oobn, sysflags, sa, err := syscall.Recvmsg(fd.Sysfd, p, oob, flags)
 		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
 			// TODO(dfc) should n and oobn be set to 0
 			if err == syscall.EAGAIN && fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
@@ -246,7 +307,61 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
 			}
 		}
 		err = fd.eofError(n, err)
-		return n, oobn, flags, sa, err
+		return n, oobn, sysflags, sa, err
+	}
+}
+
+// ReadMsgInet4 is ReadMsg, but specialized for syscall.SockaddrInet4.
+func (fd *FD) ReadMsgInet4(p []byte, oob []byte, flags int, sa4 *syscall.SockaddrInet4) (int, int, int, error) {
+	if err := fd.readLock(); err != nil {
+		return 0, 0, 0, err
+	}
+	defer fd.readUnlock()
+	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+		return 0, 0, 0, err
+	}
+	for {
+		n, oobn, sysflags, err := unix.RecvmsgInet4(fd.Sysfd, p, oob, flags, sa4)
+		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
+			// TODO(dfc) should n and oobn be set to 0
+			if err == syscall.EAGAIN && fd.pd.pollable() {
+				if err = fd.pd.waitRead(fd.isFile); err == nil {
+					continue
+				}
+			}
+		}
+		err = fd.eofError(n, err)
+		return n, oobn, sysflags, err
+	}
+}
+
+// ReadMsgInet6 is ReadMsg, but specialized for syscall.SockaddrInet6.
+func (fd *FD) ReadMsgInet6(p []byte, oob []byte, flags int, sa6 *syscall.SockaddrInet6) (int, int, int, error) {
+	if err := fd.readLock(); err != nil {
+		return 0, 0, 0, err
+	}
+	defer fd.readUnlock()
+	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+		return 0, 0, 0, err
+	}
+	for {
+		n, oobn, sysflags, err := unix.RecvmsgInet6(fd.Sysfd, p, oob, flags, sa6)
+		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
+			// TODO(dfc) should n and oobn be set to 0
+			if err == syscall.EAGAIN && fd.pd.pollable() {
+				if err = fd.pd.waitRead(fd.isFile); err == nil {
+					continue
+				}
+			}
+		}
+		err = fd.eofError(n, err)
+		return n, oobn, sysflags, err
 	}
 }
 
@@ -265,7 +380,7 @@ func (fd *FD) Write(p []byte) (int, error) {
 		if fd.IsStream && max-nn > maxRW {
 			max = nn + maxRW
 		}
-		n, err := syscall.Write(fd.Sysfd, p[nn:max])
+		n, err := ignoringEINTRIO(syscall.Write, fd.Sysfd, p[nn:max])
 		if n > 0 {
 			nn += n
 		}
@@ -302,6 +417,9 @@ func (fd *FD) Pwrite(p []byte, off int64) (int, error) {
 			max = nn + maxRW
 		}
 		n, err := syscall.Pwrite(fd.Sysfd, p[nn:max], off+int64(nn))
+		if err == syscall.EINTR {
+			continue
+		}
 		if n > 0 {
 			nn += n
 		}
@@ -317,6 +435,58 @@ func (fd *FD) Pwrite(p []byte, off int64) (int, error) {
 	}
 }
 
+// WriteToInet4 wraps the sendto network call for IPv4 addresses.
+func (fd *FD) WriteToInet4(p []byte, sa *syscall.SockaddrInet4) (int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+		return 0, err
+	}
+	for {
+		err := unix.SendtoInet4(fd.Sysfd, p, 0, sa)
+		if err == syscall.EINTR {
+			continue
+		}
+		if err == syscall.EAGAIN && fd.pd.pollable() {
+			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+				continue
+			}
+		}
+		if err != nil {
+			return 0, err
+		}
+		return len(p), nil
+	}
+}
+
+// WriteToInet6 wraps the sendto network call for IPv6 addresses.
+func (fd *FD) WriteToInet6(p []byte, sa *syscall.SockaddrInet6) (int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+		return 0, err
+	}
+	for {
+		err := unix.SendtoInet6(fd.Sysfd, p, 0, sa)
+		if err == syscall.EINTR {
+			continue
+		}
+		if err == syscall.EAGAIN && fd.pd.pollable() {
+			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+				continue
+			}
+		}
+		if err != nil {
+			return 0, err
+		}
+		return len(p), nil
+	}
+}
+
 // WriteTo wraps the sendto network call.
 func (fd *FD) WriteTo(p []byte, sa syscall.Sockaddr) (int, error) {
 	if err := fd.writeLock(); err != nil {
@@ -328,6 +498,9 @@ func (fd *FD) WriteTo(p []byte, sa syscall.Sockaddr) (int, error) {
 	}
 	for {
 		err := syscall.Sendto(fd.Sysfd, p, 0, sa)
+		if err == syscall.EINTR {
+			continue
+		}
 		if err == syscall.EAGAIN && fd.pd.pollable() {
 			if err = fd.pd.waitWrite(fd.isFile); err == nil {
 				continue
@@ -351,6 +524,61 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 	}
 	for {
 		n, err := syscall.SendmsgN(fd.Sysfd, p, oob, sa, 0)
+		if err == syscall.EINTR {
+			continue
+		}
+		if err == syscall.EAGAIN && fd.pd.pollable() {
+			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+				continue
+			}
+		}
+		if err != nil {
+			return n, 0, err
+		}
+		return n, len(oob), err
+	}
+}
+
+// WriteMsgInet4 is WriteMsg specialized for syscall.SockaddrInet4.
+func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (int, int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, 0, err
+	}
+	defer fd.writeUnlock()
+	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+		return 0, 0, err
+	}
+	for {
+		n, err := unix.SendmsgNInet4(fd.Sysfd, p, oob, sa, 0)
+		if err == syscall.EINTR {
+			continue
+		}
+		if err == syscall.EAGAIN && fd.pd.pollable() {
+			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+				continue
+			}
+		}
+		if err != nil {
+			return n, 0, err
+		}
+		return n, len(oob), err
+	}
+}
+
+// WriteMsgInet6 is WriteMsg specialized for syscall.SockaddrInet6.
+func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (int, int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, 0, err
+	}
+	defer fd.writeUnlock()
+	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+		return 0, 0, err
+	}
+	for {
+		n, err := unix.SendmsgNInet6(fd.Sysfd, p, oob, sa, 0)
+		if err == syscall.EINTR {
+			continue
+		}
 		if err == syscall.EAGAIN && fd.pd.pollable() {
 			if err = fd.pd.waitWrite(fd.isFile); err == nil {
 				continue
@@ -379,6 +607,8 @@ func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
 			return s, rsa, "", err
 		}
 		switch err {
+		case syscall.EINTR:
+			continue
 		case syscall.EAGAIN:
 			if fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
@@ -413,7 +643,7 @@ func (fd *FD) ReadDirent(buf []byte) (int, error) {
 	}
 	defer fd.decref()
 	for {
-		n, err := syscall.ReadDirent(fd.Sysfd, buf)
+		n, err := ignoringEINTRIO(syscall.ReadDirent, fd.Sysfd, buf)
 		if err != nil {
 			n = 0
 			if err == syscall.EAGAIN && fd.pd.pollable() {
@@ -425,6 +655,17 @@ func (fd *FD) ReadDirent(buf []byte) (int, error) {
 		// Do not call eofError; caller does not expect to see io.EOF.
 		return n, err
 	}
+}
+
+// Fchmod wraps syscall.Fchmod.
+func (fd *FD) Fchmod(mode uint32) error {
+	if err := fd.incref(); err != nil {
+		return err
+	}
+	defer fd.decref()
+	return ignoringEINTR(func() error {
+		return syscall.Fchmod(fd.Sysfd, mode)
+	})
 }
 
 // Fchdir wraps syscall.Fchdir.
@@ -442,7 +683,9 @@ func (fd *FD) Fstat(s *syscall.Stat_t) error {
 		return err
 	}
 	defer fd.decref()
-	return syscall.Fstat(fd.Sysfd, s)
+	return ignoringEINTR(func() error {
+		return syscall.Fstat(fd.Sysfd, s)
+	})
 }
 
 // tryDupCloexec indicates whether F_DUPFD_CLOEXEC should be used.
@@ -451,7 +694,7 @@ var tryDupCloexec = int32(1)
 
 // DupCloseOnExec dups fd and marks it close-on-exec.
 func DupCloseOnExec(fd int) (int, string, error) {
-	if atomic.LoadInt32(&tryDupCloexec) == 1 {
+	if syscall.F_DUPFD_CLOEXEC != 0 && atomic.LoadInt32(&tryDupCloexec) == 1 {
 		r0, e1 := fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0)
 		if e1 == nil {
 			return r0, "", nil
@@ -469,7 +712,7 @@ func DupCloseOnExec(fd int) (int, string, error) {
 	return dupCloseOnExecOld(fd)
 }
 
-// dupCloseOnExecUnixOld is the traditional way to dup an fd and
+// dupCloseOnExecOld is the traditional way to dup an fd and
 // set its O_CLOEXEC bit, using two system calls.
 func dupCloseOnExecOld(fd int) (int, string, error) {
 	syscall.ForkLock.RLock()
@@ -504,18 +747,7 @@ func (fd *FD) WriteOnce(p []byte) (int, error) {
 		return 0, err
 	}
 	defer fd.writeUnlock()
-	return syscall.Write(fd.Sysfd, p)
-}
-
-// RawControl invokes the user-defined function f for a non-IO
-// operation.
-func (fd *FD) RawControl(f func(uintptr)) error {
-	if err := fd.incref(); err != nil {
-		return err
-	}
-	defer fd.decref()
-	f(uintptr(fd.Sysfd))
-	return nil
+	return ignoringEINTRIO(syscall.Write, fd.Sysfd, p)
 }
 
 // RawRead invokes the user-defined function f for a read operation.
@@ -552,6 +784,16 @@ func (fd *FD) RawWrite(f func(uintptr) bool) error {
 		}
 		if err := fd.pd.waitWrite(fd.isFile); err != nil {
 			return err
+		}
+	}
+}
+
+// ignoringEINTRIO is like ignoringEINTR, but just for IO calls.
+func ignoringEINTRIO(fn func(fd int, p []byte) (int, error), fd int, p []byte) (int, error) {
+	for {
+		n, err := fn(fd, p)
+		if err != syscall.EINTR {
+			return n, err
 		}
 	}
 }

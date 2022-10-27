@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -149,6 +149,18 @@ package Ada.Wide_Text_IO.Generic_Aux is
       Ptr    : in out Integer);
    --  Same as above, but no indication if character is loaded
 
+   procedure Load_Integer
+     (File : File_Type;
+      Buf  : out String;
+      Ptr  : in out Natural);
+   --  Loads a possibly signed integer literal value
+
+   procedure Load_Real
+     (File : File_Type;
+      Buf  : out String;
+      Ptr  : in out Natural);
+   --  Loads a possibly signed real literal value
+
    procedure Put_Item (File : File_Type; Str : String);
    --  This routine is like Wide_Text_IO.Put, except that it checks for
    --  overflow of bounded lines, as described in (RM A.10.6(8)). It is used
@@ -169,7 +181,7 @@ package Ada.Wide_Text_IO.Generic_Aux is
    procedure String_Skip (Str : String; Ptr : out Integer);
    --  Used in the Get from string procedures to skip leading blanks in the
    --  string. Ptr is set to the index of the first non-blank. If the string
-   --  is all blanks, then the excption End_Error is raised, Note that blank
+   --  is all blanks, then the exception End_Error is raised, Note that blank
    --  is defined as a space or horizontal tab (RM A.10.6(5)).
 
    procedure Ungetc (ch : Integer; File : File_Type);

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -48,7 +48,7 @@ package body System.Img_Char is
         range Character'Val (16#00#) .. Character'Val (16#1F#);
 
       C0 : constant array (C0_Range) of Cname :=
-              (Character'Val (16#00#) => "NUL",
+              [Character'Val (16#00#) => "NUL",
                Character'Val (16#01#) => "SOH",
                Character'Val (16#02#) => "STX",
                Character'Val (16#03#) => "ETX",
@@ -79,13 +79,13 @@ package body System.Img_Char is
                Character'Val (16#1C#) => "FS ",
                Character'Val (16#1D#) => "GS ",
                Character'Val (16#1E#) => "RS ",
-               Character'Val (16#1F#) => "US ");
+               Character'Val (16#1F#) => "US "];
 
       subtype C1_Range is Character
         range Character'Val (16#7F#) .. Character'Val (16#9F#);
 
       C1 : constant array (C1_Range) of Cname :=
-              (Character'Val (16#7F#) => "DEL",
+              [Character'Val (16#7F#) => "DEL",
                Character'Val (16#80#) => "res",
                Character'Val (16#81#) => "res",
                Character'Val (16#82#) => "BPH",
@@ -117,7 +117,7 @@ package body System.Img_Char is
                Character'Val (16#9C#) => "ST ",
                Character'Val (16#9D#) => "OSC",
                Character'Val (16#9E#) => "PM ",
-               Character'Val (16#9F#) => "APC");
+               Character'Val (16#9F#) => "APC"];
 
    begin
       --  Control characters are represented by their names (RM 3.5(32))
@@ -140,8 +140,12 @@ package body System.Img_Char is
             declare
                VP : constant Natural := Character'Pos (V);
             begin
-               S (1 .. 9) := "RESERVED_";
-               S (10) := Character'Val (48 + VP / 100);
+               pragma Assert (S'First = 1 and S'Last >= 12);
+               --  As described in the header description, this procedure
+               --  doesn't check the size of the string provided by the caller
+               --  and suppose S'First is 1.
+               S (1 .. 10) := "RESERVED_1";
+               --  Since C1_Range is 127..159, the first character is always 1
                S (11) := Character'Val (48 + (VP / 10) mod 10);
                S (12) := Character'Val (48 + VP mod 10);
                P := 12;

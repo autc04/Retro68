@@ -1,5 +1,5 @@
 ;; ARM 1026EJ-S Pipeline Description
-;; Copyright (C) 2003-2019 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2022 Free Software Foundation, Inc.
 ;; Written by CodeSourcery, LLC.
 ;;
 ;; This file is part of GCC.
@@ -72,13 +72,13 @@
                        adr,bfm,rev,\
                        shift_imm,shift_reg,\
                        mov_imm,mov_reg,mvn_imm,mvn_reg,\
-                       multiple,no_insn"))
+                       multiple"))
  "a_e,a_m,a_w")
 
 ;; ALU operations with a shift-by-constant operand
 (define_insn_reservation "alu_shift_op" 1 
  (and (eq_attr "tune" "arm1026ejs")
-      (eq_attr "type" "alu_shift_imm,alus_shift_imm,\
+      (eq_attr "type" "alu_shift_imm_lsl_1to4,alu_shift_imm_other,alus_shift_imm,\
                        logic_shift_imm,logics_shift_imm,\
                        extend,mov_shift,mvn_shift"))
  "a_e,a_m,a_w")

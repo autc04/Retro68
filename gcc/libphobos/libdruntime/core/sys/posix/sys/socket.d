@@ -14,7 +14,7 @@
  */
 module core.sys.posix.sys.socket;
 
-private import core.sys.posix.config;
+import core.sys.posix.config;
 public import core.sys.posix.sys.types; // for ssize_t
 public import core.sys.posix.sys.uio;   // for iovec
 
@@ -45,6 +45,7 @@ version (X86_64)  version = X86_Any;
 
 version (Posix):
 extern (C) nothrow @nogc:
+@system:
 
 //
 // Required
@@ -136,31 +137,10 @@ AF_UNSPEC
 SHUT_RD
 SHUT_RDWR
 SHUT_WR
-
-int     accept(int, sockaddr*, socklen_t*);
-int     bind(int, in sockaddr*, socklen_t);
-int     connect(int, in sockaddr*, socklen_t);
-int     getpeername(int, sockaddr*, socklen_t*);
-int     getsockname(int, sockaddr*, socklen_t*);
-int     getsockopt(int, int, int, void*, socklen_t*);
-int     listen(int, int);
-ssize_t recv(int, void*, size_t, int);
-ssize_t recvfrom(int, void*, size_t, int, sockaddr*, socklen_t*);
-ssize_t recvmsg(int, msghdr*, int);
-ssize_t send(int, in void*, size_t, int);
-ssize_t sendmsg(int, in msghdr*, int);
-ssize_t sendto(int, in void*, size_t, int, in sockaddr*, socklen_t);
-int     setsockopt(int, int, int, in void*, socklen_t);
-int     shutdown(int, int);
-int     socket(int, int, int);
-int     sockatmark(int);
-int     socketpair(int, int, int, ref int[2]);
 */
 
-version (CRuntime_Glibc)
+version (linux)
 {
-    // Some of the constants below and from the Bionic section are really from
-    // the linux kernel headers.
     alias uint   socklen_t;
     alias ushort sa_family_t;
 
@@ -173,14 +153,14 @@ version (CRuntime_Glibc)
     private enum : size_t
     {
         _SS_SIZE    = 128,
-        _SS_PADSIZE = _SS_SIZE - (c_ulong.sizeof * 2)
+        _SS_PADSIZE = _SS_SIZE - c_ulong.sizeof - sa_family_t.sizeof
     }
 
     struct sockaddr_storage
     {
         sa_family_t ss_family;
-        c_ulong     __ss_align;
         byte[_SS_PADSIZE] __ss_padding;
+        c_ulong     __ss_align;
     }
 
     struct msghdr
@@ -199,10 +179,6 @@ version (CRuntime_Glibc)
         size_t cmsg_len;
         int    cmsg_level;
         int    cmsg_type;
-        static if ( false /* (!is( __STRICT_ANSI__ ) && __GNUC__ >= 2) || __STDC_VERSION__ >= 199901L */ )
-        {
-            ubyte[1] __cmsg_data;
-        }
     }
 
     enum : uint
@@ -210,14 +186,7 @@ version (CRuntime_Glibc)
         SCM_RIGHTS = 0x01
     }
 
-    static if ( false /* (!is( __STRICT_ANSI__ ) && __GNUC__ >= 2) || __STDC_VERSION__ >= 199901L */ )
-    {
-        extern (D) ubyte[1] CMSG_DATA( cmsghdr* cmsg ) pure nothrow @nogc { return cmsg.__cmsg_data; }
-    }
-    else
-    {
-        extern (D) inout(ubyte)*   CMSG_DATA( inout(cmsghdr)* cmsg ) pure nothrow @nogc { return cast(ubyte*)( cmsg + 1 ); }
-    }
+    extern (D) inout(ubyte)*   CMSG_DATA( return scope inout(cmsghdr)* cmsg ) pure nothrow @nogc { return cast(ubyte*)( cmsg + 1 ); }
 
     private inout(cmsghdr)* __cmsg_nxthdr(inout(msghdr)*, inout(cmsghdr)*) pure nothrow @nogc;
     extern (D)  inout(cmsghdr)* CMSG_NXTHDR(inout(msghdr)* msg, inout(cmsghdr)* cmsg) pure nothrow @nogc
@@ -533,9 +502,19 @@ version (CRuntime_Glibc)
     else
         static assert(0, "unimplemented");
 
-    enum
+    version (CRuntime_Glibc)
     {
-        SOMAXCONN       = 128
+        enum
+        {
+            SOMAXCONN   = 4096
+        }
+    }
+    else
+    {
+        enum
+        {
+            SOMAXCONN   = 128
+        }
     }
 
     enum : uint
@@ -569,25 +548,6 @@ version (CRuntime_Glibc)
         SHUT_WR,
         SHUT_RDWR
     }
-
-    int     accept(int, scope sockaddr*, scope socklen_t*);
-    int     bind(int, const scope sockaddr*, socklen_t);
-    int     connect(int, const scope sockaddr*, socklen_t);
-    int     getpeername(int, scope sockaddr*, scope socklen_t*);
-    int     getsockname(int, scope sockaddr*, scope socklen_t*);
-    int     getsockopt(int, int, int, scope void*, scope socklen_t*);
-    int     listen(int, int) @safe;
-    ssize_t recv(int, scope void*, size_t, int);
-    ssize_t recvfrom(int, scope void*, size_t, int, scope sockaddr*, scope socklen_t*);
-    ssize_t recvmsg(int, scope msghdr*, int);
-    ssize_t send(int, const scope void*, size_t, int);
-    ssize_t sendmsg(int, const scope msghdr*, int);
-    ssize_t sendto(int, const scope void*, size_t, int, const scope sockaddr*, socklen_t);
-    int     setsockopt(int, int, int, const scope void*, socklen_t);
-    int     shutdown(int, int) @safe;
-    int     socket(int, int, int) @safe;
-    int     sockatmark(int) @safe;
-    int     socketpair(int, int, int, ref int[2]) @safe;
 }
 else version (Darwin)
 {
@@ -725,25 +685,6 @@ else version (Darwin)
         SHUT_WR,
         SHUT_RDWR
     }
-
-    int     accept(int, scope sockaddr*, scope socklen_t*);
-    int     bind(int, const scope sockaddr*, socklen_t);
-    int     connect(int, const scope sockaddr*, socklen_t);
-    int     getpeername(int, scope sockaddr*, scope socklen_t*);
-    int     getsockname(int, scope sockaddr*, scope socklen_t*);
-    int     getsockopt(int, int, int, scope void*, scope socklen_t*);
-    int     listen(int, int) @safe;
-    ssize_t recv(int, scope void*, size_t, int);
-    ssize_t recvfrom(int, scope void*, size_t, int, scope sockaddr*, scope socklen_t*);
-    ssize_t recvmsg(int, scope msghdr*, int);
-    ssize_t send(int, const scope void*, size_t, int);
-    ssize_t sendmsg(int, const scope msghdr*, int);
-    ssize_t sendto(int, const scope void*, size_t, int, const scope sockaddr*, socklen_t);
-    int     setsockopt(int, int, int, const scope void*, socklen_t);
-    int     shutdown(int, int) @safe;
-    int     socket(int, int, int) @safe;
-    int     sockatmark(int) @safe;
-    int     socketpair(int, int, int, ref int[2]) @safe;
 }
 else version (FreeBSD)
 {
@@ -902,25 +843,6 @@ else version (FreeBSD)
         SHUT_WR = 1,
         SHUT_RDWR = 2
     }
-
-    int     accept(int, scope sockaddr*, scope socklen_t*);
-    int     bind(int, const scope sockaddr*, socklen_t);
-    int     connect(int, const scope sockaddr*, socklen_t);
-    int     getpeername(int, scope sockaddr*, scope socklen_t*);
-    int     getsockname(int, scope sockaddr*, scope socklen_t*);
-    int     getsockopt(int, int, int, scope void*, scope socklen_t*);
-    int     listen(int, int) @safe;
-    ssize_t recv(int, scope void*, size_t, int);
-    ssize_t recvfrom(int, scope void*, size_t, int, scope sockaddr*, scope socklen_t*);
-    ssize_t recvmsg(int, scope msghdr*, int);
-    ssize_t send(int, const scope void*, size_t, int);
-    ssize_t sendmsg(int, const scope msghdr*, int);
-    ssize_t sendto(int, const scope void*, size_t, int, const scope sockaddr*, socklen_t);
-    int     setsockopt(int, int, int, const scope void*, socklen_t);
-    int     shutdown(int, int) @safe;
-    int     socket(int, int, int) @safe;
-    int     sockatmark(int) @safe;
-    int     socketpair(int, int, int, ref int[2]) @safe;
 }
 else version (NetBSD)
 {
@@ -1099,25 +1021,178 @@ else version (NetBSD)
         SHUT_WR = 1,
         SHUT_RDWR = 2
     }
+}
+else version (OpenBSD)
+{
+    alias uint   socklen_t;
+    alias ubyte  sa_family_t;
 
-    int     accept(int, scope sockaddr*, scope socklen_t*);
-    int     bind(int, const scope sockaddr*, socklen_t);
-    int     connect(int, const scope sockaddr*, socklen_t);
-    int     getpeername(int, scope sockaddr*, scope socklen_t*);
-    int     getsockname(int, scope sockaddr*, scope socklen_t*);
-    int     getsockopt(int, int, int, scope void*, scope socklen_t*);
-    int     listen(int, int) @safe;
-    ssize_t recv(int, scope void*, size_t, int);
-    ssize_t recvfrom(int, scope void*, size_t, int, scope sockaddr*, scope socklen_t*);
-    ssize_t recvmsg(int, scope msghdr*, int);
-    ssize_t send(int, const scope void*, size_t, int);
-    ssize_t sendmsg(int, const scope msghdr*, int);
-    ssize_t sendto(int, const scope void*, size_t, int, const scope sockaddr*, socklen_t);
-    int     setsockopt(int, int, int, const scope void*, socklen_t);
-    int     shutdown(int, int) @safe;
-    int     socket(int, int, int) @safe;
-    int     sockatmark(int) @safe;
-    int     socketpair(int, int, int, ref int[2]) @safe;
+    struct sockaddr
+    {
+        ubyte       sa_len;
+        sa_family_t sa_family;
+        byte[14]    sa_data;
+    }
+
+    struct sockaddr_storage
+    {
+         ubyte       ss_len;
+         sa_family_t ss_family;
+         ubyte[6]    __ss_pad1;
+         long        __ss_align;
+         ubyte[240]  __ss_pad2;
+    }
+
+    struct msghdr
+    {
+        void*     msg_name;
+        socklen_t msg_namelen;
+        iovec*    msg_iov;
+        uint      msg_iovlen;
+        void*     msg_control;
+        socklen_t msg_controllen;
+        int       msg_flags;
+    }
+
+    struct cmsghdr
+    {
+         socklen_t cmsg_len;
+         int       cmsg_level;
+         int       cmsg_type;
+    }
+
+    enum : uint
+    {
+        SCM_RIGHTS    = 0x01,
+        SCM_TIMESTAMP = 0x04
+    }
+
+    private // <sys/_types.h>
+    {
+        enum _ALIGNBYTES = c_long.sizeof - 1;
+        extern (D) size_t _ALIGN(size_t p) pure nothrow @nogc
+        {
+            return (p + _ALIGNBYTES) & ~_ALIGNBYTES;
+        }
+    }
+
+    extern (D) ubyte* CMSG_DATA(cmsghdr* cmsg) pure nothrow @nogc
+    {
+        return cast(ubyte*) cmsg + _ALIGN(cmsghdr.sizeof);
+    }
+
+    extern (D) cmsghdr* CMSG_NXTHDR(msghdr* mhdr, cmsghdr* cmsg) pure nothrow @nogc
+    {
+        if (cast(ubyte*) cmsg + _ALIGN(cmsg.cmsg_len) + _ALIGN(cmsghdr.sizeof) >
+                cast(ubyte*) mhdr.msg_control + mhdr.msg_controllen)
+            return null;
+        else
+            return cast(cmsghdr*) (cast(ubyte*) cmsg + _ALIGN(cmsg.cmsg_len));
+    }
+
+    extern (D) cmsghdr* CMSG_FIRSTHDR(msghdr* mhdr) pure nothrow @nogc
+    {
+        return mhdr.msg_controllen >= cmsghdr.sizeof ? cast(cmsghdr*) mhdr.msg_control : null;
+    }
+
+    extern (D)
+    {
+        size_t CMSG_LEN(size_t len) pure nothrow @nogc
+        {
+            return _ALIGN(cmsghdr.sizeof) + len;
+        }
+    }
+
+    extern (D) size_t CMSG_SPACE(size_t len) pure nothrow @nogc
+    {
+        return _ALIGN(cmsghdr.sizeof) + _ALIGN(len);
+    }
+
+    struct linger
+    {
+        int l_onoff;
+        int l_linger;
+    }
+
+    enum
+    {
+        SOCK_DGRAM      = 2,
+        SOCK_RDM        = 4,
+        SOCK_SEQPACKET  = 5,
+        SOCK_STREAM     = 1
+    }
+
+    enum : uint
+    {
+        SOL_SOCKET      = 0xffff
+    }
+
+    enum : uint
+    {
+         SO_DEBUG        = 0x0001,
+         SO_ACCEPTCONN   = 0x0002,
+         SO_REUSEADDR    = 0x0004,
+         SO_KEEPALIVE    = 0x0008,
+         SO_DONTROUTE    = 0x0010,
+         SO_BROADCAST    = 0x0020,
+         SO_USELOOPBACK  = 0x0040,
+         SO_LINGER       = 0x0080,
+         SO_OOBINLINE    = 0x0100,
+         SO_REUSEPORT    = 0x0200,
+         SO_TIMESTAMP    = 0x0800,
+         SO_BINDANY      = 0x1000,
+         SO_ZEROSIZE     = 0x2000,
+
+         SO_SNDBUF       = 0x1001,
+         SO_RCVBUF       = 0x1002,
+         SO_SNDLOWAT     = 0x1003,
+         SO_RCVLOWAT     = 0x1004,
+         SO_SNDTIMEO     = 0x1005,
+         SO_RCVTIMEO     = 0x1006,
+         SO_ERROR        = 0x1007,
+         SO_TYPE         = 0x1008,
+         SO_NETPROC      = 0x1020,
+         SO_RTABLE       = 0x1021,
+         SO_PEERCRED     = 0x1022,
+         SO_SPLICE       = 0x1023,
+    }
+
+    enum
+    {
+        SOMAXCONN       = 128
+    }
+
+    enum : uint
+    {
+         MSG_OOB          = 0x001,
+         MSG_PEEK         = 0x002,
+         MSG_DONTROUTE    = 0x004,
+         MSG_EOR          = 0x008,
+         MSG_TRUNC        = 0x010,
+         MSG_CTRUNC       = 0x020,
+         MSG_WAITALL      = 0x040,
+         MSG_DONTWAIT     = 0x080,
+         MSG_BCAST        = 0x100,
+         MSG_MCAST        = 0x200,
+         MSG_NOSIGNAL     = 0x400,
+         MSG_CMSG_CLOEXEC = 0x800,
+    }
+
+    enum
+    {
+        AF_APPLETALK    = 16,
+        AF_INET         = 2,
+        AF_IPX          = 23,
+        AF_UNIX         = 1,
+        AF_UNSPEC       = 0
+    }
+
+    enum
+    {
+        SHUT_RD = 0,
+        SHUT_WR = 1,
+        SHUT_RDWR = 2
+    }
 }
 else version (DragonFlyBSD)
 {
@@ -1186,41 +1261,8 @@ else version (DragonFlyBSD)
         AF_LOCAL            = 1,
         AF_UNIX             = AF_LOCAL,
         AF_INET             = 2,
-        AF_IMPLINK          = 3,
-        AF_PUP              = 4,
-        AF_CHAOS            = 5,
-        AF_NETBIOS          = 6,
-        AF_ISO              = 7,
-        AF_OSI              = AF_ISO,
-        AF_ECMA             = 8,
-        AF_DATAKIT          = 9,
-        AF_CCITT            = 10,
-        AF_SNA              = 11,
-        AF_DECnet           = 12,
-        AF_DLI              = 13,
-        AF_LAT              = 14,
-        AF_HYLINK           = 15,
         AF_APPLETALK        = 16,
-        AF_ROUTE            = 17,
-        AF_LINK             = 18,
-        pseudo_AF_XTP       = 19,
-        AF_COIP             = 20,
-        AF_CNT              = 21,
-        pseudo_AF_RTIP      = 22,
         AF_IPX              = 23,
-        AF_SIP              = 24,
-        pseudo_AF_PIP       = 25,
-        AF_ISDN             = 26,
-        AF_E164             = AF_ISDN,
-        pseudo_AF_KEY       = 27,
-        //AF_INET6            = 28,   // defined below
-        AF_NATM             = 29,
-        AF_ATM              = 30,
-        pseudo_AF_HDRCMPLT  = 31,
-        AF_NETGRAPH         = 32,
-        AF_BLUETOOTH        = 33,
-        AF_MPLS             = 34,
-        AF_IEEE80211        = 35,
     }
 
     struct sockaddr
@@ -1253,43 +1295,6 @@ else version (DragonFlyBSD)
         long               __ss_align;
         byte[_SS_PAD2SIZE] __ss_pad2;
     }
-
-    /* protocol families */
-    enum PF_UNSPEC          = AF_UNSPEC;
-    enum PF_LOCAL           = AF_LOCAL;
-    enum PF_UNIX            = PF_LOCAL;
-    enum PF_INET            = AF_INET;
-    enum PF_IMPLINK         = AF_IMPLINK;
-    enum PF_PUP             = AF_PUP;
-    enum PF_CHAOS           = AF_CHAOS;
-    enum PF_NETBIOS         = AF_NETBIOS;
-    enum PF_ISO             = AF_ISO;
-    enum PF_OSI             = AF_ISO;
-    enum PF_ECMA            = AF_ECMA;
-    enum PF_DATAKIT         = AF_DATAKIT;
-    enum PF_CCITT           = AF_CCITT;
-    enum PF_SNA             = AF_SNA;
-    enum PF_DECnet          = AF_DECnet;
-    enum PF_DLI             = AF_DLI;
-    enum PF_LAT             = AF_LAT;
-    enum PF_HYLINK          = AF_HYLINK;
-    enum PF_APPLETALK       = AF_APPLETALK;
-    enum PF_ROUTE           = AF_ROUTE;
-    enum PF_LINK            = AF_LINK;
-    enum PF_XTP             = pseudo_AF_XTP;
-    enum PF_COIP            = AF_COIP;
-    enum PF_CNT             = AF_CNT;
-    enum PF_SIP             = AF_SIP;
-    enum PF_IPX             = AF_IPX;
-    enum PF_RTIP            = pseudo_AF_RTIP;
-    enum PF_PIP             = pseudo_AF_PIP;
-    enum PF_ISDN            = AF_ISDN;
-    enum PF_KEY             = pseudo_AF_KEY;
-    enum PF_INET6           = AF_INET6;
-    enum PF_NATM            = AF_NATM;
-    enum PF_ATM             = AF_ATM;
-    enum PF_NETGRAPH        = AF_NETGRAPH;
-    enum PF_BLUETOOTH       = AF_BLUETOOTH;
 
     struct msghdr
     {
@@ -1343,7 +1348,7 @@ else version (DragonFlyBSD)
             gid_t           cmcred_gid;
             short           cmcred_ngroups;
             gid_t[CMGROUP_MAX] cmcred_groups;
-    };
+    }
 
     enum : uint
     {
@@ -1388,39 +1393,6 @@ else version (DragonFlyBSD)
         SHUT_WR             = 1,
         SHUT_RDWR           = 2
     }
-
-/*
-    /+ sendfile(2) header/trailer struct +/
-    struct sf_hdtr {
-        iovec *             headers;
-        int                 hdr_cnt;
-        iovec *             trailers;
-        int                 trl_cnt;
-    };
-*/
-
-    int     accept(int, sockaddr*, socklen_t*);
-//    int     accept4(int, sockaddr*, socklen_t*, int);
-    int     bind(int, in sockaddr*, socklen_t);
-    int     connect(int, in sockaddr*, socklen_t);
-//    int     extconnect(int, int, sockaddr*, socklen_t);
-    int     getpeername(int, sockaddr*, socklen_t*);
-    int     getsockname(int, sockaddr*, socklen_t*);
-    int     getsockopt(int, int, int, void*, socklen_t*);
-    int     listen(int, int);
-    ssize_t recv(int, void*, size_t, int);
-    ssize_t recvfrom(int, void*, size_t, int, sockaddr*, socklen_t*);
-    ssize_t recvmsg(int, msghdr*, int);
-    ssize_t send(int, in void*, size_t, int);
-    ssize_t sendto(int, in void*, size_t, int, in sockaddr*, socklen_t);
-    ssize_t sendmsg(int, in msghdr*, int);
-//    int     sendfile(int, int, off_t, size_t, sf_hdtr *, off_t *, int);
-    int     setsockopt(int, int, int, in void*, socklen_t);
-    int     shutdown(int, int);
-    int     sockatmark(int);
-    int     socket(int, int, int);
-    int     socketpair(int, int, int, ref int[2]);
-//  void    pfctlinput(int, struct sockaddr *);
 }
 else version (Solaris)
 {
@@ -1550,7 +1522,165 @@ else version (Solaris)
         SHUT_WR,
         SHUT_RDWR
     }
+}
+else
+{
+    static assert(false, "Unsupported platform");
+}
 
+/*
+int     accept(int, sockaddr*, socklen_t*);
+int     bind(int, const scope sockaddr*, socklen_t);
+int     connect(int, const scope sockaddr*, socklen_t);
+int     getpeername(int, sockaddr*, socklen_t*);
+int     getsockname(int, sockaddr*, socklen_t*);
+int     getsockopt(int, int, int, void*, socklen_t*);
+int     listen(int, int);
+ssize_t recv(int, void*, size_t, int);
+ssize_t recvfrom(int, void*, size_t, int, sockaddr*, socklen_t*);
+ssize_t recvmsg(int, msghdr*, int);
+ssize_t send(int, const scope void*, size_t, int);
+ssize_t sendmsg(int, const scope msghdr*, int);
+ssize_t sendto(int, const scope void*, size_t, int, const scope sockaddr*, socklen_t);
+int     setsockopt(int, int, int, const scope void*, socklen_t);
+int     shutdown(int, int);
+int     socket(int, int, int);
+int     sockatmark(int);
+int     socketpair(int, int, int, ref int[2]);
+*/
+
+version (CRuntime_Glibc)
+{
+    int     accept(int, scope sockaddr*, scope socklen_t*);
+    int     bind(int, const scope sockaddr*, socklen_t);
+    int     connect(int, const scope sockaddr*, socklen_t);
+    int     getpeername(int, scope sockaddr*, scope socklen_t*);
+    int     getsockname(int, scope sockaddr*, scope socklen_t*);
+    int     getsockopt(int, int, int, scope void*, scope socklen_t*);
+    int     listen(int, int) @safe;
+    ssize_t recv(int, scope void*, size_t, int);
+    ssize_t recvfrom(int, scope void*, size_t, int, scope sockaddr*, scope socklen_t*);
+    ssize_t recvmsg(int, scope msghdr*, int);
+    ssize_t send(int, const scope void*, size_t, int);
+    ssize_t sendmsg(int, const scope msghdr*, int);
+    ssize_t sendto(int, const scope void*, size_t, int, const scope sockaddr*, socklen_t);
+    int     setsockopt(int, int, int, const scope void*, socklen_t);
+    int     shutdown(int, int) @safe;
+    int     socket(int, int, int) @safe;
+    int     sockatmark(int) @safe;
+    int     socketpair(int, int, int, ref int[2]) @safe;
+}
+else version (Darwin)
+{
+    int     accept(int, scope sockaddr*, scope socklen_t*);
+    int     bind(int, const scope sockaddr*, socklen_t);
+    int     connect(int, const scope sockaddr*, socklen_t);
+    int     getpeername(int, scope sockaddr*, scope socklen_t*);
+    int     getsockname(int, scope sockaddr*, scope socklen_t*);
+    int     getsockopt(int, int, int, scope void*, scope socklen_t*);
+    int     listen(int, int) @safe;
+    ssize_t recv(int, scope void*, size_t, int);
+    ssize_t recvfrom(int, scope void*, size_t, int, scope sockaddr*, scope socklen_t*);
+    ssize_t recvmsg(int, scope msghdr*, int);
+    ssize_t send(int, const scope void*, size_t, int);
+    ssize_t sendmsg(int, const scope msghdr*, int);
+    ssize_t sendto(int, const scope void*, size_t, int, const scope sockaddr*, socklen_t);
+    int     setsockopt(int, int, int, const scope void*, socklen_t);
+    int     shutdown(int, int) @safe;
+    int     socket(int, int, int) @safe;
+    int     sockatmark(int) @safe;
+    int     socketpair(int, int, int, ref int[2]) @safe;
+}
+else version (FreeBSD)
+{
+    int     accept(int, scope sockaddr*, scope socklen_t*);
+    int     bind(int, const scope sockaddr*, socklen_t);
+    int     connect(int, const scope sockaddr*, socklen_t);
+    int     getpeername(int, scope sockaddr*, scope socklen_t*);
+    int     getsockname(int, scope sockaddr*, scope socklen_t*);
+    int     getsockopt(int, int, int, scope void*, scope socklen_t*);
+    int     listen(int, int) @safe;
+    ssize_t recv(int, scope void*, size_t, int);
+    ssize_t recvfrom(int, scope void*, size_t, int, scope sockaddr*, scope socklen_t*);
+    ssize_t recvmsg(int, scope msghdr*, int);
+    ssize_t send(int, const scope void*, size_t, int);
+    ssize_t sendmsg(int, const scope msghdr*, int);
+    ssize_t sendto(int, const scope void*, size_t, int, const scope sockaddr*, socklen_t);
+    int     setsockopt(int, int, int, const scope void*, socklen_t);
+    int     shutdown(int, int) @safe;
+    int     socket(int, int, int) @safe;
+    int     sockatmark(int) @safe;
+    int     socketpair(int, int, int, ref int[2]) @safe;
+}
+else version (NetBSD)
+{
+    int     accept(int, scope sockaddr*, scope socklen_t*);
+    int     bind(int, const scope sockaddr*, socklen_t);
+    int     connect(int, const scope sockaddr*, socklen_t);
+    int     getpeername(int, scope sockaddr*, scope socklen_t*);
+    int     getsockname(int, scope sockaddr*, scope socklen_t*);
+    int     getsockopt(int, int, int, scope void*, scope socklen_t*);
+    int     listen(int, int) @safe;
+    ssize_t recv(int, scope void*, size_t, int);
+    ssize_t recvfrom(int, scope void*, size_t, int, scope sockaddr*, scope socklen_t*);
+    ssize_t recvmsg(int, scope msghdr*, int);
+    ssize_t send(int, const scope void*, size_t, int);
+    ssize_t sendmsg(int, const scope msghdr*, int);
+    ssize_t sendto(int, const scope void*, size_t, int, const scope sockaddr*, socklen_t);
+    int     setsockopt(int, int, int, const scope void*, socklen_t);
+    int     shutdown(int, int) @safe;
+    int     socket(int, int, int) @safe;
+    int     sockatmark(int) @safe;
+    int     socketpair(int, int, int, ref int[2]) @safe;
+}
+else version (OpenBSD)
+{
+    int     accept(int, scope sockaddr*, scope socklen_t*);
+    int     bind(int, const scope sockaddr*, socklen_t);
+    int     connect(int, const scope sockaddr*, socklen_t);
+    int     getpeername(int, scope sockaddr*, scope socklen_t*);
+    int     getsockname(int, scope sockaddr*, scope socklen_t*);
+    int     getsockopt(int, int, int, scope void*, scope socklen_t*);
+    int     listen(int, int) @safe;
+    ssize_t recv(int, scope void*, size_t, int);
+    ssize_t recvfrom(int, scope void*, size_t, int, scope sockaddr*, scope socklen_t*);
+    ssize_t recvmsg(int, scope msghdr*, int);
+    ssize_t send(int, const scope void*, size_t, int);
+    ssize_t sendmsg(int, const scope msghdr*, int);
+    ssize_t sendto(int, const scope void*, size_t, int, const scope sockaddr*, socklen_t);
+    int     setsockopt(int, int, int, const scope void*, socklen_t);
+    int     shutdown(int, int) @safe;
+    int     socket(int, int, int) @safe;
+    int     sockatmark(int) @safe;
+    int     socketpair(int, int, int, ref int[2]) @safe;
+}
+else version (DragonFlyBSD)
+{
+    int     accept(int, sockaddr*, socklen_t*);
+//    int     accept4(int, sockaddr*, socklen_t*, int);
+    int     bind(int, const scope sockaddr*, socklen_t);
+    int     connect(int, const scope sockaddr*, socklen_t);
+//    int     extconnect(int, int, sockaddr*, socklen_t);
+    int     getpeername(int, sockaddr*, socklen_t*);
+    int     getsockname(int, sockaddr*, socklen_t*);
+    int     getsockopt(int, int, int, void*, socklen_t*);
+    int     listen(int, int);
+    ssize_t recv(int, void*, size_t, int);
+    ssize_t recvfrom(int, void*, size_t, int, sockaddr*, socklen_t*);
+    ssize_t recvmsg(int, msghdr*, int);
+    ssize_t send(int, const scope void*, size_t, int);
+    ssize_t sendto(int, const scope void*, size_t, int, const scope sockaddr*, socklen_t);
+    ssize_t sendmsg(int, const scope msghdr*, int);
+//    int     sendfile(int, int, off_t, size_t, sf_hdtr *, off_t *, int);
+    int     setsockopt(int, int, int, const scope void*, socklen_t);
+    int     shutdown(int, int);
+    int     sockatmark(int);
+    int     socket(int, int, int);
+    int     socketpair(int, int, int, ref int[2]);
+//  void    pfctlinput(int, struct sockaddr *);
+}
+else version (Solaris)
+{
     int     accept(int, scope sockaddr*, scope socklen_t*);
     int     bind(int, const scope sockaddr*, socklen_t);
     int     connect(int, const scope sockaddr*, socklen_t);
@@ -1572,146 +1702,6 @@ else version (Solaris)
 }
 else version (CRuntime_Bionic)
 {
-    alias int    socklen_t;
-    alias ushort sa_family_t;
-
-    struct sockaddr
-    {
-        sa_family_t sa_family;
-        byte[14]    sa_data;
-    }
-
-    private enum size_t _K_SS_MAXSIZE  = 128;
-
-    struct sockaddr_storage
-    {
-        ushort ss_family;
-        byte[_K_SS_MAXSIZE - ushort.sizeof] __data;
-    }
-
-    enum : uint
-    {
-        SCM_RIGHTS = 0x01
-    }
-
-    private enum _ALIGNBYTES = c_long.sizeof - 1;
-
-    extern (D)
-    {
-        size_t CMSG_ALIGN( size_t len )
-        {
-            return (len + _ALIGNBYTES) & ~_ALIGNBYTES;
-        }
-
-        void* CMSG_DATA( cmsghdr* cmsg )
-        {
-            return cast(void*) (cast(char*) cmsg + CMSG_ALIGN( cmsghdr.sizeof ));
-        }
-
-        cmsghdr* CMSG_NXTHDR( msghdr* mhdr, cmsghdr* cmsg )
-        {
-            cmsghdr* __ptr = cast(cmsghdr*) ((cast(ubyte*) cmsg) + CMSG_ALIGN(cmsg.cmsg_len));
-            return cast(c_ulong)( cast(char*)(__ptr+1) - cast(char*) mhdr.msg_control) > mhdr.msg_controllen ? null : __ptr;
-        }
-
-        cmsghdr* CMSG_FIRSTHDR( msghdr* mhdr )
-        {
-            return mhdr.msg_controllen >= cmsghdr.sizeof ? cast(cmsghdr*) mhdr.msg_control : null;
-        }
-    }
-
-    struct linger
-    {
-        int l_onoff;
-        int l_linger;
-    }
-
-    struct msghdr
-    {
-        void*           msg_name;
-        int             msg_namelen;
-        iovec*          msg_iov;
-        __kernel_size_t msg_iovlen;
-        void*           msg_control;
-        __kernel_size_t msg_controllen;
-        uint            msg_flags;
-    }
-
-    struct cmsghdr
-    {
-        __kernel_size_t cmsg_len;
-        int             cmsg_level;
-        int             cmsg_type;
-    }
-
-    alias size_t __kernel_size_t;
-
-    enum
-    {
-        SOCK_DGRAM      = 2,
-        SOCK_SEQPACKET  = 5,
-        SOCK_STREAM     = 1
-    }
-
-    enum
-    {
-        SOL_SOCKET      = 1
-    }
-
-    enum
-    {
-        SO_ACCEPTCONN   = 30,
-        SO_BROADCAST    = 6,
-        SO_DEBUG        = 1,
-        SO_DONTROUTE    = 5,
-        SO_ERROR        = 4,
-        SO_KEEPALIVE    = 9,
-        SO_LINGER       = 13,
-        SO_OOBINLINE    = 10,
-        SO_RCVBUF       = 8,
-        SO_RCVLOWAT     = 18,
-        SO_RCVTIMEO     = 20,
-        SO_REUSEADDR    = 2,
-        SO_SNDBUF       = 7,
-        SO_SNDLOWAT     = 19,
-        SO_SNDTIMEO     = 21,
-        SO_TYPE         = 3
-    }
-
-    enum
-    {
-        SOMAXCONN       = 128
-    }
-
-    enum : uint
-    {
-        MSG_CTRUNC      = 0x08,
-        MSG_DONTROUTE   = 0x04,
-        MSG_EOR         = 0x80,
-        MSG_OOB         = 0x01,
-        MSG_PEEK        = 0x02,
-        MSG_TRUNC       = 0x20,
-        MSG_WAITALL     = 0x100
-    }
-
-    enum
-    {
-        AF_APPLETALK    = 5,
-        AF_INET         = 2,
-        AF_IPX          = 4,
-        AF_UNIX         = 1,
-        AF_UNSPEC       = 0
-    }
-
-    enum
-    {
-        SHUT_RD,
-        SHUT_WR,
-        SHUT_RDWR
-    }
-
-    enum SOCK_RDM = 4;
-
     int     accept(int, scope sockaddr*, scope socklen_t*);
     int     bind(int, const scope sockaddr*, socklen_t);
     int     connect(int, const scope sockaddr*, socklen_t);
@@ -1733,112 +1723,9 @@ else version (CRuntime_Bionic)
 }
 else version (CRuntime_Musl)
 {
-    alias uint socklen_t;
-    alias ushort sa_family_t;
-
-    struct sockaddr
-    {
-        sa_family_t sa_family;
-        byte[14]    sa_data;
-    }
-
-    private enum : size_t
-    {
-        _SS_SIZE    = 128,
-        _SS_PADSIZE = _SS_SIZE - c_ulong.sizeof - sa_family_t.sizeof
-    }
-
-    struct sockaddr_storage
-    {
-        sa_family_t ss_family;
-        byte[_SS_PADSIZE] __ss_padding;
-        c_ulong     __ss_align;
-    }
-
-    enum {
-        SOCK_STREAM = 1,
-        SOCK_DGRAM = 2,
-        SOCK_RAW = 3,
-        SOCK_RDM = 4,
-        SOCK_SEQPACKET = 5,
-        SOCK_DCCP = 6,
-        SOCK_PACKET = 10
-    }
-    enum
-    {
-        AF_UNSPEC       = 0,
-        AF_LOCAL        = 1,
-        AF_UNIX         = AF_LOCAL,
-        AF_FILE         = AF_LOCAL,
-        AF_INET         = 2,
-        AF_AX25         = 3,
-        AF_IPX          = 4,
-        AF_APPLETALK    = 5,
-        PF_APPLETALK    = AF_APPLETALK,
-        PF_IPX          = AF_IPX
-    }
-
-    enum
-    {
-        SHUT_RD,
-        SHUT_WR,
-        SHUT_RDWR
-    }
-
-    enum
-    {
-        SOL_SOCKET      = 1
-    }
-
-    enum
-    {
-        SO_DEBUG        = 1,
-        SO_REUSEADDR    = 2,
-        SO_TYPE         = 3,
-        SO_ERROR        = 4,
-        SO_DONTROUTE    = 5,
-        SO_BROADCAST    = 6,
-        SO_SNDBUF       = 7,
-        SO_RCVBUF       = 8,
-        SO_KEEPALIVE    = 9,
-        SO_OOBINLINE    = 10,
-        SO_LINGER       = 13,
-        SO_RCVLOWAT     = 18,
-        SO_SNDLOWAT     = 19,
-        SO_RCVTIMEO     = 20,
-        SO_SNDTIMEO     = 21,
-        SO_ACCEPTCONN   = 30
-    }
-
-    enum : uint
-    {
-        MSG_OOB         = 0x01,
-        MSG_PEEK        = 0x02,
-        MSG_DONTROUTE   = 0x04,
-        MSG_CTRUNC      = 0x08,
-        MSG_TRUNC       = 0x20,
-        MSG_EOR         = 0x80,
-        MSG_WAITALL     = 0x100,
-        MSG_NOSIGNAL    = 0x4000
-    }
-
-    struct linger
-    {
-        int l_onoff;
-        int l_linger;
-    }
-    struct msghdr {
-        void *msg_name;
-        socklen_t msg_namelen;
-        iovec *msg_iov;
-        int msg_iovlen, __pad1;
-        void *msg_control;
-        socklen_t msg_controllen, __pad2;
-        int msg_flags;
-    }
     int     accept(int, sockaddr*, socklen_t*);
-    int     bind(int, in sockaddr*, socklen_t);
-    int     connect(int, in sockaddr*, socklen_t);
+    int     bind(int, const scope sockaddr*, socklen_t);
+    int     connect(int, const scope sockaddr*, socklen_t);
     int     getpeername(int, sockaddr*, socklen_t*);
     int     getsockname(int, sockaddr*, socklen_t*);
     int     getsockopt(int, int, int, void*, socklen_t*);
@@ -1846,10 +1733,10 @@ else version (CRuntime_Musl)
     ssize_t recv(int, void*, size_t, int);
     ssize_t recvfrom(int, void*, size_t, int, sockaddr*, socklen_t*);
     ssize_t recvmsg(int, msghdr*, int);
-    ssize_t send(int, in void*, size_t, int);
-    ssize_t sendmsg(int, in msghdr*, int);
-    ssize_t sendto(int, in void*, size_t, int, in sockaddr*, socklen_t);
-    int     setsockopt(int, int, int, in void*, socklen_t);
+    ssize_t send(int, const scope void*, size_t, int);
+    ssize_t sendmsg(int, const scope msghdr*, int);
+    ssize_t sendto(int, const scope void*, size_t, int, const scope sockaddr*, socklen_t);
+    int     setsockopt(int, int, int, const scope void*, socklen_t);
     int     shutdown(int, int);
     int     socket(int, int, int);
     int     sockatmark(int);
@@ -1857,185 +1744,9 @@ else version (CRuntime_Musl)
 }
 else version (CRuntime_UClibc)
 {
-    alias uint   socklen_t;
-    alias ushort sa_family_t;
-
-    struct sockaddr
-    {
-        sa_family_t sa_family;
-        byte[14]    sa_data;
-    }
-
-    private enum : size_t
-    {
-        _SS_SIZE    = 128,
-        _SS_PADSIZE = _SS_SIZE - (c_ulong.sizeof * 2)
-    }
-
-    struct sockaddr_storage
-    {
-        sa_family_t ss_family;
-        c_ulong     __ss_align;
-        byte[_SS_PADSIZE] __ss_padding;
-    }
-
-    struct msghdr
-    {
-        void*     msg_name;
-        socklen_t msg_namelen;
-        iovec*    msg_iov;
-        size_t    msg_iovlen;
-        void*     msg_control;
-        size_t    msg_controllen;
-        int       msg_flags;
-    }
-
-    struct cmsghdr
-    {
-        size_t cmsg_len;
-        int    cmsg_level;
-        int    cmsg_type;
-    }
-
-    enum : uint
-    {
-        SCM_RIGHTS = 0x01
-    }
-
-    extern (D) inout(ubyte)*   CMSG_DATA( inout(cmsghdr)* cmsg ) pure nothrow @nogc { return cast(ubyte*)( cmsg + 1 ); }
-
-    private inout(cmsghdr)* __cmsg_nxthdr(inout(msghdr)*, inout(cmsghdr)*) pure nothrow @nogc;
-    extern (D)  inout(cmsghdr)* CMSG_NXTHDR(inout(msghdr)* msg, inout(cmsghdr)* cmsg) pure nothrow @nogc
-    {
-        return __cmsg_nxthdr(msg, cmsg);
-    }
-
-    extern (D) inout(cmsghdr)* CMSG_FIRSTHDR( inout(msghdr)* mhdr ) pure nothrow @nogc
-    {
-        return ( cast(size_t)mhdr.msg_controllen >= cmsghdr.sizeof
-                             ? cast(inout(cmsghdr)*) mhdr.msg_control
-                             : cast(inout(cmsghdr)*) null );
-    }
-
-    extern (D)
-    {
-        size_t CMSG_ALIGN( size_t len ) pure nothrow @nogc
-        {
-            return (len + size_t.sizeof - 1) & cast(size_t) (~(size_t.sizeof - 1));
-        }
-
-        size_t CMSG_LEN( size_t len ) pure nothrow @nogc
-        {
-            return CMSG_ALIGN(cmsghdr.sizeof) + len;
-        }
-    }
-
-    extern (D) size_t CMSG_SPACE(size_t len) pure nothrow @nogc
-    {
-        return CMSG_ALIGN(len) + CMSG_ALIGN(cmsghdr.sizeof);
-    }
-
-    struct linger
-    {
-        int l_onoff;
-        int l_linger;
-    }
-
-    version (X86_Any)
-    {
-        enum
-        {
-            SOCK_DGRAM      = 2,
-            SOCK_SEQPACKET  = 5,
-            SOCK_STREAM     = 1,
-            SOCK_CLOEXEC    = 0x80000, // octal 02000000
-            SOCK_NONBLOCK   = 0x800 // octal 00004000
-        }
-    }
-    else version (MIPS_Any)
-    {
-        enum
-        {
-            SOCK_DGRAM      = 1,
-            SOCK_SEQPACKET  = 5,
-            SOCK_STREAM     = 2,
-            SOCK_CLOEXEC    = 0x80000, // octal 02000000
-            SOCK_NONBLOCK   = 0x80 // octal 00000200
-        }
-    }
-    else version (ARM_Any)
-    {
-        enum
-        {
-            SOCK_DGRAM      = 2,
-            SOCK_SEQPACKET  = 5,
-            SOCK_STREAM     = 1,
-            SOCK_CLOEXEC    = 0x80000, // octal 02000000
-            SOCK_NONBLOCK   = 0x800 // octal 00004000
-        }
-    }
-    else
-        static assert(0, "unimplemented");
-
-    enum
-    {
-        SO_ACCEPTCONN   = 30,
-        SO_BROADCAST    = 6,
-        SO_DEBUG        = 1,
-        SO_DONTROUTE    = 5,
-        SO_ERROR        = 4,
-        SO_KEEPALIVE    = 9,
-        SO_LINGER       = 13,
-        SO_OOBINLINE    = 10,
-        SO_RCVBUF       = 8,
-        SO_RCVLOWAT     = 18,
-        SO_RCVTIMEO     = 20,
-        SO_REUSEADDR    = 2,
-        SO_SNDBUF       = 7,
-        SO_SNDLOWAT     = 19,
-        SO_SNDTIMEO     = 21,
-        SO_TYPE         = 3,
-
-        SOL_SOCKET      = 1,
-        SOL_TCP         = 6,
-        SOMAXCONN       = 128
-    }
-
-    enum : uint
-    {
-        MSG_CTRUNC      = 0x08,
-        MSG_DONTROUTE   = 0x04,
-        MSG_EOR         = 0x80,
-        MSG_OOB         = 0x01,
-        MSG_PEEK        = 0x02,
-        MSG_TRUNC       = 0x20,
-        MSG_WAITALL     = 0x100,
-        MSG_NOSIGNAL    = 0x4000
-    }
-
-    enum
-    {
-        AF_APPLETALK    = 5,
-        AF_INET         = 2,
-        AF_IPX          = 4,
-        AF_UNIX         = 1,
-        AF_UNSPEC       = 0,
-        PF_APPLETALK    = AF_APPLETALK,
-        PF_IPX          = AF_IPX
-    }
-
-    enum int SOCK_RDM   = 4;
-
-    enum
-    {
-        SHUT_RD,
-        SHUT_WR,
-        SHUT_RDWR
-    }
-
     int     accept(int, sockaddr*, socklen_t*);
-    int     bind(int, in sockaddr*, socklen_t);
-    int     connect(int, in sockaddr*, socklen_t);
+    int     bind(int, const scope sockaddr*, socklen_t);
+    int     connect(int, const scope sockaddr*, socklen_t);
     int     getpeername(int, sockaddr*, socklen_t*);
     int     getsockname(int, sockaddr*, socklen_t*);
     int     getsockopt(int, int, int, void*, socklen_t*);
@@ -2043,10 +1754,10 @@ else version (CRuntime_UClibc)
     ssize_t recv(int, void*, size_t, int);
     ssize_t recvfrom(int, void*, size_t, int, sockaddr*, socklen_t*);
     ssize_t recvmsg(int, msghdr*, int);
-    ssize_t send(int, in void*, size_t, int);
-    ssize_t sendmsg(int, in msghdr*, int);
-    ssize_t sendto(int, in void*, size_t, int, in sockaddr*, socklen_t);
-    int     setsockopt(int, int, int, in void*, socklen_t);
+    ssize_t send(int, const scope void*, size_t, int);
+    ssize_t sendmsg(int, const scope msghdr*, int);
+    ssize_t sendto(int, const scope void*, size_t, int, const scope sockaddr*, socklen_t);
+    int     setsockopt(int, int, int, const scope void*, socklen_t);
     int     shutdown(int, int);
     int     socket(int, int, int);
     int     sockatmark(int);
@@ -2064,7 +1775,7 @@ else
 AF_INET6
 */
 
-version (CRuntime_Glibc)
+version (linux)
 {
     enum
     {
@@ -2092,6 +1803,13 @@ else version (NetBSD)
         AF_INET6    = 24
     }
 }
+else version (OpenBSD)
+{
+    enum
+    {
+        AF_INET6    = 24
+    }
+}
 else version (DragonFlyBSD)
 {
     enum
@@ -2106,24 +1824,6 @@ else version (Solaris)
         AF_INET6 = 26,
     }
 }
-else version (CRuntime_Bionic)
-{
-    enum
-    {
-        AF_INET6    = 10
-    }
-}
-else version (CRuntime_Musl)
-{
-    enum AF_INET6 = 10;
-}
-else version (CRuntime_UClibc)
-{
-    enum
-    {
-        AF_INET6    = 10
-    }
-}
 else
 {
     static assert(false, "Unsupported platform");
@@ -2136,7 +1836,7 @@ else
 SOCK_RAW
 */
 
-version (CRuntime_Glibc)
+version (linux)
 {
     enum
     {
@@ -2164,6 +1864,13 @@ else version (NetBSD)
         SOCK_RAW    = 3
     }
 }
+else version (OpenBSD)
+{
+    enum
+    {
+        SOCK_RAW    = 3
+    }
+}
 else version (DragonFlyBSD)
 {
     enum
@@ -2176,23 +1883,6 @@ else version (Solaris)
     enum
     {
         SOCK_RAW = 4,
-    }
-}
-else version (CRuntime_Bionic)
-{
-    enum
-    {
-        SOCK_RAW    = 3
-    }
-}
-else version (CRuntime_Musl)
-{
-}
-else version (CRuntime_UClibc)
-{
-    enum
-    {
-        SOCK_RAW    = 3
     }
 }
 else

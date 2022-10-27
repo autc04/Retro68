@@ -6,23 +6,17 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -87,11 +81,15 @@ package Scans is
       --  exception-name". This degrades error recovery slightly, and perhaps
       --  we could do better, but not worth the effort.
 
+      --  Ada 2022 introduces square brackets as delimiters for array and
+      --  container aggregates.
+
       Tok_Raise,           -- RAISE
 
       Tok_Dot,             -- .            Namext
       Tok_Apostrophe,      -- '            Namext
 
+      Tok_Left_Bracket,    -- [            Namest
       Tok_Left_Paren,      -- (            Namext, Consk
 
       Tok_Delta,           -- DELTA        Atkwd, Sterm, Consk
@@ -99,6 +97,7 @@ package Scans is
       Tok_Range,           -- RANGE        Atkwd, Sterm, Consk
 
       Tok_Right_Paren,     -- )            Sterm
+      Tok_Right_Bracket,   -- ]            Sterm
       Tok_Comma,           -- ,            Sterm
 
       Tok_And,             -- AND          Logop, Sterm
@@ -220,9 +219,6 @@ package Scans is
       --  Otherwise used only in preprocessor scanning (to represent one of
       --  the characters '#', '$', '?', '@', '`', '\', '^', '~', or '_'. The
       --  character value itself is stored in Scans.Special_Character.
-
-      Tok_SPARK_Hide,
-      --  HIDE directive in SPARK
 
       No_Token);
       --  No_Token is used for initializing Token values to indicate that
@@ -445,12 +441,12 @@ package Scans is
    --  scanned literal.
 
    Real_Literal_Value : Ureal;
-   --  Valid only when Token is Tok_Real_Literal, contains the value of the
+   --  Valid only when Token is Tok_Real_Literal. Contains the value of the
    --  scanned literal.
 
    Int_Literal_Value : Uint;
-   --  Valid only when Token = Tok_Integer_Literal, contains the value of the
-   --  scanned literal.
+   --  Valid only when Token = Tok_Integer_Literal, and we are not in
+   --  syntax-only mode. Contains the value of the scanned literal.
 
    Based_Literal_Uses_Colon : Boolean;
    --  Valid only when Token = Tok_Integer_Literal or Tok_Real_Literal. Set

@@ -1,6 +1,6 @@
 // 1999-05-11 bkoz
 
-// Copyright (C) 1999-2019 Free Software Foundation, Inc.
+// Copyright (C) 1999-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,13 +33,19 @@ void test01()
   size_type_s sz02 = str01.capacity();
   VERIFY( sz02 >= sz01 );
   VERIFY( sz02 >= 100 );
+#if __cplusplus <= 201703L
   str01.reserve();
-  sz01 = str01.capacity();
-#if _GLIBCXX_USE_CXX11_ABI
-  VERIFY( sz01 < 100);
 #else
-  VERIFY( sz01 == 0 );
+  str01.shrink_to_fit(); // reserve is deprecated in C++20
 #endif
+  sz01 = str01.capacity();
+  VERIFY( sz01 < sz02 );
+
+  // P0966: reserve should not shrink
+  str01.reserve(100);
+  sz01 = str01.capacity();
+  str01.reserve(sz01 - 1);
+  VERIFY( str01.capacity() == sz01 );
 
   sz01 = str01.size() + 5;
   str01.resize(sz01);

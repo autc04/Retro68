@@ -259,7 +259,7 @@ extern int optreset;			/* getopt(3) external variable */
 pid_t   vfork (void);
 #endif
 
-#ifdef _COMPILING_NEWLIB
+#ifdef _LIBC
 /* Provide prototypes for most of the _<systemcall> names that are
    provided in newlib for some compilers.  */
 int     _close (int __fildes);
@@ -533,7 +533,8 @@ int	unlinkat (int, const char *, int);
  *  confstr values per IEEE Std 1003.1, 2004 Edition
  */
 
-#ifdef __CYGWIN__	/* Only defined on Cygwin for now. */
+/* Only defined on Cygwin and RTEMS for now. */
+#if defined (__CYGWIN__) || defined(__rtems__)
 #define _CS_PATH                               0
 #define _CS_POSIX_V7_ILP32_OFF32_CFLAGS        1
 #define _CS_POSIX_V6_ILP32_OFF32_CFLAGS       _CS_POSIX_V7_ILP32_OFF32_CFLAGS

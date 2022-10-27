@@ -1,6 +1,6 @@
 /* Software floating-point emulation.
    Definitions for IEEE Half Precision.
-   Copyright (C) 1997-2018 Free Software Foundation, Inc.
+   Copyright (C) 1997-2019 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -167,4 +167,5 @@ union _FP_UNION_H
 #define _FP_FRAC_HIGH_RAW_H(X)	_FP_FRAC_HIGH_1 (X)
 #define _FP_FRAC_HIGH_DW_H(X)	_FP_FRAC_HIGH_1 (X)
 
+#define FP_CMP_EQ_H(r, X, Y, ex)	_FP_CMP_EQ (H, 1, (r), X, Y, (ex))
 #endif /* !SOFT_FP_HALF_H */

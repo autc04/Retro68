@@ -10,6 +10,8 @@
 #include "config.h"
 
 #include <stddef.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <errno.h>
@@ -46,6 +48,9 @@
 #endif
 #if defined(HAVE_SYS_SYSCALL_H)
 #include <sys/syscall.h>
+#endif
+#if defined(HAVE_SYS_SYSCTL_H)
+#include <sys/sysctl.h>
 #endif
 #if defined(HAVE_SYS_EPOLL_H)
 #include <sys/epoll.h>
@@ -117,6 +122,9 @@
 #if defined(HAVE_LINUX_RTNETLINK_H)
 #include <linux/rtnetlink.h>
 #endif
+#if defined(HAVE_NET_BPF_H)
+#include <net/bpf.h>
+#endif
 #if defined(HAVE_NET_IF_H)
 #include <net/if.h>
 #endif
@@ -150,9 +158,6 @@
 #if defined(HAVE_LINUX_ETHER_H)
 #include <linux/ether.h>
 #endif
-#if defined(HAVE_LINUX_FS_H)
-#include <linux/fs.h>
-#endif
 #if defined(HAVE_LINUX_REBOOT_H)
 #include <linux/reboot.h>
 #endif
@@ -170,6 +175,9 @@
 #endif
 #if defined(HAVE_PORT_H)
 #include <port.h>
+#endif
+#if defined(HAVE_LWP_H)
+#include <lwp.h>
 #endif
 
 #ifdef USE_LIBFFI
@@ -279,7 +287,66 @@ enum {
 #ifdef NLA_HDRLEN
   NLA_HDRLEN_val = NLA_HDRLEN,
 #endif
+#ifdef BIOCFLUSH
+  BIOCFLUSH_val = BIOCFLUSH,
+#endif
+#ifdef BIOCGBLEN
+  BIOCGBLEN_val = BIOCGBLEN,
+#endif
+#ifdef BIOCGDLT
+  BIOCGDLT_val = BIOCGDLT,
+#endif
+#ifdef BIOCGETIF
+  BIOCGETIF_val = BIOCGETIF,
+#endif
+#ifdef BIOCGHDRCMPLT
+  BIOCGHDRCMPLT_val = BIOCGHDRCMPLT,
+#endif
+#ifdef BIOCGRTIMEOUT
+  BIOCGRTIMEOUT_val = BIOCGRTIMEOUT,
+#endif
+#ifdef BIOCGSTATS
+  BIOCGSTATS_val = BIOCGSTATS,
+#endif
+#ifdef BIOCIMMEDIATE
+  BIOCIMMEDIATE_val = BIOCIMMEDIATE,
+#endif
+#ifdef BIOCPROMISC
+  BIOCPROMISC_val = BIOCPROMISC,
+#endif
+#ifdef BIOCSBLEN
+  BIOCSBLEN_val = BIOCSBLEN,
+#endif
+#ifdef BIOCSDLT
+  BIOCSDLT_val = BIOCSDLT,
+#endif
+#ifdef BIOCSETF
+  BIOCSETF_val = BIOCSETF,
+#endif
+#ifdef BIOCSETIF
+  BIOCSETIF_val = BIOCSETIF,
+#endif
+#ifdef BIOCSHDRCMPLT
+  BIOCSHDRCMPLT_val = BIOCSHDRCMPLT,
+#endif
+#ifdef BIOCSRTIMEOUT
+  BIOCSRTIMEOUT_val = BIOCSRTIMEOUT,
+#endif
+#ifdef BIOCVERSION
+  BIOCVERSION_val = BIOCVERSION,
+#endif
+#ifdef SO_RCVTIMEO
+  SO_RCVTIMEO_val = SO_RCVTIMEO,
+#endif
 };
+
+// SIOCGIFMTU can't be added in the above enum as it might
+// be signed in some OSes.
+#ifdef SIOCGIFMTU
+enum {
+  SIOCGIFMTU_val = SIOCGIFMTU,
+};
+#endif
 
 #if defined(HAVE_SYS_EPOLL_H)
 enum {
@@ -316,6 +383,7 @@ enum {
 SREF(dirent);
 SREF(dirent64);
 OTREF(DIR);
+EREF(DT_UNKNOWN);
 
 // From fcntl.h
 SREF(flock);
@@ -424,7 +492,11 @@ EREF(MNT_FORCE);
 
 #if defined(HAVE_SYS_PTRACE_H)
 // From <sys/ptrace.h>
+#if defined (__aarch64__)
+SREF(user_pt_regs);
+#else
 SREF(pt_regs);
+#endif
 EREF(PTRACE_PEEKTEXT);
 #endif
 
@@ -433,6 +505,7 @@ SREF(rusage);
 SREF(rlimit64);
 EREF(RLIMIT_NOFILE);
 EREF(PRIO_USER);
+EREF(RUSAGE_SELF);
 
 // From sys/select.h
 TREF(fd_set);

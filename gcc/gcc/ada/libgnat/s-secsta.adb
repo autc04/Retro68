@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,12 +29,9 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-pragma Compiler_Unit_Warning;
-
 with Ada.Unchecked_Conversion;
 with Ada.Unchecked_Deallocation;
 
-with System;                  use System;
 with System.Parameters;       use System.Parameters;
 with System.Soft_Links;       use System.Soft_Links;
 with System.Storage_Elements; use System.Storage_Elements;
@@ -564,7 +561,7 @@ package body System.Secondary_Stack is
       --------------
 
       function Round_Up (Size : Storage_Count) return Memory_Size is
-         Algn_MS : constant Memory_Size := Standard'Maximum_Alignment;
+         Algn_MS : constant Memory_Size := Memory_Alignment;
          Size_MS : constant Memory_Size := Memory_Size (Size);
 
       begin
@@ -573,7 +570,7 @@ package body System.Secondary_Stack is
          --  Treat this case as secondary-stack depletion.
 
          if Memory_Size'Last - Algn_MS < Size_MS then
-            raise Storage_Error with "secondary stack exhaused";
+            raise Storage_Error with "secondary stack exhausted";
          end if;
 
          return ((Size_MS + Algn_MS - 1) / Algn_MS) * Algn_MS;
@@ -587,15 +584,18 @@ package body System.Secondary_Stack is
    --  Start of processing for SS_Allocate
 
    begin
-      --  It should not be possible to request an allocation of negative or
-      --  zero size.
-
-      pragma Assert (Storage_Size > 0);
-
       --  Round the requested size up to the nearest multiple of the maximum
       --  alignment to ensure efficient access.
 
-      Mem_Size := Round_Up (Storage_Size);
+      if Storage_Size = 0 then
+         Mem_Size := Memory_Alignment;
+      else
+         --  It should not be possible to request an allocation of negative
+         --  size.
+
+         pragma Assert (Storage_Size >= 0);
+         Mem_Size := Round_Up (Storage_Size);
+      end if;
 
       if Sec_Stack_Dynamic then
          Allocate_Dynamic (Stack, Mem_Size, Addr);

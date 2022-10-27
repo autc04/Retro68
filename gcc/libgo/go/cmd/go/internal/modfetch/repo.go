@@ -7,17 +7,18 @@ package modfetch
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
-	"sort"
 	"strconv"
 	"time"
 
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/get"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/par"
-	"cmd/go/internal/semver"
+	"cmd/go/internal/vcs"
 	web "cmd/go/internal/web"
+
+	"golang.org/x/mod/module"
 )
 
 const traceRepo = false // trace all repo actions, for debugging
@@ -30,9 +31,18 @@ type Repo interface {
 
 	// Versions lists all known versions with the given prefix.
 	// Pseudo-versions are not included.
+	//
 	// Versions should be returned sorted in semver order
-	// (implementations can use SortVersions).
-	Versions(prefix string) (tags []string, err error)
+	// (implementations can use semver.Sort).
+	//
+	// Versions returns a non-nil error only if there was a problem
+	// fetching the list of versions: it may return an empty list
+	// along with a nil error if the list of matching versions
+	// is known to be empty.
+	//
+	// If the underlying repository does not exist,
+	// Versions returns an error matching errors.Is(_, os.NotExist).
+	Versions(prefix string) ([]string, error)
 
 	// Stat returns information about the revision rev.
 	// A revision can be any identifier known to the underlying service:
@@ -53,7 +63,7 @@ type Repo interface {
 
 // A Rev describes a single revision in a module repository.
 type RevInfo struct {
-	Version string    // version string
+	Version string    // suggested version string for this revision
 	Time    time.Time // commit time
 
 	// These fields are used for Stat of arbitrary rev,
@@ -159,73 +169,104 @@ type RevInfo struct {
 // and it can check that the path can be resolved to a target repository.
 // To avoid version control access except when absolutely necessary,
 // Lookup does not attempt to connect to the repository itself.
-//
-// The Import function takes an import path found in source code and
-// determines which module to add to the requirement list to satisfy
-// that import. It checks successive truncations of the import path
-// to determine possible modules and stops when it finds a module
-// in which the latest version satisfies the import path.
-//
-// The ImportRepoRev function is a variant of Import which is limited
-// to code in a source code repository at a particular revision identifier
-// (usually a commit hash or source code repository tag, not necessarily
-// a module version).
-// ImportRepoRev is used when converting legacy dependency requirements
-// from older systems into go.mod files. Those older systems worked
-// at either package or repository granularity, and most of the time they
-// recorded commit hashes, not tagged versions.
 
 var lookupCache par.Cache
 
-// Lookup returns the module with the given module path.
+type lookupCacheKey struct {
+	proxy, path string
+}
+
+// Lookup returns the module with the given module path,
+// fetched through the given proxy.
+//
+// The distinguished proxy "direct" indicates that the path should be fetched
+// from its origin, and "noproxy" indicates that the patch should be fetched
+// directly only if GONOPROXY matches the given path.
+//
+// For the distinguished proxy "off", Lookup always returns a Repo that returns
+// a non-nil error for every method call.
+//
 // A successful return does not guarantee that the module
 // has any defined versions.
-func Lookup(path string) (Repo, error) {
+func Lookup(proxy, path string) Repo {
 	if traceRepo {
-		defer logCall("Lookup(%q)", path)()
+		defer logCall("Lookup(%q, %q)", proxy, path)()
 	}
 
 	type cached struct {
-		r   Repo
-		err error
+		r Repo
 	}
-	c := lookupCache.Do(path, func() interface{} {
-		r, err := lookup(path)
-		if err == nil {
-			if traceRepo {
+	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() any {
+		r := newCachingRepo(path, func() (Repo, error) {
+			r, err := lookup(proxy, path)
+			if err == nil && traceRepo {
 				r = newLoggingRepo(r)
 			}
-			r = newCachingRepo(r)
-		}
-		return cached{r, err}
+			return r, err
+		})
+		return cached{r}
 	}).(cached)
 
-	return c.r, c.err
+	return c.r
 }
 
 // lookup returns the module with the given module path.
-func lookup(path string) (r Repo, err error) {
+func lookup(proxy, path string) (r Repo, err error) {
 	if cfg.BuildMod == "vendor" {
-		return nil, fmt.Errorf("module lookup disabled by -mod=%s", cfg.BuildMod)
-	}
-	if proxyURL == "off" {
-		return nil, fmt.Errorf("module lookup disabled by GOPROXY=%s", proxyURL)
-	}
-	if proxyURL != "" && proxyURL != "direct" {
-		return lookupProxy(path)
+		return nil, errLookupDisabled
 	}
 
-	security := web.Secure
-	if get.Insecure {
+	if module.MatchPrefixPatterns(cfg.GONOPROXY, path) {
+		switch proxy {
+		case "noproxy", "direct":
+			return lookupDirect(path)
+		default:
+			return nil, errNoproxy
+		}
+	}
+
+	switch proxy {
+	case "off":
+		return errRepo{path, errProxyOff}, nil
+	case "direct":
+		return lookupDirect(path)
+	case "noproxy":
+		return nil, errUseProxy
+	default:
+		return newProxyRepo(proxy, path)
+	}
+}
+
+type lookupDisabledError struct{}
+
+func (lookupDisabledError) Error() string {
+	if cfg.BuildModReason == "" {
+		return fmt.Sprintf("module lookup disabled by -mod=%s", cfg.BuildMod)
+	}
+	return fmt.Sprintf("module lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+}
+
+var errLookupDisabled error = lookupDisabledError{}
+
+var (
+	errProxyOff       = notExistErrorf("module lookup disabled by GOPROXY=off")
+	errNoproxy  error = notExistErrorf("disabled by GOPRIVATE/GONOPROXY")
+	errUseProxy error = notExistErrorf("path does not match GOPRIVATE/GONOPROXY")
+)
+
+func lookupDirect(path string) (Repo, error) {
+	security := web.SecureOnly
+
+	if module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
 		security = web.Insecure
 	}
-	rr, err := get.RepoRootForImportPath(path, get.PreferMod, security)
+	rr, err := vcs.RepoRootForImportPath(path, vcs.PreferMod, security)
 	if err != nil {
 		// We don't know where to find code for a module with this path.
-		return nil, err
+		return nil, notExistError{err: err}
 	}
 
-	if rr.VCS == "mod" {
+	if rr.VCS.Name == "mod" {
 		// Fetch module from proxy with base URL rr.Repo.
 		return newProxyRepo(rr.Repo, path)
 	}
@@ -237,8 +278,8 @@ func lookup(path string) (r Repo, err error) {
 	return newCodeRepo(code, rr.Root, path)
 }
 
-func lookupCodeRepo(rr *get.RepoRoot) (codehost.Repo, error) {
-	code, err := codehost.NewRepo(rr.VCS, rr.Repo)
+func lookupCodeRepo(rr *vcs.RepoRoot) (codehost.Repo, error) {
+	code, err := codehost.NewRepo(rr.VCS.Cmd, rr.Repo)
 	if err != nil {
 		if _, ok := err.(*codehost.VCSError); ok {
 			return nil, err
@@ -246,63 +287,6 @@ func lookupCodeRepo(rr *get.RepoRoot) (codehost.Repo, error) {
 		return nil, fmt.Errorf("lookup %s: %v", rr.Root, err)
 	}
 	return code, nil
-}
-
-// ImportRepoRev returns the module and version to use to access
-// the given import path loaded from the source code repository that
-// the original "go get" would have used, at the specific repository revision
-// (typically a commit hash, but possibly also a source control tag).
-func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
-	if cfg.BuildMod == "vendor" || cfg.BuildMod == "readonly" {
-		return nil, nil, fmt.Errorf("repo version lookup disabled by -mod=%s", cfg.BuildMod)
-	}
-
-	// Note: Because we are converting a code reference from a legacy
-	// version control system, we ignore meta tags about modules
-	// and use only direct source control entries (get.IgnoreMod).
-	security := web.Secure
-	if get.Insecure {
-		security = web.Insecure
-	}
-	rr, err := get.RepoRootForImportPath(path, get.IgnoreMod, security)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	code, err := lookupCodeRepo(rr)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	revInfo, err := code.Stat(rev)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// TODO: Look in repo to find path, check for go.mod files.
-	// For now we're just assuming rr.Root is the module path,
-	// which is true in the absence of go.mod files.
-
-	repo, err := newCodeRepo(code, rr.Root, rr.Root)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	info, err := repo.(*codeRepo).convert(revInfo, "")
-	if err != nil {
-		return nil, nil, err
-	}
-	return repo, info, nil
-}
-
-func SortVersions(list []string) {
-	sort.Slice(list, func(i, j int) bool {
-		cmp := semver.Compare(list[i], list[j])
-		if cmp != 0 {
-			return cmp < 0
-		}
-		return list[i] < list[j]
-	})
 }
 
 // A loggingRepo is a wrapper around an underlying Repo
@@ -324,7 +308,7 @@ func newLoggingRepo(r Repo) *loggingRepo {
 //	defer logCall("hello %s", arg)()
 //
 // Note the final ().
-func logCall(format string, args ...interface{}) func() {
+func logCall(format string, args ...any) func() {
 	start := time.Now()
 	fmt.Fprintf(os.Stderr, "+++ %s\n", fmt.Sprintf(format, args...))
 	return func() {
@@ -363,4 +347,42 @@ func (l *loggingRepo) Zip(dst io.Writer, version string) error {
 	}
 	defer logCall("Repo[%s]: Zip(%s, %q)", l.r.ModulePath(), dstName, version)()
 	return l.r.Zip(dst, version)
+}
+
+// errRepo is a Repo that returns the same error for all operations.
+//
+// It is useful in conjunction with caching, since cache hits will not attempt
+// the prohibited operations.
+type errRepo struct {
+	modulePath string
+	err        error
+}
+
+func (r errRepo) ModulePath() string { return r.modulePath }
+
+func (r errRepo) Versions(prefix string) (tags []string, err error) { return nil, r.err }
+func (r errRepo) Stat(rev string) (*RevInfo, error)                 { return nil, r.err }
+func (r errRepo) Latest() (*RevInfo, error)                         { return nil, r.err }
+func (r errRepo) GoMod(version string) ([]byte, error)              { return nil, r.err }
+func (r errRepo) Zip(dst io.Writer, version string) error           { return r.err }
+
+// A notExistError is like fs.ErrNotExist, but with a custom message
+type notExistError struct {
+	err error
+}
+
+func notExistErrorf(format string, args ...any) error {
+	return notExistError{fmt.Errorf(format, args...)}
+}
+
+func (e notExistError) Error() string {
+	return e.err.Error()
+}
+
+func (notExistError) Is(target error) bool {
+	return target == fs.ErrNotExist
+}
+
+func (e notExistError) Unwrap() error {
+	return e.err
 }

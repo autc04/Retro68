@@ -1,6 +1,39 @@
-2019-05-03  Release Manager
+2022-08-19  Release Manager
 
-	* GCC 9.1.0 released.
+	* GCC 12.2.0 released.
+
+2022-05-06  Release Manager
+
+	* GCC 12.1.0 released.
+
+2021-12-16  H.J. Lu  <hjl.tools@gmail.com>
+
+	Revert:
+	2021-12-16  H.J. Lu  <hjl.tools@gmail.com>
+
+	* configure: Regenerated.
+
+2021-12-15  H.J. Lu  <hjl.tools@gmail.com>
+
+	* configure: Regenerated.
+
+2021-01-05  Samuel Thibault  <samuel.thibault@ens-lyon.org>
+
+	* configure: Re-generate.
+
+2020-12-05  Iain Sandoe  <iain@sandoe.co.uk>
+
+	PR target/97865
+	* configure: Regenerate.
+
+2020-11-29  John David Anglin  <danglin@gcc.gnu.org>
+
+	* configure: Regenerate.
+
+2020-05-29  H.J. Lu  <hjl.tools@gmail.com>
+
+	PR bootstrap/95413
+	* configure: Regenerated.
 
 
                 ChangeLog file for zlib

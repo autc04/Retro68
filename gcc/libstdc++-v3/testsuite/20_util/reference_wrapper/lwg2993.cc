@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Free Software Foundation, Inc.
+// Copyright (C) 2018-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -43,7 +43,7 @@ test01()
 void
 test02()
 {
-  std::reference_wrapper<int> purr();
+  std::reference_wrapper<int> purr(); // { dg-warning "empty parentheses" }
 
   // error, ambiguous: ICS exists from int prvalue to
   // reference_wrapper<int> and from reference_wrapper<int> to int

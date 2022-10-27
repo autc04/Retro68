@@ -9,8 +9,8 @@
    http://www.opensource.org/licenses.
 */
 
-#ifndef _FENV_H_
-#define _FENV_H_
+#ifndef _SYS_FENV_H
+#define _SYS_FENV_H
 
 #include <stddef.h>
 
@@ -72,6 +72,8 @@
 typedef size_t fenv_t;
 typedef size_t fexcept_t;
 extern const fenv_t fe_dfl_env;
+extern const fenv_t *fe_dfl_env_p;
+
 #define FE_DFL_ENV fe_dfl_env_p
 
-#endif /* _FENV_H_ */
+#endif /* _SYS_FENV_H */

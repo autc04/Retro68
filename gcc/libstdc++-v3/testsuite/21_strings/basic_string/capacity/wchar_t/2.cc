@@ -1,6 +1,6 @@
 // 1999-05-11 bkoz
 
-// Copyright (C) 1999-2019 Free Software Foundation, Inc.
+// Copyright (C) 1999-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,7 +29,11 @@ void test02()
   std::wstring str01 = L"twelve chars";
   // str01 becomes shared
   std::wstring str02 = str01;
-  str01.reserve(1);
+#if __cplusplus <= 201703L
+  str01.reserve();
+#else
+  str01.shrink_to_fit(); // reserve is deprecated in C++20
+#endif
   VERIFY( str01.capacity() == 12 );
 }
 

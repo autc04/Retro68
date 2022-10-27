@@ -4,15 +4,16 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_odbcinst.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_odbcinst.d)
  */
 module core.sys.windows.odbcinst;
 version (Windows):
+@system:
 
 version (ANSI) {} else version = Unicode;
 
 import core.sys.windows.sql;
-private import core.sys.windows.windef;
+import core.sys.windows.windef;
 
 /*  FIXME: The Unicode/Ansi functions situation is a mess. How do the xxxA
  *  versions of these functions fit into the scheme?

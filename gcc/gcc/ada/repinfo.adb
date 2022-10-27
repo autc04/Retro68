@@ -6,23 +6,17 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1999-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -30,23 +24,31 @@
 ------------------------------------------------------------------------------
 
 with Alloc;
-with Atree;   use Atree;
-with Casing;  use Casing;
-with Debug;   use Debug;
-with Einfo;   use Einfo;
-with Lib;     use Lib;
-with Namet;   use Namet;
-with Nlists;  use Nlists;
-with Opt;     use Opt;
-with Output;  use Output;
-with Sem_Aux; use Sem_Aux;
-with Sinfo;   use Sinfo;
-with Sinput;  use Sinput;
-with Snames;  use Snames;
-with Stringt; use Stringt;
+with Atree;          use Atree;
+with Casing;         use Casing;
+with Debug;          use Debug;
+with Einfo;          use Einfo;
+with Einfo.Entities; use Einfo.Entities;
+with Einfo.Utils;    use Einfo.Utils;
+with Lib;            use Lib;
+with Namet;          use Namet;
+with Nlists;         use Nlists;
+with Opt;            use Opt;
+with Output;         use Output;
+with Osint.C;        use Osint.C;
+with Sem_Aux;        use Sem_Aux;
+with Sem_Eval;       use Sem_Eval;
+with Sem_Util;
+with Sinfo;          use Sinfo;
+with Sinfo.Nodes;    use Sinfo.Nodes;
+with Sinfo.Utils;    use Sinfo.Utils;
+with Sinput;         use Sinput;
+with Snames;         use Snames;
+with Stringt;        use Stringt;
 with Table;
-with Uname;   use Uname;
-with Urealp;  use Urealp;
+with Ttypes;
+with Uname;          use Uname;
+with Urealp;         use Urealp;
 
 with Ada.Unchecked_Conversion;
 
@@ -54,18 +56,15 @@ with GNAT.HTable;
 
 package body Repinfo is
 
-   SSU : constant := 8;
-   --  Value for Storage_Unit, we do not want to get this from TTypes, since
-   --  this introduces problematic dependencies in ASIS, and in any case this
-   --  value is assumed to be 8 for the implementation of the DDA.
+   SSU : Pos renames Ttypes.System_Storage_Unit;
+   --  Value for Storage_Unit
 
    ---------------------------------------
    -- Representation of GCC Expressions --
    ---------------------------------------
 
    --    A table internal to this unit is used to hold the values of back
-   --    annotated expressions. This table is written out by -gnatt and read
-   --    back in for ASIS processing.
+   --    annotated expressions.
 
    --    Node values are stored as Uint values using the negative of the node
    --    index in this table. Constants appear as non-negative Uint values.
@@ -79,7 +78,7 @@ package body Repinfo is
 
    --  The following representation clause ensures that the above record
    --  has no holes. We do this so that when instances of this record are
-   --  written by Tree_Gen, we do not write uninitialized values to the file.
+   --  written, we do not write uninitialized values to the file.
 
    for Exp_Node use record
       Expr at  0 range 0 .. 31;
@@ -115,10 +114,9 @@ package body Repinfo is
    --  Identifier casing for current unit. This is set by List_Rep_Info for
    --  each unit, before calling subprograms which may read it.
 
-   Need_Blank_Line : Boolean;
-   --  Set True if a blank line is needed before outputting any information for
-   --  the current entity. Set True when a new entity is processed, and false
-   --  when the blank line is output.
+   Need_Separator : Boolean;
+   --  Set True if a separator is needed before outputting any information for
+   --  the current entity.
 
    ------------------------------
    -- Set of Relevant Entities --
@@ -146,15 +144,6 @@ package body Repinfo is
    -- Local Subprograms --
    -----------------------
 
-   function Back_End_Layout return Boolean;
-   --  Test for layout mode, True = back end, False = front end. This function
-   --  is used rather than checking the configuration parameter because we do
-   --  not want Repinfo to depend on Targparm (for ASIS)
-
-   procedure Blank_Line;
-   --  Called before outputting anything for an entity. Ensures that
-   --  a blank line precedes the output for a particular entity.
-
    procedure List_Entities
      (Ent              : Entity_Id;
       Bytes_Big_Endian : Boolean;
@@ -172,16 +161,15 @@ package body Repinfo is
    procedure List_Array_Info (Ent : Entity_Id; Bytes_Big_Endian : Boolean);
    --  List representation info for array type Ent
 
+   procedure List_Common_Type_Info (Ent : Entity_Id);
+   --  List common type info (name, size, alignment) for type Ent
+
    procedure List_Linker_Section (Ent : Entity_Id);
    --  List linker section for Ent (caller has checked that Ent is an entity
    --  for which the Linker_Section_Pragma field is defined).
 
    procedure List_Location (Ent : Entity_Id);
    --  List location information for Ent
-
-   procedure List_Mechanisms (Ent : Entity_Id);
-   --  List mechanism information for parameters of Ent, which is subprogram,
-   --  subprogram type, or an entry or entry family.
 
    procedure List_Object_Info (Ent : Entity_Id);
    --  List representation info for object Ent
@@ -194,6 +182,9 @@ package body Repinfo is
       Bytes_Big_Endian : Boolean);
    --  List scalar storage order information for record or array type Ent.
    --  Also includes bit order information for record types, if necessary.
+
+   procedure List_Subprogram_Info (Ent : Entity_Id);
+   --  List subprogram info for subprogram Ent
 
    procedure List_Type_Info (Ent : Entity_Id);
    --  List type info for type Ent
@@ -215,6 +206,10 @@ package body Repinfo is
    procedure Write_Mechanism (M : Mechanism_Type);
    --  Writes symbolic string for mechanism represented by M
 
+   procedure Write_Separator;
+   --  Called before outputting anything for an entity. Ensures that
+   --  a separator precedes the output for a particular entity.
+
    procedure Write_Unknown_Val;
    --  Writes symbolic string for an unknown or non-representable value
 
@@ -223,30 +218,6 @@ package body Repinfo is
    --  dependent on discriminants are written as two question marks. If the
    --  flag Paren is set, then the output is surrounded in parentheses if it is
    --  other than a simple value.
-
-   ---------------------
-   -- Back_End_Layout --
-   ---------------------
-
-   function Back_End_Layout return Boolean is
-   begin
-      --  We have back-end layout if the back end has made any entries in the
-      --  table of GCC expressions, otherwise we have front-end layout.
-
-      return Rep_Table.Last > 0;
-   end Back_End_Layout;
-
-   ----------------
-   -- Blank_Line --
-   ----------------
-
-   procedure Blank_Line is
-   begin
-      if Need_Blank_Line then
-         Write_Eol;
-         Need_Blank_Line := False;
-      end if;
-   end Blank_Line;
 
    ------------------------
    -- Create_Discrim_Ref --
@@ -340,13 +311,13 @@ package body Repinfo is
 
    procedure List_Array_Info (Ent : Entity_Id; Bytes_Big_Endian : Boolean) is
    begin
-      Blank_Line;
+      Write_Separator;
 
       if List_Representation_Info_To_JSON then
          Write_Line ("{");
       end if;
 
-      List_Type_Info (Ent);
+      List_Common_Type_Info (Ent);
 
       if List_Representation_Info_To_JSON then
          Write_Line (",");
@@ -368,7 +339,104 @@ package body Repinfo is
          Write_Eol;
          Write_Line ("}");
       end if;
+
+      --  The component type is relevant for an array
+
+      if List_Representation_Info = 4
+        and then Is_Itype (Component_Type (Base_Type (Ent)))
+      then
+         Relevant_Entities.Set (Component_Type (Base_Type (Ent)), True);
+      end if;
    end List_Array_Info;
+
+   ---------------------------
+   -- List_Common_Type_Info --
+   ---------------------------
+
+   procedure List_Common_Type_Info (Ent : Entity_Id) is
+   begin
+      if List_Representation_Info_To_JSON then
+         Write_Str ("  ""name"": """);
+         List_Name (Ent);
+         Write_Line (""",");
+         List_Location (Ent);
+      end if;
+
+      --  Do not list size info for unconstrained arrays, not meaningful
+
+      if Is_Array_Type (Ent) and then not Is_Constrained (Ent) then
+         null;
+
+      else
+         if Known_Esize (Ent) and then Known_RM_Size (Ent) then
+            --  If Esize and RM_Size are the same, list as Size. This is a
+            --  common case, which we may as well list in simple form.
+
+            if Esize (Ent) = RM_Size (Ent) then
+               if List_Representation_Info_To_JSON then
+                  Write_Str ("  ""Size"": ");
+                  Write_Val (Esize (Ent));
+                  Write_Line (",");
+               else
+                  Write_Str ("for ");
+                  List_Name (Ent);
+                  Write_Str ("'Size use ");
+                  Write_Val (Esize (Ent));
+                  Write_Line (";");
+               end if;
+
+            --  Otherwise list size values separately
+
+            else
+               if List_Representation_Info_To_JSON then
+                  Write_Str ("  ""Object_Size"": ");
+                  Write_Val (Esize (Ent));
+                  Write_Line (",");
+
+                  Write_Str ("  ""Value_Size"": ");
+                  Write_Val (RM_Size (Ent));
+                  Write_Line (",");
+
+               else
+                  Write_Str ("for ");
+                  List_Name (Ent);
+                  Write_Str ("'Object_Size use ");
+                  Write_Val (Esize (Ent));
+                  Write_Line (";");
+
+                  Write_Str ("for ");
+                  List_Name (Ent);
+                  Write_Str ("'Value_Size use ");
+                  Write_Val (RM_Size (Ent));
+                  Write_Line (";");
+               end if;
+            end if;
+         end if;
+      end if;
+
+      if Known_Alignment (Ent) then
+         if List_Representation_Info_To_JSON then
+            Write_Str ("  ""Alignment"": ");
+            Write_Val (Alignment (Ent));
+         else
+            Write_Str ("for ");
+            List_Name (Ent);
+            Write_Str ("'Alignment use ");
+            Write_Val (Alignment (Ent));
+            Write_Line (";");
+         end if;
+
+      --  Alignment is not always set for task, protected, and class-wide
+      --  types. Representation aspects are not computed for types in a
+      --  generic unit.
+
+      else
+         pragma Assert
+           (Is_Concurrent_Type (Ent) or else
+              Is_Class_Wide_Type (Ent) or else
+              Sem_Util.In_Generic_Scope (Ent));
+      end if;
+   end List_Common_Type_Info;
 
    -------------------
    -- List_Entities --
@@ -415,6 +483,7 @@ package body Repinfo is
 
       if Present (Ent)
         and then Nkind (Declaration_Node (Ent)) not in N_Renaming_Declaration
+        and then not Is_Ignored_Ghost_Entity (Ent)
       then
          --  If entity is a subprogram and we are listing mechanisms,
          --  then we need to list mechanisms for this entity. We skip this
@@ -422,19 +491,14 @@ package body Repinfo is
          --  been produced when listing the enclosing scope.
 
          if List_Representation_Info_Mechanisms
-           and then (Is_Subprogram (Ent)
-                      or else Ekind (Ent) = E_Entry
-                      or else Ekind (Ent) = E_Entry_Family)
+           and then Is_Subprogram_Or_Entry (Ent)
            and then not In_Subprogram
          then
-            Need_Blank_Line := True;
-            List_Mechanisms (Ent);
+            List_Subprogram_Info (Ent);
          end if;
 
          E := First_Entity (Ent);
          while Present (E) loop
-            Need_Blank_Line := True;
-
             --  We list entities that come from source (excluding private or
             --  incomplete types or deferred constants, for which we will list
             --  the information for the full view). If requested, we also list
@@ -457,27 +521,30 @@ package body Repinfo is
             then
                if Is_Subprogram (E) then
                   if List_Representation_Info_Mechanisms then
-                     List_Mechanisms (E);
+                     List_Subprogram_Info (E);
                   end if;
 
                   --  Recurse into entities local to subprogram
 
                   List_Entities (E, Bytes_Big_Endian, True);
 
-               elsif Is_Formal (E) and then In_Subprogram then
-                  null;
-
-               elsif Ekind_In (E, E_Entry,
-                                  E_Entry_Family,
-                                  E_Subprogram_Type)
+               elsif Ekind (E) in E_Entry
+                                | E_Entry_Family
+                                | E_Subprogram_Type
                then
                   if List_Representation_Info_Mechanisms then
-                     List_Mechanisms (E);
+                     List_Subprogram_Info (E);
                   end if;
 
                elsif Is_Record_Type (E) then
                   if List_Representation_Info >= 1 then
                      List_Record_Info (E, Bytes_Big_Endian);
+
+                     --  Recurse into entities local to a record type
+
+                     if List_Representation_Info = 4 then
+                        List_Entities (E, Bytes_Big_Endian, False);
+                     end if;
                   end if;
 
                elsif Is_Array_Type (E) then
@@ -485,57 +552,41 @@ package body Repinfo is
                      List_Array_Info (E, Bytes_Big_Endian);
                   end if;
 
-                  --  The component type is relevant for an array
-
-                  if List_Representation_Info = 4
-                    and then Is_Itype (Component_Type (Base_Type (E)))
-                  then
-                     Relevant_Entities.Set
-                       (Component_Type (Base_Type (E)), True);
-                  end if;
-
                elsif Is_Type (E) then
                   if List_Representation_Info >= 2 then
-                     Blank_Line;
-                     if List_Representation_Info_To_JSON then
-                        Write_Line ("{");
-                     end if;
                      List_Type_Info (E);
-                     List_Linker_Section (E);
-                     if List_Representation_Info_To_JSON then
-                        Write_Eol;
-                        Write_Line ("}");
-                     end if;
                   end if;
 
-               elsif Ekind_In (E, E_Variable, E_Constant) then
-                  if List_Representation_Info >= 2 then
-                     List_Object_Info (E);
-                  end if;
+               --  Note that formals are not annotated so we skip them here
 
-               elsif Ekind (E) = E_Loop_Parameter or else Is_Formal (E) then
+               elsif Ekind (E) in E_Constant
+                                | E_Loop_Parameter
+                                | E_Variable
+               then
                   if List_Representation_Info >= 2 then
                      List_Object_Info (E);
                   end if;
                end if;
 
-               --  Recurse into nested package, but not if they are package
-               --  renamings (in particular renamings of the enclosing package,
-               --  as for some Java bindings and for generic instances).
+               --  Recurse into nested package, but not child packages, and not
+               --  nested package renamings (in particular renamings of the
+               --  enclosing package, as for some Java bindings and for generic
+               --  instances).
 
                if Ekind (E) = E_Package then
-                  if No (Renamed_Object (E)) then
+                  if No (Renamed_Entity (E)) and then not Is_Child_Unit (E)
+                  then
                      List_Entities (E, Bytes_Big_Endian);
                   end if;
 
                --  Recurse into bodies
 
-               elsif Ekind_In (E, E_Protected_Type,
-                                  E_Task_Type,
-                                  E_Subprogram_Body,
-                                  E_Package_Body,
-                                  E_Task_Body,
-                                  E_Protected_Body)
+               elsif Ekind (E) in E_Package_Body
+                                | E_Protected_Body
+                                | E_Protected_Type
+                                | E_Subprogram_Body
+                                | E_Task_Body
+                                | E_Task_Type
                then
                   List_Entities (E, Bytes_Big_Endian);
 
@@ -546,7 +597,7 @@ package body Repinfo is
                end if;
             end if;
 
-            E := Next_Entity (E);
+            Next_Entity (E);
          end loop;
 
          --  For a package body, the entities of the visible subprograms are
@@ -764,7 +815,7 @@ package body Repinfo is
    --  Start of processing for List_GCC_Expression
 
    begin
-      if U = No_Uint then
+      if No (U) then
          Write_Unknown_Val;
       else
          Print_Expr (U);
@@ -776,35 +827,8 @@ package body Repinfo is
    -------------------------
 
    procedure List_Linker_Section (Ent : Entity_Id) is
-      function Expr_Value_S (N : Node_Id) return Node_Id;
-      --  Returns the folded value of the expression. This function is called
-      --  in instances where it has already been determined that the expression
-      --  is static or its value is known at compile time. This version is used
-      --  for string types and returns the corresponding N_String_Literal node.
-      --  NOTE: This is an exact copy of Sem_Eval.Expr_Value_S. Licensing stops
-      --  Repinfo from within Sem_Eval. Once ASIS is removed, and the licenses
-      --  are modified, Repinfo should be able to rely on Sem_Eval.
-
-      ------------------
-      -- Expr_Value_S --
-      ------------------
-
-      function Expr_Value_S (N : Node_Id) return Node_Id is
-      begin
-         if Nkind (N) = N_String_Literal then
-            return N;
-         else
-            pragma Assert (Ekind (Entity (N)) = E_Constant);
-            return Expr_Value_S (Constant_Value (Entity (N)));
-         end if;
-      end Expr_Value_S;
-
-      --  Local variables
-
       Args : List_Id;
       Sect : Node_Id;
-
-   --  Start of processing for List_Linker_Section
 
    begin
       if Present (Linker_Section_Pragma (Ent)) then
@@ -842,17 +866,1000 @@ package body Repinfo is
       Write_Line (""",");
    end List_Location;
 
+   ---------------
+   -- List_Name --
+   ---------------
+
+   procedure List_Name (Ent : Entity_Id) is
+      C : Character;
+
+   begin
+      --  List the qualified name recursively, except
+      --  at compilation unit level in default mode.
+
+      if Is_Compilation_Unit (Ent) then
+         null;
+      elsif not Is_Compilation_Unit (Scope (Ent))
+        or else List_Representation_Info_To_JSON
+      then
+         List_Name (Scope (Ent));
+         Write_Char ('.');
+      end if;
+
+      Get_Unqualified_Decoded_Name_String (Chars (Ent));
+      Set_Casing (Unit_Casing);
+
+      --  The name of operators needs to be properly escaped for JSON
+
+      for J in 1 .. Name_Len loop
+         C := Name_Buffer (J);
+         if C = '"' and then List_Representation_Info_To_JSON then
+            Write_Char ('\');
+         end if;
+         Write_Char (C);
+      end loop;
+   end List_Name;
+
    ---------------------
-   -- List_Mechanisms --
+   -- List_Object_Info --
    ---------------------
 
-   procedure List_Mechanisms (Ent : Entity_Id) is
+   procedure List_Object_Info (Ent : Entity_Id) is
+   begin
+      --  The information has not been computed in a generic unit, so don't try
+      --  to print it.
+
+      if Sem_Util.In_Generic_Scope (Ent) then
+         return;
+      end if;
+
+      Write_Separator;
+
+      if List_Representation_Info_To_JSON then
+         Write_Line ("{");
+
+         Write_Str ("  ""name"": """);
+         List_Name (Ent);
+         Write_Line (""",");
+         List_Location (Ent);
+
+         Write_Str ("  ""Size"": ");
+         Write_Val (Esize (Ent));
+         Write_Line (",");
+
+         Write_Str ("  ""Alignment"": ");
+         Write_Val (Alignment (Ent));
+
+         List_Linker_Section (Ent);
+
+         Write_Eol;
+         Write_Line ("}");
+      else
+         Write_Str ("for ");
+         List_Name (Ent);
+         Write_Str ("'Size use ");
+         Write_Val (Esize (Ent));
+         Write_Line (";");
+
+         Write_Str ("for ");
+         List_Name (Ent);
+         Write_Str ("'Alignment use ");
+         Write_Val (Alignment (Ent));
+         Write_Line (";");
+
+         List_Linker_Section (Ent);
+      end if;
+
+      --  The type is relevant for an object
+
+      if List_Representation_Info = 4 and then Is_Itype (Etype (Ent)) then
+         Relevant_Entities.Set (Etype (Ent), True);
+      end if;
+   end List_Object_Info;
+
+   ----------------------
+   -- List_Record_Info --
+   ----------------------
+
+   procedure List_Record_Info (Ent : Entity_Id; Bytes_Big_Endian : Boolean) is
+      procedure Compute_Max_Length
+        (Ent                : Entity_Id;
+         Starting_Position  : Uint := Uint_0;
+         Starting_First_Bit : Uint := Uint_0;
+         Prefix_Length      : Natural := 0);
+      --  Internal recursive procedure to compute the max length
+
+      procedure List_Component_Layout
+        (Ent                : Entity_Id;
+         Starting_Position  : Uint := Uint_0;
+         Starting_First_Bit : Uint := Uint_0;
+         Prefix             : String := "";
+         Indent             : Natural := 0);
+      --  Procedure to display the layout of a single component
+
+      procedure List_Record_Layout
+        (Ent                : Entity_Id;
+         Starting_Position  : Uint := Uint_0;
+         Starting_First_Bit : Uint := Uint_0;
+         Prefix             : String := "");
+      --  Internal recursive procedure to display the layout
+
+      procedure List_Structural_Record_Layout
+        (Ent       : Entity_Id;
+         Ext_Ent   : Entity_Id;
+         Ext_Level : Nat := 0;
+         Variant   : Node_Id := Empty;
+         Indent    : Natural := 0);
+      --  Internal recursive procedure to display the structural layout.
+      --  If Ext_Ent is not equal to Ent, it is an extension of Ent and
+      --  Ext_Level is the number of successive extensions between them.
+      --  If Variant is present, it's for a variant in the variant part
+      --  instead of the common part of Ent. Indent is the indentation.
+
+      Incomplete_Layout : exception;
+      --  Exception raised if the layout is incomplete in -gnatc mode
+
+      Not_In_Extended_Main : exception;
+      --  Exception raised when an ancestor is not declared in the main unit
+
+      Max_Name_Length : Natural := 0;
+      Max_Spos_Length : Natural := 0;
+
+      ------------------------
+      -- Compute_Max_Length --
+      ------------------------
+
+      procedure Compute_Max_Length
+        (Ent                : Entity_Id;
+         Starting_Position  : Uint := Uint_0;
+         Starting_First_Bit : Uint := Uint_0;
+         Prefix_Length      : Natural := 0)
+      is
+         Comp : Entity_Id;
+
+      begin
+         Comp := First_Component_Or_Discriminant (Ent);
+         while Present (Comp) loop
+
+            --  Skip a completely hidden discriminant or a discriminant in an
+            --  unchecked union (since it is not there).
+
+            if Ekind (Comp) = E_Discriminant
+              and then (Is_Completely_Hidden (Comp)
+                         or else Is_Unchecked_Union (Ent))
+            then
+               goto Continue;
+            end if;
+
+            --  Skip _Parent component in extension (to avoid overlap)
+
+            if Chars (Comp) = Name_uParent then
+               goto Continue;
+            end if;
+
+            --  All other cases
+
+            declare
+               Ctyp : constant Entity_Id := Underlying_Type (Etype (Comp));
+               Bofs : constant Uint      := Component_Bit_Offset (Comp);
+               Npos : Uint;
+               Fbit : Uint;
+               Spos : Uint;
+               Sbit : Uint;
+
+               Name_Length : Natural;
+
+            begin
+               Get_Decoded_Name_String (Chars (Comp));
+               Name_Length := Prefix_Length + Name_Len;
+
+               if Rep_Not_Constant (Bofs) then
+
+                  --  If the record is not packed, then we know that all fields
+                  --  whose position is not specified have starting normalized
+                  --  bit position of zero.
+
+                  if not Known_Normalized_First_Bit (Comp)
+                    and then not Is_Packed (Ent)
+                  then
+                     Set_Normalized_First_Bit (Comp, Uint_0);
+                  end if;
+
+                  UI_Image_Length := 2; -- For "??" marker
+               else
+                  Npos := Bofs / SSU;
+                  Fbit := Bofs mod SSU;
+
+                  --  Complete annotation in case not done
+
+                  if not Known_Normalized_First_Bit (Comp) then
+                     Set_Normalized_Position  (Comp, Npos);
+                     Set_Normalized_First_Bit (Comp, Fbit);
+                  end if;
+
+                  Spos := Starting_Position  + Npos;
+                  Sbit := Starting_First_Bit + Fbit;
+
+                  if Sbit >= SSU then
+                     Spos := Spos + 1;
+                     Sbit := Sbit - SSU;
+                  end if;
+
+                  --  If extended information is requested, recurse fully into
+                  --  record components, i.e. skip the outer level.
+
+                  if List_Representation_Info_Extended
+                    and then Is_Record_Type (Ctyp)
+                  then
+                     Compute_Max_Length (Ctyp, Spos, Sbit, Name_Length + 1);
+                     goto Continue;
+                  end if;
+
+                  UI_Image (Spos);
+               end if;
+
+               Max_Name_Length := Natural'Max (Max_Name_Length, Name_Length);
+               Max_Spos_Length :=
+                 Natural'Max (Max_Spos_Length, UI_Image_Length);
+            end;
+
+         <<Continue>>
+            Next_Component_Or_Discriminant (Comp);
+         end loop;
+      end Compute_Max_Length;
+
+      ---------------------------
+      -- List_Component_Layout --
+      ---------------------------
+
+      procedure List_Component_Layout
+        (Ent                : Entity_Id;
+         Starting_Position  : Uint := Uint_0;
+         Starting_First_Bit : Uint := Uint_0;
+         Prefix             : String := "";
+         Indent             : Natural := 0)
+      is
+         Esiz  : constant Uint := Esize (Ent);
+         Npos  : constant Uint := Normalized_Position (Ent);
+         Fbit  : constant Uint := Normalized_First_Bit (Ent);
+         Spos  : Uint;
+         Sbit  : Uint := No_Uint;
+         Lbit  : Uint;
+
+      begin
+         if List_Representation_Info_To_JSON then
+            Spaces (Indent);
+            Write_Line ("    {");
+            Spaces (Indent);
+            Write_Str ("      ""name"": """);
+            Write_Str (Prefix);
+            Write_Str (Name_Buffer (1 .. Name_Len));
+            Write_Line (""",");
+            if Ekind (Ent) = E_Discriminant then
+               Spaces (Indent);
+               Write_Str ("      ""discriminant"": ");
+               UI_Write (Discriminant_Number (Ent), Decimal);
+               Write_Line (",");
+            end if;
+            Spaces (Indent);
+            Write_Str ("      ""Position"": ");
+         else
+            Write_Str ("   ");
+            Write_Str (Prefix);
+            Write_Str (Name_Buffer (1 .. Name_Len));
+            Spaces (Max_Name_Length - Prefix'Length - Name_Len);
+            Write_Str (" at ");
+         end if;
+
+         if Known_Static_Normalized_Position (Ent) then
+            Spos := Starting_Position  + Npos;
+            Sbit := Starting_First_Bit + Fbit;
+
+            if Sbit >= SSU then
+               Spos := Spos + 1;
+            end if;
+
+            UI_Image (Spos);
+            Spaces (Max_Spos_Length - UI_Image_Length);
+            Write_Str (UI_Image_Buffer (1 .. UI_Image_Length));
+
+         elsif Known_Normalized_Position (Ent)
+           and then List_Representation_Info >= 3
+         then
+            Spaces (Max_Spos_Length - 2);
+
+            if Starting_Position /= Uint_0 then
+               UI_Write (Starting_Position, Decimal);
+               Write_Str (" + ");
+            end if;
+
+            Write_Val (Npos);
+
+         else
+            Write_Unknown_Val;
+         end if;
+
+         if List_Representation_Info_To_JSON then
+            Write_Line (",");
+            Spaces (Indent);
+            Write_Str ("      ""First_Bit"": ");
+         else
+            Write_Str (" range  ");
+         end if;
+
+         if Known_Static_Normalized_First_Bit (Ent) then
+            Sbit := Starting_First_Bit + Fbit;
+
+            if Sbit >= SSU then
+               Sbit := Sbit - SSU;
+            end if;
+
+            UI_Write (Sbit, Decimal);
+         else
+            Write_Unknown_Val;
+         end if;
+
+         if List_Representation_Info_To_JSON then
+            Write_Line (", ");
+            Spaces (Indent);
+            Write_Str ("      ""Size"": ");
+         else
+            Write_Str (" .. ");
+         end if;
+
+         if Known_Static_Esize (Ent)
+           and then Known_Static_Normalized_First_Bit (Ent)
+         then
+            Lbit := Sbit + Esiz - 1;
+
+            if List_Representation_Info_To_JSON then
+               UI_Write (Esiz, Decimal);
+            else
+               if Lbit >= 0 and then Lbit < 10 then
+                  Write_Char (' ');
+               end if;
+
+               UI_Write (Lbit, Decimal);
+            end if;
+
+         elsif List_Representation_Info < 3 or else not Known_Esize (Ent) then
+            Write_Unknown_Val;
+
+         --  List_Representation >= 3 and Known_Esize (Ent)
+
+         else
+            Write_Val (Esiz, Paren => not List_Representation_Info_To_JSON);
+
+            --  Add appropriate first bit offset
+
+            if not List_Representation_Info_To_JSON then
+               if Sbit = 0 then
+                  Write_Str (" - 1");
+
+               elsif Sbit = 1 then
+                  null;
+
+               else
+                  Write_Str (" + ");
+                  Write_Int (UI_To_Int (Sbit) - 1);
+               end if;
+            end if;
+         end if;
+
+         if List_Representation_Info_To_JSON then
+            Write_Eol;
+            Spaces (Indent);
+            Write_Str ("    }");
+         else
+            Write_Line (";");
+         end if;
+
+         --  The type is relevant for a component
+
+         if List_Representation_Info = 4 and then Is_Itype (Etype (Ent)) then
+            Relevant_Entities.Set (Etype (Ent), True);
+         end if;
+      end List_Component_Layout;
+
+      ------------------------
+      -- List_Record_Layout --
+      ------------------------
+
+      procedure List_Record_Layout
+        (Ent                : Entity_Id;
+         Starting_Position  : Uint := Uint_0;
+         Starting_First_Bit : Uint := Uint_0;
+         Prefix             : String := "")
+      is
+         Comp  : Entity_Id;
+         First : Boolean := True;
+
+      begin
+         Comp := First_Component_Or_Discriminant (Ent);
+         while Present (Comp) loop
+
+            --  Skip a completely hidden discriminant or a discriminant in an
+            --  unchecked union (since it is not there).
+
+            if Ekind (Comp) = E_Discriminant
+              and then (Is_Completely_Hidden (Comp)
+                         or else Is_Unchecked_Union (Ent))
+            then
+               goto Continue;
+            end if;
+
+            --  Skip _Parent component in extension (to avoid overlap)
+
+            if Chars (Comp) = Name_uParent then
+               goto Continue;
+            end if;
+
+            --  All other cases
+
+            declare
+               Ctyp : constant Entity_Id := Underlying_Type (Etype (Comp));
+               Npos : constant Uint      := Normalized_Position (Comp);
+               Fbit : constant Uint      := Normalized_First_Bit (Comp);
+               Spos : Uint;
+               Sbit : Uint;
+
+            begin
+               Get_Decoded_Name_String (Chars (Comp));
+               Set_Casing (Unit_Casing);
+
+               --  If extended information is requested, recurse fully into
+               --  record components, i.e. skip the outer level.
+
+               if List_Representation_Info_Extended
+                 and then Is_Record_Type (Ctyp)
+                 and then Known_Static_Normalized_Position (Comp)
+                 and then Known_Static_Normalized_First_Bit (Comp)
+               then
+                  Spos := Starting_Position  + Npos;
+                  Sbit := Starting_First_Bit + Fbit;
+
+                  if Sbit >= SSU then
+                     Spos := Spos + 1;
+                     Sbit := Sbit - SSU;
+                  end if;
+
+                  List_Record_Layout (Ctyp,
+                    Spos, Sbit, Prefix & Name_Buffer (1 .. Name_Len) & ".");
+
+                  goto Continue;
+               end if;
+
+               if List_Representation_Info_To_JSON then
+                  if First then
+                     Write_Eol;
+                     First := False;
+                  else
+                     Write_Line (",");
+                  end if;
+               end if;
+
+               --  The Parent_Subtype in an extension is not back-annotated
+
+               List_Component_Layout (
+                 (if Known_Normalized_Position (Comp)
+                  then Comp
+                  else Original_Record_Component (Comp)),
+                 Starting_Position, Starting_First_Bit, Prefix);
+            end;
+
+         <<Continue>>
+            Next_Component_Or_Discriminant (Comp);
+         end loop;
+      end List_Record_Layout;
+
+      -----------------------------------
+      -- List_Structural_Record_Layout --
+      -----------------------------------
+
+      procedure List_Structural_Record_Layout
+        (Ent       : Entity_Id;
+         Ext_Ent   : Entity_Id;
+         Ext_Level : Nat := 0;
+         Variant   : Node_Id := Empty;
+         Indent    : Natural := 0)
+      is
+         function Derived_Discriminant (Disc : Entity_Id) return Entity_Id;
+         --  This function assumes that Ext_Ent is an extension of Ent.
+         --  Disc is a discriminant of Ent that does not itself constrain a
+         --  discriminant of the parent type of Ent. Return the discriminant
+         --  of Ext_Ent that ultimately constrains Disc, if any.
+
+         ----------------------------
+         --  Derived_Discriminant  --
+         ----------------------------
+
+         function Derived_Discriminant (Disc : Entity_Id) return Entity_Id is
+            Corr_Disc    : Entity_Id;
+            Derived_Disc : Entity_Id;
+
+         begin
+            Derived_Disc := First_Discriminant (Ext_Ent);
+
+            --  Loop over the discriminants of the extension
+
+            while Present (Derived_Disc) loop
+
+               --  Check if this discriminant constrains another discriminant.
+               --  If so, find the ultimately constrained discriminant and
+               --  compare with the original components in the base type.
+
+               if Present (Corresponding_Discriminant (Derived_Disc)) then
+                  Corr_Disc := Corresponding_Discriminant (Derived_Disc);
+
+                  while Present (Corresponding_Discriminant (Corr_Disc)) loop
+                     Corr_Disc := Corresponding_Discriminant (Corr_Disc);
+                  end loop;
+
+                  if Original_Record_Component (Corr_Disc) =
+                     Original_Record_Component (Disc)
+                  then
+                     return Derived_Disc;
+                  end if;
+               end if;
+
+               Next_Discriminant (Derived_Disc);
+            end loop;
+
+            --  Disc is not constrained by a discriminant of Ext_Ent
+
+            return Empty;
+         end Derived_Discriminant;
+
+         --  Local declarations
+
+         Comp       : Node_Id;
+         Comp_List  : Node_Id;
+         First      : Boolean := True;
+         Var        : Node_Id;
+
+      --  Start of processing for List_Structural_Record_Layout
+
+      begin
+         --  If we are dealing with a variant, just process the components
+
+         if Present (Variant) then
+            Comp_List := Component_List (Variant);
+
+         --  Otherwise, we are dealing with the full record and need to get
+         --  to its definition in order to retrieve its structural layout.
+
+         else
+            declare
+               Definition : Node_Id :=
+                              Type_Definition (Declaration_Node (Ent));
+
+               Is_Extension : constant Boolean :=
+                                Is_Tagged_Type (Ent)
+                                  and then Nkind (Definition) =
+                                             N_Derived_Type_Definition;
+
+               Disc        : Entity_Id;
+               Listed_Disc : Entity_Id;
+               Parent_Type : Entity_Id;
+
+            begin
+               --  If this is an extension, first list the layout of the parent
+               --  and then proceed to the extension part, if any.
+
+               if Is_Extension then
+                  Parent_Type := Parent_Subtype (Ent);
+                  if No (Parent_Type) then
+                     raise Incomplete_Layout;
+                  end if;
+
+                  if Is_Private_Type (Parent_Type) then
+                     Parent_Type := Full_View (Parent_Type);
+                     pragma Assert (Present (Parent_Type));
+                  end if;
+
+                  --  Do not list variants if one of them has been selected
+
+                  if Has_Static_Discriminants (Parent_Type) then
+                     List_Record_Layout (Parent_Type);
+
+                  else
+                     Parent_Type := Base_Type (Parent_Type);
+                     if not In_Extended_Main_Source_Unit (Parent_Type) then
+                        raise Not_In_Extended_Main;
+                     end if;
+
+                     List_Structural_Record_Layout
+                       (Parent_Type, Ext_Ent, Ext_Level + 1);
+                  end if;
+
+                  First := False;
+
+                  if Present (Record_Extension_Part (Definition)) then
+                     Definition := Record_Extension_Part (Definition);
+                  end if;
+               end if;
+
+               --  If the record has discriminants and is not an unchecked
+               --  union, then display them now. Note that, even if this is
+               --  a structural layout, we list the visible discriminants.
+
+               if Has_Discriminants (Ent)
+                 and then not Is_Unchecked_Union (Ent)
+               then
+                  Disc := First_Discriminant (Ent);
+                  while Present (Disc) loop
+
+                     --  If this is a record extension and the discriminant is
+                     --  the renaming of another discriminant, skip it.
+
+                     if Is_Extension
+                       and then Present (Corresponding_Discriminant (Disc))
+                     then
+                        goto Continue_Disc;
+                     end if;
+
+                     --  If this is the parent type of an extension, retrieve
+                     --  the derived discriminant from the extension, if any.
+
+                     if Ent /= Ext_Ent then
+                        Listed_Disc := Derived_Discriminant (Disc);
+
+                        if No (Listed_Disc) then
+                           goto Continue_Disc;
+                        end if;
+                     else
+                        Listed_Disc := Disc;
+                     end if;
+
+                     Get_Decoded_Name_String (Chars (Listed_Disc));
+                     Set_Casing (Unit_Casing);
+
+                     if First then
+                        Write_Eol;
+                        First := False;
+                     else
+                        Write_Line (",");
+                     end if;
+
+                     List_Component_Layout (Listed_Disc, Indent => Indent);
+
+                  <<Continue_Disc>>
+                     Next_Discriminant (Disc);
+                  end loop;
+               end if;
+
+               Comp_List := Component_List (Definition);
+            end;
+         end if;
+
+         --  Bail out for the null record
+
+         if No (Comp_List) then
+            return;
+         end if;
+
+         --  Now deal with the regular components, if any
+
+         if Present (Component_Items (Comp_List)) then
+            Comp := First_Non_Pragma (Component_Items (Comp_List));
+            while Present (Comp) loop
+
+               --  Skip _Parent component in extension (to avoid overlap)
+
+               if Chars (Defining_Identifier (Comp)) = Name_uParent then
+                  goto Continue_Comp;
+               end if;
+
+               Get_Decoded_Name_String (Chars (Defining_Identifier (Comp)));
+               Set_Casing (Unit_Casing);
+
+               if First then
+                  Write_Eol;
+                  First := False;
+               else
+                  Write_Line (",");
+               end if;
+
+               List_Component_Layout
+                 (Defining_Identifier (Comp), Indent => Indent);
+
+            <<Continue_Comp>>
+               Next_Non_Pragma (Comp);
+            end loop;
+         end if;
+
+         --  We are done if there is no variant part
+
+         if No (Variant_Part (Comp_List)) then
+            return;
+         end if;
+
+         Write_Eol;
+         Spaces (Indent);
+         Write_Line ("  ],");
+         Spaces (Indent);
+         Write_Str ("  """);
+         for J in 1 .. Ext_Level loop
+            Write_Str ("parent_");
+         end loop;
+         Write_Str ("variant"" : [");
+
+         --  Otherwise we recurse on each variant
+
+         Var := First_Non_Pragma (Variants (Variant_Part (Comp_List)));
+         First := True;
+         while Present (Var) loop
+            if First then
+               Write_Eol;
+               First := False;
+            else
+               Write_Line (",");
+            end if;
+
+            Spaces (Indent);
+            Write_Line ("    {");
+            Spaces (Indent);
+            Write_Str ("      ""present"": ");
+            Write_Val (Present_Expr (Var));
+            Write_Line (",");
+            Spaces (Indent);
+            Write_Str ("      ""record"": [");
+
+            List_Structural_Record_Layout
+              (Ent, Ext_Ent, Ext_Level, Var, Indent + 4);
+
+            Write_Eol;
+            Spaces (Indent);
+            Write_Line ("      ]");
+            Spaces (Indent);
+            Write_Str ("    }");
+            Next_Non_Pragma (Var);
+         end loop;
+      end List_Structural_Record_Layout;
+
+   --  Start of processing for List_Record_Info
+
+   begin
+      Write_Separator;
+
+      if List_Representation_Info_To_JSON then
+         Write_Line ("{");
+      end if;
+
+      List_Common_Type_Info (Ent);
+
+      --  First find out max line length and max starting position
+      --  length, for the purpose of lining things up nicely.
+
+      Compute_Max_Length (Ent);
+
+      --  Then do actual output based on those values
+
+      if List_Representation_Info_To_JSON then
+         Write_Line (",");
+         Write_Str ("  ""record"": [");
+
+         --  ??? We can output structural layout only for base types fully
+         --  declared in the extended main source unit for the time being,
+         --  because otherwise declarations might not be processed at all.
+
+         if Is_Base_Type (Ent) then
+            begin
+               List_Structural_Record_Layout (Ent, Ent);
+
+            exception
+               when Incomplete_Layout
+                  | Not_In_Extended_Main
+               =>
+                  List_Record_Layout (Ent);
+
+               when others =>
+                  raise Program_Error;
+            end;
+         else
+            List_Record_Layout (Ent);
+         end if;
+
+         Write_Eol;
+         Write_Str ("  ]");
+      else
+         Write_Str ("for ");
+         List_Name (Ent);
+         Write_Line (" use record");
+
+         List_Record_Layout (Ent);
+
+         Write_Line ("end record;");
+      end if;
+
+      List_Scalar_Storage_Order (Ent, Bytes_Big_Endian);
+
+      List_Linker_Section (Ent);
+
+      if List_Representation_Info_To_JSON then
+         Write_Eol;
+         Write_Line ("}");
+      end if;
+
+      --  The type is relevant for a record subtype
+
+      if List_Representation_Info = 4
+        and then not Is_Base_Type (Ent)
+        and then Is_Itype (Etype (Ent))
+      then
+         Relevant_Entities.Set (Etype (Ent), True);
+      end if;
+   end List_Record_Info;
+
+   -------------------
+   -- List_Rep_Info --
+   -------------------
+
+   procedure List_Rep_Info (Bytes_Big_Endian : Boolean) is
+      Col : Nat;
+
+   begin
+      if List_Representation_Info /= 0
+        or else List_Representation_Info_Mechanisms
+      then
+         --  For the normal case, we output a single JSON stream
+
+         if not List_Representation_Info_To_File
+           and then List_Representation_Info_To_JSON
+         then
+            Write_Line ("[");
+            Need_Separator := False;
+         end if;
+
+         for U in Main_Unit .. Last_Unit loop
+            if In_Extended_Main_Source_Unit (Cunit_Entity (U)) then
+               Unit_Casing := Identifier_Casing (Source_Index (U));
+
+               if List_Representation_Info = 4 then
+                  Relevant_Entities.Reset;
+               end if;
+
+               --  Normal case, list to standard output
+
+               if not List_Representation_Info_To_File then
+                  if not List_Representation_Info_To_JSON then
+                     Write_Eol;
+                     Write_Str ("Representation information for unit ");
+                     Write_Unit_Name (Unit_Name (U));
+                     Col := Column;
+                     Write_Eol;
+
+                     for J in 1 .. Col - 1 loop
+                        Write_Char ('-');
+                     end loop;
+
+                     Write_Eol;
+                     Need_Separator := True;
+                  end if;
+
+                  List_Entities (Cunit_Entity (U), Bytes_Big_Endian);
+
+               --  List representation information to file
+
+               else
+                  Create_Repinfo_File
+                    (Get_Name_String (File_Name (Source_Index (U))));
+                  Set_Special_Output (Write_Info_Line'Access);
+                  if List_Representation_Info_To_JSON then
+                     Write_Line ("[");
+                  end if;
+                  Need_Separator := False;
+                  List_Entities (Cunit_Entity (U), Bytes_Big_Endian);
+                  if List_Representation_Info_To_JSON then
+                     Write_Line ("]");
+                  end if;
+                  Cancel_Special_Output;
+                  Close_Repinfo_File;
+               end if;
+            end if;
+         end loop;
+
+         if not List_Representation_Info_To_File
+           and then List_Representation_Info_To_JSON
+         then
+            Write_Line ("]");
+         end if;
+      end if;
+   end List_Rep_Info;
+
+   -------------------------------
+   -- List_Scalar_Storage_Order --
+   -------------------------------
+
+   procedure List_Scalar_Storage_Order
+     (Ent              : Entity_Id;
+      Bytes_Big_Endian : Boolean)
+   is
+      procedure List_Attr (Attr_Name : String; Is_Reversed : Boolean);
+      --  Show attribute definition clause for Attr_Name (an endianness
+      --  attribute), depending on whether or not the endianness is reversed
+      --  compared to native endianness.
+
+      ---------------
+      -- List_Attr --
+      ---------------
+
+      procedure List_Attr (Attr_Name : String; Is_Reversed : Boolean) is
+      begin
+         if List_Representation_Info_To_JSON then
+            Write_Line (",");
+            Write_Str ("  """);
+            Write_Str (Attr_Name);
+            Write_Str (""": ""System.");
+         else
+            Write_Str ("for ");
+            List_Name (Ent);
+            Write_Char (''');
+            Write_Str (Attr_Name);
+            Write_Str (" use System.");
+         end if;
+
+         if Bytes_Big_Endian xor Is_Reversed then
+            Write_Str ("High");
+         else
+            Write_Str ("Low");
+         end if;
+
+         Write_Str ("_Order_First");
+         if List_Representation_Info_To_JSON then
+            Write_Str ("""");
+         else
+            Write_Line (";");
+         end if;
+      end List_Attr;
+
+      List_SSO : constant Boolean :=
+                   Has_Rep_Item (Ent, Name_Scalar_Storage_Order)
+                     or else SSO_Set_Low_By_Default  (Ent)
+                     or else SSO_Set_High_By_Default (Ent);
+      --  Scalar_Storage_Order is displayed if specified explicitly or set by
+      --  Default_Scalar_Storage_Order.
+
+   --  Start of processing for List_Scalar_Storage_Order
+
+   begin
+      --  For record types, list Bit_Order if not default, or if SSO is shown
+
+      --  Also, when -gnatR4 is in effect always list bit order and scalar
+      --  storage order explicitly, so that you don't need to know the native
+      --  endianness of the target for which the output was produced in order
+      --  to interpret it.
+
+      if Is_Record_Type (Ent)
+        and then (List_SSO
+                   or else Reverse_Bit_Order (Ent)
+                   or else List_Representation_Info = 4)
+      then
+         List_Attr ("Bit_Order", Reverse_Bit_Order (Ent));
+      end if;
+
+      --  List SSO if required. If not, then storage is supposed to be in
+      --  native order.
+
+      if List_SSO or else List_Representation_Info = 4 then
+         List_Attr ("Scalar_Storage_Order", Reverse_Storage_Order (Ent));
+      else
+         pragma Assert (not Reverse_Storage_Order (Ent));
+         null;
+      end if;
+   end List_Scalar_Storage_Order;
+
+   --------------------------
+   -- List_Subprogram_Info --
+   --------------------------
+
+   procedure List_Subprogram_Info (Ent : Entity_Id) is
       First : Boolean := True;
       Plen  : Natural;
       Form  : Entity_Id;
 
    begin
-      Blank_Line;
+      Write_Separator;
 
       if List_Representation_Info_To_JSON then
          Write_Line ("{");
@@ -917,6 +1924,21 @@ package body Repinfo is
 
          when Convention_C =>
             Write_Str ("C");
+
+         when Convention_C_Variadic =>
+            declare
+               N : Nat :=
+                 Convention_Id'Pos (Convention (Ent)) -
+                   Convention_Id'Pos (Convention_C_Variadic_0);
+            begin
+               Write_Str ("C_Variadic_");
+               if N >= 10 then
+                  Write_Char ('1');
+                  N := N - 10;
+               end if;
+               pragma Assert (N < 10);
+               Write_Char (Character'Val (Character'Pos ('0') + N));
+            end;
 
          when Convention_COBOL =>
             Write_Str ("COBOL");
@@ -1022,872 +2044,7 @@ package body Repinfo is
          Write_Eol;
          Write_Line ("}");
       end if;
-   end List_Mechanisms;
-
-   ---------------
-   -- List_Name --
-   ---------------
-
-   procedure List_Name (Ent : Entity_Id) is
-   begin
-      --  List the qualified name recursively, except
-      --  at compilation unit level in default mode.
-
-      if Is_Compilation_Unit (Ent) then
-         null;
-      elsif not Is_Compilation_Unit (Scope (Ent))
-        or else List_Representation_Info_To_JSON
-      then
-         List_Name (Scope (Ent));
-         Write_Char ('.');
-      end if;
-
-      Get_Unqualified_Decoded_Name_String (Chars (Ent));
-      Set_Casing (Unit_Casing);
-      Write_Str (Name_Buffer (1 .. Name_Len));
-   end List_Name;
-
-   ---------------------
-   -- List_Object_Info --
-   ---------------------
-
-   procedure List_Object_Info (Ent : Entity_Id) is
-   begin
-      Blank_Line;
-
-      if List_Representation_Info_To_JSON then
-         Write_Line ("{");
-
-         Write_Str ("  ""name"": """);
-         List_Name (Ent);
-         Write_Line (""",");
-         List_Location (Ent);
-
-         Write_Str ("  ""Size"": ");
-         Write_Val (Esize (Ent));
-         Write_Line (",");
-
-         Write_Str ("  ""Alignment"": ");
-         Write_Val (Alignment (Ent));
-
-         List_Linker_Section (Ent);
-
-         Write_Eol;
-         Write_Line ("}");
-      else
-         Write_Str ("for ");
-         List_Name (Ent);
-         Write_Str ("'Size use ");
-         Write_Val (Esize (Ent));
-         Write_Line (";");
-
-         Write_Str ("for ");
-         List_Name (Ent);
-         Write_Str ("'Alignment use ");
-         Write_Val (Alignment (Ent));
-         Write_Line (";");
-
-         List_Linker_Section (Ent);
-      end if;
-   end List_Object_Info;
-
-   ----------------------
-   -- List_Record_Info --
-   ----------------------
-
-   procedure List_Record_Info (Ent : Entity_Id; Bytes_Big_Endian : Boolean) is
-      procedure Compute_Max_Length
-        (Ent                : Entity_Id;
-         Starting_Position  : Uint := Uint_0;
-         Starting_First_Bit : Uint := Uint_0;
-         Prefix_Length      : Natural := 0);
-      --  Internal recursive procedure to compute the max length
-
-      procedure List_Component_Layout
-        (Ent                : Entity_Id;
-         Starting_Position  : Uint := Uint_0;
-         Starting_First_Bit : Uint := Uint_0;
-         Prefix             : String := "";
-         Indent             : Natural := 0);
-      --  Procedure to display the layout of a single component
-
-      procedure List_Record_Layout
-        (Ent                : Entity_Id;
-         Starting_Position  : Uint := Uint_0;
-         Starting_First_Bit : Uint := Uint_0;
-         Prefix             : String := "");
-      --  Internal recursive procedure to display the layout
-
-      procedure List_Structural_Record_Layout
-        (Ent       : Entity_Id;
-         Outer_Ent : Entity_Id;
-         Variant   : Node_Id := Empty;
-         Indent    : Natural := 0);
-      --  Internal recursive procedure to display the structural layout
-
-      Max_Name_Length : Natural := 0;
-      Max_Spos_Length : Natural := 0;
-
-      ------------------------
-      -- Compute_Max_Length --
-      ------------------------
-
-      procedure Compute_Max_Length
-        (Ent                : Entity_Id;
-         Starting_Position  : Uint := Uint_0;
-         Starting_First_Bit : Uint := Uint_0;
-         Prefix_Length      : Natural := 0)
-      is
-         Comp : Entity_Id;
-
-      begin
-         Comp := First_Component_Or_Discriminant (Ent);
-         while Present (Comp) loop
-
-            --  Skip discriminant in unchecked union (since it is not there!)
-
-            if Ekind (Comp) = E_Discriminant
-              and then Is_Unchecked_Union (Ent)
-            then
-               goto Continue;
-            end if;
-
-            --  Skip _Parent component in extension (to avoid overlap)
-
-            if Chars (Comp) = Name_uParent then
-               goto Continue;
-            end if;
-
-            --  All other cases
-
-            declare
-               Ctyp : constant Entity_Id := Underlying_Type (Etype (Comp));
-               Bofs : constant Uint      := Component_Bit_Offset (Comp);
-               Npos : Uint;
-               Fbit : Uint;
-               Spos : Uint;
-               Sbit : Uint;
-
-               Name_Length : Natural;
-
-            begin
-               Get_Decoded_Name_String (Chars (Comp));
-               Name_Length := Prefix_Length + Name_Len;
-
-               if Rep_Not_Constant (Bofs) then
-
-                  --  If the record is not packed, then we know that all fields
-                  --  whose position is not specified have starting normalized
-                  --  bit position of zero.
-
-                  if Unknown_Normalized_First_Bit (Comp)
-                    and then not Is_Packed (Ent)
-                  then
-                     Set_Normalized_First_Bit (Comp, Uint_0);
-                  end if;
-
-                  UI_Image_Length := 2; -- For "??" marker
-               else
-                  Npos := Bofs / SSU;
-                  Fbit := Bofs mod SSU;
-
-                  --  Complete annotation in case not done
-
-                  if Unknown_Normalized_First_Bit (Comp) then
-                     Set_Normalized_Position  (Comp, Npos);
-                     Set_Normalized_First_Bit (Comp, Fbit);
-                  end if;
-
-                  Spos := Starting_Position  + Npos;
-                  Sbit := Starting_First_Bit + Fbit;
-
-                  if Sbit >= SSU then
-                     Spos := Spos + 1;
-                     Sbit := Sbit - SSU;
-                  end if;
-
-                  --  If extended information is requested, recurse fully into
-                  --  record components, i.e. skip the outer level.
-
-                  if List_Representation_Info_Extended
-                    and then Is_Record_Type (Ctyp)
-                  then
-                     Compute_Max_Length (Ctyp, Spos, Sbit, Name_Length + 1);
-                     goto Continue;
-                  end if;
-
-                  UI_Image (Spos);
-               end if;
-
-               Max_Name_Length := Natural'Max (Max_Name_Length, Name_Length);
-               Max_Spos_Length :=
-                 Natural'Max (Max_Spos_Length, UI_Image_Length);
-            end;
-
-         <<Continue>>
-            Next_Component_Or_Discriminant (Comp);
-         end loop;
-      end Compute_Max_Length;
-
-      ---------------------------
-      -- List_Component_Layout --
-      ---------------------------
-
-      procedure List_Component_Layout
-        (Ent                : Entity_Id;
-         Starting_Position  : Uint := Uint_0;
-         Starting_First_Bit : Uint := Uint_0;
-         Prefix             : String := "";
-         Indent             : Natural := 0)
-      is
-         Esiz  : constant Uint := Esize (Ent);
-         Npos  : constant Uint := Normalized_Position (Ent);
-         Fbit  : constant Uint := Normalized_First_Bit (Ent);
-         Spos  : Uint;
-         Sbit  : Uint;
-         Lbit  : Uint;
-
-      begin
-         if List_Representation_Info_To_JSON then
-            Spaces (Indent);
-            Write_Line ("    {");
-            Spaces (Indent);
-            Write_Str ("      ""name"": """);
-            Write_Str (Prefix);
-            Write_Str (Name_Buffer (1 .. Name_Len));
-            Write_Line (""",");
-            if Ekind (Ent) = E_Discriminant then
-               Spaces (Indent);
-               Write_Str ("      ""discriminant"": ");
-               UI_Write (Discriminant_Number (Ent));
-               Write_Line (",");
-            end if;
-            Spaces (Indent);
-            Write_Str ("      ""Position"": ");
-         else
-            Write_Str ("   ");
-            Write_Str (Prefix);
-            Write_Str (Name_Buffer (1 .. Name_Len));
-            Spaces (Max_Name_Length - Prefix'Length - Name_Len);
-            Write_Str (" at ");
-         end if;
-
-         if Known_Static_Normalized_Position (Ent) then
-            Spos := Starting_Position  + Npos;
-            Sbit := Starting_First_Bit + Fbit;
-
-            if Sbit >= SSU then
-               Spos := Spos + 1;
-            end if;
-
-            UI_Image (Spos);
-            Spaces (Max_Spos_Length - UI_Image_Length);
-            Write_Str (UI_Image_Buffer (1 .. UI_Image_Length));
-
-         elsif Known_Normalized_Position (Ent)
-           and then List_Representation_Info >= 3
-         then
-            Spaces (Max_Spos_Length - 2);
-
-            if Starting_Position /= Uint_0 then
-               UI_Write (Starting_Position);
-               Write_Str (" + ");
-            end if;
-
-            Write_Val (Npos);
-
-         else
-            Write_Unknown_Val;
-         end if;
-
-         if List_Representation_Info_To_JSON then
-            Write_Line (",");
-            Spaces (Indent);
-            Write_Str ("      ""First_Bit"": ");
-         else
-            Write_Str (" range  ");
-         end if;
-
-         Sbit := Starting_First_Bit + Fbit;
-
-         if Sbit >= SSU then
-            Sbit := Sbit - SSU;
-         end if;
-
-         UI_Write (Sbit);
-
-         if List_Representation_Info_To_JSON then
-            Write_Line (", ");
-            Spaces (Indent);
-            Write_Str ("      ""Size"": ");
-         else
-            Write_Str (" .. ");
-         end if;
-
-         --  Allowing Uint_0 here is an annoying special case. Really this
-         --  should be a fine Esize value but currently it means unknown,
-         --  except that we know after gigi has back annotated that a size
-         --  of zero is real, since otherwise gigi back annotates using
-         --  No_Uint as the value to indicate unknown.
-
-         if (Esize (Ent) = Uint_0 or else Known_Static_Esize (Ent))
-           and then Known_Static_Normalized_First_Bit (Ent)
-         then
-            Lbit := Sbit + Esiz - 1;
-
-            if List_Representation_Info_To_JSON then
-               UI_Write (Esiz);
-            else
-               if Lbit >= 0 and then Lbit < 10 then
-                  Write_Char (' ');
-               end if;
-
-               UI_Write (Lbit);
-            end if;
-
-         --  The test for Esize (Ent) not Uint_0 here is an annoying special
-         --  case. Officially a value of zero for Esize means unknown, but
-         --  here we use the fact that we know that gigi annotates Esize with
-         --  No_Uint, not Uint_0. Really everyone should use No_Uint???
-
-         elsif List_Representation_Info < 3
-           or else (Esize (Ent) /= Uint_0 and then Unknown_Esize (Ent))
-         then
-            Write_Unknown_Val;
-
-         --  List_Representation >= 3 and Known_Esize (Ent)
-
-         else
-            Write_Val (Esiz, Paren => not List_Representation_Info_To_JSON);
-
-            --  If in front-end layout mode, then dynamic size is stored in
-            --  storage units, so renormalize for output.
-
-            if not Back_End_Layout then
-               Write_Str (" * ");
-               Write_Int (SSU);
-            end if;
-
-            --  Add appropriate first bit offset
-
-            if not List_Representation_Info_To_JSON then
-               if Sbit = 0 then
-                  Write_Str (" - 1");
-
-               elsif Sbit = 1 then
-                  null;
-
-               else
-                  Write_Str (" + ");
-                  Write_Int (UI_To_Int (Sbit) - 1);
-               end if;
-            end if;
-         end if;
-
-         if List_Representation_Info_To_JSON then
-            Write_Eol;
-            Spaces (Indent);
-            Write_Str ("    }");
-         else
-            Write_Line (";");
-         end if;
-      end List_Component_Layout;
-
-      ------------------------
-      -- List_Record_Layout --
-      ------------------------
-
-      procedure List_Record_Layout
-        (Ent                : Entity_Id;
-         Starting_Position  : Uint := Uint_0;
-         Starting_First_Bit : Uint := Uint_0;
-         Prefix             : String := "")
-      is
-         Comp  : Entity_Id;
-         First : Boolean := True;
-
-      begin
-         Comp := First_Component_Or_Discriminant (Ent);
-         while Present (Comp) loop
-
-            --  Skip discriminant in unchecked union (since it is not there!)
-
-            if Ekind (Comp) = E_Discriminant
-              and then Is_Unchecked_Union (Ent)
-            then
-               goto Continue;
-            end if;
-
-            --  Skip _Parent component in extension (to avoid overlap)
-
-            if Chars (Comp) = Name_uParent then
-               goto Continue;
-            end if;
-
-            --  All other cases
-
-            declare
-               Ctyp : constant Entity_Id := Underlying_Type (Etype (Comp));
-               Npos : constant Uint      := Normalized_Position (Comp);
-               Fbit : constant Uint      := Normalized_First_Bit (Comp);
-               Spos : Uint;
-               Sbit : Uint;
-
-            begin
-               Get_Decoded_Name_String (Chars (Comp));
-               Set_Casing (Unit_Casing);
-
-               --  If extended information is requested, recurse fully into
-               --  record components, i.e. skip the outer level.
-
-               if List_Representation_Info_Extended
-                 and then Is_Record_Type (Ctyp)
-                 and then Known_Static_Normalized_Position (Comp)
-                 and then Known_Static_Normalized_First_Bit (Comp)
-               then
-                  Spos := Starting_Position  + Npos;
-                  Sbit := Starting_First_Bit + Fbit;
-
-                  if Sbit >= SSU then
-                     Spos := Spos + 1;
-                     Sbit := Sbit - SSU;
-                  end if;
-
-                  List_Record_Layout (Ctyp,
-                    Spos, Sbit, Prefix & Name_Buffer (1 .. Name_Len) & ".");
-
-                  goto Continue;
-               end if;
-
-               if List_Representation_Info_To_JSON then
-                  if First then
-                     Write_Eol;
-                     First := False;
-                  else
-                     Write_Line (",");
-                  end if;
-               end if;
-
-               List_Component_Layout (Comp,
-                 Starting_Position, Starting_First_Bit, Prefix);
-            end;
-
-         <<Continue>>
-            Next_Component_Or_Discriminant (Comp);
-         end loop;
-      end List_Record_Layout;
-
-      -----------------------------------
-      -- List_Structural_Record_Layout --
-      -----------------------------------
-
-      procedure List_Structural_Record_Layout
-        (Ent       : Entity_Id;
-         Outer_Ent : Entity_Id;
-         Variant   : Node_Id := Empty;
-         Indent    : Natural := 0)
-      is
-         function Derived_Discriminant (Disc : Entity_Id) return Entity_Id;
-         --  This function assumes that Outer_Ent is an extension of Ent.
-         --  Disc is a discriminant of Ent that does not itself constrain a
-         --  discriminant of the parent type of Ent. Return the discriminant
-         --  of Outer_Ent that ultimately constrains Disc, if any.
-
-         ----------------------------
-         --  Derived_Discriminant  --
-         ----------------------------
-
-         function Derived_Discriminant (Disc : Entity_Id) return Entity_Id is
-            Corr_Disc    : Entity_Id;
-            Derived_Disc : Entity_Id;
-
-         begin
-            Derived_Disc := First_Stored_Discriminant (Outer_Ent);
-
-            --  Loop over the discriminants of the extension
-
-            while Present (Derived_Disc) loop
-
-               --  Check if this discriminant constrains another discriminant.
-               --  If so, find the ultimately constrained discriminant and
-               --  compare with the original components in the base type.
-
-               if Present (Corresponding_Discriminant (Derived_Disc)) then
-                  Corr_Disc := Corresponding_Discriminant (Derived_Disc);
-
-                  while Present (Corresponding_Discriminant (Corr_Disc)) loop
-                     Corr_Disc := Corresponding_Discriminant (Corr_Disc);
-                  end loop;
-
-                  if Original_Record_Component (Corr_Disc) =
-                     Original_Record_Component (Disc)
-                  then
-                     return Derived_Disc;
-                  end if;
-               end if;
-
-               Next_Stored_Discriminant (Derived_Disc);
-            end loop;
-
-            --  Disc is not constrained by a discriminant of Outer_Ent
-
-            return Empty;
-         end Derived_Discriminant;
-
-         --  Local declarations
-
-         Comp       : Node_Id;
-         Comp_List  : Node_Id;
-         First      : Boolean := True;
-         Var        : Node_Id;
-
-      --  Start of processing for List_Structural_Record_Layout
-
-      begin
-         --  If we are dealing with a variant, just process the components
-
-         if Present (Variant) then
-            Comp_List := Component_List (Variant);
-
-         --  Otherwise, we are dealing with the full record and need to get
-         --  to its definition in order to retrieve its structural layout.
-
-         else
-            declare
-               Definition : Node_Id :=
-                              Type_Definition (Declaration_Node (Ent));
-
-               Is_Extension : constant Boolean :=
-                                Is_Tagged_Type (Ent)
-                                  and then Nkind (Definition) =
-                                             N_Derived_Type_Definition;
-
-               Disc        : Entity_Id;
-               Listed_Disc : Entity_Id;
-
-            begin
-               --  If this is an extension, first list the layout of the parent
-               --  and then proceed to the extension part, if any.
-
-               if Is_Extension then
-                  List_Structural_Record_Layout
-                    (Base_Type (Parent_Subtype (Ent)), Outer_Ent);
-                  First := False;
-
-                  if Present (Record_Extension_Part (Definition)) then
-                     Definition := Record_Extension_Part (Definition);
-                  end if;
-               end if;
-
-               --  If the record has discriminants and is not an unchecked
-               --  union, then display them now.
-
-               if Has_Discriminants (Ent)
-                 and then not Is_Unchecked_Union (Ent)
-               then
-                  Disc := First_Stored_Discriminant (Ent);
-                  while Present (Disc) loop
-
-                     --  If this is a record extension and the discriminant is
-                     --  the renaming of another discriminant, skip it.
-
-                     if Is_Extension
-                       and then Present (Corresponding_Discriminant (Disc))
-                     then
-                        goto Continue_Disc;
-                     end if;
-
-                     --  If this is the parent type of an extension, retrieve
-                     --  the derived discriminant from the extension, if any.
-
-                     if Ent /= Outer_Ent then
-                        Listed_Disc := Derived_Discriminant (Disc);
-
-                        if No (Listed_Disc) then
-                           goto Continue_Disc;
-                        end if;
-                     else
-                        Listed_Disc := Disc;
-                     end if;
-
-                     Get_Decoded_Name_String (Chars (Listed_Disc));
-                     Set_Casing (Unit_Casing);
-
-                     if First then
-                        Write_Eol;
-                        First := False;
-                     else
-                        Write_Line (",");
-                     end if;
-
-                     List_Component_Layout (Listed_Disc, Indent => Indent);
-
-                  <<Continue_Disc>>
-                     Next_Stored_Discriminant (Disc);
-                  end loop;
-               end if;
-
-               Comp_List := Component_List (Definition);
-            end;
-         end if;
-
-         --  Bail out for the null record
-
-         if No (Comp_List) then
-            return;
-         end if;
-
-         --  Now deal with the regular components, if any
-
-         if Present (Component_Items (Comp_List)) then
-            Comp := First_Non_Pragma (Component_Items (Comp_List));
-            while Present (Comp) loop
-
-               --  Skip _Parent component in extension (to avoid overlap)
-
-               if Chars (Defining_Identifier (Comp)) = Name_uParent then
-                  goto Continue_Comp;
-               end if;
-
-               Get_Decoded_Name_String (Chars (Defining_Identifier (Comp)));
-               Set_Casing (Unit_Casing);
-
-               if First then
-                  Write_Eol;
-                  First := False;
-               else
-                  Write_Line (",");
-               end if;
-
-               List_Component_Layout
-                 (Defining_Identifier (Comp), Indent => Indent);
-
-            <<Continue_Comp>>
-               Next_Non_Pragma (Comp);
-            end loop;
-         end if;
-
-         --  We are done if there is no variant part
-
-         if No (Variant_Part (Comp_List)) then
-            return;
-         end if;
-
-         Write_Eol;
-         Spaces (Indent);
-         Write_Line ("  ],");
-         Spaces (Indent);
-         Write_Str ("  ""variant"" : [");
-
-         --  Otherwise we recurse on each variant
-
-         Var := First_Non_Pragma (Variants (Variant_Part (Comp_List)));
-         First := True;
-         while Present (Var) loop
-            if First then
-               Write_Eol;
-               First := False;
-            else
-               Write_Line (",");
-            end if;
-
-            Spaces (Indent);
-            Write_Line ("    {");
-            Spaces (Indent);
-            Write_Str ("      ""present"": ");
-            Write_Val (Present_Expr (Var));
-            Write_Line (",");
-            Spaces (Indent);
-            Write_Str ("      ""record"": [");
-
-            List_Structural_Record_Layout (Ent, Outer_Ent, Var, Indent + 4);
-
-            Write_Eol;
-            Spaces (Indent);
-            Write_Line ("      ]");
-            Spaces (Indent);
-            Write_Str ("    }");
-            Next_Non_Pragma (Var);
-         end loop;
-      end List_Structural_Record_Layout;
-
-   --  Start of processing for List_Record_Info
-
-   begin
-      Blank_Line;
-
-      if List_Representation_Info_To_JSON then
-         Write_Line ("{");
-      end if;
-
-      List_Type_Info (Ent);
-
-      --  First find out max line length and max starting position
-      --  length, for the purpose of lining things up nicely.
-
-      Compute_Max_Length (Ent);
-
-      --  Then do actual output based on those values
-
-      if List_Representation_Info_To_JSON then
-         Write_Line (",");
-         Write_Str ("  ""record"": [");
-
-         if Is_Base_Type (Ent) then
-            List_Structural_Record_Layout (Ent, Ent);
-         else
-            List_Record_Layout (Ent);
-         end if;
-
-         Write_Eol;
-         Write_Str ("  ]");
-      else
-         Write_Str ("for ");
-         List_Name (Ent);
-         Write_Line (" use record");
-
-         List_Record_Layout (Ent);
-
-         Write_Line ("end record;");
-      end if;
-
-      List_Scalar_Storage_Order (Ent, Bytes_Big_Endian);
-
-      List_Linker_Section (Ent);
-
-      if List_Representation_Info_To_JSON then
-         Write_Eol;
-         Write_Line ("}");
-      end if;
-   end List_Record_Info;
-
-   -------------------
-   -- List_Rep_Info --
-   -------------------
-
-   procedure List_Rep_Info (Bytes_Big_Endian : Boolean) is
-      Col : Nat;
-
-   begin
-      if List_Representation_Info /= 0
-        or else List_Representation_Info_Mechanisms
-      then
-         for U in Main_Unit .. Last_Unit loop
-            if In_Extended_Main_Source_Unit (Cunit_Entity (U)) then
-               Unit_Casing := Identifier_Casing (Source_Index (U));
-
-               if List_Representation_Info = 4 then
-                  Relevant_Entities.Reset;
-               end if;
-
-               --  Normal case, list to standard output
-
-               if not List_Representation_Info_To_File then
-                  if not List_Representation_Info_To_JSON then
-                     Write_Eol;
-                     Write_Str ("Representation information for unit ");
-                     Write_Unit_Name (Unit_Name (U));
-                     Col := Column;
-                     Write_Eol;
-
-                     for J in 1 .. Col - 1 loop
-                        Write_Char ('-');
-                     end loop;
-
-                     Write_Eol;
-                  end if;
-
-                  List_Entities (Cunit_Entity (U), Bytes_Big_Endian);
-
-               --  List representation information to file
-
-               else
-                  Create_Repinfo_File_Access.all
-                    (Get_Name_String (File_Name (Source_Index (U))));
-                  Set_Special_Output (Write_Info_Line'Access);
-                  List_Entities (Cunit_Entity (U), Bytes_Big_Endian);
-                  Cancel_Special_Output;
-                  Close_Repinfo_File_Access.all;
-               end if;
-            end if;
-         end loop;
-      end if;
-   end List_Rep_Info;
-
-   -------------------------------
-   -- List_Scalar_Storage_Order --
-   -------------------------------
-
-   procedure List_Scalar_Storage_Order
-     (Ent              : Entity_Id;
-      Bytes_Big_Endian : Boolean)
-   is
-      procedure List_Attr (Attr_Name : String; Is_Reversed : Boolean);
-      --  Show attribute definition clause for Attr_Name (an endianness
-      --  attribute), depending on whether or not the endianness is reversed
-      --  compared to native endianness.
-
-      ---------------
-      -- List_Attr --
-      ---------------
-
-      procedure List_Attr (Attr_Name : String; Is_Reversed : Boolean) is
-      begin
-         if List_Representation_Info_To_JSON then
-            Write_Line (",");
-            Write_Str ("  """);
-            Write_Str (Attr_Name);
-            Write_Str (""": ""System.");
-         else
-            Write_Str ("for ");
-            List_Name (Ent);
-            Write_Char (''');
-            Write_Str (Attr_Name);
-            Write_Str (" use System.");
-         end if;
-
-         if Bytes_Big_Endian xor Is_Reversed then
-            Write_Str ("High");
-         else
-            Write_Str ("Low");
-         end if;
-
-         Write_Str ("_Order_First");
-         if List_Representation_Info_To_JSON then
-            Write_Str ("""");
-         else
-            Write_Line (";");
-         end if;
-      end List_Attr;
-
-      List_SSO : constant Boolean :=
-                   Has_Rep_Item (Ent, Name_Scalar_Storage_Order)
-                     or else SSO_Set_Low_By_Default  (Ent)
-                     or else SSO_Set_High_By_Default (Ent);
-      --  Scalar_Storage_Order is displayed if specified explicitly
-      --  or set by Default_Scalar_Storage_Order.
-
-   --  Start of processing for List_Scalar_Storage_Order
-
-   begin
-      --  For record types, list Bit_Order if not default, or if SSO is shown
-
-      if Is_Record_Type (Ent)
-        and then (List_SSO or else Reverse_Bit_Order (Ent))
-      then
-         List_Attr ("Bit_Order", Reverse_Bit_Order (Ent));
-      end if;
-
-      --  List SSO if required. If not, then storage is supposed to be in
-      --  native order.
-
-      if List_SSO then
-         List_Attr ("Scalar_Storage_Order", Reverse_Storage_Order (Ent));
-      else
-         pragma Assert (not Reverse_Storage_Order (Ent));
-         null;
-      end if;
-   end List_Scalar_Storage_Order;
+   end List_Subprogram_Info;
 
    --------------------
    -- List_Type_Info --
@@ -1895,73 +2052,13 @@ package body Repinfo is
 
    procedure List_Type_Info (Ent : Entity_Id) is
    begin
-      if List_Representation_Info_To_JSON then
-         Write_Str ("  ""name"": """);
-         List_Name (Ent);
-         Write_Line (""",");
-         List_Location (Ent);
-      end if;
-
-      --  Do not list size info for unconstrained arrays, not meaningful
-
-      if Is_Array_Type (Ent) and then not Is_Constrained (Ent) then
-         null;
-
-      else
-         --  If Esize and RM_Size are the same, list as Size. This is a common
-         --  case, which we may as well list in simple form.
-
-         if Esize (Ent) = RM_Size (Ent) then
-            if List_Representation_Info_To_JSON then
-               Write_Str ("  ""Size"": ");
-               Write_Val (Esize (Ent));
-               Write_Line (",");
-            else
-               Write_Str ("for ");
-               List_Name (Ent);
-               Write_Str ("'Size use ");
-               Write_Val (Esize (Ent));
-               Write_Line (";");
-            end if;
-
-         --  Otherwise list size values separately
-
-         else
-            if List_Representation_Info_To_JSON then
-               Write_Str ("  ""Object_Size"": ");
-               Write_Val (Esize (Ent));
-               Write_Line (",");
-
-               Write_Str ("  ""Value_Size"": ");
-               Write_Val (RM_Size (Ent));
-               Write_Line (",");
-
-            else
-               Write_Str ("for ");
-               List_Name (Ent);
-               Write_Str ("'Object_Size use ");
-               Write_Val (Esize (Ent));
-               Write_Line (";");
-
-               Write_Str ("for ");
-               List_Name (Ent);
-               Write_Str ("'Value_Size use ");
-               Write_Val (RM_Size (Ent));
-               Write_Line (";");
-            end if;
-         end if;
-      end if;
+      Write_Separator;
 
       if List_Representation_Info_To_JSON then
-         Write_Str ("  ""Alignment"": ");
-         Write_Val (Alignment (Ent));
-      else
-         Write_Str ("for ");
-         List_Name (Ent);
-         Write_Str ("'Alignment use ");
-         Write_Val (Alignment (Ent));
-         Write_Line (";");
+         Write_Line ("{");
       end if;
+
+      List_Common_Type_Info (Ent);
 
       --  Special stuff for fixed-point
 
@@ -1972,7 +2069,7 @@ package body Repinfo is
          if List_Representation_Info_To_JSON then
             Write_Line (",");
             Write_Str ("  ""Small"": ");
-            UR_Write (Small_Value (Ent));
+            UR_Write_To_JSON (Small_Value (Ent));
          else
             Write_Str ("for ");
             List_Name (Ent);
@@ -1994,9 +2091,9 @@ package body Repinfo is
                if List_Representation_Info_To_JSON then
                   Write_Line (",");
                   Write_Str ("  ""Range"": [ ");
-                  UR_Write (Realval (Low_Bound (R)));
+                  UR_Write_To_JSON (Realval (Low_Bound (R)));
                   Write_Str (", ");
-                  UR_Write (Realval (High_Bound (R)));
+                  UR_Write_To_JSON (Realval (High_Bound (R)));
                   Write_Str (" ]");
                else
                   Write_Str ("for ");
@@ -2010,6 +2107,13 @@ package body Repinfo is
             end if;
          end;
       end if;
+
+      List_Linker_Section (Ent);
+
+      if List_Representation_Info_To_JSON then
+         Write_Eol;
+         Write_Line ("}");
+      end if;
    end List_Type_Info;
 
    ----------------------
@@ -2018,7 +2122,7 @@ package body Repinfo is
 
    function Rep_Not_Constant (Val : Node_Ref_Or_Val) return Boolean is
    begin
-      if Val = No_Uint or else Val < 0 then
+      if No (Val) or else Val < 0 then
          return True;
       else
          return False;
@@ -2031,7 +2135,7 @@ package body Repinfo is
 
    function Rep_Value (Val : Node_Ref_Or_Val; D : Discrim_List) return Uint is
 
-      function B (Val : Boolean) return Uint;
+      function B (Val : Boolean) return Ubool;
       --  Returns Uint_0 for False, Uint_1 for True
 
       function T (Val : Node_Ref_Or_Val) return Boolean;
@@ -2052,7 +2156,7 @@ package body Repinfo is
       -- B --
       -------
 
-      function B (Val : Boolean) return Uint is
+      function B (Val : Boolean) return Ubool is
       begin
          if Val then
             return Uint_1;
@@ -2217,7 +2321,7 @@ package body Repinfo is
    --  Start of processing for Rep_Value
 
    begin
-      if Val = No_Uint then
+      if No (Val) then
          return No_Uint;
 
       else
@@ -2236,31 +2340,13 @@ package body Repinfo is
       end loop;
    end Spaces;
 
-   ---------------
-   -- Tree_Read --
-   ---------------
-
-   procedure Tree_Read is
-   begin
-      Rep_Table.Tree_Read;
-   end Tree_Read;
-
-   ----------------
-   -- Tree_Write --
-   ----------------
-
-   procedure Tree_Write is
-   begin
-      Rep_Table.Tree_Write;
-   end Tree_Write;
-
    ---------------------
    -- Write_Info_Line --
    ---------------------
 
    procedure Write_Info_Line (S : String) is
    begin
-      Write_Repinfo_Line_Access.all (S (S'First .. S'Last - 1));
+      Write_Repinfo_Line (S (S'First .. S'Last - 1));
    end Write_Info_Line;
 
    ---------------------
@@ -2284,6 +2370,23 @@ package body Repinfo is
       end case;
    end Write_Mechanism;
 
+   ---------------------
+   -- Write_Separator --
+   ---------------------
+
+   procedure Write_Separator is
+   begin
+      if Need_Separator then
+         if List_Representation_Info_To_JSON then
+            Write_Line (",");
+         else
+            Write_Eol;
+         end if;
+      else
+         Need_Separator := True;
+      end if;
+   end Write_Separator;
+
    -----------------------
    -- Write_Unknown_Val --
    -----------------------
@@ -2304,7 +2407,7 @@ package body Repinfo is
    procedure Write_Val (Val : Node_Ref_Or_Val; Paren : Boolean := False) is
    begin
       if Rep_Not_Constant (Val) then
-         if List_Representation_Info < 3 or else Val = No_Uint then
+         if List_Representation_Info < 3 or else No (Val) then
             Write_Unknown_Val;
 
          else
@@ -2312,11 +2415,7 @@ package body Repinfo is
                Write_Char ('(');
             end if;
 
-            if Back_End_Layout then
-               List_GCC_Expression (Val);
-            else
-               Write_Name_Decoded (Chars (Get_Dynamic_SO_Entity (Val)));
-            end if;
+            List_GCC_Expression (Val);
 
             if Paren then
                Write_Char (')');
@@ -2324,7 +2423,7 @@ package body Repinfo is
          end if;
 
       else
-         UI_Write (Val);
+         UI_Write (Val, Decimal);
       end if;
    end Write_Val;
 

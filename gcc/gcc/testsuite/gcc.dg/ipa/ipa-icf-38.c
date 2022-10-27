@@ -1,5 +1,5 @@
 /* { dg-do link } */
-/* { dg-options "-O2 -fdump-ipa-icf -flto -fdump-tree-optimized" } */
+/* { dg-options "-O2 -fdump-ipa-icf-optimized -flto -fdump-tree-optimized" } */
 /* { dg-require-effective-target lto } */
 /* { dg-additional-sources "ipa-icf-38a.c" }*/
 
@@ -27,7 +27,7 @@ int main()
   return 0;
 }
 
-/* { dg-final { scan-wpa-ipa-dump "Semantic equality hit:foo->bar" "icf"  } } */
+/* { dg-final { scan-wpa-ipa-dump "Semantic equality hit:foo/\[0-9+\]+->bar/\[0-9+\]+" "icf"  } } */
 /* { dg-final { scan-wpa-ipa-dump "Equal symbols: 1" "icf"  } } */
 /* { dg-final { scan-ltrans-tree-dump "Function foo" "optimized" } } */
 /* { dg-final { scan-ltrans-tree-dump-not "Function bar" "optimized" } } */

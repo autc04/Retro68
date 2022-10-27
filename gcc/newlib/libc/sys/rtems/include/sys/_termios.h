@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -27,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)termios.h	8.3 (Berkeley) 3/28/94
- * $FreeBSD: head/sys/sys/_termios.h 318780 2017-05-24 09:25:13Z kib $
+ * $FreeBSD: head/sys/sys/_termios.h 348999 2019-06-12 18:07:04Z shurd $
  */
 
 #ifndef _SYS__TERMIOS_H_
@@ -91,8 +93,10 @@
 #define	ICRNL		0x00000100	/* map CR to NL (ala CRMOD) */
 #define	IXON		0x00000200	/* enable output flow control */
 #define	IXOFF		0x00000400	/* enable input flow control */
-#if __BSD_VISIBLE
+#if __BSD_VISIBLE || __XSI_VISIBLE || __POSIX_VISIBLE >= 200809
 #define	IXANY		0x00000800	/* any char will restart after stop */
+#endif
+#if __BSD_VISIBLE
 #define	IMAXBEL		0x00002000	/* ring bell on input queue full */
 #endif
 
@@ -100,12 +104,16 @@
  * Output flags - software output processing
  */
 #define	OPOST		0x00000001	/* enable following output processing */
-#if __BSD_VISIBLE
+#if __BSD_VISIBLE || __XSI_VISIBLE
 #define	ONLCR		0x00000002	/* map NL to CR-NL (ala CRMOD) */
+#endif
+#if __BSD_VISIBLE
 #define	TABDLY		0x00000004	/* tab delay mask */
 #define	    TAB0	    0x00000000	    /* no tab delay and expansion */
 #define	    TAB3	    0x00000004	    /* expand tabs to spaces */
 #define	ONOEOT		0x00000008	/* discard EOT's (^D) on output) */
+#endif
+#if __BSD_VISIBLE || __XSI_VISIBLE
 #define	OCRNL		0x00000010	/* map CR to NL on output */
 #define	ONOCR		0x00000020	/* no CR output at column 0 */
 #define	ONLRET		0x00000040	/* NL performs CR function */
@@ -135,6 +143,7 @@
 #define	CDTR_IFLOW	0x00040000	/* DTR flow control of input */
 #define	CDSR_OFLOW	0x00080000	/* DSR flow control of output */
 #define	CCAR_OFLOW	0x00100000	/* DCD flow control of output */
+#define	CNO_RTSDTR	0x00200000	/* Do not assert RTS or DTR automatically */
 #endif
 
 

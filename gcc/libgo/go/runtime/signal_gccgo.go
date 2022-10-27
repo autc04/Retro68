@@ -14,44 +14,44 @@ import (
 // these are written in OS-specific files and in assembler.
 
 //go:noescape
-//extern sigaction
+//extern-sysinfo sigaction
 func sigaction(signum uint32, act *_sigaction, oact *_sigaction) int32
 
 //go:noescape
-//extern sigprocmask
+//extern-sysinfo sigprocmask
 func sigprocmask(how int32, set *sigset, oldset *sigset) int32
 
 //go:noescape
-//extern sigfillset
+//extern-sysinfo sigfillset
 func sigfillset(set *sigset) int32
 
 //go:noescape
-//extern sigemptyset
+//extern-sysinfo sigemptyset
 func sigemptyset(set *sigset) int32
 
 //go:noescape
-//extern sigaddset
+//extern-sysinfo sigaddset
 func c_sigaddset(set *sigset, signum uint32) int32
 
 //go:noescape
-//extern sigdelset
+//extern-sysinfo sigdelset
 func c_sigdelset(set *sigset, signum uint32) int32
 
 //go:noescape
-//extern sigaltstack
+//extern-sysinfo sigaltstack
 func sigaltstack(ss *_stack_t, oss *_stack_t) int32
 
-//extern raise
+//extern-sysinfo raise
 func raise(sig uint32) int32
 
-//extern getpid
+//extern-sysinfo getpid
 func getpid() _pid_t
 
-//extern kill
+//extern-sysinfo kill
 func kill(pid _pid_t, sig uint32) int32
 
 //go:noescape
-//extern setitimer
+//extern-sysinfo setitimer
 func setitimer(which int32, new *_itimerval, old *_itimerval) int32
 
 type sigctxt struct {
@@ -60,12 +60,7 @@ type sigctxt struct {
 }
 
 func (c *sigctxt) sigcode() uint64 {
-	if c.info == nil {
-		// This can happen on Solaris 10.  We don't know the
-		// code, just avoid a misleading value.
-		return _SI_USER + 1
-	}
-	return uint64(c.info.si_code)
+	return uint64(getSiginfoCode(c.info))
 }
 
 //go:nosplit
@@ -111,7 +106,8 @@ func getsig(i uint32) uintptr {
 	if sigaction(i, nil, &sa) < 0 {
 		// On GNU/Linux glibc rejects attempts to call
 		// sigaction with signal 32 (SIGCANCEL) or 33 (SIGSETXID).
-		if GOOS == "linux" && (i == 32 || i == 33) {
+		// On musl signal 34 (SIGSYNCCALL) also needs to be treated accordingly.
+		if GOOS == "linux" && (i == 32 || i == 33 || i == 34) {
 			return _SIG_DFL
 		}
 		throw("sigaction read failure")

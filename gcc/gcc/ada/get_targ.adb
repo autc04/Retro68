@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -125,6 +125,18 @@ package body Get_Targ is
    begin
       return C_Get_Long_Long_Size;
    end Get_Long_Long_Size;
+
+   -----------------------------
+   -- Get_Long_Long_Long_Size --
+   -----------------------------
+
+   function Get_Long_Long_Long_Size return Pos is
+      function C_Get_Long_Long_Long_Size return Pos;
+      pragma Import (C, C_Get_Long_Long_Long_Size,
+                        "get_target_long_long_long_size");
+   begin
+      return C_Get_Long_Long_Long_Size;
+   end Get_Long_Long_Long_Size;
 
    ----------------------
    -- Get_Pointer_Size --
@@ -266,29 +278,13 @@ package body Get_Targ is
       return null;
    end Get_Back_End_Config_File;
 
-   ----------------------
-   -- Digits_From_Size --
-   ----------------------
-
-   function Digits_From_Size (Size : Pos) return Pos is
-   begin
-      case Size is
-         when  32    => return  6;
-         when  48    => return  9;
-         when  64    => return 15;
-         when  96    => return 18;
-         when 128    => return 18;
-         when others => raise Program_Error;
-      end case;
-   end Digits_From_Size;
-
    -----------------------------
    -- Get_Max_Unaligned_Field --
    -----------------------------
 
    function Get_Max_Unaligned_Field return Pos is
    begin
-      return 64;  -- Can be different on some targets (e.g., AAMP)
+      return 64;  -- Can be different on some targets
    end Get_Max_Unaligned_Field;
 
    -----------------------------
@@ -301,20 +297,5 @@ package body Get_Targ is
    begin
       Enumerate_Modes (Call_Back);
    end Register_Back_End_Types;
-
-   ---------------------
-   -- Width_From_Size --
-   ---------------------
-
-   function Width_From_Size (Size : Pos) return Pos is
-   begin
-      case Size is
-         when  8     => return  4;
-         when 16     => return  6;
-         when 32     => return 11;
-         when 64     => return 21;
-         when others => raise Program_Error;
-      end case;
-   end Width_From_Size;
 
 end Get_Targ;

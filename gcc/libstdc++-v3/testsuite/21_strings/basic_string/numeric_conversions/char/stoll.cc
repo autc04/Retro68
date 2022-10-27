@@ -3,7 +3,7 @@
 
 // 2008-06-15  Paolo Carlini  <paolo.carlini@oracle.com>
 
-// Copyright (C) 2008-2019 Free Software Foundation, Inc.
+// Copyright (C) 2008-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,9 +36,9 @@ test01()
   try
     {
       string one;
-      stoll(one);      
+      stoll(one);
     }
-  catch(std::invalid_argument)
+  catch(const std::invalid_argument&)
     {
       test = true;
     }
@@ -51,9 +51,9 @@ test01()
   try
     {
       string one("a");
-      stoll(one);      
+      stoll(one);
     }
-  catch(std::invalid_argument)
+  catch(const std::invalid_argument&)
     {
       test = true;
     }
@@ -66,7 +66,7 @@ test01()
   try
     {
       string one("a");
-      ll1 = stoll(one, 0, 16);      
+      ll1 = stoll(one, 0, 16);
     }
   catch(...)
     {
@@ -79,7 +79,7 @@ test01()
   try
     {
       string one("78");
-      ll1 = stoll(one, &idx1, 8);      
+      ll1 = stoll(one, &idx1, 8);
     }
   catch(...)
     {
@@ -92,7 +92,7 @@ test01()
   try
     {
       string one("10112");
-      ll1 = stoll(one, &idx1, 2);      
+      ll1 = stoll(one, &idx1, 2);
     }
   catch(...)
     {
@@ -105,7 +105,7 @@ test01()
   try
     {
       string one("0XE");
-      ll1 = stoll(one, &idx1, 0);      
+      ll1 = stoll(one, &idx1, 0);
     }
   catch(...)
     {
@@ -121,7 +121,7 @@ test01()
       string one(1000, '9');
       ll1 = stoll(one);
     }
-  catch(std::out_of_range)
+  catch(const std::out_of_range&)
     {
       test = true;
     }

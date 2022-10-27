@@ -1,4 +1,4 @@
-// Copyright (C) 2003-2019 Free Software Foundation, Inc.
+// Copyright (C) 2003-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -60,9 +60,11 @@ int main()
   testthrow(c);
   testthrow(uc);
   testthrow(sc);
+#if __cplusplus <= 201703L
   testthrow(cp);
   testthrow(scp);
   testthrow(ucp);
+#endif
 
   return 0;
 }

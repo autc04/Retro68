@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---                     Copyright (C) 1999-2019, AdaCore                     --
+--                     Copyright (C) 1999-2022, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -462,15 +462,26 @@ package GNAT.Command_Line is
    function Get_Argument
      (Do_Expansion : Boolean := False;
       Parser       : Opt_Parser := Command_Line_Parser) return String;
-   --  Returns the next element on the command line that is not a switch.  This
-   --  function should not be called before Getopt has returned ASCII.NUL.
+   --  Returns the next element on the command line that is not a switch. This
+   --  function should be called either after Getopt has returned ASCII.NUL or
+   --  after Getopt procedure call.
    --
    --  If Do_Expansion is True, then the parameter on the command line will
-   --  be considered as a filename with wild cards, and will be expanded. The
+   --  be considered as a filename with wildcards, and will be expanded. The
    --  matching file names will be returned one at a time. This is useful in
-   --  non-Unix systems for obtaining normal expansion of wild card references.
+   --  non-Unix systems for obtaining normal expansion of wildcard references.
    --  When there are no more arguments on the command line, this function
    --  returns an empty string.
+
+   function Get_Argument
+     (Do_Expansion     : Boolean    := False;
+      Parser           : Opt_Parser := Command_Line_Parser;
+      End_Of_Arguments : out Boolean) return String;
+   --  The same as above but able to distinguish empty element in argument list
+   --  from end of arguments.
+   --  End_Of_Arguments is True if the end of the command line has been reached
+   --  (i.e. all available arguments have been returned by previous calls to
+   --  Get_Argument).
 
    function Parameter
      (Parser : Opt_Parser := Command_Line_Parser) return String;
@@ -515,7 +526,7 @@ package GNAT.Command_Line is
       Pattern      : String;
       Directory    : String := "";
       Basic_Regexp : Boolean := True);
-   --  Initialize a wild card expansion. The next calls to Expansion will
+   --  Initialize a wildcard expansion. The next calls to Expansion will
    --  return the next file name in Directory which match Pattern (Pattern
    --  is a regular expression, using only the Unix shell and DOS syntax if
    --  Basic_Regexp is True). When Directory is an empty string, the current
@@ -731,14 +742,15 @@ package GNAT.Command_Line is
    --  Full_Switch omits the first leading '-'.
 
    Exit_From_Command_Line : exception;
-   --  Emitted when the program should exit. This is called when Getopt below
-   --  has seen -h, --help or an invalid switch.
+   --  Raised when the program should exit because Getopt below has seen
+   --  a -h or --help switch.
 
    procedure Getopt
      (Config      : Command_Line_Configuration;
       Callback    : Switch_Handler := null;
       Parser      : Opt_Parser := Command_Line_Parser;
-      Concatenate : Boolean := True);
+      Concatenate : Boolean := True;
+      Quiet       : Boolean := False);
    --  Similar to the standard Getopt function. For each switch found on the
    --  command line, this calls Callback, if the switch is not handled
    --  automatically.
@@ -756,6 +768,7 @@ package GNAT.Command_Line is
    --  to display the help message and raises Exit_From_Command_Line.
    --  If an invalid switch is specified on the command line, this procedure
    --  will display an error message and raises Invalid_Switch again.
+   --  If the Quiet parameter is True then the error message is not displayed.
    --
    --  This function automatically expands switches:
    --
@@ -1084,11 +1097,11 @@ private
       --  This type and this variable are provided to store the current switch
       --  and parameter.
 
-      Is_Switch : Is_Switch_Type (1 .. Arg_Count) := (others => False);
+      Is_Switch : Is_Switch_Type (1 .. Arg_Count) := [others => False];
       --  Indicates wich arguments on the command line are considered not be
       --  switches or parameters to switches (leaving e.g. filenames,...)
 
-      Section : Section_Type (1 .. Arg_Count) := (others => 1);
+      Section : Section_Type (1 .. Arg_Count) := [others => 1];
       --  Contains the number of the section associated with the current
       --  switch. If this number is 0, then it is a section delimiter, which is
       --  never returned by GetOpt.

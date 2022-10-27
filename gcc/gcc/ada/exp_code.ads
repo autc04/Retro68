@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1996-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -38,6 +38,8 @@ package Exp_Code is
    --  Note that the implementations of these routines must not attempt
    --  to expand tables that are frozen on entry to Gigi.
 
+   --  WARNING: There is a matching C declaration of these subprograms in fe.h
+
    function Is_Asm_Volatile (N : Node_Id) return Boolean;
    --  Given an N_Code_Statement node N, return True if Volatile=True is
    --  specified, and False if Volatile=False is specified (or set by default).
@@ -51,6 +53,7 @@ package Exp_Code is
    --  with subsequent calls to Clobber_Get_Next.
 
    function Clobber_Get_Next return System.Address;
+   pragma Convention (C, Clobber_Get_Next);
    --  Can only be called after a previous call to Clobber_Setup. The
    --  returned value is a pointer to a null terminated (C format) string
    --  for the next register argument. Null_Address is returned when there

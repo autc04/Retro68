@@ -1,5 +1,5 @@
 /* Polynomial integer classes.
-   Copyright (C) 2014-2019 Free Software Foundation, Inc.
+   Copyright (C) 2014-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -29,7 +29,7 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef HAVE_POLY_INT_H
 #define HAVE_POLY_INT_H
 
-template<unsigned int N, typename T> class poly_int_pod;
+template<unsigned int N, typename T> struct poly_int_pod;
 template<unsigned int N, typename T> class poly_int;
 
 /* poly_coeff_traiits<T> describes the properties of a poly_int
@@ -324,10 +324,10 @@ struct poly_result<T1, T2, 2>
    routine can take the address of RES rather than the address of
    a temporary.
 
-   The dummy comparison against a null C * is just a way of checking
+   The dummy self-comparison against C * is just a way of checking
    that C gives the right type.  */
 #define POLY_SET_COEFF(C, RES, I, VALUE) \
-  ((void) (&(RES).coeffs[0] == (C *) 0), \
+  ((void) (&(RES).coeffs[0] == (C *) (void *) &(RES).coeffs[0]), \
    wi::int_traits<C>::precision_type == wi::FLEXIBLE_PRECISION \
    ? (void) ((RES).coeffs[I] = VALUE) \
    : (void) ((RES).coeffs[I].~C (), new (&(RES).coeffs[I]) C (VALUE)))
@@ -335,7 +335,7 @@ struct poly_result<T1, T2, 2>
 /* A base POD class for polynomial integers.  The polynomial has N
    coefficients of type C.  */
 template<unsigned int N, typename C>
-class poly_int_pod
+struct poly_int_pod
 {
 public:
   template<typename Ca>
@@ -1528,6 +1528,29 @@ constant_lower_bound (const poly_int_pod<N, Ca> &a)
   return a.coeffs[0];
 }
 
+/* Return the constant lower bound of A, given that it is no less than B.  */
+
+template<unsigned int N, typename Ca, typename Cb>
+inline POLY_CONST_COEFF (Ca, Cb)
+constant_lower_bound_with_limit (const poly_int_pod<N, Ca> &a, const Cb &b)
+{
+  if (known_ge (a, b))
+    return a.coeffs[0];
+  return b;
+}
+
+/* Return the constant upper bound of A, given that it is no greater
+   than B.  */
+
+template<unsigned int N, typename Ca, typename Cb>
+inline POLY_CONST_COEFF (Ca, Cb)
+constant_upper_bound_with_limit (const poly_int_pod<N, Ca> &a, const Cb &b)
+{
+  if (known_le (a, b))
+    return a.coeffs[0];
+  return b;
+}
+
 /* Return a value that is known to be no greater than A and B.  This
    will be the greatest lower bound for some indeterminate values but
    not necessarily for all.  */
@@ -2020,6 +2043,63 @@ constant_multiple_p (const poly_int_pod<N, Ca> &a,
   *multiple = r;
   return true;
 }
+
+/* Return true if A is a constant multiple of B.  */
+
+template<unsigned int N, typename Ca, typename Cb>
+inline typename if_nonpoly<Cb, bool>::type
+constant_multiple_p (const poly_int_pod<N, Ca> &a, Cb b)
+{
+  typedef POLY_CAST (Ca, Cb) NCa;
+  typedef POLY_CAST (Cb, Ca) NCb;
+
+  /* Do the modulus before the constant check, to catch divide by
+     zero errors.  */
+  if (NCa (a.coeffs[0]) % NCb (b) != 0 || !a.is_constant ())
+    return false;
+  return true;
+}
+
+template<unsigned int N, typename Ca, typename Cb>
+inline typename if_nonpoly<Ca, bool>::type
+constant_multiple_p (Ca a, const poly_int_pod<N, Cb> &b)
+{
+  typedef POLY_CAST (Ca, Cb) NCa;
+  typedef POLY_CAST (Cb, Ca) NCb;
+  typedef POLY_INT_TYPE (Ca) int_type;
+
+  /* Do the modulus before the constant check, to catch divide by
+     zero errors.  */
+  if (NCa (a) % NCb (b.coeffs[0]) != 0
+      || (a != int_type (0) && !b.is_constant ()))
+    return false;
+  return true;
+}
+
+template<unsigned int N, typename Ca, typename Cb>
+inline bool
+constant_multiple_p (const poly_int_pod<N, Ca> &a,
+		     const poly_int_pod<N, Cb> &b)
+{
+  typedef POLY_CAST (Ca, Cb) NCa;
+  typedef POLY_CAST (Cb, Ca) NCb;
+  typedef POLY_INT_TYPE (Ca) ICa;
+  typedef POLY_INT_TYPE (Cb) ICb;
+  typedef POLY_BINARY_COEFF (Ca, Cb) C;
+
+  if (NCa (a.coeffs[0]) % NCb (b.coeffs[0]) != 0)
+    return false;
+
+  C r = NCa (a.coeffs[0]) / NCb (b.coeffs[0]);
+  for (unsigned int i = 1; i < N; ++i)
+    if (b.coeffs[i] == ICb (0)
+	? a.coeffs[i] != ICa (0)
+	: (NCa (a.coeffs[i]) % NCb (b.coeffs[i]) != 0
+	   || NCa (a.coeffs[i]) / NCb (b.coeffs[i]) != r))
+      return false;
+  return true;
+}
+
 
 /* Return true if A is a multiple of B.  */
 
@@ -2637,7 +2717,7 @@ gt_pch_nx (poly_int_pod<N, C> *)
 
 template<unsigned int N, typename C>
 void
-gt_pch_nx (poly_int_pod<N, C> *, void (*) (void *, void *), void *)
+gt_pch_nx (poly_int_pod<N, C> *, gt_pointer_operator, void *)
 {
 }
 

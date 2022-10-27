@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -57,18 +57,26 @@ package Sem_Disp is
    procedure Check_Operation_From_Incomplete_Type
      (Subp : Entity_Id;
       Typ  : Entity_Id);
-   --  If a primitive operation was defined for the incomplete view of the
-   --  type, and the full type declaration is a derived type definition,
-   --  the operation may override an inherited one.
-   --  Need more description here, what are the parameters, and what does
-   --  this call actually do???
+   --  If a primitive subprogram Subp was defined for the incomplete view of
+   --  Typ, and the full type declaration is a derived type, then Subp may
+   --  override a subprogram inherited from the parent type. In that case,
+   --  the inherited subprogram will have been hidden by the current one at
+   --  the point of the type derivation, so it does not appear in the list
+   --  of primitive operations of the type, and this procedure inserts the
+   --  overriding subprogram in the the full type's list of primitives by
+   --  iterating over the list for the parent type. If instead Subp is a new
+   --  primitive, then it's simply appended to the primitive list.
 
    procedure Check_Operation_From_Private_View (Subp, Old_Subp : Entity_Id);
-   --  Add Old_Subp to the list of primitive operations of the corresponding
-   --  tagged type if it is the full view of a private tagged type. The Alias
-   --  of Old_Subp is adjusted to point to the inherited procedure of the
-   --  full view because it is always this one which has to be called.
-   --  What is Subp used for???
+   --  No action performed if Subp is not an alias of a dispatching operation.
+   --  Add Old_Subp (if not already present) to the list of primitives of the
+   --  tagged type T of Subp if T is the full view of a private tagged type.
+   --  The Alias of Old_Subp is adjusted to point to the inherited procedure
+   --  of the full view because it is always this one which has to be called.
+
+   function Covered_Interface_Primitives (Prim : Entity_Id) return Elist_Id;
+   --  Returns all the interface primitives covered by Prim, when its
+   --  controlling type has progenitors.
 
    function Covered_Interface_Op (Prim : Entity_Id) return Entity_Id;
    --  Returns the interface primitive that Prim covers, when its controlling
@@ -151,7 +159,8 @@ package Sem_Disp is
    --  Returns True if E is a null procedure that is an interface primitive
 
    function Is_Overriding_Subprogram (E : Entity_Id) return Boolean;
-   --  Returns True if E is an overriding subprogram
+   --  Returns True if E is an overriding subprogram and False otherwise, in
+   --  particular for an inherited subprogram.
 
    function Is_Tag_Indeterminate (N : Node_Id) return Boolean;
    --  Returns true if the expression N is tag-indeterminate. An expression
@@ -162,20 +171,16 @@ package Sem_Disp is
    procedure Override_Dispatching_Operation
      (Tagged_Type : Entity_Id;
       Prev_Op     : Entity_Id;
-      New_Op      : Entity_Id;
-      Is_Wrapper  : Boolean := False);
+      New_Op      : Entity_Id);
    --  Replace an implicit dispatching operation of the type Tagged_Type
    --  with an explicit one. Prev_Op is an inherited primitive operation which
-   --  is overridden by the explicit declaration of New_Op. Is_Wrapper is
-   --  True when New_Op is an internally generated wrapper of a controlling
-   --  function. The caller checks that Tagged_Type is indeed a tagged type.
+   --  is overridden by the explicit declaration of New_Op.
 
    procedure Propagate_Tag (Control : Node_Id; Actual : Node_Id);
-   --  If a function call is tag-indeterminate, its controlling argument is
-   --  found in the context: either an enclosing call, or the left-hand side
-   --  of the enclosing assignment statement. The tag must be propagated
-   --  recursively to the tag-indeterminate actuals of the call.
-   --  Need clear description of the parameters Control and Actual, especially
-   --  since the comments above refer to actuals in the plural ???
+   --  If a function call given by Actual is tag-indeterminate, its controlling
+   --  argument is found in the context, given by Control: either from an
+   --  operand of an enclosing call, or the left-hand side of the enclosing
+   --  assignment statement. The tag of Control will be propagated recursively
+   --  to Actual and to its tag-indeterminate operands, if any.
 
 end Sem_Disp;

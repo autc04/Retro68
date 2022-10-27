@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
-<!-- Copyright (C) 1988-2019 Free Software Foundation, Inc.
+<!-- Copyright (C) 1988-2022 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3 or
@@ -22,10 +22,10 @@ You have freedom to copy and modify this GNU Manual, like GNU
 <!-- Created by GNU Texinfo 6.5, http://www.gnu.org/software/texinfo/ -->
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>Installing GCC</title>
+<title>Installing GCC: Building</title>
 
-<meta name="description" content="Installing GCC">
-<meta name="keywords" content="Installing GCC">
+<meta name="description" content="Installing GCC: Building">
+<meta name="keywords" content="Installing GCC: Building">
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="makeinfo">
@@ -61,7 +61,7 @@ ul.no-bullet {list-style: none}
 </head>
 
 <body lang="en">
-<h1 class="settitle" align="center">Installing GCC</h1>
+<h1 class="settitle" align="center">Installing GCC: Building</h1>
 
 
 
@@ -116,7 +116,7 @@ that type mismatches occur, this could be the cause.
 </p>
 <p>The solution is not to use such a directory for building GCC.
 </p>
-<p>Similarly, when building from SVN or snapshots, or if you modify
+<p>Similarly, when building from the source repository or snapshots, or if you modify
 <samp>*.l</samp> files, you need the Flex lexical analyzer generator
 installed.  If you do not modify <samp>*.l</samp> files, releases contain
 the Flex-generated files and you do not need Flex installed to build
@@ -124,7 +124,7 @@ them.  There is still one Flex-based lexical analyzer (part of the
 build machinery, not of GCC itself) that is used even if you only
 build the C front end.
 </p>
-<p>When building from SVN or snapshots, or if you modify Texinfo
+<p>When building from the source repository or snapshots, or if you modify Texinfo
 documentation, you need version 4.7 or later of Texinfo installed if you
 want Info documentation to be regenerated.  Releases contain Info
 documentation pre-built for the unmodified documentation in the release.
@@ -231,6 +231,7 @@ examples of supported build configurations are:
 </p>
 </dd>
 <dt>&lsquo;<samp>bootstrap-O3</samp>&rsquo;</dt>
+<dt>&lsquo;<samp>bootstrap-Og</samp>&rsquo;</dt>
 <dd><p>Analogous to <code>bootstrap-O1</code>.
 </p>
 </dd>
@@ -321,6 +322,17 @@ assumes that the host supports Intel CET (e.g. GNU assembler version
 <dd><p>Arranges for the run time of each program started by the GCC driver,
 built in any stage, to be logged to <samp>time.log</samp>, in the top level of
 the build tree.
+</p>
+</dd>
+<dt>&lsquo;<samp>bootstrap-asan</samp>&rsquo;</dt>
+<dd><p>Compiles GCC itself using Address Sanitization in order to catch invalid memory
+accesses within the GCC code.
+</p>
+</dd>
+<dt>&lsquo;<samp>bootstrap-hwasan</samp>&rsquo;</dt>
+<dd><p>Compiles GCC itself using HWAddress Sanitization in order to catch invalid
+memory accesses within the GCC code.  This option is only available on AArch64
+systems that are running Linux kernel version 5.4 or later.
 </p>
 </dd>
 </dl>
@@ -417,26 +429,12 @@ and network filesystems.
 <a name="Building-the-Ada-compiler"></a>
 <h3 class="section">Building the Ada compiler</h3>
 
-<p>In order to build GNAT, the Ada compiler, you need a working GNAT
-compiler (GCC version 4.0 or later).
-This includes GNAT tools such as <code>gnatmake</code> and
-<code>gnatlink</code>, since the Ada front end is written in Ada and
-uses some GNAT-specific extensions.
+<p><a href="prerequisites.html#GNAT-prerequisite">GNAT prerequisites</a>.
 </p>
-<p>In order to build a cross compiler, it is suggested to install
-the new compiler as native first, and then use it to build the cross
-compiler.
-</p>
-<p><code>configure</code> does not test whether the GNAT installation works
-and has a sufficiently recent version; if too old a GNAT version is
-installed, the build will fail unless <samp>--enable-languages</samp> is
-used to disable building the Ada front end.
-</p>
-<p><code>ADA_INCLUDE_PATH</code> and <code>ADA_OBJECT_PATH</code> environment variables
-must not be set when building the Ada compiler, the Ada tools, or the
-Ada runtime libraries. You can check that your build environment is clean
-by verifying that &lsquo;<samp>gnatls -v</samp>&rsquo; lists only one explicit path in each
-section.
+<a name="Building-the-D-compiler"></a>
+<h3 class="section">Building the D compiler</h3>
+
+<p><a href="prerequisites.html#GDC-prerequisite">GDC prerequisites</a>.
 </p>
 <a name="Building-with-profile-feedback"></a>
 <h3 class="section">Building with profile feedback</h3>
@@ -472,7 +470,6 @@ the code quality may be much worse.
 <p>
 <p><a href="./index.html">Return to the GCC Installation page</a>
 </p>
-
 
 
 

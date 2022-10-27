@@ -1,7 +1,8 @@
 // -*- C++ -*-
-// { dg-options "-std=gnu++17 -ltbb" }
+// { dg-options "-ltbb" }
 // { dg-do run { target c++17 } }
-// { dg-require-effective-target tbb-backend }
+// { dg-timeout-factor 3 }
+// { dg-require-effective-target tbb_backend }
 
 //===-- reverse_copy.pass.cpp ---------------------------------------------===//
 //
@@ -69,8 +70,8 @@ struct test_one_policy
     Iterator data_e;
     test_one_policy(Iterator b, Iterator e) : data_b(b), data_e(e) {}
 
-#if __PSTL_ICC_17_VC141_TEST_SIMD_LAMBDA_DEBUG_32_BROKEN ||                                                            \
-    __PSTL_ICC_16_VC14_TEST_SIMD_LAMBDA_DEBUG_32_BROKEN // dummy specialization by policy type, in case of broken configuration
+#if _PSTL_ICC_17_VC141_TEST_SIMD_LAMBDA_DEBUG_32_BROKEN ||                                                            \
+    _PSTL_ICC_16_VC14_TEST_SIMD_LAMBDA_DEBUG_32_BROKEN // dummy specialization by policy type, in case of broken configuration
     template <typename Iterator1>
     typename std::enable_if<is_same_iterator_category<Iterator1, std::random_access_iterator_tag>::value, void>::type
     operator()(pstl::execution::unsequenced_policy, Iterator1 actual_b, Iterator1 actual_e)

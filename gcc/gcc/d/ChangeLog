@@ -1,204 +1,325 @@
-2019-05-03  Release Manager
+2022-08-19  Release Manager
 
-	* GCC 9.1.0 released.
+	* GCC 12.2.0 released.
 
-2019-04-25  Johannes Pfau  <johannespfau@gmail.com>
+2022-08-16  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	* config-lang.in: Do not add target_libs if phobos is disabled.
+	Backported from master:
+	2022-08-16  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-2019-04-23  Iain Buclaw  <ibuclaw@gdcproject.org>
-	    Robin Dapp  <rdapp@linux.ibm.com>
+	PR d/106638
+	* gdc.texi: Update DIP links to point at upstream dlang/DIPs
+	repository.
 
-	* typeinfo.cc (create_typeinfo): Write typeinfo flags as uint.
+2022-08-15  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-2019-04-23  Iain Buclaw  <ibuclaw@gdcproject.org>
+	Backported from master:
+	2022-08-15  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	* d-builtins.cc (d_init_versions): Add D_BetterC, D_ModuleInfo,
-	D_Exceptions, D_TypeInfo as predefined version conditions.
-	* d-codegen.cc (build_bounds_condition): Generate trap if D asserts
-	are turned off.
-	* d-frontend.cc (getTypeInfoType): Add error when -fno-rtti is set.
-	* d-lang.cc (d_init_options): Initialize new front-end options.
-	(d_handle_option): Handle -fdruntime, -fexceptions, and -frtti.
-	(d_post_options): Turn off D runtime features if -fno-druntime is set.
-	* d-spec.cc (lang_specific_driver): Handle -fdruntime.
-	* d-tree.h (have_typeinfo_p): Add prototype.
-	(build_typeinfo): Update prototype.
-	* decl.cc (DeclVisitor::visit(StructDeclaration)): Create typeinfo
-	only if TypeInfo exists.
-	(DeclVisitor::visit(ClassDeclaration)): Likewise.
-	(DeclVisitor::visit(InterfaceDeclaration)): Likewise.
-	(DeclVisitor::visit(EnumDeclaration)): Likewise.
-	* expr.cc: Update all calls to build_typeinfo.
-	* gdc.texi (Runtime Options): Document -fdruntime and -frtti.
-	* lang.opt: Add -fdruntime and -frtti.
-	* modules.cc (build_module_tree): Create module info only if
-	ModuleInfo exists.
-	* toir.cc (IRVisitor::visit(ThrowStatement)): Update test for
-	-fno-exceptions.
-	* typeinfo.cc (create_tinfo_types): Build internal typeinfo classes
-	only if Object exists.
-	(have_typeinfo_p): New function.
-	(class TypeInfoVisitor): Update all calls to build_typeinfo.
-	(build_typeinfo): Add error when -fno-rtti is set.
+	* d-tree.h (d_defer_declaration): Declare.
+	* decl.cc (function_needs_inline_definition_p): Defer checking
+	DECL_UNINLINABLE and DECL_DECLARED_INLINE_P.
+	(maybe_build_decl_tree): Call d_defer_declaration instead of
+	build_decl_tree.
+	* modules.cc (deferred_inline_declarations): New variable.
+	(build_module_tree): Set deferred_inline_declarations and a handle
+	declarations pushed to it.
+	(d_defer_declaration): New function.
 
-2019-04-21  Iain Buclaw  <ibuclaw@gdcproject.org>
+2022-08-15  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	* decl.cc (DeclVisitor::visit(Import)): Set semanticRun after
-	completion, guard against being called more than once.
-	(DeclVisitor::visit(StructDeclaration)): Likewise.
-	(DeclVisitor::visit(ClassDeclaration)): Likewise.
-	(DeclVisitor::visit(InterfaceDeclaration)): Likewise.
-	(DeclVisitor::visit(VarDeclaration)): Likewise.
-	(DeclVisitor::visit(TypeInfoDeclaration)): Likewise.
+	Backported from master:
+	2022-08-15  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-2019-04-21  Iain Buclaw  <ibuclaw@gdcproject.org>
+	PR d/106623
+	* d-codegen.cc (underlying_complex_expr): New function.
+	(d_build_call): Handle passing native complex objects as the
+	library-defined equivalent.
+	* d-tree.h (underlying_complex_expr): Declare.
+	* expr.cc (ExprVisitor::visit (DotVarExp *)): Call
+	underlying_complex_expr instead of build_vconvert.
 
-	* modules.cc (register_module_decl): Don't register unittests against
-	the ModuleInfo symbol for -fbuilding-libphobos-tests.
+2022-08-09  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-2019-04-17  Iain Buclaw  <ibuclaw@gdcproject.org>
+	Backported from master:
+	2022-08-09  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	* d-system.h (POSIX): Define unix as POSIX.
-	(INT32_MAX, INT32_MIN, INT64_MIN, UINT32_MAX, UINT64_MAX): Provide
-	fallback definitions.
+	PR d/106563
+	* decl.cc (DeclVisitor::visit (FuncDeclaration *)): Set semanticRun
+	before generating its symbol.
+	(function_defined_in_root_p): New function.
+	(function_needs_inline_definition_p): New function.
+	(maybe_build_decl_tree): New function.
+	(get_symbol_decl): Call maybe_build_decl_tree before returning symbol.
+	(start_function): Use function_defined_in_root_p instead of inline
+	test for locally defined symbols.
+	(set_linkage_for_decl): Check for inline functions before private or
+	protected symbols.
 
-2019-04-16  Iain Buclaw  <ibuclaw@gdcproject.org>
+2022-08-08  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	* Make-lang.in (d.mostyclean): Clean idgen and impcvgen.
-	(d/idgen): Rename to d/idgen$(build_exeext), add BUILD_LIBDEPS.
-	(d/impcvgen): Rename to d/impcvgen$(build_exeext), add BUILD_LIBDEPS.
-	(d/id.c): Call idgen$(build_exeext).
-	(d/impcnvtab.c): Call impcvgen$(build_exeext).
+	Backported from master:
+	2022-08-08  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-2019-04-14  Johannes Pfau  <johannespfau@gmail.com>
-	PR d/87799
-	* d-system.h (_mkdir): Forward _mkdir on MinGW to mkdir in system.h.
+	PR d/106555
+	* d-target.cc (Target::isReturnOnStack): Check for return type size.
 
-2019-04-12  Iain Buclaw  <ibuclaw@gdcproject.org>
+2022-07-26  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	* d-tree.h (DECL_IN_UNITTEST_CONDITION_P): Define.
-	* decl.cc (DeclVisitor): Add in_version_unittest_ field.
-	(DeclVisitor::visit(ConditionalDeclaration)): New override.
-	(DeclVisitor::visit(FuncDeclaration)): Set
-	DECL_IN_UNITTEST_CONDITION_P.
-	* lang.opt (-fbuilding-libphobos-tests): Add option.
-	* modules.cc (current_testing_module): New static variable.
-	(build_module_tree): Generate second moduleinfo symbol to hold
-	reference to unittests if flag_building_libphobos_tests.
-	(register_module_decl): Check DECL_IN_UNITTEST_CONDITION_P to decide
-	which moduleinfo the decl should be registered against.
+	* dmd/MERGE: Merge upstream dmd 76e3b41375.
+	* dmd/VERSION: Bump version to v2.100.1.
+	* decl.cc (DeclVisitor::visit (VarDeclaration *)): Evaluate RHS
+	  of noreturn declaration expressions first.
+	* expr.cc (ExprVisitor::visit (AssignExp *)): Don't generate
+	  assignment for noreturn types.
 
-2019-03-31  Iain Buclaw  <ibuclaw@gdcproject.org>
+2022-07-04  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	PR d/88462
-	* modules.cc (layout_moduleinfo_fields): Properly align ModuleInfo,
-	instead of forcing alignment to be 1.
+	Backported from master:
+	2022-06-29  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-2019-03-21  Iain Buclaw  <ibuclaw@gdcproject.org>
+	PR d/106139
+	* d-convert.cc (convert_expr): Handle casting from array to vector.
+	(convert_for_rvalue): Rewrite vector to array casts of the same
+	element type into a constructor.
+	(convert_for_assignment): Return calling convert_for_rvalue.
+	* expr.cc (ExprVisitor::visit (VectorExp *)): Handle generating a
+	vector expression from a static array.
+	* toir.cc (IRVisitor::visit (ReturnStatement *)): Call
+	convert_for_rvalue on return value.
 
-	PR d/89017
-	* d-codegen.cc (d_decl_context): Skip over template instances when
-	finding the context.
-	* decl.cc (DeclVisitor::visit(TemplateDeclaration)): New override.
-	(build_type_decl): Include parameters in name of template types.
+2022-06-15  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-2019-03-13  Iain Buclaw  <ibuclaw@gdcproject.org>
+	Backported from master:
+	2022-06-15  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	PR d/88957
-	* expr.cc (ExprVisitor::visit(VectorArrayExp)): New override.
+	* typeinfo.cc (make_internal_typeinfo): Set TYPE_ARTIFICIAL.
 
-2019-03-12  Iain Buclaw  <ibuclaw@gdcproject.org>
+2022-06-13  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	PR d/87866
-	* d-system.h (realpath): Redefine as lrealpath.
+	Backported from master:
+	2022-06-13  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-2019-03-12  Iain Buclaw  <ibuclaw@gdcproject.org>
+	* d-tree.h (check_typeinfo_type): Add Expression* parameter.
+	(build_typeinfo): Likewise.  Declare new override.
+	* expr.cc (ExprVisitor): Call build_typeinfo with Expression*.
+	* typeinfo.cc (check_typeinfo_type): Include expression in the
+	diagnostic message.
+	(build_typeinfo): New override.
 
-	* d-lang.cc (d_init_options): Set global.params.cplusplus to C++14.
-	* d-target.cc (Target::cppFundamentalType): New method.
+2022-05-31  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-2019-03-09  Iain Buclaw  <ibuclaw@gdcproject.org>
+	Backported from master:
+	2022-05-31  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	PR d/89041
-	* d-codegen.cc (get_frame_for_symbol): Delegate literals defined in
-	global scope don't have a frame pointer.
+	PR d/105544
+	* d-lang.cc (d_parse_file): Zero padding past the end of the stdin
+	buffer so the D lexer has a sentinel to stop parsing at.
 
-2019-03-01  Iain Buclaw  <ibuclaw@gdcproject.org>
+2022-05-15  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	* d-builtins.cc (d_init_versions): Add CppRuntime_Gcc as predefined
-	version condition.
+	* dmd/MERGE: Merge upstream dmd a53934d18.
+	* dmd/VERSION: Update version to v2.100.0.
+	* d-codegen.cc (d_decl_context): Use resolvedLinkage to get
+	declaration linkage.
+	(build_struct_literal): Track offset in bits.
+	* d-gimplify.cc (d_gimplify_modify_expr): Check both operands for a
+	bit-field reference.
+	* d-lang.cc (d_post_options): Set flag_rtti and flag_exceptions if
+	-fno-druntime was seen on command-line.
+	(d_type_promotes_to): Use resolvedLinkage to get declaration linkage.
+	* decl.cc (make_thunk): Likewise.
+	* types.cc (layout_aggregate_members): Ignore anonymous fields in
+	total count.
 
-2019-02-14  Maya Rashish  <coypu@sdf.org>
+2022-05-06  Release Manager
 
-	* d-system.h: NetBSD is POSIX.
+	* GCC 12.1.0 released.
 
-2019-02-14  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+2022-05-05  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	PR d/87864
-	* lang.opt (dstartfiles): New option.
-	* d-spec.cc (need_spec): New variable.
-	(lang_specific_driver) <OPT_dstartfiles>: Enable need_spec.
-	(lang_specific_pre_link): Also load libgphobos.spec if need_spec.
+	* dmd/MERGE: Merge upstream dmd 88de5e369.
 
-2019-01-26  Iain Buclaw  <ibuclaw@gdcproject.org>
+2022-05-03  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	PR d/89042
-	* decl.cc (DeclVisitor::visit(VarDeclaration)): Don't assert if
-	handling a void initialized manifest constant.
+	* dmd/MERGE: Merge upstream dmd 081d61e15.
+	* dmd/VERSION: Update version to v2.100.0-rc.1.
 
-2019-01-21  Iain Buclaw  <ibuclaw@gdcproject.org>
+2022-04-28  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	* d-frontend.cc (Compiler::paintAsType): Update for new signature.
+	* dmd/MERGE: Merge upstream dmd 313d28b3d.
+	* d-port.cc (Port::memicmp): Use d_size_t instead of size_t.
+	(Port::valcpy): Likewise.
 
-2019-01-20  Iain Buclaw  <ibuclaw@gdcproject.org>
+2022-04-21  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	* d-builtins.cc (d_init_versions): Check value of
-	STACK_GROWS_DOWNWARD.
+	* dmd/MERGE: Merge upstream dmd eb7bee331.
+	* dmd/VERSION: Update version to v2.100.0-beta.1.
+	* d-lang.cc (d_handle_option): Handle OPT_frevert_dip1000.
+	* lang.opt (frevert=dip1000): New option.
 
-2019-01-20  Iain Buclaw  <ibuclaw@gdcproject.org>
+2022-04-13  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	* d-codegen.cc (identity_compare_p): Return false if seen built-in
-	type with padding.
-	(build_float_identity): Moved here from expr.cc.
-	(lower_struct_comparison): Handle real and complex types.
-	* d-tree.h (build_float_identity): New.
-	* expr.cc (build_float_identity): Move to d-codegen.cc.
+	* Make-lang.in (D_FRONTEND_OBJS): Add d/common-bitfields.o,
+	d/mustuse.o.
+	* d-ctfloat.cc (CTFloat::isIdentical): Don't treat NaN values as
+	identical.
+	* dmd/MERGE: Merge upstream dmd 4d1bfcf14.
+	* expr.cc (ExprVisitor::visit (VoidInitExp *)): New.
 
-2019-01-20  Johannes Pfau  <johannespfau@gmail.com>
+2022-04-03  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	* expr.cc (build_float_identity): New function.
-	(ExprVisitor::visit(IdentityExp)): Add support for complex types.
+	* d-lang.cc: Include dmd/template.h.
+	(d_parse_file): Call printTemplateStats when vtemplates is set.
+	* decl.cc (start_function): Remove OPT_Wtemplates warning.
+	* lang.opt (Wtemplates): Remove.
 
-2019-01-16  Iain Buclaw  <ibuclaw@gdcproject.org>
+2022-04-02  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	PR d/87824
-	* d-lang.cc (d_post_options): Disable implicit
-	-forder-blocks-and-partition.
+	* dmd/MERGE: Merge upstream dmd 47871363d.
+	* d-builtins.cc (d_init_versions): Add predefined version identifiers
+	D_PreConditions, D_PostConditions, and D_Invariants.
+	* d-codegen.cc (d_build_call): Update for new front-end interface.
+	(build_frame_type): Generate reference field for NRVO variables with
+	nested references.
+	(build_closure): Generate assignment of return address to closure.
+	* d-tree.h (DECL_INSTANTIATED): Use DECL_LANG_FLAG_2.
+	(bind_expr): Remove.
+	* decl.cc (DeclVisitor::visit (FuncDeclaration *)): Update for new
+	front-end interface.
+	(get_symbol_decl): Likewise.
+	(get_decl_tree): Check DECL_LANG_FRAME_FIELD before DECL_LANG_NRVO.
+	Dereference the field when both are set.
+	* expr.cc (ExprVisitor::visit (DeleteExp *)): Update for new front-end
+	interface.
+	* modules.cc (get_internal_fn): Likewise.
+	* toir.cc (IRVisitor::visit (ReturnStatement *)): Likewise.
 
-2019-01-16  Iain Buclaw  <ibuclaw@gdcproject.org>
+2022-03-21  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	* d-codegen.cc (build_typeof_null_value): New function.
-	* d-tree.h (build_typeof_null_value): Declare.
-	* d-convert.cc (convert_expr): Use build_typeof_null_value.
-	* expr.cc (ExprVisitor::visit(NullExp)): Likewise.
+	PR d/105004
+	* d-codegen.cc (build_struct_literal): Use complex_expr to build
+	complex expressions from __c_complex types.
 
-2019-01-15  Richard Sandiford  <richard.sandiford@arm.com>
+2022-03-21  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	PR inline-asm/52813
-	* lang.opt (Wdeprecated): Reference common.opt instead of c.opt.
+	PR d/104911
+	* dmd/MERGE: Merge upstream dmd 2503f17e5.
+	* d-convert.cc (convert_expr): Replace d_uns64 with dinteger_t.
+	* d-lang.cc: Remove dmd/root/file.h include.
+	(d_handle_option): Update for new front-end interface.
+	(d_parse_file): Likewise.
 
-2019-01-12  Iain Buclaw  <ibuclaw@gdcproject.org>
+2022-03-13  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	* README.gcc: New file.
+	* dmd/MERGE: Merge upstream dmd 02a3fafc6.
+	* dmd/VERSION: Update version to v2.099.0.
+	* imports.cc (ImportVisitor::visit (EnumDeclaration *)): Don't cache
+	decl in front-end AST node.
+	(ImportVisitor::visit (AggregateDeclaration *)): Likewise.
+	(ImportVisitor::visit (ClassDeclaration *)): Likewise.
 
-2019-01-01  Jakub Jelinek  <jakub@redhat.com>
+2022-03-11  Iain Buclaw  <ibuclaw@gdcproject.org>
 
-	Update copyright years.
+	* imports.cc (imported_decls): Define.
+	(class ImportVisitor): Add result_ field.
+	(ImportVisitor::result): New method.
+	(ImportVisitor::visit (Module *)): Store decl to result_.
+	(ImportVisitor::visit (Import *)): Likewise.
+	(ImportVisitor::visit (AliasDeclaration *)): Don't cache decl in
+	front-end AST node.
+	(ImportVisitor::visit (OverDeclaration *)): Likewise.
+	(ImportVisitor::visit (FuncDeclaration *)): Likewise.
+	(ImportVisitor::visit (Declaration *)): Likewise.
+	(build_import_decl): Use imported_decls to cache and lookup built
+	declarations.
+
+2022-03-11  Iain Buclaw  <ibuclaw@gdcproject.org>
+
+	PR translation/104552
+	* lang.opt (fdump-cxx-spec=): Fix typo in argument handle.
+	(fpreview=fixaliasthis): Quote `alias this' as code.
+
+2022-03-02  Iain Buclaw  <ibuclaw@gdcproject.org>
+
+	* dmd/MERGE: Merge upstream dmd 423f19b41.
+
+2022-02-28  Iain Buclaw  <ibuclaw@gdcproject.org>
+
+	* d-target.cc (Target::_init): Initialize C type size fields.
+	* dmd/MERGE: Merge upstream dmd cf63dd8e5.
+	* dmd/VERSION: Update version to v2.099.0-rc.1.
+
+2022-02-20  Iain Buclaw  <ibuclaw@gdcproject.org>
+
+	* expr.cc (ExprVisitor::visit (DeleteExp *)): Remove handling of
+	deleting GC allocated classes.
+	* runtime.def (DELCLASS): Remove.
+	(DELINTERFACE): Remove.
+
+2022-02-20  Iain Buclaw  <ibuclaw@gdcproject.org>
+
+	* dmd/MERGE: Merge upstream dmd cb49e99f8.
+	* dmd/VERSION: Update version to v2.099.0-beta.1.
+	* decl.cc (layout_class_initializer): Update call to NewExp::create.
+	* expr.cc (ExprVisitor::visit (DeleteExp *)): Remove handling of
+	deleting arrays and pointers.
+	(ExprVisitor::visit (DotVarExp *)): Convert complex types to the
+	front-end library type representing them.
+	(ExprVisitor::visit (StringExp *)): Use getCodeUnit instead of charAt
+	to get the value of each index in a string expression.
+	* runtime.def (DELMEMORY): Remove.
+	(DELARRAYT): Remove.
+	* types.cc (TypeVisitor::visit (TypeEnum *)): Handle anonymous enums.
+
+2022-02-16  Iain Buclaw  <ibuclaw@gdcproject.org>
+
+	* d-builtins.cc (d_build_builtins_module): Set purity of DECL_PURE_P
+	functions to PURE::const_.
+	* d-gimplify.cc (bit_field_ref): New function.
+	(d_gimplify_modify_expr): Handle implicit casting for assignments to
+	bit-fields.
+	(d_gimplify_unary_expr): New function.
+	(d_gimplify_binary_expr): New function.
+	(d_gimplify_expr): Handle UNARY_CLASS_P and BINARY_CLASS_P.
+	* d-target.cc (Target::_init): Initialize bitFieldStyle.
+	(TargetCPP::parameterType): Update signature.
+	(Target::supportsLinkerDirective): New function.
+	* dmd/MERGE: Merge upstream dmd 52844d4b1.
+	* expr.cc (ExprVisitor::visit (ThrowExp *)): New function.
+	* types.cc (d_build_bitfield_integer_type): New function.
+	(insert_aggregate_bitfield): New function.
+	(layout_aggregate_members): Handle inserting bit-fields into an
+	aggregate type.
+
+2022-01-31  Martin Liska  <mliska@suse.cz>
+
+	PR d/104287
+	* decl.cc (d_finish_decl): Remove trailing dot.
+
+2022-01-28  Martin Liska  <mliska@suse.cz>
+
+	* decl.cc (d_finish_decl): Do not use leading capital letter.
+
+2022-01-17  Martin Liska  <mliska@suse.cz>
+
+	* d-gimplify.cc: Rename .c names to .cc.
+	* d-incpath.cc: Likewise.
+	* lang-specs.h: Likewise.
+
+2022-01-03  Iain Buclaw  <ibuclaw@gdcproject.org>
+
+	PR d/103840
+	* dmd/MERGE: Merge upstream dmd 001bfd97b.
+	* Make-lang.in (D_FRONTEND_OBJS): Rename d/complex.o to
+	d/root-complex.o, and d/utf.o to d/root/utf.o.
+
+2022-01-03  Jakub Jelinek  <jakub@redhat.com>
 
 	* gdc.texi: Bump @copyrights-d year.
+
 
-Copyright (C) 2019 Free Software Foundation, Inc.
+Copyright (C) 2022 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2007-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2007-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -109,7 +109,7 @@ is
    Upper_Mask : constant := 2**31;
 
    Matrix_A   : constant array (State_Val range 0 .. 1) of State_Val
-     := (0, 16#9908b0df#);
+     := [0, 16#9908b0df#];
    --  The twist transformation is represented by a matrix of the form
    --
    --               [  0    I(31) ]
@@ -177,7 +177,10 @@ is
    function Random (Gen : Generator) return Unsigned_32 is
       G : Generator renames Gen.Writable.Self.all;
       Y : State_Val;
-      I : Integer;      --  should avoid use of identifier I ???
+      I : Integer;
+      --  Naming exception: I is fine to use here as it is the name used in
+      --  the original paper describing the Mersenne Twister and in common
+      --  descriptions of the algorithm.
 
    begin
       I := G.I;
@@ -272,16 +275,16 @@ is
 
             Trailing_Ones : constant array (Unsigned_32 range 0 .. 15)
               of Bit_Count :=
-                  (2#00000# => 0, 2#00001# => 1, 2#00010# => 0, 2#00011# => 2,
+                  [2#00000# => 0, 2#00001# => 1, 2#00010# => 0, 2#00011# => 2,
                    2#00100# => 0, 2#00101# => 1, 2#00110# => 0, 2#00111# => 3,
                    2#01000# => 0, 2#01001# => 1, 2#01010# => 0, 2#01011# => 2,
-                   2#01100# => 0, 2#01101# => 1, 2#01110# => 0, 2#01111# => 4);
+                   2#01100# => 0, 2#01101# => 1, 2#01110# => 0, 2#01111# => 4];
 
             Pow_Tab : constant array (Bit_Count range 0 .. 3) of Real
-              := (0 => 2.0**(0 - T'Machine_Mantissa),
+              := [0 => 2.0**(0 - T'Machine_Mantissa),
                   1 => 2.0**(-1 - T'Machine_Mantissa),
                   2 => 2.0**(-2 - T'Machine_Mantissa),
-                  3 => 2.0**(-3 - T'Machine_Mantissa));
+                  3 => 2.0**(-3 - T'Machine_Mantissa)];
 
             Extra_Bits : constant Natural :=
                          (Unsigned'Size - T'Machine_Mantissa + 1);
@@ -295,6 +298,7 @@ is
             K      : Bit_Count;       --  Next decrement to exponent
 
          begin
+            K := 0;
             Mantissa := Random (Gen) / 2**Extra_Bits;
             R := Unsigned_32 (Mantissa mod 2**Extra_Bits);
             R_Bits := Extra_Bits;
@@ -385,6 +389,12 @@ is
         or Unsigned_64 (Unsigned_32'(Random (Gen)));
    end Random;
 
+   function Random (Gen : Generator) return Unsigned_128 is
+   begin
+      return Shift_Left (Unsigned_128 (Unsigned_64'(Random (Gen))), 64)
+        or Unsigned_128 (Unsigned_64'(Random (Gen)));
+   end Random;
+
    ---------------------
    -- Random_Discrete --
    ---------------------
@@ -401,12 +411,47 @@ is
       elsif Max < Min then
          raise Constraint_Error;
 
+      --  In the 128-bit case, we have to be careful since not all 128-bit
+      --  unsigned values are representable in GNAT's universal integer.
+
+      elsif Result_Subtype'Base'Size > 64 then
+         declare
+            --  Ignore unequal-size warnings since GNAT's handling is correct.
+
+            pragma Warnings ("Z");
+            function Conv_To_Unsigned is
+               new Unchecked_Conversion (Result_Subtype'Base, Unsigned_128);
+            function Conv_To_Result is
+               new Unchecked_Conversion (Unsigned_128, Result_Subtype'Base);
+            pragma Warnings ("z");
+
+            N : constant Unsigned_128 :=
+                  Conv_To_Unsigned (Max) - Conv_To_Unsigned (Min) + 1;
+
+            X, Slop : Unsigned_128;
+
+         begin
+            if N = 0 then
+               return Conv_To_Result (Conv_To_Unsigned (Min) + Random (Gen));
+
+            else
+               Slop := Unsigned_128'Last rem N + 1;
+
+               loop
+                  X := Random (Gen);
+                  exit when Slop = N or else X <= Unsigned_128'Last - Slop;
+               end loop;
+
+               return Conv_To_Result (Conv_To_Unsigned (Min) + X rem N);
+            end if;
+         end;
+
+      --  In the 64-bit case, we have to be careful since not all 64-bit
+      --  unsigned values are representable in GNAT's universal integer.
+
       elsif Result_Subtype'Base'Size > 32 then
          declare
-            --  In the 64-bit case, we have to be careful, since not all 64-bit
-            --  unsigned values are representable in GNAT's root_integer type.
-            --  Ignore different-size warnings here since GNAT's handling
-            --  is correct.
+            --  Ignore unequal-size warnings since GNAT's handling is correct.
 
             pragma Warnings ("Z");
             function Conv_To_Unsigned is
@@ -436,11 +481,14 @@ is
             end if;
          end;
 
-      elsif Result_Subtype'Pos (Max) - Result_Subtype'Pos (Min) =
-                                                         2 ** 32 - 1
+      --  In the 32-bit case, we need to handle both integer and enumeration
+      --  types and, therefore, rely on 'Pos and 'Val in the computation.
+
+      elsif Result_Subtype'Pos (Max) - Result_Subtype'Pos (Min) = 2 ** 32 - 1
       then
          return Result_Subtype'Val
            (Result_Subtype'Pos (Min) + Unsigned_32'Pos (Random (Gen)));
+
       else
          declare
             N    : constant Unsigned_32 :=
@@ -614,7 +662,7 @@ is
       Result : Image_String;
 
    begin
-      Result := (others => ' ');
+      Result := [others => ' '];
 
       for J in Of_State'Range loop
          Insert_Image (Result, J, Of_State (J));
@@ -627,13 +675,23 @@ is
       Result : Image_String;
 
    begin
-      Result := (others => ' ');
+      Result := [others => ' '];
       for J in 0 .. N - 1 loop
          Insert_Image (Result, J, Gen.S ((J + Gen.I) mod N));
       end loop;
 
       return Result;
    end Image;
+
+   ---------------
+   -- Put_Image --
+   ---------------
+
+   procedure Put_Image
+     (S : in out Strings.Text_Buffers.Root_Buffer_Type'Class; V : State) is
+   begin
+      Strings.Text_Buffers.Put (S, Image (V));
+   end Put_Image;
 
    -----------
    -- Value --

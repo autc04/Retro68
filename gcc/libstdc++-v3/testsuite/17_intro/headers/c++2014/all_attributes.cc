@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2019 Free Software Foundation, Inc.
+// Copyright (C) 2015-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -24,9 +24,11 @@
 #ifndef __APPLE__
 // darwin headers use these, see PR 64883
 # define always_inline 1
+# define cold 1
 # define deprecated 1
 # define visibility 1
 #endif
+#define no_unique_address 1
 #define packed 1
 #define pure 1
 // glibc's sysdeps/unix/sysv/linux/arm/sys/ucontext.h uses this on ARM.
@@ -35,6 +37,7 @@
 #endif
 
 #include <bits/extc++.h>
+#include <cxxabi.h>
 
 int
 main()

@@ -5,14 +5,15 @@
  *
  * Authors: Stewart Gordon
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_errorrep.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_errorrep.d)
  */
 module core.sys.windows.errorrep;
 version (Windows):
+@system:
 
 version (ANSI) {} else version = Unicode;
 
-private import core.sys.windows.w32api, core.sys.windows.windef;
+import core.sys.windows.w32api, core.sys.windows.windef;
 
 static assert (_WIN32_WINNT >= 0x501,
     "core.sys.windows.errorrep is available only if version WindowsXP, Windows2003 "

@@ -4,10 +4,11 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_httpext.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_httpext.d)
  */
 module core.sys.windows.httpext;
 version (Windows):
+@system:
 
 /* Comment from MinGW
        httpext.h - Header for ISAPI extensions.
@@ -19,9 +20,9 @@ version (Windows):
        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-private import core.sys.windows.basetsd /+: DECLARE_HANDLE, HANDLE+/;
-private import core.sys.windows.windef /+: BOOL, CHAR, DWORD, LPBYTE, LPDWORD+/;
-private import core.sys.windows.winnt /+: LPCSTR, LPSTR, LPVOID, PVOID, VOID+/;
+import core.sys.windows.basetsd /+: DECLARE_HANDLE, HANDLE+/;
+import core.sys.windows.windef /+: BOOL, CHAR, DWORD, LPBYTE, LPDWORD+/;
+import core.sys.windows.winnt /+: LPCSTR, LPSTR, LPVOID, PVOID, VOID+/;
 
 enum {
     HSE_VERSION_MAJOR               = 2,

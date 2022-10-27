@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -36,6 +36,7 @@ with Ada.Iterator_Interfaces;
 private with Ada.Containers.Hash_Tables;
 private with Ada.Finalization;
 private with Ada.Streams;
+private with Ada.Strings.Text_Buffers;
 
 generic
    type Key_Type (<>) is private;
@@ -45,7 +46,9 @@ generic
    with function Equivalent_Keys (Left, Right : Key_Type) return Boolean;
    with function "=" (Left, Right : Element_Type) return Boolean is <>;
 
-package Ada.Containers.Indefinite_Hashed_Maps is
+package Ada.Containers.Indefinite_Hashed_Maps with
+  SPARK_Mode => Off
+is
    pragma Annotate (CodePeer, Skip_Analysis);
    pragma Preelaborate;
    pragma Remote_Types;
@@ -54,7 +57,9 @@ package Ada.Containers.Indefinite_Hashed_Maps is
       Constant_Indexing => Constant_Reference,
       Variable_Indexing => Reference,
       Default_Iterator  => Iterate,
-      Iterator_Element  => Element_Type;
+      Iterator_Element  => Element_Type,
+      Aggregate         => (Empty     => Empty,
+                            Add_Named => Insert);
 
    pragma Preelaborable_Initialization (Map);
 
@@ -64,6 +69,8 @@ package Ada.Containers.Indefinite_Hashed_Maps is
    Empty_Map : constant Map;
    --  Map objects declared without an initialization expression are
    --  initialized to the value Empty_Map.
+
+   function Empty (Capacity : Count_Type := 1000) return Map;
 
    No_Element : constant Cursor;
    --  Cursor objects declared without an initialization expression are
@@ -326,7 +333,10 @@ private
 
    type Map is new Ada.Finalization.Controlled with record
       HT : HT_Types.Hash_Table_Type;
-   end record;
+   end record with Put_Image => Put_Image;
+
+   procedure Put_Image
+     (S : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class; V : Map);
 
    overriding procedure Adjust   (Container : in out Map);
 
@@ -353,8 +363,22 @@ private
 
    type Cursor is record
       Container : Map_Access;
+      --  Access to this cursor's container
+
       Node      : Node_Access;
+      --  Access to the node pointed to by this cursor
+
       Position  : Hash_Type := Hash_Type'Last;
+      --  Position of the node in the buckets of the container. If this is
+      --  equal to Hash_Type'Last, then it will not be used. Position is
+      --  not requried by the implementation, but improves the efficiency
+      --  of various operations.
+      --
+      --  However, this value must be maintained so that the predefined
+      --  equality operation acts as required by RM A.18.4-18/2, which
+      --  states: "The predefined "=" operator for type Cursor returns True
+      --  if both cursors are No_Element, or designate the same element
+      --  in the same container."
    end record;
 
    procedure Write

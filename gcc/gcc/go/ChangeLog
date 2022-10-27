@@ -1,6 +1,213 @@
-2019-05-03  Release Manager
+2022-08-19  Release Manager
 
-	* GCC 9.1.0 released.
+	* GCC 12.2.0 released.
+
+2022-05-06  Release Manager
+
+	* GCC 12.1.0 released.
+
+2022-02-13  Ian Lance Taylor  <iant@golang.org>
+
+	* gospec.cc: Revert 2022-02-09 change:
+	(RTLIB, RT_LIBRARY): Don't define.
+	(lang_specific_driver): Don't add -lrt if linking statically
+	on GNU/Linux.
+
+2022-02-09  Ian Lance Taylor  <iant@golang.org>
+
+	* gospec.cc (RTLIB, RT_LIBRARY): Define.
+	(lang_specific_driver): Add -lrt if linking statically on
+	GNU/Linux.
+
+2022-02-09  Ian Lance Taylor  <iant@golang.org>
+
+	* go-gcc.cc (Gcc_backend::Gcc_backend): Define builtins
+	__atomic_load_1 and __atomic_store_1.
+
+2022-01-17  Martin Liska  <mliska@suse.cz>
+
+	* config-lang.in: Rename .c names to .cc.
+	* go-backend.cc: Likewise.
+	* go-lang.cc: Likewise.
+	* gospec.cc: Likewise.
+	* lang-specs.h: Likewise.
+
+2022-01-17  Martin Liska  <mliska@suse.cz>
+
+	* go-backend.c: Moved to...
+	* go-backend.cc: ...here.
+	* go-lang.c: Moved to...
+	* go-lang.cc: ...here.
+	* gospec.c: Moved to...
+	* gospec.cc: ...here.
+
+2022-01-03  Jakub Jelinek  <jakub@redhat.com>
+
+	* gccgo.texi: Bump @copyrights-go year.
+
+2021-12-28  Martin Liska  <mliska@suse.cz>
+
+	* gccgo.texi: Replace http:// with https.
+
+2021-11-29  Eric Gallager  <egallager@gcc.gnu.org>
+
+	PR other/103021
+	* Make-lang.in: Use ETAGS variable in TAGS target.
+
+2021-09-27  Martin Liska  <mliska@suse.cz>
+
+	* go-lang.c (go_langhook_init_options_struct): Set also
+	  x_flag_default_complex_method.
+
+2021-06-29  Ian Lance Taylor  <iant@golang.org>
+
+	* go-gcc.cc (Gcc_backend::static_chain_variable): Set
+	DECL_NAMELESS on the new decl.
+	(Gcc_backend::temporary_variable): Likewise.
+	(Gcc_backend::function): Set DECL_NAMELESS on the result decl.
+
+2021-05-27  Ian Lance Taylor  <iant@golang.org>
+
+	* gccgo.texi (Function Names): Don't HTML quote ampersand.
+
+2021-05-24  Ian Lance Taylor  <iant@golang.org>
+
+	PR go/100537
+	* go-gcc.cc (class Gcc_backend): Update methods that create
+	variables to take a flags parameter.
+
+2021-01-28  Ian Lance Taylor  <iant@golang.org>
+
+	* gospec.c (lang_specific_driver): Add -g if no debugging options
+	were passed.
+
+2021-01-15  Ian Lance Taylor  <iant@golang.org>
+
+	* Make-lang.in (GO_OBJS): Add go/embed.o.
+
+2021-01-05  Jakub Jelinek  <jakub@redhat.com>
+
+	* lang.opt (fgo-embedcfg=): Add full stop at the end of description.
+
+2021-01-05  Ian Lance Taylor  <iant@golang.org>
+
+	* lang.opt (fgo-embedcfg): New option.
+	* go-c.h (struct go_create_gogo_args): Add embedcfg field.
+	* go-lang.c (go_embedcfg): New static variable.
+	(go_langhook_init): Set go_create_gogo_args embedcfg field.
+	(go_langhook_handle_option): Handle OPT_fgo_embedcfg_.
+	* gccgo.texi (Invoking gccgo): Document -fgo-embedcfg.
+
+2021-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* gccgo.texi: Bump @copyrights-go year.
+
+2020-12-22  Ian Lance Taylor  <iant@golang.org>
+
+	PR go/98402
+	* go-lang.c (go_langhook_init): Force MPFR exponent range to be
+	large enough to support Go constants.
+
+2020-11-20  Jakub Jelinek  <jakub@redhat.com>
+
+	PR other/97911
+	* Make-lang.in (go.serial): Change from goal to a variable.
+	(.PHONY): Drop go.serial and go.prev.
+	(go1$(exeext)): Depend on $(go.serial) rather than go.serial.
+
+2020-11-18  Jakub Jelinek  <jakub@redhat.com>
+
+	* Make-lang.in (go.serial): New goal.
+	(.PHONY): Add go.serial go.prev.
+	(go1$(exeext)): Depend on go.prev.  Call LINK_PROGRESS.
+
+2020-11-11  Alan Modra  <amodra@gmail.com>
+
+	* go-gcc.cc (Gcc_backend::global_variable_set_init): Cast NULL to
+	avoid ambiguous overloaded call.
+
+2020-11-06  Nathan Sidwell  <nathan@acm.org>
+
+	* go-gcc.cc (Gcc_backend::call_expression): Rename
+	DECL_IS_BUILTIN->DECL_IS_UNDECLARED_BUILTIN.
+
+2020-11-04  Ian Lance Taylor  <iant@golang.org>
+
+	* go-lang.c (go_langhook_post_options): Disable
+	-fipa-icf-functions if it was not explicitly enabled.
+
+2020-09-14  Jakub Jelinek  <jakub@redhat.com>
+
+	* go-gcc.cc (Gcc_backend::function): Adjust
+	cl_optimization_save, cl_optimization_restore and
+	build_optimization_node callers.
+
+2020-08-10  Clément Chigot  <chigot.c@gmail.com>
+
+	* go-c.h (struct go_create_gogo_args): Add need_eqtype field.
+	* go-lang.c (go_langhook_init): Set need_eqtype.
+
+2020-04-15  Ian Lance Taylor  <iant@golang.org>
+
+	PR go/94607
+	* go-gcc.cc (class Gcc_backend): Define builtin_const,
+	builtin_noreturn, builtin_novops.
+	(Gcc_backend::define_builtin): Change const_p and noreturn_p
+	parameters to a single flags parameter.  Change all callers.
+	(Gcc_backend::Gcc_backend): Pass novops for prefetch.
+
+2020-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+	* gccgo.texi: Bump @copyrights-go year.
+
+2019-11-12  Martin Liska  <mliska@suse.cz>
+
+	* go-lang.c (go_langhook_post_options):
+	Use SET_OPTION_IF_UNSET.
+
+2019-09-04  Ian Lance Taylor  <iant@golang.org>
+
+	PR tree-optimization/91663
+	* go-lang.c (go_langhook_post_options): Clear
+	flag_partial_inlining.
+
+2019-08-23  Jakub Jelinek  <jakub@redhat.com>
+
+	PR middle-end/91283
+	* go-lang.c (go_langhook_post_options): Set flag_excess_precision
+	instead of flag_excess_precision_cmdline.
+
+2019-07-02  Cherry Zhang  <cherryyz@google.com>
+
+	* go-gcc.cc (Gcc_backend::Gcc_backend): Define __builtin_memset.
+
+2019-06-21  Cherry Zhang  <cherryyz@google.com>
+
+	* go-gcc.cc (Gcc_backend::Gcc_backend): Define math/bits
+	builtins.
+
+2019-05-30  Jim Wilson  <jimw@sifive.com>
+
+	* go-gcc.cc (Gcc_backend::Gcc_backend): Add BUILT_IN_ATOMIC_FETCH_AND_1
+	and BUILT_IN_ATOMIC_FETCH_OR_1.
+
+2019-05-16  Cherry Zhang  <cherryyz@google.com>
+
+	* go-gcc.cc (Gcc_backend::Gcc_backend): Define atomic builtins.
+
+2019-05-08  Cherry Zhang  <cherryyz@google.com>
+
+	* go-gcc.cc (Gcc_backend::Gcc_backend): Define memmove builtin.
+
+2019-05-07  Cherry Zhang  <cherryyz@google.com>
+
+	* lang.opt (-fgo-debug-optimization): New option.
+	* go-c.h (struct go_create_gogo_args): Add debug_optimization
+	field.
+	* go-lang.c (go_langhook_init): Set debug_optimization field.
+	* gccgo.texi (Invoking gccgo): Document -fgo-debug-optimization.
 
 2019-03-06  Ian Lance Taylor  <iant@golang.org>
 
@@ -25,10 +232,10 @@
 
 2019-02-05  Nikhil Benesch  <nikhil.benesch@gmail.com>
 
-        PR go/89019
-        * go-gcc.cc (Gcc_backend::placeholder_struct_type): Mark
-        placeholder structs as requiring structural equality.
-        (Gcc_backend::set_placeholder_pointer_type): Propagate the
+	PR go/89019
+	* go-gcc.cc (Gcc_backend::placeholder_struct_type): Mark
+	placeholder structs as requiring structural equality.
+	(Gcc_backend::set_placeholder_pointer_type): Propagate the
 	canonical type from the desired pointer type to the placeholder
 	pointer type.
 
@@ -926,7 +1133,7 @@
 2013-11-22  Andrew MacLeod  <amacleod@redhat.com>
 
 	* go-gcc.cc: Add required include files from gimple.h.
-	* go-lang.c: Likewise
+	* go-lang.c: Likewise.
 
 2013-11-18  Richard Sandiford  <rdsandiford@googlemail.com>
 
@@ -1641,7 +1848,7 @@
 
 	Go frontend added to gcc repository.
 
-Copyright (C) 2010-2019 Free Software Foundation, Inc.
+Copyright (C) 2010-2022 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

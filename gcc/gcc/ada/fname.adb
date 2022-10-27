@@ -6,56 +6,24 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Alloc;
-with Table;
-with Types; use Types;
-
 package body Fname is
-
-   -----------------------------
-   -- Dummy Table Definitions --
-   -----------------------------
-
-   --  The following table was used in old versions of the compiler. We retain
-   --  the declarations here for compatibility with old tree files. The new
-   --  version of the compiler does not use this table, and will write out a
-   --  dummy empty table for Tree_Write.
-
-   type SFN_Entry is record
-      U : Unit_Name_Type;
-      F : File_Name_Type;
-   end record;
-
-   package SFN_Table is new Table.Table (
-     Table_Component_Type => SFN_Entry,
-     Table_Index_Type     => Int,
-     Table_Low_Bound      => 0,
-     Table_Initial        => Alloc.SFN_Table_Initial,
-     Table_Increment      => Alloc.SFN_Table_Increment,
-     Table_Name           => "Fname_Dummy_Table");
 
    function Has_Internal_Extension (Fname : String) return Boolean;
    pragma Inline (Has_Internal_Extension);
@@ -166,11 +134,13 @@ package body Fname is
       Renamings_Included : Boolean := True) return Boolean
    is
    begin
-      --  Definitely false if longer than 12 characters (8.3)
-      --  except for the Interfaces packages
+      --  Definitely false if longer than 12 characters (8.3), except for the
+      --  Interfaces packages and also the implementation units of the 128-bit
+      --  types under System.
 
       if Fname'Length > 12
         and then Fname (Fname'First .. Fname'First + 1) /= "i-"
+        and then Fname (Fname'First .. Fname'First + 1) /= "s-"
       then
          return False;
       end if;
@@ -267,23 +237,5 @@ package body Fname is
    begin
       return Result;
    end Is_Predefined_Renaming_File_Name;
-
-   ---------------
-   -- Tree_Read --
-   ---------------
-
-   procedure Tree_Read is
-   begin
-      SFN_Table.Tree_Read;
-   end Tree_Read;
-
-   ----------------
-   -- Tree_Write --
-   ----------------
-
-   procedure Tree_Write is
-   begin
-      SFN_Table.Tree_Write;
-   end Tree_Write;
 
 end Fname;

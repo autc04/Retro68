@@ -1,6 +1,6 @@
 // std::unique_lock implementation -*- C++ -*-
 
-// Copyright (C) 2008-2019 Free Software Foundation, Inc.
+// Copyright (C) 2008-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,17 +36,13 @@
 # include <bits/c++0x_warning.h>
 #else
 
-#include <chrono>
+#include <bits/chrono.h>
 #include <bits/move.h> // for std::swap
+#include <bits/std_mutex.h> // for std::defer_lock_t
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
-
-  /**
-   * @ingroup mutexes
-   * @{
-   */
 
   /** @brief A movable scoped lock type.
    *
@@ -54,6 +50,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    * mutex can be delayed until after construction and can be transferred
    * to another unique_lock by move construction or move assignment. If a
    * mutex lock is owned when the destructor runs ownership will be released.
+   *
+   * @ingroup mutexes
    */
   template<typename _Mutex>
     class unique_lock
@@ -232,12 +230,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     };
 
   /// Swap overload for unique_lock objects.
+  /// @relates unique_lock
   template<typename _Mutex>
     inline void
     swap(unique_lock<_Mutex>& __x, unique_lock<_Mutex>& __y) noexcept
     { __x.swap(__y); }
 
-  // @} group mutexes
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
 

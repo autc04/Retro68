@@ -2,7 +2,7 @@
 // { dg-require-normal-mode "" }
 // { dg-require-normal-namespace "" }
 
-// Copyright (C) 2007-2019 Free Software Foundation, Inc.
+// Copyright (C) 2007-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,6 +20,12 @@
 // <http://www.gnu.org/licenses/>.
 
 #include <list>
+
+#if __cplusplus >= 201103L
+# define NOTHROW(X) noexcept(X)
+#else
+# define NOTHROW(X)
+#endif
 
 namespace std {
 _GLIBCXX_BEGIN_NAMESPACE_CXX11
@@ -45,5 +51,6 @@ _GLIBCXX_END_NAMESPACE_CXX11
     bool operator<=(const list<T,Allocator>& x, const list<T,Allocator>&);
 
   template <class T, class Allocator>
-    void swap(list<T,Allocator>& x, list<T,Allocator>& y);
+    void swap(list<T,Allocator>& x, list<T,Allocator>& y)
+      NOTHROW(noexcept(x.swap(y)));
 }

@@ -1,5 +1,5 @@
 ;;  Mips.md	     Machine Description for MIPS based processors
-;;  Copyright (C) 1989-2019 Free Software Foundation, Inc.
+;;  Copyright (C) 1989-2022 Free Software Foundation, Inc.
 ;;  Contributed by   A. Lichnewsky, lich@inria.inria.fr
 ;;  Changes by       Michael Meissner, meissner@osf.org
 ;;  64-bit r4000 support by Ian Lance Taylor, ian@cygnus.com, and
@@ -560,6 +560,12 @@
 	 (eq_attr "type" "idiv,idiv3")
 	 (symbol_ref "mips_idiv_insns (GET_MODE (PATTERN (insn)))")
 
+	 ;; simd div have 3 instruction if TARGET_CHECK_ZERO_DIV is true.
+	 (eq_attr "type" "simd_div")
+	 (if_then_else (match_test "TARGET_CHECK_ZERO_DIV")
+		       (const_int 3)
+		       (const_int 1))
+
 	 (not (eq_attr "sync_mem" "none"))
 	 (symbol_ref "mips_sync_loop_insns (insn, operands)")]
 	(const_int 1)))
@@ -759,7 +765,7 @@
 
 ;; Can the instruction be put into a delay slot?
 (define_attr "can_delay" "no,yes"
-  (if_then_else (and (eq_attr "type" "!branch,call,jump")
+  (if_then_else (and (eq_attr "type" "!branch,call,jump,simd_branch")
 		     (eq_attr "hazard" "none")
 		     (match_test "get_attr_insn_count (insn) == 1"))
 		(const_string "yes")
@@ -1098,7 +1104,7 @@
 
 ;; Branches that have delay slots and don't have likely variants do
 ;; not annul on false.
-(define_delay (and (eq_attr "type" "branch")
+(define_delay (and (eq_attr "type" "branch,simd_branch")
 		   (not (match_test "TARGET_MIPS16"))
 		   (ior (match_test "TARGET_CB_NEVER")
 			(and (eq_attr "compact_form" "maybe")
@@ -1749,7 +1755,7 @@
   [(set (match_operand:SI 0 "register_operand" "=l*?*?,l,d?")
 	(plus:SI (mult:SI (match_operand:SI 1 "register_operand" "d,d,d")
 			  (match_operand:SI 2 "register_operand" "d,d,d"))
-		 (match_operand:SI 3 "register_operand" "0,0,d")))
+		 (match_operand:SI 3 "register_operand" "l,l,d")))
    (clobber (match_scratch:SI 4 "=X,X,l"))
    (clobber (match_scratch:SI 5 "=X,X,&d"))]
   "GENERATE_MADD_MSUB && !TARGET_MIPS16"
@@ -1778,7 +1784,7 @@
   [(set (match_operand:SI 0 "register_operand" "=l*?*?,l,d*?,d?")
 	(plus:SI (mult:SI (match_operand:SI 1 "register_operand" "d,d,d,d")
 			  (match_operand:SI 2 "register_operand" "d,d,d,d"))
-		 (match_operand:SI 3 "register_operand" "0,0,l,d")))
+		 (match_operand:SI 3 "register_operand" "l,l,l,d")))
    (clobber (match_scratch:SI 4 "=X,X,3,l"))
    (clobber (match_scratch:SI 5 "=X,X,X,&d"))]
   "TARGET_MIPS3900 && !TARGET_MIPS16"
@@ -1822,7 +1828,7 @@
   [(set (match_operand:SI 0 "register_operand" "=l,d")
 	(plus:SI (mult:SI (match_operand:SI 1 "register_operand" "d,d")
 			  (match_operand:SI 2 "register_operand" "d,d"))
-		 (match_operand:SI 3 "register_operand" "0,l")))
+		 (match_operand:SI 3 "register_operand" "l,l")))
    (clobber (match_scratch:SI 4 "=X,3"))]
   "ISA_HAS_MACC"
 {
@@ -1842,7 +1848,7 @@
 
 (define_insn "*msac"
   [(set (match_operand:SI 0 "register_operand" "=l,d")
-        (minus:SI (match_operand:SI 1 "register_operand" "0,l")
+        (minus:SI (match_operand:SI 1 "register_operand" "l,l")
                   (mult:SI (match_operand:SI 2 "register_operand" "d,d")
                            (match_operand:SI 3 "register_operand" "d,d"))))
    (clobber (match_scratch:SI 4 "=X,1"))]
@@ -1862,7 +1868,7 @@
 ;; An msac-like instruction implemented using negation and a macc.
 (define_insn_and_split "*msac_using_macc"
   [(set (match_operand:SI 0 "register_operand" "=l,d")
-        (minus:SI (match_operand:SI 1 "register_operand" "0,l")
+        (minus:SI (match_operand:SI 1 "register_operand" "l,l")
                   (mult:SI (match_operand:SI 2 "register_operand" "d,d")
                            (match_operand:SI 3 "register_operand" "d,d"))))
    (clobber (match_scratch:SI 4 "=X,1"))
@@ -2005,7 +2011,7 @@
 ;; See the comment above *mul_add_si for details.
 (define_insn "*mul_sub_si"
   [(set (match_operand:SI 0 "register_operand" "=l*?*?,l,d?")
-        (minus:SI (match_operand:SI 1 "register_operand" "0,0,d")
+        (minus:SI (match_operand:SI 1 "register_operand" "l,l,d")
                   (mult:SI (match_operand:SI 2 "register_operand" "d,d,d")
                            (match_operand:SI 3 "register_operand" "d,d,d"))))
    (clobber (match_scratch:SI 4 "=X,X,l"))
@@ -2464,9 +2470,11 @@
   [(set (match_operand:TI 0 "register_operand")
 	(mult:TI (any_extend:TI (match_operand:DI 1 "register_operand"))
 		 (any_extend:TI (match_operand:DI 2 "register_operand"))))]
-  "ISA_HAS_DMULT && !(<CODE> == ZERO_EXTEND && TARGET_FIX_VR4120)"
+  "ISA_HAS_R6DMUL
+   || (ISA_HAS_DMULT
+       && !(<CODE> == ZERO_EXTEND && TARGET_FIX_VR4120))"
 {
-  rtx hilo;
+  rtx hilo, hi, lo;
 
   if (TARGET_MIPS16)
     {
@@ -2476,9 +2484,16 @@
     }
   else if (TARGET_FIX_R4000)
     emit_insn (gen_<u>mulditi3_r4000 (operands[0], operands[1], operands[2]));
-  else
+  else if (ISA_HAS_DMULT)
     emit_insn (gen_<u>mulditi3_internal (operands[0], operands[1],
 					 operands[2]));
+  else
+    {
+      hi = mips_subword (operands[0], 1);
+      lo = mips_subword (operands[0], 0);
+      emit_insn (gen_muldi3_mul3_nohilo (lo, operands[1], operands[2]));
+      emit_insn (gen_<su>muldi3_highpart_r6 (hi, operands[1], operands[2]));
+    }
   DONE;
 })
 
@@ -4444,6 +4459,16 @@
   [(set_attr "move_type" "store")
    (set_attr "mode" "<MODE>")])
 
+;; Unaligned direct access
+(define_expand "movmisalign<mode>"
+  [(set (match_operand:JOIN_MODE 0)
+	(match_operand:JOIN_MODE 1))]
+  "ISA_HAS_UNALIGNED_ACCESS"
+{
+  if (mips_legitimize_move (<MODE>mode, operands[0], operands[1]))
+    DONE;
+})
+
 ;; An instruction to calculate the high part of a 64-bit SYMBOL_ABSOLUTE.
 ;; The required value is:
 ;;
@@ -5632,13 +5657,13 @@
   "cache\t0x14,0(%$)"
   [(set_attr "can_delay" "no")])
 
-;; Block moves, see mips.c for more details.
+;; Block moves, see mips.cc for more details.
 ;; Argument 0 is the destination
 ;; Argument 1 is the source
 ;; Argument 2 is the length
 ;; Argument 3 is the alignment
 
-(define_expand "movmemsi"
+(define_expand "cpymemsi"
   [(parallel [(set (match_operand:BLK 0 "general_operand")
 		   (match_operand:BLK 1 "general_operand"))
 	      (use (match_operand:SI 2 ""))
@@ -5820,7 +5845,7 @@
 		     (match_operand:SI 2 "immediate_operand" "I")))]
   "TARGET_MIPS16"
   "#"
-  ""
+  "&& 1"
   [(set (match_dup 0) (match_dup 1))
    (set (match_dup 0) (lshiftrt:SI (match_dup 0) (match_dup 2)))]
   ""
@@ -5836,8 +5861,8 @@
   "ISA_HAS_ROR"
 {
   if (CONST_INT_P (operands[2]))
-    gcc_assert (INTVAL (operands[2]) >= 0
-		&& INTVAL (operands[2]) < GET_MODE_BITSIZE (<MODE>mode));
+    operands[2] = GEN_INT (INTVAL (operands[2])
+                           & (GET_MODE_BITSIZE (<MODE>mode) - 1));
 
   return "<d>ror\t%0,%1,%2";
 }
@@ -5856,7 +5881,7 @@
 	(bswap:SI (match_operand:SI 1 "register_operand" "d")))]
   "ISA_HAS_WSBH && ISA_HAS_ROR"
   "#"
-  ""
+  "&& 1"
   [(set (match_dup 0) (unspec:SI [(match_dup 1)] UNSPEC_WSBH))
    (set (match_dup 0) (rotatert:SI (match_dup 0) (const_int 16)))]
   ""
@@ -5867,7 +5892,7 @@
 	(bswap:DI (match_operand:DI 1 "register_operand" "d")))]
   "TARGET_64BIT && ISA_HAS_WSBH"
   "#"
-  ""
+  "&& 1"
   [(set (match_dup 0) (unspec:DI [(match_dup 1)] UNSPEC_DSBH))
    (set (match_dup 0) (unspec:DI [(match_dup 0)] UNSPEC_DSHD))]
   ""
@@ -6547,9 +6572,19 @@
 
   /* This bit is similar to expand_builtin_longjmp except that it
      restores $gp as well.  */
-  mips_emit_move (hard_frame_pointer_rtx, fp);
   mips_emit_move (pv, lab);
+  /* Restore the frame pointer and stack pointer and gp.  We must use a
+     temporary since the setjmp buffer may be a local.  */
+  fp = copy_to_reg (fp);
+  gpv = copy_to_reg (gpv);
   emit_stack_restore (SAVE_NONLOCAL, stack);
+
+  /* Ensure the frame pointer move is not optimized.  */
+  emit_insn (gen_blockage ());
+  emit_clobber (hard_frame_pointer_rtx);
+  emit_clobber (frame_pointer_rtx);
+  emit_clobber (gp);
+  mips_emit_move (hard_frame_pointer_rtx, fp);
   mips_emit_move (gp, gpv);
   emit_use (hard_frame_pointer_rtx);
   emit_use (stack_pointer_rtx);
@@ -7588,7 +7623,7 @@
 ;; __builtin_mips_get_fcsr: move the FCSR into operand 0.
 (define_expand "mips_get_fcsr"
   [(set (match_operand:SI 0 "register_operand")
-  	(unspec_volatile [(const_int 0)] UNSPEC_GET_FCSR))]
+       (unspec_volatile:SI [(const_int 0)] UNSPEC_GET_FCSR))]
   "TARGET_HARD_FLOAT_ABI"
 {
   if (TARGET_MIPS16)
@@ -7600,7 +7635,7 @@
 
 (define_insn "*mips_get_fcsr"
   [(set (match_operand:SI 0 "register_operand" "=d")
-  	(unspec_volatile [(const_int 0)] UNSPEC_GET_FCSR))]
+       (unspec_volatile:SI [(const_int 0)] UNSPEC_GET_FCSR))]
   "TARGET_HARD_FLOAT"
   "cfc1\t%0,$31")
 

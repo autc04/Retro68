@@ -1,5 +1,5 @@
 /* Definitions for rtems targeting a PowerPC using elf.
-   Copyright (C) 1996-2019 Free Software Foundation, Inc.
+   Copyright (C) 1996-2022 Free Software Foundation, Inc.
    Contributed by Joel Sherrill (joel@OARcorp.com).
 
    This file is part of GCC.
@@ -22,6 +22,9 @@
    a copy of the GCC Runtime Library Exception along with this program;
    see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
    <http://www.gnu.org/licenses/>.  */
+
+/* Undef gnu-user.h macro we don't want.  */
+#undef CPLUSPLUS_CPP_SPEC
 
 /* Copy and paste from linux64.h and freebsd64.h */
 #ifdef IN_LIBGCC2
@@ -82,7 +85,7 @@
 #define	RS6000_ABI_NAME "linux"
 
 /* Copy and paste from linux64.h and freebsd64.h */
-#define INVALID_64BIT "-m%s not supported in this configuration"
+#define INVALID_64BIT "%<-m%s%> not supported in this configuration"
 
 /* A lot of copy and paste from linux64.h and freebsd64.h */
 #undef	SUBSUBTARGET_OVERRIDE_OPTIONS
@@ -116,14 +119,14 @@
 	  if ((rs6000_isa_flags_explicit			\
 		& OPTION_MASK_MINIMAL_TOC) != 0)		\
 	    {							\
-	      if (global_options_set.x_rs6000_current_cmodel	\
+	      if (OPTION_SET_P (rs6000_current_cmodel)	\
 		  && rs6000_current_cmodel != CMODEL_SMALL)	\
 		error ("%<-mcmodel%> incompatible with other toc options"); \
 	      SET_CMODEL (CMODEL_SMALL);			\
 	    }							\
 	  else							\
 	    {							\
-	      if (!global_options_set.x_rs6000_current_cmodel)	\
+	      if (!OPTION_SET_P (rs6000_current_cmodel))	\
 		SET_CMODEL (CMODEL_MEDIUM);			\
 	      if (rs6000_current_cmodel != CMODEL_SMALL)	\
 		{						\
@@ -254,9 +257,6 @@
 %{mcpu=8540: %{!Dppc*: %{!Dmpc*: -Dppc8540}  } } \
 %{mcpu=e6500: -D__PPC_CPU_E6500__}"
 
-#undef	ASM_DEFAULT_SPEC
-#define	ASM_DEFAULT_SPEC "-mppc%{m64:64}"
-
 #undef	ASM_SPEC
 #define	ASM_SPEC "%{!m64:%(asm_spec32)}%{m64:%(asm_spec64)} %(asm_spec_common)"
 
@@ -295,3 +295,6 @@
   "%{mads|myellowknife|mmvme|msim:%G %L %G;" \
   "!mcall-*|mcall-linux:" GNU_USER_TARGET_LINK_GCC_C_SEQUENCE_SPEC ";" \
   ":%G %L %G}"
+
+#define RTEMS_STARTFILE_SPEC "ecrti%O%s rtems_crti%O%s crtbegin%O%s"
+#define RTEMS_ENDFILE_SPEC "crtend%O%s rtems_crtn%O%s ecrtn%O%s"

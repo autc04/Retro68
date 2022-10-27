@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Free Software Foundation, Inc.
+// Copyright (C) 2018-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -22,8 +22,18 @@
 
 using std::experimental::filesystem::path;
 
+// PR libstdc++/80762.cc
 static_assert( !std::is_constructible<path, void>::value, "" );
 static_assert( !std::is_constructible<path, volatile path>::value, "" );
 static_assert( !std::is_constructible<path, volatile path&>::value, "" );
 static_assert( !std::is_constructible<path, const volatile path>::value, "" );
 static_assert( !std::is_constructible<path, const volatile path&>::value, "" );
+
+// PR libstdc++/90454.cc
+static_assert( !std::is_constructible<path, void*>::value, "" );
+static_assert( !std::is_constructible<path, const void*>::value, "" );
+static_assert( !std::is_constructible<path, volatile void*>::value, "" );
+static_assert( !std::is_constructible<path, const volatile void*>::value, "" );
+static_assert( !std::is_constructible<path, void*&>::value, "" );
+static_assert( !std::is_constructible<path, void* const&>::value, "" );
+static_assert( !std::is_constructible<path, const void* const&>::value, "" );

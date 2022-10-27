@@ -1,5 +1,5 @@
 /* toir.cc -- Lower D frontend statements to GCC trees.
-   Copyright (C) 2006-2019 Free Software Foundation, Inc.
+   Copyright (C) 2006-2022 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -65,10 +65,10 @@ pop_binding_label (Statement * const &, d_label_entry *ent, binding_level *bl)
 }
 
 /* At the end of a function, all labels declared within the function
-   go out of scope.  BLOCK is the top-level block for the function.  */
+   go out of scope.  Queue them in LABELS.  */
 
 bool
-pop_label (Statement * const &s, d_label_entry *ent, tree block)
+pop_label (Statement * const &, d_label_entry *ent, vec <tree> &labels)
 {
   if (!ent->bc_label)
     {
@@ -77,12 +77,9 @@ pop_label (Statement * const &s, d_label_entry *ent, tree block)
       if (DECL_NAME (ent->label))
 	{
 	  gcc_assert (DECL_INITIAL (ent->label) != NULL_TREE);
-	  DECL_CHAIN (ent->label) = BLOCK_VARS (block);
-	  BLOCK_VARS (block) = ent->label;
+	  labels.safe_push (ent->label);
 	}
     }
-
-  d_function_chain->labels->remove (s);
 
   return true;
 }
@@ -96,11 +93,19 @@ void
 push_binding_level (level_kind kind)
 {
   /* Add it to the front of currently active scopes stack.  */
-  binding_level *new_level = ggc_cleared_alloc<binding_level> ();
+  binding_level *new_level = ggc_cleared_alloc <binding_level> ();
   new_level->level_chain = current_binding_level;
   new_level->kind = kind;
 
   current_binding_level = new_level;
+}
+
+static int
+cmp_labels (const void *p1, const void *p2)
+{
+  const tree *l1 = (const tree *) p1;
+  const tree *l2 = (const tree *) p2;
+  return DECL_UID (*l1) - DECL_UID (*l2);
 }
 
 tree
@@ -125,7 +130,18 @@ pop_binding_level (void)
 
       /* Pop all the labels declared in the function.  */
       if (d_function_chain->labels)
-	d_function_chain->labels->traverse<tree, &pop_label> (block);
+	{
+	  auto_vec <tree> labels;
+	  d_function_chain->labels->traverse <vec <tree> &,
+					      &pop_label> (labels);
+	  d_function_chain->labels->empty ();
+	  labels.qsort (cmp_labels);
+	  for (unsigned i = 0; i < labels.length (); ++i)
+	    {
+	      DECL_CHAIN (labels[i]) = BLOCK_VARS (block);
+	      BLOCK_VARS (block) = labels[i];
+	    }
+	}
     }
   else
     {
@@ -134,7 +150,7 @@ pop_binding_level (void)
       if (d_function_chain && d_function_chain->labels)
 	{
 	  language_function *f = d_function_chain;
-	  f->labels->traverse<binding_level *, &pop_binding_label> (level);
+	  f->labels->traverse <binding_level *, &pop_binding_label> (level);
 	}
 
       current_binding_level->blocks
@@ -277,7 +293,7 @@ public:
     tree block = pop_binding_level ();
     tree body = pop_stmt_list ();
 
-    if (! BLOCK_VARS (block))
+    if (!BLOCK_VARS (block))
       return body;
 
     tree bind = build3 (BIND_EXPR, void_type_node,
@@ -356,9 +372,9 @@ public:
     gcc_assert (ent != NULL);
 
     /* If the label hasn't been defined yet, defer checking.  */
-    if (! DECL_INITIAL (ent->label))
+    if (!DECL_INITIAL (ent->label))
       {
-	d_label_use_entry *fwdref = ggc_alloc<d_label_use_entry> ();
+	d_label_use_entry *fwdref = ggc_alloc <d_label_use_entry> ();
 	fwdref->level = current_binding_level;
 	fwdref->statement = from;
 	fwdref->next = ent->fwdrefs;
@@ -367,9 +383,11 @@ public:
       }
 
     if (ent->in_try_scope)
-      error_at (make_location_t (from->loc), "cannot goto into try block");
+      error_at (make_location_t (from->loc),
+		"cannot %<goto%> into %<try%> block");
     else if (ent->in_catch_scope)
-      error_at (make_location_t (from->loc), "cannot goto into catch block");
+      error_at (make_location_t (from->loc),
+		"cannot %<goto%> into %<catch%> block");
   }
 
   /* Check that a previously seen jump to a newly defined label is valid.
@@ -391,21 +409,9 @@ public:
 	      {
 		location = make_location_t (fwdref->statement->loc);
 		if (b->kind == level_try)
-		  error_at (location, "cannot goto into try block");
+		  error_at (location, "cannot %<goto%> into %<try%> block");
 		else
-		  error_at (location, "cannot goto into catch block");
-	      }
-	    else if (s->isCaseStatement ())
-	      {
-		location = make_location_t (s->loc);
-		error_at (location, "case cannot be in different "
-			  "try block level from switch");
-	      }
-	    else if (s->isDefaultStatement ())
-	      {
-		location = make_location_t (s->loc);
-		error_at (location, "default cannot be in different "
-			  "try block level from switch");
+		  error_at (location, "cannot %<goto%> into %<catch%> block");
 	      }
 	    else
 	      gcc_unreachable ();
@@ -429,7 +435,7 @@ public:
     if (!d_function_chain->labels)
       {
 	d_function_chain->labels
-	  = hash_map<Statement *, d_label_entry>::create_ggc (13);
+	  = hash_map <Statement *, d_label_entry>::create_ggc (13);
       }
 
     d_label_entry *ent = d_function_chain->labels->get (s);
@@ -444,7 +450,7 @@ public:
 	DECL_MODE (decl) = VOIDmode;
 
 	/* Create new empty slot.  */
-	ent = ggc_cleared_alloc<d_label_entry> ();
+	ent = ggc_cleared_alloc <d_label_entry> ();
 	ent->statement = s;
 	ent->label = decl;
 
@@ -537,7 +543,7 @@ public:
      try/catch/finally.  At this point, this statement is just an empty
      placeholder.  Maybe the frontend shouldn't leak these.  */
 
-  void visit (OnScopeStatement *)
+  void visit (ScopeGuardStatement *)
   {
   }
 
@@ -547,14 +553,14 @@ public:
   {
     this->start_scope (level_cond);
 
-    /* Build the outer 'if' condition, which may produce temporaries
+    /* Build the outer `if' condition, which may produce temporaries
        requiring scope destruction.  */
     tree ifcond = convert_for_condition (build_expr_dtor (s->condition),
 					 s->condition->type);
     tree ifbody = void_node;
     tree elsebody = void_node;
 
-    /* Build the 'then' branch.  */
+    /* Build the `then' branch.  */
     if (s->ifbody)
       {
 	push_stmt_list ();
@@ -562,7 +568,7 @@ public:
 	ifbody = pop_stmt_list ();
       }
 
-    /* Now build the 'else' branch, which may have nested 'else if' parts.  */
+    /* Now build the `else' branch, which may have nested `else if' parts.  */
     if (s->elsebody)
       {
 	push_stmt_list ();
@@ -610,7 +616,7 @@ public:
 	this->pop_continue_label (lcontinue);
       }
 
-    /* Build the outer 'while' condition, which may produce temporaries
+    /* Build the outer `while' condition, which may produce temporaries
        requiring scope destruction.  */
     tree exitcond = convert_for_condition (build_expr_dtor (s->condition),
 					   s->condition->type);
@@ -691,7 +697,8 @@ public:
       {
 	/* The break label may actually be some levels up.
 	   eg: on a try/finally wrapping a loop.  */
-	LabelStatement *label = this->func_->searchLabel (s->ident)->statement;
+	LabelDsymbol *sym = this->func_->searchLabel (s->ident, s->loc);
+	LabelStatement *label = sym->statement;
 	gcc_assert (label != NULL);
 	Statement *stmt = label->statement->getRelatedLabeled ();
 	this->do_jump (this->lookup_bc_label (stmt, bc_break));
@@ -707,7 +714,8 @@ public:
   {
     if (s->ident)
       {
-	LabelStatement *label = this->func_->searchLabel (s->ident)->statement;
+	LabelDsymbol *sym = this->func_->searchLabel (s->ident, s->loc);
+	LabelStatement *label = sym->statement;
 	gcc_assert (label != NULL);
 	this->do_jump (this->lookup_bc_label (label->statement,
 					      bc_continue));
@@ -741,7 +749,7 @@ public:
     if (this->is_return_label (s->ident))
       sym = this->func_->returnLabel;
     else
-      sym = this->func_->searchLabel (s->ident);
+      sym = this->func_->searchLabel (s->ident, s->loc);
 
     /* If no label found, there was an error.  */
     tree label = this->define_label (sym->statement, sym->ident);
@@ -766,69 +774,9 @@ public:
     tree condition = build_expr_dtor (s->condition);
     Type *condtype = s->condition->type->toBasetype ();
 
-    /* A switch statement on a string gets turned into a library call,
-       which does a binary lookup on list of string cases.  */
-    if (s->condition->type->isString ())
-      {
-	Type *etype = condtype->nextOf ()->toBasetype ();
-	libcall_fn libcall;
-
-	switch (etype->ty)
-	  {
-	  case Tchar:
-	    libcall = LIBCALL_SWITCH_STRING;
-	    break;
-
-	  case Twchar:
-	    libcall = LIBCALL_SWITCH_USTRING;
-	    break;
-
-	  case Tdchar:
-	    libcall = LIBCALL_SWITCH_DSTRING;
-	    break;
-
-	  default:
-	    ::error ("switch statement value must be an array of "
-		     "some character type, not %s", etype->toChars ());
-	    gcc_unreachable ();
-	  }
-
-	/* Apparently the backend is supposed to sort and set the indexes
-	   on the case array, have to change them to be usable.  */
-	Type *satype = condtype->sarrayOf (s->cases->dim);
-	vec<constructor_elt, va_gc> *elms = NULL;
-
-	s->cases->sort ();
-
-	for (size_t i = 0; i < s->cases->dim; i++)
-	  {
-	    CaseStatement *cs = (*s->cases)[i];
-	    cs->index = i;
-
-	    if (cs->exp->op != TOKstring)
-	      s->error ("case '%s' is not a string", cs->exp->toChars ());
-	    else
-	      {
-		tree exp = build_expr (cs->exp, true);
-		CONSTRUCTOR_APPEND_ELT (elms, size_int (i), exp);
-	      }
-	  }
-
-	/* Build static declaration to reference constructor.  */
-	tree ctor = build_constructor (build_ctype (satype), elms);
-	tree decl = build_artificial_decl (TREE_TYPE (ctor), ctor);
-	TREE_READONLY (decl) = 1;
-	d_pushdecl (decl);
-	rest_of_decl_compilation (decl, 1, 0);
-
-	/* Pass it as a dynamic array.  */
-	decl = d_array_value (build_ctype (condtype->arrayOf ()),
-			      size_int (s->cases->dim),
-			      build_address (decl));
-
-	condition = build_libcall (libcall, Type::tint32, 2, decl, condition);
-      }
-    else if (!condtype->isscalar ())
+    /* A switch statement on a string gets turned into a library call.
+       It is not lowered during codegen.  */
+    if (!condtype->isscalar ())
       {
 	error ("cannot handle switch condition of type %s",
 	       condtype->toChars ());
@@ -841,7 +789,7 @@ public:
        Also checking the jump from the switch to the label is allowed.  */
     if (s->cases)
       {
-	for (size_t i = 0; i < s->cases->dim; i++)
+	for (size_t i = 0; i < s->cases->length; i++)
 	  {
 	    CaseStatement *cs = (*s->cases)[i];
 	    tree caselabel = this->lookup_label (cs);
@@ -868,7 +816,7 @@ public:
 	  {
 	    tree defaultlabel = this->lookup_label (s->sdefault);
 
-	    /* The default label is the last 'else' block.  */
+	    /* The default label is the last `else' block.  */
 	    if (s->hasVars)
 	      {
 		this->do_jump (defaultlabel);
@@ -900,7 +848,7 @@ public:
 
     SWITCH_BREAK_LABEL_P (lbreak) = 1;
 
-    /* If the switch had any 'break' statements, emit the label now.  */
+    /* If the switch had any `break' statements, emit the label now.  */
     this->pop_break_label (lbreak);
     this->finish_scope ();
   }
@@ -951,7 +899,7 @@ public:
       this->build_stmt (s->statement);
   }
 
-  /* Implements 'goto default' by jumping to the label associated with
+  /* Implements `goto default' by jumping to the label associated with
      the DefaultStatement in a switch block.  */
 
   void visit (GotoDefaultStatement *s)
@@ -960,7 +908,7 @@ public:
     this->do_jump (label);
   }
 
-  /* Implements 'goto case' by jumping to the label associated with the
+  /* Implements `goto case' by jumping to the label associated with the
      CaseStatement in a switch block.  */
 
   void visit (GotoCaseStatement *s)
@@ -974,7 +922,10 @@ public:
 
   void visit (SwitchErrorStatement *s)
   {
-    add_stmt (d_assert_call (s->loc, LIBCALL_SWITCH_ERROR));
+    /* A throw SwitchError statement gets turned into a library call.
+       The call is wrapped in the enclosed expression.  */
+    gcc_assert (s->exp != NULL);
+    add_stmt (build_expr (s->exp));
   }
 
   /* A return statement exits the current function and supplies its return
@@ -982,34 +933,113 @@ public:
 
   void visit (ReturnStatement *s)
   {
-    if (s->exp == NULL || s->exp->type->toBasetype ()->ty == Tvoid)
+    if (s->exp == NULL || s->exp->type->toBasetype ()->ty == TY::Tvoid)
       {
 	/* Return has no value.  */
 	add_stmt (return_expr (NULL_TREE));
 	return;
       }
 
-    TypeFunction *tf = (TypeFunction *)this->func_->type;
+    TypeFunction *tf = this->func_->type->toTypeFunction ();
     Type *type = this->func_->tintro != NULL
       ? this->func_->tintro->nextOf () : tf->nextOf ();
 
     if ((this->func_->isMain () || this->func_->isCMain ())
-	&& type->toBasetype ()->ty == Tvoid)
+	&& type->toBasetype ()->ty == TY::Tvoid)
       type = Type::tint32;
 
-    if (this->func_->nrvo_can && this->func_->nrvo_var)
+    if (this->func_->shidden)
       {
-	/* Just refer to the DECL_RESULT; this differs from using
-	   NULL_TREE in that it indicates that we care about the value
-	   of the DECL_RESULT.  */
+	/* Returning by hidden reference, store the result into the retval decl.
+	   The result returned then becomes the retval reference itself.  */
 	tree decl = DECL_RESULT (get_symbol_decl (this->func_));
+	gcc_assert (!tf->isref ());
+
+	/* If returning via NRVO, just refer to the DECL_RESULT; this differs
+	   from using NULL_TREE in that it indicates that we care about the
+	   value of the DECL_RESULT.  */
+	if (this->func_->isNRVO () && this->func_->nrvo_var)
+	  {
+	    add_stmt (return_expr (decl));
+	    return;
+	  }
+
+	/* Detect a call to a constructor function, or if returning a struct
+	   literal, write result directly into the return value.  */
+	StructLiteralExp *sle = NULL;
+	bool using_rvo_p = false;
+
+	if (DotVarExp *dve = (s->exp->isCallExp ()
+			      ? s->exp->isCallExp ()->e1->isDotVarExp ()
+			      : NULL))
+	  {
+	    if (dve->var->isCtorDeclaration ())
+	      {
+		if (CommaExp *ce = dve->e1->isCommaExp ())
+		  {
+		    /* Temporary initialized inside a return expression, and
+		       used as the return value.  Replace it with the hidden
+			reference to allow RVO return.  */
+		    DeclarationExp *de = ce->e1->isDeclarationExp ();
+		    VarExp *ve = ce->e2->isVarExp ();
+		    if (de != NULL && ve != NULL
+			&& ve->var == de->declaration
+			&& ve->var->storage_class & STCtemp)
+		      {
+			tree var = get_symbol_decl (ve->var);
+			TREE_ADDRESSABLE (var) = 1;
+			SET_DECL_VALUE_EXPR (var, decl);
+			DECL_HAS_VALUE_EXPR_P (var) = 1;
+			SET_DECL_LANG_NRVO (var, this->func_->shidden);
+			using_rvo_p = true;
+		      }
+		  }
+		else
+		  sle = dve->e1->isStructLiteralExp ();
+	      }
+	  }
+	else
+	  sle = s->exp->isStructLiteralExp ();
+
+	if (sle != NULL)
+	  {
+	    StructDeclaration *sd = type->baseElemOf ()->isTypeStruct ()->sym;
+	    sle->sym = build_address (this->func_->shidden);
+	    using_rvo_p = true;
+
+	    /* Fill any alignment holes in the return slot using memset.  */
+	    if (!identity_compare_p (sd) || sd->isUnionDeclaration ())
+	      add_stmt (build_memset_call (this->func_->shidden));
+	  }
+
+	if (using_rvo_p == true)
+	  {
+	    /* Generate: (expr, return <retval>);  */
+	    add_stmt (build_expr_dtor (s->exp));
+	  }
+	else
+	  {
+	    /* Generate: (<retval> = expr, return <retval>);  */
+	    tree expr = build_expr_dtor (s->exp);
+	    tree init = stabilize_expr (&expr);
+	    expr = convert_for_rvalue (expr, s->exp->type, type);
+	    expr = build_assign (INIT_EXPR, this->func_->shidden, expr);
+	    add_stmt (compound_expr (init, expr));
+	  }
+
 	add_stmt (return_expr (decl));
+      }
+    else if (tf->next->ty == TY::Tnoreturn)
+      {
+	/* Returning an expression that has no value, but has a side effect
+	   that should never return.  */
+	add_stmt (build_expr_dtor (s->exp));
+	add_stmt (return_expr (NULL_TREE));
       }
     else
       {
 	/* Convert for initializing the DECL_RESULT.  */
-	tree expr = build_return_dtor (s->exp, type, tf);
-	add_stmt (expr);
+	add_stmt (build_return_dtor (s->exp, type, tf));
       }
   }
 
@@ -1032,7 +1062,7 @@ public:
     if (s->statements == NULL)
       return;
 
-    for (size_t i = 0; i < s->statements->dim; i++)
+    for (size_t i = 0; i < s->statements->length; i++)
       {
 	Statement *statement = (*s->statements)[i];
 
@@ -1053,7 +1083,7 @@ public:
     tree lbreak = this->push_break_label (s);
     this->start_scope (level_loop);
 
-    for (size_t i = 0; i < s->statements->dim; i++)
+    for (size_t i = 0; i < s->statements->length; i++)
       {
 	Statement *statement = (*s->statements)[i];
 
@@ -1095,7 +1125,7 @@ public:
 
     if (s->wthis)
       {
-	/* Perform initialisation of the 'with' handle.  */
+	/* Perform initialisation of the `with' handle.  */
 	ExpInitializer *ie = s->wthis->_init->isExpInitializer ();
 	gcc_assert (ie != NULL);
 
@@ -1110,7 +1140,7 @@ public:
     this->finish_scope ();
   }
 
-  /* Implements 'throw Object'.  Frontend already checks that the object
+  /* Implements `throw Object'.  Frontend already checks that the object
      thrown is a class type, but does not check if it is derived from
      Object.  Foreign objects are not currently supported at run-time.  */
 
@@ -1125,8 +1155,8 @@ public:
 	static int warned = 0;
 	if (!warned)
 	  {
-	    error_at (make_location_t (s->loc), "exception handling disabled, "
-		      "use -fexceptions to enable");
+	    error_at (make_location_t (s->loc), "exception handling disabled; "
+		      "use %<-fexceptions%> to enable");
 	    warned = 1;
 	  }
       }
@@ -1158,7 +1188,7 @@ public:
 
     if (s->catches)
       {
-	for (size_t i = 0; i < s->catches->dim; i++)
+	for (size_t i = 0; i < s->catches->length; i++)
 	  {
 	    Catch *vcatch = (*s->catches)[i];
 
@@ -1275,7 +1305,7 @@ public:
 
   void visit (GccAsmStatement *s)
   {
-    StringExp *insn = (StringExp *)s->insn;
+    StringExp *insn = s->insn->toStringExp ();
     tree outputs = NULL_TREE;
     tree inputs = NULL_TREE;
     tree clobbers = NULL_TREE;
@@ -1284,13 +1314,13 @@ public:
     /* Collect all arguments, which may be input or output operands.  */
     if (s->args)
       {
-	for (size_t i = 0; i < s->args->dim; i++)
+	for (size_t i = 0; i < s->args->length; i++)
 	  {
 	    Identifier *name = (*s->names)[i];
 	    const char *sname = name ? name->toChars () : NULL;
 	    tree id = name ? build_string (strlen (sname), sname) : NULL_TREE;
 
-	    StringExp *constr = (StringExp *)(*s->constraints)[i];
+	    StringExp *constr = (*s->constraints)[i]->toStringExp ();
 	    const char *cstring = (const char *)(constr->len
 						 ? constr->string : "");
 	    tree str = build_string (constr->len, cstring);
@@ -1314,9 +1344,9 @@ public:
     /* Collect all clobber arguments.  */
     if (s->clobbers)
       {
-	for (size_t i = 0; i < s->clobbers->dim; i++)
+	for (size_t i = 0; i < s->clobbers->length; i++)
 	  {
-	    StringExp *clobber = (StringExp *)(*s->clobbers)[i];
+	    StringExp *clobber = (*s->clobbers)[i]->toStringExp ();
 	    const char *cstring = (const char *)(clobber->len
 						 ? clobber->string : "");
 
@@ -1329,7 +1359,7 @@ public:
        by the front-end, so pass down the label symbol to the back-end.  */
     if (s->labels)
       {
-	for (size_t i = 0; i < s->labels->dim; i++)
+	for (size_t i = 0; i < s->labels->length; i++)
 	  {
 	    Identifier *ident = (*s->labels)[i];
 	    GotoStatement *gs = (*s->gotos)[i];
@@ -1355,7 +1385,7 @@ public:
     if (s->args)
       {
 	unsigned noutputs = s->outputargs;
-	unsigned ninputs = (s->args->dim - noutputs);
+	unsigned ninputs = (s->args->length - noutputs);
 	const char **oconstraints = XALLOCAVEC (const char *, noutputs);
 	bool allows_mem, allows_reg, is_inout;
 	size_t i;
@@ -1406,12 +1436,19 @@ public:
 		       outputs, inputs, clobbers, labels);
     SET_EXPR_LOCATION (exp, make_location_t (s->loc));
 
-    /* If the extended syntax was not used, mark the ASM_EXPR.  */
+    /* If the extended syntax was not used, mark the ASM_EXPR as being an
+       ASM_INPUT expression instead of an ASM_OPERAND with no operands.  */
     if (s->args == NULL && s->clobbers == NULL)
       ASM_INPUT_P (exp) = 1;
 
-    /* Asm statements are treated as volatile unless 'pure'.  */
-    ASM_VOLATILE_P (exp) = !(s->stc & STCpure);
+    /* All asm statements are assumed to have a side effect.  As a future
+       optimization, this could be unset when building in release mode.  */
+    ASM_VOLATILE_P (exp) = 1;
+
+    /* If the function has been annotated with `pragma(inline)', then mark
+       the asm expression as being inline as well.  */
+    if (this->func_->inlining == PINLINE::always)
+      ASM_INLINE_P (exp) = 1;
 
     add_stmt (exp);
   }
@@ -1423,7 +1460,7 @@ public:
     if (s->imports == NULL)
       return;
 
-    for (size_t i = 0; i < s->imports->dim; i++)
+    for (size_t i = 0; i < s->imports->length; i++)
       {
 	Dsymbol *dsym = (*s->imports)[i];
 

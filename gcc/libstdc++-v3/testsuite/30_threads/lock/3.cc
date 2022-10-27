@@ -1,10 +1,9 @@
 // { dg-do run }
-// { dg-options "-pthread"  }
+// { dg-additional-options "-pthread" { target pthread } }
 // { dg-require-effective-target c++11 }
-// { dg-require-effective-target pthread }
 // { dg-require-gthreads "" }
 
-// Copyright (C) 2010-2019 Free Software Foundation, Inc.
+// Copyright (C) 2010-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -38,7 +37,7 @@ struct user_lock
     is_locked = true;
   }
 
-  bool try_lock() 
+  bool try_lock()
   { return is_locked ? false : (is_locked = true); }
 
   void unlock()
@@ -63,6 +62,8 @@ int main()
 	{
 	  //heterogeneous types
 	  std::lock(m1, m2, m3);
+	  VERIFY( !m1.try_lock() );
+	  VERIFY( !m3.try_lock() );
 	  m1.unlock();
 	  m2.unlock();
 	  m3.unlock();

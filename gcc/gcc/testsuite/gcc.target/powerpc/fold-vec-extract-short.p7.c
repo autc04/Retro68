@@ -1,7 +1,7 @@
 /* Verify that overloaded built-ins for vec_extract() with short
    inputs produce the right code for a P7 (BE) target.  */
 
-/* { dg-do compile { target { powerpc*-*-linux* } } } */
+/* { dg-do compile } */
 /* { dg-require-effective-target powerpc_vsx_ok } */
 /* { dg-options "-mdejagnu-cpu=power7 -O2" } */
 
@@ -10,7 +10,8 @@
 // P7 (be) constants:            li, addi,              stxvw4x, lha/lhz
 
 /* { dg-final { scan-assembler-times {\mli\M} 6 } } */
-/* { dg-final { scan-assembler-times {\maddi\M|\madd\M} 9 } } */
+/* { dg-final { scan-assembler-times {\maddi\M|\madd\M} 9 { target lp64 } } } */
+/* { dg-final { scan-assembler-times {\maddi\M|\madd\M} 12 { target ilp32 } } } */
 /* { dg-final { scan-assembler-times {\mrldic\M|\mrlwinm\M} 3 } } */
 /* { dg-final { scan-assembler-times {\mstxvw4x\M|\mstvx\M} 6 } } */
 /* { dg-final { scan-assembler-times "lhz|lha|lhzx|lhax" 6 } } */

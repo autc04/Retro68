@@ -2,7 +2,7 @@
 
 // 2014-04-16 Rüdiger Sonderfeld  <ruediger@c-plusplus.de>
 
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -30,6 +30,8 @@
 void
 test01()
 {
+  using std::size_t;
+
   size_t space = 100;
   void* ptr = new char[space];
   char* const orig_ptr = static_cast<char*>(ptr);
@@ -44,7 +46,7 @@ test01()
       uintptr_t p = reinterpret_cast<uintptr_t>(ptr);
       VERIFY( p % alignment == 0 );
       char* const x = static_cast<char*>(ptr);
-      VERIFY( x - old_ptr == old_space - space );
+      VERIFY( size_t(x - old_ptr) == old_space - space );
       VERIFY( (void*)x < (void*)(orig_ptr + orig_space) );
       VERIFY( (void*)(x + size) < (void*)(orig_ptr + orig_space) );
       ptr = x + size;

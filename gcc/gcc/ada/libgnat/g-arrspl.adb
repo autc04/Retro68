@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2002-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2002-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -49,7 +49,7 @@ package body GNAT.Array_Split is
    -- Adjust --
    ------------
 
-   procedure Adjust (S : in out Slice_Set) is
+   overriding procedure Adjust (S : in out Slice_Set) is
    begin
       S.D.Ref_Counter := S.D.Ref_Counter + 1;
    end Adjust;
@@ -68,6 +68,16 @@ package body GNAT.Array_Split is
       Create (S, From, To_Set (Separators), Mode);
    end Create;
 
+   function Create
+     (From       : Element_Sequence;
+      Separators : Element_Sequence;
+      Mode       : Separator_Mode := Single) return Slice_Set is
+   begin
+      return Ret : Slice_Set do
+         Create (Ret, From, Separators, Mode);
+      end return;
+   end Create;
+
    ------------
    -- Create --
    ------------
@@ -83,6 +93,16 @@ package body GNAT.Array_Split is
       Result.D.Source := new Element_Sequence'(From);
       Set (Result, Separators, Mode);
       S := Result;
+   end Create;
+
+   function Create
+     (From       : Element_Sequence;
+      Separators : Element_Set;
+      Mode       : Separator_Mode := Single) return Slice_Set is
+   begin
+      return Ret : Slice_Set do
+         Create (Ret, From, Separators, Mode);
+      end return;
    end Create;
 
    -----------
@@ -108,7 +128,7 @@ package body GNAT.Array_Split is
    -- Finalize --
    --------------
 
-   procedure Finalize (S : in out Slice_Set) is
+   overriding procedure Finalize (S : in out Slice_Set) is
 
       procedure Free is
          new Ada.Unchecked_Deallocation (Element_Sequence, Element_Access);
@@ -139,7 +159,7 @@ package body GNAT.Array_Split is
    -- Initialize --
    ----------------
 
-   procedure Initialize (S : in out Slice_Set) is
+   overriding procedure Initialize (S : in out Slice_Set) is
    begin
       S.D := new Data'(1, null, 0, null, null);
    end Initialize;
@@ -161,20 +181,20 @@ package body GNAT.Array_Split is
       then
          --  Whole string, or no separator used
 
-         return (Before => Array_End,
-                 After  => Array_End);
+         return [Before => Array_End,
+                 After  => Array_End];
 
       elsif Index = 1 then
-         return (Before => Array_End,
-                 After  => S.D.Source (S.D.Slices (Index).Stop + 1));
+         return [Before => Array_End,
+                 After  => S.D.Source (S.D.Slices (Index).Stop + 1)];
 
       elsif Index = S.D.N_Slice then
-         return (Before => S.D.Source (S.D.Slices (Index).Start - 1),
-                 After  => Array_End);
+         return [Before => S.D.Source (S.D.Slices (Index).Start - 1),
+                 After  => Array_End];
 
       else
-         return (Before => S.D.Source (S.D.Slices (Index).Start - 1),
-                 After  => S.D.Source (S.D.Slices (Index).Stop + 1));
+         return [Before => S.D.Source (S.D.Slices (Index).Start - 1),
+                 After  => S.D.Source (S.D.Slices (Index).Stop + 1)];
       end if;
    end Separators;
 

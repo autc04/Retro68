@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Free Software Foundation, Inc.
+// Copyright (C) 2019-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++17" }
-// { dg-do compile }
+// { dg-do compile { target c++17 } }
 
 #undef __STDCPP_WANT_MATH_SPEC_FUNCS__
 #define __STDCPP_WANT_MATH_SPEC_FUNCS__ 0

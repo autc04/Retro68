@@ -6,7 +6,7 @@
    source of the excessive array bound is in a different function than
    the call.
    { dg-do compile }
-   { dg-options "-O2 -Warray-bounds -Wno-stringop-overflow" } */
+   { dg-options "-O2 -Warray-bounds -Wno-stringop-overflow -fno-tree-vrp" } */
 
 #if __has_include (<stddef.h>)
 #  include <stddef.h>
@@ -172,12 +172,24 @@ void call_strncpy_src_xsize (char *d, size_t n)
 /* Exercise strncpy out-of-bounds offsets with an array of unknown size.  */
 
 static void
-wrap_strncpy_src_diff_max (char *d, const char *s, ptrdiff_t i, size_t n)
+wrap_strncpy_src_diff_max_m1 (char *d, const char *s, ptrdiff_t i, size_t n)
 {
   /* Unlike in the similar call to memcpy(), there is no pointer
      overflow here because the size N is not added to the source
-     offset.  */
+     offset MAX - 1 (only 1 is for the access to its first element,
+     which is tested below).  */
   strncpy (d, s + i, n);
+}
+
+void call_strncpy_src_diff_max_m1 (char *d, const char *s, size_t n)
+{
+  wrap_strncpy_src_diff_max_m1 (d, s, MAX - 1, 3);
+}
+
+static void
+wrap_strncpy_src_diff_max (char *d, const char *s, ptrdiff_t i, size_t n)
+{
+  strncpy (d, s + i, n);  /* { dg-warning "pointer overflow between offset \[0-9\]+ and size \\\[1, 0]" } */
 }
 
 void call_strncpy_src_diff_max (char *d, const char *s, size_t n)
@@ -216,13 +228,13 @@ void call_strncpy_dst_diff_max (const char *s, size_t n)
 static void
 wrap_strncpy_dstarray_diff_neg (char *d, const char *s, ptrdiff_t i, size_t n)
 {
-  strncpy (d + i, s, n);   /* { dg-bogus "offset -\[0-9\]+ is out of the bounds \\\[0, 90] of object .ar10. with type .(struct )?Array ?\\\[2]." "strncpy" } */
-}			   /* { dg-warning "array subscript -1 is outside array bounds" "" { target *-*-* } .-1 } */
+  strncpy (d + i, s, n);   /* { dg-warning "offset -\[0-9\]+ is out of the bounds \\\[0, 90] of object .ar10. with type .(struct )?Array ?\\\[2]." "strncpy" } */
+}
 
 void call_strncpy_dstarray_diff_neg (const char *s, size_t n)
 {
-  struct Array ar10[2];    /* { dg-bogus ".ar10. declared here" } */
-  sink (&ar10);		   /* { dg-message "while referencing" "" { target *-*-* } .-1 } */
+  struct Array ar10[2];    /* { dg-message ".ar10. declared here" } */
+  sink (&ar10);
 
   int off = (char*)ar10[1].a17 - (char*)ar10 + 1;
   wrap_strncpy_dstarray_diff_neg (ar10[1].a17, s, -off, n);

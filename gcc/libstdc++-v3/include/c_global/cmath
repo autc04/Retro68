@@ -1,6 +1,6 @@
 // -*- C++ -*- C forwarding header.
 
-// Copyright (C) 1997-2019 Free Software Foundation, Inc.
+// Copyright (C) 1997-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -1844,10 +1844,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif // _GLIBCXX_USE_C99_MATH_TR1
 #endif // C++11
 
-#if __cplusplus > 201402L
+#if __cplusplus >= 201703L
 
   // [c.math.hypot3], three-dimensional hypotenuse
-#define __cpp_lib_hypot 201603
+#define __cpp_lib_hypot 201603L
 
   template<typename _Tp>
     inline _Tp
@@ -1877,23 +1877,23 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   { return std::__hypot3<long double>(__x, __y, __z); }
 
   template<typename _Tp, typename _Up, typename _Vp>
-    typename __gnu_cxx::__promote_3<_Tp, _Up, _Vp>::__type
+    __gnu_cxx::__promoted_t<_Tp, _Up, _Vp>
     hypot(_Tp __x, _Up __y, _Vp __z)
     {
-      using __type = typename __gnu_cxx::__promote_3<_Tp, _Up, _Vp>::__type;
+      using __type = __gnu_cxx::__promoted_t<_Tp, _Up, _Vp>;
       return std::__hypot3<__type>(__x, __y, __z);
     }
 #endif // C++17
 
-#if __cplusplus > 201703L
+#if __cplusplus >= 202002L
   // linear interpolation
 # define __cpp_lib_interpolate 201902L
 
   template<typename _Fp>
     constexpr _Fp
-    __lerp(_Fp __a, _Fp __b, _Fp __t)
+    __lerp(_Fp __a, _Fp __b, _Fp __t) noexcept
     {
-      if (__a <= 0 && __b >= 0 || __a >= 0 && __b <= 0)
+      if ((__a <= 0 && __b >= 0) || (__a >= 0 && __b <= 0))
 	return __t * __b + (1 - __t) * __a;
 
       if (__t == 1)
@@ -1902,22 +1902,30 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       // Exact at __t=0, monotonic except near __t=1,
       // bounded, determinate, and consistent:
       const _Fp __x = __a + __t * (__b - __a);
-      return __t > 1 == __b > __a
+      return (__t > 1) == (__b > __a)
 	? (__b < __x ? __x : __b)
 	: (__b > __x ? __x : __b);  // monotonic near __t=1
     }
 
   constexpr float
-  lerp(float __a, float __b, float __t)
+  lerp(float __a, float __b, float __t) noexcept
   { return std::__lerp(__a, __b, __t); }
 
   constexpr double
-  lerp(double __a, double __b, double __t)
+  lerp(double __a, double __b, double __t) noexcept
   { return std::__lerp(__a, __b, __t); }
 
   constexpr long double
-  lerp(long double __a, long double __b, long double __t)
+  lerp(long double __a, long double __b, long double __t) noexcept
   { return std::__lerp(__a, __b, __t); }
+
+  template<typename _Tp, typename _Up, typename _Vp>
+    constexpr __gnu_cxx::__promoted_t<_Tp, _Up, _Vp>
+    lerp(_Tp __x, _Up __y, _Vp __z) noexcept
+    {
+      using __type = __gnu_cxx::__promoted_t<_Tp, _Up, _Vp>;
+      return std::__lerp<__type>(__x, __y, __z);
+    }
 #endif // C++20
 
 _GLIBCXX_END_NAMESPACE_VERSION

@@ -144,18 +144,21 @@ else version (Solaris)
         alias errno = ___errno;
     }
 }
+else version (Haiku)
+{
+    // https://github.com/haiku/haiku/blob/master/headers/posix/errno.h
+    extern (C)
+    {
+        ref int _errnop();
+        alias errno = _errnop;
+    }
+}
 else
 {
     ///
-    @property int errno() { return getErrno(); }
+    extern(C) pragma(mangle, "getErrno") @property int errno();
     ///
-    @property int errno(int n) { return setErrno(n); }
-
-    extern (C)
-    {
-        private int getErrno();      // for internal use
-        private int setErrno(int);   // for internal use
-    }
+    extern(C) pragma(mangle, "setErrno") @property int errno(int n);
 }
 
 extern (C):
@@ -202,6 +205,50 @@ version (Windows)
     enum ENOTEMPTY          = 41;       /// Directory not empty
     enum EILSEQ             = 42;       /// Illegal byte sequence
     enum EDEADLOCK          = EDEADLK;  /// Resource deadlock would occur
+
+    // POSIX compatibility
+    // See_Also: https://docs.microsoft.com/en-us/cpp/c-runtime-library/errno-constants
+    enum EADDRINUSE         = 100;
+    enum EADDRNOTAVAIL      = 101;
+    enum EAFNOSUPPORT       = 102;
+    enum EALREADY           = 103;
+    enum EBADMSG            = 104;
+    enum ECANCELED          = 105;
+    enum ECONNABORTED       = 106;
+    enum ECONNREFUSED       = 107;
+    enum ECONNRESET         = 108;
+    enum EDESTADDRREQ       = 109;
+    enum EHOSTUNREACH       = 110;
+    enum EIDRM              = 111;
+    enum EINPROGRESS        = 112;
+    enum EISCONN            = 113;
+    enum ELOOP              = 114;
+    enum EMSGSIZE           = 115;
+    enum ENETDOWN           = 116;
+    enum ENETRESET          = 117;
+    enum ENETUNREACH        = 118;
+    enum ENOBUFS            = 119;
+    enum ENODATA            = 120;
+    enum ENOLINK            = 121;
+    enum ENOMSG             = 122;
+    enum ENOPROTOOPT        = 123;
+    enum ENOSR              = 124;
+    enum ENOSTR             = 125;
+    enum ENOTCONN           = 126;
+    enum ENOTRECOVERABLE    = 127;
+    enum ENOTSOCK           = 128;
+    enum ENOTSUP            = 129;
+    enum EOPNOTSUPP         = 130;
+    enum EOTHER             = 131;
+    enum EOVERFLOW          = 132;
+    enum EOWNERDEAD         = 133;
+    enum EPROTO             = 134;
+    enum EPROTONOSUPPORT    = 135;
+    enum EPROTOTYPE         = 136;
+    enum ETIME              = 137;
+    enum ETIMEDOUT          = 138;
+    enum ETXTBSY            = 139;
+    enum EWOULDBLOCK        = 140;
 }
 else version (linux)
 {
@@ -1479,7 +1526,11 @@ else version (OpenBSD)
     enum EIDRM              = 89;       /// Identifier removed
     enum ENOMSG             = 90;       /// No message of desired type
     enum ENOTSUP            = 91;       /// Not supported
-    enum ELAST              = 91;       /// Must be equal largest errno
+    enum EBADMSG            = 92;       /// Bad message
+    enum ENOTRECOVERABLE    = 93;       /// State not recoverable
+    enum EOWNERDEAD         = 94;       /// Previous owner died
+    enum EPROTO             = 95;       /// Protocol error
+    enum ELAST              = 95;       /// Must be equal largest errno
 }
 else version (DragonFlyBSD)
 {
@@ -1586,128 +1637,447 @@ else version (DragonFlyBSD)
 }
 else version (Solaris)
 {
-    enum EPERM =  1       /** Not super-user                       */;
-    enum ENOENT = 2       /** No such file or directory            */;
-    enum ESRCH =  3       /** No such process                      */;
-    enum EINTR =  4       /** interrupted system call              */;
-    enum EIO =    5       /** I/O error                            */;
-    enum ENXIO =  6       /** No such device or address            */;
-    enum E2BIG =  7       /** Arg list too long                    */;
-    enum ENOEXEC = 8       /** Exec format error                    */;
-    enum EBADF =  9       /** Bad file number                      */;
-    enum ECHILD = 10      /** No children                          */;
-    enum EAGAIN = 11      /** Resource temporarily unavailable     */;
-    enum ENOMEM = 12      /** Not enough core                      */;
-    enum EACCES = 13      /** Permission denied                    */;
-    enum EFAULT = 14      /** Bad address                          */;
-    enum ENOTBLK = 15      /** Block device required                */;
-    enum EBUSY =  16      /** Mount device busy                    */;
-    enum EEXIST = 17      /** File exists                          */;
-    enum EXDEV =  18      /** Cross-device link                    */;
-    enum ENODEV = 19      /** No such device                       */;
-    enum ENOTDIR = 20      /** Not a directory                      */;
-    enum EISDIR = 21      /** Is a directory                       */;
-    enum EINVAL = 22      /** Invalid argument                     */;
-    enum ENFILE = 23      /** File table overflow                  */;
-    enum EMFILE = 24      /** Too many open files                  */;
-    enum ENOTTY = 25      /** Inappropriate ioctl for device       */;
-    enum ETXTBSY = 26      /** Text file busy                       */;
-    enum EFBIG =  27      /** File too large                       */;
-    enum ENOSPC = 28      /** No space left on device              */;
-    enum ESPIPE = 29      /** Illegal seek                         */;
-    enum EROFS =  30      /** Read only file system                */;
-    enum EMLINK = 31      /** Too many links                       */;
-    enum EPIPE =  32      /** Broken pipe                          */;
-    enum EDOM =   33      /** Math arg out of domain of func       */;
-    enum ERANGE = 34      /** Math result not representable        */;
-    enum ENOMSG = 35      /** No message of desired type           */;
-    enum EIDRM =  36      /** Identifier removed                   */;
-    enum ECHRNG = 37      /** Channel number out of range          */;
-    enum EL2NSYNC = 38     /** Level 2 not synchronized             */;
-    enum EL3HLT = 39      /** Level 3 halted                       */;
-    enum EL3RST = 40      /** Level 3 reset                        */;
-    enum ELNRNG = 41      /** Link number out of range             */;
-    enum EUNATCH = 42      /** Protocol driver not attached         */;
-    enum ENOCSI = 43      /** No CSI structure available           */;
-    enum EL2HLT = 44      /** Level 2 halted                       */;
-    enum EDEADLK = 45      /** Deadlock condition.                  */;
-    enum ENOLCK = 46      /** No record locks available.           */;
-    enum ECANCELED = 47    /** Operation canceled                   */;
-    enum ENOTSUP = 48      /** Operation not supported              */;
-    enum EDQUOT = 49      /** Disc quota exceeded                  */;
-    enum EBADE =  50      /** invalid exchange                     */;
-    enum EBADR =  51      /** invalid request descriptor           */;
-    enum EXFULL = 52      /** exchange full                        */;
-    enum ENOANO = 53      /** no anode                             */;
-    enum EBADRQC = 54      /** invalid request code                 */;
-    enum EBADSLT = 55      /** invalid slot                         */;
-    enum EDEADLOCK = 56    /** file locking deadlock error          */;
-    enum EBFONT = 57      /** bad font file fmt                    */;
-    enum EOWNERDEAD =     58      /** process died with the lock */;
-    enum ENOTRECOVERABLE = 59      /** lock is not recoverable */;
-    enum ENOSTR = 60      /** Device not a stream                  */;
-    enum ENODATA = 61      /** no data (for no delay io)            */;
-    enum ETIME =  62      /** timer expired                        */;
-    enum ENOSR =  63      /** out of streams resources             */;
-    enum ENONET = 64      /** Machine is not on the network        */;
-    enum ENOPKG = 65      /** Package not installed                */;
-    enum EREMOTE = 66      /** The object is remote                 */;
-    enum ENOLINK = 67      /** the link has been severed            */;
-    enum EADV =   68      /** advertise error                      */;
-    enum ESRMNT = 69      /** srmount error                        */;
-    enum ECOMM =  70      /** Communication error on send          */;
-    enum EPROTO = 71      /** Protocol error                       */;
-    enum ELOCKUNMAPPED =  72      /** locked lock was unmapped */;
-    enum ENOTACTIVE = 73   /** Facility is not active               */;
-    enum EMULTIHOP = 74    /** multihop attempted                   */;
-    enum EBADMSG = 77      /** trying to read unreadable message    */;
-    enum ENAMETOOLONG = 78 /** path name is too long                */;
-    enum EOVERFLOW = 79    /** value too large to be stored in data type */;
-    enum ENOTUNIQ = 80     /** given log. name not unique           */;
-    enum EBADFD =  81      /** f.d. invalid for this operation      */;
-    enum EREMCHG = 82      /** Remote address changed               */;
-    enum ELIBACC = 83      /** Can't access a needed shared lib.    */;
-    enum ELIBBAD = 84      /** Accessing a corrupted shared lib.    */;
-    enum ELIBSCN = 85      /** .lib section in a.out corrupted.     */;
-    enum ELIBMAX = 86      /** Attempting to link in too many libs. */;
-    enum ELIBEXEC = 87     /** Attempting to exec a shared library. */;
-    enum EILSEQ = 88      /** Illegal byte sequence.               */;
-    enum ENOSYS = 89      /** Unsupported file system operation    */;
-    enum ELOOP =  90      /** Symbolic link loop                   */;
-    enum ERESTART = 91     /** Restartable system call              */;
-    enum ESTRPIPE = 92     /** if pipe/FIFO, don't sleep in stream head */;
-    enum ENOTEMPTY = 93    /** directory not empty                  */;
-    enum EUSERS = 94      /** Too many users (for UFS)             */;
-    enum ENOTSOCK =       95      /** Socket operation on non-socket */;
-    enum EDESTADDRREQ =   96      /** Destination address required */;
-    enum EMSGSIZE =       97      /** Message too long */;
-    enum EPROTOTYPE =     98      /** Protocol wrong type for socket */;
-    enum ENOPROTOOPT =    99      /** Protocol not available */;
-    enum EPROTONOSUPPORT = 120     /** Protocol not supported */;
-    enum ESOCKTNOSUPPORT = 121     /** Socket type not supported */;
-    enum EOPNOTSUPP =     122     /** Operation not supported on socket */;
-    enum EPFNOSUPPORT =   123     /** Protocol family not supported */;
-    enum EAFNOSUPPORT =   124     /** Address family not supported by the protocol family */;
-    enum EADDRINUSE =     125     /** Address already in use */;
-    enum EADDRNOTAVAIL =   126     /** Can't assign requested address */;
-    enum ENETDOWN =       127     /** Network is down */;
-    enum ENETUNREACH =    128     /** Network is unreachable */;
-    enum ENETRESET =      129     /** Network dropped connection because of reset */;
-    enum ECONNABORTED =   130     /** Software caused connection abort */;
-    enum ECONNRESET =     131     /** Connection reset by peer */;
-    enum ENOBUFS =        132     /** No buffer space available */;
-    enum EISCONN =        133     /** Socket is already connected */;
-    enum ENOTCONN =       134     /** Socket is not connected */;
-    enum ESHUTDOWN =      143     /** Can't send after socket shutdown */;
-    enum ETOOMANYREFS =   144     /** Too many references: can't splice */;
-    enum ETIMEDOUT =      145     /** Connection timed out */;
-    enum ECONNREFUSED =   146     /** Connection refused */;
-    enum EHOSTDOWN =      147     /** Host is down */;
-    enum EHOSTUNREACH =   148     /** No route to host */;
-    enum EWOULDBLOCK =    EAGAIN;      /** Resource temporarily unavailable     */;
-    enum EALREADY =       149     /** operation already in progress */;
-    enum EINPROGRESS =    150     /** operation now in progress */;
-    enum ESTALE =         151     /** Stale NFS file handle */;
+    enum EPERM =  1;              ///  Not super-user
+    enum ENOENT = 2;              ///  No such file or directory
+    enum ESRCH =  3;              ///  No such process
+    enum EINTR =  4;              ///  interrupted system call
+    enum EIO =    5;              ///  I/O error
+    enum ENXIO =  6;              ///  No such device or address
+    enum E2BIG =  7;              ///  Arg list too long
+    enum ENOEXEC = 8;             ///  Exec format error
+    enum EBADF =  9;              ///  Bad file number
+    enum ECHILD = 10;             ///  No children
+    enum EAGAIN = 11;             ///  Resource temporarily unavailable
+    enum ENOMEM = 12;             ///  Not enough core
+    enum EACCES = 13;             ///  Permission denied
+    enum EFAULT = 14;             ///  Bad address
+    enum ENOTBLK = 15;            ///  Block device required
+    enum EBUSY =  16;             ///  Mount device busy
+    enum EEXIST = 17;             ///  File exists
+    enum EXDEV =  18;             ///  Cross-device link
+    enum ENODEV = 19;             ///  No such device
+    enum ENOTDIR = 20;            ///  Not a directory
+    enum EISDIR = 21;             ///  Is a directory
+    enum EINVAL = 22;             ///  Invalid argument
+    enum ENFILE = 23;             ///  File table overflow
+    enum EMFILE = 24;             ///  Too many open files
+    enum ENOTTY = 25;             ///  Inappropriate ioctl for device
+    enum ETXTBSY = 26;            ///  Text file busy
+    enum EFBIG =  27;             ///  File too large
+    enum ENOSPC = 28;             ///  No space left on device
+    enum ESPIPE = 29;             ///  Illegal seek
+    enum EROFS =  30;             ///  Read only file system
+    enum EMLINK = 31;             ///  Too many links
+    enum EPIPE =  32;             ///  Broken pipe
+    enum EDOM =   33;             ///  Math arg out of domain of func
+    enum ERANGE = 34;             ///  Math result not representable
+    enum ENOMSG = 35;             ///  No message of desired type
+    enum EIDRM =  36;             ///  Identifier removed
+    enum ECHRNG = 37;             ///  Channel number out of range
+    enum EL2NSYNC = 38;           ///  Level 2 not synchronized
+    enum EL3HLT = 39;             ///  Level 3 halted
+    enum EL3RST = 40;             ///  Level 3 reset
+    enum ELNRNG = 41;             ///  Link number out of range
+    enum EUNATCH = 42;            ///  Protocol driver not attached
+    enum ENOCSI = 43;             ///  No CSI structure available
+    enum EL2HLT = 44;             ///  Level 2 halted
+    enum EDEADLK = 45;            ///  Deadlock condition.
+    enum ENOLCK = 46;             ///  No record locks available.
+    enum ECANCELED = 47;          ///  Operation canceled
+    enum ENOTSUP = 48;            ///  Operation not supported
+    enum EDQUOT = 49;             ///  Disc quota exceeded
+    enum EBADE =  50;             ///  invalid exchange
+    enum EBADR =  51;             ///  invalid request descriptor
+    enum EXFULL = 52;             ///  exchange full
+    enum ENOANO = 53;             ///  no anode
+    enum EBADRQC = 54;            ///  invalid request code
+    enum EBADSLT = 55;            ///  invalid slot
+    enum EDEADLOCK = 56;          ///  file locking deadlock error
+    enum EBFONT = 57;             ///  bad font file fmt
+    enum EOWNERDEAD =     58;     ///  process died with the lock
+    enum ENOTRECOVERABLE = 59;    ///  lock is not recoverable
+    enum ENOSTR = 60;             ///  Device not a stream
+    enum ENODATA = 61;            ///  no data (for no delay io)
+    enum ETIME =  62;             ///  timer expired
+    enum ENOSR =  63;             ///  out of streams resources
+    enum ENONET = 64;             ///  Machine is not on the network
+    enum ENOPKG = 65;             ///  Package not installed
+    enum EREMOTE = 66;            ///  The object is remote
+    enum ENOLINK = 67;            ///  the link has been severed
+    enum EADV =   68;             ///  advertise error
+    enum ESRMNT = 69;             ///  srmount error
+    enum ECOMM =  70;             ///  Communication error on send
+    enum EPROTO = 71;             ///  Protocol error
+    enum ELOCKUNMAPPED =  72;     ///  locked lock was unmapped
+    enum ENOTACTIVE = 73;         ///  Facility is not active
+    enum EMULTIHOP = 74;          ///  multihop attempted
+    enum EBADMSG = 77;            ///  trying to read unreadable message
+    enum ENAMETOOLONG = 78;       ///  path name is too long
+    enum EOVERFLOW = 79;          ///  value too large to be stored in data type
+    enum ENOTUNIQ = 80;           ///  given log. name not unique
+    enum EBADFD =  81;            ///  f.d. invalid for this operation
+    enum EREMCHG = 82;            ///  Remote address changed
+    enum ELIBACC = 83;            ///  Can't access a needed shared lib.
+    enum ELIBBAD = 84;            ///  Accessing a corrupted shared lib.
+    enum ELIBSCN = 85;            ///  .lib section in a.out corrupted.
+    enum ELIBMAX = 86;            ///  Attempting to link in too many libs.
+    enum ELIBEXEC = 87;           ///  Attempting to exec a shared library.
+    enum EILSEQ = 88;             ///  Illegal byte sequence.
+    enum ENOSYS = 89;             ///  Unsupported file system operation
+    enum ELOOP =  90;             ///  Symbolic link loop
+    enum ERESTART = 91;           ///  Restartable system call
+    enum ESTRPIPE = 92;           ///  if pipe/FIFO, don't sleep in stream head
+    enum ENOTEMPTY = 93;          ///  directory not empty
+    enum EUSERS = 94;             ///  Too many users (for UFS)
+    enum ENOTSOCK =       95;     ///  Socket operation on non-socket
+    enum EDESTADDRREQ =   96;     ///  Destination address required
+    enum EMSGSIZE =       97;     ///  Message too long
+    enum EPROTOTYPE =     98;     ///  Protocol wrong type for socket
+    enum ENOPROTOOPT =    99;     ///  Protocol not available
+    enum EPROTONOSUPPORT = 120;   ///  Protocol not supported
+    enum ESOCKTNOSUPPORT = 121;   ///  Socket type not supported
+    enum EOPNOTSUPP =     122;    ///  Operation not supported on socket
+    enum EPFNOSUPPORT =   123;    ///  Protocol family not supported
+    enum EAFNOSUPPORT =   124;    ///  Address family not supported by the protocol family
+    enum EADDRINUSE =     125;    ///  Address already in use
+    enum EADDRNOTAVAIL =   126;   ///  Can't assign requested address
+    enum ENETDOWN =       127;    ///  Network is down
+    enum ENETUNREACH =    128;    ///  Network is unreachable
+    enum ENETRESET =      129;    ///  Network dropped connection because of reset
+    enum ECONNABORTED =   130;    ///  Software caused connection abort
+    enum ECONNRESET =     131;    ///  Connection reset by peer
+    enum ENOBUFS =        132;    ///  No buffer space available
+    enum EISCONN =        133;    ///  Socket is already connected
+    enum ENOTCONN =       134;    ///  Socket is not connected
+    enum ESHUTDOWN =      143;    ///  Can't send after socket shutdown
+    enum ETOOMANYREFS =   144;    ///  Too many references: can't splice
+    enum ETIMEDOUT =      145;    ///  Connection timed out
+    enum ECONNREFUSED =   146;    ///  Connection refused
+    enum EHOSTDOWN =      147;    ///  Host is down
+    enum EHOSTUNREACH =   148;    ///  No route to host
+    enum EWOULDBLOCK =    EAGAIN; ///  Resource temporarily unavailable
+    enum EALREADY =       149;    ///  operation already in progress
+    enum EINPROGRESS =    150;    ///  operation now in progress
+    enum ESTALE =         151;    ///  Stale NFS file handle
+}
+else version (Haiku)
+{
+    // https://github.com/haiku/haiku/blob/master/headers/os/support/Errors.h
+    // https://github.com/haiku/haiku/blob/master/headers/build/os/support/Errors.h
+    import core.stdc.limits : INT_MIN;
+    enum B_GENERAL_ERROR_BASE        = INT_MIN;
+    enum B_OS_ERROR_BASE             = (B_GENERAL_ERROR_BASE + 0x1000);
+    enum B_APP_ERROR_BASE            = (B_GENERAL_ERROR_BASE + 0x2000);
+    enum B_INTERFACE_ERROR_BASE      = (B_GENERAL_ERROR_BASE + 0x3000);
+    enum B_MEDIA_ERROR_BASE          = (B_GENERAL_ERROR_BASE + 0x4000);
+                                            /* - 0x41ff */
+    enum B_TRANSLATION_ERROR_BASE    = (B_GENERAL_ERROR_BASE + 0x4800);
+                                            /* - 0x48ff */
+    enum B_MIDI_ERROR_BASE           = (B_GENERAL_ERROR_BASE + 0x5000);
+    enum B_STORAGE_ERROR_BASE        = (B_GENERAL_ERROR_BASE + 0x6000);
+    enum B_POSIX_ERROR_BASE          = (B_GENERAL_ERROR_BASE + 0x7000);
+    enum B_MAIL_ERROR_BASE           = (B_GENERAL_ERROR_BASE + 0x8000);
+    enum B_PRINT_ERROR_BASE          = (B_GENERAL_ERROR_BASE + 0x9000);
+    enum B_DEVICE_ERROR_BASE         = (B_GENERAL_ERROR_BASE + 0xa000);
+
+    /* General Errors */
+    enum B_NO_MEMORY                 = (B_GENERAL_ERROR_BASE + 0);
+    enum B_IO_ERROR                  = (B_GENERAL_ERROR_BASE + 1);
+    enum B_PERMISSION_DENIED         = (B_GENERAL_ERROR_BASE + 2);
+    enum B_BAD_INDEX                 = (B_GENERAL_ERROR_BASE + 3);
+    enum B_BAD_TYPE                  = (B_GENERAL_ERROR_BASE + 4);
+    enum B_BAD_VALUE                 = (B_GENERAL_ERROR_BASE + 5);
+    enum B_MISMATCHED_VALUES         = (B_GENERAL_ERROR_BASE + 6);
+    enum B_NAME_NOT_FOUND            = (B_GENERAL_ERROR_BASE + 7);
+    enum B_NAME_IN_USE               = (B_GENERAL_ERROR_BASE + 8);
+    enum B_TIMED_OUT                 = (B_GENERAL_ERROR_BASE + 9);
+    enum B_INTERRUPTED               = (B_GENERAL_ERROR_BASE + 10);
+    enum B_WOULD_BLOCK               = (B_GENERAL_ERROR_BASE + 11);
+    enum B_CANCELED                  = (B_GENERAL_ERROR_BASE + 12);
+    enum B_NO_INIT                   = (B_GENERAL_ERROR_BASE + 13);
+    enum B_NOT_INITIALIZED           = (B_GENERAL_ERROR_BASE + 13);
+    enum B_BUSY                      = (B_GENERAL_ERROR_BASE + 14);
+    enum B_NOT_ALLOWED               = (B_GENERAL_ERROR_BASE + 15);
+    enum B_BAD_DATA                  = (B_GENERAL_ERROR_BASE + 16);
+    enum B_DONT_DO_THAT              = (B_GENERAL_ERROR_BASE + 17);
+
+    enum B_ERROR                     = (-1);
+    enum B_OK                        = (int(0));
+    enum B_NO_ERROR                  = (int(0));
+
+    /* Kernel Kit Errors */
+    enum B_BAD_SEM_ID                = (B_OS_ERROR_BASE + 0);
+    enum B_NO_MORE_SEMS              = (B_OS_ERROR_BASE + 1);
+
+    enum B_BAD_THREAD_ID             = (B_OS_ERROR_BASE + 0x100);
+    enum B_NO_MORE_THREADS           = (B_OS_ERROR_BASE + 0x101);
+    enum B_BAD_THREAD_STATE          = (B_OS_ERROR_BASE + 0x102);
+    enum B_BAD_TEAM_ID               = (B_OS_ERROR_BASE + 0x103);
+    enum B_NO_MORE_TEAMS             = (B_OS_ERROR_BASE + 0x104);
+
+    enum B_BAD_PORT_ID               = (B_OS_ERROR_BASE + 0x200);
+    enum B_NO_MORE_PORTS             = (B_OS_ERROR_BASE + 0x201);
+
+    enum B_BAD_IMAGE_ID              = (B_OS_ERROR_BASE + 0x300);
+    enum B_BAD_ADDRESS               = (B_OS_ERROR_BASE + 0x301);
+    enum B_NOT_AN_EXECUTABLE         = (B_OS_ERROR_BASE + 0x302);
+    enum B_MISSING_LIBRARY           = (B_OS_ERROR_BASE + 0x303);
+    enum B_MISSING_SYMBOL            = (B_OS_ERROR_BASE + 0x304);
+    enum B_UNKNOWN_EXECUTABLE        = (B_OS_ERROR_BASE + 0x305);
+    enum B_LEGACY_EXECUTABLE         = (B_OS_ERROR_BASE + 0x306);
+
+    enum B_DEBUGGER_ALREADY_INSTALLED    = (B_OS_ERROR_BASE + 0x400);
+
+    /* Application Kit Errors */
+    enum B_BAD_REPLY                         = (B_APP_ERROR_BASE + 0);
+    enum B_DUPLICATE_REPLY                   = (B_APP_ERROR_BASE + 1);
+    enum B_MESSAGE_TO_SELF                   = (B_APP_ERROR_BASE + 2);
+    enum B_BAD_HANDLER                       = (B_APP_ERROR_BASE + 3);
+    enum B_ALREADY_RUNNING                   = (B_APP_ERROR_BASE + 4);
+    enum B_LAUNCH_FAILED                     = (B_APP_ERROR_BASE + 5);
+    enum B_AMBIGUOUS_APP_LAUNCH              = (B_APP_ERROR_BASE + 6);
+    enum B_UNKNOWN_MIME_TYPE                 = (B_APP_ERROR_BASE + 7);
+    enum B_BAD_SCRIPT_SYNTAX                 = (B_APP_ERROR_BASE + 8);
+    enum B_LAUNCH_FAILED_NO_RESOLVE_LINK     = (B_APP_ERROR_BASE + 9);
+    enum B_LAUNCH_FAILED_EXECUTABLE          = (B_APP_ERROR_BASE + 10);
+    enum B_LAUNCH_FAILED_APP_NOT_FOUND       = (B_APP_ERROR_BASE + 11);
+    enum B_LAUNCH_FAILED_APP_IN_TRASH        = (B_APP_ERROR_BASE + 12);
+    enum B_LAUNCH_FAILED_NO_PREFERRED_APP    = (B_APP_ERROR_BASE + 13);
+    enum B_LAUNCH_FAILED_FILES_APP_NOT_FOUND = (B_APP_ERROR_BASE + 14);
+    enum B_BAD_MIME_SNIFFER_RULE             = (B_APP_ERROR_BASE + 15);
+    enum B_NOT_A_MESSAGE                     = (B_APP_ERROR_BASE + 16);
+    enum B_SHUTDOWN_CANCELLED                = (B_APP_ERROR_BASE + 17);
+    enum B_SHUTTING_DOWN                     = (B_APP_ERROR_BASE + 18);
+
+    /* Storage Kit/File System Errors */
+    enum B_FILE_ERROR                        = (B_STORAGE_ERROR_BASE + 0);
+    enum B_FILE_NOT_FOUND                    = (B_STORAGE_ERROR_BASE + 1);
+                /* deprecated: use B_ENTRY_NOT_FOUND instead */
+    enum B_FILE_EXISTS                       = (B_STORAGE_ERROR_BASE + 2);
+    enum B_ENTRY_NOT_FOUND                   = (B_STORAGE_ERROR_BASE + 3);
+    enum B_NAME_TOO_LONG                     = (B_STORAGE_ERROR_BASE + 4);
+    enum B_NOT_A_DIRECTORY                   = (B_STORAGE_ERROR_BASE + 5);
+    enum B_DIRECTORY_NOT_EMPTY               = (B_STORAGE_ERROR_BASE + 6);
+    enum B_DEVICE_FULL                       = (B_STORAGE_ERROR_BASE + 7);
+    enum B_READ_ONLY_DEVICE                  = (B_STORAGE_ERROR_BASE + 8);
+    enum B_IS_A_DIRECTORY                    = (B_STORAGE_ERROR_BASE + 9);
+    enum B_NO_MORE_FDS                       = (B_STORAGE_ERROR_BASE + 10);
+    enum B_CROSS_DEVICE_LINK                 = (B_STORAGE_ERROR_BASE + 11);
+    enum B_LINK_LIMIT                        = (B_STORAGE_ERROR_BASE + 12);
+    enum B_BUSTED_PIPE                       = (B_STORAGE_ERROR_BASE + 13);
+    enum B_UNSUPPORTED                       = (B_STORAGE_ERROR_BASE + 14);
+    enum B_PARTITION_TOO_SMALL               = (B_STORAGE_ERROR_BASE + 15);
+    enum B_PARTIAL_READ                      = (B_STORAGE_ERROR_BASE + 16);
+    enum B_PARTIAL_WRITE                     = (B_STORAGE_ERROR_BASE + 17);
+
+    /* POSIX Errors */
+    enum B_USE_POSITIVE_POSIX_ERRORS = false;
+
+    static if (B_USE_POSITIVE_POSIX_ERRORS)
+    {
+        enum B_TO_POSIX_ERROR(int code) = -code;
+    }
+    else
+    {
+        enum B_TO_POSIX_ERROR(int code) = code;
+    }
+    alias B_FROM_POSIX_ERROR = B_TO_POSIX_ERROR;
+
+    enum B_POSIX_ENOMEM  = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 0);
+    enum E2BIG           = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 1);
+    enum ECHILD          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 2);
+    enum EDEADLK         = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 3);
+    enum EFBIG           = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 4);
+    enum EMLINK          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 5);
+    enum ENFILE          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 6);
+    enum ENODEV          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 7);
+    enum ENOLCK          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 8);
+    enum ENOSYS          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 9);
+    enum ENOTTY          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 10);
+    enum ENXIO           = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 11);
+    enum ESPIPE          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 12);
+    enum ESRCH           = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 13);
+    enum EFPOS           = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 14);
+    enum ESIGPARM        = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 15);
+    enum EDOM            = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 16);
+    enum ERANGE          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 17);
+    enum EPROTOTYPE      = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 18);
+    enum EPROTONOSUPPORT = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 19);
+    enum EPFNOSUPPORT    = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 20);
+    enum EAFNOSUPPORT    = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 21);
+    enum EADDRINUSE      = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 22);
+    enum EADDRNOTAVAIL   = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 23);
+    enum ENETDOWN        = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 24);
+    enum ENETUNREACH     = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 25);
+    enum ENETRESET       = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 26);
+    enum ECONNABORTED    = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 27);
+    enum ECONNRESET      = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 28);
+    enum EISCONN         = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 29);
+    enum ENOTCONN        = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 30);
+    enum ESHUTDOWN       = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 31);
+    enum ECONNREFUSED    = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 32);
+    enum EHOSTUNREACH    = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 33);
+    enum ENOPROTOOPT     = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 34);
+    enum ENOBUFS         = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 35);
+    enum EINPROGRESS     = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 36);
+    enum EALREADY        = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 37);
+    enum EILSEQ          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 38);
+    enum ENOMSG          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 39);
+    enum ESTALE          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 40);
+    enum EOVERFLOW       = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 41);
+    enum EMSGSIZE        = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 42);
+    enum EOPNOTSUPP      = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 43);
+    enum ENOTSOCK        = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 44);
+    enum EHOSTDOWN       = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 45);
+    enum EBADMSG         = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 46);
+    enum ECANCELED       = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 47);
+    enum EDESTADDRREQ    = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 48);
+    enum EDQUOT          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 49);
+    enum EIDRM           = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 50);
+    enum EMULTIHOP       = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 51);
+    enum ENODATA         = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 52);
+    enum ENOLINK         = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 53);
+    enum ENOSR           = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 54);
+    enum ENOSTR          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 55);
+    enum ENOTSUP         = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 56);
+    enum EPROTO          = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 57);
+    enum ETIME           = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 58);
+    enum ETXTBSY         = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 59);
+    enum ENOATTR         = B_TO_POSIX_ERROR!(B_POSIX_ERROR_BASE + 60);
+
+    /* B_NO_MEMORY (0x80000000) can't be negated, so it needs special handling */
+    static if (B_USE_POSITIVE_POSIX_ERRORS)
+        enum ENOMEM = B_POSIX_ENOMEM;
+    else
+        enum ENOMEM = B_NO_MEMORY;
+
+    /* POSIX errors that can be mapped to BeOS error codes */
+    enum EACCES          = B_TO_POSIX_ERROR!(B_PERMISSION_DENIED);
+    enum EINTR           = B_TO_POSIX_ERROR!(B_INTERRUPTED);
+    enum EIO             = B_TO_POSIX_ERROR!(B_IO_ERROR);
+    enum EBUSY           = B_TO_POSIX_ERROR!(B_BUSY);
+    enum EFAULT          = B_TO_POSIX_ERROR!(B_BAD_ADDRESS);
+    enum ETIMEDOUT       = B_TO_POSIX_ERROR!(B_TIMED_OUT);
+    enum EAGAIN          = B_TO_POSIX_ERROR!(B_WOULD_BLOCK) /* SysV compatibility */;
+    enum EWOULDBLOCK     = B_TO_POSIX_ERROR!(B_WOULD_BLOCK) /* BSD compatibility */;
+    enum EBADF           = B_TO_POSIX_ERROR!(B_FILE_ERROR);
+    enum EEXIST          = B_TO_POSIX_ERROR!(B_FILE_EXISTS);
+    enum EINVAL          = B_TO_POSIX_ERROR!(B_BAD_VALUE);
+    enum ENAMETOOLONG    = B_TO_POSIX_ERROR!(B_NAME_TOO_LONG);
+    enum ENOENT          = B_TO_POSIX_ERROR!(B_ENTRY_NOT_FOUND);
+    enum EPERM           = B_TO_POSIX_ERROR!(B_NOT_ALLOWED);
+    enum ENOTDIR         = B_TO_POSIX_ERROR!(B_NOT_A_DIRECTORY);
+    enum EISDIR          = B_TO_POSIX_ERROR!(B_IS_A_DIRECTORY);
+    enum ENOTEMPTY       = B_TO_POSIX_ERROR!(B_DIRECTORY_NOT_EMPTY);
+    enum ENOSPC          = B_TO_POSIX_ERROR!(B_DEVICE_FULL);
+    enum EROFS           = B_TO_POSIX_ERROR!(B_READ_ONLY_DEVICE);
+    enum EMFILE          = B_TO_POSIX_ERROR!(B_NO_MORE_FDS);
+    enum EXDEV           = B_TO_POSIX_ERROR!(B_CROSS_DEVICE_LINK);
+    enum ELOOP           = B_TO_POSIX_ERROR!(B_LINK_LIMIT);
+    enum ENOEXEC         = B_TO_POSIX_ERROR!(B_NOT_AN_EXECUTABLE);
+    enum EPIPE           = B_TO_POSIX_ERROR!(B_BUSTED_PIPE);
+
+    /* new error codes that can be mapped to POSIX errors */
+    enum B_BUFFER_OVERFLOW          =  B_FROM_POSIX_ERROR!(EOVERFLOW);
+    enum B_TOO_MANY_ARGS            =  B_FROM_POSIX_ERROR!(E2BIG);
+    enum B_FILE_TOO_LARGE           =  B_FROM_POSIX_ERROR!(EFBIG);
+    enum B_RESULT_NOT_REPRESENTABLE =  B_FROM_POSIX_ERROR!(ERANGE);
+    enum B_DEVICE_NOT_FOUND         =  B_FROM_POSIX_ERROR!(ENODEV);
+    enum B_NOT_SUPPORTED            =  B_FROM_POSIX_ERROR!(EOPNOTSUPP);
+
+    /* Media Kit Errors */
+    enum B_STREAM_NOT_FOUND              = (B_MEDIA_ERROR_BASE + 0);
+    enum B_SERVER_NOT_FOUND              = (B_MEDIA_ERROR_BASE + 1);
+    enum B_RESOURCE_NOT_FOUND            = (B_MEDIA_ERROR_BASE + 2);
+    enum B_RESOURCE_UNAVAILABLE          = (B_MEDIA_ERROR_BASE + 3);
+    enum B_BAD_SUBSCRIBER                = (B_MEDIA_ERROR_BASE + 4);
+    enum B_SUBSCRIBER_NOT_ENTERED        = (B_MEDIA_ERROR_BASE + 5);
+    enum B_BUFFER_NOT_AVAILABLE          = (B_MEDIA_ERROR_BASE + 6);
+    enum B_LAST_BUFFER_ERROR             = (B_MEDIA_ERROR_BASE + 7);
+
+    enum B_MEDIA_SYSTEM_FAILURE          = (B_MEDIA_ERROR_BASE + 100);
+    enum B_MEDIA_BAD_NODE                = (B_MEDIA_ERROR_BASE + 101);
+    enum B_MEDIA_NODE_BUSY               = (B_MEDIA_ERROR_BASE + 102);
+    enum B_MEDIA_BAD_FORMAT              = (B_MEDIA_ERROR_BASE + 103);
+    enum B_MEDIA_BAD_BUFFER              = (B_MEDIA_ERROR_BASE + 104);
+    enum B_MEDIA_TOO_MANY_NODES          = (B_MEDIA_ERROR_BASE + 105);
+    enum B_MEDIA_TOO_MANY_BUFFERS        = (B_MEDIA_ERROR_BASE + 106);
+    enum B_MEDIA_NODE_ALREADY_EXISTS     = (B_MEDIA_ERROR_BASE + 107);
+    enum B_MEDIA_BUFFER_ALREADY_EXISTS   = (B_MEDIA_ERROR_BASE + 108);
+    enum B_MEDIA_CANNOT_SEEK             = (B_MEDIA_ERROR_BASE + 109);
+    enum B_MEDIA_CANNOT_CHANGE_RUN_MODE  = (B_MEDIA_ERROR_BASE + 110);
+    enum B_MEDIA_APP_ALREADY_REGISTERED  = (B_MEDIA_ERROR_BASE + 111);
+    enum B_MEDIA_APP_NOT_REGISTERED      = (B_MEDIA_ERROR_BASE + 112);
+    enum B_MEDIA_CANNOT_RECLAIM_BUFFERS  = (B_MEDIA_ERROR_BASE + 113);
+    enum B_MEDIA_BUFFERS_NOT_RECLAIMED   = (B_MEDIA_ERROR_BASE + 114);
+    enum B_MEDIA_TIME_SOURCE_STOPPED     = (B_MEDIA_ERROR_BASE + 115);
+    enum B_MEDIA_TIME_SOURCE_BUSY        = (B_MEDIA_ERROR_BASE + 116);
+    enum B_MEDIA_BAD_SOURCE              = (B_MEDIA_ERROR_BASE + 117);
+    enum B_MEDIA_BAD_DESTINATION         = (B_MEDIA_ERROR_BASE + 118);
+    enum B_MEDIA_ALREADY_CONNECTED       = (B_MEDIA_ERROR_BASE + 119);
+    enum B_MEDIA_NOT_CONNECTED           = (B_MEDIA_ERROR_BASE + 120);
+    enum B_MEDIA_BAD_CLIP_FORMAT         = (B_MEDIA_ERROR_BASE + 121);
+    enum B_MEDIA_ADDON_FAILED            = (B_MEDIA_ERROR_BASE + 122);
+    enum B_MEDIA_ADDON_DISABLED          = (B_MEDIA_ERROR_BASE + 123);
+    enum B_MEDIA_CHANGE_IN_PROGRESS      = (B_MEDIA_ERROR_BASE + 124);
+    enum B_MEDIA_STALE_CHANGE_COUNT      = (B_MEDIA_ERROR_BASE + 125);
+    enum B_MEDIA_ADDON_RESTRICTED        = (B_MEDIA_ERROR_BASE + 126);
+    enum B_MEDIA_NO_HANDLER              = (B_MEDIA_ERROR_BASE + 127);
+    enum B_MEDIA_DUPLICATE_FORMAT        = (B_MEDIA_ERROR_BASE + 128);
+    enum B_MEDIA_REALTIME_DISABLED       = (B_MEDIA_ERROR_BASE + 129);
+    enum B_MEDIA_REALTIME_UNAVAILABLE    = (B_MEDIA_ERROR_BASE + 130);
+
+    /* Mail Kit Errors */
+    enum B_MAIL_NO_DAEMON                = (B_MAIL_ERROR_BASE + 0);
+    enum B_MAIL_UNKNOWN_USER             = (B_MAIL_ERROR_BASE + 1);
+    enum B_MAIL_WRONG_PASSWORD           = (B_MAIL_ERROR_BASE + 2);
+    enum B_MAIL_UNKNOWN_HOST             = (B_MAIL_ERROR_BASE + 3);
+    enum B_MAIL_ACCESS_ERROR             = (B_MAIL_ERROR_BASE + 4);
+    enum B_MAIL_UNKNOWN_FIELD            = (B_MAIL_ERROR_BASE + 5);
+    enum B_MAIL_NO_RECIPIENT             = (B_MAIL_ERROR_BASE + 6);
+    enum B_MAIL_INVALID_MAIL             = (B_MAIL_ERROR_BASE + 7);
+
+    /* Printing Errors */
+    enum B_NO_PRINT_SERVER               = (B_PRINT_ERROR_BASE + 0);
+
+    /* Device Kit Errors */
+    enum B_DEV_INVALID_IOCTL             = (B_DEVICE_ERROR_BASE + 0);
+    enum B_DEV_NO_MEMORY                 = (B_DEVICE_ERROR_BASE + 1);
+    enum B_DEV_BAD_DRIVE_NUM             = (B_DEVICE_ERROR_BASE + 2);
+    enum B_DEV_NO_MEDIA                  = (B_DEVICE_ERROR_BASE + 3);
+    enum B_DEV_UNREADABLE                = (B_DEVICE_ERROR_BASE + 4);
+    enum B_DEV_FORMAT_ERROR              = (B_DEVICE_ERROR_BASE + 5);
+    enum B_DEV_TIMEOUT                   = (B_DEVICE_ERROR_BASE + 6);
+    enum B_DEV_RECALIBRATE_ERROR         = (B_DEVICE_ERROR_BASE + 7);
+    enum B_DEV_SEEK_ERROR                = (B_DEVICE_ERROR_BASE + 8);
+    enum B_DEV_ID_ERROR                  = (B_DEVICE_ERROR_BASE + 9);
+    enum B_DEV_READ_ERROR                = (B_DEVICE_ERROR_BASE + 10);
+    enum B_DEV_WRITE_ERROR               = (B_DEVICE_ERROR_BASE + 11);
+    enum B_DEV_NOT_READY                 = (B_DEVICE_ERROR_BASE + 12);
+    enum B_DEV_MEDIA_CHANGED             = (B_DEVICE_ERROR_BASE + 13);
+    enum B_DEV_MEDIA_CHANGE_REQUESTED    = (B_DEVICE_ERROR_BASE + 14);
+    enum B_DEV_RESOURCE_CONFLICT         = (B_DEVICE_ERROR_BASE + 15);
+    enum B_DEV_CONFIGURATION_ERROR       = (B_DEVICE_ERROR_BASE + 16);
+    enum B_DEV_DISABLED_BY_USER          = (B_DEVICE_ERROR_BASE + 17);
+    enum B_DEV_DOOR_OPEN                 = (B_DEVICE_ERROR_BASE + 18);
+
+    enum B_DEV_INVALID_PIPE              = (B_DEVICE_ERROR_BASE + 19);
+    enum B_DEV_CRC_ERROR                 = (B_DEVICE_ERROR_BASE + 20);
+    enum B_DEV_STALLED                   = (B_DEVICE_ERROR_BASE + 21);
+    enum B_DEV_BAD_PID                   = (B_DEVICE_ERROR_BASE + 22);
+    enum B_DEV_UNEXPECTED_PID            = (B_DEVICE_ERROR_BASE + 23);
+    enum B_DEV_DATA_OVERRUN              = (B_DEVICE_ERROR_BASE + 24);
+    enum B_DEV_DATA_UNDERRUN             = (B_DEVICE_ERROR_BASE + 25);
+    enum B_DEV_FIFO_OVERRUN              = (B_DEVICE_ERROR_BASE + 26);
+    enum B_DEV_FIFO_UNDERRUN             = (B_DEVICE_ERROR_BASE + 27);
+    enum B_DEV_PENDING                   = (B_DEVICE_ERROR_BASE + 28);
+    enum B_DEV_MULTIPLE_ERRORS           = (B_DEVICE_ERROR_BASE + 29);
+    enum B_DEV_TOO_LATE                  = (B_DEVICE_ERROR_BASE + 30);
+
+    /* Translation Kit Errors */
+    enum B_TRANSLATION_BASE_ERROR        = (B_TRANSLATION_ERROR_BASE + 0);
+    enum B_NO_TRANSLATOR                 = (B_TRANSLATION_ERROR_BASE + 1);
+    enum B_ILLEGAL_DATA                  = (B_TRANSLATION_ERROR_BASE + 2);
 }
 else
 {

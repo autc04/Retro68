@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,16 +23,19 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Atree;    use Atree;
-with Namet;    use Namet;
-with Opt;      use Opt;
-with Restrict; use Restrict;
-with Rident;   use Rident;
-with Sem_Ch8;  use Sem_Ch8;
-with Sem_Dim;  use Sem_Dim;
-with Sinfo;    use Sinfo;
-with Stand;    use Stand;
-with Uintp;    use Uintp;
+with Atree;          use Atree;
+with Einfo;          use Einfo;
+with Einfo.Utils;    use Einfo.Utils;
+with Namet;          use Namet;
+with Opt;            use Opt;
+with Restrict;       use Restrict;
+with Rident;         use Rident;
+with Sem_Ch8;        use Sem_Ch8;
+with Sem_Dim;        use Sem_Dim;
+with Sinfo;          use Sinfo;
+with Sinfo.Nodes;    use Sinfo.Nodes;
+with Stand;          use Stand;
+with Uintp;          use Uintp;
 
 package body Sem_Ch2 is
 
@@ -83,7 +86,22 @@ package body Sem_Ch2 is
 
    procedure Analyze_Integer_Literal (N : Node_Id) is
    begin
-      Set_Etype (N, Universal_Integer);
+      --  As a lexical element, an integer literal has type Universal_Integer,
+      --  i.e., is compatible with any integer type. This is semantically
+      --  consistent and simplifies type checking and subsequent constant
+      --  folding when needed. An exception is caused by 64-bit modular types,
+      --  whose upper bound is not representable in a nonstatic context that
+      --  will use 64-bit integers at run time. For such cases, we need to
+      --  preserve the information that the analyzed literal has that modular
+      --  type. For simplicity, we preserve the information for all integer
+      --  literals that result from a modular operation. This happens after
+      --  prior analysis (or construction) of the literal, and after type
+      --  checking and resolution.
+
+      if No (Etype (N)) or else not Is_Modular_Integer_Type (Etype (N)) then
+         Set_Etype (N, Universal_Integer);
+      end if;
+
       Set_Is_Static_Expression (N);
    end Analyze_Integer_Literal;
 

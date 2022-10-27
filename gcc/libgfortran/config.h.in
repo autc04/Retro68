@@ -381,11 +381,20 @@
 /* Define to 1 if you have the `floorl' function. */
 #undef HAVE_FLOORL
 
+/* Define to 1 if you have the `fma' function. */
+#undef HAVE_FMA
+
 /* Define if FMA3 instructions can be compiled. */
 #undef HAVE_FMA3
 
 /* Define if FMA4 instructions can be compiled. */
 #undef HAVE_FMA4
+
+/* Define to 1 if you have the `fmaf' function. */
+#undef HAVE_FMAF
+
+/* Define to 1 if you have the `fmal' function. */
+#undef HAVE_FMAL
 
 /* Define to 1 if you have the `fmod' function. */
 #undef HAVE_FMOD
@@ -503,6 +512,18 @@
 
 /* Define to 1 if you have the <ieeefp.h> header file. */
 #undef HAVE_IEEEFP_H
+
+/* Define to 1 if `__builtin_copysign' is expanded inline. */
+#undef HAVE_INLINE_BUILTIN_COPYSIGN
+
+/* Define to 1 if `__builtin_copysignl' is expanded inline. */
+#undef HAVE_INLINE_BUILTIN_COPYSIGNL
+
+/* Define to 1 if `__builtin_fabs' is expanded inline. */
+#undef HAVE_INLINE_BUILTIN_FABS
+
+/* Define to 1 if `__builtin_fabsl' is expanded inline. */
+#undef HAVE_INLINE_BUILTIN_FABSL
 
 /* Define to 1 if the system has the type `intptr_t'. */
 #undef HAVE_INTPTR_T
@@ -627,6 +648,9 @@
 /* Define to 1 if we have POSIX getpwuid_r which takes 5 arguments. */
 #undef HAVE_POSIX_GETPWUID_R
 
+/* Define to 1 if you have the `posix_spawn' function. */
+#undef HAVE_POSIX_SPAWN
+
 /* Define to 1 if you have the `pow' function. */
 #undef HAVE_POW
 
@@ -638,6 +662,9 @@
 
 /* Define to 1 if you have the <pwd.h> header file. */
 #undef HAVE_PWD_H
+
+/* Define to 1 if you have REAL(KIND=17) */
+#undef HAVE_REAL_17
 
 /* Define to 1 if you have the `round' function. */
 #undef HAVE_ROUND
@@ -662,6 +689,9 @@
 
 /* Define to 1 if you have the `setmode' function. */
 #undef HAVE_SETMODE
+
+/* Define to 1 if you have the `sigaction' function. */
+#undef HAVE_SIGACTION
 
 /* Define to 1 if you have the `sin' function. */
 #undef HAVE_SIN
@@ -828,6 +858,9 @@
 /* Define to 1 if you have the `vsnprintf' function. */
 #undef HAVE_VSNPRINTF
 
+/* Define to 1 if you have the `waitpid' function. */
+#undef HAVE_WAITPID
+
 /* Define if target has a reliable stat. */
 #undef HAVE_WORKING_STAT
 
@@ -858,8 +891,74 @@
 /* Define to 1 if you have the `ynl' function. */
 #undef HAVE_YNL
 
+/* Define to 1 if you have the `__acoshieee128' function. */
+#undef HAVE___ACOSHIEEE128
+
+/* Define to 1 if you have the `__acosieee128' function. */
+#undef HAVE___ACOSIEEE128
+
+/* Define to 1 if you have the `__asinhieee128' function. */
+#undef HAVE___ASINHIEEE128
+
+/* Define to 1 if you have the `__asinieee128' function. */
+#undef HAVE___ASINIEEE128
+
+/* Define to 1 if you have the `__atan2ieee128' function. */
+#undef HAVE___ATAN2IEEE128
+
+/* Define to 1 if you have the `__atanhieee128' function. */
+#undef HAVE___ATANHIEEE128
+
+/* Define to 1 if you have the `__atanieee128' function. */
+#undef HAVE___ATANIEEE128
+
+/* Define to 1 if you have the `__coshieee128' function. */
+#undef HAVE___COSHIEEE128
+
+/* Define to 1 if you have the `__cosieee128' function. */
+#undef HAVE___COSIEEE128
+
+/* Define to 1 if you have the `__erfieee128' function. */
+#undef HAVE___ERFIEEE128
+
+/* Define to 1 if you have the `__expieee128' function. */
+#undef HAVE___EXPIEEE128
+
+/* Define to 1 if you have the `__fabsieee128' function. */
+#undef HAVE___FABSIEEE128
+
+/* Define to 1 if you have the `__jnieee128' function. */
+#undef HAVE___JNIEEE128
+
+/* Define to 1 if you have the `__log10ieee128' function. */
+#undef HAVE___LOG10IEEE128
+
+/* Define to 1 if you have the `__logieee128' function. */
+#undef HAVE___LOGIEEE128
+
+/* Define to 1 if you have the `__powieee128' function. */
+#undef HAVE___POWIEEE128
+
 /* Define to 1 if you have the `__secure_getenv' function. */
 #undef HAVE___SECURE_GETENV
+
+/* Define to 1 if you have the `__sinhieee128' function. */
+#undef HAVE___SINHIEEE128
+
+/* Define to 1 if you have the `__sinieee128' function. */
+#undef HAVE___SINIEEE128
+
+/* Define to 1 if you have the `__sqrtieee128' function. */
+#undef HAVE___SQRTIEEE128
+
+/* Define to 1 if you have the `__tanhieee128' function. */
+#undef HAVE___TANHIEEE128
+
+/* Define to 1 if you have the `__tanieee128' function. */
+#undef HAVE___TANIEEE128
+
+/* Define to 1 if you have the `__ynieee128' function. */
+#undef HAVE___YNIEEE128
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */

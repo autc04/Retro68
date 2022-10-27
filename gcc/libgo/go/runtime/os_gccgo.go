@@ -9,7 +9,7 @@ import (
 )
 
 // For C code to call:
-//go:linkname minit runtime.minit
+//go:linkname minit
 
 func goenvs() {
 	goenvs_unix()
@@ -27,8 +27,7 @@ func mpreinit(mp *m) {
 func minit() {
 	minitSignals()
 
-	// FIXME: only works on linux for now.
-	getg().m.procid = uint64(gettid())
+	getg().m.procid = getProcID()
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -36,6 +35,11 @@ func minit() {
 //go:nowritebarrierrec
 func unminit() {
 	unminitSignals()
+}
+
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -50,4 +54,54 @@ func getRandomData(r []byte) {
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
 	closefd(fd)
 	extendRandom(r, int(n))
+}
+
+//go:noescape
+//extern-sysinfo pipe
+func libcPipe(*[2]int32) int32
+
+func pipe() (r, w int32, e int32) {
+	var p [2]int32
+	res := libcPipe(&p)
+	if res < 0 {
+		e = int32(errno())
+	}
+	return p[0], p[1], e
+}
+
+//go:noescape
+//extern-sysinfo pipe2
+func libcPipe2(*[2]int32, int32) int32
+
+func pipe2(flags int32) (r, w int32, e int32) {
+	var p [2]int32
+	res := libcPipe2(&p, flags)
+	if res < 0 {
+		e = int32(errno())
+	}
+	return p[0], p[1], e
+}
+
+//extern __go_fcntl_uintptr
+func fcntlUintptr(fd, cmd, arg uintptr) (uintptr, uintptr)
+
+//go:nosplit
+func closeonexec(fd int32) {
+	fcntlUintptr(uintptr(fd), _F_SETFD, _FD_CLOEXEC)
+}
+
+//go:nosplit
+func setNonblock(fd int32) {
+	flags, errno := fcntlUintptr(uintptr(fd), _F_GETFL, 0)
+	if errno == 0 {
+		fcntlUintptr(uintptr(fd), _F_SETFL, flags|_O_NONBLOCK)
+	}
+}
+
+// For gccgo this is in the C code.
+func osyield()
+
+//go:nosplit
+func osyield_no_g() {
+	osyield()
 }

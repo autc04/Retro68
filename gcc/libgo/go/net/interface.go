@@ -6,11 +6,12 @@ package net
 
 import (
 	"errors"
+	"internal/itoa"
 	"sync"
 	"time"
 )
 
-// BUG(mikio): On JS and NaCl, methods and functions related to
+// BUG(mikio): On JS, methods and functions related to
 // Interface are not implemented.
 
 // BUG(mikio): On AIX, DragonFly BSD, NetBSD, OpenBSD, Plan 9 and
@@ -230,7 +231,7 @@ func (zc *ipv6ZoneCache) name(index int) string {
 		zoneCache.RUnlock()
 	}
 	if !ok { // last resort
-		name = uitoa(uint(index))
+		name = itoa.Uitoa(uint(index))
 	}
 	return name
 }

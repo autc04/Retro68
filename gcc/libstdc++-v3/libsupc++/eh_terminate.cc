@@ -1,5 +1,5 @@
 // -*- C++ -*- std::terminate, std::unexpected and friends.
-// Copyright (C) 1994-2019 Free Software Foundation, Inc.
+// Copyright (C) 1994-2022 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -26,6 +26,7 @@
 #include "exception"
 #include <cstdlib>
 #include "unwind-cxx.h"
+#include "eh_term_handler.h"
 #include <bits/exception_defines.h>
 #include <bits/atomic_lockfree_defines.h>
 
@@ -54,9 +55,10 @@ __cxxabiv1::__terminate (std::terminate_handler handler) throw ()
 void
 std::terminate () throw()
 {
-  __terminate (get_terminate ());
+  __cxxabiv1::__terminate (get_terminate ());
 }
 
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 void
 __cxxabiv1::__unexpected (std::unexpected_handler handler)
 {
@@ -73,6 +75,9 @@ std::unexpected ()
 std::terminate_handler
 std::set_terminate (std::terminate_handler func) throw()
 {
+  if (!func)
+    func = _GLIBCXX_DEFAULT_TERM_HANDLER;
+
   std::terminate_handler old;
 #if ATOMIC_POINTER_LOCK_FREE > 1
   __atomic_exchange (&__terminate_handler, &func, &old, __ATOMIC_ACQ_REL);
@@ -100,6 +105,9 @@ std::get_terminate () noexcept
 std::unexpected_handler
 std::set_unexpected (std::unexpected_handler func) throw()
 {
+  if (!func)
+    func = std::terminate;
+
   std::unexpected_handler old;
 #if ATOMIC_POINTER_LOCK_FREE > 1
   __atomic_exchange (&__unexpected_handler, &func, &old, __ATOMIC_ACQ_REL);

@@ -2198,13 +2198,18 @@ static void malloc_extend_top(RARG nb) RDECL INTERNAL_SIZE_T nb;
     /* Guarantee the next brk will be at a page boundary */
     correction += pagesz - ((POINTER_UINT)(brk + sbrk_size) & (pagesz - 1));
 
+    /* To guarantee page boundary, correction should be less than pagesz */
+    correction &= (pagesz - 1);
+
     /* Allocate correction */
     new_brk = (char*)(MORECORE (correction));
     if (new_brk == (char*)(MORECORE_FAILURE))
       {
 	correction = 0;
 	correction_failed = 1;
-	new_brk = brk;
+	new_brk = brk + sbrk_size;
+	if (front_misalign > 0)
+	  new_brk -= (MALLOC_ALIGNMENT) - front_misalign;
       }
 
     sbrked_mem += correction;
@@ -3050,7 +3055,7 @@ Void_t* mEMALIGn(RARG alignment, bytes) RDECL size_t alignment; size_t bytes;
   nb = request2size(bytes);
 
   /* Check for overflow. */
-  if (nb > INT_MAX || nb < bytes)
+  if (nb > __SIZE_MAX__ - (alignment + MINSIZE) || nb < bytes)
   {
     RERRNO = ENOMEM;
     return 0;
@@ -3167,6 +3172,11 @@ Void_t* pvALLOc(RARG bytes) RDECL size_t bytes;
 #endif
 {
   size_t pagesize = malloc_getpagesize;
+  if (bytes > __SIZE_MAX__ - pagesize)
+  {
+    RERRNO = ENOMEM;
+    return 0;
+  }
   return mEMALIGn (RCALL pagesize, (bytes + pagesize - 1) & ~(pagesize - 1));
 }
 
@@ -3189,13 +3199,19 @@ Void_t* cALLOc(RARG n, elem_size) RDECL size_t n; size_t elem_size;
   mchunkptr p;
   INTERNAL_SIZE_T csz;
 
-  INTERNAL_SIZE_T sz = n * elem_size;
+  INTERNAL_SIZE_T sz;
 
 #if MORECORE_CLEARS
   mchunkptr oldtop;
   INTERNAL_SIZE_T oldtopsize;
 #endif
   Void_t* mem;
+
+  if (__builtin_mul_overflow((INTERNAL_SIZE_T) n, (INTERNAL_SIZE_T) elem_size, &sz))
+  {
+    errno = ENOMEM;
+    return 0;
+  }
 
   /* check if expand_top called, in which case don't need to clear */
 #if MORECORE_CLEARS

@@ -6,23 +6,17 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -73,6 +67,15 @@ begin
       Curlen := Len - 17;
       Krlen := 8;
 
+   elsif Len >= 27
+     and then Buffer (1 .. 27) = "ada-long_long_long_integer_"
+   then
+      Startloc := 3;
+      Buffer (2 .. Len - 2) := Buffer (4 .. Len);
+      Buffer (18 .. Len - 10) := Buffer (26 .. Len - 2);
+      Curlen := Len - 10;
+      Krlen := 8;
+
    elsif Len >= 4 and then Buffer (1 .. 4) = "ada-" then
       Startloc := 3;
       Buffer (2 .. Len - 2) := Buffer (4 .. Len);
@@ -89,7 +92,24 @@ begin
       Startloc := 3;
       Buffer (2 .. Len - 5) := Buffer (7 .. Len);
       Curlen := Len - 5;
-      Krlen  := 8;
+      if (Curlen >= 3 and then Buffer (Curlen - 2 .. Curlen) = "128")
+        or else (Len >= 9 and then
+                    (Buffer (3 .. 9) = "exn_lll"
+                      or else Buffer (3 .. 9) = "exp_lll"
+                      or else Buffer (3 .. 9) = "img_lll"
+                      or else Buffer (3 .. 9) = "val_lll"
+                      or else Buffer (3 .. 9) = "wid_lll"))
+           or else (Curlen = 10 and then Buffer (3 .. 6) = "pack")
+      then
+         if Len >= 15 and then Buffer (3 .. 15) = "compare_array" then
+            Buffer (3 .. 4) := "ca";
+            Buffer (5 .. Curlen - 11) := Buffer (16 .. Curlen);
+            Curlen := Curlen - 11;
+         end if;
+         Krlen := 9;
+      else
+         Krlen := 8;
+      end if;
 
    elsif Len >= 11 and then Buffer (1 .. 11) = "interfaces-" then
       Startloc := 3;

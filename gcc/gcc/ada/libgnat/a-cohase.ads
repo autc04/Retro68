@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -37,6 +37,7 @@ private with Ada.Containers.Hash_Tables;
 with Ada.Containers.Helpers;
 private with Ada.Finalization;
 private with Ada.Streams;
+private with Ada.Strings.Text_Buffers;
 
 generic
    type Element_Type is private;
@@ -48,7 +49,9 @@ generic
 
    with function "=" (Left, Right : Element_Type) return Boolean is <>;
 
-package Ada.Containers.Hashed_Sets is
+package Ada.Containers.Hashed_Sets with
+  SPARK_Mode => Off
+is
    pragma Annotate (CodePeer, Skip_Analysis);
    pragma Preelaborate;
    pragma Remote_Types;
@@ -57,12 +60,23 @@ package Ada.Containers.Hashed_Sets is
    with
       Constant_Indexing => Constant_Reference,
       Default_Iterator  => Iterate,
-      Iterator_Element  => Element_Type;
+      Iterator_Element  => Element_Type,
+      Aggregate         => (Empty       => Empty,
+                            Add_Unnamed => Include);
 
    pragma Preelaborable_Initialization (Set);
 
    type Cursor is private;
    pragma Preelaborable_Initialization (Cursor);
+
+   function "=" (Left, Right : Cursor) return Boolean;
+   --  The representation of cursors includes a component used to optimize
+   --  iteration over sets. This component may become unreliable after
+   --  multiple set insertions, and must be excluded from cursor equality,
+   --  so we need to provide an explicit definition for it, instead of
+   --  using predefined equality (as implied by a questionable comment
+   --  in the RM). This is also the case for hashed maps, and affects the
+   --  use of Insert primitives in hashed structures.
 
    Empty_Set : constant Set;
    --  Set objects declared without an initialization expression are
@@ -77,6 +91,8 @@ package Ada.Containers.Hashed_Sets is
 
    package Set_Iterator_Interfaces is new
      Ada.Iterator_Interfaces (Cursor, Has_Element);
+
+   function Empty (Capacity : Count_Type := 1000) return Set;
 
    function "=" (Left, Right : Set) return Boolean;
    --  For each element in Left, set equality attempts to find the equal
@@ -500,7 +516,10 @@ private
 
    type Set is new Ada.Finalization.Controlled with record
       HT : HT_Types.Hash_Table_Type;
-   end record;
+   end record with Put_Image => Put_Image;
+
+   procedure Put_Image
+     (S : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class; V : Set);
 
    overriding procedure Adjust (Container : in out Set);
 
@@ -527,8 +546,22 @@ private
 
    type Cursor is record
       Container : Set_Access;
+      --  Access to this cursor's container
+
       Node      : Node_Access;
+      --  Access to the node pointed to by this cursor
+
       Position  : Hash_Type := Hash_Type'Last;
+      --  Position of the node in the buckets of the container. If this is
+      --  equal to Hash_Type'Last, then it will not be used. Position is
+      --  not requried by the implementation, but improves the efficiency
+      --  of various operations.
+      --
+      --  However, this value must be maintained so that the predefined
+      --  equality operation acts as required by RM A.18.7-17/2, which
+      --  states: "The predefined "=" operator for type Cursor returns True
+      --  if both cursors are No_Element, or designate the same element
+      --  in the same container."
    end record;
 
    procedure Write

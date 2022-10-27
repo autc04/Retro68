@@ -130,7 +130,7 @@ func (v *Map) Init() *Map {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
 	v.keys = v.keys[:0]
-	v.m.Range(func(k, _ interface{}) bool {
+	v.m.Range(func(k, _ any) bool {
 		v.m.Delete(k)
 		return true
 	})
@@ -141,8 +141,14 @@ func (v *Map) Init() *Map {
 func (v *Map) addKey(key string) {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
-	v.keys = append(v.keys, key)
-	sort.Strings(v.keys)
+	// Using insertion sort to place key into the already-sorted v.keys.
+	if i := sort.SearchStrings(v.keys, key); i >= len(v.keys) {
+		v.keys = append(v.keys, key)
+	} else if v.keys[i] != key {
+		v.keys = append(v.keys, "")
+		copy(v.keys[i+1:], v.keys[i:])
+		v.keys[i] = key
+	}
 }
 
 func (v *Map) Get(key string) Var {
@@ -199,7 +205,7 @@ func (v *Map) AddFloat(key string, delta float64) {
 	}
 }
 
-// Deletes the given key from the map.
+// Delete deletes the given key from the map.
 func (v *Map) Delete(key string) {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
@@ -246,9 +252,9 @@ func (v *String) Set(value string) {
 
 // Func implements Var by calling the function
 // and formatting the returned value using JSON.
-type Func func() interface{}
+type Func func() any
 
-func (f Func) Value() interface{} {
+func (f Func) Value() any {
 	return f()
 }
 
@@ -344,11 +350,11 @@ func Handler() http.Handler {
 	return http.HandlerFunc(expvarHandler)
 }
 
-func cmdline() interface{} {
+func cmdline() any {
 	return os.Args
 }
 
-func memstats() interface{} {
+func memstats() any {
 	stats := new(runtime.MemStats)
 	runtime.ReadMemStats(stats)
 	return *stats

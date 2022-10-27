@@ -1,4 +1,5 @@
 // { dg-do assemble  }
+// { dg-additional-options -fpermissive }
 // GROUPS passed missed-error
 // missed-error file
 // From: ndc!don@csvax.cs.caltech.edu (Don Erway)
@@ -15,19 +16,19 @@
 #endif
 
 inline int max(int a, int b) {return a > b ? a : b;}; // { dg-message "note" } 
- // { dg-error "extra ';'" "extra ;" { target *-*-* } .-1 }
+ // { dg-error "extra ';'" "extra ;" { target c++98_only } .-1 }
 inline double max(double a, double b) {return a > b ? a : b;}; // { dg-message "note" } candidate
- // { dg-error "extra ';'" "extra ;" { target *-*-* } .-1 }
+ // { dg-error "extra ';'" "extra ;" { target c++98_only } .-1 }
 
 int main() {
+  // we treat this as-if extern
    static void foo(int i, int j, double x, double y) ;// { dg-error "" } .*
 
    foo(4, -37, 14.39, 14.38);
 }
 
-// 971006 we no longer give an error for this since we emit a hard error
-// about the declaration above
-static void foo(int i, int j, double x, double y) { 
+static void foo(int i, int j, double x, double y) // { dg-warning ".extern." }
+{ 
 
    std::cout << "Max(int): " << max(i,j) << " Max(double): " <<
 max(x,y) << '\n';

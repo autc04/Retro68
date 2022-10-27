@@ -5,13 +5,14 @@
  *
  * Authors: Stewart Gordon
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_schannel.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_schannel.d)
  */
 module core.sys.windows.schannel;
 version (Windows):
+@system:
 
 import core.sys.windows.wincrypt;
-private import core.sys.windows.windef;
+import core.sys.windows.windef;
 
 enum DWORD SCHANNEL_CRED_VERSION = 4;
 enum SCHANNEL_SHUTDOWN           = 1;

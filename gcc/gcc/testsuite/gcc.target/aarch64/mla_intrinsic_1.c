@@ -11,6 +11,7 @@ extern void abort (void);
 
 #define TEST_VMLA(q, su, size, in1_lanes, in2_lanes)		\
 static void							\
+__attribute__((noipa,noinline))					\
 test_vmlaq_lane##q##_##su##size (MAP##su (size, ) * res,	\
 				 const MAP##su(size, ) *in1,	\
 				 const MAP##su(size, ) *in2)	\
@@ -78,6 +79,6 @@ main (int argc, char **argv)
   return 0;
 }
 
-/* { dg-final { scan-assembler-times "mla\\tv\[0-9\]+\.4s, v\[0-9\]+\.4s, v\[0-9\]+\.4s\\\[\[0-9\]+\\\]" 4 } } */
-/* { dg-final { scan-assembler-times "mla\\tv\[0-9\]+\.8h, v\[0-9\]+\.8h, v\[0-9\]+\.8h\\\[\[0-9\]+\\\]" 4 } } */
+/* { dg-final { scan-assembler-times "mla\\tv\[0-9\]+\.4s, v\[0-9\]+\.4s, v\[0-9\]+\.s\\\[\[0-9\]+\\\]" 4 } } */
+/* { dg-final { scan-assembler-times "mla\\tv\[0-9\]+\.8h, v\[0-9\]+\.8h, v\[0-9\]+\.h\\\[\[0-9\]+\\\]" 4 } } */
 

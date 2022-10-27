@@ -142,7 +142,7 @@ var onePassTests = []struct {
 	{`^(?:(a)|(?:a*))$`, false},
 	{`^(?:(?:(?:.(?:$))?))$`, true},
 	{`^abcd$`, true},
-	{`^(?:(?:a{0,})*?)$`, true},
+	{`^(?:(?:a{0,})*?)$`, false},
 	{`^(?:(?:a+)*)$`, true},
 	{`^(?:(?:a|(?:aa)))$`, true},
 	{`^(?:[^\s\S])$`, true},
@@ -220,16 +220,6 @@ func TestRunOnePass(t *testing.T) {
 		}
 		if !re.MatchString(test.match) {
 			t.Errorf("onepass %q did not match %q", test.re, test.match)
-		}
-	}
-}
-
-func BenchmarkCompileOnepass(b *testing.B) {
-	b.ReportAllocs()
-	const re = `^a.[l-nA-Cg-j]?e$`
-	for i := 0; i < b.N; i++ {
-		if _, err := Compile(re); err != nil {
-			b.Fatal(err)
 		}
 	}
 }

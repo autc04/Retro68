@@ -1,4 +1,4 @@
-// Copyright (C) 2013-2019 Free Software Foundation, Inc.
+// Copyright (C) 2013-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,10 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-do compile { target c++11 } }
+// This test fails to compile since C++17 (see xfail-if below) so we can only
+// do a "run" test for C++11 and C++14, and a "compile" test for C++17 and up.
+// { dg-do run { target { c++11_only || c++14_only } } }
+// { dg-do compile { target c++17 } }
 
 #include <unordered_set>
 #include <memory>

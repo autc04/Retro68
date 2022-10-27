@@ -48,6 +48,7 @@ var examples = []example{
 	{`[1,2,3]`, "[\n\t1,\n\t2,\n\t3\n]"},
 	{`{"x":1}`, "{\n\t\"x\": 1\n}"},
 	{ex1, ex1i},
+	{"{\"\":\"<>&\u2028\u2029\"}", "{\n\t\"\": \"<>&\u2028\u2029\"\n}"}, // See golang.org/issue/34070
 }
 
 var ex1 = `[true,false,null,"x",1,1.5,0,-5e+2]`
@@ -89,8 +90,8 @@ func TestCompactSeparators(t *testing.T) {
 	tests := []struct {
 		in, compact string
 	}{
-		{"{\"\u2028\": 1}", `{"\u2028":1}`},
-		{"{\"\u2029\" :2}", `{"\u2029":2}`},
+		{"{\"\u2028\": 1}", "{\"\u2028\":1}"},
+		{"{\"\u2029\" :2}", "{\"\u2029\":2}"},
 	}
 	for _, tt := range tests {
 		var buf bytes.Buffer
@@ -236,7 +237,7 @@ func initBig() {
 	jsonBig = b
 }
 
-func genValue(n int) interface{} {
+func genValue(n int) any {
 	if n > 1 {
 		switch rand.Intn(2) {
 		case 0:
@@ -269,7 +270,7 @@ func genString(stddev float64) string {
 	return string(c)
 }
 
-func genArray(n int) []interface{} {
+func genArray(n int) []any {
 	f := int(math.Abs(rand.NormFloat64()) * math.Min(10, float64(n/2)))
 	if f > n {
 		f = n
@@ -277,14 +278,14 @@ func genArray(n int) []interface{} {
 	if f < 1 {
 		f = 1
 	}
-	x := make([]interface{}, f)
+	x := make([]any, f)
 	for i := range x {
 		x[i] = genValue(((i+1)*n)/f - (i*n)/f)
 	}
 	return x
 }
 
-func genMap(n int) map[string]interface{} {
+func genMap(n int) map[string]any {
 	f := int(math.Abs(rand.NormFloat64()) * math.Min(10, float64(n/2)))
 	if f > n {
 		f = n
@@ -292,7 +293,7 @@ func genMap(n int) map[string]interface{} {
 	if n > 0 && f == 0 {
 		f = 1
 	}
-	x := make(map[string]interface{})
+	x := make(map[string]any)
 	for i := 0; i < f; i++ {
 		x[genString(10)] = genValue(((i+1)*n)/f - (i*n)/f)
 	}

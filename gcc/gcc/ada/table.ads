@@ -6,23 +6,17 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -130,14 +124,15 @@ package Table is
       --  First .. Last.
 
       Locked : Boolean := False;
-      --  Table expansion is permitted only if this switch is set to False. A
-      --  client may set Locked to True, in which case any attempt to expand
-      --  the table will cause an assertion failure. Note that while a table
-      --  is locked, its address in memory remains fixed and unchanging. This
-      --  feature is used to control table expansion during Gigi processing.
-      --  Gigi assumes that tables other than the Uint and Ureal tables do
-      --  not move during processing, which means that they cannot be expanded.
-      --  The Locked flag is used to enforce this restriction.
+      --  Increasing the value of Last is permitted only if this switch is set
+      --  to False. A client may set Locked to True, in which case any attempt
+      --  to increase the value of Last (which might expand the table) will
+      --  cause an assertion failure. Note that while a table is locked, its
+      --  address in memory remains fixed and unchanging. This feature is used
+      --  to control table expansion during Gigi processing.  Gigi assumes that
+      --  tables other than the Uint and Ureal tables do not move during
+      --  processing, which means that they cannot be expanded.  The Locked
+      --  flag is used to enforce this restriction.
 
       procedure Init;
       --  This procedure allocates a new table of size Initial (freeing any
@@ -219,13 +214,6 @@ package Table is
       procedure Restore (T : Saved_Table);
       --  Given a Saved_Table value returned by a prior call to Save, restores
       --  the table to the state it was in at the time of the Save call.
-
-      procedure Tree_Write;
-      --  Writes out contents of table using Tree_IO
-
-      procedure Tree_Read;
-      --  Initializes table by reading contents previously written with the
-      --  Tree_Write call (also using Tree_IO).
 
    private
 

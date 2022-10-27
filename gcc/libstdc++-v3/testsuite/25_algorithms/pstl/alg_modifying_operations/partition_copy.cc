@@ -1,7 +1,8 @@
 // -*- C++ -*-
-// { dg-options "-std=gnu++17 -ltbb" }
+// { dg-options "-ltbb" }
 // { dg-do run { target c++17 } }
-// { dg-require-effective-target tbb-backend }
+// { dg-timeout-factor 3 }
+// { dg-require-effective-target tbb_backend }
 
 //===-- partition_copy.pass.cpp -------------------------------------------===//
 //
@@ -48,7 +49,7 @@ struct test_partition_copy
     }
 
     //dummy specialization by iterator type and policy type, in case of broken configuration
-#if __PSTL_ICC_1800_TEST_MONOTONIC_RELEASE_64_BROKEN
+#if _PSTL_ICC_1800_TEST_MONOTONIC_RELEASE_64_BROKEN
     template <typename InputIterator, typename OutputIterator, typename OutputIterator2, typename UnaryOp>
     void
     operator()(pstl::execution::unsequenced_policy, std::reverse_iterator<InputIterator> first,
@@ -110,7 +111,7 @@ main()
 {
     test<int32_t>([](const int32_t value) { return value % 2; });
 
-#if !__PSTL_ICC_16_17_TEST_REDUCTION_RELEASE_BROKEN
+#if !_PSTL_ICC_16_17_TEST_REDUCTION_RELEASE_BROKEN
     test<int32_t>([](const int32_t value) { return true; });
 #endif
 

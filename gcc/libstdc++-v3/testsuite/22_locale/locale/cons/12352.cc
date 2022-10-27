@@ -1,7 +1,7 @@
 // { dg-require-namedlocale "" }
 // { dg-require-namedlocale "en_US.ISO8859-1" }
 
-// Copyright (C) 2003-2019 Free Software Foundation, Inc.
+// Copyright (C) 2003-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -70,6 +70,18 @@ void operator delete[](void* p) throw()
 {
   deallocate(p);
 }
+
+#if __cpp_sized_deallocation
+void operator delete(void* p, std::size_t) throw()
+{
+  deallocate(p);
+}
+
+void operator delete[](void* p, std::size_t) throw()
+{
+  deallocate(p);
+}
+#endif
 
 void* operator new(std::size_t n, const std::nothrow_t&) throw()
 {

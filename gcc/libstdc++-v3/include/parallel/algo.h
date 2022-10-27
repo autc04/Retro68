@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2007-2019 Free Software Foundation, Inc.
+// Copyright (C) 2007-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -311,11 +311,11 @@ namespace __parallel
     { return _GLIBCXX_STD_A::unique_copy(__begin, __last, __out, __pred); }
 
   // Parallel unique_copy for random access iterators
-  template<typename _RAIter, typename RandomAccessOutputIterator,
+  template<typename _RAIter, typename _RandomAccessOutputIterator,
 	   typename _Predicate>
-    RandomAccessOutputIterator
+    _RandomAccessOutputIterator
     __unique_copy_switch(_RAIter __begin, _RAIter __last,
-			 RandomAccessOutputIterator __out, _Predicate __pred,
+			 _RandomAccessOutputIterator __out, _Predicate __pred,
 			 random_access_iterator_tag, random_access_iterator_tag)
     {
       if (_GLIBCXX_PARALLEL_CONDITION(
@@ -1048,6 +1048,21 @@ namespace __parallel
 			     std::__iterator_category(__begin1),
 			     std::__iterator_category(__begin2));
     }
+
+#if __cplusplus >= 201703L
+  /** @brief Search a sequence using a Searcher object.
+   *
+   *  @param  __first        A forward iterator.
+   *  @param  __last         A forward iterator.
+   *  @param  __searcher     A callable object.
+   *  @return @p __searcher(__first,__last).first
+  */
+  template<typename _ForwardIterator, typename _Searcher>
+    inline _ForwardIterator
+    search(_ForwardIterator __first, _ForwardIterator __last,
+	   const _Searcher& __searcher)
+    { return __searcher(__first, __last).first; }
+#endif
 
   // Sequential fallback
   template<typename _FIterator, typename _Integer, typename _Tp>
@@ -2189,6 +2204,11 @@ namespace __parallel
       return __min_element_switch(__begin, __end, __comp,
 				  std::__iterator_category(__begin));
     }
+
+#if __cplusplus >= 201703L
+  using _GLIBCXX_STD_A::for_each_n;
+  using _GLIBCXX_STD_A::sample;
+#endif
 } // end namespace
 } // end namespace
 

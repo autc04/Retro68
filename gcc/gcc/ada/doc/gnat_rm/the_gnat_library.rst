@@ -505,6 +505,18 @@ This package provides subprograms for Text_IO for unbounded
 wide wide strings, avoiding the necessity for an intermediate operation
 with ordinary wide wide strings.
 
+.. _`Ada.Task_Initialization_(a-tasini.ads)`:
+
+``Ada.Task_Initialization`` (:file:`a-tasini.ads`)
+==================================================
+
+.. index:: Ada.Task_Initialization (a-tasini.ads)
+
+This package provides a way to set a global initialization handler that
+is automatically invoked whenever a task is activated. Handlers are
+parameterless procedures. Note that such a handler is only invoked for
+those tasks activated after the handler is set.
+
 .. _`Ada.Text_IO.C_Streams_(a-tiocst.ads)`:
 
 ``Ada.Text_IO.C_Streams`` (:file:`a-tiocst.ads`)
@@ -722,6 +734,17 @@ Provides access to key=value associations captured at bind time.
 These associations can be specified using the :switch:`-V` binder command
 line switch.
 
+.. _`GNAT.Branch_Prediction_(g-brapre.ads)`:
+
+``GNAT.Branch_Prediction`` (:file:`g-brapre.ads`)
+=================================================
+
+.. index:: GNAT.Branch_Prediction (g-brapre.ads)
+
+.. index:: Branch Prediction
+
+Provides routines giving hints to the branch predictor of the code generator.
+
 .. _`GNAT.Bounded_Buffers_(g-boubuf.ads)`:
 
 ``GNAT.Bounded_Buffers`` (:file:`g-boubuf.ads`)
@@ -937,7 +960,7 @@ programs written in Ada.
 
 Provides a high level interface to ``Ada.Command_Line`` facilities,
 including the ability to scan for named switches with optional parameters
-and expand file names using wild card notations.
+and expand file names using wildcard notations.
 
 .. _`GNAT.Compiler_Version_(g-comver.ads)`:
 
@@ -2140,7 +2163,7 @@ This package provides the declaration of an atomic counter type,
 together with efficient routines (using hardware
 synchronization primitives) for incrementing, decrementing,
 and testing of these counters. This package is implemented
-on most targets, including all Alpha, ia64, PowerPC, SPARC V9,
+on most targets, including all Alpha, AARCH64, ARM, ia64, PowerPC, SPARC V9,
 x86, and x86_64 platforms.
 
 .. _`System.Memory_(s-memory.ads)`:

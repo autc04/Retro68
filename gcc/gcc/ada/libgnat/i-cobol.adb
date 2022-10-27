@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -34,8 +34,7 @@
 --  particular COBOL format is completely contained in the private part of
 --  the spec.
 
-with Interfaces; use Interfaces;
-with System;     use System;
+with System; use System;
 with Ada.Unchecked_Conversion;
 
 package body Interfaces.COBOL is
@@ -239,11 +238,6 @@ package body Interfaces.COBOL is
                Result := Result * 10 +
                            (COBOL_Character'Pos (K) -
                              COBOL_Character'Pos (COBOL_Digits'First));
-
-            elsif K in COBOL_Plus_Digits then
-               Result := Result * 10 +
-                           (COBOL_Character'Pos (K) -
-                             COBOL_Character'Pos (COBOL_Plus_Digits'First));
 
             elsif K in COBOL_Minus_Digits then
                Result := Result * 10 +
@@ -697,7 +691,7 @@ package body Interfaces.COBOL is
             --  For signed, accept all standard and non-standard signs
 
             else
-               return Item (Item'Last) in 16#A# .. 16#F#;
+               return Item (Item'Last) >= 16#A#;
             end if;
       end case;
    end Valid_Packed;

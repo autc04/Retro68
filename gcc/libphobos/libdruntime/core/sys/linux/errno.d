@@ -8,11 +8,12 @@ module core.sys.linux.errno;
 version (linux):
 extern (C):
 nothrow:
+@system:
 
 public import core.stdc.errno;
 import core.sys.linux.config;
 
-static if (__USE_GNU)
+static if (_GNU_SOURCE)
 {
     extern __gshared char* program_invocation_name, program_invocation_short_name;
     alias error_t = int;

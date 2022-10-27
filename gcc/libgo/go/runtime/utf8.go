@@ -6,15 +6,14 @@ package runtime
 
 import _ "unsafe" // For go:linkname.
 
-// For gccgo, use go:linkname to rename compiler-called functions to
-// themselves, so that the compiler will export them.
+// For gccgo, use go:linkname to export compiler-called functions.
 //
-//go:linkname decoderune runtime.decoderune
+//go:linkname decoderune
 
 // Numbers fundamental to the encoding.
 const (
 	runeError = '\uFFFD'     // the "error" Rune or "Unicode replacement character"
-	runeSelf  = 0x80         // characters below Runeself are represented as themselves in a single byte.
+	runeSelf  = 0x80         // characters below runeSelf are represented as themselves in a single byte.
 	maxRune   = '\U0010FFFF' // Maximum valid Unicode code point.
 )
 

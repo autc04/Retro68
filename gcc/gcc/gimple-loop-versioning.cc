@@ -1,5 +1,5 @@
 /* Loop versioning pass.
-   Copyright (C) 2018-2019 Free Software Foundation, Inc.
+   Copyright (C) 2018-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -30,20 +30,17 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-ssa-loop.h"
 #include "ssa.h"
 #include "tree-scalar-evolution.h"
-#include "tree-chrec.h"
 #include "tree-ssa-loop-ivopts.h"
 #include "fold-const.h"
 #include "tree-ssa-propagate.h"
 #include "tree-inline.h"
 #include "domwalk.h"
-#include "alloc-pool.h"
-#include "vr-values.h"
-#include "gimple-ssa-evrp-analyze.h"
 #include "tree-vectorizer.h"
 #include "omp-general.h"
 #include "predict.h"
 #include "tree-into-ssa.h"
-#include "params.h"
+#include "gimple-range.h"
+#include "tree-cfg.h"
 
 namespace {
 
@@ -179,8 +176,9 @@ struct address_term_info
 
 /* Information about an address calculation, and the range of constant
    offsets applied to it.  */
-struct address_info
+class address_info
 {
+public:
   static const unsigned int MAX_TERMS = 8;
 
   /* One statement that calculates the address.  If multiple statements
@@ -189,7 +187,7 @@ struct address_info
 
   /* The loop containing STMT (cached for convenience).  If multiple
      statements share the same address, they all belong to this loop.  */
-  struct loop *loop;
+  class loop *loop;
 
   /* A decomposition of the calculation into a sum of terms plus an
      optional base.  When BASE is provided, it is never an SSA name.
@@ -210,8 +208,9 @@ struct address_info_hasher : nofree_ptr_hash <address_info>
 };
 
 /* Information about the versioning we'd like to apply to a loop.  */
-struct loop_info
+class loop_info
 {
+public:
   bool worth_versioning_p () const;
 
   /* True if we've decided not to version this loop.  The remaining
@@ -227,7 +226,7 @@ struct loop_info
 
   /* The outermost loop that can handle all the version checks
      described below.  */
-  struct loop *outermost;
+  class loop *outermost;
 
   /* The first entry in the list of blocks that belong to this loop
      (and not to subloops).  m_next_block_in_loop provides the chain
@@ -240,7 +239,7 @@ struct loop_info
 
   /* If versioning succeeds, this points the version of the loop that
      assumes the version conditions holds.  */
-  struct loop *optimized_loop;
+  class loop *optimized_loop;
 };
 
 /* The main pass structure.  */
@@ -260,14 +259,10 @@ private:
     lv_dom_walker (loop_versioning &);
 
     edge before_dom_children (basic_block) FINAL OVERRIDE;
-    void after_dom_children (basic_block) FINAL OVERRIDE;
 
   private:
     /* The parent pass.  */
     loop_versioning &m_lv;
-
-    /* Used to build context-dependent range information.  */
-    evrp_range_analyzer m_range_analyzer;
   };
 
   /* Used to simplify statements based on conditions that are established
@@ -276,16 +271,16 @@ private:
   {
   public:
     name_prop (loop_info &li) : m_li (li) {}
-    tree get_value (tree) FINAL OVERRIDE;
+    tree value_of_expr (tree name, gimple *) FINAL OVERRIDE;
 
   private:
     /* Information about the versioning we've performed on the loop.  */
     loop_info &m_li;
   };
 
-  loop_info &get_loop_info (struct loop *loop) { return m_loops[loop->num]; }
+  loop_info &get_loop_info (class loop *loop) { return m_loops[loop->num]; }
 
-  unsigned int max_insns_for_loop (struct loop *);
+  unsigned int max_insns_for_loop (class loop *);
   bool expensive_stmt_p (gimple *);
 
   void version_for_unity (gimple *, tree);
@@ -296,7 +291,7 @@ private:
   inner_likelihood get_inner_likelihood (tree, unsigned HOST_WIDE_INT);
   void dump_inner_likelihood (address_info &, address_term_info &);
   void analyze_stride (address_info &, address_term_info &,
-		       tree, struct loop *);
+		       tree, class loop *);
   bool find_per_loop_multiplication (address_info &, address_term_info &);
   bool analyze_term_using_scevs (address_info &, address_term_info &);
   void analyze_arbitrary_term (address_info &, address_term_info &);
@@ -307,15 +302,15 @@ private:
   bool analyze_block (basic_block);
   bool analyze_blocks ();
 
-  void prune_loop_conditions (struct loop *, vr_values *);
+  void prune_loop_conditions (class loop *);
   bool prune_conditions ();
 
-  void merge_loop_info (struct loop *, struct loop *);
-  void add_loop_to_queue (struct loop *);
-  bool decide_whether_loop_is_versionable (struct loop *);
+  void merge_loop_info (class loop *, class loop *);
+  void add_loop_to_queue (class loop *);
+  bool decide_whether_loop_is_versionable (class loop *);
   bool make_versioning_decisions ();
 
-  bool version_loop (struct loop *);
+  bool version_loop (class loop *);
   void implement_versioning_decisions ();
 
   /* The function we're optimizing.  */
@@ -346,7 +341,7 @@ private:
   auto_vec<basic_block> m_next_block_in_loop;
 
   /* The list of loops that we've decided to version.  */
-  auto_vec<struct loop *> m_loops_to_version;
+  auto_vec<class loop *> m_loops_to_version;
 
   /* A table of addresses in the current loop, keyed off their values
      but not their offsets.  */
@@ -499,7 +494,7 @@ loop_info::worth_versioning_p () const
 }
 
 loop_versioning::lv_dom_walker::lv_dom_walker (loop_versioning &lv)
-  : dom_walker (CDI_DOMINATORS), m_lv (lv), m_range_analyzer (false)
+  : dom_walker (CDI_DOMINATORS), m_lv (lv)
 {
 }
 
@@ -508,32 +503,17 @@ loop_versioning::lv_dom_walker::lv_dom_walker (loop_versioning &lv)
 edge
 loop_versioning::lv_dom_walker::before_dom_children (basic_block bb)
 {
-  m_range_analyzer.enter (bb);
-
   if (bb == bb->loop_father->header)
-    m_lv.prune_loop_conditions (bb->loop_father,
-				m_range_analyzer.get_vr_values ());
-
-  for (gimple_stmt_iterator si = gsi_start_bb (bb); !gsi_end_p (si);
-       gsi_next (&si))
-    m_range_analyzer.record_ranges_from_stmt (gsi_stmt (si), false);
+    m_lv.prune_loop_conditions (bb->loop_father);
 
   return NULL;
-}
-
-/* Process BB after processing the blocks it dominates.  */
-
-void
-loop_versioning::lv_dom_walker::after_dom_children (basic_block bb)
-{
-  m_range_analyzer.leave (bb);
 }
 
 /* Decide whether to replace VAL with a new value in a versioned loop.
    Return the new value if so, otherwise return null.  */
 
 tree
-loop_versioning::name_prop::get_value (tree val)
+loop_versioning::name_prop::value_of_expr (tree val, gimple *)
 {
   if (TREE_CODE (val) == SSA_NAME
       && bitmap_bit_p (&m_li.unity_names, SSA_NAME_VERSION (val)))
@@ -553,7 +533,7 @@ loop_versioning::loop_versioning (function *fn)
   gcc_obstack_init (&m_obstack);
 
   /* Initialize the loop information.  */
-  m_loops.safe_grow_cleared (m_nloops);
+  m_loops.safe_grow_cleared (m_nloops, true);
   for (unsigned int i = 0; i < m_nloops; ++i)
     {
       m_loops[i].outermost = get_loop (m_fn, 0);
@@ -562,7 +542,7 @@ loop_versioning::loop_versioning (function *fn)
 
   /* Initialize the list of blocks that belong to each loop.  */
   unsigned int nbbs = last_basic_block_for_fn (fn);
-  m_next_block_in_loop.safe_grow (nbbs);
+  m_next_block_in_loop.safe_grow (nbbs, true);
   basic_block bb;
   FOR_EACH_BB_FN (bb, fn)
     {
@@ -600,11 +580,11 @@ loop_versioning::~loop_versioning ()
    interchange or outer-loop vectorization).  */
 
 unsigned int
-loop_versioning::max_insns_for_loop (struct loop *loop)
+loop_versioning::max_insns_for_loop (class loop *loop)
 {
   return (loop->inner
-	  ? PARAM_VALUE (PARAM_LOOP_VERSIONING_MAX_OUTER_INSNS)
-	  : PARAM_VALUE (PARAM_LOOP_VERSIONING_MAX_INNER_INSNS));
+	  ? param_loop_versioning_max_outer_insns
+	  : param_loop_versioning_max_inner_insns);
 }
 
 /* Return true if for cost reasons we should avoid versioning any loop
@@ -631,7 +611,7 @@ loop_versioning::expensive_stmt_p (gimple *stmt)
 void
 loop_versioning::version_for_unity (gimple *stmt, tree name)
 {
-  struct loop *loop = loop_containing_stmt (stmt);
+  class loop *loop = loop_containing_stmt (stmt);
   loop_info &li = get_loop_info (loop);
 
   if (bitmap_set_bit (&li.unity_names, SSA_NAME_VERSION (name)))
@@ -639,7 +619,7 @@ loop_versioning::version_for_unity (gimple *stmt, tree name)
       /* This is the first time we've wanted to version LOOP for NAME.
 	 Keep track of the outermost loop that can handle all versioning
 	 checks in LI.  */
-      struct loop *outermost
+      class loop *outermost
 	= outermost_invariant_loop_for_expr (loop, name);
       if (loop_depth (li.outermost) < loop_depth (outermost))
 	li.outermost = outermost;
@@ -832,7 +812,7 @@ loop_versioning::dump_inner_likelihood (address_info &address,
 void
 loop_versioning::analyze_stride (address_info &address,
 				 address_term_info &term,
-				 tree stride, struct loop *op_loop)
+				 tree stride, class loop *op_loop)
 {
   term.stride = stride;
 
@@ -893,7 +873,7 @@ loop_versioning::find_per_loop_multiplication (address_info &address,
   if (!mult || gimple_assign_rhs_code (mult) != MULT_EXPR)
     return false;
 
-  struct loop *mult_loop = loop_containing_stmt (mult);
+  class loop *mult_loop = loop_containing_stmt (mult);
   if (!loop_outer (mult_loop))
     return false;
 
@@ -935,7 +915,7 @@ loop_versioning::analyze_term_using_scevs (address_info &address,
   if (!setter)
     return false;
 
-  struct loop *wrt_loop = loop_containing_stmt (setter);
+  class loop *wrt_loop = loop_containing_stmt (setter);
   if (!loop_outer (wrt_loop))
     return false;
 
@@ -1069,7 +1049,7 @@ loop_versioning::analyze_arbitrary_term (address_info &address,
 
      where nothing in the way "x" and "y" are set gives a hint as to
      whether "i" iterates over the innermost dimension of the array.
-     In these situations it seems reasonable to assume the the
+     In these situations it seems reasonable to assume the
      programmer has nested the loops appropriately (although of course
      there are examples like GEMM in which this assumption doesn't hold
      for all accesses in the loop).
@@ -1197,7 +1177,7 @@ loop_versioning::record_address_fragment (gimple *stmt,
 
   /* Quick exit if no part of the address is calculated in STMT's loop,
      since such addresses have no versioning opportunities.  */
-  struct loop *loop = loop_containing_stmt (stmt);
+  class loop *loop = loop_containing_stmt (stmt);
   if (expr_invariant_in_loop_p (loop, expr))
     return;
 
@@ -1263,6 +1243,12 @@ loop_versioning::record_address_fragment (gimple *stmt,
 		  address->terms[i].expr = strip_casts (op1);
 		  continue;
 		}
+	    }
+	  if (CONVERT_EXPR_CODE_P (code))
+	    {
+	      tree op1 = gimple_assign_rhs1 (assign);
+	      address->terms[i].expr = strip_casts (op1);
+	      continue;
 	    }
 	}
       i += 1;
@@ -1373,7 +1359,7 @@ loop_versioning::analyze_expr (gimple *stmt, tree expr)
 bool
 loop_versioning::analyze_block (basic_block bb)
 {
-  struct loop *loop = bb->loop_father;
+  class loop *loop = bb->loop_father;
   loop_info &li = get_loop_info (loop);
   for (gimple_stmt_iterator gsi = gsi_start_bb (bb); !gsi_end_p (gsi);
        gsi_next (&gsi))
@@ -1422,8 +1408,7 @@ loop_versioning::analyze_blocks ()
      versioning at that level could be useful in some cases.  */
   get_loop_info (get_loop (m_fn, 0)).rejected_p = true;
 
-  struct loop *loop;
-  FOR_EACH_LOOP (loop, LI_FROM_INNERMOST)
+  for (auto loop : loops_list (cfun, LI_FROM_INNERMOST))
     {
       loop_info &linfo = get_loop_info (loop);
 
@@ -1433,7 +1418,7 @@ loop_versioning::analyze_blocks ()
 
       /* See whether an inner loop prevents versioning of this loop.  */
       if (!linfo.rejected_p)
-	for (struct loop *inner = loop->inner; inner; inner = inner->next)
+	for (class loop *inner = loop->inner; inner; inner = inner->next)
 	  if (get_loop_info (inner).rejected_p)
 	    {
 	      linfo.rejected_p = true;
@@ -1477,18 +1462,21 @@ loop_versioning::analyze_blocks ()
    LOOP.  */
 
 void
-loop_versioning::prune_loop_conditions (struct loop *loop, vr_values *vrs)
+loop_versioning::prune_loop_conditions (class loop *loop)
 {
   loop_info &li = get_loop_info (loop);
 
   int to_remove = -1;
   bitmap_iterator bi;
   unsigned int i;
+  int_range_max r;
   EXECUTE_IF_SET_IN_BITMAP (&li.unity_names, 0, i, bi)
     {
       tree name = ssa_name (i);
-      value_range *vr = vrs->get_value_range (name);
-      if (vr && !range_includes_p (vr, 1))
+      gimple *stmt = first_stmt (loop->header);
+
+      if (get_range_query (cfun)->range_of_expr (r, name, stmt)
+	  && !r.contains_p (build_one_cst (TREE_TYPE (name))))
 	{
 	  if (dump_enabled_p ())
 	    dump_printf_loc (MSG_NOTE, find_loop_location (loop),
@@ -1523,7 +1511,7 @@ loop_versioning::prune_conditions ()
    OUTER.  */
 
 void
-loop_versioning::merge_loop_info (struct loop *outer, struct loop *inner)
+loop_versioning::merge_loop_info (class loop *outer, class loop *inner)
 {
   loop_info &inner_li = get_loop_info (inner);
   loop_info &outer_li = get_loop_info (outer);
@@ -1547,7 +1535,7 @@ loop_versioning::merge_loop_info (struct loop *outer, struct loop *inner)
 /* Add LOOP to the queue of loops to version.  */
 
 void
-loop_versioning::add_loop_to_queue (struct loop *loop)
+loop_versioning::add_loop_to_queue (class loop *loop)
 {
   loop_info &li = get_loop_info (loop);
 
@@ -1569,7 +1557,7 @@ loop_versioning::add_loop_to_queue (struct loop *loop)
    We have already made this decision for all inner loops of LOOP.  */
 
 bool
-loop_versioning::decide_whether_loop_is_versionable (struct loop *loop)
+loop_versioning::decide_whether_loop_is_versionable (class loop *loop)
 {
   loop_info &li = get_loop_info (loop);
 
@@ -1577,7 +1565,7 @@ loop_versioning::decide_whether_loop_is_versionable (struct loop *loop)
     return false;
 
   /* Examine the decisions made for inner loops.  */
-  for (struct loop *inner = loop->inner; inner; inner = inner->next)
+  for (class loop *inner = loop->inner; inner; inner = inner->next)
     {
       loop_info &inner_li = get_loop_info (inner);
       if (inner_li.rejected_p)
@@ -1629,7 +1617,7 @@ loop_versioning::decide_whether_loop_is_versionable (struct loop *loop)
     }
 
   /* Hoist all version checks from subloops to this loop.  */
-  for (struct loop *subloop = loop->inner; subloop; subloop = subloop->next)
+  for (class loop *subloop = loop->inner; subloop; subloop = subloop->next)
     merge_loop_info (loop, subloop);
 
   return true;
@@ -1644,8 +1632,7 @@ loop_versioning::make_versioning_decisions ()
   AUTO_DUMP_SCOPE ("make_versioning_decisions",
 		   dump_user_location_t::from_function_decl (m_fn->decl));
 
-  struct loop *loop;
-  FOR_EACH_LOOP (loop, LI_FROM_INNERMOST)
+  for (auto loop : loops_list (cfun, LI_FROM_INNERMOST))
     {
       loop_info &linfo = get_loop_info (loop);
       if (decide_whether_loop_is_versionable (loop))
@@ -1661,7 +1648,7 @@ loop_versioning::make_versioning_decisions ()
 	  /* We can't version this loop, so individually version any
 	     subloops that would benefit and haven't been versioned yet.  */
 	  linfo.rejected_p = true;
-	  for (struct loop *subloop = loop->inner; subloop;
+	  for (class loop *subloop = loop->inner; subloop;
 	       subloop = subloop->next)
 	    if (get_loop_info (subloop).worth_versioning_p ())
 	      add_loop_to_queue (subloop);
@@ -1675,7 +1662,7 @@ loop_versioning::make_versioning_decisions ()
    cached in the associated loop_info.  Return true on success.  */
 
 bool
-loop_versioning::version_loop (struct loop *loop)
+loop_versioning::version_loop (class loop *loop)
 {
   loop_info &li = get_loop_info (loop);
 
@@ -1737,7 +1724,7 @@ loop_versioning::implement_versioning_decisions ()
      user-facing at this point.  */
 
   bool any_succeeded_p = false;
-  struct loop *loop;
+  class loop *loop;
   unsigned int i;
   FOR_EACH_VEC_ELT (m_loops_to_version, i, loop)
     if (version_loop (loop))
@@ -1804,7 +1791,10 @@ pass_loop_versioning::execute (function *fn)
   if (number_of_loops (fn) <= 1)
     return 0;
 
-  return loop_versioning (fn).run ();
+  enable_ranger (fn);
+  unsigned int ret = loop_versioning (fn).run ();
+  disable_ranger (fn);
+  return ret;
 }
 
 } // anon namespace

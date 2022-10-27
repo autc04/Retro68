@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---             Copyright (C) 2015-2019, Free Software Foundation, Inc.      --
+--             Copyright (C) 2015-2022, Free Software Foundation, Inc.      --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -118,20 +118,6 @@ package body System.Finalization_Masters is
    begin
       Finalize_Address_Table.Remove (Obj);
    end Delete_Finalize_Address_Unprotected;
-
-   ------------
-   -- Detach --
-   ------------
-
-   procedure Detach (N : not null FM_Node_Ptr) is
-   begin
-      Lock_Task.all;
-      Detach_Unprotected (N);
-      Unlock_Task.all;
-
-      --  Note: No need to unlock in case of an exception because the above
-      --  code can never raise one.
-   end Detach;
 
    ------------------------
    -- Detach_Unprotected --

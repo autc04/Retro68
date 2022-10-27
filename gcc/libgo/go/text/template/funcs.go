@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 )
@@ -22,37 +23,59 @@ import (
 // return value evaluates to non-nil during execution, execution terminates and
 // Execute returns that error.
 //
+// Errors returned by Execute wrap the underlying error; call errors.As to
+// uncover them.
+//
 // When template execution invokes a function with an argument list, that list
 // must be assignable to the function's parameter types. Functions meant to
 // apply to arguments of arbitrary type can use parameters of type interface{} or
 // of type reflect.Value. Similarly, functions meant to return a result of arbitrary
 // type can return interface{} or reflect.Value.
-type FuncMap map[string]interface{}
+type FuncMap map[string]any
 
-var builtins = FuncMap{
-	"and":      and,
-	"call":     call,
-	"html":     HTMLEscaper,
-	"index":    index,
-	"js":       JSEscaper,
-	"len":      length,
-	"not":      not,
-	"or":       or,
-	"print":    fmt.Sprint,
-	"printf":   fmt.Sprintf,
-	"println":  fmt.Sprintln,
-	"urlquery": URLQueryEscaper,
+// builtins returns the FuncMap.
+// It is not a global variable so the linker can dead code eliminate
+// more when this isn't called. See golang.org/issue/36021.
+// TODO: revert this back to a global map once golang.org/issue/2559 is fixed.
+func builtins() FuncMap {
+	return FuncMap{
+		"and":      and,
+		"call":     call,
+		"html":     HTMLEscaper,
+		"index":    index,
+		"slice":    slice,
+		"js":       JSEscaper,
+		"len":      length,
+		"not":      not,
+		"or":       or,
+		"print":    fmt.Sprint,
+		"printf":   fmt.Sprintf,
+		"println":  fmt.Sprintln,
+		"urlquery": URLQueryEscaper,
 
-	// Comparisons
-	"eq": eq, // ==
-	"ge": ge, // >=
-	"gt": gt, // >
-	"le": le, // <=
-	"lt": lt, // <
-	"ne": ne, // !=
+		// Comparisons
+		"eq": eq, // ==
+		"ge": ge, // >=
+		"gt": gt, // >
+		"le": le, // <=
+		"lt": lt, // <
+		"ne": ne, // !=
+	}
 }
 
-var builtinFuncs = createValueFuncs(builtins)
+var builtinFuncsOnce struct {
+	sync.Once
+	v map[string]reflect.Value
+}
+
+// builtinFuncsOnce lazily computes & caches the builtinFuncs map.
+// TODO: revert this back to a global map once golang.org/issue/2559 is fixed.
+func builtinFuncs() map[string]reflect.Value {
+	builtinFuncsOnce.Do(func() {
+		builtinFuncsOnce.v = createValueFuncs(builtins())
+	})
+	return builtinFuncsOnce.v
+}
 
 // createValueFuncs turns a FuncMap into a map[string]reflect.Value
 func createValueFuncs(funcMap FuncMap) map[string]reflect.Value {
@@ -116,18 +139,18 @@ func goodName(name string) bool {
 }
 
 // findFunction looks for a function in the template, and global map.
-func findFunction(name string, tmpl *Template) (reflect.Value, bool) {
+func findFunction(name string, tmpl *Template) (v reflect.Value, isBuiltin, ok bool) {
 	if tmpl != nil && tmpl.common != nil {
 		tmpl.muFuncs.RLock()
 		defer tmpl.muFuncs.RUnlock()
 		if fn := tmpl.execFuncs[name]; fn.IsValid() {
-			return fn, true
+			return fn, false, true
 		}
 	}
-	if fn := builtinFuncs[name]; fn.IsValid() {
-		return fn, true
+	if fn := builtinFuncs()[name]; fn.IsValid() {
+		return fn, true, true
 	}
-	return reflect.Value{}, false
+	return reflect.Value{}, false, false
 }
 
 // prepareArg checks if value can be used as an argument of type argType, and
@@ -159,76 +182,130 @@ func intLike(typ reflect.Kind) bool {
 	return false
 }
 
+// indexArg checks if a reflect.Value can be used as an index, and converts it to int if possible.
+func indexArg(index reflect.Value, cap int) (int, error) {
+	var x int64
+	switch index.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		x = index.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		x = int64(index.Uint())
+	case reflect.Invalid:
+		return 0, fmt.Errorf("cannot index slice/array with nil")
+	default:
+		return 0, fmt.Errorf("cannot index slice/array with type %s", index.Type())
+	}
+	if x < 0 || int(x) < 0 || int(x) > cap {
+		return 0, fmt.Errorf("index out of range: %d", x)
+	}
+	return int(x), nil
+}
+
 // Indexing.
 
 // index returns the result of indexing its first argument by the following
 // arguments. Thus "index x 1 2 3" is, in Go syntax, x[1][2][3]. Each
 // indexed item must be a map, slice, or array.
-func index(item reflect.Value, indices ...reflect.Value) (reflect.Value, error) {
-	v := indirectInterface(item)
-	if !v.IsValid() {
+func index(item reflect.Value, indexes ...reflect.Value) (reflect.Value, error) {
+	item = indirectInterface(item)
+	if !item.IsValid() {
 		return reflect.Value{}, fmt.Errorf("index of untyped nil")
 	}
-	for _, i := range indices {
-		index := indirectInterface(i)
+	for _, index := range indexes {
+		index = indirectInterface(index)
 		var isNil bool
-		if v, isNil = indirect(v); isNil {
+		if item, isNil = indirect(item); isNil {
 			return reflect.Value{}, fmt.Errorf("index of nil pointer")
 		}
-		switch v.Kind() {
+		switch item.Kind() {
 		case reflect.Array, reflect.Slice, reflect.String:
-			var x int64
-			switch index.Kind() {
-			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				x = index.Int()
-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-				x = int64(index.Uint())
-			case reflect.Invalid:
-				return reflect.Value{}, fmt.Errorf("cannot index slice/array with nil")
-			default:
-				return reflect.Value{}, fmt.Errorf("cannot index slice/array with type %s", index.Type())
-			}
-			if x < 0 || x >= int64(v.Len()) {
-				return reflect.Value{}, fmt.Errorf("index out of range: %d", x)
-			}
-			v = v.Index(int(x))
-		case reflect.Map:
-			index, err := prepareArg(index, v.Type().Key())
+			x, err := indexArg(index, item.Len())
 			if err != nil {
 				return reflect.Value{}, err
 			}
-			if x := v.MapIndex(index); x.IsValid() {
-				v = x
+			item = item.Index(x)
+		case reflect.Map:
+			index, err := prepareArg(index, item.Type().Key())
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			if x := item.MapIndex(index); x.IsValid() {
+				item = x
 			} else {
-				v = reflect.Zero(v.Type().Elem())
+				item = reflect.Zero(item.Type().Elem())
 			}
 		case reflect.Invalid:
-			// the loop holds invariant: v.IsValid()
+			// the loop holds invariant: item.IsValid()
 			panic("unreachable")
 		default:
-			return reflect.Value{}, fmt.Errorf("can't index item of type %s", v.Type())
+			return reflect.Value{}, fmt.Errorf("can't index item of type %s", item.Type())
 		}
 	}
-	return v, nil
+	return item, nil
+}
+
+// Slicing.
+
+// slice returns the result of slicing its first argument by the remaining
+// arguments. Thus "slice x 1 2" is, in Go syntax, x[1:2], while "slice x"
+// is x[:], "slice x 1" is x[1:], and "slice x 1 2 3" is x[1:2:3]. The first
+// argument must be a string, slice, or array.
+func slice(item reflect.Value, indexes ...reflect.Value) (reflect.Value, error) {
+	item = indirectInterface(item)
+	if !item.IsValid() {
+		return reflect.Value{}, fmt.Errorf("slice of untyped nil")
+	}
+	if len(indexes) > 3 {
+		return reflect.Value{}, fmt.Errorf("too many slice indexes: %d", len(indexes))
+	}
+	var cap int
+	switch item.Kind() {
+	case reflect.String:
+		if len(indexes) == 3 {
+			return reflect.Value{}, fmt.Errorf("cannot 3-index slice a string")
+		}
+		cap = item.Len()
+	case reflect.Array, reflect.Slice:
+		cap = item.Cap()
+	default:
+		return reflect.Value{}, fmt.Errorf("can't slice item of type %s", item.Type())
+	}
+	// set default values for cases item[:], item[i:].
+	idx := [3]int{0, item.Len()}
+	for i, index := range indexes {
+		x, err := indexArg(index, cap)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		idx[i] = x
+	}
+	// given item[i:j], make sure i <= j.
+	if idx[0] > idx[1] {
+		return reflect.Value{}, fmt.Errorf("invalid slice index: %d > %d", idx[0], idx[1])
+	}
+	if len(indexes) < 3 {
+		return item.Slice(idx[0], idx[1]), nil
+	}
+	// given item[i:j:k], make sure i <= j <= k.
+	if idx[1] > idx[2] {
+		return reflect.Value{}, fmt.Errorf("invalid slice index: %d > %d", idx[1], idx[2])
+	}
+	return item.Slice3(idx[0], idx[1], idx[2]), nil
 }
 
 // Length
 
 // length returns the length of the item, with an error if it has no defined length.
-func length(item interface{}) (int, error) {
-	v := reflect.ValueOf(item)
-	if !v.IsValid() {
-		return 0, fmt.Errorf("len of untyped nil")
-	}
-	v, isNil := indirect(v)
+func length(item reflect.Value) (int, error) {
+	item, isNil := indirect(item)
 	if isNil {
 		return 0, fmt.Errorf("len of nil pointer")
 	}
-	switch v.Kind() {
+	switch item.Kind() {
 	case reflect.Array, reflect.Chan, reflect.Map, reflect.Slice, reflect.String:
-		return v.Len(), nil
+		return item.Len(), nil
 	}
-	return 0, fmt.Errorf("len of type %s", v.Type())
+	return 0, fmt.Errorf("len of type %s", item.Type())
 }
 
 // Function invocation
@@ -236,11 +313,11 @@ func length(item interface{}) (int, error) {
 // call returns the result of evaluating the first argument as a function.
 // The function must return 1 result, or 2 results, the second of which is an error.
 func call(fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
-	v := indirectInterface(fn)
-	if !v.IsValid() {
+	fn = indirectInterface(fn)
+	if !fn.IsValid() {
 		return reflect.Value{}, fmt.Errorf("call of nil")
 	}
-	typ := v.Type()
+	typ := fn.Type()
 	if typ.Kind() != reflect.Func {
 		return reflect.Value{}, fmt.Errorf("non-function of type %s", typ)
 	}
@@ -261,21 +338,19 @@ func call(fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
 	}
 	argv := make([]reflect.Value, len(args))
 	for i, arg := range args {
-		value := indirectInterface(arg)
+		arg = indirectInterface(arg)
 		// Compute the expected type. Clumsy because of variadics.
-		var argType reflect.Type
+		argType := dddType
 		if !typ.IsVariadic() || i < numIn-1 {
 			argType = typ.In(i)
-		} else {
-			argType = dddType
 		}
 
 		var err error
-		if argv[i], err = prepareArg(value, argType); err != nil {
-			return reflect.Value{}, fmt.Errorf("arg %d: %s", i, err)
+		if argv[i], err = prepareArg(arg, argType); err != nil {
+			return reflect.Value{}, fmt.Errorf("arg %d: %w", i, err)
 		}
 	}
-	return safeCall(v, argv)
+	return safeCall(fn, argv)
 }
 
 // safeCall runs fun.Call(args), and returns the resulting value and error, if
@@ -307,31 +382,13 @@ func truth(arg reflect.Value) bool {
 // and computes the Boolean AND of its arguments, returning
 // the first false argument it encounters, or the last argument.
 func and(arg0 reflect.Value, args ...reflect.Value) reflect.Value {
-	if !truth(arg0) {
-		return arg0
-	}
-	for i := range args {
-		arg0 = args[i]
-		if !truth(arg0) {
-			break
-		}
-	}
-	return arg0
+	panic("unreachable") // implemented as a special case in evalCall
 }
 
 // or computes the Boolean OR of its arguments, returning
 // the first true argument it encounters, or the last argument.
 func or(arg0 reflect.Value, args ...reflect.Value) reflect.Value {
-	if truth(arg0) {
-		return arg0
-	}
-	for i := range args {
-		arg0 = args[i]
-		if truth(arg0) {
-			break
-		}
-	}
-	return arg0
+	panic("unreachable") // implemented as a special case in evalCall
 }
 
 // not returns the Boolean negation of its argument.
@@ -381,47 +438,55 @@ func basicKind(v reflect.Value) (kind, error) {
 
 // eq evaluates the comparison a == b || a == c || ...
 func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
-	v1 := indirectInterface(arg1)
-	k1, err := basicKind(v1)
-	if err != nil {
-		return false, err
+	arg1 = indirectInterface(arg1)
+	if arg1 != zero {
+		if t1 := arg1.Type(); !t1.Comparable() {
+			return false, fmt.Errorf("uncomparable type %s: %v", t1, arg1)
+		}
 	}
 	if len(arg2) == 0 {
 		return false, errNoComparison
 	}
+	k1, _ := basicKind(arg1)
 	for _, arg := range arg2 {
-		v2 := indirectInterface(arg)
-		k2, err := basicKind(v2)
-		if err != nil {
-			return false, err
-		}
+		arg = indirectInterface(arg)
+		k2, _ := basicKind(arg)
 		truth := false
 		if k1 != k2 {
 			// Special case: Can compare integer values regardless of type's sign.
 			switch {
 			case k1 == intKind && k2 == uintKind:
-				truth = v1.Int() >= 0 && uint64(v1.Int()) == v2.Uint()
+				truth = arg1.Int() >= 0 && uint64(arg1.Int()) == arg.Uint()
 			case k1 == uintKind && k2 == intKind:
-				truth = v2.Int() >= 0 && v1.Uint() == uint64(v2.Int())
+				truth = arg.Int() >= 0 && arg1.Uint() == uint64(arg.Int())
 			default:
-				return false, errBadComparison
+				if arg1 != zero && arg != zero {
+					return false, errBadComparison
+				}
 			}
 		} else {
 			switch k1 {
 			case boolKind:
-				truth = v1.Bool() == v2.Bool()
+				truth = arg1.Bool() == arg.Bool()
 			case complexKind:
-				truth = v1.Complex() == v2.Complex()
+				truth = arg1.Complex() == arg.Complex()
 			case floatKind:
-				truth = v1.Float() == v2.Float()
+				truth = arg1.Float() == arg.Float()
 			case intKind:
-				truth = v1.Int() == v2.Int()
+				truth = arg1.Int() == arg.Int()
 			case stringKind:
-				truth = v1.String() == v2.String()
+				truth = arg1.String() == arg.String()
 			case uintKind:
-				truth = v1.Uint() == v2.Uint()
+				truth = arg1.Uint() == arg.Uint()
 			default:
-				panic("invalid kind")
+				if arg == zero || arg1 == zero {
+					truth = arg1 == arg
+				} else {
+					if t2 := arg.Type(); !t2.Comparable() {
+						return false, fmt.Errorf("uncomparable type %s: %v", t2, arg)
+					}
+					truth = arg1.Interface() == arg.Interface()
+				}
 			}
 		}
 		if truth {
@@ -440,13 +505,13 @@ func ne(arg1, arg2 reflect.Value) (bool, error) {
 
 // lt evaluates the comparison a < b.
 func lt(arg1, arg2 reflect.Value) (bool, error) {
-	v1 := indirectInterface(arg1)
-	k1, err := basicKind(v1)
+	arg1 = indirectInterface(arg1)
+	k1, err := basicKind(arg1)
 	if err != nil {
 		return false, err
 	}
-	v2 := indirectInterface(arg2)
-	k2, err := basicKind(v2)
+	arg2 = indirectInterface(arg2)
+	k2, err := basicKind(arg2)
 	if err != nil {
 		return false, err
 	}
@@ -455,9 +520,9 @@ func lt(arg1, arg2 reflect.Value) (bool, error) {
 		// Special case: Can compare integer values regardless of type's sign.
 		switch {
 		case k1 == intKind && k2 == uintKind:
-			truth = v1.Int() < 0 || uint64(v1.Int()) < v2.Uint()
+			truth = arg1.Int() < 0 || uint64(arg1.Int()) < arg2.Uint()
 		case k1 == uintKind && k2 == intKind:
-			truth = v2.Int() >= 0 && v1.Uint() < uint64(v2.Int())
+			truth = arg2.Int() >= 0 && arg1.Uint() < uint64(arg2.Int())
 		default:
 			return false, errBadComparison
 		}
@@ -466,13 +531,13 @@ func lt(arg1, arg2 reflect.Value) (bool, error) {
 		case boolKind, complexKind:
 			return false, errBadComparisonType
 		case floatKind:
-			truth = v1.Float() < v2.Float()
+			truth = arg1.Float() < arg2.Float()
 		case intKind:
-			truth = v1.Int() < v2.Int()
+			truth = arg1.Int() < arg2.Int()
 		case stringKind:
-			truth = v1.String() < v2.String()
+			truth = arg1.String() < arg2.String()
 		case uintKind:
-			truth = v1.Uint() < v2.Uint()
+			truth = arg1.Uint() < arg2.Uint()
 		default:
 			panic("invalid kind")
 		}
@@ -562,7 +627,7 @@ func HTMLEscapeString(s string) string {
 
 // HTMLEscaper returns the escaped HTML equivalent of the textual
 // representation of its arguments.
-func HTMLEscaper(args ...interface{}) string {
+func HTMLEscaper(args ...any) string {
 	return HTMLEscapeString(evalArgs(args))
 }
 
@@ -575,8 +640,10 @@ var (
 	jsBackslash = []byte(`\\`)
 	jsApos      = []byte(`\'`)
 	jsQuot      = []byte(`\"`)
-	jsLt        = []byte(`\x3C`)
-	jsGt        = []byte(`\x3E`)
+	jsLt        = []byte(`\u003C`)
+	jsGt        = []byte(`\u003E`)
+	jsAmp       = []byte(`\u0026`)
+	jsEq        = []byte(`\u003D`)
 )
 
 // JSEscape writes to w the escaped JavaScript equivalent of the plain text data b.
@@ -605,6 +672,10 @@ func JSEscape(w io.Writer, b []byte) {
 				w.Write(jsLt)
 			case '>':
 				w.Write(jsGt)
+			case '&':
+				w.Write(jsAmp)
+			case '=':
+				w.Write(jsEq)
 			default:
 				w.Write(jsLowUni)
 				t, b := c>>4, c&0x0f
@@ -639,7 +710,7 @@ func JSEscapeString(s string) string {
 
 func jsIsSpecial(r rune) bool {
 	switch r {
-	case '\\', '\'', '"', '<', '>':
+	case '\\', '\'', '"', '<', '>', '&', '=':
 		return true
 	}
 	return r < ' ' || utf8.RuneSelf <= r
@@ -647,13 +718,13 @@ func jsIsSpecial(r rune) bool {
 
 // JSEscaper returns the escaped JavaScript equivalent of the textual
 // representation of its arguments.
-func JSEscaper(args ...interface{}) string {
+func JSEscaper(args ...any) string {
 	return JSEscapeString(evalArgs(args))
 }
 
 // URLQueryEscaper returns the escaped value of the textual representation of
 // its arguments in a form suitable for embedding in a URL query.
-func URLQueryEscaper(args ...interface{}) string {
+func URLQueryEscaper(args ...any) string {
 	return url.QueryEscape(evalArgs(args))
 }
 
@@ -662,7 +733,7 @@ func URLQueryEscaper(args ...interface{}) string {
 // except that each argument is indirected (if a pointer), as required,
 // using the same rules as the default string evaluation during template
 // execution.
-func evalArgs(args []interface{}) string {
+func evalArgs(args []any) string {
 	ok := false
 	var s string
 	// Fast path for simple common case.

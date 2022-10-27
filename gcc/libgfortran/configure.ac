@@ -86,6 +86,8 @@ fi
 
 AC_USE_SYSTEM_EXTENSIONS
 
+GCC_WITH_TOOLEXECLIBDIR
+
 # Calculate toolexeclibdir
 # Also toolexecdir, though it's only used in toolexeclibdir
 case ${version_specific_libs} in
@@ -101,7 +103,14 @@ case ${version_specific_libs} in
        test x"$with_cross_host" != x"no"; then
       # Install a library built with a cross compiler in tooldir, not libdir.
       toolexecdir='$(exec_prefix)/$(target_alias)'
-      toolexeclibdir='$(toolexecdir)/lib'
+      case ${with_toolexeclibdir} in
+	no)
+	  toolexeclibdir='$(toolexecdir)/lib'
+	  ;;
+	*)
+	  toolexeclibdir=${with_toolexeclibdir}
+	  ;;
+      esac
     else
       toolexecdir='$(libdir)/gcc-lib/$(target_alias)'
       toolexeclibdir='$(libdir)'
@@ -136,6 +145,7 @@ AC_SUBST(CFLAGS)
 AM_PROG_CC_C_O
 
 # Add -Wall -fno-repack-arrays -fno-underscoring if we are using GCC.
+have_real_17=no
 if test "x$GCC" = "xyes"; then
   AM_FCFLAGS="-I . -Wall -Werror -fimplicit-none -fno-repack-arrays -fno-underscoring"
   ## We like to use C11 and C99 routines when available.  This makes
@@ -145,7 +155,24 @@ if test "x$GCC" = "xyes"; then
   ## Compile the following tests with the same system header contents
   ## that we'll encounter when compiling our own source files.
   CFLAGS="-std=gnu11 $CFLAGS"
+
+  case x$target in
+    xpowerpc64le*-linux*)
+      AC_PREPROC_IFELSE(
+        [AC_LANG_PROGRAM([[#if __SIZEOF_LONG_DOUBLE__ != 16
+			   #error long double is double
+			   #endif]],
+                         [[(void) 0;]])],
+        [AM_FCFLAGS="$AM_FCFLAGS -mabi=ibmlongdouble -mno-gnu-attribute";
+	 AM_CFLAGS="$AM_CFLAGS -mabi=ibmlongdouble -mno-gnu-attribute";
+	 CFLAGS="$CFLAGS -mabi=ibmlongdouble -mno-gnu-attribute";
+	 have_real_17=yes])
+      ;;
+    *)
+      ;;
+  esac
 fi
+AM_CONDITIONAL([HAVE_REAL_17], [test "x$have_real_17" != xno])
 
 # Add CET specific flags if CET is enabled
 GCC_CET_FLAGS(CET_FLAGS)
@@ -205,8 +232,16 @@ AM_CONDITIONAL(LIBGFOR_USE_SYMVER_SUN, [test "x$gfortran_use_symver" = xsun])
 # * C library support for other features such as signal, environment
 #   variables, time functions
 
-AM_CONDITIONAL(LIBGFOR_MINIMAL, [test "x${target_cpu}" = xnvptx \
-				 || test "x${target_cpu}" = xamdgcn])
+AM_CONDITIONAL(LIBGFOR_MINIMAL, [test "x${target_cpu}" = xnvptx])
+
+# Some compiler target support may have limited support for integer
+# or floating point numbers – or may want to reduce the libgfortran size
+# although they do have the support.
+LIBGOMP_CHECKED_INT_KINDS="1 2 4 8 16"
+LIBGOMP_CHECKED_REAL_KINDS="4 8 10 16"
+
+AC_SUBST(LIBGOMP_CHECKED_INT_KINDS)
+AC_SUBST(LIBGOMP_CHECKED_REAL_KINDS)
 
 # Figure out whether the compiler supports "-ffunction-sections -fdata-sections",
 # similarly to how libstdc++ does it
@@ -243,6 +278,7 @@ AC_PROG_INSTALL
 #AC_MSG_NOTICE([====== Starting libtool configuration])
 AC_LIBTOOL_DLOPEN
 AM_PROG_LIBTOOL
+LT_LIB_M
 ACX_LT_HOST_FLAGS
 AC_SUBST(enable_shared)
 AC_SUBST(enable_static)
@@ -314,8 +350,8 @@ if test "${hardwire_newlib:-0}" -eq 1; then
 else
    AC_CHECK_FUNCS_ONCE(getrusage times mkstemp strtof strtold snprintf \
    ftruncate chsize chdir getentropy getlogin gethostname kill link symlink \
-   sleep ttyname \
-   alarm access fork setmode fcntl writev \
+   sleep ttyname sigaction waitpid \
+   alarm access fork posix_spawn setmode fcntl writev \
    gettimeofday stat fstat lstat getpwuid vsnprintf dup \
    getcwd localtime_r gmtime_r getpwuid_r ttyname_r clock_gettime \
    getgid getpid getuid geteuid umask getegid \
@@ -384,6 +420,9 @@ GCC_CHECK_MATH_FUNC([cabsl])
 GCC_CHECK_MATH_FUNC([floorf])
 GCC_CHECK_MATH_FUNC([floor])
 GCC_CHECK_MATH_FUNC([floorl])
+GCC_CHECK_MATH_FUNC([fmaf])
+GCC_CHECK_MATH_FUNC([fma])
+GCC_CHECK_MATH_FUNC([fmal])
 GCC_CHECK_MATH_FUNC([fmodf])
 GCC_CHECK_MATH_FUNC([fmod])
 GCC_CHECK_MATH_FUNC([fmodl])
@@ -505,8 +544,43 @@ GCC_CHECK_MATH_FUNC([catanhf])
 GCC_CHECK_MATH_FUNC([catanhl])
 GCC_CHECK_MATH_FUNC([catanl])
 
+# For POWER, check the ieee128 math functions
+
+if test "x$have_real_17" = "xyes"; then
+AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_REAL_17),[1],
+  [Define to 1 if you have REAL(KIND=17)])
+
+LIBGFOR_CHECK_MATH_IEEE128([__acoshieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__acosieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__asinhieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__asinieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__atan2ieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__atanhieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__atanieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__coshieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__cosieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__erfieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__expieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__fabsieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__jnieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__log10ieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__logieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__powieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__sinhieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__sinieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__sqrtieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__tanhieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__tanieee128])
+LIBGFOR_CHECK_MATH_IEEE128([__ynieee128])
+fi
+
 # On AIX, clog is present in libm as __clog
 AC_CHECK_LIB([m],[__clog],[AC_DEFINE([HAVE_CLOG],[1],[libm includes clog])])
+
+GCC_CHECK_MATH_INLINE_BUILTIN_FALLBACK2([copysign], [double])
+GCC_CHECK_MATH_INLINE_BUILTIN_FALLBACK2([copysignl], [long double])
+GCC_CHECK_MATH_INLINE_BUILTIN_FALLBACK1([fabs], [double])
+GCC_CHECK_MATH_INLINE_BUILTIN_FALLBACK1([fabsl], [long double])
 
 # Check whether the system has a working stat()
 LIBGFOR_CHECK_WORKING_STAT
@@ -585,6 +659,18 @@ AC_SUBST(IEEE_SUPPORT)
 IEEE_FLAGS="${ieee_flags}"
 AC_SUBST(IEEE_FLAGS)
 
+# Conditionalize the makefile for this target machine.
+tmake_file_=
+for f in ${tmake_file}
+do
+	if test -f ${srcdir}/config/$f
+	then
+		tmake_file_="${tmake_file_} \$(srcdir)/config/$f"
+	fi
+done
+tmake_file="${tmake_file_}"
+AC_SUBST(tmake_file)
+
 
 # Check for POSIX getpwuid_r 
 #
@@ -627,10 +713,10 @@ LIBGFOR_CHECK_CRLF
 # Check whether we support AVX extensions
 LIBGFOR_CHECK_AVX
 
-# Check wether we support AVX2 extensions
+# Check whether we support AVX2 extensions
 LIBGFOR_CHECK_AVX2
 
-# Check wether we support AVX512f extensions
+# Check whether we support AVX512f extensions
 LIBGFOR_CHECK_AVX512F
 
 # Check for FMA3 extensions

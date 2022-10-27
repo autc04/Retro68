@@ -1,6 +1,6 @@
 // ratio -*- C++ -*-
 
-// Copyright (C) 2008-2019 Free Software Foundation, Inc.
+// Copyright (C) 2008-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -24,6 +24,7 @@
 
 /** @file include/ratio
  *  This is a Standard C++ Library header.
+ *  @ingroup ratio
  */
 
 #ifndef _GLIBCXX_RATIO
@@ -49,6 +50,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    * Compile time representation of finite rational numbers.
    * @{
    */
+
+  /// @cond undocumented
 
   template<intmax_t _Pn>
     struct __static_sign
@@ -243,6 +246,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static_assert(__rem < __d, "Internal library error");
     };
 
+  /// @endcond
+
   /**
    *  @brief Provides compile-time rational arithmetic.
    *
@@ -274,11 +279,15 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef ratio<num, den> type;
     };
 
+#if ! __cpp_inline_variables
   template<intmax_t _Num, intmax_t _Den>
     constexpr intmax_t ratio<_Num, _Den>::num;
 
   template<intmax_t _Num, intmax_t _Den>
     constexpr intmax_t ratio<_Num, _Den>::den;
+#endif
+
+  /// @cond undocumented
 
   template<typename _R1, typename _R2>
     struct __ratio_multiply
@@ -300,15 +309,21 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static constexpr intmax_t den = type::den;
     };
 
+#if ! __cpp_inline_variables
   template<typename _R1, typename _R2>
     constexpr intmax_t __ratio_multiply<_R1, _R2>::num;
 
   template<typename _R1, typename _R2>
     constexpr intmax_t __ratio_multiply<_R1, _R2>::den;
+#endif
+
+  /// @endcond
 
   /// ratio_multiply
   template<typename _R1, typename _R2>
     using ratio_multiply = typename __ratio_multiply<_R1, _R2>::type;
+
+  /// @cond undocumented
 
   template<typename _R1, typename _R2>
     struct __ratio_divide
@@ -323,11 +338,15 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static constexpr intmax_t den = type::den;
     };
 
+#if ! __cpp_inline_variables
   template<typename _R1, typename _R2>
     constexpr intmax_t __ratio_divide<_R1, _R2>::num;
 
   template<typename _R1, typename _R2>
     constexpr intmax_t __ratio_divide<_R1, _R2>::den;
+#endif
+
+  /// @endcond
 
   /// ratio_divide
   template<typename _R1, typename _R2>
@@ -344,6 +363,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     struct ratio_not_equal
     : integral_constant<bool, !ratio_equal<_R1, _R2>::value>
     { };
+
+  /// @cond undocumented
 
   // Both numbers are positive.
   template<typename _R1, typename _R2,
@@ -374,6 +395,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     : __ratio_less_impl_1<ratio<-_R2::num, _R2::den>,
            ratio<-_R1::num, _R1::den> >::type
     { };
+
+  /// @endcond
 
   /// ratio_less
   template<typename _R1, typename _R2>
@@ -415,6 +438,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     inline constexpr bool ratio_greater_equal_v
     = ratio_greater_equal<_R1, _R2>::value;
 #endif // C++17
+
+  /// @cond undocumented
 
   template<typename _R1, typename _R2,
       bool = (_R1::num >= 0),
@@ -493,15 +518,21 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static constexpr intmax_t den = type::den;
     };
 
+#if ! __cpp_inline_variables
   template<typename _R1, typename _R2>
     constexpr intmax_t __ratio_add<_R1, _R2>::num;
 
   template<typename _R1, typename _R2>
     constexpr intmax_t __ratio_add<_R1, _R2>::den;
+#endif
+
+  /// @endcond
 
   /// ratio_add
   template<typename _R1, typename _R2>
     using ratio_add = typename __ratio_add<_R1, _R2>::type;
+
+  /// @cond undocumented
 
   template<typename _R1, typename _R2>
     struct __ratio_subtract
@@ -514,11 +545,15 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       static constexpr intmax_t den = type::den;
     };
 
+#if ! __cpp_inline_variables
   template<typename _R1, typename _R2>
     constexpr intmax_t __ratio_subtract<_R1, _R2>::num;
 
   template<typename _R1, typename _R2>
     constexpr intmax_t __ratio_subtract<_R1, _R2>::den;
+#endif
+
+  /// @endcond
 
   /// ratio_subtract
   template<typename _R1, typename _R2>
@@ -542,7 +577,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   typedef ratio<         1000000000000000, 1> peta;
   typedef ratio<      1000000000000000000, 1> exa;
 
-  // @} group ratio
+  /// @} group ratio
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
 

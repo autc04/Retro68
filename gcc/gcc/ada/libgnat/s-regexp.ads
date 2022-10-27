@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---                     Copyright (C) 1998-2019, AdaCore                     --
+--                     Copyright (C) 1998-2022, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -77,14 +77,16 @@ package System.Regexp is
    --  See also regexp(1) man page on Unix systems for further details
 
    --  A second kind of regular expressions is provided. This one is more
-   --  like the wild card patterns used in file names by the Unix shell (or
+   --  like the wildcard patterns used in file names by the Unix shell (or
    --  DOS prompt) command lines. The grammar is the following:
 
    --     regexp ::= term
 
    --     term   ::= elmt
-   --     term   ::= elmt elmt ...     -- concatenation (elmt then elmt)
-   --     term   ::= {elmt, elmt, ...} -- alternation (matches any of elmt)
+   --     term   ::= seq
+   --     term   ::= {seq, seq, ...}   -- alternation (matches any of seq)
+
+   --     seq    ::= elmt elmt ...     -- concatenation (sequence of elmts)
 
    --     elmt   ::= *                 -- any string of 0 or more characters
    --     elmt   ::= ?                 -- matches any character

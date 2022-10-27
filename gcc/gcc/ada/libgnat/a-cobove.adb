@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,6 +30,7 @@
 with Ada.Containers.Generic_Array_Sort;
 
 with System; use type System.Address;
+with System.Put_Images;
 
 package body Ada.Containers.Bounded_Vectors is
 
@@ -257,7 +258,7 @@ package body Ada.Containers.Bounded_Vectors is
       end if;
 
       return Vector'(Capacity => 2,
-                     Elements => (Left, Right),
+                     Elements => [Left, Right],
                      Last     => Index_Type'First + 1,
                      others   => <>);
    end "&";
@@ -320,23 +321,10 @@ package body Ada.Containers.Bounded_Vectors is
    -- Append --
    ------------
 
-   procedure Append (Container : in out Vector; New_Item : Vector) is
-   begin
-      if New_Item.Is_Empty then
-         return;
-      end if;
-
-      if Checks and then Container.Last >= Index_Type'Last then
-         raise Constraint_Error with "vector is already at its maximum length";
-      end if;
-
-      Container.Insert (Container.Last + 1, New_Item);
-   end Append;
-
    procedure Append
      (Container : in out Vector;
       New_Item  : Element_Type;
-      Count     : Count_Type := 1)
+      Count     : Count_Type)
    is
    begin
       if Count = 0 then
@@ -348,6 +336,34 @@ package body Ada.Containers.Bounded_Vectors is
       end if;
 
       Container.Insert (Container.Last + 1, New_Item, Count);
+   end Append;
+
+   -------------------
+   -- Append_Vector --
+   -------------------
+
+   procedure Append_Vector (Container : in out Vector; New_Item : Vector) is
+   begin
+      if New_Item.Is_Empty then
+         return;
+      end if;
+
+      if Checks and then Container.Last >= Index_Type'Last then
+         raise Constraint_Error with "vector is already at its maximum length";
+      end if;
+
+      Container.Insert_Vector (Container.Last + 1, New_Item);
+   end Append_Vector;
+
+   ------------
+   -- Append --
+   ------------
+
+   procedure Append (Container : in out Vector;
+                     New_Item  :        Element_Type)
+   is
+   begin
+      Insert (Container, Last_Index (Container) + 1, New_Item, 1);
    end Append;
 
    --------------
@@ -399,10 +415,10 @@ package body Ada.Containers.Bounded_Vectors is
            Container.TC'Unrestricted_Access;
       begin
          return R : constant Constant_Reference_Type :=
-           (Element => A (J)'Access,
+           (Element => A (J)'Unchecked_Access,
             Control => (Controlled with TC))
          do
-            Lock (TC.all);
+            Busy (TC.all);
          end return;
       end;
    end Constant_Reference;
@@ -423,10 +439,10 @@ package body Ada.Containers.Bounded_Vectors is
            Container.TC'Unrestricted_Access;
       begin
          return R : constant Constant_Reference_Type :=
-           (Element => A (J)'Access,
+           (Element => A (J)'Unchecked_Access,
             Control => (Controlled with TC))
          do
-            Lock (TC.all);
+            Busy (TC.all);
          end return;
       end;
    end Constant_Reference;
@@ -451,18 +467,12 @@ package body Ada.Containers.Bounded_Vectors is
      (Source   : Vector;
       Capacity : Count_Type := 0) return Vector
    is
-      C : Count_Type;
-
+      C : constant Count_Type :=
+        (if Capacity = 0 then Source.Length
+         else Capacity);
    begin
-      if Capacity = 0 then
-         C := Source.Length;
-
-      elsif Capacity >= Source.Length then
-         C := Capacity;
-
-      elsif Checks then
-         raise Capacity_Error
-           with "Requested capacity is less than Source length";
+      if Checks and then C < Source.Length then
+         raise Capacity_Error with "Capacity too small";
       end if;
 
       return Target : Vector (C) do
@@ -489,6 +499,8 @@ package body Ada.Containers.Bounded_Vectors is
       Off      : Count_Type'Base;  -- Index expressed as offset from IT'First
 
    begin
+      TC_Check (Container.TC);
+
       --  Delete removes items from the vector, the number of which is the
       --  minimum of the specified Count and the items (if any) that exist from
       --  Index to Container.Last. There are no constraints on the specified
@@ -537,8 +549,6 @@ package body Ada.Containers.Bounded_Vectors is
       --  Update, and Iterate increment the busy count on entry, and decrement
       --  the count on exit. Delete checks the count to determine whether it is
       --  being called while the associated callback procedure is executing.
-
-      TC_Check (Container.TC);
 
       --  We first calculate what's available for deletion starting at
       --  Index. Here and elsewhere we use the wider of Index_Type'Base and
@@ -642,15 +652,6 @@ package body Ada.Containers.Bounded_Vectors is
       Count     : Count_Type := 1)
    is
    begin
-      --  It is not permitted to delete items while the container is busy (for
-      --  example, we're in the middle of a passive iteration). However, we
-      --  always treat deleting 0 items as a no-op, even when we're busy, so we
-      --  simply return without checking.
-
-      if Count = 0 then
-         return;
-      end if;
-
       --  The tampering bits exist to prevent an item from being deleted (or
       --  otherwise harmfully manipulated) while it is being visited. Query,
       --  Update, and Iterate increment the busy count on entry, and decrement
@@ -659,6 +660,10 @@ package body Ada.Containers.Bounded_Vectors is
       --  executing.
 
       TC_Check (Container.TC);
+
+      if Count = 0 then
+         return;
+      end if;
 
       --  There is no restriction on how large Count can be when deleting
       --  items. If it is equal or greater than the current length, then this
@@ -706,6 +711,17 @@ package body Ada.Containers.Bounded_Vectors is
          return Position.Container.Element (Position.Index);
       end if;
    end Element;
+
+   -----------
+   -- Empty --
+   -----------
+
+   function Empty (Capacity : Count_Type := 10) return Vector is
+   begin
+      return Result : Vector (Capacity) do
+         Reserve_Capacity (Result, Capacity);
+      end return;
+   end Empty;
 
    --------------
    -- Finalize --
@@ -835,6 +851,16 @@ package body Ada.Containers.Bounded_Vectors is
       return Index_Type'First;
    end First_Index;
 
+   -----------------
+   -- New_Vector --
+   -----------------
+
+   function New_Vector (First, Last : Index_Type) return Vector
+   is
+   begin
+      return (To_Vector (Count_Type (Last - First + 1)));
+   end New_Vector;
+
    ---------------------
    -- Generic_Sorting --
    ---------------------
@@ -888,6 +914,8 @@ package body Ada.Containers.Bounded_Vectors is
             return;
          end if;
 
+         TC_Check (Source.TC);
+
          if Checks and then Target'Address = Source'Address then
             raise Program_Error with
               "Target and Source denote same non-empty container";
@@ -897,8 +925,6 @@ package body Ada.Containers.Bounded_Vectors is
             Move (Target => Target, Source => Source);
             return;
          end if;
-
-         TC_Check (Source.TC);
 
          I := Target.Length;
          Target.Set_Length (I + Source.Length);
@@ -1027,6 +1053,14 @@ package body Ada.Containers.Bounded_Vectors is
       J     : Count_Type'Base;  -- scratch
 
    begin
+      --  The tampering bits exist to prevent an item from being harmfully
+      --  manipulated while it is being visited. Query, Update, and Iterate
+      --  increment the busy count on entry, and decrement the count on
+      --  exit. Insert checks the count to determine whether it is being called
+      --  while the associated callback procedure is executing.
+
+      TC_Check (Container.TC);
+
       --  As a precondition on the generic actual Index_Type, the base type
       --  must include Index_Type'Pred (Index_Type'First); this is the value
       --  that Container.Last assumes when the vector is empty. However, we do
@@ -1182,14 +1216,6 @@ package body Ada.Containers.Bounded_Vectors is
          raise Constraint_Error with "Count is out of range";
       end if;
 
-      --  The tampering bits exist to prevent an item from being harmfully
-      --  manipulated while it is being visited. Query, Update, and Iterate
-      --  increment the busy count on entry, and decrement the count on
-      --  exit. Insert checks the count to determine whether it is being called
-      --  while the associated callback procedure is executing.
-
-      TC_Check (Container.TC);
-
       if Checks and then New_Length > Container.Capacity then
          raise Capacity_Error with "New length is larger than capacity";
       end if;
@@ -1201,7 +1227,7 @@ package body Ada.Containers.Bounded_Vectors is
          --  The new items are being appended to the vector, so no
          --  sliding of existing elements is required.
 
-         EA (J .. New_Length) := (others => New_Item);
+         EA (J .. New_Length) := [others => New_Item];
 
       else
          --  The new items are being inserted before some existing
@@ -1209,7 +1235,7 @@ package body Ada.Containers.Bounded_Vectors is
          --  new home.
 
          EA (J + Count .. New_Length) := EA (J .. Old_Length);
-         EA (J .. J + Count - 1) := (others => New_Item);
+         EA (J .. J + Count - 1) := [others => New_Item];
       end if;
 
       if Index_Type'Base'Last >= Count_Type'Pos (Count_Type'Last) then
@@ -1221,7 +1247,7 @@ package body Ada.Containers.Bounded_Vectors is
       end if;
    end Insert;
 
-   procedure Insert
+   procedure Insert_Vector
      (Container : in out Vector;
       Before    : Extended_Index;
       New_Item  : Vector)
@@ -1287,9 +1313,9 @@ package body Ada.Containers.Bounded_Vectors is
 
          Container.Elements (B + N - Src'Length .. B + N - 1) := Src;
       end;
-   end Insert;
+   end Insert_Vector;
 
-   procedure Insert
+   procedure Insert_Vector
      (Container : in out Vector;
       Before    : Cursor;
       New_Item  : Vector)
@@ -1321,10 +1347,10 @@ package body Ada.Containers.Bounded_Vectors is
          Index := Before.Index;
       end if;
 
-      Insert (Container, Index, New_Item);
-   end Insert;
+      Insert_Vector (Container, Index, New_Item);
+   end Insert_Vector;
 
-   procedure Insert
+   procedure Insert_Vector
      (Container : in out Vector;
       Before    : Cursor;
       New_Item  : Vector;
@@ -1365,10 +1391,10 @@ package body Ada.Containers.Bounded_Vectors is
          Index := Before.Index;
       end if;
 
-      Insert (Container, Index, New_Item);
+      Insert_Vector (Container, Index, New_Item);
 
       Position := Cursor'(Container'Unchecked_Access, Index);
-   end Insert;
+   end Insert_Vector;
 
    procedure Insert
      (Container : in out Vector;
@@ -1497,6 +1523,14 @@ package body Ada.Containers.Bounded_Vectors is
       J     : Count_Type'Base;  -- scratch
 
    begin
+      --  The tampering bits exist to prevent an item from being harmfully
+      --  manipulated while it is being visited. Query, Update, and Iterate
+      --  increment the busy count on entry, and decrement the count on
+      --  exit. Insert checks the count to determine whether it is being called
+      --  while the associated callback procedure is executing.
+
+      TC_Check (Container.TC);
+
       --  As a precondition on the generic actual Index_Type, the base type
       --  must include Index_Type'Pred (Index_Type'First); this is the value
       --  that Container.Last assumes when the vector is empty. However, we do
@@ -1651,14 +1685,6 @@ package body Ada.Containers.Bounded_Vectors is
       if Checks and then New_Length > Max_Length then
          raise Constraint_Error with "Count is out of range";
       end if;
-
-      --  The tampering bits exist to prevent an item from being harmfully
-      --  manipulated while it is being visited. Query, Update, and Iterate
-      --  increment the busy count on entry, and decrement the count on
-      --  exit. Insert checks the count to determine whether it is being called
-      --  while the associated callback procedure is executing.
-
-      TC_Check (Container.TC);
 
       --  An internal array has already been allocated, so we need to check
       --  whether there is enough unused storage for the new items.
@@ -1943,13 +1969,13 @@ package body Ada.Containers.Bounded_Vectors is
          return;
       end if;
 
+      TC_Check (Target.TC);
+      TC_Check (Source.TC);
+
       if Checks and then Target.Capacity < Source.Length then
          raise Capacity_Error  -- ???
            with "Target capacity is less than Source length";
       end if;
-
-      TC_Check (Target.TC);
-      TC_Check (Source.TC);
 
       --  Clear Target now, in case element assignment fails
 
@@ -2006,22 +2032,23 @@ package body Ada.Containers.Bounded_Vectors is
    -- Prepend --
    -------------
 
-   procedure Prepend (Container : in out Vector; New_Item : Vector) is
-   begin
-      Insert (Container, Index_Type'First, New_Item);
-   end Prepend;
-
    procedure Prepend
      (Container : in out Vector;
       New_Item  : Element_Type;
       Count     : Count_Type := 1)
    is
    begin
-      Insert (Container,
-              Index_Type'First,
-              New_Item,
-              Count);
+      Insert (Container, Index_Type'First, New_Item, Count);
    end Prepend;
+
+   --------------------
+   -- Prepend_Vector --
+   --------------------
+
+   procedure Prepend_Vector (Container : in out Vector; New_Item : Vector) is
+   begin
+      Insert_Vector (Container, Index_Type'First, New_Item);
+   end Prepend_Vector;
 
    --------------
    -- Previous --
@@ -2073,7 +2100,7 @@ package body Ada.Containers.Bounded_Vectors is
       TC : constant Tamper_Counts_Access := Container.TC'Unrestricted_Access;
    begin
       return R : constant Reference_Control_Type := (Controlled with TC) do
-         Lock (TC.all);
+         Busy (TC.all);
       end return;
    end Pseudo_Reference;
 
@@ -2107,6 +2134,31 @@ package body Ada.Containers.Bounded_Vectors is
 
       Query_Element (Position.Container.all, Position.Index, Process);
    end Query_Element;
+
+   ---------------
+   -- Put_Image --
+   ---------------
+
+   procedure Put_Image
+     (S : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class; V : Vector)
+   is
+      First_Time : Boolean := True;
+      use System.Put_Images;
+   begin
+      Array_Before (S);
+
+      for X of V loop
+         if First_Time then
+            First_Time := False;
+         else
+            Simple_Array_Between (S);
+         end if;
+
+         Element_Type'Put_Image (S, X);
+      end loop;
+
+      Array_After (S);
+   end Put_Image;
 
    ----------
    -- Read --
@@ -2186,10 +2238,10 @@ package body Ada.Containers.Bounded_Vectors is
            Container.TC'Unrestricted_Access;
       begin
          return R : constant Reference_Type :=
-           (Element => A (J)'Access,
+           (Element => A (J)'Unchecked_Access,
             Control => (Controlled with TC))
          do
-            Lock (TC.all);
+            Busy (TC.all);
          end return;
       end;
    end Reference;
@@ -2210,10 +2262,10 @@ package body Ada.Containers.Bounded_Vectors is
            Container.TC'Unrestricted_Access;
       begin
          return R : constant Reference_Type :=
-           (Element => A (J)'Access,
+           (Element => A (J)'Unchecked_Access,
             Control => (Controlled with TC))
          do
-            Lock (TC.all);
+            Busy (TC.all);
          end return;
       end;
    end Reference;
@@ -2228,11 +2280,11 @@ package body Ada.Containers.Bounded_Vectors is
       New_Item  : Element_Type)
    is
    begin
+      TE_Check (Container.TC);
+
       if Checks and then Index > Container.Last then
          raise Constraint_Error with "Index is out of range";
       end if;
-
-      TE_Check (Container.TC);
 
       Container.Elements (To_Array_Index (Index)) := New_Item;
    end Replace_Element;
@@ -2243,6 +2295,8 @@ package body Ada.Containers.Bounded_Vectors is
       New_Item  : Element_Type)
    is
    begin
+      TE_Check (Container.TC);
+
       if Checks and then Position.Container = null then
          raise Constraint_Error with "Position cursor has no element";
       end if;
@@ -2255,8 +2309,6 @@ package body Ada.Containers.Bounded_Vectors is
       if Checks and then Position.Index > Container.Last then
          raise Constraint_Error with "Position cursor is out of range";
       end if;
-
-      TE_Check (Container.TC);
 
       Container.Elements (To_Array_Index (Position.Index)) := New_Item;
    end Replace_Element;
@@ -2431,6 +2483,8 @@ package body Ada.Containers.Bounded_Vectors is
       E : Elements_Array renames Container.Elements;
 
    begin
+      TE_Check (Container.TC);
+
       if Checks and then I > Container.Last then
          raise Constraint_Error with "I index is out of range";
       end if;
@@ -2442,8 +2496,6 @@ package body Ada.Containers.Bounded_Vectors is
       if I = J then
          return;
       end if;
-
-      TE_Check (Container.TC);
 
       declare
          EI_Copy : constant Element_Type := E (To_Array_Index (I));
@@ -2718,7 +2770,7 @@ package body Ada.Containers.Bounded_Vectors is
       end if;
 
       return V : Vector (Capacity => Length) do
-         V.Elements := (others => New_Item);
+         V.Elements := [others => New_Item];
          V.Last := Last;
       end return;
    end To_Vector;

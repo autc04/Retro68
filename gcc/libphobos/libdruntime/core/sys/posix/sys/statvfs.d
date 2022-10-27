@@ -8,14 +8,15 @@
                       The Open Group Base Specifications Issue 7 IEEE Std 1003.1, 2018 Edition)
  +/
 module core.sys.posix.sys.statvfs;
-private import core.stdc.config;
-private import core.sys.posix.config;
+import core.stdc.config;
+import core.sys.posix.config;
 public import core.sys.posix.sys.types;
 
 version (Posix):
 extern (C) :
 nothrow:
 @nogc:
+@system:
 
 version (CRuntime_Glibc) {
     static if (__WORDSIZE == 32)
@@ -43,7 +44,7 @@ version (CRuntime_Glibc) {
     }
     /* Definitions for the flag in `f_flag'.  These definitions should be
       kept in sync with the definitions in <sys/mount.h>.  */
-    static if (__USE_GNU)
+    static if (_GNU_SOURCE)
     {
         enum FFlag
         {
@@ -133,91 +134,31 @@ else version (NetBSD)
     int statvfs (const char * file, statvfs_t* buf);
     int fstatvfs (int fildes, statvfs_t *buf) @trusted;
 }
-else version (FreeBSD)
+else version (OpenBSD)
 {
-    import core.sys.freebsd.sys.mount;
-
-    // @@@DEPRECATED_2.091@@@
-    deprecated("Moved to core.sys.freebsd.sys.mount to correspond to C header file sys/mount.h")
-    alias MFSNAMELEN = core.sys.freebsd.sys.mount.MFSNAMELEN;
-
-    // @@@DEPRECATED_2.091@@@
-    deprecated("Moved to core.sys.freebsd.sys.mount to correspond to C header file sys/mount.h")
-    alias MNAMELEN = core.sys.freebsd.sys.mount.MNAMELEN;
-
-    // @@@DEPRECATED_2.091@@@
-    deprecated("Moved to core.sys.freebsd.sys.mount to correspond to C header file sys/mount.h")
-    alias fsid_t = core.sys.freebsd.sys.mount.fsid_t;
-
-    // @@@DEPRECATED_2.091@@@
-    deprecated("Moved to core.sys.freebsd.sys.mount to correspond to C header file sys/mount.h")
-    alias statfs_t = core.sys.freebsd.sys.mount.statfs_t;
-
-    // @@@DEPRECATED_2.091@@@
-    deprecated("Values moved to core.sys.freebsd.sys.mount to correspond to C header file sys/mount.h")
-    enum FFlag
+    struct statvfs_t
     {
-        // @@@DEPRECATED_2.091@@@
-        MNT_RDONLY = 1,          /* read only filesystem */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_SYNCHRONOUS = 2,     /* fs written synchronously */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_NOEXEC = 4,          /* can't exec from filesystem */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_NOSUID  = 8,         /* don't honor setuid fs bits */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_NFS4ACLS = 16,       /* enable NFS version 4 ACLs */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_UNION = 32,          /* union with underlying fs */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_ASYNC = 64,          /* fs written asynchronously */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_SUIDDIR = 128,       /* special SUID dir handling */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_SOFTDEP = 256,       /* using soft updates */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_NOSYMFOLLOW = 512,   /* do not follow symlinks */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_GJOURNAL = 1024,     /* GEOM journal support enabled */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_MULTILABEL = 2048,   /* MAC support for objects */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_ACLS = 4096,         /* ACL support enabled */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_NOATIME = 8192,      /* dont update file access time */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_NOCLUSTERR = 16384,  /* disable cluster read */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_NOCLUSTERW = 32768,  /* disable cluster write */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_SUJ = 65536,         /* using journaled soft updates */
-
-        // @@@DEPRECATED_2.091@@@
-        MNT_AUTOMOUNTED = 131072 /* mounted by automountd(8) */
+        c_ulong    f_bsize;
+        c_ulong    f_frsize;
+        fsblkcnt_t f_blocks;
+        fsblkcnt_t f_bfree;
+        fsblkcnt_t f_bavail;
+        fsfilcnt_t f_files;
+        fsfilcnt_t f_ffree;
+        fsfilcnt_t f_favail;
+        c_ulong    f_fsid;
+        c_ulong    f_flag;
+        c_ulong    f_namemax;
     }
 
-    deprecated("Moved to core.sys.freebsd.sys.mount to correspond to C header file sys/mount.h")
-    alias statfs = core.sys.freebsd.sys.mount.statfs;
+    enum uint ST_RDONLY = 1;
+    enum uint ST_NOSUID = 2;
 
-    deprecated("Moved to core.sys.freebsd.sys.mount to correspond to C header file sys/mount.h")
-    alias fstatfs = core.sys.freebsd.sys.mount.fstatfs;
-
+    int statvfs (const char* file, statvfs_t* buf);
+    int fstatvfs (int fildes, statvfs_t* buf) @trusted;
+}
+else version (FreeBSD)
+{
     struct statvfs_t
     {
         fsblkcnt_t f_bavail;
@@ -236,8 +177,16 @@ else version (FreeBSD)
     enum uint ST_RDONLY = 0x1;
     enum uint ST_NOSUID = 0x2;
 
-    int fstatvfs(int, statvfs_t*);
-    int statvfs(const char*, statvfs_t*);
+    version (GNU)
+    {
+        int fstatvfs(int, statvfs_t*);
+        int statvfs(const char*, statvfs_t*);
+    }
+    else
+    {
+        pragma(mangle, "fstatvfs@FBSD_1.0") int fstatvfs(int, statvfs_t*);
+        pragma(mangle, "statvfs@FBSD_1.0")  int statvfs(const char*, statvfs_t*);
+    }
 }
 else
 {

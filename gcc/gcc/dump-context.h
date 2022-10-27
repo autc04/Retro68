@@ -1,5 +1,5 @@
 /* Support code for handling the various dump_* calls in dumpfile.h
-   Copyright (C) 2018-2019 Free Software Foundation, Inc.
+   Copyright (C) 2018-2022 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -29,6 +29,7 @@ along with GCC; see the file COPYING3.  If not see
 
 class optrecord_json_writer;
 namespace selftest { class temp_dump_context; }
+class debug_dump_context;
 
 /* A class for handling the various dump_* calls.
 
@@ -42,6 +43,7 @@ namespace selftest { class temp_dump_context; }
 class dump_context
 {
   friend class selftest::temp_dump_context;
+  friend class debug_dump_context;
 
  public:
   static dump_context &get () { return *s_current; }
@@ -166,8 +168,9 @@ public:
 private:
   /* Information on an optinfo_item that was generated during phase 2 of
      formatting.  */
-  struct stashed_item
+  class stashed_item
   {
+  public:
     stashed_item (const char **buffer_ptr_, optinfo_item *item_)
       : buffer_ptr (buffer_ptr_), item (item_) {}
     const char **buffer_ptr;
@@ -193,6 +196,25 @@ private:
   dump_flags_t m_dump_kind;
   auto_vec<stashed_item> m_stashed_items;
 };
+
+/* An RAII-style class for use in debug dumpers for temporarily using a
+   different dump_context.  It enables full details and outputs to
+   stderr instead of the currently active dump_file.  */
+
+class debug_dump_context
+{
+ public:
+  debug_dump_context (FILE *f = stderr);
+  ~debug_dump_context ();
+
+ private:
+  dump_context m_context;
+  dump_context *m_saved;
+  dump_flags_t m_saved_flags;
+  dump_flags_t m_saved_pflags;
+  FILE *m_saved_file;
+};
+
 
 #if CHECKING_P
 

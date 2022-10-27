@@ -1,5 +1,5 @@
 ;;- Machine description for the pdp11 for GNU C compiler
-;; Copyright (C) 1994-2019 Free Software Foundation, Inc.
+;; Copyright (C) 1994-2022 Free Software Foundation, Inc.
 ;; Contributed by Michael K. Gschwind (mike@vlsivie.tuwien.ac.at).
 
 ;; This file is part of GCC.
@@ -26,7 +26,7 @@
     UNSPECV_BLOCKAGE
     UNSPECV_SETD
     UNSPECV_SETI
-    UNSPECV_MOVMEM
+    UNSPECV_CPYMEM
   ])
 
 (define_constants
@@ -82,6 +82,8 @@
 
 (define_code_iterator SHF [ashift ashiftrt lshiftrt])
 
+(define_mode_iterator PDPfp [SF DF])
+
 ;; Substitution to turn a CC clobber into a CC setter.  We have four of
 ;; these: for CCmode vs. CCNZmode, and for CC_REGNUM vs. FCC_REGNUM.
 (define_subst "cc_cc"
@@ -101,19 +103,19 @@
    (set (match_dup 0) (match_dup 1))])
 
 (define_subst "fcc_cc"
-  [(set (match_operand 0 "") (match_operand 1 ""))
+  [(set (match_operand:PDPfp 0 "") (match_operand:PDPfp 1 ""))
    (clobber (reg FCC_REGNUM))]
   ""
   [(set (reg:CC FCC_REGNUM)
-	(compare:CC (match_dup 1) (const_int 0)))
+	(compare:CC (match_dup 1) (const_double_zero:PDPfp)))
    (set (match_dup 0) (match_dup 1))])
 
 (define_subst "fcc_ccnz"
-  [(set (match_operand 0 "") (match_operand 1 ""))
+  [(set (match_operand:PDPfp 0 "") (match_operand:PDPfp 1 ""))
    (clobber (reg FCC_REGNUM))]
   ""
   [(set (reg:CCNZ FCC_REGNUM)
-	(compare:CCNZ (match_dup 1) (const_int 0)))
+	(compare:CCNZ (match_dup 1) (const_double_zero:PDPfp)))
    (set (match_dup 0) (match_dup 1))])
 
 (define_subst_attr "cc_cc" "cc_cc" "_nocc" "_cc")
@@ -664,8 +666,8 @@
   [(set_attr "length" "2,2,4,4,2")])
 
 ;; Expand a block move.  We turn this into a move loop.
-(define_expand "movmemhi"
-  [(parallel [(unspec_volatile [(const_int 0)] UNSPECV_MOVMEM)
+(define_expand "cpymemhi"
+  [(parallel [(unspec_volatile [(const_int 0)] UNSPECV_CPYMEM)
 	      (match_operand:BLK 0 "general_operand" "=g")
 	      (match_operand:BLK 1 "general_operand" "g")
 	      (match_operand:HI 2 "immediate_operand" "i")
@@ -694,8 +696,8 @@
 }")
 
 ;; Expand a block move.  We turn this into a move loop.
-(define_insn_and_split "movmemhi1"
-  [(unspec_volatile [(const_int 0)] UNSPECV_MOVMEM)
+(define_insn_and_split "cpymemhi1"
+  [(unspec_volatile [(const_int 0)] UNSPECV_CPYMEM)
    (match_operand:HI 0 "register_operand" "+r")
    (match_operand:HI 1 "register_operand" "+r")
    (match_operand:HI 2 "register_operand" "+r")
@@ -707,7 +709,7 @@
   ""
   "#"
   "reload_completed"
-  [(parallel [(unspec_volatile [(const_int 0)] UNSPECV_MOVMEM)
+  [(parallel [(unspec_volatile [(const_int 0)] UNSPECV_CPYMEM)
 	      (match_dup 0)
 	      (match_dup 1)
 	      (match_dup 2)
@@ -719,8 +721,8 @@
 	      (clobber (reg:CC CC_REGNUM))])]
   "")
 
-(define_insn "movmemhi_nocc"
-  [(unspec_volatile [(const_int 0)] UNSPECV_MOVMEM)
+(define_insn "cpymemhi_nocc"
+  [(unspec_volatile [(const_int 0)] UNSPECV_CPYMEM)
    (match_operand:HI 0 "register_operand" "+r")
    (match_operand:HI 1 "register_operand" "+r")
    (match_operand:HI 2 "register_operand" "+r")
@@ -2152,7 +2154,7 @@
 
 ;; Note that there is no corresponding CC setter pattern.
 ;; The reason is that it won't be generated, because
-;; compare-elim.c only does the transformation on input
+;; compare-elim.cc only does the transformation on input
 ;; insns that have a two-element PARALLEL, as opposed to
 ;; the three-element one we have here.     
 (define_insn "divmodhi4_nocc"

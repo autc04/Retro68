@@ -1,7 +1,7 @@
-// { dg-options "-std=gnu++17" }
-// { dg-do compile }
+// { dg-additional-options "-Wno-deprecated" { target c++2a } }
+// { dg-do compile { target c++17 } }
 
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -142,15 +142,19 @@ static_assert(is_standard_layout_v<int>
 static_assert(!is_standard_layout_v<NType>
 	      && !is_standard_layout<NType>::value, "");
 
+// Deprecated in C++20
 static_assert(is_pod_v<int>
 	      && is_pod<int>::value, "");
 static_assert(!is_pod_v<NType>
 	      && !is_pod<NType>::value, "");
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 static_assert(is_literal_type_v<int>
 	      && is_literal_type<int>::value, "");
 static_assert(!is_literal_type_v<NType>
 	      && !is_literal_type<NType>::value, "");
+#pragma GCC diagnostic pop
 
 static_assert(is_empty_v<EmptyFinal>
 	      && is_empty<EmptyFinal>::value, "");

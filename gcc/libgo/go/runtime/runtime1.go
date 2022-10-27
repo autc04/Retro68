@@ -5,22 +5,22 @@
 package runtime
 
 import (
+	"internal/bytealg"
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
 // For gccgo, while we still have C runtime code, use go:linkname to
-// rename some functions to themselves, so that the compiler will
-// export them.
+// export some functions to themselves.
 //
-//go:linkname gotraceback runtime.gotraceback
-//go:linkname args runtime.args
-//go:linkname goargs runtime.goargs
-//go:linkname check runtime.check
-//go:linkname goenvs_unix runtime.goenvs_unix
-//go:linkname parsedebugvars runtime.parsedebugvars
-//go:linkname timediv runtime.timediv
+//go:linkname gotraceback
+//go:linkname args
+//go:linkname goargs
+//go:linkname check
+//go:linkname goenvs_unix
+//go:linkname parsedebugvars
+//go:linkname timediv
 
 // Keep a cached value to make gotraceback fast,
 // since we call it on every call to gentraceback.
@@ -66,7 +66,7 @@ var (
 // nosplit for use in linux startup sysargs
 //go:nosplit
 func argv_index(argv **byte, i int32) *byte {
-	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*sys.PtrSize))
+	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*goarch.PtrSize))
 }
 
 func args(c int32, v **byte) {
@@ -201,10 +201,10 @@ func check() {
 	if unsafe.Sizeof(j) != 8 {
 		throw("bad j")
 	}
-	if unsafe.Sizeof(k) != sys.PtrSize {
+	if unsafe.Sizeof(k) != goarch.PtrSize {
 		throw("bad k")
 	}
-	if unsafe.Sizeof(l) != sys.PtrSize {
+	if unsafe.Sizeof(l) != goarch.PtrSize {
 		throw("bad l")
 	}
 	if unsafe.Sizeof(x1) != 1 {
@@ -311,7 +311,6 @@ type dbgVar struct {
 // existing int var for that value, which may
 // already have an initial value.
 var debug struct {
-	allocfreetrace     int32
 	cgocheck           int32
 	clobberfree        int32
 	efence             int32
@@ -322,11 +321,20 @@ var debug struct {
 	gctrace            int32
 	invalidptr         int32
 	madvdontneed       int32 // for Linux; issue 28466
-	sbrk               int32
-	scavenge           int32
+	scavtrace          int32
 	scheddetail        int32
 	schedtrace         int32
 	tracebackancestors int32
+	asyncpreemptoff    int32
+	harddecommit       int32
+
+	// debug.malloc is used as a combined debug check
+	// in the malloc function and should be set
+	// if any of the below debug options is != 0.
+	malloc         bool
+	allocfreetrace int32
+	inittrace      int32
+	sbrk           int32
 }
 
 var dbgvars = []dbgVar{
@@ -342,39 +350,46 @@ var dbgvars = []dbgVar{
 	{"invalidptr", &debug.invalidptr},
 	{"madvdontneed", &debug.madvdontneed},
 	{"sbrk", &debug.sbrk},
-	{"scavenge", &debug.scavenge},
+	{"scavtrace", &debug.scavtrace},
 	{"scheddetail", &debug.scheddetail},
 	{"schedtrace", &debug.schedtrace},
 	{"tracebackancestors", &debug.tracebackancestors},
+	{"asyncpreemptoff", &debug.asyncpreemptoff},
+	{"inittrace", &debug.inittrace},
+	{"harddecommit", &debug.harddecommit},
 }
 
 func parsedebugvars() {
 	// defaults
 	debug.cgocheck = 1
 
-	// Unfortunately, because gccgo uses conservative stack scanning,
-	// we can not enable invalid pointer checking. It is possible for
-	// memory block M1 to point to M2, and for both to be dead.
-	// We release M2, causing the entire span to be released.
-	// Before we release M1, a stack pointer appears that point into it.
-	// This stack pointer is presumably dead, but causes M1 to be marked.
-	// We scan M1 and see the pointer to M2 on a released span.
-	// At that point, if debug.invalidptr is set, we crash.
-	// This is not a problem, assuming that M1 really is dead and
-	// the pointer we discovered to it will not be used.
-	if usestackmaps {
-		debug.invalidptr = 1
+	// Gccgo uses conservative stack scanning, so we cannot check
+	// invalid pointers on stack. But we can still enable invalid
+	// pointer check on heap scanning. When scanning the heap, we
+	// ensure that we only trace allocated heap objects, which should
+	// not contain invalid pointers.
+	debug.invalidptr = 1
+	if GOOS == "linux" {
+		// On Linux, MADV_FREE is faster than MADV_DONTNEED,
+		// but doesn't affect many of the statistics that
+		// MADV_DONTNEED does until the memory is actually
+		// reclaimed. This generally leads to poor user
+		// experience, like confusing stats in top and other
+		// monitoring tools; and bad integration with
+		// management systems that respond to memory usage.
+		// Hence, default to MADV_DONTNEED.
+		debug.madvdontneed = 1
 	}
 
 	for p := gogetenv("GODEBUG"); p != ""; {
 		field := ""
-		i := index(p, ",")
+		i := bytealg.IndexByteString(p, ',')
 		if i < 0 {
 			field, p = p, ""
 		} else {
 			field, p = p[:i], p[i+1:]
 		}
-		i = index(field, "=")
+		i = bytealg.IndexByteString(field, '=')
 		if i < 0 {
 			continue
 		}
@@ -398,11 +413,13 @@ func parsedebugvars() {
 		}
 	}
 
+	debug.malloc = (debug.allocfreetrace | debug.inittrace | debug.sbrk) != 0
+
 	setTraceback(gogetenv("GOTRACEBACK"))
 	traceback_env = traceback_cache
 }
 
-//go:linkname setTraceback runtime..z2fdebug.SetTraceback
+//go:linkname setTraceback runtime_1debug.SetTraceback
 func setTraceback(level string) {
 	var t uint32
 	switch level {
@@ -437,6 +454,7 @@ func setTraceback(level string) {
 // This is a very special function, do not use it if you are not sure what you are doing.
 // int64 division is lowered into _divv() call on 386, which does not fit into nosplit functions.
 // Handles overflow in a time-specific manner.
+// This keeps us within no-split stack limits on 32-bit processors.
 //go:nosplit
 func timediv(v int64, div int32, rem *int32) int32 {
 	res := int32(0)
@@ -477,9 +495,4 @@ func releasem(mp *m) {
 	//	// restore the preemption request in case we've cleared it in newstack
 	//	_g_.stackguard0 = stackPreempt
 	// }
-}
-
-//go:nosplit
-func gomcache() *mcache {
-	return getg().m.mcache
 }

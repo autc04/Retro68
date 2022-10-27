@@ -1,5 +1,5 @@
 /* Declarations relating to class gcc_rich_location
-   Copyright (C) 2014-2019 Free Software Foundation, Inc.
+   Copyright (C) 2014-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,14 +21,16 @@ along with GCC; see the file COPYING3.  If not see
 #define GCC_RICH_LOCATION_H
 
 /* A gcc_rich_location is libcpp's rich_location with additional
-   helper methods for working with gcc's types.  */
+   helper methods for working with gcc's types.  The class is not
+   copyable or assignable because rich_location isn't. */
+
 class gcc_rich_location : public rich_location
 {
  public:
   /* Constructors.  */
 
   /* Constructing from a location.  */
-  gcc_rich_location (location_t loc, const range_label *label = NULL)
+  explicit gcc_rich_location (location_t loc, const range_label *label = NULL)
   : rich_location (line_table, loc, label)
   {
   }
@@ -60,9 +62,11 @@ class gcc_rich_location : public rich_location
 	if (!added secondary)
 	  inform (secondary_loc, "message for secondary");
 
-     Implemented in diagnostic-show-locus.c.  */
+     Implemented in diagnostic-show-locus.cc.  */
 
-  bool add_location_if_nearby (location_t loc);
+  bool add_location_if_nearby (location_t loc,
+			       bool restrict_to_current_line_spans = true,
+			       const range_label *label = NULL);
 
   /* Add a fix-it hint suggesting the insertion of CONTENT before
      INSERTION_POINT.
@@ -111,7 +115,7 @@ class text_range_label : public range_label
 
   label_text get_text (unsigned /*range_idx*/) const FINAL OVERRIDE
   {
-    return label_text (const_cast <char *> (m_text), false);
+    return label_text::borrow (m_text);
   }
 
  private:
@@ -181,7 +185,7 @@ class maybe_range_label_for_tree_type_mismatch : public range_label
   tree m_other_expr;
 };
 
-struct op_location_t;
+class op_location_t;
 
 /* A subclass of rich_location for showing problems with binary operations.
 

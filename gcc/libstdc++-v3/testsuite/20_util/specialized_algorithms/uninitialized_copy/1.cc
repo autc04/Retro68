@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Free Software Foundation, Inc.
+// Copyright (C) 2018-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,4 +34,4 @@ test01(T* result)
   T t[1];
   std::uninitialized_copy(t, t+1, result); // { dg-error "here" }
 }
-// { dg-prune-output "use of deleted function" }
+// { dg-error "must be constructible from input type" "" { target *-*-* } 0 }

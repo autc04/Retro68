@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -fdump-ipa-icf"  } */
+/* { dg-options "-O2 -fdump-ipa-icf-optimized"  } */
 
 #include <stdio.h>
 
@@ -22,5 +22,5 @@ int main()
   return foo() + bar();
 }
 
-/* { dg-final { scan-ipa-dump "Semantic equality hit:foo->bar" "icf"  } } */
+/* { dg-final { scan-ipa-dump "Semantic equality hit:foo/\[0-9+\]+->bar/\[0-9+\]+" "icf"  } } */
 /* { dg-final { scan-ipa-dump "Equal symbols: 1" "icf"  } } */

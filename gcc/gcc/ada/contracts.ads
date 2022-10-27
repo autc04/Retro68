@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2015-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2015-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,8 +33,8 @@ package Contracts is
    procedure Add_Contract_Item (Prag : Node_Id; Id : Entity_Id);
    --  Add pragma Prag to the contract of a constant, entry, entry family,
    --  [generic] package, package body, protected unit, [generic] subprogram,
-   --  subprogram body, variable or task unit denoted by Id. The following are
-   --  valid pragmas:
+   --  subprogram body, variable, task unit, or type denoted by Id.
+   --  The following are valid pragmas:
    --
    --    Abstract_State
    --    Async_Readers
@@ -50,6 +50,7 @@ package Contracts is
    --    Initial_Condition
    --    Initializes
    --    Interrupt_Handler
+   --    No_Caching
    --    Part_Of
    --    Postcondition
    --    Precondition
@@ -68,15 +69,16 @@ package Contracts is
    --  subprogram body Body_Id as if they appeared at the end of a declarative
    --  region. Pragmas in question are:
    --
-   --    Contract_Cases   (stand alone subprogram body)
-   --    Depends          (stand alone subprogram body)
-   --    Global           (stand alone subprogram body)
-   --    Postcondition    (stand alone subprogram body)
-   --    Precondition     (stand alone subprogram body)
+   --    Contract_Cases     (stand alone subprogram body)
+   --    Depends            (stand alone subprogram body)
+   --    Global             (stand alone subprogram body)
+   --    Postcondition      (stand alone subprogram body)
+   --    Precondition       (stand alone subprogram body)
    --    Refined_Depends
    --    Refined_Global
    --    Refined_Post
-   --    Test_Case        (stand alone subprogram body)
+   --    Subprogram_Variant (stand alone subprogram body)
+   --    Test_Case          (stand alone subprogram body)
 
    procedure Analyze_Entry_Or_Subprogram_Contract
      (Subp_Id   : Entity_Id;
@@ -90,6 +92,7 @@ package Contracts is
    --    Global
    --    Postcondition
    --    Precondition
+   --    Subprogram_Variant
    --    Test_Case
    --
    --  Freeze_Id is the entity of a [generic] package body or a [generic]
@@ -112,6 +115,19 @@ package Contracts is
    --
    --  Freeze_Id is the entity of a [generic] package body or a [generic]
    --  subprogram body which "freezes" the contract of Obj_Id.
+
+   procedure Analyze_Type_Contract (Type_Id : Entity_Id);
+   --  Analyze all delayed pragmas chained on the contract of object Obj_Id as
+   --  if they appeared at the end of the declarative region. The pragmas to be
+   --  considered are:
+   --
+   --    Async_Readers
+   --    Async_Writers
+   --    Effective_Reads
+   --    Effective_Writes
+   --
+   --  In the case of a protected or task type, there will also be
+   --  a call to Analyze_Protected_Contract or Analyze_Task_Contract.
 
    procedure Analyze_Package_Body_Contract
      (Body_Id   : Entity_Id;
@@ -172,6 +188,21 @@ package Contracts is
    --  denoted by Body_Decl. In addition, freeze the contract of the nearest
    --  enclosing package body.
 
+   function Get_Postcond_Enabled (Subp : Entity_Id) return Entity_Id;
+   --  Get the defining identifier for a subprogram's Postcond_Enabled
+   --  object created during the expansion of the subprogram's postconditions.
+
+   function Get_Result_Object_For_Postcond (Subp : Entity_Id) return Entity_Id;
+   --  Get the defining identifier for a subprogram's
+   --  Result_Object_For_Postcond object created during the expansion of the
+   --  subprogram's postconditions.
+
+   function Get_Return_Success_For_Postcond
+     (Subp : Entity_Id) return Entity_Id;
+   --  Get the defining identifier for a subprogram's
+   --  Return_Success_For_Postcond object created during the expansion of the
+   --  subprogram's postconditions.
+
    procedure Inherit_Subprogram_Contract
      (Subp      : Entity_Id;
       From_Subp : Entity_Id);
@@ -184,6 +215,31 @@ package Contracts is
    --  Instantiate all source pragmas found in the contract of the generic
    --  subprogram declaration template denoted by Templ. The instantiated
    --  pragmas are added to list L.
+
+   procedure Make_Class_Precondition_Subps
+     (Subp_Id         : Entity_Id;
+      Late_Overriding : Boolean := False);
+   --  Build helpers that at run time evaluate statically and dynamically the
+   --  class-wide preconditions of Subp_Id; build also the indirect-call
+   --  wrapper (ICW) required to check class-wide preconditions when the
+   --  subprogram is invoked through an access-to-subprogram, or when it
+   --  overrides an inherited class-wide precondition (see AI12-0195-1).
+   --  Late_Overriding enables special handling required for late-overriding
+   --  subprograms.
+
+   procedure Merge_Class_Conditions (Spec_Id : Entity_Id);
+   --  Merge and preanalyze all class-wide conditions of Spec_Id (class-wide
+   --  preconditions merged with operator or-else; class-wide postconditions
+   --  merged with operator and-then). Ignored pre/postconditions are also
+   --  merged since, although they are not required to generate code, their
+   --  preanalysis is required to perform semantic checks. Resulting merged
+   --  expressions are later installed by the expander in helper subprograms
+   --  which are invoked from the caller side; they are also used to build
+   --  the dispatch-table wrapper (DTW), if required.
+
+   procedure Process_Class_Conditions_At_Freeze_Point (Typ : Entity_Id);
+   --  Merge, preanalyze, and check class-wide pre/postconditions of Typ
+   --  primitives.
 
    procedure Save_Global_References_In_Contract
      (Templ  : Node_Id;

@@ -1,14 +1,14 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -ftree-vectorize -ffast-math" } */
+/* { dg-options "-O2 -ftree-vectorize -ffast-math --param aarch64-sve-compare-costs=0" } */
 
 #include <stdint.h>
 
 #define TEST_LOOP(NAME, OUTTYPE, INTYPE, MASKTYPE)		\
   void __attribute__ ((noinline, noclone))			\
   NAME##_2 (OUTTYPE *__restrict dest, INTYPE *__restrict src,	\
-	    MASKTYPE *__restrict cond, INTYPE bias, int n)	\
+	    MASKTYPE *__restrict cond, INTYPE bias, intptr_t n)	\
   {								\
-    for (int i = 0; i < n; ++i)					\
+    for (intptr_t i = 0; i < n; ++i)				\
       {								\
 	INTYPE value = src[i] + bias;				\
 	if (cond[i])						\

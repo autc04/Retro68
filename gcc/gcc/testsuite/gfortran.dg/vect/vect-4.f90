@@ -1,3 +1,5 @@
+! Disabling epilogues until we find a better way to deal with scans.
+! { dg-additional-options "--param vect-epilogues-nomask=0" }
 ! { dg-do compile }
 ! { dg-require-effective-target vect_float }
 ! { dg-additional-options "--param vect-max-peeling-for-alignment=0" }
@@ -11,4 +13,3 @@ Y = Y + A * X
 END
 
 ! { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" } } 
-! { dg-final { scan-tree-dump-times "accesses have the same alignment." 1 "vect" } }

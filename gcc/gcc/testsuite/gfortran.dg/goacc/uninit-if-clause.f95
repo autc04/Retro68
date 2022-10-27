@@ -4,17 +4,21 @@
 program test
   implicit none
   logical :: b, b2, b3, b4
+  ! { dg-note {'b' was declared here} {} { target *-*-* } .-1 }
+  ! { dg-note {'b2' was declared here} {} { target *-*-* } .-2 }
+  ! { dg-note {'b3' was declared here} {} { target *-*-* } .-3 }
+  ! { dg-note {'b4' was declared here} {} { target *-*-* } .-4 }
   integer :: data, data2
 
-  !$acc parallel if(b) ! { dg-warning "is used uninitialized in this function" }
+  !$acc parallel if(b) ! { dg-warning "is used uninitialized" }
   !$acc end parallel
 
-  !$acc kernels if(b2) ! { dg-warning "is used uninitialized in this function" }
+  !$acc kernels if(b2) ! { dg-warning "is used uninitialized" }
   !$acc end kernels
 
-  !$acc data if(b3) ! { dg-warning "is used uninitialized in this function" }
+  !$acc data if(b3) ! { dg-warning "is used uninitialized" }
   !$acc end data
 
-  !$acc update if(b4) self(data2) ! { dg-warning "is used uninitialized in this function" }
+  !$acc update if(b4) self(data2) ! { dg-warning "is used uninitialized" }
 
 end program test

@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2019 Free Software Foundation, Inc.
+// Copyright (C) 2017-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,6 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++17" }
 // { dg-do compile { target c++17 } }
 
 #include <charconv>
@@ -23,11 +22,9 @@
 void
 test01(const char* first, const char* last)
 {
-#if _GLIBCXX_USE_WCHAR_T
   wchar_t wc;
   std::from_chars(first, last, wc); // { dg-error "no matching" }
   std::from_chars(first, last, wc, 10); // { dg-error "no matching" }
-#endif
 
   char16_t c16;
   std::from_chars(first, last, c16); // { dg-error "no matching" }
@@ -35,6 +32,11 @@ test01(const char* first, const char* last)
   char32_t c32;
   std::from_chars(first, last, c32); // { dg-error "no matching" }
   std::from_chars(first, last, c32, 10); // { dg-error "no matching" }
+
+  enum E { } e;
+  std::from_chars(first, last, e); // { dg-error "no matching" }
+  std::from_chars(first, last, e, 10); // { dg-error "no matching" }
 }
 
 // { dg-prune-output "enable_if" }
+// { dg-prune-output "cannot bind non-const lvalue reference" }

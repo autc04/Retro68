@@ -78,12 +78,17 @@
 # else
 #  define __IEEE_BIG_ENDIAN
 # endif
-# define __OBSOLETE_MATH_DEFAULT 0
+# if __ARM_FP & 0x8
+#  define __OBSOLETE_MATH_DEFAULT 0
+# endif
 #else
 # define __IEEE_BIG_ENDIAN
 # ifdef __ARMEL__
 #  define __IEEE_BYTES_LITTLE_ENDIAN
 # endif
+#endif
+#ifndef __SOFTFP__
+# define _SUPPORTS_ERREXCEPT
 #endif
 #endif
 
@@ -94,6 +99,9 @@
 #define __IEEE_BIG_ENDIAN
 #endif
 #define __OBSOLETE_MATH_DEFAULT 0
+#ifdef __ARM_FP
+# define _SUPPORTS_ERREXCEPT
+#endif
 #endif
 
 #ifdef __epiphany__
@@ -187,10 +195,18 @@
 
 #ifdef __i386__
 #define __IEEE_LITTLE_ENDIAN
+# define _SUPPORTS_ERREXCEPT
 #endif
 
 #ifdef __riscv
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+#define __IEEE_BIG_ENDIAN
+#else
 #define __IEEE_LITTLE_ENDIAN
+#endif
+#ifdef __riscv_flen
+# define _SUPPORTS_ERREXCEPT
+#endif
 #endif
 
 #ifdef __i960__
@@ -203,6 +219,10 @@
 
 #ifdef __M32R__
 #define __IEEE_BIG_ENDIAN
+#endif
+
+#ifdef __nvptx__
+#define __IEEE_LITTLE_ENDIAN
 #endif
 
 #if defined(_C4x) || defined(_C3x)
@@ -302,6 +322,14 @@
 #define __IEEE_LITTLE_ENDIAN
 #endif
 
+#ifdef __CSKY__
+#ifdef __CSKYBE__
+#define __IEEE_BIG_ENDIAN
+#else
+#define __IEEE_LITTLE_ENDIAN
+#endif
+#endif
+
 #ifdef __fr30__
 #define __IEEE_BIG_ENDIAN
 #endif
@@ -380,6 +408,7 @@
 
 #ifdef __x86_64__
 #define __IEEE_LITTLE_ENDIAN
+# define _SUPPORTS_ERREXCEPT
 #endif
 
 #ifdef __mep__
@@ -401,6 +430,10 @@
 #ifdef __MSP430__
 #define __IEEE_LITTLE_ENDIAN
 #define __SMALL_BITFIELDS	/* 16 Bit INT */
+#endif
+
+#ifdef __PRU__
+#define __IEEE_LITTLE_ENDIAN
 #endif
 
 #ifdef __RL78__
@@ -444,6 +477,18 @@
 
 #ifdef __VISIUM__
 #define __IEEE_BIG_ENDIAN
+#endif
+
+#ifdef __AMDGCN__
+#define __IEEE_LITTLE_ENDIAN
+#endif
+
+#ifdef __XTENSA_EL__
+#define __IEEE_LITTLE_ENDIAN
+#endif
+
+#ifdef __CYGWIN__
+#define __OBSOLETE_MATH_DEFAULT 0
 #endif
 
 #ifndef __OBSOLETE_MATH_DEFAULT

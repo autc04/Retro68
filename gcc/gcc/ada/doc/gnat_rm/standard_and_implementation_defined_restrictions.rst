@@ -239,7 +239,7 @@ The following example indicates constructs that violate this restriction.
   with Pkg; use Pkg;
   procedure Example is
     procedure Test (O : T'Class) is
-      N : Natural  := O'Size;--  Error: Dispatching call
+      N : Natural := O'Size; --  Error: Dispatching call
       C : T'Class := O;      --  Error: implicit Dispatching Call
     begin
       if O in DT'Class then  --  OK   : Membership test
@@ -356,7 +356,9 @@ No_Exceptions
 .. index:: No_Exceptions
 
 [RM H.4] This restriction ensures at compile time that there are no
-raise statements and no exception handlers.
+raise statements and no exception handlers and also suppresses the
+generation of language-defined run-time checks.
+
 
 No_Finalization
 ---------------
@@ -494,7 +496,7 @@ No_Local_Timing_Events
 ----------------------
 .. index:: No_Local_Timing_Events
 
-[RM D.7] All objects of type Ada.Timing_Events.Timing_Event are
+[RM D.7] All objects of type Ada.Real_Time.Timing_Events.Timing_Event are
 declared at the library level.
 
 No_Long_Long_Integers
@@ -510,15 +512,14 @@ No_Multiple_Elaboration
 -----------------------
 .. index:: No_Multiple_Elaboration
 
-[GNAT] When this restriction is active, we are not requesting control-flow
-preservation with -fpreserve-control-flow, and the static elaboration model is
-used, the compiler is allowed to suppress the elaboration counter normally
-associated with the unit, even if the unit has elaboration code. This counter
-is typically used to check for access before elaboration and to control
-multiple elaboration attempts. If the restriction is used, then the
-situations in which multiple elaboration is possible, including non-Ada main
-programs and Stand Alone libraries, are not permitted and will be diagnosed
-by the binder.
+[GNAT] When this restriction is active and the static elaboration model is
+used, and -fpreserve-control-flow is not used, the compiler is allowed to
+suppress the elaboration counter normally associated with the unit, even if
+the unit has elaboration code. This counter is typically used to check for
+access before elaboration and to control multiple elaboration attempts. If the
+restriction is used, then the situations in which multiple elaboration is
+possible, including non-Ada main programs and Stand Alone libraries, are not
+permitted and will be diagnosed by the binder.
 
 No_Nested_Finalization
 ----------------------
@@ -634,7 +635,7 @@ No_Stream_Optimizations
 [GNAT] This restriction affects the performance of stream operations on types
 ``String``, ``Wide_String`` and ``Wide_Wide_String``. By default, the
 compiler uses block reads and writes when manipulating ``String`` objects
-due to their supperior performance. When this restriction is in effect, the
+due to their superior performance. When this restriction is in effect, the
 compiler performs all IO operations on a per-character basis.
 
 No_Streams
@@ -654,6 +655,18 @@ since they do not need to worry about dispatching stream operations.
 To take maximum advantage of this space-saving optimization, any
 unit declaring a tagged type should be compiled with the restriction,
 though this is not required.
+
+No_Tagged_Type_Registration
+---------------------------
+.. index:: No_Tagged_Type_Registration
+
+[GNAT] If this restriction is active, then class-wide streaming
+attributes are not supported. In addition, the subprograms in
+Ada.Tags are not supported.
+If this restriction is active, the generated code is simplified by
+omitting the otherwise-required global registration of tagged types when they
+are declared. This restriction may be necessary in order to also apply
+the No_Elaboration_Code restriction.
 
 No_Task_Allocators
 ------------------
@@ -869,6 +882,44 @@ used, the compiler is allowed to suppress the elaboration counter normally
 associated with the unit. This counter is typically used to check for access
 before elaboration and to control multiple elaboration attempts.
 
+No_Dynamic_Accessibility_Checks
+-------------------------------
+.. index:: No_Dynamic_Accessibility_Checks
+
+[GNAT] No dynamic accessibility checks are generated when this restriction is
+in effect. Instead, dangling references are prevented via more conservative
+compile-time checking. More specifically, existing compile-time checks are
+enforced but with more conservative assumptions about the accessibility levels
+of the relevant entities. These conservative assumptions eliminate the need for
+dynamic accessibility checks.
+
+These new rules for computing (at compile-time) the accessibility level of an
+anonymous access type T are as follows:
+
+*
+ If T is a function result type then, from the caller's perspective, its level
+ is that of the innermost master enclosing the function call. From the callee's
+ perspective, the level of parameters and local variables of the callee is
+ statically deeper than the level of T.
+
+ For any other accessibility level L such that the level of parameters and local
+ variables of the callee is statically deeper than L, the level of T (from the
+ callee's perspective) is also statically deeper than L.
+*
+ If T is the type of a formal parameter then, from the caller's perspective,
+ its level is at least as deep as that of the type of the corresponding actual
+ parameter (whatever that actual parameter might be). From the callee's
+ perspective, the level of parameters and local variables of the callee is
+ statically deeper than the level of T.
+*
+ If T is the type of a discriminant then its level is that of the discriminated
+ type.
+*
+ If T is the type of a stand-alone object then its level is the level of the
+ object.
+*
+ In all other cases, the level of T is as defined by the existing rules of Ada.
+
 No_Dynamic_Sized_Objects
 ------------------------
 .. index:: No_Dynamic_Sized_Objects
@@ -999,8 +1050,7 @@ SPARK_05
 --------
 .. index:: SPARK_05
 
-[GNAT] This restriction checks at compile time that some constructs forbidden
-in SPARK 2005 are not present. Note that SPARK 2005 has been superseded by
+[GNAT] This restriction no longer has any effect and is superseded by
 SPARK 2014, whose restrictions are checked by the tool GNATprove. To check that
 a codebase respects SPARK 2014 restrictions, mark the code with pragma or
 aspect ``SPARK_Mode``, and run the tool GNATprove at Stone assurance level, as
@@ -1011,146 +1061,3 @@ follows::
 or equivalently::
 
   gnatprove -P project.gpr --mode=check_all
-
-With restriction ``SPARK_05``, error messages related to SPARK 2005 restriction
-have the form:
-
-::
-
-  violation of restriction "SPARK_05" at <source-location>
-   <error message>
-
-.. index:: SPARK
-
-The restriction ``SPARK`` is recognized as a synonym for ``SPARK_05``. This is
-retained for historical compatibility purposes (and an unconditional warning
-will be generated for its use, advising replacement by ``SPARK_05``).
-
-This is not a replacement for the semantic checks performed by the
-SPARK Examiner tool, as the compiler currently only deals with code,
-not SPARK 2005 annotations, and does not guarantee catching all
-cases of constructs forbidden by SPARK 2005.
-
-Thus it may well be the case that code which passes the compiler with
-the SPARK 2005 restriction is rejected by the SPARK Examiner, e.g. due to
-the different visibility rules of the Examiner based on SPARK 2005
-``inherit`` annotations.
-
-This restriction can be useful in providing an initial filter for code
-developed using SPARK 2005, or in examining legacy code to see how far
-it is from meeting SPARK 2005 restrictions.
-
-The list below summarizes the checks that are performed when this
-restriction is in force:
-
-* No block statements
-* No case statements with only an others clause
-* Exit statements in loops must respect the SPARK 2005 language restrictions
-* No goto statements
-* Return can only appear as last statement in function
-* Function must have return statement
-* Loop parameter specification must include subtype mark
-* Prefix of expanded name cannot be a loop statement
-* Abstract subprogram not allowed
-* User-defined operators not allowed
-* Access type parameters not allowed
-* Default expressions for parameters not allowed
-* Default expressions for record fields not allowed
-* No tasking constructs allowed
-* Label needed at end of subprograms and packages
-* No mixing of positional and named parameter association
-* No access types as result type
-* No unconstrained arrays as result types
-* No null procedures
-* Initial and later declarations must be in correct order (declaration can't come after body)
-* No attributes on private types if full declaration not visible
-* No package declaration within package specification
-* No controlled types
-* No discriminant types
-* No overloading
-* Selector name cannot be operator symbol (i.e. operator symbol cannot be prefixed)
-* Access attribute not allowed
-* Allocator not allowed
-* Result of catenation must be String
-* Operands of catenation must be string literal, static char or another catenation
-* No conditional expressions
-* No explicit dereference
-* Quantified expression not allowed
-* Slicing not allowed
-* No exception renaming
-* No generic renaming
-* No object renaming
-* No use clause
-* Aggregates must be qualified
-* Nonstatic choice in array aggregates not allowed
-* The only view conversions which are allowed as in-out parameters are conversions of a tagged type to an ancestor type
-* No mixing of positional and named association in aggregate, no multi choice
-* AND, OR and XOR for arrays only allowed when operands have same static bounds
-* Fixed point operands to * or / must be qualified or converted
-* Comparison operators not allowed for Booleans or arrays (except strings)
-* Equality not allowed for arrays with non-matching static bounds (except strings)
-* Conversion / qualification not allowed for arrays with non-matching static bounds
-* Subprogram declaration only allowed in package spec (unless followed by import)
-* Access types not allowed
-* Incomplete type declaration not allowed
-* Object and subtype declarations must respect SPARK 2005 restrictions
-* Digits or delta constraint not allowed
-* Decimal fixed point type not allowed
-* Aliasing of objects not allowed
-* Modular type modulus must be power of 2
-* Base not allowed on subtype mark
-* Unary operators not allowed on modular types (except not)
-* Untagged record cannot be null
-* No class-wide operations
-* Initialization expressions must respect SPARK 2005 restrictions
-* Nonstatic ranges not allowed except in iteration schemes
-* String subtypes must have lower bound of 1
-* Subtype of Boolean cannot have constraint
-* At most one tagged type or extension per package
-* Interface is not allowed
-* Character literal cannot be prefixed (selector name cannot be character literal)
-* Record aggregate cannot contain 'others'
-* Component association in record aggregate must contain a single choice
-* Ancestor part cannot be a type mark
-* Attributes 'Image, 'Width and 'Value not allowed
-* Functions may not update globals
-* Subprograms may not contain direct calls to themselves (prevents recursion within unit)
-* Call to subprogram not allowed in same unit before body has been seen (prevents recursion within unit)
-
-The following restrictions are enforced, but note that they are actually more
-strict that the latest SPARK 2005 language definition:
-
-* No derived types other than tagged type extensions
-* Subtype of unconstrained array must have constraint
-
-This list summarises the main SPARK 2005 language rules that are not
-currently checked by the SPARK_05 restriction:
-
-* SPARK 2005 annotations are treated as comments so are not checked at all
-* Based real literals not allowed
-* Objects cannot be initialized at declaration by calls to user-defined functions
-* Objects cannot be initialized at declaration by assignments from variables
-* Objects cannot be initialized at declaration by assignments from indexed/selected components
-* Ranges shall not be null
-* A fixed point delta expression must be a simple expression
-* Restrictions on where renaming declarations may be placed
-* Externals of mode 'out' cannot be referenced
-* Externals of mode 'in' cannot be updated
-* Loop with no iteration scheme or exits only allowed as last statement in main program or task
-* Subprogram cannot have parent unit name
-* SPARK 2005 inherited subprogram must be prefixed with overriding
-* External variables (or functions that reference them) may not be passed as actual parameters
-* Globals must be explicitly mentioned in contract
-* Deferred constants cannot be completed by pragma Import
-* Package initialization cannot read/write variables from other packages
-* Prefix not allowed for entities that are directly visible
-* Identifier declaration can't override inherited package name
-* Cannot use Standard or other predefined packages as identifiers
-* After renaming, cannot use the original name
-* Subprograms can only be renamed to remove package prefix
-* Pragma import must be immediately after entity it names
-* No mutual recursion between multiple units (this can be checked with gnatcheck)
-
-Note that if a unit is compiled in Ada 95 mode with the SPARK 2005 restriction,
-violations will be reported for constructs forbidden in SPARK 95,
-instead of SPARK 2005.

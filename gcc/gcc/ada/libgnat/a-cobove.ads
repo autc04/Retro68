@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -36,6 +36,7 @@ with Ada.Iterator_Interfaces;
 with Ada.Containers.Helpers;
 private with Ada.Streams;
 private with Ada.Finalization;
+private with Ada.Strings.Text_Buffers;
 
 generic
    type Index_Type is range <>;
@@ -58,12 +59,15 @@ package Ada.Containers.Bounded_Vectors is
       Constant_Indexing => Constant_Reference,
       Variable_Indexing => Reference,
       Default_Iterator  => Iterate,
-      Iterator_Element  => Element_Type;
+      Iterator_Element  => Element_Type,
+      Aggregate         => (Empty          => Empty,
+                            Add_Unnamed    => Append,
+                            New_Indexed    => New_Vector,
+                            Assign_Indexed => Replace_Element),
+      Preelaborable_Initialization
+                        => Element_Type'Preelaborable_Initialization;
 
-   pragma Preelaborable_Initialization (Vector);
-
-   type Cursor is private;
-   pragma Preelaborable_Initialization (Cursor);
+   type Cursor is private with Preelaborable_Initialization;
 
    Empty_Vector : constant Vector;
 
@@ -74,7 +78,15 @@ package Ada.Containers.Bounded_Vectors is
    package Vector_Iterator_Interfaces is new
       Ada.Iterator_Interfaces (Cursor, Has_Element);
 
+   function Empty (Capacity : Count_Type := 10) return Vector;
+   pragma Ada_2022 (Empty);
+
    overriding function "=" (Left, Right : Vector) return Boolean;
+
+   function New_Vector (First, Last : Index_Type) return Vector
+     with Pre => First = Index_Type'First;
+   --  Ada 2022 aggregate operation.
+   pragma Ada_2022 (New_Vector);
 
    function To_Vector (Length : Count_Type) return Vector;
 
@@ -179,21 +191,43 @@ package Ada.Containers.Bounded_Vectors is
 
    procedure Move (Target : in out Vector; Source : in out Vector);
 
-   procedure Insert
+   procedure Insert_Vector
      (Container : in out Vector;
       Before    : Extended_Index;
       New_Item  : Vector);
+   pragma Ada_2022 (Insert_Vector);
+
+   procedure Insert
+     (Container : in out Vector;
+      Before    : Extended_Index;
+      New_Item  : Vector) renames Insert_Vector;
+   --  Retained for now for compatibility; AI12-0400 will remove this.
+
+   procedure Insert_Vector
+     (Container : in out Vector;
+      Before    : Cursor;
+      New_Item  : Vector);
+   pragma Ada_2022 (Insert_Vector);
 
    procedure Insert
      (Container : in out Vector;
       Before    : Cursor;
-      New_Item  : Vector);
+      New_Item  : Vector) renames Insert_Vector;
+   --  Retained for now for compatibility; AI12-0400 will remove this.
+
+   procedure Insert_Vector
+     (Container : in out Vector;
+      Before    : Cursor;
+      New_Item  : Vector;
+      Position  : out Cursor);
+   pragma Ada_2022 (Insert_Vector);
 
    procedure Insert
      (Container : in out Vector;
       Before    : Cursor;
       New_Item  : Vector;
-      Position  : out Cursor);
+      Position  : out Cursor) renames Insert_Vector;
+   --  Retained for now for compatibility; AI12-0400 will remove this.
 
    procedure Insert
      (Container : in out Vector;
@@ -225,23 +259,38 @@ package Ada.Containers.Bounded_Vectors is
       Position  : out Cursor;
       Count     : Count_Type := 1);
 
-   procedure Prepend
+   procedure Prepend_Vector
      (Container : in out Vector;
       New_Item  : Vector);
+   pragma Ada_2022 (Prepend_Vector);
+
+   procedure Prepend
+     (Container : in out Vector;
+      New_Item  : Vector) renames Prepend_Vector;
+   --  Retained for now for compatibility; AI12-0400 will remove this.
 
    procedure Prepend
      (Container : in out Vector;
       New_Item  : Element_Type;
       Count     : Count_Type := 1);
 
-   procedure Append
+   procedure Append_Vector
      (Container : in out Vector;
       New_Item  : Vector);
+   pragma Ada_2022 (Append_Vector);
+
+   procedure Append
+     (Container : in out Vector;
+      New_Item  : Vector) renames Append_Vector;
+   --  Retained for now for compatibility; AI12-0400 will remove this.
 
    procedure Append
      (Container : in out Vector;
       New_Item  : Element_Type;
-      Count     : Count_Type := 1);
+      Count     : Count_Type);
+
+   procedure Append (Container : in out Vector;
+                     New_Item  :        Element_Type);
 
    procedure Insert_Space
      (Container : in out Vector;
@@ -377,10 +426,13 @@ private
    function "=" (L, R : Elements_Array) return Boolean is abstract;
 
    type Vector (Capacity : Count_Type) is tagged record
-      Elements : Elements_Array (1 .. Capacity) := (others => <>);
+      Elements : Elements_Array (1 .. Capacity);
       Last     : Extended_Index := No_Index;
       TC       : aliased Tamper_Counts;
-   end record;
+   end record with Put_Image => Put_Image;
+
+   procedure Put_Image
+     (S : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class; V : Vector);
 
    procedure Write
      (Stream    : not null access Root_Stream_Type'Class;

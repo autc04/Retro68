@@ -1,7 +1,7 @@
 /* Test -Wsizeof-pointer-memaccess warnings.  */
 /* { dg-do compile } */
-/* { dg-options "-Wall -Wno-array-bounds -Wno-sizeof-array-argument" } */
-/* { dg-options "-Wall -Wno-array-bounds -Wno-sizeof-array-argument -Wno-c++-compat" { target c } } */
+/* { dg-options "-Wall -Wno-array-bounds -Wno-sizeof-array-argument -Wno-stringop-overflow -Wno-stringop-overread" } */
+/* { dg-options "-Wall -Wno-array-bounds -Wno-sizeof-array-argument -Wno-c++-compat -Wno-stringop-overflow -Wno-stringop-overread" { target c } } */
 /* { dg-require-effective-target alloca } */
 
 typedef __SIZE_TYPE__ size_t;
@@ -161,3 +161,5 @@ f4 (char x[64], char *y, __builtin_va_list ap)
   snprintf (p, sizeof (buf), "%s", y);
   vsnprintf (p, sizeof (buf), "%s", ap);
 }
+
+/* { dg-prune-output "-Wuninitialized" } */

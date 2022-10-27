@@ -11,7 +11,7 @@ struct __is_void_helper : false_type {};
 struct is_void : __is_void_helper {};
 template < typename > struct is_array : false_type {};
 namespace __gnu_cxx {
-enum _Lock_policy { _S_single, _S_mutex, _S_atomic }; // { dg-lto-warning "6: type '_Lock_policy' violates the C\\+\\+ One Definition Rule" }
+enum _Lock_policy { _S_single, _S_mutex, _S_atomic }; // { dg-lto-warning "6: type '__gnu_cxx::_Lock_policy' violates the C\\+\\+ One Definition Rule" }
 const _Lock_policy __default_lock_policy = _S_atomic;
 } namespace std {
 using __gnu_cxx::_Lock_policy;
@@ -149,5 +149,5 @@ public:
 class XclImpRoot : XclRoot {}; 
 class XclImpColRowSettings : XclImpRoot {};
 void lcl_ExportExcelBiff() {
-XclRootData aExpData();
+extern XclRootData aExpData();
 }

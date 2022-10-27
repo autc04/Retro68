@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -41,8 +41,11 @@ with Ada.Containers.Red_Black_Trees.Generic_Set_Operations;
 pragma Elaborate_All (Ada.Containers.Red_Black_Trees.Generic_Set_Operations);
 
 with System; use type System.Address;
+with System.Put_Images;
 
-package body Ada.Containers.Ordered_Sets is
+package body Ada.Containers.Ordered_Sets with
+  SPARK_Mode => Off
+is
 
    pragma Warnings (Off, "variable ""Busy*"" is not referenced");
    pragma Warnings (Off, "variable ""Lock*"" is not referenced");
@@ -349,7 +352,7 @@ package body Ada.Containers.Ordered_Sets is
            (Element => Position.Node.Element'Access,
             Control => (Controlled with TC))
          do
-            Lock (TC.all);
+            Busy (TC.all);
          end return;
       end;
    end Constant_Reference;
@@ -690,25 +693,14 @@ package body Ada.Containers.Ordered_Sets is
         (Container : aliased Set;
          Key       : Key_Type) return Constant_Reference_Type
       is
-         Node : constant Node_Access := Key_Keys.Find (Container.Tree, Key);
+         Position : constant Cursor := Find (Container, Key);
 
       begin
-         if Checks and then Node = null then
+         if Checks and then Position = No_Element then
             raise Constraint_Error with "key not in set";
          end if;
 
-         declare
-            Tree : Tree_Type renames Container'Unrestricted_Access.all.Tree;
-            TC : constant Tamper_Counts_Access :=
-              Tree.TC'Unrestricted_Access;
-         begin
-            return R : constant Constant_Reference_Type :=
-              (Element => Node.Element'Access,
-               Control => (Controlled with TC))
-            do
-               Lock (TC.all);
-            end return;
-         end;
+         return Constant_Reference (Container, Position);
       end Constant_Reference;
 
       --------------
@@ -899,11 +891,11 @@ package body Ada.Containers.Ordered_Sets is
                  Control =>
                    (Controlled with
                      Tree.TC'Unrestricted_Access,
-                     Container => Container'Access,
+                     Container => Container'Unchecked_Access,
                      Pos       => Position,
                      Old_Key   => new Key_Type'(Key (Position))))
             do
-               Lock (Tree.TC);
+               Busy (Tree.TC);
             end return;
          end;
       end Reference_Preserving_Key;
@@ -912,28 +904,14 @@ package body Ada.Containers.Ordered_Sets is
         (Container : aliased in out Set;
          Key       : Key_Type) return Reference_Type
       is
-         Node : constant Node_Access := Key_Keys.Find (Container.Tree, Key);
+         Position : constant Cursor := Find (Container, Key);
 
       begin
-         if Checks and then Node = null then
+         if Checks and then Position = No_Element then
             raise Constraint_Error with "Key not in set";
          end if;
 
-         declare
-            Tree : Tree_Type renames Container.Tree;
-         begin
-            return R : constant Reference_Type :=
-              (Element  => Node.Element'Access,
-                 Control =>
-                   (Controlled with
-                     Tree.TC'Unrestricted_Access,
-                     Container => Container'Access,
-                     Pos       => Find (Container, Key),
-                     Old_Key   => new Key_Type'(Key)))
-            do
-               Lock (Tree.TC);
-            end return;
-         end;
+         return Reference_Preserving_Key (Container, Position);
       end Reference_Preserving_Key;
 
       -------------
@@ -1079,8 +1057,6 @@ package body Ada.Containers.Ordered_Sets is
       New_Item  : Element_Type)
    is
       Position : Cursor;
-      pragma Unreferenced (Position);
-
       Inserted : Boolean;
 
    begin
@@ -1145,7 +1121,6 @@ package body Ada.Containers.Ordered_Sets is
       Dst_Node : out Node_Access)
    is
       Success : Boolean;
-      pragma Unreferenced (Success);
 
       function New_Node return Node_Access;
       pragma Inline (New_Node);
@@ -1550,7 +1525,7 @@ package body Ada.Containers.Ordered_Sets is
         Container.Tree.TC'Unrestricted_Access;
    begin
       return R : constant Reference_Control_Type := (Controlled with TC) do
-         Lock (TC.all);
+         Busy (TC.all);
       end return;
    end Pseudo_Reference;
 
@@ -1577,6 +1552,31 @@ package body Ada.Containers.Ordered_Sets is
          Process (Position.Node.Element);
       end;
    end Query_Element;
+
+   ---------------
+   -- Put_Image --
+   ---------------
+
+   procedure Put_Image
+     (S : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class; V : Set)
+   is
+      First_Time : Boolean := True;
+      use System.Put_Images;
+   begin
+      Array_Before (S);
+
+      for X of V loop
+         if First_Time then
+            First_Time := False;
+         else
+            Simple_Array_Between (S);
+         end if;
+
+         Element_Type'Put_Image (S, X);
+      end loop;
+
+      Array_After (S);
+   end Put_Image;
 
    ----------
    -- Read --
@@ -1641,12 +1641,12 @@ package body Ada.Containers.Ordered_Sets is
         Element_Keys.Find (Container.Tree, New_Item);
 
    begin
+      TE_Check (Container.Tree.TC);
+
       if Checks and then Node = null then
          raise Constraint_Error with
            "attempt to replace element not in set";
       end if;
-
-      TE_Check (Container.Tree.TC);
 
       Node.Element := New_Item;
    end Replace;
@@ -1932,7 +1932,6 @@ package body Ada.Containers.Ordered_Sets is
       Tree     : Tree_Type;
       Node     : Node_Access;
       Inserted : Boolean;
-      pragma Unreferenced (Node, Inserted);
    begin
       Insert_Sans_Hint (Tree, New_Item, Node, Inserted);
       return Set'(Controlled with Tree);

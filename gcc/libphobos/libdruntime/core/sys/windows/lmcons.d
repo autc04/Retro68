@@ -4,15 +4,16 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_lmcons.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_lmcons.d)
  */
 module core.sys.windows.lmcons;
 version (Windows):
+@system:
 
 version (ANSI) {} else version = Unicode;
 
-private import core.sys.windows.windef;
-private import core.sys.windows.lmerr; // for NERR_BASE
+import core.sys.windows.windef;
+import core.sys.windows.lmerr; // for NERR_BASE
 
 const TCHAR[]
     MESSAGE_FILENAME = "NETMSG",

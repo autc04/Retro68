@@ -4,12 +4,13 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_rpcnsip.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_rpcnsip.d)
  */
 module core.sys.windows.rpcnsip;
 version (Windows):
+@system:
 
-private import core.sys.windows.rpcdce, core.sys.windows.rpcdcep, core.sys.windows.rpcnsi;
+import core.sys.windows.rpcdce, core.sys.windows.rpcdcep, core.sys.windows.rpcnsi;
 
 struct RPC_IMPORT_CONTEXT_P {
     RPC_NS_HANDLE       LookupContext;

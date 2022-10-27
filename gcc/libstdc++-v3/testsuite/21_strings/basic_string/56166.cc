@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2019 Free Software Foundation, Inc.
+// Copyright (C) 2016-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -87,7 +87,7 @@ int main()
       fail_after = i;
       f();
       break;
-    } catch (std::bad_alloc) {
+    } catch (const std::bad_alloc&) {
     }
   }
 }

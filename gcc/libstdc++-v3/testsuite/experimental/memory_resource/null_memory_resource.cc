@@ -1,6 +1,6 @@
 // { dg-do run { target c++14 } }
 
-// Copyright (C) 2016-2019 Free Software Foundation, Inc.
+// Copyright (C) 2016-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -31,7 +31,7 @@ test06()
   memory_resource* r = null_memory_resource();
   bool caught = false;
 
-  void* p = nullptr;
+  void* p __attribute__((unused)) = nullptr;
   try {
     p = r->allocate(1);
   } catch (const std::bad_alloc&) {

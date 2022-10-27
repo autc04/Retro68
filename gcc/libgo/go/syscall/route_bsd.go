@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd netbsd openbsd
+//go:build darwin || dragonfly || freebsd || netbsd || openbsd
 
 package syscall
 
@@ -18,7 +18,7 @@ var (
 
 // Round the length of a raw sockaddr up to align it properly.
 func rsaAlignOf(salen int) int {
-	salign := sizeofPtr
+	salign := int(sizeofPtr)
 	if darwin64Bit {
 		// Darwin kernels require 32-bit aligned access to
 		// routing facilities.

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1985, 1986, 1988, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -27,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $FreeBSD: head/sys/sys/socket.h 314436 2017-02-28 23:42:47Z imp $
+ * $FreeBSD: head/sys/sys/socket.h 338136 2018-08-21 14:04:30Z tuexen $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -111,31 +113,32 @@ typedef	__uintptr_t	uintptr_t;
  */
 #define	SOCK_CLOEXEC	0x10000000
 #define	SOCK_NONBLOCK	0x20000000
-#endif
+#endif	/* __BSD_VISIBLE */
 
 /*
  * Option flags per-socket.
  */
-#define	SO_DEBUG	0x0001		/* turn on debugging info recording */
-#define	SO_ACCEPTCONN	0x0002		/* socket has had listen() */
-#define	SO_REUSEADDR	0x0004		/* allow local address reuse */
-#define	SO_KEEPALIVE	0x0008		/* keep connections alive */
-#define	SO_DONTROUTE	0x0010		/* just use interface addresses */
-#define	SO_BROADCAST	0x0020		/* permit sending of broadcast msgs */
+#define	SO_DEBUG	0x00000001	/* turn on debugging info recording */
+#define	SO_ACCEPTCONN	0x00000002	/* socket has had listen() */
+#define	SO_REUSEADDR	0x00000004	/* allow local address reuse */
+#define	SO_KEEPALIVE	0x00000008	/* keep connections alive */
+#define	SO_DONTROUTE	0x00000010	/* just use interface addresses */
+#define	SO_BROADCAST	0x00000020	/* permit sending of broadcast msgs */
 #if __BSD_VISIBLE
-#define	SO_USELOOPBACK	0x0040		/* bypass hardware when possible */
+#define	SO_USELOOPBACK	0x00000040	/* bypass hardware when possible */
 #endif
-#define	SO_LINGER	0x0080		/* linger on close if data present */
-#define	SO_OOBINLINE	0x0100		/* leave received OOB data in line */
+#define	SO_LINGER	0x00000080	/* linger on close if data present */
+#define	SO_OOBINLINE	0x00000100	/* leave received OOB data in line */
 #if __BSD_VISIBLE
-#define	SO_REUSEPORT	0x0200		/* allow local address & port reuse */
-#define	SO_TIMESTAMP	0x0400		/* timestamp received dgram traffic */
-#define	SO_NOSIGPIPE	0x0800		/* no SIGPIPE from EPIPE */
-#define	SO_ACCEPTFILTER	0x1000		/* there is an accept filter */
-#define	SO_BINTIME	0x2000		/* timestamp received dgram traffic */
+#define	SO_REUSEPORT	0x00000200	/* allow local address & port reuse */
+#define	SO_TIMESTAMP	0x00000400	/* timestamp received dgram traffic */
+#define	SO_NOSIGPIPE	0x00000800	/* no SIGPIPE from EPIPE */
+#define	SO_ACCEPTFILTER	0x00001000	/* there is an accept filter */
+#define	SO_BINTIME	0x00002000	/* timestamp received dgram traffic */
 #endif
-#define	SO_NO_OFFLOAD	0x4000		/* socket cannot be offloaded */
-#define	SO_NO_DDP	0x8000		/* disable direct data placement */
+#define	SO_NO_OFFLOAD	0x00004000	/* socket cannot be offloaded */
+#define	SO_NO_DDP	0x00008000	/* disable direct data placement */
+#define	SO_REUSEPORT_LB	0x00010000	/* reuse with load balancing */
 
 /*
  * Additional options, not kept in so_options.
@@ -160,6 +163,7 @@ typedef	__uintptr_t	uintptr_t;
 #define	SO_PROTOTYPE	SO_PROTOCOL	/* alias for SO_PROTOCOL (SunOS name) */
 #define	SO_TS_CLOCK	0x1017		/* clock type used for SO_TIMESTAMP */
 #define	SO_MAX_PACING_RATE	0x1018	/* socket's max TX pacing rate (Linux name) */
+#define	SO_DOMAIN	0x1019		/* get socket domain */
 #endif
 
 #if __BSD_VISIBLE
@@ -443,18 +447,12 @@ struct msghdr {
 #define	MSG_NBIO	 0x00004000	/* FIONBIO mode, used by fifofs */
 #define	MSG_COMPAT       0x00008000		/* used in sendit() */
 #endif
-#ifdef _KERNEL
-#define	MSG_SOCALLBCK    0x00010000	/* for use by socket callbacks - soreceive (TCP) */
-#endif
 #if __POSIX_VISIBLE >= 200809
 #define	MSG_NOSIGNAL	 0x00020000	/* do not generate SIGPIPE on EOF */
 #endif
 #if __BSD_VISIBLE
 #define	MSG_CMSG_CLOEXEC 0x00040000	/* make received fds close-on-exec */
 #define	MSG_WAITFORONE	 0x00080000	/* for recvmmsg() */
-#endif
-#ifdef _KERNEL
-#define	MSG_MORETOCOME	 0x00100000	/* additional data pending */
 #endif
 
 /*
@@ -543,10 +541,6 @@ struct sockcred {
 #define	CMSG_LEN(l)		(_ALIGN(sizeof(struct cmsghdr)) + (l))
 #endif
 
-#ifdef _KERNEL
-#define	CMSG_ALIGN(n)	_ALIGN(n)
-#endif
-
 /* "Socket"-level control message types: */
 #define	SCM_RIGHTS	0x01		/* access rights (array of int) */
 #if __BSD_VISIBLE
@@ -555,6 +549,17 @@ struct sockcred {
 #define	SCM_BINTIME	0x04		/* timestamp (struct bintime) */
 #define	SCM_REALTIME	0x05		/* timestamp (struct timespec) */
 #define	SCM_MONOTONIC	0x06		/* timestamp (struct timespec) */
+#define	SCM_TIME_INFO	0x07		/* timestamp info */
+
+struct sock_timestamp_info {
+	__uint32_t	st_info_flags;
+	__uint32_t	st_info_pad0;
+	__uint64_t	st_info_rsv[7];
+};
+
+#define	ST_INFO_HW		0x0001		/* SCM_TIMESTAMP was hw */
+#define	ST_INFO_HW_HPREC	0x0002		/* SCM_TIMESTAMP was hw-assisted
+						   on entrance */
 #endif
 
 #if __BSD_VISIBLE
@@ -616,10 +621,6 @@ struct sf_hdtr {
 #define	SF_NOCACHE	0x00000010
 #define	SF_FLAGS(rh, flags)	(((rh) << 16) | (flags))
 
-#ifdef _KERNEL
-#define	SF_READAHEAD(flags)	((flags) >> 16)
-#endif /* _KERNEL */
-
 /*
  * Sendmmsg/recvmmsg specific structure(s)
  */
@@ -673,40 +674,7 @@ __END_DECLS
 #endif /* !_KERNEL */
 
 #ifdef _KERNEL
-struct socket;
-
-struct tcpcb *so_sototcpcb(struct socket *so);
-struct inpcb *so_sotoinpcb(struct socket *so);
-struct sockbuf *so_sockbuf_snd(struct socket *);
-struct sockbuf *so_sockbuf_rcv(struct socket *);
-
-int so_state_get(const struct socket *);
-void so_state_set(struct socket *, int);
-
-int so_options_get(const struct socket *);
-void so_options_set(struct socket *, int);
-
-int so_error_get(const struct socket *);
-void so_error_set(struct socket *, int);
-
-int so_linger_get(const struct socket *);
-void so_linger_set(struct socket *, int);
-
-struct protosw *so_protosw_get(const struct socket *);
-void so_protosw_set(struct socket *, struct protosw *);
-
-void so_sorwakeup_locked(struct socket *so);
-void so_sowwakeup_locked(struct socket *so);
-
-void so_sorwakeup(struct socket *so);
-void so_sowwakeup(struct socket *so);
-
-void so_lock(struct socket *so);
-void so_unlock(struct socket *so);
-
-void so_listeners_apply_all(struct socket *so, void (*func)(struct socket *, void *), void *arg);
-
+/* Header file provided outside of Newlib */
+#include <machine/_kernel_socket.h>
 #endif
-
-
 #endif /* !_SYS_SOCKET_H_ */

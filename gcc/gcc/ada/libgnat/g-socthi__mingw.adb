@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                     Copyright (C) 2001-2019, AdaCore                     --
+--                     Copyright (C) 2001-2022, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -375,13 +375,10 @@ package body GNAT.Sockets.Thin is
       Exceptfds : access Fd_Set;
       Timeout   : Timeval_Access) return C.int
    is
-      pragma Warnings (Off, Exceptfds);
-
-      Original_WFS : aliased constant Fd_Set := Writefds.all;
-
-      Res  : C.int;
-      S    : aliased C.int;
-      Last : aliased C.int;
+      Original_WFS : aliased Fd_Set;
+      Res          : C.int;
+      S            : aliased C.int;
+      Last         : aliased C.int;
 
    begin
       --  Asynchronous connection failures are notified in the exception fd
@@ -392,7 +389,8 @@ package body GNAT.Sockets.Thin is
       --  present in the initial write fd set, then move the socket from the
       --  exception fd set to the write fd set.
 
-      if Writefds /= No_Fd_Set_Access then
+      if Writefds /= null then
+         Original_WFS := Writefds.all;
 
          --  Add any socket present in write fd set into exception fd set
 
@@ -411,7 +409,7 @@ package body GNAT.Sockets.Thin is
 
       Res := Standard_Select (Nfds, Readfds, Writefds, Exceptfds, Timeout);
 
-      if Exceptfds /= No_Fd_Set_Access then
+      if Exceptfds /= null then
          declare
             EFSC    : aliased Fd_Set := Exceptfds.all;
             Flag    : constant C.int := SOSC.MSG_PEEK + SOSC.MSG_OOB;
@@ -448,8 +446,8 @@ package body GNAT.Sockets.Thin is
                   --  exception fd set back to write fd set. Otherwise, ignore
                   --  this event since the user is not watching for it.
 
-                  if Writefds /= No_Fd_Set_Access
-                    and then (Is_Socket_In_Set (Original_WFS'Access, S) /= 0)
+                  if Writefds /= null
+                    and then Is_Socket_In_Set (Original_WFS'Access, S) /= 0
                   then
                      Insert_Socket_In_Set (Writefds, S);
                   end if;
@@ -457,6 +455,7 @@ package body GNAT.Sockets.Thin is
             end loop;
          end;
       end if;
+
       return Res;
    end C_Select;
 
@@ -510,6 +509,16 @@ package body GNAT.Sockets.Thin is
 
       return System.CRTL.ssize_t (Count);
    end C_Sendmsg;
+
+   ------------------
+   -- C_Socketpair --
+   ------------------
+
+   function C_Socketpair
+     (Domain   : C.int;
+      Typ      : C.int;
+      Protocol : C.int;
+      Fds      : not null access Fd_Pair) return C.int is separate;
 
    --------------
    -- Finalize --

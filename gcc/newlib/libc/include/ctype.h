@@ -4,8 +4,8 @@
 #include "_ansi.h"
 #include <sys/cdefs.h>
 
-#if __POSIX_VISIBLE >= 200809 || __MISC_VISIBLE || defined (_COMPILING_NEWLIB)
-#include <xlocale.h>
+#if __POSIX_VISIBLE >= 200809 || __MISC_VISIBLE || defined (_LIBC)
+#include <sys/_locale.h>
 #endif
 
 _BEGIN_STD_C
@@ -66,7 +66,15 @@ extern int toascii_l (int __c, locale_t __l);
 #define _X	0100
 #define	_B	0200
 
+/* For C++ backward-compatibility only.  */
+extern	__IMPORT const char	_ctype_[];
+
+#ifdef __HAVE_LOCALE_INFO__
 const char *__locale_ctype_ptr (void);
+#else
+#define __locale_ctype_ptr()	_ctype_
+#endif
+
 # define __CTYPE_PTR	(__locale_ctype_ptr ())
 
 #ifndef __cplusplus
@@ -100,7 +108,16 @@ const char *__locale_ctype_ptr (void);
 #endif
 
 #if __POSIX_VISIBLE >= 200809
+#ifdef __HAVE_LOCALE_INFO__
 const char *__locale_ctype_ptr_l (locale_t);
+#else
+static __inline const char *
+__locale_ctype_ptr_l(locale_t _l)
+{
+	(void)_l;
+	return __locale_ctype_ptr();
+}
+#endif
 #define __ctype_lookup_l(__c,__l) ((__locale_ctype_ptr_l(__l)+sizeof(""[__c]))[(int)(__c)])
 
 #define	isalpha_l(__c,__l)	(__ctype_lookup_l(__c,__l)&(_U|_L))
@@ -160,9 +177,6 @@ const char *__locale_ctype_ptr_l (locale_t);
 #endif /* __POSIX_VISIBLE >= 200809 */
 
 #endif /* !__cplusplus */
-
-/* For C++ backward-compatibility only.  */
-extern	__IMPORT const char	_ctype_[];
 
 _END_STD_C
 

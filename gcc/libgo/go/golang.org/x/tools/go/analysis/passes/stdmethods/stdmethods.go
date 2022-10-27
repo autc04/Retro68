@@ -8,7 +8,6 @@ package stdmethods
 
 import (
 	"go/ast"
-	"go/token"
 	"go/types"
 	"strings"
 
@@ -62,10 +61,12 @@ var Analyzer = &analysis.Analyzer{
 // we let it go. But if it does have a fmt.ScanState, then the
 // rest has to match.
 var canonicalMethods = map[string]struct{ args, results []string }{
+	"As": {[]string{"any"}, []string{"bool"}}, // errors.As
 	// "Flush": {{}, {"error"}}, // http.Flusher and jpeg.writer conflict
 	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},                      // fmt.Formatter
 	"GobDecode":     {[]string{"[]byte"}, []string{"error"}},                           // gob.GobDecoder
 	"GobEncode":     {[]string{}, []string{"[]byte", "error"}},                         // gob.GobEncoder
+	"Is":            {[]string{"error"}, []string{"bool"}},                             // errors.Is
 	"MarshalJSON":   {[]string{}, []string{"[]byte", "error"}},                         // json.Marshaler
 	"MarshalXML":    {[]string{"*xml.Encoder", "xml.StartElement"}, []string{"error"}}, // xml.Marshaler
 	"ReadByte":      {[]string{}, []string{"byte", "error"}},                           // io.ByteReader
@@ -77,6 +78,7 @@ var canonicalMethods = map[string]struct{ args, results []string }{
 	"UnmarshalXML":  {[]string{"*xml.Decoder", "xml.StartElement"}, []string{"error"}}, // xml.Unmarshaler
 	"UnreadByte":    {[]string{}, []string{"error"}},
 	"UnreadRune":    {[]string{}, []string{"error"}},
+	"Unwrap":        {[]string{}, []string{"error"}},                      // errors.Unwrap
 	"WriteByte":     {[]string{"byte"}, []string{"error"}},                // jpeg.writer (matching bufio.Writer)
 	"WriteTo":       {[]string{"=io.Writer"}, []string{"int64", "error"}}, // io.WriterTo
 }
@@ -117,6 +119,21 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
 	args := sign.Params()
 	results := sign.Results()
 
+	// Special case: WriteTo with more than one argument,
+	// not trying at all to implement io.WriterTo,
+	// comes up often enough to skip.
+	if id.Name == "WriteTo" && args.Len() > 1 {
+		return
+	}
+
+	// Special case: Is, As and Unwrap only apply when type
+	// implements error.
+	if id.Name == "Is" || id.Name == "As" || id.Name == "Unwrap" {
+		if recv := sign.Recv(); recv == nil || !implementsError(recv.Type()) {
+			return
+		}
+	}
+
 	// Do the =s (if any) all match?
 	if !matchParams(pass, expect.args, args, "=") || !matchParams(pass, expect.results, results, "=") {
 		return
@@ -135,7 +152,7 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
 		actual = strings.TrimPrefix(actual, "func")
 		actual = id.Name + actual
 
-		pass.Reportf(id.Pos(), "method %s should have signature %s", actual, expectFmt)
+		pass.ReportRangef(id, "method %s should have signature %s", actual, expectFmt)
 	}
 }
 
@@ -163,7 +180,7 @@ func matchParams(pass *analysis.Pass, expect []string, actual *types.Tuple, pref
 		if i >= actual.Len() {
 			return false
 		}
-		if !matchParamType(pass.Fset, pass.Pkg, x, actual.At(i).Type()) {
+		if !matchParamType(x, actual.At(i).Type()) {
 			return false
 		}
 	}
@@ -174,13 +191,16 @@ func matchParams(pass *analysis.Pass, expect []string, actual *types.Tuple, pref
 }
 
 // Does this one type match?
-func matchParamType(fset *token.FileSet, pkg *types.Package, expect string, actual types.Type) bool {
+func matchParamType(expect string, actual types.Type) bool {
 	expect = strings.TrimPrefix(expect, "=")
-	// Strip package name if we're in that package.
-	if n := len(pkg.Name()); len(expect) > n && expect[:n] == pkg.Name() && expect[n] == '.' {
-		expect = expect[n+1:]
-	}
-
 	// Overkill but easy.
-	return typeString(actual) == expect
+	t := typeString(actual)
+	return t == expect ||
+		(t == "any" || t == "interface{}") && (expect == "any" || expect == "interface{}")
+}
+
+var errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+
+func implementsError(actual types.Type) bool {
+	return types.Implements(actual, errorType)
 }

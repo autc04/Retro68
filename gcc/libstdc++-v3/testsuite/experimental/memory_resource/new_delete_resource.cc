@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Free Software Foundation, Inc.
+// Copyright (C) 2018-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -17,11 +17,16 @@
 
 // { dg-do run { target c++14 } }
 // { dg-require-cstdint "" }
-// { dg-xfail-run-if "PR libstdc++/77691" { { i?86-*-solaris2.* x86_64-*-solaris2.* } && ilp32 } }
 
 #include <experimental/memory_resource>
 #include <cstdlib>
+#include <cstdint>
 #include <testsuite_hooks.h>
+
+#if (defined __sun__ || defined __VXWORKS__) && defined __i386__
+// See PR libstdc++/77691
+# define BAD_MAX_ALIGN_T 1
+#endif
 
 bool new_called = false;
 bool delete_called = false;
@@ -38,14 +43,14 @@ void* operator new(std::size_t n)
   throw std::bad_alloc();
 }
 
-void operator delete(void* p)
+void operator delete(void* p) noexcept
 {
   delete_called = true;
   std::free(p);
   bytes_allocated = 0; // assume everything getting deleted
 }
 
-void operator delete(void* p, std::size_t n)
+void operator delete(void* p, std::size_t n) noexcept
 {
   delete_called = true;
   std::free(p);
@@ -55,9 +60,7 @@ void operator delete(void* p, std::size_t n)
 
 template<std::size_t A>
   bool aligned(void* p)
-  {
-    return (reinterpret_cast<std::uintptr_t>(p) % A) == 0;
-  }
+  { return (reinterpret_cast<std::uintptr_t>(p) % A) == 0; }
 
 template<typename T>
   bool aligned(void* p)
@@ -103,37 +106,39 @@ test02()
 
 void
 test03()
-
 {
   using std::max_align_t;
   using std::size_t;
   void* p = nullptr;
 
-  auto max = [](int n, int a) { return n > a ? n : a; };
+  auto round = [](size_t n, size_t a) { return n % a ? n + a - (n % a) : n; };
 
   bytes_allocated = 0;
 
   memory_resource* r1 = new_delete_resource();
   p = r1->allocate(1); // uses alignment = alignof(max_align_t)
-  VERIFY( bytes_allocated <= alignof(max_align_t) );
+#ifdef BAD_MAX_ALIGN_T
+  VERIFY( bytes_allocated != 0 );
+#else
+  VERIFY( bytes_allocated == alignof(max_align_t) );
+#endif
   VERIFY( aligned<max_align_t>(p) );
   r1->deallocate(p, 1);
   VERIFY( bytes_allocated == 0 );
 
   p = r1->allocate(2, alignof(char));
   VERIFY( bytes_allocated == 2 );
-  VERIFY( aligned<max_align_t>(p) );
-  r1->deallocate(p, 2);
+  r1->deallocate(p, 2, alignof(char));
   VERIFY( bytes_allocated == 0 );
 
   p = r1->allocate(3, alignof(short));
-  VERIFY( bytes_allocated == max(3, alignof(short)) );
+  VERIFY( bytes_allocated == round(3, alignof(short)) );
   VERIFY( aligned<short>(p) );
   r1->deallocate(p, 3, alignof(short));
   VERIFY( bytes_allocated == 0 );
 
   p = r1->allocate(4, alignof(long));
-  VERIFY( bytes_allocated == max(4, alignof(long)) );
+  VERIFY( bytes_allocated == round(4, alignof(long)) );
   VERIFY( aligned<long>(p) );
   r1->deallocate(p, 4, alignof(long));
   VERIFY( bytes_allocated == 0 );

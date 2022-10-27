@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,19 +29,32 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  This function performs exponentiation of unsigned types (with binary
---  modulus values exceeding that of Unsigned_Types.Unsigned). The result
---  is always full width, the caller must do a masking operation if the
---  modulus is less than 2 ** (Long_Long_Unsigned'Size).
+--  This function performs exponentiation of unsigned types with binary modulus
+--  values exceeding that of System.Unsigned_Types.Unsigned.
+--  The result is always full width, the caller must do a masking operation if
+--  the modulus is less than 2 ** Long_Long_Unsigned'Size.
 
+--  Preconditions in this unit are meant for analysis only, not for run-time
+--  checking, so that the expected exceptions are raised. This is enforced
+--  by setting the corresponding assertion policy to Ignore. Postconditions
+--  and contract cases should not be executed at runtime as well, in order
+--  not to slow down the execution of these functions.
+
+pragma Assertion_Policy (Pre            => Ignore,
+                         Post           => Ignore,
+                         Contract_Cases => Ignore,
+                         Ghost          => Ignore);
+
+with System.Exponu;
 with System.Unsigned_Types;
 
-package System.Exp_LLU is
-   pragma Pure;
+package System.Exp_LLU
+  with SPARK_Mode
+is
 
-   function Exp_Long_Long_Unsigned
-     (Left  : System.Unsigned_Types.Long_Long_Unsigned;
-      Right : Natural)
-      return  System.Unsigned_Types.Long_Long_Unsigned;
+   subtype Long_Long_Unsigned is Unsigned_Types.Long_Long_Unsigned;
+
+   function Exp_Long_Long_Unsigned is new Exponu (Long_Long_Unsigned);
+   pragma Pure_Function (Exp_Long_Long_Unsigned);
 
 end System.Exp_LLU;

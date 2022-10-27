@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd hurd linux netbsd openbsd windows solaris
+//go:build aix || darwin || dragonfly || freebsd || hurd || linux || netbsd || openbsd || windows || solaris
 
 package poll
 
@@ -38,11 +38,7 @@ func (pd *pollDesc) init(fd *FD) error {
 	serverInit.Do(runtime_pollServerInit)
 	ctx, errno := runtime_pollOpen(uintptr(fd.Sysfd))
 	if errno != 0 {
-		if ctx != 0 {
-			runtime_pollUnblock(ctx)
-			runtime_pollClose(ctx)
-		}
-		return syscall.Errno(errno)
+		return errnoErr(syscall.Errno(errno))
 	}
 	pd.runtimeCtx = ctx
 	return nil
@@ -107,14 +103,25 @@ func (pd *pollDesc) pollable() bool {
 	return pd.runtimeCtx != 0
 }
 
+// Error values returned by runtime_pollReset and runtime_pollWait.
+// These must match the values in runtime/netpoll.go.
+const (
+	pollNoError        = 0
+	pollErrClosing     = 1
+	pollErrTimeout     = 2
+	pollErrNotPollable = 3
+)
+
 func convertErr(res int, isFile bool) error {
 	switch res {
-	case 0:
+	case pollNoError:
 		return nil
-	case 1:
+	case pollErrClosing:
 		return errClosing(isFile)
-	case 2:
-		return ErrTimeout
+	case pollErrTimeout:
+		return ErrDeadlineExceeded
+	case pollErrNotPollable:
+		return ErrNotPollable
 	}
 	println("unreachable: ", res)
 	panic("unreachable")

@@ -1,5 +1,5 @@
 /* Natural loop functions
-   Copyright (C) 1987-2019 Free Software Foundation, Inc.
+   Copyright (C) 1987-2022 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -46,7 +46,8 @@ enum iv_extend_code
 
 /* The structure describing a bound on number of iterations of a loop.  */
 
-struct GTY ((chain_next ("%h.next"))) nb_iter_bound {
+class GTY ((chain_next ("%h.next"))) nb_iter_bound {
+public:
   /* The statement STMT is executed at most ...  */
   gimple *stmt;
 
@@ -59,13 +60,13 @@ struct GTY ((chain_next ("%h.next"))) nb_iter_bound {
      b) it is consistent with the result of number_of_iterations_exit.  */
   widest_int bound;
 
-  /* True if the statement will cause the loop to be leaved the (at most)
-     BOUND + 1-st time it is executed, that is, all the statements after it
-     are executed at most BOUND times.  */
+  /* True if, after executing the statement BOUND + 1 times, we will
+     leave the loop; that is, all the statements after it are executed at most
+     BOUND times.  */
   bool is_exit;
 
   /* The next bound in the list.  */
-  struct nb_iter_bound *next;
+  class nb_iter_bound *next;
 };
 
 /* Description of the loop exit.  */
@@ -91,7 +92,7 @@ struct loop_exit_hasher : ggc_ptr_hash<loop_exit>
   static void remove (loop_exit *);
 };
 
-typedef struct loop *loop_p;
+typedef class loop *loop_p;
 
 /* An integer estimation of the number of iterations.  Estimate_state
    describes what is the state of the estimation.  */
@@ -113,7 +114,8 @@ struct GTY ((chain_next ("%h.next"))) control_iv {
 };
 
 /* Structure to hold information for each natural loop.  */
-struct GTY ((chain_next ("%h.next"))) loop {
+class GTY ((chain_next ("%h.next"))) loop {
+public:
   /* Index into loops array.  Note indices will never be reused after loop
      is destroyed.  */
   int num;
@@ -140,10 +142,10 @@ struct GTY ((chain_next ("%h.next"))) loop {
   vec<loop_p, va_gc> *superloops;
 
   /* The first inner (child) loop or NULL if innermost loop.  */
-  struct loop *inner;
+  class loop *inner;
 
   /* Link to the next (sibling) loop.  */
-  struct loop *next;
+  class loop *next;
 
   /* Auxiliary info specific to a pass.  */
   PTR GTY ((skip (""))) aux;
@@ -173,6 +175,9 @@ struct GTY ((chain_next ("%h.next"))) loop {
      [ I, min ( I + safelen, nb_iterations ) ), the Ith and Jth iterations
      of the loop can be safely evaluated concurrently.  */
   int safelen;
+
+  /* Preferred vectorization factor for the loop if non-zero.  */
+  int simdlen;
 
   /* Constraints are generally set by consumers and affect certain
      semantics of niter analyzer APIs.  Currently the APIs affected are
@@ -221,6 +226,10 @@ struct GTY ((chain_next ("%h.next"))) loop {
   /* True if the loop is part of an oacc kernels region.  */
   unsigned in_oacc_kernels_region : 1;
 
+  /* True if the loop is known to be finite.  This is a localized
+     flag_finite_loops or similar pragmas state.  */
+  unsigned finite_p : 1;
+
   /* The number of times to unroll the loop.  0 means no information given,
      just do what we always do.  A value of 1 means do not unroll the loop.
      A value of USHRT_MAX means unroll with no specific unrolling factor.
@@ -247,7 +256,7 @@ struct GTY ((chain_next ("%h.next"))) loop {
   int orig_loop_num;
 
   /* Upper bound on number of iterations of a loop.  */
-  struct nb_iter_bound *bounds;
+  class nb_iter_bound *bounds;
 
   /* Non-overflow control ivs of a loop.  */
   struct control_iv *control_ivs;
@@ -256,7 +265,7 @@ struct GTY ((chain_next ("%h.next"))) loop {
   struct loop_exit *exits;
 
   /* Number of iteration analysis data for RTL.  */
-  struct niter_desc *simple_loop_desc;
+  class niter_desc *simple_loop_desc;
 
   /* For sanity checking during loop fixup we record here the former
      loop header for loops marked for removal.  Note that this prevents
@@ -272,21 +281,21 @@ struct GTY ((chain_next ("%h.next"))) loop {
 
 /* Set C to the LOOP constraint.  */
 static inline void
-loop_constraint_set (struct loop *loop, unsigned c)
+loop_constraint_set (class loop *loop, unsigned c)
 {
   loop->constraints |= c;
 }
 
 /* Clear C from the LOOP constraint.  */
 static inline void
-loop_constraint_clear (struct loop *loop, unsigned c)
+loop_constraint_clear (class loop *loop, unsigned c)
 {
   loop->constraints &= ~c;
 }
 
 /* Check if C is set in the LOOP constraint.  */
 static inline bool
-loop_constraint_set_p (struct loop *loop, unsigned c)
+loop_constraint_set_p (class loop *loop, unsigned c)
 {
   return (loop->constraints & c) == c;
 }
@@ -322,7 +331,7 @@ struct GTY (()) loops {
   hash_table<loop_exit_hasher> *GTY(()) exits;
 
   /* Pointer to root of loop hierarchy tree.  */
-  struct loop *tree_root;
+  class loop *tree_root;
 };
 
 /* Loop recognition.  */
@@ -332,12 +341,12 @@ extern struct loops *flow_loops_find (struct loops *);
 extern void disambiguate_loops_with_multiple_latches (void);
 extern void flow_loops_free (struct loops *);
 extern void flow_loops_dump (FILE *,
-			     void (*)(const struct loop *, FILE *, int), int);
-extern void flow_loop_dump (const struct loop *, FILE *,
-			    void (*)(const struct loop *, FILE *, int), int);
-struct loop *alloc_loop (void);
-extern void flow_loop_free (struct loop *);
-int flow_loop_nodes_find (basic_block, struct loop *);
+			     void (*)(const class loop *, FILE *, int), int);
+extern void flow_loop_dump (const class loop *, FILE *,
+			    void (*)(const class loop *, FILE *, int), int);
+class loop *alloc_loop (void);
+extern void flow_loop_free (class loop *);
+int flow_loop_nodes_find (basic_block, class loop *);
 unsigned fix_loop_structure (bitmap changed_bbs);
 bool mark_irreducible_loops (void);
 void release_recorded_exits (function *);
@@ -346,54 +355,56 @@ void rescan_loop_exit (edge, bool, bool);
 void sort_sibling_loops (function *);
 
 /* Loop data structure manipulation/querying.  */
-extern void flow_loop_tree_node_add (struct loop *, struct loop *,
-				     struct loop * = NULL);
-extern void flow_loop_tree_node_remove (struct loop *);
-extern bool flow_loop_nested_p	(const struct loop *, const struct loop *);
-extern bool flow_bb_inside_loop_p (const struct loop *, const_basic_block);
-extern struct loop * find_common_loop (struct loop *, struct loop *);
-struct loop *superloop_at_depth (struct loop *, unsigned);
+extern void flow_loop_tree_node_add (class loop *, class loop *,
+				     class loop * = NULL);
+extern void flow_loop_tree_node_remove (class loop *);
+extern bool flow_loop_nested_p	(const class loop *, const class loop *);
+extern bool flow_bb_inside_loop_p (const class loop *, const_basic_block);
+extern class loop * find_common_loop (class loop *, class loop *);
+class loop *superloop_at_depth (class loop *, unsigned);
 struct eni_weights;
-extern int num_loop_insns (const struct loop *);
-extern int average_num_loop_insns (const struct loop *);
-extern unsigned get_loop_level (const struct loop *);
-extern bool loop_exit_edge_p (const struct loop *, const_edge);
-extern bool loop_exits_to_bb_p (struct loop *, basic_block);
-extern bool loop_exits_from_bb_p (struct loop *, basic_block);
+extern int num_loop_insns (const class loop *);
+extern int average_num_loop_insns (const class loop *);
+extern unsigned get_loop_level (const class loop *);
+extern bool loop_exit_edge_p (const class loop *, const_edge);
+extern bool loop_exits_to_bb_p (class loop *, basic_block);
+extern bool loop_exits_from_bb_p (class loop *, basic_block);
 extern void mark_loop_exit_edges (void);
-extern dump_user_location_t get_loop_location (struct loop *loop);
+extern dump_user_location_t get_loop_location (class loop *loop);
 
 /* Loops & cfg manipulation.  */
-extern basic_block *get_loop_body (const struct loop *);
-extern unsigned get_loop_body_with_size (const struct loop *, basic_block *,
+extern basic_block *get_loop_body (const class loop *);
+extern unsigned get_loop_body_with_size (const class loop *, basic_block *,
 					 unsigned);
-extern basic_block *get_loop_body_in_dom_order (const struct loop *);
-extern basic_block *get_loop_body_in_bfs_order (const struct loop *);
-extern basic_block *get_loop_body_in_custom_order (const struct loop *,
+extern basic_block *get_loop_body_in_dom_order (const class loop *);
+extern basic_block *get_loop_body_in_bfs_order (const class loop *);
+extern basic_block *get_loop_body_in_custom_order (const class loop *,
 			       int (*) (const void *, const void *));
+extern basic_block *get_loop_body_in_custom_order (const class loop *, void *,
+			       int (*) (const void *, const void *, void *));
 
-extern vec<edge> get_loop_exit_edges (const struct loop *);
-extern edge single_exit (const struct loop *);
-extern edge single_likely_exit (struct loop *loop);
-extern unsigned num_loop_branches (const struct loop *);
+extern auto_vec<edge> get_loop_exit_edges (const class loop *, basic_block * = NULL);
+extern edge single_exit (const class loop *);
+extern edge single_likely_exit (class loop *loop, const vec<edge> &);
+extern unsigned num_loop_branches (const class loop *);
 
-extern edge loop_preheader_edge (const struct loop *);
-extern edge loop_latch_edge (const struct loop *);
+extern edge loop_preheader_edge (const class loop *);
+extern edge loop_latch_edge (const class loop *);
 
-extern void add_bb_to_loop (basic_block, struct loop *);
+extern void add_bb_to_loop (basic_block, class loop *);
 extern void remove_bb_from_loops (basic_block);
 
-extern void cancel_loop_tree (struct loop *);
-extern void delete_loop (struct loop *);
+extern void cancel_loop_tree (class loop *);
+extern void delete_loop (class loop *);
 
 
 extern void verify_loop_structure (void);
 
 /* Loop analysis.  */
-extern bool just_once_each_iteration_p (const struct loop *, const_basic_block);
-gcov_type expected_loop_iterations_unbounded (const struct loop *,
+extern bool just_once_each_iteration_p (const class loop *, const_basic_block);
+gcov_type expected_loop_iterations_unbounded (const class loop *,
 					      bool *read_profile_p = NULL, bool by_profile_only = false);
-extern unsigned expected_loop_iterations (struct loop *);
+extern unsigned expected_loop_iterations (class loop *);
 extern rtx doloop_condition_get (rtx_insn *);
 
 void mark_loop_for_removal (loop_p);
@@ -419,8 +430,9 @@ void mark_loop_for_removal (loop_p);
    computation is done, which would enable it to be different from the
    outer one?  */
 
-struct rtx_iv
+class rtx_iv
 {
+public:
   /* Its base and step (mode of base and step is supposed to be extend_mode,
      see the description above).  */
   rtx base, step;
@@ -445,8 +457,9 @@ struct rtx_iv
 /* The description of an exit from the loop and of the number of iterations
    till we take the exit.  */
 
-struct GTY(()) niter_desc
+class GTY(()) niter_desc
 {
+public:
   /* The edge out of the loop.  */
   edge out_edge;
 
@@ -483,21 +496,20 @@ struct GTY(()) niter_desc
   rtx niter_expr;
 };
 
-extern void iv_analysis_loop_init (struct loop *);
-extern bool iv_analyze (rtx_insn *, scalar_int_mode, rtx, struct rtx_iv *);
-extern bool iv_analyze_result (rtx_insn *, rtx, struct rtx_iv *);
+extern void iv_analysis_loop_init (class loop *);
+extern bool iv_analyze (rtx_insn *, scalar_int_mode, rtx, class rtx_iv *);
+extern bool iv_analyze_result (rtx_insn *, rtx, class rtx_iv *);
 extern bool iv_analyze_expr (rtx_insn *, scalar_int_mode, rtx,
-			     struct rtx_iv *);
-extern rtx get_iv_value (struct rtx_iv *, rtx);
+			     class rtx_iv *);
+extern rtx get_iv_value (class rtx_iv *, rtx);
 extern bool biv_p (rtx_insn *, scalar_int_mode, rtx);
-extern void find_simple_exit (struct loop *, struct niter_desc *);
 extern void iv_analysis_done (void);
 
-extern struct niter_desc *get_simple_loop_desc (struct loop *loop);
-extern void free_simple_loop_desc (struct loop *loop);
+extern class niter_desc *get_simple_loop_desc (class loop *loop);
+extern void free_simple_loop_desc (class loop *loop);
 
-static inline struct niter_desc *
-simple_loop_desc (struct loop *loop)
+static inline class niter_desc *
+simple_loop_desc (class loop *loop)
 {
   return loop->simple_loop_desc;
 }
@@ -506,7 +518,7 @@ simple_loop_desc (struct loop *loop)
 
 /* Returns the loop with index NUM from FNs loop tree.  */
 
-static inline struct loop *
+static inline class loop *
 get_loop (struct function *fn, unsigned num)
 {
   return (*loops_for_fn (fn)->larray)[num];
@@ -515,7 +527,7 @@ get_loop (struct function *fn, unsigned num)
 /* Returns the number of superloops of LOOP.  */
 
 static inline unsigned
-loop_depth (const struct loop *loop)
+loop_depth (const class loop *loop)
 {
   return vec_safe_length (loop->superloops);
 }
@@ -523,8 +535,8 @@ loop_depth (const struct loop *loop)
 /* Returns the immediate superloop of LOOP, or NULL if LOOP is the outermost
    loop.  */
 
-static inline struct loop *
-loop_outer (const struct loop *loop)
+static inline class loop *
+loop_outer (const class loop *loop)
 {
   unsigned n = vec_safe_length (loop->superloops);
 
@@ -537,7 +549,7 @@ loop_outer (const struct loop *loop)
 /* Returns true if LOOP has at least one exit edge.  */
 
 static inline bool
-loop_has_exit_edges (const struct loop *loop)
+loop_has_exit_edges (const class loop *loop)
 {
   return loop->exits->next->e != NULL;
 }
@@ -646,134 +658,181 @@ enum li_flags
   LI_ONLY_INNERMOST = 4		/* Iterate only over innermost loops.  */
 };
 
-/* The iterator for loops.  */
-
-struct loop_iterator
+/* Provide the functionality of std::as_const to support range-based for
+   to use const iterator.  (We can't use std::as_const itself because it's
+   a C++17 feature.)  */
+template <typename T>
+constexpr const T &
+as_const (T &t)
 {
-  loop_iterator (function *fn, loop_p *loop, unsigned flags);
-  ~loop_iterator ();
+  return t;
+}
 
-  inline loop_p next ();
+/* A list for visiting loops, which contains the loop numbers instead of
+   the loop pointers.  If the loop ROOT is offered (non-null), the visiting
+   will start from it, otherwise it would start from the tree_root of
+   loops_for_fn (FN) instead.  The scope is restricted in function FN and
+   the visiting order is specified by FLAGS.  */
+
+class loops_list
+{
+public:
+  loops_list (function *fn, unsigned flags, class loop *root = nullptr);
+
+  template <typename T> class Iter
+  {
+  public:
+    Iter (const loops_list &l, unsigned idx) : list (l), curr_idx (idx)
+    {
+      fill_curr_loop ();
+    }
+
+    T operator* () const { return curr_loop; }
+
+    Iter &
+    operator++ ()
+    {
+      if (curr_idx < list.to_visit.length ())
+	{
+	  /* Bump the index and fill a new one.  */
+	  curr_idx++;
+	  fill_curr_loop ();
+	}
+      else
+	gcc_assert (!curr_loop);
+
+      return *this;
+    }
+
+    bool
+    operator!= (const Iter &rhs) const
+    {
+      return this->curr_idx != rhs.curr_idx;
+    }
+
+  private:
+    /* Fill the current loop starting from the current index.  */
+    void fill_curr_loop ();
+
+    /* Reference to the loop list to visit.  */
+    const loops_list &list;
+
+    /* The current index in the list to visit.  */
+    unsigned curr_idx;
+
+    /* The loop implied by the current index.  */
+    class loop *curr_loop;
+  };
+
+  using iterator = Iter<class loop *>;
+  using const_iterator = Iter<const class loop *>;
+
+  iterator
+  begin ()
+  {
+    return iterator (*this, 0);
+  }
+
+  iterator
+  end ()
+  {
+    return iterator (*this, to_visit.length ());
+  }
+
+  const_iterator
+  begin () const
+  {
+    return const_iterator (*this, 0);
+  }
+
+  const_iterator
+  end () const
+  {
+    return const_iterator (*this, to_visit.length ());
+  }
+
+private:
+  /* Walk loop tree starting from ROOT as the visiting order specified
+     by FLAGS.  */
+  void walk_loop_tree (class loop *root, unsigned flags);
 
   /* The function we are visiting.  */
   function *fn;
 
   /* The list of loops to visit.  */
-  vec<int> to_visit;
-
-  /* The index of the actual loop.  */
-  unsigned idx;
+  auto_vec<int, 16> to_visit;
 };
 
-inline loop_p
-loop_iterator::next ()
+/* Starting from current index CURR_IDX (inclusive), find one index
+   which stands for one valid loop and fill the found loop as CURR_LOOP,
+   if we can't find one, set CURR_LOOP as null.  */
+
+template <typename T>
+inline void
+loops_list::Iter<T>::fill_curr_loop ()
 {
   int anum;
 
-  while (this->to_visit.iterate (this->idx, &anum))
+  while (this->list.to_visit.iterate (this->curr_idx, &anum))
     {
-      this->idx++;
-      loop_p loop = get_loop (fn, anum);
+      class loop *loop = get_loop (this->list.fn, anum);
       if (loop)
-	return loop;
+	{
+	  curr_loop = loop;
+	  return;
+	}
+      this->curr_idx++;
     }
 
-  return NULL;
+  curr_loop = nullptr;
 }
 
-inline
-loop_iterator::loop_iterator (function *fn, loop_p *loop, unsigned flags)
+/* Set up the loops list to visit according to the specified
+   function scope FN and iterating order FLAGS.  If ROOT is
+   not null, the visiting would start from it, otherwise it
+   will start from tree_root of loops_for_fn (FN).  */
+
+inline loops_list::loops_list (function *fn, unsigned flags, class loop *root)
 {
-  struct loop *aloop;
-  unsigned i;
-  int mn;
+  struct loops *loops = loops_for_fn (fn);
+  gcc_assert (!root || loops);
 
-  this->idx = 0;
+  /* Check mutually exclusive flags should not co-exist.  */
+  unsigned checked_flags = LI_ONLY_INNERMOST | LI_FROM_INNERMOST;
+  gcc_assert ((flags & checked_flags) != checked_flags);
+
   this->fn = fn;
-  if (!loops_for_fn (fn))
-    {
-      this->to_visit.create (0);
-      *loop = NULL;
-      return;
-    }
+  if (!loops)
+    return;
 
-  this->to_visit.create (number_of_loops (fn));
-  mn = (flags & LI_INCLUDE_ROOT) ? 0 : 1;
+  class loop *tree_root = root ? root : loops->tree_root;
 
-  if (flags & LI_ONLY_INNERMOST)
+  this->to_visit.reserve_exact (number_of_loops (fn));
+
+  /* When root is tree_root of loops_for_fn (fn) and the visiting
+     order is LI_ONLY_INNERMOST, we would like to use linear
+     search here since it has a more stable bound than the
+     walk_loop_tree.  */
+  if (flags & LI_ONLY_INNERMOST && tree_root == loops->tree_root)
     {
-      for (i = 0; vec_safe_iterate (loops_for_fn (fn)->larray, i, &aloop); i++)
-	if (aloop != NULL
-	    && aloop->inner == NULL
-	    && aloop->num >= mn)
+      gcc_assert (tree_root->num == 0);
+      if (tree_root->inner == NULL)
+	{
+	  if (flags & LI_INCLUDE_ROOT)
+	    this->to_visit.quick_push (0);
+
+	  return;
+	}
+
+      class loop *aloop;
+      unsigned int i;
+      for (i = 1; vec_safe_iterate (loops->larray, i, &aloop); i++)
+	if (aloop != NULL && aloop->inner == NULL)
 	  this->to_visit.quick_push (aloop->num);
     }
-  else if (flags & LI_FROM_INNERMOST)
-    {
-      /* Push the loops to LI->TO_VISIT in postorder.  */
-      for (aloop = loops_for_fn (fn)->tree_root;
-	   aloop->inner != NULL;
-	   aloop = aloop->inner)
-	continue;
-
-      while (1)
-	{
-	  if (aloop->num >= mn)
-	    this->to_visit.quick_push (aloop->num);
-
-	  if (aloop->next)
-	    {
-	      for (aloop = aloop->next;
-		   aloop->inner != NULL;
-		   aloop = aloop->inner)
-		continue;
-	    }
-	  else if (!loop_outer (aloop))
-	    break;
-	  else
-	    aloop = loop_outer (aloop);
-	}
-    }
   else
-    {
-      /* Push the loops to LI->TO_VISIT in preorder.  */
-      aloop = loops_for_fn (fn)->tree_root;
-      while (1)
-	{
-	  if (aloop->num >= mn)
-	    this->to_visit.quick_push (aloop->num);
-
-	  if (aloop->inner != NULL)
-	    aloop = aloop->inner;
-	  else
-	    {
-	      while (aloop != NULL && aloop->next == NULL)
-		aloop = loop_outer (aloop);
-	      if (aloop == NULL)
-		break;
-	      aloop = aloop->next;
-	    }
-	}
-    }
-
-  *loop = this->next ();
+    walk_loop_tree (tree_root, flags);
 }
-
-inline
-loop_iterator::~loop_iterator ()
-{
-  this->to_visit.release ();
-}
-
-#define FOR_EACH_LOOP(LOOP, FLAGS) \
-  for (loop_iterator li(cfun, &(LOOP), FLAGS); \
-       (LOOP); \
-       (LOOP) = li.next ())
-
-#define FOR_EACH_LOOP_FN(FN, LOOP, FLAGS) \
-  for (loop_iterator li(FN, &(LOOP), FLAGS); \
-       (LOOP); \
-       (LOOP) = li.next ())
 
 /* The properties of the target.  */
 struct target_cfgloop {
@@ -819,7 +878,7 @@ extern void init_set_costs (void);
 
 /* Loop optimizer initialization.  */
 extern void loop_optimizer_init (unsigned);
-extern void loop_optimizer_finalize (function *);
+extern void loop_optimizer_finalize (function *, bool = false);
 inline void
 loop_optimizer_finalize ()
 {
@@ -835,11 +894,11 @@ enum
 
 extern void doloop_optimize_loops (void);
 extern void move_loop_invariants (void);
-extern vec<basic_block> get_loop_hot_path (const struct loop *loop);
+extern auto_vec<basic_block> get_loop_hot_path (const class loop *loop);
 
 /* Returns the outermost loop of the loop nest that contains LOOP.*/
-static inline struct loop *
-loop_outermost (struct loop *loop)
+static inline class loop *
+loop_outermost (class loop *loop)
 {
   unsigned n = vec_safe_length (loop->superloops);
 
@@ -849,13 +908,13 @@ loop_outermost (struct loop *loop)
   return (*loop->superloops)[1];
 }
 
-extern void record_niter_bound (struct loop *, const widest_int &, bool, bool);
-extern HOST_WIDE_INT get_estimated_loop_iterations_int (struct loop *);
-extern HOST_WIDE_INT get_max_loop_iterations_int (const struct loop *);
-extern HOST_WIDE_INT get_likely_max_loop_iterations_int (struct loop *);
-extern bool get_estimated_loop_iterations (struct loop *loop, widest_int *nit);
-extern bool get_max_loop_iterations (const struct loop *loop, widest_int *nit);
-extern bool get_likely_max_loop_iterations (struct loop *loop, widest_int *nit);
+extern void record_niter_bound (class loop *, const widest_int &, bool, bool);
+extern HOST_WIDE_INT get_estimated_loop_iterations_int (class loop *);
+extern HOST_WIDE_INT get_max_loop_iterations_int (const class loop *);
+extern HOST_WIDE_INT get_likely_max_loop_iterations_int (class loop *);
+extern bool get_estimated_loop_iterations (class loop *loop, widest_int *nit);
+extern bool get_max_loop_iterations (const class loop *loop, widest_int *nit);
+extern bool get_likely_max_loop_iterations (class loop *loop, widest_int *nit);
 extern int bb_loop_depth (const_basic_block);
 
 /* Converts VAL to widest_int.  */

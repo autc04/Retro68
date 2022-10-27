@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---           Copyright (C) 2000-2019, Free Software Foundation, Inc.        --
+--           Copyright (C) 2000-2022, Free Software Foundation, Inc.        --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,17 +23,17 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Atree;    use Atree;
-with Errout;   use Errout;
-with Sinfo;    use Sinfo;
-with Fname.UF; use Fname.UF;
-with Lib;      use Lib;
-with Namet;    use Namet;
-with Opt;      use Opt;
-with Uname;    use Uname;
+with Errout;      use Errout;
+with Sinfo;       use Sinfo;
+with Sinfo.Nodes; use Sinfo.Nodes;
+with Fname.UF;    use Fname.UF;
+with Lib;         use Lib;
+with Namet;       use Namet;
+with Opt;         use Opt;
+with Uname;       use Uname;
 
---  Note: this package body is used by GPS and GNATBench to supply a list of
---  entries for help on available library routines.
+--  Note: this package body is used by GNAT Studio and GNATBench to supply a
+--  list of entries for help on available library routines.
 
 package body Impunit is
 
@@ -146,6 +146,8 @@ package body Impunit is
     ("a-llfwti", T),  -- Ada.Long_Long_Float_Wide_Text_IO
     ("a-llitio", T),  -- Ada.Long_Long_Integer_Text_IO
     ("a-lliwti", F),  -- Ada.Long_Long_Integer_Wide_Text_IO
+    ("a-llltio", T),  -- Ada.Long_Long_Long_Integer_Text_IO
+    ("a-lllwti", F),  -- Ada.Long_Long_Long_Integer_Wide_Text_IO
     ("a-nlcefu", F),  -- Ada.Long_Complex_Elementary_Functions
     ("a-nlcoty", T),  -- Ada.Numerics.Long_Complex_Types
     ("a-nlelfu", T),  -- Ada.Numerics.Long_Elementary_Functions
@@ -181,6 +183,7 @@ package body Impunit is
     ("a-ssicst", F),  -- Ada.Streams.Stream_IO.C_Streams
     ("a-suteio", F),  -- Ada.Strings.Unbounded.Text_IO
     ("a-swuwti", F),  -- Ada.Strings.Wide_Unbounded.Wide_Text_IO
+    ("a-tasini", F),  -- Ada.Task_Initialization
     ("a-tiocst", F),  -- Ada.Text_IO.C_Streams
     ("a-wtcstr", F),  -- Ada.Wide_Text_IO.C_Streams
 
@@ -218,7 +221,6 @@ package body Impunit is
     ("a-tifiio", F),  -- Ada.Text_IO.Fixed_IO
     ("a-tiflio", F),  -- Ada.Text_IO.Float_IO
     ("a-tiinio", F),  -- Ada.Text_IO.Integer_IO
-    ("a-tiinio", F),  -- Ada.Text_IO.Integer_IO
     ("a-timoio", F),  -- Ada.Text_IO.Modular_IO
     ("a-wtdeio", F),  -- Ada.Wide_Text_IO.Decimal_IO
     ("a-wtenio", F),  -- Ada.Wide_Text_IO.Enumeration_IO
@@ -241,6 +243,7 @@ package body Impunit is
     ("g-binenv", F),  -- GNAT.Bind_Environment
     ("g-boubuf", F),  -- GNAT.Bounded_Buffers
     ("g-boumai", F),  -- GNAT.Bounded_Mailboxes
+    ("g-brapre", F),  -- GNAT.Branch_Prediction
     ("g-bubsor", F),  -- GNAT.Bubble_Sort
     ("g-busora", F),  -- GNAT.Bubble_Sort_A
     ("g-busorg", F),  -- GNAT.Bubble_Sort_G
@@ -275,6 +278,7 @@ package body Impunit is
     ("g-exptty", F),  -- GNAT.Expect.TTY
     ("g-flocon", F),  -- GNAT.Float_Control
     ("g-forstr", F),  -- GNAT.Formatted_String
+    ("g-graphs", F),  -- GNAT.Graphs
     ("g-heasor", F),  -- GNAT.Heap_Sort
     ("g-hesora", F),  -- GNAT.Heap_Sort_A
     ("g-hesorg", F),  -- GNAT.Heap_Sort_G
@@ -306,6 +310,7 @@ package body Impunit is
     ("g-sha512", F),  -- GNAT.SHA512
     ("g-signal", F),  -- GNAT.Signals
     ("g-socket", F),  -- GNAT.Sockets
+    ("g-socpol", F),  -- GNAT.Sockets.Poll
     ("g-souinf", F),  -- GNAT.Source_Info
     ("g-speche", F),  -- GNAT.Spell_Checker
     ("g-spchge", F),  -- GNAT.Spell_Checker_Generic
@@ -500,6 +505,7 @@ package body Impunit is
     ("a-llctio", T),  -- Ada.Long_Long_Complex_Text_IO
     ("a-llfzti", T),  -- Ada.Long_Long_Float_Wide_Wide_Text_IO
     ("a-llizti", T),  -- Ada.Long_Long_Integer_Wide_Wide_Text_IO
+    ("a-lllzti", T),  -- Ada.Long_Long_Long_Integer_Wide_Wide_Text_IO
     ("a-nlcoar", T),  -- Ada.Numerics.Long_Complex_Arrays
     ("a-nllcar", T),  -- Ada.Numerics.Long_Long_Complex_Arrays
     ("a-nllrar", T),  -- Ada.Numerics.Long_Long_Real_Arrays
@@ -607,7 +613,40 @@ package body Impunit is
     ("a-cforse", F),  -- Ada.Containers.Formal_Ordered_Sets
     ("a-cforma", F),  -- Ada.Containers.Formal_Ordered_Maps
     ("a-cfhase", F),  -- Ada.Containers.Formal_Hashed_Sets
-    ("a-cfhama", F)); -- Ada.Containers.Formal_Hashed_Maps
+    ("a-cfhama", F),  -- Ada.Containers.Formal_Hashed_Maps
+    ("a-cvgpso", F)   -- Ada.Containers.Vectors.Generic_Parallel_Sorting from
+   );                 -- GNATCOLL.OMP
+
+   --------------------
+   -- Ada 2022 Units --
+   --------------------
+
+   --  The following units should be used only in Ada 2022 mode
+
+   Non_Imp_File_Names_22 : constant File_List := (
+    ("a-nubinu", T),  -- Ada.Numerics.Big_Numbers
+    ("a-nbnbin", T),  -- Ada.Numerics.Big_Numbers.Big_Integers
+    ("a-nbnbre", T),  -- Ada.Numerics.Big_Numbers.Big_Reals
+    ("s-aoinar", T),  -- System.Atomic_Operations.Integer_Arithmetic
+    ("s-aomoar", T),  -- System.Atomic_Operations.Modular_Arithmetic
+    ("s-aotase", T),  -- System.Atomic_Operations.Test_And_Set
+    ("s-atoope", T),  -- System.Atomic_Operations
+    ("s-atopex", T),  -- System.Atomic_Operations.Exchange
+    ("a-sttebu", T),  -- Ada.Strings.Text_Buffers
+    ("a-stbuun", T),  -- Ada.Strings.Text_Buffers.Unbounded
+    ("a-stbubo", T),  -- Ada.Strings.Text_Buffers.Bounded
+    ("a-strsto", T),  -- Ada.Streams.Storage
+    ("a-ststbo", T),  -- Ada.Streams.Storage.Bounded
+    ("a-ststun", T),  -- Ada.Streams.Storage.Unbounded
+
+   ----------------------------------------
+   -- GNAT Defined Additions to Ada 2022 --
+   ----------------------------------------
+
+   ("a-stbufi", T),   -- Ada.Strings.Text_Buffers.Files
+   ("a-stbufo", T),   -- Ada.Strings.Text_Buffers.Formatting
+   ("a-stbuut", T)    -- Ada.Strings.Text_Buffers.Utils
+   );
 
    -----------------------
    -- Alternative Units --
@@ -656,7 +695,7 @@ package body Impunit is
    function Get_Kind_Of_File (File : String) return Kind_Of_Unit is
       pragma Assert (File'First = 1);
 
-      Buffer : String (1 .. 8);
+      Buffer : String (1 .. 9);
 
    begin
       Error_Msg_Strlen := 0;
@@ -668,13 +707,6 @@ package body Impunit is
         or else File = "system.ads"
       then
          return Ada_95_Unit;
-      end if;
-
-      --  If length of file name is greater than 12, not predefined. The value
-      --  12 here is an 8 char name with extension .ads.
-
-      if File'Length > 12 then
-         return Not_Predefined_Unit;
       end if;
 
       --  Not predefined if file name does not start with a- g- s- i-
@@ -690,19 +722,20 @@ package body Impunit is
          return Not_Predefined_Unit;
       end if;
 
-      --  To be considered predefined, the file name must end in .ads or .adb.
-      --  File names with other extensions (coming from the use of non-standard
-      --  file naming schemes) can never be predefined.
+      --  If length of file name is greater than 12, not predefined. The value
+      --  12 here is an 8 char name with extension .ads. The exception of 13 is
+      --  for the implementation units of the 128-bit types under System.
 
-      --  Note that in the context of a compiler, the .adb case will never
-      --  arise. However it can arise for other tools, e.g. gnatprove uses
-      --  this routine to detect when a construct comes from an instance of
-      --  a generic defined in a predefined unit.
-
-      if File (File'Last - 3 .. File'Last) /= ".ads"
-           and then
-         File (File'Last - 3 .. File'Last) /= ".adb"
+      if File'Length > 12
+        and then not (File'Length = 13 and then File (1) = 's')
       then
+         return Not_Predefined_Unit;
+      end if;
+
+      --  Not predefined if file name does not end in .ads. This can happen
+      --  when non-standard file names are being used.
+
+      if Name_Buffer (Name_Len - 3 .. Name_Len) /= ".ads" then
          return Not_Predefined_Unit;
       end if;
 
@@ -717,7 +750,7 @@ package body Impunit is
       --  See if name is in 95 list
 
       for J in Non_Imp_File_Names_95'Range loop
-         if Buffer = Non_Imp_File_Names_95 (J).Fname then
+         if Buffer (1 .. 8) = Non_Imp_File_Names_95 (J).Fname then
             return Ada_95_Unit;
          end if;
       end loop;
@@ -725,7 +758,7 @@ package body Impunit is
       --  See if name is in 2005 list
 
       for J in Non_Imp_File_Names_05'Range loop
-         if Buffer = Non_Imp_File_Names_05 (J).Fname then
+         if Buffer (1 .. 8) = Non_Imp_File_Names_05 (J).Fname then
             return Ada_2005_Unit;
          end if;
       end loop;
@@ -733,8 +766,16 @@ package body Impunit is
       --  See if name is in 2012 list
 
       for J in Non_Imp_File_Names_12'Range loop
-         if Buffer = Non_Imp_File_Names_12 (J).Fname then
+         if Buffer (1 .. 8) = Non_Imp_File_Names_12 (J).Fname then
             return Ada_2012_Unit;
+         end if;
+      end loop;
+
+      --  See if name is in 2022 list
+
+      for J in Non_Imp_File_Names_22'Range loop
+         if Buffer (1 .. 8) = Non_Imp_File_Names_22 (J).Fname then
+            return Ada_2022_Unit;
          end if;
       end loop;
 
@@ -897,13 +938,6 @@ package body Impunit is
          return True;
       end if;
 
-      --  If length of file name is greater than 12, then it's a user unit
-      --  and not a GNAT implementation defined unit.
-
-      if Name_Len > 12 then
-         return True;
-      end if;
-
       --  Implementation defined if unit in the gnat hierarchy
 
       if (Name_Len = 8 and then Name_Buffer (1 .. 8) = "gnat.ads")
@@ -921,6 +955,16 @@ package body Impunit is
                  Name_Buffer (1) /= 'i'
                    and then
                  Name_Buffer (1) /= 's')
+      then
+         return True;
+      end if;
+
+      --  If length of file name is greater than 12, not predefined. The value
+      --  12 here is an 8 char name with extension .ads. The exception of 13 is
+      --  for the implementation units of the 128-bit types under System.
+
+      if Name_Len > 12
+        and then not (Name_Len = 13 and then Name_Buffer (1) = 's')
       then
          return True;
       end if;
@@ -959,7 +1003,7 @@ package body Impunit is
 
       for J in Non_Imp_File_Names_12'Range loop
          if Name_Buffer (1 .. 8) = Non_Imp_File_Names_12 (J).Fname then
-            return Non_Imp_File_Names_95 (J).RMdef
+            return Non_Imp_File_Names_12 (J).RMdef
               and then Ada_Version >= Ada_2012;
          end if;
       end loop;

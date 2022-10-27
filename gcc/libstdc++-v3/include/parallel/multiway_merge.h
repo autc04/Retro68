@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2007-2019 Free Software Foundation, Inc.
+// Copyright (C) 2007-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -104,12 +104,12 @@ namespace __gnu_parallel
       /** @brief Dereference operator.
       *  @return Referenced element. */
       typename std::iterator_traits<_RAIter>::value_type&
-      operator*()
+      operator*() const
       { return *_M_current; }
 
       /** @brief Convert to wrapped iterator.
       *  @return Wrapped iterator. */
-      operator _RAIter()
+      operator _RAIter() const
       { return _M_current; }
 
       /** @brief Compare two elements referenced by guarded iterators.
@@ -117,8 +117,8 @@ namespace __gnu_parallel
        *  @param __bi2 Second iterator.
        *  @return @c true if less. */
       friend bool
-      operator<(_GuardedIterator<_RAIter, _Compare>& __bi1,
-		_GuardedIterator<_RAIter, _Compare>& __bi2)
+      operator<(const _GuardedIterator<_RAIter, _Compare>& __bi1,
+		const _GuardedIterator<_RAIter, _Compare>& __bi2)
       {
 	if (__bi1._M_current == __bi1._M_end)       // __bi1 is sup
 	  return __bi2._M_current == __bi2._M_end;  // __bi2 is not sup
@@ -132,8 +132,8 @@ namespace __gnu_parallel
        *  @param __bi2 Second iterator.
        *  @return @c True if less equal. */
       friend bool
-      operator<=(_GuardedIterator<_RAIter, _Compare>& __bi1,
-		 _GuardedIterator<_RAIter, _Compare>& __bi2)
+      operator<=(const _GuardedIterator<_RAIter, _Compare>& __bi1,
+		 const _GuardedIterator<_RAIter, _Compare>& __bi2)
       {
 	if (__bi2._M_current == __bi2._M_end)       // __bi1 is sup
 	  return __bi1._M_current != __bi1._M_end;  // __bi2 is not sup
@@ -174,12 +174,12 @@ namespace __gnu_parallel
       /** @brief Dereference operator.
       *  @return Referenced element. */
       typename std::iterator_traits<_RAIter>::value_type&
-      operator*()
+      operator*() const
       { return *_M_current; }
 
       /** @brief Convert to wrapped iterator.
       *  @return Wrapped iterator. */
-      operator _RAIter()
+      operator _RAIter() const
       { return _M_current; }
 
       /** @brief Compare two elements referenced by unguarded iterators.
@@ -187,8 +187,8 @@ namespace __gnu_parallel
        *  @param __bi2 Second iterator.
        *  @return @c true if less. */
       friend bool
-      operator<(_UnguardedIterator<_RAIter, _Compare>& __bi1,
-		_UnguardedIterator<_RAIter, _Compare>& __bi2)
+      operator<(const _UnguardedIterator<_RAIter, _Compare>& __bi1,
+		const _UnguardedIterator<_RAIter, _Compare>& __bi2)
       {
 	// Normal compare.
 	return (__bi1.__comp)(*__bi1, *__bi2);
@@ -199,8 +199,8 @@ namespace __gnu_parallel
        *  @param __bi2 Second iterator.
        *  @return @c True if less equal. */
       friend bool
-      operator<=(_UnguardedIterator<_RAIter, _Compare>& __bi1,
-		 _UnguardedIterator<_RAIter, _Compare>& __bi2)
+      operator<=(const _UnguardedIterator<_RAIter, _Compare>& __bi1,
+		 const _UnguardedIterator<_RAIter, _Compare>& __bi2)
       {
 	// Normal compare.
 	return !(__bi1.__comp)(*__bi2, *__bi1);
@@ -232,7 +232,7 @@ namespace __gnu_parallel
    *
    * @return End iterator of output sequence.
    */
-  template<template<typename RAI, typename C> class iterator,
+  template<template<typename _RAI, typename _Cp> class iterator,
            typename _RAIterIterator,
            typename _RAIter3,
            typename _DifferenceTp,
@@ -351,7 +351,7 @@ namespace __gnu_parallel
    *
    * @return End iterator of output sequence.
    */
-  template<template<typename RAI, typename C> class iterator,
+  template<template<typename _RAI, typename _Cp> class iterator,
            typename _RAIterIterator,
            typename _RAIter3,
            typename _DifferenceTp,
@@ -641,8 +641,8 @@ namespace __gnu_parallel
   /** @brief Multi-way merging procedure for a high branching factor,
    *         requiring sentinels to exist.
    *
-   * @tparam UnguardedLoserTree _Loser Tree variant to use for the unguarded
-   *   merging.
+   * @tparam _UnguardedLoserTree Loser Tree variant to use for the unguarded
+   *				 merging.
    *
    * @param __seqs_begin Begin iterator of iterator pair input sequence.
    * @param __seqs_end End iterator of iterator pair input sequence.
@@ -653,7 +653,7 @@ namespace __gnu_parallel
    *
    * @return End iterator of output sequence.
    */
-  template<typename UnguardedLoserTree,
+  template<typename _UnguardedLoserTree,
 	   typename _RAIterIterator,
 	   typename _RAIter3,
 	   typename _DifferenceTp,
@@ -687,7 +687,7 @@ namespace __gnu_parallel
 	// non-sentinel elements as we have.
 	++((*__s).second);
 
-      __target_end = multiway_merge_loser_tree_unguarded<UnguardedLoserTree>
+      __target_end = multiway_merge_loser_tree_unguarded<_UnguardedLoserTree>
 	(__seqs_begin, __seqs_end, __target, __sentinel, __length, __comp);
 
 #if _GLIBCXX_PARALLEL_ASSERTIONS

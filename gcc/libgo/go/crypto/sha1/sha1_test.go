@@ -156,7 +156,7 @@ func TestBlockGeneric(t *testing.T) {
 // Tests for unmarshaling hashes that have hashed a large amount of data
 // The initial hash generation is omitted from the test, because it takes a long time.
 // The test contains some already-generated states, and their expected sums
-// Tests a problem that is outlined in Github issue #29543
+// Tests a problem that is outlined in GitHub issue #29543
 // The problem is triggered when an amount of data has been hashed for which
 // the data length has a 1 in the 32nd bit. When casted to int, this changes
 // the sign of the value, and causes the modulus operation to return a
@@ -168,12 +168,12 @@ type unmarshalTest struct {
 
 var largeUnmarshalTests = []unmarshalTest{
 	// Data length: 7_102_415_735
-	unmarshalTest{
+	{
 		state: "sha\x01\x13\xbc\xfe\x83\x8c\xbd\xdfP\x1f\xd8ڿ<\x9eji8t\xe1\xa5@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuv\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\xa7VCw",
 		sum:   "bc6245c9959cc33e1c2592e5c9ea9b5d0431246c",
 	},
 	// Data length: 6_565_544_823
-	unmarshalTest{
+	{
 		state: "sha\x01m;\x16\xa6R\xbe@\xa9nĈ\xf9S\x03\x00B\xc2\xdcv\xcf@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuv\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x87VCw",
 		sum:   "8f2d1c0e4271768f35feb918bfe21ea1387a2072",
 	},
@@ -207,6 +207,20 @@ func TestLargeHashes(t *testing.T) {
 		if fmt.Sprintf("%x", sum) != test.sum {
 			t.Errorf("test %d sum mismatch: expect %s got %x", i, test.sum, sum)
 		}
+	}
+}
+
+func TestAllocations(t *testing.T) {
+	in := []byte("hello, world!")
+	out := make([]byte, 0, Size)
+	h := New()
+	n := int(testing.AllocsPerRun(10, func() {
+		h.Reset()
+		h.Write(in)
+		out = h.Sum(out[:0])
+	}))
+	if n > 0 {
+		t.Errorf("allocs = %d, want 0", n)
 	}
 }
 

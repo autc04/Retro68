@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -26,7 +26,7 @@
 with Types; use Types;
 package Treepr is
 
---  This package provides printing routines for the abstract syntax tree
+--  This package provides printing routines for the abstract syntax tree.
 --  These routines are intended only for debugging use.
 
    procedure Tree_Dump;
@@ -42,11 +42,11 @@ package Treepr is
 
    procedure Print_Tree_List (L : List_Id);
    --  Prints a single node list, without printing the descendants of any
-   --  of the nodes in the list
+   --  of the nodes in the list.
 
    procedure Print_Tree_Elist (E : Elist_Id);
    --  Prints a single node list, without printing the descendants of any
-   --  of the nodes in the list
+   --  of the nodes in the list.
 
    procedure Print_Node_Subtree (N : Node_Id);
    --  Prints the subtree rooted at a specified tree node, including all
@@ -80,7 +80,12 @@ package Treepr is
    pragma Export (Ada, pe);
    --  Print a node, node list, uint, or anything else that falls under
    --  the definition of Union_Id. Historically this was only for printing
-   --  nodes, hence the name.
+   --  nodes, hence the name pn. These are all the same, but the renamings
+   --  need to be in the body, or else the debugger can't find them.
+
+   procedure ppar (N : Union_Id);
+   pragma Export (Ada, ppar);
+   --  Print the node, its parent, its parent's parent, and so on
 
    procedure pt  (N : Union_Id);
    procedure ppp (N : Union_Id);

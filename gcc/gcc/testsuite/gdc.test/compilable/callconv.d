@@ -1,33 +1,14 @@
 // PERMUTE_ARGS:
-
 import core.stdc.stdarg;
 
 struct ABC
 {
-	int x[4];
+	int[4] x;
 }
 
 ABC abc;
 
 int x,y,z;
-
-extern (Pascal):
-ABC test1(int xx, int yy, int zz)
-{
-    x = xx;
-    y = yy;
-    z = zz;
-    return abc;
-}
-
-extern (Pascal):
-ABC test1v(int xx, int yy, int zz, ...)
-{
-    x = xx;
-    y = yy;
-    z = zz;
-    return abc;
-}
 
 extern (C):
 ABC test2v(int xx, int yy, int zz, ...)
@@ -71,5 +52,3 @@ ABC test4v(int xx, int yy, int zz, ...)
     z = zz;
     return abc;
 }
-
-

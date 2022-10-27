@@ -1,6 +1,6 @@
 // class template regex -*- C++ -*-
 
-// Copyright (C) 2013-2019 Free Software Foundation, Inc.
+// Copyright (C) 2013-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,6 +34,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 namespace __detail
 {
+  /// @cond undocumented
+
   // Result of merging regex_match and regex_search.
   //
   // __policy now can be _S_auto (auto dispatch) and _S_alternate (use
@@ -41,24 +43,22 @@ namespace __detail
   //
   // That __match_mode is true means regex_match, else regex_search.
   template<typename _BiIter, typename _Alloc,
-	   typename _CharT, typename _TraitsT,
-	   _RegexExecutorPolicy __policy,
-	   bool __match_mode>
+	   typename _CharT, typename _TraitsT>
     bool
     __regex_algo_impl(_BiIter                              __s,
 		      _BiIter                              __e,
 		      match_results<_BiIter, _Alloc>&      __m,
 		      const basic_regex<_CharT, _TraitsT>& __re,
-		      regex_constants::match_flag_type     __flags)
+		      regex_constants::match_flag_type     __flags,
+		      _RegexExecutorPolicy		   __policy,
+		      bool				   __match_mode)
     {
       if (__re._M_automaton == nullptr)
 	return false;
 
-      typename match_results<_BiIter, _Alloc>::_Base_type& __res = __m;
+      typename match_results<_BiIter, _Alloc>::_Unchecked& __res = __m;
       __m._M_begin = __s;
       __m._M_resize(__re._M_automaton->_M_sub_count());
-      for (auto& __it : __res)
-	__it.matched = false;
 
       bool __ret;
       if ((__re.flags() & regex_constants::__polynomial)
@@ -66,7 +66,7 @@ namespace __detail
 	      && !__re._M_automaton->_M_has_backref))
 	{
 	  _Executor<_BiIter, _Alloc, _TraitsT, false>
-	    __executor(__s, __e, __m, __re, __flags);
+	    __executor(__s, __e, __res, __re, __flags);
 	  if (__match_mode)
 	    __ret = __executor._M_match();
 	  else
@@ -75,7 +75,7 @@ namespace __detail
       else
 	{
 	  _Executor<_BiIter, _Alloc, _TraitsT, true>
-	    __executor(__s, __e, __m, __re, __flags);
+	    __executor(__s, __e, __res, __re, __flags);
 	  if (__match_mode)
 	    __ret = __executor._M_match();
 	  else
@@ -109,16 +109,14 @@ namespace __detail
 	}
       else
 	{
-	  __m._M_resize(0);
-	  for (auto& __it : __res)
-	    {
-	      __it.matched = false;
-	      __it.first = __it.second = __e;
-	    }
+	  __m._M_establish_failed_match(__e);
 	}
       return __ret;
     }
-}
+  /// @endcond
+} // namespace __detail
+
+  /// @cond
 
   template<typename _Ch_type>
   template<typename _Fwd_iter>
@@ -352,7 +350,8 @@ namespace __detail
 
   template<typename _Bi_iter, typename _Alloc>
   template<typename _Out_iter>
-    _Out_iter match_results<_Bi_iter, _Alloc>::
+    _Out_iter
+    match_results<_Bi_iter, _Alloc>::
     format(_Out_iter __out,
 	   const match_results<_Bi_iter, _Alloc>::char_type* __fmt_first,
 	   const match_results<_Bi_iter, _Alloc>::char_type* __fmt_last,
@@ -462,10 +461,10 @@ namespace __detail
   template<typename _Out_iter, typename _Bi_iter,
 	   typename _Rx_traits, typename _Ch_type>
     _Out_iter
-    regex_replace(_Out_iter __out, _Bi_iter __first, _Bi_iter __last,
-		  const basic_regex<_Ch_type, _Rx_traits>& __e,
-		  const _Ch_type* __fmt,
-		  regex_constants::match_flag_type __flags)
+    __regex_replace(_Out_iter __out, _Bi_iter __first, _Bi_iter __last,
+		    const basic_regex<_Ch_type, _Rx_traits>& __e,
+		    const _Ch_type* __fmt, size_t __len,
+		    regex_constants::match_flag_type __flags)
     {
       typedef regex_iterator<_Bi_iter, _Ch_type, _Rx_traits> _IterT;
       _IterT __i(__first, __last, __e, __flags);
@@ -478,7 +477,6 @@ namespace __detail
       else
 	{
 	  sub_match<_Bi_iter> __last;
-	  auto __len = char_traits<_Ch_type>::length(__fmt);
 	  for (; __i != __end; ++__i)
 	    {
 	      if (!(__flags & regex_constants::format_no_copy))
@@ -666,6 +664,8 @@ namespace __detail
       else
 	_M_result = nullptr;
     }
+
+  /// @endcond
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace

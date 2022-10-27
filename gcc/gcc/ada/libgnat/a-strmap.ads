@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -33,9 +33,24 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+--  The package Strings.Maps defines the types, operations, and other entities
+--  needed for character sets and character-to-character mappings.
+
+--  Preconditions in this unit are meant for analysis only, not for run-time
+--  checking, so that the expected exceptions are raised. This is enforced by
+--  setting the corresponding assertion policy to Ignore. Postconditions and
+--  ghost code should not be executed at runtime as well, in order not to slow
+--  down the execution of these functions.
+
+pragma Assertion_Policy (Pre   => Ignore,
+                         Post  => Ignore,
+                         Ghost => Ignore);
+
 with Ada.Characters.Latin_1;
 
-package Ada.Strings.Maps is
+package Ada.Strings.Maps
+  with SPARK_Mode
+is
    pragma Pure;
    --  In accordance with Ada 2005 AI-362
 
@@ -45,9 +60,10 @@ package Ada.Strings.Maps is
 
    type Character_Set is private;
    pragma Preelaborable_Initialization (Character_Set);
-   --  Representation for a set of character values:
+   --  An object of type Character_Set represents a set of characters.
 
    Null_Set : constant Character_Set;
+   --  Null_Set represents the set containing no characters.
 
    ---------------------------
    -- Constructors for Sets --
@@ -57,48 +73,183 @@ package Ada.Strings.Maps is
       Low  : Character;
       High : Character;
    end record;
-   --  Represents Character range Low .. High
+   --  An object Obj of type Character_Range represents the set of characters
+   --  in the range Obj.Low .. Obj.High.
 
    type Character_Ranges is array (Positive range <>) of Character_Range;
+   --  An object Obj of type Character_Ranges represents the union of the sets
+   --  corresponding to Obj(I) for I in Obj'Range.
 
-   function To_Set    (Ranges : Character_Ranges) return Character_Set;
+   function To_Set    (Ranges : Character_Ranges) return Character_Set with
+     Post =>
+       (if Ranges'Length = 0 then To_Set'Result = Null_Set)
+          and then
+       (for all Char in Character =>
+          (if Is_In (Char, To_Set'Result)
+           then (for some Span of Ranges => Char in Span.Low .. Span.High)))
+          and then
+       (for all Span of Ranges =>
+          (for all Char in Span.Low .. Span.High =>
+             Is_In (Char, To_Set'Result)));
+   --  If Ranges'Length=0 then Null_Set is returned; otherwise, the returned
+   --  value represents the set corresponding to Ranges.
 
-   function To_Set    (Span   : Character_Range)  return Character_Set;
+   function To_Set    (Span   : Character_Range)  return Character_Set with
+     Post =>
+       (if Span.High < Span.Low then To_Set'Result = Null_Set)
+          and then
+       (for all Char in Character =>
+          (if Is_In (Char, To_Set'Result) then Char in Span.Low .. Span.High))
+          and then
+       (for all Char in Span.Low .. Span.High => Is_In (Char, To_Set'Result));
+   --  The returned value represents the set containing each character in Span.
 
-   function To_Ranges (Set    : Character_Set)    return Character_Ranges;
+   function To_Ranges (Set    : Character_Set)    return Character_Ranges with
+     Post =>
+       (if Set = Null_Set then To_Ranges'Result'Length = 0)
+          and then
+       (for all Char in Character =>
+          (if Is_In (Char, Set)
+           then
+             (for some Span of To_Ranges'Result =>
+                Char in Span.Low .. Span.High)))
+          and then
+       (for all Span of To_Ranges'Result =>
+          (for all Char in Span.Low .. Span.High => Is_In (Char, Set)));
+   --  If Set = Null_Set, then an empty Character_Ranges array is returned;
+   --  otherwise, the shortest array of contiguous ranges of Character values
+   --  in Set, in increasing order of Low, is returned.
+   --
+   --  The postcondition above does not express that the result is the shortest
+   --  array and that it is sorted.
 
    ----------------------------------
    -- Operations on Character Sets --
    ----------------------------------
 
-   function "="   (Left, Right : Character_Set) return Boolean;
+   function "="   (Left, Right : Character_Set) return Boolean with
+     Post =>
+       "="'Result
+         =
+       (for all Char in Character =>
+          (Is_In (Char, Left) = Is_In (Char, Right)));
+   --  The function "=" returns True if Left and Right represent identical
+   --  sets, and False otherwise.
 
-   function "not" (Right       : Character_Set) return Character_Set;
-   function "and" (Left, Right : Character_Set) return Character_Set;
-   function "or"  (Left, Right : Character_Set) return Character_Set;
-   function "xor" (Left, Right : Character_Set) return Character_Set;
-   function "-"   (Left, Right : Character_Set) return Character_Set;
+   --  Each of the logical operators "not", "and", "or", and "xor" returns a
+   --  Character_Set value that represents the set obtained by applying the
+   --  corresponding operation to the set(s) represented by the parameter(s)
+   --  of the operator.
+
+   function "not" (Right       : Character_Set) return Character_Set with
+     Post =>
+       (for all Char in Character =>
+          (Is_In (Char, "not"'Result)
+             =
+           not Is_In (Char, Right)));
+
+   function "and" (Left, Right : Character_Set) return Character_Set with
+     Post =>
+       (for all Char in Character =>
+          (Is_In (Char, "and"'Result)
+             =
+           (Is_In (Char, Left) and Is_In (Char, Right))));
+
+   function "or"  (Left, Right : Character_Set) return Character_Set with
+     Post =>
+       (for all Char in Character =>
+          (Is_In (Char, "or"'Result)
+             =
+           (Is_In (Char, Left) or Is_In (Char, Right))));
+
+   function "xor" (Left, Right : Character_Set) return Character_Set with
+     Post =>
+       (for all Char in Character =>
+          (Is_In (Char, "xor"'Result)
+             =
+           (Is_In (Char, Left) xor Is_In (Char, Right))));
+
+   function "-"   (Left, Right : Character_Set) return Character_Set with
+     Post =>
+       (for all Char in Character =>
+          (Is_In (Char, "-"'Result)
+             =
+           (Is_In (Char, Left) and not Is_In (Char, Right))));
+   --  "-"(Left, Right) is equivalent to "and"(Left, "not"(Right)).
 
    function Is_In
      (Element : Character;
       Set     : Character_Set) return Boolean;
+   --  Is_In returns True if Element is in Set, and False otherwise.
 
    function Is_Subset
      (Elements : Character_Set;
-      Set      : Character_Set) return     Boolean;
+      Set      : Character_Set) return Boolean
+   with
+     Post =>
+         Is_Subset'Result
+           =
+         (for all Char in Character =>
+            (if Is_In (Char, Elements) then Is_In (Char, Set)));
+   --  Is_Subset returns True if Elements is a subset of Set, and False
+   --  otherwise.
 
    function "<="
      (Left  : Character_Set;
-      Right : Character_Set) return  Boolean
+      Right : Character_Set) return Boolean
    renames Is_Subset;
 
    subtype Character_Sequence is String;
-   --  Alternative representation for a set of character values
+   --  The Character_Sequence subtype is used to portray a set of character
+   --  values and also to identify the domain and range of a character mapping.
 
-   function To_Set (Sequence  : Character_Sequence) return Character_Set;
-   function To_Set (Singleton : Character)          return Character_Set;
+   function SPARK_Proof_Sorted_Character_Sequence
+     (Seq : Character_Sequence) return Boolean
+   is
+     (for all J in Seq'Range =>
+        (if J /= Seq'Last then Seq (J) < Seq (J + 1)))
+   with
+     Ghost;
+   --  Check whether the Character_Sequence is sorted in stricly increasing
+   --  order, as expected from the result of To_Sequence and To_Domain.
 
-   function To_Sequence (Set : Character_Set) return Character_Sequence;
+   --  Sequence portrays the set of character values that it explicitly
+   --  contains (ignoring duplicates). Singleton portrays the set comprising a
+   --  single Character. Each of the To_Set functions returns a Character_Set
+   --  value that represents the set portrayed by Sequence or Singleton.
+
+   function To_Set (Sequence  : Character_Sequence) return Character_Set with
+     Post =>
+       (if Sequence'Length = 0 then To_Set'Result = Null_Set)
+          and then
+       (for all Char in Character =>
+          (if Is_In (Char, To_Set'Result)
+           then (for some X of Sequence => Char = X)))
+          and then
+       (for all Char of Sequence => Is_In (Char, To_Set'Result));
+
+   function To_Set (Singleton : Character)          return Character_Set with
+     Post =>
+       Is_In (Singleton, To_Set'Result)
+         and then
+       (for all Char in Character =>
+          (if Char /= Singleton
+           then not Is_In (Char, To_Set'Result)));
+
+   function To_Sequence (Set : Character_Set) return Character_Sequence with
+     Post =>
+       (if Set = Null_Set then To_Sequence'Result'Length = 0)
+          and then
+       (for all Char in Character =>
+          (if Is_In (Char, Set)
+           then (for some X of To_Sequence'Result => Char = X)))
+          and then
+       (for all Char of To_Sequence'Result => Is_In (Char, Set))
+          and then
+       SPARK_Proof_Sorted_Character_Sequence (To_Sequence'Result);
+   --  The function To_Sequence returns a Character_Sequence value containing
+   --  each of the characters in the set represented by Set, in ascending order
+   --  with no duplicates.
 
    ------------------------------------
    -- Character Mapping Declarations --
@@ -106,29 +257,110 @@ package Ada.Strings.Maps is
 
    type Character_Mapping is private;
    pragma Preelaborable_Initialization (Character_Mapping);
-   --  Representation for a character to character mapping:
+   --  An object of type Character_Mapping represents a Character-to-Character
+   --  mapping.
+
+   type SPARK_Proof_Character_Mapping_Model is
+     array (Character) of Character
+   with Ghost;
+   --  Publicly visible model of a Character_Mapping
+
+   function SPARK_Proof_Model
+     (Map : Character_Mapping)
+      return SPARK_Proof_Character_Mapping_Model
+   with Ghost;
+   --  Creation of a publicly visible model of a Character_Mapping
 
    function Value
      (Map     : Character_Mapping;
-      Element : Character) return Character;
+      Element : Character) return Character
+   with
+     Post => Value'Result = SPARK_Proof_Model (Map) (Element);
+   --  The function Value returns the Character value to which Element maps
+   --  with respect to the mapping represented by Map.
+
+   --  A character C matches a pattern character P with respect to a given
+   --  Character_Mapping value Map if Value(Map, C) = P. A string S matches
+   --  a pattern string P with respect to a given Character_Mapping if
+   --  their lengths are the same and if each character in S matches its
+   --  corresponding character in the pattern string P.
+
+   --  String handling subprograms that deal with character mappings have
+   --  parameters whose type is Character_Mapping.
 
    Identity : constant Character_Mapping;
+   --  Identity maps each Character to itself.
 
    ----------------------------
    -- Operations on Mappings --
    ----------------------------
 
    function To_Mapping
-     (From, To : Character_Sequence) return Character_Mapping;
+     (From, To : Character_Sequence) return Character_Mapping
+   with
+     Pre  =>
+       From'Length = To'Length
+         and then
+       (for all J in From'Range =>
+          (for all K in From'Range =>
+             (if J /= K then From (J) /= From (K)))),
+     Post =>
+       (if From = To then To_Mapping'Result = Identity)
+          and then
+       (for all Char in Character =>
+          ((for all J in From'Range =>
+             (if From (J) = Char
+              then Value (To_Mapping'Result, Char)
+                   = To (J - From'First + To'First)))
+             and then
+           (if (for all X of From => Char /= X)
+            then Value (To_Mapping'Result, Char) = Char)));
+   --  To_Mapping produces a Character_Mapping such that each element of From
+   --  maps to the corresponding element of To, and each other character maps
+   --  to itself. If From'Length /= To'Length, or if some character is repeated
+   --  in From, then Translation_Error is propagated.
 
    function To_Domain
-     (Map : Character_Mapping) return Character_Sequence;
+     (Map : Character_Mapping) return Character_Sequence with
+     Post =>
+       (if Map = Identity then To_Domain'Result'Length = 0)
+          and then
+       To_Domain'Result'First = 1
+          and then
+       SPARK_Proof_Sorted_Character_Sequence (To_Domain'Result)
+          and then
+       (for all Char in Character =>
+          (if (for all X of To_Domain'Result => X /= Char)
+           then Value (Map, Char) = Char))
+          and then
+       (for all Char of To_Domain'Result => Value (Map, Char) /= Char);
+   --  To_Domain returns the shortest Character_Sequence value D such that each
+   --  character not in D maps to itself, and such that the characters in D are
+   --  in ascending order. The lower bound of D is 1.
 
    function To_Range
-     (Map : Character_Mapping) return Character_Sequence;
+     (Map : Character_Mapping) return Character_Sequence with
+     Post =>
+       To_Range'Result'First = 1
+         and then
+       To_Range'Result'Length = To_Domain (Map)'Length
+         and then
+       (for all J in To_Range'Result'Range =>
+          To_Range'Result (J) = Value (Map, To_Domain (Map) (J)));
+   --  To_Range returns the Character_Sequence value R, such that if D =
+   --  To_Domain(Map), then R has the same bounds as D, and D(I) maps to
+   --  R(I) for each I in D'Range.
+   --
+   --  A direct encoding of the Ada RM would be the postcondition
+   --    To_Range'Result'Last = To_Domain (Map)'Last
+   --  which is not provable unless the postcondition of To_Domain is also
+   --  strengthened to state the value of the high bound for an empty result.
 
    type Character_Mapping_Function is
       access function (From : Character) return Character;
+   --  An object F of type Character_Mapping_Function maps a Character value C
+   --  to the Character value F.all(C), which is said to match C with respect
+   --  to mapping function F.
 
 private
    pragma Inline (Is_In);
@@ -144,9 +376,15 @@ private
    --  the defined operations in the spec, but the operations defined
    --  on Character_Set_Internal remain visible.
 
-   Null_Set : constant Character_Set := (others => False);
+   Null_Set : constant Character_Set := [others => False];
 
    type Character_Mapping is array (Character) of Character;
+
+   function SPARK_Proof_Model
+     (Map : Character_Mapping)
+      return SPARK_Proof_Character_Mapping_Model
+   is
+     (SPARK_Proof_Character_Mapping_Model (Map));
 
    package L renames Ada.Characters.Latin_1;
 

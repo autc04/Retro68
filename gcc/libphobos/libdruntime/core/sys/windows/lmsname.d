@@ -4,12 +4,13 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_lmsname.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_lmsname.d)
  */
 module core.sys.windows.lmsname;
 version (Windows):
+@system:
 
-private import core.sys.windows.windef;
+import core.sys.windows.windef;
 
 const TCHAR[]
     SERVICE_WORKSTATION      = "LanmanWorkstation",

@@ -2,7 +2,7 @@
 // { dg-require-normal-mode "" }
 // { dg-require-normal-namespace "" }
 
-// Copyright (C) 2007-2019 Free Software Foundation, Inc.
+// Copyright (C) 2007-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -21,18 +21,24 @@
 
 #include <bitset>
 
+#if __cplusplus >= 201103L
+# define NOTHROW noexcept
+#else
+# define NOTHROW
+#endif
+
 namespace std {
   template <size_t N> class bitset;
 
   // 23.3.5.3 bitset operations:
   template <size_t N>
-    bitset<N> operator&(const bitset<N>&, const bitset<N>&);
+    bitset<N> operator&(const bitset<N>&, const bitset<N>&) NOTHROW;
 
   template <size_t N>
-    bitset<N> operator|(const bitset<N>&, const bitset<N>&);
+    bitset<N> operator|(const bitset<N>&, const bitset<N>&) NOTHROW;
 
   template <size_t N>
-    bitset<N> operator^(const bitset<N>&, const bitset<N>&);
+    bitset<N> operator^(const bitset<N>&, const bitset<N>&) NOTHROW;
 
   template <class charT, class traits, size_t N>
     basic_istream<charT, traits>&

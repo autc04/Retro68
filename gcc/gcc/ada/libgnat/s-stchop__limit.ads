@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  S p e c                                 --
 --                                                                          --
---          Copyright (C) 1999-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,10 +36,6 @@
 pragma Restrictions (No_Elaboration_Code);
 --  We want to guarantee the absence of elaboration code because the binder
 --  does not handle references to this package.
-
-pragma Polling (Off);
---  Turn off polling, we do not want polling to take place during stack
---  checking operations. It causes infinite loops and other problems.
 
 package System.Stack_Checking.Operations is
    pragma Preelaborate;

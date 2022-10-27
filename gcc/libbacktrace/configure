@@ -635,6 +635,18 @@ LTLIBOBJS
 LIBOBJS
 NATIVE_FALSE
 NATIVE_TRUE
+HAVE_LIBLZMA_FALSE
+HAVE_LIBLZMA_TRUE
+HAVE_MINIDEBUG_FALSE
+HAVE_MINIDEBUG_TRUE
+HAVE_COMM_FALSE
+HAVE_COMM_TRUE
+COMM
+HAVE_XZ_FALSE
+HAVE_XZ_TRUE
+XZ
+USE_DSYMUTIL_FALSE
+USE_DSYMUTIL_TRUE
 HAVE_OBJCOPY_DEBUGLINK_FALSE
 HAVE_OBJCOPY_DEBUGLINK_TRUE
 READELF
@@ -643,6 +655,8 @@ HAVE_COMPRESSED_DEBUG_FALSE
 HAVE_COMPRESSED_DEBUG_TRUE
 HAVE_ZLIB_FALSE
 HAVE_ZLIB_TRUE
+HAVE_DWARF5_FALSE
+HAVE_DWARF5_TRUE
 HAVE_PTHREAD_FALSE
 HAVE_PTHREAD_TRUE
 PTHREAD_CFLAGS
@@ -656,6 +670,7 @@ HAVE_ELF_FALSE
 HAVE_ELF_TRUE
 FORMAT_FILE
 BACKTRACE_SUPPORTS_THREADS
+CET_HOST_FLAGS
 PIC_FLAG
 WARN_FLAGS
 EXTRA_FLAGS
@@ -786,6 +801,7 @@ with_gnu_ld
 enable_libtool_lock
 enable_largefile
 enable_cet
+enable_werror
 with_system_libunwind
 enable_host_shared
 '
@@ -798,7 +814,9 @@ LDFLAGS
 LIBS
 CPPFLAGS
 CPP
-OBJCOPY'
+OBJCOPY
+DSYMUTIL
+NM'
 
 
 # Initialize some variables set by options.
@@ -1430,8 +1448,10 @@ Optional Features:
                           optimize for fast installation [default=yes]
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --disable-largefile     omit support for large files
-  --enable-cet            enable Intel CET in target libraries [default=no]
+  --enable-cet            enable Intel CET in target libraries [default=auto]
+  --disable-werror        disable building with -Werror
   --enable-host-shared    build host code as shared libraries
+  --enable-cet            enable Intel CET in host libraries [default=auto]
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -1452,6 +1472,8 @@ Some influential environment variables:
               you have headers in a nonstandard directory <include dir>
   CPP         C preprocessor
   OBJCOPY     location of objcopy
+  DSYMUTIL    location of dsymutil
+  NM          location of nm
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -6460,7 +6482,7 @@ irix5* | irix6* | nonstopux*)
   ;;
 
 # This must be Linux ELF.
-linux* | k*bsd*-gnu | kopensolaris*-gnu)
+linux* | k*bsd*-gnu | kopensolaris*-gnu | uclinuxfdpiceabi)
   lt_cv_deplibs_check_method=pass_all
   ;;
 
@@ -7966,23 +7988,25 @@ _LT_EOF
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $lt_cv_ld_force_load" >&5
 $as_echo "$lt_cv_ld_force_load" >&6; }
-    case $host_os in
-    rhapsody* | darwin1.[012])
+    # Allow for Darwin 4-7 (macOS 10.0-10.3) although these are not expect to
+    # build without first building modern cctools / linker.
+    case $host_cpu-$host_os in
+    *-rhapsody* | *-darwin1.[012])
       _lt_dar_allow_undefined='${wl}-undefined ${wl}suppress' ;;
-    darwin1.*)
+    *-darwin1.*)
       _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
-    darwin*) # darwin 5.x on
-      # if running on 10.5 or later, the deployment target defaults
-      # to the OS version, if on x86, and 10.4, the deployment
-      # target defaults to 10.4. Don't you love it?
-      case ${MACOSX_DEPLOYMENT_TARGET-10.0},$host in
-	10.0,*86*-darwin8*|10.0,*-darwin[91]*)
-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
+    *-darwin*)
+      # darwin 5.x (macOS 10.1) onwards we only need to adjust when the
+      # deployment target is forced to an earlier version.
+      case ${MACOSX_DEPLOYMENT_TARGET-UNSET},$host in
+	UNSET,*-darwin[89]*|UNSET,*-darwin[12][0123456789]*)
+	  ;;
 	10.[012][,.]*)
-	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress' ;;
-	10.*)
-	  _lt_dar_allow_undefined='${wl}-undefined ${wl}dynamic_lookup' ;;
-      esac
+	  _lt_dar_allow_undefined='${wl}-flat_namespace ${wl}-undefined ${wl}suppress'
+	  ;;
+	*)
+	  ;;
+     esac
     ;;
   esac
     if test "$lt_cv_apple_cc_single_mod" = "yes"; then
@@ -9272,7 +9296,7 @@ _LT_EOF
       archive_expsym_cmds='sed "s,^,_," $export_symbols >$output_objdir/$soname.expsym~$CC -shared $pic_flag $libobjs $deplibs $compiler_flags ${wl}-h,$soname ${wl}--retain-symbols-file,$output_objdir/$soname.expsym ${wl}--image-base,`expr ${RANDOM-$$} % 4096 / 2 \* 262144 + 1342177280` -o $lib'
       ;;
 
-    gnu* | linux* | tpf* | k*bsd*-gnu | kopensolaris*-gnu)
+    gnu* | linux* | tpf* | k*bsd*-gnu | kopensolaris*-gnu | uclinuxfdpiceabi)
       tmp_diet=no
       if test "$host_os" = linux-dietlibc; then
 	case $cc_basename in
@@ -9781,7 +9805,7 @@ if test -z "$aix_libpath"; then aix_libpath="/usr/lib:/lib"; fi
       if test "$GCC" = yes && test "$with_gnu_ld" = no; then
 	case $host_cpu in
 	hppa*64*)
-	  archive_cmds='$CC -shared ${wl}+h ${wl}$soname -o $lib $libobjs $deplibs $compiler_flags'
+	  archive_cmds='$CC -shared ${wl}+h ${wl}$soname ${wl}+nodefaultrpath -o $lib $libobjs $deplibs $compiler_flags'
 	  ;;
 	ia64*)
 	  archive_cmds='$CC -shared -fPIC ${wl}+h ${wl}$soname ${wl}+nodefaultrpath -o $lib $libobjs $deplibs $compiler_flags'
@@ -9793,7 +9817,7 @@ if test -z "$aix_libpath"; then aix_libpath="/usr/lib:/lib"; fi
       else
 	case $host_cpu in
 	hppa*64*)
-	  archive_cmds='$CC -b ${wl}+h ${wl}$soname -o $lib $libobjs $deplibs $compiler_flags'
+	  archive_cmds='$CC -b ${wl}+h ${wl}$soname ${wl}+nodefaultrpath -o $lib $libobjs $deplibs $compiler_flags'
 	  ;;
 	ia64*)
 	  archive_cmds='$CC -b ${wl}+h ${wl}$soname ${wl}+nodefaultrpath -o $lib $libobjs $deplibs $compiler_flags'
@@ -10677,16 +10701,6 @@ freebsd* | dragonfly*)
   esac
   ;;
 
-gnu*)
-  version_type=linux
-  need_lib_prefix=no
-  need_version=no
-  library_names_spec='${libname}${release}${shared_ext}$versuffix ${libname}${release}${shared_ext}${major} ${libname}${shared_ext}'
-  soname_spec='${libname}${release}${shared_ext}$major'
-  shlibpath_var=LD_LIBRARY_PATH
-  hardcode_into_libs=yes
-  ;;
-
 haiku*)
   version_type=linux
   need_lib_prefix=no
@@ -10803,7 +10817,12 @@ linux*oldld* | linux*aout* | linux*coff*)
   ;;
 
 # This must be Linux ELF.
-linux* | k*bsd*-gnu | kopensolaris*-gnu)
+
+# uclinux* changes (here and below) have been submitted to the libtool
+# project, but have not yet been accepted: they are GCC-local changes
+# for the time being.  (See
+# https://lists.gnu.org/archive/html/libtool-patches/2018-05/msg00000.html)
+linux* | k*bsd*-gnu | kopensolaris*-gnu | gnu* | uclinuxfdpiceabi)
   version_type=linux
   need_lib_prefix=no
   need_version=no
@@ -11492,7 +11511,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11495 "configure"
+#line 11514 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11598,7 +11617,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11601 "configure"
+#line 11620 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -12143,19 +12162,22 @@ if test "${enable_cet+set}" = set; then :
                           esac
 
 else
-  enable_cet=no
+  enable_cet=auto
 fi
 
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for CET support" >&5
 $as_echo_n "checking for CET support... " >&6; }
 
+# NB: Avoid nested save_CFLAGS and save_LDFLAGS.
 case "$host" in
   i[34567]86-*-linux* | x86_64-*-linux*)
     case "$enable_cet" in
       auto)
 	# Check if target supports multi-byte NOPs
-	# and if assembler supports CET insn.
+	# and if compiler and assembler support CET insn.
+	cet_save_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS -fcf-protection"
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -12179,6 +12201,7 @@ else
   enable_cet=no
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CFLAGS="$cet_save_CFLAGS"
 	;;
       yes)
 	# Check if assembler supports CET.
@@ -12279,10 +12302,14 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-if test -n "${with_target_subdir}"; then
-  WARN_FLAGS="$WARN_FLAGS -Werror"
+# Check whether --enable-werror was given.
+if test "${enable_werror+set}" = set; then :
+  enableval=$enable_werror;
 fi
 
+if test "x$enable_werror" != "xno" && test -n "${with_target_subdir}"; then :
+  WARN_FLAGS="$WARN_FLAGS -Werror"
+fi
 
 
 if test -n "${with_target_subdir}"; then
@@ -12365,6 +12392,229 @@ else
   PIC_FLAG=
 fi
 
+
+
+# Enable Intel CET on Intel CET enabled host if jit is enabled.
+ # Check whether --enable-cet was given.
+if test "${enable_cet+set}" = set; then :
+  enableval=$enable_cet;
+      case "$enableval" in
+       yes|no|auto) ;;
+       *) as_fn_error $? "Unknown argument to enable/disable cet" "$LINENO" 5 ;;
+                          esac
+
+else
+  enable_cet=auto
+fi
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for CET support" >&5
+$as_echo_n "checking for CET support... " >&6; }
+
+case "$host" in
+  i[34567]86-*-linux* | x86_64-*-linux*)
+    may_have_cet=yes
+    cet_save_CFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS -fcf-protection"
+    case "$enable_cet" in
+      auto)
+	# Check if target supports multi-byte NOPs
+	# and if compiler and assembler support CET.
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+#if !defined(__SSE2__)
+#error target does not support multi-byte NOPs
+#else
+asm ("setssbsy");
+#endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  enable_cet=yes
+else
+  enable_cet=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	;;
+      yes)
+	# Check if compiler and assembler support CET.
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+asm ("setssbsy");
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  support_cet=yes
+else
+  support_cet=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	if test $support_cet = "no"; then
+	  if test x$enable_bootstrap != xno \
+	     && test -z "${with_build_subdir}" \
+	     && (test ! -f ../stage_current \
+	         || test `cat ../stage_current` != "stage1"); then
+	    # Require CET support only for the final GCC build.
+	    as_fn_error $? "compiler and assembler with CET support are required for --enable-cet" "$LINENO" 5
+	  else
+	    # Don't enable CET without CET support for non-bootstrap
+	    # build, in stage1 nor for build support.
+	    enable_cet=no
+	  fi
+	fi
+	;;
+    esac
+    CFLAGS="$cet_save_CFLAGS"
+    ;;
+  *)
+    may_have_cet=no
+    enable_cet=no
+    ;;
+esac
+
+cet_save_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -fcf-protection=none"
+cet_save_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS -Wl,-z,ibt,-z,shstk"
+if test x$may_have_cet = xyes; then
+  # Check whether -fcf-protection=none -Wl,-z,ibt,-z,shstk work.
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  may_have_cet=yes
+else
+  may_have_cet=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+fi
+
+if test x$may_have_cet = xyes; then
+  if test x$cross_compiling = xno; then
+    if test "$cross_compiling" = yes; then :
+  { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "cannot run test program while cross compiling
+See \`config.log' for more details" "$LINENO" 5; }
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+  asm ("endbr32");
+  return 0;
+}
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  have_multi_byte_nop=yes
+else
+  have_multi_byte_nop=no
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+    have_cet=no
+    if test x$have_multi_byte_nop = xyes; then
+      if test "$cross_compiling" = yes; then :
+  { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "cannot run test program while cross compiling
+See \`config.log' for more details" "$LINENO" 5; }
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+static void
+foo (void)
+{
+}
+
+static void
+__attribute__ ((noinline, noclone))
+xxx (void (*f) (void))
+{
+  f ();
+}
+
+static void
+__attribute__ ((noinline, noclone))
+bar (void)
+{
+  xxx (foo);
+}
+
+int
+main ()
+{
+  bar ();
+  return 0;
+}
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  have_cet=no
+else
+  have_cet=yes
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+    fi
+    if test x$enable_cet = xno -a x$have_cet = xyes; then
+      as_fn_error $? "Intel CET must be enabled on Intel CET enabled host" "$LINENO" 5
+    fi
+  fi
+else
+  # Enable CET in cross compiler if possible so that it will run on both
+  # CET and non-CET hosts.
+  have_cet=yes
+fi
+if test x$enable_cet = xyes; then
+  CET_HOST_FLAGS="-fcf-protection"
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+CFLAGS="$cet_save_CFLAGS"
+LDFLAGS="$cet_save_LDFLAGS"
+
+case x$enable_languages in
+*jit*)
+  ;;
+*)
+  CET_HOST_FLAGS=
+  ;;
+esac
 
 
 # Test for __sync support.
@@ -12489,6 +12739,7 @@ FORMAT_FILE=
 backtrace_supports_data=yes
 case "$libbacktrace_cv_sys_filetype" in
 elf*) FORMAT_FILE="elf.lo" ;;
+macho) FORMAT_FILE="macho.lo" ;;
 pecoff) FORMAT_FILE="pecoff.lo"
         backtrace_supports_data=no
 	;;
@@ -12971,10 +13222,8 @@ else
     # simply assume that if we have mman.h, we have mmap.
     have_mmap=yes
     case "${host}" in
-    spu-*-*|*-*-msdosdjgpp)
-        # The SPU does not have mmap, but it has a sys/mman.h header file
-        # containing "mmap_eaddr" and the mmap flags, confusing the test.
-        # DJGPP also has sys/man.h, but no mmap
+    *-*-msdosdjgpp)
+        # DJGPP has sys/man.h, but no mmap
 	have_mmap=no ;;
     esac
   else
@@ -13048,12 +13297,6 @@ else
 fi
 rm -f conftest*
 
-    case "${host}" in
-    *-*-solaris2.10*)
-        # Avoid dl_iterate_phdr on Solaris 10, where it is in the
-    	# header file but is only in -ldl.
-	have_dl_iterate_phdr=no ;;
-    esac
   else
     ac_fn_c_check_func "$LINENO" "dl_iterate_phdr" "ac_cv_func_dl_iterate_phdr"
 if test "x$ac_cv_func_dl_iterate_phdr" = xyes; then :
@@ -13069,6 +13312,20 @@ if test "$have_dl_iterate_phdr" = "yes"; then
 $as_echo "#define HAVE_DL_ITERATE_PHDR 1" >>confdefs.h
 
 fi
+
+# Check for header file for Mach-O image functions.
+for ac_header in mach-o/dyld.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "mach-o/dyld.h" "ac_cv_header_mach_o_dyld_h" "$ac_includes_default"
+if test "x$ac_cv_header_mach_o_dyld_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_MACH_O_DYLD_H 1
+_ACEOF
+
+fi
+
+done
+
 
 # Check for loadquery.
 for ac_header in sys/ldr.h
@@ -13121,7 +13378,6 @@ fi
 if test -n "${with_target_subdir}"; then
    case "${host}" in
    *-*-mingw*) have_fcntl=no ;;
-   spu-*-*) have_fcntl=no ;;
    *) have_fcntl=yes ;;
    esac
 else
@@ -13148,6 +13404,16 @@ fi
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_DECL_STRNLEN $ac_have_decl
+_ACEOF
+ac_fn_c_check_decl "$LINENO" "getpagesize" "ac_cv_have_decl_getpagesize" "$ac_includes_default"
+if test "x$ac_cv_have_decl_getpagesize" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_GETPAGESIZE $ac_have_decl
 _ACEOF
 
 for ac_func in lstat readlink
@@ -13181,6 +13447,76 @@ fi
 if test "$have_getexecname" = "yes"; then
 
 $as_echo "#define HAVE_GETEXECNAME 1" >>confdefs.h
+
+fi
+
+# Check for sysctl definitions.
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for KERN_PROC" >&5
+$as_echo_n "checking for KERN_PROC... " >&6; }
+if ${libbacktrace_cv_proc+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+int
+main ()
+{
+int mib0 = CTL_KERN; int mib1 = KERN_PROC; int mib2 = KERN_PROC_PATHNAME;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  libbacktrace_cv_proc=yes
+else
+  libbacktrace_cv_proc=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $libbacktrace_cv_proc" >&5
+$as_echo "$libbacktrace_cv_proc" >&6; }
+if test "$libbacktrace_cv_proc" = "yes"; then
+
+$as_echo "#define HAVE_KERN_PROC 1" >>confdefs.h
+
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for KERN_PROG_ARGS" >&5
+$as_echo_n "checking for KERN_PROG_ARGS... " >&6; }
+if ${libbacktrace_cv_procargs+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+int
+main ()
+{
+int mib0 = CTL_KERN; int mib1 = KERN_PROC_ARGS; int mib2 = KERN_PROC_PATHNAME;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  libbacktrace_cv_procargs=yes
+else
+  libbacktrace_cv_procargs=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $libbacktrace_cv_procargs" >&5
+$as_echo "$libbacktrace_cv_procargs" >&6; }
+if test "$libbacktrace_cv_procargs" = "yes"; then
+
+$as_echo "#define HAVE_KERN_PROC_ARGS 1" >>confdefs.h
 
 fi
 
@@ -13281,6 +13617,44 @@ fi
 else
   HAVE_PTHREAD_TRUE='#'
   HAVE_PTHREAD_FALSE=
+fi
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether -gdwarf-5 is supported" >&5
+$as_echo_n "checking whether -gdwarf-5 is supported... " >&6; }
+if ${libbacktrace_cv_lib_dwarf5+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  CFLAGS_hold=$CFLAGS
+CFLAGS="$CFLAGS -gdwarf-5"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+int i;
+int
+main ()
+{
+return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  libbacktrace_cv_lib_dwarf5=yes
+else
+  libbacktrace_cv_lib_dwarf5=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+CFLAGS=$CFLAGS_hold
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $libbacktrace_cv_lib_dwarf5" >&5
+$as_echo "$libbacktrace_cv_lib_dwarf5" >&6; }
+ if test "$libbacktrace_cv_lib_dwarf5" = yes; then
+  HAVE_DWARF5_TRUE=
+  HAVE_DWARF5_FALSE='#'
+else
+  HAVE_DWARF5_TRUE='#'
+  HAVE_DWARF5_FALSE=
 fi
 
 
@@ -13455,8 +13829,9 @@ if ${libbacktrace_cv_objcopy_debuglink+:} false; then :
 else
   if test -n "${with_target_subdir}"; then
   libbacktrace_cv_objcopy_debuglink=no
-elif ${OBJCOPY} --add-gnu-debuglink=x /bin/ls /tmp/ls$$; then
-  rm -f /tmp/ls$$
+elif ! test -n "${OBJCOPY}"; then
+  libbacktrace_cv_objcopy_debuglink=no
+elif ${OBJCOPY} --help | fgrep add-gnu-debuglink >/dev/null 2>&1; then
   libbacktrace_cv_objcopy_debuglink=yes
 else
   libbacktrace_cv_objcopy_debuglink=no
@@ -13470,6 +13845,243 @@ $as_echo "$libbacktrace_cv_objcopy_debuglink" >&6; }
 else
   HAVE_OBJCOPY_DEBUGLINK_TRUE='#'
   HAVE_OBJCOPY_DEBUGLINK_FALSE=
+fi
+
+
+
+# Extract the first word of "dsymutil", so it can be a program name with args.
+set dummy dsymutil; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_DSYMUTIL+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$DSYMUTIL"; then
+  ac_cv_prog_DSYMUTIL="$DSYMUTIL" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_DSYMUTIL="dsymutil"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+DSYMUTIL=$ac_cv_prog_DSYMUTIL
+if test -n "$DSYMUTIL"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $DSYMUTIL" >&5
+$as_echo "$DSYMUTIL" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+ if test -n "${DSYMUTIL}" -a "$FORMAT_FILE" = "macho.lo"; then
+  USE_DSYMUTIL_TRUE=
+  USE_DSYMUTIL_FALSE='#'
+else
+  USE_DSYMUTIL_TRUE='#'
+  USE_DSYMUTIL_FALSE=
+fi
+
+
+
+# Extract the first word of "nm", so it can be a program name with args.
+set dummy nm; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_NM+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$NM"; then
+  ac_cv_prog_NM="$NM" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_NM="nm"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+NM=$ac_cv_prog_NM
+if test -n "$NM"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $NM" >&5
+$as_echo "$NM" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+
+# Extract the first word of "xz", so it can be a program name with args.
+set dummy xz; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_XZ+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$XZ"; then
+  ac_cv_prog_XZ="$XZ" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_XZ="xz"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+XZ=$ac_cv_prog_XZ
+if test -n "$XZ"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $XZ" >&5
+$as_echo "$XZ" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+ if test "$XZ" != ""; then
+  HAVE_XZ_TRUE=
+  HAVE_XZ_FALSE='#'
+else
+  HAVE_XZ_TRUE='#'
+  HAVE_XZ_FALSE=
+fi
+
+# Extract the first word of "comm", so it can be a program name with args.
+set dummy comm; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_COMM+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$COMM"; then
+  ac_cv_prog_COMM="$COMM" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_COMM="comm"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+COMM=$ac_cv_prog_COMM
+if test -n "$COMM"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $COMM" >&5
+$as_echo "$COMM" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+ if test "$COMM" != ""; then
+  HAVE_COMM_TRUE=
+  HAVE_COMM_FALSE='#'
+else
+  HAVE_COMM_TRUE='#'
+  HAVE_COMM_FALSE=
+fi
+
+
+ if test "${with_target_subdir}" = "" -a "$FORMAT_FILE" = "elf.lo" -a "${OBJCOPY}" != "" -a "${NM}" != "" -a "${XZ}" != "" -a "${COMM}" != ""; then
+  HAVE_MINIDEBUG_TRUE=
+  HAVE_MINIDEBUG_FALSE='#'
+else
+  HAVE_MINIDEBUG_TRUE='#'
+  HAVE_MINIDEBUG_FALSE=
+fi
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for lzma_auto_decoder in -llzma" >&5
+$as_echo_n "checking for lzma_auto_decoder in -llzma... " >&6; }
+if ${ac_cv_lib_lzma_lzma_auto_decoder+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-llzma  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char lzma_auto_decoder ();
+int
+main ()
+{
+return lzma_auto_decoder ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_lzma_lzma_auto_decoder=yes
+else
+  ac_cv_lib_lzma_lzma_auto_decoder=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_lzma_lzma_auto_decoder" >&5
+$as_echo "$ac_cv_lib_lzma_lzma_auto_decoder" >&6; }
+if test "x$ac_cv_lib_lzma_lzma_auto_decoder" = xyes; then :
+
+$as_echo "#define HAVE_LIBLZMA 1" >>confdefs.h
+
+fi
+
+ if test "$ac_cv_lib_lzma_lzma_auto_decoder" = yes; then
+  HAVE_LIBLZMA_TRUE=
+  HAVE_LIBLZMA_FALSE='#'
+else
+  HAVE_LIBLZMA_TRUE='#'
+  HAVE_LIBLZMA_FALSE=
 fi
 
 
@@ -13669,6 +14281,10 @@ if test -z "${HAVE_PTHREAD_TRUE}" && test -z "${HAVE_PTHREAD_FALSE}"; then
   as_fn_error $? "conditional \"HAVE_PTHREAD\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
+if test -z "${HAVE_DWARF5_TRUE}" && test -z "${HAVE_DWARF5_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_DWARF5\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
 if test -z "${HAVE_ZLIB_TRUE}" && test -z "${HAVE_ZLIB_FALSE}"; then
   as_fn_error $? "conditional \"HAVE_ZLIB\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
@@ -13679,6 +14295,26 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_OBJCOPY_DEBUGLINK_TRUE}" && test -z "${HAVE_OBJCOPY_DEBUGLINK_FALSE}"; then
   as_fn_error $? "conditional \"HAVE_OBJCOPY_DEBUGLINK\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${USE_DSYMUTIL_TRUE}" && test -z "${USE_DSYMUTIL_FALSE}"; then
+  as_fn_error $? "conditional \"USE_DSYMUTIL\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_XZ_TRUE}" && test -z "${HAVE_XZ_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_XZ\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_COMM_TRUE}" && test -z "${HAVE_COMM_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_COMM\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_MINIDEBUG_TRUE}" && test -z "${HAVE_MINIDEBUG_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_MINIDEBUG\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_LIBLZMA_TRUE}" && test -z "${HAVE_LIBLZMA_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_LIBLZMA\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${NATIVE_TRUE}" && test -z "${NATIVE_FALSE}"; then

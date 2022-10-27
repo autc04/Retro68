@@ -18,4 +18,4 @@ uint64_pair_t pair(int num)
   return p ;
 }
 
-/* { dg-final { scan-tree-dump-not "basic block vectorized" "slp2" } } */
+/* { dg-final { scan-tree-dump-not "optimized: basic block" "slp2" } } */

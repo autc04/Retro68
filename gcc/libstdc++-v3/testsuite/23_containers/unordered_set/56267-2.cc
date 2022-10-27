@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -24,6 +24,8 @@ struct audrey2hash : std::hash<int>
   audrey2hash() { throw "Seed me, Seymour"; } // must not use default ctor
 
   audrey2hash(int) { }
+
+  audrey2hash(const audrey2hash&) = default;
 
   audrey2hash&
   operator=(const audrey2hash&) { throw "Don't assign the plants"; }

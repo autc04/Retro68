@@ -1,5 +1,9 @@
 ! { dg-do run }
-! { dg-additional-options "-w" }
+
+! { dg-additional-options -Wuninitialized }
+
+! { dg-additional-options "-Wopenacc-parallelism" } for testing/documenting
+! aspects of that functionality.
 
 ! subroutine reduction
 
@@ -34,6 +38,8 @@ subroutine redsub_gang(sum, n, c)
 
   !$acc parallel copyin (n, c) num_gangs(n) copy(sum)
   !$acc loop reduction(+:sum) gang
+  ! { dg-bogus {'sum\.[0-9]+' is used uninitialized} TODO { xfail *-*-* } .-1 }
+  !   { dg-note {'sum\.[0-9]+' was declared here} {} { target *-*-* } .-2 }
   do i = 1, n
      sum = sum + c
   end do
@@ -46,7 +52,10 @@ subroutine redsub_worker(sum, n, c)
   sum = 0
 
   !$acc parallel copyin (n, c) num_workers(4) vector_length (32) copy(sum)
+  ! { dg-warning "region is vector partitioned but does not contain vector partitioned code" "" { target *-*-* } .-1 }
   !$acc loop reduction(+:sum) worker
+  ! { dg-bogus {'sum\.[0-9]+' is used uninitialized} TODO { xfail *-*-* } .-1 }
+  !   { dg-note {'sum\.[0-9]+' was declared here} {} { target *-*-* } .-2 }
   do i = 1, n
      sum = sum + c
   end do
@@ -60,6 +69,8 @@ subroutine redsub_vector(sum, n, c)
 
   !$acc parallel copyin (n, c) vector_length(32) copy(sum)
   !$acc loop reduction(+:sum) vector
+  ! { dg-bogus {'sum\.[0-9]+' is used uninitialized} TODO { xfail *-*-* } .-1 }
+  !   { dg-note {'sum\.[0-9]+' was declared here} {} { target *-*-* } .-2 }
   do i = 1, n
      sum = sum + c
   end do
@@ -73,6 +84,8 @@ subroutine redsub_combined(sum, n, c)
 
   !$acc parallel num_gangs (8) num_workers (4) vector_length(32) copy(sum)
   !$acc loop reduction(+:sum) gang worker vector
+  ! { dg-bogus {'sum\.[0-9]+' is used uninitialized} TODO { xfail *-*-* } .-1 }
+  !   { dg-note {'sum\.[0-9]+' was declared here} {} { target *-*-* } .-2 }
   do i = 1, n
      sum = sum + c
   end do
@@ -89,8 +102,12 @@ subroutine redsub_nested(sum, n, c)
 
   !$acc parallel num_gangs (8) copy(sum)
   !$acc loop reduction(+:sum) gang
+  ! { dg-bogus {'sum\.[0-9]+' is used uninitialized} TODO { xfail *-*-* } .-1 }
+  !   { dg-note {'sum\.[0-9]+' was declared here} {} { target *-*-* } .-2 }
   do i = 1, ii
      !$acc loop reduction(+:sum) vector
+     ! { dg-bogus {'sum\.[0-9]+' may be used uninitialized} TODO { xfail { ! __OPTIMIZE__ } } .-1 }
+     !   { dg-note {'sum\.[0-9]+' was declared here} {} { target { ! __OPTIMIZE__ } } .-2 }
      do j = 1, jj
         sum = sum + c
      end do

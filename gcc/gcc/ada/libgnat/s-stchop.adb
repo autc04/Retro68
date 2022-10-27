@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---          Copyright (C) 1999-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -60,8 +60,6 @@ package body System.Stack_Checking.Operations is
    --  This order is important because if at any time a write to the stack
    --  cache is pending, that write should be followed by a Poll to prevent
    --  losing signals.
-   --
-   --  Note: This function must be compiled with Polling turned off
    --
    --  Note: on systems with real thread-local storage, Set_Stack_Info should
    --  return an access value for such local storage. In those cases the cache

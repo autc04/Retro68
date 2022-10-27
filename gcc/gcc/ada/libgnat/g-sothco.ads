@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---                     Copyright (C) 2008-2019, AdaCore                     --
+--                     Copyright (C) 2008-2022, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -34,6 +34,7 @@
 
 with Ada.Unchecked_Conversion;
 with Interfaces.C.Strings;
+with System.Parameters;
 
 package GNAT.Sockets.Thin_Common is
 
@@ -44,9 +45,9 @@ package GNAT.Sockets.Thin_Common is
    Failure : constant C.int := -1;
 
    type time_t is
-     range -2 ** (8 * SOSC.SIZEOF_tv_sec - 1)
-         .. 2 ** (8 * SOSC.SIZEOF_tv_sec - 1) - 1;
-   for time_t'Size use 8 * SOSC.SIZEOF_tv_sec;
+     range -2 ** (System.Parameters.time_t_bits - 1)
+        .. 2 ** (System.Parameters.time_t_bits - 1) - 1;
+   for time_t'Size use System.Parameters.time_t_bits;
    pragma Convention (C, time_t);
 
    type suseconds_t is
@@ -74,14 +75,16 @@ package GNAT.Sockets.Thin_Common is
    -------------------------------------------
 
    Families : constant array (Family_Type) of C.int :=
-                (Family_Unspec => SOSC.AF_UNSPEC,
+                [Family_Unspec => SOSC.AF_UNSPEC,
+                 Family_Unix   => SOSC.AF_UNIX,
                  Family_Inet   => SOSC.AF_INET,
-                 Family_Inet6  => SOSC.AF_INET6);
+                 Family_Inet6  => SOSC.AF_INET6];
 
    Lengths  : constant array (Family_Type) of C.unsigned_char :=
-                (Family_Unspec => 0,
+                [Family_Unspec => 0,
+                 Family_Unix   => SOSC.SIZEOF_sockaddr_un,
                  Family_Inet   => SOSC.SIZEOF_sockaddr_in,
-                 Family_Inet6  => SOSC.SIZEOF_sockaddr_in6);
+                 Family_Inet6  => SOSC.SIZEOF_sockaddr_in6];
 
    ----------------------------
    -- Generic socket address --
@@ -106,9 +109,7 @@ package GNAT.Sockets.Thin_Common is
          when False =>
             Short_Family : C.unsigned_short;
       end case;
-   end record;
-   pragma Unchecked_Union (Sockaddr_Length_And_Family);
-   pragma Convention (C, Sockaddr_Length_And_Family);
+   end record with Unchecked_Union, Convention => C;
 
    procedure Set_Family
      (Length_And_Family : out Sockaddr_Length_And_Family;
@@ -122,9 +123,7 @@ package GNAT.Sockets.Thin_Common is
 
    type In_Addr is record
       S_B1, S_B2, S_B3, S_B4 : C.unsigned_char;
-   end record;
-   for In_Addr'Alignment use C.int'Alignment;
-   pragma Convention (C, In_Addr);
+   end record with Convention => C, Alignment => C.int'Alignment;
    --  IPv4 address, represented as a network-order C.int. Note that the
    --  underlying operating system may assume that values of this type have
    --  C.int alignment, so we need to provide a suitable alignment clause here.
@@ -138,9 +137,10 @@ package GNAT.Sockets.Thin_Common is
       Result : out Inet_Addr_Type);
    --  Conversion functions
 
-   type In6_Addr is array (1 .. 16) of C.unsigned_char;
-   for In6_Addr'Alignment use C.int'Alignment;
-   pragma Convention (C, In6_Addr);
+   type In6_Addr is array (1 .. 16) of C.unsigned_char with Convention => C;
+
+   Unix_Name_Length : constant := 108;
+   --  Maximum length for local unix socket name
 
    function To_In6_Addr (Addr : Inet_Addr_Type) return In6_Addr;
    procedure To_Inet_Addr
@@ -149,32 +149,44 @@ package GNAT.Sockets.Thin_Common is
    --  Conversion functions
 
    type Sockaddr (Family : Family_Type := Family_Inet) is record
-      Sin_Family : Sockaddr_Length_And_Family;
-      --  Address family (and address length on some platforms)
-
-      Sin_Port : C.unsigned_short;
-      --  Port in network byte order
-
       case Family is
       when Family_Inet =>
+         Sin_Family : Sockaddr_Length_And_Family;
+         --  Address family (and address length on some platforms)
+
+         Sin_Port : C.unsigned_short;
+         --  Port in network byte order
+
          Sin_Addr : In_Addr := (others => 0);
          --  IPv4 address
 
-         Sin_Zero : C.char_array (1 .. 8) := (others => C.nul);
+         Sin_Zero : C.char_array (1 .. 8) := [others => C.nul];
          --  Padding
          --
          --  Note that some platforms require that all unused (reserved) bytes
          --  in addresses be initialized to 0 (e.g. VxWorks).
+
       when Family_Inet6 =>
+         Sin6_Family : Sockaddr_Length_And_Family;
+         --  Address family (and address length on some platforms)
+
+         Sin6_Port : C.unsigned_short;
+         --  Port in network byte order
+
          Sin6_FlowInfo : Interfaces.Unsigned_32 := 0;
-         Sin6_Addr     : In6_Addr := (others => 0);
+         Sin6_Addr     : In6_Addr := [others => 0];
          Sin6_Scope_Id : Interfaces.Unsigned_32 := 0;
+
+      when Family_Unix =>
+         Sun_Family : Sockaddr_Length_And_Family;
+         --  Address family (and address length on some platforms)
+
+         Sun_Path : C.char_array (1 .. Unix_Name_Length);
+
       when Family_Unspec =>
          null;
       end case;
-   end record;
-   pragma Unchecked_Union (Sockaddr);
-   pragma Convention (C, Sockaddr);
+   end record with Convention => C, Unchecked_Union;
    --  Internet socket address
 
    type Sockaddr_Access is access all Sockaddr;
@@ -183,13 +195,15 @@ package GNAT.Sockets.Thin_Common is
 
    procedure Set_Address
      (Sin     : Sockaddr_Access;
-      Address : Sock_Addr_Type);
+      Address : Sock_Addr_Type;
+      Length  : out C.int);
    --  Initialise all necessary fields in Sin from Address.
    --  Set appropriate Family, Port, and either Sin.Sin_Addr or Sin.Sin6_Addr
    --  depend on family.
+   --  Set the Length out parameter to the valuable Sockaddr data length.
 
-   function Get_Address (Sin : Sockaddr) return Sock_Addr_Type;
-   --  Get Sock_Addr_Type from Sockaddr
+   function Get_Address (Sin : Sockaddr; Length : C.int) return Sock_Addr_Type;
+   --  Get Sock_Addr_Type from Sockaddr and its valuable data Length
 
    ------------------
    -- Host entries --
@@ -268,7 +282,7 @@ package GNAT.Sockets.Thin_Common is
      (Name     : C.char_array;
       Ret      : not null access Hostent;
       Buf      : System.Address;
-      Buflen   : C.int;
+      Buflen   : C.size_t;
       H_Errnop : not null access C.int) return C.int;
 
    function C_Gethostbyaddr
@@ -277,7 +291,7 @@ package GNAT.Sockets.Thin_Common is
       Addr_Type : C.int;
       Ret       : not null access Hostent;
       Buf       : System.Address;
-      Buflen    : C.int;
+      Buflen    : C.size_t;
       H_Errnop  : not null access C.int) return C.int;
 
    function C_Getservbyname
@@ -285,14 +299,14 @@ package GNAT.Sockets.Thin_Common is
       Proto  : C.char_array;
       Ret    : not null access Servent;
       Buf    : System.Address;
-      Buflen : C.int) return C.int;
+      Buflen : C.size_t) return C.int;
 
    function C_Getservbyport
      (Port   : C.int;
       Proto  : C.char_array;
       Ret    : not null access Servent;
       Buf    : System.Address;
-      Buflen : C.int) return C.int;
+      Buflen : C.size_t) return C.int;
 
    Address_Size : constant := Standard'Address_Size;
 
@@ -438,7 +452,19 @@ package GNAT.Sockets.Thin_Common is
    renames Short_To_Network;
    --  Symmetric operation
 
+   Minus_500ms_Windows_Timeout : constant Boolean;
+   --  Microsoft Windows desktop older then 8.0 and Microsoft Windows Server
+   --  older than 2019 need timeout correction for 500 milliseconds. This
+   --  constant is True for such versions.
+
 private
+
+   function Get_Minus_500ms_Timeout return C.int
+     with Import, Convention => C, External_Name => "__gnat_minus_500ms";
+
+   Minus_500ms_Windows_Timeout : constant Boolean :=
+                                   Get_Minus_500ms_Timeout /= 0;
+
    pragma Import (C, Get_Socket_From_Set, "__gnat_get_socket_from_set");
    pragma Import (C, Is_Socket_In_Set, "__gnat_is_socket_in_set");
    pragma Import (C, Last_Socket_In_Set, "__gnat_last_socket_in_set");

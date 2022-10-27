@@ -1,5 +1,7 @@
 /* Single-precision pow function.
-   Copyright (c) 2017 ARM Ltd.  All rights reserved.
+   Copyright (c) 2017-2018 Arm Ltd.  All rights reserved.
+
+   SPDX-License-Identifier: BSD-3-Clause
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions
@@ -13,7 +15,7 @@
       products derived from this software without specific prior written
       permission.
 
-   THIS SOFTWARE IS PROVIDED BY ARM LTD ``AS IS AND ANY EXPRESS OR IMPLIED
+   THIS SOFTWARE IS PROVIDED BY ARM LTD ``AS IS'' AND ANY EXPRESS OR IMPLIED
    WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
    MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
    IN NO EVENT SHALL ARM LTD BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
@@ -93,7 +95,7 @@ log2_inline (uint32_t ix)
    (in case of fast toint intrinsics) or not.  The unscaled xd must be
    in [-1021,1023], sign_bias sets the sign of the result.  */
 static inline double_t
-exp2_inline (double_t xd, unsigned long sign_bias)
+exp2_inline (double_t xd, uint32_t sign_bias)
 {
   uint64_t ki, ski, t;
   /* double_t for better performance on targets with FLT_EVAL_METHOD==2.  */
@@ -127,7 +129,8 @@ exp2_inline (double_t xd, unsigned long sign_bias)
   return y;
 }
 
-/* Returns 0 if not int, 1 if odd int, 2 if even int.  */
+/* Returns 0 if not int, 1 if odd int, 2 if even int.  The argument is
+   the bit representation of a non-zero finite floating-point value.  */
 static inline int
 checkint (uint32_t iy)
 {
@@ -152,7 +155,7 @@ zeroinfnan (uint32_t ix)
 float
 powf (float x, float y)
 {
-  unsigned long sign_bias = 0;
+  uint32_t sign_bias = 0;
   uint32_t ix, iy;
 
   ix = asuint (x);
@@ -217,7 +220,17 @@ powf (float x, float y)
     {
       /* |y*log(x)| >= 126.  */
       if (ylogx > 0x1.fffffffd1d571p+6 * POWF_SCALE)
+	/* |x^y| > 0x1.ffffffp127.  */
 	return __math_oflowf (sign_bias);
+      if (WANT_ROUNDING && WANT_ERRNO
+	  && ylogx > 0x1.fffffffa3aae2p+6 * POWF_SCALE)
+	/* |x^y| > 0x1.fffffep127, check if we round away from 0.  */
+	if ((!sign_bias
+	     && eval_as_float (1.0f + opt_barrier_float (0x1p-25f)) != 1.0f)
+	    || (sign_bias
+		&& eval_as_float (-1.0f - opt_barrier_float (0x1p-25f))
+		     != -1.0f))
+	  return __math_oflowf (sign_bias);
       if (ylogx <= -150.0 * POWF_SCALE)
 	return __math_uflowf (sign_bias);
 #if WANT_ERRNO_UFLOW

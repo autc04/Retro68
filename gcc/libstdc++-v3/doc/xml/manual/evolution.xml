@@ -1,4 +1,4 @@
-<section xmlns="http://docbook.org/ns/docbook" version="5.0" 
+<section xmlns="http://docbook.org/ns/docbook" version="5.0"
 	 xml:id="appendix.porting.api" xreflabel="api">
 <?dbhtml filename="api.html"?>
 
@@ -784,8 +784,8 @@ now defaults to zero.
 
 <para>
   Assertions to check function preconditions can be enabled by defining the
-  <xref linkend="manual.intro.using.macros"><symbol>_GLIBCXX_ASSERTIONS</symbol>
-  macro</xref>.
+  <link linkend="manual.intro.using.macros"><symbol>_GLIBCXX_ASSERTIONS</symbol>
+  macro</link>.
   The initial set of assertions are a subset of the checks enabled by
   the Debug Mode, but without the ABI changes and changes to algorithmic
   complexity that are caused by enabling the full Debug Mode.
@@ -943,6 +943,126 @@ now defaults to zero.
   <filename class="headerfile">&lt;experimental/socket&gt;</filename>,
   and
   <filename class="headerfile">&lt;experimental/timer&gt;</filename>.
+</para>
+
+</section>
+
+<section xml:id="api.rel_101"><info><title><constant>10</constant></title></info>
+<para> Deprecated features removed:
+<itemizedlist>
+<listitem> Profile Mode </listitem>
+<listitem> <classname>__gnu_cxx::array_allocator</classname> </listitem>
+</itemizedlist>
+</para>
+
+<para>
+  The non-standard <function>std::__is_nullptr_t</function> type trait
+  was deprecated.
+</para>
+
+<para>
+  The <classname>std::packaged_task</classname> constructors taking
+  an allocator argument are only defined for C++11 and C++14.
+</para>
+
+<para>
+  Several members of <classname>std::allocator</classname> were removed
+  for C++20 mode. The removed functionality has been provided by
+  <classname>std::allocator_traits</classname> since C++11 and that should
+  be used instead.
+</para>
+
+<para>
+  The type of the <classname>std::iterator</classname> base class of
+  <classname>std::istreambuf_iterator</classname> was changed to be
+  consistent for all <option>-std</option> modes.
+  Before GCC 10.1 the base class had one type in C++98 mode and a
+  different type in C++11 and later modes. The type in C++98 mode
+  was changed to be the same as for C++11 and later.
+</para>
+
+<para>
+  Experimental C++2a support improved, with new headers
+  <filename class="headerfile">&lt;concepts&gt;</filename>,
+  <filename class="headerfile">&lt;ranges&gt;</filename>,
+  <filename class="headerfile">&lt;compare&gt;</filename>,
+  <filename class="headerfile">&lt;coroutine&gt;</filename>,
+  <filename class="headerfile">&lt;numbers&gt;</filename>,
+  <filename class="headerfile">&lt;span&gt;</filename>,
+  and
+  <filename class="headerfile">&lt;stop_token&gt;</filename>
+  added.
+</para>
+
+</section>
+
+<section xml:id="api.rel_111"><info><title><constant>11</constant></title></info>
+
+<para>
+  The <option>--enable-cheaders=c_std</option> configuration
+  was deprecated.
+</para>
+
+<para>
+  When compiling as C++20, the <function>operator&gt;&gt;</function> overloads
+  for extracting strings into character buffers only work with arrays,
+  not raw pointers.
+</para>
+
+<para>
+  <code>std::string::reserve(n)</code> will no longer reduce
+  the string's capacity.
+  Calling <function>reserve()</function> with no arguments is equivalent
+  to <function>shrink_to_fit()</function>, but is deprecated.
+  <function>shrink_to_fit()</function> should be used instead.
+</para>
+
+</section>
+
+<section xml:id="api.rel_121"><info><title><constant>12</constant></title></info>
+
+<para>
+The <function>std::random_shuffle</function> algorithms are deprecated
+for C++14 and later. The C++11 <function>std::shuffle</function> algorithm
+can be used instead.
+</para>
+
+<para>
+The <function>std::unexpected</function> function and related typedef and
+accessors for the unexpected handler are deprecated for C++11 and later.
+Dynamic exception specifications should be replaced with <code>noexcept</code>.
+</para>
+
+<para>
+C++98 adaptable function utilities
+(<code>std::bind1st</code>, <code>std::unary_function</code>,
+<code>std::ptr_fun</code>, <code>std::mem_fun_ref</code> etc.)
+were deprecated for C++11.
+<code>std::iterator</code>, <code>std::raw_storage_iterator</code>,
+<code>get_temporary_buffer</code>, and <code>std::not_fun</code>
+were deprecated for C++17.
+</para>
+
+<para>
+Non-standard <code>std::pair</code> constructors were deprecated.
+A non-standard default argument for
+<code>vector&lt;bool&gt;::insert(const_iterator, const bool&amp;)</code>
+was deprecated.
+</para>
+
+<para>
+The <literal>bitmap</literal>, <literal>mt</literal>, and <literal>pool</literal>
+options for <option>--enable-libstdcxx-allocator</option> were removed.
+For the <literal>new</literal> option, <classname>std::allocator</classname>
+no longer derives from <classname>__gnu_cxx::new_allocator</classname>;
+they both derive from <classname>std::__new_allocator</classname> instead.
+</para>
+
+<para>
+<function>std::condition_variable::wait</function> changed to be
+<code>noexcept(false)</code> to allow thread cancellation exceptions to
+be thrown from <function>pthread_cond_wait</function> without aborting
+the process.
 </para>
 
 </section>

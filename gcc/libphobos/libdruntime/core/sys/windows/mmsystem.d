@@ -4,10 +4,11 @@
  * Translated from MinGW Windows headers
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_mmsystem.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_mmsystem.d)
  */
 module core.sys.windows.mmsystem;
 version (Windows):
+@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "winmm");
@@ -16,7 +17,7 @@ pragma(lib, "winmm");
  *  compile-time constants, so they are implemented as templates.
  */
 
-private import core.sys.windows.w32api, core.sys.windows.windef, core.sys.windows.winver;
+import core.sys.windows.w32api, core.sys.windows.windef, core.sys.windows.winver;
 
 align(1):
 
@@ -1039,7 +1040,7 @@ struct MMTIME {
             BYTE fps;
             BYTE dummy;
             BYTE[2] pad;
-        };
+        }
         _smpte smpte;
         struct _midi {
             DWORD songptrpos;

@@ -1,7 +1,6 @@
-// { dg-options "-std=gnu++17" }
-// { dg-do compile }
+// { dg-do compile { target c++17 } }
 
-// Copyright (C) 2014-2019 Free Software Foundation, Inc.
+// Copyright (C) 2014-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,6 +33,4 @@ using check4_t = std::u16string_view;
 using check5_t = std::u32string_view;
 #endif
 
-#ifdef _GLIBCXX_USE_WCHAR_T
 using check6_t = std::wstring_view;
-#endif

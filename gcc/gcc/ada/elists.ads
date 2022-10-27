@@ -6,23 +6,17 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
 -- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
---                                                                          --
--- As a special exception under Section 7 of GPL version 3, you are granted --
--- additional permissions described in the GCC Runtime Library Exception,   --
--- version 3.1, as published by the Free Software Foundation.               --
---                                                                          --
--- You should have received a copy of the GNU General Public License and    --
--- a copy of the GCC Runtime Library Exception along with this program;     --
--- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
--- <http://www.gnu.org/licenses/>.                                          --
+-- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
+-- for  more details.  You should have  received  a copy of the GNU General --
+-- Public License  distributed with GNAT; see file COPYING3.  If not, go to --
+-- http://www.gnu.org/licenses for a complete copy of the license.          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -36,6 +30,9 @@
 --  See also package Nlists, which provides another form that is threaded
 --  through the nodes themselves (using the Link field), which is more time
 --  and space efficient, but a node can be only one such list.
+
+--  WARNING: There is a C version of this package. Any changes to this
+--  source file must be properly reflected in the C header file elists.h
 
 with Types;  use Types;
 with System;
@@ -54,23 +51,13 @@ package Elists is
 
    procedure Initialize;
    --  Initialize allocation of element list tables. Called at the start of
-   --  compiling each new main source file. Note that Initialize must not be
-   --  called if Tree_Read is used.
+   --  compiling each new main source file.
 
    procedure Lock;
    --  Lock tables used for element lists before calling backend
 
    procedure Unlock;
    --  Unlock list tables, in cases where the back end needs to modify them
-
-   procedure Tree_Read;
-   --  Initializes internal tables from current tree file using the relevant
-   --  Table.Tree_Read routines. Note that Initialize should not be called if
-   --  Tree_Read is used. Tree_Read includes all necessary initialization.
-
-   procedure Tree_Write;
-   --  Writes out internal tables to current tree file using the relevant
-   --  Table.Tree_Write routines.
 
    function Last_Elist_Id return Elist_Id;
    --  Returns Id of last allocated element list header
@@ -96,6 +83,21 @@ package Elists is
    --  Creates a new empty element list. Typically this is used to initialize
    --  a field in some other node which points to an element list where the
    --  list is then subsequently filled in using Append calls.
+
+   function New_Elmt_List (Elmt1 : Node_Or_Entity_Id) return Elist_Id;
+   function New_Elmt_List
+     (Elmt1 : Node_Or_Entity_Id;
+      Elmt2 : Node_Or_Entity_Id) return Elist_Id;
+   function New_Elmt_List
+     (Elmt1 : Node_Or_Entity_Id;
+      Elmt2 : Node_Or_Entity_Id;
+      Elmt3 : Node_Or_Entity_Id) return Elist_Id;
+   function New_Elmt_List
+     (Elmt1 : Node_Or_Entity_Id;
+      Elmt2 : Node_Or_Entity_Id;
+      Elmt3 : Node_Or_Entity_Id;
+      Elmt4 : Node_Or_Entity_Id) return Elist_Id;
+   --  Create a new element list containing the given arguments.
 
    function First_Elmt (List : Elist_Id) return Elmt_Id;
    pragma Inline (First_Elmt);

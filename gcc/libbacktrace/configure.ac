@@ -1,5 +1,5 @@
 # configure.ac -- Backtrace configure script.
-# Copyright (C) 2012-2019 Free Software Foundation, Inc.
+# Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -145,10 +145,10 @@ ACX_PROG_CC_WARNING_OPTS([-W -Wall -Wwrite-strings -Wstrict-prototypes \
 			  -Wmissing-format-attribute -Wcast-qual],
 			  [WARN_FLAGS])
 
-if test -n "${with_target_subdir}"; then
-  WARN_FLAGS="$WARN_FLAGS -Werror"
-fi
-
+AC_ARG_ENABLE([werror],
+  [AS_HELP_STRING([--disable-werror], [disable building with -Werror])])
+AS_IF([test "x$enable_werror" != "xno" && test -n "${with_target_subdir}"],
+  [WARN_FLAGS="$WARN_FLAGS -Werror"])
 AC_SUBST(WARN_FLAGS)
 
 if test -n "${with_target_subdir}"; then
@@ -177,6 +177,17 @@ AC_ARG_ENABLE(host-shared,
 		[build host code as shared libraries])],
 [PIC_FLAG=-fPIC], [PIC_FLAG=])
 AC_SUBST(PIC_FLAG)
+
+# Enable Intel CET on Intel CET enabled host if jit is enabled.
+GCC_CET_HOST_FLAGS(CET_HOST_FLAGS)
+case x$enable_languages in
+*jit*)
+  ;;
+*)
+  CET_HOST_FLAGS=
+  ;;
+esac
+AC_SUBST(CET_HOST_FLAGS)
 
 # Test for __sync support.
 AC_CACHE_CHECK([__sync extensions],
@@ -238,6 +249,7 @@ FORMAT_FILE=
 backtrace_supports_data=yes
 case "$libbacktrace_cv_sys_filetype" in
 elf*) FORMAT_FILE="elf.lo" ;;
+macho) FORMAT_FILE="macho.lo" ;;
 pecoff) FORMAT_FILE="pecoff.lo"
         backtrace_supports_data=no
 	;;
@@ -293,10 +305,8 @@ else
     # simply assume that if we have mman.h, we have mmap.
     have_mmap=yes
     case "${host}" in
-    spu-*-*|*-*-msdosdjgpp)
-        # The SPU does not have mmap, but it has a sys/mman.h header file
-        # containing "mmap_eaddr" and the mmap flags, confusing the test.
-        # DJGPP also has sys/man.h, but no mmap
+    *-*-msdosdjgpp)
+        # DJGPP has sys/man.h, but no mmap
 	have_mmap=no ;;
     esac
   else
@@ -333,12 +343,6 @@ else
     # When built as a GCC target library, we can't do a link test.
     AC_EGREP_HEADER([dl_iterate_phdr], [link.h], [have_dl_iterate_phdr=yes],
 		    [have_dl_iterate_phdr=no])
-    case "${host}" in
-    *-*-solaris2.10*)
-        # Avoid dl_iterate_phdr on Solaris 10, where it is in the
-    	# header file but is only in -ldl.
-	have_dl_iterate_phdr=no ;;
-    esac
   else
     AC_CHECK_FUNC([dl_iterate_phdr], [have_dl_iterate_phdr=yes],
 		  [have_dl_iterate_phdr=no])
@@ -347,6 +351,9 @@ fi
 if test "$have_dl_iterate_phdr" = "yes"; then
   AC_DEFINE(HAVE_DL_ITERATE_PHDR, 1, [Define if dl_iterate_phdr is available.])
 fi
+
+# Check for header file for Mach-O image functions.
+AC_CHECK_HEADERS(mach-o/dyld.h)
 
 # Check for loadquery.
 AC_CHECK_HEADERS(sys/ldr.h)
@@ -370,7 +377,6 @@ fi
 if test -n "${with_target_subdir}"; then
    case "${host}" in
    *-*-mingw*) have_fcntl=no ;;
-   spu-*-*) have_fcntl=no ;;
    *) have_fcntl=yes ;;
    esac
 else
@@ -381,7 +387,7 @@ if test "$have_fcntl" = "yes"; then
 	    [Define to 1 if you have the fcntl function])
 fi
 
-AC_CHECK_DECLS(strnlen)
+AC_CHECK_DECLS([strnlen, getpagesize])
 AC_CHECK_FUNCS(lstat readlink)
 
 # Check for getexecname function.
@@ -395,6 +401,36 @@ else
 fi
 if test "$have_getexecname" = "yes"; then
   AC_DEFINE(HAVE_GETEXECNAME, 1, [Define if getexecname is available.])
+fi
+
+# Check for sysctl definitions.
+
+AC_CACHE_CHECK([for KERN_PROC],
+[libbacktrace_cv_proc],
+[AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([
+#include <sys/types.h>
+#include <sys/sysctl.h>
+], [int mib0 = CTL_KERN; int mib1 = KERN_PROC; int mib2 = KERN_PROC_PATHNAME;])],
+  [libbacktrace_cv_proc=yes],
+  [libbacktrace_cv_proc=no])])
+if test "$libbacktrace_cv_proc" = "yes"; then
+  AC_DEFINE([HAVE_KERN_PROC], 1,
+            [Define to 1 if you have KERN_PROC and KERN_PROC_PATHNAME in <sys/sysctl.h>.])
+fi
+
+AC_CACHE_CHECK([for KERN_PROG_ARGS],
+[libbacktrace_cv_procargs],
+[AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([
+#include <sys/types.h>
+#include <sys/sysctl.h>
+], [int mib0 = CTL_KERN; int mib1 = KERN_PROC_ARGS; int mib2 = KERN_PROC_PATHNAME;])],
+  [libbacktrace_cv_procargs=yes],
+  [libbacktrace_cv_procargs=no])])
+if test "$libbacktrace_cv_procargs" = "yes"; then
+  AC_DEFINE([HAVE_KERN_PROC_ARGS], 1,
+            [Define to 1 if you have KERN_PROCARGS and KERN_PROC_PATHNAME in <sys/sysctl.h>.])
 fi
 
 # Check for the clock_gettime function.
@@ -429,6 +465,17 @@ AC_SUBST(PTHREAD_CFLAGS)
 
 AM_CONDITIONAL(HAVE_PTHREAD, test "$libgo_cv_lib_pthread" = yes)
 
+dnl Test whether the compiler and the linker support the -gdwarf-5 option.
+AC_CACHE_CHECK([whether -gdwarf-5 is supported],
+[libbacktrace_cv_lib_dwarf5],
+[CFLAGS_hold=$CFLAGS
+CFLAGS="$CFLAGS -gdwarf-5"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([int i;], [return 0;])],
+[libbacktrace_cv_lib_dwarf5=yes],
+[libbacktrace_cv_lib_dwarf5=no])
+CFLAGS=$CFLAGS_hold])
+AM_CONDITIONAL(HAVE_DWARF5, test "$libbacktrace_cv_lib_dwarf5" = yes)
+
 AC_CHECK_LIB([z], [compress],
     [AC_DEFINE(HAVE_ZLIB, 1, [Define if -lz is available.])])
 AM_CONDITIONAL(HAVE_ZLIB, test "$ac_cv_lib_z_compress" = yes)
@@ -451,13 +498,33 @@ AC_CACHE_CHECK([whether objcopy supports debuglink],
 [libbacktrace_cv_objcopy_debuglink],
 [if test -n "${with_target_subdir}"; then
   libbacktrace_cv_objcopy_debuglink=no
-elif ${OBJCOPY} --add-gnu-debuglink=x /bin/ls /tmp/ls$$; then
-  rm -f /tmp/ls$$
+elif ! test -n "${OBJCOPY}"; then
+  libbacktrace_cv_objcopy_debuglink=no
+elif ${OBJCOPY} --help | fgrep add-gnu-debuglink >/dev/null 2>&1; then
   libbacktrace_cv_objcopy_debuglink=yes
 else
   libbacktrace_cv_objcopy_debuglink=no
 fi])
 AM_CONDITIONAL(HAVE_OBJCOPY_DEBUGLINK, test "$libbacktrace_cv_objcopy_debuglink" = yes)
+
+AC_ARG_VAR(DSYMUTIL, [location of dsymutil])
+AC_CHECK_PROG(DSYMUTIL, dsymutil, dsymutil)
+AM_CONDITIONAL(USE_DSYMUTIL, test -n "${DSYMUTIL}" -a "$FORMAT_FILE" = "macho.lo")
+
+AC_ARG_VAR(NM, [location of nm])
+AC_CHECK_PROG(NM, nm, nm)
+
+AC_CHECK_PROG(XZ, xz, xz)
+AM_CONDITIONAL(HAVE_XZ, test "$XZ" != "")
+AC_CHECK_PROG(COMM, comm, comm)
+AM_CONDITIONAL(HAVE_COMM, test "$COMM" != "")
+
+AM_CONDITIONAL(HAVE_MINIDEBUG,
+  test "${with_target_subdir}" = "" -a "$FORMAT_FILE" = "elf.lo" -a "${OBJCOPY}" != "" -a "${NM}" != "" -a "${XZ}" != "" -a "${COMM}" != "")
+
+AC_CHECK_LIB([lzma], [lzma_auto_decoder],
+    [AC_DEFINE(HAVE_LIBLZMA, 1, [Define if -llzma is available.])])
+AM_CONDITIONAL(HAVE_LIBLZMA, test "$ac_cv_lib_lzma_lzma_auto_decoder" = yes)
 
 AC_CACHE_CHECK([whether tests can run],
   [libbacktrace_cv_sys_native],

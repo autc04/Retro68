@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2019 Free Software Foundation, Inc.
+// Copyright (C) 2016-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,6 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++17" }
 // { dg-do run { target c++17 } }
 // { dg-require-filesystem-ts "" }
 
@@ -28,10 +27,8 @@ namespace fs = std::filesystem;
 void
 test01()
 {
-#if defined(__MINGW32__) || defined(__MINGW64__)
-  // filesystem permissions not supported
-  return;
-#endif
+  if (!__gnu_test::permissions_are_testable())
+    return;
 
   auto p = __gnu_test::nonexistent_path();
   create_directory(p);
@@ -43,7 +40,7 @@ test01()
   VERIFY( !result );
 
   try {
-    fs::is_empty(p);
+    (void) fs::is_empty(p);
   } catch (const fs::filesystem_error& e) {
     ec2 = e.code();
   }
@@ -54,7 +51,7 @@ test01()
   VERIFY( !result );
 
   try {
-    fs::is_empty(p/"f");
+    (void) fs::is_empty(p/"f");
   } catch (const fs::filesystem_error& e) {
     ec2 = e.code();
   }

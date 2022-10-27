@@ -16,6 +16,7 @@ version (Posix):
 extern(C):
 nothrow:
 @nogc:
+@system:
 
 version (CRuntime_Glibc)
 {
@@ -84,6 +85,21 @@ else version (NetBSD)
         char[utsNameLength] version_ = 0;
         // TODO Deprecate after version_ has been in an official release.
         alias update = version_;
+        char[utsNameLength] machine = 0;
+    }
+
+    int uname(utsname* __name);
+}
+else version (OpenBSD)
+{
+    private enum utsNameLength = 256;
+
+    struct utsname
+    {
+        char[utsNameLength] sysname = 0;
+        char[utsNameLength] nodename = 0;
+        char[utsNameLength] release = 0;
+        char[utsNameLength] version_ = 0;
         char[utsNameLength] machine = 0;
     }
 

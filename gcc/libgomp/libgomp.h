@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2019 Free Software Foundation, Inc.
+/* Copyright (C) 2005-2022 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@redhat.com>.
 
    This file is part of the GNU Offloading and Multi Processing Library
@@ -42,7 +42,7 @@
 #endif
 
 #include "config.h"
-#include "gstdint.h"
+#include <stdint.h>
 #include "libgomp-plugin.h"
 #include "gomp-constants.h"
 
@@ -87,12 +87,15 @@ enum memmodel
 /* alloc.c */
 
 #if defined(HAVE_ALIGNED_ALLOC) \
-    || defined(HAVE__ALIGNED_MALLOC) \
     || defined(HAVE_POSIX_MEMALIGN) \
     || defined(HAVE_MEMALIGN)
 /* Defined if gomp_aligned_alloc doesn't use fallback version
    and free can be used instead of gomp_aligned_free.  */
 #define GOMP_HAVE_EFFICIENT_ALIGNED_ALLOC 1
+#endif
+
+#if defined(GOMP_HAVE_EFFICIENT_ALIGNED_ALLOC) && !defined(__AMDGCN__)
+#define GOMP_USE_ALIGNED_WORK_SHARES 1
 #endif
 
 extern void *gomp_malloc (size_t) __attribute__((malloc));
@@ -105,6 +108,69 @@ extern void gomp_aligned_free (void *);
 /* Avoid conflicting prototypes of alloca() in system headers by using
    GCC's builtin alloca().  */
 #define gomp_alloca(x)  __builtin_alloca(x)
+
+/* Optimized allocators for team-specific data that will die with the team.  */
+
+#ifdef __AMDGCN__
+/* The arena is initialized in config/gcn/team.c.  */
+#define TEAM_ARENA_SIZE  64*1024  /* Must match the value in plugin-gcn.c.  */
+#define TEAM_ARENA_START 16  /* LDS offset of free pointer.  */
+#define TEAM_ARENA_FREE  24  /* LDS offset of free pointer.  */
+#define TEAM_ARENA_END   32  /* LDS offset of end pointer.  */
+
+static inline void * __attribute__((malloc))
+team_malloc (size_t size)
+{
+  /* 4-byte align the size.  */
+  size = (size + 3) & ~3;
+
+  /* Allocate directly from the arena.
+     The compiler does not support DS atomics, yet. */
+  void *result;
+  asm ("ds_add_rtn_u64 %0, %1, %2\n\ts_waitcnt 0"
+       : "=v"(result) : "v"(TEAM_ARENA_FREE), "v"(size), "e"(1L) : "memory");
+
+  /* Handle OOM.  */
+  if (result + size > *(void * __lds *)TEAM_ARENA_END)
+    {
+      /* While this is experimental, let's make sure we know when OOM
+	 happens.  */
+      const char msg[] = "GCN team arena exhausted\n";
+      write (2, msg, sizeof(msg)-1);
+
+      /* Fall back to using the heap (slowly).  */
+      result = gomp_malloc (size);
+    }
+  return result;
+}
+
+static inline void * __attribute__((malloc))
+team_malloc_cleared (size_t size)
+{
+  char *result = team_malloc (size);
+
+  /* Clear the allocated memory.  */
+  __builtin_memset (result, 0, size);
+
+  return result;
+}
+
+static inline void
+team_free (void *ptr)
+{
+  /* The whole arena is freed when the kernel exits.
+     However, if we fell back to using heap then we should free it.
+     It would be better if this function could be a no-op, but at least
+     LDS loads are cheap.  */
+  if (ptr < *(void * __lds *)TEAM_ARENA_START
+      || ptr >= *(void * __lds *)TEAM_ARENA_END)
+    free (ptr);
+}
+#else
+#define team_malloc(...) gomp_malloc (__VA_ARGS__)
+#define team_malloc_cleared(...) gomp_malloc_cleared (__VA_ARGS__)
+#define team_free(...) free (__VA_ARGS__)
+#endif
 
 /* error.c */
 
@@ -194,6 +260,30 @@ struct gomp_doacross_work_share
   unsigned int shift_counts[];
 };
 
+/* Like struct gomp_work_share, but only the 1st cacheline of it plus
+   flexible array at the end.
+   Keep in sync with struct gomp_work_share.  */
+struct gomp_work_share_1st_cacheline
+{
+  enum gomp_schedule_type sched;
+  int mode;
+  union {
+    struct {
+      long chunk_size, end, incr;
+    };
+    struct {
+      unsigned long long chunk_size_ull, end_ull, incr_ull;
+    };
+  };
+  union {
+    unsigned *ordered_team_ids;
+    struct gomp_doacross_work_share *doacross;
+  };
+  unsigned ordered_num_used, ordered_owner, ordered_cur;
+  struct gomp_work_share *next_alloc;
+  char pad[];
+};
+
 struct gomp_work_share
 {
   /* This member records the SCHEDULE clause to be used for this construct.
@@ -261,7 +351,12 @@ struct gomp_work_share
      are in a different cache line.  */
 
   /* This lock protects the update of the following members.  */
+#ifdef GOMP_USE_ALIGNED_WORK_SHARES
   gomp_mutex_t lock __attribute__((aligned (64)));
+#else
+  char pad[64 - offsetof (struct gomp_work_share_1st_cacheline, pad)];
+  gomp_mutex_t lock;
+#endif
 
   /* This is the count of the number of threads that have exited the work
      share construct.  If the construct was marked nowait, they have moved on
@@ -299,6 +394,12 @@ struct gomp_work_share
   unsigned inline_ordered_team_ids[0];
 };
 
+extern char gomp_workshare_struct_check1
+  [offsetof (struct gomp_work_share_1st_cacheline, next_alloc)
+   == offsetof (struct gomp_work_share, next_alloc) ? 1 : -1];
+extern char gomp_workshare_struct_check2
+  [offsetof (struct gomp_work_share, lock) == 64 ? 1 : -1];
+
 /* This structure contains all of the thread-local data associated with 
    a thread team.  This is the data that must be saved when a thread
    encounters a nested PARALLEL construct.  */
@@ -334,6 +435,9 @@ struct gomp_team_state
   unsigned place_partition_off;
   unsigned place_partition_len;
 
+  /* Def-allocator-var ICV.  */
+  uintptr_t def_allocator;
+
 #ifdef HAVE_SYNC_BUILTINS
   /* Number of single stmts encountered.  */
   unsigned long single_count;
@@ -362,18 +466,27 @@ struct gomp_task_icv
   int default_device_var;
   unsigned int thread_limit_var;
   bool dyn_var;
-  bool nest_var;
+  unsigned char max_active_levels_var;
   char bind_var;
   /* Internal ICV.  */
   struct target_mem_desc *target_data;
 };
 
+enum gomp_target_offload_t
+{
+  GOMP_TARGET_OFFLOAD_DEFAULT,
+  GOMP_TARGET_OFFLOAD_MANDATORY,
+  GOMP_TARGET_OFFLOAD_DISABLED
+};
+
+#define gomp_supported_active_levels UCHAR_MAX
+
 extern struct gomp_task_icv gomp_global_icv;
 #ifndef HAVE_SYNC_BUILTINS
 extern gomp_mutex_t gomp_managed_threads_lock;
 #endif
-extern unsigned long gomp_max_active_levels_var;
 extern bool gomp_cancel_var;
+extern enum gomp_target_offload_t gomp_target_offload_var;
 extern int gomp_max_task_priority_var;
 extern unsigned long long gomp_spin_count_var, gomp_throttled_spin_count_var;
 extern unsigned long gomp_available_cpus, gomp_managed_threads;
@@ -383,10 +496,13 @@ extern unsigned long gomp_bind_var_list_len;
 extern void **gomp_places_list;
 extern unsigned long gomp_places_list_len;
 extern unsigned int gomp_num_teams_var;
+extern int gomp_nteams_var;
+extern int gomp_teams_thread_limit_var;
 extern int gomp_debug_var;
 extern bool gomp_display_affinity_var;
 extern char *gomp_affinity_format_var;
 extern size_t gomp_affinity_format_len;
+extern uintptr_t gomp_def_allocator;
 extern int goacc_device_num;
 extern char *goacc_device_type;
 extern int goacc_default_dims[GOMP_DIM_MAX];
@@ -405,7 +521,10 @@ enum gomp_task_kind
      but not yet completed.  Once that completes, they will be readded
      into the queues as GOMP_TASK_WAITING in order to perform the var
      unmapping.  */
-  GOMP_TASK_ASYNC_RUNNING
+  GOMP_TASK_ASYNC_RUNNING,
+  /* Task that has finished executing but is waiting for its
+     completion event to be fulfilled.  */
+  GOMP_TASK_DETACHED
 };
 
 struct gomp_task_depend_entry
@@ -460,6 +579,16 @@ struct gomp_task
      0, we have no unsatisfied dependencies, and this task can be put
      into the various queues to be scheduled.  */
   size_t num_dependees;
+
+  union {
+      /* Valid only if deferred_p is false.  */
+      gomp_sem_t *completion_sem;
+      /* Valid only if deferred_p is true.  Set to the team that executes the
+	 task if the task is detached and the completion event has yet to be
+	 fulfilled.  */
+      struct gomp_team *detach_team;
+    };
+  bool deferred_p;
 
   /* Priority of this task.  */
   int priority;
@@ -609,6 +738,9 @@ struct gomp_team
   int work_share_cancelled;
   int team_cancelled;
 
+  /* Number of tasks waiting for their completion event to be fulfilled.  */
+  unsigned int task_detach_count;
+
   /* This array contains structures for implicit tasks.  */
   struct gomp_task implicit_task[];
 };
@@ -638,6 +770,14 @@ struct gomp_thread
 
   /* User pthread thread pool */
   struct gomp_thread_pool *thread_pool;
+
+#ifdef LIBGOMP_USE_PTHREADS
+  /* omp_get_num_teams () - 1.  */
+  unsigned int num_teams;
+
+  /* omp_get_team_num ().  */
+  unsigned int team_num;
+#endif
 
 #if defined(LIBGOMP_USE_PTHREADS) \
     && (!defined(HAVE_TLS) \
@@ -691,6 +831,24 @@ static inline struct gomp_thread *gomp_thread (void)
   int tid;
   asm ("mov.u32 %0, %%tid.y;" : "=r" (tid));
   return nvptx_thrs + tid;
+}
+#elif defined __AMDGCN__
+static inline struct gomp_thread *gcn_thrs (void)
+{
+  /* The value is at the bottom of LDS.  */
+  struct gomp_thread * __lds *thrs = (struct gomp_thread * __lds *)4;
+  return *thrs;
+}
+static inline void set_gcn_thrs (struct gomp_thread *val)
+{
+  /* The value is at the bottom of LDS.  */
+  struct gomp_thread * __lds *thrs = (struct gomp_thread * __lds *)4;
+  *thrs = val;
+}
+static inline struct gomp_thread *gomp_thread (void)
+{
+  int tid = __builtin_gcn_dim_pos(1);
+  return gcn_thrs () + tid;
 }
 #elif defined HAVE_TLS || defined USE_EMUTLS
 extern __thread struct gomp_thread gomp_tls_data;
@@ -751,7 +909,7 @@ extern void gomp_display_affinity_place (char *, size_t, size_t *, int);
 
 /* affinity-fmt.c */
 
-extern void gomp_print_string (const char *str, size_t len);
+extern bool gomp_print_string (const char *str, size_t len);
 extern void gomp_set_affinity_format (const char *, size_t);
 extern void gomp_display_string (char *, size_t, size_t *, const char *,
 				 size_t);
@@ -867,6 +1025,11 @@ struct target_var_desc {
   bool copy_from;
   /* True if data always should be copied from device to host at the end.  */
   bool always_copy_from;
+  /* True if this is for OpenACC 'attach'.  */
+  bool is_attach;
+  /* If GOMP_MAP_TO_PSET had a NULL pointer; used for Fortran descriptors,
+     which were initially unallocated.  */
+  bool has_null_ptr_assoc;
   /* Relative offset against key host_start.  */
   uintptr_t offset;
   /* Actual length.  */
@@ -897,11 +1060,50 @@ struct target_mem_desc {
   struct target_var_desc list[];
 };
 
+/* Special value for refcount - mask to indicate existence of special
+   values. Right now we allocate 3 bits.  */
+#define REFCOUNT_SPECIAL (~(uintptr_t) 0x7)
+
 /* Special value for refcount - infinity.  */
-#define REFCOUNT_INFINITY (~(uintptr_t) 0)
+#define REFCOUNT_INFINITY (REFCOUNT_SPECIAL | 0)
 /* Special value for refcount - tgt_offset contains target address of the
    artificial pointer to "omp declare target link" object.  */
-#define REFCOUNT_LINK (~(uintptr_t) 1)
+#define REFCOUNT_LINK     (REFCOUNT_SPECIAL | 1)
+
+/* Special value for refcount - structure element sibling list items.
+   All such key refounts have REFCOUNT_STRUCTELEM bits set, with _FLAG_FIRST
+   and _FLAG_LAST indicating first and last in the created sibling sequence.  */
+#define REFCOUNT_STRUCTELEM (REFCOUNT_SPECIAL | 4)
+#define REFCOUNT_STRUCTELEM_P(V)			\
+  (((V) & REFCOUNT_STRUCTELEM) == REFCOUNT_STRUCTELEM)
+/* The first leading key with _FLAG_FIRST set houses the actual reference count
+   in the structelem_refcount field. Other siblings point to this counter value
+   through its structelem_refcount_ptr field.  */
+#define REFCOUNT_STRUCTELEM_FLAG_FIRST (1)
+/* The last key in the sibling sequence has this set. This is required to
+   indicate the sequence boundary, when we remove the structure sibling list
+   from the map.  */
+#define REFCOUNT_STRUCTELEM_FLAG_LAST  (2)
+
+#define REFCOUNT_STRUCTELEM_FIRST_P(V)					\
+  (REFCOUNT_STRUCTELEM_P (V) && ((V) & REFCOUNT_STRUCTELEM_FLAG_FIRST))
+#define REFCOUNT_STRUCTELEM_LAST_P(V)					\
+  (REFCOUNT_STRUCTELEM_P (V) && ((V) & REFCOUNT_STRUCTELEM_FLAG_LAST))
+
+/* Special offset values.  */
+#define OFFSET_INLINED (~(uintptr_t) 0)
+#define OFFSET_POINTER (~(uintptr_t) 1)
+#define OFFSET_STRUCT (~(uintptr_t) 2)
+
+/* Auxiliary structure for infrequently-used or API-specific data.  */
+
+struct splay_tree_aux {
+  /* Pointer to the original mapping of "omp declare target link" object.  */
+  splay_tree_key link_key;
+  /* For a block with attached pointers, the attachment counters for each.
+     Only used for OpenACC.  */
+  uintptr_t *attach_count;
+};
 
 struct splay_tree_key_s {
   /* Address of the host object.  */
@@ -914,10 +1116,23 @@ struct splay_tree_key_s {
   uintptr_t tgt_offset;
   /* Reference count.  */
   uintptr_t refcount;
-  /* Dynamic reference count.  */
-  uintptr_t dynamic_refcount;
-  /* Pointer to the original mapping of "omp declare target link" object.  */
-  splay_tree_key link_key;
+  union {
+    /* Dynamic reference count.  */
+    uintptr_t dynamic_refcount;
+
+    /* Unified reference count for structure element siblings, this is used
+       when REFCOUNT_STRUCTELEM_FIRST_P(k->refcount) == true, the first sibling
+       in a structure element sibling list item sequence.  */
+    uintptr_t structelem_refcount;
+
+    /* When REFCOUNT_STRUCTELEM_P (k->refcount) == true, this field points
+       into the (above) structelem_refcount field of the _FIRST splay_tree_key,
+       the first key in the created sequence. All structure element siblings
+       share a single refcount in this manner. Since these two fields won't be
+       used at the same time, they are stashed in a union.  */
+    uintptr_t *structelem_refcount_ptr;
+  };
+  struct splay_tree_aux *aux;
 };
 
 /* The comparison function.  */
@@ -939,34 +1154,36 @@ splay_compare (splay_tree_key x, splay_tree_key y)
 
 typedef struct acc_dispatch_t
 {
-  /* This is a linked list of data mapped using the
-     acc_map_data/acc_unmap_data or "acc enter data"/"acc exit data" pragmas.
-     Unlike mapped_data in the goacc_thread struct, unmapping can
-     happen out-of-order with respect to mapping.  */
-  /* This is guarded by the lock in the "outer" struct gomp_device_descr.  */
-  struct target_mem_desc *data_environ;
-
   /* Execute.  */
   __typeof (GOMP_OFFLOAD_openacc_exec) *exec_func;
-
-  /* Async cleanup callback registration.  */
-  __typeof (GOMP_OFFLOAD_openacc_register_async_cleanup)
-    *register_async_cleanup_func;
-
-  /* Asynchronous routines.  */
-  __typeof (GOMP_OFFLOAD_openacc_async_test) *async_test_func;
-  __typeof (GOMP_OFFLOAD_openacc_async_test_all) *async_test_all_func;
-  __typeof (GOMP_OFFLOAD_openacc_async_wait) *async_wait_func;
-  __typeof (GOMP_OFFLOAD_openacc_async_wait_async) *async_wait_async_func;
-  __typeof (GOMP_OFFLOAD_openacc_async_wait_all) *async_wait_all_func;
-  __typeof (GOMP_OFFLOAD_openacc_async_wait_all_async)
-    *async_wait_all_async_func;
-  __typeof (GOMP_OFFLOAD_openacc_async_set_async) *async_set_async_func;
 
   /* Create/destroy TLS data.  */
   __typeof (GOMP_OFFLOAD_openacc_create_thread_data) *create_thread_data_func;
   __typeof (GOMP_OFFLOAD_openacc_destroy_thread_data)
     *destroy_thread_data_func;
+  
+  struct {
+    /* Once created and put into the "active" list, asyncqueues are then never
+       destructed and removed from the "active" list, other than if the TODO
+       device is shut down.  */
+    gomp_mutex_t lock;
+    int nasyncqueue;
+    struct goacc_asyncqueue **asyncqueue;
+    struct goacc_asyncqueue_list *active;
+
+    __typeof (GOMP_OFFLOAD_openacc_async_construct) *construct_func;
+    __typeof (GOMP_OFFLOAD_openacc_async_destruct) *destruct_func;
+    __typeof (GOMP_OFFLOAD_openacc_async_test) *test_func;
+    __typeof (GOMP_OFFLOAD_openacc_async_synchronize) *synchronize_func;
+    __typeof (GOMP_OFFLOAD_openacc_async_serialize) *serialize_func;
+    __typeof (GOMP_OFFLOAD_openacc_async_queue_callback) *queue_callback_func;
+
+    __typeof (GOMP_OFFLOAD_openacc_async_exec) *exec_func;
+    __typeof (GOMP_OFFLOAD_openacc_async_dev2host) *dev2host_func;
+    __typeof (GOMP_OFFLOAD_openacc_async_host2dev) *host2dev_func;
+  } async;
+
+  __typeof (GOMP_OFFLOAD_openacc_get_property) *get_property_func;
 
   /* NVIDIA target specific routines.  */
   struct {
@@ -1039,34 +1256,49 @@ struct gomp_device_descr
   enum gomp_device_state state;
 
   /* OpenACC-specific data and functions.  */
-  /* This is mutable because of its mutable data_environ and target_data
-     members.  */
+  /* This is mutable because of its mutable target_data member.  */
   acc_dispatch_t openacc;
 };
 
 /* Kind of the pragma, for which gomp_map_vars () is called.  */
 enum gomp_map_vars_kind
 {
-  GOMP_MAP_VARS_OPENACC,
-  GOMP_MAP_VARS_TARGET,
-  GOMP_MAP_VARS_DATA,
-  GOMP_MAP_VARS_ENTER_DATA
+  GOMP_MAP_VARS_OPENACC    = 1,
+  GOMP_MAP_VARS_TARGET     = 2,
+  GOMP_MAP_VARS_DATA       = 4,
+  GOMP_MAP_VARS_ENTER_DATA = 8
 };
 
-extern void gomp_acc_insert_pointer (size_t, void **, size_t *, void *);
-extern void gomp_acc_remove_pointer (void *, size_t, bool, int, int, int);
 extern void gomp_acc_declare_allocate (bool, size_t, void **, size_t *,
 				       unsigned short *);
-
-extern struct target_mem_desc *gomp_map_vars (struct gomp_device_descr *,
-					      size_t, void **, void **,
-					      size_t *, void *, bool,
-					      enum gomp_map_vars_kind);
-extern void gomp_unmap_vars (struct target_mem_desc *, bool);
+struct gomp_coalesce_buf;
+extern void gomp_copy_host2dev (struct gomp_device_descr *,
+				struct goacc_asyncqueue *, void *, const void *,
+				size_t, bool, struct gomp_coalesce_buf *);
+extern void gomp_copy_dev2host (struct gomp_device_descr *,
+				struct goacc_asyncqueue *, void *, const void *,
+				size_t);
+extern uintptr_t gomp_map_val (struct target_mem_desc *, void **, size_t);
+extern void gomp_attach_pointer (struct gomp_device_descr *,
+				 struct goacc_asyncqueue *, splay_tree,
+				 splay_tree_key, uintptr_t, size_t,
+				 struct gomp_coalesce_buf *, bool);
+extern void gomp_detach_pointer (struct gomp_device_descr *,
+				 struct goacc_asyncqueue *, splay_tree_key,
+				 uintptr_t, bool, struct gomp_coalesce_buf *);
+extern struct target_mem_desc *goacc_map_vars (struct gomp_device_descr *,
+					       struct goacc_asyncqueue *,
+					       size_t, void **, void **,
+					       size_t *, void *, bool,
+					       enum gomp_map_vars_kind);
+extern void goacc_unmap_vars (struct target_mem_desc *, bool,
+			      struct goacc_asyncqueue *);
 extern void gomp_init_device (struct gomp_device_descr *);
-extern void gomp_free_memmap (struct splay_tree_s *);
+extern bool gomp_fini_device (struct gomp_device_descr *);
 extern void gomp_unload_device (struct gomp_device_descr *);
 extern bool gomp_remove_var (struct gomp_device_descr *, splay_tree_key);
+extern void gomp_remove_var_async (struct gomp_device_descr *, splay_tree_key,
+				   struct goacc_asyncqueue *);
 
 /* work.c */
 

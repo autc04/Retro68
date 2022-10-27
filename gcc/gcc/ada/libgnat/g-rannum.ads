@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2007-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2007-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -69,6 +69,8 @@ is
    function Random (Gen : Generator) return Interfaces.Unsigned_32;
    function Random (Gen : Generator) return Interfaces.Integer_64;
    function Random (Gen : Generator) return Interfaces.Unsigned_64;
+   function Random (Gen : Generator) return Interfaces.Integer_128;
+   function Random (Gen : Generator) return Interfaces.Unsigned_128;
    function Random (Gen : Generator) return Integer;
    function Random (Gen : Generator) return Long_Integer;
    --  Return pseudo-random numbers uniformly distributed on T'First .. T'Last

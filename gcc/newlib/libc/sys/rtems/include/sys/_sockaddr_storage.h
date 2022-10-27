@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1985, 1986, 1988, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -27,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $FreeBSD: head/sys/sys/_sockaddr_storage.h 314436 2017-02-28 23:42:47Z imp $
+ * $FreeBSD: head/sys/sys/_sockaddr_storage.h 326023 2017-11-20 19:43:44Z pfg $
  */
 
 #ifndef _SYS__SOCKADDR_STORAGE_H_

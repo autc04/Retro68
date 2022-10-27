@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -34,6 +34,7 @@ package Exp_Ch11 is
    procedure Expand_N_Raise_Expression               (N : Node_Id);
    procedure Expand_N_Raise_Program_Error            (N : Node_Id);
    procedure Expand_N_Raise_Statement                (N : Node_Id);
+   procedure Expand_N_Raise_When_Statement           (N : Node_Id);
    procedure Expand_N_Raise_Storage_Error            (N : Node_Id);
 
    --  Data structures for gathering information to build exception tables
@@ -70,6 +71,8 @@ package Exp_Ch11 is
    --  a goto statement. If Local_Raise is defined, its entity is returned,
    --  if not, Empty is returned (in which case the call is silently skipped).
 
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
+
    function Get_RT_Exception_Entity (R : RT_Exception_Code) return Entity_Id;
    --  This function is provided for use by the back end in conjunction with
    --  generation of Local_Raise calls when an exception raise is converted to
@@ -77,10 +80,14 @@ package Exp_Ch11 is
    --  to determine which Rcheck_nn procedure to call. The returned result is
    --  the exception entity to be passed to Local_Raise.
 
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
+
    procedure Get_RT_Exception_Name (Code : RT_Exception_Code);
    --  This procedure is provided for use by the back end to obtain the name of
    --  the Rcheck procedure for Code. The name is appended to Namet.Name_Buffer
    --  without the __gnat_rcheck_ prefix.
+
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
    procedure Possible_Local_Raise (N : Node_Id; E : Entity_Id);
    --  This procedure is called whenever node N might cause the back end
@@ -94,5 +101,7 @@ package Exp_Ch11 is
    --  Called for an exception handler that is not the target of a local raise.
    --  Issues warning if No_Exception_Propagation restriction is set. N is the
    --  node for the handler.
+
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
 end Exp_Ch11;

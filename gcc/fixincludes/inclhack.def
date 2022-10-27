@@ -195,6 +195,33 @@ fix = {
 };
 
 /*
+ *  SDKs for 10.13 and 10.14 omit the definitions for API_AVAILABLE where
+ *  __attribute__((availability)) is not supported.
+ */
+fix = {
+    hackname  = darwin_api_availability;
+    mach      = "*-*-darwin*";
+    files     = os/availability.h;
+    bypass    = "__IPHONE_OS_VERSION_MIN_REQUIRED";
+    select    =
+    " *#define __API_AVAILABLE.*\n"
+    " *#define __API_DEPRECATED.*\n"
+    " *#define __API_DEPRECATED_WITH_REPLACEMENT.*\n"
+    " *#define __API_UNAVAILABLE.*\n";
+    c_fix     = format;
+    c_fix_arg =
+    "    #define API_AVAILABLE(...)\n"
+    "    #define API_DEPRECATED(...)\n"
+    "    #define API_DEPRECATED_WITH_REPLACEMENT(...)\n"
+    "    #define API_UNAVAILABLE(...)\n";
+    test_text =
+    "#define __API_AVAILABLE(...)\n"
+    "#define __API_DEPRECATED(...)\n"
+    "#define __API_DEPRECATED_WITH_REPLACEMENT(...)\n"
+    "#define __API_UNAVAILABLE(...)\n";
+};
+
+/*
  *  This fixes __FD_ZERO bug for linux 2.x.y (x <= 2 && y <= some n)
  */
 fix = {
@@ -526,24 +553,44 @@ fix = {
   hackname  = aix_externcpp1;
   mach      = "*-*-aix*";
   files     = "sys/socket.h";
-  select    = "#ifdef __cplusplus";
+  select    = "#ifndef _KERNEL\n"
+	      "#ifdef __cplusplus\n"
+	      "extern \"C\" int naccept\\(int, struct sockaddr \\*, socklen_t \\*\\);";
   c_fix     = format;
-  c_fix_arg = "#ifdef __cplusplus\n"
-              "extern \"C++\" {";
-  test_text = "#ifdef __cplusplus";
-
+  c_fix_arg = "#ifndef _KERNEL\n"
+	      "#ifdef __cplusplus\n"
+	      "extern \"C++\" {\n"
+	      "extern \"C\" int naccept(int, struct sockaddr *, socklen_t *);";
+  test_text = "#ifndef _KERNEL\n"
+	      "#ifdef __cplusplus\n"
+	      "extern \"C\" int naccept(int, struct sockaddr *, socklen_t *);";
 };
 
 fix = {
   hackname  = aix_externcpp2;
   mach      = "*-*-aix*";
   files     = "sys/socket.h";
-  select    = "#else  /\\* __cplusplus \\*/";
+  select    = "#endif /\\* COMPAT_43 \\*/\n"
+	      "#else  /\\* __cplusplus \\*/";
   c_fix     = format;
-  c_fix_arg = "} /* extern \"C++\" */\n"
+  c_fix_arg = "#endif /* COMPAT_43 */\n"
+	      "} /* extern \"C++\" */\n"
               "#else  /* __cplusplus */";
-  test_text = "#else  /* __cplusplus */";
+  test_text = "#endif /* COMPAT_43 */\n"
+	      "#else  /* __cplusplus */";
+};
 
+/*
+ *  inttypes.h STDC_FORMAT_MACROS
+ */
+fix = {
+    hackname  = aix_inttypes;
+    mach      = "*-*-aix*";
+    files     = "sys/inttypes.h";
+    select    = "#if !defined\\(__cplusplus\\) \\|\\| defined\\(__STDC_FORMAT_MACROS\\)";
+    c_fix     = format;
+    c_fix_arg = "#if 1";
+    test_text = "#if !defined(__cplusplus) || defined(__STDC_FORMAT_MACROS)";
 };
 
 /*
@@ -553,10 +600,16 @@ fix = {
     hackname  = aix_malloc;
     mach      = "*-*-aix*";
     files     = "malloc.h";
-    select    = "#ifdef __cplusplus";
+    select    = "#ifdef __cplusplus\n"
+                "extern \"C\" \\{\n"
+                "[ \t]extern \"builtin\" char \\*__alloca \\(size_t\\);";
     c_fix     = format;
-    c_fix_arg = "#if (defined(__cplusplus) && defined(__IBMCPP__))";
-    test_text = "#ifdef __cplusplus";
+    c_fix_arg = "#if (defined(__cplusplus) && defined(__IBMCPP__))\n"
+                "extern \"C\" {\n"
+	"\textern \"builtin\" char *__alloca (size_t);";
+    test_text = "#ifdef __cplusplus\n"
+                "extern \"C\" {\n"
+	"\textern \"builtin\" char *__alloca (size_t);";
 };
 
 /*
@@ -668,6 +721,20 @@ fix = {
 		"{{ \\\n";
     test_text = "#define PTHREAD_RWLOCK_INITIALIZER \\\\\n"
 		"{ \\\\\n";
+};
+
+
+/* On AIX 'typedef struct {<stuff>} * physadr_t;' needs to give the struct a
+   name for linkage purposes.  Fortunately it is on exactly one
+   line.  */
+fix = {
+    hackname  = aix_physadr_t;
+    mach      = "*-*-aix*";
+    files     = sys/types.h;
+    select    = "typedef[ \t]*struct[ \t]*([{][^}]*[}][ \t]*\\*[ \t]*physadr_t;)";
+    c_fix     = format;
+    c_fix_arg = "typedef struct __physadr_s %1";
+    test_text = "typedef	struct { random stuff } *	physadr_t;";
 };
 
 /*
@@ -1298,12 +1365,12 @@ fix = {
 };
 
 /*
- *  For the AAB_darwin7_9_long_double_funcs fix to be useful,
- *  you have to not use "" includes.
+ *  For the AAB_darwin7_9_long_double_funcs fix (and later fixes for long long)
+ *  to be useful, the main math.h must use <> and not "" includes.
  */
 fix = {
     hackname  = darwin_9_long_double_funcs_2;
-    mach      = "*-*-darwin7.9*";
+    mach      = "*-*-darwin*";
     files     = math.h;
     select    = '#include[ \t]+\"';
     c_fix     = format;
@@ -1311,7 +1378,7 @@ fix = {
   
     c_fix_arg = '([ \t]*#[ \t]*include[ \t]+)"([a-z0-9/]+)\.h"';
   
-    test_text = '#include "architecture/ppc/math.h"';
+    test_text = '#include <architecture/ppc/math.h>';
 };
 
 /*
@@ -1352,6 +1419,22 @@ fix = {
   c_fix_arg = "((__GNUC__ >= 4) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1))";
   test_text = "#if defined(__GNUC__) && (__GNUC__ >= 3) && "
   	      "(__GNUC_MINOR__ >= 1)\n";
+};
+
+/*
+ * math.h hides the long long functions that are available on the system for
+ * 10.5 and 10.6 SDKs, we expect to use them in G++ without specifying a value
+ * for __STDC_VERSION__, or switching __STRICT_ANSI__ off.
+ */
+fix = {
+  hackname  = darwin_ll_funcs_avail;
+  mach      = "*-*-darwin*";
+  files     = architecture/ppc/math.h, architecture/i386/math.h;
+  select    = "#if[^_]*__STDC_VERSION__[^_]*__STDC_VERSION__[^1]*199901L[^_]*"
+	      "__STRICT_ANSI__[^_]*__GNUC__[^\)]*";
+  sed       = "s/#if[^_]*__STDC_VERSION__[^_]*__STDC_VERSION__[^_]*199901L[^_]*"
+	      "__STRICT_ANSI__[^_]*__GNUC__[^\\)]*\)/#if\ !\(__DARWIN_NO_LONG_LONG\)/";
+  test_text = "#if\ !(__DARWIN_NO_LONG_LONG)";
 };
 
 /*
@@ -1423,6 +1506,49 @@ fix = {
 	void
 	_os_trace_internal(void *dso, uint8_t type, const char *format, const uint8_t *buf, size_t buf_size, os_trace_payload_t payload);
 	_EOText_;
+};
+
+/*
+ *  In macOS 10.10 <os/base.h>, doesn't have __has_extension guarded.
+ */
+fix = {
+  hackname  = darwin_os_base_1;
+  mach      = "*-*-darwin*";
+  files     = os/base.h;
+  select    = <<- OS_BASE_1_SEL
+#define __has_attribute.*
+#endif
+OS_BASE_1_SEL;
+  c_fix     = format;
+  c_fix_arg = <<- OS_BASE_1_FIX
+%0
+#ifndef __has_extension
+#define __has_extension(x) 0
+#endif
+OS_BASE_1_FIX;
+  test_text = <<- OS_BASE_1_TEST
+#define __has_attribute(x) 0
+#endif
+
+#if __GNUC__
+OS_BASE_1_TEST;
+};
+
+/*
+ *  In macOS 10.10 <dispatch/object.h>, has unguarded block syntax.
+ */
+fix = {
+  hackname  = darwin_dispatch_object_1;
+  mach      = "*-*-darwin*";
+  files     = dispatch/object.h;
+  select    = "typedef void.*\\^dispatch_block_t.*";
+  c_fix     = format;
+  c_fix_arg = "#if __BLOCKS__\n%0\n#endif";
+  test_text = <<- DISPATCH_OBJECT_1_TEST
+typedef void (^dispatch_block_t)(void);
+
+__BEGIN_DECLS
+DISPATCH_OBJECT_1_TEST;
 };
 
 /*
@@ -1638,7 +1764,18 @@ fix = {
     c_fix_arg = "#if (__STDC_VERSION__ < 201112L) || defined(__cplusplus)\n"
 		"# undef _Atomic\n"
 		"#endif\n";
-    test_text = "_Atomic";
+    test_text = ""; /* Don't provide this for wrap fixes.  */
+};
+
+/*  The darwin headers don't accept __FLT_EVAL_METHOD__ == 16.  */
+fix = {
+    hackname  = darwin_flt_eval_method;
+    mach      = "*-*-darwin*";
+    files     = math.h;
+    select    = "^#if __FLT_EVAL_METHOD__ == 0$";
+    c_fix     = format;
+    c_fix_arg = "#if __FLT_EVAL_METHOD__ == 0 || __FLT_EVAL_METHOD__ == 16";
+    test_text = "#if __FLT_EVAL_METHOD__ == 0";
 };
 
 /*
@@ -2146,6 +2283,24 @@ fix = {
 };
 
 /*
+ * This hack fixes the declarations of _DINFINITY, _SINFINITY and _SQNAN.
+ */
+fix = {
+    hackname  = hpux_math_constexpr;
+    mach      = "*-hp-hpux11*";
+    files     = math.h;
+    sed       = "s@^[ \t]*extern[ \t]*const[ \t]*double[ \t]*_DINFINITY;"
+	"[ \t]*$@#  define _DINFINITY (__builtin_inf ())@";
+    sed       = "s@^[ \t]*extern[ \t]*const[ \t]*float[ \t]*_SINFINITY;"
+	"[ \t]*$@#    define _SINFINITY (__builtin_inff ())@";
+    sed       = "s@^[ \t]*extern[ \t]*const[ \t]*float[ \t]*_SQNAN;"
+	"[ \t]*$@#    define _SQNAN (__builtin_nanf (\\\"\\\"))@";
+    test_text = "  extern const double _DINFINITY;\n"
+		"  extern const float _SINFINITY;\n"
+		"  extern const float _SQNAN;";
+};
+
+/*
  *  Fix hpux 10.X missing ctype declarations 1
  */
 fix = {
@@ -2499,6 +2654,75 @@ fix = {
                 "#  define      UINT8_C(__c)    ((unsigned char)(__c))\n"
 		"#  define      INT16_C(__c)    ((short)(__c))\n"
 		"#  define	UINT16_C(__c)	((unsigned short)(__c))\n";
+};
+
+/*
+ * Fix broken and missing defines in inttypes.h
+ */
+fix = {
+    hackname  = hpux_c99_inttypes3;
+    mach      = "hppa*-hp-hpux11*";
+    files     = inttypes.h;
+    select    = "#define[ \t]INTPTR_MAX[ \t]*\n"
+		"#define[ \t]UINTPTR_MAX[ \t]*\n";
+    c_fix     = format;
+    c_fix_arg = "#undef SIZE_MAX\n"
+		"#define SIZE_MAX __SIZE_MAX__\n"
+		"#ifdef __INTPTR_MAX__\n"
+		"# undef INTPTR_MAX\n"
+		"# define INTPTR_MAX __INTPTR_MAX__\n"
+		"# undef INTPTR_MIN\n"
+		"# define INTPTR_MIN (-INTPTR_MAX - 1)\n"
+		"#endif\n"
+		"#ifdef __UINTPTR_MAX__\n"
+		"# undef UINTPTR_MAX\n"
+		"# define UINTPTR_MAX __UINTPTR_MAX__\n"
+		"#endif\n";
+    test_text = "#define INTPTR_MAX\n"
+		"#define UINTPTR_MAX\n";
+};
+
+/*
+ * Fix missing SCNuMAX defines in inttypes.h
+ */
+fix = {
+    hackname  = hpux_c99_inttypes4;
+    mach      = "hppa*-hp-hpux11.[01]*";
+    files     = inttypes.h;
+    sed       = "/^[ \t]*#[ \t]*define[ \t]*SCNxMAX[ \t]*SCNx64/a\\\n"
+		"#define SCNuMAX \t SCNu64\n";
+    sed       = "/^[ \t]*#[ \t]*define[ \t]*SCNxMAX[ \t]*SCNx32/a\\\n"
+		"#define SCNuMAX \t SCNu32\n";
+    test_text = "#define SCNxMAX SCNx64\n"
+		"#define SCNxMAX SCNx32\n";
+};
+
+/*
+ * Fix missing PRIdPTR defines in inttypes.h
+ */
+fix = {
+    hackname  = hpux_c99_inttypes5;
+    mach      = "hppa*-hp-hpux11.[01]*";
+    files     = inttypes.h;
+    select    = "#ifndef[ \t]_KERNEL[ \t]*\n";
+    c_fix     = format;
+    c_fix_arg = "#ifndef __LP64__\n"
+		"#define PRIdPTR\t\tPRId32\n"
+		"#define PRIiPTR\t\tPRIi32\n"
+		"#define PRIoPTR\t\tPRIo32\n"
+		"#define PRIuPTR\t\tPRIu32\n"
+		"#define PRIxPTR\t\tPRIx32\n"
+		"#define PRIXPTR\t\tPRIX32\n"
+		"#else\n"
+		"#define PRIdPTR\t\tPRId64\n"
+		"#define PRIiPTR\t\tPRIi64\n"
+		"#define PRIoPTR\t\tPRIo64\n"
+		"#define PRIuPTR\t\tPRIu64\n"
+		"#define PRIxPTR\t\tPRIx64\n"
+		"#define PRIXPTR\t\tPRIX64\n"
+		"#endif\n\n"
+		"#ifndef _KERNEL\n";
+    test_text = "#ifndef _KERNEL\n";
 };
 
 /*
@@ -2987,7 +3211,8 @@ fix = {
     c_fix     = machine_name;
 
     test_text = "/* MACH_DIFF: */\n"
-    "#if defined( i386 ) || defined( sparc ) || defined( vax )"
+    "#if defined( i386 ) || defined( sparc ) || defined( vax ) || "
+    "defined( linux ) || __has_include ( <linux.h> )"
     "\n/* no uniform test, so be careful  :-) */";
 };
 
@@ -4950,23 +5175,75 @@ fix = {
         
     test_text   = "extern int ioctl ( int asdf1234, int jkl , int qwerty ) ;";
 };
-
+ 
 /*
- *  Wrap VxWorks mkdir to be posix compliant
+ * Provide C99 FP classification support in VxWorks math.h if
+ * not already there. Note the strict expectation on #define without
+ * whitespaces in the bypass expression, which "works" for
+ * the system headers we have met and doesn't match test texts for
+ * other hacks, found in the test baseline.
  */
 fix = {
-    hackname    = vxworks_mkdir_macro;
+    hackname  = vxworks_math_h_fp_c99;
+    mach      = "*-*-vxworks*";
+    files     = math.h;
+    bypass    = "#define[ \t]+FP_INFINITE";
+    select    = "#define HUGE_VAL[ \t]*_ARCH.*";
+    c_fix     = format;
+    c_fix_arg = << _EOArg_
+
+%0
+
+#if _C99
+
+#define FP_INFINITE  1
+#define FP_NAN       2
+#define FP_NORMAL    (-1)
+#define FP_SUBNORMAL (-2)
+#define FP_ZERO      0
+
+#define fpclassify(x) \
+  __builtin_fpclassify(FP_NAN, FP_INFINITE, FP_NORMAL, \
+		       FP_SUBNORMAL, FP_ZERO, (x))
+
+#define signbit(x) __builtin_signbit(x)
+#define isfinite(x) __builtin_isfinite(x)
+#define isnormal(x) __builtin_isnormal(x)
+#define isnan(x) __builtin_isnan(x)
+#define isinf(x) __builtin_isinf(x)
+
+#define isgreater(x, y) __builtin_isgreater((x),(y))
+#define isgreaterequal(x, y) __builtin_isgreaterequal((x),(y))
+#define isless(x, y) __builtin_isless((x),(y))
+#define islessequal(x, y) __builtin_islessequal((x),(y))
+#define islessgreater(x, y) __builtin_islessgreater((x),(y))
+#define isunordered(x, y) __builtin_isunordered((x),(y))
+
+#endif /* _C99 */
+
+_EOArg_;
+
+    test_text  = "#define HUGE_VAL _ARCH_HUGH_VAL";
+};
+
+/*
+ *  mkdir's posix interface expects two arguments.  While the RTP VxWorks
+ *  API is fine, the kernel version handles only one.  We used to expose
+ *  a macro and this didn't play nice with uses such as posix:mkdir(x, y)
+ *  in libstdc++, so we expose a vararg prototype instead.
+ */
+fix = {
+    hackname    = vxworks_posix_mkdir;
     files       = sys/stat.h;
     mach        = "*-*-vxworks*";
 
     c_fix       = format;
-    c_fix_arg   = "%0\n"
-                "#define mkdir(dir, ...) ((void)0, ##__VA_ARGS__, (mkdir)(dir))\n";
+    c_fix_arg   = "extern STATUS mkdir(const char *dir, ...);";
     c_fix_arg   = "extern[\t ]+STATUS[\t ]+mkdir[\t ]*"
                 "\\([\t ]*const[\t ]+char[\t ]*\\*[\t ]*" /* arg type */
                 "(|[_[:alpha:]][_[:alnum:]]*)" /* arg name (optional) */
                 "\\)[\t ]*;";
-        
+
     test_text   = "extern STATUS mkdir (const char * _qwerty) ;";
 };
 
@@ -5002,6 +5279,28 @@ fix = {
 };
 
 /*
+ * yvals.h on VxWorks-6 expects the toolchain to provide its own
+ * version of the header, which we don't do.  Arrange to fallback
+ * on the system definition.
+ */
+fix = {
+    hackname  = vxworks_next_yvals;
+    mach      = "*-*-vxworks*";
+    files     = yvals.h;
+    select    = "#include_next <yvals.h>";
+    c_fix     = format;
+    c_fix_arg = "#if 0 /* GCC does not provide yvals.h.  */\n%1";
+    c_fix_arg = "#if .*\n"
+                "/\\* .*\n"
+                "(#include_next <yvals.h>\n)";
+
+    test_text = "#if (defined(__cplusplus) && defined(__GNUC__))\n"
+                "/* GCC C++ has it's own yvals.h */\n"
+                "#include_next <yvals.h>\n"
+                "#else\n";
+};
+
+/*
  *  Make it so VxWorks does not include gcc/regs.h accidentally
  */
 fix = {
@@ -5013,6 +5312,47 @@ fix = {
     c_fix_arg   = "#include <arch/../regs.h>";
         
     test_text   = "#include <regs.h>\n";
+};
+
+/*
+ * Likewise, open's posix interface allows two or three arguments and
+ * some VxWorks headers expose only a strict 3 arguments version.  Merely
+ * changing the prototype into a varargs one is risky as the implementation
+ * would receive garbage in the third arg for calls providing only two,
+ * which libstdc++ does.  We simply provide an always inline overload for C++
+ * instead.
+ *
+ * Both fcntl.h and ioLib.h might "feature" such a prototype for _WRS_KERNEL.
+ * The latter #includes the former though (since 1992 according to the embedded
+ * log), so just leave ioLib.h alone.
+ */
+fix = {
+    hackname    = vxworks_posix_open;
+    mach        = "*-*-vxworks*";
+    files       = fcntl.h;
+
+    select      = "extern int.*open \\(const char \\*[ a-z]*, int[ a-z]*, int[ a-z]*\\);";
+    c_fix       = format;
+    c_fix_arg = << _EOArg_
+%0
+
+#if defined(__cplusplus)
+extern "C++" {
+  inline int open (const char *, int) __attribute__((__always_inline__));
+
+  inline int
+  open (const char *name, int flags)
+  {
+    return open (name, flags, 0);
+  }
+}
+#endif
+
+_EOArg_;
+
+    test_text   =
+      "extern int open (const char *, int, int);\n"
+      "extern int open (const char *name, int flags, int mode );\n";
 };
 
 /*
@@ -5073,6 +5413,38 @@ fix = {
     c_fix_arg   = "#include <unistd.h>";
 
     test_text       = "#include \"unistd.h\"";
+};
+
+/*
+ *  Make sure there is a visible prototype of sysClkRateGet() when
+ *  CLOCKS_PER_SEC is #defined to that in time.h for VxWorks.  This would
+ *  typically be provided by sysLib.h.
+ *
+ *  The new #include has to come after the one for vxWorks.h in kernel headers
+ *  and vxWorks.h is typically not #included in RTP headers. yvals.h is
+ *  conditionally included in the latter, instead, and new #include are better
+ *  inserted after that.
+ */
+fix = {
+    hackname    = vxworks_time_h_syslib;
+    files       = time.h;
+    mach        = "*-*-vxworks*";
+    select      = "[ \t]*#define[ \t]+CLOCKS_PER_SEC[ \t]+sysClkRateGet.*";
+
+    c_fix       = format;
+    c_fix_arg   = "%0\n#include <sysLib.h>";
+    c_fix_arg   = "#include <vxWorks.h>|#endif.* _YVALS.*";
+
+    test_text   =
+    "/* kernel header pattern:  */\n"
+    "#include <vxWorks.h>\n"
+    "\n"
+    "/* rtp header pattern:  */\n"
+    "#ifndef _YVALS\n"
+    "#include <yvals.h>\n"
+    "#endif /* _YVALS */\n"
+    "\n"
+    "#define CLOCKS_PER_SEC  sysClkRateGet()";
 };
 
 /*

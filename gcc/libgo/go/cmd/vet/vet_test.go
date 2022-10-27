@@ -9,10 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -22,16 +22,25 @@ import (
 	"testing"
 )
 
-const (
-	dataDir = "testdata"
-	binary  = "./testvet.exe"
-)
+const dataDir = "testdata"
+
+var binary string
 
 // We implement TestMain so remove the test binary when all is done.
 func TestMain(m *testing.M) {
-	result := m.Run()
-	os.Remove(binary)
-	os.Exit(result)
+	os.Exit(testMain(m))
+}
+
+func testMain(m *testing.M) int {
+	dir, err := os.MkdirTemp("", "vet_test")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer os.RemoveAll(dir)
+	binary = filepath.Join(dir, "testvet.exe")
+
+	return m.Run()
 }
 
 var (
@@ -60,14 +69,9 @@ func Build(t *testing.T) {
 	built = true
 }
 
-func vetCmd(t *testing.T, args ...string) *exec.Cmd {
-	cmd := exec.Command(testenv.GoToolPath(t), "vet", "-vettool="+binary)
-	cmd.Args = append(cmd.Args, args...)
-	testdata, err := filepath.Abs("testdata")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd.Env = append(os.Environ(), "GOPATH="+testdata)
+func vetCmd(t *testing.T, arg, pkg string) *exec.Cmd {
+	cmd := exec.Command(testenv.GoToolPath(t), "vet", "-vettool="+binary, arg, path.Join("cmd/vet/testdata", pkg))
+	cmd.Env = os.Environ()
 	return cmd
 }
 
@@ -117,7 +121,7 @@ func TestVet(t *testing.T) {
 				cmd.Env = append(cmd.Env, "GOOS=linux", "GOARCH=amd64")
 			}
 
-			dir := filepath.Join("testdata/src", pkg)
+			dir := filepath.Join("testdata", pkg)
 			gos, err := filepath.Glob(filepath.Join(dir, "*.go"))
 			if err != nil {
 				t.Fatal(err)
@@ -241,8 +245,8 @@ func errorCheck(outStr string, wantAuto bool, fullshort ...string) (err error) {
 			// Assume errmsg says "file:line: foo".
 			// Cut leading "file:line: " to avoid accidental matching of file name instead of message.
 			text := errmsg
-			if i := strings.Index(text, " "); i >= 0 {
-				text = text[i+1:]
+			if _, suffix, ok := strings.Cut(text, " "); ok {
+				text = suffix
 			}
 			if we.re.MatchString(text) {
 				matched = true
@@ -334,8 +338,8 @@ type wantedError struct {
 }
 
 var (
-	errRx       = regexp.MustCompile(`// (?:GC_)?ERROR (.*)`)
-	errAutoRx   = regexp.MustCompile(`// (?:GC_)?ERRORAUTO (.*)`)
+	errRx       = regexp.MustCompile(`// (?:GC_)?ERROR(NEXT)? (.*)`)
+	errAutoRx   = regexp.MustCompile(`// (?:GC_)?ERRORAUTO(NEXT)? (.*)`)
 	errQuotesRx = regexp.MustCompile(`"([^"]*)"`)
 	lineRx      = regexp.MustCompile(`LINE(([+-])([0-9]+))?`)
 )
@@ -344,7 +348,7 @@ var (
 func wantedErrors(file, short string) (errs []wantedError) {
 	cache := make(map[string]*regexp.Regexp)
 
-	src, err := ioutil.ReadFile(file)
+	src, err := os.ReadFile(file)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -364,7 +368,10 @@ func wantedErrors(file, short string) (errs []wantedError) {
 		if m == nil {
 			continue
 		}
-		all := m[1]
+		if m[1] == "NEXT" {
+			lineNum++
+		}
+		all := m[2]
 		mm := errQuotesRx.FindAllStringSubmatch(all, -1)
 		if mm == nil {
 			log.Fatalf("%s:%d: invalid errchk line: %s", file, lineNum, line)

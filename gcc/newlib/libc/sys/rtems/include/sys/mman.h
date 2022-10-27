@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.2 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $FreeBSD: head/sys/sys/mman.h 349240 2019-06-20 18:24:16Z brooks $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -43,6 +45,7 @@
 #define INHERIT_SHARE	0
 #define INHERIT_COPY	1
 #define INHERIT_NONE	2
+#define INHERIT_ZERO	3
 #endif
 
 /*
@@ -52,6 +55,14 @@
 #define	PROT_READ	0x01	/* pages can be read */
 #define	PROT_WRITE	0x02	/* pages can be written */
 #define	PROT_EXEC	0x04	/* pages can be executed */
+#if __BSD_VISIBLE
+#define	_PROT_ALL	(PROT_READ | PROT_WRITE | PROT_EXEC)
+#define	PROT_EXTRACT(prot)	((prot) & _PROT_ALL)
+
+#define	_PROT_MAX_SHIFT	16
+#define	PROT_MAX(prot)		((prot) << _PROT_MAX_SHIFT)
+#define	PROT_MAX_EXTRACT(prot)	(((prot) >> _PROT_MAX_SHIFT) & _PROT_ALL)
+#endif
 
 /*
  * Flags contain sharing type and options.
@@ -69,8 +80,8 @@
 #define	MAP_FIXED	 0x0010	/* map addr must be exactly as requested */
 
 #if __BSD_VISIBLE
-#define	MAP_RENAME	 0x0020	/* Sun: rename private pages to file */
-#define	MAP_NORESERVE	 0x0040	/* Sun: don't reserve needed swap area */
+#define	MAP_RESERVED0020 0x0020	/* previously unimplemented MAP_RENAME */
+#define	MAP_RESERVED0040 0x0040	/* previously unimplemented MAP_NORESERVE */
 #define	MAP_RESERVED0080 0x0080	/* previously misimplemented MAP_INHERIT */
 #define	MAP_RESERVED0100 0x0100	/* previously unimplemented MAP_NOEXTEND */
 #define	MAP_HASSEMAPHORE 0x0200	/* region may contain semaphores */
@@ -89,8 +100,13 @@
 /*
  * Extended flags
  */
+#define	MAP_GUARD	 0x00002000 /* reserve but don't map address range */
+#define	MAP_EXCL	 0x00004000 /* for MAP_FIXED, fail if address is used */
 #define	MAP_NOCORE	 0x00020000 /* dont include these pages in a coredump */
 #define	MAP_PREFAULT_READ 0x00040000 /* prefault mapping for reading */
+#ifdef __LP64__
+#define	MAP_32BIT	 0x00080000 /* map in the low 2GB of address space */
+#endif
 
 /*
  * Request specific alignment (n == log2 of the desired alignment).
@@ -189,43 +205,7 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
-#if defined(_KERNEL) || defined(_WANT_FILE)
-#include <vm/vm.h>
-
-struct file;
-
-struct shmfd {
-	size_t		shm_size;
-	vm_object_t	shm_object;
-	int		shm_refs;
-	uid_t		shm_uid;
-	gid_t		shm_gid;
-	mode_t		shm_mode;
-	int		shm_kmappings;
-
-	/*
-	 * Values maintained solely to make this a better-behaved file
-	 * descriptor for fstat() to run on.
-	 */
-	struct timespec	shm_atime;
-	struct timespec	shm_mtime;
-	struct timespec	shm_ctime;
-	struct timespec	shm_birthtime;
-	ino_t		shm_ino;
-
-	struct label	*shm_label;		/* MAC label */
-	const char	*shm_path;
-};
-#endif
-
-#ifdef _KERNEL
-int	shm_mmap(struct shmfd *shmfd, vm_size_t objsize, vm_ooffset_t foff,
-	    vm_object_t *obj);
-int	shm_map(struct file *fp, size_t size, off_t offset, void **memp);
-int	shm_unmap(struct file *fp, void *mem, size_t size);
-void	shm_path(struct shmfd *shmfd, char *path, size_t size);
-
-#else /* !_KERNEL */
+#ifndef _KERNEL
 
 __BEGIN_DECLS
 /*
@@ -243,7 +223,7 @@ int	mlock(const void *, size_t);
 #define	_MMAP_DECLARED
 void *	mmap(void *, size_t, int, int, int, off_t);
 #endif
-int	mprotect(const void *, size_t, int);
+int	mprotect(void *, size_t, int);
 int	msync(void *, size_t, int);
 int	munlock(const void *, size_t);
 int	munmap(void *, size_t);
@@ -260,4 +240,8 @@ __END_DECLS
 
 #endif /* !_KERNEL */
 
+#ifdef _KERNEL
+/* Header file provided outside of Newlib */
+#include <machine/_kernel_mman.h>
+#endif
 #endif /* !_SYS_MMAN_H_ */

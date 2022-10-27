@@ -1,10 +1,6 @@
 // REQUIRED_ARGS: -de
+// EXTRA_FILES: imports/test15785.d
 // PERMUTE_ARGS:
-/*
-TEST_OUTPUT:
----
----
-*/
 import imports.test15785;
 
 class Derived : Base, IBase2
@@ -18,5 +14,5 @@ class Derived : Base, IBase2
         // IBase2.faz(); // doesn't work yet due to a bug in checkAccess
     }
 
-    super.T t;
+    typeof(super).T t;
 }

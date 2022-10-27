@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2005-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2005-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -41,7 +41,8 @@
 --  the same services. The reason this package is in System is so that it can
 --  with'ed by other packages in the Ada and System hierarchies.
 
-pragma Compiler_Unit_Warning;
+--  Note: this unit is used during bootstrap, see ADA_GENERATED_FILES in
+--  gcc-interface/Make-lang.in for details on the constraints.
 
 package System.UTF_32 is
    pragma Pure;
@@ -189,6 +190,17 @@ package System.UTF_32 is
    --  letters to upper case using this routine. A corresponding routine to
    --  fold to lower case is also provided.
 
+   function Is_UTF_32_NFKC (U : UTF_32) return Boolean;
+   pragma Inline (Is_UTF_32_NFKC);
+   --  Return True if U could be present in a string normalized to
+   --  Normalization Form KC (as defined by Clause 21 of ISO/IEC 10646:2017),
+   --  otherwise returns False.
+
+   function Is_UTF_32_Basic (U : UTF_32) return Boolean;
+   pragma Inline (Is_UTF_32_Basic);
+   --  Return True if U has no Decomposition Mapping in the code charts of
+   --  ISO/IEC 10646:2017.
+
    function UTF_32_To_Lower_Case (U : UTF_32) return UTF_32;
    pragma Inline (UTF_32_To_Lower_Case);
    --  If U represents an upper case letter, returns the corresponding lower
@@ -208,5 +220,11 @@ package System.UTF_32 is
    --  is the same but with SMALL LETTER replaced by CAPITAL LETTER, then the
    --  code is folded to this CAPITAL LETTER code. Otherwise the input code is
    --  returned unchanged.
+
+   function UTF_32_To_Basic (U : UTF_32) return UTF_32;
+   pragma Inline (UTF_32_To_Basic);
+   --  Returns the UTF_32 character whose code point is given by the first
+   --  value of its Decomposition Mapping in the code charts of ISO/IEC
+   --  10646:2017 if any; returns Item otherwise.
 
 end System.UTF_32;

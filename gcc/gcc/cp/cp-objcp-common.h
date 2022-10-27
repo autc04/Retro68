@@ -1,5 +1,5 @@
 /* Language hooks common to C++ and ObjC++ front ends.
-   Copyright (C) 2004-2019 Free Software Foundation, Inc.
+   Copyright (C) 2004-2022 Free Software Foundation, Inc.
    Contributed by Ziemowit Laski  <zlaski@apple.com>
 
 This file is part of GCC.
@@ -21,7 +21,7 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef GCC_CP_OBJCP_COMMON
 #define GCC_CP_OBJCP_COMMON
 
-/* In cp/objcp-common.c, cp/cp-lang.c and objcp/objcp-lang.c.  */
+/* In cp/objcp-common.c, cp/cp-lang.cc and objcp/objcp-lang.cc.  */
 
 extern tree cp_get_debug_type (const_tree);
 extern tree objcp_tsubst_copy_and_build (tree, tree, tsubst_flags_t,
@@ -31,13 +31,20 @@ extern int cp_decl_dwarf_attribute (const_tree, int);
 extern int cp_type_dwarf_attribute (const_tree, int);
 extern void cp_common_init_ts (void);
 extern tree cp_unit_size_without_reusable_padding (tree);
+extern tree cp_classtype_as_base (const_tree);
 extern tree cp_get_global_decls ();
 extern tree cp_pushdecl (tree);
 extern void cp_register_dumps (gcc::dump_manager *);
+extern bool cp_handle_option (size_t, const char *, HOST_WIDE_INT, int,
+			      location_t, const struct cl_option_handlers *);
 extern tree cxx_make_type_hook			(tree_code);
+extern tree cxx_simulate_enum_decl (location_t, const char *,
+				    vec<string_int_pair> *);
+extern tree cxx_simulate_record_decl (location_t, const char *,
+				      array_slice<const tree>);
 
 /* Lang hooks that are shared between C++ and ObjC++ are defined here.  Hooks
-   specific to C++ or ObjC++ go in cp/cp-lang.c and objcp/objcp-lang.c,
+   specific to C++ or ObjC++ go in cp/cp-lang.cc and objcp/objcp-lang.cc,
    respectively.  */
 
 #undef LANG_HOOKS_FREE_LANG_DATA
@@ -61,7 +68,7 @@ extern tree cxx_make_type_hook			(tree_code);
 #undef LANG_HOOKS_REGISTER_DUMPS
 #define LANG_HOOKS_REGISTER_DUMPS cp_register_dumps
 #undef LANG_HOOKS_HANDLE_OPTION
-#define LANG_HOOKS_HANDLE_OPTION c_common_handle_option
+#define LANG_HOOKS_HANDLE_OPTION cp_handle_option
 #undef LANG_HOOKS_HANDLE_FILENAME
 #define LANG_HOOKS_HANDLE_FILENAME c_common_handle_filename
 #undef LANG_HOOKS_POST_OPTIONS
@@ -100,6 +107,9 @@ extern tree cxx_make_type_hook			(tree_code);
 #define LANG_HOOKS_BUILTIN_FUNCTION cxx_builtin_function
 #undef  LANG_HOOKS_BUILTIN_FUNCTION_EXT_SCOPE
 #define LANG_HOOKS_BUILTIN_FUNCTION_EXT_SCOPE cxx_builtin_function_ext_scope
+#undef  LANG_HOOKS_SIMULATE_BUILTIN_FUNCTION_DECL
+#define LANG_HOOKS_SIMULATE_BUILTIN_FUNCTION_DECL \
+  cxx_simulate_builtin_function_decl
 #undef	LANG_HOOKS_TYPE_HASH_EQ
 #define LANG_HOOKS_TYPE_HASH_EQ	cxx_type_hash_eq
 #undef	LANG_HOOKS_COPY_LANG_QUALIFIERS
@@ -110,6 +120,8 @@ extern tree cxx_make_type_hook			(tree_code);
 #define LANG_HOOKS_BLOCK_MAY_FALLTHRU cxx_block_may_fallthru
 #undef LANG_HOOKS_EMITS_BEGIN_STMT
 #define LANG_HOOKS_EMITS_BEGIN_STMT true
+#undef LANG_HOOKS_FINALIZE_EARLY_DEBUG
+#define LANG_HOOKS_FINALIZE_EARLY_DEBUG c_common_finalize_early_debug
 
 /* Attribute hooks.  */
 #undef LANG_HOOKS_COMMON_ATTRIBUTE_TABLE
@@ -128,6 +140,10 @@ extern tree cxx_make_type_hook			(tree_code);
 
 #undef LANG_HOOKS_MAKE_TYPE
 #define LANG_HOOKS_MAKE_TYPE cxx_make_type_hook
+#undef LANG_HOOKS_SIMULATE_ENUM_DECL
+#define LANG_HOOKS_SIMULATE_ENUM_DECL cxx_simulate_enum_decl
+#undef LANG_HOOKS_SIMULATE_RECORD_DECL
+#define LANG_HOOKS_SIMULATE_RECORD_DECL cxx_simulate_record_decl
 #undef LANG_HOOKS_TYPE_FOR_MODE
 #define LANG_HOOKS_TYPE_FOR_MODE c_common_type_for_mode
 #undef LANG_HOOKS_TYPE_FOR_SIZE
@@ -152,9 +168,13 @@ extern tree cxx_make_type_hook			(tree_code);
 #define LANG_HOOKS_TYPE_DWARF_ATTRIBUTE cp_type_dwarf_attribute
 #undef LANG_HOOKS_UNIT_SIZE_WITHOUT_REUSABLE_PADDING
 #define LANG_HOOKS_UNIT_SIZE_WITHOUT_REUSABLE_PADDING cp_unit_size_without_reusable_padding
+#undef LANG_HOOKS_CLASSTYPE_AS_BASE
+#define LANG_HOOKS_CLASSTYPE_AS_BASE cp_classtype_as_base
 
 #undef LANG_HOOKS_OMP_PREDETERMINED_SHARING
 #define LANG_HOOKS_OMP_PREDETERMINED_SHARING cxx_omp_predetermined_sharing
+#undef LANG_HOOKS_OMP_PREDETERMINED_MAPPING
+#define LANG_HOOKS_OMP_PREDETERMINED_MAPPING cxx_omp_predetermined_mapping
 #undef LANG_HOOKS_OMP_CLAUSE_DEFAULT_CTOR
 #define LANG_HOOKS_OMP_CLAUSE_DEFAULT_CTOR cxx_omp_clause_default_ctor
 #undef LANG_HOOKS_OMP_CLAUSE_COPY_CTOR

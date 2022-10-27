@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -112,7 +112,7 @@ package body Switch.C is
 
          when '3' =>
             if Standard_Long_Long_Integer_Size /= 64 then
-               Bad_Switch ("-gnato3 not implemented for this configuration");
+               Bad_Switch ("-gnato3 requires Long_Long_Integer'Size = 64");
             else
                return Eliminated;
             end if;
@@ -427,7 +427,7 @@ package body Switch.C is
                --  The reason for this prohibition is that the rewriting of
                --  Sloc values causes strange malfunctions in the tests of
                --  whether units belong to the main source. This is really a
-               --  bug, but too hard to fix for a marginal capability ???
+               --  bug, but too hard to fix for a marginal capability.
 
                --  The proper fix is to completely redo -gnatD processing so
                --  that the tree is not messed with, and instead a separate
@@ -451,7 +451,6 @@ package body Switch.C is
 
                Debug_Generated_Code := True;
                Xref_Active := False;
-               Set_Debug_Flag ('g');
 
             --  -gnate? (extended switches)
 
@@ -485,6 +484,12 @@ package body Switch.C is
                   when 'A' =>
                      Ptr := Ptr + 1;
                      Check_Aliasing_Of_Parameters := True;
+
+                  --  -gnateb (config file basenames and checksums in ALI)
+
+                  when 'b' =>
+                     Ptr := Ptr + 1;
+                     Config_Files_Store_Basename := True;
 
                   --  -gnatec (configuration pragmas)
 
@@ -673,6 +678,13 @@ package body Switch.C is
                        new String'(Switch_Chars (Ptr .. Max));
                      return;
 
+                  --  -gnaten (memory to allocate for nodes)
+
+                  when 'n' =>
+                     Ptr := Ptr + 1;
+                     Scan_Pos
+                       (Switch_Chars, Max, Ptr, Nodes_Size_In_Meg, C);
+
                   --  -gnateO= (object path file)
 
                   --  This is an internal switch
@@ -723,6 +735,7 @@ package body Switch.C is
 
                   when 'P' =>
                      Treat_Categorization_Errors_As_Warnings := True;
+                     Ptr := Ptr + 1;
 
                   --  -gnates=file (specify extra file switches for gnat2why)
 
@@ -808,8 +821,8 @@ package body Switch.C is
                   --  -gnateu (unrecognized y,V,w switches)
 
                   when 'u' =>
-                     Ptr := Ptr + 1;
                      Ignore_Unrecognized_VWY_Switches := True;
+                     Ptr := Ptr + 1;
 
                   --  -gnateV (validity checks on parameters)
 
@@ -915,14 +928,7 @@ package body Switch.C is
                Ptr := Ptr + 1;
                C := Switch_Chars (Ptr);
 
-               if C in '1' .. '5'
-                 or else C = '8'
-                 or else C = '9'
-                 or else C = 'p'
-                 or else C = 'f'
-                 or else C = 'n'
-                 or else C = 'w'
-               then
+               if C in '1' .. '5' | '8' | 'p' | '9' | 'f' | 'n' | 'w' then
                   Identifier_Character_Set := C;
                   Ptr := Ptr + 1;
 
@@ -1154,12 +1160,6 @@ package body Switch.C is
                   Suppress_Options.Overflow_Mode_Assertions := Strict;
                end if;
 
-            --  -gnatP (periodic poll)
-
-            when 'P' =>
-               Ptr := Ptr + 1;
-               Polling_Required := True;
-
             --  -gnatq (don't quit)
 
             when 'q' =>
@@ -1170,7 +1170,7 @@ package body Switch.C is
 
             when 'Q' =>
                Ptr := Ptr + 1;
-               Force_ALI_Tree_File := True;
+               Force_ALI_File := True;
                Try_Semantics := True;
 
             --  -gnatr (restrictions as warnings)
@@ -1250,13 +1250,6 @@ package body Switch.C is
                Print_Standard := True;
                Ptr := Ptr + 1;
 
-            --  -gnatt (output tree)
-
-            when 't' =>
-               Ptr := Ptr + 1;
-               Tree_Output := True;
-               Back_Annotate_Rep_Info := True;
-
             --  -gnatT (change start of internal table sizes)
 
             when 'T' =>
@@ -1292,7 +1285,7 @@ package body Switch.C is
 
                else
                   declare
-                     OK  : Boolean;
+                     OK : Boolean;
 
                   begin
                      Set_Validity_Check_Options
@@ -1398,9 +1391,8 @@ package body Switch.C is
 
             when 'X' =>
                Ptr := Ptr + 1;
-               Extensions_Allowed   := True;
-               Ada_Version          := Ada_Version_Type'Last;
-               Ada_Version_Explicit := Ada_Version_Type'Last;
+               Ada_Version          := Ada_With_Extensions;
+               Ada_Version_Explicit := Ada_With_Extensions;
                Ada_Version_Pragma   := Empty;
 
             --  -gnaty (style checks)
@@ -1416,7 +1408,7 @@ package body Switch.C is
                   Store_Switch := False;
 
                   declare
-                     OK  : Boolean;
+                     OK : Boolean;
 
                   begin
                      Set_Style_Check_Options
@@ -1587,8 +1579,10 @@ package body Switch.C is
                elsif Switch_Chars (Ptr .. Ptr + 3) = "2012" then
                   Ada_Version := Ada_2012;
 
-               elsif Switch_Chars (Ptr .. Ptr + 3) = "2020" then
-                  Ada_Version := Ada_2020;
+               elsif Switch_Chars (Ptr .. Ptr + 3) = "2020"
+                 or else Switch_Chars (Ptr .. Ptr + 3) = "2022"
+               then
+                  Ada_Version := Ada_2022;
 
                else
                   Bad_Switch ("-gnat" & Switch_Chars (Ptr .. Ptr + 3));
@@ -1618,11 +1612,6 @@ package body Switch.C is
                   Store_Switch := False;
                   Ptr := Ptr + 1;
                end if;
-
-            --  We ignore '/' in switches, this is historical, still needed???
-
-            when '/' =>
-               Store_Switch := False;
 
             --  Anything else is an error (illegal switch character)
 

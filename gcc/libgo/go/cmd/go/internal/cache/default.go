@@ -6,12 +6,12 @@ package cache
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 )
 
 // Default returns the default cache to use, or nil if no cache should be used.
@@ -30,6 +30,7 @@ var (
 // README as a courtesy to explain where it came from.
 const cacheREADME = `This directory holds cached build artifacts from the Go build system.
 Run "go clean -cache" if the directory is getting too large.
+Run "go clean -fuzzcache" to delete the fuzz cache.
 See golang.org to learn more about Go.
 `
 
@@ -48,7 +49,7 @@ func initDefaultCache() {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "README")); err != nil {
 		// Best effort.
-		ioutil.WriteFile(filepath.Join(dir, "README"), []byte(cacheREADME), 0666)
+		os.WriteFile(filepath.Join(dir, "README"), []byte(cacheREADME), 0666)
 	}
 
 	c, err := Open(dir)
@@ -73,7 +74,7 @@ func DefaultDir() string {
 	// otherwise distinguish between an explicit "off" and a UserCacheDir error.
 
 	defaultDirOnce.Do(func() {
-		defaultDir = os.Getenv("GOCACHE")
+		defaultDir = cfg.Getenv("GOCACHE")
 		if filepath.IsAbs(defaultDir) || defaultDir == "off" {
 			return
 		}

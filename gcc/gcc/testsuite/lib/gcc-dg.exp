@@ -1,4 +1,4 @@
-#   Copyright (C) 1997-2019 Free Software Foundation, Inc.
+#   Copyright (C) 1997-2022 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -171,7 +171,7 @@ proc schedule-cleanups { opts } {
 	verbose "dg-keep-saved-temps ${keep_saved_temps_suffixes}" 2
     }
     # -save-temps -> cleanup-saved-temps()
-    if [regexp -- {(^|\s+)-save-temps(\s+|$)} $opts] {
+    if [regexp -- {(^|\s+)-?-save-temps(\s+|$)} $opts] {
 	verbose "Cleanup -save-temps seen" 4
 	if [info exists keep_saved_temps_suffixes] {
 	    append finalcode "cleanup-saved-temps ${keep_saved_temps_suffixes}\n"
@@ -242,14 +242,6 @@ proc gcc-dg-test-1 { target_compile prog do_what extra_tool_flags } {
 
     set options [list]
 
-    # Tests should be able to use "dg-do repo".  However, the dg test
-    # driver checks the argument to dg-do against a list of acceptable
-    # options, and "repo" is not among them.  Therefore, we resort to
-    # this ugly approach.
-    if [string match "*-frepo*" $extra_tool_flags] then {
-	set do_what "repo"
-    }
-
     switch $do_what {
 	"preprocess" {
 	    set compile_type "preprocess"
@@ -316,13 +308,27 @@ proc gcc-dg-test-1 { target_compile prog do_what extra_tool_flags } {
     verbose "$target_compile $prog $output_file $compile_type $options" 4
     set comp_output [$target_compile "$prog" "$output_file" "$compile_type" $options]
 
+    global expect_ice
     # Look for an internal compiler error, which sometimes masks the fact
     # that we didn't get an expected error message.  XFAIL an ICE via
     # dg-xfail-if and use { dg-prune-output ".*internal compiler error.*" }
     # to avoid a second failure for excess errors.
-    if [string match "*internal compiler error*" $comp_output] {
+    # "Error reporting routines re-entered" ICE says "Internal" rather than
+    # "internal", so match that too.
+    if [regexp -line -- {[Ii]nternal compiler error.*} $comp_output ice] {
 	upvar 2 name name
-	fail "$name (internal compiler error)"
+	if { $expect_ice == 0 } {
+	  fail "$name ($ice)"
+	} else {
+	  # We expected an ICE and we got it.
+	  xfail "$name ($ice)"
+	  # Prune the ICE from the output.
+	  set comp_output [prune_ices $comp_output]
+	}
+    } elseif { $expect_ice == 1 } {
+	upvar 2 name name
+	# We expected an ICE but we didn't get it.
+	xpass "$name (internal compiler error)"
     }
 
     if { $do_what == "repo" } {
@@ -414,12 +420,27 @@ proc gcc-dg-prune { system text } {
 	return "::unsupported::memory full"
     }
 
-    # Likewise, if we see ".text exceeds local store range" or
-    # similar.
-    if {[string match "spu-*" $system] && \
-	    [string match "*exceeds local store*" $text]} {
+    if { [string match "*error: function pointers not supported*" $text]
+	  && ![check_effective_target_function_pointers] } {
 	# The format here is important.  See dg.exp.
-	return "::unsupported::memory full"
+	return "::unsupported::funcptr"
+    }
+    if { [string match "*error: large return values not supported*" $text]
+    	  && ![check_effective_target_large_return_values] } {
+	# The format here is important.  See dg.exp.
+	return "::unsupported::large return values"
+    }
+
+    # If exceptions are disabled, mark tests expecting exceptions to be enabled
+    # as unsupported.
+    if { ![check_effective_target_exceptions_enabled] } {
+	if [regexp "(^|\n)\[^\n\]*: error: exception handling disabled" $text] {
+	    return "::unsupported::exception handling disabled"
+	}
+
+	if [regexp "(^|\n)\[^\n\]*: error: #error .__cpp_exceptions." $text] {
+	    return "::unsupported::exception handling disabled"
+	}
     }
 
     return $text
@@ -470,7 +491,10 @@ proc dg-set-target-env-var { args } {
 	error "dg-set-target-env-var: need two arguments"
 	return
     }
-    lappend set_target_env_var [list [lindex $args 1] [lindex $args 2]]
+    set var [lindex $args 1]
+    set value [lindex $args 2]
+    verbose "dg-set-target-env-var $var $value" 2
+    lappend set_target_env_var [list $var $value]
 }
 
 proc set-target-env-var { } {
@@ -511,6 +535,7 @@ proc dg-set-compiler-env-var { args } {
     }
     set var [lindex $args 1]
     set value [lindex $args 2]
+    verbose "dg-set-compiler-env-var $var $value" 2
     if [info exists ::env($var)] {
       lappend saved_compiler_env_var [list $var 1 $::env($var)]
     } else {
@@ -596,18 +621,52 @@ proc gcc-dg-runtest { testcases flags default-extra-flags } {
     }
 }
 
-proc gcc-dg-debug-runtest { target_compile trivial opt_opts testcases } {
+# Check if frontend has CTF support
+proc gcc-dg-frontend-supports-ctf { target_compile trivial } {
     global srcdir subdir
 
+    set comp_output [$target_compile \
+	    "$srcdir/$subdir/$trivial" "trivial.S" assembly \
+	    "additional_flags=-gctf"]
+    if { ! [string match \
+	    "*CTF debug info requested, but not supported for * frontend*" \
+	    $comp_output] } {
+	remove-build-file "trivial.S"
+	return 1
+    }
+    return 0
+}
+
+# Check if the target system supports the debug format
+proc gcc-dg-target-supports-debug-format { target_compile trivial type } {
+    global srcdir subdir
+
+    set comp_output [$target_compile \
+	    "$srcdir/$subdir/$trivial" "trivial.S" assembly \
+	    "additional_flags=$type"]
+    if { ! [string match "*: target system does not support the * debug format*" \
+	    $comp_output] } {
+	remove-build-file "trivial.S"
+	return 1
+    }
+    return 0
+}
+
+proc gcc-dg-debug-runtest { target_compile trivial opt_opts testcases } {
     if ![info exists DEBUG_TORTURE_OPTIONS] {
 	set DEBUG_TORTURE_OPTIONS ""
-	foreach type {-gdwarf-2 -gstabs -gstabs+ -gxcoff -gxcoff+} {
-	    set comp_output [$target_compile \
-		    "$srcdir/$subdir/$trivial" "trivial.S" assembly \
-		    "additional_flags=$type"]
-	    if { ! [string match "*: target system does not support the * debug format*" \
-		    $comp_output] } {
-		remove-build-file "trivial.S"
+	foreach type {-gctf -gdwarf-2 -gstabs -gstabs+ -gxcoff -gxcoff+} {
+	    if [expr [gcc-dg-target-supports-debug-format \
+		      $target_compile $trivial $type]] {
+		if { $type == "-gctf" } {
+		    if [expr [gcc-dg-frontend-supports-ctf \
+			      $target_compile $trivial]] {
+			# At this time, running tests with various opt levels or
+			# ctf debug info levels does not add value.
+			lappend DEBUG_TORTURE_OPTIONS  [list "${type}"]
+		    }
+		    continue
+		}
 		foreach level {1 "" 3} {
 		    if { ($type == "-gdwarf-2") && ($level != "") } {
 			lappend DEBUG_TORTURE_OPTIONS [list "${type}" "-g${level}"]
@@ -664,6 +723,15 @@ proc gcc-dg-debug-runtest { target_compile trivial opt_opts testcases } {
 		set doit 0
 	    }
 
+	    # These tests check for information which is not emitted for CTF
+	    # as CTF type information is emitted for entities at file and 
+	    # global scope only.
+	    if { ([string match {*/debug-[126].c} "$nshort"] \
+		  || [string match {*/enum-[12].C} "$nshort"] ) \
+		  && [string match "*ctf*" "$flags"] } {
+		set doit 0
+	    }
+
 	    if { $doit } {
 		verbose -log "Testing $nshort, $flags" 1
 		dg-test $test $flags ""
@@ -717,24 +785,6 @@ proc cleanup-coverage-files { } {
     if [info exists additional_sources_used] {
 	foreach srcfile $additional_sources_used {
 	    remove-build-file "[file rootname [file tail $srcfile]].gc??"
-	}
-    }
-}
-
-# Remove compiler-generated files from -repo for the current test.
-proc cleanup-repo-files { } {
-    global additional_sources_used
-    set testcase [testname-for-summary]
-    # The name might include a list of options; extract the file name.
-    set testcase [lindex $testcase 0]
-    remove-build-file "[file rootname [file tail $testcase]].o"
-    remove-build-file "[file rootname [file tail $testcase]].rpo"
-
-    # Clean up files for additional source files.
-    if [info exists additional_sources_used] {
-	foreach srcfile $additional_sources_used {
-	    remove-build-file "[file rootname [file tail $srcfile]].o"
-	    remove-build-file "[file rootname [file tail $srcfile]].rpo"
 	}
     }
 }
@@ -946,11 +996,13 @@ if { [info procs saved-dg-test] == [list] } {
 	global additional_prunes
 	global compiler_conditional_xfail_data
 	global shouldfail
+	global expect_ice
 	global testname_with_flags
 	global set_target_env_var
 	global set_compiler_env_var
 	global saved_compiler_env_var
 	global keep_saved_temps_suffixes
+	global nn_line_numbers_enabled
 	global multiline_expected_outputs
 	global freeform_regexps
 	global save_linenr_varnames
@@ -960,6 +1012,7 @@ if { [info procs saved-dg-test] == [list] } {
 	set additional_sources_used ""
 	set additional_prunes ""
 	set shouldfail 0
+	set expect_ice 0
 	if [info exists set_target_env_var] {
 	    unset set_target_env_var
 	}
@@ -978,6 +1031,7 @@ if { [info procs saved-dg-test] == [list] } {
 	if [info exists testname_with_flags] {
 	    unset testname_with_flags
 	}
+	set nn_line_numbers_enabled 0
 	set multiline_expected_outputs []
 	set freeform_regexps []
 
@@ -1001,6 +1055,8 @@ if { [info procs saved-dg-test] == [list] } {
 	    }
 	    unset save_linenr_varnames
 	}
+
+	initialize_prune_notes
     }
 
     proc dg-test { args } {
@@ -1135,8 +1191,18 @@ proc process-message { msgproc msgprefix dgargs } {
     upvar dg-messages dg-messages
 
     if { [llength $dgargs] == 5 } {
-	set num [get-absolute-line [lindex $dgargs 0] [lindex $dgargs 4]]
-	set dgargs [lreplace $dgargs 4 4 $num]
+	set useline [lindex $dgargs 0]
+
+	# Resolve absolute line number.
+	set line [get-absolute-line $useline [lindex $dgargs 4]]
+	set dgargs [lreplace $dgargs 4 4 $line]
+
+	if { $line != $useline } {
+	    # Make sure that we get unique test names if different USELINEs
+	    # refer to the same LINE.
+	    set comment "[lindex $dgargs 2] at line $useline"
+	    set dgargs [lreplace $dgargs 2 2 $comment]
+	}
     }
 
     # Process the dg- directive, including adding the regular expression
@@ -1221,7 +1287,7 @@ proc dg-optimized { args } {
     # Make this variable available here and to the saved proc.
     upvar dg-messages dg-messages
 
-    process-message saved-dg-error "optimized: " "$args"
+    process-message saved-dg-warning "optimized:" "$args"
 }
 
 # Handle output from -fopt-info for MSG_MISSED_OPTIMIZATION:
@@ -1231,7 +1297,37 @@ proc dg-missed { args } {
     # Make this variable available here and to the saved proc.
     upvar dg-messages dg-messages
 
-    process-message saved-dg-error "missed: " "$args"
+    process-message saved-dg-warning "missed:" "$args"
+}
+
+# Look for messages with 'note: ' prefixes.
+# In addition to standard compiler diagnostics ('DK_NOTE', 'inform' functions,
+# "for additional details on an error message"),
+# this also includes output from '-fopt-info' for 'MSG_NOTE':
+# a general optimization info.
+# By default, any *excess* notes are pruned, meaning their appearance doesn't
+# trigger *excess errors*.  However, if 'dg-note' is used at least once in a
+# testcase, they're not pruned and instead must *all* be handled explicitly.
+# Thus, if looking for just single instances of messages with 'note: ' prefixes
+# without caring for all of them, use 'dg-message "note: [...]"' instead of
+# 'dg-note', or use 'dg-note' together with 'dg-prune-output "note: "'.
+
+variable prune_notes
+
+proc initialize_prune_notes { } {
+    global prune_notes
+    set prune_notes 1
+}
+
+initialize_prune_notes
+
+proc dg-note { args } {
+    upvar dg-messages dg-messages
+
+    global prune_notes
+    set prune_notes 0
+
+    process-message saved-dg-warning "note:" "$args"
 }
 
 # Check the existence of a gdb in the path, and return true if there

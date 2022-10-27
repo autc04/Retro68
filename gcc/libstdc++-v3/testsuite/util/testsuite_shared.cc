@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2019 Free Software Foundation, Inc.
+// Copyright (C) 2004-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -23,6 +23,9 @@
 #include <map>
 #include <ext/mt_allocator.h>
 #include <bits/functexcept.h>
+#if __cpp_rtti
+# include <typeinfo>
+#endif
 
 namespace __gnu_test
 {
@@ -45,12 +48,14 @@ try_allocation()
 extern "C" void
 try_throw_exception()
 {
+#if __cpp_exceptions
   try
     {
       std::__throw_bad_exception();
     }
   catch (const std::exception& e)
     { }
+#endif
 }
 
 extern "C" void
@@ -75,8 +80,9 @@ try_function_random_fail()
   std::__throw_bad_exception();
 }
 
-#if __cplusplus < 201103L
-// "must be compiled with C++98"
+#if __cplusplus >= 201103L
+# error "must be compiled with C++98"
+#else
   void
   erase_external(std::set<int>& s)
   { s.erase(s.begin()); }
@@ -125,6 +131,15 @@ try_function_random_fail()
     iterator_type iter = s.begin();
     s.erase(iter, ++iter);
   }
+#endif
+
+#if __cpp_rtti
+// PR libstdc++/103240
+namespace
+{
+  struct S { };
+}
+const std::type_info& pr103240_private_S = typeid(S);
 #endif
 
 } // end namepace __gnu_test

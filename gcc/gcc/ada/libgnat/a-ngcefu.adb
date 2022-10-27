@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -481,11 +481,12 @@ package body Ada.Numerics.Generic_Complex_Elementary_Functions is
    ---------
 
    function Exp (X : Complex) return Complex is
+      ImX : constant Real'Base := Im (X);
       EXP_RE_X : constant Real'Base := Exp (Re (X));
 
    begin
-      return Compose_From_Cartesian (EXP_RE_X * Cos (Im (X)),
-                                     EXP_RE_X * Sin (Im (X)));
+      return Compose_From_Cartesian (EXP_RE_X * Cos (ImX),
+                                     EXP_RE_X * Sin (ImX));
    end Exp;
 
    function Exp (X : Imaginary) return Complex is

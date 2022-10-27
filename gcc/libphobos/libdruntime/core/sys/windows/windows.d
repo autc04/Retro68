@@ -4,10 +4,11 @@
  * Translated from MinGW API for MS-Windows 4.0
  *
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_windows.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_windows.d)
  */
 module core.sys.windows.windows;
 version (Windows):
+@system:
 
 /*
     windows.h - main header file for the Win32 API

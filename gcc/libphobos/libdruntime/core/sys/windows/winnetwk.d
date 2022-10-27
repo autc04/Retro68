@@ -5,15 +5,16 @@
  *
  * Authors: Stewart Gordon
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source: $(DRUNTIMESRC src/core/sys/windows/_winnetwk.d)
+ * Source: $(DRUNTIMESRC core/sys/windows/_winnetwk.d)
  */
 module core.sys.windows.winnetwk;
 version (Windows):
+@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "mpr");
 
-private import core.sys.windows.winbase, core.sys.windows.winerror, core.sys.windows.winnt;
+import core.sys.windows.winbase, core.sys.windows.winerror, core.sys.windows.winnt;
 
 enum : DWORD {
     WNNC_NET_MSNET       = 0x00010000,

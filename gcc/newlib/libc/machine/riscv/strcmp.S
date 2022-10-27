@@ -11,14 +11,25 @@
 
 #include <sys/asm.h>
 
-#if BYTE_ORDER != LITTLE_ENDIAN
-# error
-#endif
-
 .text
 .globl strcmp
 .type  strcmp, @function
 strcmp:
+#if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
+1:
+  lbu   a2, 0(a0)
+  lbu   a3, 0(a1)
+  add   a0, a0, 1
+  add   a1, a1, 1
+  bne   a2, a3, 2f
+  bnez  a2, 1b
+
+2:
+  sub   a0, a2, a3
+  ret
+
+.size	strcmp, .-strcmp
+#else
   or    a4, a0, a1
   li    t2, -1
   and   a4, a4, SZREG-1
@@ -81,6 +92,9 @@ strcmp:
 
 .Lmismatch:
   # words don't match, but a2 has no null byte.
+
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+
 #if __riscv_xlen == 64
   sll   a4, a2, 48
   sll   a5, a3, 48
@@ -113,6 +127,39 @@ strcmp:
   sub   a0, a4, a5
   ret
 
+#else
+
+#if __riscv_xlen == 64
+  srl   a4, a2, 48
+  srl   a5, a3, 48
+  bne   a4, a5, .Lmismatch_lower
+  srl   a4, a2, 32
+  srl   a5, a3, 32
+  bne   a4, a5, .Lmismatch_lower
+#endif
+  srl   a4, a2, 16
+  srl   a5, a3, 16
+  bne   a4, a5, .Lmismatch_lower
+
+  srl	a4, a2, 8
+  srl   a5, a3, 8
+  bne   a4, a5, 1f
+  and   a4, a2, 0xff
+  and   a5, a3, 0xff
+1:sub	a0, a4, a5
+  ret
+
+.Lmismatch_lower:
+  srl	a2, a4, 8
+  srl   a3, a5, 8
+  bne   a2, a3, 1f
+  and   a2, a4, 0xff
+  and   a3, a5, 0xff
+1:sub	a0, a2, a3
+  ret
+
+#endif
+	
 .Lmisaligned:
   # misaligned
   lbu   a2, 0(a0)
@@ -145,4 +192,5 @@ strcmp:
 .align 3
 mask:
 .dword 0x7f7f7f7f7f7f7f7f
+#endif
 #endif

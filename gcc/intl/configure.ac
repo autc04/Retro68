@@ -32,6 +32,20 @@ else
 fi
 AC_SUBST(MAINT)
 
+dnl Variables for tags utilities; based on automake 1.16.4+'s init.m4
+if test -z "$CTAGS"; then
+  CTAGS=ctags
+fi
+AC_SUBST([CTAGS])
+if test -z "$ETAGS"; then
+  ETAGS=etags
+fi
+AC_SUBST([ETAGS])
+if test -z "$MKID"; then
+  MKID=mkid
+fi
+AC_SUBST([MKID])
+
 # Additional info for config.intl.
 AC_SUBST(LIBINTL_DEP)
 AC_SUBST(INCINTL)
@@ -46,6 +60,34 @@ case $USE_INCLUDED_LIBINTL in
     INCINTL='-I${top_builddir}/../intl'
     ;;
 esac
+
+BISON3_YES='#'
+BISON3_NO=
+if test "$INTLBISON" != :; then
+  ac_bison3=no
+  AC_MSG_CHECKING([bison 3 or later])
+changequote(<<,>>)dnl
+  ac_prog_version=`$INTLBISON --version 2>&1 | sed -n 's/^.*GNU Bison.* \([0-9]*\.[0-9.]*\).*$/\1/p'`
+  case $ac_prog_version in
+    [3-9].*)
+changequote([,])dnl
+      ac_prog_version="$ac_prog_version, bison3"; ac_bison3=yes;;
+    *) ac_prog_version="$ac_prog_version, old";;
+  esac
+  AC_MSG_RESULT([$ac_prog_version])
+  if test $ac_bison3 = yes; then
+    BISON3_YES=
+    BISON3_NO='#'
+  fi
+fi
+AC_SUBST(BISON3_YES)
+AC_SUBST(BISON3_NO)
+
+AC_ARG_ENABLE(host-shared,
+[AS_HELP_STRING([--enable-host-shared],
+		[build host code as shared libraries])],
+[PICFLAG=-fPIC], [PICFLAG=])
+AC_SUBST(PICFLAG)
 
 AC_CONFIG_FILES(Makefile config.intl)
 AC_OUTPUT

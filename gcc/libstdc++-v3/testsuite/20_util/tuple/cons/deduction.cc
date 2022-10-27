@@ -1,7 +1,6 @@
-// { dg-options "-std=gnu++17" }
 // { dg-do compile { target c++17 } }
 
-// Copyright (C) 2017-2019 Free Software Foundation, Inc.
+// Copyright (C) 2017-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,6 +18,7 @@
 // <http://www.gnu.org/licenses/>.
 
 #include <tuple>
+#include <memory>
 
 template<typename T, typename U> struct require_same;
 template<typename T> struct require_same<T, T> { using type = void; };
@@ -123,10 +123,8 @@ test04()
   std::pair<int, unsigned> p;
   std::tuple x = p;
   check_type<std::tuple<int, unsigned>>(x);
-  int y = 42;
   std::tuple x2{p};
   check_type<std::tuple<int, unsigned>>(x2);
-  const int z = 666;
   std::pair<const int, unsigned> p2;
   std::tuple x3{p2};
   check_type<std::tuple<const int, unsigned>>(x3);

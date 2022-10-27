@@ -1,4 +1,4 @@
-/* Copyright (C) 2018-2019 Free Software Foundation, Inc.
+/* Copyright (C) 2018-2022 Free Software Foundation, Inc.
    Contributed by Jakub Jelinek <jakub@redhat.com>.
 
    This file is part of the GNU Offloading and Multi Processing Library
@@ -37,10 +37,13 @@
 #include <sys/utsname.h>
 #endif
 
-void
+ialias_redirect (omp_get_team_num)
+ialias_redirect (omp_get_num_teams)
+
+bool
 gomp_print_string (const char *str, size_t len)
 {
-  fwrite (str, 1, len, stderr);
+  return fwrite (str, 1, len, stderr) != len;
 }
 
 void

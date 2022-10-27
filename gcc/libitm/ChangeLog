@@ -1,6 +1,164 @@
-2019-05-03  Release Manager
+2022-08-19  Release Manager
 
-	* GCC 9.1.0 released.
+	* GCC 12.2.0 released.
+
+2022-05-06  Release Manager
+
+	* GCC 12.1.0 released.
+
+2022-02-03  David Seifert  <soap@gentoo.org>
+	    Jakub Jelinek  <jakub@redhat.com>
+
+	* configure.ac: Support --disable-werror.
+	* configure: Regenerate.
+
+2022-01-31  Martin Liska  <mliska@suse.cz>
+
+	* acinclude.m4: Detect *_ld_is_mold and use it.
+	* configure: Regenerate.
+
+2022-01-03  Jakub Jelinek  <jakub@redhat.com>
+
+	* libitm.texi: Bump @copying's copyright year.
+
+2021-11-26  Iain Sandoe  <iain@sandoe.co.uk>
+
+	* eh_cpp.cc (GTM::gtm_thread::init_cpp_exceptions): If the
+	target does not support HAVE_ELF_STYLE_WEAKREF then do not
+	try to test the __cxa_get_globals against NULL.
+
+2021-06-17  Jonathan Wakely  <jwakely@redhat.com>
+
+	PR libstdc++/91488
+	* testsuite/libitm.c++/libstdc++-pr91488.C: New test.
+
+2021-01-15  Jakub Jelinek  <jakub@redhat.com>
+
+	PR target/70454
+	* configure.tgt: For i?86 and x86_64 determine if -march=i486 needs to
+	be added through preprocessor check on
+	__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4.
+
+2021-01-05  Samuel Thibault  <samuel.thibault@ens-lyon.org>
+
+	* configure: Re-generate.
+
+2021-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* libitm.texi: Bump @copying's copyright year.
+
+2020-12-05  Iain Sandoe  <iain@sandoe.co.uk>
+
+	PR target/97865
+	* configure.tgt: Add dynamic_lookup to XLDFLAGS for Darwin.
+	* configure: Regenerate.
+
+2020-11-29  John David Anglin  <danglin@gcc.gnu.org>
+
+	* configure: Regenerate.
+
+2020-10-01  Alan Modra  <amodra@gmail.com>
+
+	* config/powerpc/sjlj.S: Support __PCREL__ code.
+
+2020-07-24  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+
+	* config/aarch64/sjlj.S: Add conditional pac-ret protection.
+
+2020-07-09  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+
+	* config/aarch64/sjlj.S: Add BTI marking and related definitions,
+	and add BTI c to function entries.
+
+2020-07-09  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+
+	* config/aarch64/sjlj.S: Add stack note if __FreeBSD__ is defined.
+
+2020-05-29  H.J. Lu  <hjl.tools@gmail.com>
+
+	PR bootstrap/95413
+	* configure: Regenerated.
+
+2020-05-15  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR bootstrap/95147
+	* configure: Regenerated.
+
+2020-05-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* configure: Regenerated.
+
+2020-05-12  Nathan Sidwell  <nathan@acm.org>
+
+	Fix throw specifiers on interface.
+	* libitm/libitm.h (_ITM_NOTHROW): Define.
+	(_ITM_cxa_allocate_exception, _ITM_cxa_free_exception)
+	(_ITM_cxa_begin_catch): Use it.
+	* eh_cpp.cc: Add throw() to __cxa_allocate_exception,
+	__cxa_free_exception, __cxa_begin_catch, __cxa_tm_cleanup,
+	__cxa_get_globals.
+	(_ITM_cxa_allocate_exception, _ITM_cxa_free_exception)
+	(_ITM_cxa_begin_catch): Likewise.
+
+2020-05-05  Nathan Sidwell  <nathan@acm.org>
+
+	* testsuite/lib/libitm.exp (libitm_init): Add
+	-fdiagnostics-color=never to options.
+
+2020-02-12  Sandra Loosemore  <sandra@codesourcery.com>
+
+	PR libstdc++/79193
+	PR libstdc++/88999
+
+	* configure: Regenerated.
+
+2020-01-24  Maciej W. Rozycki  <macro@wdc.com>
+
+	* configure.ac: Handle `--with-toolexeclibdir='.
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* testsuite/Makefile.in: Regenerate.
+
+2020-01-01  Jakub Jelinek  <jakub@redhat.com>
+
+	Update copyright years.
+
+	* libitm.texi: Bump @copying's copyright year.
+
+2019-12-03  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+
+	PR libgomp/91938
+	* configure.tgt: Avoid IE tls on *-*-musl*.
+
+2019-09-27  Maciej W. Rozycki  <macro@wdc.com>
+
+	* configure: Regenerate.
+
+2019-09-10  Christophe Lyon  <christophe.lyon@st.com>
+
+	* config/arm/sjlj.S (ldaddr): Add FDPIC support.
+
+2019-09-10  Christophe Lyon  <christophe.lyon@st.com>
+
+	* configure.tgt: Handle *-*-uclinux*.
+	* configure: Regenerate.
+
+2019-09-06  Florian Weimer  <fweimer@redhat.com>
+
+	* configure: Regenerate.
+
+2019-09-03  Chung-Lin Tang  <cltang@codesourcery.com>
+
+	PR other/79543
+	* acinclude.m4 (LIBITM_CHECK_LINKER_FEATURES): Fix GNU ld --version
+	scanning to conform to the GNU Coding Standards.
+	* configure: Regenerate.
+
+2019-05-03  Jakub Jelinek  <jakub@redhat.com>
+
+	* Makefile.am (finclude): Remove.
+	* Makefile.in: Regenerated.
 
 2019-01-01  Jakub Jelinek  <jakub@redhat.com>
 
@@ -2169,7 +2327,7 @@
 
 	* Initial commit.
 
-Copyright (C) 2008-2019 Free Software Foundation, Inc.
+Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

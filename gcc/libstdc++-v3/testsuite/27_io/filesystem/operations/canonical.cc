@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2019 Free Software Foundation, Inc.
+// Copyright (C) 2015-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,7 +15,6 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++17" }
 // { dg-do run { target c++17 } }
 // { dg-require-filesystem-ts "" }
 
@@ -32,7 +31,7 @@ test01()
   const std::error_code bad_ec = make_error_code(std::errc::invalid_argument);
   std::error_code ec;
   auto p = __gnu_test::nonexistent_path();
-  canonical( p, ec );
+  (void) canonical( p, ec );
   VERIFY( ec );
 
   create_directory(p);
@@ -91,7 +90,7 @@ test02()
 #if __cpp_exceptions
   fs::path e1, e2;
   try {
-    canonical(p);
+    (void) canonical(p);
   } catch (const fs::filesystem_error& e) {
     e1 = e.path1();
     e2 = e.path2();

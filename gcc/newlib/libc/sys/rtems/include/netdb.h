@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-3-Clause AND ISC)
+ *
  * Copyright (c) 1980, 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -51,7 +53,7 @@
 /*
  *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
  *      From: Id: netdb.h,v 8.9 1996/11/19 08:39:29 vixie Exp $
- * $FreeBSD: head/include/netdb.h 303428 2016-07-28 10:05:41Z ed $
+ * $FreeBSD: head/include/netdb.h 342383 2018-12-23 20:51:13Z pfg $
  */
 
 #ifndef _NETDB_H_
@@ -157,24 +159,24 @@ struct addrinfo {
 #define	NO_ADDRESS	NO_DATA		/* no address, look for MX record */
 
 /*
- * Error return codes from getaddrinfo()
+ * Error return codes from gai_strerror(3), see RFC 3493.
  */
 #if 0
-/* obsoleted */
+/* Obsoleted on RFC 2553bis-02 */
 #define	EAI_ADDRFAMILY	 1	/* address family for hostname not supported */
 #endif
-#define	EAI_AGAIN	 2	/* temporary failure in name resolution */
-#define	EAI_BADFLAGS	 3	/* invalid value for ai_flags */
+#define	EAI_AGAIN	 2	/* name could not be resolved at this time */
+#define	EAI_BADFLAGS	 3	/* flags parameter had an invalid value */
 #define	EAI_FAIL	 4	/* non-recoverable failure in name resolution */
-#define	EAI_FAMILY	 5	/* ai_family not supported */
+#define	EAI_FAMILY	 5	/* address family not recognized */
 #define	EAI_MEMORY	 6	/* memory allocation failure */
 #if 0
-/* obsoleted */
+/* Obsoleted on RFC 2553bis-02 */
 #define	EAI_NODATA	 7	/* no address associated with hostname */
 #endif
-#define	EAI_NONAME	 8	/* hostname nor servname provided, or not known */
-#define	EAI_SERVICE	 9	/* servname not supported for ai_socktype */
-#define	EAI_SOCKTYPE	10	/* ai_socktype not supported */
+#define	EAI_NONAME	 8	/* name does not resolve */
+#define	EAI_SERVICE	 9	/* service not recognized for socket type */
+#define	EAI_SOCKTYPE	10	/* intended socket type was not recognized */
 #define	EAI_SYSTEM	11	/* system error returned in errno */
 #define	EAI_BADHINTS	12	/* invalid value for hints */
 #define	EAI_PROTOCOL	13	/* resolved protocol is unknown */

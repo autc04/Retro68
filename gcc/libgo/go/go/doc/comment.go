@@ -8,6 +8,7 @@ package doc
 
 import (
 	"bytes"
+	"internal/lazyregexp"
 	"io"
 	"strings"
 	"text/template" // for HTMLEscape
@@ -69,7 +70,7 @@ const (
 	urlRx = protoPart + `://` + hostPart + pathPart
 )
 
-var matchRx = newLazyRE(`(` + urlRx + `)|(` + identRx + `)`)
+var matchRx = lazyregexp.New(`(` + urlRx + `)|(` + identRx + `)`)
 
 var (
 	html_a      = []byte(`<a href="`)
@@ -235,26 +236,24 @@ func heading(line string) string {
 
 	// allow "'" for possessive "'s" only
 	for b := line; ; {
-		i := strings.IndexRune(b, '\'')
-		if i < 0 {
+		var ok bool
+		if _, b, ok = strings.Cut(b, "'"); !ok {
 			break
 		}
-		if i+1 >= len(b) || b[i+1] != 's' || (i+2 < len(b) && b[i+2] != ' ') {
-			return "" // not followed by "s "
+		if b != "s" && !strings.HasPrefix(b, "s ") {
+			return "" // ' not followed by s and then end-of-word
 		}
-		b = b[i+2:]
 	}
 
 	// allow "." when followed by non-space
 	for b := line; ; {
-		i := strings.IndexRune(b, '.')
-		if i < 0 {
+		var ok bool
+		if _, b, ok = strings.Cut(b, "."); !ok {
 			break
 		}
-		if i+1 >= len(b) || b[i+1] == ' ' {
+		if b == "" || strings.HasPrefix(b, " ") {
 			return "" // not followed by non-space
 		}
-		b = b[i+1:]
 	}
 
 	return line
@@ -273,7 +272,7 @@ type block struct {
 	lines []string
 }
 
-var nonAlphaNumRx = newLazyRE(`[^a-zA-Z0-9]`)
+var nonAlphaNumRx = lazyregexp.New(`[^a-zA-Z0-9]`)
 
 func anchorID(line string) string {
 	// Add a "hdr-" prefix to avoid conflicting with IDs used for package symbols.
@@ -298,6 +297,9 @@ func anchorID(line string) string {
 // URLs in the comment text are converted into links; if the URL also appears
 // in the words map, the link is taken from the map (if the corresponding map
 // value is the empty string, the URL is not converted into a link).
+//
+// A pair of (consecutive) backticks (`) is converted to a unicode left quote (“), and a pair of (consecutive)
+// single quotes (') is converted to a unicode right quote (”).
 //
 // Go identifiers that appear in the words map are italicized; if the corresponding
 // map value is not the empty string, it is considered a URL and the word is converted
@@ -416,6 +418,9 @@ func blocks(text string) []block {
 // It wraps paragraphs of text to width or fewer Unicode code points
 // and then prefixes each line with the indent. In preformatted sections
 // (such as program text), it prefixes each non-blank line with preIndent.
+//
+// A pair of (consecutive) backticks (`) is converted to a unicode left quote (“), and a pair of (consecutive)
+// single quotes (') is converted to a unicode right quote (”).
 func ToText(w io.Writer, text string, indent, preIndent string, width int) {
 	l := lineWrapper{
 		out:    w,
@@ -445,7 +450,6 @@ func ToText(w io.Writer, text string, indent, preIndent string, width int) {
 					w.Write([]byte("\n"))
 				} else {
 					w.Write([]byte(preIndent))
-					line = convertQuotes(line)
 					w.Write([]byte(line))
 				}
 			}
@@ -464,6 +468,7 @@ type lineWrapper struct {
 
 var nl = []byte("\n")
 var space = []byte(" ")
+var prefix = []byte("// ")
 
 func (l *lineWrapper) write(text string) {
 	if l.n == 0 && l.printed {
@@ -471,6 +476,8 @@ func (l *lineWrapper) write(text string) {
 	}
 	l.printed = true
 
+	needsPrefix := false
+	isComment := strings.HasPrefix(text, "//")
 	for _, f := range strings.Fields(text) {
 		w := utf8.RuneCountInString(f)
 		// wrap if line is too long
@@ -478,9 +485,14 @@ func (l *lineWrapper) write(text string) {
 			l.out.Write(nl)
 			l.n = 0
 			l.pendSpace = 0
+			needsPrefix = isComment && !strings.HasPrefix(f, "//")
 		}
 		if l.n == 0 {
 			l.out.Write([]byte(l.indent))
+		}
+		if needsPrefix {
+			l.out.Write(prefix)
+			needsPrefix = false
 		}
 		l.out.Write(space[:l.pendSpace])
 		l.out.Write([]byte(f))

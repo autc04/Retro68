@@ -17,8 +17,9 @@ void
 foo2 (void)
 {
   int i;
+  /* { dg-note {'i' was declared here} {} { target *-*-* } .-1 } */
 
-#pragma acc parallel firstprivate (i) /* { dg-warning "is used uninitialized in this function" } */
+#pragma acc parallel firstprivate (i) /* { dg-warning "is used uninitialized" } */
   {
     i = 1;
   }

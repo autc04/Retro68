@@ -1,5 +1,5 @@
 # Makefile for libada.
-#   Copyright (C) 2003-2019 Free Software Foundation, Inc.
+#   Copyright (C) 2003-2022 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,6 +38,8 @@ target = @target@
 prefix = @prefix@
 
 # Nonstandard autoconf-set variables.
+toolexecdir = @toolexecdir@
+toolexeclibdir = @toolexeclibdir@
 enable_shared = @enable_shared@
 
 LN_S=@LN_S@
@@ -88,6 +90,7 @@ LIBADA_FLAGS_TO_PASS = \
         "TRACE=$(TRACE)" \
         "MULTISUBDIR=$(MULTISUBDIR)" \
         "libsubdir=$(libsubdir)" \
+        "toolexeclibdir=$(toolexeclibdir)" \
         "objext=$(objext)" \
         "prefix=$(prefix)" \
         "exeext=.exeext.should.not.be.used " \
@@ -148,9 +151,11 @@ install-info:
 
 install-pdf:
 
+install-dvi:
+
 install-html:
 
-.PHONY: install install-strip install-info install-pdf install-html
+.PHONY: install install-strip install-info install-pdf install-dvi install-html
 
 # Cleaning rules.
 mostlyclean:
@@ -183,6 +188,7 @@ configure_deps = \
 	$(srcdir)/../config/multi.m4 \
 	$(srcdir)/../config/override.m4 \
 	$(srcdir)/../config/picflag.m4 \
+	$(srcdir)/../config/toolexeclibdir.m4 \
 	$(srcdir)/../config/unwind_ipinfo.m4
 
 $(srcdir)/configure: @MAINT@ $(configure_deps)

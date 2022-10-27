@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---         Copyright (C) 1998-2019, Free Software Foundation, Inc.          --
+--         Copyright (C) 1998-2022, Free Software Foundation, Inc.          --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,10 +29,6 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-pragma Polling (Off);
---  Turn off polling, we do not want ATC polling to take place during
---  tasking operations. It causes infinite loops and other problems.
-
 with Ada.Unchecked_Conversion;
 with Ada.Task_Identification;
 
@@ -50,8 +46,6 @@ package body System.Tasking.Async_Delays is
    package STU renames System.Tasking.Utilities;
    package STI renames System.Tasking.Initialization;
    package OSP renames System.OS_Primitives;
-
-   use Parameters;
 
    function To_System is new Ada.Unchecked_Conversion
      (Ada.Task_Identification.Task_Id, Task_Id);
@@ -118,11 +112,6 @@ package body System.Tasking.Async_Delays is
       --  Remove self from timer queue
 
       STI.Defer_Abort_Nestable (D.Self_Id);
-
-      if Single_Lock then
-         STPO.Lock_RTS;
-      end if;
-
       STPO.Write_Lock (Timer_Server_ID);
       Dpred := D.Pred;
       Dsucc := D.Succ;
@@ -141,11 +130,6 @@ package body System.Tasking.Async_Delays is
       STPO.Write_Lock (D.Self_Id);
       STU.Exit_One_ATC_Level (D.Self_Id);
       STPO.Unlock (D.Self_Id);
-
-      if Single_Lock then
-         STPO.Unlock_RTS;
-      end if;
-
       STI.Undefer_Abort_Nestable (D.Self_Id);
    end Cancel_Async_Delay;
 
@@ -217,11 +201,6 @@ package body System.Tasking.Async_Delays is
       D.Level := Self_Id.ATC_Nesting_Level;
       D.Self_Id := Self_Id;
       D.Resume_Time := T;
-
-      if Single_Lock then
-         STPO.Lock_RTS;
-      end if;
-
       STPO.Write_Lock (Timer_Server_ID);
 
       --  Previously, there was code here to dynamically create
@@ -258,10 +237,6 @@ package body System.Tasking.Async_Delays is
       end if;
 
       STPO.Unlock (Timer_Server_ID);
-
-      if Single_Lock then
-         STPO.Unlock_RTS;
-      end if;
    end Time_Enqueue;
 
    ---------------
@@ -289,8 +264,6 @@ package body System.Tasking.Async_Delays is
       Dequeued         : Delay_Block_Access;
       Dequeued_Task    : Task_Id;
 
-      pragma Unreferenced (Timedout, Yielded);
-
    begin
       pragma Assert (Timer_Server_ID = STPO.Self);
 
@@ -305,11 +278,6 @@ package body System.Tasking.Async_Delays is
 
       loop
          STI.Defer_Abort (Timer_Server_ID);
-
-         if Single_Lock then
-            STPO.Lock_RTS;
-         end if;
-
          STPO.Write_Lock (Timer_Server_ID);
 
          --  The timer server needs to catch pending aborts after finalization
@@ -383,11 +351,6 @@ package body System.Tasking.Async_Delays is
          --  an actual delay in this server.
 
          STPO.Unlock (Timer_Server_ID);
-
-         if Single_Lock then
-            STPO.Unlock_RTS;
-         end if;
-
          STI.Undefer_Abort (Timer_Server_ID);
       end loop;
    end Timer_Server;

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -91,16 +91,16 @@ package body Ch9 is
 
    begin
       Push_Scope_Stack;
-      Scope.Table (Scope.Last).Etyp := E_Name;
-      Scope.Table (Scope.Last).Ecol := Start_Column;
-      Scope.Table (Scope.Last).Sloc := Token_Ptr;
-      Scope.Table (Scope.Last).Lreq := False;
+      Scopes (Scope.Last).Etyp := E_Name;
+      Scopes (Scope.Last).Ecol := Start_Column;
+      Scopes (Scope.Last).Sloc := Token_Ptr;
+      Scopes (Scope.Last).Lreq := False;
       Task_Sloc := Prev_Token_Ptr;
 
       if Token = Tok_Body then
          Scan; -- past BODY
          Name_Node := P_Defining_Identifier (C_Is);
-         Scope.Table (Scope.Last).Labl := Name_Node;
+         Scopes (Scope.Last).Labl := Name_Node;
          Current_Node := Name_Node;
 
          if Token = Tok_Left_Paren then
@@ -168,7 +168,7 @@ package body Ch9 is
             Task_Node := New_Node (N_Task_Type_Declaration, Task_Sloc);
             Name_Node := P_Defining_Identifier;
             Set_Defining_Identifier (Task_Node, Name_Node);
-            Scope.Table (Scope.Last).Labl := Name_Node;
+            Scopes (Scope.Last).Labl := Name_Node;
             Current_Node := Name_Node;
             Set_Discriminant_Specifications
               (Task_Node, P_Known_Discriminant_Part_Opt);
@@ -177,7 +177,7 @@ package body Ch9 is
             Task_Node := New_Node (N_Single_Task_Declaration, Task_Sloc);
             Name_Node := P_Defining_Identifier (C_Is);
             Set_Defining_Identifier (Task_Node, Name_Node);
-            Scope.Table (Scope.Last).Labl := Name_Node;
+            Scopes (Scope.Last).Labl := Name_Node;
             Current_Node := Name_Node;
 
             if Token = Tok_Left_Paren then
@@ -220,10 +220,7 @@ package body Ch9 is
             if Token = Tok_New then
                Scan; --  past NEW
 
-               if Ada_Version < Ada_2005 then
-                  Error_Msg_SP ("task interface is an Ada 2005 extension");
-                  Error_Msg_SP ("\unit must be compiled with -gnat05 switch");
-               end if;
+               Error_Msg_Ada_2005_Extension ("task interface");
 
                Set_Interface_List (Task_Node, New_List);
 
@@ -286,7 +283,7 @@ package body Ch9 is
    --  Error recovery:  cannot raise Error_Resync
 
    function P_Task_Definition return Node_Id is
-      Def_Node  : Node_Id;
+      Def_Node : Node_Id;
 
    begin
       Def_Node := New_Node (N_Task_Definition, Token_Ptr);
@@ -441,15 +438,15 @@ package body Ch9 is
 
    begin
       Push_Scope_Stack;
-      Scope.Table (Scope.Last).Etyp := E_Name;
-      Scope.Table (Scope.Last).Ecol := Start_Column;
-      Scope.Table (Scope.Last).Lreq := False;
+      Scopes (Scope.Last).Etyp := E_Name;
+      Scopes (Scope.Last).Ecol := Start_Column;
+      Scopes (Scope.Last).Lreq := False;
       Protected_Sloc := Prev_Token_Ptr;
 
       if Token = Tok_Body then
          Scan; -- past BODY
          Name_Node := P_Defining_Identifier (C_Is);
-         Scope.Table (Scope.Last).Labl := Name_Node;
+         Scopes (Scope.Last).Labl := Name_Node;
          Current_Node := Name_Node;
 
          if Token = Tok_Left_Paren then
@@ -504,7 +501,7 @@ package body Ch9 is
               New_Node (N_Protected_Type_Declaration, Protected_Sloc);
             Name_Node := P_Defining_Identifier (C_Is);
             Set_Defining_Identifier (Protected_Node, Name_Node);
-            Scope.Table (Scope.Last).Labl := Name_Node;
+            Scopes (Scope.Last).Labl := Name_Node;
             Current_Node := Name_Node;
             Set_Discriminant_Specifications
               (Protected_Node, P_Known_Discriminant_Part_Opt);
@@ -521,7 +518,7 @@ package body Ch9 is
                Discard_Junk_List (P_Known_Discriminant_Part_Opt);
             end if;
 
-            Scope.Table (Scope.Last).Labl := Name_Node;
+            Scopes (Scope.Last).Labl := Name_Node;
             Current_Node := Name_Node;
          end if;
 
@@ -565,10 +562,7 @@ package body Ch9 is
          if Token = Tok_New then
             Scan; --  past NEW
 
-            if Ada_Version < Ada_2005 then
-               Error_Msg_SP ("protected interface is an Ada 2005 extension");
-               Error_Msg_SP ("\unit must be compiled with -gnat05 switch");
-            end if;
+            Error_Msg_Ada_2005_Extension ("protected interface");
 
             Set_Interface_List (Protected_Node, New_List);
 
@@ -758,8 +752,7 @@ package body Ch9 is
 
          if Is_Overriding or else Not_Overriding then
             if Ada_Version < Ada_2005 then
-               Error_Msg_SP ("overriding indicator is an Ada 2005 extension");
-               Error_Msg_SP ("\unit must be compiled with -gnat05 switch");
+               Error_Msg_Ada_2005_Extension ("overriding indicator");
 
             elsif Token = Tok_Entry then
                Decl := P_Entry_Declaration;
@@ -910,7 +903,7 @@ package body Ch9 is
             Resync_Past_Semicolon;
 
          elsif Token in Token_Class_Declk then
-            Error_Msg_SC ("this declaration not allowed in protected body");
+            Error_Msg_SC ("declaration not allowed in protected body");
             Resync_Past_Semicolon;
 
          else
@@ -968,9 +961,7 @@ package body Ch9 is
 
       if Is_Overriding or else Not_Overriding then
          if Ada_Version < Ada_2005 then
-            Error_Msg_SP ("overriding indicator is an Ada 2005 extension");
-            Error_Msg_SP ("\unit must be compiled with -gnat05 switch");
-
+            Error_Msg_Ada_2005_Extension ("overriding indicator");
          elsif Token /= Tok_Entry then
             Error_Msg_SC -- CODEFIX
               ("ENTRY expected!");
@@ -1074,12 +1065,12 @@ package body Ch9 is
 
    begin
       Push_Scope_Stack;
-      Scope.Table (Scope.Last).Sloc := Token_Ptr;
-      Scope.Table (Scope.Last).Ecol := Start_Column;
+      Scopes (Scope.Last).Sloc := Token_Ptr;
+      Scopes (Scope.Last).Ecol := Start_Column;
 
       Accept_Node := New_Node (N_Accept_Statement, Token_Ptr);
       Scan; -- past ACCEPT
-      Scope.Table (Scope.Last).Labl := Token_Node;
+      Scopes (Scope.Last).Labl := Token_Node;
       Current_Node := Token_Node;
 
       Set_Entry_Direct_Name (Accept_Node, P_Identifier (C_Do));
@@ -1123,8 +1114,8 @@ package body Ch9 is
       --  Scan out DO if present
 
       if Token = Tok_Do then
-         Scope.Table (Scope.Last).Etyp := E_Name;
-         Scope.Table (Scope.Last).Lreq := False;
+         Scopes (Scope.Last).Etyp := E_Name;
+         Scopes (Scope.Last).Lreq := False;
          Scan; -- past DO
          Hand_Seq := P_Handled_Sequence_Of_Statements;
          Set_Handled_Statement_Sequence (Accept_Node, Hand_Seq);
@@ -1221,14 +1212,14 @@ package body Ch9 is
       Entry_Node := New_Node (N_Entry_Body, Token_Ptr);
       Scan; -- past ENTRY
 
-      Scope.Table (Scope.Last).Ecol := Start_Column;
-      Scope.Table (Scope.Last).Lreq := False;
-      Scope.Table (Scope.Last).Etyp := E_Name;
-      Scope.Table (Scope.Last).Sloc := Token_Ptr;
+      Scopes (Scope.Last).Ecol := Start_Column;
+      Scopes (Scope.Last).Lreq := False;
+      Scopes (Scope.Last).Etyp := E_Name;
+      Scopes (Scope.Last).Sloc := Token_Ptr;
 
       Name_Node := P_Defining_Identifier;
       Set_Defining_Identifier (Entry_Node, Name_Node);
-      Scope.Table (Scope.Last).Labl := Name_Node;
+      Scopes (Scope.Last).Labl := Name_Node;
       Current_Node := Name_Node;
 
       Formal_Part_Node := P_Entry_Body_Formal_Part;
@@ -1316,6 +1307,7 @@ package body Ch9 is
 
    --  ENTRY_INDEX_SPECIFICATION ::=
    --    for DEFINING_IDENTIFIER in DISCRETE_SUBTYPE_DEFINITION
+   --                                                    [ASPECT_SPECIFICATION]
 
    --  Error recovery: can raise Error_Resync
 
@@ -1329,6 +1321,11 @@ package body Ch9 is
       T_In;
       Set_Discrete_Subtype_Definition
         (Iterator_Node, P_Discrete_Subtype_Definition);
+
+      if Token = Tok_With then
+         P_Aspect_Specifications (Iterator_Node, False);
+      end if;
+
       return Iterator_Node;
    end P_Entry_Index_Specification;
 
@@ -1521,10 +1518,10 @@ package body Ch9 is
 
    begin
       Push_Scope_Stack;
-      Scope.Table (Scope.Last).Etyp := E_Select;
-      Scope.Table (Scope.Last).Ecol := Start_Column;
-      Scope.Table (Scope.Last).Sloc := Token_Ptr;
-      Scope.Table (Scope.Last).Labl := Error;
+      Scopes (Scope.Last).Etyp := E_Select;
+      Scopes (Scope.Last).Ecol := Start_Column;
+      Scopes (Scope.Last).Sloc := Token_Ptr;
+      Scopes (Scope.Last).Labl := Error;
 
       Select_Sloc := Token_Ptr;
       Scan; -- past SELECT
@@ -1654,7 +1651,7 @@ package body Ch9 is
             if Ada_Version = Ada_83 then
                Error_Msg_BC ("OR or ELSE expected");
             else
-               Error_Msg_BC ("OR or ELSE or THEN ABORT expected");
+               Error_Msg_BC ("OR or ELSE or `THEN ABORT` expected");
             end if;
 
             Select_Node := Error;

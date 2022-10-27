@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2019, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,7 +23,6 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with ALI;      use ALI;
 with Casing;   use Casing;
 with Fname;    use Fname;
 with Gnatvsn;  use Gnatvsn;
@@ -34,7 +33,6 @@ with Osint;    use Osint;
 with Osint.B;  use Osint.B;
 with Output;   use Output;
 with Rident;   use Rident;
-with Stringt;  use Stringt;
 with Table;
 with Targparm; use Targparm;
 with Types;    use Types;
@@ -82,7 +80,7 @@ package body Bindgen is
    --  domains just before calling the main procedure from the environment
    --  task.
 
-   System_Secondary_Stack_Used : Boolean := False;
+   System_Secondary_Stack_Package_In_Closure : Boolean := False;
    --  Flag indicating whether the unit System.Secondary_Stack is in the
    --  closure of the partition. This is set by Resolve_Binder_Options, and
    --  is used to initialize the package in cases where the run-time brings
@@ -198,6 +196,7 @@ package body Bindgen is
    --     Main_CPU                      : Integer;
    --     Default_Sized_SS_Pool         : System.Address;
    --     Binder_Sec_Stacks_Count       : Natural;
+   --     XDR_Stream                    : Integer;
 
    --  Main_Priority is the priority value set by pragma Priority in the main
    --  program. If no such pragma is present, the value is -1.
@@ -295,6 +294,9 @@ package body Bindgen is
 
    --  Binder_Sec_Stacks_Count is the number of generated secondary stacks in
    --  the Default_Sized_SS_Pool.
+
+   --  XDR_Stream indicates whether streaming should be performed using the
+   --  XDR protocol. A value of one indicates that XDR streaming is enabled.
 
    procedure WBI (Info : String) renames Osint.B.Write_Binder_Info;
    --  Convenient shorthand used throughout
@@ -458,7 +460,7 @@ package body Bindgen is
 
       if not Bind_For_Library and not CodePeer_Mode then
          WBI ("      procedure s_stalib_adafinal;");
-         Set_String ("      pragma Import (C, s_stalib_adafinal, ");
+         Set_String ("      pragma Import (Ada, s_stalib_adafinal, ");
          Set_String ("""system__standard_library__adafinal"");");
          Write_Statement_Buffer;
       end if;
@@ -525,6 +527,7 @@ package body Bindgen is
         and then not Configurable_Run_Time_On_Target
       then
          WBI ("   type No_Param_Proc is access procedure;");
+         WBI ("   pragma Favor_Top_Level (No_Param_Proc);");
          WBI ("");
       end if;
 
@@ -585,32 +588,66 @@ package body Bindgen is
             WBI ("");
          end if;
 
-         --  A restricted run-time may attempt to initialize the main task's
-         --  secondary stack even if the stack is not used. Consequently,
-         --  the binder needs to initialize Binder_Sec_Stacks_Count anytime
-         --  System.Secondary_Stack is in the enclosure of the partition.
+         --  Import the default stack object if a size has been provided to the
+         --  binder.
 
-         if System_Secondary_Stack_Used then
+         if Opt.Default_Stack_Size /= Opt.No_Stack_Size then
+            WBI ("      Default_Stack_Size : Integer;");
+            WBI ("      pragma Import (C, Default_Stack_Size, " &
+                 """__gl_default_stack_size"");");
+         end if;
+
+         --  Initialize stack limit variable of the environment task if the
+         --  stack check method is stack limit and stack check is enabled.
+
+         if Stack_Check_Limits_On_Target
+           and then (Stack_Check_Default_On_Target or Stack_Check_Switch_Set)
+         then
+            WBI ("");
+            WBI ("      procedure Initialize_Stack_Limit;");
+            WBI ("      pragma Import (C, Initialize_Stack_Limit, " &
+                 """__gnat_initialize_stack_limit"");");
+         end if;
+
+         if System_Secondary_Stack_Package_In_Closure then
+            --  System.Secondary_Stack is in the closure of the program
+            --  because the program uses the secondary stack or the restricted
+            --  run-time is unconditionally calling SS_Init. In both cases,
+            --  SS_Init needs to know the number of secondary stacks created by
+            --  the binder.
+
             WBI ("      Binder_Sec_Stacks_Count : Natural;");
             WBI ("      pragma Import (Ada, Binder_Sec_Stacks_Count, " &
                  """__gnat_binder_ss_count"");");
             WBI ("");
-         end if;
 
-         if Sec_Stack_Used then
-            WBI ("      Default_Secondary_Stack_Size : " &
-                 "System.Parameters.Size_Type;");
-            WBI ("      pragma Import (C, Default_Secondary_Stack_Size, " &
-                 """__gnat_default_ss_size"");");
+            --  Import secondary stack pool variables if the secondary stack
+            --  used. They are not referenced otherwise.
 
-            WBI ("      Default_Sized_SS_Pool : System.Address;");
-            WBI ("      pragma Import (Ada, Default_Sized_SS_Pool, " &
-                 """__gnat_default_ss_pool"");");
+            if Sec_Stack_Used then
+               WBI ("      Default_Secondary_Stack_Size : " &
+                    "System.Parameters.Size_Type;");
+               WBI ("      pragma Import (C, Default_Secondary_Stack_Size, " &
+                    """__gnat_default_ss_size"");");
 
-            WBI ("");
+               WBI ("      Default_Sized_SS_Pool : System.Address;");
+               WBI ("      pragma Import (Ada, Default_Sized_SS_Pool, " &
+                    """__gnat_default_ss_pool"");");
+
+               WBI ("");
+            end if;
          end if;
 
          WBI ("   begin");
+
+         --  Set the default stack size if provided to the binder
+
+         if Opt.Default_Stack_Size /= Opt.No_Stack_Size then
+            Set_String ("      Default_Stack_Size := ");
+            Set_Int (Default_Stack_Size);
+            Set_String (";");
+            Write_Statement_Buffer;
+         end if;
 
          if Main_Priority /= No_Main_Priority then
             Set_String ("      Main_Priority := ");
@@ -636,54 +673,56 @@ package body Bindgen is
          end if;
 
          if Main_Priority = No_Main_Priority
+           and then Opt.Default_Stack_Size = Opt.No_Stack_Size
            and then Main_CPU = No_Main_CPU
            and then not System_Tasking_Restricted_Stages_Used
          then
             WBI ("      null;");
          end if;
 
-         --  Generate default-sized secondary stack pool and set secondary
-         --  stack globals.
+         --  Generate the default-sized secondary stack pool if the secondary
+         --  stack is used by the program.
 
-         if Sec_Stack_Used then
+         if System_Secondary_Stack_Package_In_Closure then
+            if Sec_Stack_Used then
+               --  Elaborate the body of the binder to initialize the default-
+               --  sized secondary stack pool.
 
-            --  Elaborate the body of the binder to initialize the default-
-            --  sized secondary stack pool.
+               WBI ("");
+               WBI ("      " & Get_Ada_Main_Name & "'Elab_Body;");
 
-            WBI ("");
-            WBI ("      " & Get_Ada_Main_Name & "'Elab_Body;");
+               --  Generate the default-sized secondary stack pool and set the
+               --  related secondary stack globals.
 
-            --  Generate the default-sized secondary stack pool and set the
-            --  related secondary stack globals.
+               Set_String ("      Default_Secondary_Stack_Size := ");
 
-            Set_String ("      Default_Secondary_Stack_Size := ");
+               if Opt.Default_Sec_Stack_Size /= Opt.No_Stack_Size then
+                  Set_Int (Opt.Default_Sec_Stack_Size);
+               else
+                  Set_String
+                    ("System.Parameters.Runtime_Default_Sec_Stack_Size");
+               end if;
 
-            if Opt.Default_Sec_Stack_Size /= Opt.No_Stack_Size then
-               Set_Int (Opt.Default_Sec_Stack_Size);
+               Set_Char (';');
+               Write_Statement_Buffer;
+
+               Set_String ("      Binder_Sec_Stacks_Count := ");
+               Set_Int (Num_Sec_Stacks);
+               Set_Char (';');
+               Write_Statement_Buffer;
+
+               WBI ("      Default_Sized_SS_Pool := " &
+                      "Sec_Default_Sized_Stacks'Address;");
+               WBI ("");
+
             else
-               Set_String ("System.Parameters.Runtime_Default_Sec_Stack_Size");
+               --  The presence of System.Secondary_Stack in the closure of the
+               --  program implies the restricted run-time is unconditionally
+               --  calling SS_Init. Let SS_Init know that no stacks were
+               --  created.
+
+               WBI ("      Binder_Sec_Stacks_Count := 0;");
             end if;
-
-            Set_Char (';');
-            Write_Statement_Buffer;
-
-            Set_String ("      Binder_Sec_Stacks_Count := ");
-            Set_Int (Num_Sec_Stacks);
-            Set_Char (';');
-            Write_Statement_Buffer;
-
-            WBI ("      Default_Sized_SS_Pool := " &
-                   "Sec_Default_Sized_Stacks'Address;");
-            WBI ("");
-
-         --  When a restricted run-time initializes the main task's secondary
-         --  stack but the program does not use it, no secondary stack is
-         --  generated. Binder_Sec_Stacks_Count is set to zero so the run-time
-         --  is aware that the lack of pre-allocated secondary stack is
-         --  expected.
-
-         elsif System_Secondary_Stack_Used then
-            WBI ("      Binder_Sec_Stacks_Count := 0;");
          end if;
 
       --  Normal case (standard library not suppressed). Set all global values
@@ -753,12 +792,20 @@ package body Bindgen is
                  """__gnat_default_ss_size"");");
          end if;
 
-         WBI ("      Leap_Seconds_Support : Integer;");
-         WBI ("      pragma Import (C, Leap_Seconds_Support, " &
-              """__gl_leap_seconds_support"");");
+         if Leap_Seconds_Support then
+            WBI ("      Leap_Seconds_Support : Integer;");
+            WBI ("      pragma Import (C, Leap_Seconds_Support, " &
+                 """__gl_leap_seconds_support"");");
+         end if;
+
          WBI ("      Bind_Env_Addr : System.Address;");
          WBI ("      pragma Import (C, Bind_Env_Addr, " &
               """__gl_bind_env_addr"");");
+
+         if XDR_Stream then
+            WBI ("      XDR_Stream : Integer;");
+            WBI ("      pragma Import (C, XDR_Stream, ""__gl_xdr_stream"");");
+         end if;
 
          --  Import entry point for elaboration time signal handler
          --  installation, and indication of if it's been called previously.
@@ -973,16 +1020,13 @@ package body Bindgen is
          Set_String (";");
          Write_Statement_Buffer;
 
-         Set_String ("      Leap_Seconds_Support := ");
-
          if Leap_Seconds_Support then
-            Set_Int (1);
-         else
-            Set_Int (0);
+            WBI ("      Leap_Seconds_Support := 1;");
          end if;
 
-         Set_String (";");
-         Write_Statement_Buffer;
+         if XDR_Stream then
+            WBI ("      XDR_Stream := 1;");
+         end if;
 
          if Bind_Env_String_Built then
             WBI ("      Bind_Env_Addr := Bind_Env'Address;");
@@ -1147,19 +1191,18 @@ package body Bindgen is
       procedure Write_Name_With_Len (Nam : Name_Id) is
       begin
          Get_Name_String (Nam);
-
-         Start_String;
-         Store_String_Char (Character'Val (Name_Len));
-         Store_String_Chars (Name_Buffer (1 .. Name_Len));
-
-         Write_String_Table_Entry (End_String);
+         Write_Str ("Character'Val (");
+         Write_Int (Int (Name_Len));
+         Write_Str (") & """);
+         Write_Str (Name_Buffer (1 .. Name_Len));
+         Write_Char ('"');
       end Write_Name_With_Len;
 
       --  Local variables
 
-      Amp : Character;
-      KN  : Name_Id := No_Name;
-      VN  : Name_Id := No_Name;
+      First : Boolean := True;
+      KN    : Name_Id := No_Name;
+      VN    : Name_Id := No_Name;
 
    --  Start of processing for Gen_Bind_Env_String
 
@@ -1173,21 +1216,26 @@ package body Bindgen is
       Set_Special_Output (Write_Bind_Line'Access);
 
       WBI ("   Bind_Env : aliased constant String :=");
-      Amp := ' ';
+
       while VN /= No_Name loop
-         Write_Str ("     " & Amp & ' ');
+         if First then
+            Write_Str ("     ");
+         else
+            Write_Str ("     & ");
+         end if;
+
          Write_Name_With_Len (KN);
          Write_Str (" & ");
          Write_Name_With_Len (VN);
          Write_Eol;
 
          Bind_Environment.Get_Next (KN, VN);
-         Amp := '&';
+         First := False;
       end loop;
+
       WBI ("     & ASCII.NUL;");
 
       Cancel_Special_Output;
-
       Bind_Env_String_Built := True;
    end Gen_Bind_Env_String;
 
@@ -1805,13 +1853,20 @@ package body Bindgen is
       --  referenced elsewhere in the generated program, but is needed by
       --  the debugger (that's why it is generated in the first place). The
       --  reference stops Ada_Main_Program_Name from being optimized away by
-      --  smart linkers, such as the AiX linker.
+      --  smart linkers.
 
       --  Because this variable is unused, we make this variable "aliased"
       --  with a pragma Volatile in order to tell the compiler to preserve
       --  this variable at any level of optimization.
 
-      if Bind_Main_Program and not CodePeer_Mode then
+      --  CodePeer and CCG do not need this extra code. The code is also not
+      --  needed if the binder is in "Minimal Binder" mode.
+
+      if Bind_Main_Program
+        and then not Minimal_Binder
+        and then not CodePeer_Mode
+        and then not Generate_C_Code
+      then
          WBI ("      Ensure_Reference : aliased System.Address := " &
               "Ada_Main_Program_Name'Address;");
          WBI ("      pragma Volatile (Ensure_Reference);");
@@ -1820,18 +1875,25 @@ package body Bindgen is
 
       WBI ("   begin");
 
-      --  Acquire command line arguments if present on target
+      --  Acquire command-line arguments if present on target
 
       if CodePeer_Mode then
          null;
 
       elsif Command_Line_Args_On_Target then
-         WBI ("      gnat_argc := argc;");
-         WBI ("      gnat_argv := argv;");
+
+         --  Initialize gnat_argc/gnat_argv only if not already initialized,
+         --  to avoid losing the result of any command-line processing done by
+         --  earlier GNAT run-time initialization.
+
+         WBI ("      if gnat_argc = 0 then");
+         WBI ("         gnat_argc := argc;");
+         WBI ("         gnat_argv := argv;");
+         WBI ("      end if;");
          WBI ("      gnat_envp := envp;");
          WBI ("");
 
-      --  If configurable run time and no command line args, then nothing needs
+      --  If configurable run-time and no command-line args, then nothing needs
       --  to be done since the gnat_argc/argv/envp variables are suppressed in
       --  this case.
 
@@ -2350,25 +2412,31 @@ package body Bindgen is
          --  program uses two Ada libraries). Also zero terminate the string
          --  so that its end can be found reliably at run time.
 
-         WBI ("");
-         WBI ("   GNAT_Version : constant String :=");
-         WBI ("                    """ & Ver_Prefix &
-                                   Gnat_Version_String &
-                                   """ & ASCII.NUL;");
-         WBI ("   pragma Export (C, GNAT_Version, ""__gnat_version"");");
+         if not Minimal_Binder then
+            WBI ("");
+            WBI ("   GNAT_Version : constant String :=");
+            WBI ("                    """ & Ver_Prefix &
+                                      Gnat_Version_String &
+                                      """ & ASCII.NUL;");
+            WBI ("   pragma Export (C, GNAT_Version, ""__gnat_version"");");
+            WBI ("");
+            WBI ("   GNAT_Version_Address : constant System.Address := " &
+                 "GNAT_Version'Address;");
+            WBI ("   pragma Export (C, GNAT_Version_Address, " &
+                 """__gnat_version_address"");");
+            WBI ("");
+            Set_String ("   Ada_Main_Program_Name : constant String := """);
+            Get_Name_String (Units.Table (First_Unit_Entry).Uname);
 
-         WBI ("");
-         Set_String ("   Ada_Main_Program_Name : constant String := """);
-         Get_Name_String (Units.Table (First_Unit_Entry).Uname);
+            Set_Main_Program_Name;
+            Set_String (""" & ASCII.NUL;");
 
-         Set_Main_Program_Name;
-         Set_String (""" & ASCII.NUL;");
+            Write_Statement_Buffer;
 
-         Write_Statement_Buffer;
-
-         WBI
-           ("   pragma Export (C, Ada_Main_Program_Name, " &
-            """__gnat_ada_main_program_name"");");
+            WBI
+              ("   pragma Export (C, Ada_Main_Program_Name, " &
+               """__gnat_ada_main_program_name"");");
+         end if;
       end if;
 
       WBI ("");
@@ -3070,7 +3138,8 @@ package body Bindgen is
          --  Ditto for the use of System.Secondary_Stack
 
          Check_Package
-           (System_Secondary_Stack_Used, "system.secondary_stack%s");
+           (System_Secondary_Stack_Package_In_Closure,
+            "system.secondary_stack%s");
 
          --  Ditto for use of an SMP bareboard runtime
 

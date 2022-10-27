@@ -1,29 +1,29 @@
-// Copyright (C) 2015-2019 Free Software Foundation, Inc.
+// Copyright (C) 2015-2022 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
 // terms of the GNU General Public License as published by the
 // Free Software Foundation; either version 3, or (at your option)
 // any later version.
- 
+
 // This library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
- 
+
 // You should have received a copy of the GNU General Public License along
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
 // { dg-do run { target c++11 } }
-// COW strings don't support C++11 allocators:
-// { dg-require-effective-target cxx11-abi }
+// COW strings don't support C++11 allocator propagation:
+// { dg-require-effective-target cxx11_abi }
 
 #include <string>
 #include <testsuite_hooks.h>
 #include <testsuite_allocator.h>
 #include <ext/throw_allocator.h>
- 
+
 using C = wchar_t;
 const C c = L'a';
 using traits = std::char_traits<C>;
@@ -133,10 +133,46 @@ void test03()
   VERIFY( v1.get_allocator() == a2 );
 }
 
+void test04()
+{
+  // LWG2579
+  typedef propagating_allocator<C, true> alloc_type;
+
+  typedef std::basic_string<C, traits, alloc_type> test_type;
+
+  test_type v1(L"tralalala",alloc_type(1));
+  test_type v2(L"content", alloc_type(2));
+  test_type v3(L"content2", alloc_type(3));
+
+  v1.assign(v2);
+  v3 = v2;
+  VERIFY(2 == v1.get_allocator().get_personality());
+  VERIFY(2 == v3.get_allocator().get_personality());
+
+}
+
+void test05()
+{
+  // LWG2579
+  typedef propagating_allocator<C, false> alloc_type;
+
+  typedef std::basic_string<C, traits, alloc_type> test_type;
+
+  test_type v1(L"tralalala",alloc_type(1));
+  test_type v2(L"content", alloc_type(2));
+  test_type v3(L"content2", alloc_type(3));
+
+  v1.assign(v2);
+  v3 = v2;
+  VERIFY(1 == v1.get_allocator().get_personality());
+  VERIFY(3 == v3.get_allocator().get_personality());
+}
 int main()
 {
   test01();
   test02();
   test03();
+  test04();
+  test05();
   return 0;
 }

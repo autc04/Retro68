@@ -1,7 +1,7 @@
 /* Verify that overloaded built-ins for vec_extract() with float
    inputs produce the right code with a P8 (LE or BE) target.  */
 
-/* { dg-do compile { target { powerpc*-*-linux* } } } */
+/* { dg-do compile } */
 /* { dg-require-effective-target powerpc_p8vector_ok } */
 /* { dg-options "-mdejagnu-cpu=power8 -O2" } */
 
@@ -26,7 +26,7 @@
 /* { dg-final { scan-assembler-times {\mstxvd2x\M} 1 { target ilp32 } } } */
 /* { dg-final { scan-assembler-times {\madd\M} 1 { target ilp32 } } } */
 /* { dg-final { scan-assembler-times {\mlfs\M} 1 { target ilp32 } } } */
-/* { dg-final { scan-assembler-times {\maddi\M} 1 { target ilp32 } } } */
+/* { dg-final { scan-assembler-times {\maddi\M} 2 { target ilp32 } } } */
 
 
 #include <altivec.h>
