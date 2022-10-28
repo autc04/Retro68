@@ -30,8 +30,9 @@
 
 /* AIX always has a TOC.  */
 #define TARGET_NO_TOC 0
-#define TARGET_TOC 1
+#define TARGET_HAS_TOC 1
 #define FIXED_R2 1
+
 
 /* AIX allows r13 to be used in 32-bit mode.  */
 #define FIXED_R13 0
@@ -255,6 +256,31 @@
 	  fprintf ((STREAM), "void %s() {\n\t%s();\n}\n", aix_shared_fininame, (FUNC))
 
 #endif
+
+#if HAVE_AS_REF
+/* Issue assembly directives that create a reference to the given DWARF table
+   identifier label from the current function section.  This is defined to
+   ensure we drag frame tables associated with needed function bodies in
+   a link with garbage collection activated.  */
+#define ASM_OUTPUT_DWARF_TABLE_REF rs6000_aix_asm_output_dwarf_table_ref
+#endif
+/* Use standard DWARF numbering for DWARF debugging information.  */
+#define RS6000_USE_DWARF_NUMBERING
+#define DWARF2_DEBUGGING_INFO 1
+//#define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
+#define PREFERRED_DEBUGGING_TYPE XCOFF_DEBUG
+#define DEBUG_INFO_SECTION	"0x10000"
+#define DEBUG_LINE_SECTION	"0x20000"
+#define DEBUG_PUBNAMES_SECTION	"0x30000"
+#define DEBUG_PUBTYPES_SECTION	"0x40000"
+#define DEBUG_ARANGES_SECTION	"0x50000"
+#define DEBUG_ABBREV_SECTION	"0x60000"
+#define DEBUG_STR_SECTION	"0x70000"
+#define DEBUG_RANGES_SECTION	"0x80000"
+#define DEBUG_LOC_SECTION	"0x90000"
+#define DEBUG_FRAME_SECTION	"0xA0000"
+#define DEBUG_MACINFO_SECTION	"0xB0000"
+#define DEBUG_MACRO_SECTION	"0xB0000"
 
 
 
