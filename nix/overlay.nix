@@ -70,6 +70,8 @@ pkgs: prevPkgs:
           name = "retro68.binutils_unwrapped";
           src = ../binutils;
 
+          buildInputs = [ texinfo ];
+
           configureFlags =
             [ "--target=${stdenv.targetPlatform.config}" "--disable-doc" ]
             ++ stdenv.targetPlatform.retro68BinutilsConfig or [ ];
