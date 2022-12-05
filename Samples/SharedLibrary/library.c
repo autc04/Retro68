@@ -25,7 +25,7 @@
 #include "library.h"
 #include <Sound.h>
 
-void beep()
+void beep(void)
 {
     SysBeep(20);
 }
@@ -39,7 +39,7 @@ void beep()
  * Note that a function by this name was an actual, documented part
  * of the BeOS API.
  */
-Boolean is_computer_on()
+Boolean is_computer_on(void)
 {
     return true;
 }

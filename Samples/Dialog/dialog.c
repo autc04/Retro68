@@ -42,7 +42,7 @@ pascal void ButtonFrameProc(DialogRef dlg, DialogItemIndex itemNo)
     FrameRoundRect(&box,16,16);
 }
 
-int main()
+int main(void)
 {
 #if !TARGET_API_MAC_CARBON
     InitGraf(&qd.thePort);

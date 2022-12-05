@@ -1,6 +1,6 @@
 #include "Test.h"
 
-int main()
+int main(void)
 {
     TEST_LOG_SIZED("One",3);
     TEST_LOG_SIZED("Two",3);

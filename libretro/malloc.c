@@ -29,7 +29,7 @@
 #include <string.h>
 #include <MacMemory.h>
 
-void referenceMyMalloc() {}
+void referenceMyMalloc(void) {}
 
 void *_malloc_r(struct _reent *reent_ptr, size_t sz)
 {

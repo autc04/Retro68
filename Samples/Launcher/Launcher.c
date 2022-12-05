@@ -26,7 +26,7 @@
 
 #include <string.h>
 
-void Explain()
+void Explain(void)
 {
     printf("*********************************************************\n");
     printf("This program is intended to make developing software\n");
@@ -41,7 +41,7 @@ void Explain()
     printf("*********************************************************\n");
 }
 
-void EjectOldDisk()
+void EjectOldDisk(void)
 {
     Handle h = GetResource('LNCH', 128);
     if(h)
@@ -55,7 +55,7 @@ void EjectOldDisk()
     }
 }
 
-int main()
+int main(void)
 {
     Explain();
     EjectOldDisk();

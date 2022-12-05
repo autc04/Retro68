@@ -62,11 +62,11 @@
         (*(typeof(&FUN)) ((char*)(&FUN) + displacement)) ARGS;    \
     } while(0)
 
-void Retro68Relocate();
-void Retro68CallConstructors();
-void Retro68CallDestructors();
-void Retro68FreeGlobals();
-void Retro68InitMultisegApp();
+void Retro68Relocate(void);
+void Retro68CallConstructors(void);
+void Retro68CallDestructors(void);
+void Retro68FreeGlobals(void);
+void Retro68InitMultisegApp(void);
 void Retro68ApplyRelocations(uint8_t *base, uint32_t size, void *relocations, uint32_t displacements[]);
 
 #define RETRO68_RELOCATE() RETRO68_CALL_UNRELOCATED(Retro68Relocate,())

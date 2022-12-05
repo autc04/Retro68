@@ -157,7 +157,7 @@ float ray(int n, float x0, float y0, float z0, float dx, float dy, float dz)
         return v;
 }
 
-int main()
+int main(void)
 {
     WindowPtr win;
     

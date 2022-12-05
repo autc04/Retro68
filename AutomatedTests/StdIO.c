@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-int main()
+int main(void)
 {
     FILE *f = fopen("out", "w");
     fprintf(f, "OK\n");

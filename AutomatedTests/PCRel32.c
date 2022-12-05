@@ -6,7 +6,7 @@ __attribute__((noinline)) static void* foo(size_t x)
     return malloc(x);  
 }
 
-int main()
+int main(void)
 {
     if(*(short*)&foo != 0x60FF)
     {

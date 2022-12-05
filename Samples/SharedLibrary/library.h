@@ -19,5 +19,5 @@
 
 #include <MacTypes.h>
 
-void beep();
-Boolean is_computer_on();
+void beep(void);
+Boolean is_computer_on(void);

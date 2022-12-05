@@ -28,9 +28,9 @@
 
 int main(int argc, char* argv[]);
 
-void __do_global_dtors();
+void __do_global_dtors(void);
 
-void __start()
+void __start(void)
 {
     int result;
 
