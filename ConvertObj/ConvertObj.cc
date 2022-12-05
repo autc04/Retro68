@@ -56,7 +56,7 @@ enum ReferenceFlags {    // flags field of kReference
 
     kUnknownReferenceFlags = 0x6E    // rather a lot, isn't it?
         // The following flags are known to exist from DumpOBJ,
-        // but their value is unkown as I haven't actually seen them yet:
+        // but their value is unknown as I haven't actually seen them yet:
         // k32BitOffsets (default k16BitOffsets)
 };
 
