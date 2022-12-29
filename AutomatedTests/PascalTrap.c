@@ -1,12 +1,12 @@
 #include <FixMath.h>
 #include "Test.h"
 
-short calc()
+short calc(void)
 {
     return FixRound(FixRatio(42,5));
 }
 
-int main()
+int main(void)
 {
     if(calc() == 8)
         TEST_LOG_OK();

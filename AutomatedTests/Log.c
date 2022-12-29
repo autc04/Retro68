@@ -2,7 +2,7 @@
 
 char readWriteData[6] = "Three";
 
-int main()
+int main(void)
 {
         // constant initialized data
     TEST_LOG_SIZED("One",3);

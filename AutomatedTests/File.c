@@ -1,6 +1,6 @@
 #include "Test.h"
 
-int main()
+int main(void)
 {
     TEST_LOG_OK();
 }

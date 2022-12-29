@@ -2,7 +2,7 @@
 #include "ShowInitIcon.h"
 #include "Retro68Runtime.h"
 
-void _start()
+void _start(void)
 {
     RETRO68_RELOCATE();
     Retro68CallConstructors();

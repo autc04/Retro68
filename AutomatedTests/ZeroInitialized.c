@@ -8,7 +8,7 @@ int commonSymbol;
 int zeroInited = 0;
 EventRecord e;
 
-int main()
+int main(void)
 {
     int i;
     if(commonSymbol)

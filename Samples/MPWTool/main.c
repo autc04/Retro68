@@ -48,12 +48,12 @@ struct MPWFile;
 
 struct fsysTable
 {
-    void (*quit)();
-    void (*access)();
+    void (*quit)(void);
+    void (*access)(void);
     void (*close)(struct MPWFile *);
     void (*read)(struct MPWFile *);
     void (*write)(struct MPWFile *);
-    void (*ioctl)();
+    void (*ioctl)(void);
 };
 
 struct devtable
@@ -101,7 +101,7 @@ struct pgminfo
 
 
 // Get MPW's magic struct
-struct pgminfo2 * getPgmInfo()
+struct pgminfo2 *getPgmInfo(void)
 {
     struct pgminfo *pgm0 = *(struct pgminfo**) 0x316;
     if(!pgm0)
@@ -132,7 +132,7 @@ void _exit(int status)
 const int procInfo = kCStackBased
     | STACK_ROUTINE_PARAMETER(1, kFourByteCode);
 
-int main()
+int main(int argc, char *argv[], char *envp[])
 {
     struct pgminfo2 *pgm = getPgmInfo();
     if(pgm)
@@ -152,19 +152,20 @@ int main()
 
 #if TARGET_CPU_PPC
 
-void __do_global_dtors();
+void __do_global_dtors(void);
 
-void __start()
+void __start(void)
 {
     if(setjmp(exit_buf))
-    ;
+        ;
     else
     {
         atexit(&__do_global_dtors);
         int result;
         {
             char *argv[2] = { "./a.out", NULL };
-            result = main(1, argv);
+            char *envp[1] = { NULL };
+            result = main(1, argv, envp);
         }
         exit(result);
     }
@@ -174,7 +175,7 @@ void *__dso_handle = &__dso_handle;
 
 #else
 
-void _start()
+void _start(void)
 {
     RETRO68_RELOCATE();
 
@@ -188,7 +189,8 @@ void _start()
         int result;
         {
             char *argv[2] = { "./a.out", NULL };
-            result = main(1, argv);
+            char *envp[1] = { NULL };
+            result = main(1, argv, envp);
         }
         exit(result);
     }

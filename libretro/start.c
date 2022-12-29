@@ -28,7 +28,7 @@
 
 int main(int argc, char* argv[]);
 
-void _start()
+void _start(void)
 {
     RETRO68_RELOCATE();
     atexit(&Retro68CallDestructors);

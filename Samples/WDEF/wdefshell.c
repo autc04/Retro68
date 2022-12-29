@@ -64,7 +64,7 @@ void MakeNewWindow(ConstStr255Param title, short procID)
     OffsetRect(&nextWindowRect, 15, 15);
 }
 
-void InitCustomWDEF()
+void InitCustomWDEF(void)
 {
 /* The 10-byte code resource stub trick.
  *
@@ -91,7 +91,7 @@ void InitCustomWDEF()
     // with custom WDEFs.
 }
 
-void ShowAboutBox()
+void ShowAboutBox(void)
 {
     WindowRef w = GetNewWindow(128, NULL, (WindowPtr) - 1);
     MoveWindow(w,
@@ -116,7 +116,7 @@ void ShowAboutBox()
     DisposeWindow(w);
 }
 
-void UpdateMenus()
+void UpdateMenus(void)
 {
     MenuRef m = GetMenu(kMenuFile);
     WindowRef w = FrontWindow();
@@ -234,7 +234,7 @@ void DoUpdate(WindowRef w)
     EndUpdate(w);
 }
 
-int main()
+int main(void)
 {
     InitGraf(&qd.thePort);
     InitFonts();

@@ -23,6 +23,7 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED TRUE)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror=return-type -Wno-multichar")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror=return-type -Werror=strict-prototypes -Wno-multichar")
 
 enable_testing()
 

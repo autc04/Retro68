@@ -5,8 +5,8 @@
 
 int variable;
 
-void Foo();
-void Bar();
+void Foo(void);
+void Bar(void);
 
 Boolean Test(Boolean unloadFoo, Boolean unloadBar, Boolean compact)
 {
@@ -36,7 +36,7 @@ Boolean Test(Boolean unloadFoo, Boolean unloadBar, Boolean compact)
     return true;
 }
 
-int main()
+int main(void)
 {
     Size grow, maxblock, maxblock2, freemem, freemem2;
 
