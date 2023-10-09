@@ -4,7 +4,7 @@ in { system ? builtins.currentSystem, nixpkgs ? sources.nixpkgs, ... }:
 let
   retroPlatforms = import nix/platforms.nix;
 
-  lib = ((import <nixpkgs>) { }).lib;
+  lib = ((import nixpkgs) { }).lib;
 
   multiversal_src = if builtins.pathExists ./multiversal/make-multiverse.rb then
     ./multiversal
