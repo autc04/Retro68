@@ -25,12 +25,19 @@ RUN mkdir /Retro68-build && \
 # Release image
 FROM base AS release
 
+ENV INTERFACES=multiversal
+
 COPY --from=build \
     /Retro68/interfaces-and-libraries.sh \
     /Retro68/prepare-headers.sh \
     /Retro68/prepare-rincludes.sh \
+    /Retro68/install-universal-interfaces.sh \
+    /Retro68/docker-entrypoint.sh \
     /Retro68-build/bin/
 
 COPY --from=build /Retro68-build/toolchain /Retro68-build/toolchain
 
 LABEL org.opencontainers.image.source https://github.com/autc04/Retro68
+
+CMD [ "/bin/bash" ]
+ENTRYPOINT [ "/Retro68-build/bin/docker-entrypoint.sh" ]
