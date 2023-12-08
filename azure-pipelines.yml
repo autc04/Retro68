@@ -81,7 +81,7 @@ jobs:
   - checkout: self
     submodules: true
   - script: |
-      docker run -i --name nix -v`pwd`:/src nixos/nix:2.3.12 <<EOF
+      docker run -i --name nix -v`pwd`:/src nixos/nix:2.18.1 <<EOF
         nix-env -iA cachix -f https://cachix.org/api/v1/install
         cachix use autc04
         nix-build src -A ${TARGET}.retro68.samples
