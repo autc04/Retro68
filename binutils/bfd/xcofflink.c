@@ -1965,7 +1965,9 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 	  if (xcoff_link_add_symbols_to_hash_table (sym, aux))
 	    {
 	      csect->flags |= SEC_IS_COMMON;
-	      csect->size = 0;
+	      // Retro68: see AutomatedTests/LocalStatic.cc
+	      if (sym.n_sclass != C_AIX_WEAKEXT)
+	        csect->size = 0;
 	      section = csect;
 	      value = aux.x_csect.x_scnlen.l;
 	    }
@@ -2172,8 +2174,12 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 	    {
 	      if ((*sym_hash)->root.type != bfd_link_hash_common
 		  || (*sym_hash)->root.u.c.p->section != csect)
-		/* We don't need the common csect we just created.  */
-		csect->size = 0;
+		{
+		  // Retro68: see AutomatedTests/LocalStatic.cc
+		  if ((*sym_hash)->root.type != bfd_link_hash_defweak)
+		    /* We don't need the common csect we just created.  */
+		     csect->size = 0;
+		}
 	      else
 		(*sym_hash)->root.u.c.p->alignment_power
 		  = csect->alignment_power;
