@@ -23,7 +23,7 @@
 
 #include "library.h"
 
-int main()
+int main(void)
 {
         // wait until computer is turned on ;-)
     while(!is_computer_on())

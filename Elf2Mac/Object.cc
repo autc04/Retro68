@@ -29,11 +29,12 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <fstream>
-#include <sstream>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
+#include <string>
 
 #include <boost/algorithm/string/predicate.hpp>
-#include <boost/lexical_cast.hpp>
 
 #include "ResourceFork.h"
 #include "BinaryIO.h"
@@ -315,7 +316,12 @@ void Object::MultiSegmentApp(string output, SegmentMap& segmentMap)
 
         string exceptionInfoMarker = "__EH_FRAME_BEGIN__";
         if(id != 1)
-            exceptionInfoMarker += boost::lexical_cast<string>(id);
+        {
+            std::ostringstream ss;
+            ss << std::setw(5) << std::setfill('0') << id;
+            const std::string zero_padded_id = ss.str();
+            exceptionInfoMarker += zero_padded_id;
+        }
         int exceptionInfoSym = symtab->FindSym(exceptionInfoMarker);
         if(exceptionInfoSym != -1)
         {

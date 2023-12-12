@@ -14,7 +14,7 @@ static UniversalProcPtr OriginalExitToShell;
 static UniversalProcPtr OriginalLaunch;
 static UniversalProcPtr OriginalChain;
 
-extern pascal void PatchedLoadSeg();
+extern pascal void PatchedLoadSeg(void);
 
 typedef union JTEntry
 {
@@ -171,10 +171,10 @@ static pascal void PatchedUnloadSeg(Ptr ptr)
     HPurge(CODE);
 }
 
-static void InstallPatches();
-static void UninstallPatches();
+static void InstallPatches(void);
+static void UninstallPatches(void);
 
-static pascal void PatchedExitToShell()
+static pascal void PatchedExitToShell(void)
 {
     UninstallPatches();
     ExitToShell();
@@ -204,7 +204,7 @@ static OSErr PatchedChain(void *p)
     return err;
 }
 
-static void InstallPatches()
+static void InstallPatches(void)
 {
     SetToolTrapAddress((UniversalProcPtr)&PatchedLoadSeg, _LoadSeg);
     SetToolTrapAddress((UniversalProcPtr)&PatchedUnloadSeg, _UnLoadSeg);
@@ -213,7 +213,7 @@ static void InstallPatches()
     SetToolTrapAddress((UniversalProcPtr)&PatchedChain, _Chain);
 }
 
-static void UninstallPatches()
+static void UninstallPatches(void)
 {
     SetToolTrapAddress((UniversalProcPtr)OriginalLoadSeg, _LoadSeg);
     SetToolTrapAddress((UniversalProcPtr)OriginalUnloadSeg, _UnLoadSeg);
@@ -226,7 +226,7 @@ static void UninstallPatches()
 // section boundaries
 extern uint8_t _stext, _etext, _sdata, _edata, _sbss[], _ebss;
 
-void Retro68InitMultisegApp()
+void Retro68InitMultisegApp(void)
 {
     uint8_t * a5 = (uint8_t*) StripAddressCompat((void*)SetCurrentA5());
 

@@ -47,12 +47,12 @@ For Arch Linux, this should do the trick:
 
 On a Mac, get the homebrew package manager and:
 
-    brew install boost cmake gmp mpfr libmpc bison
+    brew install boost cmake gmp mpfr libmpc bison texinfo
 
 You can also run Retro68 on a PowerMac G4 or G5 running Mac OS 10.4 (Tiger).
 In that case, get the tigerbrew package manager and
 
-    brew install gcc cmake gmp mpfr libmpc bison
+    brew install gcc cmake gmp mpfr libmpc bison texinfo
     brew install boost --c++11
 
 ### Apple Universal Interfaces vs. Multiversal Interfaces
