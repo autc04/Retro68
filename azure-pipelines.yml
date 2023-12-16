@@ -51,7 +51,7 @@ jobs:
     env:
       GHCR_TOKEN: $(GHCR_TOKEN)
     displayName: 'Push release to GHCR'
-    # condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
 
 - job: macOS
   pool:
