@@ -25,3 +25,9 @@ RUN mkdir /Retro68-build && \
 FROM base AS release
 
 COPY --from=build /Retro68-build/toolchain /Retro68-build/toolchain
+
+
+
+FROM ubuntu:20.04 AS testimage
+
+RUN apt-get update
