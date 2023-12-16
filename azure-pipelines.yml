@@ -64,7 +64,7 @@ jobs:
 #      tags: latest
 #    displayName: 'Push release to GHCR'
   - script: |
-      docker login ghcr.io/autc04 -u autc04 -p $GHC_TOKEN
+      docker login ghcr.io/autc04 -u autc04 -p $(GHC_TOKEN)
       docker push ghcr.io/autc04/testimage
-    env:
-      GHCR_TOKEN: $(GHCR_TOKEN)
+    displayName: 'Push release to GHCR'
+    condition: and(succeeded(), ne(variables['GHCR_TOKEN'], ''))
