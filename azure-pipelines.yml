@@ -53,22 +53,22 @@ jobs:
 #      testResultsFormat: 'CTest'
 #      testResultsFiles: build/Testing/**/*.xml
 #      buildPlatform: 'x86_64-linux'
-  - task: Docker@2
-    inputs:
-      command: login
-      containerRegistry: autc04-github-docker
-    displayName: Login to GHCR
-  - task: Docker@2
-    inputs:
-      containerRegistry: autc04-github-docker
-      repository: autc04/testimage
-      command: push
-      tags: latest
-    displayName: 'Push release to GHCR'
+#  - task: Docker@2
+#    inputs:
+#      command: login
+#      containerRegistry: autc04-github-docker
+#    displayName: Login to GHCR
+#  - task: Docker@2
+#    inputs:
+#      containerRegistry: autc04-github-docker
+#      repository: autc04/testimage
+#      command: push
+#      tags: latest
+#    displayName: 'Push release to GHCR'
   - script: |
       docker login ghcr.io/autc04 -u autc04 -p $GHCR_TOKEN
       docker push ghcr.io/autc04/testimage
     env:
       GHCR_TOKEN: $(GHCR_TOKEN)
     displayName: 'Push release to GHCR'
-    condition: and(succeeded(), ne(variables['GHCR_TOKEN'], ''))
+#    condition: and(succeeded(), ne(variables['GHCR_TOKEN'], ''))
