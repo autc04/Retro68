@@ -7,6 +7,8 @@ jobs:
   pool:
     vmImage: 'ubuntu-latest'
   timeoutInMinutes: 90
+  variables:
+  - group: Tokens  
   steps:
   - checkout: self
     submodules: true
@@ -63,8 +65,10 @@ jobs:
       command: push
       tags: latest
     displayName: 'Push release to GHCR'
-#  - script: |
-#      docker login ghcr.io/autc04 -u autc04 -p $(GHC_TOKEN)
-#      docker push ghcr.io/autc04/testimage
-#    displayName: 'Push release to GHCR'
-#    condition: and(succeeded(), ne(variables['GHCR_TOKEN'], ''))
+  - script: |
+      docker login ghcr.io/autc04 -u autc04 -p $GHCR_TOKEN
+      docker push ghcr.io/autc04/testimage
+    env:
+      GHCR_TOKEN: $(GHCR_TOKEN)
+    displayName: 'Push release to GHCR'
+    condition: and(succeeded(), ne(variables['GHCR_TOKEN'], ''))
