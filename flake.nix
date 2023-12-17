@@ -3,31 +3,58 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    multiversal.url = "github:autc04/multiversal";
+    multiversal.flake = false;
   };
 
-  outputs = inputs@{ flake-parts, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      imports = [
-        # To import a flake module
-        # 1. Add foo to inputs
-        # 2. Add foo as a parameter to the outputs function
-        # 3. Add here: foo.flakeModule
+  outputs = inputs@{ flake-parts, nixpkgs, multiversal, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } ({ self, lib, retroPlatforms, ... }: {
+      _module.args.lib = import (nixpkgs + "/lib");
+      _module.args.retroPlatforms = import ./nix/platforms.nix;
 
-      ];
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-      perSystem = { config, self', inputs', pkgs, system, ... }: {
-        # Per-system attributes can be defined here. The self' and inputs'
-        # module parameters provide easy access to attributes of the same
-        # system.
+      perSystem = { config, self', inputs', pkgs, system, ... }:
+        {
+          _module.args.pkgs = import nixpkgs { inherit system; overlays = [ self.overlays.default ]; };
 
-        # Equivalent to  inputs'.nixpkgs.legacyPackages.hello;
-        packages.default = pkgs.hello;
-      };
+          legacyPackages.crossPkgs = lib.mapAttrs
+            (name: plat:
+              import nixpkgs {
+                inherit system;
+                overlays = [ self.overlays.default ];
+                crossSystem = plat;
+                config = { allowUnsupportedSystem = true; };
+              })
+            retroPlatforms;
+
+          devShells = {
+            default = pkgs.mkShell {
+              inputsFrom = [ pkgs.retro68.monolithic ];
+              nativeBuildInputs = [ pkgs.nixpkgs-fmt ];
+            };
+          } // lib.mapAttrs
+            (name: cross:
+              cross.mkShell
+                {
+                  nativeBuildInputs = with pkgs; [
+                    retro68.hfsutils
+                    retro68.tools
+                    cmake
+                    gnumake
+                  ];
+                  buildInputs = [ cross.retro68.console ];
+                } // cross)
+            self'.legacyPackages.crossPkgs;
+
+
+        };
       flake = {
-        # The usual flake attributes can be defined here, including system-
-        # agnostic ones like nixosModule and system-enumerating ones, although
-        # those are more easily expressed in perSystem.
-
+        overlays.default =
+          lib.composeManyExtensions [
+            ((import nix/overlay.nix) { multiversal_src = multiversal; })
+            (import nix/universal.nix)
+            (import nix/samples.nix)
+          ];
       };
-    };
+    });
 }

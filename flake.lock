@@ -17,6 +17,22 @@
         "type": "indirect"
       }
     },
+    "multiversal": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1682955462,
+        "narHash": "sha256-fOLYuSJOWh/iE7JelpeuT4NgZ/5bZivqV+o9LtiJGxA=",
+        "owner": "autc04",
+        "repo": "multiversal",
+        "rev": "1170bce4c98f1956ad73ca335479d510cd6e8620",
+        "type": "github"
+      },
+      "original": {
+        "owner": "autc04",
+        "repo": "multiversal",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1702312524,
@@ -54,6 +70,7 @@
     "root": {
       "inputs": {
         "flake-parts": "flake-parts",
+        "multiversal": "multiversal",
         "nixpkgs": "nixpkgs"
       }
     }

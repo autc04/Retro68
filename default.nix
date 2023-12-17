@@ -1,15 +1,15 @@
 let sources = import ./nix/sources.nix;
-in { system ? builtins.currentSystem, nixpkgs ? sources.nixpkgs, ... }:
+in { system ? builtins.currentSystem, nixpkgs ? sources.nixpkgs, 
+  multiversal_src ?  if builtins.pathExists ./multiversal/make-multiverse.rb then
+    ./multiversal
+  else
+    sources.multiversal,
+  ... }:
 
 let
   retroPlatforms = import nix/platforms.nix;
 
   lib = ((import nixpkgs) { inherit system; }).lib;
-
-  multiversal_src = if builtins.pathExists ./multiversal/make-multiverse.rb then
-    ./multiversal
-  else
-    sources.multiversal;
 
   # A Nixpkgs overlay.
   overlay = lib.composeManyExtensions [
@@ -30,6 +30,8 @@ let
       crossSystem = plat;
       config = { allowUnsupportedSystem = true; };
     }) retroPlatforms;
+  targetPkgs = lib.mapAttrs (name: cross:
+    cross.buildPackages) crossPkgs;
 
   shell = lib.mapAttrs (name: cross:
     cross.mkShell {
@@ -45,4 +47,5 @@ let
 in shell.m68k // shell // {
   inherit overlay;
   inherit (overlaidPkgs) retro68;
+  targetPkg = targetPkgs;
 }
