@@ -7,7 +7,7 @@ RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
         cmake libgmp-dev libmpfr-dev libmpc-dev \
         libboost-all-dev bison texinfo \
-        ruby flex curl g++ git
+        ruby flex curl g++ git macutils
 
 # Add toolchain to default PATH
 ENV PATH=/Retro68-build/toolchain/bin:$PATH
@@ -19,11 +19,25 @@ FROM base AS build
 ADD . /Retro68
 
 RUN mkdir /Retro68-build && \
+    mkdir /Retro68-build/bin && \
     bash -c "cd /Retro68-build && bash /Retro68/build-toolchain.bash"
 
 # Release image
 FROM base AS release
 
+ENV INTERFACES=multiversal
+
+COPY --from=build \
+    /Retro68/interfaces-and-libraries.sh \
+    /Retro68/prepare-headers.sh \
+    /Retro68/prepare-rincludes.sh \
+    /Retro68/install-universal-interfaces.sh \
+    /Retro68/docker-entrypoint.sh \
+    /Retro68-build/bin/
+
 COPY --from=build /Retro68-build/toolchain /Retro68-build/toolchain
 
 LABEL org.opencontainers.image.source https://github.com/autc04/Retro68
+
+CMD [ "/bin/bash" ]
+ENTRYPOINT [ "/Retro68-build/bin/docker-entrypoint.sh" ]

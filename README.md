@@ -192,6 +192,89 @@ package contains a very portable library, the command will of course fail. Pleas
 report bugs, please report successes instead!
 
 
+Using Retro68 with Docker
+-------------------------
+
+Whenever commits are merged into the Retro68 git repository, a build pipeline is triggered to
+create a container image which is then pushed to the Retro68 package repository as
+`ghcr.io/autc04/retro68`. This image contains the complete 68K and PPC toolchains ready for
+use for either local development or as part of CI pipeline. The command line below shows an
+example invocation of Retro68 to build the `Samples/Raytracer` app:
+
+```
+$ git clone --depth 1 https://github.com/autc04/Retro68.git
+$ cd Retro68
+$ docker run --rm -v $(pwd):/root -i ghcr.io/autc04/retro68 /bin/bash <<"EOF"
+    cd Samples/Raytracer
+    rm -rf build && mkdir build && cd build
+    cmake .. -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
+    make
+EOF
+```
+
+The container image is configured by default to use the multiversal interfaces, but it is
+possible to use the universal interfaces by passing a path to either a local file or a URL
+that points to a Macbinary DiskCopy image containing the "Interfaces&Libraries" directory
+from MPW.
+
+Using the universal interfaces from a local file:
+
+```
+$ docker run --rm -v $(pwd):/root -v $(pwd)/MPW-GM.img.bin:/tmp/MPW-GM.img.bin \
+  -e INTERFACES=universal -e INTERFACESFILE=/tmp/MPW-GM.img.bin \
+  -i ghcr.io/autc04/retro68 /bin/bash <<"EOF"
+    cd Samples/Raytracer
+    rm -rf build && mkdir build && cd build
+    cmake .. -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
+    make
+EOF
+```
+
+Using the universal interfaces from a URL:
+
+```
+$ docker run --rm -v $(pwd):/root \
+  -e INTERFACES=universal -e INTERFACESFILE=https://mysite.com/MPW-GM.img.bin \
+  -i ghcr.io/autc04/retro68 /bin/bash <<"EOF"
+    cd Samples/Raytracer
+    rm -rf build && mkdir build && cd build
+    cmake .. -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
+    make
+EOF
+```
+
+Note that `entrypoint.sh` checks to see if the universal interfaces are installed into
+`/Retro68/toolchain/universal` first before attempting to access the file or URL specified
+by INTERFACESFILE. This means that it is possible to use caching or another volume so that
+the universal interfaces are only processed once to speed up builds e.g.
+
+```
+$ docker run --rm -v $(pwd):/root \
+  -v $(pwd)/universal:/Retro68-build/toolchain/universal \
+  -e INTERFACES=universal -e INTERFACESFILE=https://mysite.com/MPW-GM.img.bin \
+  -i ghcr.io/autc04/retro68 /bin/bash <<"EOF"
+    cd Samples/Raytracer
+    rm -rf build && mkdir build && cd build
+    cmake .. -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
+    make
+EOF
+```
+
+and then on subsequent runs:
+
+```
+$ docker run --rm -v $(pwd):/root \
+  -v $(pwd)/universal:/Retro68-build/toolchain/universal \
+  -e INTERFACES=universal \
+  -i ghcr.io/autc04/retro68 /bin/bash <<"EOF"
+    cd Samples/Raytracer
+    rm -rf build && mkdir build && cd build
+    cmake .. -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
+    make
+EOF
+```
+
+
 Sample programs
 ---------------
 
