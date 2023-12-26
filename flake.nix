@@ -2,7 +2,7 @@
   description = "Description for the project";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
     multiversal.url = "github:autc04/multiversal";
     multiversal.flake = false;
     flake-parts.url = "github:hercules-ci/flake-parts";

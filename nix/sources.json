@@ -5,10 +5,10 @@
         "homepage": null,
         "owner": "autc04",
         "repo": "multiversal",
-        "rev": "1170bce4c98f1956ad73ca335479d510cd6e8620",
-        "sha256": "040vi7c2wggaazm2nrjvzrkn10sgmsbrcpmj2gi1ynjf4awxiqkw",
+        "rev": "27c08c654bbd48d23f025741e3a584b59374904a",
+        "sha256": "1b022pvpjw3n6713zq09abgbm0iba6lr16czhjxi1yk23xchny0s",
         "type": "tarball",
-        "url": "https://github.com/autc04/multiversal/archive/1170bce4c98f1956ad73ca335479d510cd6e8620.tar.gz",
+        "url": "https://github.com/autc04/multiversal/archive/27c08c654bbd48d23f025741e3a584b59374904a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
@@ -24,15 +24,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs": {
-        "branch": "release-21.11",
+        "branch": "nixos-23.11",
         "description": "Nix Packages collection",
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "2766f77c32e171a04d59b636a91083bae862274e",
-        "sha256": "1xk1f62n00z7q5i3pf4c8c4rlv5k4jwpgh0pqgzw1l40vhdkixk9",
+        "rev": "0b3d618173114c64ab666f557504d6982665d328",
+        "sha256": "1p941x8rx6hq8zrcmwnw6rnxd4v0v7vn1v5a763lmjxcfglz965b",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/2766f77c32e171a04d59b636a91083bae862274e.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/0b3d618173114c64ab666f557504d6982665d328.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
