@@ -68,6 +68,12 @@
             ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.crossPkgs.m68k.buildPackages.retro68.gcc_unwrapped}/. $out
             ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.crossPkgs.powerpc.buildPackages.retro68.gcc_unwrapped}/. $out
           '';
+
+          packages.samples = pkgs.linkFarm "Retro68-Samples" [
+            { name = "m68k"; path = self'.legacyPackages.crossPkgs.m68k.retro68.samples; }
+            { name = "powerpc"; path = self'.legacyPackages.crossPkgs.powerpc.retro68.samples; }
+            { name = "carbon"; path = self'.legacyPackages.crossPkgs.carbon.retro68.samples; }
+          ];
         };
       flake = {
         overlays.default =
