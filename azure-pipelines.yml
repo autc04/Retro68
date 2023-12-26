@@ -99,19 +99,21 @@ jobs:
       curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
     displayName: Install Nix
   - script: |
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       nix profile install --accept-flake-config nixpkgs#cachix
       cachix use autc04
     displayName: Setup Cachix
   - checkout: self
     submodules: false
   - script: |
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       nix develop .#${TARGET} --profile dev-profile -c true
       nix build .#samples-${TARGET} --out-link=CompiledSamples
     displayName: Build
   - publish: CompiledSamples
     artifact: Samples ($(TARGET))
   - script: |
-      set -e
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       export CACHIX_AUTH_TOKEN=$(CACHIX_AUTH_TOKEN)
       cachix push autc04 dev-profile
       cachix push autc04 CompiledSamples
@@ -136,19 +138,21 @@ jobs:
       curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
     displayName: Install Nix
   - script: |
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       nix profile install --accept-flake-config nixpkgs#cachix
       cachix use autc04
     displayName: Setup Cachix
   - checkout: self
     submodules: false
   - script: |
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       nix develop .#${TARGET} --profile dev-profile -c true
       nix build .#samples-${TARGET} --out-link=CompiledSamples
     displayName: Build
   - publish: CompiledSamples
     artifact: Samples ($(TARGET))
   - script: |
-      set -e
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       export CACHIX_AUTH_TOKEN=$(CACHIX_AUTH_TOKEN)
       cachix push autc04 dev-profile
       cachix push autc04 CompiledSamples
