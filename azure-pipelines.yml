@@ -95,8 +95,6 @@ jobs:
   pool:
     vmImage: 'ubuntu-22.04'
   steps:
-  - checkout: self
-    submodules: false
   - script: |
       curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
     displayName: Install Nix
@@ -104,6 +102,8 @@ jobs:
       nix-env -iA cachix -f https://cachix.org/api/v1/install
       cachix use autc04
     displayName: Setup Cachix
+  - checkout: self
+    submodules: false
   - script: |
       nix develop .#${TARGET} --profile dev-profile -c true
       nix build .#samples-${TARGET} --out-link=CompiledSamples
@@ -132,8 +132,6 @@ jobs:
   pool:
     vmImage: 'macOS-11'
   steps:
-  - checkout: self
-    submodules: false
   - script: |
       curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
     displayName: Install Nix
@@ -141,6 +139,8 @@ jobs:
       nix-env -iA cachix -f https://cachix.org/api/v1/install
       cachix use autc04
     displayName: Setup Cachix
+  - checkout: self
+    submodules: false
   - script: |
       nix develop .#${TARGET} --profile dev-profile -c true
       nix build .#samples-${TARGET} --out-link=CompiledSamples
