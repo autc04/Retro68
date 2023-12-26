@@ -5,6 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     multiversal.url = "github:autc04/multiversal";
     multiversal.flake = false;
+    flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
   outputs = inputs@{ flake-parts, nixpkgs, multiversal, ... }:
