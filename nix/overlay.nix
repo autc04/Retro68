@@ -251,7 +251,10 @@ pkgs: prevPkgs: {
 
   # binutils -- binutils with the wrappers provided by nixpkgs 
   binutils = if (prevPkgs.targetPlatform ? retro68) then
-    pkgs.wrapBintoolsWith { bintools = pkgs.retro68.binutils_unwrapped; }
+    pkgs.wrapBintoolsWith { 
+      bintools = pkgs.retro68.binutils_unwrapped; 
+      libc = null;
+    }
   else
     prevPkgs.binutils;
 
