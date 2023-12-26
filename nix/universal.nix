@@ -53,7 +53,6 @@ pkgs: prevPkgs:
           '');
         };
     });
-} // prevPkgs.lib.optionalAttrs (prevPkgs.targetPlatform ? retro68) {
 
   stdenvUniversal = pkgs.stdenv.override {
     cc = pkgs.stdenv.cc.override {
