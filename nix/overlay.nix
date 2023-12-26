@@ -1,6 +1,5 @@
 { multiversal_src }:
-pkgs: prevPkgs:
-{
+pkgs: prevPkgs: {
   retro68 = pkgs.lib.makeScope pkgs.newScope (self:
     {
       platforms = import ./platforms.nix;
@@ -89,7 +88,7 @@ pkgs: prevPkgs:
 
                               rm $out/${stdenv.targetPlatform.config}/bin/ld
                               ln -s ${ld} $out/${stdenv.targetPlatform.config}/bin/ld
-                            '';
+            '';
         };
 
       # gcc -- gcc, without any wrappers
@@ -168,7 +167,7 @@ pkgs: prevPkgs:
             export RETRO68_REAL_LD="${pkgs.buildPackages.retro68.binutils_unwrapped}/bin/m68k-apple-macos-ld.real"
           '');
         };
-      in pkgs.makeSetupHook { } hook;
+      in pkgs.makeSetupHook { name = "retro68.setup_hook"; } hook;
 
       # ----------- Retro68 core libraries -------------
 
@@ -192,7 +191,6 @@ pkgs: prevPkgs:
           '' else
             "");
         };
-
 
       import_libraries = with pkgs;
         if stdenvNoCC.targetPlatform.system != "m68k-macos" then
@@ -248,30 +246,36 @@ pkgs: prevPkgs:
         };
 
     });
-} // prevPkgs.lib.optionalAttrs (prevPkgs.targetPlatform ? retro68) {
 
   # ----------- Binutils & GCC wrapped for nixpkgs -------------
 
   # binutils -- binutils with the wrappers provided by nixpkgs 
-  binutils =
-    pkgs.wrapBintoolsWith { bintools = pkgs.retro68.binutils_unwrapped; };
+  binutils = if (prevPkgs.targetPlatform ? retro68) then
+    pkgs.wrapBintoolsWith { bintools = pkgs.retro68.binutils_unwrapped; }
+  else
+    prevPkgs.binutils;
 
   # gcc -- gcc with the wrappers provided by nixpkgs
-  gcc = pkgs.wrapCCWith {
-    cc = pkgs.retro68.gcc_unwrapped;
+  gcc = if (prevPkgs.targetPlatform ? retro68) then
+    pkgs.wrapCCWith {
+      cc = pkgs.retro68.gcc_unwrapped;
+      bintools = pkgs.binutils;
+      libc = null;
 
-    # don't allow nix to add options for hardening
-    extraBuildCommands = ''
-      echo "" > $out/nix-support/add-hardening.sh
-    '';
+      # don't allow nix to add options for hardening
+      extraBuildCommands = ''
+        echo "" > $out/nix-support/add-hardening.sh
+      '';
 
-    extraPackages = with pkgs.targetPackages.retro68; [
-      multiversal
-      import_libraries
-      libretro
-      setup_hook
-    ];
-  };
+      extraPackages = with pkgs.targetPackages.retro68; [
+        multiversal
+        import_libraries
+        libretro
+        setup_hook
+      ];
+    }
+  else
+    prevPkgs.gcc;
 
   # no separate libc package for now
   libcCrossChooser = name:
