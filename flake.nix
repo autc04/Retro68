@@ -59,6 +59,8 @@
             ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.crossPkgs.m68k.retro68.multiversal}/. $out/m68k-apple-macos
             ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.crossPkgs.powerpc.retro68.libretro}/. $out/powerpc-apple-macos
             ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.crossPkgs.powerpc.retro68.multiversal}/. $out/powerpc-apple-macos
+            ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.crossPkgs.carbon.retro68.libretro}/. $out/powerpc-apple-macos
+            ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.crossPkgs.carbon.retro68.multiversal}/. $out/powerpc-apple-macos
             ${pkgs.xorg.lndir}/bin/lndir -silent ${pkgs.retro68.tools}/. $out
             ${pkgs.xorg.lndir}/bin/lndir -silent ${pkgs.retro68.hfsutils}/. $out
             ${pkgs.xorg.lndir}/bin/lndir -silent ${pkgs.cmake}/. $out
@@ -67,6 +69,7 @@
 
             ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.crossPkgs.m68k.buildPackages.retro68.gcc_unwrapped}/. $out
             ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.crossPkgs.powerpc.buildPackages.retro68.gcc_unwrapped}/. $out
+            ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.crossPkgs.carbon.buildPackages.retro68.gcc_unwrapped}/. $out
           '';
 
           packages.samples = pkgs.linkFarm "Retro68-Samples" [
