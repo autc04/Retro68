@@ -109,7 +109,7 @@ jobs:
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       nix develop .#${TARGET} --profile dev-profile -c true
-      nix build .#samples-${TARGET} --out-link=CompiledSamples
+      nix build .#samples-${TARGET} --out-link CompiledSamples
     displayName: Build
   - publish: CompiledSamples
     artifact: Samples ($(TARGET))
@@ -149,7 +149,7 @@ jobs:
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       nix develop .#${TARGET} --profile dev-profile -c true
-      nix build .#samples-${TARGET} --out-link=CompiledSamples
+      nix build .#samples-${TARGET} --out-link CompiledSamples
     displayName: Build
   - publish: CompiledSamples
     artifact: Samples ($(TARGET))
