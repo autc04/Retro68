@@ -99,7 +99,7 @@ jobs:
       curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
     displayName: Install Nix
   - script: |
-      nix-env -iA cachix -f https://cachix.org/api/v1/install
+      nix profile install --accept-flake-config nixpkgs#cachix
       cachix use autc04
     displayName: Setup Cachix
   - checkout: self
@@ -136,7 +136,7 @@ jobs:
       curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
     displayName: Install Nix
   - script: |
-      nix-env -iA cachix -f https://cachix.org/api/v1/install
+      nix profile install --accept-flake-config nixpkgs#cachix
       cachix use autc04
     displayName: Setup Cachix
   - checkout: self
