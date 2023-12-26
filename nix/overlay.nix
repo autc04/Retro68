@@ -276,9 +276,4 @@ pkgs: prevPkgs: {
     }
   else
     prevPkgs.gcc;
-
-  # no separate libc package for now
-  libcCrossChooser = name:
-    if name == "retro68" then null else prevPkgs.libcCrossChooser name;
-
 }

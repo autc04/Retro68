@@ -2,7 +2,7 @@
   m68k = {
     system = "m68k-macos";
     config = "m68k-apple-macos";
-    libc = "retro68";
+    libc = null;
     parsed = {
       cpu = {
         name = "m68k";
@@ -27,7 +27,7 @@
   powerpc = {
     system = "powerpc-macos";
     config = "powerpc-apple-macos";
-    libc = "retro68";
+    libc = null;
     parsed = {
       cpu = {
         name = "powerpc";
@@ -52,7 +52,7 @@
   carbon = {
     system = "powerpc-carbon";
     config = "powerpc-apple-macos";
-    libc = "retro68";
+    libc = null;
     parsed = {
       cpu = {
         name = "powerpc";
