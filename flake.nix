@@ -41,6 +41,7 @@
                     retro68.tools
                     cmake
                     gnumake
+                    ninja
                   ];
                   buildInputs = [ cross.retro68.console ];
                 } // cross)
