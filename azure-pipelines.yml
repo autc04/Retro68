@@ -93,34 +93,28 @@ jobs:
         TARGET: carbon
     maxParallel: 2
   pool:
-    vmImage: 'ubuntu-20.04'
+    vmImage: 'ubuntu-22.04'
   steps:
   - checkout: self
-    submodules: true
+    submodules: false
   - script: |
-      docker run -i --name nix -v`pwd`:/src nixos/nix:2.18.1 <<EOF
-        nix-env -iA cachix -f https://cachix.org/api/v1/install
-        cachix use autc04
-        nix-build src -A ${TARGET}.retro68.samples
-      EOF
-    displayName: Build inside nixos/nix docker
+      curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+    displayName: Install Nix
   - script: |
-      mkdir CompiledSamples
-      cd CompiledSamples
-      docker cp -L nix:result - | tar x --strip-components 1
-    displayName: Copy result out of docker
-
+      nix-env -iA cachix -f https://cachix.org/api/v1/install
+      cachix use autc04
+    displayName: Setup Cachix
+  - script: |
+      nix develop .#${TARGET} --profile dev-profile -c true
+      nix build .#samples-${TARGET} --out-link=CompiledSamples
+    displayName: Build
   - publish: CompiledSamples
     artifact: Samples ($(TARGET))
   - script: |
-      docker start nix -i <<EOF || true
-          set -e
-          export CACHIX_AUTH_TOKEN=$(CACHIX_AUTH_TOKEN)
-          cd src
-          nix-build -A ${TARGET}.retro68.samples | cachix push autc04
-          nix-shell -A ${TARGET} --command exit
-          nix-store -qR --include-outputs \$(nix-instantiate default.nix -A ${TARGET}) | cachix push autc04
-      EOF
+      set -e
+      export CACHIX_AUTH_TOKEN=$(CACHIX_AUTH_TOKEN)
+      cachix push autc04 dev-profile
+      cachix push autc04 CompiledSamples
     displayName: Push to Cachix
     condition: and(succeeded(), ne(variables['CACHIX_AUTH_TOKEN'], ''))
 
@@ -138,28 +132,28 @@ jobs:
   pool:
     vmImage: 'macOS-11'
   steps:
-  - script: |
-      export NIX_EXTRA_CONF="trusted-users = root runner"
-      sh <(curl -L https://nixos.org/nix/install)
-    displayName: Install nix
-  - script: |
-      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      nix-env -iA cachix -f https://cachix.org/api/v1/install
-      cachix use autc04
-    displayName: setup cachix
-
   - checkout: self
     submodules: false
   - script: |
-      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      nix-build -A $(TARGET).retro68.samples
-    displayName: build
+      curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+    displayName: Install Nix
   - script: |
-      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+      nix-env -iA cachix -f https://cachix.org/api/v1/install
+      cachix use autc04
+    displayName: Setup Cachix
+  - script: |
+      nix develop .#${TARGET} --profile dev-profile -c true
+      nix build .#samples-${TARGET} --out-link=CompiledSamples
+    displayName: Build
+  - publish: CompiledSamples
+    artifact: Samples ($(TARGET))
+  - script: |
+      set -e
       export CACHIX_AUTH_TOKEN=$(CACHIX_AUTH_TOKEN)
-      nix-build -A $(TARGET).retro68.samples | (cachix push autc04 || true)
-      nix-shell -A $(TARGET) --command exit
-      nix-store -qR --include-outputs `nix-instantiate default.nix -A $(TARGET)` | (cachix push autc04 || true)
+      cachix push autc04 dev-profile
+      cachix push autc04 CompiledSamples
     displayName: Push to Cachix
     condition: and(succeeded(), ne(variables['CACHIX_AUTH_TOKEN'], ''))
 
+  #export NIX_EXTRA_CONF="trusted-users = root runner"
+      #. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
