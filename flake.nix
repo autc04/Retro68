@@ -47,6 +47,8 @@
                 } // cross)
             self'.legacyPackages.crossPkgs;
 
+          packages.tools = pkgs.retro68.tools;
+          packages.hfsutils = pkgs.retro68.hfsutils;
 
         };
       flake = {
