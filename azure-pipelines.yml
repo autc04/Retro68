@@ -98,7 +98,7 @@ jobs:
   - checkout: self
     submodules: false
   - script: |
-      curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+      curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
     displayName: Install Nix
   - script: |
       nix-env -iA cachix -f https://cachix.org/api/v1/install
@@ -135,7 +135,7 @@ jobs:
   - checkout: self
     submodules: false
   - script: |
-      curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+      curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
     displayName: Install Nix
   - script: |
       nix-env -iA cachix -f https://cachix.org/api/v1/install
