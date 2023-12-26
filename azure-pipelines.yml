@@ -96,7 +96,8 @@ jobs:
     vmImage: 'ubuntu-22.04'
   steps:
   - script: |
-      curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
+      curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+        | sh -s -- install --no-confirm --extra-conf "trusted-users = root vsts"
     displayName: Install Nix
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
@@ -135,7 +136,8 @@ jobs:
     vmImage: 'macOS-11'
   steps:
   - script: |
-      curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
+      curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+        | sh -s -- install --no-confirm --extra-conf "trusted-users = root runner"
     displayName: Install Nix
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
