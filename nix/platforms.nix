@@ -14,6 +14,8 @@
         name = "macos";
         execFormat = { name = "unknown"; };
       };
+      vendor = { name = "apple"; };
+      abi = { name = "macos"; };
     };
     bfdEmulation = "m68k";
     isStatic = true;
@@ -37,6 +39,8 @@
         name = "macos";
         execFormat = { name = "unknown"; };
       };
+      vendor = { name = "apple"; };
+      abi = { name = "macos"; };
     };
 
     isStatic = true;
@@ -60,6 +64,8 @@
         name = "carbon";
         execFormat = { name = "unknown"; };
       };
+      vendor = { name = "apple"; };
+      abi = { name = "macos"; };
     };
     isStatic = true;
     retro68BinutilsConfig = [ "--disable-plugins" ];
@@ -67,9 +73,4 @@
     retro68 = true;
     cmakeSystemName = "RetroCarbon";
   };
-
-  isStatic = true;
-  retro68BinutilsConfig = [ "--disable-plugins" ];
-  retro68GccConfig = [ "--disable-lto" ];
-  retro68 = true;
 }
