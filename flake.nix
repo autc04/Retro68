@@ -72,7 +72,11 @@
       flake = {
         overlays.default =
           lib.composeManyExtensions [
-            ((import nix/overlay.nix) { multiversal_src = multiversal; })
+            ((import nix/overlay.nix) { 
+              multiversal_src = if builtins.pathExists ./multiversal/make-multiverse.rb
+                then ./multiversal
+                else multiversal;
+            })
             (import nix/universal.nix)
             (import nix/samples.nix)
           ];
