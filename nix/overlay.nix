@@ -32,6 +32,7 @@ pkgs: prevPkgs: {
             mkdir -p $out/share/man/man1
           '';
           configureFlags = [ "--mandir=$(out)/share/man" "--enable-devlibs" ];
+          env.CFLAGS = "--std=c89"; # the configure script fails with modern C
         };
 
       # tools -- native tools that are part of Retro68
@@ -116,7 +117,33 @@ pkgs: prevPkgs: {
             make -j$NIX_BUILD_CORES
             make install
           '';
+          env.CXXFLAGS="--std=c++14"; # gcc 9 doesn't seem to like C++17
         };
+
+      # binutils -- binutils with the wrappers provided by nixpkgs 
+      binutils = pkgs.wrapBintoolsWith { 
+        bintools = pkgs.retro68.binutils_unwrapped; 
+        libc = null;
+      };
+
+      # gcc -- gcc with the wrappers provided by nixpkgs
+      gcc = pkgs.wrapCCWith {
+        cc = pkgs.retro68.gcc_unwrapped;
+        bintools = pkgs.retro68.binutils;
+        libc = null;
+
+        # don't allow nix to add options for hardening
+        extraBuildCommands = ''
+          echo "" > $out/nix-support/add-hardening.sh
+        '';
+
+        extraPackages = with pkgs.targetPackages.retro68; [
+          multiversal
+          import_libraries
+          libretro
+          setup_hook
+        ];
+      };
 
     } // prevPkgs.lib.optionalAttrs (prevPkgs.hostPlatform ? retro68) {
 
@@ -178,7 +205,7 @@ pkgs: prevPkgs: {
         }).mkDerivation {
           name = "retro68.multiversal";
           src = multiversal_src;
-          nativeBuildInputs = [ buildPackages.ruby ];
+          nativeBuildInputs = [ pkgsBuildBuild.ruby ];
           buildCommand = ''
             echo $src
             build=`pwd`
@@ -249,34 +276,17 @@ pkgs: prevPkgs: {
 
   # ----------- Binutils & GCC wrapped for nixpkgs -------------
 
-  # binutils -- binutils with the wrappers provided by nixpkgs 
+  # binutils -- binutils with the wrappers provided by nixpkgs
+  # note: on nix/darwin (as of nixpkgs 23.11), nixpkgs seems to 
+  # ignore (or re-override) this override.
   binutils = if (prevPkgs.targetPlatform ? retro68) then
-    pkgs.wrapBintoolsWith { 
-      bintools = pkgs.retro68.binutils_unwrapped; 
-      libc = null;
-    }
+    pkgs.retro68.binutils
   else
     prevPkgs.binutils;
-
+  
   # gcc -- gcc with the wrappers provided by nixpkgs
   gcc = if (prevPkgs.targetPlatform ? retro68) then
-    pkgs.wrapCCWith {
-      cc = pkgs.retro68.gcc_unwrapped;
-      bintools = pkgs.binutils;
-      libc = null;
-
-      # don't allow nix to add options for hardening
-      extraBuildCommands = ''
-        echo "" > $out/nix-support/add-hardening.sh
-      '';
-
-      extraPackages = with pkgs.targetPackages.retro68; [
-        multiversal
-        import_libraries
-        libretro
-        setup_hook
-      ];
-    }
+    pkgs.retro68.gcc
   else
     prevPkgs.gcc;
 }
