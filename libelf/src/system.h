@@ -35,6 +35,7 @@
 #include <sys/param.h>
 #include "portable_endian.h"
 #include <unistd.h>
+#include <string.h>
 
 # define LE32(n)	le32toh (n)
 # define LE64(n)	le64toh (n)

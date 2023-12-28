@@ -1,59 +1,59 @@
 pkgs: prevPkgs:
 {
-  retro68 = if !(prevPkgs.hostPlatform ? retro68) then
-    prevPkgs.retro68
-  else
-    prevPkgs.retro68.overrideScope' (self: prevRetro: {
+  retro68 =
+    if !(prevPkgs.hostPlatform ? retro68) then
+      prevPkgs.retro68
+    else
+      prevPkgs.retro68.overrideScope' (self: prevRetro: {
 
-      mpw_35_gm = with pkgs;
-        fetchurl {
-          url =
-            "https://web.archive.org/web/20210309154524/https://staticky.com/mirrors/ftp.apple.com/developer/Tool_Chest/Core_Mac_OS_Tools/MPW_etc./MPW-GM_Images/MPW-GM.img.bin";
-          sha256 = "0wm8dwmm0cpp8px27in564ih27sn5vbydz3jqpzwh04qpfazmfwr";
-        };
+        mpw_35_gm = with pkgs;
+          fetchurl {
+            url =
+              "https://web.archive.org/web/20210309154524/https://staticky.com/mirrors/ftp.apple.com/developer/Tool_Chest/Core_Mac_OS_Tools/MPW_etc./MPW-GM_Images/MPW-GM.img.bin";
+            sha256 = "0wm8dwmm0cpp8px27in564ih27sn5vbydz3jqpzwh04qpfazmfwr";
+          };
 
-      universal = with pkgs;
-        stdenvNoCC.mkDerivation {
-          name = "retro68.universal";
-          src = retro68.mpw_35_gm;
-          nativeBuildInputs = with buildPackages.retro68; [
-            tools
-            hfsutils
-            binutils_unwrapped
-          ];
+        universal = with pkgs;
+          stdenvNoCC.mkDerivation {
+            name = "retro68.universal";
+            src = retro68.mpw_35_gm;
+            nativeBuildInputs = with buildPackages.retro68; [
+              tools
+              hfsutils
+              binutils_unwrapped
+            ];
 
-          buildCommand = ''
-            ConvertDiskImage $src decoded.dsk
-            export HOME=.
-            hmount decoded.dsk
-            mkdir -p CIncludes RIncludes
-            hcopy -t 'MPW-GM:MPW-GM:Interfaces&Libraries:Interfaces:CIncludes:*.h' CIncludes/
-            hcopy -t 'MPW-GM:MPW-GM:Interfaces&Libraries:Interfaces:RIncludes:*.r' RIncludes/
-            mkdir -p $out/include $out/RIncludes
-            bash ${../prepare-headers.sh} CIncludes $out/include
-            bash ${../prepare-rincludes.sh} RIncludes $out/RIncludes
+            buildCommand = ''
+              ConvertDiskImage $src decoded.dsk
+              export HOME=.
+              hmount decoded.dsk
+              mkdir -p CIncludes RIncludes
+              hcopy -t 'MPW-GM:MPW-GM:Interfaces&Libraries:Interfaces:CIncludes:*.h' CIncludes/
+              hcopy -t 'MPW-GM:MPW-GM:Interfaces&Libraries:Interfaces:RIncludes:*.r' RIncludes/
+              mkdir -p $out/include $out/RIncludes
+              bash ${../prepare-headers.sh} CIncludes $out/include
+              bash ${../prepare-rincludes.sh} RIncludes $out/RIncludes
 
-            . ${../interfaces-and-libraries.sh}
-          '' + (pkgs.lib.optionalString (pkgs.targetPlatform.cmakeSystemName == "Retro68")  ''
-            mkdir -p lib68
-            hcopy -r 'MPW-GM:MPW-GM:Interfaces&Libraries:Libraries:Libraries:*.o' lib68
-            M68KLIBRARIES=lib68
-            setup68KLibraries $out/
-            mv $out/lib68k $out/lib
-          '') + (pkgs.lib.optionalString (pkgs.targetPlatform.cmakeSystemName != "Retro68")  ''
-            mkdir -p libppc peflibs
-            hcopy -r 'MPW-GM:MPW-GM:Interfaces&Libraries:Libraries:PPCLibraries:*.o' libppc
-            hcopy -m 'MPW-GM:MPW-GM:Interfaces&Libraries:Libraries:SharedLibraries:*' peflibs
-            PPCLIBRARIES=libppc
-            SHAREDLIBRARIES=peflibs
-            INTERFACELIB=peflibs/InterfaceLib.bin
+              . ${../interfaces-and-libraries.sh}
+            '' + (pkgs.lib.optionalString (pkgs.targetPlatform.cmakeSystemName == "Retro68") ''
+              mkdir -p lib68
+              hcopy -r 'MPW-GM:MPW-GM:Interfaces&Libraries:Libraries:Libraries:*.o' lib68
+              M68KLIBRARIES=lib68
+              setup68KLibraries $out/
+              mv $out/lib68k $out/lib
+            '') + (pkgs.lib.optionalString (pkgs.targetPlatform.cmakeSystemName != "Retro68") ''
+              mkdir -p libppc peflibs
+              hcopy -r 'MPW-GM:MPW-GM:Interfaces&Libraries:Libraries:PPCLibraries:*.o' libppc
+              hcopy -m 'MPW-GM:MPW-GM:Interfaces&Libraries:Libraries:SharedLibraries:*' peflibs
+              PPCLIBRARIES=libppc
+              SHAREDLIBRARIES=peflibs
+              INTERFACELIB=peflibs/InterfaceLib.bin
 
-            setupPPCLibraries $out/
-            mv $out/libppc $out/lib
-          '');
-        };
-    });
-} // prevPkgs.lib.optionalAttrs (prevPkgs.targetPlatform ? retro68) {
+              setupPPCLibraries $out/
+              mv $out/libppc $out/lib
+            '');
+          };
+      });
 
   stdenvUniversal = pkgs.stdenv.override {
     cc = pkgs.stdenv.cc.override {

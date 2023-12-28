@@ -227,9 +227,9 @@ class ExportTable
 public:
 
     void addExport(StringTable& stringTable, const std::string& name,
-        uint32_t value, int16_t section) /* TODO: symbol class */
+        uint32_t value, int16_t section, uint8_t clas)
     {
-        uint32_t classAndName = (kPEFTVectorSymbol << 24) | stringTable.insert(name);
+        uint32_t classAndName = ((uint32_t)clas << 24) | stringTable.insert(name);
         symbols.push_back({hash(name), {classAndName, value, section}});
     }
 
@@ -376,7 +376,9 @@ void mkpef(const std::string& inFn, const std::string& outFn)
             {
                 if(verboseFlag)
                     std::cerr << "... exported from section " << get(sym.l_scnum) << " addr " << get(sym.l_value) <<  ".\n";
-                exports.addExport(stringTable, name, get(sym.l_value), 0 /* ### */);
+                exports.addExport(stringTable, name, get(sym.l_value), 1 /*all exports from section 1*/,
+                    (get(sym.l_smclas) == 10) ? kPEFTVectorSymbol : kPEFDataSymbol);
+
             }
         }
         importedSymbolIndices.resize(get(xcoffLoaderHeader.l_nsyms));

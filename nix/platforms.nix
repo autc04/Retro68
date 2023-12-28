@@ -2,7 +2,7 @@
   m68k = {
     system = "m68k-macos";
     config = "m68k-apple-macos";
-    libc = "retro68";
+    libc = null;
     parsed = {
       cpu = {
         name = "m68k";
@@ -14,6 +14,8 @@
         name = "macos";
         execFormat = { name = "unknown"; };
       };
+      vendor = { name = "apple"; };
+      abi = { name = "macos"; };
     };
     bfdEmulation = "m68k";
     isStatic = true;
@@ -25,7 +27,7 @@
   powerpc = {
     system = "powerpc-macos";
     config = "powerpc-apple-macos";
-    libc = "retro68";
+    libc = null;
     parsed = {
       cpu = {
         name = "powerpc";
@@ -37,6 +39,8 @@
         name = "macos";
         execFormat = { name = "unknown"; };
       };
+      vendor = { name = "apple"; };
+      abi = { name = "macos"; };
     };
 
     isStatic = true;
@@ -48,7 +52,7 @@
   carbon = {
     system = "powerpc-carbon";
     config = "powerpc-apple-macos";
-    libc = "retro68";
+    libc = null;
     parsed = {
       cpu = {
         name = "powerpc";
@@ -60,6 +64,8 @@
         name = "carbon";
         execFormat = { name = "unknown"; };
       };
+      vendor = { name = "apple"; };
+      abi = { name = "macos"; };
     };
     isStatic = true;
     retro68BinutilsConfig = [ "--disable-plugins" ];
@@ -67,9 +73,4 @@
     retro68 = true;
     cmakeSystemName = "RetroCarbon";
   };
-
-  isStatic = true;
-  retro68BinutilsConfig = [ "--disable-plugins" ];
-  retro68GccConfig = [ "--disable-lto" ];
-  retro68 = true;
 }

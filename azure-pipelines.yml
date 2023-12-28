@@ -5,36 +5,53 @@ jobs:
 
 - job: Linux
   pool:
-    vmImage: 'ubuntu-20.04'
+    vmImage: 'ubuntu-latest'
   timeoutInMinutes: 90
+  variables:
+  - group: Tokens  
   steps:
   - checkout: self
     submodules: true
-  - script: |
-      sudo apt-get update
-      DEBIAN_FRONTEND=noninteractive sudo apt-get install -y \
-        cmake libgmp-dev libmpfr-dev libmpc-dev \
-        libboost-all-dev bison texinfo \
-        ruby flex curl
-    displayName: 'Install prerequisites'
-  - script: |
-      mkdir build
-      cd build
-      ../build-toolchain.bash
+
+  - task: Docker@2
+    inputs:
+      command: build
+      repository: ghcr.io/autc04/retro68-build
+      tags: latest
+      arguments: --target build
     displayName: 'Build'
+  - task: Docker@2
+    inputs:
+      command: build
+      repository: ghcr.io/autc04/retro68
+      tags: latest
+      arguments: --target release
+    displayName: 'Build release'
   - script: |
-      cd build
-      curl -L -O https://github.com/autc04/executor/releases/download/v0.1.0/Executor2000-0.1.0-Linux.tar.bz2
-      tar xfvj Executor2000-0.1.0-Linux.tar.bz2 Executor2000-0.1.0-Linux/bin/executor-headless
-      echo "executor-path=`pwd`/Executor2000-0.1.0-Linux/bin/executor-headless" > ~/.LaunchAPPL.cfg
-      echo "emulator=executor" >> ~/.LaunchAPPL.cfg
-      ctest --no-compress-output -T test -E Carbon || true
+      docker run --name retro68-build --rm -i -d ghcr.io/autc04/retro68-build:latest
+      docker exec -i retro68-build /bin/bash <<"EOF"
+        cd /Retro68-build
+        curl -L -O https://github.com/autc04/executor/releases/download/v0.1.0/Executor2000-0.1.0-Linux.tar.bz2
+        tar xfvj Executor2000-0.1.0-Linux.tar.bz2 Executor2000-0.1.0-Linux/bin/executor-headless
+        echo "executor-path=`pwd`/Executor2000-0.1.0-Linux/bin/executor-headless" > ~/.LaunchAPPL.cfg
+        echo "emulator=executor" >> ~/.LaunchAPPL.cfg
+        ctest --no-compress-output -T test -E Carbon || true
+      EOF
+      mkdir build && docker cp retro68-build:/Retro68-build/Testing build
+      docker stop retro68-build
     displayName: Run Tests using Executor 2000
   - task: PublishTestResults@2
     inputs:
       testResultsFormat: 'CTest'
       testResultsFiles: build/Testing/**/*.xml
       buildPlatform: 'x86_64-linux'
+  - script: |
+      docker login ghcr.io/autc04 -u autc04 -p $GHCR_TOKEN
+      docker push ghcr.io/autc04/retro68
+    env:
+      GHCR_TOKEN: $(GHCR_TOKEN)
+    displayName: 'Push release to GHCR'
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
 
 - job: macOS
   pool:
@@ -74,36 +91,32 @@ jobs:
         TARGET: powerpc
       Carbon:
         TARGET: carbon
-    maxParallel: 2
   pool:
-    vmImage: 'ubuntu-20.04'
+    vmImage: 'ubuntu-latest'
   steps:
+  - script: |
+      curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+        | sh -s -- install --no-confirm --extra-conf "trusted-users = root vsts"
+    displayName: Install Nix
+  - script: |
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+      nix profile install --accept-flake-config nixpkgs#cachix
+      cachix use autc04
+    displayName: Setup Cachix
   - checkout: self
-    submodules: true
+    submodules: false
   - script: |
-      docker run -i --name nix -v`pwd`:/src nixos/nix:2.18.1 <<EOF
-        nix-env -iA cachix -f https://cachix.org/api/v1/install
-        cachix use autc04
-        nix-build src -A ${TARGET}.retro68.samples
-      EOF
-    displayName: Build inside nixos/nix docker
-  - script: |
-      mkdir CompiledSamples
-      cd CompiledSamples
-      docker cp -L nix:result - | tar x --strip-components 1
-    displayName: Copy result out of docker
-
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+      nix develop .#${TARGET} --profile dev-profile -c true
+      nix build .#samples-${TARGET} --out-link CompiledSamples
+    displayName: Build
   - publish: CompiledSamples
     artifact: Samples ($(TARGET))
   - script: |
-      docker start nix -i <<EOF || true
-          set -e
-          export CACHIX_AUTH_TOKEN=$(CACHIX_AUTH_TOKEN)
-          cd src
-          nix-build -A ${TARGET}.retro68.samples | cachix push autc04
-          nix-shell -A ${TARGET} --command exit
-          nix-store -qR --include-outputs \$(nix-instantiate default.nix -A ${TARGET}) | cachix push autc04
-      EOF
+      . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+      export CACHIX_AUTH_TOKEN=$(CACHIX_AUTH_TOKEN)
+      cachix push autc04 dev-profile
+      cachix push autc04 CompiledSamples
     displayName: Push to Cachix
     condition: and(succeeded(), ne(variables['CACHIX_AUTH_TOKEN'], ''))
 
@@ -117,32 +130,29 @@ jobs:
         TARGET: powerpc
       Carbon:
         TARGET: carbon
-    maxParallel: 2
   pool:
-    vmImage: 'macOS-11'
+    vmImage: 'macOS-latest'
   steps:
   - script: |
-      export NIX_EXTRA_CONF="trusted-users = root runner"
-      sh <(curl -L https://nixos.org/nix/install)
-    displayName: Install nix
+      curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+        | sh -s -- install --no-confirm --extra-conf "trusted-users = root runner"
+    displayName: Install Nix
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      nix-env -iA cachix -f https://cachix.org/api/v1/install
+      nix profile install --accept-flake-config nixpkgs#cachix
       cachix use autc04
-    displayName: setup cachix
-
+    displayName: Setup Cachix
   - checkout: self
     submodules: false
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-      nix-build -A $(TARGET).retro68.samples
-    displayName: build
+      nix develop .#${TARGET} --profile dev-profile -c true
+      nix build .#samples-${TARGET} --out-link CompiledSamples
+    displayName: Build
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       export CACHIX_AUTH_TOKEN=$(CACHIX_AUTH_TOKEN)
-      nix-build -A $(TARGET).retro68.samples | (cachix push autc04 || true)
-      nix-shell -A $(TARGET) --command exit
-      nix-store -qR --include-outputs `nix-instantiate default.nix -A $(TARGET)` | (cachix push autc04 || true)
+      cachix push autc04 dev-profile
+      cachix push autc04 CompiledSamples
     displayName: Push to Cachix
     condition: and(succeeded(), ne(variables['CACHIX_AUTH_TOKEN'], ''))
-

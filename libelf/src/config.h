@@ -53,8 +53,9 @@
 #endif	/* USE_LOCKS */
 
 /* Compiler-specific definitions.  */
-//#define strong_alias(name, aliasname) \
- // extern __typeof (name) aliasname __attribute__ ((alias (#name)));
+/*#define strong_alias(name, aliasname) \
+  extern __typeof (name) aliasname __attribute__ ((alias (#name)));
+*/
 
 #define strong_alias(name, aliasname)
 
