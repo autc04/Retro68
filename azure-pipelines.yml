@@ -93,7 +93,7 @@ jobs:
         TARGET: carbon
     maxParallel: 2
   pool:
-    vmImage: 'ubuntu-22.04'
+    vmImage: 'ubuntu-latest'
   steps:
   - script: |
       curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
@@ -133,7 +133,7 @@ jobs:
         TARGET: carbon
     maxParallel: 2
   pool:
-    vmImage: 'macOS-11'
+    vmImage: 'macOS-latest'
   steps:
   - script: |
       curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
@@ -151,8 +151,6 @@ jobs:
       nix develop .#${TARGET} --profile dev-profile -c true
       nix build .#samples-${TARGET} --out-link CompiledSamples
     displayName: Build
-  - publish: CompiledSamples
-    artifact: Samples ($(TARGET))
   - script: |
       . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       export CACHIX_AUTH_TOKEN=$(CACHIX_AUTH_TOKEN)
@@ -160,6 +158,3 @@ jobs:
       cachix push autc04 CompiledSamples
     displayName: Push to Cachix
     condition: and(succeeded(), ne(variables['CACHIX_AUTH_TOKEN'], ''))
-
-  #export NIX_EXTRA_CONF="trusted-users = root runner"
-      #. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
