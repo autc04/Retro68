@@ -18,7 +18,7 @@
         {
           _module.args.pkgs = import nixpkgs { inherit system; overlays = [ self.overlays.default ]; };
 
-          legacyPackages.crossPkgs = lib.mapAttrs
+          legacyPackages.pkgsCross = lib.mapAttrs
             (name: plat:
               import nixpkgs {
                 inherit system;
@@ -46,7 +46,7 @@
                   ];
                   buildInputs = [ cross.retro68.console ];
                 } // cross)
-            self'.legacyPackages.crossPkgs;
+            self'.legacyPackages.pkgsCross;
 
           packages = {
             tools = pkgs.retro68.tools;
@@ -56,31 +56,31 @@
               mkdir $out
               mkdir $out/m68k-apple-macos
               mkdir $out/powerpc-apple-macos
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.crossPkgs.m68k.retro68.libretro}/. $out/m68k-apple-macos
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.crossPkgs.m68k.retro68.multiversal}/. $out/m68k-apple-macos
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.crossPkgs.powerpc.retro68.libretro}/. $out/powerpc-apple-macos
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.crossPkgs.powerpc.retro68.multiversal}/. $out/powerpc-apple-macos
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.crossPkgs.carbon.retro68.libretro}/. $out/powerpc-apple-macos
-              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.crossPkgs.carbon.retro68.multiversal}/. $out/powerpc-apple-macos
+              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.pkgsCross.m68k.retro68.libretro}/. $out/m68k-apple-macos
+              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.pkgsCross.m68k.retro68.multiversal}/. $out/m68k-apple-macos
+              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.pkgsCross.powerpc.retro68.libretro}/. $out/powerpc-apple-macos
+              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.pkgsCross.powerpc.retro68.multiversal}/. $out/powerpc-apple-macos
+              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.pkgsCross.carbon.retro68.libretro}/. $out/powerpc-apple-macos
+              ${pkgs.xorg.lndir}/bin/lndir -silent ${self'.legacyPackages.pkgsCross.carbon.retro68.multiversal}/. $out/powerpc-apple-macos
               ${pkgs.xorg.lndir}/bin/lndir -silent ${pkgs.retro68.tools}/. $out
               ${pkgs.xorg.lndir}/bin/lndir -silent ${pkgs.retro68.hfsutils}/. $out
               ${pkgs.xorg.lndir}/bin/lndir -silent ${pkgs.cmake}/. $out
               ${pkgs.xorg.lndir}/bin/lndir -silent ${pkgs.gnumake}/. $out
               ${pkgs.xorg.lndir}/bin/lndir -silent ${pkgs.ninja}/. $out
 
-              ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.crossPkgs.m68k.buildPackages.retro68.gcc_unwrapped}/. $out
-              ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.crossPkgs.powerpc.buildPackages.retro68.gcc_unwrapped}/. $out
-              ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.crossPkgs.carbon.buildPackages.retro68.gcc_unwrapped}/. $out
+              ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.pkgsCross.m68k.buildPackages.retro68.gcc_unwrapped}/. $out
+              ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.pkgsCross.powerpc.buildPackages.retro68.gcc_unwrapped}/. $out
+              ${pkgs.rsync}/bin/rsync -a ${self'.legacyPackages.pkgsCross.carbon.buildPackages.retro68.gcc_unwrapped}/. $out
             '';
 
             samples = pkgs.linkFarm "Retro68-Samples" [
-              { name = "m68k"; path = self'.legacyPackages.crossPkgs.m68k.retro68.samples; }
-              { name = "powerpc"; path = self'.legacyPackages.crossPkgs.powerpc.retro68.samples; }
-              { name = "carbon"; path = self'.legacyPackages.crossPkgs.carbon.retro68.samples; }
+              { name = "m68k"; path = self'.legacyPackages.pkgsCross.m68k.retro68.samples; }
+              { name = "powerpc"; path = self'.legacyPackages.pkgsCross.powerpc.retro68.samples; }
+              { name = "carbon"; path = self'.legacyPackages.pkgsCross.carbon.retro68.samples; }
             ];
           } // lib.mapAttrs'
             (name: cross: lib.nameValuePair "samples-${name}" cross.retro68.samples)
-            self'.legacyPackages.crossPkgs;
+            self'.legacyPackages.pkgsCross;
         };
       flake = {
         overlays.default =
