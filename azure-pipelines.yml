@@ -91,7 +91,6 @@ jobs:
         TARGET: powerpc
       Carbon:
         TARGET: carbon
-    maxParallel: 2
   pool:
     vmImage: 'ubuntu-latest'
   steps:
@@ -131,7 +130,6 @@ jobs:
         TARGET: powerpc
       Carbon:
         TARGET: carbon
-    maxParallel: 2
   pool:
     vmImage: 'macOS-latest'
   steps:
