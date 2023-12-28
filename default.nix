@@ -1,10 +1,9 @@
 let sources = import ./nix/sources.nix;
-in { system ? builtins.currentSystem, nixpkgs ? sources.nixpkgs, 
-  multiversal_src ?  if builtins.pathExists ./multiversal/make-multiverse.rb then
-    ./multiversal
-  else
-    sources.multiversal,
-  ... }:
+in { system ? builtins.currentSystem, nixpkgs ? sources.nixpkgs
+, multiversal_src ? if builtins.pathExists ./multiversal/make-multiverse.rb then
+  ./multiversal
+else
+  sources.multiversal, ... }:
 
 let
   retroPlatforms = import nix/platforms.nix;
@@ -30,8 +29,7 @@ let
       crossSystem = plat;
       config = { allowUnsupportedSystem = true; };
     }) retroPlatforms;
-  targetPkgs = lib.mapAttrs (name: cross:
-    cross.buildPackages) crossPkgs;
+  targetPkgs = lib.mapAttrs (name: cross: cross.buildPackages) crossPkgs;
 
   shell = lib.mapAttrs (name: cross:
     cross.mkShell {
@@ -44,8 +42,10 @@ let
       buildInputs = [ cross.retro68.console ];
     } // cross) crossPkgs;
 
-in shell.m68k // shell // {
+in builtins.trace
+"Warning: Retro68's default.nix is deprecated and will disappear soon. Please use the flake instead."
+(shell.m68k // shell // {
   inherit overlay;
   inherit (overlaidPkgs) retro68;
   targetPkg = targetPkgs;
-}
+})
