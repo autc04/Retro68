@@ -3,84 +3,84 @@ trigger:
 
 jobs:
 
-#- job: Linux
-#  pool:
-#    vmImage: 'ubuntu-latest'
-#  timeoutInMinutes: 90
-#  variables:
-#  - group: Tokens  
-#  steps:
-#  - checkout: self
-#    submodules: true
-#
-#  - task: Docker@2
-#    inputs:
-#      command: build
-#      repository: ghcr.io/autc04/retro68-build
-#      tags: latest
-#      arguments: --target build
-#    displayName: 'Build'
-#  - task: Docker@2
-#    inputs:
-#      command: build
-#      repository: ghcr.io/autc04/retro68
-#      tags: latest
-#      arguments: --target release
-#    displayName: 'Build release'
-#  - script: |
-#      docker run --name retro68-build --rm -i -d ghcr.io/autc04/retro68-build:latest
-#      docker exec -i retro68-build /bin/bash <<"EOF"
-#        cd /Retro68-build
-#        curl -L -O https://github.com/autc04/executor/releases/download/v0.1.0/Executor2000-0.1.0-Linux.tar.bz2
-#        tar xfvj Executor2000-0.1.0-Linux.tar.bz2 Executor2000-0.1.0-Linux/bin/executor-headless
-#        echo "executor-path=`pwd`/Executor2000-0.1.0-Linux/bin/executor-headless" > ~/.LaunchAPPL.cfg
-#        echo "emulator=executor" >> ~/.LaunchAPPL.cfg
-#        ctest --no-compress-output -T test -E Carbon || true
-#      EOF
-#      mkdir build && docker cp retro68-build:/Retro68-build/Testing build
-#      docker stop retro68-build
-#    displayName: Run Tests using Executor 2000
-#  - task: PublishTestResults@2
-#    inputs:
-#      testResultsFormat: 'CTest'
-#      testResultsFiles: build/Testing/**/*.xml
-#      buildPlatform: 'x86_64-linux'
-#  - script: |
-#      docker login ghcr.io/autc04 -u autc04 -p $GHCR_TOKEN
-#      docker push ghcr.io/autc04/retro68
-#    env:
-#      GHCR_TOKEN: $(GHCR_TOKEN)
-#    displayName: 'Push release to GHCR'
-#    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
-#
-#- job: macOS
-#  pool:
-#    vmImage: 'macOS-11'
-#  timeoutInMinutes: 90
-#  steps:
-#  - checkout: self
-#    submodules: true
-#  - script: |
-#      brew install boost cmake gmp mpfr libmpc bison
-#    displayName: 'Brew prerequisites'
-#  - script: |
-#      mkdir build
-#      cd build
-#      ../build-toolchain.bash
-#    displayName: Build
-#  - script: |
-#      cd build
-#      curl -L -O https://github.com/autc04/executor/releases/download/v0.1.0/Executor2000-0.1.0-Darwin.tar.bz2
-#      tar xfvj Executor2000-0.1.0-Darwin.tar.bz2 Executor2000-0.1.0-Darwin/bin/executor-headless
-#      echo "executor-path=`pwd`/Executor2000-0.1.0-Darwin/bin/executor-headless" > ~/.LaunchAPPL.cfg
-#      echo "emulator=executor" >> ~/.LaunchAPPL.cfg
-#      ctest --no-compress-output -T test -E Carbon || true
-#    displayName: Run Tests using Executor 2000
-#  - task: PublishTestResults@2
-#    inputs:
-#      testResultsFormat: 'CTest'
-#      testResultsFiles: build/Testing/**/*.xml
-#      buildPlatform: 'x86_64-macos'
+- job: Linux
+  pool:
+    vmImage: 'ubuntu-latest'
+  timeoutInMinutes: 90
+  variables:
+  - group: Tokens  
+  steps:
+  - checkout: self
+    submodules: true
+
+  - task: Docker@2
+    inputs:
+      command: build
+      repository: ghcr.io/autc04/retro68-build
+      tags: latest
+      arguments: --target build
+    displayName: 'Build'
+  - task: Docker@2
+    inputs:
+      command: build
+      repository: ghcr.io/autc04/retro68
+      tags: latest
+      arguments: --target release
+    displayName: 'Build release'
+  - script: |
+      docker run --name retro68-build --rm -i -d ghcr.io/autc04/retro68-build:latest
+      docker exec -i retro68-build /bin/bash <<"EOF"
+        cd /Retro68-build
+        curl -L -O https://github.com/autc04/executor/releases/download/v0.1.0/Executor2000-0.1.0-Linux.tar.bz2
+        tar xfvj Executor2000-0.1.0-Linux.tar.bz2 Executor2000-0.1.0-Linux/bin/executor-headless
+        echo "executor-path=`pwd`/Executor2000-0.1.0-Linux/bin/executor-headless" > ~/.LaunchAPPL.cfg
+        echo "emulator=executor" >> ~/.LaunchAPPL.cfg
+        ctest --no-compress-output -T test -E Carbon || true
+      EOF
+      mkdir build && docker cp retro68-build:/Retro68-build/Testing build
+      docker stop retro68-build
+    displayName: Run Tests using Executor 2000
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFormat: 'CTest'
+      testResultsFiles: build/Testing/**/*.xml
+      buildPlatform: 'x86_64-linux'
+  - script: |
+      docker login ghcr.io/autc04 -u autc04 -p $GHCR_TOKEN
+      docker push ghcr.io/autc04/retro68
+    env:
+      GHCR_TOKEN: $(GHCR_TOKEN)
+    displayName: 'Push release to GHCR'
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+
+- job: macOS
+  pool:
+    vmImage: 'macOS-11'
+  timeoutInMinutes: 90
+  steps:
+  - checkout: self
+    submodules: true
+  - script: |
+      brew install boost cmake gmp mpfr libmpc bison
+    displayName: 'Brew prerequisites'
+  - script: |
+      mkdir build
+      cd build
+      ../build-toolchain.bash
+    displayName: Build
+  - script: |
+      cd build
+      curl -L -O https://github.com/autc04/executor/releases/download/v0.1.0/Executor2000-0.1.0-Darwin.tar.bz2
+      tar xfvj Executor2000-0.1.0-Darwin.tar.bz2 Executor2000-0.1.0-Darwin/bin/executor-headless
+      echo "executor-path=`pwd`/Executor2000-0.1.0-Darwin/bin/executor-headless" > ~/.LaunchAPPL.cfg
+      echo "emulator=executor" >> ~/.LaunchAPPL.cfg
+      ctest --no-compress-output -T test -E Carbon || true
+    displayName: Run Tests using Executor 2000
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFormat: 'CTest'
+      testResultsFiles: build/Testing/**/*.xml
+      buildPlatform: 'x86_64-macos'
 
 - job: NixLinux
   strategy:
