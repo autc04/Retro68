@@ -19,6 +19,8 @@
  * $Id: data.h,v 1.5 1998/04/11 08:27:18 rob Exp $
  */
 
+# include <time.h>
+
 extern const unsigned char hfs_charorder[];
 
 signed char d_getsb(const unsigned char *);

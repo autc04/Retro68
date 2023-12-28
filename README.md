@@ -155,37 +155,39 @@ Using Retro68 with Nix
 If you are not using the [Nix Package Manager](https://www.nixos.org), please skip this section. But maybe you should be using it ;-).
 
 Nix is a package manager that runs on Linux and macOS, and NixOS is a Linux distribution based on it.
+Try the [Determinate Nix Installer](https://install.determinate.systems/) for the best installation experience.
 
-If you've got `nix` installed, after downloading Retro68, you can run
+[TODO: docs on using the binary cache to avoid builds]
 
-    nix-shell
+Once you've got `nix` installed, and without checking out the Retro68 repository, you can run
+
+    nix develop github:autc04/Retro68#m68k
 
 from the Retro68 directory to get a shell with the compiler tools targeting
 68K Macs available in the path, and `CC` and other environment variables already
 set up for you. You can then `cd` to one of the example directories or to your
 own project and use `cmake` to build it.
 
-You can use the `nix-shell` command to invoke various useful shell environments:
+Likewise, use
 
-| Command                             | What                                         |
-|-------------------------------------|----------------------------------------------|
-| `nix-shell`                         | 68K development environment                  |
-| `nix-shell -A m68k`                 | 68K development environment                  |
-| `nix-shell -A powerpc`              | PowerPC development environment              |
-| `nix-shell -A retro68.monolithic`   | Shell for running `build-toolchain.bash`     |
+    nix develop github:autc04/Retro68#powerpc
 
-You can also use the `nix-build` command to build packages. As always with `nix`,
+... to get an environment targeting PowerPC Macs.
+
+If you have a local checkout of Retro68, you can replace `github:autc04/Retro68` by the path
+to that local checkout, e.g., run `nix develop .#m68k` from inside the Retro68 directory.
+
+You can also use the `nix build` command to build packages. As always with `nix`,
 the result will be somewhere in a subdirectory of `/nix/store`, with a symlink
-named `result` placed in your Retro68 directory.
+named `result` placed in the directory where you invoked the command.
 
-| Command                                | What                                         |
-|----------------------------------------|----------------------------------------------|
-| `nix-build -A m68k.retro68.samples`    | Sample programs for 68K                      |
-| `nix-build -A powerpc.retro68.samples` | Sample programs for PowerPC                  |
-| `nix-build -A retro68.monolithic`      | Result of `build-toolchain.bash --no-carbon` |
-| `nix-build -A m68k.zlib`               | zlib library, cross-compiled for 68K Macs    |
-| `nix-build -A m68k.`*packagename*      | cross-compile *packagename* to 68K           |
-| `nix-build -A powerpc.`*packagename*   | cross-compile *packagename* to PowerPC       |
+| Command                                                            | What                                      |
+|--------------------------------------------------------------------|-------------------------------------------|
+| `nix build github:autc04/Retro68#samples-m68k`                     | Sample programs for 68K                   |
+| `nix build github:autc04/Retro68#samples-powerpc`                  | Sample programs for PowerPC               |
+| `nix build github:autc04/Retro68#pkgsCross.m68k.zlib`              | zlib library, cross-compiled for 68K Macs |
+| `nix build github:autc04/Retro68#pkgsCross.m68k.`*packagename*     | cross-compile *packagename* to 68K        |
+| `nnix build github:autc04/Retro68#pkgsCross.powerpc.`*packagename* | cross-compile *packagename* to PowerPC    |
 
 You can attempt to cross-compile *any* package from the `nixpkgs` collection. Unless the
 package contains a very portable library, the command will of course fail. Please don't
