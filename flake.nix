@@ -18,6 +18,8 @@
         {
           _module.args.pkgs = import nixpkgs { inherit system; overlays = [ self.overlays.default ]; };
 
+          formatter = pkgs.nixpkgs-fmt;
+
           legacyPackages.pkgsCross = lib.mapAttrs
             (name: plat:
               import nixpkgs {
@@ -52,7 +54,7 @@
             tools = pkgs.retro68.tools;
             hfsutils = pkgs.retro68.hfsutils;
 
-            default = pkgs.runCommand "Retro68" {} ''
+            default = pkgs.runCommand "Retro68" { } ''
               mkdir $out
               mkdir $out/m68k-apple-macos
               mkdir $out/powerpc-apple-macos
@@ -85,8 +87,9 @@
       flake = {
         overlays.default =
           lib.composeManyExtensions [
-            ((import nix/overlay.nix) { 
-              multiversal_src = if builtins.pathExists ./multiversal/make-multiverse.rb
+            ((import nix/overlay.nix) {
+              multiversal_src =
+                if builtins.pathExists ./multiversal/make-multiverse.rb
                 then ./multiversal
                 else multiversal;
             })
