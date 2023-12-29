@@ -67,10 +67,14 @@ elseif(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
     set(WDEF_RESOURCE WDEF.pef)
 endif()
 
+if (REZ_INCLUDE_PATH)
+    set(REZ_INCLUDE_FLAG -I${REZ_INCLUDE_PATH})
+endif()
+
     # wrap the compiled WDEF into a resource
 add_custom_command(
     OUTPUT WDEF.rsrc.bin
-    COMMAND ${REZ} -I ${REZ_INCLUDE_PATH}
+    COMMAND ${REZ} ${REZ_INCLUDE_FLAG}
                     ${CMAKE_CURRENT_SOURCE_DIR}/${WDEF_R}
                     -o WDEF.rsrc.bin
                     
