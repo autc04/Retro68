@@ -46,10 +46,14 @@ set_target_properties(SystemExtension PROPERTIES
         # of code in a data file
     LINK_FLAGS -Wl,--mac-flat)
 
+if (REZ_INCLUDE_PATH)
+    set(REZ_INCLUDE_FLAG -I${REZ_INCLUDE_PATH})
+endif()
+
     # Use Rez to put it together
 add_custom_command(
     OUTPUT SystemExtension.bin SystemExtension.dsk
-    COMMAND ${REZ} -I ${REZ_INCLUDE_PATH}
+    COMMAND ${REZ} ${REZ_INCLUDE_FLAG}
                     ${CMAKE_CURRENT_SOURCE_DIR}/SystemExtension.r
                     --copy ${CMAKE_CURRENT_SOURCE_DIR}/Icons.rsrc.bin
                     -o SystemExtension.bin
