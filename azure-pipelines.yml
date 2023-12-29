@@ -55,7 +55,7 @@ jobs:
 
 - job: macOS
   pool:
-    vmImage: 'macOS-11'
+    vmImage: 'macOS-13'
   timeoutInMinutes: 90
   steps:
   - checkout: self
