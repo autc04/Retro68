@@ -61,7 +61,7 @@ jobs:
   - checkout: self
     submodules: true
   - script: |
-      brew install boost cmake gmp mpfr libmpc bison
+      brew install boost cmake gmp mpfr libmpc bison texinfo
     displayName: 'Brew prerequisites'
   - script: |
       mkdir build
